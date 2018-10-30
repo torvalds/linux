@@ -203,9 +203,9 @@ static int creg_queue_cmd(struct rsxx_cardinfo *card,
 	return 0;
 }
 
-static void creg_cmd_timed_out(unsigned long data)
+static void creg_cmd_timed_out(struct timer_list *t)
 {
-	struct rsxx_cardinfo *card = (struct rsxx_cardinfo *) data;
+	struct rsxx_cardinfo *card = from_timer(card, t, creg_ctrl.cmd_timer);
 	struct creg_cmd *cmd;
 
 	spin_lock(&card->creg_ctrl.lock);
@@ -276,7 +276,7 @@ static void creg_cmd_done(struct work_struct *work)
 		st = -EIO;
 	}
 
-	if ((cmd->op == CREG_OP_READ)) {
+	if (cmd->op == CREG_OP_READ) {
 		unsigned int cnt8 = ioread32(card->regmap + CREG_CNT);
 
 		/* Paranoid Sanity Checks */
@@ -745,8 +745,7 @@ int rsxx_creg_setup(struct rsxx_cardinfo *card)
 	mutex_init(&card->creg_ctrl.reset_lock);
 	INIT_LIST_HEAD(&card->creg_ctrl.queue);
 	spin_lock_init(&card->creg_ctrl.lock);
-	setup_timer(&card->creg_ctrl.cmd_timer, creg_cmd_timed_out,
-		    (unsigned long) card);
+	timer_setup(&card->creg_ctrl.cmd_timer, creg_cmd_timed_out, 0);
 
 	return 0;
 }

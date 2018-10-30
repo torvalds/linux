@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 #
 # This test is for checking network interface
 # For the moment it tests only ethernet interface (but wifi could be easily added)
@@ -6,6 +7,9 @@
 # We assume that all network driver are loaded
 # if not they probably have failed earlier in the boot process and their logged error will be catched by another test
 #
+
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
 
 # this function will try to up the interface
 # if already up, nothing done
@@ -17,7 +21,7 @@ kci_net_start()
 	ip link show "$netdev" |grep -q UP
 	if [ $? -eq 0 ];then
 		echo "SKIP: $netdev: interface already up"
-		return 0
+		return $ksft_skip
 	fi
 
 	ip link set "$netdev" up
@@ -60,12 +64,12 @@ kci_net_setup()
 	ip address show "$netdev" |grep '^[[:space:]]*inet'
 	if [ $? -eq 0 ];then
 		echo "SKIP: $netdev: already have an IP"
-		return 0
+		return $ksft_skip
 	fi
 
 	# TODO what ipaddr to set ? DHCP ?
 	echo "SKIP: $netdev: set IP address"
-	return 0
+	return $ksft_skip
 }
 
 # test an ethtool command
@@ -83,6 +87,7 @@ kci_netdev_ethtool_test()
 	if [ $ret -ne 0 ];then
 		if [ $ret -eq "$1" ];then
 			echo "SKIP: $netdev: ethtool $2 not supported"
+			return $ksft_skip
 		else
 			echo "FAIL: $netdev: ethtool $2"
 			return 1
@@ -103,7 +108,7 @@ kci_netdev_ethtool()
 	ethtool --version 2>/dev/null >/dev/null
 	if [ $? -ne 0 ];then
 		echo "SKIP: ethtool not present"
-		return 1
+		return $ksft_skip
 	fi
 
 	TMP_ETHTOOL_FEATURES="$(mktemp)"
@@ -175,13 +180,13 @@ kci_test_netdev()
 #check for needed privileges
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
-	exit 0
+	exit $ksft_skip
 fi
 
-ip -Version 2>/dev/null >/dev/null
+ip link show 2>/dev/null >/dev/null
 if [ $? -ne 0 ];then
 	echo "SKIP: Could not run test without the ip tool"
-	exit 0
+	exit $ksft_skip
 fi
 
 TMP_LIST_NETDEV="$(mktemp)"

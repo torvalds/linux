@@ -26,17 +26,13 @@
 
 #include <linux/rwsem.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/sched/mm.h>
 #include "kfd_priv.h"
 #include "kfd_mqd_manager.h"
 
-#define QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS	(500)
-#define CIK_VMID_NUM				(8)
-#define KFD_VMID_START_OFFSET			(8)
-#define VMID_PER_DEVICE				CIK_VMID_NUM
-#define KFD_DQM_FIRST_PIPE			(0)
-#define CIK_SDMA_QUEUES				(4)
-#define CIK_SDMA_QUEUES_PER_ENGINE		(2)
-#define CIK_SDMA_ENGINE_NUM			(2)
+#define KFD_UNMAP_LATENCY_MS			(4000)
+#define QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS (2 * KFD_UNMAP_LATENCY_MS + 1000)
 
 struct device_process_node {
 	struct qcm_process_device *qpd;
@@ -79,13 +75,20 @@ struct device_process_node {
  * @set_cache_memory_policy: Sets memory policy (cached/ non cached) for the
  * memory apertures.
  *
+ * @process_termination: Clears all process queues belongs to that device.
+ *
+ * @evict_process_queues: Evict all active queues of a process
+ *
+ * @restore_process_queues: Restore all evicted queues queues of a process
+ *
+ * @get_wave_state: Retrieves context save state and optionally copies the
+ * control stack, if kept in the MQD, to the given userspace address.
  */
 
 struct device_queue_manager_ops {
 	int	(*create_queue)(struct device_queue_manager *dqm,
 				struct queue *q,
-				struct qcm_process_device *qpd,
-				int *allocate_vmid);
+				struct qcm_process_device *qpd);
 
 	int	(*destroy_queue)(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
@@ -122,12 +125,30 @@ struct device_queue_manager_ops {
 					   enum cache_policy alternate_policy,
 					   void __user *alternate_aperture_base,
 					   uint64_t alternate_aperture_size);
+
+	int	(*set_trap_handler)(struct device_queue_manager *dqm,
+				    struct qcm_process_device *qpd,
+				    uint64_t tba_addr,
+				    uint64_t tma_addr);
+
+	int (*process_termination)(struct device_queue_manager *dqm,
+			struct qcm_process_device *qpd);
+
+	int (*evict_process_queues)(struct device_queue_manager *dqm,
+				    struct qcm_process_device *qpd);
+	int (*restore_process_queues)(struct device_queue_manager *dqm,
+				      struct qcm_process_device *qpd);
+
+	int	(*get_wave_state)(struct device_queue_manager *dqm,
+				  struct queue *q,
+				  void __user *ctl_stack,
+				  u32 *ctl_stack_used_size,
+				  u32 *save_area_used_size);
 };
 
 struct device_queue_manager_asic_ops {
-	int	(*register_process)(struct device_queue_manager *dqm,
+	int	(*update_qpd)(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
-	int	(*initialize)(struct device_queue_manager *dqm);
 	bool	(*set_cache_memory_policy)(struct device_queue_manager *dqm,
 					   struct qcm_process_device *qpd,
 					   enum cache_policy default_policy,
@@ -153,13 +174,14 @@ struct device_queue_manager_asic_ops {
 
 struct device_queue_manager {
 	struct device_queue_manager_ops ops;
-	struct device_queue_manager_asic_ops ops_asic_specific;
+	struct device_queue_manager_asic_ops asic_ops;
 
-	struct mqd_manager	*mqds[KFD_MQD_TYPE_MAX];
+	struct mqd_manager	*mqd_mgrs[KFD_MQD_TYPE_MAX];
 	struct packet_manager	packets;
 	struct kfd_dev		*dev;
-	struct mutex		lock;
+	struct mutex		lock_hidden; /* use dqm_lock/unlock(dqm) */
 	struct list_head	queues;
+	unsigned int		saved_flags;
 	unsigned int		processes_count;
 	unsigned int		queue_count;
 	unsigned int		sdma_queue_count;
@@ -174,15 +196,29 @@ struct device_queue_manager {
 	unsigned int		*fence_addr;
 	struct kfd_mem_obj	*fence_mem;
 	bool			active_runlist;
+	int			sched_policy;
+
+	/* hw exception  */
+	bool			is_hws_hang;
+	struct work_struct	hw_exception_work;
 };
 
-void device_queue_manager_init_cik(struct device_queue_manager_asic_ops *ops);
-void device_queue_manager_init_vi(struct device_queue_manager_asic_ops *ops);
+void device_queue_manager_init_cik(
+		struct device_queue_manager_asic_ops *asic_ops);
+void device_queue_manager_init_cik_hawaii(
+		struct device_queue_manager_asic_ops *asic_ops);
+void device_queue_manager_init_vi(
+		struct device_queue_manager_asic_ops *asic_ops);
+void device_queue_manager_init_vi_tonga(
+		struct device_queue_manager_asic_ops *asic_ops);
+void device_queue_manager_init_v9(
+		struct device_queue_manager_asic_ops *asic_ops);
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
 unsigned int get_queues_num(struct device_queue_manager *dqm);
 unsigned int get_queues_per_pipe(struct device_queue_manager *dqm);
 unsigned int get_pipes_per_mec(struct device_queue_manager *dqm);
+unsigned int get_num_sdma_queues(struct device_queue_manager *dqm);
 
 static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {
@@ -193,6 +229,21 @@ static inline unsigned int
 get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
 {
 	return (pdd->lds_base >> 60) & 0x0E;
+}
+
+/* The DQM lock can be taken in MMU notifiers. Make sure no reclaim-FS
+ * happens while holding this lock anywhere to prevent deadlocks when
+ * an MMU notifier runs in reclaim-FS context.
+ */
+static inline void dqm_lock(struct device_queue_manager *dqm)
+{
+	mutex_lock(&dqm->lock_hidden);
+	dqm->saved_flags = memalloc_nofs_save();
+}
+static inline void dqm_unlock(struct device_queue_manager *dqm)
+{
+	memalloc_nofs_restore(dqm->saved_flags);
+	mutex_unlock(&dqm->lock_hidden);
 }
 
 #endif /* KFD_DEVICE_QUEUE_MANAGER_H_ */

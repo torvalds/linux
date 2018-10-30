@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/arch/ia64/sn/kernel/sn2/timer.c
  *

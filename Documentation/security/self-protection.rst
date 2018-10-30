@@ -156,7 +156,7 @@ The classic stack buffer overflow involves writing past the expected end
 of a variable stored on the stack, ultimately writing a controlled value
 to the stack frame's stored return address. The most widely used defense
 is the presence of a stack canary between the stack variables and the
-return address (``CONFIG_CC_STACKPROTECTOR``), which is verified just before
+return address (``CONFIG_STACKPROTECTOR``), which is verified just before
 the function returns. Other defenses include things like shadow stacks.
 
 Stack depth overflow
@@ -269,6 +269,21 @@ Since the locations of sensitive structures are the primary target for
 attacks, it is important to defend against exposure of both kernel memory
 addresses and kernel memory contents (since they may contain kernel
 addresses or other sensitive things like canary values).
+
+Kernel addresses
+----------------
+
+Printing kernel addresses to userspace leaks sensitive information about
+the kernel memory layout. Care should be exercised when using any printk
+specifier that prints the raw address, currently %px, %p[ad], (and %p[sSb]
+in certain circumstances [*]).  Any file written to using one of these
+specifiers should be readable only by privileged processes.
+
+Kernels 4.14 and older printed the raw address using %p. As of 4.15-rc1
+addresses printed with the specifier %p are hashed before printing.
+
+[*] If KALLSYMS is enabled and symbol lookup fails, the raw address is
+printed. If KALLSYMS is not enabled the raw address is printed.
 
 Unique identifiers
 ------------------

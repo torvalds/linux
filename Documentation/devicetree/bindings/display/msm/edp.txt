@@ -12,11 +12,11 @@ Required properties:
 - clocks: device clocks
   See Documentation/devicetree/bindings/clock/clock-bindings.txt for details.
 - clock-names: the following clocks are required:
-  * "core_clk"
-  * "iface_clk"
-  * "mdp_core_clk"
-  * "pixel_clk"
-  * "link_clk"
+  * "core"
+  * "iface"
+  * "mdp_core"
+  * "pixel"
+  * "link"
 - #clock-cells: The value should be 1.
 - vdda-supply: phandle to vdda regulator device node
 - lvl-vdd-supply: phandle to regulator device node which is used to supply power
@@ -24,10 +24,6 @@ Required properties:
 - panel-en-gpios: GPIO pin to supply power to panel.
 - panel-hpd-gpios: GPIO pin used for eDP hpd.
 
-
-Optional properties:
-- interrupt-parent: phandle to the MDP block if the interrupt signal is routed
-  through MDP block
 
 Example:
 	mdss_edp: qcom,mdss_edp@fd923400 {
@@ -41,11 +37,11 @@ Example:
 			interrupts = <12 0>;
 			power-domains = <&mmcc MDSS_GDSC>;
 			clock-names =
-				"core_clk",
-				"pixel_clk",
-				"iface_clk",
-				"link_clk",
-				"mdp_core_clk";
+				"core",
+				"pixel",
+				"iface",
+				"link",
+				"mdp_core";
 			clocks =
 				<&mmcc MDSS_EDPAUX_CLK>,
 				<&mmcc MDSS_EDPPIXEL_CLK>,

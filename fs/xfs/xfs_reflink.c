@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -49,8 +35,6 @@
 #include "xfs_alloc.h"
 #include "xfs_quota_defs.h"
 #include "xfs_quota.h"
-#include "xfs_btree.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_reflink.h"
 #include "xfs_iomap.h"
 #include "xfs_rmap_btree.h"
@@ -173,12 +157,12 @@ xfs_reflink_find_shared(
 	if (!agbp)
 		return -ENOMEM;
 
-	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agno, NULL);
+	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agno);
 
 	error = xfs_refcount_find_shared(cur, agbno, aglen, fbno, flen,
 			find_end_of_shared);
 
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 
 	xfs_trans_brelse(tp, agbp);
 	return error;
@@ -198,8 +182,7 @@ int
 xfs_reflink_trim_around_shared(
 	struct xfs_inode	*ip,
 	struct xfs_bmbt_irec	*irec,
-	bool			*shared,
-	bool			*trimmed)
+	bool			*shared)
 {
 	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
@@ -225,7 +208,7 @@ xfs_reflink_trim_around_shared(
 	if (error)
 		return error;
 
-	*shared = *trimmed = false;
+	*shared = false;
 	if (fbno == NULLAGBLOCK) {
 		/* No shared blocks at all. */
 		return 0;
@@ -238,8 +221,6 @@ xfs_reflink_trim_around_shared(
 		 */
 		irec->br_blockcount = flen;
 		*shared = true;
-		if (flen != aglen)
-			*trimmed = true;
 		return 0;
 	} else {
 		/*
@@ -249,7 +230,6 @@ xfs_reflink_trim_around_shared(
 		 * start of the shared region.
 		 */
 		irec->br_blockcount = fbno - agbno;
-		*trimmed = true;
 		return 0;
 	}
 }
@@ -257,7 +237,7 @@ xfs_reflink_trim_around_shared(
 /*
  * Trim the passed in imap to the next shared/unshared extent boundary, and
  * if imap->br_startoff points to a shared extent reserve space for it in the
- * COW fork.  In this case *shared is set to true, else to false.
+ * COW fork.
  *
  * Note that imap will always contain the block numbers for the existing blocks
  * in the data fork, as the upper layers need them for read-modify-write
@@ -266,14 +246,14 @@ xfs_reflink_trim_around_shared(
 int
 xfs_reflink_reserve_cow(
 	struct xfs_inode	*ip,
-	struct xfs_bmbt_irec	*imap,
-	bool			*shared)
+	struct xfs_bmbt_irec	*imap)
 {
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	struct xfs_bmbt_irec	got;
 	int			error = 0;
-	bool			eof = false, trimmed;
-	xfs_extnum_t		idx;
+	bool			eof = false;
+	struct xfs_iext_cursor	icur;
+	bool			shared;
 
 	/*
 	 * Search the COW fork extent list first.  This serves two purposes:
@@ -284,35 +264,33 @@ xfs_reflink_reserve_cow(
 	 * tree.
 	 */
 
-	if (!xfs_iext_lookup_extent(ip, ifp, imap->br_startoff, &idx, &got))
+	if (!xfs_iext_lookup_extent(ip, ifp, imap->br_startoff, &icur, &got))
 		eof = true;
 	if (!eof && got.br_startoff <= imap->br_startoff) {
 		trace_xfs_reflink_cow_found(ip, imap);
 		xfs_trim_extent(imap, got.br_startoff, got.br_blockcount);
-
-		*shared = true;
 		return 0;
 	}
 
 	/* Trim the mapping to the nearest shared extent boundary. */
-	error = xfs_reflink_trim_around_shared(ip, imap, shared, &trimmed);
+	error = xfs_reflink_trim_around_shared(ip, imap, &shared);
 	if (error)
 		return error;
 
 	/* Not shared?  Just report the (potentially capped) extent. */
-	if (!*shared)
+	if (!shared)
 		return 0;
 
 	/*
 	 * Fork all the shared blocks from our write offset until the end of
 	 * the extent.
 	 */
-	error = xfs_qm_dqattach_locked(ip, 0);
+	error = xfs_qm_dqattach_locked(ip, false);
 	if (error)
 		return error;
 
 	error = xfs_bmapi_reserve_delalloc(ip, XFS_COW_FORK, imap->br_startoff,
-			imap->br_blockcount, 0, &got, &idx, eof);
+			imap->br_blockcount, 0, &got, &icur, eof);
 	if (error == -ENOSPC || error == -EDQUOT)
 		trace_xfs_reflink_cow_enospc(ip, imap);
 	if (error)
@@ -328,10 +306,8 @@ xfs_reflink_convert_cow_extent(
 	struct xfs_inode		*ip,
 	struct xfs_bmbt_irec		*imap,
 	xfs_fileoff_t			offset_fsb,
-	xfs_filblks_t			count_fsb,
-	struct xfs_defer_ops		*dfops)
+	xfs_filblks_t			count_fsb)
 {
-	xfs_fsblock_t			first_block = NULLFSBLOCK;
 	int				nimaps = 1;
 
 	if (imap->br_state == XFS_EXT_NORM)
@@ -342,8 +318,8 @@ xfs_reflink_convert_cow_extent(
 	if (imap->br_blockcount == 0)
 		return 0;
 	return xfs_bmapi_write(NULL, ip, imap->br_startoff, imap->br_blockcount,
-			XFS_BMAPI_COWFORK | XFS_BMAPI_CONVERT, &first_block,
-			0, imap, &nimaps, dfops);
+			XFS_BMAPI_COWFORK | XFS_BMAPI_CONVERT, 0, imap,
+			&nimaps);
 }
 
 /* Convert all of the unwritten CoW extents in a file's range to real ones. */
@@ -353,31 +329,65 @@ xfs_reflink_convert_cow(
 	xfs_off_t		offset,
 	xfs_off_t		count)
 {
-	struct xfs_bmbt_irec	got;
-	struct xfs_defer_ops	dfops;
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	xfs_fileoff_t		end_fsb = XFS_B_TO_FSB(mp, offset + count);
-	xfs_extnum_t		idx;
-	bool			found;
-	int			error = 0;
+	xfs_filblks_t		count_fsb = end_fsb - offset_fsb;
+	struct xfs_bmbt_irec	imap;
+	int			nimaps = 1, error = 0;
+
+	ASSERT(count != 0);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-
-	/* Convert all the extents to real from unwritten. */
-	for (found = xfs_iext_lookup_extent(ip, ifp, offset_fsb, &idx, &got);
-	     found && got.br_startoff < end_fsb;
-	     found = xfs_iext_get_extent(ifp, ++idx, &got)) {
-		error = xfs_reflink_convert_cow_extent(ip, &got, offset_fsb,
-				end_fsb - offset_fsb, &dfops);
-		if (error)
-			break;
-	}
-
-	/* Finish up. */
+	error = xfs_bmapi_write(NULL, ip, offset_fsb, count_fsb,
+			XFS_BMAPI_COWFORK | XFS_BMAPI_CONVERT |
+			XFS_BMAPI_CONVERT_ONLY, 0, &imap, &nimaps);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
+}
+
+/*
+ * Find the extent that maps the given range in the COW fork. Even if the extent
+ * is not shared we might have a preallocation for it in the COW fork. If so we
+ * use it that rather than trigger a new allocation.
+ */
+static int
+xfs_find_trim_cow_extent(
+	struct xfs_inode	*ip,
+	struct xfs_bmbt_irec	*imap,
+	bool			*shared,
+	bool			*found)
+{
+	xfs_fileoff_t		offset_fsb = imap->br_startoff;
+	xfs_filblks_t		count_fsb = imap->br_blockcount;
+	struct xfs_iext_cursor	icur;
+	struct xfs_bmbt_irec	got;
+
+	*found = false;
+
+	/*
+	 * If we don't find an overlapping extent, trim the range we need to
+	 * allocate to fit the hole we found.
+	 */
+	if (!xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &got))
+		got.br_startoff = offset_fsb + count_fsb;
+	if (got.br_startoff > offset_fsb) {
+		xfs_trim_extent(imap, imap->br_startoff,
+				got.br_startoff - imap->br_startoff);
+		return xfs_reflink_trim_around_shared(ip, imap, shared);
+	}
+
+	*shared = true;
+	if (isnullstartblock(got.br_startblock)) {
+		xfs_trim_extent(imap, got.br_startoff, got.br_blockcount);
+		return 0;
+	}
+
+	/* real extent found - no need to allocate */
+	xfs_trim_extent(&got, offset_fsb, count_fsb);
+	*imap = got;
+	*found = true;
+	return 0;
 }
 
 /* Allocate all CoW reservations covering a range of blocks in a file. */
@@ -391,159 +401,83 @@ xfs_reflink_allocate_cow(
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		offset_fsb = imap->br_startoff;
 	xfs_filblks_t		count_fsb = imap->br_blockcount;
-	struct xfs_bmbt_irec	got;
-	struct xfs_defer_ops	dfops;
-	struct xfs_trans	*tp = NULL;
-	xfs_fsblock_t		first_block;
+	struct xfs_trans	*tp;
 	int			nimaps, error = 0;
-	bool			trimmed;
+	bool			found;
 	xfs_filblks_t		resaligned;
 	xfs_extlen_t		resblks = 0;
-	xfs_extnum_t		idx;
 
-retry:
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(xfs_is_reflink_inode(ip));
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
+
+	error = xfs_find_trim_cow_extent(ip, imap, shared, &found);
+	if (error || !*shared)
+		return error;
+	if (found)
+		goto convert;
+
+	resaligned = xfs_aligned_fsb_count(imap->br_startoff,
+		imap->br_blockcount, xfs_get_cowextsz_hint(ip));
+	resblks = XFS_DIOSTRAT_SPACE_RES(mp, resaligned);
+
+	xfs_iunlock(ip, *lockmode);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0, &tp);
+	*lockmode = XFS_ILOCK_EXCL;
+	xfs_ilock(ip, *lockmode);
+
+	if (error)
+		return error;
+
+	error = xfs_qm_dqattach_locked(ip, false);
+	if (error)
+		goto out_trans_cancel;
 
 	/*
-	 * Even if the extent is not shared we might have a preallocation for
-	 * it in the COW fork.  If so use it.
+	 * Check for an overlapping extent again now that we dropped the ilock.
 	 */
-	if (xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &idx, &got) &&
-	    got.br_startoff <= offset_fsb) {
-		*shared = true;
-
-		/* If we have a real allocation in the COW fork we're done. */
-		if (!isnullstartblock(got.br_startblock)) {
-			xfs_trim_extent(&got, offset_fsb, count_fsb);
-			*imap = got;
-			goto convert;
-		}
-
-		xfs_trim_extent(imap, got.br_startoff, got.br_blockcount);
-	} else {
-		error = xfs_reflink_trim_around_shared(ip, imap, shared, &trimmed);
-		if (error || !*shared)
-			goto out;
-	}
-
-	if (!tp) {
-		resaligned = xfs_aligned_fsb_count(imap->br_startoff,
-			imap->br_blockcount, xfs_get_cowextsz_hint(ip));
-		resblks = XFS_DIOSTRAT_SPACE_RES(mp, resaligned);
-
-		xfs_iunlock(ip, *lockmode);
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0, &tp);
-		*lockmode = XFS_ILOCK_EXCL;
-		xfs_ilock(ip, *lockmode);
-
-		if (error)
-			return error;
-
-		error = xfs_qm_dqattach_locked(ip, 0);
-		if (error)
-			goto out;
-		goto retry;
+	error = xfs_find_trim_cow_extent(ip, imap, shared, &found);
+	if (error || !*shared)
+		goto out_trans_cancel;
+	if (found) {
+		xfs_trans_cancel(tp);
+		goto convert;
 	}
 
 	error = xfs_trans_reserve_quota_nblks(tp, ip, resblks, 0,
 			XFS_QMOPT_RES_REGBLKS);
 	if (error)
-		goto out;
+		goto out_trans_cancel;
 
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_defer_init(&dfops, &first_block);
-	nimaps = 1;
-
 	/* Allocate the entire reservation as unwritten blocks. */
+	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, imap->br_startoff, imap->br_blockcount,
-			XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC, &first_block,
-			resblks, imap, &nimaps, &dfops);
+			XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC,
+			resblks, imap, &nimaps);
 	if (error)
-		goto out_bmap_cancel;
+		goto out_unreserve;
 
-	/* Finish up. */
-	error = xfs_defer_finish(&tp, &dfops);
-	if (error)
-		goto out_bmap_cancel;
-
+	xfs_inode_set_cowblocks_tag(ip);
 	error = xfs_trans_commit(tp);
 	if (error)
 		return error;
+
+	/*
+	 * Allocation succeeded but the requested range was not even partially
+	 * satisfied?  Bail out!
+	 */
+	if (nimaps == 0)
+		return -ENOSPC;
 convert:
-	return xfs_reflink_convert_cow_extent(ip, imap, offset_fsb, count_fsb,
-			&dfops);
-out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
+	return xfs_reflink_convert_cow_extent(ip, imap, offset_fsb, count_fsb);
+
+out_unreserve:
 	xfs_trans_unreserve_quota_nblks(tp, ip, (long)resblks, 0,
 			XFS_QMOPT_RES_REGBLKS);
-out:
-	if (tp)
-		xfs_trans_cancel(tp);
+out_trans_cancel:
+	xfs_trans_cancel(tp);
 	return error;
-}
-
-/*
- * Find the CoW reservation for a given byte offset of a file.
- */
-bool
-xfs_reflink_find_cow_mapping(
-	struct xfs_inode		*ip,
-	xfs_off_t			offset,
-	struct xfs_bmbt_irec		*imap)
-{
-	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
-	xfs_fileoff_t			offset_fsb;
-	struct xfs_bmbt_irec		got;
-	xfs_extnum_t			idx;
-
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
-	ASSERT(xfs_is_reflink_inode(ip));
-
-	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
-	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &idx, &got))
-		return false;
-	if (got.br_startoff > offset_fsb)
-		return false;
-
-	trace_xfs_reflink_find_cow_mapping(ip, offset, 1, XFS_IO_OVERWRITE,
-			&got);
-	*imap = got;
-	return true;
-}
-
-/*
- * Trim an extent to end at the next CoW reservation past offset_fsb.
- */
-void
-xfs_reflink_trim_irec_to_next_cow(
-	struct xfs_inode		*ip,
-	xfs_fileoff_t			offset_fsb,
-	struct xfs_bmbt_irec		*imap)
-{
-	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
-	struct xfs_bmbt_irec		got;
-	xfs_extnum_t			idx;
-
-	if (!xfs_is_reflink_inode(ip))
-		return;
-
-	/* Find the extent in the CoW fork. */
-	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &idx, &got))
-		return;
-
-	/* This is the extent before; try sliding up one. */
-	if (got.br_startoff < offset_fsb) {
-		if (!xfs_iext_get_extent(ifp, idx + 1, &got))
-			return;
-	}
-
-	if (got.br_startoff >= imap->br_startoff + imap->br_blockcount)
-		return;
-
-	imap->br_blockcount = got.br_startoff - imap->br_startoff;
-	trace_xfs_reflink_trim_irec(ip, imap);
 }
 
 /*
@@ -551,6 +485,9 @@ xfs_reflink_trim_irec_to_next_cow(
  *
  * If cancel_real is true this function cancels all COW fork extents for the
  * inode; if cancel_real is false, real extents are not cleared.
+ *
+ * Caller must have already joined the inode to the current transaction. The
+ * inode will be joined to the transaction returned to the caller.
  */
 int
 xfs_reflink_cancel_cow_blocks(
@@ -562,65 +499,70 @@ xfs_reflink_cancel_cow_blocks(
 {
 	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	struct xfs_bmbt_irec		got, del;
-	xfs_extnum_t			idx;
-	xfs_fsblock_t			firstfsb;
-	struct xfs_defer_ops		dfops;
+	struct xfs_iext_cursor		icur;
 	int				error = 0;
 
-	if (!xfs_is_reflink_inode(ip))
+	if (!xfs_inode_has_cow_data(ip))
 		return 0;
-	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &idx, &got))
+	if (!xfs_iext_lookup_extent_before(ip, ifp, &end_fsb, &icur, &got))
 		return 0;
 
-	while (got.br_startoff < end_fsb) {
+	/* Walk backwards until we're out of the I/O range... */
+	while (got.br_startoff + got.br_blockcount > offset_fsb) {
 		del = got;
 		xfs_trim_extent(&del, offset_fsb, end_fsb - offset_fsb);
+
+		/* Extent delete may have bumped ext forward */
+		if (!del.br_blockcount) {
+			xfs_iext_prev(ifp, &icur);
+			goto next_extent;
+		}
+
 		trace_xfs_reflink_cancel_cow(ip, &del);
 
 		if (isnullstartblock(del.br_startblock)) {
 			error = xfs_bmap_del_extent_delay(ip, XFS_COW_FORK,
-					&idx, &got, &del);
+					&icur, &got, &del);
 			if (error)
 				break;
 		} else if (del.br_state == XFS_EXT_UNWRITTEN || cancel_real) {
-			xfs_trans_ijoin(*tpp, ip, 0);
-			xfs_defer_init(&dfops, &firstfsb);
+			ASSERT((*tpp)->t_firstblock == NULLFSBLOCK);
 
 			/* Free the CoW orphan record. */
-			error = xfs_refcount_free_cow_extent(ip->i_mount,
-					&dfops, del.br_startblock,
-					del.br_blockcount);
+			error = xfs_refcount_free_cow_extent(*tpp,
+					del.br_startblock, del.br_blockcount);
 			if (error)
 				break;
 
-			xfs_bmap_add_free(ip->i_mount, &dfops,
-					del.br_startblock, del.br_blockcount,
-					NULL);
-
-			/* Update quota accounting */
-			xfs_trans_mod_dquot_byino(*tpp, ip, XFS_TRANS_DQ_BCOUNT,
-					-(long)del.br_blockcount);
+			xfs_bmap_add_free(*tpp, del.br_startblock,
+					  del.br_blockcount, NULL);
 
 			/* Roll the transaction */
-			xfs_defer_ijoin(&dfops, ip);
-			error = xfs_defer_finish(tpp, &dfops);
-			if (error) {
-				xfs_defer_cancel(&dfops);
+			error = xfs_defer_finish(tpp);
+			if (error)
 				break;
-			}
 
 			/* Remove the mapping from the CoW fork. */
-			xfs_bmap_del_extent_cow(ip, &idx, &got, &del);
-		}
+			xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
 
-		if (!xfs_iext_get_extent(ifp, ++idx, &got))
+			/* Remove the quota reservation */
+			error = xfs_trans_reserve_quota_nblks(NULL, ip,
+					-(long)del.br_blockcount, 0,
+					XFS_QMOPT_RES_REGBLKS);
+			if (error)
+				break;
+		} else {
+			/* Didn't do anything, push cursor back. */
+			xfs_iext_prev(ifp, &icur);
+		}
+next_extent:
+		if (!xfs_iext_get_extent(ifp, &icur, &got))
 			break;
 	}
 
 	/* clear tag if cow fork is emptied */
 	if (!ifp->if_bytes)
 		xfs_inode_clear_cowblocks_tag(ip);
-
 	return error;
 }
 
@@ -653,7 +595,7 @@ xfs_reflink_cancel_cow_range(
 
 	/* Start a rolling transaction to remove the mappings */
 	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_write,
-			0, 0, 0, &tp);
+			0, 0, XFS_TRANS_NOFS, &tp);
 	if (error)
 		goto out;
 
@@ -693,12 +635,10 @@ xfs_reflink_end_cow(
 	struct xfs_trans		*tp;
 	xfs_fileoff_t			offset_fsb;
 	xfs_fileoff_t			end_fsb;
-	xfs_fsblock_t			firstfsb;
-	struct xfs_defer_ops		dfops;
 	int				error;
 	unsigned int			resblks;
 	xfs_filblks_t			rlen;
-	xfs_extnum_t			idx;
+	struct xfs_iext_cursor		icur;
 
 	trace_xfs_reflink_end_cow(ip, offset, count);
 
@@ -726,50 +666,44 @@ xfs_reflink_end_cow(
 			(unsigned int)(end_fsb - offset_fsb),
 			XFS_DATA_FORK);
 	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_write,
-			resblks, 0, 0, &tp);
+			resblks, 0, XFS_TRANS_RESERVE | XFS_TRANS_NOFS, &tp);
 	if (error)
 		goto out;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	/* If there is a hole at end_fsb - 1 go to the previous extent */
-	if (!xfs_iext_lookup_extent(ip, ifp, end_fsb - 1, &idx, &got) ||
-	    got.br_startoff > end_fsb) {
-		ASSERT(idx > 0);
-		xfs_iext_get_extent(ifp, --idx, &got);
-	}
+	/*
+	 * In case of racing, overlapping AIO writes no COW extents might be
+	 * left by the time I/O completes for the loser of the race.  In that
+	 * case we are done.
+	 */
+	if (!xfs_iext_lookup_extent_before(ip, ifp, &end_fsb, &icur, &got))
+		goto out_cancel;
 
 	/* Walk backwards until we're out of the I/O range... */
 	while (got.br_startoff + got.br_blockcount > offset_fsb) {
 		del = got;
 		xfs_trim_extent(&del, offset_fsb, end_fsb - offset_fsb);
 
-		/* Extent delete may have bumped idx forward */
-		if (!del.br_blockcount) {
-			idx--;
-			goto next_extent;
-		}
-
-		ASSERT(!isnullstartblock(got.br_startblock));
+		/* Extent delete may have bumped ext forward */
+		if (!del.br_blockcount)
+			goto prev_extent;
 
 		/*
-		 * Don't remap unwritten extents; these are
-		 * speculatively preallocated CoW extents that have been
-		 * allocated but have not yet been involved in a write.
+		 * Only remap real extent that contain data.  With AIO
+		 * speculatively preallocations can leak into the range we
+		 * are called upon, and we need to skip them.
 		 */
-		if (got.br_state == XFS_EXT_UNWRITTEN) {
-			idx--;
-			goto next_extent;
-		}
+		if (!xfs_bmap_is_real_extent(&got))
+			goto prev_extent;
 
 		/* Unmap the old blocks in the data fork. */
-		xfs_defer_init(&dfops, &firstfsb);
+		ASSERT(tp->t_firstblock == NULLFSBLOCK);
 		rlen = del.br_blockcount;
-		error = __xfs_bunmapi(tp, ip, del.br_startoff, &rlen, 0, 1,
-				&firstfsb, &dfops);
+		error = __xfs_bunmapi(tp, ip, del.br_startoff, &rlen, 0, 1);
 		if (error)
-			goto out_defer;
+			goto out_cancel;
 
 		/* Trim the extent to whatever got unmapped. */
 		if (rlen) {
@@ -779,25 +713,31 @@ xfs_reflink_end_cow(
 		trace_xfs_reflink_cow_remap(ip, &del);
 
 		/* Free the CoW orphan record. */
-		error = xfs_refcount_free_cow_extent(tp->t_mountp, &dfops,
-				del.br_startblock, del.br_blockcount);
+		error = xfs_refcount_free_cow_extent(tp, del.br_startblock,
+				del.br_blockcount);
 		if (error)
-			goto out_defer;
+			goto out_cancel;
 
 		/* Map the new blocks into the data fork. */
-		error = xfs_bmap_map_extent(tp->t_mountp, &dfops, ip, &del);
+		error = xfs_bmap_map_extent(tp, ip, &del);
 		if (error)
-			goto out_defer;
+			goto out_cancel;
+
+		/* Charge this new data fork mapping to the on-disk quota. */
+		xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_DELBCOUNT,
+				(long)del.br_blockcount);
 
 		/* Remove the mapping from the CoW fork. */
-		xfs_bmap_del_extent_cow(ip, &idx, &got, &del);
+		xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
 
-		xfs_defer_ijoin(&dfops, ip);
-		error = xfs_defer_finish(&tp, &dfops);
+		error = xfs_defer_finish(&tp);
 		if (error)
-			goto out_defer;
-next_extent:
-		if (!xfs_iext_get_extent(ifp, idx, &got))
+			goto out_cancel;
+		if (!xfs_iext_get_extent(ifp, &icur, &got))
+			break;
+		continue;
+prev_extent:
+		if (!xfs_iext_prev_extent(ifp, &icur, &got))
 			break;
 	}
 
@@ -807,8 +747,7 @@ next_extent:
 		goto out;
 	return 0;
 
-out_defer:
-	xfs_defer_cancel(&dfops);
+out_cancel:
 	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out:
@@ -937,7 +876,7 @@ xfs_reflink_set_inode_flag(
 	if (src->i_ino == dest->i_ino)
 		xfs_ilock(src, XFS_ILOCK_EXCL);
 	else
-		xfs_lock_two_inodes(src, dest, XFS_ILOCK_EXCL);
+		xfs_lock_two_inodes(src, XFS_ILOCK_EXCL, dest, XFS_ILOCK_EXCL);
 
 	if (!xfs_is_reflink_inode(src)) {
 		trace_xfs_reflink_set_inode_flag(src);
@@ -1040,7 +979,7 @@ xfs_reflink_ag_has_free_space(
 		return 0;
 
 	pag = xfs_perag_get(mp, agno);
-	if (xfs_ag_resv_critical(pag, XFS_AG_RESV_AGFL) ||
+	if (xfs_ag_resv_critical(pag, XFS_AG_RESV_RMAPBT) ||
 	    xfs_ag_resv_critical(pag, XFS_AG_RESV_METADATA))
 		error = -ENOSPC;
 	xfs_perag_put(pag);
@@ -1062,9 +1001,7 @@ xfs_reflink_remap_extent(
 	struct xfs_mount	*mp = ip->i_mount;
 	bool			real_extent = xfs_bmap_is_real_extent(irec);
 	struct xfs_trans	*tp;
-	xfs_fsblock_t		firstfsb;
 	unsigned int		resblks;
-	struct xfs_defer_ops	dfops;
 	struct xfs_bmbt_irec	uirec;
 	xfs_filblks_t		rlen;
 	xfs_filblks_t		unmap_len;
@@ -1105,11 +1042,10 @@ xfs_reflink_remap_extent(
 	/* Unmap the old blocks in the data fork. */
 	rlen = unmap_len;
 	while (rlen) {
-		xfs_defer_init(&dfops, &firstfsb);
-		error = __xfs_bunmapi(tp, ip, destoff, &rlen, 0, 1,
-				&firstfsb, &dfops);
+		ASSERT(tp->t_firstblock == NULLFSBLOCK);
+		error = __xfs_bunmapi(tp, ip, destoff, &rlen, 0, 1);
 		if (error)
-			goto out_defer;
+			goto out_cancel;
 
 		/*
 		 * Trim the extent to whatever got unmapped.
@@ -1128,14 +1064,14 @@ xfs_reflink_remap_extent(
 				uirec.br_blockcount, uirec.br_startblock);
 
 		/* Update the refcount tree */
-		error = xfs_refcount_increase_extent(mp, &dfops, &uirec);
+		error = xfs_refcount_increase_extent(tp, &uirec);
 		if (error)
-			goto out_defer;
+			goto out_cancel;
 
 		/* Map the new blocks into the data fork. */
-		error = xfs_bmap_map_extent(mp, &dfops, ip, &uirec);
+		error = xfs_bmap_map_extent(tp, ip, &uirec);
 		if (error)
-			goto out_defer;
+			goto out_cancel;
 
 		/* Update quota accounting. */
 		xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT,
@@ -1154,10 +1090,9 @@ xfs_reflink_remap_extent(
 
 next_extent:
 		/* Process all the deferred stuff. */
-		xfs_defer_ijoin(&dfops, ip);
-		error = xfs_defer_finish(&tp, &dfops);
+		error = xfs_defer_finish(&tp);
 		if (error)
-			goto out_defer;
+			goto out_cancel;
 	}
 
 	error = xfs_trans_commit(tp);
@@ -1166,8 +1101,6 @@ next_extent:
 		goto out;
 	return 0;
 
-out_defer:
-	xfs_defer_cancel(&dfops);
 out_cancel:
 	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
@@ -1195,13 +1128,16 @@ xfs_reflink_remap_blocks(
 
 	/* drange = (destoff, destoff + len); srange = (srcoff, srcoff + len) */
 	while (len) {
+		uint		lock_mode;
+
 		trace_xfs_reflink_remap_blocks_loop(src, srcoff, len,
 				dest, destoff);
+
 		/* Read extent from the source file */
 		nimaps = 1;
-		xfs_ilock(src, XFS_ILOCK_EXCL);
+		lock_mode = xfs_ilock_data_map_shared(src);
 		error = xfs_bmapi_read(src, srcoff, len, &imap, &nimaps, 0);
-		xfs_iunlock(src, XFS_ILOCK_EXCL);
+		xfs_iunlock(src, lock_mode);
 		if (error)
 			goto err;
 		ASSERT(nimaps == 1);
@@ -1238,6 +1174,230 @@ err:
 }
 
 /*
+ * Grab the exclusive iolock for a data copy from src to dest, making
+ * sure to abide vfs locking order (lowest pointer value goes first) and
+ * breaking the pnfs layout leases on dest before proceeding.  The loop
+ * is needed because we cannot call the blocking break_layout() with the
+ * src iolock held, and therefore have to back out both locks.
+ */
+static int
+xfs_iolock_two_inodes_and_break_layout(
+	struct inode		*src,
+	struct inode		*dest)
+{
+	int			error;
+
+retry:
+	if (src < dest) {
+		inode_lock_shared(src);
+		inode_lock_nested(dest, I_MUTEX_NONDIR2);
+	} else {
+		/* src >= dest */
+		inode_lock(dest);
+	}
+
+	error = break_layout(dest, false);
+	if (error == -EWOULDBLOCK) {
+		inode_unlock(dest);
+		if (src < dest)
+			inode_unlock_shared(src);
+		error = break_layout(dest, true);
+		if (error)
+			return error;
+		goto retry;
+	}
+	if (error) {
+		inode_unlock(dest);
+		if (src < dest)
+			inode_unlock_shared(src);
+		return error;
+	}
+	if (src > dest)
+		inode_lock_shared_nested(src, I_MUTEX_NONDIR2);
+	return 0;
+}
+
+/* Unlock both inodes after they've been prepped for a range clone. */
+STATIC void
+xfs_reflink_remap_unlock(
+	struct file		*file_in,
+	struct file		*file_out)
+{
+	struct inode		*inode_in = file_inode(file_in);
+	struct xfs_inode	*src = XFS_I(inode_in);
+	struct inode		*inode_out = file_inode(file_out);
+	struct xfs_inode	*dest = XFS_I(inode_out);
+	bool			same_inode = (inode_in == inode_out);
+
+	xfs_iunlock(dest, XFS_MMAPLOCK_EXCL);
+	if (!same_inode)
+		xfs_iunlock(src, XFS_MMAPLOCK_SHARED);
+	inode_unlock(inode_out);
+	if (!same_inode)
+		inode_unlock_shared(inode_in);
+}
+
+/*
+ * If we're reflinking to a point past the destination file's EOF, we must
+ * zero any speculative post-EOF preallocations that sit between the old EOF
+ * and the destination file offset.
+ */
+static int
+xfs_reflink_zero_posteof(
+	struct xfs_inode	*ip,
+	loff_t			pos)
+{
+	loff_t			isize = i_size_read(VFS_I(ip));
+
+	if (pos <= isize)
+		return 0;
+
+	trace_xfs_zero_eof(ip, isize, pos - isize);
+	return iomap_zero_range(VFS_I(ip), isize, pos - isize, NULL,
+			&xfs_iomap_ops);
+}
+
+/*
+ * Prepare two files for range cloning.  Upon a successful return both inodes
+ * will have the iolock and mmaplock held, the page cache of the out file will
+ * be truncated, and any leases on the out file will have been broken.  This
+ * function borrows heavily from xfs_file_aio_write_checks.
+ *
+ * The VFS allows partial EOF blocks to "match" for dedupe even though it hasn't
+ * checked that the bytes beyond EOF physically match. Hence we cannot use the
+ * EOF block in the source dedupe range because it's not a complete block match,
+ * hence can introduce a corruption into the file that has it's block replaced.
+ *
+ * In similar fashion, the VFS file cloning also allows partial EOF blocks to be
+ * "block aligned" for the purposes of cloning entire files.  However, if the
+ * source file range includes the EOF block and it lands within the existing EOF
+ * of the destination file, then we can expose stale data from beyond the source
+ * file EOF in the destination file.
+ *
+ * XFS doesn't support partial block sharing, so in both cases we have check
+ * these cases ourselves. For dedupe, we can simply round the length to dedupe
+ * down to the previous whole block and ignore the partial EOF block. While this
+ * means we can't dedupe the last block of a file, this is an acceptible
+ * tradeoff for simplicity on implementation.
+ *
+ * For cloning, we want to share the partial EOF block if it is also the new EOF
+ * block of the destination file. If the partial EOF block lies inside the
+ * existing destination EOF, then we have to abort the clone to avoid exposing
+ * stale data in the destination file. Hence we reject these clone attempts with
+ * -EINVAL in this case.
+ */
+STATIC int
+xfs_reflink_remap_prep(
+	struct file		*file_in,
+	loff_t			pos_in,
+	struct file		*file_out,
+	loff_t			pos_out,
+	u64			*len,
+	bool			is_dedupe)
+{
+	struct inode		*inode_in = file_inode(file_in);
+	struct xfs_inode	*src = XFS_I(inode_in);
+	struct inode		*inode_out = file_inode(file_out);
+	struct xfs_inode	*dest = XFS_I(inode_out);
+	bool			same_inode = (inode_in == inode_out);
+	u64			blkmask = i_blocksize(inode_in) - 1;
+	ssize_t			ret;
+
+	/* Lock both files against IO */
+	ret = xfs_iolock_two_inodes_and_break_layout(inode_in, inode_out);
+	if (ret)
+		return ret;
+	if (same_inode)
+		xfs_ilock(src, XFS_MMAPLOCK_EXCL);
+	else
+		xfs_lock_two_inodes(src, XFS_MMAPLOCK_SHARED, dest,
+				XFS_MMAPLOCK_EXCL);
+
+	/* Check file eligibility and prepare for block sharing. */
+	ret = -EINVAL;
+	/* Don't reflink realtime inodes */
+	if (XFS_IS_REALTIME_INODE(src) || XFS_IS_REALTIME_INODE(dest))
+		goto out_unlock;
+
+	/* Don't share DAX file data for now. */
+	if (IS_DAX(inode_in) || IS_DAX(inode_out))
+		goto out_unlock;
+
+	ret = vfs_clone_file_prep_inodes(inode_in, pos_in, inode_out, pos_out,
+			len, is_dedupe);
+	if (ret <= 0)
+		goto out_unlock;
+
+	/*
+	 * If the dedupe data matches, chop off the partial EOF block
+	 * from the source file so we don't try to dedupe the partial
+	 * EOF block.
+	 */
+	if (is_dedupe) {
+		*len &= ~blkmask;
+	} else if (*len & blkmask) {
+		/*
+		 * The user is attempting to share a partial EOF block,
+		 * if it's inside the destination EOF then reject it.
+		 */
+		if (pos_out + *len < i_size_read(inode_out)) {
+			ret = -EINVAL;
+			goto out_unlock;
+		}
+	}
+
+	/* Attach dquots to dest inode before changing block map */
+	ret = xfs_qm_dqattach(dest);
+	if (ret)
+		goto out_unlock;
+
+	/*
+	 * Zero existing post-eof speculative preallocations in the destination
+	 * file.
+	 */
+	ret = xfs_reflink_zero_posteof(dest, pos_out);
+	if (ret)
+		goto out_unlock;
+
+	/* Set flags and remap blocks. */
+	ret = xfs_reflink_set_inode_flag(src, dest);
+	if (ret)
+		goto out_unlock;
+
+	/* Zap any page cache for the destination file's range. */
+	truncate_inode_pages_range(&inode_out->i_data, pos_out,
+				   PAGE_ALIGN(pos_out + *len) - 1);
+
+	/* If we're altering the file contents... */
+	if (!is_dedupe) {
+		/*
+		 * ...update the timestamps (which will grab the ilock again
+		 * from xfs_fs_dirty_inode, so we have to call it before we
+		 * take the ilock).
+		 */
+		if (!(file_out->f_mode & FMODE_NOCMTIME)) {
+			ret = file_update_time(file_out);
+			if (ret)
+				goto out_unlock;
+		}
+
+		/*
+		 * ...clear the security bits if the process is not being run
+		 * by root.  This keeps people from modifying setuid and setgid
+		 * binaries.
+		 */
+		ret = file_remove_privs(file_out);
+		if (ret)
+			goto out_unlock;
+	}
+
+	return 1;
+out_unlock:
+	xfs_reflink_remap_unlock(file_in, file_out);
+	return ret;
+}
+
+/*
  * Link a range of blocks from one file to another.
  */
 int
@@ -1254,7 +1414,6 @@ xfs_reflink_remap_range(
 	struct inode		*inode_out = file_inode(file_out);
 	struct xfs_inode	*dest = XFS_I(inode_out);
 	struct xfs_mount	*mp = src->i_mount;
-	bool			same_inode = (inode_in == inode_out);
 	xfs_fileoff_t		sfsbno, dfsbno;
 	xfs_filblks_t		fsblen;
 	xfs_extlen_t		cowextsize;
@@ -1266,34 +1425,13 @@ xfs_reflink_remap_range(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	/* Lock both files against IO */
-	lock_two_nondirectories(inode_in, inode_out);
-	if (same_inode)
-		xfs_ilock(src, XFS_MMAPLOCK_EXCL);
-	else
-		xfs_lock_two_inodes(src, dest, XFS_MMAPLOCK_EXCL);
-
-	/* Check file eligibility and prepare for block sharing. */
-	ret = -EINVAL;
-	/* Don't reflink realtime inodes */
-	if (XFS_IS_REALTIME_INODE(src) || XFS_IS_REALTIME_INODE(dest))
-		goto out_unlock;
-
-	/* Don't share DAX file data for now. */
-	if (IS_DAX(inode_in) || IS_DAX(inode_out))
-		goto out_unlock;
-
-	ret = vfs_clone_file_prep_inodes(inode_in, pos_in, inode_out, pos_out,
+	/* Prepare and then clone file data. */
+	ret = xfs_reflink_remap_prep(file_in, pos_in, file_out, pos_out,
 			&len, is_dedupe);
 	if (ret <= 0)
-		goto out_unlock;
+		return ret;
 
 	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
-
-	/* Set flags and remap blocks. */
-	ret = xfs_reflink_set_inode_flag(src, dest);
-	if (ret)
-		goto out_unlock;
 
 	dfsbno = XFS_B_TO_FSBT(mp, pos_out);
 	sfsbno = XFS_B_TO_FSBT(mp, pos_in);
@@ -1302,10 +1440,6 @@ xfs_reflink_remap_range(
 			pos_out + len);
 	if (ret)
 		goto out_unlock;
-
-	/* Zap any page cache for the destination file's range. */
-	truncate_inode_pages_range(&inode_out->i_data, pos_out,
-				   PAGE_ALIGN(pos_out + len) - 1);
 
 	/*
 	 * Carry the cowextsize hint from src to dest if we're sharing the
@@ -1323,10 +1457,7 @@ xfs_reflink_remap_range(
 			is_dedupe);
 
 out_unlock:
-	xfs_iunlock(src, XFS_MMAPLOCK_EXCL);
-	if (!same_inode)
-		xfs_iunlock(dest, XFS_MMAPLOCK_EXCL);
-	unlock_two_nondirectories(inode_in, inode_out);
+	xfs_reflink_remap_unlock(file_in, file_out);
 	if (ret)
 		trace_xfs_reflink_remap_range_error(dest, ret, _RET_IP_);
 	return ret;
@@ -1426,7 +1557,7 @@ xfs_reflink_inode_has_shared_extents(
 	xfs_extlen_t			aglen;
 	xfs_agblock_t			rbno;
 	xfs_extlen_t			rlen;
-	xfs_extnum_t			idx;
+	struct xfs_iext_cursor		icur;
 	bool				found;
 	int				error;
 
@@ -1438,7 +1569,7 @@ xfs_reflink_inode_has_shared_extents(
 	}
 
 	*has_shared = false;
-	found = xfs_iext_lookup_extent(ip, ifp, 0, &idx, &got);
+	found = xfs_iext_lookup_extent(ip, ifp, 0, &icur, &got);
 	while (found) {
 		if (isnullstartblock(got.br_startblock) ||
 		    got.br_state != XFS_EXT_NORM)
@@ -1457,13 +1588,18 @@ xfs_reflink_inode_has_shared_extents(
 			return 0;
 		}
 next:
-		found = xfs_iext_get_extent(ifp, ++idx, &got);
+		found = xfs_iext_next_extent(ifp, &icur, &got);
 	}
 
 	return 0;
 }
 
-/* Clear the inode reflink flag if there are no shared extents. */
+/*
+ * Clear the inode reflink flag if there are no shared extents.
+ *
+ * The caller is responsible for joining the inode to the transaction passed in.
+ * The inode will be joined to the transaction that is returned to the caller.
+ */
 int
 xfs_reflink_clear_inode_flag(
 	struct xfs_inode	*ip,
@@ -1490,7 +1626,6 @@ xfs_reflink_clear_inode_flag(
 	trace_xfs_reflink_unset_inode_flag(ip);
 	ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
 	xfs_inode_clear_cowblocks_tag(ip);
-	xfs_trans_ijoin(*tpp, ip, 0);
 	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
 
 	return error;

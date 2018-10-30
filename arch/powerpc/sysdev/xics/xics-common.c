@@ -243,8 +243,8 @@ void xics_migrate_irqs_away(void)
 
 		/* This is expected during cpu offline. */
 		if (cpu_online(cpu))
-			pr_warning("IRQ %u affinity broken off cpu %u\n",
-			       virq, cpu);
+			pr_warn("IRQ %u affinity broken off cpu %u\n",
+				virq, cpu);
 
 		/* Reset affinity to all cpus */
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
@@ -446,10 +446,11 @@ static void __init xics_get_server_size(void)
 	np = of_find_compatible_node(NULL, NULL, "ibm,ppc-xics");
 	if (!np)
 		return;
+
 	isize = of_get_property(np, "ibm,interrupt-server#-size", NULL);
-	if (!isize)
-		return;
-	xics_interrupt_server_size = be32_to_cpu(*isize);
+	if (isize)
+		xics_interrupt_server_size = be32_to_cpu(*isize);
+
 	of_node_put(np);
 }
 
@@ -466,7 +467,7 @@ void __init xics_init(void)
 		    rc = icp_opal_init();
 	}
 	if (rc < 0) {
-		pr_warning("XICS: Cannot find a Presentation Controller !\n");
+		pr_warn("XICS: Cannot find a Presentation Controller !\n");
 		return;
 	}
 
@@ -481,7 +482,7 @@ void __init xics_init(void)
 	if (rc < 0)
 		rc = ics_opal_init();
 	if (rc < 0)
-		pr_warning("XICS: Cannot find a Source Controller !\n");
+		pr_warn("XICS: Cannot find a Source Controller !\n");
 
 	/* Initialize common bits */
 	xics_get_server_size();

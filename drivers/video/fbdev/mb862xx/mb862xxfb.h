@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __MB862XX_H__
 #define __MB862XX_H__
 

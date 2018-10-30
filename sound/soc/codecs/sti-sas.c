@@ -106,7 +106,7 @@ static int sti_sas_write_reg(void *context, unsigned int reg,
 	return status;
 }
 
-static int  sti_sas_init_sas_registers(struct snd_soc_codec *codec,
+static int  sti_sas_init_sas_registers(struct snd_soc_component *component,
 				       struct sti_sas_data *data)
 {
 	int ret;
@@ -116,35 +116,35 @@ static int  sti_sas_init_sas_registers(struct snd_soc_codec *codec,
 	 */
 
 	/* Initialise bi-phase formatter to disabled */
-	ret = snd_soc_update_bits(codec, STIH407_AUDIO_GLUE_CTRL,
+	ret = snd_soc_component_update_bits(component, STIH407_AUDIO_GLUE_CTRL,
 				  SPDIF_BIPHASE_ENABLE_MASK, 0);
 
 	if (!ret)
 		/* Initialise bi-phase formatter idle value to 0 */
-		ret = snd_soc_update_bits(codec, STIH407_AUDIO_GLUE_CTRL,
+		ret = snd_soc_component_update_bits(component, STIH407_AUDIO_GLUE_CTRL,
 					  SPDIF_BIPHASE_IDLE_MASK, 0);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to update SPDIF registers\n");
+		dev_err(component->dev, "Failed to update SPDIF registers\n");
 		return ret;
 	}
 
 	/* Init DAC configuration */
 	/* init configuration */
-	ret =  snd_soc_update_bits(codec, STIH407_AUDIO_DAC_CTRL,
+	ret =  snd_soc_component_update_bits(component, STIH407_AUDIO_DAC_CTRL,
 				   STIH407_DAC_STANDBY_MASK,
 				   STIH407_DAC_STANDBY_MASK);
 
 	if (!ret)
-		ret = snd_soc_update_bits(codec, STIH407_AUDIO_DAC_CTRL,
+		ret = snd_soc_component_update_bits(component, STIH407_AUDIO_DAC_CTRL,
 					  STIH407_DAC_STANDBY_ANA_MASK,
 					  STIH407_DAC_STANDBY_ANA_MASK);
 	if (!ret)
-		ret = snd_soc_update_bits(codec, STIH407_AUDIO_DAC_CTRL,
+		ret = snd_soc_component_update_bits(component, STIH407_AUDIO_DAC_CTRL,
 					  STIH407_DAC_SOFTMUTE_MASK,
 					  STIH407_DAC_SOFTMUTE_MASK);
 
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to update DAC registers\n");
+		dev_err(component->dev, "Failed to update DAC registers\n");
 		return ret;
 	}
 
@@ -158,7 +158,7 @@ static int sti_sas_dac_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	/* Sanity check only */
 	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
-		dev_err(dai->codec->dev,
+		dev_err(dai->component->dev,
 			"%s: ERROR: Unsupporter master mask 0x%x\n",
 			__func__, fmt & SND_SOC_DAIFMT_MASTER_MASK);
 		return -EINVAL;
@@ -183,14 +183,14 @@ static const struct snd_soc_dapm_route stih407_sas_route[] = {
 
 static int stih407_sas_dac_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
 	if (mute) {
-		return snd_soc_update_bits(codec, STIH407_AUDIO_DAC_CTRL,
+		return snd_soc_component_update_bits(component, STIH407_AUDIO_DAC_CTRL,
 					    STIH407_DAC_SOFTMUTE_MASK,
 					    STIH407_DAC_SOFTMUTE_MASK);
 	} else {
-		return snd_soc_update_bits(codec, STIH407_AUDIO_DAC_CTRL,
+		return snd_soc_component_update_bits(component, STIH407_AUDIO_DAC_CTRL,
 					    STIH407_DAC_SOFTMUTE_MASK,
 					    0);
 	}
@@ -203,7 +203,7 @@ static int sti_sas_spdif_set_fmt(struct snd_soc_dai *dai,
 				 unsigned int fmt)
 {
 	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
-		dev_err(dai->codec->dev,
+		dev_err(dai->component->dev,
 			"%s: ERROR: Unsupporter master mask 0x%x\n",
 			__func__, fmt & SND_SOC_DAIFMT_MASTER_MASK);
 		return -EINVAL;
@@ -221,19 +221,19 @@ static int sti_sas_spdif_set_fmt(struct snd_soc_dai *dai,
 static int sti_sas_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 				 struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		return snd_soc_update_bits(codec, STIH407_AUDIO_GLUE_CTRL,
+		return snd_soc_component_update_bits(component, STIH407_AUDIO_GLUE_CTRL,
 					    SPDIF_BIPHASE_ENABLE_MASK,
 					    SPDIF_BIPHASE_ENABLE_MASK);
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		return snd_soc_update_bits(codec, STIH407_AUDIO_GLUE_CTRL,
+		return snd_soc_component_update_bits(component, STIH407_AUDIO_GLUE_CTRL,
 					    SPDIF_BIPHASE_ENABLE_MASK,
 					    0);
 	default:
@@ -260,8 +260,8 @@ static bool sti_sas_volatile_register(struct device *dev, unsigned int reg)
 static int sti_sas_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 			      unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct sti_sas_data *drvdata = dev_get_drvdata(codec->dev);
+	struct snd_soc_component *component = dai->component;
+	struct sti_sas_data *drvdata = dev_get_drvdata(component->dev);
 
 	if (dir == SND_SOC_CLOCK_OUT)
 		return 0;
@@ -285,20 +285,20 @@ static int sti_sas_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 static int sti_sas_prepare(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct sti_sas_data *drvdata = dev_get_drvdata(codec->dev);
+	struct snd_soc_component *component = dai->component;
+	struct sti_sas_data *drvdata = dev_get_drvdata(component->dev);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	switch (dai->id) {
 	case STI_SAS_DAI_SPDIF_OUT:
 		if ((drvdata->spdif.mclk / runtime->rate) != 128) {
-			dev_err(codec->dev, "unexpected mclk-fs ratio\n");
+			dev_err(component->dev, "unexpected mclk-fs ratio\n");
 			return -EINVAL;
 		}
 		break;
 	case STI_SAS_DAI_ANALOG_OUT:
 		if ((drvdata->dac.mclk / runtime->rate) != 256) {
-			dev_err(codec->dev, "unexpected mclk-fs ratio\n");
+			dev_err(component->dev, "unexpected mclk-fs ratio\n");
 			return -EINVAL;
 		}
 		break;
@@ -375,29 +375,33 @@ static struct snd_soc_dai_driver sti_sas_dai[] = {
 };
 
 #ifdef CONFIG_PM_SLEEP
-static int sti_sas_resume(struct snd_soc_codec *codec)
+static int sti_sas_resume(struct snd_soc_component *component)
 {
-	struct sti_sas_data *drvdata = dev_get_drvdata(codec->dev);
+	struct sti_sas_data *drvdata = dev_get_drvdata(component->dev);
 
-	return sti_sas_init_sas_registers(codec, drvdata);
+	return sti_sas_init_sas_registers(component, drvdata);
 }
 #else
 #define sti_sas_resume NULL
 #endif
 
-static int sti_sas_codec_probe(struct snd_soc_codec *codec)
+static int sti_sas_component_probe(struct snd_soc_component *component)
 {
-	struct sti_sas_data *drvdata = dev_get_drvdata(codec->dev);
+	struct sti_sas_data *drvdata = dev_get_drvdata(component->dev);
 	int ret;
 
-	ret = sti_sas_init_sas_registers(codec, drvdata);
+	ret = sti_sas_init_sas_registers(component, drvdata);
 
 	return ret;
 }
 
-static struct snd_soc_codec_driver sti_sas_driver = {
-	.probe = sti_sas_codec_probe,
-	.resume = sti_sas_resume,
+static struct snd_soc_component_driver sti_sas_driver = {
+	.probe			= sti_sas_component_probe,
+	.resume			= sti_sas_resume,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id sti_sas_dev_match[] = {
@@ -452,25 +456,18 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 	sti_sas_dai[STI_SAS_DAI_ANALOG_OUT].ops = drvdata->dev_data->dac_ops;
 
 	/* Set dapms*/
-	sti_sas_driver.component_driver.dapm_widgets = drvdata->dev_data->dapm_widgets;
-	sti_sas_driver.component_driver.num_dapm_widgets = drvdata->dev_data->num_dapm_widgets;
+	sti_sas_driver.dapm_widgets = drvdata->dev_data->dapm_widgets;
+	sti_sas_driver.num_dapm_widgets = drvdata->dev_data->num_dapm_widgets;
 
-	sti_sas_driver.component_driver.dapm_routes = drvdata->dev_data->dapm_routes;
-	sti_sas_driver.component_driver.num_dapm_routes = drvdata->dev_data->num_dapm_routes;
+	sti_sas_driver.dapm_routes = drvdata->dev_data->dapm_routes;
+	sti_sas_driver.num_dapm_routes = drvdata->dev_data->num_dapm_routes;
 
 	/* Store context */
 	dev_set_drvdata(&pdev->dev, drvdata);
 
-	return snd_soc_register_codec(&pdev->dev, &sti_sas_driver,
+	return devm_snd_soc_register_component(&pdev->dev, &sti_sas_driver,
 					sti_sas_dai,
 					ARRAY_SIZE(sti_sas_dai));
-}
-
-static int sti_sas_driver_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver sti_sas_platform_driver = {
@@ -479,7 +476,6 @@ static struct platform_driver sti_sas_platform_driver = {
 		.of_match_table = sti_sas_dev_match,
 	},
 	.probe = sti_sas_driver_probe,
-	.remove = sti_sas_driver_remove,
 };
 
 module_platform_driver(sti_sas_platform_driver);

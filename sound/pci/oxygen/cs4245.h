@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define CS4245_CHIP_ID		0x01
 #define CS4245_POWER_CTRL	0x02
 #define CS4245_DAC_CTRL_1	0x03

@@ -87,6 +87,7 @@ static struct mtd_partition davinci_ntosd2_nandflash_partition[] = {
 };
 
 static struct davinci_nand_pdata davinci_ntosd2_nandflash_data = {
+	.core_chipsel	= 0,
 	.parts		= davinci_ntosd2_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_ntosd2_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
@@ -128,11 +129,11 @@ static struct platform_device davinci_fb_device = {
 	.num_resources = 0,
 };
 
-static struct gpio_led ntosd2_leds[] = {
-	{ .name = "led1_green", .gpio = GPIO(10), },
-	{ .name = "led1_red",   .gpio = GPIO(11), },
-	{ .name = "led2_green", .gpio = GPIO(12), },
-	{ .name = "led2_red",   .gpio = GPIO(13), },
+static const struct gpio_led ntosd2_leds[] = {
+	{ .name = "led1_green", .gpio = 10, },
+	{ .name = "led1_red",   .gpio = 11, },
+	{ .name = "led2_green", .gpio = 12, },
+	{ .name = "led2_red",   .gpio = 13, },
 };
 
 static struct gpio_led_platform_data ntosd2_leds_data = {
@@ -173,6 +174,10 @@ static __init void davinci_ntosd2_init(void)
 	int ret;
 	struct clk *aemif_clk;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
+
+	dm644x_register_clocks();
+
+	dm644x_init_devices();
 
 	ret = dm644x_gpio_register();
 	if (ret)
@@ -227,9 +232,8 @@ MACHINE_START(NEUROS_OSD2, "Neuros OSD2")
 	.atag_offset	= 0x100,
 	.map_io		 = davinci_ntosd2_map_io,
 	.init_irq	= davinci_irq_init,
-	.init_time	= davinci_timer_init,
+	.init_time	= dm644x_init_time,
 	.init_machine = davinci_ntosd2_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
-	.restart	= davinci_restart,
 MACHINE_END

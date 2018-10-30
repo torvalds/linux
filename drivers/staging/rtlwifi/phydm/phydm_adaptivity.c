@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2016  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
@@ -762,7 +751,7 @@ void phydm_adaptivity(void *dm_void)
 		dm->rssi_min, adaptivity->adajust_igi_level,
 		dm->adaptivity_flag, dm->adaptivity_enable);
 
-	if (adaptivity->dynamic_link_adaptivity && (!dm->is_linked) &&
+	if (adaptivity->dynamic_link_adaptivity && !dm->is_linked &&
 	    !dm->adaptivity_enable) {
 		phydm_set_edcca_threshold(dm, 0x7f, 0x7f);
 		ODM_RT_TRACE(
@@ -773,7 +762,7 @@ void phydm_adaptivity(void *dm_void)
 
 	if (dm->support_ic_type &
 	    (ODM_IC_11AC_GAIN_IDX_EDCCA | ODM_IC_11N_GAIN_IDX_EDCCA)) {
-		if ((adaptivity->adajust_igi_level > IGI) &&
+		if (adaptivity->adajust_igi_level > IGI &&
 		    dm->adaptivity_enable)
 			diff = adaptivity->adajust_igi_level - IGI;
 

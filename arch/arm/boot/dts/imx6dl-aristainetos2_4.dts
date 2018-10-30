@@ -48,11 +48,11 @@
 	model = "aristainetos2 i.MX6 Dual Lite Board 4";
 	compatible = "fsl,imx6dl";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x40000000>;
 	};
 
-	display0: display@di0 {
+	display0: disp0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "fsl,imx-parallel-display";
@@ -78,8 +78,6 @@
 
 &ecspi1 {
 	lcd_panel: display@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		compatible = "lg,lg4573";
 		spi-max-frequency = <10000000>;
 		reg = <0>;

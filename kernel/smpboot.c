@@ -238,8 +238,7 @@ int smpboot_unpark_threads(unsigned int cpu)
 
 	mutex_lock(&smpboot_threads_lock);
 	list_for_each_entry(cur, &hotplug_threads, list)
-		if (cpumask_test_cpu(cpu, cur->cpumask))
-			smpboot_unpark_thread(cur, cpu);
+		smpboot_unpark_thread(cur, cpu);
 	mutex_unlock(&smpboot_threads_lock);
 	return 0;
 }
@@ -280,22 +279,16 @@ static void smpboot_destroy_threads(struct smp_hotplug_thread *ht)
 }
 
 /**
- * smpboot_register_percpu_thread_cpumask - Register a per_cpu thread related
+ * smpboot_register_percpu_thread - Register a per_cpu thread related
  * 					    to hotplug
  * @plug_thread:	Hotplug thread descriptor
- * @cpumask:		The cpumask where threads run
  *
  * Creates and starts the threads on all online cpus.
  */
-int smpboot_register_percpu_thread_cpumask(struct smp_hotplug_thread *plug_thread,
-					   const struct cpumask *cpumask)
+int smpboot_register_percpu_thread(struct smp_hotplug_thread *plug_thread)
 {
 	unsigned int cpu;
 	int ret = 0;
-
-	if (!alloc_cpumask_var(&plug_thread->cpumask, GFP_KERNEL))
-		return -ENOMEM;
-	cpumask_copy(plug_thread->cpumask, cpumask);
 
 	get_online_cpus();
 	mutex_lock(&smpboot_threads_lock);
@@ -303,11 +296,9 @@ int smpboot_register_percpu_thread_cpumask(struct smp_hotplug_thread *plug_threa
 		ret = __smpboot_create_thread(plug_thread, cpu);
 		if (ret) {
 			smpboot_destroy_threads(plug_thread);
-			free_cpumask_var(plug_thread->cpumask);
 			goto out;
 		}
-		if (cpumask_test_cpu(cpu, cpumask))
-			smpboot_unpark_thread(plug_thread, cpu);
+		smpboot_unpark_thread(plug_thread, cpu);
 	}
 	list_add(&plug_thread->list, &hotplug_threads);
 out:
@@ -315,7 +306,7 @@ out:
 	put_online_cpus();
 	return ret;
 }
-EXPORT_SYMBOL_GPL(smpboot_register_percpu_thread_cpumask);
+EXPORT_SYMBOL_GPL(smpboot_register_percpu_thread);
 
 /**
  * smpboot_unregister_percpu_thread - Unregister a per_cpu thread related to hotplug
@@ -331,52 +322,8 @@ void smpboot_unregister_percpu_thread(struct smp_hotplug_thread *plug_thread)
 	smpboot_destroy_threads(plug_thread);
 	mutex_unlock(&smpboot_threads_lock);
 	put_online_cpus();
-	free_cpumask_var(plug_thread->cpumask);
 }
 EXPORT_SYMBOL_GPL(smpboot_unregister_percpu_thread);
-
-/**
- * smpboot_update_cpumask_percpu_thread - Adjust which per_cpu hotplug threads stay parked
- * @plug_thread:	Hotplug thread descriptor
- * @new:		Revised mask to use
- *
- * The cpumask field in the smp_hotplug_thread must not be updated directly
- * by the client, but only by calling this function.
- * This function can only be called on a registered smp_hotplug_thread.
- */
-int smpboot_update_cpumask_percpu_thread(struct smp_hotplug_thread *plug_thread,
-					 const struct cpumask *new)
-{
-	struct cpumask *old = plug_thread->cpumask;
-	cpumask_var_t tmp;
-	unsigned int cpu;
-
-	if (!alloc_cpumask_var(&tmp, GFP_KERNEL))
-		return -ENOMEM;
-
-	get_online_cpus();
-	mutex_lock(&smpboot_threads_lock);
-
-	/* Park threads that were exclusively enabled on the old mask. */
-	cpumask_andnot(tmp, old, new);
-	for_each_cpu_and(cpu, tmp, cpu_online_mask)
-		smpboot_park_thread(plug_thread, cpu);
-
-	/* Unpark threads that are exclusively enabled on the new mask. */
-	cpumask_andnot(tmp, new, old);
-	for_each_cpu_and(cpu, tmp, cpu_online_mask)
-		smpboot_unpark_thread(plug_thread, cpu);
-
-	cpumask_copy(old, new);
-
-	mutex_unlock(&smpboot_threads_lock);
-	put_online_cpus();
-
-	free_cpumask_var(tmp);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(smpboot_update_cpumask_percpu_thread);
 
 static DEFINE_PER_CPU(atomic_t, cpu_hotplug_state) = ATOMIC_INIT(CPU_POST_DEAD);
 

@@ -15,8 +15,6 @@ Required properties:
    information relating to regulators)
 
 Optional properties:
-- interrupt-parent: Specifies the phandle of the interrupt controller to which
-  the IRQs from DA7218 are delivered to.
 - interrupts: IRQ line info for DA7218 chip.
   (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt for
    further information relating to interrupt properties)
@@ -73,7 +71,7 @@ Example:
 		compatible = "dlg,da7218";
 		reg = <0x1a>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 		wakeup-source;
 
 		VDD-supply = <&reg_audio>;

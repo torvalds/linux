@@ -181,7 +181,7 @@ static inline void rt2880_pci_write_u32(unsigned long reg, u32 val)
 	spin_unlock_irqrestore(&rt2880_pci_lock, flags);
 }
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	u16 cmd;
 	int irq = -1;
@@ -245,6 +245,8 @@ static int rt288x_pci_probe(struct platform_device *pdev)
 
 	rt2880_pci_write_u32(PCI_BASE_ADDRESS_0, 0x08000000);
 	(void) rt2880_pci_read_u32(PCI_BASE_ADDRESS_0);
+
+	rt2880_pci_controller.of_node = pdev->dev.of_node;
 
 	register_pci_controller(&rt2880_pci_controller);
 	return 0;

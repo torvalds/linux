@@ -44,7 +44,7 @@ struct host1x_syncpt {
 	const char *name;
 	bool client_managed;
 	struct host1x *host;
-	struct device *dev;
+	struct host1x_client *client;
 	struct host1x_syncpt_base *base;
 
 	/* interrupt data */
@@ -123,8 +123,5 @@ static inline int host1x_syncpt_is_valid(struct host1x_syncpt *sp)
 {
 	return sp->id < host1x_syncpt_nb_pts(sp->host);
 }
-
-/* Patch a wait by replacing it with a wait for syncpt 0 value 0 */
-int host1x_syncpt_patch_wait(struct host1x_syncpt *sp, void *patch_addr);
 
 #endif

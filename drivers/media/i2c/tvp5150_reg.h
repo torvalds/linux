@@ -1,8 +1,9 @@
 /*
+ * SPDX-License-Identifier: GPL-2.0
+ *
  * tvp5150 - Texas Instruments TVP5150A/AM1 video decoder registers
  *
- * Copyright (c) 2005,2006 Mauro Carvalho Chehab (mchehab@infradead.org)
- * This code is placed under the terms of the GNU General Public License v2
+ * Copyright (c) 2005,2006 Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 #define TVP5150_VD_IN_SRC_SEL_1      0x00 /* Video input source selection #1 */
@@ -66,10 +67,10 @@
 
 #define VIDEO_STD_NTSC_MJ_BIT_AS                 0x01
 #define VIDEO_STD_PAL_BDGHIN_BIT_AS              0x03
-#define VIDEO_STD_PAL_M_BIT_AS		         0x05
+#define VIDEO_STD_PAL_M_BIT_AS			 0x05
 #define VIDEO_STD_PAL_COMBINATION_N_BIT_AS	 0x07
 #define VIDEO_STD_NTSC_4_43_BIT_AS		 0x09
-#define VIDEO_STD_SECAM_BIT_AS		         0x0b
+#define VIDEO_STD_SECAM_BIT_AS			 0x0b
 
 /* Reserved 29h-2bh */
 
@@ -124,8 +125,11 @@
 #define TVP5150_TELETEXT_FIL_ENA    0xbb /* Teletext filter enable */
 /* Reserved	BCh-BFh */
 #define TVP5150_INT_STATUS_REG_A    0xc0 /* Interrupt status register A */
+#define   TVP5150_INT_A_LOCK_STATUS BIT(7)
+#define   TVP5150_INT_A_LOCK        BIT(6)
 #define TVP5150_INT_ENABLE_REG_A    0xc1 /* Interrupt enable register A */
 #define TVP5150_INT_CONF            0xc2 /* Interrupt configuration */
+#define   TVP5150_VDPOE             BIT(2)
 #define TVP5150_VDP_CONF_RAM_DATA   0xc3 /* VDP configuration RAM data */
 #define TVP5150_CONF_RAM_ADDR_LOW   0xc4 /* Configuration RAM address low byte */
 #define TVP5150_CONF_RAM_ADDR_HIGH  0xc5 /* Configuration RAM address high byte */

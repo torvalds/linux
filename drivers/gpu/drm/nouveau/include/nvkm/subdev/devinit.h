@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_DEVINIT_H__
 #define __NVKM_DEVINIT_H__
 #include <core/subdev.h>
@@ -29,4 +30,5 @@ int mcp89_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
 int gf100_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
 int gm107_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
 int gm200_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
+int gv100_devinit_new(struct nvkm_device *, int, struct nvkm_devinit **);
 #endif

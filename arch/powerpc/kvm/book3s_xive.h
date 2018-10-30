@@ -35,7 +35,6 @@ struct kvmppc_xive_irq_state {
 	struct xive_irq_data *pt_data;	/* XIVE Pass-through associated data */
 
 	/* Targetting as set by guest */
-	u32 guest_server;		/* Current guest selected target */
 	u8 guest_priority;		/* Guest set priority */
 	u8 saved_priority;		/* Saved priority when masking */
 
@@ -121,6 +120,8 @@ struct kvmppc_xive {
 	u32	q_order;
 	u32	q_page_order;
 
+	/* Flags */
+	u8	single_escalation;
 };
 
 #define KVMPPC_XIVE_Q_COUNT	8
@@ -202,25 +203,20 @@ static inline struct kvmppc_xive_src_block *kvmppc_xive_find_source(struct kvmpp
  * is as follow.
  *
  * Guest request for 0...6 are honored. Guest request for anything
- * higher results in a priority of 7 being applied.
- *
- * However, when XIRR is returned via H_XIRR, 7 is translated to 0xb
- * in order to match AIX expectations
+ * higher results in a priority of 6 being applied.
  *
  * Similar mapping is done for CPPR values
  */
 static inline u8 xive_prio_from_guest(u8 prio)
 {
-	if (prio == 0xff || prio < 8)
+	if (prio == 0xff || prio < 6)
 		return prio;
-	return 7;
+	return 6;
 }
 
 static inline u8 xive_prio_to_guest(u8 prio)
 {
-	if (prio == 0xff || prio < 7)
-		return prio;
-	return 0xb;
+	return prio;
 }
 
 static inline u32 __xive_read_eq(__be32 *qpage, u32 msk, u32 *idx, u32 *toggle)

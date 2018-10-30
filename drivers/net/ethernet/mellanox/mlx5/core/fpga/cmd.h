@@ -35,6 +35,13 @@
 
 #include <linux/mlx5/driver.h>
 
+enum mlx5_fpga_device_id {
+	MLX5_FPGA_DEVICE_UNKNOWN = 0,
+	MLX5_FPGA_DEVICE_KU040 = 1,
+	MLX5_FPGA_DEVICE_KU060 = 2,
+	MLX5_FPGA_DEVICE_KU060_2 = 3,
+};
+
 enum mlx5_fpga_image {
 	MLX5_FPGA_IMAGE_USER = 0,
 	MLX5_FPGA_IMAGE_FACTORY,
@@ -65,7 +72,7 @@ struct mlx5_fpga_qp_counters {
 	u64 rx_total_drop;
 };
 
-int mlx5_fpga_caps(struct mlx5_core_dev *dev, u32 *caps);
+int mlx5_fpga_caps(struct mlx5_core_dev *dev);
 int mlx5_fpga_query(struct mlx5_core_dev *dev, struct mlx5_fpga_query *query);
 int mlx5_fpga_ctrl_op(struct mlx5_core_dev *dev, u8 op);
 int mlx5_fpga_access_reg(struct mlx5_core_dev *dev, u8 size, u64 addr,

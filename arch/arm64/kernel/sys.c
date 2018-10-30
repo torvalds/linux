@@ -25,16 +25,18 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
-#include <asm/cpufeature.h>
 
-asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
-			 unsigned long prot, unsigned long flags,
-			 unsigned long fd, off_t off)
+#include <asm/cpufeature.h>
+#include <asm/syscall.h>
+
+SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+		unsigned long, prot, unsigned long, flags,
+		unsigned long, fd, off_t, off)
 {
 	if (offset_in_page(off) != 0)
 		return -EINVAL;
 
-	return sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
+	return ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 }
 
 SYSCALL_DEFINE1(arm64_personality, unsigned int, personality)
@@ -42,24 +44,25 @@ SYSCALL_DEFINE1(arm64_personality, unsigned int, personality)
 	if (personality(personality) == PER_LINUX32 &&
 		!system_supports_32bit_el0())
 		return -EINVAL;
-	return sys_personality(personality);
+	return ksys_personality(personality);
 }
 
 /*
  * Wrappers to pass the pt_regs argument.
  */
-asmlinkage long sys_rt_sigreturn_wrapper(void);
-#define sys_rt_sigreturn	sys_rt_sigreturn_wrapper
 #define sys_personality		sys_arm64_personality
 
-#undef __SYSCALL
-#define __SYSCALL(nr, sym)	[nr] = sym,
+asmlinkage long sys_ni_syscall(const struct pt_regs *);
+#define __arm64_sys_ni_syscall	sys_ni_syscall
 
-/*
- * The sys_call_table array must be 4K aligned to be accessible from
- * kernel/entry.S.
- */
-void * const sys_call_table[__NR_syscalls] __aligned(4096) = {
-	[0 ... __NR_syscalls - 1] = sys_ni_syscall,
+#undef __SYSCALL
+#define __SYSCALL(nr, sym)	asmlinkage long __arm64_##sym(const struct pt_regs *);
+#include <asm/unistd.h>
+
+#undef __SYSCALL
+#define __SYSCALL(nr, sym)	[nr] = (syscall_fn_t)__arm64_##sym,
+
+const syscall_fn_t sys_call_table[__NR_syscalls] = {
+	[0 ... __NR_syscalls - 1] = (syscall_fn_t)sys_ni_syscall,
 #include <asm/unistd.h>
 };

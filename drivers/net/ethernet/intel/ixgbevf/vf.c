@@ -1,28 +1,5 @@
-/*******************************************************************************
-
-  Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2015 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #include "vf.h"
 #include "ixgbevf.h"
@@ -146,6 +123,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 /**
  * Hyper-V variant; the VF/PF communication is through the PCI
  * config space.
+ * @hw: pointer to private hardware struct
  */
 static s32 ixgbevf_hv_reset_hw_vf(struct ixgbe_hw *hw)
 {
@@ -285,7 +263,7 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 		ether_addr_copy(msg_addr, addr);
 
 	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf,
-					     sizeof(msgbuf) / sizeof(u32));
+					     ARRAY_SIZE(msgbuf));
 	if (!ret_val) {
 		msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -303,7 +281,7 @@ static s32 ixgbevf_hv_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 
 /**
  * ixgbevf_get_reta_locked - get the RSS redirection table (RETA) contents.
- * @adapter: pointer to the port handle
+ * @hw: pointer to hardware structure
  * @reta: buffer to fill with RETA contents.
  * @num_rx_queues: Number of Rx queues configured for this port
  *
@@ -331,6 +309,7 @@ int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
 	 * is not supported for this device type.
 	 */
 	switch (hw->api_version) {
+	case ixgbe_mbox_api_14:
 	case ixgbe_mbox_api_13:
 	case ixgbe_mbox_api_12:
 		if (hw->mac.type < ixgbe_mac_X550_vf)
@@ -398,6 +377,7 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 	 * or if the operation is not supported for this device type.
 	 */
 	switch (hw->api_version) {
+	case ixgbe_mbox_api_14:
 	case ixgbe_mbox_api_13:
 	case ixgbe_mbox_api_12:
 		if (hw->mac.type < ixgbe_mac_X550_vf)
@@ -455,8 +435,7 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 	ether_addr_copy(msg_addr, addr);
 
 	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf,
-					     sizeof(msgbuf) / sizeof(u32));
-
+					     ARRAY_SIZE(msgbuf));
 	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
 	/* if nacked the address was rejected, use "perm_addr" */
@@ -536,6 +515,8 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 
 /**
  * Hyper-V variant - just a stub.
+ * @hw: unused
+ * @netdev: unused
  */
 static s32 ixgbevf_hv_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 					     struct net_device *netdev)
@@ -561,6 +542,7 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 		if (xcast_mode == IXGBEVF_XCAST_MODE_PROMISC)
 			return -EOPNOTSUPP;
 		/* Fall threw */
+	case ixgbe_mbox_api_14:
 	case ixgbe_mbox_api_13:
 		break;
 	default:
@@ -571,7 +553,7 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 	msgbuf[1] = xcast_mode;
 
 	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf,
-					 sizeof(msgbuf) / sizeof(u32));
+					 ARRAY_SIZE(msgbuf));
 	if (err)
 		return err;
 
@@ -584,6 +566,8 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 
 /**
  * Hyper-V variant - just a stub.
+ * @hw: unused
+ * @xcast_mode: unused
  */
 static s32 ixgbevf_hv_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 {
@@ -609,7 +593,7 @@ static s32 ixgbevf_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
 	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf,
-					 sizeof(msgbuf) / sizeof(u32));
+					 ARRAY_SIZE(msgbuf));
 	if (err)
 		goto mbx_err;
 
@@ -626,6 +610,10 @@ mbx_err:
 
 /**
  * Hyper-V variant - just a stub.
+ * @hw: unused
+ * @vlan: unused
+ * @vind: unused
+ * @vlan_on: unused
  */
 static s32 ixgbevf_hv_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 				  bool vlan_on)
@@ -655,7 +643,7 @@ static s32 ixgbevf_setup_mac_link_vf(struct ixgbe_hw *hw,
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
  *  @link_up: true is link is up, false otherwise
- *  @autoneg_wait_to_complete: true when waiting for completion is needed
+ *  @autoneg_wait_to_complete: unused
  *
  *  Reads the links register to determine if link is up and the current speed
  **/
@@ -740,6 +728,10 @@ out:
 
 /**
  * Hyper-V variant; there is no mailbox communication.
+ * @hw: pointer to private hardware struct
+ * @speed: pointer to link speed
+ * @link_up: true is link is up, false otherwise
+ * @autoneg_wait_to_complete: unused
  */
 static s32 ixgbevf_hv_check_mac_link_vf(struct ixgbe_hw *hw,
 					ixgbe_link_speed *speed,
@@ -813,7 +805,7 @@ static s32 ixgbevf_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 	msgbuf[1] = max_size;
 
 	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf,
-					     sizeof(msgbuf) / sizeof(u32));
+					     ARRAY_SIZE(msgbuf));
 	if (ret_val)
 		return ret_val;
 	if ((msgbuf[0] & IXGBE_VF_SET_LPE) &&
@@ -859,8 +851,7 @@ static int ixgbevf_negotiate_api_version_vf(struct ixgbe_hw *hw, int api)
 	msg[1] = api;
 	msg[2] = 0;
 
-	err = ixgbevf_write_msg_read_ack(hw, msg, msg,
-					 sizeof(msg) / sizeof(u32));
+	err = ixgbevf_write_msg_read_ack(hw, msg, msg, ARRAY_SIZE(msg));
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -902,6 +893,7 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	case ixgbe_mbox_api_11:
 	case ixgbe_mbox_api_12:
 	case ixgbe_mbox_api_13:
+	case ixgbe_mbox_api_14:
 		break;
 	default:
 		return 0;
@@ -911,8 +903,7 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	msg[0] = IXGBE_VF_GET_QUEUE;
 	msg[1] = msg[2] = msg[3] = msg[4] = 0;
 
-	err = ixgbevf_write_msg_read_ack(hw, msg, msg,
-					 sizeof(msg) / sizeof(u32));
+	err = ixgbevf_write_msg_read_ack(hw, msg, msg, ARRAY_SIZE(msg));
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 

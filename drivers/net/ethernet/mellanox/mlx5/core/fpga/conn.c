@@ -181,6 +181,7 @@ int mlx5_fpga_conn_send(struct mlx5_fpga_conn *conn,
 	if (!conn->qp.active)
 		return -ENOTCONN;
 
+	buf->dma_dir = DMA_TO_DEVICE;
 	err = mlx5_fpga_conn_map_buf(conn, buf);
 	if (err)
 		return err;
@@ -232,7 +233,7 @@ static int mlx5_fpga_conn_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 		return -ENOMEM;
 
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
-	MLX5_SET(mkc, mkc, access_mode, MLX5_MKC_ACCESS_MODE_PA);
+	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_PA);
 	MLX5_SET(mkc, mkc, lw, 1);
 	MLX5_SET(mkc, mkc, lr, 1);
 
@@ -255,8 +256,6 @@ static void mlx5_fpga_conn_rq_cqe(struct mlx5_fpga_conn *conn,
 	ix = be16_to_cpu(cqe->wqe_counter) & (conn->qp.rq.size - 1);
 	buf = conn->qp.rq.bufs[ix];
 	conn->qp.rq.bufs[ix] = NULL;
-	if (!status)
-		buf->sg[0].size = be32_to_cpu(cqe->byte_cnt);
 	conn->qp.rq.cc++;
 
 	if (unlikely(status && (status != MLX5_CQE_SYNDROME_WR_FLUSH_ERR)))
@@ -274,6 +273,7 @@ static void mlx5_fpga_conn_rq_cqe(struct mlx5_fpga_conn *conn,
 		return;
 	}
 
+	buf->sg[0].size = be32_to_cpu(cqe->byte_cnt);
 	mlx5_fpga_dbg(conn->fdev, "Message with %u bytes received successfully\n",
 		      buf->sg[0].size);
 	conn->recv_cb(conn->cb_arg, buf);
@@ -454,7 +454,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	}
 
 	inlen = MLX5_ST_SZ_BYTES(create_cq_in) +
-		sizeof(u64) * conn->cq.wq_ctrl.frag_buf.npages;
+		sizeof(u64) * conn->cq.wq_ctrl.buf.npages;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		err = -ENOMEM;
@@ -469,12 +469,12 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	MLX5_SET(cqc, cqc, log_cq_size, ilog2(cq_size));
 	MLX5_SET(cqc, cqc, c_eqn, eqn);
 	MLX5_SET(cqc, cqc, uar_page, fdev->conn_res.uar->index);
-	MLX5_SET(cqc, cqc, log_page_size, conn->cq.wq_ctrl.frag_buf.page_shift -
+	MLX5_SET(cqc, cqc, log_page_size, conn->cq.wq_ctrl.buf.page_shift -
 			   MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(cqc, cqc, dbr_addr, conn->cq.wq_ctrl.db.dma);
 
 	pas = (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas);
-	mlx5_fill_page_frag_array(&conn->cq.wq_ctrl.frag_buf, pas);
+	mlx5_fill_page_frag_array(&conn->cq.wq_ctrl.buf, pas);
 
 	err = mlx5_core_create_cq(mdev, &conn->cq.mcq, in, inlen);
 	kvfree(in);
@@ -500,7 +500,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	goto out;
 
 err_cqwq:
-	mlx5_cqwq_destroy(&conn->cq.wq_ctrl);
+	mlx5_wq_destroy(&conn->cq.wq_ctrl);
 out:
 	return err;
 }
@@ -510,7 +510,7 @@ static void mlx5_fpga_conn_destroy_cq(struct mlx5_fpga_conn *conn)
 	tasklet_disable(&conn->cq.tasklet);
 	tasklet_kill(&conn->cq.tasklet);
 	mlx5_core_destroy_cq(conn->fdev->mdev, &conn->cq.mcq);
-	mlx5_cqwq_destroy(&conn->cq.wq_ctrl);
+	mlx5_wq_destroy(&conn->cq.wq_ctrl);
 }
 
 static int mlx5_fpga_conn_create_wq(struct mlx5_fpga_conn *conn, void *qpc)
@@ -549,15 +549,17 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 	if (err)
 		goto out;
 
-	conn->qp.rq.bufs = kvzalloc(sizeof(conn->qp.rq.bufs[0]) *
-				    conn->qp.rq.size, GFP_KERNEL);
+	conn->qp.rq.bufs = kvcalloc(conn->qp.rq.size,
+				    sizeof(conn->qp.rq.bufs[0]),
+				    GFP_KERNEL);
 	if (!conn->qp.rq.bufs) {
 		err = -ENOMEM;
 		goto err_wq;
 	}
 
-	conn->qp.sq.bufs = kvzalloc(sizeof(conn->qp.sq.bufs[0]) *
-				    conn->qp.sq.size, GFP_KERNEL);
+	conn->qp.sq.bufs = kvcalloc(conn->qp.sq.size,
+				    sizeof(conn->qp.sq.bufs[0]),
+				    GFP_KERNEL);
 	if (!conn->qp.sq.bufs) {
 		err = -ENOMEM;
 		goto err_rq_bufs;
@@ -591,8 +593,8 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 	if (MLX5_CAP_GEN(mdev, cqe_version) == 1)
 		MLX5_SET(qpc, qpc, user_index, 0xFFFFFF);
 
-	mlx5_fill_page_array(&conn->qp.wq_ctrl.buf,
-			     (__be64 *)MLX5_ADDR_OF(create_qp_in, in, pas));
+	mlx5_fill_page_frag_array(&conn->qp.wq_ctrl.buf,
+				  (__be64 *)MLX5_ADDR_OF(create_qp_in, in, pas));
 
 	err = mlx5_core_create_qp(mdev, &conn->qp.mqp, in, inlen);
 	if (err)
@@ -688,7 +690,7 @@ static inline int mlx5_fpga_conn_init_qp(struct mlx5_fpga_conn *conn)
 	MLX5_SET(qpc, qpc, st, MLX5_QP_ST_RC);
 	MLX5_SET(qpc, qpc, pm_state, MLX5_QP_PM_MIGRATED);
 	MLX5_SET(qpc, qpc, primary_address_path.pkey_index, MLX5_FPGA_PKEY_INDEX);
-	MLX5_SET(qpc, qpc, primary_address_path.port, MLX5_FPGA_PORT_NUM);
+	MLX5_SET(qpc, qpc, primary_address_path.vhca_port_num, MLX5_FPGA_PORT_NUM);
 	MLX5_SET(qpc, qpc, pd, conn->fdev->conn_res.pdn);
 	MLX5_SET(qpc, qpc, cqn_snd, conn->cq.mcq.cqn);
 	MLX5_SET(qpc, qpc, cqn_rcv, conn->cq.mcq.cqn);
@@ -727,7 +729,7 @@ static inline int mlx5_fpga_conn_rtr_qp(struct mlx5_fpga_conn *conn)
 	MLX5_SET(qpc, qpc, next_rcv_psn,
 		 MLX5_GET(fpga_qpc, conn->fpga_qpc, next_send_psn));
 	MLX5_SET(qpc, qpc, primary_address_path.pkey_index, MLX5_FPGA_PKEY_INDEX);
-	MLX5_SET(qpc, qpc, primary_address_path.port, MLX5_FPGA_PORT_NUM);
+	MLX5_SET(qpc, qpc, primary_address_path.vhca_port_num, MLX5_FPGA_PORT_NUM);
 	ether_addr_copy(MLX5_ADDR_OF(qpc, qpc, primary_address_path.rmac_47_32),
 			MLX5_ADDR_OF(fpga_qpc, conn->fpga_qpc, fpga_mac_47_32));
 	MLX5_SET(qpc, qpc, primary_address_path.udp_sport,
@@ -888,7 +890,8 @@ struct mlx5_fpga_conn *mlx5_fpga_conn_create(struct mlx5_fpga_device *fdev,
 	err = mlx5_core_roce_gid_set(fdev->mdev, conn->qp.sgid_index,
 				     MLX5_ROCE_VERSION_2,
 				     MLX5_ROCE_L3_TYPE_IPV6,
-				     remote_ip, remote_mac, true, 0);
+				     remote_ip, remote_mac, true, 0,
+				     MLX5_FPGA_PORT_NUM);
 	if (err) {
 		mlx5_fpga_err(fdev, "Failed to set SGID: %d\n", err);
 		ret = ERR_PTR(err);
@@ -954,7 +957,7 @@ err_cq:
 	mlx5_fpga_conn_destroy_cq(conn);
 err_gid:
 	mlx5_core_roce_gid_set(fdev->mdev, conn->qp.sgid_index, 0, 0, NULL,
-			       NULL, false, 0);
+			       NULL, false, 0, MLX5_FPGA_PORT_NUM);
 err_rsvd_gid:
 	mlx5_core_reserved_gid_free(fdev->mdev, conn->qp.sgid_index);
 err:
@@ -982,7 +985,7 @@ void mlx5_fpga_conn_destroy(struct mlx5_fpga_conn *conn)
 	mlx5_fpga_conn_destroy_cq(conn);
 
 	mlx5_core_roce_gid_set(conn->fdev->mdev, conn->qp.sgid_index, 0, 0,
-			       NULL, NULL, false, 0);
+			       NULL, NULL, false, 0, MLX5_FPGA_PORT_NUM);
 	mlx5_core_reserved_gid_free(conn->fdev->mdev, conn->qp.sgid_index);
 	kfree(conn);
 }

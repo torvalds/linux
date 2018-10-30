@@ -44,7 +44,6 @@ config VIDEO_PVRUSB2_DVB
 	select MEDIA_TUNER_SIMPLE if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA8290 if MEDIA_SUBDRV_AUTOSELECT
 	---help---
-
 	  This option enables a DVB interface for the pvrusb2 driver.
 	  If your device does not support digital television, this
 	  feature will have no affect on the driver's operation.

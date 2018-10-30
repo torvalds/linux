@@ -3,7 +3,7 @@
  *
  * Copyright 2006-2010		Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2015	Intel Deutschland GmbH
+ * Copyright 2015-2017	Intel Deutschland GmbH
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -94,6 +94,9 @@ static int cfg80211_dev_check_name(struct cfg80211_registered_device *rdev,
 	int wiphy_idx, taken = -1, digits;
 
 	ASSERT_RTNL();
+
+	if (strlen(newname) > NL80211_WIPHY_NAME_MAXLEN)
+		return -EINVAL;
 
 	/* prohibit calling the thing phy%d when %d is not its number */
 	sscanf(newname, PHY_NAME "%d%n", &wiphy_idx, &taken);
@@ -439,6 +442,8 @@ struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
 		if (rv)
 			goto use_default_name;
 	} else {
+		int rv;
+
 use_default_name:
 		/* NOTE:  This is *probably* safe w/out holding rtnl because of
 		 * the restrictions on phy names.  Probably this call could
@@ -446,7 +451,11 @@ use_default_name:
 		 * phyX.  But, might should add some locking and check return
 		 * value, and use a different name if this one exists?
 		 */
-		dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
+		rv = dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
+		if (rv < 0) {
+			kfree(rdev);
+			return NULL;
+		}
 	}
 
 	INIT_LIST_HEAD(&rdev->wiphy.wdev_list);
@@ -716,6 +725,10 @@ int wiphy_register(struct wiphy *wiphy)
 		    (!rdev->ops->set_pmk || !rdev->ops->del_pmk)))
 		return -EINVAL;
 
+	if (WARN_ON(!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_FW_ROAM) &&
+		    rdev->ops->update_connect_params))
+		return -EINVAL;
+
 	if (wiphy->addresses)
 		memcpy(wiphy->perm_addr, wiphy->addresses[0].addr, ETH_ALEN);
 
@@ -731,6 +744,8 @@ int wiphy_register(struct wiphy *wiphy)
 
 	/* sanity check supported bands/channels */
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		u16 types = 0;
+
 		sband = wiphy->bands[band];
 		if (!sband)
 			continue;
@@ -773,6 +788,23 @@ int wiphy_register(struct wiphy *wiphy)
 			sband->channels[i].orig_mpwr =
 				sband->channels[i].max_power;
 			sband->channels[i].band = band;
+		}
+
+		for (i = 0; i < sband->n_iftype_data; i++) {
+			const struct ieee80211_sband_iftype_data *iftd;
+
+			iftd = &sband->iftype_data[i];
+
+			if (WARN_ON(!iftd->types_mask))
+				return -EINVAL;
+			if (WARN_ON(types & iftd->types_mask))
+				return -EINVAL;
+
+			/* at least one piece of information must be present */
+			if (WARN_ON(!iftd->he_cap.has_he))
+				return -EINVAL;
+
+			types |= iftd->types_mask;
 		}
 
 		have_band = true;
@@ -987,34 +1019,48 @@ void cfg80211_cqm_config_free(struct wireless_dev *wdev)
 	wdev->cqm_config = NULL;
 }
 
-void cfg80211_unregister_wdev(struct wireless_dev *wdev)
+static void __cfg80211_unregister_wdev(struct wireless_dev *wdev, bool sync)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 
 	ASSERT_RTNL();
 
-	if (WARN_ON(wdev->netdev))
-		return;
-
 	nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
 
 	list_del_rcu(&wdev->list);
+	if (sync)
+		synchronize_rcu();
 	rdev->devlist_generation++;
+
+	cfg80211_mlme_purge_registrations(wdev);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		cfg80211_mlme_purge_registrations(wdev);
 		cfg80211_stop_p2p_device(rdev, wdev);
 		break;
 	case NL80211_IFTYPE_NAN:
 		cfg80211_stop_nan(rdev, wdev);
 		break;
 	default:
-		WARN_ON_ONCE(1);
 		break;
 	}
 
+#ifdef CONFIG_CFG80211_WEXT
+	kzfree(wdev->wext.keys);
+#endif
+	/* only initialized if we have a netdev */
+	if (wdev->netdev)
+		flush_work(&wdev->disconnect_wk);
+
 	cfg80211_cqm_config_free(wdev);
+}
+
+void cfg80211_unregister_wdev(struct wireless_dev *wdev)
+{
+	if (WARN_ON(wdev->netdev))
+		return;
+
+	__cfg80211_unregister_wdev(wdev, true);
 }
 EXPORT_SYMBOL(cfg80211_unregister_wdev);
 
@@ -1120,6 +1166,30 @@ void cfg80211_stop_iface(struct wiphy *wiphy, struct wireless_dev *wdev,
 }
 EXPORT_SYMBOL(cfg80211_stop_iface);
 
+void cfg80211_init_wdev(struct cfg80211_registered_device *rdev,
+			struct wireless_dev *wdev)
+{
+	mutex_init(&wdev->mtx);
+	INIT_LIST_HEAD(&wdev->event_list);
+	spin_lock_init(&wdev->event_lock);
+	INIT_LIST_HEAD(&wdev->mgmt_registrations);
+	spin_lock_init(&wdev->mgmt_registrations_lock);
+
+	/*
+	 * We get here also when the interface changes network namespaces,
+	 * as it's registered into the new one, but we don't want it to
+	 * change ID in that case. Checking if the ID is already assigned
+	 * works, because 0 isn't considered a valid ID and the memory is
+	 * 0-initialized.
+	 */
+	if (!wdev->identifier)
+		wdev->identifier = ++rdev->wdev_id;
+	list_add_rcu(&wdev->list, &rdev->wiphy.wdev_list);
+	rdev->devlist_generation++;
+
+	nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
+}
+
 static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 					 unsigned long state, void *ptr)
 {
@@ -1145,23 +1215,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 * called within code protected by it when interfaces
 		 * are added with nl80211.
 		 */
-		mutex_init(&wdev->mtx);
-		INIT_LIST_HEAD(&wdev->event_list);
-		spin_lock_init(&wdev->event_lock);
-		INIT_LIST_HEAD(&wdev->mgmt_registrations);
-		spin_lock_init(&wdev->mgmt_registrations_lock);
-
-		/*
-		 * We get here also when the interface changes network namespaces,
-		 * as it's registered into the new one, but we don't want it to
-		 * change ID in that case. Checking if the ID is already assigned
-		 * works, because 0 isn't considered a valid ID and the memory is
-		 * 0-initialized.
-		 */
-		if (!wdev->identifier)
-			wdev->identifier = ++rdev->wdev_id;
-		list_add_rcu(&wdev->list, &rdev->wiphy.wdev_list);
-		rdev->devlist_generation++;
 		/* can only change netns with wiphy */
 		dev->features |= NETIF_F_NETNS_LOCAL;
 
@@ -1190,7 +1243,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 
 		INIT_WORK(&wdev->disconnect_wk, cfg80211_autodisconnect_wk);
 
-		nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
+		cfg80211_init_wdev(rdev, wdev);
 		break;
 	case NETDEV_GOING_DOWN:
 		cfg80211_leave(rdev, wdev);
@@ -1205,7 +1258,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 
 		list_for_each_entry_safe(pos, tmp,
 					 &rdev->sched_scan_req_list, list) {
-			if (WARN_ON(pos && pos->dev == wdev->netdev))
+			if (WARN_ON(pos->dev == wdev->netdev))
 				cfg80211_stop_sched_scan_req(rdev, pos, false);
 		}
 
@@ -1269,17 +1322,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 * remove and clean it up.
 		 */
 		if (!list_empty(&wdev->list)) {
-			nl80211_notify_iface(rdev, wdev,
-					     NL80211_CMD_DEL_INTERFACE);
+			__cfg80211_unregister_wdev(wdev, false);
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
-			list_del_rcu(&wdev->list);
-			rdev->devlist_generation++;
-			cfg80211_mlme_purge_registrations(wdev);
-#ifdef CONFIG_CFG80211_WEXT
-			kzfree(wdev->wext.keys);
-#endif
-			flush_work(&wdev->disconnect_wk);
-			cfg80211_cqm_config_free(wdev);
 		}
 		/*
 		 * synchronise (so that we won't find this netdev
@@ -1384,7 +1428,7 @@ out_fail_sysfs:
 out_fail_pernet:
 	return err;
 }
-subsys_initcall(cfg80211_init);
+fs_initcall(cfg80211_init);
 
 static void __exit cfg80211_exit(void)
 {

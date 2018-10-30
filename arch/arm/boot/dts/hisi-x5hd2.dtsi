@@ -39,7 +39,7 @@
 			compatible = "simple-bus";
 			ranges;
 
-			timer0: timer@00002000 {
+			timer0: timer@2000 {
 				compatible = "arm,sp804", "arm,primecell";
 				reg = <0x00002000 0x1000>;
 				/* timer00 & timer01 */
@@ -48,7 +48,7 @@
 				status = "disabled";
 			};
 
-			timer1: timer@00a29000 {
+			timer1: timer@a29000 {
 				/*
 				 * Only used in NORMAL state, not available ins
 				 * SLOW or DOZE state.
@@ -62,7 +62,7 @@
 				status = "disabled";
 			};
 
-			timer2: timer@00a2a000 {
+			timer2: timer@a2a000 {
 				compatible = "arm,sp804", "arm,primecell";
 				reg = <0x00a2a000 0x1000>;
 				/* timer20 & timer21 */
@@ -71,7 +71,7 @@
 				status = "disabled";
 			};
 
-			timer3: timer@00a2b000 {
+			timer3: timer@a2b000 {
 				compatible = "arm,sp804", "arm,primecell";
 				reg = <0x00a2b000 0x1000>;
 				/* timer30 & timer31 */
@@ -80,7 +80,7 @@
 				status = "disabled";
 			};
 
-			timer4: timer@00a81000 {
+			timer4: timer@a81000 {
 				compatible = "arm,sp804", "arm,primecell";
 				reg = <0x00a81000 0x1000>;
 				/* timer30 & timer31 */
@@ -89,7 +89,7 @@
 				status = "disabled";
 			};
 
-			uart0: uart@00b00000 {
+			uart0: uart@b00000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x00b00000 0x1000>;
 				interrupts = <0 49 4>;
@@ -98,7 +98,7 @@
 				status = "disabled";
 			};
 
-			uart1: uart@00006000 {
+			uart1: uart@6000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x00006000 0x1000>;
 				interrupts = <0 50 4>;
@@ -107,7 +107,7 @@
 				status = "disabled";
 			};
 
-			uart2: uart@00b02000 {
+			uart2: uart@b02000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x00b02000 0x1000>;
 				interrupts = <0 51 4>;
@@ -116,7 +116,7 @@
 				status = "disabled";
 			};
 
-			uart3: uart@00b03000 {
+			uart3: uart@b03000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x00b03000 0x1000>;
 				interrupts = <0 52 4>;
@@ -125,7 +125,7 @@
 				status = "disabled";
 			};
 
-			uart4: uart@00b04000 {
+			uart4: uart@b04000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xb04000 0x1000>;
 				interrupts = <0 53 4>;
@@ -199,7 +199,7 @@
 				status = "disabled";
 			};
 
-			gpio5: gpio@004000 {
+			gpio5: gpio@4000 {
 				compatible = "arm,pl061", "arm,primecell";
 				reg = <0x004000 0x1000>;
 				interrupts = <0 113 0x4>;
@@ -378,7 +378,7 @@
 			};
 		};
 
-		local_timer@00a00600 {
+		local_timer@a00600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x00a00600 0x20>;
 			interrupts = <1 13 0xf01>;
@@ -392,7 +392,7 @@
 			cache-level = <2>;
 		};
 
-		sysctrl: system-controller@00000000 {
+		sysctrl: system-controller@0 {
 			compatible = "hisilicon,sysctrl", "syscon";
 			reg = <0x00000000 0x1000>;
 		};
@@ -404,7 +404,7 @@
 			mask = <0xdeadbeef>;
 		};
 
-		cpuctrl@00a22000 {
+		cpuctrl@a22000 {
 			compatible = "hisilicon,cpuctrl";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -489,7 +489,7 @@
 			clocks = <&clock HIX5HD2_SATA_CLK>;
 		};
 
-		ir: ir@001000 {
+		ir: ir@1000 {
 			compatible = "hisilicon,hix5hd2-ir";
 			reg = <0x001000 0x1000>;
 			interrupts = <0 47 4>;

@@ -109,8 +109,8 @@ static int clps711x_keypad_probe(struct platform_device *pdev)
 	if (priv->row_count < 1)
 		return -EINVAL;
 
-	priv->gpio_data = devm_kzalloc(dev,
-				sizeof(*priv->gpio_data) * priv->row_count,
+	priv->gpio_data = devm_kcalloc(dev,
+				priv->row_count, sizeof(*priv->gpio_data),
 				GFP_KERNEL);
 	if (!priv->gpio_data)
 		return -ENOMEM;

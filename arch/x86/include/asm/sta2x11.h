@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Header file for STMicroelectronics ConneXt (STA2X11) IOHub
  */

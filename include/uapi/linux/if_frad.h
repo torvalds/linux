@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * DLCI/FRAD	Definitions for Frame Relay Access Devices.  DLCI devices are
  *		created for each DLCI associated with a FRAD.  The FRAD driver

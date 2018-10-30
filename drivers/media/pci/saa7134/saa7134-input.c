@@ -43,7 +43,8 @@ MODULE_PARM_DESC(pinnacle_remote, "Specify Pinnacle PCTV remote: 0=coloured, 1=g
 	} while (0)
 #define ir_dbg(ir, fmt, arg...) do { \
 	if (ir_debug) \
-		printk(KERN_DEBUG pr_fmt("ir %s: " fmt), ir->name, ## arg); \
+		printk(KERN_DEBUG pr_fmt("ir %s: " fmt), ir->rc->device_name, \
+		       ## arg); \
 	} while (0)
 
 /* Helper function for raw decoding at GPIO16 or GPIO18 */
@@ -114,7 +115,7 @@ static int build_key(struct saa7134_dev *dev)
 static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_proto *protocol,
 			       u32 *scancode, u8 *toggle)
 {
-	int gpio;
+	int gpio, rc;
 	int attempt = 0;
 	unsigned char b;
 
@@ -152,8 +153,11 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_proto *protocol,
 		       attempt);
 		return -EIO;
 	}
-	if (1 != i2c_master_recv(ir->c, &b, 1)) {
+	rc = i2c_master_recv(ir->c, &b, 1);
+	if (rc != 1) {
 		ir_dbg(ir, "read error\n");
+		if (rc < 0)
+			return rc;
 		return -EIO;
 	}
 
@@ -168,7 +172,7 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir,
 				       u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
-	int gpio;
+	int gpio, rc;
 
 	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
 	struct saa7134_dev *dev = ir->c->adapter->algo_data;
@@ -192,8 +196,11 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir,
 
 	/* GPIO says there is a button press. Get it. */
 
-	if (1 != i2c_master_recv(ir->c, &b, 1)) {
+	rc = i2c_master_recv(ir->c, &b, 1);
+	if (rc != 1) {
 		ir_dbg(ir, "read error\n");
+		if (rc < 0)
+			return rc;
 		return -EIO;
 	}
 
@@ -217,6 +224,7 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_proto *protocol,
 {
 	unsigned char b;
 	unsigned int gpio;
+	int rc;
 
 	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
 	struct saa7134_dev *dev = ir->c->adapter->algo_data;
@@ -240,8 +248,11 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_proto *protocol,
 
 	/* GPIO says there is a button press. Get it. */
 
-	if (1 != i2c_master_recv(ir->c, &b, 1)) {
+	rc = i2c_master_recv(ir->c, &b, 1);
+	if (rc != 1) {
 		ir_dbg(ir, "read error\n");
+		if (rc < 0)
+			return rc;
 		return -EIO;
 	}
 
@@ -262,11 +273,15 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_proto *protocol,
 static int get_key_purpletv(struct IR_i2c *ir, enum rc_proto *protocol,
 			    u32 *scancode, u8 *toggle)
 {
+	int rc;
 	unsigned char b;
 
 	/* poll IR chip */
-	if (1 != i2c_master_recv(ir->c, &b, 1)) {
+	rc = i2c_master_recv(ir->c, &b, 1);
+	if (rc != 1) {
 		ir_dbg(ir, "read error\n");
+		if (rc < 0)
+			return rc;
 		return -EIO;
 	}
 
@@ -287,11 +302,17 @@ static int get_key_purpletv(struct IR_i2c *ir, enum rc_proto *protocol,
 static int get_key_hvr1110(struct IR_i2c *ir, enum rc_proto *protocol,
 			   u32 *scancode, u8 *toggle)
 {
+	int rc;
 	unsigned char buf[5];
 
 	/* poll IR chip */
-	if (5 != i2c_master_recv(ir->c, buf, 5))
+	rc = i2c_master_recv(ir->c, buf, 5);
+	if (rc != 5) {
+		ir_dbg(ir, "read error\n");
+		if (rc < 0)
+			return rc;
 		return -EIO;
+	}
 
 	/* Check if some key were pressed */
 	if (!(buf[0] & 0x80))
@@ -318,6 +339,7 @@ static int get_key_hvr1110(struct IR_i2c *ir, enum rc_proto *protocol,
 static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_proto *protocol,
 			      u32 *scancode, u8 *toggle)
 {
+	int rc;
 	unsigned char data[12];
 	u32 gpio;
 
@@ -334,8 +356,11 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_proto *protocol,
 
 	ir->c->addr = 0x5a >> 1;
 
-	if (12 != i2c_master_recv(ir->c, data, 12)) {
+	rc = i2c_master_recv(ir->c, data, 12);
+	if (rc != 12) {
 		ir_dbg(ir, "read error\n");
+		if (rc < 0)
+			return rc;
 		return -EIO;
 	}
 
@@ -355,12 +380,16 @@ static int get_key_pinnacle(struct IR_i2c *ir, enum rc_proto *protocol,
 			    u32 *scancode, u8 *toggle, int parity_offset,
 			    int marker, int code_modulo)
 {
+	int rc;
 	unsigned char b[4];
 	unsigned int start = 0,parity = 0,code = 0;
 
 	/* poll IR chip */
-	if (4 != i2c_master_recv(ir->c, b, 4)) {
+	rc = i2c_master_recv(ir->c, b, 4);
+	if (rc != 4) {
 		ir_dbg(ir, "read error\n");
+		if (rc < 0)
+			return rc;
 		return -EIO;
 	}
 
@@ -447,10 +476,10 @@ void saa7134_input_irq(struct saa7134_dev *dev)
 	}
 }
 
-static void saa7134_input_timer(unsigned long data)
+static void saa7134_input_timer(struct timer_list *t)
 {
-	struct saa7134_dev *dev = (struct saa7134_dev *)data;
-	struct saa7134_card_ir *ir = dev->remote;
+	struct saa7134_card_ir *ir = from_timer(ir, t, timer);
+	struct saa7134_dev *dev = ir->dev->priv;
 
 	build_key(dev);
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
@@ -507,8 +536,7 @@ static int __saa7134_ir_start(void *priv)
 	ir->running = true;
 
 	if (ir->polling) {
-		setup_timer(&ir->timer, saa7134_input_timer,
-			    (unsigned long)dev);
+		timer_setup(&ir->timer, saa7134_input_timer, 0);
 		ir->timer.expires = jiffies + HZ;
 		add_timer(&ir->timer);
 	}
@@ -925,7 +953,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	memset(&dev->init_data, 0, sizeof(dev->init_data));
-	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	strscpy(info.type, "ir_video", I2C_NAME_SIZE);
 
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:

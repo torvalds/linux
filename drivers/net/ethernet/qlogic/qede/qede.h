@@ -40,6 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/bpf.h>
+#include <net/xdp.h>
 #include <linux/qed/qede_rdma.h>
 #include <linux/io.h>
 #ifdef CONFIG_RFS_ACCEL
@@ -51,10 +52,13 @@
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_eth_if.h>
 
+#include <net/pkt_cls.h>
+#include <net/tc_act/tc_gact.h>
+
 #define QEDE_MAJOR_VERSION		8
-#define QEDE_MINOR_VERSION		10
-#define QEDE_REVISION_VERSION		10
-#define QEDE_ENGINEERING_VERSION	21
+#define QEDE_MINOR_VERSION		33
+#define QEDE_REVISION_VERSION		0
+#define QEDE_ENGINEERING_VERSION	20
 #define DRV_MODULE_VERSION __stringify(QEDE_MAJOR_VERSION) "."	\
 		__stringify(QEDE_MINOR_VERSION) "."		\
 		__stringify(QEDE_REVISION_VERSION) "."		\
@@ -74,6 +78,7 @@ struct qede_stats_common {
 	u64 rx_bcast_pkts;
 	u64 mftag_filter_discards;
 	u64 mac_filter_discards;
+	u64 gft_filter_drop;
 	u64 tx_ucast_bytes;
 	u64 tx_mcast_bytes;
 	u64 tx_bcast_bytes;
@@ -86,6 +91,7 @@ struct qede_stats_common {
 	u64 coalesced_aborts_num;
 	u64 non_coalesced_pkts;
 	u64 coalesced_bytes;
+	u64 link_change_count;
 
 	/* port */
 	u64 rx_64_byte_packets;
@@ -289,15 +295,12 @@ struct qede_agg_info {
 	 * aggregation.
 	 */
 	struct sw_rx_data buffer;
-	dma_addr_t buffer_mapping;
-
 	struct sk_buff *skb;
 
 	/* We need some structs from the start cookie until termination */
 	u16 vlan_tag;
-	u16 start_cqe_bd_len;
-	u8 start_cqe_placement_offset;
 
+	bool tpa_start_fail;
 	u8 state;
 	u8 frag_id;
 
@@ -345,6 +348,7 @@ struct qede_rx_queue {
 	u64 xdp_no_pass;
 
 	void *handle;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 union db_prod {
@@ -385,6 +389,15 @@ struct qede_tx_queue {
 #define QEDE_TXQ_XDP_TO_IDX(edev, txq)	((txq)->index - \
 					 QEDE_MAX_TSS_CNT(edev))
 #define QEDE_TXQ_IDX_TO_XDP(edev, idx)	((idx) + QEDE_MAX_TSS_CNT(edev))
+#define QEDE_NDEV_TXQ_ID_TO_FP_ID(edev, idx)	((edev)->fp_num_rx + \
+						 ((idx) % QEDE_TSS_COUNT(edev)))
+#define QEDE_NDEV_TXQ_ID_TO_TXQ_COS(edev, idx)	((idx) / QEDE_TSS_COUNT(edev))
+#define QEDE_TXQ_TO_NDEV_TXQ_ID(edev, txq)	((QEDE_TSS_COUNT(edev) * \
+						 (txq)->cos) + (txq)->index)
+#define QEDE_NDEV_TXQ_ID_TO_TXQ(edev, idx)	\
+	(&((edev)->fp_array[QEDE_NDEV_TXQ_ID_TO_FP_ID(edev, idx)].txq \
+	[QEDE_NDEV_TXQ_ID_TO_TXQ_COS(edev, idx)]))
+#define QEDE_FP_TC0_TXQ(fp)	(&((fp)->txq[0]))
 
 	/* Regular Tx requires skb + metadata for release purpose,
 	 * while XDP requires the pages and the mapped address.
@@ -398,6 +411,8 @@ struct qede_tx_queue {
 
 	/* Slowpath; Should be kept in end [unless missing padding] */
 	void *handle;
+	u16 cos;
+	u16 ndev_txq_id;
 };
 
 #define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr.hi), \
@@ -425,7 +440,7 @@ struct qede_fastpath {
 	struct qede_tx_queue	*txq;
 	struct qede_tx_queue	*xdp_tx;
 
-#define VEC_NAME_SIZE	(sizeof(((struct net_device *)0)->name) + 8)
+#define VEC_NAME_SIZE  (FIELD_SIZEOF(struct net_device, name) + 8)
 	char	name[VEC_NAME_SIZE];
 };
 
@@ -457,7 +472,7 @@ void qede_arfs_filter_op(void *dev, void *filter, u8 fw_rc);
 void qede_free_arfs(struct qede_dev *edev);
 int qede_alloc_arfs(struct qede_dev *edev);
 int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info);
-int qede_del_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info);
+int qede_delete_flow_filter(struct qede_dev *edev, u64 cookie);
 int qede_get_cls_rule_entry(struct qede_dev *edev, struct ethtool_rxnfc *cmd);
 int qede_get_cls_rule_all(struct qede_dev *edev, struct ethtool_rxnfc *info,
 			  u32 *rule_locs);
@@ -494,6 +509,8 @@ int qede_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid);
 void qede_vlan_mark_nonconfigured(struct qede_dev *edev);
 int qede_configure_vlan_filters(struct qede_dev *edev);
 
+netdev_features_t qede_fix_features(struct net_device *dev,
+				    netdev_features_t features);
 int qede_set_features(struct net_device *dev, netdev_features_t features);
 void qede_set_rx_mode(struct net_device *ndev);
 void qede_config_rx_mode(struct net_device *ndev);
@@ -503,7 +520,7 @@ void qede_fill_rss_params(struct qede_dev *edev,
 void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti);
 void qede_udp_tunnel_del(struct net_device *dev, struct udp_tunnel_info *ti);
 
-int qede_xdp(struct net_device *dev, struct netdev_xdp *xdp);
+int qede_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 
 #ifdef CONFIG_DCB
 void qede_set_dcbnl_ops(struct net_device *ndev);
@@ -521,6 +538,8 @@ bool qede_has_rx_work(struct qede_rx_queue *rxq);
 int qede_txq_has_work(struct qede_tx_queue *txq);
 void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, u8 count);
 void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq);
+int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
+			    struct tc_cls_flower_offload *f);
 
 #define RX_RING_SIZE_POW	13
 #define RX_RING_SIZE		((u16)BIT(RX_RING_SIZE_POW))
@@ -538,5 +557,7 @@ void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq);
 #define QEDE_RX_HDR_SIZE		256
 #define QEDE_MAX_JUMBO_PACKET_SIZE	9600
 #define	for_each_queue(i) for (i = 0; i < edev->num_queues; i++)
+#define for_each_cos_in_txq(edev, var) \
+	for ((var) = 0; (var) < (edev)->dev_info.num_tc; (var)++)
 
 #endif /* _QEDE_H_ */

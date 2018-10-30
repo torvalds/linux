@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB Skeleton driver - 2.2
  *
  * Copyright (C) 2001-2004 Greg Kroah-Hartman (greg@kroah.com)
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  * This driver is based on the 2.6.3 version of drivers/usb/usb-skeleton.c
  * but has been rewritten to be easier to read and use.
- *
  */
 
 #include <linux/kernel.h>
@@ -163,10 +159,11 @@ static int skel_flush(struct file *file, fl_owner_t id)
 static void skel_read_bulk_callback(struct urb *urb)
 {
 	struct usb_skel *dev;
+	unsigned long flags;
 
 	dev = urb->context;
 
-	spin_lock(&dev->err_lock);
+	spin_lock_irqsave(&dev->err_lock, flags);
 	/* sync/async unlink faults aren't errors */
 	if (urb->status) {
 		if (!(urb->status == -ENOENT ||
@@ -181,7 +178,7 @@ static void skel_read_bulk_callback(struct urb *urb)
 		dev->bulk_in_filled = urb->actual_length;
 	}
 	dev->ongoing_read = 0;
-	spin_unlock(&dev->err_lock);
+	spin_unlock_irqrestore(&dev->err_lock, flags);
 
 	wake_up_interruptible(&dev->bulk_in_wait);
 }
@@ -335,6 +332,7 @@ exit:
 static void skel_write_bulk_callback(struct urb *urb)
 {
 	struct usb_skel *dev;
+	unsigned long flags;
 
 	dev = urb->context;
 
@@ -347,9 +345,9 @@ static void skel_write_bulk_callback(struct urb *urb)
 				"%s - nonzero write bulk status received: %d\n",
 				__func__, urb->status);
 
-		spin_lock(&dev->err_lock);
+		spin_lock_irqsave(&dev->err_lock, flags);
 		dev->errors = urb->status;
-		spin_unlock(&dev->err_lock);
+		spin_unlock_irqrestore(&dev->err_lock, flags);
 	}
 
 	/* free up our allocated buffer */
@@ -644,4 +642,4 @@ static struct usb_driver skel_driver = {
 
 module_usb_driver(skel_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

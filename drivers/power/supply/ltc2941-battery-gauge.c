@@ -34,6 +34,10 @@ enum ltc294x_reg {
 	LTC294X_REG_CONTROL		= 0x01,
 	LTC294X_REG_ACC_CHARGE_MSB	= 0x02,
 	LTC294X_REG_ACC_CHARGE_LSB	= 0x03,
+	LTC294X_REG_CHARGE_THR_HIGH_MSB	= 0x04,
+	LTC294X_REG_CHARGE_THR_HIGH_LSB	= 0x05,
+	LTC294X_REG_CHARGE_THR_LOW_MSB	= 0x06,
+	LTC294X_REG_CHARGE_THR_LOW_LSB	= 0x07,
 	LTC294X_REG_VOLTAGE_MSB		= 0x08,
 	LTC294X_REG_VOLTAGE_LSB		= 0x09,
 	LTC2942_REG_TEMPERATURE_MSB	= 0x0C,
@@ -60,6 +64,7 @@ enum ltc294x_id {
 #define LTC294X_REG_CONTROL_PRESCALER_SET(x) \
 	((x << 3) & LTC294X_REG_CONTROL_PRESCALER_MASK)
 #define LTC294X_REG_CONTROL_ALCC_CONFIG_DISABLED	0
+#define LTC294X_REG_CONTROL_ADC_DISABLE(x)	((x) & ~(BIT(7) | BIT(6)))
 
 struct ltc294x_info {
 	struct i2c_client *client;	/* I2C Client pointer */
@@ -178,21 +183,22 @@ error_exit:
 	return ret;
 }
 
-static int ltc294x_read_charge_register(const struct ltc294x_info *info)
-{
+static int ltc294x_read_charge_register(const struct ltc294x_info *info,
+					enum ltc294x_reg reg)
+ {
 	int ret;
 	u8 datar[2];
 
-	ret = ltc294x_read_regs(info->client,
-		LTC294X_REG_ACC_CHARGE_MSB, &datar[0], 2);
+	ret = ltc294x_read_regs(info->client, reg, &datar[0], 2);
 	if (ret < 0)
 		return ret;
 	return (datar[0] << 8) + datar[1];
 }
 
-static int ltc294x_get_charge_now(const struct ltc294x_info *info, int *val)
+static int ltc294x_get_charge(const struct ltc294x_info *info,
+				enum ltc294x_reg reg, int *val)
 {
-	int value = ltc294x_read_charge_register(info);
+	int value = ltc294x_read_charge_register(info, reg);
 
 	if (value < 0)
 		return value;
@@ -244,10 +250,29 @@ error_exit:
 	return ret < 0 ? ret : 0;
 }
 
+static int ltc294x_set_charge_thr(const struct ltc294x_info *info,
+					enum ltc294x_reg reg, int val)
+{
+	u8 dataw[2];
+	s32 value;
+
+	value = convert_uAh_to_bin(info, val);
+	/* Direction depends on how sense+/- were connected */
+	if (info->Qlsb < 0)
+		value += 0xFFFF;
+	if ((value < 0) || (value > 0xFFFF)) /* input validation */
+		return -EINVAL;
+
+	/* Set new charge value */
+	dataw[0] = I16_MSB(value);
+	dataw[1] = I16_LSB(value);
+	return ltc294x_write_regs(info->client, reg, &dataw[0], 2);
+}
+
 static int ltc294x_get_charge_counter(
 	const struct ltc294x_info *info, int *val)
 {
-	int value = ltc294x_read_charge_register(info);
+	int value = ltc294x_read_charge_register(info, LTC294X_REG_ACC_CHARGE_MSB);
 
 	if (value < 0)
 		return value;
@@ -316,15 +341,15 @@ static int ltc294x_get_temperature(const struct ltc294x_info *info, int *val)
 
 	if (info->id == LTC2942_ID) {
 		reg = LTC2942_REG_TEMPERATURE_MSB;
-		value = 60000;	/* Full-scale is 600 Kelvin */
+		value = 6000;	/* Full-scale is 600 Kelvin */
 	} else {
 		reg = LTC2943_REG_TEMPERATURE_MSB;
-		value = 51000;	/* Full-scale is 510 Kelvin */
+		value = 5100;	/* Full-scale is 510 Kelvin */
 	}
 	ret = ltc294x_read_regs(info->client, reg, &datar[0], 2);
 	value *= (datar[0] << 8) | datar[1];
-	/* Convert to centidegrees  */
-	*val = value / 0xFFFF - 27215;
+	/* Convert to tenths of degree Celsius */
+	*val = value / 0xFFFF - 2722;
 	return ret;
 }
 
@@ -335,8 +360,15 @@ static int ltc294x_get_property(struct power_supply *psy,
 	struct ltc294x_info *info = power_supply_get_drvdata(psy);
 
 	switch (prop) {
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		return ltc294x_get_charge(info, LTC294X_REG_CHARGE_THR_HIGH_MSB,
+						&val->intval);
+	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
+		return ltc294x_get_charge(info, LTC294X_REG_CHARGE_THR_LOW_MSB,
+						&val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		return ltc294x_get_charge_now(info, &val->intval);
+		return ltc294x_get_charge(info, LTC294X_REG_ACC_CHARGE_MSB,
+						&val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
 		return ltc294x_get_charge_counter(info, &val->intval);
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
@@ -357,6 +389,12 @@ static int ltc294x_set_property(struct power_supply *psy,
 	struct ltc294x_info *info = power_supply_get_drvdata(psy);
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		return ltc294x_set_charge_thr(info,
+			LTC294X_REG_CHARGE_THR_HIGH_MSB, val->intval);
+	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
+		return ltc294x_set_charge_thr(info,
+			LTC294X_REG_CHARGE_THR_LOW_MSB, val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		return ltc294x_set_charge_now(info, val->intval);
 	default:
@@ -368,6 +406,8 @@ static int ltc294x_property_is_writeable(
 	struct power_supply *psy, enum power_supply_property psp)
 {
 	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		return 1;
 	default:
@@ -377,7 +417,7 @@ static int ltc294x_property_is_writeable(
 
 static void ltc294x_update(struct ltc294x_info *info)
 {
-	int charge = ltc294x_read_charge_register(info);
+	int charge = ltc294x_read_charge_register(info, LTC294X_REG_ACC_CHARGE_MSB);
 
 	if (charge != info->charge) {
 		info->charge = charge;
@@ -396,6 +436,8 @@ static void ltc294x_work(struct work_struct *work)
 
 static enum power_supply_property ltc294x_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_EMPTY,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_TEMP,
@@ -523,6 +565,29 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
+static void ltc294x_i2c_shutdown(struct i2c_client *client)
+{
+	struct ltc294x_info *info = i2c_get_clientdata(client);
+	int ret;
+	u8 value;
+	u8 control;
+
+	/* The LTC2941 does not need any special handling */
+	if (info->id == LTC2941_ID)
+		return;
+
+	/* Read control register */
+	ret = ltc294x_read_regs(info->client, LTC294X_REG_CONTROL, &value, 1);
+	if (ret < 0)
+		return;
+
+	/* Disable continuous ADC conversion as this drains the battery */
+	control = LTC294X_REG_CONTROL_ADC_DISABLE(value);
+	if (control != value)
+		ltc294x_write_regs(info->client, LTC294X_REG_CONTROL,
+			&control, 1);
+}
+
 #ifdef CONFIG_PM_SLEEP
 
 static int ltc294x_suspend(struct device *dev)
@@ -589,6 +654,7 @@ static struct i2c_driver ltc294x_driver = {
 	},
 	.probe		= ltc294x_i2c_probe,
 	.remove		= ltc294x_i2c_remove,
+	.shutdown	= ltc294x_i2c_shutdown,
 	.id_table	= ltc294x_i2c_id,
 };
 module_i2c_driver(ltc294x_driver);

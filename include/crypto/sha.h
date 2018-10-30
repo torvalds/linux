@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Common values for SHA algorithms
  */
@@ -69,6 +70,10 @@ extern const u8 sha1_zero_message_hash[SHA1_DIGEST_SIZE];
 extern const u8 sha224_zero_message_hash[SHA224_DIGEST_SIZE];
 
 extern const u8 sha256_zero_message_hash[SHA256_DIGEST_SIZE];
+
+extern const u8 sha384_zero_message_hash[SHA384_DIGEST_SIZE];
+
+extern const u8 sha512_zero_message_hash[SHA512_DIGEST_SIZE];
 
 struct sha1_state {
 	u32 state[SHA1_DIGEST_SIZE / 4];

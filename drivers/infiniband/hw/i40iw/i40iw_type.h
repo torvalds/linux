@@ -250,6 +250,7 @@ struct i40iw_vsi_pestat {
 	struct i40iw_dev_hw_stats last_read_hw_stats;
 	struct i40iw_dev_hw_stats_offsets hw_stats_offsets;
 	struct timer_list stats_timer;
+	struct i40iw_sc_vsi *vsi;
 	spinlock_t lock; /* rdma stats lock */
 };
 
@@ -380,7 +381,6 @@ struct i40iw_sc_qp {
 	u8 *q2_buf;
 	u64 qp_compl_ctx;
 	u16 qs_handle;
-	u16 exception_lan_queue;
 	u16 push_idx;
 	u8 sq_tph_val;
 	u8 rq_tph_val;
@@ -459,7 +459,8 @@ struct i40iw_sc_vsi {
 	u32 ieq_count;
 	struct i40iw_virt_mem ieq_mem;
 	struct i40iw_puda_rsrc *ieq;
-	u16 mss;
+	u16 exception_lan_queue;
+	u16 mtu;
 	u8 fcn_id;
 	bool stats_fcn_id_alloc;
 	struct i40iw_qos qos[I40IW_MAX_USER_PRIORITY];
@@ -501,10 +502,10 @@ struct i40iw_sc_dev {
 
 	struct i40iw_hmc_fpm_misc hmc_fpm_misc;
 	u32 debug_mask;
-	u16 exception_lan_queue;
 	u8 hmc_fn_id;
 	bool is_pf;
 	bool vchnl_up;
+	bool ceq_valid;
 	u8 vf_id;
 	wait_queue_head_t vf_reqs;
 	u64 cqp_cmd_stats[OP_SIZE_CQP_STAT_ARRAY];
@@ -534,7 +535,6 @@ struct i40iw_create_qp_info {
 	bool ord_valid;
 	bool tcp_ctx_valid;
 	bool cq_num_valid;
-	bool static_rsrc;
 	bool arp_cache_idx_valid;
 };
 
@@ -546,7 +546,6 @@ struct i40iw_modify_qp_info {
 	bool ord_valid;
 	bool tcp_ctx_valid;
 	bool cq_num_valid;
-	bool static_rsrc;
 	bool arp_cache_idx_valid;
 	bool reset_tcp_conn;
 	bool remove_hash_idx;
@@ -568,13 +567,14 @@ struct i40iw_ccq_cqe_info {
 
 struct i40iw_l2params {
 	u16 qs_handle_list[I40IW_MAX_USER_PRIORITY];
-	u16 mss;
+	u16 mtu;
 };
 
 struct i40iw_vsi_init_info {
 	struct i40iw_sc_dev *dev;
 	void  *back_vsi;
 	struct i40iw_l2params *params;
+	u16 exception_lan_queue;
 };
 
 struct i40iw_vsi_stats_info {
@@ -592,7 +592,6 @@ struct i40iw_device_init_info {
 	struct i40iw_hw *hw;
 	void __iomem *bar0;
 	enum i40iw_status_code (*vchnl_send)(struct i40iw_sc_dev *, u32, u8 *, u16);
-	u16 exception_lan_queue;
 	u8 hmc_fn_id;
 	bool is_pf;
 	u32 debug_mask;
@@ -1005,6 +1004,11 @@ struct i40iw_cqp_query_fpm_values {
 	u32 pbl_max;
 };
 
+struct i40iw_gen_ae_info {
+	u16 ae_code;
+	u8 ae_source;
+};
+
 struct i40iw_cqp_ops {
 	enum i40iw_status_code (*cqp_init)(struct i40iw_sc_cqp *,
 					   struct i40iw_cqp_init_info *);
@@ -1290,6 +1294,12 @@ struct cqp_info {
 			struct i40iw_qp_flush_info info;
 			u64 scratch;
 		} qp_flush_wqes;
+
+		struct {
+			struct i40iw_sc_qp *qp;
+			struct i40iw_gen_ae_info info;
+			u64 scratch;
+		} gen_ae;
 
 		struct {
 			struct i40iw_sc_cqp *cqp;

@@ -122,9 +122,10 @@ static void nes_replenish_mgt_rq(struct nes_vnic_mgt *mgtvnic)
 /**
  * nes_mgt_rq_wqes_timeout
  */
-static void nes_mgt_rq_wqes_timeout(unsigned long parm)
+static void nes_mgt_rq_wqes_timeout(struct timer_list *t)
 {
-	struct nes_vnic_mgt *mgtvnic = (struct nes_vnic_mgt *)parm;
+	struct nes_vnic_mgt *mgtvnic = from_timer(mgtvnic, t,
+						       rq_wqes_timer);
 
 	atomic_set(&mgtvnic->rx_skb_timer_running, 0);
 	if (atomic_read(&mgtvnic->rx_skbs_needed))
@@ -197,9 +198,9 @@ static struct sk_buff *nes_get_next_skb(struct nes_device *nesdev, struct nes_qp
 
 	if (skb) {
 		/* Continue processing fpdu */
-		if (skb->next == (struct sk_buff *)&nesqp->pau_list)
+		skb = skb_peek_next(skb, &nesqp->pau_list);
+		if (!skb)
 			goto out;
-		skb = skb->next;
 		processacks = false;
 	} else {
 		/* Starting a new one */
@@ -552,12 +553,10 @@ static void queue_fpdus(struct sk_buff *skb, struct nes_vnic *nesvnic, struct ne
 	if (skb_queue_len(&nesqp->pau_list) == 0) {
 		skb_queue_head(&nesqp->pau_list, skb);
 	} else {
-		tmpskb = nesqp->pau_list.next;
-		while (tmpskb != (struct sk_buff *)&nesqp->pau_list) {
+		skb_queue_walk(&nesqp->pau_list, tmpskb) {
 			cb = (struct nes_rskb_cb *)&tmpskb->cb[0];
 			if (before(seqnum, cb->seqnum))
 				break;
-			tmpskb = tmpskb->next;
 		}
 		skb_insert(tmpskb, skb, &nesqp->pau_list);
 	}
@@ -877,7 +876,8 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
 	int ret;
 
 	/* Allocate space the all mgt QPs once */
-	mgtvnic = kzalloc(NES_MGT_QP_COUNT * sizeof(struct nes_vnic_mgt), GFP_KERNEL);
+	mgtvnic = kcalloc(NES_MGT_QP_COUNT, sizeof(struct nes_vnic_mgt),
+			  GFP_KERNEL);
 	if (!mgtvnic)
 		return -ENOMEM;
 
@@ -1040,8 +1040,8 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
 			mgtvnic->mgt.rx_skb[counter] = skb;
 		}
 
-		setup_timer(&mgtvnic->rq_wqes_timer, nes_mgt_rq_wqes_timeout,
-			    (unsigned long)mgtvnic);
+		timer_setup(&mgtvnic->rq_wqes_timer, nes_mgt_rq_wqes_timeout,
+			    0);
 
 		wqe_count = NES_MGT_WQ_COUNT - 1;
 		mgtvnic->mgt.rq_head = wqe_count;

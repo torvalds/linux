@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +29,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,7 +123,7 @@ enum iwl_tx_flags {
 }; /* TX_FLAGS_BITS_API_S_VER_1 */
 
 /**
- * enum iwl_tx_cmd_flags - bitmasks for tx_flags in TX command for a000
+ * enum iwl_tx_cmd_flags - bitmasks for tx_flags in TX command for 22000
  * @IWL_TX_FLAGS_CMD_RATE: use rate from the TX command
  * @IWL_TX_FLAGS_ENCRYPT_DIS: frame should not be encrypted, even if it belongs
  *	to a secured STA
@@ -184,7 +186,7 @@ enum iwl_tx_cmd_sec_ctrl {
 /*
  * TID for non QoS frames - to be written in tid_tspec
  */
-#define IWL_TID_NON_QOS	IWL_MAX_TID_COUNT
+#define IWL_TID_NON_QOS	0
 
 /*
  * Limits on the retransmissions - to be written in {data,rts}_retry_limit
@@ -301,7 +303,7 @@ struct iwl_dram_sec_info {
 } __packed; /* DRAM_SEC_INFO_API_S_VER_1 */
 
 /**
- * struct iwl_tx_cmd_gen2 - TX command struct to FW for a000 devices
+ * struct iwl_tx_cmd_gen2 - TX command struct to FW for 22000 devices
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
@@ -319,6 +321,29 @@ struct iwl_tx_cmd_gen2 {
 	__le32 rate_n_flags;
 	struct ieee80211_hdr hdr[0];
 } __packed; /* TX_CMD_API_S_VER_7 */
+
+/**
+ * struct iwl_tx_cmd_gen3 - TX command struct to FW for 22560 devices
+ * ( TX_CMD = 0x1c )
+ * @len: in bytes of the payload, see below for details
+ * @flags: combination of &enum iwl_tx_cmd_flags
+ * @offload_assist: TX offload configuration
+ * @dram_info: FW internal DRAM storage
+ * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
+ *	cleared. Combination of RATE_MCS_*
+ * @ttl: time to live - packet lifetime limit. The FW should drop if
+ *	passed.
+ * @hdr: 802.11 header
+ */
+struct iwl_tx_cmd_gen3 {
+	__le16 len;
+	__le16 flags;
+	__le32 offload_assist;
+	struct iwl_dram_sec_info dram_info;
+	__le32 rate_n_flags;
+	__le64 ttl;
+	struct ieee80211_hdr hdr[0];
+} __packed; /* TX_CMD_API_S_VER_8 */
 
 /*
  * TX response related data
@@ -710,7 +735,7 @@ enum iwl_mvm_ba_resp_flags {
  * @reduced_txp: power reduced according to TPC. This is the actual value and
  *	not a copy from the LQ command. Thus, if not the first rate was used
  *	for Tx-ing then this value will be set to 0 by FW.
- * @initial_rate: TLC rate info, initial rate index, TLC table color
+ * @tlc_rate_info: TLC rate info, initial rate index, TLC table color
  * @retry_cnt: retry count
  * @query_byte_cnt: SCD query byte count
  * @query_frame_cnt: SCD query frame count
@@ -722,15 +747,15 @@ enum iwl_mvm_ba_resp_flags {
  * @tfd_cnt: number of TFD-Q elements
  * @ra_tid_cnt: number of RATID-Q elements
  * @tfd: array of TFD queue status updates. See &iwl_mvm_compressed_ba_tfd
- *	for details.
+ *	for details. Length in @tfd_cnt.
  * @ra_tid: array of RA-TID queue status updates. For debug purposes only. See
- *	&iwl_mvm_compressed_ba_ratid for more details.
+ *	&iwl_mvm_compressed_ba_ratid for more details. Length in @ra_tid_cnt.
  */
 struct iwl_mvm_compressed_ba_notif {
 	__le32 flags;
 	u8 sta_id;
 	u8 reduced_txp;
-	u8 initial_rate;
+	u8 tlc_rate_info;
 	u8 retry_cnt;
 	__le32 query_byte_cnt;
 	__le16 query_frame_cnt;
@@ -741,7 +766,7 @@ struct iwl_mvm_compressed_ba_notif {
 	__le32 tx_rate;
 	__le16 tfd_cnt;
 	__le16 ra_tid_cnt;
-	struct iwl_mvm_compressed_ba_tfd tfd[1];
+	struct iwl_mvm_compressed_ba_tfd tfd[0];
 	struct iwl_mvm_compressed_ba_ratid ra_tid[0];
 } __packed; /* COMPRESSED_BA_RES_API_S_VER_4 */
 

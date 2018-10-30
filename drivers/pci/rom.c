@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/rom.c
+ * PCI ROM access routines
  *
  * (C) Copyright 2004 Jon Smirl <jonsmirl@yahoo.com>
  * (C) Copyright 2004 Silicon Graphics, Inc. Jesse Barnes <jbarnes@sgi.com>
- *
- * PCI ROM access routines
  */
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -81,7 +80,8 @@ EXPORT_SYMBOL_GPL(pci_disable_rom);
  * The PCI window size could be much larger than the
  * actual image size.
  */
-size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size)
+static size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom,
+			       size_t size)
 {
 	void __iomem *image;
 	int last_image;
@@ -92,23 +92,29 @@ size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size)
 		void __iomem *pds;
 		/* Standard PCI ROMs start out with these bytes 55 AA */
 		if (readw(image) != 0xAA55) {
-			dev_err(&pdev->dev, "Invalid PCI ROM header signature: expecting 0xaa55, got %#06x\n",
-				readw(image));
+			pci_info(pdev, "Invalid PCI ROM header signature: expecting 0xaa55, got %#06x\n",
+				 readw(image));
 			break;
 		}
 		/* get the PCI data structure and check its "PCIR" signature */
 		pds = image + readw(image + 24);
 		if (readl(pds) != 0x52494350) {
-			dev_err(&pdev->dev, "Invalid PCI ROM data signature: expecting 0x52494350, got %#010x\n",
-				readl(pds));
+			pci_info(pdev, "Invalid PCI ROM data signature: expecting 0x52494350, got %#010x\n",
+				 readl(pds));
 			break;
 		}
 		last_image = readb(pds + 21) & 0x80;
 		length = readw(pds + 16);
 		image += length * 512;
 		/* Avoid iterating through memory outside the resource window */
-		if (image > rom + size)
+		if (image >= rom + size)
 			break;
+		if (!last_image) {
+			if (readw(image) != 0xAA55) {
+				pci_info(pdev, "No more image in the PCI ROM\n");
+				break;
+			}
+		}
 	} while (length && !last_image);
 
 	/* never return a size larger than the PCI resource window */
@@ -147,12 +153,8 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 		return NULL;
 
 	rom = ioremap(start, *size);
-	if (!rom) {
-		/* restore enable if ioremap fails */
-		if (!(res->flags & IORESOURCE_ROM_ENABLE))
-			pci_disable_rom(pdev);
-		return NULL;
-	}
+	if (!rom)
+		goto err_ioremap;
 
 	/*
 	 * Try to find the true size of the ROM since sometimes the PCI window
@@ -160,7 +162,18 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	 * True size is important if the ROM is going to be copied.
 	 */
 	*size = pci_get_rom_size(pdev, rom, *size);
+	if (!*size)
+		goto invalid_rom;
+
 	return rom;
+
+invalid_rom:
+	iounmap(rom);
+err_ioremap:
+	/* restore enable if ioremap fails */
+	if (!(res->flags & IORESOURCE_ROM_ENABLE))
+		pci_disable_rom(pdev);
+	return NULL;
 }
 EXPORT_SYMBOL(pci_map_rom);
 

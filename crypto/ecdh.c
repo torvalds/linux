@@ -30,8 +30,8 @@ static inline struct ecdh_ctx *ecdh_get_ctx(struct crypto_kpp *tfm)
 static unsigned int ecdh_supported_curve(unsigned int curve_id)
 {
 	switch (curve_id) {
-	case ECC_CURVE_NIST_P192: return 3;
-	case ECC_CURVE_NIST_P256: return 4;
+	case ECC_CURVE_NIST_P192: return ECC_CURVE_NIST_P192_DIGITS;
+	case ECC_CURVE_NIST_P256: return ECC_CURVE_NIST_P256_DIGITS;
 	default: return 0;
 	}
 }
@@ -89,12 +89,19 @@ static int ecdh_compute_value(struct kpp_request *req)
 		if (!shared_secret)
 			goto free_pubkey;
 
-		copied = sg_copy_to_buffer(req->src, 1, public_key,
-					   public_key_sz);
-		if (copied != public_key_sz) {
-			ret = -EINVAL;
+		/* from here on it's invalid parameters */
+		ret = -EINVAL;
+
+		/* must have exactly two points to be on the curve */
+		if (public_key_sz != req->src_len)
 			goto free_all;
-		}
+
+		copied = sg_copy_to_buffer(req->src,
+					   sg_nents_for_len(req->src,
+							    public_key_sz),
+					   public_key, public_key_sz);
+		if (copied != public_key_sz)
+			goto free_all;
 
 		ret = crypto_ecdh_shared_secret(ctx->curve_id, ctx->ndigits,
 						ctx->private_key, public_key,
@@ -111,7 +118,11 @@ static int ecdh_compute_value(struct kpp_request *req)
 	if (ret < 0)
 		goto free_all;
 
-	copied = sg_copy_from_buffer(req->dst, 1, buf, nbytes);
+	/* might want less than we've got */
+	nbytes = min_t(size_t, nbytes, req->dst_len);
+	copied = sg_copy_from_buffer(req->dst, sg_nents_for_len(req->dst,
+								nbytes),
+				     buf, nbytes);
 	if (copied != nbytes)
 		ret = -EINVAL;
 
@@ -131,17 +142,11 @@ static unsigned int ecdh_max_size(struct crypto_kpp *tfm)
 	return ctx->ndigits << (ECC_DIGITS_TO_BYTES_SHIFT + 1);
 }
 
-static void no_exit_tfm(struct crypto_kpp *tfm)
-{
-	return;
-}
-
 static struct kpp_alg ecdh = {
 	.set_secret = ecdh_set_secret,
 	.generate_public_key = ecdh_compute_value,
 	.compute_shared_secret = ecdh_compute_value,
 	.max_size = ecdh_max_size,
-	.exit = no_exit_tfm,
 	.base = {
 		.cra_name = "ecdh",
 		.cra_driver_name = "ecdh-generic",

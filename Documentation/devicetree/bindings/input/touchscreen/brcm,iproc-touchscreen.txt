@@ -66,7 +66,7 @@ Example: An example of touchscreen node
 		reg = <0x180a6000 0xc30>;
 	};
 
-	touchscreen: touchscreen@180A6000 {
+	touchscreen: touchscreen@180a6000 {
 		compatible = "brcm,iproc-touchscreen";
 		#address-cells = <1>;
 		#size-cells = <1>;

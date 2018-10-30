@@ -1453,9 +1453,10 @@ union bfa_aen_data_u {
 struct bfa_aen_entry_s {
 	struct list_head	qe;
 	enum bfa_aen_category   aen_category;
-	u32                     aen_type;
+	int                     aen_type;
 	union bfa_aen_data_u    aen_data;
-	struct timeval          aen_tv;
+	u64			aen_tv_sec;
+	u64			aen_tv_usec;
 	u32                     seq_num;
 	u32                     bfad_num;
 };

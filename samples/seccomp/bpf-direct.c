@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Seccomp filter example for x86 (32-bit and 64-bit) with BPF macros
  *

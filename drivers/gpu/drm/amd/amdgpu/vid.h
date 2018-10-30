@@ -27,6 +27,8 @@
 #define SDMA1_REGISTER_OFFSET                             0x200 /* not a register */
 #define SDMA_MAX_INSTANCE 2
 
+#define KFD_VI_SDMA_QUEUE_OFFSET                      0x80 /* not a register */
+
 /* crtc instance offsets */
 #define CRTC0_REGISTER_OFFSET                 (0x1b9c - 0x1b9c)
 #define CRTC1_REGISTER_OFFSET                 (0x1d9c - 0x1b9c)
@@ -464,6 +466,16 @@
 #define VCE_CMD_WAIT_GE         0x00000106
 #define VCE_CMD_UPDATE_PTB      0x00000107
 #define VCE_CMD_FLUSH_TLB       0x00000108
+
+/* HEVC ENC */
+#define HEVC_ENC_CMD_NO_OP         0x00000000
+#define HEVC_ENC_CMD_END           0x00000001
+#define HEVC_ENC_CMD_FENCE         0x00000003
+#define HEVC_ENC_CMD_TRAP          0x00000004
+#define HEVC_ENC_CMD_IB_VM         0x00000102
+#define HEVC_ENC_CMD_WAIT_GE       0x00000106
+#define HEVC_ENC_CMD_UPDATE_PTB    0x00000107
+#define HEVC_ENC_CMD_FLUSH_TLB     0x00000108
 
 /* mmPA_SC_RASTER_CONFIG mask */
 #define RB_MAP_PKR0(x)				((x) << 0)

@@ -150,6 +150,8 @@ struct fastopen_queue {
 	spinlock_t	lock;
 	int		qlen;		/* # of pending (TCP_SYN_RECV) reqs */
 	int		max_qlen;	/* != 0 iff TFO is currently enabled */
+
+	struct tcp_fastopen_context __rcu *ctx; /* cipher context for cookie */
 };
 
 /** struct request_sock_queue - queue of request_socks

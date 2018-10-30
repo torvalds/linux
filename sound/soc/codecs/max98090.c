@@ -284,7 +284,7 @@ static int max98090_reset(struct max98090_priv *max98090)
 	ret = regmap_write(max98090->regmap, M98090_REG_SOFTWARE_RESET,
 		M98090_SWRESET_MASK);
 	if (ret < 0) {
-		dev_err(max98090->codec->dev,
+		dev_err(max98090->component->dev,
 			"Failed to reset codec: %d\n", ret);
 		return ret;
 	}
@@ -354,12 +354,12 @@ static const DECLARE_TLV_DB_RANGE(max98090_rcv_lout_tlv,
 static int max98090_get_enab_tlv(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int mask = (1 << fls(mc->max)) - 1;
-	unsigned int val = snd_soc_read(codec, mc->reg);
+	unsigned int val = snd_soc_component_read32(component, mc->reg);
 	unsigned int *select;
 
 	switch (mc->reg) {
@@ -394,13 +394,13 @@ static int max98090_get_enab_tlv(struct snd_kcontrol *kcontrol,
 static int max98090_put_enab_tlv(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int mask = (1 << fls(mc->max)) - 1;
 	unsigned int sel = ucontrol->value.integer.value[0];
-	unsigned int val = snd_soc_read(codec, mc->reg);
+	unsigned int val = snd_soc_component_read32(component, mc->reg);
 	unsigned int *select;
 
 	switch (mc->reg) {
@@ -429,7 +429,7 @@ static int max98090_put_enab_tlv(struct snd_kcontrol *kcontrol,
 		sel = val;
 	}
 
-	snd_soc_update_bits(codec, mc->reg,
+	snd_soc_component_update_bits(component, mc->reg,
 		mask << mc->shift,
 		sel << mc->shift);
 
@@ -733,10 +733,10 @@ static const struct snd_kcontrol_new max98091_snd_controls[] = {
 static int max98090_micinput_event(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 
-	unsigned int val = snd_soc_read(codec, w->reg);
+	unsigned int val = snd_soc_component_read32(component, w->reg);
 
 	if (w->reg == M98090_REG_MIC1_INPUT_LEVEL)
 		val = (val & M98090_MIC_PA1EN_MASK) >> M98090_MIC_PA1EN_SHIFT;
@@ -768,10 +768,10 @@ static int max98090_micinput_event(struct snd_soc_dapm_widget *w,
 	}
 
 	if (w->reg == M98090_REG_MIC1_INPUT_LEVEL)
-		snd_soc_update_bits(codec, w->reg, M98090_MIC_PA1EN_MASK,
+		snd_soc_component_update_bits(component, w->reg, M98090_MIC_PA1EN_MASK,
 			val << M98090_MIC_PA1EN_SHIFT);
 	else
-		snd_soc_update_bits(codec, w->reg, M98090_MIC_PA2EN_MASK,
+		snd_soc_component_update_bits(component, w->reg, M98090_MIC_PA2EN_MASK,
 			val << M98090_MIC_PA2EN_SHIFT);
 
 	return 0;
@@ -780,8 +780,8 @@ static int max98090_micinput_event(struct snd_soc_dapm_widget *w,
 static int max98090_shdn_event(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 
 	if (event & SND_SOC_DAPM_POST_PMU)
 		max98090->shdn_pending = true;
@@ -1441,16 +1441,16 @@ static const struct snd_soc_dapm_route max98091_dapm_routes[] = {
 	{"DMIC4", NULL, "AHPF"},
 };
 
-static int max98090_add_widgets(struct snd_soc_codec *codec)
+static int max98090_add_widgets(struct snd_soc_component *component)
 {
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
-	snd_soc_add_codec_controls(codec, max98090_snd_controls,
+	snd_soc_add_component_controls(component, max98090_snd_controls,
 		ARRAY_SIZE(max98090_snd_controls));
 
 	if (max98090->devtype == MAX98091) {
-		snd_soc_add_codec_controls(codec, max98091_snd_controls,
+		snd_soc_add_component_controls(component, max98091_snd_controls,
 			ARRAY_SIZE(max98091_snd_controls));
 	}
 
@@ -1497,24 +1497,24 @@ static const unsigned long long mi_value[] = {
 	8125, 1625, 1500, 25
 };
 
-static void max98090_configure_bclk(struct snd_soc_codec *codec)
+static void max98090_configure_bclk(struct snd_soc_component *component)
 {
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 	unsigned long long ni;
 	int i;
 
 	if (!max98090->sysclk) {
-		dev_err(codec->dev, "No SYSCLK configured\n");
+		dev_err(component->dev, "No SYSCLK configured\n");
 		return;
 	}
 
 	if (!max98090->bclk || !max98090->lrclk) {
-		dev_err(codec->dev, "No audio clocks configured\n");
+		dev_err(component->dev, "No audio clocks configured\n");
 		return;
 	}
 
 	/* Skip configuration when operating as slave */
-	if (!(snd_soc_read(codec, M98090_REG_MASTER_MODE) &
+	if (!(snd_soc_component_read32(component, M98090_REG_MASTER_MODE) &
 		M98090_MAS_MASK)) {
 		return;
 	}
@@ -1523,14 +1523,14 @@ static void max98090_configure_bclk(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(pclk_rates); i++) {
 		if ((pclk_rates[i] == max98090->sysclk) &&
 			(lrclk_rates[i] == max98090->lrclk)) {
-			dev_dbg(codec->dev,
+			dev_dbg(component->dev,
 				"Found supported PCLK to LRCLK rates 0x%x\n",
 				i + 0x8);
 
-			snd_soc_update_bits(codec, M98090_REG_CLOCK_MODE,
+			snd_soc_component_update_bits(component, M98090_REG_CLOCK_MODE,
 				M98090_FREQ_MASK,
 				(i + 0x8) << M98090_FREQ_SHIFT);
-			snd_soc_update_bits(codec, M98090_REG_CLOCK_MODE,
+			snd_soc_component_update_bits(component, M98090_REG_CLOCK_MODE,
 				M98090_USE_M1_MASK, 0);
 			return;
 		}
@@ -1540,24 +1540,24 @@ static void max98090_configure_bclk(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(user_pclk_rates); i++) {
 		if ((user_pclk_rates[i] == max98090->sysclk) &&
 			(user_lrclk_rates[i] == max98090->lrclk)) {
-			dev_dbg(codec->dev,
+			dev_dbg(component->dev,
 				"Found user supported PCLK to LRCLK rates\n");
-			dev_dbg(codec->dev, "i %d ni %lld mi %lld\n",
+			dev_dbg(component->dev, "i %d ni %lld mi %lld\n",
 				i, ni_value[i], mi_value[i]);
 
-			snd_soc_update_bits(codec, M98090_REG_CLOCK_MODE,
+			snd_soc_component_update_bits(component, M98090_REG_CLOCK_MODE,
 				M98090_FREQ_MASK, 0);
-			snd_soc_update_bits(codec, M98090_REG_CLOCK_MODE,
+			snd_soc_component_update_bits(component, M98090_REG_CLOCK_MODE,
 				M98090_USE_M1_MASK,
 					1 << M98090_USE_M1_SHIFT);
 
-			snd_soc_write(codec, M98090_REG_CLOCK_RATIO_NI_MSB,
+			snd_soc_component_write(component, M98090_REG_CLOCK_RATIO_NI_MSB,
 				(ni_value[i] >> 8) & 0x7F);
-			snd_soc_write(codec, M98090_REG_CLOCK_RATIO_NI_LSB,
+			snd_soc_component_write(component, M98090_REG_CLOCK_RATIO_NI_LSB,
 				ni_value[i] & 0xFF);
-			snd_soc_write(codec, M98090_REG_CLOCK_RATIO_MI_MSB,
+			snd_soc_component_write(component, M98090_REG_CLOCK_RATIO_MI_MSB,
 				(mi_value[i] >> 8) & 0x7F);
-			snd_soc_write(codec, M98090_REG_CLOCK_RATIO_MI_LSB,
+			snd_soc_component_write(component, M98090_REG_CLOCK_RATIO_MI_LSB,
 				mi_value[i] & 0xFF);
 
 			return;
@@ -1567,9 +1567,9 @@ static void max98090_configure_bclk(struct snd_soc_codec *codec)
 	/*
 	 * Calculate based on MI = 65536 (not as good as either method above)
 	 */
-	snd_soc_update_bits(codec, M98090_REG_CLOCK_MODE,
+	snd_soc_component_update_bits(component, M98090_REG_CLOCK_MODE,
 		M98090_FREQ_MASK, 0);
-	snd_soc_update_bits(codec, M98090_REG_CLOCK_MODE,
+	snd_soc_component_update_bits(component, M98090_REG_CLOCK_MODE,
 		M98090_USE_M1_MASK, 0);
 
 	/*
@@ -1580,18 +1580,18 @@ static void max98090_configure_bclk(struct snd_soc_codec *codec)
 	ni = 65536ULL * (max98090->lrclk < 50000 ? 96ULL : 48ULL)
 			* (unsigned long long int)max98090->lrclk;
 	do_div(ni, (unsigned long long int)max98090->sysclk);
-	dev_info(codec->dev, "No better method found\n");
-	dev_info(codec->dev, "Calculating ni %lld with mi 65536\n", ni);
-	snd_soc_write(codec, M98090_REG_CLOCK_RATIO_NI_MSB,
+	dev_info(component->dev, "No better method found\n");
+	dev_info(component->dev, "Calculating ni %lld with mi 65536\n", ni);
+	snd_soc_component_write(component, M98090_REG_CLOCK_RATIO_NI_MSB,
 		(ni >> 8) & 0x7F);
-	snd_soc_write(codec, M98090_REG_CLOCK_RATIO_NI_LSB, ni & 0xFF);
+	snd_soc_component_write(component, M98090_REG_CLOCK_RATIO_NI_LSB, ni & 0xFF);
 }
 
 static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 				 unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 	struct max98090_cdata *cdata;
 	u8 regval;
 
@@ -1605,11 +1605,11 @@ static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 		case SND_SOC_DAIFMT_CBS_CFS:
 			/* Set to slave mode PLL - MAS mode off */
-			snd_soc_write(codec,
+			snd_soc_component_write(component,
 				M98090_REG_CLOCK_RATIO_NI_MSB, 0x00);
-			snd_soc_write(codec,
+			snd_soc_component_write(component,
 				M98090_REG_CLOCK_RATIO_NI_LSB, 0x00);
-			snd_soc_update_bits(codec, M98090_REG_CLOCK_MODE,
+			snd_soc_component_update_bits(component, M98090_REG_CLOCK_MODE,
 				M98090_USE_M1_MASK, 0);
 			max98090->master = false;
 			break;
@@ -1633,10 +1633,10 @@ static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		case SND_SOC_DAIFMT_CBS_CFM:
 		case SND_SOC_DAIFMT_CBM_CFS:
 		default:
-			dev_err(codec->dev, "DAI clock mode unsupported");
+			dev_err(component->dev, "DAI clock mode unsupported");
 			return -EINVAL;
 		}
-		snd_soc_write(codec, M98090_REG_MASTER_MODE, regval);
+		snd_soc_component_write(component, M98090_REG_MASTER_MODE, regval);
 
 		regval = 0;
 		switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -1651,7 +1651,7 @@ static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		case SND_SOC_DAIFMT_DSP_A:
 			/* Not supported mode */
 		default:
-			dev_err(codec->dev, "DAI format unsupported");
+			dev_err(component->dev, "DAI format unsupported");
 			return -EINVAL;
 		}
 
@@ -1668,7 +1668,7 @@ static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 			regval |= M98090_BCI_MASK|M98090_WCI_MASK;
 			break;
 		default:
-			dev_err(codec->dev, "DAI invert mode unsupported");
+			dev_err(component->dev, "DAI invert mode unsupported");
 			return -EINVAL;
 		}
 
@@ -1681,7 +1681,7 @@ static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		if (max98090->tdm_slots > 1)
 			regval ^= M98090_BCI_MASK;
 
-		snd_soc_write(codec,
+		snd_soc_component_write(component,
 			M98090_REG_INTERFACE_FORMAT, regval);
 	}
 
@@ -1691,8 +1691,8 @@ static int max98090_dai_set_fmt(struct snd_soc_dai *codec_dai,
 static int max98090_set_tdm_slot(struct snd_soc_dai *codec_dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 	struct max98090_cdata *cdata;
 	cdata = &max98090->dai[0];
 
@@ -1704,13 +1704,13 @@ static int max98090_set_tdm_slot(struct snd_soc_dai *codec_dai,
 
 	if (max98090->tdm_slots > 1) {
 		/* SLOTL SLOTR SLOTDLY */
-		snd_soc_write(codec, M98090_REG_TDM_FORMAT,
+		snd_soc_component_write(component, M98090_REG_TDM_FORMAT,
 			0 << M98090_TDM_SLOTL_SHIFT |
 			1 << M98090_TDM_SLOTR_SHIFT |
 			0 << M98090_TDM_SLOTDLY_SHIFT);
 
 		/* FSW TDM */
-		snd_soc_update_bits(codec, M98090_REG_TDM_CONTROL,
+		snd_soc_component_update_bits(component, M98090_REG_TDM_CONTROL,
 			M98090_TDM_MASK,
 			M98090_TDM_MASK);
 	}
@@ -1724,10 +1724,10 @@ static int max98090_set_tdm_slot(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int max98090_set_bias_level(struct snd_soc_codec *codec,
+static int max98090_set_bias_level(struct snd_soc_component *component,
 				   enum snd_soc_bias_level level)
 {
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	switch (level) {
@@ -1745,7 +1745,7 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		if (IS_ERR(max98090->mclk))
 			break;
 
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
 			clk_disable_unprepare(max98090->mclk);
 		} else {
 			ret = clk_prepare_enable(max98090->mclk);
@@ -1755,10 +1755,10 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			ret = regcache_sync(max98090->regmap);
 			if (ret != 0) {
-				dev_err(codec->dev,
+				dev_err(component->dev,
 					"Failed to sync cache: %d\n", ret);
 				return ret;
 			}
@@ -1767,7 +1767,7 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_OFF:
 		/* Set internal pull-up to lowest power mode */
-		snd_soc_update_bits(codec, M98090_REG_JACK_DETECT,
+		snd_soc_component_update_bits(component, M98090_REG_JACK_DETECT,
 			M98090_JDWK_MASK, M98090_JDWK_MASK);
 		regcache_mark_dirty(max98090->regmap);
 		break;
@@ -1928,8 +1928,8 @@ static int max98090_dai_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params,
 				   struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 	struct max98090_cdata *cdata;
 
 	cdata = &max98090->dai[0];
@@ -1941,7 +1941,7 @@ static int max98090_dai_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_width(params)) {
 	case 16:
-		snd_soc_update_bits(codec, M98090_REG_INTERFACE_FORMAT,
+		snd_soc_component_update_bits(component, M98090_REG_INTERFACE_FORMAT,
 			M98090_WS_MASK, 0);
 		break;
 	default:
@@ -1949,24 +1949,24 @@ static int max98090_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (max98090->master)
-		max98090_configure_bclk(codec);
+		max98090_configure_bclk(component);
 
 	cdata->rate = max98090->lrclk;
 
 	/* Update filter mode */
 	if (max98090->lrclk < 24000)
-		snd_soc_update_bits(codec, M98090_REG_FILTER_CONFIG,
+		snd_soc_component_update_bits(component, M98090_REG_FILTER_CONFIG,
 			M98090_MODE_MASK, 0);
 	else
-		snd_soc_update_bits(codec, M98090_REG_FILTER_CONFIG,
+		snd_soc_component_update_bits(component, M98090_REG_FILTER_CONFIG,
 			M98090_MODE_MASK, M98090_MODE_MASK);
 
 	/* Update sample rate mode */
 	if (max98090->lrclk < 50000)
-		snd_soc_update_bits(codec, M98090_REG_FILTER_CONFIG,
+		snd_soc_component_update_bits(component, M98090_REG_FILTER_CONFIG,
 			M98090_DHF_MASK, 0);
 	else
-		snd_soc_update_bits(codec, M98090_REG_FILTER_CONFIG,
+		snd_soc_component_update_bits(component, M98090_REG_FILTER_CONFIG,
 			M98090_DHF_MASK, M98090_DHF_MASK);
 
 	max98090_configure_dmic(max98090, max98090->dmic_freq, max98090->pclk,
@@ -1981,8 +1981,8 @@ static int max98090_dai_hw_params(struct snd_pcm_substream *substream,
 static int max98090_dai_set_sysclk(struct snd_soc_dai *dai,
 				   int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 
 	/* Requested clock frequency is already setup */
 	if (freq == max98090->sysclk)
@@ -1999,19 +1999,19 @@ static int max98090_dai_set_sysclk(struct snd_soc_dai *dai,
 	 *		 0x03 (when master clk is 40MHz to 60MHz)..
 	 */
 	if ((freq >= 10000000) && (freq <= 20000000)) {
-		snd_soc_write(codec, M98090_REG_SYSTEM_CLOCK,
+		snd_soc_component_write(component, M98090_REG_SYSTEM_CLOCK,
 			M98090_PSCLK_DIV1);
 		max98090->pclk = freq;
 	} else if ((freq > 20000000) && (freq <= 40000000)) {
-		snd_soc_write(codec, M98090_REG_SYSTEM_CLOCK,
+		snd_soc_component_write(component, M98090_REG_SYSTEM_CLOCK,
 			M98090_PSCLK_DIV2);
 		max98090->pclk = freq >> 1;
 	} else if ((freq > 40000000) && (freq <= 60000000)) {
-		snd_soc_write(codec, M98090_REG_SYSTEM_CLOCK,
+		snd_soc_component_write(component, M98090_REG_SYSTEM_CLOCK,
 			M98090_PSCLK_DIV4);
 		max98090->pclk = freq >> 2;
 	} else {
-		dev_err(codec->dev, "Invalid master clock frequency\n");
+		dev_err(component->dev, "Invalid master clock frequency\n");
 		return -EINVAL;
 	}
 
@@ -2022,11 +2022,11 @@ static int max98090_dai_set_sysclk(struct snd_soc_dai *dai,
 
 static int max98090_dai_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	int regval;
 
 	regval = mute ? M98090_DVM_MASK : 0;
-	snd_soc_update_bits(codec, M98090_REG_DAI_PLAYBACK_LEVEL,
+	snd_soc_component_update_bits(component, M98090_REG_DAI_PLAYBACK_LEVEL,
 		M98090_DVM_MASK, regval);
 
 	return 0;
@@ -2035,8 +2035,8 @@ static int max98090_dai_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 static int max98090_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -2065,7 +2065,7 @@ static void max98090_pll_det_enable_work(struct work_struct *work)
 	struct max98090_priv *max98090 =
 		container_of(work, struct max98090_priv,
 			     pll_det_enable_work.work);
-	struct snd_soc_codec *codec = max98090->codec;
+	struct snd_soc_component *component = max98090->component;
 	unsigned int status, mask;
 
 	/*
@@ -2088,7 +2088,7 @@ static void max98090_pll_det_enable_work(struct work_struct *work)
 				   msecs_to_jiffies(100));
 
 	/* Enable PLL unlock interrupt */
-	snd_soc_update_bits(codec, M98090_REG_INTERRUPT_S,
+	snd_soc_component_update_bits(component, M98090_REG_INTERRUPT_S,
 			    M98090_IULK_MASK,
 			    1 << M98090_IULK_SHIFT);
 }
@@ -2097,12 +2097,12 @@ static void max98090_pll_det_disable_work(struct work_struct *work)
 {
 	struct max98090_priv *max98090 =
 		container_of(work, struct max98090_priv, pll_det_disable_work);
-	struct snd_soc_codec *codec = max98090->codec;
+	struct snd_soc_component *component = max98090->component;
 
 	cancel_delayed_work_sync(&max98090->pll_det_enable_work);
 
 	/* Disable PLL unlock interrupt */
-	snd_soc_update_bits(codec, M98090_REG_INTERRUPT_S,
+	snd_soc_component_update_bits(component, M98090_REG_INTERRUPT_S,
 			    M98090_IULK_MASK, 0);
 }
 
@@ -2110,18 +2110,18 @@ static void max98090_pll_work(struct work_struct *work)
 {
 	struct max98090_priv *max98090 =
 		container_of(work, struct max98090_priv, pll_work);
-	struct snd_soc_codec *codec = max98090->codec;
+	struct snd_soc_component *component = max98090->component;
 
-	if (!snd_soc_codec_is_active(codec))
+	if (!snd_soc_component_is_active(component))
 		return;
 
-	dev_info(codec->dev, "PLL unlocked\n");
+	dev_info_ratelimited(component->dev, "PLL unlocked\n");
 
 	/* Toggle shutdown OFF then ON */
-	snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+	snd_soc_component_update_bits(component, M98090_REG_DEVICE_SHUTDOWN,
 			    M98090_SHDNN_MASK, 0);
 	msleep(10);
-	snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+	snd_soc_component_update_bits(component, M98090_REG_DEVICE_SHUTDOWN,
 			    M98090_SHDNN_MASK, M98090_SHDNN_MASK);
 
 	/* Give PLL time to lock */
@@ -2133,7 +2133,7 @@ static void max98090_jack_work(struct work_struct *work)
 	struct max98090_priv *max98090 = container_of(work,
 		struct max98090_priv,
 		jack_work.work);
-	struct snd_soc_codec *codec = max98090->codec;
+	struct snd_soc_component *component = max98090->component;
 	int status = 0;
 	int reg;
 
@@ -2141,25 +2141,25 @@ static void max98090_jack_work(struct work_struct *work)
 	if (max98090->jack_state == M98090_JACK_STATE_NO_HEADSET) {
 
 		/* Strong pull up allows mic detection */
-		snd_soc_update_bits(codec, M98090_REG_JACK_DETECT,
+		snd_soc_component_update_bits(component, M98090_REG_JACK_DETECT,
 			M98090_JDWK_MASK, 0);
 
 		msleep(50);
 
-		reg = snd_soc_read(codec, M98090_REG_JACK_STATUS);
+		reg = snd_soc_component_read32(component, M98090_REG_JACK_STATUS);
 
 		/* Weak pull up allows only insertion detection */
-		snd_soc_update_bits(codec, M98090_REG_JACK_DETECT,
+		snd_soc_component_update_bits(component, M98090_REG_JACK_DETECT,
 			M98090_JDWK_MASK, M98090_JDWK_MASK);
 	} else {
-		reg = snd_soc_read(codec, M98090_REG_JACK_STATUS);
+		reg = snd_soc_component_read32(component, M98090_REG_JACK_STATUS);
 	}
 
-	reg = snd_soc_read(codec, M98090_REG_JACK_STATUS);
+	reg = snd_soc_component_read32(component, M98090_REG_JACK_STATUS);
 
 	switch (reg & (M98090_LSNS_MASK | M98090_JKSNS_MASK)) {
 		case M98090_LSNS_MASK | M98090_JKSNS_MASK:
-			dev_dbg(codec->dev, "No Headset Detected\n");
+			dev_dbg(component->dev, "No Headset Detected\n");
 
 			max98090->jack_state = M98090_JACK_STATE_NO_HEADSET;
 
@@ -2171,7 +2171,7 @@ static void max98090_jack_work(struct work_struct *work)
 			if (max98090->jack_state ==
 				M98090_JACK_STATE_HEADSET) {
 
-				dev_dbg(codec->dev,
+				dev_dbg(component->dev,
 					"Headset Button Down Detected\n");
 
 				/*
@@ -2188,7 +2188,7 @@ static void max98090_jack_work(struct work_struct *work)
 			/* Line is reported as Headphone */
 			/* Nokia Headset is reported as Headphone */
 			/* Mono Headphone is reported as Headphone */
-			dev_dbg(codec->dev, "Headphone Detected\n");
+			dev_dbg(component->dev, "Headphone Detected\n");
 
 			max98090->jack_state = M98090_JACK_STATE_HEADPHONE;
 
@@ -2197,7 +2197,7 @@ static void max98090_jack_work(struct work_struct *work)
 			break;
 
 		case M98090_JKSNS_MASK:
-			dev_dbg(codec->dev, "Headset Detected\n");
+			dev_dbg(component->dev, "Headset Detected\n");
 
 			max98090->jack_state = M98090_JACK_STATE_HEADSET;
 
@@ -2206,7 +2206,7 @@ static void max98090_jack_work(struct work_struct *work)
 			break;
 
 		default:
-			dev_dbg(codec->dev, "Unrecognized Jack Status\n");
+			dev_dbg(component->dev, "Unrecognized Jack Status\n");
 			break;
 	}
 
@@ -2217,21 +2217,21 @@ static void max98090_jack_work(struct work_struct *work)
 static irqreturn_t max98090_interrupt(int irq, void *data)
 {
 	struct max98090_priv *max98090 = data;
-	struct snd_soc_codec *codec = max98090->codec;
+	struct snd_soc_component *component = max98090->component;
 	int ret;
 	unsigned int mask;
 	unsigned int active;
 
 	/* Treat interrupt before codec is initialized as spurious */
-	if (codec == NULL)
+	if (component == NULL)
 		return IRQ_NONE;
 
-	dev_dbg(codec->dev, "***** max98090_interrupt *****\n");
+	dev_dbg(component->dev, "***** max98090_interrupt *****\n");
 
 	ret = regmap_read(max98090->regmap, M98090_REG_INTERRUPT_S, &mask);
 
 	if (ret != 0) {
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"failed to read M98090_REG_INTERRUPT_S: %d\n",
 			ret);
 		return IRQ_NONE;
@@ -2240,13 +2240,13 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
 	ret = regmap_read(max98090->regmap, M98090_REG_DEVICE_STATUS, &active);
 
 	if (ret != 0) {
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"failed to read M98090_REG_DEVICE_STATUS: %d\n",
 			ret);
 		return IRQ_NONE;
 	}
 
-	dev_dbg(codec->dev, "active=0x%02x mask=0x%02x -> active=0x%02x\n",
+	dev_dbg(component->dev, "active=0x%02x mask=0x%02x -> active=0x%02x\n",
 		active, mask, active & mask);
 
 	active &= mask;
@@ -2255,20 +2255,20 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
 		return IRQ_NONE;
 
 	if (active & M98090_CLD_MASK)
-		dev_err(codec->dev, "M98090_CLD_MASK\n");
+		dev_err(component->dev, "M98090_CLD_MASK\n");
 
 	if (active & M98090_SLD_MASK)
-		dev_dbg(codec->dev, "M98090_SLD_MASK\n");
+		dev_dbg(component->dev, "M98090_SLD_MASK\n");
 
 	if (active & M98090_ULK_MASK) {
-		dev_dbg(codec->dev, "M98090_ULK_MASK\n");
+		dev_dbg(component->dev, "M98090_ULK_MASK\n");
 		schedule_work(&max98090->pll_work);
 	}
 
 	if (active & M98090_JDET_MASK) {
-		dev_dbg(codec->dev, "M98090_JDET_MASK\n");
+		dev_dbg(component->dev, "M98090_JDET_MASK\n");
 
-		pm_wakeup_event(codec->dev, 100);
+		pm_wakeup_event(component->dev, 100);
 
 		queue_delayed_work(system_power_efficient_wq,
 				   &max98090->jack_work,
@@ -2276,10 +2276,10 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
 	}
 
 	if (active & M98090_DRCACT_MASK)
-		dev_dbg(codec->dev, "M98090_DRCACT_MASK\n");
+		dev_dbg(component->dev, "M98090_DRCACT_MASK\n");
 
 	if (active & M98090_DRCCLP_MASK)
-		dev_err(codec->dev, "M98090_DRCCLP_MASK\n");
+		dev_err(component->dev, "M98090_DRCCLP_MASK\n");
 
 	return IRQ_HANDLED;
 }
@@ -2287,7 +2287,7 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
 /**
  * max98090_mic_detect - Enable microphone detection via the MAX98090 IRQ
  *
- * @codec:  MAX98090 codec
+ * @component:  MAX98090 component
  * @jack:   jack to report detection events on
  *
  * Enable microphone detection via IRQ on the MAX98090.  If GPIOs are
@@ -2297,20 +2297,20 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
  *
  * If no jack is supplied detection will be disabled.
  */
-int max98090_mic_detect(struct snd_soc_codec *codec,
+int max98090_mic_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack)
 {
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "max98090_mic_detect\n");
+	dev_dbg(component->dev, "max98090_mic_detect\n");
 
 	max98090->jack = jack;
 	if (jack) {
-		snd_soc_update_bits(codec, M98090_REG_INTERRUPT_S,
+		snd_soc_component_update_bits(component, M98090_REG_INTERRUPT_S,
 			M98090_IJDET_MASK,
 			1 << M98090_IJDET_SHIFT);
 	} else {
-		snd_soc_update_bits(codec, M98090_REG_INTERRUPT_S,
+		snd_soc_component_update_bits(component, M98090_REG_INTERRUPT_S,
 			M98090_IJDET_MASK,
 			0);
 	}
@@ -2360,22 +2360,22 @@ static struct snd_soc_dai_driver max98090_dai[] = {
 }
 };
 
-static int max98090_probe(struct snd_soc_codec *codec)
+static int max98090_probe(struct snd_soc_component *component)
 {
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 	struct max98090_cdata *cdata;
 	enum max98090_type devtype;
 	int ret = 0;
 	int err;
 	unsigned int micbias;
 
-	dev_dbg(codec->dev, "max98090_probe\n");
+	dev_dbg(component->dev, "max98090_probe\n");
 
-	max98090->mclk = devm_clk_get(codec->dev, "mclk");
+	max98090->mclk = devm_clk_get(component->dev, "mclk");
 	if (PTR_ERR(max98090->mclk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
-	max98090->codec = codec;
+	max98090->component = component;
 
 	/* Reset the codec, the DSP core, and disable all interrupts */
 	max98090_reset(max98090);
@@ -2394,26 +2394,26 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	max98090->pa1en = 0;
 	max98090->pa2en = 0;
 
-	ret = snd_soc_read(codec, M98090_REG_REVISION_ID);
+	ret = snd_soc_component_read32(component, M98090_REG_REVISION_ID);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to read device revision: %d\n",
+		dev_err(component->dev, "Failed to read device revision: %d\n",
 			ret);
 		goto err_access;
 	}
 
 	if ((ret >= M98090_REVA) && (ret <= M98090_REVA + 0x0f)) {
 		devtype = MAX98090;
-		dev_info(codec->dev, "MAX98090 REVID=0x%02x\n", ret);
+		dev_info(component->dev, "MAX98090 REVID=0x%02x\n", ret);
 	} else if ((ret >= M98091_REVA) && (ret <= M98091_REVA + 0x0f)) {
 		devtype = MAX98091;
-		dev_info(codec->dev, "MAX98091 REVID=0x%02x\n", ret);
+		dev_info(component->dev, "MAX98091 REVID=0x%02x\n", ret);
 	} else {
 		devtype = MAX98090;
-		dev_err(codec->dev, "Unrecognized revision 0x%02x\n", ret);
+		dev_err(component->dev, "Unrecognized revision 0x%02x\n", ret);
 	}
 
 	if (max98090->devtype != devtype) {
-		dev_warn(codec->dev, "Mismatch in DT specified CODEC type.\n");
+		dev_warn(component->dev, "Mismatch in DT specified CODEC type.\n");
 		max98090->devtype = devtype;
 	}
 
@@ -2427,7 +2427,7 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	INIT_WORK(&max98090->pll_work, max98090_pll_work);
 
 	/* Enable jack detection */
-	snd_soc_write(codec, M98090_REG_JACK_DETECT,
+	snd_soc_component_write(component, M98090_REG_JACK_DETECT,
 		M98090_JDETEN_MASK | M98090_JDEB_25MS);
 
 	/*
@@ -2435,75 +2435,76 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	 * An old interrupt ocurring prior to installing the ISR
 	 * can keep a new interrupt from generating a trigger.
 	 */
-	snd_soc_read(codec, M98090_REG_DEVICE_STATUS);
+	snd_soc_component_read32(component, M98090_REG_DEVICE_STATUS);
 
 	/* High Performance is default */
-	snd_soc_update_bits(codec, M98090_REG_DAC_CONTROL,
+	snd_soc_component_update_bits(component, M98090_REG_DAC_CONTROL,
 		M98090_DACHP_MASK,
 		1 << M98090_DACHP_SHIFT);
-	snd_soc_update_bits(codec, M98090_REG_DAC_CONTROL,
+	snd_soc_component_update_bits(component, M98090_REG_DAC_CONTROL,
 		M98090_PERFMODE_MASK,
 		0 << M98090_PERFMODE_SHIFT);
-	snd_soc_update_bits(codec, M98090_REG_ADC_CONTROL,
+	snd_soc_component_update_bits(component, M98090_REG_ADC_CONTROL,
 		M98090_ADCHP_MASK,
 		1 << M98090_ADCHP_SHIFT);
 
 	/* Turn on VCM bandgap reference */
-	snd_soc_write(codec, M98090_REG_BIAS_CONTROL,
+	snd_soc_component_write(component, M98090_REG_BIAS_CONTROL,
 		M98090_VCM_MODE_MASK);
 
-	err = device_property_read_u32(codec->dev, "maxim,micbias", &micbias);
+	err = device_property_read_u32(component->dev, "maxim,micbias", &micbias);
 	if (err) {
 		micbias = M98090_MBVSEL_2V8;
-		dev_info(codec->dev, "use default 2.8v micbias\n");
+		dev_info(component->dev, "use default 2.8v micbias\n");
 	} else if (micbias > M98090_MBVSEL_2V8) {
-		dev_err(codec->dev, "micbias out of range 0x%x\n", micbias);
+		dev_err(component->dev, "micbias out of range 0x%x\n", micbias);
 		micbias = M98090_MBVSEL_2V8;
 	}
 
-	snd_soc_update_bits(codec, M98090_REG_MIC_BIAS_VOLTAGE,
+	snd_soc_component_update_bits(component, M98090_REG_MIC_BIAS_VOLTAGE,
 		M98090_MBVSEL_MASK, micbias);
 
-	max98090_add_widgets(codec);
+	max98090_add_widgets(component);
 
 err_access:
 	return ret;
 }
 
-static int max98090_remove(struct snd_soc_codec *codec)
+static void max98090_remove(struct snd_soc_component *component)
 {
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 
 	cancel_delayed_work_sync(&max98090->jack_work);
 	cancel_delayed_work_sync(&max98090->pll_det_enable_work);
 	cancel_work_sync(&max98090->pll_det_disable_work);
 	cancel_work_sync(&max98090->pll_work);
-	max98090->codec = NULL;
-
-	return 0;
+	max98090->component = NULL;
 }
 
-static void max98090_seq_notifier(struct snd_soc_dapm_context *dapm,
+static void max98090_seq_notifier(struct snd_soc_component *component,
 	enum snd_soc_dapm_type event, int subseq)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct max98090_priv *max98090 = snd_soc_component_get_drvdata(component);
 
 	if (max98090->shdn_pending) {
-		snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+		snd_soc_component_update_bits(component, M98090_REG_DEVICE_SHUTDOWN,
 				M98090_SHDNN_MASK, 0);
 		msleep(40);
-		snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+		snd_soc_component_update_bits(component, M98090_REG_DEVICE_SHUTDOWN,
 				M98090_SHDNN_MASK, M98090_SHDNN_MASK);
 		max98090->shdn_pending = false;
 	}
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_max98090 = {
-	.probe   = max98090_probe,
-	.remove  = max98090_remove,
-	.seq_notifier = max98090_seq_notifier,
-	.set_bias_level = max98090_set_bias_level,
+static const struct snd_soc_component_driver soc_component_dev_max98090 = {
+	.probe			= max98090_probe,
+	.remove			= max98090_remove,
+	.seq_notifier		= max98090_seq_notifier,
+	.set_bias_level		= max98090_set_bias_level,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98090_regmap = {
@@ -2570,8 +2571,8 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_max98090, max98090_dai,
+	ret = devm_snd_soc_register_component(&i2c->dev,
+			&soc_component_dev_max98090, max98090_dai,
 			ARRAY_SIZE(max98090_dai));
 err_enable:
 	return ret;
@@ -2595,7 +2596,7 @@ static void max98090_i2c_shutdown(struct i2c_client *i2c)
 static int max98090_i2c_remove(struct i2c_client *client)
 {
 	max98090_i2c_shutdown(client);
-	snd_soc_unregister_codec(&client->dev);
+
 	return 0;
 }
 

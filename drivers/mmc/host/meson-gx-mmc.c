@@ -35,8 +35,10 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/interrupt.h>
 #include <linux/bitfield.h>
+#include <linux/pinctrl/consumer.h>
 
 #define DRIVER_NAME "meson-gx-mmc"
 
@@ -46,15 +48,29 @@
 #define   CLK_CORE_PHASE_MASK GENMASK(9, 8)
 #define   CLK_TX_PHASE_MASK GENMASK(11, 10)
 #define   CLK_RX_PHASE_MASK GENMASK(13, 12)
-#define   CLK_TX_DELAY_MASK GENMASK(19, 16)
-#define   CLK_RX_DELAY_MASK GENMASK(23, 20)
+#define   CLK_V2_TX_DELAY_MASK GENMASK(19, 16)
+#define   CLK_V2_RX_DELAY_MASK GENMASK(23, 20)
+#define   CLK_V2_ALWAYS_ON BIT(24)
+
+#define   CLK_V3_TX_DELAY_MASK GENMASK(21, 16)
+#define   CLK_V3_RX_DELAY_MASK GENMASK(27, 22)
+#define   CLK_V3_ALWAYS_ON BIT(28)
+
 #define   CLK_DELAY_STEP_PS 200
 #define   CLK_PHASE_STEP 30
 #define   CLK_PHASE_POINT_NUM (360 / CLK_PHASE_STEP)
-#define   CLK_ALWAYS_ON BIT(24)
+
+#define   CLK_TX_DELAY_MASK(h)		(h->data->tx_delay_mask)
+#define   CLK_RX_DELAY_MASK(h)		(h->data->rx_delay_mask)
+#define   CLK_ALWAYS_ON(h)		(h->data->always_on)
 
 #define SD_EMMC_DELAY 0x4
 #define SD_EMMC_ADJUST 0x8
+
+#define SD_EMMC_DELAY1 0x4
+#define SD_EMMC_DELAY2 0x8
+#define SD_EMMC_V3_ADJUST 0xc
+
 #define SD_EMMC_CALOUT 0x10
 #define SD_EMMC_START 0x40
 #define   START_DESC_INIT BIT(0)
@@ -121,6 +137,12 @@
 
 #define MUX_CLK_NUM_PARENTS 2
 
+struct meson_mmc_data {
+	unsigned int tx_delay_mask;
+	unsigned int rx_delay_mask;
+	unsigned int always_on;
+};
+
 struct sd_emmc_desc {
 	u32 cmd_cfg;
 	u32 cmd_arg;
@@ -130,6 +152,7 @@ struct sd_emmc_desc {
 
 struct meson_host {
 	struct	device		*dev;
+	struct	meson_mmc_data *data;
 	struct	mmc_host	*mmc;
 	struct	mmc_command	*cmd;
 
@@ -473,7 +496,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 
 	/* init SD_EMMC_CLOCK to sane defaults w/min clock rate */
 	clk_reg = 0;
-	clk_reg |= CLK_ALWAYS_ON;
+	clk_reg |= CLK_ALWAYS_ON(host);
 	clk_reg |= CLK_DIV_MASK;
 	writel(clk_reg, host->regs + SD_EMMC_CLOCK);
 
@@ -531,8 +554,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	div->shift = __ffs(CLK_DIV_MASK);
 	div->width = __builtin_popcountl(CLK_DIV_MASK);
 	div->hw.init = &init;
-	div->flags = (CLK_DIVIDER_ONE_BASED |
-		      CLK_DIVIDER_ROUND_CLOSEST);
+	div->flags = CLK_DIVIDER_ONE_BASED;
 
 	clk = devm_clk_register(host->dev, &div->hw);
 	if (WARN_ON(IS_ERR(clk)))
@@ -574,7 +596,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 
 	tx->reg = host->regs + SD_EMMC_CLOCK;
 	tx->phase_mask = CLK_TX_PHASE_MASK;
-	tx->delay_mask = CLK_TX_DELAY_MASK;
+	tx->delay_mask = CLK_TX_DELAY_MASK(host);
 	tx->delay_step_ps = CLK_DELAY_STEP_PS;
 	tx->hw.init = &init;
 
@@ -597,7 +619,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 
 	rx->reg = host->regs + SD_EMMC_CLOCK;
 	rx->phase_mask = CLK_RX_PHASE_MASK;
-	rx->delay_mask = CLK_RX_DELAY_MASK;
+	rx->delay_mask = CLK_RX_DELAY_MASK(host);
 	rx->delay_step_ps = CLK_DELAY_STEP_PS;
 	rx->hw.init = &init;
 
@@ -746,6 +768,10 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_UP:
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
+
+		/* Reset rx phase */
+		clk_set_phase(host->rx_clk, 0);
+
 		break;
 
 	case MMC_POWER_ON:
@@ -759,8 +785,6 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				host->vqmmc_enabled = true;
 		}
 
-		/* Reset rx phase */
-		clk_set_phase(host->rx_clk, 0);
 		break;
 	}
 
@@ -1172,7 +1196,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	/* Get regulators and the supported OCR mask */
 	host->vqmmc_enabled = false;
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
+	if (ret)
 		goto free_host;
 
 	ret = mmc_of_parse(mmc);
@@ -1180,6 +1204,21 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		if (ret != -EPROBE_DEFER)
 			dev_warn(&pdev->dev, "error parsing DT: %d\n", ret);
 		goto free_host;
+	}
+
+	host->data = (struct meson_mmc_data *)
+		of_device_get_match_data(&pdev->dev);
+	if (!host->data) {
+		ret = -EINVAL;
+		goto free_host;
+	}
+
+	ret = device_reset_optional(&pdev->dev);
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "device reset failed: %d\n", ret);
+
+		return ret;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1190,7 +1229,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
+	if (irq <= 0) {
 		dev_err(&pdev->dev, "failed to get interrupt resource.\n");
 		ret = -EINVAL;
 		goto free_host;
@@ -1313,11 +1352,24 @@ static int meson_mmc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct meson_mmc_data meson_gx_data = {
+	.tx_delay_mask	= CLK_V2_TX_DELAY_MASK,
+	.rx_delay_mask	= CLK_V2_RX_DELAY_MASK,
+	.always_on	= CLK_V2_ALWAYS_ON,
+};
+
+static const struct meson_mmc_data meson_axg_data = {
+	.tx_delay_mask	= CLK_V3_TX_DELAY_MASK,
+	.rx_delay_mask	= CLK_V3_RX_DELAY_MASK,
+	.always_on	= CLK_V3_ALWAYS_ON,
+};
+
 static const struct of_device_id meson_mmc_of_match[] = {
-	{ .compatible = "amlogic,meson-gx-mmc", },
-	{ .compatible = "amlogic,meson-gxbb-mmc", },
-	{ .compatible = "amlogic,meson-gxl-mmc", },
-	{ .compatible = "amlogic,meson-gxm-mmc", },
+	{ .compatible = "amlogic,meson-gx-mmc",		.data = &meson_gx_data },
+	{ .compatible = "amlogic,meson-gxbb-mmc", 	.data = &meson_gx_data },
+	{ .compatible = "amlogic,meson-gxl-mmc",	.data = &meson_gx_data },
+	{ .compatible = "amlogic,meson-gxm-mmc",	.data = &meson_gx_data },
+	{ .compatible = "amlogic,meson-axg-mmc",	.data = &meson_axg_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, meson_mmc_of_match);
@@ -1333,6 +1385,6 @@ static struct platform_driver meson_mmc_driver = {
 
 module_platform_driver(meson_mmc_driver);
 
-MODULE_DESCRIPTION("Amlogic S905*/GX* SD/eMMC driver");
+MODULE_DESCRIPTION("Amlogic S905*/GX*/AXG SD/eMMC driver");
 MODULE_AUTHOR("Kevin Hilman <khilman@baylibre.com>");
 MODULE_LICENSE("GPL v2");

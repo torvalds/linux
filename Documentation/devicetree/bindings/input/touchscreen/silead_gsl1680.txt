@@ -8,8 +8,6 @@ Required properties:
 			    "silead,gsl3675"
 			    "silead,gsl3692"
 - reg			  : I2C slave address of the chip (0x40)
-- interrupt-parent	  : a phandle pointing to the interrupt controller
-			    serving the interrupt for this chip
 - interrupts		  : interrupt specification for the gsl1680 interrupt
 - power-gpios		  : Specification for the pin connected to the gsl1680's
 			    shutdown input. This needs to be driven high to take the
@@ -23,6 +21,8 @@ Optional properties:
 - touchscreen-inverted-y  : See touchscreen.txt
 - touchscreen-swapped-x-y : See touchscreen.txt
 - silead,max-fingers	  : maximum number of fingers the touchscreen can detect
+- silead,home-button	  : Boolean, set to true on devices which have a
+			    capacitive home-button build into the touchscreen
 - vddio-supply		  : regulator phandle for controller VDDIO
 - avdd-supply		  : regulator phandle for controller AVDD
 

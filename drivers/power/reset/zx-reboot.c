@@ -51,6 +51,7 @@ static int zx_reboot_probe(struct platform_device *pdev)
 
 	np = of_find_compatible_node(NULL, NULL, "zte,zx296702-pcu");
 	pcu_base = of_iomap(np, 0);
+	of_node_put(np);
 	if (!pcu_base) {
 		iounmap(base);
 		WARN(1, "failed to map pcu_base address");
@@ -82,3 +83,7 @@ static struct platform_driver zx_reboot_driver = {
 	},
 };
 module_platform_driver(zx_reboot_driver);
+
+MODULE_DESCRIPTION("ZTE SoCs reset driver");
+MODULE_AUTHOR("Jun Nie <jun.nie@linaro.org>");
+MODULE_LICENSE("GPL v2");

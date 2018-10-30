@@ -213,7 +213,6 @@ static struct phy_driver rockchip_phy_driver[] = {
 	.soft_reset		= genphy_soft_reset,
 	.config_init		= rockchip_integrated_phy_config_init,
 	.config_aneg		= rockchip_config_aneg,
-	.read_status		= genphy_read_status,
 	.suspend		= genphy_suspend,
 	.resume			= rockchip_phy_resume,
 },

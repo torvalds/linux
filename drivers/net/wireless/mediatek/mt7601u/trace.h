@@ -34,7 +34,7 @@
 #define REG_PR_FMT	"%04x=%08x"
 #define REG_PR_ARG	__entry->reg, __entry->val
 
-DECLARE_EVENT_CLASS(dev_reg_evt,
+DECLARE_EVENT_CLASS(dev_reg_evtu,
 	TP_PROTO(struct mt7601u_dev *dev, u32 reg, u32 val),
 	TP_ARGS(dev, reg, val),
 	TP_STRUCT__entry(
@@ -51,12 +51,12 @@ DECLARE_EVENT_CLASS(dev_reg_evt,
 	)
 );
 
-DEFINE_EVENT(dev_reg_evt, reg_read,
+DEFINE_EVENT(dev_reg_evtu, reg_read,
 	TP_PROTO(struct mt7601u_dev *dev, u32 reg, u32 val),
 	TP_ARGS(dev, reg, val)
 );
 
-DEFINE_EVENT(dev_reg_evt, reg_write,
+DEFINE_EVENT(dev_reg_evtu, reg_write,
 	TP_PROTO(struct mt7601u_dev *dev, u32 reg, u32 val),
 	TP_ARGS(dev, reg, val)
 );

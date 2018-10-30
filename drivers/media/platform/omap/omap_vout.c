@@ -198,7 +198,7 @@ static int omap_vout_try_format(struct v4l2_pix_format *pix)
  * omap_vout_get_userptr: Convert user space virtual address to physical
  * address.
  */
-static int omap_vout_get_userptr(struct videobuf_buffer *vb, u32 virtp,
+static int omap_vout_get_userptr(struct videobuf_buffer *vb, long virtp,
 				 u32 *physp)
 {
 	struct frame_vector *vec;
@@ -702,19 +702,18 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 		virt_addr = omap_vout_alloc_buffer(vout->buffer_size,
 				&phy_addr);
 		if (!virt_addr) {
-			if (ovid->rotation_type == VOUT_ROT_NONE) {
+			if (ovid->rotation_type == VOUT_ROT_NONE)
 				break;
-			} else {
-				if (!is_rotation_enabled(vout))
-					break;
+
+			if (!is_rotation_enabled(vout))
+				break;
+
 			/* Free the VRFB buffers if no space for V4L2 buffers */
 			for (j = i; j < *count; j++) {
-				omap_vout_free_buffer(
-						vout->smsshado_virt_addr[j],
-						vout->smsshado_size);
+				omap_vout_free_buffer(vout->smsshado_virt_addr[j],
+						      vout->smsshado_size);
 				vout->smsshado_virt_addr[j] = 0;
 				vout->smsshado_phy_addr[j] = 0;
-				}
 			}
 		}
 		vout->buf_virt_addr[i] = virt_addr;
@@ -839,7 +838,7 @@ static void omap_vout_buffer_release(struct videobuf_queue *q,
 /*
  *  File operations
  */
-static unsigned int omap_vout_poll(struct file *file,
+static __poll_t omap_vout_poll(struct file *file,
 				   struct poll_table_struct *wait)
 {
 	struct omap_vout_device *vout = file->private_data;
@@ -1004,10 +1003,11 @@ static int omap_vout_open(struct file *file)
 	struct omap_vout_device *vout = NULL;
 
 	vout = video_drvdata(file);
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
 
 	if (vout == NULL)
 		return -ENODEV;
+
+	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
 
 	/* for now, we only support single open */
 	if (vout->opened)
@@ -1041,8 +1041,8 @@ static int vidioc_querycap(struct file *file, void *fh,
 {
 	struct omap_vout_device *vout = fh;
 
-	strlcpy(cap->driver, VOUT_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, vout->vfd->name, sizeof(cap->card));
+	strscpy(cap->driver, VOUT_NAME, sizeof(cap->driver));
+	strscpy(cap->card, vout->vfd->name, sizeof(cap->card));
 	cap->bus_info[0] = '\0';
 	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_OUTPUT |
 		V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
@@ -1060,8 +1060,8 @@ static int vidioc_enum_fmt_vid_out(struct file *file, void *fh,
 		return -EINVAL;
 
 	fmt->flags = omap_formats[index].flags;
-	strlcpy(fmt->description, omap_formats[index].description,
-			sizeof(fmt->description));
+	strscpy(fmt->description, omap_formats[index].description,
+		sizeof(fmt->description));
 	fmt->pixelformat = omap_formats[index].pixelformat;
 
 	return 0;
@@ -1773,8 +1773,8 @@ static int vidioc_g_fbuf(struct file *file, void *fh,
 }
 
 static const struct v4l2_ioctl_ops vout_ioctl_ops = {
-	.vidioc_querycap      			= vidioc_querycap,
-	.vidioc_enum_fmt_vid_out 		= vidioc_enum_fmt_vid_out,
+	.vidioc_querycap			= vidioc_querycap,
+	.vidioc_enum_fmt_vid_out		= vidioc_enum_fmt_vid_out,
 	.vidioc_g_fmt_vid_out			= vidioc_g_fmt_vid_out,
 	.vidioc_try_fmt_vid_out			= vidioc_try_fmt_vid_out,
 	.vidioc_s_fmt_vid_out			= vidioc_s_fmt_vid_out,
@@ -1794,12 +1794,12 @@ static const struct v4l2_ioctl_ops vout_ioctl_ops = {
 };
 
 static const struct v4l2_file_operations omap_vout_fops = {
-	.owner 		= THIS_MODULE,
+	.owner		= THIS_MODULE,
 	.poll		= omap_vout_poll,
 	.unlocked_ioctl	= video_ioctl2,
-	.mmap 		= omap_vout_mmap,
-	.open 		= omap_vout_open,
-	.release 	= omap_vout_release,
+	.mmap		= omap_vout_mmap,
+	.open		= omap_vout_open,
+	.release	= omap_vout_release,
 };
 
 /* Init functions used during driver initialization */
@@ -1868,7 +1868,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 	vfd->release = video_device_release;
 	vfd->ioctl_ops = &vout_ioctl_ops;
 
-	strlcpy(vfd->name, VOUT_NAME, sizeof(vfd->name));
+	strscpy(vfd->name, VOUT_NAME, sizeof(vfd->name));
 
 	vfd->fops = &omap_vout_fops;
 	vfd->v4l2_dev = &vout->vid_dev->v4l2_dev;

@@ -66,8 +66,7 @@ struct vchiq_openack_payload {
 	short version;
 };
 
-enum
-{
+enum {
 	QMFLAGS_IS_BLOCKING     = (1 << 0),
 	QMFLAGS_NO_MUTEX_LOCK   = (1 << 1),
 	QMFLAGS_NO_MUTEX_UNLOCK = (1 << 2)
@@ -129,7 +128,6 @@ static const char *const conn_state_names[] = {
 	"PAUSE_TIMEOUT",
 	"RESUME_TIMEOUT"
 };
-
 
 static void
 release_message_sync(VCHIQ_STATE_T *state, VCHIQ_HEADER_T *header);
@@ -213,7 +211,8 @@ find_service_by_port(VCHIQ_STATE_T *state, int localport)
 
 VCHIQ_SERVICE_T *
 find_service_for_instance(VCHIQ_INSTANCE_T instance,
-	VCHIQ_SERVICE_HANDLE_T handle) {
+	VCHIQ_SERVICE_HANDLE_T handle)
+{
 	VCHIQ_SERVICE_T *service;
 
 	spin_lock(&service_spinlock);
@@ -236,7 +235,8 @@ find_service_for_instance(VCHIQ_INSTANCE_T instance,
 
 VCHIQ_SERVICE_T *
 find_closed_service_for_instance(VCHIQ_INSTANCE_T instance,
-	VCHIQ_SERVICE_HANDLE_T handle) {
+	VCHIQ_SERVICE_HANDLE_T handle)
+{
 	VCHIQ_SERVICE_T *service;
 
 	spin_lock(&service_spinlock);
@@ -601,6 +601,7 @@ reserve_space(VCHIQ_STATE_T *state, size_t space, int is_blocking)
 		}
 
 		if (tx_pos == (state->slot_queue_available * VCHIQ_SLOT_SIZE)) {
+			up(&state->slot_available_event);
 			pr_warn("%s: invalid tx_pos: %d\n", __func__, tx_pos);
 			return NULL;
 		}
@@ -619,10 +620,9 @@ reserve_space(VCHIQ_STATE_T *state, size_t space, int is_blocking)
 
 /* Called by the recycle thread. */
 static void
-process_free_queue(VCHIQ_STATE_T *state)
+process_free_queue(VCHIQ_STATE_T *state, BITSET_T *service_found, size_t length)
 {
 	VCHIQ_SHARED_STATE_T *local = state->local;
-	BITSET_T service_found[BITSET_SIZE(VCHIQ_MAX_SERVICES)];
 	int slot_queue_available;
 
 	/* Find slots which have been freed by the other side, and return them
@@ -655,7 +655,7 @@ process_free_queue(VCHIQ_STATE_T *state)
 
 		/* Initialise the bitmask for services which have used this
 		** slot */
-		BITSET_ZERO(service_found);
+		memset(service_found, 0, length);
 
 		pos = 0;
 
@@ -1197,8 +1197,8 @@ release_slot(VCHIQ_STATE_T *state, VCHIQ_SLOT_INFO_T *slot_info,
 			SLOT_INDEX_FROM_INFO(state, slot_info);
 		state->remote->slot_queue_recycle = slot_queue_recycle + 1;
 		vchiq_log_info(vchiq_core_log_level,
-			"%d: release_slot %d - recycle->%x",
-			state->id, SLOT_INDEX_FROM_INFO(state, slot_info),
+			"%d: %s %d - recycle->%x", state->id, __func__,
+			SLOT_INDEX_FROM_INFO(state, slot_info),
 			state->remote->slot_queue_recycle);
 
 		/* A write barrier is necessary, but remote_event_signal
@@ -2168,7 +2168,6 @@ slot_handler_func(void *v)
 				break;
 			}
 
-
 		}
 
 		DEBUG_TRACE(SLOT_HANDLER_LINE);
@@ -2177,22 +2176,29 @@ slot_handler_func(void *v)
 	return 0;
 }
 
-
 /* Called by the recycle thread */
 static int
 recycle_func(void *v)
 {
 	VCHIQ_STATE_T *state = (VCHIQ_STATE_T *) v;
 	VCHIQ_SHARED_STATE_T *local = state->local;
+	BITSET_T *found;
+	size_t length;
+
+	length = sizeof(*found) * BITSET_SIZE(VCHIQ_MAX_SERVICES);
+
+	found = kmalloc_array(BITSET_SIZE(VCHIQ_MAX_SERVICES), sizeof(*found),
+			      GFP_KERNEL);
+	if (!found)
+		return -ENOMEM;
 
 	while (1) {
 		remote_event_wait(state, &local->recycle);
 
-		process_free_queue(state);
+		process_free_queue(state, found, length);
 	}
 	return 0;
 }
-
 
 /* Called by the sync thread */
 static int
@@ -2301,7 +2307,6 @@ sync_func(void *v)
 	return 0;
 }
 
-
 static void
 init_bulk_queue(VCHIQ_BULK_QUEUE_T *queue)
 {
@@ -2312,13 +2317,11 @@ init_bulk_queue(VCHIQ_BULK_QUEUE_T *queue)
 	queue->remove = 0;
 }
 
-
 inline const char *
 get_conn_state_name(VCHIQ_CONNSTATE_T conn_state)
 {
 	return conn_state_names[conn_state];
 }
-
 
 VCHIQ_SLOT_ZERO_T *
 vchiq_init_slots(void *mem_base, int mem_size)
@@ -2335,8 +2338,8 @@ vchiq_init_slots(void *mem_base, int mem_size)
 
 	if (num_slots < 4) {
 		vchiq_log_error(vchiq_core_log_level,
-			"vchiq_init_slots - insufficient memory %x bytes",
-			mem_size);
+			"%s - insufficient memory %x bytes",
+			__func__, mem_size);
 		return NULL;
 	}
 
@@ -2550,7 +2553,6 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 		return VCHIQ_ERROR;
 	}
 	set_user_nice(state->slot_handler_thread, -19);
-	wake_up_process(state->slot_handler_thread);
 
 	snprintf(threadname, sizeof(threadname), "vchiq-recy/%d", state->id);
 	state->recycle_thread = kthread_create(&recycle_func,
@@ -2560,10 +2562,9 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 		vchiq_loud_error_header();
 		vchiq_loud_error("couldn't create thread %s", threadname);
 		vchiq_loud_error_footer();
-		return VCHIQ_ERROR;
+		goto fail_free_handler_thread;
 	}
 	set_user_nice(state->recycle_thread, -19);
-	wake_up_process(state->recycle_thread);
 
 	snprintf(threadname, sizeof(threadname), "vchiq-sync/%d", state->id);
 	state->sync_thread = kthread_create(&sync_func,
@@ -2573,9 +2574,12 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 		vchiq_loud_error_header();
 		vchiq_loud_error("couldn't create thread %s", threadname);
 		vchiq_loud_error_footer();
-		return VCHIQ_ERROR;
+		goto fail_free_recycle_thread;
 	}
 	set_user_nice(state->sync_thread, -20);
+
+	wake_up_process(state->slot_handler_thread);
+	wake_up_process(state->recycle_thread);
 	wake_up_process(state->sync_thread);
 
 	vchiq_states[0] = state;
@@ -2584,6 +2588,13 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 	local->initialised = 1;
 
 	return status;
+
+fail_free_recycle_thread:
+	kthread_stop(state->recycle_thread);
+fail_free_handler_thread:
+	kthread_stop(state->slot_handler_thread);
+
+	return VCHIQ_ERROR;
 }
 
 /* Called from application thread when a client or server service is created. */
@@ -2867,9 +2878,9 @@ close_service_complete(VCHIQ_SERVICE_T *service, int failstate)
 		break;
 	default:
 		vchiq_log_error(vchiq_core_log_level,
-			"close_service_complete(%x) called in state %s",
+			"%s(%x) called in state %s", __func__,
 			service->handle, srvstate_names[service->srvstate]);
-		WARN(1, "close_service_complete in unexpected state\n");
+		WARN(1, "%s in unexpected state\n", __func__);
 		return VCHIQ_ERROR;
 	}
 
@@ -2921,9 +2932,9 @@ vchiq_close_service_internal(VCHIQ_SERVICE_T *service, int close_recvd)
 	case VCHIQ_SRVSTATE_CLOSEWAIT:
 		if (close_recvd)
 			vchiq_log_error(vchiq_core_log_level,
-				"vchiq_close_service_internal(1) called "
+				"%s(1) called "
 				"in state %s",
-				srvstate_names[service->srvstate]);
+				__func__, srvstate_names[service->srvstate]);
 		else if (is_server) {
 			if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
 				status = VCHIQ_ERROR;
@@ -2958,8 +2969,7 @@ vchiq_close_service_internal(VCHIQ_SERVICE_T *service, int close_recvd)
 
 	case VCHIQ_SRVSTATE_OPENSYNC:
 		mutex_lock(&state->sync_mutex);
-		/* Drop through */
-
+		/* fall through */
 	case VCHIQ_SRVSTATE_OPEN:
 		if (state->is_master || close_recvd) {
 			if (!do_abort_bulks(service))
@@ -3031,7 +3041,7 @@ vchiq_close_service_internal(VCHIQ_SERVICE_T *service, int close_recvd)
 
 	default:
 		vchiq_log_error(vchiq_core_log_level,
-			"vchiq_close_service_internal(%d) called in state %s",
+			"%s(%d) called in state %s", __func__,
 			close_recvd, srvstate_names[service->srvstate]);
 		break;
 	}
@@ -3152,8 +3162,8 @@ vchiq_pause_internal(VCHIQ_STATE_T *state)
 		break;
 	default:
 		vchiq_log_error(vchiq_core_log_level,
-			"vchiq_pause_internal in state %s\n",
-			conn_state_names[state->conn_state]);
+			"%s in state %s\n",
+			__func__, conn_state_names[state->conn_state]);
 		status = VCHIQ_ERROR;
 		VCHIQ_STATS_INC(state, error_count);
 		break;
@@ -3295,7 +3305,6 @@ vchiq_remove_service(VCHIQ_SERVICE_HANDLE_T handle)
 
 	return status;
 }
-
 
 /* This function may be called by kernel threads or user threads.
  * User threads may receive VCHIQ_RETRY to indicate that a signal has been
@@ -3876,7 +3885,6 @@ vchiq_dump_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 		vchiq_dump_platform_service_state(dump_context, service);
 }
 
-
 void
 vchiq_loud_error_header(void)
 {
@@ -3900,7 +3908,6 @@ vchiq_loud_error_footer(void)
 		"============================================================"
 		"================");
 }
-
 
 VCHIQ_STATUS_T vchiq_send_remote_use(VCHIQ_STATE_T *state)
 {

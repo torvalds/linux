@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2008 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/kernel.h>
@@ -29,6 +16,43 @@
 #include "compression.h"
 
 #define LZO_LEN	4
+
+/*
+ * Btrfs LZO compression format
+ *
+ * Regular and inlined LZO compressed data extents consist of:
+ *
+ * 1.  Header
+ *     Fixed size. LZO_LEN (4) bytes long, LE32.
+ *     Records the total size (including the header) of compressed data.
+ *
+ * 2.  Segment(s)
+ *     Variable size. Each segment includes one segment header, followd by data
+ *     payload.
+ *     One regular LZO compressed extent can have one or more segments.
+ *     For inlined LZO compressed extent, only one segment is allowed.
+ *     One segment represents at most one page of uncompressed data.
+ *
+ * 2.1 Segment header
+ *     Fixed size. LZO_LEN (4) bytes long, LE32.
+ *     Records the total size of the segment (not including the header).
+ *     Segment header never crosses page boundary, thus it's possible to
+ *     have at most 3 padding zeros at the end of the page.
+ *
+ * 2.2 Data Payload
+ *     Variable size. Size up limit should be lzo1x_worst_compress(PAGE_SIZE)
+ *     which is 4419 for a 4KiB page.
+ *
+ * Example:
+ * Page 1:
+ *          0     0x2   0x4   0x6   0x8   0xa   0xc   0xe     0x10
+ * 0x0000   |  Header   | SegHdr 01 | Data payload 01 ...     |
+ * ...
+ * 0x0ff0   | SegHdr  N | Data payload  N     ...          |00|
+ *                                                          ^^ padding zeros
+ * Page 2:
+ * 0x1000   | SegHdr N+1| Data payload N+1 ...                |
+ */
 
 struct workspace {
 	void *mem;
@@ -271,6 +295,7 @@ static int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	unsigned long working_bytes;
 	size_t in_len;
 	size_t out_len;
+	const size_t max_segment_len = lzo1x_worst_compress(PAGE_SIZE);
 	unsigned long in_offset;
 	unsigned long in_page_bytes_left;
 	unsigned long tot_in;
@@ -284,10 +309,22 @@ static int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 
 	data_in = kmap(pages_in[0]);
 	tot_len = read_compress_length(data_in);
+	/*
+	 * Compressed data header check.
+	 *
+	 * The real compressed size can't exceed the maximum extent length, and
+	 * all pages should be used (whole unused page with just the segment
+	 * header is not possible).  If this happens it means the compressed
+	 * extent is corrupted.
+	 */
+	if (tot_len > min_t(size_t, BTRFS_MAX_COMPRESSED, srclen) ||
+	    tot_len < srclen - PAGE_SIZE) {
+		ret = -EUCLEAN;
+		goto done;
+	}
 
 	tot_in = LZO_LEN;
 	in_offset = LZO_LEN;
-	tot_len = min_t(size_t, srclen, tot_len);
 	in_page_bytes_left = PAGE_SIZE - LZO_LEN;
 
 	tot_out = 0;
@@ -297,6 +334,17 @@ static int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		in_page_bytes_left -= LZO_LEN;
 		in_offset += LZO_LEN;
 		tot_in += LZO_LEN;
+
+		/*
+		 * Segment header check.
+		 *
+		 * The segment length must not exceed the maximum LZO
+		 * compression size, nor the total compressed size.
+		 */
+		if (in_len > max_segment_len || tot_in + in_len > tot_len) {
+			ret = -EUCLEAN;
+			goto done;
+		}
 
 		tot_in += in_len;
 		working_bytes = in_len;
@@ -348,7 +396,7 @@ cont:
 			}
 		}
 
-		out_len = lzo1x_worst_compress(PAGE_SIZE);
+		out_len = max_segment_len;
 		ret = lzo1x_decompress_safe(buf, in_len, workspace->buf,
 					    &out_len);
 		if (need_unmap)
@@ -382,17 +430,24 @@ static int lzo_decompress(struct list_head *ws, unsigned char *data_in,
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	size_t in_len;
 	size_t out_len;
-	size_t tot_len;
+	size_t max_segment_len = lzo1x_worst_compress(PAGE_SIZE);
 	int ret = 0;
 	char *kaddr;
 	unsigned long bytes;
 
-	BUG_ON(srclen < LZO_LEN);
+	if (srclen < LZO_LEN || srclen > max_segment_len + LZO_LEN * 2)
+		return -EUCLEAN;
 
-	tot_len = read_compress_length(data_in);
+	in_len = read_compress_length(data_in);
+	if (in_len != srclen)
+		return -EUCLEAN;
 	data_in += LZO_LEN;
 
 	in_len = read_compress_length(data_in);
+	if (in_len != srclen - LZO_LEN * 2) {
+		ret = -EUCLEAN;
+		goto out;
+	}
 	data_in += LZO_LEN;
 
 	out_len = PAGE_SIZE;
@@ -430,10 +485,15 @@ out:
 	return ret;
 }
 
+static void lzo_set_level(struct list_head *ws, unsigned int type)
+{
+}
+
 const struct btrfs_compress_op btrfs_lzo_compress = {
 	.alloc_workspace	= lzo_alloc_workspace,
 	.free_workspace		= lzo_free_workspace,
 	.compress_pages		= lzo_compress_pages,
 	.decompress_bio		= lzo_decompress_bio,
 	.decompress		= lzo_decompress,
+	.set_level		= lzo_set_level,
 };

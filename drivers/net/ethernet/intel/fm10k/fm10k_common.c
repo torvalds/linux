@@ -1,22 +1,5 @@
-/* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "fm10k_common.h"
 
@@ -262,6 +245,7 @@ s32 fm10k_stop_hw_generic(struct fm10k_hw *hw)
  *  fm10k_read_hw_stats_32b - Reads value of 32-bit registers
  *  @hw: pointer to the hardware structure
  *  @addr: address of register containing a 32-bit value
+ *  @stat: pointer to structure holding hw stat information
  *
  *  Function reads the content of the register and returns the delta
  *  between the base and the current value.
@@ -281,6 +265,7 @@ u32 fm10k_read_hw_stats_32b(struct fm10k_hw *hw, u32 addr,
  *  fm10k_read_hw_stats_48b - Reads value of 48-bit registers
  *  @hw: pointer to the hardware structure
  *  @addr: address of register containing the lower 32-bit value
+ *  @stat: pointer to structure holding hw stat information
  *
  *  Function reads the content of 2 registers, combined to represent a 48-bit
  *  statistical value. Extra processing is required to handle overflowing.
@@ -461,7 +446,6 @@ void fm10k_update_hw_stats_q(struct fm10k_hw *hw, struct fm10k_hw_stats_q *q,
 
 /**
  *  fm10k_unbind_hw_stats_q - Unbind the queue counters from their queues
- *  @hw: pointer to the hardware structure
  *  @q: pointer to the ring of hardware statistics queue
  *  @idx: index pointing to the start of the ring iteration
  *  @count: number of queues to iterate over
@@ -517,8 +501,8 @@ s32 fm10k_get_host_state_generic(struct fm10k_hw *hw, bool *host_ready)
 		goto out;
 	}
 
-	/* verify Mailbox is still valid */
-	if (!mbx->ops.tx_ready(mbx, FM10K_VFMBX_MSG_MTU))
+	/* verify Mailbox is still open */
+	if (mbx->state != FM10K_STATE_OPEN)
 		goto out;
 
 	/* interface cannot receive traffic without logical ports */

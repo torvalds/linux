@@ -1,8 +1,8 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -207,7 +207,7 @@ lpfc_unique_wwpn(struct lpfc_hba *phba, struct lpfc_vport *new_vport)
 	struct lpfc_vport *vport;
 	unsigned long flags;
 
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock_irqsave(&phba->port_list_lock, flags);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
 		if (vport == new_vport)
 			continue;
@@ -215,11 +215,11 @@ lpfc_unique_wwpn(struct lpfc_hba *phba, struct lpfc_vport *new_vport)
 		if (memcmp(&vport->fc_sparam.portName,
 			   &new_vport->fc_sparam.portName,
 			   sizeof(struct lpfc_name)) == 0) {
-			spin_unlock_irqrestore(&phba->hbalock, flags);
+			spin_unlock_irqrestore(&phba->port_list_lock, flags);
 			return 0;
 		}
 	}
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock_irqrestore(&phba->port_list_lock, flags);
 	return 1;
 }
 
@@ -309,6 +309,15 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 				"1808 Create VPORT failed: "
 				"NPIV is not enabled: SLImode:%d\n",
 				phba->sli_rev);
+		rc = VPORT_INVAL;
+		goto error_out;
+	}
+
+	/* NPIV is not supported if HBA has NVME enabled */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
+				"3189 Create VPORT failed: "
+				"NPIV is not supported on NVME\n");
 		rc = VPORT_INVAL;
 		goto error_out;
 	}
@@ -816,9 +825,9 @@ skip_logo:
 
 	lpfc_free_vpi(phba, vport->vpi);
 	vport->work_port_events = 0;
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_del_init(&vport->listentry);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
 			 "1828 Vport Deleted.\n");
 	scsi_host_put(shost);
@@ -831,11 +840,11 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 	struct lpfc_vport *port_iterator;
 	struct lpfc_vport **vports;
 	int index = 0;
-	vports = kzalloc((phba->max_vports + 1) * sizeof(struct lpfc_vport *),
+	vports = kcalloc(phba->max_vports + 1, sizeof(struct lpfc_vport *),
 			 GFP_KERNEL);
 	if (vports == NULL)
 		return NULL;
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
 		if (port_iterator->load_flag & FC_UNLOADING)
 			continue;
@@ -847,7 +856,7 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 		}
 		vports[index++] = port_iterator;
 	}
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 	return vports;
 }
 

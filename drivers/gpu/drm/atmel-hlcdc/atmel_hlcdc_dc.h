@@ -32,8 +32,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drmP.h>
@@ -297,7 +299,6 @@ struct atmel_hlcdc_layer {
 struct atmel_hlcdc_plane {
 	struct drm_plane base;
 	struct atmel_hlcdc_layer layer;
-	struct atmel_hlcdc_plane_properties *properties;
 };
 
 static inline struct atmel_hlcdc_plane *
@@ -344,18 +345,6 @@ struct atmel_hlcdc_dc_desc {
 };
 
 /**
- * Atmel HLCDC Plane properties.
- *
- * This structure stores plane property definitions.
- *
- * @alpha: alpha blending (or transparency) property
- * @rotation: rotation property
- */
-struct atmel_hlcdc_plane_properties {
-	struct drm_property *alpha;
-};
-
-/**
  * Atmel HLCDC Display Controller.
  *
  * @desc: HLCDC Display Controller description
@@ -373,7 +362,6 @@ struct atmel_hlcdc_dc {
 	const struct atmel_hlcdc_dc_desc *desc;
 	struct dma_pool *dscrpool;
 	struct atmel_hlcdc *hlcdc;
-	struct drm_fbdev_cma *fbdev;
 	struct drm_crtc *crtc;
 	struct atmel_hlcdc_layer *layers[ATMEL_HLCDC_MAX_LAYERS];
 	struct workqueue_struct *wq;
@@ -453,5 +441,6 @@ void atmel_hlcdc_crtc_irq(struct drm_crtc *c);
 int atmel_hlcdc_crtc_create(struct drm_device *dev);
 
 int atmel_hlcdc_create_outputs(struct drm_device *dev);
+int atmel_hlcdc_encoder_get_bus_fmt(struct drm_encoder *encoder);
 
 #endif /* DRM_ATMEL_HLCDC_H */

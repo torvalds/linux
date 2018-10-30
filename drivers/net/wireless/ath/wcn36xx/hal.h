@@ -88,6 +88,12 @@
 /* version string max length (including NULL) */
 #define WCN36XX_HAL_VERSION_LENGTH  64
 
+/* How many frames until we start a-mpdu TX session */
+#define WCN36XX_AMPDU_START_THRESH	20
+
+#define WCN36XX_MAX_SCAN_SSIDS		9
+#define WCN36XX_MAX_SCAN_IE_LEN		500
+
 /* message types for messages exchanged between WDI and HAL */
 enum wcn36xx_hal_host_msg_type {
 	/* Init/De-Init */
@@ -347,6 +353,13 @@ enum wcn36xx_hal_host_msg_type {
 	WCN36XX_HAL_DEL_BA_IND = 188,
 	WCN36XX_HAL_DHCP_START_IND = 189,
 	WCN36XX_HAL_DHCP_STOP_IND = 190,
+
+	/* Scan Offload(hw) APIs */
+	WCN36XX_HAL_START_SCAN_OFFLOAD_REQ = 204,
+	WCN36XX_HAL_START_SCAN_OFFLOAD_RSP = 205,
+	WCN36XX_HAL_STOP_SCAN_OFFLOAD_REQ = 206,
+	WCN36XX_HAL_STOP_SCAN_OFFLOAD_RSP = 207,
+	WCN36XX_HAL_SCAN_OFFLOAD_IND = 210,
 
 	WCN36XX_HAL_AVOID_FREQ_RANGE_IND = 233,
 
@@ -1115,6 +1128,101 @@ struct wcn36xx_hal_finish_scan_rsp_msg {
 
 } __packed;
 
+enum wcn36xx_hal_scan_type {
+	WCN36XX_HAL_SCAN_TYPE_PASSIVE = 0x00,
+	WCN36XX_HAL_SCAN_TYPE_ACTIVE = WCN36XX_HAL_MAX_ENUM_SIZE
+};
+
+struct wcn36xx_hal_mac_ssid {
+	u8 length;
+	u8 ssid[32];
+} __packed;
+
+struct wcn36xx_hal_start_scan_offload_req_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	/* BSSIDs hot list */
+	u8 num_bssid;
+	u8 bssids[4][ETH_ALEN];
+
+	/* Directed probe-requests will be sent for listed SSIDs (max 10)*/
+	u8 num_ssid;
+	struct wcn36xx_hal_mac_ssid ssids[10];
+
+	/* Report AP with hidden ssid */
+	u8 scan_hidden;
+
+	/* Self MAC address */
+	u8 mac[ETH_ALEN];
+
+	/* BSS type */
+	enum wcn36xx_hal_bss_type bss_type;
+
+	/* Scan type */
+	enum wcn36xx_hal_scan_type scan_type;
+
+	/* Minimum scanning time on each channel (ms) */
+	u32 min_ch_time;
+
+	/* Maximum scanning time on each channel */
+	u32 max_ch_time;
+
+	/* Is a p2p search */
+	u8 p2p_search;
+
+	/* Channels to scan */
+	u8 num_channel;
+	u8 channels[80];
+
+	/* IE field */
+	u16 ie_len;
+	u8 ie[WCN36XX_MAX_SCAN_IE_LEN];
+} __packed;
+
+struct wcn36xx_hal_start_scan_offload_rsp_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	/* success or failure */
+	u32 status;
+} __packed;
+
+enum wcn36xx_hal_scan_offload_ind_type {
+	/* Scan has been started */
+	WCN36XX_HAL_SCAN_IND_STARTED = 0x01,
+	/* Scan has been completed */
+	WCN36XX_HAL_SCAN_IND_COMPLETED = 0x02,
+	/* Moved to foreign channel */
+	WCN36XX_HAL_SCAN_IND_FOREIGN_CHANNEL = 0x08,
+	/* scan request has been dequeued */
+	WCN36XX_HAL_SCAN_IND_DEQUEUED = 0x10,
+	/* preempted by other high priority scan */
+	WCN36XX_HAL_SCAN_IND_PREEMPTED = 0x20,
+	/* scan start failed */
+	WCN36XX_HAL_SCAN_IND_FAILED = 0x40,
+	 /*scan restarted */
+	WCN36XX_HAL_SCAN_IND_RESTARTED = 0x80,
+	WCN36XX_HAL_SCAN_IND_MAX = WCN36XX_HAL_MAX_ENUM_SIZE
+};
+
+struct wcn36xx_hal_scan_offload_ind {
+	struct wcn36xx_hal_msg_header header;
+
+	u32 type;
+	u32 channel_mhz;
+	u32 scan_id;
+} __packed;
+
+struct wcn36xx_hal_stop_scan_offload_req_msg {
+	struct wcn36xx_hal_msg_header header;
+} __packed;
+
+struct wcn36xx_hal_stop_scan_offload_rsp_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	/* success or failure */
+	u32 status;
+} __packed;
+
 enum wcn36xx_hal_rate_index {
 	HW_RATE_INDEX_1MBPS	= 0x82,
 	HW_RATE_INDEX_2MBPS	= 0x84,
@@ -1505,11 +1613,6 @@ struct wcn36xx_hal_edca_param_record {
 	struct wcn36xx_hal_aci_aifsn aci;
 	struct wcn36xx_hal_mac_cw cw;
 	u16 txop_limit;
-} __packed;
-
-struct wcn36xx_hal_mac_ssid {
-	u8 length;
-	u8 ssid[32];
 } __packed;
 
 /* Concurrency role. These are generic IDs that identify the various roles
@@ -2131,6 +2234,22 @@ struct wcn36xx_hal_switch_channel_rsp_msg {
 	/* BSSID needed to identify session - same as in request */
 	u8 bssid[ETH_ALEN];
 
+} __packed;
+
+struct wcn36xx_hal_process_ptt_msg_req_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	/* Actual FTM Command body */
+	u8 ptt_msg[0];
+} __packed;
+
+struct wcn36xx_hal_process_ptt_msg_rsp_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	/* FTM Command response status */
+	u32 ptt_msg_resp_status;
+	/* Actual FTM Command body */
+	u8 ptt_msg[0];
 } __packed;
 
 struct update_edca_params_req_msg {

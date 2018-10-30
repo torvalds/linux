@@ -45,18 +45,18 @@
 	};
 
 	soc {
-		pin-controller-sbc {
+		pin-controller-sbc@961f080 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stih407-sbc-pinctrl";
 			st,syscfg = <&syscfg_sbc>;
 			reg = <0x0961f080 0x4>;
 			reg-names = "irqmux";
-			interrupts = <GIC_SPI 188 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irqmux";
 			ranges = <0 0x09610000 0x6000>;
 
-			pio0: gpio@09610000 {
+			pio0: gpio@9610000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -64,7 +64,7 @@
 				reg = <0x0 0x100>;
 				st,bank-name = "PIO0";
 			};
-			pio1: gpio@09611000 {
+			pio1: gpio@9611000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -72,7 +72,7 @@
 				reg = <0x1000 0x100>;
 				st,bank-name = "PIO1";
 			};
-			pio2: gpio@09612000 {
+			pio2: gpio@9612000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -80,7 +80,7 @@
 				reg = <0x2000 0x100>;
 				st,bank-name = "PIO2";
 			};
-			pio3: gpio@09613000 {
+			pio3: gpio@9613000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -88,7 +88,7 @@
 				reg = <0x3000 0x100>;
 				st,bank-name = "PIO3";
 			};
-			pio4: gpio@09614000 {
+			pio4: gpio@9614000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -97,7 +97,7 @@
 				st,bank-name = "PIO4";
 			};
 
-			pio5: gpio@09615000 {
+			pio5: gpio@9615000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -369,18 +369,18 @@
 			};
 		};
 
-		pin-controller-front0 {
+		pin-controller-front0@920f080 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stih407-front-pinctrl";
 			st,syscfg = <&syscfg_front>;
 			reg = <0x0920f080 0x4>;
 			reg-names = "irqmux";
-			interrupts = <GIC_SPI 189 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irqmux";
 			ranges = <0 0x09200000 0x10000>;
 
-			pio10: pio@09200000 {
+			pio10: pio@9200000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -388,7 +388,7 @@
 				reg = <0x0 0x100>;
 				st,bank-name = "PIO10";
 			};
-			pio11: pio@09201000 {
+			pio11: pio@9201000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -396,7 +396,7 @@
 				reg = <0x1000 0x100>;
 				st,bank-name = "PIO11";
 			};
-			pio12: pio@09202000 {
+			pio12: pio@9202000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -404,7 +404,7 @@
 				reg = <0x2000 0x100>;
 				st,bank-name = "PIO12";
 			};
-			pio13: pio@09203000 {
+			pio13: pio@9203000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -412,7 +412,7 @@
 				reg = <0x3000 0x100>;
 				st,bank-name = "PIO13";
 			};
-			pio14: pio@09204000 {
+			pio14: pio@9204000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -420,7 +420,7 @@
 				reg = <0x4000 0x100>;
 				st,bank-name = "PIO14";
 			};
-			pio15: pio@09205000 {
+			pio15: pio@9205000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -428,7 +428,7 @@
 				reg = <0x5000 0x100>;
 				st,bank-name = "PIO15";
 			};
-			pio16: pio@09206000 {
+			pio16: pio@9206000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -436,7 +436,7 @@
 				reg = <0x6000 0x100>;
 				st,bank-name = "PIO16";
 			};
-			pio17: pio@09207000 {
+			pio17: pio@9207000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -444,7 +444,7 @@
 				reg = <0x7000 0x100>;
 				st,bank-name = "PIO17";
 			};
-			pio18: pio@09208000 {
+			pio18: pio@9208000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -452,7 +452,7 @@
 				reg = <0x8000 0x100>;
 				st,bank-name = "PIO18";
 			};
-			pio19: pio@09209000 {
+			pio19: pio@9209000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -929,18 +929,18 @@
 			};
 		};
 
-		pin-controller-front1 {
+		pin-controller-front1@921f080 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stih407-front-pinctrl";
 			st,syscfg = <&syscfg_front>;
 			reg = <0x0921f080 0x4>;
 			reg-names = "irqmux";
-			interrupts = <GIC_SPI 190 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irqmux";
 			ranges = <0 0x09210000 0x10000>;
 
-			pio20: pio@09210000 {
+			pio20: pio@9210000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -962,18 +962,18 @@
 			};
 		};
 
-		pin-controller-rear {
+		pin-controller-rear@922f080 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stih407-rear-pinctrl";
 			st,syscfg = <&syscfg_rear>;
 			reg = <0x0922f080 0x4>;
 			reg-names = "irqmux";
-			interrupts = <GIC_SPI 191 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irqmux";
 			ranges = <0 0x09220000 0x6000>;
 
-			pio30: gpio@09220000 {
+			pio30: gpio@9220000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -981,7 +981,7 @@
 				reg = <0x0 0x100>;
 				st,bank-name = "PIO30";
 			};
-			pio31: gpio@09221000 {
+			pio31: gpio@9221000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -989,7 +989,7 @@
 				reg = <0x1000 0x100>;
 				st,bank-name = "PIO31";
 			};
-			pio32: gpio@09222000 {
+			pio32: gpio@9222000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -997,7 +997,7 @@
 				reg = <0x2000 0x100>;
 				st,bank-name = "PIO32";
 			};
-			pio33: gpio@09223000 {
+			pio33: gpio@9223000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -1005,7 +1005,7 @@
 				reg = <0x3000 0x100>;
 				st,bank-name = "PIO33";
 			};
-			pio34: gpio@09224000 {
+			pio34: gpio@9224000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -1013,7 +1013,7 @@
 				reg = <0x4000 0x100>;
 				st,bank-name = "PIO34";
 			};
-			pio35: gpio@09225000 {
+			pio35: gpio@9225000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -1157,18 +1157,18 @@
 			};
 		};
 
-		pin-controller-flash {
+		pin-controller-flash@923f080 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stih407-flash-pinctrl";
 			st,syscfg = <&syscfg_flash>;
 			reg = <0x0923f080 0x4>;
 			reg-names = "irqmux";
-			interrupts = <GIC_SPI 192 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "irqmux";
 			ranges = <0 0x09230000 0x3000>;
 
-			pio40: gpio@09230000 {
+			pio40: gpio@9230000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -1176,7 +1176,7 @@
 				reg = <0 0x100>;
 				st,bank-name = "PIO40";
 			};
-			pio41: gpio@09231000 {
+			pio41: gpio@9231000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
@@ -1184,7 +1184,7 @@
 				reg = <0x1000 0x100>;
 				st,bank-name = "PIO41";
 			};
-			pio42: gpio@09232000 {
+			pio42: gpio@9232000 {
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;

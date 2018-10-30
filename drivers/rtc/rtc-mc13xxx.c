@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/rtc.h>
 
@@ -85,7 +86,7 @@ static int mc13xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	rtc_time64_to_tm((time64_t)days1 * SEC_PER_DAY + seconds, tm);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int mc13xxx_rtc_set_mmss(struct device *dev, time64_t secs)

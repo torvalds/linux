@@ -16,20 +16,35 @@
 
 /**
  * struct tinydrm_device - tinydrm device
- * @drm: DRM device
- * @pipe: Display pipe structure
- * @dirty_lock: Serializes framebuffer flushing
- * @fbdev_cma: CMA fbdev structure
- * @suspend_state: Atomic state when suspended
- * @fb_funcs: Framebuffer functions used when creating framebuffers
  */
 struct tinydrm_device {
+	/**
+	 * @drm: DRM device
+	 */
 	struct drm_device *drm;
+
+	/**
+	 * @pipe: Display pipe structure
+	 */
 	struct drm_simple_display_pipe pipe;
+
+	/**
+	 * @dirty_lock: Serializes framebuffer flushing
+	 */
 	struct mutex dirty_lock;
-	struct drm_fbdev_cma *fbdev_cma;
-	struct drm_atomic_state *suspend_state;
+
+	/**
+	 * @fb_funcs: Framebuffer functions used when creating framebuffers
+	 */
 	const struct drm_framebuffer_funcs *fb_funcs;
+
+	/**
+	 * @fb_dirty: Framebuffer dirty callback
+	 */
+	int (*fb_dirty)(struct drm_framebuffer *framebuffer,
+			struct drm_file *file_priv, unsigned flags,
+			unsigned color, struct drm_clip_rect *clips,
+			unsigned num_clips);
 };
 
 static inline struct tinydrm_device *
@@ -45,7 +60,8 @@ pipe_to_tinydrm(struct drm_simple_display_pipe *pipe)
  * the &drm_driver structure.
  */
 #define TINYDRM_GEM_DRIVER_OPS \
-	.gem_free_object	= tinydrm_gem_cma_free_object, \
+	.gem_free_object_unlocked = tinydrm_gem_cma_free_object, \
+	.gem_print_info		= drm_gem_cma_print_info, \
 	.gem_vm_ops		= &drm_gem_cma_vm_ops, \
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd, \
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle, \
@@ -81,7 +97,6 @@ pipe_to_tinydrm(struct drm_simple_display_pipe *pipe)
 	.type = DRM_MODE_TYPE_DRIVER, \
 	.clock = 1 /* pass validation */
 
-void tinydrm_lastclose(struct drm_device *drm);
 void tinydrm_gem_cma_free_object(struct drm_gem_object *gem_obj);
 struct drm_gem_object *
 tinydrm_gem_cma_prime_import_sg_table(struct drm_device *drm,
@@ -92,13 +107,9 @@ int devm_tinydrm_init(struct device *parent, struct tinydrm_device *tdev,
 		      struct drm_driver *driver);
 int devm_tinydrm_register(struct tinydrm_device *tdev);
 void tinydrm_shutdown(struct tinydrm_device *tdev);
-int tinydrm_suspend(struct tinydrm_device *tdev);
-int tinydrm_resume(struct tinydrm_device *tdev);
 
 void tinydrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
 				 struct drm_plane_state *old_state);
-int tinydrm_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
-				    struct drm_plane_state *plane_state);
 int
 tinydrm_display_pipe_init(struct tinydrm_device *tdev,
 			  const struct drm_simple_display_pipe_funcs *funcs,

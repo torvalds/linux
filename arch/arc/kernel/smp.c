@@ -23,6 +23,9 @@
 #include <linux/cpumask.h>
 #include <linux/reboot.h>
 #include <linux/irqdomain.h>
+#include <linux/export.h>
+#include <linux/of_fdt.h>
+
 #include <asm/processor.h>
 #include <asm/setup.h>
 #include <asm/mach_desc.h>
@@ -30,6 +33,9 @@
 #ifndef CONFIG_ARC_HAS_LLSC
 arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
+
+EXPORT_SYMBOL_GPL(smp_atomic_ops_lock);
+EXPORT_SYMBOL_GPL(smp_bitops_lock);
 #endif
 
 struct plat_smp_ops  __weak plat_smp_ops;
@@ -40,6 +46,42 @@ struct task_struct *secondary_idle_tsk;
 /* Called from start_kernel */
 void __init smp_prepare_boot_cpu(void)
 {
+}
+
+static int __init arc_get_cpu_map(const char *name, struct cpumask *cpumask)
+{
+	unsigned long dt_root = of_get_flat_dt_root();
+	const char *buf;
+
+	buf = of_get_flat_dt_prop(dt_root, name, NULL);
+	if (!buf)
+		return -EINVAL;
+
+	if (cpulist_parse(buf, cpumask))
+		return -EINVAL;
+
+	return 0;
+}
+
+/*
+ * Read from DeviceTree and setup cpu possible mask. If there is no
+ * "possible-cpus" property in DeviceTree pretend all [0..NR_CPUS-1] exist.
+ */
+static void __init arc_init_cpu_possible(void)
+{
+	struct cpumask cpumask;
+
+	if (arc_get_cpu_map("possible-cpus", &cpumask)) {
+		pr_warn("Failed to get possible-cpus from dtb, pretending all %u cpus exist\n",
+			NR_CPUS);
+
+		cpumask_setall(&cpumask);
+	}
+
+	if (!cpumask_test_cpu(0, &cpumask))
+		panic("Master cpu (cpu[0]) is missed in cpu possible mask!");
+
+	init_cpu_possible(&cpumask);
 }
 
 /*
@@ -53,10 +95,7 @@ void __init smp_prepare_boot_cpu(void)
  */
 void __init smp_init_cpus(void)
 {
-	unsigned int i;
-
-	for (i = 0; i < NR_CPUS; i++)
-		set_cpu_possible(i, true);
+	arc_init_cpu_possible();
 
 	if (plat_smp_ops.init_early_smp)
 		plat_smp_ops.init_early_smp();
@@ -65,16 +104,12 @@ void __init smp_init_cpus(void)
 /* called from init ( ) =>  process 1 */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
-
 	/*
 	 * if platform didn't set the present map already, do it now
 	 * boot cpu is set to present already by init/main.c
 	 */
-	if (num_present_cpus() <= 1) {
-		for (i = 0; i < max_cpus; i++)
-			set_cpu_present(i, true);
-	}
+	if (num_present_cpus() <= 1)
+		init_cpu_present(cpu_possible_mask);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -245,7 +280,7 @@ static void ipi_send_msg_one(int cpu, enum ipi_msg_type msg)
 	 * and read back old value
 	 */
 	do {
-		new = old = ACCESS_ONCE(*ipi_data_ptr);
+		new = old = READ_ONCE(*ipi_data_ptr);
 		new |= 1U << msg;
 	} while (cmpxchg(ipi_data_ptr, old, new) != old);
 

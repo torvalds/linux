@@ -29,6 +29,7 @@
 #include <linux/sysfs.h>
 #include <linux/cpu.h>
 #include <linux/powercap.h>
+#include <linux/suspend.h>
 #include <asm/iosf_mbi.h>
 
 #include <asm/processor.h>
@@ -155,6 +156,7 @@ struct rapl_power_limit {
 	int prim_id; /* primitive ID used to enable */
 	struct rapl_domain *domain;
 	const char *name;
+	u64 last_power_limit;
 };
 
 static const char pl1_name[] = "long_term";
@@ -1131,46 +1133,40 @@ static const struct rapl_defaults rapl_defaults_cht = {
 	.compute_time_window = rapl_compute_time_window_atom,
 };
 
-#define RAPL_CPU(_model, _ops) {			\
-		.vendor = X86_VENDOR_INTEL,		\
-		.family = 6,				\
-		.model = _model,			\
-		.driver_data = (kernel_ulong_t)&_ops,	\
-		}
-
 static const struct x86_cpu_id rapl_ids[] __initconst = {
-	RAPL_CPU(INTEL_FAM6_SANDYBRIDGE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_SANDYBRIDGE_X,	rapl_defaults_core),
+	INTEL_CPU_FAM6(SANDYBRIDGE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(SANDYBRIDGE_X,		rapl_defaults_core),
 
-	RAPL_CPU(INTEL_FAM6_IVYBRIDGE,		rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_IVYBRIDGE_X,	rapl_defaults_core),
+	INTEL_CPU_FAM6(IVYBRIDGE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(IVYBRIDGE_X,		rapl_defaults_core),
 
-	RAPL_CPU(INTEL_FAM6_HASWELL_CORE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_HASWELL_ULT,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_HASWELL_GT3E,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_HASWELL_X,		rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(HASWELL_CORE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(HASWELL_ULT,		rapl_defaults_core),
+	INTEL_CPU_FAM6(HASWELL_GT3E,		rapl_defaults_core),
+	INTEL_CPU_FAM6(HASWELL_X,		rapl_defaults_hsw_server),
 
-	RAPL_CPU(INTEL_FAM6_BROADWELL_CORE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_BROADWELL_GT3E,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_BROADWELL_XEON_D,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_BROADWELL_X,	rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(BROADWELL_CORE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(BROADWELL_GT3E,		rapl_defaults_core),
+	INTEL_CPU_FAM6(BROADWELL_XEON_D,	rapl_defaults_core),
+	INTEL_CPU_FAM6(BROADWELL_X,		rapl_defaults_hsw_server),
 
-	RAPL_CPU(INTEL_FAM6_SKYLAKE_DESKTOP,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_SKYLAKE_MOBILE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_SKYLAKE_X,		rapl_defaults_hsw_server),
-	RAPL_CPU(INTEL_FAM6_KABYLAKE_MOBILE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_KABYLAKE_DESKTOP,	rapl_defaults_core),
+	INTEL_CPU_FAM6(SKYLAKE_DESKTOP,		rapl_defaults_core),
+	INTEL_CPU_FAM6(SKYLAKE_MOBILE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(SKYLAKE_X,		rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(KABYLAKE_MOBILE,		rapl_defaults_core),
+	INTEL_CPU_FAM6(KABYLAKE_DESKTOP,	rapl_defaults_core),
+	INTEL_CPU_FAM6(CANNONLAKE_MOBILE,	rapl_defaults_core),
 
-	RAPL_CPU(INTEL_FAM6_ATOM_SILVERMONT1,	rapl_defaults_byt),
-	RAPL_CPU(INTEL_FAM6_ATOM_AIRMONT,	rapl_defaults_cht),
-	RAPL_CPU(INTEL_FAM6_ATOM_MERRIFIELD,	rapl_defaults_tng),
-	RAPL_CPU(INTEL_FAM6_ATOM_MOOREFIELD,	rapl_defaults_ann),
-	RAPL_CPU(INTEL_FAM6_ATOM_GOLDMONT,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_ATOM_GEMINI_LAKE,	rapl_defaults_core),
-	RAPL_CPU(INTEL_FAM6_ATOM_DENVERTON,	rapl_defaults_core),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT,		rapl_defaults_byt),
+	INTEL_CPU_FAM6(ATOM_AIRMONT,		rapl_defaults_cht),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT_MID,	rapl_defaults_tng),
+	INTEL_CPU_FAM6(ATOM_AIRMONT_MID,	rapl_defaults_ann),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT,		rapl_defaults_core),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS,	rapl_defaults_core),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_X,		rapl_defaults_core),
 
-	RAPL_CPU(INTEL_FAM6_XEON_PHI_KNL,	rapl_defaults_hsw_server),
-	RAPL_CPU(INTEL_FAM6_XEON_PHI_KNM,	rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(XEON_PHI_KNL,		rapl_defaults_hsw_server),
+	INTEL_CPU_FAM6(XEON_PHI_KNM,		rapl_defaults_hsw_server),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_ids);
@@ -1209,7 +1205,7 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 	struct rapl_domain *rd;
 	char dev_name[17]; /* max domain name = 7 + 1 + 8 for int + 1 for null*/
 	struct powercap_zone *power_zone = NULL;
-	int nr_pl, ret;;
+	int nr_pl, ret;
 
 	/* Update the domain data of the new package */
 	rapl_update_domain_data(rp);
@@ -1533,6 +1529,92 @@ static int rapl_cpu_down_prep(unsigned int cpu)
 
 static enum cpuhp_state pcap_rapl_online;
 
+static void power_limit_state_save(void)
+{
+	struct rapl_package *rp;
+	struct rapl_domain *rd;
+	int nr_pl, ret, i;
+
+	get_online_cpus();
+	list_for_each_entry(rp, &rapl_packages, plist) {
+		if (!rp->power_zone)
+			continue;
+		rd = power_zone_to_rapl_domain(rp->power_zone);
+		nr_pl = find_nr_power_limit(rd);
+		for (i = 0; i < nr_pl; i++) {
+			switch (rd->rpl[i].prim_id) {
+			case PL1_ENABLE:
+				ret = rapl_read_data_raw(rd,
+						POWER_LIMIT1,
+						true,
+						&rd->rpl[i].last_power_limit);
+				if (ret)
+					rd->rpl[i].last_power_limit = 0;
+				break;
+			case PL2_ENABLE:
+				ret = rapl_read_data_raw(rd,
+						POWER_LIMIT2,
+						true,
+						&rd->rpl[i].last_power_limit);
+				if (ret)
+					rd->rpl[i].last_power_limit = 0;
+				break;
+			}
+		}
+	}
+	put_online_cpus();
+}
+
+static void power_limit_state_restore(void)
+{
+	struct rapl_package *rp;
+	struct rapl_domain *rd;
+	int nr_pl, i;
+
+	get_online_cpus();
+	list_for_each_entry(rp, &rapl_packages, plist) {
+		if (!rp->power_zone)
+			continue;
+		rd = power_zone_to_rapl_domain(rp->power_zone);
+		nr_pl = find_nr_power_limit(rd);
+		for (i = 0; i < nr_pl; i++) {
+			switch (rd->rpl[i].prim_id) {
+			case PL1_ENABLE:
+				if (rd->rpl[i].last_power_limit)
+					rapl_write_data_raw(rd,
+						POWER_LIMIT1,
+						rd->rpl[i].last_power_limit);
+				break;
+			case PL2_ENABLE:
+				if (rd->rpl[i].last_power_limit)
+					rapl_write_data_raw(rd,
+						POWER_LIMIT2,
+						rd->rpl[i].last_power_limit);
+				break;
+			}
+		}
+	}
+	put_online_cpus();
+}
+
+static int rapl_pm_callback(struct notifier_block *nb,
+	unsigned long mode, void *_unused)
+{
+	switch (mode) {
+	case PM_SUSPEND_PREPARE:
+		power_limit_state_save();
+		break;
+	case PM_POST_SUSPEND:
+		power_limit_state_restore();
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rapl_pm_notifier = {
+	.notifier_call = rapl_pm_callback,
+};
+
 static int __init rapl_init(void)
 {
 	const struct x86_cpu_id *id;
@@ -1560,7 +1642,15 @@ static int __init rapl_init(void)
 
 	/* Don't bail out if PSys is not supported */
 	rapl_register_psys();
+
+	ret = register_pm_notifier(&rapl_pm_notifier);
+	if (ret)
+		goto err_unreg_all;
+
 	return 0;
+
+err_unreg_all:
+	cpuhp_remove_state(pcap_rapl_online);
 
 err_unreg:
 	rapl_unregister_powercap();
@@ -1569,6 +1659,7 @@ err_unreg:
 
 static void __exit rapl_exit(void)
 {
+	unregister_pm_notifier(&rapl_pm_notifier);
 	cpuhp_remove_state(pcap_rapl_online);
 	rapl_unregister_powercap();
 }

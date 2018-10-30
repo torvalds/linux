@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  drivers/usb/gadget/emxx_udc.c
  *     EMXX FCD (Function Controller Driver) for USB.
  *
  *  Copyright (C) 2010 Renesas Electronics Corporation
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2
- *  as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -1377,25 +1369,6 @@ static void _nbu2ss_set_endpoint_stall(
 }
 
 /*-------------------------------------------------------------------------*/
-/* Device Descriptor */
-static struct usb_device_descriptor device_desc = {
-	.bLength              = sizeof(device_desc),
-	.bDescriptorType      = USB_DT_DEVICE,
-	.bcdUSB               = cpu_to_le16(0x0200),
-	.bDeviceClass         = USB_CLASS_VENDOR_SPEC,
-	.bDeviceSubClass      = 0x00,
-	.bDeviceProtocol      = 0x00,
-	.bMaxPacketSize0      = 64,
-	.idVendor             = cpu_to_le16(0x0409),
-	.idProduct            = cpu_to_le16(0xfff0),
-	.bcdDevice            = 0xffff,
-	.iManufacturer        = 0x00,
-	.iProduct             = 0x00,
-	.iSerialNumber        = 0x00,
-	.bNumConfigurations   = 0x01,
-};
-
-/*-------------------------------------------------------------------------*/
 static void _nbu2ss_set_test_mode(struct nbu2ss_udc *udc, u32 mode)
 {
 	u32		data;
@@ -1680,9 +1653,6 @@ static int std_req_set_configuration(struct nbu2ss_udc *udc)
 /*-------------------------------------------------------------------------*/
 static inline void _nbu2ss_read_request_data(struct nbu2ss_udc *udc, u32 *pdata)
 {
-	if ((!udc) && (!pdata))
-		return;
-
 	*pdata = _nbu2ss_readl(&udc->p_regs->SETUP_DATA0);
 	pdata++;
 	*pdata = _nbu2ss_readl(&udc->p_regs->SETUP_DATA1);
@@ -2524,7 +2494,7 @@ static int nbu2ss_ep_enable(
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if ((!ep) || (!ep->udc)) {
+	if ((!ep->udc)) {
 		pr_err(" *** %s, ep == NULL !!\n", __func__);
 		return -EINVAL;
 	}
@@ -2581,7 +2551,7 @@ static int nbu2ss_ep_disable(struct usb_ep *_ep)
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if ((!ep) || (!ep->udc)) {
+	if (!ep->udc) {
 		pr_err("udc: *** %s, ep == NULL !!\n", __func__);
 		return -EINVAL;
 	}
@@ -2694,7 +2664,7 @@ static int nbu2ss_ep_queue(
 
 	if (req->unaligned) {
 		if (!ep->virt_buf)
-			ep->virt_buf = (u8 *)dma_alloc_coherent(
+			ep->virt_buf = dma_alloc_coherent(
 				NULL, PAGE_SIZE,
 				&ep->phys_buf, GFP_ATOMIC | GFP_DMA);
 		if (ep->epnum > 0)  {
@@ -2754,10 +2724,6 @@ static int nbu2ss_ep_dequeue(
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if (!ep) {
-		pr_err("%s, ep == NULL !!\n", __func__);
-		return -EINVAL;
-	}
 
 	udc = ep->udc;
 	if (!udc)
@@ -2798,10 +2764,6 @@ static int nbu2ss_ep_set_halt(struct usb_ep *_ep, int value)
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if (!ep) {
-		pr_err("%s, bad ep\n", __func__);
-		return -EINVAL;
-	}
 
 	udc = ep->udc;
 	if (!udc) {
@@ -2850,10 +2812,6 @@ static int nbu2ss_ep_fifo_status(struct usb_ep *_ep)
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if (!ep) {
-		pr_err("%s, bad ep\n", __func__);
-		return -EINVAL;
-	}
 
 	udc = ep->udc;
 	if (!udc) {
@@ -2896,10 +2854,6 @@ static void  nbu2ss_ep_fifo_flush(struct usb_ep *_ep)
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if (!ep) {
-		pr_err("udc: %s, bad ep\n", __func__);
-		return;
-	}
 
 	udc = ep->udc;
 	if (!udc) {
@@ -2949,11 +2903,6 @@ static int nbu2ss_gad_get_frame(struct usb_gadget *pgadget)
 	}
 
 	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
-	if (!udc) {
-		dev_err(&pgadget->dev, "%s, udc == NULL\n", __func__);
-		return -EINVAL;
-	}
-
 	data = gpio_get_value(VBUS_VALUE);
 	if (data == 0)
 		return -EINVAL;
@@ -2975,10 +2924,6 @@ static int nbu2ss_gad_wakeup(struct usb_gadget *pgadget)
 	}
 
 	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
-	if (!udc) {
-		dev_err(&pgadget->dev, "%s, udc == NULL\n", __func__);
-		return -EINVAL;
-	}
 
 	data = gpio_get_value(VBUS_VALUE);
 	if (data == 0) {

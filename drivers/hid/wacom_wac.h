@@ -11,6 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/hid.h>
+#include <linux/kfifo.h>
 
 /* maximum packet length for USB/BT devices */
 #define WACOM_PKGLEN_MAX	361
@@ -86,7 +87,9 @@
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
 #define WACOM_QUIRK_SENSE		0x0002
+#define WACOM_QUIRK_AESPEN		0x0004
 #define WACOM_QUIRK_BATTERY		0x0008
+#define WACOM_QUIRK_TOOLSERIAL		0x0010
 
 /* device types */
 #define WACOM_DEVICETYPE_NONE           0x0000
@@ -107,6 +110,7 @@
 #define WACOM_HID_WD_PEN                (WACOM_HID_UP_WACOMDIGITIZER | 0x02)
 #define WACOM_HID_WD_SENSE              (WACOM_HID_UP_WACOMDIGITIZER | 0x36)
 #define WACOM_HID_WD_DIGITIZERFNKEYS    (WACOM_HID_UP_WACOMDIGITIZER | 0x39)
+#define WACOM_HID_WD_SERIALNUMBER       (WACOM_HID_UP_WACOMDIGITIZER | 0x5b)
 #define WACOM_HID_WD_SERIALHI           (WACOM_HID_UP_WACOMDIGITIZER | 0x5c)
 #define WACOM_HID_WD_TOOLTYPE           (WACOM_HID_UP_WACOMDIGITIZER | 0x77)
 #define WACOM_HID_WD_DISTANCE           (WACOM_HID_UP_WACOMDIGITIZER | 0x0132)
@@ -114,6 +118,7 @@
 #define WACOM_HID_WD_TOUCHSTRIP2        (WACOM_HID_UP_WACOMDIGITIZER | 0x0137)
 #define WACOM_HID_WD_TOUCHRING          (WACOM_HID_UP_WACOMDIGITIZER | 0x0138)
 #define WACOM_HID_WD_TOUCHRINGSTATUS    (WACOM_HID_UP_WACOMDIGITIZER | 0x0139)
+#define WACOM_HID_WD_REPORT_VALID       (WACOM_HID_UP_WACOMDIGITIZER | 0x01d0)
 #define WACOM_HID_WD_ACCELEROMETER_X    (WACOM_HID_UP_WACOMDIGITIZER | 0x0401)
 #define WACOM_HID_WD_ACCELEROMETER_Y    (WACOM_HID_UP_WACOMDIGITIZER | 0x0402)
 #define WACOM_HID_WD_ACCELEROMETER_Z    (WACOM_HID_UP_WACOMDIGITIZER | 0x0403)
@@ -150,6 +155,7 @@
 #define WACOM_HID_WT_TOUCHSCREEN        (WACOM_HID_UP_WACOMTOUCH | 0x04)
 #define WACOM_HID_WT_TOUCHPAD           (WACOM_HID_UP_WACOMTOUCH | 0x05)
 #define WACOM_HID_WT_CONTACTMAX         (WACOM_HID_UP_WACOMTOUCH | 0x55)
+#define WACOM_HID_WT_SERIALNUMBER       (WACOM_HID_UP_WACOMTOUCH | 0x5b)
 #define WACOM_HID_WT_X                  (WACOM_HID_UP_WACOMTOUCH | 0x130)
 #define WACOM_HID_WT_Y                  (WACOM_HID_UP_WACOMTOUCH | 0x131)
 
@@ -166,6 +172,7 @@
 				 ((f)->physical == HID_DG_PEN) || \
 				 ((f)->application == HID_DG_PEN) || \
 				 ((f)->application == HID_DG_DIGITIZER) || \
+				 ((f)->application == WACOM_HID_WD_PEN) || \
 				 ((f)->application == WACOM_HID_WD_DIGITIZER) || \
 				 ((f)->application == WACOM_HID_G9_PEN) || \
 				 ((f)->application == WACOM_HID_G11_PEN))
@@ -207,6 +214,7 @@ enum {
 	INTUOSPM,
 	INTUOSPL,
 	INTUOSP2_BT,
+	INTUOSHT3_BT,
 	WACOM_21UX2,
 	WACOM_22HD,
 	DTK,
@@ -291,6 +299,8 @@ struct hid_data {
 	bool inrange_state;
 	bool invert_state;
 	bool tipswitch;
+	bool barrelswitch;
+	bool barrelswitch2;
 	int x;
 	int y;
 	int pressure;
@@ -333,6 +343,7 @@ struct wacom_wac {
 	struct input_dev *pen_input;
 	struct input_dev *touch_input;
 	struct input_dev *pad_input;
+	struct kfifo_rec_ptr_2 pen_fifo;
 	int pid;
 	int num_contacts_left;
 	u8 bt_features;
@@ -343,7 +354,7 @@ struct wacom_wac {
 	bool has_mute_touch_switch;
 	bool has_mode_change;
 	bool is_direct_mode;
-
+	bool is_invalid_bt_frame;
 };
 
 #endif

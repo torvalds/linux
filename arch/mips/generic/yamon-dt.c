@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,8 +27,6 @@ __init int yamon_dt_append_cmdline(void *fdt)
 
 	/* find or add chosen node */
 	chosen_off = fdt_path_offset(fdt, "/chosen");
-	if (chosen_off == -FDT_ERR_NOTFOUND)
-		chosen_off = fdt_path_offset(fdt, "/chosen@0");
 	if (chosen_off == -FDT_ERR_NOTFOUND)
 		chosen_off = fdt_add_subnode(fdt, 0, "chosen");
 	if (chosen_off < 0) {
@@ -220,8 +218,6 @@ __init int yamon_dt_serial_config(void *fdt)
 
 	/* find or add chosen node */
 	chosen_off = fdt_path_offset(fdt, "/chosen");
-	if (chosen_off == -FDT_ERR_NOTFOUND)
-		chosen_off = fdt_path_offset(fdt, "/chosen@0");
 	if (chosen_off == -FDT_ERR_NOTFOUND)
 		chosen_off = fdt_add_subnode(fdt, 0, "chosen");
 	if (chosen_off < 0) {

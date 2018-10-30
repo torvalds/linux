@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  KVM guest address space mapping code
  *
@@ -7,6 +8,14 @@
 
 #ifndef _ASM_S390_GMAP_H
 #define _ASM_S390_GMAP_H
+
+/* Generic bits for GMAP notification on DAT table entry changes. */
+#define GMAP_NOTIFY_SHADOW	0x2
+#define GMAP_NOTIFY_MPROT	0x1
+
+/* Status bits only for huge segment entries */
+#define _SEGMENT_ENTRY_GMAP_IN		0x8000	/* invalidation notify bit */
+#define _SEGMENT_ENTRY_GMAP_UC		0x4000	/* dirty (migration) */
 
 /**
  * struct gmap_struct - guest address space
@@ -131,4 +140,6 @@ void gmap_pte_notify(struct mm_struct *, unsigned long addr, pte_t *,
 int gmap_mprotect_notify(struct gmap *, unsigned long start,
 			 unsigned long len, int prot);
 
+void gmap_sync_dirty_log_pmd(struct gmap *gmap, unsigned long dirty_bitmap[4],
+			     unsigned long gaddr, unsigned long vmaddr);
 #endif /* _ASM_S390_GMAP_H */

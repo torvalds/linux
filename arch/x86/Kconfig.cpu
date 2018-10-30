@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Put here option for CPU selection and depending optimization
 choice
 	prompt "Processor family"
@@ -314,19 +315,6 @@ config X86_L1_CACHE_SHIFT
 	default "4" if MELAN || M486 || MGEODEGX1
 	default "5" if MWINCHIP3D || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODE_LX
 
-config X86_PPRO_FENCE
-	bool "PentiumPro memory ordering errata workaround"
-	depends on M686 || M586MMX || M586TSC || M586 || M486 || MGEODEGX1
-	---help---
-	  Old PentiumPro multiprocessor systems had errata that could cause
-	  memory operations to violate the x86 ordering standard in rare cases.
-	  Enabling this option will attempt to work around some (but not all)
-	  occurrences of this problem, at the cost of much heavier spinlock and
-	  memory barrier operations.
-
-	  If unsure, say n here. Even distro kernels should think twice before
-	  enabling this: there are few systems, and an unlikely bug.
-
 config X86_F00F_BUG
 	def_bool y
 	depends on M586MMX || M586TSC || M586 || M486
@@ -373,7 +361,7 @@ config X86_TSC
 
 config X86_CMPXCHG64
 	def_bool y
-	depends on X86_PAE || X86_64 || MCORE2 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MATOM
+	depends on X86_PAE || X86_64 || MCORE2 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586TSC || M586MMX || MATOM || MGEODE_LX || MGEODEGX1 || MK6 || MK7 || MK8
 
 # this should be set for all -march=.. options where the compiler
 # generates cmov.
@@ -384,7 +372,7 @@ config X86_CMOV
 config X86_MINIMUM_CPU_FAMILY
 	int
 	default "64" if X86_64
-	default "6" if X86_32 && X86_P6_NOP
+	default "6" if X86_32 && (MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || MEFFICEON || MATOM || MCRUSOE || MCORE2 || MK7 || MK8)
 	default "5" if X86_32 && X86_CMPXCHG64
 	default "4"
 
@@ -434,6 +422,20 @@ config CPU_SUP_AMD
 	  You need this enabled if you want your kernel to run on an
 	  AMD CPU. Disabling this option on other types of CPUs
 	  makes the kernel a tiny bit smaller. Disabling it on an AMD
+	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.
+
+config CPU_SUP_HYGON
+	default y
+	bool "Support Hygon processors" if PROCESSOR_SELECT
+	select CPU_SUP_AMD
+	help
+	  This enables detection, tunings and quirks for Hygon processors
+
+	  You need this enabled if you want your kernel to run on an
+	  Hygon CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller. Disabling it on an Hygon
 	  CPU might render the kernel unbootable.
 
 	  If unsure, say N.

@@ -1,13 +1,8 @@
-/* linux/arch/arm/mach-s3c2412/mach-vstms.c
- *
- * (C) 2006 Thomas Gleixner <tglx@linutronix.de>
- *
- * Derived from mach-smdk2413.c - (C) 2006 Simtec Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// (C) 2006 Thomas Gleixner <tglx@linutronix.de>
+//
+// Derived from mach-smdk2413.c - (C) 2006 Simtec Electronics
 
 #include <linux/kernel.h>
 #include <linux/types.h>

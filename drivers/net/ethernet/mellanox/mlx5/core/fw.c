@@ -32,6 +32,7 @@
 
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cmd.h>
+#include <linux/mlx5/eswitch.h>
 #include <linux/module.h>
 #include "mlx5_core.h"
 #include "../../mlxfw/mlxfw.h"
@@ -106,6 +107,13 @@ static int mlx5_get_mcam_reg(struct mlx5_core_dev *dev)
 				   MLX5_MCAM_REGS_FIRST_128);
 }
 
+static int mlx5_get_qcam_reg(struct mlx5_core_dev *dev)
+{
+	return mlx5_query_qcam_reg(dev, dev->caps.qcam,
+				   MLX5_QCAM_FEATURE_ENHANCED_FEATURES,
+				   MLX5_QCAM_REGS_FIRST_128);
+}
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 {
 	int err;
@@ -152,13 +160,13 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 	}
 
 	if (MLX5_CAP_GEN(dev, vport_group_manager) &&
-	    MLX5_CAP_GEN(dev, eswitch_flow_table)) {
+	    MLX5_ESWITCH_MANAGER(dev)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH_FLOW_TABLE);
 		if (err)
 			return err;
 	}
 
-	if (MLX5_CAP_GEN(dev, eswitch_flow_table)) {
+	if (MLX5_ESWITCH_MANAGER(dev)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH);
 		if (err)
 			return err;
@@ -176,21 +184,41 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
+	if (MLX5_CAP_GEN(dev, debug))
+		mlx5_core_get_caps(dev, MLX5_CAP_DEBUG);
+
 	if (MLX5_CAP_GEN(dev, pcam_reg))
 		mlx5_get_pcam_reg(dev);
 
 	if (MLX5_CAP_GEN(dev, mcam_reg))
 		mlx5_get_mcam_reg(dev);
 
+	if (MLX5_CAP_GEN(dev, qcam_reg))
+		mlx5_get_qcam_reg(dev);
+
+	if (MLX5_CAP_GEN(dev, device_memory)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_DEV_MEM);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
-int mlx5_cmd_init_hca(struct mlx5_core_dev *dev)
+int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id)
 {
 	u32 out[MLX5_ST_SZ_DW(init_hca_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(init_hca_in)]   = {0};
+	int i;
 
 	MLX5_SET(init_hca_in, in, opcode, MLX5_CMD_OP_INIT_HCA);
+
+	if (MLX5_CAP_GEN(dev, sw_owner_id)) {
+		for (i = 0; i < 4; i++)
+			MLX5_ARRAY_SET(init_hca_in, in, sw_owner_id, i,
+				       sw_owner_id[i]);
+	}
+
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
@@ -222,9 +250,57 @@ int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev)
 	if (ret)
 		return ret;
 
-	force_state = MLX5_GET(teardown_hca_out, out, force_state);
+	force_state = MLX5_GET(teardown_hca_out, out, state);
 	if (force_state == MLX5_TEARDOWN_HCA_OUT_FORCE_STATE_FAIL) {
-		mlx5_core_err(dev, "teardown with force mode failed\n");
+		mlx5_core_warn(dev, "teardown with force mode failed, doing normal teardown\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+#define MLX5_FAST_TEARDOWN_WAIT_MS   3000
+int mlx5_cmd_fast_teardown_hca(struct mlx5_core_dev *dev)
+{
+	unsigned long end, delay_ms = MLX5_FAST_TEARDOWN_WAIT_MS;
+	u32 out[MLX5_ST_SZ_DW(teardown_hca_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(teardown_hca_in)] = {0};
+	int state;
+	int ret;
+
+	if (!MLX5_CAP_GEN(dev, fast_teardown)) {
+		mlx5_core_dbg(dev, "fast teardown is not supported in the firmware\n");
+		return -EOPNOTSUPP;
+	}
+
+	MLX5_SET(teardown_hca_in, in, opcode, MLX5_CMD_OP_TEARDOWN_HCA);
+	MLX5_SET(teardown_hca_in, in, profile,
+		 MLX5_TEARDOWN_HCA_IN_PROFILE_PREPARE_FAST_TEARDOWN);
+
+	ret = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (ret)
+		return ret;
+
+	state = MLX5_GET(teardown_hca_out, out, state);
+	if (state == MLX5_TEARDOWN_HCA_OUT_FORCE_STATE_FAIL) {
+		mlx5_core_warn(dev, "teardown with fast mode failed\n");
+		return -EIO;
+	}
+
+	mlx5_set_nic_state(dev, MLX5_NIC_IFC_DISABLED);
+
+	/* Loop until device state turns to disable */
+	end = jiffies + msecs_to_jiffies(delay_ms);
+	do {
+		if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
+			break;
+
+		cond_resched();
+	} while (!time_after(jiffies, end));
+
+	if (mlx5_get_nic_state(dev) != MLX5_NIC_IFC_DISABLED) {
+		dev_err(&dev->pdev->dev, "NIC IFC still %d after %lums.\n",
+			mlx5_get_nic_state(dev), delay_ms);
 		return -EIO;
 	}
 

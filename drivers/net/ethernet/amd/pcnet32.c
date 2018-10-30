@@ -321,7 +321,7 @@ static struct net_device_stats *pcnet32_get_stats(struct net_device *);
 static void pcnet32_load_multicast(struct net_device *dev);
 static void pcnet32_set_multicast_list(struct net_device *);
 static int pcnet32_ioctl(struct net_device *, struct ifreq *, int);
-static void pcnet32_watchdog(struct net_device *);
+static void pcnet32_watchdog(struct timer_list *);
 static int mdio_read(struct net_device *dev, int phy_id, int reg_num);
 static void mdio_write(struct net_device *dev, int phy_id, int reg_num,
 		       int val);
@@ -1552,22 +1552,26 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!ioaddr) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
 			pr_err("card has no PCI IO resources, aborting\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_disable_dev;
 	}
 
 	err = pci_set_dma_mask(pdev, PCNET32_DMA_MASK);
 	if (err) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
 			pr_err("architecture does not support 32bit PCI busmaster DMA\n");
-		return err;
+		goto err_disable_dev;
 	}
 	if (!request_region(ioaddr, PCNET32_TOTAL_SIZE, "pcnet32_probe_pci")) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
 			pr_err("io address range already allocated\n");
-		return -EBUSY;
+		err = -EBUSY;
+		goto err_disable_dev;
 	}
 
 	err = pcnet32_probe1(ioaddr, 1, pdev);
+
+err_disable_dev:
 	if (err < 0)
 		pci_disable_device(pdev);
 
@@ -1970,9 +1974,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 			lp->options |= PCNET32_PORT_MII;
 	}
 
-	init_timer(&lp->watchdog_timer);
-	lp->watchdog_timer.data = (unsigned long)dev;
-	lp->watchdog_timer.function = (void *)&pcnet32_watchdog;
+	timer_setup(&lp->watchdog_timer, pcnet32_watchdog, 0);
 
 	/* The PCNET32-specific entries in the device structure. */
 	dev->netdev_ops = &pcnet32_netdev_ops;
@@ -2034,22 +2036,22 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 	}
 
 	lp->tx_dma_addr = kcalloc(lp->tx_ring_size, sizeof(dma_addr_t),
-				  GFP_ATOMIC);
+				  GFP_KERNEL);
 	if (!lp->tx_dma_addr)
 		return -ENOMEM;
 
 	lp->rx_dma_addr = kcalloc(lp->rx_ring_size, sizeof(dma_addr_t),
-				  GFP_ATOMIC);
+				  GFP_KERNEL);
 	if (!lp->rx_dma_addr)
 		return -ENOMEM;
 
 	lp->tx_skbuff = kcalloc(lp->tx_ring_size, sizeof(struct sk_buff *),
-				GFP_ATOMIC);
+				GFP_KERNEL);
 	if (!lp->tx_skbuff)
 		return -ENOMEM;
 
 	lp->rx_skbuff = kcalloc(lp->rx_ring_size, sizeof(struct sk_buff *),
-				GFP_ATOMIC);
+				GFP_KERNEL);
 	if (!lp->rx_skbuff)
 		return -ENOMEM;
 
@@ -2902,9 +2904,10 @@ static void pcnet32_check_media(struct net_device *dev, int verbose)
  * Could possibly be changed to use mii_check_media instead.
  */
 
-static void pcnet32_watchdog(struct net_device *dev)
+static void pcnet32_watchdog(struct timer_list *t)
 {
-	struct pcnet32_private *lp = netdev_priv(dev);
+	struct pcnet32_private *lp = from_timer(lp, t, watchdog_timer);
+	struct net_device *dev = lp->dev;
 	unsigned long flags;
 
 	/* Print the link status if it has changed */

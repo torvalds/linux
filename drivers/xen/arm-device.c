@@ -70,9 +70,9 @@ static int xen_map_device_mmio(const struct resource *resources,
 		if ((resource_type(r) != IORESOURCE_MEM) || (nr == 0))
 			continue;
 
-		gpfns = kzalloc(sizeof(xen_pfn_t) * nr, GFP_KERNEL);
-		idxs = kzalloc(sizeof(xen_ulong_t) * nr, GFP_KERNEL);
-		errs = kzalloc(sizeof(int) * nr, GFP_KERNEL);
+		gpfns = kcalloc(nr, sizeof(xen_pfn_t), GFP_KERNEL);
+		idxs = kcalloc(nr, sizeof(xen_ulong_t), GFP_KERNEL);
+		errs = kcalloc(nr, sizeof(int), GFP_KERNEL);
 		if (!gpfns || !idxs || !errs) {
 			kfree(gpfns);
 			kfree(idxs);

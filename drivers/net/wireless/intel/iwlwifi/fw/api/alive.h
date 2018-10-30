@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,8 +97,8 @@ enum {
 #define IWL_ALIVE_FLG_RFKILL	BIT(0)
 
 struct iwl_lmac_alive {
-	__le32 ucode_minor;
 	__le32 ucode_major;
+	__le32 ucode_minor;
 	u8 ver_subtype;
 	u8 ver_type;
 	u8 mac;
@@ -113,8 +115,8 @@ struct iwl_lmac_alive {
 } __packed; /* UCODE_ALIVE_NTFY_API_S_VER_3 */
 
 struct iwl_umac_alive {
-	__le32 umac_minor;		/* UMAC version: minor */
 	__le32 umac_major;		/* UMAC version: major */
+	__le32 umac_minor;		/* UMAC version: minor */
 	__le32 error_info_addr;		/* SRAM address for UMAC error log */
 	__le32 dbg_print_buff_addr;
 } __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
@@ -186,21 +188,5 @@ enum iwl_card_state_flags {
 struct iwl_card_state_notif {
 	__le32 flags;
 } __packed; /* CARD_STATE_NTFY_API_S_VER_1 */
-
-/**
- * struct iwl_fseq_ver_mismatch_nty - Notification about version
- *
- * This notification does not have a direct impact on the init flow.
- * It means that another core (not WiFi) has initiated the FSEQ flow
- * and updated the FSEQ version.  The driver only prints an error when
- * this occurs.
- *
- * @aux_read_fseq_ver: auxiliary read FSEQ version
- * @wifi_fseq_ver: FSEQ version (embedded in WiFi)
- */
-struct iwl_fseq_ver_mismatch_ntf {
-	__le32 aux_read_fseq_ver;
-	__le32 wifi_fseq_ver;
-} __packed; /* FSEQ_VER_MISMATCH_NTFY_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_alive_h__ */

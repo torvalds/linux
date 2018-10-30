@@ -1,0 +1,12 @@
+#
+# MOST Cdev configuration
+#
+
+config MOST_CDEV
+	tristate "Cdev"
+
+	---help---
+	  Say Y here if you want to commumicate via character devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called most_cdev.

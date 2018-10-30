@@ -1,0 +1,135 @@
+STMicroelectronics STM32 DFSDM ADC device driver
+
+
+STM32 DFSDM ADC is a sigma delta analog-to-digital converter dedicated to
+interface external sigma delta modulators to STM32 micro controllers.
+It is mainly targeted for:
+- Sigma delta modulators (motor control, metering...)
+- PDM microphones (audio digital microphone)
+
+It features up to 8 serial digital interfaces (SPI or Manchester) and
+up to 4 filters on stm32h7 or 6 filters on stm32mp1.
+
+Each child node match with a filter instance.
+
+Contents of a STM32 DFSDM root node:
+------------------------------------
+Required properties:
+- compatible: Should be one of:
+  "st,stm32h7-dfsdm"
+  "st,stm32mp1-dfsdm"
+- reg: Offset and length of the DFSDM block register set.
+- clocks: IP and serial interfaces clocking. Should be set according
+		to rcc clock ID and "clock-names".
+- clock-names: Input clock name "dfsdm" must be defined,
+		"audio" is optional. If defined CLKOUT is based on the audio
+		clock, else "dfsdm" is used.
+- #interrupt-cells = <1>;
+- #address-cells = <1>;
+- #size-cells = <0>;
+
+Optional properties:
+- spi-max-frequency: Requested only for SPI master mode.
+		  SPI clock OUT frequency (Hz). This clock must be set according
+		  to "clock" property. Frequency must be a multiple of the rcc
+		  clock frequency. If not, SPI CLKOUT frequency will not be
+		  accurate.
+- pinctrl-names:	Set to "default".
+- pinctrl-0:		List of phandles pointing to pin configuration
+			nodes to set pins in mode of operation for dfsdm
+			on external pin.
+
+Contents of a STM32 DFSDM child nodes:
+--------------------------------------
+
+Required properties:
+- compatible: Must be:
+	"st,stm32-dfsdm-adc" for sigma delta ADCs
+	"st,stm32-dfsdm-dmic" for audio digital microphone.
+- reg: Specifies the DFSDM filter instance used.
+	Valid values are from 0 to 3 on stm32h7, 0 to 5 on stm32mp1.
+- interrupts: IRQ lines connected to each DFSDM filter instance.
+- st,adc-channels:	List of single-ended channels muxed for this ADC.
+			valid values:
+				"st,stm32h7-dfsdm" compatibility: 0 to 7.
+- st,adc-channel-names:	List of single-ended channel names.
+- st,filter-order:  SinC filter order from 0 to 5.
+			0: FastSinC
+			[1-5]: order 1 to 5.
+			For audio purpose it is recommended to use order 3 to 5.
+- #io-channel-cells = <1>: See the IIO bindings section "IIO consumers".
+
+Required properties for "st,stm32-dfsdm-adc" compatibility:
+- io-channels: From common IIO binding. Used to pipe external sigma delta
+		modulator or internal ADC output to DFSDM channel.
+		This is not required for "st,stm32-dfsdm-pdm" compatibility as
+		PDM microphone is binded in Audio DT node.
+
+Required properties for "st,stm32-dfsdm-pdm" compatibility:
+- #sound-dai-cells: Must be set to 0.
+- dma: DMA controller phandle and DMA request line associated to the
+		filter instance (specified by the field "reg")
+- dma-names: Must be "rx"
+
+Optional properties:
+- st,adc-channel-types:	Single-ended channel input type.
+			- "SPI_R": SPI with data on rising edge (default)
+			- "SPI_F": SPI with data on falling edge
+			- "MANCH_R": manchester codec, rising edge = logic 0, falling edge = logic 1
+			- "MANCH_F": manchester codec, rising edge = logic 1, falling edge = logic 0
+- st,adc-channel-clk-src: Conversion clock source.
+			  - "CLKIN": external SPI clock (CLKIN x)
+			  - "CLKOUT": internal SPI clock (CLKOUT) (default)
+			  - "CLKOUT_F": internal SPI clock divided by 2 (falling edge).
+			  - "CLKOUT_R": internal SPI clock divided by 2 (rising edge).
+
+- st,adc-alt-channel: Must be defined if two sigma delta modulator are
+			  connected on same SPI input.
+			  If not set, channel n is connected to SPI input n.
+			  If set, channel n is connected to SPI input n + 1.
+
+- st,filter0-sync: Set to 1 to synchronize with DFSDM filter instance 0.
+		   Used for multi microphones synchronization.
+
+Example of a sigma delta adc connected on DFSDM SPI port 0
+and a pdm microphone connected on DFSDM SPI port 1:
+
+	ads1202: simple_sd_adc@0 {
+		compatible = "ads1202";
+		#io-channel-cells = <1>;
+	};
+
+	dfsdm: dfsdm@40017000 {
+		compatible = "st,stm32h7-dfsdm";
+		reg = <0x40017000 0x400>;
+		clocks = <&rcc DFSDM1_CK>;
+		clock-names = "dfsdm";
+		#interrupt-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dfsdm_adc0: filter@0 {
+			compatible = "st,stm32-dfsdm-adc";
+			#io-channel-cells = <1>;
+			reg = <0>;
+			interrupts = <110>;
+			st,adc-channels = <0>;
+			st,adc-channel-names = "sd_adc0";
+			st,adc-channel-types = "SPI_F";
+			st,adc-channel-clk-src = "CLKOUT";
+			io-channels = <&ads1202 0>;
+			st,filter-order = <3>;
+		};
+		dfsdm_pdm1: filter@1 {
+			compatible = "st,stm32-dfsdm-dmic";
+			reg = <1>;
+			interrupts = <111>;
+			dmas = <&dmamux1 102 0x400 0x00>;
+			dma-names = "rx";
+			st,adc-channels = <1>;
+			st,adc-channel-names = "dmic1";
+			st,adc-channel-types = "SPI_R";
+			st,adc-channel-clk-src = "CLKOUT";
+			st,filter-order = <5>;
+		};
+	}

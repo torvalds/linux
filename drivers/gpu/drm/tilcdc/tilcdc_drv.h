@@ -70,16 +70,11 @@ struct tilcdc_drm_private {
 	const uint32_t *pixelformats;
 	uint32_t num_pixelformats;
 
-	/* The context for pm susped/resume cycle is stored here */
-	struct drm_atomic_state *saved_state;
-
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block freq_transition;
 #endif
 
 	struct workqueue_struct *wq;
-
-	struct drm_fbdev_cma *fbdev;
 
 	struct drm_crtc *crtc;
 

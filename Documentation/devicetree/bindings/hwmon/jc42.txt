@@ -34,6 +34,10 @@ Required properties:
 
 - reg: I2C address
 
+Optional properties:
+- smbus-timeout-disable: When set, the smbus timeout function will be disabled.
+			 This is not supported on all chips.
+
 Example:
 
 temp-sensor@1a {

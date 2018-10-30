@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  inode.c - part of debugfs, a tiny little debug file system
  *
  *  Copyright (C) 2004 Greg Kroah-Hartman <greg@kroah.com>
  *  Copyright (C) 2004 IBM Inc.
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
- *
  *  debugfs is for people to use instead of /proc or /sys.
  *  See ./Documentation/core-api/kernel-api.rst for more details.
- *
  */
 
 #include <linux/module.h>
@@ -27,13 +23,10 @@
 #include <linux/parser.h>
 #include <linux/magic.h>
 #include <linux/slab.h>
-#include <linux/srcu.h>
 
 #include "internal.h"
 
 #define DEBUGFS_DEFAULT_MODE	0700
-
-DEFINE_SRCU(debugfs_srcu);
 
 static struct vfsmount *debugfs_mount;
 static int debugfs_mount_count;
@@ -185,6 +178,14 @@ static const struct super_operations debugfs_super_operations = {
 	.evict_inode	= debugfs_evict_inode,
 };
 
+static void debugfs_release_dentry(struct dentry *dentry)
+{
+	void *fsd = dentry->d_fsdata;
+
+	if (!((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT))
+		kfree(dentry->d_fsdata);
+}
+
 static struct vfsmount *debugfs_automount(struct path *path)
 {
 	debugfs_automount_t f;
@@ -194,6 +195,7 @@ static struct vfsmount *debugfs_automount(struct path *path)
 
 static const struct dentry_operations debugfs_dops = {
 	.d_delete = always_delete_dentry,
+	.d_release = debugfs_release_dentry,
 	.d_automount = debugfs_automount,
 };
 
@@ -268,10 +270,7 @@ struct dentry *debugfs_lookup(const char *name, struct dentry *parent)
 	if (!parent)
 		parent = debugfs_mount->mnt_root;
 
-	inode_lock(d_inode(parent));
-	dentry = lookup_one_len(name, parent, strlen(name));
-	inode_unlock(d_inode(parent));
-
+	dentry = lookup_one_len_unlocked(name, parent, strlen(name));
 	if (IS_ERR(dentry))
 		return NULL;
 	if (!d_really_is_positive(dentry)) {
@@ -358,7 +357,8 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
 	inode->i_private = data;
 
 	inode->i_fop = proxy_fops;
-	dentry->d_fsdata = (void *)real_fops;
+	dentry->d_fsdata = (void *)((unsigned long)real_fops |
+				DEBUGFS_FSDATA_IS_REAL_FOPS_BIT);
 
 	d_instantiate(dentry, inode);
 	fsnotify_create(d_inode(dentry->d_parent), dentry);
@@ -615,18 +615,43 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_symlink);
 
+static void __debugfs_remove_file(struct dentry *dentry, struct dentry *parent)
+{
+	struct debugfs_fsdata *fsd;
+
+	simple_unlink(d_inode(parent), dentry);
+	d_delete(dentry);
+
+	/*
+	 * Paired with the closing smp_mb() implied by a successful
+	 * cmpxchg() in debugfs_file_get(): either
+	 * debugfs_file_get() must see a dead dentry or we must see a
+	 * debugfs_fsdata instance at ->d_fsdata here (or both).
+	 */
+	smp_mb();
+	fsd = READ_ONCE(dentry->d_fsdata);
+	if ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)
+		return;
+	if (!refcount_dec_and_test(&fsd->active_users))
+		wait_for_completion(&fsd->active_users_drained);
+}
+
 static int __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 {
 	int ret = 0;
 
 	if (simple_positive(dentry)) {
 		dget(dentry);
-		if (d_is_dir(dentry))
-			ret = simple_rmdir(d_inode(parent), dentry);
-		else
-			simple_unlink(d_inode(parent), dentry);
-		if (!ret)
-			d_delete(dentry);
+		if (!d_is_reg(dentry)) {
+			if (d_is_dir(dentry))
+				ret = simple_rmdir(d_inode(parent), dentry);
+			else
+				simple_unlink(d_inode(parent), dentry);
+			if (!ret)
+				d_delete(dentry);
+		} else {
+			__debugfs_remove_file(dentry, parent);
+		}
 		dput(dentry);
 	}
 	return ret;
@@ -660,8 +685,6 @@ void debugfs_remove(struct dentry *dentry)
 	inode_unlock(d_inode(parent));
 	if (!ret)
 		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
-
-	synchronize_srcu(&debugfs_srcu);
 }
 EXPORT_SYMBOL_GPL(debugfs_remove);
 
@@ -735,8 +758,6 @@ void debugfs_remove_recursive(struct dentry *dentry)
 	if (!__debugfs_remove(child, parent))
 		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
 	inode_unlock(d_inode(parent));
-
-	synchronize_srcu(&debugfs_srcu);
 }
 EXPORT_SYMBOL_GPL(debugfs_remove_recursive);
 

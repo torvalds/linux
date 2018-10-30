@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MMU_CONTEXT_H
 #define _ASM_X86_MMU_CONTEXT_H
 
@@ -15,19 +16,20 @@
 
 extern atomic64_t last_mm_ctx_id;
 
-#ifndef CONFIG_PARAVIRT
+#ifndef CONFIG_PARAVIRT_XXL
 static inline void paravirt_activate_mm(struct mm_struct *prev,
 					struct mm_struct *next)
 {
 }
-#endif	/* !CONFIG_PARAVIRT */
+#endif	/* !CONFIG_PARAVIRT_XXL */
 
 #ifdef CONFIG_PERF_EVENTS
-extern struct static_key rdpmc_always_available;
+
+DECLARE_STATIC_KEY_FALSE(rdpmc_always_available_key);
 
 static inline void load_mm_cr4(struct mm_struct *mm)
 {
-	if (static_key_false(&rdpmc_always_available) ||
+	if (static_branch_unlikely(&rdpmc_always_available_key) ||
 	    atomic_read(&mm->context.perf_rdpmc_allowed))
 		cr4_set_bits(X86_CR4_PCE);
 	else
@@ -49,22 +51,49 @@ struct ldt_struct {
 	 * call gates.  On native, we could merge the ldt_struct and LDT
 	 * allocations, but it's not worth trying to optimize.
 	 */
-	struct desc_struct *entries;
-	unsigned int nr_entries;
+	struct desc_struct	*entries;
+	unsigned int		nr_entries;
+
+	/*
+	 * If PTI is in use, then the entries array is not mapped while we're
+	 * in user mode.  The whole array will be aliased at the addressed
+	 * given by ldt_slot_va(slot).  We use two slots so that we can allocate
+	 * and map, and enable a new LDT without invalidating the mapping
+	 * of an older, still-in-use LDT.
+	 *
+	 * slot will be -1 if this LDT doesn't have an alias mapping.
+	 */
+	int			slot;
 };
+
+/* This is a multiple of PAGE_SIZE. */
+#define LDT_SLOT_STRIDE (LDT_ENTRIES * LDT_ENTRY_SIZE)
+
+static inline void *ldt_slot_va(int slot)
+{
+	return (void *)(LDT_BASE_ADDR + LDT_SLOT_STRIDE * slot);
+}
 
 /*
  * Used for LDT copy/destruction.
  */
-int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm);
+static inline void init_new_context_ldt(struct mm_struct *mm)
+{
+	mm->context.ldt = NULL;
+	init_rwsem(&mm->context.ldt_usr_sem);
+}
+int ldt_dup_context(struct mm_struct *oldmm, struct mm_struct *mm);
 void destroy_context_ldt(struct mm_struct *mm);
+void ldt_arch_exit_mmap(struct mm_struct *mm);
 #else	/* CONFIG_MODIFY_LDT_SYSCALL */
-static inline int init_new_context_ldt(struct task_struct *tsk,
-				       struct mm_struct *mm)
+static inline void init_new_context_ldt(struct mm_struct *mm) { }
+static inline int ldt_dup_context(struct mm_struct *oldmm,
+				  struct mm_struct *mm)
 {
 	return 0;
 }
-static inline void destroy_context_ldt(struct mm_struct *mm) {}
+static inline void destroy_context_ldt(struct mm_struct *mm) { }
+static inline void ldt_arch_exit_mmap(struct mm_struct *mm) { }
 #endif
 
 static inline void load_mm_ldt(struct mm_struct *mm)
@@ -72,8 +101,8 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
 	struct ldt_struct *ldt;
 
-	/* lockless_dereference synchronizes with smp_store_release */
-	ldt = lockless_dereference(mm->context.ldt);
+	/* READ_ONCE synchronizes with smp_store_release */
+	ldt = READ_ONCE(mm->context.ldt);
 
 	/*
 	 * Any change to mm->context.ldt is followed by an IPI to all
@@ -89,10 +118,31 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 	 * that we can see.
 	 */
 
-	if (unlikely(ldt))
-		set_ldt(ldt->entries, ldt->nr_entries);
-	else
+	if (unlikely(ldt)) {
+		if (static_cpu_has(X86_FEATURE_PTI)) {
+			if (WARN_ON_ONCE((unsigned long)ldt->slot > 1)) {
+				/*
+				 * Whoops -- either the new LDT isn't mapped
+				 * (if slot == -1) or is mapped into a bogus
+				 * slot (if slot > 1).
+				 */
+				clear_LDT();
+				return;
+			}
+
+			/*
+			 * If page table isolation is enabled, ldt->entries
+			 * will not be mapped in the userspace pagetables.
+			 * Tell the CPU to access the LDT through the alias
+			 * at ldt_slot_va(ldt->slot).
+			 */
+			set_ldt(ldt_slot_va(ldt->slot), ldt->nr_entries);
+		} else {
+			set_ldt(ldt->entries, ldt->nr_entries);
+		}
+	} else {
 		clear_LDT();
+	}
 #else
 	clear_LDT();
 #endif
@@ -126,29 +176,26 @@ static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
 	DEBUG_LOCKS_WARN_ON(preemptible());
 }
 
-static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
-{
-	int cpu = smp_processor_id();
-
-	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
-		cpumask_clear_cpu(cpu, mm_cpumask(mm));
-}
+void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);
 
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
+	mutex_init(&mm->context.lock);
+
 	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
 	atomic64_set(&mm->context.tlb_gen, 0);
 
-	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
-		/* pkey 0 is the default and always allocated */
+		/* pkey 0 is the default and allocated implicitly */
 		mm->context.pkey_allocation_map = 0x1;
 		/* -1 means unallocated or invalid */
 		mm->context.execute_only_pkey = -1;
 	}
-	#endif
-	return init_new_context_ldt(tsk, mm);
+#endif
+	init_new_context_ldt(mm);
+	return 0;
 }
 static inline void destroy_context(struct mm_struct *mm)
 {
@@ -181,15 +228,16 @@ do {						\
 } while (0)
 #endif
 
-static inline void arch_dup_mmap(struct mm_struct *oldmm,
-				 struct mm_struct *mm)
+static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 {
 	paravirt_arch_dup_mmap(oldmm, mm);
+	return ldt_dup_context(oldmm, mm);
 }
 
 static inline void arch_exit_mmap(struct mm_struct *mm)
 {
 	paravirt_arch_exit_mmap(mm);
+	ldt_arch_exit_mmap(mm);
 }
 
 #ifdef CONFIG_X86_64
@@ -235,21 +283,6 @@ static inline void arch_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
 		mpx_notify_unmap(mm, vma, start, end);
 }
 
-#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-static inline int vma_pkey(struct vm_area_struct *vma)
-{
-	unsigned long vma_pkey_mask = VM_PKEY_BIT0 | VM_PKEY_BIT1 |
-				      VM_PKEY_BIT2 | VM_PKEY_BIT3;
-
-	return (vma->vm_flags & vma_pkey_mask) >> VM_PKEY_SHIFT;
-}
-#else
-static inline int vma_pkey(struct vm_area_struct *vma)
-{
-	return 0;
-}
-#endif
-
 /*
  * We only want to enforce protection keys on the current process
  * because we effectively have no access to PKRU for other
@@ -286,7 +319,6 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 	return __pkru_allows_pkey(vma_pkey(vma), write);
 }
 
-
 /*
  * This can be used from process context to figure out what the value of
  * CR3 is without needing to do a (slow) __read_cr3().
@@ -296,10 +328,8 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
  */
 static inline unsigned long __get_current_cr3_fast(void)
 {
-	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
-
-	if (static_cpu_has(X86_FEATURE_PCID))
-		cr3 |= this_cpu_read(cpu_tlbstate.loaded_mm_asid);
+	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd,
+		this_cpu_read(cpu_tlbstate.loaded_mm_asid));
 
 	/* For now, be very restrictive about when this can be called. */
 	VM_WARN_ON(in_nmi() || preemptible());

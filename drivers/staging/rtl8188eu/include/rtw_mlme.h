@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_MLME_H_
@@ -70,25 +62,28 @@ enum rt_scan_type {
 enum SCAN_RESULT_TYPE {
 	SCAN_RESULT_P2P_ONLY = 0,	/* Will return all the P2P devices. */
 	SCAN_RESULT_ALL = 1,		/* Will return all the scanned device,
-					 * include AP. */
+					 * include AP.
+					 */
 	SCAN_RESULT_WFD_TYPE = 2	/* Will just return the correct WFD
-					 * device. */
+					 * device.
+					 */
 					/* If this device is Miracast sink
 					 * device, it will just return all the
-					 * Miracast source devices. */
+					 * Miracast source devices.
+					 */
 };
 
 /*
-there are several "locks" in mlme_priv,
-since mlme_priv is a shared resource between many threads,
-like ISR/Call-Back functions, the OID handlers, and even timer functions.
-
-Each _queue has its own locks, already.
-Other items are protected by mlme_priv.lock.
-
-To avoid possible dead lock, any thread trying to modifiying mlme_priv
-SHALL not lock up more than one lock at a time!
-*/
+ * there are several "locks" in mlme_priv,
+ * since mlme_priv is a shared resource between many threads,
+ * like ISR/Call-Back functions, the OID handlers, and even timer functions.
+ *
+ * Each _queue has its own locks, already.
+ * Other items are protected by mlme_priv.lock.
+ *
+ * To avoid possible dead lock, any thread trying to modifiying mlme_priv
+ * SHALL not lock up more than one lock at a time!
+ */
 
 #define traffic_threshold	10
 #define	traffic_scan_period	500
@@ -102,9 +97,11 @@ struct rt_link_detect {
 	bool	bRxBusyTraffic;
 	bool	bHigherBusyTraffic; /*  For interrupt migration purpose. */
 	bool	bHigherBusyRxTraffic; /* We may disable Tx interrupt according
-				       * to Rx traffic. */
+				       * to Rx traffic.
+				       */
 	bool	bHigherBusyTxTraffic; /* We may disable Tx interrupt according
-				       * to Tx traffic. */
+				       * to Tx traffic.
+				       */
 };
 
 struct mlme_priv {
@@ -164,7 +161,8 @@ struct mlme_priv {
 
 #if defined(CONFIG_88EU_AP_MODE)
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
-	 * in 802.11g BSS) */
+	 * in 802.11g BSS)
+	 */
 	int num_sta_non_erp;
 
 	/* Number of associated stations that do not support Short Slot Time */
@@ -216,7 +214,7 @@ void hostapd_mode_unload(struct adapter *padapter);
 extern unsigned char WPA_TKIP_CIPHER[4];
 extern unsigned char RSN_TKIP_CIPHER[4];
 extern unsigned char REALTEK_96B_IE[];
-extern unsigned char	MCS_rate_1R[16];
+extern const u8 MCS_rate_1R[16];
 
 void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf);
 void rtw_survey_event_callback(struct adapter *adapter, u8 *pbuf);
@@ -313,7 +311,6 @@ void rtw_free_assoc_resources_locked(struct adapter *adapter);
 void rtw_indicate_disconnect(struct adapter *adapter);
 void rtw_indicate_connect(struct adapter *adapter);
 void rtw_indicate_scan_done(struct adapter *padapter, bool aborted);
-void rtw_scan_abort(struct adapter *adapter);
 
 int rtw_restruct_sec_ie(struct adapter *adapter, u8 *in_ie, u8 *out_ie,
 			uint in_len);
@@ -325,10 +322,10 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter);
 
 void rtw_get_encrypt_decrypt_from_registrypriv(struct adapter *adapter);
 
-void _rtw_join_timeout_handler(unsigned long data);
-void rtw_scan_timeout_handler(unsigned long data);
+void _rtw_join_timeout_handler(struct timer_list *t);
+void rtw_scan_timeout_handler(struct timer_list *t);
 
-void rtw_dynamic_check_timer_handlder(unsigned long data);
+void rtw_dynamic_check_timer_handlder(struct timer_list *t);
 #define rtw_is_scan_deny(adapter) false
 #define rtw_clear_scan_deny(adapter) do {} while (0)
 #define rtw_set_scan_deny_timer_hdl(adapter) do {} while (0)

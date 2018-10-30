@@ -27,125 +27,43 @@
 #include <asm/mmu.h>
 #include <asm/mce.h>
 #include <asm/machdep.h>
-
-static void flush_tlb_206(unsigned int num_sets, unsigned int action)
-{
-	unsigned long rb;
-	unsigned int i;
-
-	switch (action) {
-	case TLB_INVAL_SCOPE_GLOBAL:
-		rb = TLBIEL_INVAL_SET;
-		break;
-	case TLB_INVAL_SCOPE_LPID:
-		rb = TLBIEL_INVAL_SET_LPID;
-		break;
-	default:
-		BUG();
-		break;
-	}
-
-	asm volatile("ptesync" : : : "memory");
-	for (i = 0; i < num_sets; i++) {
-		asm volatile("tlbiel %0" : : "r" (rb));
-		rb += 1 << TLBIEL_INVAL_SET_SHIFT;
-	}
-	asm volatile("ptesync" : : : "memory");
-}
-
-static void flush_tlb_300(unsigned int num_sets, unsigned int action)
-{
-	unsigned long rb;
-	unsigned int i;
-	unsigned int r;
-
-	switch (action) {
-	case TLB_INVAL_SCOPE_GLOBAL:
-		rb = TLBIEL_INVAL_SET;
-		break;
-	case TLB_INVAL_SCOPE_LPID:
-		rb = TLBIEL_INVAL_SET_LPID;
-		break;
-	default:
-		BUG();
-		break;
-	}
-
-	asm volatile("ptesync" : : : "memory");
-
-	if (early_radix_enabled())
-		r = 1;
-	else
-		r = 0;
-
-	/*
-	 * First flush table/PWC caches with set 0, then flush the
-	 * rest of the sets, partition scope. Radix must then do it
-	 * all again with process scope. Hash just has to flush
-	 * process table.
-	 */
-	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
-			"r"(rb), "r"(0), "i"(2), "i"(0), "r"(r));
-	for (i = 1; i < num_sets; i++) {
-		unsigned long set = i * (1<<TLBIEL_INVAL_SET_SHIFT);
-
-		asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
-				"r"(rb+set), "r"(0), "i"(2), "i"(0), "r"(r));
-	}
-
-	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
-			"r"(rb), "r"(0), "i"(2), "i"(1), "r"(r));
-	if (early_radix_enabled()) {
-		for (i = 1; i < num_sets; i++) {
-			unsigned long set = i * (1<<TLBIEL_INVAL_SET_SHIFT);
-
-			asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
-				"r"(rb+set), "r"(0), "i"(2), "i"(1), "r"(r));
-		}
-	}
-
-	asm volatile("ptesync" : : : "memory");
-}
+#include <asm/pgtable.h>
+#include <asm/pte-walk.h>
+#include <asm/sstep.h>
+#include <asm/exception-64s.h>
 
 /*
- * Generic routines to flush TLB on POWER processors. These routines
- * are used as flush_tlb hook in the cpu_spec.
- *
- * action => TLB_INVAL_SCOPE_GLOBAL:  Invalidate all TLBs.
- *	     TLB_INVAL_SCOPE_LPID: Invalidate TLB for current LPID.
+ * Convert an address related to an mm to a PFN. NOTE: we are in real
+ * mode, we could potentially race with page table updates.
  */
-void __flush_tlb_power7(unsigned int action)
+static unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
 {
-	flush_tlb_206(POWER7_TLB_SETS, action);
-}
+	pte_t *ptep;
+	unsigned long flags;
+	struct mm_struct *mm;
 
-void __flush_tlb_power8(unsigned int action)
-{
-	flush_tlb_206(POWER8_TLB_SETS, action);
-}
-
-void __flush_tlb_power9(unsigned int action)
-{
-	unsigned int num_sets;
-
-	if (radix_enabled())
-		num_sets = POWER9_TLB_SETS_RADIX;
+	if (user_mode(regs))
+		mm = current->mm;
 	else
-		num_sets = POWER9_TLB_SETS_HASH;
+		mm = &init_mm;
 
-	flush_tlb_300(num_sets, action);
+	local_irq_save(flags);
+	if (mm == current->mm)
+		ptep = find_current_mm_pte(mm->pgd, addr, NULL, NULL);
+	else
+		ptep = find_init_mm_pte(addr, NULL);
+	local_irq_restore(flags);
+	if (!ptep || pte_special(*ptep))
+		return ULONG_MAX;
+	return pte_pfn(*ptep);
 }
-
 
 /* flush SLBs and reload */
-#ifdef CONFIG_PPC_STD_MMU_64
-static void flush_and_reload_slb(void)
+#ifdef CONFIG_PPC_BOOK3S_64
+void flush_and_reload_slb(void)
 {
-	struct slb_shadow *slb;
-	unsigned long i, n;
-
 	/* Invalidate all SLBs */
-	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
+	slb_flush_all_realmode();
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
 	/*
@@ -155,27 +73,29 @@ static void flush_and_reload_slb(void)
 	if (get_paca()->kvm_hstate.in_guest)
 		return;
 #endif
-
-	/* For host kernel, reload the SLBs from shadow SLB buffer. */
-	slb = get_slb_shadow();
-	if (!slb)
+	if (early_radix_enabled())
 		return;
 
-	n = min_t(u32, be32_to_cpu(slb->persistent), SLB_MIN_SIZE);
+	/*
+	 * This probably shouldn't happen, but it may be possible it's
+	 * called in early boot before SLB shadows are allocated.
+	 */
+	if (!get_slb_shadow())
+		return;
 
-	/* Load up the SLB entries from shadow SLB */
-	for (i = 0; i < n; i++) {
-		unsigned long rb = be64_to_cpu(slb->save_area[i].esid);
-		unsigned long rs = be64_to_cpu(slb->save_area[i].vsid);
-
-		rb = (rb & ~0xFFFul) | i;
-		asm volatile("slbmte %0,%1" : : "r" (rs), "r" (rb));
-	}
+	slb_restore_bolted_realmode();
 }
 #endif
 
 static void flush_erat(void)
 {
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
+		flush_and_reload_slb();
+		return;
+	}
+#endif
+	/* PPC_INVALIDATE_ERAT can only be used on ISA v3 and newer */
 	asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
 }
 
@@ -185,7 +105,7 @@ static void flush_erat(void)
 
 static int mce_flush(int what)
 {
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	if (what == MCE_FLUSH_SLB) {
 		flush_and_reload_slb();
 		return 1;
@@ -196,10 +116,8 @@ static int mce_flush(int what)
 		return 1;
 	}
 	if (what == MCE_FLUSH_TLB) {
-		if (cur_cpu_spec && cur_cpu_spec->flush_tlb) {
-			cur_cpu_spec->flush_tlb(TLB_INVAL_SCOPE_GLOBAL);
-			return 1;
-		}
+		tlbiel_all();
+		return 1;
 	}
 
 	return 0;
@@ -338,11 +256,11 @@ static const struct mce_derror_table mce_p7_derror_table[] = {
 { 0x00000400, true,
   MCE_ERROR_TYPE_TLB,  MCE_TLB_ERROR_MULTIHIT,
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
+{ 0x00000080, true,
+  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,	/* Before PARITY */
+  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0x00000100, true,
   MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_PARITY,
-  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
-{ 0x00000080, true,
-  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0x00000040, true,
   MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_INDETERMINATE, /* BOTH */
@@ -371,11 +289,11 @@ static const struct mce_derror_table mce_p8_derror_table[] = {
 { 0x00000200, true,
   MCE_ERROR_TYPE_ERAT, MCE_ERAT_ERROR_MULTIHIT, /* SECONDARY ERAT */
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
+{ 0x00000080, true,
+  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,	/* Before PARITY */
+  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0x00000100, true,
   MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_PARITY,
-  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
-{ 0x00000080, true,
-  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0, false, 0, 0, 0, 0 } };
 
@@ -401,11 +319,11 @@ static const struct mce_derror_table mce_p9_derror_table[] = {
 { 0x00000200, false,
   MCE_ERROR_TYPE_USER, MCE_USER_ERROR_TLBIE,
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
+{ 0x00000080, true,
+  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,	/* Before PARITY */
+  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0x00000100, true,
   MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_PARITY,
-  MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
-{ 0x00000080, true,
-  MCE_ERROR_TYPE_SLB,  MCE_SLB_ERROR_MULTIHIT,
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0x00000040, true,
   MCE_ERROR_TYPE_RA,   MCE_RA_ERROR_LOAD,
@@ -421,9 +339,45 @@ static const struct mce_derror_table mce_p9_derror_table[] = {
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0, false, 0, 0, 0, 0 } };
 
+static int mce_find_instr_ea_and_pfn(struct pt_regs *regs, uint64_t *addr,
+					uint64_t *phys_addr)
+{
+	/*
+	 * Carefully look at the NIP to determine
+	 * the instruction to analyse. Reading the NIP
+	 * in real-mode is tricky and can lead to recursive
+	 * faults
+	 */
+	int instr;
+	unsigned long pfn, instr_addr;
+	struct instruction_op op;
+	struct pt_regs tmp = *regs;
+
+	pfn = addr_to_pfn(regs, regs->nip);
+	if (pfn != ULONG_MAX) {
+		instr_addr = (pfn << PAGE_SHIFT) + (regs->nip & ~PAGE_MASK);
+		instr = *(unsigned int *)(instr_addr);
+		if (!analyse_instr(&op, &tmp, instr)) {
+			pfn = addr_to_pfn(regs, op.ea);
+			*addr = op.ea;
+			*phys_addr = (pfn << PAGE_SHIFT);
+			return 0;
+		}
+		/*
+		 * analyse_instr() might fail if the instruction
+		 * is not a load/store, although this is unexpected
+		 * for load/store errors or if we got the NIP
+		 * wrong
+		 */
+	}
+	*addr = 0;
+	return -1;
+}
+
 static int mce_handle_ierror(struct pt_regs *regs,
 		const struct mce_ierror_table table[],
-		struct mce_error_info *mce_err, uint64_t *addr)
+		struct mce_error_info *mce_err, uint64_t *addr,
+		uint64_t *phys_addr)
 {
 	uint64_t srr1 = regs->msr;
 	int handled = 0;
@@ -475,8 +429,21 @@ static int mce_handle_ierror(struct pt_regs *regs,
 		}
 		mce_err->severity = table[i].severity;
 		mce_err->initiator = table[i].initiator;
-		if (table[i].nip_valid)
+		if (table[i].nip_valid) {
 			*addr = regs->nip;
+			if (mce_err->severity == MCE_SEV_ERROR_SYNC &&
+				table[i].error_type == MCE_ERROR_TYPE_UE) {
+				unsigned long pfn;
+
+				if (get_paca()->in_mce < MAX_MCE_DEPTH) {
+					pfn = addr_to_pfn(regs, regs->nip);
+					if (pfn != ULONG_MAX) {
+						*phys_addr =
+							(pfn << PAGE_SHIFT);
+					}
+				}
+			}
+		}
 		return handled;
 	}
 
@@ -489,7 +456,8 @@ static int mce_handle_ierror(struct pt_regs *regs,
 
 static int mce_handle_derror(struct pt_regs *regs,
 		const struct mce_derror_table table[],
-		struct mce_error_info *mce_err, uint64_t *addr)
+		struct mce_error_info *mce_err, uint64_t *addr,
+		uint64_t *phys_addr)
 {
 	uint64_t dsisr = regs->dsisr;
 	int handled = 0;
@@ -555,7 +523,15 @@ static int mce_handle_derror(struct pt_regs *regs,
 		mce_err->initiator = table[i].initiator;
 		if (table[i].dar_valid)
 			*addr = regs->dar;
-
+		else if (mce_err->severity == MCE_SEV_ERROR_SYNC &&
+				table[i].error_type == MCE_ERROR_TYPE_UE) {
+			/*
+			 * We do a maximum of 4 nested MCE calls, see
+			 * kernel/exception-64s.h
+			 */
+			if (get_paca()->in_mce < MAX_MCE_DEPTH)
+				mce_find_instr_ea_and_pfn(regs, addr, phys_addr);
+		}
 		found = 1;
 	}
 
@@ -592,19 +568,21 @@ static long mce_handle_error(struct pt_regs *regs,
 		const struct mce_ierror_table itable[])
 {
 	struct mce_error_info mce_err = { 0 };
-	uint64_t addr;
+	uint64_t addr, phys_addr = ULONG_MAX;
 	uint64_t srr1 = regs->msr;
 	long handled;
 
 	if (SRR1_MC_LOADSTORE(srr1))
-		handled = mce_handle_derror(regs, dtable, &mce_err, &addr);
+		handled = mce_handle_derror(regs, dtable, &mce_err, &addr,
+				&phys_addr);
 	else
-		handled = mce_handle_ierror(regs, itable, &mce_err, &addr);
+		handled = mce_handle_ierror(regs, itable, &mce_err, &addr,
+				&phys_addr);
 
 	if (!handled && mce_err.error_type == MCE_ERROR_TYPE_UE)
 		handled = mce_handle_ue_error(regs);
 
-	save_mce_event(regs, handled, &mce_err, regs->nip, addr);
+	save_mce_event(regs, handled, &mce_err, regs->nip, addr, phys_addr);
 
 	return handled;
 }
@@ -624,5 +602,18 @@ long __machine_check_early_realmode_p8(struct pt_regs *regs)
 
 long __machine_check_early_realmode_p9(struct pt_regs *regs)
 {
+	/*
+	 * On POWER9 DD2.1 and below, it's possible to get a machine check
+	 * caused by a paste instruction where only DSISR bit 25 is set. This
+	 * will result in the MCE handler seeing an unknown event and the kernel
+	 * crashing. An MCE that occurs like this is spurious, so we don't need
+	 * to do anything in terms of servicing it. If there is something that
+	 * needs to be serviced, the CPU will raise the MCE again with the
+	 * correct DSISR so that it can be serviced properly. So detect this
+	 * case and mark it as handled.
+	 */
+	if (SRR1_MC_LOADSTORE(regs->msr) && regs->dsisr == 0x02000000)
+		return 1;
+
 	return mce_handle_error(regs, mce_p9_derror_table, mce_p9_ierror_table);
 }

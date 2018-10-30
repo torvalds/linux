@@ -57,9 +57,10 @@ struct qtnf_sta_node *qtnf_sta_list_lookup_index(struct qtnf_sta_list *list,
 	return NULL;
 }
 
-struct qtnf_sta_node *qtnf_sta_list_add(struct qtnf_sta_list *list,
+struct qtnf_sta_node *qtnf_sta_list_add(struct qtnf_vif *vif,
 					const u8 *mac)
 {
+	struct qtnf_sta_list *list = &vif->sta_list;
 	struct qtnf_sta_node *node;
 
 	if (unlikely(!mac))
@@ -77,13 +78,15 @@ struct qtnf_sta_node *qtnf_sta_list_add(struct qtnf_sta_list *list,
 	ether_addr_copy(node->mac_addr, mac);
 	list_add_tail(&node->list, &list->head);
 	atomic_inc(&list->size);
+	++vif->generation;
 
 done:
 	return node;
 }
 
-bool qtnf_sta_list_del(struct qtnf_sta_list *list, const u8 *mac)
+bool qtnf_sta_list_del(struct qtnf_vif *vif, const u8 *mac)
 {
+	struct qtnf_sta_list *list = &vif->sta_list;
 	struct qtnf_sta_node *node;
 	bool ret = false;
 
@@ -93,6 +96,7 @@ bool qtnf_sta_list_del(struct qtnf_sta_list *list, const u8 *mac)
 		list_del(&node->list);
 		atomic_dec(&list->size);
 		kfree(node);
+		++vif->generation;
 		ret = true;
 	}
 

@@ -282,13 +282,13 @@ static int hi6220_mbox_probe(struct platform_device *pdev)
 
 	mbox->dev = dev;
 	mbox->chan_num = MBOX_CHAN_MAX;
-	mbox->mchan = devm_kzalloc(dev,
-		mbox->chan_num * sizeof(*mbox->mchan), GFP_KERNEL);
+	mbox->mchan = devm_kcalloc(dev,
+		mbox->chan_num, sizeof(*mbox->mchan), GFP_KERNEL);
 	if (!mbox->mchan)
 		return -ENOMEM;
 
-	mbox->chan = devm_kzalloc(dev,
-		mbox->chan_num * sizeof(*mbox->chan), GFP_KERNEL);
+	mbox->chan = devm_kcalloc(dev,
+		mbox->chan_num, sizeof(*mbox->chan), GFP_KERNEL);
 	if (!mbox->chan)
 		return -ENOMEM;
 

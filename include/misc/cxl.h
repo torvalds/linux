@@ -24,46 +24,6 @@
  * generic PCI API. This API is agnostic to the actual AFU.
  */
 
-#define CXL_SLOT_FLAG_DMA 0x1
-
-/*
- * Checks if the given card is in a cxl capable slot. Pass CXL_SLOT_FLAG_DMA if
- * the card requires CAPP DMA mode to also check if the system supports it.
- * This is intended to be used by bi-modal devices to determine if they can use
- * cxl mode or if they should continue running in PCI mode.
- *
- * Note that this only checks if the slot is cxl capable - it does not
- * currently check if the CAPP is currently available for chips where it can be
- * assigned to different PHBs on a first come first serve basis (i.e. P8)
- */
-bool cxl_slot_is_supported(struct pci_dev *dev, int flags);
-
-
-#define CXL_BIMODE_CXL 1
-#define CXL_BIMODE_PCI 2
-
-/*
- * Check the mode that the given bi-modal CXL adapter is currently in and
- * change it if necessary. This does not apply to AFU drivers.
- *
- * If the mode matches the requested mode this function will return 0 - if the
- * driver was expecting the generic CXL driver to have bound to the adapter and
- * it gets this return value it should fail the probe function to give the CXL
- * driver a chance to probe it.
- *
- * If the mode does not match it will start a background task to unplug the
- * device from Linux and switch its mode, and will return -EBUSY. At this
- * point the calling driver should make sure it has released the device and
- * fail its probe function.
- *
- * The offset of the CXL VSEC can be provided to this function. If 0 is passed,
- * this function will search for a CXL VSEC with ID 0x1280 and return -ENODEV
- * if it is not found.
- */
-#ifdef CONFIG_CXL_BIMODAL
-int cxl_check_and_switch_mode(struct pci_dev *dev, int mode, int vsec);
-#endif
-
 /* Get the AFU associated with a pci_dev */
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev);
 
@@ -174,14 +134,6 @@ int cxl_afu_reset(struct cxl_context *ctx);
 void cxl_set_master(struct cxl_context *ctx);
 
 /*
- * Sets the context to use real mode memory accesses to operate with
- * translation disabled. Note that this only makes sense for kernel contexts
- * under bare metal, and will not work with virtualisation. May only be
- * performed on stopped contexts.
- */
-int cxl_set_translation_mode(struct cxl_context *ctx, bool real_mode);
-
-/*
  * Map and unmap the AFU Problem Space area. The amount and location mapped
  * depends on if this context is a master or slave.
  */
@@ -190,26 +142,6 @@ void cxl_psa_unmap(void __iomem *addr);
 
 /*  Get the process element for this context */
 int cxl_process_element(struct cxl_context *ctx);
-
-/*
- * Limit the number of interrupts that a single context can allocate via
- * cxl_start_work. If using the api with a real phb, this may be used to
- * request that additional default contexts be created when allocating
- * interrupts via pci_enable_msix_range. These will be set to the same running
- * state as the default context, and if that is running it will reuse the
- * parameters previously passed to cxl_start_context for the default context.
- */
-int cxl_set_max_irqs_per_process(struct pci_dev *dev, int irqs);
-int cxl_get_max_irqs_per_process(struct pci_dev *dev);
-
-/*
- * Use to simultaneously iterate over hardware interrupt numbers, contexts and
- * afu interrupt numbers allocated for the device via pci_enable_msix_range and
- * is a useful convenience function when working with hardware that has
- * limitations on the number of interrupts per process. *ctx and *afu_irq
- * should be NULL and 0 to start the iteration.
- */
-int cxl_next_msi_hwirq(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq);
 
 /*
  * These calls allow drivers to create their own file descriptors and make them
@@ -267,7 +199,7 @@ int cxl_fd_open(struct inode *inode, struct file *file);
 int cxl_fd_release(struct inode *inode, struct file *file);
 long cxl_fd_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int cxl_fd_mmap(struct file *file, struct vm_area_struct *vm);
-unsigned int cxl_fd_poll(struct file *file, struct poll_table_struct *poll);
+__poll_t cxl_fd_poll(struct file *file, struct poll_table_struct *poll);
 ssize_t cxl_fd_read(struct file *file, char __user *buf, size_t count,
 			   loff_t *off);
 

@@ -9,6 +9,7 @@
  */
 
 #include <linux/netfilter_bridge/ebtables.h>
+#include <uapi/linux/netfilter_bridge.h>
 #include <linux/module.h>
 
 #define FILTER_VALID_HOOKS ((1 << NF_BR_LOCAL_IN) | (1 << NF_BR_FORWARD) | \
@@ -93,8 +94,8 @@ static const struct nf_hook_ops ebt_ops_filter[] = {
 
 static int __net_init frame_filter_net_init(struct net *net)
 {
-	net->xt.frame_filter = ebt_register_table(net, &frame_filter, ebt_ops_filter);
-	return PTR_ERR_OR_ZERO(net->xt.frame_filter);
+	return ebt_register_table(net, &frame_filter, ebt_ops_filter,
+				  &net->xt.frame_filter);
 }
 
 static void __net_exit frame_filter_net_exit(struct net *net)

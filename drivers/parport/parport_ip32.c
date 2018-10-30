@@ -1769,7 +1769,7 @@ stop:
 
 /*--- Default parport operations ---------------------------------------*/
 
-static __initdata struct parport_operations parport_ip32_ops = {
+static const struct parport_operations parport_ip32_ops __initconst = {
 	.write_data		= parport_ip32_write_data,
 	.read_data		= parport_ip32_read_data,
 

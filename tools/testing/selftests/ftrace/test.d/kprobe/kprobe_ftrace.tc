@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: Kprobe dynamic event with function tracer
 
 [ -f kprobe_events ] || exit_unsupported # this is configurable
@@ -7,8 +8,6 @@ grep function available_tracers || exit_unsupported # this is configurable
 # prepare
 echo nop > current_tracer
 echo _do_fork > set_ftrace_filter
-echo 0 > events/enable
-echo > kprobe_events
 echo 'p:testprobe _do_fork' > kprobe_events
 
 # kprobe on / ftrace off
@@ -46,10 +45,3 @@ echo > trace
 ( echo "forked")
 grep testprobe trace
 ! grep '_do_fork <-' trace
-
-# cleanup
-echo nop > current_tracer
-echo > set_ftrace_filter
-echo 0 > events/kprobes/testprobe/enable
-echo > kprobe_events
-echo > trace

@@ -56,11 +56,12 @@ Overview
 
 The basic object structure KMS presents to userspace is fairly simple.
 Framebuffers (represented by :c:type:`struct drm_framebuffer <drm_framebuffer>`,
-see `Frame Buffer Abstraction`_) feed into planes. One or more (or even no)
-planes feed their pixel data into a CRTC (represented by :c:type:`struct
-drm_crtc <drm_crtc>`, see `CRTC Abstraction`_) for blending. The precise
-blending step is explained in more detail in `Plane Composition Properties`_ and
-related chapters.
+see `Frame Buffer Abstraction`_) feed into planes. Planes are represented by
+:c:type:`struct drm_plane <drm_plane>`, see `Plane Abstraction`_ for more
+details. One or more (or even no) planes feed their pixel data into a CRTC
+(represented by :c:type:`struct drm_crtc <drm_crtc>`, see `CRTC Abstraction`_)
+for blending. The precise blending step is explained in more detail in `Plane
+Composition Properties`_ and related chapters.
 
 For the output routing the first step is encoders (represented by
 :c:type:`struct drm_encoder <drm_encoder>`, see `Encoder Abstraction`_). Those
@@ -263,13 +264,19 @@ Taken all together there's two consequences for the atomic design:
 
 - An atomic update is assembled and validated as an entirely free-standing pile
   of structures within the :c:type:`drm_atomic_state <drm_atomic_state>`
-  container. Again drivers can subclass that container for their own state
-  structure tracking needs. Only when a state is committed is it applied to the
-  driver and modeset objects. This way rolling back an update boils down to
-  releasing memory and unreferencing objects like framebuffers.
+  container. Driver private state structures are also tracked in the same
+  structure; see the next chapter.  Only when a state is committed is it applied
+  to the driver and modeset objects. This way rolling back an update boils down
+  to releasing memory and unreferencing objects like framebuffers.
 
 Read on in this chapter, and also in :ref:`drm_atomic_helper` for more detailed
 coverage of specific topics.
+
+Handling Driver Private State
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+   :doc: handling driver private state
 
 Atomic Mode Setting Function Reference
 --------------------------------------
@@ -278,6 +285,15 @@ Atomic Mode Setting Function Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+   :export:
+
+Atomic Mode Setting IOCTL and UAPI Functions
+--------------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
    :export:
 
 CRTC Abstraction
@@ -312,6 +328,12 @@ Frame Buffer Functions Reference
 
 DRM Format Handling
 ===================
+
+.. kernel-doc:: include/uapi/drm/drm_fourcc.h
+   :doc: overview
+
+Format Functions Reference
+--------------------------
 
 .. kernel-doc:: include/drm/drm_fourcc.h
    :internal:
@@ -363,6 +385,15 @@ Connector Functions Reference
 
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :export:
+
+Writeback Connectors
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_writeback.c
+  :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_writeback.c
+  :export:
 
 Encoder Abstraction
 ===================
@@ -448,7 +479,7 @@ Output discovery and initialization example
         drm_encoder_init(dev, &intel_output->enc, &intel_crt_enc_funcs,
                  DRM_MODE_ENCODER_DAC);
 
-        drm_mode_connector_attach_encoder(&intel_output->base,
+        drm_connector_attach_encoder(&intel_output->base,
                           &intel_output->enc);
 
         /* Set up the DDC bus. */
@@ -508,6 +539,12 @@ Standard Connector Properties
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: standard connector properties
 
+HDMI Specific Connector Properties
+----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: HDMI connector properties
+
 Plane Composition Properties
 ----------------------------
 
@@ -535,14 +572,15 @@ Tile Group Property
 Explicit Fencing Properties
 ---------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
    :doc: explicit fencing properties
 
 Existing KMS Properties
 -----------------------
 
-The following table gives description of drm properties exposed by
-various modules/drivers.
+The following table gives description of drm properties exposed by various
+modules/drivers. Because this table is very unwieldy, do not add any new
+properties here. Instead document them in a section above.
 
 .. csv-table::
    :header-rows: 1

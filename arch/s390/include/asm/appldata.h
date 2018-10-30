@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright IBM Corp. 2006
  *
@@ -39,26 +40,27 @@ struct appldata_product_id {
 	u16  mod_lvl;		/* modification level */
 } __attribute__ ((packed));
 
-static inline int appldata_asm(struct appldata_product_id *id,
+
+static inline int appldata_asm(struct appldata_parameter_list *parm_list,
+			       struct appldata_product_id *id,
 			       unsigned short fn, void *buffer,
 			       unsigned short length)
 {
-	struct appldata_parameter_list parm_list;
 	int ry;
 
 	if (!MACHINE_IS_VM)
 		return -EOPNOTSUPP;
-	parm_list.diag = 0xdc;
-	parm_list.function = fn;
-	parm_list.parlist_length = sizeof(parm_list);
-	parm_list.buffer_length = length;
-	parm_list.product_id_addr = (unsigned long) id;
-	parm_list.buffer_addr = virt_to_phys(buffer);
+	parm_list->diag = 0xdc;
+	parm_list->function = fn;
+	parm_list->parlist_length = sizeof(*parm_list);
+	parm_list->buffer_length = length;
+	parm_list->product_id_addr = (unsigned long) id;
+	parm_list->buffer_addr = virt_to_phys(buffer);
 	diag_stat_inc(DIAG_STAT_X0DC);
 	asm volatile(
 		"	diag	%1,%0,0xdc"
 		: "=d" (ry)
-		: "d" (&parm_list), "m" (parm_list), "m" (*id)
+		: "d" (parm_list), "m" (*parm_list), "m" (*id)
 		: "cc");
 	return ry;
 }

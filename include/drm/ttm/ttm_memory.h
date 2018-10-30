@@ -35,20 +35,7 @@
 #include <linux/errno.h>
 #include <linux/kobject.h>
 #include <linux/mm.h>
-
-/**
- * struct ttm_mem_shrink - callback to shrink TTM memory usage.
- *
- * @do_shrink: The callback function.
- *
- * Arguments to the do_shrink functions are intended to be passed using
- * inheritance. That is, the argument class derives from struct ttm_mem_shrink,
- * and can be accessed using container_of().
- */
-
-struct ttm_mem_shrink {
-	int (*do_shrink) (struct ttm_mem_shrink *);
-};
+#include "ttm_bo_api.h"
 
 /**
  * struct ttm_mem_global - Global memory accounting structure.
@@ -62,6 +49,8 @@ struct ttm_mem_shrink {
  * @work: The workqueue callback for the shrink queue.
  * @lock: Lock to protect the @shrink - and the memory accounting members,
  * that is, essentially the whole structure with some exceptions.
+ * @lower_mem_limit: include lower limit of swap space and lower limit of
+ * system memory.
  * @zones: Array of pointers to accounting zones.
  * @num_zones: Number of populated entries in the @zones array.
  * @zone_kernel: Pointer to the kernel zone.
@@ -76,10 +65,11 @@ struct ttm_mem_shrink {
 struct ttm_mem_zone;
 struct ttm_mem_global {
 	struct kobject kobj;
-	struct ttm_mem_shrink *shrink;
+	struct ttm_bo_global *bo_glob;
 	struct workqueue_struct *swap_queue;
 	struct work_struct work;
 	spinlock_t lock;
+	uint64_t lower_mem_limit;
 	struct ttm_mem_zone *zones[TTM_MEM_MAX_ZONES];
 	unsigned int num_zones;
 	struct ttm_mem_zone *zone_kernel;
@@ -90,70 +80,19 @@ struct ttm_mem_global {
 #endif
 };
 
-/**
- * ttm_mem_init_shrink - initialize a struct ttm_mem_shrink object
- *
- * @shrink: The object to initialize.
- * @func: The callback function.
- */
-
-static inline void ttm_mem_init_shrink(struct ttm_mem_shrink *shrink,
-				       int (*func) (struct ttm_mem_shrink *))
-{
-	shrink->do_shrink = func;
-}
-
-/**
- * ttm_mem_register_shrink - register a struct ttm_mem_shrink object.
- *
- * @glob: The struct ttm_mem_global object to register with.
- * @shrink: An initialized struct ttm_mem_shrink object to register.
- *
- * Returns:
- * -EBUSY: There's already a callback registered. (May change).
- */
-
-static inline int ttm_mem_register_shrink(struct ttm_mem_global *glob,
-					  struct ttm_mem_shrink *shrink)
-{
-	spin_lock(&glob->lock);
-	if (glob->shrink != NULL) {
-		spin_unlock(&glob->lock);
-		return -EBUSY;
-	}
-	glob->shrink = shrink;
-	spin_unlock(&glob->lock);
-	return 0;
-}
-
-/**
- * ttm_mem_unregister_shrink - unregister a struct ttm_mem_shrink object.
- *
- * @glob: The struct ttm_mem_global object to unregister from.
- * @shrink: A previously registert struct ttm_mem_shrink object.
- *
- */
-
-static inline void ttm_mem_unregister_shrink(struct ttm_mem_global *glob,
-					     struct ttm_mem_shrink *shrink)
-{
-	spin_lock(&glob->lock);
-	BUG_ON(glob->shrink != shrink);
-	glob->shrink = NULL;
-	spin_unlock(&glob->lock);
-}
-
 extern int ttm_mem_global_init(struct ttm_mem_global *glob);
 extern void ttm_mem_global_release(struct ttm_mem_global *glob);
 extern int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
-				bool no_wait, bool interruptible);
+				struct ttm_operation_ctx *ctx);
 extern void ttm_mem_global_free(struct ttm_mem_global *glob,
 				uint64_t amount);
 extern int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
-				     struct page *page,
-				     bool no_wait, bool interruptible);
+				     struct page *page, uint64_t size,
+				     struct ttm_operation_ctx *ctx);
 extern void ttm_mem_global_free_page(struct ttm_mem_global *glob,
-				     struct page *page);
+				     struct page *page, uint64_t size);
 extern size_t ttm_round_pot(size_t size);
 extern uint64_t ttm_get_kernel_zone_memory_size(struct ttm_mem_global *glob);
+extern bool ttm_check_under_lowerlimit(struct ttm_mem_global *glob,
+			uint64_t num_pages, struct ttm_operation_ctx *ctx);
 #endif

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef S390_CHSC_H
 #define S390_CHSC_H
 
@@ -14,12 +15,12 @@
 #define NR_MEASUREMENT_CHARS 5
 struct cmg_chars {
 	u32 values[NR_MEASUREMENT_CHARS];
-} __attribute__ ((packed));
+};
 
 #define NR_MEASUREMENT_ENTRIES 8
 struct cmg_entry {
 	u32 values[NR_MEASUREMENT_ENTRIES];
-} __attribute__ ((packed));
+};
 
 struct channel_path_desc_fmt1 {
 	u8 flags;
@@ -37,7 +38,12 @@ struct channel_path_desc_fmt1 {
 	u8 s:1;
 	u8 f:1;
 	u32 zeros[2];
-} __attribute__ ((packed));
+};
+
+struct channel_path_desc_fmt3 {
+	struct channel_path_desc_fmt1 fmt1_desc;
+	u8 util_str[64];
+};
 
 struct channel_path;
 
@@ -53,7 +59,7 @@ struct css_chsc_char {
 	u32:7;
 	u32 pnso:1; /* bit 116 */
 	u32:11;
-}__attribute__((packed));
+} __packed;
 
 extern struct css_chsc_char css_chsc_characteristics;
 
@@ -76,7 +82,7 @@ struct chsc_ssqd_area {
 	struct chsc_header response;
 	u32:32;
 	struct qdio_ssqd_desc qdio_ssqd;
-} __packed;
+} __packed __aligned(PAGE_SIZE);
 
 struct chsc_scssc_area {
 	struct chsc_header request;
@@ -96,7 +102,7 @@ struct chsc_scssc_area {
 	u32 reserved[1004];
 	struct chsc_header response;
 	u32:32;
-} __packed;
+} __packed __aligned(PAGE_SIZE);
 
 struct chsc_scpd {
 	struct chsc_header request;
@@ -114,7 +120,7 @@ struct chsc_scpd {
 	struct chsc_header response;
 	u32:32;
 	u8 data[0];
-} __packed;
+} __packed __aligned(PAGE_SIZE);
 
 struct chsc_sda_area {
 	struct chsc_header request;
@@ -146,10 +152,12 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable);
 int chsc_chp_vary(struct chp_id chpid, int on);
 int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
 				     int c, int m, void *page);
-int chsc_determine_base_channel_path_desc(struct chp_id chpid,
-					  struct channel_path_desc *desc);
+int chsc_determine_fmt0_channel_path_desc(struct chp_id chpid,
+					  struct channel_path_desc_fmt0 *desc);
 int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 					  struct channel_path_desc_fmt1 *desc);
+int chsc_determine_fmt3_channel_path_desc(struct chp_id chpid,
+					  struct channel_path_desc_fmt3 *desc);
 void chsc_chp_online(struct chp_id chpid);
 void chsc_chp_offline(struct chp_id chpid);
 int chsc_get_channel_measurement_chars(struct channel_path *chp);
@@ -191,7 +199,7 @@ struct chsc_scm_info {
 	u32 reserved2[10];
 	u64 restok;
 	struct sale scmal[248];
-} __packed;
+} __packed __aligned(PAGE_SIZE);
 
 int chsc_scm_info(struct chsc_scm_info *scm_area, u64 token);
 
@@ -235,7 +243,7 @@ struct chsc_pnso_area {
 		struct qdio_brinfo_entry_l3_ipv4 l3_ipv4[0];
 		struct qdio_brinfo_entry_l2	 l2[0];
 	} entries;
-} __packed;
+} __packed __aligned(PAGE_SIZE);
 
 int chsc_pnso_brinfo(struct subchannel_id schid,
 		struct chsc_pnso_area *brinfo_area,

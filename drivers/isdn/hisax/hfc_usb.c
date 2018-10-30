@@ -343,8 +343,9 @@ handle_led(hfcusb_data *hfc, int event)
 
 /* ISDN l1 timer T3 expires */
 static void
-l1_timer_expire_t3(hfcusb_data *hfc)
+l1_timer_expire_t3(struct timer_list *t)
 {
+	hfcusb_data *hfc = from_timer(hfc, t, t3_timer);
 	hfc->d_if.ifc.l1l2(&hfc->d_if.ifc, PH_DEACTIVATE | INDICATION,
 			   NULL);
 
@@ -360,8 +361,9 @@ l1_timer_expire_t3(hfcusb_data *hfc)
 
 /* ISDN l1 timer T4 expires */
 static void
-l1_timer_expire_t4(hfcusb_data *hfc)
+l1_timer_expire_t4(struct timer_list *t)
 {
+	hfcusb_data *hfc = from_timer(hfc, t, t4_timer);
 	hfc->d_if.ifc.l1l2(&hfc->d_if.ifc, PH_DEACTIVATE | INDICATION,
 			   NULL);
 
@@ -430,16 +432,12 @@ fill_isoc_urb(struct urb *urb, struct usb_device *dev, unsigned int pipe,
 {
 	int k;
 
-	urb->dev = dev;
-	urb->pipe = pipe;
-	urb->complete = complete;
+	usb_fill_int_urb(urb, dev, pipe, buf, packet_size * num_packets,
+			 complete, context, interval);
+
 	urb->number_of_packets = num_packets;
-	urb->transfer_buffer_length = packet_size * num_packets;
-	urb->context = context;
-	urb->transfer_buffer = buf;
 	urb->transfer_flags = URB_ISO_ASAP;
 	urb->actual_length = 0;
-	urb->interval = interval;
 	for (k = 0; k < num_packets; k++) {
 		urb->iso_frame_desc[k].offset = packet_size * k;
 		urb->iso_frame_desc[k].length = packet_size;
@@ -1165,10 +1163,10 @@ hfc_usb_init(hfcusb_data *hfc)
 	hfc->old_led_state = 0;
 
 	/* init the t3 timer */
-	setup_timer(&hfc->t3_timer, (void *)l1_timer_expire_t3, (long)hfc);
+	timer_setup(&hfc->t3_timer, l1_timer_expire_t3, 0);
 
 	/* init the t4 timer */
-	setup_timer(&hfc->t4_timer, (void *)l1_timer_expire_t4, (long)hfc);
+	timer_setup(&hfc->t4_timer, l1_timer_expire_t4, 0);
 
 	/* init the background machinery for control requests */
 	hfc->ctrl_read.bRequestType = 0xc0;

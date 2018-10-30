@@ -143,7 +143,7 @@ int hinic_alloc_cmdq_buf(struct hinic_cmdqs *cmdqs,
 	struct hinic_hwif *hwif = cmdqs->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 
-	cmdq_buf->buf = pci_pool_alloc(cmdqs->cmdq_buf_pool, GFP_KERNEL,
+	cmdq_buf->buf = dma_pool_alloc(cmdqs->cmdq_buf_pool, GFP_KERNEL,
 				       &cmdq_buf->dma_addr);
 	if (!cmdq_buf->buf) {
 		dev_err(&pdev->dev, "Failed to allocate cmd from the pool\n");
@@ -161,7 +161,7 @@ int hinic_alloc_cmdq_buf(struct hinic_cmdqs *cmdqs,
 void hinic_free_cmdq_buf(struct hinic_cmdqs *cmdqs,
 			 struct hinic_cmdq_buf *cmdq_buf)
 {
-	pci_pool_free(cmdqs->cmdq_buf_pool, cmdq_buf->buf, cmdq_buf->dma_addr);
+	dma_pool_free(cmdqs->cmdq_buf_pool, cmdq_buf->buf, cmdq_buf->dma_addr);
 }
 
 static unsigned int cmdq_wqe_size_from_bdlen(enum bufdesc_len len)
@@ -753,11 +753,12 @@ static int init_cmdq(struct hinic_cmdq *cmdq, struct hinic_wq *wq,
 
 	spin_lock_init(&cmdq->cmdq_lock);
 
-	cmdq->done = vzalloc(wq->q_depth * sizeof(*cmdq->done));
+	cmdq->done = vzalloc(array_size(sizeof(*cmdq->done), wq->q_depth));
 	if (!cmdq->done)
 		return -ENOMEM;
 
-	cmdq->errcode = vzalloc(wq->q_depth * sizeof(*cmdq->errcode));
+	cmdq->errcode = vzalloc(array_size(sizeof(*cmdq->errcode),
+					   wq->q_depth));
 	if (!cmdq->errcode) {
 		err = -ENOMEM;
 		goto err_errcode;
@@ -875,7 +876,7 @@ int hinic_init_cmdqs(struct hinic_cmdqs *cmdqs, struct hinic_hwif *hwif,
 	int err;
 
 	cmdqs->hwif = hwif;
-	cmdqs->cmdq_buf_pool = pci_pool_create("hinic_cmdq", pdev,
+	cmdqs->cmdq_buf_pool = dma_pool_create("hinic_cmdq", &pdev->dev,
 					       HINIC_CMDQ_BUF_SIZE,
 					       HINIC_CMDQ_BUF_SIZE, 0);
 	if (!cmdqs->cmdq_buf_pool)
@@ -916,7 +917,7 @@ err_cmdq_wqs:
 	devm_kfree(&pdev->dev, cmdqs->saved_wqs);
 
 err_saved_wqs:
-	pci_pool_destroy(cmdqs->cmdq_buf_pool);
+	dma_pool_destroy(cmdqs->cmdq_buf_pool);
 	return err;
 }
 
@@ -942,5 +943,5 @@ void hinic_free_cmdqs(struct hinic_cmdqs *cmdqs)
 
 	devm_kfree(&pdev->dev, cmdqs->saved_wqs);
 
-	pci_pool_destroy(cmdqs->cmdq_buf_pool);
+	dma_pool_destroy(cmdqs->cmdq_buf_pool);
 }

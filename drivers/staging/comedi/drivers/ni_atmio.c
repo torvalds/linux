@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Comedi driver for NI AT-MIO E series cards
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2001 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -233,10 +224,11 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ni_boards); i++) {
-		isapnp_dev = pnp_find_dev(NULL,
-					  ISAPNP_VENDOR('N', 'I', 'C'),
-					  ISAPNP_FUNCTION(ni_boards[i].
-							  isapnp_id), NULL);
+		isapnp_dev =
+			pnp_find_dev(NULL,
+				     ISAPNP_VENDOR('N', 'I', 'C'),
+				     ISAPNP_FUNCTION(ni_boards[i].isapnp_id),
+				     NULL);
 
 		if (!isapnp_dev || !isapnp_dev->card)
 			continue;
@@ -361,3 +353,8 @@ static struct comedi_driver ni_atmio_driver = {
 	.detach		= ni_atmio_detach,
 };
 module_comedi_driver(ni_atmio_driver);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");
+

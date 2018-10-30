@@ -82,7 +82,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 
 	if ((!skb_is_gso(skb) && skb->len > mtu) ||
 	    (skb_is_gso(skb) &&
-	     skb_gso_network_seglen(skb) > ip6_skb_dst_mtu(skb))) {
+	     !skb_gso_validate_network_len(skb, ip6_skb_dst_mtu(skb)))) {
 		skb->dev = dst->dev;
 		skb->protocol = htons(ETH_P_IPV6);
 
@@ -170,9 +170,11 @@ static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	if (toobig && xfrm6_local_dontfrag(skb)) {
 		xfrm6_local_rxpmtu(skb, mtu);
+		kfree_skb(skb);
 		return -EMSGSIZE;
 	} else if (!skb->ignore_df && toobig && skb->sk) {
 		xfrm_local_error(skb, mtu);
+		kfree_skb(skb);
 		return -EMSGSIZE;
 	}
 

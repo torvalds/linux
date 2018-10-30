@@ -147,9 +147,9 @@ static int int340x_thermal_get_trip_hyst(struct thermal_zone_device *zone,
 
 	status = acpi_evaluate_integer(d->adev->handle, "GTSH", NULL, &hyst);
 	if (ACPI_FAILURE(status))
-		return -EIO;
-
-	*temp = hyst * 100;
+		*temp = 0;
+	else
+		*temp = hyst * 100;
 
 	return 0;
 }
@@ -239,9 +239,10 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	if (ACPI_FAILURE(status))
 		trip_cnt = 0;
 	else {
-		int34x_thermal_zone->aux_trips = kzalloc(
-				sizeof(*int34x_thermal_zone->aux_trips) *
-				trip_cnt, GFP_KERNEL);
+		int34x_thermal_zone->aux_trips =
+			kcalloc(trip_cnt,
+				sizeof(*int34x_thermal_zone->aux_trips),
+				GFP_KERNEL);
 		if (!int34x_thermal_zone->aux_trips) {
 			ret = -ENOMEM;
 			goto err_trip_alloc;

@@ -262,7 +262,6 @@ static int ad7923_read_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad7923_info = {
 	.read_raw = &ad7923_read_raw,
 	.update_scan_mode = ad7923_update_scan_mode,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad7923_probe(struct spi_device *spi)
@@ -364,7 +363,7 @@ static struct spi_driver ad7923_driver = {
 };
 module_spi_driver(ad7923_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_AUTHOR("Patrick Vasseur <patrick.vasseur@c-s.fr>");
 MODULE_DESCRIPTION("Analog Devices AD7904/AD7914/AD7923/AD7924 ADC");
 MODULE_LICENSE("GPL v2");

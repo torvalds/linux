@@ -9,6 +9,8 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/list.h>
 #include <linux/pm.h>
 #include <linux/rmi.h>
@@ -167,6 +169,39 @@ static inline void rmi_function_of_probe(struct rmi_function *fn)
 {}
 #endif
 
+static struct irq_chip rmi_irq_chip = {
+	.name = "rmi4",
+};
+
+static int rmi_create_function_irq(struct rmi_function *fn,
+				   struct rmi_function_handler *handler)
+{
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&fn->rmi_dev->dev);
+	int i, error;
+
+	for (i = 0; i < fn->num_of_irqs; i++) {
+		set_bit(fn->irq_pos + i, fn->irq_mask);
+
+		fn->irq[i] = irq_create_mapping(drvdata->irqdomain,
+						fn->irq_pos + i);
+
+		irq_set_chip_data(fn->irq[i], fn);
+		irq_set_chip_and_handler(fn->irq[i], &rmi_irq_chip,
+					 handle_simple_irq);
+		irq_set_nested_thread(fn->irq[i], 1);
+
+		error = devm_request_threaded_irq(&fn->dev, fn->irq[i], NULL,
+					handler->attention, IRQF_ONESHOT,
+					dev_name(&fn->dev), fn);
+		if (error) {
+			dev_err(&fn->dev, "Error %d registering IRQ\n", error);
+			return error;
+		}
+	}
+
+	return 0;
+}
+
 static int rmi_function_probe(struct device *dev)
 {
 	struct rmi_function *fn = to_rmi_function(dev);
@@ -178,7 +213,14 @@ static int rmi_function_probe(struct device *dev)
 
 	if (handler->probe) {
 		error = handler->probe(fn);
-		return error;
+		if (error)
+			return error;
+	}
+
+	if (fn->num_of_irqs && handler->attention) {
+		error = rmi_create_function_irq(fn, handler);
+		if (error)
+			return error;
 	}
 
 	return 0;
@@ -230,12 +272,18 @@ err_put_device:
 
 void rmi_unregister_function(struct rmi_function *fn)
 {
+	int i;
+
 	rmi_dbg(RMI_DEBUG_CORE, &fn->dev, "Unregistering F%02X.\n",
 			fn->fd.function_number);
 
 	device_del(&fn->dev);
 	of_node_put(fn->dev.of_node);
 	put_device(&fn->dev);
+
+	for (i = 0; i < fn->num_of_irqs; i++)
+		irq_dispose_mapping(fn->irq[i]);
+
 }
 
 /**
@@ -427,4 +475,3 @@ MODULE_AUTHOR("Christopher Heiny <cheiny@synaptics.com");
 MODULE_AUTHOR("Andrew Duggan <aduggan@synaptics.com");
 MODULE_DESCRIPTION("RMI bus");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(RMI_DRIVER_VERSION);

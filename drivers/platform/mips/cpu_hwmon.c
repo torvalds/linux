@@ -30,7 +30,8 @@ int loongson3_cpu_temp(int cpu)
 	case PRID_REV_LOONGSON3B_R2:
 		reg = ((reg >> 8) & 0xff) - 100;
 		break;
-	case PRID_REV_LOONGSON3A_R3:
+	case PRID_REV_LOONGSON3A_R3_0:
+	case PRID_REV_LOONGSON3A_R3_1:
 		reg = (reg & 0xffff)*731/0x4000 - 273;
 		break;
 	}

@@ -94,13 +94,13 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	if (v9ses->cache)
 		sb->s_bdi->ra_pages = (VM_MAX_READAHEAD * 1024)/PAGE_SIZE;
 
-	sb->s_flags |= MS_ACTIVE | MS_DIRSYNC | MS_NOATIME;
+	sb->s_flags |= SB_ACTIVE | SB_DIRSYNC;
 	if (!v9ses->cache)
-		sb->s_flags |= MS_SYNCHRONOUS;
+		sb->s_flags |= SB_SYNCHRONOUS;
 
 #ifdef CONFIG_9P_FS_POSIX_ACL
 	if ((v9ses->flags & V9FS_ACL_MASK) == V9FS_POSIX_ACL)
-		sb->s_flags |= MS_POSIXACL;
+		sb->s_flags |= SB_POSIXACL;
 #endif
 
 	return 0;

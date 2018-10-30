@@ -1,5 +1,5 @@
 menuconfig NVMEM
-	tristate "NVMEM Support"
+	bool "NVMEM Support"
 	help
 	  Support for NVMEM(Non Volatile Memory) devices like EEPROM, EFUSES...
 
@@ -123,6 +123,17 @@ config NVMEM_SUNXI_SID
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_sunxi_sid.
 
+config UNIPHIER_EFUSE
+	tristate "UniPhier SoCs eFuse support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a simple driver to dump specified values of UniPhier SoC
+	  from eFuse.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-uniphier-efuse.
+
 config NVMEM_VF610_OCOTP
 	tristate "VF610 SoC OCOTP support"
 	depends on SOC_VF610 || COMPILE_TEST
@@ -135,13 +146,50 @@ config NVMEM_VF610_OCOTP
 	  be called nvmem-vf610-ocotp.
 
 config MESON_EFUSE
-	tristate "Amlogic eFuse Support"
+	tristate "Amlogic Meson GX eFuse Support"
 	depends on (ARCH_MESON || COMPILE_TEST) && MESON_SM
 	help
 	  This is a driver to retrieve specific values from the eFuse found on
-	  the Amlogic Meson SoCs.
+	  the Amlogic Meson GX SoCs.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_meson_efuse.
+
+config MESON_MX_EFUSE
+	tristate "Amlogic Meson6/Meson8/Meson8b eFuse Support"
+	depends on ARCH_MESON || COMPILE_TEST
+	help
+	  This is a driver to retrieve specific values from the eFuse found on
+	  the Amlogic Meson6, Meson8 and Meson8b SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_meson_mx_efuse.
+
+config NVMEM_SNVS_LPGPR
+	tristate "Support for Low Power General Purpose Register"
+	depends on SOC_IMX6 || SOC_IMX7D || COMPILE_TEST
+	help
+	  This is a driver for Low Power General Purpose Register (LPGPR) available on
+	  i.MX6 and i.MX7 SoCs in Secure Non-Volatile Storage (SNVS) of this chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-snvs-lpgpr.
+
+config RAVE_SP_EEPROM
+	tristate "Rave SP EEPROM Support"
+	depends on RAVE_SP_CORE
+	help
+	  Say y here to enable Rave SP EEPROM support.
+
+config SC27XX_EFUSE
+	tristate "Spreadtrum SC27XX eFuse Support"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a simple driver to dump specified values of Spreadtrum
+	  SC27XX PMICs from eFuse.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-sc27xx-efuse.
 
 endif

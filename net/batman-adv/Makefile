@@ -1,5 +1,5 @@
-#
-# Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
 #
 # Marek Lindner, Simon Wunderlich
 #
@@ -42,6 +42,9 @@ batman-adv-y += routing.o
 batman-adv-y += send.o
 batman-adv-y += soft-interface.o
 batman-adv-y += sysfs.o
+batman-adv-$(CONFIG_BATMAN_ADV_TRACING) += trace.o
 batman-adv-y += tp_meter.o
 batman-adv-y += translation-table.o
 batman-adv-y += tvlv.o
+
+CFLAGS_trace.o := -I$(src)

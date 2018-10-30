@@ -87,14 +87,11 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	INIT_LIST_HEAD(&peer->send_ready);
 	INIT_LIST_HEAD(&peer->transports);
 
-	setup_timer(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event,
-		    (unsigned long)peer);
-	setup_timer(&peer->hb_timer, sctp_generate_heartbeat_event,
-		    (unsigned long)peer);
-	setup_timer(&peer->reconf_timer, sctp_generate_reconf_event,
-		    (unsigned long)peer);
-	setup_timer(&peer->proto_unreach_timer,
-		    sctp_generate_proto_unreach_event, (unsigned long)peer);
+	timer_setup(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event, 0);
+	timer_setup(&peer->hb_timer, sctp_generate_heartbeat_event, 0);
+	timer_setup(&peer->reconf_timer, sctp_generate_reconf_event, 0);
+	timer_setup(&peer->proto_unreach_timer,
+		    sctp_generate_proto_unreach_event, 0);
 
 	/* Initialize the 64-bit random nonce sent with heartbeat. */
 	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));
@@ -245,34 +242,60 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 						&transport->fl, sk);
 	}
 
-	if (transport->dst) {
-		transport->pathmtu = SCTP_TRUNC4(dst_mtu(transport->dst));
-	} else
+	if (transport->param_flags & SPP_PMTUD_DISABLE) {
+		struct sctp_association *asoc = transport->asoc;
+
+		if (!transport->pathmtu && asoc && asoc->pathmtu)
+			transport->pathmtu = asoc->pathmtu;
+		if (transport->pathmtu)
+			return;
+	}
+
+	if (transport->dst)
+		transport->pathmtu = sctp_dst_mtu(transport->dst);
+	else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
-void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
+bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 {
 	struct dst_entry *dst = sctp_transport_dst_check(t);
+	struct sock *sk = t->asoc->base.sk;
+	bool change = true;
 
 	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
-		pr_warn("%s: Reported pmtu %d too low, using default minimum of %d\n",
-			__func__, pmtu, SCTP_DEFAULT_MINSEGMENT);
-		/* Use default minimum segment size and disable
-		 * pmtu discovery on this transport.
-		 */
-		t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
-	} else {
-		t->pathmtu = pmtu;
+		pr_warn_ratelimited("%s: Reported pmtu %d too low, using default minimum of %d\n",
+				    __func__, pmtu, SCTP_DEFAULT_MINSEGMENT);
+		/* Use default minimum segment instead */
+		pmtu = SCTP_DEFAULT_MINSEGMENT;
 	}
+	pmtu = SCTP_TRUNC4(pmtu);
 
 	if (dst) {
-		dst->ops->update_pmtu(dst, t->asoc->base.sk, NULL, pmtu);
+		struct sctp_pf *pf = sctp_get_pf_specific(dst->ops->family);
+		union sctp_addr addr;
+
+		pf->af->from_sk(&addr, sk);
+		pf->to_sk_daddr(&t->ipaddr, sk);
+		dst->ops->update_pmtu(dst, sk, NULL, pmtu);
+		pf->to_sk_daddr(&addr, sk);
+
 		dst = sctp_transport_dst_check(t);
 	}
 
-	if (!dst)
-		t->af_specific->get_dst(t, &t->saddr, &t->fl, t->asoc->base.sk);
+	if (!dst) {
+		t->af_specific->get_dst(t, &t->saddr, &t->fl, sk);
+		dst = t->dst;
+	}
+
+	if (dst) {
+		/* Re-fetch, as under layers may have a higher minimum size */
+		pmtu = sctp_dst_mtu(dst);
+		change = t->pathmtu != pmtu;
+	}
+	t->pathmtu = pmtu;
+
+	return change;
 }
 
 /* Caches the dst entry and source address for a transport's destination
@@ -284,6 +307,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 	struct sctp_association *asoc = transport->asoc;
 	struct sctp_af *af = transport->af_specific;
 
+	sctp_transport_dst_release(transport);
 	af->get_dst(transport, saddr, &transport->fl, sctp_opt2sk(opt));
 
 	if (saddr)
@@ -291,21 +315,14 @@ void sctp_transport_route(struct sctp_transport *transport,
 	else
 		af->get_saddr(opt, transport, &transport->fl);
 
-	if ((transport->param_flags & SPP_PMTUD_DISABLE) && transport->pathmtu) {
-		return;
-	}
-	if (transport->dst) {
-		transport->pathmtu = SCTP_TRUNC4(dst_mtu(transport->dst));
+	sctp_transport_pmtu(transport, sctp_opt2sk(opt));
 
-		/* Initialize sk->sk_rcv_saddr, if the transport is the
-		 * association's active path for getsockname().
-		 */
-		if (asoc && (!asoc->peer.primary_path ||
-				(transport == asoc->peer.active_path)))
-			opt->pf->to_sk_saddr(&transport->saddr,
-					     asoc->base.sk);
-	} else
-		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
+	/* Initialize sk->sk_rcv_saddr, if the transport is the
+	 * association's active path for getsockname().
+	 */
+	if (transport->dst && asoc &&
+	    (!asoc->peer.primary_path || transport == asoc->peer.active_path))
+		opt->pf->to_sk_saddr(&transport->saddr, asoc->base.sk);
 }
 
 /* Hold a reference to a transport.  */
@@ -628,7 +645,7 @@ unsigned long sctp_transport_timeout(struct sctp_transport *trans)
 	    trans->state != SCTP_PF)
 		timeout += trans->hbinterval;
 
-	return timeout;
+	return max_t(unsigned long, timeout, HZ / 5);
 }
 
 /* Reset transport variables to their initial values */

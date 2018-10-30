@@ -20,6 +20,8 @@ Required properties :
 		- "allwinner,sun50i-a64-ccu"
 		- "allwinner,sun50i-a64-r-ccu"
 		- "allwinner,sun50i-h5-ccu"
+		- "allwinner,sun50i-h6-ccu"
+		- "allwinner,sun50i-h6-r-ccu"
 		- "nextthing,gr8-ccu"
 
 - reg: Must contain the registers base address and length
@@ -31,12 +33,15 @@ Required properties :
 - #clock-cells : must contain 1
 - #reset-cells : must contain 1
 
-For the PRCM CCUs on A83T/H3/A64, two more clocks are needed:
+For the main CCU on H6, one more clock is needed:
+- "iosc": the SoC's internal frequency oscillator
+
+For the PRCM CCUs on A83T/H3/A64/H6, two more clocks are needed:
 - "pll-periph": the SoC's peripheral PLL from the main CCU
 - "iosc": the SoC's internal frequency oscillator
 
 Example for generic CCU:
-ccu: clock@01c20000 {
+ccu: clock@1c20000 {
 	compatible = "allwinner,sun8i-h3-ccu";
 	reg = <0x01c20000 0x400>;
 	clocks = <&osc24M>, <&osc32k>;
@@ -46,7 +51,7 @@ ccu: clock@01c20000 {
 };
 
 Example for PRCM CCU:
-r_ccu: clock@01f01400 {
+r_ccu: clock@1f01400 {
 	compatible = "allwinner,sun50i-a64-r-ccu";
 	reg = <0x01f01400 0x100>;
 	clocks = <&osc24M>, <&osc32k>, <&iosc>, <&ccu CLK_PLL_PERIPH0>;

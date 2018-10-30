@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * uctx.h: Sparc64 {set,get}context() register state layouts.
  *

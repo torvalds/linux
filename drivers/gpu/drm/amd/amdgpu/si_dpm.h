@@ -245,7 +245,7 @@ enum si_display_gap
     SI_PM_DISPLAY_GAP_IGNORE       = 3,
 };
 
-extern const struct amd_ip_funcs si_dpm_ip_funcs;
+extern const struct amdgpu_ip_block_version si_smu_ip_block;
 
 struct ni_leakage_coeffients
 {

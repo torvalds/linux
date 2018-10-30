@@ -1,3 +1,4 @@
+;;; SPDX-License-Identifier: GPL-2.0
 ;;; abs.S
 
 #include <asm/linkage.h>

@@ -15,7 +15,6 @@
 #define _ASM_FIXMAP_H
 
 #ifndef __ASSEMBLY__
-#include <linux/kernel.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #ifdef CONFIG_HIGHMEM
@@ -73,7 +72,7 @@ enum fixed_addresses {
 static inline void __set_fixmap(enum fixed_addresses idx,
 				phys_addr_t phys, pgprot_t flags)
 {
-	map_kernel_page(fix_to_virt(idx), phys, pgprot_val(flags));
+	map_kernel_page(fix_to_virt(idx), phys, flags);
 }
 
 #endif /* !__ASSEMBLY__ */

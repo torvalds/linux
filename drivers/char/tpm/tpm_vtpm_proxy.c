@@ -173,22 +173,22 @@ static ssize_t vtpm_proxy_fops_write(struct file *filp, const char __user *buf,
  *
  * Return: Poll flags
  */
-static unsigned int vtpm_proxy_fops_poll(struct file *filp, poll_table *wait)
+static __poll_t vtpm_proxy_fops_poll(struct file *filp, poll_table *wait)
 {
 	struct proxy_dev *proxy_dev = filp->private_data;
-	unsigned ret;
+	__poll_t ret;
 
 	poll_wait(filp, &proxy_dev->wq, wait);
 
-	ret = POLLOUT;
+	ret = EPOLLOUT;
 
 	mutex_lock(&proxy_dev->buf_lock);
 
 	if (proxy_dev->req_len)
-		ret |= POLLIN | POLLRDNORM;
+		ret |= EPOLLIN | EPOLLRDNORM;
 
 	if (!(proxy_dev->state & STATE_OPENED_FLAG))
-		ret |= POLLHUP;
+		ret |= EPOLLHUP;
 
 	mutex_unlock(&proxy_dev->buf_lock);
 
@@ -418,7 +418,7 @@ static int vtpm_proxy_request_locality(struct tpm_chip *chip, int locality)
 	proxy_dev->state |= STATE_DRIVER_COMMAND;
 
 	rc = tpm_transmit_cmd(chip, NULL, buf.data, tpm_buf_length(&buf), 0,
-			      TPM_TRANSMIT_UNLOCKED | TPM_TRANSMIT_RAW,
+			      TPM_TRANSMIT_NESTED,
 			      "attempting to set locality");
 
 	proxy_dev->state &= ~STATE_DRIVER_COMMAND;

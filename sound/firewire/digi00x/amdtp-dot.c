@@ -327,7 +327,7 @@ void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
 	struct amdtp_dot *p = s->protocol;
 
 	if (port < MAX_MIDI_PORTS)
-		ACCESS_ONCE(p->midi[port]) = midi;
+		WRITE_ONCE(p->midi[port], midi);
 }
 
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
@@ -338,7 +338,7 @@ static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
 
-	pcm = ACCESS_ONCE(s->pcm);
+	pcm = READ_ONCE(s->pcm);
 	if (pcm) {
 		read_pcm_s32(s, pcm, buffer, data_blocks);
 		pcm_frames = data_blocks;
@@ -359,7 +359,7 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
 
-	pcm = ACCESS_ONCE(s->pcm);
+	pcm = READ_ONCE(s->pcm);
 	if (pcm) {
 		write_pcm_s32(s, pcm, buffer, data_blocks);
 		pcm_frames = data_blocks;

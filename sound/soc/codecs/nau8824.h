@@ -471,7 +471,7 @@ struct nau8824_osr_attr {
 };
 
 
-int nau8824_enable_jack_detect(struct snd_soc_codec *codec,
+int nau8824_enable_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack);
 
 #endif				/* _NAU8824_H */

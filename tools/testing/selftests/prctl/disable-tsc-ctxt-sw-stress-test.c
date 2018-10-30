@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Tests for prctl(PR_GET_TSC, ...) / prctl(PR_SET_TSC, ...)
  *

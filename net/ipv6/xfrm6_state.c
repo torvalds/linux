@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xfrm6_state.c: based on xfrm4_state.c
  *
@@ -59,11 +60,9 @@ xfrm6_init_temprop(struct xfrm_state *x, const struct xfrm_tmpl *tmpl,
 static int
 __xfrm6_sort(void **dst, void **src, int n, int (*cmp)(void *p), int maxclass)
 {
-	int i;
+	int count[XFRM_MAX_DEPTH] = { };
 	int class[XFRM_MAX_DEPTH];
-	int count[maxclass];
-
-	memset(count, 0, sizeof(count));
+	int i;
 
 	for (i = 0; i < n; i++) {
 		int c;
@@ -195,4 +194,3 @@ void xfrm6_state_fini(void)
 {
 	xfrm_state_unregister_afinfo(&xfrm6_state_afinfo);
 }
-

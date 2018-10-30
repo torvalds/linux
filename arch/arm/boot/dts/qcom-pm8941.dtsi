@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/spmi/spmi.h>
@@ -138,6 +139,9 @@
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
 
+			bat_temp {
+				reg = <VADC_LR_MUX1_BAT_THERM>;
+			};
 			die_temp {
 				reg = <VADC_DIE_TEMP>;
 			};
@@ -152,6 +156,9 @@
 			};
 			ref_vdd {
 				reg = <VADC_VDD_VADC>;
+			};
+			vbat_sns {
+				reg = <VADC_VBAT_SNS>;
 			};
 		};
 

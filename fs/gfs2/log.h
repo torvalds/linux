@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/writeback.h>
 #include "incore.h"
+#include "inode.h"
 
 /**
  * gfs2_log_lock - acquire the right to mess with the log manager
@@ -50,8 +51,12 @@ static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
 
 static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp;
 
+	if (!gfs2_is_ordered(ip))
+		return;
+
+	sdp = GFS2_SB(&ip->i_inode);
 	if (!test_bit(GIF_ORDERED, &ip->i_flags)) {
 		spin_lock(&sdp->sd_ordered_lock);
 		if (!test_and_set_bit(GIF_ORDERED, &ip->i_flags))
@@ -65,16 +70,11 @@ extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 
 extern void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
 extern int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks);
-enum gfs2_flush_type {
-	NORMAL_FLUSH = 0,
-	SYNC_FLUSH,
-	SHUTDOWN_FLUSH,
-	FREEZE_FLUSH
-};
+extern void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
+				  u64 seq, u32 tail, u32 flags, int op_flags);
 extern void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
-			   enum gfs2_flush_type type);
+			   u32 type);
 extern void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
-extern void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
 extern void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc);
 
 extern void gfs2_log_shutdown(struct gfs2_sbd *sdp);

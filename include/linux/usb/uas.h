@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __USB_UAS_H__
 #define __USB_UAS_H__
 

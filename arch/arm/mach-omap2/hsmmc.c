@@ -13,14 +13,11 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/mmc/host.h>
-#include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/hsmmc-omap.h>
 
 #include "soc.h"
 #include "omap_device.h"
-#include "omap-pm.h"
 
 #include "hsmmc.h"
 #include "control.h"
@@ -37,7 +34,7 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 {
 	char *hc_name;
 
-	hc_name = kzalloc(sizeof(char) * (HSMMC_NAME_LEN + 1), GFP_KERNEL);
+	hc_name = kzalloc(HSMMC_NAME_LEN + 1, GFP_KERNEL);
 	if (!hc_name) {
 		kfree(hc_name);
 		return -ENOMEM;
@@ -58,10 +55,10 @@ void omap_hsmmc_late_init(struct omap2_hsmmc_info *c)
 	struct platform_device *pdev;
 	int res;
 
-	if (omap_hsmmc_done != 1)
+	if (omap_hsmmc_done)
 		return;
 
-	omap_hsmmc_done++;
+	omap_hsmmc_done = 1;
 
 	for (; c->mmc; c++) {
 		pdev = c->pdev;

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for the hisax ISDN device driver
 
 # The target object and module list name.

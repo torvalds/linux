@@ -1306,6 +1306,7 @@ struct coh901318_chan {
 	unsigned long nbr_active_done;
 	unsigned long busy;
 
+	struct dma_slave_config config;
 	u32 addr;
 	u32 ctrl;
 
@@ -1319,8 +1320,8 @@ static void coh901318_list_print(struct coh901318_chan *cohc,
 	int i = 0;
 
 	while (l) {
-		dev_vdbg(COHC_2_DEV(cohc), "i %d, lli %p, ctrl 0x%x, src 0x%pad"
-			 ", dst 0x%pad, link 0x%pad virt_link_addr 0x%p\n",
+		dev_vdbg(COHC_2_DEV(cohc), "i %d, lli %p, ctrl 0x%x, src %pad"
+			 ", dst %pad, link %pad virt_link_addr 0x%p\n",
 			 i, l, l->control, &l->src_addr, &l->dst_addr,
 			 &l->link_addr, l->virt_link_addr);
 		i++;
@@ -1401,6 +1402,10 @@ static inline struct coh901318_chan *to_coh901318_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct coh901318_chan, chan);
 }
+
+static int coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
+					   struct dma_slave_config *config,
+					   enum dma_transfer_direction direction);
 
 static inline const struct coh901318_params *
 cohc_chan_param(struct coh901318_chan *cohc)
@@ -2231,7 +2236,7 @@ coh901318_prep_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	spin_lock_irqsave(&cohc->lock, flg);
 
 	dev_vdbg(COHC_2_DEV(cohc),
-		 "[%s] channel %d src 0x%pad dest 0x%pad size %zu\n",
+		 "[%s] channel %d src %pad dest %pad size %zu\n",
 		 __func__, cohc->id, &src, &dest, size);
 
 	if (flags & DMA_PREP_INTERRUPT)
@@ -2359,6 +2364,8 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	if (lli == NULL)
 		goto err_dma_alloc;
+
+	coh901318_dma_set_runtimeconfig(chan, &cohc->config, direction);
 
 	/* initiate allocated lli list */
 	ret = coh901318_lli_fill_sg(&cohc->base->pool, lli, sgl, sg_len,
@@ -2499,7 +2506,8 @@ static const struct burst_table burst_sizes[] = {
 };
 
 static int coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
-					   struct dma_slave_config *config)
+					   struct dma_slave_config *config,
+					   enum dma_transfer_direction direction)
 {
 	struct coh901318_chan *cohc = to_coh901318_chan(chan);
 	dma_addr_t addr;
@@ -2509,11 +2517,11 @@ static int coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 	int i = 0;
 
 	/* We only support mem to per or per to mem transfers */
-	if (config->direction == DMA_DEV_TO_MEM) {
+	if (direction == DMA_DEV_TO_MEM) {
 		addr = config->src_addr;
 		addr_width = config->src_addr_width;
 		maxburst = config->src_maxburst;
-	} else if (config->direction == DMA_MEM_TO_DEV) {
+	} else if (direction == DMA_MEM_TO_DEV) {
 		addr = config->dst_addr;
 		addr_width = config->dst_addr_width;
 		maxburst = config->dst_maxburst;
@@ -2575,6 +2583,16 @@ static int coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 
 	cohc->addr = addr;
 	cohc->ctrl = ctrl;
+
+	return 0;
+}
+
+static int coh901318_dma_slave_config(struct dma_chan *chan,
+					   struct dma_slave_config *config)
+{
+	struct coh901318_chan *cohc = to_coh901318_chan(chan);
+
+	memcpy(&cohc->config, config, sizeof(*config));
 
 	return 0;
 }
@@ -2684,7 +2702,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	base->dma_slave.device_prep_slave_sg = coh901318_prep_slave_sg;
 	base->dma_slave.device_tx_status = coh901318_tx_status;
 	base->dma_slave.device_issue_pending = coh901318_issue_pending;
-	base->dma_slave.device_config = coh901318_dma_set_runtimeconfig;
+	base->dma_slave.device_config = coh901318_dma_slave_config;
 	base->dma_slave.device_pause = coh901318_pause;
 	base->dma_slave.device_resume = coh901318_resume;
 	base->dma_slave.device_terminate_all = coh901318_terminate_all;
@@ -2707,7 +2725,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	base->dma_memcpy.device_prep_dma_memcpy = coh901318_prep_memcpy;
 	base->dma_memcpy.device_tx_status = coh901318_tx_status;
 	base->dma_memcpy.device_issue_pending = coh901318_issue_pending;
-	base->dma_memcpy.device_config = coh901318_dma_set_runtimeconfig;
+	base->dma_memcpy.device_config = coh901318_dma_slave_config;
 	base->dma_memcpy.device_pause = coh901318_pause;
 	base->dma_memcpy.device_resume = coh901318_resume;
 	base->dma_memcpy.device_terminate_all = coh901318_terminate_all;

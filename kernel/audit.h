@@ -208,7 +208,7 @@ struct audit_context {
 	struct audit_proctitle proctitle;
 };
 
-extern u32 audit_ever_enabled;
+extern bool audit_ever_enabled;
 
 extern void audit_copy_inode(struct audit_names *name,
 			     const struct dentry *dentry,
@@ -341,4 +341,5 @@ extern struct list_head *audit_killed_trees(void);
 #define audit_filter_inodes(t,c) AUDIT_DISABLED
 #endif
 
-extern struct mutex audit_cmd_mutex;
+extern void audit_ctl_lock(void);
+extern void audit_ctl_unlock(void);

@@ -82,6 +82,10 @@ struct synusb {
 	struct urb *urb;
 	unsigned char *data;
 
+	/* serialize access to open/suspend */
+	struct mutex pm_mutex;
+	bool is_open;
+
 	/* input device related data structures */
 	struct input_dev *input;
 	char name[128];
@@ -252,6 +256,7 @@ static int synusb_open(struct input_dev *dev)
 		return retval;
 	}
 
+	mutex_lock(&synusb->pm_mutex);
 	retval = usb_submit_urb(synusb->urb, GFP_KERNEL);
 	if (retval) {
 		dev_err(&synusb->intf->dev,
@@ -262,8 +267,10 @@ static int synusb_open(struct input_dev *dev)
 	}
 
 	synusb->intf->needs_remote_wakeup = 1;
+	synusb->is_open = true;
 
 out:
+	mutex_unlock(&synusb->pm_mutex);
 	usb_autopm_put_interface(synusb->intf);
 	return retval;
 }
@@ -275,8 +282,11 @@ static void synusb_close(struct input_dev *dev)
 
 	autopm_error = usb_autopm_get_interface(synusb->intf);
 
+	mutex_lock(&synusb->pm_mutex);
 	usb_kill_urb(synusb->urb);
 	synusb->intf->needs_remote_wakeup = 0;
+	synusb->is_open = false;
+	mutex_unlock(&synusb->pm_mutex);
 
 	if (!autopm_error)
 		usb_autopm_put_interface(synusb->intf);
@@ -315,6 +325,7 @@ static int synusb_probe(struct usb_interface *intf,
 	synusb->udev = udev;
 	synusb->intf = intf;
 	synusb->input = input_dev;
+	mutex_init(&synusb->pm_mutex);
 
 	synusb->flags = id->driver_info;
 	if (synusb->flags & SYNUSB_COMBO) {
@@ -466,11 +477,10 @@ static void synusb_disconnect(struct usb_interface *intf)
 static int synusb_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct synusb *synusb = usb_get_intfdata(intf);
-	struct input_dev *input_dev = synusb->input;
 
-	mutex_lock(&input_dev->mutex);
+	mutex_lock(&synusb->pm_mutex);
 	usb_kill_urb(synusb->urb);
-	mutex_unlock(&input_dev->mutex);
+	mutex_unlock(&synusb->pm_mutex);
 
 	return 0;
 }
@@ -478,17 +488,16 @@ static int synusb_suspend(struct usb_interface *intf, pm_message_t message)
 static int synusb_resume(struct usb_interface *intf)
 {
 	struct synusb *synusb = usb_get_intfdata(intf);
-	struct input_dev *input_dev = synusb->input;
 	int retval = 0;
 
-	mutex_lock(&input_dev->mutex);
+	mutex_lock(&synusb->pm_mutex);
 
-	if ((input_dev->users || (synusb->flags & SYNUSB_IO_ALWAYS)) &&
+	if ((synusb->is_open || (synusb->flags & SYNUSB_IO_ALWAYS)) &&
 	    usb_submit_urb(synusb->urb, GFP_NOIO) < 0) {
 		retval = -EIO;
 	}
 
-	mutex_unlock(&input_dev->mutex);
+	mutex_unlock(&synusb->pm_mutex);
 
 	return retval;
 }
@@ -496,9 +505,8 @@ static int synusb_resume(struct usb_interface *intf)
 static int synusb_pre_reset(struct usb_interface *intf)
 {
 	struct synusb *synusb = usb_get_intfdata(intf);
-	struct input_dev *input_dev = synusb->input;
 
-	mutex_lock(&input_dev->mutex);
+	mutex_lock(&synusb->pm_mutex);
 	usb_kill_urb(synusb->urb);
 
 	return 0;
@@ -507,15 +515,14 @@ static int synusb_pre_reset(struct usb_interface *intf)
 static int synusb_post_reset(struct usb_interface *intf)
 {
 	struct synusb *synusb = usb_get_intfdata(intf);
-	struct input_dev *input_dev = synusb->input;
 	int retval = 0;
 
-	if ((input_dev->users || (synusb->flags & SYNUSB_IO_ALWAYS)) &&
+	if ((synusb->is_open || (synusb->flags & SYNUSB_IO_ALWAYS)) &&
 	    usb_submit_urb(synusb->urb, GFP_NOIO) < 0) {
 		retval = -EIO;
 	}
 
-	mutex_unlock(&input_dev->mutex);
+	mutex_unlock(&synusb->pm_mutex);
 
 	return retval;
 }

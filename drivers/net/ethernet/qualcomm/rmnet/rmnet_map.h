@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -23,21 +23,12 @@ struct rmnet_map_control_command {
 		struct {
 			u16 ip_family:2;
 			u16 reserved:14;
-			u16 flow_control_seq_num;
-			u32 qos_id;
+			__be16 flow_control_seq_num;
+			__be32 qos_id;
 		} flow_control;
 		u8 data[0];
 	};
 }  __aligned(1);
-
-enum rmnet_map_results {
-	RMNET_MAP_SUCCESS,
-	RMNET_MAP_CONSUMED,
-	RMNET_MAP_GENERAL_FAILURE,
-	RMNET_MAP_NOT_ENABLED,
-	RMNET_MAP_FAILED_AGGREGATION,
-	RMNET_MAP_FAILED_MUX
-};
 
 enum rmnet_map_commands {
 	RMNET_MAP_COMMAND_NONE,
@@ -53,8 +44,24 @@ struct rmnet_map_header {
 	u8  reserved_bit:1;
 	u8  cd_bit:1;
 	u8  mux_id;
-	u16 pkt_len;
+	__be16 pkt_len;
 }  __aligned(1);
+
+struct rmnet_map_dl_csum_trailer {
+	u8  reserved1;
+	u8  valid:1;
+	u8  reserved2:7;
+	u16 csum_start_offset;
+	u16 csum_length;
+	__be16 csum_value;
+} __aligned(1);
+
+struct rmnet_map_ul_csum_header {
+	__be16 csum_start_offset;
+	u16 csum_insert_offset:14;
+	u16 udp_ip4_ind:1;
+	u16 csum_enabled:1;
+} __aligned(1);
 
 #define RMNET_MAP_GET_MUX_ID(Y) (((struct rmnet_map_header *) \
 				 (Y)->data)->mux_id)
@@ -76,11 +83,13 @@ struct rmnet_map_header {
 #define RMNET_MAP_NO_PAD_BYTES        0
 #define RMNET_MAP_ADD_PAD_BYTES       1
 
-u8 rmnet_map_demultiplex(struct sk_buff *skb);
-struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb);
+struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
+				      struct rmnet_port *port);
 struct rmnet_map_header *rmnet_map_add_map_header(struct sk_buff *skb,
 						  int hdrlen, int pad);
-rx_handler_result_t rmnet_map_command(struct sk_buff *skb,
-				      struct rmnet_port *port);
+void rmnet_map_command(struct sk_buff *skb, struct rmnet_port *port);
+int rmnet_map_checksum_downlink_packet(struct sk_buff *skb, u16 len);
+void rmnet_map_checksum_uplink_packet(struct sk_buff *skb,
+				      struct net_device *orig_dev);
 
 #endif /* _RMNET_MAP_H_ */

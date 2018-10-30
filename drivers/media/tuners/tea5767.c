@@ -1,14 +1,11 @@
-/*
- * For Philips TEA5767 FM Chip used on some TV Cards like Prolink Pixelview
- * I2C address is allways 0xC0.
- *
- *
- * Copyright (c) 2005 Mauro Carvalho Chehab (mchehab@infradead.org)
- * This code is placed under the terms of the GNU General Public License
- *
- * tea5767 autodetection thanks to Torsten Seeboth and Atsushi Nakagawa
- * from their contributions on DScaler.
- */
+// SPDX-License-Identifier: GPL-2.0
+// For Philips TEA5767 FM Chip used on some TV Cards like Prolink Pixelview
+// I2C address is always 0xC0.
+//
+// Copyright (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
+//
+// tea5767 autodetection thanks to Torsten Seeboth and Atsushi Nakagawa
+// from their contributions on DScaler.
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -472,5 +469,5 @@ EXPORT_SYMBOL_GPL(tea5767_attach);
 EXPORT_SYMBOL_GPL(tea5767_autodetection);
 
 MODULE_DESCRIPTION("Philips TEA5767 FM tuner driver");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
+MODULE_LICENSE("GPL v2");

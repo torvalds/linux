@@ -40,8 +40,8 @@
 #include <linux/kernel.h>
 #include <linux/time.h>
 
-struct timespec *
-udf_disk_stamp_to_time(struct timespec *dest, struct timestamp src)
+void
+udf_disk_stamp_to_time(struct timespec64 *dest, struct timestamp src)
 {
 	u16 typeAndTimezone = le16_to_cpu(src.typeAndTimezone);
 	u16 year = le16_to_cpu(src.year);
@@ -62,20 +62,21 @@ udf_disk_stamp_to_time(struct timespec *dest, struct timestamp src)
 	dest->tv_sec -= offset * 60;
 	dest->tv_nsec = 1000 * (src.centiseconds * 10000 +
 			src.hundredsOfMicroseconds * 100 + src.microseconds);
-	return dest;
+	/*
+	 * Sanitize nanosecond field since reportedly some filesystems are
+	 * recorded with bogus sub-second values.
+	 */
+	dest->tv_nsec %= NSEC_PER_SEC;
 }
 
-struct timestamp *
-udf_time_to_disk_stamp(struct timestamp *dest, struct timespec ts)
+void
+udf_time_to_disk_stamp(struct timestamp *dest, struct timespec64 ts)
 {
-	long seconds;
+	time64_t seconds;
 	int16_t offset;
 	struct tm tm;
 
 	offset = -sys_tz.tz_minuteswest;
-
-	if (!dest)
-		return NULL;
 
 	dest->typeAndTimezone = cpu_to_le16(0x1000 | (offset & 0x0FFF));
 
@@ -92,7 +93,6 @@ udf_time_to_disk_stamp(struct timestamp *dest, struct timespec ts)
 					dest->centiseconds * 10000) / 100;
 	dest->microseconds = (ts.tv_nsec / 1000 - dest->centiseconds * 10000 -
 			      dest->hundredsOfMicroseconds * 100);
-	return dest;
 }
 
 /* EOF */

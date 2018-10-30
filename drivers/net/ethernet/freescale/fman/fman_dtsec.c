@@ -123,11 +123,13 @@
 #define DTSEC_ECNTRL_R100M		0x00000008
 #define DTSEC_ECNTRL_QSGMIIM		0x00000001
 
+#define TCTRL_TTSE			0x00000040
 #define TCTRL_GTS			0x00000020
 
 #define RCTRL_PAL_MASK			0x001f0000
 #define RCTRL_PAL_SHIFT			16
 #define RCTRL_GHTX			0x00000400
+#define RCTRL_RTSE			0x00000040
 #define RCTRL_GRS			0x00000020
 #define RCTRL_MPROM			0x00000008
 #define RCTRL_RSF			0x00000004
@@ -1100,7 +1102,7 @@ int dtsec_add_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 	set_bucket(dtsec->regs, bucket, true);
 
 	/* Create element to be added to the driver hash table */
-	hash_entry = kmalloc(sizeof(*hash_entry), GFP_KERNEL);
+	hash_entry = kmalloc(sizeof(*hash_entry), GFP_ATOMIC);
 	if (!hash_entry)
 		return -ENOMEM;
 	hash_entry->addr = addr;
@@ -1113,6 +1115,50 @@ int dtsec_add_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 	else
 		list_add_tail(&hash_entry->node,
 			      &dtsec->unicast_addr_hash->lsts[bucket]);
+
+	return 0;
+}
+
+int dtsec_set_allmulti(struct fman_mac *dtsec, bool enable)
+{
+	u32 tmp;
+	struct dtsec_regs __iomem *regs = dtsec->regs;
+
+	if (!is_init_done(dtsec->dtsec_drv_param))
+		return -EINVAL;
+
+	tmp = ioread32be(&regs->rctrl);
+	if (enable)
+		tmp |= RCTRL_MPROM;
+	else
+		tmp &= ~RCTRL_MPROM;
+
+	iowrite32be(tmp, &regs->rctrl);
+
+	return 0;
+}
+
+int dtsec_set_tstamp(struct fman_mac *dtsec, bool enable)
+{
+	struct dtsec_regs __iomem *regs = dtsec->regs;
+	u32 rctrl, tctrl;
+
+	if (!is_init_done(dtsec->dtsec_drv_param))
+		return -EINVAL;
+
+	rctrl = ioread32be(&regs->rctrl);
+	tctrl = ioread32be(&regs->tctrl);
+
+	if (enable) {
+		rctrl |= RCTRL_RTSE;
+		tctrl |= TCTRL_TTSE;
+	} else {
+		rctrl &= ~RCTRL_RTSE;
+		tctrl &= ~TCTRL_TTSE;
+	}
+
+	iowrite32be(rctrl, &regs->rctrl);
+	iowrite32be(tctrl, &regs->tctrl);
 
 	return 0;
 }

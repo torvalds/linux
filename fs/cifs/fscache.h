@@ -27,6 +27,20 @@
 
 #ifdef CONFIG_CIFS_FSCACHE
 
+/*
+ * Auxiliary data attached to CIFS inode within the cache
+ */
+struct cifs_fscache_inode_auxdata {
+	u64 last_write_time_sec;
+	u64 last_change_time_sec;
+	u32 last_write_time_nsec;
+	u32 last_change_time_nsec;
+	u64 eof;
+};
+
+/*
+ * cache.c
+ */
 extern struct fscache_netfs cifs_fscache_netfs;
 extern const struct fscache_cookie_def cifs_fscache_server_index_def;
 extern const struct fscache_cookie_def cifs_fscache_super_index_def;
@@ -34,6 +48,7 @@ extern const struct fscache_cookie_def cifs_fscache_inode_object_def;
 
 extern int cifs_fscache_register(void);
 extern void cifs_fscache_unregister(void);
+extern char *extract_sharename(const char *);
 
 /*
  * fscache.c

@@ -643,7 +643,8 @@ void rtl8723e_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 	}
 }
 
-u32 rtl8723e_get_desc(u8 *pdesc, bool istx, u8 desc_name)
+u64 rtl8723e_get_desc(struct ieee80211_hw *hw,
+		      u8 *pdesc, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
 
@@ -686,7 +687,7 @@ bool rtl8723e_is_tx_desc_closed(struct ieee80211_hw *hw,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
 	u8 *entry = (u8 *)(&ring->desc[ring->idx]);
-	u8 own = (u8)rtl8723e_get_desc(entry, true, HW_DESC_OWN);
+	u8 own = (u8)rtl8723e_get_desc(hw, entry, true, HW_DESC_OWN);
 
 	/**
 	 *beacon packet will only use the first
@@ -707,11 +708,4 @@ void rtl8723e_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
 		rtl_write_word(rtlpriv, REG_PCIE_CTRL_REG,
 			       BIT(0) << (hw_queue));
 	}
-}
-
-u32 rtl8723e_rx_command_packet(struct ieee80211_hw *hw,
-			       const struct rtl_stats *status,
-			       struct sk_buff *skb)
-{
-	return 0;
 }

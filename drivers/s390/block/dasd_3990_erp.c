@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author(s)......: Horst  Hummel    <Horst.Hummel@de.ibm.com>
  *		    Holger Smolinski <Holger.Smolinski@de.ibm.com>
@@ -2213,15 +2214,28 @@ static void dasd_3990_erp_disable_path(struct dasd_device *device, __u8 lpum)
 {
 	int pos = pathmask_to_pos(lpum);
 
+	if (!(device->features & DASD_FEATURE_PATH_AUTODISABLE)) {
+		dev_err(&device->cdev->dev,
+			"Path %x.%02x (pathmask %02x) is operational despite excessive IFCCs\n",
+			device->path[pos].cssid, device->path[pos].chpid, lpum);
+		goto out;
+	}
+
 	/* no remaining path, cannot disable */
-	if (!(dasd_path_get_opm(device) & ~lpum))
-		return;
+	if (!(dasd_path_get_opm(device) & ~lpum)) {
+		dev_err(&device->cdev->dev,
+			"Last path %x.%02x (pathmask %02x) is operational despite excessive IFCCs\n",
+			device->path[pos].cssid, device->path[pos].chpid, lpum);
+		goto out;
+	}
 
 	dev_err(&device->cdev->dev,
 		"Path %x.%02x (pathmask %02x) is disabled - IFCC threshold exceeded\n",
 		device->path[pos].cssid, device->path[pos].chpid, lpum);
 	dasd_path_remove_opm(device, lpum);
 	dasd_path_add_ifccpm(device, lpum);
+
+out:
 	device->path[pos].errorclk = 0;
 	atomic_set(&device->path[pos].error_count, 0);
 }
@@ -2800,6 +2814,16 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 	} else {
 		/* matching erp found - set all leading erp's to DONE */
 		erp = dasd_3990_erp_handle_match_erp(cqr, erp);
+	}
+
+
+	/*
+	 * For path verification work we need to stick with the path that was
+	 * originally chosen so that the per path configuration data is
+	 * assigned correctly.
+	 */
+	if (test_bit(DASD_CQR_VERIFY_PATH, &erp->flags) && cqr->lpm) {
+		erp->lpm = cqr->lpm;
 	}
 
 	if (device->features & DASD_FEATURE_ERPLOG) {

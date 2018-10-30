@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016, NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -32,15 +29,15 @@ static const struct tegra_udc_soc_info tegra20_udc_soc_info = {
 };
 
 static const struct tegra_udc_soc_info tegra30_udc_soc_info = {
-	.flags = 0,
+	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA,
 };
 
 static const struct tegra_udc_soc_info tegra114_udc_soc_info = {
-	.flags = 0,
+	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA,
 };
 
 static const struct tegra_udc_soc_info tegra124_udc_soc_info = {
-	.flags = 0,
+	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA,
 };
 
 static const struct of_device_id tegra_udc_of_match[] = {

@@ -140,6 +140,7 @@ struct dev_priv {
     unsigned long	txhdr;
     spinlock_t		chip_lock;
     struct timer_list	timer;
+    struct net_device   *dev;
 };
 
 #endif

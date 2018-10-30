@@ -26,9 +26,44 @@
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 
+/* delay 0.1 second to enable gfx off feature */
+#define GFX_OFF_DELAY_ENABLE         msecs_to_jiffies(100)
+
 /*
- * GPU scratch registers helpers function.
+ * GPU GFX IP block helpers function.
  */
+
+int amdgpu_gfx_queue_to_bit(struct amdgpu_device *adev, int mec,
+			    int pipe, int queue)
+{
+	int bit = 0;
+
+	bit += mec * adev->gfx.mec.num_pipe_per_mec
+		* adev->gfx.mec.num_queue_per_pipe;
+	bit += pipe * adev->gfx.mec.num_queue_per_pipe;
+	bit += queue;
+
+	return bit;
+}
+
+void amdgpu_gfx_bit_to_queue(struct amdgpu_device *adev, int bit,
+			     int *mec, int *pipe, int *queue)
+{
+	*queue = bit % adev->gfx.mec.num_queue_per_pipe;
+	*pipe = (bit / adev->gfx.mec.num_queue_per_pipe)
+		% adev->gfx.mec.num_pipe_per_mec;
+	*mec = (bit / adev->gfx.mec.num_queue_per_pipe)
+	       / adev->gfx.mec.num_pipe_per_mec;
+
+}
+
+bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev,
+				     int mec, int pipe, int queue)
+{
+	return test_bit(amdgpu_gfx_queue_to_bit(adev, mec, pipe, queue),
+			adev->gfx.mec.queue_bitmap);
+}
+
 /**
  * amdgpu_gfx_scratch_get - Allocate a scratch register
  *
@@ -109,9 +144,26 @@ void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_s
 	}
 }
 
+static bool amdgpu_gfx_is_multipipe_capable(struct amdgpu_device *adev)
+{
+	if (amdgpu_compute_multipipe != -1) {
+		DRM_INFO("amdgpu: forcing compute pipe policy %d\n",
+			 amdgpu_compute_multipipe);
+		return amdgpu_compute_multipipe == 1;
+	}
+
+	/* FIXME: spreading the queues across pipes causes perf regressions
+	 * on POLARIS11 compute workloads */
+	if (adev->asic_type == CHIP_POLARIS11)
+		return false;
+
+	return adev->gfx.mec.num_mec > 1;
+}
+
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 {
 	int i, queue, pipe, mec;
+	bool multipipe_policy = amdgpu_gfx_is_multipipe_capable(adev);
 
 	/* policy for amdgpu compute queue ownership */
 	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
@@ -125,8 +177,7 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 		if (mec >= adev->gfx.mec.num_mec)
 			break;
 
-		/* FIXME: spreading the queues across pipes causes perf regressions */
-		if (0) {
+		if (multipipe_policy) {
 			/* policy: amdgpu owns the first two queues of the first MEC */
 			if (mec == 0 && queue < 2)
 				set_bit(i, adev->gfx.mec.queue_bitmap);
@@ -163,8 +214,12 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 
 		amdgpu_gfx_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
 
-		/* Using pipes 2/3 from MEC 2 seems cause problems */
-		if (mec == 1 && pipe > 1)
+		/*
+		 * 1. Using pipes 2/3 from MEC 2 seems cause problems.
+		 * 2. It must use queue id 0, because CGPG_IDLE/SAVE/LOAD/RUN
+		 * only can be issued on queue 0.
+		 */
+		if ((mec == 1 && pipe > 1) || queue != 0)
 			continue;
 
 		ring->me = mec + 1;
@@ -185,9 +240,9 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	int r = 0;
 
-	mutex_init(&kiq->ring_mutex);
+	spin_lock_init(&kiq->ring_lock);
 
-	r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
+	r = amdgpu_device_wb_get(adev, &adev->virt.reg_val_offs);
 	if (r)
 		return r;
 
@@ -213,7 +268,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring,
 			      struct amdgpu_irq_src *irq)
 {
-	amdgpu_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
+	amdgpu_device_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
 	amdgpu_ring_fini(ring);
 }
 
@@ -260,8 +315,13 @@ int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
 	/* create MQD for KIQ */
 	ring = &adev->gfx.kiq.ring;
 	if (!ring->mqd_obj) {
+		/* originaly the KIQ MQD is put in GTT domain, but for SRIOV VRAM domain is a must
+		 * otherwise hypervisor trigger SAVE_VF fail after driver unloaded which mean MQD
+		 * deallocated and gart_unbind, to strict diverage we decide to use VRAM domain for
+		 * KIQ MQD no matter SRIOV or Bare-metal
+		 */
 		r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
-					    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
+					    AMDGPU_GEM_DOMAIN_VRAM, &ring->mqd_obj,
 					    &ring->mqd_gpu_addr, &ring->mqd_ptr);
 		if (r) {
 			dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
@@ -314,4 +374,41 @@ void amdgpu_gfx_compute_mqd_sw_fini(struct amdgpu_device *adev)
 	amdgpu_bo_free_kernel(&ring->mqd_obj,
 			      &ring->mqd_gpu_addr,
 			      &ring->mqd_ptr);
+}
+
+/* amdgpu_gfx_off_ctrl - Handle gfx off feature enable/disable
+ *
+ * @adev: amdgpu_device pointer
+ * @bool enable true: enable gfx off feature, false: disable gfx off feature
+ *
+ * 1. gfx off feature will be enabled by gfx ip after gfx cg gp enabled.
+ * 2. other client can send request to disable gfx off feature, the request should be honored.
+ * 3. other client can cancel their request of disable gfx off feature
+ * 4. other client should not send request to enable gfx off feature before disable gfx off feature.
+ */
+
+void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
+{
+	if (!(adev->powerplay.pp_feature & PP_GFXOFF_MASK))
+		return;
+
+	if (!adev->powerplay.pp_funcs->set_powergating_by_smu)
+		return;
+
+
+	mutex_lock(&adev->gfx.gfx_off_mutex);
+
+	if (!enable)
+		adev->gfx.gfx_off_req_count++;
+	else if (adev->gfx.gfx_off_req_count > 0)
+		adev->gfx.gfx_off_req_count--;
+
+	if (enable && !adev->gfx.gfx_off_state && !adev->gfx.gfx_off_req_count) {
+		schedule_delayed_work(&adev->gfx.gfx_off_delay_work, GFX_OFF_DELAY_ENABLE);
+	} else if (!enable && adev->gfx.gfx_off_state) {
+		if (!amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false))
+			adev->gfx.gfx_off_state = false;
+	}
+
+	mutex_unlock(&adev->gfx.gfx_off_mutex);
 }

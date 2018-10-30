@@ -1,5 +1,6 @@
 config NET_VENDOR_AURORA
 	bool "Aurora VLSI devices"
+	default y
 	help
 	  If you have a network (Ethernet) device belonging to this class,
 	  say Y.

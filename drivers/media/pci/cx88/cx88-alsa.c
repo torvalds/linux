@@ -4,7 +4,7 @@
  *
  *    (c) 2007 Trent Piepho <xyzzy@speakeasy.org>
  *    (c) 2005,2006 Ricardo Cerqueira <v4l@cerqueira.org>
- *    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *    (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
  *    Based on a dummy cx88 module by Gerd Knorr <kraxel@bytesex.org>
  *    Based on dummy.c by Jaroslav Kysela <perex@perex.cz>
  *
@@ -103,7 +103,7 @@ MODULE_PARM_DESC(index, "Index value for cx88x capture interface(s).");
 
 MODULE_DESCRIPTION("ALSA driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Ricardo Cerqueira");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
@@ -292,13 +292,13 @@ static int cx88_alsa_dma_init(struct cx88_audio_dev *chip, int nr_pages)
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr 0x%08lx, size=%d\n",
-		(unsigned long)buf->vaddr, nr_pages << PAGE_SHIFT);
+	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+		buf->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
 	buf->nr_pages = nr_pages;
 
-	buf->sglist = vzalloc(buf->nr_pages * sizeof(*buf->sglist));
+	buf->sglist = vzalloc(array_size(sizeof(*buf->sglist), buf->nr_pages));
 	if (!buf->sglist)
 		goto vzalloc_err;
 
@@ -616,7 +616,7 @@ static int snd_cx88_pcm(struct cx88_audio_dev *chip, int device,
 	if (err < 0)
 		return err;
 	pcm->private_data = chip;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_cx88_pcm_ops);
 
 	return 0;
@@ -656,8 +656,8 @@ static void snd_cx88_wm8775_volume_put(struct snd_kcontrol *kcontrol,
 {
 	struct cx88_audio_dev *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core = chip->core;
-	int left = value->value.integer.value[0];
-	int right = value->value.integer.value[1];
+	u16 left = value->value.integer.value[0];
+	u16 right = value->value.integer.value[1];
 	int v, b;
 
 	/* Pass volume & balance onto any WM8775 */
@@ -962,15 +962,18 @@ static int cx88_audio_initdev(struct pci_dev *pci,
 		goto error;
 
 	/* If there's a wm8775 then add a Line-In ALC switch */
-	if (core->sd_wm8775)
-		snd_ctl_add(card, snd_ctl_new1(&snd_cx88_alc_switch, chip));
+	if (core->sd_wm8775) {
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_cx88_alc_switch, chip));
+		if (err < 0)
+			goto error;
+	}
 
-	strcpy(card->driver, "CX88x");
+	strscpy(card->driver, "CX88x", sizeof(card->driver));
 	sprintf(card->shortname, "Conexant CX%x", pci->device);
 	sprintf(card->longname, "%s at %#llx",
 		card->shortname,
 		(unsigned long long)pci_resource_start(pci, 0));
-	strcpy(card->mixername, "CX88");
+	strscpy(card->mixername, "CX88", sizeof(card->mixername));
 
 	dprintk(0, "%s/%i: ALSA support for cx2388x boards\n",
 		card->driver, devno);

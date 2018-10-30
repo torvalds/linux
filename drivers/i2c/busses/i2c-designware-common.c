@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Synopsys DesignWare I2C adapter driver.
  *
@@ -6,21 +7,8 @@
  * Copyright (C) 2006 Texas Instruments.
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
- *
- * ----------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * ----------------------------------------------------------------------------
- *
  */
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/errno.h>
@@ -30,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/swab.h>
 
 #include "i2c-designware-core.h"
 
@@ -93,6 +82,40 @@ void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
 	}
 }
 
+/**
+ * i2c_dw_set_reg_access() - Set register access flags
+ * @dev: device private data
+ *
+ * Autodetects needed register access mode and sets access flags accordingly.
+ * This must be called before doing any other register access.
+ */
+int i2c_dw_set_reg_access(struct dw_i2c_dev *dev)
+{
+	u32 reg;
+	int ret;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	reg = dw_readl(dev, DW_IC_COMP_TYPE);
+	i2c_dw_release_lock(dev);
+
+	if (reg == swab32(DW_IC_COMP_TYPE_VALUE)) {
+		/* Configure register endianess access */
+		dev->flags |= ACCESS_SWAP;
+	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
+		/* Configure register access mode 16bit */
+		dev->flags |= ACCESS_16BIT;
+	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
+		dev_err(dev->dev,
+			"Unknown Synopsys component type: 0x%08x\n", reg);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset)
 {
 	/*
@@ -148,18 +171,60 @@ u32 i2c_dw_scl_lcnt(u32 ic_clk, u32 tLOW, u32 tf, int offset)
 	return ((ic_clk * (tLOW + tf) + 500000) / 1000000) - 1 + offset;
 }
 
-void __i2c_dw_enable(struct dw_i2c_dev *dev, bool enable)
+int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 {
-	dw_writel(dev, enable, DW_IC_ENABLE);
+	u32 reg;
+	int ret;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	/* Configure SDA Hold Time if required */
+	reg = dw_readl(dev, DW_IC_COMP_VERSION);
+	if (reg >= DW_IC_SDA_HOLD_MIN_VERS) {
+		if (!dev->sda_hold_time) {
+			/* Keep previous hold time setting if no one set it */
+			dev->sda_hold_time = dw_readl(dev, DW_IC_SDA_HOLD);
+		}
+
+		/*
+		 * Workaround for avoiding TX arbitration lost in case I2C
+		 * slave pulls SDA down "too quickly" after falling egde of
+		 * SCL by enabling non-zero SDA RX hold. Specification says it
+		 * extends incoming SDA low to high transition while SCL is
+		 * high but it apprears to help also above issue.
+		 */
+		if (!(dev->sda_hold_time & DW_IC_SDA_HOLD_RX_MASK))
+			dev->sda_hold_time |= 1 << DW_IC_SDA_HOLD_RX_SHIFT;
+
+		dev_dbg(dev->dev, "SDA Hold Time TX:RX = %d:%d\n",
+			dev->sda_hold_time & ~(u32)DW_IC_SDA_HOLD_RX_MASK,
+			dev->sda_hold_time >> DW_IC_SDA_HOLD_RX_SHIFT);
+	} else if (dev->set_sda_hold_time) {
+		dev->set_sda_hold_time(dev);
+	} else if (dev->sda_hold_time) {
+		dev_warn(dev->dev,
+			"Hardware too old to adjust SDA hold time.\n");
+		dev->sda_hold_time = 0;
+	}
+
+	i2c_dw_release_lock(dev);
+
+	return 0;
 }
 
-void __i2c_dw_enable_and_wait(struct dw_i2c_dev *dev, bool enable)
+void __i2c_dw_disable(struct dw_i2c_dev *dev)
 {
 	int timeout = 100;
 
 	do {
-		__i2c_dw_enable(dev, enable);
-		if ((dw_readl(dev, DW_IC_ENABLE_STATUS) & 1) == enable)
+		__i2c_dw_disable_nowait(dev);
+		/*
+		 * The enable status register may be unimplemented, but
+		 * in that case this test reads zero and exits the loop.
+		 */
+		if ((dw_readl(dev, DW_IC_ENABLE_STATUS) & 1) == 0)
 			return;
 
 		/*
@@ -170,8 +235,7 @@ void __i2c_dw_enable_and_wait(struct dw_i2c_dev *dev, bool enable)
 		usleep_range(25, 250);
 	} while (timeout--);
 
-	dev_warn(dev->dev, "timeout in %sabling adapter\n",
-		 enable ? "en" : "dis");
+	dev_warn(dev->dev, "timeout in disabling adapter\n");
 }
 
 unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev)
@@ -184,6 +248,19 @@ unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev)
 		return 0;
 	return dev->get_clk_rate_khz(dev);
 }
+
+int i2c_dw_prepare_clk(struct dw_i2c_dev *dev, bool prepare)
+{
+	if (IS_ERR(dev->clk))
+		return PTR_ERR(dev->clk);
+
+	if (prepare)
+		return clk_prepare_enable(dev->clk);
+
+	clk_disable_unprepare(dev->clk);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i2c_dw_prepare_clk);
 
 int i2c_dw_acquire_lock(struct dw_i2c_dev *dev)
 {
@@ -217,7 +294,11 @@ int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
 	while (dw_readl(dev, DW_IC_STATUS) & DW_IC_STATUS_ACTIVITY) {
 		if (timeout <= 0) {
 			dev_warn(dev->dev, "timeout waiting for bus ready\n");
-			return -ETIMEDOUT;
+			i2c_recover_bus(&dev->adapter);
+
+			if (dw_readl(dev, DW_IC_STATUS) & DW_IC_STATUS_ACTIVITY)
+				return -ETIMEDOUT;
+			return 0;
 		}
 		timeout--;
 		usleep_range(1000, 1100);
@@ -259,7 +340,7 @@ u32 i2c_dw_func(struct i2c_adapter *adap)
 void i2c_dw_disable(struct dw_i2c_dev *dev)
 {
 	/* Disable controller */
-	__i2c_dw_enable_and_wait(dev, false);
+	__i2c_dw_disable(dev);
 
 	/* Disable all interupts */
 	dw_writel(dev, 0, DW_IC_INTR_MASK);

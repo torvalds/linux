@@ -15,7 +15,7 @@ menuconfig IPV6
 	  Documentation/networking/ipv6.txt and read the HOWTO at
 	  <http://www.tldp.org/HOWTO/Linux+IPv6-HOWTO/>
 
-	  To compile this protocol support as a module, choose M here: the 
+	  To compile this protocol support as a module, choose M here: the
 	  module will be called ipv6.
 
 if IPV6
@@ -34,16 +34,15 @@ config IPV6_ROUTE_INFO
 	bool "IPv6: Route Information (RFC 4191) support"
 	depends on IPV6_ROUTER_PREF
 	---help---
-	  This is experimental support of Route Information.
+	  Support of Route Information.
 
 	  If unsure, say N.
 
 config IPV6_OPTIMISTIC_DAD
 	bool "IPv6: Enable RFC 4429 Optimistic DAD"
 	---help---
-	  This is experimental support for optimistic Duplicate
-	  Address Detection.  It allows for autoconfigured addresses
-	  to be used more quickly.
+	  Support for optimistic Duplicate Address Detection. It allows for
+	  autoconfigured addresses to be used more quickly.
 
 	  If unsure, say N.
 
@@ -109,6 +108,7 @@ config IPV6_MIP6
 config IPV6_ILA
 	tristate "IPv6: Identifier Locator Addressing (ILA)"
 	depends on NETFILTER
+	select DST_CACHE
 	select LWTUNNEL
 	---help---
 	  Support for IPv6 Identifier Locator Addressing (ILA).
@@ -278,8 +278,9 @@ config IPV6_SUBTREES
 config IPV6_MROUTE
 	bool "IPv6: multicast routing"
 	depends on IPV6
+	select IP_MROUTE_COMMON
 	---help---
-	  Experimental support for IPv6 multicast forwarding.
+	  Support for IPv6 multicast forwarding.
 	  If unsure, say N.
 
 config IPV6_MROUTE_MULTIPLE_TABLES
@@ -328,5 +329,10 @@ config IPV6_SEG6_HMAC
 	  of SR-enabled packets.
 
 	  If unsure, say N.
+
+config IPV6_SEG6_BPF
+	def_bool y
+	depends on IPV6_SEG6_LWTUNNEL
+	depends on IPV6 = y
 
 endif # IPV6

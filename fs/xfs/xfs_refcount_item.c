@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -23,6 +9,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
+#include "xfs_shared.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
 #include "xfs_trans.h"
@@ -50,6 +37,25 @@ xfs_cui_item_free(
 	else
 		kmem_zone_free(xfs_cui_zone, cuip);
 }
+
+/*
+ * Freeing the CUI requires that we remove it from the AIL if it has already
+ * been placed there. However, the CUI may not yet have been placed in the AIL
+ * when called by xfs_cui_release() from CUD processing due to the ordering of
+ * committed vs unpin operations in bulk insert operations. Hence the reference
+ * count to ensure only the last caller frees the CUI.
+ */
+void
+xfs_cui_release(
+	struct xfs_cui_log_item	*cuip)
+{
+	ASSERT(atomic_read(&cuip->cui_refcount) > 0);
+	if (atomic_dec_and_test(&cuip->cui_refcount)) {
+		xfs_trans_ail_remove(&cuip->cui_item, SHUTDOWN_LOG_IO_ERROR);
+		xfs_cui_item_free(cuip);
+	}
+}
+
 
 STATIC void
 xfs_cui_item_size(
@@ -139,8 +145,8 @@ STATIC void
 xfs_cui_item_unlock(
 	struct xfs_log_item	*lip)
 {
-	if (lip->li_flags & XFS_LI_ABORTED)
-		xfs_cui_item_free(CUI_ITEM(lip));
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
+		xfs_cui_release(CUI_ITEM(lip));
 }
 
 /*
@@ -208,24 +214,6 @@ xfs_cui_init(
 	atomic_set(&cuip->cui_refcount, 2);
 
 	return cuip;
-}
-
-/*
- * Freeing the CUI requires that we remove it from the AIL if it has already
- * been placed there. However, the CUI may not yet have been placed in the AIL
- * when called by xfs_cui_release() from CUD processing due to the ordering of
- * committed vs unpin operations in bulk insert operations. Hence the reference
- * count to ensure only the last caller frees the CUI.
- */
-void
-xfs_cui_release(
-	struct xfs_cui_log_item	*cuip)
-{
-	ASSERT(atomic_read(&cuip->cui_refcount) > 0);
-	if (atomic_dec_and_test(&cuip->cui_refcount)) {
-		xfs_trans_ail_remove(&cuip->cui_item, SHUTDOWN_LOG_IO_ERROR);
-		xfs_cui_item_free(cuip);
-	}
 }
 
 static inline struct xfs_cud_log_item *CUD_ITEM(struct xfs_log_item *lip)
@@ -308,7 +296,7 @@ xfs_cud_item_unlock(
 {
 	struct xfs_cud_log_item	*cudp = CUD_ITEM(lip);
 
-	if (lip->li_flags & XFS_LI_ABORTED) {
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
 		xfs_cui_release(cudp->cud_cuip);
 		kmem_zone_free(xfs_cud_zone, cudp);
 	}
@@ -392,7 +380,7 @@ xfs_cud_init(
  */
 int
 xfs_cui_recover(
-	struct xfs_mount		*mp,
+	struct xfs_trans		*parent_tp,
 	struct xfs_cui_log_item		*cuip)
 {
 	int				i;
@@ -405,12 +393,11 @@ xfs_cui_recover(
 	struct xfs_trans		*tp;
 	struct xfs_btree_cur		*rcur = NULL;
 	enum xfs_refcount_intent_type	type;
-	xfs_fsblock_t			firstfsb;
 	xfs_fsblock_t			new_fsb;
 	xfs_extlen_t			new_len;
 	struct xfs_bmbt_irec		irec;
-	struct xfs_defer_ops		dfops;
 	bool				requeue_only = false;
+	struct xfs_mount		*mp = parent_tp->t_mountp;
 
 	ASSERT(!test_bit(XFS_CUI_RECOVERED, &cuip->cui_flags));
 
@@ -457,15 +444,22 @@ xfs_cui_recover(
 	 * transaction.  Normally, any work that needs to be deferred
 	 * gets attached to the same defer_ops that scheduled the
 	 * refcount update.  However, we're in log recovery here, so we
-	 * we create our own defer_ops and use that to finish up any
-	 * work that doesn't fit.
+	 * we use the passed in defer_ops and to finish up any work that
+	 * doesn't fit.  We need to reserve enough blocks to handle a
+	 * full btree split on either end of the refcount range.
 	 */
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
+			mp->m_refc_maxlevels * 2, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
+	/*
+	 * Recovery stashes all deferred ops during intent processing and
+	 * finishes them on completion. Transfer current dfops state to this
+	 * transaction and transfer the result back before we return.
+	 */
+	xfs_defer_move(tp, parent_tp);
 	cudp = xfs_trans_get_cud(tp, cuip);
 
-	xfs_defer_init(&dfops, &firstfsb);
 	for (i = 0; i < cuip->cui_format.cui_nextents; i++) {
 		refc = &cuip->cui_format.cui_extents[i];
 		refc_type = refc->pe_flags & XFS_REFCOUNT_EXTENT_TYPE_MASK;
@@ -485,7 +479,7 @@ xfs_cui_recover(
 			new_len = refc->pe_len;
 		} else
 			error = xfs_trans_log_finish_refcount_update(tp, cudp,
-				&dfops, type, refc->pe_startblock, refc->pe_len,
+				type, refc->pe_startblock, refc->pe_len,
 				&new_fsb, &new_len, &rcur);
 		if (error)
 			goto abort_error;
@@ -496,22 +490,18 @@ xfs_cui_recover(
 			irec.br_blockcount = new_len;
 			switch (type) {
 			case XFS_REFCOUNT_INCREASE:
-				error = xfs_refcount_increase_extent(
-						tp->t_mountp, &dfops, &irec);
+				error = xfs_refcount_increase_extent(tp, &irec);
 				break;
 			case XFS_REFCOUNT_DECREASE:
-				error = xfs_refcount_decrease_extent(
-						tp->t_mountp, &dfops, &irec);
+				error = xfs_refcount_decrease_extent(tp, &irec);
 				break;
 			case XFS_REFCOUNT_ALLOC_COW:
-				error = xfs_refcount_alloc_cow_extent(
-						tp->t_mountp, &dfops,
+				error = xfs_refcount_alloc_cow_extent(tp,
 						irec.br_startblock,
 						irec.br_blockcount);
 				break;
 			case XFS_REFCOUNT_FREE_COW:
-				error = xfs_refcount_free_cow_extent(
-						tp->t_mountp, &dfops,
+				error = xfs_refcount_free_cow_extent(tp,
 						irec.br_startblock,
 						irec.br_blockcount);
 				break;
@@ -525,17 +515,14 @@ xfs_cui_recover(
 	}
 
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
-	error = xfs_defer_finish(&tp, &dfops);
-	if (error)
-		goto abort_defer;
 	set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
+	xfs_defer_move(parent_tp, tp);
 	error = xfs_trans_commit(tp);
 	return error;
 
 abort_error:
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
-abort_defer:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_move(parent_tp, tp);
 	xfs_trans_cancel(tp);
 	return error;
 }

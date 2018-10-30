@@ -18,6 +18,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/semaphore.h>
 #include <linux/sched/clock.h>
 
@@ -70,57 +71,20 @@ void tegra_bpmp_put(struct tegra_bpmp *bpmp)
 }
 EXPORT_SYMBOL_GPL(tegra_bpmp_put);
 
-static int tegra_bpmp_channel_get_index(struct tegra_bpmp_channel *channel)
-{
-	return channel - channel->bpmp->channels;
-}
-
 static int
 tegra_bpmp_channel_get_thread_index(struct tegra_bpmp_channel *channel)
 {
 	struct tegra_bpmp *bpmp = channel->bpmp;
-	unsigned int offset, count;
+	unsigned int count;
 	int index;
 
-	offset = bpmp->soc->channels.thread.offset;
 	count = bpmp->soc->channels.thread.count;
 
-	index = tegra_bpmp_channel_get_index(channel);
-	if (index < 0)
-		return index;
-
-	if (index < offset || index >= offset + count)
+	index = channel - channel->bpmp->threaded_channels;
+	if (index < 0 || index >= count)
 		return -EINVAL;
 
-	return index - offset;
-}
-
-static struct tegra_bpmp_channel *
-tegra_bpmp_channel_get_thread(struct tegra_bpmp *bpmp, unsigned int index)
-{
-	unsigned int offset = bpmp->soc->channels.thread.offset;
-	unsigned int count = bpmp->soc->channels.thread.count;
-
-	if (index >= count)
-		return NULL;
-
-	return &bpmp->channels[offset + index];
-}
-
-static struct tegra_bpmp_channel *
-tegra_bpmp_channel_get_tx(struct tegra_bpmp *bpmp)
-{
-	unsigned int offset = bpmp->soc->channels.cpu_tx.offset;
-
-	return &bpmp->channels[offset + smp_processor_id()];
-}
-
-static struct tegra_bpmp_channel *
-tegra_bpmp_channel_get_rx(struct tegra_bpmp *bpmp)
-{
-	unsigned int offset = bpmp->soc->channels.cpu_rx.offset;
-
-	return &bpmp->channels[offset];
+	return index;
 }
 
 static bool tegra_bpmp_message_valid(const struct tegra_bpmp_message *msg)
@@ -194,16 +158,24 @@ static int tegra_bpmp_wait_master_free(struct tegra_bpmp_channel *channel)
 }
 
 static ssize_t __tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
-					 void *data, size_t size)
+					 void *data, size_t size, int *ret)
 {
+	int err;
+
 	if (data && size > 0)
 		memcpy(data, channel->ib->data, size);
 
-	return tegra_ivc_read_advance(channel->ivc);
+	err = tegra_ivc_read_advance(channel->ivc);
+	if (err < 0)
+		return err;
+
+	*ret = channel->ib->code;
+
+	return 0;
 }
 
 static ssize_t tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
-				       void *data, size_t size)
+				       void *data, size_t size, int *ret)
 {
 	struct tegra_bpmp *bpmp = channel->bpmp;
 	unsigned long flags;
@@ -217,7 +189,7 @@ static ssize_t tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
 	}
 
 	spin_lock_irqsave(&bpmp->lock, flags);
-	err = __tegra_bpmp_channel_read(channel, data, size);
+	err = __tegra_bpmp_channel_read(channel, data, size, ret);
 	clear_bit(index, bpmp->threaded.allocated);
 	spin_unlock_irqrestore(&bpmp->lock, flags);
 
@@ -263,11 +235,7 @@ tegra_bpmp_write_threaded(struct tegra_bpmp *bpmp, unsigned int mrq,
 		goto unlock;
 	}
 
-	channel = tegra_bpmp_channel_get_thread(bpmp, index);
-	if (!channel) {
-		err = -EINVAL;
-		goto unlock;
-	}
+	channel = &bpmp->threaded_channels[index];
 
 	if (!tegra_bpmp_master_free(channel)) {
 		err = -EBUSY;
@@ -320,12 +288,18 @@ int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 	if (!tegra_bpmp_message_valid(msg))
 		return -EINVAL;
 
-	channel = tegra_bpmp_channel_get_tx(bpmp);
+	channel = bpmp->tx_channel;
+
+	spin_lock(&bpmp->atomic_tx_lock);
 
 	err = tegra_bpmp_channel_write(channel, msg->mrq, MSG_ACK,
 				       msg->tx.data, msg->tx.size);
-	if (err < 0)
+	if (err < 0) {
+		spin_unlock(&bpmp->atomic_tx_lock);
 		return err;
+	}
+
+	spin_unlock(&bpmp->atomic_tx_lock);
 
 	err = mbox_send_message(bpmp->mbox.channel, NULL);
 	if (err < 0)
@@ -337,7 +311,8 @@ int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 	if (err < 0)
 		return err;
 
-	return __tegra_bpmp_channel_read(channel, msg->rx.data, msg->rx.size);
+	return __tegra_bpmp_channel_read(channel, msg->rx.data, msg->rx.size,
+					 &msg->rx.ret);
 }
 EXPORT_SYMBOL_GPL(tegra_bpmp_transfer_atomic);
 
@@ -371,7 +346,8 @@ int tegra_bpmp_transfer(struct tegra_bpmp *bpmp,
 	if (err == 0)
 		return -ETIMEDOUT;
 
-	return tegra_bpmp_channel_read(channel, msg->rx.data, msg->rx.size);
+	return tegra_bpmp_channel_read(channel, msg->rx.data, msg->rx.size,
+				       &msg->rx.ret);
 }
 EXPORT_SYMBOL_GPL(tegra_bpmp_transfer);
 
@@ -387,8 +363,8 @@ static struct tegra_bpmp_mrq *tegra_bpmp_find_mrq(struct tegra_bpmp *bpmp,
 	return NULL;
 }
 
-static void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel,
-				  int code, const void *data, size_t size)
+void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel, int code,
+			   const void *data, size_t size)
 {
 	unsigned long flags = channel->ib->flags;
 	struct tegra_bpmp *bpmp = channel->bpmp;
@@ -426,6 +402,7 @@ static void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel,
 		mbox_client_txdone(bpmp->mbox.channel, 0);
 	}
 }
+EXPORT_SYMBOL_GPL(tegra_bpmp_mrq_return);
 
 static void tegra_bpmp_handle_mrq(struct tegra_bpmp *bpmp,
 				  unsigned int mrq,
@@ -596,7 +573,7 @@ static void tegra_bpmp_handle_rx(struct mbox_client *client, void *data)
 	unsigned int i, count;
 	unsigned long *busy;
 
-	channel = tegra_bpmp_channel_get_rx(bpmp);
+	channel = bpmp->rx_channel;
 	count = bpmp->soc->channels.thread.count;
 	busy = bpmp->threaded.busy;
 
@@ -608,9 +585,7 @@ static void tegra_bpmp_handle_rx(struct mbox_client *client, void *data)
 	for_each_set_bit(i, busy, count) {
 		struct tegra_bpmp_channel *channel;
 
-		channel = tegra_bpmp_channel_get_thread(bpmp, i);
-		if (!channel)
-			continue;
+		channel = &bpmp->threaded_channels[i];
 
 		if (tegra_bpmp_master_acked(channel)) {
 			tegra_bpmp_channel_signal(channel);
@@ -687,7 +662,6 @@ static void tegra_bpmp_channel_cleanup(struct tegra_bpmp_channel *channel)
 
 static int tegra_bpmp_probe(struct platform_device *pdev)
 {
-	struct tegra_bpmp_channel *channel;
 	struct tegra_bpmp *bpmp;
 	unsigned int i;
 	char tag[32];
@@ -721,7 +695,7 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	}
 
 	bpmp->rx.virt = gen_pool_dma_alloc(bpmp->rx.pool, 4096, &bpmp->rx.phys);
-	if (!bpmp->rx.pool) {
+	if (!bpmp->rx.virt) {
 		dev_err(&pdev->dev, "failed to allocate from RX pool\n");
 		err = -ENOMEM;
 		goto free_tx;
@@ -747,24 +721,45 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 		goto free_rx;
 	}
 
-	bpmp->num_channels = bpmp->soc->channels.cpu_tx.count +
-			     bpmp->soc->channels.thread.count +
-			     bpmp->soc->channels.cpu_rx.count;
-
-	bpmp->channels = devm_kcalloc(&pdev->dev, bpmp->num_channels,
-				      sizeof(*channel), GFP_KERNEL);
-	if (!bpmp->channels) {
+	spin_lock_init(&bpmp->atomic_tx_lock);
+	bpmp->tx_channel = devm_kzalloc(&pdev->dev, sizeof(*bpmp->tx_channel),
+					GFP_KERNEL);
+	if (!bpmp->tx_channel) {
 		err = -ENOMEM;
 		goto free_rx;
 	}
 
-	/* message channel initialization */
-	for (i = 0; i < bpmp->num_channels; i++) {
-		struct tegra_bpmp_channel *channel = &bpmp->channels[i];
+	bpmp->rx_channel = devm_kzalloc(&pdev->dev, sizeof(*bpmp->rx_channel),
+	                                GFP_KERNEL);
+	if (!bpmp->rx_channel) {
+		err = -ENOMEM;
+		goto free_rx;
+	}
 
-		err = tegra_bpmp_channel_init(channel, bpmp, i);
+	bpmp->threaded_channels = devm_kcalloc(&pdev->dev, bpmp->threaded.count,
+					       sizeof(*bpmp->threaded_channels),
+					       GFP_KERNEL);
+	if (!bpmp->threaded_channels) {
+		err = -ENOMEM;
+		goto free_rx;
+	}
+
+	err = tegra_bpmp_channel_init(bpmp->tx_channel, bpmp,
+				      bpmp->soc->channels.cpu_tx.offset);
+	if (err < 0)
+		goto free_rx;
+
+	err = tegra_bpmp_channel_init(bpmp->rx_channel, bpmp,
+				      bpmp->soc->channels.cpu_rx.offset);
+	if (err < 0)
+		goto cleanup_tx_channel;
+
+	for (i = 0; i < bpmp->threaded.count; i++) {
+		err = tegra_bpmp_channel_init(
+			&bpmp->threaded_channels[i], bpmp,
+			bpmp->soc->channels.thread.offset + i);
 		if (err < 0)
-			goto cleanup_channels;
+			goto cleanup_threaded_channels;
 	}
 
 	/* mbox registration */
@@ -777,15 +772,14 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	if (IS_ERR(bpmp->mbox.channel)) {
 		err = PTR_ERR(bpmp->mbox.channel);
 		dev_err(&pdev->dev, "failed to get HSP mailbox: %d\n", err);
-		goto cleanup_channels;
+		goto cleanup_threaded_channels;
 	}
 
 	/* reset message channels */
-	for (i = 0; i < bpmp->num_channels; i++) {
-		struct tegra_bpmp_channel *channel = &bpmp->channels[i];
-
-		tegra_bpmp_channel_reset(channel);
-	}
+	tegra_bpmp_channel_reset(bpmp->tx_channel);
+	tegra_bpmp_channel_reset(bpmp->rx_channel);
+	for (i = 0; i < bpmp->threaded.count; i++)
+		tegra_bpmp_channel_reset(&bpmp->threaded_channels[i]);
 
 	err = tegra_bpmp_request_mrq(bpmp, MRQ_PING,
 				     tegra_bpmp_mrq_handle_ping, bpmp);
@@ -824,15 +818,25 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto free_mrq;
 
+	err = tegra_bpmp_init_debugfs(bpmp);
+	if (err < 0)
+		dev_err(&pdev->dev, "debugfs initialization failed: %d\n", err);
+
 	return 0;
 
 free_mrq:
 	tegra_bpmp_free_mrq(bpmp, MRQ_PING, bpmp);
 free_mbox:
 	mbox_free_channel(bpmp->mbox.channel);
-cleanup_channels:
-	while (i--)
-		tegra_bpmp_channel_cleanup(&bpmp->channels[i]);
+cleanup_threaded_channels:
+	for (i = 0; i < bpmp->threaded.count; i++) {
+		if (bpmp->threaded_channels[i].bpmp)
+			tegra_bpmp_channel_cleanup(&bpmp->threaded_channels[i]);
+	}
+
+	tegra_bpmp_channel_cleanup(bpmp->rx_channel);
+cleanup_tx_channel:
+	tegra_bpmp_channel_cleanup(bpmp->tx_channel);
 free_rx:
 	gen_pool_free(bpmp->rx.pool, (unsigned long)bpmp->rx.virt, 4096);
 free_tx:
@@ -840,21 +844,36 @@ free_tx:
 	return err;
 }
 
+static int __maybe_unused tegra_bpmp_resume(struct device *dev)
+{
+	struct tegra_bpmp *bpmp = dev_get_drvdata(dev);
+	unsigned int i;
+
+	/* reset message channels */
+	tegra_bpmp_channel_reset(bpmp->tx_channel);
+	tegra_bpmp_channel_reset(bpmp->rx_channel);
+
+	for (i = 0; i < bpmp->threaded.count; i++)
+		tegra_bpmp_channel_reset(&bpmp->threaded_channels[i]);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(tegra_bpmp_pm_ops, NULL, tegra_bpmp_resume);
+
 static const struct tegra_bpmp_soc tegra186_soc = {
 	.channels = {
 		.cpu_tx = {
-			.offset = 0,
-			.count = 6,
+			.offset = 3,
 			.timeout = 60 * USEC_PER_SEC,
 		},
 		.thread = {
-			.offset = 6,
-			.count = 7,
+			.offset = 0,
+			.count = 3,
 			.timeout = 600 * USEC_PER_SEC,
 		},
 		.cpu_rx = {
 			.offset = 13,
-			.count = 1,
 			.timeout = 0,
 		},
 	},
@@ -870,6 +889,7 @@ static struct platform_driver tegra_bpmp_driver = {
 	.driver = {
 		.name = "tegra-bpmp",
 		.of_match_table = tegra_bpmp_match,
+		.pm = &tegra_bpmp_pm_ops,
 	},
 	.probe = tegra_bpmp_probe,
 };

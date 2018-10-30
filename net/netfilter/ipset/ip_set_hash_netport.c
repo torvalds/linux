@@ -161,7 +161,7 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netport4_elem e = { .cidr = HOST_MASK - 1 };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
-	u32 port, port_to, p = 0, ip = 0, ip_to = 0, last;
+	u32 port, port_to, p = 0, ip = 0, ip_to = 0;
 	bool with_ports = false;
 	u8 cidr;
 	int ret;
@@ -239,25 +239,26 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 		ip_set_mask_from_to(ip, ip_to, e.cidr + 1);
 	}
 
-	if (retried)
+	if (retried) {
 		ip = ntohl(h->next.ip);
-	while (!after(ip, ip_to)) {
+		p = ntohs(h->next.port);
+	} else {
+		p = port;
+	}
+	do {
 		e.ip = htonl(ip);
-		last = ip_set_range_to_cidr(ip, ip_to, &cidr);
+		ip = ip_set_range_to_cidr(ip, ip_to, &cidr);
 		e.cidr = cidr - 1;
-		p = retried && ip == ntohl(h->next.ip) ? ntohs(h->next.port)
-						       : port;
 		for (; p <= port_to; p++) {
 			e.port = htons(p);
 			ret = adtfn(set, &e, &ext, &ext, flags);
-
 			if (ret && !ip_set_eexist(ret, flags))
 				return ret;
 
 			ret = 0;
 		}
-		ip = last + 1;
-	}
+		p = port;
+	} while (ip++ < ip_to);
 	return ret;
 }
 

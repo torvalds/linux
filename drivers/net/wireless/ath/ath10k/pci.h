@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -85,48 +85,6 @@ struct pcie_state {
 
 /* PCIE_CONFIG_FLAG definitions */
 #define PCIE_CONFIG_FLAG_ENABLE_L1  0x0000001
-
-/* Host software's Copy Engine configuration. */
-#define CE_ATTR_FLAGS 0
-
-/*
- * Configuration information for a Copy Engine pipe.
- * Passed from Host to Target during startup (one per CE).
- *
- * NOTE: Structure is shared between Host software and Target firmware!
- */
-struct ce_pipe_config {
-	__le32 pipenum;
-	__le32 pipedir;
-	__le32 nentries;
-	__le32 nbytes_max;
-	__le32 flags;
-	__le32 reserved;
-};
-
-/*
- * Directions for interconnect pipe configuration.
- * These definitions may be used during configuration and are shared
- * between Host and Target.
- *
- * Pipe Directions are relative to the Host, so PIPEDIR_IN means
- * "coming IN over air through Target to Host" as with a WiFi Rx operation.
- * Conversely, PIPEDIR_OUT means "going OUT from Host through Target over air"
- * as with a WiFi Tx operation. This is somewhat awkward for the "middle-man"
- * Target since things that are "PIPEDIR_OUT" are coming IN to the Target
- * over the interconnect.
- */
-#define PIPEDIR_NONE    0
-#define PIPEDIR_IN      1  /* Target-->Host, WiFi Rx direction */
-#define PIPEDIR_OUT     2  /* Host->Target, WiFi Tx direction */
-#define PIPEDIR_INOUT   3  /* bidirectional */
-
-/* Establish a mapping between a service/direction and a pipe. */
-struct service_to_pipe {
-	__le32 service_id;
-	__le32 pipedir;
-	__le32 pipenum;
-};
 
 /* Per-pipe state. */
 struct ath10k_pci_pipe {
@@ -249,7 +207,8 @@ static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 #define CDC_WAR_DATA_CE     4
 
 /* Wait up to this many Ms for a Diagnostic Access CE operation to complete */
-#define DIAG_ACCESS_CE_TIMEOUT_MS 10
+#define DIAG_ACCESS_CE_TIMEOUT_US 10000 /* 10 ms */
+#define DIAG_ACCESS_CE_WAIT_US	50
 
 void ath10k_pci_write32(struct ath10k *ar, u32 offset, u32 value);
 void ath10k_pci_soc_write32(struct ath10k *ar, u32 addr, u32 val);
@@ -278,7 +237,7 @@ void ath10k_pci_hif_power_down(struct ath10k *ar);
 int ath10k_pci_alloc_pipes(struct ath10k *ar);
 void ath10k_pci_free_pipes(struct ath10k *ar);
 void ath10k_pci_free_pipes(struct ath10k *ar);
-void ath10k_pci_rx_replenish_retry(unsigned long ptr);
+void ath10k_pci_rx_replenish_retry(struct timer_list *t);
 void ath10k_pci_ce_deinit(struct ath10k *ar);
 void ath10k_pci_init_napi(struct ath10k *ar);
 int ath10k_pci_init_pipes(struct ath10k *ar);

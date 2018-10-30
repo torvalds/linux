@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "gf100.h"
+#include "gk104.h"
 #include "ctxgf100.h"
 
 #include <subdev/timer.h>
@@ -142,6 +143,7 @@ gk110_gr_pack_mmio[] = {
 	{ gf119_gr_init_gpm_0 },
 	{ gk110_gr_init_gpc_unk_1 },
 	{ gf100_gr_init_gcc_0 },
+	{ gk104_gr_init_gpc_unk_2 },
 	{ gk104_gr_init_tpccs_0 },
 	{ gk110_gr_init_tex_0 },
 	{ gk104_gr_init_pe_0 },
@@ -153,6 +155,159 @@ gk110_gr_pack_mmio[] = {
 	{ gf117_gr_init_cbm_0 },
 	{ gk104_gr_init_be_0 },
 	{ gf100_gr_init_fe_1 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_blcg_init_sked_0[] = {
+	{ 0x407000, 1, 0x00004041 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_blcg_init_gpc_gcc_0[] = {
+	{ 0x419020, 1, 0x00000042 },
+	{ 0x419038, 1, 0x00000042 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_blcg_init_gpc_l1c_0[] = {
+	{ 0x419cd4, 2, 0x00004042 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_blcg_init_gpc_mp_0[] = {
+	{ 0x419fd0, 1, 0x00004043 },
+	{ 0x419fd8, 1, 0x00004049 },
+	{ 0x419fe0, 2, 0x00004042 },
+	{ 0x419ff0, 1, 0x00000046 },
+	{ 0x419ff8, 1, 0x00004042 },
+	{ 0x419f90, 1, 0x00004042 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_main_0[] = {
+	{ 0x4041f4, 1, 0x00000000 },
+	{ 0x409894, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_unk_0[] = {
+	{ 0x406004, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_sked_0[] = {
+	{ 0x407004, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_ctxctl_0[] = {
+	{ 0x41a894, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_unk_0[] = {
+	{ 0x418504, 1, 0x00000000 },
+	{ 0x41860c, 1, 0x00000000 },
+	{ 0x41868c, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_esetup_0[] = {
+	{ 0x41882c, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_zcull_0[] = {
+	{ 0x418974, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_l1c_0[] = {
+	{ 0x419cd8, 2, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_unk_1[] = {
+	{ 0x419c74, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_mp_0[] = {
+	{ 0x419fd4, 1, 0x00004a4a },
+	{ 0x419fdc, 1, 0x00000014 },
+	{ 0x419fe4, 1, 0x00000000 },
+	{ 0x419ff4, 1, 0x00001724 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_gpc_ppc_0[] = {
+	{ 0x41be2c, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_init
+gk110_clkgate_slcg_init_pcounter_0[] = {
+	{ 0x1be018, 1, 0x000001ff },
+	{ 0x1bc018, 1, 0x000001ff },
+	{ 0x1b8018, 1, 0x000001ff },
+	{ 0x1b4124, 1, 0x00000000 },
+	{}
+};
+
+static const struct nvkm_therm_clkgate_pack
+gk110_clkgate_pack[] = {
+	{ gk104_clkgate_blcg_init_main_0 },
+	{ gk104_clkgate_blcg_init_rstr2d_0 },
+	{ gk104_clkgate_blcg_init_unk_0 },
+	{ gk104_clkgate_blcg_init_gcc_0 },
+	{ gk110_clkgate_blcg_init_sked_0 },
+	{ gk104_clkgate_blcg_init_unk_1 },
+	{ gk104_clkgate_blcg_init_gpc_ctxctl_0 },
+	{ gk104_clkgate_blcg_init_gpc_unk_0 },
+	{ gk104_clkgate_blcg_init_gpc_esetup_0 },
+	{ gk104_clkgate_blcg_init_gpc_tpbus_0 },
+	{ gk104_clkgate_blcg_init_gpc_zcull_0 },
+	{ gk104_clkgate_blcg_init_gpc_tpconf_0 },
+	{ gk104_clkgate_blcg_init_gpc_unk_1 },
+	{ gk110_clkgate_blcg_init_gpc_gcc_0 },
+	{ gk104_clkgate_blcg_init_gpc_ffb_0 },
+	{ gk104_clkgate_blcg_init_gpc_tex_0 },
+	{ gk104_clkgate_blcg_init_gpc_poly_0 },
+	{ gk110_clkgate_blcg_init_gpc_l1c_0 },
+	{ gk104_clkgate_blcg_init_gpc_unk_2 },
+	{ gk110_clkgate_blcg_init_gpc_mp_0 },
+	{ gk104_clkgate_blcg_init_gpc_ppc_0 },
+	{ gk104_clkgate_blcg_init_rop_zrop_0 },
+	{ gk104_clkgate_blcg_init_rop_0 },
+	{ gk104_clkgate_blcg_init_rop_crop_0 },
+	{ gk104_clkgate_blcg_init_pxbar_0 },
+	{ gk110_clkgate_slcg_init_main_0 },
+	{ gk110_clkgate_slcg_init_unk_0 },
+	{ gk110_clkgate_slcg_init_sked_0 },
+	{ gk110_clkgate_slcg_init_gpc_ctxctl_0 },
+	{ gk110_clkgate_slcg_init_gpc_unk_0 },
+	{ gk110_clkgate_slcg_init_gpc_esetup_0 },
+	{ gk110_clkgate_slcg_init_gpc_zcull_0 },
+	{ gk110_clkgate_slcg_init_gpc_l1c_0 },
+	{ gk110_clkgate_slcg_init_gpc_unk_1 },
+	{ gk110_clkgate_slcg_init_gpc_mp_0 },
+	{ gk110_clkgate_slcg_init_gpc_ppc_0 },
+	{ gk110_clkgate_slcg_init_pcounter_0 },
 	{}
 };
 
@@ -180,17 +335,47 @@ gk110_gr_gpccs_ucode = {
 	.data.size = sizeof(gk110_grgpc_data),
 };
 
+void
+gk110_gr_init_419eb4(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	nvkm_mask(device, 0x419eb4, 0x00001000, 0x00001000);
+	nvkm_mask(device, 0x419eb4, 0x00002000, 0x00002000);
+	nvkm_mask(device, 0x419eb4, 0x00004000, 0x00004000);
+	nvkm_mask(device, 0x419eb4, 0x00008000, 0x00008000);
+	nvkm_mask(device, 0x419eb4, 0x00001000, 0x00000000);
+	nvkm_mask(device, 0x419eb4, 0x00002000, 0x00000000);
+	nvkm_mask(device, 0x419eb4, 0x00004000, 0x00000000);
+	nvkm_mask(device, 0x419eb4, 0x00008000, 0x00000000);
+}
+
 static const struct gf100_gr_func
 gk110_gr = {
-	.init = gk104_gr_init,
+	.oneinit_tiles = gf100_gr_oneinit_tiles,
+	.oneinit_sm_id = gf100_gr_oneinit_sm_id,
+	.init = gf100_gr_init,
+	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
+	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,
+	.init_zcull = gf117_gr_init_zcull,
+	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
+	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
+	.init_sked_hww_esr = gk104_gr_init_sked_hww_esr,
+	.init_419cc0 = gf100_gr_init_419cc0,
+	.init_419eb4 = gk110_gr_init_419eb4,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
+	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
+	.init_shader_exceptions = gf100_gr_init_shader_exceptions,
+	.init_400054 = gf100_gr_init_400054,
+	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gk110_gr_pack_mmio,
 	.fecs.ucode = &gk110_gr_fecs_ucode,
 	.gpccs.ucode = &gk110_gr_gpccs_ucode,
 	.rops = gf100_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gk110_grctx,
+	.clkgate_pack = gk110_clkgate_pack,
+	.zbc = &gf100_gr_zbc,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },

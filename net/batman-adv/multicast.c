@@ -1,4 +1,5 @@
-/* Copyright (C) 2014-2017  B.A.T.M.A.N. contributors:
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (C) 2014-2018  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  *
@@ -24,7 +25,7 @@
 #include <linux/byteorder/generic.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
-#include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/icmpv6.h>
 #include <linux/if_bridge.h>
 #include <linux/if_ether.h>
@@ -39,6 +40,7 @@
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
+#include <linux/netlink.h>
 #include <linux/printk.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
@@ -51,21 +53,27 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <net/addrconf.h>
+#include <net/genetlink.h>
 #include <net/if_inet6.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/netlink.h>
+#include <net/sock.h>
+#include <uapi/linux/batadv_packet.h>
+#include <uapi/linux/batman_adv.h>
 
 #include "hard-interface.h"
 #include "hash.h"
 #include "log.h"
-#include "packet.h"
+#include "netlink.h"
+#include "soft-interface.h"
 #include "translation-table.h"
 #include "tvlv.h"
 
 static void batadv_mcast_mla_update(struct work_struct *work);
 
 /**
- * batadv_mcast_start_timer - schedule the multicast periodic worker
+ * batadv_mcast_start_timer() - schedule the multicast periodic worker
  * @bat_priv: the bat priv with all the soft interface information
  */
 static void batadv_mcast_start_timer(struct batadv_priv *bat_priv)
@@ -75,7 +83,7 @@ static void batadv_mcast_start_timer(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_mcast_get_bridge - get the bridge on top of the softif if it exists
+ * batadv_mcast_get_bridge() - get the bridge on top of the softif if it exists
  * @soft_iface: netdev struct of the mesh interface
  *
  * If the given soft interface has a bridge on top then the refcount
@@ -101,7 +109,36 @@ static struct net_device *batadv_mcast_get_bridge(struct net_device *soft_iface)
 }
 
 /**
- * batadv_mcast_mla_softif_get - get softif multicast listeners
+ * batadv_mcast_addr_is_ipv4() - check if multicast MAC is IPv4
+ * @addr: the MAC address to check
+ *
+ * Return: True, if MAC address is one reserved for IPv4 multicast, false
+ * otherwise.
+ */
+static bool batadv_mcast_addr_is_ipv4(const u8 *addr)
+{
+	static const u8 prefix[] = {0x01, 0x00, 0x5E};
+
+	return memcmp(prefix, addr, sizeof(prefix)) == 0;
+}
+
+/**
+ * batadv_mcast_addr_is_ipv6() - check if multicast MAC is IPv6
+ * @addr: the MAC address to check
+ *
+ * Return: True, if MAC address is one reserved for IPv6 multicast, false
+ * otherwise.
+ */
+static bool batadv_mcast_addr_is_ipv6(const u8 *addr)
+{
+	static const u8 prefix[] = {0x33, 0x33};
+
+	return memcmp(prefix, addr, sizeof(prefix)) == 0;
+}
+
+/**
+ * batadv_mcast_mla_softif_get() - get softif multicast listeners
+ * @bat_priv: the bat priv with all the soft interface information
  * @dev: the device to collect multicast addresses from
  * @mcast_list: a list to put found addresses into
  *
@@ -118,9 +155,12 @@ static struct net_device *batadv_mcast_get_bridge(struct net_device *soft_iface)
  * Return: -ENOMEM on memory allocation error or the number of
  * items added to the mcast_list otherwise.
  */
-static int batadv_mcast_mla_softif_get(struct net_device *dev,
+static int batadv_mcast_mla_softif_get(struct batadv_priv *bat_priv,
+				       struct net_device *dev,
 				       struct hlist_head *mcast_list)
 {
+	bool all_ipv4 = bat_priv->mcast.flags & BATADV_MCAST_WANT_ALL_IPV4;
+	bool all_ipv6 = bat_priv->mcast.flags & BATADV_MCAST_WANT_ALL_IPV6;
 	struct net_device *bridge = batadv_mcast_get_bridge(dev);
 	struct netdev_hw_addr *mc_list_entry;
 	struct batadv_hw_addr *new;
@@ -128,6 +168,12 @@ static int batadv_mcast_mla_softif_get(struct net_device *dev,
 
 	netif_addr_lock_bh(bridge ? bridge : dev);
 	netdev_for_each_mc_addr(mc_list_entry, bridge ? bridge : dev) {
+		if (all_ipv4 && batadv_mcast_addr_is_ipv4(mc_list_entry->addr))
+			continue;
+
+		if (all_ipv6 && batadv_mcast_addr_is_ipv6(mc_list_entry->addr))
+			continue;
+
 		new = kmalloc(sizeof(*new), GFP_ATOMIC);
 		if (!new) {
 			ret = -ENOMEM;
@@ -147,7 +193,7 @@ static int batadv_mcast_mla_softif_get(struct net_device *dev,
 }
 
 /**
- * batadv_mcast_mla_is_duplicate - check whether an address is in a list
+ * batadv_mcast_mla_is_duplicate() - check whether an address is in a list
  * @mcast_addr: the multicast address to check
  * @mcast_list: the list with multicast addresses to search in
  *
@@ -167,7 +213,7 @@ static bool batadv_mcast_mla_is_duplicate(u8 *mcast_addr,
 }
 
 /**
- * batadv_mcast_mla_br_addr_cpy - copy a bridge multicast address
+ * batadv_mcast_mla_br_addr_cpy() - copy a bridge multicast address
  * @dst: destination to write to - a multicast MAC address
  * @src: source to read from - a multicast IP address
  *
@@ -191,7 +237,8 @@ static void batadv_mcast_mla_br_addr_cpy(char *dst, const struct br_ip *src)
 }
 
 /**
- * batadv_mcast_mla_bridge_get - get bridged-in multicast listeners
+ * batadv_mcast_mla_bridge_get() - get bridged-in multicast listeners
+ * @bat_priv: the bat priv with all the soft interface information
  * @dev: a bridge slave whose bridge to collect multicast addresses from
  * @mcast_list: a list to put found addresses into
  *
@@ -203,10 +250,13 @@ static void batadv_mcast_mla_br_addr_cpy(char *dst, const struct br_ip *src)
  * Return: -ENOMEM on memory allocation error or the number of
  * items added to the mcast_list otherwise.
  */
-static int batadv_mcast_mla_bridge_get(struct net_device *dev,
+static int batadv_mcast_mla_bridge_get(struct batadv_priv *bat_priv,
+				       struct net_device *dev,
 				       struct hlist_head *mcast_list)
 {
 	struct list_head bridge_mcast_list = LIST_HEAD_INIT(bridge_mcast_list);
+	bool all_ipv4 = bat_priv->mcast.flags & BATADV_MCAST_WANT_ALL_IPV4;
+	bool all_ipv6 = bat_priv->mcast.flags & BATADV_MCAST_WANT_ALL_IPV6;
 	struct br_ip_list *br_ip_entry, *tmp;
 	struct batadv_hw_addr *new;
 	u8 mcast_addr[ETH_ALEN];
@@ -220,6 +270,12 @@ static int batadv_mcast_mla_bridge_get(struct net_device *dev,
 		goto out;
 
 	list_for_each_entry(br_ip_entry, &bridge_mcast_list, list) {
+		if (all_ipv4 && br_ip_entry->addr.proto == htons(ETH_P_IP))
+			continue;
+
+		if (all_ipv6 && br_ip_entry->addr.proto == htons(ETH_P_IPV6))
+			continue;
+
 		batadv_mcast_mla_br_addr_cpy(mcast_addr, &br_ip_entry->addr);
 		if (batadv_mcast_mla_is_duplicate(mcast_addr, mcast_list))
 			continue;
@@ -244,7 +300,7 @@ out:
 }
 
 /**
- * batadv_mcast_mla_list_free - free a list of multicast addresses
+ * batadv_mcast_mla_list_free() - free a list of multicast addresses
  * @mcast_list: the list to free
  *
  * Removes and frees all items in the given mcast_list.
@@ -261,7 +317,7 @@ static void batadv_mcast_mla_list_free(struct hlist_head *mcast_list)
 }
 
 /**
- * batadv_mcast_mla_tt_retract - clean up multicast listener announcements
+ * batadv_mcast_mla_tt_retract() - clean up multicast listener announcements
  * @bat_priv: the bat priv with all the soft interface information
  * @mcast_list: a list of addresses which should _not_ be removed
  *
@@ -297,7 +353,7 @@ static void batadv_mcast_mla_tt_retract(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_mla_tt_add - add multicast listener announcements
+ * batadv_mcast_mla_tt_add() - add multicast listener announcements
  * @bat_priv: the bat priv with all the soft interface information
  * @mcast_list: a list of addresses which are going to get added
  *
@@ -333,7 +389,7 @@ static void batadv_mcast_mla_tt_add(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_has_bridge - check whether the soft-iface is bridged
+ * batadv_mcast_has_bridge() - check whether the soft-iface is bridged
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Checks whether there is a bridge on top of our soft interface.
@@ -354,7 +410,8 @@ static bool batadv_mcast_has_bridge(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_mcast_querier_log - debug output regarding the querier status on link
+ * batadv_mcast_querier_log() - debug output regarding the querier status on
+ *  link
  * @bat_priv: the bat priv with all the soft interface information
  * @str_proto: a string for the querier protocol (e.g. "IGMP" or "MLD")
  * @old_state: the previous querier state on our link
@@ -405,7 +462,8 @@ batadv_mcast_querier_log(struct batadv_priv *bat_priv, char *str_proto,
 }
 
 /**
- * batadv_mcast_bridge_log - debug output for topology changes in bridged setups
+ * batadv_mcast_bridge_log() - debug output for topology changes in bridged
+ *  setups
  * @bat_priv: the bat priv with all the soft interface information
  * @bridged: a flag about whether the soft interface is currently bridged or not
  * @querier_ipv4: (maybe) new status of a potential, selected IGMP querier
@@ -444,7 +502,7 @@ batadv_mcast_bridge_log(struct batadv_priv *bat_priv, bool bridged,
 }
 
 /**
- * batadv_mcast_flags_logs - output debug information about mcast flag changes
+ * batadv_mcast_flags_logs() - output debug information about mcast flag changes
  * @bat_priv: the bat priv with all the soft interface information
  * @flags: flags indicating the new multicast state
  *
@@ -470,7 +528,7 @@ static void batadv_mcast_flags_log(struct batadv_priv *bat_priv, u8 flags)
 }
 
 /**
- * batadv_mcast_mla_tvlv_update - update multicast tvlv
+ * batadv_mcast_mla_tvlv_update() - update multicast tvlv
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Updates the own multicast tvlv with our current multicast related settings,
@@ -540,12 +598,12 @@ update:
 		bat_priv->mcast.enabled = true;
 	}
 
-	return !(mcast_data.flags &
-		 (BATADV_MCAST_WANT_ALL_IPV4 | BATADV_MCAST_WANT_ALL_IPV6));
+	return !(mcast_data.flags & BATADV_MCAST_WANT_ALL_IPV4 &&
+		 mcast_data.flags & BATADV_MCAST_WANT_ALL_IPV6);
 }
 
 /**
- * __batadv_mcast_mla_update - update the own MLAs
+ * __batadv_mcast_mla_update() - update the own MLAs
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Updates the own multicast listener announcements in the translation
@@ -565,11 +623,11 @@ static void __batadv_mcast_mla_update(struct batadv_priv *bat_priv)
 	if (!batadv_mcast_mla_tvlv_update(bat_priv))
 		goto update;
 
-	ret = batadv_mcast_mla_softif_get(soft_iface, &mcast_list);
+	ret = batadv_mcast_mla_softif_get(bat_priv, soft_iface, &mcast_list);
 	if (ret < 0)
 		goto out;
 
-	ret = batadv_mcast_mla_bridge_get(soft_iface, &mcast_list);
+	ret = batadv_mcast_mla_bridge_get(bat_priv, soft_iface, &mcast_list);
 	if (ret < 0)
 		goto out;
 
@@ -582,7 +640,7 @@ out:
 }
 
 /**
- * batadv_mcast_mla_update - update the own MLAs
+ * batadv_mcast_mla_update() - update the own MLAs
  * @work: kernel work struct
  *
  * Updates the own multicast listener announcements in the translation
@@ -605,7 +663,7 @@ static void batadv_mcast_mla_update(struct work_struct *work)
 }
 
 /**
- * batadv_mcast_is_report_ipv4 - check for IGMP reports
+ * batadv_mcast_is_report_ipv4() - check for IGMP reports
  * @skb: the ethernet frame destined for the mesh
  *
  * This call might reallocate skb data.
@@ -630,7 +688,8 @@ static bool batadv_mcast_is_report_ipv4(struct sk_buff *skb)
 }
 
 /**
- * batadv_mcast_forw_mode_check_ipv4 - check for optimized forwarding potential
+ * batadv_mcast_forw_mode_check_ipv4() - check for optimized forwarding
+ *  potential
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the IPv4 packet to check
  * @is_unsnoopable: stores whether the destination is snoopable
@@ -671,7 +730,7 @@ static int batadv_mcast_forw_mode_check_ipv4(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_is_report_ipv6 - check for MLD reports
+ * batadv_mcast_is_report_ipv6() - check for MLD reports
  * @skb: the ethernet frame destined for the mesh
  *
  * This call might reallocate skb data.
@@ -695,7 +754,8 @@ static bool batadv_mcast_is_report_ipv6(struct sk_buff *skb)
 }
 
 /**
- * batadv_mcast_forw_mode_check_ipv6 - check for optimized forwarding potential
+ * batadv_mcast_forw_mode_check_ipv6() - check for optimized forwarding
+ *  potential
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the IPv6 packet to check
  * @is_unsnoopable: stores whether the destination is snoopable
@@ -736,7 +796,7 @@ static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_forw_mode_check - check for optimized forwarding potential
+ * batadv_mcast_forw_mode_check() - check for optimized forwarding potential
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the multicast frame to check
  * @is_unsnoopable: stores whether the destination is snoopable
@@ -755,9 +815,6 @@ static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 	if (!atomic_read(&bat_priv->multicast_mode))
 		return -EINVAL;
 
-	if (atomic_read(&bat_priv->mcast.num_disabled))
-		return -EINVAL;
-
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_IP:
 		return batadv_mcast_forw_mode_check_ipv4(bat_priv, skb,
@@ -774,7 +831,7 @@ static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_forw_want_all_ip_count - count nodes with unspecific mcast
+ * batadv_mcast_forw_want_all_ip_count() - count nodes with unspecific mcast
  *  interest
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: ethernet header of a packet
@@ -798,7 +855,7 @@ static int batadv_mcast_forw_want_all_ip_count(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_forw_tt_node_get - get a multicast tt node
+ * batadv_mcast_forw_tt_node_get() - get a multicast tt node
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: the ether header containing the multicast destination
  *
@@ -809,12 +866,12 @@ static struct batadv_orig_node *
 batadv_mcast_forw_tt_node_get(struct batadv_priv *bat_priv,
 			      struct ethhdr *ethhdr)
 {
-	return batadv_transtable_search(bat_priv, ethhdr->h_source,
-					ethhdr->h_dest, BATADV_NO_FLAGS);
+	return batadv_transtable_search(bat_priv, NULL, ethhdr->h_dest,
+					BATADV_NO_FLAGS);
 }
 
 /**
- * batadv_mcast_forw_ipv4_node_get - get a node with an ipv4 flag
+ * batadv_mcast_forw_ipv4_node_get() - get a node with an ipv4 flag
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_IPV4 flag set and
@@ -841,7 +898,7 @@ batadv_mcast_forw_ipv4_node_get(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_mcast_forw_ipv6_node_get - get a node with an ipv6 flag
+ * batadv_mcast_forw_ipv6_node_get() - get a node with an ipv6 flag
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_IPV6 flag set
@@ -868,7 +925,7 @@ batadv_mcast_forw_ipv6_node_get(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_mcast_forw_ip_node_get - get a node with an ipv4/ipv6 flag
+ * batadv_mcast_forw_ip_node_get() - get a node with an ipv4/ipv6 flag
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: an ethernet header to determine the protocol family from
  *
@@ -892,7 +949,7 @@ batadv_mcast_forw_ip_node_get(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_forw_unsnoop_node_get - get a node with an unsnoopable flag
+ * batadv_mcast_forw_unsnoop_node_get() - get a node with an unsnoopable flag
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_UNSNOOPABLES flag
@@ -919,7 +976,7 @@ batadv_mcast_forw_unsnoop_node_get(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_mcast_forw_mode - check on how to forward a multicast packet
+ * batadv_mcast_forw_mode() - check on how to forward a multicast packet
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: The multicast packet to check
  * @orig: an originator to be set to forward the skb to
@@ -973,7 +1030,7 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 }
 
 /**
- * batadv_mcast_want_unsnoop_update - update unsnoop counter and list
+ * batadv_mcast_want_unsnoop_update() - update unsnoop counter and list
  * @bat_priv: the bat priv with all the soft interface information
  * @orig: the orig_node which multicast state might have changed of
  * @mcast_flags: flags indicating the new multicast state
@@ -1018,7 +1075,7 @@ static void batadv_mcast_want_unsnoop_update(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_want_ipv4_update - update want-all-ipv4 counter and list
+ * batadv_mcast_want_ipv4_update() - update want-all-ipv4 counter and list
  * @bat_priv: the bat priv with all the soft interface information
  * @orig: the orig_node which multicast state might have changed of
  * @mcast_flags: flags indicating the new multicast state
@@ -1063,7 +1120,7 @@ static void batadv_mcast_want_ipv4_update(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_want_ipv6_update - update want-all-ipv6 counter and list
+ * batadv_mcast_want_ipv6_update() - update want-all-ipv6 counter and list
  * @bat_priv: the bat priv with all the soft interface information
  * @orig: the orig_node which multicast state might have changed of
  * @mcast_flags: flags indicating the new multicast state
@@ -1108,7 +1165,7 @@ static void batadv_mcast_want_ipv6_update(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_tvlv_ogm_handler - process incoming multicast tvlv container
+ * batadv_mcast_tvlv_ogm_handler() - process incoming multicast tvlv container
  * @bat_priv: the bat priv with all the soft interface information
  * @orig: the orig_node of the ogm
  * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
@@ -1123,33 +1180,23 @@ static void batadv_mcast_tvlv_ogm_handler(struct batadv_priv *bat_priv,
 {
 	bool orig_mcast_enabled = !(flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
 	u8 mcast_flags = BATADV_NO_FLAGS;
-	bool orig_initialized;
 
 	if (orig_mcast_enabled && tvlv_value &&
-	    (tvlv_value_len >= sizeof(mcast_flags)))
+	    tvlv_value_len >= sizeof(mcast_flags))
 		mcast_flags = *(u8 *)tvlv_value;
 
-	spin_lock_bh(&orig->mcast_handler_lock);
-	orig_initialized = test_bit(BATADV_ORIG_CAPA_HAS_MCAST,
-				    &orig->capa_initialized);
+	if (!orig_mcast_enabled) {
+		mcast_flags |= BATADV_MCAST_WANT_ALL_IPV4;
+		mcast_flags |= BATADV_MCAST_WANT_ALL_IPV6;
+	}
 
-	/* If mcast support is turned on decrease the disabled mcast node
-	 * counter only if we had increased it for this node before. If this
-	 * is a completely new orig_node no need to decrease the counter.
-	 */
+	spin_lock_bh(&orig->mcast_handler_lock);
+
 	if (orig_mcast_enabled &&
 	    !test_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities)) {
-		if (orig_initialized)
-			atomic_dec(&bat_priv->mcast.num_disabled);
 		set_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities);
-	/* If mcast support is being switched off or if this is an initial
-	 * OGM without mcast support then increase the disabled mcast
-	 * node counter.
-	 */
 	} else if (!orig_mcast_enabled &&
-		   (test_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities) ||
-		    !orig_initialized)) {
-		atomic_inc(&bat_priv->mcast.num_disabled);
+		   test_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities)) {
 		clear_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities);
 	}
 
@@ -1164,7 +1211,7 @@ static void batadv_mcast_tvlv_ogm_handler(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_init - initialize the multicast optimizations structures
+ * batadv_mcast_init() - initialize the multicast optimizations structures
  * @bat_priv: the bat priv with all the soft interface information
  */
 void batadv_mcast_init(struct batadv_priv *bat_priv)
@@ -1179,7 +1226,7 @@ void batadv_mcast_init(struct batadv_priv *bat_priv)
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
- * batadv_mcast_flags_print_header - print own mcast flags to debugfs table
+ * batadv_mcast_flags_print_header() - print own mcast flags to debugfs table
  * @bat_priv: the bat priv with all the soft interface information
  * @seq: debugfs table seq_file struct
  *
@@ -1220,7 +1267,7 @@ static void batadv_mcast_flags_print_header(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_flags_seq_print_text - print the mcast flags of other nodes
+ * batadv_mcast_flags_seq_print_text() - print the mcast flags of other nodes
  * @seq: seq file to print on
  * @offset: not used
  *
@@ -1281,7 +1328,237 @@ int batadv_mcast_flags_seq_print_text(struct seq_file *seq, void *offset)
 #endif
 
 /**
- * batadv_mcast_free - free the multicast optimizations structures
+ * batadv_mcast_mesh_info_put() - put multicast info into a netlink message
+ * @msg: buffer for the message
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: 0 or error code.
+ */
+int batadv_mcast_mesh_info_put(struct sk_buff *msg,
+			       struct batadv_priv *bat_priv)
+{
+	u32 flags = bat_priv->mcast.flags;
+	u32 flags_priv = BATADV_NO_FLAGS;
+
+	if (bat_priv->mcast.bridged) {
+		flags_priv |= BATADV_MCAST_FLAGS_BRIDGED;
+
+		if (bat_priv->mcast.querier_ipv4.exists)
+			flags_priv |= BATADV_MCAST_FLAGS_QUERIER_IPV4_EXISTS;
+		if (bat_priv->mcast.querier_ipv6.exists)
+			flags_priv |= BATADV_MCAST_FLAGS_QUERIER_IPV6_EXISTS;
+		if (bat_priv->mcast.querier_ipv4.shadowing)
+			flags_priv |= BATADV_MCAST_FLAGS_QUERIER_IPV4_SHADOWING;
+		if (bat_priv->mcast.querier_ipv6.shadowing)
+			flags_priv |= BATADV_MCAST_FLAGS_QUERIER_IPV6_SHADOWING;
+	}
+
+	if (nla_put_u32(msg, BATADV_ATTR_MCAST_FLAGS, flags) ||
+	    nla_put_u32(msg, BATADV_ATTR_MCAST_FLAGS_PRIV, flags_priv))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+/**
+ * batadv_mcast_flags_dump_entry() - dump one entry of the multicast flags table
+ *  to a netlink socket
+ * @msg: buffer for the message
+ * @portid: netlink port
+ * @seq: Sequence number of netlink message
+ * @orig_node: originator to dump the multicast flags of
+ *
+ * Return: 0 or error code.
+ */
+static int
+batadv_mcast_flags_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
+			      struct batadv_orig_node *orig_node)
+{
+	void *hdr;
+
+	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family,
+			  NLM_F_MULTI, BATADV_CMD_GET_MCAST_FLAGS);
+	if (!hdr)
+		return -ENOBUFS;
+
+	if (nla_put(msg, BATADV_ATTR_ORIG_ADDRESS, ETH_ALEN,
+		    orig_node->orig)) {
+		genlmsg_cancel(msg, hdr);
+		return -EMSGSIZE;
+	}
+
+	if (test_bit(BATADV_ORIG_CAPA_HAS_MCAST,
+		     &orig_node->capabilities)) {
+		if (nla_put_u32(msg, BATADV_ATTR_MCAST_FLAGS,
+				orig_node->mcast_flags)) {
+			genlmsg_cancel(msg, hdr);
+			return -EMSGSIZE;
+		}
+	}
+
+	genlmsg_end(msg, hdr);
+	return 0;
+}
+
+/**
+ * batadv_mcast_flags_dump_bucket() - dump one bucket of the multicast flags
+ *  table to a netlink socket
+ * @msg: buffer for the message
+ * @portid: netlink port
+ * @seq: Sequence number of netlink message
+ * @head: bucket to dump
+ * @idx_skip: How many entries to skip
+ *
+ * Return: 0 or error code.
+ */
+static int
+batadv_mcast_flags_dump_bucket(struct sk_buff *msg, u32 portid, u32 seq,
+			       struct hlist_head *head, long *idx_skip)
+{
+	struct batadv_orig_node *orig_node;
+	long idx = 0;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
+		if (!test_bit(BATADV_ORIG_CAPA_HAS_MCAST,
+			      &orig_node->capa_initialized))
+			continue;
+
+		if (idx < *idx_skip)
+			goto skip;
+
+		if (batadv_mcast_flags_dump_entry(msg, portid, seq,
+						  orig_node)) {
+			rcu_read_unlock();
+			*idx_skip = idx;
+
+			return -EMSGSIZE;
+		}
+
+skip:
+		idx++;
+	}
+	rcu_read_unlock();
+
+	return 0;
+}
+
+/**
+ * __batadv_mcast_flags_dump() - dump multicast flags table to a netlink socket
+ * @msg: buffer for the message
+ * @portid: netlink port
+ * @seq: Sequence number of netlink message
+ * @bat_priv: the bat priv with all the soft interface information
+ * @bucket: current bucket to dump
+ * @idx: index in current bucket to the next entry to dump
+ *
+ * Return: 0 or error code.
+ */
+static int
+__batadv_mcast_flags_dump(struct sk_buff *msg, u32 portid, u32 seq,
+			  struct batadv_priv *bat_priv, long *bucket, long *idx)
+{
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
+	long bucket_tmp = *bucket;
+	struct hlist_head *head;
+	long idx_tmp = *idx;
+
+	while (bucket_tmp < hash->size) {
+		head = &hash->table[bucket_tmp];
+
+		if (batadv_mcast_flags_dump_bucket(msg, portid, seq, head,
+						   &idx_tmp))
+			break;
+
+		bucket_tmp++;
+		idx_tmp = 0;
+	}
+
+	*bucket = bucket_tmp;
+	*idx = idx_tmp;
+
+	return msg->len;
+}
+
+/**
+ * batadv_mcast_netlink_get_primary() - get primary interface from netlink
+ *  callback
+ * @cb: netlink callback structure
+ * @primary_if: the primary interface pointer to return the result in
+ *
+ * Return: 0 or error code.
+ */
+static int
+batadv_mcast_netlink_get_primary(struct netlink_callback *cb,
+				 struct batadv_hard_iface **primary_if)
+{
+	struct batadv_hard_iface *hard_iface = NULL;
+	struct net *net = sock_net(cb->skb->sk);
+	struct net_device *soft_iface;
+	struct batadv_priv *bat_priv;
+	int ifindex;
+	int ret = 0;
+
+	ifindex = batadv_netlink_get_ifindex(cb->nlh, BATADV_ATTR_MESH_IFINDEX);
+	if (!ifindex)
+		return -EINVAL;
+
+	soft_iface = dev_get_by_index(net, ifindex);
+	if (!soft_iface || !batadv_softif_is_valid(soft_iface)) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	bat_priv = netdev_priv(soft_iface);
+
+	hard_iface = batadv_primary_if_get_selected(bat_priv);
+	if (!hard_iface || hard_iface->if_status != BATADV_IF_ACTIVE) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+out:
+	if (soft_iface)
+		dev_put(soft_iface);
+
+	if (!ret && primary_if)
+		*primary_if = hard_iface;
+	else if (hard_iface)
+		batadv_hardif_put(hard_iface);
+
+	return ret;
+}
+
+/**
+ * batadv_mcast_flags_dump() - dump multicast flags table to a netlink socket
+ * @msg: buffer for the message
+ * @cb: callback structure containing arguments
+ *
+ * Return: message length.
+ */
+int batadv_mcast_flags_dump(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	struct batadv_hard_iface *primary_if = NULL;
+	int portid = NETLINK_CB(cb->skb).portid;
+	struct batadv_priv *bat_priv;
+	long *bucket = &cb->args[0];
+	long *idx = &cb->args[1];
+	int ret;
+
+	ret = batadv_mcast_netlink_get_primary(cb, &primary_if);
+	if (ret)
+		return ret;
+
+	bat_priv = netdev_priv(primary_if->soft_iface);
+	ret = __batadv_mcast_flags_dump(msg, portid, cb->nlh->nlmsg_seq,
+					bat_priv, bucket, idx);
+
+	batadv_hardif_put(primary_if);
+	return ret;
+}
+
+/**
+ * batadv_mcast_free() - free the multicast optimizations structures
  * @bat_priv: the bat priv with all the soft interface information
  */
 void batadv_mcast_free(struct batadv_priv *bat_priv)
@@ -1296,7 +1573,7 @@ void batadv_mcast_free(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_mcast_purge_orig - reset originator global mcast state modifications
+ * batadv_mcast_purge_orig() - reset originator global mcast state modifications
  * @orig: the originator which is going to get purged
  */
 void batadv_mcast_purge_orig(struct batadv_orig_node *orig)
@@ -1304,10 +1581,6 @@ void batadv_mcast_purge_orig(struct batadv_orig_node *orig)
 	struct batadv_priv *bat_priv = orig->bat_priv;
 
 	spin_lock_bh(&orig->mcast_handler_lock);
-
-	if (!test_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities) &&
-	    test_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capa_initialized))
-		atomic_dec(&bat_priv->mcast.num_disabled);
 
 	batadv_mcast_want_unsnoop_update(bat_priv, orig, BATADV_NO_FLAGS);
 	batadv_mcast_want_ipv4_update(bat_priv, orig, BATADV_NO_FLAGS);

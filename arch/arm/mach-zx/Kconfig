@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig ARCH_ZX
 	bool "ZTE ZX family"
 	depends on ARCH_MULTI_V7

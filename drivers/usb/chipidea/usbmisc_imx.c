@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2012 Freescale Semiconductor, Inc.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -154,14 +148,21 @@ static int usbmisc_imx25_post(struct imx_usbmisc_data *data)
 	if (data->index > 2)
 		return -EINVAL;
 
-	if (data->evdo) {
-		spin_lock_irqsave(&usbmisc->lock, flags);
-		reg = usbmisc->base + MX25_USB_PHY_CTRL_OFFSET;
-		val = readl(reg);
-		writel(val | MX25_BM_EXTERNAL_VBUS_DIVIDER, reg);
-		spin_unlock_irqrestore(&usbmisc->lock, flags);
-		usleep_range(5000, 10000); /* needed to stabilize voltage */
-	}
+	if (data->index)
+		return 0;
+
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	reg = usbmisc->base + MX25_USB_PHY_CTRL_OFFSET;
+	val = readl(reg);
+
+	if (data->evdo)
+		val |= MX25_BM_EXTERNAL_VBUS_DIVIDER;
+	else
+		val &= ~MX25_BM_EXTERNAL_VBUS_DIVIDER;
+
+	writel(val, reg);
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+	usleep_range(5000, 10000); /* needed to stabilize voltage */
 
 	return 0;
 }
@@ -314,13 +315,12 @@ static int usbmisc_imx6q_set_wakeup
 	val = readl(usbmisc->base + data->index * 4);
 	if (enabled) {
 		val |= wakeup_setting;
-		writel(val, usbmisc->base + data->index * 4);
 	} else {
 		if (val & MX6_BM_WAKEUP_INTR)
 			pr_debug("wakeup int at ci_hdrc.%d\n", data->index);
 		val &= ~wakeup_setting;
-		writel(val, usbmisc->base + data->index * 4);
 	}
+	writel(val, usbmisc->base + data->index * 4);
 	spin_unlock_irqrestore(&usbmisc->lock, flags);
 
 	return ret;
@@ -343,6 +343,8 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 	} else if (data->oc_polarity == 1) {
 		/* High active */
 		reg &= ~(MX6_BM_OVER_CUR_DIS | MX6_BM_OVER_CUR_POLARITY);
+	} else {
+		reg &= ~(MX6_BM_OVER_CUR_DIS);
 	}
 	writel(reg, usbmisc->base + data->index * 4);
 
@@ -633,6 +635,6 @@ static struct platform_driver usbmisc_imx_driver = {
 module_platform_driver(usbmisc_imx_driver);
 
 MODULE_ALIAS("platform:usbmisc-imx");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("driver for imx usb non-core registers");
 MODULE_AUTHOR("Richard Zhao <richard.zhao@freescale.com>");

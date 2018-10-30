@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* ld script for sparc32/sparc64 kernel */
 
 #include <asm-generic/vmlinux.lds.h>
@@ -143,6 +144,11 @@ SECTIONS
 		__pause_3insn_patch = .;
 		*(.pause_3insn_patch)
 		__pause_3insn_patch_end = .;
+	}
+	.sun_m7_1insn_patch : {
+		__sun_m7_1insn_patch = .;
+		*(.sun_m7_1insn_patch)
+		__sun_m7_1insn_patch_end = .;
 	}
 	.sun_m7_2insn_patch : {
 		__sun_m7_2insn_patch = .;

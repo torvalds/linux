@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_M68K_NUBUS_H
 #define _ASM_M68K_NUBUS_H
 
 #include <asm/raw_io.h>
+#include <asm/kmap.h>
 
 #define nubus_readb raw_inb
 #define nubus_readw raw_inw

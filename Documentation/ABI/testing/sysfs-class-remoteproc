@@ -1,6 +1,6 @@
 What:		/sys/class/remoteproc/.../firmware
 Date:		October 2016
-Contact:	Matt Redfearn <matt.redfearn@imgtec.com>
+Contact:	Matt Redfearn <matt.redfearn@mips.com>
 Description:	Remote processor firmware
 
 		Reports the name of the firmware currently loaded to the
@@ -11,7 +11,7 @@ Description:	Remote processor firmware
 
 What:		/sys/class/remoteproc/.../state
 Date:		October 2016
-Contact:	Matt Redfearn <matt.redfearn@imgtec.com>
+Contact:	Matt Redfearn <matt.redfearn@mips.com>
 Description:	Remote processor state
 
 		Reports the state of the remote processor, which will be one of:

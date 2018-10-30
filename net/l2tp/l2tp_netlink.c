@@ -48,8 +48,7 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq,
 /* Accessed under genl lock */
 static const struct l2tp_nl_cmd_ops *l2tp_nl_cmd_ops[__L2TP_PWTYPE_MAX];
 
-static struct l2tp_session *l2tp_nl_session_get(struct genl_info *info,
-						bool do_ref)
+static struct l2tp_session *l2tp_nl_session_get(struct genl_info *info)
 {
 	u32 tunnel_id;
 	u32 session_id;
@@ -60,15 +59,14 @@ static struct l2tp_session *l2tp_nl_session_get(struct genl_info *info,
 
 	if (info->attrs[L2TP_ATTR_IFNAME]) {
 		ifname = nla_data(info->attrs[L2TP_ATTR_IFNAME]);
-		session = l2tp_session_get_by_ifname(net, ifname, do_ref);
+		session = l2tp_session_get_by_ifname(net, ifname);
 	} else if ((info->attrs[L2TP_ATTR_SESSION_ID]) &&
 		   (info->attrs[L2TP_ATTR_CONN_ID])) {
 		tunnel_id = nla_get_u32(info->attrs[L2TP_ATTR_CONN_ID]);
 		session_id = nla_get_u32(info->attrs[L2TP_ATTR_SESSION_ID]);
 		tunnel = l2tp_tunnel_get(net, tunnel_id);
 		if (tunnel) {
-			session = l2tp_session_get(net, tunnel, session_id,
-						   do_ref);
+			session = l2tp_tunnel_get_session(tunnel, session_id);
 			l2tp_tunnel_dec_refcount(tunnel);
 		}
 	}
@@ -238,12 +236,6 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 	if (info->attrs[L2TP_ATTR_DEBUG])
 		cfg.debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);
 
-	tunnel = l2tp_tunnel_find(net, tunnel_id);
-	if (tunnel != NULL) {
-		ret = -EEXIST;
-		goto out;
-	}
-
 	ret = -EINVAL;
 	switch (cfg.encap) {
 	case L2TP_ENCAPTYPE_UDP:
@@ -253,9 +245,19 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 		break;
 	}
 
-	if (ret >= 0)
-		ret = l2tp_tunnel_notify(&l2tp_nl_family, info,
-					 tunnel, L2TP_CMD_TUNNEL_CREATE);
+	if (ret < 0)
+		goto out;
+
+	l2tp_tunnel_inc_refcount(tunnel);
+	ret = l2tp_tunnel_register(tunnel, net, &cfg);
+	if (ret < 0) {
+		kfree(tunnel);
+		goto out;
+	}
+	ret = l2tp_tunnel_notify(&l2tp_nl_family, info, tunnel,
+				 L2TP_CMD_TUNNEL_CREATE);
+	l2tp_tunnel_dec_refcount(tunnel);
+
 out:
 	return ret;
 }
@@ -282,7 +284,7 @@ static int l2tp_nl_cmd_tunnel_delete(struct sk_buff *skb, struct genl_info *info
 	l2tp_tunnel_notify(&l2tp_nl_family, info,
 			   tunnel, L2TP_CMD_TUNNEL_DELETE);
 
-	(void) l2tp_tunnel_delete(tunnel);
+	l2tp_tunnel_delete(tunnel);
 
 	l2tp_tunnel_dec_refcount(tunnel);
 
@@ -406,7 +408,7 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 		if (nla_put_u16(skb, L2TP_ATTR_UDP_SPORT, ntohs(inet->inet_sport)) ||
 		    nla_put_u16(skb, L2TP_ATTR_UDP_DPORT, ntohs(inet->inet_dport)))
 			goto nla_put_failure;
-		/* NOBREAK */
+		/* fall through  */
 	case L2TP_ENCAPTYPE_IP:
 #if IS_ENABLED(CONFIG_IPV6)
 		if (np) {
@@ -485,14 +487,17 @@ static int l2tp_nl_cmd_tunnel_dump(struct sk_buff *skb, struct netlink_callback 
 	struct net *net = sock_net(skb->sk);
 
 	for (;;) {
-		tunnel = l2tp_tunnel_find_nth(net, ti);
+		tunnel = l2tp_tunnel_get_nth(net, ti);
 		if (tunnel == NULL)
 			goto out;
 
 		if (l2tp_nl_tunnel_send(skb, NETLINK_CB(cb->skb).portid,
 					cb->nlh->nlmsg_seq, NLM_F_MULTI,
-					tunnel, L2TP_CMD_TUNNEL_GET) < 0)
+					tunnel, L2TP_CMD_TUNNEL_GET) < 0) {
+			l2tp_tunnel_dec_refcount(tunnel);
 			goto out;
+		}
+		l2tp_tunnel_dec_refcount(tunnel);
 
 		ti++;
 	}
@@ -548,20 +553,23 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 		goto out_tunnel;
 	}
 
+	/* L2TPv2 only accepts PPP pseudo-wires */
+	if (tunnel->version == 2 && cfg.pw_type != L2TP_PWTYPE_PPP) {
+		ret = -EPROTONOSUPPORT;
+		goto out_tunnel;
+	}
+
 	if (tunnel->version > 2) {
-		if (info->attrs[L2TP_ATTR_OFFSET])
-			cfg.offset = nla_get_u16(info->attrs[L2TP_ATTR_OFFSET]);
-
-		if (info->attrs[L2TP_ATTR_DATA_SEQ])
-			cfg.data_seq = nla_get_u8(info->attrs[L2TP_ATTR_DATA_SEQ]);
-
-		cfg.l2specific_type = L2TP_L2SPECTYPE_DEFAULT;
-		if (info->attrs[L2TP_ATTR_L2SPEC_TYPE])
+		if (info->attrs[L2TP_ATTR_L2SPEC_TYPE]) {
 			cfg.l2specific_type = nla_get_u8(info->attrs[L2TP_ATTR_L2SPEC_TYPE]);
-
-		cfg.l2specific_len = 4;
-		if (info->attrs[L2TP_ATTR_L2SPEC_LEN])
-			cfg.l2specific_len = nla_get_u8(info->attrs[L2TP_ATTR_L2SPEC_LEN]);
+			if (cfg.l2specific_type != L2TP_L2SPECTYPE_DEFAULT &&
+			    cfg.l2specific_type != L2TP_L2SPECTYPE_NONE) {
+				ret = -EINVAL;
+				goto out_tunnel;
+			}
+		} else {
+			cfg.l2specific_type = L2TP_L2SPECTYPE_DEFAULT;
+		}
 
 		if (info->attrs[L2TP_ATTR_COOKIE]) {
 			u16 len = nla_len(info->attrs[L2TP_ATTR_COOKIE]);
@@ -583,9 +591,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 		}
 		if (info->attrs[L2TP_ATTR_IFNAME])
 			cfg.ifname = nla_data(info->attrs[L2TP_ATTR_IFNAME]);
-
-		if (info->attrs[L2TP_ATTR_VLAN_ID])
-			cfg.vlan_id = nla_get_u16(info->attrs[L2TP_ATTR_VLAN_ID]);
 	}
 
 	if (info->attrs[L2TP_ATTR_DEBUG])
@@ -603,12 +608,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 	if (info->attrs[L2TP_ATTR_RECV_TIMEOUT])
 		cfg.reorder_timeout = nla_get_msecs(info->attrs[L2TP_ATTR_RECV_TIMEOUT]);
 
-	if (info->attrs[L2TP_ATTR_MTU])
-		cfg.mtu = nla_get_u16(info->attrs[L2TP_ATTR_MTU]);
-
-	if (info->attrs[L2TP_ATTR_MRU])
-		cfg.mru = nla_get_u16(info->attrs[L2TP_ATTR_MRU]);
-
 #ifdef CONFIG_MODULES
 	if (l2tp_nl_cmd_ops[cfg.pw_type] == NULL) {
 		genl_unlock();
@@ -622,34 +621,13 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 		goto out_tunnel;
 	}
 
-	/* Check that pseudowire-specific params are present */
-	switch (cfg.pw_type) {
-	case L2TP_PWTYPE_NONE:
-		break;
-	case L2TP_PWTYPE_ETH_VLAN:
-		if (!info->attrs[L2TP_ATTR_VLAN_ID]) {
-			ret = -EINVAL;
-			goto out_tunnel;
-		}
-		break;
-	case L2TP_PWTYPE_ETH:
-		break;
-	case L2TP_PWTYPE_PPP:
-	case L2TP_PWTYPE_PPP_AC:
-		break;
-	case L2TP_PWTYPE_IP:
-	default:
-		ret = -EPROTONOSUPPORT;
-		break;
-	}
-
 	ret = l2tp_nl_cmd_ops[cfg.pw_type]->session_create(net, tunnel,
 							   session_id,
 							   peer_session_id,
 							   &cfg);
 
 	if (ret >= 0) {
-		session = l2tp_session_get(net, tunnel, session_id, false);
+		session = l2tp_tunnel_get_session(tunnel, session_id);
 		if (session) {
 			ret = l2tp_session_notify(&l2tp_nl_family, info, session,
 						  L2TP_CMD_SESSION_CREATE);
@@ -669,7 +647,7 @@ static int l2tp_nl_cmd_session_delete(struct sk_buff *skb, struct genl_info *inf
 	struct l2tp_session *session;
 	u16 pw_type;
 
-	session = l2tp_nl_session_get(info, true);
+	session = l2tp_nl_session_get(info);
 	if (session == NULL) {
 		ret = -ENODEV;
 		goto out;
@@ -683,8 +661,6 @@ static int l2tp_nl_cmd_session_delete(struct sk_buff *skb, struct genl_info *inf
 		if (l2tp_nl_cmd_ops[pw_type] && l2tp_nl_cmd_ops[pw_type]->session_delete)
 			ret = (*l2tp_nl_cmd_ops[pw_type]->session_delete)(session);
 
-	if (session->deref)
-		session->deref(session);
 	l2tp_session_dec_refcount(session);
 
 out:
@@ -696,7 +672,7 @@ static int l2tp_nl_cmd_session_modify(struct sk_buff *skb, struct genl_info *inf
 	int ret = 0;
 	struct l2tp_session *session;
 
-	session = l2tp_nl_session_get(info, false);
+	session = l2tp_nl_session_get(info);
 	if (session == NULL) {
 		ret = -ENODEV;
 		goto out;
@@ -704,9 +680,6 @@ static int l2tp_nl_cmd_session_modify(struct sk_buff *skb, struct genl_info *inf
 
 	if (info->attrs[L2TP_ATTR_DEBUG])
 		session->debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);
-
-	if (info->attrs[L2TP_ATTR_DATA_SEQ])
-		session->data_seq = nla_get_u8(info->attrs[L2TP_ATTR_DATA_SEQ]);
 
 	if (info->attrs[L2TP_ATTR_RECV_SEQ])
 		session->recv_seq = nla_get_u8(info->attrs[L2TP_ATTR_RECV_SEQ]);
@@ -721,12 +694,6 @@ static int l2tp_nl_cmd_session_modify(struct sk_buff *skb, struct genl_info *inf
 
 	if (info->attrs[L2TP_ATTR_RECV_TIMEOUT])
 		session->reorder_timeout = nla_get_msecs(info->attrs[L2TP_ATTR_RECV_TIMEOUT]);
-
-	if (info->attrs[L2TP_ATTR_MTU])
-		session->mtu = nla_get_u16(info->attrs[L2TP_ATTR_MTU]);
-
-	if (info->attrs[L2TP_ATTR_MRU])
-		session->mru = nla_get_u16(info->attrs[L2TP_ATTR_MRU]);
 
 	ret = l2tp_session_notify(&l2tp_nl_family, info,
 				  session, L2TP_CMD_SESSION_MODIFY);
@@ -743,9 +710,6 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	void *hdr;
 	struct nlattr *nest;
 	struct l2tp_tunnel *tunnel = session->tunnel;
-	struct sock *sk = NULL;
-
-	sk = tunnel->sock;
 
 	hdr = genlmsg_put(skb, portid, seq, &l2tp_nl_family, flags, cmd);
 	if (!hdr)
@@ -757,10 +721,7 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	    nla_put_u32(skb, L2TP_ATTR_PEER_SESSION_ID,
 			session->peer_session_id) ||
 	    nla_put_u32(skb, L2TP_ATTR_DEBUG, session->debug) ||
-	    nla_put_u16(skb, L2TP_ATTR_PW_TYPE, session->pwtype) ||
-	    nla_put_u16(skb, L2TP_ATTR_MTU, session->mtu) ||
-	    (session->mru &&
-	     nla_put_u16(skb, L2TP_ATTR_MRU, session->mru)))
+	    nla_put_u16(skb, L2TP_ATTR_PW_TYPE, session->pwtype))
 		goto nla_put_failure;
 
 	if ((session->ifname[0] &&
@@ -774,10 +735,8 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	    nla_put_u8(skb, L2TP_ATTR_RECV_SEQ, session->recv_seq) ||
 	    nla_put_u8(skb, L2TP_ATTR_SEND_SEQ, session->send_seq) ||
 	    nla_put_u8(skb, L2TP_ATTR_LNS_MODE, session->lns_mode) ||
-#ifdef CONFIG_XFRM
-	    (((sk) && (sk->sk_policy[0] || sk->sk_policy[1])) &&
+	    (l2tp_tunnel_uses_xfrm(tunnel) &&
 	     nla_put_u8(skb, L2TP_ATTR_USING_IPSEC, 1)) ||
-#endif
 	    (session->reorder_timeout &&
 	     nla_put_msecs(skb, L2TP_ATTR_RECV_TIMEOUT,
 			   session->reorder_timeout, L2TP_ATTR_PAD)))
@@ -828,7 +787,7 @@ static int l2tp_nl_cmd_session_get(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *msg;
 	int ret;
 
-	session = l2tp_nl_session_get(info, false);
+	session = l2tp_nl_session_get(info);
 	if (session == NULL) {
 		ret = -ENODEV;
 		goto err;
@@ -869,14 +828,15 @@ static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback
 
 	for (;;) {
 		if (tunnel == NULL) {
-			tunnel = l2tp_tunnel_find_nth(net, ti);
+			tunnel = l2tp_tunnel_get_nth(net, ti);
 			if (tunnel == NULL)
 				goto out;
 		}
 
-		session = l2tp_session_get_nth(tunnel, si, false);
+		session = l2tp_session_get_nth(tunnel, si);
 		if (session == NULL) {
 			ti++;
+			l2tp_tunnel_dec_refcount(tunnel);
 			tunnel = NULL;
 			si = 0;
 			continue;
@@ -886,6 +846,7 @@ static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					 session, L2TP_CMD_SESSION_GET) < 0) {
 			l2tp_session_dec_refcount(session);
+			l2tp_tunnel_dec_refcount(tunnel);
 			break;
 		}
 		l2tp_session_dec_refcount(session);

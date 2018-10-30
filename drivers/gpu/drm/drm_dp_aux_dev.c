@@ -177,8 +177,9 @@ static ssize_t auxdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		res = pos - iocb->ki_pos;
 	iocb->ki_pos = pos;
 
-	atomic_dec(&aux_dev->usecount);
-	wake_up_atomic_t(&aux_dev->usecount);
+	if (atomic_dec_and_test(&aux_dev->usecount))
+		wake_up_var(&aux_dev->usecount);
+
 	return res;
 }
 
@@ -218,8 +219,9 @@ static ssize_t auxdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		res = pos - iocb->ki_pos;
 	iocb->ki_pos = pos;
 
-	atomic_dec(&aux_dev->usecount);
-	wake_up_atomic_t(&aux_dev->usecount);
+	if (atomic_dec_and_test(&aux_dev->usecount))
+		wake_up_var(&aux_dev->usecount);
+
 	return res;
 }
 
@@ -263,12 +265,6 @@ static struct drm_dp_aux_dev *drm_dp_aux_dev_get_by_aux(struct drm_dp_aux *aux)
 	return aux_dev;
 }
 
-static int auxdev_wait_atomic_t(atomic_t *p)
-{
-	schedule();
-	return 0;
-}
-
 void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux)
 {
 	struct drm_dp_aux_dev *aux_dev;
@@ -283,8 +279,7 @@ void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux)
 	mutex_unlock(&aux_idr_mutex);
 
 	atomic_dec(&aux_dev->usecount);
-	wait_on_atomic_t(&aux_dev->usecount, auxdev_wait_atomic_t,
-			 TASK_UNINTERRUPTIBLE);
+	wait_var_event(&aux_dev->usecount, !atomic_read(&aux_dev->usecount));
 
 	minor = aux_dev->index;
 	if (aux_dev->dev)

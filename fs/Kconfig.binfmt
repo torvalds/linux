@@ -1,6 +1,9 @@
+
+menu "Executable file formats"
+
 config BINFMT_ELF
 	bool "Kernel support for ELF binaries"
-	depends on MMU && (BROKEN || !FRV)
+	depends on MMU
 	select ELFCORE
 	default y
 	---help---
@@ -34,8 +37,8 @@ config ARCH_BINFMT_ELF_STATE
 
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
-	default y
-	depends on (FRV || BLACKFIN || (SUPERH32 && !MMU) || C6X)
+	default y if !BINFMT_ELF
+	depends on (ARM || (SUPERH32 && !MMU) || C6X)
 	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
@@ -90,7 +93,6 @@ config BINFMT_SCRIPT
 config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
 	depends on !MMU || ARM || M68K
-	depends on !FRV || BROKEN
 	help
 	  Support uClinux FLAT format binaries.
 
@@ -169,7 +171,7 @@ config BINFMT_MISC
 	  will automatically feed it to the correct interpreter.
 
 	  You can do other nice things, too. Read the file
-	  <file:Documentation/binfmt_misc.txt> to learn how to use this
+	  <file:Documentation/admin-guide/binfmt-misc.rst> to learn how to use this
 	  feature, <file:Documentation/admin-guide/java.rst> for information about how
 	  to include Java support. and <file:Documentation/admin-guide/mono.rst> for
           information about how to include Mono-based .NET support.
@@ -188,3 +190,5 @@ config COREDUMP
 	  This option enables support for performing core dumps. You almost
 	  certainly want to say Y here. Not necessary on systems that never
 	  need debugging or only ever run flawless code.
+
+endmenu

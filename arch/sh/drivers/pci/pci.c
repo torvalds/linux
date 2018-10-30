@@ -49,6 +49,8 @@ static void pcibios_scanbus(struct pci_channel *hose)
 	for (i = 0; i < hose->nr_resources; i++) {
 		res = hose->resources + i;
 		offset = 0;
+		if (res->flags & IORESOURCE_DISABLED)
+			continue;
 		if (res->flags & IORESOURCE_IO)
 			offset = hose->io_offset;
 		else if (res->flags & IORESOURCE_MEM)
@@ -102,6 +104,9 @@ int register_pci_controller(struct pci_channel *hose)
 	for (i = 0; i < hose->nr_resources; i++) {
 		struct resource *res = hose->resources + i;
 
+		if (res->flags & IORESOURCE_DISABLED)
+			continue;
+
 		if (res->flags & IORESOURCE_IO) {
 			if (request_resource(&ioport_resource, res) < 0)
 				goto out;
@@ -154,8 +159,6 @@ static int __init pcibios_init(void)
 	/* Scan all of the recorded PCI controllers.  */
 	for (hose = hose_head; hose; hose = hose->next)
 		pcibios_scanbus(hose);
-
-	dma_debug_add_bus(&pci_bus_type);
 
 	pci_initialized = 1;
 

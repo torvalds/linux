@@ -17,7 +17,7 @@
 #include <sound/soc.h>
 #include <linux/regmap.h>
 
-int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
+int wm5100_detect(struct snd_soc_component *component, struct snd_soc_jack *jack);
 
 #define WM5100_CLK_AIF1     1
 #define WM5100_CLK_AIF2     2

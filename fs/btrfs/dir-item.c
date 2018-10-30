@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include "ctree.h"
 #include "disk-io.h"
-#include "hash.h"
 #include "transaction.h"
 
 /*
@@ -119,13 +105,13 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
  * to use for the second index (if one is created).
  * Will return 0 or -ENOMEM
  */
-int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
-			  *root, const char *name, int name_len,
-			  struct btrfs_inode *dir, struct btrfs_key *location,
-			  u8 type, u64 index)
+int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, const char *name,
+			  int name_len, struct btrfs_inode *dir,
+			  struct btrfs_key *location, u8 type, u64 index)
 {
 	int ret = 0;
 	int ret2 = 0;
+	struct btrfs_root *root = dir->root;
 	struct btrfs_path *path;
 	struct btrfs_dir_item *dir_item;
 	struct extent_buffer *leaf;
@@ -174,8 +160,8 @@ second_insert:
 	}
 	btrfs_release_path(path);
 
-	ret2 = btrfs_insert_delayed_dir_index(trans, root->fs_info, name,
-			name_len, dir, &disk_key, type, index);
+	ret2 = btrfs_insert_delayed_dir_index(trans, name, name_len, dir,
+					      &disk_key, type, index);
 out_free:
 	btrfs_free_path(path);
 	if (ret)
@@ -403,8 +389,6 @@ struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_fs_info *fs_info,
 			btrfs_dir_data_len(leaf, dir_item);
 		name_ptr = (unsigned long)(dir_item + 1);
 
-		if (verify_dir_item(fs_info, leaf, path->slots[0], dir_item))
-			return NULL;
 		if (btrfs_dir_name_len(leaf, dir_item) == name_len &&
 		    memcmp_extent_buffer(leaf, name, name_ptr, name_len) == 0)
 			return dir_item;
@@ -448,111 +432,5 @@ int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 		btrfs_truncate_item(root->fs_info, path,
 				    item_len - sub_item_len, 1);
 	}
-	return ret;
-}
-
-int verify_dir_item(struct btrfs_fs_info *fs_info,
-		    struct extent_buffer *leaf,
-		    int slot,
-		    struct btrfs_dir_item *dir_item)
-{
-	u16 namelen = BTRFS_NAME_LEN;
-	int ret;
-	u8 type = btrfs_dir_type(leaf, dir_item);
-
-	if (type >= BTRFS_FT_MAX) {
-		btrfs_crit(fs_info, "invalid dir item type: %d", (int)type);
-		return 1;
-	}
-
-	if (type == BTRFS_FT_XATTR)
-		namelen = XATTR_NAME_MAX;
-
-	if (btrfs_dir_name_len(leaf, dir_item) > namelen) {
-		btrfs_crit(fs_info, "invalid dir item name len: %u",
-		       (unsigned)btrfs_dir_name_len(leaf, dir_item));
-		return 1;
-	}
-
-	namelen = btrfs_dir_name_len(leaf, dir_item);
-	ret = btrfs_is_name_len_valid(leaf, slot,
-				      (unsigned long)(dir_item + 1), namelen);
-	if (!ret)
-		return 1;
-
-	/* BTRFS_MAX_XATTR_SIZE is the same for all dir items */
-	if ((btrfs_dir_data_len(leaf, dir_item) +
-	     btrfs_dir_name_len(leaf, dir_item)) >
-					BTRFS_MAX_XATTR_SIZE(fs_info)) {
-		btrfs_crit(fs_info, "invalid dir item name + data len: %u + %u",
-			   (unsigned)btrfs_dir_name_len(leaf, dir_item),
-			   (unsigned)btrfs_dir_data_len(leaf, dir_item));
-		return 1;
-	}
-
-	return 0;
-}
-
-bool btrfs_is_name_len_valid(struct extent_buffer *leaf, int slot,
-			     unsigned long start, u16 name_len)
-{
-	struct btrfs_fs_info *fs_info = leaf->fs_info;
-	struct btrfs_key key;
-	u32 read_start;
-	u32 read_end;
-	u32 item_start;
-	u32 item_end;
-	u32 size;
-	bool ret = true;
-
-	ASSERT(start > BTRFS_LEAF_DATA_OFFSET);
-
-	read_start = start - BTRFS_LEAF_DATA_OFFSET;
-	read_end = read_start + name_len;
-	item_start = btrfs_item_offset_nr(leaf, slot);
-	item_end = btrfs_item_end_nr(leaf, slot);
-
-	btrfs_item_key_to_cpu(leaf, &key, slot);
-
-	switch (key.type) {
-	case BTRFS_DIR_ITEM_KEY:
-	case BTRFS_XATTR_ITEM_KEY:
-	case BTRFS_DIR_INDEX_KEY:
-		size = sizeof(struct btrfs_dir_item);
-		break;
-	case BTRFS_INODE_REF_KEY:
-		size = sizeof(struct btrfs_inode_ref);
-		break;
-	case BTRFS_INODE_EXTREF_KEY:
-		size = sizeof(struct btrfs_inode_extref);
-		break;
-	case BTRFS_ROOT_REF_KEY:
-	case BTRFS_ROOT_BACKREF_KEY:
-		size = sizeof(struct btrfs_root_ref);
-		break;
-	default:
-		ret = false;
-		goto out;
-	}
-
-	if (read_start < item_start) {
-		ret = false;
-		goto out;
-	}
-	if (read_end > item_end) {
-		ret = false;
-		goto out;
-	}
-
-	/* there shall be item(s) before name */
-	if (read_start - item_start < size) {
-		ret = false;
-		goto out;
-	}
-
-out:
-	if (!ret)
-		btrfs_crit(fs_info, "invalid dir item name len: %u",
-			   (unsigned int)name_len);
 	return ret;
 }

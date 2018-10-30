@@ -19,12 +19,12 @@ Features
 
   Receive Side Scaling
   --------------------
-  Hyper-V supports receive side scaling. For TCP, packets are
-  distributed among available queues based on IP address and port
+  Hyper-V supports receive side scaling. For TCP & UDP, packets can
+  be distributed among available queues based on IP address and port
   number.
 
-  For UDP, we can switch UDP hash level between L3 and L4 by ethtool
-  command. UDP over IPv4 and v6 can be set differently. The default
+  For TCP & UDP, we can switch hash level between L3 and L4 by ethtool
+  command. TCP/UDP over IPv4 and v6 can be set differently. The default
   hash level is L4. We currently only allow switching TX hash level
   from within the guests.
 
@@ -44,6 +44,15 @@ Features
   The driver supports GRO and it is enabled by default. GRO coalesces
   like packets and significantly reduces CPU usage under heavy Rx
   load.
+
+  Large Receive Offload (LRO), or Receive Side Coalescing (RSC)
+  -------------------------------------------------------------
+  The driver supports LRO/RSC in the vSwitch feature. It reduces the per packet
+  processing overhead by coalescing multiple TCP segments when possible. The
+  feature is enabled by default on VMs running on Windows Server 2019 and
+  later. It may be changed by ethtool command:
+	ethtool -K eth0 lro on
+	ethtool -K eth0 lro off
 
   SR-IOV support
   --------------

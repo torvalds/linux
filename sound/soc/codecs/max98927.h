@@ -1,7 +1,7 @@
 /*
  * max98927.h  --  MAX98927 ALSA Soc Audio driver
  *
- * Copyright 2013-15 Maxim Integrated Products
+ * Copyright (C) 2016-2017 Maxim Integrated Products
  * Author: Ryan Lee <ryans.lee@maximintegrated.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -161,7 +161,9 @@
 #define MAX98927_PCM_MODE_CFG_FORMAT_SHIFT (3)
 #define MAX98927_PCM_FORMAT_I2S (0x0 << 0)
 #define MAX98927_PCM_FORMAT_LJ (0x1 << 0)
-
+#define MAX98927_PCM_FORMAT_TDM_MODE0 (0x3 << 0)
+#define MAX98927_PCM_FORMAT_TDM_MODE1 (0x4 << 0)
+#define MAX98927_PCM_FORMAT_TDM_MODE2 (0x5 << 0)
 #define MAX98927_PCM_MODE_CFG_CHANSZ_MASK (0x3 << 6)
 #define MAX98927_PCM_MODE_CFG_CHANSZ_16 (0x1 << 6)
 #define MAX98927_PCM_MODE_CFG_CHANSZ_24 (0x2 << 6)
@@ -256,7 +258,7 @@
 
 struct max98927_priv {
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct max98927_pdata *pdata;
 	unsigned int spk_gain;
 	unsigned int sysclk;
@@ -268,5 +270,6 @@ struct max98927_priv {
 	unsigned int iface;
 	unsigned int master;
 	unsigned int digital_gain;
+	bool tdm_mode;
 };
 #endif

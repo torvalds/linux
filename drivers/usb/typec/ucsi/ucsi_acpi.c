@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * UCSI ACPI driver
  *
  * Copyright (C) 2017, Intel Corporation
  * Author: Heikki Krogerus <heikki.krogerus@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -81,6 +78,11 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "missing memory resource\n");
 		return -ENODEV;
 	}
+
+	/* This will make sure we can use ioremap_nocache() */
+	status = acpi_release_memory(ACPI_HANDLE(&pdev->dev), res, 1);
+	if (ACPI_FAILURE(status))
+		return -ENOMEM;
 
 	/*
 	 * NOTE: The memory region for the data structures is used also in an

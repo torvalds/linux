@@ -60,7 +60,7 @@
 		serial1 = &uaa1;
 	};
 
-	memory@00000000 {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x00000000 0x0 0x80000000>;
 	};

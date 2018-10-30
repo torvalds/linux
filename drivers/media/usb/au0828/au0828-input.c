@@ -1,21 +1,10 @@
-/*
-  handle au0828 IR remotes via linux kernel input layer.
-
-   Copyright (C) 2014 Mauro Carvalho Chehab <mchehab@samsung.com>
-   Copyright (c) 2014 Samsung Electronics Co., Ltd.
-
-  Based on em28xx-input.c.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// handle au0828 IR remotes via linux kernel input layer.
+//
+// Copyright (c) 2014 Mauro Carvalho Chehab <mchehab@samsung.com>
+// Copyright (c) 2014 Samsung Electronics Co., Ltd.
+//
+// Based on em28xx-input.c.
 
 #include "au0828.h"
 
@@ -124,7 +113,7 @@ static int au8522_rc_andor(struct au0828_rc *ir, u16 reg, u8 mask, u8 value)
 static int au0828_get_key_au8522(struct au0828_rc *ir)
 {
 	unsigned char buf[40];
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	int i, j, rc;
 	int prv_bit, bit, width;
 	bool first = true;
@@ -178,7 +167,6 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 			if (first) {
 				first = false;
 
-				init_ir_raw_event(&rawir);
 				rawir.pulse = true;
 				if (width > NEC_START_SPACE - 2 &&
 				    width < NEC_START_SPACE + 2) {
@@ -197,7 +185,6 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 				ir_raw_event_store(ir->rc, &rawir);
 			}
 
-			init_ir_raw_event(&rawir);
 			rawir.pulse = prv_bit ? false : true;
 			rawir.duration = AU8522_UNIT * width;
 			dprintk(16, "Storing %s with duration %d",
@@ -210,7 +197,6 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 		}
 	}
 
-	init_ir_raw_event(&rawir);
 	rawir.pulse = prv_bit ? false : true;
 	rawir.duration = AU8522_UNIT * width;
 	dprintk(16, "Storing end %s with duration %d",
@@ -269,7 +255,7 @@ static void au0828_rc_stop(struct rc_dev *rc)
 static int au0828_probe_i2c_ir(struct au0828_dev *dev)
 {
 	int i = 0;
-	const unsigned short addr_list[] = {
+	static const unsigned short addr_list[] = {
 		 0x47, I2C_CLIENT_END
 	};
 

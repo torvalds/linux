@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BLKTRACE_H
 #define BLKTRACE_H
 

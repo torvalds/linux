@@ -110,6 +110,9 @@ int mv88e6xxx_phy_page_write(struct mv88e6xxx_chip *chip, int phy,
 	err = mv88e6xxx_phy_page_get(chip, phy, page);
 	if (!err) {
 		err = mv88e6xxx_phy_write(chip, phy, MV88E6XXX_PHY_PAGE, page);
+		if (!err)
+			err = mv88e6xxx_phy_write(chip, phy, reg, val);
+
 		mv88e6xxx_phy_page_put(chip, phy);
 	}
 
@@ -149,9 +152,9 @@ static void mv88e6xxx_phy_ppu_reenable_work(struct work_struct *ugly)
 	mutex_unlock(&chip->reg_lock);
 }
 
-static void mv88e6xxx_phy_ppu_reenable_timer(unsigned long _ps)
+static void mv88e6xxx_phy_ppu_reenable_timer(struct timer_list *t)
 {
-	struct mv88e6xxx_chip *chip = (void *)_ps;
+	struct mv88e6xxx_chip *chip = from_timer(chip, t, ppu_timer);
 
 	schedule_work(&chip->ppu_work);
 }
@@ -193,8 +196,7 @@ static void mv88e6xxx_phy_ppu_state_init(struct mv88e6xxx_chip *chip)
 {
 	mutex_init(&chip->ppu_mutex);
 	INIT_WORK(&chip->ppu_work, mv88e6xxx_phy_ppu_reenable_work);
-	setup_timer(&chip->ppu_timer, mv88e6xxx_phy_ppu_reenable_timer,
-		    (unsigned long)chip);
+	timer_setup(&chip->ppu_timer, mv88e6xxx_phy_ppu_reenable_timer, 0);
 }
 
 static void mv88e6xxx_phy_ppu_state_destroy(struct mv88e6xxx_chip *chip)

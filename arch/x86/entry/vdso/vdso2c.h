@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file is included twice from vdso2c.c.  It generates code for 32-bit
  * and 64-bit vDSOs.  We need both for 64-bit builds, since 32-bit vDSOs

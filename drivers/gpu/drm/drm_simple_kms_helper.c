@@ -34,11 +34,25 @@ static const struct drm_encoder_funcs drm_simple_kms_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static enum drm_mode_status
+drm_simple_kms_crtc_mode_valid(struct drm_crtc *crtc,
+			       const struct drm_display_mode *mode)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
+	if (!pipe->funcs || !pipe->funcs->mode_valid)
+		/* Anything goes */
+		return MODE_OK;
+
+	return pipe->funcs->mode_valid(crtc, mode);
+}
+
 static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
 	bool has_primary = state->plane_mask &
-			   BIT(drm_plane_index(crtc->primary));
+			   drm_plane_mask(crtc->primary);
 
 	/* We always want to have an active plane with an active CRTC */
 	if (has_primary != state->enable)
@@ -50,13 +64,15 @@ static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
 				       struct drm_crtc_state *old_state)
 {
+	struct drm_plane *plane;
 	struct drm_simple_display_pipe *pipe;
 
 	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
 	if (!pipe->funcs || !pipe->funcs->enable)
 		return;
 
-	pipe->funcs->enable(pipe, crtc->state);
+	plane = &pipe->plane;
+	pipe->funcs->enable(pipe, crtc->state, plane->state);
 }
 
 static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,
@@ -72,10 +88,33 @@ static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs drm_simple_kms_crtc_helper_funcs = {
+	.mode_valid = drm_simple_kms_crtc_mode_valid,
 	.atomic_check = drm_simple_kms_crtc_check,
 	.atomic_enable = drm_simple_kms_crtc_enable,
 	.atomic_disable = drm_simple_kms_crtc_disable,
 };
+
+static int drm_simple_kms_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
+	if (!pipe->funcs || !pipe->funcs->enable_vblank)
+		return 0;
+
+	return pipe->funcs->enable_vblank(pipe);
+}
+
+static void drm_simple_kms_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
+	if (!pipe->funcs || !pipe->funcs->disable_vblank)
+		return;
+
+	pipe->funcs->disable_vblank(pipe);
+}
 
 static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
@@ -84,12 +123,13 @@ static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = drm_simple_kms_crtc_enable_vblank,
+	.disable_vblank = drm_simple_kms_crtc_disable_vblank,
 };
 
 static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 					struct drm_plane_state *plane_state)
 {
-	struct drm_rect clip = { 0 };
 	struct drm_simple_display_pipe *pipe;
 	struct drm_crtc_state *crtc_state;
 	int ret;
@@ -97,21 +137,16 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
 	crtc_state = drm_atomic_get_new_crtc_state(plane_state->state,
 						   &pipe->crtc);
-	if (!crtc_state->enable)
-		return 0; /* nothing to check when disabling or disabled */
 
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
-
-	ret = drm_plane_helper_check_state(plane_state, &clip,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   false, true);
+	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  false, true);
 	if (ret)
 		return ret;
 
 	if (!plane_state->visible)
-		return -EINVAL;
+		return 0;
 
 	if (!pipe->funcs || !pipe->funcs->check)
 		return 0;
@@ -246,13 +281,13 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	encoder->possible_crtcs = 1 << drm_crtc_index(crtc);
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
 	ret = drm_encoder_init(dev, encoder, &drm_simple_kms_encoder_funcs,
 			       DRM_MODE_ENCODER_NONE, NULL);
 	if (ret || !connector)
 		return ret;
 
-	return drm_mode_connector_attach_encoder(connector, encoder);
+	return drm_connector_attach_encoder(connector, encoder);
 }
 EXPORT_SYMBOL(drm_simple_display_pipe_init);
 

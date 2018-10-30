@@ -14,6 +14,12 @@
 #define AES_ENTRY(func)		ENTRY(neon_ ## func)
 #define AES_ENDPROC(func)	ENDPROC(neon_ ## func)
 
+	xtsmask		.req	v7
+
+	.macro		xts_reload_mask, tmp
+	xts_load_mask	\tmp
+	.endm
+
 	/* multiply by polynomial 'x' in GF(2^8) */
 	.macro		mul_by_x, out, in, temp, const
 	sshr		\temp, \in, #7
@@ -32,10 +38,10 @@
 
 	/* preload the entire Sbox */
 	.macro		prepare, sbox, shiftrows, temp
-	adr		\temp, \sbox
 	movi		v12.16b, #0x1b
-	ldr		q13, \shiftrows
-	ldr		q14, .Lror32by8
+	ldr_l		q13, \shiftrows, \temp
+	ldr_l		q14, .Lror32by8, \temp
+	adr_l		\temp, \sbox
 	ld1		{v16.16b-v19.16b}, [\temp], #64
 	ld1		{v20.16b-v23.16b}, [\temp], #64
 	ld1		{v24.16b-v27.16b}, [\temp], #64
@@ -272,7 +278,7 @@
 
 #include "aes-modes.S"
 
-	.text
+	.section	".rodata", "a"
 	.align		6
 .LForward_Sbox:
 	.byte		0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5

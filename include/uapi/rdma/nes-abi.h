@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2006 - 2011 Intel Corporation.  All rights reserved.
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
@@ -71,14 +72,14 @@ struct nes_alloc_pd_resp {
 };
 
 struct nes_create_cq_req {
-	__u64 user_cq_buffer;
+	__aligned_u64 user_cq_buffer;
 	__u32 mcrqf;
 	__u8 reserved[4];
 };
 
 struct nes_create_qp_req {
-	__u64 user_wqe_buffers;
-	__u64 user_qp_buffer;
+	__aligned_u64 user_wqe_buffers;
+	__aligned_u64 user_qp_buffer;
 };
 
 enum iwnes_memreg_type {

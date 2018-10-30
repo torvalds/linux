@@ -31,6 +31,7 @@
 
 extern int boot_cpuid;
 extern int spinning_secondaries;
+extern u32 *cpu_to_phys_id;
 
 extern void cpu_die(void);
 extern int cpu_to_chip_id(int cpu);
@@ -55,8 +56,8 @@ struct smp_ops_t {
 	int   (*cpu_bootable)(unsigned int nr);
 };
 
-extern void smp_flush_nmi_ipi(u64 delay_us);
 extern int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);
+extern int smp_send_safe_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);
 extern void smp_send_debugger_break(void);
 extern void start_secondary_resume(void);
 extern void smp_generic_give_timebase(void);
@@ -99,6 +100,7 @@ static inline void set_hard_smp_processor_id(int cpu, int phys)
 DECLARE_PER_CPU(cpumask_var_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_var_t, cpu_l2_cache_map);
 DECLARE_PER_CPU(cpumask_var_t, cpu_core_map);
+DECLARE_PER_CPU(cpumask_var_t, cpu_smallcore_map);
 
 static inline struct cpumask *cpu_sibling_mask(int cpu)
 {
@@ -113,6 +115,11 @@ static inline struct cpumask *cpu_core_mask(int cpu)
 static inline struct cpumask *cpu_l2_cache_mask(int cpu)
 {
 	return per_cpu(cpu_l2_cache_map, cpu);
+}
+
+static inline struct cpumask *cpu_smallcore_mask(int cpu)
+{
+	return per_cpu(cpu_smallcore_map, cpu);
 }
 
 extern int cpu_to_core_id(int cpu);
@@ -165,17 +172,22 @@ static inline const struct cpumask *cpu_sibling_mask(int cpu)
 	return cpumask_of(cpu);
 }
 
+static inline const struct cpumask *cpu_smallcore_mask(int cpu)
+{
+	return cpumask_of(cpu);
+}
+
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PPC64
 static inline int get_hard_smp_processor_id(int cpu)
 {
-	return paca[cpu].hw_cpu_id;
+	return paca_ptrs[cpu]->hw_cpu_id;
 }
 
 static inline void set_hard_smp_processor_id(int cpu, int phys)
 {
-	paca[cpu].hw_cpu_id = phys;
+	paca_ptrs[cpu]->hw_cpu_id = phys;
 }
 #else
 /* 32-bit */

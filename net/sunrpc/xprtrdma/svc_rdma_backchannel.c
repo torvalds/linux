@@ -1,12 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2015 Oracle.  All rights reserved.
+ * Copyright (c) 2015-2018 Oracle.  All rights reserved.
  *
  * Support for backward direction RPCs on RPC/RDMA (server-side).
  */
 
 #include <linux/module.h>
+
 #include <linux/sunrpc/svc_rdma.h>
+
 #include "xprt_rdma.h"
+#include <trace/events/rpcrdma.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -52,7 +56,7 @@ int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt, __be32 *rdma_resp,
 	if (src->iov_len < 24)
 		goto out_shortreply;
 
-	spin_lock(&xprt->recv_lock);
+	spin_lock(&xprt->queue_lock);
 	req = xprt_lookup_rqst(xprt, xid);
 	if (!req)
 		goto out_notfound;
@@ -82,7 +86,7 @@ int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt, __be32 *rdma_resp,
 	rcvbuf->len = 0;
 
 out_unlock:
-	spin_unlock(&xprt->recv_lock);
+	spin_unlock(&xprt->queue_lock);
 out:
 	return ret;
 
@@ -94,7 +98,6 @@ out_shortreply:
 out_notfound:
 	dprintk("svcrdma: unrecognized bc reply: xprt=%p, xid=%08x\n",
 		xprt, be32_to_cpu(xid));
-
 	goto out_unlock;
 }
 
@@ -112,39 +115,21 @@ out_notfound:
  * the adapter has a small maximum SQ depth.
  */
 static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
-			      struct rpc_rqst *rqst)
+			      struct rpc_rqst *rqst,
+			      struct svc_rdma_send_ctxt *ctxt)
 {
-	struct svc_rdma_op_ctxt *ctxt;
 	int ret;
 
-	ctxt = svc_rdma_get_context(rdma);
-
-	/* rpcrdma_bc_send_request builds the transport header and
-	 * the backchannel RPC message in the same buffer. Thus only
-	 * one SGE is needed to send both.
-	 */
-	ret = svc_rdma_map_reply_hdr(rdma, ctxt, rqst->rq_buffer,
-				     rqst->rq_snd_buf.len);
+	ret = svc_rdma_map_reply_msg(rdma, ctxt, &rqst->rq_snd_buf, NULL);
 	if (ret < 0)
-		goto out_err;
+		return -EIO;
 
-	ret = svc_rdma_repost_recv(rdma, GFP_NOIO);
-	if (ret)
-		goto out_err;
-
-	ret = svc_rdma_post_send_wr(rdma, ctxt, 1, 0);
-	if (ret)
-		goto out_unmap;
-
-out_err:
-	dprintk("svcrdma: %s returns %d\n", __func__, ret);
-	return ret;
-
-out_unmap:
-	svc_rdma_unmap_dma(ctxt);
-	svc_rdma_put_context(ctxt, 1);
-	ret = -EIO;
-	goto out_err;
+	/* Bump page refcnt so Send completion doesn't release
+	 * the rq_buffer before all retransmits are complete.
+	 */
+	get_page(virt_to_page(rqst->rq_buffer));
+	ctxt->sc_send_wr.opcode = IB_WR_SEND;
+	return svc_rdma_send(rdma, &ctxt->sc_send_wr);
 }
 
 /* Server-side transport endpoint wants a whole page for its send
@@ -164,7 +149,6 @@ xprt_rdma_bc_allocate(struct rpc_task *task)
 		return -EINVAL;
 	}
 
-	/* svc_rdma_sendto releases this page */
 	page = alloc_page(RPCRDMA_DEF_GFP);
 	if (!page)
 		return -ENOMEM;
@@ -183,6 +167,7 @@ xprt_rdma_bc_free(struct rpc_task *task)
 {
 	struct rpc_rqst *rqst = task->tk_rqstp;
 
+	put_page(virt_to_page(rqst->rq_buffer));
 	kfree(rqst->rq_rbuffer);
 }
 
@@ -191,13 +176,15 @@ rpcrdma_bc_send_request(struct svcxprt_rdma *rdma, struct rpc_rqst *rqst)
 {
 	struct rpc_xprt *xprt = rqst->rq_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
+	struct svc_rdma_send_ctxt *ctxt;
 	__be32 *p;
 	int rc;
 
-	/* Space in the send buffer for an RPC/RDMA header is reserved
-	 * via xprt->tsh_size.
-	 */
-	p = rqst->rq_buffer;
+	ctxt = svc_rdma_send_ctxt_get(rdma);
+	if (!ctxt)
+		goto drop_connection;
+
+	p = ctxt->sc_xprt_buf;
 	*p++ = rqst->rq_xid;
 	*p++ = rpcrdma_version;
 	*p++ = cpu_to_be32(r_xprt->rx_buf.rb_bc_max_requests);
@@ -205,14 +192,17 @@ rpcrdma_bc_send_request(struct svcxprt_rdma *rdma, struct rpc_rqst *rqst)
 	*p++ = xdr_zero;
 	*p++ = xdr_zero;
 	*p   = xdr_zero;
+	svc_rdma_sync_reply_hdr(rdma, ctxt, RPCRDMA_HDRLEN_MIN);
 
 #ifdef SVCRDMA_BACKCHANNEL_DEBUG
 	pr_info("%s: %*ph\n", __func__, 64, rqst->rq_buffer);
 #endif
 
-	rc = svc_rdma_bc_sendto(rdma, rqst);
-	if (rc)
+	rc = svc_rdma_bc_sendto(rdma, rqst, ctxt);
+	if (rc) {
+		svc_rdma_send_ctxt_put(rdma, ctxt);
 		goto drop_connection;
+	}
 	return rc;
 
 drop_connection:
@@ -225,9 +215,8 @@ drop_connection:
  * connection.
  */
 static int
-xprt_rdma_bc_send_request(struct rpc_task *task)
+xprt_rdma_bc_send_request(struct rpc_rqst *rqst)
 {
-	struct rpc_rqst *rqst = task->tk_rqstp;
 	struct svc_xprt *sxprt = rqst->rq_xprt->bc_xprt;
 	struct svcxprt_rdma *rdma;
 	int ret;
@@ -235,12 +224,7 @@ xprt_rdma_bc_send_request(struct rpc_task *task)
 	dprintk("svcrdma: sending bc call with xid: %08x\n",
 		be32_to_cpu(rqst->rq_xid));
 
-	if (!mutex_trylock(&sxprt->xpt_mutex)) {
-		rpc_sleep_on(&sxprt->xpt_bc_pending, task, NULL);
-		if (!mutex_trylock(&sxprt->xpt_mutex))
-			return -EAGAIN;
-		rpc_wake_up_queued_task(&sxprt->xpt_bc_pending, task);
-	}
+	mutex_lock(&sxprt->xpt_mutex);
 
 	ret = -ENOTCONN;
 	rdma = container_of(sxprt, struct svcxprt_rdma, sc_xprt);
@@ -258,6 +242,7 @@ static void
 xprt_rdma_bc_close(struct rpc_xprt *xprt)
 {
 	dprintk("svcrdma: %s: xprt %p\n", __func__, xprt);
+	xprt->cwnd = RPC_CWNDSHIFT;
 }
 
 static void
@@ -273,6 +258,7 @@ static const struct rpc_xprt_ops xprt_rdma_bc_procs = {
 	.reserve_xprt		= xprt_reserve_xprt_cong,
 	.release_xprt		= xprt_release_xprt_cong,
 	.alloc_slot		= xprt_alloc_slot,
+	.free_slot		= xprt_free_slot,
 	.release_request	= xprt_release_rqst_cong,
 	.buf_alloc		= xprt_rdma_bc_allocate,
 	.buf_free		= xprt_rdma_bc_free,
@@ -320,7 +306,7 @@ xprt_setup_rdma_bc(struct xprt_create *args)
 	xprt->idle_timeout = RPCRDMA_IDLE_DISC_TO;
 
 	xprt->prot = XPRT_TRANSPORT_BC_RDMA;
-	xprt->tsh_size = RPCRDMA_HDRLEN_MIN / sizeof(__be32);
+	xprt->tsh_size = 0;
 	xprt->ops = &xprt_rdma_bc_procs;
 
 	memcpy(&xprt->addr, args->dstaddr, args->addrlen);

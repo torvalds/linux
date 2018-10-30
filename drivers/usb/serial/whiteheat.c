@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * USB ConnectTech WhiteHEAT driver
  *
@@ -6,11 +7,6 @@
  *
  *	Copyright (C) 1999 - 2001
  *	    Greg Kroah-Hartman (greg@kroah.com)
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
@@ -87,8 +83,8 @@ static int  whiteheat_port_remove(struct usb_serial_port *port);
 static int  whiteheat_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
 static void whiteheat_close(struct usb_serial_port *port);
-static int  whiteheat_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg);
+static int  whiteheat_get_serial(struct tty_struct *tty,
+			struct serial_struct *ss);
 static void whiteheat_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  whiteheat_tiocmget(struct tty_struct *tty);
@@ -124,7 +120,7 @@ static struct usb_serial_driver whiteheat_device = {
 	.port_remove =		whiteheat_port_remove,
 	.open =			whiteheat_open,
 	.close =		whiteheat_close,
-	.ioctl =		whiteheat_ioctl,
+	.get_serial =		whiteheat_get_serial,
 	.set_termios =		whiteheat_set_termios,
 	.break_ctl =		whiteheat_break_ctl,
 	.tiocmget =		whiteheat_tiocmget,
@@ -446,33 +442,21 @@ static int whiteheat_tiocmset(struct tty_struct *tty,
 }
 
 
-static int whiteheat_ioctl(struct tty_struct *tty,
-					unsigned int cmd, unsigned long arg)
+static int whiteheat_get_serial(struct tty_struct *tty,
+				struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct serial_struct serstruct;
-	void __user *user_arg = (void __user *)arg;
 
-	switch (cmd) {
-	case TIOCGSERIAL:
-		memset(&serstruct, 0, sizeof(serstruct));
-		serstruct.type = PORT_16654;
-		serstruct.line = port->minor;
-		serstruct.port = port->port_number;
-		serstruct.xmit_fifo_size = kfifo_size(&port->write_fifo);
-		serstruct.custom_divisor = 0;
-		serstruct.baud_base = 460800;
-		serstruct.close_delay = CLOSING_DELAY;
-		serstruct.closing_wait = CLOSING_DELAY;
+	ss->type = PORT_16654;
+	ss->line = port->minor;
+	ss->port = port->port_number;
+	ss->xmit_fifo_size = kfifo_size(&port->write_fifo);
+	ss->custom_divisor = 0;
+	ss->baud_base = 460800;
+	ss->close_delay = CLOSING_DELAY;
+	ss->closing_wait = CLOSING_DELAY;
 
-		if (copy_to_user(user_arg, &serstruct, sizeof(serstruct)))
-			return -EFAULT;
-		break;
-	default:
-		break;
-	}
-
-	return -ENOIOCTLCMD;
+	return 0;
 }
 
 

@@ -40,6 +40,66 @@ struct nvkm_udevice {
 };
 
 static int
+nvkm_udevice_info_subdev(struct nvkm_device *device, u64 mthd, u64 *data)
+{
+	struct nvkm_subdev *subdev;
+	enum nvkm_devidx subidx;
+
+	switch (mthd & NV_DEVICE_INFO_UNIT) {
+	case NV_DEVICE_FIFO(0): subidx = NVKM_ENGINE_FIFO; break;
+	default:
+		return -EINVAL;
+	}
+
+	subdev = nvkm_device_subdev(device, subidx);
+	if (subdev)
+		return nvkm_subdev_info(subdev, mthd, data);
+	return -ENODEV;
+}
+
+static void
+nvkm_udevice_info_v1(struct nvkm_device *device,
+		     struct nv_device_info_v1_data *args)
+{
+	if (args->mthd & NV_DEVICE_INFO_UNIT) {
+		if (nvkm_udevice_info_subdev(device, args->mthd, &args->data))
+			args->mthd = NV_DEVICE_INFO_INVALID;
+		return;
+	}
+
+	switch (args->mthd) {
+#define ENGINE__(A,B,C) NV_DEVICE_INFO_ENGINE_##A: { int _i;                   \
+	for (_i = (B), args->data = 0ULL; _i <= (C); _i++) {                   \
+		if (nvkm_device_engine(device, _i))                            \
+			args->data |= BIT_ULL(_i);                             \
+	}                                                                      \
+}
+#define ENGINE_A(A) ENGINE__(A, NVKM_ENGINE_##A   , NVKM_ENGINE_##A)
+#define ENGINE_B(A) ENGINE__(A, NVKM_ENGINE_##A##0, NVKM_ENGINE_##A##_LAST)
+	case ENGINE_A(SW    ); break;
+	case ENGINE_A(GR    ); break;
+	case ENGINE_A(MPEG  ); break;
+	case ENGINE_A(ME    ); break;
+	case ENGINE_A(CIPHER); break;
+	case ENGINE_A(BSP   ); break;
+	case ENGINE_A(VP    ); break;
+	case ENGINE_B(CE    ); break;
+	case ENGINE_A(SEC   ); break;
+	case ENGINE_A(MSVLD ); break;
+	case ENGINE_A(MSPDEC); break;
+	case ENGINE_A(MSPPP ); break;
+	case ENGINE_A(MSENC ); break;
+	case ENGINE_A(VIC   ); break;
+	case ENGINE_A(SEC2  ); break;
+	case ENGINE_A(NVDEC ); break;
+	case ENGINE_B(NVENC ); break;
+	default:
+		args->mthd = NV_DEVICE_INFO_INVALID;
+		break;
+	}
+}
+
+static int
 nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 {
 	struct nvkm_object *object = &udev->object;
@@ -48,10 +108,21 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 	struct nvkm_instmem *imem = device->imem;
 	union {
 		struct nv_device_info_v0 v0;
+		struct nv_device_info_v1 v1;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -ENOSYS, i;
 
 	nvif_ioctl(object, "device info size %d\n", size);
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v1, 1, 1, true))) {
+		nvif_ioctl(object, "device info vers %d count %d\n",
+			   args->v1.version, args->v1.count);
+		if (args->v1.count * sizeof(args->v1.data[0]) == size) {
+			for (i = 0; i < args->v1.count; i++)
+				nvkm_udevice_info_v1(device, &args->v1.data[i]);
+			return 0;
+		}
+		return -EINVAL;
+	} else
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "device info vers %d\n", args->v0.version);
 	} else
@@ -103,6 +174,7 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 	case NV_E0: args->v0.family = NV_DEVICE_INFO_V0_KEPLER; break;
 	case GM100: args->v0.family = NV_DEVICE_INFO_V0_MAXWELL; break;
 	case GP100: args->v0.family = NV_DEVICE_INFO_V0_PASCAL; break;
+	case GV100: args->v0.family = NV_DEVICE_INFO_V0_VOLTA; break;
 	default:
 		args->v0.family = 0;
 		break;
@@ -206,10 +278,12 @@ nvkm_udevice_wr32(struct nvkm_object *object, u64 addr, u32 data)
 }
 
 static int
-nvkm_udevice_map(struct nvkm_object *object, u64 *addr, u32 *size)
+nvkm_udevice_map(struct nvkm_object *object, void *argv, u32 argc,
+		 enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
 	struct nvkm_udevice *udev = nvkm_udevice(object);
 	struct nvkm_device *device = udev->device;
+	*type = NVKM_OBJECT_MAP_IO;
 	*addr = device->func->resource_addr(device, 0);
 	*size = device->func->resource_size(device, 0);
 	return 0;
@@ -292,6 +366,11 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	if (!sclass) {
 		switch (index) {
 		case 0: sclass = &nvkm_control_oclass; break;
+		case 1:
+			if (!device->mmu)
+				return -EINVAL;
+			sclass = &device->mmu->user;
+			break;
 		default:
 			return -EINVAL;
 		}

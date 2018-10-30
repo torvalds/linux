@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * cec - HDMI Consumer Electronics Control support header
  *
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef _MEDIA_CEC_H
@@ -75,7 +63,6 @@ struct cec_data {
 	struct delayed_work work;
 	struct completion c;
 	u8 attempts;
-	bool new_initiator;
 	bool blocking;
 	bool completed;
 };
@@ -91,7 +78,7 @@ struct cec_event_entry {
 };
 
 #define CEC_NUM_CORE_EVENTS 2
-#define CEC_NUM_EVENTS CEC_EVENT_PIN_CEC_HIGH
+#define CEC_NUM_EVENTS CEC_EVENT_PIN_5V_HIGH
 
 struct cec_fh {
 	struct list_head	list;
@@ -104,7 +91,7 @@ struct cec_fh {
 	wait_queue_head_t	wait;
 	struct mutex		lock;
 	struct list_head	events[CEC_NUM_EVENTS]; /* queued events */
-	u8			queued_events[CEC_NUM_EVENTS];
+	u16			queued_events[CEC_NUM_EVENTS];
 	unsigned int		total_queued_events;
 	struct cec_event_entry	core_events[CEC_NUM_CORE_EVENTS];
 	struct list_head	msgs; /* queued messages */
@@ -122,11 +109,16 @@ struct cec_adap_ops {
 	/* Low-level callbacks */
 	int (*adap_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
+	int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
 	int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 			     u32 signal_free_time, struct cec_msg *msg);
 	void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
 	void (*adap_free)(struct cec_adapter *adap);
+
+	/* Error injection callbacks */
+	int (*error_inj_show)(struct cec_adapter *adap, struct seq_file *sf);
+	bool (*error_inj_parse_line)(struct cec_adapter *adap, char *line);
 
 	/* High-level CEC message callback */
 	int (*received)(struct cec_adapter *adap, struct cec_msg *msg);
@@ -181,6 +173,7 @@ struct cec_adapter {
 	bool is_configuring;
 	bool is_configured;
 	bool cec_pin_is_high;
+	u8 last_initiator;
 	u32 monitor_all_cnt;
 	u32 monitor_pin_cnt;
 	u32 follower_cnt;
@@ -191,11 +184,6 @@ struct cec_adapter {
 
 	u32 tx_timeouts;
 
-#ifdef CONFIG_MEDIA_CEC_RC
-	bool rc_repeating;
-	int rc_last_scancode;
-	u64 rc_last_keypress;
-#endif
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier *notifier;
 #endif
@@ -205,13 +193,12 @@ struct cec_adapter {
 
 	struct dentry *cec_dir;
 	struct dentry *status_file;
+	struct dentry *error_inj_file;
 
 	u16 phys_addrs[15];
 	u32 sequence;
 
-	char device_name[32];
 	char input_phys[32];
-	char input_drv[32];
 };
 
 static inline void *cec_get_drvdata(const struct cec_adapter *adap)
@@ -227,6 +214,18 @@ static inline bool cec_has_log_addr(const struct cec_adapter *adap, u8 log_addr)
 static inline bool cec_is_sink(const struct cec_adapter *adap)
 {
 	return adap->phys_addr == 0;
+}
+
+/**
+ * cec_is_registered() - is the CEC adapter registered?
+ *
+ * @adap:	the CEC adapter, may be NULL.
+ *
+ * Return: true if the adapter is registered, false otherwise.
+ */
+static inline bool cec_is_registered(const struct cec_adapter *adap)
+{
+	return adap && adap->devnode.registered;
 }
 
 #define cec_phys_addr_exp(pa) \
@@ -290,11 +289,32 @@ static inline void cec_received_msg(struct cec_adapter *adap,
  *
  * @adap:	pointer to the cec adapter
  * @is_high:	when true the CEC pin is high, otherwise it is low
+ * @dropped_events: when true some events were dropped
  * @ts:		the timestamp for this event
  *
  */
-void cec_queue_pin_cec_event(struct cec_adapter *adap,
-			     bool is_high, ktime_t ts);
+void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high,
+			     bool dropped_events, ktime_t ts);
+
+/**
+ * cec_queue_pin_hpd_event() - queue a pin event with a given timestamp.
+ *
+ * @adap:	pointer to the cec adapter
+ * @is_high:	when true the HPD pin is high, otherwise it is low
+ * @ts:		the timestamp for this event
+ *
+ */
+void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts);
+
+/**
+ * cec_queue_pin_5v_event() - queue a pin event with a given timestamp.
+ *
+ * @adap:	pointer to the cec adapter
+ * @is_high:	when true the 5V pin is high, otherwise it is low
+ * @ts:		the timestamp for this event
+ *
+ */
+void cec_queue_pin_5v_event(struct cec_adapter *adap, bool is_high, ktime_t ts);
 
 /**
  * cec_get_edid_phys_addr() - find and return the physical address
@@ -309,67 +329,6 @@ void cec_queue_pin_cec_event(struct cec_adapter *adap,
  */
 u16 cec_get_edid_phys_addr(const u8 *edid, unsigned int size,
 			   unsigned int *offset);
-
-/**
- * cec_set_edid_phys_addr() - find and set the physical address
- *
- * @edid:	pointer to the EDID data
- * @size:	size in bytes of the EDID data
- * @phys_addr:	the new physical address
- *
- * This function finds the location of the physical address in the EDID
- * and fills in the given physical address and updates the checksum
- * at the end of the EDID block. It does nothing if the EDID doesn't
- * contain a physical address.
- */
-void cec_set_edid_phys_addr(u8 *edid, unsigned int size, u16 phys_addr);
-
-/**
- * cec_phys_addr_for_input() - calculate the PA for an input
- *
- * @phys_addr:	the physical address of the parent
- * @input:	the number of the input port, must be between 1 and 15
- *
- * This function calculates a new physical address based on the input
- * port number. For example:
- *
- * PA = 0.0.0.0 and input = 2 becomes 2.0.0.0
- *
- * PA = 3.0.0.0 and input = 1 becomes 3.1.0.0
- *
- * PA = 3.2.1.0 and input = 5 becomes 3.2.1.5
- *
- * PA = 3.2.1.3 and input = 5 becomes f.f.f.f since it maxed out the depth.
- *
- * Return: the new physical address or CEC_PHYS_ADDR_INVALID.
- */
-u16 cec_phys_addr_for_input(u16 phys_addr, u8 input);
-
-/**
- * cec_phys_addr_validate() - validate a physical address from an EDID
- *
- * @phys_addr:	the physical address to validate
- * @parent:	if not %NULL, then this is filled with the parents PA.
- * @port:	if not %NULL, then this is filled with the input port.
- *
- * This validates a physical address as read from an EDID. If the
- * PA is invalid (such as 1.0.1.0 since '0' is only allowed at the end),
- * then it will return -EINVAL.
- *
- * The parent PA is passed into %parent and the input port is passed into
- * %port. For example:
- *
- * PA = 0.0.0.0: has parent 0.0.0.0 and input port 0.
- *
- * PA = 1.0.0.0: has parent 0.0.0.0 and input port 1.
- *
- * PA = 3.2.0.0: has parent 3.0.0.0 and input port 2.
- *
- * PA = f.f.f.f: has parent f.f.f.f and input port 0.
- *
- * Return: 0 if the PA is valid, -EINVAL if not.
- */
-int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port);
 
 #else
 
@@ -405,21 +364,6 @@ static inline u16 cec_get_edid_phys_addr(const u8 *edid, unsigned int size,
 	return CEC_PHYS_ADDR_INVALID;
 }
 
-static inline void cec_set_edid_phys_addr(u8 *edid, unsigned int size,
-					  u16 phys_addr)
-{
-}
-
-static inline u16 cec_phys_addr_for_input(u16 phys_addr, u8 input)
-{
-	return CEC_PHYS_ADDR_INVALID;
-}
-
-static inline int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
-{
-	return 0;
-}
-
 #endif
 
 /**
@@ -433,6 +377,76 @@ static inline int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
 static inline void cec_phys_addr_invalidate(struct cec_adapter *adap)
 {
 	cec_s_phys_addr(adap, CEC_PHYS_ADDR_INVALID, false);
+}
+
+/**
+ * cec_get_edid_spa_location() - find location of the Source Physical Address
+ *
+ * @edid: the EDID
+ * @size: the size of the EDID
+ *
+ * This EDID is expected to be a CEA-861 compliant, which means that there are
+ * at least two blocks and one or more of the extensions blocks are CEA-861
+ * blocks.
+ *
+ * The returned location is guaranteed to be <= size-2.
+ *
+ * This is an inline function since it is used by both CEC and V4L2.
+ * Ideally this would go in a module shared by both, but it is overkill to do
+ * that for just a single function.
+ */
+static inline unsigned int cec_get_edid_spa_location(const u8 *edid,
+						     unsigned int size)
+{
+	unsigned int blocks = size / 128;
+	unsigned int block;
+	u8 d;
+
+	/* Sanity check: at least 2 blocks and a multiple of the block size */
+	if (blocks < 2 || size % 128)
+		return 0;
+
+	/*
+	 * If there are fewer extension blocks than the size, then update
+	 * 'blocks'. It is allowed to have more extension blocks than the size,
+	 * since some hardware can only read e.g. 256 bytes of the EDID, even
+	 * though more blocks are present. The first CEA-861 extension block
+	 * should normally be in block 1 anyway.
+	 */
+	if (edid[0x7e] + 1 < blocks)
+		blocks = edid[0x7e] + 1;
+
+	for (block = 1; block < blocks; block++) {
+		unsigned int offset = block * 128;
+
+		/* Skip any non-CEA-861 extension blocks */
+		if (edid[offset] != 0x02 || edid[offset + 1] != 0x03)
+			continue;
+
+		/* search Vendor Specific Data Block (tag 3) */
+		d = edid[offset + 2] & 0x7f;
+		/* Check if there are Data Blocks */
+		if (d <= 4)
+			continue;
+		if (d > 4) {
+			unsigned int i = offset + 4;
+			unsigned int end = offset + d;
+
+			/* Note: 'end' is always < 'size' */
+			do {
+				u8 tag = edid[i] >> 5;
+				u8 len = edid[i] & 0x1f;
+
+				if (tag == 3 && len >= 5 && i + len <= end &&
+				    edid[i + 1] == 0x03 &&
+				    edid[i + 2] == 0x0c &&
+				    edid[i + 3] == 0x00)
+					return i + 4;
+				i += len + 1;
+			} while (i < end);
+		}
+	}
+	return 0;
 }
 
 #endif /* _MEDIA_CEC_H */

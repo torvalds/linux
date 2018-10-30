@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ip28-berr.c: Bus error handling.
  *
@@ -463,7 +464,7 @@ void ip22_be_interrupt(int irq)
 		die_if_kernel("Oops", regs);
 		force_sig(SIGBUS, current);
 	} else if (debug_be_interrupt)
-		show_regs((struct pt_regs *)regs);
+		show_regs(regs);
 }
 
 static int ip28_be_handler(struct pt_regs *regs, int is_fixup)

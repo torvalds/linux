@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * v4l2-dv-timings - dv-timings helper functions
  *
  * Copyright 2013 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
  */
 
 #include <linux/module.h>
@@ -27,6 +14,8 @@
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-dv-timings.h>
 #include <linux/math64.h>
+#include <linux/hdmi.h>
+#include <media/cec.h>
 
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_DESCRIPTION("V4L2 DV Timings Helper Functions");
@@ -245,11 +234,11 @@ EXPORT_SYMBOL_GPL(v4l2_find_dv_timings_cea861_vic);
 
 /**
  * v4l2_match_dv_timings - check if two timings match
- * @t1 - compare this v4l2_dv_timings struct...
- * @t2 - with this struct.
- * @pclock_delta - the allowed pixelclock deviation.
- * @match_reduced_fps - if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
- * match.
+ * @t1: compare this v4l2_dv_timings struct...
+ * @t2: with this struct.
+ * @pclock_delta: the allowed pixelclock deviation.
+ * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
+ *	match.
  *
  * Compare t1 with t2 with a given margin of error for the pixelclock.
  */
@@ -384,6 +373,45 @@ struct v4l2_fract v4l2_dv_timings_aspect_ratio(const struct v4l2_dv_timings *t)
 	return ratio;
 }
 EXPORT_SYMBOL_GPL(v4l2_dv_timings_aspect_ratio);
+
+/** v4l2_calc_timeperframe - helper function to calculate timeperframe based
+ *	v4l2_dv_timings fields.
+ * @t - Timings for the video mode.
+ *
+ * Calculates the expected timeperframe using the pixel clock value and
+ * horizontal/vertical measures. This means that v4l2_dv_timings structure
+ * must be correctly and fully filled.
+ */
+struct v4l2_fract v4l2_calc_timeperframe(const struct v4l2_dv_timings *t)
+{
+	const struct v4l2_bt_timings *bt = &t->bt;
+	struct v4l2_fract fps_fract = { 1, 1 };
+	unsigned long n, d;
+	u32 htot, vtot, fps;
+	u64 pclk;
+
+	if (t->type != V4L2_DV_BT_656_1120)
+		return fps_fract;
+
+	htot = V4L2_DV_BT_FRAME_WIDTH(bt);
+	vtot = V4L2_DV_BT_FRAME_HEIGHT(bt);
+	pclk = bt->pixelclock;
+
+	if ((bt->flags & V4L2_DV_FL_CAN_DETECT_REDUCED_FPS) &&
+	    (bt->flags & V4L2_DV_FL_REDUCED_FPS))
+		pclk = div_u64(pclk * 1000ULL, 1001);
+
+	fps = (htot * vtot) > 0 ? div_u64((100 * pclk), (htot * vtot)) : 0;
+	if (!fps)
+		return fps_fract;
+
+	rational_best_approximation(fps, 100, fps, 100, &n, &d);
+
+	fps_fract.numerator = d;
+	fps_fract.denominator = n;
+	return fps_fract;
+}
+EXPORT_SYMBOL_GPL(v4l2_calc_timeperframe);
 
 /*
  * CVT defines
@@ -814,3 +842,293 @@ struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait)
 	return aspect;
 }
 EXPORT_SYMBOL_GPL(v4l2_calc_aspect_ratio);
+
+/** v4l2_hdmi_rx_colorimetry - determine HDMI colorimetry information
+ *	based on various InfoFrames.
+ * @avi: the AVI InfoFrame
+ * @hdmi: the HDMI Vendor InfoFrame, may be NULL
+ * @height: the frame height
+ *
+ * Determines the HDMI colorimetry information, i.e. how the HDMI
+ * pixel color data should be interpreted.
+ *
+ * Note that some of the newer features (DCI-P3, HDR) are not yet
+ * implemented: the hdmi.h header needs to be updated to the HDMI 2.0
+ * and CTA-861-G standards.
+ */
+struct v4l2_hdmi_colorimetry
+v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
+			 const struct hdmi_vendor_infoframe *hdmi,
+			 unsigned int height)
+{
+	struct v4l2_hdmi_colorimetry c = {
+		V4L2_COLORSPACE_SRGB,
+		V4L2_YCBCR_ENC_DEFAULT,
+		V4L2_QUANTIZATION_FULL_RANGE,
+		V4L2_XFER_FUNC_SRGB
+	};
+	bool is_ce = avi->video_code || (hdmi && hdmi->vic);
+	bool is_sdtv = height <= 576;
+	bool default_is_lim_range_rgb = avi->video_code > 1;
+
+	switch (avi->colorspace) {
+	case HDMI_COLORSPACE_RGB:
+		/* RGB pixel encoding */
+		switch (avi->colorimetry) {
+		case HDMI_COLORIMETRY_EXTENDED:
+			switch (avi->extended_colorimetry) {
+			case HDMI_EXTENDED_COLORIMETRY_OPRGB:
+				c.colorspace = V4L2_COLORSPACE_OPRGB;
+				c.xfer_func = V4L2_XFER_FUNC_OPRGB;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_BT2020:
+				c.colorspace = V4L2_COLORSPACE_BT2020;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			default:
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+		switch (avi->quantization_range) {
+		case HDMI_QUANTIZATION_RANGE_LIMITED:
+			c.quantization = V4L2_QUANTIZATION_LIM_RANGE;
+			break;
+		case HDMI_QUANTIZATION_RANGE_FULL:
+			break;
+		default:
+			if (default_is_lim_range_rgb)
+				c.quantization = V4L2_QUANTIZATION_LIM_RANGE;
+			break;
+		}
+		break;
+
+	default:
+		/* YCbCr pixel encoding */
+		c.quantization = V4L2_QUANTIZATION_LIM_RANGE;
+		switch (avi->colorimetry) {
+		case HDMI_COLORIMETRY_NONE:
+			if (!is_ce)
+				break;
+			if (is_sdtv) {
+				c.colorspace = V4L2_COLORSPACE_SMPTE170M;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_601;
+			} else {
+				c.colorspace = V4L2_COLORSPACE_REC709;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_709;
+			}
+			c.xfer_func = V4L2_XFER_FUNC_709;
+			break;
+		case HDMI_COLORIMETRY_ITU_601:
+			c.colorspace = V4L2_COLORSPACE_SMPTE170M;
+			c.ycbcr_enc = V4L2_YCBCR_ENC_601;
+			c.xfer_func = V4L2_XFER_FUNC_709;
+			break;
+		case HDMI_COLORIMETRY_ITU_709:
+			c.colorspace = V4L2_COLORSPACE_REC709;
+			c.ycbcr_enc = V4L2_YCBCR_ENC_709;
+			c.xfer_func = V4L2_XFER_FUNC_709;
+			break;
+		case HDMI_COLORIMETRY_EXTENDED:
+			switch (avi->extended_colorimetry) {
+			case HDMI_EXTENDED_COLORIMETRY_XV_YCC_601:
+				c.colorspace = V4L2_COLORSPACE_REC709;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_XV709;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_XV_YCC_709:
+				c.colorspace = V4L2_COLORSPACE_REC709;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_XV601;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_S_YCC_601:
+				c.colorspace = V4L2_COLORSPACE_SRGB;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_601;
+				c.xfer_func = V4L2_XFER_FUNC_SRGB;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_OPYCC_601:
+				c.colorspace = V4L2_COLORSPACE_OPRGB;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_601;
+				c.xfer_func = V4L2_XFER_FUNC_OPRGB;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_BT2020:
+				c.colorspace = V4L2_COLORSPACE_BT2020;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_BT2020;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_BT2020_CONST_LUM:
+				c.colorspace = V4L2_COLORSPACE_BT2020;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_BT2020_CONST_LUM;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			default: /* fall back to ITU_709 */
+				c.colorspace = V4L2_COLORSPACE_REC709;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_709;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+		/*
+		 * YCC Quantization Range signaling is more-or-less broken,
+		 * let's just ignore this.
+		 */
+		break;
+	}
+	return c;
+}
+EXPORT_SYMBOL_GPL(v4l2_hdmi_rx_colorimetry);
+
+/**
+ * v4l2_get_edid_phys_addr() - find and return the physical address
+ *
+ * @edid:	pointer to the EDID data
+ * @size:	size in bytes of the EDID data
+ * @offset:	If not %NULL then the location of the physical address
+ *		bytes in the EDID will be returned here. This is set to 0
+ *		if there is no physical address found.
+ *
+ * Return: the physical address or CEC_PHYS_ADDR_INVALID if there is none.
+ */
+u16 v4l2_get_edid_phys_addr(const u8 *edid, unsigned int size,
+			    unsigned int *offset)
+{
+	unsigned int loc = cec_get_edid_spa_location(edid, size);
+
+	if (offset)
+		*offset = loc;
+	if (loc == 0)
+		return CEC_PHYS_ADDR_INVALID;
+	return (edid[loc] << 8) | edid[loc + 1];
+}
+EXPORT_SYMBOL_GPL(v4l2_get_edid_phys_addr);
+
+/**
+ * v4l2_set_edid_phys_addr() - find and set the physical address
+ *
+ * @edid:	pointer to the EDID data
+ * @size:	size in bytes of the EDID data
+ * @phys_addr:	the new physical address
+ *
+ * This function finds the location of the physical address in the EDID
+ * and fills in the given physical address and updates the checksum
+ * at the end of the EDID block. It does nothing if the EDID doesn't
+ * contain a physical address.
+ */
+void v4l2_set_edid_phys_addr(u8 *edid, unsigned int size, u16 phys_addr)
+{
+	unsigned int loc = cec_get_edid_spa_location(edid, size);
+	u8 sum = 0;
+	unsigned int i;
+
+	if (loc == 0)
+		return;
+	edid[loc] = phys_addr >> 8;
+	edid[loc + 1] = phys_addr & 0xff;
+	loc &= ~0x7f;
+
+	/* update the checksum */
+	for (i = loc; i < loc + 127; i++)
+		sum += edid[i];
+	edid[i] = 256 - sum;
+}
+EXPORT_SYMBOL_GPL(v4l2_set_edid_phys_addr);
+
+/**
+ * v4l2_phys_addr_for_input() - calculate the PA for an input
+ *
+ * @phys_addr:	the physical address of the parent
+ * @input:	the number of the input port, must be between 1 and 15
+ *
+ * This function calculates a new physical address based on the input
+ * port number. For example:
+ *
+ * PA = 0.0.0.0 and input = 2 becomes 2.0.0.0
+ *
+ * PA = 3.0.0.0 and input = 1 becomes 3.1.0.0
+ *
+ * PA = 3.2.1.0 and input = 5 becomes 3.2.1.5
+ *
+ * PA = 3.2.1.3 and input = 5 becomes f.f.f.f since it maxed out the depth.
+ *
+ * Return: the new physical address or CEC_PHYS_ADDR_INVALID.
+ */
+u16 v4l2_phys_addr_for_input(u16 phys_addr, u8 input)
+{
+	/* Check if input is sane */
+	if (WARN_ON(input == 0 || input > 0xf))
+		return CEC_PHYS_ADDR_INVALID;
+
+	if (phys_addr == 0)
+		return input << 12;
+
+	if ((phys_addr & 0x0fff) == 0)
+		return phys_addr | (input << 8);
+
+	if ((phys_addr & 0x00ff) == 0)
+		return phys_addr | (input << 4);
+
+	if ((phys_addr & 0x000f) == 0)
+		return phys_addr | input;
+
+	/*
+	 * All nibbles are used so no valid physical addresses can be assigned
+	 * to the input.
+	 */
+	return CEC_PHYS_ADDR_INVALID;
+}
+EXPORT_SYMBOL_GPL(v4l2_phys_addr_for_input);
+
+/**
+ * v4l2_phys_addr_validate() - validate a physical address from an EDID
+ *
+ * @phys_addr:	the physical address to validate
+ * @parent:	if not %NULL, then this is filled with the parents PA.
+ * @port:	if not %NULL, then this is filled with the input port.
+ *
+ * This validates a physical address as read from an EDID. If the
+ * PA is invalid (such as 1.0.1.0 since '0' is only allowed at the end),
+ * then it will return -EINVAL.
+ *
+ * The parent PA is passed into %parent and the input port is passed into
+ * %port. For example:
+ *
+ * PA = 0.0.0.0: has parent 0.0.0.0 and input port 0.
+ *
+ * PA = 1.0.0.0: has parent 0.0.0.0 and input port 1.
+ *
+ * PA = 3.2.0.0: has parent 3.0.0.0 and input port 2.
+ *
+ * PA = f.f.f.f: has parent f.f.f.f and input port 0.
+ *
+ * Return: 0 if the PA is valid, -EINVAL if not.
+ */
+int v4l2_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
+{
+	int i;
+
+	if (parent)
+		*parent = phys_addr;
+	if (port)
+		*port = 0;
+	if (phys_addr == CEC_PHYS_ADDR_INVALID)
+		return 0;
+	for (i = 0; i < 16; i += 4)
+		if (phys_addr & (0xf << i))
+			break;
+	if (i == 16)
+		return 0;
+	if (parent)
+		*parent = phys_addr & (0xfff0 << i);
+	if (port)
+		*port = (phys_addr >> i) & 0xf;
+	for (i += 4; i < 16; i += 4)
+		if ((phys_addr & (0xf << i)) == 0)
+			return -EINVAL;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_phys_addr_validate);

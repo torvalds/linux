@@ -62,7 +62,7 @@
 		};
 
 		idle-states {
-			entry-method = "arm,psci";
+			entry-method = "psci";
 
 			CPU_SLEEP_0: cpu-sleep-0 {
 				compatible = "arm,idle-state";
@@ -200,7 +200,7 @@
 		};
 	};
 
-	pmu_a57 {
+	pmu-a57 {
 		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_SPI 02 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 06 IRQ_TYPE_LEVEL_HIGH>;
@@ -208,7 +208,7 @@
 				     <&A57_1>;
 	};
 
-	pmu_a53 {
+	pmu-a53 {
 		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
@@ -257,14 +257,11 @@
 	remote-endpoint = <&main_funnel_in_port2>;
 };
 
-&main_funnel {
-	ports {
-		port@3 {
-			reg = <2>;
-			main_funnel_in_port2: endpoint {
-				slave-mode;
-				remote-endpoint = <&stm_out_port>;
-			};
+&main_funnel_in_ports {
+	port@2 {
+		reg = <2>;
+		main_funnel_in_port2: endpoint {
+			remote-endpoint = <&stm_out_port>;
 		};
 	};
 };

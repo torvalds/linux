@@ -28,6 +28,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_mode_object.h>
+#include <drm/drm_util.h>
 
 struct drm_encoder;
 
@@ -88,7 +89,6 @@ struct drm_encoder_funcs {
  * @head: list management
  * @base: base KMS object
  * @name: human readable name, can be overwritten by the driver
- * @crtc: currently bound CRTC
  * @bridge: bridge associated to the encoder
  * @funcs: control functions
  * @helper_private: mid-layer private data
@@ -166,6 +166,11 @@ struct drm_encoder {
 	 */
 	uint32_t possible_clones;
 
+	/**
+	 * @crtc: Currently bound CRTC, only really meaningful for non-atomic
+	 * drivers.  Atomic drivers should instead check
+	 * &drm_connector_state.crtc.
+	 */
 	struct drm_crtc *crtc;
 	struct drm_bridge *bridge;
 	const struct drm_encoder_funcs *funcs;
@@ -187,9 +192,21 @@ int drm_encoder_init(struct drm_device *dev,
  * Given a registered encoder, return the index of that encoder within a DRM
  * device's list of encoders.
  */
-static inline unsigned int drm_encoder_index(struct drm_encoder *encoder)
+static inline unsigned int drm_encoder_index(const struct drm_encoder *encoder)
 {
 	return encoder->index;
+}
+
+/**
+ * drm_encoder_mask - find the mask of a registered ENCODER
+ * @encoder: encoder to find mask for
+ *
+ * Given a registered encoder, return the mask bit of that encoder for an
+ * encoder's possible_clones field.
+ */
+static inline u32 drm_encoder_mask(const struct drm_encoder *encoder)
+{
+	return 1 << drm_encoder_index(encoder);
 }
 
 /**
@@ -208,17 +225,19 @@ static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
 /**
  * drm_encoder_find - find a &drm_encoder
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: encoder id
  *
  * Returns the encoder with @id, NULL if it doesn't exist. Simple wrapper around
  * drm_mode_object_find().
  */
 static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
+						   struct drm_file *file_priv,
 						   uint32_t id)
 {
 	struct drm_mode_object *mo;
 
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_ENCODER);
 
 	return mo ? obj_to_encoder(mo) : NULL;
 }
@@ -235,7 +254,7 @@ void drm_encoder_cleanup(struct drm_encoder *encoder);
  */
 #define drm_for_each_encoder_mask(encoder, dev, encoder_mask) \
 	list_for_each_entry((encoder), &(dev)->mode_config.encoder_list, head) \
-		for_each_if ((encoder_mask) & (1 << drm_encoder_index(encoder)))
+		for_each_if ((encoder_mask) & drm_encoder_mask(encoder))
 
 /**
  * drm_for_each_encoder - iterate over all encoders

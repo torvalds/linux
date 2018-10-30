@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/nfs/nfs4namespace.c
  *
@@ -268,8 +269,6 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 				mountdata->addr, addr_bufsize, net);
 		if (mountdata->addrlen == 0)
 			continue;
-
-		rpc_set_port(mountdata->addr, NFS_PORT);
 
 		memcpy(page2, buf->data, buf->len);
 		page2[buf->len] = '\0';

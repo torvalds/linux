@@ -36,12 +36,109 @@
 #include <asm/opal.h>
 #include <asm/kexec.h>
 #include <asm/smp.h>
+#include <asm/tm.h>
+#include <asm/setup.h>
+#include <asm/security_features.h>
 
 #include "powernv.h"
+
+
+static bool fw_feature_is(const char *state, const char *name,
+			  struct device_node *fw_features)
+{
+	struct device_node *np;
+	bool rc = false;
+
+	np = of_get_child_by_name(fw_features, name);
+	if (np) {
+		rc = of_property_read_bool(np, state);
+		of_node_put(np);
+	}
+
+	return rc;
+}
+
+static void init_fw_feat_flags(struct device_node *np)
+{
+	if (fw_feature_is("enabled", "inst-spec-barrier-ori31,31,0", np))
+		security_ftr_set(SEC_FTR_SPEC_BAR_ORI31);
+
+	if (fw_feature_is("enabled", "fw-bcctrl-serialized", np))
+		security_ftr_set(SEC_FTR_BCCTRL_SERIALISED);
+
+	if (fw_feature_is("enabled", "inst-l1d-flush-ori30,30,0", np))
+		security_ftr_set(SEC_FTR_L1D_FLUSH_ORI30);
+
+	if (fw_feature_is("enabled", "inst-l1d-flush-trig2", np))
+		security_ftr_set(SEC_FTR_L1D_FLUSH_TRIG2);
+
+	if (fw_feature_is("enabled", "fw-l1d-thread-split", np))
+		security_ftr_set(SEC_FTR_L1D_THREAD_PRIV);
+
+	if (fw_feature_is("enabled", "fw-count-cache-disabled", np))
+		security_ftr_set(SEC_FTR_COUNT_CACHE_DISABLED);
+
+	if (fw_feature_is("enabled", "fw-count-cache-flush-bcctr2,0,0", np))
+		security_ftr_set(SEC_FTR_BCCTR_FLUSH_ASSIST);
+
+	if (fw_feature_is("enabled", "needs-count-cache-flush-on-context-switch", np))
+		security_ftr_set(SEC_FTR_FLUSH_COUNT_CACHE);
+
+	/*
+	 * The features below are enabled by default, so we instead look to see
+	 * if firmware has *disabled* them, and clear them if so.
+	 */
+	if (fw_feature_is("disabled", "speculation-policy-favor-security", np))
+		security_ftr_clear(SEC_FTR_FAVOUR_SECURITY);
+
+	if (fw_feature_is("disabled", "needs-l1d-flush-msr-pr-0-to-1", np))
+		security_ftr_clear(SEC_FTR_L1D_FLUSH_PR);
+
+	if (fw_feature_is("disabled", "needs-l1d-flush-msr-hv-1-to-0", np))
+		security_ftr_clear(SEC_FTR_L1D_FLUSH_HV);
+
+	if (fw_feature_is("disabled", "needs-spec-barrier-for-bound-checks", np))
+		security_ftr_clear(SEC_FTR_BNDS_CHK_SPEC_BAR);
+}
+
+static void pnv_setup_rfi_flush(void)
+{
+	struct device_node *np, *fw_features;
+	enum l1d_flush_type type;
+	bool enable;
+
+	/* Default to fallback in case fw-features are not available */
+	type = L1D_FLUSH_FALLBACK;
+
+	np = of_find_node_by_name(NULL, "ibm,opal");
+	fw_features = of_get_child_by_name(np, "fw-features");
+	of_node_put(np);
+
+	if (fw_features) {
+		init_fw_feat_flags(fw_features);
+		of_node_put(fw_features);
+
+		if (security_ftr_enabled(SEC_FTR_L1D_FLUSH_TRIG2))
+			type = L1D_FLUSH_MTTRIG;
+
+		if (security_ftr_enabled(SEC_FTR_L1D_FLUSH_ORI30))
+			type = L1D_FLUSH_ORI;
+	}
+
+	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) && \
+		 (security_ftr_enabled(SEC_FTR_L1D_FLUSH_PR)   || \
+		  security_ftr_enabled(SEC_FTR_L1D_FLUSH_HV));
+
+	setup_rfi_flush(type, enable);
+	setup_count_cache_flush();
+}
 
 static void __init pnv_setup_arch(void)
 {
 	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
+
+	pnv_setup_rfi_flush();
+	setup_stf_barrier();
 
 	/* Initialize SMP */
 	pnv_smp_init();
@@ -112,32 +209,51 @@ static void pnv_prepare_going_down(void)
 	 */
 	opal_event_shutdown();
 
-	/* Soft disable interrupts */
-	local_irq_disable();
+	/* Print flash update message if one is scheduled. */
+	opal_flash_update_print_message();
 
-	/*
-	 * Return secondary CPUs to firwmare if a flash update
-	 * is pending otherwise we will get all sort of error
-	 * messages about CPU being stuck etc.. This will also
-	 * have the side effect of hard disabling interrupts so
-	 * past this point, the kernel is effectively dead.
-	 */
-	opal_flash_term_callback();
+	smp_send_stop();
+
+	hard_irq_disable();
 }
 
 static void  __noreturn pnv_restart(char *cmd)
 {
-	long rc = OPAL_BUSY;
+	long rc;
 
 	pnv_prepare_going_down();
 
-	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
-		rc = opal_cec_reboot();
-		if (rc == OPAL_BUSY_EVENT)
-			opal_poll_events(NULL);
+	do {
+		if (!cmd)
+			rc = opal_cec_reboot();
+		else if (strcmp(cmd, "full") == 0)
+			rc = opal_cec_reboot2(OPAL_REBOOT_FULL_IPL, NULL);
 		else
+			rc = OPAL_UNSUPPORTED;
+
+		if (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
+			/* Opal is busy wait for some time and retry */
+			opal_poll_events(NULL);
 			mdelay(10);
-	}
+
+		} else	if (cmd && rc) {
+			/* Unknown error while issuing reboot */
+			if (rc == OPAL_UNSUPPORTED)
+				pr_err("Unsupported '%s' reboot.\n", cmd);
+			else
+				pr_err("Unable to issue '%s' reboot. Err=%ld\n",
+				       cmd, rc);
+			pr_info("Forcing a cec-reboot\n");
+			cmd = NULL;
+			rc = OPAL_BUSY;
+
+		} else if (rc != OPAL_SUCCESS) {
+			/* Unknown error while issuing cec-reboot */
+			pr_err("Unable to reboot. Err=%ld\n", rc);
+		}
+
+	} while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT);
+
 	for (;;)
 		opal_poll_events(NULL);
 }
@@ -204,7 +320,7 @@ static void pnv_kexec_wait_secondaries_down(void)
 			if (i != notified) {
 				printk(KERN_INFO "kexec: waiting for cpu %d "
 				       "(physical %d) to enter OPAL\n",
-				       i, paca[i].hw_cpu_id);
+				       i, paca_ptrs[i]->hw_cpu_id);
 				notified = i;
 			}
 
@@ -216,7 +332,7 @@ static void pnv_kexec_wait_secondaries_down(void)
 			if (timeout-- == 0) {
 				printk(KERN_ERR "kexec: timed out waiting for "
 				       "cpu %d (physical %d) to enter OPAL\n",
-				       i, paca[i].hw_cpu_id);
+				       i, paca_ptrs[i]->hw_cpu_id);
 				break;
 			}
 		}
@@ -228,7 +344,7 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 	u64 reinit_flags;
 
 	if (xive_enabled())
-		xive_kexec_teardown_cpu(secondary);
+		xive_teardown_cpu();
 	else
 		xics_kexec_teardown_cpu(secondary);
 
@@ -282,6 +398,7 @@ static void __init pnv_setup_machdep_opal(void)
 	ppc_md.restart = pnv_restart;
 	pm_power_off = pnv_power_off;
 	ppc_md.halt = pnv_halt;
+	/* ppc_md.system_reset_exception gets filled in by pnv_smp_init() */
 	ppc_md.machine_check_exception = opal_machine_check;
 	ppc_md.mce_check_early_recovery = opal_mce_check_early_recovery;
 	ppc_md.hmi_exception_early = opal_hmi_exception_early;
@@ -303,6 +420,28 @@ static int __init pnv_probe(void)
 	return 1;
 }
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+void __init pnv_tm_init(void)
+{
+	if (!firmware_has_feature(FW_FEATURE_OPAL) ||
+	    !pvr_version_is(PVR_POWER9) ||
+	    early_cpu_has_feature(CPU_FTR_TM))
+		return;
+
+	if (opal_reinit_cpus(OPAL_REINIT_CPUS_TM_SUSPEND_DISABLED) != OPAL_SUCCESS)
+		return;
+
+	pr_info("Enabling TM (Transactional Memory) with Suspend Disabled\n");
+	cur_cpu_spec->cpu_features |= CPU_FTR_TM;
+	/* Make sure "normal" HTM is off (it should be) */
+	cur_cpu_spec->cpu_user_features2 &= ~PPC_FEATURE2_HTM;
+	/* Turn on no suspend mode, and HTM no SC */
+	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_HTM_NO_SUSPEND | \
+					    PPC_FEATURE2_HTM_NOSC;
+	tm_suspend_disabled = true;
+}
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+
 /*
  * Returns the cpu frequency for 'cpu' in Hz. This is used by
  * /proc/cpuinfo
@@ -311,7 +450,7 @@ static unsigned long pnv_get_proc_freq(unsigned int cpu)
 {
 	unsigned long ret_freq;
 
-	ret_freq = cpufreq_quick_get(cpu) * 1000ul;
+	ret_freq = cpufreq_get(cpu) * 1000ul;
 
 	/*
 	 * If the backend cpufreq driver does not exist,
@@ -320,6 +459,16 @@ static unsigned long pnv_get_proc_freq(unsigned int cpu)
 	if (!ret_freq)
 		ret_freq = ppc_proc_freq;
 	return ret_freq;
+}
+
+static long pnv_machine_check_early(struct pt_regs *regs)
+{
+	long handled = 0;
+
+	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
+		handled = cur_cpu_spec->machine_check_early(regs);
+
+	return handled;
 }
 
 define_machine(powernv) {
@@ -333,6 +482,7 @@ define_machine(powernv) {
 	.machine_shutdown	= pnv_shutdown,
 	.power_save             = NULL,
 	.calibrate_decr		= generic_calibrate_decr,
+	.machine_check_early	= pnv_machine_check_early,
 #ifdef CONFIG_KEXEC_CORE
 	.kexec_cpu_down		= pnv_kexec_cpu_down,
 #endif

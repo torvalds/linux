@@ -172,7 +172,6 @@ static int stx104_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info stx104_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = stx104_read_raw,
 	.write_raw = stx104_write_raw
 };
@@ -232,6 +231,16 @@ static int stx104_gpio_get(struct gpio_chip *chip, unsigned int offset)
 		return -EINVAL;
 
 	return !!(inb(stx104gpio->base) & BIT(offset));
+}
+
+static int stx104_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask,
+	unsigned long *bits)
+{
+	struct stx104_gpio *const stx104gpio = gpiochip_get_data(chip);
+
+	*bits = inb(stx104gpio->base);
+
+	return 0;
 }
 
 static void stx104_gpio_set(struct gpio_chip *chip, unsigned int offset,
@@ -343,6 +352,7 @@ static int stx104_probe(struct device *dev, unsigned int id)
 	stx104gpio->chip.direction_input = stx104_gpio_direction_input;
 	stx104gpio->chip.direction_output = stx104_gpio_direction_output;
 	stx104gpio->chip.get = stx104_gpio_get;
+	stx104gpio->chip.get_multiple = stx104_gpio_get_multiple;
 	stx104gpio->chip.set = stx104_gpio_set;
 	stx104gpio->chip.set_multiple = stx104_gpio_set_multiple;
 	stx104gpio->base = base[id] + 3;

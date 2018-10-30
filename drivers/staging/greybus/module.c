@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus Module code
  *
  * Copyright 2016 Google Inc.
  * Copyright 2016 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include "greybus.h"
@@ -95,8 +94,8 @@ struct gb_module *gb_module_create(struct gb_host_device *hd, u8 module_id,
 	struct gb_module *module;
 	int i;
 
-	module = kzalloc(sizeof(*module) + num_interfaces * sizeof(intf),
-				GFP_KERNEL);
+	module = kzalloc(struct_size(module, interfaces, num_interfaces),
+			 GFP_KERNEL);
 	if (!module)
 		return NULL;
 

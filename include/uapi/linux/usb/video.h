@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * USB Video Class definitions.
  *
@@ -191,14 +192,14 @@ struct uvc_descriptor_header {
 
 /* 3.7.2. Video Control Interface Header Descriptor */
 struct uvc_header_descriptor {
-	__u8  bLength;
-	__u8  bDescriptorType;
-	__u8  bDescriptorSubType;
-	__u16 bcdUVC;
-	__u16 wTotalLength;
-	__u32 dwClockFrequency;
-	__u8  bInCollection;
-	__u8  baInterfaceNr[];
+	__u8   bLength;
+	__u8   bDescriptorType;
+	__u8   bDescriptorSubType;
+	__le16 bcdUVC;
+	__le16 wTotalLength;
+	__le32 dwClockFrequency;
+	__u8   bInCollection;
+	__u8   baInterfaceNr[];
 } __attribute__((__packed__));
 
 #define UVC_DT_HEADER_SIZE(n)				(12+(n))
@@ -208,57 +209,57 @@ struct uvc_header_descriptor {
 
 #define DECLARE_UVC_HEADER_DESCRIPTOR(n)		\
 struct UVC_HEADER_DESCRIPTOR(n) {			\
-	__u8  bLength;					\
-	__u8  bDescriptorType;				\
-	__u8  bDescriptorSubType;			\
-	__u16 bcdUVC;					\
-	__u16 wTotalLength;				\
-	__u32 dwClockFrequency;				\
-	__u8  bInCollection;				\
-	__u8  baInterfaceNr[n];				\
+	__u8   bLength;					\
+	__u8   bDescriptorType;				\
+	__u8   bDescriptorSubType;			\
+	__le16 bcdUVC;					\
+	__le16 wTotalLength;				\
+	__le32 dwClockFrequency;			\
+	__u8   bInCollection;				\
+	__u8   baInterfaceNr[n];			\
 } __attribute__ ((packed))
 
 /* 3.7.2.1. Input Terminal Descriptor */
 struct uvc_input_terminal_descriptor {
-	__u8  bLength;
-	__u8  bDescriptorType;
-	__u8  bDescriptorSubType;
-	__u8  bTerminalID;
-	__u16 wTerminalType;
-	__u8  bAssocTerminal;
-	__u8  iTerminal;
+	__u8   bLength;
+	__u8   bDescriptorType;
+	__u8   bDescriptorSubType;
+	__u8   bTerminalID;
+	__le16 wTerminalType;
+	__u8   bAssocTerminal;
+	__u8   iTerminal;
 } __attribute__((__packed__));
 
 #define UVC_DT_INPUT_TERMINAL_SIZE			8
 
 /* 3.7.2.2. Output Terminal Descriptor */
 struct uvc_output_terminal_descriptor {
-	__u8  bLength;
-	__u8  bDescriptorType;
-	__u8  bDescriptorSubType;
-	__u8  bTerminalID;
-	__u16 wTerminalType;
-	__u8  bAssocTerminal;
-	__u8  bSourceID;
-	__u8  iTerminal;
+	__u8   bLength;
+	__u8   bDescriptorType;
+	__u8   bDescriptorSubType;
+	__u8   bTerminalID;
+	__le16 wTerminalType;
+	__u8   bAssocTerminal;
+	__u8   bSourceID;
+	__u8   iTerminal;
 } __attribute__((__packed__));
 
 #define UVC_DT_OUTPUT_TERMINAL_SIZE			9
 
 /* 3.7.2.3. Camera Terminal Descriptor */
 struct uvc_camera_terminal_descriptor {
-	__u8  bLength;
-	__u8  bDescriptorType;
-	__u8  bDescriptorSubType;
-	__u8  bTerminalID;
-	__u16 wTerminalType;
-	__u8  bAssocTerminal;
-	__u8  iTerminal;
-	__u16 wObjectiveFocalLengthMin;
-	__u16 wObjectiveFocalLengthMax;
-	__u16 wOcularFocalLength;
-	__u8  bControlSize;
-	__u8  bmControls[3];
+	__u8   bLength;
+	__u8   bDescriptorType;
+	__u8   bDescriptorSubType;
+	__u8   bTerminalID;
+	__le16 wTerminalType;
+	__u8   bAssocTerminal;
+	__u8   iTerminal;
+	__le16 wObjectiveFocalLengthMin;
+	__le16 wObjectiveFocalLengthMax;
+	__le16 wOcularFocalLength;
+	__u8   bControlSize;
+	__u8   bmControls[3];
 } __attribute__((__packed__));
 
 #define UVC_DT_CAMERA_TERMINAL_SIZE(n)			(15+(n))
@@ -292,15 +293,15 @@ struct UVC_SELECTOR_UNIT_DESCRIPTOR(n) {		\
 
 /* 3.7.2.5. Processing Unit Descriptor */
 struct uvc_processing_unit_descriptor {
-	__u8  bLength;
-	__u8  bDescriptorType;
-	__u8  bDescriptorSubType;
-	__u8  bUnitID;
-	__u8  bSourceID;
-	__u16 wMaxMultiplier;
-	__u8  bControlSize;
-	__u8  bmControls[2];
-	__u8  iProcessing;
+	__u8   bLength;
+	__u8   bDescriptorType;
+	__u8   bDescriptorSubType;
+	__u8   bUnitID;
+	__u8   bSourceID;
+	__le16 wMaxMultiplier;
+	__u8   bControlSize;
+	__u8   bmControls[2];
+	__u8   iProcessing;
 } __attribute__((__packed__));
 
 #define UVC_DT_PROCESSING_UNIT_SIZE(n)			(9+(n))
@@ -342,29 +343,29 @@ struct UVC_EXTENSION_UNIT_DESCRIPTOR(p, n) {		\
 
 /* 3.8.2.2. Video Control Interrupt Endpoint Descriptor */
 struct uvc_control_endpoint_descriptor {
-	__u8  bLength;
-	__u8  bDescriptorType;
-	__u8  bDescriptorSubType;
-	__u16 wMaxTransferSize;
+	__u8   bLength;
+	__u8   bDescriptorType;
+	__u8   bDescriptorSubType;
+	__le16 wMaxTransferSize;
 } __attribute__((__packed__));
 
 #define UVC_DT_CONTROL_ENDPOINT_SIZE			5
 
 /* 3.9.2.1. Input Header Descriptor */
 struct uvc_input_header_descriptor {
-	__u8  bLength;
-	__u8  bDescriptorType;
-	__u8  bDescriptorSubType;
-	__u8  bNumFormats;
-	__u16 wTotalLength;
-	__u8  bEndpointAddress;
-	__u8  bmInfo;
-	__u8  bTerminalLink;
-	__u8  bStillCaptureMethod;
-	__u8  bTriggerSupport;
-	__u8  bTriggerUsage;
-	__u8  bControlSize;
-	__u8  bmaControls[];
+	__u8   bLength;
+	__u8   bDescriptorType;
+	__u8   bDescriptorSubType;
+	__u8   bNumFormats;
+	__le16 wTotalLength;
+	__u8   bEndpointAddress;
+	__u8   bmInfo;
+	__u8   bTerminalLink;
+	__u8   bStillCaptureMethod;
+	__u8   bTriggerSupport;
+	__u8   bTriggerUsage;
+	__u8   bControlSize;
+	__u8   bmaControls[];
 } __attribute__((__packed__));
 
 #define UVC_DT_INPUT_HEADER_SIZE(n, p)			(13+(n*p))
@@ -374,32 +375,32 @@ struct uvc_input_header_descriptor {
 
 #define DECLARE_UVC_INPUT_HEADER_DESCRIPTOR(n, p)	\
 struct UVC_INPUT_HEADER_DESCRIPTOR(n, p) {		\
-	__u8  bLength;					\
-	__u8  bDescriptorType;				\
-	__u8  bDescriptorSubType;			\
-	__u8  bNumFormats;				\
-	__u16 wTotalLength;				\
-	__u8  bEndpointAddress;				\
-	__u8  bmInfo;					\
-	__u8  bTerminalLink;				\
-	__u8  bStillCaptureMethod;			\
-	__u8  bTriggerSupport;				\
-	__u8  bTriggerUsage;				\
-	__u8  bControlSize;				\
-	__u8  bmaControls[p][n];			\
+	__u8   bLength;					\
+	__u8   bDescriptorType;				\
+	__u8   bDescriptorSubType;			\
+	__u8   bNumFormats;				\
+	__le16 wTotalLength;				\
+	__u8   bEndpointAddress;			\
+	__u8   bmInfo;					\
+	__u8   bTerminalLink;				\
+	__u8   bStillCaptureMethod;			\
+	__u8   bTriggerSupport;				\
+	__u8   bTriggerUsage;				\
+	__u8   bControlSize;				\
+	__u8   bmaControls[p][n];			\
 } __attribute__ ((packed))
 
 /* 3.9.2.2. Output Header Descriptor */
 struct uvc_output_header_descriptor {
-	__u8  bLength;
-	__u8  bDescriptorType;
-	__u8  bDescriptorSubType;
-	__u8  bNumFormats;
-	__u16 wTotalLength;
-	__u8  bEndpointAddress;
-	__u8  bTerminalLink;
-	__u8  bControlSize;
-	__u8  bmaControls[];
+	__u8   bLength;
+	__u8   bDescriptorType;
+	__u8   bDescriptorSubType;
+	__u8   bNumFormats;
+	__le16 wTotalLength;
+	__u8   bEndpointAddress;
+	__u8   bTerminalLink;
+	__u8   bControlSize;
+	__u8   bmaControls[];
 } __attribute__((__packed__));
 
 #define UVC_DT_OUTPUT_HEADER_SIZE(n, p)			(9+(n*p))
@@ -409,15 +410,15 @@ struct uvc_output_header_descriptor {
 
 #define DECLARE_UVC_OUTPUT_HEADER_DESCRIPTOR(n, p)	\
 struct UVC_OUTPUT_HEADER_DESCRIPTOR(n, p) {		\
-	__u8  bLength;					\
-	__u8  bDescriptorType;				\
-	__u8  bDescriptorSubType;			\
-	__u8  bNumFormats;				\
-	__u16 wTotalLength;				\
-	__u8  bEndpointAddress;				\
-	__u8  bTerminalLink;				\
-	__u8  bControlSize;				\
-	__u8  bmaControls[p][n];			\
+	__u8   bLength;					\
+	__u8   bDescriptorType;				\
+	__u8   bDescriptorSubType;			\
+	__u8   bNumFormats;				\
+	__le16 wTotalLength;				\
+	__u8   bEndpointAddress;			\
+	__u8   bTerminalLink;				\
+	__u8   bControlSize;				\
+	__u8   bmaControls[p][n];			\
 } __attribute__ ((packed))
 
 /* 3.9.2.6. Color matching descriptor */
@@ -472,19 +473,19 @@ struct uvc_format_uncompressed {
 
 /* Uncompressed Payload - 3.1.2. Uncompressed Video Frame Descriptor */
 struct uvc_frame_uncompressed {
-	__u8  bLength;
-	__u8  bDescriptorType;
-	__u8  bDescriptorSubType;
-	__u8  bFrameIndex;
-	__u8  bmCapabilities;
-	__u16 wWidth;
-	__u16 wHeight;
-	__u32 dwMinBitRate;
-	__u32 dwMaxBitRate;
-	__u32 dwMaxVideoFrameBufferSize;
-	__u32 dwDefaultFrameInterval;
-	__u8  bFrameIntervalType;
-	__u32 dwFrameInterval[];
+	__u8   bLength;
+	__u8   bDescriptorType;
+	__u8   bDescriptorSubType;
+	__u8   bFrameIndex;
+	__u8   bmCapabilities;
+	__le16 wWidth;
+	__le16 wHeight;
+	__le32 dwMinBitRate;
+	__le32 dwMaxBitRate;
+	__le32 dwMaxVideoFrameBufferSize;
+	__le32 dwDefaultFrameInterval;
+	__u8   bFrameIntervalType;
+	__le32 dwFrameInterval[];
 } __attribute__((__packed__));
 
 #define UVC_DT_FRAME_UNCOMPRESSED_SIZE(n)		(26+4*(n))
@@ -494,19 +495,19 @@ struct uvc_frame_uncompressed {
 
 #define DECLARE_UVC_FRAME_UNCOMPRESSED(n)		\
 struct UVC_FRAME_UNCOMPRESSED(n) {			\
-	__u8  bLength;					\
-	__u8  bDescriptorType;				\
-	__u8  bDescriptorSubType;			\
-	__u8  bFrameIndex;				\
-	__u8  bmCapabilities;				\
-	__u16 wWidth;					\
-	__u16 wHeight;					\
-	__u32 dwMinBitRate;				\
-	__u32 dwMaxBitRate;				\
-	__u32 dwMaxVideoFrameBufferSize;		\
-	__u32 dwDefaultFrameInterval;			\
-	__u8  bFrameIntervalType;			\
-	__u32 dwFrameInterval[n];			\
+	__u8   bLength;					\
+	__u8   bDescriptorType;				\
+	__u8   bDescriptorSubType;			\
+	__u8   bFrameIndex;				\
+	__u8   bmCapabilities;				\
+	__le16 wWidth;					\
+	__le16 wHeight;					\
+	__le32 dwMinBitRate;				\
+	__le32 dwMaxBitRate;				\
+	__le32 dwMaxVideoFrameBufferSize;		\
+	__le32 dwDefaultFrameInterval;			\
+	__u8   bFrameIntervalType;			\
+	__le32 dwFrameInterval[n];			\
 } __attribute__ ((packed))
 
 /* MJPEG Payload - 3.1.1. MJPEG Video Format Descriptor */
@@ -528,19 +529,19 @@ struct uvc_format_mjpeg {
 
 /* MJPEG Payload - 3.1.2. MJPEG Video Frame Descriptor */
 struct uvc_frame_mjpeg {
-	__u8  bLength;
-	__u8  bDescriptorType;
-	__u8  bDescriptorSubType;
-	__u8  bFrameIndex;
-	__u8  bmCapabilities;
-	__u16 wWidth;
-	__u16 wHeight;
-	__u32 dwMinBitRate;
-	__u32 dwMaxBitRate;
-	__u32 dwMaxVideoFrameBufferSize;
-	__u32 dwDefaultFrameInterval;
-	__u8  bFrameIntervalType;
-	__u32 dwFrameInterval[];
+	__u8   bLength;
+	__u8   bDescriptorType;
+	__u8   bDescriptorSubType;
+	__u8   bFrameIndex;
+	__u8   bmCapabilities;
+	__le16 wWidth;
+	__le16 wHeight;
+	__le32 dwMinBitRate;
+	__le32 dwMaxBitRate;
+	__le32 dwMaxVideoFrameBufferSize;
+	__le32 dwDefaultFrameInterval;
+	__u8   bFrameIntervalType;
+	__le32 dwFrameInterval[];
 } __attribute__((__packed__));
 
 #define UVC_DT_FRAME_MJPEG_SIZE(n)			(26+4*(n))
@@ -550,19 +551,19 @@ struct uvc_frame_mjpeg {
 
 #define DECLARE_UVC_FRAME_MJPEG(n)			\
 struct UVC_FRAME_MJPEG(n) {				\
-	__u8  bLength;					\
-	__u8  bDescriptorType;				\
-	__u8  bDescriptorSubType;			\
-	__u8  bFrameIndex;				\
-	__u8  bmCapabilities;				\
-	__u16 wWidth;					\
-	__u16 wHeight;					\
-	__u32 dwMinBitRate;				\
-	__u32 dwMaxBitRate;				\
-	__u32 dwMaxVideoFrameBufferSize;		\
-	__u32 dwDefaultFrameInterval;			\
-	__u8  bFrameIntervalType;			\
-	__u32 dwFrameInterval[n];			\
+	__u8   bLength;					\
+	__u8   bDescriptorType;				\
+	__u8   bDescriptorSubType;			\
+	__u8   bFrameIndex;				\
+	__u8   bmCapabilities;				\
+	__le16 wWidth;					\
+	__le16 wHeight;					\
+	__le32 dwMinBitRate;				\
+	__le32 dwMaxBitRate;				\
+	__le32 dwMaxVideoFrameBufferSize;		\
+	__le32 dwDefaultFrameInterval;			\
+	__u8   bFrameIntervalType;			\
+	__le32 dwFrameInterval[n];			\
 } __attribute__ ((packed))
 
 #endif /* __LINUX_USB_VIDEO_H */

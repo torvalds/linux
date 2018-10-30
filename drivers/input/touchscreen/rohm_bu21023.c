@@ -304,7 +304,7 @@ static int rohm_i2c_burst_read(struct i2c_client *client, u8 start, void *buf,
 	msg[1].len = len;
 	msg[1].buf = buf;
 
-	i2c_lock_adapter(adap);
+	i2c_lock_bus(adap, I2C_LOCK_SEGMENT);
 
 	for (i = 0; i < 2; i++) {
 		if (__i2c_transfer(adap, &msg[i], 1) < 0) {
@@ -313,7 +313,7 @@ static int rohm_i2c_burst_read(struct i2c_client *client, u8 start, void *buf,
 		}
 	}
 
-	i2c_unlock_adapter(adap);
+	i2c_unlock_bus(adap, I2C_LOCK_SEGMENT);
 
 	return ret;
 }
@@ -1103,13 +1103,6 @@ static void rohm_ts_close(struct input_dev *input_dev)
 	ts->initialized = false;
 }
 
-static void rohm_ts_remove_sysfs_group(void *_dev)
-{
-	struct device *dev = _dev;
-
-	sysfs_remove_group(&dev->kobj, &rohm_ts_attr_group);
-}
-
 static int rohm_bu21023_i2c_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
@@ -1180,17 +1173,9 @@ static int rohm_bu21023_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = sysfs_create_group(&dev->kobj, &rohm_ts_attr_group);
+	error = devm_device_add_group(dev, &rohm_ts_attr_group);
 	if (error) {
 		dev_err(dev, "failed to create sysfs group: %d\n", error);
-		return error;
-	}
-
-	error = devm_add_action(dev, rohm_ts_remove_sysfs_group, dev);
-	if (error) {
-		rohm_ts_remove_sysfs_group(dev);
-		dev_err(dev, "Failed to add sysfs cleanup action: %d\n",
-			error);
 		return error;
 	}
 

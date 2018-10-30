@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SCLP VT220 terminal driver.
  *
@@ -356,7 +357,7 @@ sclp_vt220_add_msg(struct sclp_vt220_request *request,
  * Emit buffer after having waited long enough for more data to arrive.
  */
 static void
-sclp_vt220_timeout(unsigned long data)
+sclp_vt220_timeout(struct timer_list *unused)
 {
 	sclp_vt220_emit_current();
 }
@@ -453,8 +454,6 @@ __sclp_vt220_write(const unsigned char *buf, int count, int do_schedule,
 	/* Setup timer to output current console buffer after some time */
 	if (sclp_vt220_current_request != NULL &&
 	    !timer_pending(&sclp_vt220_timer) && do_schedule) {
-		sclp_vt220_timer.function = sclp_vt220_timeout;
-		sclp_vt220_timer.data = 0UL;
 		sclp_vt220_timer.expires = jiffies + BUFFER_MAX_DELAY;
 		add_timer(&sclp_vt220_timer);
 	}
@@ -698,7 +697,7 @@ static int __init __sclp_vt220_init(int num_pages)
 	spin_lock_init(&sclp_vt220_lock);
 	INIT_LIST_HEAD(&sclp_vt220_empty);
 	INIT_LIST_HEAD(&sclp_vt220_outqueue);
-	init_timer(&sclp_vt220_timer);
+	timer_setup(&sclp_vt220_timer, sclp_vt220_timeout, 0);
 	tty_port_init(&sclp_vt220_port);
 	sclp_vt220_current_request = NULL;
 	sclp_vt220_buffered_chars = 0;

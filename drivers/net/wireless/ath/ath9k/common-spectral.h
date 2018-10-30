@@ -145,13 +145,30 @@ static inline u8 spectral_max_index(u8 *bins, int num_bins)
 	return m;
 }
 
+static inline u8 spectral_max_index_ht40(u8 *bins)
+{
+	u8 idx;
+
+	idx = spectral_max_index(bins, SPECTRAL_HT20_40_NUM_BINS);
+
+	/* positive values and zero are starting at the beginning
+	 * of the data field.
+	 */
+	return idx % (SPECTRAL_HT20_40_NUM_BINS / 2);
+}
+
+static inline u8 spectral_max_index_ht20(u8 *bins)
+{
+	return spectral_max_index(bins, SPECTRAL_HT20_NUM_BINS);
+}
+
 /* return the bitmap weight from the all/upper/lower bins */
 static inline u8 spectral_bitmap_weight(u8 *bins)
 {
 	return bins[0] & 0x3f;
 }
 
-#ifdef CONFIG_ATH9K_COMMON_DEBUG
+#ifdef CONFIG_ATH9K_COMMON_SPECTRAL
 void ath9k_cmn_spectral_init_debug(struct ath_spec_scan_priv *spec_priv, struct dentry *debugfs_phy);
 void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv);
 
@@ -183,6 +200,6 @@ static inline int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv,
 {
 	return 0;
 }
-#endif /* CONFIG_ATH9K_COMMON_DEBUG */
+#endif /* CONFIG_ATH9K_COMMON_SPECTRAL */
 
 #endif /* SPECTRAL_H */

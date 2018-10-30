@@ -26,6 +26,13 @@ struct bpf_map_def SEC("maps") sock_map_tx = {
 	.max_entries = 20,
 };
 
+struct bpf_map_def SEC("maps") sock_map_msg = {
+	.type = BPF_MAP_TYPE_SOCKMAP,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 20,
+};
+
 struct bpf_map_def SEC("maps") sock_map_break = {
 	.type = BPF_MAP_TYPE_ARRAY,
 	.key_size = sizeof(int),
@@ -58,11 +65,9 @@ int bpf_prog2(struct __sk_buff *skb)
 	d[6] = 0xe;
 	d[7] = 0xf;
 
-	bpf_printk("verdict: data[0] = redir(%u:%u)\n", map, sk);
-
 	if (!map)
-		return bpf_sk_redirect_map(&sock_map_rx, sk, 0);
-	return bpf_sk_redirect_map(&sock_map_tx, sk, 0);
+		return bpf_sk_redirect_map(skb, &sock_map_rx, sk, 0);
+	return bpf_sk_redirect_map(skb, &sock_map_tx, sk, 0);
 }
 
 char _license[] SEC("license") = "GPL";

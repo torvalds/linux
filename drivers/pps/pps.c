@@ -49,13 +49,13 @@ static DEFINE_IDR(pps_idr);
  * Char device methods
  */
 
-static unsigned int pps_cdev_poll(struct file *file, poll_table *wait)
+static __poll_t pps_cdev_poll(struct file *file, poll_table *wait)
 {
 	struct pps_device *pps = file->private_data;
 
 	poll_wait(file, &pps->queue, wait);
 
-	return POLLIN | POLLRDNORM;
+	return EPOLLIN | EPOLLRDNORM;
 }
 
 static int pps_cdev_fasync(int fd, struct file *file, int on)

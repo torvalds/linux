@@ -1,15 +1,9 @@
-/*
- * tfa9879.c  --  driver for NXP Semiconductors TFA9879
- *
- * Copyright (C) 2014 Axentia Technologies AB
- * Author: Peter Rosin <peda@axentia.se>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// tfa9879.c  --  driver for NXP Semiconductors TFA9879
+//
+// Copyright (C) 2014 Axentia Technologies AB
+// Author: Peter Rosin <peda@axentia.se>
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -30,8 +24,8 @@ static int tfa9879_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct tfa9879_priv *tfa9879 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct tfa9879_priv *tfa9879 = snd_soc_component_get_drvdata(component);
 	int fs;
 	int i2s_set = 0;
 
@@ -88,31 +82,32 @@ static int tfa9879_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (tfa9879->lsb_justified)
-		snd_soc_update_bits(codec, TFA9879_SERIAL_INTERFACE_1,
-				    TFA9879_I2S_SET_MASK,
-				    i2s_set << TFA9879_I2S_SET_SHIFT);
+		snd_soc_component_update_bits(component,
+					      TFA9879_SERIAL_INTERFACE_1,
+					      TFA9879_I2S_SET_MASK,
+					      i2s_set << TFA9879_I2S_SET_SHIFT);
 
-	snd_soc_update_bits(codec, TFA9879_SERIAL_INTERFACE_1,
-			    TFA9879_I2S_FS_MASK,
-			    fs << TFA9879_I2S_FS_SHIFT);
+	snd_soc_component_update_bits(component, TFA9879_SERIAL_INTERFACE_1,
+				      TFA9879_I2S_FS_MASK,
+				      fs << TFA9879_I2S_FS_SHIFT);
 	return 0;
 }
 
 static int tfa9879_digital_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
-	snd_soc_update_bits(codec, TFA9879_MISC_CONTROL,
-			    TFA9879_S_MUTE_MASK,
-			    !!mute << TFA9879_S_MUTE_SHIFT);
+	snd_soc_component_update_bits(component, TFA9879_MISC_CONTROL,
+				      TFA9879_S_MUTE_MASK,
+				      !!mute << TFA9879_S_MUTE_SHIFT);
 
 	return 0;
 }
 
 static int tfa9879_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct tfa9879_priv *tfa9879 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct tfa9879_priv *tfa9879 = snd_soc_component_get_drvdata(component);
 	int i2s_set;
 	int sck_pol;
 
@@ -151,12 +146,12 @@ static int tfa9879_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, TFA9879_SERIAL_INTERFACE_1,
-			    TFA9879_SCK_POL_MASK,
-			    sck_pol << TFA9879_SCK_POL_SHIFT);
-	snd_soc_update_bits(codec, TFA9879_SERIAL_INTERFACE_1,
-			    TFA9879_I2S_SET_MASK,
-			    i2s_set << TFA9879_I2S_SET_SHIFT);
+	snd_soc_component_update_bits(component, TFA9879_SERIAL_INTERFACE_1,
+				      TFA9879_SCK_POL_MASK,
+				      sck_pol << TFA9879_SCK_POL_SHIFT);
+	snd_soc_component_update_bits(component, TFA9879_SERIAL_INTERFACE_1,
+				      TFA9879_I2S_SET_MASK,
+				      i2s_set << TFA9879_I2S_SET_SHIFT);
 	return 0;
 }
 
@@ -230,15 +225,17 @@ static const struct snd_soc_dapm_route tfa9879_dapm_routes[] = {
 	{ "DAC", NULL, "POWER" },
 };
 
-static const struct snd_soc_codec_driver tfa9879_codec = {
-	.component_driver = {
-		.controls		= tfa9879_controls,
-		.num_controls		= ARRAY_SIZE(tfa9879_controls),
-		.dapm_widgets		= tfa9879_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(tfa9879_dapm_widgets),
-		.dapm_routes		= tfa9879_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(tfa9879_dapm_routes),
-	},
+static const struct snd_soc_component_driver tfa9879_component = {
+	.controls		= tfa9879_controls,
+	.num_controls		= ARRAY_SIZE(tfa9879_controls),
+	.dapm_widgets		= tfa9879_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(tfa9879_dapm_widgets),
+	.dapm_routes		= tfa9879_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(tfa9879_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config tfa9879_regmap = {
@@ -274,8 +271,7 @@ static struct snd_soc_dai_driver tfa9879_dai = {
 	.ops = &tfa9879_dai_ops,
 };
 
-static int tfa9879_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int tfa9879_i2c_probe(struct i2c_client *i2c)
 {
 	struct tfa9879_priv *tfa9879;
 	int i;
@@ -295,15 +291,8 @@ static int tfa9879_i2c_probe(struct i2c_client *i2c,
 		regmap_write(tfa9879->regmap,
 			     tfa9879_regs[i].reg, tfa9879_regs[i].def);
 
-	return snd_soc_register_codec(&i2c->dev, &tfa9879_codec,
-				      &tfa9879_dai, 1);
-}
-
-static int tfa9879_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-
-	return 0;
+	return devm_snd_soc_register_component(&i2c->dev, &tfa9879_component,
+					       &tfa9879_dai, 1);
 }
 
 static const struct i2c_device_id tfa9879_i2c_id[] = {
@@ -312,12 +301,18 @@ static const struct i2c_device_id tfa9879_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tfa9879_i2c_id);
 
+static const struct of_device_id tfa9879_of_match[] = {
+	{ .compatible = "nxp,tfa9879", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, tfa9879_of_match);
+
 static struct i2c_driver tfa9879_i2c_driver = {
 	.driver = {
 		.name = "tfa9879",
+		.of_match_table = tfa9879_of_match,
 	},
-	.probe = tfa9879_i2c_probe,
-	.remove = tfa9879_i2c_remove,
+	.probe_new = tfa9879_i2c_probe,
 	.id_table = tfa9879_i2c_id,
 };
 

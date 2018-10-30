@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Multiplexer driver for Analog Devices ADG792A/G Triple 4:1 mux
  *
  * Copyright (C) 2017 Axentia Technologies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -61,8 +58,7 @@ static const struct mux_control_ops adg792a_ops = {
 	.set = adg792a_set,
 };
 
-static int adg792a_probe(struct i2c_client *i2c,
-			 const struct i2c_device_id *id)
+static int adg792a_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct mux_chip *mux_chip;
@@ -147,7 +143,7 @@ static struct i2c_driver adg792a_driver = {
 		.name		= "adg792a",
 		.of_match_table = of_match_ptr(adg792a_of_match),
 	},
-	.probe		= adg792a_probe,
+	.probe_new	= adg792a_probe,
 	.id_table	= adg792a_id,
 };
 module_i2c_driver(adg792a_driver);

@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 #
 # This scripts adds local version information from the version
 # control systems git, mercurial (hg) and subversion (svn).
@@ -73,7 +74,7 @@ scm_version()
 		fi
 
 		# Check for uncommitted changes
-		if git diff-index --name-only HEAD | grep -qv "^scripts/package"; then
+		if git status -uno --porcelain | grep -qv '^.. scripts/package'; then
 			printf '%s' -dirty
 		fi
 

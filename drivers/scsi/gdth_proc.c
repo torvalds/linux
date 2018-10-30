@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* gdth_proc.c 
  * $Id: gdth_proc.c,v 1.43 2006/01/11 16:15:00 achim Exp $
  */
@@ -625,7 +626,7 @@ static void gdth_wait_completion(gdth_ha_str *ha, int busnum, int id)
 {
     unsigned long flags;
     int i;
-    Scsi_Cmnd *scp;
+    struct scsi_cmnd *scp;
     struct gdth_cmndinfo *cmndinfo;
     u8 b, t;
 

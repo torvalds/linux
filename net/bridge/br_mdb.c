@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/err.h>
 #include <linux/igmp.h>
 #include <linux/kernel.h>
@@ -83,7 +84,7 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 	int i, err = 0;
 	int idx = 0, s_idx = cb->args[1];
 
-	if (br->multicast_disabled)
+	if (!br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		return 0;
 
 	mdb = rcu_dereference(br->mdb);
@@ -161,12 +162,42 @@ out:
 	return err;
 }
 
+static int br_mdb_valid_dump_req(const struct nlmsghdr *nlh,
+				 struct netlink_ext_ack *extack)
+{
+	struct br_port_msg *bpm;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*bpm))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid header for mdb dump request");
+		return -EINVAL;
+	}
+
+	bpm = nlmsg_data(nlh);
+	if (bpm->ifindex) {
+		NL_SET_ERR_MSG_MOD(extack, "Filtering by device index is not supported for mdb dump request");
+		return -EINVAL;
+	}
+	if (nlmsg_attrlen(nlh, sizeof(*bpm))) {
+		NL_SET_ERR_MSG(extack, "Invalid data after header in mdb dump request");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int br_mdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net_device *dev;
 	struct net *net = sock_net(skb->sk);
 	struct nlmsghdr *nlh = NULL;
 	int idx = 0, s_idx;
+
+	if (cb->strict_check) {
+		int err = br_mdb_valid_dump_req(cb->nlh, cb->extack);
+
+		if (err < 0)
+			return err;
+	}
 
 	s_idx = cb->args[0];
 
@@ -291,6 +322,46 @@ err:
 	kfree(priv);
 }
 
+static void br_mdb_switchdev_host_port(struct net_device *dev,
+				       struct net_device *lower_dev,
+				       struct br_mdb_entry *entry, int type)
+{
+	struct switchdev_obj_port_mdb mdb = {
+		.obj = {
+			.id = SWITCHDEV_OBJ_ID_HOST_MDB,
+			.flags = SWITCHDEV_F_DEFER,
+		},
+		.vid = entry->vid,
+	};
+
+	if (entry->addr.proto == htons(ETH_P_IP))
+		ip_eth_mc_map(entry->addr.u.ip4, mdb.addr);
+#if IS_ENABLED(CONFIG_IPV6)
+	else
+		ipv6_eth_mc_map(&entry->addr.u.ip6, mdb.addr);
+#endif
+
+	mdb.obj.orig_dev = dev;
+	switch (type) {
+	case RTM_NEWMDB:
+		switchdev_port_obj_add(lower_dev, &mdb.obj);
+		break;
+	case RTM_DELMDB:
+		switchdev_port_obj_del(lower_dev, &mdb.obj);
+		break;
+	}
+}
+
+static void br_mdb_switchdev_host(struct net_device *dev,
+				  struct br_mdb_entry *entry, int type)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+
+	netdev_for_each_lower_dev(dev, lower_dev, iter)
+		br_mdb_switchdev_host_port(dev, lower_dev, entry, type);
+}
+
 static void __br_mdb_notify(struct net_device *dev, struct net_bridge_port *p,
 			    struct br_mdb_entry *entry, int type)
 {
@@ -316,7 +387,7 @@ static void __br_mdb_notify(struct net_device *dev, struct net_bridge_port *p,
 #endif
 
 	mdb.obj.orig_dev = port_dev;
-	if (port_dev && type == RTM_NEWMDB) {
+	if (p && port_dev && type == RTM_NEWMDB) {
 		complete_info = kmalloc(sizeof(*complete_info), GFP_ATOMIC);
 		if (complete_info) {
 			complete_info->port = p;
@@ -326,9 +397,12 @@ static void __br_mdb_notify(struct net_device *dev, struct net_bridge_port *p,
 			if (switchdev_port_obj_add(port_dev, &mdb.obj))
 				kfree(complete_info);
 		}
-	} else if (port_dev && type == RTM_DELMDB) {
+	} else if (p && port_dev && type == RTM_DELMDB) {
 		switchdev_port_obj_del(port_dev, &mdb.obj);
 	}
+
+	if (!p)
+		br_mdb_switchdev_host(dev, entry, type);
 
 	skb = nlmsg_new(rtnl_mdb_nlmsg_size(), GFP_ATOMIC);
 	if (!skb)
@@ -352,7 +426,10 @@ void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 	struct br_mdb_entry entry;
 
 	memset(&entry, 0, sizeof(entry));
-	entry.ifindex = port->dev->ifindex;
+	if (port)
+		entry.ifindex = port->dev->ifindex;
+	else
+		entry.ifindex = dev->ifindex;
 	entry.addr.proto = group->proto;
 	entry.addr.u.ip4 = group->u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -551,7 +628,7 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	struct net_bridge_port *p;
 	int ret;
 
-	if (!netif_running(br->dev) || br->multicast_disabled)
+	if (!netif_running(br->dev) || !br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		return -EINVAL;
 
 	dev = __dev_get_by_index(net, entry->ifindex);
@@ -626,7 +703,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 	struct br_ip ip;
 	int err = -EINVAL;
 
-	if (!netif_running(br->dev) || br->multicast_disabled)
+	if (!netif_running(br->dev) || !br_opt_get(br, BROPT_MULTICAST_ENABLED))
 		return -EINVAL;
 
 	__mdb_entry_to_br_ip(entry, &ip);
@@ -654,7 +731,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 		call_rcu_bh(&p->rcu, br_multicast_free_pg);
 		err = 0;
 
-		if (!mp->ports && !mp->mglist &&
+		if (!mp->ports && !mp->host_joined &&
 		    netif_running(br->dev))
 			mod_timer(&mp->timer, jiffies);
 		break;
@@ -713,9 +790,9 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 void br_mdb_init(void)
 {
-	rtnl_register(PF_BRIDGE, RTM_GETMDB, NULL, br_mdb_dump, 0);
-	rtnl_register(PF_BRIDGE, RTM_NEWMDB, br_mdb_add, NULL, 0);
-	rtnl_register(PF_BRIDGE, RTM_DELMDB, br_mdb_del, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_BRIDGE, RTM_GETMDB, NULL, br_mdb_dump, 0);
+	rtnl_register_module(THIS_MODULE, PF_BRIDGE, RTM_NEWMDB, br_mdb_add, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_BRIDGE, RTM_DELMDB, br_mdb_del, NULL, 0);
 }
 
 void br_mdb_uninit(void)

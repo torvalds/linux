@@ -67,38 +67,6 @@ static struct clk *_register_interface(struct device *dev, const char *name,
 	return clk;
 }
 
-#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
-struct clk *ti_clk_register_interface(struct ti_clk *setup)
-{
-	const struct clk_hw_omap_ops *ops = &clkhwops_iclk_wait;
-	struct clk_omap_reg reg;
-	struct ti_clk_gate *gate;
-
-	gate = setup->data;
-	reg.index = gate->module;
-	reg.offset = gate->reg;
-	reg.ptr = NULL;
-
-	if (gate->flags & CLKF_NO_WAIT)
-		ops = &clkhwops_iclk;
-
-	if (gate->flags & CLKF_HSOTGUSB)
-		ops = &clkhwops_omap3430es2_iclk_hsotgusb_wait;
-
-	if (gate->flags & CLKF_DSS)
-		ops = &clkhwops_omap3430es2_iclk_dss_usbhost_wait;
-
-	if (gate->flags & CLKF_SSI)
-		ops = &clkhwops_omap3430es2_iclk_ssi_wait;
-
-	if (gate->flags & CLKF_AM35XX)
-		ops = &clkhwops_am35xx_ipss_wait;
-
-	return _register_interface(NULL, setup->name, gate->parent,
-				   &reg, gate->bit_shift, ops);
-}
-#endif
-
 static void __init _of_ti_interface_clk_setup(struct device_node *node,
 					      const struct clk_hw_omap_ops *ops)
 {

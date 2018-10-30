@@ -75,14 +75,14 @@ MODULE_DEVICE_TABLE(of, tegra_xusb_padctl_of_match);
 static struct device_node *
 tegra_xusb_find_pad_node(struct tegra_xusb_padctl *padctl, const char *name)
 {
-	/*
-	 * of_find_node_by_name() drops a reference, so make sure to grab one.
-	 */
-	struct device_node *np = of_node_get(padctl->dev->of_node);
+	struct device_node *pads, *np;
 
-	np = of_find_node_by_name(np, "pads");
-	if (np)
-		np = of_find_node_by_name(np, name);
+	pads = of_get_child_by_name(padctl->dev->of_node, "pads");
+	if (!pads)
+		return NULL;
+
+	np = of_get_child_by_name(pads, name);
+	of_node_put(pads);
 
 	return np;
 }
@@ -90,29 +90,16 @@ tegra_xusb_find_pad_node(struct tegra_xusb_padctl *padctl, const char *name)
 static struct device_node *
 tegra_xusb_pad_find_phy_node(struct tegra_xusb_pad *pad, unsigned int index)
 {
-	/*
-	 * of_find_node_by_name() drops a reference, so make sure to grab one.
-	 */
-	struct device_node *np = of_node_get(pad->dev.of_node);
+	struct device_node *np, *lanes;
 
-	np = of_find_node_by_name(np, "lanes");
-	if (!np)
+	lanes = of_get_child_by_name(pad->dev.of_node, "lanes");
+	if (!lanes)
 		return NULL;
 
-	return of_find_node_by_name(np, pad->soc->lanes[index].name);
-}
+	np = of_get_child_by_name(lanes, pad->soc->lanes[index].name);
+	of_node_put(lanes);
 
-static int
-tegra_xusb_lane_lookup_function(struct tegra_xusb_lane *lane,
-				    const char *function)
-{
-	unsigned int i;
-
-	for (i = 0; i < lane->soc->num_funcs; i++)
-		if (strcmp(function, lane->soc->funcs[i]) == 0)
-			return i;
-
-	return -EINVAL;
+	return np;
 }
 
 int tegra_xusb_lane_parse_dt(struct tegra_xusb_lane *lane,
@@ -126,10 +113,10 @@ int tegra_xusb_lane_parse_dt(struct tegra_xusb_lane *lane,
 	if (err < 0)
 		return err;
 
-	err = tegra_xusb_lane_lookup_function(lane, function);
+	err = match_string(lane->soc->funcs, lane->soc->num_funcs, function);
 	if (err < 0) {
-		dev_err(dev, "invalid function \"%s\" for lane \"%s\"\n",
-			function, np->name);
+		dev_err(dev, "invalid function \"%s\" for lane \"%pOFn\"\n",
+			function, np);
 		return err;
 	}
 
@@ -195,7 +182,7 @@ int tegra_xusb_pad_register(struct tegra_xusb_pad *pad,
 	unsigned int i;
 	int err;
 
-	children = of_find_node_by_name(pad->dev.of_node, "lanes");
+	children = of_get_child_by_name(pad->dev.of_node, "lanes");
 	if (!children)
 		return -ENODEV;
 
@@ -418,7 +405,7 @@ tegra_xusb_port_find_lane(struct tegra_xusb_port *port,
 {
 	struct tegra_xusb_lane *lane, *match = ERR_PTR(-ENODEV);
 
-	for (map = map; map->type; map++) {
+	for (; map->type; map++) {
 		if (port->index != map->port)
 			continue;
 
@@ -444,19 +431,21 @@ static struct device_node *
 tegra_xusb_find_port_node(struct tegra_xusb_padctl *padctl, const char *type,
 			  unsigned int index)
 {
-	/*
-	 * of_find_node_by_name() drops a reference, so make sure to grab one.
-	 */
-	struct device_node *np = of_node_get(padctl->dev->of_node);
+	struct device_node *ports, *np;
+	char *name;
 
-	np = of_find_node_by_name(np, "ports");
-	if (np) {
-		char *name;
+	ports = of_get_child_by_name(padctl->dev->of_node, "ports");
+	if (!ports)
+		return NULL;
 
-		name = kasprintf(GFP_KERNEL, "%s-%u", type, index);
-		np = of_find_node_by_name(np, name);
-		kfree(name);
+	name = kasprintf(GFP_KERNEL, "%s-%u", type, index);
+	if (!name) {
+		of_node_put(ports);
+		return ERR_PTR(-ENOMEM);
 	}
+	np = of_get_child_by_name(ports, name);
+	kfree(name);
+	of_node_put(ports);
 
 	return np;
 }
@@ -845,7 +834,7 @@ static void tegra_xusb_remove_ports(struct tegra_xusb_padctl *padctl)
 
 static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 {
-	struct device_node *np = of_node_get(pdev->dev.of_node);
+	struct device_node *np = pdev->dev.of_node;
 	const struct tegra_xusb_padctl_soc *soc;
 	struct tegra_xusb_padctl *padctl;
 	const struct of_device_id *match;
@@ -853,7 +842,7 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 	int err;
 
 	/* for backwards compatibility with old device trees */
-	np = of_find_node_by_name(np, "pads");
+	np = of_get_child_by_name(np, "pads");
 	if (!np) {
 		dev_warn(&pdev->dev, "deprecated DT, using legacy driver\n");
 		return tegra_xusb_padctl_legacy_probe(pdev);

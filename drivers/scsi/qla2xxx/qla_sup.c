@@ -1880,6 +1880,9 @@ qla24xx_beacon_off(struct scsi_qla_host *vha)
 	if (IS_P3P_TYPE(ha))
 		return QLA_SUCCESS;
 
+	if (!ha->flags.fw_started)
+		return QLA_SUCCESS;
+
 	ha->beacon_blink_led = 0;
 
 	if (IS_QLA2031(ha) || IS_QLA27XX(ha))
@@ -2226,6 +2229,7 @@ qla2x00_erase_flash_sector(struct qla_hw_data *ha, uint32_t addr,
 
 /**
  * qla2x00_get_flash_manufacturer() - Read manufacturer ID from flash chip.
+ * @ha:
  * @man_id: Flash manufacturer ID
  * @flash_id: Flash ID
  */
@@ -2461,6 +2465,7 @@ qla2x00_write_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
 				sec_mask = 0x1e000;
 				break;
 			}
+			/* fall through */
 		default:
 			/* Default to 16 kb sector size. */
 			rest_addr = 0x3fff;

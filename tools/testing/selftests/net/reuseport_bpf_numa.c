@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Test functionality of BPF filters with SO_REUSEPORT. Same test as
  * in reuseport_bpf_cpu, only as one socket per NUMA node.
@@ -21,6 +22,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <numa.h>
+
+#include "../kselftest.h"
 
 static const int PORT = 8888;
 
@@ -228,7 +231,7 @@ int main(void)
 	int *rcv_fd, nodes;
 
 	if (numa_available() < 0)
-		error(1, errno, "no numa api support");
+		ksft_exit_skip("no numa api support\n");
 
 	nodes = numa_max_node() + 1;
 

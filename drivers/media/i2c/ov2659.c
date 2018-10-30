@@ -1347,8 +1347,9 @@ static struct ov2659_platform_data *
 ov2659_get_pdata(struct i2c_client *client)
 {
 	struct ov2659_platform_data *pdata;
-	struct v4l2_fwnode_endpoint *bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct device_node *endpoint;
+	int ret;
 
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
@@ -1357,8 +1358,9 @@ ov2659_get_pdata(struct i2c_client *client)
 	if (!endpoint)
 		return NULL;
 
-	bus_cfg = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(endpoint));
-	if (IS_ERR(bus_cfg)) {
+	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(endpoint),
+					       &bus_cfg);
+	if (ret) {
 		pdata = NULL;
 		goto done;
 	}
@@ -1367,17 +1369,17 @@ ov2659_get_pdata(struct i2c_client *client)
 	if (!pdata)
 		goto done;
 
-	if (!bus_cfg->nr_of_link_frequencies) {
+	if (!bus_cfg.nr_of_link_frequencies) {
 		dev_err(&client->dev,
 			"link-frequencies property not found or too many\n");
 		pdata = NULL;
 		goto done;
 	}
 
-	pdata->link_frequency = bus_cfg->link_frequencies[0];
+	pdata->link_frequency = bus_cfg.link_frequencies[0];
 
 done:
-	v4l2_fwnode_endpoint_free(bus_cfg);
+	v4l2_fwnode_endpoint_free(&bus_cfg);
 	of_node_put(endpoint);
 	return pdata;
 }
@@ -1474,9 +1476,7 @@ static int ov2659_probe(struct i2c_client *client,
 
 error:
 	v4l2_ctrl_handler_free(&ov2659->ctrls);
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);
-#endif
 	mutex_destroy(&ov2659->lock);
 	return ret;
 }
@@ -1488,9 +1488,7 @@ static int ov2659_remove(struct i2c_client *client)
 
 	v4l2_ctrl_handler_free(&ov2659->ctrls);
 	v4l2_async_unregister_subdev(sd);
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);
-#endif
 	mutex_destroy(&ov2659->lock);
 
 	return 0;

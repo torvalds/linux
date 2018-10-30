@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* mac802154 configuration hooks for cfg802154
  */
 

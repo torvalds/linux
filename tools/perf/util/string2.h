@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PERF_STRING_H
 #define PERF_STRING_H
 
@@ -38,5 +39,7 @@ static inline char *asprintf_expr_not_in_ints(const char *var, size_t nints, int
 	return asprintf_expr_inout_ints(var, false, nints, ints);
 }
 
+char *strpbrk_esc(char *str, const char *stopset);
+char *strdup_esc(const char *str);
 
 #endif /* PERF_STRING_H */

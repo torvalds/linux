@@ -118,7 +118,7 @@ static int snd_cs8427_send_corudata(struct snd_i2c_device *device,
 	struct cs8427 *chip = device->private_data;
 	char *hw_data = udata ?
 		chip->playback.hw_udata : chip->playback.hw_status;
-	char data[32];
+	unsigned char data[32];
 	int err, idx;
 
 	if (!memcmp(hw_data, ndata, count))
@@ -621,15 +621,3 @@ int snd_cs8427_iec958_pcm(struct snd_i2c_device *cs8427, unsigned int rate)
 }
 
 EXPORT_SYMBOL(snd_cs8427_iec958_pcm);
-
-static int __init alsa_cs8427_module_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_cs8427_module_exit(void)
-{
-}
-
-module_init(alsa_cs8427_module_init)
-module_exit(alsa_cs8427_module_exit)

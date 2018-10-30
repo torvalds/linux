@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_MLME_H_
@@ -299,7 +291,7 @@ struct wifidirect_info{
 
 struct tdls_ss_record{	/* signal strength record */
 	u8 macaddr[ETH_ALEN];
-	u8 RxPWDBAll;
+	u8 rx_pwd_ba11;
 	u8 is_tdls_sta;	/*  true: direct link sta, false: else */
 };
 
@@ -518,8 +510,8 @@ extern void rtw_atimdone_event_callback(struct adapter *adapter, u8 *pbuf);
 extern void rtw_cpwm_event_callback(struct adapter *adapter, u8 *pbuf);
 extern void rtw_wmm_event_callback(struct adapter *padapter, u8 *pbuf);
 
-extern void rtw_join_timeout_handler(RTW_TIMER_HDL_ARGS);
-extern void _rtw_scan_timeout_handler(RTW_TIMER_HDL_ARGS);
+extern void rtw_join_timeout_handler(struct timer_list *t);
+extern void _rtw_scan_timeout_handler(struct timer_list *t);
 
 int event_thread(void *context);
 
@@ -618,10 +610,10 @@ extern void rtw_update_registrypriv_dev_network(struct adapter *adapter);
 
 extern void rtw_get_encrypt_decrypt_from_registrypriv(struct adapter *adapter);
 
-extern void _rtw_join_timeout_handler(struct adapter *adapter);
-extern void rtw_scan_timeout_handler(struct adapter *adapter);
+extern void _rtw_join_timeout_handler(struct timer_list *t);
+extern void rtw_scan_timeout_handler(struct timer_list *t);
 
-extern void rtw_dynamic_check_timer_handlder(struct adapter *adapter);
+extern void rtw_dynamic_check_timer_handler(struct adapter *adapter);
 bool rtw_is_scan_deny(struct adapter *adapter);
 void rtw_clear_scan_deny(struct adapter *adapter);
 void rtw_set_scan_deny_timer_hdl(struct adapter *adapter);

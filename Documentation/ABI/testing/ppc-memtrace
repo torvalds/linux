@@ -13,10 +13,11 @@ Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	Write an integer containing the size in bytes of the memory
 		you want removed from each NUMA node to this file - it must be
 		aligned to the memblock size. This amount of RAM will be removed
-		from the kernel mappings and the following debugfs files will be
-		created. This can only be successfully done once per boot. Once
-		memory is successfully removed from each node, the following
-		files are created.
+		from each NUMA node in the kernel mappings and the following
+		debugfs files will be created. Once memory is successfully
+		removed from each node, the following files are created. To
+		re-add memory to the kernel, echo 0 into this file (it will be
+		automatically onlined).
 
 What:		/sys/kernel/debug/powerpc/memtrace/<node-id>
 Date:		Aug 2017

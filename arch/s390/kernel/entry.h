@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ENTRY_H
 #define _ENTRY_H
 
@@ -57,6 +58,7 @@ void do_notify_resume(struct pt_regs *regs);
 void __init init_IRQ(void);
 void do_IRQ(struct pt_regs *regs, int irq);
 void do_restart(void);
+void __init startup_init_nobss(void);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
 int setup_profiling_timer(unsigned int multiplier);
@@ -77,11 +79,14 @@ long sys_s390_runtime_instr(int command, int signum);
 long sys_s390_guarded_storage(int command, struct gs_cb __user *);
 long sys_s390_pci_mmio_write(unsigned long, const void __user *, size_t);
 long sys_s390_pci_mmio_read(unsigned long, void __user *, size_t);
+long sys_s390_sthyi(unsigned long function_code, void __user *buffer, u64 __user *return_code, unsigned long flags);
 
 DECLARE_PER_CPU(u64, mt_cycles[8]);
 
-void verify_facilities(void);
 void gs_load_bc_cb(struct pt_regs *regs);
 void set_fs_fixup(void);
+
+unsigned long stack_alloc(void);
+void stack_free(unsigned long stack);
 
 #endif /* _ENTRY_H */

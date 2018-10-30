@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LAPB_H
 #define _LAPB_H 
 #include <linux/lapb.h>

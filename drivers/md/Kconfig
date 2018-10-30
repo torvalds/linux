@@ -178,7 +178,7 @@ config MD_FAULTY
 
 
 config MD_CLUSTER
-	tristate "Cluster Support for MD (EXPERIMENTAL)"
+	tristate "Cluster Support for MD"
 	depends on BLK_DEV_MD
 	depends on DLM
 	default n
@@ -188,7 +188,8 @@ config MD_CLUSTER
 	nodes in the cluster can access the MD devices simultaneously.
 
 	This brings the redundancy (and uptime) of RAID levels across the
-	nodes of the cluster.
+	nodes of the cluster. Currently, it can work with raid1 and raid10
+	(limited support).
 
 	If unsure, say N.
 
@@ -200,7 +201,7 @@ config BLK_DEV_DM_BUILTIN
 config BLK_DEV_DM
 	tristate "Device mapper support"
 	select BLK_DEV_DM_BUILTIN
-	select DAX
+	depends on DAX || DAX=n
 	---help---
 	  Device-mapper is a low level volume manager.  It works by allowing
 	  people to specify mappings for ranges of logical sectors.  Various
@@ -213,17 +214,6 @@ config BLK_DEV_DM
 	  called dm-mod.
 
 	  If unsure, say N.
-
-config DM_MQ_DEFAULT
-	bool "request-based DM: use blk-mq I/O path by default"
-	depends on BLK_DEV_DM
-	---help---
-	  This option enables the blk-mq based I/O path for request-based
-	  DM devices by default.  With the option the dm_mod.use_blk_mq
-	  module/boot option defaults to Y, without it to N, but it can
-	  still be overriden either way.
-
-	  If unsure say N.
 
 config DM_DEBUG
 	bool "Device mapper debugging support"
@@ -267,6 +257,13 @@ config DM_BIO_PRISON
 	 including thin provisioning.
 
 source "drivers/md/persistent-data/Kconfig"
+
+config DM_UNSTRIPED
+       tristate "Unstriped target"
+       depends on BLK_DEV_DM
+       ---help---
+	  Unstripes I/O so it is issued solely on a single drive in a HW
+	  RAID0 or dm-striped target.
 
 config DM_CRYPT
 	tristate "Crypt target support"
@@ -325,6 +322,17 @@ config DM_CACHE_SMQ
          reads over writes.  This SMQ policy (vs MQ) offers the promise
          of less memory utilization, improved performance and increased
          adaptability in the face of changing workloads.
+
+config DM_WRITECACHE
+	tristate "Writecache target"
+	depends on BLK_DEV_DM
+	---help---
+	   The writecache target caches writes on persistent memory or SSD.
+	   It is intended for databases or other programs that need extremely
+	   low commit latency.
+
+	   The writecache target doesn't cache reads because reads are supposed
+	   to be cached in standard RAM.
 
 config DM_ERA
        tristate "Era target (EXPERIMENTAL)"

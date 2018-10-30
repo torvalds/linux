@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/ceph/ceph_debug.h>
 #include <linux/in.h>
 
 #include "super.h"
 #include "mds_client.h"
 #include "ioctl.h"
-
+#include <linux/ceph/striper.h>
 
 /*
  * ioctls
@@ -184,7 +185,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;
 	struct ceph_object_locator oloc;
 	CEPH_DEFINE_OID_ONSTACK(oid);
-	u64 len = 1, olen;
+	u32 xlen;
 	u64 tmp;
 	struct ceph_pg pgid;
 	int r;
@@ -194,13 +195,8 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 		return -EFAULT;
 
 	down_read(&osdc->lock);
-	r = ceph_calc_file_object_mapping(&ci->i_layout, dl.file_offset, len,
-					  &dl.object_no, &dl.object_offset,
-					  &olen);
-	if (r < 0) {
-		up_read(&osdc->lock);
-		return -EIO;
-	}
+	ceph_calc_file_object_mapping(&ci->i_layout, dl.file_offset, 1,
+				      &dl.object_no, &dl.object_offset, &xlen);
 	dl.file_offset -= dl.object_offset;
 	dl.object_size = ci->i_layout.object_size;
 	dl.block_size = ci->i_layout.stripe_unit;

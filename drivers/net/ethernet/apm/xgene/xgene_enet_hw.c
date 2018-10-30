@@ -836,19 +836,19 @@ static void xgene_enet_adjust_link(struct net_device *ndev)
 #ifdef CONFIG_ACPI
 static struct acpi_device *acpi_phy_find_device(struct device *dev)
 {
-	struct acpi_reference_args args;
+	struct fwnode_reference_args args;
 	struct fwnode_handle *fw_node;
 	int status;
 
 	fw_node = acpi_fwnode_handle(ACPI_COMPANION(dev));
 	status = acpi_node_get_property_reference(fw_node, "phy-handle", 0,
 						  &args);
-	if (ACPI_FAILURE(status)) {
+	if (ACPI_FAILURE(status) || !is_acpi_device_node(args.fwnode)) {
 		dev_dbg(dev, "No matching phy in ACPI table\n");
 		return NULL;
 	}
 
-	return args.adev;
+	return to_acpi_device_node(args.fwnode);
 }
 #endif
 
@@ -895,12 +895,10 @@ int xgene_enet_phy_connect(struct net_device *ndev)
 	}
 
 	pdata->phy_speed = SPEED_UNKNOWN;
-	phy_dev->supported &= ~SUPPORTED_10baseT_Half &
-			      ~SUPPORTED_100baseT_Half &
-			      ~SUPPORTED_1000baseT_Half;
-	phy_dev->supported |= SUPPORTED_Pause |
-			      SUPPORTED_Asym_Pause;
-	phy_dev->advertising = phy_dev->supported;
+	phy_remove_link_mode(phy_dev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
+	phy_remove_link_mode(phy_dev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
+	phy_remove_link_mode(phy_dev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
+	phy_support_asym_pause(phy_dev);
 
 	return 0;
 }

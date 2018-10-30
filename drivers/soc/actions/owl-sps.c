@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Actions Semi Owl Smart Power System (SPS)
  *
@@ -5,11 +6,6 @@
  * Author: Actions Semi, Inc.
  *
  * Copyright (c) 2017 Andreas Färber
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/of_address.h>
@@ -17,6 +13,8 @@
 #include <linux/pm_domain.h>
 #include <linux/soc/actions/owl-sps.h>
 #include <dt-bindings/power/owl-s500-powergate.h>
+#include <dt-bindings/power/owl-s700-powergate.h>
+#include <dt-bindings/power/owl-s900-powergate.h>
 
 struct owl_sps_domain_info {
 	const char *name;
@@ -116,8 +114,8 @@ static int owl_sps_probe(struct platform_device *pdev)
 
 	sps_info = match->data;
 
-	sps = devm_kzalloc(&pdev->dev, sizeof(*sps) +
-			   sps_info->num_domains * sizeof(sps->domains[0]),
+	sps = devm_kzalloc(&pdev->dev,
+			   struct_size(sps, domains, sps_info->num_domains),
 			   GFP_KERNEL);
 	if (!sps)
 		return -ENOMEM;
@@ -203,8 +201,106 @@ static const struct owl_sps_info s500_sps_info = {
 	.domains = s500_sps_domains,
 };
 
+static const struct owl_sps_domain_info s700_sps_domains[] = {
+	[S700_PD_VDE] = {
+		.name = "VDE",
+		.pwr_bit = 0,
+	},
+	[S700_PD_VCE_SI] = {
+		.name = "VCE_SI",
+		.pwr_bit = 1,
+	},
+	[S700_PD_USB2_1] = {
+		.name = "USB2_1",
+		.pwr_bit = 2,
+	},
+	[S700_PD_HDE] = {
+		.name = "HDE",
+		.pwr_bit = 7,
+	},
+	[S700_PD_DMA] = {
+		.name = "DMA",
+		.pwr_bit = 8,
+	},
+	[S700_PD_DS] = {
+		.name = "DS",
+		.pwr_bit = 9,
+	},
+	[S700_PD_USB3] = {
+		.name = "USB3",
+		.pwr_bit = 10,
+	},
+	[S700_PD_USB2_0] = {
+		.name = "USB2_0",
+		.pwr_bit = 11,
+	},
+};
+
+static const struct owl_sps_info s700_sps_info = {
+	.num_domains = ARRAY_SIZE(s700_sps_domains),
+	.domains = s700_sps_domains,
+};
+
+static const struct owl_sps_domain_info s900_sps_domains[] = {
+	[S900_PD_GPU_B] = {
+		.name = "GPU_B",
+		.pwr_bit = 3,
+	},
+	[S900_PD_VCE] = {
+		.name = "VCE",
+		.pwr_bit = 4,
+	},
+	[S900_PD_SENSOR] = {
+		.name = "SENSOR",
+		.pwr_bit = 5,
+	},
+	[S900_PD_VDE] = {
+		.name = "VDE",
+		.pwr_bit = 6,
+	},
+	[S900_PD_HDE] = {
+		.name = "HDE",
+		.pwr_bit = 7,
+	},
+	[S900_PD_USB3] = {
+		.name = "USB3",
+		.pwr_bit = 8,
+	},
+	[S900_PD_DDR0] = {
+		.name = "DDR0",
+		.pwr_bit = 9,
+	},
+	[S900_PD_DDR1] = {
+		.name = "DDR1",
+		.pwr_bit = 10,
+	},
+	[S900_PD_DE] = {
+		.name = "DE",
+		.pwr_bit = 13,
+	},
+	[S900_PD_NAND] = {
+		.name = "NAND",
+		.pwr_bit = 14,
+	},
+	[S900_PD_USB2_H0] = {
+		.name = "USB2_H0",
+		.pwr_bit = 15,
+	},
+	[S900_PD_USB2_H1] = {
+		.name = "USB2_H1",
+		.pwr_bit = 16,
+	},
+};
+
+static const struct owl_sps_info s900_sps_info = {
+	.num_domains = ARRAY_SIZE(s900_sps_domains),
+	.domains = s900_sps_domains,
+};
+
 static const struct of_device_id owl_sps_of_matches[] = {
 	{ .compatible = "actions,s500-sps", .data = &s500_sps_info },
+	{ .compatible = "actions,s700-sps", .data = &s700_sps_info },
+	{ .compatible = "actions,s900-sps", .data = &s900_sps_info },
 	{ }
 };
 

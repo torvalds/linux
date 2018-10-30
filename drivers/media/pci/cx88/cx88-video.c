@@ -5,7 +5,7 @@
  *
  * (c) 2003-04 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
- * (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+ * (c) 2005-2006 Mauro Carvalho Chehab <mchehab@kernel.org>
  *	- Multituner support
  *	- video_ioctl2 conversion
  *	- PAL/M fixes
@@ -806,12 +806,12 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-void cx88_querycap(struct file *file, struct cx88_core *core,
-		   struct v4l2_capability *cap)
+int cx88_querycap(struct file *file, struct cx88_core *core,
+		  struct v4l2_capability *cap)
 {
 	struct video_device *vdev = video_devdata(file);
 
-	strlcpy(cap->card, core->board.name, sizeof(cap->card));
+	strscpy(cap->card, core->board.name, sizeof(cap->card));
 	cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
 	if (core->board.tuner_type != UNSET)
 		cap->device_caps |= V4L2_CAP_TUNER;
@@ -825,11 +825,14 @@ void cx88_querycap(struct file *file, struct cx88_core *core,
 	case VFL_TYPE_VBI:
 		cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
 		break;
+	default:
+		return -EINVAL;
 	}
 	cap->capabilities = cap->device_caps | V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_VBI_CAPTURE | V4L2_CAP_DEVICE_CAPS;
 	if (core->board.radio.type == CX88_RADIO)
 		cap->capabilities |= V4L2_CAP_RADIO;
+	return 0;
 }
 EXPORT_SYMBOL(cx88_querycap);
 
@@ -839,10 +842,9 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct cx8800_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 
-	strcpy(cap->driver, "cx8800");
+	strscpy(cap->driver, "cx8800", sizeof(cap->driver));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cx88_querycap(file, core, cap);
-	return 0;
+	return cx88_querycap(file, core, cap);
 }
 
 static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
@@ -851,7 +853,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(formats)))
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
+	strscpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].fourcc;
 
 	return 0;
@@ -895,7 +897,7 @@ int cx88_enum_input(struct cx88_core  *core, struct v4l2_input *i)
 	if (!INPUT(n).type)
 		return -EINVAL;
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
-	strcpy(i->name, iname[INPUT(n).type]);
+	strscpy(i->name, iname[INPUT(n).type], sizeof(i->name));
 	if ((INPUT(n).type == CX88_VMUX_TELEVISION) ||
 	    (INPUT(n).type == CX88_VMUX_CABLE))
 		i->type = V4L2_INPUT_TYPE_TUNER;
@@ -950,7 +952,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (t->index != 0)
 		return -EINVAL;
 
-	strcpy(t->name, "Television");
+	strscpy(t->name, "Television", sizeof(t->name));
 	t->capability = V4L2_TUNER_CAP_NORM;
 	t->rangehigh  = 0xffffffffUL;
 	call_all(core, tuner, g_tuner, t);
@@ -1063,7 +1065,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 	if (unlikely(t->index > 0))
 		return -EINVAL;
 
-	strcpy(t->name, "Radio");
+	strscpy(t->name, "Radio", sizeof(t->name));
 
 	call_all(core, tuner, g_tuner, t);
 	return 0;

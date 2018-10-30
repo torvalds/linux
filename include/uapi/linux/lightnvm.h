@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (C) 2015 CNEX Labs.  All rights reserved.
  *
@@ -74,14 +75,23 @@ struct nvm_ioctl_create_simple {
 	__u32 lun_end;
 };
 
+struct nvm_ioctl_create_extended {
+	__u16 lun_begin;
+	__u16 lun_end;
+	__u16 op;
+	__u16 rsv;
+};
+
 enum {
 	NVM_CONFIG_TYPE_SIMPLE = 0,
+	NVM_CONFIG_TYPE_EXTENDED = 1,
 };
 
 struct nvm_ioctl_create_conf {
 	__u32 type;
 	union {
 		struct nvm_ioctl_create_simple s;
+		struct nvm_ioctl_create_extended e;
 	};
 };
 

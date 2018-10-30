@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011 - 2015 UNISYS CORPORATION
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
  */
 
 /*
@@ -23,10 +14,40 @@
 #include <linux/fb.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/uuid.h>
+#include <linux/visorbus.h>
 
-#include "visorbus.h"
-#include "ultrainputreport.h"
+/* These defines identify mouse and keyboard activity which is specified by the
+ * firmware to the host using the cmsimpleinput protocol.  @ingroup coretypes
+ */
+/* only motion; arg1=x, arg2=y */
+#define INPUTACTION_XY_MOTION 1
+
+/* arg1: 1=left,2=center,3=right */
+#define INPUTACTION_MOUSE_BUTTON_DOWN 2
+#define INPUTACTION_MOUSE_BUTTON_UP 3
+#define INPUTACTION_MOUSE_BUTTON_CLICK 4
+#define INPUTACTION_MOUSE_BUTTON_DCLICK 5
+
+/* arg1: wheel rotation away from/toward user */
+#define INPUTACTION_WHEEL_ROTATE_AWAY 6
+#define INPUTACTION_WHEEL_ROTATE_TOWARD 7
+
+/* arg1: scancode, as follows: If arg1 <= 0xff, it's a 1-byte scancode and arg1
+ *	 is that scancode. If arg1 > 0xff, it's a 2-byte scanecode, with the 1st
+ *	 byte in the low 8 bits, and the 2nd byte in the high 8 bits.
+ *	 E.g., the right ALT key would appear as x'38e0'.
+ */
+#define INPUTACTION_KEY_DOWN 64
+#define INPUTACTION_KEY_UP 65
+#define INPUTACTION_KEY_DOWN_UP 67
+
+/* arg1: scancode (in same format as inputaction_keyDown); MUST refer to one of
+ *	 the locking keys, like capslock, numlock, or scrolllock.
+ * arg2: 1 iff locking key should be in the LOCKED position (e.g., light is ON)
+ */
+#define INPUTACTION_SET_LOCKING_KEY_STATE 66
 
 /* Keyboard channel {c73416d0-b0b8-44af-b304-9d2ae99f1b3d} */
 #define VISOR_KEYBOARD_CHANNEL_GUID \
@@ -40,19 +61,45 @@
 		  0x81, 0xc3, 0x61, 0xab, 0xcd, 0xbd, 0xbd, 0x87)
 #define VISOR_MOUSE_CHANNEL_GUID_STR "addf07d4-94a9-46e2-81c3-61abcdbdbd87"
 
-#define PIXELS_ACROSS_DEFAULT 800
-#define PIXELS_DOWN_DEFAULT   600
+#define PIXELS_ACROSS_DEFAULT 1024
+#define PIXELS_DOWN_DEFAULT   768
 #define KEYCODE_TABLE_BYTES   256
 
-enum visorinput_device_type {
+struct visor_inputactivity {
+	u16 action;
+	u16 arg1;
+	u16 arg2;
+	u16 arg3;
+} __packed;
+
+struct visor_inputreport {
+	u64 seq_no;
+	struct visor_inputactivity activity;
+} __packed;
+
+/* header of keyboard/mouse channels */
+struct visor_input_channel_data {
+	u32 n_input_reports;
+	union {
+		struct {
+			u16 x_res;
+			u16 y_res;
+		} mouse;
+		struct {
+			u32 flags;
+		} keyboard;
+	};
+} __packed;
+
+enum visorinput_dev_type {
 	visorinput_keyboard,
 	visorinput_mouse,
 };
 
 /*
- * This is the private data that we store for each device.
- * A pointer to this struct is maintained via
- * dev_get_drvdata() / dev_set_drvdata() for each struct device.
+ * This is the private data that we store for each device. A pointer to this
+ * struct is maintained via dev_get_drvdata() / dev_set_drvdata() for each
+ * struct device.
  */
 struct visorinput_devdata {
 	struct visor_device *dev;
@@ -223,10 +270,9 @@ static int visorinput_open(struct input_dev *visorinput_dev)
 	dev_dbg(&visorinput_dev->dev, "%s opened\n", __func__);
 
 	/*
-	 * If we're not paused, really enable interrupts.
-	 * Regardless of whether we are paused, set a flag indicating
-	 * interrupts should be enabled so when we resume, interrupts
-	 * will really be enabled.
+	 * If we're not paused, really enable interrupts. Regardless of whether
+	 * we are paused, set a flag indicating interrupts should be enabled so
+	 * when we resume, interrupts will really be enabled.
 	 */
 	mutex_lock(&devdata->lock_visor_dev);
 	devdata->interrupts_enabled = true;
@@ -252,10 +298,9 @@ static void visorinput_close(struct input_dev *visorinput_dev)
 	dev_dbg(&visorinput_dev->dev, "%s closed\n", __func__);
 
 	/*
-	 * If we're not paused, really disable interrupts.
-	 * Regardless of whether we are paused, set a flag indicating
-	 * interrupts should be disabled so when we resume we will
-	 * not re-enable them.
+	 * If we're not paused, really disable interrupts. Regardless of
+	 * whether we are paused, set a flag indicating interrupts should be
+	 * disabled so when we resume we will not re-enable them.
 	 */
 	mutex_lock(&devdata->lock_visor_dev);
 	devdata->interrupts_enabled = false;
@@ -268,9 +313,9 @@ out_unlock:
 }
 
 /*
- * setup_client_keyboard() initializes and returns a Linux input node that
- * we can use to deliver keyboard inputs to Linux.  We of course do this when
- * we see keyboard inputs coming in on a keyboard channel.
+ * setup_client_keyboard() initializes and returns a Linux input node that we
+ * can use to deliver keyboard inputs to Linux.  We of course do this when we
+ * see keyboard inputs coming in on a keyboard channel.
  */
 static struct input_dev *setup_client_keyboard(void *devdata,
 					       unsigned char *keycode_table)
@@ -314,10 +359,9 @@ static struct input_dev *setup_client_keyboard(void *devdata,
 	return visorinput_dev;
 }
 
-static struct input_dev *setup_client_mouse(void *devdata)
+static struct input_dev *setup_client_mouse(void *devdata, unsigned int xres,
+					    unsigned int yres)
 {
-	int xres, yres;
-	struct fb_info *fb0;
 	struct input_dev *visorinput_dev = input_allocate_device();
 
 	if (!visorinput_dev)
@@ -335,14 +379,10 @@ static struct input_dev *setup_client_mouse(void *devdata)
 	set_bit(BTN_RIGHT, visorinput_dev->keybit);
 	set_bit(BTN_MIDDLE, visorinput_dev->keybit);
 
-	if (registered_fb[0]) {
-		fb0 = registered_fb[0];
-		xres = fb0->var.xres_virtual;
-		yres = fb0->var.yres_virtual;
-	} else {
+	if (xres == 0)
 		xres = PIXELS_ACROSS_DEFAULT;
+	if (yres == 0)
 		yres = PIXELS_DOWN_DEFAULT;
-	}
 	input_set_abs_params(visorinput_dev, ABS_X, 0, xres, 0, 0);
 	input_set_abs_params(visorinput_dev, ABS_Y, 0, yres, 0, 0);
 
@@ -355,14 +395,15 @@ static struct input_dev *setup_client_mouse(void *devdata)
 	return visorinput_dev;
 }
 
-static struct visorinput_devdata *devdata_create(
-					struct visor_device *dev,
-					enum visorinput_device_type devtype)
+static struct visorinput_devdata *devdata_create(struct visor_device *dev,
+						 enum visorinput_dev_type dtype)
 {
 	struct visorinput_devdata *devdata = NULL;
 	unsigned int extra_bytes = 0;
+	unsigned int size, xres, yres, err;
+	struct visor_input_channel_data data;
 
-	if (devtype == visorinput_keyboard)
+	if (dtype == visorinput_keyboard)
 		/* allocate room for devdata->keycode_table, filled in below */
 		extra_bytes = KEYCODE_TABLE_BYTES * 2;
 	devdata = kzalloc(sizeof(*devdata) + extra_bytes, GFP_KERNEL);
@@ -381,11 +422,11 @@ static struct visorinput_devdata *devdata_create(
 	devdata->paused = true;
 
 	/*
-	 * This is an input device in a client guest partition,
-	 * so we need to create whatever input nodes are necessary to
-	 * deliver our inputs to the guest OS.
+	 * This is an input device in a client guest partition, so we need to
+	 * create whatever input nodes are necessary to deliver our inputs to
+	 * the guest OS.
 	 */
-	switch (devtype) {
+	switch (dtype) {
 	case visorinput_keyboard:
 		devdata->keycode_table_bytes = extra_bytes;
 		memcpy(devdata->keycode_table, visorkbd_keycode,
@@ -398,7 +439,15 @@ static struct visorinput_devdata *devdata_create(
 			goto cleanups_register;
 		break;
 	case visorinput_mouse:
-		devdata->visorinput_dev = setup_client_mouse(devdata);
+		size = sizeof(struct visor_input_channel_data);
+		err = visorbus_read_channel(dev, sizeof(struct channel_header),
+					    &data, size);
+		if (err)
+			goto cleanups_register;
+		xres = data.mouse.x_res;
+		yres = data.mouse.y_res;
+		devdata->visorinput_dev = setup_client_mouse(devdata, xres,
+							     yres);
 		if (!devdata->visorinput_dev)
 			goto cleanups_register;
 		break;
@@ -412,10 +461,9 @@ static struct visorinput_devdata *devdata_create(
 
 	/*
 	 * Device struct is completely set up now, with the exception of
-	 * visorinput_dev being registered.
-	 * We need to unlock before we register the device, because this
-	 * can cause an on-stack call of visorinput_open(), which would
-	 * deadlock if we had the lock.
+	 * visorinput_dev being registered. We need to unlock before we
+	 * register the device, because this can cause an on-stack call of
+	 * visorinput_open(), which would deadlock if we had the lock.
 	 */
 	if (input_register_device(devdata->visorinput_dev)) {
 		input_free_device(devdata->visorinput_dev);
@@ -424,9 +472,9 @@ static struct visorinput_devdata *devdata_create(
 
 	mutex_lock(&devdata->lock_visor_dev);
 	/*
-	 * Establish calls to visorinput_channel_interrupt() if that is
-	 * the desired state that we've kept track of in interrupts_enabled
-	 * while the device was being created.
+	 * Establish calls to visorinput_channel_interrupt() if that is the
+	 * desired state that we've kept track of in interrupts_enabled while
+	 * the device was being created.
 	 */
 	devdata->paused = false;
 	if (devdata->interrupts_enabled)
@@ -445,17 +493,17 @@ err_kfree_devdata:
 static int visorinput_probe(struct visor_device *dev)
 {
 	const guid_t *guid;
-	enum visorinput_device_type devtype;
+	enum visorinput_dev_type dtype;
 
 	guid = visorchannel_get_guid(dev->visorchannel);
 	if (guid_equal(guid, &visor_mouse_channel_guid))
-		devtype = visorinput_mouse;
+		dtype = visorinput_mouse;
 	else if (guid_equal(guid, &visor_keyboard_channel_guid))
-		devtype = visorinput_keyboard;
+		dtype = visorinput_keyboard;
 	else
 		return -ENODEV;
 	visorbus_disable_channel_interrupts(dev);
-	if (!devdata_create(dev, devtype))
+	if (!devdata_create(dev, dtype))
 		return -ENOMEM;
 	return 0;
 }
@@ -477,8 +525,8 @@ static void visorinput_remove(struct visor_device *dev)
 	visorbus_disable_channel_interrupts(dev);
 
 	/*
-	 * due to above, at this time no thread of execution will be
-	 * in visorinput_channel_interrupt()
+	 * due to above, at this time no thread of execution will be in
+	 * visorinput_channel_interrupt()
 	 */
 
 	dev_set_drvdata(&dev->device, NULL);
@@ -521,9 +569,8 @@ static void handle_locking_key(struct input_dev *visorinput_dev, int keycode,
 }
 
 /*
- * <scancode> is either a 1-byte scancode, or an extended 16-bit scancode
- * with 0xE0 in the low byte and the extended scancode value in the next
- * higher byte.
+ * <scancode> is either a 1-byte scancode, or an extended 16-bit scancode with
+ * 0xE0 in the low byte and the extended scancode value in the next higher byte.
  */
 static int scancode_to_keycode(int scancode)
 {
@@ -664,8 +711,8 @@ static int visorinput_pause(struct visor_device *dev,
 		visorbus_disable_channel_interrupts(dev);
 
 	/*
-	 * due to above, at this time no thread of execution will be
-	 * in visorinput_channel_interrupt()
+	 * due to above, at this time no thread of execution will be in
+	 * visorinput_channel_interrupt()
 	 */
 	devdata->paused = true;
 	complete_func(dev, 0);
@@ -695,9 +742,9 @@ static int visorinput_resume(struct visor_device *dev,
 	complete_func(dev, 0);
 
 	/*
-	 * Re-establish calls to visorinput_channel_interrupt() if that is
-	 * the desired state that we've kept track of in interrupts_enabled
-	 * while the device was paused.
+	 * Re-establish calls to visorinput_channel_interrupt() if that is the
+	 * desired state that we've kept track of in interrupts_enabled while
+	 * the device was paused.
 	 */
 	if (devdata->interrupts_enabled)
 		visorbus_enable_channel_interrupts(dev);
@@ -711,8 +758,9 @@ out:
 
 /* GUIDS for all channel types supported by this driver. */
 static struct visor_channeltype_descriptor visorinput_channel_types[] = {
-	{ VISOR_KEYBOARD_CHANNEL_GUID, "keyboard"},
-	{ VISOR_MOUSE_CHANNEL_GUID, "mouse"},
+	{ VISOR_KEYBOARD_CHANNEL_GUID, "keyboard",
+	  sizeof(struct channel_header), 0 },
+	{ VISOR_MOUSE_CHANNEL_GUID, "mouse", sizeof(struct channel_header), 0 },
 	{}
 };
 

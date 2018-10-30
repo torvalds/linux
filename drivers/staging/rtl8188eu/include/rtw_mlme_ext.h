@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_MLME_EXT_H_
@@ -101,9 +93,11 @@ extern unsigned char WMM_PARA_OUI[];
 /*  Channel Plan Type. */
 /*  Note: */
 /*	We just add new channel plan when the new channel plan is different
- *      from any of the following channel plan. */
+ *      from any of the following channel plan.
+ */
 /*	If you just want to customize the actions(scan period or join actions)
- *      about one of the channel plan, */
+ *      about one of the channel plan,
+ */
 /*	customize them in struct rt_channel_info in the RT_CHANNEL_LIST. */
 enum RT_CHANNEL_DOMAIN {
 	/*  old channel plan mapping =====  */
@@ -237,22 +231,22 @@ enum SCAN_STATE {
 };
 
 struct mlme_handler {
-	unsigned int   num;
-	char *str;
+	unsigned int num;
+	const char *str;
 	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
 };
 
 struct action_handler {
-	unsigned int   num;
-	char *str;
+	unsigned int num;
+	const char *str;
 	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
 };
 
-struct	ss_res {
-	int	state;
-	int	bss_cnt;
-	int	channel_idx;
-	int	scan_mode;
+struct ss_res {
+	int state;
+	int bss_cnt;
+	int channel_idx;
+	int scan_mode;
 	u8 ssid_num;
 	u8 ch_num;
 	struct ndis_802_11_ssid ssid[RTW_SSID_SCAN_AMOUNT];
@@ -319,7 +313,8 @@ struct mlme_ext_info {
 	u32	authModeToggle;
 	u32	enc_algo;/* encrypt algorithm; */
 	u32	key_index;	/*  this is only valid for legacy wep,
-				 *  0~3 for key id. */
+				 *  0~3 for key id.
+				 */
 	u32	iv;
 	u8	chg_txt[128];
 	u16	aid;
@@ -353,16 +348,19 @@ struct mlme_ext_info {
 	struct HT_info_element	HT_info;
 	struct wlan_bssid_ex	network;/* join network or bss_network,
 					 * if in ap mode, it is the same
-					 * as cur_network.network */
+					 * as cur_network.network
+					 */
 	struct FW_Sta_Info	FW_sta_info[NUM_STA];
 };
 
 /*  The channel information about this channel including joining,
- *  scanning, and power constraints. */
+ *  scanning, and power constraints.
+ */
 struct rt_channel_info {
 	u8	ChannelNum;	/*  The channel number. */
 	enum rt_scan_type ScanType;	/*  Scan type such as passive
-					 *  or active scan. */
+					 *  or active scan.
+					 */
 	u32	rx_count;
 };
 
@@ -413,7 +411,8 @@ struct mlme_ext_priv {
 	unsigned char	cur_wireless_mode;	/*  NETWORK_TYPE */
 
 	unsigned char	oper_channel; /* saved chan info when call
-				       * set_channel_bw */
+				       * set_channel_bw
+				       */
 	unsigned char	oper_bwmode;
 	unsigned char	oper_ch_offset;/* PRIME_CHNL_OFFSET */
 
@@ -427,7 +426,8 @@ struct mlme_ext_priv {
 	struct mlme_ext_info	mlmext_info;/* for sta/adhoc mode, including
 					     * current scan/connecting/connected
 					     * related info. For ap mode,
-					     * network includes ap's cap_info*/
+					     * network includes ap's cap_info
+					     */
 	struct timer_list survey_timer;
 	struct timer_list link_timer;
 	u16	chan_scan_time;
@@ -470,9 +470,7 @@ void Set_MSR(struct adapter *padapter, u8 type);
 
 u8 rtw_get_oper_ch(struct adapter *adapter);
 void rtw_set_oper_ch(struct adapter *adapter, u8 ch);
-u8 rtw_get_oper_bw(struct adapter *adapter);
 void rtw_set_oper_bw(struct adapter *adapter, u8 bw);
-u8 rtw_get_oper_choffset(struct adapter *adapter);
 void rtw_set_oper_choffset(struct adapter *adapter, u8 offset);
 
 void set_channel_bwmode(struct adapter *padapter, unsigned char channel,
@@ -487,7 +485,6 @@ void write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key);
 void clear_cam_entry(struct adapter *padapter, u8 entry);
 
 void invalidate_cam_all(struct adapter *padapter);
-void CAM_empty_entry(struct adapter *Adapter, u8 ucIndex);
 
 int allocate_fw_sta_entry(struct adapter *padapter);
 void flush_all_cam_entry(struct adapter *padapter);
@@ -537,7 +534,6 @@ unsigned char get_highest_rate_idx(u32 mask);
 int support_short_GI(struct adapter *padapter, struct ieee80211_ht_cap *caps);
 unsigned int is_ap_in_tkip(struct adapter *padapter);
 unsigned int is_ap_in_wep(struct adapter *padapter);
-unsigned int should_forbid_n_rate(struct adapter *padapter);
 
 void report_join_res(struct adapter *padapter, int res);
 void report_survey_event(struct adapter *padapter,
@@ -572,9 +568,9 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter,
 
 void linked_status_chk(struct adapter *padapter);
 
-void survey_timer_hdl(unsigned long data);
-void link_timer_hdl(unsigned long data);
-void addba_timer_hdl(unsigned long data);
+void survey_timer_hdl(struct timer_list *t);
+void link_timer_hdl(struct timer_list *t);
+void addba_timer_hdl(struct timer_list *t);
 
 #define set_survey_timer(mlmeext, ms) \
 	mod_timer(&mlmeext->survey_timer, jiffies +	\
@@ -690,7 +686,8 @@ enum rtw_c2h_event {
 	_C2HBCN_EVT_,
 	_ReportPwrState_EVT_,	/* filen: only for PCIE, USB */
 	_CloseRF_EVT_,		/* filen: only for PCIE,
-					 * work around ASPM */
+				 * work around ASPM
+				 */
 	MAX_C2HEVT
 };
 

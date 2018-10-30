@@ -77,7 +77,7 @@ static struct rc_map_list tivo_map = {
 	.map = {
 		.scan     = tivo,
 		.size     = ARRAY_SIZE(tivo),
-		.rc_proto = RC_PROTO_NEC,
+		.rc_proto = RC_PROTO_NEC32,
 		.name     = RC_MAP_TIVO,
 	}
 };

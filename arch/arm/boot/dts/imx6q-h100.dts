@@ -42,12 +42,17 @@
 /dts-v1/;
 
 #include "imx6q.dtsi"
-#include "imx6qdl-microsom.dtsi"
-#include "imx6qdl-microsom-ar8035.dtsi"
+#include "imx6qdl-sr-som.dtsi"
+#include "imx6qdl-sr-som-brcm.dtsi"
 
 / {
 	model = "Auvidea H100";
 	compatible = "auvidea,h100", "fsl,imx6q";
+
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		reg = <0x10000000 0>;
+	};
 
 	aliases {
 		rtc0 = &rtc;
@@ -108,21 +113,6 @@
 		regulator-always-on;
 	};
 
-	reg_nvcc_sd2: regulator-nvcc-sd2 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_h100_reg_nvcc_sd2>;
-		compatible = "regulator-gpio";
-		regulator-name = "NVCC_SD2";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-type = "voltage";
-		regulator-boot-on;
-		regulator-always-on;
-		gpios = <&gpio4 9 GPIO_ACTIVE_HIGH>;
-		states = <1800000 0x1
-			  3300000 0x0>;
-	};
-
 	reg_usbh1_vbus: regulator-usb-h1-vbus {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -176,7 +166,7 @@
 	status = "okay";
 
 	eeprom: 24c02@51 {
-		compatible = "microchip,24c02", "at24";
+		compatible = "microchip,24c02", "atmel,24c02";
 		reg = <0x51>;
 	};
 
@@ -185,7 +175,7 @@
 		reg = <0x68>;
 	};
 
-	sgtl5000: sgtl5000@0a {
+	sgtl5000: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		pinctrl-names = "default";
@@ -195,7 +185,7 @@
 		VDDIO-supply = <&reg_3p3v>;
 	};
 
-	tc358743: tc358743@0f {
+	tc358743: tc358743@f {
 		compatible = "toshiba,tc358743";
 		reg = <0x0f>;
 		pinctrl-names = "default";
@@ -205,7 +195,7 @@
 		reset-gpios = <&gpio6 15 GPIO_ACTIVE_LOW>;
 		/* IRQ has a wrong pull resistor which renders it useless  */
 
-		port@0 {
+		port {
 			tc358743_out: endpoint {
 				remote-endpoint = <&mipi_csi2_in>;
 				data-lanes = <1 2 3 4>;
@@ -260,12 +250,6 @@
 			>;
 		};
 
-		pinctrl_h100_reg_nvcc_sd2: h100-reg-nvcc-sd2 {
-			fsl,pins = <
-				MX6QDL_PAD_KEY_ROW1__GPIO4_IO09		0x1b0b0
-			>;
-		};
-
 		pinctrl_h100_sgtl5000: h100-sgtl5000 {
 			fsl,pins = <
 				MX6QDL_PAD_DISP0_DAT19__AUD5_RXD	0x130b0
@@ -316,6 +300,7 @@
 				MX6QDL_PAD_SD2_DAT1__SD2_DATA1		0x17059
 				MX6QDL_PAD_SD2_DAT2__SD2_DATA2		0x17059
 				MX6QDL_PAD_SD2_DAT3__SD2_DATA3		0x13059
+				MX6QDL_PAD_KEY_ROW1__SD2_VSELECT	0x1b0b0
 			>;
 		};
 
@@ -328,6 +313,7 @@
 				MX6QDL_PAD_SD2_DAT1__SD2_DATA1		0x170b9
 				MX6QDL_PAD_SD2_DAT2__SD2_DATA2		0x170b9
 				MX6QDL_PAD_SD2_DAT3__SD2_DATA3		0x170b9
+				MX6QDL_PAD_KEY_ROW1__SD2_VSELECT	0x1b0b0
 			>;
 		};
 
@@ -340,6 +326,7 @@
 				MX6QDL_PAD_SD2_DAT1__SD2_DATA1		0x170f9
 				MX6QDL_PAD_SD2_DAT2__SD2_DATA2		0x170f9
 				MX6QDL_PAD_SD2_DAT3__SD2_DATA3		0x170f9
+				MX6QDL_PAD_KEY_ROW1__SD2_VSELECT	0x1b0b0
 			>;
 		};
 	};
@@ -348,7 +335,7 @@
 &mipi_csi {
 	status = "okay";
 
-	port@0 {
+	port {
 		mipi_csi2_in: endpoint {
 			remote-endpoint = <&tc358743_out>;
 			data-lanes = <1 2 3 4>;
@@ -389,7 +376,6 @@
 	pinctrl-1 = <&pinctrl_h100_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_h100_usdhc2_200mhz>;
 	vmmc-supply = <&reg_3p3v>;
-	vqmmc-supply = <&reg_nvcc_sd2>;
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };

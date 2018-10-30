@@ -57,6 +57,20 @@ Optional
   occupied by the redistributors. Required if more than one such
   region is present.
 
+- msi-controller: Boolean property. Identifies the node as an MSI
+  controller. Only present if the Message Based Interrupt
+  functionnality is being exposed by the HW, and the mbi-ranges
+  property present.
+
+- mbi-ranges: A list of pairs <intid span>, where "intid" is the first
+  SPI of a range that can be used an MBI, and "span" the size of that
+  range. Multiple ranges can be provided. Requires "msi-controller" to
+  be set.
+
+- mbi-alias: Address property. Base address of an alias of the GICD
+  region containing only the {SET,CLR}SPI registers to be used if
+  isolation is required, and if supported by the HW.
+
 Sub-nodes:
 
 PPI affinity can be expressed as a single "ppi-partitions" node,
@@ -74,6 +88,10 @@ These nodes must have the following properties:
   which will generate the MSI.
 - reg: Specifies the base physical address and size of the ITS
   registers.
+
+Optional:
+- socionext,synquacer-pre-its: (u32, u32) tuple describing the untranslated
+  address and size of the pre-ITS window.
 
 The main GIC node must contain the appropriate #address-cells,
 #size-cells and ranges properties for the reg property of all ITS
@@ -95,11 +113,14 @@ Examples:
 		      <0x0 0x2c020000 0 0x2000>;	// GICV
 		interrupts = <1 9 4>;
 
+		msi-controller;
+		mbi-ranges = <256 128>;
+
 		gic-its@2c200000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
-			reg = <0x0 0x2c200000 0 0x200000>;
+			reg = <0x0 0x2c200000 0 0x20000>;
 		};
 	};
 
@@ -124,14 +145,14 @@ Examples:
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
-			reg = <0x0 0x2c200000 0 0x200000>;
+			reg = <0x0 0x2c200000 0 0x20000>;
 		};
 
 		gic-its@2c400000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
-			reg = <0x0 0x2c400000 0 0x200000>;
+			reg = <0x0 0x2c400000 0 0x20000>;
 		};
 
 		ppi-partitions {

@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2016  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
@@ -1311,7 +1300,7 @@ static void _phy_iq_calibrate_8822b(struct phy_dm_struct *dm, bool reset)
 		iqk_info->kcount = 0;
 		ODM_RT_TRACE(dm, ODM_COMP_CALIBRATION, "[IQK]delay 50ms!!!\n");
 		ODM_delay_ms(50);
-	};
+	}
 
 	_iqk_backup_iqk_8822b(dm, 1);
 	_iqk_fill_iqk_report_8822b(dm, 0);

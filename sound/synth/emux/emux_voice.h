@@ -55,7 +55,7 @@ void snd_emux_update_channel(struct snd_emux_port *port,
 			     struct snd_midi_channel *chan, int update);
 void snd_emux_update_port(struct snd_emux_port *port, int update);
 
-void snd_emux_timer_callback(unsigned long data);
+void snd_emux_timer_callback(struct timer_list *t);
 
 /* emux_effect.c */
 #ifdef SNDRV_EMUX_USE_RAW_EFFECT

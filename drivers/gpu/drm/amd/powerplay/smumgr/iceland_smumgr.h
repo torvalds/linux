@@ -39,7 +39,7 @@ struct iceland_pt_defaults {
 	uint8_t   tdc_waterfall_ctl;
 	uint8_t   dte_ambient_temp_base;
 	uint32_t  display_cac;
-	uint32_t  bamp_temp_gradient;
+	uint32_t  bapm_temp_gradient;
 	uint16_t  bapmti_r[SMU71_DTE_ITERATIONS * SMU71_DTE_SOURCES * SMU71_DTE_SINKS];
 	uint16_t  bapmti_rc[SMU71_DTE_ITERATIONS * SMU71_DTE_SOURCES * SMU71_DTE_SINKS];
 };
@@ -65,7 +65,6 @@ struct iceland_smumgr {
 	const struct iceland_pt_defaults  *power_tune_defaults;
 	SMU71_Discrete_MCRegisters      mc_regs;
 	struct iceland_mc_reg_table mc_reg_table;
-	uint32_t        activity_target[SMU71_MAX_LEVELS_GRAPHICS];
 };
 
 #endif

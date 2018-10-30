@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* 
  * linux/arch/arm/boot/compressed/head-sa1100.S
  * 

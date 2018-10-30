@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_CRYPTO_H
 #define _FS_CEPH_CRYPTO_H
 
@@ -12,7 +13,7 @@ struct ceph_crypto_key {
 	struct ceph_timespec created;
 	int len;
 	void *key;
-	struct crypto_skcipher *tfm;
+	struct crypto_sync_skcipher *tfm;
 };
 
 int ceph_crypto_key_clone(struct ceph_crypto_key *dst,

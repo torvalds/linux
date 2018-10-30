@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Architecture-specific signal handling support.
  *
@@ -104,64 +105,11 @@ restore_sigcontext (struct sigcontext __user *sc, struct sigscratch *scr)
 	return err;
 }
 
-int
-copy_siginfo_to_user (siginfo_t __user *to, const siginfo_t *from)
-{
-	if (!access_ok(VERIFY_WRITE, to, sizeof(siginfo_t)))
-		return -EFAULT;
-	if (from->si_code < 0) {
-		if (__copy_to_user(to, from, sizeof(siginfo_t)))
-			return -EFAULT;
-		return 0;
-	} else {
-		int err;
-
-		/*
-		 * If you change siginfo_t structure, please be sure this code is fixed
-		 * accordingly.  It should never copy any pad contained in the structure
-		 * to avoid security leaks, but must copy the generic 3 ints plus the
-		 * relevant union member.
-		 */
-		err = __put_user(from->si_signo, &to->si_signo);
-		err |= __put_user(from->si_errno, &to->si_errno);
-		err |= __put_user(from->si_code, &to->si_code);
-		switch (siginfo_layout(from->si_signo, from->si_code)) {
-		      case SIL_FAULT:
-			err |= __put_user(from->si_flags, &to->si_flags);
-			err |= __put_user(from->si_isr, &to->si_isr);
-		      case SIL_POLL:
-			err |= __put_user(from->si_addr, &to->si_addr);
-			err |= __put_user(from->si_imm, &to->si_imm);
-			break;
-		      case SIL_TIMER:
-			err |= __put_user(from->si_tid, &to->si_tid);
-			err |= __put_user(from->si_overrun, &to->si_overrun);
-			err |= __put_user(from->si_ptr, &to->si_ptr);
-			break;
-		      case SIL_RT:
-			err |= __put_user(from->si_uid, &to->si_uid);
-			err |= __put_user(from->si_pid, &to->si_pid);
-			err |= __put_user(from->si_ptr, &to->si_ptr);
-			break;
-		      case SIL_CHLD:
-			err |= __put_user(from->si_utime, &to->si_utime);
-			err |= __put_user(from->si_stime, &to->si_stime);
-			err |= __put_user(from->si_status, &to->si_status);
-		      case SIL_KILL:
-			err |= __put_user(from->si_uid, &to->si_uid);
-			err |= __put_user(from->si_pid, &to->si_pid);
-			break;
-		}
-		return err;
-	}
-}
-
 long
 ia64_rt_sigreturn (struct sigscratch *scr)
 {
 	extern char ia64_strace_leave_kernel, ia64_leave_kernel;
 	struct sigcontext __user *sc;
-	struct siginfo si;
 	sigset_t set;
 	long retval;
 
@@ -204,13 +152,7 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	return retval;
 
   give_sigsegv:
-	si.si_signo = SIGSEGV;
-	si.si_errno = 0;
-	si.si_code = SI_KERNEL;
-	si.si_pid = task_pid_vnr(current);
-	si.si_uid = from_kuid_munged(current_user_ns(), current_uid());
-	si.si_addr = sc;
-	force_sig_info(SIGSEGV, &si, current);
+	force_sig(SIGSEGV, current);
 	return retval;
 }
 
@@ -282,36 +224,6 @@ rbs_on_sig_stack (unsigned long bsp)
 }
 
 static long
-force_sigsegv_info (int sig, void __user *addr)
-{
-	unsigned long flags;
-	struct siginfo si;
-
-	if (sig == SIGSEGV) {
-		/*
-		 * Acquiring siglock around the sa_handler-update is almost
-		 * certainly overkill, but this isn't a
-		 * performance-critical path and I'd rather play it safe
-		 * here than having to debug a nasty race if and when
-		 * something changes in kernel/signal.c that would make it
-		 * no longer safe to modify sa_handler without holding the
-		 * lock.
-		 */
-		spin_lock_irqsave(&current->sighand->siglock, flags);
-		current->sighand->action[sig - 1].sa.sa_handler = SIG_DFL;
-		spin_unlock_irqrestore(&current->sighand->siglock, flags);
-	}
-	si.si_signo = SIGSEGV;
-	si.si_errno = 0;
-	si.si_code = SI_KERNEL;
-	si.si_pid = task_pid_vnr(current);
-	si.si_uid = from_kuid_munged(current_user_ns(), current_uid());
-	si.si_addr = addr;
-	force_sig_info(SIGSEGV, &si, current);
-	return 1;
-}
-
-static long
 setup_frame(struct ksignal *ksig, sigset_t *set, struct sigscratch *scr)
 {
 	extern char __kernel_sigtramp[];
@@ -344,15 +256,18 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct sigscratch *scr)
 			 * instead so we will die with SIGSEGV.
 			 */
 			check_sp = (new_sp - sizeof(*frame)) & -STACK_ALIGN;
-			if (!likely(on_sig_stack(check_sp)))
-				return force_sigsegv_info(ksig->sig, (void __user *)
-							  check_sp);
+			if (!likely(on_sig_stack(check_sp))) {
+				force_sigsegv(ksig->sig, current);
+				return 1;
+			}
 		}
 	}
 	frame = (void __user *) ((new_sp - sizeof(*frame)) & -STACK_ALIGN);
 
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		return force_sigsegv_info(ksig->sig, frame);
+	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame))) {
+		force_sigsegv(ksig->sig, current);
+		return 1;
+	}
 
 	err  = __put_user(ksig->sig, &frame->arg0);
 	err |= __put_user(&frame->info, &frame->arg1);
@@ -366,8 +281,10 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct sigscratch *scr)
 	err |= __save_altstack(&frame->sc.sc_stack, scr->pt.r12);
 	err |= setup_sigcontext(&frame->sc, set, scr);
 
-	if (unlikely(err))
-		return force_sigsegv_info(ksig->sig, frame);
+	if (unlikely(err)) {
+		force_sigsegv(ksig->sig, current);
+		return 1;
+	}
 
 	scr->pt.r12 = (unsigned long) frame - 16;	/* new stack pointer */
 	scr->pt.ar_fpsr = FPSR_DEFAULT;			/* reset fpsr for signal handler */

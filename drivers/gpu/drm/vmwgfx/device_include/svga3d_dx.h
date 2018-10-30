@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**********************************************************
- * Copyright 2012-2015 VMware, Inc.  All rights reserved.
+ * Copyright 2012-2015 VMware, Inc.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -56,6 +57,16 @@ typedef uint32 SVGA3dInputClassification;
 #define SVGA3D_RESOURCE_TYPE_MAX      7
 typedef uint32 SVGA3dResourceType;
 
+#define SVGA3D_COLOR_WRITE_ENABLE_RED     (1 << 0)
+#define SVGA3D_COLOR_WRITE_ENABLE_GREEN   (1 << 1)
+#define SVGA3D_COLOR_WRITE_ENABLE_BLUE    (1 << 2)
+#define SVGA3D_COLOR_WRITE_ENABLE_ALPHA   (1 << 3)
+#define SVGA3D_COLOR_WRITE_ENABLE_ALL     (SVGA3D_COLOR_WRITE_ENABLE_RED |   \
+                                           SVGA3D_COLOR_WRITE_ENABLE_GREEN | \
+                                           SVGA3D_COLOR_WRITE_ENABLE_BLUE |  \
+                                           SVGA3D_COLOR_WRITE_ENABLE_ALPHA)
+typedef uint8 SVGA3dColorWriteEnable;
+
 #define SVGA3D_DEPTH_WRITE_MASK_ZERO   0
 #define SVGA3D_DEPTH_WRITE_MASK_ALL    1
 typedef uint8 SVGA3dDepthWriteMask;
@@ -88,17 +99,28 @@ typedef uint8 SVGA3dCullMode;
 #define SVGA3D_COMPARISON_MAX             9
 typedef uint8 SVGA3dComparisonFunc;
 
+/*
+ * SVGA3D_MULTISAMPLE_RAST_DISABLE disables MSAA for all primitives.
+ * SVGA3D_MULTISAMPLE_RAST_DISABLE_LINE, which is supported in SM41,
+ * disables MSAA for lines only.
+ */
+#define SVGA3D_MULTISAMPLE_RAST_DISABLE        0
+#define SVGA3D_MULTISAMPLE_RAST_ENABLE         1
+#define SVGA3D_MULTISAMPLE_RAST_DX_MAX         1
+#define SVGA3D_MULTISAMPLE_RAST_DISABLE_LINE   2
+#define SVGA3D_MULTISAMPLE_RAST_MAX            2
+typedef uint8 SVGA3dMultisampleRastEnable;
+
 #define SVGA3D_DX_MAX_VERTEXBUFFERS 32
+#define SVGA3D_DX_MAX_VERTEXINPUTREGISTERS 16
+#define SVGA3D_DX_SM41_MAX_VERTEXINPUTREGISTERS 32
 #define SVGA3D_DX_MAX_SOTARGETS 4
 #define SVGA3D_DX_MAX_SRVIEWS 128
 #define SVGA3D_DX_MAX_CONSTBUFFERS 16
 #define SVGA3D_DX_MAX_SAMPLERS 16
 
-/* Id limits */
-static const uint32 SVGA3dBlendObjectCountPerContext = 4096;
-static const uint32 SVGA3dDepthStencilObjectCountPerContext = 4096;
+#define SVGA3D_DX_MAX_CONSTBUF_BINDING_SIZE (4096 * 4 * (uint32)sizeof(uint32))
 
-typedef uint32 SVGA3dSurfaceId;
 typedef uint32 SVGA3dShaderResourceViewId;
 typedef uint32 SVGA3dRenderTargetViewId;
 typedef uint32 SVGA3dDepthStencilViewId;
@@ -191,20 +213,6 @@ struct SVGA3dCmdDXInvalidateContext {
 }
 #include "vmware_pack_end.h"
 SVGA3dCmdDXInvalidateContext;   /* SVGA_3D_CMD_DX_INVALIDATE_CONTEXT */
-
-typedef
-#include "vmware_pack_begin.h"
-struct SVGA3dReplyFormatData {
-   uint32 formatSupport;
-   uint32 msaa2xQualityLevels:5;
-   uint32 msaa4xQualityLevels:5;
-   uint32 msaa8xQualityLevels:5;
-   uint32 msaa16xQualityLevels:5;
-   uint32 msaa32xQualityLevels:5;
-   uint32 pad:7;
-}
-#include "vmware_pack_end.h"
-SVGA3dReplyFormatData;
 
 typedef
 #include "vmware_pack_begin.h"
@@ -624,6 +632,28 @@ SVGA3dCmdDXPredCopy; /* SVGA_3D_CMD_DX_PRED_COPY */
 
 typedef
 #include "vmware_pack_begin.h"
+struct SVGA3dCmdDXPredConvertRegion {
+   SVGA3dSurfaceId dstSid;
+   uint32 dstSubResource;
+   SVGA3dBox destBox;
+   SVGA3dSurfaceId srcSid;
+   uint32 srcSubResource;
+   SVGA3dBox srcBox;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDXPredConvertRegion; /* SVGA_3D_CMD_DX_PRED_CONVERT_REGION */
+
+typedef
+#include "vmware_pack_begin.h"
+struct SVGA3dCmdDXPredConvert {
+   SVGA3dSurfaceId dstSid;
+   SVGA3dSurfaceId srcSid;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDXPredConvert; /* SVGA_3D_CMD_DX_PRED_CONVERT */
+
+typedef
+#include "vmware_pack_begin.h"
 struct SVGA3dCmdDXBufferCopy {
    SVGA3dSurfaceId dest;
    SVGA3dSurfaceId src;
@@ -635,23 +665,57 @@ struct SVGA3dCmdDXBufferCopy {
 SVGA3dCmdDXBufferCopy;
 /* SVGA_3D_CMD_DX_BUFFER_COPY */
 
-typedef uint32 SVGA3dDXStretchBltMode;
-#define SVGADX_STRETCHBLT_LINEAR         (1 << 0)
-#define SVGADX_STRETCHBLT_FORCE_SRC_SRGB (1 << 1)
+/*
+ * Perform a surface copy between a multisample, and a non-multisampled
+ * surface.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   SVGA3dSurfaceId dstSid;
+   uint32 dstSubResource;
+   SVGA3dSurfaceId srcSid;
+   uint32 srcSubResource;
+   SVGA3dSurfaceFormat copyFormat;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDXResolveCopy;               /* SVGA_3D_CMD_DX_RESOLVE_COPY */
+
+/*
+ * Perform a predicated surface copy between a multisample, and a
+ * non-multisampled surface.
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   SVGA3dSurfaceId dstSid;
+   uint32 dstSubResource;
+   SVGA3dSurfaceId srcSid;
+   uint32 srcSubResource;
+   SVGA3dSurfaceFormat copyFormat;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDXPredResolveCopy;           /* SVGA_3D_CMD_DX_PRED_RESOLVE_COPY */
+
+typedef uint32 SVGA3dDXPresentBltMode;
+#define SVGADX_PRESENTBLT_LINEAR           (1 << 0)
+#define SVGADX_PRESENTBLT_FORCE_SRC_SRGB   (1 << 1)
+#define SVGADX_PRESENTBLT_FORCE_SRC_XRBIAS (1 << 2)
+#define SVGADX_PRESENTBLT_MODE_MAX         (1 << 3)
 
 typedef
 #include "vmware_pack_begin.h"
-struct SVGA3dCmdDXStretchBlt {
+struct SVGA3dCmdDXPresentBlt {
    SVGA3dSurfaceId srcSid;
    uint32 srcSubResource;
    SVGA3dSurfaceId dstSid;
    uint32 destSubResource;
    SVGA3dBox boxSrc;
    SVGA3dBox boxDest;
-   SVGA3dDXStretchBltMode mode;
+   SVGA3dDXPresentBltMode mode;
 }
 #include "vmware_pack_end.h"
-SVGA3dCmdDXStretchBlt; /* SVGA_3D_CMD_DX_STRETCHBLT */
+SVGA3dCmdDXPresentBlt; /* SVGA_3D_CMD_DX_PRESENTBLT*/
 
 typedef
 #include "vmware_pack_begin.h"
@@ -660,26 +724,6 @@ struct SVGA3dCmdDXGenMips {
 }
 #include "vmware_pack_end.h"
 SVGA3dCmdDXGenMips; /* SVGA_3D_CMD_DX_GENMIPS */
-
-/*
- * Defines a resource/DX surface.  Resources share the surfaceId namespace.
- *
- */
-typedef
-#include "vmware_pack_begin.h"
-struct SVGA3dCmdDefineGBSurface_v2 {
-   uint32 sid;
-   SVGA3dSurfaceFlags surfaceFlags;
-   SVGA3dSurfaceFormat format;
-   uint32 numMipLevels;
-   uint32 multisampleCount;
-   SVGA3dTextureFilter autogenFilter;
-   SVGA3dSize size;
-   uint32 arraySize;
-   uint32 pad;
-}
-#include "vmware_pack_end.h"
-SVGA3dCmdDefineGBSurface_v2;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE_V2 */
 
 /*
  * Update a sub-resource in a guest-backed resource.
@@ -724,7 +768,8 @@ SVGA3dCmdDXInvalidateSubResource;   /* SVGA_3D_CMD_DX_INVALIDATE_SUBRESOURCE */
 
 /*
  * Raw byte wise transfer from a buffer surface into another surface
- * of the requested box.
+ * of the requested box.  Supported if 3d is enabled and SVGA_CAP_DX
+ * is set.  This command does not take a context.
  */
 typedef
 #include "vmware_pack_begin.h"
@@ -773,6 +818,93 @@ struct SVGA3dCmdDXSurfaceCopyAndReadback {
 SVGA3dCmdDXSurfaceCopyAndReadback;
 /* SVGA_3D_CMD_DX_SURFACE_COPY_AND_READBACK */
 
+/*
+ * SVGA_DX_HINT_NONE: Does nothing.
+ *
+ * SVGA_DX_HINT_PREFETCH_OBJECT:
+ * SVGA_DX_HINT_PREEVICT_OBJECT:
+ *      Consumes a SVGAObjectRef, and hints that the host should consider
+ *      fetching/evicting the specified object.
+ *
+ *      An id of SVGA3D_INVALID_ID can be used if the guest isn't sure
+ *      what object was affected.  (For instance, if the guest knows that
+ *      it is about to evict a DXShader, but doesn't know precisely which one,
+ *      the device can still use this to help limit it's search, or track
+ *      how many page-outs have happened.)
+ *
+ * SVGA_DX_HINT_PREFETCH_COBJECT:
+ * SVGA_DX_HINT_PREEVICT_COBJECT:
+ *      Same as the above, except they consume an SVGACObjectRef.
+ */
+typedef uint32 SVGADXHintId;
+#define SVGA_DX_HINT_NONE              0
+#define SVGA_DX_HINT_PREFETCH_OBJECT   1
+#define SVGA_DX_HINT_PREEVICT_OBJECT   2
+#define SVGA_DX_HINT_PREFETCH_COBJECT  3
+#define SVGA_DX_HINT_PREEVICT_COBJECT  4
+#define SVGA_DX_HINT_MAX               5
+
+typedef
+#include "vmware_pack_begin.h"
+struct SVGAObjectRef {
+   SVGAOTableType type;
+   uint32 id;
+}
+#include "vmware_pack_end.h"
+SVGAObjectRef;
+
+typedef
+#include "vmware_pack_begin.h"
+struct SVGACObjectRef {
+   SVGACOTableType type;
+   uint32 cid;
+   uint32 id;
+}
+#include "vmware_pack_end.h"
+SVGACObjectRef;
+
+typedef
+#include "vmware_pack_begin.h"
+struct SVGA3dCmdDXHint {
+   SVGADXHintId hintId;
+
+   /*
+    * Followed by variable sized data depending on the hintId.
+    */
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDXHint;
+/* SVGA_3D_CMD_DX_HINT */
+
+typedef
+#include "vmware_pack_begin.h"
+struct SVGA3dCmdDXBufferUpdate {
+   SVGA3dSurfaceId sid;
+   uint32 x;
+   uint32 width;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDXBufferUpdate;
+/* SVGA_3D_CMD_DX_BUFFER_UPDATE */
+
+typedef
+#include "vmware_pack_begin.h"
+struct SVGA3dCmdDXSetConstantBufferOffset {
+   uint32 slot;
+   uint32 offsetInBytes;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDXSetConstantBufferOffset;
+
+typedef SVGA3dCmdDXSetConstantBufferOffset SVGA3dCmdDXSetVSConstantBufferOffset;
+/* SVGA_3D_CMD_DX_SET_VS_CONSTANT_BUFFER_OFFSET */
+
+typedef SVGA3dCmdDXSetConstantBufferOffset SVGA3dCmdDXSetPSConstantBufferOffset;
+/* SVGA_3D_CMD_DX_SET_PS_CONSTANT_BUFFER_OFFSET */
+
+typedef SVGA3dCmdDXSetConstantBufferOffset SVGA3dCmdDXSetGSConstantBufferOffset;
+/* SVGA_3D_CMD_DX_SET_GS_CONSTANT_BUFFER_OFFSET */
+
 
 typedef
 #include "vmware_pack_begin.h"
@@ -789,7 +921,7 @@ struct {
          uint32 firstArraySlice;
          uint32 mipLevels;
          uint32 arraySize;
-      } tex;
+      } tex; /* 1d, 2d, 3d, cube */
       struct {
          uint32 firstElement;
          uint32 numElements;
@@ -844,6 +976,7 @@ struct SVGA3dRenderTargetViewDesc {
       struct {
          uint32 firstElement;
          uint32 numElements;
+         uint32 padding0;
       } buffer;
       struct {
          uint32 mipSlice;
@@ -964,9 +1097,6 @@ SVGA3dInputElementDesc;
 typedef
 #include "vmware_pack_begin.h"
 struct {
-   /*
-    * XXX: How many of these can there be?
-    */
    uint32 elid;
    uint32 numDescs;
    SVGA3dInputElementDesc desc[32];
@@ -1007,7 +1137,7 @@ struct SVGA3dDXBlendStatePerRT {
       uint8 srcBlendAlpha;
       uint8 destBlendAlpha;
       uint8 blendOpAlpha;
-      uint8 renderTargetWriteMask;
+      SVGA3dColorWriteEnable renderTargetWriteMask;
       uint8 logicOpEnable;
       uint8 logicOp;
       uint16 pad0;
@@ -1125,7 +1255,7 @@ struct {
    float slopeScaledDepthBias;
    uint8 depthClipEnable;
    uint8 scissorEnable;
-   uint8 multisampleEnable;
+   SVGA3dMultisampleRastEnable multisampleEnable;
    uint8 antialiasedLineEnable;
    float lineWidth;
    uint8 lineStippleEnable;
@@ -1152,7 +1282,7 @@ struct SVGA3dCmdDXDefineRasterizerState {
    float slopeScaledDepthBias;
    uint8 depthClipEnable;
    uint8 scissorEnable;
-   uint8 multisampleEnable;
+   SVGA3dMultisampleRastEnable multisampleEnable;
    uint8 antialiasedLineEnable;
    float lineWidth;
    uint8 lineStippleEnable;
@@ -1222,21 +1352,6 @@ struct SVGA3dCmdDXDestroySamplerState {
 #include "vmware_pack_end.h"
 SVGA3dCmdDXDestroySamplerState; /* SVGA_3D_CMD_DX_DESTROY_SAMPLER_STATE */
 
-/*
- */
-typedef
-#include "vmware_pack_begin.h"
-struct SVGA3dSignatureEntry {
-   uint8 systemValue;
-   uint8 reg;                 /* register is a reserved word */
-   uint16 mask;
-   uint8 registerComponentType;
-   uint8 minPrecision;
-   uint16 pad0;
-}
-#include "vmware_pack_end.h"
-SVGA3dSignatureEntry;
-
 typedef
 #include "vmware_pack_begin.h"
 struct SVGA3dCmdDXDefineShader {
@@ -1254,12 +1369,7 @@ struct SVGACOTableDXShaderEntry {
    uint32 sizeInBytes;
    uint32 offsetInBytes;
    SVGAMobId mobid;
-   uint32 numInputSignatureEntries;
-   uint32 numOutputSignatureEntries;
-
-   uint32 numPatchConstantSignatureEntries;
-
-   uint32 pad;
+   uint32 pad[4];
 }
 #include "vmware_pack_end.h"
 SVGACOTableDXShaderEntry;
@@ -1282,6 +1392,25 @@ struct SVGA3dCmdDXBindShader {
 }
 #include "vmware_pack_end.h"
 SVGA3dCmdDXBindShader;   /* SVGA_3D_CMD_DX_BIND_SHADER */
+
+typedef
+#include "vmware_pack_begin.h"
+struct SVGA3dCmdDXBindAllShader {
+   uint32 cid;
+   SVGAMobId mobid;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDXBindAllShader;   /* SVGA_3D_CMD_DX_BIND_ALL_SHADER */
+
+typedef
+#include "vmware_pack_begin.h"
+struct SVGA3dCmdDXCondBindAllShader {
+   uint32 cid;
+   SVGAMobId testMobid;
+   SVGAMobId mobid;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDXCondBindAllShader;   /* SVGA_3D_CMD_DX_COND_BIND_ALL_SHADER */
 
 /*
  * The maximum number of streamout decl's in each streamout entry.
@@ -1356,7 +1485,6 @@ SVGA3dCmdDXMobFence64;  /* SVGA_3D_CMD_DX_MOB_FENCE_64 */
  *
  * This command allows the guest to bind a mob to a context-object table.
  */
-
 typedef
 #include "vmware_pack_begin.h"
 struct SVGA3dCmdDXSetCOTable {
@@ -1367,6 +1495,26 @@ struct SVGA3dCmdDXSetCOTable {
 }
 #include "vmware_pack_end.h"
 SVGA3dCmdDXSetCOTable; /* SVGA_3D_CMD_DX_SET_COTABLE */
+
+/*
+ * Guests using SVGA_3D_CMD_DX_GROW_COTABLE are promising that
+ * the new COTable contains the same contents as the old one, except possibly
+ * for some new invalid entries at the end.
+ *
+ * If there is an old cotable mob bound, it also has to still be valid.
+ *
+ * (Otherwise, guests should use the DXSetCOTableBase command.)
+ */
+typedef
+#include "vmware_pack_begin.h"
+struct SVGA3dCmdDXGrowCOTable {
+   uint32 cid;
+   uint32 mobid;
+   SVGACOTableType type;
+   uint32 validSizeInBytes;
+}
+#include "vmware_pack_end.h"
+SVGA3dCmdDXGrowCOTable; /* SVGA_3D_CMD_DX_GROW_COTABLE */
 
 typedef
 #include "vmware_pack_begin.h"
@@ -1471,7 +1619,7 @@ struct SVGADXContextMobFormat {
    SVGA3dQueryId queryID[SVGA3D_MAX_QUERY];
 
    SVGA3dCOTableData cotables[SVGA_COTABLE_MAX];
-   uint32 pad7[381];
+   uint32 pad7[380];
 }
 #include "vmware_pack_end.h"
 SVGADXContextMobFormat;

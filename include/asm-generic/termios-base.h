@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* termios.h: generic termios/termio user copying/translation
  */
 

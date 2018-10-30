@@ -16,7 +16,7 @@
  */
 
 #include <asm/div64.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "atbm8830.h"
 #include "atbm8830_priv.h"
@@ -428,9 +428,9 @@ static const struct dvb_frontend_ops atbm8830_ops = {
 	.delsys = { SYS_DTMB },
 	.info = {
 		.name = "AltoBeam ATBM8830/8831 DMB-TH",
-		.frequency_min = 474000000,
-		.frequency_max = 858000000,
-		.frequency_stepsize = 10000,
+		.frequency_min_hz = 474 * MHz,
+		.frequency_max_hz = 858 * MHz,
+		.frequency_stepsize_hz = 10 * kHz,
 		.caps =
 			FE_CAN_FEC_AUTO |
 			FE_CAN_QAM_AUTO |

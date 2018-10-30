@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PARISC_TLBFLUSH_H
 #define _PARISC_TLBFLUSH_H
 
@@ -84,8 +85,7 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 	purge_tlb_start(flags);
 	mtsp(sid, 1);
 	pdtlb(addr);
-	if (unlikely(split_tlb))
-		pitlb(addr);
+	pitlb(addr);
 	purge_tlb_end(flags);
 }
 #endif

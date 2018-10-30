@@ -100,6 +100,8 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	case DRM_VC4_PARAM_SUPPORTS_ETC1:
 	case DRM_VC4_PARAM_SUPPORTS_THREADED_FS:
 	case DRM_VC4_PARAM_SUPPORTS_FIXED_RCL_ORDER:
+	case DRM_VC4_PARAM_SUPPORTS_MADVISE:
+	case DRM_VC4_PARAM_SUPPORTS_PERFMON:
 		args->value = true;
 		break;
 	default:
@@ -110,12 +112,32 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static void vc4_lastclose(struct drm_device *dev)
+static int vc4_open(struct drm_device *dev, struct drm_file *file)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_file *vc4file;
 
-	drm_fbdev_cma_restore_mode(vc4->fbdev);
+	vc4file = kzalloc(sizeof(*vc4file), GFP_KERNEL);
+	if (!vc4file)
+		return -ENOMEM;
+
+	vc4_perfmon_open_file(vc4file);
+	file->driver_priv = vc4file;
+	return 0;
 }
+
+static void vc4_close(struct drm_device *dev, struct drm_file *file)
+{
+	struct vc4_file *vc4file = file->driver_priv;
+
+	vc4_perfmon_close_file(vc4file);
+	kfree(vc4file);
+}
+
+static const struct vm_operations_struct vc4_vm_ops = {
+	.fault = vc4_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
 
 static const struct file_operations vc4_drm_fops = {
 	.owner = THIS_MODULE,
@@ -142,6 +164,10 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_SET_TILING, vc4_set_tiling_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_GET_TILING, vc4_get_tiling_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_LABEL_BO, vc4_label_bo_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_GEM_MADVISE, vc4_gem_madvise_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_PERFMON_CREATE, vc4_perfmon_create_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_PERFMON_DESTROY, vc4_perfmon_destroy_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_PERFMON_GET_VALUES, vc4_perfmon_get_values_ioctl, DRM_RENDER_ALLOW),
 };
 
 static struct drm_driver vc4_drm_driver = {
@@ -150,8 +176,10 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_GEM |
 			    DRIVER_HAVE_IRQ |
 			    DRIVER_RENDER |
-			    DRIVER_PRIME),
-	.lastclose = vc4_lastclose,
+			    DRIVER_PRIME |
+			    DRIVER_SYNCOBJ),
+	.open = vc4_open,
+	.postclose = vc4_close,
 	.irq_handler = vc4_irq,
 	.irq_preinstall = vc4_irq_preinstall,
 	.irq_postinstall = vc4_irq_postinstall,
@@ -166,7 +194,7 @@ static struct drm_driver vc4_drm_driver = {
 
 	.gem_create_object = vc4_create_object,
 	.gem_free_object_unlocked = vc4_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
+	.gem_vm_ops = &vc4_vm_ops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
@@ -219,24 +247,6 @@ static void vc4_match_add_drivers(struct device *dev,
 	}
 }
 
-static void vc4_kick_out_firmware_fb(void)
-{
-	struct apertures_struct *ap;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return;
-
-	/* Since VC4 is a UMA device, the simplefb node may have been
-	 * located anywhere in memory.
-	 */
-	ap->ranges[0].base = 0;
-	ap->ranges[0].size = ~0;
-
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "vc4drmfb", false);
-	kfree(ap);
-}
-
 static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -259,7 +269,7 @@ static int vc4_drm_bind(struct device *dev)
 
 	ret = vc4_bo_cache_init(drm);
 	if (ret)
-		goto dev_unref;
+		goto dev_put;
 
 	drm_mode_config_init(drm);
 
@@ -269,13 +279,15 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		goto gem_destroy;
 
-	vc4_kick_out_firmware_fb();
+	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto unbind_all;
 
 	vc4_kms_load(drm);
+
+	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 
@@ -284,25 +296,23 @@ unbind_all:
 gem_destroy:
 	vc4_gem_destroy(drm);
 	vc4_bo_cache_destroy(drm);
-dev_unref:
-	drm_dev_unref(drm);
+dev_put:
+	drm_dev_put(drm);
 	return ret;
 }
 
 static void vc4_drm_unbind(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *drm = platform_get_drvdata(pdev);
+	struct drm_device *drm = dev_get_drvdata(dev);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
 	drm_dev_unregister(drm);
 
-	if (vc4->fbdev)
-		drm_fbdev_cma_fini(vc4->fbdev);
-
 	drm_mode_config_cleanup(drm);
 
-	drm_dev_unref(drm);
+	drm_atomic_private_obj_fini(&vc4->ctm_manager);
+
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops vc4_drm_ops = {
@@ -315,6 +325,7 @@ static struct platform_driver *const component_drivers[] = {
 	&vc4_vec_driver,
 	&vc4_dpi_driver,
 	&vc4_dsi_driver,
+	&vc4_txp_driver,
 	&vc4_hvs_driver,
 	&vc4_crtc_driver,
 	&vc4_v3d_driver,

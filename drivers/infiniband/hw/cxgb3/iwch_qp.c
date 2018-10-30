@@ -39,8 +39,8 @@
 
 #define NO_SUPPORT -1
 
-static int build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
-				u8 * flit_cnt)
+static int build_rdma_send(union t3_wr *wqe, const struct ib_send_wr *wr,
+			   u8 *flit_cnt)
 {
 	int i;
 	u32 plen;
@@ -84,8 +84,8 @@ static int build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
-				 u8 *flit_cnt)
+static int build_rdma_write(union t3_wr *wqe, const struct ib_send_wr *wr,
+			    u8 *flit_cnt)
 {
 	int i;
 	u32 plen;
@@ -125,8 +125,8 @@ static int build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
-				u8 *flit_cnt)
+static int build_rdma_read(union t3_wr *wqe, const struct ib_send_wr *wr,
+			   u8 *flit_cnt)
 {
 	if (wr->num_sge > 1)
 		return -EINVAL;
@@ -146,8 +146,8 @@ static int build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int build_memreg(union t3_wr *wqe, struct ib_reg_wr *wr,
-			  u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
+static int build_memreg(union t3_wr *wqe, const struct ib_reg_wr *wr,
+			u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
 {
 	struct iwch_mr *mhp = to_iwch_mr(wr->mr);
 	int i;
@@ -189,8 +189,8 @@ static int build_memreg(union t3_wr *wqe, struct ib_reg_wr *wr,
 	return 0;
 }
 
-static int build_inv_stag(union t3_wr *wqe, struct ib_send_wr *wr,
-				u8 *flit_cnt)
+static int build_inv_stag(union t3_wr *wqe, const struct ib_send_wr *wr,
+			  u8 *flit_cnt)
 {
 	wqe->local_inv.stag = cpu_to_be32(wr->ex.invalidate_rkey);
 	wqe->local_inv.reserved = 0;
@@ -246,7 +246,7 @@ static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 }
 
 static int build_rdma_recv(struct iwch_qp *qhp, union t3_wr *wqe,
-				struct ib_recv_wr *wr)
+			   const struct ib_recv_wr *wr)
 {
 	int i, err = 0;
 	u32 pbl_addr[T3_MAX_SGE];
@@ -286,7 +286,7 @@ static int build_rdma_recv(struct iwch_qp *qhp, union t3_wr *wqe,
 }
 
 static int build_zero_stag_recv(struct iwch_qp *qhp, union t3_wr *wqe,
-				struct ib_recv_wr *wr)
+				const struct ib_recv_wr *wr)
 {
 	int i;
 	u32 pbl_addr;
@@ -348,8 +348,8 @@ static int build_zero_stag_recv(struct iwch_qp *qhp, union t3_wr *wqe,
 	return 0;
 }
 
-int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		      struct ib_send_wr **bad_wr)
+int iwch_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		   const struct ib_send_wr **bad_wr)
 {
 	int err = 0;
 	u8 uninitialized_var(t3_wr_flit_cnt);
@@ -463,8 +463,8 @@ out:
 	return err;
 }
 
-int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int iwch_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	int err = 0;
 	struct iwch_qp *qhp;
@@ -722,10 +722,13 @@ int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg)
  */
 static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
 				struct iwch_cq *schp)
+	__releases(&qhp->lock)
+	__acquires(&qhp->lock)
 {
 	int count;
 	int flushed;
 
+	lockdep_assert_held(&qhp->lock);
 
 	pr_debug("%s qhp %p rchp %p schp %p\n", __func__, qhp, rchp, schp);
 	/* take a ref on the qhp since we must release the lock */

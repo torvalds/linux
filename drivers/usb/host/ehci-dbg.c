@@ -1,16 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2001-2002 by David Brownell
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 /* this file is part of ehci-hcd.c */
@@ -837,7 +827,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 			default:		/* unknown */
 				break;
 			}
-			temp = (cap >> 8) & 0xff;
+			offset = (cap >> 8) & 0xff;
 		}
 	}
 #endif
@@ -1038,29 +1028,15 @@ static inline void create_debug_files(struct ehci_hcd *ehci)
 	struct usb_bus *bus = &ehci_to_hcd(ehci)->self;
 
 	ehci->debug_dir = debugfs_create_dir(bus->bus_name, ehci_debug_root);
-	if (!ehci->debug_dir)
-		return;
 
-	if (!debugfs_create_file("async", S_IRUGO, ehci->debug_dir, bus,
-						&debug_async_fops))
-		goto file_error;
-
-	if (!debugfs_create_file("bandwidth", S_IRUGO, ehci->debug_dir, bus,
-						&debug_bandwidth_fops))
-		goto file_error;
-
-	if (!debugfs_create_file("periodic", S_IRUGO, ehci->debug_dir, bus,
-						&debug_periodic_fops))
-		goto file_error;
-
-	if (!debugfs_create_file("registers", S_IRUGO, ehci->debug_dir, bus,
-						    &debug_registers_fops))
-		goto file_error;
-
-	return;
-
-file_error:
-	debugfs_remove_recursive(ehci->debug_dir);
+	debugfs_create_file("async", S_IRUGO, ehci->debug_dir, bus,
+			    &debug_async_fops);
+	debugfs_create_file("bandwidth", S_IRUGO, ehci->debug_dir, bus,
+			    &debug_bandwidth_fops);
+	debugfs_create_file("periodic", S_IRUGO, ehci->debug_dir, bus,
+			    &debug_periodic_fops);
+	debugfs_create_file("registers", S_IRUGO, ehci->debug_dir, bus,
+			    &debug_registers_fops);
 }
 
 static inline void remove_debug_files(struct ehci_hcd *ehci)

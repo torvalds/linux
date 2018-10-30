@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kaslr.c
  *
@@ -22,11 +23,8 @@
  * _ctype[] in lib/ctype.c is needed by isspace() of linux/ctype.h.
  * While both lib/ctype.c and lib/cmdline.c will bring EXPORT_SYMBOL
  * which is meaningless and will cause compiling error in some cases.
- * So do not include linux/export.h and define EXPORT_SYMBOL(sym)
- * as empty.
  */
-#define _LINUX_EXPORT_H
-#define EXPORT_SYMBOL(sym)
+#define __DISABLE_EXPORTS
 
 #include "misc.h"
 #include "error.h"
@@ -45,7 +43,16 @@
 #define STATIC
 #include <linux/decompress/mm.h>
 
+#ifdef CONFIG_X86_5LEVEL
+unsigned int __pgtable_l5_enabled;
+unsigned int pgdir_shift __ro_after_init = 39;
+unsigned int ptrs_per_p4d __ro_after_init = 1;
+#endif
+
 extern unsigned long get_cmd_line_ptr(void);
+
+/* Used by PAGE_KERN* macros: */
+pteval_t __default_kernel_pte_mask __read_mostly = ~0;
 
 /* Simplified build-specific string for starting entropy. */
 static const char build_str[] = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
@@ -92,7 +99,7 @@ static bool memmap_too_large;
 
 
 /* Store memory limit specified by "mem=nn[KMG]" or "memmap=nn[KMG]" */
-unsigned long long mem_limit = ULLONG_MAX;
+static unsigned long long mem_limit = ULLONG_MAX;
 
 
 enum mem_avoid_index {
@@ -170,7 +177,6 @@ parse_memmap(char *p, unsigned long long *start, unsigned long long *size)
 static void mem_avoid_memmap(char *str)
 {
 	static int i;
-	int rc;
 
 	if (i >= MAX_MEMMAP_REGIONS)
 		return;
@@ -206,7 +212,36 @@ static void mem_avoid_memmap(char *str)
 		memmap_too_large = true;
 }
 
-static int handle_mem_memmap(void)
+/* Store the number of 1GB huge pages which users specified: */
+static unsigned long max_gb_huge_pages;
+
+static void parse_gb_huge_pages(char *param, char *val)
+{
+	static bool gbpage_sz;
+	char *p;
+
+	if (!strcmp(param, "hugepagesz")) {
+		p = val;
+		if (memparse(p, &p) != PUD_SIZE) {
+			gbpage_sz = false;
+			return;
+		}
+
+		if (gbpage_sz)
+			warn("Repeatedly set hugeTLB page size of 1G!\n");
+		gbpage_sz = true;
+		return;
+	}
+
+	if (!strcmp(param, "hugepages") && gbpage_sz) {
+		p = val;
+		max_gb_huge_pages = simple_strtoull(p, &p, 0);
+		return;
+	}
+}
+
+
+static void handle_mem_options(void)
 {
 	char *args = (char *)get_cmd_line_ptr();
 	size_t len = strlen((char *)args);
@@ -214,11 +249,12 @@ static int handle_mem_memmap(void)
 	char *param, *val;
 	u64 mem_size;
 
-	if (!strstr(args, "memmap=") && !strstr(args, "mem="))
-		return 0;
+	if (!strstr(args, "memmap=") && !strstr(args, "mem=") &&
+		!strstr(args, "hugepages"))
+		return;
 
 	tmp_cmdline = malloc(len + 1);
-	if (!tmp_cmdline )
+	if (!tmp_cmdline)
 		error("Failed to allocate space for tmp_cmdline");
 
 	memcpy(tmp_cmdline, args, len);
@@ -233,28 +269,29 @@ static int handle_mem_memmap(void)
 		/* Stop at -- */
 		if (!val && strcmp(param, "--") == 0) {
 			warn("Only '--' specified in cmdline");
-			free(tmp_cmdline);
-			return -1;
+			goto out;
 		}
 
 		if (!strcmp(param, "memmap")) {
 			mem_avoid_memmap(val);
+		} else if (strstr(param, "hugepages")) {
+			parse_gb_huge_pages(param, val);
 		} else if (!strcmp(param, "mem")) {
 			char *p = val;
 
 			if (!strcmp(p, "nopentium"))
 				continue;
 			mem_size = memparse(p, &p);
-			if (mem_size == 0) {
-				free(tmp_cmdline);
-				return -EINVAL;
-			}
+			if (mem_size == 0)
+				goto out;
+
 			mem_limit = mem_size;
 		}
 	}
 
+out:
 	free(tmp_cmdline);
-	return 0;
+	return;
 }
 
 /*
@@ -362,7 +399,7 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	cmd_line |= boot_params->hdr.cmd_line_ptr;
 	/* Calculate size of cmd_line. */
 	ptr = (char *)(unsigned long)cmd_line;
-	for (cmd_line_size = 0; ptr[cmd_line_size++]; )
+	for (cmd_line_size = 0; ptr[cmd_line_size++];)
 		;
 	mem_avoid[MEM_AVOID_CMDLINE].start = cmd_line;
 	mem_avoid[MEM_AVOID_CMDLINE].size = cmd_line_size;
@@ -378,7 +415,7 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	/* We don't need to set a mapping for setup_data. */
 
 	/* Mark the memmap regions we need to avoid */
-	handle_mem_memmap();
+	handle_mem_options();
 
 #ifdef CONFIG_X86_VERBOSE_BOOTUP
 	/* Make sure video RAM can be used. */
@@ -457,6 +494,60 @@ static void store_slot_info(struct mem_vector *region, unsigned long image_size)
 	}
 }
 
+/*
+ * Skip as many 1GB huge pages as possible in the passed region
+ * according to the number which users specified:
+ */
+static void
+process_gb_huge_pages(struct mem_vector *region, unsigned long image_size)
+{
+	unsigned long addr, size = 0;
+	struct mem_vector tmp;
+	int i = 0;
+
+	if (!max_gb_huge_pages) {
+		store_slot_info(region, image_size);
+		return;
+	}
+
+	addr = ALIGN(region->start, PUD_SIZE);
+	/* Did we raise the address above the passed in memory entry? */
+	if (addr < region->start + region->size)
+		size = region->size - (addr - region->start);
+
+	/* Check how many 1GB huge pages can be filtered out: */
+	while (size > PUD_SIZE && max_gb_huge_pages) {
+		size -= PUD_SIZE;
+		max_gb_huge_pages--;
+		i++;
+	}
+
+	/* No good 1GB huge pages found: */
+	if (!i) {
+		store_slot_info(region, image_size);
+		return;
+	}
+
+	/*
+	 * Skip those 'i'*1GB good huge pages, and continue checking and
+	 * processing the remaining head or tail part of the passed region
+	 * if available.
+	 */
+
+	if (addr >= region->start + image_size) {
+		tmp.start = region->start;
+		tmp.size = addr - region->start;
+		store_slot_info(&tmp, image_size);
+	}
+
+	size  = region->size - (addr - region->start) - i * PUD_SIZE;
+	if (size >= image_size) {
+		tmp.start = addr + i * PUD_SIZE;
+		tmp.size = size;
+		store_slot_info(&tmp, image_size);
+	}
+}
+
 static unsigned long slots_fetch_random(void)
 {
 	unsigned long slot;
@@ -486,7 +577,6 @@ static void process_mem_region(struct mem_vector *entry,
 			       unsigned long image_size)
 {
 	struct mem_vector region, overlap;
-	struct slot_area slot_area;
 	unsigned long start_orig, end;
 	struct mem_vector cur_entry;
 
@@ -537,7 +627,7 @@ static void process_mem_region(struct mem_vector *entry,
 
 		/* If nothing overlaps, store the region and return. */
 		if (!mem_avoid_overlap(&region, &overlap)) {
-			store_slot_info(&region, image_size);
+			process_gb_huge_pages(&region, image_size);
 			return;
 		}
 
@@ -547,7 +637,7 @@ static void process_mem_region(struct mem_vector *entry,
 
 			beginning.start = region.start;
 			beginning.size = overlap.start - region.start;
-			store_slot_info(&beginning, image_size);
+			process_gb_huge_pages(&beginning, image_size);
 		}
 
 		/* Return if overlap extends to or past end of region. */
@@ -722,6 +812,14 @@ void choose_random_location(unsigned long input,
 		warn("KASLR disabled: 'nokaslr' on cmdline.");
 		return;
 	}
+
+#ifdef CONFIG_X86_5LEVEL
+	if (__read_cr4() & X86_CR4_LA57) {
+		__pgtable_l5_enabled = 1;
+		pgdir_shift = 48;
+		ptrs_per_p4d = 512;
+	}
+#endif
 
 	boot_params->hdr.loadflags |= KASLR_FLAG;
 

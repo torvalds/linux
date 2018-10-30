@@ -82,10 +82,10 @@
 
 static void set_default_audio_parameters(struct snd_msnd *chip)
 {
-	chip->play_sample_size = DEFSAMPLESIZE;
+	chip->play_sample_size = snd_pcm_format_width(DEFSAMPLESIZE);
 	chip->play_sample_rate = DEFSAMPLERATE;
 	chip->play_channels = DEFCHANNELS;
-	chip->capture_sample_size = DEFSAMPLESIZE;
+	chip->capture_sample_size = snd_pcm_format_width(DEFSAMPLESIZE);
 	chip->capture_sample_rate = DEFSAMPLERATE;
 	chip->capture_channels = DEFCHANNELS;
 }
@@ -169,7 +169,7 @@ static void snd_msnd_eval_dsp_msg(struct snd_msnd *chip, u16 wMessage)
 static irqreturn_t snd_msnd_interrupt(int irq, void *dev_id)
 {
 	struct snd_msnd *chip = dev_id;
-	void *pwDSPQData = chip->mappedbase + DSPQ_DATA_BUFF;
+	void __iomem *pwDSPQData = chip->mappedbase + DSPQ_DATA_BUFF;
 	u16 head, tail, size;
 
 	/* Send ack to DSP */
@@ -757,9 +757,9 @@ static int snd_msnd_pinnacle_cfg_reset(int cfg)
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 
-module_param_array(index, int, NULL, S_IRUGO);
+module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for msnd_pinnacle soundcard.");
-module_param_array(id, charp, NULL, S_IRUGO);
+module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for msnd_pinnacle soundcard.");
 
 static long io[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
@@ -801,22 +801,22 @@ MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(INITCODEFILE);
 MODULE_FIRMWARE(PERMCODEFILE);
 
-module_param_hw_array(io, long, ioport, NULL, S_IRUGO);
+module_param_hw_array(io, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(io, "IO port #");
-module_param_hw_array(irq, int, irq, NULL, S_IRUGO);
-module_param_hw_array(mem, long, iomem, NULL, S_IRUGO);
-module_param_array(write_ndelay, int, NULL, S_IRUGO);
-module_param(calibrate_signal, int, S_IRUGO);
+module_param_hw_array(irq, int, irq, NULL, 0444);
+module_param_hw_array(mem, long, iomem, NULL, 0444);
+module_param_array(write_ndelay, int, NULL, 0444);
+module_param(calibrate_signal, int, 0444);
 #ifndef MSND_CLASSIC
-module_param_array(digital, int, NULL, S_IRUGO);
-module_param_hw_array(cfg, long, ioport, NULL, S_IRUGO);
-module_param_array(reset, int, 0, S_IRUGO);
-module_param_hw_array(mpu_io, long, ioport, NULL, S_IRUGO);
-module_param_hw_array(mpu_irq, int, irq, NULL, S_IRUGO);
-module_param_hw_array(ide_io0, long, ioport, NULL, S_IRUGO);
-module_param_hw_array(ide_io1, long, ioport, NULL, S_IRUGO);
-module_param_hw_array(ide_irq, int, irq, NULL, S_IRUGO);
-module_param_hw_array(joystick_io, long, ioport, NULL, S_IRUGO);
+module_param_array(digital, int, NULL, 0444);
+module_param_hw_array(cfg, long, ioport, NULL, 0444);
+module_param_array(reset, int, NULL, 0444);
+module_param_hw_array(mpu_io, long, ioport, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
+module_param_hw_array(ide_io0, long, ioport, NULL, 0444);
+module_param_hw_array(ide_io1, long, ioport, NULL, 0444);
+module_param_hw_array(ide_irq, int, irq, NULL, 0444);
+module_param_hw_array(joystick_io, long, ioport, NULL, 0444);
 #endif
 
 

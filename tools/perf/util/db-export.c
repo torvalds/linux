@@ -247,9 +247,9 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 		*dso_db_id = dso->db_id;
 
 		if (!al->sym) {
-			al->sym = symbol__new(al->addr, 0, 0, "unknown");
+			al->sym = symbol__new(al->addr, 0, 0, 0, "unknown");
 			if (al->sym)
-				dso__insert_symbol(dso, al->map->type, al->sym);
+				dso__insert_symbol(dso, al->sym);
 		}
 
 		if (al->sym) {
@@ -315,8 +315,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		al.addr = node->ip;
 
 		if (al.map && !al.sym)
-			al.sym = dso__find_symbol(al.map->dso, MAP__FUNCTION,
-						  al.addr);
+			al.sym = dso__find_symbol(al.map->dso, al.addr);
 
 		db_ids_from_al(dbe, &al, &dso_db_id, &sym_db_id, &offset);
 
@@ -464,6 +463,28 @@ int db_export__branch_types(struct db_export *dbe)
 		if (err)
 			break;
 	}
+
+	/* Add trace begin / end variants */
+	for (i = 0; branch_types[i].name ; i++) {
+		const char *name = branch_types[i].name;
+		u32 type = branch_types[i].branch_type;
+		char buf[64];
+
+		if (type == PERF_IP_FLAG_BRANCH ||
+		    (type & (PERF_IP_FLAG_TRACE_BEGIN | PERF_IP_FLAG_TRACE_END)))
+			continue;
+
+		snprintf(buf, sizeof(buf), "trace begin / %s", name);
+		err = db_export__branch_type(dbe, type | PERF_IP_FLAG_TRACE_BEGIN, buf);
+		if (err)
+			break;
+
+		snprintf(buf, sizeof(buf), "%s / trace end", name);
+		err = db_export__branch_type(dbe, type | PERF_IP_FLAG_TRACE_END, buf);
+		if (err)
+			break;
+	}
+
 	return err;
 }
 

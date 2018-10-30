@@ -12,6 +12,8 @@
 #ifndef __ASM_POWERPC_REG_A2_H__
 #define __ASM_POWERPC_REG_A2_H__
 
+#include <asm/asm-const.h>
+
 #define SPRN_TENSR	0x1b5
 #define SPRN_TENS	0x1b6	/* Thread ENable Set */
 #define SPRN_TENC	0x1b7	/* Thread ENable Clear */

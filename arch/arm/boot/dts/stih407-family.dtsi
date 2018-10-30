@@ -72,19 +72,19 @@
 		};
 	};
 
-	intc: interrupt-controller@08761000 {
+	intc: interrupt-controller@8761000 {
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x08761000 0x1000>, <0x08760100 0x100>;
 	};
 
-	scu@08760000 {
+	scu@8760000 {
 		compatible = "arm,cortex-a9-scu";
 		reg = <0x08760000 0x1000>;
 	};
 
-	timer@08760200 {
+	timer@8760200 {
 		interrupt-parent = <&intc>;
 		compatible = "arm,cortex-a9-global-timer";
 		reg = <0x08760200 0x100>;
@@ -92,7 +92,7 @@
 		clocks = <&arm_periph_clk>;
 	};
 
-	l2: cache-controller {
+	l2: cache-controller@8762000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x08762000 0x1000>;
 		arm,data-latency = <3 3 3>;
@@ -125,24 +125,28 @@
 		ranges;
 		compatible = "simple-bus";
 
-		restart {
+		restart: restart-controller@0 {
 			compatible = "st,stih407-restart";
+			reg = <0 0>;
 			st,syscfg = <&syscfg_sbc_reg>;
 			status = "okay";
 		};
 
-		powerdown: powerdown-controller {
+		powerdown: powerdown-controller@0 {
 			compatible = "st,stih407-powerdown";
+			reg = <0 0>;
 			#reset-cells = <1>;
 		};
 
-		softreset: softreset-controller {
+		softreset: softreset-controller@0 {
 			compatible = "st,stih407-softreset";
+			reg = <0 0>;
 			#reset-cells = <1>;
 		};
 
-		picophyreset: picophyreset-controller {
+		picophyreset: picophyreset-controller@0 {
 			compatible = "st,stih407-picophyreset";
+			reg = <0 0>;
 			#reset-cells = <1>;
 		};
 
@@ -174,6 +178,13 @@
 		syscfg_core: core-syscfg@92b0000 {
 			compatible = "st,stih407-core-syscfg", "syscon";
 			reg = <0x92b0000 0x1000>;
+
+			sti_sasg_codec: sti-sasg-codec {
+				compatible = "st,stih407-sas-codec";
+				#sound-dai-cells = <1>;
+				status = "disabled";
+				st,syscfg = <&syscfg_core>;
+			};
 		};
 
 		syscfg_lpm: lpm-syscfg@94b5100 {
@@ -181,8 +192,9 @@
 			reg = <0x94b5100 0x1000>;
 		};
 
-		irq-syscfg {
+		irq-syscfg@0 {
 			compatible    = "st,stih407-irq-syscfg";
+			reg = <0 0>;
 			st,syscfg     = <&syscfg_core>;
 			st,irq-device = <ST_IRQ_SYSCFG_PMU_0>,
 					<ST_IRQ_SYSCFG_PMU_1>;
@@ -194,19 +206,19 @@
 		vtg_main: sti-vtg-main@8d02800 {
 			compatible = "st,vtg";
 			reg = <0x8d02800 0x200>;
-			interrupts = <GIC_SPI 108 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		vtg_aux: sti-vtg-aux@8d00200 {
 			compatible = "st,vtg";
 			reg = <0x8d00200 0x100>;
-			interrupts = <GIC_SPI 109 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		serial@9830000 {
 			compatible = "st,asc";
 			reg = <0x9830000 0x2c>;
-			interrupts = <GIC_SPI 122 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			/* Pinctrl moved out to a per-board configuration */
 
@@ -216,7 +228,7 @@
 		serial@9831000 {
 			compatible = "st,asc";
 			reg = <0x9831000 0x2c>;
-			interrupts = <GIC_SPI 123 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_serial1>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
@@ -227,7 +239,7 @@
 		serial@9832000 {
 			compatible = "st,asc";
 			reg = <0x9832000 0x2c>;
-			interrupts = <GIC_SPI 124 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_serial2>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
@@ -239,7 +251,7 @@
 		sbc_serial0: serial@9530000 {
 			compatible = "st,asc";
 			reg = <0x9530000 0x2c>;
-			interrupts = <GIC_SPI 138 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sbc_serial0>;
 			clocks = <&clk_sysin>;
@@ -250,7 +262,7 @@
 		serial@9531000 {
 			compatible = "st,asc";
 			reg = <0x9531000 0x2c>;
-			interrupts = <GIC_SPI 139 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sbc_serial1>;
 			clocks = <&clk_sysin>;
@@ -380,8 +392,9 @@
 			status = "disabled";
 		};
 
-		usb2_picophy0: phy1 {
+		usb2_picophy0: phy1@0 {
 			compatible = "st,stih407-usb2-phy";
+			reg = <0 0>;
 			#phy-cells = <0>;
 			st,syscfg = <&syscfg_core 0x100 0xf4>;
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
@@ -389,12 +402,13 @@
 			reset-names = "global", "port";
 		};
 
-		miphy28lp_phy: miphy28lp@9b22000 {
+		miphy28lp_phy: miphy28lp@0 {
 			compatible = "st,miphy28lp-phy";
 			st,syscfg = <&syscfg_core>;
 			#address-cells	= <1>;
 			#size-cells	= <1>;
 			ranges;
+			reg = <0 0>;
 
 			phy_port0: port@9b22000 {
 				reg = <0x9b22000 0xff>,
@@ -555,12 +569,12 @@
 			status = "disabled";
 		};
 
-		mmc0: sdhci@09060000 {
+		mmc0: sdhci@9060000 {
 			compatible = "st,sdhci-stih407", "st,sdhci";
 			status = "disabled";
 			reg = <0x09060000 0x7ff>, <0x9061008 0x20>;
 			reg-names = "mmc", "top-mmc-delay";
-			interrupts = <GIC_SPI 92 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "mmcirq";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_mmc0>;
@@ -570,12 +584,12 @@
 			bus-width = <8>;
 		};
 
-		mmc1: sdhci@09080000 {
+		mmc1: sdhci@9080000 {
 			compatible = "st,sdhci-stih407", "st,sdhci";
 			status = "disabled";
 			reg = <0x09080000 0x7ff>;
 			reg-names = "mmc";
-			interrupts = <GIC_SPI 90 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "mmcirq";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sd1>;
@@ -609,7 +623,7 @@
 			compatible = "st,ahci";
 			reg = <0x9b20000 0x1000>;
 
-			interrupts = <GIC_SPI 159 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hostc";
 
 			phys = <&phy_port0 PHY_TYPE_SATA>;
@@ -632,7 +646,7 @@
 			compatible = "st,ahci";
 			reg = <0x9b28000 0x1000>;
 
-			interrupts = <GIC_SPI 170 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hostc";
 
 			phys = <&phy_port1 PHY_TYPE_SATA>;
@@ -673,7 +687,7 @@
 			dwc3: dwc3@9900000 {
 				compatible	= "snps,dwc3";
 				reg		= <0x09900000 0x100000>;
-				interrupts	= <GIC_SPI 155 IRQ_TYPE_NONE>;
+				interrupts	= <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
 				dr_mode		= "host";
 				phy-names	= "usb2-phy", "usb3-phy";
 				phys		= <&usb2_picophy0>,
@@ -687,7 +701,7 @@
 			compatible	= "st,sti-pwm";
 			#pwm-cells	= <2>;
 			reg		= <0x9810000 0x68>;
-			interrupts      = <GIC_SPI 128 IRQ_TYPE_NONE>;
+			interrupts      = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names	= "default";
 			pinctrl-0	= <&pinctrl_pwm0_chan0_default>;
 			clock-names	= "pwm";
@@ -702,7 +716,7 @@
 			compatible	= "st,sti-pwm";
 			#pwm-cells	= <2>;
 			reg		= <0x9510000 0x68>;
-			interrupts      = <GIC_SPI 131 IRQ_TYPE_NONE>;
+			interrupts      = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names	= "default";
 			pinctrl-0	= <&pinctrl_pwm1_chan0_default
 					&pinctrl_pwm1_chan1_default
@@ -715,14 +729,14 @@
 			status		= "disabled";
 		};
 
-		rng10: rng@08a89000 {
+		rng10: rng@8a89000 {
 			compatible      = "st,rng";
 			reg		= <0x08a89000 0x1000>;
 			clocks          = <&clk_sysin>;
 			status		= "okay";
 		};
 
-		rng11: rng@08a8a000 {
+		rng11: rng@8a8a000 {
 			compatible      = "st,rng";
 			reg		= <0x08a8a000 0x1000>;
 			clocks          = <&clk_sysin>;
@@ -741,8 +755,8 @@
 			resets = <&softreset STIH407_ETH1_SOFTRESET>;
 			reset-names = "stmmaceth";
 
-			interrupts = <GIC_SPI 98 IRQ_TYPE_NONE>,
-				     <GIC_SPI 99 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq", "eth_wake_irq";
 
 			/* DMA Bus Mode */
@@ -756,14 +770,14 @@
 				 <&clk_s_c0_flexgen CLK_ETH_PHY>;
 		};
 
-		rng10: rng@08a89000 {
+		rng10: rng@8a89000 {
 			compatible      = "st,rng";
 			reg		= <0x08a89000 0x1000>;
 			clocks          = <&clk_sysin>;
 			status		= "okay";
 		};
 
-		rng11: rng@08a8a000 {
+		rng11: rng@8a8a000 {
 			compatible      = "st,rng";
 			reg		= <0x08a8a000 0x1000>;
 			clocks          = <&clk_sysin>;
@@ -773,7 +787,7 @@
 		mailbox0: mailbox@8f00000  {
 			compatible	= "st,stih407-mailbox";
 			reg		= <0x8f00000 0x1000>;
-			interrupts	= <GIC_SPI 1 IRQ_TYPE_NONE>;
+			interrupts	= <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells	= <2>;
 			mbox-name	= "a9";
 			status		= "okay";
@@ -805,6 +819,7 @@
 
 		st231_gp0: st231-gp0@0 {
 			compatible	= "st,st231-rproc";
+			reg		= <0 0>;
 			memory-region	= <&gp0_reserved>;
 			resets		= <&softreset STIH407_ST231_GP0_SOFTRESET>;
 			reset-names	= "sw_reset";
@@ -818,6 +833,7 @@
 
 		st231_delta: st231-delta@0 {
 			compatible	= "st,st231-rproc";
+			reg		= <0 0>;
 			memory-region	= <&delta_reserved>;
 			resets		= <&softreset STIH407_ST231_DMU_SOFTRESET>;
 			reset-names	= "sw_reset";
@@ -841,7 +857,7 @@
 				 <&clk_s_c0_flexgen CLK_EXT2F_A9>,
 				 <&clk_s_c0_flexgen CLK_EXT2F_A9>,
 				 <&clk_s_c0_flexgen CLK_EXT2F_A9>;
-			interrupts = <GIC_SPI 5 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 			dma-channels = <16>;
 			#dma-cells = <3>;
 		};
@@ -859,7 +875,7 @@
 				<&clk_s_c0_flexgen CLK_TX_ICN_DMU>,
 				<&clk_s_c0_flexgen CLK_EXT2F_A9>;
 
-			interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 			dma-channels = <16>;
 			#dma-cells = <3>;
 
@@ -874,7 +890,7 @@
 			      <0x8e77000 0x1000>,
 			      <0x8e78000 0x8000>;
 			reg-names = "slimcore", "dmem", "peripherals", "imem";
-			interrupts = <GIC_SPI 9 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			dma-channels = <16>;
 			#dma-cells = <3>;
 			clocks = <&clk_s_c0_flexgen CLK_FDMA>,
@@ -883,13 +899,6 @@
 				<&clk_s_c0_flexgen CLK_EXT2F_A9>;
 
 			status = "disabled";
-		};
-
-		sti_sasg_codec: sti-sasg-codec {
-			compatible = "st,stih407-sas-codec";
-			#sound-dai-cells = <1>;
-			status = "disabled";
-			st,syscfg = <&syscfg_core>;
 		};
 
 		sti_uni_player0: sti-uni-player@8d80000 {
@@ -901,7 +910,7 @@
 			assigned-clock-parents = <0>, <&clk_s_d0_quadfs 0>;
 			assigned-clock-rates = <50000000>;
 			reg = <0x8d80000 0x158>;
-			interrupts = <GIC_SPI 84 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&fdma0 2 0 1>;
 			dma-names = "tx";
 
@@ -917,7 +926,7 @@
 			assigned-clock-parents = <0>, <&clk_s_d0_quadfs 1>;
 			assigned-clock-rates = <50000000>;
 			reg = <0x8d81000 0x158>;
-			interrupts = <GIC_SPI 85 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&fdma0 3 0 1>;
 			dma-names = "tx";
 
@@ -933,7 +942,7 @@
 			assigned-clock-parents = <0>, <&clk_s_d0_quadfs 2>;
 			assigned-clock-rates = <50000000>;
 			reg = <0x8d82000 0x158>;
-			interrupts = <GIC_SPI 86 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&fdma0 4 0 1>;
 			dma-names = "tx";
 
@@ -949,7 +958,7 @@
 			assigned-clock-parents = <0>, <&clk_s_d0_quadfs 3>;
 			assigned-clock-rates = <50000000>;
 			reg = <0x8d85000 0x158>;
-			interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&fdma0 7 0 1>;
 			dma-names = "tx";
 
@@ -961,7 +970,7 @@
 			#sound-dai-cells = <0>;
 			st,syscfg = <&syscfg_core>;
 			reg = <0x8d83000 0x158>;
-			interrupts = <GIC_SPI 87 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&fdma0 5 0 1>;
 			dma-names = "rx";
 
@@ -973,15 +982,16 @@
 			#sound-dai-cells = <0>;
 			st,syscfg = <&syscfg_core>;
 			reg = <0x8d84000 0x158>;
-			interrupts = <GIC_SPI 88 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&fdma0 6 0 1>;
 			dma-names = "rx";
 
 			status = "disabled";
 		};
 
-		delta0 {
+		delta0@0 {
 			compatible = "st,st-delta";
+			reg = <0 0>;
 			clock-names = "delta",
 				      "delta-st231",
 				      "delta-flash-promip";

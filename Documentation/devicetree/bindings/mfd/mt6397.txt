@@ -7,11 +7,12 @@ MT6397/MT6323 is a multifunction device with the following sub modules:
 - GPIO
 - Clock
 - LED
+- Keys
 
 It is interfaced to host controller using SPI interface by a proprietary hardware
 called PMIC wrapper or pwrap. MT6397/MT6323 MFD is a child device of pwrap.
 See the following for pwarp node definitions:
-Documentation/devicetree/bindings/soc/pwrap.txt
+Documentation/devicetree/bindings/soc/mediatek/pwrap.txt
 
 This document describes the binding for MFD device and its sub module.
 
@@ -39,6 +40,11 @@ Optional subnodes:
 	Required properties:
 		- compatible: "mediatek,mt6323-led"
 	see Documentation/devicetree/bindings/leds/leds-mt6323.txt
+
+- keys
+	Required properties:
+		- compatible: "mediatek,mt6397-keys" or "mediatek,mt6323-keys"
+	see Documentation/devicetree/bindings/input/mtk-pmic-keys.txt
 
 Example:
 	pwrap: pwrap@1000f000 {

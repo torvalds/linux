@@ -1,9 +1,6 @@
 config ARCH_HAS_UBSAN_SANITIZE_ALL
 	bool
 
-config ARCH_WANTS_UBSAN_NO_NULL
-	def_bool n
-
 config UBSAN
 	bool "Undefined behaviour sanity checker"
 	help
@@ -39,10 +36,9 @@ config UBSAN_ALIGNMENT
 	  Enabling this option on architectures that support unaligned
 	  accesses may produce a lot of false positives.
 
-config UBSAN_NULL
-	bool "Enable checking of null pointers"
-	depends on UBSAN
-	default y if !ARCH_WANTS_UBSAN_NO_NULL
+config TEST_UBSAN
+	tristate "Module for testing for undefined behavior detection"
+	depends on m && UBSAN
 	help
-	  This option enables detection of memory accesses via a
-	  null pointer.
+	  This is a test module for UBSAN.
+	  It triggers various undefined behavior, and detect it.

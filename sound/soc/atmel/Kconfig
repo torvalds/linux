@@ -64,7 +64,7 @@ config SND_AT91_SOC_SAM9X5_WM8731
 config SND_ATMEL_SOC_CLASSD
 	tristate "Atmel ASoC driver for boards using CLASSD"
 	depends on ARCH_AT91 || COMPILE_TEST
-	select SND_ATMEL_SOC_DMA
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	select REGMAP_MMIO
 	help
 	  Say Y if you want to add support for Atmel ASoC driver for boards using
@@ -88,4 +88,25 @@ config SND_ATMEL_SOC_TSE850_PCM5142
 	help
 	  Say Y if you want to add support for the ASoC driver for the
 	  Axentia TSE-850 with a PCM5142 codec.
+
+config SND_ATMEL_SOC_I2S
+	tristate "Atmel ASoC driver for boards using I2S"
+	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for Atmel ASoc driver for boards
+	  using I2S.
+
+config SND_SOC_MIKROE_PROTO
+	tristate "Support for Mikroe-PROTO board"
+	depends on OF
+	depends on SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8731
+	help
+	  Say Y or M if you want to add support for MikroElektronika PROTO Audio
+	  Board. This board contains the WM8731 codec, which can be configured
+	  using I2C over SDA (MPU Data Input) and SCL (MPU Clock Input) pins.
+	  Both playback and capture are supported.
+
 endif

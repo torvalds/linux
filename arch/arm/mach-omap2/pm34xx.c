@@ -18,19 +18,18 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cpu_pm.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/omap-dma.h>
 #include <linux/omap-gpmc.h>
-#include <linux/platform_data/gpio-omap.h>
 
 #include <trace/events/power.h>
 
@@ -48,6 +47,7 @@
 #include "prm3xxx.h"
 #include "pm.h"
 #include "sdrc.h"
+#include "omap-secure.h"
 #include "sram.h"
 #include "control.h"
 #include "vc.h"
@@ -66,7 +66,6 @@ struct power_state {
 
 static LIST_HEAD(pwrst_list);
 
-static int (*_omap_save_secure_sram)(u32 *addr);
 void (*omap3_do_wfi_sram)(void);
 
 static struct powerdomain *mpu_pwrdm, *neon_pwrdm;
@@ -121,8 +120,8 @@ static void omap3_save_secure_ram_context(void)
 		 * will hang the system.
 		 */
 		pwrdm_set_next_pwrst(mpu_pwrdm, PWRDM_POWER_ON);
-		ret = _omap_save_secure_sram((u32 *)(unsigned long)
-				__pa(omap3_secure_ram_storage));
+		ret = omap3_save_secure_ram(omap3_secure_ram_storage,
+					    OMAP3_SAVE_SECURE_RAM_SZ);
 		pwrdm_set_next_pwrst(mpu_pwrdm, mpu_next_state);
 		/* Following is for error tracking, it should not happen */
 		if (ret) {
@@ -197,7 +196,6 @@ void omap_sram_idle(void)
 	int mpu_next_state = PWRDM_POWER_ON;
 	int per_next_state = PWRDM_POWER_ON;
 	int core_next_state = PWRDM_POWER_ON;
-	int per_going_off;
 	u32 sdrc_pwr = 0;
 
 	mpu_next_state = pwrdm_read_next_pwrst(mpu_pwrdm);
@@ -227,10 +225,8 @@ void omap_sram_idle(void)
 	pwrdm_pre_transition(NULL);
 
 	/* PER */
-	if (per_next_state < PWRDM_POWER_ON) {
-		per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
-		omap2_gpio_prepare_for_idle(per_going_off);
-	}
+	if (per_next_state == PWRDM_POWER_OFF)
+		cpu_cluster_pm_enter();
 
 	/* CORE */
 	if (core_next_state < PWRDM_POWER_ON) {
@@ -295,8 +291,8 @@ void omap_sram_idle(void)
 	pwrdm_post_transition(NULL);
 
 	/* PER */
-	if (per_next_state < PWRDM_POWER_ON)
-		omap2_gpio_resume_after_idle();
+	if (per_next_state == PWRDM_POWER_OFF)
+		cpu_cluster_pm_exit();
 }
 
 static void omap3_pm_idle(void)
@@ -434,15 +430,10 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
  *
  * The minimum set of functions is pushed to SRAM for execution:
  * - omap3_do_wfi for erratum i581 WA,
- * - save_secure_ram_context for security extensions.
  */
 void omap_push_sram_idle(void)
 {
 	omap3_do_wfi_sram = omap_sram_push(omap3_do_wfi, omap3_do_wfi_sz);
-
-	if (omap_type() != OMAP2_DEVICE_TYPE_GP)
-		_omap_save_secure_sram = omap_sram_push(save_secure_ram_context,
-				save_secure_ram_context_sz);
 }
 
 static void __init pm_errata_configure(void)
@@ -553,7 +544,7 @@ int __init omap3_pm_init(void)
 	clkdm_add_wkdep(neon_clkdm, mpu_clkdm);
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP) {
 		omap3_secure_ram_storage =
-			kmalloc(0x803F, GFP_KERNEL);
+			kmalloc(OMAP3_SAVE_SECURE_RAM_SZ, GFP_KERNEL);
 		if (!omap3_secure_ram_storage)
 			pr_err("Memory allocation failed when allocating for secure sram context\n");
 

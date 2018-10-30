@@ -291,6 +291,13 @@
 			#interrupt-cells = <2>;
 			num-pins = <128>;
 		};
+
+		mbigen_pcie0: intc_pcie0 {
+			msi-parent = <&its_dsa 0x40085>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <10>;
+		};
 	};
 
 	mbigen_dsa@c0080000 {
@@ -312,11 +319,57 @@
 		};
 	};
 
+	/**
+	 *  HiSilicon erratum 161010801: This describes the limitation
+	 *  of HiSilicon platforms hip06/hip07 to support the SMMUv3
+	 *  mappings for PCIe MSI transactions.
+	 *  PCIe controller on these platforms has to differentiate the
+	 *  MSI payload against other DMA payload and has to modify the
+	 *  MSI payload. This makes it difficult for these platforms to
+	 *  have a SMMU translation for MSI. In order to workaround this,
+	 *  ARM SMMUv3 driver requires a quirk to treat the MSI regions
+	 *  separately. Such a quirk is currently missing for DT based
+	 *  systems. Hence please make sure that the smmu pcie node on
+	 *  hip06 is disabled as this will break the PCIe functionality
+	 *  when iommu-map entry is used along with the PCIe node.
+	 *  Refer:https://www.spinics.net/lists/arm-kernel/msg602812.html
+	 */
+	smmu0: smmu_pcie {
+		compatible = "arm,smmu-v3";
+		reg = <0x0 0xa0040000 0x0 0x20000>;
+		#iommu-cells = <1>;
+		dma-coherent;
+		smmu-cb-memtype = <0x0 0x1>;
+		hisilicon,broken-prefetch-cmd;
+		status = "disabled";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		isa@a01b0000 {
+			compatible = "hisilicon,hip06-lpc";
+			#size-cells = <1>;
+			#address-cells = <2>;
+			reg = <0x0 0xa01b0000 0x0 0x1000>;
+
+			ipmi0: bt@e4 {
+				compatible = "ipmi-bt";
+				device_type = "ipmi";
+				reg = <0x01 0xe4 0x04>;
+				status = "disabled";
+			};
+
+			uart0: lpc-uart@2f8 {
+				compatible = "ns16550a";
+				clock-frequency = <1843200>;
+				reg = <0x01 0x2f8 0x08>;
+				status = "disabled";
+			};
+		};
 
 		refclk: refclk {
 			compatible = "fixed-clock";
@@ -676,6 +729,30 @@
 				     <637 1>,<638 1>,<639 1>;
 			status = "disabled";
 		};
+
+		pcie0: pcie@a0090000 {
+			compatible = "hisilicon,hip06-pcie-ecam";
+			reg = <0 0xb0000000 0 0x2000000>,
+			      <0 0xa0090000 0 0x10000>;
+			bus-range = <0  31>;
+			msi-map = <0x0000 &its_dsa 0x0000 0x2000>;
+			msi-map-mask = <0xffff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			dma-coherent;
+			ranges = <0x02000000 0 0xb2000000 0x0 0xb2000000 0
+				 0x5ff0000 0x01000000 0 0 0 0xb7ff0000
+				 0 0x10000>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map = <0x0 0 0 1 &mbigen_pcie0 650 4
+					0x0 0 0 2 &mbigen_pcie0 650 4
+					0x0 0 0 3 &mbigen_pcie0 650 4
+					0x0 0 0 4 &mbigen_pcie0 650 4>;
+			status = "disabled";
+		};
+
 	};
 
 };

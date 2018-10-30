@@ -1,0 +1,359 @@
+== MediaTek MT7622 pinctrl controller ==
+
+Required properties for the root node:
+ - compatible: Should be one of the following
+	       "mediatek,mt7622-pinctrl" for MT7622 SoC
+ - reg: offset and length of the pinctrl space
+
+ - gpio-controller: Marks the device node as a GPIO controller.
+ - #gpio-cells: Should be two. The first cell is the pin number and the
+   second is the GPIO flags.
+
+Optional properties:
+- interrupt-controller  : Marks the device node as an interrupt controller
+
+If the property interrupt-controller is defined, following property is required
+- reg-names: A string describing the "reg" entries. Must contain "eint".
+- interrupts : The interrupt output from the controller.
+- #interrupt-cells: Should be two.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+MT7622 pin configuration nodes act as a container for an arbitrary number of
+subnodes. Each of these subnodes represents some desired configuration for a
+pin, a group, or a list of pins or groups. This configuration can include the
+mux function to select on those pin(s)/group(s), and various pin configuration
+parameters, such as pull-up, slew rate, etc.
+
+We support 2 types of configuration nodes. Those nodes can be either pinmux
+nodes or pinconf nodes. Each configuration node can consist of multiple nodes
+describing the pinmux and pinconf options.
+
+The name of each subnode doesn't matter as long as it is unique; all subnodes
+should be enumerated and processed purely based on their content.
+
+== pinmux nodes content ==
+
+The following generic properties as defined in pinctrl-bindings.txt are valid
+to specify in a pinmux subnode:
+
+Required properties are:
+ - groups: An array of strings. Each string contains the name of a group.
+  Valid values for these names are listed below.
+ - function: A string containing the name of the function to mux to the
+  group. Valid values for function names are listed below.
+
+== pinconf nodes content ==
+
+The following generic properties as defined in pinctrl-bindings.txt are valid
+to specify in a pinconf subnode:
+
+Required properties are:
+ - pins: An array of strings. Each string contains the name of a pin.
+  Valid values for these names are listed below.
+ - groups: An array of strings. Each string contains the name of a group.
+  Valid values for these names are listed below.
+
+Optional properies are:
+ bias-disable, bias-pull, bias-pull-down, input-enable,
+ input-schmitt-enable, input-schmitt-disable, output-enable
+ output-low, output-high, drive-strength, slew-rate
+
+ Valid arguments for 'slew-rate' are '0' for no slew rate controlled and '1' for
+ slower slew rate respectively.
+ Valid arguments for 'drive-strength', 4, 8, 12, or 16 in mA.
+
+The following specific properties as defined are valid to specify in a pinconf
+subnode:
+
+Optional properties are:
+ - mediatek,tdsel: An integer describing the steps for output level shifter duty
+   cycle when asserted (high pulse width adjustment). Valid arguments are from 0
+   to 15.
+ - mediatek,rdsel: An integer describing the steps for input level shifter duty
+   cycle when asserted (high pulse width adjustment). Valid arguments are from 0
+   to 63.
+
+== Valid values for pins, function and groups on MT7622 ==
+
+Valid values for pins are:
+pins can be referenced via the pin names as the below table shown and the
+related physical number is also put ahead of those names which helps cross
+references to pins between groups to know whether pins assignment conflict
+happens among devices try to acquire those available pins.
+
+	Pin #:  Valid values for pins
+	-----------------------------
+	PIN 0: "GPIO_A"
+	PIN 1: "I2S1_IN"
+	PIN 2: "I2S1_OUT"
+	PIN 3: "I2S_BCLK"
+	PIN 4: "I2S_WS"
+	PIN 5: "I2S_MCLK"
+	PIN 6: "TXD0"
+	PIN 7: "RXD0"
+	PIN 8: "SPI_WP"
+	PIN 9: "SPI_HOLD"
+	PIN 10: "SPI_CLK"
+	PIN 11: "SPI_MOSI"
+	PIN 12: "SPI_MISO"
+	PIN 13: "SPI_CS"
+	PIN 14: "I2C_SDA"
+	PIN 15: "I2C_SCL"
+	PIN 16: "I2S2_IN"
+	PIN 17: "I2S3_IN"
+	PIN 18: "I2S4_IN"
+	PIN 19: "I2S2_OUT"
+	PIN 20: "I2S3_OUT"
+	PIN 21: "I2S4_OUT"
+	PIN 22: "GPIO_B"
+	PIN 23: "MDC"
+	PIN 24: "MDIO"
+	PIN 25: "G2_TXD0"
+	PIN 26: "G2_TXD1"
+	PIN 27: "G2_TXD2"
+	PIN 28: "G2_TXD3"
+	PIN 29: "G2_TXEN"
+	PIN 30: "G2_TXC"
+	PIN 31: "G2_RXD0"
+	PIN 32: "G2_RXD1"
+	PIN 33: "G2_RXD2"
+	PIN 34: "G2_RXD3"
+	PIN 35: "G2_RXDV"
+	PIN 36: "G2_RXC"
+	PIN 37: "NCEB"
+	PIN 38: "NWEB"
+	PIN 39: "NREB"
+	PIN 40: "NDL4"
+	PIN 41: "NDL5"
+	PIN 42: "NDL6"
+	PIN 43: "NDL7"
+	PIN 44: "NRB"
+	PIN 45: "NCLE"
+	PIN 46: "NALE"
+	PIN 47: "NDL0"
+	PIN 48: "NDL1"
+	PIN 49: "NDL2"
+	PIN 50: "NDL3"
+	PIN 51: "MDI_TP_P0"
+	PIN 52: "MDI_TN_P0"
+	PIN 53: "MDI_RP_P0"
+	PIN 54: "MDI_RN_P0"
+	PIN 55: "MDI_TP_P1"
+	PIN 56: "MDI_TN_P1"
+	PIN 57: "MDI_RP_P1"
+	PIN 58: "MDI_RN_P1"
+	PIN 59: "MDI_RP_P2"
+	PIN 60: "MDI_RN_P2"
+	PIN 61: "MDI_TP_P2"
+	PIN 62: "MDI_TN_P2"
+	PIN 63: "MDI_TP_P3"
+	PIN 64: "MDI_TN_P3"
+	PIN 65: "MDI_RP_P3"
+	PIN 66: "MDI_RN_P3"
+	PIN 67: "MDI_RP_P4"
+	PIN 68: "MDI_RN_P4"
+	PIN 69: "MDI_TP_P4"
+	PIN 70: "MDI_TN_P4"
+	PIN 71: "PMIC_SCL"
+	PIN 72: "PMIC_SDA"
+	PIN 73: "SPIC1_CLK"
+	PIN 74: "SPIC1_MOSI"
+	PIN 75: "SPIC1_MISO"
+	PIN 76: "SPIC1_CS"
+	PIN 77: "GPIO_D"
+	PIN 78: "WATCHDOG"
+	PIN 79: "RTS3_N"
+	PIN 80: "CTS3_N"
+	PIN 81: "TXD3"
+	PIN 82: "RXD3"
+	PIN 83: "PERST0_N"
+	PIN 84: "PERST1_N"
+	PIN 85: "WLED_N"
+	PIN 86: "EPHY_LED0_N"
+	PIN 87: "AUXIN0"
+	PIN 88: "AUXIN1"
+	PIN 89: "AUXIN2"
+	PIN 90: "AUXIN3"
+	PIN 91: "TXD4"
+	PIN 92: "RXD4"
+	PIN 93: "RTS4_N"
+	PIN 94: "CST4_N"
+	PIN 95: "PWM1"
+	PIN 96: "PWM2"
+	PIN 97: "PWM3"
+	PIN 98: "PWM4"
+	PIN 99: "PWM5"
+	PIN 100: "PWM6"
+	PIN 101: "PWM7"
+	PIN 102: "GPIO_E"
+
+Valid values for function are:
+	"emmc", "eth", "i2c", "i2s", "ir", "led", "flash", "pcie",
+	"pmic", "pwm", "sd", "spi", "tdm", "uart", "watchdog"
+
+Valid values for groups are:
+additional data is put followingly with valid value allowing us to know which
+applicable function and which relevant pins (in pin#) are able applied for that
+group.
+
+	Valid value			function	pins (in pin#)
+	-------------------------------------------------------------------------
+	"emmc"				"emmc"		40, 41, 42, 43, 44, 45,
+							47, 48, 49, 50
+	"emmc_rst"			"emmc"		37
+	"esw"				"eth"		51, 52, 53, 54, 55, 56,
+							57, 58, 59, 60, 61, 62,
+							63, 64, 65, 66, 67, 68,
+							69, 70
+	"esw_p0_p1"			"eth"		51, 52, 53, 54, 55, 56,
+							57, 58
+	"esw_p2_p3_p4"			"eth"		59, 60, 61, 62, 63, 64,
+							65, 66, 67, 68, 69, 70
+	"rgmii_via_esw"			"eth"		59, 60, 61, 62, 63, 64,
+							65, 66, 67, 68, 69, 70
+	"rgmii_via_gmac1"		"eth"		59, 60, 61, 62, 63, 64,
+							65, 66, 67, 68, 69, 70
+	"rgmii_via_gmac2"		"eth"		25, 26, 27, 28, 29, 30,
+							31, 32, 33, 34, 35, 36
+	"mdc_mdio"			"eth"		23, 24
+	"i2c0"				"i2c"		14, 15
+	"i2c1_0"			"i2c"		55, 56
+	"i2c1_1"			"i2c"		73, 74
+	"i2c1_2"			"i2c"		87, 88
+	"i2c2_0"			"i2c"		57, 58
+	"i2c2_1"			"i2c"		75, 76
+	"i2c2_2"			"i2c"		89, 90
+	"i2s_in_mclk_bclk_ws"		"i2s"		3, 4, 5
+	"i2s1_in_data"			"i2s"		1
+	"i2s2_in_data"			"i2s"		16
+	"i2s3_in_data"			"i2s"		17
+	"i2s4_in_data"			"i2s"		18
+	"i2s_out_mclk_bclk_ws"		"i2s"		3, 4, 5
+	"i2s1_out_data"			"i2s"		2
+	"i2s2_out_data"			"i2s"		19
+	"i2s3_out_data"			"i2s"		20
+	"i2s4_out_data"			"i2s"		21
+	"ir_0_tx"			"ir"		16
+	"ir_1_tx"			"ir"		59
+	"ir_2_tx"			"ir"		99
+	"ir_0_rx"			"ir"		17
+	"ir_1_rx"			"ir"		60
+	"ir_2_rx"			"ir"		100
+	"ephy_leds"			"led"		86, 91, 92, 93, 94
+	"ephy0_led"			"led"		86
+	"ephy1_led"			"led"		91
+	"ephy2_led"			"led"		92
+	"ephy3_led"			"led"		93
+	"ephy4_led"			"led"		94
+	"wled"				"led"		85
+	"par_nand"			"flash"		37, 38, 39, 40, 41, 42,
+							43, 44, 45, 46, 47, 48,
+							49, 50
+	"snfi"				"flash"		8, 9, 10, 11, 12, 13
+	"spi_nor"			"flash"		8, 9, 10, 11, 12, 13
+	"pcie0_0_waken"			"pcie"		14
+	"pcie0_1_waken"			"pcie"		79
+	"pcie1_0_waken"			"pcie"		14
+	"pcie0_0_clkreq"		"pcie"		15
+	"pcie0_1_clkreq"		"pcie"		80
+	"pcie1_0_clkreq"		"pcie"		15
+	"pcie0_pad_perst"		"pcie"		83
+	"pcie1_pad_perst"		"pcie"		84
+	"pmic_bus"			"pmic"		71, 72
+	"pwm_ch1_0"			"pwm"		51
+	"pwm_ch1_1"			"pwm"		73
+	"pwm_ch1_2"			"pwm"		95
+	"pwm_ch2_0"			"pwm"		52
+	"pwm_ch2_1"			"pwm"		74
+	"pwm_ch2_2"			"pwm"		96
+	"pwm_ch3_0"			"pwm"		53
+	"pwm_ch3_1"			"pwm"		75
+	"pwm_ch3_2"			"pwm"		97
+	"pwm_ch4_0"			"pwm"		54
+	"pwm_ch4_1"			"pwm"		67
+	"pwm_ch4_2"			"pwm"		76
+	"pwm_ch4_3"			"pwm"		98
+	"pwm_ch5_0"			"pwm"		68
+	"pwm_ch5_1"			"pwm"		77
+	"pwm_ch5_2"			"pwm"		99
+	"pwm_ch6_0"			"pwm"		69
+	"pwm_ch6_1"			"pwm"		78
+	"pwm_ch6_2"			"pwm"		81
+	"pwm_ch6_3"			"pwm"		100
+	"pwm_ch7_0"			"pwm"		70
+	"pwm_ch7_1"			"pwm"		82
+	"pwm_ch7_2"			"pwm"		101
+	"sd_0"				"sd"		16, 17, 18, 19, 20, 21
+	"sd_1"				"sd"		25, 26, 27, 28, 29, 30
+	"spic0_0"			"spi"		63, 64, 65, 66
+	"spic0_1"			"spi"		79, 80, 81, 82
+	"spic1_0"			"spi"		67, 68, 69, 70
+	"spic1_1"			"spi"		73, 74, 75, 76
+	"spic2_0_wp_hold"		"spi"		8, 9
+	"spic2_0"			"spi"		10, 11, 12, 13
+	"tdm_0_out_mclk_bclk_ws"	"tdm"		8, 9, 10
+	"tdm_0_in_mclk_bclk_ws"		"tdm"		11, 12, 13
+	"tdm_0_out_data"		"tdm"		20
+	"tdm_0_in_data"			"tdm"		21
+	"tdm_1_out_mclk_bclk_ws"	"tdm"		57, 58, 59
+	"tdm_1_in_mclk_bclk_ws"		"tdm"		60, 61, 62
+	"tdm_1_out_data"		"tdm"		55
+	"tdm_1_in_data"			"tdm"		56
+	"uart0_0_tx_rx"			"uart"		6, 7
+	"uart1_0_tx_rx"			"uart"		55, 56
+	"uart1_0_rts_cts"		"uart"		57, 58
+	"uart1_1_tx_rx"			"uart"		73, 74
+	"uart1_1_rts_cts"		"uart"		75, 76
+	"uart2_0_tx_rx"			"uart"		3, 4
+	"uart2_0_rts_cts"		"uart"		1, 2
+	"uart2_1_tx_rx"			"uart"		51, 52
+	"uart2_1_rts_cts"		"uart"		53, 54
+	"uart2_2_tx_rx"			"uart"		59, 60
+	"uart2_2_rts_cts"		"uart"		61, 62
+	"uart2_3_tx_rx"			"uart"		95, 96
+	"uart3_0_tx_rx"			"uart"		57, 58
+	"uart3_1_tx_rx"			"uart"		81, 82
+	"uart3_1_rts_cts"		"uart"		79, 80
+	"uart4_0_tx_rx"			"uart"		61, 62
+	"uart4_1_tx_rx"			"uart"		91, 92
+	"uart4_1_rts_cts"		"uart"		93, 94
+	"uart4_2_tx_rx"			"uart"		97, 98
+	"uart4_2_rts_cts"		"uart"		95, 96
+	"watchdog"			"watchdog"	78
+
+Example:
+
+	pio: pinctrl@10211000 {
+		compatible = "mediatek,mt7622-pinctrl";
+		reg = <0 0x10211000 0 0x1000>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		pinctrl_eth_default: eth-default {
+			mux-mdio {
+				groups = "mdc_mdio";
+				function = "eth";
+				drive-strength = <12>;
+			};
+
+			mux-gmac2 {
+				groups = "gmac2";
+				function = "eth";
+				drive-strength = <12>;
+			};
+
+			mux-esw {
+				groups = "esw";
+				function = "eth";
+				drive-strength = <8>;
+			};
+
+			conf-mdio {
+				pins = "MDC";
+				bias-pull-up;
+			};
+		};
+	};

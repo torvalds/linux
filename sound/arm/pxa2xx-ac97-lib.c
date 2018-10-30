@@ -19,8 +19,8 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
-#include <sound/ac97_codec.h>
 #include <sound/pxa2xx-lib.h>
 
 #include <mach/irqs.h>
@@ -46,38 +46,41 @@ extern void pxa27x_configure_ac97reset(int reset_gpio, bool to_gpio);
  * 1 jiffy timeout if interrupt never comes).
  */
 
-unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
+int pxa2xx_ac97_read(int slot, unsigned short reg)
 {
-	unsigned short val = -1;
+	int val = -ENODEV;
 	volatile u32 *reg_addr;
+
+	if (slot > 0)
+		return -ENODEV;
 
 	mutex_lock(&car_mutex);
 
 	/* set up primary or secondary codec space */
 	if (cpu_is_pxa25x() && reg == AC97_GPIO_STATUS)
-		reg_addr = ac97->num ? &SMC_REG_BASE : &PMC_REG_BASE;
+		reg_addr = slot ? &SMC_REG_BASE : &PMC_REG_BASE;
 	else
-		reg_addr = ac97->num ? &SAC_REG_BASE : &PAC_REG_BASE;
+		reg_addr = slot ? &SAC_REG_BASE : &PAC_REG_BASE;
 	reg_addr += (reg >> 1);
 
 	/* start read access across the ac97 link */
 	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
-	val = *reg_addr;
+	val = (*reg_addr & 0xffff);
 	if (reg == AC97_GPIO_STATUS)
 		goto out;
 	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1) <= 0 &&
 	    !((GSR | gsr_bits) & GSR_SDONE)) {
 		printk(KERN_ERR "%s: read error (ac97_reg=%d GSR=%#lx)\n",
 				__func__, reg, GSR | gsr_bits);
-		val = -1;
+		val = -ETIMEDOUT;
 		goto out;
 	}
 
 	/* valid data now */
 	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
-	val = *reg_addr;
+	val = (*reg_addr & 0xffff);
 	/* but we've just started another cycle... */
 	wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1);
 
@@ -86,29 +89,32 @@ out:	mutex_unlock(&car_mutex);
 }
 EXPORT_SYMBOL_GPL(pxa2xx_ac97_read);
 
-void pxa2xx_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
-			unsigned short val)
+int pxa2xx_ac97_write(int slot, unsigned short reg, unsigned short val)
 {
 	volatile u32 *reg_addr;
+	int ret = 0;
 
 	mutex_lock(&car_mutex);
 
 	/* set up primary or secondary codec space */
 	if (cpu_is_pxa25x() && reg == AC97_GPIO_STATUS)
-		reg_addr = ac97->num ? &SMC_REG_BASE : &PMC_REG_BASE;
+		reg_addr = slot ? &SMC_REG_BASE : &PMC_REG_BASE;
 	else
-		reg_addr = ac97->num ? &SAC_REG_BASE : &PAC_REG_BASE;
+		reg_addr = slot ? &SAC_REG_BASE : &PAC_REG_BASE;
 	reg_addr += (reg >> 1);
 
 	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
 	*reg_addr = val;
 	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_CDONE, 1) <= 0 &&
-	    !((GSR | gsr_bits) & GSR_CDONE))
+	    !((GSR | gsr_bits) & GSR_CDONE)) {
 		printk(KERN_ERR "%s: write error (ac97_reg=%d GSR=%#lx)\n",
 				__func__, reg, GSR | gsr_bits);
+		ret = -EIO;
+	}
 
 	mutex_unlock(&car_mutex);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(pxa2xx_ac97_write);
 
@@ -188,7 +194,7 @@ static inline void pxa_ac97_cold_pxa3xx(void)
 }
 #endif
 
-bool pxa2xx_ac97_try_warm_reset(struct snd_ac97 *ac97)
+bool pxa2xx_ac97_try_warm_reset(void)
 {
 	unsigned long gsr;
 	unsigned int timeout = 100;
@@ -225,7 +231,7 @@ bool pxa2xx_ac97_try_warm_reset(struct snd_ac97 *ac97)
 }
 EXPORT_SYMBOL_GPL(pxa2xx_ac97_try_warm_reset);
 
-bool pxa2xx_ac97_try_cold_reset(struct snd_ac97 *ac97)
+bool pxa2xx_ac97_try_cold_reset(void)
 {
 	unsigned long gsr;
 	unsigned int timeout = 1000;
@@ -263,7 +269,7 @@ bool pxa2xx_ac97_try_cold_reset(struct snd_ac97 *ac97)
 EXPORT_SYMBOL_GPL(pxa2xx_ac97_try_cold_reset);
 
 
-void pxa2xx_ac97_finish_reset(struct snd_ac97 *ac97)
+void pxa2xx_ac97_finish_reset(void)
 {
 	GCR &= ~(GCR_PRIRDY_IEN|GCR_SECRDY_IEN);
 	GCR |= GCR_SDONE_IE|GCR_CDONE_IE;
@@ -332,6 +338,17 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 			dev_err(&dev->dev, "Invalid reset GPIO %d\n",
 				pdata->reset_gpio);
 		}
+	} else if (!pdata && dev->dev.of_node) {
+		pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+		pdata->reset_gpio = of_get_named_gpio(dev->dev.of_node,
+						      "reset-gpios", 0);
+		if (pdata->reset_gpio == -ENOENT)
+			pdata->reset_gpio = -1;
+		else if (pdata->reset_gpio < 0)
+			return pdata->reset_gpio;
+		reset_gpio = pdata->reset_gpio;
 	} else {
 		if (cpu_is_pxa27x())
 			reset_gpio = 113;

@@ -7,38 +7,43 @@
 # command after changing this file, to see if there are
 # any tracked files which get ignored after the change.
 #
-# Normal rules
+# Normal rules (sorted alphabetically)
 #
 .*
+*.a
+*.asn1.[ch]
+*.bin
+*.bz2
+*.c.[012]*.*
+*.dtb
+*.dtb.S
+*.dwo
+*.elf
+*.gcno
+*.gz
+*.i
+*.ko
+*.lex.c
+*.ll
+*.lst
+*.lz4
+*.lzma
+*.lzo
+*.mod.c
 *.o
 *.o.*
-*.a
+*.order
+*.patch
 *.s
-*.ko
 *.so
 *.so.dbg
-*.mod.c
-*.i
-*.lst
-*.symtypes
-*.order
-*.elf
-*.bin
-*.tar
-*.gz
-*.bz2
-*.lzma
-*.xz
-*.lz4
-*.lzo
-*.patch
-*.gcno
-*.ll
-modules.builtin
-Module.symvers
-*.dwo
 *.su
-*.c.[012]*.*
+*.symtypes
+*.tab.[ch]
+*.tar
+*.xz
+Module.symvers
+modules.builtin
 
 #
 # Top-level generic files
@@ -54,9 +59,19 @@ Module.symvers
 /Module.markers
 
 #
+# RPM spec file (make rpm-pkg)
+#
+/*.spec
+
+#
 # Debian directory (make deb-pkg)
 #
 /debian/
+
+#
+# Snap directory (make snap-pkg)
+#
+/snap/
 
 #
 # tar directory (make tar*-pkg)
@@ -69,12 +84,14 @@ Module.symvers
 !.gitignore
 !.mailmap
 !.cocciconfig
+!.clang-format
 
 #
 # Generated include files
 #
 include/config
 include/generated
+include/ksym
 arch/*/include/generated
 
 # stgit generated dirs

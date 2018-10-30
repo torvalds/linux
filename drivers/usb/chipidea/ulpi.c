@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016 Linaro Ltd.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/device.h>
@@ -102,6 +94,9 @@ void ci_ulpi_exit(struct ci_hdrc *ci)
 int ci_ulpi_resume(struct ci_hdrc *ci)
 {
 	int cnt = 100000;
+
+	if (ci->platdata->phy_mode != USBPHY_INTERFACE_MODE_ULPI)
+		return 0;
 
 	while (cnt-- > 0) {
 		if (hw_read(ci, OP_ULPI_VIEWPORT, ULPI_SYNC_STATE))

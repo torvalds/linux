@@ -17,6 +17,8 @@
 #include <linux/spi/spi.h>
 #include <video/mipi_display.h>
 
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
@@ -118,14 +120,8 @@ static int st7586_fb_dirty(struct drm_framebuffer *fb,
 	int start, end;
 	int ret = 0;
 
-	mutex_lock(&tdev->dirty_lock);
-
 	if (!mipi->enabled)
-		goto out_unlock;
-
-	/* fbdev can flush even when we're not interested */
-	if (tdev->pipe.plane.fb != fb)
-		goto out_unlock;
+		return 0;
 
 	tinydrm_merge_clips(&clip, clips, num_clips, flags, fb->width,
 			    fb->height);
@@ -139,7 +135,7 @@ static int st7586_fb_dirty(struct drm_framebuffer *fb,
 
 	ret = st7586_buf_copy(mipi->tx_buf, fb, &clip);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	/* Pixels are packed 3 per byte */
 	start = clip.x1 / 3;
@@ -156,41 +152,31 @@ static int st7586_fb_dirty(struct drm_framebuffer *fb,
 				   (u8 *)mipi->tx_buf,
 				   (end - start) * (clip.y2 - clip.y1));
 
-out_unlock:
-	mutex_unlock(&tdev->dirty_lock);
-
-	if (ret)
-		dev_err_once(fb->dev->dev, "Failed to update display %d\n",
-			     ret);
-
 	return ret;
 }
 
 static const struct drm_framebuffer_funcs st7586_fb_funcs = {
-	.destroy	= drm_fb_cma_destroy,
-	.create_handle	= drm_fb_cma_create_handle,
-	.dirty		= st7586_fb_dirty,
+	.destroy	= drm_gem_fb_destroy,
+	.create_handle	= drm_gem_fb_create_handle,
+	.dirty		= tinydrm_fb_dirty,
 };
 
 static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
-			       struct drm_crtc_state *crtc_state)
+			       struct drm_crtc_state *crtc_state,
+			       struct drm_plane_state *plane_state)
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
-	struct drm_framebuffer *fb = pipe->plane.fb;
-	struct device *dev = tdev->drm->dev;
 	int ret;
 	u8 addr_mode;
 
 	DRM_DEBUG_KMS("\n");
 
-	mipi_dbi_hw_reset(mipi);
-	ret = mipi_dbi_command(mipi, ST7586_AUTO_READ_CTRL, 0x9f);
-	if (ret) {
-		dev_err(dev, "Error sending command %d\n", ret);
+	ret = mipi_dbi_poweron_reset(mipi);
+	if (ret)
 		return;
-	}
 
+	mipi_dbi_command(mipi, ST7586_AUTO_READ_CTRL, 0x9f);
 	mipi_dbi_command(mipi, ST7586_OTP_RW_CTRL, 0x00);
 
 	msleep(10);
@@ -239,10 +225,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_ON);
 
-	mipi->enabled = true;
-
-	if (fb)
-		fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
+	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
 }
 
 static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -282,6 +265,8 @@ static int st7586_init(struct device *dev, struct mipi_dbi *mipi,
 	if (ret)
 		return ret;
 
+	tdev->fb_dirty = st7586_fb_dirty;
+
 	ret = tinydrm_display_pipe_init(tdev, pipe_funcs,
 					DRM_MODE_CONNECTOR_VIRTUAL,
 					st7586_formats,
@@ -305,7 +290,7 @@ static const struct drm_simple_display_pipe_funcs st7586_pipe_funcs = {
 	.enable		= st7586_pipe_enable,
 	.disable	= st7586_pipe_disable,
 	.update		= tinydrm_display_pipe_update,
-	.prepare_fb	= tinydrm_display_pipe_prepare_fb,
+	.prepare_fb	= drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
 static const struct drm_display_mode st7586_mode = {
@@ -319,7 +304,6 @@ static struct drm_driver st7586_driver = {
 				  DRIVER_ATOMIC,
 	.fops			= &st7586_fops,
 	TINYDRM_GEM_DRIVER_OPS,
-	.lastclose		= tinydrm_lastclose,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7586",
 	.desc			= "Sitronix ST7586",
@@ -343,7 +327,6 @@ MODULE_DEVICE_TABLE(spi, st7586_id);
 static int st7586_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct tinydrm_device *tdev;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *a0;
 	u32 rotation = 0;
@@ -355,13 +338,13 @@ static int st7586_probe(struct spi_device *spi)
 
 	mipi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(mipi->reset)) {
-		dev_err(dev, "Failed to get gpio 'reset'\n");
+		DRM_DEV_ERROR(dev, "Failed to get gpio 'reset'\n");
 		return PTR_ERR(mipi->reset);
 	}
 
 	a0 = devm_gpiod_get(dev, "a0", GPIOD_OUT_LOW);
 	if (IS_ERR(a0)) {
-		dev_err(dev, "Failed to get gpio 'a0'\n");
+		DRM_DEV_ERROR(dev, "Failed to get gpio 'a0'\n");
 		return PTR_ERR(a0);
 	}
 
@@ -388,20 +371,9 @@ static int st7586_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	tdev = &mipi->tinydrm;
-
-	ret = devm_tinydrm_register(tdev);
-	if (ret)
-		return ret;
-
 	spi_set_drvdata(spi, mipi);
 
-	DRM_DEBUG_DRIVER("Initialized %s:%s @%uMHz on minor %d\n",
-			 tdev->drm->driver->name, dev_name(dev),
-			 spi->max_speed_hz / 1000000,
-			 tdev->drm->primary->index);
-
-	return 0;
+	return devm_tinydrm_register(&mipi->tinydrm);
 }
 
 static void st7586_shutdown(struct spi_device *spi)

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for ALSA
 #
@@ -12,6 +13,7 @@ snd-usb-audio-objs := 	card.o \
 			mixer_scarlett.o \
 			mixer_us16x08.o \
 			pcm.o \
+			power.o \
 			proc.o \
 			quirks.o \
 			stream.o

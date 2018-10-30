@@ -10,6 +10,8 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/tinydrm.h>
 #include <linux/device.h>
 #include <linux/dma-buf.h>
@@ -33,23 +35,6 @@
  * devm_tinydrm_init(), sets up the pipeline using tinydrm_display_pipe_init()
  * and registers the DRM device using devm_tinydrm_register().
  */
-
-/**
- * tinydrm_lastclose - DRM lastclose helper
- * @drm: DRM device
- *
- * This function ensures that fbdev is restored when drm_lastclose() is called
- * on the last drm_release(). Drivers can use this as their
- * &drm_driver->lastclose callback.
- */
-void tinydrm_lastclose(struct drm_device *drm)
-{
-	struct tinydrm_device *tdev = drm->dev_private;
-
-	DRM_DEBUG_KMS("\n");
-	drm_fbdev_cma_restore_mode(tdev->fbdev_cma);
-}
-EXPORT_SYMBOL(tinydrm_lastclose);
 
 /**
  * tinydrm_gem_cma_prime_import_sg_table - Produce a CMA GEM object from
@@ -106,7 +91,7 @@ EXPORT_SYMBOL(tinydrm_gem_cma_prime_import_sg_table);
  * GEM object state and frees the memory used to store the object itself using
  * drm_gem_cma_free_object(). It also handles PRIME buffers which has the kernel
  * virtual address set by tinydrm_gem_cma_prime_import_sg_table(). Drivers
- * can use this as their &drm_driver->gem_free_object callback.
+ * can use this as their &drm_driver->gem_free_object_unlocked callback.
  */
 void tinydrm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {
@@ -128,7 +113,7 @@ tinydrm_fb_create(struct drm_device *drm, struct drm_file *file_priv,
 {
 	struct tinydrm_device *tdev = drm->dev_private;
 
-	return drm_fb_cma_create_with_funcs(drm, file_priv, mode_cmd,
+	return drm_gem_fb_create_with_funcs(drm, file_priv, mode_cmd,
 					    tdev->fb_funcs);
 }
 
@@ -150,7 +135,7 @@ static int tinydrm_init(struct device *parent, struct tinydrm_device *tdev,
 	/*
 	 * We don't embed drm_device, because that prevent us from using
 	 * devm_kzalloc() to allocate tinydrm_device in the driver since
-	 * drm_dev_unref() frees the structure. The devm_ functions provide
+	 * drm_dev_put() frees the structure. The devm_ functions provide
 	 * for easy error handling.
 	 */
 	drm = drm_dev_alloc(driver, parent);
@@ -170,7 +155,7 @@ static void tinydrm_fini(struct tinydrm_device *tdev)
 	drm_mode_config_cleanup(tdev->drm);
 	mutex_destroy(&tdev->dirty_lock);
 	tdev->drm->dev_private = NULL;
-	drm_dev_unref(tdev->drm);
+	drm_dev_put(tdev->drm);
 }
 
 static void devm_tinydrm_release(void *data)
@@ -187,7 +172,7 @@ static void devm_tinydrm_release(void *data)
  *
  * This function initializes @tdev, the underlying DRM device and it's
  * mode_config. Resources will be automatically freed on driver detach (devres)
- * using drm_mode_config_cleanup() and drm_dev_unref().
+ * using drm_mode_config_cleanup() and drm_dev_put().
  *
  * Returns:
  * Zero on success, negative error code on failure.
@@ -213,35 +198,23 @@ EXPORT_SYMBOL(devm_tinydrm_init);
 static int tinydrm_register(struct tinydrm_device *tdev)
 {
 	struct drm_device *drm = tdev->drm;
-	int bpp = drm->mode_config.preferred_depth;
-	struct drm_fbdev_cma *fbdev;
 	int ret;
 
 	ret = drm_dev_register(tdev->drm, 0);
 	if (ret)
 		return ret;
 
-	fbdev = drm_fbdev_cma_init_with_funcs(drm, bpp ? bpp : 32,
-					      drm->mode_config.num_connector,
-					      tdev->fb_funcs);
-	if (IS_ERR(fbdev))
-		DRM_ERROR("Failed to initialize fbdev: %ld\n", PTR_ERR(fbdev));
-	else
-		tdev->fbdev_cma = fbdev;
+	ret = drm_fbdev_generic_setup(drm, 0);
+	if (ret)
+		DRM_ERROR("Failed to initialize fbdev: %d\n", ret);
 
 	return 0;
 }
 
 static void tinydrm_unregister(struct tinydrm_device *tdev)
 {
-	struct drm_fbdev_cma *fbdev_cma = tdev->fbdev_cma;
-
 	drm_atomic_helper_shutdown(tdev->drm);
-	/* don't restore fbdev in lastclose, keep pipeline disabled */
-	tdev->fbdev_cma = NULL;
 	drm_dev_unregister(tdev->drm);
-	if (fbdev_cma)
-		drm_fbdev_cma_fini(fbdev_cma);
 }
 
 static void devm_tinydrm_register_release(void *data)
@@ -290,72 +263,5 @@ void tinydrm_shutdown(struct tinydrm_device *tdev)
 	drm_atomic_helper_shutdown(tdev->drm);
 }
 EXPORT_SYMBOL(tinydrm_shutdown);
-
-/**
- * tinydrm_suspend - Suspend tinydrm
- * @tdev: tinydrm device
- *
- * Used in driver PM operations to suspend tinydrm.
- * Suspends fbdev and DRM.
- * Resume with tinydrm_resume().
- *
- * Returns:
- * Zero on success, negative error code on failure.
- */
-int tinydrm_suspend(struct tinydrm_device *tdev)
-{
-	struct drm_atomic_state *state;
-
-	if (tdev->suspend_state) {
-		DRM_ERROR("Failed to suspend: state already set\n");
-		return -EINVAL;
-	}
-
-	drm_fbdev_cma_set_suspend_unlocked(tdev->fbdev_cma, 1);
-	state = drm_atomic_helper_suspend(tdev->drm);
-	if (IS_ERR(state)) {
-		drm_fbdev_cma_set_suspend_unlocked(tdev->fbdev_cma, 0);
-		return PTR_ERR(state);
-	}
-
-	tdev->suspend_state = state;
-
-	return 0;
-}
-EXPORT_SYMBOL(tinydrm_suspend);
-
-/**
- * tinydrm_resume - Resume tinydrm
- * @tdev: tinydrm device
- *
- * Used in driver PM operations to resume tinydrm.
- * Suspend with tinydrm_suspend().
- *
- * Returns:
- * Zero on success, negative error code on failure.
- */
-int tinydrm_resume(struct tinydrm_device *tdev)
-{
-	struct drm_atomic_state *state = tdev->suspend_state;
-	int ret;
-
-	if (!state) {
-		DRM_ERROR("Failed to resume: state is not set\n");
-		return -EINVAL;
-	}
-
-	tdev->suspend_state = NULL;
-
-	ret = drm_atomic_helper_resume(tdev->drm, state);
-	if (ret) {
-		DRM_ERROR("Error resuming state: %d\n", ret);
-		return ret;
-	}
-
-	drm_fbdev_cma_set_suspend_unlocked(tdev->fbdev_cma, 0);
-
-	return 0;
-}
-EXPORT_SYMBOL(tinydrm_resume);
 
 MODULE_LICENSE("GPL");

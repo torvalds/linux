@@ -51,11 +51,11 @@
 
 #define INTEL_GVT_OPREGION_PAGES	2
 #define INTEL_GVT_OPREGION_SIZE		(INTEL_GVT_OPREGION_PAGES * PAGE_SIZE)
+#define INTEL_GVT_OPREGION_VBT_OFFSET	0x400
+#define INTEL_GVT_OPREGION_VBT_SIZE	\
+		(INTEL_GVT_OPREGION_SIZE - INTEL_GVT_OPREGION_VBT_OFFSET)
 
 #define VGT_SPRSTRIDE(pipe)	_PIPE(pipe, _SPRA_STRIDE, _PLANE_STRIDE_2_B)
-
-#define _REG_VECS_EXCC		0x1A028
-#define _REG_VCS2_EXCC		0x1c028
 
 #define _REG_701C0(pipe, plane) (0x701c0 + pipe * 0x1000 + (plane - 1) * 0x100)
 #define _REG_701C4(pipe, plane) (0x701c4 + pipe * 0x1000 + (plane - 1) * 0x100)
@@ -74,6 +74,25 @@
 #define RB_HEAD_OFF_MASK	((1U << 21) - (1U << 2))
 #define RB_TAIL_OFF_MASK	((1U << 21) - (1U << 3))
 #define RB_TAIL_SIZE_MASK	((1U << 21) - (1U << 12))
-#define _RING_CTL_BUF_SIZE(ctl) (((ctl) & RB_TAIL_SIZE_MASK) + GTT_PAGE_SIZE)
+#define _RING_CTL_BUF_SIZE(ctl) (((ctl) & RB_TAIL_SIZE_MASK) + \
+		I915_GTT_PAGE_SIZE)
+
+#define PCH_GPIO_BASE	_MMIO(0xc5010)
+
+#define PCH_GMBUS0	_MMIO(0xc5100)
+#define PCH_GMBUS1	_MMIO(0xc5104)
+#define PCH_GMBUS2	_MMIO(0xc5108)
+#define PCH_GMBUS3	_MMIO(0xc510c)
+#define PCH_GMBUS4	_MMIO(0xc5110)
+#define PCH_GMBUS5	_MMIO(0xc5120)
+
+#define TRVATTL3PTRDW(i)	_MMIO(0x4de0 + (i) * 4)
+#define TRNULLDETCT		_MMIO(0x4de8)
+#define TRINVTILEDETCT		_MMIO(0x4dec)
+#define TRVADR			_MMIO(0x4df0)
+#define TRTTE			_MMIO(0x4df4)
+#define RING_EXCC(base)		_MMIO((base) + 0x28)
+#define RING_GFX_MODE(base)	_MMIO((base) + 0x29c)
+#define VF_GUARDBAND		_MMIO(0x83a4)
 
 #endif

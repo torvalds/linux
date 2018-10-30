@@ -150,7 +150,6 @@ static int ep93xx_read_raw(struct iio_dev *iiodev,
 }
 
 static const struct iio_info ep93xx_adc_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = ep93xx_read_raw,
 };
 
@@ -168,10 +167,6 @@ static int ep93xx_adc_probe(struct platform_device *pdev)
 	priv = iio_priv(iiodev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Cannot obtain memory resource\n");
-		return -ENXIO;
-	}
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->base)) {
 		dev_err(&pdev->dev, "Cannot map memory resource\n");

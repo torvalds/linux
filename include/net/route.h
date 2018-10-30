@@ -63,9 +63,8 @@ struct rtable {
 	__be32			rt_gateway;
 
 	/* Miscellaneous cached information */
-	u32			rt_pmtu;
-
-	u32			rt_table_id;
+	u32			rt_mtu_locked:1,
+				rt_pmtu:31;
 
 	struct list_head	rt_uncached;
 	struct uncached_list	*rt_uncached_list;
@@ -175,7 +174,9 @@ static inline struct rtable *ip_route_output_gre(struct net *net, struct flowi4 
 	fl4->fl4_gre_key = gre_key;
 	return ip_route_output_key(net, fl4);
 }
-
+int ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
+			  u8 tos, struct net_device *dev,
+			  struct in_device *in_dev, u32 *itag);
 int ip_route_input_noref(struct sk_buff *skb, __be32 dst, __be32 src,
 			 u8 tos, struct net_device *devin);
 int ip_route_input_rcu(struct sk_buff *skb, __be32 dst, __be32 src,
@@ -190,7 +191,7 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 	rcu_read_lock();
 	err = ip_route_input_noref(skb, dst, src, tos, devin);
 	if (!err) {
-		skb_dst_force_safe(skb);
+		skb_dst_force(skb);
 		if (!skb_dst(skb))
 			err = -EINVAL;
 	}
@@ -200,10 +201,9 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 }
 
 void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu, int oif,
-		      u32 mark, u8 protocol, int flow_flags);
+		      u8 protocol);
 void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu);
-void ipv4_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
-		   u8 protocol, int flow_flags);
+void ipv4_redirect(struct sk_buff *skb, struct net *net, int oif, u8 protocol);
 void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk);
 void ip_rt_send_redirect(struct sk_buff *skb);
 
@@ -215,7 +215,7 @@ unsigned int inet_addr_type_dev_table(struct net *net,
 				      const struct net_device *dev,
 				      __be32 addr);
 void ip_rt_multicast_event(struct in_device *);
-int ip_rt_ioctl(struct net *, unsigned int cmd, void __user *arg);
+int ip_rt_ioctl(struct net *, unsigned int cmd, struct rtentry *rt);
 void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
 struct rtable *rt_dst_alloc(struct net_device *dev,
 			     unsigned int flags, u16 type,
@@ -224,6 +224,10 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 struct in_ifaddr;
 void fib_add_ifaddr(struct in_ifaddr *);
 void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
+void fib_modify_prefix_metric(struct in_ifaddr *ifa, u32 new_metric);
+
+void rt_add_uncached_list(struct rtable *rt);
+void rt_del_uncached_list(struct rtable *rt);
 
 static inline void ip_rt_put(struct rtable *rt)
 {

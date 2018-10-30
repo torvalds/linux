@@ -70,6 +70,11 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 		arg_name = dm_shift_arg(as);
 		argc--;
 
+		if (!arg_name) {
+			ti->error = "Insufficient feature arguments";
+			return -EINVAL;
+		}
+
 		/*
 		 * drop_writes
 		 */
@@ -310,10 +315,6 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 	if (bio_op(bio) == REQ_OP_ZONE_RESET)
 		goto map_bio;
 
-	/* We need to remap reported zones, so remember the BIO iter */
-	if (bio_op(bio) == REQ_OP_ZONE_REPORT)
-		goto map_bio;
-
 	/* Are we alive ? */
 	elapsed = (jiffies - fc->start_time) / HZ;
 	if (elapsed % (fc->up_interval + fc->down_interval) >= fc->up_interval) {
@@ -375,11 +376,6 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio,
 	if (bio_op(bio) == REQ_OP_ZONE_RESET)
 		return DM_ENDIO_DONE;
 
-	if (bio_op(bio) == REQ_OP_ZONE_REPORT) {
-		dm_remap_zone_report(ti, bio, fc->start);
-		return DM_ENDIO_DONE;
-	}
-
 	if (!*error && pb->bio_submitted && (bio_data_dir(bio) == READ)) {
 		if (fc->corrupt_bio_byte && (fc->corrupt_bio_rw == READ) &&
 		    all_corrupt_bio_flags_match(bio, fc)) {
@@ -437,8 +433,7 @@ static void flakey_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int flakey_prepare_ioctl(struct dm_target *ti,
-		struct block_device **bdev, fmode_t *mode)
+static int flakey_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 {
 	struct flakey_c *fc = ti->private;
 
@@ -453,6 +448,26 @@ static int flakey_prepare_ioctl(struct dm_target *ti,
 	return 0;
 }
 
+#ifdef CONFIG_BLK_DEV_ZONED
+static int flakey_report_zones(struct dm_target *ti, sector_t sector,
+			       struct blk_zone *zones, unsigned int *nr_zones,
+			       gfp_t gfp_mask)
+{
+	struct flakey_c *fc = ti->private;
+	int ret;
+
+	/* Do report and remap it */
+	ret = blkdev_report_zones(fc->dev->bdev, flakey_map_sector(ti, sector),
+				  zones, nr_zones, gfp_mask);
+	if (ret != 0)
+		return ret;
+
+	if (*nr_zones)
+		dm_remap_zone_report(ti, fc->start, zones, nr_zones);
+	return 0;
+}
+#endif
+
 static int flakey_iterate_devices(struct dm_target *ti, iterate_devices_callout_fn fn, void *data)
 {
 	struct flakey_c *fc = ti->private;
@@ -463,7 +478,10 @@ static int flakey_iterate_devices(struct dm_target *ti, iterate_devices_callout_
 static struct target_type flakey_target = {
 	.name   = "flakey",
 	.version = {1, 5, 0},
+#ifdef CONFIG_BLK_DEV_ZONED
 	.features = DM_TARGET_ZONED_HM,
+	.report_zones = flakey_report_zones,
+#endif
 	.module = THIS_MODULE,
 	.ctr    = flakey_ctr,
 	.dtr    = flakey_dtr,

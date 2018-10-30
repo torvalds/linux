@@ -1,3 +1,17 @@
+# 64-bit ARM SoCs from TI
+if ARM64
+
+if ARCH_K3
+
+config ARCH_K3_AM6_SOC
+	bool "K3 AM6 SoC"
+	help
+	  Enable support for TI's AM6 SoC Family support
+
+endif
+
+endif
+
 #
 # TI SOC drivers
 #
@@ -27,6 +41,15 @@ config KEYSTONE_NAVIGATOR_DMA
 	  Queue Manager Sub System.
 
 	  If unsure, say N.
+
+config AMX3_PM
+	tristate "AMx3 Power Management"
+	depends on SOC_AM33XX || SOC_AM43XX
+	depends on WKUP_M3_IPC && TI_EMIF_SRAM && SRAM
+	help
+	  Enable power management on AM335x and AM437x. Required for suspend to mem
+	  and standby states on both AM335x and AM437x platforms and for deeper cpuidle
+	  c-states on AM335x.
 
 config WKUP_M3_IPC
 	tristate "TI AMx3 Wkup-M3 IPC Driver"

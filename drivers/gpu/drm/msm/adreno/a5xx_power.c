@@ -103,10 +103,16 @@ static inline uint32_t _get_mvolts(struct msm_gpu *gpu, uint32_t freq)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
 	struct dev_pm_opp *opp;
+	u32 ret = 0;
 
 	opp = dev_pm_opp_find_freq_exact(&pdev->dev, freq, true);
 
-	return (!IS_ERR(opp)) ? dev_pm_opp_get_voltage(opp) / 1000 : 0;
+	if (!IS_ERR(opp)) {
+		ret = dev_pm_opp_get_voltage(opp) / 1000;
+		dev_pm_opp_put(opp);
+	}
+
+	return ret;
 }
 
 /* Setup thermal limit management */
@@ -173,7 +179,7 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
-	struct msm_ringbuffer *ring = gpu->rb;
+	struct msm_ringbuffer *ring = gpu->rb[0];
 
 	if (!a5xx_gpu->gpmu_dwords)
 		return 0;
@@ -192,9 +198,9 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 	OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
 	OUT_RING(ring, 1);
 
-	gpu->funcs->flush(gpu);
+	gpu->funcs->flush(gpu, ring);
 
-	if (!a5xx_idle(gpu)) {
+	if (!a5xx_idle(gpu, ring)) {
 		DRM_ERROR("%s: Unable to load GPMU firmware. GPMU will not be active\n",
 			gpu->name);
 		return -EINVAL;
@@ -255,7 +261,6 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 	struct drm_device *drm = gpu->dev;
-	const struct firmware *fw;
 	uint32_t dwords = 0, offset = 0, bosize;
 	unsigned int *data, *ptr, *cmds;
 	unsigned int cmds_size;
@@ -263,14 +268,7 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	if (a5xx_gpu->gpmu_bo)
 		return;
 
-	/* Get the firmware */
-	if (request_firmware(&fw, adreno_gpu->info->gpmufw, drm->dev)) {
-		DRM_ERROR("%s: Could not get GPMU firmware. GPMU will not be active\n",
-			gpu->name);
-		return;
-	}
-
-	data = (unsigned int *) fw->data;
+	data = (unsigned int *) adreno_gpu->fw[ADRENO_FW_GPMU]->data;
 
 	/*
 	 * The first dword is the size of the remaining data in dwords. Use it
@@ -278,12 +276,14 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	 * the firmware that we read
 	 */
 
-	if (fw->size < 8 || (data[0] < 2) || (data[0] >= (fw->size >> 2)))
-		goto out;
+	if (adreno_gpu->fw[ADRENO_FW_GPMU]->size < 8 ||
+		(data[0] < 2) || (data[0] >=
+			(adreno_gpu->fw[ADRENO_FW_GPMU]->size >> 2)))
+		return;
 
 	/* The second dword is an ID - look for 2 (GPMU_FIRMWARE_ID) */
 	if (data[1] != 2)
-		goto out;
+		return;
 
 	cmds = data + data[2] + 3;
 	cmds_size = data[0] - data[2] - 2;
@@ -318,19 +318,14 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	msm_gem_put_vaddr(a5xx_gpu->gpmu_bo);
 	a5xx_gpu->gpmu_dwords = dwords;
 
-	goto out;
-
+	return;
 err:
 	if (a5xx_gpu->gpmu_iova)
 		msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
 	if (a5xx_gpu->gpmu_bo)
-		drm_gem_object_unreference(a5xx_gpu->gpmu_bo);
+		drm_gem_object_put(a5xx_gpu->gpmu_bo);
 
 	a5xx_gpu->gpmu_bo = NULL;
 	a5xx_gpu->gpmu_iova = 0;
 	a5xx_gpu->gpmu_dwords = 0;
-
-out:
-	/* No need to keep that firmware laying around anymore */
-	release_firmware(fw);
 }

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 menu "Rpmsg drivers"
 
 # RPMSG always gets selected by whoever wants it
@@ -39,6 +41,7 @@ config RPMSG_QCOM_GLINK_SMEM
 
 config RPMSG_QCOM_SMD
 	tristate "Qualcomm Shared Memory Driver (SMD)"
+	depends on MAILBOX
 	depends on QCOM_SMEM
 	select RPMSG
 	help
@@ -47,7 +50,8 @@ config RPMSG_QCOM_SMD
 	  platforms.
 
 config RPMSG_VIRTIO
-	tristate
+	tristate "Virtio RPMSG bus driver"
+	depends on HAS_DMA
 	select RPMSG
 	select VIRTIO
 

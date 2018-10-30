@@ -22,6 +22,43 @@ struct bnxt_led_cfg {
 	u8 rsvd;
 };
 
+#define COREDUMP_LIST_BUF_LEN		2048
+#define COREDUMP_RETRIEVE_BUF_LEN	4096
+
+struct bnxt_coredump {
+	void		*data;
+	int		data_size;
+	u16		total_segs;
+};
+
+struct bnxt_hwrm_dbg_dma_info {
+	void *dest_buf;
+	int dest_buf_size;
+	u16 dma_len;
+	u16 seq_off;
+	u16 data_len_off;
+	u16 segs;
+};
+
+struct hwrm_dbg_cmn_input {
+	__le16 req_type;
+	__le16 cmpl_ring;
+	__le16 seq_id;
+	__le16 target_id;
+	__le64 resp_addr;
+	__le64 host_dest_addr;
+	__le32 host_buf_len;
+};
+
+struct hwrm_dbg_cmn_output {
+	__le16 error_code;
+	__le16 req_type;
+	__le16 seq_id;
+	__le16 resp_len;
+	u8 flags;
+	#define HWRM_DBG_CMN_FLAGS_MORE	1
+};
+
 #define BNXT_LED_DFLT_ENA				\
 	(PORT_LED_CFG_REQ_ENABLES_LED0_ID |		\
 	 PORT_LED_CFG_REQ_ENABLES_LED0_STATE |		\
@@ -33,6 +70,9 @@ struct bnxt_led_cfg {
 
 #define BNXT_LED_DFLT_ENABLES(x)			\
 	cpu_to_le32(BNXT_LED_DFLT_ENA << (BNXT_LED_DFLT_ENA_SHIFT * (x)))
+
+#define BNXT_FW_RESET_AP	0xfffe
+#define BNXT_FW_RESET_CHIP	0xffff
 
 extern const struct ethtool_ops bnxt_ethtool_ops;
 

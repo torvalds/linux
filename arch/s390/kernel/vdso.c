@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * vdso setup for s390
  *
  *  Copyright IBM Corp. 2008
  *  Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -50,7 +47,7 @@ static struct page **vdso64_pagelist;
  */
 unsigned int __read_mostly vdso_enabled = 1;
 
-static int vdso_fault(const struct vm_special_mapping *sm,
+static vm_fault_t vdso_fault(const struct vm_special_mapping *sm,
 		      struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct page **vdso_pagelist;
@@ -59,7 +56,7 @@ static int vdso_fault(const struct vm_special_mapping *sm,
 	vdso_pagelist = vdso64_pagelist;
 	vdso_pages = vdso64_pages;
 #ifdef CONFIG_COMPAT
-	if (is_compat_task()) {
+	if (vma->vm_mm->context.compat_mm) {
 		vdso_pagelist = vdso32_pagelist;
 		vdso_pages = vdso32_pages;
 	}
@@ -80,7 +77,7 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 
 	vdso_pages = vdso64_pages;
 #ifdef CONFIG_COMPAT
-	if (is_compat_task())
+	if (vma->vm_mm->context.compat_mm)
 		vdso_pages = vdso32_pages;
 #endif
 
@@ -140,20 +137,27 @@ static void __init vdso_init_data(struct vdso_data *vd)
  */
 #define SEGMENT_ORDER	2
 
+/*
+ * The initial vdso_data structure for the boot CPU. Eventually
+ * it is replaced with a properly allocated structure in vdso_init.
+ * This is necessary because a valid S390_lowcore.vdso_per_cpu_data
+ * pointer is required to be able to return from an interrupt or
+ * program check. See the exit paths in entry.S.
+ */
+struct vdso_data boot_vdso_data __initdata;
+
+void __init vdso_alloc_boot_cpu(struct lowcore *lowcore)
+{
+	lowcore->vdso_per_cpu_data = (unsigned long) &boot_vdso_data;
+}
+
 int vdso_alloc_per_cpu(struct lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
 	struct vdso_per_cpu_data *vd;
-	u32 *psal, *aste;
-	int i;
-
-	lowcore->vdso_per_cpu_data = __LC_PASTE;
-
-	if (!vdso_enabled)
-		return 0;
 
 	segment_table = __get_free_pages(GFP_KERNEL, SEGMENT_ORDER);
-	page_table = get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	page_table = get_zeroed_page(GFP_KERNEL);
 	page_frame = get_zeroed_page(GFP_KERNEL);
 	if (!segment_table || !page_table || !page_frame)
 		goto out;
@@ -165,27 +169,15 @@ int vdso_alloc_per_cpu(struct lowcore *lowcore)
 	vd->cpu_nr = lowcore->cpu_nr;
 	vd->node_id = cpu_to_node(vd->cpu_nr);
 
-	/* Set up access register mode page table */
-	clear_table((unsigned long *) segment_table, _SEGMENT_ENTRY_EMPTY,
-		    PAGE_SIZE << SEGMENT_ORDER);
-	clear_table((unsigned long *) page_table, _PAGE_INVALID,
-		    256*sizeof(unsigned long));
+	/* Set up page table for the vdso address space */
+	memset64((u64 *)segment_table, _SEGMENT_ENTRY_EMPTY, _CRST_ENTRIES);
+	memset64((u64 *)page_table, _PAGE_INVALID, PTRS_PER_PTE);
 
 	*(unsigned long *) segment_table = _SEGMENT_ENTRY + page_table;
 	*(unsigned long *) page_table = _PAGE_PROTECT + page_frame;
 
-	psal = (u32 *) (page_table + 256*sizeof(unsigned long));
-	aste = psal + 32;
-
-	for (i = 4; i < 32; i += 4)
-		psal[i] = 0x80000000;
-
-	lowcore->paste[4] = (u32)(addr_t) psal;
-	psal[0] = 0x02000000;
-	psal[2] = (u32)(addr_t) aste;
-	*(unsigned long *) (aste + 2) = segment_table +
+	lowcore->vdso_asce = segment_table +
 		_ASCE_TABLE_LENGTH + _ASCE_USER_BITS + _ASCE_TYPE_SEGMENT;
-	aste[4] = (u32)(addr_t) psal;
 	lowcore->vdso_per_cpu_data = page_frame;
 
 	return 0;
@@ -200,30 +192,14 @@ out:
 void vdso_free_per_cpu(struct lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
-	u32 *psal, *aste;
 
-	if (!vdso_enabled)
-		return;
-
-	psal = (u32 *)(addr_t) lowcore->paste[4];
-	aste = (u32 *)(addr_t) psal[2];
-	segment_table = *(unsigned long *)(aste + 2) & PAGE_MASK;
+	segment_table = lowcore->vdso_asce & PAGE_MASK;
 	page_table = *(unsigned long *) segment_table;
 	page_frame = *(unsigned long *) page_table;
 
 	free_page(page_frame);
 	free_page(page_table);
 	free_pages(segment_table, SEGMENT_ORDER);
-}
-
-static void vdso_init_cr5(void)
-{
-	unsigned long cr5;
-
-	if (!vdso_enabled)
-		return;
-	cr5 = offsetof(struct lowcore, paste);
-	__ctl_load(cr5, 5, 5);
 }
 
 /*
@@ -248,8 +224,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	vdso_pages = vdso64_pages;
 #ifdef CONFIG_COMPAT
-	if (is_compat_task())
+	if (is_compat_task()) {
 		vdso_pages = vdso32_pages;
+		mm->context.compat_mm = 1;
+	}
 #endif
 	/*
 	 * vDSO has a problem and was disabled, just don't "enable" it for
@@ -302,8 +280,6 @@ static int __init vdso_init(void)
 {
 	int i;
 
-	if (!vdso_enabled)
-		return 0;
 	vdso_init_data(vdso_data);
 #ifdef CONFIG_COMPAT
 	/* Calculate the size of the 32 bit vDSO */
@@ -311,7 +287,7 @@ static int __init vdso_init(void)
 			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
 
 	/* Make sure pages are in the correct state */
-	vdso32_pagelist = kzalloc(sizeof(struct page *) * (vdso32_pages + 1),
+	vdso32_pagelist = kcalloc(vdso32_pages + 1, sizeof(struct page *),
 				  GFP_KERNEL);
 	BUG_ON(vdso32_pagelist == NULL);
 	for (i = 0; i < vdso32_pages - 1; i++) {
@@ -329,7 +305,7 @@ static int __init vdso_init(void)
 			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
 
 	/* Make sure pages are in the correct state */
-	vdso64_pagelist = kzalloc(sizeof(struct page *) * (vdso64_pages + 1),
+	vdso64_pagelist = kcalloc(vdso64_pages + 1, sizeof(struct page *),
 				  GFP_KERNEL);
 	BUG_ON(vdso64_pagelist == NULL);
 	for (i = 0; i < vdso64_pages - 1; i++) {
@@ -342,7 +318,6 @@ static int __init vdso_init(void)
 	vdso64_pagelist[vdso64_pages] = NULL;
 	if (vdso_alloc_per_cpu(&S390_lowcore))
 		BUG();
-	vdso_init_cr5();
 
 	get_page(virt_to_page(vdso_data));
 

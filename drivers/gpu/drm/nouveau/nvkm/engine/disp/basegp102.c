@@ -21,18 +21,12 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "dmacnv50.h"
-#include "rootnv50.h"
+#include "channv50.h"
 
-#include <nvif/class.h>
-
-const struct nv50_disp_dmac_oclass
-gp102_disp_base_oclass = {
-	.base.oclass = GK110_DISP_BASE_CHANNEL_DMA,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_base_new,
-	.func = &gp102_disp_dmac_func,
-	.mthd = &gf119_disp_base_chan_mthd,
-	.chid = 1,
-};
+int
+gp102_disp_base_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nv50_disp *disp, struct nvkm_object **pobject)
+{
+	return nv50_disp_base_new_(&gp102_disp_dmac_func, &gf119_disp_base_mthd,
+				   disp, 1, oclass, argv, argc, pobject);
+}

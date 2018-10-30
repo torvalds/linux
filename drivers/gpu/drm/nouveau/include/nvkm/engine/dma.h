@@ -1,6 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_DMA_H__
 #define __NVKM_DMA_H__
 #include <core/engine.h>
+#include <core/object.h>
 struct nvkm_client;
 
 struct nvkm_dmaobj {
@@ -25,4 +27,5 @@ int nv04_dma_new(struct nvkm_device *, int, struct nvkm_dma **);
 int nv50_dma_new(struct nvkm_device *, int, struct nvkm_dma **);
 int gf100_dma_new(struct nvkm_device *, int, struct nvkm_dma **);
 int gf119_dma_new(struct nvkm_device *, int, struct nvkm_dma **);
+int gv100_dma_new(struct nvkm_device *, int, struct nvkm_dma **);
 #endif

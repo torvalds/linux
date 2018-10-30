@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 agpgart-y := backend.o frontend.o generic.o isoch.o
 
 agpgart-$(CONFIG_COMPAT)	+= compat_ioctl.o

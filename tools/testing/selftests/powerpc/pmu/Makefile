@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 noarg:
 	$(MAKE) -C ../
 
 TEST_GEN_PROGS := count_instructions l3_bank_test per_event_excludes
 EXTRA_SOURCES := ../harness.c event.c lib.c ../utils.c
 
+top_srcdir = ../../../../..
 include ../../lib.mk
 
 all: $(TEST_GEN_PROGS) ebb

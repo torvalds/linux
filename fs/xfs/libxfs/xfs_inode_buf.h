@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef	__XFS_INODE_BUF_H__
 #define	__XFS_INODE_BUF_H__
@@ -82,7 +70,12 @@ void	xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
 #define	xfs_inobp_check(mp, bp)
 #endif /* DEBUG */
 
-bool	xfs_dinode_verify(struct xfs_mount *mp, xfs_ino_t ino,
-			  struct xfs_dinode *dip);
+xfs_failaddr_t xfs_dinode_verify(struct xfs_mount *mp, xfs_ino_t ino,
+			   struct xfs_dinode *dip);
+xfs_failaddr_t xfs_inode_validate_extsize(struct xfs_mount *mp,
+		uint32_t extsize, uint16_t mode, uint16_t flags);
+xfs_failaddr_t xfs_inode_validate_cowextsize(struct xfs_mount *mp,
+		uint32_t cowextsize, uint16_t mode, uint16_t flags,
+		uint64_t flags2);
 
 #endif	/* __XFS_INODE_BUF_H__ */

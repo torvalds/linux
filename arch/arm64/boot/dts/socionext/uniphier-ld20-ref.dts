@@ -1,11 +1,9 @@
-/*
- * Device Tree Source for UniPhier LD20 Reference Board
- *
- * Copyright (C) 2015-2016 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- */
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier LD20 Reference Board
+//
+// Copyright (C) 2015-2016 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
 /dts-v1/;
 #include "uniphier-ld20.dtsi"
@@ -40,13 +38,44 @@
 };
 
 &ethsc {
-	interrupts = <0 48 4>;
+	interrupts = <0 8>;
 };
 
 &serial0 {
 	status = "okay";
 };
 
+&gpio {
+	xirq0 {
+		gpio-hog;
+		gpios = <UNIPHIER_GPIO_IRQ(0) 0>;
+		input;
+	};
+};
+
 &i2c0 {
+	status = "okay";
+};
+
+&eth {
+	status = "okay";
+	phy-handle = <&ethphy>;
+};
+
+&mdio {
+	ethphy: ethphy@0 {
+		reg = <0>;
+	};
+};
+
+&pinctrl_ether_rgmii {
+	tx {
+		pins = "RGMII_TXCLK", "RGMII_TXD0", "RGMII_TXD1",
+		       "RGMII_TXD2", "RGMII_TXD3", "RGMII_TXCTL";
+		drive-strength = <9>;
+	};
+};
+
+&usb {
 	status = "okay";
 };

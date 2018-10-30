@@ -122,14 +122,15 @@ static int wl1251_fetch_nvs(struct wl1251 *wl)
 		goto out;
 	}
 
-	wl->nvs_len = fw->size;
-	wl->nvs = kmemdup(fw->data, wl->nvs_len, GFP_KERNEL);
+	wl->nvs = kmemdup(fw->data, fw->size, GFP_KERNEL);
 
 	if (!wl->nvs) {
 		wl1251_error("could not allocate memory for the nvs file");
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	wl->nvs_len = fw->size;
 
 	ret = 0;
 
@@ -198,13 +199,6 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 
 	if (wl->fw == NULL) {
 		ret = wl1251_fetch_firmware(wl);
-		if (ret < 0)
-			goto out;
-	}
-
-	if (wl->nvs == NULL && !wl->use_eeprom) {
-		/* No NVS from netlink, try to get it from the filesystem */
-		ret = wl1251_fetch_nvs(wl);
 		if (ret < 0)
 			goto out;
 	}
@@ -566,7 +560,7 @@ static int wl1251_build_null_data(struct wl1251 *wl)
 		size = sizeof(struct wl12xx_null_data_template);
 		ptr = NULL;
 	} else {
-		skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
+		skb = ieee80211_nullfunc_get(wl->hw, wl->vif, false);
 		if (!skb)
 			goto out;
 		size = skb->len;
@@ -1200,8 +1194,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
 
 		enable = bss_conf->arp_addr_cnt == 1 && bss_conf->assoc;
-		wl1251_acx_arp_ip_filter(wl, enable, addr);
-
+		ret = wl1251_acx_arp_ip_filter(wl, enable, addr);
 		if (ret < 0)
 			goto out_sleep;
 	}
@@ -1447,6 +1440,61 @@ static int wl1251_read_eeprom_mac(struct wl1251 *wl)
 	return 0;
 }
 
+#define NVS_OFF_MAC_LEN 0x19
+#define NVS_OFF_MAC_ADDR_LO 0x1a
+#define NVS_OFF_MAC_ADDR_HI 0x1b
+#define NVS_OFF_MAC_DATA 0x1c
+
+static int wl1251_check_nvs_mac(struct wl1251 *wl)
+{
+	if (wl->nvs_len < 0x24)
+		return -ENODATA;
+
+	/* length is 2 and data address is 0x546c (ANDed with 0xfffe) */
+	if (wl->nvs[NVS_OFF_MAC_LEN] != 2 ||
+	    wl->nvs[NVS_OFF_MAC_ADDR_LO] != 0x6d ||
+	    wl->nvs[NVS_OFF_MAC_ADDR_HI] != 0x54)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int wl1251_read_nvs_mac(struct wl1251 *wl)
+{
+	u8 mac[ETH_ALEN];
+	int i, ret;
+
+	ret = wl1251_check_nvs_mac(wl);
+	if (ret)
+		return ret;
+
+	/* MAC is stored in reverse order */
+	for (i = 0; i < ETH_ALEN; i++)
+		mac[i] = wl->nvs[NVS_OFF_MAC_DATA + ETH_ALEN - i - 1];
+
+	/* 00:00:20:07:03:09 is in example file wl1251-nvs.bin, so invalid */
+	if (ether_addr_equal_unaligned(mac, "\x00\x00\x20\x07\x03\x09"))
+		return -EINVAL;
+
+	memcpy(wl->mac_addr, mac, ETH_ALEN);
+	return 0;
+}
+
+static int wl1251_write_nvs_mac(struct wl1251 *wl)
+{
+	int i, ret;
+
+	ret = wl1251_check_nvs_mac(wl);
+	if (ret)
+		return ret;
+
+	/* MAC is stored in reverse order */
+	for (i = 0; i < ETH_ALEN; i++)
+		wl->nvs[NVS_OFF_MAC_DATA + i] = wl->mac_addr[ETH_ALEN - i - 1];
+
+	return 0;
+}
+
 static int wl1251_register_hw(struct wl1251 *wl)
 {
 	int ret;
@@ -1490,8 +1538,33 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 
 	wl->hw->queues = 4;
 
+	if (wl->nvs == NULL && !wl->use_eeprom) {
+		ret = wl1251_fetch_nvs(wl);
+		if (ret < 0)
+			goto out;
+	}
+
 	if (wl->use_eeprom)
-		wl1251_read_eeprom_mac(wl);
+		ret = wl1251_read_eeprom_mac(wl);
+	else
+		ret = wl1251_read_nvs_mac(wl);
+
+	if (ret == 0 && !is_valid_ether_addr(wl->mac_addr))
+		ret = -EINVAL;
+
+	if (ret < 0) {
+		/*
+		 * In case our MAC address is not correctly set,
+		 * we use a random but Nokia MAC.
+		 */
+		static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
+		memcpy(wl->mac_addr, nokia_oui, 3);
+		get_random_bytes(wl->mac_addr + 3, 3);
+		if (!wl->use_eeprom)
+			wl1251_write_nvs_mac(wl);
+		wl1251_warning("MAC address in eeprom or nvs data is not valid");
+		wl1251_warning("Setting random MAC address: %pM", wl->mac_addr);
+	}
 
 	ret = wl1251_register_hw(wl);
 	if (ret)
@@ -1512,7 +1585,6 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	struct ieee80211_hw *hw;
 	struct wl1251 *wl;
 	int i;
-	static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1251_ops);
 	if (!hw) {
@@ -1561,13 +1633,6 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	INIT_WORK(&wl->irq_work, wl1251_irq_work);
 	INIT_WORK(&wl->tx_work, wl1251_tx_work);
-
-	/*
-	 * In case our MAC address is not correctly set,
-	 * we use a random but Nokia MAC.
-	 */
-	memcpy(wl->mac_addr, nokia_oui, 3);
-	get_random_bytes(wl->mac_addr + 3, 3);
 
 	wl->state = WL1251_STATE_OFF;
 	mutex_init(&wl->mutex);

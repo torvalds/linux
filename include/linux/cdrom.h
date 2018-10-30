@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * -- <linux/cdrom.h>
  * General header file for linux CD-ROM drivers 
@@ -12,6 +13,7 @@
 
 #include <linux/fs.h>		/* not really needed, later.. */
 #include <linux/list.h>
+#include <scsi/scsi_common.h>
 #include <uapi/linux/cdrom.h>
 
 struct packet_command
@@ -20,7 +22,7 @@ struct packet_command
 	unsigned char 		*buffer;
 	unsigned int 		buflen;
 	int			stat;
-	struct request_sense	*sense;
+	struct scsi_sense_hdr	*sshdr;
 	unsigned char		data_direction;
 	int			quiet;
 	int			timeout;

@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 
 [[ -z $TC ]] && TC='tc'
 [[ -z $IP ]] && IP='ip'

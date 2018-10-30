@@ -16,10 +16,11 @@
 #include <time.h>
 
 #include <sys/wait.h>
-#include <sys/resource.h>
 
 #include <bpf/bpf.h>
+
 #include "bpf_util.h"
+#include "bpf_rlimit.h"
 
 #define LOCAL_FREE_TARGET	(128)
 #define PERCPU_FREE_TARGET	(4)
@@ -613,15 +614,12 @@ static void test_lru_sanity6(int map_type, int map_flags, int tgt_free)
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	int map_types[] = {BPF_MAP_TYPE_LRU_HASH,
 			     BPF_MAP_TYPE_LRU_PERCPU_HASH};
 	int map_flags[] = {0, BPF_F_NO_COMMON_LRU};
 	int t, f;
 
 	setbuf(stdout, NULL);
-
-	assert(!setrlimit(RLIMIT_MEMLOCK, &r));
 
 	nr_cpus = bpf_num_possible_cpus();
 	assert(nr_cpus != -1);

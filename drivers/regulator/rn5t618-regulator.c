@@ -29,7 +29,7 @@ static const struct regulator_ops rn5t618_reg_ops = {
 };
 
 #define REG(rid, ereg, emask, vreg, vmask, min, max, step)		\
-	[RN5T618_##rid] = {						\
+	{								\
 		.name		= #rid,					\
 		.of_match	= of_match_ptr(#rid),			\
 		.regulators_node = of_match_ptr("regulators"),		\

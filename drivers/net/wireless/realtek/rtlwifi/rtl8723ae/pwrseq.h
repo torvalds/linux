@@ -135,7 +135,7 @@
  /*wait power state to suspend*/ \
 	{0x0086, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK,\
 		PWR_BASEADDR_SDIO, PWR_CMD_POLLING, BIT(1), BIT(1)},\
- /*0x04[12:11] = 2b'01enable WL suspend*/ \
+ /*0x04[12:11] = 2b'00 disable WL suspend*/ \
 	{0x0005, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,\
 		PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT(3)|BIT(4), 0},
 
@@ -172,7 +172,7 @@
 	{0x0086, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, \
 		PWR_INTF_SDIO_MSK, PWR_BASEADDR_SDIO,\
 		PWR_CMD_POLLING, BIT(1), BIT(1)},\
- /*0x04[12:11] = 2b'00enable WL suspend*/ \
+ /*0x04[12:11] = 2b'00 disable WL suspend*/ \
 	{0x0005, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, \
 		PWR_INTF_ALL_MSK, PWR_BASEADDR_MAC,\
 		PWR_CMD_WRITE, BIT(3)|BIT(4), 0},\

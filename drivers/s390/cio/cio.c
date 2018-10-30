@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *   S/390 common I/O routines -- low level i/o calls
  *
@@ -24,7 +25,6 @@
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
 #include <asm/setup.h>
-#include <asm/reset.h>
 #include <asm/ipl.h>
 #include <asm/chpid.h>
 #include <asm/airq.h>
@@ -526,76 +526,6 @@ int cio_disable_subchannel(struct subchannel *sch)
 }
 EXPORT_SYMBOL_GPL(cio_disable_subchannel);
 
-static int cio_check_devno_blacklisted(struct subchannel *sch)
-{
-	if (is_blacklisted(sch->schid.ssid, sch->schib.pmcw.dev)) {
-		/*
-		 * This device must not be known to Linux. So we simply
-		 * say that there is no device and return ENODEV.
-		 */
-		CIO_MSG_EVENT(6, "Blacklisted device detected "
-			      "at devno %04X, subchannel set %x\n",
-			      sch->schib.pmcw.dev, sch->schid.ssid);
-		return -ENODEV;
-	}
-	return 0;
-}
-
-/**
- * cio_validate_subchannel - basic validation of subchannel
- * @sch: subchannel structure to be filled out
- * @schid: subchannel id
- *
- * Find out subchannel type and initialize struct subchannel.
- * Return codes:
- *   0 on success
- *   -ENXIO for non-defined subchannels
- *   -ENODEV for invalid subchannels or blacklisted devices
- *   -EIO for subchannels in an invalid subchannel set
- */
-int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
-{
-	char dbf_txt[15];
-	int ccode;
-	int err;
-
-	sprintf(dbf_txt, "valsch%x", schid.sch_no);
-	CIO_TRACE_EVENT(4, dbf_txt);
-
-	/*
-	 * The first subchannel that is not-operational (ccode==3)
-	 * indicates that there aren't any more devices available.
-	 * If stsch gets an exception, it means the current subchannel set
-	 * is not valid.
-	 */
-	ccode = stsch(schid, &sch->schib);
-	if (ccode) {
-		err = (ccode == 3) ? -ENXIO : ccode;
-		goto out;
-	}
-	sch->st = sch->schib.pmcw.st;
-	sch->schid = schid;
-
-	switch (sch->st) {
-	case SUBCHANNEL_TYPE_IO:
-	case SUBCHANNEL_TYPE_MSG:
-		if (!css_sch_is_valid(&sch->schib))
-			err = -ENODEV;
-		else
-			err = cio_check_devno_blacklisted(sch);
-		break;
-	default:
-		err = 0;
-	}
-	if (err)
-		goto out;
-
-	CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports subchannel type %04X\n",
-		      sch->schid.ssid, sch->schid.sch_no, sch->st);
-out:
-	return err;
-}
-
 /*
  * do_cio_interrupt() handles all normal I/O device IRQ's
  */
@@ -719,6 +649,7 @@ struct subchannel *cio_probe_console(void)
 {
 	struct subchannel_id schid;
 	struct subchannel *sch;
+	struct schib schib;
 	int sch_no, ret;
 
 	sch_no = cio_get_console_sch_no();
@@ -728,7 +659,11 @@ struct subchannel *cio_probe_console(void)
 	}
 	init_subchannel_id(&schid);
 	schid.sch_no = sch_no;
-	sch = css_alloc_subchannel(schid);
+	ret = stsch(schid, &schib);
+	if (ret)
+		return ERR_PTR(-ENODEV);
+
+	sch = css_alloc_subchannel(schid, &schib);
 	if (IS_ERR(sch))
 		return sch;
 
@@ -766,262 +701,6 @@ void cio_register_early_subchannels(void)
 }
 #endif /* CONFIG_CCW_CONSOLE */
 
-static int
-__disable_subchannel_easy(struct subchannel_id schid, struct schib *schib)
-{
-	int retry, cc;
-
-	cc = 0;
-	for (retry=0;retry<3;retry++) {
-		schib->pmcw.ena = 0;
-		cc = msch(schid, schib);
-		if (cc)
-			return (cc==3?-ENODEV:-EBUSY);
-		if (stsch(schid, schib) || !css_sch_is_valid(schib))
-			return -ENODEV;
-		if (!schib->pmcw.ena)
-			return 0;
-	}
-	return -EBUSY; /* uhm... */
-}
-
-static int
-__clear_io_subchannel_easy(struct subchannel_id schid)
-{
-	int retry;
-
-	if (csch(schid))
-		return -ENODEV;
-	for (retry=0;retry<20;retry++) {
-		struct tpi_info ti;
-
-		if (tpi(&ti)) {
-			tsch(ti.schid, this_cpu_ptr(&cio_irb));
-			if (schid_equal(&ti.schid, &schid))
-				return 0;
-		}
-		udelay_simple(100);
-	}
-	return -EBUSY;
-}
-
-static void __clear_chsc_subchannel_easy(void)
-{
-	/* It seems we can only wait for a bit here :/ */
-	udelay_simple(100);
-}
-
-static int pgm_check_occured;
-
-static void cio_reset_pgm_check_handler(void)
-{
-	pgm_check_occured = 1;
-}
-
-static int stsch_reset(struct subchannel_id schid, struct schib *addr)
-{
-	int rc;
-
-	pgm_check_occured = 0;
-	s390_base_pgm_handler_fn = cio_reset_pgm_check_handler;
-	rc = stsch(schid, addr);
-	s390_base_pgm_handler_fn = NULL;
-
-	/* The program check handler could have changed pgm_check_occured. */
-	barrier();
-
-	if (pgm_check_occured)
-		return -EIO;
-	else
-		return rc;
-}
-
-static int __shutdown_subchannel_easy(struct subchannel_id schid, void *data)
-{
-	struct schib schib;
-
-	if (stsch_reset(schid, &schib))
-		return -ENXIO;
-	if (!schib.pmcw.ena)
-		return 0;
-	switch(__disable_subchannel_easy(schid, &schib)) {
-	case 0:
-	case -ENODEV:
-		break;
-	default: /* -EBUSY */
-		switch (schib.pmcw.st) {
-		case SUBCHANNEL_TYPE_IO:
-			if (__clear_io_subchannel_easy(schid))
-				goto out; /* give up... */
-			break;
-		case SUBCHANNEL_TYPE_CHSC:
-			__clear_chsc_subchannel_easy();
-			break;
-		default:
-			/* No default clear strategy */
-			break;
-		}
-		stsch(schid, &schib);
-		__disable_subchannel_easy(schid, &schib);
-	}
-out:
-	return 0;
-}
-
-static atomic_t chpid_reset_count;
-
-static void s390_reset_chpids_mcck_handler(void)
-{
-	struct crw crw;
-	union mci mci;
-
-	/* Check for pending channel report word. */
-	mci.val = S390_lowcore.mcck_interruption_code;
-	if (!mci.cp)
-		return;
-	/* Process channel report words. */
-	while (stcrw(&crw) == 0) {
-		/* Check for responses to RCHP. */
-		if (crw.slct && crw.rsc == CRW_RSC_CPATH)
-			atomic_dec(&chpid_reset_count);
-	}
-}
-
-#define RCHP_TIMEOUT (30 * USEC_PER_SEC)
-static void css_reset(void)
-{
-	int i, ret;
-	unsigned long long timeout;
-	struct chp_id chpid;
-
-	/* Reset subchannels. */
-	for_each_subchannel(__shutdown_subchannel_easy,  NULL);
-	/* Reset channel paths. */
-	s390_base_mcck_handler_fn = s390_reset_chpids_mcck_handler;
-	/* Enable channel report machine checks. */
-	__ctl_set_bit(14, 28);
-	/* Temporarily reenable machine checks. */
-	local_mcck_enable();
-	chp_id_init(&chpid);
-	for (i = 0; i <= __MAX_CHPID; i++) {
-		chpid.id = i;
-		ret = rchp(chpid);
-		if ((ret == 0) || (ret == 2))
-			/*
-			 * rchp either succeeded, or another rchp is already
-			 * in progress. In either case, we'll get a crw.
-			 */
-			atomic_inc(&chpid_reset_count);
-	}
-	/* Wait for machine check for all channel paths. */
-	timeout = get_tod_clock_fast() + (RCHP_TIMEOUT << 12);
-	while (atomic_read(&chpid_reset_count) != 0) {
-		if (get_tod_clock_fast() > timeout)
-			break;
-		cpu_relax();
-	}
-	/* Disable machine checks again. */
-	local_mcck_disable();
-	/* Disable channel report machine checks. */
-	__ctl_clear_bit(14, 28);
-	s390_base_mcck_handler_fn = NULL;
-}
-
-static struct reset_call css_reset_call = {
-	.fn = css_reset,
-};
-
-static int __init init_css_reset_call(void)
-{
-	atomic_set(&chpid_reset_count, 0);
-	register_reset_call(&css_reset_call);
-	return 0;
-}
-
-arch_initcall(init_css_reset_call);
-
-struct sch_match_id {
-	struct subchannel_id schid;
-	struct ccw_dev_id devid;
-	int rc;
-};
-
-static int __reipl_subchannel_match(struct subchannel_id schid, void *data)
-{
-	struct schib schib;
-	struct sch_match_id *match_id = data;
-
-	if (stsch_reset(schid, &schib))
-		return -ENXIO;
-	if ((schib.pmcw.st == SUBCHANNEL_TYPE_IO) && schib.pmcw.dnv &&
-	    (schib.pmcw.dev == match_id->devid.devno) &&
-	    (schid.ssid == match_id->devid.ssid)) {
-		match_id->schid = schid;
-		match_id->rc = 0;
-		return 1;
-	}
-	return 0;
-}
-
-static int reipl_find_schid(struct ccw_dev_id *devid,
-			    struct subchannel_id *schid)
-{
-	struct sch_match_id match_id;
-
-	match_id.devid = *devid;
-	match_id.rc = -ENODEV;
-	for_each_subchannel(__reipl_subchannel_match, &match_id);
-	if (match_id.rc == 0)
-		*schid = match_id.schid;
-	return match_id.rc;
-}
-
-extern void do_reipl_asm(__u32 schid);
-
-/* Make sure all subchannels are quiet before we re-ipl an lpar. */
-void reipl_ccw_dev(struct ccw_dev_id *devid)
-{
-	struct subchannel_id uninitialized_var(schid);
-
-	s390_reset_system();
-	if (reipl_find_schid(devid, &schid) != 0)
-		panic("IPL Device not found\n");
-	do_reipl_asm(*((__u32*)&schid));
-}
-
-int __init cio_get_iplinfo(struct cio_iplinfo *iplinfo)
-{
-	static struct chsc_sda_area sda_area __initdata;
-	struct subchannel_id schid;
-	struct schib schib;
-
-	schid = *(struct subchannel_id *)&S390_lowcore.subchannel_id;
-	if (!schid.one)
-		return -ENODEV;
-
-	if (schid.ssid) {
-		/*
-		 * Firmware should have already enabled MSS but whoever started
-		 * the kernel might have initiated a channel subsystem reset.
-		 * Ensure that MSS is enabled.
-		 */
-		memset(&sda_area, 0, sizeof(sda_area));
-		if (__chsc_enable_facility(&sda_area, CHSC_SDA_OC_MSS))
-			return -ENODEV;
-	}
-	if (stsch(schid, &schib))
-		return -ENODEV;
-	if (schib.pmcw.st != SUBCHANNEL_TYPE_IO)
-		return -ENODEV;
-	if (!schib.pmcw.dnv)
-		return -ENODEV;
-
-	iplinfo->ssid = schid.ssid;
-	iplinfo->devno = schib.pmcw.dev;
-	iplinfo->is_qdio = schib.pmcw.qf;
-	return 0;
-}
-
 /**
  * cio_tm_start_key - perform start function
  * @sch: subchannel on which to perform the start function
@@ -1058,7 +737,7 @@ EXPORT_SYMBOL_GPL(cio_tm_start_key);
 
 /**
  * cio_tm_intrg - perform interrogate function
- * @sch - subchannel on which to perform the interrogate function
+ * @sch: subchannel on which to perform the interrogate function
  *
  * If the specified subchannel is running in transport-mode, perform the
  * interrogate function. Return zero on success, non-zero otherwie.

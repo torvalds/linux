@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # List of files in the vdso, has to be asm only for now
 
 KCOV_INSTRUMENT := n
@@ -8,6 +9,9 @@ obj-vdso64 = gettimeofday.o clock_getres.o clock_gettime.o note.o getcpu.o
 
 targets := $(obj-vdso64) vdso64.so vdso64.so.dbg
 obj-vdso64 := $(addprefix $(obj)/, $(obj-vdso64))
+
+KBUILD_AFLAGS += -DBUILD_VDSO
+KBUILD_CFLAGS += -DBUILD_VDSO
 
 KBUILD_AFLAGS_64 := $(filter-out -m64,$(KBUILD_AFLAGS))
 KBUILD_AFLAGS_64 += -m64 -s
@@ -24,9 +28,10 @@ obj-y += vdso64_wrapper.o
 extra-y += vdso64.lds
 CPPFLAGS_vdso64.lds += -P -C -U$(ARCH)
 
-# Disable gcov profiling and ubsan for VDSO code
+# Disable gcov profiling, ubsan and kasan for VDSO code
 GCOV_PROFILE := n
 UBSAN_SANITIZE := n
+KASAN_SANITIZE := n
 
 # Force dependency (incbin is bad)
 $(obj)/vdso64_wrapper.o : $(obj)/vdso64.so

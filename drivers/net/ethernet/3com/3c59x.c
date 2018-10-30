@@ -602,7 +602,7 @@ struct vortex_private {
 	struct sk_buff* rx_skbuff[RX_RING_SIZE];
 	struct sk_buff* tx_skbuff[TX_RING_SIZE];
 	unsigned int cur_rx, cur_tx;		/* The next free ring entry */
-	unsigned int dirty_rx, dirty_tx;	/* The ring entries to be free()ed. */
+	unsigned int dirty_tx;	/* The ring entries to be free()ed. */
 	struct vortex_extra_stats xstats;	/* NIC-specific extra stats */
 	struct sk_buff *tx_skb;				/* Packet being eaten by bus master ctrl.  */
 	dma_addr_t tx_skb_dma;				/* Allocated DMA address for bus master ctrl DMA.   */
@@ -618,7 +618,6 @@ struct vortex_private {
 
 	/* The remainder are related to chip state, mostly media selection. */
 	struct timer_list timer;			/* Media selection timer. */
-	struct timer_list rx_oom_timer;		/* Rx skb allocation retry timer */
 	int options;						/* User-settable misc. driver options. */
 	unsigned int media_override:4, 		/* Passed-in media type. */
 		default_media:4,				/* Read from the EEPROM/Wn3_Config. */
@@ -759,16 +758,16 @@ static int vortex_open(struct net_device *dev);
 static void mdio_sync(struct vortex_private *vp, int bits);
 static int mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *vp, int phy_id, int location, int value);
-static void vortex_timer(unsigned long arg);
-static void rx_oom_timer(unsigned long arg);
+static void vortex_timer(struct timer_list *t);
 static netdev_tx_t vortex_start_xmit(struct sk_buff *skb,
 				     struct net_device *dev);
 static netdev_tx_t boomerang_start_xmit(struct sk_buff *skb,
 					struct net_device *dev);
 static int vortex_rx(struct net_device *dev);
 static int boomerang_rx(struct net_device *dev);
-static irqreturn_t vortex_interrupt(int irq, void *dev_id);
-static irqreturn_t boomerang_interrupt(int irq, void *dev_id);
+static irqreturn_t vortex_boomerang_interrupt(int irq, void *dev_id);
+static irqreturn_t _vortex_interrupt(int irq, struct net_device *dev);
+static irqreturn_t _boomerang_interrupt(int irq, struct net_device *dev);
 static int vortex_close(struct net_device *dev);
 static void dump_tx_ring(struct net_device *dev);
 static void update_stats(void __iomem *ioaddr, struct net_device *dev);
@@ -840,11 +839,7 @@ MODULE_PARM_DESC(use_mmio, "3c59x: use memory-mapped PCI I/O resource (0-1)");
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void poll_vortex(struct net_device *dev)
 {
-	struct vortex_private *vp = netdev_priv(dev);
-	unsigned long flags;
-	local_irq_save(flags);
-	(vp->full_bus_master_rx ? boomerang_interrupt:vortex_interrupt)(dev->irq,dev);
-	local_irq_restore(flags);
+	vortex_boomerang_interrupt(dev->irq, dev);
 }
 #endif
 
@@ -1214,9 +1209,9 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 	vp->mii.reg_num_mask = 0x1f;
 
 	/* Makes sure rings are at least 16 byte aligned. */
-	vp->rx_ring = pci_alloc_consistent(pdev, sizeof(struct boom_rx_desc) * RX_RING_SIZE
+	vp->rx_ring = dma_alloc_coherent(gendev, sizeof(struct boom_rx_desc) * RX_RING_SIZE
 					   + sizeof(struct boom_tx_desc) * TX_RING_SIZE,
-					   &vp->rx_ring_dma);
+					   &vp->rx_ring_dma, GFP_KERNEL);
 	retval = -ENOMEM;
 	if (!vp->rx_ring)
 		goto free_device;
@@ -1478,11 +1473,10 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 		return 0;
 
 free_ring:
-	pci_free_consistent(pdev,
-						sizeof(struct boom_rx_desc) * RX_RING_SIZE
-							+ sizeof(struct boom_tx_desc) * TX_RING_SIZE,
-						vp->rx_ring,
-						vp->rx_ring_dma);
+	dma_free_coherent(&pdev->dev,
+		sizeof(struct boom_rx_desc) * RX_RING_SIZE +
+		sizeof(struct boom_tx_desc) * TX_RING_SIZE,
+		vp->rx_ring, vp->rx_ring_dma);
 free_device:
 	free_netdev(dev);
 	pr_err(PFX "vortex_probe1 fails.  Returns %d\n", retval);
@@ -1599,9 +1593,8 @@ vortex_up(struct net_device *dev)
 				dev->name, media_tbl[dev->if_port].name);
 	}
 
-	setup_timer(&vp->timer, vortex_timer, (unsigned long)dev);
+	timer_setup(&vp->timer, vortex_timer, 0);
 	mod_timer(&vp->timer, RUN_AT(media_tbl[dev->if_port].wait));
-	setup_timer(&vp->rx_oom_timer, rx_oom_timer, (unsigned long)dev);
 
 	if (vortex_debug > 1)
 		pr_debug("%s: Initial media type %s.\n",
@@ -1676,7 +1669,7 @@ vortex_up(struct net_device *dev)
 	window_write16(vp, 0x0040, 4, Wn4_NetDiag);
 
 	if (vp->full_bus_master_rx) { /* Boomerang bus master. */
-		vp->cur_rx = vp->dirty_rx = 0;
+		vp->cur_rx = 0;
 		/* Initialize the RxEarly register as recommended. */
 		iowrite16(SetRxThreshold + (1536>>2), ioaddr + EL3_CMD);
 		iowrite32(0x0020, ioaddr + PktStatus);
@@ -1729,10 +1722,10 @@ vortex_open(struct net_device *dev)
 	struct vortex_private *vp = netdev_priv(dev);
 	int i;
 	int retval;
+	dma_addr_t dma;
 
 	/* Use the now-standard shared IRQ implementation. */
-	if ((retval = request_irq(dev->irq, vp->full_bus_master_rx ?
-				boomerang_interrupt : vortex_interrupt, IRQF_SHARED, dev->name, dev))) {
+	if ((retval = request_irq(dev->irq, vortex_boomerang_interrupt, IRQF_SHARED, dev->name, dev))) {
 		pr_err("%s: Could not reserve IRQ %d\n", dev->name, dev->irq);
 		goto err;
 	}
@@ -1753,7 +1746,11 @@ vortex_open(struct net_device *dev)
 				break;			/* Bad news!  */
 
 			skb_reserve(skb, NET_IP_ALIGN);	/* Align IP on 16 byte boundaries */
-			vp->rx_ring[i].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data, PKT_BUF_SZ, PCI_DMA_FROMDEVICE));
+			dma = dma_map_single(vp->gendev, skb->data,
+					     PKT_BUF_SZ, DMA_FROM_DEVICE);
+			if (dma_mapping_error(vp->gendev, dma))
+				break;
+			vp->rx_ring[i].addr = cpu_to_le32(dma);
 		}
 		if (i != RX_RING_SIZE) {
 			pr_emerg("%s: no memory for rx ring\n", dev->name);
@@ -1784,10 +1781,10 @@ out:
 }
 
 static void
-vortex_timer(unsigned long data)
+vortex_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = from_timer(vp, t, timer);
+	struct net_device *dev = vp->mii.dev;
 	void __iomem *ioaddr = vp->ioaddr;
 	int next_tick = 60*HZ;
 	int ok = 0;
@@ -1903,18 +1900,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 		pr_err("%s: Interrupt posted but not delivered --"
 			   " IRQ blocked by another device?\n", dev->name);
 		/* Bad idea here.. but we might as well handle a few events. */
-		{
-			/*
-			 * Block interrupts because vortex_interrupt does a bare spin_lock()
-			 */
-			unsigned long flags;
-			local_irq_save(flags);
-			if (vp->full_bus_master_tx)
-				boomerang_interrupt(dev->irq, dev);
-			else
-				vortex_interrupt(dev->irq, dev);
-			local_irq_restore(flags);
-		}
+		vortex_boomerang_interrupt(dev->irq, dev);
 	}
 
 	if (vortex_debug > 0)
@@ -2065,8 +2051,14 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (vp->bus_master) {
 		/* Set the bus-master controller to transfer the packet. */
 		int len = (skb->len + 3) & ~3;
-		vp->tx_skb_dma = pci_map_single(VORTEX_PCI(vp), skb->data, len,
-						PCI_DMA_TODEVICE);
+		vp->tx_skb_dma = dma_map_single(vp->gendev, skb->data, len,
+						DMA_TO_DEVICE);
+		if (dma_mapping_error(vp->gendev, vp->tx_skb_dma)) {
+			dev_kfree_skb_any(skb);
+			dev->stats.tx_dropped++;
+			return NETDEV_TX_OK;
+		}
+
 		spin_lock_irq(&vp->window_lock);
 		window_set(vp, 7);
 		iowrite32(vp->tx_skb_dma, ioaddr + Wn7_MasterAddr);
@@ -2160,9 +2152,9 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded | AddTCPChksum | AddUDPChksum);
 
 	if (!skb_shinfo(skb)->nr_frags) {
-		dma_addr = pci_map_single(VORTEX_PCI(vp), skb->data, skb->len,
-					  PCI_DMA_TODEVICE);
-		if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr))
+		dma_addr = dma_map_single(vp->gendev, skb->data, skb->len,
+					  DMA_TO_DEVICE);
+		if (dma_mapping_error(vp->gendev, dma_addr))
 			goto out_dma_err;
 
 		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(dma_addr);
@@ -2170,9 +2162,9 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		int i;
 
-		dma_addr = pci_map_single(VORTEX_PCI(vp), skb->data,
-					  skb_headlen(skb), PCI_DMA_TODEVICE);
-		if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr))
+		dma_addr = dma_map_single(vp->gendev, skb->data,
+					  skb_headlen(skb), DMA_TO_DEVICE);
+		if (dma_mapping_error(vp->gendev, dma_addr))
 			goto out_dma_err;
 
 		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(dma_addr);
@@ -2181,21 +2173,21 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-			dma_addr = skb_frag_dma_map(&VORTEX_PCI(vp)->dev, frag,
+			dma_addr = skb_frag_dma_map(vp->gendev, frag,
 						    0,
 						    frag->size,
 						    DMA_TO_DEVICE);
-			if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr)) {
+			if (dma_mapping_error(vp->gendev, dma_addr)) {
 				for(i = i-1; i >= 0; i--)
-					dma_unmap_page(&VORTEX_PCI(vp)->dev,
+					dma_unmap_page(vp->gendev,
 						       le32_to_cpu(vp->tx_ring[entry].frag[i+1].addr),
 						       le32_to_cpu(vp->tx_ring[entry].frag[i+1].length),
 						       DMA_TO_DEVICE);
 
-				pci_unmap_single(VORTEX_PCI(vp),
+				dma_unmap_single(vp->gendev,
 						 le32_to_cpu(vp->tx_ring[entry].frag[0].addr),
 						 le32_to_cpu(vp->tx_ring[entry].frag[0].length),
-						 PCI_DMA_TODEVICE);
+						 DMA_TO_DEVICE);
 
 				goto out_dma_err;
 			}
@@ -2210,8 +2202,8 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 #else
-	dma_addr = pci_map_single(VORTEX_PCI(vp), skb->data, skb->len, PCI_DMA_TODEVICE);
-	if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr))
+	dma_addr = dma_map_single(vp->gendev, skb->data, skb->len, DMA_TO_DEVICE);
+	if (dma_mapping_error(vp->gendev, dma_addr))
 		goto out_dma_err;
 	vp->tx_ring[entry].addr = cpu_to_le32(dma_addr);
 	vp->tx_ring[entry].length = cpu_to_le32(skb->len | LAST_FRAG);
@@ -2246,7 +2238,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 out:
 	return NETDEV_TX_OK;
 out_dma_err:
-	dev_err(&VORTEX_PCI(vp)->dev, "Error mapping dma buffer\n");
+	dev_err(vp->gendev, "Error mapping dma buffer\n");
 	goto out;
 }
 
@@ -2259,9 +2251,8 @@ out_dma_err:
  */
 
 static irqreturn_t
-vortex_interrupt(int irq, void *dev_id)
+_vortex_interrupt(int irq, struct net_device *dev)
 {
-	struct net_device *dev = dev_id;
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr;
 	int status;
@@ -2270,7 +2261,6 @@ vortex_interrupt(int irq, void *dev_id)
 	unsigned int bytes_compl = 0, pkts_compl = 0;
 
 	ioaddr = vp->ioaddr;
-	spin_lock(&vp->lock);
 
 	status = ioread16(ioaddr + EL3_STATUS);
 
@@ -2314,7 +2304,7 @@ vortex_interrupt(int irq, void *dev_id)
 		if (status & DMADone) {
 			if (ioread16(ioaddr + Wn7_MasterStatus) & 0x1000) {
 				iowrite16(0x1000, ioaddr + Wn7_MasterStatus); /* Ack the event. */
-				pci_unmap_single(VORTEX_PCI(vp), vp->tx_skb_dma, (vp->tx_skb->len + 3) & ~3, PCI_DMA_TODEVICE);
+				dma_unmap_single(vp->gendev, vp->tx_skb_dma, (vp->tx_skb->len + 3) & ~3, DMA_TO_DEVICE);
 				pkts_compl++;
 				bytes_compl += vp->tx_skb->len;
 				dev_kfree_skb_irq(vp->tx_skb); /* Release the transferred buffer */
@@ -2368,7 +2358,6 @@ vortex_interrupt(int irq, void *dev_id)
 		pr_debug("%s: exiting interrupt, status %4.4x.\n",
 			   dev->name, status);
 handler_exit:
-	spin_unlock(&vp->lock);
 	return IRQ_RETVAL(handled);
 }
 
@@ -2378,9 +2367,8 @@ handler_exit:
  */
 
 static irqreturn_t
-boomerang_interrupt(int irq, void *dev_id)
+_boomerang_interrupt(int irq, struct net_device *dev)
 {
-	struct net_device *dev = dev_id;
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr;
 	int status;
@@ -2390,12 +2378,6 @@ boomerang_interrupt(int irq, void *dev_id)
 
 	ioaddr = vp->ioaddr;
 
-
-	/*
-	 * It seems dopey to put the spinlock this early, but we could race against vortex_tx_timeout
-	 * and boomerang_start_xmit
-	 */
-	spin_lock(&vp->lock);
 	vp->handling_irq = 1;
 
 	status = ioread16(ioaddr + EL3_STATUS);
@@ -2451,19 +2433,19 @@ boomerang_interrupt(int irq, void *dev_id)
 					struct sk_buff *skb = vp->tx_skbuff[entry];
 #if DO_ZEROCOPY
 					int i;
-					pci_unmap_single(VORTEX_PCI(vp),
+					dma_unmap_single(vp->gendev,
 							le32_to_cpu(vp->tx_ring[entry].frag[0].addr),
 							le32_to_cpu(vp->tx_ring[entry].frag[0].length)&0xFFF,
-							PCI_DMA_TODEVICE);
+							DMA_TO_DEVICE);
 
 					for (i=1; i<=skb_shinfo(skb)->nr_frags; i++)
-							pci_unmap_page(VORTEX_PCI(vp),
+							dma_unmap_page(vp->gendev,
 											 le32_to_cpu(vp->tx_ring[entry].frag[i].addr),
 											 le32_to_cpu(vp->tx_ring[entry].frag[i].length)&0xFFF,
-											 PCI_DMA_TODEVICE);
+											 DMA_TO_DEVICE);
 #else
-					pci_unmap_single(VORTEX_PCI(vp),
-						le32_to_cpu(vp->tx_ring[entry].addr), skb->len, PCI_DMA_TODEVICE);
+					dma_unmap_single(vp->gendev,
+						le32_to_cpu(vp->tx_ring[entry].addr), skb->len, DMA_TO_DEVICE);
 #endif
 					pkts_compl++;
 					bytes_compl += skb->len;
@@ -2514,8 +2496,27 @@ boomerang_interrupt(int irq, void *dev_id)
 			   dev->name, status);
 handler_exit:
 	vp->handling_irq = 0;
-	spin_unlock(&vp->lock);
 	return IRQ_RETVAL(handled);
+}
+
+static irqreturn_t
+vortex_boomerang_interrupt(int irq, void *dev_id)
+{
+	struct net_device *dev = dev_id;
+	struct vortex_private *vp = netdev_priv(dev);
+	unsigned long flags;
+	irqreturn_t ret;
+
+	spin_lock_irqsave(&vp->lock, flags);
+
+	if (vp->full_bus_master_rx)
+		ret = _boomerang_interrupt(dev->irq, dev);
+	else
+		ret = _vortex_interrupt(dev->irq, dev);
+
+	spin_unlock_irqrestore(&vp->lock, flags);
+
+	return ret;
 }
 
 static int vortex_rx(struct net_device *dev)
@@ -2553,14 +2554,14 @@ static int vortex_rx(struct net_device *dev)
 				/* 'skb_put()' points to the start of sk_buff data area. */
 				if (vp->bus_master &&
 					! (ioread16(ioaddr + Wn7_MasterStatus) & 0x8000)) {
-					dma_addr_t dma = pci_map_single(VORTEX_PCI(vp), skb_put(skb, pkt_len),
-									   pkt_len, PCI_DMA_FROMDEVICE);
+					dma_addr_t dma = dma_map_single(vp->gendev, skb_put(skb, pkt_len),
+									   pkt_len, DMA_FROM_DEVICE);
 					iowrite32(dma, ioaddr + Wn7_MasterAddr);
 					iowrite16((skb->len + 3) & ~3, ioaddr + Wn7_MasterLen);
 					iowrite16(StartDMAUp, ioaddr + EL3_CMD);
 					while (ioread16(ioaddr + Wn7_MasterStatus) & 0x8000)
 						;
-					pci_unmap_single(VORTEX_PCI(vp), dma, pkt_len, PCI_DMA_FROMDEVICE);
+					dma_unmap_single(vp->gendev, dma, pkt_len, DMA_FROM_DEVICE);
 				} else {
 					ioread32_rep(ioaddr + RX_FIFO,
 					             skb_put(skb, pkt_len),
@@ -2593,7 +2594,7 @@ boomerang_rx(struct net_device *dev)
 	int entry = vp->cur_rx % RX_RING_SIZE;
 	void __iomem *ioaddr = vp->ioaddr;
 	int rx_status;
-	int rx_work_limit = vp->dirty_rx + RX_RING_SIZE - vp->cur_rx;
+	int rx_work_limit = RX_RING_SIZE;
 
 	if (vortex_debug > 5)
 		pr_debug("boomerang_rx(): status %4.4x\n", ioread16(ioaddr+EL3_STATUS));
@@ -2614,7 +2615,8 @@ boomerang_rx(struct net_device *dev)
 		} else {
 			/* The packet length: up to 4.5K!. */
 			int pkt_len = rx_status & 0x1fff;
-			struct sk_buff *skb;
+			struct sk_buff *skb, *newskb;
+			dma_addr_t newdma;
 			dma_addr_t dma = le32_to_cpu(vp->rx_ring[entry].addr);
 
 			if (vortex_debug > 4)
@@ -2626,18 +2628,36 @@ boomerang_rx(struct net_device *dev)
 			if (pkt_len < rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-				pci_dma_sync_single_for_cpu(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_cpu(vp->gendev, dma, PKT_BUF_SZ, DMA_FROM_DEVICE);
 				/* 'skb_put()' points to the start of sk_buff data area. */
 				skb_put_data(skb, vp->rx_skbuff[entry]->data,
 					     pkt_len);
-				pci_dma_sync_single_for_device(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_device(vp->gendev, dma, PKT_BUF_SZ, DMA_FROM_DEVICE);
 				vp->rx_copy++;
 			} else {
+				/* Pre-allocate the replacement skb.  If it or its
+				 * mapping fails then recycle the buffer thats already
+				 * in place
+				 */
+				newskb = netdev_alloc_skb_ip_align(dev, PKT_BUF_SZ);
+				if (!newskb) {
+					dev->stats.rx_dropped++;
+					goto clear_complete;
+				}
+				newdma = dma_map_single(vp->gendev, newskb->data,
+							PKT_BUF_SZ, DMA_FROM_DEVICE);
+				if (dma_mapping_error(vp->gendev, newdma)) {
+					dev->stats.rx_dropped++;
+					consume_skb(newskb);
+					goto clear_complete;
+				}
+
 				/* Pass up the skbuff already on the Rx ring. */
 				skb = vp->rx_skbuff[entry];
-				vp->rx_skbuff[entry] = NULL;
+				vp->rx_skbuff[entry] = newskb;
+				vp->rx_ring[entry].addr = cpu_to_le32(newdma);
 				skb_put(skb, pkt_len);
-				pci_unmap_single(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
+				dma_unmap_single(vp->gendev, dma, PKT_BUF_SZ, DMA_FROM_DEVICE);
 				vp->rx_nocopy++;
 			}
 			skb->protocol = eth_type_trans(skb, dev);
@@ -2653,53 +2673,13 @@ boomerang_rx(struct net_device *dev)
 			netif_rx(skb);
 			dev->stats.rx_packets++;
 		}
-		entry = (++vp->cur_rx) % RX_RING_SIZE;
-	}
-	/* Refill the Rx ring buffers. */
-	for (; vp->cur_rx - vp->dirty_rx > 0; vp->dirty_rx++) {
-		struct sk_buff *skb;
-		entry = vp->dirty_rx % RX_RING_SIZE;
-		if (vp->rx_skbuff[entry] == NULL) {
-			skb = netdev_alloc_skb_ip_align(dev, PKT_BUF_SZ);
-			if (skb == NULL) {
-				static unsigned long last_jif;
-				if (time_after(jiffies, last_jif + 10 * HZ)) {
-					pr_warn("%s: memory shortage\n",
-						dev->name);
-					last_jif = jiffies;
-				}
-				if ((vp->cur_rx - vp->dirty_rx) == RX_RING_SIZE)
-					mod_timer(&vp->rx_oom_timer, RUN_AT(HZ * 1));
-				break;			/* Bad news!  */
-			}
 
-			vp->rx_ring[entry].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data, PKT_BUF_SZ, PCI_DMA_FROMDEVICE));
-			vp->rx_skbuff[entry] = skb;
-		}
+clear_complete:
 		vp->rx_ring[entry].status = 0;	/* Clear complete bit. */
 		iowrite16(UpUnstall, ioaddr + EL3_CMD);
+		entry = (++vp->cur_rx) % RX_RING_SIZE;
 	}
 	return 0;
-}
-
-/*
- * If we've hit a total OOM refilling the Rx ring we poll once a second
- * for some memory.  Otherwise there is no way to restart the rx process.
- */
-static void
-rx_oom_timer(unsigned long arg)
-{
-	struct net_device *dev = (struct net_device *)arg;
-	struct vortex_private *vp = netdev_priv(dev);
-
-	spin_lock_irq(&vp->lock);
-	if ((vp->cur_rx - vp->dirty_rx) == RX_RING_SIZE)	/* This test is redundant, but makes me feel good */
-		boomerang_rx(dev);
-	if (vortex_debug > 1) {
-		pr_debug("%s: rx_oom_timer %s\n", dev->name,
-			((vp->cur_rx - vp->dirty_rx) != RX_RING_SIZE) ? "succeeded" : "retrying");
-	}
-	spin_unlock_irq(&vp->lock);
 }
 
 static void
@@ -2711,7 +2691,6 @@ vortex_down(struct net_device *dev, int final_down)
 	netdev_reset_queue(dev);
 	netif_stop_queue(dev);
 
-	del_timer_sync(&vp->rx_oom_timer);
 	del_timer_sync(&vp->timer);
 
 	/* Turn off statistics ASAP.  We update dev->stats below. */
@@ -2775,8 +2754,8 @@ vortex_close(struct net_device *dev)
 	if (vp->full_bus_master_rx) { /* Free Boomerang bus master Rx buffers. */
 		for (i = 0; i < RX_RING_SIZE; i++)
 			if (vp->rx_skbuff[i]) {
-				pci_unmap_single(	VORTEX_PCI(vp), le32_to_cpu(vp->rx_ring[i].addr),
-									PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
+				dma_unmap_single(vp->gendev, le32_to_cpu(vp->rx_ring[i].addr),
+									PKT_BUF_SZ, DMA_FROM_DEVICE);
 				dev_kfree_skb(vp->rx_skbuff[i]);
 				vp->rx_skbuff[i] = NULL;
 			}
@@ -2789,12 +2768,12 @@ vortex_close(struct net_device *dev)
 				int k;
 
 				for (k=0; k<=skb_shinfo(skb)->nr_frags; k++)
-						pci_unmap_single(VORTEX_PCI(vp),
+						dma_unmap_single(vp->gendev,
 										 le32_to_cpu(vp->tx_ring[i].frag[k].addr),
 										 le32_to_cpu(vp->tx_ring[i].frag[k].length)&0xFFF,
-										 PCI_DMA_TODEVICE);
+										 DMA_TO_DEVICE);
 #else
-				pci_unmap_single(VORTEX_PCI(vp), le32_to_cpu(vp->tx_ring[i].addr), skb->len, PCI_DMA_TODEVICE);
+				dma_unmap_single(vp->gendev, le32_to_cpu(vp->tx_ring[i].addr), skb->len, DMA_TO_DEVICE);
 #endif
 				dev_kfree_skb(skb);
 				vp->tx_skbuff[i] = NULL;
@@ -3302,11 +3281,10 @@ static void vortex_remove_one(struct pci_dev *pdev)
 
 	pci_iounmap(pdev, vp->ioaddr);
 
-	pci_free_consistent(pdev,
-						sizeof(struct boom_rx_desc) * RX_RING_SIZE
-							+ sizeof(struct boom_tx_desc) * TX_RING_SIZE,
-						vp->rx_ring,
-						vp->rx_ring_dma);
+	dma_free_coherent(&pdev->dev,
+			sizeof(struct boom_rx_desc) * RX_RING_SIZE +
+			sizeof(struct boom_tx_desc) * TX_RING_SIZE,
+			vp->rx_ring, vp->rx_ring_dma);
 
 	pci_release_regions(pdev);
 

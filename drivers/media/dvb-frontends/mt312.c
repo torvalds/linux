@@ -32,7 +32,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mt312_priv.h"
 #include "mt312.h"
 
@@ -142,7 +142,10 @@ static inline int mt312_readreg(struct mt312_state *state,
 static inline int mt312_writereg(struct mt312_state *state,
 				 const enum mt312_reg_addr reg, const u8 val)
 {
-	return mt312_write(state, reg, &val, 1);
+	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+
+
+	return mt312_write(state, reg, &tmp, 1);
 }
 
 static inline u32 mt312_div(u32 a, u32 b)
@@ -556,8 +559,8 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 
 	dprintk("%s: Freq %d\n", __func__, p->frequency);
 
-	if ((p->frequency < fe->ops.info.frequency_min)
-	    || (p->frequency > fe->ops.info.frequency_max))
+	if ((p->frequency < fe->ops.info.frequency_min_hz / kHz)
+	    || (p->frequency > fe->ops.info.frequency_max_hz / kHz))
 		return -EINVAL;
 
 	if (((int)p->inversion < INVERSION_OFF)
@@ -752,10 +755,10 @@ static const struct dvb_frontend_ops mt312_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Zarlink ???? DVB-S",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
 		/* FIXME: adjust freq to real used xtal */
-		.frequency_stepsize = (MT312_PLL_CLK / 1000) / 128,
+		.frequency_stepsize_hz = MT312_PLL_CLK / 128,
 		.symbol_rate_min = MT312_SYS_CLK / 128, /* FIXME as above */
 		.symbol_rate_max = MT312_SYS_CLK / 2,
 		.caps =
@@ -812,17 +815,20 @@ struct dvb_frontend *mt312_attach(const struct mt312_config *config,
 
 	switch (state->id) {
 	case ID_VP310:
-		strcpy(state->frontend.ops.info.name, "Zarlink VP310 DVB-S");
+		strscpy(state->frontend.ops.info.name, "Zarlink VP310 DVB-S",
+			sizeof(state->frontend.ops.info.name));
 		state->xtal = MT312_PLL_CLK;
 		state->freq_mult = 9;
 		break;
 	case ID_MT312:
-		strcpy(state->frontend.ops.info.name, "Zarlink MT312 DVB-S");
+		strscpy(state->frontend.ops.info.name, "Zarlink MT312 DVB-S",
+			sizeof(state->frontend.ops.info.name));
 		state->xtal = MT312_PLL_CLK;
 		state->freq_mult = 6;
 		break;
 	case ID_ZL10313:
-		strcpy(state->frontend.ops.info.name, "Zarlink ZL10313 DVB-S");
+		strscpy(state->frontend.ops.info.name, "Zarlink ZL10313 DVB-S",
+			sizeof(state->frontend.ops.info.name));
 		state->xtal = MT312_PLL_CLK_10_111;
 		state->freq_mult = 9;
 		break;

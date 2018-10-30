@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
  * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
@@ -36,6 +37,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/swap.h>
 
 #define TTM_MEMORY_ALLOC_RETRIES 4
 
@@ -166,6 +168,54 @@ static struct kobj_type ttm_mem_zone_kobj_type = {
 	.default_attrs = ttm_mem_zone_attrs,
 };
 
+static struct attribute ttm_mem_global_lower_mem_limit = {
+	.name = "lower_mem_limit",
+	.mode = S_IRUGO | S_IWUSR
+};
+
+static ssize_t ttm_mem_global_show(struct kobject *kobj,
+				 struct attribute *attr,
+				 char *buffer)
+{
+	struct ttm_mem_global *glob =
+		container_of(kobj, struct ttm_mem_global, kobj);
+	uint64_t val = 0;
+
+	spin_lock(&glob->lock);
+	val = glob->lower_mem_limit;
+	spin_unlock(&glob->lock);
+	/* convert from number of pages to KB */
+	val <<= (PAGE_SHIFT - 10);
+	return snprintf(buffer, PAGE_SIZE, "%llu\n",
+			(unsigned long long) val);
+}
+
+static ssize_t ttm_mem_global_store(struct kobject *kobj,
+				  struct attribute *attr,
+				  const char *buffer,
+				  size_t size)
+{
+	int chars;
+	uint64_t val64;
+	unsigned long val;
+	struct ttm_mem_global *glob =
+		container_of(kobj, struct ttm_mem_global, kobj);
+
+	chars = sscanf(buffer, "%lu", &val);
+	if (chars == 0)
+		return size;
+
+	val64 = val;
+	/* convert from KB to number of pages */
+	val64 >>= (PAGE_SHIFT - 10);
+
+	spin_lock(&glob->lock);
+	glob->lower_mem_limit = val64;
+	spin_unlock(&glob->lock);
+
+	return size;
+}
+
 static void ttm_mem_global_kobj_release(struct kobject *kobj)
 {
 	struct ttm_mem_global *glob =
@@ -174,8 +224,20 @@ static void ttm_mem_global_kobj_release(struct kobject *kobj)
 	kfree(glob);
 }
 
+static struct attribute *ttm_mem_global_attrs[] = {
+	&ttm_mem_global_lower_mem_limit,
+	NULL
+};
+
+static const struct sysfs_ops ttm_mem_global_ops = {
+	.show = &ttm_mem_global_show,
+	.store = &ttm_mem_global_store,
+};
+
 static struct kobj_type ttm_mem_glob_kobj_type = {
 	.release = &ttm_mem_global_kobj_release,
+	.sysfs_ops = &ttm_mem_global_ops,
+	.default_attrs = ttm_mem_global_attrs,
 };
 
 static bool ttm_zones_above_swap_target(struct ttm_mem_global *glob,
@@ -211,35 +273,33 @@ static bool ttm_zones_above_swap_target(struct ttm_mem_global *glob,
  */
 
 static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
-		       uint64_t extra)
+			uint64_t extra, struct ttm_operation_ctx *ctx)
 {
 	int ret;
-	struct ttm_mem_shrink *shrink;
 
 	spin_lock(&glob->lock);
-	if (glob->shrink == NULL)
-		goto out;
 
 	while (ttm_zones_above_swap_target(glob, from_wq, extra)) {
-		shrink = glob->shrink;
 		spin_unlock(&glob->lock);
-		ret = shrink->do_shrink(shrink);
+		ret = ttm_bo_swapout(glob->bo_glob, ctx);
 		spin_lock(&glob->lock);
 		if (unlikely(ret != 0))
-			goto out;
+			break;
 	}
-out:
+
 	spin_unlock(&glob->lock);
 }
 
-
-
 static void ttm_shrink_work(struct work_struct *work)
 {
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	struct ttm_mem_global *glob =
 	    container_of(work, struct ttm_mem_global, work);
 
-	ttm_shrink(glob, true, 0ULL);
+	ttm_shrink(glob, true, 0ULL, &ctx);
 }
 
 static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
@@ -377,6 +437,9 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 
 	si_meminfo(&si);
 
+	/* set it as 0 by default to keep original behavior of OOM */
+	glob->lower_mem_limit = 0;
+
 	ret = ttm_mem_init_kernel_zone(glob, &si);
 	if (unlikely(ret != 0))
 		goto out_no_zone;
@@ -471,6 +534,35 @@ void ttm_mem_global_free(struct ttm_mem_global *glob,
 }
 EXPORT_SYMBOL(ttm_mem_global_free);
 
+/*
+ * check if the available mem is under lower memory limit
+ *
+ * a. if no swap disk at all or free swap space is under swap_mem_limit
+ * but available system mem is bigger than sys_mem_limit, allow TTM
+ * allocation;
+ *
+ * b. if the available system mem is less than sys_mem_limit but free
+ * swap disk is bigger than swap_mem_limit, allow TTM allocation.
+ */
+bool
+ttm_check_under_lowerlimit(struct ttm_mem_global *glob,
+			uint64_t num_pages,
+			struct ttm_operation_ctx *ctx)
+{
+	int64_t available;
+
+	if (ctx->flags & TTM_OPT_FLAG_FORCE_ALLOC)
+		return false;
+
+	available = get_nr_swap_pages() + si_mem_available();
+	available -= num_pages;
+	if (available < glob->lower_mem_limit)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(ttm_check_under_lowerlimit);
+
 static int ttm_mem_global_reserve(struct ttm_mem_global *glob,
 				  struct ttm_mem_zone *single_zone,
 				  uint64_t amount, bool reserve)
@@ -514,7 +606,7 @@ out_unlock:
 static int ttm_mem_global_alloc_zone(struct ttm_mem_global *glob,
 				     struct ttm_mem_zone *single_zone,
 				     uint64_t memory,
-				     bool no_wait, bool interruptible)
+				     struct ttm_operation_ctx *ctx)
 {
 	int count = TTM_MEMORY_ALLOC_RETRIES;
 
@@ -522,34 +614,32 @@ static int ttm_mem_global_alloc_zone(struct ttm_mem_global *glob,
 					       single_zone,
 					       memory, true)
 			!= 0)) {
-		if (no_wait)
+		if (ctx->no_wait_gpu)
 			return -ENOMEM;
 		if (unlikely(count-- == 0))
 			return -ENOMEM;
-		ttm_shrink(glob, false, memory + (memory >> 2) + 16);
+		ttm_shrink(glob, false, memory + (memory >> 2) + 16, ctx);
 	}
 
 	return 0;
 }
 
 int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
-			 bool no_wait, bool interruptible)
+			 struct ttm_operation_ctx *ctx)
 {
 	/**
 	 * Normal allocations of kernel memory are registered in
 	 * all zones.
 	 */
 
-	return ttm_mem_global_alloc_zone(glob, NULL, memory, no_wait,
-					 interruptible);
+	return ttm_mem_global_alloc_zone(glob, NULL, memory, ctx);
 }
 EXPORT_SYMBOL(ttm_mem_global_alloc);
 
 int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
-			      struct page *page,
-			      bool no_wait, bool interruptible)
+			      struct page *page, uint64_t size,
+			      struct ttm_operation_ctx *ctx)
 {
-
 	struct ttm_mem_zone *zone = NULL;
 
 	/**
@@ -564,11 +654,11 @@ int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
 	if (glob->zone_dma32 && page_to_pfn(page) > 0x00100000UL)
 		zone = glob->zone_kernel;
 #endif
-	return ttm_mem_global_alloc_zone(glob, zone, PAGE_SIZE, no_wait,
-					 interruptible);
+	return ttm_mem_global_alloc_zone(glob, zone, size, ctx);
 }
 
-void ttm_mem_global_free_page(struct ttm_mem_global *glob, struct page *page)
+void ttm_mem_global_free_page(struct ttm_mem_global *glob, struct page *page,
+			      uint64_t size)
 {
 	struct ttm_mem_zone *zone = NULL;
 
@@ -579,9 +669,8 @@ void ttm_mem_global_free_page(struct ttm_mem_global *glob, struct page *page)
 	if (glob->zone_dma32 && page_to_pfn(page) > 0x00100000UL)
 		zone = glob->zone_kernel;
 #endif
-	ttm_mem_global_free_zone(glob, zone, PAGE_SIZE);
+	ttm_mem_global_free_zone(glob, zone, size);
 }
-
 
 size_t ttm_round_pot(size_t size)
 {

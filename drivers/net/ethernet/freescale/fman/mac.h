@@ -50,6 +50,8 @@ struct mac_device {
 	struct fman_port	*port[2];
 	u32			 if_support;
 	struct phy_device	*phy_dev;
+	phy_interface_t		phy_if;
+	struct device_node	*phy_node;
 
 	bool autoneg_pause;
 	bool rx_pause_req;
@@ -57,14 +59,16 @@ struct mac_device {
 	bool rx_pause_active;
 	bool tx_pause_active;
 	bool promisc;
+	bool allmulti;
 
-	struct phy_device *(*init_phy)(struct net_device *net_dev,
-				       struct mac_device *mac_dev);
 	int (*init)(struct mac_device *mac_dev);
 	int (*start)(struct mac_device *mac_dev);
 	int (*stop)(struct mac_device *mac_dev);
+	void (*adjust_link)(struct mac_device *mac_dev);
 	int (*set_promisc)(struct fman_mac *mac_dev, bool enable);
 	int (*change_addr)(struct fman_mac *mac_dev, enet_addr_t *enet_addr);
+	int (*set_allmulti)(struct fman_mac *mac_dev, bool enable);
+	int (*set_tstamp)(struct fman_mac *mac_dev, bool enable);
 	int (*set_multi)(struct net_device *net_dev,
 			 struct mac_device *mac_dev);
 	int (*set_rx_pause)(struct fman_mac *mac_dev, bool en);
@@ -82,7 +86,6 @@ struct mac_device {
 };
 
 struct dpaa_eth_data {
-	struct device_node *mac_node;
 	struct mac_device *mac_dev;
 	int mac_hw_id;
 	int fman_hw_id;

@@ -12,9 +12,7 @@
 	       "samsung,exynos5420-tmu-ext-triminfo" for TMU channels 2, 3 and 4
 			Exynos5420 (Must pass triminfo base and triminfo clock)
                "samsung,exynos5433-tmu"
-	       "samsung,exynos5440-tmu"
 	       "samsung,exynos7-tmu"
-- interrupt-parent : The phandle for the interrupt controller
 - reg : Address range of the thermal registers. For soc's which has multiple
 	instances of TMU and some registers are shared across all TMU's like
 	interrupt related then 2 set of register has to supplied. First set
@@ -49,19 +47,6 @@ on the SoC (only first trip points defined in DT will be configured):
  - samsung,exynos5433-tmu: 8
  - samsung,exynos7-tmu: 8
 
-Following properties are mandatory (depending on SoC):
-- samsung,tmu_gain: Gain value for internal TMU operation.
-- samsung,tmu_reference_voltage: Value of TMU IP block's reference voltage
-- samsung,tmu_noise_cancel_mode: Mode for noise cancellation
-- samsung,tmu_efuse_value: Default level of temperature - it is needed when
-			   in factory fusing produced wrong value
-- samsung,tmu_min_efuse_value: Minimum temperature fused value
-- samsung,tmu_max_efuse_value: Maximum temperature fused value
-- samsung,tmu_first_point_trim: First point trimming value
-- samsung,tmu_second_point_trim: Second point trimming value
-- samsung,tmu_default_temp_offset: Default temperature offset
-- samsung,tmu_cal_type: Callibration type
-
 ** Optional properties:
 
 - vtmu-supply: This entry is optional and provides the regulator node supplying
@@ -70,7 +55,7 @@ Following properties are mandatory (depending on SoC):
 
 Example 1):
 
-	tmu@100C0000 {
+	tmu@100c0000 {
 		compatible = "samsung,exynos4412-tmu";
 		interrupt-parent = <&combiner>;
 		reg = <0x100C0000 0x100>;
@@ -78,28 +63,17 @@ Example 1):
 		clocks = <&clock 383>;
 		clock-names = "tmu_apbif";
 		vtmu-supply = <&tmu_regulator_node>;
-		#include "exynos4412-tmu-sensor-conf.dtsi"
+		#thermal-sensor-cells = <0>;
 	};
 
-Example 2):
-
-	tmuctrl_0: tmuctrl@160118 {
-		compatible = "samsung,exynos5440-tmu";
-		reg = <0x160118 0x230>, <0x160368 0x10>;
-		interrupts = <0 58 0>;
-		clocks = <&clock 21>;
-		clock-names = "tmu_apbif";
-		#include "exynos5440-tmu-sensor-conf.dtsi"
-	};
-
-Example 3): (In case of Exynos5420 "with misplaced TRIMINFO register")
+Example 2): (In case of Exynos5420 "with misplaced TRIMINFO register")
 	tmu_cpu2: tmu@10068000 {
 		compatible = "samsung,exynos5420-tmu-ext-triminfo";
 		reg = <0x10068000 0x100>, <0x1006c000 0x4>;
 		interrupts = <0 184 0>;
 		clocks = <&clock 318>, <&clock 318>;
 		clock-names = "tmu_apbif", "tmu_triminfo_apbif";
-		#include "exynos4412-tmu-sensor-conf.dtsi"
+		#thermal-sensor-cells = <0>;
 	};
 
 	tmu_cpu3: tmu@1006c000 {
@@ -108,7 +82,7 @@ Example 3): (In case of Exynos5420 "with misplaced TRIMINFO register")
 		interrupts = <0 185 0>;
 		clocks = <&clock 318>, <&clock 319>;
 		clock-names = "tmu_apbif", "tmu_triminfo_apbif";
-		#include "exynos4412-tmu-sensor-conf.dtsi"
+		#thermal-sensor-cells = <0>;
 	};
 
 	tmu_gpu: tmu@100a0000 {
@@ -117,7 +91,7 @@ Example 3): (In case of Exynos5420 "with misplaced TRIMINFO register")
 		interrupts = <0 215 0>;
 		clocks = <&clock 319>, <&clock 318>;
 		clock-names = "tmu_apbif", "tmu_triminfo_apbif";
-		#include "exynos4412-tmu-sensor-conf.dtsi"
+		#thermal-sensor-cells = <0>;
 	};
 
 Note: For multi-instance tmu each instance should have an alias correctly

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Trace files that want to automate creation of all tracepoints defined
  * in their file should include this file. The following are macros that the
@@ -94,6 +95,7 @@
 #ifdef TRACEPOINTS_ENABLED
 #include <trace/trace_events.h>
 #include <trace/perf.h>
+#include <trace/bpf_probe.h>
 #endif
 
 #undef TRACE_EVENT

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CLKSOURCE_TIMER_SP804_H
 #define __CLKSOURCE_TIMER_SP804_H
 

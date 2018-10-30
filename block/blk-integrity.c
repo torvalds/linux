@@ -49,12 +49,8 @@ int blk_rq_count_integrity_sg(struct request_queue *q, struct bio *bio)
 	bio_for_each_integrity_vec(iv, bio, iter) {
 
 		if (prev) {
-			if (!BIOVEC_PHYS_MERGEABLE(&ivprv, &iv))
+			if (!biovec_phys_mergeable(q, &ivprv, &iv))
 				goto new_segment;
-
-			if (!BIOVEC_SEG_BOUNDARY(q, &ivprv, &iv))
-				goto new_segment;
-
 			if (seg_size + iv.bv_len > queue_max_segment_size(q))
 				goto new_segment;
 
@@ -95,12 +91,8 @@ int blk_rq_map_integrity_sg(struct request_queue *q, struct bio *bio,
 	bio_for_each_integrity_vec(iv, bio, iter) {
 
 		if (prev) {
-			if (!BIOVEC_PHYS_MERGEABLE(&ivprv, &iv))
+			if (!biovec_phys_mergeable(q, &ivprv, &iv))
 				goto new_segment;
-
-			if (!BIOVEC_SEG_BOUNDARY(q, &ivprv, &iv))
-				goto new_segment;
-
 			if (sg->length + iv.bv_len > queue_max_segment_size(q))
 				goto new_segment;
 
@@ -333,34 +325,34 @@ static ssize_t integrity_device_show(struct blk_integrity *bi, char *page)
 }
 
 static struct integrity_sysfs_entry integrity_format_entry = {
-	.attr = { .name = "format", .mode = S_IRUGO },
+	.attr = { .name = "format", .mode = 0444 },
 	.show = integrity_format_show,
 };
 
 static struct integrity_sysfs_entry integrity_tag_size_entry = {
-	.attr = { .name = "tag_size", .mode = S_IRUGO },
+	.attr = { .name = "tag_size", .mode = 0444 },
 	.show = integrity_tag_size_show,
 };
 
 static struct integrity_sysfs_entry integrity_interval_entry = {
-	.attr = { .name = "protection_interval_bytes", .mode = S_IRUGO },
+	.attr = { .name = "protection_interval_bytes", .mode = 0444 },
 	.show = integrity_interval_show,
 };
 
 static struct integrity_sysfs_entry integrity_verify_entry = {
-	.attr = { .name = "read_verify", .mode = S_IRUGO | S_IWUSR },
+	.attr = { .name = "read_verify", .mode = 0644 },
 	.show = integrity_verify_show,
 	.store = integrity_verify_store,
 };
 
 static struct integrity_sysfs_entry integrity_generate_entry = {
-	.attr = { .name = "write_generate", .mode = S_IRUGO | S_IWUSR },
+	.attr = { .name = "write_generate", .mode = 0644 },
 	.show = integrity_generate_show,
 	.store = integrity_generate_store,
 };
 
 static struct integrity_sysfs_entry integrity_device_entry = {
-	.attr = { .name = "device_is_integrity_capable", .mode = S_IRUGO },
+	.attr = { .name = "device_is_integrity_capable", .mode = 0444 },
 	.show = integrity_device_show,
 };
 

@@ -1433,13 +1433,6 @@ static const struct attribute_group mip4_attr_group = {
 	.attrs = mip4_attrs,
 };
 
-static void mip4_sysfs_remove(void *_data)
-{
-	struct mip4_ts *ts = _data;
-
-	sysfs_remove_group(&ts->client->dev.kobj, &mip4_attr_group);
-}
-
 static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct mip4_ts *ts;
@@ -1535,18 +1528,10 @@ static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return error;
 	}
 
-	error = sysfs_create_group(&client->dev.kobj, &mip4_attr_group);
+	error = devm_device_add_group(&client->dev, &mip4_attr_group);
 	if (error) {
 		dev_err(&client->dev,
 			"Failed to create sysfs attribute group: %d\n", error);
-		return error;
-	}
-
-	error = devm_add_action(&client->dev, mip4_sysfs_remove, ts);
-	if (error) {
-		mip4_sysfs_remove(ts);
-		dev_err(&client->dev,
-			"Failed to install sysfs remoce action: %d\n", error);
 		return error;
 	}
 
@@ -1626,6 +1611,5 @@ static struct i2c_driver mip4_driver = {
 module_i2c_driver(mip4_driver);
 
 MODULE_DESCRIPTION("MELFAS MIP4 Touchscreen");
-MODULE_VERSION("2016.10.31");
 MODULE_AUTHOR("Sangwon Jee <jeesw@melfas.com>");
 MODULE_LICENSE("GPL");

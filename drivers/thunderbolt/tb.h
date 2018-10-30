@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Thunderbolt Cactus Ridge driver - bus logic (NHI independent)
+ * Thunderbolt driver - bus logic (NHI independent)
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2018, Intel Corporation
  */
 
 #ifndef TB_H_
@@ -9,6 +11,7 @@
 
 #include <linux/nvmem-provider.h>
 #include <linux/pci.h>
+#include <linux/thunderbolt.h>
 #include <linux/uuid.h>
 
 #include "tb_regs.h"
@@ -39,23 +42,7 @@ struct tb_switch_nvm {
 	bool authenticating;
 };
 
-/**
- * enum tb_security_level - Thunderbolt security level
- * @TB_SECURITY_NONE: No security, legacy mode
- * @TB_SECURITY_USER: User approval required at minimum
- * @TB_SECURITY_SECURE: One time saved key required at minimum
- * @TB_SECURITY_DPONLY: Only tunnel Display port (and USB)
- */
-enum tb_security_level {
-	TB_SECURITY_NONE,
-	TB_SECURITY_USER,
-	TB_SECURITY_SECURE,
-	TB_SECURITY_DPONLY,
-};
-
 #define TB_SWITCH_KEY_SIZE		32
-/* Each physical port contains 2 links on modern controllers */
-#define TB_SWITCH_LINKS_PER_PHY_PORT	2
 
 /**
  * struct tb_switch - a thunderbolt switch
@@ -80,6 +67,8 @@ enum tb_security_level {
  * @nvm: Pointer to the NVM if the switch has one (%NULL otherwise)
  * @no_nvm_upgrade: Prevent NVM upgrade of this switch
  * @safe_mode: The switch is in safe-mode
+ * @boot: Whether the switch was already authorized on boot or not
+ * @rpm: The switch supports runtime PM
  * @authorized: Whether the switch is authorized by user or policy
  * @work: Work used to automatically authorize a switch
  * @security_level: Switch supported security level
@@ -113,6 +102,8 @@ struct tb_switch {
 	struct tb_switch_nvm *nvm;
 	bool no_nvm_upgrade;
 	bool safe_mode;
+	bool boot;
+	bool rpm;
 	unsigned int authorized;
 	struct work_struct work;
 	enum tb_security_level security_level;
@@ -125,14 +116,25 @@ struct tb_switch {
 
 /**
  * struct tb_port - a thunderbolt port, part of a tb_switch
+ * @config: Cached port configuration read from registers
+ * @sw: Switch the port belongs to
+ * @remote: Remote port (%NULL if not connected)
+ * @xdomain: Remote host (%NULL if not connected)
+ * @cap_phy: Offset, zero if not found
+ * @port: Port number on switch
+ * @disabled: Disabled by eeprom
+ * @dual_link_port: If the switch is connected using two ports, points
+ *		    to the other port.
+ * @link_nr: Is this primary or secondary port on the dual_link.
  */
 struct tb_port {
 	struct tb_regs_port_header config;
 	struct tb_switch *sw;
-	struct tb_port *remote; /* remote port, NULL if not connected */
-	int cap_phy; /* offset, zero if not found */
-	u8 port; /* port number on switch */
-	bool disabled; /* disabled by eeprom */
+	struct tb_port *remote;
+	struct tb_xdomain *xdomain;
+	int cap_phy;
+	u8 port;
+	bool disabled;
 	struct tb_port *dual_link_port;
 	u8 link_nr:1;
 };
@@ -200,11 +202,17 @@ struct tb_path {
  * @resume_noirq: Connection manager specific resume_noirq
  * @suspend: Connection manager specific suspend
  * @complete: Connection manager specific complete
+ * @runtime_suspend: Connection manager specific runtime_suspend
+ * @runtime_resume: Connection manager specific runtime_resume
  * @handle_event: Handle thunderbolt event
+ * @get_boot_acl: Get boot ACL list
+ * @set_boot_acl: Set boot ACL list
  * @approve_switch: Approve switch
  * @add_switch_key: Add key to switch
  * @challenge_switch_key: Challenge switch using key
  * @disconnect_pcie_paths: Disconnects PCIe paths before NVM update
+ * @approve_xdomain_paths: Approve (establish) XDomain DMA paths
+ * @disconnect_xdomain_paths: Disconnect XDomain DMA paths
  */
 struct tb_cm_ops {
 	int (*driver_ready)(struct tb *tb);
@@ -214,46 +222,27 @@ struct tb_cm_ops {
 	int (*resume_noirq)(struct tb *tb);
 	int (*suspend)(struct tb *tb);
 	void (*complete)(struct tb *tb);
+	int (*runtime_suspend)(struct tb *tb);
+	int (*runtime_resume)(struct tb *tb);
 	void (*handle_event)(struct tb *tb, enum tb_cfg_pkg_type,
 			     const void *buf, size_t size);
+	int (*get_boot_acl)(struct tb *tb, uuid_t *uuids, size_t nuuids);
+	int (*set_boot_acl)(struct tb *tb, const uuid_t *uuids, size_t nuuids);
 	int (*approve_switch)(struct tb *tb, struct tb_switch *sw);
 	int (*add_switch_key)(struct tb *tb, struct tb_switch *sw);
 	int (*challenge_switch_key)(struct tb *tb, struct tb_switch *sw,
 				    const u8 *challenge, u8 *response);
 	int (*disconnect_pcie_paths)(struct tb *tb);
-};
-
-/**
- * struct tb - main thunderbolt bus structure
- * @dev: Domain device
- * @lock: Big lock. Must be held when accessing any struct
- *	  tb_switch / struct tb_port.
- * @nhi: Pointer to the NHI structure
- * @ctl: Control channel for this domain
- * @wq: Ordered workqueue for all domain specific work
- * @root_switch: Root switch of this domain
- * @cm_ops: Connection manager specific operations vector
- * @index: Linux assigned domain number
- * @security_level: Current security level
- * @privdata: Private connection manager specific data
- */
-struct tb {
-	struct device dev;
-	struct mutex lock;
-	struct tb_nhi *nhi;
-	struct tb_ctl *ctl;
-	struct workqueue_struct *wq;
-	struct tb_switch *root_switch;
-	const struct tb_cm_ops *cm_ops;
-	int index;
-	enum tb_security_level security_level;
-	unsigned long privdata[0];
+	int (*approve_xdomain_paths)(struct tb *tb, struct tb_xdomain *xd);
+	int (*disconnect_xdomain_paths)(struct tb *tb, struct tb_xdomain *xd);
 };
 
 static inline void *tb_priv(struct tb *tb)
 {
 	return (void *)tb->privdata;
 }
+
+#define TB_AUTOSUSPEND_DELAY		15000 /* ms */
 
 /* helper functions & macros */
 
@@ -339,7 +328,7 @@ static inline int tb_port_write(struct tb_port *port, const void *buffer,
 #define tb_WARN(tb, fmt, arg...) dev_WARN(&(tb)->nhi->pdev->dev, fmt, ## arg)
 #define tb_warn(tb, fmt, arg...) dev_warn(&(tb)->nhi->pdev->dev, fmt, ## arg)
 #define tb_info(tb, fmt, arg...) dev_info(&(tb)->nhi->pdev->dev, fmt, ## arg)
-
+#define tb_dbg(tb, fmt, arg...) dev_dbg(&(tb)->nhi->pdev->dev, fmt, ## arg)
 
 #define __TB_SW_PRINT(level, sw, fmt, arg...)           \
 	do {                                            \
@@ -350,7 +339,7 @@ static inline int tb_port_write(struct tb_port *port, const void *buffer,
 #define tb_sw_WARN(sw, fmt, arg...) __TB_SW_PRINT(tb_WARN, sw, fmt, ##arg)
 #define tb_sw_warn(sw, fmt, arg...) __TB_SW_PRINT(tb_warn, sw, fmt, ##arg)
 #define tb_sw_info(sw, fmt, arg...) __TB_SW_PRINT(tb_info, sw, fmt, ##arg)
-
+#define tb_sw_dbg(sw, fmt, arg...) __TB_SW_PRINT(tb_dbg, sw, fmt, ##arg)
 
 #define __TB_PORT_PRINT(level, _port, fmt, arg...)                      \
 	do {                                                            \
@@ -364,17 +353,20 @@ static inline int tb_port_write(struct tb_port *port, const void *buffer,
 	__TB_PORT_PRINT(tb_warn, port, fmt, ##arg)
 #define tb_port_info(port, fmt, arg...) \
 	__TB_PORT_PRINT(tb_info, port, fmt, ##arg)
+#define tb_port_dbg(port, fmt, arg...) \
+	__TB_PORT_PRINT(tb_dbg, port, fmt, ##arg)
 
 struct tb *icm_probe(struct tb_nhi *nhi);
 struct tb *tb_probe(struct tb_nhi *nhi);
 
-extern struct bus_type tb_bus_type;
 extern struct device_type tb_domain_type;
 extern struct device_type tb_switch_type;
 
 int tb_domain_init(void);
 void tb_domain_exit(void);
 void tb_switch_exit(void);
+int tb_xdomain_init(void);
+void tb_xdomain_exit(void);
 
 struct tb *tb_domain_alloc(struct tb_nhi *nhi, size_t privsize);
 int tb_domain_add(struct tb *tb);
@@ -383,10 +375,15 @@ int tb_domain_suspend_noirq(struct tb *tb);
 int tb_domain_resume_noirq(struct tb *tb);
 int tb_domain_suspend(struct tb *tb);
 void tb_domain_complete(struct tb *tb);
+int tb_domain_runtime_suspend(struct tb *tb);
+int tb_domain_runtime_resume(struct tb *tb);
 int tb_domain_approve_switch(struct tb *tb, struct tb_switch *sw);
 int tb_domain_approve_switch_key(struct tb *tb, struct tb_switch *sw);
 int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw);
 int tb_domain_disconnect_pcie_paths(struct tb *tb);
+int tb_domain_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd);
+int tb_domain_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd);
+int tb_domain_disconnect_all_paths(struct tb *tb);
 
 static inline void tb_domain_put(struct tb *tb)
 {
@@ -408,10 +405,13 @@ struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route);
 struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link,
 					       u8 depth);
 struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_t *uuid);
+struct tb_switch *tb_switch_find_by_route(struct tb *tb, u64 route);
 
-static inline unsigned int tb_switch_phy_port_from_link(unsigned int link)
+static inline struct tb_switch *tb_switch_get(struct tb_switch *sw)
 {
-	return (link - 1) / TB_SWITCH_LINKS_PER_PHY_PORT;
+	if (sw)
+		get_device(&sw->dev);
+	return sw;
 }
 
 static inline void tb_switch_put(struct tb_switch *sw)
@@ -470,5 +470,15 @@ static inline u64 tb_downstream_route(struct tb_port *port)
 	return tb_route(port->sw)
 	       | ((u64) port->port << (port->sw->config.depth * 8));
 }
+
+bool tb_xdomain_handle_request(struct tb *tb, enum tb_cfg_pkg_type type,
+			       const void *buf, size_t size);
+struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
+				    u64 route, const uuid_t *local_uuid,
+				    const uuid_t *remote_uuid);
+void tb_xdomain_add(struct tb_xdomain *xd);
+void tb_xdomain_remove(struct tb_xdomain *xd);
+struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
+						 u8 depth);
 
 #endif

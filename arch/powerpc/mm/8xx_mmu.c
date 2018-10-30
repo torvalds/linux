@@ -67,7 +67,7 @@ void __init MMU_init_hw(void)
 	/* PIN up to the 3 first 8Mb after IMMR in DTLB table */
 #ifdef CONFIG_PIN_TLB_DATA
 	unsigned long ctr = mfspr(SPRN_MD_CTR) & 0xfe000000;
-	unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY;
+	unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_SH | _PAGE_DIRTY;
 #ifdef CONFIG_PIN_TLB_IMMR
 	int i = 29;
 #else
@@ -79,7 +79,7 @@ void __init MMU_init_hw(void)
 	for (; i < 32 && mem >= LARGE_PAGE_SIZE_8M; i++) {
 		mtspr(SPRN_MD_CTR, ctr | (i << 8));
 		mtspr(SPRN_MD_EPN, (unsigned long)__va(addr) | MD_EVALID);
-		mtspr(SPRN_MD_TWC, MD_PS8MEG | MD_SVALID);
+		mtspr(SPRN_MD_TWC, MD_PS8MEG | MD_SVALID | M_APG2);
 		mtspr(SPRN_MD_RPN, addr | flags | _PAGE_PRESENT);
 		addr += LARGE_PAGE_SIZE_8M;
 		mem -= LARGE_PAGE_SIZE_8M;
@@ -91,11 +91,10 @@ static void __init mmu_mapin_immr(void)
 {
 	unsigned long p = PHYS_IMMR_BASE;
 	unsigned long v = VIRT_IMMR_BASE;
-	unsigned long f = pgprot_val(PAGE_KERNEL_NCG);
 	int offset;
 
 	for (offset = 0; offset < IMMR_SIZE; offset += PAGE_SIZE)
-		map_kernel_page(v + offset, p + offset, f);
+		map_kernel_page(v + offset, p + offset, PAGE_KERNEL_NCG);
 }
 
 /* Address of instructions to patch */
@@ -192,7 +191,7 @@ void set_context(unsigned long id, pgd_t *pgd)
 	mtspr(SPRN_M_TW, __pa(pgd) - offset);
 
 	/* Update context */
-	mtspr(SPRN_M_CASID, id);
+	mtspr(SPRN_M_CASID, id - 1);
 	/* sync */
 	mb();
 }

@@ -19,9 +19,8 @@
 
 struct sun4i_drv {
 	struct list_head	engine_list;
+	struct list_head	frontend_list;
 	struct list_head	tcon_list;
-
-	struct drm_fbdev_cma	*fbdev;
 };
 
 #endif /* _SUN4I_DRV_H_ */

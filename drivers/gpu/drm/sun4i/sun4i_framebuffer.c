@@ -10,28 +10,44 @@
  * the License, or (at your option) any later version.
  */
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drmP.h>
 
 #include "sun4i_drv.h"
 #include "sun4i_framebuffer.h"
 
-static void sun4i_de_output_poll_changed(struct drm_device *drm)
+static int sun4i_de_atomic_check(struct drm_device *dev,
+				 struct drm_atomic_state *state)
 {
-	struct sun4i_drv *drv = drm->dev_private;
+	int ret;
 
-	drm_fbdev_cma_hotplug_event(drv->fbdev);
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_normalize_zpos(dev, state);
+	if (ret)
+		return ret;
+
+	return drm_atomic_helper_check_planes(dev, state);
 }
 
 static const struct drm_mode_config_funcs sun4i_de_mode_config_funcs = {
-	.output_poll_changed	= sun4i_de_output_poll_changed,
-	.atomic_check		= drm_atomic_helper_check,
+	.output_poll_changed	= drm_fb_helper_output_poll_changed,
+	.atomic_check		= sun4i_de_atomic_check,
 	.atomic_commit		= drm_atomic_helper_commit,
-	.fb_create		= drm_fb_cma_create,
+	.fb_create		= drm_gem_fb_create,
 };
 
-struct drm_fbdev_cma *sun4i_framebuffer_init(struct drm_device *drm)
+static struct drm_mode_config_helper_funcs sun4i_de_mode_config_helpers = {
+	.atomic_commit_tail	= drm_atomic_helper_commit_tail_rpm,
+};
+
+int sun4i_framebuffer_init(struct drm_device *drm)
 {
 	drm_mode_config_reset(drm);
 
@@ -39,13 +55,12 @@ struct drm_fbdev_cma *sun4i_framebuffer_init(struct drm_device *drm)
 	drm->mode_config.max_height = 8192;
 
 	drm->mode_config.funcs = &sun4i_de_mode_config_funcs;
+	drm->mode_config.helper_private = &sun4i_de_mode_config_helpers;
 
-	return drm_fbdev_cma_init(drm, 32, drm->mode_config.num_connector);
+	return drm_fb_cma_fbdev_init(drm, 32, 0);
 }
 
 void sun4i_framebuffer_free(struct drm_device *drm)
 {
-	struct sun4i_drv *drv = drm->dev_private;
-
-	drm_fbdev_cma_fini(drv->fbdev);
+	drm_fb_cma_fbdev_fini(drm);
 }

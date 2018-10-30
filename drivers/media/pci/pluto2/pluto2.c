@@ -4,7 +4,7 @@
  * Copyright (C) 2005 Andreas Oberritter <obi@linuxtv.org>
  *
  * based on pluto2.c 1.10 - http://instinct-wp8.no-ip.org/pluto/
- * 	by Dany Salman <salmandany@yahoo.fr>
+ *	by Dany Salman <salmandany@yahoo.fr>
  *	Copyright (c) 2004 TDF
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,12 +29,12 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 
-#include "demux.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
-#include "dvbdev.h"
+#include <media/demux.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
+#include <media/dvbdev.h>
 #include "tda1004x.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
@@ -633,7 +633,7 @@ static int pluto2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* i2c */
 	i2c_set_adapdata(&pluto->i2c_adap, pluto);
-	strcpy(pluto->i2c_adap.name, DRIVER_NAME);
+	strscpy(pluto->i2c_adap.name, DRIVER_NAME, sizeof(pluto->i2c_adap.name));
 	pluto->i2c_adap.owner = THIS_MODULE;
 	pluto->i2c_adap.dev.parent = &pdev->dev;
 	pluto->i2c_adap.algo_data = &pluto->i2c_bit;

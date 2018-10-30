@@ -1,5 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/spmi/spmi.h>
 
 &spmi_bus {
@@ -17,12 +19,19 @@
 			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		pwrkey@800 {
-			compatible = "qcom,pm8941-pwrkey";
+		pon@800 {
+			compatible = "qcom,pm8916-pon";
 			reg = <0x800>;
-			interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
-			debounce = <15625>;
-			bias-pull-up;
+			mode-bootloader = <0x2>;
+			mode-recovery = <0x1>;
+
+			pwrkey {
+				compatible = "qcom,pm8941-pwrkey";
+				interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
+				debounce = <15625>;
+				bias-pull-up;
+				linux,code = <KEY_POWER>;
+			};
 		};
 
 		pm8916_gpios: gpios@c000 {
@@ -96,47 +105,45 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-                wcd_codec: codec@f000 {
-                       compatible = "qcom,pm8916-wcd-analog-codec";
-	               reg = <0xf000 0x200>;
-	               reg-names = "pmic-codec-core";
-	               clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
-	               clock-names = "mclk";
-	               interrupt-parent = <&spmi_bus>;
-	               interrupts = <0x1 0xf0 0x0 IRQ_TYPE_NONE>,
-	                            <0x1 0xf0 0x1 IRQ_TYPE_NONE>,
-	                            <0x1 0xf0 0x2 IRQ_TYPE_NONE>,
-	                            <0x1 0xf0 0x3 IRQ_TYPE_NONE>,
-	                            <0x1 0xf0 0x4 IRQ_TYPE_NONE>,
-	                            <0x1 0xf0 0x5 IRQ_TYPE_NONE>,
-	                            <0x1 0xf0 0x6 IRQ_TYPE_NONE>,
-	                            <0x1 0xf0 0x7 IRQ_TYPE_NONE>,
-	                            <0x1 0xf1 0x0 IRQ_TYPE_NONE>,
-	                            <0x1 0xf1 0x1 IRQ_TYPE_NONE>,
-	                            <0x1 0xf1 0x2 IRQ_TYPE_NONE>,
-	                            <0x1 0xf1 0x3 IRQ_TYPE_NONE>,
-	                            <0x1 0xf1 0x4 IRQ_TYPE_NONE>,
-	                            <0x1 0xf1 0x5 IRQ_TYPE_NONE>;
-	               interrupt-names = "cdc_spk_cnp_int",
-	                                 "cdc_spk_clip_int",
-	                                 "cdc_spk_ocp_int",
-	                                 "mbhc_ins_rem_det1",
-	                                 "mbhc_but_rel_det",
-	                                 "mbhc_but_press_det",
-	                                 "mbhc_ins_rem_det",
-	                                 "mbhc_switch_int",
-	                                 "cdc_ear_ocp_int",
-	                                 "cdc_hphr_ocp_int",
-	                                 "cdc_hphl_ocp_det",
-	                                 "cdc_ear_cnp_int",
-	                                 "cdc_hphr_cnp_int",
-	                                 "cdc_hphl_cnp_int";
-	               vdd-cdc-io-supply = <&pm8916_l5>;
-	               vdd-cdc-tx-rx-cx-supply = <&pm8916_l5>;
-	               vdd-micbias-supply = <&pm8916_l13>;
-	               #sound-dai-cells = <1>;
-
-                };
-
+		wcd_codec: codec@f000 {
+			compatible = "qcom,pm8916-wcd-analog-codec";
+			reg = <0xf000 0x200>;
+			reg-names = "pmic-codec-core";
+			clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
+			clock-names = "mclk";
+			interrupt-parent = <&spmi_bus>;
+			interrupts = <0x1 0xf0 0x0 IRQ_TYPE_NONE>,
+				     <0x1 0xf0 0x1 IRQ_TYPE_NONE>,
+				     <0x1 0xf0 0x2 IRQ_TYPE_NONE>,
+				     <0x1 0xf0 0x3 IRQ_TYPE_NONE>,
+				     <0x1 0xf0 0x4 IRQ_TYPE_NONE>,
+				     <0x1 0xf0 0x5 IRQ_TYPE_NONE>,
+				     <0x1 0xf0 0x6 IRQ_TYPE_NONE>,
+				     <0x1 0xf0 0x7 IRQ_TYPE_NONE>,
+				     <0x1 0xf1 0x0 IRQ_TYPE_NONE>,
+				     <0x1 0xf1 0x1 IRQ_TYPE_NONE>,
+				     <0x1 0xf1 0x2 IRQ_TYPE_NONE>,
+				     <0x1 0xf1 0x3 IRQ_TYPE_NONE>,
+				     <0x1 0xf1 0x4 IRQ_TYPE_NONE>,
+				     <0x1 0xf1 0x5 IRQ_TYPE_NONE>;
+			interrupt-names = "cdc_spk_cnp_int",
+					  "cdc_spk_clip_int",
+					  "cdc_spk_ocp_int",
+					  "mbhc_ins_rem_det1",
+					  "mbhc_but_rel_det",
+					  "mbhc_but_press_det",
+					  "mbhc_ins_rem_det",
+					  "mbhc_switch_int",
+					  "cdc_ear_ocp_int",
+					  "cdc_hphr_ocp_int",
+					  "cdc_hphl_ocp_det",
+					  "cdc_ear_cnp_int",
+					  "cdc_hphr_cnp_int",
+					  "cdc_hphl_cnp_int";
+			vdd-cdc-io-supply = <&pm8916_l5>;
+			vdd-cdc-tx-rx-cx-supply = <&pm8916_l5>;
+			vdd-micbias-supply = <&pm8916_l13>;
+			#sound-dai-cells = <1>;
+		};
 	};
 };

@@ -1,0 +1,38 @@
+TDA7419 audio processor
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "st,tda7419"
+- reg : the I2C address of the device.
+- vdd-supply : a regulator spec for the common power supply (8-10V)
+
+Optional properties:
+
+- st,mute-gpios : a GPIO spec for the MUTE pin.
+
+Pins on the device (for linking into audio routes):
+
+  * SE3L
+  * SE3R
+  * SE2L
+  * SE2R
+  * SE1L
+  * SE1R
+  * DIFFL
+  * DIFFR
+  * MIX
+  * OUTLF
+  * OUTRF
+  * OUTLR
+  * OUTRR
+  * OUTSW
+
+Example:
+
+ap: tda7419@44 {
+	compatible = "st,tda7419";
+	reg = <0x44>;
+	vdd-supply = <&vdd_9v0_reg>;
+};

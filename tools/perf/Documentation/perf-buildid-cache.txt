@@ -24,6 +24,9 @@ OPTIONS
 -a::
 --add=::
         Add specified file to the cache.
+-f::
+--force::
+	Don't complain, do it.
 -k::
 --kcore::
         Add specified kcore file to the cache. For the current host that is
@@ -45,6 +48,9 @@ OPTIONS
 --purge=::
         Purge all cached binaries including older caches which have specified
 	path from the cache.
+-P::
+--purge-all::
+	Purge all cached binaries. This will flush out entire cache.
 -M::
 --missing=::
 	List missing build ids in the cache for the specified file.
@@ -56,7 +62,9 @@ OPTIONS
 	exactly same build-id, that is replaced by new one. It can be used
 	to update kallsyms and kernel dso to vmlinux in order to support
 	annotation.
-
+-l::
+--list::
+	List all valid binaries from cache.
 -v::
 --verbose::
 	Be more verbose.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* written by Philipp Rumpf, Copyright (C) 1999 SuSE GmbH Nuernberg
 ** Copyright (C) 2000 Grant Grundler, Hewlett-Packard
 */
@@ -23,5 +24,16 @@ static inline unsigned long regs_return_value(struct pt_regs *regs)
 {
 	return regs->gr[20];
 }
+
+static inline void instruction_pointer_set(struct pt_regs *regs,
+						unsigned long val)
+{
+        regs->iaoq[0] = val;
+}
+
+/* Query offset/name of register from its name/offset */
+extern int regs_query_register_offset(const char *name);
+extern const char *regs_query_register_name(unsigned int offset);
+#define MAX_REG_OFFSET (offsetof(struct pt_regs, ipsw))
 
 #endif

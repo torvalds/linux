@@ -8,6 +8,8 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "ssb_private.h"
+
 #include <linux/ssb/ssb.h>
 
 #include <linux/mtd/physmap.h>
@@ -18,8 +20,6 @@
 #ifdef CONFIG_BCM47XX
 #include <linux/bcm47xx_nvram.h>
 #endif
-
-#include "ssb_private.h"
 
 static const char * const part_probes[] = { "bcm47xxpart", NULL };
 
@@ -170,14 +170,15 @@ static void set_irq(struct ssb_device *dev, unsigned int irq)
 		irqflag |= (ipsflag & ~ipsflag_irq_mask[irq]);
 		ssb_write32(mdev, SSB_IPSFLAG, irqflag);
 	}
-	ssb_dbg("set_irq: core 0x%04x, irq %d => %d\n",
+	dev_dbg(dev->dev, "set_irq: core 0x%04x, irq %d => %d\n",
 		dev->id.coreid, oldirq+2, irq+2);
 }
 
 static void print_irq(struct ssb_device *dev, unsigned int irq)
 {
 	static const char *irq_name[] = {"2(S)", "3", "4", "5", "6", "D", "I"};
-	ssb_dbg("core 0x%04x, irq : %s%s %s%s %s%s %s%s %s%s %s%s %s%s\n",
+	dev_dbg(dev->dev,
+		"core 0x%04x, irq : %s%s %s%s %s%s %s%s %s%s %s%s %s%s\n",
 		dev->id.coreid,
 		irq_name[0], irq == 0 ? "*" : " ",
 		irq_name[1], irq == 1 ? "*" : " ",
@@ -229,11 +230,11 @@ static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 	switch (bus->chipco.capabilities & SSB_CHIPCO_CAP_FLASHT) {
 	case SSB_CHIPCO_FLASHT_STSER:
 	case SSB_CHIPCO_FLASHT_ATSER:
-		pr_debug("Found serial flash\n");
+		dev_dbg(mcore->dev->dev, "Found serial flash\n");
 		ssb_sflash_init(&bus->chipco);
 		break;
 	case SSB_CHIPCO_FLASHT_PARA:
-		pr_debug("Found parallel flash\n");
+		dev_dbg(mcore->dev->dev, "Found parallel flash\n");
 		pflash->present = true;
 		pflash->window = SSB_FLASH2;
 		pflash->window_size = SSB_FLASH2_SZ;
@@ -299,7 +300,7 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 	if (!mcore->dev)
 		return; /* We don't have a MIPS core */
 
-	ssb_dbg("Initializing MIPS core...\n");
+	dev_dbg(mcore->dev->dev, "Initializing MIPS core...\n");
 
 	bus = mcore->dev->bus;
 	hz = ssb_clockspeed(bus);
@@ -347,7 +348,7 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 			break;
 		}
 	}
-	ssb_dbg("after irq reconfiguration\n");
+	dev_dbg(mcore->dev->dev, "after irq reconfiguration\n");
 	dump_irq(bus);
 
 	ssb_mips_serial_init(mcore);

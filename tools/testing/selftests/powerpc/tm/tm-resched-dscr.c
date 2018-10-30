@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Test context switching to see if the DSCR SPR is correctly preserved
  * when within a transaction.
  *

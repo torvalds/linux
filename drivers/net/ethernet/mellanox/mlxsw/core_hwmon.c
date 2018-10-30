@@ -1,36 +1,5 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/core_hwmon.c
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2015 Jiri Pirko <jiri@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -218,32 +187,32 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 	switch (attr_type) {
 	case MLXSW_HWMON_ATTR_TYPE_TEMP:
 		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_temp_show;
-		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IRUGO;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "temp%u_input", num + 1);
 		break;
 	case MLXSW_HWMON_ATTR_TYPE_TEMP_MAX:
 		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_temp_max_show;
-		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IRUGO;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "temp%u_highest", num + 1);
 		break;
 	case MLXSW_HWMON_ATTR_TYPE_TEMP_RST:
 		mlxsw_hwmon_attr->dev_attr.store = mlxsw_hwmon_temp_rst_store;
-		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IWUSR;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0200;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "temp%u_reset_history", num + 1);
 		break;
 	case MLXSW_HWMON_ATTR_TYPE_FAN_RPM:
 		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_fan_rpm_show;
-		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IRUGO;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "fan%u_input", num + 1);
 		break;
 	case MLXSW_HWMON_ATTR_TYPE_PWM:
 		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_pwm_show;
 		mlxsw_hwmon_attr->dev_attr.store = mlxsw_hwmon_pwm_store;
-		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IWUSR | S_IRUGO;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0644;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "pwm%u", num + 1);
 		break;
@@ -334,8 +303,7 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 	struct device *hwmon_dev;
 	int err;
 
-	mlxsw_hwmon = devm_kzalloc(mlxsw_bus_info->dev, sizeof(*mlxsw_hwmon),
-				   GFP_KERNEL);
+	mlxsw_hwmon = kzalloc(sizeof(*mlxsw_hwmon), GFP_KERNEL);
 	if (!mlxsw_hwmon)
 		return -ENOMEM;
 	mlxsw_hwmon->core = mlxsw_core;
@@ -352,10 +320,9 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_hwmon->groups[0] = &mlxsw_hwmon->group;
 	mlxsw_hwmon->group.attrs = mlxsw_hwmon->attrs;
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(mlxsw_bus_info->dev,
-							   "mlxsw",
-							   mlxsw_hwmon,
-							   mlxsw_hwmon->groups);
+	hwmon_dev = hwmon_device_register_with_groups(mlxsw_bus_info->dev,
+						      "mlxsw", mlxsw_hwmon,
+						      mlxsw_hwmon->groups);
 	if (IS_ERR(hwmon_dev)) {
 		err = PTR_ERR(hwmon_dev);
 		goto err_hwmon_register;
@@ -368,5 +335,12 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 err_hwmon_register:
 err_fans_init:
 err_temp_init:
+	kfree(mlxsw_hwmon);
 	return err;
+}
+
+void mlxsw_hwmon_fini(struct mlxsw_hwmon *mlxsw_hwmon)
+{
+	hwmon_device_unregister(mlxsw_hwmon->hwmon_dev);
+	kfree(mlxsw_hwmon);
 }

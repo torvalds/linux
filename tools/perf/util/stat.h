@@ -1,12 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_STATS_H
 #define __PERF_STATS_H
 
 #include <linux/types.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
 #include "xyarray.h"
+#include "rblist.h"
+#include "perf.h"
+#include "event.h"
 
-struct stats
-{
+struct stats {
 	double n, mean, M2;
 	u64 max, min;
 };
@@ -42,11 +49,83 @@ enum aggr_mode {
 	AGGR_UNSET,
 };
 
+enum {
+	CTX_BIT_USER	= 1 << 0,
+	CTX_BIT_KERNEL	= 1 << 1,
+	CTX_BIT_HV	= 1 << 2,
+	CTX_BIT_HOST	= 1 << 3,
+	CTX_BIT_IDLE	= 1 << 4,
+	CTX_BIT_MAX	= 1 << 5,
+};
+
+#define NUM_CTX CTX_BIT_MAX
+
+enum stat_type {
+	STAT_NONE = 0,
+	STAT_NSECS,
+	STAT_CYCLES,
+	STAT_STALLED_CYCLES_FRONT,
+	STAT_STALLED_CYCLES_BACK,
+	STAT_BRANCHES,
+	STAT_CACHEREFS,
+	STAT_L1_DCACHE,
+	STAT_L1_ICACHE,
+	STAT_LL_CACHE,
+	STAT_ITLB_CACHE,
+	STAT_DTLB_CACHE,
+	STAT_CYCLES_IN_TX,
+	STAT_TRANSACTION,
+	STAT_ELISION,
+	STAT_TOPDOWN_TOTAL_SLOTS,
+	STAT_TOPDOWN_SLOTS_ISSUED,
+	STAT_TOPDOWN_SLOTS_RETIRED,
+	STAT_TOPDOWN_FETCH_BUBBLES,
+	STAT_TOPDOWN_RECOVERY_BUBBLES,
+	STAT_SMI_NUM,
+	STAT_APERF,
+	STAT_MAX
+};
+
+struct runtime_stat {
+	struct rblist value_list;
+};
+
+typedef int (*aggr_get_id_t)(struct perf_stat_config *config,
+			     struct cpu_map *m, int cpu);
+
 struct perf_stat_config {
-	enum aggr_mode	aggr_mode;
-	bool		scale;
-	FILE		*output;
-	unsigned int	interval;
+	enum aggr_mode		 aggr_mode;
+	bool			 scale;
+	bool			 no_inherit;
+	bool			 identifier;
+	bool			 csv_output;
+	bool			 interval_clear;
+	bool			 metric_only;
+	bool			 null_run;
+	bool			 ru_display;
+	bool			 big_num;
+	bool			 no_merge;
+	bool			 walltime_run_table;
+	FILE			*output;
+	unsigned int		 interval;
+	unsigned int		 timeout;
+	unsigned int		 initial_delay;
+	unsigned int		 unit_width;
+	unsigned int		 metric_only_len;
+	int			 times;
+	int			 run_count;
+	int			 print_free_counters_hint;
+	int			 print_mixed_hw_group_error;
+	struct runtime_stat	*stats;
+	int			 stats_num;
+	const char		*csv_sep;
+	struct stats		*walltime_nsecs_stats;
+	struct rusage		 ru_data;
+	struct cpu_map		*aggr_map;
+	aggr_get_id_t		 aggr_get_id;
+	struct cpu_map		*cpus_aggr_map;
+	u64			*walltime_run;
+	struct rblist		 metric_events;
 };
 
 void update_stats(struct stats *stats, u64 val);
@@ -66,24 +145,36 @@ static inline void init_stats(struct stats *stats)
 struct perf_evsel;
 struct perf_evlist;
 
+struct perf_aggr_thread_value {
+	struct perf_evsel *counter;
+	int id;
+	double uval;
+	u64 val;
+	u64 run;
+	u64 ena;
+};
+
 bool __perf_evsel_stat__is(struct perf_evsel *evsel,
 			   enum perf_stat_evsel_id id);
 
 #define perf_stat_evsel__is(evsel, id) \
 	__perf_evsel_stat__is(evsel, PERF_STAT_EVSEL_ID__ ## id)
 
-void perf_stat_evsel_id_init(struct perf_evsel *evsel);
-
+extern struct runtime_stat rt_stat;
 extern struct stats walltime_nsecs_stats;
 
-typedef void (*print_metric_t)(void *ctx, const char *color, const char *unit,
+typedef void (*print_metric_t)(struct perf_stat_config *config,
+			       void *ctx, const char *color, const char *unit,
 			       const char *fmt, double val);
-typedef void (*new_line_t )(void *ctx);
+typedef void (*new_line_t)(struct perf_stat_config *config, void *ctx);
 
+void runtime_stat__init(struct runtime_stat *st);
+void runtime_stat__exit(struct runtime_stat *st);
 void perf_stat__init_shadow_stats(void);
 void perf_stat__reset_shadow_stats(void);
-void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
-				    int cpu);
+void perf_stat__reset_shadow_per_stat(struct runtime_stat *st);
+void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 count,
+				    int cpu, struct runtime_stat *st);
 struct perf_stat_output_ctx {
 	void *ctx;
 	print_metric_t print_metric;
@@ -91,9 +182,12 @@ struct perf_stat_output_ctx {
 	bool force_header;
 };
 
-void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
+void perf_stat__print_shadow_stats(struct perf_stat_config *config,
+				   struct perf_evsel *evsel,
 				   double avg, int cpu,
-				   struct perf_stat_output_ctx *out);
+				   struct perf_stat_output_ctx *out,
+				   struct rblist *metric_events,
+				   struct runtime_stat *st);
 void perf_stat__collect_metric_expr(struct perf_evlist *);
 
 int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw);
@@ -105,11 +199,25 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 struct perf_tool;
 union perf_event;
 struct perf_session;
-int perf_event__process_stat_event(struct perf_tool *tool,
-				   union perf_event *event,
-				   struct perf_session *session);
+int perf_event__process_stat_event(struct perf_session *session,
+				   union perf_event *event);
 
 size_t perf_event__fprintf_stat(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_stat_round(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp);
+
+int create_perf_stat_counter(struct perf_evsel *evsel,
+			     struct perf_stat_config *config,
+			     struct target *target);
+int perf_stat_synthesize_config(struct perf_stat_config *config,
+				struct perf_tool *tool,
+				struct perf_evlist *evlist,
+				perf_event__handler_t process,
+				bool attrs);
+void
+perf_evlist__print_counters(struct perf_evlist *evlist,
+			    struct perf_stat_config *config,
+			    struct target *_target,
+			    struct timespec *ts,
+			    int argc, const char **argv);
 #endif

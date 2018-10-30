@@ -443,7 +443,7 @@ static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
 
 	if (gspca_dev->usb_err < 0)
 		return;
-	PDEBUG(D_USBO, "reg_w v: %04x i: %04x", value, index);
+	gspca_dbg(gspca_dev, D_USBO, "reg_w v: %04x i: %04x\n", value, index);
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0x0c,			/* request */
@@ -464,8 +464,8 @@ static void reg_wb(struct gspca_dev *gspca_dev, u16 value, u16 index,
 
 	if (gspca_dev->usb_err < 0)
 		return;
-	PDEBUG(D_USBO, "reg_wb v: %04x i: %04x %02x...%02x",
-			value, index, *data, data[len - 1]);
+	gspca_dbg(gspca_dev, D_USBO, "reg_wb v: %04x i: %04x %02x...%02x\n",
+		  value, index, *data, data[len - 1]);
 	memcpy(gspca_dev->usb_buf, data, len);
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
@@ -510,8 +510,8 @@ static void i2c_write(struct sd *sd,
 		*buf++ = cmd->val;
 	}
 
-	PDEBUG(D_USBO, "i2c_w v: %04x i: %04x %02x...%02x",
-			val, idx, gspca_dev->usb_buf[0], buf[-1]);
+	gspca_dbg(gspca_dev, D_USBO, "i2c_w v: %04x i: %04x %02x...%02x\n",
+		  val, idx, gspca_dev->usb_buf[0], buf[-1]);
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0x0c,			/* request */
@@ -538,7 +538,7 @@ static void ucbus_write(struct gspca_dev *gspca_dev,
 		return;
 
 	if ((batchsize - 1) * 3 > USB_BUF_SZ) {
-		PERR("Bug: usb_buf overflow\n");
+		gspca_err(gspca_dev, "Bug: usb_buf overflow\n");
 		gspca_dev->usb_err = -ENOMEM;
 		return;
 	}
@@ -560,12 +560,12 @@ static void ucbus_write(struct gspca_dev *gspca_dev,
 			*buf++ = cmd->bw_data;
 		}
 		if (buf != gspca_dev->usb_buf)
-			PDEBUG(D_USBO, "ucbus v: %04x i: %04x %02x...%02x",
-					val, idx,
-					gspca_dev->usb_buf[0], buf[-1]);
+			gspca_dbg(gspca_dev, D_USBO, "ucbus v: %04x i: %04x %02x...%02x\n",
+				  val, idx,
+				  gspca_dev->usb_buf[0], buf[-1]);
 		else
-			PDEBUG(D_USBO, "ucbus v: %04x i: %04x",
-					val, idx);
+			gspca_dbg(gspca_dev, D_USBO, "ucbus v: %04x i: %04x\n",
+				  val, idx);
 		ret = usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
 				0x0c,			/* request */
@@ -691,7 +691,7 @@ static void mt9v111_init(struct gspca_dev *gspca_dev)
 			 || gspca_dev->usb_err != 0)
 				break;
 			if (--nwait < 0) {
-				PDEBUG(D_PROBE, "mt9v111_init timeout");
+				gspca_dbg(gspca_dev, D_PROBE, "mt9v111_init timeout\n");
 				gspca_dev->usb_err = -ETIME;
 				return;
 			}
@@ -857,7 +857,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
  * 6: c8 / c9 / ca / cf = mode webcam?, sensor? webcam?
  * 7: 00
  */
-	PDEBUG(D_PROBE, "info: %*ph", 8, gspca_dev->usb_buf);
+	gspca_dbg(gspca_dev, D_PROBE, "info: %*ph\n", 8, gspca_dev->usb_buf);
 
 	bridge_init(sd);
 
@@ -870,7 +870,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			cmos_probe(gspca_dev);
 	}
 	if (gspca_dev->usb_err >= 0) {
-		PDEBUG(D_PROBE, "Sensor %s", sensor_tb[sd->sensor].name);
+		gspca_dbg(gspca_dev, D_PROBE, "Sensor %s\n",
+			  sensor_tb[sd->sensor].name);
 		global_init(sd, 1);
 	}
 	return gspca_dev->usb_err;
@@ -1043,7 +1044,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 			v4l2_ctrl_g_ctrl(sd->gain));
 
 	gspca_dev->cam.bulk_nurbs = 1;
-	ret = usb_submit_urb(gspca_dev->urb[0], GFP_ATOMIC);
+	ret = usb_submit_urb(gspca_dev->urb[0], GFP_KERNEL);
 	if (ret < 0)
 		pr_err("sd_dq_callback() err %d\n", ret);
 

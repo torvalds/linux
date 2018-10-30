@@ -1,13 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Thunderbolt Cactus Ridge driver - control channel and configuration commands
+ * Thunderbolt driver - control channel and configuration commands
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2018, Intel Corporation
  */
 
 #ifndef _TB_CFG
 #define _TB_CFG
 
 #include <linux/kref.h>
+#include <linux/thunderbolt.h>
 
 #include "nhi.h"
 #include "tb_msgs.h"
@@ -15,7 +18,7 @@
 /* control channel */
 struct tb_ctl;
 
-typedef void (*event_cb)(void *data, enum tb_cfg_pkg_type type,
+typedef bool (*event_cb)(void *data, enum tb_cfg_pkg_type type,
 			 const void *buf, size_t size);
 
 struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, event_cb cb, void *cb_data);

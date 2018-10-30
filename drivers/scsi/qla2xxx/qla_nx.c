@@ -1230,7 +1230,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 	ql_log(ql_log_info, vha, 0x0072,
 	    "%d CRB init values found in ROM.\n", n);
 
-	buf = kmalloc(n * sizeof(struct crb_addr_pair), GFP_KERNEL);
+	buf = kmalloc_array(n, sizeof(struct crb_addr_pair), GFP_KERNEL);
 	if (buf == NULL) {
 		ql_log(ql_log_fatal, vha, 0x010c,
 		    "Unable to allocate memory.\n");
@@ -1732,7 +1732,7 @@ iospace_error_exit:
 
 /**
  * qla82xx_pci_config() - Setup ISP82xx PCI configuration registers.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
 */
@@ -1753,7 +1753,7 @@ qla82xx_pci_config(scsi_qla_host_t *vha)
 
 /**
  * qla82xx_reset_chip() - Setup ISP82xx PCI configuration registers.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2008,11 +2008,10 @@ qla82xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 		    "MBX pointer ERROR.\n");
 }
 
-/*
+/**
  * qla82xx_intr_handler() - Process interrupts for the ISP23xx and ISP63xx.
  * @irq:
  * @dev_id: SCSI driver HA context
- * @regs:
  *
  * Called by system whenever the host adapter generates an interrupt.
  *
@@ -3700,8 +3699,8 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 		/* Wait for pending cmds (physical and virtual) to complete */
-		if (!qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
-		    WAIT_HOST) == QLA_SUCCESS) {
+		if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
+		    WAIT_HOST)) {
 			ql_dbg(ql_dbg_init, vha, 0x00b3,
 			    "Done wait for "
 			    "pending commands.\n");

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NOUVEAU_BO_H__
 #define __NOUVEAU_BO_H__
 
@@ -24,12 +25,14 @@ struct nouveau_bo {
 	bool validate_mapped;
 
 	struct list_head vma_list;
-	unsigned page_shift;
 
-	struct nouveau_cli *cli;
+	unsigned contig:1;
+	unsigned page:5;
+	unsigned kind:8;
+	unsigned comp:3;
+	unsigned zeta:3;
+	unsigned mode;
 
-	u32 tile_mode;
-	u32 tile_flags;
 	struct nouveau_drm_tile *tile;
 
 	/* Only valid if allocated via nouveau_gem_new() and iff you hold a
@@ -89,13 +92,6 @@ int  nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
 void nouveau_bo_sync_for_device(struct nouveau_bo *nvbo);
 void nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo);
 
-struct nvkm_vma *
-nouveau_bo_vma_find(struct nouveau_bo *, struct nvkm_vm *);
-
-int  nouveau_bo_vma_add(struct nouveau_bo *, struct nvkm_vm *,
-			struct nvkm_vma *);
-void nouveau_bo_vma_del(struct nouveau_bo *, struct nvkm_vma *);
-
 /* TODO: submit equivalent to TTM generic API upstream? */
 static inline void __iomem *
 nvbo_kmap_obj_iovirtual(struct nouveau_bo *nvbo)
@@ -107,4 +103,32 @@ nvbo_kmap_obj_iovirtual(struct nouveau_bo *nvbo)
 	return ioptr;
 }
 
+static inline void
+nouveau_bo_unmap_unpin_unref(struct nouveau_bo **pnvbo)
+{
+	if (*pnvbo) {
+		nouveau_bo_unmap(*pnvbo);
+		nouveau_bo_unpin(*pnvbo);
+		nouveau_bo_ref(NULL, pnvbo);
+	}
+}
+
+static inline int
+nouveau_bo_new_pin_map(struct nouveau_cli *cli, u64 size, int align, u32 flags,
+		       struct nouveau_bo **pnvbo)
+{
+	int ret = nouveau_bo_new(cli, size, align, flags,
+				 0, 0, NULL, NULL, pnvbo);
+	if (ret == 0) {
+		ret = nouveau_bo_pin(*pnvbo, flags, true);
+		if (ret == 0) {
+			ret = nouveau_bo_map(*pnvbo);
+			if (ret == 0)
+				return ret;
+			nouveau_bo_unpin(*pnvbo);
+		}
+		nouveau_bo_ref(NULL, pnvbo);
+	}
+	return ret;
+}
 #endif

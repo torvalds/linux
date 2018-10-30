@@ -280,7 +280,7 @@ u8 b43legacy_radio_aci_detect(struct b43legacy_wldev *dev, u8 channel)
 u8 b43legacy_radio_aci_scan(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_phy *phy = &dev->phy;
-	u8 ret[13];
+	u8 ret[13] = { 0 };
 	unsigned int channel = phy->channel;
 	unsigned int i;
 	unsigned int j;

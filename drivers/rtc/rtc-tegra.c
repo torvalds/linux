@@ -25,6 +25,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/rtc.h>
@@ -144,10 +145,6 @@ static int tegra_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	int ret;
 
 	/* convert tm to seconds. */
-	ret = rtc_valid_tm(tm);
-	if (ret)
-		return ret;
-
 	rtc_tm_to_time(tm, &sec);
 
 	dev_vdbg(dev, "time set to %lu. %d/%d/%d %d:%02u:%02u\n",
@@ -325,9 +322,13 @@ static int __init tegra_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(info->rtc_base))
 		return PTR_ERR(info->rtc_base);
 
-	info->tegra_rtc_irq = platform_get_irq(pdev, 0);
-	if (info->tegra_rtc_irq <= 0)
-		return -EBUSY;
+	ret = platform_get_irq(pdev, 0);
+	if (ret <= 0) {
+		dev_err(&pdev->dev, "failed to get platform IRQ: %d\n", ret);
+		return ret;
+	}
+
+	info->tegra_rtc_irq = ret;
 
 	info->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk))

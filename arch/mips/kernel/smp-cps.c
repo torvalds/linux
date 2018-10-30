@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -306,7 +306,7 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 	int err;
 
 	/* We don't yet support booting CPUs in other clusters */
-	if (cpu_cluster(&cpu_data[cpu]) != cpu_cluster(&current_cpu_data))
+	if (cpu_cluster(&cpu_data[cpu]) != cpu_cluster(&raw_current_cpu_data))
 		return -ENOSYS;
 
 	vpe_cfg->pc = (unsigned long)&smp_bootstrap;
@@ -398,6 +398,55 @@ static void cps_smp_finish(void)
 	local_irq_enable();
 }
 
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC)
+
+enum cpu_death {
+	CPU_DEATH_HALT,
+	CPU_DEATH_POWER,
+};
+
+static void cps_shutdown_this_cpu(enum cpu_death death)
+{
+	unsigned int cpu, core, vpe_id;
+
+	cpu = smp_processor_id();
+	core = cpu_core(&cpu_data[cpu]);
+
+	if (death == CPU_DEATH_HALT) {
+		vpe_id = cpu_vpe_id(&cpu_data[cpu]);
+
+		pr_debug("Halting core %d VP%d\n", core, vpe_id);
+		if (cpu_has_mipsmt) {
+			/* Halt this TC */
+			write_c0_tchalt(TCHALT_H);
+			instruction_hazard();
+		} else if (cpu_has_vp) {
+			write_cpc_cl_vp_stop(1 << vpe_id);
+
+			/* Ensure that the VP_STOP register is written */
+			wmb();
+		}
+	} else {
+		pr_debug("Gating power to core %d\n", core);
+		/* Power down the core */
+		cps_pm_enter_state(CPS_PM_POWER_GATED);
+	}
+}
+
+#ifdef CONFIG_KEXEC
+
+static void cps_kexec_nonboot_cpu(void)
+{
+	if (cpu_has_mipsmt || cpu_has_vp)
+		cps_shutdown_this_cpu(CPU_DEATH_HALT);
+	else
+		cps_shutdown_this_cpu(CPU_DEATH_POWER);
+}
+
+#endif /* CONFIG_KEXEC */
+
+#endif /* CONFIG_HOTPLUG_CPU || CONFIG_KEXEC */
+
 #ifdef CONFIG_HOTPLUG_CPU
 
 static int cps_cpu_disable(void)
@@ -421,26 +470,20 @@ static int cps_cpu_disable(void)
 }
 
 static unsigned cpu_death_sibling;
-static enum {
-	CPU_DEATH_HALT,
-	CPU_DEATH_POWER,
-} cpu_death;
+static enum cpu_death cpu_death;
 
 void play_dead(void)
 {
-	unsigned int cpu, core, vpe_id;
+	unsigned int cpu;
 
 	local_irq_disable();
 	idle_task_exit();
 	cpu = smp_processor_id();
-	core = cpu_core(&cpu_data[cpu]);
 	cpu_death = CPU_DEATH_POWER;
 
 	pr_debug("CPU%d going offline\n", cpu);
 
 	if (cpu_has_mipsmt || cpu_has_vp) {
-		core = cpu_core(&cpu_data[cpu]);
-
 		/* Look for another online VPE within the core */
 		for_each_online_cpu(cpu_death_sibling) {
 			if (!cpus_are_siblings(cpu, cpu_death_sibling))
@@ -458,25 +501,7 @@ void play_dead(void)
 	/* This CPU has chosen its way out */
 	(void)cpu_report_death();
 
-	if (cpu_death == CPU_DEATH_HALT) {
-		vpe_id = cpu_vpe_id(&cpu_data[cpu]);
-
-		pr_debug("Halting core %d VP%d\n", core, vpe_id);
-		if (cpu_has_mipsmt) {
-			/* Halt this TC */
-			write_c0_tchalt(TCHALT_H);
-			instruction_hazard();
-		} else if (cpu_has_vp) {
-			write_cpc_cl_vp_stop(1 << vpe_id);
-
-			/* Ensure that the VP_STOP register is written */
-			wmb();
-		}
-	} else {
-		pr_debug("Gating power to core %d\n", core);
-		/* Power down the core */
-		cps_pm_enter_state(CPS_PM_POWER_GATED);
-	}
+	cps_shutdown_this_cpu(cpu_death);
 
 	/* This should never be reached */
 	panic("Failed to offline CPU %u", cpu);
@@ -594,6 +619,9 @@ static const struct plat_smp_ops cps_smp_ops = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable		= cps_cpu_disable,
 	.cpu_die		= cps_cpu_die,
+#endif
+#ifdef CONFIG_KEXEC
+	.kexec_nonboot_cpu	= cps_kexec_nonboot_cpu,
 #endif
 };
 

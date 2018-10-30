@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree file for Teltonika RUT1xx
  */
@@ -13,7 +14,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory { /* 128 MB */
+	memory@0 { /* 128 MB */
 		device_type = "memory";
 		reg = <0x00000000 0x8000000>;
 	};
@@ -25,11 +26,9 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@28 {
-			debounce_interval = <50>;
+		button-setup {
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "Reset to defaults";
@@ -40,20 +39,33 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@7 {
+		led-gsm {
 			/* FIXME: add the LED color */
 			label = "rut1xx::gsm";
 			/* Conflict with ICE */
 			gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
-		led@31 {
+		led-power {
 			/* FIXME: add the LED color */
 			label = "rut1xx::power";
 			/* Conflict with NAND CE0 */
 			gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	mdio0: ethernet-phy {
+		compatible = "virtual,mdio-gpio";
+		gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, /* MDC */
+			<&gpio0 21 GPIO_ACTIVE_HIGH>; /* MDIO */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@1 {
+			reg = <1>;
+			device_type = "ethernet-phy";
 		};
 	};
 
@@ -99,6 +111,18 @@
 		gpio1: gpio@4e000000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&gpio1_default_pins>;
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				phy-handle = <&phy0>;
+			};
+			ethernet-port@1 {
+				/* Not used in this platform */
+			};
 		};
 	};
 };

@@ -14,6 +14,8 @@ menuconfig ARC_PLAT_AXS10X
 	select MIGHT_HAVE_PCI
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB
+	select AXS101 if ISA_ARCOMPACT
+	select AXS103 if ISA_ARCV2
 	help
 	  Support for the ARC AXS10x Software Development Platforms.
 

@@ -85,6 +85,9 @@ void rcu_sync_init(struct rcu_sync *rsp, enum rcu_sync_type type)
 }
 
 /**
+ * rcu_sync_enter_start - Force readers onto slow path for multiple updates
+ * @rsp: Pointer to rcu_sync structure to use for synchronization
+ *
  * Must be called after rcu_sync_init() and before first use.
  *
  * Ensures rcu_sync_is_idle() returns false and rcu_sync_{enter,exit}()
@@ -142,7 +145,7 @@ void rcu_sync_enter(struct rcu_sync *rsp)
 
 /**
  * rcu_sync_func() - Callback function managing reader access to fastpath
- * @rsp: Pointer to rcu_sync structure to use for synchronization
+ * @rhp: Pointer to rcu_head in rcu_sync structure to use for synchronization
  *
  * This function is passed to one of the call_rcu() functions by
  * rcu_sync_exit(), so that it is invoked after a grace period following the
@@ -158,9 +161,9 @@ void rcu_sync_enter(struct rcu_sync *rsp)
  * rcu_sync_exit().  Otherwise, set all state back to idle so that readers
  * can again use their fastpaths.
  */
-static void rcu_sync_func(struct rcu_head *rcu)
+static void rcu_sync_func(struct rcu_head *rhp)
 {
-	struct rcu_sync *rsp = container_of(rcu, struct rcu_sync, cb_head);
+	struct rcu_sync *rsp = container_of(rhp, struct rcu_sync, cb_head);
 	unsigned long flags;
 
 	BUG_ON(rsp->gp_state != GP_PASSED);

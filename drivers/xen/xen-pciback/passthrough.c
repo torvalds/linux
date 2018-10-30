@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCI Backend - Provides restricted access to the real PCI bus topology
  *               to the frontend

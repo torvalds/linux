@@ -34,6 +34,8 @@ struct pbias_reg_info {
 	u32 vmode;
 	unsigned int enable_time;
 	char *name;
+	const unsigned int *pbias_volt_table;
+	int n_voltages;
 };
 
 struct pbias_regulator_data {
@@ -49,9 +51,14 @@ struct pbias_of_data {
 	unsigned int offset;
 };
 
-static const unsigned int pbias_volt_table[] = {
+static const unsigned int pbias_volt_table_3_0V[] = {
 	1800000,
 	3000000
+};
+
+static const unsigned int pbias_volt_table_3_3V[] = {
+	1800000,
+	3300000
 };
 
 static const struct regulator_ops pbias_regulator_voltage_ops = {
@@ -69,6 +76,8 @@ static const struct pbias_reg_info pbias_mmc_omap2430 = {
 	.vmode = BIT(0),
 	.disable_val = 0,
 	.enable_time = 100,
+	.pbias_volt_table = pbias_volt_table_3_0V,
+	.n_voltages = 2,
 	.name = "pbias_mmc_omap2430"
 };
 
@@ -77,6 +86,8 @@ static const struct pbias_reg_info pbias_sim_omap3 = {
 	.enable_mask = BIT(9),
 	.vmode = BIT(8),
 	.enable_time = 100,
+	.pbias_volt_table = pbias_volt_table_3_0V,
+	.n_voltages = 2,
 	.name = "pbias_sim_omap3"
 };
 
@@ -86,6 +97,8 @@ static const struct pbias_reg_info pbias_mmc_omap4 = {
 	.disable_val = BIT(25),
 	.vmode = BIT(21),
 	.enable_time = 100,
+	.pbias_volt_table = pbias_volt_table_3_0V,
+	.n_voltages = 2,
 	.name = "pbias_mmc_omap4"
 };
 
@@ -95,6 +108,8 @@ static const struct pbias_reg_info pbias_mmc_omap5 = {
 	.disable_val = BIT(25),
 	.vmode = BIT(21),
 	.enable_time = 100,
+	.pbias_volt_table = pbias_volt_table_3_3V,
+	.n_voltages = 2,
 	.name = "pbias_mmc_omap5"
 };
 
@@ -158,8 +173,9 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 	if (count < 0)
 		return count;
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct pbias_regulator_data)
-			       * count, GFP_KERNEL);
+	drvdata = devm_kcalloc(&pdev->dev,
+			       count, sizeof(struct pbias_regulator_data),
+			       GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
 
@@ -199,8 +215,8 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 		drvdata[data_idx].desc.owner = THIS_MODULE;
 		drvdata[data_idx].desc.type = REGULATOR_VOLTAGE;
 		drvdata[data_idx].desc.ops = &pbias_regulator_voltage_ops;
-		drvdata[data_idx].desc.volt_table = pbias_volt_table;
-		drvdata[data_idx].desc.n_voltages = 2;
+		drvdata[data_idx].desc.volt_table = info->pbias_volt_table;
+		drvdata[data_idx].desc.n_voltages = info->n_voltages;
 		drvdata[data_idx].desc.enable_time = info->enable_time;
 		drvdata[data_idx].desc.vsel_reg = offset;
 		drvdata[data_idx].desc.vsel_mask = info->vmode;

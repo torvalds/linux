@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Driver for Analog Devices ADV748X video decoder and HDMI receiver
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Authors:
  *	Koji Matsuoka <koji.matsuoka.xm@renesas.com>
@@ -27,19 +23,6 @@
 #ifndef _ADV748X_H_
 #define _ADV748X_H_
 
-/* I2C slave addresses */
-#define ADV748X_I2C_IO			0x70	/* IO Map */
-#define ADV748X_I2C_DPLL		0x26	/* DPLL Map */
-#define ADV748X_I2C_CP			0x22	/* CP Map */
-#define ADV748X_I2C_HDMI		0x34	/* HDMI Map */
-#define ADV748X_I2C_EDID		0x36	/* EDID Map */
-#define ADV748X_I2C_REPEATER		0x32	/* HDMI RX Repeater Map */
-#define ADV748X_I2C_INFOFRAME		0x31	/* HDMI RX InfoFrame Map */
-#define ADV748X_I2C_CEC			0x41	/* CEC Map */
-#define ADV748X_I2C_SDP			0x79	/* SDP Map */
-#define ADV748X_I2C_TXB			0x48	/* CSI-TXB Map */
-#define ADV748X_I2C_TXA			0x4a	/* CSI-TXA Map */
-
 enum adv748x_page {
 	ADV748X_PAGE_IO,
 	ADV748X_PAGE_DPLL,
@@ -48,6 +31,7 @@ enum adv748x_page {
 	ADV748X_PAGE_EDID,
 	ADV748X_PAGE_REPEATER,
 	ADV748X_PAGE_INFOFRAME,
+	ADV748X_PAGE_CBUS,
 	ADV748X_PAGE_CEC,
 	ADV748X_PAGE_SDP,
 	ADV748X_PAGE_TXB,
@@ -94,14 +78,28 @@ struct adv748x_csi2 {
 	struct adv748x_state *state;
 	struct v4l2_mbus_framefmt format;
 	unsigned int page;
+	unsigned int port;
 
 	struct media_pad pads[ADV748X_CSI2_NR_PADS];
 	struct v4l2_ctrl_handler ctrl_hdl;
+	struct v4l2_ctrl *pixel_rate;
 	struct v4l2_subdev sd;
 };
 
 #define notifier_to_csi2(n) container_of(n, struct adv748x_csi2, notifier)
 #define adv748x_sd_to_csi2(sd) container_of(sd, struct adv748x_csi2, sd)
+#define is_tx_enabled(_tx) ((_tx)->state->endpoints[(_tx)->port] != NULL)
+#define is_txa(_tx) ((_tx) == &(_tx)->state->txa)
+#define is_afe_enabled(_state)					\
+	((_state)->endpoints[ADV748X_PORT_AIN0] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN1] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN2] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN3] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN4] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN5] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN6] != NULL ||	\
+	 (_state)->endpoints[ADV748X_PORT_AIN7] != NULL)
+#define is_hdmi_enabled(_state) ((_state)->endpoints[ADV748X_PORT_HDMI] != NULL)
 
 enum adv748x_hdmi_pads {
 	ADV748X_HDMI_SINK,
@@ -387,9 +385,6 @@ int adv748x_write_block(struct adv748x_state *state, int client_page,
 #define cp_write(s, r, v) adv748x_write(s, ADV748X_PAGE_CP, r, v)
 #define cp_clrset(s, r, m, v) cp_write(s, r, (cp_read(s, r) & ~m) | v)
 
-#define txa_read(s, r) adv748x_read(s, ADV748X_PAGE_TXA, r)
-#define txb_read(s, r) adv748x_read(s, ADV748X_PAGE_TXB, r)
-
 #define tx_read(t, r) adv748x_read(t->state, t->page, r)
 #define tx_write(t, r, v) adv748x_write(t->state, t->page, r, v)
 
@@ -409,8 +404,7 @@ void adv748x_subdev_init(struct v4l2_subdev *sd, struct adv748x_state *state,
 int adv748x_register_subdevs(struct adv748x_state *state,
 			     struct v4l2_device *v4l2_dev);
 
-int adv748x_txa_power(struct adv748x_state *state, bool on);
-int adv748x_txb_power(struct adv748x_state *state, bool on);
+int adv748x_tx_power(struct adv748x_csi2 *tx, bool on);
 
 int adv748x_afe_init(struct adv748x_afe *afe);
 void adv748x_afe_cleanup(struct adv748x_afe *afe);

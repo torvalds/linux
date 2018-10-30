@@ -134,6 +134,20 @@ struct node *name_node(struct node *node, char *name)
 	return node;
 }
 
+struct node *omit_node_if_unused(struct node *node)
+{
+	node->omit_if_unused = 1;
+
+	return node;
+}
+
+struct node *reference_node(struct node *node)
+{
+	node->is_referenced = 1;
+
+	return node;
+}
+
 struct node *merge_nodes(struct node *old_node, struct node *new_node)
 {
 	struct property *new_prop, *old_prop;
@@ -214,6 +228,35 @@ struct node *merge_nodes(struct node *old_node, struct node *new_node)
 	free(new_node);
 
 	return old_node;
+}
+
+struct node * add_orphan_node(struct node *dt, struct node *new_node, char *ref)
+{
+	static unsigned int next_orphan_fragment = 0;
+	struct node *node;
+	struct property *p;
+	struct data d = empty_data;
+	char *name;
+
+	if (ref[0] == '/') {
+		d = data_append_data(d, ref, strlen(ref) + 1);
+
+		p = build_property("target-path", d);
+	} else {
+		d = data_add_marker(d, REF_PHANDLE, ref);
+		d = data_append_integer(d, 0xffffffff, 32);
+
+		p = build_property("target", d);
+	}
+
+	xasprintf(&name, "fragment@%u",
+			next_orphan_fragment++);
+	name_node(new_node, "__overlay__");
+	node = build_node(p, new_node);
+	name_node(node, name);
+
+	add_child(dt, node);
+	return dt;
 }
 
 struct node *chain_node(struct node *first, struct node *list)
@@ -396,6 +439,12 @@ cell_t propval_cell(struct property *prop)
 	return fdt32_to_cpu(*((fdt32_t *)prop->val.val));
 }
 
+cell_t propval_cell_n(struct property *prop, int n)
+{
+	assert(prop->val.len / sizeof(cell_t) >= n);
+	return fdt32_to_cpu(*((fdt32_t *)prop->val.val + n));
+}
+
 struct property *get_property_by_label(struct node *tree, const char *label,
 				       struct node **node)
 {
@@ -478,7 +527,8 @@ struct node *get_node_by_path(struct node *tree, const char *path)
 	p = strchr(path, '/');
 
 	for_each_child(tree, child) {
-		if (p && strneq(path, child->name, p-path))
+		if (p && (strlen(child->name) == p-path) &&
+		    strprefixeq(path, p - path, child->name))
 			return get_node_by_path(child, p+1);
 		else if (!p && streq(path, child->name))
 			return child;
@@ -511,7 +561,10 @@ struct node *get_node_by_phandle(struct node *tree, cell_t phandle)
 {
 	struct node *child, *node;
 
-	assert((phandle != 0) && (phandle != -1));
+	if ((phandle == 0) || (phandle == -1)) {
+		assert(generate_fixups);
+		return NULL;
+	}
 
 	if (tree->phandle == phandle) {
 		if (tree->deleted)
@@ -541,6 +594,7 @@ struct node *get_node_by_ref(struct node *tree, const char *ref)
 cell_t get_node_phandle(struct node *root, struct node *node)
 {
 	static cell_t phandle = 1; /* FIXME: ick, static local */
+	struct data d = empty_data;
 
 	if ((node->phandle != 0) && (node->phandle != -1))
 		return node->phandle;
@@ -550,17 +604,16 @@ cell_t get_node_phandle(struct node *root, struct node *node)
 
 	node->phandle = phandle;
 
+	d = data_add_marker(d, TYPE_UINT32, NULL);
+	d = data_append_cell(d, phandle);
+
 	if (!get_property(node, "linux,phandle")
 	    && (phandle_format & PHANDLE_LEGACY))
-		add_property(node,
-			     build_property("linux,phandle",
-					    data_append_cell(empty_data, phandle)));
+		add_property(node, build_property("linux,phandle", d));
 
 	if (!get_property(node, "phandle")
 	    && (phandle_format & PHANDLE_EPAPR))
-		add_property(node,
-			     build_property("phandle",
-					    data_append_cell(empty_data, phandle)));
+		add_property(node, build_property("phandle", d));
 
 	/* If the node *does* have a phandle property, we must
 	 * be dealing with a self-referencing phandle, which will be

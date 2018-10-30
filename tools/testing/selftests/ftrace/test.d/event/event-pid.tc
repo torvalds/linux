@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: event tracing - restricts events based on pid
 # flags: instance
 
@@ -12,11 +13,7 @@ do_reset() {
 fail() { #msg
     do_reset
     echo $1
-    exit $FAIL
-}
-
-yield() {
-    ping localhost -c 1 || sleep .001 || usleep 1 || sleep 1
+    exit_fail
 }
 
 if [ ! -f set_event -o ! -d events/sched ]; then
@@ -29,8 +26,7 @@ if [ ! -f set_event_pid ]; then
     exit_unsupported
 fi
 
-reset_tracer
-do_reset
+echo 0 > options/event-fork
 
 echo 1 > events/sched/sched_switch/enable
 
@@ -46,6 +42,7 @@ do_reset
 read mypid rest < /proc/self/stat
 
 echo $mypid > set_event_pid
+grep -q $mypid set_event_pid
 echo 'sched:sched_switch' > set_event
 
 yield

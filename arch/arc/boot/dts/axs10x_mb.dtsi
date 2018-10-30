@@ -9,12 +9,22 @@
  */
 
 / {
+	aliases {
+		ethernet = &gmac;
+	};
+
 	axs10x_mb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x0 0xe0000000 0x10000000>;
 		interrupt-parent = <&mb_intc>;
+
+		creg_rst: reset-controller@11220 {
+			compatible = "snps,axs10x-reset";
+			#reset-cells = <1>;
+			reg = <0x11220 0x4>;
+		};
 
 		i2sclk: i2sclk@100a0 {
 			compatible = "snps,axs10x-i2s-pll-clock";
@@ -44,7 +54,14 @@
 
 			mmcclk: mmcclk {
 				compatible = "fixed-clock";
-				clock-frequency = <50000000>;
+				/*
+				 * DW sdio controller has external ciu clock divider
+				 * controlled via register in SDIO IP. It divides
+				 * sdio_ref_clk (which comes from CGU) by 16 for
+				 * default. So default mmcclk clock (which comes
+				 * to sdk_in) is 25000000 Hz.
+				 */
+				clock-frequency = <25000000>;
 				#clock-cells = <0>;
 			};
 
@@ -55,7 +72,7 @@
 			};
 		};
 
-		ethernet@0x18000 {
+		gmac: ethernet@0x18000 {
 			#interrupt-cells = <1>;
 			compatible = "snps,dwmac";
 			reg = < 0x18000 0x2000 >;
@@ -66,6 +83,9 @@
 			clocks = <&apbclk>;
 			clock-names = "stmmaceth";
 			max-speed = <100>;
+			resets = <&creg_rst 5>;
+			reset-names = "stmmaceth";
+			mac-address = [00 00 00 00 00 00]; /* Filled in by U-Boot */
 		};
 
 		ehci@0x40000 {
@@ -199,13 +219,13 @@
 			};
 
 			eeprom@0x54{
-				compatible = "24c01";
+				compatible = "atmel,24c01";
 				reg = <0x54>;
 				pagesize = <0x8>;
 			};
 
 			eeprom@0x57{
-				compatible = "24c04";
+				compatible = "atmel,24c04";
 				reg = <0x57>;
 				pagesize = <0x8>;
 			};

@@ -35,7 +35,7 @@
 
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda1002x.h"
 
 #define REG0_INIT_VAL 0x23
@@ -211,7 +211,7 @@ static int tda10023_set_symbolrate (struct tda10023_state* state, u32 sr)
 
 		BDRX=1<<(24+NDEC);
 		BDRX*=sr;
-		do_div(BDRX, state->sysclk); 	/* BDRX/=SYSCLK; */
+		do_div(BDRX, state->sysclk);	/* BDRX/=SYSCLK; */
 
 		BDR=(s32)BDRX;
 	}
@@ -575,9 +575,9 @@ static const struct dvb_frontend_ops tda10023_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_C },
 	.info = {
 		.name = "Philips TDA10023 DVB-C",
-		.frequency_stepsize = 62500,
-		.frequency_min =  47000000,
-		.frequency_max = 862000000,
+		.frequency_min_hz =  47 * MHz,
+		.frequency_max_hz = 862 * MHz,
+		.frequency_stepsize_hz = 62500,
 		.symbol_rate_min = 0,  /* set in tda10023_attach */
 		.symbol_rate_max = 0,  /* set in tda10023_attach */
 		.caps = 0x400 | //FE_CAN_QAM_4

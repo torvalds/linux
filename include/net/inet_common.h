@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _INET_COMMON_H
 #define _INET_COMMON_H
 
@@ -31,7 +32,9 @@ int inet_shutdown(struct socket *sock, int how);
 int inet_listen(struct socket *sock, int backlog);
 void inet_sock_destruct(struct sock *sk);
 int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
-int inet_getname(struct socket *sock, struct sockaddr *uaddr, int *uaddr_len,
+int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
+		bool force_bind_address_no_port, bool with_lock);
+int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 		 int peer);
 int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 int inet_ctl_sock_create(struct sock **sk, unsigned short family,
@@ -40,7 +43,7 @@ int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 int inet_recv_error(struct sock *sk, struct msghdr *msg, int len,
 		    int *addr_len);
 
-struct sk_buff **inet_gro_receive(struct sk_buff **head, struct sk_buff *skb);
+struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb);
 int inet_gro_complete(struct sk_buff *skb, int nhoff);
 struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 				 netdev_features_t features);

@@ -30,6 +30,70 @@ enum {
 #define	POWER8_MMCRA_IFM2		0x0000000080000000UL
 #define	POWER8_MMCRA_IFM3		0x00000000C0000000UL
 
+/*
+ * Raw event encoding for PowerISA v2.07 (Power8):
+ *
+ *        60        56        52        48        44        40        36        32
+ * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
+ *   | | [ ]                           [      thresh_cmp     ]   [  thresh_ctl   ]
+ *   | |  |                                                              |
+ *   | |  *- IFM (Linux)                 thresh start/stop OR FAB match -*
+ *   | *- BHRB (Linux)
+ *   *- EBB (Linux)
+ *
+ *        28        24        20        16        12         8         4         0
+ * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
+ *   [   ] [  sample ]   [cache]   [ pmc ]   [unit ]   c     m   [    pmcxsel    ]
+ *     |        |           |                          |     |
+ *     |        |           |                          |     *- mark
+ *     |        |           *- L1/L2/L3 cache_sel      |
+ *     |        |                                      |
+ *     |        *- sampling mode for marked events     *- combine
+ *     |
+ *     *- thresh_sel
+ *
+ * Below uses IBM bit numbering.
+ *
+ * MMCR1[x:y] = unit    (PMCxUNIT)
+ * MMCR1[x]   = combine (PMCxCOMB)
+ *
+ * if pmc == 3 and unit == 0 and pmcxsel[0:6] == 0b0101011
+ *	# PM_MRK_FAB_RSP_MATCH
+ *	MMCR1[20:27] = thresh_ctl   (FAB_CRESP_MATCH / FAB_TYPE_MATCH)
+ * else if pmc == 4 and unit == 0xf and pmcxsel[0:6] == 0b0101001
+ *	# PM_MRK_FAB_RSP_MATCH_CYC
+ *	MMCR1[20:27] = thresh_ctl   (FAB_CRESP_MATCH / FAB_TYPE_MATCH)
+ * else
+ *	MMCRA[48:55] = thresh_ctl   (THRESH START/END)
+ *
+ * if thresh_sel:
+ *	MMCRA[45:47] = thresh_sel
+ *
+ * if thresh_cmp:
+ *	MMCRA[22:24] = thresh_cmp[0:2]
+ *	MMCRA[25:31] = thresh_cmp[3:9]
+ *
+ * if unit == 6 or unit == 7
+ *	MMCRC[53:55] = cache_sel[1:3]      (L2EVENT_SEL)
+ * else if unit == 8 or unit == 9:
+ *	if cache_sel[0] == 0: # L3 bank
+ *		MMCRC[47:49] = cache_sel[1:3]  (L3EVENT_SEL0)
+ *	else if cache_sel[0] == 1:
+ *		MMCRC[50:51] = cache_sel[2:3]  (L3EVENT_SEL1)
+ * else if cache_sel[1]: # L1 event
+ *	MMCR1[16] = cache_sel[2]
+ *	MMCR1[17] = cache_sel[3]
+ *
+ * if mark:
+ *	MMCRA[63]    = 1		(SAMPLE_ENABLE)
+ *	MMCRA[57:59] = sample[0:2]	(RAND_SAMP_ELIG)
+ *	MMCRA[61:62] = sample[3:4]	(RAND_SAMP_MODE)
+ *
+ * if EBB and BHRB:
+ *	MMCRA[32:33] = IFM
+ *
+ */
+
 /* PowerISA v2.07 format attribute structure*/
 extern struct attribute_group isa207_pmu_format_group;
 

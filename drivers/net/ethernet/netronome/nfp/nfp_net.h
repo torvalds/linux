@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 /*
  * nfp_net.h
@@ -47,6 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
+#include <net/xdp.h>
 
 #include "nfp_net_ctrl.h"
 
@@ -192,7 +163,8 @@ struct nfp_net_tx_desc {
 
 /**
  * struct nfp_net_tx_buf - software TX buffer descriptor
- * @skb:	sk_buff associated with this buffer
+ * @skb:	normal ring, sk_buff associated with this buffer
+ * @frag:	XDP ring, page frag associated with this buffer
  * @dma_addr:	DMA mapping address of the buffer
  * @fidx:	Fragment index (-1 for the head and [0..nr_frags-1] for frags)
  * @pkt_cnt:	Number of packets to be produced out of the skb associated
@@ -248,7 +220,7 @@ struct nfp_net_tx_ring {
 	struct nfp_net_tx_desc *txds;
 
 	dma_addr_t dma;
-	unsigned int size;
+	size_t size;
 	bool is_xdp;
 } ____cacheline_aligned;
 
@@ -348,6 +320,7 @@ struct nfp_net_rx_buf {
  * @qcp_fl:     Pointer to base of the QCP freelist queue
  * @rxbufs:     Array of transmitted FL/RX buffers
  * @rxds:       Virtual address of FL/RX ring in host memory
+ * @xdp_rxq:    RX-ring info avail for XDP
  * @dma:        DMA address of the FL/RX ring
  * @size:       Size, in bytes, of the FL/RX ring (needed to free)
  */
@@ -366,14 +339,19 @@ struct nfp_net_rx_ring {
 	struct nfp_net_rx_buf *rxbufs;
 	struct nfp_net_rx_desc *rxds;
 
+	struct xdp_rxq_info xdp_rxq;
+
 	dma_addr_t dma;
-	unsigned int size;
+	size_t size;
 } ____cacheline_aligned;
 
 /**
  * struct nfp_net_r_vector - Per ring interrupt vector configuration
  * @nfp_net:        Backpointer to nfp_net structure
  * @napi:           NAPI structure for this ring vec
+ * @tasklet:        ctrl vNIC, tasklet for servicing the r_vec
+ * @queue:          ctrl vNIC, send queue
+ * @lock:           ctrl vNIC, r_vec lock protects @queue
  * @tx_ring:        Pointer to TX ring
  * @rx_ring:        Pointer to RX ring
  * @xdp_ring:	    Pointer to an extra TX ring for XDP
@@ -384,6 +362,7 @@ struct nfp_net_rx_ring {
  * @rx_drops:	    Number of packets dropped on RX due to lack of resources
  * @hw_csum_rx_ok:  Counter of packets where the HW checksum was OK
  * @hw_csum_rx_inner_ok: Counter of packets where the inner HW checksum was OK
+ * @hw_csum_rx_complete: Counter of packets with CHECKSUM_COMPLETE reported
  * @hw_csum_rx_error:	 Counter of packets with bad checksums
  * @tx_sync:	    Seqlock for atomic updates of TX stats
  * @tx_pkts:	    Number of Transmitted packets
@@ -394,6 +373,7 @@ struct nfp_net_rx_ring {
  * @tx_lso:	    Counter of LSO packets sent
  * @tx_errors:	    How many TX errors were encountered
  * @tx_busy:        How often was TX busy (no space)?
+ * @rx_replace_buf_alloc_fail:	Counter of RX buffer allocation failures
  * @irq_vector:     Interrupt vector number (use for talking to the OS)
  * @handler:        Interrupt handler for this ring vector
  * @name:           Name of the interrupt vector
@@ -426,7 +406,7 @@ struct nfp_net_r_vector {
 	u64 rx_drops;
 	u64 hw_csum_rx_ok;
 	u64 hw_csum_rx_inner_ok;
-	u64 hw_csum_rx_error;
+	u64 hw_csum_rx_complete;
 
 	struct nfp_net_tx_ring *xdp_ring;
 
@@ -437,6 +417,9 @@ struct nfp_net_r_vector {
 	u64 hw_csum_tx_inner;
 	u64 tx_gather;
 	u64 tx_lso;
+
+	u64 hw_csum_rx_error;
+	u64 rx_replace_buf_alloc_fail;
 	u64 tx_errors;
 	u64 tx_busy;
 
@@ -473,8 +456,6 @@ struct nfp_stat_pair {
  * @dev:		Backpointer to struct device
  * @netdev:		Backpointer to net_device structure
  * @is_vf:		Is the driver attached to a VF?
- * @bpf_offload_skip_sw:  Offloaded BPF program will not be rerun by cls_bpf
- * @bpf_offload_xdp:	Offloaded BPF program is XDP
  * @chained_metadata_format:  Firemware will use new metadata format
  * @rx_dma_dir:		Mapping direction for RX buffers
  * @rx_dma_off:		Offset at which DMA packets (for XDP headroom)
@@ -499,8 +480,6 @@ struct nfp_net_dp {
 	struct net_device *netdev;
 
 	u8 is_vf:1;
-	u8 bpf_offload_skip_sw:1;
-	u8 bpf_offload_xdp:1;
 	u8 chained_metadata_format:1;
 
 	u8 rx_dma_dir;
@@ -535,6 +514,7 @@ struct nfp_net_dp {
 /**
  * struct nfp_net - NFP network device structure
  * @dp:			Datapath structure
+ * @id:			vNIC id within the PF (0 for VFs)
  * @fw_ver:		Firmware version
  * @cap:                Capabilities advertised by the Firmware
  * @max_mtu:            Maximum support MTU advertised by the Firmware
@@ -542,11 +522,13 @@ struct nfp_net_dp {
  * @rss_cfg:            RSS configuration
  * @rss_key:            RSS secret key
  * @rss_itbl:           RSS indirection table
- * @xdp_flags:		Flags with which XDP prog was loaded
- * @xdp_prog:		XDP prog (for ctrl path, both DRV and HW modes)
+ * @xdp:		Information about the driver XDP program
+ * @xdp_hw:		Information about the HW XDP program
  * @max_r_vecs:		Number of allocated interrupt vectors for RX/TX
  * @max_tx_rings:       Maximum number of TX rings supported by the Firmware
  * @max_rx_rings:       Maximum number of RX rings supported by the Firmware
+ * @stride_rx:		Queue controller RX queue spacing
+ * @stride_tx:		Queue controller TX queue spacing
  * @r_vecs:             Pre-allocated array of ring vectors
  * @irq_entries:        Pre-allocated array of MSI-X entries
  * @lsc_handler:        Handler for Link State Change interrupt
@@ -572,10 +554,13 @@ struct nfp_net_dp {
  * @qcp_cfg:            Pointer to QCP queue used for configuration notification
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
+ * @tlv_caps:		Parsed TLV capabilities
  * @debugfs_dir:	Device directory in debugfs
  * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
  * @app:		APP handle if available
+ * @vnic_no_name:	For non-port PF vNIC make ndo_get_phys_port_name return
+ *			-EOPNOTSUPP to keep backwards compatibility (set by app)
  * @port:		Pointer to nfp_port structure if vNIC is a port
  * @app_priv:		APP private data for this vNIC
  */
@@ -583,6 +568,8 @@ struct nfp_net {
 	struct nfp_net_dp dp;
 
 	struct nfp_net_fw_version fw_ver;
+
+	u32 id;
 
 	u32 cap;
 	u32 max_mtu;
@@ -592,8 +579,8 @@ struct nfp_net {
 	u8 rss_key[NFP_NET_CFG_RSS_KEY_SZ];
 	u8 rss_itbl[NFP_NET_CFG_RSS_ITBL_SZ];
 
-	u32 xdp_flags;
-	struct bpf_prog *xdp_prog;
+	struct xdp_attachment_info xdp;
+	struct xdp_attachment_info xdp_hw;
 
 	unsigned int max_tx_rings;
 	unsigned int max_rx_rings;
@@ -638,12 +625,16 @@ struct nfp_net {
 	u8 __iomem *tx_bar;
 	u8 __iomem *rx_bar;
 
+	struct nfp_net_tlv_caps tlv_caps;
+
 	struct dentry *debugfs_dir;
 
 	struct list_head vnic_list;
 
 	struct pci_dev *pdev;
 	struct nfp_app *app;
+
+	bool vnic_no_name;
 
 	struct nfp_port *port;
 
@@ -833,6 +824,18 @@ static inline const char *nfp_net_name(struct nfp_net *nn)
 	return nn->dp.netdev ? nn->dp.netdev->name : "ctrl";
 }
 
+static inline void nfp_ctrl_lock(struct nfp_net *nn)
+	__acquires(&nn->r_vecs[0].lock)
+{
+	spin_lock_bh(&nn->r_vecs[0].lock);
+}
+
+static inline void nfp_ctrl_unlock(struct nfp_net *nn)
+	__releases(&nn->r_vecs[0].lock)
+{
+	spin_unlock_bh(&nn->r_vecs[0].lock);
+}
+
 /* Globals */
 extern const char nfp_driver_version[];
 
@@ -882,7 +885,7 @@ int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *new,
 void nfp_net_debugfs_create(void);
 void nfp_net_debugfs_destroy(void);
 struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev);
-void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir, int id);
+void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir);
 void nfp_net_debugfs_dir_clean(struct dentry **dir);
 #else
 static inline void nfp_net_debugfs_create(void)
@@ -899,7 +902,7 @@ static inline struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev)
 }
 
 static inline void
-nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir, int id)
+nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir)
 {
 }
 

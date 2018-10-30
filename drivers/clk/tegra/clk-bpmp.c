@@ -55,6 +55,7 @@ struct tegra_bpmp_clk_message {
 	struct {
 		void *data;
 		size_t size;
+		int ret;
 	} rx;
 };
 
@@ -64,6 +65,7 @@ static int tegra_bpmp_clk_transfer(struct tegra_bpmp *bpmp,
 	struct mrq_clk_request request;
 	struct tegra_bpmp_message msg;
 	void *req = &request;
+	int err;
 
 	memset(&request, 0, sizeof(request));
 	request.cmd_and_id = (clk->cmd << 24) | clk->id;
@@ -84,7 +86,13 @@ static int tegra_bpmp_clk_transfer(struct tegra_bpmp *bpmp,
 	msg.rx.data = clk->rx.data;
 	msg.rx.size = clk->rx.size;
 
-	return tegra_bpmp_transfer(bpmp, &msg);
+	err = tegra_bpmp_transfer(bpmp, &msg);
+	if (err < 0)
+		return err;
+	else if (msg.rx.ret < 0)
+		return -EINVAL;
+
+	return 0;
 }
 
 static int tegra_bpmp_clk_prepare(struct clk_hw *hw)
@@ -414,11 +422,8 @@ static int tegra_bpmp_probe_clocks(struct tegra_bpmp *bpmp,
 		struct tegra_bpmp_clk_info *info = &clocks[count];
 
 		err = tegra_bpmp_clk_get_info(bpmp, id, info);
-		if (err < 0) {
-			dev_err(bpmp->dev, "failed to query clock %u: %d\n",
-				id, err);
+		if (err < 0)
 			continue;
-		}
 
 		if (info->num_parents >= U8_MAX) {
 			dev_err(bpmp->dev,
@@ -581,9 +586,15 @@ static struct clk_hw *tegra_bpmp_clk_of_xlate(struct of_phandle_args *clkspec,
 	unsigned int id = clkspec->args[0], i;
 	struct tegra_bpmp *bpmp = data;
 
-	for (i = 0; i < bpmp->num_clocks; i++)
-		if (bpmp->clocks[i]->id == id)
-			return &bpmp->clocks[i]->hw;
+	for (i = 0; i < bpmp->num_clocks; i++) {
+		struct tegra_bpmp_clk *clk = bpmp->clocks[i];
+
+		if (!clk)
+			continue;
+
+		if (clk->id == id)
+			return &clk->hw;
+	}
 
 	return NULL;
 }

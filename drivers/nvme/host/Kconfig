@@ -13,12 +13,21 @@ config BLK_DEV_NVME
 	  To compile this driver as a module, choose M here: the
 	  module will be called nvme.
 
+config NVME_MULTIPATH
+	bool "NVMe multipath support"
+	depends on NVME_CORE
+	---help---
+	   This option enables support for multipath access to NVMe
+	   subsystems.  If this option is enabled only a single
+	   /dev/nvmeXnY device will show up for each NVMe namespaces,
+	   even if it is accessible through multiple controllers.
+
 config NVME_FABRICS
 	tristate
 
 config NVME_RDMA
 	tristate "NVM Express over Fabrics RDMA host driver"
-	depends on INFINIBAND && BLOCK
+	depends on INFINIBAND && INFINIBAND_ADDR_TRANS && BLOCK
 	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL

@@ -26,17 +26,15 @@
 #ifndef __ARCH_ARM_MACH_OMAP1_COMMON_H
 #define __ARCH_ARM_MACH_OMAP1_COMMON_H
 
-#include <linux/mtd/mtd.h>
-#include <linux/i2c-omap.h>
+#include <linux/platform_data/i2c-omap.h>
 #include <linux/reboot.h>
 
 #include <asm/exception.h>
 
-#include <plat/i2c.h>
-
 #include <mach/irqs.h>
 
 #include "soc.h"
+#include "i2c.h"
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 void omap7xx_map_io(void);
@@ -83,7 +81,8 @@ void omap1_restart(enum reboot_mode, const char *);
 
 extern void __init omap_check_revision(void);
 
-extern void omap1_nand_cmd_ctl(struct mtd_info *mtd, int cmd,
+struct nand_chip;
+extern void omap1_nand_cmd_ctl(struct nand_chip *this, int cmd,
 			       unsigned int ctrl);
 
 extern void omap1_timer_init(void);

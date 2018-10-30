@@ -327,8 +327,7 @@ static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
 		return -EINVAL;
 	}
 
-	ebid = devm_kzalloc(ebi->dev,
-			    sizeof(*ebid) + (numcs * sizeof(*ebid->configs)),
+	ebid = devm_kzalloc(ebi->dev, struct_size(ebid, configs, numcs),
 			    GFP_KERNEL);
 	if (!ebid)
 		return -ENOMEM;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_VIRTIO_H
 #define LINUX_VIRTIO_H
 #include <linux/scatterlist.h>

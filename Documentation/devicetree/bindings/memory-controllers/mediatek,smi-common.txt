@@ -2,8 +2,9 @@ SMI (Smart Multimedia Interface) Common
 
 The hardware block diagram please check bindings/iommu/mediatek,iommu.txt
 
-Mediatek SMI have two generations of HW architecture, mt8173 uses the second
-generation of SMI HW while mt2701 uses the first generation HW of SMI.
+Mediatek SMI have two generations of HW architecture, mt2712 and mt8173 use
+the second generation of SMI HW while mt2701 uses the first generation HW of
+SMI.
 
 There's slight differences between the two SMI, for generation 2, the
 register which control the iommu port is at each larb's register base. But
@@ -15,6 +16,8 @@ not needed for SMI generation 2.
 Required properties:
 - compatible : must be one of :
 	"mediatek,mt2701-smi-common"
+	"mediatek,mt2712-smi-common"
+	"mediatek,mt7623-smi-common", "mediatek,mt2701-smi-common"
 	"mediatek,mt8173-smi-common"
 - reg : the register and size of the SMI block.
 - power-domains : a phandle to the power domain of this local arbiter.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *		INETPEER - A storage for permanent information about peers
  *

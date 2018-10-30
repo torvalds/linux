@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * machine_kexec.c - handle transition of Linux booting another kernel
  */

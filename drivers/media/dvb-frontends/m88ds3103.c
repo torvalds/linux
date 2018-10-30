@@ -1262,11 +1262,12 @@ static int m88ds3103_select(struct i2c_mux_core *muxc, u32 chan)
  * New users must use I2C client binding directly!
  */
 struct dvb_frontend *m88ds3103_attach(const struct m88ds3103_config *cfg,
-		struct i2c_adapter *i2c, struct i2c_adapter **tuner_i2c_adapter)
+				      struct i2c_adapter *i2c,
+				      struct i2c_adapter **tuner_i2c_adapter)
 {
 	struct i2c_client *client;
 	struct i2c_board_info board_info;
-	struct m88ds3103_platform_data pdata;
+	struct m88ds3103_platform_data pdata = {};
 
 	pdata.clk = cfg->clock;
 	pdata.i2c_wr_max = cfg->i2c_wr_max;
@@ -1283,7 +1284,7 @@ struct dvb_frontend *m88ds3103_attach(const struct m88ds3103_config *cfg,
 	pdata.attach_in_use = true;
 
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "m88ds3103", I2C_NAME_SIZE);
+	strscpy(board_info.type, "m88ds3103", I2C_NAME_SIZE);
 	board_info.addr = cfg->i2c_addr;
 	board_info.platform_data = &pdata;
 	client = i2c_new_device(i2c, &board_info);
@@ -1299,9 +1300,9 @@ static const struct dvb_frontend_ops m88ds3103_ops = {
 	.delsys = {SYS_DVBS, SYS_DVBS2},
 	.info = {
 		.name = "Montage Technology M88DS3103",
-		.frequency_min =  950000,
-		.frequency_max = 2150000,
-		.frequency_tolerance = 5000,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
+		.frequency_tolerance_hz = 5 * MHz,
 		.symbol_rate_min =  1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_INVERSION_AUTO |
@@ -1409,6 +1410,8 @@ static int m88ds3103_probe(struct i2c_client *client,
 	case M88DS3103_CHIP_ID:
 		break;
 	default:
+		ret = -ENODEV;
+		dev_err(&client->dev, "Unknown device. Chip_id=%02x\n", dev->chip_id);
 		goto err_kfree;
 	}
 

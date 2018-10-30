@@ -37,6 +37,8 @@ static void virtio_gpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 		virtio_gpu_cmd_unref_resource(vgdev, bo->hw_res_handle);
 	if (bo->pages)
 		virtio_gpu_object_free_sg_table(bo);
+	if (bo->vmap)
+		virtio_gpu_object_kunmap(bo);
 	drm_gem_object_release(&bo->gem_base);
 	kfree(bo);
 }
@@ -89,7 +91,7 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 	virtio_gpu_init_ttm_placement(bo, pinned);
 
 	ret = ttm_bo_init(&vgdev->mman.bdev, &bo->tbo, size, type,
-			  &bo->placement, 0, !kernel, NULL, acc_size,
+			  &bo->placement, 0, !kernel, acc_size,
 			  NULL, NULL, &virtio_gpu_ttm_bo_destroy);
 	/* ttm_bo_init failure will call the destroy */
 	if (ret != 0)
@@ -99,22 +101,23 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 	return 0;
 }
 
-int virtio_gpu_object_kmap(struct virtio_gpu_object *bo, void **ptr)
+void virtio_gpu_object_kunmap(struct virtio_gpu_object *bo)
+{
+	bo->vmap = NULL;
+	ttm_bo_kunmap(&bo->kmap);
+}
+
+int virtio_gpu_object_kmap(struct virtio_gpu_object *bo)
 {
 	bool is_iomem;
 	int r;
 
-	if (bo->vmap) {
-		if (ptr)
-			*ptr = bo->vmap;
-		return 0;
-	}
+	WARN_ON(bo->vmap);
+
 	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
 	if (r)
 		return r;
 	bo->vmap = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
-	if (ptr)
-		*ptr = bo->vmap;
 	return 0;
 }
 
@@ -124,13 +127,17 @@ int virtio_gpu_object_get_sg_table(struct virtio_gpu_device *qdev,
 	int ret;
 	struct page **pages = bo->tbo.ttm->pages;
 	int nr_pages = bo->tbo.num_pages;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 
 	/* wtf swapping */
 	if (bo->pages)
 		return 0;
 
 	if (bo->tbo.ttm->state == tt_unpopulated)
-		bo->tbo.ttm->bdev->driver->ttm_tt_populate(bo->tbo.ttm);
+		bo->tbo.ttm->bdev->driver->ttm_tt_populate(bo->tbo.ttm, &ctx);
 	bo->pages = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!bo->pages)
 		goto out;

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * handling interprocessor communication
  *
  * Copyright IBM Corp. 2008, 2013
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -23,22 +20,18 @@
 static int __sigp_sense(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
 			u64 *reg)
 {
-	struct kvm_s390_local_interrupt *li;
-	int cpuflags;
+	const bool stopped = kvm_s390_test_cpuflags(dst_vcpu, CPUSTAT_STOPPED);
 	int rc;
 	int ext_call_pending;
 
-	li = &dst_vcpu->arch.local_int;
-
-	cpuflags = atomic_read(li->cpuflags);
 	ext_call_pending = kvm_s390_ext_call_pending(dst_vcpu);
-	if (!(cpuflags & CPUSTAT_STOPPED) && !ext_call_pending)
+	if (!stopped && !ext_call_pending)
 		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	else {
 		*reg &= 0xffffffff00000000UL;
 		if (ext_call_pending)
 			*reg |= SIGP_STATUS_EXT_CALL_PENDING;
-		if (cpuflags & CPUSTAT_STOPPED)
+		if (stopped)
 			*reg |= SIGP_STATUS_STOPPED;
 		rc = SIGP_CC_STATUS_STORED;
 	}
@@ -211,11 +204,9 @@ static int __sigp_store_status_at_addr(struct kvm_vcpu *vcpu,
 				       struct kvm_vcpu *dst_vcpu,
 				       u32 addr, u64 *reg)
 {
-	int flags;
 	int rc;
 
-	flags = atomic_read(dst_vcpu->arch.local_int.cpuflags);
-	if (!(flags & CPUSTAT_STOPPED)) {
+	if (!kvm_s390_test_cpuflags(dst_vcpu, CPUSTAT_STOPPED)) {
 		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INCORRECT_STATE;
 		return SIGP_CC_STATUS_STORED;
@@ -234,7 +225,6 @@ static int __sigp_store_status_at_addr(struct kvm_vcpu *vcpu,
 static int __sigp_sense_running(struct kvm_vcpu *vcpu,
 				struct kvm_vcpu *dst_vcpu, u64 *reg)
 {
-	struct kvm_s390_local_interrupt *li;
 	int rc;
 
 	if (!test_kvm_facility(vcpu->kvm, 9)) {
@@ -243,8 +233,7 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu,
 		return SIGP_CC_STATUS_STORED;
 	}
 
-	li = &dst_vcpu->arch.local_int;
-	if (atomic_read(li->cpuflags) & CPUSTAT_RUNNING) {
+	if (kvm_s390_test_cpuflags(dst_vcpu, CPUSTAT_RUNNING)) {
 		/* running */
 		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	} else {

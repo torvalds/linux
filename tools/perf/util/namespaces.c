@@ -11,6 +11,7 @@
 #include "event.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <sched.h>
 #include <stdlib.h>
@@ -137,6 +138,9 @@ struct nsinfo *nsinfo__new(pid_t pid)
 struct nsinfo *nsinfo__copy(struct nsinfo *nsi)
 {
 	struct nsinfo *nnsi;
+
+	if (nsi == NULL)
+		return NULL;
 
 	nnsi = calloc(1, sizeof(*nnsi));
 	if (nnsi != NULL) {

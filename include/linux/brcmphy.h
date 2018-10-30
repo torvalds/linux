@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_BRCMPHY_H
 #define _LINUX_BRCMPHY_H
 
@@ -13,6 +14,7 @@
 #define PHY_ID_BCM5241			0x0143bc30
 #define PHY_ID_BCMAC131			0x0143bc70
 #define PHY_ID_BCM5481			0x0143bca0
+#define PHY_ID_BCM5395			0x0143bcf0
 #define PHY_ID_BCM54810			0x03625d00
 #define PHY_ID_BCM5482			0x0143bcb0
 #define PHY_ID_BCM5411			0x00206070
@@ -23,6 +25,7 @@
 #define PHY_ID_BCM54612E		0x03625e60
 #define PHY_ID_BCM54616S		0x03625d10
 #define PHY_ID_BCM57780			0x03625d90
+#define PHY_ID_BCM89610			0x03625cd0
 
 #define PHY_ID_BCM7250			0xae025280
 #define PHY_ID_BCM7260			0xae025190
@@ -42,6 +45,7 @@
 #define PHY_ID_BCM7445			0x600d8510
 
 #define PHY_ID_BCM_CYGNUS		0xae025200
+#define PHY_ID_BCM_OMEGA		0xae025100
 
 #define PHY_BCM_OUI_MASK		0xfffffc00
 #define PHY_BCM_OUI_1			0x00206000
@@ -63,6 +67,7 @@
 #define PHY_BRCM_EXT_IBND_TX_ENABLE	0x00002000
 #define PHY_BRCM_CLEAR_RGMII_MODE	0x00004000
 #define PHY_BRCM_DIS_TXCRXC_NOENRGY	0x00008000
+#define PHY_BRCM_EN_MASTER_MODE		0x00010000
 
 /* Broadcom BCM7xxx specific workarounds */
 #define PHY_BRCM_7XXX_REV(x)		(((x) >> 8) & 0xff)
@@ -81,6 +86,7 @@
 #define MII_BCM54XX_EXP_SEL	0x17	/* Expansion register select */
 #define MII_BCM54XX_EXP_SEL_SSD	0x0e00	/* Secondary SerDes select */
 #define MII_BCM54XX_EXP_SEL_ER	0x0f00	/* Expansion register select */
+#define MII_BCM54XX_EXP_SEL_ETC	0x0d00	/* Expansion register spare + 2k mem */
 
 #define MII_BCM54XX_AUX_CTL	0x18	/* Auxiliary control register */
 #define MII_BCM54XX_ISR		0x1a	/* BCM54xx interrupt status register */
@@ -215,6 +221,9 @@
 #define BCM54810_SHD_CLK_CTL			0x3
 #define BCM54810_SHD_CLK_CTL_GTXCLK_EN		(1 << 9)
 
+/* BCM54612E Registers */
+#define BCM54612E_EXP_SPARE0		(MII_BCM54XX_EXP_SEL_ETC + 0x34)
+#define BCM54612E_LED4_CLK125OUT_EN	(1 << 1)
 
 /*****************************************************************************/
 /* Fast Ethernet Transceiver definitions. */

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 choice
 	prompt "Board support"
 	depends on BCM63XX
@@ -6,6 +7,5 @@ choice
 config BOARD_BCM963XX
        bool "Generic Broadcom 963xx boards"
 	select SSB
-       help
 
 endchoice

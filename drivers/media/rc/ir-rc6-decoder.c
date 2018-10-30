@@ -40,6 +40,7 @@
 #define RC6_6A_MCE_TOGGLE_MASK	0x8000	/* for the body bits */
 #define RC6_6A_LCC_MASK		0xffff0000 /* RC6-6A-32 long customer code mask */
 #define RC6_6A_MCE_CC		0x800f0000 /* MCE customer code */
+#define RC6_6A_KATHREIN_CC	0x80460000 /* Kathrein RCU-676 customer code */
 #ifndef CHAR_BIT
 #define CHAR_BIT 8	/* Normally in <limits.h> */
 #endif
@@ -100,8 +101,8 @@ static int ir_rc6_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		goto out;
 
 again:
-	IR_dprintk(2, "RC6 decode started at state %i (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "RC6 decode started at state %i (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 	if (!geq_margin(ev.duration, RC6_UNIT, RC6_UNIT / 2))
 		return 0;
@@ -145,9 +146,6 @@ again:
 		return 0;
 
 	case STATE_HEADER_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		if (data->count == RC6_HEADER_NBITS)
 			data->state = STATE_TOGGLE_START;
 		else
@@ -165,12 +163,8 @@ again:
 		return 0;
 
 	case STATE_TOGGLE_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev) ||
-		    !geq_margin(ev.duration, RC6_TOGGLE_END, RC6_UNIT / 2))
-			break;
-
 		if (!(data->header & RC6_STARTBIT_MASK)) {
-			IR_dprintk(1, "RC6 invalid start bit\n");
+			dev_dbg(&dev->dev, "RC6 invalid start bit\n");
 			break;
 		}
 
@@ -187,7 +181,7 @@ again:
 			data->wanted_bits = RC6_6A_NBITS;
 			break;
 		default:
-			IR_dprintk(1, "RC6 unknown mode\n");
+			dev_dbg(&dev->dev, "RC6 unknown mode\n");
 			goto out;
 		}
 		goto again;
@@ -210,9 +204,6 @@ again:
 		break;
 
 	case STATE_BODY_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		if (data->count == data->wanted_bits)
 			data->state = STATE_FINISHED;
 		else
@@ -230,13 +221,13 @@ again:
 			scancode = data->body;
 			toggle = data->toggle;
 			protocol = RC_PROTO_RC6_0;
-			IR_dprintk(1, "RC6(0) scancode 0x%04x (toggle: %u)\n",
-				   scancode, toggle);
+			dev_dbg(&dev->dev, "RC6(0) scancode 0x%04x (toggle: %u)\n",
+				scancode, toggle);
 			break;
 
 		case RC6_MODE_6A:
 			if (data->count > CHAR_BIT * sizeof data->body) {
-				IR_dprintk(1, "RC6 too many (%u) data bits\n",
+				dev_dbg(&dev->dev, "RC6 too many (%u) data bits\n",
 					data->count);
 				goto out;
 			}
@@ -252,25 +243,29 @@ again:
 				toggle = 0;
 				break;
 			case 32:
-				if ((scancode & RC6_6A_LCC_MASK) == RC6_6A_MCE_CC) {
+				switch (scancode & RC6_6A_LCC_MASK) {
+				case RC6_6A_MCE_CC:
+				case RC6_6A_KATHREIN_CC:
 					protocol = RC_PROTO_RC6_MCE;
 					toggle = !!(scancode & RC6_6A_MCE_TOGGLE_MASK);
 					scancode &= ~RC6_6A_MCE_TOGGLE_MASK;
-				} else {
+					break;
+				default:
 					protocol = RC_PROTO_RC6_6A_32;
 					toggle = 0;
+					break;
 				}
 				break;
 			default:
-				IR_dprintk(1, "RC6(6A) unsupported length\n");
+				dev_dbg(&dev->dev, "RC6(6A) unsupported length\n");
 				goto out;
 			}
 
-			IR_dprintk(1, "RC6(6A) proto 0x%04x, scancode 0x%08x (toggle: %u)\n",
-				   protocol, scancode, toggle);
+			dev_dbg(&dev->dev, "RC6(6A) proto 0x%04x, scancode 0x%08x (toggle: %u)\n",
+				protocol, scancode, toggle);
 			break;
 		default:
-			IR_dprintk(1, "RC6 unknown mode\n");
+			dev_dbg(&dev->dev, "RC6 unknown mode\n");
 			goto out;
 		}
 
@@ -280,21 +275,16 @@ again:
 	}
 
 out:
-	IR_dprintk(1, "RC6 decode failed at state %i (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "RC6 decode failed at state %i (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
 
 static const struct ir_raw_timings_manchester ir_rc6_timings[4] = {
 	{
-		.leader			= RC6_PREFIX_PULSE,
-		.pulse_space_start	= 0,
-		.clock			= RC6_UNIT,
-		.invert			= 1,
-		.trailer_space		= RC6_PREFIX_SPACE,
-	},
-	{
+		.leader_pulse		= RC6_PREFIX_PULSE,
+		.leader_space		= RC6_PREFIX_SPACE,
 		.clock			= RC6_UNIT,
 		.invert			= 1,
 	},
@@ -329,27 +319,22 @@ static int ir_rc6_encode(enum rc_proto protocol, u32 scancode,
 	struct ir_raw_event *e = events;
 
 	if (protocol == RC_PROTO_RC6_0) {
-		/* Modulate the preamble */
-		ret = ir_raw_gen_manchester(&e, max, &ir_rc6_timings[0], 0, 0);
-		if (ret < 0)
-			return ret;
-
 		/* Modulate the header (Start Bit & Mode-0) */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[1],
+					    &ir_rc6_timings[0],
 					    RC6_HEADER_NBITS, (1 << 3));
 		if (ret < 0)
 			return ret;
 
 		/* Modulate Trailer Bit */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[2], 1, 0);
+					    &ir_rc6_timings[1], 1, 0);
 		if (ret < 0)
 			return ret;
 
 		/* Modulate rest of the data */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[3], RC6_0_NBITS,
+					    &ir_rc6_timings[2], RC6_0_NBITS,
 					    scancode);
 		if (ret < 0)
 			return ret;
@@ -372,27 +357,22 @@ static int ir_rc6_encode(enum rc_proto protocol, u32 scancode,
 			return -EINVAL;
 		}
 
-		/* Modulate the preamble */
-		ret = ir_raw_gen_manchester(&e, max, &ir_rc6_timings[0], 0, 0);
-		if (ret < 0)
-			return ret;
-
 		/* Modulate the header (Start Bit & Header-version 6 */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[1],
+					    &ir_rc6_timings[0],
 					    RC6_HEADER_NBITS, (1 << 3 | 6));
 		if (ret < 0)
 			return ret;
 
 		/* Modulate Trailer Bit */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[2], 1, 0);
+					    &ir_rc6_timings[1], 1, 0);
 		if (ret < 0)
 			return ret;
 
 		/* Modulate rest of the data */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[3],
+					    &ir_rc6_timings[2],
 					    bits,
 					    scancode);
 		if (ret < 0)
@@ -408,6 +388,8 @@ static struct ir_raw_handler rc6_handler = {
 			  RC_PROTO_BIT_RC6_MCE,
 	.decode		= ir_rc6_decode,
 	.encode		= ir_rc6_encode,
+	.carrier	= 36000,
+	.min_timeout	= RC6_SUFFIX_SPACE,
 };
 
 static int __init ir_rc6_decode_init(void)

@@ -79,7 +79,8 @@ void __intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 		spin_unlock(&dev_priv->fb_tracking.lock);
 	}
 
-	intel_psr_invalidate(dev_priv, frontbuffer_bits);
+	might_sleep();
+	intel_psr_invalidate(dev_priv, frontbuffer_bits, origin);
 	intel_edp_drrs_invalidate(dev_priv, frontbuffer_bits);
 	intel_fbc_invalidate(dev_priv, frontbuffer_bits, origin);
 }
@@ -108,6 +109,7 @@ static void intel_frontbuffer_flush(struct drm_i915_private *dev_priv,
 	if (!frontbuffer_bits)
 		return;
 
+	might_sleep();
 	intel_edp_drrs_flush(dev_priv, frontbuffer_bits);
 	intel_psr_flush(dev_priv, frontbuffer_bits, origin);
 	intel_fbc_flush(dev_priv, frontbuffer_bits, origin);
@@ -151,8 +153,6 @@ void intel_frontbuffer_flip_prepare(struct drm_i915_private *dev_priv,
 	/* Remove stale busy bits due to the old buffer. */
 	dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
 	spin_unlock(&dev_priv->fb_tracking.lock);
-
-	intel_psr_single_frame_update(dev_priv, frontbuffer_bits);
 }
 
 /**

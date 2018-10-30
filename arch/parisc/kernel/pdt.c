@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Page Deallocation Table (PDT) support
  *
@@ -15,6 +16,7 @@
 #include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/kthread.h>
+#include <linux/initrd.h>
 
 #include <asm/pdc.h>
 #include <asm/pdcpat.h>
@@ -216,7 +218,15 @@ void __init pdc_pdt_init(void)
 	}
 
 	for (i = 0; i < pdt_status.pdt_entries; i++) {
+		unsigned long addr;
+
 		report_mem_err(pdt_entry[i]);
+
+		addr = pdt_entry[i] & PDT_ADDR_PHYS_MASK;
+		if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) &&
+			addr >= initrd_start && addr < initrd_end)
+			pr_crit("CRITICAL: initrd possibly broken "
+				"due to bad memory!\n");
 
 		/* mark memory page bad */
 		memblock_reserve(pdt_entry[i] & PAGE_MASK, PAGE_SIZE);
@@ -315,7 +325,7 @@ static int pdt_mainloop(void *unused)
 #ifdef CONFIG_MEMORY_FAILURE
 			if ((pde & PDT_ADDR_PERM_ERR) ||
 			    ((pde & PDT_ADDR_SINGLE_ERR) == 0))
-				memory_failure(pde >> PAGE_SHIFT, 0, 0);
+				memory_failure(pde >> PAGE_SHIFT, 0);
 			else
 				soft_offline_page(
 					pfn_to_page(pde >> PAGE_SHIFT), 0);

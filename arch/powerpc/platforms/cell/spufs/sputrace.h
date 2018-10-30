@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_TRACE_SPUFS_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_SPUFS_H
 
 #include <linux/tracepoint.h>
+#include <linux/stringify.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM spufs

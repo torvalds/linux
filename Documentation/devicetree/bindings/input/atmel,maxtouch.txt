@@ -4,6 +4,13 @@ Required properties:
 - compatible:
     atmel,maxtouch
 
+    The following compatibles have been used in various products but are
+    deprecated:
+	atmel,qt602240_ts
+	atmel,atmel_mxt_ts
+	atmel,atmel_mxt_tp
+	atmel,mXT224
+
 - reg: The I2C address of the device
 
 - interrupts: The sink for the touchpad's IRQ output

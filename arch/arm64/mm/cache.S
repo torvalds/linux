@@ -35,7 +35,7 @@
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-ENTRY(flush_icache_range)
+ENTRY(__flush_icache_range)
 	/* FALLTHROUGH */
 
 /*
@@ -49,7 +49,11 @@ ENTRY(flush_icache_range)
  *	- end     - virtual end address of region
  */
 ENTRY(__flush_cache_user_range)
-	uaccess_ttbr0_enable x2, x3
+	uaccess_ttbr0_enable x2, x3, x4
+alternative_if ARM64_HAS_CACHE_IDC
+	dsb	ishst
+	b	7f
+alternative_else_nop_endif
 	dcache_line_size x2, x3
 	sub	x3, x2, #1
 	bic	x4, x0, x3
@@ -60,25 +64,48 @@ user_alt 9f, "dc cvau, x4",  "dc civac, x4",  ARM64_WORKAROUND_CLEAN_CACHE
 	b.lo	1b
 	dsb	ish
 
-	icache_line_size x2, x3
-	sub	x3, x2, #1
-	bic	x4, x0, x3
-1:
-USER(9f, ic	ivau, x4	)		// invalidate I line PoU
-	add	x4, x4, x2
-	cmp	x4, x1
-	b.lo	1b
-	dsb	ish
+7:
+alternative_if ARM64_HAS_CACHE_DIC
 	isb
-	mov	x0, #0
+	b	8f
+alternative_else_nop_endif
+	invalidate_icache_by_line x0, x1, x2, x3, 9f
+8:	mov	x0, #0
 1:
-	uaccess_ttbr0_disable x1
+	uaccess_ttbr0_disable x1, x2
 	ret
 9:
 	mov	x0, #-EFAULT
 	b	1b
-ENDPROC(flush_icache_range)
+ENDPROC(__flush_icache_range)
 ENDPROC(__flush_cache_user_range)
+
+/*
+ *	invalidate_icache_range(start,end)
+ *
+ *	Ensure that the I cache is invalid within specified region.
+ *
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ */
+ENTRY(invalidate_icache_range)
+alternative_if ARM64_HAS_CACHE_DIC
+	mov	x0, xzr
+	isb
+	ret
+alternative_else_nop_endif
+
+	uaccess_ttbr0_enable x2, x3, x4
+
+	invalidate_icache_by_line x0, x1, x2, x3, 2f
+	mov	x0, xzr
+1:
+	uaccess_ttbr0_disable x1, x2
+	ret
+2:
+	mov	x0, #-EFAULT
+	b	1b
+ENDPROC(invalidate_icache_range)
 
 /*
  *	__flush_dcache_area(kaddr, size)
@@ -104,6 +131,10 @@ ENDPIPROC(__flush_dcache_area)
  *	- size    - size in question
  */
 ENTRY(__clean_dcache_area_pou)
+alternative_if ARM64_HAS_CACHE_IDC
+	dsb	ishst
+	ret
+alternative_else_nop_endif
 	dcache_by_line_op cvau, ish, x0, x1, x2, x3
 	ret
 ENDPROC(__clean_dcache_area_pou)

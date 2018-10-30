@@ -143,6 +143,14 @@ static inline int is_dra ##subclass (void)		\
 	return (GET_OMAP_SUBCLASS == (id)) ? 1 : 0;	\
 }
 
+#define GET_DRA_PACKAGE		(omap_rev() & 0xff)
+
+#define IS_DRA_SUBCLASS_PACKAGE(subclass, package, id)			\
+static inline int is_dra ##subclass ##_ ##package (void)		\
+{									\
+	return (is_dra ##subclass () && GET_DRA_PACKAGE == id) ? 1 : 0;	\
+}
+
 IS_OMAP_CLASS(24xx, 0x24)
 IS_OMAP_CLASS(34xx, 0x34)
 IS_OMAP_CLASS(44xx, 0x44)
@@ -168,6 +176,8 @@ IS_TI_SUBCLASS(814x, 0x814)
 IS_AM_SUBCLASS(335x, 0x335)
 IS_AM_SUBCLASS(437x, 0x437)
 IS_DRA_SUBCLASS(76x, 0x76)
+IS_DRA_SUBCLASS_PACKAGE(76x, abz, 2)
+IS_DRA_SUBCLASS_PACKAGE(76x, acd, 3)
 IS_DRA_SUBCLASS(75x, 0x75)
 IS_DRA_SUBCLASS(72x, 0x72)
 
@@ -317,10 +327,14 @@ IS_OMAP_TYPE(3430, 0x3430)
 #if defined(CONFIG_SOC_DRA7XX)
 #undef soc_is_dra7xx
 #undef soc_is_dra76x
+#undef soc_is_dra76x_abz
+#undef soc_is_dra76x_acd
 #undef soc_is_dra74x
 #undef soc_is_dra72x
 #define soc_is_dra7xx()	is_dra7xx()
 #define soc_is_dra76x()	is_dra76x()
+#define soc_is_dra76x_abz()	is_dra76x_abz()
+#define soc_is_dra76x_acd()	is_dra76x_acd()
 #define soc_is_dra74x()	is_dra75x()
 #define soc_is_dra72x()	is_dra72x()
 #endif
@@ -391,12 +405,14 @@ IS_OMAP_TYPE(3430, 0x3430)
 
 #define DRA7XX_CLASS		0x07000000
 #define DRA762_REV_ES1_0	(DRA7XX_CLASS | (0x62 << 16) | (0x10 << 8))
+#define DRA762_ABZ_REV_ES1_0	(DRA762_REV_ES1_0 | (2 << 0))
+#define DRA762_ACD_REV_ES1_0	(DRA762_REV_ES1_0 | (3 << 0))
 #define DRA752_REV_ES1_0	(DRA7XX_CLASS | (0x52 << 16) | (0x10 << 8))
 #define DRA752_REV_ES1_1	(DRA7XX_CLASS | (0x52 << 16) | (0x11 << 8))
 #define DRA752_REV_ES2_0	(DRA7XX_CLASS | (0x52 << 16) | (0x20 << 8))
 #define DRA722_REV_ES1_0	(DRA7XX_CLASS | (0x22 << 16) | (0x10 << 8))
-#define DRA722_REV_ES1_0	(DRA7XX_CLASS | (0x22 << 16) | (0x10 << 8))
 #define DRA722_REV_ES2_0	(DRA7XX_CLASS | (0x22 << 16) | (0x20 << 8))
+#define DRA722_REV_ES2_1	(DRA7XX_CLASS | (0x22 << 16) | (0x21 << 8))
 
 void omap2xxx_check_revision(void);
 void omap3xxx_check_revision(void);

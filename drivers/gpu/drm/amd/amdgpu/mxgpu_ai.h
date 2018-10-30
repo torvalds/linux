@@ -24,7 +24,9 @@
 #ifndef __MXGPU_AI_H__
 #define __MXGPU_AI_H__
 
-#define AI_MAILBOX_TIMEDOUT	5000
+#define AI_MAILBOX_POLL_ACK_TIMEDOUT	500
+#define AI_MAILBOX_POLL_MSG_TIMEDOUT	12000
+#define AI_MAILBOX_POLL_FLR_TIMEDOUT	500
 
 enum idh_request {
 	IDH_REQ_GPU_INIT_ACCESS = 1,
@@ -50,5 +52,8 @@ void xgpu_ai_mailbox_set_irq_funcs(struct amdgpu_device *adev);
 int xgpu_ai_mailbox_add_irq_id(struct amdgpu_device *adev);
 int xgpu_ai_mailbox_get_irq(struct amdgpu_device *adev);
 void xgpu_ai_mailbox_put_irq(struct amdgpu_device *adev);
+
+#define AI_MAIBOX_CONTROL_TRN_OFFSET_BYTE SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_CONTROL) * 4
+#define AI_MAIBOX_CONTROL_RCV_OFFSET_BYTE SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_CONTROL) * 4 + 1
 
 #endif

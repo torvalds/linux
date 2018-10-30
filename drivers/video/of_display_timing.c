@@ -181,8 +181,9 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 		goto entryfail;
 	}
 
-	disp->timings = kzalloc(sizeof(struct display_timing *) *
-				disp->num_timings, GFP_KERNEL);
+	disp->timings = kcalloc(disp->num_timings,
+				sizeof(struct display_timing *),
+				GFP_KERNEL);
 	if (!disp->timings) {
 		pr_err("%pOF: could not allocate timings array\n", np);
 		goto entryfail;
@@ -244,23 +245,3 @@ dispfail:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(of_get_display_timings);
-
-/**
- * of_display_timings_exist - check if a display-timings node is provided
- * @np: device_node with the timing
- **/
-int of_display_timings_exist(const struct device_node *np)
-{
-	struct device_node *timings_np;
-
-	if (!np)
-		return -EINVAL;
-
-	timings_np = of_parse_phandle(np, "display-timings", 0);
-	if (!timings_np)
-		return -EINVAL;
-
-	of_node_put(timings_np);
-	return 1;
-}
-EXPORT_SYMBOL_GPL(of_display_timings_exist);

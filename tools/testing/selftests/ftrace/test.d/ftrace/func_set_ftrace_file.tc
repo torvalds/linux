@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: ftrace - test reading of set_ftrace_filter
 #
 # The set_ftrace_filter file of ftrace is used to list functions as well as
@@ -14,25 +15,14 @@ if [ ! -f set_ftrace_filter ]; then
     exit_unsupported
 fi
 
-do_reset() {
-    reset_tracer
-    reset_ftrace_filter
-    disable_events
-    clear_trace
-    enable_tracing
-}
-
 fail() { # mesg
-    do_reset
     echo $1
-    exit $FAIL
+    exit_fail
 }
-
-do_reset
 
 FILTER=set_ftrace_filter
 FUNC1="schedule"
-FUNC2="do_IRQ"
+FUNC2="do_softirq"
 
 ALL_FUNCS="#### all functions enabled ####"
 
@@ -127,6 +117,41 @@ if check_set_ftrace_filter "$FUNC1" "$FUNC2" ; then
     fail "Expected $FUNC1 and $FUNC2"
 fi
 
-do_reset
+test_actual() { # Compares $TMPDIR/expected with set_ftrace_filter
+    cat set_ftrace_filter | grep -v '#' | cut -d' ' -f1 | cut -d':' -f1 | sort -u > $TMPDIR/actual
+    DIFF=`diff $TMPDIR/actual $TMPDIR/expected`
+    test -z "$DIFF"
+}
+
+# Set traceoff trigger for all fuctions with "lock" in their name
+cat available_filter_functions | cut -d' ' -f1 |  grep 'lock' | sort -u > $TMPDIR/expected
+echo '*lock*:traceoff' > set_ftrace_filter
+test_actual
+
+# now remove all with 'try' in it, and end with lock
+grep -v 'try.*lock$' $TMPDIR/expected > $TMPDIR/expected2
+mv $TMPDIR/expected2 $TMPDIR/expected
+echo '!*try*lock:traceoff' >> set_ftrace_filter
+test_actual
+
+# remove all that start with "m" and end with "lock"
+grep -v '^m.*lock$' $TMPDIR/expected > $TMPDIR/expected2
+mv $TMPDIR/expected2 $TMPDIR/expected
+echo '!m*lock:traceoff' >> set_ftrace_filter
+test_actual
+
+# remove all that start with "c" and have "unlock"
+grep -v '^c.*unlock' $TMPDIR/expected > $TMPDIR/expected2
+mv $TMPDIR/expected2 $TMPDIR/expected
+echo '!c*unlock*:traceoff' >> set_ftrace_filter
+test_actual
+
+# clear all the rest
+> $TMPDIR/expected
+echo '!*:traceoff' >> set_ftrace_filter
+test_actual
+
+rm $TMPDIR/expected
+rm $TMPDIR/actual
 
 exit 0

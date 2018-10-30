@@ -25,16 +25,16 @@
 #include "mock_engine.h"
 #include "mock_request.h"
 
-struct drm_i915_gem_request *
+struct i915_request *
 mock_request(struct intel_engine_cs *engine,
 	     struct i915_gem_context *context,
 	     unsigned long delay)
 {
-	struct drm_i915_gem_request *request;
+	struct i915_request *request;
 	struct mock_request *mock;
 
 	/* NB the i915->requests slab cache is enlarged to fit mock_request */
-	request = i915_gem_request_alloc(engine, context);
+	request = i915_request_alloc(engine, context);
 	if (IS_ERR(request))
 		return NULL;
 
@@ -44,7 +44,7 @@ mock_request(struct intel_engine_cs *engine,
 	return &mock->base;
 }
 
-bool mock_cancel_request(struct drm_i915_gem_request *request)
+bool mock_cancel_request(struct i915_request *request)
 {
 	struct mock_request *mock = container_of(request, typeof(*mock), base);
 	struct mock_engine *engine =
@@ -57,7 +57,7 @@ bool mock_cancel_request(struct drm_i915_gem_request *request)
 	spin_unlock_irq(&engine->hw_lock);
 
 	if (was_queued)
-		i915_gem_request_unsubmit(request);
+		i915_request_unsubmit(request);
 
 	return was_queued;
 }

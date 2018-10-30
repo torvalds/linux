@@ -1,6 +1,6 @@
-* Renesas RZ Clock Pulse Generator (CPG)
+* Renesas RZ/A1 Clock Pulse Generator (CPG)
 
-The CPG generates core clocks for the RZ SoCs. It includes the PLL, variable
+The CPG generates core clocks for the RZ/A1 SoCs. It includes the PLL, variable
 CPU and GPU clocks, and several fixed ratio dividers.
 The CPG also provides a Clock Domain for SoC devices, in combination with the
 CPG Module Stop (MSTP) Clocks.

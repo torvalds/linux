@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_CMPXCHG_H_
 #define _ASM_POWERPC_CMPXCHG_H_
 
 #ifdef __KERNEL__
 #include <linux/compiler.h>
 #include <asm/synch.h>
-#include <asm/asm-compat.h>
 #include <linux/bug.h>
+#include <asm/asm-405.h>
 
 #ifdef __BIG_ENDIAN
 #define BITOFF_CAL(size, off)	((sizeof(u32) - size - off) * BITS_PER_BYTE)

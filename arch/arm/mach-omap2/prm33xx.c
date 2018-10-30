@@ -176,17 +176,6 @@ static int am33xx_pwrdm_read_pwrst(struct powerdomain *pwrdm)
 	return v;
 }
 
-static int am33xx_pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
-{
-	u32 v;
-
-	v = am33xx_prm_read_reg(pwrdm->prcm_offs, pwrdm->pwrstst_offs);
-	v &= AM33XX_LASTPOWERSTATEENTERED_MASK;
-	v >>= AM33XX_LASTPOWERSTATEENTERED_SHIFT;
-
-	return v;
-}
-
 static int am33xx_pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm)
 {
 	am33xx_prm_rmw_reg_bits(AM33XX_LOWPOWERSTATECHANGE_MASK,
@@ -353,11 +342,39 @@ static void am33xx_prm_global_warm_sw_reset(void)
 				  AM33XX_PRM_RSTCTRL_OFFSET);
 }
 
+static void am33xx_pwrdm_save_context(struct powerdomain *pwrdm)
+{
+	pwrdm->context = am33xx_prm_read_reg(pwrdm->prcm_offs,
+						pwrdm->pwrstctrl_offs);
+	/*
+	 * Do not save LOWPOWERSTATECHANGE, writing a 1 indicates a request,
+	 * reading back a 1 indicates a request in progress.
+	 */
+	pwrdm->context &= ~AM33XX_LOWPOWERSTATECHANGE_MASK;
+}
+
+static void am33xx_pwrdm_restore_context(struct powerdomain *pwrdm)
+{
+	int st, ctrl;
+
+	st = am33xx_prm_read_reg(pwrdm->prcm_offs,
+				 pwrdm->pwrstst_offs);
+
+	am33xx_prm_write_reg(pwrdm->context, pwrdm->prcm_offs,
+			     pwrdm->pwrstctrl_offs);
+
+	/* Make sure we only wait for a transition if there is one */
+	st &= OMAP_POWERSTATEST_MASK;
+	ctrl = OMAP_POWERSTATEST_MASK & pwrdm->context;
+
+	if (st != ctrl)
+		am33xx_pwrdm_wait_transition(pwrdm);
+}
+
 struct pwrdm_ops am33xx_pwrdm_operations = {
 	.pwrdm_set_next_pwrst		= am33xx_pwrdm_set_next_pwrst,
 	.pwrdm_read_next_pwrst		= am33xx_pwrdm_read_next_pwrst,
 	.pwrdm_read_pwrst		= am33xx_pwrdm_read_pwrst,
-	.pwrdm_read_prev_pwrst		= am33xx_pwrdm_read_prev_pwrst,
 	.pwrdm_set_logic_retst		= am33xx_pwrdm_set_logic_retst,
 	.pwrdm_read_logic_pwrst		= am33xx_pwrdm_read_logic_pwrst,
 	.pwrdm_read_logic_retst		= am33xx_pwrdm_read_logic_retst,
@@ -369,6 +386,8 @@ struct pwrdm_ops am33xx_pwrdm_operations = {
 	.pwrdm_set_mem_retst		= am33xx_pwrdm_set_mem_retst,
 	.pwrdm_wait_transition		= am33xx_pwrdm_wait_transition,
 	.pwrdm_has_voltdm		= am33xx_check_vcvp,
+	.pwrdm_save_context		= am33xx_pwrdm_save_context,
+	.pwrdm_restore_context		= am33xx_pwrdm_restore_context,
 };
 
 static struct prm_ll_data am33xx_prm_ll_data = {

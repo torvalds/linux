@@ -22,7 +22,7 @@
 	model = "Eukrea CPUIMX51";
 	compatible = "eukrea,cpuimx51", "fsl,imx51";
 
-	memory {
+	memory@90000000 {
 		reg = <0x90000000 0x10000000>; /* 256M */
 	};
 };

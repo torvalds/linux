@@ -40,7 +40,7 @@
  * seem to be a documentation error.  At least on my RM200C the Cirrus
  * Logic CL-GD5434 VGA is device 3.
  */
-static char irq_tab_rm200[8][5] __initdata = {
+static char irq_tab_rm200[8][5] = {
 	/*	 INTA  INTB  INTC  INTD */
 	{     0,    0,	  0,	0,    0 },	/* EISA bridge */
 	{  SCSI, SCSI, SCSI, SCSI, SCSI },	/* SCSI */
@@ -57,7 +57,7 @@ static char irq_tab_rm200[8][5] __initdata = {
  *
  * The VGA card is optional for RM300 systems.
  */
-static char irq_tab_rm300d[8][5] __initdata = {
+static char irq_tab_rm300d[8][5] = {
 	/*	 INTA  INTB  INTC  INTD */
 	{     0,    0,	  0,	0,    0 },	/* EISA bridge */
 	{  SCSI, SCSI, SCSI, SCSI, SCSI },	/* SCSI */
@@ -69,7 +69,7 @@ static char irq_tab_rm300d[8][5] __initdata = {
 	{     0, INTD, INTA, INTB, INTC },	/* Slot 4 */
 };
 
-static char irq_tab_rm300e[5][5] __initdata = {
+static char irq_tab_rm300e[5][5] = {
 	/*	 INTA  INTB  INTC  INTD */
 	{     0,    0,	  0,	0,    0 },	/* HOST bridge */
 	{  SCSI, SCSI, SCSI, SCSI, SCSI },	/* SCSI */
@@ -96,7 +96,7 @@ static char irq_tab_rm300e[5][5] __initdata = {
 #define INTC	PCIT_IRQ_INTC
 #define INTD	PCIT_IRQ_INTD
 
-static char irq_tab_pcit[13][5] __initdata = {
+static char irq_tab_pcit[13][5] = {
 	/*	 INTA  INTB  INTC  INTD */
 	{     0,     0,	    0,	   0,	  0 },	/* HOST bridge */
 	{ SCSI0, SCSI0, SCSI0, SCSI0, SCSI0 },	/* SCSI */
@@ -113,7 +113,7 @@ static char irq_tab_pcit[13][5] __initdata = {
 	{     0,  INTA,	 INTB,	INTC,  INTD },	/* Slot 5 */
 };
 
-static char irq_tab_pcit_cplus[13][5] __initdata = {
+static char irq_tab_pcit_cplus[13][5] = {
 	/*	 INTA  INTB  INTC  INTD */
 	{     0,     0,	    0,	   0,	  0 },	/* HOST bridge */
 	{     0,  INTB,	 INTC,	INTD,  INTA },	/* PCI Slot 9 */
@@ -130,7 +130,7 @@ static inline int is_rm300_revd(void)
 	return (csmsr & 0xa0) == 0x20;
 }
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	switch (sni_brd_type) {
 	case SNI_BRD_PCI_TOWER_CPLUS:

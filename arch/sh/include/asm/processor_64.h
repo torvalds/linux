@@ -170,10 +170,6 @@ struct mm_struct;
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 
-/* Copy and release all segment info associated with a VM */
-#define copy_segments(p, mm)	do { } while (0)
-#define release_segments(mm)	do { } while (0)
-#define forget_segments()	do { } while (0)
 /*
  * FPU lazy state save handling.
  */

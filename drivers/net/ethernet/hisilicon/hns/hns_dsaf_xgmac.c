@@ -215,10 +215,10 @@ static void hns_xgmac_init(void *mac_drv)
 	u32 port = drv->mac_id;
 
 	dsaf_dev->misc_op->xge_srst(dsaf_dev, port, 0);
-	mdelay(100);
+	msleep(100);
 	dsaf_dev->misc_op->xge_srst(dsaf_dev, port, 1);
 
-	mdelay(100);
+	msleep(100);
 	hns_xgmac_lf_rf_control_init(drv);
 	hns_xgmac_exc_irq_en(drv, 0);
 
@@ -311,7 +311,7 @@ static void hns_xgmac_config_max_frame_length(void *mac_drv, u16 newval)
 	dsaf_write_dev(drv, XGMAC_MAC_MAX_PKT_SIZE_REG, newval);
 }
 
-void hns_xgmac_update_stats(void *mac_drv)
+static void hns_xgmac_update_stats(void *mac_drv)
 {
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
 	struct mac_hw_stats *hw_stats = &drv->mac_cb->hw_stats;

@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/pci.h>
 #include <linux/percpu-defs.h>
 #include <linux/init.h>
 #include <linux/mod_devicetable.h>
@@ -109,12 +110,23 @@ out:
 static int __init amd_freq_sensitivity_init(void)
 {
 	u64 val;
+	struct pci_dev *pcidev;
+	unsigned int pci_vendor;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		pci_vendor = PCI_VENDOR_ID_AMD;
+	else if (boot_cpu_data.x86_vendor == X86_VENDOR_HYGON)
+		pci_vendor = PCI_VENDOR_ID_HYGON;
+	else
 		return -ENODEV;
 
-	if (!static_cpu_has(X86_FEATURE_PROC_FEEDBACK))
-		return -ENODEV;
+	pcidev = pci_get_device(pci_vendor,
+			PCI_DEVICE_ID_AMD_KERNCZ_SMBUS, NULL);
+
+	if (!pcidev) {
+		if (!static_cpu_has(X86_FEATURE_PROC_FEEDBACK))
+			return -ENODEV;
+	}
 
 	if (rdmsrl_safe(MSR_AMD64_FREQ_SENSITIVITY_ACTUAL, &val))
 		return -ENODEV;

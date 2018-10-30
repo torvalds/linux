@@ -10,16 +10,3 @@ config VME_USER
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called vme_user. If unsure, say N.
-
-config VME_PIO2
-	tristate "GE PIO2 VME"
-	depends on STAGING && GPIOLIB
-	help
-	  Say Y here to include support for the GE PIO2. The PIO2 is a 6U VME
-	  slave card, implementing 32 solid-state relay switched IO lines, in
-	  4 groups of 8. Each bank of IO lines is built to function as input,
-	  output or both depending on the variant of the card.
-
-	  To compile this driver as a module, choose M here. The module will
-	  be called vme_pio2. If unsure, say N.
-

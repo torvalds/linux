@@ -73,7 +73,7 @@ Example with two SJA1000 CAN controllers connected to the GMI bus. We wrap the
 controllers with a simple-bus node since they are all connected to the same
 chip-select (CS4), in this example external address decoding is provided:
 
-gmi@70090000 {
+gmi@70009000 {
 	compatible = "nvidia,tegra20-gmi";
 	reg = <0x70009000 0x1000>;
 	#address-cells = <2>;
@@ -83,7 +83,6 @@ gmi@70090000 {
 	resets = <&tegra_car 42>;
 	reset-names = "gmi";
 	ranges = <4 0 0xd0000000 0xfffffff>;
-
 
 	bus@4,0 {
 		compatible = "simple-bus";
@@ -109,7 +108,7 @@ gmi@70090000 {
 Example with one SJA1000 CAN controller connected to the GMI bus
 on CS4:
 
-gmi@70090000 {
+gmi@70009000 {
 	compatible = "nvidia,tegra20-gmi";
 	reg = <0x70009000 0x1000>;
 	#address-cells = <2>;
@@ -119,7 +118,6 @@ gmi@70090000 {
 	resets = <&tegra_car 42>;
 	reset-names = "gmi";
 	ranges = <4 0 0xd0000000 0xfffffff>;
-
 
 	can@4,0 {
 		reg = <4 0 0x100>;

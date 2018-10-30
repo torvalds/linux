@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>
@@ -28,7 +29,7 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
 {
 	struct radix_tree_node *node;
 
-	if (flags & __GFP_NOWARN)
+	if (!(flags & __GFP_DIRECT_RECLAIM))
 		return NULL;
 
 	pthread_mutex_lock(&cachep->lock);
@@ -72,10 +73,17 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 
 void *kmalloc(size_t size, gfp_t gfp)
 {
-	void *ret = malloc(size);
+	void *ret;
+
+	if (!(gfp & __GFP_DIRECT_RECLAIM))
+		return NULL;
+
+	ret = malloc(size);
 	uatomic_inc(&nr_allocated);
 	if (kmalloc_verbose)
 		printf("Allocating %p from malloc\n", ret);
+	if (gfp & __GFP_ZERO)
+		memset(ret, 0, size);
 	return ret;
 }
 

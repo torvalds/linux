@@ -34,6 +34,8 @@
 #include "rcu.h"
 
 int rcu_scheduler_active __read_mostly;
+static LIST_HEAD(srcu_boot_list);
+static bool srcu_init_done;
 
 static int init_srcu_struct_fields(struct srcu_struct *sp)
 {
@@ -46,6 +48,7 @@ static int init_srcu_struct_fields(struct srcu_struct *sp)
 	sp->srcu_gp_waiting = false;
 	sp->srcu_idx = 0;
 	INIT_WORK(&sp->srcu_work, srcu_drive_gp);
+	INIT_LIST_HEAD(&sp->srcu_work.entry);
 	return 0;
 }
 
@@ -86,16 +89,19 @@ EXPORT_SYMBOL_GPL(init_srcu_struct);
  * Must invoke this after you are finished using a given srcu_struct that
  * was initialized via init_srcu_struct(), else you leak memory.
  */
-void cleanup_srcu_struct(struct srcu_struct *sp)
+void _cleanup_srcu_struct(struct srcu_struct *sp, bool quiesced)
 {
 	WARN_ON(sp->srcu_lock_nesting[0] || sp->srcu_lock_nesting[1]);
-	flush_work(&sp->srcu_work);
+	if (quiesced)
+		WARN_ON(work_pending(&sp->srcu_work));
+	else
+		flush_work(&sp->srcu_work);
 	WARN_ON(sp->srcu_gp_running);
 	WARN_ON(sp->srcu_gp_waiting);
 	WARN_ON(sp->srcu_cb_head);
 	WARN_ON(&sp->srcu_cb_head != sp->srcu_cb_tail);
 }
-EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
+EXPORT_SYMBOL_GPL(_cleanup_srcu_struct);
 
 /*
  * Removes the count for the old reader from the appropriate element of
@@ -107,7 +113,7 @@ void __srcu_read_unlock(struct srcu_struct *sp, int idx)
 
 	WRITE_ONCE(sp->srcu_lock_nesting[idx], newval);
 	if (!newval && READ_ONCE(sp->srcu_gp_waiting))
-		swake_up(&sp->srcu_wq);
+		swake_up_one(&sp->srcu_wq);
 }
 EXPORT_SYMBOL_GPL(__srcu_read_unlock);
 
@@ -137,7 +143,7 @@ void srcu_drive_gp(struct work_struct *wp)
 	idx = sp->srcu_idx;
 	WRITE_ONCE(sp->srcu_idx, !sp->srcu_idx);
 	WRITE_ONCE(sp->srcu_gp_waiting, true);  /* srcu_read_unlock() wakes! */
-	swait_event(sp->srcu_wq, !READ_ONCE(sp->srcu_lock_nesting[idx]));
+	swait_event_exclusive(sp->srcu_wq, !READ_ONCE(sp->srcu_lock_nesting[idx]));
 	WRITE_ONCE(sp->srcu_gp_waiting, false); /* srcu_read_unlock() cheap. */
 
 	/* Invoke the callbacks we removed above. */
@@ -176,8 +182,12 @@ void call_srcu(struct srcu_struct *sp, struct rcu_head *rhp,
 	*sp->srcu_cb_tail = rhp;
 	sp->srcu_cb_tail = &rhp->next;
 	local_irq_restore(flags);
-	if (!READ_ONCE(sp->srcu_gp_running))
-		schedule_work(&sp->srcu_work);
+	if (!READ_ONCE(sp->srcu_gp_running)) {
+		if (likely(srcu_init_done))
+			schedule_work(&sp->srcu_work);
+		else if (list_empty(&sp->srcu_work.entry))
+			list_add(&sp->srcu_work.entry, &srcu_boot_list);
+	}
 }
 EXPORT_SYMBOL_GPL(call_srcu);
 
@@ -200,4 +210,22 @@ EXPORT_SYMBOL_GPL(synchronize_srcu);
 void __init rcu_scheduler_starting(void)
 {
 	rcu_scheduler_active = RCU_SCHEDULER_RUNNING;
+}
+
+/*
+ * Queue work for srcu_struct structures with early boot callbacks.
+ * The work won't actually execute until the workqueue initialization
+ * phase that takes place after the scheduler starts.
+ */
+void __init srcu_init(void)
+{
+	struct srcu_struct *sp;
+
+	srcu_init_done = true;
+	while (!list_empty(&srcu_boot_list)) {
+		sp = list_first_entry(&srcu_boot_list,
+				      struct srcu_struct, srcu_work.entry);
+		list_del_init(&sp->srcu_work.entry);
+		schedule_work(&sp->srcu_work);
+	}
 }

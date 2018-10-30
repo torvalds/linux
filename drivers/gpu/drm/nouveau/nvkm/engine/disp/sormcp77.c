@@ -44,5 +44,5 @@ mcp77_sor = {
 int
 mcp77_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nv50_sor_new_(&mcp77_sor, disp, id);
+	return nvkm_ior_new_(&mcp77_sor, disp, SOR, id);
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
 #include "main.h"
 #include <stdlib.h>
@@ -15,22 +16,41 @@
 #define unlikely(x)    (__builtin_expect(!!(x), 0))
 #define likely(x)    (__builtin_expect(!!(x), 1))
 #define ALIGN(x, a) (((x) + (a) - 1) / (a) * (a))
+#define SIZE_MAX        (~(size_t)0)
+#define KMALLOC_MAX_SIZE SIZE_MAX
+#define BUG_ON(x) assert(x)
+
 typedef pthread_spinlock_t  spinlock_t;
 
 typedef int gfp_t;
-static void *kmalloc(unsigned size, gfp_t gfp)
-{
-	return memalign(64, size);
-}
+#define __GFP_ZERO 0x1
 
-static void *kzalloc(unsigned size, gfp_t gfp)
+static void *kmalloc(unsigned size, gfp_t gfp)
 {
 	void *p = memalign(64, size);
 	if (!p)
 		return p;
-	memset(p, 0, size);
 
+	if (gfp & __GFP_ZERO)
+		memset(p, 0, size);
 	return p;
+}
+
+static inline void *kzalloc(unsigned size, gfp_t flags)
+{
+	return kmalloc(size, flags | __GFP_ZERO);
+}
+
+static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	if (size != 0 && n > SIZE_MAX / size)
+		return NULL;
+	return kmalloc(n * size, flags);
+}
+
+static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
+{
+	return kmalloc_array(n, size, flags | __GFP_ZERO);
 }
 
 static void kfree(void *p)
@@ -38,6 +58,9 @@ static void kfree(void *p)
 	if (p)
 		free(p);
 }
+
+#define kvmalloc_array kmalloc_array
+#define kvfree kfree
 
 static void spin_lock_init(spinlock_t *lock)
 {
@@ -169,7 +192,7 @@ bool enable_kick()
 
 bool avail_empty()
 {
-	return !__ptr_ring_peek(&array);
+	return __ptr_ring_empty(&array);
 }
 
 bool use_buf(unsigned *lenp, void **bufp)

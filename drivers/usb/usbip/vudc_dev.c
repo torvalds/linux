@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Karol Kosik <karo9@interia.eu>
  * Copyright (C) 2015-2016 Samsung Electronics
  *               Igor Kotrasinski <i.kotrasinsk@samsung.com>
  *               Krzysztof Opasiak <k.opasiak@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/device.h>
@@ -135,16 +123,15 @@ struct vep *vudc_find_endpoint(struct vudc *udc, u8 address)
 
 /* gadget ops */
 
-/* FIXME - this will probably misbehave when suspend/resume is added */
 static int vgadget_get_frame(struct usb_gadget *_gadget)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct vudc *udc = usb_gadget_to_vudc(_gadget);
 
-	do_gettimeofday(&now);
+	ktime_get_ts64(&now);
 	return ((now.tv_sec - udc->start_time.tv_sec) * 1000 +
-			(now.tv_usec - udc->start_time.tv_usec) / 1000)
-			% 0x7FF;
+		(now.tv_nsec - udc->start_time.tv_nsec) / NSEC_PER_MSEC)
+			& 0x7FF;
 }
 
 static int vgadget_set_selfpowered(struct usb_gadget *_gadget, int value)
@@ -292,12 +279,10 @@ static int vep_disable(struct usb_ep *_ep)
 static struct usb_request *vep_alloc_request(struct usb_ep *_ep,
 		gfp_t mem_flags)
 {
-	struct vep *ep;
 	struct vrequest *req;
 
 	if (!_ep)
 		return NULL;
-	ep = to_vep(_ep);
 
 	req = kzalloc(sizeof(*req), mem_flags);
 	if (!req)

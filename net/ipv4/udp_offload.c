@@ -120,7 +120,7 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 		 * will be using a length value equal to only one MSS sized
 		 * segment instead of the entire frame.
 		 */
-		if (gso_partial) {
+		if (gso_partial && skb_is_gso(skb)) {
 			uh->len = htons(skb_shinfo(skb)->gso_size +
 					SKB_GSO_CB(skb)->data_offset +
 					skb->head - (unsigned char *)uh);
@@ -187,23 +187,167 @@ out_unlock:
 }
 EXPORT_SYMBOL(skb_udp_tunnel_segment);
 
-static struct sk_buff *udp4_tunnel_segment(struct sk_buff *skb,
-					   netdev_features_t features)
+struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
+				  netdev_features_t features)
+{
+	struct sock *sk = gso_skb->sk;
+	unsigned int sum_truesize = 0;
+	struct sk_buff *segs, *seg;
+	struct udphdr *uh;
+	unsigned int mss;
+	bool copy_dtor;
+	__sum16 check;
+	__be16 newlen;
+
+	mss = skb_shinfo(gso_skb)->gso_size;
+	if (gso_skb->len <= sizeof(*uh) + mss)
+		return ERR_PTR(-EINVAL);
+
+	skb_pull(gso_skb, sizeof(*uh));
+
+	/* clear destructor to avoid skb_segment assigning it to tail */
+	copy_dtor = gso_skb->destructor == sock_wfree;
+	if (copy_dtor)
+		gso_skb->destructor = NULL;
+
+	segs = skb_segment(gso_skb, features);
+	if (unlikely(IS_ERR_OR_NULL(segs))) {
+		if (copy_dtor)
+			gso_skb->destructor = sock_wfree;
+		return segs;
+	}
+
+	/* GSO partial and frag_list segmentation only requires splitting
+	 * the frame into an MSS multiple and possibly a remainder, both
+	 * cases return a GSO skb. So update the mss now.
+	 */
+	if (skb_is_gso(segs))
+		mss *= skb_shinfo(segs)->gso_segs;
+
+	seg = segs;
+	uh = udp_hdr(seg);
+
+	/* compute checksum adjustment based on old length versus new */
+	newlen = htons(sizeof(*uh) + mss);
+	check = csum16_add(csum16_sub(uh->check, uh->len), newlen);
+
+	for (;;) {
+		if (copy_dtor) {
+			seg->destructor = sock_wfree;
+			seg->sk = sk;
+			sum_truesize += seg->truesize;
+		}
+
+		if (!seg->next)
+			break;
+
+		uh->len = newlen;
+		uh->check = check;
+
+		if (seg->ip_summed == CHECKSUM_PARTIAL)
+			gso_reset_checksum(seg, ~check);
+		else
+			uh->check = gso_make_checksum(seg, ~check) ? :
+				    CSUM_MANGLED_0;
+
+		seg = seg->next;
+		uh = udp_hdr(seg);
+	}
+
+	/* last packet can be partial gso_size, account for that in checksum */
+	newlen = htons(skb_tail_pointer(seg) - skb_transport_header(seg) +
+		       seg->data_len);
+	check = csum16_add(csum16_sub(uh->check, uh->len), newlen);
+
+	uh->len = newlen;
+	uh->check = check;
+
+	if (seg->ip_summed == CHECKSUM_PARTIAL)
+		gso_reset_checksum(seg, ~check);
+	else
+		uh->check = gso_make_checksum(seg, ~check) ? : CSUM_MANGLED_0;
+
+	/* update refcount for the packet */
+	if (copy_dtor) {
+		int delta = sum_truesize - gso_skb->truesize;
+
+		/* In some pathological cases, delta can be negative.
+		 * We need to either use refcount_add() or refcount_sub_and_test()
+		 */
+		if (likely(delta >= 0))
+			refcount_add(delta, &sk->sk_wmem_alloc);
+		else
+			WARN_ON_ONCE(refcount_sub_and_test(-delta, &sk->sk_wmem_alloc));
+	}
+	return segs;
+}
+EXPORT_SYMBOL_GPL(__udp_gso_segment);
+
+static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
+					 netdev_features_t features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	unsigned int mss;
+	__wsum csum;
+	struct udphdr *uh;
+	struct iphdr *iph;
 
 	if (skb->encapsulation &&
 	    (skb_shinfo(skb)->gso_type &
-	     (SKB_GSO_UDP_TUNNEL|SKB_GSO_UDP_TUNNEL_CSUM)))
+	     (SKB_GSO_UDP_TUNNEL|SKB_GSO_UDP_TUNNEL_CSUM))) {
 		segs = skb_udp_tunnel_segment(skb, features, false);
+		goto out;
+	}
 
+	if (!(skb_shinfo(skb)->gso_type & (SKB_GSO_UDP | SKB_GSO_UDP_L4)))
+		goto out;
+
+	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
+		goto out;
+
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+		return __udp_gso_segment(skb, features);
+
+	mss = skb_shinfo(skb)->gso_size;
+	if (unlikely(skb->len <= mss))
+		goto out;
+
+	/* Do software UFO. Complete and fill in the UDP checksum as
+	 * HW cannot do checksum of UDP packets sent as multiple
+	 * IP fragments.
+	 */
+
+	uh = udp_hdr(skb);
+	iph = ip_hdr(skb);
+
+	uh->check = 0;
+	csum = skb_checksum(skb, 0, skb->len, 0);
+	uh->check = udp_v4_check(skb->len, iph->saddr, iph->daddr, csum);
+	if (uh->check == 0)
+		uh->check = CSUM_MANGLED_0;
+
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	/* If there is no outer header we can fake a checksum offload
+	 * due to the fact that we have already done the checksum in
+	 * software prior to segmenting the frame.
+	 */
+	if (!skb->encap_hdr_csum)
+		features |= NETIF_F_HW_CSUM;
+
+	/* Fragment the skb. IP headers of the fragments are updated in
+	 * inet_gso_segment()
+	 */
+	segs = skb_segment(skb, features);
+out:
 	return segs;
 }
 
-struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
-				 struct udphdr *uh, udp_lookup_t lookup)
+struct sk_buff *udp_gro_receive(struct list_head *head, struct sk_buff *skb,
+				struct udphdr *uh, udp_lookup_t lookup)
 {
-	struct sk_buff *p, **pp = NULL;
+	struct sk_buff *pp = NULL;
+	struct sk_buff *p;
 	struct udphdr *uh2;
 	unsigned int off = skb_gro_offset(skb);
 	int flush = 1;
@@ -228,7 +372,7 @@ struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
 unflush:
 	flush = 0;
 
-	for (p = *head; p; p = p->next) {
+	list_for_each_entry(p, head, list) {
 		if (!NAPI_GRO_CB(p)->same_flow)
 			continue;
 
@@ -251,17 +395,17 @@ unflush:
 out_unlock:
 	rcu_read_unlock();
 out:
-	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_flush_final(skb, pp, flush);
 	return pp;
 }
 EXPORT_SYMBOL(udp_gro_receive);
 
-static struct sk_buff **udp4_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
+static struct sk_buff *udp4_gro_receive(struct list_head *head,
+					struct sk_buff *skb)
 {
 	struct udphdr *uh = udp_gro_udphdr(skb);
 
-	if (unlikely(!uh))
+	if (unlikely(!uh) || !static_branch_unlikely(&udp_encap_needed_key))
 		goto flush;
 
 	/* Don't bother verifying checksum if we're going to flush anyway. */
@@ -330,7 +474,7 @@ static int udp4_gro_complete(struct sk_buff *skb, int nhoff)
 
 static const struct net_offload udpv4_offload = {
 	.callbacks = {
-		.gso_segment = udp4_tunnel_segment,
+		.gso_segment = udp4_ufo_fragment,
 		.gro_receive  =	udp4_gro_receive,
 		.gro_complete =	udp4_gro_complete,
 	},

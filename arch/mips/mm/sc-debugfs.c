@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2015 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,17 +31,10 @@ static ssize_t sc_prefetch_write(struct file *file,
 				 const char __user *user_buf,
 				 size_t count, loff_t *ppos)
 {
-	char buf[32];
-	ssize_t buf_size;
 	bool enabled;
 	int err;
 
-	buf_size = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-	err = strtobool(buf, &enabled);
+	err = kstrtobool_from_user(user_buf, count, &enabled);
 	if (err)
 		return err;
 

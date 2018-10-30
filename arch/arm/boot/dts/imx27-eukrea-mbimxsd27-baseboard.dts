@@ -84,7 +84,7 @@
 	cs-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
-	ads7846 {
+	ads7846@0 {
 		compatible = "ti,ads7846";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_touch>;

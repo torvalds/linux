@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef CYPRESS_M8_H
 #define CYPRESS_M8_H
 

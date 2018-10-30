@@ -122,8 +122,9 @@ static void rmi_f30_report_button(struct rmi_function *fn,
 	}
 }
 
-static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
+static irqreturn_t rmi_f30_attention(int irq, void *ctx)
 {
+	struct rmi_function *fn = ctx;
 	struct f30_data *f30 = dev_get_drvdata(&fn->dev);
 	struct rmi_driver_data *drvdata = dev_get_drvdata(&fn->rmi_dev->dev);
 	int error;
@@ -134,7 +135,7 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 		if (drvdata->attn_data.size < f30->register_count) {
 			dev_warn(&fn->dev,
 				 "F30 interrupted, but data is missing\n");
-			return 0;
+			return IRQ_HANDLED;
 		}
 		memcpy(f30->data_regs, drvdata->attn_data.data,
 			f30->register_count);
@@ -147,7 +148,7 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 			dev_err(&fn->dev,
 				"%s: Failed to read F30 data registers: %d\n",
 				__func__, error);
-			return error;
+			return IRQ_RETVAL(error);
 		}
 	}
 
@@ -159,7 +160,7 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 			rmi_f03_commit_buttons(f30->f03);
 	}
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static int rmi_f30_config(struct rmi_function *fn)
@@ -232,9 +233,10 @@ static int rmi_f30_map_gpios(struct rmi_function *fn,
 	unsigned int trackstick_button = BTN_LEFT;
 	bool button_mapped = false;
 	int i;
+	int button_count = min_t(u8, f30->gpioled_count, TRACKSTICK_RANGE_END);
 
 	f30->gpioled_key_map = devm_kcalloc(&fn->dev,
-					    f30->gpioled_count,
+					    button_count,
 					    sizeof(f30->gpioled_key_map[0]),
 					    GFP_KERNEL);
 	if (!f30->gpioled_key_map) {
@@ -242,7 +244,7 @@ static int rmi_f30_map_gpios(struct rmi_function *fn,
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < f30->gpioled_count; i++) {
+	for (i = 0; i < button_count; i++) {
 		if (!rmi_f30_is_valid_button(i, f30->ctrl))
 			continue;
 

@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
@@ -99,6 +88,7 @@
 #define RTL_USB_MAX_RX_COUNT			100
 #define QBSS_LOAD_SIZE				5
 #define MAX_WMMELE_LENGTH			64
+#define ASPM_L1_LATENCY				7
 
 #define TOTAL_CAM_ENTRY				32
 
@@ -1670,7 +1660,7 @@ struct rtl_hal {
 	bool enter_pnp_sleep;
 	bool wake_from_pnp_sleep;
 	bool wow_enabled;
-	__kernel_time_t last_suspend_sec;
+	time64_t last_suspend_sec;
 	u32 wowlan_fwsize;
 	u8 *wowlan_firmware;
 
@@ -1850,10 +1840,6 @@ struct rtl_efuse {
 	u8 efuse_map[2][EFUSE_MAX_LOGICAL_SIZE];
 	u16 efuse_usedbytes;
 	u8 efuse_usedpercentage;
-#ifdef EFUSE_REPG_WORKAROUND
-	bool efuse_re_pg_sec1flag;
-	u8 efuse_re_pg_data[8];
-#endif
 
 	u8 autoload_failflag;
 	u8 autoload_status;
@@ -2379,16 +2365,17 @@ struct rtl_hal_usbint_cfg {
 	u32 rx_max_size;
 
 	/* op - rx */
-	void (*usb_rx_hdl)(struct ieee80211_hw *, struct sk_buff *);
-	void (*usb_rx_segregate_hdl)(struct ieee80211_hw *, struct sk_buff *,
-				     struct sk_buff_head *);
+	void (*usb_rx_hdl)(struct ieee80211_hw *hw, struct sk_buff *skb);
+	void (*usb_rx_segregate_hdl)(struct ieee80211_hw *hw,
+				     struct sk_buff *skb,
+				     struct sk_buff_head *skbh);
 
 	/* tx */
-	void (*usb_tx_cleanup)(struct ieee80211_hw *, struct sk_buff *);
-	int (*usb_tx_post_hdl)(struct ieee80211_hw *, struct urb *,
-			       struct sk_buff *);
-	struct sk_buff *(*usb_tx_aggregate_hdl)(struct ieee80211_hw *,
-						struct sk_buff_head *);
+	void (*usb_tx_cleanup)(struct ieee80211_hw *hw, struct sk_buff *skb);
+	int (*usb_tx_post_hdl)(struct ieee80211_hw *hw, struct urb *urb,
+			       struct sk_buff *skb);
+	struct sk_buff *(*usb_tx_aggregate_hdl)(struct ieee80211_hw *hw,
+						struct sk_buff_head *skbh);
 
 	/* endpoint mapping */
 	int (*usb_endpoint_mapping)(struct ieee80211_hw *hw);
@@ -2693,12 +2680,12 @@ struct rtl_btc_ops {
 };
 
 struct rtl_halmac_ops {
-	int (*halmac_init_adapter)(struct rtl_priv *);
-	int (*halmac_deinit_adapter)(struct rtl_priv *);
-	int (*halmac_init_hal)(struct rtl_priv *);
-	int (*halmac_deinit_hal)(struct rtl_priv *);
-	int (*halmac_poweron)(struct rtl_priv *);
-	int (*halmac_poweroff)(struct rtl_priv *);
+	int (*halmac_init_adapter)(struct rtl_priv *rtlpriv);
+	int (*halmac_deinit_adapter)(struct rtl_priv *rtlpriv);
+	int (*halmac_init_hal)(struct rtl_priv *rtlpriv);
+	int (*halmac_deinit_hal)(struct rtl_priv *rtlpriv);
+	int (*halmac_poweron)(struct rtl_priv *rtlpriv);
+	int (*halmac_poweroff)(struct rtl_priv *rtlpriv);
 
 	int (*halmac_phy_power_switch)(struct rtl_priv *rtlpriv, u8 enable);
 	int (*halmac_set_mac_address)(struct rtl_priv *rtlpriv, u8 hwport,

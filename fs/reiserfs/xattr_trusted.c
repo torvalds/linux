@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "reiserfs.h"
 #include <linux/capability.h>
 #include <linux/errno.h>

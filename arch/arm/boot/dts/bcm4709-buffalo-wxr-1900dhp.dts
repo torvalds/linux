@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Broadcom BCM470X / BCM5301X ARM platform code.
  * DTS for Buffalo WXR-1900DHP
  *
  * Copyright (C) 2015 Felix Fietkau <nbd@openwrt.org>
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 /dts-v1/;
@@ -126,5 +125,9 @@
 };
 
 &spi_nor {
+	status = "okay";
+};
+
+&usb3_phy {
 	status = "okay";
 };

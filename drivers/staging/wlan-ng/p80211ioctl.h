@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
 /* p80211ioctl.h
  *
  * Declares constants and types for the p80211 ioctls

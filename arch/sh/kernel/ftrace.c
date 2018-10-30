@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2008 Matt Fleming <matt@console-pimps.org>
  * Copyright (C) 2008 Paul Mundt <lethal@linux-sh.org>

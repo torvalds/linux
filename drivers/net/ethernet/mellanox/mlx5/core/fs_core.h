@@ -33,12 +33,26 @@
 #ifndef _MLX5_FS_CORE_
 #define _MLX5_FS_CORE_
 
+#include <linux/refcount.h>
 #include <linux/mlx5/fs.h>
 #include <linux/rhashtable.h>
+#include <linux/llist.h>
+
+/* FS_TYPE_PRIO_CHAINS is a PRIO that will have namespaces only,
+ * and those are in parallel to one another when going over them to connect
+ * a new flow table. Meaning the last flow table in a TYPE_PRIO prio in one
+ * parallel namespace will not automatically connect to the first flow table
+ * found in any prio in any next namespace, but skip the entire containing
+ * TYPE_PRIO_CHAINS prio.
+ *
+ * This is used to implement tc chains, each chain of prios is a different
+ * namespace inside a containing TYPE_PRIO_CHAINS prio.
+ */
 
 enum fs_node_type {
 	FS_TYPE_NAMESPACE,
 	FS_TYPE_PRIO,
+	FS_TYPE_PRIO_CHAINS,
 	FS_TYPE_FLOW_TABLE,
 	FS_TYPE_FLOW_GROUP,
 	FS_TYPE_FLOW_ENTRY,
@@ -47,11 +61,13 @@ enum fs_node_type {
 
 enum fs_flow_table_type {
 	FS_FT_NIC_RX          = 0x0,
+	FS_FT_NIC_TX          = 0x1,
 	FS_FT_ESW_EGRESS_ACL  = 0x2,
 	FS_FT_ESW_INGRESS_ACL = 0x3,
 	FS_FT_FDB             = 0X4,
 	FS_FT_SNIFFER_RX	= 0X5,
 	FS_FT_SNIFFER_TX	= 0X6,
+	FS_FT_MAX_TYPE = FS_FT_SNIFFER_TX,
 };
 
 enum fs_flow_table_op_mod {
@@ -65,12 +81,16 @@ enum fs_fte_status {
 
 struct mlx5_flow_steering {
 	struct mlx5_core_dev *dev;
+	struct kmem_cache               *fgs_cache;
+	struct kmem_cache               *ftes_cache;
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_root_namespace *fdb_root_ns;
-	struct mlx5_flow_root_namespace *esw_egress_root_ns;
-	struct mlx5_flow_root_namespace *esw_ingress_root_ns;
+	struct mlx5_flow_namespace	**fdb_sub_ns;
+	struct mlx5_flow_root_namespace **esw_egress_root_ns;
+	struct mlx5_flow_root_namespace **esw_ingress_root_ns;
 	struct mlx5_flow_root_namespace	*sniffer_tx_root_ns;
 	struct mlx5_flow_root_namespace	*sniffer_rx_root_ns;
+	struct mlx5_flow_root_namespace	*egress_root_ns;
 };
 
 struct fs_node {
@@ -80,9 +100,12 @@ struct fs_node {
 	struct fs_node		*parent;
 	struct fs_node		*root;
 	/* lock the node for writing and traversing */
-	struct mutex		lock;
-	atomic_t		refcount;
-	void			(*remove_func)(struct fs_node *);
+	struct rw_semaphore	lock;
+	refcount_t		refcount;
+	bool			active;
+	void			(*del_hw_func)(struct fs_node *);
+	void			(*del_sw_func)(struct fs_node *);
+	atomic_t		version;
 };
 
 struct mlx5_flow_rule {
@@ -119,7 +142,6 @@ struct mlx5_flow_table {
 	/* FWD rules that point on this flow table */
 	struct list_head		fwd_rules;
 	u32				flags;
-	struct ida			fte_allocator;
 	struct rhltable			fgs_hash;
 };
 
@@ -130,8 +152,9 @@ struct mlx5_fc_cache {
 };
 
 struct mlx5_fc {
-	struct rb_node node;
 	struct list_head list;
+	struct llist_node addlist;
+	struct llist_node dellist;
 
 	/* last{packets,bytes} members are used when calculating the delta since
 	 * last reading
@@ -140,13 +163,17 @@ struct mlx5_fc {
 	u64 lastbytes;
 
 	u32 id;
-	bool deleted;
 	bool aging;
 
 	struct mlx5_fc_cache cache ____cacheline_aligned_in_smp;
 };
 
-#define MLX5_FTE_MATCH_PARAM_RESERVED	reserved_at_600
+struct mlx5_ft_underlay_qp {
+	struct list_head list;
+	u32 qpn;
+};
+
+#define MLX5_FTE_MATCH_PARAM_RESERVED	reserved_at_800
 /* Calculate the fte_match_param length and without the reserved length.
  * Make sure the reserved field is the last.
  */
@@ -163,11 +190,8 @@ struct fs_fte {
 	struct fs_node			node;
 	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
 	u32				dests_size;
-	u32				flow_tag;
 	u32				index;
-	u32				action;
-	u32				encap_id;
-	u32				modify_id;
+	struct mlx5_flow_act		action;
 	enum fs_fte_status		status;
 	struct mlx5_fc			*counter;
 	struct rhash_head		hash;
@@ -199,6 +223,7 @@ struct mlx5_flow_group {
 	struct mlx5_flow_group_mask	mask;
 	u32				start_index;
 	u32				max_ftes;
+	struct ida			fte_allocator;
 	u32				id;
 	struct rhashtable		ftes_hash;
 	struct rhlist_head		hash;
@@ -211,7 +236,8 @@ struct mlx5_flow_root_namespace {
 	struct mlx5_flow_table		*root_ft;
 	/* Should be held when chaining flow tables */
 	struct mutex			chain_lock;
-	u32				underlay_qpn;
+	struct list_head		underlay_qpns;
+	const struct mlx5_flow_cmds	*cmds;
 };
 
 int mlx5_init_fc_stats(struct mlx5_core_dev *dev);
@@ -259,5 +285,15 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 
 #define fs_for_each_dst(pos, fte)			\
 	fs_list_for_each_entry(pos, &(fte)->node.children)
+
+#define MLX5_CAP_FLOWTABLE_TYPE(mdev, cap, type) (		\
+	(type == FS_FT_NIC_RX) ? MLX5_CAP_FLOWTABLE_NIC_RX(mdev, cap) :		\
+	(type == FS_FT_ESW_EGRESS_ACL) ? MLX5_CAP_ESW_EGRESS_ACL(mdev, cap) :		\
+	(type == FS_FT_ESW_INGRESS_ACL) ? MLX5_CAP_ESW_INGRESS_ACL(mdev, cap) :		\
+	(type == FS_FT_FDB) ? MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) :		\
+	(type == FS_FT_SNIFFER_RX) ? MLX5_CAP_FLOWTABLE_SNIFFER_RX(mdev, cap) :		\
+	(type == FS_FT_SNIFFER_TX) ? MLX5_CAP_FLOWTABLE_SNIFFER_TX(mdev, cap) :		\
+	(BUILD_BUG_ON_ZERO(FS_FT_SNIFFER_TX != FS_FT_MAX_TYPE))\
+	)
 
 #endif

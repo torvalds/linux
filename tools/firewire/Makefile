@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 prefix = /usr
 nosy-dump-version = 0.4
 

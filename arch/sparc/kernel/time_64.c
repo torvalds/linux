@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* time.c: UltraSparc timer and TOD clock support.
  *
  * Copyright (C) 1997, 2008 David S. Miller (davem@davemloft.net)
@@ -27,7 +28,6 @@
 #include <linux/jiffies.h>
 #include <linux/cpufreq.h>
 #include <linux/percpu.h>
-#include <linux/miscdevice.h>
 #include <linux/rtc/m48t59.h>
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
@@ -812,7 +812,7 @@ static void __init get_tick_patch(void)
 	}
 }
 
-static void init_tick_ops(struct sparc64_tick_ops *ops)
+static void __init init_tick_ops(struct sparc64_tick_ops *ops)
 {
 	unsigned long freq, quotient, tick;
 
@@ -830,12 +830,16 @@ static void init_tick_ops(struct sparc64_tick_ops *ops)
 void __init time_init_early(void)
 {
 	if (tlb_type == spitfire) {
-		if (is_hummingbird())
+		if (is_hummingbird()) {
 			init_tick_ops(&hbtick_operations);
-		else
+			clocksource_tick.archdata.vclock_mode = VCLOCK_NONE;
+		} else {
 			init_tick_ops(&tick_operations);
+			clocksource_tick.archdata.vclock_mode = VCLOCK_TICK;
+		}
 	} else {
 		init_tick_ops(&stick_operations);
+		clocksource_tick.archdata.vclock_mode = VCLOCK_STICK;
 	}
 }
 

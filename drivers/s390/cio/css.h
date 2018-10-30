@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CSS_H
 #define _CSS_H
 
@@ -102,7 +103,8 @@ extern void css_driver_unregister(struct css_driver *);
 
 extern void css_sch_device_unregister(struct subchannel *);
 extern int css_register_subchannel(struct subchannel *);
-extern struct subchannel *css_alloc_subchannel(struct subchannel_id);
+extern struct subchannel *css_alloc_subchannel(struct subchannel_id,
+					       struct schib *schib);
 extern struct subchannel *get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 extern int max_ssid;

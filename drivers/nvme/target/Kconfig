@@ -27,8 +27,9 @@ config NVME_TARGET_LOOP
 
 config NVME_TARGET_RDMA
 	tristate "NVMe over Fabrics RDMA target support"
-	depends on INFINIBAND
+	depends on INFINIBAND && INFINIBAND_ADDR_TRANS
 	depends on NVME_TARGET
+	select SGL_ALLOC
 	help
 	  This enables the NVMe RDMA target support, which allows exporting NVMe
 	  devices over RDMA.
@@ -39,6 +40,7 @@ config NVME_TARGET_FC
 	tristate "NVMe over Fabrics FC target driver"
 	depends on NVME_TARGET
 	depends on HAS_DMA
+	select SGL_ALLOC
 	help
 	  This enables the NVMe FC target support, which allows exporting NVMe
 	  devices over FC.

@@ -14,25 +14,9 @@
 
 #include <linux/interrupt.h>
 #include <linux/perf_event.h>
+#include <linux/platform_device.h>
 #include <linux/sysfs.h>
 #include <asm/cputype.h>
-
-/*
- * struct arm_pmu_platdata - ARM PMU platform data
- *
- * @handle_irq: an optional handler which will be called from the
- *	interrupt and passed the address of the low level handler,
- *	and can be used to implement any platform specific handling
- *	before or after calling it.
- *
- * @irq_flags: if non-zero, these flags will be passed to request_irq
- *             when requesting interrupts for this PMU device.
- */
-struct arm_pmu_platdata {
-	irqreturn_t (*handle_irq)(int irq, void *dev,
-				  irq_handler_t pmu_handler);
-	unsigned long irq_flags;
-};
 
 #ifdef CONFIG_ARM_PMU
 
@@ -40,6 +24,12 @@ struct arm_pmu_platdata {
  * The ARMv7 CPU PMU supports up to 32 event counters.
  */
 #define ARMPMU_MAX_HWEVENTS		32
+
+/*
+ * ARM PMU hw_event flags
+ */
+/* Event uses a 64bit counter */
+#define ARMPMU_EVT_64BIT		1
 
 #define HW_OP_UNSUPPORTED		0xFFFF
 #define C(_x)				PERF_COUNT_HW_CACHE_##_x
@@ -92,10 +82,9 @@ enum armpmu_attr_groups {
 
 struct arm_pmu {
 	struct pmu	pmu;
-	cpumask_t	active_irqs;
 	cpumask_t	supported_cpus;
 	char		*name;
-	irqreturn_t	(*handle_irq)(int irq_num, void *dev);
+	irqreturn_t	(*handle_irq)(struct arm_pmu *pmu);
 	void		(*enable)(struct perf_event *event);
 	void		(*disable)(struct perf_event *event);
 	int		(*get_event_idx)(struct pmu_hw_events *hw_events,
@@ -104,14 +93,14 @@ struct arm_pmu {
 					 struct perf_event *event);
 	int		(*set_event_filter)(struct hw_perf_event *evt,
 					    struct perf_event_attr *attr);
-	u32		(*read_counter)(struct perf_event *event);
-	void		(*write_counter)(struct perf_event *event, u32 val);
+	u64		(*read_counter)(struct perf_event *event);
+	void		(*write_counter)(struct perf_event *event, u64 val);
 	void		(*start)(struct arm_pmu *);
 	void		(*stop)(struct arm_pmu *);
 	void		(*reset)(void *);
 	int		(*map_event)(struct perf_event *event);
+	int		(*filter_match)(struct perf_event *event);
 	int		num_events;
-	u64		max_period;
 	bool		secure_access; /* 32-bit ARM only */
 #define ARMV8_PMUV3_MAX_COMMON_EVENTS 0x40
 	DECLARE_BITMAP(pmceid_bitmap, ARMV8_PMUV3_MAX_COMMON_EVENTS);
@@ -174,12 +163,11 @@ static inline int arm_pmu_acpi_probe(armpmu_init_fn init_fn) { return 0; }
 
 /* Internal functions only for core arm_pmu code */
 struct arm_pmu *armpmu_alloc(void);
+struct arm_pmu *armpmu_alloc_atomic(void);
 void armpmu_free(struct arm_pmu *pmu);
 int armpmu_register(struct arm_pmu *pmu);
-int armpmu_request_irqs(struct arm_pmu *armpmu);
-void armpmu_free_irqs(struct arm_pmu *armpmu);
-int armpmu_request_irq(struct arm_pmu *armpmu, int cpu);
-void armpmu_free_irq(struct arm_pmu *armpmu, int cpu);
+int armpmu_request_irq(int irq, int cpu);
+void armpmu_free_irq(int irq, int cpu);
 
 #define ARMV8_PMU_PDEV_NAME "armv8-pmu"
 

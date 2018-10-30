@@ -33,7 +33,7 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/acpi.h>
-#include "battery.h"
+#include <acpi/battery.h>
 
 #define PREFIX "ACPI: "
 
@@ -82,11 +82,11 @@ static SIMPLE_DEV_PM_OPS(acpi_ac_pm, NULL, acpi_ac_resume);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 extern struct proc_dir_entry *acpi_lock_ac_dir(void);
 extern void *acpi_unlock_ac_dir(struct proc_dir_entry *acpi_ac_dir);
-static int acpi_ac_open_fs(struct inode *inode, struct file *file);
 #endif
 
 
 static int ac_sleep_before_get_state_ms;
+static int ac_check_pmic = 1;
 
 static struct acpi_driver acpi_ac_driver = {
 	.name = "ac",
@@ -110,16 +110,6 @@ struct acpi_ac {
 };
 
 #define to_acpi_ac(x) power_supply_get_drvdata(x)
-
-#ifdef CONFIG_ACPI_PROCFS_POWER
-static const struct file_operations acpi_ac_fops = {
-	.owner = THIS_MODULE,
-	.open = acpi_ac_open_fs,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-#endif
 
 /* --------------------------------------------------------------------------
                                AC Adapter Management
@@ -209,11 +199,6 @@ static int acpi_ac_seq_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-static int acpi_ac_open_fs(struct inode *inode, struct file *file)
-{
-	return single_open(file, acpi_ac_seq_show, PDE_DATA(inode));
-}
-
 static int acpi_ac_add_fs(struct acpi_ac *ac)
 {
 	struct proc_dir_entry *entry = NULL;
@@ -228,9 +213,8 @@ static int acpi_ac_add_fs(struct acpi_ac *ac)
 	}
 
 	/* 'state' [R] */
-	entry = proc_create_data(ACPI_AC_FILE_STATE,
-				 S_IRUGO, acpi_device_dir(ac->device),
-				 &acpi_ac_fops, ac);
+	entry = proc_create_single_data(ACPI_AC_FILE_STATE, S_IRUGO,
+			acpi_device_dir(ac->device), acpi_ac_seq_show, ac);
 	if (!entry)
 		return -ENODEV;
 	return 0;
@@ -265,6 +249,7 @@ static void acpi_ac_notify(struct acpi_device *device, u32 event)
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
+	/* fall through */
 	case ACPI_AC_NOTIFY_STATUS:
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
@@ -309,19 +294,41 @@ static int acpi_ac_battery_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static int thinkpad_e530_quirk(const struct dmi_system_id *d)
+static int __init thinkpad_e530_quirk(const struct dmi_system_id *d)
 {
 	ac_sleep_before_get_state_ms = 1000;
 	return 0;
 }
 
-static const struct dmi_system_id ac_dmi_table[] = {
+static int __init ac_do_not_check_pmic_quirk(const struct dmi_system_id *d)
+{
+	ac_check_pmic = 0;
+	return 0;
+}
+
+static const struct dmi_system_id ac_dmi_table[]  __initconst = {
 	{
+	/* Thinkpad e530 */
 	.callback = thinkpad_e530_quirk,
-	.ident = "thinkpad e530",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "32597CG"),
+		},
+	},
+	{
+		/* ECS EF20EA */
+		.callback = ac_do_not_check_pmic_quirk,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
+		},
+	},
+	{
+		/* Lenovo Ideapad Miix 320 */
+		.callback = ac_do_not_check_pmic_quirk,
+		.matches = {
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "80XF"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
 		},
 	},
 	{},
@@ -383,7 +390,6 @@ end:
 		kfree(ac);
 	}
 
-	dmi_check_system(ac_dmi_table);
 	return result;
 }
 
@@ -441,13 +447,17 @@ static int __init acpi_ac_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	for (i = 0; i < ARRAY_SIZE(acpi_ac_blacklist); i++)
-		if (acpi_dev_present(acpi_ac_blacklist[i].hid, "1",
-				     acpi_ac_blacklist[i].hrv)) {
-			pr_info(PREFIX "AC: found native %s PMIC, not loading\n",
-				acpi_ac_blacklist[i].hid);
-			return -ENODEV;
-		}
+	dmi_check_system(ac_dmi_table);
+
+	if (ac_check_pmic) {
+		for (i = 0; i < ARRAY_SIZE(acpi_ac_blacklist); i++)
+			if (acpi_dev_present(acpi_ac_blacklist[i].hid, "1",
+					     acpi_ac_blacklist[i].hrv)) {
+				pr_info(PREFIX "AC: found native %s PMIC, not loading\n",
+					acpi_ac_blacklist[i].hid);
+				return -ENODEV;
+			}
+	}
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_ac_dir = acpi_lock_ac_dir();

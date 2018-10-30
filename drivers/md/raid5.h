@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RAID5_H
 #define _RAID5_H
 
@@ -256,6 +257,7 @@ struct stripe_head {
 		sector_t	sector;			/* sector of this page */
 		unsigned long	flags;
 		u32		log_checksum;
+		unsigned short	write_hint;
 	} dev[1]; /* allocated with extra space depending of RAID geometry */
 };
 
@@ -447,6 +449,18 @@ enum {
  * In stripe_handle, if we find pre-reading is necessary, we do it if
  * PREREAD_ACTIVE is set, else we set DELAYED which will send it to the delayed queue.
  * HANDLE gets cleared if stripe_handle leaves nothing locked.
+ */
+
+/* Note: disk_info.rdev can be set to NULL asynchronously by raid5_remove_disk.
+ * There are three safe ways to access disk_info.rdev.
+ * 1/ when holding mddev->reconfig_mutex
+ * 2/ when resync/recovery/reshape is known to be happening - i.e. in code that
+ *    is called as part of performing resync/recovery/reshape.
+ * 3/ while holding rcu_read_lock(), use rcu_dereference to get the pointer
+ *    and if it is non-NULL, increment rdev->nr_pending before dropping the RCU
+ *    lock.
+ * When .rdev is set to NULL, the nr_pending count checked again and if
+ * it has been incremented, the pointer is put back in .rdev.
  */
 
 struct disk_info {
@@ -656,7 +670,7 @@ struct r5conf {
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
 	struct disk_info	*disks;
-	struct bio_set		*bio_split;
+	struct bio_set		bio_split;
 
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.

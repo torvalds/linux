@@ -31,6 +31,8 @@ int create_orc(struct objtool_file *file)
 		struct cfi_reg *cfa = &insn->state.cfa;
 		struct cfi_reg *bp = &insn->state.regs[CFI_BP];
 
+		orc->end = insn->state.end;
+
 		if (cfa->base == CFI_UNDEFINED) {
 			orc->sp_reg = ORC_REG_UNDEFINED;
 			continue;
@@ -97,6 +99,11 @@ static int create_orc_entry(struct section *u_sec, struct section *ip_relasec,
 {
 	struct orc_entry *orc;
 	struct rela *rela;
+
+	if (!insn_sec->sym) {
+		WARN("missing symbol for section %s", insn_sec->name);
+		return -1;
+	}
 
 	/* populate ORC data */
 	orc = (struct orc_entry *)u_sec->data->d_buf + idx;
@@ -165,6 +172,8 @@ int create_orc_sections(struct objtool_file *file)
 
 	/* create .orc_unwind_ip and .rela.orc_unwind_ip sections */
 	sec = elf_create_section(file->elf, ".orc_unwind_ip", sizeof(int), idx);
+	if (!sec)
+		return -1;
 
 	ip_relasec = elf_create_rela_section(file->elf, sec);
 	if (!ip_relasec)

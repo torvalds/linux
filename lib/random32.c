@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This is a maximally equidistributed combined Tausworthe generator
  * based on code from GNU Scientific Library 1.5 (30 Jun 2004)
@@ -212,11 +213,11 @@ static int __init prandom_init(void)
 }
 core_initcall(prandom_init);
 
-static void __prandom_timer(unsigned long dontcare);
+static void __prandom_timer(struct timer_list *unused);
 
-static DEFINE_TIMER(seed_timer, __prandom_timer, 0, 0);
+static DEFINE_TIMER(seed_timer, __prandom_timer);
 
-static void __prandom_timer(unsigned long dontcare)
+static void __prandom_timer(struct timer_list *unused)
 {
 	u32 entropy;
 	unsigned long expires;

@@ -105,6 +105,7 @@ config PM_SLEEP
 	def_bool y
 	depends on SUSPEND || HIBERNATE_CALLBACKS
 	select PM
+	select SRCU
 
 config PM_SLEEP_SMP
 	def_bool y
@@ -258,20 +259,6 @@ config APM_EMULATION
 	  random kernel OOPSes or reboots that don't seem to be related to
 	  anything, try disabling/enabling this option (or disabling/enabling
 	  APM in your BIOS).
-
-config PM_OPP
-	bool
-	select SRCU
-	---help---
-	  SOCs have a standard set of tuples consisting of frequency and
-	  voltage pairs that the device will support per voltage domain. This
-	  is called Operating Performance Point or OPP. The actual definitions
-	  of OPP varies over silicon within the same family of devices.
-
-	  OPP layer organizes the data internally using device pointers
-	  representing individual voltage domains and provides SOC
-	  implementations a ready to use framework to manage OPPs.
-	  For more information, read <file:Documentation/power/opp.txt>
 
 config PM_CLK
 	def_bool y

@@ -64,6 +64,7 @@ enum qed_ll2_roce_flavor_type {
 enum qed_ll2_tx_dest {
 	QED_LL2_TX_DEST_NW, /* Light L2 TX Destination to the Network */
 	QED_LL2_TX_DEST_LB, /* Light L2 TX Destination to the Loopback */
+	QED_LL2_TX_DEST_DROP, /* Light L2 Drop the TX packet */
 	QED_LL2_TX_DEST_MAX
 };
 
@@ -101,6 +102,7 @@ struct qed_ll2_comp_rx_data {
 	void *cookie;
 	dma_addr_t rx_buf_addr;
 	u16 parse_flags;
+	u16 err_flags;
 	u16 vlan;
 	bool b_last_packet;
 	u8 connection_handle;
@@ -114,7 +116,7 @@ struct qed_ll2_comp_rx_data {
 	u32 opaque_data_1;
 
 	/* GSI only */
-	u32 gid_dst[4];
+	u32 src_qp;
 	u16 qp_id;
 
 	union {
@@ -149,11 +151,16 @@ void (*qed_ll2_release_tx_packet_cb)(void *cxt,
 				     dma_addr_t first_frag_addr,
 				     bool b_last_fragment, bool b_last_packet);
 
+typedef
+void (*qed_ll2_slowpath_cb)(void *cxt, u8 connection_handle,
+			    u32 opaque_data_0, u32 opaque_data_1);
+
 struct qed_ll2_cbs {
 	qed_ll2_complete_rx_packet_cb rx_comp_cb;
 	qed_ll2_release_rx_packet_cb rx_release_cb;
 	qed_ll2_complete_tx_packet_cb tx_comp_cb;
 	qed_ll2_release_tx_packet_cb tx_release_cb;
+	qed_ll2_slowpath_cb slowpath_cb;
 	void *cookie;
 };
 
@@ -170,6 +177,7 @@ struct qed_ll2_acquire_data_inputs {
 	enum qed_ll2_tx_dest tx_dest;
 	enum qed_ll2_error_handle ai_err_packet_too_big;
 	enum qed_ll2_error_handle ai_err_no_buf;
+	bool secondary_queue;
 	u8 gsi_enable;
 };
 
@@ -194,6 +202,7 @@ struct qed_ll2_tx_pkt_info {
 	bool enable_ip_cksum;
 	bool enable_l4_cksum;
 	bool calc_ip_len;
+	bool remove_stag;
 };
 
 #define QED_LL2_UNUSED_HANDLE   (0xff)
@@ -210,6 +219,11 @@ struct qed_ll2_params {
 	u8 tx_tc;
 	bool frags_mapped;
 	u8 ll2_mac_address[ETH_ALEN];
+};
+
+enum qed_ll2_xmit_flags {
+	/* FIP discovery packet */
+	QED_LL2_XMIT_FLAGS_FIP_DISCOVERY
 };
 
 struct qed_ll2_ops {
@@ -237,10 +251,12 @@ struct qed_ll2_ops {
  *
  * @param cdev
  * @param skb
+ * @param xmit_flags - Transmit options defined by the enum qed_ll2_xmit_flags.
  *
  * @return 0 on success, otherwise error value.
  */
-	int (*start_xmit)(struct qed_dev *cdev, struct sk_buff *skb);
+	int (*start_xmit)(struct qed_dev *cdev, struct sk_buff *skb,
+			  unsigned long xmit_flags);
 
 /**
  * @brief register_cb_ops - protocol driver register the callback for Rx/Tx

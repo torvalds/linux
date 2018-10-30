@@ -21,9 +21,6 @@ static int genericbl_intensity;
 static struct backlight_device *generic_backlight_device;
 static struct generic_bl_info *bl_machinfo;
 
-/* Flag to signal when the battery is low */
-#define GENERICBL_BATTLOW       BL_CORE_DRIVER1
-
 static int genericbl_send_intensity(struct backlight_device *bd)
 {
 	int intensity = bd->props.brightness;
@@ -34,8 +31,6 @@ static int genericbl_send_intensity(struct backlight_device *bd)
 		intensity = 0;
 	if (bd->props.state & BL_CORE_SUSPENDED)
 		intensity = 0;
-	if (bd->props.state & GENERICBL_BATTLOW)
-		intensity &= bl_machinfo->limit_mask;
 
 	bl_machinfo->set_bl_intensity(intensity);
 

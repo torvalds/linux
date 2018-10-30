@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_HTCPLD_H
 #define __LINUX_HTCPLD_H
 

@@ -86,7 +86,7 @@ release_io_hfcpci(struct IsdnCardState *cs)
 	pci_free_consistent(cs->hw.hfcpci.dev, 0x8000,
 			    cs->hw.hfcpci.fifos, cs->hw.hfcpci.dma);
 	cs->hw.hfcpci.fifos = NULL;
-	iounmap((void *)cs->hw.hfcpci.pci_io);
+	iounmap(cs->hw.hfcpci.pci_io);
 }
 
 /********************************************************************************/
@@ -128,7 +128,7 @@ reset_hfcpci(struct IsdnCardState *cs)
 	Write_hfc(cs, HFCPCI_INT_M1, cs->hw.hfcpci.int_m1);
 
 	/* Clear already pending ints */
-	if (Read_hfc(cs, HFCPCI_INT_S1));
+	Read_hfc(cs, HFCPCI_INT_S1);
 
 	Write_hfc(cs, HFCPCI_STATES, HFCPCI_LOAD_STATE | 2);	/* HFC ST 2 */
 	udelay(10);
@@ -158,15 +158,16 @@ reset_hfcpci(struct IsdnCardState *cs)
 	/* Finally enable IRQ output */
 	cs->hw.hfcpci.int_m2 = HFCPCI_IRQ_ENABLE;
 	Write_hfc(cs, HFCPCI_INT_M2, cs->hw.hfcpci.int_m2);
-	if (Read_hfc(cs, HFCPCI_INT_S1));
+	Read_hfc(cs, HFCPCI_INT_S1);
 }
 
 /***************************************************/
 /* Timer function called when kernel timer expires */
 /***************************************************/
 static void
-hfcpci_Timer(struct IsdnCardState *cs)
+hfcpci_Timer(struct timer_list *t)
 {
+	struct IsdnCardState *cs = from_timer(cs, t, hw.hfcpci.timer);
 	cs->hw.hfcpci.timer.expires = jiffies + 75;
 	/* WD RESET */
 /*      WriteReg(cs, HFCD_DATA, HFCD_CTMT, cs->hw.hfcpci.ctmt | 0x80);
@@ -1095,7 +1096,7 @@ hfcpci_interrupt(int intno, void *dev_id)
 /* timer callback for D-chan busy resolution. Currently no function */
 /********************************************************************/
 static void
-hfcpci_dbusy_timer(struct IsdnCardState *cs)
+hfcpci_dbusy_timer(struct timer_list *t)
 {
 }
 
@@ -1536,7 +1537,7 @@ hfcpci_bh(struct work_struct *work)
 					cs->hw.hfcpci.int_m1 &= ~HFCPCI_INTS_TIMER;
 					Write_hfc(cs, HFCPCI_INT_M1, cs->hw.hfcpci.int_m1);
 					/* Clear already pending ints */
-					if (Read_hfc(cs, HFCPCI_INT_S1));
+					Read_hfc(cs, HFCPCI_INT_S1);
 					Write_hfc(cs, HFCPCI_STATES, 4 | HFCPCI_LOAD_STATE);
 					udelay(10);
 					Write_hfc(cs, HFCPCI_STATES, 4);
@@ -1582,7 +1583,7 @@ inithfcpci(struct IsdnCardState *cs)
 	cs->bcs[1].BC_SetStack = setstack_2b;
 	cs->bcs[0].BC_Close = close_hfcpci;
 	cs->bcs[1].BC_Close = close_hfcpci;
-	setup_timer(&cs->dbusytimer, (void *)hfcpci_dbusy_timer, (long)cs);
+	timer_setup(&cs->dbusytimer, hfcpci_dbusy_timer, 0);
 	mode_hfcpci(cs->bcs, 0, 0);
 	mode_hfcpci(cs->bcs + 1, 0, 1);
 }
@@ -1691,7 +1692,7 @@ setup_hfcpci(struct IsdnCard *card)
 		printk(KERN_WARNING "HFC-PCI: No IRQ for PCI card found\n");
 		return (0);
 	}
-	cs->hw.hfcpci.pci_io = (char *)(unsigned long)dev_hfcpci->resource[1].start;
+	cs->hw.hfcpci.pci_io = ioremap(dev_hfcpci->resource[1].start, 256);
 	printk(KERN_INFO "HiSax: HFC-PCI card manufacturer: %s card name: %s\n", id_list[i].vendor_name, id_list[i].card_name);
 
 	if (!cs->hw.hfcpci.pci_io) {
@@ -1715,7 +1716,6 @@ setup_hfcpci(struct IsdnCard *card)
 		return 0;
 	}
 	pci_write_config_dword(cs->hw.hfcpci.dev, 0x80, (u32)cs->hw.hfcpci.dma);
-	cs->hw.hfcpci.pci_io = ioremap((ulong) cs->hw.hfcpci.pci_io, 256);
 	printk(KERN_INFO
 	       "HFC-PCI: defined at mem %p fifo %p(%lx) IRQ %d HZ %d\n",
 	       cs->hw.hfcpci.pci_io,
@@ -1744,7 +1744,7 @@ setup_hfcpci(struct IsdnCard *card)
 	cs->BC_Write_Reg = NULL;
 	cs->irq_func = &hfcpci_interrupt;
 	cs->irq_flags |= IRQF_SHARED;
-	setup_timer(&cs->hw.hfcpci.timer, (void *)hfcpci_Timer, (long)cs);
+	timer_setup(&cs->hw.hfcpci.timer, hfcpci_Timer, 0);
 	cs->cardmsg = &hfcpci_card_msg;
 	cs->auxcmd = &hfcpci_auxcmd;
 

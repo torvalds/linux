@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/arch/arm/mach-sa1100/simpad.c
  */
 
 #include <linux/module.h>
+#include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>
@@ -16,6 +18,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -34,7 +37,7 @@
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/leds.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
 
 #include "generic.h"
 
@@ -323,9 +326,17 @@ static struct platform_device simpad_gpio_leds = {
 /*
  * i2c
  */
+static struct gpiod_lookup_table simpad_i2c_gpiod_table = {
+	.dev_id = "i2c-gpio.0",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio", 21, NULL, 0,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP_IDX("gpio", 25, NULL, 1,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
+};
+
 static struct i2c_gpio_platform_data simpad_i2c_data = {
-	.sda_pin = GPIO_GPIO21,
-	.scl_pin = GPIO_GPIO25,
 	.udelay = 10,
 	.timeout = HZ,
 };
@@ -354,6 +365,15 @@ static struct platform_device *devices[] __initdata = {
 	&simpad_i2c,
 };
 
+/* Compact Flash */
+static struct gpiod_lookup_table simpad_cf_gpio_table = {
+	.dev_id = "sa11x0-pcmcia",
+	.table = {
+		GPIO_LOOKUP("gpio", GPIO_CF_IRQ, "cf-ready", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio", GPIO_CF_CD, "cf-detect", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 
 static int __init simpad_init(void)
@@ -375,11 +395,13 @@ static int __init simpad_init(void)
 
 	pm_power_off = simpad_power_off;
 
+	sa11x0_register_pcmcia(-1, &simpad_cf_gpio_table);
 	sa11x0_ppc_configure_mcp();
 	sa11x0_register_mtd(&simpad_flash_data, simpad_flash_resources,
 			      ARRAY_SIZE(simpad_flash_resources));
 	sa11x0_register_mcp(&simpad_mcp_data);
 
+	gpiod_add_lookup_table(&simpad_i2c_gpiod_table);
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if(ret)
 		printk(KERN_WARNING "simpad: Unable to register mq200 framebuffer device");

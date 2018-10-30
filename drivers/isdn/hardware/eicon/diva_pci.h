@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: diva_pci.h,v 1.6 2003/01/04 15:29:45 schindler Exp $ */
 
 #ifndef __DIVA_PCI_INTERFACE_H__

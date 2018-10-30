@@ -1,26 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  zcrypt 2.1.0
- *
  *  Copyright IBM Corp. 2001, 2006
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
  *  Hotplug & misc device support: Jochen Roehrig (roehrig@de.ibm.com)
  *  Major cleanup & driver split: Martin Schwidefsky <schwidefsky@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _ZCRYPT_ERROR_H_
@@ -29,6 +14,7 @@
 #include <linux/atomic.h>
 #include "zcrypt_debug.h"
 #include "zcrypt_api.h"
+#include "zcrypt_msgtype6.h"
 
 /**
  * Reply Messages
@@ -127,6 +113,27 @@ static inline int convert_error(struct zcrypt_queue *zq,
 			   card, queue, ehdr->reply_code);
 		return -EAGAIN;
 	case REP82_ERROR_TRANSPORT_FAIL:
+		/* Card or infrastructure failure, disable card */
+		atomic_set(&zcrypt_rescan_req, 1);
+		zq->online = 0;
+		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		       card, queue);
+		/* For type 86 response show the apfs value (failure reason) */
+		if (ehdr->type == TYPE86_RSP_CODE) {
+			struct {
+				struct type86_hdr hdr;
+				struct type86_fmt2_ext fmt2;
+			} __packed * head = reply->message;
+			unsigned int apfs = *((u32 *)head->fmt2.apfs);
+
+			ZCRYPT_DBF(DBF_ERR,
+				   "device=%02x.%04x reply=0x%02x apfs=0x%x => online=0 rc=EAGAIN\n",
+				   card, queue, apfs, ehdr->reply_code);
+		} else
+			ZCRYPT_DBF(DBF_ERR,
+				   "device=%02x.%04x reply=0x%02x => online=0 rc=EAGAIN\n",
+				   card, queue, ehdr->reply_code);
+		return -EAGAIN;
 	case REP82_ERROR_MACHINE_FAILURE:
 	//   REP88_ERROR_MODULE_FAILURE		// '10' CEX2A
 		/* If a card fails disable it and repeat the request. */

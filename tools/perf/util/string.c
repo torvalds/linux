@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "string2.h"
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -394,4 +395,50 @@ char *asprintf_expr_inout_ints(const char *var, bool in, size_t nints, int *ints
 out_err_overflow:
 	free(expr);
 	return NULL;
+}
+
+/* Like strpbrk(), but not break if it is right after a backslash (escaped) */
+char *strpbrk_esc(char *str, const char *stopset)
+{
+	char *ptr;
+
+	do {
+		ptr = strpbrk(str, stopset);
+		if (ptr == str ||
+		    (ptr == str + 1 && *(ptr - 1) != '\\'))
+			break;
+		str = ptr + 1;
+	} while (ptr && *(ptr - 1) == '\\' && *(ptr - 2) != '\\');
+
+	return ptr;
+}
+
+/* Like strdup, but do not copy a single backslash */
+char *strdup_esc(const char *str)
+{
+	char *s, *d, *p, *ret = strdup(str);
+
+	if (!ret)
+		return NULL;
+
+	d = strchr(ret, '\\');
+	if (!d)
+		return ret;
+
+	s = d + 1;
+	do {
+		if (*s == '\0') {
+			*d = '\0';
+			break;
+		}
+		p = strchr(s + 1, '\\');
+		if (p) {
+			memmove(d, s, p - s);
+			d += p - s;
+			s = p + 1;
+		} else
+			memmove(d, s, strlen(s) + 1);
+	} while (p);
+
+	return ret;
 }

@@ -169,8 +169,10 @@ void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
  *
  * @param p_hwfn
  * @param p_ptt
+ * @param is_pf_loading
  */
-void qed_qm_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+void qed_qm_init_pf(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt, bool is_pf_loading);
 
 /**
  * @brief Reconfigures QM pf on the fly
@@ -233,6 +235,7 @@ u32 qed_cxt_get_proto_tid_count(struct qed_hwfn *p_hwfn,
 				enum protocol_type type);
 u32 qed_cxt_get_proto_cid_start(struct qed_hwfn *p_hwfn,
 				enum protocol_type type);
+u32 qed_cxt_get_srq_count(struct qed_hwfn *p_hwfn);
 int qed_cxt_free_proto_ilt(struct qed_hwfn *p_hwfn, enum protocol_type proto);
 
 #define QED_CTX_WORKING_MEM 0

@@ -20,7 +20,7 @@
 #include "nic.h"
 #include "thunder_bgx.h"
 
-#define DRV_NAME	"thunder-xcv"
+#define DRV_NAME	"thunder_xcv"
 #define DRV_VERSION	"1.0"
 
 /* Register offsets */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file is separate from sdb.h, because I want that one to remain
  * unchanged (as far as possible) from the official sdb distribution

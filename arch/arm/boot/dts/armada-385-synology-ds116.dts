@@ -1,39 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Device Tree file for Synology DS116 NAS
  *
  * Copyright (C) 2017 Willy Tarreau <w@1wt.eu>
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is licensed under the terms of the GNU General Public
- *     License version 2.  This program is licensed "as is" without
- *     any warranty of any kind, whether express or implied.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 /dts-v1/;
@@ -170,7 +139,7 @@
 					      3700 5
 					      3900 6
 					      4000 7>;
-			cooling-cells = <2>;
+			#cooling-cells = <2>;
 		};
 
 		gpio-leds {
@@ -191,11 +160,13 @@
 	usb3_0_phy: usb3_0_phy {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&reg_usb3_0_vbus>;
+		#phy-cells = <0>;
 	};
 
 	usb3_1_phy: usb3_1_phy {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&reg_usb3_1_vbus>;
+		#phy-cells = <0>;
 	};
 
 	reg_usb3_0_vbus: usb3-vbus0 {
@@ -267,35 +238,35 @@
 		 * enumerated. The MAC address and the serial number are listed
 		 * in the "vendor" partition.
 		 */
-		partition@00000000 {
+		partition@0 {
 			label = "RedBoot";
 			reg = <0x00000000 0x000f0000>;
 			read-only;
 		};
 
-		partition@000c0000 {
+		partition@c0000 {
 			label = "zImage";
 			reg = <0x000f0000 0x002d0000>;
 		};
 
-		partition@00390000 {
+		partition@390000 {
 			label = "rd.gz";
 			reg = <0x003c0000 0x00410000>;
 		};
 
-		partition@007d0000 {
+		partition@7d0000 {
 			label = "vendor";
 			reg = <0x007d0000 0x00010000>;
 			read-only;
 		};
 
-		partition@007e0000 {
+		partition@7e0000 {
 			label = "RedBoot config";
 			reg = <0x007e0000 0x00010000>;
 			read-only;
 		};
 
-		partition@007f0000 {
+		partition@7f0000 {
 			label = "FIS directory";
 			reg = <0x007f0000 0x00010000>;
 			read-only;

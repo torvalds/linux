@@ -103,6 +103,7 @@ static const struct camif_fmt camif_formats[] = {
 
 /**
  * s3c_camif_find_format() - lookup camif color format by fourcc or an index
+ * @vp: video path (DMA) description (codec/preview)
  * @pixelformat: fourcc to match, ignored if null
  * @index: index to the camif_formats array, ignored if negative
  */
@@ -315,12 +316,12 @@ static int camif_media_dev_init(struct camif_dev *camif)
 	memset(md, 0, sizeof(*md));
 	snprintf(md->model, sizeof(md->model), "SAMSUNG S3C%s CAMIF",
 		 ip_rev == S3C6410_CAMIF_IP_REV ? "6410" : "244X");
-	strlcpy(md->bus_info, "platform", sizeof(md->bus_info));
+	strscpy(md->bus_info, "platform", sizeof(md->bus_info));
 	md->hw_revision = ip_rev;
 
 	md->dev = camif->dev;
 
-	strlcpy(v4l2_dev->name, "s3c-camif", sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, "s3c-camif", sizeof(v4l2_dev->name));
 	v4l2_dev->mdev = md;
 
 	media_device_init(md);

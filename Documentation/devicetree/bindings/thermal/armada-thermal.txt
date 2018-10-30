@@ -2,22 +2,40 @@
 
 Required properties:
 
-- compatible:	Should be set to one of the following:
-		marvell,armada370-thermal
-		marvell,armada375-thermal
-		marvell,armada380-thermal
-		marvell,armadaxp-thermal
+- compatible: Should be set to one of the following:
+    * marvell,armada370-thermal
+    * marvell,armada375-thermal
+    * marvell,armada380-thermal
+    * marvell,armadaxp-thermal
+    * marvell,armada-ap806-thermal
+    * marvell,armada-cp110-thermal
 
-- reg:		Device's register space.
-		Two entries are expected, see the examples below.
-		The first one is required for the sensor register;
-		the second one is required for the control register
-		to be used for sensor initialization (a.k.a. calibration).
+Note: these bindings are deprecated for AP806/CP110 and should instead
+follow the rules described in:
+Documentation/devicetree/bindings/arm/marvell/ap806-system-controller.txt
+Documentation/devicetree/bindings/arm/marvell/cp110-system-controller.txt
 
-Example:
+- reg: Device's register space.
+  Two entries are expected, see the examples below. The first one points
+  to the status register (4B). The second one points to the control
+  registers (8B).
+  Note: The compatibles marvell,armada370-thermal,
+  marvell,armada380-thermal, and marvell,armadaxp-thermal must point to
+  "control MSB/control 1", with size of 4 (deprecated binding), or point
+  to "control LSB/control 0" with size of 8 (current binding). All other
+  compatibles must point to "control LSB/control 0" with size of 8.
 
+Examples:
+
+	/* Legacy bindings */
 	thermal@d0018300 {
 		compatible = "marvell,armada370-thermal";
-                reg = <0xd0018300 0x4
+		reg = <0xd0018300 0x4
 		       0xd0018304 0x4>;
+	};
+
+	ap_thermal: thermal@6f8084 {
+		compatible = "marvell,armada-ap806-thermal";
+		reg = <0x6f808C 0x4>,
+		      <0x6f8084 0x8>;
 	};

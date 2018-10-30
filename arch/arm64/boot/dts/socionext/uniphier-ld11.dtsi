@@ -1,11 +1,12 @@
-/*
- * Device Tree Source for UniPhier LD11 SoC
- *
- * Copyright (C) 2016 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- */
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier LD11 SoC
+//
+// Copyright (C) 2016 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/uniphier-gpio.h>
 
 /memreserve/ 0x80000000 0x02000000;
 
@@ -49,7 +50,7 @@
 		};
 	};
 
-	cluster0_opp: opp_table {
+	cluster0_opp: opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -96,6 +97,11 @@
 		};
 	};
 
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio UNIPHIER_GPIO_PORT(3, 2) GPIO_ACTIVE_LOW>;
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <1 13 4>,
@@ -110,6 +116,28 @@
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
 
+		spi0: spi@54006000 {
+			compatible = "socionext,uniphier-scssi";
+			status = "disabled";
+			reg = <0x54006000 0x100>;
+			interrupts = <0 39 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi0>;
+			clocks = <&peri_clk 11>;
+			resets = <&peri_rst 11>;
+		};
+
+		spi1: spi@54006100 {
+			compatible = "socionext,uniphier-scssi";
+			status = "disabled";
+			reg = <0x54006100 0x100>;
+			interrupts = <0 216 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi1>;
+			clocks = <&peri_clk 11>;
+			resets = <&peri_rst 11>;
+		};
+
 		serial0: serial@54006800 {
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
@@ -118,6 +146,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart0>;
 			clocks = <&peri_clk 0>;
+			resets = <&peri_rst 0>;
 		};
 
 		serial1: serial@54006900 {
@@ -128,6 +157,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart1>;
 			clocks = <&peri_clk 1>;
+			resets = <&peri_rst 1>;
 		};
 
 		serial2: serial@54006a00 {
@@ -138,6 +168,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart2>;
 			clocks = <&peri_clk 2>;
+			resets = <&peri_rst 2>;
 		};
 
 		serial3: serial@54006b00 {
@@ -148,6 +179,118 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart3>;
 			clocks = <&peri_clk 3>;
+			resets = <&peri_rst 3>;
+		};
+
+		gpio: gpio@55000000 {
+			compatible = "socionext,uniphier-gpio";
+			reg = <0x55000000 0x200>;
+			interrupt-parent = <&aidet>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 0>,
+				      <&pinctrl 43 0 0>,
+				      <&pinctrl 51 0 0>,
+				      <&pinctrl 96 0 0>,
+				      <&pinctrl 160 0 0>,
+				      <&pinctrl 184 0 0>;
+			gpio-ranges-group-names = "gpio_range0",
+						  "gpio_range1",
+						  "gpio_range2",
+						  "gpio_range3",
+						  "gpio_range4",
+						  "gpio_range5";
+			ngpios = <200>;
+			socionext,interrupt-ranges = <0 48 16>, <16 154 5>,
+						     <21 217 3>;
+		};
+
+		audio@56000000 {
+			compatible = "socionext,uniphier-ld11-aio";
+			reg = <0x56000000 0x80000>;
+			interrupts = <0 144 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_aout1>,
+				    <&pinctrl_aoutiec1>;
+			clock-names = "aio";
+			clocks = <&sys_clk 40>;
+			reset-names = "aio";
+			resets = <&sys_rst 40>;
+			#sound-dai-cells = <1>;
+			socionext,syscon = <&soc_glue>;
+
+			i2s_port0: port@0 {
+				i2s_hdmi: endpoint {
+				};
+			};
+
+			i2s_port1: port@1 {
+				i2s_pcmin2: endpoint {
+				};
+			};
+
+			i2s_port2: port@2 {
+				i2s_line: endpoint {
+					dai-format = "i2s";
+					remote-endpoint = <&evea_line>;
+				};
+			};
+
+			i2s_port3: port@3 {
+				i2s_hpcmout1: endpoint {
+				};
+			};
+
+			i2s_port4: port@4 {
+				i2s_hp: endpoint {
+					dai-format = "i2s";
+					remote-endpoint = <&evea_hp>;
+				};
+			};
+
+			spdif_port0: port@5 {
+				spdif_hiecout1: endpoint {
+				};
+			};
+
+			src_port0: port@6 {
+				i2s_epcmout2: endpoint {
+				};
+			};
+
+			src_port1: port@7 {
+				i2s_epcmout3: endpoint {
+				};
+			};
+
+			comp_spdif_port0: port@8 {
+				comp_spdif_hiecout1: endpoint {
+				};
+			};
+		};
+
+		codec@57900000 {
+			compatible = "socionext,uniphier-evea";
+			reg = <0x57900000 0x1000>;
+			clock-names = "evea", "exiv";
+			clocks = <&sys_clk 41>, <&sys_clk 42>;
+			reset-names = "evea", "exiv", "adamv";
+			resets = <&sys_rst 41>, <&sys_rst 42>, <&adamv_rst 0>;
+			#sound-dai-cells = <1>;
+
+			port@0 {
+				evea_line: endpoint {
+					remote-endpoint = <&i2s_line>;
+				};
+			};
+
+			port@1 {
+				evea_hp: endpoint {
+					remote-endpoint = <&i2s_hp>;
+				};
+			};
 		};
 
 		adamv@57920000 {
@@ -171,6 +314,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c0>;
 			clocks = <&peri_clk 4>;
+			resets = <&peri_rst 4>;
 			clock-frequency = <100000>;
 		};
 
@@ -184,6 +328,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c1>;
 			clocks = <&peri_clk 5>;
+			resets = <&peri_rst 5>;
 			clock-frequency = <100000>;
 		};
 
@@ -194,6 +339,7 @@
 			#size-cells = <0>;
 			interrupts = <0 43 4>;
 			clocks = <&peri_clk 6>;
+			resets = <&peri_rst 6>;
 			clock-frequency = <400000>;
 		};
 
@@ -207,6 +353,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c3>;
 			clocks = <&peri_clk 7>;
+			resets = <&peri_rst 7>;
 			clock-frequency = <100000>;
 		};
 
@@ -220,6 +367,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c4>;
 			clocks = <&peri_clk 8>;
+			resets = <&peri_rst 8>;
 			clock-frequency = <100000>;
 		};
 
@@ -230,6 +378,7 @@
 			#size-cells = <0>;
 			interrupts = <0 25 4>;
 			clocks = <&peri_clk 9>;
+			resets = <&peri_rst 9>;
 			clock-frequency = <400000>;
 		};
 
@@ -282,10 +431,12 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_emmc>;
 			clocks = <&sys_clk 4>;
+			resets = <&sys_rst 4>;
 			bus-width = <8>;
 			mmc-ddr-1_8v;
 			mmc-hs200-1_8v;
-			cdns,phy-input-delay-legacy = <4>;
+			mmc-pwrseq = <&emmc_pwrseq>;
+			cdns,phy-input-delay-legacy = <9>;
 			cdns,phy-input-delay-mmc-highspeed = <2>;
 			cdns,phy-input-delay-mmc-ddr = <3>;
 			cdns,phy-dll-delay-sdclk = <21>;
@@ -299,9 +450,13 @@
 			interrupts = <0 243 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb0>;
-			clocks = <&mio_clk 7>, <&mio_clk 8>, <&mio_clk 12>;
+			clocks = <&sys_clk 8>, <&mio_clk 7>, <&mio_clk 8>,
+				 <&mio_clk 12>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 8>,
 				 <&mio_rst 12>;
+			phy-names = "usb";
+			phys = <&usb_phy0>;
+			has-transaction-translator;
 		};
 
 		usb1: usb@5a810100 {
@@ -311,9 +466,13 @@
 			interrupts = <0 244 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb1>;
-			clocks = <&mio_clk 7>, <&mio_clk 9>, <&mio_clk 13>;
+			clocks = <&sys_clk 8>, <&mio_clk 7>, <&mio_clk 9>,
+				 <&mio_clk 13>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 9>,
 				 <&mio_rst 13>;
+			phy-names = "usb";
+			phys = <&usb_phy1>;
+			has-transaction-translator;
 		};
 
 		usb2: usb@5a820100 {
@@ -323,9 +482,13 @@
 			interrupts = <0 245 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb2>;
-			clocks = <&mio_clk 7>, <&mio_clk 10>, <&mio_clk 14>;
+			clocks = <&sys_clk 8>, <&mio_clk 7>, <&mio_clk 10>,
+				 <&mio_clk 14>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 10>,
 				 <&mio_rst 14>;
+			phy-names = "usb";
+			phys = <&usb_phy2>;
+			has-transaction-translator;
 		};
 
 		mioctrl@5b3e0000 {
@@ -345,13 +508,52 @@
 			};
 		};
 
-		soc-glue@5f800000 {
+		soc_glue: soc-glue@5f800000 {
 			compatible = "socionext,uniphier-ld11-soc-glue",
 				     "simple-mfd", "syscon";
 			reg = <0x5f800000 0x2000>;
 
 			pinctrl: pinctrl {
 				compatible = "socionext,uniphier-ld11-pinctrl";
+			};
+
+			usb-phy {
+				compatible = "socionext,uniphier-ld11-usb2-phy";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				usb_phy0: phy@0 {
+					reg = <0>;
+					#phy-cells = <0>;
+				};
+
+				usb_phy1: phy@1 {
+					reg = <1>;
+					#phy-cells = <0>;
+				};
+
+				usb_phy2: phy@2 {
+					reg = <2>;
+					#phy-cells = <0>;
+				};
+			};
+		};
+
+		soc-glue@5f900000 {
+			compatible = "socionext,uniphier-ld11-soc-glue-debug",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x5f900000 0x2000>;
+
+			efuse@100 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x100 0x28>;
+			};
+
+			efuse@200 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x200 0x68>;
 			};
 		};
 
@@ -391,6 +593,25 @@
 			};
 		};
 
+		eth: ethernet@65000000 {
+			compatible = "socionext,uniphier-ld11-ave4";
+			status = "disabled";
+			reg = <0x65000000 0x8500>;
+			interrupts = <0 66 4>;
+			clock-names = "ether";
+			clocks = <&sys_clk 6>;
+			reset-names = "ether";
+			resets = <&sys_rst 6>;
+			phy-mode = "internal";
+			local-mac-address = [00 00 00 00 00 00];
+			socionext,syscon-phy-mode = <&soc_glue 0>;
+
+			mdio: mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
 		nand: nand@68000000 {
 			compatible = "socionext,uniphier-denali-nand-v5b";
 			status = "disabled";
@@ -399,9 +620,20 @@
 			interrupts = <0 65 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand>;
-			clocks = <&sys_clk 2>;
+			clock-names = "nand", "nand_x", "ecc";
+			clocks = <&sys_clk 2>, <&sys_clk 3>, <&sys_clk 3>;
+			resets = <&sys_rst 2>;
 		};
 	};
 };
 
 #include "uniphier-pinctrl.dtsi"
+
+&pinctrl_aoutiec1 {
+	drive-strength = <4>;	/* default: 4mA */
+
+	ao1arc {
+		pins = "AO1ARC";
+		drive-strength = <8>;	/* 8mA */
+	};
+};

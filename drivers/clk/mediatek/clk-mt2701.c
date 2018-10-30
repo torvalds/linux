@@ -46,8 +46,6 @@ static const struct mtk_fixed_clk top_fixed_clks[] = {
 		340 * MHZ),
 	FIXED_CLK(CLK_TOP_HDMI_0_PLL340M, "hdmi_0_pll340m", "clk26m",
 		340 * MHZ),
-	FIXED_CLK(CLK_TOP_HDMITX_CLKDIG_CTS, "hdmitx_dig_cts", "clk26m",
-		300 * MHZ),
 	FIXED_CLK(CLK_TOP_HADDS2_FB, "hadds2_fbclk", "clk26m",
 		27 * MHZ),
 	FIXED_CLK(CLK_TOP_WBG_DIG_416M, "wbg_dig_ck_416m", "clk26m",
@@ -148,6 +146,7 @@ static const struct mtk_fixed_factor top_fixed_divs[] = {
 	FACTOR(CLK_TOP_CLK26M_D8, "clk26m_d8", "clk26m", 1, 8),
 	FACTOR(CLK_TOP_32K_INTERNAL, "32k_internal", "clk26m", 1, 793),
 	FACTOR(CLK_TOP_32K_EXTERNAL, "32k_external", "rtc32k", 1, 1),
+	FACTOR(CLK_TOP_AXISEL_D4, "axisel_d4", "axi_sel", 1, 4),
 };
 
 static const char * const axi_parents[] = {
@@ -750,7 +749,7 @@ static const struct mtk_fixed_factor infra_fixed_divs[] = {
 
 static struct clk_onecell_data *infra_clk_data;
 
-static void mtk_infrasys_init_early(struct device_node *node)
+static void __init mtk_infrasys_init_early(struct device_node *node)
 {
 	int r, i;
 
@@ -857,13 +856,13 @@ static const struct mtk_gate peri_clks[] = {
 	GATE_PERI0(CLK_PERI_USB1, "usb1_ck", "usb20_sel", 11),
 	GATE_PERI0(CLK_PERI_USB0, "usb0_ck", "usb20_sel", 10),
 	GATE_PERI0(CLK_PERI_PWM, "pwm_ck", "axi_sel", 9),
-	GATE_PERI0(CLK_PERI_PWM7, "pwm7_ck", "axi_sel", 8),
-	GATE_PERI0(CLK_PERI_PWM6, "pwm6_ck", "axi_sel", 7),
-	GATE_PERI0(CLK_PERI_PWM5, "pwm5_ck", "axi_sel", 6),
-	GATE_PERI0(CLK_PERI_PWM4, "pwm4_ck", "axi_sel", 5),
-	GATE_PERI0(CLK_PERI_PWM3, "pwm3_ck", "axi_sel", 4),
-	GATE_PERI0(CLK_PERI_PWM2, "pwm2_ck", "axi_sel", 3),
-	GATE_PERI0(CLK_PERI_PWM1, "pwm1_ck", "axi_sel", 2),
+	GATE_PERI0(CLK_PERI_PWM7, "pwm7_ck", "axisel_d4", 8),
+	GATE_PERI0(CLK_PERI_PWM6, "pwm6_ck", "axisel_d4", 7),
+	GATE_PERI0(CLK_PERI_PWM5, "pwm5_ck", "axisel_d4", 6),
+	GATE_PERI0(CLK_PERI_PWM4, "pwm4_ck", "axisel_d4", 5),
+	GATE_PERI0(CLK_PERI_PWM3, "pwm3_ck", "axisel_d4", 4),
+	GATE_PERI0(CLK_PERI_PWM2, "pwm2_ck", "axisel_d4", 3),
+	GATE_PERI0(CLK_PERI_PWM1, "pwm1_ck", "axisel_d4", 2),
 	GATE_PERI0(CLK_PERI_THERM, "therm_ck", "axi_sel", 1),
 	GATE_PERI0(CLK_PERI_NFI, "nfi_ck", "nfi2x_sel", 0),
 
@@ -976,6 +975,10 @@ static const struct mtk_pll_data apmixed_plls[] = {
 				21, 0x2d0, 4, 0x0, 0x2d4, 0),
 };
 
+static const struct mtk_fixed_factor apmixed_fixed_divs[] = {
+	FACTOR(CLK_APMIXED_HDMI_REF, "hdmi_ref", "tvdpll", 1, 1),
+};
+
 static int mtk_apmixedsys_init(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
@@ -986,6 +989,8 @@ static int mtk_apmixedsys_init(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mtk_clk_register_plls(node, apmixed_plls, ARRAY_SIZE(apmixed_plls),
+								clk_data);
+	mtk_clk_register_factors(apmixed_fixed_divs, ARRAY_SIZE(apmixed_fixed_divs),
 								clk_data);
 
 	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);

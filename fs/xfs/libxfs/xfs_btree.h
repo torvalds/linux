@@ -1,25 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_BTREE_H__
 #define	__XFS_BTREE_H__
 
 struct xfs_buf;
-struct xfs_defer_ops;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
@@ -221,14 +208,11 @@ typedef struct xfs_btree_cur
 	union {
 		struct {			/* needed for BNO, CNT, INO */
 			struct xfs_buf	*agbp;	/* agf/agi buffer pointer */
-			struct xfs_defer_ops *dfops;	/* deferred updates */
 			xfs_agnumber_t	agno;	/* ag number */
 			union xfs_btree_cur_private	priv;
 		} a;
 		struct {			/* needed for BMAP */
 			struct xfs_inode *ip;	/* pointer to our inode */
-			struct xfs_defer_ops *dfops;	/* deferred updates */
-			xfs_fsblock_t	firstblock;	/* 1st blk allocated */
 			int		allocated;	/* count of alloced */
 			short		forksize;	/* fork's inode space */
 			char		whichfork;	/* data or attr fork */
@@ -255,6 +239,14 @@ typedef struct xfs_btree_cur
  */
 #define	XFS_BUF_TO_BLOCK(bp)	((struct xfs_btree_block *)((bp)->b_addr))
 
+/*
+ * Internal long and short btree block checks.  They return NULL if the
+ * block is ok or the address of the failed check otherwise.
+ */
+xfs_failaddr_t __xfs_btree_check_lblock(struct xfs_btree_cur *cur,
+		struct xfs_btree_block *block, int level, struct xfs_buf *bp);
+xfs_failaddr_t __xfs_btree_check_sblock(struct xfs_btree_cur *cur,
+		struct xfs_btree_block *block, int level, struct xfs_buf *bp);
 
 /*
  * Check that block header is ok.
@@ -269,10 +261,19 @@ xfs_btree_check_block(
 /*
  * Check that (long) pointer is ok.
  */
-int					/* error (0 or EFSCORRUPTED) */
+bool					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_lptr(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_fsblock_t		ptr,	/* btree block disk address */
+	xfs_fsblock_t		fsbno,	/* btree block disk address */
+	int			level);	/* btree block level */
+
+/*
+ * Check that (short) pointer is ok.
+ */
+bool					/* error (0 or EFSCORRUPTED) */
+xfs_btree_check_sptr(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agblock_t		agbno,	/* btree block disk address */
 	int			level);	/* btree block level */
 
 /*
@@ -456,35 +457,16 @@ static inline int xfs_btree_get_level(struct xfs_btree_block *block)
 #define	XFS_FILBLKS_MIN(a,b)	min_t(xfs_filblks_t, (a), (b))
 #define	XFS_FILBLKS_MAX(a,b)	max_t(xfs_filblks_t, (a), (b))
 
-#define	XFS_FSB_SANITY_CHECK(mp,fsb)	\
-	(fsb && XFS_FSB_TO_AGNO(mp, fsb) < mp->m_sb.sb_agcount && \
-		XFS_FSB_TO_AGBNO(mp, fsb) < mp->m_sb.sb_agblocks)
+xfs_failaddr_t xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
+xfs_failaddr_t xfs_btree_sblock_verify(struct xfs_buf *bp,
+		unsigned int max_recs);
+xfs_failaddr_t xfs_btree_lblock_v5hdr_verify(struct xfs_buf *bp,
+		uint64_t owner);
+xfs_failaddr_t xfs_btree_lblock_verify(struct xfs_buf *bp,
+		unsigned int max_recs);
 
-/*
- * Trace hooks.  Currently not implemented as they need to be ported
- * over to the generic tracing functionality, which is some effort.
- *
- * i,j = integer (32 bit)
- * b = btree block buffer (xfs_buf_t)
- * p = btree ptr
- * r = btree record
- * k = btree key
- */
-#define	XFS_BTREE_TRACE_ARGBI(c, b, i)
-#define	XFS_BTREE_TRACE_ARGBII(c, b, i, j)
-#define	XFS_BTREE_TRACE_ARGI(c, i)
-#define	XFS_BTREE_TRACE_ARGIPK(c, i, p, s)
-#define	XFS_BTREE_TRACE_ARGIPR(c, i, p, r)
-#define	XFS_BTREE_TRACE_ARGIK(c, i, k)
-#define XFS_BTREE_TRACE_ARGR(c, r)
-#define	XFS_BTREE_TRACE_CURSOR(c, t)
-
-bool xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
-bool xfs_btree_sblock_verify(struct xfs_buf *bp, unsigned int max_recs);
-uint xfs_btree_compute_maxlevels(struct xfs_mount *mp, uint *limits,
-				 unsigned long len);
-xfs_extlen_t xfs_btree_calc_size(struct xfs_mount *mp, uint *limits,
-		unsigned long long len);
+uint xfs_btree_compute_maxlevels(uint *limits, unsigned long len);
+unsigned long long xfs_btree_calc_size(uint *limits, unsigned long long len);
 
 /* return codes */
 #define XFS_BTREE_QUERY_RANGE_CONTINUE	0	/* keep iterating */
@@ -517,5 +499,19 @@ int xfs_btree_lookup_get_block(struct xfs_btree_cur *cur, int level,
 		union xfs_btree_ptr *pp, struct xfs_btree_block **blkp);
 struct xfs_btree_block *xfs_btree_get_block(struct xfs_btree_cur *cur,
 		int level, struct xfs_buf **bpp);
+bool xfs_btree_ptr_is_null(struct xfs_btree_cur *cur, union xfs_btree_ptr *ptr);
+int64_t xfs_btree_diff_two_ptrs(struct xfs_btree_cur *cur,
+				const union xfs_btree_ptr *a,
+				const union xfs_btree_ptr *b);
+void xfs_btree_get_sibling(struct xfs_btree_cur *cur,
+			   struct xfs_btree_block *block,
+			   union xfs_btree_ptr *ptr, int lr);
+void xfs_btree_get_keys(struct xfs_btree_cur *cur,
+		struct xfs_btree_block *block, union xfs_btree_key *key);
+union xfs_btree_key *xfs_btree_high_key_from_key(struct xfs_btree_cur *cur,
+		union xfs_btree_key *key);
+int xfs_btree_has_record(struct xfs_btree_cur *cur, union xfs_btree_irec *low,
+		union xfs_btree_irec *high, bool *exists);
+bool xfs_btree_has_more_records(struct xfs_btree_cur *cur);
 
 #endif	/* __XFS_BTREE_H__ */

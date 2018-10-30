@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Derived from many drivers using generic_serial interface.
  *
  * Copyright (C) 2008 Maxime Bizon <mbizon@freebox.fr>
@@ -507,8 +504,13 @@ static void bcm_uart_set_termios(struct uart_port *port,
 {
 	unsigned int ctl, baud, quot, ier;
 	unsigned long flags;
+	int tries;
 
 	spin_lock_irqsave(&port->lock, flags);
+
+	/* Drain the hot tub fully before we power it off for the winter. */
+	for (tries = 3; !bcm_uart_tx_empty(port) && tries; tries--)
+		mdelay(10);
 
 	/* disable uart while changing speed */
 	bcm_uart_disable(port);
@@ -841,8 +843,10 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	if (!res_irq)
 		return -ENODEV;
 
-	clk = pdev->dev.of_node ? of_clk_get(pdev->dev.of_node, 0) :
-				  clk_get(&pdev->dev, "periph");
+	clk = clk_get(&pdev->dev, "refclk");
+	if (IS_ERR(clk) && pdev->dev.of_node)
+		clk = of_clk_get(pdev->dev.of_node, 0);
+
 	if (IS_ERR(clk))
 		return -ENODEV;
 

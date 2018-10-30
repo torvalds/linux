@@ -66,7 +66,6 @@ static void hydra_block_input(struct net_device *dev, int count,
 static void hydra_block_output(struct net_device *dev, int count,
 			       const unsigned char *buf, int start_page);
 static void hydra_remove_one(struct zorro_dev *z);
-static u32 hydra_msg_enable;
 
 static struct zorro_device_id hydra_zorro_tbl[] = {
     { ZORRO_PROD_HYDRA_SYSTEMS_AMIGANET },
@@ -119,7 +118,6 @@ static int hydra_init(struct zorro_dev *z)
     int start_page, stop_page;
     int j;
     int err;
-    struct ei_device *ei_local;
 
     static u32 hydra_offsets[16] = {
 	0x00, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e,
@@ -138,8 +136,6 @@ static int hydra_init(struct zorro_dev *z)
     start_page = NESM_START_PG;
     stop_page = NESM_STOP_PG;
 
-    ei_local = netdev_priv(dev);
-    ei_local->msg_enable = hydra_msg_enable;
     dev->base_addr = ioaddr;
     dev->irq = IRQ_AMIGA_PORTS;
 

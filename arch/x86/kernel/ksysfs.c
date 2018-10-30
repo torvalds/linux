@@ -283,7 +283,7 @@ static int __init create_setup_data_nodes(struct kobject *parent)
 	if (ret)
 		goto out_setup_data_kobj;
 
-	kobjp = kmalloc(sizeof(*kobjp) * nr, GFP_KERNEL);
+	kobjp = kmalloc_array(nr, sizeof(*kobjp), GFP_KERNEL);
 	if (!kobjp) {
 		ret = -ENOMEM;
 		goto out_setup_data_kobj;
@@ -299,7 +299,7 @@ static int __init create_setup_data_nodes(struct kobject *parent)
 	return 0;
 
 out_clean_nodes:
-	for (j = i - 1; j > 0; j--)
+	for (j = i - 1; j >= 0; j--)
 		cleanup_setup_data_node(*(kobjp + j));
 	kfree(kobjp);
 out_setup_data_kobj:

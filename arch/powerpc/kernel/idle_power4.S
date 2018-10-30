@@ -15,6 +15,8 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/irqflags.h>
+#include <asm/hw_irq.h>
+#include <asm/feature-fixups.h>
 
 #undef DEBUG
 
@@ -30,6 +32,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
 	cmpwi	0,r4,0
 	beqlr
 
+	/* This sequence is similar to prep_irq_for_idle() */
+
 	/* Hard disable interrupts */
 	mfmsr	r7
 	rldicl	r0,r7,48,1
@@ -39,10 +43,15 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
 	/* Check if something happened while soft-disabled */
 	lbz	r0,PACAIRQHAPPENED(r13)
 	cmpwi	cr0,r0,0
-	bnelr
+	bne-	2f
 
-	/* Soft-enable interrupts */
+	/*
+	 * Soft-enable interrupts. This will make power4_fixup_nap return
+	 * to our caller with interrupts enabled (soft and hard). The caller
+	 * can cope with either interrupts disabled or enabled upon return.
+	 */
 #ifdef CONFIG_TRACE_IRQFLAGS
+	/* Tell the tracer interrupts are on, because idle responds to them. */
 	mflr	r0
 	std	r0,16(r1)
 	stdu    r1,-128(r1)
@@ -53,8 +62,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
 	mfmsr	r7
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
-	li	r0,1
-	stb	r0,PACASOFTIRQEN(r13)	/* we'll hard-enable shortly */
+	li	r0,IRQS_ENABLED
+	stb	r0,PACAIRQSOFTMASK(r13)	/* we'll hard-enable shortly */
 BEGIN_FTR_SECTION
 	DSSALL
 	sync
@@ -71,3 +80,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	isync
 	b	1b
 
+2:	/* Return if an interrupt had happened while soft disabled */
+	/* Set the HARD_DIS flag because interrupts are now hard disabled */
+	ori	r0,r0,PACA_IRQ_HARD_DIS
+	stb	r0,PACAIRQHAPPENED(r13)
+	blr

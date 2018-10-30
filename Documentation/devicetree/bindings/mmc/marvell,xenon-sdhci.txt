@@ -16,11 +16,13 @@ Required Properties:
 
 - clocks:
   Array of clocks required for SDHC.
-  Require at least input clock for Xenon IP core.
+  Require at least input clock for Xenon IP core. For Armada AP806 and
+  CP110, the AXI clock is also mandatory.
 
 - clock-names:
   Array of names corresponding to clocks property.
   The input clock for Xenon IP core should be named as "core".
+  The input clock for the AXI bus must be named as "axi".
 
 - reg:
   * For "marvell,armada-3700-sdhci", two register areas.
@@ -106,8 +108,8 @@ Example:
 		compatible = "marvell,armada-ap806-sdhci";
 		reg = <0xaa0000 0x1000>;
 		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>
-		clocks = <&emmc_clk>;
-		clock-names = "core";
+		clocks = <&emmc_clk>,<&axi_clk>;
+		clock-names = "core", "axi";
 		bus-width = <4>;
 		marvell,xenon-phy-slow-mode;
 		marvell,xenon-tun-count = <11>;
@@ -126,8 +128,8 @@ Example:
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>
 		vqmmc-supply = <&sd_vqmmc_regulator>;
 		vmmc-supply = <&sd_vmmc_regulator>;
-		clocks = <&sdclk>;
-		clock-names = "core";
+		clocks = <&sdclk>, <&axi_clk>;
+		clock-names = "core", "axi";
 		bus-width = <4>;
 		marvell,xenon-tun-count = <9>;
 	};

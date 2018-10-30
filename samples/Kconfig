@@ -1,5 +1,6 @@
 menuconfig SAMPLES
 	bool "Sample kernel code"
+	depends on !UML
 	help
 	  You can build and test sample kernel code here.
 
@@ -62,6 +63,16 @@ config SAMPLE_KDB
 	  Build an example of how to dynamically add the hello
 	  command to the kdb shell.
 
+config SAMPLE_QMI_CLIENT
+	tristate "Build qmi client sample -- loadable modules only"
+	depends on m
+	depends on ARCH_QCOM
+	depends on NET
+	select QCOM_QMI_HELPERS
+	help
+	  Build an QMI client sample driver, which demonstrates how to
+	  communicate with a remote QRTR service, using QMI encoded messages.
+
 config SAMPLE_RPMSG_CLIENT
 	tristate "Build rpmsg client sample -- loadable modules only"
 	depends on RPMSG && m
@@ -71,11 +82,10 @@ config SAMPLE_RPMSG_CLIENT
 	  the rpmsg bus.
 
 config SAMPLE_LIVEPATCH
-	tristate "Build live patching sample -- loadable modules only"
+	tristate "Build live patching samples -- loadable modules only"
 	depends on LIVEPATCH && m
 	help
-	  Builds a sample live patch that replaces the procfs handler
-	  for /proc/cmdline to print "this has been live patched".
+	  Build sample live patch demonstrations.
 
 config SAMPLE_CONFIGFS
 	tristate "Build configfs patching sample -- loadable modules only"
@@ -99,18 +109,43 @@ config SAMPLE_SECCOMP
 	  Build samples of seccomp filters using various methods of
 	  BPF filter construction.
 
-config SAMPLE_BLACKFIN_GPTIMERS
-	tristate "Build blackfin gptimers sample code -- loadable modules only"
-	depends on BLACKFIN && BFIN_GPTIMERS && m
-	help
-	  Build samples of blackfin gptimers sample module.
-
 config SAMPLE_VFIO_MDEV_MTTY
 	tristate "Build VFIO mtty example mediated device sample code -- loadable modules only"
 	depends on VFIO_MDEV_DEVICE && m
 	help
 	  Build a virtual tty sample driver for use as a VFIO
 	  mediated device
+
+config SAMPLE_VFIO_MDEV_MDPY
+	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
+	depends on VFIO_MDEV_DEVICE && m
+	help
+	  Build a virtual display sample driver for use as a VFIO
+	  mediated device.  It is a simple framebuffer and supports
+	  the region display interface (VFIO_GFX_PLANE_TYPE_REGION).
+
+config SAMPLE_VFIO_MDEV_MDPY_FB
+	tristate "Build VFIO mdpy example guest fbdev driver -- loadable module only"
+	depends on FB && m
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  Guest fbdev driver for the virtual display sample driver.
+
+config SAMPLE_VFIO_MDEV_MBOCHS
+	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
+	depends on VFIO_MDEV_DEVICE && m
+	select DMA_SHARED_BUFFER
+	help
+	  Build a virtual display sample driver for use as a VFIO
+	  mediated device.  It supports the region display interface
+	  (VFIO_GFX_PLANE_TYPE_DMABUF).
+	  Emulate enough of qemu stdvga to make bochs-drm.ko happy.
+	  That is basically the vram memory bar and the bochs dispi
+	  interface vbe registers in the mmio register bar.
+	  Specifically it does *not* include any legacy vga stuff.
+	  Device looks a lot like "qemu -device secondary-vga".
 
 config SAMPLE_STATX
 	bool "Build example extended-stat using code"

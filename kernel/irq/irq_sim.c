@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2017 Bartosz Golaszewski <brgl@bgdev.pl>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
+ * Copyright (C) 2017-2018 Bartosz Golaszewski <brgl@bgdev.pl>
  */
 
+#include <linux/slab.h>
 #include <linux/irq_sim.h>
 #include <linux/irq.h>
 
@@ -49,7 +46,8 @@ static void irq_sim_handle_irq(struct irq_work *work)
  * @sim:        The interrupt simulator object to initialize.
  * @num_irqs:   Number of interrupts to allocate
  *
- * Returns 0 on success and a negative error number on failure.
+ * On success: return the base of the allocated interrupt range.
+ * On failure: a negative errno.
  */
 int irq_sim_init(struct irq_sim *sim, unsigned int num_irqs)
 {
@@ -78,7 +76,7 @@ int irq_sim_init(struct irq_sim *sim, unsigned int num_irqs)
 	init_irq_work(&sim->work_ctx.work, irq_sim_handle_irq);
 	sim->irq_count = num_irqs;
 
-	return 0;
+	return sim->irq_base;
 }
 EXPORT_SYMBOL_GPL(irq_sim_init);
 
@@ -110,7 +108,8 @@ static void devm_irq_sim_release(struct device *dev, void *res)
  * @sim:        The interrupt simulator object to initialize.
  * @num_irqs:   Number of interrupts to allocate
  *
- * Returns 0 on success and a negative error number on failure.
+ * On success: return the base of the allocated interrupt range.
+ * On failure: a negative errno.
  */
 int devm_irq_sim_init(struct device *dev, struct irq_sim *sim,
 		      unsigned int num_irqs)
@@ -123,7 +122,7 @@ int devm_irq_sim_init(struct device *dev, struct irq_sim *sim,
 		return -ENOMEM;
 
 	rv = irq_sim_init(sim, num_irqs);
-	if (rv) {
+	if (rv < 0) {
 		devres_free(dr);
 		return rv;
 	}
@@ -131,7 +130,7 @@ int devm_irq_sim_init(struct device *dev, struct irq_sim *sim,
 	dr->sim = sim;
 	devres_add(dev, dr);
 
-	return 0;
+	return rv;
 }
 EXPORT_SYMBOL_GPL(devm_irq_sim_init);
 

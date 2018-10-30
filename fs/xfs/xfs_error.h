@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef	__XFS_ERROR_H__
 #define	__XFS_ERROR_H__
@@ -21,21 +9,33 @@
 struct xfs_mount;
 
 extern void xfs_error_report(const char *tag, int level, struct xfs_mount *mp,
-			const char *filename, int linenum, void *ra);
+			const char *filename, int linenum,
+			xfs_failaddr_t failaddr);
 extern void xfs_corruption_error(const char *tag, int level,
-			struct xfs_mount *mp, void *p, const char *filename,
-			int linenum, void *ra);
-extern void xfs_verifier_error(struct xfs_buf *bp);
+			struct xfs_mount *mp, void *buf, size_t bufsize,
+			const char *filename, int linenum,
+			xfs_failaddr_t failaddr);
+extern void xfs_buf_verifier_error(struct xfs_buf *bp, int error,
+			const char *name, void *buf, size_t bufsz,
+			xfs_failaddr_t failaddr);
+extern void xfs_verifier_error(struct xfs_buf *bp, int error,
+			xfs_failaddr_t failaddr);
+extern void xfs_inode_verifier_error(struct xfs_inode *ip, int error,
+			const char *name, void *buf, size_t bufsz,
+			xfs_failaddr_t failaddr);
 
 #define	XFS_ERROR_REPORT(e, lvl, mp)	\
 	xfs_error_report(e, lvl, mp, __FILE__, __LINE__, __return_address)
-#define	XFS_CORRUPTION_ERROR(e, lvl, mp, mem)	\
-	xfs_corruption_error(e, lvl, mp, mem, \
+#define	XFS_CORRUPTION_ERROR(e, lvl, mp, buf, bufsize)	\
+	xfs_corruption_error(e, lvl, mp, buf, bufsize, \
 			     __FILE__, __LINE__, __return_address)
 
 #define XFS_ERRLEVEL_OFF	0
 #define XFS_ERRLEVEL_LOW	1
 #define XFS_ERRLEVEL_HIGH	5
+
+/* Dump 128 bytes of any corrupt buffer */
+#define XFS_CORRUPTION_DUMP_LEN		(128)
 
 /*
  * Macros to set EFSCORRUPTED & return/branch.
@@ -62,87 +62,6 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 			return -EFSCORRUPTED; \
 		} \
 	}
-
-/*
- * error injection tags - the labels can be anything you want
- * but each tag should have its own unique number
- */
-
-#define XFS_ERRTAG_NOERROR				0
-#define XFS_ERRTAG_IFLUSH_1				1
-#define XFS_ERRTAG_IFLUSH_2				2
-#define XFS_ERRTAG_IFLUSH_3				3
-#define XFS_ERRTAG_IFLUSH_4				4
-#define XFS_ERRTAG_IFLUSH_5				5
-#define XFS_ERRTAG_IFLUSH_6				6
-#define	XFS_ERRTAG_DA_READ_BUF				7
-#define	XFS_ERRTAG_BTREE_CHECK_LBLOCK			8
-#define	XFS_ERRTAG_BTREE_CHECK_SBLOCK			9
-#define	XFS_ERRTAG_ALLOC_READ_AGF			10
-#define	XFS_ERRTAG_IALLOC_READ_AGI			11
-#define	XFS_ERRTAG_ITOBP_INOTOBP			12
-#define	XFS_ERRTAG_IUNLINK				13
-#define	XFS_ERRTAG_IUNLINK_REMOVE			14
-#define	XFS_ERRTAG_DIR_INO_VALIDATE			15
-#define XFS_ERRTAG_BULKSTAT_READ_CHUNK			16
-#define XFS_ERRTAG_IODONE_IOERR				17
-#define XFS_ERRTAG_STRATREAD_IOERR			18
-#define XFS_ERRTAG_STRATCMPL_IOERR			19
-#define XFS_ERRTAG_DIOWRITE_IOERR			20
-#define XFS_ERRTAG_BMAPIFORMAT				21
-#define XFS_ERRTAG_FREE_EXTENT				22
-#define XFS_ERRTAG_RMAP_FINISH_ONE			23
-#define XFS_ERRTAG_REFCOUNT_CONTINUE_UPDATE		24
-#define XFS_ERRTAG_REFCOUNT_FINISH_ONE			25
-#define XFS_ERRTAG_BMAP_FINISH_ONE			26
-#define XFS_ERRTAG_AG_RESV_CRITICAL			27
-/*
- * DEBUG mode instrumentation to test and/or trigger delayed allocation
- * block killing in the event of failed writes. When enabled, all
- * buffered writes are silenty dropped and handled as if they failed.
- * All delalloc blocks in the range of the write (including pre-existing
- * delalloc blocks!) are tossed as part of the write failure error
- * handling sequence.
- */
-#define XFS_ERRTAG_DROP_WRITES				28
-#define XFS_ERRTAG_LOG_BAD_CRC				29
-#define XFS_ERRTAG_LOG_ITEM_PIN				30
-#define XFS_ERRTAG_MAX					31
-
-/*
- * Random factors for above tags, 1 means always, 2 means 1/2 time, etc.
- */
-#define XFS_RANDOM_DEFAULT				100
-#define XFS_RANDOM_IFLUSH_1				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_2				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_3				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_4				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_5				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_6				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_DA_READ_BUF				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_BTREE_CHECK_LBLOCK			(XFS_RANDOM_DEFAULT/4)
-#define XFS_RANDOM_BTREE_CHECK_SBLOCK			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_ALLOC_READ_AGF			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IALLOC_READ_AGI			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_ITOBP_INOTOBP			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IUNLINK				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IUNLINK_REMOVE			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_DIR_INO_VALIDATE			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_BULKSTAT_READ_CHUNK			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IODONE_IOERR				(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_STRATREAD_IOERR			(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_STRATCMPL_IOERR			(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_DIOWRITE_IOERR			(XFS_RANDOM_DEFAULT/10)
-#define	XFS_RANDOM_BMAPIFORMAT				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_FREE_EXTENT				1
-#define XFS_RANDOM_RMAP_FINISH_ONE			1
-#define XFS_RANDOM_REFCOUNT_CONTINUE_UPDATE		1
-#define XFS_RANDOM_REFCOUNT_FINISH_ONE			1
-#define XFS_RANDOM_BMAP_FINISH_ONE			1
-#define XFS_RANDOM_AG_RESV_CRITICAL			4
-#define XFS_RANDOM_DROP_WRITES				1
-#define XFS_RANDOM_LOG_BAD_CRC				1
-#define XFS_RANDOM_LOG_ITEM_PIN				1
 
 #ifdef DEBUG
 extern int xfs_errortag_init(struct xfs_mount *mp);

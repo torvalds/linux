@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/bpf.h>
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 #include <unistd.h>
 #include <errno.h>

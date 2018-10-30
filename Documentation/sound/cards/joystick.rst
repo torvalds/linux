@@ -11,7 +11,7 @@ General
 
 First of all, you need to enable GAMEPORT support on Linux kernel for
 using a joystick with the ALSA driver.  For the details of gameport
-support, refer to Documentation/input/joystick.txt.
+support, refer to Documentation/input/joydev/joystick.rst.
 
 The joystick support of ALSA drivers is different between ISA and PCI
 cards.  In the case of ISA (PnP) cards, it's usually handled by the

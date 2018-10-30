@@ -109,13 +109,6 @@ enum drm_ioctl_flags {
 	 */
 	DRM_ROOT_ONLY		= BIT(2),
 	/**
-	 * @DRM_CONTROL_ALLOW:
-	 *
-	 * Deprecated, do not use. Control nodes are in the process of getting
-	 * removed.
-	 */
-	DRM_CONTROL_ALLOW	= BIT(3),
-	/**
 	 * @DRM_UNLOCKED:
 	 *
 	 * Whether &drm_ioctl_desc.func should be called with the DRM BKL held

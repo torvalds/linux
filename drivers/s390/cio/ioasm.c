@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Channel subsystem I/O instructions.
  */
@@ -181,30 +182,6 @@ int chsc(void *chsc_area)
 	return cc;
 }
 EXPORT_SYMBOL(chsc);
-
-static inline int __rchp(struct chp_id chpid)
-{
-	register struct chp_id reg1 asm ("1") = chpid;
-	int ccode;
-
-	asm volatile(
-		"	lr	1,%1\n"
-		"	rchp\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode) : "d" (reg1) : "cc");
-	return ccode;
-}
-
-int rchp(struct chp_id chpid)
-{
-	int ccode;
-
-	ccode = __rchp(chpid);
-	trace_s390_cio_rchp(chpid, ccode);
-
-	return ccode;
-}
 
 static inline int __rsch(struct subchannel_id schid)
 {

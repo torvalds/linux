@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (c) 2008, Intel Corporation.
  *
@@ -29,6 +30,7 @@
 #define SKBEDIT_F_MARK			0x4
 #define SKBEDIT_F_PTYPE			0x8
 #define SKBEDIT_F_MASK			0x10
+#define SKBEDIT_F_INHERITDSFIELD	0x20
 
 struct tc_skbedit {
 	tc_gen;
@@ -44,6 +46,7 @@ enum {
 	TCA_SKBEDIT_PAD,
 	TCA_SKBEDIT_PTYPE,
 	TCA_SKBEDIT_MASK,
+	TCA_SKBEDIT_FLAGS,
 	__TCA_SKBEDIT_MAX
 };
 #define TCA_SKBEDIT_MAX (__TCA_SKBEDIT_MAX - 1)

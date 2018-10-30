@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/atmmpc.h>
 #include <linux/slab.h>
@@ -116,7 +117,7 @@ static in_cache_entry *in_cache_add_entry(__be32 dst_ip,
 
 	memcpy(entry->MPS_ctrl_ATM_addr, client->mps_ctrl_addr, ATM_ESA_LEN);
 	entry->ctrl_info.in_dst_ip = dst_ip;
-	do_gettimeofday(&(entry->tv));
+	entry->time = ktime_get_seconds();
 	entry->retry_time = client->parameters.mpc_p4;
 	entry->count = 1;
 	entry->entry_state = INGRESS_INVALID;
@@ -147,7 +148,7 @@ static int cache_hit(in_cache_entry *entry, struct mpoa_client *mpc)
 			if (qos != NULL)
 				msg.qos = qos->qos;
 			msg_to_mpoad(&msg, mpc);
-			do_gettimeofday(&(entry->reply_wait));
+			entry->reply_wait = ktime_get_seconds();
 			entry->entry_state = INGRESS_RESOLVING;
 		}
 		if (entry->shortcut != NULL)
@@ -170,7 +171,7 @@ static int cache_hit(in_cache_entry *entry, struct mpoa_client *mpc)
 		if (qos != NULL)
 			msg.qos = qos->qos;
 		msg_to_mpoad(&msg, mpc);
-		do_gettimeofday(&(entry->reply_wait));
+		entry->reply_wait = ktime_get_seconds();
 	}
 
 	return CLOSED;
@@ -226,17 +227,16 @@ static void in_cache_remove_entry(in_cache_entry *entry,
 static void clear_count_and_expired(struct mpoa_client *client)
 {
 	in_cache_entry *entry, *next_entry;
-	struct timeval now;
+	time64_t now;
 
-	do_gettimeofday(&now);
+	now = ktime_get_seconds();
 
 	write_lock_bh(&client->ingress_lock);
 	entry = client->in_cache;
 	while (entry != NULL) {
 		entry->count = 0;
 		next_entry = entry->next;
-		if ((now.tv_sec - entry->tv.tv_sec)
-		   > entry->ctrl_info.holding_time) {
+		if ((now - entry->time) > entry->ctrl_info.holding_time) {
 			dprintk("holding time expired, ip = %pI4\n",
 				&entry->ctrl_info.in_dst_ip);
 			client->in_ops->remove_entry(entry, client);
@@ -252,35 +252,35 @@ static void check_resolving_entries(struct mpoa_client *client)
 
 	struct atm_mpoa_qos *qos;
 	in_cache_entry *entry;
-	struct timeval now;
+	time64_t now;
 	struct k_message msg;
 
-	do_gettimeofday(&now);
+	now = ktime_get_seconds();
 
 	read_lock_bh(&client->ingress_lock);
 	entry = client->in_cache;
 	while (entry != NULL) {
 		if (entry->entry_state == INGRESS_RESOLVING) {
-			if ((now.tv_sec - entry->hold_down.tv_sec) <
-			    client->parameters.mpc_p6) {
+
+			if ((now - entry->hold_down)
+					< client->parameters.mpc_p6) {
 				entry = entry->next;	/* Entry in hold down */
 				continue;
 			}
-			if ((now.tv_sec - entry->reply_wait.tv_sec) >
-			    entry->retry_time) {
+			if ((now - entry->reply_wait) > entry->retry_time) {
 				entry->retry_time = MPC_C1 * (entry->retry_time);
 				/*
 				 * Retry time maximum exceeded,
 				 * put entry in hold down.
 				 */
 				if (entry->retry_time > client->parameters.mpc_p5) {
-					do_gettimeofday(&(entry->hold_down));
+					entry->hold_down = ktime_get_seconds();
 					entry->retry_time = client->parameters.mpc_p4;
 					entry = entry->next;
 					continue;
 				}
 				/* Ask daemon to send a resolution request. */
-				memset(&(entry->hold_down), 0, sizeof(struct timeval));
+				memset(&entry->hold_down, 0, sizeof(time64_t));
 				msg.type = SND_MPOA_RES_RTRY;
 				memcpy(msg.MPS_ctrl, client->mps_ctrl_addr, ATM_ESA_LEN);
 				msg.content.in_info = entry->ctrl_info;
@@ -288,7 +288,7 @@ static void check_resolving_entries(struct mpoa_client *client)
 				if (qos != NULL)
 					msg.qos = qos->qos;
 				msg_to_mpoad(&msg, client);
-				do_gettimeofday(&(entry->reply_wait));
+				entry->reply_wait = ktime_get_seconds();
 			}
 		}
 		entry = entry->next;
@@ -299,18 +299,18 @@ static void check_resolving_entries(struct mpoa_client *client)
 /* Call this every MPC-p5 seconds. */
 static void refresh_entries(struct mpoa_client *client)
 {
-	struct timeval now;
+	time64_t now;
 	struct in_cache_entry *entry = client->in_cache;
 
 	ddprintk("refresh_entries\n");
-	do_gettimeofday(&now);
+	now = ktime_get_seconds();
 
 	read_lock_bh(&client->ingress_lock);
 	while (entry != NULL) {
 		if (entry->entry_state == INGRESS_RESOLVED) {
 			if (!(entry->refresh_time))
 				entry->refresh_time = (2 * (entry->ctrl_info.holding_time))/3;
-			if ((now.tv_sec - entry->reply_wait.tv_sec) >
+			if ((now - entry->reply_wait) >
 			    entry->refresh_time) {
 				dprintk("refreshing an entry.\n");
 				entry->entry_state = INGRESS_REFRESHING;
@@ -479,7 +479,7 @@ static eg_cache_entry *eg_cache_add_entry(struct k_message *msg,
 
 	memcpy(entry->MPS_ctrl_ATM_addr, client->mps_ctrl_addr, ATM_ESA_LEN);
 	entry->ctrl_info = msg->content.eg_info;
-	do_gettimeofday(&(entry->tv));
+	entry->time = ktime_get_seconds();
 	entry->entry_state = EGRESS_RESOLVED;
 	dprintk("new_eg_cache_entry cache_id %u\n",
 		ntohl(entry->ctrl_info.cache_id));
@@ -494,7 +494,7 @@ static eg_cache_entry *eg_cache_add_entry(struct k_message *msg,
 
 static void update_eg_cache_entry(eg_cache_entry *entry, uint16_t holding_time)
 {
-	do_gettimeofday(&(entry->tv));
+	entry->time = ktime_get_seconds();
 	entry->entry_state = EGRESS_RESOLVED;
 	entry->ctrl_info.holding_time = holding_time;
 }
@@ -502,17 +502,16 @@ static void update_eg_cache_entry(eg_cache_entry *entry, uint16_t holding_time)
 static void clear_expired(struct mpoa_client *client)
 {
 	eg_cache_entry *entry, *next_entry;
-	struct timeval now;
+	time64_t now;
 	struct k_message msg;
 
-	do_gettimeofday(&now);
+	now = ktime_get_seconds();
 
 	write_lock_irq(&client->egress_lock);
 	entry = client->eg_cache;
 	while (entry != NULL) {
 		next_entry = entry->next;
-		if ((now.tv_sec - entry->tv.tv_sec)
-		   > entry->ctrl_info.holding_time) {
+		if ((now - entry->time) > entry->ctrl_info.holding_time) {
 			msg.type = SND_EGRESS_PURGE;
 			msg.content.eg_info = entry->ctrl_info;
 			dprintk("egress_cache: holding time expired, cache_id = %u.\n",

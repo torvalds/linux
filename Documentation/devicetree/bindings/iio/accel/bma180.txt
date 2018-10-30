@@ -10,8 +10,6 @@ Required properties:
 
 Optional properties:
 
-  - interrupt-parent : should be the phandle for the interrupt controller
-
   - interrupts : interrupt mapping for GPIO IRQ, it should by configured with
 		flags IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_EDGE_RISING
 		For the bma250 the first interrupt listed must be the one

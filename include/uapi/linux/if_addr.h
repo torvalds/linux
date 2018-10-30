@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_IF_ADDR_H
 #define __LINUX_IF_ADDR_H
 
@@ -32,6 +33,8 @@ enum {
 	IFA_CACHEINFO,
 	IFA_MULTICAST,
 	IFA_FLAGS,
+	IFA_RT_PRIORITY,  /* u32, priority/metric for prefix route */
+	IFA_TARGET_NETNSID,
 	__IFA_MAX,
 };
 

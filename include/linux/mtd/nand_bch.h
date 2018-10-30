@@ -12,6 +12,7 @@
 #define __MTD_NAND_BCH_H__
 
 struct mtd_info;
+struct nand_chip;
 struct nand_bch_control;
 
 #if defined(CONFIG_MTD_NAND_ECC_BCH)
@@ -21,14 +22,14 @@ static inline int mtd_nand_has_bch(void) { return 1; }
 /*
  * Calculate BCH ecc code
  */
-int nand_bch_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
+int nand_bch_calculate_ecc(struct nand_chip *chip, const u_char *dat,
 			   u_char *ecc_code);
 
 /*
  * Detect and correct bit errors
  */
-int nand_bch_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc,
-			  u_char *calc_ecc);
+int nand_bch_correct_data(struct nand_chip *chip, u_char *dat,
+			  u_char *read_ecc, u_char *calc_ecc);
 /*
  * Initialize BCH encoder/decoder
  */
@@ -43,14 +44,14 @@ void nand_bch_free(struct nand_bch_control *nbc);
 static inline int mtd_nand_has_bch(void) { return 0; }
 
 static inline int
-nand_bch_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
+nand_bch_calculate_ecc(struct nand_chip *chip, const u_char *dat,
 		       u_char *ecc_code)
 {
 	return -1;
 }
 
 static inline int
-nand_bch_correct_data(struct mtd_info *mtd, unsigned char *buf,
+nand_bch_correct_data(struct nand_chip *chip, unsigned char *buf,
 		      unsigned char *read_ecc, unsigned char *calc_ecc)
 {
 	return -ENOTSUPP;

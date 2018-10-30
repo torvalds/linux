@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef TARGET_CORE_INTERNAL_H
 #define TARGET_CORE_INTERNAL_H
 
@@ -16,6 +17,7 @@ struct target_backend {
 
 	struct config_item_type tb_dev_cit;
 	struct config_item_type tb_dev_attrib_cit;
+	struct config_item_type tb_dev_action_cit;
 	struct config_item_type tb_dev_pr_cit;
 	struct config_item_type tb_dev_wwn_cit;
 	struct config_item_type tb_dev_alua_tg_pt_gps_cit;
@@ -88,6 +90,7 @@ int	target_for_each_device(int (*fn)(struct se_device *dev, void *data),
 			       void *data);
 
 /* target_core_configfs.c */
+extern struct configfs_item_operations target_core_dev_item_ops;
 void	target_setup_backend_cits(struct target_backend *);
 
 /* target_core_fabric_configfs.c */
@@ -100,7 +103,7 @@ int	target_get_pr_transport_id(struct se_node_acl *nacl,
 		struct t10_pr_registration *pr_reg, int *format_code,
 		unsigned char *buf);
 const char *target_parse_pr_out_transport_id(struct se_portal_group *tpg,
-		const char *buf, u32 *out_tid_len, char **port_nexus_ptr);
+		char *buf, u32 *out_tid_len, char **port_nexus_ptr);
 
 /* target_core_hba.c */
 struct se_hba *core_alloc_hba(const char *, u32, u32);
@@ -135,7 +138,7 @@ int	init_se_kmem_caches(void);
 void	release_se_kmem_caches(void);
 u32	scsi_get_new_index(scsi_index_t);
 void	transport_subsystem_check_init(void);
-int	transport_cmd_finish_abort(struct se_cmd *, int);
+int	transport_cmd_finish_abort(struct se_cmd *);
 unsigned char *transport_dump_cmd_direction(struct se_cmd *);
 void	transport_dump_dev_state(struct se_device *, char *, int *);
 void	transport_dump_dev_info(struct se_device *, struct se_lun *,
@@ -163,6 +166,7 @@ extern struct se_portal_group xcopy_pt_tpg;
 /* target_core_configfs.c */
 #define DB_ROOT_LEN		4096
 #define	DB_ROOT_DEFAULT		"/var/target"
+#define	DB_ROOT_PREFERRED	"/etc/target"
 
 extern char db_root[];
 

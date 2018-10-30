@@ -77,38 +77,17 @@
  */
 
 /**
- * intel_hpd_port - return port hard associated with certain pin.
- * @pin: the hpd pin to get associated port
- *
- * Return port that is associatade with @pin and PORT_NONE if no port is
- * hard associated with that @pin.
- */
-enum port intel_hpd_pin_to_port(enum hpd_pin pin)
-{
-	switch (pin) {
-	case HPD_PORT_A:
-		return PORT_A;
-	case HPD_PORT_B:
-		return PORT_B;
-	case HPD_PORT_C:
-		return PORT_C;
-	case HPD_PORT_D:
-		return PORT_D;
-	case HPD_PORT_E:
-		return PORT_E;
-	default:
-		return PORT_NONE; /* no port for this pin */
-	}
-}
-
-/**
- * intel_hpd_pin - return pin hard associated with certain port.
+ * intel_hpd_pin_default - return default pin associated with certain port.
+ * @dev_priv: private driver data pointer
  * @port: the hpd port to get associated pin
+ *
+ * It is only valid and used by digital port encoder.
  *
  * Return pin that is associatade with @port and HDP_NONE if no pin is
  * hard associated with that @port.
  */
-enum hpd_pin intel_hpd_pin(enum port port)
+enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
+				   enum port port)
 {
 	switch (port) {
 	case PORT_A:
@@ -121,6 +100,10 @@ enum hpd_pin intel_hpd_pin(enum port port)
 		return HPD_PORT_D;
 	case PORT_E:
 		return HPD_PORT_E;
+	case PORT_F:
+		if (IS_CNL_WITH_PORT_F(dev_priv))
+			return HPD_PORT_E;
+		return HPD_PORT_F;
 	default:
 		MISSING_CASE(port);
 		return HPD_NONE;
@@ -227,25 +210,25 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 		container_of(work, typeof(*dev_priv),
 			     hotplug.reenable_work.work);
 	struct drm_device *dev = &dev_priv->drm;
-	int i;
+	enum hpd_pin pin;
 
 	intel_runtime_pm_get(dev_priv);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	for_each_hpd_pin(i) {
+	for_each_hpd_pin(pin) {
 		struct drm_connector *connector;
 		struct drm_connector_list_iter conn_iter;
 
-		if (dev_priv->hotplug.stats[i].state != HPD_DISABLED)
+		if (dev_priv->hotplug.stats[pin].state != HPD_DISABLED)
 			continue;
 
-		dev_priv->hotplug.stats[i].state = HPD_ENABLED;
+		dev_priv->hotplug.stats[pin].state = HPD_ENABLED;
 
 		drm_connector_list_iter_begin(dev, &conn_iter);
 		drm_for_each_connector_iter(connector, &conn_iter) {
 			struct intel_connector *intel_connector = to_intel_connector(connector);
 
-			if (intel_connector->encoder->hpd_pin == i) {
+			if (intel_connector->encoder->hpd_pin == pin) {
 				if (connector->polled != intel_connector->polled)
 					DRM_DEBUG_DRIVER("Reenabling HPD on connector %s\n",
 							 connector->name);
@@ -263,26 +246,34 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 	intel_runtime_pm_put(dev_priv);
 }
 
-static bool intel_hpd_irq_event(struct drm_device *dev,
-				struct drm_connector *connector)
+bool intel_encoder_hotplug(struct intel_encoder *encoder,
+			   struct intel_connector *connector)
 {
+	struct drm_device *dev = connector->base.dev;
 	enum drm_connector_status old_status;
 
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
-	old_status = connector->status;
+	old_status = connector->base.status;
 
-	connector->status = drm_helper_probe_detect(connector, NULL, false);
+	connector->base.status =
+		drm_helper_probe_detect(&connector->base, NULL, false);
 
-	if (old_status == connector->status)
+	if (old_status == connector->base.status)
 		return false;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
-		      connector->base.id,
-		      connector->name,
+		      connector->base.base.id,
+		      connector->base.name,
 		      drm_get_connector_status_name(old_status),
-		      drm_get_connector_status_name(connector->status));
+		      drm_get_connector_status_name(connector->base.status));
 
 	return true;
+}
+
+static bool intel_encoder_has_hpd_pulse(struct intel_encoder *encoder)
+{
+	return intel_encoder_is_dig_port(encoder) &&
+		enc_to_dig_port(&encoder->base)->hpd_pulse != NULL;
 }
 
 static void i915_digport_work_func(struct work_struct *work)
@@ -290,8 +281,7 @@ static void i915_digport_work_func(struct work_struct *work)
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private, hotplug.dig_port_work);
 	u32 long_port_mask, short_port_mask;
-	struct intel_digital_port *intel_dig_port;
-	int i;
+	struct intel_encoder *encoder;
 	u32 old_bits = 0;
 
 	spin_lock_irq(&dev_priv->irq_lock);
@@ -301,27 +291,27 @@ static void i915_digport_work_func(struct work_struct *work)
 	dev_priv->hotplug.short_port_mask = 0;
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	for (i = 0; i < I915_MAX_PORTS; i++) {
-		bool valid = false;
-		bool long_hpd = false;
-		intel_dig_port = dev_priv->hotplug.irq_port[i];
-		if (!intel_dig_port || !intel_dig_port->hpd_pulse)
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		struct intel_digital_port *dig_port;
+		enum port port = encoder->port;
+		bool long_hpd, short_hpd;
+		enum irqreturn ret;
+
+		if (!intel_encoder_has_hpd_pulse(encoder))
 			continue;
 
-		if (long_port_mask & (1 << i))  {
-			valid = true;
-			long_hpd = true;
-		} else if (short_port_mask & (1 << i))
-			valid = true;
+		long_hpd = long_port_mask & BIT(port);
+		short_hpd = short_port_mask & BIT(port);
 
-		if (valid) {
-			enum irqreturn ret;
+		if (!long_hpd && !short_hpd)
+			continue;
 
-			ret = intel_dig_port->hpd_pulse(intel_dig_port, long_hpd);
-			if (ret == IRQ_NONE) {
-				/* fall back to old school hpd */
-				old_bits |= (1 << intel_dig_port->base.hpd_pin);
-			}
+		dig_port = enc_to_dig_port(&encoder->base);
+
+		ret = dig_port->hpd_pulse(dig_port, long_hpd);
+		if (ret == IRQ_NONE) {
+			/* fall back to old school hpd */
+			old_bits |= BIT(encoder->hpd_pin);
 		}
 	}
 
@@ -370,10 +360,9 @@ static void i915_hotplug_work_func(struct work_struct *work)
 		if (hpd_event_bits & (1 << intel_encoder->hpd_pin)) {
 			DRM_DEBUG_KMS("Connector %s (pin %i) received hotplug event.\n",
 				      connector->name, intel_encoder->hpd_pin);
-			if (intel_encoder->hot_plug)
-				intel_encoder->hot_plug(intel_encoder);
-			if (intel_hpd_irq_event(dev, connector))
-				changed = true;
+
+			changed |= intel_encoder->hotplug(intel_encoder,
+							  intel_connector);
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
@@ -403,26 +392,24 @@ static void i915_hotplug_work_func(struct work_struct *work)
 void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 			   u32 pin_mask, u32 long_mask)
 {
-	int i;
-	enum port port;
+	struct intel_encoder *encoder;
 	bool storm_detected = false;
 	bool queue_dig = false, queue_hp = false;
-	bool is_dig_port;
 
 	if (!pin_mask)
 		return;
 
 	spin_lock(&dev_priv->irq_lock);
-	for_each_hpd_pin(i) {
-		if (!(BIT(i) & pin_mask))
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		enum hpd_pin pin = encoder->hpd_pin;
+		bool has_hpd_pulse = intel_encoder_has_hpd_pulse(encoder);
+
+		if (!(BIT(pin) & pin_mask))
 			continue;
 
-		port = intel_hpd_pin_to_port(i);
-		is_dig_port = port != PORT_NONE &&
-			dev_priv->hotplug.irq_port[port];
-
-		if (is_dig_port) {
-			bool long_hpd = long_mask & BIT(i);
+		if (has_hpd_pulse) {
+			bool long_hpd = long_mask & BIT(pin);
+			enum port port = encoder->port;
 
 			DRM_DEBUG_DRIVER("digital hpd port %c - %s\n", port_name(port),
 					 long_hpd ? "long" : "short");
@@ -440,7 +427,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 			}
 		}
 
-		if (dev_priv->hotplug.stats[i].state == HPD_DISABLED) {
+		if (dev_priv->hotplug.stats[pin].state == HPD_DISABLED) {
 			/*
 			 * On GMCH platforms the interrupt mask bits only
 			 * prevent irq generation, not the setting of the
@@ -448,20 +435,20 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 			 * interrupts on saner platforms.
 			 */
 			WARN_ONCE(!HAS_GMCH_DISPLAY(dev_priv),
-				  "Received HPD interrupt on pin %d although disabled\n", i);
+				  "Received HPD interrupt on pin %d although disabled\n", pin);
 			continue;
 		}
 
-		if (dev_priv->hotplug.stats[i].state != HPD_ENABLED)
+		if (dev_priv->hotplug.stats[pin].state != HPD_ENABLED)
 			continue;
 
-		if (!is_dig_port) {
-			dev_priv->hotplug.event_bits |= BIT(i);
+		if (!has_hpd_pulse) {
+			dev_priv->hotplug.event_bits |= BIT(pin);
 			queue_hp = true;
 		}
 
-		if (intel_hpd_irq_storm_detect(dev_priv, i)) {
-			dev_priv->hotplug.event_bits &= ~BIT(i);
+		if (intel_hpd_irq_storm_detect(dev_priv, pin)) {
+			dev_priv->hotplug.event_bits &= ~BIT(pin);
 			storm_detected = true;
 		}
 	}

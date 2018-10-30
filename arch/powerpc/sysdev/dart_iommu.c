@@ -38,6 +38,7 @@
 #include <linux/suspend.h>
 #include <linux/memblock.h>
 #include <linux/gfp.h>
+#include <linux/kmemleak.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -402,7 +403,7 @@ static int dart_dma_set_mask(struct device *dev, u64 dma_mask)
 	 */
 	if (dart_device_on_pcie(dev) && dma_mask >= DMA_BIT_MASK(40)) {
 		dev_info(dev, "Using 64-bit DMA iommu bypass\n");
-		set_dma_ops(dev, &dma_direct_ops);
+		set_dma_ops(dev, &dma_nommu_ops);
 	} else {
 		dev_info(dev, "Using 32-bit DMA via iommu\n");
 		set_dma_ops(dev, &dma_iommu_ops);
@@ -446,7 +447,7 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
 	controller_ops->dma_bus_setup = NULL;
 
 	/* Setup pci_dma ops */
-	set_pci_dma_ops(&dma_direct_ops);
+	set_pci_dma_ops(&dma_nommu_ops);
 }
 
 #ifdef CONFIG_PM

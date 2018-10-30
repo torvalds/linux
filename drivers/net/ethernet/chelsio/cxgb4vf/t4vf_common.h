@@ -391,7 +391,10 @@ int t4vf_config_rss_range(struct adapter *, unsigned int, int, int,
 
 int t4vf_alloc_vi(struct adapter *, int);
 int t4vf_free_vi(struct adapter *, int);
-int t4vf_enable_vi(struct adapter *, unsigned int, bool, bool);
+int t4vf_enable_vi(struct adapter *adapter, unsigned int viid, bool rx_en,
+		   bool tx_en);
+int t4vf_enable_pi(struct adapter *adapter, struct port_info *pi, bool rx_en,
+		   bool tx_en);
 int t4vf_identify_port(struct adapter *, unsigned int, unsigned int);
 
 int t4vf_set_rxmode(struct adapter *, unsigned int, int, int, int, int, int,
@@ -413,5 +416,6 @@ int t4vf_handle_fw_rpl(struct adapter *, const __be64 *);
 int t4vf_prep_adapter(struct adapter *);
 int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
 			unsigned int *naddr, u8 *addr);
+int t4vf_get_vf_vlan_acl(struct adapter *adapter);
 
 #endif /* __T4VF_COMMON_H__ */

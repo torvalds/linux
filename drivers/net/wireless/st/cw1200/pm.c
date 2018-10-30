@@ -91,7 +91,7 @@ struct cw1200_suspend_state {
 	u8 prev_ps_mode;
 };
 
-static void cw1200_pm_stay_awake_tmo(unsigned long arg)
+static void cw1200_pm_stay_awake_tmo(struct timer_list *unused)
 {
 	/* XXX what's the point of this ? */
 }
@@ -101,8 +101,7 @@ int cw1200_pm_init(struct cw1200_pm_state *pm,
 {
 	spin_lock_init(&pm->lock);
 
-	setup_timer(&pm->stay_awake, cw1200_pm_stay_awake_tmo,
-		    (unsigned long)pm);
+	timer_setup(&pm->stay_awake, cw1200_pm_stay_awake_tmo, 0);
 
 	return 0;
 }

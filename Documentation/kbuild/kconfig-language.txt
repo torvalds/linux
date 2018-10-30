@@ -77,6 +77,27 @@ applicable everywhere (see syntax).
   Optionally, dependencies only for this default value can be added with
   "if".
 
+ The default value deliberately defaults to 'n' in order to avoid bloating the
+ build. With few exceptions, new config options should not change this. The
+ intent is for "make oldconfig" to add as little as possible to the config from
+ release to release.
+
+ Note:
+	Things that merit "default y/m" include:
+
+	a) A new Kconfig option for something that used to always be built
+	   should be "default y".
+
+	b) A new gatekeeping Kconfig option that hides/shows other Kconfig
+	   options (but does not generate any code of its own), should be
+	   "default y" so people will see those other options.
+
+	c) Sub-driver behavior or similar options for a driver that is
+	   "default n". This allows you to provide sane defaults.
+
+	d) Hardware or infrastructure that everybody expects, such as CONFIG_NET
+	   or CONFIG_BLOCK. These are rare exceptions.
+
 - type definition + default value:
 	"def_bool"/"def_tristate" <expr> ["if" <expr>]
   This is a shorthand notation for a type definition plus a value.
@@ -177,14 +198,6 @@ applicable everywhere (see syntax).
     enables the third modular state for all config symbols.
     At most one symbol may have the "modules" option set.
 
-  - "env"=<value>
-    This imports the environment variable into Kconfig. It behaves like
-    a default, except that the value comes from the environment, this
-    also means that the behaviour when mixing it with normal defaults is
-    undefined at this point. The symbol is currently not exported back
-    to the build environment (if this is desired, it can be done via
-    another symbol).
-
   - "allnoconfig_y"
     This declares the symbol as one that should have the value y when
     using "allnoconfig". Used for symbols that hide other symbols.
@@ -200,10 +213,14 @@ module state. Dependency expressions have the following syntax:
 <expr> ::= <symbol>                             (1)
            <symbol> '=' <symbol>                (2)
            <symbol> '!=' <symbol>               (3)
-           '(' <expr> ')'                       (4)
-           '!' <expr>                           (5)
-           <expr> '&&' <expr>                   (6)
-           <expr> '||' <expr>                   (7)
+           <symbol1> '<' <symbol2>              (4)
+           <symbol1> '>' <symbol2>              (4)
+           <symbol1> '<=' <symbol2>             (4)
+           <symbol1> '>=' <symbol2>             (4)
+           '(' <expr> ')'                       (5)
+           '!' <expr>                           (6)
+           <expr> '&&' <expr>                   (7)
+           <expr> '||' <expr>                   (8)
 
 Expressions are listed in decreasing order of precedence. 
 
@@ -214,10 +231,13 @@ Expressions are listed in decreasing order of precedence.
     otherwise 'n'.
 (3) If the values of both symbols are equal, it returns 'n',
     otherwise 'y'.
-(4) Returns the value of the expression. Used to override precedence.
-(5) Returns the result of (2-/expr/).
-(6) Returns the result of min(/expr/, /expr/).
-(7) Returns the result of max(/expr/, /expr/).
+(4) If value of <symbol1> is respectively lower, greater, lower-or-equal,
+    or greater-or-equal than value of <symbol2>, it returns 'y',
+    otherwise 'n'.
+(5) Returns the value of the expression. Used to override precedence.
+(6) Returns the result of (2-/expr/).
+(7) Returns the result of min(/expr/, /expr/).
+(8) Returns the result of max(/expr/, /expr/).
 
 An expression can have a value of 'n', 'm' or 'y' (or 0, 1, 2
 respectively for calculations). A menu entry becomes visible when its
@@ -350,7 +370,7 @@ choices:
 
 This defines a choice group and accepts any of the above attributes as
 options. A choice can only be of type bool or tristate.  If no type is
-specified for a choice, it's type will be determined by the type of
+specified for a choice, its type will be determined by the type of
 the first choice element in the group or remain unknown if none of the
 choice elements have a type specified, as well.
 
@@ -364,7 +384,7 @@ A choice accepts another option "optional", which allows to set the
 choice to 'n' and no entry needs to be selected.
 If no [symbol] is associated with a choice, then you can not have multiple
 definitions of that choice. If a [symbol] is associated to the choice,
-then you may define the same choice (ie. with the same entries) in another
+then you may define the same choice (i.e. with the same entries) in another
 place.
 
 comment:
@@ -410,6 +430,12 @@ This sets the config program's title bar if the config program chooses
 to use it. It should be placed at the top of the configuration, before any
 other statement.
 
+'#' Kconfig source file comment:
+
+An unquoted '#' character anywhere in a source file line indicates
+the beginning of a source file comment.  The remainder of that line
+is a comment.
+
 
 Kconfig hints
 -------------
@@ -452,6 +478,24 @@ introduced to overcome the limitation of select which will force a
 config option to 'y' no matter the dependencies.
 The dependencies are moved to the symbol GENERIC_IOMAP and we avoid the
 situation where select forces a symbol equals to 'y'.
+
+Adding features that need compiler support
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are several features that need compiler support. The recommended way
+to describe the dependency on the compiler feature is to use "depends on"
+followed by a test macro.
+
+config STACKPROTECTOR
+	bool "Stack Protector buffer overflow detection"
+	depends on $(cc-option,-fstack-protector)
+	...
+
+If you need to expose a compiler capability to makefiles and/or C source files,
+CC_HAS_ is the recommended prefix for the config option.
+
+config CC_HAS_STACKPROTECTOR_NONE
+	def_bool $(cc-option,-fno-stack-protector)
 
 Build as module only
 ~~~~~~~~~~~~~~~~~~~~
@@ -501,7 +545,7 @@ make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-02 allnoconfig
 Practical solutions to kconfig recursive issue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Developers who run into the recursive Kconfig issue have three options
+Developers who run into the recursive Kconfig issue have two options
 at their disposal. We document them below and also provide a list of
 historical issues resolved through these different solutions.
 
@@ -509,7 +553,6 @@ historical issues resolved through these different solutions.
   b) Match dependency semantics:
 	b1) Swap all "select FOO" to "depends on FOO" or,
 	b2) Swap all "depends on FOO" to "select FOO"
-  c) Consider the use of "imply" instead of "select"
 
 The resolution to a) can be tested with the sample Kconfig file
 Documentation/kbuild/Kconfig.recursion-issue-01 through the removal

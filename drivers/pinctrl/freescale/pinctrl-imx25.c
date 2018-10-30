@@ -1,19 +1,15 @@
-/*
- * imx25 pinctrl driver.
- *
- * Copyright 2013 Eukréa Electromatique <denis@eukrea.com>
- *
- * This driver was mostly copied from the imx51 pinctrl driver which has:
- *
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
- * Copyright (C) 2012 Linaro, Inc.
- *
- * Author: Denis Carikli <denis@eukrea.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// imx25 pinctrl driver.
+//
+// Copyright 2013 Eukréa Electromatique <denis@eukrea.com>
+//
+// This driver was mostly copied from the imx51 pinctrl driver which has:
+//
+// Copyright (C) 2012 Freescale Semiconductor, Inc.
+// Copyright (C) 2012 Linaro, Inc.
+//
+// Author: Denis Carikli <denis@eukrea.com>
 
 #include <linux/err.h>
 #include <linux/init.h>
@@ -309,7 +305,7 @@ static const struct pinctrl_pin_desc imx25_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX25_PAD_BOOT_MODE1),
 };
 
-static struct imx_pinctrl_soc_info imx25_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx25_pinctrl_info = {
 	.pins = imx25_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx25_pinctrl_pads),
 };

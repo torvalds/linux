@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Copyright 2017 Luxul Inc.
- *
- * Licensed under the ISC license.
  */
 
 /dts-v1/;
@@ -57,7 +56,8 @@
 		usb {
 			label = "bcm53xx:green:usb";
 			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			trigger-sources = <&ohci_port2>, <&ehci_port2>;
+			linux,default-trigger = "usbport";
 		};
 
 		status {
@@ -103,5 +103,9 @@
 };
 
 &spi_nor {
+	status = "okay";
+};
+
+&usb3_phy {
 	status = "okay";
 };

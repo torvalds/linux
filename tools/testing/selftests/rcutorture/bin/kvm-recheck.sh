@@ -25,7 +25,7 @@
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 PATH=`pwd`/tools/testing/selftests/rcutorture/bin:$PATH; export PATH
-. tools/testing/selftests/rcutorture/bin/functions.sh
+. functions.sh
 for rd in "$@"
 do
 	firsttime=1
@@ -39,6 +39,7 @@ do
 			head -1 $resdir/log
 		fi
 		TORTURE_SUITE="`cat $i/../TORTURE_SUITE`"
+		rm -f $i/console.log.*.diags
 		kvm-recheck-${TORTURE_SUITE}.sh $i
 		if test -f "$i/console.log"
 		then
@@ -48,10 +49,6 @@ do
 				cat $i/Make.oldconfig.err
 			fi
 			parse-build.sh $i/Make.out $configfile
-			if test "$TORTURE_SUITE" != rcuperf
-			then
-				parse-torture.sh $i/console.log $configfile
-			fi
 			parse-console.sh $i/console.log $configfile
 			if test -r $i/Warnings
 			then

@@ -108,12 +108,11 @@ packages already put them there.
 ====================
 
 The loader supports also loading of a builtin microcode supplied through
-the regular firmware builtin method CONFIG_FIRMWARE_IN_KERNEL. Only
-64-bit is currently supported.
+the regular builtin firmware method CONFIG_EXTRA_FIRMWARE. Only 64-bit is
+currently supported.
 
 Here's an example:
 
-CONFIG_FIRMWARE_IN_KERNEL=y
 CONFIG_EXTRA_FIRMWARE="intel-ucode/06-3a-09 amd-ucode/microcode_amd_fam15h.bin"
 CONFIG_EXTRA_FIRMWARE_DIR="/lib/firmware"
 

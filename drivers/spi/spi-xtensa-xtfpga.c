@@ -54,7 +54,7 @@ static inline void xtfpga_spi_wait_busy(struct xtfpga_spi *xspi)
 }
 
 static u32 xtfpga_spi_txrx_word(struct spi_device *spi, unsigned nsecs,
-				u32 v, u8 bits)
+				u32 v, u8 bits, unsigned flags)
 {
 	struct xtfpga_spi *xspi = spi_master_get_devdata(spi->master);
 

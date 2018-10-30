@@ -1168,7 +1168,7 @@ static u32 mt2063_set_dnc_output_enable(struct mt2063_state *state,
 
 /*
  * MT2063_SetReceiverMode() - Set the MT2063 receiver mode, according with
- * 			      the selected enum mt2063_delivery_sys type.
+ *			      the selected enum mt2063_delivery_sys type.
  *
  *  (DNC1GC & DNC2GC are the values, which are used, when the specific
  *   DNC Output is selected, the other is always off)
@@ -1397,9 +1397,9 @@ static u32 MT2063_Round_fLO(u32 f_LO, u32 f_LO_Step, u32 f_ref)
  *                        risk of overflow.  It accurately calculates
  *                        f_ref * num / denom to within 1 HZ with fixed math.
  *
- * @num :	Fractional portion of the multiplier
+ * @f_ref:	SRO frequency.
+ * @num:	Fractional portion of the multiplier
  * @denom:	denominator portion of the ratio
- * @f_Ref:	SRO frequency.
  *
  * This calculation handles f_ref as two separate 14-bit fields.
  * Therefore, a maximum value of 2^28-1 may safely be used for f_ref.
@@ -1464,8 +1464,6 @@ static u32 MT2063_CalcLO1Mult(u32 *Div,
  * @f_LO:	desired LO frequency.
  * @f_LO_Step:	Minimum step size for the LO (in Hz).
  * @f_Ref:	SRO frequency.
- * @f_Avoid:	Range of PLL frequencies to avoid near
- *		integer multiples of f_Ref (in Hz).
  *
  * Returns: Recalculated LO frequency.
  */
@@ -1546,7 +1544,7 @@ static u32 MT2063_Tune(struct mt2063_state *state, u32 f_in)
 	 * Save original LO1 and LO2 register values
 	 */
 	ofLO1 = state->AS_Data.f_LO1;
-	ofLO2 = state->AS_Data.f_LO2; 
+	ofLO2 = state->AS_Data.f_LO2;
 
 	/*
 	 * Find and set RF Band setting
@@ -2202,10 +2200,9 @@ static int mt2063_get_bandwidth(struct dvb_frontend *fe, u32 *bw)
 static const struct dvb_tuner_ops mt2063_ops = {
 	.info = {
 		 .name = "MT2063 Silicon Tuner",
-		 .frequency_min = 45000000,
-		 .frequency_max = 865000000,
-		 .frequency_step = 0,
-		 },
+		 .frequency_min_hz  =  45 * MHz,
+		 .frequency_max_hz  = 865 * MHz,
+	 },
 
 	.init = mt2063_init,
 	.sleep = MT2063_Sleep,

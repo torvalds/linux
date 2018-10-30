@@ -28,7 +28,6 @@
 
 #include "hwmgr.h"
 #include "amd_powerplay.h"
-#include "vega10_smumgr.h"
 #include "hardwaremanager.h"
 #include "ppatomfwctrl.h"
 #include "atomfirmware.h"
@@ -37,32 +36,25 @@
 #include "smu9.h"
 #include "smu9_driver_if.h"
 #include "vega10_inc.h"
-#include "pp_soc15.h"
+#include "soc15_common.h"
 #include "pppcielanes.h"
 #include "vega10_hwmgr.h"
+#include "vega10_smumgr.h"
 #include "vega10_processpptables.h"
 #include "vega10_pptable.h"
 #include "vega10_thermal.h"
 #include "pp_debug.h"
-#include "pp_acpi.h"
 #include "amd_pcie_helpers.h"
-#include "cgs_linux.h"
 #include "ppinterrupt.h"
 #include "pp_overdriver.h"
+#include "pp_thermal.h"
 
-#define VOLTAGE_SCALE  4
-#define VOLTAGE_VID_OFFSET_SCALE1   625
-#define VOLTAGE_VID_OFFSET_SCALE2   100
+#include "smuio/smuio_9_0_offset.h"
+#include "smuio/smuio_9_0_sh_mask.h"
 
 #define HBM_MEMORY_CHANNEL_WIDTH    128
 
-uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
-
-#define MEM_FREQ_LOW_LATENCY        25000
-#define MEM_FREQ_HIGH_LATENCY       80000
-#define MEM_LATENCY_HIGH            245
-#define MEM_LATENCY_LOW             35
-#define MEM_LATENCY_ERR             0xFFFF
+static const uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 
 #define mmDF_CS_AON0_DramBaseAddress0                                                                  0x0044
 #define mmDF_CS_AON0_DramBaseAddress0_BASE_IDX                                                         0
@@ -78,10 +70,8 @@ uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 #define DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK                                                        0x000000F0L
 #define DF_CS_AON0_DramBaseAddress0__IntLvAddrSel_MASK                                                        0x00000700L
 #define DF_CS_AON0_DramBaseAddress0__DramBaseAddr_MASK                                                        0xFFFFF000L
-static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
-		enum pp_clock_type type, uint32_t mask);
 
-const ULONG PhwVega10_Magic = (ULONG)(PHM_VIslands_Magic);
+static const ULONG PhwVega10_Magic = (ULONG)(PHM_VIslands_Magic);
 
 struct vega10_power_state *cast_phw_vega10_power_state(
 				  struct pp_hw_power_state *hw_ps)
@@ -105,8 +95,7 @@ const struct vega10_power_state *cast_const_phw_vega10_power_state(
 
 static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->registry_data.sclk_dpm_key_disabled =
 			hwmgr->feature_mask & PP_SCLK_DPM_MASK ? false : true;
@@ -141,7 +130,8 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.thermal_support = 1;
 	data->registry_data.fw_ctf_enabled = 1;
 
-	data->registry_data.avfs_support = 1;
+	data->registry_data.avfs_support =
+		hwmgr->feature_mask & PP_AVFS_MASK ? true : false;
 	data->registry_data.led_dpm_enabled = 1;
 
 	data->registry_data.vr0hot_enabled = 1;
@@ -183,12 +173,10 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 
 static int vega10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)hwmgr->pptable;
-	struct cgs_system_info sys_info = {0};
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
@@ -201,20 +189,13 @@ static int vega10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 				PHM_PlatformCaps_ControlVDDCI);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_TablelessHardwareInterface);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_EnableSMU7ThermalManagement);
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PG_FLAGS;
-	result = cgs_query_system_info(hwmgr->device, &sys_info);
-
-	if (!result && (sys_info.value & AMD_PG_SUPPORT_UVD))
+	if (adev->pg_flags & AMD_PG_SUPPORT_UVD)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_UVDPowerGating);
 
-	if (!result && (sys_info.value & AMD_PG_SUPPORT_VCE))
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCE)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_VCEPowerGating);
 
@@ -300,10 +281,66 @@ static int vega10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int vega10_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	struct phm_ppt_v2_information *table_info =
+			(struct phm_ppt_v2_information *)(hwmgr->pptable);
+	struct vega10_odn_dpm_table *odn_table = &(data->odn_dpm_table);
+	struct vega10_odn_vddc_lookup_table *od_lookup_table;
+	struct phm_ppt_v1_voltage_lookup_table *vddc_lookup_table;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table[3];
+	struct phm_ppt_v1_clock_voltage_dependency_table *od_table[3];
+	struct pp_atomfwctrl_avfs_parameters avfs_params = {0};
+	uint32_t i;
+	int result;
+
+	result = pp_atomfwctrl_get_avfs_information(hwmgr, &avfs_params);
+	if (!result) {
+		data->odn_dpm_table.max_vddc = avfs_params.ulMaxVddc;
+		data->odn_dpm_table.min_vddc = avfs_params.ulMinVddc;
+	}
+
+	od_lookup_table = &odn_table->vddc_lookup_table;
+	vddc_lookup_table = table_info->vddc_lookup_table;
+
+	for (i = 0; i < vddc_lookup_table->count; i++)
+		od_lookup_table->entries[i].us_vdd = vddc_lookup_table->entries[i].us_vdd;
+
+	od_lookup_table->count = vddc_lookup_table->count;
+
+	dep_table[0] = table_info->vdd_dep_on_sclk;
+	dep_table[1] = table_info->vdd_dep_on_mclk;
+	dep_table[2] = table_info->vdd_dep_on_socclk;
+	od_table[0] = (struct phm_ppt_v1_clock_voltage_dependency_table *)&odn_table->vdd_dep_on_sclk;
+	od_table[1] = (struct phm_ppt_v1_clock_voltage_dependency_table *)&odn_table->vdd_dep_on_mclk;
+	od_table[2] = (struct phm_ppt_v1_clock_voltage_dependency_table *)&odn_table->vdd_dep_on_socclk;
+
+	for (i = 0; i < 3; i++)
+		smu_get_voltage_dependency_table_ppt_v1(dep_table[i], od_table[i]);
+
+	if (odn_table->max_vddc == 0 || odn_table->max_vddc > 2000)
+		odn_table->max_vddc = dep_table[0]->entries[dep_table[0]->count - 1].vddc;
+	if (odn_table->min_vddc == 0 || odn_table->min_vddc > 2000)
+		odn_table->min_vddc = dep_table[0]->entries[0].vddc;
+
+	i = od_table[2]->count - 1;
+	od_table[2]->entries[i].clk = hwmgr->platform_descriptor.overdriveLimit.memoryClock > od_table[2]->entries[i].clk ?
+					hwmgr->platform_descriptor.overdriveLimit.memoryClock :
+					od_table[2]->entries[i].clk;
+	od_table[2]->entries[i].vddc = odn_table->max_vddc > od_table[2]->entries[i].vddc ?
+					odn_table->max_vddc :
+					od_table[2]->entries[i].vddc;
+
+	return 0;
+}
+
 static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	int i;
+	uint32_t sub_vendor_id, hw_revision;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	vega10_initialize_power_tune_defaults(hwmgr);
 
@@ -368,6 +405,7 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 			FEATURE_FAN_CONTROL_BIT;
 	data->smu_features[GNLD_ACG].smu_feature_id = FEATURE_ACG_BIT;
 	data->smu_features[GNLD_DIDT].smu_feature_id = FEATURE_GFX_EDC_BIT;
+	data->smu_features[GNLD_PCC_LIMIT].smu_feature_id = FEATURE_PCC_LIMIT_CONTROL_BIT;
 
 	if (!data->registry_data.prefetcher_dpm_key_disabled)
 		data->smu_features[GNLD_DPM_PREFETCHER].supported = true;
@@ -381,12 +419,10 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	if (!data->registry_data.socclk_dpm_key_disabled)
 		data->smu_features[GNLD_DPM_SOCCLK].supported = true;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_UVDDPM))
+	if (PP_CAP(PHM_PlatformCaps_UVDDPM))
 		data->smu_features[GNLD_DPM_UVD].supported = true;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_VCEDPM))
+	if (PP_CAP(PHM_PlatformCaps_VCEDPM))
 		data->smu_features[GNLD_DPM_VCE].supported = true;
 
 	if (!data->registry_data.pcie_dpm_key_disabled)
@@ -395,9 +431,8 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	if (!data->registry_data.dcefclk_dpm_key_disabled)
 		data->smu_features[GNLD_DPM_DCEFCLK].supported = true;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkDeepSleep) &&
-			data->registry_data.sclk_deep_sleep_support) {
+	if (PP_CAP(PHM_PlatformCaps_SclkDeepSleep) &&
+	    data->registry_data.sclk_deep_sleep_support) {
 		data->smu_features[GNLD_DS_GFXCLK].supported = true;
 		data->smu_features[GNLD_DS_SOCCLK].supported = true;
 		data->smu_features[GNLD_DS_LCLK].supported = true;
@@ -431,15 +466,23 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	if (data->registry_data.vr0hot_enabled)
 		data->smu_features[GNLD_VR0HOT].supported = true;
 
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetSmuVersion);
-	vega10_read_arg_from_smc(hwmgr->smumgr, &(data->smu_version));
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
+	hwmgr->smu_version = smum_get_argument(hwmgr);
 		/* ACG firmware has major version 5 */
-	if ((data->smu_version & 0xff000000) == 0x5000000)
+	if ((hwmgr->smu_version & 0xff000000) == 0x5000000)
 		data->smu_features[GNLD_ACG].supported = true;
-
 	if (data->registry_data.didt_support)
 		data->smu_features[GNLD_DIDT].supported = true;
 
+	hw_revision = adev->pdev->revision;
+	sub_vendor_id = adev->pdev->subsystem_vendor;
+
+	if ((hwmgr->chip_id == 0x6862 ||
+		hwmgr->chip_id == 0x6861 ||
+		hwmgr->chip_id == 0x6868) &&
+		(hw_revision == 0) &&
+		(sub_vendor_id != 0x1002))
+		data->smu_features[GNLD_PCC_LIMIT].supported = true;
 }
 
 #ifdef PPLIB_VEGA10_EVV_SUPPORT
@@ -481,7 +524,7 @@ static int vega10_get_socclk_for_voltage_evv(struct pp_hwmgr *hwmgr,
 */
 static int vega10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint16_t vv_id;
 	uint32_t vddc = 0;
 	uint16_t i, j;
@@ -497,8 +540,7 @@ static int vega10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 
 		if (!vega10_get_socclk_for_voltage_evv(hwmgr,
 				table_info->vddc_lookup_table, vv_id, &sclk)) {
-			if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_ClockStretcher)) {
+			if (PP_CAP(PHM_PlatformCaps_ClockStretcher)) {
 				for (j = 1; j < socclk_table->count; j++) {
 					if (socclk_table->entries[j].clk == sclk &&
 							socclk_table->entries[j].cks_enable == 0) {
@@ -553,8 +595,7 @@ static void vega10_patch_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 	}
 
 	if (*voltage > ATOM_VIRTUAL_VOLTAGE_ID0)
-		pr_info("Voltage value looks like a Leakage ID \
-				but it's not patched\n");
+		pr_info("Voltage value looks like a Leakage ID but it's not patched\n");
 }
 
 /**
@@ -591,61 +632,37 @@ static int vega10_patch_clock_voltage_limits_with_vddc_leakage(
 static int vega10_patch_voltage_dependency_tables_with_lookup_table(
 		struct pp_hwmgr *hwmgr)
 {
-	uint8_t entry_id;
-	uint8_t voltage_id;
+	uint8_t entry_id, voltage_id;
+	unsigned i;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_clock_voltage_dependency_table *socclk_table =
-			table_info->vdd_dep_on_socclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *gfxclk_table =
-			table_info->vdd_dep_on_sclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *dcefclk_table =
-			table_info->vdd_dep_on_dcefclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *pixclk_table =
-			table_info->vdd_dep_on_pixclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *dspclk_table =
-			table_info->vdd_dep_on_dispclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *phyclk_table =
-			table_info->vdd_dep_on_phyclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *mclk_table =
-			table_info->vdd_dep_on_mclk;
 	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
 			table_info->mm_dep_table;
+	struct phm_ppt_v1_clock_voltage_dependency_table *mclk_table =
+			table_info->vdd_dep_on_mclk;
 
-	for (entry_id = 0; entry_id < socclk_table->count; entry_id++) {
-		voltage_id = socclk_table->entries[entry_id].vddInd;
-		socclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
+	for (i = 0; i < 6; i++) {
+		struct phm_ppt_v1_clock_voltage_dependency_table *vdt;
+		switch (i) {
+			case 0: vdt = table_info->vdd_dep_on_socclk; break;
+			case 1: vdt = table_info->vdd_dep_on_sclk; break;
+			case 2: vdt = table_info->vdd_dep_on_dcefclk; break;
+			case 3: vdt = table_info->vdd_dep_on_pixclk; break;
+			case 4: vdt = table_info->vdd_dep_on_dispclk; break;
+			case 5: vdt = table_info->vdd_dep_on_phyclk; break;
+		}
+
+		for (entry_id = 0; entry_id < vdt->count; entry_id++) {
+			voltage_id = vdt->entries[entry_id].vddInd;
+			vdt->entries[entry_id].vddc =
+					table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
+		}
 	}
 
-	for (entry_id = 0; entry_id < gfxclk_table->count; entry_id++) {
-		voltage_id = gfxclk_table->entries[entry_id].vddInd;
-		gfxclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
-	}
-
-	for (entry_id = 0; entry_id < dcefclk_table->count; entry_id++) {
-		voltage_id = dcefclk_table->entries[entry_id].vddInd;
-		dcefclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
-	}
-
-	for (entry_id = 0; entry_id < pixclk_table->count; entry_id++) {
-		voltage_id = pixclk_table->entries[entry_id].vddInd;
-		pixclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
-	}
-
-	for (entry_id = 0; entry_id < dspclk_table->count; entry_id++) {
-		voltage_id = dspclk_table->entries[entry_id].vddInd;
-		dspclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
-	}
-
-	for (entry_id = 0; entry_id < phyclk_table->count; entry_id++) {
-		voltage_id = phyclk_table->entries[entry_id].vddInd;
-		phyclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
+	for (entry_id = 0; entry_id < mm_table->count; ++entry_id) {
+		voltage_id = mm_table->entries[entry_id].vddcInd;
+		mm_table->entries[entry_id].vddc =
+			table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
 	}
 
 	for (entry_id = 0; entry_id < mclk_table->count; ++entry_id) {
@@ -660,11 +677,6 @@ static int vega10_patch_voltage_dependency_tables_with_lookup_table(
 				table_info->vddmem_lookup_table->entries[voltage_id].us_vdd;
 	}
 
-	for (entry_id = 0; entry_id < mm_table->count; ++entry_id) {
-		voltage_id = mm_table->entries[entry_id].vddcInd;
-		mm_table->entries[entry_id].vddc =
-			table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
-	}
 
 	return 0;
 
@@ -703,7 +715,7 @@ static int vega10_complete_dependency_tables(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 #ifdef PPLIB_VEGA10_EVV_SUPPORT
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	tmp_result = vega10_patch_lookup_table_with_leakage(hwmgr,
 			table_info->vddc_lookup_table, &(data->vddc_leakage));
@@ -737,18 +749,14 @@ static int vega10_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
 			table_info->vdd_dep_on_mclk;
 
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table,
-		"VDD dependency on SCLK table is missing. \
-		This table is mandatory", return -EINVAL);
+		"VDD dependency on SCLK table is missing. This table is mandatory", return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table->count >= 1,
-		"VDD dependency on SCLK table is empty. \
-		This table is mandatory", return -EINVAL);
+		"VDD dependency on SCLK table is empty. This table is mandatory", return -EINVAL);
 
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table,
-		"VDD dependency on MCLK table is missing. \
-		This table is mandatory", return -EINVAL);
+		"VDD dependency on MCLK table is missing.  This table is mandatory", return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table->count >= 1,
-		"VDD dependency on MCLK table is empty. \
-		This table is mandatory", return -EINVAL);
+		"VDD dependency on MCLK table is empty.  This table is mandatory", return -EINVAL);
 
 	table_info->max_clock_voltage_on_ac.sclk =
 		allowed_sclk_vdd_table->entries[allowed_sclk_vdd_table->count - 1].clk;
@@ -788,7 +796,7 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	struct vega10_hwmgr *data;
 	uint32_t config_telemetry = 0;
 	struct pp_atomfwctrl_voltage_table vol_table;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	data = kzalloc(sizeof(struct vega10_hwmgr), GFP_KERNEL);
 	if (data == NULL)
@@ -796,10 +804,12 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->backend = data;
 
-	vega10_set_default_registry_data(hwmgr);
+	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VIDEO];
+	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_VIDEO;
+	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_VIDEO;
 
+	vega10_set_default_registry_data(hwmgr);
 	data->disable_dpm_mask = 0xff;
-	data->workload_mask = 0xff;
 
 	/* need to set voltage control types before EVV patching */
 	data->vddc_control = VEGA10_VOLTAGE_CONTROL_NONE;
@@ -838,8 +848,7 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	}
 
 	 /* VDDCI_MEM */
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ControlVDDCI)) {
+	if (PP_CAP(PHM_PlatformCaps_ControlVDDCI)) {
 		if (pp_atomfwctrl_is_voltage_controlled_by_gpio_v4(hwmgr,
 				VOLTAGE_TYPE_VDDCI, VOLTAGE_OBJ_GPIO_LUT))
 			data->vddci_control = VEGA10_VOLTAGE_CONTROL_BY_GPIO;
@@ -878,10 +887,7 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	hwmgr->platform_descriptor.clockStep.engineClock = 500;
 	hwmgr->platform_descriptor.clockStep.memoryClock = 500;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_GFX_CU_INFO;
-	result = cgs_query_system_info(hwmgr->device, &sys_info);
-	data->total_active_cus = sys_info.value;
+	data->total_active_cus = adev->gfx.cu_info.number;
 	/* Setup default Overdrive Fan control settings */
 	data->odn_fan_table.target_fan_speed =
 			hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanRPM;
@@ -896,13 +902,19 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			advanceFanControlParameters.usFanPWMMinLimit *
 			hwmgr->thermal_controller.fanInfo.ulMaxRPM / 100;
 
+	data->mem_channels = (RREG32_SOC15(DF, 0, mmDF_CS_AON0_DramBaseAddress0) &
+			DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK) >>
+			DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
+	PP_ASSERT_WITH_CODE(data->mem_channels < ARRAY_SIZE(channel_number),
+			"Mem Channel Index Exceeded maximum!",
+			return -EINVAL);
+
 	return result;
 }
 
 static int vega10_init_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->low_sclk_interrupt_threshold = 0;
 
@@ -911,8 +923,7 @@ static int vega10_init_sclk_threshold(struct pp_hwmgr *hwmgr)
 
 static int vega10_setup_dpm_led_config(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 
 	struct pp_atomfwctrl_voltage_table table;
@@ -952,18 +963,9 @@ static int vega10_setup_asic_task(struct pp_hwmgr *hwmgr)
 			"Failed to set up led dpm config!",
 			return -EINVAL);
 
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_NumOfDisplays, 0);
+
 	return 0;
-}
-
-static bool vega10_is_dpm_running(struct pp_hwmgr *hwmgr)
-{
-	uint32_t features_enabled;
-
-	if (!vega10_get_smc_features(hwmgr->smumgr, &features_enabled)) {
-		if (features_enabled & SMC_DPM_FEATURES)
-			return true;
-	}
-	return false;
 }
 
 /**
@@ -1124,7 +1126,7 @@ static void vega10_trim_voltage_table_to_fit_state_table(
 */
 static int vega10_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)hwmgr->pptable;
 	int result;
@@ -1198,6 +1200,8 @@ static void vega10_setup_default_single_dpm_table(struct pp_hwmgr *hwmgr,
 {
 	int i;
 
+	dpm_table->count = 0;
+
 	for (i = 0; i < dep_table->count; i++) {
 		if (i == 0 || dpm_table->dpm_levels[dpm_table->count - 1].value <=
 				dep_table->entries[i].clk) {
@@ -1210,8 +1214,7 @@ static void vega10_setup_default_single_dpm_table(struct pp_hwmgr *hwmgr,
 }
 static int vega10_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_pcie_table *pcie_table = &(data->dpm_table.pcie_table);
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
@@ -1260,8 +1263,7 @@ static int vega10_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
  */
 static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	struct vega10_single_dpm_table *dpm_table;
@@ -1306,10 +1308,6 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 
 	/* Initialize Sclk DPM table based on allow Sclk values */
-	data->dpm_table.soc_table.count = 0;
-	data->dpm_table.gfx_table.count = 0;
-	data->dpm_table.dcef_table.count = 0;
-
 	dpm_table = &(data->dpm_table.soc_table);
 	vega10_setup_default_single_dpm_table(hwmgr,
 			dpm_table,
@@ -1321,6 +1319,9 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	vega10_setup_default_single_dpm_table(hwmgr,
 			dpm_table,
 			dep_gfx_table);
+	if (hwmgr->platform_descriptor.overdriveLimit.engineClock == 0)
+		hwmgr->platform_descriptor.overdriveLimit.engineClock =
+					dpm_table->dpm_levels[dpm_table->count-1].value;
 	vega10_init_dpm_state(&(dpm_table->dpm_state));
 
 	/* Initialize Mclk DPM table based on allow Mclk values */
@@ -1329,6 +1330,10 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	vega10_setup_default_single_dpm_table(hwmgr,
 			dpm_table,
 			dep_mclk_table);
+	if (hwmgr->platform_descriptor.overdriveLimit.memoryClock == 0)
+		hwmgr->platform_descriptor.overdriveLimit.memoryClock =
+					dpm_table->dpm_levels[dpm_table->count-1].value;
+
 	vega10_init_dpm_state(&(dpm_table->dpm_state));
 
 	data->dpm_table.eclk_table.count = 0;
@@ -1411,54 +1416,6 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	memcpy(&(data->golden_dpm_table), &(data->dpm_table),
 			sizeof(struct vega10_dpm_table));
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ODNinACSupport) ||
-		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ODNinDCSupport)) {
-		data->odn_dpm_table.odn_core_clock_dpm_levels.
-		number_of_performance_levels = data->dpm_table.gfx_table.count;
-		for (i = 0; i < data->dpm_table.gfx_table.count; i++) {
-			data->odn_dpm_table.odn_core_clock_dpm_levels.
-			performance_level_entries[i].clock =
-					data->dpm_table.gfx_table.dpm_levels[i].value;
-			data->odn_dpm_table.odn_core_clock_dpm_levels.
-			performance_level_entries[i].enabled = true;
-		}
-
-		data->odn_dpm_table.vdd_dependency_on_sclk.count =
-				dep_gfx_table->count;
-		for (i = 0; i < dep_gfx_table->count; i++) {
-			data->odn_dpm_table.vdd_dependency_on_sclk.entries[i].clk =
-					dep_gfx_table->entries[i].clk;
-			data->odn_dpm_table.vdd_dependency_on_sclk.entries[i].vddInd =
-					dep_gfx_table->entries[i].vddInd;
-			data->odn_dpm_table.vdd_dependency_on_sclk.entries[i].cks_enable =
-					dep_gfx_table->entries[i].cks_enable;
-			data->odn_dpm_table.vdd_dependency_on_sclk.entries[i].cks_voffset =
-					dep_gfx_table->entries[i].cks_voffset;
-		}
-
-		data->odn_dpm_table.odn_memory_clock_dpm_levels.
-		number_of_performance_levels = data->dpm_table.mem_table.count;
-		for (i = 0; i < data->dpm_table.mem_table.count; i++) {
-			data->odn_dpm_table.odn_memory_clock_dpm_levels.
-			performance_level_entries[i].clock =
-					data->dpm_table.mem_table.dpm_levels[i].value;
-			data->odn_dpm_table.odn_memory_clock_dpm_levels.
-			performance_level_entries[i].enabled = true;
-		}
-
-		data->odn_dpm_table.vdd_dependency_on_mclk.count = dep_mclk_table->count;
-		for (i = 0; i < dep_mclk_table->count; i++) {
-			data->odn_dpm_table.vdd_dependency_on_mclk.entries[i].clk =
-					dep_mclk_table->entries[i].clk;
-			data->odn_dpm_table.vdd_dependency_on_mclk.entries[i].vddInd =
-					dep_mclk_table->entries[i].vddInd;
-			data->odn_dpm_table.vdd_dependency_on_mclk.entries[i].vddci =
-					dep_mclk_table->entries[i].vddci;
-		}
-	}
-
 	return 0;
 }
 
@@ -1471,8 +1428,7 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
  */
 static int vega10_populate_ulv_state(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 
@@ -1513,8 +1469,7 @@ static int vega10_populate_single_lclk_level(struct pp_hwmgr *hwmgr,
 static int vega10_populate_smc_link_levels(struct pp_hwmgr *hwmgr)
 {
 	int result = -1;
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct vega10_pcie_table *pcie_table =
 			&(data->dpm_table.pcie_table);
@@ -1563,19 +1518,18 @@ static int vega10_populate_single_gfx_level(struct pp_hwmgr *hwmgr,
 {
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_clock_voltage_dependency_table *dep_on_sclk =
-			table_info->vdd_dep_on_sclk;
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_on_sclk;
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct pp_atomfwctrl_clock_dividers_soc15 dividers;
 	uint32_t gfx_max_clock =
 			hwmgr->platform_descriptor.overdriveLimit.engineClock;
 	uint32_t i = 0;
 
-	if (data->apply_overdrive_next_settings_mask &
-			DPMTABLE_OD_UPDATE_VDDC)
+	if (hwmgr->od_enabled)
 		dep_on_sclk = (struct phm_ppt_v1_clock_voltage_dependency_table *)
-						&(data->odn_dpm_table.vdd_dependency_on_sclk);
+						&(data->odn_dpm_table.vdd_dep_on_sclk);
+	else
+		dep_on_sclk = table_info->vdd_dep_on_sclk;
 
 	PP_ASSERT_WITH_CODE(dep_on_sclk,
 			"Invalid SOC_VDD-GFX_CLK Dependency Table!",
@@ -1627,23 +1581,32 @@ static int vega10_populate_single_soc_level(struct pp_hwmgr *hwmgr,
 		uint32_t soc_clock, uint8_t *current_soc_did,
 		uint8_t *current_vol_index)
 {
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_clock_voltage_dependency_table *dep_on_soc =
-			table_info->vdd_dep_on_socclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_on_soc;
 	struct pp_atomfwctrl_clock_dividers_soc15 dividers;
 	uint32_t i;
 
-	PP_ASSERT_WITH_CODE(dep_on_soc,
-			"Invalid SOC_VDD-SOC_CLK Dependency Table!",
-			return -EINVAL);
-	for (i = 0; i < dep_on_soc->count; i++) {
-		if (dep_on_soc->entries[i].clk == soc_clock)
-			break;
+	if (hwmgr->od_enabled) {
+		dep_on_soc = (struct phm_ppt_v1_clock_voltage_dependency_table *)
+						&data->odn_dpm_table.vdd_dep_on_socclk;
+		for (i = 0; i < dep_on_soc->count; i++) {
+			if (dep_on_soc->entries[i].clk >= soc_clock)
+				break;
+		}
+	} else {
+		dep_on_soc = table_info->vdd_dep_on_socclk;
+		for (i = 0; i < dep_on_soc->count; i++) {
+			if (dep_on_soc->entries[i].clk == soc_clock)
+				break;
+		}
 	}
+
 	PP_ASSERT_WITH_CODE(dep_on_soc->count > i,
 			"Cannot find SOC_CLK in SOC_VDD-SOC_CLK Dependency Table",
 			return -EINVAL);
+
 	PP_ASSERT_WITH_CODE(!pp_atomfwctrl_get_gpu_pll_dividers_vega10(hwmgr,
 			COMPUTE_GPUCLK_INPUT_FLAG_DEFAULT_GPUCLK,
 			soc_clock, &dividers),
@@ -1652,22 +1615,6 @@ static int vega10_populate_single_soc_level(struct pp_hwmgr *hwmgr,
 
 	*current_soc_did = (uint8_t)dividers.ulDid;
 	*current_vol_index = (uint8_t)(dep_on_soc->entries[i].vddInd);
-
-	return 0;
-}
-
-uint16_t vega10_locate_vddc_given_clock(struct pp_hwmgr *hwmgr,
-		uint32_t clk,
-		struct phm_ppt_v1_clock_voltage_dependency_table *dep_table)
-{
-	uint16_t i;
-
-	for (i = 0; i < dep_table->count; i++) {
-		if (dep_table->entries[i].clk == clk)
-			return dep_table->entries[i].vddc;
-	}
-
-	pr_info("[LocateVddcGivenClock] Cannot locate SOC Vddc for this clock!");
 	return 0;
 }
 
@@ -1678,12 +1625,9 @@ uint16_t vega10_locate_vddc_given_clock(struct pp_hwmgr *hwmgr,
 */
 static int vega10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table =
-			table_info->vdd_dep_on_socclk;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct vega10_single_dpm_table *dpm_table = &(data->dpm_table.gfx_table);
 	int result = 0;
@@ -1714,11 +1658,6 @@ static int vega10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 
 	dpm_table = &(data->dpm_table.soc_table);
 	for (i = 0; i < dpm_table->count; i++) {
-		pp_table->SocVid[i] =
-				(uint8_t)convert_to_vid(
-				vega10_locate_vddc_given_clock(hwmgr,
-						dpm_table->dpm_levels[i].value,
-						dep_table));
 		result = vega10_populate_single_soc_level(hwmgr,
 				dpm_table->dpm_levels[i].value,
 				&(pp_table->SocclkDid[i]),
@@ -1729,7 +1668,6 @@ static int vega10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 
 	j = i - 1;
 	while (i < NUM_SOCCLK_DPM_LEVELS) {
-		pp_table->SocVid[i] = pp_table->SocVid[j];
 		result = vega10_populate_single_soc_level(hwmgr,
 				dpm_table->dpm_levels[j].value,
 				&(pp_table->SocclkDid[i]),
@@ -1740,6 +1678,32 @@ static int vega10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	}
 
 	return result;
+}
+
+static void vega10_populate_vddc_soc_levels(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
+	struct phm_ppt_v2_information *table_info = hwmgr->pptable;
+	struct phm_ppt_v1_voltage_lookup_table *vddc_lookup_table;
+
+	uint8_t soc_vid = 0;
+	uint32_t i, max_vddc_level;
+
+	if (hwmgr->od_enabled)
+		vddc_lookup_table = (struct phm_ppt_v1_voltage_lookup_table *)&data->odn_dpm_table.vddc_lookup_table;
+	else
+		vddc_lookup_table = table_info->vddc_lookup_table;
+
+	max_vddc_level = vddc_lookup_table->count;
+	for (i = 0; i < max_vddc_level; i++) {
+		soc_vid = (uint8_t)convert_to_vid(vddc_lookup_table->entries[i].us_vdd);
+		pp_table->SocVid[i] = soc_vid;
+	}
+	while (i < MAX_REGULAR_DPM_NUMBER) {
+		pp_table->SocVid[i] = soc_vid;
+		i++;
+	}
 }
 
 /**
@@ -1753,29 +1717,28 @@ static int vega10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 		uint32_t mem_clock, uint8_t *current_mem_vid,
 		PllSetting_t *current_memclk_level, uint8_t *current_mem_soc_vind)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_clock_voltage_dependency_table *dep_on_mclk =
-			table_info->vdd_dep_on_mclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_on_mclk;
 	struct pp_atomfwctrl_clock_dividers_soc15 dividers;
 	uint32_t mem_max_clock =
 			hwmgr->platform_descriptor.overdriveLimit.memoryClock;
 	uint32_t i = 0;
 
-	if (data->apply_overdrive_next_settings_mask &
-			DPMTABLE_OD_UPDATE_VDDC)
+	if (hwmgr->od_enabled)
 		dep_on_mclk = (struct phm_ppt_v1_clock_voltage_dependency_table *)
-					&data->odn_dpm_table.vdd_dependency_on_mclk;
+					&data->odn_dpm_table.vdd_dep_on_mclk;
+	else
+		dep_on_mclk = table_info->vdd_dep_on_mclk;
 
 	PP_ASSERT_WITH_CODE(dep_on_mclk,
 			"Invalid SOC_VDD-UCLK Dependency Table!",
 			return -EINVAL);
 
-	if (data->need_update_dpm_table & DPMTABLE_OD_UPDATE_MCLK)
+	if (data->need_update_dpm_table & DPMTABLE_OD_UPDATE_MCLK) {
 		mem_clock = mem_clock > mem_max_clock ? mem_max_clock : mem_clock;
-	else {
+	} else {
 		for (i = 0; i < dep_on_mclk->count; i++) {
 			if (dep_on_mclk->entries[i].clk == mem_clock)
 				break;
@@ -1812,13 +1775,12 @@ static int vega10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
  */
 static int vega10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct vega10_single_dpm_table *dpm_table =
 			&(data->dpm_table.mem_table);
 	int result = 0;
-	uint32_t i, j, reg, mem_channels;
+	uint32_t i, j;
 
 	for (i = 0; i < dpm_table->count; i++) {
 		result = vega10_populate_single_memory_level(hwmgr,
@@ -1842,16 +1804,10 @@ static int vega10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 		i++;
 	}
 
-	reg = soc15_get_register_offset(DF_HWID, 0,
-			mmDF_CS_AON0_DramBaseAddress0_BASE_IDX,
-			mmDF_CS_AON0_DramBaseAddress0);
-	mem_channels = (cgs_read_register(hwmgr->device, reg) &
-			DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK) >>
-			DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
-	pp_table->NumMemoryChannels = cpu_to_le16(mem_channels);
+	pp_table->NumMemoryChannels = (uint16_t)(data->mem_channels);
 	pp_table->MemoryChannelWidth =
-			cpu_to_le16(HBM_MEMORY_CHANNEL_WIDTH *
-					channel_number[mem_channels]);
+			(uint16_t)(HBM_MEMORY_CHANNEL_WIDTH *
+					channel_number[data->mem_channels]);
 
 	pp_table->LowestUclkReservedForUlv =
 			(uint8_t)(data->lowest_uclk_reserved_for_ulv);
@@ -1862,8 +1818,7 @@ static int vega10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 static int vega10_populate_single_display_type(struct pp_hwmgr *hwmgr,
 		DSPCLK_e disp_clock)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)
@@ -1958,8 +1913,7 @@ static int vega10_populate_single_eclock_level(struct pp_hwmgr *hwmgr,
 
 static int vega10_populate_smc_vce_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct vega10_single_dpm_table *dpm_table = &(data->dpm_table.eclk_table);
 	int result = -EINVAL;
@@ -2022,8 +1976,7 @@ static int vega10_populate_single_dclock_level(struct pp_hwmgr *hwmgr,
 
 static int vega10_populate_smc_uvd_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct vega10_single_dpm_table *vclk_dpm_table =
 			&(data->dpm_table.vclk_table);
@@ -2094,8 +2047,7 @@ static int vega10_populate_smc_uvd_levels(struct pp_hwmgr *hwmgr)
 
 static int vega10_populate_clock_stretcher_table(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
@@ -2114,8 +2066,7 @@ static int vega10_populate_clock_stretcher_table(struct pp_hwmgr *hwmgr)
 
 static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
@@ -2306,26 +2257,25 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 
 static int vega10_acg_enable(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t agc_btc_response;
 
 	if (data->smu_features[GNLD_ACG].supported) {
-		if (0 == vega10_enable_smc_features(hwmgr->smumgr, true,
+		if (0 == vega10_enable_smc_features(hwmgr, true,
 					data->smu_features[GNLD_DPM_PREFETCHER].smu_feature_bitmap))
 			data->smu_features[GNLD_DPM_PREFETCHER].enabled = true;
 
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_InitializeAcg);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_InitializeAcg);
 
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_RunAcgBtc);
-		vega10_read_arg_from_smc(hwmgr->smumgr, &agc_btc_response);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunAcgBtc);
+		agc_btc_response = smum_get_argument(hwmgr);
 
 		if (1 == agc_btc_response) {
 			if (1 == data->acg_loop_state)
-				smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_RunAcgInClosedLoop);
+				smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunAcgInClosedLoop);
 			else if (2 == data->acg_loop_state)
-				smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_RunAcgInOpenLoop);
-			if (0 == vega10_enable_smc_features(hwmgr->smumgr, true,
+				smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunAcgInOpenLoop);
+			if (0 == vega10_enable_smc_features(hwmgr, true,
 				data->smu_features[GNLD_ACG].smu_feature_bitmap))
 					data->smu_features[GNLD_ACG].enabled = true;
 		} else {
@@ -2339,33 +2289,28 @@ static int vega10_acg_enable(struct pp_hwmgr *hwmgr)
 
 static int vega10_acg_disable(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
-	if (data->smu_features[GNLD_ACG].supported) {
-		if (data->smu_features[GNLD_ACG].enabled) {
-		if (0 == vega10_enable_smc_features(hwmgr->smumgr, false,
-				data->smu_features[GNLD_ACG].smu_feature_bitmap))
+	if (data->smu_features[GNLD_ACG].supported && 
+	    data->smu_features[GNLD_ACG].enabled)
+		if (!vega10_enable_smc_features(hwmgr, false,
+			data->smu_features[GNLD_ACG].smu_feature_bitmap))
 			data->smu_features[GNLD_ACG].enabled = false;
-		}
-	}
 
 	return 0;
 }
 
 static int vega10_populate_gpio_parameters(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct pp_atomfwctrl_gpio_parameters gpio_params = {0};
 	int result;
 
 	result = pp_atomfwctrl_get_gpio_information(hwmgr, &gpio_params);
 	if (!result) {
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_RegulatorHot) &&
-				(data->registry_data.regulator_hot_gpio_support)) {
+		if (PP_CAP(PHM_PlatformCaps_RegulatorHot) &&
+		    data->registry_data.regulator_hot_gpio_support) {
 			pp_table->VR0HotGpio = gpio_params.ucVR0HotGpio;
 			pp_table->VR0HotPolarity = gpio_params.ucVR0HotPolarity;
 			pp_table->VR1HotGpio = gpio_params.ucVR1HotGpio;
@@ -2377,9 +2322,8 @@ static int vega10_populate_gpio_parameters(struct pp_hwmgr *hwmgr)
 			pp_table->VR1HotPolarity = 0;
 		}
 
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_AutomaticDCTransition) &&
-				(data->registry_data.ac_dc_switch_gpio_support)) {
+		if (PP_CAP(PHM_PlatformCaps_AutomaticDCTransition) &&
+		    data->registry_data.ac_dc_switch_gpio_support) {
 			pp_table->AcDcGpio = gpio_params.ucAcDcGpio;
 			pp_table->AcDcPolarity = gpio_params.ucAcDcPolarity;
 		} else {
@@ -2393,25 +2337,40 @@ static int vega10_populate_gpio_parameters(struct pp_hwmgr *hwmgr)
 
 static int vega10_avfs_enable(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_AVFS].supported) {
 		if (enable) {
-			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 					true,
 					data->smu_features[GNLD_AVFS].smu_feature_bitmap),
 					"[avfs_control] Attempt to Enable AVFS feature Failed!",
 					return -1);
 			data->smu_features[GNLD_AVFS].enabled = true;
 		} else {
-			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 					false,
-					data->smu_features[GNLD_AVFS].smu_feature_id),
+					data->smu_features[GNLD_AVFS].smu_feature_bitmap),
 					"[avfs_control] Attempt to Disable AVFS feature Failed!",
 					return -1);
 			data->smu_features[GNLD_AVFS].enabled = false;
 		}
+	}
+
+	return 0;
+}
+
+static int vega10_update_avfs(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+
+	if (data->need_update_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
+		vega10_avfs_enable(hwmgr, false);
+	} else if (data->need_update_dpm_table) {
+		vega10_avfs_enable(hwmgr, false);
+		vega10_avfs_enable(hwmgr, true);
+	} else {
+		vega10_avfs_enable(hwmgr, true);
 	}
 
 	return 0;
@@ -2425,18 +2384,18 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 	uint32_t top32, bottom32;
 	struct phm_fuses_default fuse;
 
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	AvfsFuseOverride_t *avfs_fuse_table = &(data->smc_state_table.avfs_fuse_override_table);
 
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_ReadSerialNumTop32);
-	vega10_read_arg_from_smc(hwmgr->smumgr, &top32);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumTop32);
+	top32 = smum_get_argument(hwmgr);
 
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_ReadSerialNumBottom32);
-	vega10_read_arg_from_smc(hwmgr->smumgr, &bottom32);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumBottom32);
+	bottom32 = smum_get_argument(hwmgr);
 
 	serial_number = ((uint64_t)bottom32 << 32) | top32;
 
-	if (pp_override_get_default_fuse_value(serial_number, vega10_fuses_default, &fuse) == 0) {
+	if (pp_override_get_default_fuse_value(serial_number, &fuse) == 0) {
 		avfs_fuse_table->VFT0_b  = fuse.VFT0_b;
 		avfs_fuse_table->VFT0_m1 = fuse.VFT0_m1;
 		avfs_fuse_table->VFT0_m2 = fuse.VFT0_m2;
@@ -2446,8 +2405,8 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 		avfs_fuse_table->VFT2_b  = fuse.VFT2_b;
 		avfs_fuse_table->VFT2_m1 = fuse.VFT2_m1;
 		avfs_fuse_table->VFT2_m2 = fuse.VFT2_m2;
-		result = vega10_copy_table_to_smc(hwmgr->smumgr,
-			(uint8_t *)avfs_fuse_table, AVFSFUSETABLE);
+		result = smum_smc_table_manager(hwmgr,  (uint8_t *)avfs_fuse_table,
+						AVFSFUSETABLE, false);
 		PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload FuseOVerride!",
 			);
@@ -2456,32 +2415,38 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static int vega10_save_default_power_profile(struct pp_hwmgr *hwmgr)
+static void vega10_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
-	struct vega10_single_dpm_table *dpm_table = &(data->dpm_table.gfx_table);
-	uint32_t min_level;
+	struct vega10_hwmgr *data = hwmgr->backend;
+	struct vega10_odn_dpm_table *odn_table = &(data->odn_dpm_table);
+	struct phm_ppt_v2_information *table_info = hwmgr->pptable;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table;
+	struct phm_ppt_v1_clock_voltage_dependency_table *odn_dep_table;
+	uint32_t i;
 
-	hwmgr->default_gfx_power_profile.type = AMD_PP_GFX_PROFILE;
-	hwmgr->default_compute_power_profile.type = AMD_PP_COMPUTE_PROFILE;
+	dep_table = table_info->vdd_dep_on_mclk;
+	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dep_on_mclk);
 
-	/* Optimize compute power profile: Use only highest
-	 * 2 power levels (if more than 2 are available)
-	 */
-	if (dpm_table->count > 2)
-		min_level = dpm_table->count - 2;
-	else if (dpm_table->count == 2)
-		min_level = 1;
-	else
-		min_level = 0;
+	for (i = 0; i < dep_table->count; i++) {
+		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
+			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_MCLK;
+			return;
+		}
+	}
 
-	hwmgr->default_compute_power_profile.min_sclk =
-			dpm_table->dpm_levels[min_level].value;
+	dep_table = table_info->vdd_dep_on_sclk;
+	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dep_on_sclk);
+	for (i = 0; i < dep_table->count; i++) {
+		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
+			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_SCLK;
+			return;
+		}
+	}
 
-	hwmgr->gfx_power_profile = hwmgr->default_gfx_power_profile;
-	hwmgr->compute_power_profile = hwmgr->default_compute_power_profile;
-
-	return 0;
+	if (data->need_update_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
+		data->need_update_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
+		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
+	}
 }
 
 /**
@@ -2494,18 +2459,28 @@ static int vega10_save_default_power_profile(struct pp_hwmgr *hwmgr)
 static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct pp_atomfwctrl_voltage_table voltage_table;
 	struct pp_atomfwctrl_bios_boot_up_values boot_up_values;
+	struct vega10_odn_dpm_table *odn_table = &(data->odn_dpm_table);
 
 	result = vega10_setup_default_dpm_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to setup default DPM tables!",
 			return result);
+
+	/* initialize ODN table */
+	if (hwmgr->od_enabled) {
+		if (odn_table->max_vddc) {
+			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
+			vega10_check_dpm_table_updated(hwmgr);
+		} else {
+			vega10_odn_initial_default_setting(hwmgr);
+		}
+	}
 
 	pp_atomfwctrl_get_voltage_table_v4(hwmgr, VOLTAGE_TYPE_VDDC,
 			VOLTAGE_OBJ_SVID2,  &voltage_table);
@@ -2553,6 +2528,8 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 			"Failed to initialize Memory Level!",
 			return result);
 
+	vega10_populate_vddc_soc_levels(hwmgr);
+
 	result = vega10_populate_all_display_clock_levels(hwmgr);
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to initialize Display Level!",
@@ -2582,17 +2559,23 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.mvddc    = boot_up_values.usMvddc;
 		data->vbios_boot_state.gfx_clock = boot_up_values.ulGfxClk;
 		data->vbios_boot_state.mem_clock = boot_up_values.ulUClk;
+		pp_atomfwctrl_get_clk_information_by_clkid(hwmgr,
+				SMU9_SYSPLL0_SOCCLK_ID, &boot_up_values.ulSocClk);
+
+		pp_atomfwctrl_get_clk_information_by_clkid(hwmgr,
+				SMU9_SYSPLL0_DCEFCLK_ID, &boot_up_values.ulDCEFClk);
+
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
 		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
 		if (0 != boot_up_values.usVddc) {
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetFloorSocVoltage,
 						(boot_up_values.usVddc * 4));
 			data->vbios_boot_state.bsoc_vddc_lock = true;
 		} else {
 			data->vbios_boot_state.bsoc_vddc_lock = false;
 		}
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetMinDeepSleepDcefclk,
 			(uint32_t)(data->vbios_boot_state.dcef_clock / 100));
 	}
@@ -2618,8 +2601,8 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	vega10_populate_and_upload_avfs_fuse_override(hwmgr);
 
-	result = vega10_copy_table_to_smc(hwmgr->smumgr,
-			(uint8_t *)pp_table, PPTABLE);
+	result = smum_smc_table_manager(hwmgr, (uint8_t *)pp_table, PPTABLE, false);
+
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
 
@@ -2627,21 +2610,20 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(!result, "Attempt to enable AVFS feature Failed!",
 					return result);
 	vega10_acg_enable(hwmgr);
-	vega10_save_default_power_profile(hwmgr);
 
 	return 0;
 }
 
 static int vega10_enable_thermal_protection(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_THERMAL].supported) {
 		if (data->smu_features[GNLD_THERMAL].enabled)
 			pr_info("THERMAL Feature Already enabled!");
 
 		PP_ASSERT_WITH_CODE(
-				!vega10_enable_smc_features(hwmgr->smumgr,
+				!vega10_enable_smc_features(hwmgr,
 				true,
 				data->smu_features[GNLD_THERMAL].smu_feature_bitmap),
 				"Enable THERMAL Feature Failed!",
@@ -2654,14 +2636,14 @@ static int vega10_enable_thermal_protection(struct pp_hwmgr *hwmgr)
 
 static int vega10_disable_thermal_protection(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_THERMAL].supported) {
 		if (!data->smu_features[GNLD_THERMAL].enabled)
 			pr_info("THERMAL Feature Already disabled!");
 
 		PP_ASSERT_WITH_CODE(
-				!vega10_enable_smc_features(hwmgr->smumgr,
+				!vega10_enable_smc_features(hwmgr,
 				false,
 				data->smu_features[GNLD_THERMAL].smu_feature_bitmap),
 				"disable THERMAL Feature Failed!",
@@ -2674,14 +2656,12 @@ static int vega10_disable_thermal_protection(struct pp_hwmgr *hwmgr)
 
 static int vega10_enable_vrhot_feature(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_RegulatorHot)) {
+	if (PP_CAP(PHM_PlatformCaps_RegulatorHot)) {
 		if (data->smu_features[GNLD_VR0HOT].supported) {
 			PP_ASSERT_WITH_CODE(
-					!vega10_enable_smc_features(hwmgr->smumgr,
+					!vega10_enable_smc_features(hwmgr,
 					true,
 					data->smu_features[GNLD_VR0HOT].smu_feature_bitmap),
 					"Attempt to Enable VR0 Hot feature Failed!",
@@ -2690,7 +2670,7 @@ static int vega10_enable_vrhot_feature(struct pp_hwmgr *hwmgr)
 		} else {
 			if (data->smu_features[GNLD_VR1HOT].supported) {
 				PP_ASSERT_WITH_CODE(
-						!vega10_enable_smc_features(hwmgr->smumgr,
+						!vega10_enable_smc_features(hwmgr,
 						true,
 						data->smu_features[GNLD_VR1HOT].smu_feature_bitmap),
 						"Attempt to Enable VR0 Hot feature Failed!",
@@ -2704,11 +2684,10 @@ static int vega10_enable_vrhot_feature(struct pp_hwmgr *hwmgr)
 
 static int vega10_enable_ulv(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->registry_data.ulv_support) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_ULV].smu_feature_bitmap),
 				"Enable ULV Feature Failed!",
 				return -1);
@@ -2720,11 +2699,10 @@ static int vega10_enable_ulv(struct pp_hwmgr *hwmgr)
 
 static int vega10_disable_ulv(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->registry_data.ulv_support) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_ULV].smu_feature_bitmap),
 				"disable ULV Feature Failed!",
 				return -EINVAL);
@@ -2736,11 +2714,10 @@ static int vega10_disable_ulv(struct pp_hwmgr *hwmgr)
 
 static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_DS_GFXCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_DS_GFXCLK].smu_feature_bitmap),
 				"Attempt to Enable DS_GFXCLK Feature Failed!",
 				return -EINVAL);
@@ -2748,7 +2725,7 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_SOCCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_DS_SOCCLK].smu_feature_bitmap),
 				"Attempt to Enable DS_SOCCLK Feature Failed!",
 				return -EINVAL);
@@ -2756,7 +2733,7 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_LCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_DS_LCLK].smu_feature_bitmap),
 				"Attempt to Enable DS_LCLK Feature Failed!",
 				return -EINVAL);
@@ -2764,7 +2741,7 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_DCEFCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_DS_DCEFCLK].smu_feature_bitmap),
 				"Attempt to Enable DS_DCEFCLK Feature Failed!",
 				return -EINVAL);
@@ -2776,11 +2753,10 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 
 static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_DS_GFXCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_DS_GFXCLK].smu_feature_bitmap),
 				"Attempt to disable DS_GFXCLK Feature Failed!",
 				return -EINVAL);
@@ -2788,7 +2764,7 @@ static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_SOCCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_DS_SOCCLK].smu_feature_bitmap),
 				"Attempt to disable DS_ Feature Failed!",
 				return -EINVAL);
@@ -2796,7 +2772,7 @@ static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_LCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_DS_LCLK].smu_feature_bitmap),
 				"Attempt to disable DS_LCLK Feature Failed!",
 				return -EINVAL);
@@ -2804,7 +2780,7 @@ static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->smu_features[GNLD_DS_DCEFCLK].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_DS_DCEFCLK].smu_feature_bitmap),
 				"Attempt to disable DS_DCEFCLK Feature Failed!",
 				return -EINVAL);
@@ -2816,13 +2792,12 @@ static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 
 static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t i, feature_mask = 0;
 
 
 	if(data->smu_features[GNLD_LED_DISPLAY].supported == true){
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				false, data->smu_features[GNLD_LED_DISPLAY].smu_feature_bitmap),
 		"Attempt to disable LED DPM feature failed!", return -EINVAL);
 		data->smu_features[GNLD_LED_DISPLAY].enabled = false;
@@ -2840,7 +2815,7 @@ static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 		}
 	}
 
-	vega10_enable_smc_features(hwmgr->smumgr, false, feature_mask);
+	vega10_enable_smc_features(hwmgr, false, feature_mask);
 
 	return 0;
 }
@@ -2854,8 +2829,7 @@ static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
  */
 static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t i, feature_mask = 0;
 
 	for (i = 0; i < GNLD_DPM_MAX; i++) {
@@ -2870,7 +2844,7 @@ static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 		}
 	}
 
-	if (vega10_enable_smc_features(hwmgr->smumgr,
+	if (vega10_enable_smc_features(hwmgr,
 			true, feature_mask)) {
 		for (i = 0; i < GNLD_DPM_MAX; i++) {
 			if (data->smu_features[i].smu_feature_bitmap &
@@ -2880,22 +2854,21 @@ static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 	}
 
 	if(data->smu_features[GNLD_LED_DISPLAY].supported == true){
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				true, data->smu_features[GNLD_LED_DISPLAY].smu_feature_bitmap),
 		"Attempt to Enable LED DPM feature Failed!", return -EINVAL);
 		data->smu_features[GNLD_LED_DISPLAY].enabled = true;
 	}
 
 	if (data->vbios_boot_state.bsoc_vddc_lock) {
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetFloorSocVoltage, 0);
 		data->vbios_boot_state.bsoc_vddc_lock = false;
 	}
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_Falcon_QuickTransition)) {
+	if (PP_CAP(PHM_PlatformCaps_Falcon_QuickTransition)) {
 		if (data->smu_features[GNLD_ACDC].supported) {
-			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 					true, data->smu_features[GNLD_ACDC].smu_feature_bitmap),
 					"Attempt to Enable DS_GFXCLK Feature Failed!",
 					return -1);
@@ -2906,29 +2879,36 @@ static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 	return 0;
 }
 
+static int vega10_enable_disable_PCC_limit_feature(struct pp_hwmgr *hwmgr, bool enable)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+
+	if (data->smu_features[GNLD_PCC_LIMIT].supported) {
+		if (enable == data->smu_features[GNLD_PCC_LIMIT].enabled)
+			pr_info("GNLD_PCC_LIMIT has been %s \n", enable ? "enabled" : "disabled");
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
+				enable, data->smu_features[GNLD_PCC_LIMIT].smu_feature_bitmap),
+				"Attempt to Enable PCC Limit feature Failed!",
+				return -EINVAL);
+		data->smu_features[GNLD_PCC_LIMIT].enabled = enable;
+	}
+
+	return 0;
+}
+
 static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	int tmp_result, result = 0;
 
-	tmp_result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-			PPSMC_MSG_ConfigureTelemetry, data->config_telemetry);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to configure telemetry!",
-			return tmp_result);
+	vega10_enable_disable_PCC_limit_feature(hwmgr, true);
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-			PPSMC_MSG_NumOfDisplays, 0);
-
-	tmp_result = (!vega10_is_dpm_running(hwmgr)) ? 0 : -1;
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"DPM is already running right , skipping re-enablement!",
-			return 0);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+		PPSMC_MSG_ConfigureTelemetry, data->config_telemetry);
 
 	tmp_result = vega10_construct_voltage_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to contruct voltage tables!",
+			"Failed to construct voltage tables!",
 			result = tmp_result);
 
 	tmp_result = vega10_init_smc_table(hwmgr);
@@ -2936,8 +2916,7 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"Failed to initialize SMC table!",
 			result = tmp_result);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ThermalController)) {
+	if (PP_CAP(PHM_PlatformCaps_ThermalController)) {
 		tmp_result = vega10_enable_thermal_protection(hwmgr);
 		PP_ASSERT_WITH_CODE(!tmp_result,
 				"Failed to enable thermal protection!",
@@ -3119,6 +3098,7 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state  *request_ps,
 			const struct pp_power_state *current_ps)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	struct vega10_power_state *vega10_ps =
 				cast_phw_vega10_power_state(&request_ps->hardware);
 	uint32_t sclk;
@@ -3128,10 +3108,9 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	bool disable_mclk_switching_for_frame_lock;
 	bool disable_mclk_switching_for_vr;
 	bool force_mclk_high;
-	struct cgs_display_info info = {0};
 	const struct phm_clock_and_voltage_limits *max_limits;
 	uint32_t i;
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	int32_t count;
@@ -3145,12 +3124,12 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	if (vega10_ps->performance_level_count != 2)
 		pr_info("VI should always have 2 performance levels");
 
-	max_limits = (PP_PowerSource_AC == hwmgr->power_source) ?
+	max_limits = adev->pm.ac_power ?
 			&(hwmgr->dyn_state.max_clock_voltage_on_ac) :
 			&(hwmgr->dyn_state.max_clock_voltage_on_dc);
 
 	/* Cap clock DPM tables at DC MAX if it is in DC. */
-	if (PP_PowerSource_DC == hwmgr->power_source) {
+	if (!adev->pm.ac_power) {
 		for (i = 0; i < vega10_ps->performance_level_count; i++) {
 			if (vega10_ps->performance_levels[i].mem_clock >
 				max_limits->mclk)
@@ -3163,17 +3142,13 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	vega10_ps->vce_clks.evclk = hwmgr->vce_arbiter.evclk;
-	vega10_ps->vce_clks.ecclk = hwmgr->vce_arbiter.ecclk;
-
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
 	/* result = PHM_CheckVBlankTime(hwmgr, &vblankTooShort);*/
-	minimum_clocks.engineClock = hwmgr->display_config.min_core_set_clock;
-	minimum_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
+	minimum_clocks.engineClock = hwmgr->display_config->min_core_set_clock;
+	minimum_clocks.memoryClock = hwmgr->display_config->min_mem_set_clock;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_StablePState)) {
+	if (PP_CAP(PHM_PlatformCaps_StablePState)) {
+		stable_pstate_sclk_dpm_percentage =
+			data->registry_data.stable_pstate_sclk_dpm_percentage;
 		PP_ASSERT_WITH_CODE(
 			data->registry_data.stable_pstate_sclk_dpm_percentage >= 1 &&
 			data->registry_data.stable_pstate_sclk_dpm_percentage <= 100,
@@ -3203,50 +3178,19 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		minimum_clocks.memoryClock = stable_pstate_mclk;
 	}
 
-	if (minimum_clocks.engineClock < hwmgr->gfx_arbiter.sclk)
-		minimum_clocks.engineClock = hwmgr->gfx_arbiter.sclk;
+	disable_mclk_switching_for_frame_lock =
+		PP_CAP(PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
+	disable_mclk_switching_for_vr =
+		PP_CAP(PHM_PlatformCaps_DisableMclkSwitchForVR);
+	force_mclk_high = PP_CAP(PHM_PlatformCaps_ForceMclkHigh);
 
-	if (minimum_clocks.memoryClock < hwmgr->gfx_arbiter.mclk)
-		minimum_clocks.memoryClock = hwmgr->gfx_arbiter.mclk;
-
-	vega10_ps->sclk_threshold = hwmgr->gfx_arbiter.sclk_threshold;
-
-	if (hwmgr->gfx_arbiter.sclk_over_drive) {
-		PP_ASSERT_WITH_CODE((hwmgr->gfx_arbiter.sclk_over_drive <=
-				hwmgr->platform_descriptor.overdriveLimit.engineClock),
-				"Overdrive sclk exceeds limit",
-				hwmgr->gfx_arbiter.sclk_over_drive =
-						hwmgr->platform_descriptor.overdriveLimit.engineClock);
-
-		if (hwmgr->gfx_arbiter.sclk_over_drive >= hwmgr->gfx_arbiter.sclk)
-			vega10_ps->performance_levels[1].gfx_clock =
-					hwmgr->gfx_arbiter.sclk_over_drive;
-	}
-
-	if (hwmgr->gfx_arbiter.mclk_over_drive) {
-		PP_ASSERT_WITH_CODE((hwmgr->gfx_arbiter.mclk_over_drive <=
-				hwmgr->platform_descriptor.overdriveLimit.memoryClock),
-				"Overdrive mclk exceeds limit",
-				hwmgr->gfx_arbiter.mclk_over_drive =
-						hwmgr->platform_descriptor.overdriveLimit.memoryClock);
-
-		if (hwmgr->gfx_arbiter.mclk_over_drive >= hwmgr->gfx_arbiter.mclk)
-			vega10_ps->performance_levels[1].mem_clock =
-					hwmgr->gfx_arbiter.mclk_over_drive;
-	}
-
-	disable_mclk_switching_for_frame_lock = phm_cap_enabled(
-				    hwmgr->platform_descriptor.platformCaps,
-				    PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
-	disable_mclk_switching_for_vr = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_DisableMclkSwitchForVR);
-	force_mclk_high = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ForceMclkHigh);
-
-	disable_mclk_switching = (info.display_count > 1) ||
-				    disable_mclk_switching_for_frame_lock ||
-				    disable_mclk_switching_for_vr ||
-				    force_mclk_high;
+	if (hwmgr->display_config->num_display == 0)
+		disable_mclk_switching = false;
+	else
+		disable_mclk_switching = (hwmgr->display_config->num_display > 1) ||
+			disable_mclk_switching_for_frame_lock ||
+			disable_mclk_switching_for_vr ||
+			force_mclk_high;
 
 	sclk = vega10_ps->performance_levels[0].gfx_clock;
 	mclk = vega10_ps->performance_levels[0].mem_clock;
@@ -3275,7 +3219,7 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		/* Find the lowest MCLK frequency that is within
 		 * the tolerable latency defined in DAL
 		 */
-		latency = 0;
+		latency = hwmgr->display_config->dce_tolerable_mclk_in_active_latency;
 		for (i = 0; i < data->mclk_latency_table.count; i++) {
 			if ((data->mclk_latency_table.entries[i].latency <= latency) &&
 				(data->mclk_latency_table.entries[i].frequency >=
@@ -3292,8 +3236,7 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 					vega10_ps->performance_levels[1].mem_clock;
 	}
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_StablePState)) {
+	if (PP_CAP(PHM_PlatformCaps_StablePState)) {
 		for (i = 0; i < vega10_ps->performance_level_count; i++) {
 			vega10_ps->performance_levels[i].gfx_clock = stable_pstate_sclk;
 			vega10_ps->performance_levels[i].mem_clock = stable_pstate_mclk;
@@ -3305,90 +3248,11 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 static int vega10_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, const void *input)
 {
-	const struct phm_set_power_state_input *states =
-			(const struct phm_set_power_state_input *)input;
-	const struct vega10_power_state *vega10_ps =
-			cast_const_phw_vega10_power_state(states->pnew_state);
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
-	struct vega10_single_dpm_table *sclk_table =
-			&(data->dpm_table.gfx_table);
-	uint32_t sclk = vega10_ps->performance_levels
-			[vega10_ps->performance_level_count - 1].gfx_clock;
-	struct vega10_single_dpm_table *mclk_table =
-			&(data->dpm_table.mem_table);
-	uint32_t mclk = vega10_ps->performance_levels
-			[vega10_ps->performance_level_count - 1].mem_clock;
-	struct PP_Clocks min_clocks = {0};
-	uint32_t i;
-	struct cgs_display_info info = {0};
+	struct vega10_hwmgr *data = hwmgr->backend;
 
-	data->need_update_dpm_table = 0;
+	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
+		data->need_update_dpm_table |= DPMTABLE_UPDATE_MCLK;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ODNinACSupport) ||
-		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_ODNinDCSupport)) {
-		for (i = 0; i < sclk_table->count; i++) {
-			if (sclk == sclk_table->dpm_levels[i].value)
-				break;
-		}
-
-		if (!(data->apply_overdrive_next_settings_mask &
-				DPMTABLE_OD_UPDATE_SCLK) && i >= sclk_table->count) {
-			/* Check SCLK in DAL's minimum clocks
-			 * in case DeepSleep divider update is required.
-			 */
-			if (data->display_timing.min_clock_in_sr !=
-					min_clocks.engineClockInSR &&
-				(min_clocks.engineClockInSR >=
-						VEGA10_MINIMUM_ENGINE_CLOCK ||
-					data->display_timing.min_clock_in_sr >=
-						VEGA10_MINIMUM_ENGINE_CLOCK))
-				data->need_update_dpm_table |= DPMTABLE_UPDATE_SCLK;
-		}
-
-		cgs_get_active_displays_info(hwmgr->device, &info);
-
-		if (data->display_timing.num_existing_displays !=
-				info.display_count)
-			data->need_update_dpm_table |= DPMTABLE_UPDATE_MCLK;
-	} else {
-		for (i = 0; i < sclk_table->count; i++) {
-			if (sclk == sclk_table->dpm_levels[i].value)
-				break;
-		}
-
-		if (i >= sclk_table->count)
-			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
-		else {
-			/* Check SCLK in DAL's minimum clocks
-			 * in case DeepSleep divider update is required.
-			 */
-			if (data->display_timing.min_clock_in_sr !=
-					min_clocks.engineClockInSR &&
-				(min_clocks.engineClockInSR >=
-						VEGA10_MINIMUM_ENGINE_CLOCK ||
-					data->display_timing.min_clock_in_sr >=
-						VEGA10_MINIMUM_ENGINE_CLOCK))
-				data->need_update_dpm_table |= DPMTABLE_UPDATE_SCLK;
-		}
-
-		for (i = 0; i < mclk_table->count; i++) {
-			if (mclk == mclk_table->dpm_levels[i].value)
-				break;
-		}
-
-		cgs_get_active_displays_info(hwmgr->device, &info);
-
-		if (i >= mclk_table->count)
-			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
-
-		if (data->display_timing.num_existing_displays !=
-				info.display_count ||
-				i >= mclk_table->count)
-			data->need_update_dpm_table |= DPMTABLE_UPDATE_MCLK;
-	}
 	return 0;
 }
 
@@ -3396,212 +3260,44 @@ static int vega10_populate_and_upload_sclk_mclk_dpm_levels(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
 	int result = 0;
-	const struct phm_set_power_state_input *states =
-			(const struct phm_set_power_state_input *)input;
-	const struct vega10_power_state *vega10_ps =
-			cast_const_phw_vega10_power_state(states->pnew_state);
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
-	uint32_t sclk = vega10_ps->performance_levels
-			[vega10_ps->performance_level_count - 1].gfx_clock;
-	uint32_t mclk = vega10_ps->performance_levels
-			[vega10_ps->performance_level_count - 1].mem_clock;
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_dpm_table *dpm_table = &data->dpm_table;
-	struct vega10_dpm_table *golden_dpm_table =
-			&data->golden_dpm_table;
-	uint32_t dpm_count, clock_percent;
-	uint32_t i;
+	struct vega10_odn_dpm_table *odn_table = &data->odn_dpm_table;
+	struct vega10_odn_clock_voltage_dependency_table *odn_clk_table = &odn_table->vdd_dep_on_sclk;
+	int count;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ODNinACSupport) ||
-		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ODNinDCSupport)) {
+	if (!data->need_update_dpm_table)
+		return 0;
 
-		if (!data->need_update_dpm_table &&
-			!data->apply_optimized_settings &&
-			!data->apply_overdrive_next_settings_mask)
-			return 0;
-
-		if (data->apply_overdrive_next_settings_mask &
-				DPMTABLE_OD_UPDATE_SCLK) {
-			for (dpm_count = 0;
-					dpm_count < dpm_table->gfx_table.count;
-					dpm_count++) {
-				dpm_table->gfx_table.dpm_levels[dpm_count].enabled =
-						data->odn_dpm_table.odn_core_clock_dpm_levels.
-						performance_level_entries[dpm_count].enabled;
-				dpm_table->gfx_table.dpm_levels[dpm_count].value =
-						data->odn_dpm_table.odn_core_clock_dpm_levels.
-						performance_level_entries[dpm_count].clock;
-			}
-		}
-
-		if (data->apply_overdrive_next_settings_mask &
-				DPMTABLE_OD_UPDATE_MCLK) {
-			for (dpm_count = 0;
-					dpm_count < dpm_table->mem_table.count;
-					dpm_count++) {
-				dpm_table->mem_table.dpm_levels[dpm_count].enabled =
-						data->odn_dpm_table.odn_memory_clock_dpm_levels.
-						performance_level_entries[dpm_count].enabled;
-				dpm_table->mem_table.dpm_levels[dpm_count].value =
-						data->odn_dpm_table.odn_memory_clock_dpm_levels.
-						performance_level_entries[dpm_count].clock;
-			}
-		}
-
-		if ((data->need_update_dpm_table & DPMTABLE_UPDATE_SCLK) ||
-			data->apply_optimized_settings ||
-			(data->apply_overdrive_next_settings_mask &
-					DPMTABLE_OD_UPDATE_SCLK)) {
-			result = vega10_populate_all_graphic_levels(hwmgr);
-			PP_ASSERT_WITH_CODE(!result,
-					"Failed to populate SCLK during \
-					PopulateNewDPMClocksStates Function!",
-					return result);
-		}
-
-		if ((data->need_update_dpm_table & DPMTABLE_UPDATE_MCLK) ||
-			(data->apply_overdrive_next_settings_mask &
-					DPMTABLE_OD_UPDATE_MCLK)){
-			result = vega10_populate_all_memory_levels(hwmgr);
-			PP_ASSERT_WITH_CODE(!result,
-					"Failed to populate MCLK during \
-					PopulateNewDPMClocksStates Function!",
-					return result);
-		}
-	} else {
-		if (!data->need_update_dpm_table &&
-				!data->apply_optimized_settings)
-			return 0;
-
-		if (data->need_update_dpm_table & DPMTABLE_OD_UPDATE_SCLK &&
-				data->smu_features[GNLD_DPM_GFXCLK].supported) {
-				dpm_table->
-				gfx_table.dpm_levels[dpm_table->gfx_table.count - 1].
-				value = sclk;
-				if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-						PHM_PlatformCaps_OD6PlusinACSupport) ||
-					phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-							PHM_PlatformCaps_OD6PlusinDCSupport)) {
-					/* Need to do calculation based on the golden DPM table
-					 * as the Heatmap GPU Clock axis is also based on
-					 * the default values
-					 */
-					PP_ASSERT_WITH_CODE(
-							golden_dpm_table->gfx_table.dpm_levels
-							[golden_dpm_table->gfx_table.count - 1].value,
-							"Divide by 0!",
-							return -1);
-
-					dpm_count = dpm_table->gfx_table.count < 2 ?
-							0 : dpm_table->gfx_table.count - 2;
-					for (i = dpm_count; i > 1; i--) {
-						if (sclk > golden_dpm_table->gfx_table.dpm_levels
-							[golden_dpm_table->gfx_table.count - 1].value) {
-							clock_percent =
-								((sclk - golden_dpm_table->gfx_table.dpm_levels
-								[golden_dpm_table->gfx_table.count - 1].value) *
-								100) /
-								golden_dpm_table->gfx_table.dpm_levels
-								[golden_dpm_table->gfx_table.count - 1].value;
-
-							dpm_table->gfx_table.dpm_levels[i].value =
-								golden_dpm_table->gfx_table.dpm_levels[i].value +
-								(golden_dpm_table->gfx_table.dpm_levels[i].value *
-								clock_percent) / 100;
-						} else if (golden_dpm_table->
-								gfx_table.dpm_levels[dpm_table->gfx_table.count-1].value >
-								sclk) {
-							clock_percent =
-								((golden_dpm_table->gfx_table.dpm_levels
-								[golden_dpm_table->gfx_table.count - 1].value -
-								sclk) *	100) /
-								golden_dpm_table->gfx_table.dpm_levels
-								[golden_dpm_table->gfx_table.count-1].value;
-
-							dpm_table->gfx_table.dpm_levels[i].value =
-								golden_dpm_table->gfx_table.dpm_levels[i].value -
-								(golden_dpm_table->gfx_table.dpm_levels[i].value *
-								clock_percent) / 100;
-						} else
-							dpm_table->gfx_table.dpm_levels[i].value =
-								golden_dpm_table->gfx_table.dpm_levels[i].value;
-					}
-				}
-			}
-
-		if (data->need_update_dpm_table & DPMTABLE_OD_UPDATE_MCLK &&
-				data->smu_features[GNLD_DPM_UCLK].supported) {
-			dpm_table->
-			mem_table.dpm_levels[dpm_table->mem_table.count - 1].
-			value = mclk;
-
-			if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_OD6PlusinACSupport) ||
-				phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-						PHM_PlatformCaps_OD6PlusinDCSupport)) {
-
-				PP_ASSERT_WITH_CODE(
-					golden_dpm_table->mem_table.dpm_levels
-					[golden_dpm_table->mem_table.count - 1].value,
-					"Divide by 0!",
-					return -1);
-
-				dpm_count = dpm_table->mem_table.count < 2 ?
-						0 : dpm_table->mem_table.count - 2;
-				for (i = dpm_count; i > 1; i--) {
-					if (mclk > golden_dpm_table->mem_table.dpm_levels
-						[golden_dpm_table->mem_table.count-1].value) {
-						clock_percent = ((mclk -
-							golden_dpm_table->mem_table.dpm_levels
-							[golden_dpm_table->mem_table.count-1].value) *
-							100) /
-							golden_dpm_table->mem_table.dpm_levels
-							[golden_dpm_table->mem_table.count-1].value;
-
-						dpm_table->mem_table.dpm_levels[i].value =
-							golden_dpm_table->mem_table.dpm_levels[i].value +
-							(golden_dpm_table->mem_table.dpm_levels[i].value *
-							clock_percent) / 100;
-					} else if (golden_dpm_table->mem_table.dpm_levels
-							[dpm_table->mem_table.count-1].value > mclk) {
-						clock_percent = ((golden_dpm_table->mem_table.dpm_levels
-							[golden_dpm_table->mem_table.count-1].value - mclk) *
-							100) /
-							golden_dpm_table->mem_table.dpm_levels
-							[golden_dpm_table->mem_table.count-1].value;
-
-						dpm_table->mem_table.dpm_levels[i].value =
-							golden_dpm_table->mem_table.dpm_levels[i].value -
-							(golden_dpm_table->mem_table.dpm_levels[i].value *
-							clock_percent) / 100;
-					} else
-						dpm_table->mem_table.dpm_levels[i].value =
-							golden_dpm_table->mem_table.dpm_levels[i].value;
-				}
-			}
-		}
-
-		if ((data->need_update_dpm_table &
-			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK)) ||
-			data->apply_optimized_settings) {
-			result = vega10_populate_all_graphic_levels(hwmgr);
-			PP_ASSERT_WITH_CODE(!result,
-					"Failed to populate SCLK during \
-					PopulateNewDPMClocksStates Function!",
-					return result);
-		}
-
-		if (data->need_update_dpm_table &
-				(DPMTABLE_OD_UPDATE_MCLK + DPMTABLE_UPDATE_MCLK)) {
-			result = vega10_populate_all_memory_levels(hwmgr);
-			PP_ASSERT_WITH_CODE(!result,
-					"Failed to populate MCLK during \
-					PopulateNewDPMClocksStates Function!",
-					return result);
-		}
+	if (hwmgr->od_enabled && data->need_update_dpm_table & DPMTABLE_OD_UPDATE_SCLK) {
+		for (count = 0; count < dpm_table->gfx_table.count; count++)
+			dpm_table->gfx_table.dpm_levels[count].value = odn_clk_table->entries[count].clk;
 	}
+
+	odn_clk_table = &odn_table->vdd_dep_on_mclk;
+	if (hwmgr->od_enabled && data->need_update_dpm_table & DPMTABLE_OD_UPDATE_MCLK) {
+		for (count = 0; count < dpm_table->mem_table.count; count++)
+			dpm_table->mem_table.dpm_levels[count].value = odn_clk_table->entries[count].clk;
+	}
+
+	if (data->need_update_dpm_table &
+			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK + DPMTABLE_UPDATE_SOCCLK)) {
+		result = vega10_populate_all_graphic_levels(hwmgr);
+		PP_ASSERT_WITH_CODE((0 == result),
+				"Failed to populate SCLK during PopulateNewDPMClocksStates Function!",
+				return result);
+	}
+
+	if (data->need_update_dpm_table &
+			(DPMTABLE_OD_UPDATE_MCLK + DPMTABLE_UPDATE_MCLK)) {
+		result = vega10_populate_all_memory_levels(hwmgr);
+		PP_ASSERT_WITH_CODE((0 == result),
+				"Failed to populate MCLK during PopulateNewDPMClocksStates Function!",
+				return result);
+	}
+
+	vega10_populate_vddc_soc_levels(hwmgr);
+
 	return result;
 }
 
@@ -3643,8 +3339,7 @@ static int vega10_trim_single_dpm_states_with_mask(struct pp_hwmgr *hwmgr,
 static int vega10_trim_dpm_states(struct pp_hwmgr *hwmgr,
 		const struct vega10_power_state *vega10_ps)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t high_limit_count;
 
 	PP_ASSERT_WITH_CODE((vega10_ps->performance_level_count >= 1),
@@ -3722,8 +3417,7 @@ static int vega10_get_soc_index_for_max_uclk(struct pp_hwmgr *hwmgr)
 
 static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t socclk_idx;
 
 	vega10_apply_dal_minimum_voltage_request(hwmgr);
@@ -3731,12 +3425,9 @@ static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 	if (!data->registry_data.sclk_dpm_key_disabled) {
 		if (data->smc_state_table.gfx_boot_level !=
 				data->dpm_table.gfx_table.dpm_state.soft_min_level) {
-				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-				hwmgr->smumgr,
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSoftMinGfxclkByIndex,
-				data->smc_state_table.gfx_boot_level),
-				"Failed to set soft min sclk index!",
-				return -EINVAL);
+				data->smc_state_table.gfx_boot_level);
 			data->dpm_table.gfx_table.dpm_state.soft_min_level =
 					data->smc_state_table.gfx_boot_level;
 		}
@@ -3747,19 +3438,13 @@ static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 				data->dpm_table.mem_table.dpm_state.soft_min_level) {
 			if (data->smc_state_table.mem_boot_level == NUM_UCLK_DPM_LEVELS - 1) {
 				socclk_idx = vega10_get_soc_index_for_max_uclk(hwmgr);
-				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-							hwmgr->smumgr,
+				smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMinSocclkByIndex,
-						socclk_idx),
-						"Failed to set soft min uclk index!",
-						return -EINVAL);
+						socclk_idx);
 			} else {
-				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-						hwmgr->smumgr,
+				smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMinUclkByIndex,
-						data->smc_state_table.mem_boot_level),
-						"Failed to set soft min uclk index!",
-						return -EINVAL);
+						data->smc_state_table.mem_boot_level);
 			}
 			data->dpm_table.mem_table.dpm_state.soft_min_level =
 					data->smc_state_table.mem_boot_level;
@@ -3771,20 +3456,16 @@ static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 
 static int vega10_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	vega10_apply_dal_minimum_voltage_request(hwmgr);
 
 	if (!data->registry_data.sclk_dpm_key_disabled) {
 		if (data->smc_state_table.gfx_max_level !=
-				data->dpm_table.gfx_table.dpm_state.soft_max_level) {
-				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-				hwmgr->smumgr,
+			data->dpm_table.gfx_table.dpm_state.soft_max_level) {
+			smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSoftMaxGfxclkByIndex,
-				data->smc_state_table.gfx_max_level),
-				"Failed to set soft max sclk index!",
-				return -EINVAL);
+				data->smc_state_table.gfx_max_level);
 			data->dpm_table.gfx_table.dpm_state.soft_max_level =
 					data->smc_state_table.gfx_max_level;
 		}
@@ -3792,13 +3473,10 @@ static int vega10_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 
 	if (!data->registry_data.mclk_dpm_key_disabled) {
 		if (data->smc_state_table.mem_max_level !=
-				data->dpm_table.mem_table.dpm_state.soft_max_level) {
-				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-				hwmgr->smumgr,
-				PPSMC_MSG_SetSoftMaxUclkByIndex,
-				data->smc_state_table.mem_max_level),
-				"Failed to set soft max mclk index!",
-				return -EINVAL);
+			data->dpm_table.mem_table.dpm_state.soft_max_level) {
+			smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSoftMaxUclkByIndex,
+					data->smc_state_table.mem_max_level);
 			data->dpm_table.mem_table.dpm_state.soft_max_level =
 					data->smc_state_table.mem_max_level;
 		}
@@ -3810,8 +3488,7 @@ static int vega10_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 static int vega10_generate_dpm_level_enable_mask(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	const struct phm_set_power_state_input *states =
 			(const struct phm_set_power_state_input *)input;
 	const struct vega10_power_state *vega10_ps =
@@ -3849,11 +3526,10 @@ static int vega10_generate_dpm_level_enable_mask(
 
 int vega10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_DPM_VCE].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				enable,
 				data->smu_features[GNLD_DPM_VCE].smu_feature_bitmap),
 				"Attempt to Enable/Disable DPM VCE Failed!",
@@ -3866,17 +3542,11 @@ int vega10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 
 static int vega10_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
-	int result = 0;
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t low_sclk_interrupt_threshold = 0;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkThrottleLowNotification)
-		&& (hwmgr->gfx_arbiter.sclk_threshold !=
-				data->low_sclk_interrupt_threshold)) {
-		data->low_sclk_interrupt_threshold =
-				hwmgr->gfx_arbiter.sclk_threshold;
+	if (PP_CAP(PHM_PlatformCaps_SclkThrottleLowNotification) &&
+		(data->low_sclk_interrupt_threshold != 0)) {
 		low_sclk_interrupt_threshold =
 				data->low_sclk_interrupt_threshold;
 
@@ -3884,20 +3554,19 @@ static int vega10_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 				cpu_to_le32(low_sclk_interrupt_threshold);
 
 		/* This message will also enable SmcToHost Interrupt */
-		result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetLowGfxclkInterruptThreshold,
 				(uint32_t)low_sclk_interrupt_threshold);
 	}
 
-	return result;
+	return 0;
 }
 
 static int vega10_set_power_state_tasks(struct pp_hwmgr *hwmgr,
 		const void *input)
 {
 	int tmp_result, result = 0;
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 
 	tmp_result = vega10_find_dpm_states_clocks_in_dpm_table(hwmgr, input);
@@ -3920,18 +3589,18 @@ static int vega10_set_power_state_tasks(struct pp_hwmgr *hwmgr,
 			"Failed to update SCLK threshold!",
 			result = tmp_result);
 
-	result = vega10_copy_table_to_smc(hwmgr->smumgr,
-			(uint8_t *)pp_table, PPTABLE);
+	result = smum_smc_table_manager(hwmgr, (uint8_t *)pp_table, PPTABLE, false);
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
 
-	data->apply_optimized_settings = false;
-	data->apply_overdrive_next_settings_mask = 0;
+	vega10_update_avfs(hwmgr);
+
+	data->need_update_dpm_table &= DPMTABLE_OD_UPDATE_VDDC;
 
 	return 0;
 }
 
-static int vega10_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t vega10_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct pp_power_state *ps;
 	struct vega10_power_state *vega10_ps;
@@ -3953,7 +3622,7 @@ static int vega10_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 				[vega10_ps->performance_level_count - 1].gfx_clock;
 }
 
-static int vega10_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t vega10_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct pp_power_state *ps;
 	struct vega10_power_state *vega10_ps;
@@ -3976,18 +3645,18 @@ static int vega10_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 }
 
 static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
-		struct pp_gpu_power *query)
+		uint32_t *query)
 {
 	uint32_t value;
 
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
-			PPSMC_MSG_GetCurrPkgPwr),
-			"Failed to get current package power!",
-			return -EINVAL);
+	if (!query)
+		return -EINVAL;
 
-	vega10_read_arg_from_smc(hwmgr->smumgr, &value);
-	/* power value is an integer */
-	query->average_gpu_power = value << 8;
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrPkgPwr);
+	value = smum_get_argument(hwmgr);
+
+	/* SMC returning actual watts, keep consistent with legacy asics, low 8 bit as 8 fractional bits */
+	*query = value << 8;
 
 	return 0;
 }
@@ -3995,35 +3664,34 @@ static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
 static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			      void *value, int *size)
 {
-	uint32_t sclk_idx, mclk_idx, activity_percent = 0;
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t sclk_mhz, mclk_idx, activity_percent = 0;
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_dpm_table *dpm_table = &data->dpm_table;
 	int ret = 0;
+	uint32_t val_vid;
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetCurrentGfxclkIndex);
-		if (!ret) {
-			vega10_read_arg_from_smc(hwmgr->smumgr, &sclk_idx);
-			*((uint32_t *)value) = dpm_table->gfx_table.dpm_levels[sclk_idx].value;
-			*size = 4;
-		}
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetAverageGfxclkActualFrequency);
+		sclk_mhz = smum_get_argument(hwmgr);
+		*((uint32_t *)value) = sclk_mhz * 100;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
-		ret = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetCurrentUclkIndex);
-		if (!ret) {
-			vega10_read_arg_from_smc(hwmgr->smumgr, &mclk_idx);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentUclkIndex);
+		mclk_idx = smum_get_argument(hwmgr);
+		if (mclk_idx < dpm_table->mem_table.count) {
 			*((uint32_t *)value) = dpm_table->mem_table.dpm_levels[mclk_idx].value;
 			*size = 4;
+		} else {
+			ret = -EINVAL;
 		}
 		break;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_GetAverageGfxActivity, 0);
-		if (!ret) {
-			vega10_read_arg_from_smc(hwmgr->smumgr, &activity_percent);
-			*((uint32_t *)value) = activity_percent > 100 ? 100 : activity_percent;
-			*size = 4;
-		}
+		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetAverageGfxActivity, 0);
+		activity_percent = smum_get_argument(hwmgr);
+		*((uint32_t *)value) = activity_percent > 100 ? 100 : activity_percent;
+		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
 		*((uint32_t *)value) = vega10_thermal_get_temperature(hwmgr);
@@ -4038,26 +3706,33 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
-		if (*size < sizeof(struct pp_gpu_power))
-			ret = -EINVAL;
-		else {
-			*size = sizeof(struct pp_gpu_power);
-			ret = vega10_get_gpu_power(hwmgr, (struct pp_gpu_power *)value);
-		}
+		ret = vega10_get_gpu_power(hwmgr, (uint32_t *)value);
+		break;
+	case AMDGPU_PP_SENSOR_VDDGFX:
+		val_vid = (RREG32_SOC15(SMUIO, 0, mmSMUSVI0_PLANE0_CURRENTVID) &
+			SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID_MASK) >>
+			SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID__SHIFT;
+		*((uint32_t *)value) = (uint32_t)convert_to_vddc((uint8_t)val_vid);
+		return 0;
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = vega10_get_enabled_smc_features(hwmgr, (uint64_t *)value);
+		if (!ret)
+			*size = 8;
 		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
+
 	return ret;
 }
 
-static int vega10_notify_smc_display_change(struct pp_hwmgr *hwmgr,
+static void vega10_notify_smc_display_change(struct pp_hwmgr *hwmgr,
 		bool has_disp)
 {
-	return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetUclkFastSwitch,
-			has_disp ? 0 : 1);
+			has_disp ? 1 : 0);
 }
 
 int vega10_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
@@ -4090,7 +3765,7 @@ int vega10_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 
 	if (!result) {
 		clk_request = (clk_freq << 16) | clk_select;
-		result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_RequestDisplayClockByFreq,
 				clk_request);
 	}
@@ -4121,34 +3796,27 @@ static uint8_t vega10_get_uclk_index(struct pp_hwmgr *hwmgr,
 static int vega10_notify_smc_display_config_after_ps_adjustment(
 		struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *dpm_table =
 			&data->dpm_table.dcef_table;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)hwmgr->pptable;
 	struct phm_ppt_v1_clock_voltage_dependency_table *mclk_table = table_info->vdd_dep_on_mclk;
 	uint32_t idx;
-	uint32_t num_active_disps = 0;
-	struct cgs_display_info info = {0};
 	struct PP_Clocks min_clocks = {0};
 	uint32_t i;
 	struct pp_display_clock_request clock_req;
 
-	info.mode_info = NULL;
-
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	num_active_disps = info.display_count;
-
-	if (num_active_disps > 1)
+	if ((hwmgr->display_config->num_display > 1) &&
+	     !hwmgr->display_config->multi_monitor_in_sync &&
+	     !hwmgr->display_config->nb_pstate_switch_disable)
 		vega10_notify_smc_display_change(hwmgr, false);
 	else
 		vega10_notify_smc_display_change(hwmgr, true);
 
-	min_clocks.dcefClock = hwmgr->display_config.min_dcef_set_clk;
-	min_clocks.dcefClockInSR = hwmgr->display_config.min_dcef_deep_sleep_set_clk;
-	min_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
+	min_clocks.dcefClock = hwmgr->display_config->min_dcef_set_clk;
+	min_clocks.dcefClockInSR = hwmgr->display_config->min_dcef_deep_sleep_set_clk;
+	min_clocks.memoryClock = hwmgr->display_config->min_mem_set_clock;
 
 	for (i = 0; i < dpm_table->count; i++) {
 		if (dpm_table->dpm_levels[i].value == min_clocks.dcefClock)
@@ -4157,12 +3825,11 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 
 	if (i < dpm_table->count) {
 		clock_req.clock_type = amd_pp_dcef_clock;
-		clock_req.clock_freq_in_khz = dpm_table->dpm_levels[i].value;
+		clock_req.clock_freq_in_khz = dpm_table->dpm_levels[i].value * 10;
 		if (!vega10_display_clock_voltage_request(hwmgr, &clock_req)) {
-			PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-					hwmgr->smumgr, PPSMC_MSG_SetMinDeepSleepDcefclk,
-					min_clocks.dcefClockInSR /100),
-					"Attempt to set divider for DCEFCLK Failed!",);
+			smum_send_msg_to_smc_with_parameter(
+					hwmgr, PPSMC_MSG_SetMinDeepSleepDcefclk,
+					min_clocks.dcefClockInSR / 100);
 		} else {
 			pr_info("Attempt to set Hard Min for DCEFCLK Failed!");
 		}
@@ -4172,7 +3839,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 
 	if (min_clocks.memoryClock != 0) {
 		idx = vega10_get_uclk_index(hwmgr, mclk_table, min_clocks.memoryClock);
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_SetSoftMinUclkByIndex, idx);
+		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetSoftMinUclkByIndex, idx);
 		data->dpm_table.mem_table.dpm_state.soft_min_level= idx;
 	}
 
@@ -4181,8 +3848,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 
 static int vega10_force_dpm_highest(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->smc_state_table.gfx_boot_level =
 	data->smc_state_table.gfx_max_level =
@@ -4204,8 +3870,7 @@ static int vega10_force_dpm_highest(struct pp_hwmgr *hwmgr)
 
 static int vega10_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->smc_state_table.gfx_boot_level =
 	data->smc_state_table.gfx_max_level =
@@ -4228,7 +3893,7 @@ static int vega10_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 
 static int vega10_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->smc_state_table.gfx_boot_level =
 			vega10_find_lowest_dpm_level(&(data->dpm_table.gfx_table));
@@ -4261,6 +3926,8 @@ static int vega10_get_profiling_clk_mask(struct pp_hwmgr *hwmgr, enum amd_dpm_fo
 		*sclk_mask = VEGA10_UMD_PSTATE_GFXCLK_LEVEL;
 		*soc_mask = VEGA10_UMD_PSTATE_SOCCLK_LEVEL;
 		*mclk_mask = VEGA10_UMD_PSTATE_MCLK_LEVEL;
+		hwmgr->pstate_sclk = table_info->vdd_dep_on_sclk->entries[VEGA10_UMD_PSTATE_GFXCLK_LEVEL].clk;
+		hwmgr->pstate_mclk = table_info->vdd_dep_on_mclk->entries[VEGA10_UMD_PSTATE_MCLK_LEVEL].clk;
 	}
 
 	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
@@ -4275,28 +3942,64 @@ static int vega10_get_profiling_clk_mask(struct pp_hwmgr *hwmgr, enum amd_dpm_fo
 	return 0;
 }
 
-static int vega10_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
+static void vega10_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 {
-	int result = 0;
-
 	switch (mode) {
 	case AMD_FAN_CTRL_NONE:
-		result = vega10_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
+		vega10_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
 		break;
 	case AMD_FAN_CTRL_MANUAL:
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_MicrocodeFanControl))
-			result = vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
+		if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
+			vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
 		break;
 	case AMD_FAN_CTRL_AUTO:
-		result = vega10_fan_ctrl_set_static_mode(hwmgr, mode);
-		if (!result)
-			result = vega10_fan_ctrl_start_smc_fan_control(hwmgr);
+		if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
+			vega10_fan_ctrl_start_smc_fan_control(hwmgr);
 		break;
 	default:
 		break;
 	}
-	return result;
+}
+
+static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, uint32_t mask)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+
+	switch (type) {
+	case PP_SCLK:
+		data->smc_state_table.gfx_boot_level = mask ? (ffs(mask) - 1) : 0;
+		data->smc_state_table.gfx_max_level = mask ? (fls(mask) - 1) : 0;
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
+			"Failed to upload boot level to lowest!",
+			return -EINVAL);
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_max_level(hwmgr),
+			"Failed to upload dpm max level to highest!",
+			return -EINVAL);
+		break;
+
+	case PP_MCLK:
+		data->smc_state_table.mem_boot_level = mask ? (ffs(mask) - 1) : 0;
+		data->smc_state_table.mem_max_level = mask ? (fls(mask) - 1) : 0;
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
+			"Failed to upload boot level to lowest!",
+			return -EINVAL);
+
+		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_max_level(hwmgr),
+			"Failed to upload dpm max level to highest!",
+			return -EINVAL);
+
+		break;
+
+	case PP_PCIE:
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 static int vega10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
@@ -4306,51 +4009,19 @@ static int vega10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	uint32_t sclk_mask = 0;
 	uint32_t mclk_mask = 0;
 	uint32_t soc_mask = 0;
-	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
-					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
-					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
-					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
 
-	if (level == hwmgr->dpm_level)
-		return ret;
-
-	if (!(hwmgr->dpm_level & profile_mode_mask)) {
-		/* enter profile mode, save current level, disable gfx cg*/
-		if (level & profile_mode_mask) {
-			hwmgr->saved_dpm_level = hwmgr->dpm_level;
-			cgs_set_clockgating_state(hwmgr->device,
-						AMD_IP_BLOCK_TYPE_GFX,
-						AMD_CG_STATE_UNGATE);
-		}
-	} else {
-		/* exit profile mode, restore level, enable gfx cg*/
-		if (!(level & profile_mode_mask)) {
-			if (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)
-				level = hwmgr->saved_dpm_level;
-			cgs_set_clockgating_state(hwmgr->device,
-					AMD_IP_BLOCK_TYPE_GFX,
-					AMD_CG_STATE_GATE);
-		}
-	}
+	if (hwmgr->pstate_sclk == 0)
+		vega10_get_profiling_clk_mask(hwmgr, level, &sclk_mask, &mclk_mask, &soc_mask);
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 		ret = vega10_force_dpm_highest(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
 		ret = vega10_force_dpm_lowest(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		ret = vega10_unforce_dpm_levels(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
@@ -4359,29 +4030,28 @@ static int vega10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 		ret = vega10_get_profiling_clk_mask(hwmgr, level, &sclk_mask, &mclk_mask, &soc_mask);
 		if (ret)
 			return ret;
-		hwmgr->dpm_level = level;
 		vega10_force_clock_level(hwmgr, PP_SCLK, 1<<sclk_mask);
 		vega10_force_clock_level(hwmgr, PP_MCLK, 1<<mclk_mask);
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
-		hwmgr->dpm_level = level;
-		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
 	default:
 		break;
 	}
 
-	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->saved_dpm_level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
-		vega10_set_fan_control_mode(hwmgr, AMD_FAN_CTRL_NONE);
-	else if (level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->saved_dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
-		vega10_set_fan_control_mode(hwmgr, AMD_FAN_CTRL_AUTO);
+	if (!ret) {
+		if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
+			vega10_set_fan_control_mode(hwmgr, AMD_FAN_CTRL_NONE);
+		else if (level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
+			vega10_set_fan_control_mode(hwmgr, AMD_FAN_CTRL_AUTO);
+	}
 
-	return 0;
+	return ret;
 }
 
-static int vega10_get_fan_control_mode(struct pp_hwmgr *hwmgr)
+static uint32_t vega10_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_FAN_CONTROL].enabled == false)
 		return AMD_FAN_CTRL_MANUAL;
@@ -4412,26 +4082,15 @@ static void vega10_get_sclks(struct pp_hwmgr *hwmgr,
 			table_info->vdd_dep_on_sclk;
 	uint32_t i;
 
+	clocks->num_levels = 0;
 	for (i = 0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].clk) {
 			clocks->data[clocks->num_levels].clocks_in_khz =
-					dep_table->entries[i].clk;
+					dep_table->entries[i].clk * 10;
 			clocks->num_levels++;
 		}
 	}
 
-}
-
-static uint32_t vega10_get_mem_latency(struct pp_hwmgr *hwmgr,
-		uint32_t clock)
-{
-	if (clock >= MEM_FREQ_LOW_LATENCY &&
-			clock < MEM_FREQ_HIGH_LATENCY)
-		return MEM_LATENCY_HIGH;
-	else if (clock >= MEM_FREQ_HIGH_LATENCY)
-		return MEM_LATENCY_LOW;
-	else
-		return MEM_LATENCY_ERR;
 }
 
 static void vega10_get_memclocks(struct pp_hwmgr *hwmgr,
@@ -4441,27 +4100,23 @@ static void vega10_get_memclocks(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v2_information *)hwmgr->pptable;
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table =
 			table_info->vdd_dep_on_mclk;
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
+	uint32_t j = 0;
 	uint32_t i;
-
-	clocks->num_levels = 0;
-	data->mclk_latency_table.count = 0;
 
 	for (i = 0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].clk) {
-			clocks->data[clocks->num_levels].clocks_in_khz =
-			data->mclk_latency_table.entries
-			[data->mclk_latency_table.count].frequency =
-					dep_table->entries[i].clk;
-			clocks->data[clocks->num_levels].latency_in_us =
-			data->mclk_latency_table.entries
-			[data->mclk_latency_table.count].latency =
-					vega10_get_mem_latency(hwmgr,
-						dep_table->entries[i].clk);
-			clocks->num_levels++;
-			data->mclk_latency_table.count++;
+
+			clocks->data[j].clocks_in_khz =
+						dep_table->entries[i].clk * 10;
+			data->mclk_latency_table.entries[j].frequency =
+							dep_table->entries[i].clk;
+			clocks->data[j].latency_in_us =
+				data->mclk_latency_table.entries[j].latency = 25;
+			j++;
 		}
 	}
+	clocks->num_levels = data->mclk_latency_table.count = j;
 }
 
 static void vega10_get_dcefclocks(struct pp_hwmgr *hwmgr,
@@ -4474,7 +4129,7 @@ static void vega10_get_dcefclocks(struct pp_hwmgr *hwmgr,
 	uint32_t i;
 
 	for (i = 0; i < dep_table->count; i++) {
-		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk * 10;
 		clocks->data[i].latency_in_us = 0;
 		clocks->num_levels++;
 	}
@@ -4490,7 +4145,7 @@ static void vega10_get_socclocks(struct pp_hwmgr *hwmgr,
 	uint32_t i;
 
 	for (i = 0; i < dep_table->count; i++) {
-		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk * 10;
 		clocks->data[i].latency_in_us = 0;
 		clocks->num_levels++;
 	}
@@ -4550,7 +4205,7 @@ static int vega10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 	}
 
 	for (i = 0; i < dep_table->count; i++) {
-		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk  * 10;
 		clocks->data[i].voltage_in_mv = (uint32_t)(table_info->vddc_lookup_table->
 				entries[dep_table->entries[i].vddInd].us_vdd);
 		clocks->num_levels++;
@@ -4563,133 +4218,30 @@ static int vega10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 }
 
 static int vega10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+							void *clock_range)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_range;
 	Watermarks_t *table = &(data->smc_state_table.water_marks_table);
 	int result = 0;
-	uint32_t i;
 
 	if (!data->registry_data.disable_water_mark) {
-		for (i = 0; i < wm_with_clock_ranges->num_wm_sets_dmif; i++) {
-			table->WatermarkRow[WM_DCEFCLK][i].MinClock =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_dmif[i].wm_min_dcefclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_DCEFCLK][i].MaxClock =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_dmif[i].wm_max_dcefclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_DCEFCLK][i].MinUclk =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_dmif[i].wm_min_memclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_DCEFCLK][i].MaxUclk =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_dmif[i].wm_max_memclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_DCEFCLK][i].WmSetting = (uint8_t)
-					wm_with_clock_ranges->wm_sets_dmif[i].wm_set_id;
-		}
-
-		for (i = 0; i < wm_with_clock_ranges->num_wm_sets_mcif; i++) {
-			table->WatermarkRow[WM_SOCCLK][i].MinClock =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_mcif[i].wm_min_socclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_SOCCLK][i].MaxClock =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_mcif[i].wm_max_socclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_SOCCLK][i].MinUclk =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_mcif[i].wm_min_memclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_SOCCLK][i].MaxUclk =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_mcif[i].wm_max_memclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_SOCCLK][i].WmSetting = (uint8_t)
-					wm_with_clock_ranges->wm_sets_mcif[i].wm_set_id;
-		}
+		smu_set_watermarks_for_clocks_ranges(table, wm_with_clock_ranges);
 		data->water_marks_bitmap = WaterMarksExist;
 	}
 
 	return result;
 }
 
-static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
-		enum pp_clock_type type, uint32_t mask)
-{
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
-	int i;
-
-	if (hwmgr->dpm_level & (AMD_DPM_FORCED_LEVEL_AUTO |
-				AMD_DPM_FORCED_LEVEL_LOW |
-				AMD_DPM_FORCED_LEVEL_HIGH))
-		return -EINVAL;
-
-	switch (type) {
-	case PP_SCLK:
-		for (i = 0; i < 32; i++) {
-			if (mask & (1 << i))
-				break;
-		}
-		data->smc_state_table.gfx_boot_level = i;
-
-		for (i = 31; i >= 0; i--) {
-			if (mask & (1 << i))
-				break;
-		}
-		data->smc_state_table.gfx_max_level = i;
-
-		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
-			"Failed to upload boot level to lowest!",
-			return -EINVAL);
-
-		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_max_level(hwmgr),
-			"Failed to upload dpm max level to highest!",
-			return -EINVAL);
-		break;
-
-	case PP_MCLK:
-		for (i = 0; i < 32; i++) {
-			if (mask & (1 << i))
-				break;
-		}
-		data->smc_state_table.mem_boot_level = i;
-
-		for (i = 31; i >= 0; i--) {
-			if (mask & (1 << i))
-				break;
-		}
-		data->smc_state_table.mem_max_level = i;
-
-		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
-			"Failed to upload boot level to lowest!",
-			return -EINVAL);
-
-		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_max_level(hwmgr),
-			"Failed to upload dpm max level to highest!",
-			return -EINVAL);
-
-		break;
-
-	case PP_PCIE:
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *sclk_table = &(data->dpm_table.gfx_table);
 	struct vega10_single_dpm_table *mclk_table = &(data->dpm_table.mem_table);
 	struct vega10_pcie_table *pcie_table = &(data->dpm_table.pcie_table);
+	struct vega10_odn_clock_voltage_dependency_table *podn_vdd_dep = NULL;
+
 	int i, now, size = 0;
 
 	switch (type) {
@@ -4697,14 +4249,8 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		if (data->registry_data.sclk_dpm_key_disabled)
 			break;
 
-		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
-				PPSMC_MSG_GetCurrentGfxclkIndex),
-				"Attempt to get current sclk index Failed!",
-				return -1);
-		PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr->smumgr,
-				&now),
-				"Attempt to read sclk index Failed!",
-				return -1);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentGfxclkIndex);
+		now = smum_get_argument(hwmgr);
 
 		for (i = 0; i < sclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
@@ -4715,14 +4261,8 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		if (data->registry_data.mclk_dpm_key_disabled)
 			break;
 
-		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
-				PPSMC_MSG_GetCurrentUclkIndex),
-				"Attempt to get current mclk index Failed!",
-				return -1);
-		PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr->smumgr,
-				&now),
-				"Attempt to read mclk index Failed!",
-				return -1);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentUclkIndex);
+		now = smum_get_argument(hwmgr);
 
 		for (i = 0; i < mclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
@@ -4730,21 +4270,49 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 					(i == now) ? "*" : "");
 		break;
 	case PP_PCIE:
-		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
-				PPSMC_MSG_GetCurrentLinkIndex),
-				"Attempt to get current mclk index Failed!",
-				return -1);
-		PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr->smumgr,
-				&now),
-				"Attempt to read mclk index Failed!",
-				return -1);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentLinkIndex);
+		now = smum_get_argument(hwmgr);
 
 		for (i = 0; i < pcie_table->count; i++)
 			size += sprintf(buf + size, "%d: %s %s\n", i,
-					(pcie_table->pcie_gen[i] == 0) ? "2.5GB, x1" :
-					(pcie_table->pcie_gen[i] == 1) ? "5.0GB, x16" :
-					(pcie_table->pcie_gen[i] == 2) ? "8.0GB, x16" : "",
+					(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s, x1" :
+					(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s, x16" :
+					(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s, x16" : "",
 					(i == now) ? "*" : "");
+		break;
+	case OD_SCLK:
+		if (hwmgr->od_enabled) {
+			size = sprintf(buf, "%s:\n", "OD_SCLK");
+			podn_vdd_dep = &data->odn_dpm_table.vdd_dep_on_sclk;
+			for (i = 0; i < podn_vdd_dep->count; i++)
+				size += sprintf(buf + size, "%d: %10uMhz %10umV\n",
+					i, podn_vdd_dep->entries[i].clk / 100,
+						podn_vdd_dep->entries[i].vddc);
+		}
+		break;
+	case OD_MCLK:
+		if (hwmgr->od_enabled) {
+			size = sprintf(buf, "%s:\n", "OD_MCLK");
+			podn_vdd_dep = &data->odn_dpm_table.vdd_dep_on_mclk;
+			for (i = 0; i < podn_vdd_dep->count; i++)
+				size += sprintf(buf + size, "%d: %10uMhz %10umV\n",
+					i, podn_vdd_dep->entries[i].clk/100,
+						podn_vdd_dep->entries[i].vddc);
+		}
+		break;
+	case OD_RANGE:
+		if (hwmgr->od_enabled) {
+			size = sprintf(buf, "%s:\n", "OD_RANGE");
+			size += sprintf(buf + size, "SCLK: %7uMHz %10uMHz\n",
+				data->golden_dpm_table.gfx_table.dpm_levels[0].value/100,
+				hwmgr->platform_descriptor.overdriveLimit.engineClock/100);
+			size += sprintf(buf + size, "MCLK: %7uMHz %10uMHz\n",
+				data->golden_dpm_table.mem_table.dpm_levels[0].value/100,
+				hwmgr->platform_descriptor.overdriveLimit.memoryClock/100);
+			size += sprintf(buf + size, "VDDC: %7umV %11umV\n",
+				data->odn_dpm_table.min_vddc,
+				data->odn_dpm_table.max_vddc);
+		}
 		break;
 	default:
 		break;
@@ -4754,25 +4322,20 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
-	int result = 0;
-	uint32_t num_turned_on_displays = 1;
+	struct vega10_hwmgr *data = hwmgr->backend;
 	Watermarks_t *wm_table = &(data->smc_state_table.water_marks_table);
-	struct cgs_display_info info = {0};
+	int result = 0;
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 			!(data->water_marks_bitmap & WaterMarksLoaded)) {
-		result = vega10_copy_table_to_smc(hwmgr->smumgr,
-			(uint8_t *)wm_table, WMTABLE);
+		result = smum_smc_table_manager(hwmgr, (uint8_t *)wm_table, WMTABLE, false);
 		PP_ASSERT_WITH_CODE(result, "Failed to update WMTABLE!", return EINVAL);
 		data->water_marks_bitmap |= WaterMarksLoaded;
 	}
 
 	if (data->water_marks_bitmap & WaterMarksLoaded) {
-		cgs_get_active_displays_info(hwmgr->device, &info);
-		num_turned_on_displays = info.display_count;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-			PPSMC_MSG_NumOfDisplays, num_turned_on_displays);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_NumOfDisplays, hwmgr->display_config->num_display);
 	}
 
 	return result;
@@ -4780,11 +4343,10 @@ static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 int vega10_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_DPM_UVD].supported) {
-		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
 				enable,
 				data->smu_features[GNLD_DPM_UVD].smu_feature_bitmap),
 				"Attempt to Enable/Disable DPM UVD Failed!",
@@ -4794,20 +4356,20 @@ int vega10_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 	return 0;
 }
 
-static int vega10_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
+static void vega10_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->vce_power_gated = bgate;
-	return vega10_enable_disable_vce_dpm(hwmgr, !bgate);
+	vega10_enable_disable_vce_dpm(hwmgr, !bgate);
 }
 
-static int vega10_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
+static void vega10_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->uvd_power_gated = bgate;
-	return vega10_enable_disable_uvd_dpm(hwmgr, !bgate);
+	vega10_enable_disable_uvd_dpm(hwmgr, !bgate);
 }
 
 static inline bool vega10_are_power_levels_equal(
@@ -4857,17 +4419,14 @@ static int vega10_check_states_equal(struct pp_hwmgr *hwmgr,
 static bool
 vega10_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	bool is_update_required = false;
-	struct cgs_display_info info = {0, 0, NULL};
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	if (data->display_timing.num_existing_displays != info.display_count)
+	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
 		is_update_required = true;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep)) {
-		if (data->display_timing.min_clock_in_sr != hwmgr->display_config.min_core_set_clock_in_sr)
+	if (PP_CAP(PHM_PlatformCaps_SclkDeepSleep)) {
+		if (data->display_timing.min_clock_in_sr != hwmgr->display_config->min_core_set_clock_in_sr)
 			is_update_required = true;
 	}
 
@@ -4878,13 +4437,7 @@ static int vega10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
 
-	tmp_result = (vega10_is_dpm_running(hwmgr)) ? 0 : -1;
-	PP_ASSERT_WITH_CODE(tmp_result == 0,
-			"DPM is not running right now, no need to disable DPM!",
-			return 0);
-
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ThermalController))
+	if (PP_CAP(PHM_PlatformCaps_ThermalController))
 		vega10_disable_thermal_protection(hwmgr);
 
 	tmp_result = vega10_disable_power_containment(hwmgr);
@@ -4914,12 +4467,14 @@ static int vega10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result =  vega10_acg_disable(hwmgr);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to disable acg!", result = tmp_result);
+
+	vega10_enable_disable_PCC_limit_feature(hwmgr, false);
 	return result;
 }
 
 static int vega10_power_off_asic(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	int result;
 
 	result = vega10_disable_dpm_tasks(hwmgr);
@@ -4931,71 +4486,9 @@ static int vega10_power_off_asic(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static void vega10_find_min_clock_index(struct pp_hwmgr *hwmgr,
-		uint32_t *sclk_idx, uint32_t *mclk_idx,
-		uint32_t min_sclk, uint32_t min_mclk)
-{
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
-	struct vega10_dpm_table *dpm_table = &(data->dpm_table);
-	uint32_t i;
-
-	for (i = 0; i < dpm_table->gfx_table.count; i++) {
-		if (dpm_table->gfx_table.dpm_levels[i].enabled &&
-			dpm_table->gfx_table.dpm_levels[i].value >= min_sclk) {
-			*sclk_idx = i;
-			break;
-		}
-	}
-
-	for (i = 0; i < dpm_table->mem_table.count; i++) {
-		if (dpm_table->mem_table.dpm_levels[i].enabled &&
-			dpm_table->mem_table.dpm_levels[i].value >= min_mclk) {
-			*mclk_idx = i;
-			break;
-		}
-	}
-}
-
-static int vega10_set_power_profile_state(struct pp_hwmgr *hwmgr,
-		struct amd_pp_profile *request)
-{
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
-	uint32_t sclk_idx = ~0, mclk_idx = ~0;
-
-	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_AUTO)
-		return -EINVAL;
-
-	vega10_find_min_clock_index(hwmgr, &sclk_idx, &mclk_idx,
-			request->min_sclk, request->min_mclk);
-
-	if (sclk_idx != ~0) {
-		if (!data->registry_data.sclk_dpm_key_disabled)
-			PP_ASSERT_WITH_CODE(
-					!smum_send_msg_to_smc_with_parameter(
-					hwmgr->smumgr,
-					PPSMC_MSG_SetSoftMinGfxclkByIndex,
-					sclk_idx),
-					"Failed to set soft min sclk index!",
-					return -EINVAL);
-	}
-
-	if (mclk_idx != ~0) {
-		if (!data->registry_data.mclk_dpm_key_disabled)
-			PP_ASSERT_WITH_CODE(
-					!smum_send_msg_to_smc_with_parameter(
-					hwmgr->smumgr,
-					PPSMC_MSG_SetSoftMinUclkByIndex,
-					mclk_idx),
-					"Failed to set soft min mclk index!",
-					return -EINVAL);
-	}
-
-	return 0;
-}
-
 static int vega10_get_sclk_od(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *sclk_table = &(data->dpm_table.gfx_table);
 	struct vega10_single_dpm_table *golden_sclk_table =
 			&(data->golden_dpm_table.gfx_table);
@@ -5013,7 +4506,7 @@ static int vega10_get_sclk_od(struct pp_hwmgr *hwmgr)
 
 static int vega10_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *golden_sclk_table =
 			&(data->golden_dpm_table.gfx_table);
 	struct pp_power_state *ps;
@@ -5046,7 +4539,7 @@ static int vega10_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 
 static int vega10_get_mclk_od(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *mclk_table = &(data->dpm_table.mem_table);
 	struct vega10_single_dpm_table *golden_mclk_table =
 			&(data->golden_dpm_table.mem_table);
@@ -5065,7 +4558,7 @@ static int vega10_get_mclk_od(struct pp_hwmgr *hwmgr)
 
 static int vega10_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *golden_mclk_table =
 			&(data->golden_dpm_table.mem_table);
 	struct pp_power_state  *ps;
@@ -5096,6 +4589,301 @@ static int vega10_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 	return 0;
 }
 
+static int vega10_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+					uint32_t virtual_addr_low,
+					uint32_t virtual_addr_hi,
+					uint32_t mc_addr_low,
+					uint32_t mc_addr_hi,
+					uint32_t size)
+{
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSystemVirtualDramAddrHigh,
+					virtual_addr_hi);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetSystemVirtualDramAddrLow,
+					virtual_addr_low);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramLogSetDramAddrHigh,
+					mc_addr_hi);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramLogSetDramAddrLow,
+					mc_addr_low);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramLogSetDramSize,
+					size);
+	return 0;
+}
+
+static int vega10_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
+		struct PP_TemperatureRange *thermal_data)
+{
+	struct phm_ppt_v2_information *table_info =
+			(struct phm_ppt_v2_information *)hwmgr->pptable;
+
+	memcpy(thermal_data, &SMU7ThermalWithDelayPolicy[0], sizeof(struct PP_TemperatureRange));
+
+	thermal_data->max = table_info->tdp_table->usSoftwareShutdownTemp *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return 0;
+}
+
+static int vega10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	uint32_t i, size = 0;
+	static const uint8_t profile_mode_setting[5][4] = {{70, 60, 1, 3,},
+						{90, 60, 0, 0,},
+						{70, 60, 0, 0,},
+						{70, 90, 0, 0,},
+						{30, 60, 0, 6,},
+						};
+	static const char *profile_name[6] = {"3D_FULL_SCREEN",
+					"POWER_SAVING",
+					"VIDEO",
+					"VR",
+					"COMPUTE",
+					"CUSTOM"};
+	static const char *title[6] = {"NUM",
+			"MODE_NAME",
+			"BUSY_SET_POINT",
+			"FPS",
+			"USE_RLC_BUSY",
+			"MIN_ACTIVE_LEVEL"};
+
+	if (!buf)
+		return -EINVAL;
+
+	size += sprintf(buf + size, "%s %16s %s %s %s %s\n",title[0],
+			title[1], title[2], title[3], title[4], title[5]);
+
+	for (i = 0; i < PP_SMC_POWER_PROFILE_CUSTOM; i++)
+		size += sprintf(buf + size, "%3d %14s%s: %14d %3d %10d %14d\n",
+			i, profile_name[i], (i == hwmgr->power_profile_mode) ? "*" : " ",
+			profile_mode_setting[i][0], profile_mode_setting[i][1],
+			profile_mode_setting[i][2], profile_mode_setting[i][3]);
+	size += sprintf(buf + size, "%3d %14s%s: %14d %3d %10d %14d\n", i,
+			profile_name[i], (i == hwmgr->power_profile_mode) ? "*" : " ",
+			data->custom_profile_mode[0], data->custom_profile_mode[1],
+			data->custom_profile_mode[2], data->custom_profile_mode[3]);
+	return size;
+}
+
+static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint32_t size)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	uint8_t busy_set_point;
+	uint8_t FPS;
+	uint8_t use_rlc_busy;
+	uint8_t min_active_level;
+
+	hwmgr->power_profile_mode = input[size];
+
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
+						1<<hwmgr->power_profile_mode);
+
+	if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		if (size == 0 || size > 4)
+			return -EINVAL;
+
+		data->custom_profile_mode[0] = busy_set_point = input[0];
+		data->custom_profile_mode[1] = FPS = input[1];
+		data->custom_profile_mode[2] = use_rlc_busy = input[2];
+		data->custom_profile_mode[3] = min_active_level = input[3];
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetCustomGfxDpmParameters,
+					busy_set_point | FPS<<8 |
+					use_rlc_busy << 16 | min_active_level<<24);
+	}
+
+	return 0;
+}
+
+
+static bool vega10_check_clk_voltage_valid(struct pp_hwmgr *hwmgr,
+					enum PP_OD_DPM_TABLE_COMMAND type,
+					uint32_t clk,
+					uint32_t voltage)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	struct vega10_odn_dpm_table *odn_table = &(data->odn_dpm_table);
+	struct vega10_single_dpm_table *golden_table;
+
+	if (voltage < odn_table->min_vddc || voltage > odn_table->max_vddc) {
+		pr_info("OD voltage is out of range [%d - %d] mV\n", odn_table->min_vddc, odn_table->max_vddc);
+		return false;
+	}
+
+	if (type == PP_OD_EDIT_SCLK_VDDC_TABLE) {
+		golden_table = &(data->golden_dpm_table.gfx_table);
+		if (golden_table->dpm_levels[0].value > clk ||
+			hwmgr->platform_descriptor.overdriveLimit.engineClock < clk) {
+			pr_info("OD engine clock is out of range [%d - %d] MHz\n",
+				golden_table->dpm_levels[0].value/100,
+				hwmgr->platform_descriptor.overdriveLimit.engineClock/100);
+			return false;
+		}
+	} else if (type == PP_OD_EDIT_MCLK_VDDC_TABLE) {
+		golden_table = &(data->golden_dpm_table.mem_table);
+		if (golden_table->dpm_levels[0].value > clk ||
+			hwmgr->platform_descriptor.overdriveLimit.memoryClock < clk) {
+			pr_info("OD memory clock is out of range [%d - %d] MHz\n",
+				golden_table->dpm_levels[0].value/100,
+				hwmgr->platform_descriptor.overdriveLimit.memoryClock/100);
+			return false;
+		}
+	} else {
+		return false;
+	}
+
+	return true;
+}
+
+static void vega10_odn_update_soc_table(struct pp_hwmgr *hwmgr,
+						enum PP_OD_DPM_TABLE_COMMAND type)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	struct phm_ppt_v2_information *table_info = hwmgr->pptable;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table = table_info->vdd_dep_on_socclk;
+	struct vega10_single_dpm_table *dpm_table = &data->golden_dpm_table.soc_table;
+
+	struct vega10_odn_clock_voltage_dependency_table *podn_vdd_dep_on_socclk =
+							&data->odn_dpm_table.vdd_dep_on_socclk;
+	struct vega10_odn_vddc_lookup_table *od_vddc_lookup_table = &data->odn_dpm_table.vddc_lookup_table;
+
+	struct vega10_odn_clock_voltage_dependency_table *podn_vdd_dep;
+	uint8_t i, j;
+
+	if (type == PP_OD_EDIT_SCLK_VDDC_TABLE) {
+		podn_vdd_dep = &data->odn_dpm_table.vdd_dep_on_sclk;
+		for (i = 0; i < podn_vdd_dep->count - 1; i++)
+			od_vddc_lookup_table->entries[i].us_vdd = podn_vdd_dep->entries[i].vddc;
+		if (od_vddc_lookup_table->entries[i].us_vdd < podn_vdd_dep->entries[i].vddc)
+			od_vddc_lookup_table->entries[i].us_vdd = podn_vdd_dep->entries[i].vddc;
+	} else if (type == PP_OD_EDIT_MCLK_VDDC_TABLE) {
+		podn_vdd_dep = &data->odn_dpm_table.vdd_dep_on_mclk;
+		for (i = 0; i < dpm_table->count; i++) {
+			for (j = 0; j < od_vddc_lookup_table->count; j++) {
+				if (od_vddc_lookup_table->entries[j].us_vdd >
+					podn_vdd_dep->entries[i].vddc)
+					break;
+			}
+			if (j == od_vddc_lookup_table->count) {
+				od_vddc_lookup_table->entries[j-1].us_vdd =
+					podn_vdd_dep->entries[i].vddc;
+				data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
+			}
+			podn_vdd_dep->entries[i].vddInd = j;
+		}
+		dpm_table = &data->dpm_table.soc_table;
+		for (i = 0; i < dep_table->count; i++) {
+			if (dep_table->entries[i].vddInd == podn_vdd_dep->entries[dep_table->count-1].vddInd &&
+					dep_table->entries[i].clk < podn_vdd_dep->entries[dep_table->count-1].clk) {
+				data->need_update_dpm_table |= DPMTABLE_UPDATE_SOCCLK;
+				podn_vdd_dep_on_socclk->entries[i].clk = podn_vdd_dep->entries[dep_table->count-1].clk;
+				dpm_table->dpm_levels[i].value = podn_vdd_dep_on_socclk->entries[i].clk;
+			}
+		}
+		if (podn_vdd_dep_on_socclk->entries[podn_vdd_dep_on_socclk->count - 1].clk <
+					podn_vdd_dep->entries[dep_table->count-1].clk) {
+			data->need_update_dpm_table |= DPMTABLE_UPDATE_SOCCLK;
+			podn_vdd_dep_on_socclk->entries[podn_vdd_dep_on_socclk->count - 1].clk = podn_vdd_dep->entries[dep_table->count-1].clk;
+			dpm_table->dpm_levels[podn_vdd_dep_on_socclk->count - 1].value = podn_vdd_dep->entries[dep_table->count-1].clk;
+		}
+		if (podn_vdd_dep_on_socclk->entries[podn_vdd_dep_on_socclk->count - 1].vddInd <
+					podn_vdd_dep->entries[dep_table->count-1].vddInd) {
+			data->need_update_dpm_table |= DPMTABLE_UPDATE_SOCCLK;
+			podn_vdd_dep_on_socclk->entries[podn_vdd_dep_on_socclk->count - 1].vddInd = podn_vdd_dep->entries[dep_table->count-1].vddInd;
+		}
+	}
+}
+
+static int vega10_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
+					enum PP_OD_DPM_TABLE_COMMAND type,
+					long *input, uint32_t size)
+{
+	struct vega10_hwmgr *data = hwmgr->backend;
+	struct vega10_odn_clock_voltage_dependency_table *podn_vdd_dep_table;
+	struct vega10_single_dpm_table *dpm_table;
+
+	uint32_t input_clk;
+	uint32_t input_vol;
+	uint32_t input_level;
+	uint32_t i;
+
+	PP_ASSERT_WITH_CODE(input, "NULL user input for clock and voltage",
+				return -EINVAL);
+
+	if (!hwmgr->od_enabled) {
+		pr_info("OverDrive feature not enabled\n");
+		return -EINVAL;
+	}
+
+	if (PP_OD_EDIT_SCLK_VDDC_TABLE == type) {
+		dpm_table = &data->dpm_table.gfx_table;
+		podn_vdd_dep_table = &data->odn_dpm_table.vdd_dep_on_sclk;
+		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+	} else if (PP_OD_EDIT_MCLK_VDDC_TABLE == type) {
+		dpm_table = &data->dpm_table.mem_table;
+		podn_vdd_dep_table = &data->odn_dpm_table.vdd_dep_on_mclk;
+		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
+	} else if (PP_OD_RESTORE_DEFAULT_TABLE == type) {
+		memcpy(&(data->dpm_table), &(data->golden_dpm_table), sizeof(struct vega10_dpm_table));
+		vega10_odn_initial_default_setting(hwmgr);
+		return 0;
+	} else if (PP_OD_COMMIT_DPM_TABLE == type) {
+		vega10_check_dpm_table_updated(hwmgr);
+		return 0;
+	} else {
+		return -EINVAL;
+	}
+
+	for (i = 0; i < size; i += 3) {
+		if (i + 3 > size || input[i] >= podn_vdd_dep_table->count) {
+			pr_info("invalid clock voltage input\n");
+			return 0;
+		}
+		input_level = input[i];
+		input_clk = input[i+1] * 100;
+		input_vol = input[i+2];
+
+		if (vega10_check_clk_voltage_valid(hwmgr, type, input_clk, input_vol)) {
+			dpm_table->dpm_levels[input_level].value = input_clk;
+			podn_vdd_dep_table->entries[input_level].clk = input_clk;
+			podn_vdd_dep_table->entries[input_level].vddc = input_vol;
+		} else {
+			return -EINVAL;
+		}
+	}
+	vega10_odn_update_soc_table(hwmgr, type);
+	return 0;
+}
+
+static int vega10_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
+				PHM_PerformanceLevelDesignation designation, uint32_t index,
+				PHM_PerformanceLevel *level)
+{
+	const struct vega10_power_state *ps;
+	struct vega10_hwmgr *data;
+	uint32_t i;
+
+	if (level == NULL || hwmgr == NULL || state == NULL)
+		return -EINVAL;
+
+	data = hwmgr->backend;
+	ps = cast_const_phw_vega10_power_state(state);
+
+	i = index > ps->performance_level_count - 1 ?
+			ps->performance_level_count - 1 : index;
+
+	level->coreClock = ps->performance_levels[i].gfx_clock;
+	level->memory_clock = ps->performance_levels[i].mem_clock;
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.backend_init = vega10_hwmgr_backend_init,
 	.backend_fini = vega10_hwmgr_backend_fini,
@@ -5114,7 +4902,6 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.notify_smc_display_config_after_ps_adjustment =
 			vega10_notify_smc_display_config_after_ps_adjustment,
 	.force_dpm_level = vega10_dpm_force_dpm_level,
-	.get_temperature = vega10_thermal_get_temperature,
 	.stop_thermal_controller = vega10_thermal_stop_thermal_controller,
 	.get_fan_speed_info = vega10_fan_ctrl_get_fan_speed_info,
 	.get_fan_speed_percent = vega10_fan_ctrl_get_fan_speed_percent,
@@ -5143,18 +4930,26 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 			vega10_check_smc_update_required_for_display_configuration,
 	.power_off_asic = vega10_power_off_asic,
 	.disable_smc_firmware_ctf = vega10_thermal_disable_alert,
-	.set_power_profile_state = vega10_set_power_profile_state,
 	.get_sclk_od = vega10_get_sclk_od,
 	.set_sclk_od = vega10_set_sclk_od,
 	.get_mclk_od = vega10_get_mclk_od,
 	.set_mclk_od = vega10_set_mclk_od,
 	.avfs_control = vega10_avfs_enable,
+	.notify_cac_buffer_info = vega10_notify_cac_buffer_info,
+	.get_thermal_temperature_range = vega10_get_thermal_temperature_range,
+	.register_irq_handlers = smu9_register_irq_handlers,
+	.start_thermal_controller = vega10_start_thermal_controller,
+	.get_power_profile_mode = vega10_get_power_profile_mode,
+	.set_power_profile_mode = vega10_set_power_profile_mode,
+	.set_power_limit = vega10_set_power_limit,
+	.odn_edit_dpm_table = vega10_odn_edit_dpm_table,
+	.get_performance_level = vega10_get_performance_level,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
 	hwmgr->hwmgr_func = &vega10_hwmgr_funcs;
 	hwmgr->pptable_func = &vega10_pptable_funcs;
-	pp_vega10_thermal_initialize(hwmgr);
+
 	return 0;
 }

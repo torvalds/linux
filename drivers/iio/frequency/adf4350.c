@@ -374,7 +374,6 @@ static const struct iio_chan_spec adf4350_chan = {
 
 static const struct iio_info adf4350_info = {
 	.debugfs_reg_access = &adf4350_reg_access,
-	.driver_module = THIS_MODULE,
 };
 
 #ifdef CONFIG_OF
@@ -389,7 +388,7 @@ static struct adf4350_platform_data *adf4350_parse_dt(struct device *dev)
 	if (!pdata)
 		return NULL;
 
-	strncpy(&pdata->name[0], np->name, SPI_NAME_SIZE - 1);
+	snprintf(&pdata->name[0], SPI_NAME_SIZE - 1, "%pOFn", np);
 
 	tmp = 10000;
 	of_property_read_u32(np, "adi,channel-spacing", &tmp);

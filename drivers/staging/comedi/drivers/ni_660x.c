@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Hardware driver for NI 660x devices
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
  * Driver: ni_660x
  * Description: National Instruments 660x counter/timer boards
  * Devices: [National Instruments] PCI-6601 (ni_660x), PCI-6602, PXI-6602,
- *   PXI-6608, PCI-6624, PXI-6624
+ *   PCI-6608, PXI-6608, PCI-6624, PXI-6624
  * Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
  *   Herman.Bruyninckx@mech.kuleuven.ac.be,
  *   Wim.Meeussen@mech.kuleuven.ac.be,
@@ -40,6 +31,7 @@
 
 #include "mite.h"
 #include "ni_tio.h"
+#include "ni_routes.h"
 
 /* See Register-Level Programmer Manual page 3.1 */
 enum ni_660x_register {
@@ -210,6 +202,7 @@ enum ni_660x_boardid {
 	BOARD_PCI6601,
 	BOARD_PCI6602,
 	BOARD_PXI6602,
+	BOARD_PCI6608,
 	BOARD_PXI6608,
 	BOARD_PCI6624,
 	BOARD_PXI6624
@@ -231,6 +224,10 @@ static const struct ni_660x_board ni_660x_boards[] = {
 	},
 	[BOARD_PXI6602] = {
 		.name		= "PXI-6602",
+		.n_chips	= 2,
+	},
+	[BOARD_PCI6608] = {
+		.name		= "PCI-6608",
 		.n_chips	= 2,
 	},
 	[BOARD_PXI6608] = {
@@ -268,6 +265,7 @@ struct ni_660x_private {
 	unsigned int dma_cfg[NI660X_MAX_CHIPS];
 	unsigned int io_cfg[NI660X_NUM_PFI_CHANNELS];
 	u64 io_dir;
+	struct ni_route_tables routing_tables;
 };
 
 static void ni_660x_write(struct comedi_device *dev, unsigned int chip,
@@ -570,6 +568,10 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 	unsigned int idle_chip = 0;
 	unsigned int bits;
 
+	if (chan >= NI_PFI(0))
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
+
 	if (board->n_chips > 1) {
 		if (out_sel == NI_660X_PFI_OUTPUT_COUNTER &&
 		    chan >= 8 && chan <= 23) {
@@ -598,10 +600,53 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 	ni_660x_write(dev, active_chip, bits, NI660X_IO_CFG(chan));
 }
 
+static void ni_660x_set_pfi_direction(struct comedi_device *dev,
+				      unsigned int chan,
+				      unsigned int direction)
+{
+	struct ni_660x_private *devpriv = dev->private;
+	u64 bit;
+
+	if (chan >= NI_PFI(0))
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
+
+	bit = 1ULL << chan;
+
+	if (direction == COMEDI_OUTPUT) {
+		devpriv->io_dir |= bit;
+		/* reset the output to currently assigned output value */
+		ni_660x_select_pfi_output(dev, chan, devpriv->io_cfg[chan]);
+	} else {
+		devpriv->io_dir &= ~bit;
+		/* set pin to high-z; do not change currently assigned route */
+		ni_660x_select_pfi_output(dev, chan, 0);
+	}
+}
+
+static unsigned int ni_660x_get_pfi_direction(struct comedi_device *dev,
+					      unsigned int chan)
+{
+	struct ni_660x_private *devpriv = dev->private;
+	u64 bit;
+
+	if (chan >= NI_PFI(0))
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
+
+	bit = 1ULL << chan;
+
+	return (devpriv->io_dir & bit) ? COMEDI_OUTPUT : COMEDI_INPUT;
+}
+
 static int ni_660x_set_pfi_routing(struct comedi_device *dev,
 				   unsigned int chan, unsigned int source)
 {
 	struct ni_660x_private *devpriv = dev->private;
+
+	if (chan >= NI_PFI(0))
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
 
 	switch (source) {
 	case NI_660X_PFI_OUTPUT_COUNTER:
@@ -616,9 +661,35 @@ static int ni_660x_set_pfi_routing(struct comedi_device *dev,
 	}
 
 	devpriv->io_cfg[chan] = source;
-	if (devpriv->io_dir & (1ULL << chan))
+	if (ni_660x_get_pfi_direction(dev, chan) == COMEDI_OUTPUT)
 		ni_660x_select_pfi_output(dev, chan, devpriv->io_cfg[chan]);
 	return 0;
+}
+
+static int ni_660x_get_pfi_routing(struct comedi_device *dev, unsigned int chan)
+{
+	struct ni_660x_private *devpriv = dev->private;
+
+	if (chan >= NI_PFI(0))
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
+
+	return devpriv->io_cfg[chan];
+}
+
+static void ni_660x_set_pfi_filter(struct comedi_device *dev,
+				   unsigned int chan, unsigned int value)
+{
+	unsigned int val;
+
+	if (chan >= NI_PFI(0))
+		/* allow new and old names of pfi channels to work. */
+		chan -= NI_PFI(0);
+
+	val = ni_660x_read(dev, 0, NI660X_IO_CFG(chan));
+	val &= ~NI660X_IO_CFG_IN_SEL_MASK(chan);
+	val |= NI660X_IO_CFG_IN_SEL(chan, value);
+	ni_660x_write(dev, 0, val, NI660X_IO_CFG(chan));
 }
 
 static int ni_660x_dio_insn_config(struct comedi_device *dev,
@@ -626,26 +697,20 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	struct ni_660x_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	u64 bit = 1ULL << chan;
-	unsigned int val;
 	int ret;
 
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		devpriv->io_dir |= bit;
-		ni_660x_select_pfi_output(dev, chan, devpriv->io_cfg[chan]);
+		ni_660x_set_pfi_direction(dev, chan, COMEDI_OUTPUT);
 		break;
 
 	case INSN_CONFIG_DIO_INPUT:
-		devpriv->io_dir &= ~bit;
-		ni_660x_select_pfi_output(dev, chan, 0);	/* high-z */
+		ni_660x_set_pfi_direction(dev, chan, COMEDI_INPUT);
 		break;
 
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (devpriv->io_dir & bit) ? COMEDI_OUTPUT
-						  : COMEDI_INPUT;
+		data[1] = ni_660x_get_pfi_direction(dev, chan);
 		break;
 
 	case INSN_CONFIG_SET_ROUTING:
@@ -655,14 +720,11 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 		break;
 
 	case INSN_CONFIG_GET_ROUTING:
-		data[1] = devpriv->io_cfg[chan];
+		data[1] = ni_660x_get_pfi_routing(dev, chan);
 		break;
 
 	case INSN_CONFIG_FILTER:
-		val = ni_660x_read(dev, 0, NI660X_IO_CFG(chan));
-		val &= ~NI660X_IO_CFG_IN_SEL_MASK(chan);
-		val |= NI660X_IO_CFG_IN_SEL(chan, data[1]);
-		ni_660x_write(dev, 0, val, NI660X_IO_CFG(chan));
+		ni_660x_set_pfi_filter(dev, chan, data[1]);
 		break;
 
 	default:
@@ -670,6 +732,240 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 	}
 
 	return insn->n;
+}
+
+static unsigned int _ni_get_valid_routes(struct comedi_device *dev,
+					 unsigned int n_pairs,
+					 unsigned int *pair_data)
+{
+	struct ni_660x_private *devpriv = dev->private;
+
+	return ni_get_valid_routes(&devpriv->routing_tables, n_pairs,
+				   pair_data);
+}
+
+/*
+ * Retrieves the current source of the output selector for the given
+ * destination.  If the terminal for the destination is not already configured
+ * as an output, this function returns -EINVAL as error.
+ *
+ * Return: The register value of the destination output selector;
+ *	   -EINVAL if terminal is not configured for output.
+ */
+static inline int get_output_select_source(int dest, struct comedi_device *dev)
+{
+	struct ni_660x_private *devpriv = dev->private;
+	int reg = -1;
+
+	if (channel_is_pfi(dest)) {
+		if (ni_660x_get_pfi_direction(dev, dest) == COMEDI_OUTPUT)
+			reg = ni_660x_get_pfi_routing(dev, dest);
+	} else if (channel_is_rtsi(dest)) {
+		dev_dbg(dev->class_dev,
+			"%s: unhandled rtsi destination (%d) queried\n",
+			__func__, dest);
+		/*
+		 * The following can be enabled when RTSI routing info is
+		 * determined (not currently documented):
+		 * if (ni_get_rtsi_direction(dev, dest) == COMEDI_OUTPUT) {
+		 *	reg = ni_get_rtsi_routing(dev, dest);
+
+		 *	if (reg == NI_RTSI_OUTPUT_RGOUT0) {
+		 *		dest = NI_RGOUT0; ** prepare for lookup below **
+		 *		reg = get_rgout0_reg(dev);
+		 *	} else if (reg >= NI_RTSI_OUTPUT_RTSI_BRD(0) &&
+		 *		   reg <= NI_RTSI_OUTPUT_RTSI_BRD(3)) {
+		 *		const int i = reg - NI_RTSI_OUTPUT_RTSI_BRD(0);
+
+		 *		dest = NI_RTSI_BRD(i); ** prepare for lookup **
+		 *		reg = get_ith_rtsi_brd_reg(i, dev);
+		 *	}
+		 * }
+		 */
+	} else if (channel_is_ctr(dest)) {
+		reg = ni_tio_get_routing(devpriv->counter_dev, dest);
+	} else {
+		dev_dbg(dev->class_dev,
+			"%s: unhandled destination (%d) queried\n",
+			__func__, dest);
+	}
+
+	if (reg >= 0)
+		return ni_find_route_source(CR_CHAN(reg), dest,
+					    &devpriv->routing_tables);
+	return -EINVAL;
+}
+
+/*
+ * Test a route:
+ *
+ * Return: -1 if not connectible;
+ *	    0 if connectible and not connected;
+ *	    1 if connectible and connected.
+ */
+static inline int test_route(unsigned int src, unsigned int dest,
+			     struct comedi_device *dev)
+{
+	struct ni_660x_private *devpriv = dev->private;
+	s8 reg = ni_route_to_register(CR_CHAN(src), dest,
+				      &devpriv->routing_tables);
+
+	if (reg < 0)
+		return -1;
+	if (get_output_select_source(dest, dev) != CR_CHAN(src))
+		return 0;
+	return 1;
+}
+
+/* Connect the actual route.  */
+static inline int connect_route(unsigned int src, unsigned int dest,
+				struct comedi_device *dev)
+{
+	struct ni_660x_private *devpriv = dev->private;
+	s8 reg = ni_route_to_register(CR_CHAN(src), dest,
+				      &devpriv->routing_tables);
+	s8 current_src;
+
+	if (reg < 0)
+		/* route is not valid */
+		return -EINVAL;
+
+	current_src = get_output_select_source(dest, dev);
+	if (current_src == CR_CHAN(src))
+		return -EALREADY;
+	if (current_src >= 0)
+		/* destination mux is already busy. complain, don't overwrite */
+		return -EBUSY;
+
+	/* The route is valid and available. Now connect... */
+	if (channel_is_pfi(CR_CHAN(dest))) {
+		/*
+		 * set routing and then direction so that the output does not
+		 * first get generated with the wrong pin
+		 */
+		ni_660x_set_pfi_routing(dev, dest, reg);
+		ni_660x_set_pfi_direction(dev, dest, COMEDI_OUTPUT);
+	} else if (channel_is_rtsi(CR_CHAN(dest))) {
+		dev_dbg(dev->class_dev, "%s: unhandled rtsi destination (%d)\n",
+			__func__, dest);
+		return -EINVAL;
+		/*
+		 * The following can be enabled when RTSI routing info is
+		 * determined (not currently documented):
+		 * if (reg == NI_RTSI_OUTPUT_RGOUT0) {
+		 *	int ret = incr_rgout0_src_use(src, dev);
+
+		 *	if (ret < 0)
+		 *		return ret;
+		 * } else if (ni_rtsi_route_requires_mux(reg)) {
+		 *	** Attempt to allocate and  route (src->brd) **
+		 *	int brd = incr_rtsi_brd_src_use(src, dev);
+
+		 *	if (brd < 0)
+		 *		return brd;
+
+		 *	** Now lookup the register value for (brd->dest) **
+		 *	reg = ni_lookup_route_register(brd, CR_CHAN(dest),
+		 *				       &devpriv->routing_tables);
+		 * }
+
+		 * ni_set_rtsi_direction(dev, dest, COMEDI_OUTPUT);
+		 * ni_set_rtsi_routing(dev, dest, reg);
+		 */
+	} else if (channel_is_ctr(CR_CHAN(dest))) {
+		/*
+		 * we are adding back the channel modifier info to set
+		 * invert/edge info passed by the user
+		 */
+		ni_tio_set_routing(devpriv->counter_dev, dest,
+				   reg | (src & ~CR_CHAN(-1)));
+	} else {
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static inline int disconnect_route(unsigned int src, unsigned int dest,
+				   struct comedi_device *dev)
+{
+	struct ni_660x_private *devpriv = dev->private;
+	s8 reg = ni_route_to_register(CR_CHAN(src), CR_CHAN(dest),
+				      &devpriv->routing_tables);
+
+	if (reg < 0)
+		/* route is not valid */
+		return -EINVAL;
+	if (get_output_select_source(dest, dev) != CR_CHAN(src))
+		/* cannot disconnect something not connected */
+		return -EINVAL;
+
+	/* The route is valid and is connected.  Now disconnect... */
+	if (channel_is_pfi(CR_CHAN(dest))) {
+		unsigned int source = ((CR_CHAN(dest) - NI_PFI(0)) < 8)
+					? NI_660X_PFI_OUTPUT_DIO
+					: NI_660X_PFI_OUTPUT_COUNTER;
+
+		/* set the pfi to high impedance, and disconnect */
+		ni_660x_set_pfi_direction(dev, dest, COMEDI_INPUT);
+		ni_660x_set_pfi_routing(dev, dest, source);
+	} else if (channel_is_rtsi(CR_CHAN(dest))) {
+		dev_dbg(dev->class_dev, "%s: unhandled rtsi destination (%d)\n",
+			__func__, dest);
+		return -EINVAL;
+		/*
+		 * The following can be enabled when RTSI routing info is
+		 * determined (not currently documented):
+		 * if (reg == NI_RTSI_OUTPUT_RGOUT0) {
+		 *	int ret = decr_rgout0_src_use(src, dev);
+
+		 *	if (ret < 0)
+		 *		return ret;
+		 * } else if (ni_rtsi_route_requires_mux(reg)) {
+		 *	** find which RTSI_BRD line is source for rtsi pin **
+		 *	int brd = ni_find_route_source(
+		 *		ni_get_rtsi_routing(dev, dest), CR_CHAN(dest),
+		 *		&devpriv->routing_tables);
+
+		 *	if (brd < 0)
+		 *		return brd;
+
+		 *	** decrement/disconnect RTSI_BRD line from source **
+		 *	decr_rtsi_brd_src_use(src, brd, dev);
+		 * }
+
+		 * ** set rtsi output selector to default state **
+		 * reg = default_rtsi_routing[CR_CHAN(dest) - TRIGGER_LINE(0)];
+		 * ni_set_rtsi_direction(dev, dest, COMEDI_INPUT);
+		 * ni_set_rtsi_routing(dev, dest, reg);
+		 */
+	} else if (channel_is_ctr(CR_CHAN(dest))) {
+		ni_tio_unset_routing(devpriv->counter_dev, dest);
+	} else {
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int ni_global_insn_config(struct comedi_device *dev,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	switch (data[0]) {
+	case INSN_DEVICE_CONFIG_TEST_ROUTE:
+		data[0] = test_route(data[1], data[2], dev);
+		return 2;
+	case INSN_DEVICE_CONFIG_CONNECT_ROUTE:
+		return connect_route(data[1], data[2], dev);
+	case INSN_DEVICE_CONFIG_DISCONNECT_ROUTE:
+		return disconnect_route(data[1], data[2], dev);
+	/*
+	 * This case is already handled one level up.
+	 * case INSN_DEVICE_CONFIG_GET_ROUTES:
+	 */
+	default:
+		return -EINVAL;
+	}
+	return 1;
 }
 
 static void ni_660x_init_tio_chips(struct comedi_device *dev,
@@ -739,12 +1035,30 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 
 	ni_660x_init_tio_chips(dev, board->n_chips);
 
+	/* prepare the device for globally-named routes. */
+	if (ni_assign_device_routes("ni_660x", board->name,
+				    &devpriv->routing_tables) < 0) {
+		dev_warn(dev->class_dev, "%s: %s device has no signal routing table.\n",
+			 __func__, board->name);
+		dev_warn(dev->class_dev, "%s: High level NI signal names will not be available for this %s board.\n",
+			 __func__, board->name);
+	} else {
+		/*
+		 * only(?) assign insn_device_config if we have global names for
+		 * this device.
+		 */
+		dev->insn_device_config = ni_global_insn_config;
+		dev->get_valid_routes = _ni_get_valid_routes;
+	}
+
 	n_counters = board->n_chips * NI660X_COUNTERS_PER_CHIP;
 	gpct_dev = ni_gpct_device_construct(dev,
 					    ni_660x_gpct_write,
 					    ni_660x_gpct_read,
 					    ni_gpct_variant_660x,
-					    n_counters);
+					    n_counters,
+					    NI660X_COUNTERS_PER_CHIP,
+					    &devpriv->routing_tables);
 	if (!gpct_dev)
 		return -ENOMEM;
 	devpriv->counter_dev = gpct_dev;
@@ -831,7 +1145,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 					      : NI_660X_PFI_OUTPUT_COUNTER;
 
 		ni_660x_set_pfi_routing(dev, i, source);
-		ni_660x_select_pfi_output(dev, i, 0);		/* high-z */
+		ni_660x_set_pfi_direction(dev, i, COMEDI_INPUT);/* high-z */
 	}
 
 	/* Counter subdevices (4 NI TIO General Purpose Counters per chip) */
@@ -839,9 +1153,6 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		s = &dev->subdevices[subdev++];
 		if (i < n_counters) {
 			struct ni_gpct *counter = &gpct_dev->counters[i];
-
-			counter->chip_index = i / NI660X_COUNTERS_PER_CHIP;
-			counter->counter_index = i % NI660X_COUNTERS_PER_CHIP;
 
 			s->type		= COMEDI_SUBD_COUNTER;
 			s->subdev_flags	= SDF_READABLE | SDF_WRITABLE |
@@ -924,6 +1235,7 @@ static const struct pci_device_id ni_660x_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x1310), BOARD_PCI6602 },
 	{ PCI_VDEVICE(NI, 0x1360), BOARD_PXI6602 },
 	{ PCI_VDEVICE(NI, 0x2c60), BOARD_PCI6601 },
+	{ PCI_VDEVICE(NI, 0x2db0), BOARD_PCI6608 },
 	{ PCI_VDEVICE(NI, 0x2cc0), BOARD_PXI6608 },
 	{ PCI_VDEVICE(NI, 0x1e30), BOARD_PCI6624 },
 	{ PCI_VDEVICE(NI, 0x1e40), BOARD_PXI6624 },

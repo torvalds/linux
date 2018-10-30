@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * include/uapi/linux/devlink.h - Network physical device Netlink interface
  * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
@@ -69,6 +70,24 @@ enum devlink_command {
 	DEVLINK_CMD_DPIPE_ENTRIES_GET,
 	DEVLINK_CMD_DPIPE_HEADERS_GET,
 	DEVLINK_CMD_DPIPE_TABLE_COUNTERS_SET,
+	DEVLINK_CMD_RESOURCE_SET,
+	DEVLINK_CMD_RESOURCE_DUMP,
+
+	/* Hot driver reload, makes configuration changes take place. The
+	 * devlink instance is not released during the process.
+	 */
+	DEVLINK_CMD_RELOAD,
+
+	DEVLINK_CMD_PARAM_GET,		/* can dump */
+	DEVLINK_CMD_PARAM_SET,
+	DEVLINK_CMD_PARAM_NEW,
+	DEVLINK_CMD_PARAM_DEL,
+
+	DEVLINK_CMD_REGION_GET,
+	DEVLINK_CMD_REGION_SET,
+	DEVLINK_CMD_REGION_NEW,
+	DEVLINK_CMD_REGION_DEL,
+	DEVLINK_CMD_REGION_READ,
 
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
@@ -122,6 +141,26 @@ enum devlink_eswitch_inline_mode {
 enum devlink_eswitch_encap_mode {
 	DEVLINK_ESWITCH_ENCAP_MODE_NONE,
 	DEVLINK_ESWITCH_ENCAP_MODE_BASIC,
+};
+
+enum devlink_port_flavour {
+	DEVLINK_PORT_FLAVOUR_PHYSICAL, /* Any kind of a port physically
+					* facing the user.
+					*/
+	DEVLINK_PORT_FLAVOUR_CPU, /* CPU port */
+	DEVLINK_PORT_FLAVOUR_DSA, /* Distributed switch architecture
+				   * interconnect port.
+				   */
+};
+
+enum devlink_param_cmode {
+	DEVLINK_PARAM_CMODE_RUNTIME,
+	DEVLINK_PARAM_CMODE_DRIVERINIT,
+	DEVLINK_PARAM_CMODE_PERMANENT,
+
+	/* Add new configuration modes above */
+	__DEVLINK_PARAM_CMODE_MAX,
+	DEVLINK_PARAM_CMODE_MAX = __DEVLINK_PARAM_CMODE_MAX - 1
 };
 
 enum devlink_attr {
@@ -201,6 +240,45 @@ enum devlink_attr {
 	DEVLINK_ATTR_PAD,
 
 	DEVLINK_ATTR_ESWITCH_ENCAP_MODE,	/* u8 */
+	DEVLINK_ATTR_RESOURCE_LIST,		/* nested */
+	DEVLINK_ATTR_RESOURCE,			/* nested */
+	DEVLINK_ATTR_RESOURCE_NAME,		/* string */
+	DEVLINK_ATTR_RESOURCE_ID,		/* u64 */
+	DEVLINK_ATTR_RESOURCE_SIZE,		/* u64 */
+	DEVLINK_ATTR_RESOURCE_SIZE_NEW,		/* u64 */
+	DEVLINK_ATTR_RESOURCE_SIZE_VALID,	/* u8 */
+	DEVLINK_ATTR_RESOURCE_SIZE_MIN,		/* u64 */
+	DEVLINK_ATTR_RESOURCE_SIZE_MAX,		/* u64 */
+	DEVLINK_ATTR_RESOURCE_SIZE_GRAN,        /* u64 */
+	DEVLINK_ATTR_RESOURCE_UNIT,		/* u8 */
+	DEVLINK_ATTR_RESOURCE_OCC,		/* u64 */
+	DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_ID,	/* u64 */
+	DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_UNITS,/* u64 */
+
+	DEVLINK_ATTR_PORT_FLAVOUR,		/* u16 */
+	DEVLINK_ATTR_PORT_NUMBER,		/* u32 */
+	DEVLINK_ATTR_PORT_SPLIT_SUBPORT_NUMBER,	/* u32 */
+
+	DEVLINK_ATTR_PARAM,			/* nested */
+	DEVLINK_ATTR_PARAM_NAME,		/* string */
+	DEVLINK_ATTR_PARAM_GENERIC,		/* flag */
+	DEVLINK_ATTR_PARAM_TYPE,		/* u8 */
+	DEVLINK_ATTR_PARAM_VALUES_LIST,		/* nested */
+	DEVLINK_ATTR_PARAM_VALUE,		/* nested */
+	DEVLINK_ATTR_PARAM_VALUE_DATA,		/* dynamic */
+	DEVLINK_ATTR_PARAM_VALUE_CMODE,		/* u8 */
+
+	DEVLINK_ATTR_REGION_NAME,               /* string */
+	DEVLINK_ATTR_REGION_SIZE,               /* u64 */
+	DEVLINK_ATTR_REGION_SNAPSHOTS,          /* nested */
+	DEVLINK_ATTR_REGION_SNAPSHOT,           /* nested */
+	DEVLINK_ATTR_REGION_SNAPSHOT_ID,        /* u32 */
+
+	DEVLINK_ATTR_REGION_CHUNKS,             /* nested */
+	DEVLINK_ATTR_REGION_CHUNK,              /* nested */
+	DEVLINK_ATTR_REGION_CHUNK_DATA,         /* binary */
+	DEVLINK_ATTR_REGION_CHUNK_ADDR,         /* u64 */
+	DEVLINK_ATTR_REGION_CHUNK_LEN,          /* u64 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 
@@ -242,6 +320,10 @@ enum devlink_dpipe_header_id {
 	DEVLINK_DPIPE_HEADER_ETHERNET,
 	DEVLINK_DPIPE_HEADER_IPV4,
 	DEVLINK_DPIPE_HEADER_IPV6,
+};
+
+enum devlink_resource_unit {
+	DEVLINK_RESOURCE_UNIT_ENTRY,
 };
 
 #endif /* _UAPI_LINUX_DEVLINK_H_ */

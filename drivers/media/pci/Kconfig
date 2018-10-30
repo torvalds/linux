@@ -16,7 +16,6 @@ source "drivers/media/pci/sta2x11/Kconfig"
 source "drivers/media/pci/tw5864/Kconfig"
 source "drivers/media/pci/tw68/Kconfig"
 source "drivers/media/pci/tw686x/Kconfig"
-source "drivers/media/pci/zoran/Kconfig"
 endif
 
 if MEDIA_ANALOG_TV_SUPPORT
@@ -53,6 +52,8 @@ source "drivers/media/pci/ddbridge/Kconfig"
 source "drivers/media/pci/smipcie/Kconfig"
 source "drivers/media/pci/netup_unidvb/Kconfig"
 endif
+
+source "drivers/media/pci/intel/ipu3/Kconfig"
 
 endif #MEDIA_PCI_SUPPORT
 endif #PCI

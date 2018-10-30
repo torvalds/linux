@@ -185,7 +185,7 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	 * after the reserved blocks from the dt are processed.
 	 */
 	nblocks = (np) ? of_get_available_child_count(np) + 1 : 1;
-	rblocks = kzalloc((nblocks) * sizeof(*rblocks), GFP_KERNEL);
+	rblocks = kcalloc(nblocks, sizeof(*rblocks), GFP_KERNEL);
 	if (!rblocks)
 		return -ENOMEM;
 
@@ -264,8 +264,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	list_sort(NULL, &reserve_list, sram_reserve_cmp);
 
 	if (exports) {
-		sram->partition = devm_kzalloc(sram->dev,
-				       exports * sizeof(*sram->partition),
+		sram->partition = devm_kcalloc(sram->dev,
+				       exports, sizeof(*sram->partition),
 				       GFP_KERNEL);
 		if (!sram->partition) {
 			ret = -ENOMEM;
@@ -323,10 +323,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		cur_start = block->start + block->size;
 	}
 
- err_chunks:
-	if (child)
-		of_node_put(child);
-
+err_chunks:
+	of_node_put(child);
 	kfree(rblocks);
 
 	return ret;
@@ -391,15 +389,15 @@ static int sram_probe(struct platform_device *pdev)
 	if (IS_ERR(sram->pool))
 		return PTR_ERR(sram->pool);
 
-	ret = sram_reserve_regions(sram, res);
-	if (ret)
-		return ret;
-
 	sram->clk = devm_clk_get(sram->dev, NULL);
 	if (IS_ERR(sram->clk))
 		sram->clk = NULL;
 	else
 		clk_prepare_enable(sram->clk);
+
+	ret = sram_reserve_regions(sram, res);
+	if (ret)
+		goto err_disable_clk;
 
 	platform_set_drvdata(pdev, sram);
 
@@ -407,13 +405,21 @@ static int sram_probe(struct platform_device *pdev)
 	if (init_func) {
 		ret = init_func();
 		if (ret)
-			return ret;
+			goto err_free_partitions;
 	}
 
 	dev_dbg(sram->dev, "SRAM pool: %zu KiB @ 0x%p\n",
 		gen_pool_size(sram->pool) / 1024, sram->virt_base);
 
 	return 0;
+
+err_free_partitions:
+	sram_free_partitions(sram);
+err_disable_clk:
+	if (sram->clk)
+		clk_disable_unprepare(sram->clk);
+
+	return ret;
 }
 
 static int sram_remove(struct platform_device *pdev)

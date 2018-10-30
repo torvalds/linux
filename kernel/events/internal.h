@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _KERNEL_EVENTS_INTERNAL_H
 #define _KERNEL_EVENTS_INTERNAL_H
 
@@ -199,10 +200,6 @@ arch_perf_out_copy_user(void *dst, const void *src, unsigned long n)
 #endif
 
 DEFINE_OUTPUT_COPY(__output_copy_user, arch_perf_out_copy_user)
-
-/* Callchain handling */
-extern struct perf_callchain_entry *
-perf_callchain(struct perf_event *event, struct pt_regs *regs);
 
 static inline int get_recursion_context(int *recursion)
 {

@@ -167,10 +167,16 @@ static int fsl_guts_probe(struct platform_device *pdev)
 	} else {
 		soc_dev_attr.family = devm_kasprintf(dev, GFP_KERNEL, "QorIQ");
 	}
+	if (!soc_dev_attr.family)
+		return -ENOMEM;
 	soc_dev_attr.soc_id = devm_kasprintf(dev, GFP_KERNEL,
 					     "svr:0x%08x", svr);
+	if (!soc_dev_attr.soc_id)
+		return -ENOMEM;
 	soc_dev_attr.revision = devm_kasprintf(dev, GFP_KERNEL, "%d.%d",
 					       (svr >>  4) & 0xf, svr & 0xf);
+	if (!soc_dev_attr.revision)
+		return -ENOMEM;
 
 	soc_dev = soc_device_register(&soc_dev_attr);
 	if (IS_ERR(soc_dev))
@@ -213,6 +219,9 @@ static const struct of_device_id fsl_guts_of_match[] = {
 	{ .compatible = "fsl,ls1021a-dcfg", },
 	{ .compatible = "fsl,ls1043a-dcfg", },
 	{ .compatible = "fsl,ls2080a-dcfg", },
+	{ .compatible = "fsl,ls1088a-dcfg", },
+	{ .compatible = "fsl,ls1012a-dcfg", },
+	{ .compatible = "fsl,ls1046a-dcfg", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsl_guts_of_match);

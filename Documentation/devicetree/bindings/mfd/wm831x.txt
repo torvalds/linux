@@ -22,7 +22,6 @@ Required properties:
 
   - interrupts : The interrupt line the IRQ signal for the device is
     connected to.
-  - interrupt-parent : The parent interrupt controller.
 
   - interrupt-controller : wm831x devices contain interrupt controllers and
     may provide interrupt services to other devices.

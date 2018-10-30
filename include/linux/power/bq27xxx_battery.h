@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_BQ27X00_BATTERY_H__
 #define __LINUX_BQ27X00_BATTERY_H__
 
@@ -15,6 +16,7 @@ enum bq27xxx_chip {
 	BQ27520G2, /* bq27520G2 */
 	BQ27520G3, /* bq27520G3 */
 	BQ27520G4, /* bq27520G4 */
+	BQ27521, /* bq27521 */
 	BQ27530, /* bq27530, bq27531 */
 	BQ27531,
 	BQ27541, /* bq27541, bq27542, bq27546, bq27742 */
@@ -22,8 +24,10 @@ enum bq27xxx_chip {
 	BQ27546,
 	BQ27742,
 	BQ27545, /* bq27545 */
-	BQ27421, /* bq27421, bq27425, bq27441, bq27621 */
+	BQ27411,
+	BQ27421, /* bq27421, bq27441, bq27621 */
 	BQ27425,
+	BQ27426,
 	BQ27441,
 	BQ27621,
 };

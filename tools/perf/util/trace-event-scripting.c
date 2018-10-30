@@ -66,7 +66,7 @@ static int python_start_script_unsupported(const char *script __maybe_unused,
 	return -1;
 }
 
-static int python_generate_script_unsupported(struct pevent *pevent
+static int python_generate_script_unsupported(struct tep_handle *pevent
 					      __maybe_unused,
 					      const char *outfile
 					      __maybe_unused)
@@ -98,7 +98,7 @@ static void register_python_scripting(struct scripting_ops *scripting_ops)
 	}
 }
 
-#ifdef NO_LIBPYTHON
+#ifndef HAVE_LIBPYTHON_SUPPORT
 void setup_python_scripting(void)
 {
 	register_python_scripting(&python_scripting_unsupported_ops);
@@ -130,7 +130,7 @@ static int perl_start_script_unsupported(const char *script __maybe_unused,
 	return -1;
 }
 
-static int perl_generate_script_unsupported(struct pevent *pevent
+static int perl_generate_script_unsupported(struct tep_handle *pevent
 					    __maybe_unused,
 					    const char *outfile __maybe_unused)
 {
@@ -161,7 +161,7 @@ static void register_perl_scripting(struct scripting_ops *scripting_ops)
 	}
 }
 
-#ifdef NO_LIBPERL
+#ifndef HAVE_LIBPERL_SUPPORT
 void setup_perl_scripting(void)
 {
 	register_perl_scripting(&perl_scripting_unsupported_ops);

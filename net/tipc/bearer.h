@@ -94,6 +94,8 @@ struct tipc_bearer;
  * @priority: default link (and bearer) priority
  * @tolerance: default time (in ms) before declaring link failure
  * @window: default window (in packets) before declaring link congestion
+ * @mtu: max packet size bearer can support for media type not dependent on
+ * underlying device MTU
  * @type_id: TIPC media identifier
  * @hwaddr_len: TIPC media address len
  * @name: media name
@@ -118,6 +120,7 @@ struct tipc_media {
 	u32 priority;
 	u32 tolerance;
 	u32 window;
+	u32 mtu;
 	u32 type_id;
 	u32 hwaddr_len;
 	char name[TIPC_MAX_MEDIA_NAME];
@@ -159,7 +162,7 @@ struct tipc_bearer {
 	u32 tolerance;
 	u32 domain;
 	u32 identity;
-	struct tipc_link_req *link_req;
+	struct tipc_discoverer *disc;
 	char net_plane;
 	unsigned long up;
 };
@@ -188,15 +191,19 @@ extern struct tipc_media udp_media_info;
 #endif
 
 int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info);
+int __tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info);
+int __tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info);
+int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_add(struct sk_buff *skb, struct genl_info *info);
 
 int tipc_nl_media_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_media_get(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info);
+int __tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info);
 
 int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);

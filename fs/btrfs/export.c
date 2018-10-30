@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
+
 #include <linux/fs.h>
 #include <linux/types.h>
 #include "ctree.h"
@@ -31,7 +33,7 @@ static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	type = FILEID_BTRFS_WITHOUT_PARENT;
 
 	fid->objectid = btrfs_ino(BTRFS_I(inode));
-	fid->root_objectid = BTRFS_I(inode)->root->objectid;
+	fid->root_objectid = BTRFS_I(inode)->root->root_key.objectid;
 	fid->gen = inode->i_generation;
 
 	if (parent) {
@@ -39,7 +41,7 @@ static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 
 		fid->parent_objectid = BTRFS_I(parent)->location.objectid;
 		fid->parent_gen = parent->i_generation;
-		parent_root_id = BTRFS_I(parent)->root->objectid;
+		parent_root_id = BTRFS_I(parent)->root->root_key.objectid;
 
 		if (parent_root_id != fid->root_objectid) {
 			fid->parent_root_objectid = parent_root_id;
@@ -282,11 +284,6 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 		name_len = btrfs_inode_ref_name_len(leaf, iref);
 	}
 
-	ret = btrfs_is_name_len_valid(leaf, path->slots[0], name_ptr, name_len);
-	if (!ret) {
-		btrfs_free_path(path);
-		return -EIO;
-	}
 	read_extent_buffer(leaf, name, name_ptr, name_len);
 	btrfs_free_path(path);
 

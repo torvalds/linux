@@ -7,14 +7,17 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/i2c.h>
+#include <linux/i2c-smbus.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
 
 #define XLP9XX_I2C_DIV			0x0
 #define XLP9XX_I2C_CTRL			0x1
@@ -34,6 +37,8 @@
 #define XLP9XX_I2C_WAITCNT		0xF
 #define XLP9XX_I2C_TIMEOUT		0X10
 #define XLP9XX_I2C_GENCALLADDR		0x11
+
+#define XLP9XX_I2C_STATUS_BUSY		BIT(0)
 
 #define XLP9XX_I2C_CMD_START		BIT(7)
 #define XLP9XX_I2C_CMD_STOP		BIT(6)
@@ -70,6 +75,7 @@
 #define XLP9XX_I2C_HIGH_FREQ		400000
 #define XLP9XX_I2C_FIFO_SIZE		0x80U
 #define XLP9XX_I2C_TIMEOUT_MS		1000
+#define XLP9XX_I2C_BUSY_TIMEOUT		50
 
 #define XLP9XX_I2C_FIFO_WCNT_MASK	0xff
 #define XLP9XX_I2C_STATUS_ERRMASK	(XLP9XX_I2C_INTEN_ARLOST | \
@@ -79,11 +85,16 @@ struct xlp9xx_i2c_dev {
 	struct device *dev;
 	struct i2c_adapter adapter;
 	struct completion msg_complete;
+	struct i2c_smbus_alert_setup alert_data;
+	struct i2c_client *ara;
 	int irq;
 	bool msg_read;
+	bool len_recv;
+	bool client_pec;
 	u32 __iomem *base;
 	u32 msg_buf_remaining;
 	u32 msg_len;
+	u32 ip_clk_hz;
 	u32 clk_hz;
 	u32 msg_err;
 	u8 *msg_buf;
@@ -121,7 +132,16 @@ static void xlp9xx_i2c_update_rx_fifo_thres(struct xlp9xx_i2c_dev *priv)
 {
 	u32 thres;
 
-	thres = min(priv->msg_buf_remaining, XLP9XX_I2C_FIFO_SIZE);
+	if (priv->len_recv)
+		/* interrupt after the first read to examine
+		 * the length byte before proceeding further
+		 */
+		thres = 1;
+	else if (priv->msg_buf_remaining > XLP9XX_I2C_FIFO_SIZE)
+		thres = XLP9XX_I2C_FIFO_SIZE;
+	else
+		thres = priv->msg_buf_remaining;
+
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_MFIFOCTRL,
 			     thres << XLP9XX_I2C_MFIFOCTRL_HITH_SHIFT);
 }
@@ -138,13 +158,71 @@ static void xlp9xx_i2c_fill_tx_fifo(struct xlp9xx_i2c_dev *priv)
 	priv->msg_buf += len;
 }
 
+static void xlp9xx_i2c_update_rlen(struct xlp9xx_i2c_dev *priv)
+{
+	u32 val, len;
+
+	/*
+	 * Update receive length. Re-read len to get the latest value,
+	 * and then add 4 to have a minimum value that can be safely
+	 * written. This is to account for the byte read above, the
+	 * transfer in progress and any delays in the register I/O
+	 */
+	val = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_CTRL);
+	len = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_FIFOWCNT) &
+				  XLP9XX_I2C_FIFO_WCNT_MASK;
+	len = max_t(u32, priv->msg_len, len + 4);
+	if (len >= I2C_SMBUS_BLOCK_MAX + 2)
+		return;
+	val = (val & ~XLP9XX_I2C_CTRL_MCTLEN_MASK) |
+			(len << XLP9XX_I2C_CTRL_MCTLEN_SHIFT);
+	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CTRL, val);
+}
+
 static void xlp9xx_i2c_drain_rx_fifo(struct xlp9xx_i2c_dev *priv)
 {
 	u32 len, i;
-	u8 *buf = priv->msg_buf;
+	u8 rlen, *buf = priv->msg_buf;
 
 	len = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_FIFOWCNT) &
 				  XLP9XX_I2C_FIFO_WCNT_MASK;
+	if (!len)
+		return;
+	if (priv->len_recv) {
+		/* read length byte */
+		rlen = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_MRXFIFO);
+
+		/*
+		 * We expect at least 2 interrupts for I2C_M_RECV_LEN
+		 * transactions. The length is updated during the first
+		 * interrupt, and the buffer contents are only copied
+		 * during subsequent interrupts. If in case the interrupts
+		 * get merged we would complete the transaction without
+		 * copying out the bytes from RX fifo. To avoid this now we
+		 * drain the fifo as and when data is available.
+		 * We drained the rlen byte already, decrement total length
+		 * by one.
+		 */
+
+		len--;
+		if (rlen > I2C_SMBUS_BLOCK_MAX || rlen == 0) {
+			rlen = 0;	/*abort transfer */
+			priv->msg_buf_remaining = 0;
+			priv->msg_len = 0;
+			xlp9xx_i2c_update_rlen(priv);
+			return;
+		}
+
+		*buf++ = rlen;
+		if (priv->client_pec)
+			++rlen; /* account for error check byte */
+		/* update remaining bytes and message length */
+		priv->msg_buf_remaining = rlen;
+		priv->msg_len = rlen + 1;
+		xlp9xx_i2c_update_rlen(priv);
+		priv->len_recv = false;
+	}
+
 	len = min(priv->msg_buf_remaining, len);
 	for (i = 0; i < len; i++, buf++)
 		*buf = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_MRXFIFO);
@@ -205,6 +283,26 @@ xfer_done:
 	return IRQ_HANDLED;
 }
 
+static int xlp9xx_i2c_check_bus_status(struct xlp9xx_i2c_dev *priv)
+{
+	u32 status;
+	u32 busy_timeout = XLP9XX_I2C_BUSY_TIMEOUT;
+
+	while (busy_timeout) {
+		status = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_STATUS);
+		if ((status & XLP9XX_I2C_STATUS_BUSY) == 0)
+			break;
+
+		busy_timeout--;
+		usleep_range(1000, 1100);
+	}
+
+	if (!busy_timeout)
+		return -EIO;
+
+	return 0;
+}
+
 static int xlp9xx_i2c_init(struct xlp9xx_i2c_dev *priv)
 {
 	u32 prescale;
@@ -213,7 +311,7 @@ static int xlp9xx_i2c_init(struct xlp9xx_i2c_dev *priv)
 	 * The controller uses 5 * SCL clock internally.
 	 * So prescale value should be divided by 5.
 	 */
-	prescale = DIV_ROUND_UP(XLP9XX_I2C_IP_CLK_FREQ, priv->clk_hz);
+	prescale = DIV_ROUND_UP(priv->ip_clk_hz, priv->clk_hz);
 	prescale = ((prescale - 8) / 5) - 1;
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CTRL, XLP9XX_I2C_CTRL_RST);
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CTRL, XLP9XX_I2C_CTRL_EN |
@@ -228,7 +326,7 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 			       int last_msg)
 {
 	unsigned long timeleft;
-	u32 intr_mask, cmd, val;
+	u32 intr_mask, cmd, val, len;
 
 	priv->msg_buf = msg->buf;
 	priv->msg_buf_remaining = priv->msg_len = msg->len;
@@ -239,10 +337,6 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 	/* Reset FIFO */
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_MFIFOCTRL,
 			     XLP9XX_I2C_MFIFOCTRL_RST);
-
-	/* set FIFO threshold if reading */
-	if (priv->msg_read)
-		xlp9xx_i2c_update_rx_fifo_thres(priv);
 
 	/* set slave addr */
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_SLAVEADDR,
@@ -261,9 +355,17 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 	else
 		val &= ~XLP9XX_I2C_CTRL_ADDMODE;
 
+	priv->len_recv = msg->flags & I2C_M_RECV_LEN;
+	len = priv->len_recv ? I2C_SMBUS_BLOCK_MAX + 2 : msg->len;
+	priv->client_pec = msg->flags & I2C_CLIENT_PEC;
+
+	/* set FIFO threshold if reading */
+	if (priv->msg_read)
+		xlp9xx_i2c_update_rx_fifo_thres(priv);
+
 	/* set data length to be transferred */
 	val = (val & ~XLP9XX_I2C_CTRL_MCTLEN_MASK) |
-	      (msg->len << XLP9XX_I2C_CTRL_MCTLEN_SHIFT);
+	      (len << XLP9XX_I2C_CTRL_MCTLEN_SHIFT);
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CTRL, val);
 
 	/* fill fifo during tx */
@@ -288,7 +390,9 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 
 	/* set cmd reg */
 	cmd = XLP9XX_I2C_CMD_START;
-	cmd |= (priv->msg_read ? XLP9XX_I2C_CMD_READ : XLP9XX_I2C_CMD_WRITE);
+	if (msg->len)
+		cmd |= (priv->msg_read ?
+			XLP9XX_I2C_CMD_READ : XLP9XX_I2C_CMD_WRITE);
 	if (last_msg)
 		cmd |= XLP9XX_I2C_CMD_STOP;
 
@@ -297,11 +401,12 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 	timeleft = msecs_to_jiffies(XLP9XX_I2C_TIMEOUT_MS);
 	timeleft = wait_for_completion_timeout(&priv->msg_complete, timeleft);
 
-	if (priv->msg_err) {
+	if (priv->msg_err & XLP9XX_I2C_INTEN_BUSERR) {
 		dev_dbg(priv->dev, "transfer error %x!\n", priv->msg_err);
-		if (priv->msg_err & XLP9XX_I2C_INTEN_BUSERR)
-			xlp9xx_i2c_init(priv);
+		xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CMD, XLP9XX_I2C_CMD_STOP);
 		return -EIO;
+	} else if (priv->msg_err & XLP9XX_I2C_INTEN_NACKADDR) {
+		return -ENXIO;
 	}
 
 	if (timeleft == 0) {
@@ -310,6 +415,12 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 		return -ETIMEDOUT;
 	}
 
+	/* update msg->len with actual received length */
+	if (msg->flags & I2C_M_RECV_LEN) {
+		if (!priv->msg_len)
+			return -EPROTO;
+		msg->len = priv->msg_len;
+	}
 	return 0;
 }
 
@@ -318,6 +429,14 @@ static int xlp9xx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 {
 	int i, ret;
 	struct xlp9xx_i2c_dev *priv = i2c_get_adapdata(adap);
+
+	ret = xlp9xx_i2c_check_bus_status(priv);
+	if (ret) {
+		xlp9xx_i2c_init(priv);
+		ret = xlp9xx_i2c_check_bus_status(priv);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < num; i++) {
 		ret = xlp9xx_i2c_xfer_msg(priv, &msgs[i], i == num - 1);
@@ -330,8 +449,8 @@ static int xlp9xx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 static u32 xlp9xx_i2c_functionality(struct i2c_adapter *adapter)
 {
-	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C |
-		I2C_FUNC_10BIT_ADDR;
+	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_SMBUS_READ_BLOCK_DATA |
+			I2C_FUNC_I2C | I2C_FUNC_10BIT_ADDR;
 }
 
 static const struct i2c_algorithm xlp9xx_i2c_algo = {
@@ -342,8 +461,18 @@ static const struct i2c_algorithm xlp9xx_i2c_algo = {
 static int xlp9xx_i2c_get_frequency(struct platform_device *pdev,
 				    struct xlp9xx_i2c_dev *priv)
 {
+	struct clk *clk;
 	u32 freq;
 	int err;
+
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		priv->ip_clk_hz = XLP9XX_I2C_IP_CLK_FREQ;
+		dev_dbg(&pdev->dev, "using default input frequency %u\n",
+			priv->ip_clk_hz);
+	} else {
+		priv->ip_clk_hz = clk_get_rate(clk);
+	}
 
 	err = device_property_read_u32(&pdev->dev, "clock-frequency", &freq);
 	if (err) {
@@ -355,6 +484,19 @@ static int xlp9xx_i2c_get_frequency(struct platform_device *pdev,
 		freq = XLP9XX_I2C_DEFAULT_FREQ;
 	}
 	priv->clk_hz = freq;
+
+	return 0;
+}
+
+static int xlp9xx_i2c_smbus_setup(struct xlp9xx_i2c_dev *priv,
+				  struct platform_device *pdev)
+{
+	if (!priv->alert_data.irq)
+		return -EINVAL;
+
+	priv->ara = i2c_setup_smbus_alert(&priv->adapter, &priv->alert_data);
+	if (!priv->ara)
+		return -ENODEV;
 
 	return 0;
 }
@@ -379,6 +521,10 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "invalid irq!\n");
 		return priv->irq;
 	}
+	/* SMBAlert irq */
+	priv->alert_data.irq = platform_get_irq(pdev, 1);
+	if (priv->alert_data.irq <= 0)
+		priv->alert_data.irq = 0;
 
 	xlp9xx_i2c_get_frequency(pdev, priv);
 	xlp9xx_i2c_init(priv);
@@ -404,6 +550,10 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 	err = i2c_add_adapter(&priv->adapter);
 	if (err)
 		return err;
+
+	err = xlp9xx_i2c_smbus_setup(priv, pdev);
+	if (err)
+		dev_dbg(&pdev->dev, "No active SMBus alert %d\n", err);
 
 	platform_set_drvdata(pdev, priv);
 	dev_dbg(&pdev->dev, "I2C bus:%d added\n", priv->adapter.nr);

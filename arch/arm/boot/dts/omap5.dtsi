@@ -10,6 +10,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/omap.h>
+#include <dt-bindings/clock/omap5.h>
 
 / {
 	#address-cells = <2>;
@@ -54,14 +55,26 @@
 			clock-latency = <300000>; /* From omap-cpufreq driver */
 
 			/* cooling options */
-			cooling-min-level = <0>;
-			cooling-max-level = <2>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0x1>;
+
+			operating-points = <
+				/* kHz    uV */
+				1000000 1060000
+				1500000 1250000
+			>;
+
+			clocks = <&dpll_mpu_ck>;
+			clock-names = "cpu";
+
+			clock-latency = <300000>; /* From omap-cpufreq driver */
+
+			/* cooling options */
+			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
 
@@ -194,15 +207,19 @@
 						pbias_mmc_reg: pbias_mmc_omap5 {
 							regulator-name = "pbias_mmc_omap5";
 							regulator-min-microvolt = <1800000>;
-							regulator-max-microvolt = <3000000>;
+							regulator-max-microvolt = <3300000>;
 						};
 					};
 				};
 			};
 
 			cm_core_aon: cm_core_aon@4000 {
-				compatible = "ti,omap5-cm-core-aon";
+				compatible = "ti,omap5-cm-core-aon",
+					     "simple-bus";
 				reg = <0x4000 0x2000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x4000 0x2000>;
 
 				cm_core_aon_clocks: clocks {
 					#address-cells = <1>;
@@ -214,8 +231,11 @@
 			};
 
 			cm_core: cm_core@8000 {
-				compatible = "ti,omap5-cm-core";
+				compatible = "ti,omap5-cm-core", "simple-bus";
 				reg = <0x8000 0x3000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x8000 0x3000>;
 
 				cm_core_clocks: clocks {
 					#address-cells = <1>;
@@ -240,9 +260,12 @@
 			};
 
 			prm: prm@6000 {
-				compatible = "ti,omap5-prm";
+				compatible = "ti,omap5-prm", "simple-bus";
 				reg = <0x6000 0x3000>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x6000 0x3000>;
 
 				prm_clocks: clocks {
 					#address-cells = <1>;
@@ -278,6 +301,28 @@
 				pinctrl-single,register-width = <16>;
 				pinctrl-single,function-mask = <0x7fff>;
 			};
+
+			omap5_scm_wkup_pad_conf: omap5_scm_wkup_pad_conf@cda0 {
+				compatible = "ti,omap5-scm-wkup-pad-conf",
+					     "simple-bus";
+				reg = <0xcda0 0x60>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0xcda0 0x60>;
+
+				scm_wkup_pad_conf: scm_conf@0 {
+					compatible = "syscon", "simple-bus";
+					reg = <0x0 0x60>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x0 0x60>;
+
+					scm_wkup_pad_conf_clocks: clocks@0 {
+						#address-cells = <1>;
+						#size-cells = <0>;
+					};
+				};
+			};
 		};
 
 		ocmcram: ocmcram@40300000 {
@@ -295,6 +340,7 @@
 			#dma-cells = <1>;
 			dma-channels = <32>;
 			dma-requests = <127>;
+			ti,hwmods = "dma_system";
 		};
 
 		gpio1: gpio@4ae10000 {
@@ -733,6 +779,8 @@
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "timer1";
 			ti,timer-alwon;
+			clocks = <&wkupaon_clkctrl OMAP5_TIMER1_CLKCTRL 24>;
+			clock-names = "fck";
 		};
 
 		timer2: timer@48032000 {
@@ -892,7 +940,8 @@
 				compatible = "ti,omap-usb2";
 				reg = <0x4a084000 0x7c>;
 				syscon-phy-power = <&scm_conf 0x300>;
-				clocks = <&usb_phy_cm_clk32k>, <&usb_otg_ss_refclk960m>;
+				clocks = <&usb_phy_cm_clk32k>,
+					 <&l3init_clkctrl OMAP5_USB_OTG_SS_CLKCTRL 8>;
 				clock-names = "wkupclk", "refclk";
 				#phy-cells = <0>;
 			};
@@ -906,7 +955,7 @@
 				syscon-phy-power = <&scm_conf 0x370>;
 				clocks = <&usb_phy_cm_clk32k>,
 					 <&sys_clkin>,
-					 <&usb_otg_ss_refclk960m>;
+					 <&l3init_clkctrl OMAP5_USB_OTG_SS_CLKCTRL 8>;
 				clock-names =	"wkupclk",
 						"sysclk",
 						"refclk";
@@ -939,6 +988,7 @@
 				compatible = "ti,ohci-omap3";
 				reg = <0x4a064800 0x400>;
 				interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+				remote-wakeup-connected;
 			};
 
 			usbhsehci: ehci@4a064c00 {
@@ -974,7 +1024,8 @@
 				      <0x4A096800 0x40>; /* pll_ctrl */
 				reg-names = "phy_rx", "phy_tx", "pll_ctrl";
 				syscon-phy-power = <&scm_conf 0x374>;
-				clocks = <&sys_clkin>, <&sata_ref_clk>;
+				clocks = <&sys_clkin>,
+					 <&l3init_clkctrl OMAP5_SATA_CLKCTRL 8>;
 				clock-names = "sysclk", "refclk";
 				#phy-cells = <0>;
 			};
@@ -986,7 +1037,7 @@
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&sata_phy>;
 			phy-names = "sata-phy";
-			clocks = <&sata_ref_clk>;
+			clocks = <&l3init_clkctrl OMAP5_SATA_CLKCTRL 8>;
 			ti,hwmods = "sata";
 			ports-implemented = <0x1>;
 		};
@@ -996,7 +1047,7 @@
 			reg = <0x58000000 0x80>;
 			status = "disabled";
 			ti,hwmods = "dss_core";
-			clocks = <&dss_dss_clk>;
+			clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
 			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -1007,7 +1058,7 @@
 				reg = <0x58001000 0x1000>;
 				interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 				ti,hwmods = "dss_dispc";
-				clocks = <&dss_dss_clk>;
+				clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
 				clock-names = "fck";
 			};
 
@@ -1016,7 +1067,7 @@
 				reg = <0x58002000 0x100>;
 				status = "disabled";
 				ti,hwmods = "dss_rfbi";
-				clocks = <&dss_dss_clk>, <&l3_iclk_div>;
+				clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>, <&l3_iclk_div>;
 				clock-names = "fck", "ick";
 			};
 
@@ -1029,7 +1080,8 @@
 				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 				ti,hwmods = "dss_dsi1";
-				clocks = <&dss_dss_clk>, <&dss_sys_clk>;
+				clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>,
+					 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
 				clock-names = "fck", "sys_clk";
 			};
 
@@ -1042,7 +1094,8 @@
 				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 				ti,hwmods = "dss_dsi2";
-				clocks = <&dss_dss_clk>, <&dss_sys_clk>;
+				clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>,
+					 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
 				clock-names = "fck", "sys_clk";
 			};
 
@@ -1056,7 +1109,8 @@
 				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 				ti,hwmods = "dss_hdmi";
-				clocks = <&dss_48mhz_clk>, <&dss_sys_clk>;
+				clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 9>,
+					 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
 				clock-names = "fck", "sys_clk";
 				dmas = <&sdma 76>;
 				dma-names = "audio_tx";
@@ -1130,7 +1184,7 @@
 	coefficients = <65 (-1791)>;
 };
 
-/include/ "omap54xx-clocks.dtsi"
+#include "omap54xx-clocks.dtsi"
 
 &gpu_thermal {
 	coefficients = <117 (-2992)>;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PROCESSOR_FLAGS_H
 #define _ASM_X86_PROCESSOR_FLAGS_H
 
@@ -37,6 +38,7 @@
 #define CR3_ADDR_MASK	__sme_clr(0x7FFFFFFFFFFFF000ull)
 #define CR3_PCID_MASK	0xFFFull
 #define CR3_NOFLUSH	BIT_ULL(63)
+
 #else
 /*
  * CR3_ADDR_MASK needs at least bits 31:5 set on PAE systems, and we save
@@ -45,6 +47,10 @@
 #define CR3_ADDR_MASK	0xFFFFFFFFull
 #define CR3_PCID_MASK	0ull
 #define CR3_NOFLUSH	0
+#endif
+
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+# define X86_CR3_PTI_PCID_USER_BIT	11
 #endif
 
 #endif /* _ASM_X86_PROCESSOR_FLAGS_H */

@@ -38,11 +38,11 @@ struct bsg_buffer {
 };
 
 struct bsg_job {
-	struct scsi_request sreq;
 	struct device *dev;
-	struct request *req;
 
 	struct kref kref;
+
+	unsigned int timeout;
 
 	/* Transport/driver specific request/reply structs */
 	void *request;
@@ -63,14 +63,16 @@ struct bsg_job {
 	struct bsg_buffer request_payload;
 	struct bsg_buffer reply_payload;
 
+	int result;
+	unsigned int reply_payload_rcv_len;
+
 	void *dd_data;		/* Used for driver-specific storage */
 };
 
 void bsg_job_done(struct bsg_job *job, int result,
 		  unsigned int reply_payload_rcv_len);
 struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
-		bsg_job_fn *job_fn, int dd_job_size,
-		void (*release)(struct device *));
+		bsg_job_fn *job_fn, int dd_job_size);
 void bsg_job_put(struct bsg_job *job);
 int __must_check bsg_job_get(struct bsg_job *job);
 

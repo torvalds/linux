@@ -6,7 +6,7 @@ config DVB_USB
 	  USB1.1 and USB2.0 DVB devices.
 
 	  Almost every USB device needs a firmware, please look into
-	  <file:Documentation/dvb/README.dvb-usb>.
+	  <file:Documentation/media/dvb-drivers/dvb-usb.rst>.
 
 	  For a complete list of supported USB devices see the LinuxTV DVB Wiki:
 	  <https://linuxtv.org/wiki/index.php/DVB_USB>
@@ -86,6 +86,7 @@ config DVB_USB_DIB0700
 	select DVB_USB_DIB3000MC if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_S5H1411 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_LGDT3305 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_MN88472 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TUNER_DIB0070 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TUNER_DIB0090 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MT2060 if MEDIA_SUBDRV_AUTOSELECT
@@ -94,6 +95,7 @@ config DVB_USB_DIB0700
 	select MEDIA_TUNER_XC5000 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_XC4000 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MXL5007T if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA18250 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for USB2.0/1.1 DVB receivers based on the DiB0700 USB bridge. The
 	  USB bridge is also present in devices having the DiB7700 DVB-T-USB
@@ -309,12 +311,6 @@ config DVB_USB_DTV5100
 	select MEDIA_TUNER_QT1010 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the AME DTV-5100 USB2.0 DVB-T receiver.
-
-config DVB_USB_FRIIO
-	tristate "Friio ISDB-T USB2.0 Receiver support"
-	depends on DVB_USB
-	help
-	  Say Y here to support the Japanese DTV receiver Friio.
 
 config DVB_USB_AZ6027
 	tristate "Azurewave DVB-S/S2 USB2.0 AZ6027 support"

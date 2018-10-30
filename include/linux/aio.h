@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX__AIO_H
 #define __LINUX__AIO_H
 
@@ -6,8 +7,6 @@
 struct kioctx;
 struct kiocb;
 struct mm_struct;
-
-#define KIOCB_KEY		0
 
 typedef int (kiocb_cancel_fn)(struct kiocb *);
 

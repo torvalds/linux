@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config VIDEO_OMAP4
 	tristate "OMAP 4 Camera support"
-	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && I2C && ARCH_OMAP4
-	depends on HAS_DMA
+	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && I2C
+	depends on ARCH_OMAP4 || COMPILE_TEST
 	select MFD_SYSCON
 	select VIDEOBUF2_DMA_CONTIG
 	---help---

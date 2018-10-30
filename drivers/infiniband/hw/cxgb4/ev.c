@@ -70,9 +70,10 @@ static void dump_err_cqe(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 		CQE_STATUS(err_cqe), CQE_TYPE(err_cqe), ntohl(err_cqe->len),
 		CQE_WRID_HI(err_cqe), CQE_WRID_LOW(err_cqe));
 
-	pr_debug("%016llx %016llx %016llx %016llx\n",
+	pr_debug("%016llx %016llx %016llx %016llx - %016llx %016llx %016llx %016llx\n",
 		 be64_to_cpu(p[0]), be64_to_cpu(p[1]), be64_to_cpu(p[2]),
-		 be64_to_cpu(p[3]));
+		 be64_to_cpu(p[3]), be64_to_cpu(p[4]), be64_to_cpu(p[5]),
+		 be64_to_cpu(p[6]), be64_to_cpu(p[7]));
 
 	/*
 	 * Ingress WRITE and READ_RESP errors provide
@@ -109,9 +110,11 @@ static void post_qp_event(struct c4iw_dev *dev, struct c4iw_cq *chp,
 	if (qhp->ibqp.event_handler)
 		(*qhp->ibqp.event_handler)(&event, qhp->ibqp.qp_context);
 
-	spin_lock_irqsave(&chp->comp_handler_lock, flag);
-	(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
-	spin_unlock_irqrestore(&chp->comp_handler_lock, flag);
+	if (t4_clear_cq_armed(&chp->cq)) {
+		spin_lock_irqsave(&chp->comp_handler_lock, flag);
+		(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
+		spin_unlock_irqrestore(&chp->comp_handler_lock, flag);
+	}
 }
 
 void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
@@ -234,7 +237,7 @@ int c4iw_ev_handler(struct c4iw_dev *dev, u32 qid)
 		if (atomic_dec_and_test(&chp->refcnt))
 			wake_up(&chp->wait);
 	} else {
-		pr_debug("%s unknown cqid 0x%x\n", __func__, qid);
+		pr_debug("unknown cqid 0x%x\n", qid);
 		spin_unlock_irqrestore(&dev->lock, flag);
 	}
 	return 0;

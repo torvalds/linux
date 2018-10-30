@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef HOSTAP_WLAN_H
 #define HOSTAP_WLAN_H
 

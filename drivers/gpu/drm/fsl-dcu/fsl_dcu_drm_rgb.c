@@ -102,7 +102,6 @@ static int fsl_dcu_attach_panel(struct fsl_dcu_drm_device *fsl_dev,
 {
 	struct drm_encoder *encoder = &fsl_dev->encoder;
 	struct drm_connector *connector = &fsl_dev->connector.base;
-	struct drm_mode_config *mode_config = &fsl_dev->drm->mode_config;
 	int ret;
 
 	fsl_dev->connector.encoder = encoder;
@@ -118,13 +117,9 @@ static int fsl_dcu_attach_panel(struct fsl_dcu_drm_device *fsl_dev,
 	if (ret < 0)
 		goto err_cleanup;
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
 		goto err_sysfs;
-
-	drm_object_property_set_value(&connector->base,
-				      mode_config->dpms_property,
-				      DRM_MODE_DPMS_OFF);
 
 	ret = drm_panel_attach(panel, connector);
 	if (ret) {
@@ -153,8 +148,9 @@ int fsl_dcu_create_outputs(struct fsl_dcu_drm_device *fsl_dev)
 	if (panel_node) {
 		fsl_dev->connector.panel = of_drm_find_panel(panel_node);
 		of_node_put(panel_node);
-		if (!fsl_dev->connector.panel)
-			return -EPROBE_DEFER;
+		if (IS_ERR(fsl_dev->connector.panel))
+			return PTR_ERR(fsl_dev->connector.panel);
+
 		return fsl_dcu_attach_panel(fsl_dev, fsl_dev->connector.panel);
 	}
 

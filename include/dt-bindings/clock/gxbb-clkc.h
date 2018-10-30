@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * GXBB clock tree IDs
  */
@@ -113,5 +114,19 @@
 #define CLKID_SD_EMMC_A_CLK0	119
 #define CLKID_SD_EMMC_B_CLK0	122
 #define CLKID_SD_EMMC_C_CLK0	125
+#define CLKID_VPU_0_SEL		126
+#define CLKID_VPU_0		128
+#define CLKID_VPU_1_SEL		129
+#define CLKID_VPU_1		131
+#define CLKID_VPU		132
+#define CLKID_VAPB_0_SEL	133
+#define CLKID_VAPB_0		135
+#define CLKID_VAPB_1_SEL	136
+#define CLKID_VAPB_1		138
+#define CLKID_VAPB_SEL		139
+#define CLKID_VAPB		140
+#define CLKID_VDEC_1		153
+#define CLKID_VDEC_HEVC		156
+#define CLKID_GEN_CLK		159
 
 #endif /* __GXBB_CLKC_H */

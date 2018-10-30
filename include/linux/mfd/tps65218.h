@@ -205,10 +205,10 @@ enum tps65218_regulator_id {
 	TPS65218_DCDC_4,
 	TPS65218_DCDC_5,
 	TPS65218_DCDC_6,
-	/* LS's */
-	TPS65218_LS_3,
 	/* LDOs */
 	TPS65218_LDO_1,
+	/* LS's */
+	TPS65218_LS_3,
 };
 
 #define TPS65218_MAX_REG_ID		TPS65218_LDO_1
@@ -246,24 +246,6 @@ enum tps65218_irqs {
 };
 
 /**
- * struct tps_info - packages regulator constraints
- * @id:			Id of the regulator
- * @name:		Voltage regulator name
- * @min_uV:		minimum micro volts
- * @max_uV:		minimum micro volts
- * @strobe:		sequencing strobe value for the regulator
- *
- * This data is used to check the regualtor voltage limits while setting.
- */
-struct tps_info {
-	int id;
-	const char *name;
-	int min_uV;
-	int max_uV;
-	int strobe;
-};
-
-/**
  * struct tps65218 - tps65218 sub-driver chip access routines
  *
  * Device data may be used to access the TPS65218 chip
@@ -280,7 +262,6 @@ struct tps65218 {
 	u32 irq_mask;
 	struct regmap_irq_chip_data *irq_data;
 	struct regulator_desc desc[TPS65218_NUM_REGULATOR];
-	struct tps_info *info[TPS65218_NUM_REGULATOR];
 	struct regmap *regmap;
 	u8 *strobes;
 };

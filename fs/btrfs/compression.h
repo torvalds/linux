@@ -1,23 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2008 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __BTRFS_COMPRESSION_
-#define __BTRFS_COMPRESSION_
+#ifndef BTRFS_COMPRESSION_H
+#define BTRFS_COMPRESSION_H
+
+#include <linux/sizes.h>
 
 /*
  * We want to make sure that amount of RAM required to uncompress an extent is
@@ -33,6 +22,8 @@
 #define BTRFS_MAX_COMPRESSED		(SZ_128K)
 /* Maximum size of data before compression */
 #define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
+
+#define	BTRFS_ZLIB_DEFAULT_LEVEL		3
 
 struct compressed_bio {
 	/* number of bios pending for this compressed extent */
@@ -73,10 +64,10 @@ struct compressed_bio {
 	u32 sums;
 };
 
-void btrfs_init_compress(void);
-void btrfs_exit_compress(void);
+void __init btrfs_init_compress(void);
+void __cold btrfs_exit_compress(void);
 
-int btrfs_compress_pages(int type, struct address_space *mapping,
+int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
 			 u64 start, struct page **pages,
 			 unsigned long *out_pages,
 			 unsigned long *total_in,
@@ -91,9 +82,12 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				  unsigned long len, u64 disk_start,
 				  unsigned long compressed_len,
 				  struct page **compressed_pages,
-				  unsigned long nr_pages);
+				  unsigned long nr_pages,
+				  unsigned int write_flags);
 blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
+
+unsigned btrfs_compress_str2level(const char *str);
 
 enum btrfs_compression_type {
 	BTRFS_COMPRESS_NONE  = 0,
@@ -124,11 +118,15 @@ struct btrfs_compress_op {
 			  struct page *dest_page,
 			  unsigned long start_byte,
 			  size_t srclen, size_t destlen);
+
+	void (*set_level)(struct list_head *ws, unsigned int type);
 };
 
 extern const struct btrfs_compress_op btrfs_zlib_compress;
 extern const struct btrfs_compress_op btrfs_lzo_compress;
 extern const struct btrfs_compress_op btrfs_zstd_compress;
+
+const char* btrfs_compress_type2str(enum btrfs_compression_type type);
 
 int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
 

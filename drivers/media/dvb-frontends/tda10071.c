@@ -681,8 +681,8 @@ static int tda10071_set_frontend(struct dvb_frontend *fe)
 	cmd.args[5] = (c->frequency >>  0) & 0xff;
 	cmd.args[6] = ((c->symbol_rate / 1000) >> 8) & 0xff;
 	cmd.args[7] = ((c->symbol_rate / 1000) >> 0) & 0xff;
-	cmd.args[8] = (tda10071_ops.info.frequency_tolerance >> 8) & 0xff;
-	cmd.args[9] = (tda10071_ops.info.frequency_tolerance >> 0) & 0xff;
+	cmd.args[8] = ((tda10071_ops.info.frequency_tolerance_hz / 1000) >> 8) & 0xff;
+	cmd.args[9] = ((tda10071_ops.info.frequency_tolerance_hz / 1000) >> 0) & 0xff;
 	cmd.args[10] = rolloff;
 	cmd.args[11] = inversion;
 	cmd.args[12] = pilot;
@@ -852,7 +852,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 		ret = request_firmware(&fw, fw_file, &client->dev);
 		if (ret) {
 			dev_err(&client->dev,
-				"did not find the firmware file. (%s) Please see linux/Documentation/dvb/ for more details on firmware-problems. (%d)\n",
+				"did not find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
 				fw_file, ret);
 			goto error;
 		}
@@ -1106,9 +1106,9 @@ static const struct dvb_frontend_ops tda10071_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name = "NXP TDA10071",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
-		.frequency_tolerance = 5000,
+		.frequency_min_hz    =  950 * MHz,
+		.frequency_max_hz    = 2150 * MHz,
+		.frequency_tolerance_hz = 5 * MHz,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_INVERSION_AUTO |

@@ -111,7 +111,7 @@ _set_debug(struct tiger_hw *card)
 }
 
 static int
-set_debug(const char *val, struct kernel_param *kp)
+set_debug(const char *val, const struct kernel_param *kp)
 {
 	int ret;
 	struct tiger_hw *card;
@@ -1084,7 +1084,7 @@ nj_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	card = kzalloc(sizeof(struct tiger_hw), GFP_ATOMIC);
+	card = kzalloc(sizeof(struct tiger_hw), GFP_KERNEL);
 	if (!card) {
 		pr_info("No kmem for Netjet\n");
 		return err;

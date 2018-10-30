@@ -1513,7 +1513,6 @@ static int era_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	ti->flush_supported = true;
 
 	ti->num_discard_bios = 1;
-	ti->discards_supported = true;
 	era->callbacks.congested_fn = era_is_congested;
 	dm_table_add_target_callbacks(ti->table, &era->callbacks);
 
@@ -1636,7 +1635,8 @@ err:
 	DMEMIT("Error");
 }
 
-static int era_message(struct dm_target *ti, unsigned argc, char **argv)
+static int era_message(struct dm_target *ti, unsigned argc, char **argv,
+		       char *result, unsigned maxlen)
 {
 	struct era *era = ti->private;
 

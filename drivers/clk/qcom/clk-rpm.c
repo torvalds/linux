@@ -29,6 +29,7 @@
 
 #define QCOM_RPM_MISC_CLK_TYPE				0x306b6c63
 #define QCOM_RPM_SCALING_ENABLE_ID			0x2
+#define QCOM_RPM_XO_MODE_ON				0x2
 
 #define DEFINE_CLK_RPM(_platform, _name, _active, r_id)			      \
 	static struct clk_rpm _platform##_##_active;			      \
@@ -52,6 +53,30 @@
 			.ops = &clk_rpm_ops,				      \
 			.name = #_active,				      \
 			.parent_names = (const char *[]){ "pxo_board" },      \
+			.num_parents = 1,				      \
+		},							      \
+	}
+
+#define DEFINE_CLK_RPM_XO_BUFFER(_platform, _name, _active, offset)	      \
+	static struct clk_rpm _platform##_##_name = {			      \
+		.rpm_clk_id = QCOM_RPM_CXO_BUFFERS,			      \
+		.xo_offset = (offset),					      \
+		.hw.init = &(struct clk_init_data){			      \
+			.ops = &clk_rpm_xo_ops,			      \
+			.name = #_name,					      \
+			.parent_names = (const char *[]){ "cxo_board" },      \
+			.num_parents = 1,				      \
+		},							      \
+	}
+
+#define DEFINE_CLK_RPM_FIXED(_platform, _name, _active, r_id, r)	      \
+	static struct clk_rpm _platform##_##_name = {			      \
+		.rpm_clk_id = (r_id),					      \
+		.rate = (r),						      \
+		.hw.init = &(struct clk_init_data){			      \
+			.ops = &clk_rpm_fixed_ops,			      \
+			.name = #_name,					      \
+			.parent_names = (const char *[]){ "pxo" },	      \
 			.num_parents = 1,				      \
 		},							      \
 	}
@@ -114,8 +139,11 @@
 
 #define to_clk_rpm(_hw) container_of(_hw, struct clk_rpm, hw)
 
+struct rpm_cc;
+
 struct clk_rpm {
 	const int rpm_clk_id;
+	const int xo_offset;
 	const bool active_only;
 	unsigned long rate;
 	bool enabled;
@@ -123,12 +151,15 @@ struct clk_rpm {
 	struct clk_rpm *peer;
 	struct clk_hw hw;
 	struct qcom_rpm *rpm;
+	struct rpm_cc *rpm_cc;
 };
 
 struct rpm_cc {
 	struct qcom_rpm *rpm;
 	struct clk_rpm **clks;
 	size_t num_clks;
+	u32 xo_buffer_value;
+	struct mutex xo_lock;
 };
 
 struct rpm_clk_desc {
@@ -142,6 +173,14 @@ static int clk_rpm_handoff(struct clk_rpm *r)
 {
 	int ret;
 	u32 value = INT_MAX;
+
+	/*
+	 * The vendor tree simply reads the status for this
+	 * RPM clock.
+	 */
+	if (r->rpm_clk_id == QCOM_RPM_PLL_4 ||
+		r->rpm_clk_id == QCOM_RPM_CXO_BUFFERS)
+		return 0;
 
 	ret = qcom_rpm_write(r->rpm, QCOM_RPM_ACTIVE_STATE,
 			     r->rpm_clk_id, &value, 1);
@@ -269,6 +308,72 @@ out:
 	mutex_unlock(&rpm_clk_lock);
 }
 
+static int clk_rpm_xo_prepare(struct clk_hw *hw)
+{
+	struct clk_rpm *r = to_clk_rpm(hw);
+	struct rpm_cc *rcc = r->rpm_cc;
+	int ret, clk_id = r->rpm_clk_id;
+	u32 value;
+
+	mutex_lock(&rcc->xo_lock);
+
+	value = rcc->xo_buffer_value | (QCOM_RPM_XO_MODE_ON << r->xo_offset);
+	ret = qcom_rpm_write(r->rpm, QCOM_RPM_ACTIVE_STATE, clk_id, &value, 1);
+	if (!ret) {
+		r->enabled = true;
+		rcc->xo_buffer_value = value;
+	}
+
+	mutex_unlock(&rcc->xo_lock);
+
+	return ret;
+}
+
+static void clk_rpm_xo_unprepare(struct clk_hw *hw)
+{
+	struct clk_rpm *r = to_clk_rpm(hw);
+	struct rpm_cc *rcc = r->rpm_cc;
+	int ret, clk_id = r->rpm_clk_id;
+	u32 value;
+
+	mutex_lock(&rcc->xo_lock);
+
+	value = rcc->xo_buffer_value & ~(QCOM_RPM_XO_MODE_ON << r->xo_offset);
+	ret = qcom_rpm_write(r->rpm, QCOM_RPM_ACTIVE_STATE, clk_id, &value, 1);
+	if (!ret) {
+		r->enabled = false;
+		rcc->xo_buffer_value = value;
+	}
+
+	mutex_unlock(&rcc->xo_lock);
+}
+
+static int clk_rpm_fixed_prepare(struct clk_hw *hw)
+{
+	struct clk_rpm *r = to_clk_rpm(hw);
+	u32 value = 1;
+	int ret;
+
+	ret = qcom_rpm_write(r->rpm, QCOM_RPM_ACTIVE_STATE,
+			     r->rpm_clk_id, &value, 1);
+	if (!ret)
+		r->enabled = true;
+
+	return ret;
+}
+
+static void clk_rpm_fixed_unprepare(struct clk_hw *hw)
+{
+	struct clk_rpm *r = to_clk_rpm(hw);
+	u32 value = 0;
+	int ret;
+
+	ret = qcom_rpm_write(r->rpm, QCOM_RPM_ACTIVE_STATE,
+			     r->rpm_clk_id, &value, 1);
+	if (!ret)
+		r->enabled = false;
+}
+
 static int clk_rpm_set_rate(struct clk_hw *hw,
 			    unsigned long rate, unsigned long parent_rate)
 {
@@ -333,6 +438,18 @@ static unsigned long clk_rpm_recalc_rate(struct clk_hw *hw,
 	return r->rate;
 }
 
+static const struct clk_ops clk_rpm_xo_ops = {
+	.prepare	= clk_rpm_xo_prepare,
+	.unprepare	= clk_rpm_xo_unprepare,
+};
+
+static const struct clk_ops clk_rpm_fixed_ops = {
+	.prepare	= clk_rpm_fixed_prepare,
+	.unprepare	= clk_rpm_fixed_unprepare,
+	.round_rate	= clk_rpm_round_rate,
+	.recalc_rate	= clk_rpm_recalc_rate,
+};
+
 static const struct clk_ops clk_rpm_ops = {
 	.prepare	= clk_rpm_prepare,
 	.unprepare	= clk_rpm_unprepare,
@@ -348,6 +465,45 @@ static const struct clk_ops clk_rpm_branch_ops = {
 	.recalc_rate	= clk_rpm_recalc_rate,
 };
 
+/* MSM8660/APQ8060 */
+DEFINE_CLK_RPM(msm8660, afab_clk, afab_a_clk, QCOM_RPM_APPS_FABRIC_CLK);
+DEFINE_CLK_RPM(msm8660, sfab_clk, sfab_a_clk, QCOM_RPM_SYS_FABRIC_CLK);
+DEFINE_CLK_RPM(msm8660, mmfab_clk, mmfab_a_clk, QCOM_RPM_MM_FABRIC_CLK);
+DEFINE_CLK_RPM(msm8660, daytona_clk, daytona_a_clk, QCOM_RPM_DAYTONA_FABRIC_CLK);
+DEFINE_CLK_RPM(msm8660, sfpb_clk, sfpb_a_clk, QCOM_RPM_SFPB_CLK);
+DEFINE_CLK_RPM(msm8660, cfpb_clk, cfpb_a_clk, QCOM_RPM_CFPB_CLK);
+DEFINE_CLK_RPM(msm8660, mmfpb_clk, mmfpb_a_clk, QCOM_RPM_MMFPB_CLK);
+DEFINE_CLK_RPM(msm8660, smi_clk, smi_a_clk, QCOM_RPM_SMI_CLK);
+DEFINE_CLK_RPM(msm8660, ebi1_clk, ebi1_a_clk, QCOM_RPM_EBI1_CLK);
+DEFINE_CLK_RPM_FIXED(msm8660, pll4_clk, pll4_a_clk, QCOM_RPM_PLL_4, 540672000);
+
+static struct clk_rpm *msm8660_clks[] = {
+	[RPM_APPS_FABRIC_CLK] = &msm8660_afab_clk,
+	[RPM_APPS_FABRIC_A_CLK] = &msm8660_afab_a_clk,
+	[RPM_SYS_FABRIC_CLK] = &msm8660_sfab_clk,
+	[RPM_SYS_FABRIC_A_CLK] = &msm8660_sfab_a_clk,
+	[RPM_MM_FABRIC_CLK] = &msm8660_mmfab_clk,
+	[RPM_MM_FABRIC_A_CLK] = &msm8660_mmfab_a_clk,
+	[RPM_DAYTONA_FABRIC_CLK] = &msm8660_daytona_clk,
+	[RPM_DAYTONA_FABRIC_A_CLK] = &msm8660_daytona_a_clk,
+	[RPM_SFPB_CLK] = &msm8660_sfpb_clk,
+	[RPM_SFPB_A_CLK] = &msm8660_sfpb_a_clk,
+	[RPM_CFPB_CLK] = &msm8660_cfpb_clk,
+	[RPM_CFPB_A_CLK] = &msm8660_cfpb_a_clk,
+	[RPM_MMFPB_CLK] = &msm8660_mmfpb_clk,
+	[RPM_MMFPB_A_CLK] = &msm8660_mmfpb_a_clk,
+	[RPM_SMI_CLK] = &msm8660_smi_clk,
+	[RPM_SMI_A_CLK] = &msm8660_smi_a_clk,
+	[RPM_EBI1_CLK] = &msm8660_ebi1_clk,
+	[RPM_EBI1_A_CLK] = &msm8660_ebi1_a_clk,
+	[RPM_PLL4_CLK] = &msm8660_pll4_clk,
+};
+
+static const struct rpm_clk_desc rpm_clk_msm8660 = {
+	.clks = msm8660_clks,
+	.num_clks = ARRAY_SIZE(msm8660_clks),
+};
+
 /* apq8064 */
 DEFINE_CLK_RPM(apq8064, afab_clk, afab_a_clk, QCOM_RPM_APPS_FABRIC_CLK);
 DEFINE_CLK_RPM(apq8064, cfpb_clk, cfpb_a_clk, QCOM_RPM_CFPB_CLK);
@@ -358,6 +514,11 @@ DEFINE_CLK_RPM(apq8064, mmfpb_clk, mmfpb_a_clk, QCOM_RPM_MMFPB_CLK);
 DEFINE_CLK_RPM(apq8064, sfab_clk, sfab_a_clk, QCOM_RPM_SYS_FABRIC_CLK);
 DEFINE_CLK_RPM(apq8064, sfpb_clk, sfpb_a_clk, QCOM_RPM_SFPB_CLK);
 DEFINE_CLK_RPM(apq8064, qdss_clk, qdss_a_clk, QCOM_RPM_QDSS_CLK);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_d0_clk, xo_d0_a_clk, 0);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_d1_clk, xo_d1_a_clk, 8);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a0_clk, xo_a0_a_clk, 16);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a1_clk, xo_a1_a_clk, 24);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a2_clk, xo_a2_a_clk, 28);
 
 static struct clk_rpm *apq8064_clks[] = {
 	[RPM_APPS_FABRIC_CLK] = &apq8064_afab_clk,
@@ -378,6 +539,11 @@ static struct clk_rpm *apq8064_clks[] = {
 	[RPM_SFPB_A_CLK] = &apq8064_sfpb_a_clk,
 	[RPM_QDSS_CLK] = &apq8064_qdss_clk,
 	[RPM_QDSS_A_CLK] = &apq8064_qdss_a_clk,
+	[RPM_XO_D0] = &apq8064_xo_d0_clk,
+	[RPM_XO_D1] = &apq8064_xo_d1_clk,
+	[RPM_XO_A0] = &apq8064_xo_a0_clk,
+	[RPM_XO_A1] = &apq8064_xo_a1_clk,
+	[RPM_XO_A2] = &apq8064_xo_a2_clk,
 };
 
 static const struct rpm_clk_desc rpm_clk_apq8064 = {
@@ -386,6 +552,8 @@ static const struct rpm_clk_desc rpm_clk_apq8064 = {
 };
 
 static const struct of_device_id rpm_clk_match_table[] = {
+	{ .compatible = "qcom,rpmcc-msm8660", .data = &rpm_clk_msm8660 },
+	{ .compatible = "qcom,rpmcc-apq8060", .data = &rpm_clk_msm8660 },
 	{ .compatible = "qcom,rpmcc-apq8064", .data = &rpm_clk_apq8064 },
 	{ }
 };
@@ -433,12 +601,14 @@ static int rpm_clk_probe(struct platform_device *pdev)
 
 	rcc->clks = rpm_clks;
 	rcc->num_clks = num_clks;
+	mutex_init(&rcc->xo_lock);
 
 	for (i = 0; i < num_clks; i++) {
 		if (!rpm_clks[i])
 			continue;
 
 		rpm_clks[i]->rpm = rpm;
+		rpm_clks[i]->rpm_cc = rcc;
 
 		ret = clk_rpm_handoff(rpm_clks[i]);
 		if (ret)

@@ -673,12 +673,12 @@ static bool newport_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 	return true;
 }
 
-static int newport_dummy(struct vc_data *c)
+static int newport_set_origin(struct vc_data *vc)
 {
 	return 0;
 }
 
-#define DUMMY (void *) newport_dummy
+static void newport_save_screen(struct vc_data *vc) { }
 
 const struct consw newport_con = {
 	.owner		  = THIS_MODULE,
@@ -694,8 +694,8 @@ const struct consw newport_con = {
 	.con_blank	  = newport_blank,
 	.con_font_set	  = newport_font_set,
 	.con_font_default = newport_font_default,
-	.con_set_origin	  = DUMMY,
-	.con_save_screen  = DUMMY
+	.con_set_origin	  = newport_set_origin,
+	.con_save_screen  = newport_save_screen
 };
 
 static int newport_probe(struct gio_device *dev,

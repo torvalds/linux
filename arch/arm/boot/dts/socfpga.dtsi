@@ -22,8 +22,6 @@
 	#size-cells = <1>;
 
 	aliases {
-		ethernet0 = &gmac0;
-		ethernet1 = &gmac1;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		timer0 = &timer0;
@@ -483,10 +481,17 @@
 						clk-gate = <0xa0 9>;
 					};
 
+					nand_ecc_clk: nand_ecc_clk {
+						#clock-cells = <0>;
+						compatible = "altr,socfpga-gate-clk";
+						clocks = <&nand_x_clk>;
+						clk-gate = <0xa0 9>;
+					};
+
 					nand_clk: nand_clk {
 						#clock-cells = <0>;
 						compatible = "altr,socfpga-gate-clk";
-						clocks = <&f2s_periph_ref_clk>, <&main_nand_sdmmc_clk>, <&per_nand_mmc_clk>;
+						clocks = <&nand_x_clk>;
 						clk-gate = <0xa0 10>;
 						fixed-divider = <4>;
 					};
@@ -651,6 +656,7 @@
 			#size-cells = <0>;
 			compatible = "snps,designware-i2c";
 			reg = <0xffc04000 0x1000>;
+			resets = <&rst I2C0_RESET>;
 			clocks = <&l4_sp_clk>;
 			interrupts = <0 158 0x4>;
 			status = "disabled";
@@ -661,6 +667,7 @@
 			#size-cells = <0>;
 			compatible = "snps,designware-i2c";
 			reg = <0xffc05000 0x1000>;
+			resets = <&rst I2C1_RESET>;
 			clocks = <&l4_sp_clk>;
 			interrupts = <0 159 0x4>;
 			status = "disabled";
@@ -671,6 +678,7 @@
 			#size-cells = <0>;
 			compatible = "snps,designware-i2c";
 			reg = <0xffc06000 0x1000>;
+			resets = <&rst I2C2_RESET>;
 			clocks = <&l4_sp_clk>;
 			interrupts = <0 160 0x4>;
 			status = "disabled";
@@ -681,6 +689,7 @@
 			#size-cells = <0>;
 			compatible = "snps,designware-i2c";
 			reg = <0xffc07000 0x1000>;
+			resets = <&rst I2C3_RESET>;
 			clocks = <&l4_sp_clk>;
 			interrupts = <0 161 0x4>;
 			status = "disabled";
@@ -744,13 +753,14 @@
 		nand0: nand@ff900000 {
 			#address-cells = <0x1>;
 			#size-cells = <0x1>;
-			compatible = "denali,denali-nand-dt";
+			compatible = "altr,socfpga-denali-nand";
 			reg = <0xff900000 0x100000>,
 			      <0xffb80000 0x10000>;
 			reg-names = "nand_data", "denali_reg";
 			interrupts = <0x0 0x90 0x4>;
 			dma-mask = <0xffffffff>;
-			clocks = <&nand_clk>;
+			clocks = <&nand_clk>, <&nand_x_clk>, <&nand_ecc_clk>;
+			clock-names = "nand", "nand_x", "ecc";
 			status = "disabled";
 		};
 
@@ -827,7 +837,7 @@
 		timer@fffec600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xfffec600 0x100>;
-			interrupts = <1 13 0xf04>;
+			interrupts = <1 13 0xf01>;
 			clocks = <&mpu_periph_clk>;
 		};
 
@@ -837,6 +847,8 @@
 			reg = <0xffc08000 0x1000>;
 			clocks = <&l4_sp_clk>;
 			clock-names = "timer";
+			resets = <&rst SPTIMER0_RESET>;
+			reset-names = "timer";
 		};
 
 		timer1: timer1@ffc09000 {
@@ -845,6 +857,8 @@
 			reg = <0xffc09000 0x1000>;
 			clocks = <&l4_sp_clk>;
 			clock-names = "timer";
+			resets = <&rst SPTIMER1_RESET>;
+			reset-names = "timer";
 		};
 
 		timer2: timer2@ffd00000 {
@@ -853,6 +867,8 @@
 			reg = <0xffd00000 0x1000>;
 			clocks = <&osc1>;
 			clock-names = "timer";
+			resets = <&rst OSC1TIMER0_RESET>;
+			reset-names = "timer";
 		};
 
 		timer3: timer3@ffd01000 {
@@ -861,6 +877,8 @@
 			reg = <0xffd01000 0x1000>;
 			clocks = <&osc1>;
 			clock-names = "timer";
+			resets = <&rst OSC1TIMER1_RESET>;
+			reset-names = "timer";
 		};
 
 		uart0: serial0@ffc02000 {

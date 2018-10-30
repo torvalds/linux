@@ -1,0 +1,220 @@
+#!/bin/sh
+#
+# Copyright 2003 Wichert Akkerman <wichert@wiggy.net>
+#
+# Simple script to generate a debian/ directory for a Linux kernel.
+
+set -e
+
+is_enabled() {
+	grep -q "^CONFIG_$1=y" $KCONFIG_CONFIG
+}
+
+if_enabled_echo() {
+	if is_enabled "$1"; then
+		echo -n "$2"
+	elif [ $# -ge 3 ]; then
+		echo -n "$3"
+	fi
+}
+
+set_debarch() {
+	if [ -n "$KBUILD_DEBARCH" ] ; then
+		debarch="$KBUILD_DEBARCH"
+		return
+	fi
+
+	# Attempt to find the correct Debian architecture
+	case "$UTS_MACHINE" in
+	i386|ia64|alpha|m68k|riscv*)
+		debarch="$UTS_MACHINE" ;;
+	x86_64)
+		debarch=amd64 ;;
+	sparc*)
+		debarch=sparc$(if_enabled_echo 64BIT 64) ;;
+	s390*)
+		debarch=s390x ;;
+	ppc*)
+		if is_enabled 64BIT; then
+			debarch=ppc64$(if_enabled_echo CPU_LITTLE_ENDIAN el)
+		else
+			debarch=powerpc$(if_enabled_echo SPE spe)
+		fi
+		;;
+	parisc*)
+		debarch=hppa ;;
+	mips*)
+		if is_enabled CPU_LITTLE_ENDIAN; then
+			debarch=mips$(if_enabled_echo 64BIT 64)$(if_enabled_echo CPU_MIPSR6 r6)el
+		elif is_enabled CPU_MIPSR6; then
+			debarch=mips$(if_enabled_echo 64BIT 64)r6
+		else
+			debarch=mips
+		fi
+		;;
+	aarch64|arm64)
+		debarch=arm64 ;;
+	arm*)
+		if is_enabled AEABI; then
+			debarch=arm$(if_enabled_echo VFP hf el)
+		else
+			debarch=arm
+		fi
+		;;
+	openrisc)
+		debarch=or1k ;;
+	sh)
+		if is_enabled CPU_SH3; then
+			debarch=sh3$(if_enabled_echo CPU_BIG_ENDIAN eb)
+		elif is_enabled CPU_SH4; then
+			debarch=sh4$(if_enabled_echo CPU_BIG_ENDIAN eb)
+		fi
+		;;
+	esac
+	if [ -z "$debarch" ]; then
+		debarch=$(dpkg-architecture -qDEB_HOST_ARCH)
+		echo "" >&2
+		echo "** ** **  WARNING  ** ** **" >&2
+		echo "" >&2
+		echo "Your architecture doesn't have its equivalent" >&2
+		echo "Debian userspace architecture defined!" >&2
+		echo "Falling back to the current host architecture ($debarch)." >&2
+		echo "Please add support for $UTS_MACHINE to ${0} ..." >&2
+		echo "" >&2
+	fi
+}
+
+# Some variables and settings used throughout the script
+version=$KERNELRELEASE
+if [ -n "$KDEB_PKGVERSION" ]; then
+	packageversion=$KDEB_PKGVERSION
+else
+	revision=$(cat .version 2>/dev/null||echo 1)
+	packageversion=$version-$revision
+fi
+sourcename=$KDEB_SOURCENAME
+packagename=linux-image-$version
+kernel_headers_packagename=linux-headers-$version
+dbg_packagename=$packagename-dbg
+debarch=
+set_debarch
+
+if [ "$ARCH" = "um" ] ; then
+	packagename=user-mode-linux-$version
+fi
+
+email=${DEBEMAIL-$EMAIL}
+
+# use email string directly if it contains <email>
+if echo $email | grep -q '<.*>'; then
+	maintainer=$email
+else
+	# or construct the maintainer string
+	user=${KBUILD_BUILD_USER-$(id -nu)}
+	name=${DEBFULLNAME-$user}
+	if [ -z "$email" ]; then
+		buildhost=${KBUILD_BUILD_HOST-$(hostname -f 2>/dev/null || hostname)}
+		email="$user@$buildhost"
+	fi
+	maintainer="$name <$email>"
+fi
+
+# Try to determine distribution
+if [ -n "$KDEB_CHANGELOG_DIST" ]; then
+        distribution=$KDEB_CHANGELOG_DIST
+# In some cases lsb_release returns the codename as n/a, which breaks dpkg-parsechangelog
+elif distribution=$(lsb_release -cs 2>/dev/null) && [ -n "$distribution" ] && [ "$distribution" != "n/a" ]; then
+        : # nothing to do in this case
+else
+        distribution="unstable"
+        echo >&2 "Using default distribution of 'unstable' in the changelog"
+        echo >&2 "Install lsb-release or set \$KDEB_CHANGELOG_DIST explicitly"
+fi
+
+mkdir -p debian/
+echo $debarch > debian/arch
+
+# Generate a simple changelog template
+cat <<EOF > debian/changelog
+$sourcename ($packageversion) $distribution; urgency=low
+
+  * Custom built Linux kernel.
+
+ -- $maintainer  $(date -R)
+EOF
+
+# Generate copyright file
+cat <<EOF > debian/copyright
+This is a packacked upstream version of the Linux kernel.
+
+The sources may be found at most Linux archive sites, including:
+https://www.kernel.org/pub/linux/kernel
+
+Copyright: 1991 - 2018 Linus Torvalds and others.
+
+The git repository for mainline kernel development is at:
+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; version 2 dated June, 1991.
+
+On Debian GNU/Linux systems, the complete text of the GNU General Public
+License version 2 can be found in \`/usr/share/common-licenses/GPL-2'.
+EOF
+
+# Generate a control file
+cat <<EOF > debian/control
+Source: $sourcename
+Section: kernel
+Priority: optional
+Maintainer: $maintainer
+Build-Depends: bc, kmod, cpio
+Homepage: http://www.kernel.org/
+
+Package: $packagename
+Architecture: $debarch
+Description: Linux kernel, version $version
+ This package contains the Linux kernel, modules and corresponding other
+ files, version: $version.
+
+Package: $kernel_headers_packagename
+Architecture: $debarch
+Description: Linux kernel headers for $version on $debarch
+ This package provides kernel header files for $version on $debarch
+ .
+ This is useful for people who need to build external modules
+
+Package: linux-libc-dev
+Section: devel
+Provides: linux-kernel-headers
+Architecture: $debarch
+Description: Linux support headers for userspace development
+ This package provides userspaces headers from the Linux kernel.  These headers
+ are used by the installed headers for GNU glibc and other system libraries.
+
+Package: $dbg_packagename
+Section: debug
+Architecture: $debarch
+Description: Linux kernel debugging symbols for $version
+ This package will come in handy if you need to debug the kernel. It provides
+ all the necessary debug symbols for the kernel and its modules.
+EOF
+
+cat <<EOF > debian/rules
+#!$(command -v $MAKE) -f
+
+build:
+	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} KBUILD_SRC=
+
+binary-arch:
+	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} KBUILD_SRC= intdeb-pkg
+
+clean:
+	rm -rf debian/*tmp debian/files
+	\$(MAKE) clean
+
+binary: binary-arch
+EOF
+
+exit 0

@@ -10,7 +10,6 @@ Required properties:
 - sub-nodes:
   - codec
     - compatible:		"x-powers,ac100-codec"
-    - interrupt-parent:		The parent interrupt controller
     - interrupts:		SoC NMI / GPIO interrupt connected to the
     				IRQ_AUDIO pin
     - #clock-cells:		Shall be 0
@@ -20,9 +19,6 @@ Required properties:
 
   - rtc
     - compatible:		"x-powers,ac100-rtc"
-    - interrupt-parent:		The parent interrupt controller
-    - interrupts:		SoC NMI / GPIO interrupt connected to the
-    				IRQ_RTC pin
     - clocks:			A phandle to the codec's "4M_adda" clock
     - #clock-cells:		Shall be 1
     - clock-output-names:	"cko1_rtc", "cko2_rtc", "cko3_rtc"

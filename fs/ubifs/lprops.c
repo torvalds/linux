@@ -187,9 +187,9 @@ static int add_to_lpt_heap(struct ubifs_info *c, struct ubifs_lprops *lprops,
 		/* Compare to some other LEB on the bottom of heap */
 		/* Pick a position kind of randomly */
 		cpos = (((size_t)lprops >> 4) & b) + b;
-		ubifs_assert(cpos >= b);
-		ubifs_assert(cpos < LPT_HEAP_SZ);
-		ubifs_assert(cpos < heap->cnt);
+		ubifs_assert(c, cpos >= b);
+		ubifs_assert(c, cpos < LPT_HEAP_SZ);
+		ubifs_assert(c, cpos < heap->cnt);
 
 		val1 = get_heap_comp_val(lprops, cat);
 		val2 = get_heap_comp_val(heap->arr[cpos], cat);
@@ -230,8 +230,8 @@ static void remove_from_lpt_heap(struct ubifs_info *c,
 	int hpos = lprops->hpos;
 
 	heap = &c->lpt_heap[cat - 1];
-	ubifs_assert(hpos >= 0 && hpos < heap->cnt);
-	ubifs_assert(heap->arr[hpos] == lprops);
+	ubifs_assert(c, hpos >= 0 && hpos < heap->cnt);
+	ubifs_assert(c, heap->arr[hpos] == lprops);
 	heap->cnt -= 1;
 	if (hpos < heap->cnt) {
 		heap->arr[hpos] = heap->arr[heap->cnt];
@@ -244,7 +244,6 @@ static void remove_from_lpt_heap(struct ubifs_info *c,
 /**
  * lpt_heap_replace - replace lprops in a category heap.
  * @c: UBIFS file-system description object
- * @old_lprops: LEB properties to replace
  * @new_lprops: LEB properties with which to replace
  * @cat: LEB category
  *
@@ -254,7 +253,6 @@ static void remove_from_lpt_heap(struct ubifs_info *c,
  * lprops.  This function does that.
  */
 static void lpt_heap_replace(struct ubifs_info *c,
-			     struct ubifs_lprops *old_lprops,
 			     struct ubifs_lprops *new_lprops, int cat)
 {
 	struct ubifs_lpt_heap *heap;
@@ -298,13 +296,13 @@ void ubifs_add_to_cat(struct ubifs_info *c, struct ubifs_lprops *lprops,
 		list_add(&lprops->list, &c->frdi_idx_list);
 		break;
 	default:
-		ubifs_assert(0);
+		ubifs_assert(c, 0);
 	}
 
 	lprops->flags &= ~LPROPS_CAT_MASK;
 	lprops->flags |= cat;
 	c->in_a_category_cnt += 1;
-	ubifs_assert(c->in_a_category_cnt <= c->main_lebs);
+	ubifs_assert(c, c->in_a_category_cnt <= c->main_lebs);
 }
 
 /**
@@ -326,20 +324,20 @@ static void ubifs_remove_from_cat(struct ubifs_info *c,
 		break;
 	case LPROPS_FREEABLE:
 		c->freeable_cnt -= 1;
-		ubifs_assert(c->freeable_cnt >= 0);
+		ubifs_assert(c, c->freeable_cnt >= 0);
 		/* Fall through */
 	case LPROPS_UNCAT:
 	case LPROPS_EMPTY:
 	case LPROPS_FRDI_IDX:
-		ubifs_assert(!list_empty(&lprops->list));
+		ubifs_assert(c, !list_empty(&lprops->list));
 		list_del(&lprops->list);
 		break;
 	default:
-		ubifs_assert(0);
+		ubifs_assert(c, 0);
 	}
 
 	c->in_a_category_cnt -= 1;
-	ubifs_assert(c->in_a_category_cnt >= 0);
+	ubifs_assert(c, c->in_a_category_cnt >= 0);
 }
 
 /**
@@ -362,7 +360,7 @@ void ubifs_replace_cat(struct ubifs_info *c, struct ubifs_lprops *old_lprops,
 	case LPROPS_DIRTY:
 	case LPROPS_DIRTY_IDX:
 	case LPROPS_FREE:
-		lpt_heap_replace(c, old_lprops, new_lprops, cat);
+		lpt_heap_replace(c, new_lprops, cat);
 		break;
 	case LPROPS_UNCAT:
 	case LPROPS_EMPTY:
@@ -371,7 +369,7 @@ void ubifs_replace_cat(struct ubifs_info *c, struct ubifs_lprops *old_lprops,
 		list_replace(&old_lprops->list, &new_lprops->list);
 		break;
 	default:
-		ubifs_assert(0);
+		ubifs_assert(c, 0);
 	}
 }
 
@@ -414,7 +412,7 @@ int ubifs_categorize_lprops(const struct ubifs_info *c,
 		return LPROPS_UNCAT;
 
 	if (lprops->free == c->leb_size) {
-		ubifs_assert(!(lprops->flags & LPROPS_INDEX));
+		ubifs_assert(c, !(lprops->flags & LPROPS_INDEX));
 		return LPROPS_EMPTY;
 	}
 
@@ -480,7 +478,7 @@ static void change_category(struct ubifs_info *c, struct ubifs_lprops *lprops)
  */
 int ubifs_calc_dark(const struct ubifs_info *c, int spc)
 {
-	ubifs_assert(!(spc & 7));
+	ubifs_assert(c, !(spc & 7));
 
 	if (spc < c->dark_wm)
 		return spc;
@@ -545,27 +543,27 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 	dbg_lp("LEB %d, free %d, dirty %d, flags %d",
 	       lprops->lnum, free, dirty, flags);
 
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
-	ubifs_assert(c->lst.empty_lebs >= 0 &&
+	ubifs_assert(c, mutex_is_locked(&c->lp_mutex));
+	ubifs_assert(c, c->lst.empty_lebs >= 0 &&
 		     c->lst.empty_lebs <= c->main_lebs);
-	ubifs_assert(c->freeable_cnt >= 0);
-	ubifs_assert(c->freeable_cnt <= c->main_lebs);
-	ubifs_assert(c->lst.taken_empty_lebs >= 0);
-	ubifs_assert(c->lst.taken_empty_lebs <= c->lst.empty_lebs);
-	ubifs_assert(!(c->lst.total_free & 7) && !(c->lst.total_dirty & 7));
-	ubifs_assert(!(c->lst.total_dead & 7) && !(c->lst.total_dark & 7));
-	ubifs_assert(!(c->lst.total_used & 7));
-	ubifs_assert(free == LPROPS_NC || free >= 0);
-	ubifs_assert(dirty == LPROPS_NC || dirty >= 0);
+	ubifs_assert(c, c->freeable_cnt >= 0);
+	ubifs_assert(c, c->freeable_cnt <= c->main_lebs);
+	ubifs_assert(c, c->lst.taken_empty_lebs >= 0);
+	ubifs_assert(c, c->lst.taken_empty_lebs <= c->lst.empty_lebs);
+	ubifs_assert(c, !(c->lst.total_free & 7) && !(c->lst.total_dirty & 7));
+	ubifs_assert(c, !(c->lst.total_dead & 7) && !(c->lst.total_dark & 7));
+	ubifs_assert(c, !(c->lst.total_used & 7));
+	ubifs_assert(c, free == LPROPS_NC || free >= 0);
+	ubifs_assert(c, dirty == LPROPS_NC || dirty >= 0);
 
 	if (!is_lprops_dirty(c, lprops)) {
 		lprops = ubifs_lpt_lookup_dirty(c, lprops->lnum);
 		if (IS_ERR(lprops))
 			return lprops;
 	} else
-		ubifs_assert(lprops == ubifs_lpt_lookup_dirty(c, lprops->lnum));
+		ubifs_assert(c, lprops == ubifs_lpt_lookup_dirty(c, lprops->lnum));
 
-	ubifs_assert(!(lprops->free & 7) && !(lprops->dirty & 7));
+	ubifs_assert(c, !(lprops->free & 7) && !(lprops->dirty & 7));
 
 	spin_lock(&c->space_lock);
 	if ((lprops->flags & LPROPS_TAKEN) && lprops->free == c->leb_size)
@@ -770,15 +768,15 @@ const struct ubifs_lprops *ubifs_fast_find_free(struct ubifs_info *c)
 	struct ubifs_lprops *lprops;
 	struct ubifs_lpt_heap *heap;
 
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
+	ubifs_assert(c, mutex_is_locked(&c->lp_mutex));
 
 	heap = &c->lpt_heap[LPROPS_FREE - 1];
 	if (heap->cnt == 0)
 		return NULL;
 
 	lprops = heap->arr[0];
-	ubifs_assert(!(lprops->flags & LPROPS_TAKEN));
-	ubifs_assert(!(lprops->flags & LPROPS_INDEX));
+	ubifs_assert(c, !(lprops->flags & LPROPS_TAKEN));
+	ubifs_assert(c, !(lprops->flags & LPROPS_INDEX));
 	return lprops;
 }
 
@@ -793,15 +791,15 @@ const struct ubifs_lprops *ubifs_fast_find_empty(struct ubifs_info *c)
 {
 	struct ubifs_lprops *lprops;
 
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
+	ubifs_assert(c, mutex_is_locked(&c->lp_mutex));
 
 	if (list_empty(&c->empty_list))
 		return NULL;
 
 	lprops = list_entry(c->empty_list.next, struct ubifs_lprops, list);
-	ubifs_assert(!(lprops->flags & LPROPS_TAKEN));
-	ubifs_assert(!(lprops->flags & LPROPS_INDEX));
-	ubifs_assert(lprops->free == c->leb_size);
+	ubifs_assert(c, !(lprops->flags & LPROPS_TAKEN));
+	ubifs_assert(c, !(lprops->flags & LPROPS_INDEX));
+	ubifs_assert(c, lprops->free == c->leb_size);
 	return lprops;
 }
 
@@ -816,16 +814,16 @@ const struct ubifs_lprops *ubifs_fast_find_freeable(struct ubifs_info *c)
 {
 	struct ubifs_lprops *lprops;
 
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
+	ubifs_assert(c, mutex_is_locked(&c->lp_mutex));
 
 	if (list_empty(&c->freeable_list))
 		return NULL;
 
 	lprops = list_entry(c->freeable_list.next, struct ubifs_lprops, list);
-	ubifs_assert(!(lprops->flags & LPROPS_TAKEN));
-	ubifs_assert(!(lprops->flags & LPROPS_INDEX));
-	ubifs_assert(lprops->free + lprops->dirty == c->leb_size);
-	ubifs_assert(c->freeable_cnt > 0);
+	ubifs_assert(c, !(lprops->flags & LPROPS_TAKEN));
+	ubifs_assert(c, !(lprops->flags & LPROPS_INDEX));
+	ubifs_assert(c, lprops->free + lprops->dirty == c->leb_size);
+	ubifs_assert(c, c->freeable_cnt > 0);
 	return lprops;
 }
 
@@ -840,15 +838,15 @@ const struct ubifs_lprops *ubifs_fast_find_frdi_idx(struct ubifs_info *c)
 {
 	struct ubifs_lprops *lprops;
 
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
+	ubifs_assert(c, mutex_is_locked(&c->lp_mutex));
 
 	if (list_empty(&c->frdi_idx_list))
 		return NULL;
 
 	lprops = list_entry(c->frdi_idx_list.next, struct ubifs_lprops, list);
-	ubifs_assert(!(lprops->flags & LPROPS_TAKEN));
-	ubifs_assert((lprops->flags & LPROPS_INDEX));
-	ubifs_assert(lprops->free + lprops->dirty == c->leb_size);
+	ubifs_assert(c, !(lprops->flags & LPROPS_TAKEN));
+	ubifs_assert(c, (lprops->flags & LPROPS_INDEX));
+	ubifs_assert(c, lprops->free + lprops->dirty == c->leb_size);
 	return lprops;
 }
 
@@ -1091,10 +1089,6 @@ static int scan_check_cb(struct ubifs_info *c,
 		}
 	}
 
-	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
 	/*
 	 * After an unclean unmount, empty and freeable LEBs
 	 * may contain garbage - do not scan them.
@@ -1112,6 +1106,10 @@ static int scan_check_cb(struct ubifs_info *c,
 		lst->total_dark  +=  ubifs_calc_dark(c, c->leb_size);
 		return LPT_SCAN_CONTINUE;
 	}
+
+	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	sleb = ubifs_scan(c, lnum, 0, buf, 0);
 	if (IS_ERR(sleb)) {

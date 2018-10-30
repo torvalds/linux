@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Memory management options"
 
 config QUICKLIST
@@ -223,8 +224,6 @@ config HUGETLB_PAGE_SIZE_512MB
 	depends on CPU_SH5
 
 endchoice
-
-source "mm/Kconfig"
 
 config SCHED_MC
 	bool "Multi-core scheduler support"

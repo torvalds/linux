@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_M68K_ZORRO_H
 #define _ASM_M68K_ZORRO_H
 
 #include <asm/raw_io.h>
+#include <asm/kmap.h>
 
 #define z_readb raw_inb
 #define z_readw raw_inw

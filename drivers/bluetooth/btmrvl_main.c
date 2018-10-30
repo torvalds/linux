@@ -183,7 +183,7 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 		return -EFAULT;
 	}
 
-	skb = bt_skb_alloc(HCI_COMMAND_HDR_SIZE + len, GFP_ATOMIC);
+	skb = bt_skb_alloc(HCI_COMMAND_HDR_SIZE + len, GFP_KERNEL);
 	if (!skb) {
 		BT_ERR("No free skb");
 		return -ENOMEM;
@@ -356,12 +356,6 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 	}
 
 	return ret;
-}
-
-void btmrvl_firmware_dump(struct btmrvl_private *priv)
-{
-	if (priv->firmware_dump)
-		priv->firmware_dump(priv);
 }
 
 static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)

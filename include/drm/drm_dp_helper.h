@@ -64,6 +64,11 @@
 /* AUX CH addresses */
 /* DPCD */
 #define DP_DPCD_REV                         0x000
+# define DP_DPCD_REV_10                     0x10
+# define DP_DPCD_REV_11                     0x11
+# define DP_DPCD_REV_12                     0x12
+# define DP_DPCD_REV_13                     0x13
+# define DP_DPCD_REV_14                     0x14
 
 #define DP_MAX_LINK_RATE                    0x001
 
@@ -75,6 +80,7 @@
 #define DP_MAX_DOWNSPREAD                   0x003
 # define DP_MAX_DOWNSPREAD_0_5		    (1 << 0)
 # define DP_NO_AUX_HANDSHAKE_LINK_TRAINING  (1 << 6)
+# define DP_TPS4_SUPPORTED                  (1 << 7)
 
 #define DP_NORP                             0x004
 
@@ -117,7 +123,9 @@
 # define DP_FRAMING_CHANGE_CAP		    (1 << 1)
 # define DP_DPCD_DISPLAY_CONTROL_CAPABLE     (1 << 3) /* edp v1.2 or higher */
 
-#define DP_TRAINING_AUX_RD_INTERVAL         0x00e   /* XXX 1.2? */
+#define DP_TRAINING_AUX_RD_INTERVAL             0x00e   /* XXX 1.2? */
+# define DP_TRAINING_AUX_RD_MASK                0x7F    /* DP 1.3 */
+# define DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT	(1 << 7) /* DP 1.3 */
 
 #define DP_ADAPTER_CAP			    0x00f   /* 1.2 */
 # define DP_FORCE_LOAD_SENSE_CAP	    (1 << 0)
@@ -287,6 +295,7 @@
 #define DP_PSR_SUPPORT                      0x070   /* XXX 1.2? */
 # define DP_PSR_IS_SUPPORTED                1
 # define DP_PSR2_IS_SUPPORTED		    2	    /* eDP 1.4 */
+# define DP_PSR2_WITH_Y_COORD_IS_SUPPORTED  3	    /* eDP 1.4a */
 
 #define DP_PSR_CAPS                         0x071   /* XXX 1.2? */
 # define DP_PSR_NO_TRAIN_ON_EXIT            1
@@ -328,12 +337,20 @@
 # define DP_DS_12BPC		            2
 # define DP_DS_16BPC		            3
 
+/* DP Forward error Correction Registers */
+#define DP_FEC_CAPABILITY		    0x090    /* 1.4 */
+# define DP_FEC_CAPABLE			    (1 << 0)
+# define DP_FEC_UNCORR_BLK_ERROR_COUNT_CAP  (1 << 1)
+# define DP_FEC_CORR_BLK_ERROR_COUNT_CAP    (1 << 2)
+# define DP_FEC_BIT_ERROR_COUNT_CAP	    (1 << 3)
+
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
 # define DP_LINK_RATE_TABLE		    0x00    /* eDP 1.4 */
 # define DP_LINK_BW_1_62		    0x06
 # define DP_LINK_BW_2_7			    0x0a
 # define DP_LINK_BW_5_4			    0x14    /* 1.2 */
+# define DP_LINK_BW_8_1			    0x1e    /* 1.4 */
 
 #define DP_LANE_COUNT_SET	            0x101
 # define DP_LANE_COUNT_MASK		    0x0f
@@ -344,7 +361,9 @@
 # define DP_TRAINING_PATTERN_1		    1
 # define DP_TRAINING_PATTERN_2		    2
 # define DP_TRAINING_PATTERN_3		    3	    /* 1.2 */
+# define DP_TRAINING_PATTERN_4              7       /* 1.4 */
 # define DP_TRAINING_PATTERN_MASK	    0x3
+# define DP_TRAINING_PATTERN_MASK_1_4	    0xf
 
 /* DPCD 1.1 only. For DPCD >= 1.2 see per-lane DP_LINK_QUAL_LANEn_SET */
 # define DP_LINK_QUAL_PATTERN_11_DISABLE    (0 << 2)
@@ -441,6 +460,19 @@
 #define DP_UPSTREAM_DEVICE_DP_PWR_NEED	    0x118   /* 1.2 */
 # define DP_PWR_NOT_NEEDED		    (1 << 0)
 
+#define DP_FEC_CONFIGURATION		    0x120    /* 1.4 */
+# define DP_FEC_READY			    (1 << 0)
+# define DP_FEC_ERR_COUNT_SEL_MASK	    (7 << 1)
+# define DP_FEC_ERR_COUNT_DIS		    (0 << 1)
+# define DP_FEC_UNCORR_BLK_ERROR_COUNT	    (1 << 1)
+# define DP_FEC_CORR_BLK_ERROR_COUNT	    (2 << 1)
+# define DP_FEC_BIT_ERROR_COUNT		    (3 << 1)
+# define DP_FEC_LANE_SELECT_MASK	    (3 << 4)
+# define DP_FEC_LANE_0_SELECT		    (0 << 4)
+# define DP_FEC_LANE_1_SELECT		    (1 << 4)
+# define DP_FEC_LANE_2_SELECT		    (2 << 4)
+# define DP_FEC_LANE_3_SELECT		    (3 << 4)
+
 #define DP_AUX_FRAME_SYNC_VALUE		    0x15c   /* eDP 1.4 */
 # define DP_AUX_FRAME_SYNC_VALID	    (1 << 0)
 
@@ -453,6 +485,7 @@
 # define DP_PSR_FRAME_CAPTURE		    (1 << 3)
 # define DP_PSR_SELECTIVE_UPDATE	    (1 << 4)
 # define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS     (1 << 5)
+# define DP_PSR_ENABLE_PSR2		    (1 << 6) /* eDP 1.4a */
 
 #define DP_ADAPTER_CTRL			    0x1a0
 # define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)
@@ -509,6 +542,8 @@
 # define DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT 4
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
+
+#define DP_ADJUST_REQUEST_POST_CURSOR2      0x20c
 
 #define DP_TEST_REQUEST			    0x218
 # define DP_TEST_LINK_TRAINING		    (1 << 0)
@@ -582,6 +617,8 @@
 
 #define DP_TEST_REFRESH_RATE_NUMERATOR      0x234
 
+#define DP_TEST_MISC0                       0x232
+
 #define DP_TEST_CRC_R_CR		    0x240
 #define DP_TEST_CRC_G_Y			    0x242
 #define DP_TEST_CRC_B_CB		    0x244
@@ -589,6 +626,18 @@
 #define DP_TEST_SINK_MISC		    0x246
 # define DP_TEST_CRC_SUPPORTED		    (1 << 5)
 # define DP_TEST_COUNT_MASK		    0xf
+
+#define DP_TEST_PHY_PATTERN                 0x248
+#define DP_TEST_80BIT_CUSTOM_PATTERN_7_0    0x250
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_15_8   0x251
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_23_16  0x252
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_31_24  0x253
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_39_32  0x254
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_47_40  0x255
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_55_48  0x256
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_63_56  0x257
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_71_64  0x258
+#define	DP_TEST_80BIT_CUSTOM_PATTERN_79_72  0x259
 
 #define DP_TEST_RESPONSE		    0x260
 # define DP_TEST_ACK			    (1 << 0)
@@ -599,6 +648,16 @@
 
 #define DP_TEST_SINK			    0x270
 # define DP_TEST_SINK_START		    (1 << 0)
+
+#define DP_FEC_STATUS			    0x280    /* 1.4 */
+# define DP_FEC_DECODE_EN_DETECTED	    (1 << 0)
+# define DP_FEC_DECODE_DIS_DETECTED	    (1 << 1)
+
+#define DP_FEC_ERROR_COUNT_LSB		    0x0281    /* 1.4 */
+
+#define DP_FEC_ERROR_COUNT_MSB		    0x0282    /* 1.4 */
+# define DP_FEC_ERROR_COUNT_MASK	    0x7F
+# define DP_FEC_ERR_COUNT_VALID		    (1 << 7)
 
 #define DP_PAYLOAD_TABLE_UPDATE_STATUS      0x2c0   /* 1.2 MST */
 # define DP_PAYLOAD_TABLE_UPDATED           (1 << 0)
@@ -611,6 +670,7 @@
 #define DP_SINK_OUI			    0x400
 #define DP_BRANCH_OUI			    0x500
 #define DP_BRANCH_ID                        0x503
+#define DP_BRANCH_REVISION_START            0x509
 #define DP_BRANCH_HW_REV                    0x509
 #define DP_BRANCH_SW_REV                    0x50A
 
@@ -618,6 +678,7 @@
 # define DP_SET_POWER_D0                    0x1
 # define DP_SET_POWER_D3                    0x2
 # define DP_SET_POWER_MASK                  0x3
+# define DP_SET_POWER_D3_AUX_ON             0x5
 
 #define DP_EDP_DPCD_REV			    0x700    /* eDP 1.2 */
 # define DP_EDP_11			    0x00
@@ -735,8 +796,31 @@
 # define DP_PSR_SINK_INTERNAL_ERROR         7
 # define DP_PSR_SINK_STATE_MASK             0x07
 
+#define DP_SYNCHRONIZATION_LATENCY_IN_SINK		0x2009 /* edp 1.4 */
+# define DP_MAX_RESYNC_FRAME_COUNT_MASK			(0xf << 0)
+# define DP_MAX_RESYNC_FRAME_COUNT_SHIFT		0
+# define DP_LAST_ACTUAL_SYNCHRONIZATION_LATENCY_MASK	(0xf << 4)
+# define DP_LAST_ACTUAL_SYNCHRONIZATION_LATENCY_SHIFT	4
+
+#define DP_LAST_RECEIVED_PSR_SDP	    0x200a /* eDP 1.2 */
+# define DP_PSR_STATE_BIT		    (1 << 0) /* eDP 1.2 */
+# define DP_UPDATE_RFB_BIT		    (1 << 1) /* eDP 1.2 */
+# define DP_CRC_VALID_BIT		    (1 << 2) /* eDP 1.2 */
+# define DP_SU_VALID			    (1 << 3) /* eDP 1.4 */
+# define DP_FIRST_SCAN_LINE_SU_REGION	    (1 << 4) /* eDP 1.4 */
+# define DP_LAST_SCAN_LINE_SU_REGION	    (1 << 5) /* eDP 1.4 */
+# define DP_Y_COORDINATE_VALID		    (1 << 6) /* eDP 1.4a */
+
 #define DP_RECEIVER_ALPM_STATUS		    0x200b  /* eDP 1.4 */
 # define DP_ALPM_LOCK_TIMEOUT_ERROR	    (1 << 0)
+
+#define DP_LANE0_1_STATUS_ESI                  0x200c /* status same as 0x202 */
+#define DP_LANE2_3_STATUS_ESI                  0x200d /* status same as 0x203 */
+#define DP_LANE_ALIGN_STATUS_UPDATED_ESI       0x200e /* status same as 0x204 */
+#define DP_SINK_STATUS_ESI                     0x200f /* status same as 0x205 */
+
+#define DP_DP13_DPCD_REV                    0x2200
+#define DP_DP13_MAX_LINK_RATE               0x2201
 
 #define DP_DPRX_FEATURE_ENUMERATION_LIST    0x2210  /* DP 1.3 */
 # define DP_GTC_CAP					(1 << 0)  /* DP 1.3 */
@@ -803,6 +887,23 @@
 #define DP_CEC_RX_MESSAGE_BUFFER               0x3010
 #define DP_CEC_TX_MESSAGE_BUFFER               0x3020
 #define DP_CEC_MESSAGE_BUFFER_LENGTH             0x10
+
+#define DP_AUX_HDCP_BKSV		0x68000
+#define DP_AUX_HDCP_RI_PRIME		0x68005
+#define DP_AUX_HDCP_AKSV		0x68007
+#define DP_AUX_HDCP_AN			0x6800C
+#define DP_AUX_HDCP_V_PRIME(h)		(0x68014 + h * 4)
+#define DP_AUX_HDCP_BCAPS		0x68028
+# define DP_BCAPS_REPEATER_PRESENT	BIT(1)
+# define DP_BCAPS_HDCP_CAPABLE		BIT(0)
+#define DP_AUX_HDCP_BSTATUS		0x68029
+# define DP_BSTATUS_REAUTH_REQ		BIT(3)
+# define DP_BSTATUS_LINK_FAILURE	BIT(2)
+# define DP_BSTATUS_R0_PRIME_READY	BIT(1)
+# define DP_BSTATUS_READY		BIT(0)
+#define DP_AUX_HDCP_BINFO		0x6802A
+#define DP_AUX_HDCP_KSV_FIFO		0x6802C
+#define DP_AUX_HDCP_AINFO		0x6803B
 
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */
@@ -871,18 +972,30 @@ void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
 
-struct edp_sdp_header {
+#define DP_SDP_AUDIO_TIMESTAMP		0x01
+#define DP_SDP_AUDIO_STREAM		0x02
+#define DP_SDP_EXTENSION		0x04 /* DP 1.1 */
+#define DP_SDP_AUDIO_COPYMANAGEMENT	0x05 /* DP 1.2 */
+#define DP_SDP_ISRC			0x06 /* DP 1.2 */
+#define DP_SDP_VSC			0x07 /* DP 1.2 */
+#define DP_SDP_CAMERA_GENERIC(i)	(0x08 + (i)) /* 0-7, DP 1.3 */
+#define DP_SDP_PPS			0x10 /* DP 1.4 */
+#define DP_SDP_VSC_EXT_VESA		0x20 /* DP 1.4 */
+#define DP_SDP_VSC_EXT_CEA		0x21 /* DP 1.4 */
+/* 0x80+ CEA-861 infoframe types */
+
+struct dp_sdp_header {
 	u8 HB0; /* Secondary Data Packet ID */
 	u8 HB1; /* Secondary Data Packet Type */
-	u8 HB2; /* 7:5 reserved, 4:0 revision number */
-	u8 HB3; /* 7:5 reserved, 4:0 number of valid data bytes */
+	u8 HB2; /* Secondary Data Packet Specific header, Byte 0 */
+	u8 HB3; /* Secondary Data packet Specific header, Byte 1 */
 } __packed;
 
 #define EDP_SDP_HEADER_REVISION_MASK		0x1F
 #define EDP_SDP_HEADER_VALID_PAYLOAD_BYTES	0x1F
 
 struct edp_vsc_psr {
-	struct edp_sdp_header sdp_header;
+	struct dp_sdp_header sdp_header;
 	u8 DB0; /* Stereo Interface */
 	u8 DB1; /* 0 - PSR State; 1 - Update RFB; 2 - CRC Valid */
 	u8 DB2; /* CRC value bits 7:0 of the R or Cr component */
@@ -927,6 +1040,20 @@ drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 }
 
 static inline bool
+drm_dp_tps4_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DPCD_REV] >= 0x14 &&
+		dpcd[DP_MAX_DOWNSPREAD] & DP_TPS4_SUPPORTED;
+}
+
+static inline u8
+drm_dp_training_pattern_mask(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return (dpcd[DP_DPCD_REV] >= 0x14) ? DP_TRAINING_PATTERN_MASK_1_4 :
+		DP_TRAINING_PATTERN_MASK;
+}
+
+static inline bool
 drm_dp_is_branch(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT;
@@ -950,6 +1077,25 @@ struct drm_dp_aux_msg {
 	u8 reply;
 	void *buffer;
 	size_t size;
+};
+
+struct cec_adapter;
+struct edid;
+
+/**
+ * struct drm_dp_aux_cec - DisplayPort CEC-Tunneling-over-AUX
+ * @lock: mutex protecting this struct
+ * @adap: the CEC adapter for CEC-Tunneling-over-AUX support.
+ * @name: name of the CEC adapter
+ * @parent: parent device of the CEC adapter
+ * @unregister_work: unregister the CEC adapter
+ */
+struct drm_dp_aux_cec {
+	struct mutex lock;
+	struct cec_adapter *adap;
+	const char *name;
+	struct device *parent;
+	struct delayed_work unregister_work;
 };
 
 /**
@@ -1010,6 +1156,10 @@ struct drm_dp_aux {
 	 * @i2c_defer_count: Counts I2C DEFERs, used for DP validation.
 	 */
 	unsigned i2c_defer_count;
+	/**
+	 * @cec: struct containing fields used for CEC-Tunneling-over-AUX.
+	 */
+	struct drm_dp_aux_cec cec;
 };
 
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
@@ -1111,12 +1261,12 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
  */
 enum drm_dp_quirk {
 	/**
-	 * @DP_DPCD_QUIRK_LIMITED_M_N:
+	 * @DP_DPCD_QUIRK_CONSTANT_N:
 	 *
 	 * The device requires main link attributes Mvid and Nvid to be limited
-	 * to 16 bits.
+	 * to 16 bits. So will give a constant value (0x8000) for compatability.
 	 */
-	DP_DPCD_QUIRK_LIMITED_M_N,
+	DP_DPCD_QUIRK_CONSTANT_N,
 };
 
 /**
@@ -1131,5 +1281,38 @@ drm_dp_has_quirk(const struct drm_dp_desc *desc, enum drm_dp_quirk quirk)
 {
 	return desc->quirks & BIT(quirk);
 }
+
+#ifdef CONFIG_DRM_DP_CEC
+void drm_dp_cec_irq(struct drm_dp_aux *aux);
+void drm_dp_cec_register_connector(struct drm_dp_aux *aux, const char *name,
+				   struct device *parent);
+void drm_dp_cec_unregister_connector(struct drm_dp_aux *aux);
+void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid);
+void drm_dp_cec_unset_edid(struct drm_dp_aux *aux);
+#else
+static inline void drm_dp_cec_irq(struct drm_dp_aux *aux)
+{
+}
+
+static inline void drm_dp_cec_register_connector(struct drm_dp_aux *aux,
+						 const char *name,
+						 struct device *parent)
+{
+}
+
+static inline void drm_dp_cec_unregister_connector(struct drm_dp_aux *aux)
+{
+}
+
+static inline void drm_dp_cec_set_edid(struct drm_dp_aux *aux,
+				       const struct edid *edid)
+{
+}
+
+static inline void drm_dp_cec_unset_edid(struct drm_dp_aux *aux)
+{
+}
+
+#endif
 
 #endif /* _DRM_DP_HELPER_H_ */

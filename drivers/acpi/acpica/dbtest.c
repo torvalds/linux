@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: dbtest - Various debug-related tests
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2017, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -65,6 +29,8 @@ acpi_db_test_buffer_type(struct acpi_namespace_node *node, u32 bit_length);
 
 static acpi_status
 acpi_db_test_string_type(struct acpi_namespace_node *node, u32 byte_length);
+
+static acpi_status acpi_db_test_package_type(struct acpi_namespace_node *node);
 
 static acpi_status
 acpi_db_read_from_object(struct acpi_namespace_node *node,
@@ -309,6 +275,11 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 		bit_length = byte_length * 8;
 		break;
 
+	case ACPI_TYPE_PACKAGE:
+
+		local_type = ACPI_TYPE_PACKAGE;
+		break;
+
 	case ACPI_TYPE_FIELD_UNIT:
 	case ACPI_TYPE_BUFFER_FIELD:
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
@@ -341,6 +312,7 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 
 	acpi_os_printf("%14s: %4.4s",
 		       acpi_ut_get_type_name(node->type), node->name.ascii);
+
 	if (!obj_desc) {
 		acpi_os_printf(" Ignoring, no attached object\n");
 		return (AE_OK);
@@ -358,14 +330,13 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 		case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 		case ACPI_ADR_SPACE_SYSTEM_IO:
 		case ACPI_ADR_SPACE_PCI_CONFIG:
-		case ACPI_ADR_SPACE_EC:
 
 			break;
 
 		default:
 
 			acpi_os_printf
-			    ("    %s space is not supported [%4.4s]\n",
+			    ("    %s space is not supported in this command [%4.4s]\n",
 			     acpi_ut_get_region_name(region_obj->region.
 						     space_id),
 			     region_obj->region.node->name.ascii);
@@ -395,11 +366,23 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 		status = acpi_db_test_buffer_type(node, bit_length);
 		break;
 
+	case ACPI_TYPE_PACKAGE:
+
+		status = acpi_db_test_package_type(node);
+		break;
+
 	default:
 
 		acpi_os_printf(" Ignoring, type not implemented (%2.2X)",
 			       local_type);
 		break;
+	}
+
+	/* Exit on error, but don't abort the namespace walk */
+
+	if (ACPI_FAILURE(status)) {
+		status = AE_OK;
+		goto exit;
 	}
 
 	switch (node->type) {
@@ -409,12 +392,14 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 		acpi_os_printf(" (%s)",
 			       acpi_ut_get_region_name(region_obj->region.
 						       space_id));
+
 		break;
 
 	default:
 		break;
 	}
 
+exit:
 	acpi_os_printf("\n");
 	return (status);
 }
@@ -467,7 +452,6 @@ acpi_db_test_integer_type(struct acpi_namespace_node *node, u32 bit_length)
 	if (temp1->integer.value == value_to_write) {
 		value_to_write = 0;
 	}
-
 	/* Write a new value */
 
 	write_value.type = ACPI_TYPE_INTEGER;
@@ -744,6 +728,35 @@ exit:
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_db_test_package_type
+ *
+ * PARAMETERS:  node                - Parent NS node for the object
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Test read for a Package object.
+ *
+ ******************************************************************************/
+
+static acpi_status acpi_db_test_package_type(struct acpi_namespace_node *node)
+{
+	union acpi_object *temp1 = NULL;
+	acpi_status status;
+
+	/* Read the original value */
+
+	status = acpi_db_read_from_object(node, ACPI_TYPE_PACKAGE, &temp1);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	acpi_os_printf(" %8.8X Elements", temp1->package.count);
+	acpi_os_free(temp1);
+	return (status);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_db_read_from_object
  *
  * PARAMETERS:  node                - Parent NS node for the object
@@ -782,8 +795,8 @@ acpi_db_read_from_object(struct acpi_namespace_node *node,
 	acpi_gbl_method_executing = TRUE;
 	status = acpi_evaluate_object(read_handle, NULL,
 				      &param_objects, &return_obj);
-	acpi_gbl_method_executing = FALSE;
 
+	acpi_gbl_method_executing = FALSE;
 	if (ACPI_FAILURE(status)) {
 		acpi_os_printf("Could not read from object, %s",
 			       acpi_format_exception(status));
@@ -796,6 +809,7 @@ acpi_db_read_from_object(struct acpi_namespace_node *node,
 	case ACPI_TYPE_INTEGER:
 	case ACPI_TYPE_BUFFER:
 	case ACPI_TYPE_STRING:
+	case ACPI_TYPE_PACKAGE:
 		/*
 		 * Did we receive the type we wanted? Most important for the
 		 * Integer/Buffer case (when a field is larger than an Integer,
@@ -807,6 +821,7 @@ acpi_db_read_from_object(struct acpi_namespace_node *node,
 			     acpi_ut_get_type_name(expected_type),
 			     acpi_ut_get_type_name(ret_value->type));
 
+			acpi_os_free(return_obj.pointer);
 			return (AE_TYPE);
 		}
 

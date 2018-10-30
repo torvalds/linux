@@ -271,7 +271,7 @@ int do_shash(unsigned char *name, unsigned char *result,
 	hash = crypto_alloc_shash(name, 0, 0);
 	if (IS_ERR(hash)) {
 		rc = PTR_ERR(hash);
-		pr_err("%s: Crypto %s allocation error %d", __func__, name, rc);
+		pr_err("%s: Crypto %s allocation error %d\n", __func__, name, rc);
 		return rc;
 	}
 
@@ -279,7 +279,6 @@ int do_shash(unsigned char *name, unsigned char *result,
 	sdesc = kmalloc(size, GFP_KERNEL);
 	if (!sdesc) {
 		rc = -ENOMEM;
-		pr_err("%s: Memory allocation failure", __func__);
 		goto do_shash_err;
 	}
 	sdesc->shash.tfm = hash;
@@ -288,31 +287,31 @@ int do_shash(unsigned char *name, unsigned char *result,
 	if (key_len > 0) {
 		rc = crypto_shash_setkey(hash, key, key_len);
 		if (rc) {
-			pr_err("%s: Could not setkey %s shash", __func__, name);
+			pr_err("%s: Could not setkey %s shash\n", __func__, name);
 			goto do_shash_err;
 		}
 	}
 
 	rc = crypto_shash_init(&sdesc->shash);
 	if (rc) {
-		pr_err("%s: Could not init %s shash", __func__, name);
+		pr_err("%s: Could not init %s shash\n", __func__, name);
 		goto do_shash_err;
 	}
 	rc = crypto_shash_update(&sdesc->shash, data1, data1_len);
 	if (rc) {
-		pr_err("%s: Could not update1", __func__);
+		pr_err("%s: Could not update1\n", __func__);
 		goto do_shash_err;
 	}
 	if (data2 && data2_len) {
 		rc = crypto_shash_update(&sdesc->shash, data2, data2_len);
 		if (rc) {
-			pr_err("%s: Could not update2", __func__);
+			pr_err("%s: Could not update2\n", __func__);
 			goto do_shash_err;
 		}
 	}
 	rc = crypto_shash_final(&sdesc->shash, result);
 	if (rc)
-		pr_err("%s: Could not generate %s hash", __func__, name);
+		pr_err("%s: Could not generate %s hash\n", __func__, name);
 
 do_shash_err:
 	crypto_free_shash(hash);

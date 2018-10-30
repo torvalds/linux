@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2013 Noralf Tronnes
  *
  * This driver is inspired by:
  *   st7735fb.c, Copyright (C) 2011, Matt Porter
  *   broadsheetfb.c, Copyright (C) 2008, Jaya Kumar
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -146,8 +137,8 @@ static int fbtft_request_gpios(struct fbtft_par *par)
 			flags = fbtft_request_gpios_match(par, gpio);
 		if (flags != FBTFT_GPIO_NO_MATCH) {
 			ret = devm_gpio_request_one(par->info->device,
-					gpio->gpio, flags,
-					par->info->device->driver->name);
+					      gpio->gpio, flags,
+					      par->info->device->driver->name);
 			if (ret < 0) {
 				dev_err(par->info->device,
 					"%s: gpio_request_one('%s'=%d) failed with %d\n",
@@ -255,11 +246,11 @@ static int fbtft_request_gpios_dt(struct fbtft_par *par)
 static int fbtft_backlight_update_status(struct backlight_device *bd)
 {
 	struct fbtft_par *par = bl_get_data(bd);
-	bool polarity = !!(bd->props.state & BL_CORE_DRIVER1);
+	bool polarity = par->polarity;
 
 	fbtft_par_dbg(DEBUG_BACKLIGHT, par,
-		"%s: polarity=%d, power=%d, fb_blank=%d\n",
-		__func__, polarity, bd->props.power, bd->props.fb_blank);
+		      "%s: polarity=%d, power=%d, fb_blank=%d\n",
+		      __func__, polarity, bd->props.power, bd->props.fb_blank);
 
 	if ((bd->props.power == FB_BLANK_UNBLANK) &&
 	    (bd->props.fb_blank == FB_BLANK_UNBLANK))
@@ -305,7 +296,7 @@ void fbtft_register_backlight(struct fbtft_par *par)
 	/* Assume backlight is off, get polarity from current state of pin */
 	bl_props.power = FB_BLANK_POWERDOWN;
 	if (!gpio_get_value(par->gpio.led[0]))
-		bl_props.state |= BL_CORE_DRIVER1;
+		par->polarity = true;
 
 	bd = backlight_device_register(dev_driver_string(par->info->device),
 				       par->info->device, par,
@@ -381,7 +372,7 @@ static void fbtft_update_display(struct fbtft_par *par, unsigned int start_line,
 	if (start_line > par->info->var.yres - 1 ||
 	    end_line > par->info->var.yres - 1) {
 		dev_warn(par->info->device,
-			"%s: start_line=%u or end_line=%u is larger than max=%d. Shouldn't happen, will do full display update\n",
+			 "%s: start_line=%u or end_line=%u is larger than max=%d. Shouldn't happen, will do full display update\n",
 			 __func__, start_line,
 			 end_line, par->info->var.yres - 1);
 		start_line = 0;
@@ -776,7 +767,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	fbops->fb_setcolreg =      fbtft_fb_setcolreg;
 	fbops->fb_blank     =      fbtft_fb_blank;
 
-	fbdefio->delay =           HZ/fps;
+	fbdefio->delay =           HZ / fps;
 	fbdefio->deferred_io =     fbtft_deferred_io;
 	fb_deferred_io_init(info);
 
@@ -826,8 +817,8 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	info->pseudo_palette = par->pseudo_palette;
 
 	if (par->gamma.curves && gamma) {
-		if (fbtft_gamma_parse_str(par,
-			par->gamma.curves, gamma, strlen(gamma)))
+		if (fbtft_gamma_parse_str(par, par->gamma.curves, gamma,
+					  strlen(gamma)))
 			goto alloc_fail;
 	}
 
@@ -1054,8 +1045,8 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 			while (p && !(val & 0xFFFF0000)) {
 				if (i > 63) {
 					dev_err(par->info->device,
-					"%s: Maximum register values exceeded\n",
-					__func__);
+						"%s: Maximum register values exceeded\n",
+						__func__);
 					return -EINVAL;
 				}
 				buf[i++] = val;
@@ -1175,8 +1166,8 @@ int fbtft_init_display(struct fbtft_par *par)
 			while (par->init_sequence[i] >= 0) {
 				if (j > 63) {
 					dev_err(par->info->device,
-					"%s: Maximum register values exceeded\n",
-					__func__);
+						"%s: Maximum register values exceeded\n",
+						__func__);
 					return -EINVAL;
 				}
 				buf[j++] = par->init_sequence[i++];
@@ -1202,7 +1193,8 @@ int fbtft_init_display(struct fbtft_par *par)
 		case -2:
 			i++;
 			fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-				"init: mdelay(%d)\n", par->init_sequence[i]);
+				      "init: mdelay(%d)\n",
+				      par->init_sequence[i]);
 			mdelay(par->init_sequence[i++]);
 			break;
 		default:
@@ -1234,8 +1226,8 @@ static int fbtft_verify_gpios(struct fbtft_par *par)
 
 	fbtft_par_dbg(DEBUG_VERIFY_GPIOS, par, "%s()\n", __func__);
 
-	if (pdata->display.buswidth != 9 && par->startbyte == 0 &&
-							par->gpio.dc < 0) {
+	if (pdata->display.buswidth != 9 &&  par->startbyte == 0 &&
+	    par->gpio.dc < 0) {
 		dev_err(par->info->device,
 			"Missing info about 'dc' gpio. Aborting.\n");
 		return -EINVAL;
@@ -1330,7 +1322,8 @@ static struct fbtft_platform_data *fbtft_probe_dt(struct device *dev)
  * Return: 0 if successful, negative if error
  */
 int fbtft_probe_common(struct fbtft_display *display,
-			struct spi_device *sdev, struct platform_device *pdev)
+		       struct spi_device *sdev,
+		       struct platform_device *pdev)
 {
 	struct device *dev;
 	struct fb_info *info;
@@ -1367,20 +1360,18 @@ int fbtft_probe_common(struct fbtft_display *display,
 	}
 
 	/* write register functions */
-	if (display->regwidth == 8 && display->buswidth == 8) {
+	if (display->regwidth == 8 && display->buswidth == 8)
 		par->fbtftops.write_register = fbtft_write_reg8_bus8;
-	} else
-	if (display->regwidth == 8 && display->buswidth == 9 && par->spi) {
+	else if (display->regwidth == 8 && display->buswidth == 9 && par->spi)
 		par->fbtftops.write_register = fbtft_write_reg8_bus9;
-	} else if (display->regwidth == 16 && display->buswidth == 8) {
+	else if (display->regwidth == 16 && display->buswidth == 8)
 		par->fbtftops.write_register = fbtft_write_reg16_bus8;
-	} else if (display->regwidth == 16 && display->buswidth == 16) {
+	else if (display->regwidth == 16 && display->buswidth == 16)
 		par->fbtftops.write_register = fbtft_write_reg16_bus16;
-	} else {
+	else
 		dev_warn(dev,
-			"no default functions for regwidth=%d and buswidth=%d\n",
-			display->regwidth, display->buswidth);
-	}
+			 "no default functions for regwidth=%d and buswidth=%d\n",
+			 display->regwidth, display->buswidth);
 
 	/* write_vmem() functions */
 	if (display->buswidth == 8)
@@ -1404,11 +1395,12 @@ int fbtft_probe_common(struct fbtft_display *display,
 			par->spi->bits_per_word = 9;
 		} else {
 			dev_warn(&par->spi->dev,
-				"9-bit SPI not available, emulating using 8-bit.\n");
+				 "9-bit SPI not available, emulating using 8-bit.\n");
 			/* allocate buffer with room for dc bits */
 			par->extra = devm_kzalloc(par->info->device,
-				par->txbuf.len + (par->txbuf.len / 8) + 8,
-				GFP_KERNEL);
+						  par->txbuf.len +
+						  (par->txbuf.len / 8) + 8,
+						  GFP_KERNEL);
 			if (!par->extra) {
 				ret = -ENOMEM;
 				goto out_release;

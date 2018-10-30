@@ -46,7 +46,7 @@ static int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
 		info->fbops->fb_sync(info);
 
 	if (ops->fd_size < d_cellsize * len) {
-		dst = kmalloc(d_cellsize * len, GFP_KERNEL);
+		dst = kmalloc_array(len, d_cellsize, GFP_KERNEL);
 
 		if (dst == NULL) {
 			err = -ENOMEM;

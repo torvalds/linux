@@ -20,7 +20,6 @@
 #include "ivtv-driver.h"
 #include "ivtv-version.h"
 #include "ivtv-alsa.h"
-#include "ivtv-alsa-mixer.h"
 #include "ivtv-alsa-pcm.h"
 
 #include <sound/core.h>
@@ -110,7 +109,7 @@ static int snd_ivtv_card_set_names(struct snd_ivtv_card *itvsc)
 	struct snd_card *sc = itvsc->sc;
 
 	/* sc->driver is used by alsa-lib's configurator: simple, unique */
-	strlcpy(sc->driver, "CX2341[56]", sizeof(sc->driver));
+	strscpy(sc->driver, "CX2341[56]", sizeof(sc->driver));
 
 	/* sc->shortname is a symlink in /proc/asound: IVTV-M -> cardN */
 	snprintf(sc->shortname,  sizeof(sc->shortname), "IVTV-%d",
@@ -160,15 +159,7 @@ static int snd_ivtv_init(struct v4l2_device *v4l2_dev)
 	/* (4) Set the driver ID and name strings */
 	snd_ivtv_card_set_names(itvsc);
 
-	/* (5) Create other components: mixer, PCM, & proc files */
-#if 0
-	ret = snd_ivtv_mixer_create(itvsc);
-	if (ret) {
-		IVTV_ALSA_WARN("%s: snd_ivtv_mixer_create() failed with err %d: proceeding anyway\n",
-			       __func__, ret);
-	}
-#endif
-
+	/* (5) Create other components: PCM, & proc files */
 	ret = snd_ivtv_pcm_create(itvsc);
 	if (ret) {
 		IVTV_ALSA_ERR("%s: snd_ivtv_pcm_create() failed with err %d\n",

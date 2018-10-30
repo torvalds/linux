@@ -66,8 +66,8 @@ int m5602_read_bridge(struct sd *sd, const u8 address, u8 *i2c_data)
 			      1, M5602_URB_MSG_TIMEOUT);
 	*i2c_data = buf[0];
 
-	PDEBUG(D_CONF, "Reading bridge register 0x%x containing 0x%x",
-	       address, *i2c_data);
+	gspca_dbg(gspca_dev, D_CONF, "Reading bridge register 0x%x containing 0x%x\n",
+		  address, *i2c_data);
 
 	/* usb_control_msg(...) returns the number of bytes sent upon success,
 	mask that and return zero instead*/
@@ -82,8 +82,8 @@ int m5602_write_bridge(struct sd *sd, const u8 address, const u8 i2c_data)
 	struct usb_device *udev = sd->gspca_dev.dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
 
-	PDEBUG(D_CONF, "Writing bridge register 0x%x with 0x%x",
-	       address, i2c_data);
+	gspca_dbg(gspca_dev, D_CONF, "Writing bridge register 0x%x with 0x%x\n",
+		  address, i2c_data);
 
 	memcpy(buf, bridge_urb_skeleton,
 	       sizeof(bridge_urb_skeleton));
@@ -154,8 +154,8 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 
 		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
 
-		PDEBUG(D_CONF, "Reading sensor register 0x%x containing 0x%x ",
-		       address, *i2c_data);
+		gspca_dbg(gspca_dev, D_CONF, "Reading sensor register 0x%x containing 0x%x\n",
+			  address, *i2c_data);
 	}
 	return err;
 }
@@ -187,8 +187,8 @@ int m5602_write_sensor(struct sd *sd, const u8 address,
 		memcpy(p, sensor_urb_skeleton + 16, 4);
 		p[3] = i2c_data[i];
 		p += 4;
-		PDEBUG(D_CONF, "Writing sensor register 0x%x with 0x%x",
-		       address, i2c_data[i]);
+		gspca_dbg(gspca_dev, D_CONF, "Writing sensor register 0x%x with 0x%x\n",
+			  address, i2c_data[i]);
 	}
 
 	/* Copy the tailer */
@@ -264,7 +264,7 @@ static int m5602_init(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int err;
 
-	PDEBUG(D_CONF, "Initializing ALi m5602 webcam");
+	gspca_dbg(gspca_dev, D_CONF, "Initializing ALi m5602 webcam\n");
 	/* Run the init sequence */
 	err = sd->sensor->init(sd);
 
@@ -299,7 +299,7 @@ static int m5602_start_transfer(struct gspca_dev *gspca_dev)
 			      0x04, 0x40, 0x19, 0x0000, buf,
 			      sizeof(buffer), M5602_URB_MSG_TIMEOUT);
 
-	PDEBUG(D_STREAM, "Transfer started");
+	gspca_dbg(gspca_dev, D_STREAM, "Transfer started\n");
 	return (err < 0) ? err : 0;
 }
 
@@ -309,14 +309,14 @@ static void m5602_urb_complete(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (len < 6) {
-		PDEBUG(D_PACK, "Packet is less than 6 bytes");
+		gspca_dbg(gspca_dev, D_PACK, "Packet is less than 6 bytes\n");
 		return;
 	}
 
 	/* Frame delimiter: ff xx xx xx ff ff */
 	if (data[0] == 0xff && data[4] == 0xff && data[5] == 0xff &&
 	    data[2] != sd->frame_id) {
-		PDEBUG(D_FRAM, "Frame delimiter detected");
+		gspca_dbg(gspca_dev, D_FRAM, "Frame delimiter detected\n");
 		sd->frame_id = data[2];
 
 		/* Remove the extra fluff appended on each header */
@@ -331,8 +331,8 @@ static void m5602_urb_complete(struct gspca_dev *gspca_dev,
 		/* Create a new frame */
 		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 
-		PDEBUG(D_FRAM, "Starting new frame %d",
-		       sd->frame_count);
+		gspca_dbg(gspca_dev, D_FRAM, "Starting new frame %d\n",
+			  sd->frame_count);
 
 	} else {
 		int cur_frame_len;
@@ -342,16 +342,16 @@ static void m5602_urb_complete(struct gspca_dev *gspca_dev,
 		data += 4;
 		len -= 4;
 
-		if (cur_frame_len + len <= gspca_dev->frsz) {
-			PDEBUG(D_FRAM, "Continuing frame %d copying %d bytes",
-			       sd->frame_count, len);
+		if (cur_frame_len + len <= gspca_dev->pixfmt.sizeimage) {
+			gspca_dbg(gspca_dev, D_FRAM, "Continuing frame %d copying %d bytes\n",
+				  sd->frame_count, len);
 
 			gspca_frame_add(gspca_dev, INTER_PACKET,
 					data, len);
 		} else {
 			/* Add the remaining data up to frame size */
 			gspca_frame_add(gspca_dev, INTER_PACKET, data,
-				    gspca_dev->frsz - cur_frame_len);
+				gspca_dev->pixfmt.sizeimage - cur_frame_len);
 		}
 	}
 }
@@ -397,7 +397,7 @@ static int m5602_configure(struct gspca_dev *gspca_dev,
 	return 0;
 
 fail:
-	PERR("ALi m5602 webcam failed");
+	gspca_err(gspca_dev, "ALi m5602 webcam failed\n");
 	cam->cam_mode = NULL;
 	cam->nmodes = 0;
 

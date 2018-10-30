@@ -29,8 +29,8 @@ static struct aq_ring_s *aq_ring_alloc(struct aq_ring_s *self,
 		goto err_exit;
 	}
 	self->dx_ring = dma_alloc_coherent(aq_nic_get_dev(aq_nic),
-						self->size * self->dx_size,
-						&self->dx_ring_pa, GFP_KERNEL);
+					   self->size * self->dx_size,
+					   &self->dx_ring_pa, GFP_KERNEL);
 	if (!self->dx_ring) {
 		err = -ENOMEM;
 		goto err_exit;
@@ -104,32 +104,72 @@ int aq_ring_init(struct aq_ring_s *self)
 	return 0;
 }
 
-void aq_ring_tx_clean(struct aq_ring_s *self)
+static inline bool aq_ring_dx_in_range(unsigned int h, unsigned int i,
+				       unsigned int t)
+{
+	return (h < t) ? ((h < i) && (i < t)) : ((h < i) || (i < t));
+}
+
+void aq_ring_update_queue_state(struct aq_ring_s *ring)
+{
+	if (aq_ring_avail_dx(ring) <= AQ_CFG_SKB_FRAGS_MAX)
+		aq_ring_queue_stop(ring);
+	else if (aq_ring_avail_dx(ring) > AQ_CFG_RESTART_DESC_THRES)
+		aq_ring_queue_wake(ring);
+}
+
+void aq_ring_queue_wake(struct aq_ring_s *ring)
+{
+	struct net_device *ndev = aq_nic_get_ndev(ring->aq_nic);
+
+	if (__netif_subqueue_stopped(ndev, ring->idx)) {
+		netif_wake_subqueue(ndev, ring->idx);
+		ring->stats.tx.queue_restarts++;
+	}
+}
+
+void aq_ring_queue_stop(struct aq_ring_s *ring)
+{
+	struct net_device *ndev = aq_nic_get_ndev(ring->aq_nic);
+
+	if (!__netif_subqueue_stopped(ndev, ring->idx))
+		netif_stop_subqueue(ndev, ring->idx);
+}
+
+bool aq_ring_tx_clean(struct aq_ring_s *self)
 {
 	struct device *dev = aq_nic_get_dev(self->aq_nic);
+	unsigned int budget = AQ_CFG_TX_CLEAN_BUDGET;
 
-	for (; self->sw_head != self->hw_head;
+	for (; self->sw_head != self->hw_head && budget--;
 		self->sw_head = aq_ring_next_dx(self, self->sw_head)) {
 		struct aq_ring_buff_s *buff = &self->buff_ring[self->sw_head];
 
 		if (likely(buff->is_mapped)) {
-			if (unlikely(buff->is_sop))
+			if (unlikely(buff->is_sop)) {
+				if (!buff->is_eop &&
+				    buff->eop_index != 0xffffU &&
+				    (!aq_ring_dx_in_range(self->sw_head,
+						buff->eop_index,
+						self->hw_head)))
+					break;
+
 				dma_unmap_single(dev, buff->pa, buff->len,
 						 DMA_TO_DEVICE);
-			else
+			} else {
 				dma_unmap_page(dev, buff->pa, buff->len,
 					       DMA_TO_DEVICE);
+			}
 		}
 
 		if (unlikely(buff->is_eop))
 			dev_kfree_skb_any(buff->skb);
-	}
-}
 
-static inline unsigned int aq_ring_dx_in_range(unsigned int h, unsigned int i,
-					       unsigned int t)
-{
-	return (h < t) ? ((h < i) && (i < t)) : ((h < i) || (i < t));
+		buff->pa = 0U;
+		buff->eop_index = 0xffffU;
+	}
+
+	return !!budget;
 }
 
 #define AQ_SKB_ALIGN SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
@@ -185,9 +225,10 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		}
 
 		/* for single fragment packets use build_skb() */
-		if (buff->is_eop) {
+		if (buff->is_eop &&
+		    buff->len <= AQ_CFG_RX_FRAME_MAX - AQ_SKB_ALIGN) {
 			skb = build_skb(page_address(buff->page),
-					buff->len + AQ_SKB_ALIGN);
+					AQ_CFG_RX_FRAME_MAX);
 			if (unlikely(!skb)) {
 				err = -ENOMEM;
 				goto err_exit;
@@ -207,18 +248,21 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 					buff->len - ETH_HLEN,
 					SKB_TRUESIZE(buff->len - ETH_HLEN));
 
-			for (i = 1U, next_ = buff->next,
-			     buff_ = &self->buff_ring[next_]; true;
-			     next_ = buff_->next,
-			     buff_ = &self->buff_ring[next_], ++i) {
-				skb_add_rx_frag(skb, i, buff_->page, 0,
-						buff_->len,
-						SKB_TRUESIZE(buff->len -
-						ETH_HLEN));
-				buff_->is_cleaned = 1;
+			if (!buff->is_eop) {
+				for (i = 1U, next_ = buff->next,
+				     buff_ = &self->buff_ring[next_];
+				     true; next_ = buff_->next,
+				     buff_ = &self->buff_ring[next_], ++i) {
+					skb_add_rx_frag(skb, i,
+							buff_->page, 0,
+							buff_->len,
+							SKB_TRUESIZE(buff->len -
+							ETH_HLEN));
+					buff_->is_cleaned = 1;
 
-				if (buff_->is_eop)
-					break;
+					if (buff_->is_eop)
+						break;
+				}
 			}
 		}
 
@@ -242,10 +286,10 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 
 		skb_record_rx_queue(skb, self->idx);
 
-		napi_gro_receive(napi, skb);
-
 		++self->stats.rx.packets;
 		self->stats.rx.bytes += skb->len;
+
+		napi_gro_receive(napi, skb);
 	}
 
 err_exit:
@@ -267,8 +311,7 @@ int aq_ring_rx_fill(struct aq_ring_s *self)
 		buff->flags = 0U;
 		buff->len = AQ_CFG_RX_FRAME_MAX;
 
-		buff->page = alloc_pages(GFP_ATOMIC | __GFP_COLD |
-					 __GFP_COMP, pages_order);
+		buff->page = alloc_pages(GFP_ATOMIC | __GFP_COMP, pages_order);
 		if (!buff->page) {
 			err = -ENOMEM;
 			goto err_exit;

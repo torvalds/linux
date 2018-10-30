@@ -203,20 +203,20 @@ static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer
 	return size;
 }
 
-static unsigned int snd_info_entry_poll(struct file *file, poll_table *wait)
+static __poll_t snd_info_entry_poll(struct file *file, poll_table *wait)
 {
 	struct snd_info_private_data *data = file->private_data;
 	struct snd_info_entry *entry = data->entry;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if (entry->c.ops->poll)
 		return entry->c.ops->poll(entry,
 					  data->file_private_data,
 					  file, wait);
 	if (entry->c.ops->read)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (entry->c.ops->write)
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	return mask;
 }
 
@@ -454,7 +454,7 @@ static struct snd_info_entry *create_subdir(struct module *mod,
 	entry = snd_info_create_module_entry(mod, name, NULL);
 	if (!entry)
 		return NULL;
-	entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	entry->mode = S_IFDIR | 0555;
 	if (snd_info_register(entry) < 0) {
 		snd_info_free_entry(entry);
 		return NULL;
@@ -470,7 +470,7 @@ int __init snd_info_init(void)
 	snd_proc_root = snd_info_create_entry("asound", NULL);
 	if (!snd_proc_root)
 		return -ENOMEM;
-	snd_proc_root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	snd_proc_root->mode = S_IFDIR | 0555;
 	snd_proc_root->p = proc_mkdir("asound", NULL);
 	if (!snd_proc_root->p)
 		goto error;
@@ -716,7 +716,7 @@ snd_info_create_entry(const char *name, struct snd_info_entry *parent)
 		kfree(entry);
 		return NULL;
 	}
-	entry->mode = S_IFREG | S_IRUGO;
+	entry->mode = S_IFREG | 0444;
 	entry->content = SNDRV_INFO_CONTENT_TEXT;
 	mutex_init(&entry->access);
 	INIT_LIST_HEAD(&entry->children);

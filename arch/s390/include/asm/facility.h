@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright IBM Corp. 1999, 2009
  *
@@ -7,12 +8,30 @@
 #ifndef __ASM_FACILITY_H
 #define __ASM_FACILITY_H
 
-#include <generated/facilities.h>
+#include <asm/facility-defs.h>
 #include <linux/string.h>
 #include <linux/preempt.h>
 #include <asm/lowcore.h>
 
 #define MAX_FACILITY_BIT (sizeof(((struct lowcore *)0)->stfle_fac_list) * 8)
+
+static inline void __set_facility(unsigned long nr, void *facilities)
+{
+	unsigned char *ptr = (unsigned char *) facilities;
+
+	if (nr >= MAX_FACILITY_BIT)
+		return;
+	ptr[nr >> 3] |= 0x80 >> (nr & 7);
+}
+
+static inline void __clear_facility(unsigned long nr, void *facilities)
+{
+	unsigned char *ptr = (unsigned char *) facilities;
+
+	if (nr >= MAX_FACILITY_BIT)
+		return;
+	ptr[nr >> 3] &= ~(0x80 >> (nr & 7));
+}
 
 static inline int __test_facility(unsigned long nr, void *facilities)
 {
@@ -45,11 +64,10 @@ static inline int test_facility(unsigned long nr)
  * @stfle_fac_list: array where facility list can be stored
  * @size: size of passed in array in double words
  */
-static inline void stfle(u64 *stfle_fac_list, int size)
+static inline void __stfle(u64 *stfle_fac_list, int size)
 {
 	unsigned long nr;
 
-	preempt_disable();
 	asm volatile(
 		"	stfl	0(0)\n"
 		: "=m" (S390_lowcore.stfl_fac_list));
@@ -66,6 +84,12 @@ static inline void stfle(u64 *stfle_fac_list, int size)
 		nr = (reg0 + 1) * 8; /* # bytes stored by stfle */
 	}
 	memset((char *) stfle_fac_list + nr, 0, size * 8 - nr);
+}
+
+static inline void stfle(u64 *stfle_fac_list, int size)
+{
+	preempt_disable();
+	__stfle(stfle_fac_list, size);
 	preempt_enable();
 }
 

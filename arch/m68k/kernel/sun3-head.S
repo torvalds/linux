@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/linkage.h>
 #include <linux/init.h>
 
@@ -87,9 +88,3 @@ kpt:
         .long 0
 availmem:
         .long 0
-| todo: remove next two. --m
-is_medusa:
-        .long 0
-m68k_pgtable_cachemode:
-        .long 0
-

@@ -69,7 +69,12 @@ static inline int skb_array_produce_any(struct skb_array *a, struct sk_buff *skb
  */
 static inline bool __skb_array_empty(struct skb_array *a)
 {
-	return !__ptr_ring_peek(&a->ring);
+	return __ptr_ring_empty(&a->ring);
+}
+
+static inline struct sk_buff *__skb_array_peek(struct skb_array *a)
+{
+	return __ptr_ring_peek(&a->ring);
 }
 
 static inline bool skb_array_empty(struct skb_array *a)
@@ -90,6 +95,11 @@ static inline bool skb_array_empty_irq(struct skb_array *a)
 static inline bool skb_array_empty_any(struct skb_array *a)
 {
 	return ptr_ring_empty_any(&a->ring);
+}
+
+static inline struct sk_buff *__skb_array_consume(struct skb_array *a)
+{
+	return __ptr_ring_consume(&a->ring);
 }
 
 static inline struct sk_buff *skb_array_consume(struct skb_array *a)

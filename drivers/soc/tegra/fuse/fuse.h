@@ -105,4 +105,8 @@ extern const struct tegra_fuse_soc tegra124_fuse_soc;
 extern const struct tegra_fuse_soc tegra210_fuse_soc;
 #endif
 
+#ifdef CONFIG_ARCH_TEGRA_186_SOC
+extern const struct tegra_fuse_soc tegra186_fuse_soc;
+#endif
+
 #endif

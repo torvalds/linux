@@ -1,4 +1,5 @@
 """
+# SPDX-License-Identifier: GPL-2.0
 tdc_helper.py - tdc helper functions
 
 Copyright (C) 2017 Lucas Bates <lucasb@mojatatu.com>
@@ -15,7 +16,7 @@ def get_categorized_testlist(alltests, ucat):
 
 
 def get_unique_item(lst):
-    """ For a list, return a set of the unique items in the list. """
+    """ For a list, return a list of the unique items in the list. """
     return list(set(lst))
 
 
@@ -56,20 +57,11 @@ def print_sll(items):
 
 def print_test_case(tcase):
     """ Pretty-printing of a given test case. """
+    print('\n==============\nTest {}\t{}\n'.format(tcase['id'], tcase['name']))
     for k in tcase.keys():
-        if (type(tcase[k]) == list):
+        if (isinstance(tcase[k], list)):
             print(k + ":")
             print_list(tcase[k])
         else:
-            print(k + ": " + tcase[k])
-
-
-def show_test_case_by_id(testlist, caseID):
-    """ Find the specified test case to pretty-print. """
-    if not any(d.get('id', None) == caseID for d in testlist):
-        print("That ID does not exist.")
-        exit(1)
-    else:
-        print_test_case(next((d for d in testlist if d['id'] == caseID)))
-
-
+            if not ((k == 'id') or (k == 'name')):
+                print(k + ": " + str(tcase[k]))

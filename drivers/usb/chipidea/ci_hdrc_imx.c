@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright (C) 2012 Marek Vasut <marex@denx.de>
  * on behalf of DENX Software Engineering GmbH
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -26,7 +20,6 @@
 
 struct ci_hdrc_imx_platform_flag {
 	unsigned int flags;
-	bool runtime_pm;
 };
 
 static const struct ci_hdrc_imx_platform_flag imx23_usb_data = {
@@ -35,7 +28,7 @@ static const struct ci_hdrc_imx_platform_flag imx23_usb_data = {
 };
 
 static const struct ci_hdrc_imx_platform_flag imx27_usb_data = {
-		CI_HDRC_DISABLE_STREAMING,
+	.flags = CI_HDRC_DISABLE_STREAMING,
 };
 
 static const struct ci_hdrc_imx_platform_flag imx28_usb_data = {
@@ -90,6 +83,7 @@ struct ci_hdrc_imx_data {
 	struct clk *clk;
 	struct imx_usbmisc_data *usbmisc_data;
 	bool supports_runtime_pm;
+	bool override_phy_control;
 	bool in_lpm;
 	/* SoC before i.mx6 (except imx23/imx28) needs three clks */
 	bool need_three_clks;
@@ -261,6 +255,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	int ret;
 	const struct of_device_id *of_id;
 	const struct ci_hdrc_imx_platform_flag *imx_platform_flag;
+	struct device_node *np = pdev->dev.of_node;
 
 	of_id = of_match_device(ci_hdrc_imx_dt_ids, &pdev->dev);
 	if (!of_id)
@@ -295,6 +290,15 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	}
 
 	pdata.usb_phy = data->phy;
+
+	if ((of_device_is_compatible(np, "fsl,imx53-usb") ||
+	     of_device_is_compatible(np, "fsl,imx51-usb")) && pdata.usb_phy &&
+	    of_usb_get_phy_mode(np) == USBPHY_INTERFACE_MODE_ULPI) {
+		pdata.flags |= CI_HDRC_OVERRIDE_PHY_CONTROL;
+		data->override_phy_control = true;
+		usb_phy_init(pdata.usb_phy);
+	}
+
 	pdata.flags |= imx_platform_flag->flags;
 	if (pdata.flags & CI_HDRC_SUPPORTS_RUNTIME_PM)
 		data->supports_runtime_pm = true;
@@ -348,6 +352,8 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 		pm_runtime_put_noidle(&pdev->dev);
 	}
 	ci_hdrc_remove_device(data->ci_pdev);
+	if (data->override_phy_control)
+		usb_phy_shutdown(data->phy);
 	imx_disable_unprepare_clks(&pdev->dev);
 
 	return 0;
@@ -358,8 +364,7 @@ static void ci_hdrc_imx_shutdown(struct platform_device *pdev)
 	ci_hdrc_imx_remove(pdev);
 }
 
-#ifdef CONFIG_PM
-static int imx_controller_suspend(struct device *dev)
+static int __maybe_unused imx_controller_suspend(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 
@@ -371,7 +376,7 @@ static int imx_controller_suspend(struct device *dev)
 	return 0;
 }
 
-static int imx_controller_resume(struct device *dev)
+static int __maybe_unused imx_controller_resume(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret = 0;
@@ -402,8 +407,7 @@ clk_disable:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int ci_hdrc_imx_suspend(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_suspend(struct device *dev)
 {
 	int ret;
 
@@ -425,7 +429,7 @@ static int ci_hdrc_imx_suspend(struct device *dev)
 	return imx_controller_suspend(dev);
 }
 
-static int ci_hdrc_imx_resume(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_resume(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -439,9 +443,8 @@ static int ci_hdrc_imx_resume(struct device *dev)
 
 	return ret;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static int ci_hdrc_imx_runtime_suspend(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_runtime_suspend(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -460,12 +463,10 @@ static int ci_hdrc_imx_runtime_suspend(struct device *dev)
 	return imx_controller_suspend(dev);
 }
 
-static int ci_hdrc_imx_runtime_resume(struct device *dev)
+static int __maybe_unused ci_hdrc_imx_runtime_resume(struct device *dev)
 {
 	return imx_controller_resume(dev);
 }
-
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ci_hdrc_imx_suspend, ci_hdrc_imx_resume)
@@ -486,7 +487,7 @@ static struct platform_driver ci_hdrc_imx_driver = {
 module_platform_driver(ci_hdrc_imx_driver);
 
 MODULE_ALIAS("platform:imx-usb");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CI HDRC i.MX USB binding");
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
 MODULE_AUTHOR("Richard Zhao <richard.zhao@freescale.com>");

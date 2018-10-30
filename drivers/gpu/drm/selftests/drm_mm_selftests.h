@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* List each unit test as selftest(name, function)
  *
  * The name is used as both an enum and expanded as igt__name to create
@@ -18,7 +19,9 @@ selftest(align64, igt_align64)
 selftest(evict, igt_evict)
 selftest(evict_range, igt_evict_range)
 selftest(bottomup, igt_bottomup)
+selftest(lowest, igt_lowest)
 selftest(topdown, igt_topdown)
+selftest(highest, igt_highest)
 selftest(color, igt_color)
 selftest(color_evict, igt_color_evict)
 selftest(color_evict_range, igt_color_evict_range)

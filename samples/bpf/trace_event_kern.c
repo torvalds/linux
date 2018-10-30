@@ -37,10 +37,15 @@ struct bpf_map_def SEC("maps") stackmap = {
 SEC("perf_event")
 int bpf_prog1(struct bpf_perf_event_data *ctx)
 {
+	char time_fmt1[] = "Time Enabled: %llu, Time Running: %llu";
+	char time_fmt2[] = "Get Time Failed, ErrCode: %d";
+	char addr_fmt[] = "Address recorded on event: %llx";
 	char fmt[] = "CPU-%d period %lld ip %llx";
 	u32 cpu = bpf_get_smp_processor_id();
+	struct bpf_perf_event_value value_buf;
 	struct key_t key;
 	u64 *val, one = 1;
+	int ret;
 
 	if (ctx->sample_period < 10000)
 		/* ignore warmup */
@@ -53,6 +58,15 @@ int bpf_prog1(struct bpf_perf_event_data *ctx)
 				 PT_REGS_IP(&ctx->regs));
 		return 0;
 	}
+
+	ret = bpf_perf_prog_read_value(ctx, (void *)&value_buf, sizeof(struct bpf_perf_event_value));
+	if (!ret)
+	  bpf_trace_printk(time_fmt1, sizeof(time_fmt1), value_buf.enabled, value_buf.running);
+	else
+	  bpf_trace_printk(time_fmt2, sizeof(time_fmt2), ret);
+
+	if (ctx->addr != 0)
+	  bpf_trace_printk(addr_fmt, sizeof(addr_fmt), ctx->addr);
 
 	val = bpf_map_lookup_elem(&counts, &key);
 	if (val)

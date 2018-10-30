@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_DISP_IOR_H__
 #define __NVKM_DISP_IOR_H__
 #include "priv.h"
@@ -15,6 +16,7 @@ struct nvkm_ior {
 	char name[8];
 
 	struct list_head head;
+	bool identity;
 
 	struct nvkm_ior_state {
 		struct nvkm_outp *outp;
@@ -29,7 +31,7 @@ struct nvkm_ior {
 			UNKNOWN
 		} proto:3;
 		unsigned link:2;
-		unsigned head:4;
+		unsigned head:8;
 	} arm, asy;
 
 	/* Armed DP state. */
@@ -39,6 +41,11 @@ struct nvkm_ior {
 		u8 nr;
 		u8 bw;
 	} dp;
+
+	/* Armed TMDS state. */
+	struct {
+		bool high_speed;
+	} tmds;
 };
 
 struct nvkm_ior_func {
@@ -59,6 +66,7 @@ struct nvkm_ior_func {
 		void (*ctrl)(struct nvkm_ior *, int head, bool enable,
 			     u8 max_ac_packet, u8 rekey, u8 *avi, u8 avi_size,
 			     u8 *vendor, u8 vendor_size);
+		void (*scdc)(struct nvkm_ior *, int head, u8 scdc);
 	} hdmi;
 
 	struct {
@@ -105,7 +113,6 @@ nv50_sor_link(struct nvkm_ior *ior)
 	return nv50_ior_base(ior) + ((ior->asy.link == 2) * 0x80);
 }
 
-int nv50_sor_new_(const struct nvkm_ior_func *, struct nvkm_disp *, int id);
 void nv50_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 void nv50_sor_power(struct nvkm_ior *, bool, bool, bool, bool, bool);
 void nv50_sor_clock(struct nvkm_ior *);
@@ -121,7 +128,6 @@ void g94_sor_dp_watermark(struct nvkm_ior *, int, u8);
 
 void gt215_sor_dp_audio(struct nvkm_ior *, int, bool);
 
-int gf119_sor_new_(const struct nvkm_ior_func *, struct nvkm_disp *, int id);
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 void gf119_sor_clock(struct nvkm_ior *);
 int gf119_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
@@ -134,10 +140,17 @@ void gf119_sor_dp_watermark(struct nvkm_ior *, int, u8);
 
 void gm107_sor_dp_pattern(struct nvkm_ior *, int);
 
+void gm200_sor_route_set(struct nvkm_outp *, struct nvkm_ior *);
+int gm200_sor_route_get(struct nvkm_outp *, int *);
+void gm200_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
+
 void g84_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gt215_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gf119_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gk104_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
+void gv100_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
+
+void gm200_hdmi_scdc(struct nvkm_ior *, int, u8);
 
 void gt215_hda_hpd(struct nvkm_ior *, int, bool);
 void gt215_hda_eld(struct nvkm_ior *, u8 *, u8);
@@ -147,24 +160,39 @@ void gf119_hda_eld(struct nvkm_ior *, u8 *, u8);
 
 #define IOR_MSG(i,l,f,a...) do {                                               \
 	struct nvkm_ior *_ior = (i);                                           \
-	nvkm_##l(&_ior->disp->engine.subdev, "%s: "f, _ior->name, ##a);        \
+	nvkm_##l(&_ior->disp->engine.subdev, "%s: "f"\n", _ior->name, ##a);    \
 } while(0)
 #define IOR_WARN(i,f,a...) IOR_MSG((i), warn, f, ##a)
 #define IOR_DBG(i,f,a...) IOR_MSG((i), debug, f, ##a)
 
+int nv50_dac_cnt(struct nvkm_disp *, unsigned long *);
 int nv50_dac_new(struct nvkm_disp *, int);
+
+int gf119_dac_cnt(struct nvkm_disp *, unsigned long *);
 int gf119_dac_new(struct nvkm_disp *, int);
 
+int nv50_pior_cnt(struct nvkm_disp *, unsigned long *);
 int nv50_pior_new(struct nvkm_disp *, int);
 
+int nv50_sor_cnt(struct nvkm_disp *, unsigned long *);
 int nv50_sor_new(struct nvkm_disp *, int);
+
 int g84_sor_new(struct nvkm_disp *, int);
+
+int g94_sor_cnt(struct nvkm_disp *, unsigned long *);
 int g94_sor_new(struct nvkm_disp *, int);
+
 int mcp77_sor_new(struct nvkm_disp *, int);
 int gt215_sor_new(struct nvkm_disp *, int);
 int mcp89_sor_new(struct nvkm_disp *, int);
+
+int gf119_sor_cnt(struct nvkm_disp *, unsigned long *);
 int gf119_sor_new(struct nvkm_disp *, int);
+
 int gk104_sor_new(struct nvkm_disp *, int);
 int gm107_sor_new(struct nvkm_disp *, int);
 int gm200_sor_new(struct nvkm_disp *, int);
+
+int gv100_sor_cnt(struct nvkm_disp *, unsigned long *);
+int gv100_sor_new(struct nvkm_disp *, int);
 #endif

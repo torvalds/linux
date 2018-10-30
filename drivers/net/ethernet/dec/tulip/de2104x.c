@@ -333,8 +333,8 @@ static void de_set_rx_mode (struct net_device *dev);
 static void de_tx (struct de_private *de);
 static void de_clean_rings (struct de_private *de);
 static void de_media_interrupt (struct de_private *de, u32 status);
-static void de21040_media_timer (unsigned long data);
-static void de21041_media_timer (unsigned long data);
+static void de21040_media_timer (struct timer_list *t);
+static void de21041_media_timer (struct timer_list *t);
 static unsigned int de_ok_to_advertise (struct de_private *de, u32 new_media);
 
 
@@ -959,9 +959,9 @@ static void de_next_media (struct de_private *de, const u32 *media,
 	}
 }
 
-static void de21040_media_timer (unsigned long data)
+static void de21040_media_timer (struct timer_list *t)
 {
-	struct de_private *de = (struct de_private *) data;
+	struct de_private *de = from_timer(de, t, media_timer);
 	struct net_device *dev = de->dev;
 	u32 status = dr32(SIAStatus);
 	unsigned int carrier;
@@ -1040,9 +1040,9 @@ static unsigned int de_ok_to_advertise (struct de_private *de, u32 new_media)
 	return 1;
 }
 
-static void de21041_media_timer (unsigned long data)
+static void de21041_media_timer (struct timer_list *t)
 {
-	struct de_private *de = (struct de_private *) data;
+	struct de_private *de = from_timer(de, t, media_timer);
 	struct net_device *dev = de->dev;
 	u32 status = dr32(SIAStatus);
 	unsigned int carrier;
@@ -1999,12 +1999,9 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	de->msg_enable = (debug < 0 ? DE_DEF_MSG_ENABLE : debug);
 	de->board_idx = board_idx;
 	spin_lock_init (&de->lock);
-	init_timer(&de->media_timer);
-	if (de->de21040)
-		de->media_timer.function = de21040_media_timer;
-	else
-		de->media_timer.function = de21041_media_timer;
-	de->media_timer.data = (unsigned long) de;
+	timer_setup(&de->media_timer,
+		    de->de21040 ? de21040_media_timer : de21041_media_timer,
+		    0);
 
 	netif_carrier_off(dev);
 

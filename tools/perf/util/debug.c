@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* For general debugging purposes */
 
 #include "../perf.h"
@@ -111,50 +112,53 @@ int dump_printf(const char *fmt, ...)
 	return ret;
 }
 
-static void trace_event_printer(enum binary_printer_ops op,
-				unsigned int val, void *extra)
+static int trace_event_printer(enum binary_printer_ops op,
+			       unsigned int val, void *extra, FILE *fp)
 {
 	const char *color = PERF_COLOR_BLUE;
 	union perf_event *event = (union perf_event *)extra;
 	unsigned char ch = (unsigned char)val;
+	int printed = 0;
 
 	switch (op) {
 	case BINARY_PRINT_DATA_BEGIN:
-		printf(".");
-		color_fprintf(stdout, color, "\n. ... raw event: size %d bytes\n",
-				event->header.size);
+		printed += fprintf(fp, ".");
+		printed += color_fprintf(fp, color, "\n. ... raw event: size %d bytes\n",
+					 event->header.size);
 		break;
 	case BINARY_PRINT_LINE_BEGIN:
-		printf(".");
+		printed += fprintf(fp, ".");
 		break;
 	case BINARY_PRINT_ADDR:
-		color_fprintf(stdout, color, "  %04x: ", val);
+		printed += color_fprintf(fp, color, "  %04x: ", val);
 		break;
 	case BINARY_PRINT_NUM_DATA:
-		color_fprintf(stdout, color, " %02x", val);
+		printed += color_fprintf(fp, color, " %02x", val);
 		break;
 	case BINARY_PRINT_NUM_PAD:
-		color_fprintf(stdout, color, "   ");
+		printed += color_fprintf(fp, color, "   ");
 		break;
 	case BINARY_PRINT_SEP:
-		color_fprintf(stdout, color, "  ");
+		printed += color_fprintf(fp, color, "  ");
 		break;
 	case BINARY_PRINT_CHAR_DATA:
-		color_fprintf(stdout, color, "%c",
+		printed += color_fprintf(fp, color, "%c",
 			      isprint(ch) ? ch : '.');
 		break;
 	case BINARY_PRINT_CHAR_PAD:
-		color_fprintf(stdout, color, " ");
+		printed += color_fprintf(fp, color, " ");
 		break;
 	case BINARY_PRINT_LINE_END:
-		color_fprintf(stdout, color, "\n");
+		printed += color_fprintf(fp, color, "\n");
 		break;
 	case BINARY_PRINT_DATA_END:
-		printf("\n");
+		printed += fprintf(fp, "\n");
 		break;
 	default:
 		break;
 	}
+
+	return printed;
 }
 
 void trace_event(union perf_event *event)
@@ -228,7 +232,6 @@ int perf_quiet_option(void)
 		var++;
 	}
 
-	quiet = true;
 	return 0;
 }
 

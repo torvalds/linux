@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Copyright (C) 2017  Steven Rostedt, VMware Inc.
  */
@@ -7,6 +8,7 @@
 #include <asm/segment.h>
 #include <asm/export.h>
 #include <asm/ftrace.h>
+#include <asm/nospec-branch.h>
 
 #ifdef CC_USING_FENTRY
 # define function_hook	__fentry__
@@ -196,7 +198,8 @@ ftrace_stub:
 	movl	0x4(%ebp), %edx
 	subl	$MCOUNT_INSN_SIZE, %eax
 
-	call	*ftrace_trace_function
+	movl	ftrace_trace_function, %ecx
+	CALL_NOSPEC %ecx
 
 	popl	%edx
 	popl	%ecx
@@ -240,5 +243,5 @@ return_to_handler:
 	movl	%eax, %ecx
 	popl	%edx
 	popl	%eax
-	jmp	*%ecx
+	JMP_NOSPEC %ecx
 #endif

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (c) 2003-2007 Network Appliance, Inc. All rights reserved.
  *
@@ -64,7 +65,7 @@ enum rpcrdma_memreg {
 	RPCRDMA_MEMWINDOWS,
 	RPCRDMA_MEMWINDOWS_ASYNC,
 	RPCRDMA_MTHCAFMR,
-	RPCRDMA_FRMR,
+	RPCRDMA_FRWR,
 	RPCRDMA_ALLPHYSICAL,
 	RPCRDMA_LAST
 };

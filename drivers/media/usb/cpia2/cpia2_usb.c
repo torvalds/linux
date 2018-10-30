@@ -33,13 +33,13 @@
 
 static int frame_sizes[] = {
 	0,	// USBIF_CMDONLY
-	0, 	// USBIF_BULK
-	128, 	// USBIF_ISO_1
-	384, 	// USBIF_ISO_2
-	640, 	// USBIF_ISO_3
-	768, 	// USBIF_ISO_4
-	896, 	// USBIF_ISO_5
-	1023, 	// USBIF_ISO_6
+	0,	// USBIF_BULK
+	128,	// USBIF_ISO_1
+	384,	// USBIF_ISO_2
+	640,	// USBIF_ISO_3
+	768,	// USBIF_ISO_4
+	896,	// USBIF_ISO_5
+	1023,	// USBIF_ISO_6
 };
 
 #define FRAMES_PER_DESC    10
@@ -663,7 +663,8 @@ static int submit_urbs(struct camera_data *cam)
 		if (cam->sbuf[i].data)
 			continue;
 		cam->sbuf[i].data =
-		    kmalloc(FRAMES_PER_DESC * FRAME_SIZE_PER_DESC, GFP_KERNEL);
+		    kmalloc_array(FRAME_SIZE_PER_DESC, FRAMES_PER_DESC,
+				  GFP_KERNEL);
 		if (!cam->sbuf[i].data) {
 			while (--i >= 0) {
 				kfree(cam->sbuf[i].data);
@@ -909,9 +910,6 @@ static void cpia2_usb_disconnect(struct usb_interface *intf)
 		cam->curbuff->length = 0;
 		wake_up_interruptible(&cam->wq_stream);
 	}
-
-	DBG("Releasing interface\n");
-	usb_driver_release_interface(&cpia2_driver, intf);
 
 	LOG("CPiA2 camera disconnected.\n");
 }

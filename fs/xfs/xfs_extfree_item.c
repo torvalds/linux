@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -48,6 +36,24 @@ xfs_efi_item_free(
 		kmem_free(efip);
 	else
 		kmem_zone_free(xfs_efi_zone, efip);
+}
+
+/*
+ * Freeing the efi requires that we remove it from the AIL if it has already
+ * been placed there. However, the EFI may not yet have been placed in the AIL
+ * when called by xfs_efi_release() from EFD processing due to the ordering of
+ * committed vs unpin operations in bulk insert operations. Hence the reference
+ * count to ensure only the last caller frees the EFI.
+ */
+void
+xfs_efi_release(
+	struct xfs_efi_log_item	*efip)
+{
+	ASSERT(atomic_read(&efip->efi_refcount) > 0);
+	if (atomic_dec_and_test(&efip->efi_refcount)) {
+		xfs_trans_ail_remove(&efip->efi_item, SHUTDOWN_LOG_IO_ERROR);
+		xfs_efi_item_free(efip);
+	}
 }
 
 /*
@@ -150,8 +156,8 @@ STATIC void
 xfs_efi_item_unlock(
 	struct xfs_log_item	*lip)
 {
-	if (lip->li_flags & XFS_LI_ABORTED)
-		xfs_efi_item_free(EFI_ITEM(lip));
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
+		xfs_efi_release(EFI_ITEM(lip));
 }
 
 /*
@@ -279,24 +285,6 @@ xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
 	return -EFSCORRUPTED;
 }
 
-/*
- * Freeing the efi requires that we remove it from the AIL if it has already
- * been placed there. However, the EFI may not yet have been placed in the AIL
- * when called by xfs_efi_release() from EFD processing due to the ordering of
- * committed vs unpin operations in bulk insert operations. Hence the reference
- * count to ensure only the last caller frees the EFI.
- */
-void
-xfs_efi_release(
-	struct xfs_efi_log_item	*efip)
-{
-	ASSERT(atomic_read(&efip->efi_refcount) > 0);
-	if (atomic_dec_and_test(&efip->efi_refcount)) {
-		xfs_trans_ail_remove(&efip->efi_item, SHUTDOWN_LOG_IO_ERROR);
-		xfs_efi_item_free(efip);
-	}
-}
-
 static inline struct xfs_efd_log_item *EFD_ITEM(struct xfs_log_item *lip)
 {
 	return container_of(lip, struct xfs_efd_log_item, efd_item);
@@ -402,7 +390,7 @@ xfs_efd_item_unlock(
 {
 	struct xfs_efd_log_item	*efdp = EFD_ITEM(lip);
 
-	if (lip->li_flags & XFS_LI_ABORTED) {
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
 		xfs_efi_release(efdp->efd_efip);
 		xfs_efd_item_free(efdp);
 	}
@@ -538,11 +526,11 @@ xfs_efi_recover(
 		return error;
 	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
 
-	xfs_rmap_skip_owner_update(&oinfo);
+	xfs_rmap_any_owner_update(&oinfo);
 	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
 		extp = &efip->efi_format.efi_extents[i];
 		error = xfs_trans_free_extent(tp, efdp, extp->ext_start,
-					      extp->ext_len, &oinfo);
+					      extp->ext_len, &oinfo, false);
 		if (error)
 			goto abort_error;
 

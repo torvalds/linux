@@ -47,6 +47,7 @@
 
 /dts-v1/;
 #include "stm32f429.dtsi"
+#include "stm32f429-pinctrl.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 
@@ -143,6 +144,13 @@
 			};
 		};
 	};
+
+	mmc_vcard: mmc_vcard {
+		compatible = "regulator-fixed";
+		regulator-name = "mmc_vcard";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &adc {
@@ -202,10 +210,8 @@
 	stmpe1600: stmpe1600@42 {
 		compatible = "st,stmpe1600";
 		reg = <0x42>;
-		irq-gpio = <&gpioi 8 0>;
-		irq-trigger = <3>;
 		interrupts = <8 3>;
-		interrupt-parent = <&exti>;
+		interrupt-parent = <&gpioi>;
 		interrupt-controller;
 		wakeup-source;
 
@@ -253,6 +259,17 @@
 
 &rtc {
 	status = "okay";
+};
+
+&sdio {
+	status = "okay";
+	vmmc-supply = <&mmc_vcard>;
+	cd-gpios = <&stmpegpio 15 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default", "opendrain";
+	pinctrl-0 = <&sdio_pins>;
+	pinctrl-1 = <&sdio_pins_od>;
+	bus-width = <4>;
+	max-frequency = <12500000>;
 };
 
 &timers1 {

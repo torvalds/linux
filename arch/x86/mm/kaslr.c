@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file implements KASLR memory randomization for x86_64. It randomizes
  * the virtual address space of kernel memory regions (physical memory
@@ -33,33 +34,11 @@
 #define TB_SHIFT 40
 
 /*
- * Virtual address start and end range for randomization. The end changes base
- * on configuration to have the highest amount of space for randomization.
- * It increases the possible random position for each randomized region.
- *
- * You need to add an if/def entry if you introduce a new memory region
- * compatible with KASLR. Your entry must be in logical order with memory
- * layout. For example, ESPFIX is before EFI because its virtual address is
- * before. You also need to add a BUILD_BUG_ON() in kernel_randomize_memory() to
- * ensure that this order is correct and won't be changed.
+ * The end address could depend on more configuration options to make the
+ * highest amount of space for randomization available, but that's too hard
+ * to keep straight and caused issues already.
  */
-static const unsigned long vaddr_start = __PAGE_OFFSET_BASE;
-
-#if defined(CONFIG_X86_ESPFIX64)
-static const unsigned long vaddr_end = ESPFIX_BASE_ADDR;
-#elif defined(CONFIG_EFI)
-static const unsigned long vaddr_end = EFI_VA_END;
-#else
-static const unsigned long vaddr_end = __START_KERNEL_map;
-#endif
-
-/* Default values */
-unsigned long page_offset_base = __PAGE_OFFSET_BASE;
-EXPORT_SYMBOL(page_offset_base);
-unsigned long vmalloc_base = __VMALLOC_BASE;
-EXPORT_SYMBOL(vmalloc_base);
-unsigned long vmemmap_base = __VMEMMAP_BASE;
-EXPORT_SYMBOL(vmemmap_base);
+static const unsigned long vaddr_end = CPU_ENTRY_AREA_BASE;
 
 /*
  * Memory regions randomized by KASLR (except modules that use a separate logic
@@ -70,8 +49,8 @@ static __initdata struct kaslr_memory_region {
 	unsigned long *base;
 	unsigned long size_tb;
 } kaslr_regions[] = {
-	{ &page_offset_base, 1 << (__PHYSICAL_MASK_SHIFT - TB_SHIFT) /* Maximum */ },
-	{ &vmalloc_base, VMALLOC_SIZE_TB },
+	{ &page_offset_base, 0 },
+	{ &vmalloc_base, 0 },
 	{ &vmemmap_base, 1 },
 };
 
@@ -94,25 +73,28 @@ static inline bool kaslr_memory_enabled(void)
 void __init kernel_randomize_memory(void)
 {
 	size_t i;
-	unsigned long vaddr = vaddr_start;
+	unsigned long vaddr_start, vaddr;
 	unsigned long rand, memory_tb;
 	struct rnd_state rand_state;
 	unsigned long remain_entropy;
 
+	vaddr_start = pgtable_l5_enabled() ? __PAGE_OFFSET_BASE_L5 : __PAGE_OFFSET_BASE_L4;
+	vaddr = vaddr_start;
+
 	/*
-	 * All these BUILD_BUG_ON checks ensures the memory layout is
-	 * consistent with the vaddr_start/vaddr_end variables.
+	 * These BUILD_BUG_ON checks ensure the memory layout is consistent
+	 * with the vaddr_start/vaddr_end variables. These checks are very
+	 * limited....
 	 */
 	BUILD_BUG_ON(vaddr_start >= vaddr_end);
-	BUILD_BUG_ON(IS_ENABLED(CONFIG_X86_ESPFIX64) &&
-		     vaddr_end >= EFI_VA_END);
-	BUILD_BUG_ON((IS_ENABLED(CONFIG_X86_ESPFIX64) ||
-		      IS_ENABLED(CONFIG_EFI)) &&
-		     vaddr_end >= __START_KERNEL_map);
+	BUILD_BUG_ON(vaddr_end != CPU_ENTRY_AREA_BASE);
 	BUILD_BUG_ON(vaddr_end > __START_KERNEL_map);
 
 	if (!kaslr_memory_enabled())
 		return;
+
+	kaslr_regions[0].size_tb = 1 << (__PHYSICAL_MASK_SHIFT - TB_SHIFT);
+	kaslr_regions[1].size_tb = VMALLOC_SIZE_TB;
 
 	/*
 	 * Update Physical memory mapping to available and
@@ -142,7 +124,7 @@ void __init kernel_randomize_memory(void)
 		 */
 		entropy = remain_entropy / (ARRAY_SIZE(kaslr_regions) - i);
 		prandom_bytes_state(&rand_state, &rand, sizeof(rand));
-		if (IS_ENABLED(CONFIG_X86_5LEVEL))
+		if (pgtable_l5_enabled())
 			entropy = (rand % (entropy + 1)) & P4D_MASK;
 		else
 			entropy = (rand % (entropy + 1)) & PUD_MASK;
@@ -154,7 +136,7 @@ void __init kernel_randomize_memory(void)
 		 * randomization alignment.
 		 */
 		vaddr += get_padding(&kaslr_regions[i]);
-		if (IS_ENABLED(CONFIG_X86_5LEVEL))
+		if (pgtable_l5_enabled())
 			vaddr = round_up(vaddr + 1, P4D_SIZE);
 		else
 			vaddr = round_up(vaddr + 1, PUD_SIZE);
@@ -230,7 +212,7 @@ void __meminit init_trampoline(void)
 		return;
 	}
 
-	if (IS_ENABLED(CONFIG_X86_5LEVEL))
+	if (pgtable_l5_enabled())
 		init_trampoline_p4d();
 	else
 		init_trampoline_pud();

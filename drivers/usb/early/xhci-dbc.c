@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * xhci-dbc.c - xHCI debug capability early driver
  *
  * Copyright (C) 2016 Intel Corporation
  *
  * Author: Lu Baolu <baolu.lu@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ":%s: " fmt, __func__
@@ -331,7 +328,7 @@ static void xdbc_mem_init(void)
 	ep_in = (struct xdbc_ep_context *)&ctx->in;
 
 	ep_in->ep_info1		= 0;
-	ep_in->ep_info2		= cpu_to_le32(EP_TYPE(BULK_OUT_EP) | MAX_PACKET(1024) | MAX_BURST(max_burst));
+	ep_in->ep_info2		= cpu_to_le32(EP_TYPE(BULK_IN_EP) | MAX_PACKET(1024) | MAX_BURST(max_burst));
 	ep_in->deq		= cpu_to_le64(xdbc.in_seg.dma | xdbc.in_ring.cycle_state);
 
 	/* Set DbC context and info registers: */
@@ -720,17 +717,14 @@ static void xdbc_handle_port_status(struct xdbc_trb *evt_trb)
 
 static void xdbc_handle_tx_event(struct xdbc_trb *evt_trb)
 {
-	size_t remain_length;
 	u32 comp_code;
 	int ep_id;
 
 	comp_code	= GET_COMP_CODE(le32_to_cpu(evt_trb->field[2]));
-	remain_length	= EVENT_TRB_LEN(le32_to_cpu(evt_trb->field[2]));
 	ep_id		= TRB_TO_EP_ID(le32_to_cpu(evt_trb->field[3]));
 
 	switch (comp_code) {
 	case COMP_SUCCESS:
-		remain_length = 0;
 	case COMP_SHORT_PACKET:
 		break;
 	case COMP_TRB_ERROR:

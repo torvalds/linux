@@ -78,7 +78,10 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 	 * important as we don't want to be touching vram on an
 	 * uninitialised board
 	 */
-	addr = nvkm_rd32(device, 0x619f04);
+	if (device->card_type >= GV100)
+		addr = nvkm_rd32(device, 0x625f04);
+	else
+		addr = nvkm_rd32(device, 0x619f04);
 	if (!(addr & 0x00000008)) {
 		nvkm_debug(subdev, "... not enabled\n");
 		return ERR_PTR(-ENODEV);

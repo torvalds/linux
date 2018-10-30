@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
+#include <linux/mmu_context.h>
 #include <asm/cputable.h>
 #include <asm/current.h>
 #include <asm/copro.h>
@@ -172,7 +173,7 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	 * flags are set it's invalid
 	 */
 	if (work.reserved1 || work.reserved2 || work.reserved3 ||
-	    work.reserved4 || work.reserved5 || work.reserved6 ||
+	    work.reserved4 || work.reserved5 ||
 	    (work.flags & ~CXL_START_WORK_ALL)) {
 		rc = -EINVAL;
 		goto out;
@@ -185,11 +186,15 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 		rc =  -EINVAL;
 		goto out;
 	}
+
 	if ((rc = afu_register_irqs(ctx, work.num_interrupts)))
 		goto out;
 
 	if (work.flags & CXL_START_WORK_AMR)
 		amr = work.amr & mfspr(SPRN_UAMOR);
+
+	if (work.flags & CXL_START_WORK_TID)
+		ctx->assign_tidr = true;
 
 	ctx->mmio_err_ff = !!(work.flags & CXL_START_WORK_ERR_FF);
 
@@ -220,15 +225,32 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	/* ensure this mm_struct can't be freed */
 	cxl_context_mm_count_get(ctx);
 
-	/* decrement the use count */
-	if (ctx->mm)
+	if (ctx->mm) {
+		/* decrement the use count from above */
 		mmput(ctx->mm);
+		/* make TLBIs for this context global */
+		mm_context_add_copro(ctx->mm);
+	}
 
 	/*
 	 * Increment driver use count. Enables global TLBIs for hash
 	 * and callbacks to handle the segment table
 	 */
 	cxl_ctx_get();
+
+	/*
+	 * A barrier is needed to make sure all TLBIs are global
+	 * before we attach and the context starts being used by the
+	 * adapter.
+	 *
+	 * Needed after mm_context_add_copro() for radix and
+	 * cxl_ctx_get() for hash/p8.
+	 *
+	 * The barrier should really be mb(), since it involves a
+	 * device. However, it's only useful when we have local
+	 * vs. global TLBIs, i.e SMP=y. So keep smp_mb().
+	 */
+	smp_mb();
 
 	trace_cxl_attach(ctx, work.work_element_descriptor, work.num_interrupts, amr);
 
@@ -240,11 +262,20 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 		ctx->pid = NULL;
 		cxl_ctx_put();
 		cxl_context_mm_count_put(ctx);
+		if (ctx->mm)
+			mm_context_remove_copro(ctx->mm);
 		goto out;
 	}
 
-	ctx->status = STARTED;
 	rc = 0;
+	if (work.flags & CXL_START_WORK_TID) {
+		work.tid = ctx->tidr;
+		if (copy_to_user(uwork, &work, sizeof(work)))
+			rc = -EFAULT;
+	}
+
+	ctx->status = STARTED;
+
 out:
 	mutex_unlock(&ctx->status_mutex);
 	return rc;
@@ -334,10 +365,10 @@ static inline bool ctx_event_pending(struct cxl_context *ctx)
 	return false;
 }
 
-unsigned int afu_poll(struct file *file, struct poll_table_struct *poll)
+__poll_t afu_poll(struct file *file, struct poll_table_struct *poll)
 {
 	struct cxl_context *ctx = file->private_data;
-	int mask = 0;
+	__poll_t mask = 0;
 	unsigned long flags;
 
 
@@ -347,11 +378,11 @@ unsigned int afu_poll(struct file *file, struct poll_table_struct *poll)
 
 	spin_lock_irqsave(&ctx->lock, flags);
 	if (ctx_event_pending(ctx))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	else if (ctx->status == CLOSED)
 		/* Only error on closed when there are no futher events pending
 		 */
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
 	pr_devel("afu_poll pe: %i returning %#x\n", ctx->pe, mask);

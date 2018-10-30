@@ -19,7 +19,7 @@ static struct dentry *qedi_dbg_root;
 
 void
 qedi_dbg_host_init(struct qedi_dbg_ctx *qedi,
-		   struct qedi_debugfs_ops *dops,
+		   const struct qedi_debugfs_ops *dops,
 		   const struct file_operations *fops)
 {
 	char host_dirname[32];
@@ -99,7 +99,7 @@ static struct qedi_list_of_funcs qedi_dbg_do_not_recover_ops[] = {
 	{ NULL, NULL }
 };
 
-struct qedi_debugfs_ops qedi_debugfs_ops[] = {
+const struct qedi_debugfs_ops qedi_debugfs_ops[] = {
 	{ "gbl_ctx", NULL },
 	{ "do_not_recover", qedi_dbg_do_not_recover_ops},
 	{ "io_trace", NULL },
@@ -152,7 +152,7 @@ qedi_gbl_ctx_show(struct seq_file *s, void *unused)
 {
 	struct qedi_fastpath *fp = NULL;
 	struct qed_sb_info *sb_info = NULL;
-	struct status_block *sb = NULL;
+	struct status_block_e4 *sb = NULL;
 	struct global_queue *que = NULL;
 	int id;
 	u16 prod_idx;
@@ -168,7 +168,7 @@ qedi_gbl_ctx_show(struct seq_file *s, void *unused)
 		sb_info = fp->sb_info;
 		sb = sb_info->sb_virt;
 		prod_idx = (sb->pi_array[QEDI_PROTO_CQ_PROD_IDX] &
-			    STATUS_BLOCK_PROD_INDEX_MASK);
+			    STATUS_BLOCK_E4_PROD_INDEX_MASK);
 		seq_printf(s, "SB PROD IDX: %d\n", prod_idx);
 		que = qedi->global_queues[fp->sb_id];
 		seq_printf(s, "DRV CONS IDX: %d\n", que->cq_cons_idx);

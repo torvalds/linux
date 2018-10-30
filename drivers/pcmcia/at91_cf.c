@@ -236,10 +236,8 @@ static int at91_cf_dt_init(struct platform_device *pdev)
 	pdev->dev.platform_data = board;
 
 	mc = syscon_regmap_lookup_by_compatible("atmel,at91rm9200-sdramc");
-	if (IS_ERR(mc))
-		return PTR_ERR(mc);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(mc);
 }
 #else
 static int at91_cf_dt_init(struct platform_device *pdev)

@@ -11,6 +11,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
@@ -264,8 +265,24 @@ static struct platform_device *h3xxx_devices[] = {
 	&h3xxx_micro_asic,
 };
 
+static struct gpiod_lookup_table h3xxx_pcmcia_gpio_table = {
+	.dev_id = "sa11x0-pcmcia",
+	.table = {
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_PCMCIA_CD0,
+			    "pcmcia0-detect", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_PCMCIA_IRQ0,
+			    "pcmcia0-ready", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_PCMCIA_CD1,
+			    "pcmcia1-detect", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_PCMCIA_IRQ1,
+			    "pcmcia1-ready", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 void __init h3xxx_mach_init(void)
 {
+	gpiod_add_lookup_table(&h3xxx_pcmcia_gpio_table);
 	sa1100_register_uart_fns(&h3xxx_port_fns);
 	sa11x0_register_mtd(&h3xxx_flash_data, &h3xxx_flash_resource, 1);
 	platform_add_devices(h3xxx_devices, ARRAY_SIZE(h3xxx_devices));

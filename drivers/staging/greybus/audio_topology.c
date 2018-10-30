@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus audio driver
  * Copyright 2015-2016 Google Inc.
  * Copyright 2015-2016 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include "audio_codec.h"
@@ -145,7 +144,7 @@ static const char **gb_generate_enum_strings(struct gbaudio_module_info *gb,
 	__u8 *data;
 
 	items = le32_to_cpu(gbenum->items);
-	strings = devm_kzalloc(gb->dev, sizeof(char *) * items, GFP_KERNEL);
+	strings = devm_kcalloc(gb->dev, items, sizeof(char *), GFP_KERNEL);
 	data = gbenum->names;
 
 	for (i = 0; i < items; i++) {
@@ -997,7 +996,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 
 	ret = gbaudio_validate_kcontrol_count(w);
 	if (ret) {
-		dev_err(module->dev, "Inavlid kcontrol count=%d for %s\n",
+		dev_err(module->dev, "Invalid kcontrol count=%d for %s\n",
 			w->ncontrols, w->name);
 		return ret;
 	}

@@ -49,6 +49,10 @@
 #define IPU_PRE_TPR_CTRL				0x070
 #define  IPU_PRE_TPR_CTRL_TILE_FORMAT(v)		((v & 0xff) << 0)
 #define  IPU_PRE_TPR_CTRL_TILE_FORMAT_MASK		0xff
+#define  IPU_PRE_TPR_CTRL_TILE_FORMAT_16_BIT		(1 << 0)
+#define  IPU_PRE_TPR_CTRL_TILE_FORMAT_SPLIT_BUF		(1 << 4)
+#define  IPU_PRE_TPR_CTRL_TILE_FORMAT_SINGLE_BUF	(1 << 5)
+#define  IPU_PRE_TPR_CTRL_TILE_FORMAT_SUPER_TILED	(1 << 6)
 
 #define IPU_PRE_PREFETCH_ENG_CTRL			0x080
 #define  IPU_PRE_PREF_ENG_CTRL_PREFETCH_EN		(1 << 0)
@@ -73,6 +77,14 @@
 #define  IPU_PRE_STORE_ENG_CTRL_WR_NUM_BYTES(v)		((v & 0x7) << 1)
 #define  IPU_PRE_STORE_ENG_CTRL_OUTPUT_ACTIVE_BPP(v)	((v & 0x3) << 4)
 
+#define IPU_PRE_STORE_ENG_STATUS			0x120
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_X_MASK	0xffff
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_X_SHIFT	0
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_MASK	0x3fff
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_SHIFT	16
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_FIFO_FULL	(1 << 30)
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_FIELD		(1 << 31)
+
 #define IPU_PRE_STORE_ENG_SIZE				0x130
 #define  IPU_PRE_STORE_ENG_SIZE_INPUT_WIDTH(v)		((v & 0xffff) << 0)
 #define  IPU_PRE_STORE_ENG_SIZE_INPUT_HEIGHT(v)		((v & 0xffff) << 16)
@@ -93,6 +105,7 @@ struct ipu_pre {
 	dma_addr_t		buffer_paddr;
 	void			*buffer_virt;
 	bool			in_use;
+	unsigned int		safe_window_end;
 };
 
 static DEFINE_MUTEX(ipu_pre_list_mutex);
@@ -115,11 +128,15 @@ ipu_pre_lookup_by_phandle(struct device *dev, const char *name, int index)
 	list_for_each_entry(pre, &ipu_pre_list, list) {
 		if (pre_node == pre->dev->of_node) {
 			mutex_unlock(&ipu_pre_list_mutex);
-			device_link_add(dev, pre->dev, DL_FLAG_AUTOREMOVE);
+			device_link_add(dev, pre->dev,
+					DL_FLAG_AUTOREMOVE_CONSUMER);
+			of_node_put(pre_node);
 			return pre;
 		}
 	}
 	mutex_unlock(&ipu_pre_list_mutex);
+
+	of_node_put(pre_node);
 
 	return NULL;
 }
@@ -138,7 +155,7 @@ int ipu_pre_get(struct ipu_pre *pre)
 	val = IPU_PRE_CTRL_HANDSHAKE_ABORT_SKIP_EN |
 	      IPU_PRE_CTRL_HANDSHAKE_EN |
 	      IPU_PRE_CTRL_TPR_REST_SEL |
-	      IPU_PRE_CTRL_BLOCK_16 | IPU_PRE_CTRL_SDW_UPDATE;
+	      IPU_PRE_CTRL_SDW_UPDATE;
 	writel(val, pre->regs + IPU_PRE_CTRL);
 
 	pre->in_use = true;
@@ -154,11 +171,17 @@ void ipu_pre_put(struct ipu_pre *pre)
 
 void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 		       unsigned int height, unsigned int stride, u32 format,
-		       unsigned int bufaddr)
+		       uint64_t modifier, unsigned int bufaddr)
 {
 	const struct drm_format_info *info = drm_format_info(format);
 	u32 active_bpp = info->cpp[0] >> 1;
 	u32 val;
+
+	/* calculate safe window for ctrl register updates */
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		pre->safe_window_end = height - 2;
+	else
+		pre->safe_window_end = DIV_ROUND_UP(height, 4) - 1;
 
 	writel(bufaddr, pre->regs + IPU_PRE_CUR_BUF);
 	writel(bufaddr, pre->regs + IPU_PRE_NEXT_BUF);
@@ -191,15 +214,48 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 
 	writel(pre->buffer_paddr, pre->regs + IPU_PRE_STORE_ENG_ADDR);
 
+	val = readl(pre->regs + IPU_PRE_TPR_CTRL);
+	val &= ~IPU_PRE_TPR_CTRL_TILE_FORMAT_MASK;
+	if (modifier != DRM_FORMAT_MOD_LINEAR) {
+		/* only support single buffer formats for now */
+		val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_SINGLE_BUF;
+		if (modifier == DRM_FORMAT_MOD_VIVANTE_SUPER_TILED)
+			val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_SUPER_TILED;
+		if (info->cpp[0] == 2)
+			val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_16_BIT;
+	}
+	writel(val, pre->regs + IPU_PRE_TPR_CTRL);
+
 	val = readl(pre->regs + IPU_PRE_CTRL);
 	val |= IPU_PRE_CTRL_EN_REPEAT | IPU_PRE_CTRL_ENABLE |
 	       IPU_PRE_CTRL_SDW_UPDATE;
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		val &= ~IPU_PRE_CTRL_BLOCK_EN;
+	else
+		val |= IPU_PRE_CTRL_BLOCK_EN;
 	writel(val, pre->regs + IPU_PRE_CTRL);
 }
 
 void ipu_pre_update(struct ipu_pre *pre, unsigned int bufaddr)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(5);
+	unsigned short current_yblock;
+	u32 val;
+
 	writel(bufaddr, pre->regs + IPU_PRE_NEXT_BUF);
+
+	do {
+		if (time_after(jiffies, timeout)) {
+			dev_warn(pre->dev, "timeout waiting for PRE safe window\n");
+			return;
+		}
+
+		val = readl(pre->regs + IPU_PRE_STORE_ENG_STATUS);
+		current_yblock =
+			(val >> IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_SHIFT) &
+			IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_MASK;
+	} while (current_yblock == 0 || current_yblock >= pre->safe_window_end);
+
 	writel(IPU_PRE_CTRL_SDW_UPDATE, pre->regs + IPU_PRE_CTRL_SET);
 }
 

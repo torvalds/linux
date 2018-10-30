@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if CPU_CAVIUM_OCTEON
 
 config CAVIUM_CN63XXP1
@@ -65,17 +66,6 @@ config CAVIUM_OCTEON_LOCK_L2_MEMCPY
 	default "y"
 	help
 	  Lock the kernel's implementation of memcpy() into L2.
-
-config IOMMU_HELPER
-	bool
-
-config NEED_SG_DMA_LENGTH
-	bool
-
-config SWIOTLB
-	def_bool y
-	select IOMMU_HELPER
-	select NEED_SG_DMA_LENGTH
 
 config OCTEON_ILM
 	tristate "Module to measure interrupt latency using Octeon CIU Timer"

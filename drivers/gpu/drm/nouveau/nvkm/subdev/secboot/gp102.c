@@ -133,7 +133,7 @@ gp102_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,
 	return gm200_secboot_run_blob(sb, blob, falcon);
 }
 
-static const struct nvkm_secboot_func
+const struct nvkm_secboot_func
 gp102_secboot = {
 	.dtor = gm200_secboot_dtor,
 	.oneinit = gm200_secboot_oneinit,

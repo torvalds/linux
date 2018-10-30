@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -43,18 +43,14 @@
 
 /* Local Definitions and Declarations */
 
-struct rmnet_walk_data {
-	struct net_device *real_dev;
-	struct list_head *head;
-	struct rmnet_port *port;
+static const struct nla_policy rmnet_policy[IFLA_RMNET_MAX + 1] = {
+	[IFLA_RMNET_MUX_ID]	= { .type = NLA_U16 },
+	[IFLA_RMNET_FLAGS]	= { .len = sizeof(struct ifla_rmnet_flags) },
 };
 
 static int rmnet_is_real_dev_registered(const struct net_device *real_dev)
 {
-	rx_handler_func_t *rx_handler;
-
-	rx_handler = rcu_dereference(real_dev->rx_handler);
-	return (rx_handler == rmnet_rx_handler);
+	return rcu_access_pointer(real_dev->rx_handler) == rmnet_rx_handler;
 }
 
 /* Needs rtnl lock */
@@ -62,23 +58,6 @@ static struct rmnet_port*
 rmnet_get_port_rtnl(const struct net_device *real_dev)
 {
 	return rtnl_dereference(real_dev->rx_handler_data);
-}
-
-static struct rmnet_endpoint*
-rmnet_get_endpoint(struct net_device *dev, int config_id)
-{
-	struct rmnet_endpoint *ep;
-	struct rmnet_port *port;
-
-	if (!rmnet_is_real_dev_registered(dev)) {
-		ep = rmnet_vnd_get_endpoint(dev);
-	} else {
-		port = rmnet_get_port_rtnl(dev);
-
-		ep = &port->muxed_ep[config_id];
-	}
-
-	return ep;
 }
 
 static int rmnet_unregister_real_device(struct net_device *real_dev,
@@ -101,7 +80,7 @@ static int rmnet_unregister_real_device(struct net_device *real_dev,
 static int rmnet_register_real_device(struct net_device *real_dev)
 {
 	struct rmnet_port *port;
-	int rc;
+	int rc, entry;
 
 	ASSERT_RTNL();
 
@@ -122,40 +101,45 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 	/* hold on to real dev for MAP data */
 	dev_hold(real_dev);
 
+	for (entry = 0; entry < RMNET_MAX_LOGICAL_EP; entry++)
+		INIT_HLIST_HEAD(&port->muxed_ep[entry]);
+
 	netdev_dbg(real_dev, "registered with rmnet\n");
 	return 0;
 }
 
-static void rmnet_set_endpoint_config(struct net_device *dev,
-				      u8 mux_id, u8 rmnet_mode,
-				      struct net_device *egress_dev)
+static void rmnet_unregister_bridge(struct net_device *dev,
+				    struct rmnet_port *port)
 {
-	struct rmnet_endpoint *ep;
+	struct rmnet_port *bridge_port;
+	struct net_device *bridge_dev;
 
-	netdev_dbg(dev, "id %d mode %d dev %s\n",
-		   mux_id, rmnet_mode, egress_dev->name);
+	if (port->rmnet_mode != RMNET_EPMODE_BRIDGE)
+		return;
 
-	ep = rmnet_get_endpoint(dev, mux_id);
-	/* This config is cleared on every set, so its ok to not
-	 * clear it on a device delete.
-	 */
-	memset(ep, 0, sizeof(struct rmnet_endpoint));
-	ep->rmnet_mode = rmnet_mode;
-	ep->egress_dev = egress_dev;
-	ep->mux_id = mux_id;
+	/* bridge slave handling */
+	if (!port->nr_rmnet_devs) {
+		bridge_dev = port->bridge_ep;
+
+		bridge_port = rmnet_get_port_rtnl(bridge_dev);
+		bridge_port->bridge_ep = NULL;
+		bridge_port->rmnet_mode = RMNET_EPMODE_VND;
+	} else {
+		bridge_dev = port->bridge_ep;
+
+		bridge_port = rmnet_get_port_rtnl(bridge_dev);
+		rmnet_unregister_real_device(bridge_dev, bridge_port);
+	}
 }
 
 static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[],
 			 struct netlink_ext_ack *extack)
 {
-	int ingress_format = RMNET_INGRESS_FORMAT_DEMUXING |
-			     RMNET_INGRESS_FORMAT_DEAGGREGATION |
-			     RMNET_INGRESS_FORMAT_MAP;
-	int egress_format = RMNET_EGRESS_FORMAT_MUXING |
-			    RMNET_EGRESS_FORMAT_MAP;
+	u32 data_format = RMNET_FLAGS_INGRESS_DEAGGREGATION;
 	struct net_device *real_dev;
 	int mode = RMNET_EPMODE_VND;
+	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
 	int err = 0;
 	u16 mux_id;
@@ -164,50 +148,56 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	if (!real_dev || !dev)
 		return -ENODEV;
 
-	if (!data[IFLA_VLAN_ID])
+	if (!data[IFLA_RMNET_MUX_ID])
 		return -EINVAL;
 
-	mux_id = nla_get_u16(data[IFLA_VLAN_ID]);
+	ep = kzalloc(sizeof(*ep), GFP_ATOMIC);
+	if (!ep)
+		return -ENOMEM;
+
+	mux_id = nla_get_u16(data[IFLA_RMNET_MUX_ID]);
 
 	err = rmnet_register_real_device(real_dev);
 	if (err)
 		goto err0;
 
 	port = rmnet_get_port_rtnl(real_dev);
-	err = rmnet_vnd_newlink(mux_id, dev, port, real_dev);
+	err = rmnet_vnd_newlink(mux_id, dev, port, real_dev, ep);
 	if (err)
 		goto err1;
 
-	err = netdev_master_upper_dev_link(dev, real_dev, NULL, NULL);
-	if (err)
-		goto err2;
+	port->rmnet_mode = mode;
 
-	netdev_dbg(dev, "data format [ingress 0x%08X] [egress 0x%08X]\n",
-		   ingress_format, egress_format);
-	port->egress_data_format = egress_format;
-	port->ingress_data_format = ingress_format;
+	hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
 
-	rmnet_set_endpoint_config(real_dev, mux_id, mode, dev);
-	rmnet_set_endpoint_config(dev, mux_id, mode, real_dev);
+	if (data[IFLA_RMNET_FLAGS]) {
+		struct ifla_rmnet_flags *flags;
+
+		flags = nla_data(data[IFLA_RMNET_FLAGS]);
+		data_format = flags->flags & flags->mask;
+	}
+
+	netdev_dbg(dev, "data format [0x%08X]\n", data_format);
+	port->data_format = data_format;
+
 	return 0;
 
-err2:
-	rmnet_vnd_dellink(mux_id, port);
 err1:
 	rmnet_unregister_real_device(real_dev, port);
 err0:
+	kfree(ep);
 	return err;
 }
 
 static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 {
+	struct rmnet_priv *priv = netdev_priv(dev);
 	struct net_device *real_dev;
+	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
 	u8 mux_id;
 
-	rcu_read_lock();
-	real_dev = netdev_master_upper_dev_get_rcu(dev);
-	rcu_read_unlock();
+	real_dev = priv->real_dev;
 
 	if (!real_dev || !rmnet_is_real_dev_registered(real_dev))
 		return;
@@ -215,32 +205,26 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 	port = rmnet_get_port_rtnl(real_dev);
 
 	mux_id = rmnet_vnd_get_mux(dev);
-	rmnet_vnd_dellink(mux_id, port);
-	netdev_upper_dev_unlink(dev, real_dev);
+
+	ep = rmnet_get_endpoint(port, mux_id);
+	if (ep) {
+		hlist_del_init_rcu(&ep->hlnode);
+		rmnet_unregister_bridge(dev, port);
+		rmnet_vnd_dellink(mux_id, port, ep);
+		kfree(ep);
+	}
 	rmnet_unregister_real_device(real_dev, port);
 
 	unregister_netdevice_queue(dev, head);
 }
 
-static int rmnet_dev_walk_unreg(struct net_device *rmnet_dev, void *data)
-{
-	struct rmnet_walk_data *d = data;
-	u8 mux_id;
-
-	mux_id = rmnet_vnd_get_mux(rmnet_dev);
-
-	rmnet_vnd_dellink(mux_id, d->port);
-	netdev_upper_dev_unlink(rmnet_dev, d->real_dev);
-	unregister_netdevice_queue(rmnet_dev, d->head);
-
-	return 0;
-}
-
 static void rmnet_force_unassociate_device(struct net_device *dev)
 {
 	struct net_device *real_dev = dev;
-	struct rmnet_walk_data d;
+	struct hlist_node *tmp_ep;
+	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
+	unsigned long bkt_ep;
 	LIST_HEAD(list);
 
 	if (!rmnet_is_real_dev_registered(real_dev))
@@ -248,14 +232,19 @@ static void rmnet_force_unassociate_device(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	d.real_dev = real_dev;
-	d.head = &list;
-
 	port = rmnet_get_port_rtnl(dev);
-	d.port = port;
 
 	rcu_read_lock();
-	netdev_walk_all_lower_dev_rcu(real_dev, rmnet_dev_walk_unreg, &d);
+	rmnet_unregister_bridge(dev, port);
+
+	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlnode) {
+		unregister_netdevice_queue(ep->egress_dev, &list);
+		rmnet_vnd_dellink(ep->mux_id, port, ep);
+
+		hlist_del_init_rcu(&ep->hlnode);
+		kfree(ep);
+	}
+
 	rcu_read_unlock();
 	unregister_netdevice_many(&list);
 
@@ -292,30 +281,108 @@ static int rmnet_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
 {
 	u16 mux_id;
 
-	if (!data || !data[IFLA_VLAN_ID])
+	if (!data || !data[IFLA_RMNET_MUX_ID])
 		return -EINVAL;
 
-	mux_id = nla_get_u16(data[IFLA_VLAN_ID]);
+	mux_id = nla_get_u16(data[IFLA_RMNET_MUX_ID]);
 	if (mux_id > (RMNET_MAX_LOGICAL_EP - 1))
 		return -ERANGE;
 
 	return 0;
 }
 
+static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
+			    struct nlattr *data[],
+			    struct netlink_ext_ack *extack)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	struct net_device *real_dev;
+	struct rmnet_endpoint *ep;
+	struct rmnet_port *port;
+	u16 mux_id;
+
+	real_dev = __dev_get_by_index(dev_net(dev),
+				      nla_get_u32(tb[IFLA_LINK]));
+
+	if (!real_dev || !dev || !rmnet_is_real_dev_registered(real_dev))
+		return -ENODEV;
+
+	port = rmnet_get_port_rtnl(real_dev);
+
+	if (data[IFLA_RMNET_MUX_ID]) {
+		mux_id = nla_get_u16(data[IFLA_RMNET_MUX_ID]);
+		ep = rmnet_get_endpoint(port, priv->mux_id);
+		if (!ep)
+			return -ENODEV;
+
+		hlist_del_init_rcu(&ep->hlnode);
+		hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
+
+		ep->mux_id = mux_id;
+		priv->mux_id = mux_id;
+	}
+
+	if (data[IFLA_RMNET_FLAGS]) {
+		struct ifla_rmnet_flags *flags;
+
+		flags = nla_data(data[IFLA_RMNET_FLAGS]);
+		port->data_format = flags->flags & flags->mask;
+	}
+
+	return 0;
+}
+
 static size_t rmnet_get_size(const struct net_device *dev)
 {
-	return nla_total_size(2); /* IFLA_VLAN_ID */
+	return
+		/* IFLA_RMNET_MUX_ID */
+		nla_total_size(2) +
+		/* IFLA_RMNET_FLAGS */
+		nla_total_size(sizeof(struct ifla_rmnet_flags));
+}
+
+static int rmnet_fill_info(struct sk_buff *skb, const struct net_device *dev)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	struct net_device *real_dev;
+	struct ifla_rmnet_flags f;
+	struct rmnet_port *port;
+
+	real_dev = priv->real_dev;
+
+	if (nla_put_u16(skb, IFLA_RMNET_MUX_ID, priv->mux_id))
+		goto nla_put_failure;
+
+	if (rmnet_is_real_dev_registered(real_dev)) {
+		port = rmnet_get_port_rtnl(real_dev);
+		f.flags = port->data_format;
+	} else {
+		f.flags = 0;
+	}
+
+	f.mask  = ~0;
+
+	if (nla_put(skb, IFLA_RMNET_FLAGS, sizeof(f), &f))
+		goto nla_put_failure;
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
 }
 
 struct rtnl_link_ops rmnet_link_ops __read_mostly = {
 	.kind		= "rmnet",
-	.maxtype	= __IFLA_VLAN_MAX,
+	.maxtype	= __IFLA_RMNET_MAX,
 	.priv_size	= sizeof(struct rmnet_priv),
 	.setup		= rmnet_vnd_setup,
 	.validate	= rmnet_rtnl_validate,
 	.newlink	= rmnet_newlink,
 	.dellink	= rmnet_dellink,
 	.get_size	= rmnet_get_size,
+	.changelink     = rmnet_changelink,
+	.policy		= rmnet_policy,
+	.fill_info	= rmnet_fill_info,
 };
 
 /* Needs either rcu_read_lock() or rtnl lock */
@@ -325,6 +392,71 @@ struct rmnet_port *rmnet_get_port(struct net_device *real_dev)
 		return rcu_dereference_rtnl(real_dev->rx_handler_data);
 	else
 		return NULL;
+}
+
+struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id)
+{
+	struct rmnet_endpoint *ep;
+
+	hlist_for_each_entry_rcu(ep, &port->muxed_ep[mux_id], hlnode) {
+		if (ep->mux_id == mux_id)
+			return ep;
+	}
+
+	return NULL;
+}
+
+int rmnet_add_bridge(struct net_device *rmnet_dev,
+		     struct net_device *slave_dev,
+		     struct netlink_ext_ack *extack)
+{
+	struct rmnet_priv *priv = netdev_priv(rmnet_dev);
+	struct net_device *real_dev = priv->real_dev;
+	struct rmnet_port *port, *slave_port;
+	int err;
+
+	port = rmnet_get_port(real_dev);
+
+	/* If there is more than one rmnet dev attached, its probably being
+	 * used for muxing. Skip the briding in that case
+	 */
+	if (port->nr_rmnet_devs > 1)
+		return -EINVAL;
+
+	if (rmnet_is_real_dev_registered(slave_dev))
+		return -EBUSY;
+
+	err = rmnet_register_real_device(slave_dev);
+	if (err)
+		return -EBUSY;
+
+	slave_port = rmnet_get_port(slave_dev);
+	slave_port->rmnet_mode = RMNET_EPMODE_BRIDGE;
+	slave_port->bridge_ep = real_dev;
+
+	port->rmnet_mode = RMNET_EPMODE_BRIDGE;
+	port->bridge_ep = slave_dev;
+
+	netdev_dbg(slave_dev, "registered with rmnet as slave\n");
+	return 0;
+}
+
+int rmnet_del_bridge(struct net_device *rmnet_dev,
+		     struct net_device *slave_dev)
+{
+	struct rmnet_priv *priv = netdev_priv(rmnet_dev);
+	struct net_device *real_dev = priv->real_dev;
+	struct rmnet_port *port, *slave_port;
+
+	port = rmnet_get_port(real_dev);
+	port->rmnet_mode = RMNET_EPMODE_VND;
+	port->bridge_ep = NULL;
+
+	slave_port = rmnet_get_port(slave_dev);
+	rmnet_unregister_real_device(slave_dev, slave_port);
+
+	netdev_dbg(slave_dev, "removed from rmnet as slave\n");
+	return 0;
 }
 
 /* Startup/Shutdown */

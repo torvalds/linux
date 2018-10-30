@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
+
 /*
  * common eBPF ELF operations.
  *
@@ -25,6 +27,8 @@
 #include <asm/unistd.h>
 #include <linux/bpf.h>
 #include "bpf.h"
+#include "libbpf.h"
+#include <errno.h>
 
 /*
  * When building perf, unistd.h is overridden. __NR_bpf is
@@ -46,6 +50,10 @@
 # endif
 #endif
 
+#ifndef min
+#define min(x, y) ((x) < (y) ? (x) : (y))
+#endif
+
 static inline __u64 ptr_to_u64(const void *ptr)
 {
 	return (__u64) (unsigned long) ptr;
@@ -57,38 +65,85 @@ static inline int sys_bpf(enum bpf_cmd cmd, union bpf_attr *attr,
 	return syscall(__NR_bpf, cmd, attr, size);
 }
 
-int bpf_create_map_node(enum bpf_map_type map_type, int key_size,
-			int value_size, int max_entries, __u32 map_flags,
-			int node)
+int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 {
+	__u32 name_len = create_attr->name ? strlen(create_attr->name) : 0;
 	union bpf_attr attr;
 
 	memset(&attr, '\0', sizeof(attr));
 
-	attr.map_type = map_type;
-	attr.key_size = key_size;
-	attr.value_size = value_size;
-	attr.max_entries = max_entries;
-	attr.map_flags = map_flags;
-	if (node >= 0) {
-		attr.map_flags |= BPF_F_NUMA_NODE;
-		attr.numa_node = node;
-	}
+	attr.map_type = create_attr->map_type;
+	attr.key_size = create_attr->key_size;
+	attr.value_size = create_attr->value_size;
+	attr.max_entries = create_attr->max_entries;
+	attr.map_flags = create_attr->map_flags;
+	memcpy(attr.map_name, create_attr->name,
+	       min(name_len, BPF_OBJ_NAME_LEN - 1));
+	attr.numa_node = create_attr->numa_node;
+	attr.btf_fd = create_attr->btf_fd;
+	attr.btf_key_type_id = create_attr->btf_key_type_id;
+	attr.btf_value_type_id = create_attr->btf_value_type_id;
+	attr.map_ifindex = create_attr->map_ifindex;
+	attr.inner_map_fd = create_attr->inner_map_fd;
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
+}
+
+int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
+			int key_size, int value_size, int max_entries,
+			__u32 map_flags, int node)
+{
+	struct bpf_create_map_attr map_attr = {};
+
+	map_attr.name = name;
+	map_attr.map_type = map_type;
+	map_attr.map_flags = map_flags;
+	map_attr.key_size = key_size;
+	map_attr.value_size = value_size;
+	map_attr.max_entries = max_entries;
+	if (node >= 0) {
+		map_attr.numa_node = node;
+		map_attr.map_flags |= BPF_F_NUMA_NODE;
+	}
+
+	return bpf_create_map_xattr(&map_attr);
 }
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size,
 		   int value_size, int max_entries, __u32 map_flags)
 {
-	return bpf_create_map_node(map_type, key_size, value_size,
-				   max_entries, map_flags, -1);
+	struct bpf_create_map_attr map_attr = {};
+
+	map_attr.map_type = map_type;
+	map_attr.map_flags = map_flags;
+	map_attr.key_size = key_size;
+	map_attr.value_size = value_size;
+	map_attr.max_entries = max_entries;
+
+	return bpf_create_map_xattr(&map_attr);
 }
 
-int bpf_create_map_in_map_node(enum bpf_map_type map_type, int key_size,
-			       int inner_map_fd, int max_entries,
+int bpf_create_map_name(enum bpf_map_type map_type, const char *name,
+			int key_size, int value_size, int max_entries,
+			__u32 map_flags)
+{
+	struct bpf_create_map_attr map_attr = {};
+
+	map_attr.name = name;
+	map_attr.map_type = map_type;
+	map_attr.map_flags = map_flags;
+	map_attr.key_size = key_size;
+	map_attr.value_size = value_size;
+	map_attr.max_entries = max_entries;
+
+	return bpf_create_map_xattr(&map_attr);
+}
+
+int bpf_create_map_in_map_node(enum bpf_map_type map_type, const char *name,
+			       int key_size, int inner_map_fd, int max_entries,
 			       __u32 map_flags, int node)
 {
+	__u32 name_len = name ? strlen(name) : 0;
 	union bpf_attr attr;
 
 	memset(&attr, '\0', sizeof(attr));
@@ -99,6 +154,8 @@ int bpf_create_map_in_map_node(enum bpf_map_type map_type, int key_size,
 	attr.inner_map_fd = inner_map_fd;
 	attr.max_entries = max_entries;
 	attr.map_flags = map_flags;
+	memcpy(attr.map_name, name, min(name_len, BPF_OBJ_NAME_LEN - 1));
+
 	if (node >= 0) {
 		attr.map_flags |= BPF_F_NUMA_NODE;
 		attr.numa_node = node;
@@ -107,29 +164,40 @@ int bpf_create_map_in_map_node(enum bpf_map_type map_type, int key_size,
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }
 
-int bpf_create_map_in_map(enum bpf_map_type map_type, int key_size,
-			  int inner_map_fd, int max_entries, __u32 map_flags)
+int bpf_create_map_in_map(enum bpf_map_type map_type, const char *name,
+			  int key_size, int inner_map_fd, int max_entries,
+			  __u32 map_flags)
 {
-	return bpf_create_map_in_map_node(map_type, key_size, inner_map_fd,
-					  max_entries, map_flags, -1);
+	return bpf_create_map_in_map_node(map_type, name, key_size,
+					  inner_map_fd, max_entries, map_flags,
+					  -1);
 }
 
-int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
-		     size_t insns_cnt, const char *license,
-		     __u32 kern_version, char *log_buf, size_t log_buf_sz)
+int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
+			   char *log_buf, size_t log_buf_sz)
 {
-	int fd;
 	union bpf_attr attr;
+	__u32 name_len;
+	int fd;
+
+	if (!load_attr)
+		return -EINVAL;
+
+	name_len = load_attr->name ? strlen(load_attr->name) : 0;
 
 	bzero(&attr, sizeof(attr));
-	attr.prog_type = type;
-	attr.insn_cnt = (__u32)insns_cnt;
-	attr.insns = ptr_to_u64(insns);
-	attr.license = ptr_to_u64(license);
+	attr.prog_type = load_attr->prog_type;
+	attr.expected_attach_type = load_attr->expected_attach_type;
+	attr.insn_cnt = (__u32)load_attr->insns_cnt;
+	attr.insns = ptr_to_u64(load_attr->insns);
+	attr.license = ptr_to_u64(load_attr->license);
 	attr.log_buf = ptr_to_u64(NULL);
 	attr.log_size = 0;
 	attr.log_level = 0;
-	attr.kern_version = kern_version;
+	attr.kern_version = load_attr->kern_version;
+	attr.prog_ifindex = load_attr->prog_ifindex;
+	memcpy(attr.prog_name, load_attr->name,
+	       min(name_len, BPF_OBJ_NAME_LEN - 1));
 
 	fd = sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 	if (fd >= 0 || !log_buf || !log_buf_sz)
@@ -141,6 +209,25 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 	attr.log_level = 1;
 	log_buf[0] = 0;
 	return sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
+}
+
+int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
+		     size_t insns_cnt, const char *license,
+		     __u32 kern_version, char *log_buf,
+		     size_t log_buf_sz)
+{
+	struct bpf_load_program_attr load_attr;
+
+	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
+	load_attr.prog_type = type;
+	load_attr.expected_attach_type = 0;
+	load_attr.name = NULL;
+	load_attr.insns = insns;
+	load_attr.insns_cnt = insns_cnt;
+	load_attr.license = license;
+	load_attr.kern_version = kern_version;
+
+	return bpf_load_program_xattr(&load_attr, log_buf, log_buf_sz);
 }
 
 int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
@@ -189,6 +276,18 @@ int bpf_map_lookup_elem(int fd, const void *key, void *value)
 	attr.value = ptr_to_u64(value);
 
 	return sys_bpf(BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
+}
+
+int bpf_map_lookup_and_delete_elem(int fd, const void *key, void *value)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.map_fd = fd;
+	attr.key = ptr_to_u64(key);
+	attr.value = ptr_to_u64(value);
+
+	return sys_bpf(BPF_MAP_LOOKUP_AND_DELETE_ELEM, &attr, sizeof(attr));
 }
 
 int bpf_map_delete_elem(int fd, const void *key)
@@ -258,6 +357,38 @@ int bpf_prog_detach(int target_fd, enum bpf_attach_type type)
 	attr.attach_type = type;
 
 	return sys_bpf(BPF_PROG_DETACH, &attr, sizeof(attr));
+}
+
+int bpf_prog_detach2(int prog_fd, int target_fd, enum bpf_attach_type type)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.target_fd	 = target_fd;
+	attr.attach_bpf_fd = prog_fd;
+	attr.attach_type = type;
+
+	return sys_bpf(BPF_PROG_DETACH, &attr, sizeof(attr));
+}
+
+int bpf_prog_query(int target_fd, enum bpf_attach_type type, __u32 query_flags,
+		   __u32 *attach_flags, __u32 *prog_ids, __u32 *prog_cnt)
+{
+	union bpf_attr attr;
+	int ret;
+
+	bzero(&attr, sizeof(attr));
+	attr.query.target_fd	= target_fd;
+	attr.query.attach_type	= type;
+	attr.query.query_flags	= query_flags;
+	attr.query.prog_cnt	= *prog_cnt;
+	attr.query.prog_ids	= ptr_to_u64(prog_ids);
+
+	ret = sys_bpf(BPF_PROG_QUERY, &attr, sizeof(attr));
+	if (attach_flags)
+		*attach_flags = attr.query.attach_flags;
+	*prog_cnt = attr.query.prog_cnt;
+	return ret;
 }
 
 int bpf_prog_test_run(int prog_fd, int repeat, void *data, __u32 size,
@@ -334,6 +465,16 @@ int bpf_map_get_fd_by_id(__u32 id)
 	return sys_bpf(BPF_MAP_GET_FD_BY_ID, &attr, sizeof(attr));
 }
 
+int bpf_btf_get_fd_by_id(__u32 id)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.btf_id = id;
+
+	return sys_bpf(BPF_BTF_GET_FD_BY_ID, &attr, sizeof(attr));
+}
+
 int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
 {
 	union bpf_attr attr;
@@ -347,6 +488,65 @@ int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
 	err = sys_bpf(BPF_OBJ_GET_INFO_BY_FD, &attr, sizeof(attr));
 	if (!err)
 		*info_len = attr.info.info_len;
+
+	return err;
+}
+
+int bpf_raw_tracepoint_open(const char *name, int prog_fd)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.raw_tracepoint.name = ptr_to_u64(name);
+	attr.raw_tracepoint.prog_fd = prog_fd;
+
+	return sys_bpf(BPF_RAW_TRACEPOINT_OPEN, &attr, sizeof(attr));
+}
+
+int bpf_load_btf(void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size,
+		 bool do_log)
+{
+	union bpf_attr attr = {};
+	int fd;
+
+	attr.btf = ptr_to_u64(btf);
+	attr.btf_size = btf_size;
+
+retry:
+	if (do_log && log_buf && log_buf_size) {
+		attr.btf_log_level = 1;
+		attr.btf_log_size = log_buf_size;
+		attr.btf_log_buf = ptr_to_u64(log_buf);
+	}
+
+	fd = sys_bpf(BPF_BTF_LOAD, &attr, sizeof(attr));
+	if (fd == -1 && !do_log && log_buf && log_buf_size) {
+		do_log = true;
+		goto retry;
+	}
+
+	return fd;
+}
+
+int bpf_task_fd_query(int pid, int fd, __u32 flags, char *buf, __u32 *buf_len,
+		      __u32 *prog_id, __u32 *fd_type, __u64 *probe_offset,
+		      __u64 *probe_addr)
+{
+	union bpf_attr attr = {};
+	int err;
+
+	attr.task_fd_query.pid = pid;
+	attr.task_fd_query.fd = fd;
+	attr.task_fd_query.flags = flags;
+	attr.task_fd_query.buf = ptr_to_u64(buf);
+	attr.task_fd_query.buf_len = *buf_len;
+
+	err = sys_bpf(BPF_TASK_FD_QUERY, &attr, sizeof(attr));
+	*buf_len = attr.task_fd_query.buf_len;
+	*prog_id = attr.task_fd_query.prog_id;
+	*fd_type = attr.task_fd_query.fd_type;
+	*probe_offset = attr.task_fd_query.probe_offset;
+	*probe_addr = attr.task_fd_query.probe_addr;
 
 	return err;
 }

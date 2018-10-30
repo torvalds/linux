@@ -19,6 +19,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("PKCS#7 testing key type");
+MODULE_AUTHOR("Red Hat, Inc.");
 
 static unsigned pkcs7_usage;
 module_param_named(usage, pkcs7_usage, uint, S_IWUSR | S_IRUGO);
@@ -62,7 +63,7 @@ static int pkcs7_preparse(struct key_preparsed_payload *prep)
 
 	return verify_pkcs7_signature(NULL, 0,
 				      prep->data, prep->datalen,
-				      (void *)1UL, usage,
+				      VERIFY_USE_SECONDARY_KEYRING, usage,
 				      pkcs7_view_content, prep);
 }
 

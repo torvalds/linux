@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_IP6_TUNNEL_H
 #define _NET_IP6_TUNNEL_H
 
@@ -35,6 +36,10 @@ struct __ip6_tnl_parm {
 	__be32			o_key;
 
 	__u32			fwmark;
+	__u32			index;	/* ERSPAN type II index */
+	__u8			erspan_ver;	/* ERSPAN version */
+	__u8			dir;	/* direction */
+	__u16			hwid;	/* hwid */
 };
 
 /* IPv6 tunnel */

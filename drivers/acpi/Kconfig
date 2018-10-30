@@ -1,14 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # ACPI Configuration
 #
 
+config ARCH_SUPPORTS_ACPI
+	bool
+
 menuconfig ACPI
 	bool "ACPI (Advanced Configuration and Power Interface) Support"
-	depends on !IA64_HP_SIM
-	depends on IA64 || X86 || ARM64
+	depends on ARCH_SUPPORTS_ACPI
 	depends on PCI
 	select PNP
-	default y if (IA64 || X86)
+	default y if X86
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 
 	  Linux requires an ACPI-compliant platform (hardware/firmware),
@@ -78,7 +81,17 @@ config ACPI_DEBUGGER_USER
 endif
 
 config ACPI_SPCR_TABLE
+	bool "ACPI Serial Port Console Redirection Support"
+	default y if X86
+	help
+	  Enable support for Serial Port Console Redirection (SPCR) Table.
+	  This table provides information about the configuration of the
+	  earlycon console.
+
+config ACPI_LPIT
 	bool
+	depends on X86_64
+	default y
 
 config ACPI_SLEEP
 	bool
@@ -94,14 +107,14 @@ config ACPI_PROCFS_POWER
           deprecated power /proc/acpi/ directories to exist, even when
           they have been replaced by functions in /sys.
           The deprecated directories (and their replacements) include:
-	  /proc/acpi/battery/* (/sys/class/power_supply/*)
-	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*)
+	  /proc/acpi/battery/* (/sys/class/power_supply/*) and
+	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*).
 	  This option has no effect on /proc/acpi/ directories
-	  and functions, which do not yet exist in /sys
+	  and functions which do not yet exist in /sys.
 	  This option, together with the proc directories, will be
 	  deleted in the future.
 
-	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
+	  Say N to delete power /proc/acpi/ directories that have moved to /sys.
 
 config ACPI_REV_OVERRIDE_POSSIBLE
 	bool "Allow supported ACPI revision to be overridden"
@@ -125,7 +138,6 @@ config ACPI_REV_OVERRIDE_POSSIBLE
 
 config ACPI_EC_DEBUGFS
 	tristate "EC read/write access through /sys/kernel/debug/ec"
-	default n
 	help
 	  Say N to disable Embedded Controller /sys/kernel/debug interface
 
@@ -206,6 +218,19 @@ config ACPI_FAN
 	  To compile this driver as a module, choose M here:
 	  the module will be called fan.
 
+config ACPI_TAD
+	tristate "ACPI Time and Alarm (TAD) Device Support"
+	depends on SYSFS && PM_SLEEP
+	help
+	  The ACPI Time and Alarm (TAD) device is an alternative to the Real
+	  Time Clock (RTC).  Its wake timers allow the system to transition from
+	  the S3 (or optionally S4/S5) state to S0 state after a time period
+	  elapses.  In comparison with the RTC Alarm, the TAD provides a larger
+	  scale of flexibility in the wake timers.  The time capabilities of the
+	  TAD maintain the time of day information across platform power
+	  transitions, and keep track of time even when the platform is turned
+	  off.
+
 config ACPI_DOCK
 	bool "Dock"
 	help
@@ -257,7 +282,6 @@ config ACPI_PROCESSOR
 config ACPI_IPMI
 	tristate "IPMI"
 	depends on IPMI_HANDLER
-	default n
 	help
 	  This driver enables the ACPI to access the BMC controller. And it
 	  uses the IPMI request/response message to communicate with BMC
@@ -335,7 +359,6 @@ config ACPI_TABLE_UPGRADE
 
 config ACPI_DEBUG
 	bool "Debug Statements"
-	default n
 	help
 	  The ACPI subsystem can produce debug output.  Saying Y enables this
 	  output and increases the kernel size by around 50K.
@@ -348,28 +371,11 @@ config ACPI_DEBUG
 config ACPI_PCI_SLOT
 	bool "PCI slot detection driver"
 	depends on SYSFS
-	default n
 	help
 	  This driver creates entries in /sys/bus/pci/slots/ for all PCI
 	  slots in the system.  This can help correlate PCI bus addresses,
 	  i.e., segment/bus/device/function tuples, with physical slots in
 	  the system.  If you are unsure, say N.
-
-config X86_PM_TIMER
-	bool "Power Management Timer Support" if EXPERT
-	depends on X86
-	default y
-	help
-	  The Power Management Timer is available on all ACPI-capable,
-	  in most cases even if ACPI is unusable or blacklisted.
-
-	  This timing source is not affected by power management features
-	  like aggressive processor idling, throttling, frequency and/or
-	  voltage scaling, unlike the commonly used Time Stamp Counter
-	  (TSC) timing source.
-
-	  You should nearly always say Y here because many modern
-	  systems require this timer. 
 
 config ACPI_CONTAINER
 	bool "Container and Module Devices"
@@ -426,7 +432,6 @@ config ACPI_HED
 config ACPI_CUSTOM_METHOD
 	tristate "Allow ACPI methods to be inserted/replaced at run time"
 	depends on DEBUG_FS
-	default n
 	help
 	  This debug facility allows ACPI AML methods to be inserted and/or
 	  replaced without rebooting the system. For details refer to:
@@ -471,7 +476,6 @@ config ACPI_EXTLOG
 	tristate "Extended Error Log support"
 	depends on X86_MCE && X86_LOCAL_APIC && EDAC
 	select UEFI_CPER
-	default n
 	help
 	  Certain usages such as Predictive Failure Analysis (PFA) require
 	  more information about the error than what can be described in
@@ -487,6 +491,9 @@ config ACPI_EXTLOG
 	  information to system software, synchronous with MCE or CMCI. This
 	  driver adds support for that functionality with corresponding
 	  tracepoint which carries that information to userspace.
+
+config ACPI_ADXL
+	bool
 
 menuconfig PMIC_OPREGION
 	bool "PMIC (Power Management Integrated Circuit) operation region support"
@@ -521,6 +528,12 @@ config CHT_WC_PMIC_OPREGION
 	help
 	  This config adds ACPI operation region support for CHT Whiskey Cove PMIC.
 
+config CHT_DC_TI_PMIC_OPREGION
+	bool "ACPI operation region support for Dollar Cove TI PMIC"
+	depends on INTEL_SOC_PMIC_CHTDC_TI
+	help
+	  This config adds ACPI operation region support for Dollar Cove TI PMIC.
+
 endif
 
 config ACPI_CONFIGFS
@@ -533,6 +546,41 @@ config ACPI_CONFIGFS
 
 if ARM64
 source "drivers/acpi/arm64/Kconfig"
+
+config ACPI_PPTT
+	bool
 endif
 
+config TPS68470_PMIC_OPREGION
+	bool "ACPI operation region support for TPS68470 PMIC"
+	depends on MFD_TPS68470
+	help
+	  This config adds ACPI operation region support for TI TPS68470 PMIC.
+	  TPS68470 device is an advanced power management unit that powers
+	  a Compact Camera Module (CCM), generates clocks for image sensors,
+	  drives a dual LED for flash and incorporates two LED drivers for
+	  general purpose indicators.
+	  This driver enables ACPI operation region support control voltage
+	  regulators and clocks.
+
+	  This option is a bool as it provides an ACPI operation
+	  region, which must be available before any of the devices
+	  using this, are probed.
+
 endif	# ACPI
+
+config X86_PM_TIMER
+	bool "Power Management Timer Support" if EXPERT
+	depends on X86 && (ACPI || JAILHOUSE_GUEST)
+	default y
+	help
+	  The Power Management Timer is available on all ACPI-capable,
+	  in most cases even if ACPI is unusable or blacklisted.
+
+	  This timing source is not affected by power management features
+	  like aggressive processor idling, throttling, frequency and/or
+	  voltage scaling, unlike the commonly used Time Stamp Counter
+	  (TSC) timing source.
+
+	  You should nearly always say Y here because many modern
+	  systems require this timer.

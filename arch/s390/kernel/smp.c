@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  SMP related functions
  *
@@ -26,7 +27,6 @@
 #include <linux/err.h>
 #include <linux/spinlock.h>
 #include <linux/kernel_stat.h>
-#include <linux/kmemleak.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqflags.h>
@@ -36,6 +36,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/crash_dump.h>
 #include <linux/memblock.h>
+#include <linux/kprobes.h>
 #include <asm/asm-offsets.h>
 #include <asm/diag.h>
 #include <asm/switch_to.h>
@@ -53,6 +54,7 @@
 #include <asm/sigp.h>
 #include <asm/idle.h>
 #include <asm/nmi.h>
+#include <asm/topology.h>
 #include "entry.h"
 
 enum {
@@ -79,8 +81,6 @@ struct pcpu {
 
 static u8 boot_core_type;
 static struct pcpu pcpu_devices[NR_CPUS];
-
-static struct kmem_cache *pcpu_mcesa_cache;
 
 unsigned int smp_cpu_mt_shift;
 EXPORT_SYMBOL(smp_cpu_mt_shift);
@@ -186,58 +186,47 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 	pcpu_sigp_retry(pcpu, order, 0);
 }
 
-#define ASYNC_FRAME_OFFSET (ASYNC_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE)
-#define PANIC_FRAME_OFFSET (PAGE_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE)
-
 static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 {
-	unsigned long async_stack, panic_stack;
-	unsigned long mcesa_origin, mcesa_bits;
+	unsigned long async_stack, nodat_stack;
 	struct lowcore *lc;
 
-	mcesa_origin = mcesa_bits = 0;
 	if (pcpu != &pcpu_devices[0]) {
 		pcpu->lowcore =	(struct lowcore *)
 			__get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
-		async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
-		panic_stack = __get_free_page(GFP_KERNEL);
-		if (!pcpu->lowcore || !panic_stack || !async_stack)
+		nodat_stack = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+		if (!pcpu->lowcore || !nodat_stack)
 			goto out;
-		if (MACHINE_HAS_VX || MACHINE_HAS_GS) {
-			mcesa_origin = (unsigned long)
-				kmem_cache_alloc(pcpu_mcesa_cache, GFP_KERNEL);
-			if (!mcesa_origin)
-				goto out;
-			/* The pointer is stored with mcesa_bits ORed in */
-			kmemleak_not_leak((void *) mcesa_origin);
-			mcesa_bits = MACHINE_HAS_GS ? 11 : 0;
-		}
 	} else {
-		async_stack = pcpu->lowcore->async_stack - ASYNC_FRAME_OFFSET;
-		panic_stack = pcpu->lowcore->panic_stack - PANIC_FRAME_OFFSET;
-		mcesa_origin = pcpu->lowcore->mcesad & MCESA_ORIGIN_MASK;
-		mcesa_bits = pcpu->lowcore->mcesad & MCESA_LC_MASK;
+		nodat_stack = pcpu->lowcore->nodat_stack - STACK_INIT_OFFSET;
 	}
+	async_stack = stack_alloc();
+	if (!async_stack)
+		goto out;
 	lc = pcpu->lowcore;
 	memcpy(lc, &S390_lowcore, 512);
 	memset((char *) lc + 512, 0, sizeof(*lc) - 512);
-	lc->async_stack = async_stack + ASYNC_FRAME_OFFSET;
-	lc->panic_stack = panic_stack + PANIC_FRAME_OFFSET;
-	lc->mcesad = mcesa_origin | mcesa_bits;
+	lc->async_stack = async_stack + STACK_INIT_OFFSET;
+	lc->nodat_stack = nodat_stack + STACK_INIT_OFFSET;
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
+	lc->spinlock_index = 0;
+	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
+	if (nmi_alloc_per_cpu(lc))
+		goto out_async;
 	if (vdso_alloc_per_cpu(lc))
-		goto out;
+		goto out_mcesa;
 	lowcore_ptr[cpu] = lc;
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, (u32)(unsigned long) lc);
 	return 0;
+
+out_mcesa:
+	nmi_free_per_cpu(lc);
+out_async:
+	stack_free(async_stack);
 out:
 	if (pcpu != &pcpu_devices[0]) {
-		if (mcesa_origin)
-			kmem_cache_free(pcpu_mcesa_cache,
-					(void *) mcesa_origin);
-		free_page(panic_stack);
-		free_pages(async_stack, ASYNC_ORDER);
+		free_pages(nodat_stack, THREAD_SIZE_ORDER);
 		free_pages((unsigned long) pcpu->lowcore, LC_ORDER);
 	}
 	return -ENOMEM;
@@ -247,20 +236,21 @@ out:
 
 static void pcpu_free_lowcore(struct pcpu *pcpu)
 {
-	unsigned long mcesa_origin;
+	unsigned long async_stack, nodat_stack, lowcore;
+
+	nodat_stack = pcpu->lowcore->nodat_stack - STACK_INIT_OFFSET;
+	async_stack = pcpu->lowcore->async_stack - STACK_INIT_OFFSET;
+	lowcore = (unsigned long) pcpu->lowcore;
 
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, 0);
 	lowcore_ptr[pcpu - pcpu_devices] = NULL;
 	vdso_free_per_cpu(pcpu->lowcore);
+	nmi_free_per_cpu(pcpu->lowcore);
+	stack_free(async_stack);
 	if (pcpu == &pcpu_devices[0])
 		return;
-	if (MACHINE_HAS_VX || MACHINE_HAS_GS) {
-		mcesa_origin = pcpu->lowcore->mcesad & MCESA_ORIGIN_MASK;
-		kmem_cache_free(pcpu_mcesa_cache, (void *) mcesa_origin);
-	}
-	free_page(pcpu->lowcore->panic_stack-PANIC_FRAME_OFFSET);
-	free_pages(pcpu->lowcore->async_stack-ASYNC_FRAME_OFFSET, ASYNC_ORDER);
-	free_pages((unsigned long) pcpu->lowcore, LC_ORDER);
+	free_pages(nodat_stack, THREAD_SIZE_ORDER);
+	free_pages(lowcore, LC_ORDER);
 }
 
 #endif /* CONFIG_HOTPLUG_CPU */
@@ -273,6 +263,7 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	cpumask_set_cpu(cpu, mm_cpumask(&init_mm));
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
+	lc->spinlock_index = 0;
 	lc->percpu_offset = __per_cpu_offset[cpu];
 	lc->kernel_asce = S390_lowcore.kernel_asce;
 	lc->machine_flags = S390_lowcore.machine_flags;
@@ -280,7 +271,10 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	__ctl_store(lc->cregs_save_area, 0, 15);
 	save_access_regs((unsigned int *) lc->access_regs_save_area);
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
-	       MAX_FACILITY_BIT/8);
+	       sizeof(lc->stfle_fac_list));
+	memcpy(lc->alt_stfle_fac_list, S390_lowcore.alt_stfle_fac_list,
+	       sizeof(lc->alt_stfle_fac_list));
+	arch_spin_lock_setup(cpu);
 }
 
 static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
@@ -293,7 +287,10 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 	lc->lpp = LPP_MAGIC;
 	lc->current_pid = tsk->pid;
 	lc->user_timer = tsk->thread.user_timer;
+	lc->guest_timer = tsk->thread.guest_timer;
 	lc->system_timer = tsk->thread.system_timer;
+	lc->hardirq_timer = tsk->thread.hardirq_timer;
+	lc->softirq_timer = tsk->thread.softirq_timer;
 	lc->steal_timer = 0;
 }
 
@@ -301,7 +298,7 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 {
 	struct lowcore *lc = pcpu->lowcore;
 
-	lc->restart_stack = lc->kernel_stack;
+	lc->restart_stack = lc->nodat_stack;
 	lc->restart_fn = (unsigned long) func;
 	lc->restart_data = (unsigned long) data;
 	lc->restart_source = -1UL;
@@ -311,15 +308,21 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 /*
  * Call function via PSW restart on pcpu and stop the current cpu.
  */
-static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
-			  void *data, unsigned long stack)
+static void __pcpu_delegate(void (*func)(void*), void *data)
+{
+	func(data);	/* should not return */
+}
+
+static void __no_sanitize_address pcpu_delegate(struct pcpu *pcpu,
+						void (*func)(void *),
+						void *data, unsigned long stack)
 {
 	struct lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
 	unsigned long source_cpu = stap();
 
-	__load_psw_mask(PSW_KERNEL_BITS);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	if (pcpu->address == source_cpu)
-		func(data);	/* should not return */
+		CALL_ON_STACK(__pcpu_delegate, stack, 2, func, data);
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
@@ -327,6 +330,7 @@ static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
 	mem_assign_absolute(lc->restart_fn, (unsigned long) func);
 	mem_assign_absolute(lc->restart_data, (unsigned long) data);
 	mem_assign_absolute(lc->restart_source, source_cpu);
+	__bpon();
 	asm volatile(
 		"0:	sigp	0,%0,%2	# sigp restart to target cpu\n"
 		"	brc	2,0b	# busy, try again\n"
@@ -379,8 +383,7 @@ void smp_call_online_cpu(void (*func)(void *), void *data)
 void smp_call_ipl_cpu(void (*func)(void *), void *data)
 {
 	pcpu_delegate(&pcpu_devices[0], func, data,
-		      pcpu_devices->lowcore->panic_stack -
-		      PANIC_FRAME_OFFSET + PAGE_SIZE);
+		      pcpu_devices->lowcore->nodat_stack);
 }
 
 int smp_find_processor_id(u16 address)
@@ -419,13 +422,17 @@ void smp_yield_cpu(int cpu)
  * Send cpus emergency shutdown signal. This gives the cpus the
  * opportunity to complete outstanding interrupts.
  */
-static void smp_emergency_stop(cpumask_t *cpumask)
+void notrace smp_emergency_stop(void)
 {
+	cpumask_t cpumask;
 	u64 end;
 	int cpu;
 
+	cpumask_copy(&cpumask, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &cpumask);
+
 	end = get_tod_clock() + (1000000UL << 12);
-	for_each_cpu(cpu, cpumask) {
+	for_each_cpu(cpu, &cpumask) {
 		struct pcpu *pcpu = pcpu_devices + cpu;
 		set_bit(ec_stop_cpu, &pcpu->ec_mask);
 		while (__pcpu_sigp(pcpu->address, SIGP_EMERGENCY_SIGNAL,
@@ -434,21 +441,21 @@ static void smp_emergency_stop(cpumask_t *cpumask)
 			cpu_relax();
 	}
 	while (get_tod_clock() < end) {
-		for_each_cpu(cpu, cpumask)
+		for_each_cpu(cpu, &cpumask)
 			if (pcpu_stopped(pcpu_devices + cpu))
-				cpumask_clear_cpu(cpu, cpumask);
-		if (cpumask_empty(cpumask))
+				cpumask_clear_cpu(cpu, &cpumask);
+		if (cpumask_empty(&cpumask))
 			break;
 		cpu_relax();
 	}
 }
+NOKPROBE_SYMBOL(smp_emergency_stop);
 
 /*
  * Stop all cpus but the current one.
  */
 void smp_send_stop(void)
 {
-	cpumask_t cpumask;
 	int cpu;
 
 	/* Disable all interrupts/machine checks */
@@ -456,17 +463,16 @@ void smp_send_stop(void)
 	trace_hardirqs_off();
 
 	debug_set_critical();
-	cpumask_copy(&cpumask, cpu_online_mask);
-	cpumask_clear_cpu(smp_processor_id(), &cpumask);
 
 	if (oops_in_progress)
-		smp_emergency_stop(&cpumask);
+		smp_emergency_stop();
 
 	/* stop all processors */
-	for_each_cpu(cpu, &cpumask) {
-		struct pcpu *pcpu = pcpu_devices + cpu;
-		pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
-		while (!pcpu_stopped(pcpu))
+	for_each_online_cpu(cpu) {
+		if (cpu == smp_processor_id())
+			continue;
+		pcpu_sigp_retry(pcpu_devices + cpu, SIGP_STOP, 0);
+		while (!pcpu_stopped(pcpu_devices + cpu))
 			cpu_relax();
 	}
 }
@@ -795,29 +801,40 @@ void __init smp_detect_cpus(void)
 	memblock_free_early((unsigned long)info, sizeof(*info));
 }
 
-/*
- *	Activate a secondary processor.
- */
-static void smp_start_secondary(void *cpuvoid)
+static void smp_init_secondary(void)
 {
+	int cpu = smp_processor_id();
+
 	S390_lowcore.last_update_clock = get_tod_clock();
-	S390_lowcore.restart_stack = (unsigned long) restart_stack;
-	S390_lowcore.restart_fn = (unsigned long) do_restart;
-	S390_lowcore.restart_data = 0;
-	S390_lowcore.restart_source = -1UL;
 	restore_access_regs(S390_lowcore.access_regs_save_area);
-	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	cpu_init();
 	preempt_disable();
 	init_cpu_timer();
 	vtime_init();
 	pfault_init();
 	notify_cpu_starting(smp_processor_id());
+	if (topology_cpu_dedicated(cpu))
+		set_cpu_flag(CIF_DEDICATED_CPU);
+	else
+		clear_cpu_flag(CIF_DEDICATED_CPU);
 	set_cpu_online(smp_processor_id(), true);
 	inc_irq_stat(CPU_RST);
 	local_irq_enable();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
+}
+
+/*
+ *	Activate a secondary processor.
+ */
+static void __no_sanitize_address smp_start_secondary(void *cpuvoid)
+{
+	S390_lowcore.restart_stack = (unsigned long) restart_stack;
+	S390_lowcore.restart_fn = (unsigned long) do_restart;
+	S390_lowcore.restart_data = 0;
+	S390_lowcore.restart_source = -1UL;
+	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
+	CALL_ON_STACK(smp_init_secondary, S390_lowcore.kernel_stack, 0);
 }
 
 /* Upping and downing of CPUs */
@@ -902,6 +919,7 @@ void __cpu_die(unsigned int cpu)
 void __noreturn cpu_die(void)
 {
 	idle_task_exit();
+	__bpon();
 	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
 	for (;;) ;
 }
@@ -923,22 +941,12 @@ void __init smp_fill_possible_mask(void)
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	unsigned long size;
-
 	/* request the 0x1201 emergency signal external interrupt */
 	if (register_external_irq(EXT_IRQ_EMERGENCY_SIG, do_ext_call_interrupt))
 		panic("Couldn't request external interrupt 0x1201");
 	/* request the 0x1202 external call external interrupt */
 	if (register_external_irq(EXT_IRQ_EXTERNAL_CALL, do_ext_call_interrupt))
 		panic("Couldn't request external interrupt 0x1202");
-	/* create slab cache for the machine-check-extended-save-areas */
-	if (MACHINE_HAS_VX || MACHINE_HAS_GS) {
-		size = 1UL << (MACHINE_HAS_GS ? 11 : 10);
-		pcpu_mcesa_cache = kmem_cache_create("nmi_save_areas",
-						     size, size, 0, NULL);
-		if (!pcpu_mcesa_cache)
-			panic("Couldn't create nmi save area cache");
-	}
 }
 
 void __init smp_prepare_boot_cpu(void)
@@ -961,6 +969,7 @@ void __init smp_setup_processor_id(void)
 	pcpu_devices[0].address = stap();
 	S390_lowcore.cpu_nr = 0;
 	S390_lowcore.spinlock_lockval = arch_spin_lockval(0);
+	S390_lowcore.spinlock_index = 0;
 }
 
 /*
@@ -1161,7 +1170,7 @@ static ssize_t __ref rescan_store(struct device *dev,
 	rc = smp_rescan_cpus();
 	return rc ? rc : count;
 }
-static DEVICE_ATTR(rescan, 0200, NULL, rescan_store);
+static DEVICE_ATTR_WO(rescan);
 #endif /* CONFIG_HOTPLUG_CPU */
 
 static int __init s390_smp_init(void)

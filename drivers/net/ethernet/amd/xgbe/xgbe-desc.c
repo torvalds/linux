@@ -289,13 +289,13 @@ static int xgbe_alloc_pages(struct xgbe_prv_data *pdata,
 	struct page *pages = NULL;
 	dma_addr_t pages_dma;
 	gfp_t gfp;
-	int order, ret;
+	int order;
 
 again:
 	order = alloc_order;
 
 	/* Try to obtain pages, decreasing order if necessary */
-	gfp = GFP_ATOMIC | __GFP_COLD | __GFP_COMP | __GFP_NOWARN;
+	gfp = GFP_ATOMIC | __GFP_COMP | __GFP_NOWARN;
 	while (order >= 0) {
 		pages = alloc_pages_node(node, gfp, order);
 		if (pages)
@@ -316,10 +316,9 @@ again:
 	/* Map the pages */
 	pages_dma = dma_map_page(pdata->dev, pages, 0,
 				 PAGE_SIZE << order, DMA_FROM_DEVICE);
-	ret = dma_mapping_error(pdata->dev, pages_dma);
-	if (ret) {
+	if (dma_mapping_error(pdata->dev, pages_dma)) {
 		put_page(pages);
-		return ret;
+		return -ENOMEM;
 	}
 
 	pa->pages = pages;

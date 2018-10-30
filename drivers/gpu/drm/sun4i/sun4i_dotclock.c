@@ -17,8 +17,9 @@
 #include "sun4i_dotclock.h"
 
 struct sun4i_dclk {
-	struct clk_hw	hw;
-	struct regmap	*regmap;
+	struct clk_hw		hw;
+	struct regmap		*regmap;
+	struct sun4i_tcon	*tcon;
 };
 
 static inline struct sun4i_dclk *hw_to_dclk(struct clk_hw *hw)
@@ -73,13 +74,25 @@ static unsigned long sun4i_dclk_recalc_rate(struct clk_hw *hw,
 static long sun4i_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long *parent_rate)
 {
+	struct sun4i_dclk *dclk = hw_to_dclk(hw);
+	struct sun4i_tcon *tcon = dclk->tcon;
 	unsigned long best_parent = 0;
 	u8 best_div = 1;
 	int i;
 
-	for (i = 6; i <= 127; i++) {
-		unsigned long ideal = rate * i;
+	for (i = tcon->dclk_min_div; i <= tcon->dclk_max_div; i++) {
+		u64 ideal = (u64)rate * i;
 		unsigned long rounded;
+
+		/*
+		 * ideal has overflowed the max value that can be stored in an
+		 * unsigned long, and every clk operation we might do on a
+		 * truncated u64 value will give us incorrect results.
+		 * Let's just stop there since bigger dividers will result in
+		 * the same overflow issue.
+		 */
+		if (ideal > ULONG_MAX)
+			goto out;
 
 		rounded = clk_hw_round_rate(clk_hw_get_parent(hw),
 					    ideal);
@@ -129,10 +142,13 @@ static int sun4i_dclk_get_phase(struct clk_hw *hw)
 static int sun4i_dclk_set_phase(struct clk_hw *hw, int degrees)
 {
 	struct sun4i_dclk *dclk = hw_to_dclk(hw);
+	u32 val = degrees / 120;
+
+	val <<= 28;
 
 	regmap_update_bits(dclk->regmap, SUN4I_TCON0_IO_POL_REG,
 			   GENMASK(29, 28),
-			   degrees / 120);
+			   val);
 
 	return 0;
 }
@@ -167,6 +183,7 @@ int sun4i_dclk_create(struct device *dev, struct sun4i_tcon *tcon)
 	dclk = devm_kzalloc(dev, sizeof(*dclk), GFP_KERNEL);
 	if (!dclk)
 		return -ENOMEM;
+	dclk->tcon = tcon;
 
 	init.name = clk_name;
 	init.ops = &sun4i_dclk_ops;

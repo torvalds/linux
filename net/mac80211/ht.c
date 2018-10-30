@@ -290,34 +290,38 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 {
 	int i;
 
-	for (i = 0; i <  IEEE80211_NUM_TIDS; i++) {
-		__ieee80211_stop_tx_ba_session(sta, i, reason);
-		__ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,
-					       WLAN_REASON_QSTA_LEAVE_QBSS,
-					       reason != AGG_STOP_DESTROY_STA &&
-					       reason != AGG_STOP_PEER_REQUEST);
-	}
+	mutex_lock(&sta->ampdu_mlme.mtx);
+	for (i = 0; i <  IEEE80211_NUM_TIDS; i++)
+		___ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,
+						WLAN_REASON_QSTA_LEAVE_QBSS,
+						reason != AGG_STOP_DESTROY_STA &&
+						reason != AGG_STOP_PEER_REQUEST);
 
-	/* stopping might queue the work again - so cancel only afterwards */
-	cancel_work_sync(&sta->ampdu_mlme.work);
+	for (i = 0; i <  IEEE80211_NUM_TIDS; i++)
+		___ieee80211_stop_tx_ba_session(sta, i, reason);
+	mutex_unlock(&sta->ampdu_mlme.mtx);
 
 	/*
 	 * In case the tear down is part of a reconfigure due to HW restart
 	 * request, it is possible that the low level driver requested to stop
 	 * the BA session, so handle it to properly clean tid_tx data.
 	 */
-	mutex_lock(&sta->ampdu_mlme.mtx);
-	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
-		struct tid_ampdu_tx *tid_tx =
-			rcu_dereference_protected_tid_tx(sta, i);
+	if(reason == AGG_STOP_DESTROY_STA) {
+		cancel_work_sync(&sta->ampdu_mlme.work);
 
-		if (!tid_tx)
-			continue;
+		mutex_lock(&sta->ampdu_mlme.mtx);
+		for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+			struct tid_ampdu_tx *tid_tx =
+				rcu_dereference_protected_tid_tx(sta, i);
 
-		if (test_and_clear_bit(HT_AGG_STATE_STOP_CB, &tid_tx->state))
-			ieee80211_stop_tx_ba_cb(sta, i, tid_tx);
+			if (!tid_tx)
+				continue;
+
+			if (test_and_clear_bit(HT_AGG_STATE_STOP_CB, &tid_tx->state))
+				ieee80211_stop_tx_ba_cb(sta, i, tid_tx);
+		}
+		mutex_unlock(&sta->ampdu_mlme.mtx);
 	}
-	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 
 void ieee80211_ba_session_work(struct work_struct *work)
@@ -325,16 +329,11 @@ void ieee80211_ba_session_work(struct work_struct *work)
 	struct sta_info *sta =
 		container_of(work, struct sta_info, ampdu_mlme.work);
 	struct tid_ampdu_tx *tid_tx;
+	bool blocked;
 	int tid;
 
-	/*
-	 * When this flag is set, new sessions should be
-	 * blocked, and existing sessions will be torn
-	 * down by the code that set the flag, so this
-	 * need not run.
-	 */
-	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA))
-		return;
+	/* When this flag is set, new sessions should be blocked. */
+	blocked = test_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
 	for (tid = 0; tid < IEEE80211_NUM_TIDS; tid++) {
@@ -349,10 +348,11 @@ void ieee80211_ba_session_work(struct work_struct *work)
 				sta, tid, WLAN_BACK_RECIPIENT,
 				WLAN_REASON_UNSPECIFIED, true);
 
-		if (test_and_clear_bit(tid,
+		if (!blocked &&
+		    test_and_clear_bit(tid,
 				       sta->ampdu_mlme.tid_rx_manage_offl))
 			___ieee80211_start_rx_ba_session(sta, 0, 0, 0, 1, tid,
-							 IEEE80211_MAX_AMPDU_BUF,
+							 IEEE80211_MAX_AMPDU_BUF_HT,
 							 false, true);
 
 		if (test_and_clear_bit(tid + IEEE80211_NUM_TIDS,
@@ -364,7 +364,7 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		spin_lock_bh(&sta->lock);
 
 		tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
-		if (tid_tx) {
+		if (!blocked && tid_tx) {
 			/*
 			 * Assign it over to the normal tid_tx array
 			 * where it "goes live".
@@ -387,7 +387,8 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		if (!tid_tx)
 			continue;
 
-		if (test_and_clear_bit(HT_AGG_STATE_START_CB, &tid_tx->state))
+		if (!blocked &&
+		    test_and_clear_bit(HT_AGG_STATE_START_CB, &tid_tx->state))
 			ieee80211_start_tx_ba_cb(sta, tid, tid_tx);
 		if (test_and_clear_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state))
 			___ieee80211_stop_tx_ba_session(sta, tid,
@@ -463,6 +464,21 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 		__ieee80211_stop_tx_ba_session(sta, tid, AGG_STOP_PEER_REQUEST);
 }
 
+enum nl80211_smps_mode
+ieee80211_smps_mode_to_smps_mode(enum ieee80211_smps_mode smps)
+{
+	switch (smps) {
+	case IEEE80211_SMPS_OFF:
+		return NL80211_SMPS_OFF;
+	case IEEE80211_SMPS_STATIC:
+		return NL80211_SMPS_STATIC;
+	case IEEE80211_SMPS_DYNAMIC:
+		return NL80211_SMPS_DYNAMIC;
+	default:
+		return NL80211_SMPS_OFF;
+	}
+}
+
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_smps_mode smps, const u8 *da,
 			       const u8 *bssid)
@@ -489,6 +505,7 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);
+		/* fall through */
 	case IEEE80211_SMPS_OFF:
 		action_frame->u.action.u.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DISABLED;

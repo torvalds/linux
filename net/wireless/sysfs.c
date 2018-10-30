@@ -102,7 +102,7 @@ static int wiphy_suspend(struct device *dev)
 	struct cfg80211_registered_device *rdev = dev_to_rdev(dev);
 	int ret = 0;
 
-	rdev->suspend_at = get_seconds();
+	rdev->suspend_at = ktime_get_boottime_seconds();
 
 	rtnl_lock();
 	if (rdev->wiphy.registered) {
@@ -130,7 +130,7 @@ static int wiphy_resume(struct device *dev)
 	int ret = 0;
 
 	/* Age scan results with time spent in suspend */
-	cfg80211_bss_age(rdev, get_seconds() - rdev->suspend_at);
+	cfg80211_bss_age(rdev, ktime_get_boottime_seconds() - rdev->suspend_at);
 
 	rtnl_lock();
 	if (rdev->wiphy.registered && rdev->ops->resume)

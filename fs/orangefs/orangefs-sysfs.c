@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Documentation/ABI/stable/orangefs-sysfs:
+ * Documentation/ABI/stable/sysfs-fs-orangefs:
  *
  * What:		/sys/fs/orangefs/perf_counter_reset
  * Date:		June 2015
@@ -322,7 +323,7 @@ static ssize_t sysfs_service_op_show(struct kobject *kobj,
 	/* Can't do a service_operation if the client is not running... */
 	rc = is_daemon_in_service();
 	if (rc) {
-		pr_info("%s: Client not running :%d:\n",
+		pr_info_ratelimited("%s: Client not running :%d:\n",
 			__func__,
 			is_daemon_in_service());
 		goto out;

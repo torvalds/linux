@@ -16,9 +16,11 @@
  * details.
  */
 
+#include <linux/bitfield.h>
+
 /******************** SAI Register Map **************************************/
 
-/* common register */
+/* Global configuration register */
 #define STM_SAI_GCR		0x00
 
 /* Sub-block A&B registers offsets, relative to A&B sub-block addresses */
@@ -37,12 +39,13 @@
 
 /******************** Bit definition for SAI_GCR register *******************/
 #define SAI_GCR_SYNCIN_SHIFT	0
+#define SAI_GCR_SYNCIN_WDTH	2
 #define SAI_GCR_SYNCIN_MASK	GENMASK(1, SAI_GCR_SYNCIN_SHIFT)
-#define SAI_GCR_SYNCIN_SET(x)	((x) << SAI_GCR_SYNCIN_SHIFT)
+#define SAI_GCR_SYNCIN_MAX	FIELD_GET(SAI_GCR_SYNCIN_MASK,\
+				SAI_GCR_SYNCIN_MASK)
 
 #define SAI_GCR_SYNCOUT_SHIFT	4
 #define SAI_GCR_SYNCOUT_MASK	GENMASK(5, SAI_GCR_SYNCOUT_SHIFT)
-#define SAI_GCR_SYNCOUT_SET(x)	((x) << SAI_GCR_SYNCOUT_SHIFT)
 
 /******************* Bit definition for SAI_XCR1 register *******************/
 #define SAI_XCR1_RX_TX_SHIFT	0
@@ -87,6 +90,9 @@
 
 #define SAI_XCR1_OSR_SHIFT	26
 #define SAI_XCR1_OSR		BIT(SAI_XCR1_OSR_SHIFT)
+
+#define SAI_XCR1_MCKEN_SHIFT	27
+#define SAI_XCR1_MCKEN		BIT(SAI_XCR1_MCKEN_SHIFT)
 
 /******************* Bit definition for SAI_XCR2 register *******************/
 #define SAI_XCR2_FTH_SHIFT	0
@@ -231,6 +237,12 @@
 #define STM_SAI_IS_F4(ip)	((ip)->conf->version == SAI_STM32F4)
 #define STM_SAI_IS_H7(ip)	((ip)->conf->version == SAI_STM32H7)
 
+enum stm32_sai_syncout {
+	STM_SAI_SYNC_OUT_NONE,
+	STM_SAI_SYNC_OUT_A,
+	STM_SAI_SYNC_OUT_B,
+};
+
 enum stm32_sai_version {
 	SAI_STM32F4,
 	SAI_STM32H7
@@ -239,23 +251,32 @@ enum stm32_sai_version {
 /**
  * struct stm32_sai_conf - SAI configuration
  * @version: SAI version
+ * @has_spdif: SAI S/PDIF support flag
  */
 struct stm32_sai_conf {
 	int version;
+	bool has_spdif;
 };
 
 /**
  * struct stm32_sai_data - private data of SAI instance driver
  * @pdev: device data pointer
+ * @base: common register bank virtual base address
+ * @pclk: SAI bus clock
  * @clk_x8k: SAI parent clock for sampling frequencies multiple of 8kHz
  * @clk_x11k: SAI parent clock for sampling frequencies multiple of 11kHz
  * @version: SOC version
  * @irq: SAI interrupt line
+ * @set_sync: pointer to synchro mode configuration callback
  */
 struct stm32_sai_data {
 	struct platform_device *pdev;
+	void __iomem *base;
+	struct clk *pclk;
 	struct clk *clk_x8k;
 	struct clk *clk_x11k;
 	struct stm32_sai_conf *conf;
 	int irq;
+	int (*set_sync)(struct stm32_sai_data *sai,
+			struct device_node *np_provider, int synco, int synci);
 };

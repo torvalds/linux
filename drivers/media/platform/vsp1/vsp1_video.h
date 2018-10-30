@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * vsp1_video.h  --  R-Car VSP1 Video Node
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef __VSP1_VIDEO_H__
 #define __VSP1_VIDEO_H__
@@ -54,6 +50,9 @@ static inline struct vsp1_video *to_vsp1_video(struct video_device *vdev)
 {
 	return container_of(vdev, struct vsp1_video, video);
 }
+
+void vsp1_video_suspend(struct vsp1_device *vsp1);
+void vsp1_video_resume(struct vsp1_device *vsp1);
 
 struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 				     struct vsp1_rwpf *rwpf);

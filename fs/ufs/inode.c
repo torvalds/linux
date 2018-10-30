@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/ufs/inode.c
  *
@@ -35,6 +36,7 @@
 #include <linux/mm.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
+#include <linux/iversion.h>
 
 #include "ufs_fs.h"
 #include "ufs.h"
@@ -692,7 +694,7 @@ struct inode *ufs_iget(struct super_block *sb, unsigned long ino)
 	if (err)
 		goto bad_inode;
 
-	inode->i_version++;
+	inode_inc_iversion(inode);
 	ufsi->i_lastfrag =
 		(inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift;
 	ufsi->i_dir_start_lookup = 0;

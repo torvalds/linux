@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/skbuff.h>
 #include <net/hwbm.h>
@@ -391,6 +392,20 @@ static void mvneta_bm_put_sram(struct mvneta_bm *priv)
 	gen_pool_free(priv->bppi_pool, priv->bppi_phys_addr,
 		      MVNETA_BM_BPPI_SIZE);
 }
+
+struct mvneta_bm *mvneta_bm_get(struct device_node *node)
+{
+	struct platform_device *pdev = of_find_device_by_node(node);
+
+	return pdev ? platform_get_drvdata(pdev) : NULL;
+}
+EXPORT_SYMBOL_GPL(mvneta_bm_get);
+
+void mvneta_bm_put(struct mvneta_bm *priv)
+{
+	platform_device_put(priv->pdev);
+}
+EXPORT_SYMBOL_GPL(mvneta_bm_put);
 
 static int mvneta_bm_probe(struct platform_device *pdev)
 {

@@ -85,8 +85,8 @@
 
 __read_mostly unsigned int rxrpc_max_client_connections = 1000;
 __read_mostly unsigned int rxrpc_reap_client_connections = 900;
-__read_mostly unsigned int rxrpc_conn_idle_client_expiry = 2 * 60 * HZ;
-__read_mostly unsigned int rxrpc_conn_idle_client_fast_expiry = 2 * HZ;
+__read_mostly unsigned long rxrpc_conn_idle_client_expiry = 2 * 60 * HZ;
+__read_mostly unsigned long rxrpc_conn_idle_client_fast_expiry = 2 * HZ;
 
 /*
  * We use machine-unique IDs for our client connections.
@@ -207,6 +207,7 @@ rxrpc_alloc_client_connection(struct rxrpc_conn_parameters *cp, gfp_t gfp)
 	if (ret < 0)
 		goto error_2;
 
+	atomic_inc(&rxnet->nr_conns);
 	write_lock(&rxnet->conn_lock);
 	list_add_tail(&conn->proc_link, &rxnet->conn_proc_list);
 	write_unlock(&rxnet->conn_lock);
@@ -275,7 +276,8 @@ dont_reuse:
  * If we return with a connection, the call will be on its waiting list.  It's
  * left to the caller to assign a channel and wake up the call.
  */
-static int rxrpc_get_client_conn(struct rxrpc_call *call,
+static int rxrpc_get_client_conn(struct rxrpc_sock *rx,
+				 struct rxrpc_call *call,
 				 struct rxrpc_conn_parameters *cp,
 				 struct sockaddr_rxrpc *srx,
 				 gfp_t gfp)
@@ -288,7 +290,7 @@ static int rxrpc_get_client_conn(struct rxrpc_call *call,
 
 	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
 
-	cp->peer = rxrpc_lookup_peer(cp->local, srx, gfp);
+	cp->peer = rxrpc_lookup_peer(rx, cp->local, srx, gfp);
 	if (!cp->peer)
 		goto error;
 
@@ -554,6 +556,11 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 
 	trace_rxrpc_client(conn, channel, rxrpc_client_chan_activate);
 
+	/* Cancel the final ACK on the previous call if it hasn't been sent yet
+	 * as the DATA packet will implicitly ACK it.
+	 */
+	clear_bit(RXRPC_CONN_FINAL_ACK_0 + channel, &conn->flags);
+
 	write_lock_bh(&call->state_lock);
 	if (!test_bit(RXRPC_CALL_TX_LASTQ, &call->flags))
 		call->state = RXRPC_CALL_CLIENT_SEND_REQUEST;
@@ -584,6 +591,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	 */
 	smp_wmb();
 	chan->call_id	= call_id;
+	chan->call_debug_id = call->debug_id;
 	rcu_assign_pointer(chan->call, call);
 	wake_up(&call->waitq);
 }
@@ -676,7 +684,8 @@ out:
  * find a connection for a call
  * - called in process context with IRQs enabled
  */
-int rxrpc_connect_call(struct rxrpc_call *call,
+int rxrpc_connect_call(struct rxrpc_sock *rx,
+		       struct rxrpc_call *call,
 		       struct rxrpc_conn_parameters *cp,
 		       struct sockaddr_rxrpc *srx,
 		       gfp_t gfp)
@@ -686,10 +695,10 @@ int rxrpc_connect_call(struct rxrpc_call *call,
 
 	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
 
-	rxrpc_discard_expired_client_conns(&rxnet->client_conn_reaper.work);
+	rxrpc_discard_expired_client_conns(&rxnet->client_conn_reaper);
 	rxrpc_cull_active_client_conns(rxnet);
 
-	ret = rxrpc_get_client_conn(call, cp, srx, gfp);
+	ret = rxrpc_get_client_conn(rx, call, cp, srx, gfp);
 	if (ret < 0)
 		goto out;
 
@@ -703,8 +712,8 @@ int rxrpc_connect_call(struct rxrpc_call *call,
 	}
 
 	spin_lock_bh(&call->conn->params.peer->lock);
-	hlist_add_head(&call->error_link,
-		       &call->conn->params.peer->error_targets);
+	hlist_add_head_rcu(&call->error_link,
+			   &call->conn->params.peer->error_targets);
 	spin_unlock_bh(&call->conn->params.peer->lock);
 
 out:
@@ -752,6 +761,18 @@ void rxrpc_expose_client_call(struct rxrpc_call *call)
 }
 
 /*
+ * Set the reap timer.
+ */
+static void rxrpc_set_client_reap_timer(struct rxrpc_net *rxnet)
+{
+	unsigned long now = jiffies;
+	unsigned long reap_at = now + rxrpc_conn_idle_client_expiry;
+
+	if (rxnet->live)
+		timer_reduce(&rxnet->client_conn_reap_timer, reap_at);
+}
+
+/*
  * Disconnect a client call.
  */
 void rxrpc_disconnect_client_call(struct rxrpc_call *call)
@@ -759,7 +780,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	unsigned int channel = call->cid & RXRPC_CHANNELMASK;
 	struct rxrpc_connection *conn = call->conn;
 	struct rxrpc_channel *chan = &conn->channels[channel];
-	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&call->socket->sk));
+	struct rxrpc_net *rxnet = conn->params.local->rxnet;
 
 	trace_rxrpc_client(conn, channel, rxrpc_client_chan_disconnect);
 	call->conn = NULL;
@@ -811,6 +832,20 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 		trace_rxrpc_client(conn, channel, rxrpc_client_chan_pass);
 		rxrpc_activate_one_channel(conn, channel);
 		goto out_2;
+	}
+
+	/* Schedule the final ACK to be transmitted in a short while so that it
+	 * can be skipped if we find a follow-on call.  The first DATA packet
+	 * of the follow on call will implicitly ACK this call.
+	 */
+	if (call->completion == RXRPC_CALL_SUCCEEDED &&
+	    test_bit(RXRPC_CALL_EXPOSED, &call->flags)) {
+		unsigned long final_ack_at = jiffies + 2;
+
+		WRITE_ONCE(chan->final_ack_at, final_ack_at);
+		smp_wmb(); /* vs rxrpc_process_delayed_final_acks() */
+		set_bit(RXRPC_CONN_FINAL_ACK_0 + channel, &conn->flags);
+		rxrpc_reduce_conn_timer(conn, final_ack_at);
 	}
 
 	/* Things are more complex and we need the cache lock.  We might be
@@ -878,9 +913,7 @@ idle_connection:
 		list_move_tail(&conn->cache_link, &rxnet->idle_client_conns);
 		if (rxnet->idle_client_conns.next == &conn->cache_link &&
 		    !rxnet->kill_all_client_conns)
-			queue_delayed_work(rxrpc_workqueue,
-					   &rxnet->client_conn_reaper,
-					   rxrpc_conn_idle_client_expiry);
+			rxrpc_set_client_reap_timer(rxnet);
 	} else {
 		trace_rxrpc_client(conn, channel, rxrpc_client_to_inactive);
 		conn->cache_state = RXRPC_CONN_CLIENT_INACTIVE;
@@ -1018,11 +1051,9 @@ void rxrpc_discard_expired_client_conns(struct work_struct *work)
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_net *rxnet =
-		container_of(to_delayed_work(work),
-			     struct rxrpc_net, client_conn_reaper);
+		container_of(work, struct rxrpc_net, client_conn_reaper);
 	unsigned long expiry, conn_expires_at, now;
 	unsigned int nr_conns;
-	bool did_discard = false;
 
 	_enter("");
 
@@ -1061,6 +1092,8 @@ next:
 		expiry = rxrpc_conn_idle_client_expiry;
 		if (nr_conns > rxrpc_reap_client_connections)
 			expiry = rxrpc_conn_idle_client_fast_expiry;
+		if (conn->params.local->service_closed)
+			expiry = rxrpc_closed_conn_expiry * HZ;
 
 		conn_expires_at = conn->idle_timestamp + expiry;
 
@@ -1082,7 +1115,6 @@ next:
 	 * If someone re-sets the flag and re-gets the ref, that's fine.
 	 */
 	rxrpc_put_connection(conn);
-	did_discard = true;
 	nr_conns--;
 	goto next;
 
@@ -1096,9 +1128,8 @@ not_yet_expired:
 	 */
 	_debug("not yet");
 	if (!rxnet->kill_all_client_conns)
-		queue_delayed_work(rxrpc_workqueue,
-				   &rxnet->client_conn_reaper,
-				   conn_expires_at - now);
+		timer_reduce(&rxnet->client_conn_reap_timer,
+			     conn_expires_at);
 
 out:
 	spin_unlock(&rxnet->client_conn_cache_lock);
@@ -1118,9 +1149,9 @@ void rxrpc_destroy_all_client_connections(struct rxrpc_net *rxnet)
 	rxnet->kill_all_client_conns = true;
 	spin_unlock(&rxnet->client_conn_cache_lock);
 
-	cancel_delayed_work(&rxnet->client_conn_reaper);
+	del_timer_sync(&rxnet->client_conn_reap_timer);
 
-	if (!queue_delayed_work(rxrpc_workqueue, &rxnet->client_conn_reaper, 0))
+	if (!rxrpc_queue_work(&rxnet->client_conn_reaper))
 		_debug("destroy: queue failed");
 
 	_leave("");

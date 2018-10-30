@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
 /*
  * audio.h
  *
@@ -66,27 +67,6 @@ typedef struct audio_status {
 } audio_status_t;                              /* separate decoder hardware */
 
 
-typedef
-struct audio_karaoke {  /* if Vocal1 or Vocal2 are non-zero, they get mixed  */
-	int vocal1;    /* into left and right t at 70% each */
-	int vocal2;    /* if both, Vocal1 and Vocal2 are non-zero, Vocal1 gets*/
-	int melody;    /* mixed into the left channel and */
-		       /* Vocal2 into the right channel at 100% each. */
-		       /* if Melody is non-zero, the melody channel gets mixed*/
-} audio_karaoke_t;     /* into left and right  */
-
-
-typedef __u16 audio_attributes_t;
-/*   bits: descr. */
-/*   15-13 audio coding mode (0=ac3, 2=mpeg1, 3=mpeg2ext, 4=LPCM, 6=DTS, */
-/*   12    multichannel extension */
-/*   11-10 audio type (0=not spec, 1=language included) */
-/*    9- 8 audio application mode (0=not spec, 1=karaoke, 2=surround) */
-/*    7- 6 Quantization / DRC (mpeg audio: 1=DRC exists)(lpcm: 0=16bit,  */
-/*    5- 4 Sample frequency fs (0=48kHz, 1=96kHz) */
-/*    2- 0 number of audio channels (n+1 channels) */
-
-
 /* for GET_CAPABILITIES and SET_FORMAT, the latter should only set one bit */
 #define AUDIO_CAP_DTS    1
 #define AUDIO_CAP_LPCM   2
@@ -114,22 +94,6 @@ typedef __u16 audio_attributes_t;
 #define AUDIO_SET_ID               _IO('o', 13)
 #define AUDIO_SET_MIXER            _IOW('o', 14, audio_mixer_t)
 #define AUDIO_SET_STREAMTYPE       _IO('o', 15)
-#define AUDIO_SET_EXT_ID           _IO('o', 16)
-#define AUDIO_SET_ATTRIBUTES       _IOW('o', 17, audio_attributes_t)
-#define AUDIO_SET_KARAOKE          _IOW('o', 18, audio_karaoke_t)
-
-/**
- * AUDIO_GET_PTS
- *
- * Read the 33 bit presentation time stamp as defined
- * in ITU T-REC-H.222.0 / ISO/IEC 13818-1.
- *
- * The PTS should belong to the currently played
- * frame if possible, but may also be a value close to it
- * like the PTS of the last decoded frame or the last PTS
- * extracted by the PES parser.
- */
-#define AUDIO_GET_PTS              _IOR('o', 19, __u64)
 #define AUDIO_BILINGUAL_CHANNEL_SELECT _IO('o', 20)
 
 #endif /* _DVBAUDIO_H_ */

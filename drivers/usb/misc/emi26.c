@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /* 
  * Emagic EMI 2|6 usb audio interface firmware loader.
  * Copyright (C) 2002
  * 	Tapio Laxström (tapio.laxstrom@iptime.fi)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, as published by
- * the Free Software Foundation, version 2.
- * 
  * emi26.c,v 1.13 2002/03/08 13:10:26 tapio Exp
  */
 #include <linux/kernel.h>

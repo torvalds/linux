@@ -76,14 +76,14 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 				    u16 StatusCode, u8 type)
 {
 	struct sk_buff *skb = NULL;
-	 struct rtllib_hdr_3addr *BAReq = NULL;
+	struct rtllib_hdr_3addr *BAReq = NULL;
 	u8 *tag = NULL;
 	u16 len = ieee->tx_headroom + 9;
 
 	netdev_dbg(ieee->dev, "%s(): frame(%d) sentd to: %pM, ieee->dev:%p\n",
 		   __func__, type, Dst, ieee->dev);
 
-	if (pBA == NULL) {
+	if (!pBA) {
 		netdev_warn(ieee->dev, "pBA is NULL\n");
 		return NULL;
 	}
@@ -257,8 +257,8 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
 	RT_TRACE(COMP_DBG, "====>rx ADDBAREQ from : %pM\n", dst);
-	if (ieee->current_network.qos_data.active == 0  ||
-	    (ieee->pHTInfo->bCurrentHTSupport == false) ||
+	if (!ieee->current_network.qos_data.active ||
+	    !ieee->pHTInfo->bCurrentHTSupport ||
 	    (ieee->pHTInfo->IOTAction & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
 		rc = ADDBA_STATUS_REFUSED;
 		netdev_warn(ieee->dev,
@@ -340,9 +340,9 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBaTimeoutVal = (u16 *)(tag + 7);
 
 	RT_TRACE(COMP_DBG, "====>rx ADDBARSP from : %pM\n", dst);
-	if (ieee->current_network.qos_data.active == 0  ||
-	    ieee->pHTInfo->bCurrentHTSupport == false ||
-	    ieee->pHTInfo->bCurrentAMPDUEnable == false) {
+	if (!ieee->current_network.qos_data.active ||
+	    !ieee->pHTInfo->bCurrentHTSupport ||
+	    !ieee->pHTInfo->bCurrentAMPDUEnable) {
 		netdev_warn(ieee->dev,
 			    "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n",
 			    ieee->current_network.qos_data.active,
@@ -365,11 +365,11 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pAdmittedBA = &pTS->TxAdmittedBARecord;
 
 
-	if (pAdmittedBA->bValid == true) {
+	if (pAdmittedBA->bValid) {
 		netdev_dbg(ieee->dev, "%s(): ADDBA response already admitted\n",
 			   __func__);
 		return -1;
-	} else if ((pPendingBA->bValid == false) ||
+	} else if (!pPendingBA->bValid ||
 		   (*pDialogToken != pPendingBA->DialogToken)) {
 		netdev_warn(ieee->dev,
 			    "%s(): ADDBA Rsp. BA invalid, DELBA!\n",
@@ -431,8 +431,8 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 		return -1;
 	}
 
-	if (ieee->current_network.qos_data.active == 0  ||
-		ieee->pHTInfo->bCurrentHTSupport == false) {
+	if (!ieee->current_network.qos_data.active ||
+		!ieee->pHTInfo->bCurrentHTSupport) {
 		netdev_warn(ieee->dev,
 			    "received DELBA while QOS or HT is not supported(%d, %d)\n",
 			    ieee->current_network. qos_data.active,
@@ -485,7 +485,7 @@ void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 {
 	struct ba_record *pBA = &pTS->TxPendingBARecord;
 
-	if (pBA->bValid == true && bOverwritePending == false)
+	if (pBA->bValid && !bOverwritePending)
 		return;
 
 	DeActivateBAEntry(ieee, pBA);
@@ -528,18 +528,20 @@ void TsInitDelBA(struct rtllib_device *ieee,
 	}
 }
 
-void BaSetupTimeOut(unsigned long data)
+void BaSetupTimeOut(struct timer_list *t)
 {
-	struct tx_ts_record *pTxTs = (struct tx_ts_record *)data;
+	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
+					      TxPendingBARecord.Timer);
 
 	pTxTs->bAddBaReqInProgress = false;
 	pTxTs->bAddBaReqDelayed = true;
 	pTxTs->TxPendingBARecord.bValid = false;
 }
 
-void TxBaInactTimeout(unsigned long data)
+void TxBaInactTimeout(struct timer_list *t)
 {
-	struct tx_ts_record *pTxTs = (struct tx_ts_record *)data;
+	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
+					      TxAdmittedBARecord.Timer);
 	struct rtllib_device *ieee = container_of(pTxTs, struct rtllib_device,
 				     TxTsRecord[pTxTs->num]);
 	TxTsDeleteBA(ieee, pTxTs);
@@ -548,9 +550,10 @@ void TxBaInactTimeout(unsigned long data)
 			  DELBA_REASON_TIMEOUT);
 }
 
-void RxBaInactTimeout(unsigned long data)
+void RxBaInactTimeout(struct timer_list *t)
 {
-	struct rx_ts_record *pRxTs = (struct rx_ts_record *)data;
+	struct rx_ts_record *pRxTs = from_timer(pRxTs, t,
+					      RxAdmittedBARecord.Timer);
 	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device,
 				     RxTsRecord[pRxTs->num]);
 

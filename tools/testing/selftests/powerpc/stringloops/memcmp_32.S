@@ -1,0 +1,1 @@
+../../../../../arch/powerpc/lib/memcmp_32.S

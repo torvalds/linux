@@ -27,14 +27,31 @@ struct nft_xt {
 	struct list_head	head;
 	struct nft_expr_ops	ops;
 	unsigned int		refcnt;
+
+	/* Unlike other expressions, ops doesn't have static storage duration.
+	 * nft core assumes they do.  We use kfree_rcu so that nft core can
+	 * can check expr->ops->size even after nft_compat->destroy() frees
+	 * the nft_xt struct that holds the ops structure.
+	 */
+	struct rcu_head		rcu_head;
 };
 
-static void nft_xt_put(struct nft_xt *xt)
+/* Used for matches where *info is larger than X byte */
+#define NFT_MATCH_LARGE_THRESH	192
+
+struct nft_xt_match_priv {
+	void *info;
+};
+
+static bool nft_xt_put(struct nft_xt *xt)
 {
 	if (--xt->refcnt == 0) {
 		list_del(&xt->head);
-		kfree(xt);
+		kfree_rcu(xt, rcu_head);
+		return true;
 	}
+
+	return false;
 }
 
 static int nft_compat_chain_validate_dependency(const char *tablename,
@@ -144,7 +161,7 @@ nft_target_set_tgchk_param(struct xt_tgchk_param *par,
 {
 	par->net	= ctx->net;
 	par->table	= ctx->table->name;
-	switch (ctx->afi->family) {
+	switch (ctx->family) {
 	case AF_INET:
 		entry->e4.ip.proto = proto;
 		entry->e4.ip.invflags = inv ? IPT_INV_PROTO : 0;
@@ -169,13 +186,13 @@ nft_target_set_tgchk_param(struct xt_tgchk_param *par,
 	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
-		const struct nf_hook_ops *ops = &basechain->ops[0];
+		const struct nf_hook_ops *ops = &basechain->ops;
 
 		par->hook_mask = 1 << ops->hooknum;
 	} else {
 		par->hook_mask = 0;
 	}
-	par->family	= ctx->afi->family;
+	par->family	= ctx->family;
 	par->nft_compat = true;
 }
 
@@ -226,6 +243,7 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	struct xt_target *target = expr->ops->data;
 	struct xt_tgchk_param par;
 	size_t size = XT_ALIGN(nla_len(tb[NFTA_TARGET_INFO]));
+	struct nft_xt *nft_xt;
 	u16 proto = 0;
 	bool inv = false;
 	union nft_entry e = {};
@@ -236,25 +254,22 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	if (ctx->nla[NFTA_RULE_COMPAT]) {
 		ret = nft_parse_compat(ctx->nla[NFTA_RULE_COMPAT], &proto, &inv);
 		if (ret < 0)
-			goto err;
+			return ret;
 	}
 
 	nft_target_set_tgchk_param(&par, ctx, target, info, &e, proto, inv);
 
 	ret = xt_check_target(&par, size, proto, inv);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	/* The standard target cannot be used */
-	if (target->target == NULL) {
-		ret = -EINVAL;
-		goto err;
-	}
+	if (!target->target)
+		return -EINVAL;
 
+	nft_xt = container_of(expr->ops, struct nft_xt, ops);
+	nft_xt->refcnt++;
 	return 0;
-err:
-	module_put(target->me);
-	return ret;
 }
 
 static void
@@ -267,12 +282,30 @@ nft_target_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
 	par.net = ctx->net;
 	par.target = target;
 	par.targinfo = info;
-	par.family = ctx->afi->family;
+	par.family = ctx->family;
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 
-	nft_xt_put(container_of(expr->ops, struct nft_xt, ops));
-	module_put(target->me);
+	if (nft_xt_put(container_of(expr->ops, struct nft_xt, ops)))
+		module_put(target->me);
+}
+
+static int nft_extension_dump_info(struct sk_buff *skb, int attr,
+				   const void *info,
+				   unsigned int size, unsigned int user_size)
+{
+	unsigned int info_size, aligned_size = XT_ALIGN(size);
+	struct nlattr *nla;
+
+	nla = nla_reserve(skb, attr, aligned_size);
+	if (!nla)
+		return -1;
+
+	info_size = user_size ? : size;
+	memcpy(nla_data(nla), info, info_size);
+	memset(nla_data(nla) + info_size, 0, aligned_size - info_size);
+
+	return 0;
 }
 
 static int nft_target_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -282,7 +315,8 @@ static int nft_target_dump(struct sk_buff *skb, const struct nft_expr *expr)
 
 	if (nla_put_string(skb, NFTA_TARGET_NAME, target->name) ||
 	    nla_put_be32(skb, NFTA_TARGET_REV, htonl(target->revision)) ||
-	    nla_put(skb, NFTA_TARGET_INFO, XT_ALIGN(target->targetsize), info))
+	    nft_extension_dump_info(skb, NFTA_TARGET_INFO, info,
+				    target->targetsize, target->usersize))
 		goto nla_put_failure;
 
 	return 0;
@@ -302,7 +336,7 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
-		const struct nf_hook_ops *ops = &basechain->ops[0];
+		const struct nf_hook_ops *ops = &basechain->ops;
 
 		hook_mask = 1 << ops->hooknum;
 		if (target->hooks && !(hook_mask & target->hooks))
@@ -316,11 +350,11 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static void nft_match_eval(const struct nft_expr *expr,
-			   struct nft_regs *regs,
-			   const struct nft_pktinfo *pkt)
+static void __nft_match_eval(const struct nft_expr *expr,
+			     struct nft_regs *regs,
+			     const struct nft_pktinfo *pkt,
+			     void *info)
 {
-	void *info = nft_expr_priv(expr);
 	struct xt_match *match = expr->ops->data;
 	struct sk_buff *skb = pkt->skb;
 	bool ret;
@@ -344,6 +378,22 @@ static void nft_match_eval(const struct nft_expr *expr,
 	}
 }
 
+static void nft_match_large_eval(const struct nft_expr *expr,
+				 struct nft_regs *regs,
+				 const struct nft_pktinfo *pkt)
+{
+	struct nft_xt_match_priv *priv = nft_expr_priv(expr);
+
+	__nft_match_eval(expr, regs, pkt, priv->info);
+}
+
+static void nft_match_eval(const struct nft_expr *expr,
+			   struct nft_regs *regs,
+			   const struct nft_pktinfo *pkt)
+{
+	__nft_match_eval(expr, regs, pkt, nft_expr_priv(expr));
+}
+
 static const struct nla_policy nft_match_policy[NFTA_MATCH_MAX + 1] = {
 	[NFTA_MATCH_NAME]	= { .type = NLA_NUL_STRING },
 	[NFTA_MATCH_REV]	= { .type = NLA_U32 },
@@ -358,7 +408,7 @@ nft_match_set_mtchk_param(struct xt_mtchk_param *par, const struct nft_ctx *ctx,
 {
 	par->net	= ctx->net;
 	par->table	= ctx->table->name;
-	switch (ctx->afi->family) {
+	switch (ctx->family) {
 	case AF_INET:
 		entry->e4.ip.proto = proto;
 		entry->e4.ip.invflags = inv ? IPT_INV_PROTO : 0;
@@ -383,13 +433,13 @@ nft_match_set_mtchk_param(struct xt_mtchk_param *par, const struct nft_ctx *ctx,
 	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
-		const struct nf_hook_ops *ops = &basechain->ops[0];
+		const struct nf_hook_ops *ops = &basechain->ops;
 
 		par->hook_mask = 1 << ops->hooknum;
 	} else {
 		par->hook_mask = 0;
 	}
-	par->family	= ctx->afi->family;
+	par->family	= ctx->family;
 	par->nft_compat = true;
 }
 
@@ -404,13 +454,14 @@ static void match_compat_from_user(struct xt_match *m, void *in, void *out)
 }
 
 static int
-nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
-		const struct nlattr * const tb[])
+__nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
+		 const struct nlattr * const tb[],
+		 void *info)
 {
-	void *info = nft_expr_priv(expr);
 	struct xt_match *match = expr->ops->data;
 	struct xt_mtchk_param par;
 	size_t size = XT_ALIGN(nla_len(tb[NFTA_MATCH_INFO]));
+	struct nft_xt *nft_xt;
 	u16 proto = 0;
 	bool inv = false;
 	union nft_entry e = {};
@@ -421,53 +472,105 @@ nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	if (ctx->nla[NFTA_RULE_COMPAT]) {
 		ret = nft_parse_compat(ctx->nla[NFTA_RULE_COMPAT], &proto, &inv);
 		if (ret < 0)
-			goto err;
+			return ret;
 	}
 
 	nft_match_set_mtchk_param(&par, ctx, match, info, &e, proto, inv);
 
 	ret = xt_check_match(&par, size, proto, inv);
 	if (ret < 0)
-		goto err;
+		return ret;
 
+	nft_xt = container_of(expr->ops, struct nft_xt, ops);
+	nft_xt->refcnt++;
 	return 0;
-err:
-	module_put(match->me);
+}
+
+static int
+nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
+	       const struct nlattr * const tb[])
+{
+	return __nft_match_init(ctx, expr, tb, nft_expr_priv(expr));
+}
+
+static int
+nft_match_large_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
+		     const struct nlattr * const tb[])
+{
+	struct nft_xt_match_priv *priv = nft_expr_priv(expr);
+	struct xt_match *m = expr->ops->data;
+	int ret;
+
+	priv->info = kmalloc(XT_ALIGN(m->matchsize), GFP_KERNEL);
+	if (!priv->info)
+		return -ENOMEM;
+
+	ret = __nft_match_init(ctx, expr, tb, priv->info);
+	if (ret)
+		kfree(priv->info);
 	return ret;
 }
 
 static void
-nft_match_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
+__nft_match_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr,
+		    void *info)
 {
 	struct xt_match *match = expr->ops->data;
-	void *info = nft_expr_priv(expr);
 	struct xt_mtdtor_param par;
 
 	par.net = ctx->net;
 	par.match = match;
 	par.matchinfo = info;
-	par.family = ctx->afi->family;
+	par.family = ctx->family;
 	if (par.match->destroy != NULL)
 		par.match->destroy(&par);
 
-	nft_xt_put(container_of(expr->ops, struct nft_xt, ops));
-	module_put(match->me);
+	if (nft_xt_put(container_of(expr->ops, struct nft_xt, ops)))
+		module_put(match->me);
 }
 
-static int nft_match_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static void
+nft_match_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
 {
-	void *info = nft_expr_priv(expr);
+	__nft_match_destroy(ctx, expr, nft_expr_priv(expr));
+}
+
+static void
+nft_match_large_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
+{
+	struct nft_xt_match_priv *priv = nft_expr_priv(expr);
+
+	__nft_match_destroy(ctx, expr, priv->info);
+	kfree(priv->info);
+}
+
+static int __nft_match_dump(struct sk_buff *skb, const struct nft_expr *expr,
+			    void *info)
+{
 	struct xt_match *match = expr->ops->data;
 
 	if (nla_put_string(skb, NFTA_MATCH_NAME, match->name) ||
 	    nla_put_be32(skb, NFTA_MATCH_REV, htonl(match->revision)) ||
-	    nla_put(skb, NFTA_MATCH_INFO, XT_ALIGN(match->matchsize), info))
+	    nft_extension_dump_info(skb, NFTA_MATCH_INFO, info,
+				    match->matchsize, match->usersize))
 		goto nla_put_failure;
 
 	return 0;
 
 nla_put_failure:
 	return -1;
+}
+
+static int nft_match_dump(struct sk_buff *skb, const struct nft_expr *expr)
+{
+	return __nft_match_dump(skb, expr, nft_expr_priv(expr));
+}
+
+static int nft_match_large_dump(struct sk_buff *skb, const struct nft_expr *e)
+{
+	struct nft_xt_match_priv *priv = nft_expr_priv(e);
+
+	return __nft_match_dump(skb, e, priv->info);
 }
 
 static int nft_match_validate(const struct nft_ctx *ctx,
@@ -481,7 +584,7 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
-		const struct nf_hook_ops *ops = &basechain->ops[0];
+		const struct nf_hook_ops *ops = &basechain->ops;
 
 		hook_mask = 1 << ops->hooknum;
 		if (match->hooks && !(hook_mask & match->hooks))
@@ -528,10 +631,10 @@ nla_put_failure:
 	return -1;
 }
 
-static int nfnl_compat_get(struct net *net, struct sock *nfnl,
-			   struct sk_buff *skb, const struct nlmsghdr *nlh,
-			   const struct nlattr * const tb[],
-			   struct netlink_ext_ack *extack)
+static int nfnl_compat_get_rcu(struct net *net, struct sock *nfnl,
+			       struct sk_buff *skb, const struct nlmsghdr *nlh,
+			       const struct nlattr * const tb[],
+			       struct netlink_ext_ack *extack)
 {
 	int ret = 0, target;
 	struct nfgenmsg *nfmsg;
@@ -570,16 +673,21 @@ static int nfnl_compat_get(struct net *net, struct sock *nfnl,
 		return -EINVAL;
 	}
 
+	if (!try_module_get(THIS_MODULE))
+		return -EINVAL;
+
+	rcu_read_unlock();
 	try_then_request_module(xt_find_revision(nfmsg->nfgen_family, name,
 						 rev, target, &ret),
 						 fmt, name);
-
 	if (ret < 0)
-		return ret;
+		goto out_put;
 
 	skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (skb2 == NULL)
-		return -ENOMEM;
+	if (skb2 == NULL) {
+		ret = -ENOMEM;
+		goto out_put;
+	}
 
 	/* include the best revision for this extension in the message */
 	if (nfnl_compat_fill_info(skb2, NETLINK_CB(skb).portid,
@@ -589,14 +697,16 @@ static int nfnl_compat_get(struct net *net, struct sock *nfnl,
 				  nfmsg->nfgen_family,
 				  name, ret, target) <= 0) {
 		kfree_skb(skb2);
-		return -ENOSPC;
+		goto out_put;
 	}
 
 	ret = netlink_unicast(nfnl, skb2, NETLINK_CB(skb).portid,
 				MSG_DONTWAIT);
 	if (ret > 0)
 		ret = 0;
-
+out_put:
+	rcu_read_lock();
+	module_put(THIS_MODULE);
 	return ret == -EAGAIN ? -ENOBUFS : ret;
 }
 
@@ -608,7 +718,7 @@ static const struct nla_policy nfnl_compat_policy_get[NFTA_COMPAT_MAX+1] = {
 };
 
 static const struct nfnl_callback nfnl_nft_compat_cb[NFNL_MSG_COMPAT_MAX] = {
-	[NFNL_MSG_COMPAT_GET]		= { .call = nfnl_compat_get,
+	[NFNL_MSG_COMPAT_GET]		= { .call_rcu = nfnl_compat_get_rcu,
 					    .attr_count = NFTA_COMPAT_MAX,
 					    .policy = nfnl_compat_policy_get },
 };
@@ -637,6 +747,7 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 {
 	struct nft_xt *nft_match;
 	struct xt_match *match;
+	unsigned int matchsize;
 	char *mt_name;
 	u32 rev, family;
 	int err;
@@ -648,19 +759,14 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 
 	mt_name = nla_data(tb[NFTA_MATCH_NAME]);
 	rev = ntohl(nla_get_be32(tb[NFTA_MATCH_REV]));
-	family = ctx->afi->family;
+	family = ctx->family;
 
 	/* Re-use the existing match if it's already loaded. */
 	list_for_each_entry(nft_match, &nft_match_list, head) {
 		struct xt_match *match = nft_match->ops.data;
 
-		if (nft_match_cmp(match, mt_name, rev, family)) {
-			if (!try_module_get(match->me))
-				return ERR_PTR(-ENOENT);
-
-			nft_match->refcnt++;
+		if (nft_match_cmp(match, mt_name, rev, family))
 			return &nft_match->ops;
-		}
 	}
 
 	match = xt_request_find_match(family, mt_name, rev);
@@ -679,15 +785,26 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 		goto err;
 	}
 
-	nft_match->refcnt = 1;
+	nft_match->refcnt = 0;
 	nft_match->ops.type = &nft_match_type;
-	nft_match->ops.size = NFT_EXPR_SIZE(XT_ALIGN(match->matchsize));
 	nft_match->ops.eval = nft_match_eval;
 	nft_match->ops.init = nft_match_init;
 	nft_match->ops.destroy = nft_match_destroy;
 	nft_match->ops.dump = nft_match_dump;
 	nft_match->ops.validate = nft_match_validate;
 	nft_match->ops.data = match;
+
+	matchsize = NFT_EXPR_SIZE(XT_ALIGN(match->matchsize));
+	if (matchsize > NFT_MATCH_LARGE_THRESH) {
+		matchsize = NFT_EXPR_SIZE(sizeof(struct nft_xt_match_priv));
+
+		nft_match->ops.eval = nft_match_large_eval;
+		nft_match->ops.init = nft_match_large_init;
+		nft_match->ops.destroy = nft_match_large_destroy;
+		nft_match->ops.dump = nft_match_large_dump;
+	}
+
+	nft_match->ops.size = matchsize;
 
 	list_add(&nft_match->head, &nft_match_list);
 
@@ -733,24 +850,32 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 
 	tg_name = nla_data(tb[NFTA_TARGET_NAME]);
 	rev = ntohl(nla_get_be32(tb[NFTA_TARGET_REV]));
-	family = ctx->afi->family;
+	family = ctx->family;
+
+	if (strcmp(tg_name, XT_ERROR_TARGET) == 0 ||
+	    strcmp(tg_name, XT_STANDARD_TARGET) == 0 ||
+	    strcmp(tg_name, "standard") == 0)
+		return ERR_PTR(-EINVAL);
 
 	/* Re-use the existing target if it's already loaded. */
 	list_for_each_entry(nft_target, &nft_target_list, head) {
 		struct xt_target *target = nft_target->ops.data;
 
-		if (nft_target_cmp(target, tg_name, rev, family)) {
-			if (!try_module_get(target->me))
-				return ERR_PTR(-ENOENT);
+		if (!target->target)
+			continue;
 
-			nft_target->refcnt++;
+		if (nft_target_cmp(target, tg_name, rev, family))
 			return &nft_target->ops;
-		}
 	}
 
 	target = xt_request_find_target(family, tg_name, rev);
 	if (IS_ERR(target))
 		return ERR_PTR(-ENOENT);
+
+	if (!target->target) {
+		err = -EINVAL;
+		goto err;
+	}
 
 	if (target->targetsize > nla_len(tb[NFTA_TARGET_INFO])) {
 		err = -EINVAL;
@@ -764,7 +889,7 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 		goto err;
 	}
 
-	nft_target->refcnt = 1;
+	nft_target->refcnt = 0;
 	nft_target->ops.type = &nft_target_type;
 	nft_target->ops.size = NFT_EXPR_SIZE(XT_ALIGN(target->targetsize));
 	nft_target->ops.init = nft_target_init;
@@ -812,8 +937,6 @@ static int __init nft_compat_module_init(void)
 		goto err_target;
 	}
 
-	pr_info("nf_tables_compat: (c) 2012 Pablo Neira Ayuso <pablo@netfilter.org>\n");
-
 	return ret;
 
 err_target:
@@ -825,6 +948,32 @@ err_match:
 
 static void __exit nft_compat_module_exit(void)
 {
+	struct nft_xt *xt, *next;
+
+	/* list should be empty here, it can be non-empty only in case there
+	 * was an error that caused nft_xt expr to not be initialized fully
+	 * and noone else requested the same expression later.
+	 *
+	 * In this case, the lists contain 0-refcount entries that still
+	 * hold module reference.
+	 */
+	list_for_each_entry_safe(xt, next, &nft_target_list, head) {
+		struct xt_target *target = xt->ops.data;
+
+		if (WARN_ON_ONCE(xt->refcnt))
+			continue;
+		module_put(target->me);
+		kfree(xt);
+	}
+
+	list_for_each_entry_safe(xt, next, &nft_match_list, head) {
+		struct xt_match *match = xt->ops.data;
+
+		if (WARN_ON_ONCE(xt->refcnt))
+			continue;
+		module_put(match->me);
+		kfree(xt);
+	}
 	nfnetlink_subsys_unregister(&nfnl_compat_subsys);
 	nft_unregister_expr(&nft_target_type);
 	nft_unregister_expr(&nft_match_type);

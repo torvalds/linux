@@ -182,6 +182,18 @@ config HID_BETOP_FF
 	Currently the following devices are known to be supported:
 	 - BETOP 2185 PC & BFM MODE
 
+config HID_BIGBEN_FF
+	tristate "BigBen Interactive Kids' gamepad support"
+	depends on USB_HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	select INPUT_FF_MEMLESS
+	help
+	  Support for the "Kid-friendly Wired Controller" PS3OFMINIPAD
+	  gamepad made by BigBen Interactive, originally sold as a PS3
+	  accessory. This driver fixes input mapping and adds support for
+	  force feedback effects and LEDs on the device.
+
 config HID_CHERRY
 	tristate "Cherry Cymotion keyboard"
 	depends on HID
@@ -207,6 +219,16 @@ config HID_CORSAIR
 	- Vengeance K90
 	- Scimitar PRO RGB
 
+config HID_COUGAR
+	tristate "Cougar devices"
+	depends on HID
+	help
+	Support for Cougar devices that are not fully compliant with the
+	HID standard.
+
+	Supported devices:
+	- Cougar 500k Gaming Keyboard
+
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
 	depends on HID && SND
@@ -230,7 +252,7 @@ config HID_CMEDIA
 
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
-	depends on USB_HID && I2C && GPIOLIB
+	depends on USB_HID && HIDRAW && I2C && GPIOLIB
 	select GPIOLIB_IRQCHIP
 	---help---
 	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
@@ -274,13 +296,23 @@ config HID_EMS_FF
 	Currently the following devices are known to be supported:
 	 - Trio Linker Plus II
 
+config HID_ELAN
+	tristate "ELAN USB Touchpad Support"
+	depends on LEDS_CLASS && USB_HID
+	---help---
+	Say Y to enable support for the USB ELAN touchpad
+	Currently the following devices are known to be supported:
+	 - HP Pavilion X2 10-p0XX.
+
 config HID_ELECOM
 	tristate "ELECOM HID devices"
 	depends on HID
 	---help---
 	Support for ELECOM devices:
 	  - BM084 Bluetooth Mouse
-	  - DEFT Trackball (Wired and wireless)
+	  - EX-G Trackballs (M-XT3DRBK, M-XT3URBK)
+	  - DEFT Trackballs (M-DT1DRBK, M-DT1URBK, M-DT2DRBK, M-DT2URBK)
+	  - HUGE Trackballs (M-HT1DRBK, M-HT1URBK)
 
 config HID_ELO
 	tristate "ELO USB 4000/4500 touchscreen"
@@ -328,6 +360,12 @@ config HOLTEK_FF
 	---help---
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
+
+config HID_GOOGLE_HAMMER
+	tristate "Google Hammer Keyboard"
+	depends on USB_HID && LEDS_CLASS && MFD_CROS_EC
+	---help---
+	Say Y here if you have a Google Hammer device.
 
 config HID_GT683R
 	tristate "MSI GT68xR LED support"
@@ -395,6 +433,17 @@ config HID_ITE
 	---help---
 	Support for ITE devices not fully compliant with HID standard.
 
+config HID_JABRA
+	tristate "Jabra USB HID Driver"
+	depends on HID
+	---help---
+	Support for Jabra USB HID devices.
+
+	Prevents mapping of vendor defined HID usages to input events. Without
+	this driver HID	reports from Jabra devices may incorrectly be seen as
+	mouse button events.
+	Say M here if you may ever plug in a Jabra USB device.
+
 config HID_TWINHAN
 	tristate "Twinhan IR remote control"
 	depends on HID
@@ -435,10 +484,11 @@ config HID_LENOVO
 	select NEW_LEDS
 	select LEDS_CLASS
 	---help---
-	Support for Lenovo devices that are not fully compliant with HID standard.
+	Support for IBM/Lenovo devices that are not fully compliant with HID standard.
 
-	Say Y if you want support for the non-compliant features of the Lenovo
-	Thinkpad standalone keyboards, e.g:
+	Say Y if you want support for horizontal scrolling of the IBM/Lenovo
+	Scrollpoint mice or the non-compliant features of the Lenovo Thinkpad
+	standalone keyboards, e.g:
 	- ThinkPad USB Keyboard with TrackPoint (supports extra LEDs and trackpoint
 	  configuration)
 	- ThinkPad Compact Bluetooth Keyboard with TrackPoint (supports Fn keys)
@@ -547,10 +597,18 @@ config HID_MAYFLASH
 	Say Y here if you have HJZ Mayflash PS3 game controller adapters
 	and want to enable force feedback support.
 
+config HID_REDRAGON
+	tristate "Redragon keyboards"
+	depends on HID
+	default !EXPERT
+	---help---
+    Support for Redragon keyboards that need fix-ups to work properly.
+
 config HID_MICROSOFT
 	tristate "Microsoft non-fully HID-compliant devices"
 	depends on HID
 	default !EXPERT
+	select INPUT_FF_MEMLESS
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 
@@ -749,11 +807,10 @@ config HID_PRIMAX
 	HID standard.
 
 config HID_RETRODE
-	tristate "Retrode"
+	tristate "Retrode 2 USB adapter for vintage video games"
 	depends on USB_HID
 	---help---
 	Support for
-
 	  * Retrode 2 cartridge and controller adapter
 
 config HID_ROCCAT
@@ -810,6 +867,15 @@ config HID_SPEEDLINK
 	depends on HID
 	---help---
 	Support for Speedlink Vicious and Divine Cezanne mouse.
+
+config HID_STEAM
+	tristate "Steam Controller support"
+	depends on HID
+	select POWER_SUPPLY
+	---help---
+	Say Y here if you have a Steam Controller if you want to use it
+	without running the Steam Client. It supports both the wired and
+	the wireless adaptor.
 
 config HID_STEELSERIES
 	tristate "Steelseries SRW-S1 steering wheel support"

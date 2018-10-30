@@ -128,6 +128,10 @@
 #define HSI2C_TIMEOUT_EN			(1u << 31)
 #define HSI2C_TIMEOUT_MASK			0xff
 
+/* I2C_MANUAL_CMD register bits */
+#define HSI2C_CMD_READ_DATA			(1u << 4)
+#define HSI2C_CMD_SEND_STOP			(1u << 2)
+
 /* I2C_TRANS_STATUS register bits */
 #define HSI2C_MASTER_BUSY			(1u << 17)
 #define HSI2C_SLAVE_BUSY			(1u << 16)
@@ -170,9 +174,12 @@
 #define HSI2C_HS_TX_CLOCK	1000000
 #define HSI2C_FS_TX_CLOCK	100000
 
-#define EXYNOS5_I2C_TIMEOUT (msecs_to_jiffies(1000))
+#define EXYNOS5_I2C_TIMEOUT (msecs_to_jiffies(100))
 
-#define HSI2C_EXYNOS7	BIT(0)
+enum i2c_type_exynos {
+	I2C_TYPE_EXYNOS5,
+	I2C_TYPE_EXYNOS7,
+};
 
 struct exynos5_i2c {
 	struct i2c_adapter	adap;
@@ -208,27 +215,30 @@ struct exynos5_i2c {
 /**
  * struct exynos_hsi2c_variant - platform specific HSI2C driver data
  * @fifo_depth: the fifo depth supported by the HSI2C module
+ * @hw: the hardware variant of Exynos I2C controller
  *
  * Specifies platform specific configuration of HSI2C module.
  * Note: A structure for driver specific platform data is used for future
  * expansion of its usage.
  */
 struct exynos_hsi2c_variant {
-	unsigned int	fifo_depth;
-	unsigned int	hw;
+	unsigned int		fifo_depth;
+	enum i2c_type_exynos	hw;
 };
 
 static const struct exynos_hsi2c_variant exynos5250_hsi2c_data = {
 	.fifo_depth	= 64,
+	.hw		= I2C_TYPE_EXYNOS5,
 };
 
 static const struct exynos_hsi2c_variant exynos5260_hsi2c_data = {
 	.fifo_depth	= 16,
+	.hw		= I2C_TYPE_EXYNOS5,
 };
 
 static const struct exynos_hsi2c_variant exynos7_hsi2c_data = {
 	.fifo_depth	= 16,
-	.hw		= HSI2C_EXYNOS7,
+	.hw		= I2C_TYPE_EXYNOS7,
 };
 
 static const struct of_device_id exynos5_i2c_match[] = {
@@ -296,7 +306,7 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 	 */
 	t_ftl_cycle = (readl(i2c->regs + HSI2C_CONF) >> 16) & 0x7;
 	temp = clkin / op_clk - 8 - t_ftl_cycle;
-	if (i2c->variant->hw != HSI2C_EXYNOS7)
+	if (i2c->variant->hw != I2C_TYPE_EXYNOS7)
 		temp -= t_ftl_cycle;
 	div = temp / 512;
 	clk_cycle = temp / (div + 1) - 2;
@@ -420,7 +430,7 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 	writel(int_status, i2c->regs + HSI2C_INT_STATUS);
 
 	/* handle interrupt related to the transfer status */
-	if (i2c->variant->hw == HSI2C_EXYNOS7) {
+	if (i2c->variant->hw == I2C_TYPE_EXYNOS7) {
 		if (int_status & HSI2C_INT_TRANS_DONE) {
 			i2c->trans_done = 1;
 			i2c->state = 0;
@@ -439,12 +449,6 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 		} else if (int_status & HSI2C_INT_TIMEOUT) {
 			dev_dbg(i2c->dev, "Accessing device timed out\n");
 			i2c->state = -ETIMEDOUT;
-			goto stop;
-		}
-
-		trans_status = readl(i2c->regs + HSI2C_TRANS_STATUS);
-		if ((trans_status & HSI2C_MASTER_ST_MASK) == HSI2C_MASTER_ST_LOSE) {
-			i2c->state = -EAGAIN;
 			goto stop;
 		}
 	} else if (int_status & HSI2C_INT_I2C) {
@@ -544,6 +548,57 @@ static int exynos5_i2c_wait_bus_idle(struct exynos5_i2c *i2c)
 	return -EBUSY;
 }
 
+static void exynos5_i2c_bus_recover(struct exynos5_i2c *i2c)
+{
+	u32 val;
+
+	val = readl(i2c->regs + HSI2C_CTL) | HSI2C_RXCHON;
+	writel(val, i2c->regs + HSI2C_CTL);
+	val = readl(i2c->regs + HSI2C_CONF) & ~HSI2C_AUTO_MODE;
+	writel(val, i2c->regs + HSI2C_CONF);
+
+	/*
+	 * Specification says master should send nine clock pulses. It can be
+	 * emulated by sending manual read command (nine pulses for read eight
+	 * bits + one pulse for NACK).
+	 */
+	writel(HSI2C_CMD_READ_DATA, i2c->regs + HSI2C_MANUAL_CMD);
+	exynos5_i2c_wait_bus_idle(i2c);
+	writel(HSI2C_CMD_SEND_STOP, i2c->regs + HSI2C_MANUAL_CMD);
+	exynos5_i2c_wait_bus_idle(i2c);
+
+	val = readl(i2c->regs + HSI2C_CTL) & ~HSI2C_RXCHON;
+	writel(val, i2c->regs + HSI2C_CTL);
+	val = readl(i2c->regs + HSI2C_CONF) | HSI2C_AUTO_MODE;
+	writel(val, i2c->regs + HSI2C_CONF);
+}
+
+static void exynos5_i2c_bus_check(struct exynos5_i2c *i2c)
+{
+	unsigned long timeout;
+
+	if (i2c->variant->hw != I2C_TYPE_EXYNOS7)
+		return;
+
+	/*
+	 * HSI2C_MASTER_ST_LOSE state in EXYNOS7 variant before transaction
+	 * indicates that bus is stuck (SDA is low). In such case bus recovery
+	 * can be performed.
+	 */
+	timeout = jiffies + msecs_to_jiffies(100);
+	for (;;) {
+		u32 st = readl(i2c->regs + HSI2C_TRANS_STATUS);
+
+		if ((st & HSI2C_MASTER_ST_MASK) != HSI2C_MASTER_ST_LOSE)
+			return;
+
+		if (time_is_before_jiffies(timeout))
+			return;
+
+		exynos5_i2c_bus_recover(i2c);
+	}
+}
+
 /*
  * exynos5_i2c_message_start: Configures the bus and starts the xfer
  * i2c: struct exynos5_i2c pointer for the current bus
@@ -563,7 +618,7 @@ static void exynos5_i2c_message_start(struct exynos5_i2c *i2c, int stop)
 	unsigned long flags;
 	unsigned short trig_lvl;
 
-	if (i2c->variant->hw == HSI2C_EXYNOS7)
+	if (i2c->variant->hw == I2C_TYPE_EXYNOS7)
 		int_en |= HSI2C_INT_I2C_TRANS;
 	else
 		int_en |= HSI2C_INT_I2C;
@@ -597,6 +652,8 @@ static void exynos5_i2c_message_start(struct exynos5_i2c *i2c, int stop)
 
 	writel(fifo_ctl, i2c->regs + HSI2C_FIFO_CTL);
 	writel(i2c_ctl, i2c->regs + HSI2C_CTL);
+
+	exynos5_i2c_bus_check(i2c);
 
 	/*
 	 * Enable interrupts before starting the transfer so that we don't
@@ -656,7 +713,7 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
 	struct exynos5_i2c *i2c = adap->algo_data;
-	int i = 0, ret = 0, stop = 0;
+	int i, ret;
 
 	if (i2c->suspended) {
 		dev_err(i2c->dev, "HS-I2C is not initialized.\n");
@@ -667,30 +724,15 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < num; i++, msgs++) {
-		stop = (i == num - 1);
-
-		ret = exynos5_i2c_xfer_msg(i2c, msgs, stop);
-
-		if (ret < 0)
-			goto out;
+	for (i = 0; i < num; ++i) {
+		ret = exynos5_i2c_xfer_msg(i2c, msgs + i, i + 1 == num);
+		if (ret)
+			break;
 	}
 
-	if (i == num) {
-		ret = num;
-	} else {
-		/* Only one message, cannot access the device */
-		if (i == 1)
-			ret = -EREMOTEIO;
-		else
-			ret = i;
-
-		dev_warn(i2c->dev, "xfer message failed\n");
-	}
-
- out:
 	clk_disable(i2c->clk);
-	return ret;
+
+	return ret ?: num;
 }
 
 static u32 exynos5_i2c_func(struct i2c_adapter *adap)

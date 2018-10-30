@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# Copyright (c) Mauro Carvalho Chehab <mchehab@infradead.org>
+# Copyright (c) Mauro Carvalho Chehab <mchehab@kernel.org>
 # Released under GPLv2
 #
 # In order to use, you need to:

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_UACCESS_64_H
 #define _ASM_X86_UACCESS_64_H
 
@@ -46,6 +47,22 @@ copy_user_generic(void *to, const void *from, unsigned len)
 }
 
 static __always_inline __must_check unsigned long
+copy_to_user_mcsafe(void *to, const void *from, unsigned len)
+{
+	unsigned long ret;
+
+	__uaccess_begin();
+	/*
+	 * Note, __memcpy_mcsafe() is explicitly used since it can
+	 * handle exceptions / faults.  memcpy_mcsafe() may fall back to
+	 * memcpy() which lacks this handling.
+	 */
+	ret = __memcpy_mcsafe(to, from, len);
+	__uaccess_end();
+	return ret;
+}
+
+static __always_inline __must_check unsigned long
 raw_copy_from_user(void *dst, const void __user *src, unsigned long size)
 {
 	int ret = 0;
@@ -54,31 +71,31 @@ raw_copy_from_user(void *dst, const void __user *src, unsigned long size)
 		return copy_user_generic(dst, (__force void *)src, size);
 	switch (size) {
 	case 1:
-		__uaccess_begin();
+		__uaccess_begin_nospec();
 		__get_user_asm_nozero(*(u8 *)dst, (u8 __user *)src,
 			      ret, "b", "b", "=q", 1);
 		__uaccess_end();
 		return ret;
 	case 2:
-		__uaccess_begin();
+		__uaccess_begin_nospec();
 		__get_user_asm_nozero(*(u16 *)dst, (u16 __user *)src,
 			      ret, "w", "w", "=r", 2);
 		__uaccess_end();
 		return ret;
 	case 4:
-		__uaccess_begin();
+		__uaccess_begin_nospec();
 		__get_user_asm_nozero(*(u32 *)dst, (u32 __user *)src,
 			      ret, "l", "k", "=r", 4);
 		__uaccess_end();
 		return ret;
 	case 8:
-		__uaccess_begin();
+		__uaccess_begin_nospec();
 		__get_user_asm_nozero(*(u64 *)dst, (u64 __user *)src,
 			      ret, "q", "", "=r", 8);
 		__uaccess_end();
 		return ret;
 	case 10:
-		__uaccess_begin();
+		__uaccess_begin_nospec();
 		__get_user_asm_nozero(*(u64 *)dst, (u64 __user *)src,
 			       ret, "q", "", "=r", 10);
 		if (likely(!ret))
@@ -88,7 +105,7 @@ raw_copy_from_user(void *dst, const void __user *src, unsigned long size)
 		__uaccess_end();
 		return ret;
 	case 16:
-		__uaccess_begin();
+		__uaccess_begin_nospec();
 		__get_user_asm_nozero(*(u64 *)dst, (u64 __user *)src,
 			       ret, "q", "", "=r", 16);
 		if (likely(!ret))
@@ -192,5 +209,8 @@ __copy_from_user_flushcache(void *dst, const void __user *src, unsigned size)
 
 unsigned long
 copy_user_handle_tail(char *to, char *from, unsigned len);
+
+unsigned long
+mcsafe_handle_tail(char *to, char *from, unsigned len);
 
 #endif /* _ASM_X86_UACCESS_64_H */

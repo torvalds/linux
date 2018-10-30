@@ -6,11 +6,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/of.h>
-#include <linux/mm.h>
-
-#include <asm/cacheflush.h>
-
 #include <dt-bindings/memory/tegra210-mc.h>
 
 #include "mc.h"
@@ -1059,15 +1054,72 @@ static const struct tegra_smmu_swgroup tegra210_swgroups[] = {
 	{ .name = "tsecb",     .swgroup = TEGRA_SWGROUP_TSECB,     .reg = 0xad4 },
 };
 
+static const unsigned int tegra210_group_display[] = {
+	TEGRA_SWGROUP_DC,
+	TEGRA_SWGROUP_DCB,
+};
+
+static const struct tegra_smmu_group_soc tegra210_groups[] = {
+	{
+		.name = "display",
+		.swgroups = tegra210_group_display,
+		.num_swgroups = ARRAY_SIZE(tegra210_group_display),
+	},
+};
+
 static const struct tegra_smmu_soc tegra210_smmu_soc = {
 	.clients = tegra210_mc_clients,
 	.num_clients = ARRAY_SIZE(tegra210_mc_clients),
 	.swgroups = tegra210_swgroups,
 	.num_swgroups = ARRAY_SIZE(tegra210_swgroups),
+	.groups = tegra210_groups,
+	.num_groups = ARRAY_SIZE(tegra210_groups),
 	.supports_round_robin_arbitration = true,
 	.supports_request_limit = true,
 	.num_tlb_lines = 32,
 	.num_asids = 128,
+};
+
+#define TEGRA210_MC_RESET(_name, _control, _status, _bit)	\
+	{							\
+		.name = #_name,					\
+		.id = TEGRA210_MC_RESET_##_name,		\
+		.control = _control,				\
+		.status = _status,				\
+		.bit = _bit,					\
+	}
+
+static const struct tegra_mc_reset tegra210_mc_resets[] = {
+	TEGRA210_MC_RESET(AFI,       0x200, 0x204,  0),
+	TEGRA210_MC_RESET(AVPC,      0x200, 0x204,  1),
+	TEGRA210_MC_RESET(DC,        0x200, 0x204,  2),
+	TEGRA210_MC_RESET(DCB,       0x200, 0x204,  3),
+	TEGRA210_MC_RESET(HC,        0x200, 0x204,  6),
+	TEGRA210_MC_RESET(HDA,       0x200, 0x204,  7),
+	TEGRA210_MC_RESET(ISP2,      0x200, 0x204,  8),
+	TEGRA210_MC_RESET(MPCORE,    0x200, 0x204,  9),
+	TEGRA210_MC_RESET(NVENC,     0x200, 0x204, 11),
+	TEGRA210_MC_RESET(PPCS,      0x200, 0x204, 14),
+	TEGRA210_MC_RESET(SATA,      0x200, 0x204, 15),
+	TEGRA210_MC_RESET(VI,        0x200, 0x204, 17),
+	TEGRA210_MC_RESET(VIC,       0x200, 0x204, 18),
+	TEGRA210_MC_RESET(XUSB_HOST, 0x200, 0x204, 19),
+	TEGRA210_MC_RESET(XUSB_DEV,  0x200, 0x204, 20),
+	TEGRA210_MC_RESET(A9AVP,     0x200, 0x204, 21),
+	TEGRA210_MC_RESET(TSEC,      0x200, 0x204, 22),
+	TEGRA210_MC_RESET(SDMMC1,    0x200, 0x204, 29),
+	TEGRA210_MC_RESET(SDMMC2,    0x200, 0x204, 30),
+	TEGRA210_MC_RESET(SDMMC3,    0x200, 0x204, 31),
+	TEGRA210_MC_RESET(SDMMC4,    0x970, 0x974,  0),
+	TEGRA210_MC_RESET(ISP2B,     0x970, 0x974,  1),
+	TEGRA210_MC_RESET(GPU,       0x970, 0x974,  2),
+	TEGRA210_MC_RESET(NVDEC,     0x970, 0x974,  5),
+	TEGRA210_MC_RESET(APE,       0x970, 0x974,  6),
+	TEGRA210_MC_RESET(SE,        0x970, 0x974,  7),
+	TEGRA210_MC_RESET(NVJPG,     0x970, 0x974,  8),
+	TEGRA210_MC_RESET(AXIAP,     0x970, 0x974, 11),
+	TEGRA210_MC_RESET(ETR,       0x970, 0x974, 12),
+	TEGRA210_MC_RESET(TSECB,     0x970, 0x974, 13),
 };
 
 const struct tegra_mc_soc tegra210_mc_soc = {
@@ -1077,4 +1129,10 @@ const struct tegra_mc_soc tegra210_mc_soc = {
 	.atom_size = 64,
 	.client_id_mask = 0xff,
 	.smmu = &tegra210_smmu_soc,
+	.intmask = MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |
+		   MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE |
+		   MC_INT_SECURITY_VIOLATION | MC_INT_DECERR_EMEM,
+	.reset_ops = &terga_mc_reset_ops_common,
+	.resets = tegra210_mc_resets,
+	.num_resets = ARRAY_SIZE(tegra210_mc_resets),
 };

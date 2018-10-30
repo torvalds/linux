@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* AFS network device helpers
  *
  * Copyright (c) 2007 Patrick McHardy <kaber@trash.net>
@@ -16,8 +17,8 @@
  * - maxbufs must be at least 1
  * - returns the number of interface records in the buffer
  */
-int afs_get_ipv4_interfaces(struct afs_interface *bufs, size_t maxbufs,
-			    bool wantloopback)
+int afs_get_ipv4_interfaces(struct afs_net *net, struct afs_interface *bufs,
+			    size_t maxbufs, bool wantloopback)
 {
 	struct net_device *dev;
 	struct in_device *idev;
@@ -26,7 +27,7 @@ int afs_get_ipv4_interfaces(struct afs_interface *bufs, size_t maxbufs,
 	ASSERT(maxbufs > 0);
 
 	rtnl_lock();
-	for_each_netdev(&init_net, dev) {
+	for_each_netdev(net->net, dev) {
 		if (dev->type == ARPHRD_LOOPBACK && !wantloopback)
 			continue;
 		idev = __in_dev_get_rtnl(dev);

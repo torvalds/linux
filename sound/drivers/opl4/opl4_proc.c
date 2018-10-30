@@ -104,7 +104,7 @@ int snd_opl4_create_proc(struct snd_opl4 *opl4)
 	if (entry) {
 		if (opl4->hardware < OPL3_HW_OPL4_ML) {
 			/* OPL4 can access 4 MB external ROM/SRAM */
-			entry->mode |= S_IWUSR;
+			entry->mode |= 0200;
 			entry->size = 4 * 1024 * 1024;
 		} else {
 			/* OPL4-ML has 1 MB internal ROM */

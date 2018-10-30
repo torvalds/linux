@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
@@ -142,7 +143,7 @@ struct ib_user_mad_hdr {
  */
 struct ib_user_mad {
 	struct ib_user_mad_hdr hdr;
-	__u64	data[0];
+	__aligned_u64	data[0];
 };
 
 /*
@@ -224,7 +225,7 @@ struct ib_user_mad_reg_req2 {
 	__u8	mgmt_class_version;
 	__u16   res;
 	__u32   flags;
-	__u64   method_mask[2];
+	__aligned_u64 method_mask[2];
 	__u32   oui;
 	__u8	rmpp_version;
 	__u8	reserved[3];

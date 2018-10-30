@@ -198,7 +198,7 @@ static int genwqe_jtimer_show(struct seq_file *s, void *unused)
 
 	jtimer = genwqe_read_vreg(cd, IO_SLC_VF_APPJOB_TIMEOUT, 0);
 	seq_printf(s, "  PF   0x%016llx %d msec\n", jtimer,
-		   genwqe_pf_jobtimeout_msec);
+		   GENWQE_PF_JOBTIMEOUT_MSEC);
 
 	for (vf_num = 0; vf_num < cd->num_vfs; vf_num++) {
 		jtimer = genwqe_read_vreg(cd, IO_SLC_VF_APPJOB_TIMEOUT,
@@ -305,7 +305,6 @@ GENWQE_DEBUGFS_RO(ddcb_info, genwqe_ddcb_info_show);
 static int genwqe_info_show(struct seq_file *s, void *unused)
 {
 	struct genwqe_dev *cd = s->private;
-	u16 val16, type;
 	u64 app_id, slu_id, bitstream = -1;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
@@ -314,9 +313,6 @@ static int genwqe_info_show(struct seq_file *s, void *unused)
 
 	if (genwqe_is_privileged(cd))
 		bitstream = __genwqe_readq(cd, IO_SLU_BITSTREAM);
-
-	val16 = (u16)(slu_id & 0x0fLLU);
-	type  = (u16)((slu_id >> 20) & 0xffLLU);
 
 	seq_printf(s, "%s driver version: %s\n"
 		   "    Device Name/Type: %s %s CardIdx: %d\n"

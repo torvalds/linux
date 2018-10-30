@@ -24,14 +24,12 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mb86a16.h"
 #include "mb86a16_priv.h"
 
 static unsigned int verbose = 5;
 module_param(verbose, int, 0644);
-
-#define ABS(x)		((x) < 0 ? (-x) : (x))
 
 struct mb86a16_state {
 	struct i2c_adapter		*i2c_adap;
@@ -635,6 +633,7 @@ static int sync_chk(struct mb86a16_state *state,
 	return sync;
 err:
 	dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
+	*VIRM = 0;
 	return -EREMOTEIO;
 
 }
@@ -1201,12 +1200,12 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 
 			signal_dupl = 0;
 			for (j = 0; j < prev_freq_num; j++) {
-				if ((ABS(prev_swp_freq[j] - swp_freq)) < (swp_ofs * 3 / 2)) {
+				if ((abs(prev_swp_freq[j] - swp_freq)) < (swp_ofs * 3 / 2)) {
 					signal_dupl = 1;
 					dprintk(verbose, MB86A16_INFO, 1, "Probably Duplicate Signal, j = %d", j);
 				}
 			}
-			if ((signal_dupl == 0) && (swp_freq > 0) && (ABS(swp_freq - state->frequency * 1000) < fcp + state->srate / 6)) {
+			if ((signal_dupl == 0) && (swp_freq > 0) && (abs(swp_freq - state->frequency * 1000) < fcp + state->srate / 6)) {
 				dprintk(verbose, MB86A16_DEBUG, 1, "------ Signal detect ------ [swp_freq=[%07d, srate=%05d]]", swp_freq, state->srate);
 				prev_swp_freq[prev_freq_num] = swp_freq;
 				prev_freq_num++;
@@ -1380,7 +1379,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 			dprintk(verbose, MB86A16_INFO, 1, "SWEEP Frequency = %d", swp_freq);
 			swp_freq += delta_freq;
 			dprintk(verbose, MB86A16_INFO, 1, "Adjusting .., DELTA Freq = %d, SWEEP Freq=%d", delta_freq, swp_freq);
-			if (ABS(state->frequency * 1000 - swp_freq) > 3800) {
+			if (abs(state->frequency * 1000 - swp_freq) > 3800) {
 				dprintk(verbose, MB86A16_INFO, 1, "NO  --  SIGNAL !");
 			} else {
 
@@ -1676,15 +1675,15 @@ static int mb86a16_read_ber(struct dvb_frontend *fe, u32 *ber)
 			 * the deinterleaver output.
 			 * monitored BER is expressed as a 20 bit output in total
 			 */
-			ber_rst = ber_mon >> 3;
+			ber_rst = (ber_mon >> 3) & 0x03;
 			*ber = (((ber_msb << 8) | ber_mid) << 8) | ber_lsb;
 			if (ber_rst == 0)
 				timer =  12500000;
-			if (ber_rst == 1)
+			else if (ber_rst == 1)
 				timer =  25000000;
-			if (ber_rst == 2)
+			else if (ber_rst == 2)
 				timer =  50000000;
-			if (ber_rst == 3)
+			else /* ber_rst == 3 */
 				timer = 100000000;
 
 			*ber /= timer;
@@ -1696,11 +1695,11 @@ static int mb86a16_read_ber(struct dvb_frontend *fe, u32 *ber)
 			 * QPSK demodulator output.
 			 * monitored BER is expressed as a 24 bit output in total
 			 */
-			ber_tim = ber_mon >> 1;
+			ber_tim = (ber_mon >> 1) & 0x01;
 			*ber = (((ber_msb << 8) | ber_mid) << 8) | ber_lsb;
 			if (ber_tim == 0)
 				timer = 16;
-			if (ber_tim == 1)
+			else /* ber_tim == 1 */
 				timer = 24;
 
 			*ber /= 2 ^ timer;
@@ -1809,10 +1808,9 @@ static const struct dvb_frontend_ops mb86a16_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Fujitsu MB86A16 DVB-S",
-		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
-		.frequency_stepsize	= 3000,
-		.frequency_tolerance	= 0,
+		.frequency_min_hz	=  950 * MHz,
+		.frequency_max_hz	= 2150 * MHz,
+		.frequency_stepsize_hz	=    3 * MHz,
 		.symbol_rate_min	= 1000000,
 		.symbol_rate_max	= 45000000,
 		.symbol_rate_tolerance	= 500,

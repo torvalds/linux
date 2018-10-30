@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_PGALLOC_32_H
 #define _ASM_POWERPC_PGALLOC_32_H
 
@@ -60,7 +61,8 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp,
 static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmdp,
 				pgtable_t pte_page)
 {
-	*pmdp = __pmd((page_to_pfn(pte_page) << PAGE_SHIFT) | _PMD_PRESENT);
+	*pmdp = __pmd((page_to_pfn(pte_page) << PAGE_SHIFT) | _PMD_USER |
+		      _PMD_PRESENT);
 }
 
 #define pmd_pgtable(pmd) pmd_page(pmd)
@@ -98,6 +100,7 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
 static inline void pgtable_free(void *table, unsigned index_size)
 {
 	if (!index_size) {
+		pgtable_page_dtor(virt_to_page(table));
 		free_page((unsigned long)table);
 	} else {
 		BUG_ON(index_size > MAX_PGTABLE_INDEX_SIZE);
@@ -106,6 +109,7 @@ static inline void pgtable_free(void *table, unsigned index_size)
 }
 
 #define check_pgt_cache()	do { } while (0)
+#define get_hugepd_cache_index(x)	(x)
 
 #ifdef CONFIG_SMP
 static inline void pgtable_free_tlb(struct mmu_gather *tlb,
@@ -136,7 +140,6 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
 				  unsigned long address)
 {
 	tlb_flush_pgtable(tlb, address);
-	pgtable_page_dtor(table);
 	pgtable_free_tlb(tlb, page_address(table), 0);
 }
 #endif /* _ASM_POWERPC_PGALLOC_32_H */

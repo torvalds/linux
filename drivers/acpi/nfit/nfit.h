@@ -24,7 +24,7 @@
 /* ACPI 6.1 */
 #define UUID_NFIT_BUS "2f10e7a4-9e91-11e4-89d3-123b93f75cba"
 
-/* http://pmem.io/documents/NVDIMM_DSM_Interface_Example.pdf */
+/* http://pmem.io/documents/NVDIMM_DSM_Interface-V1.6.pdf */
 #define UUID_NFIT_DIMM "4309ac30-0d11-11e4-9191-0800200c9a66"
 
 /* https://github.com/HewlettPackard/hpe-nvm/blob/master/Documentation/ */
@@ -37,6 +37,37 @@
 #define ACPI_NFIT_MEM_FAILED_MASK (ACPI_NFIT_MEM_SAVE_FAILED \
 		| ACPI_NFIT_MEM_RESTORE_FAILED | ACPI_NFIT_MEM_FLUSH_FAILED \
 		| ACPI_NFIT_MEM_NOT_ARMED | ACPI_NFIT_MEM_MAP_FAILED)
+
+#define NVDIMM_FAMILY_MAX NVDIMM_FAMILY_MSFT
+
+#define NVDIMM_STANDARD_CMDMASK \
+(1 << ND_CMD_SMART | 1 << ND_CMD_SMART_THRESHOLD | 1 << ND_CMD_DIMM_FLAGS \
+ | 1 << ND_CMD_GET_CONFIG_SIZE | 1 << ND_CMD_GET_CONFIG_DATA \
+ | 1 << ND_CMD_SET_CONFIG_DATA | 1 << ND_CMD_VENDOR_EFFECT_LOG_SIZE \
+ | 1 << ND_CMD_VENDOR_EFFECT_LOG | 1 << ND_CMD_VENDOR)
+
+/*
+ * Command numbers that the kernel needs to know about to handle
+ * non-default DSM revision ids
+ */
+enum nvdimm_family_cmds {
+	NVDIMM_INTEL_LATCH_SHUTDOWN = 10,
+	NVDIMM_INTEL_GET_MODES = 11,
+	NVDIMM_INTEL_GET_FWINFO = 12,
+	NVDIMM_INTEL_START_FWUPDATE = 13,
+	NVDIMM_INTEL_SEND_FWUPDATE = 14,
+	NVDIMM_INTEL_FINISH_FWUPDATE = 15,
+	NVDIMM_INTEL_QUERY_FWUPDATE = 16,
+	NVDIMM_INTEL_SET_THRESHOLD = 17,
+	NVDIMM_INTEL_INJECT_ERROR = 18,
+};
+
+#define NVDIMM_INTEL_CMDMASK \
+(NVDIMM_STANDARD_CMDMASK | 1 << NVDIMM_INTEL_GET_MODES \
+ | 1 << NVDIMM_INTEL_GET_FWINFO | 1 << NVDIMM_INTEL_START_FWUPDATE \
+ | 1 << NVDIMM_INTEL_SEND_FWUPDATE | 1 << NVDIMM_INTEL_FINISH_FWUPDATE \
+ | 1 << NVDIMM_INTEL_QUERY_FWUPDATE | 1 << NVDIMM_INTEL_SET_THRESHOLD \
+ | 1 << NVDIMM_INTEL_INJECT_ERROR | 1 << NVDIMM_INTEL_LATCH_SHUTDOWN)
 
 enum nfit_uuids {
 	/* for simplicity alias the uuid index with the family id */
@@ -86,10 +117,16 @@ enum nfit_dimm_notifiers {
 	NFIT_NOTIFY_DIMM_HEALTH = 0x81,
 };
 
+enum nfit_ars_state {
+	ARS_REQ_SHORT,
+	ARS_REQ_LONG,
+	ARS_FAILED,
+};
+
 struct nfit_spa {
 	struct list_head list;
 	struct nd_region *nd_region;
-	unsigned int ars_required:1;
+	unsigned long ars_state;
 	u32 clear_err_unit;
 	u32 max_ars;
 	struct acpi_nfit_system_address spa[0];
@@ -120,6 +157,13 @@ struct nfit_memdev {
 	struct acpi_nfit_memory_map memdev[0];
 };
 
+enum nfit_mem_flags {
+	NFIT_MEM_LSR,
+	NFIT_MEM_LSW,
+	NFIT_MEM_DIRTY,
+	NFIT_MEM_DIRTY_COUNT,
+};
+
 /* assembled tables for a given dimm/memory-device */
 struct nfit_mem {
 	struct nvdimm *nvdimm;
@@ -139,6 +183,8 @@ struct nfit_mem {
 	struct acpi_nfit_desc *acpi_desc;
 	struct resource *flush_wpq;
 	unsigned long dsm_mask;
+	unsigned long flags;
+	u32 dirty_shutdown;
 	int family;
 };
 
@@ -157,16 +203,20 @@ struct acpi_nfit_desc {
 	struct device *dev;
 	u8 ars_start_flags;
 	struct nd_cmd_ars_status *ars_status;
-	size_t ars_status_size;
-	struct work_struct work;
+	struct nfit_spa *scrub_spa;
+	struct delayed_work dwork;
 	struct list_head list;
 	struct kernfs_node *scrub_count_state;
+	unsigned int max_ars;
 	unsigned int scrub_count;
 	unsigned int scrub_mode;
+	unsigned int scrub_busy:1;
 	unsigned int cancel:1;
-	unsigned int init_complete:1;
 	unsigned long dimm_cmd_force_en;
 	unsigned long bus_cmd_force_en;
+	unsigned long bus_nfit_cmd_force_en;
+	unsigned int platform_cap;
+	unsigned int scrub_tmo;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 };
@@ -208,7 +258,8 @@ struct nfit_blk {
 
 extern struct list_head acpi_descs;
 extern struct mutex acpi_desc_lock;
-int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, u8 flags);
+int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc,
+		enum nfit_ars_state req_type);
 
 #ifdef CONFIG_X86_MCE
 void nfit_mce_register(void);

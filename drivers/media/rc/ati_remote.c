@@ -198,7 +198,7 @@ static const struct ati_receiver_type type_firefly	= {
 	.default_keymap = RC_MAP_SNAPSTREAM_FIREFLY
 };
 
-static struct usb_device_id ati_remote_table[] = {
+static const struct usb_device_id ati_remote_table[] = {
 	{
 		USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA_REMOTE_PRODUCT_ID),
 		.driver_info = (unsigned long)&type_ati
@@ -862,7 +862,7 @@ static int ati_remote_probe(struct usb_interface *interface,
 	ati_remote->interface = interface;
 
 	usb_make_path(udev, ati_remote->rc_phys, sizeof(ati_remote->rc_phys));
-	strlcpy(ati_remote->mouse_phys, ati_remote->rc_phys,
+	strscpy(ati_remote->mouse_phys, ati_remote->rc_phys,
 		sizeof(ati_remote->mouse_phys));
 
 	strlcat(ati_remote->rc_phys, "/input0", sizeof(ati_remote->rc_phys));

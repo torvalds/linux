@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_CACHE_H
 #define _ASM_POWERPC_CACHE_H
 
@@ -8,11 +9,14 @@
 #if defined(CONFIG_PPC_8xx) || defined(CONFIG_403GCX)
 #define L1_CACHE_SHIFT		4
 #define MAX_COPY_PREFETCH	1
+#define IFETCH_ALIGN_SHIFT	2
 #elif defined(CONFIG_PPC_E500MC)
 #define L1_CACHE_SHIFT		6
 #define MAX_COPY_PREFETCH	4
+#define IFETCH_ALIGN_SHIFT	3
 #elif defined(CONFIG_PPC32)
 #define MAX_COPY_PREFETCH	4
+#define IFETCH_ALIGN_SHIFT	3	/* 603 fetches 2 insn at a time */
 #if defined(CONFIG_PPC_47x)
 #define L1_CACHE_SHIFT		7
 #else

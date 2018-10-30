@@ -33,9 +33,6 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 
-//#define printd(x...) printk(x)
-#define printd(x...) do { } while(0)
-
 /* 
  * Note:
  * The kernel provides one architecture bit PG_arch_1 in the page flags that 
@@ -130,7 +127,7 @@ EXPORT_SYMBOL(copy_user_highpage);
 
 void flush_dcache_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
+	struct address_space *mapping = page_mapping_file(page);
 
 	/*
 	 * If we have a mapping but the page is not mapped to user-space

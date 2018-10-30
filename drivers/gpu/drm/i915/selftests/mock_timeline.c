@@ -1,45 +1,28 @@
 /*
- * Copyright © 2017 Intel Corporation
+ * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
+ * Copyright © 2017-2018 Intel Corporation
  */
+
+#include "../i915_timeline.h"
 
 #include "mock_timeline.h"
 
-struct intel_timeline *mock_timeline(u64 context)
+void mock_timeline_init(struct i915_timeline *timeline, u64 context)
 {
-	static struct lock_class_key class;
-	struct intel_timeline *tl;
+	timeline->fence_context = context;
 
-	tl = kzalloc(sizeof(*tl), GFP_KERNEL);
-	if (!tl)
-		return NULL;
+	spin_lock_init(&timeline->lock);
 
-	__intel_timeline_init(tl, NULL, context, &class, "mock");
+	init_request_active(&timeline->last_request, NULL);
+	INIT_LIST_HEAD(&timeline->requests);
 
-	return tl;
+	i915_syncmap_init(&timeline->sync);
+
+	INIT_LIST_HEAD(&timeline->link);
 }
 
-void mock_timeline_destroy(struct intel_timeline *tl)
+void mock_timeline_fini(struct i915_timeline *timeline)
 {
-	__intel_timeline_fini(tl);
-	kfree(tl);
+	i915_timeline_fini(timeline);
 }

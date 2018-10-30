@@ -67,7 +67,7 @@
 #define AUX_NATIVE_REPLY_NAK    (0x1 << 4)
 #define AUX_NATIVE_REPLY_DEFER  (0x2 << 4)
 
-#define AUX_BURST_SIZE          16
+#define AUX_BURST_SIZE          20
 
 /* DPCD addresses */
 #define DPCD_REV			0x000
@@ -178,5 +178,7 @@ void intel_gvt_check_vblank_emulation(struct intel_gvt *gvt);
 int intel_vgpu_init_display(struct intel_vgpu *vgpu, u64 resolution);
 void intel_vgpu_reset_display(struct intel_vgpu *vgpu);
 void intel_vgpu_clean_display(struct intel_vgpu *vgpu);
+
+int pipe_is_enabled(struct intel_vgpu *vgpu, int pipe);
 
 #endif

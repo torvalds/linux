@@ -41,11 +41,6 @@ u64 i915_prandom_u64_state(struct rnd_state *rnd)
 	return x;
 }
 
-static inline u32 i915_prandom_u32_max_state(u32 ep_ro, struct rnd_state *state)
-{
-	return upper_32_bits((u64)prandom_u32_state(state) * ep_ro);
-}
-
 void i915_random_reorder(unsigned int *order, unsigned int count,
 			 struct rnd_state *state)
 {
@@ -62,7 +57,8 @@ unsigned int *i915_random_order(unsigned int count, struct rnd_state *state)
 {
 	unsigned int *order, i;
 
-	order = kmalloc_array(count, sizeof(*order), GFP_KERNEL);
+	order = kmalloc_array(count, sizeof(*order),
+			      GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 	if (!order)
 		return order;
 

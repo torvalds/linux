@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM cgroup
 
@@ -52,24 +53,22 @@ DEFINE_EVENT(cgroup_root, cgroup_remount,
 
 DECLARE_EVENT_CLASS(cgroup,
 
-	TP_PROTO(struct cgroup *cgrp),
+	TP_PROTO(struct cgroup *cgrp, const char *path),
 
-	TP_ARGS(cgrp),
+	TP_ARGS(cgrp, path),
 
 	TP_STRUCT__entry(
 		__field(	int,		root			)
 		__field(	int,		id			)
 		__field(	int,		level			)
-		__dynamic_array(char,		path,
-				cgroup_path(cgrp, NULL, 0) + 1)
+		__string(	path,		path			)
 	),
 
 	TP_fast_assign(
 		__entry->root = cgrp->root->hierarchy_id;
 		__entry->id = cgrp->id;
 		__entry->level = cgrp->level;
-		cgroup_path(cgrp, __get_dynamic_array(path),
-				  __get_dynamic_array_len(path));
+		__assign_str(path, path);
 	),
 
 	TP_printk("root=%d id=%d level=%d path=%s",
@@ -78,45 +77,45 @@ DECLARE_EVENT_CLASS(cgroup,
 
 DEFINE_EVENT(cgroup, cgroup_mkdir,
 
-	TP_PROTO(struct cgroup *cgroup),
+	TP_PROTO(struct cgroup *cgrp, const char *path),
 
-	TP_ARGS(cgroup)
+	TP_ARGS(cgrp, path)
 );
 
 DEFINE_EVENT(cgroup, cgroup_rmdir,
 
-	TP_PROTO(struct cgroup *cgroup),
+	TP_PROTO(struct cgroup *cgrp, const char *path),
 
-	TP_ARGS(cgroup)
+	TP_ARGS(cgrp, path)
 );
 
 DEFINE_EVENT(cgroup, cgroup_release,
 
-	TP_PROTO(struct cgroup *cgroup),
+	TP_PROTO(struct cgroup *cgrp, const char *path),
 
-	TP_ARGS(cgroup)
+	TP_ARGS(cgrp, path)
 );
 
 DEFINE_EVENT(cgroup, cgroup_rename,
 
-	TP_PROTO(struct cgroup *cgroup),
+	TP_PROTO(struct cgroup *cgrp, const char *path),
 
-	TP_ARGS(cgroup)
+	TP_ARGS(cgrp, path)
 );
 
 DECLARE_EVENT_CLASS(cgroup_migrate,
 
-	TP_PROTO(struct cgroup *dst_cgrp, struct task_struct *task, bool threadgroup),
+	TP_PROTO(struct cgroup *dst_cgrp, const char *path,
+		 struct task_struct *task, bool threadgroup),
 
-	TP_ARGS(dst_cgrp, task, threadgroup),
+	TP_ARGS(dst_cgrp, path, task, threadgroup),
 
 	TP_STRUCT__entry(
 		__field(	int,		dst_root		)
 		__field(	int,		dst_id			)
 		__field(	int,		dst_level		)
-		__dynamic_array(char,		dst_path,
-				cgroup_path(dst_cgrp, NULL, 0) + 1)
 		__field(	int,		pid			)
+		__string(	dst_path,	path			)
 		__string(	comm,		task->comm		)
 	),
 
@@ -124,8 +123,7 @@ DECLARE_EVENT_CLASS(cgroup_migrate,
 		__entry->dst_root = dst_cgrp->root->hierarchy_id;
 		__entry->dst_id = dst_cgrp->id;
 		__entry->dst_level = dst_cgrp->level;
-		cgroup_path(dst_cgrp, __get_dynamic_array(dst_path),
-				      __get_dynamic_array_len(dst_path));
+		__assign_str(dst_path, path);
 		__entry->pid = task->pid;
 		__assign_str(comm, task->comm);
 	),
@@ -137,16 +135,18 @@ DECLARE_EVENT_CLASS(cgroup_migrate,
 
 DEFINE_EVENT(cgroup_migrate, cgroup_attach_task,
 
-	TP_PROTO(struct cgroup *dst_cgrp, struct task_struct *task, bool threadgroup),
+	TP_PROTO(struct cgroup *dst_cgrp, const char *path,
+		 struct task_struct *task, bool threadgroup),
 
-	TP_ARGS(dst_cgrp, task, threadgroup)
+	TP_ARGS(dst_cgrp, path, task, threadgroup)
 );
 
 DEFINE_EVENT(cgroup_migrate, cgroup_transfer_tasks,
 
-	TP_PROTO(struct cgroup *dst_cgrp, struct task_struct *task, bool threadgroup),
+	TP_PROTO(struct cgroup *dst_cgrp, const char *path,
+		 struct task_struct *task, bool threadgroup),
 
-	TP_ARGS(dst_cgrp, task, threadgroup)
+	TP_ARGS(dst_cgrp, path, task, threadgroup)
 );
 
 #endif /* _TRACE_CGROUP_H */

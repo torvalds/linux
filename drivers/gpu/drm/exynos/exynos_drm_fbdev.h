@@ -19,10 +19,6 @@
 
 int exynos_drm_fbdev_init(struct drm_device *dev);
 void exynos_drm_fbdev_fini(struct drm_device *dev);
-void exynos_drm_fbdev_restore_mode(struct drm_device *dev);
-void exynos_drm_output_poll_changed(struct drm_device *dev);
-void exynos_drm_fbdev_suspend(struct drm_device *drm);
-void exynos_drm_fbdev_resume(struct drm_device *drm);
 
 #else
 
@@ -40,14 +36,6 @@ static inline void exynos_drm_fbdev_restore_mode(struct drm_device *dev)
 }
 
 #define exynos_drm_output_poll_changed (NULL)
-
-static inline void exynos_drm_fbdev_suspend(struct drm_device *drm)
-{
-}
-
-static inline void exynos_drm_fbdev_resume(struct drm_device *drm)
-{
-}
 
 #endif
 

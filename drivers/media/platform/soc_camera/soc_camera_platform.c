@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generic Platform Camera Driver
  *
  * Copyright (C) 2008 Magnus Damm
  * Based on mt9m001 driver,
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -159,7 +156,8 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 
 	v4l2_subdev_init(&priv->subdev, &platform_subdev_ops);
 	v4l2_set_subdevdata(&priv->subdev, p);
-	strncpy(priv->subdev.name, dev_name(&pdev->dev), V4L2_SUBDEV_NAME_SIZE);
+	strscpy(priv->subdev.name, dev_name(&pdev->dev),
+		sizeof(priv->subdev.name));
 
 	return v4l2_device_register_subdev(&ici->v4l2_dev, &priv->subdev);
 }

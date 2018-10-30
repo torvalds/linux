@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * PIC32 Integrated Serial Driver.
  *
@@ -5,8 +6,6 @@
  *
  * Authors:
  *   Sorin-Andrei Pistirica <andrei.pistirica@microchip.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/kernel.h>

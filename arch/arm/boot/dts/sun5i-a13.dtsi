@@ -88,8 +88,8 @@
 		allwinner,pipelines = <&fe0>;
 	};
 
-	soc@01c00000 {
-		pwm: pwm@01c20e00 {
+	soc@1c00000 {
+		pwm: pwm@1c20e00 {
 			compatible = "allwinner,sun5i-a13-pwm";
 			reg = <0x01c20e00 0xc>;
 			clocks = <&ccu CLK_HOSC>;
@@ -116,8 +116,6 @@
 		432000	1200000
 		>;
 	#cooling-cells = <2>;
-	cooling-min-level = <0>;
-	cooling-max-level = <5>;
 };
 
 &pio {

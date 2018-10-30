@@ -9,7 +9,7 @@
 
 / {
 	model = "HP t410 Smart Zero Client";
-	compatible = "hp,t410", "ti,dm8148";
+	compatible = "hp,t410", "ti,dm8148", "ti,dm814";
 
 	memory@80000000 {
 		device_type = "memory";
@@ -36,13 +36,23 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <1>;
+	phy-handle = <&ethphy1>;
 	phy-mode = "rgmii";
+};
+
+&davinci_mdio {
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &mmc1 {
@@ -77,7 +87,7 @@
 			DM814X_IOPAD(0x09dc, PIN_INPUT_PULLUP | 0x1)	/* SD2_DAT[0] */
 			DM814X_IOPAD(0x09e0, PIN_INPUT | 0x1)		/* SD2_CLK */
 			DM814X_IOPAD(0x09f4, PIN_INPUT_PULLUP | 0x2)	/* SD2_CMD */
-			DM814X_IOPAD(0x0920, PIN_INPUT | 40)	/* SD2_SDCD */
+			DM814X_IOPAD(0x0920, PIN_INPUT | 0x40)	/* SD2_SDCD */
 			>;
 	};
 

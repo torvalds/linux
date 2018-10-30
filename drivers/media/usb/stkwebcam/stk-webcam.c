@@ -567,8 +567,9 @@ static int stk_prepare_sio_buffers(struct stk_camera *dev, unsigned n_sbufs)
 	if (dev->sio_bufs != NULL)
 		pr_err("sio_bufs already allocated\n");
 	else {
-		dev->sio_bufs = kzalloc(n_sbufs * sizeof(struct stk_sio_buffer),
-				GFP_KERNEL);
+		dev->sio_bufs = kcalloc(n_sbufs,
+					sizeof(struct stk_sio_buffer),
+					GFP_KERNEL);
 		if (dev->sio_bufs == NULL)
 			return -ENOMEM;
 		for (i = 0; i < n_sbufs; i++) {
@@ -721,18 +722,18 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 	return ret;
 }
 
-static unsigned int v4l_stk_poll(struct file *fp, poll_table *wait)
+static __poll_t v4l_stk_poll(struct file *fp, poll_table *wait)
 {
 	struct stk_camera *dev = video_drvdata(fp);
-	unsigned res = v4l2_ctrl_poll(fp, wait);
+	__poll_t res = v4l2_ctrl_poll(fp, wait);
 
 	poll_wait(fp, &dev->wait_frame, wait);
 
 	if (!is_present(dev))
-		return POLLERR;
+		return EPOLLERR;
 
 	if (!list_empty(&dev->sio_full))
-		return res | POLLIN | POLLRDNORM;
+		return res | EPOLLIN | EPOLLRDNORM;
 
 	return res;
 }
@@ -792,8 +793,8 @@ static int stk_vidioc_querycap(struct file *filp,
 {
 	struct stk_camera *dev = video_drvdata(filp);
 
-	strcpy(cap->driver, "stk");
-	strcpy(cap->card, "stk");
+	strscpy(cap->driver, "stk", sizeof(cap->driver));
+	strscpy(cap->card, "stk", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
@@ -808,7 +809,7 @@ static int stk_vidioc_enum_input(struct file *filp,
 	if (input->index != 0)
 		return -EINVAL;
 
-	strcpy(input->name, "Syntek USB Camera");
+	strscpy(input->name, "Syntek USB Camera", sizeof(input->name));
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	return 0;
 }
@@ -858,23 +859,23 @@ static int stk_vidioc_enum_fmt_vid_cap(struct file *filp,
 	switch (fmtd->index) {
 	case 0:
 		fmtd->pixelformat = V4L2_PIX_FMT_RGB565;
-		strcpy(fmtd->description, "r5g6b5");
+		strscpy(fmtd->description, "r5g6b5", sizeof(fmtd->description));
 		break;
 	case 1:
 		fmtd->pixelformat = V4L2_PIX_FMT_RGB565X;
-		strcpy(fmtd->description, "r5g6b5BE");
+		strscpy(fmtd->description, "r5g6b5BE", sizeof(fmtd->description));
 		break;
 	case 2:
 		fmtd->pixelformat = V4L2_PIX_FMT_UYVY;
-		strcpy(fmtd->description, "yuv4:2:2");
+		strscpy(fmtd->description, "yuv4:2:2", sizeof(fmtd->description));
 		break;
 	case 3:
 		fmtd->pixelformat = V4L2_PIX_FMT_SBGGR8;
-		strcpy(fmtd->description, "Raw bayer");
+		strscpy(fmtd->description, "Raw bayer", sizeof(fmtd->description));
 		break;
 	case 4:
 		fmtd->pixelformat = V4L2_PIX_FMT_YUYV;
-		strcpy(fmtd->description, "yuv4:2:2");
+		strscpy(fmtd->description, "yuv4:2:2", sizeof(fmtd->description));
 		break;
 	default:
 		return -EINVAL;
@@ -1241,7 +1242,6 @@ static void stk_v4l_dev_release(struct video_device *vd)
 	if (dev->sio_bufs != NULL || dev->isobufs != NULL)
 		pr_err("We are leaking memory\n");
 	usb_put_intf(dev->interface);
-	kfree(dev);
 }
 
 static const struct video_device stk_v4l_data = {
@@ -1391,6 +1391,7 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 	video_unregister_device(&dev->vdev);
 	v4l2_ctrl_handler_free(&dev->hdl);
 	v4l2_device_unregister(&dev->v4l2_dev);
+	kfree(dev);
 }
 
 #ifdef CONFIG_PM

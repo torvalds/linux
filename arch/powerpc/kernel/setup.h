@@ -45,6 +45,13 @@ void emergency_stack_init(void);
 static inline void emergency_stack_init(void) { };
 #endif
 
+#ifdef CONFIG_PPC64
+u64 ppc64_bolted_size(void);
+
+/* Default SPR values from firmware/kexec */
+extern unsigned long spr_default_dscr;
+#endif
+
 /*
  * Having this in kvm_ppc.h makes include dependencies too
  * tricky to solve for setup-common.c so have it here.
@@ -54,5 +61,11 @@ void kvm_cma_reserve(void);
 #else
 static inline void kvm_cma_reserve(void) { };
 #endif
+
+#ifdef CONFIG_TAU
+u32 cpu_temp(unsigned long cpu);
+u32 cpu_temp_both(unsigned long cpu);
+u32 tau_interrupts(unsigned long cpu);
+#endif /* CONFIG_TAU */
 
 #endif /* __ARCH_POWERPC_KERNEL_SETUP_H */

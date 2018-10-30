@@ -1,124 +1,197 @@
-/*
- * Device Tree Source for UniPhier SoCs default pinctrl settings
- *
- * Copyright (C) 2015-2017 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- */
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier SoCs default pinctrl settings
+//
+// Copyright (C) 2015-2017 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
 &pinctrl {
-	pinctrl_aout: aout_grp {
+	pinctrl_aout: aout {
 		groups = "aout";
 		function = "aout";
 	};
 
-	pinctrl_emmc: emmc_grp {
+	pinctrl_ain1: ain1 {
+		groups = "ain1";
+		function = "ain1";
+	};
+
+	pinctrl_ain2: ain2 {
+		groups = "ain2";
+		function = "ain2";
+	};
+
+	pinctrl_ainiec1: ainiec1 {
+		groups = "ainiec1";
+		function = "ainiec1";
+	};
+
+	pinctrl_aout1: aout1 {
+		groups = "aout1";
+		function = "aout1";
+	};
+
+	pinctrl_aout2: aout2 {
+		groups = "aout2";
+		function = "aout2";
+	};
+
+	pinctrl_aout3: aout3 {
+		groups = "aout3";
+		function = "aout3";
+	};
+
+	pinctrl_aoutiec1: aoutiec1 {
+		groups = "aoutiec1";
+		function = "aoutiec1";
+	};
+
+	pinctrl_aoutiec2: aoutiec2 {
+		groups = "aoutiec2";
+		function = "aoutiec2";
+	};
+
+	pinctrl_emmc: emmc {
 		groups = "emmc", "emmc_dat8";
 		function = "emmc";
 	};
 
-	pinctrl_ether_mii: ether_mii_grp {
+	pinctrl_ether_mii: ether-mii {
 		groups = "ether_mii";
 		function = "ether_mii";
 	};
 
-	pinctrl_ether_rgmii: ether_rgmii_grp {
+	pinctrl_ether_rgmii: ether-rgmii {
 		groups = "ether_rgmii";
 		function = "ether_rgmii";
 	};
 
-	pinctrl_ether_rmii: ether_rmii_grp {
+	pinctrl_ether_rmii: ether-rmii {
 		groups = "ether_rmii";
 		function = "ether_rmii";
 	};
 
-	pinctrl_i2c0: i2c0_grp {
+	pinctrl_ether1_rgmii: ether1-rgmii {
+		groups = "ether1_rgmii";
+		function = "ether1_rgmii";
+	};
+
+	pinctrl_ether1_rmii: ether1-rmii {
+		groups = "ether1_rmii";
+		function = "ether1_rmii";
+	};
+
+	pinctrl_i2c0: i2c0 {
 		groups = "i2c0";
 		function = "i2c0";
 	};
 
-	pinctrl_i2c1: i2c1_grp {
+	pinctrl_i2c1: i2c1 {
 		groups = "i2c1";
 		function = "i2c1";
 	};
 
-	pinctrl_i2c2: i2c2_grp {
+	pinctrl_i2c2: i2c2 {
 		groups = "i2c2";
 		function = "i2c2";
 	};
 
-	pinctrl_i2c3: i2c3_grp {
+	pinctrl_i2c3: i2c3 {
 		groups = "i2c3";
 		function = "i2c3";
 	};
 
-	pinctrl_i2c4: i2c4_grp {
+	pinctrl_i2c4: i2c4 {
 		groups = "i2c4";
 		function = "i2c4";
 	};
 
-	pinctrl_nand: nand_grp {
+	pinctrl_nand: nand {
 		groups = "nand";
 		function = "nand";
 	};
 
-	pinctrl_nand2cs: nand2cs_grp {
+	pinctrl_nand2cs: nand2cs {
 		groups = "nand", "nand_cs1";
 		function = "nand";
 	};
 
-	pinctrl_sd: sd_grp {
+	pinctrl_sd: sd {
 		groups = "sd";
 		function = "sd";
 	};
 
-	pinctrl_sd1: sd1_grp {
+	pinctrl_sd_uhs: sd-uhs {
+		groups = "sd";
+		function = "sd";
+	};
+
+	pinctrl_sd1: sd1 {
 		groups = "sd1";
 		function = "sd1";
 	};
 
-	pinctrl_system_bus: system_bus_grp {
+	pinctrl_spi0: spi0 {
+		groups = "spi0";
+		function = "spi0";
+	};
+
+	pinctrl_spi1: spi1 {
+		groups = "spi1";
+		function = "spi1";
+	};
+
+	pinctrl_spi2: spi2 {
+		groups = "spi2";
+		function = "spi2";
+	};
+
+	pinctrl_spi3: spi3 {
+		groups = "spi3";
+		function = "spi3";
+	};
+
+	pinctrl_system_bus: system-bus {
 		groups = "system_bus", "system_bus_cs1";
 		function = "system_bus";
 	};
 
-	pinctrl_uart0: uart0_grp {
+	pinctrl_uart0: uart0 {
 		groups = "uart0";
 		function = "uart0";
 	};
 
-	pinctrl_uart1: uart1_grp {
+	pinctrl_uart1: uart1 {
 		groups = "uart1";
 		function = "uart1";
 	};
 
-	pinctrl_uart2: uart2_grp {
+	pinctrl_uart2: uart2 {
 		groups = "uart2";
 		function = "uart2";
 	};
 
-	pinctrl_uart3: uart3_grp {
+	pinctrl_uart3: uart3 {
 		groups = "uart3";
 		function = "uart3";
 	};
 
-	pinctrl_usb0: usb0_grp {
+	pinctrl_usb0: usb0 {
 		groups = "usb0";
 		function = "usb0";
 	};
 
-	pinctrl_usb1: usb1_grp {
+	pinctrl_usb1: usb1 {
 		groups = "usb1";
 		function = "usb1";
 	};
 
-	pinctrl_usb2: usb2_grp {
+	pinctrl_usb2: usb2 {
 		groups = "usb2";
 		function = "usb2";
 	};
 
-	pinctrl_usb3: usb3_grp {
+	pinctrl_usb3: usb3 {
 		groups = "usb3";
 		function = "usb3";
 	};

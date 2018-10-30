@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for STMicroelectronics STM32 I2C controller
  *
@@ -6,11 +7,11 @@
  * http://www.st.com/resource/en/reference_manual/DM00031020.pdf
  *
  * Copyright (C) M'boumba Cedric Madianga 2016
+ * Copyright (C) STMicroelectronics 2017
  * Author: M'boumba Cedric Madianga <cedric.madianga@gmail.com>
  *
  * This driver is based on i2c-st.c
  *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/clk.h>
@@ -348,7 +349,7 @@ static void stm32f4_i2c_read_msg(struct stm32f4_i2c_dev *i2c_dev)
 static void stm32f4_i2c_terminate_xfer(struct stm32f4_i2c_dev *i2c_dev)
 {
 	struct stm32f4_i2c_msg *msg = &i2c_dev->msg;
-	void __iomem *reg = i2c_dev->base + STM32F4_I2C_CR2;
+	void __iomem *reg;
 
 	stm32f4_i2c_disable_irq(i2c_dev);
 

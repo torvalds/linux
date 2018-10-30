@@ -499,10 +499,14 @@
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
 };
 
@@ -518,4 +522,18 @@
 
 &cpu {
 	cpu0-supply = <&tps>;
+};
+
+&cpu0_opp_table {
+	/*
+	 * Supply voltage supervisor on board will not allow opp50 so
+	 * disable it and set opp100 as suspend OPP.
+	 */
+	opp50@300000000 {
+		status = "disabled";
+	};
+
+	opp100@600000000 {
+		opp-suspend;
+	};
 };

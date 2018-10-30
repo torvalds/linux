@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  *  include/linux/eventpoll.h ( Efficient event polling implementation )
  *  Copyright (C) 2001,...,2006	 Davide Libenzi
@@ -27,20 +28,21 @@
 #define EPOLL_CTL_MOD 3
 
 /* Epoll event masks */
-#define EPOLLIN		0x00000001
-#define EPOLLPRI	0x00000002
-#define EPOLLOUT	0x00000004
-#define EPOLLERR	0x00000008
-#define EPOLLHUP	0x00000010
-#define EPOLLRDNORM	0x00000040
-#define EPOLLRDBAND	0x00000080
-#define EPOLLWRNORM	0x00000100
-#define EPOLLWRBAND	0x00000200
-#define EPOLLMSG	0x00000400
-#define EPOLLRDHUP	0x00002000
+#define EPOLLIN		(__force __poll_t)0x00000001
+#define EPOLLPRI	(__force __poll_t)0x00000002
+#define EPOLLOUT	(__force __poll_t)0x00000004
+#define EPOLLERR	(__force __poll_t)0x00000008
+#define EPOLLHUP	(__force __poll_t)0x00000010
+#define EPOLLNVAL	(__force __poll_t)0x00000020
+#define EPOLLRDNORM	(__force __poll_t)0x00000040
+#define EPOLLRDBAND	(__force __poll_t)0x00000080
+#define EPOLLWRNORM	(__force __poll_t)0x00000100
+#define EPOLLWRBAND	(__force __poll_t)0x00000200
+#define EPOLLMSG	(__force __poll_t)0x00000400
+#define EPOLLRDHUP	(__force __poll_t)0x00002000
 
 /* Set exclusive wakeup mode for the target file descriptor */
-#define EPOLLEXCLUSIVE (1U << 28)
+#define EPOLLEXCLUSIVE	((__force __poll_t)(1U << 28))
 
 /*
  * Request the handling of system wakeup events so as to prevent system suspends
@@ -52,13 +54,13 @@
  *
  * Requires CAP_BLOCK_SUSPEND
  */
-#define EPOLLWAKEUP (1U << 29)
+#define EPOLLWAKEUP	((__force __poll_t)(1U << 29))
 
 /* Set the One Shot behaviour for the target file descriptor */
-#define EPOLLONESHOT (1U << 30)
+#define EPOLLONESHOT	((__force __poll_t)(1U << 30))
 
 /* Set the Edge Triggered behaviour for the target file descriptor */
-#define EPOLLET (1U << 31)
+#define EPOLLET		((__force __poll_t)(1U << 31))
 
 /* 
  * On x86-64 make the 64bit structure have the same alignment as the
@@ -73,7 +75,7 @@
 #endif
 
 struct epoll_event {
-	__u32 events;
+	__poll_t events;
 	__u64 data;
 } EPOLL_PACKED;
 

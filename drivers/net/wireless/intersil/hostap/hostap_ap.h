@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef HOSTAP_AP_H
 #define HOSTAP_AP_H
 

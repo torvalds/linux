@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2013-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -145,7 +145,7 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 	fft_sample->noise = __cpu_to_be16(phyerr->nf_chains[chain_idx]);
 
 	bins = (u8 *)fftr;
-	bins += sizeof(*fftr);
+	bins += sizeof(*fftr) + ar->hw_params.spectral_bin_offset;
 
 	fft_sample->tsf = __cpu_to_be64(tsf);
 
@@ -406,7 +406,7 @@ static ssize_t write_file_spectral_count(struct file *file,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 255)
+	if (val > 255)
 		return -EINVAL;
 
 	mutex_lock(&ar->conf_mutex);

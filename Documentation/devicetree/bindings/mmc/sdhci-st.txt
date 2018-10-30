@@ -20,7 +20,7 @@ Required properties:
 
 - pinctrl-names:	A pinctrl state names "default" must be defined.
 - pinctrl-0:		Phandle referencing pin configuration of the sd/emmc controller.
-			See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+			See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 - reg:			This must provide the host controller base address and it can also
 			contain the FlashSS Top register for TX/RX delay used by the driver
@@ -74,7 +74,7 @@ mmc0: sdhci@fe81e000 {
 
 /* Example SD stih407 family configuration */
 
-mmc1: sdhci@09080000 {
+mmc1: sdhci@9080000 {
 	compatible	= "st,sdhci-stih407", "st,sdhci";
 	reg		= <0x09080000 0x7ff>;
 	reg-names	= "mmc";
@@ -90,7 +90,7 @@ mmc1: sdhci@09080000 {
 
 /* Example eMMC stih407 family configuration */
 
-mmc0: sdhci@09060000 {
+mmc0: sdhci@9060000 {
 	compatible	= "st,sdhci-stih407", "st,sdhci";
 	reg		= <0x09060000 0x7ff>, <0x9061008 0x20>;
 	reg-names	= "mmc", "top-mmc-delay";

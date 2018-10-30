@@ -49,8 +49,8 @@ The mmu supports first-generation mmu hardware, which allows an atomic switch
 of the current paging mode and cr3 during guest entry, as well as
 two-dimensional paging (AMD's NPT and Intel's EPT).  The emulated hardware
 it exposes is the traditional 2/3/4 level x86 mmu, with support for global
-pages, pae, pse, pse36, cr0.wp, and 1GB pages.  Work is in progress to support
-exposing NPT capable hardware on NPT capable hosts.
+pages, pae, pse, pse36, cr0.wp, and 1GB pages. Emulated hardware also
+able to expose NPT capable hardware on NPT capable hosts.
 
 Translation
 ===========
@@ -465,5 +465,5 @@ Further reading
 ===============
 
 - NPT presentation from KVM Forum 2008
-  http://www.linux-kvm.org/wiki/images/c/c8/KvmForum2008%24kdf2008_21.pdf
+  http://www.linux-kvm.org/images/c/c8/KvmForum2008%24kdf2008_21.pdf
 

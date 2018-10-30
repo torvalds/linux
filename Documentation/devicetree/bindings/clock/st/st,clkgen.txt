@@ -31,10 +31,10 @@ This binding uses the common clock binding[1].
 Each subnode should use the binding described in [2]..[7]
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
-[3] Documentation/devicetree/bindings/clock/st,clkgen-mux.txt
-[4] Documentation/devicetree/bindings/clock/st,clkgen-pll.txt
-[7] Documentation/devicetree/bindings/clock/st,quadfs.txt
-[8] Documentation/devicetree/bindings/clock/st,flexgen.txt
+[3] Documentation/devicetree/bindings/clock/st/st,clkgen-mux.txt
+[4] Documentation/devicetree/bindings/clock/st/st,clkgen-pll.txt
+[7] Documentation/devicetree/bindings/clock/st/st,quadfs.txt
+[8] Documentation/devicetree/bindings/clock/st/st,flexgen.txt
 
 
 Required properties:
@@ -42,7 +42,7 @@ Required properties:
 
 Example:
 
-	clockgen-a@090ff000 {
+	clockgen-a@90ff000 {
 		compatible = "st,clkgen-c32";
 		reg = <0x90ff000 0x1000>;
 

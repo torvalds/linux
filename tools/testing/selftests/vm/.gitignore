@@ -1,6 +1,7 @@
 hugepage-mmap
 hugepage-shm
 map_hugetlb
+map_populate
 thuge-gen
 compaction_test
 mlock2-tests
@@ -8,3 +9,8 @@ on-fault-limit
 transhuge-stress
 userfaultfd
 mlock-intersect-test
+mlock-random-test
+virtual_address_range
+gup_benchmark
+va_128TBswitch
+map_fixed_noreplace

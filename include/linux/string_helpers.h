@@ -1,9 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_STRING_HELPERS_H_
 #define _LINUX_STRING_HELPERS_H_
 
 #include <linux/types.h>
 
 struct file;
+struct task_struct;
 
 /* Descriptions of the types of units to
  * print in */

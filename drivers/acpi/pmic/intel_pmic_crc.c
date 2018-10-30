@@ -1,23 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * intel_pmic_crc.c - Intel CrystalCove PMIC operation region driver
+ * Intel CrystalCove PMIC operation region driver
  *
  * Copyright (C) 2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/init.h>
 #include <linux/mfd/intel_soc_pmic.h>
-#include <linux/regmap.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include "intel_pmic.h"
 
 #define PWR_SOURCE_SELECT	BIT(1)
@@ -25,16 +17,121 @@
 #define PMIC_A0LOCK_REG		0xc5
 
 static struct pmic_table power_table[] = {
+/*	{
+		.address = 0x00,
+		.reg = ??,
+		.bit = ??,
+	}, ** VSYS */
+	{
+		.address = 0x04,
+		.reg = 0x63,
+		.bit = 0x00,
+	}, /* SYSX -> VSYS_SX */
+	{
+		.address = 0x08,
+		.reg = 0x62,
+		.bit = 0x00,
+	}, /* SYSU -> VSYS_U */
+	{
+		.address = 0x0c,
+		.reg = 0x64,
+		.bit = 0x00,
+	}, /* SYSS -> VSYS_S */
+	{
+		.address = 0x10,
+		.reg = 0x6a,
+		.bit = 0x00,
+	}, /* V50S -> V5P0S */
+	{
+		.address = 0x14,
+		.reg = 0x6b,
+		.bit = 0x00,
+	}, /* HOST -> VHOST, USB2/3 host */
+	{
+		.address = 0x18,
+		.reg = 0x6c,
+		.bit = 0x00,
+	}, /* VBUS -> VBUS, USB2/3 OTG */
+	{
+		.address = 0x1c,
+		.reg = 0x6d,
+		.bit = 0x00,
+	}, /* HDMI -> VHDMI */
+/*	{
+		.address = 0x20,
+		.reg = ??,
+		.bit = ??,
+	}, ** S285 */
 	{
 		.address = 0x24,
 		.reg = 0x66,
 		.bit = 0x00,
-	},
+	}, /* X285 -> V2P85SX, camera */
+/*	{
+		.address = 0x28,
+		.reg = ??,
+		.bit = ??,
+	}, ** V33A */
+	{
+		.address = 0x2c,
+		.reg = 0x69,
+		.bit = 0x00,
+	}, /* V33S -> V3P3S, display/ssd/audio */
+	{
+		.address = 0x30,
+		.reg = 0x68,
+		.bit = 0x00,
+	}, /* V33U -> V3P3U, SDIO wifi&bt */
+/*	{
+		.address = 0x34 .. 0x40,
+		.reg = ??,
+		.bit = ??,
+	}, ** V33I, V18A, REFQ, V12A */
+	{
+		.address = 0x44,
+		.reg = 0x5c,
+		.bit = 0x00,
+	}, /* V18S -> V1P8S, SOC/USB PHY/SIM */
 	{
 		.address = 0x48,
 		.reg = 0x5d,
 		.bit = 0x00,
-	},
+	}, /* V18X -> V1P8SX, eMMC/camara/audio */
+	{
+		.address = 0x4c,
+		.reg = 0x5b,
+		.bit = 0x00,
+	}, /* V18U -> V1P8U, LPDDR */
+	{
+		.address = 0x50,
+		.reg = 0x61,
+		.bit = 0x00,
+	}, /* V12X -> V1P2SX, SOC SFR */
+	{
+		.address = 0x54,
+		.reg = 0x60,
+		.bit = 0x00,
+	}, /* V12S -> V1P2S, MIPI */
+/*	{
+		.address = 0x58,
+		.reg = ??,
+		.bit = ??,
+	}, ** V10A */
+	{
+		.address = 0x5c,
+		.reg = 0x56,
+		.bit = 0x00,
+	}, /* V10S -> V1P0S, SOC GFX */
+	{
+		.address = 0x60,
+		.reg = 0x57,
+		.bit = 0x00,
+	}, /* V10X -> V1P0SX, SOC display/DDR IO/PCIe */
+	{
+		.address = 0x64,
+		.reg = 0x59,
+		.bit = 0x00,
+	}, /* V105 -> V1P05S, L2 SRAM */
 };
 
 static struct pmic_table thermal_table[] = {
@@ -201,9 +298,4 @@ static struct platform_driver intel_crc_pmic_opregion_driver = {
 		.name = "crystal_cove_pmic",
 	},
 };
-
-static int __init intel_crc_pmic_opregion_driver_init(void)
-{
-	return platform_driver_register(&intel_crc_pmic_opregion_driver);
-}
-device_initcall(intel_crc_pmic_opregion_driver_init);
+builtin_platform_driver(intel_crc_pmic_opregion_driver);

@@ -21,4 +21,9 @@
 
 #include <uapi/linux/openvswitch.h>
 
+#define OVS_CLONE_ATTR_EXEC      0   /* Specify an u32 value. When nonzero,
+				      * actions in clone will not change flow
+				      * keys. False otherwise.
+				      */
+
 #endif /* _LINUX_OPENVSWITCH_H */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_PAGE_COUNTER_H
 #define _LINUX_PAGE_COUNTER_H
 
@@ -6,9 +7,21 @@
 #include <asm/page.h>
 
 struct page_counter {
-	atomic_long_t count;
-	unsigned long limit;
+	atomic_long_t usage;
+	unsigned long min;
+	unsigned long low;
+	unsigned long max;
 	struct page_counter *parent;
+
+	/* effective memory.min and memory.min usage tracking */
+	unsigned long emin;
+	atomic_long_t min_usage;
+	atomic_long_t children_min_usage;
+
+	/* effective memory.low and memory.low usage tracking */
+	unsigned long elow;
+	atomic_long_t low_usage;
+	atomic_long_t children_low_usage;
 
 	/* legacy */
 	unsigned long watermark;
@@ -24,14 +37,14 @@ struct page_counter {
 static inline void page_counter_init(struct page_counter *counter,
 				     struct page_counter *parent)
 {
-	atomic_long_set(&counter->count, 0);
-	counter->limit = PAGE_COUNTER_MAX;
+	atomic_long_set(&counter->usage, 0);
+	counter->max = PAGE_COUNTER_MAX;
 	counter->parent = parent;
 }
 
 static inline unsigned long page_counter_read(struct page_counter *counter)
 {
-	return atomic_long_read(&counter->count);
+	return atomic_long_read(&counter->usage);
 }
 
 void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages);
@@ -40,7 +53,9 @@ bool page_counter_try_charge(struct page_counter *counter,
 			     unsigned long nr_pages,
 			     struct page_counter **fail);
 void page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages);
-int page_counter_limit(struct page_counter *counter, unsigned long limit);
+void page_counter_set_min(struct page_counter *counter, unsigned long nr_pages);
+void page_counter_set_low(struct page_counter *counter, unsigned long nr_pages);
+int page_counter_set_max(struct page_counter *counter, unsigned long nr_pages);
 int page_counter_memparse(const char *buf, const char *max,
 			  unsigned long *nr_pages);
 

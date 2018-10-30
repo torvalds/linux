@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Entropy functions used on early boot for KASLR base and memory
  * randomization. The base randomization is done in the compressed

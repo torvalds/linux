@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 menu "Bluetooth device drivers"
 	depends on BT
@@ -29,6 +30,16 @@ config BT_HCIBTUSB
 
 	  Say Y here to compile support for Bluetooth USB devices into the
 	  kernel or say M to compile it as module (btusb).
+
+config BT_HCIBTUSB_AUTOSUSPEND
+	bool "Enable USB autosuspend for Bluetooth USB devices by default"
+	depends on BT_HCIBTUSB
+	help
+	  Say Y here to enable USB autosuspend for Bluetooth USB devices by
+	  default.
+
+	  This can be overridden by passing btusb.enable_autosuspend=[y|n]
+	  on the kernel commandline.
 
 config BT_HCIBTUSB_BCM
 	bool "Broadcom protocol support"
@@ -65,6 +76,8 @@ config BT_HCIBTSDIO
 
 config BT_HCIUART
 	tristate "HCI UART driver"
+	depends on SERIAL_DEV_BUS || !SERIAL_DEV_BUS
+	depends on NVMEM || !NVMEM
 	depends on TTY
 	help
 	  Bluetooth HCI UART driver.
@@ -79,7 +92,6 @@ config BT_HCIUART
 config BT_HCIUART_SERDEV
 	bool
 	depends on SERIAL_DEV_BUS && BT_HCIUART
-	depends on SERIAL_DEV_BUS=y || SERIAL_DEV_BUS=BT_HCIUART
 	default y
 
 config BT_HCIUART_H4
@@ -96,6 +108,7 @@ config BT_HCIUART_NOKIA
 	tristate "UART Nokia H4+ protocol support"
 	depends on BT_HCIUART
 	depends on BT_HCIUART_SERDEV
+	depends on GPIOLIB
 	depends on PM
 	select BT_HCIUART_H4
 	select BT_BCM
@@ -134,6 +147,7 @@ config BT_HCIUART_ATH3K
 config BT_HCIUART_LL
 	bool "HCILL protocol support"
 	depends on BT_HCIUART_SERDEV
+	select BT_HCIUART_H4
 	help
 	  HCILL (HCI Low Level) is a serial protocol for communication
 	  between Bluetooth device and host. This protocol is required for
@@ -145,6 +159,7 @@ config BT_HCIUART_LL
 config BT_HCIUART_3WIRE
 	bool "Three-wire UART (H5) protocol support"
 	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
 	help
 	  The HCI Three-wire UART Transport Layer makes it possible to
 	  user the Bluetooth HCI over a serial port interface. The HCI
@@ -157,6 +172,7 @@ config BT_HCIUART_3WIRE
 config BT_HCIUART_INTEL
 	bool "Intel protocol support"
 	depends on BT_HCIUART
+	depends on GPIOLIB
 	select BT_HCIUART_H4
 	select BT_INTEL
 	help
@@ -169,6 +185,8 @@ config BT_HCIUART_BCM
 	bool "Broadcom protocol support"
 	depends on BT_HCIUART
 	depends on BT_HCIUART_SERDEV
+	depends on (!ACPI || SERIAL_DEV_CTRL_TTYPORT)
+	depends on GPIOLIB
 	select BT_HCIUART_H4
 	select BT_BCM
 	help
@@ -177,9 +195,24 @@ config BT_HCIUART_BCM
 
 	  Say Y here to compile support for Broadcom protocol.
 
+config BT_HCIUART_RTL
+	bool "Realtek protocol support"
+	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
+	depends on GPIOLIB
+	depends on ACPI
+	select BT_HCIUART_3WIRE
+	select BT_RTL
+	help
+	  The Realtek protocol support enables Bluetooth HCI over 3-Wire
+	  serial port internface for Realtek Bluetooth controllers.
+
+	  Say Y here to compile support for Realtek protocol.
+
 config BT_HCIUART_QCA
 	bool "Qualcomm Atheros protocol support"
 	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
 	select BT_HCIUART_H4
 	select BT_QCA
 	help
@@ -226,8 +259,7 @@ config BT_HCIBCM203X
 
 config BT_HCIBPA10X
 	tristate "HCI BPA10x USB driver"
-	depends on USB && BT_HCIUART
-	select BT_HCIUART_H4
+	depends on USB
 	help
 	  Bluetooth HCI BPA10x USB driver.
 	  This driver provides support for the Digianswer BPA 100/105 Bluetooth
@@ -289,22 +321,6 @@ config BT_HCIBLUECARD
 	  Say Y here to compile support for HCI BlueCard devices into the
 	  kernel or say M to compile it as module (bluecard_cs).
 
-config BT_HCIBTUART
-	tristate "HCI UART (PC Card) device driver"
-	depends on PCMCIA
-	help
-	  Bluetooth HCI UART (PC Card) driver.
-	  This driver provides support for Bluetooth PCMCIA devices with
-	  an UART interface:
-	     Xircom CreditCard Bluetooth Adapter
-	     Xircom RealPort2 Bluetooth Adapter
-	     Sphinx PICO Card
-	     H-Soft blue+Card
-	     Cyber-blue Compact Flash Card
-
-	  Say Y here to compile support for HCI UART devices into the
-	  kernel or say M to compile it as module (btuart_cs).
-
 config BT_HCIVHCI
 	tristate "HCI VHCI (Virtual HCI device) driver"
 	help
@@ -363,6 +379,17 @@ config BT_WILINK
 	  Say Y here to compile support for Texas Instrument's WiLink7 driver
 	  into the kernel or say M to compile it as module (btwilink).
 
+config BT_MTKUART
+	tristate "MediaTek HCI UART driver"
+	depends on SERIAL_DEV_BUS
+	help
+	  MediaTek Bluetooth HCI UART driver.
+	  This driver is required if you want to use MediaTek Bluetooth
+	  with serial interface.
+
+	  Say Y here to compile support for MediaTek Bluetooth UART devices
+	  into the kernel or say M to compile it as module (btmtkuart).
+
 config BT_QCOMSMD
 	tristate "Qualcomm SMD based HCI support"
 	depends on RPMSG || (COMPILE_TEST && RPMSG=n)
@@ -374,6 +401,16 @@ config BT_QCOMSMD
 	  channels to the WCNSS core.
 
 	  Say Y here to compile support for HCI over Qualcomm SMD into the
+	  kernel or say M to compile as a module.
+
+config BT_HCIRSI
+	tristate
+	help
+	  Redpine BT driver.
+	  This driver handles BT traffic from upper layers and pass
+	  to the RSI_91x coex module for further scheduling to device
+
+	  Say Y here to compile support for HCI over Redpine into the
 	  kernel or say M to compile as a module.
 
 endmenu

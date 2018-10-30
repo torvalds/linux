@@ -1,5 +1,5 @@
 /* QLogic FCoE Offload Driver
- * Copyright (c) 2016-2017 Cavium Inc.
+ * Copyright (c) 2016-2018 Cavium Inc.
  *
  * This software is available under the terms of the GNU General Public License
  * (GPL) Version 2, available from the file COPYING in the main directory of
@@ -13,7 +13,7 @@
 
 struct fcoe_task_params {
 	/* Output parameter [set/filled by the HSI function] */
-	struct fcoe_task_context *context;
+	struct e4_fcoe_task_context *context;
 
 	/* Output parameter [set/filled by the HSI function] */
 	struct fcoe_wqe *sqe;

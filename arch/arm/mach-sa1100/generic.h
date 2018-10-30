@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/arch/arm/mach-sa1100/generic.h
  *
@@ -46,3 +47,12 @@ static inline int sa11x0_pm_init(void) { return 0; }
 #endif
 
 int sa11xx_clk_init(void);
+
+struct gpiod_lookup_table;
+void sa11x0_register_pcmcia(int socket, struct gpiod_lookup_table *);
+
+struct fixed_voltage_config;
+struct regulator_consumer_supply;
+int sa11x0_register_fixed_regulator(int n, struct fixed_voltage_config *cfg,
+	struct regulator_consumer_supply *supplies, unsigned num_supplies,
+	bool uses_gpio);

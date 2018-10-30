@@ -29,7 +29,6 @@ Optional properties:
   - marvell,wakeup-pin : a wakeup pin number of wifi chip which will be configured
 		      to firmware. Firmware will wakeup the host using this pin
 		      during suspend/resume.
-  - interrupt-parent: phandle of the parent interrupt controller
   - interrupts : interrupt pin number to the cpu. driver will request an irq based on
 		 this interrupt number. during system suspend, the irq will be enabled
 		 so that the wifi chip can wakeup host platform under certain condition.

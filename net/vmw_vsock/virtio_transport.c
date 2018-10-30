@@ -201,7 +201,7 @@ virtio_transport_send_pkt(struct virtio_vsock_pkt *pkt)
 		return -ENODEV;
 	}
 
-	if (le32_to_cpu(pkt->hdr.dst_cid) == vsock->guest_cid)
+	if (le64_to_cpu(pkt->hdr.dst_cid) == vsock->guest_cid)
 		return virtio_transport_send_pkt_loopback(vsock, pkt);
 
 	if (pkt->reply)
@@ -414,7 +414,7 @@ static void virtio_vsock_event_fill(struct virtio_vsock *vsock)
 static void virtio_vsock_reset_sock(struct sock *sk)
 {
 	lock_sock(sk);
-	sk->sk_state = SS_UNCONNECTED;
+	sk->sk_state = TCP_CLOSE;
 	sk->sk_err = ECONNRESET;
 	sk->sk_error_report(sk);
 	release_sock(sk);

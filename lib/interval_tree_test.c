@@ -11,10 +11,10 @@
 	MODULE_PARM_DESC(name, msg);
 
 __param(int, nnodes, 100, "Number of nodes in the interval tree");
-__param(int, perf_loops, 100000, "Number of iterations modifying the tree");
+__param(int, perf_loops, 1000, "Number of iterations modifying the tree");
 
 __param(int, nsearches, 100, "Number of searches to the interval tree");
-__param(int, search_loops, 10000, "Number of iterations searching the tree");
+__param(int, search_loops, 1000, "Number of iterations searching the tree");
 __param(bool, search_all, false, "Searches will iterate all nodes in the tree");
 
 __param(uint, max_endpoint, ~0, "Largest value for the interval's endpoint");
@@ -64,11 +64,12 @@ static int interval_tree_test_init(void)
 	unsigned long results;
 	cycles_t time1, time2, time;
 
-	nodes = kmalloc(nnodes * sizeof(struct interval_tree_node), GFP_KERNEL);
+	nodes = kmalloc_array(nnodes, sizeof(struct interval_tree_node),
+			      GFP_KERNEL);
 	if (!nodes)
 		return -ENOMEM;
 
-	queries = kmalloc(nsearches * sizeof(int), GFP_KERNEL);
+	queries = kmalloc_array(nsearches, sizeof(int), GFP_KERNEL);
 	if (!queries) {
 		kfree(nodes);
 		return -ENOMEM;

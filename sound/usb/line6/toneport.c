@@ -241,9 +241,9 @@ static int snd_toneport_source_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static void toneport_start_pcm(unsigned long arg)
+static void toneport_start_pcm(struct timer_list *t)
 {
-	struct usb_line6_toneport *toneport = (struct usb_line6_toneport *)arg;
+	struct usb_line6_toneport *toneport = from_timer(toneport, t, timer);
 	struct usb_line6 *line6 = &toneport->line6;
 
 	line6_pcm_acquire(line6->line6pcm, LINE6_STREAM_MONITOR, true);
@@ -367,12 +367,13 @@ static bool toneport_has_source_select(struct usb_line6_toneport *toneport)
 */
 static void toneport_setup(struct usb_line6_toneport *toneport)
 {
-	int ticks;
+	u32 ticks;
 	struct usb_line6 *line6 = &toneport->line6;
 	struct usb_device *usbdev = line6->usbdev;
 
 	/* sync time on device with host: */
-	ticks = (int)get_seconds();
+	/* note: 32-bit timestamps overflow in year 2106 */
+	ticks = (u32)ktime_get_real_seconds();
 	line6_write_data(line6, 0x80c6, &ticks, 4);
 
 	/* enable device: */
@@ -415,8 +416,7 @@ static int toneport_init(struct usb_line6 *line6,
 	struct usb_line6_toneport *toneport =  (struct usb_line6_toneport *) line6;
 
 	toneport->type = id->driver_info;
-	setup_timer(&toneport->timer, toneport_start_pcm,
-		    (unsigned long)toneport);
+	timer_setup(&toneport->timer, toneport_start_pcm, 0);
 
 	line6->disconnect = line6_toneport_disconnect;
 

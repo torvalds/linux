@@ -78,10 +78,10 @@ static int lpc18xx_wdt_feed(struct watchdog_device *wdt_dev)
 	return 0;
 }
 
-static void lpc18xx_wdt_timer_feed(unsigned long data)
+static void lpc18xx_wdt_timer_feed(struct timer_list *t)
 {
-	struct watchdog_device *wdt_dev = (struct watchdog_device *)data;
-	struct lpc18xx_wdt_dev *lpc18xx_wdt = watchdog_get_drvdata(wdt_dev);
+	struct lpc18xx_wdt_dev *lpc18xx_wdt = from_timer(lpc18xx_wdt, t, timer);
+	struct watchdog_device *wdt_dev = &lpc18xx_wdt->wdt_dev;
 
 	lpc18xx_wdt_feed(wdt_dev);
 
@@ -96,7 +96,9 @@ static void lpc18xx_wdt_timer_feed(unsigned long data)
  */
 static int lpc18xx_wdt_stop(struct watchdog_device *wdt_dev)
 {
-	lpc18xx_wdt_timer_feed((unsigned long)wdt_dev);
+	struct lpc18xx_wdt_dev *lpc18xx_wdt = watchdog_get_drvdata(wdt_dev);
+
+	lpc18xx_wdt_timer_feed(&lpc18xx_wdt->timer);
 
 	return 0;
 }
@@ -263,12 +265,11 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 	lpc18xx_wdt->wdt_dev.parent = dev;
 	watchdog_set_drvdata(&lpc18xx_wdt->wdt_dev, lpc18xx_wdt);
 
-	ret = watchdog_init_timeout(&lpc18xx_wdt->wdt_dev, heartbeat, dev);
+	watchdog_init_timeout(&lpc18xx_wdt->wdt_dev, heartbeat, dev);
 
 	__lpc18xx_wdt_set_timeout(lpc18xx_wdt);
 
-	setup_timer(&lpc18xx_wdt->timer, lpc18xx_wdt_timer_feed,
-		    (unsigned long)&lpc18xx_wdt->wdt_dev);
+	timer_setup(&lpc18xx_wdt->timer, lpc18xx_wdt_timer_feed, 0);
 
 	watchdog_set_nowayout(&lpc18xx_wdt->wdt_dev, nowayout);
 	watchdog_set_restart_priority(&lpc18xx_wdt->wdt_dev, 128);

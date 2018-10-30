@@ -1,14 +1,9 @@
-/* linux/arch/arm/mach-s3c2416/pm.c
- *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- *
- * S3C2416 - PM support (Based on Ben Dooks' S3C2412 PM support)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2010 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com
+//
+// S3C2416 - PM support (Based on Ben Dooks' S3C2412 PM support)
 
 #include <linux/device.h>
 #include <linux/syscore_ops.h>

@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __SELFTESTS_POWERPC_PPC_ASM_H
+#define __SELFTESTS_POWERPC_PPC_ASM_H
 #include <ppc-asm.h>
 
 #define CONFIG_ALTIVEC
@@ -25,34 +28,20 @@
 
 #define PPC_MTOCRF(A, B)	mtocrf A, B
 
-#define EX_TABLE(x, y)
+#define EX_TABLE(x, y)			\
+	.section __ex_table,"a";	\
+	.8byte	x, y;			\
+	.previous
 
-FUNC_START(enter_vmx_usercopy)
-	li	r3,1
-	blr
+#define BEGIN_FTR_SECTION		.if test_feature
+#define FTR_SECTION_ELSE		.else
+#define ALT_FTR_SECTION_END_IFCLR(x)	.endif
+#define ALT_FTR_SECTION_END_IFSET(x)	.endif
+#define ALT_FTR_SECTION_END(x, y)	.endif
+#define END_FTR_SECTION_IFCLR(x)	.endif
+#define END_FTR_SECTION_IFSET(x)	.endif
 
-FUNC_START(exit_vmx_usercopy)
-	li	r3,0
-	blr
+/* Default to taking the first of any alternative feature sections */
+test_feature = 1
 
-FUNC_START(enter_vmx_copy)
-	li	r3,1
-	blr
-
-FUNC_START(exit_vmx_copy)
-	blr
-
-FUNC_START(memcpy_power7)
-	blr
-
-FUNC_START(__copy_tofrom_user_power7)
-	blr
-
-FUNC_START(__copy_tofrom_user_base)
-	blr
-
-#define BEGIN_FTR_SECTION
-#define FTR_SECTION_ELSE
-#define ALT_FTR_SECTION_END_IFCLR(x)
-#define ALT_FTR_SECTION_END(x, y)
-#define END_FTR_SECTION_IFCLR(x)
+#endif /* __SELFTESTS_POWERPC_PPC_ASM_H */

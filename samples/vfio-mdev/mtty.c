@@ -534,7 +534,7 @@ static void handle_bar_read(unsigned int index, struct mdev_state *mdev_state,
 
 		/* Interrupt priority 2: Fifo trigger level reached */
 		if ((ier & UART_IER_RDI) &&
-		    (mdev_state->s[index].rxtx.count ==
+		    (mdev_state->s[index].rxtx.count >=
 		      mdev_state->s[index].intr_trigger_level))
 			*buf |= UART_IIR_RDI;
 
@@ -1413,7 +1413,7 @@ struct attribute_group *mdev_type_groups[] = {
 	NULL,
 };
 
-struct mdev_parent_ops mdev_fops = {
+static const struct mdev_parent_ops mdev_fops = {
 	.owner                  = THIS_MODULE,
 	.dev_attr_groups        = mtty_dev_groups,
 	.mdev_attr_groups       = mdev_dev_groups,

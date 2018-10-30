@@ -21,7 +21,7 @@
 
 #include <asm/page.h>
 
-#include <dvb_demux.h>
+#include <media/dvb_demux.h>
 
 #include "firedtv.h"
 

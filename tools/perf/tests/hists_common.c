@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include "perf.h"
 #include "util/debug.h"
@@ -130,20 +131,20 @@ struct machine *setup_fake_machine(struct machines *machines)
 			goto out;
 
 		/* emulate dso__load() */
-		dso__set_loaded(dso, MAP__FUNCTION);
+		dso__set_loaded(dso);
 
 		for (k = 0; k < fake_symbols[i].nr_syms; k++) {
 			struct symbol *sym;
 			struct fake_sym *fsym = &fake_symbols[i].syms[k];
 
 			sym = symbol__new(fsym->start, fsym->length,
-					  STB_GLOBAL, fsym->name);
+					  STB_GLOBAL, STT_FUNC, fsym->name);
 			if (sym == NULL) {
 				dso__put(dso);
 				goto out;
 			}
 
-			symbols__insert(&dso->symbols[MAP__FUNCTION], sym);
+			symbols__insert(&dso->symbols, sym);
 		}
 
 		dso__put(dso);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_USB_IOWARRIOR_H
 #define __LINUX_USB_IOWARRIOR_H
 

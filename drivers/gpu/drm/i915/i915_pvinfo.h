@@ -53,6 +53,8 @@ enum vgt_g2v_type {
  * VGT capabilities type
  */
 #define VGT_CAPS_FULL_48BIT_PPGTT	BIT(2)
+#define VGT_CAPS_HWSP_EMULATION		BIT(3)
+#define VGT_CAPS_HUGE_GTT		BIT(4)
 
 struct vgt_if {
 	u64 magic;		/* VGT_MAGIC */
@@ -92,7 +94,10 @@ struct vgt_if {
 	u32 rsv5[4];
 
 	u32 g2v_notify;
-	u32 rsv6[7];
+	u32 rsv6[5];
+
+	u32 cursor_x_hot;
+	u32 cursor_y_hot;
 
 	struct {
 		u32 lo;

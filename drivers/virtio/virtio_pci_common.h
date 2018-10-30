@@ -141,7 +141,7 @@ const char *vp_bus_name(struct virtio_device *vdev);
  * - OR over all affinities for shared MSI
  * - ignore the affinity request if we're using INTX
  */
-int vp_set_vq_affinity(struct virtqueue *vq, int cpu);
+int vp_set_vq_affinity(struct virtqueue *vq, const struct cpumask *cpu_mask);
 
 const struct cpumask *vp_get_vq_affinity(struct virtio_device *vdev, int index);
 

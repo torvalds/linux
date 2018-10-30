@@ -30,6 +30,7 @@
 #include <linux/ethtool.h>
 #include <linux/cache.h>
 #include <linux/crc32.h>
+#include <linux/crc32poly.h>
 #include <linux/mii.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -1020,9 +1021,9 @@ static void ks_write_qmu(struct ks_net *ks, u8 *pdata, u16 len)
  * spin_lock_irqsave is required because tx and rx should be mutual exclusive.
  * So while tx is in-progress, prevent IRQ interrupt from happenning.
  */
-static int ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t ks_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
-	int retv = NETDEV_TX_OK;
+	netdev_tx_t retv = NETDEV_TX_OK;
 	struct ks_net *ks = netdev_priv(netdev);
 
 	disable_irq(netdev->irq);
@@ -1078,7 +1079,7 @@ static void ks_stop_rx(struct ks_net *ks)
 
 }  /* ks_stop_rx */
 
-static unsigned long const ethernet_polynomial = 0x04c11db7U;
+static unsigned long const ethernet_polynomial = CRC32_POLY_BE;
 
 static unsigned long ether_gen_crc(int length, u8 *data)
 {

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 AM_CPPFLAGS = -I$(top_srcdir)/libsrc -DUSBIDS_FILE='"@USBIDS_DIR@/usb.ids"'
 AM_CFLAGS   = @EXTRA_CFLAGS@
 LDADD       = $(top_builddir)/libsrc/libusbip.la

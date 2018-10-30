@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "symbol.h"
 #include <errno.h>
 #include <inttypes.h>
@@ -20,11 +21,6 @@
 #include "unwind.h"
 
 static void __maps__insert(struct maps *maps, struct map *map);
-
-const char *map_type__name[MAP__NR_TYPES] = {
-	[MAP__FUNCTION] = "Functions",
-	[MAP__VARIABLE] = "Variables",
-};
 
 static inline int is_anon_memory(const char *filename, u32 flags)
 {
@@ -128,10 +124,8 @@ static inline bool replace_android_lib(const char *filename, char *newfilename)
 	return false;
 }
 
-void map__init(struct map *map, enum map_type type,
-	       u64 start, u64 end, u64 pgoff, struct dso *dso)
+void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 {
-	map->type     = type;
 	map->start    = start;
 	map->end      = end;
 	map->pgoff    = pgoff;
@@ -148,7 +142,7 @@ void map__init(struct map *map, enum map_type type,
 struct map *map__new(struct machine *machine, u64 start, u64 len,
 		     u64 pgoff, u32 d_maj, u32 d_min, u64 ino,
 		     u64 ino_gen, u32 prot, u32 flags, char *filename,
-		     enum map_type type, struct thread *thread)
+		     struct thread *thread)
 {
 	struct map *map = malloc(sizeof(*map));
 	struct nsinfo *nsi = NULL;
@@ -172,7 +166,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		map->flags = flags;
 		nsi = nsinfo__get(thread->nsinfo);
 
-		if ((anon || no_dso) && nsi && type == MAP__FUNCTION) {
+		if ((anon || no_dso) && nsi && (prot & PROT_EXEC)) {
 			snprintf(newfilename, sizeof(newfilename),
 				 "/tmp/perf-%d.map", nsi->pid);
 			filename = newfilename;
@@ -202,7 +196,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		if (dso == NULL)
 			goto out_delete;
 
-		map__init(map, type, start, start + len, pgoff, dso);
+		map__init(map, start, start + len, pgoff, dso);
 
 		if (anon || no_dso) {
 			map->map_ip = map->unmap_ip = identity__map_ip;
@@ -212,8 +206,8 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			 * functions still return NULL, and we avoid the
 			 * unnecessary map__load warning.
 			 */
-			if (type != MAP__FUNCTION)
-				dso__set_loaded(dso, map->type);
+			if (!(prot & PROT_EXEC))
+				dso__set_loaded(dso);
 		}
 		dso->nsinfo = nsi;
 		dso__put(dso);
@@ -230,7 +224,7 @@ out_delete:
  * they are loaded) and for vmlinux, where only after we load all the
  * symbols we'll know where it starts and ends.
  */
-struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
+struct map *map__new2(u64 start, struct dso *dso)
 {
 	struct map *map = calloc(1, (sizeof(*map) +
 				     (dso->kernel ? sizeof(struct kmap) : 0)));
@@ -238,7 +232,7 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 		/*
 		 * ->end will be filled after we load all the symbols
 		 */
-		map__init(map, type, start, 0, 0, dso);
+		map__init(map, start, 0, 0, dso);
 	}
 
 	return map;
@@ -255,7 +249,19 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
  */
 bool __map__is_kernel(const struct map *map)
 {
-	return __machine__kernel_map(map->groups->machine, map->type) == map;
+	return machine__kernel_map(map->groups->machine) == map;
+}
+
+bool __map__is_extra_kernel_map(const struct map *map)
+{
+	struct kmap *kmap = __map__kmap((struct map *)map);
+
+	return kmap && kmap->name[0];
+}
+
+bool map__has_symbols(const struct map *map)
+{
+	return dso__has_symbols(map->dso);
 }
 
 static void map__exit(struct map *map)
@@ -278,7 +284,7 @@ void map__put(struct map *map)
 
 void map__fixup_start(struct map *map)
 {
-	struct rb_root *symbols = &map->dso->symbols[map->type];
+	struct rb_root *symbols = &map->dso->symbols;
 	struct rb_node *nd = rb_first(symbols);
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
@@ -288,7 +294,7 @@ void map__fixup_start(struct map *map)
 
 void map__fixup_end(struct map *map)
 {
-	struct rb_root *symbols = &map->dso->symbols[map->type];
+	struct rb_root *symbols = &map->dso->symbols;
 	struct rb_node *nd = rb_last(symbols);
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
@@ -303,7 +309,7 @@ int map__load(struct map *map)
 	const char *name = map->dso->long_name;
 	int nr;
 
-	if (dso__loaded(map->dso, map->type))
+	if (dso__loaded(map->dso))
 		return 0;
 
 	nr = dso__load(map->dso, map);
@@ -314,12 +320,11 @@ int map__load(struct map *map)
 			build_id__sprintf(map->dso->build_id,
 					  sizeof(map->dso->build_id),
 					  sbuild_id);
-			pr_warning("%s with build id %s not found",
-				   name, sbuild_id);
+			pr_debug("%s with build id %s not found", name, sbuild_id);
 		} else
-			pr_warning("Failed to open %s", name);
+			pr_debug("Failed to open %s", name);
 
-		pr_warning(", continuing without symbols\n");
+		pr_debug(", continuing without symbols\n");
 		return -1;
 	} else if (nr == 0) {
 #ifdef HAVE_LIBELF_SUPPORT
@@ -328,12 +333,11 @@ int map__load(struct map *map)
 
 		if (len > sizeof(DSO__DELETED) &&
 		    strcmp(name + real_len + 1, DSO__DELETED) == 0) {
-			pr_warning("%.*s was updated (is prelink enabled?). "
+			pr_debug("%.*s was updated (is prelink enabled?). "
 				"Restart the long running apps that use it!\n",
 				   (int)real_len, name);
 		} else {
-			pr_warning("no symbols found in %s, maybe install "
-				   "a debug package?\n", name);
+			pr_debug("no symbols found in %s, maybe install a debug package?\n", name);
 		}
 #endif
 		return -1;
@@ -347,7 +351,7 @@ struct symbol *map__find_symbol(struct map *map, u64 addr)
 	if (map__load(map) < 0)
 		return NULL;
 
-	return dso__find_symbol(map->dso, map->type, addr);
+	return dso__find_symbol(map->dso, addr);
 }
 
 struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
@@ -355,10 +359,10 @@ struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
 	if (map__load(map) < 0)
 		return NULL;
 
-	if (!dso__sorted_by_name(map->dso, map->type))
-		dso__sort_by_name(map->dso, map->type);
+	if (!dso__sorted_by_name(map->dso))
+		dso__sort_by_name(map->dso);
 
-	return dso__find_symbol_by_name(map->dso, map->type, name);
+	return dso__find_symbol_by_name(map->dso, name);
 }
 
 struct map *map__clone(struct map *from)
@@ -373,20 +377,6 @@ struct map *map__clone(struct map *from)
 	}
 
 	return map;
-}
-
-int map__overlap(struct map *l, struct map *r)
-{
-	if (l->start > r->start) {
-		struct map *t = l;
-		l = r;
-		r = t;
-	}
-
-	if (l->end > r->start)
-		return 1;
-
-	return 0;
 }
 
 size_t map__fprintf(struct map *map, FILE *fp)
@@ -409,16 +399,20 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 	return fprintf(fp, "%s", dsoname);
 }
 
+char *map__srcline(struct map *map, u64 addr, struct symbol *sym)
+{
+	if (map == NULL)
+		return SRCLINE_UNKNOWN;
+	return get_srcline(map->dso, map__rip_2objdump(map, addr), sym, true, true, addr);
+}
+
 int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 			 FILE *fp)
 {
-	char *srcline;
 	int ret = 0;
 
 	if (map && map->dso) {
-		srcline = get_srcline(map->dso,
-				      map__rip_2objdump(map, addr), NULL,
-				      true, true);
+		char *srcline = map__srcline(map, addr, NULL);
 		if (srcline != SRCLINE_UNKNOWN)
 			ret = fprintf(fp, "%s%s", prefix, srcline);
 		free_srcline(srcline);
@@ -439,6 +433,20 @@ int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
  */
 u64 map__rip_2objdump(struct map *map, u64 rip)
 {
+	struct kmap *kmap = __map__kmap(map);
+
+	/*
+	 * vmlinux does not have program headers for PTI entry trampolines and
+	 * kcore may not either. However the trampoline object code is on the
+	 * main kernel map, so just use that instead.
+	 */
+	if (kmap && is_entry_trampoline(kmap->name) && kmap->kmaps && kmap->kmaps->machine) {
+		struct map *kernel_map = machine__kernel_map(kmap->kmaps->machine);
+
+		if (kernel_map)
+			map = kernel_map;
+	}
+
 	if (!map->dso->adjust_symbols)
 		return rip;
 
@@ -488,15 +496,12 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 static void maps__init(struct maps *maps)
 {
 	maps->entries = RB_ROOT;
-	pthread_rwlock_init(&maps->lock, NULL);
+	init_rwsem(&maps->lock);
 }
 
 void map_groups__init(struct map_groups *mg, struct machine *machine)
 {
-	int i;
-	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		maps__init(&mg->maps[i]);
-	}
+	maps__init(&mg->maps);
 	mg->machine = machine;
 	refcount_set(&mg->refcnt, 1);
 }
@@ -517,29 +522,19 @@ static void __maps__purge(struct maps *maps)
 
 static void maps__exit(struct maps *maps)
 {
-	pthread_rwlock_wrlock(&maps->lock);
+	down_write(&maps->lock);
 	__maps__purge(maps);
-	pthread_rwlock_unlock(&maps->lock);
+	up_write(&maps->lock);
 }
 
 void map_groups__exit(struct map_groups *mg)
 {
-	int i;
-
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		maps__exit(&mg->maps[i]);
+	maps__exit(&mg->maps);
 }
 
 bool map_groups__empty(struct map_groups *mg)
 {
-	int i;
-
-	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		if (maps__first(&mg->maps[i]))
-			return false;
-	}
-
-	return true;
+	return !maps__first(&mg->maps);
 }
 
 struct map_groups *map_groups__new(struct machine *machine)
@@ -565,10 +560,9 @@ void map_groups__put(struct map_groups *mg)
 }
 
 struct symbol *map_groups__find_symbol(struct map_groups *mg,
-				       enum map_type type, u64 addr,
-				       struct map **mapp)
+				       u64 addr, struct map **mapp)
 {
-	struct map *map = map_groups__find(mg, type, addr);
+	struct map *map = map_groups__find(mg, addr);
 
 	/* Ensure map is loaded before using map->map_ip */
 	if (map != NULL && map__load(map) >= 0) {
@@ -580,13 +574,20 @@ struct symbol *map_groups__find_symbol(struct map_groups *mg,
 	return NULL;
 }
 
+static bool map__contains_symbol(struct map *map, struct symbol *sym)
+{
+	u64 ip = map->unmap_ip(map, sym->start);
+
+	return ip >= map->start && ip < map->end;
+}
+
 struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
 					 struct map **mapp)
 {
 	struct symbol *sym;
 	struct rb_node *nd;
 
-	pthread_rwlock_rdlock(&maps->lock);
+	down_read(&maps->lock);
 
 	for (nd = rb_first(&maps->entries); nd; nd = rb_next(nd)) {
 		struct map *pos = rb_entry(nd, struct map, rb_node);
@@ -595,6 +596,10 @@ struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
 
 		if (sym == NULL)
 			continue;
+		if (!map__contains_symbol(pos, sym)) {
+			sym = NULL;
+			continue;
+		}
 		if (mapp != NULL)
 			*mapp = pos;
 		goto out;
@@ -602,18 +607,15 @@ struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
 
 	sym = NULL;
 out:
-	pthread_rwlock_unlock(&maps->lock);
+	up_read(&maps->lock);
 	return sym;
 }
 
 struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
-					       enum map_type type,
 					       const char *name,
 					       struct map **mapp)
 {
-	struct symbol *sym = maps__find_symbol_by_name(&mg->maps[type], name, mapp);
-
-	return sym;
+	return maps__find_symbol_by_name(&mg->maps, name, mapp);
 }
 
 int map_groups__find_ams(struct addr_map_symbol *ams)
@@ -621,8 +623,7 @@ int map_groups__find_ams(struct addr_map_symbol *ams)
 	if (ams->addr < ams->map->start || ams->addr >= ams->map->end) {
 		if (ams->map->groups == NULL)
 			return -1;
-		ams->map = map_groups__find(ams->map->groups, ams->map->type,
-					    ams->addr);
+		ams->map = map_groups__find(ams->map->groups, ams->addr);
 		if (ams->map == NULL)
 			return -1;
 	}
@@ -638,67 +639,78 @@ static size_t maps__fprintf(struct maps *maps, FILE *fp)
 	size_t printed = 0;
 	struct rb_node *nd;
 
-	pthread_rwlock_rdlock(&maps->lock);
+	down_read(&maps->lock);
 
 	for (nd = rb_first(&maps->entries); nd; nd = rb_next(nd)) {
 		struct map *pos = rb_entry(nd, struct map, rb_node);
 		printed += fprintf(fp, "Map:");
 		printed += map__fprintf(pos, fp);
 		if (verbose > 2) {
-			printed += dso__fprintf(pos->dso, pos->type, fp);
+			printed += dso__fprintf(pos->dso, fp);
 			printed += fprintf(fp, "--\n");
 		}
 	}
 
-	pthread_rwlock_unlock(&maps->lock);
+	up_read(&maps->lock);
 
 	return printed;
-}
-
-size_t __map_groups__fprintf_maps(struct map_groups *mg, enum map_type type,
-				  FILE *fp)
-{
-	size_t printed = fprintf(fp, "%s:\n", map_type__name[type]);
-	return printed += maps__fprintf(&mg->maps[type], fp);
 }
 
 size_t map_groups__fprintf(struct map_groups *mg, FILE *fp)
 {
-	size_t printed = 0, i;
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		printed += __map_groups__fprintf_maps(mg, i, fp);
-	return printed;
+	return maps__fprintf(&mg->maps, fp);
 }
 
 static void __map_groups__insert(struct map_groups *mg, struct map *map)
 {
-	__maps__insert(&mg->maps[map->type], map);
+	__maps__insert(&mg->maps, map);
 	map->groups = mg;
 }
 
 static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
 {
 	struct rb_root *root;
-	struct rb_node *next;
+	struct rb_node *next, *first;
 	int err = 0;
 
-	pthread_rwlock_wrlock(&maps->lock);
+	down_write(&maps->lock);
 
 	root = &maps->entries;
-	next = rb_first(root);
 
+	/*
+	 * Find first map where end > map->start.
+	 * Same as find_vma() in kernel.
+	 */
+	next = root->rb_node;
+	first = NULL;
+	while (next) {
+		struct map *pos = rb_entry(next, struct map, rb_node);
+
+		if (pos->end > map->start) {
+			first = next;
+			if (pos->start <= map->start)
+				break;
+			next = next->rb_left;
+		} else
+			next = next->rb_right;
+	}
+
+	next = first;
 	while (next) {
 		struct map *pos = rb_entry(next, struct map, rb_node);
 		next = rb_next(&pos->rb_node);
 
-		if (!map__overlap(pos, map))
-			continue;
+		/*
+		 * Stop if current map starts after map->end.
+		 * Maps are ordered by start: next will not overlap for sure.
+		 */
+		if (pos->start >= map->end)
+			break;
 
 		if (verbose >= 2) {
 
 			if (use_browser) {
-				pr_warning("overlapping maps in %s "
-					   "(disable tui for more info)\n",
+				pr_debug("overlapping maps in %s (disable tui for more info)\n",
 					   map->dso->name);
 			} else {
 				fputs("overlapping maps:\n", fp);
@@ -750,28 +762,27 @@ put_map:
 
 	err = 0;
 out:
-	pthread_rwlock_unlock(&maps->lock);
+	up_write(&maps->lock);
 	return err;
 }
 
 int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map,
 				   FILE *fp)
 {
-	return maps__fixup_overlappings(&mg->maps[map->type], map, fp);
+	return maps__fixup_overlappings(&mg->maps, map, fp);
 }
 
 /*
  * XXX This should not really _copy_ te maps, but refcount them.
  */
-int map_groups__clone(struct thread *thread,
-		      struct map_groups *parent, enum map_type type)
+int map_groups__clone(struct thread *thread, struct map_groups *parent)
 {
 	struct map_groups *mg = thread->mg;
 	int err = -ENOMEM;
 	struct map *map;
-	struct maps *maps = &parent->maps[type];
+	struct maps *maps = &parent->maps;
 
-	pthread_rwlock_rdlock(&maps->lock);
+	down_read(&maps->lock);
 
 	for (map = maps__first(maps); map; map = map__next(map)) {
 		struct map *new = map__clone(map);
@@ -788,7 +799,7 @@ int map_groups__clone(struct thread *thread,
 
 	err = 0;
 out_unlock:
-	pthread_rwlock_unlock(&maps->lock);
+	up_read(&maps->lock);
 	return err;
 }
 
@@ -815,9 +826,9 @@ static void __maps__insert(struct maps *maps, struct map *map)
 
 void maps__insert(struct maps *maps, struct map *map)
 {
-	pthread_rwlock_wrlock(&maps->lock);
+	down_write(&maps->lock);
 	__maps__insert(maps, map);
-	pthread_rwlock_unlock(&maps->lock);
+	up_write(&maps->lock);
 }
 
 static void __maps__remove(struct maps *maps, struct map *map)
@@ -828,9 +839,9 @@ static void __maps__remove(struct maps *maps, struct map *map)
 
 void maps__remove(struct maps *maps, struct map *map)
 {
-	pthread_rwlock_wrlock(&maps->lock);
+	down_write(&maps->lock);
 	__maps__remove(maps, map);
-	pthread_rwlock_unlock(&maps->lock);
+	up_write(&maps->lock);
 }
 
 struct map *maps__find(struct maps *maps, u64 ip)
@@ -838,7 +849,7 @@ struct map *maps__find(struct maps *maps, u64 ip)
 	struct rb_node **p, *parent = NULL;
 	struct map *m;
 
-	pthread_rwlock_rdlock(&maps->lock);
+	down_read(&maps->lock);
 
 	p = &maps->entries.rb_node;
 	while (*p != NULL) {
@@ -854,7 +865,7 @@ struct map *maps__find(struct maps *maps, u64 ip)
 
 	m = NULL;
 out:
-	pthread_rwlock_unlock(&maps->lock);
+	up_read(&maps->lock);
 	return m;
 }
 
@@ -876,13 +887,20 @@ struct map *map__next(struct map *map)
 	return NULL;
 }
 
+struct kmap *__map__kmap(struct map *map)
+{
+	if (!map->dso || !map->dso->kernel)
+		return NULL;
+	return (struct kmap *)(map + 1);
+}
+
 struct kmap *map__kmap(struct map *map)
 {
-	if (!map->dso || !map->dso->kernel) {
+	struct kmap *kmap = __map__kmap(map);
+
+	if (!kmap)
 		pr_err("Internal error: map__kmap with a non-kernel map\n");
-		return NULL;
-	}
-	return (struct kmap *)(map + 1);
+	return kmap;
 }
 
 struct map_groups *map__kmaps(struct map *map)

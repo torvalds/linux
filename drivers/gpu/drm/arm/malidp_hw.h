@@ -33,6 +33,13 @@ enum {
 	DE_GRAPHICS2 = BIT(2), /* used only in DP500 */
 	DE_VIDEO2 = BIT(3),
 	DE_SMART = BIT(4),
+	SE_MEMWRITE = BIT(5),
+};
+
+enum rotation_features {
+	ROTATE_NONE,		/* does not support rotation at all */
+	ROTATE_ANY,		/* supports rotation on any buffers */
+	ROTATE_COMPRESSED,	/* supports rotation only on compressed buffers */
 };
 
 struct malidp_format_id {
@@ -52,13 +59,17 @@ struct malidp_format_id {
 struct malidp_irq_map {
 	u32 irq_mask;		/* mask of IRQs that can be enabled in the block */
 	u32 vsync_irq;		/* IRQ bit used for signaling during VSYNC */
+	u32 err_mask;		/* mask of bits that represent errors */
 };
 
 struct malidp_layer {
 	u16 id;			/* layer ID */
 	u16 base;		/* address offset for the register bank */
 	u16 ptr;		/* address offset for the pointer register */
-	u16 stride_offset;	/* Offset to the first stride register. */
+	u16 stride_offset;	/* offset to the first stride register. */
+	s16 yuv2rgb_offset;	/* offset to the YUV->RGB matrix entries */
+	u16 mmu_ctrl_offset;    /* offset to the MMU control register */
+	enum rotation_features rot;	/* type of rotation supported */
 };
 
 enum malidp_scaling_coeff_set {
@@ -120,18 +131,14 @@ struct malidp_hw_regmap {
 /* Unlike DP550/650, DP500 has 3 stride registers in its video layer. */
 #define MALIDP_DEVICE_LV_HAS_3_STRIDES	BIT(0)
 
-struct malidp_hw_device {
-	const struct malidp_hw_regmap map;
-	void __iomem *regs;
+struct malidp_hw_device;
 
-	/* APB clock */
-	struct clk *pclk;
-	/* AXI clock */
-	struct clk *aclk;
-	/* main clock for display core */
-	struct clk *mclk;
-	/* pixel clock for display core */
-	struct clk *pxlclk;
+/*
+ * Static structure containing hardware specific data and pointers to
+ * functions that behave differently between various versions of the IP.
+ */
+struct malidp_hw {
+	const struct malidp_hw_regmap map;
 
 	/*
 	 * Validate the driver instance against the hardware bits
@@ -154,12 +161,13 @@ struct malidp_hw_device {
 	bool (*in_config_mode)(struct malidp_hw_device *hwdev);
 
 	/*
-	 * Set configuration valid flag for hardware parameters that can
-	 * be changed outside the configuration mode. Hardware will use
-	 * the new settings when config valid is set after the end of the
-	 * current buffer scanout
+	 * Set/clear configuration valid flag for hardware parameters that can
+	 * be changed outside the configuration mode to the given value.
+	 * Hardware will use the new settings when config valid is set,
+	 * after the end of the current buffer scanout, and will ignore
+	 * any new values for those parameters if config valid flag is cleared
 	 */
-	void (*set_config_valid)(struct malidp_hw_device *hwdev);
+	void (*set_config_valid)(struct malidp_hw_device *hwdev, u8 value);
 
 	/*
 	 * Set a new mode in hardware. Requires the hardware to be in
@@ -180,17 +188,26 @@ struct malidp_hw_device {
 	long (*se_calc_mclk)(struct malidp_hw_device *hwdev,
 			     struct malidp_se_config *se_config,
 			     struct videomode *vm);
+	/*
+	 * Enable writing to memory the content of the next frame
+	 * @param hwdev - malidp_hw_device structure containing the HW description
+	 * @param addrs - array of addresses for each plane
+	 * @param pitches - array of pitches for each plane
+	 * @param num_planes - number of planes to be written
+	 * @param w - width of the output frame
+	 * @param h - height of the output frame
+	 * @param fmt_id - internal format ID of output buffer
+	 */
+	int (*enable_memwrite)(struct malidp_hw_device *hwdev, dma_addr_t *addrs,
+			       s32 *pitches, int num_planes, u16 w, u16 h, u32 fmt_id,
+			       const s16 *rgb2yuv_coeffs);
+
+	/*
+	 * Disable the writing to memory of the next frame's content.
+	 */
+	void (*disable_memwrite)(struct malidp_hw_device *hwdev);
 
 	u8 features;
-
-	u8 min_line_size;
-	u16 max_line_size;
-
-	/* track the device PM state */
-	bool pm_suspended;
-
-	/* size of memory used for rotating layers, up to two banks available */
-	u32 rotation_memory[2];
 };
 
 /* Supported variants of the hardware */
@@ -202,7 +219,37 @@ enum {
 	MALIDP_MAX_DEVICES
 };
 
-extern const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES];
+extern const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES];
+
+/*
+ * Structure used by the driver during runtime operation.
+ */
+struct malidp_hw_device {
+	struct malidp_hw *hw;
+	void __iomem *regs;
+
+	/* APB clock */
+	struct clk *pclk;
+	/* AXI clock */
+	struct clk *aclk;
+	/* main clock for display core */
+	struct clk *mclk;
+	/* pixel clock for display core */
+	struct clk *pxlclk;
+
+	u8 min_line_size;
+	u16 max_line_size;
+	u32 output_color_depth;
+
+	/* track the device PM state */
+	bool pm_suspended;
+
+	/* track the SE memory writeback state */
+	u8 mw_state;
+
+	/* size of memory used for rotating layers, up to two banks available */
+	u32 rotation_memory[2];
+};
 
 static inline u32 malidp_hw_read(struct malidp_hw_device *hwdev, u32 reg)
 {
@@ -240,9 +287,9 @@ static inline u32 malidp_get_block_base(struct malidp_hw_device *hwdev,
 {
 	switch (block) {
 	case MALIDP_SE_BLOCK:
-		return hwdev->map.se_base;
+		return hwdev->hw->map.se_base;
 	case MALIDP_DC_BLOCK:
-		return hwdev->map.dc_base;
+		return hwdev->hw->map.dc_base;
 	}
 
 	return 0;
@@ -265,17 +312,25 @@ static inline void malidp_hw_enable_irq(struct malidp_hw_device *hwdev,
 }
 
 int malidp_de_irq_init(struct drm_device *drm, int irq);
-void malidp_de_irq_fini(struct drm_device *drm);
+void malidp_se_irq_hw_init(struct malidp_hw_device *hwdev);
+void malidp_de_irq_hw_init(struct malidp_hw_device *hwdev);
+void malidp_de_irq_fini(struct malidp_hw_device *hwdev);
 int malidp_se_irq_init(struct drm_device *drm, int irq);
-void malidp_se_irq_fini(struct drm_device *drm);
+void malidp_se_irq_fini(struct malidp_hw_device *hwdev);
 
 u8 malidp_hw_get_format_id(const struct malidp_hw_regmap *map,
 			   u8 layer_id, u32 format);
 
-static inline bool malidp_hw_pitch_valid(struct malidp_hw_device *hwdev,
-					 unsigned int pitch)
+static inline u8 malidp_hw_get_pitch_align(struct malidp_hw_device *hwdev, bool rotated)
 {
-	return !(pitch & (hwdev->map.bus_align_bytes - 1));
+	/*
+	 * only hardware that cannot do 8 bytes bus alignments have further
+	 * constraints on rotated planes
+	 */
+	if (hwdev->hw->map.bus_align_bytes == 8)
+		return 8;
+	else
+		return hwdev->hw->map.bus_align_bytes << (rotated ? 2 : 0);
 }
 
 /* U16.16 */
@@ -308,8 +363,8 @@ static inline void malidp_se_set_enh_coeffs(struct malidp_hw_device *hwdev)
 	};
 	u32 val = MALIDP_SE_SET_ENH_LIMIT_LOW(MALIDP_SE_ENH_LOW_LEVEL) |
 		  MALIDP_SE_SET_ENH_LIMIT_HIGH(MALIDP_SE_ENH_HIGH_LEVEL);
-	u32 image_enh = hwdev->map.se_base +
-			((hwdev->map.features & MALIDP_REGMAP_HAS_CLEARIRQ) ?
+	u32 image_enh = hwdev->hw->map.se_base +
+			((hwdev->hw->map.features & MALIDP_REGMAP_HAS_CLEARIRQ) ?
 			 0x10 : 0xC) + MALIDP_SE_IMAGE_ENH;
 	u32 enh_coeffs = image_enh + MALIDP_SE_ENH_COEFF0;
 	int i;
@@ -332,5 +387,10 @@ static inline void malidp_se_set_enh_coeffs(struct malidp_hw_device *hwdev)
 #define MALIDP_COEFFTAB_NUM_COEFFS	64
 
 #define MALIDP_GAMMA_LUT_SIZE		4096
+
+#define AFBC_MOD_VALID_BITS (AFBC_FORMAT_MOD_BLOCK_SIZE_MASK | \
+			AFBC_FORMAT_MOD_YTR | AFBC_FORMAT_MOD_SPLIT | \
+			AFBC_FORMAT_MOD_SPARSE | AFBC_FORMAT_MOD_CBR | \
+			AFBC_FORMAT_MOD_TILED | AFBC_FORMAT_MOD_SC)
 
 #endif  /* __MALIDP_HW_H__ */

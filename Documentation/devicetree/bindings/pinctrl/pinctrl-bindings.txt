@@ -103,6 +103,12 @@ Optional properties:
 #pinctrl-cells:	Number of pin control cells in addition to the index within the
 		pin controller device instance
 
+pinctrl-use-default: Boolean. Indicates that the OS can use the boot default
+		pin configuration. This allows using an OS that does not have a
+		driver for the pin controller. This property can be set either
+		globally for the pin controller or in child nodes for individual
+		pin group control.
+
 Pin controller devices should contain the pin configuration nodes that client
 devices reference.
 
@@ -271,6 +277,10 @@ output-high		- set the pin to output mode with high level
 sleep-hardware-state	- indicate this is sleep related state which will be programmed
 			  into the registers for the sleep state.
 slew-rate		- set the slew rate
+skew-delay		- this affects the expected clock skew on input pins
+			  and the delay before latching a value to an output
+			  pin. Typically indicates how many double-inverters are
+			  used to delay the signal.
 
 For example:
 

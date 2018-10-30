@@ -98,7 +98,7 @@ static struct clocksource timer_clocksource = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void __init timer_setup(void)
+static void __init um_timer_setup(void)
 {
 	int err;
 
@@ -121,16 +121,16 @@ static void __init timer_setup(void)
 	clockevents_register_device(&timer_clockevent);
 }
 
-void read_persistent_clock(struct timespec *ts)
+void read_persistent_clock64(struct timespec64 *ts)
 {
 	long long nsecs = os_persistent_clock_emulation();
 
-	set_normalized_timespec(ts, nsecs / NSEC_PER_SEC,
-				nsecs % NSEC_PER_SEC);
+	set_normalized_timespec64(ts, nsecs / NSEC_PER_SEC,
+				  nsecs % NSEC_PER_SEC);
 }
 
 void __init time_init(void)
 {
 	timer_set_signal_handler();
-	late_time_init = timer_setup;
+	late_time_init = um_timer_setup;
 }

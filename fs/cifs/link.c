@@ -50,25 +50,12 @@ static int
 symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 {
 	int rc;
-	unsigned int size;
-	struct crypto_shash *md5;
-	struct sdesc *sdescmd5;
+	struct crypto_shash *md5 = NULL;
+	struct sdesc *sdescmd5 = NULL;
 
-	md5 = crypto_alloc_shash("md5", 0, 0);
-	if (IS_ERR(md5)) {
-		rc = PTR_ERR(md5);
-		cifs_dbg(VFS, "%s: Crypto md5 allocation error %d\n",
-			 __func__, rc);
-		return rc;
-	}
-	size = sizeof(struct shash_desc) + crypto_shash_descsize(md5);
-	sdescmd5 = kmalloc(size, GFP_KERNEL);
-	if (!sdescmd5) {
-		rc = -ENOMEM;
+	rc = cifs_alloc_hash("md5", &md5, &sdescmd5);
+	if (rc)
 		goto symlink_hash_err;
-	}
-	sdescmd5->shash.tfm = md5;
-	sdescmd5->shash.flags = 0x0;
 
 	rc = crypto_shash_init(&sdescmd5->shash);
 	if (rc) {
@@ -85,9 +72,7 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 		cifs_dbg(VFS, "%s: Could not generate md5 hash\n", __func__);
 
 symlink_hash_err:
-	crypto_free_shash(md5);
-	kfree(sdescmd5);
-
+	cifs_free_hash(&md5, &sdescmd5);
 	return rc;
 }
 
@@ -411,7 +396,7 @@ smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_io_parms io_parms;
 	int buf_type = CIFS_NO_BUFFER;
 	__le16 *utf16_path;
-	__u8 oplock = SMB2_OPLOCK_LEVEL_II;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct smb2_file_all_info *pfile_info = NULL;
 
 	oparms.tcon = tcon;
@@ -436,7 +421,8 @@ smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		return  -ENOMEM;
 	}
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, pfile_info, NULL);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, pfile_info, NULL,
+		       NULL);
 	if (rc)
 		goto qmf_out_open_fail;
 
@@ -473,7 +459,7 @@ smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_io_parms io_parms;
 	int create_options = CREATE_NOT_DIR;
 	__le16 *utf16_path;
-	__u8 oplock = SMB2_OPLOCK_LEVEL_EXCLUSIVE;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct kvec iov[2];
 
 	if (backup_cred(cifs_sb))
@@ -493,7 +479,8 @@ smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL,
+		       NULL);
 	if (rc) {
 		kfree(utf16_path);
 		return rc;

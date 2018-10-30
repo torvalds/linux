@@ -26,21 +26,34 @@ information is helpful.  Any exploit code is very helpful and will not
 be released without consent from the reporter unless it has already been
 made public.
 
-Disclosure
-----------
+Disclosure and embargoed information
+------------------------------------
 
-The goal of the Linux kernel security team is to work with the
-bug submitter to bug resolution as well as disclosure.  We prefer
-to fully disclose the bug as soon as possible.  It is reasonable to
-delay disclosure when the bug or the fix is not yet fully understood,
-the solution is not well-tested or for vendor coordination.  However, we
-expect these delays to be short, measurable in days, not weeks or months.
-A disclosure date is negotiated by the security team working with the
-bug submitter as well as vendors.  However, the kernel security team
-holds the final say when setting a disclosure date.  The timeframe for
-disclosure is from immediate (esp. if it's already publicly known)
-to a few weeks.  As a basic default policy, we expect report date to
-disclosure date to be on the order of 7 days.
+The security list is not a disclosure channel.  For that, see Coordination
+below.
+
+Once a robust fix has been developed, our preference is to release the
+fix in a timely fashion, treating it no differently than any of the other
+thousands of changes and fixes the Linux kernel project releases every
+month.
+
+However, at the request of the reporter, we will postpone releasing the
+fix for up to 5 business days after the date of the report or after the
+embargo has lifted; whichever comes first.  The only exception to that
+rule is if the bug is publicly known, in which case the preference is to
+release the fix as soon as it's available.
+
+Whilst embargoed information may be shared with trusted individuals in
+order to develop a fix, such information will not be published alongside
+the fix or on any other disclosure channel without the permission of the
+reporter.  This includes but is not limited to the original bug report
+and followup discussions (if any), exploits, CVE information or the
+identity of the reporter.
+
+In other words our only interest is in getting bugs fixed.  All other
+information submitted to the security list and any followup discussions
+of the report are treated confidentially even after the embargo has been
+lifted, in perpetuity.
 
 Coordination
 ------------
@@ -66,7 +79,7 @@ may delay the bug handling. If a reporter wishes to have a CVE identifier
 assigned ahead of public disclosure, they will need to contact the private
 linux-distros list, described above. When such a CVE identifier is known
 before a patch is provided, it is desirable to mention it in the commit
-message, though.
+message if the reporter agrees.
 
 Non-disclosure agreements
 -------------------------

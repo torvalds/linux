@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 2007, 2010
  *    Author(s): Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
@@ -43,8 +44,9 @@ struct channel_path {
 	struct chp_id chpid;
 	struct mutex lock; /* Serialize access to below members. */
 	int state;
-	struct channel_path_desc desc;
+	struct channel_path_desc_fmt0 desc;
 	struct channel_path_desc_fmt1 desc_fmt1;
+	struct channel_path_desc_fmt3 desc_fmt3;
 	/* Channel-measurement related stuff: */
 	int cmg;
 	int shared;
@@ -60,7 +62,7 @@ static inline struct channel_path *chpid_to_chp(struct chp_id chpid)
 int chp_get_status(struct chp_id chpid);
 u8 chp_get_sch_opm(struct subchannel *sch);
 int chp_is_registered(struct chp_id chpid);
-struct channel_path_desc *chp_get_chp_desc(struct chp_id chpid);
+struct channel_path_desc_fmt0 *chp_get_chp_desc(struct chp_id chpid);
 void chp_remove_cmg_attr(struct channel_path *chp);
 int chp_add_cmg_attr(struct channel_path *chp);
 int chp_update_desc(struct channel_path *chp);

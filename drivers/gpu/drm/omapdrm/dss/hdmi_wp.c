@@ -1,7 +1,7 @@
 /*
  * HDMI wrapper
  *
- * Copyright (C) 2013 Texas Instruments Incorporated
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
@@ -131,7 +131,7 @@ void hdmi_wp_video_stop(struct hdmi_wp_data *wp)
 }
 
 void hdmi_wp_video_config_format(struct hdmi_wp_data *wp,
-		struct hdmi_video_format *video_fmt)
+		const struct hdmi_video_format *video_fmt)
 {
 	u32 l = 0;
 
@@ -144,7 +144,7 @@ void hdmi_wp_video_config_format(struct hdmi_wp_data *wp,
 }
 
 void hdmi_wp_video_config_interface(struct hdmi_wp_data *wp,
-				    struct videomode *vm)
+				    const struct videomode *vm)
 {
 	u32 r;
 	bool vsync_inv, hsync_inv;
@@ -164,11 +164,11 @@ void hdmi_wp_video_config_interface(struct hdmi_wp_data *wp,
 }
 
 void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
-				 struct videomode *vm)
+				 const struct videomode *vm)
 {
 	u32 timing_h = 0;
 	u32 timing_v = 0;
-	unsigned hsync_len_offset = 1;
+	unsigned int hsync_len_offset = 1;
 
 	DSSDBG("Enter hdmi_wp_video_config_timing\n");
 
@@ -193,7 +193,7 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 }
 
 void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
-		struct videomode *vm, struct hdmi_config *param)
+		struct videomode *vm, const struct hdmi_config *param)
 {
 	DSSDBG("Enter hdmi_wp_video_init_format\n");
 

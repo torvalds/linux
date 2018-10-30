@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Mainly by David Woodhouse, somewhat modified by Jordan Crouse
  *
@@ -5,10 +6,6 @@
  * Copyright © 2006-2007  Advanced Micro Devices, Inc.
  * Copyright © 2009       VIA Technology, Inc.
  * Copyright (c) 2010  Andres Salomon <dilinger@queued.net>
- *
- * This program is free software.  You can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -69,7 +66,7 @@ static int dcon_init_xo_1(struct dcon_priv *dcon)
 	gpio_direction_input(OLPC_GPIO_DCON_IRQ);
 	gpio_direction_input(OLPC_GPIO_DCON_BLANK);
 	gpio_direction_output(OLPC_GPIO_DCON_LOAD,
-			dcon->curr_src == DCON_SOURCE_CPU);
+			      dcon->curr_src == DCON_SOURCE_CPU);
 
 	/* Set up the interrupt mappings */
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Bus Devices
 #
@@ -7,24 +8,9 @@ menu "Bus devices"
 config ARM_CCI
 	bool
 
-config ARM_CCI_PMU
-	bool
-	select ARM_CCI
-
 config ARM_CCI400_COMMON
 	bool
 	select ARM_CCI
-
-config ARM_CCI400_PMU
-	bool "ARM CCI400 PMU support"
-	depends on (ARM && CPU_V7) || ARM64
-	depends on PERF_EVENTS
-	select ARM_CCI400_COMMON
-	select ARM_CCI_PMU
-	help
-	  Support for PMU events monitoring on the ARM CCI-400 (cache coherent
-	  interconnect). CCI-400 supports counting events related to the
-	  connected slave/master interfaces.
 
 config ARM_CCI400_PORT_CTRL
 	bool
@@ -34,27 +20,6 @@ config ARM_CCI400_PORT_CTRL
 	  Low level power management driver for CCI400 cache coherent
 	  interconnect for ARM platforms.
 
-config ARM_CCI5xx_PMU
-	bool "ARM CCI-500/CCI-550 PMU support"
-	depends on (ARM && CPU_V7) || ARM64
-	depends on PERF_EVENTS
-	select ARM_CCI_PMU
-	help
-	  Support for PMU events monitoring on the ARM CCI-500/CCI-550 cache
-	  coherent interconnects. Both of them provide 8 independent event counters,
-	  which can count events pertaining to the slave/master interfaces as well
-	  as the internal events to the CCI.
-
-	  If unsure, say Y
-
-config ARM_CCN
-	tristate "ARM CCN driver support"
-	depends on ARM || ARM64
-	depends on PERF_EVENTS
-	help
-	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
-	  interconnect.
-
 config BRCMSTB_GISB_ARB
 	bool "Broadcom STB GISB bus arbiter"
 	depends on ARM || ARM64 || MIPS
@@ -63,6 +28,14 @@ config BRCMSTB_GISB_ARB
 	  Driver for the Broadcom Set Top Box System-on-a-chip internal bus
 	  arbiter. This driver provides timeout and target abort error handling
 	  and internal bus master decoding.
+
+config HISILICON_LPC
+	bool "Support for ISA I/O space on HiSilicon Hip06/7"
+	depends on ARM64 && (ARCH_HISI || COMPILE_TEST)
+	select INDIRECT_PIO
+	help
+	  Driver to enable I/O access to devices attached to the Low Pin
+	  Count bus on the HiSilicon Hip06/7 SoC.
 
 config IMX_WEIM
 	bool "Freescale EIM DRIVER"
@@ -119,7 +92,7 @@ config QCOM_EBI2
 	  SRAM, ethernet adapters, FPGAs and LCD displays.
 
 config SIMPLE_PM_BUS
-	bool "Simple Power-Managed Bus Driver"
+	tristate "Simple Power-Managed Bus Driver"
 	depends on OF && PM
 	help
 	  Driver for transparent busses that don't need a real driver, but
@@ -129,6 +102,16 @@ config SIMPLE_PM_BUS
 	  An example of such a bus controller is the Renesas Bus State
 	  Controller (BSC, sometimes called "LBSC within Bus Bridge", or
 	  "External Bus Interface") as found on several Renesas ARM SoCs.
+
+config SUN50I_DE2_BUS
+	bool "Allwinner A64 DE2 Bus Driver"
+	  default ARM64
+	  depends on ARCH_SUNXI
+	  select SUNXI_SRAM
+	  help
+	  Say y here to enable support for Allwinner A64 DE2 bus driver. It's
+	  mostly transparent, but a SRAM region needs to be claimed in the SRAM
+	  controller to make the all blocks in the DE2 part accessible.
 
 config SUNXI_RSB
 	tristate "Allwinner sunXi Reduced Serial Bus Driver"
@@ -157,6 +140,21 @@ config TEGRA_GMI
 	  Driver for the Tegra Generic Memory Interface bus which can be used
 	  to attach devices such as NOR, UART, FPGA and more.
 
+config TI_SYSC
+	bool "TI sysc interconnect target module driver"
+	depends on ARCH_OMAP2PLUS
+	help
+	  Generic driver for Texas Instruments interconnect target module
+	  found on many TI SoCs.
+
+config TS_NBUS
+	tristate "Technologic Systems NBUS Driver"
+	depends on SOC_IMX28
+	depends on OF_GPIO && PWM
+	help
+	  Driver for the Technologic Systems NBUS which is used to interface
+	  with the peripherals in the FPGA of the TS-4600 SoM.
+
 config UNIPHIER_SYSTEM_BUS
 	tristate "UniPhier System Bus driver"
 	depends on ARCH_UNIPHIER && OF
@@ -182,5 +180,7 @@ config DA8XX_MSTPRI
 	  Driver for Texas Instruments da8xx master peripheral priority
 	  configuration. Allows to adjust the priorities of all master
 	  peripherals.
+
+source "drivers/bus/fsl-mc/Kconfig"
 
 endmenu

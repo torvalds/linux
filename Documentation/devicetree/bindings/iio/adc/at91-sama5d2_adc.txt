@@ -17,6 +17,19 @@ Required properties:
   This property uses the IRQ edge types values: IRQ_TYPE_EDGE_RISING ,
   IRQ_TYPE_EDGE_FALLING or IRQ_TYPE_EDGE_BOTH
 
+Optional properties:
+  - dmas: Phandle to dma channel for the ADC.
+  - dma-names: Must be "rx" when dmas property is being used.
+  See ../../dma/dma.txt for details.
+  - #io-channel-cells: in case consumer drivers are attached, this must be 1.
+  See <Documentation/devicetree/bindings/iio/iio-bindings.txt> for details.
+
+Properties for consumer drivers:
+  - Consumer drivers can be connected to this producer device, as specified
+  in <Documentation/devicetree/bindings/iio/iio-bindings.txt>
+  - Channels exposed are specified in:
+  <dt-bindings/iio/adc/at91-sama5d2_adc.txt>
+
 Example:
 
 adc: adc@fc030000 {
@@ -31,4 +44,7 @@ adc: adc@fc030000 {
 	vddana-supply = <&vdd_3v3_lp_reg>;
 	vref-supply = <&vdd_3v3_lp_reg>;
 	atmel,trigger-edge-type = <IRQ_TYPE_EDGE_BOTH>;
+	dmas = <&dma0 (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) | AT91_XDMAC_DT_PERID(25))>;
+	dma-names = "rx";
+	#io-channel-cells = <1>;
 }

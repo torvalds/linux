@@ -464,6 +464,7 @@
 #define RCB_RING_INTMSK_TX_OVERTIME_REG		0x000C4
 #define RCB_RING_INTSTS_TX_OVERTIME_REG		0x000C8
 
+#define GMAC_FIFO_STATE_REG			0x0000UL
 #define GMAC_DUPLEX_TYPE_REG			0x0008UL
 #define GMAC_FD_FC_TYPE_REG			0x000CUL
 #define GMAC_TX_WATER_LINE_REG			0x0010UL
@@ -1034,12 +1035,9 @@ static inline void dsaf_write_syscon(struct regmap *base, u32 reg, u32 value)
 	regmap_write(base, reg, value);
 }
 
-static inline u32 dsaf_read_syscon(struct regmap *base, u32 reg)
+static inline int dsaf_read_syscon(struct regmap *base, u32 reg, u32 *val)
 {
-	unsigned int val;
-
-	regmap_read(base, reg, &val);
-	return val;
+	return regmap_read(base, reg, val);
 }
 
 #define dsaf_read_dev(a, reg) \

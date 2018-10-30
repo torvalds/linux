@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # S/390 network devices
 #
@@ -14,3 +15,6 @@ qeth_l2-y += qeth_l2_main.o qeth_l2_sys.o
 obj-$(CONFIG_QETH_L2) += qeth_l2.o
 qeth_l3-y += qeth_l3_main.o qeth_l3_sys.o
 obj-$(CONFIG_QETH_L3) += qeth_l3.o
+
+ism-y := ism_drv.o
+obj-$(CONFIG_ISM) += ism.o

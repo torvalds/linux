@@ -43,10 +43,10 @@ static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronuously";
+		errmsg = "unlinked synchronously";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronuously";
+		errmsg = "unlinked asynchronously";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
@@ -285,7 +285,7 @@ static void vbi_buffer_release(struct videobuf_queue *vq,
 	free_buffer(vq, buf);
 }
 
-struct videobuf_queue_ops cx231xx_vbi_qops = {
+const struct videobuf_queue_ops cx231xx_vbi_qops = {
 	.buf_setup   = vbi_buffer_setup,
 	.buf_prepare = vbi_buffer_prepare,
 	.buf_queue   = vbi_buffer_queue,
@@ -305,6 +305,7 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 	struct cx231xx_video_mode *vmode =
 	    container_of(dma_q, struct cx231xx_video_mode, vidq);
 	struct cx231xx *dev = container_of(vmode, struct cx231xx, vbi_mode);
+	unsigned long flags;
 
 	switch (urb->status) {
 	case 0:		/* success */
@@ -316,14 +317,14 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 		return;
 	default:		/* error */
 		dev_err(dev->dev,
-			"urb completition error %d.\n",	urb->status);
+			"urb completion error %d.\n", urb->status);
 		break;
 	}
 
 	/* Copy data from URB */
-	spin_lock(&dev->vbi_mode.slock);
+	spin_lock_irqsave(&dev->vbi_mode.slock, flags);
 	dev->vbi_mode.bulk_ctl.bulk_copy(dev, urb);
-	spin_unlock(&dev->vbi_mode.slock);
+	spin_unlock_irqrestore(&dev->vbi_mode.slock, flags);
 
 	/* Reset status */
 	urb->status = 0;
@@ -415,7 +416,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	for (i = 0; i < 8; i++)
 		dma_q->partial_buf[i] = 0;
 
-	dev->vbi_mode.bulk_ctl.urb = kzalloc(sizeof(void *) * num_bufs,
+	dev->vbi_mode.bulk_ctl.urb = kcalloc(num_bufs, sizeof(void *),
 					     GFP_KERNEL);
 	if (!dev->vbi_mode.bulk_ctl.urb) {
 		dev_err(dev->dev,
@@ -424,7 +425,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	}
 
 	dev->vbi_mode.bulk_ctl.transfer_buffer =
-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
+	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->vbi_mode.bulk_ctl.transfer_buffer) {
 		dev_err(dev->dev,
 			"cannot allocate memory for usbtransfer\n");

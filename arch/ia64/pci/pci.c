@@ -398,7 +398,7 @@ pcibios_enable_device (struct pci_dev *dev, int mask)
 	if (ret < 0)
 		return ret;
 
-	if (!dev->msi_enabled)
+	if (!pci_dev_msi_enabled(dev))
 		return acpi_pci_irq_enable(dev);
 	return 0;
 }
@@ -407,7 +407,7 @@ void
 pcibios_disable_device (struct pci_dev *dev)
 {
 	BUG_ON(atomic_read(&dev->enable_cnt));
-	if (!dev->msi_enabled)
+	if (!pci_dev_msi_enabled(dev))
 		acpi_pci_irq_disable(dev);
 }
 
@@ -567,32 +567,6 @@ static void __init set_pci_dfl_cacheline_size(void)
 	}
 	pci_dfl_cache_line_size = (1 << cci.pcci_line_size) / 4;
 }
-
-u64 ia64_dma_get_required_mask(struct device *dev)
-{
-	u32 low_totalram = ((max_pfn - 1) << PAGE_SHIFT);
-	u32 high_totalram = ((max_pfn - 1) >> (32 - PAGE_SHIFT));
-	u64 mask;
-
-	if (!high_totalram) {
-		/* convert to mask just covering totalram */
-		low_totalram = (1 << (fls(low_totalram) - 1));
-		low_totalram += low_totalram - 1;
-		mask = low_totalram;
-	} else {
-		high_totalram = (1 << (fls(high_totalram) - 1));
-		high_totalram += high_totalram - 1;
-		mask = (((u64)high_totalram) << 32) + 0xffffffff;
-	}
-	return mask;
-}
-EXPORT_SYMBOL_GPL(ia64_dma_get_required_mask);
-
-u64 dma_get_required_mask(struct device *dev)
-{
-	return platform_dma_get_required_mask(dev);
-}
-EXPORT_SYMBOL_GPL(dma_get_required_mask);
 
 static int __init pcibios_init(void)
 {

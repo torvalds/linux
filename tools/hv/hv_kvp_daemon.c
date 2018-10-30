@@ -193,11 +193,14 @@ static void kvp_update_mem_state(int pool)
 	for (;;) {
 		readp = &record[records_read];
 		records_read += fread(readp, sizeof(struct kvp_record),
-					ENTRIES_PER_BLOCK * num_blocks,
-					filep);
+				ENTRIES_PER_BLOCK * num_blocks - records_read,
+				filep);
 
 		if (ferror(filep)) {
-			syslog(LOG_ERR, "Failed to read file, pool: %d", pool);
+			syslog(LOG_ERR,
+				"Failed to read file, pool: %d; error: %d %s",
+				 pool, errno, strerror(errno));
+			kvp_release_lock(pool);
 			exit(EXIT_FAILURE);
 		}
 
@@ -210,6 +213,7 @@ static void kvp_update_mem_state(int pool)
 
 			if (record == NULL) {
 				syslog(LOG_ERR, "malloc failed");
+				kvp_release_lock(pool);
 				exit(EXIT_FAILURE);
 			}
 			continue;
@@ -224,15 +228,11 @@ static void kvp_update_mem_state(int pool)
 	fclose(filep);
 	kvp_release_lock(pool);
 }
+
 static int kvp_file_init(void)
 {
 	int  fd;
-	FILE *filep;
-	size_t records_read;
 	char *fname;
-	struct kvp_record *record;
-	struct kvp_record *readp;
-	int num_blocks;
 	int i;
 	int alloc_unit = sizeof(struct kvp_record) * ENTRIES_PER_BLOCK;
 
@@ -246,61 +246,19 @@ static int kvp_file_init(void)
 
 	for (i = 0; i < KVP_POOL_COUNT; i++) {
 		fname = kvp_file_info[i].fname;
-		records_read = 0;
-		num_blocks = 1;
 		sprintf(fname, "%s/.kvp_pool_%d", KVP_CONFIG_LOC, i);
 		fd = open(fname, O_RDWR | O_CREAT | O_CLOEXEC, 0644 /* rw-r--r-- */);
 
 		if (fd == -1)
 			return 1;
 
-
-		filep = fopen(fname, "re");
-		if (!filep) {
-			close(fd);
-			return 1;
-		}
-
-		record = malloc(alloc_unit * num_blocks);
-		if (record == NULL) {
-			fclose(filep);
-			close(fd);
-			return 1;
-		}
-		for (;;) {
-			readp = &record[records_read];
-			records_read += fread(readp, sizeof(struct kvp_record),
-					ENTRIES_PER_BLOCK,
-					filep);
-
-			if (ferror(filep)) {
-				syslog(LOG_ERR, "Failed to read file, pool: %d",
-				       i);
-				exit(EXIT_FAILURE);
-			}
-
-			if (!feof(filep)) {
-				/*
-				 * We have more data to read.
-				 */
-				num_blocks++;
-				record = realloc(record, alloc_unit *
-						num_blocks);
-				if (record == NULL) {
-					fclose(filep);
-					close(fd);
-					return 1;
-				}
-				continue;
-			}
-			break;
-		}
 		kvp_file_info[i].fd = fd;
-		kvp_file_info[i].num_blocks = num_blocks;
-		kvp_file_info[i].records = record;
-		kvp_file_info[i].num_records = records_read;
-		fclose(filep);
-
+		kvp_file_info[i].num_blocks = 1;
+		kvp_file_info[i].records = malloc(alloc_unit);
+		if (kvp_file_info[i].records == NULL)
+			return 1;
+		kvp_file_info[i].num_records = 0;
+		kvp_update_mem_state(i);
 	}
 
 	return 0;
@@ -328,7 +286,7 @@ static int kvp_key_delete(int pool, const __u8 *key, int key_size)
 		 * Found a match; just move the remaining
 		 * entries up.
 		 */
-		if (i == num_records) {
+		if (i == (num_records - 1)) {
 			kvp_file_info[pool].num_records--;
 			kvp_update_file(pool);
 			return 0;
@@ -676,64 +634,6 @@ static char *kvp_if_name_to_mac(char *if_name)
 	return mac_addr;
 }
 
-
-/*
- * Retrieve the interface name given tha MAC address.
- */
-
-static char *kvp_mac_to_if_name(char *mac)
-{
-	DIR *dir;
-	struct dirent *entry;
-	FILE    *file;
-	char    *p, *x;
-	char    *if_name = NULL;
-	char    buf[256];
-	char dev_id[PATH_MAX];
-	unsigned int i;
-
-	dir = opendir(KVP_NET_DIR);
-	if (dir == NULL)
-		return NULL;
-
-	while ((entry = readdir(dir)) != NULL) {
-		/*
-		 * Set the state for the next pass.
-		 */
-		snprintf(dev_id, sizeof(dev_id), "%s%s/address", KVP_NET_DIR,
-			 entry->d_name);
-
-		file = fopen(dev_id, "r");
-		if (file == NULL)
-			continue;
-
-		p = fgets(buf, sizeof(buf), file);
-		if (p) {
-			x = strchr(p, '\n');
-			if (x)
-				*x = '\0';
-
-			for (i = 0; i < strlen(p); i++)
-				p[i] = toupper(p[i]);
-
-			if (!strcmp(p, mac)) {
-				/*
-				 * Found the MAC match; return the interface
-				 * name. The caller will free the memory.
-				 */
-				if_name = strdup(entry->d_name);
-				fclose(file);
-				break;
-			}
-		}
-		fclose(file);
-	}
-
-	closedir(dir);
-	return if_name;
-}
-
-
 static void kvp_process_ipconfig_file(char *cmd,
 					char *config_buf, unsigned int len,
 					int element_size, int offset)
@@ -1039,6 +939,70 @@ getaddr_done:
 	return error;
 }
 
+/*
+ * Retrieve the IP given the MAC address.
+ */
+static int kvp_mac_to_ip(struct hv_kvp_ipaddr_value *kvp_ip_val)
+{
+	char *mac = (char *)kvp_ip_val->adapter_id;
+	DIR *dir;
+	struct dirent *entry;
+	FILE    *file;
+	char    *p, *x;
+	char    *if_name = NULL;
+	char    buf[256];
+	char dev_id[PATH_MAX];
+	unsigned int i;
+	int error = HV_E_FAIL;
+
+	dir = opendir(KVP_NET_DIR);
+	if (dir == NULL)
+		return HV_E_FAIL;
+
+	while ((entry = readdir(dir)) != NULL) {
+		/*
+		 * Set the state for the next pass.
+		 */
+		snprintf(dev_id, sizeof(dev_id), "%s%s/address", KVP_NET_DIR,
+			 entry->d_name);
+
+		file = fopen(dev_id, "r");
+		if (file == NULL)
+			continue;
+
+		p = fgets(buf, sizeof(buf), file);
+		fclose(file);
+		if (!p)
+			continue;
+
+		x = strchr(p, '\n');
+		if (x)
+			*x = '\0';
+
+		for (i = 0; i < strlen(p); i++)
+			p[i] = toupper(p[i]);
+
+		if (strcmp(p, mac))
+			continue;
+
+		/*
+		 * Found the MAC match.
+		 * A NIC (e.g. VF) matching the MAC, but without IP, is skipped.
+		 */
+		if_name = entry->d_name;
+		if (!if_name)
+			continue;
+
+		error = kvp_get_ip_info(0, if_name, KVP_OP_GET_IP_INFO,
+					kvp_ip_val, MAX_IP_ADDR_SIZE * 2);
+
+		if (!error && strlen((char *)kvp_ip_val->ip_addr))
+			break;
+	}
+
+	closedir(dir);
+	return error;
+}
 
 static int expand_ipv6(char *addr, int type)
 {
@@ -1514,26 +1478,12 @@ int main(int argc, char *argv[])
 		switch (op) {
 		case KVP_OP_GET_IP_INFO:
 			kvp_ip_val = &hv_msg->body.kvp_ip_val;
-			if_name =
-			kvp_mac_to_if_name((char *)kvp_ip_val->adapter_id);
 
-			if (if_name == NULL) {
-				/*
-				 * We could not map the mac address to an
-				 * interface name; return error.
-				 */
-				hv_msg->error = HV_E_FAIL;
-				break;
-			}
-			error = kvp_get_ip_info(
-						0, if_name, KVP_OP_GET_IP_INFO,
-						kvp_ip_val,
-						(MAX_IP_ADDR_SIZE * 2));
+			error =  kvp_mac_to_ip(kvp_ip_val);
 
 			if (error)
 				hv_msg->error = error;
 
-			free(if_name);
 			break;
 
 		case KVP_OP_SET_IP_INFO:

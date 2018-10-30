@@ -53,6 +53,8 @@
 #define MALIDP550_DE_IRQ_AXI_ERR		(1 << 16)
 #define MALIDP550_SE_IRQ_EOW			(1 << 0)
 #define MALIDP550_SE_IRQ_AXI_ERR		(1 << 16)
+#define MALIDP550_SE_IRQ_OVR			(1 << 17)
+#define MALIDP550_SE_IRQ_IBSY			(1 << 18)
 #define MALIDP550_DC_IRQ_CONF_VALID		(1 << 0)
 #define MALIDP550_DC_IRQ_CONF_MODE		(1 << 4)
 #define MALIDP550_DC_IRQ_CONF_ACTIVE		(1 << 16)
@@ -60,12 +62,18 @@
 #define MALIDP550_DC_IRQ_SE			(1 << 24)
 
 #define MALIDP650_DE_IRQ_DRIFT			(1 << 4)
+#define MALIDP650_DE_IRQ_ACEV1			(1 << 17)
+#define MALIDP650_DE_IRQ_ACEV2			(1 << 18)
+#define MALIDP650_DE_IRQ_ACEG			(1 << 19)
+#define MALIDP650_DE_IRQ_AXIEP			(1 << 28)
 
 /* bit masks that are common between products */
 #define   MALIDP_CFG_VALID		(1 << 0)
 #define   MALIDP_DISP_FUNC_GAMMA	(1 << 0)
 #define   MALIDP_DISP_FUNC_CADJ		(1 << 4)
 #define   MALIDP_DISP_FUNC_ILACED	(1 << 8)
+#define   MALIDP_SCALE_ENGINE_EN	(1 << 16)
+#define   MALIDP_SE_MEMWRITE_EN		(2 << 5)
 
 /* register offsets for IRQ management */
 #define MALIDP_REG_STATUS		0x00000
@@ -153,6 +161,16 @@
 		(((x) & MALIDP_SE_ENH_LIMIT_MASK) << 16)
 #define   MALIDP_SE_ENH_COEFF0			0x04
 
+
+/* register offsets relative to MALIDP5x0_SE_MEMWRITE_BASE */
+#define MALIDP_MW_FORMAT		0x00000
+#define MALIDP_MW_P1_STRIDE		0x00004
+#define MALIDP_MW_P2_STRIDE		0x00008
+#define MALIDP_MW_P1_PTR_LOW		0x0000c
+#define MALIDP_MW_P1_PTR_HIGH		0x00010
+#define MALIDP_MW_P2_PTR_LOW		0x0002c
+#define MALIDP_MW_P2_PTR_HIGH		0x00030
+
 /* register offsets and bits specific to DP500 */
 #define MALIDP500_ADDR_SPACE_SIZE	0x01000
 #define MALIDP500_DC_BASE		0x00000
@@ -170,10 +188,7 @@
 #define MALIDP500_CONFIG_3D		0x00038
 #define MALIDP500_BGND_COLOR		0x0003c
 #define MALIDP500_OUTPUT_DEPTH		0x00044
-#define MALIDP500_YUV_RGB_COEF		0x00048
-#define MALIDP500_COLOR_ADJ_COEF	0x00078
-#define MALIDP500_COEF_TABLE_ADDR	0x000a8
-#define MALIDP500_COEF_TABLE_DATA	0x000ac
+#define MALIDP500_COEFFS_BASE		0x00078
 
 /*
  * The YUV2RGB coefficients on the DP500 are not in the video layer's register
@@ -181,11 +196,6 @@
  * the negative offset.
  */
 #define MALIDP500_LV_YUV2RGB		((s16)(-0xB8))
-/*
- * To match DP550/650, the start of the coeffs registers is
- * at COLORADJ_COEFF0 instead of at YUV_RGB_COEF1.
- */
-#define MALIDP500_COEFFS_BASE		0x00078
 #define MALIDP500_DE_LV_BASE		0x00100
 #define MALIDP500_DE_LV_PTR_BASE	0x00124
 #define MALIDP500_DE_LG1_BASE		0x00200
@@ -194,7 +204,9 @@
 #define MALIDP500_DE_LG2_PTR_BASE	0x0031c
 #define MALIDP500_SE_BASE		0x00c00
 #define MALIDP500_SE_CONTROL		0x00c0c
-#define MALIDP500_SE_PTR_BASE		0x00e0c
+#define MALIDP500_SE_MEMWRITE_OUT_SIZE	0x00c2c
+#define MALIDP500_SE_RGB_YUV_COEFFS	0x00C74
+#define MALIDP500_SE_MEMWRITE_BASE	0x00e00
 #define MALIDP500_DC_IRQ_BASE		0x00f00
 #define MALIDP500_CONFIG_VALID		0x00f00
 #define MALIDP500_CONFIG_ID		0x00fd4
@@ -213,6 +225,7 @@
 #define MALIDP550_DE_BGND_COLOR		0x00044
 #define MALIDP550_DE_OUTPUT_DEPTH	0x0004c
 #define MALIDP550_COEFFS_BASE		0x00050
+#define MALIDP550_LV_YUV2RGB		0x00084
 #define MALIDP550_DE_LV1_BASE		0x00100
 #define MALIDP550_DE_LV1_PTR_BASE	0x00124
 #define MALIDP550_DE_LV2_BASE		0x00200
@@ -224,11 +237,26 @@
 #define MALIDP550_DE_PERF_BASE		0x00500
 #define MALIDP550_SE_BASE		0x08000
 #define MALIDP550_SE_CONTROL		0x08010
+#define   MALIDP550_SE_MEMWRITE_ONESHOT	(1 << 7)
+#define MALIDP550_SE_MEMWRITE_OUT_SIZE	0x08030
+#define MALIDP550_SE_RGB_YUV_COEFFS	0x08078
+#define MALIDP550_SE_MEMWRITE_BASE	0x08100
 #define MALIDP550_DC_BASE		0x0c000
 #define MALIDP550_DC_CONTROL		0x0c010
 #define   MALIDP550_DC_CONFIG_REQ	(1 << 16)
 #define MALIDP550_CONFIG_VALID		0x0c014
 #define MALIDP550_CONFIG_ID		0x0ffd4
+
+/* register offsets specific to DP650 */
+#define MALIDP650_DE_LV_MMU_CTRL	0x000D0
+#define MALIDP650_DE_LG_MMU_CTRL	0x00048
+#define MALIDP650_DE_LS_MMU_CTRL	0x00078
+
+/* bit masks to set the MMU control register */
+#define MALIDP_MMU_CTRL_EN		(1 << 0)
+#define MALIDP_MMU_CTRL_MODE		(1 << 4)
+#define MALIDP_MMU_CTRL_PX_PS(x)	(1 << (8 + (x)))
+#define MALIDP_MMU_CTRL_PP_NUM_REQ(x)	(((x) & 0x7f) << 12)
 
 /*
  * Starting with DP550 the register map blocks has been standardised to the

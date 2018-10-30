@@ -39,6 +39,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/personality.h>
 #include <linux/ptrace.h>
@@ -111,14 +112,6 @@ void machine_restart(char *cmd)
 
 }
 
-void machine_halt(void)
-{
-	/*
-	** The LED/ChassisCodes are updated by the led_halt()
-	** function, called by the reboot notifier chain.
-	*/
-}
-
 void (*chassis_power_off)(void);
 
 /*
@@ -137,6 +130,10 @@ void machine_power_off(void)
 	pdc_soft_power_button(0);
 	
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_SHUTDOWN);
+
+	/* ipmi_poweroff may have been installed. */
+	if (pm_power_off)
+		pm_power_off();
 		
 	/* It seems we have no way to power the system off via
 	 * software. The user has to press the button himself. */
@@ -146,12 +143,17 @@ void machine_power_off(void)
 
 	/* prevent soft lockup/stalled CPU messages for endless loop. */
 	rcu_sysrq_start();
-	lockup_detector_suspend();
+	lockup_detector_soft_poweroff();
 	for (;;);
 }
 
-void (*pm_power_off)(void) = machine_power_off;
+void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
+
+void machine_halt(void)
+{
+	machine_power_off();
+}
 
 void flush_thread(void)
 {
@@ -182,6 +184,44 @@ int dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *r)
 	memcpy(r, tsk->thread.regs.fr, sizeof(*r));
 	return 1;
 }
+
+/*
+ * Idle thread support
+ *
+ * Detect when running on QEMU with SeaBIOS PDC Firmware and let
+ * QEMU idle the host too.
+ */
+
+int running_on_qemu __read_mostly;
+
+void __cpuidle arch_cpu_idle_dead(void)
+{
+	/* nop on real hardware, qemu will offline CPU. */
+	asm volatile("or %%r31,%%r31,%%r31\n":::);
+}
+
+void __cpuidle arch_cpu_idle(void)
+{
+	local_irq_enable();
+
+	/* nop on real hardware, qemu will idle sleep. */
+	asm volatile("or %%r10,%%r10,%%r10\n":::);
+}
+
+static int __init parisc_idle_init(void)
+{
+	const char *marker;
+
+	/* check QEMU/SeaBIOS marker in PAGE0 */
+	marker = (char *) &PAGE0->pad0;
+	running_on_qemu = (memcmp(marker, "SeaBIOS", 8) == 0);
+
+	if (!running_on_qemu)
+		cpu_idle_poll_ctrl(1);
+
+	return 0;
+}
+arch_initcall(parisc_idle_init);
 
 /*
  * Copy architecture-specific thread state
@@ -262,7 +302,7 @@ get_wchan(struct task_struct *p)
 		ip = info.ip;
 		if (!in_sched_functions(ip))
 			return ip;
-	} while (count++ < 16);
+	} while (count++ < MAX_UNWIND_ENTRIES);
 	return 0;
 }
 
@@ -275,6 +315,15 @@ void *dereference_function_descriptor(void *ptr)
 	if (!probe_kernel_address(&desc->addr, p))
 		ptr = p;
 	return ptr;
+}
+
+void *dereference_kernel_function_descriptor(void *ptr)
+{
+	if (ptr < (void *)__start_opd ||
+			ptr >= (void *)__end_opd)
+		return ptr;
+
+	return dereference_function_descriptor(ptr);
 }
 #endif
 

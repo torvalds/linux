@@ -342,7 +342,7 @@ static const struct i2c_adapter au0828_i2c_adap_template = {
 	.algo              = &au0828_i2c_algo_template,
 };
 
-static struct i2c_client au0828_i2c_client_template = {
+static const struct i2c_client au0828_i2c_client_template = {
 	.name	= "au0828 internal",
 };
 
@@ -378,7 +378,7 @@ int au0828_i2c_register(struct au0828_dev *dev)
 
 	dev->i2c_adap.dev.parent = &dev->usbdev->dev;
 
-	strlcpy(dev->i2c_adap.name, KBUILD_MODNAME,
+	strscpy(dev->i2c_adap.name, KBUILD_MODNAME,
 		sizeof(dev->i2c_adap.name));
 
 	dev->i2c_adap.algo = &dev->i2c_algo;

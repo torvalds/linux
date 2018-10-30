@@ -1,16 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DDK750_SII164_H__
 #define DDK750_SII164_H__
 
 #define USE_DVICHIP
 
 /* Hot Plug detection mode structure */
-typedef enum _sii164_hot_plug_mode_t {
+enum sii164_hot_plug_mode {
 	SII164_HOTPLUG_DISABLE = 0,         /* Disable Hot Plug output bit (always high). */
 	SII164_HOTPLUG_USE_MDI,             /* Use Monitor Detect Interrupt bit. */
 	SII164_HOTPLUG_USE_RSEN,            /* Use Receiver Sense detect bit. */
 	SII164_HOTPLUG_USE_HTPLG            /* Use Hot Plug detect bit. */
-} sii164_hot_plug_mode_t;
-
+};
 
 /* Silicon Image SiI164 chip prototype */
 long sii164InitChip(unsigned char edgeSelect,
@@ -26,7 +26,6 @@ long sii164InitChip(unsigned char edgeSelect,
 
 unsigned short sii164GetVendorID(void);
 unsigned short sii164GetDeviceID(void);
-
 
 #ifdef SII164_FULL_FUNCTIONS
 void sii164ResetChip(void);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PAGE_64_H
 #define _ASM_X86_PAGE_64_H
 
@@ -9,6 +10,10 @@
 /* duplicated to the one in bootmem.h */
 extern unsigned long max_pfn;
 extern unsigned long phys_base;
+
+extern unsigned long page_offset_base;
+extern unsigned long vmalloc_base;
+extern unsigned long vmemmap_base;
 
 static inline unsigned long __phys_addr_nodebug(unsigned long x)
 {
@@ -46,14 +51,10 @@ static inline void clear_page(void *page)
 			   clear_page_erms, X86_FEATURE_ERMS,
 			   "=D" (page),
 			   "0" (page)
-			   : "memory", "rax", "rcx");
+			   : "cc", "memory", "rax", "rcx");
 }
 
 void copy_page(void *to, void *from);
-
-#ifdef CONFIG_X86_MCE
-#define arch_unmap_kpfn arch_unmap_kpfn
-#endif
 
 #endif	/* !__ASSEMBLY__ */
 

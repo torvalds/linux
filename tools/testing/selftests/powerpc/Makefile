@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for powerpc selftests
 
 # ARCH can be overridden by the user for cross compiling
@@ -16,7 +17,6 @@ SUB_DIRS = alignment		\
 	   benchmarks		\
 	   cache_shape		\
 	   copyloops		\
-	   context_switch	\
 	   dscr			\
 	   mm			\
 	   pmu			\
@@ -28,7 +28,8 @@ SUB_DIRS = alignment		\
 	   tm			\
 	   vphn         \
 	   math		\
-	   ptrace
+	   ptrace	\
+	   security
 
 endif
 

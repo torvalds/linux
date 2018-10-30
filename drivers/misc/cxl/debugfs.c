@@ -15,28 +15,6 @@
 
 static struct dentry *cxl_debugfs;
 
-void cxl_stop_trace_psl9(struct cxl *adapter)
-{
-	/* Stop the trace */
-	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x4480000000000000ULL);
-}
-
-void cxl_stop_trace_psl8(struct cxl *adapter)
-{
-	int slice;
-
-	/* Stop the trace */
-	cxl_p1_write(adapter, CXL_PSL_TRACE, 0x8000000000000017LL);
-
-	/* Stop the slice traces */
-	spin_lock(&adapter->afu_list_lock);
-	for (slice = 0; slice < adapter->slices; slice++) {
-		if (adapter->afu[slice])
-			cxl_p1n_write(adapter->afu[slice], CXL_PSL_SLICE_TRACE, 0x8000000000000000LL);
-	}
-	spin_unlock(&adapter->afu_list_lock);
-}
-
 /* Helpers to export CXL mmaped IO registers via debugfs */
 static int debugfs_io_u64_get(void *data, u64 *val)
 {
@@ -62,9 +40,14 @@ static struct dentry *debugfs_create_io_x64(const char *name, umode_t mode,
 void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter, struct dentry *dir)
 {
 	debugfs_create_io_x64("fir1", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_FIR1));
-	debugfs_create_io_x64("fir2", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_FIR2));
+	debugfs_create_io_x64("fir_mask", 0400, dir,
+			      _cxl_p1_addr(adapter, CXL_PSL9_FIR_MASK));
 	debugfs_create_io_x64("fir_cntl", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_FIR_CNTL));
 	debugfs_create_io_x64("trace", S_IRUSR | S_IWUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_TRACECFG));
+	debugfs_create_io_x64("debug", 0600, dir,
+			      _cxl_p1_addr(adapter, CXL_PSL9_DEBUG));
+	debugfs_create_io_x64("xsl-debug", 0600, dir,
+			      _cxl_p1_addr(adapter, CXL_XSL9_DBG));
 }
 
 void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir)
@@ -73,11 +56,6 @@ void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir)
 	debugfs_create_io_x64("fir2", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL_FIR2));
 	debugfs_create_io_x64("fir_cntl", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL_FIR_CNTL));
 	debugfs_create_io_x64("trace", S_IRUSR | S_IWUSR, dir, _cxl_p1_addr(adapter, CXL_PSL_TRACE));
-}
-
-void cxl_debugfs_add_adapter_regs_xsl(struct cxl *adapter, struct dentry *dir)
-{
-	debugfs_create_io_x64("fec", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_XSL_FEC));
 }
 
 int cxl_debugfs_adapter_add(struct cxl *adapter)

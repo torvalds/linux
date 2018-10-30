@@ -23,6 +23,7 @@
 #include <linux/of_graph.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/regulator/consumer.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
@@ -137,7 +138,9 @@ struct meson_dw_hdmi {
 	struct reset_control *hdmitx_phy;
 	struct clk *hdmi_pclk;
 	struct clk *venci_clk;
+	struct regulator *hdmi_supply;
 	u32 irq_stat;
+	struct dw_hdmi *hdmi;
 };
 #define encoder_to_meson_dw_hdmi(x) \
 	container_of(x, struct meson_dw_hdmi, encoder)
@@ -300,7 +303,7 @@ static void meson_hdmi_phy_setup_mode(struct meson_dw_hdmi *dw_hdmi,
 	}
 }
 
-static inline void dw_hdmi_phy_reset(struct meson_dw_hdmi *dw_hdmi)
+static inline void meson_dw_hdmi_phy_reset(struct meson_dw_hdmi *dw_hdmi)
 {
 	struct meson_drm *priv = dw_hdmi->priv;
 
@@ -325,6 +328,12 @@ static void dw_hdmi_set_vclk(struct meson_dw_hdmi *dw_hdmi,
 	unsigned int hdmi_freq;
 
 	vclk_freq = mode->clock;
+
+	if (!vic) {
+		meson_vclk_setup(priv, MESON_VCLK_TARGET_DMT, vclk_freq,
+				 vclk_freq, vclk_freq, false);
+		return;
+	}
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		vclk_freq *= 2;
@@ -407,9 +416,9 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi, void *data,
 	msleep(100);
 
 	/* Reset PHY 3 times in a row */
-	dw_hdmi_phy_reset(dw_hdmi);
-	dw_hdmi_phy_reset(dw_hdmi);
-	dw_hdmi_phy_reset(dw_hdmi);
+	meson_dw_hdmi_phy_reset(dw_hdmi);
+	meson_dw_hdmi_phy_reset(dw_hdmi);
+	meson_dw_hdmi_phy_reset(dw_hdmi);
 
 	/* Temporary Disable VENC video stream */
 	if (priv->venc.hdmi_use_enci)
@@ -526,7 +535,7 @@ static irqreturn_t dw_hdmi_top_thread_irq(int irq, void *dev_id)
 		if (stat & HDMITX_TOP_INTR_HPD_RISE)
 			hpd_connected = true;
 
-		dw_hdmi_setup_rx_sense(dw_hdmi->dev, hpd_connected,
+		dw_hdmi_setup_rx_sense(dw_hdmi->hdmi, hpd_connected,
 				       hpd_connected);
 
 		drm_helper_hpd_irq_event(dw_hdmi->encoder.dev);
@@ -535,15 +544,16 @@ static irqreturn_t dw_hdmi_top_thread_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* TOFIX Enable support for non-vic modes */
 static enum drm_mode_status
 dw_hdmi_mode_valid(struct drm_connector *connector,
 		   const struct drm_display_mode *mode)
 {
+	struct meson_drm *priv = connector->dev->dev_private;
 	unsigned int vclk_freq;
 	unsigned int venc_freq;
 	unsigned int hdmi_freq;
 	int vic = drm_match_cea_mode(mode);
+	enum drm_mode_status status;
 
 	DRM_DEBUG_DRIVER("Modeline %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x\n",
 		mode->base.id, mode->name, mode->vrefresh, mode->clock,
@@ -552,12 +562,15 @@ dw_hdmi_mode_valid(struct drm_connector *connector,
 		mode->vdisplay, mode->vsync_start,
 		mode->vsync_end, mode->vtotal, mode->type, mode->flags);
 
-	/* For now, only accept VIC modes */
-	if (!vic)
-		return MODE_BAD;
+	/* Check against non-VIC supported modes */
+	if (!vic) {
+		status = meson_venc_hdmi_supported_mode(mode);
+		if (status != MODE_OK)
+			return status;
 
-	/* For now, filter by supported VIC modes */
-	if (!meson_venc_hdmi_supported_vic(vic))
+		return meson_vclk_dmt_supported_freq(priv, mode->clock);
+	/* Check against supported VIC modes */
+	} else if (!meson_venc_hdmi_supported_vic(vic))
 		return MODE_BAD;
 
 	vclk_freq = mode->clock;
@@ -581,7 +594,7 @@ dw_hdmi_mode_valid(struct drm_connector *connector,
 	dev_dbg(connector->dev->dev, "%s: vclk:%d venc=%d hdmi=%d\n", __func__,
 		vclk_freq, venc_freq, hdmi_freq);
 
-	/* Finally filter by configurable vclk frequencies */
+	/* Finally filter by configurable vclk frequencies for VIC modes */
 	switch (vclk_freq) {
 	case 54000:
 	case 74250:
@@ -649,10 +662,6 @@ static void meson_venc_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 
 	DRM_DEBUG_DRIVER("%d:\"%s\" vic %d\n",
 			 mode->base.id, mode->name, vic);
-
-	/* Should have been filtered */
-	if (!vic)
-		return;
 
 	/* VENC + VENC-DVI Mode setup */
 	meson_venc_hdmi_mode_set(priv, vic, mode);
@@ -750,6 +759,17 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 	meson_dw_hdmi->dev = dev;
 	dw_plat_data = &meson_dw_hdmi->dw_plat_data;
 	encoder = &meson_dw_hdmi->encoder;
+
+	meson_dw_hdmi->hdmi_supply = devm_regulator_get_optional(dev, "hdmi");
+	if (IS_ERR(meson_dw_hdmi->hdmi_supply)) {
+		if (PTR_ERR(meson_dw_hdmi->hdmi_supply) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		meson_dw_hdmi->hdmi_supply = NULL;
+	} else {
+		ret = regulator_enable(meson_dw_hdmi->hdmi_supply);
+		if (ret)
+			return ret;
+	}
 
 	meson_dw_hdmi->hdmitx_apb = devm_reset_control_get_exclusive(dev,
 						"hdmitx_apb");
@@ -865,9 +885,12 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 	dw_plat_data->input_bus_format = MEDIA_BUS_FMT_YUV8_1X24;
 	dw_plat_data->input_bus_encoding = V4L2_YCBCR_ENC_709;
 
-	ret = dw_hdmi_bind(pdev, encoder, &meson_dw_hdmi->dw_plat_data);
-	if (ret)
-		return ret;
+	platform_set_drvdata(pdev, meson_dw_hdmi);
+
+	meson_dw_hdmi->hdmi = dw_hdmi_bind(pdev, encoder,
+					   &meson_dw_hdmi->dw_plat_data);
+	if (IS_ERR(meson_dw_hdmi->hdmi))
+		return PTR_ERR(meson_dw_hdmi->hdmi);
 
 	DRM_DEBUG_DRIVER("HDMI controller initialized\n");
 
@@ -877,7 +900,9 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 static void meson_dw_hdmi_unbind(struct device *dev, struct device *master,
 				   void *data)
 {
-	dw_hdmi_unbind(dev);
+	struct meson_dw_hdmi *meson_dw_hdmi = dev_get_drvdata(dev);
+
+	dw_hdmi_unbind(meson_dw_hdmi->hdmi);
 }
 
 static const struct component_ops meson_dw_hdmi_ops = {

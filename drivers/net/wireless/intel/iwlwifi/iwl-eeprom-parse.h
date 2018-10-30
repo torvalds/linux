@@ -17,11 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -81,10 +76,11 @@ struct iwl_nvm_data {
 	__le16 kelvin_voltage;
 	__le16 xtal_calib[2];
 
-	bool sku_cap_band_24GHz_enable;
-	bool sku_cap_band_52GHz_enable;
+	bool sku_cap_band_24ghz_enable;
+	bool sku_cap_band_52ghz_enable;
 	bool sku_cap_11n_enable;
 	bool sku_cap_11ac_enable;
+	bool sku_cap_11ax_enable;
 	bool sku_cap_amt_enable;
 	bool sku_cap_ipan_enable;
 	bool sku_cap_mimo_disabled;

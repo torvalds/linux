@@ -70,8 +70,7 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number);
 static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_Mode);
 static void nes_terminate_start_timer(struct nes_qp *nesqp);
 
-#ifdef CONFIG_INFINIBAND_NES_DEBUG
-static unsigned char *nes_iwarp_state_str[] = {
+static const char *const nes_iwarp_state_str[] = {
 	"Non-Existent",
 	"Idle",
 	"RTS",
@@ -82,7 +81,7 @@ static unsigned char *nes_iwarp_state_str[] = {
 	"RSVD2",
 };
 
-static unsigned char *nes_tcp_state_str[] = {
+static const char *const nes_tcp_state_str[] = {
 	"Non-Existent",
 	"Closed",
 	"Listen",
@@ -100,7 +99,6 @@ static unsigned char *nes_tcp_state_str[] = {
 	"RSVD3",
 	"RSVD4",
 };
-#endif
 
 static inline void print_ip(struct nes_cm_node *cm_node)
 {
@@ -381,6 +379,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 	       sizeof nesadapter->pft_mcast_map);
 
 	/* populate the new nesadapter */
+	nesadapter->nesdev = nesdev;
 	nesadapter->devfn = nesdev->pcidev->devfn;
 	nesadapter->bus_number = nesdev->pcidev->bus->number;
 	nesadapter->ref_count = 1;
@@ -598,19 +597,15 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 	}
 
 	if (nesadapter->hw_rev == NE020_REV) {
-		init_timer(&nesadapter->mh_timer);
-		nesadapter->mh_timer.function = nes_mh_fix;
+		timer_setup(&nesadapter->mh_timer, nes_mh_fix, 0);
 		nesadapter->mh_timer.expires = jiffies + (HZ/5);  /* 1 second */
-		nesadapter->mh_timer.data = (unsigned long)nesdev;
 		add_timer(&nesadapter->mh_timer);
 	} else {
 		nes_write32(nesdev->regs+NES_INTF_INT_STAT, 0x0f000000);
 	}
 
-	init_timer(&nesadapter->lc_timer);
-	nesadapter->lc_timer.function = nes_clc;
+	timer_setup(&nesadapter->lc_timer, nes_clc, 0);
 	nesadapter->lc_timer.expires = jiffies + 3600 * HZ;  /* 1 hour */
-	nesadapter->lc_timer.data = (unsigned long)nesdev;
 	add_timer(&nesadapter->lc_timer);
 
 	list_add_tail(&nesadapter->list, &nes_adapter_list);
@@ -1448,7 +1443,7 @@ static int nes_init_2025_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_inde
 		mdelay(1);
 		nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7ee);
 		temp_phy_data2 = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
-	} while ((temp_phy_data2 == temp_phy_data));
+	} while (temp_phy_data2 == temp_phy_data);
 
 	/* wait for tracking */
 	counter = 0;
@@ -1623,9 +1618,9 @@ static void nes_replenish_nic_rq(struct nes_vnic *nesvnic)
 /**
  * nes_rq_wqes_timeout
  */
-static void nes_rq_wqes_timeout(unsigned long parm)
+static void nes_rq_wqes_timeout(struct timer_list *t)
 {
-	struct nes_vnic *nesvnic = (struct nes_vnic *)parm;
+	struct nes_vnic *nesvnic = from_timer(nesvnic, t, rq_wqes_timer);
 	printk("%s: Timer fired.\n", __func__);
 	atomic_set(&nesvnic->rx_skb_timer_running, 0);
 	if (atomic_read(&nesvnic->rx_skbs_needed))
@@ -1849,8 +1844,7 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 		wqe_count -= counter;
 		nes_write32(nesdev->regs+NES_WQE_ALLOC, (counter << 24) | nesvnic->nic.qp_id);
 	} while (wqe_count);
-	setup_timer(&nesvnic->rq_wqes_timer, nes_rq_wqes_timeout,
-		    (unsigned long)nesvnic);
+	timer_setup(&nesvnic->rq_wqes_timer, nes_rq_wqes_timeout, 0);
 	nes_debug(NES_DBG_INIT, "NAPI support Enabled\n");
 	if (nesdev->nesadapter->et_use_adaptive_rx_coalesce)
 	{
@@ -1861,8 +1855,9 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 	}
 	if ((nesdev->nesadapter->allow_unaligned_fpdus) &&
 		(nes_init_mgt_qp(nesdev, netdev, nesvnic))) {
-			nes_debug(NES_DBG_INIT, "%s: Out of memory for pau nic\n", netdev->name);
-			nes_destroy_nic_qp(nesvnic);
+		nes_debug(NES_DBG_INIT, "%s: Out of memory for pau nic\n",
+			  netdev->name);
+		nes_destroy_nic_qp(nesvnic);
 		return -ENOMEM;
 	}
 
@@ -3474,9 +3469,9 @@ static void nes_terminate_received(struct nes_device *nesdev,
 }
 
 /* Timeout routine in case terminate fails to complete */
-void nes_terminate_timeout(unsigned long context)
+void nes_terminate_timeout(struct timer_list *t)
 {
-	struct nes_qp *nesqp = (struct nes_qp *)(unsigned long)context;
+	struct nes_qp *nesqp = from_timer(nesqp, t, terminate_timer);
 
 	nes_terminate_done(nesqp, 1);
 }
@@ -3631,7 +3626,7 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 				aeq_info |= NES_AEQE_AEID_RDMAP_ROE_UNEXPECTED_OPCODE;
 				aeqe->aeqe_words[NES_AEQE_MISC_IDX] = cpu_to_le32(aeq_info);
 			}
-
+			/* fall through */
 		case NES_AEQE_AEID_RDMAP_ROE_BAD_LLP_CLOSE:
 		case NES_AEQE_AEID_LLP_TOO_MANY_RETRIES:
 		case NES_AEQE_AEID_DDP_UBE_INVALID_MSN_NO_BUFFER_AVAILABLE:

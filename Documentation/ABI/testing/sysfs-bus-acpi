@@ -56,3 +56,40 @@ Description:
 		Writing 1 to this attribute will trigger hot removal of
 		this device object.  This file exists for every device
 		object that has _EJ0 method.
+
+What:		/sys/bus/acpi/devices/.../status
+Date:		Jan, 2014
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		(RO) Returns the ACPI device status: enabled, disabled or
+		functioning or present, if the method _STA is present.
+
+		The return value is a decimal integer representing the device's
+		status bitmap:
+
+		Bit [0] –  Set if the device is present.
+		Bit [1] –  Set if the device is enabled and decoding its
+		           resources.
+		Bit [2] –  Set if the device should be shown in the UI.
+		Bit [3] –  Set if the device is functioning properly (cleared if
+		           device failed its diagnostics).
+		Bit [4] –  Set if the battery is present.
+		Bits [31:5] –  Reserved (must be cleared)
+
+		If bit [0] is clear, then bit 1 must also be clear (a device
+		that is not present cannot be enabled).
+
+		Bit 0 can be clear (not present) with bit [3] set (device is
+		functional).  This case is used to indicate a valid device for
+		which no device driver should be loaded.
+
+		More special cases are covered in the ACPI specification.
+
+What:		/sys/bus/acpi/devices/.../hrv
+Date:		Apr, 2016
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		(RO) Allows users to read the hardware version of non-PCI
+		hardware, if the _HRV control method is present.  It is mostly
+		useful for non-PCI devices because lspci can list the hardware
+		version for PCI devices.

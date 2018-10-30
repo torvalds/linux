@@ -201,14 +201,14 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* IRQ_N */
 				if (p[i].flags &
-					(V4L2_SUBDEV_IO_PIN_DISABLE |
-					 V4L2_SUBDEV_IO_PIN_INPUT)) {
+					(BIT(V4L2_SUBDEV_IO_PIN_DISABLE) |
+					 BIT(V4L2_SUBDEV_IO_PIN_INPUT))) {
 					pin_ctrl &= ~(0x1 << 25);
 				} else {
 					pin_ctrl |= (0x1 << 25);
 				}
 				if (p[i].flags &
-					V4L2_SUBDEV_IO_PIN_ACTIVE_LOW) {
+					BIT(V4L2_SUBDEV_IO_PIN_ACTIVE_LOW)) {
 					pin_ctrl &= ~(0x1 << 24);
 				} else {
 					pin_ctrl |= (0x1 << 24);
@@ -224,7 +224,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* GPIO19 */
 				gpio_oe &= ~(0x1 << 0);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_SET_VALUE)) {
 					gpio_data &= ~(0x1 << 0);
 					gpio_data |= ((p[i].value & 0x1) << 0);
 				}
@@ -236,7 +236,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			if (p[i].function != CX23885_PAD_GPIO20) {
 				/* IR_TX */
 				gpio_oe |= (0x1 << 1);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_DISABLE)
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_DISABLE))
 					pin_ctrl &= ~(0x1 << 10);
 				else
 					pin_ctrl |= (0x1 << 10);
@@ -245,7 +245,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* GPIO20 */
 				gpio_oe &= ~(0x1 << 1);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_SET_VALUE)) {
 					gpio_data &= ~(0x1 << 1);
 					gpio_data |= ((p[i].value & 0x1) << 1);
 				}
@@ -263,7 +263,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* GPIO21 */
 				gpio_oe &= ~(0x1 << 2);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_SET_VALUE)) {
 					gpio_data &= ~(0x1 << 2);
 					gpio_data |= ((p[i].value & 0x1) << 2);
 				}
@@ -281,7 +281,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* GPIO22 */
 				gpio_oe &= ~(0x1 << 3);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_SET_VALUE)) {
 					gpio_data &= ~(0x1 << 3);
 					gpio_data |= ((p[i].value & 0x1) << 3);
 				}
@@ -299,7 +299,7 @@ static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
 			} else {
 				/* GPIO23 */
 				gpio_oe &= ~(0x1 << 4);
-				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+				if (p[i].flags & BIT(V4L2_SUBDEV_IO_PIN_SET_VALUE)) {
 					gpio_data &= ~(0x1 << 4);
 					gpio_data |= ((p[i].value & 0x1) << 4);
 				}
@@ -463,7 +463,12 @@ static void cx23885_initialize(struct i2c_client *client)
 {
 	DEFINE_WAIT(wait);
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
+	u32 clk_freq = 0;
 	struct workqueue_struct *q;
+
+	/* cx23885 sets hostdata to clk_freq pointer */
+	if (v4l2_get_subdev_hostdata(&state->sd))
+		clk_freq = *((u32 *)v4l2_get_subdev_hostdata(&state->sd));
 
 	/*
 	 * Come out of digital power down
@@ -500,8 +505,13 @@ static void cx23885_initialize(struct i2c_client *client)
 		 * 50.0 MHz * (0xb + 0xe8ba26/0x2000000)/4 = 5 * 28.636363 MHz
 		 * 572.73 MHz before post divide
 		 */
-		/* HVR1850 or 50MHz xtal */
-		cx25840_write(client, 0x2, 0x71);
+		if (clk_freq == 25000000) {
+			/* 888/ImpactVCBe or 25Mhz xtal */
+			; /* nothing to do */
+		} else {
+			/* HVR1850 or 50MHz xtal */
+			cx25840_write(client, 0x2, 0x71);
+		}
 		cx25840_write4(client, 0x11c, 0x01d1744c);
 		cx25840_write4(client, 0x118, 0x00000416);
 		cx25840_write4(client, 0x404, 0x0010253e);
@@ -544,9 +554,15 @@ static void cx23885_initialize(struct i2c_client *client)
 	/* HVR1850 */
 	switch (state->id) {
 	case CX23888_AV:
-		/* 888/HVR1250 specific */
-		cx25840_write4(client, 0x10c, 0x13333333);
-		cx25840_write4(client, 0x108, 0x00000515);
+		if (clk_freq == 25000000) {
+			/* 888/ImpactVCBe or 25MHz xtal */
+			cx25840_write4(client, 0x10c, 0x01b6db7b);
+			cx25840_write4(client, 0x108, 0x00000512);
+		} else {
+			/* 888/HVR1250 or 50MHz xtal */
+			cx25840_write4(client, 0x10c, 0x13333333);
+			cx25840_write4(client, 0x108, 0x00000515);
+		}
 		break;
 	default:
 		cx25840_write4(client, 0x10c, 0x002be2c9);
@@ -576,7 +592,7 @@ static void cx23885_initialize(struct i2c_client *client)
 		 * 368.64 MHz before post divide
 		 * 122.88 MHz / 0xa = 12.288 MHz
 		 */
-		/* HVR1850  or 50MHz xtal */
+		/* HVR1850 or 50MHz xtal or 25MHz xtal */
 		cx25840_write4(client, 0x114, 0x017dbf48);
 		cx25840_write4(client, 0x110, 0x000a030e);
 		break;
@@ -1263,7 +1279,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 static int set_v4lstd(struct i2c_client *client)
 {
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
-	u8 fmt = 0; 	/* zero is autodetect */
+	u8 fmt = 0;	/* zero is autodetect */
 	u8 pal_m = 0;
 
 	/* First tests should be against specific std */
@@ -1395,8 +1411,9 @@ static int cx25840_set_fmt(struct v4l2_subdev *sd,
 	 * height. Without that margin the cx23885 fails in this
 	 * check.
 	 */
-	if ((fmt->width * 16 < Hsrc) || (Hsrc < fmt->width) ||
-			(Vlines * 8 < Vsrc) || (Vsrc + 1 < Vlines)) {
+	if ((fmt->width == 0) || (Vlines == 0) ||
+	    (fmt->width * 16 < Hsrc) || (Hsrc < fmt->width) ||
+	    (Vlines * 8 < Vsrc) || (Vsrc + 1 < Vlines)) {
 		v4l_err(client, "%dx%d is not a valid size!\n",
 				fmt->width, fmt->height);
 		return -ERANGE;
@@ -1745,7 +1762,7 @@ static int cx25840_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	v4l2_std_id stds[] = {
+	static const v4l2_std_id stds[] = {
 		/* 0000 */ V4L2_STD_UNKNOWN,
 
 		/* 0001 */ V4L2_STD_NTSC_M,
@@ -1759,9 +1776,9 @@ static int cx25840_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 
 		/* 1001 */ V4L2_STD_UNKNOWN,
 		/* 1010 */ V4L2_STD_UNKNOWN,
-		/* 1001 */ V4L2_STD_UNKNOWN,
-		/* 1010 */ V4L2_STD_UNKNOWN,
 		/* 1011 */ V4L2_STD_UNKNOWN,
+		/* 1100 */ V4L2_STD_SECAM,
+		/* 1101 */ V4L2_STD_UNKNOWN,
 		/* 1110 */ V4L2_STD_UNKNOWN,
 		/* 1111 */ V4L2_STD_UNKNOWN
 	};
@@ -2064,10 +2081,10 @@ static void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
 
 	/* Assuming TV */
 	/* Calculate the PLL frequency word based on the adjusted ifHz */
-        pll_freq = div_u64((u64)ifHz * 268435456, 50000000);
-        pll_freq_word = (u32)pll_freq;
+	pll_freq = div_u64((u64)ifHz * 268435456, 50000000);
+	pll_freq_word = (u32)pll_freq;
 
-        cx25840_write4(client, DIF_PLL_FREQ_WORD,  pll_freq_word);
+	cx25840_write4(client, DIF_PLL_FREQ_WORD,  pll_freq_word);
 
 	/* Round down to the nearest 100KHz */
 	ifHz = (ifHz / 100000) * 100000;

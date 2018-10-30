@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ISCSI_TARGET_UTIL_H
 #define ISCSI_TARGET_UTIL_H
 
@@ -47,9 +48,11 @@ extern struct iscsi_conn *iscsit_get_conn_from_cid_rcfr(struct iscsi_session *, 
 extern void iscsit_check_conn_usage_count(struct iscsi_conn *);
 extern void iscsit_dec_conn_usage_count(struct iscsi_conn *);
 extern void iscsit_inc_conn_usage_count(struct iscsi_conn *);
+extern void iscsit_handle_nopin_response_timeout(struct timer_list *t);
 extern void iscsit_mod_nopin_response_timer(struct iscsi_conn *);
 extern void iscsit_start_nopin_response_timer(struct iscsi_conn *);
 extern void iscsit_stop_nopin_response_timer(struct iscsi_conn *);
+extern void iscsit_handle_nopin_timeout(struct timer_list *t);
 extern void __iscsit_start_nopin_timer(struct iscsi_conn *);
 extern void iscsit_start_nopin_timer(struct iscsi_conn *);
 extern void iscsit_stop_nopin_timer(struct iscsi_conn *);
@@ -64,5 +67,6 @@ extern int rx_data(struct iscsi_conn *, struct kvec *, int, int);
 extern int tx_data(struct iscsi_conn *, struct kvec *, int, int);
 extern void iscsit_collect_login_stats(struct iscsi_conn *, u8, u8);
 extern struct iscsi_tiqn *iscsit_snmp_get_tiqn(struct iscsi_conn *);
+extern void iscsit_fill_cxn_timeout_err_stats(struct iscsi_session *);
 
 #endif /*** ISCSI_TARGET_UTIL_H ***/

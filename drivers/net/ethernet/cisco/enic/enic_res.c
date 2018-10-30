@@ -149,6 +149,7 @@ int enic_set_nic_cfg(struct enic *enic, u8 rss_default_cpu, u8 rss_hash_type,
 	u8 rss_hash_bits, u8 rss_base_cpu, u8 rss_enable, u8 tso_ipid_split_en,
 	u8 ig_vlan_strip_en)
 {
+	enum vnic_devcmd_cmd cmd = CMD_NIC_CFG;
 	u64 a0, a1;
 	u32 nic_cfg;
 	int wait = 1000;
@@ -160,7 +161,11 @@ int enic_set_nic_cfg(struct enic *enic, u8 rss_default_cpu, u8 rss_hash_type,
 	a0 = nic_cfg;
 	a1 = 0;
 
-	return vnic_dev_cmd(enic->vdev, CMD_NIC_CFG, &a0, &a1, wait);
+	if (rss_hash_type & (NIC_CFG_RSS_HASH_TYPE_UDP_IPV4 |
+			     NIC_CFG_RSS_HASH_TYPE_UDP_IPV6))
+		cmd = CMD_NIC_CFG_CHK;
+
+	return vnic_dev_cmd(enic->vdev, cmd, &a0, &a1, wait);
 }
 
 int enic_set_rss_key(struct enic *enic, dma_addr_t key_pa, u64 len)

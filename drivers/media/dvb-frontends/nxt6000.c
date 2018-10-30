@@ -27,7 +27,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "nxt6000_priv.h"
 #include "nxt6000.h"
 
@@ -596,9 +596,9 @@ static const struct dvb_frontend_ops nxt6000_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "NxtWave NXT6000 DVB-T",
-		.frequency_min = 0,
-		.frequency_max = 863250000,
-		.frequency_stepsize = 62500,
+		.frequency_min_hz = 0,
+		.frequency_max_hz = 863250 * kHz,
+		.frequency_stepsize_hz = 62500,
 		/*.frequency_tolerance = *//* FIXME: 12% of SR */
 		.symbol_rate_min = 0,	/* FIXME */
 		.symbol_rate_max = 9360000,	/* FIXME */

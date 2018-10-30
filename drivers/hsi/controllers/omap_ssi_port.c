@@ -20,6 +20,7 @@
  * 02110-1301 USA
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>

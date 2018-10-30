@@ -127,7 +127,7 @@ static int crosstest(void)
 	unsigned char *pp1, *pp2, *pp3, *pp4;
 
 	pr_info("crosstest\n");
-	pp1 = kzalloc(pgsize * 4, GFP_KERNEL);
+	pp1 = kcalloc(pgsize, 4, GFP_KERNEL);
 	if (!pp1)
 		return -ENOMEM;
 	pp2 = pp1 + pgsize;
@@ -435,9 +435,13 @@ static int __init mtd_pagetest_init(void)
 	if (err)
 		goto out;
 
-	err = erasecrosstest();
-	if (err)
-		goto out;
+	if (ebcnt > 1) {
+		err = erasecrosstest();
+		if (err)
+			goto out;
+	} else {
+		pr_info("skipping erasecrosstest, 2 erase blocks needed\n");
+	}
 
 	err = erasetest();
 	if (err)

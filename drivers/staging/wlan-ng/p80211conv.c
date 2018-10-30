@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
 /* src/p80211/p80211conv.c
  *
  * Ether/802.11 conversions and packet buffer routines
@@ -429,7 +430,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
 			netdev_err(netdev, "DIXII frame too large (%ld > %d)\n",
-				   (long int)(payload_length -
+				   (long)(payload_length -
 				   sizeof(struct wlan_llc) -
 				   sizeof(struct wlan_snap)), netdev->mtu);
 			return 1;
@@ -496,7 +497,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 	/* jkriegl: only process signal/noise if requested by iwspy */
 	if (wlandev->spy_number)
 		orinoco_spy_gather(wlandev, eth_hdr(skb)->h_source,
-				   P80211SKB_RXMETA(skb));
+				   p80211skb_rxmeta(skb));
 
 	/* Free the metadata */
 	p80211skb_rxmeta_detach(skb);
@@ -562,7 +563,7 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb)
 		pr_debug("Called w/ null skb.\n");
 		return;
 	}
-	frmmeta = P80211SKB_FRMMETA(skb);
+	frmmeta = p80211skb_frmmeta(skb);
 	if (!frmmeta) {	/* no magic */
 		pr_debug("Called w/ bad frmmeta magic.\n");
 		return;
@@ -604,7 +605,7 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	struct p80211_frmmeta *frmmeta;
 
 	/* If these already have metadata, we error out! */
-	if (P80211SKB_RXMETA(skb)) {
+	if (p80211skb_rxmeta(skb)) {
 		netdev_err(wlandev->netdev,
 			   "%s: RXmeta already attached!\n", wlandev->name);
 		result = 0;
@@ -653,7 +654,7 @@ void p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	struct p80211_frmmeta *meta;
 
-	meta = P80211SKB_FRMMETA(skb);
+	meta = p80211skb_frmmeta(skb);
 	if (meta && meta->rx)
 		p80211skb_rxmeta_detach(skb);
 	else

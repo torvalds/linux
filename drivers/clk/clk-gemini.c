@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Cortina Gemini SoC Clock Controller driver
  * Copyright (c) 2017 Linus Walleij <linus.walleij@linaro.org>
@@ -398,9 +399,9 @@ static void __init gemini_cc_init(struct device_node *np)
 	int ret;
 	int i;
 
-	gemini_clk_data = kzalloc(sizeof(*gemini_clk_data) +
-			sizeof(*gemini_clk_data->hws) * GEMINI_NUM_CLKS,
-			GFP_KERNEL);
+	gemini_clk_data = kzalloc(struct_size(gemini_clk_data, hws,
+					      GEMINI_NUM_CLKS),
+				  GFP_KERNEL);
 	if (!gemini_clk_data)
 		return;
 

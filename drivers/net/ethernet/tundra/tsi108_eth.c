@@ -152,6 +152,8 @@ struct tsi108_prv_data {
 	u32 msg_enable;			/* debug message level */
 	struct mii_if_info mii_if;
 	unsigned int init_media;
+
+	struct platform_device *pdev;
 };
 
 /* Structure for a device driver */
@@ -164,7 +166,7 @@ static struct platform_driver tsi_eth_driver = {
 	},
 };
 
-static void tsi108_timed_checker(unsigned long dev_ptr);
+static void tsi108_timed_checker(struct timer_list *t);
 
 #ifdef DEBUG
 static void dump_eth_one(struct net_device *dev)
@@ -703,17 +705,18 @@ static int tsi108_send_packet(struct sk_buff * skb, struct net_device *dev)
 		data->txskbs[tx] = skb;
 
 		if (i == 0) {
-			data->txring[tx].buf0 = dma_map_single(NULL, skb->data,
-					skb_headlen(skb), DMA_TO_DEVICE);
+			data->txring[tx].buf0 = dma_map_single(&data->pdev->dev,
+					skb->data, skb_headlen(skb),
+					DMA_TO_DEVICE);
 			data->txring[tx].len = skb_headlen(skb);
 			misc |= TSI108_TX_SOF;
 		} else {
 			const skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
-			data->txring[tx].buf0 = skb_frag_dma_map(NULL, frag,
-								 0,
-								 skb_frag_size(frag),
-								 DMA_TO_DEVICE);
+			data->txring[tx].buf0 =
+				skb_frag_dma_map(&data->pdev->dev, frag,
+						0, skb_frag_size(frag),
+						DMA_TO_DEVICE);
 			data->txring[tx].len = skb_frag_size(frag);
 		}
 
@@ -808,9 +811,9 @@ static int tsi108_refill_rx(struct net_device *dev, int budget)
 		if (!skb)
 			break;
 
-		data->rxring[rx].buf0 = dma_map_single(NULL, skb->data,
-							TSI108_RX_SKB_SIZE,
-							DMA_FROM_DEVICE);
+		data->rxring[rx].buf0 = dma_map_single(&data->pdev->dev,
+				skb->data, TSI108_RX_SKB_SIZE,
+				DMA_FROM_DEVICE);
 
 		/* Sometimes the hardware sets blen to zero after packet
 		 * reception, even though the manual says that it's only ever
@@ -1308,15 +1311,15 @@ static int tsi108_open(struct net_device *dev)
 		       data->id, dev->irq, dev->name);
 	}
 
-	data->rxring = dma_zalloc_coherent(NULL, rxring_size, &data->rxdma,
-					   GFP_KERNEL);
+	data->rxring = dma_zalloc_coherent(&data->pdev->dev, rxring_size,
+			&data->rxdma, GFP_KERNEL);
 	if (!data->rxring)
 		return -ENOMEM;
 
-	data->txring = dma_zalloc_coherent(NULL, txring_size, &data->txdma,
-					   GFP_KERNEL);
+	data->txring = dma_zalloc_coherent(&data->pdev->dev, txring_size,
+			&data->txdma, GFP_KERNEL);
 	if (!data->txring) {
-		pci_free_consistent(NULL, rxring_size, data->rxring,
+		dma_free_coherent(&data->pdev->dev, rxring_size, data->rxring,
 				    data->rxdma);
 		return -ENOMEM;
 	}
@@ -1370,7 +1373,7 @@ static int tsi108_open(struct net_device *dev)
 
 	napi_enable(&data->napi);
 
-	setup_timer(&data->timer, tsi108_timed_checker, (unsigned long)dev);
+	timer_setup(&data->timer, tsi108_timed_checker, 0);
 	mod_timer(&data->timer, jiffies + 1);
 
 	tsi108_restart_rx(data, dev);
@@ -1428,10 +1431,10 @@ static int tsi108_close(struct net_device *dev)
 		dev_kfree_skb(skb);
 	}
 
-	dma_free_coherent(0,
+	dma_free_coherent(&data->pdev->dev,
 			    TSI108_RXRING_LEN * sizeof(rx_desc),
 			    data->rxring, data->rxdma);
-	dma_free_coherent(0,
+	dma_free_coherent(&data->pdev->dev,
 			    TSI108_TXRING_LEN * sizeof(tx_desc),
 			    data->txring, data->txdma);
 
@@ -1576,6 +1579,7 @@ tsi108_init_one(struct platform_device *pdev)
 	printk("tsi108_eth%d: probe...\n", pdev->id);
 	data = netdev_priv(dev);
 	data->dev = dev;
+	data->pdev = pdev;
 
 	pr_debug("tsi108_eth%d:regs:phyresgs:phy:irq_num=0x%x:0x%x:0x%x:0x%x\n",
 			pdev->id, einfo->regs, einfo->phyregs,
@@ -1666,10 +1670,10 @@ regs_fail:
  * Thus, we have to do it using a timer.
  */
 
-static void tsi108_timed_checker(unsigned long dev_ptr)
+static void tsi108_timed_checker(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)dev_ptr;
-	struct tsi108_prv_data *data = netdev_priv(dev);
+	struct tsi108_prv_data *data = from_timer(data, t, timer);
+	struct net_device *dev = data->dev;
 
 	tsi108_check_phy(dev);
 	tsi108_check_rxring(dev);

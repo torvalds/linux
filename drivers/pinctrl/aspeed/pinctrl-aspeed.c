@@ -95,7 +95,7 @@ static inline void aspeed_sig_desc_print_val(
  *
  * @desc: The signal descriptor of interest
  * @enabled: True to query the enabled state, false to query disabled state
- * @regmap: The IP block's regmap instance
+ * @map: The IP block's regmap instance
  *
  * Return: 1 if the descriptor's bitfield is configured to the state
  * selected by @enabled, 0 if not, and less than zero if an unrecoverable
@@ -594,7 +594,7 @@ static inline const struct aspeed_pin_config *find_pinconf_config(
 /**
  * @param: pinconf configuration parameter
  * @arg: The supported argument for @param, or -1 if any value is supported
- * @value: The register value to write to configure @arg for @param
+ * @val: The register value to write to configure @arg for @param
  *
  * The map is to be used in conjunction with the configuration array supplied
  * by the driver implementation.
@@ -715,7 +715,7 @@ int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
 
 		pmap = find_pinconf_map(param, MAP_TYPE_ARG, arg);
 
-		if (unlikely(WARN_ON(!pmap)))
+		if (WARN_ON(!pmap))
 			return -EINVAL;
 
 		val = pmap->val << pconf->bit;

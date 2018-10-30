@@ -70,7 +70,7 @@ static long hrtimer_error = SAFETY_INTERVAL;
 /* the kernel hrtimer event */
 static enum hrtimer_restart hrtimer_event(struct hrtimer *timer)
 {
-	struct timespec expire_time, ts1, ts2, ts3, dts;
+	struct timespec64 expire_time, ts1, ts2, ts3, dts;
 	struct pps_generator_pp *dev;
 	struct parport *port;
 	long lim, delta;
@@ -78,7 +78,7 @@ static enum hrtimer_restart hrtimer_event(struct hrtimer *timer)
 
 	/* We have to disable interrupts here. The idea is to prevent
 	 * other interrupts on the same processor to introduce random
-	 * lags while polling the clock. getnstimeofday() takes <1us on
+	 * lags while polling the clock. ktime_get_real_ts64() takes <1us on
 	 * most machines while other interrupt handlers can take much
 	 * more potentially.
 	 *
@@ -88,22 +88,22 @@ static enum hrtimer_restart hrtimer_event(struct hrtimer *timer)
 	local_irq_save(flags);
 
 	/* first of all we get the time stamp... */
-	getnstimeofday(&ts1);
-	expire_time = ktime_to_timespec(hrtimer_get_softexpires(timer));
+	ktime_get_real_ts64(&ts1);
+	expire_time = ktime_to_timespec64(hrtimer_get_softexpires(timer));
 	dev = container_of(timer, struct pps_generator_pp, timer);
 	lim = NSEC_PER_SEC - send_delay - dev->port_write_time;
 
 	/* check if we are late */
 	if (expire_time.tv_sec != ts1.tv_sec || ts1.tv_nsec > lim) {
 		local_irq_restore(flags);
-		pr_err("we are late this time %ld.%09ld\n",
-				ts1.tv_sec, ts1.tv_nsec);
+		pr_err("we are late this time %lld.%09ld\n",
+				(s64)ts1.tv_sec, ts1.tv_nsec);
 		goto done;
 	}
 
 	/* busy loop until the time is right for an assert edge */
 	do {
-		getnstimeofday(&ts2);
+		ktime_get_real_ts64(&ts2);
 	} while (expire_time.tv_sec == ts2.tv_sec && ts2.tv_nsec < lim);
 
 	/* set the signal */
@@ -113,25 +113,25 @@ static enum hrtimer_restart hrtimer_event(struct hrtimer *timer)
 	/* busy loop until the time is right for a clear edge */
 	lim = NSEC_PER_SEC - dev->port_write_time;
 	do {
-		getnstimeofday(&ts2);
+		ktime_get_real_ts64(&ts2);
 	} while (expire_time.tv_sec == ts2.tv_sec && ts2.tv_nsec < lim);
 
 	/* unset the signal */
 	port->ops->write_control(port, NO_SIGNAL);
 
-	getnstimeofday(&ts3);
+	ktime_get_real_ts64(&ts3);
 
 	local_irq_restore(flags);
 
 	/* update calibrated port write time */
-	dts = timespec_sub(ts3, ts2);
+	dts = timespec64_sub(ts3, ts2);
 	dev->port_write_time =
-		(dev->port_write_time + timespec_to_ns(&dts)) >> 1;
+		(dev->port_write_time + timespec64_to_ns(&dts)) >> 1;
 
 done:
 	/* update calibrated hrtimer error */
-	dts = timespec_sub(ts1, expire_time);
-	delta = timespec_to_ns(&dts);
+	dts = timespec64_sub(ts1, expire_time);
+	delta = timespec64_to_ns(&dts);
 	/* If the new error value is bigger then the old, use the new
 	 * value, if not then slowly move towards the new value. This
 	 * way it should be safe in bad conditions and efficient in
@@ -161,17 +161,17 @@ static void calibrate_port(struct pps_generator_pp *dev)
 	long acc = 0;
 
 	for (i = 0; i < (1 << PORT_NTESTS_SHIFT); i++) {
-		struct timespec a, b;
+		struct timespec64 a, b;
 		unsigned long irq_flags;
 
 		local_irq_save(irq_flags);
-		getnstimeofday(&a);
+		ktime_get_real_ts64(&a);
 		port->ops->write_control(port, NO_SIGNAL);
-		getnstimeofday(&b);
+		ktime_get_real_ts64(&b);
 		local_irq_restore(irq_flags);
 
-		b = timespec_sub(b, a);
-		acc += timespec_to_ns(&b);
+		b = timespec64_sub(b, a);
+		acc += timespec64_to_ns(&b);
 	}
 
 	dev->port_write_time = acc >> PORT_NTESTS_SHIFT;
@@ -180,9 +180,9 @@ static void calibrate_port(struct pps_generator_pp *dev)
 
 static inline ktime_t next_intr_time(struct pps_generator_pp *dev)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 
-	getnstimeofday(&ts);
+	ktime_get_real_ts64(&ts);
 
 	return ktime_set(ts.tv_sec +
 			((ts.tv_nsec > 990 * NSEC_PER_MSEC) ? 1 : 0),
@@ -192,13 +192,18 @@ static inline ktime_t next_intr_time(struct pps_generator_pp *dev)
 
 static void parport_attach(struct parport *port)
 {
+	struct pardev_cb pps_cb;
+
 	if (attached) {
 		/* we already have a port */
 		return;
 	}
 
-	device.pardev = parport_register_device(port, KBUILD_MODNAME,
-			NULL, NULL, NULL, PARPORT_FLAG_EXCL, &device);
+	memset(&pps_cb, 0, sizeof(pps_cb));
+	pps_cb.private = &device;
+	pps_cb.flags = PARPORT_FLAG_EXCL;
+	device.pardev = parport_register_dev_model(port, KBUILD_MODNAME,
+						   &pps_cb, 0);
 	if (!device.pardev) {
 		pr_err("couldn't register with %s\n", port->name);
 		return;
@@ -236,8 +241,9 @@ static void parport_detach(struct parport *port)
 
 static struct parport_driver pps_gen_parport_driver = {
 	.name = KBUILD_MODNAME,
-	.attach = parport_attach,
+	.match_port = parport_attach,
 	.detach = parport_detach,
+	.devmodel = true,
 };
 
 /* module staff */

@@ -1,0 +1,27 @@
+#!/bin/sh
+# description: event trigger - test extended error support
+
+
+fail() { #msg
+    echo $1
+    exit_fail
+}
+
+if [ ! -f set_event ]; then
+    echo "event tracing is not supported"
+    exit_unsupported
+fi
+
+if [ ! -f synthetic_events ]; then
+    echo "synthetic event is not supported"
+    exit_unsupported
+fi
+
+echo "Test extended error support"
+echo 'hist:keys=pid:ts0=common_timestamp.usecs if comm=="ping"' > events/sched/sched_wakeup/trigger
+! echo 'hist:keys=pid:ts0=common_timestamp.usecs if comm=="ping"' >> events/sched/sched_wakeup/trigger 2> /dev/null
+if ! grep -q "ERROR:" events/sched/sched_wakeup/hist; then
+    fail "Failed to generate extended error in histogram"
+fi
+
+exit 0

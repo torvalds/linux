@@ -1,9 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Generic HWSPINLOCK framework
 #
 
 menuconfig HWSPINLOCK
-	tristate "Hardware Spinlock drivers"
+	bool "Hardware Spinlock drivers"
 
 config HWSPINLOCK_OMAP
 	tristate "OMAP Hardware Spinlock device"

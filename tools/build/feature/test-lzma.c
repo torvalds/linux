@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <lzma.h>
 
 int main(void)

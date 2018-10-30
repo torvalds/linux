@@ -26,22 +26,18 @@
 
 #include <core/memory.h>
 
-void
+int
 gm200_fb_init_page(struct nvkm_fb *fb)
 {
 	struct nvkm_device *device = fb->subdev.device;
 	switch (fb->page) {
-	case 16:
-		nvkm_mask(device, 0x100c80, 0x00000801, 0x00000001);
-		break;
-	case 17:
-		nvkm_mask(device, 0x100c80, 0x00000801, 0x00000000);
-		break;
+	case 16: nvkm_mask(device, 0x100c80, 0x00001801, 0x00001001); break;
+	case 17: nvkm_mask(device, 0x100c80, 0x00001801, 0x00000000); break;
+	case  0: nvkm_mask(device, 0x100c80, 0x00001800, 0x00001800); break;
 	default:
-		nvkm_mask(device, 0x100c80, 0x00000800, 0x00000800);
-		fb->page = 0;
-		break;
+		return -EINVAL;
 	}
+	return 0;
 }
 
 void
@@ -52,8 +48,6 @@ gm200_fb_init(struct nvkm_fb *base)
 
 	if (fb->r100c10_page)
 		nvkm_wr32(device, 0x100c10, fb->r100c10 >> 8);
-
-	nvkm_mask(device, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
 
 	nvkm_wr32(device, 0x100cc8, nvkm_memory_addr(fb->base.mmu_wr) >> 8);
 	nvkm_wr32(device, 0x100ccc, nvkm_memory_addr(fb->base.mmu_rd) >> 8);
@@ -69,7 +63,7 @@ gm200_fb = {
 	.init_page = gm200_fb_init_page,
 	.intr = gf100_fb_intr,
 	.ram_new = gm200_ram_new,
-	.memtype_valid = gf100_fb_memtype_valid,
+	.default_bigpage = 0 /* per-instance. */,
 };
 
 int

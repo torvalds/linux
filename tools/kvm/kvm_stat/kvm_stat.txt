@@ -35,13 +35,13 @@ INTERACTIVE COMMANDS
 
 *f*::	filter by regular expression
 
-*g*::	filter by guest name
+*g*::	filter by guest name/PID
 
 *h*::	display interactive commands reference
 
 *o*::   toggle sorting order (Total vs CurAvg/s)
 
-*p*::	filter by PID
+*p*::	filter by guest name/PID
 
 *q*::	quit
 
@@ -50,6 +50,8 @@ INTERACTIVE COMMANDS
 *s*::   set update interval
 
 *x*::	toggle reporting of stats for child trace events
+ ::     *Note*: The stats for the parents summarize the respective child trace
+                events
 
 Press any other key to refresh statistics immediately.
 
@@ -86,7 +88,7 @@ OPTIONS
 
 -f<fields>::
 --fields=<fields>::
-	fields to display (regex)
+	fields to display (regex), "-f help" for a list of available events
 
 -h::
 --help::

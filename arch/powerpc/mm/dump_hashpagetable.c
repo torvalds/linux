@@ -19,7 +19,6 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
-#include <asm/fixmap.h>
 #include <asm/pgtable.h>
 #include <linux/const.h>
 #include <asm/page.h>
@@ -260,7 +259,7 @@ static int pseries_find(unsigned long ea, int psize, bool primary, u64 *v, u64 *
 	/* to check in the secondary hash table, we invert the hash */
 	if (!primary)
 		hash = ~hash;
-	hpte_group = ((hash & htab_hash_mask) * HPTES_PER_GROUP) & ~0x7UL;
+	hpte_group = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	/* see if we can find an entry in the hpte with this hash */
 	for (i = 0; i < HPTES_PER_GROUP; i += 4, hpte_group += 4) {
 		lpar_rc = plpar_pte_read_4(0, hpte_group, (void *)ptes);
@@ -500,7 +499,7 @@ static void populate_markers(void)
 	address_markers[6].start_address = PHB_IO_END;
 	address_markers[7].start_address = IOREMAP_BASE;
 	address_markers[8].start_address = IOREMAP_END;
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	address_markers[9].start_address =  H_VMEMMAP_BASE;
 #else
 	address_markers[9].start_address =  VMEMMAP_BASE;

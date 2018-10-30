@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MMP_PDMA_H_
 #define _MMP_PDMA_H_
 

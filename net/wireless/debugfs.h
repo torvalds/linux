@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CFG80211_DEBUGFS_H
 #define __CFG80211_DEBUGFS_H
 

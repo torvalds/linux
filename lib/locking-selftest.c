@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * lib/locking-selftest.c
  *
@@ -28,7 +29,7 @@
  */
 static unsigned int debug_locks_verbose;
 
-static DEFINE_WW_CLASS(ww_lockdep);
+static DEFINE_WD_CLASS(ww_lockdep);
 
 static int __init setup_debug_locks_verbose(char *str)
 {
@@ -2031,11 +2032,13 @@ void locking_selftest(void)
 	print_testname("mixed read-lock/lock-write ABBA");
 	pr_cont("             |");
 	dotest(rlock_ABBA1, FAILURE, LOCKTYPE_RWLOCK);
+#ifdef CONFIG_PROVE_LOCKING
 	/*
 	 * Lockdep does indeed fail here, but there's nothing we can do about
 	 * that now.  Don't kill lockdep for it.
 	 */
 	unexpected_testcase_failures--;
+#endif
 
 	pr_cont("             |");
 	dotest(rwsem_ABBA1, FAILURE, LOCKTYPE_RWSEM);

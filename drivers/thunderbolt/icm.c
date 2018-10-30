@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Internal Thunderbolt Connection Manager. This is a firmware running on
  * the Thunderbolt host controller performing most of the low-level
@@ -6,15 +7,12 @@
  * Copyright (C) 2017, Intel Corporation
  * Authors: Michael Jamet <michael.jamet@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/platform_data/x86/apple.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -41,7 +39,8 @@
 #define PHY_PORT_CS1_LINK_STATE_MASK	GENMASK(29, 26)
 #define PHY_PORT_CS1_LINK_STATE_SHIFT	26
 
-#define ICM_TIMEOUT			5000 /* ms */
+#define ICM_TIMEOUT			5000	/* ms */
+#define ICM_APPROVE_TIMEOUT		10000	/* ms */
 #define ICM_MAX_LINK			4
 #define ICM_MAX_DEPTH			6
 
@@ -55,25 +54,41 @@
  * @vnd_cap: Vendor defined capability where PCIe2CIO mailbox resides
  *	     (only set when @upstream_port is not %NULL)
  * @safe_mode: ICM is in safe mode
+ * @max_boot_acl: Maximum number of preboot ACL entries (%0 if not supported)
+ * @rpm: Does the controller support runtime PM (RTD3)
  * @is_supported: Checks if we can support ICM on this controller
  * @get_mode: Read and return the ICM firmware mode (optional)
  * @get_route: Find a route string for given switch
+ * @save_devices: Ask ICM to save devices to ACL when suspending (optional)
+ * @driver_ready: Send driver ready message to ICM
  * @device_connected: Handle device connected ICM message
  * @device_disconnected: Handle device disconnected ICM message
+ * @xdomain_connected - Handle XDomain connected ICM message
+ * @xdomain_disconnected - Handle XDomain disconnected ICM message
  */
 struct icm {
 	struct mutex request_lock;
 	struct delayed_work rescan_work;
 	struct pci_dev *upstream_port;
+	size_t max_boot_acl;
 	int vnd_cap;
 	bool safe_mode;
+	bool rpm;
 	bool (*is_supported)(struct tb *tb);
 	int (*get_mode)(struct tb *tb);
 	int (*get_route)(struct tb *tb, u8 link, u8 depth, u64 *route);
+	void (*save_devices)(struct tb *tb);
+	int (*driver_ready)(struct tb *tb,
+			    enum tb_security_level *security_level,
+			    size_t *nboot_acl, bool *rpm);
 	void (*device_connected)(struct tb *tb,
 				 const struct icm_pkg_header *hdr);
 	void (*device_disconnected)(struct tb *tb,
 				    const struct icm_pkg_header *hdr);
+	void (*xdomain_connected)(struct tb *tb,
+				  const struct icm_pkg_header *hdr);
+	void (*xdomain_disconnected)(struct tb *tb,
+				     const struct icm_pkg_header *hdr);
 };
 
 struct icm_notification {
@@ -82,6 +97,47 @@ struct icm_notification {
 	struct tb *tb;
 };
 
+struct ep_name_entry {
+	u8 len;
+	u8 type;
+	u8 data[0];
+};
+
+#define EP_NAME_INTEL_VSS	0x10
+
+/* Intel Vendor specific structure */
+struct intel_vss {
+	u16 vendor;
+	u16 model;
+	u8 mc;
+	u8 flags;
+	u16 pci_devid;
+	u32 nvm_version;
+};
+
+#define INTEL_VSS_FLAGS_RTD3	BIT(0)
+
+static const struct intel_vss *parse_intel_vss(const void *ep_name, size_t size)
+{
+	const void *end = ep_name + size;
+
+	while (ep_name < end) {
+		const struct ep_name_entry *ep = ep_name;
+
+		if (!ep->len)
+			break;
+		if (ep_name + ep->len > end)
+			break;
+
+		if (ep->type == EP_NAME_INTEL_VSS)
+			return (const struct intel_vss *)ep->data;
+
+		ep_name += ep->len;
+	}
+
+	return NULL;
+}
+
 static inline struct tb *icm_to_tb(struct icm *icm)
 {
 	return ((void *)icm - sizeof(struct tb));
@@ -89,7 +145,10 @@ static inline struct tb *icm_to_tb(struct icm *icm)
 
 static inline u8 phy_port_from_route(u64 route, u8 depth)
 {
-	return tb_switch_phy_port_from_link(route >> ((depth - 1) * 8));
+	u8 link;
+
+	link = depth ? route >> ((depth - 1) * 8) : route;
+	return tb_phy_port_from_link(link);
 }
 
 static inline u8 dual_link_from_link(u8 link)
@@ -100,6 +159,12 @@ static inline u8 dual_link_from_link(u8 link)
 static inline u64 get_route(u32 route_hi, u32 route_lo)
 {
 	return (u64)route_hi << 32 | route_lo;
+}
+
+static inline u64 get_parent_route(u64 route)
+{
+	int depth = tb_route_length(route);
+	return depth ? route & ~(0xffULL << (depth - 1) * TB_ROUTE_SHIFT) : 0;
 }
 
 static bool icm_match(const struct tb_cfg_request *req,
@@ -236,6 +301,33 @@ err_free:
 	return ret;
 }
 
+static void icm_fr_save_devices(struct tb *tb)
+{
+	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_SAVE_DEVS, 0);
+}
+
+static int
+icm_fr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
+		    size_t *nboot_acl, bool *rpm)
+{
+	struct icm_fr_pkg_driver_ready_response reply;
+	struct icm_pkg_driver_ready request = {
+		.hdr.code = ICM_DRIVER_READY,
+	};
+	int ret;
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (security_level)
+		*security_level = reply.security_level & ICM_FR_SLEVEL_MASK;
+
+	return 0;
+}
+
 static int icm_fr_approve_switch(struct tb *tb, struct tb_switch *sw)
 {
 	struct icm_fr_pkg_approve_device request;
@@ -251,7 +343,7 @@ static int icm_fr_approve_switch(struct tb *tb, struct tb_switch *sw)
 	memset(&reply, 0, sizeof(reply));
 	/* Use larger timeout as establishing tunnels can take some time */
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, 10000);
+			  1, ICM_APPROVE_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -320,6 +412,115 @@ static int icm_fr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
 	return 0;
 }
 
+static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	struct icm_fr_pkg_approve_xdomain_response reply;
+	struct icm_fr_pkg_approve_xdomain request;
+	int ret;
+
+	memset(&request, 0, sizeof(request));
+	request.hdr.code = ICM_APPROVE_XDOMAIN;
+	request.link_info = xd->depth << ICM_LINK_INFO_DEPTH_SHIFT | xd->link;
+	memcpy(&request.remote_uuid, xd->remote_uuid, sizeof(*xd->remote_uuid));
+
+	request.transmit_path = xd->transmit_path;
+	request.transmit_ring = xd->transmit_ring;
+	request.receive_path = xd->receive_path;
+	request.receive_ring = xd->receive_ring;
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EIO;
+
+	return 0;
+}
+
+static int icm_fr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	u8 phy_port;
+	u8 cmd;
+
+	phy_port = tb_phy_port_from_link(xd->link);
+	if (phy_port == 0)
+		cmd = NHI_MAILBOX_DISCONNECT_PA;
+	else
+		cmd = NHI_MAILBOX_DISCONNECT_PB;
+
+	nhi_mailbox_cmd(tb->nhi, cmd, 1);
+	usleep_range(10, 50);
+	nhi_mailbox_cmd(tb->nhi, cmd, 2);
+	return 0;
+}
+
+static void add_switch(struct tb_switch *parent_sw, u64 route,
+		       const uuid_t *uuid, const u8 *ep_name,
+		       size_t ep_name_size, u8 connection_id, u8 connection_key,
+		       u8 link, u8 depth, enum tb_security_level security_level,
+		       bool authorized, bool boot)
+{
+	const struct intel_vss *vss;
+	struct tb_switch *sw;
+
+	pm_runtime_get_sync(&parent_sw->dev);
+
+	sw = tb_switch_alloc(parent_sw->tb, &parent_sw->dev, route);
+	if (!sw)
+		goto out;
+
+	sw->uuid = kmemdup(uuid, sizeof(*uuid), GFP_KERNEL);
+	sw->connection_id = connection_id;
+	sw->connection_key = connection_key;
+	sw->link = link;
+	sw->depth = depth;
+	sw->authorized = authorized;
+	sw->security_level = security_level;
+	sw->boot = boot;
+
+	vss = parse_intel_vss(ep_name, ep_name_size);
+	if (vss)
+		sw->rpm = !!(vss->flags & INTEL_VSS_FLAGS_RTD3);
+
+	/* Link the two switches now */
+	tb_port_at(route, parent_sw)->remote = tb_upstream_port(sw);
+	tb_upstream_port(sw)->remote = tb_port_at(route, parent_sw);
+
+	if (tb_switch_add(sw)) {
+		tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
+		tb_switch_put(sw);
+	}
+
+out:
+	pm_runtime_mark_last_busy(&parent_sw->dev);
+	pm_runtime_put_autosuspend(&parent_sw->dev);
+}
+
+static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
+			  u64 route, u8 connection_id, u8 connection_key,
+			  u8 link, u8 depth, bool boot)
+{
+	/* Disconnect from parent */
+	tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
+	/* Re-connect via updated port*/
+	tb_port_at(route, parent_sw)->remote = tb_upstream_port(sw);
+
+	/* Update with the new addressing information */
+	sw->config.route_hi = upper_32_bits(route);
+	sw->config.route_lo = lower_32_bits(route);
+	sw->connection_id = connection_id;
+	sw->connection_key = connection_key;
+	sw->link = link;
+	sw->depth = depth;
+	sw->boot = boot;
+
+	/* This switch still exists */
+	sw->is_unplugged = false;
+}
+
 static void remove_switch(struct tb_switch *sw)
 {
 	struct tb_switch *parent_sw;
@@ -329,15 +530,58 @@ static void remove_switch(struct tb_switch *sw)
 	tb_switch_remove(sw);
 }
 
+static void add_xdomain(struct tb_switch *sw, u64 route,
+			const uuid_t *local_uuid, const uuid_t *remote_uuid,
+			u8 link, u8 depth)
+{
+	struct tb_xdomain *xd;
+
+	pm_runtime_get_sync(&sw->dev);
+
+	xd = tb_xdomain_alloc(sw->tb, &sw->dev, route, local_uuid, remote_uuid);
+	if (!xd)
+		goto out;
+
+	xd->link = link;
+	xd->depth = depth;
+
+	tb_port_at(route, sw)->xdomain = xd;
+
+	tb_xdomain_add(xd);
+
+out:
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
+}
+
+static void update_xdomain(struct tb_xdomain *xd, u64 route, u8 link)
+{
+	xd->link = link;
+	xd->route = route;
+	xd->is_unplugged = false;
+}
+
+static void remove_xdomain(struct tb_xdomain *xd)
+{
+	struct tb_switch *sw;
+
+	sw = tb_to_switch(xd->dev.parent);
+	tb_port_at(xd->route, sw)->xdomain = NULL;
+	tb_xdomain_remove(xd);
+}
+
 static void
 icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 {
 	const struct icm_fr_event_device_connected *pkg =
 		(const struct icm_fr_event_device_connected *)hdr;
+	enum tb_security_level security_level;
 	struct tb_switch *sw, *parent_sw;
 	struct icm *icm = tb_priv(tb);
 	bool authorized = false;
+	struct tb_xdomain *xd;
 	u8 link, depth;
+	bool boot;
 	u64 route;
 	int ret;
 
@@ -345,11 +589,13 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	depth = (pkg->link_info & ICM_LINK_INFO_DEPTH_MASK) >>
 		ICM_LINK_INFO_DEPTH_SHIFT;
 	authorized = pkg->link_info & ICM_LINK_INFO_APPROVED;
+	security_level = (pkg->hdr.flags & ICM_FLAGS_SLEVEL_MASK) >>
+			 ICM_FLAGS_SLEVEL_SHIFT;
+	boot = pkg->link_info & ICM_LINK_INFO_BOOT;
 
-	ret = icm->get_route(tb, link, depth, &route);
-	if (ret) {
-		tb_err(tb, "failed to find route string for switch at %u.%u\n",
-		       link, depth);
+	if (pkg->link_info & ICM_LINK_INFO_REJECTED) {
+		tb_info(tb, "switch at %u.%u was rejected by ICM firmware because topology limit exceeded\n",
+			link, depth);
 		return;
 	}
 
@@ -358,8 +604,8 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		u8 phy_port, sw_phy_port;
 
 		parent_sw = tb_to_switch(sw->dev.parent);
-		sw_phy_port = phy_port_from_route(tb_route(sw), sw->depth);
-		phy_port = phy_port_from_route(route, depth);
+		sw_phy_port = tb_phy_port_from_link(sw->link);
+		phy_port = tb_phy_port_from_link(link);
 
 		/*
 		 * On resume ICM will send us connected events for the
@@ -371,16 +617,24 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		 */
 		if (sw->depth == depth && sw_phy_port == phy_port &&
 		    !!sw->authorized == authorized) {
-			tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
-			tb_port_at(route, parent_sw)->remote =
-				   tb_upstream_port(sw);
-			sw->config.route_hi = upper_32_bits(route);
-			sw->config.route_lo = lower_32_bits(route);
-			sw->connection_id = pkg->connection_id;
-			sw->connection_key = pkg->connection_key;
-			sw->link = link;
-			sw->depth = depth;
-			sw->is_unplugged = false;
+			/*
+			 * It was enumerated through another link so update
+			 * route string accordingly.
+			 */
+			if (sw->link != link) {
+				ret = icm->get_route(tb, link, depth, &route);
+				if (ret) {
+					tb_err(tb, "failed to update route string for switch at %u.%u\n",
+					       link, depth);
+					tb_switch_put(sw);
+					return;
+				}
+			} else {
+				route = tb_route(sw);
+			}
+
+			update_switch(parent_sw, sw, route, pkg->connection_id,
+				      pkg->connection_key, link, depth, boot);
 			tb_switch_put(sw);
 			return;
 		}
@@ -413,6 +667,13 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		tb_switch_put(sw);
 	}
 
+	/* Remove existing XDomain connection if found */
+	xd = tb_xdomain_find_by_link_depth(tb, link, depth);
+	if (xd) {
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
+
 	parent_sw = tb_switch_find_by_link_depth(tb, link, depth - 1);
 	if (!parent_sw) {
 		tb_err(tb, "failed to find parent switch for %u.%u\n",
@@ -420,30 +681,19 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		return;
 	}
 
-	sw = tb_switch_alloc(tb, &parent_sw->dev, route);
-	if (!sw) {
+	ret = icm->get_route(tb, link, depth, &route);
+	if (ret) {
+		tb_err(tb, "failed to find route string for switch at %u.%u\n",
+		       link, depth);
 		tb_switch_put(parent_sw);
 		return;
 	}
 
-	sw->uuid = kmemdup(&pkg->ep_uuid, sizeof(pkg->ep_uuid), GFP_KERNEL);
-	sw->connection_id = pkg->connection_id;
-	sw->connection_key = pkg->connection_key;
-	sw->link = link;
-	sw->depth = depth;
-	sw->authorized = authorized;
-	sw->security_level = (pkg->hdr.flags & ICM_FLAGS_SLEVEL_MASK) >>
-				ICM_FLAGS_SLEVEL_SHIFT;
+	add_switch(parent_sw, route, &pkg->ep_uuid, (const u8 *)pkg->ep_name,
+		   sizeof(pkg->ep_name), pkg->connection_id,
+		   pkg->connection_key, link, depth, security_level,
+		   authorized, boot);
 
-	/* Link the two switches now */
-	tb_port_at(route, parent_sw)->remote = tb_upstream_port(sw);
-	tb_upstream_port(sw)->remote = tb_port_at(route, parent_sw);
-
-	ret = tb_switch_add(sw);
-	if (ret) {
-		tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
-		tb_switch_put(sw);
-	}
 	tb_switch_put(parent_sw);
 }
 
@@ -473,6 +723,450 @@ icm_fr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 
 	remove_switch(sw);
 	tb_switch_put(sw);
+}
+
+static void
+icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
+{
+	const struct icm_fr_event_xdomain_connected *pkg =
+		(const struct icm_fr_event_xdomain_connected *)hdr;
+	struct tb_xdomain *xd;
+	struct tb_switch *sw;
+	u8 link, depth;
+	u64 route;
+
+	link = pkg->link_info & ICM_LINK_INFO_LINK_MASK;
+	depth = (pkg->link_info & ICM_LINK_INFO_DEPTH_MASK) >>
+		ICM_LINK_INFO_DEPTH_SHIFT;
+
+	if (link > ICM_MAX_LINK || depth > ICM_MAX_DEPTH) {
+		tb_warn(tb, "invalid topology %u.%u, ignoring\n", link, depth);
+		return;
+	}
+
+	route = get_route(pkg->local_route_hi, pkg->local_route_lo);
+
+	xd = tb_xdomain_find_by_uuid(tb, &pkg->remote_uuid);
+	if (xd) {
+		u8 xd_phy_port, phy_port;
+
+		xd_phy_port = phy_port_from_route(xd->route, xd->depth);
+		phy_port = phy_port_from_route(route, depth);
+
+		if (xd->depth == depth && xd_phy_port == phy_port) {
+			update_xdomain(xd, route, link);
+			tb_xdomain_put(xd);
+			return;
+		}
+
+		/*
+		 * If we find an existing XDomain connection remove it
+		 * now. We need to go through login handshake and
+		 * everything anyway to be able to re-establish the
+		 * connection.
+		 */
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
+
+	/*
+	 * Look if there already exists an XDomain in the same place
+	 * than the new one and in that case remove it because it is
+	 * most likely another host that got disconnected.
+	 */
+	xd = tb_xdomain_find_by_link_depth(tb, link, depth);
+	if (!xd) {
+		u8 dual_link;
+
+		dual_link = dual_link_from_link(link);
+		if (dual_link)
+			xd = tb_xdomain_find_by_link_depth(tb, dual_link,
+							   depth);
+	}
+	if (xd) {
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
+
+	/*
+	 * If the user disconnected a switch during suspend and
+	 * connected another host to the same port, remove the switch
+	 * first.
+	 */
+	sw = get_switch_at_route(tb->root_switch, route);
+	if (sw)
+		remove_switch(sw);
+
+	sw = tb_switch_find_by_link_depth(tb, link, depth);
+	if (!sw) {
+		tb_warn(tb, "no switch exists at %u.%u, ignoring\n", link,
+			depth);
+		return;
+	}
+
+	add_xdomain(sw, route, &pkg->local_uuid, &pkg->remote_uuid, link,
+		    depth);
+	tb_switch_put(sw);
+}
+
+static void
+icm_fr_xdomain_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
+{
+	const struct icm_fr_event_xdomain_disconnected *pkg =
+		(const struct icm_fr_event_xdomain_disconnected *)hdr;
+	struct tb_xdomain *xd;
+
+	/*
+	 * If the connection is through one or multiple devices, the
+	 * XDomain device is removed along with them so it is fine if we
+	 * cannot find it here.
+	 */
+	xd = tb_xdomain_find_by_uuid(tb, &pkg->remote_uuid);
+	if (xd) {
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
+}
+
+static int
+icm_tr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
+		    size_t *nboot_acl, bool *rpm)
+{
+	struct icm_tr_pkg_driver_ready_response reply;
+	struct icm_pkg_driver_ready request = {
+		.hdr.code = ICM_DRIVER_READY,
+	};
+	int ret;
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, 20000);
+	if (ret)
+		return ret;
+
+	if (security_level)
+		*security_level = reply.info & ICM_TR_INFO_SLEVEL_MASK;
+	if (nboot_acl)
+		*nboot_acl = (reply.info & ICM_TR_INFO_BOOT_ACL_MASK) >>
+				ICM_TR_INFO_BOOT_ACL_SHIFT;
+	if (rpm)
+		*rpm = !!(reply.hdr.flags & ICM_TR_FLAGS_RTD3);
+
+	return 0;
+}
+
+static int icm_tr_approve_switch(struct tb *tb, struct tb_switch *sw)
+{
+	struct icm_tr_pkg_approve_device request;
+	struct icm_tr_pkg_approve_device reply;
+	int ret;
+
+	memset(&request, 0, sizeof(request));
+	memcpy(&request.ep_uuid, sw->uuid, sizeof(request.ep_uuid));
+	request.hdr.code = ICM_APPROVE_DEVICE;
+	request.route_lo = sw->config.route_lo;
+	request.route_hi = sw->config.route_hi;
+	request.connection_id = sw->connection_id;
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_APPROVE_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR) {
+		tb_warn(tb, "PCIe tunnel creation failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int icm_tr_add_switch_key(struct tb *tb, struct tb_switch *sw)
+{
+	struct icm_tr_pkg_add_device_key_response reply;
+	struct icm_tr_pkg_add_device_key request;
+	int ret;
+
+	memset(&request, 0, sizeof(request));
+	memcpy(&request.ep_uuid, sw->uuid, sizeof(request.ep_uuid));
+	request.hdr.code = ICM_ADD_DEVICE_KEY;
+	request.route_lo = sw->config.route_lo;
+	request.route_hi = sw->config.route_hi;
+	request.connection_id = sw->connection_id;
+	memcpy(request.key, sw->key, TB_SWITCH_KEY_SIZE);
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR) {
+		tb_warn(tb, "Adding key to switch failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int icm_tr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
+				       const u8 *challenge, u8 *response)
+{
+	struct icm_tr_pkg_challenge_device_response reply;
+	struct icm_tr_pkg_challenge_device request;
+	int ret;
+
+	memset(&request, 0, sizeof(request));
+	memcpy(&request.ep_uuid, sw->uuid, sizeof(request.ep_uuid));
+	request.hdr.code = ICM_CHALLENGE_DEVICE;
+	request.route_lo = sw->config.route_lo;
+	request.route_hi = sw->config.route_hi;
+	request.connection_id = sw->connection_id;
+	memcpy(request.challenge, challenge, TB_SWITCH_KEY_SIZE);
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EKEYREJECTED;
+	if (reply.hdr.flags & ICM_FLAGS_NO_KEY)
+		return -ENOKEY;
+
+	memcpy(response, reply.response, TB_SWITCH_KEY_SIZE);
+
+	return 0;
+}
+
+static int icm_tr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	struct icm_tr_pkg_approve_xdomain_response reply;
+	struct icm_tr_pkg_approve_xdomain request;
+	int ret;
+
+	memset(&request, 0, sizeof(request));
+	request.hdr.code = ICM_APPROVE_XDOMAIN;
+	request.route_hi = upper_32_bits(xd->route);
+	request.route_lo = lower_32_bits(xd->route);
+	request.transmit_path = xd->transmit_path;
+	request.transmit_ring = xd->transmit_ring;
+	request.receive_path = xd->receive_path;
+	request.receive_ring = xd->receive_ring;
+	memcpy(&request.remote_uuid, xd->remote_uuid, sizeof(*xd->remote_uuid));
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EIO;
+
+	return 0;
+}
+
+static int icm_tr_xdomain_tear_down(struct tb *tb, struct tb_xdomain *xd,
+				    int stage)
+{
+	struct icm_tr_pkg_disconnect_xdomain_response reply;
+	struct icm_tr_pkg_disconnect_xdomain request;
+	int ret;
+
+	memset(&request, 0, sizeof(request));
+	request.hdr.code = ICM_DISCONNECT_XDOMAIN;
+	request.stage = stage;
+	request.route_hi = upper_32_bits(xd->route);
+	request.route_lo = lower_32_bits(xd->route);
+	memcpy(&request.remote_uuid, xd->remote_uuid, sizeof(*xd->remote_uuid));
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EIO;
+
+	return 0;
+}
+
+static int icm_tr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	int ret;
+
+	ret = icm_tr_xdomain_tear_down(tb, xd, 1);
+	if (ret)
+		return ret;
+
+	usleep_range(10, 50);
+	return icm_tr_xdomain_tear_down(tb, xd, 2);
+}
+
+static void
+icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
+{
+	const struct icm_tr_event_device_connected *pkg =
+		(const struct icm_tr_event_device_connected *)hdr;
+	enum tb_security_level security_level;
+	struct tb_switch *sw, *parent_sw;
+	struct tb_xdomain *xd;
+	bool authorized, boot;
+	u64 route;
+
+	/*
+	 * Currently we don't use the QoS information coming with the
+	 * device connected message so simply just ignore that extra
+	 * packet for now.
+	 */
+	if (pkg->hdr.packet_id)
+		return;
+
+	route = get_route(pkg->route_hi, pkg->route_lo);
+	authorized = pkg->link_info & ICM_LINK_INFO_APPROVED;
+	security_level = (pkg->hdr.flags & ICM_FLAGS_SLEVEL_MASK) >>
+			 ICM_FLAGS_SLEVEL_SHIFT;
+	boot = pkg->link_info & ICM_LINK_INFO_BOOT;
+
+	if (pkg->link_info & ICM_LINK_INFO_REJECTED) {
+		tb_info(tb, "switch at %llx was rejected by ICM firmware because topology limit exceeded\n",
+			route);
+		return;
+	}
+
+	sw = tb_switch_find_by_uuid(tb, &pkg->ep_uuid);
+	if (sw) {
+		/* Update the switch if it is still in the same place */
+		if (tb_route(sw) == route && !!sw->authorized == authorized) {
+			parent_sw = tb_to_switch(sw->dev.parent);
+			update_switch(parent_sw, sw, route, pkg->connection_id,
+				      0, 0, 0, boot);
+			tb_switch_put(sw);
+			return;
+		}
+
+		remove_switch(sw);
+		tb_switch_put(sw);
+	}
+
+	/* Another switch with the same address */
+	sw = tb_switch_find_by_route(tb, route);
+	if (sw) {
+		remove_switch(sw);
+		tb_switch_put(sw);
+	}
+
+	/* XDomain connection with the same address */
+	xd = tb_xdomain_find_by_route(tb, route);
+	if (xd) {
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
+
+	parent_sw = tb_switch_find_by_route(tb, get_parent_route(route));
+	if (!parent_sw) {
+		tb_err(tb, "failed to find parent switch for %llx\n", route);
+		return;
+	}
+
+	add_switch(parent_sw, route, &pkg->ep_uuid, (const u8 *)pkg->ep_name,
+		   sizeof(pkg->ep_name), pkg->connection_id,
+		   0, 0, 0, security_level, authorized, boot);
+
+	tb_switch_put(parent_sw);
+}
+
+static void
+icm_tr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
+{
+	const struct icm_tr_event_device_disconnected *pkg =
+		(const struct icm_tr_event_device_disconnected *)hdr;
+	struct tb_switch *sw;
+	u64 route;
+
+	route = get_route(pkg->route_hi, pkg->route_lo);
+
+	sw = tb_switch_find_by_route(tb, route);
+	if (!sw) {
+		tb_warn(tb, "no switch exists at %llx, ignoring\n", route);
+		return;
+	}
+
+	remove_switch(sw);
+	tb_switch_put(sw);
+}
+
+static void
+icm_tr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
+{
+	const struct icm_tr_event_xdomain_connected *pkg =
+		(const struct icm_tr_event_xdomain_connected *)hdr;
+	struct tb_xdomain *xd;
+	struct tb_switch *sw;
+	u64 route;
+
+	if (!tb->root_switch)
+		return;
+
+	route = get_route(pkg->local_route_hi, pkg->local_route_lo);
+
+	xd = tb_xdomain_find_by_uuid(tb, &pkg->remote_uuid);
+	if (xd) {
+		if (xd->route == route) {
+			update_xdomain(xd, route, 0);
+			tb_xdomain_put(xd);
+			return;
+		}
+
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
+
+	/* An existing xdomain with the same address */
+	xd = tb_xdomain_find_by_route(tb, route);
+	if (xd) {
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
+
+	/*
+	 * If the user disconnected a switch during suspend and
+	 * connected another host to the same port, remove the switch
+	 * first.
+	 */
+	sw = get_switch_at_route(tb->root_switch, route);
+	if (sw)
+		remove_switch(sw);
+
+	sw = tb_switch_find_by_route(tb, get_parent_route(route));
+	if (!sw) {
+		tb_warn(tb, "no switch exists at %llx, ignoring\n", route);
+		return;
+	}
+
+	add_xdomain(sw, route, &pkg->local_uuid, &pkg->remote_uuid, 0, 0);
+	tb_switch_put(sw);
+}
+
+static void
+icm_tr_xdomain_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
+{
+	const struct icm_tr_event_xdomain_disconnected *pkg =
+		(const struct icm_tr_event_xdomain_disconnected *)hdr;
+	struct tb_xdomain *xd;
+	u64 route;
+
+	route = get_route(pkg->route_hi, pkg->route_lo);
+
+	xd = tb_xdomain_find_by_route(tb, route);
+	if (xd) {
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
 }
 
 static struct pci_dev *get_upstream_port(struct pci_dev *pdev)
@@ -539,14 +1233,14 @@ static bool icm_ar_is_supported(struct tb *tb)
 static int icm_ar_get_mode(struct tb *tb)
 {
 	struct tb_nhi *nhi = tb->nhi;
-	int retries = 5;
+	int retries = 60;
 	u32 val;
 
 	do {
 		val = ioread32(nhi->iobase + REG_FW_STS);
 		if (val & REG_FW_STS_NVM_AUTH_DONE)
 			break;
-		msleep(30);
+		msleep(50);
 	} while (--retries);
 
 	if (!retries) {
@@ -555,6 +1249,33 @@ static int icm_ar_get_mode(struct tb *tb)
 	}
 
 	return nhi_mailbox_mode(nhi);
+}
+
+static int
+icm_ar_driver_ready(struct tb *tb, enum tb_security_level *security_level,
+		    size_t *nboot_acl, bool *rpm)
+{
+	struct icm_ar_pkg_driver_ready_response reply;
+	struct icm_pkg_driver_ready request = {
+		.hdr.code = ICM_DRIVER_READY,
+	};
+	int ret;
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (security_level)
+		*security_level = reply.info & ICM_AR_INFO_SLEVEL_MASK;
+	if (nboot_acl && (reply.info & ICM_AR_INFO_BOOT_ACL_SUPPORTED))
+		*nboot_acl = (reply.info & ICM_AR_INFO_BOOT_ACL_MASK) >>
+				ICM_AR_INFO_BOOT_ACL_SHIFT;
+	if (rpm)
+		*rpm = !!(reply.hdr.flags & ICM_AR_FLAGS_RTD3);
+
+	return 0;
 }
 
 static int icm_ar_get_route(struct tb *tb, u8 link, u8 depth, u64 *route)
@@ -579,6 +1300,87 @@ static int icm_ar_get_route(struct tb *tb, u8 link, u8 depth, u64 *route)
 	return 0;
 }
 
+static int icm_ar_get_boot_acl(struct tb *tb, uuid_t *uuids, size_t nuuids)
+{
+	struct icm_ar_pkg_preboot_acl_response reply;
+	struct icm_ar_pkg_preboot_acl request = {
+		.hdr = { .code = ICM_PREBOOT_ACL },
+	};
+	int ret, i;
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EIO;
+
+	for (i = 0; i < nuuids; i++) {
+		u32 *uuid = (u32 *)&uuids[i];
+
+		uuid[0] = reply.acl[i].uuid_lo;
+		uuid[1] = reply.acl[i].uuid_hi;
+
+		if (uuid[0] == 0xffffffff && uuid[1] == 0xffffffff) {
+			/* Map empty entries to null UUID */
+			uuid[0] = 0;
+			uuid[1] = 0;
+		} else if (uuid[0] != 0 || uuid[1] != 0) {
+			/* Upper two DWs are always one's */
+			uuid[2] = 0xffffffff;
+			uuid[3] = 0xffffffff;
+		}
+	}
+
+	return ret;
+}
+
+static int icm_ar_set_boot_acl(struct tb *tb, const uuid_t *uuids,
+			       size_t nuuids)
+{
+	struct icm_ar_pkg_preboot_acl_response reply;
+	struct icm_ar_pkg_preboot_acl request = {
+		.hdr = {
+			.code = ICM_PREBOOT_ACL,
+			.flags = ICM_FLAGS_WRITE,
+		},
+	};
+	int ret, i;
+
+	for (i = 0; i < nuuids; i++) {
+		const u32 *uuid = (const u32 *)&uuids[i];
+
+		if (uuid_is_null(&uuids[i])) {
+			/*
+			 * Map null UUID to the empty (all one) entries
+			 * for ICM.
+			 */
+			request.acl[i].uuid_lo = 0xffffffff;
+			request.acl[i].uuid_hi = 0xffffffff;
+		} else {
+			/* Two high DWs need to be set to all one */
+			if (uuid[2] != 0xffffffff || uuid[3] != 0xffffffff)
+				return -EINVAL;
+
+			request.acl[i].uuid_lo = uuid[0];
+			request.acl[i].uuid_hi = uuid[1];
+		}
+	}
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EIO;
+
+	return 0;
+}
+
 static void icm_handle_notification(struct work_struct *work)
 {
 	struct icm_notification *n = container_of(work, typeof(*n), work);
@@ -587,13 +1389,26 @@ static void icm_handle_notification(struct work_struct *work)
 
 	mutex_lock(&tb->lock);
 
-	switch (n->pkg->code) {
-	case ICM_EVENT_DEVICE_CONNECTED:
-		icm->device_connected(tb, n->pkg);
-		break;
-	case ICM_EVENT_DEVICE_DISCONNECTED:
-		icm->device_disconnected(tb, n->pkg);
-		break;
+	/*
+	 * When the domain is stopped we flush its workqueue but before
+	 * that the root switch is removed. In that case we should treat
+	 * the queued events as being canceled.
+	 */
+	if (tb->root_switch) {
+		switch (n->pkg->code) {
+		case ICM_EVENT_DEVICE_CONNECTED:
+			icm->device_connected(tb, n->pkg);
+			break;
+		case ICM_EVENT_DEVICE_DISCONNECTED:
+			icm->device_disconnected(tb, n->pkg);
+			break;
+		case ICM_EVENT_XDOMAIN_CONNECTED:
+			icm->xdomain_connected(tb, n->pkg);
+			break;
+		case ICM_EVENT_XDOMAIN_DISCONNECTED:
+			icm->xdomain_disconnected(tb, n->pkg);
+			break;
+		}
 	}
 
 	mutex_unlock(&tb->lock);
@@ -619,23 +1434,18 @@ static void icm_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 }
 
 static int
-__icm_driver_ready(struct tb *tb, enum tb_security_level *security_level)
+__icm_driver_ready(struct tb *tb, enum tb_security_level *security_level,
+		   size_t *nboot_acl, bool *rpm)
 {
-	struct icm_pkg_driver_ready_response reply;
-	struct icm_pkg_driver_ready request = {
-		.hdr.code = ICM_DRIVER_READY,
-	};
-	unsigned int retries = 10;
+	struct icm *icm = tb_priv(tb);
+	unsigned int retries = 50;
 	int ret;
 
-	memset(&reply, 0, sizeof(reply));
-	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
-	if (ret)
+	ret = icm->driver_ready(tb, security_level, nboot_acl, rpm);
+	if (ret) {
+		tb_err(tb, "failed to send driver ready to ICM\n");
 		return ret;
-
-	if (security_level)
-		*security_level = reply.security_level & 0xf;
+	}
 
 	/*
 	 * Hold on here until the switch config space is accessible so
@@ -653,6 +1463,7 @@ __icm_driver_ready(struct tb *tb, enum tb_security_level *security_level)
 		msleep(50);
 	} while (--retries);
 
+	tb_err(tb, "failed to read root switch config space, giving up\n");
 	return -ETIMEDOUT;
 }
 
@@ -719,6 +1530,9 @@ static int icm_firmware_reset(struct tb *tb, struct tb_nhi *nhi)
 {
 	struct icm *icm = tb_priv(tb);
 	u32 val;
+
+	if (!icm->upstream_port)
+		return -ENODEV;
 
 	/* Put ARC to wait for CIO reset event to happen */
 	val = ioread32(nhi->iobase + REG_FW_STS);
@@ -859,6 +1673,9 @@ static int icm_firmware_init(struct tb *tb)
 			break;
 
 		default:
+			if (ret < 0)
+				return ret;
+
 			tb_err(tb, "ICM firmware is in wrong mode: %u\n", ret);
 			return -ENODEV;
 		}
@@ -894,18 +1711,29 @@ static int icm_driver_ready(struct tb *tb)
 		return 0;
 	}
 
-	return __icm_driver_ready(tb, &tb->security_level);
+	ret = __icm_driver_ready(tb, &tb->security_level, &tb->nboot_acl,
+				 &icm->rpm);
+	if (ret)
+		return ret;
+
+	/*
+	 * Make sure the number of supported preboot ACL matches what we
+	 * expect or disable the whole feature.
+	 */
+	if (tb->nboot_acl > icm->max_boot_acl)
+		tb->nboot_acl = 0;
+
+	return 0;
 }
 
 static int icm_suspend(struct tb *tb)
 {
-	int ret;
+	struct icm *icm = tb_priv(tb);
 
-	ret = nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_SAVE_DEVS, 0);
-	if (ret)
-		tb_info(tb, "Ignoring mailbox command error (%d) in %s\n",
-			ret, __func__);
+	if (icm->save_devices)
+		icm->save_devices(tb);
 
+	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DRV_UNLOADS, 0);
 	return 0;
 }
 
@@ -927,6 +1755,10 @@ static void icm_unplug_children(struct tb_switch *sw)
 
 		if (tb_is_upstream_port(port))
 			continue;
+		if (port->xdomain) {
+			port->xdomain->is_unplugged = true;
+			continue;
+		}
 		if (!port->remote)
 			continue;
 
@@ -943,6 +1775,13 @@ static void icm_free_unplugged_children(struct tb_switch *sw)
 
 		if (tb_is_upstream_port(port))
 			continue;
+
+		if (port->xdomain && port->xdomain->is_unplugged) {
+			tb_xdomain_remove(port->xdomain);
+			port->xdomain = NULL;
+			continue;
+		}
+
 		if (!port->remote)
 			continue;
 
@@ -979,7 +1818,7 @@ static void icm_complete(struct tb *tb)
 	 * Now all existing children should be resumed, start events
 	 * from ICM to get updated status.
 	 */
-	__icm_driver_ready(tb, NULL);
+	__icm_driver_ready(tb, NULL, NULL, NULL);
 
 	/*
 	 * We do not get notifications of devices that have been
@@ -987,6 +1826,22 @@ static void icm_complete(struct tb *tb)
 	 * if any.
 	 */
 	queue_delayed_work(tb->wq, &icm->rescan_work, msecs_to_jiffies(500));
+}
+
+static int icm_runtime_suspend(struct tb *tb)
+{
+	nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DRV_UNLOADS, 0);
+	return 0;
+}
+
+static int icm_runtime_resume(struct tb *tb)
+{
+	/*
+	 * We can reuse the same resume functionality than with system
+	 * suspend.
+	 */
+	icm_complete(tb);
+	return 0;
 }
 
 static int icm_start(struct tb *tb)
@@ -1007,10 +1862,13 @@ static int icm_start(struct tb *tb)
 	 * prevent root switch NVM upgrade on Macs for now.
 	 */
 	tb->root_switch->no_nvm_upgrade = x86_apple_machine;
+	tb->root_switch->rpm = icm->rpm;
 
 	ret = tb_switch_add(tb->root_switch);
-	if (ret)
+	if (ret) {
 		tb_switch_put(tb->root_switch);
+		tb->root_switch = NULL;
+	}
 
 	return ret;
 }
@@ -1030,7 +1888,7 @@ static int icm_disconnect_pcie_paths(struct tb *tb)
 	return nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DISCONNECT_PCIE_PATHS, 0);
 }
 
-/* Falcon Ridge and Alpine Ridge */
+/* Falcon Ridge */
 static const struct tb_cm_ops icm_fr_ops = {
 	.driver_ready = icm_driver_ready,
 	.start = icm_start,
@@ -1042,6 +1900,48 @@ static const struct tb_cm_ops icm_fr_ops = {
 	.add_switch_key = icm_fr_add_switch_key,
 	.challenge_switch_key = icm_fr_challenge_switch_key,
 	.disconnect_pcie_paths = icm_disconnect_pcie_paths,
+	.approve_xdomain_paths = icm_fr_approve_xdomain_paths,
+	.disconnect_xdomain_paths = icm_fr_disconnect_xdomain_paths,
+};
+
+/* Alpine Ridge */
+static const struct tb_cm_ops icm_ar_ops = {
+	.driver_ready = icm_driver_ready,
+	.start = icm_start,
+	.stop = icm_stop,
+	.suspend = icm_suspend,
+	.complete = icm_complete,
+	.runtime_suspend = icm_runtime_suspend,
+	.runtime_resume = icm_runtime_resume,
+	.handle_event = icm_handle_event,
+	.get_boot_acl = icm_ar_get_boot_acl,
+	.set_boot_acl = icm_ar_set_boot_acl,
+	.approve_switch = icm_fr_approve_switch,
+	.add_switch_key = icm_fr_add_switch_key,
+	.challenge_switch_key = icm_fr_challenge_switch_key,
+	.disconnect_pcie_paths = icm_disconnect_pcie_paths,
+	.approve_xdomain_paths = icm_fr_approve_xdomain_paths,
+	.disconnect_xdomain_paths = icm_fr_disconnect_xdomain_paths,
+};
+
+/* Titan Ridge */
+static const struct tb_cm_ops icm_tr_ops = {
+	.driver_ready = icm_driver_ready,
+	.start = icm_start,
+	.stop = icm_stop,
+	.suspend = icm_suspend,
+	.complete = icm_complete,
+	.runtime_suspend = icm_runtime_suspend,
+	.runtime_resume = icm_runtime_resume,
+	.handle_event = icm_handle_event,
+	.get_boot_acl = icm_ar_get_boot_acl,
+	.set_boot_acl = icm_ar_set_boot_acl,
+	.approve_switch = icm_tr_approve_switch,
+	.add_switch_key = icm_tr_add_switch_key,
+	.challenge_switch_key = icm_tr_challenge_switch_key,
+	.disconnect_pcie_paths = icm_disconnect_pcie_paths,
+	.approve_xdomain_paths = icm_tr_approve_xdomain_paths,
+	.disconnect_xdomain_paths = icm_tr_disconnect_xdomain_paths,
 };
 
 struct tb *icm_probe(struct tb_nhi *nhi)
@@ -1062,8 +1962,12 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI:
 		icm->is_supported = icm_fr_is_supported;
 		icm->get_route = icm_fr_get_route;
+		icm->save_devices = icm_fr_save_devices;
+		icm->driver_ready = icm_fr_driver_ready;
 		icm->device_connected = icm_fr_device_connected;
 		icm->device_disconnected = icm_fr_device_disconnected;
+		icm->xdomain_connected = icm_fr_xdomain_connected;
+		icm->xdomain_disconnected = icm_fr_xdomain_disconnected;
 		tb->cm_ops = &icm_fr_ops;
 		break;
 
@@ -1072,12 +1976,30 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_NHI:
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_NHI:
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_NHI:
+		icm->max_boot_acl = ICM_AR_PREBOOT_ACL_ENTRIES;
 		icm->is_supported = icm_ar_is_supported;
 		icm->get_mode = icm_ar_get_mode;
 		icm->get_route = icm_ar_get_route;
+		icm->save_devices = icm_fr_save_devices;
+		icm->driver_ready = icm_ar_driver_ready;
 		icm->device_connected = icm_fr_device_connected;
 		icm->device_disconnected = icm_fr_device_disconnected;
-		tb->cm_ops = &icm_fr_ops;
+		icm->xdomain_connected = icm_fr_xdomain_connected;
+		icm->xdomain_disconnected = icm_fr_xdomain_disconnected;
+		tb->cm_ops = &icm_ar_ops;
+		break;
+
+	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_NHI:
+	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_NHI:
+		icm->max_boot_acl = ICM_AR_PREBOOT_ACL_ENTRIES;
+		icm->is_supported = icm_ar_is_supported;
+		icm->get_mode = icm_ar_get_mode;
+		icm->driver_ready = icm_tr_driver_ready;
+		icm->device_connected = icm_tr_device_connected;
+		icm->device_disconnected = icm_tr_device_disconnected;
+		icm->xdomain_connected = icm_tr_xdomain_connected;
+		icm->xdomain_disconnected = icm_tr_xdomain_disconnected;
+		tb->cm_ops = &icm_tr_ops;
 		break;
 	}
 

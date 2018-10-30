@@ -415,8 +415,8 @@ EXPORT_SYMBOL_GPL(smscore_get_board_id);
 
 struct smscore_registry_entry_t {
 	struct list_head entry;
-	char			devpath[32];
-	int				mode;
+	char devpath[32];
+	int mode;
 	enum sms_device_type_st	type;
 };
 
@@ -442,15 +442,15 @@ static struct smscore_registry_entry_t *smscore_find_registry(char *devpath)
 	     next != &g_smscore_registry;
 	     next = next->next) {
 		entry = (struct smscore_registry_entry_t *) next;
-		if (!strcmp(entry->devpath, devpath)) {
+		if (!strncmp(entry->devpath, devpath, sizeof(entry->devpath))) {
 			kmutex_unlock(&g_smscore_registrylock);
 			return entry;
 		}
 	}
-	entry = kmalloc(sizeof(struct smscore_registry_entry_t), GFP_KERNEL);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry) {
 		entry->mode = default_mode;
-		strcpy(entry->devpath, devpath);
+		strscpy(entry->devpath, devpath, sizeof(entry->devpath));
 		list_add(&entry->entry, &g_smscore_registry);
 	} else
 		pr_err("failed to create smscore_registry.\n");
@@ -521,13 +521,13 @@ static void list_add_locked(struct list_head *new, struct list_head *head,
 	spin_unlock_irqrestore(lock, flags);
 }
 
-/**
+/*
  * register a client callback that called when device plugged in/unplugged
  * NOTE: if devices exist callback is called immediately for each device
  *
  * @param hotplug callback
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 int smscore_register_hotplug(hotplug_t hotplug)
 {
@@ -536,9 +536,7 @@ int smscore_register_hotplug(hotplug_t hotplug)
 	int rc = 0;
 
 	kmutex_lock(&g_smscore_deviceslock);
-
-	notifyee = kmalloc(sizeof(struct smscore_device_notifyee_t),
-			   GFP_KERNEL);
+	notifyee = kmalloc(sizeof(*notifyee), GFP_KERNEL);
 	if (notifyee) {
 		/* now notify callback about existing devices */
 		first = &g_smscore_devices;
@@ -564,7 +562,7 @@ int smscore_register_hotplug(hotplug_t hotplug)
 }
 EXPORT_SYMBOL_GPL(smscore_register_hotplug);
 
-/**
+/*
  * unregister a client callback that called when device plugged in/unplugged
  *
  * @param hotplug callback
@@ -627,18 +625,19 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 {
 	struct smscore_buffer_t *cb;
 
-	cb = kzalloc(sizeof(struct smscore_buffer_t), GFP_KERNEL);
+	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
 	if (!cb)
 		return NULL;
 
 	cb->p = buffer;
 	cb->offset_in_common = buffer - (u8 *) common_buffer;
-	cb->phys = common_buffer_phys + cb->offset_in_common;
+	if (common_buffer_phys)
+		cb->phys = common_buffer_phys + cb->offset_in_common;
 
 	return cb;
 }
 
-/**
+/*
  * creates coredev object for a device, prepares buffers,
  * creates buffer mappings, notifies registered hotplugs about new device.
  *
@@ -646,22 +645,24 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
  *               and handlers
  * @param coredev pointer to a value that receives created coredev object
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 int smscore_register_device(struct smsdevice_params_t *params,
 			    struct smscore_device_t **coredev,
+			    gfp_t gfp_buf_flags,
 			    void *mdev)
 {
 	struct smscore_device_t *dev;
 	u8 *buffer;
 
-	dev = kzalloc(sizeof(struct smscore_device_t), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	dev->media_dev = mdev;
 #endif
+	dev->gfp_buf_flags = gfp_buf_flags;
 
 	/* init list entry so it could be safe in smscore_unregister_device */
 	INIT_LIST_HEAD(&dev->entry);
@@ -692,17 +693,21 @@ int smscore_register_device(struct smsdevice_params_t *params,
 
 	/* alloc common buffer */
 	dev->common_buffer_size = params->buffer_size * params->num_buffers;
-	dev->common_buffer = dma_alloc_coherent(NULL, dev->common_buffer_size,
-						&dev->common_buffer_phys,
-						GFP_KERNEL | GFP_DMA);
-	if (!dev->common_buffer) {
+	if (params->usb_device)
+		buffer = kzalloc(dev->common_buffer_size, GFP_KERNEL);
+	else
+		buffer = dma_alloc_coherent(params->device,
+					    dev->common_buffer_size,
+					    &dev->common_buffer_phys,
+					    GFP_KERNEL | dev->gfp_buf_flags);
+	if (!buffer) {
 		smscore_unregister_device(dev);
 		return -ENOMEM;
 	}
+	dev->common_buffer = buffer;
 
 	/* prepare dma buffers */
-	for (buffer = dev->common_buffer;
-	     dev->num_buffers < params->num_buffers;
+	for (; dev->num_buffers < params->num_buffers;
 	     dev->num_buffers++, buffer += params->buffer_size) {
 		struct smscore_buffer_t *cb;
 
@@ -722,6 +727,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	dev->board_id = SMS_BOARD_UNKNOWN;
 	dev->context = params->context;
 	dev->device = params->device;
+	dev->usb_device = params->usb_device;
 	dev->setmode_handler = params->setmode_handler;
 	dev->detectmode_handler = params->detectmode_handler;
 	dev->sendrequest_handler = params->sendrequest_handler;
@@ -729,7 +735,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	dev->postload_handler = params->postload_handler;
 
 	dev->device_flags = params->flags;
-	strcpy(dev->devpath, params->devpath);
+	strscpy(dev->devpath, params->devpath, sizeof(dev->devpath));
 
 	smscore_registry_settype(dev->devpath, params->device_type);
 
@@ -751,7 +757,7 @@ static int smscore_sendrequest_and_wait(struct smscore_device_t *coredev,
 		void *buffer, size_t size, struct completion *completion) {
 	int rc;
 
-	if (completion == NULL)
+	if (!completion)
 		return -EINVAL;
 	init_completion(completion);
 
@@ -766,10 +772,10 @@ static int smscore_sendrequest_and_wait(struct smscore_device_t *coredev,
 			0 : -ETIME;
 }
 
-/**
+/*
  * Starts & enables IR operations
  *
- * @return 0 on success, < 0 on error.
+ * return: 0 on success, < 0 on error.
  */
 static int smscore_init_ir(struct smscore_device_t *coredev)
 {
@@ -788,7 +794,7 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 		else {
 			buffer = kmalloc(sizeof(struct sms_msg_data2) +
 						SMS_DMA_ALIGNMENT,
-						GFP_KERNEL | GFP_DMA);
+						GFP_KERNEL | coredev->gfp_buf_flags);
 			if (buffer) {
 				struct sms_msg_data2 *msg =
 				(struct sms_msg_data2 *)
@@ -814,13 +820,13 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 	return 0;
 }
 
-/**
+/*
  * configures device features according to board configuration structure.
  *
  * @param coredev pointer to a coredev object returned by
  *                smscore_register_device
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 static int smscore_configure_board(struct smscore_device_t *coredev)
 {
@@ -863,13 +869,13 @@ static int smscore_configure_board(struct smscore_device_t *coredev)
 	return 0;
 }
 
-/**
+/*
  * sets initial device mode and notifies client hotplugs that device is ready
  *
  * @param coredev pointer to a coredev object returned by
  *		  smscore_register_device
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 int smscore_start_device(struct smscore_device_t *coredev)
 {
@@ -929,7 +935,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	}
 
 	/* PAGE_SIZE buffer shall be enough and dma aligned */
-	msg = kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
+	msg = kmalloc(PAGE_SIZE, GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!msg)
 		return -ENOMEM;
 
@@ -1089,7 +1095,7 @@ static char *smscore_fw_lkup[][DEVICE_MODE_MAX] = {
 	},
 };
 
-/**
+/*
  * get firmware file name from one of the two mechanisms : sms_boards or
  * smscore_fw_lkup.
  * @param coredev pointer to a coredev object returned by
@@ -1098,7 +1104,7 @@ static char *smscore_fw_lkup[][DEVICE_MODE_MAX] = {
  * @param lookup if 1, always get the fw filename from smscore_fw_lkup
  *	 table. if 0, try first to get from sms_boards
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 static char *smscore_get_fw_filename(struct smscore_device_t *coredev,
 			      int mode)
@@ -1127,7 +1133,7 @@ static char *smscore_get_fw_filename(struct smscore_device_t *coredev,
 	return fw[mode];
 }
 
-/**
+/*
  * loads specified firmware into a buffer and calls device loadfirmware_handler
  *
  * @param coredev pointer to a coredev object returned by
@@ -1135,7 +1141,7 @@ static char *smscore_get_fw_filename(struct smscore_device_t *coredev,
  * @param filename null-terminated string specifies firmware file name
  * @param loadfirmware_handler device handler that loads firmware
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 					   int mode,
@@ -1153,8 +1159,8 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 	}
 	pr_debug("Firmware name: %s\n", fw_filename);
 
-	if (loadfirmware_handler == NULL && !(coredev->device_flags
-			& SMS_DEVICE_FAMILY2))
+	if (!loadfirmware_handler &&
+	    !(coredev->device_flags & SMS_DEVICE_FAMILY2))
 		return -EINVAL;
 
 	rc = request_firmware(&fw, fw_filename, coredev->device);
@@ -1164,7 +1170,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 	}
 	pr_debug("read fw %s, buffer size=0x%zx\n", fw_filename, fw->size);
 	fw_buf = kmalloc(ALIGN(fw->size + sizeof(struct sms_firmware),
-			 SMS_ALLOC_ALIGNMENT), GFP_KERNEL | GFP_DMA);
+			 SMS_ALLOC_ALIGNMENT), GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!fw_buf) {
 		pr_err("failed to allocate firmware buffer\n");
 		rc = -ENOMEM;
@@ -1184,14 +1190,14 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 	return rc;
 }
 
-/**
+/*
  * notifies all clients registered with the device, notifies hotplugs,
  * frees all buffers and coredev object
  *
  * @param coredev pointer to a coredev object returned by
  *                smscore_register_device
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 void smscore_unregister_device(struct smscore_device_t *coredev)
 {
@@ -1233,10 +1239,15 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 
 	pr_debug("freed %d buffers\n", num_buffers);
 
-	if (coredev->common_buffer)
-		dma_free_coherent(NULL, coredev->common_buffer_size,
-			coredev->common_buffer, coredev->common_buffer_phys);
-
+	if (coredev->common_buffer) {
+		if (coredev->usb_device)
+			kfree(coredev->common_buffer);
+		else
+			dma_free_coherent(coredev->device,
+					  coredev->common_buffer_size,
+					  coredev->common_buffer,
+					  coredev->common_buffer_phys);
+	}
 	kfree(coredev->fw_buf);
 
 	list_del(&coredev->entry);
@@ -1251,7 +1262,7 @@ EXPORT_SYMBOL_GPL(smscore_unregister_device);
 static int smscore_detect_mode(struct smscore_device_t *coredev)
 {
 	void *buffer = kmalloc(sizeof(struct sms_msg_hdr) + SMS_DMA_ALIGNMENT,
-			       GFP_KERNEL | GFP_DMA);
+			       GFP_KERNEL | coredev->gfp_buf_flags);
 	struct sms_msg_hdr *msg =
 		(struct sms_msg_hdr *) SMS_ALIGN_ADDRESS(buffer);
 	int rc;
@@ -1284,14 +1295,14 @@ static int smscore_detect_mode(struct smscore_device_t *coredev)
 	return rc;
 }
 
-/**
+/*
  * send init device request and wait for response
  *
  * @param coredev pointer to a coredev object returned by
  *                smscore_register_device
  * @param mode requested mode of operation
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 static int smscore_init_device(struct smscore_device_t *coredev, int mode)
 {
@@ -1300,11 +1311,9 @@ static int smscore_init_device(struct smscore_device_t *coredev, int mode)
 	int rc = 0;
 
 	buffer = kmalloc(sizeof(struct sms_msg_data) +
-			SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
-	if (!buffer) {
-		pr_err("Could not allocate buffer for init device message.\n");
+			SMS_DMA_ALIGNMENT, GFP_KERNEL | coredev->gfp_buf_flags);
+	if (!buffer)
 		return -ENOMEM;
-	}
 
 	msg = (struct sms_msg_data *)SMS_ALIGN_ADDRESS(buffer);
 	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_INIT_DEVICE_REQ,
@@ -1319,7 +1328,7 @@ static int smscore_init_device(struct smscore_device_t *coredev, int mode)
 	return rc;
 }
 
-/**
+/*
  * calls device handler to change mode of operation
  * NOTE: stellar/usb may disconnect when changing mode
  *
@@ -1327,7 +1336,7 @@ static int smscore_init_device(struct smscore_device_t *coredev, int mode)
  *                smscore_register_device
  * @param mode requested mode of operation
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 {
@@ -1391,7 +1400,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		coredev->device_flags &= ~SMS_DEVICE_NOT_READY;
 
 		buffer = kmalloc(sizeof(struct sms_msg_data) +
-				 SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
+				 SMS_DMA_ALIGNMENT, GFP_KERNEL | coredev->gfp_buf_flags);
 		if (buffer) {
 			struct sms_msg_data *msg = (struct sms_msg_data *) SMS_ALIGN_ADDRESS(buffer);
 
@@ -1415,13 +1424,13 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 	return rc;
 }
 
-/**
+/*
  * calls device handler to get current mode of operation
  *
  * @param coredev pointer to a coredev object returned by
  *                smscore_register_device
  *
- * @return current mode
+ * return: current mode
  */
 int smscore_get_device_mode(struct smscore_device_t *coredev)
 {
@@ -1429,7 +1438,7 @@ int smscore_get_device_mode(struct smscore_device_t *coredev)
 }
 EXPORT_SYMBOL_GPL(smscore_get_device_mode);
 
-/**
+/*
  * find client by response id & type within the clients list.
  * return client handle or NULL.
  *
@@ -1466,7 +1475,7 @@ found:
 	return client;
 }
 
-/**
+/*
  * find client by response id/type, call clients onresponse handler
  * return buffer to pool on error
  *
@@ -1619,13 +1628,13 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 }
 EXPORT_SYMBOL_GPL(smscore_onresponse);
 
-/**
+/*
  * return pointer to next free buffer descriptor from core pool
  *
  * @param coredev pointer to a coredev object returned by
  *                smscore_register_device
  *
- * @return pointer to descriptor on success, NULL on error.
+ * return: pointer to descriptor on success, NULL on error.
  */
 
 static struct smscore_buffer_t *get_entry(struct smscore_device_t *coredev)
@@ -1652,7 +1661,7 @@ struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev)
 }
 EXPORT_SYMBOL_GPL(smscore_getbuffer);
 
-/**
+/*
  * return buffer descriptor to a pool
  *
  * @param coredev pointer to a coredev object returned by
@@ -1686,11 +1695,10 @@ static int smscore_validate_client(struct smscore_device_t *coredev,
 		pr_err("The msg ID already registered to another client.\n");
 		return -EEXIST;
 	}
-	listentry = kzalloc(sizeof(struct smscore_idlist_t), GFP_KERNEL);
-	if (!listentry) {
-		pr_err("Can't allocate memory for client id.\n");
+	listentry = kzalloc(sizeof(*listentry), GFP_KERNEL);
+	if (!listentry)
 		return -ENOMEM;
-	}
+
 	listentry->id = id;
 	listentry->data_type = data_type;
 	list_add_locked(&listentry->entry, &client->idlist,
@@ -1698,7 +1706,7 @@ static int smscore_validate_client(struct smscore_device_t *coredev,
 	return 0;
 }
 
-/**
+/*
  * creates smsclient object, check that id is taken by another client
  *
  * @param coredev pointer to a coredev object from clients hotplug
@@ -1710,7 +1718,7 @@ static int smscore_validate_client(struct smscore_device_t *coredev,
  * @param context client-specific context
  * @param client pointer to a value that receives created smsclient object
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 int smscore_register_client(struct smscore_device_t *coredev,
 			    struct smsclient_params_t *params,
@@ -1724,11 +1732,9 @@ int smscore_register_client(struct smscore_device_t *coredev,
 		return -EEXIST;
 	}
 
-	newclient = kzalloc(sizeof(struct smscore_client_t), GFP_KERNEL);
-	if (!newclient) {
-		pr_err("Failed to allocate memory for client.\n");
+	newclient = kzalloc(sizeof(*newclient), GFP_KERNEL);
+	if (!newclient)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&newclient->idlist);
 	newclient->coredev = coredev;
@@ -1747,7 +1753,7 @@ int smscore_register_client(struct smscore_device_t *coredev,
 }
 EXPORT_SYMBOL_GPL(smscore_register_client);
 
-/**
+/*
  * frees smsclient object and all subclients associated with it
  *
  * @param client pointer to smsclient object returned by
@@ -1778,7 +1784,7 @@ void smscore_unregister_client(struct smscore_client_t *client)
 }
 EXPORT_SYMBOL_GPL(smscore_unregister_client);
 
-/**
+/*
  * verifies that source id is not taken by another client,
  * calls device handler to send requests to the device
  *
@@ -1787,7 +1793,7 @@ EXPORT_SYMBOL_GPL(smscore_unregister_client);
  * @param buffer pointer to a request buffer
  * @param size size (in bytes) of request buffer
  *
- * @return 0 on success, <0 on error.
+ * return: 0 on success, <0 on error.
  */
 int smsclient_sendrequest(struct smscore_client_t *client,
 			  void *buffer, size_t size)
@@ -1796,7 +1802,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 	struct sms_msg_hdr *phdr = (struct sms_msg_hdr *) buffer;
 	int rc;
 
-	if (client == NULL) {
+	if (!client) {
 		pr_err("Got NULL client\n");
 		return -EINVAL;
 	}
@@ -1804,7 +1810,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 	coredev = client->coredev;
 
 	/* check that no other channel with same id exists */
-	if (coredev == NULL) {
+	if (!coredev) {
 		pr_err("Got NULL coredev\n");
 		return -EINVAL;
 	}
@@ -1961,13 +1967,13 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 pin_num,
 	if (pin_num > MAX_GPIO_PIN_NUMBER)
 		return -EINVAL;
 
-	if (p_gpio_config == NULL)
+	if (!p_gpio_config)
 		return -EINVAL;
 
 	total_len = sizeof(struct sms_msg_hdr) + (sizeof(u32) * 6);
 
 	buffer = kmalloc(total_len + SMS_DMA_ALIGNMENT,
-			GFP_KERNEL | GFP_DMA);
+			GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -2039,7 +2045,7 @@ int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 pin_num,
 			(3 * sizeof(u32)); /* keep it 3 ! */
 
 	buffer = kmalloc(total_len + SMS_DMA_ALIGNMENT,
-			GFP_KERNEL | GFP_DMA);
+			GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -2087,7 +2093,7 @@ int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 pin_num,
 	total_len = sizeof(struct sms_msg_hdr) + (2 * sizeof(u32));
 
 	buffer = kmalloc(total_len + SMS_DMA_ALIGNMENT,
-			GFP_KERNEL | GFP_DMA);
+			GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!buffer)
 		return -ENOMEM;
 

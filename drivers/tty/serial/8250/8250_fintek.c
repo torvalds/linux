@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Probe for F81216A LPC to 4 UART
  *
  *  Copyright (C) 2014-2016 Ricardo Ribalda, Qtechnology A/S
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  */
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -40,6 +36,16 @@
 #define IRQ_LEVEL_LOW	0
 #define IRQ_EDGE_HIGH	BIT(5)
 
+/*
+ * F81216H clock source register, the value and mask is the same with F81866,
+ * but it's on F0h.
+ *
+ * Clock speeds for UART (register F0h)
+ * 00: 1.8432MHz.
+ * 01: 18.432MHz.
+ * 10: 24MHz.
+ * 11: 14.769MHz.
+ */
 #define RS485  0xF0
 #define RTS_INVERT BIT(5)
 #define RS485_URA BIT(4)
@@ -118,6 +124,9 @@ static int fintek_8250_enter_key(u16 base_port, u8 key)
 	if (!request_muxed_region(base_port, 2, "8250_fintek"))
 		return -EBUSY;
 
+	/* Force to deactive all SuperIO in this base_port */
+	outb(EXIT_KEY, base_port + ADDR_PORT);
+
 	outb(key, base_port + ADDR_PORT);
 	outb(key, base_port + ADDR_PORT);
 	return 0;
@@ -188,13 +197,26 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 	if (!pdata)
 		return -EINVAL;
 
-	if (rs485->flags & SER_RS485_ENABLED)
+	/* Hardware do not support same RTS level on send and receive */
+	if (!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
+			!(rs485->flags & SER_RS485_RTS_AFTER_SEND))
+		return -EINVAL;
+
+	if (rs485->flags & SER_RS485_ENABLED) {
 		memset(rs485->padding, 0, sizeof(rs485->padding));
-	else
+		config |= RS485_URA;
+	} else {
 		memset(rs485, 0, sizeof(*rs485));
+	}
 
 	rs485->flags &= SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
 			SER_RS485_RTS_AFTER_SEND;
+
+	/* Only the first port supports delays */
+	if (pdata->index) {
+		rs485->delay_rts_before_send = 0;
+		rs485->delay_rts_after_send = 0;
+	}
 
 	if (rs485->delay_rts_before_send) {
 		rs485->delay_rts_before_send = 1;
@@ -205,12 +227,6 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 		rs485->delay_rts_after_send = 1;
 		config |= RXW4C_IRA;
 	}
-
-	if ((!!(rs485->flags & SER_RS485_RTS_ON_SEND)) ==
-			(!!(rs485->flags & SER_RS485_RTS_AFTER_SEND)))
-		rs485->flags &= SER_RS485_ENABLED;
-	else
-		config |= RS485_URA;
 
 	if (rs485->flags & SER_RS485_RTS_ON_SEND)
 		config |= RTS_INVERT;
@@ -280,9 +296,87 @@ static void fintek_8250_goto_highspeed(struct uart_8250_port *uart,
 			F81866_UART_CLK_MASK,
 			F81866_UART_CLK_14_769MHZ);
 
-			uart->port.uartclk = 921600 * 16;
+		uart->port.uartclk = 921600 * 16;
 		break;
 	default: /* leave clock speed untouched */
+		break;
+	}
+}
+
+void fintek_8250_set_termios(struct uart_port *port, struct ktermios *termios,
+			struct ktermios *old)
+{
+	struct fintek_8250 *pdata = port->private_data;
+	unsigned int baud = tty_termios_baud_rate(termios);
+	int i;
+	u8 reg;
+	static u32 baudrate_table[] = {115200, 921600, 1152000, 1500000};
+	static u8 clock_table[] = { F81866_UART_CLK_1_8432MHZ,
+			F81866_UART_CLK_14_769MHZ, F81866_UART_CLK_18_432MHZ,
+			F81866_UART_CLK_24MHZ };
+
+	/*
+	 * We'll use serial8250_do_set_termios() for baud = 0, otherwise It'll
+	 * crash on baudrate_table[i] % baud with "division by zero".
+	 */
+	if (!baud)
+		goto exit;
+
+	switch (pdata->pid) {
+	case CHIP_ID_F81216H:
+		reg = RS485;
+		break;
+	case CHIP_ID_F81866:
+		reg = F81866_UART_CLK;
+		break;
+	default:
+		/* Don't change clocksource with unknown PID */
+		dev_warn(port->dev,
+			"%s: pid: %x Not support. use default set_termios.\n",
+			__func__, pdata->pid);
+		goto exit;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(baudrate_table); ++i) {
+		if (baud > baudrate_table[i] || baudrate_table[i] % baud != 0)
+			continue;
+
+		if (port->uartclk == baudrate_table[i] * 16)
+			break;
+
+		if (fintek_8250_enter_key(pdata->base_port, pdata->key))
+			continue;
+
+		port->uartclk = baudrate_table[i] * 16;
+
+		sio_write_reg(pdata, LDN, pdata->index);
+		sio_write_mask_reg(pdata, reg, F81866_UART_CLK_MASK,
+				clock_table[i]);
+
+		fintek_8250_exit_key(pdata->base_port);
+		break;
+	}
+
+	if (i == ARRAY_SIZE(baudrate_table)) {
+		baud = tty_termios_baud_rate(old);
+		tty_termios_encode_baud_rate(termios, baud, baud);
+	}
+
+exit:
+	serial8250_do_set_termios(port, termios, old);
+}
+
+static void fintek_8250_set_termios_handler(struct uart_8250_port *uart)
+{
+	struct fintek_8250 *pdata = uart->port.private_data;
+
+	switch (pdata->pid) {
+	case CHIP_ID_F81216H:
+	case CHIP_ID_F81866:
+		uart->port.set_termios = fintek_8250_set_termios;
+		break;
+
+	default:
 		break;
 	}
 }
@@ -373,6 +467,7 @@ int fintek_8250_probe(struct uart_8250_port *uart)
 	memcpy(pdata, &probe_data, sizeof(probe_data));
 	uart->port.private_data = pdata;
 	fintek_8250_set_rs485_handler(uart);
+	fintek_8250_set_termios_handler(uart);
 
 	return 0;
 }

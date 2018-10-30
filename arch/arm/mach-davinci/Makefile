@@ -1,11 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the linux kernel.
 #
 #
 
 # Common objects
-obj-y 			:= time.o clock.o serial.o psc.o \
-			   usb.o common.o sram.o aemif.o
+obj-y 					:= time.o serial.o usb.o \
+					   common.o sram.o
 
 obj-$(CONFIG_DAVINCI_MUX)		+= mux.o
 

@@ -29,6 +29,7 @@ enum hwmon_sensor_types {
 	hwmon_humidity,
 	hwmon_fan,
 	hwmon_pwm,
+	hwmon_max,
 };
 
 enum hwmon_chip_attributes {
@@ -92,6 +93,7 @@ enum hwmon_temp_attributes {
 #define HWMON_T_MIN_ALARM	BIT(hwmon_temp_min_alarm)
 #define HWMON_T_MAX_ALARM	BIT(hwmon_temp_max_alarm)
 #define HWMON_T_CRIT_ALARM	BIT(hwmon_temp_crit_alarm)
+#define HWMON_T_LCRIT_ALARM	BIT(hwmon_temp_lcrit_alarm)
 #define HWMON_T_EMERGENCY_ALARM	BIT(hwmon_temp_emergency_alarm)
 #define HWMON_T_FAULT		BIT(hwmon_temp_fault)
 #define HWMON_T_OFFSET		BIT(hwmon_temp_offset)
@@ -116,6 +118,7 @@ enum hwmon_in_attributes {
 	hwmon_in_max_alarm,
 	hwmon_in_lcrit_alarm,
 	hwmon_in_crit_alarm,
+	hwmon_in_enable,
 };
 
 #define HWMON_I_INPUT		BIT(hwmon_in_input)
@@ -133,6 +136,7 @@ enum hwmon_in_attributes {
 #define HWMON_I_MAX_ALARM	BIT(hwmon_in_max_alarm)
 #define HWMON_I_LCRIT_ALARM	BIT(hwmon_in_lcrit_alarm)
 #define HWMON_I_CRIT_ALARM	BIT(hwmon_in_crit_alarm)
+#define HWMON_I_ENABLE		BIT(hwmon_in_enable)
 
 enum hwmon_curr_attributes {
 	hwmon_curr_input,
@@ -186,12 +190,16 @@ enum hwmon_power_attributes {
 	hwmon_power_cap_hyst,
 	hwmon_power_cap_max,
 	hwmon_power_cap_min,
+	hwmon_power_min,
 	hwmon_power_max,
 	hwmon_power_crit,
+	hwmon_power_lcrit,
 	hwmon_power_label,
 	hwmon_power_alarm,
 	hwmon_power_cap_alarm,
+	hwmon_power_min_alarm,
 	hwmon_power_max_alarm,
+	hwmon_power_lcrit_alarm,
 	hwmon_power_crit_alarm,
 };
 
@@ -212,12 +220,16 @@ enum hwmon_power_attributes {
 #define HWMON_P_CAP_HYST		BIT(hwmon_power_cap_hyst)
 #define HWMON_P_CAP_MAX			BIT(hwmon_power_cap_max)
 #define HWMON_P_CAP_MIN			BIT(hwmon_power_cap_min)
+#define HWMON_P_MIN			BIT(hwmon_power_min)
 #define HWMON_P_MAX			BIT(hwmon_power_max)
+#define HWMON_P_LCRIT			BIT(hwmon_power_lcrit)
 #define HWMON_P_CRIT			BIT(hwmon_power_crit)
 #define HWMON_P_LABEL			BIT(hwmon_power_label)
 #define HWMON_P_ALARM			BIT(hwmon_power_alarm)
 #define HWMON_P_CAP_ALARM		BIT(hwmon_power_cap_alarm)
+#define HWMON_P_MIN_ALARM		BIT(hwmon_power_max_alarm)
 #define HWMON_P_MAX_ALARM		BIT(hwmon_power_max_alarm)
+#define HWMON_P_LCRIT_ALARM		BIT(hwmon_power_lcrit_alarm)
 #define HWMON_P_CRIT_ALARM		BIT(hwmon_power_crit_alarm)
 
 enum hwmon_energy_attributes {
@@ -387,5 +399,28 @@ devm_hwmon_device_register_with_info(struct device *dev,
 
 void hwmon_device_unregister(struct device *dev);
 void devm_hwmon_device_unregister(struct device *dev);
+
+/**
+ * hwmon_is_bad_char - Is the char invalid in a hwmon name
+ * @ch: the char to be considered
+ *
+ * hwmon_is_bad_char() can be used to determine if the given character
+ * may not be used in a hwmon name.
+ *
+ * Returns true if the char is invalid, false otherwise.
+ */
+static inline bool hwmon_is_bad_char(const char ch)
+{
+	switch (ch) {
+	case '-':
+	case '*':
+	case ' ':
+	case '\t':
+	case '\n':
+		return true;
+	default:
+		return false;
+	}
+}
 
 #endif

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _ASM_M68k_SIGCONTEXT_H
 #define _ASM_M68k_SIGCONTEXT_H
 

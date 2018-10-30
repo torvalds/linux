@@ -62,7 +62,9 @@ config USB_SERIAL_SIMPLE
 		- Fundamental Software dongle.
 		- Google USB serial devices
 		- HP4x calculators
+		- Libtransistor USB console
 		- a number of Motorola phones
+		- Motorola Tetra devices
 		- Novatel Wireless GPS receivers
 		- Siemens USB/MPI adapter.
 		- ViVOtech ViVOpay USB device.
@@ -321,84 +323,6 @@ config USB_SERIAL_KEYSPAN
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called keyspan.
-
-config USB_SERIAL_KEYSPAN_MPR
-	bool "USB Keyspan MPR Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the Keyspan MPR converter.
-
-config USB_SERIAL_KEYSPAN_USA28
-	bool "USB Keyspan USA-28 Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-28 converter.
-
-config USB_SERIAL_KEYSPAN_USA28X
-	bool "USB Keyspan USA-28X Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-28X converter.
-	  Be sure you have a USA-28X, there are also 28XA and 28XB
-	  models, the label underneath has the actual part number.
-
-config USB_SERIAL_KEYSPAN_USA28XA
-	bool "USB Keyspan USA-28XA Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-28XA converter.
-	  Be sure you have a USA-28XA, there are also 28X and 28XB
-	  models, the label underneath has the actual part number.
-
-config USB_SERIAL_KEYSPAN_USA28XB
-	bool "USB Keyspan USA-28XB Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-28XB converter.
-	  Be sure you have a USA-28XB, there are also 28X and 28XA
-	  models, the label underneath has the actual part number.
-
-config USB_SERIAL_KEYSPAN_USA19
-	bool "USB Keyspan USA-19 Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-19 converter.
-
-config USB_SERIAL_KEYSPAN_USA18X
-	bool "USB Keyspan USA-18X Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-18X converter.
-
-config USB_SERIAL_KEYSPAN_USA19W
-	bool "USB Keyspan USA-19W Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-19W converter.
-
-config USB_SERIAL_KEYSPAN_USA19QW
-	bool "USB Keyspan USA-19QW Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-19QW converter.
-
-config USB_SERIAL_KEYSPAN_USA19QI
-	bool "USB Keyspan USA-19QI Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-19QI converter.
-
-config USB_SERIAL_KEYSPAN_USA49W
-	bool "USB Keyspan USA-49W Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-49W converter.
-
-config USB_SERIAL_KEYSPAN_USA49WLC
-	bool "USB Keyspan USA-49WLC Firmware"
-	depends on USB_SERIAL_KEYSPAN && FIRMWARE_IN_KERNEL
-	help
-	  Say Y here to include firmware for the USA-49WLC converter.
 
 config USB_SERIAL_KLSI
 	tristate "USB KL5KUSB105 (Palmconnect) Driver"

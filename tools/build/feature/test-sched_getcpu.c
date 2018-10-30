@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif

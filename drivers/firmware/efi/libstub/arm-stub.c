@@ -40,31 +40,6 @@
 
 static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
 
-efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
-			     void *__image, void **__fh)
-{
-	efi_file_io_interface_t *io;
-	efi_loaded_image_t *image = __image;
-	efi_file_handle_t *fh;
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
-	efi_status_t status;
-	void *handle = (void *)(unsigned long)image->device_handle;
-
-	status = sys_table_arg->boottime->handle_protocol(handle,
-				 &fs_proto, (void **)&io);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table_arg, "Failed to handle fs_proto\n");
-		return status;
-	}
-
-	status = io->open_volume(io, &fh);
-	if (status != EFI_SUCCESS)
-		efi_printk(sys_table_arg, "Failed to open volume\n");
-
-	*__fh = fh;
-	return status;
-}
-
 void efi_char16_printk(efi_system_table_t *sys_table_arg,
 			      efi_char16_t *str)
 {
@@ -93,6 +68,31 @@ static struct screen_info *setup_graphics(efi_system_table_t *sys_table_arg)
 	}
 	return si;
 }
+
+void install_memreserve_table(efi_system_table_t *sys_table_arg)
+{
+	struct linux_efi_memreserve *rsv;
+	efi_guid_t memreserve_table_guid = LINUX_EFI_MEMRESERVE_TABLE_GUID;
+	efi_status_t status;
+
+	status = efi_call_early(allocate_pool, EFI_LOADER_DATA, sizeof(*rsv),
+				(void **)&rsv);
+	if (status != EFI_SUCCESS) {
+		pr_efi_err(sys_table_arg, "Failed to allocate memreserve entry!\n");
+		return;
+	}
+
+	rsv->next = 0;
+	rsv->base = 0;
+	rsv->size = 0;
+
+	status = efi_call_early(install_configuration_table,
+				&memreserve_table_guid,
+				rsv);
+	if (status != EFI_SUCCESS)
+		pr_efi_err(sys_table_arg, "Failed to install memreserve config table!\n");
+}
+
 
 /*
  * This function handles the architcture specific differences between arm and
@@ -202,9 +202,10 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	 * 'dtb=' unless UEFI Secure Boot is disabled.  We assume that secure
 	 * boot is enabled if we can't determine its state.
 	 */
-	if (secure_boot != efi_secureboot_mode_disabled &&
-	    strstr(cmdline_ptr, "dtb=")) {
-		pr_efi(sys_table, "Ignoring DTB from command line.\n");
+	if (!IS_ENABLED(CONFIG_EFI_ARMSTUB_DTB_LOADER) ||
+	     secure_boot != efi_secureboot_mode_disabled) {
+		if (strstr(cmdline_ptr, "dtb="))
+			pr_efi(sys_table, "Ignoring DTB from command line.\n");
 	} else {
 		status = handle_cmdline_files(sys_table, image, cmdline_ptr,
 					      "dtb=",
@@ -238,7 +239,8 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 
 	efi_random_get_seed(sys_table);
 
-	if (!nokaslr()) {
+	/* hibernation expects the runtime regions to stay in the same place */
+	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr()) {
 		/*
 		 * Randomize the base of the UEFI runtime services region.
 		 * Preserve the 2 MB alignment of the region by taking a
@@ -257,6 +259,8 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 				       (((headroom >> 21) * rnd) >> (32 - 21));
 		}
 	}
+
+	install_memreserve_table(sys_table);
 
 	new_fdt_addr = fdt_addr;
 	status = allocate_new_fdt_and_exit_boot(sys_table, handle,
@@ -349,7 +353,9 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 	 * The easiest way to find adjacent regions is to sort the memory map
 	 * before traversing it.
 	 */
-	sort(memory_map, map_size / desc_size, desc_size, cmp_mem_desc, NULL);
+	if (IS_ENABLED(CONFIG_ARM64))
+		sort(memory_map, map_size / desc_size, desc_size, cmp_mem_desc,
+		     NULL);
 
 	for (l = 0; l < map_size; l += desc_size, prev = in) {
 		u64 paddr, size;
@@ -366,7 +372,8 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		 * a 4k page size kernel to kexec a 64k page size kernel and
 		 * vice versa.
 		 */
-		if (!regions_are_adjacent(prev, in) ||
+		if ((IS_ENABLED(CONFIG_ARM64) &&
+		     !regions_are_adjacent(prev, in)) ||
 		    !regions_have_compatible_memory_type_attrs(prev, in)) {
 
 			paddr = round_down(in->phys_addr, SZ_64K);

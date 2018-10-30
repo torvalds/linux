@@ -3,8 +3,8 @@ menuconfig ION
 	depends on HAVE_MEMBLOCK && HAS_DMA && MMU
 	select GENERIC_ALLOCATOR
 	select DMA_SHARED_BUFFER
-	---help---
-	  Chose this option to enable the ION Memory Manager,
+	help
+	  Choose this option to enable the ION Memory Manager,
 	  used by Android to efficiently allocate buffers
 	  from userspace that can be shared between drivers.
 	  If you're not using Android its probably safe to
@@ -37,7 +37,7 @@ config ION_CHUNK_HEAP
 
 config ION_CMA_HEAP
 	bool "Ion CMA heap support"
-	depends on ION && CMA
+	depends on ION && DMA_CMA
 	help
 	  Choose this option to enable CMA heaps with Ion. This heap is backed
 	  by the Contiguous Memory Allocator (CMA). If your system has these

@@ -1,5 +1,4 @@
 TODO:
-	- checkpatch.pl cleanups
 	- sparse fixes
 	- rename files to be not so "generic"
 	- add proper arch dependencies as needed
@@ -11,6 +10,15 @@ ion/
    involve putting appropriate bindings in a memory node for Ion to find.
  - Split /dev/ion up into multiple nodes (e.g. /dev/ion/heap0)
  - Better test framework (integration with VGEM was suggested)
+
+vsoc.c, uapi/vsoc_shm.h
+ - The current driver uses the same wait queue for all of the futexes in a
+   region. This will cause false wakeups in regions with a large number of
+   waiting threads. We should eventually use multiple queues and select the
+   queue based on the region.
+ - Add debugfs support for examining the permissions of regions.
+ - Remove VSOC_WAIT_FOR_INCOMING_INTERRUPT ioctl. This functionality has been
+   superseded by the futex and is there for legacy reasons.
 
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc:
 Arve Hjønnevåg <arve@android.com> and Riley Andrews <riandrews@android.com>

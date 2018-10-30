@@ -72,6 +72,7 @@
 #define CLK_USIM 58
 #define CLK_USIM1 59
 #define CLK_USMI0 60
-#define CLK_MAX 61
+#define CLK_OSC32k768 61
+#define CLK_MAX 62
 
 #endif

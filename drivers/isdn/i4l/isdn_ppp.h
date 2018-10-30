@@ -23,7 +23,7 @@ extern int isdn_ppp_autodial_filter(struct sk_buff *, isdn_net_local *);
 extern int isdn_ppp_xmit(struct sk_buff *, struct net_device *);
 extern void isdn_ppp_receive(isdn_net_dev *, isdn_net_local *, struct sk_buff *);
 extern int isdn_ppp_dev_ioctl(struct net_device *, struct ifreq *, int);
-extern unsigned int isdn_ppp_poll(struct file *, struct poll_table_struct *);
+extern __poll_t isdn_ppp_poll(struct file *, struct poll_table_struct *);
 extern int isdn_ppp_ioctl(int, struct file *, unsigned int, unsigned long);
 extern void isdn_ppp_release(int, struct file *);
 extern int isdn_ppp_dial_slave(char *);

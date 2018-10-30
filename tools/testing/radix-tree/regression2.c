@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Regression2
  * Description:
@@ -52,9 +53,9 @@
 #include "regression.h"
 #include "test.h"
 
-#define PAGECACHE_TAG_DIRTY     0
-#define PAGECACHE_TAG_WRITEBACK 1
-#define PAGECACHE_TAG_TOWRITE   2
+#define PAGECACHE_TAG_DIRTY     XA_MARK_0
+#define PAGECACHE_TAG_WRITEBACK XA_MARK_1
+#define PAGECACHE_TAG_TOWRITE   XA_MARK_2
 
 static RADIX_TREE(mt_tree, GFP_KERNEL);
 unsigned long page_count = 0;
@@ -91,7 +92,7 @@ void regression2_test(void)
 	/* 1. */
 	start = 0;
 	end = max_slots - 2;
-	tag_tagged_items(&mt_tree, NULL, start, end, 1,
+	tag_tagged_items(&mt_tree, start, end, 1,
 				PAGECACHE_TAG_DIRTY, PAGECACHE_TAG_TOWRITE);
 
 	/* 2. */

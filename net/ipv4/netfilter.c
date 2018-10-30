@@ -80,35 +80,7 @@ int ip_route_me_harder(struct net *net, struct sk_buff *skb, unsigned int addr_t
 }
 EXPORT_SYMBOL(ip_route_me_harder);
 
-/*
- * Extra routing may needed on local out, as the QUEUE target never
- * returns control to the table.
- */
-
-struct ip_rt_info {
-	__be32 daddr;
-	__be32 saddr;
-	u_int8_t tos;
-	u_int32_t mark;
-};
-
-static void nf_ip_saveroute(const struct sk_buff *skb,
-			    struct nf_queue_entry *entry)
-{
-	struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
-
-	if (entry->state.hook == NF_INET_LOCAL_OUT) {
-		const struct iphdr *iph = ip_hdr(skb);
-
-		rt_info->tos = iph->tos;
-		rt_info->daddr = iph->daddr;
-		rt_info->saddr = iph->saddr;
-		rt_info->mark = skb->mark;
-	}
-}
-
-static int nf_ip_reroute(struct net *net, struct sk_buff *skb,
-			 const struct nf_queue_entry *entry)
+int nf_ip_reroute(struct sk_buff *skb, const struct nf_queue_entry *entry)
 {
 	const struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
@@ -119,65 +91,15 @@ static int nf_ip_reroute(struct net *net, struct sk_buff *skb,
 		      skb->mark == rt_info->mark &&
 		      iph->daddr == rt_info->daddr &&
 		      iph->saddr == rt_info->saddr))
-			return ip_route_me_harder(net, skb, RTN_UNSPEC);
+			return ip_route_me_harder(entry->state.net, skb,
+						  RTN_UNSPEC);
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nf_ip_reroute);
 
-__sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
-			    unsigned int dataoff, u_int8_t protocol)
-{
-	const struct iphdr *iph = ip_hdr(skb);
-	__sum16 csum = 0;
-
-	switch (skb->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		if (hook != NF_INET_PRE_ROUTING && hook != NF_INET_LOCAL_IN)
-			break;
-		if ((protocol == 0 && !csum_fold(skb->csum)) ||
-		    !csum_tcpudp_magic(iph->saddr, iph->daddr,
-				       skb->len - dataoff, protocol,
-				       skb->csum)) {
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			break;
-		}
-		/* fall through */
-	case CHECKSUM_NONE:
-		if (protocol == 0)
-			skb->csum = 0;
-		else
-			skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
-						       skb->len - dataoff,
-						       protocol, 0);
-		csum = __skb_checksum_complete(skb);
-	}
-	return csum;
-}
-EXPORT_SYMBOL(nf_ip_checksum);
-
-static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
-				      unsigned int dataoff, unsigned int len,
-				      u_int8_t protocol)
-{
-	const struct iphdr *iph = ip_hdr(skb);
-	__sum16 csum = 0;
-
-	switch (skb->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		if (len == skb->len - dataoff)
-			return nf_ip_checksum(skb, hook, dataoff, protocol);
-		/* fall through */
-	case CHECKSUM_NONE:
-		skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr, protocol,
-					       skb->len - dataoff, 0);
-		skb->ip_summed = CHECKSUM_NONE;
-		return __skb_checksum_complete_head(skb, dataoff + len);
-	}
-	return csum;
-}
-
-static int nf_ip_route(struct net *net, struct dst_entry **dst,
-		       struct flowi *fl, bool strict __always_unused)
+int nf_ip_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
+		bool strict __always_unused)
 {
 	struct rtable *rt = ip_route_output_key(net, &fl->u.ip4);
 	if (IS_ERR(rt))
@@ -185,19 +107,4 @@ static int nf_ip_route(struct net *net, struct dst_entry **dst,
 	*dst = &rt->dst;
 	return 0;
 }
-
-static const struct nf_afinfo nf_ip_afinfo = {
-	.family			= AF_INET,
-	.checksum		= nf_ip_checksum,
-	.checksum_partial	= nf_ip_checksum_partial,
-	.route			= nf_ip_route,
-	.saveroute		= nf_ip_saveroute,
-	.reroute		= nf_ip_reroute,
-	.route_key_size		= sizeof(struct ip_rt_info),
-};
-
-static int __init ipv4_netfilter_init(void)
-{
-	return nf_register_afinfo(&nf_ip_afinfo);
-}
-subsys_initcall(ipv4_netfilter_init);
+EXPORT_SYMBOL_GPL(nf_ip_route);

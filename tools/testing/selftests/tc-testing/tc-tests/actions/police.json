@@ -1,0 +1,743 @@
+[
+    {
+        "id": "49aa",
+        "name": "Add valid basic police action",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 1kbit burst 10k index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 1Kbit burst 10Kb",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "3abe",
+        "name": "Add police action with duplicate index",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action police rate 4Mbit burst 120k index 9"
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 8kbit burst 24k index 9",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x9",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "49fa",
+        "name": "Add valid police action with mtu",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 90kbit burst 10k mtu 1k index 98",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action police index 98",
+        "matchPattern": "action order [0-9]*:  police 0x62 rate 90Kbit burst 10Kb mtu 1Kb",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "7943",
+        "name": "Add valid police action with peakrate",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 90kbit burst 10k mtu 2kb peakrate 100kbit index 3",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x3 rate 90Kbit burst 10Kb mtu 2Kb peakrate 100Kbit",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "055e",
+        "name": "Add police action with peakrate and no mtu",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 5kbit burst 6kb peakrate 10kbit index 9",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x9 rate 5Kb burst 10Kb",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "f057",
+        "name": "Add police action with valid overhead",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 1mbit burst 100k overhead 64 index 64",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action police index 64",
+        "matchPattern": "action order [0-9]*:  police 0x40 rate 1Mbit burst 100Kb mtu 2Kb action reclassify overhead 64b",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "7ffb",
+        "name": "Add police action with ethernet linklayer type",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 2mbit burst 200k linklayer ethernet index 8",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions show action police",
+        "matchPattern": "action order [0-9]*:  police 0x8 rate 2Mbit burst 200Kb mtu 2Kb action reclassify overhead 0b",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "3dda",
+        "name": "Add police action with atm linklayer type",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 2mbit burst 200k linklayer atm index 8",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions show action police",
+        "matchPattern": "action order [0-9]*:  police 0x8 rate 2Mbit burst 200Kb mtu 2Kb action reclassify overhead 0b linklayer atm",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "551b",
+        "name": "Add police actions with conform-exceed control continue/drop",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 3mbit burst 250k conform-exceed continue/drop index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action police index 1",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 3Mbit burst 250Kb mtu 2Kb action continue/drop",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "0c70",
+        "name": "Add police actions with conform-exceed control pass/reclassify",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 3mbit burst 250k conform-exceed pass/reclassify index 4",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x4 rate 3Mbit burst 250Kb mtu 2Kb action pass/reclassify",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "d946",
+        "name": "Add police actions with conform-exceed control pass/pipe",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 3mbit burst 250k conform-exceed pass/pipe index 5",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x5 rate 3Mbit burst 250Kb mtu 2Kb action pass/pipe",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "ddd6",
+        "name": "Add police action with invalid rate value",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 3tb burst 250k conform-exceed pass/pipe index 5",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x5 rate 3Tb burst 250Kb mtu 2Kb action pass/pipe",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "f61c",
+        "name": "Add police action with invalid burst value",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 3kbit burst 250P conform-exceed pass/pipe index 5",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x5 rate 3Kbit burst 250Pb mtu 2Kb action pass/pipe",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "6aaf",
+        "name": "Add police actions with conform-exceed control pass/pipe [with numeric values]",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 3mbit burst 250k conform-exceed 0/3 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action police index 1",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 3Mbit burst 250Kb mtu 2Kb action pass/pipe",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "29b1",
+        "name": "Add police actions with conform-exceed control <invalid>/drop",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 3mbit burst 250k conform-exceed 10/drop index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 3Mbit burst 250Kb mtu 2Kb action ",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "c26f",
+        "name": "Add police action with invalid peakrate value",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 90kbit burst 10k mtu 2kb peakrate 100T index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 90Kbit burst 10Kb mtu 2Kb peakrate 100Tbit",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "db04",
+        "name": "Add police action with invalid mtu value",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 10kbit burst 10k mtu 2Pbit index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 10Kbit burst 1Kb mtu 2Pb",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "f3c9",
+        "name": "Add police action with cookie",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 10mbit burst 10k index 1 cookie a1b1c1d1e1f12233bb",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action police index 1",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 10Mbit burst 10Kb mtu 2Kb.*cookie a1b1c1d1e1f12233bb",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "d190",
+        "name": "Add police action with maximum index",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 10mbit burst 10k index 4294967295",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action police index 4294967295",
+        "matchPattern": "action order [0-9]*:  police 0xffffffff rate 10Mbit burst 10Kb mtu 2Kb",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "336e",
+        "name": "Delete police action",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action police rate 5mbit burst 2m index 12"
+        ],
+        "cmdUnderTest": "$TC actions delete action police index 12",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0xc rate 5Mb burst 2Mb",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "77fa",
+        "name": "Get single police action from many actions",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action police rate 1mbit burst 100k index 1",
+            "$TC actions add action police rate 2mbit burst 200k index 2",
+            "$TC actions add action police rate 3mbit burst 300k index 3",
+            "$TC actions add action police rate 4mbit burst 400k index 4",
+            "$TC actions add action police rate 5mbit burst 500k index 5",
+            "$TC actions add action police rate 6mbit burst 600k index 6",
+            "$TC actions add action police rate 7mbit burst 700k index 7",
+            "$TC actions add action police rate 8mbit burst 800k index 8"
+        ],
+        "cmdUnderTest": "$TC actions get action police index 4",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action police index 4",
+        "matchPattern": "action order [0-9]*:  police 0x4 rate 4Mbit burst 400Kb",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "aa43",
+        "name": "Get single police action without specifying index",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action police rate 1mbit burst 100k index 1"
+        ],
+        "cmdUnderTest": "$TC actions get action police",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action police",
+        "matchPattern": "action order [0-9]*:  police",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "858b",
+        "name": "List police actions",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action police rate 1mbit burst 100k index 1",
+            "$TC actions add action police rate 2mbit burst 200k index 2",
+            "$TC actions add action police rate 3mbit burst 300k index 3",
+            "$TC actions add action police rate 4mbit burst 400k index 4",
+            "$TC actions add action police rate 5mbit burst 500k index 5",
+            "$TC actions add action police rate 6mbit burst 600k index 6",
+            "$TC actions add action police rate 7mbit burst 700k index 7",
+            "$TC actions add action police rate 8mbit burst 800k index 8"
+        ],
+        "cmdUnderTest": "$TC actions list action police",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x[1-8] rate [1-8]Mbit burst [1-8]00Kb",
+        "matchCount": "8",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "1c3a",
+        "name": "Flush police actions",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            "$TC actions add action police rate 1mbit burst 100k index 1",
+            "$TC actions add action police rate 2mbit burst 200k index 2",
+            "$TC actions add action police rate 3mbit burst 300k index 3",
+            "$TC actions add action police rate 4mbit burst 400k index 4",
+            "$TC actions add action police rate 5mbit burst 500k index 5",
+            "$TC actions add action police rate 6mbit burst 600k index 6",
+            "$TC actions add action police rate 7mbit burst 700k index 7",
+            "$TC actions add action police rate 8mbit burst 800k index 8"
+        ],
+        "cmdUnderTest": "$TC actions flush action police",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police",
+        "matchCount": "0",
+        "teardown": [
+            ""
+        ]
+    },
+    {
+        "id": "7326",
+        "name": "Add police action with control continue",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 7mbit burst 1m continue index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action police index 1",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst 1024Kb mtu 2Kb action continue",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "34fa",
+        "name": "Add police action with control drop",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 7mbit burst 1m drop index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst 1024Kb mtu 2Kb action drop",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "8dd5",
+        "name": "Add police action with control ok",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 7mbit burst 1m ok index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst 1024Kb mtu 2Kb action pass",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "b9d1",
+        "name": "Add police action with control reclassify",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 7mbit burst 1m reclassify index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action police index 1",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst 1024Kb mtu 2Kb action reclassify",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "c534",
+        "name": "Add police action with control pipe",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 7mbit burst 1m pipe index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 7Mbit burst 1024Kb mtu 2Kb action pipe",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    },
+    {
+        "id": "b48b",
+        "name": "Add police action with exceed goto chain control action",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 1mbit burst 1k conform-exceed pass / goto chain 42",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 1Mbit burst 1Kb mtu 2Kb action pass/goto chain 42",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
+    }
+]

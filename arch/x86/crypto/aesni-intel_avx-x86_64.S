@@ -463,7 +463,7 @@ _get_AAD_rest_final\@:
 
 _get_AAD_done\@:
 	# initialize the data pointer offset as zero
-	xor     %r11, %r11
+	xor     %r11d, %r11d
 
 	# start AES for num_initial_blocks blocks
 	mov     arg5, %rax                     # rax = *Y0
@@ -1770,7 +1770,7 @@ _get_AAD_rest_final\@:
 
 _get_AAD_done\@:
 	# initialize the data pointer offset as zero
-	xor     %r11, %r11
+	xor     %r11d, %r11d
 
 	# start AES for num_initial_blocks blocks
 	mov     arg5, %rax                     # rax = *Y0

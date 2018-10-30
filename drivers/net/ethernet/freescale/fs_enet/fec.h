@@ -1,8 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef FS_ENET_FEC_H
 #define FS_ENET_FEC_H
-
-/* CRC polynomium used by the FEC for the multicast group filtering */
-#define FEC_CRC_POLY   0x04C11DB7
 
 #define FEC_MAX_MULTICAST_ADDRS	64
 

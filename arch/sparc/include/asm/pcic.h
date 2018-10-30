@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * pcic.h: JavaEngine 1 specific PCI definitions.
  *

@@ -109,12 +109,12 @@ static unsigned long get_plt_size(const Elf32_Ehdr *hdr,
 	for (i = 1; i < hdr->e_shnum; i++) {
 		/* If it's called *.init*, and we're not init, we're
                    not interested */
-		if ((strstr(secstrings + sechdrs[i].sh_name, ".init") != 0)
+		if ((strstr(secstrings + sechdrs[i].sh_name, ".init") != NULL)
 		    != is_init)
 			continue;
 
 		/* We don't want to look at debug sections. */
-		if (strstr(secstrings + sechdrs[i].sh_name, ".debug") != 0)
+		if (strstr(secstrings + sechdrs[i].sh_name, ".debug"))
 			continue;
 
 		if (sechdrs[i].sh_type == SHT_RELA) {

@@ -930,17 +930,17 @@ out:
 
 static DECLARE_WAIT_QUEUE_HEAD(queue_wait);
 
-static unsigned int cache_poll(struct file *filp, poll_table *wait,
+static __poll_t cache_poll(struct file *filp, poll_table *wait,
 			       struct cache_detail *cd)
 {
-	unsigned int mask;
+	__poll_t mask;
 	struct cache_reader *rp = filp->private_data;
 	struct cache_queue *cq;
 
 	poll_wait(filp, &queue_wait, wait);
 
 	/* alway allow write */
-	mask = POLLOUT | POLLWRNORM;
+	mask = EPOLLOUT | EPOLLWRNORM;
 
 	if (!rp)
 		return mask;
@@ -950,7 +950,7 @@ static unsigned int cache_poll(struct file *filp, poll_table *wait,
 	for (cq= &rp->q; &cq->list != &cd->queue;
 	     cq = list_entry(cq->list.next, struct cache_queue, list))
 		if (!cq->reader) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 			break;
 		}
 	spin_unlock(&queue_lock);
@@ -1450,8 +1450,8 @@ static ssize_t write_flush(struct file *file, const char __user *buf,
 			   struct cache_detail *cd)
 {
 	char tbuf[20];
-	char *bp, *ep;
-	time_t then, now;
+	char *ep;
+	time_t now;
 
 	if (*ppos || count > sizeof(tbuf)-1)
 		return -EINVAL;
@@ -1461,24 +1461,24 @@ static ssize_t write_flush(struct file *file, const char __user *buf,
 	simple_strtoul(tbuf, &ep, 0);
 	if (*ep && *ep != '\n')
 		return -EINVAL;
-
-	bp = tbuf;
-	then = get_expiry(&bp);
-	now = seconds_since_boot();
-	cd->nextcheck = now;
-	/* Can only set flush_time to 1 second beyond "now", or
-	 * possibly 1 second beyond flushtime.  This is because
-	 * flush_time never goes backwards so it mustn't get too far
-	 * ahead of time.
+	/* Note that while we check that 'buf' holds a valid number,
+	 * we always ignore the value and just flush everything.
+	 * Making use of the number leads to races.
 	 */
-	if (then >= now) {
-		/* Want to flush everything, so behave like cache_purge() */
-		if (cd->flush_time >= now)
-			now = cd->flush_time + 1;
-		then = now;
-	}
 
-	cd->flush_time = then;
+	now = seconds_since_boot();
+	/* Always flush everything, so behave like cache_purge()
+	 * Do this by advancing flush_time to the current time,
+	 * or by one second if it has already reached the current time.
+	 * Newly added cache entries will always have ->last_refresh greater
+	 * that ->flush_time, so they don't get flushed prematurely.
+	 */
+
+	if (cd->flush_time >= now)
+		now = cd->flush_time + 1;
+
+	cd->flush_time = now;
+	cd->nextcheck = now;
 	cache_flush();
 
 	*ppos += count;
@@ -1501,7 +1501,7 @@ static ssize_t cache_write_procfs(struct file *filp, const char __user *buf,
 	return cache_write(filp, buf, count, ppos, cd);
 }
 
-static unsigned int cache_poll_procfs(struct file *filp, poll_table *wait)
+static __poll_t cache_poll_procfs(struct file *filp, poll_table *wait)
 {
 	struct cache_detail *cd = PDE_DATA(file_inode(filp));
 
@@ -1621,20 +1621,20 @@ static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 	if (cd->procfs == NULL)
 		goto out_nomem;
 
-	p = proc_create_data("flush", S_IFREG|S_IRUSR|S_IWUSR,
+	p = proc_create_data("flush", S_IFREG | 0600,
 			     cd->procfs, &cache_flush_operations_procfs, cd);
 	if (p == NULL)
 		goto out_nomem;
 
 	if (cd->cache_request || cd->cache_parse) {
-		p = proc_create_data("channel", S_IFREG|S_IRUSR|S_IWUSR,
-				cd->procfs, &cache_file_operations_procfs, cd);
+		p = proc_create_data("channel", S_IFREG | 0600, cd->procfs,
+				     &cache_file_operations_procfs, cd);
 		if (p == NULL)
 			goto out_nomem;
 	}
 	if (cd->cache_show) {
-		p = proc_create_data("content", S_IFREG|S_IRUSR,
-				cd->procfs, &content_file_operations_procfs, cd);
+		p = proc_create_data("content", S_IFREG | 0400, cd->procfs,
+				     &content_file_operations_procfs, cd);
 		if (p == NULL)
 			goto out_nomem;
 	}
@@ -1674,7 +1674,7 @@ void cache_unregister_net(struct cache_detail *cd, struct net *net)
 }
 EXPORT_SYMBOL_GPL(cache_unregister_net);
 
-struct cache_detail *cache_create_net(struct cache_detail *tmpl, struct net *net)
+struct cache_detail *cache_create_net(const struct cache_detail *tmpl, struct net *net)
 {
 	struct cache_detail *cd;
 	int i;
@@ -1683,7 +1683,7 @@ struct cache_detail *cache_create_net(struct cache_detail *tmpl, struct net *net
 	if (cd == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	cd->hash_table = kzalloc(cd->hash_size * sizeof(struct hlist_head),
+	cd->hash_table = kcalloc(cd->hash_size, sizeof(struct hlist_head),
 				 GFP_KERNEL);
 	if (cd->hash_table == NULL) {
 		kfree(cd);
@@ -1720,7 +1720,7 @@ static ssize_t cache_write_pipefs(struct file *filp, const char __user *buf,
 	return cache_write(filp, buf, count, ppos, cd);
 }
 
-static unsigned int cache_poll_pipefs(struct file *filp, poll_table *wait)
+static __poll_t cache_poll_pipefs(struct file *filp, poll_table *wait)
 {
 	struct cache_detail *cd = RPC_I(file_inode(filp))->private;
 

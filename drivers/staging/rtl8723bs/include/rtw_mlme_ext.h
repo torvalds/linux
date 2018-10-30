@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_MLME_EXT_H_
@@ -424,7 +416,7 @@ struct mlme_ext_info
 	u8 candidate_tid_bitmap;
 	u8 dialogToken;
 	/*  Accept ADDBA Request */
-	bool bAcceptAddbaReq;
+	bool accept_addba_req;
 	u8 bwmode_updated;
 	u8 hidden_ssid_mode;
 	u8 VHT_enable;
@@ -719,10 +711,10 @@ void linked_status_chk(struct adapter *padapter);
 
 void _linked_info_dump(struct adapter *padapter);
 
-void survey_timer_hdl (struct adapter *padapter);
-void link_timer_hdl (struct adapter *padapter);
-void addba_timer_hdl(struct sta_info *psta);
-void sa_query_timer_hdl(struct adapter *padapter);
+void survey_timer_hdl (struct timer_list *t);
+void link_timer_hdl (struct timer_list *t);
+void addba_timer_hdl(struct timer_list *t);
+void sa_query_timer_hdl(struct timer_list *t);
 /* void reauth_timer_hdl(struct adapter *padapter); */
 /* void reassoc_timer_hdl(struct adapter *padapter); */
 

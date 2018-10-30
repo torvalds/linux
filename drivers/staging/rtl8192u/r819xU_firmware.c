@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**************************************************************************************************
  * Procedure:    Init boot code/firmware code/data session
  *
@@ -207,8 +208,8 @@ bool init_firmware(struct net_device *dev)
 	u32			file_length = 0;
 	u8			*mapped_file = NULL;
 	u32			init_step = 0;
-	opt_rst_type_e	rst_opt = OPT_SYSTEM_RESET;
-	firmware_init_step_e	starting_state = FW_INIT_STEP0_BOOT;
+	enum opt_rst_type_e	   rst_opt = OPT_SYSTEM_RESET;
+	enum firmware_init_step_e  starting_state = FW_INIT_STEP0_BOOT;
 
 	rt_firmware		*pfirmware = priv->pFirmware;
 	const struct firmware	*fw_entry;

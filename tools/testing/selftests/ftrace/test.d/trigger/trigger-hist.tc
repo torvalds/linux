@@ -1,17 +1,11 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test histogram trigger
 # flags: instance
 
-do_reset() {
-    reset_trigger
-    echo > set_event
-    clear_trace
-}
-
 fail() { #msg
-    do_reset
     echo $1
-    exit $FAIL
+    exit_fail
 }
 
 if [ ! -f set_event -o ! -d events/sched ]; then
@@ -28,9 +22,6 @@ if [ ! -f events/sched/sched_process_fork/hist ]; then
     echo "hist trigger is not supported"
     exit_unsupported
 fi
-
-reset_tracer
-do_reset
 
 echo "Test histogram basic tigger"
 
@@ -77,7 +68,5 @@ check_inc() {
 check_inc `grep -o "child_pid:[[:space:]]*[[:digit:]]*" \
     events/sched/sched_process_fork/hist | cut -d: -f2 ` ||
     fail "sort param on sched_process_fork did not work"
-
-do_reset
 
 exit 0

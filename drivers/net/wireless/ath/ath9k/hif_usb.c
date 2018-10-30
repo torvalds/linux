@@ -24,6 +24,7 @@ static const struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x0cf3, 0x9271) }, /* Atheros */
 	{ USB_DEVICE(0x0cf3, 0x1006) }, /* Atheros */
 	{ USB_DEVICE(0x0846, 0x9030) }, /* Netgear N150 */
+	{ USB_DEVICE(0x07b8, 0x9271) }, /* Altai WA1011N-GU */
 	{ USB_DEVICE(0x07D1, 0x3A10) }, /* Dlink Wireless 150 */
 	{ USB_DEVICE(0x13D3, 0x3327) }, /* Azurewave */
 	{ USB_DEVICE(0x13D3, 0x3328) }, /* Azurewave */
@@ -137,6 +138,7 @@ static void hif_usb_mgmt_cb(struct urb *urb)
 {
 	struct cmd_buf *cmd = (struct cmd_buf *)urb->context;
 	struct hif_device_usb *hif_dev;
+	unsigned long flags;
 	bool txok = true;
 
 	if (!cmd || !cmd->skb || !cmd->hif_dev)
@@ -157,14 +159,14 @@ static void hif_usb_mgmt_cb(struct urb *urb)
 		 * If the URBs are being flushed, no need to complete
 		 * this packet.
 		 */
-		spin_lock(&hif_dev->tx.tx_lock);
+		spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
 		if (hif_dev->tx.flags & HIF_USB_TX_FLUSH) {
-			spin_unlock(&hif_dev->tx.tx_lock);
+			spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
 			dev_kfree_skb_any(cmd->skb);
 			kfree(cmd);
 			return;
 		}
-		spin_unlock(&hif_dev->tx.tx_lock);
+		spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
 
 		break;
 	default:
@@ -424,7 +426,7 @@ static int hif_usb_send_tx(struct hif_device_usb *hif_dev, struct sk_buff *skb)
 
 static void hif_usb_start(void *hif_handle)
 {
-	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
+	struct hif_device_usb *hif_dev = hif_handle;
 	unsigned long flags;
 
 	hif_dev->flags |= HIF_USB_START;
@@ -436,7 +438,7 @@ static void hif_usb_start(void *hif_handle)
 
 static void hif_usb_stop(void *hif_handle)
 {
-	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
+	struct hif_device_usb *hif_dev = hif_handle;
 	struct tx_buf *tx_buf = NULL, *tx_buf_tmp = NULL;
 	unsigned long flags;
 
@@ -457,7 +459,7 @@ static void hif_usb_stop(void *hif_handle)
 
 static int hif_usb_send(void *hif_handle, u8 pipe_id, struct sk_buff *skb)
 {
-	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
+	struct hif_device_usb *hif_dev = hif_handle;
 	int ret = 0;
 
 	switch (pipe_id) {
@@ -492,7 +494,7 @@ static inline bool check_index(struct sk_buff *skb, u8 idx)
 
 static void hif_usb_sta_drain(void *hif_handle, u8 idx)
 {
-	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
+	struct hif_device_usb *hif_dev = hif_handle;
 	struct sk_buff *skb, *tmp;
 	unsigned long flags;
 

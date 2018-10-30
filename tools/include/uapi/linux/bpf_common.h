@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__LINUX_BPF_COMMON_H__
 #define _UAPI__LINUX_BPF_COMMON_H__
 
@@ -14,9 +15,10 @@
 
 /* ld/ldx fields */
 #define BPF_SIZE(code)  ((code) & 0x18)
-#define		BPF_W		0x00
-#define		BPF_H		0x08
-#define		BPF_B		0x10
+#define		BPF_W		0x00 /* 32-bit */
+#define		BPF_H		0x08 /* 16-bit */
+#define		BPF_B		0x10 /*  8-bit */
+/* eBPF		BPF_DW		0x18    64-bit */
 #define BPF_MODE(code)  ((code) & 0xe0)
 #define		BPF_IMM		0x00
 #define		BPF_ABS		0x20

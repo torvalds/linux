@@ -28,7 +28,7 @@
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <asm/div64.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "dst_priv.h"
 #include "dst_common.h"
 
@@ -1657,7 +1657,7 @@ static int dst_tune_frontend(struct dvb_frontend* fe,
 	return 0;
 }
 
-static int dst_get_tuning_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo dst_get_tuning_algo(struct dvb_frontend *fe)
 {
 	return dst_algo ? DVBFE_ALGO_HW : DVBFE_ALGO_SW;
 }
@@ -1739,9 +1739,9 @@ static const struct dvb_frontend_ops dst_dvbt_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "DST DVB-T",
-		.frequency_min = 137000000,
-		.frequency_max = 858000000,
-		.frequency_stepsize = 166667,
+		.frequency_min_hz = 137 * MHz,
+		.frequency_max_hz = 858 * MHz,
+		.frequency_stepsize_hz = 166667,
 		.caps = FE_CAN_FEC_AUTO			|
 			FE_CAN_QAM_AUTO			|
 			FE_CAN_QAM_16			|
@@ -1768,10 +1768,10 @@ static const struct dvb_frontend_ops dst_dvbs_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "DST DVB-S",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
-		.frequency_stepsize = 1000,	/* kHz for QPSK frontends */
-		.frequency_tolerance = 29500,
+		.frequency_min_hz   =  950 * MHz,
+		.frequency_max_hz   = 2150 * MHz,
+		.frequency_stepsize_hz = 1 * MHz,
+		.frequency_tolerance_hz = 29500 * kHz,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 	/*     . symbol_rate_tolerance	=	???,*/
@@ -1797,9 +1797,9 @@ static const struct dvb_frontend_ops dst_dvbc_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		.name = "DST DVB-C",
-		.frequency_stepsize = 62500,
-		.frequency_min = 51000000,
-		.frequency_max = 858000000,
+		.frequency_min_hz =  51 * MHz,
+		.frequency_max_hz = 858 * MHz,
+		.frequency_stepsize_hz = 62500,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_FEC_AUTO |
@@ -1826,9 +1826,9 @@ static const struct dvb_frontend_ops dst_atsc_ops = {
 	.delsys = { SYS_ATSC },
 	.info = {
 		.name = "DST ATSC",
-		.frequency_stepsize = 62500,
-		.frequency_min = 510000000,
-		.frequency_max = 858000000,
+		.frequency_min_hz = 510 * MHz,
+		.frequency_max_hz = 858 * MHz,
+		.frequency_stepsize_hz = 62500,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_FEC_AUTO | FE_CAN_QAM_AUTO | FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB

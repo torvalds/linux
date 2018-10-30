@@ -1,8 +1,8 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -445,14 +445,14 @@ lpfc_find_vport_by_did(struct lpfc_hba *phba, uint32_t did) {
 	struct lpfc_vport *vport_curr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock_irqsave(&phba->port_list_lock, flags);
 	list_for_each_entry(vport_curr, &phba->port_list, listentry) {
 		if ((vport_curr->fc_myDID) && (vport_curr->fc_myDID == did)) {
-			spin_unlock_irqrestore(&phba->hbalock, flags);
+			spin_unlock_irqrestore(&phba->port_list_lock, flags);
 			return vport_curr;
 		}
 	}
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock_irqrestore(&phba->port_list_lock, flags);
 	return NULL;
 }
 
@@ -685,6 +685,30 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_els_flush_rscn(vport);
 		goto out;
 	}
+
+	spin_lock_irq(shost->host_lock);
+	if (vport->fc_flag & FC_RSCN_DEFERRED) {
+		vport->fc_flag &= ~FC_RSCN_DEFERRED;
+		spin_unlock_irq(shost->host_lock);
+
+		/* This is a GID_FT completing so the gidft_inp counter was
+		 * incremented before the GID_FT was issued to the wire.
+		 */
+		vport->gidft_inp--;
+
+		/*
+		 * Skip processing the NS response
+		 * Re-issue the NS cmd
+		 */
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "0151 Process Deferred RSCN Data: x%x x%x\n",
+				 vport->fc_flag, vport->fc_rscn_id_cnt);
+		lpfc_els_handle_rscn(vport);
+
+		goto out;
+	}
+	spin_unlock_irq(shost->host_lock);
+
 	if (irsp->ulpStatus) {
 		/* Check for retry */
 		if (vport->fc_ns_retry < LPFC_MAX_NS_RETRY) {
@@ -2110,6 +2134,8 @@ lpfc_fdmi_port_attr_support_speed(struct lpfc_vport *vport,
 
 	ae->un.AttrInt = 0;
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+		if (phba->lmt & LMT_64Gb)
+			ae->un.AttrInt |= HBA_PORTSPEED_64GFC;
 		if (phba->lmt & LMT_32Gb)
 			ae->un.AttrInt |= HBA_PORTSPEED_32GFC;
 		if (phba->lmt & LMT_16Gb)
@@ -2180,6 +2206,9 @@ lpfc_fdmi_port_attr_speed(struct lpfc_vport *vport,
 			break;
 		case LPFC_LINK_SPEED_32GHZ:
 			ae->un.AttrInt = HBA_PORTSPEED_32GFC;
+			break;
+		case LPFC_LINK_SPEED_64GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_64GFC;
 			break;
 		default:
 			ae->un.AttrInt = HBA_PORTSPEED_UNKNOWN;
@@ -2884,9 +2913,9 @@ fdmi_cmd_exit:
  * the worker thread.
  **/
 void
-lpfc_delayed_disc_tmo(unsigned long ptr)
+lpfc_delayed_disc_tmo(struct timer_list *t)
 {
-	struct lpfc_vport *vport = (struct lpfc_vport *)ptr;
+	struct lpfc_vport *vport = from_timer(vport, t, delayed_disc_tmo);
 	struct lpfc_hba   *phba = vport->phba;
 	uint32_t tmo_posted;
 	unsigned long iflag;

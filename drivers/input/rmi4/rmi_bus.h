@@ -14,6 +14,12 @@
 
 struct rmi_device;
 
+/*
+ * The interrupt source count in the function descriptor can represent up to
+ * 6 interrupt sources in the normal manner.
+ */
+#define RMI_FN_MAX_IRQS	6
+
 /**
  * struct rmi_function - represents the implementation of an RMI4
  * function for a particular device (basically, a driver for that RMI4 function)
@@ -26,6 +32,7 @@ struct rmi_device;
  * @irq_pos: The position in the irq bitfield this function holds
  * @irq_mask: For convenience, can be used to mask IRQ bits off during ATTN
  * interrupt handling.
+ * @irqs: assigned virq numbers (up to num_of_irqs)
  *
  * @node: entry in device's list of functions
  */
@@ -36,6 +43,7 @@ struct rmi_function {
 	struct list_head node;
 
 	unsigned int num_of_irqs;
+	int irq[RMI_FN_MAX_IRQS];
 	unsigned int irq_pos;
 	unsigned long irq_mask[];
 };
@@ -76,7 +84,7 @@ struct rmi_function_handler {
 	void (*remove)(struct rmi_function *fn);
 	int (*config)(struct rmi_function *fn);
 	int (*reset)(struct rmi_function *fn);
-	int (*attention)(struct rmi_function *fn, unsigned long *irq_bits);
+	irqreturn_t (*attention)(int irq, void *ctx);
 	int (*suspend)(struct rmi_function *fn);
 	int (*resume)(struct rmi_function *fn);
 };

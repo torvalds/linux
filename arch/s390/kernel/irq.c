@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2004, 2011
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
@@ -171,16 +172,7 @@ void do_softirq_own_stack(void)
 	/* Check against async. stack address range. */
 	new = S390_lowcore.async_stack;
 	if (((new - old) >> (PAGE_SHIFT + THREAD_SIZE_ORDER)) != 0) {
-		/* Need to switch to the async. stack. */
-		new -= STACK_FRAME_OVERHEAD;
-		((struct stack_frame *) new)->back_chain = old;
-		asm volatile("   la    15,0(%0)\n"
-			     "   basr  14,%2\n"
-			     "   la    15,0(%1)\n"
-			     : : "a" (new), "a" (old),
-			         "a" (__do_softirq)
-			     : "0", "1", "2", "3", "4", "5", "14",
-			       "cc", "memory" );
+		CALL_ON_STACK(__do_softirq, new, 0);
 	} else {
 		/* We are already on the async stack. */
 		__do_softirq();

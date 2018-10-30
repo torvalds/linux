@@ -20,7 +20,7 @@ please check:
 
 Example:
 
-	spdif: spdif@0x77400000 {
+	spdif: spdif@77400000 {
 		compatible = "adi,axi-spdif-tx-1.00.a";
 		reg = <0x77600000 0x1000>;
 		clocks = <&clk 15>, <&audio_clock>;

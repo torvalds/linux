@@ -492,7 +492,6 @@ static int iproc_adc_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info iproc_adc_iio_info = {
 	.read_raw = &iproc_adc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define IPROC_ADC_CHANNEL(_index, _id) {                \

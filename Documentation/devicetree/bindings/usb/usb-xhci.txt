@@ -7,13 +7,20 @@ Required properties:
     - "marvell,armada3700-xhci" for Armada 37xx SoCs
     - "marvell,armada-375-xhci" for Armada 375 SoCs
     - "marvell,armada-380-xhci" for Armada 38x SoCs
+    - "renesas,xhci-r8a7743" for r8a7743 SoC
+    - "renesas,xhci-r8a7744" for r8a7744 SoC
+    - "renesas,xhci-r8a774a1" for r8a774a1 SoC
     - "renesas,xhci-r8a7790" for r8a7790 SoC
     - "renesas,xhci-r8a7791" for r8a7791 SoC
     - "renesas,xhci-r8a7793" for r8a7793 SoC
     - "renesas,xhci-r8a7795" for r8a7795 SoC
     - "renesas,xhci-r8a7796" for r8a7796 SoC
-    - "renesas,rcar-gen2-xhci" for a generic R-Car Gen2 compatible device
-    - "renesas,rcar-gen3-xhci" for a generic R-Car Gen3 compatible device
+    - "renesas,xhci-r8a77965" for r8a77965 SoC
+    - "renesas,xhci-r8a77990" for r8a77990 SoC
+    - "renesas,rcar-gen2-xhci" for a generic R-Car Gen2 or RZ/G1 compatible
+      device
+    - "renesas,rcar-gen3-xhci" for a generic R-Car Gen3 or RZ/G2 compatible
+      device
     - "xhci-platform" (deprecated)
 
     When compatible with the generic version, nodes must list the
@@ -25,9 +32,19 @@ Required properties:
   - interrupts: one XHCI interrupt should be described here.
 
 Optional properties:
-  - clocks: reference to a clock
+  - clocks: reference to the clocks
+  - clock-names: mandatory if there is a second clock, in this case
+    the name must be "core" for the first clock and "reg" for the
+    second one
+  - usb2-lpm-disable: indicate if we don't want to enable USB2 HW LPM
   - usb3-lpm-capable: determines if platform is USB3 LPM capable
   - quirk-broken-port-ped: set if the controller has broken port disable mechanism
+  - imod-interval-ns: default interrupt moderation interval is 5000ns
+  - phys : see usb-hcd.txt in the current directory
+
+additionally the properties from usb-hcd.txt (in the current directory) are
+supported.
+
 
 Example:
 	usb@f0931000 {

@@ -70,19 +70,32 @@ EXPORT_SYMBOL(cpumask_of_node);
 
 #endif
 
-static void map_cpu_to_node(unsigned int cpu, int nid)
+static void numa_update_cpu(unsigned int cpu, bool remove)
 {
-	set_cpu_numa_node(cpu, nid);
-	if (nid >= 0)
+	int nid = cpu_to_node(cpu);
+
+	if (nid == NUMA_NO_NODE)
+		return;
+
+	if (remove)
+		cpumask_clear_cpu(cpu, node_to_cpumask_map[nid]);
+	else
 		cpumask_set_cpu(cpu, node_to_cpumask_map[nid]);
+}
+
+void numa_add_cpu(unsigned int cpu)
+{
+	numa_update_cpu(cpu, false);
+}
+
+void numa_remove_cpu(unsigned int cpu)
+{
+	numa_update_cpu(cpu, true);
 }
 
 void numa_clear_node(unsigned int cpu)
 {
-	int nid = cpu_to_node(cpu);
-
-	if (nid >= 0)
-		cpumask_clear_cpu(cpu, node_to_cpumask_map[nid]);
+	numa_remove_cpu(cpu);
 	set_cpu_numa_node(cpu, NUMA_NO_NODE);
 }
 
@@ -116,7 +129,7 @@ static void __init setup_node_to_cpumask_map(void)
  */
 void numa_store_cpu_info(unsigned int cpu)
 {
-	map_cpu_to_node(cpu, cpu_to_node_map[cpu]);
+	set_cpu_numa_node(cpu, cpu_to_node_map[cpu]);
 }
 
 void __init early_map_cpu_to_node(unsigned int cpu, int nid)
@@ -378,7 +391,6 @@ static int __init numa_init(int (*init_func)(void))
 	nodes_clear(numa_nodes_parsed);
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
-	numa_free_distance();
 
 	ret = numa_alloc_distance();
 	if (ret < 0)
@@ -386,20 +398,24 @@ static int __init numa_init(int (*init_func)(void))
 
 	ret = init_func();
 	if (ret < 0)
-		return ret;
+		goto out_free_distance;
 
 	if (nodes_empty(numa_nodes_parsed)) {
 		pr_info("No NUMA configuration found\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_free_distance;
 	}
 
 	ret = numa_register_nodes();
 	if (ret < 0)
-		return ret;
+		goto out_free_distance;
 
 	setup_node_to_cpumask_map();
 
 	return 0;
+out_free_distance:
+	numa_free_distance();
+	return ret;
 }
 
 /**
@@ -419,7 +435,7 @@ static int __init dummy_numa_init(void)
 	if (numa_off)
 		pr_info("NUMA disabled\n"); /* Forced off on command line. */
 	pr_info("Faking a node at [mem %#018Lx-%#018Lx]\n",
-		0LLU, PFN_PHYS(max_pfn) - 1);
+		memblock_start_of_DRAM(), memblock_end_of_DRAM() - 1);
 
 	for_each_memblock(memory, mblk) {
 		ret = numa_add_memblk(0, mblk->base, mblk->base + mblk->size);

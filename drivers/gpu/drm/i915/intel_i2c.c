@@ -30,13 +30,14 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include <drm/drm_hdcp.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 struct gmbus_pin {
 	const char *name;
-	i915_reg_t reg;
+	enum i915_gpio gpio;
 };
 
 /* Map gmbus pin pairs to names and registers. */
@@ -75,11 +76,22 @@ static const struct gmbus_pin gmbus_pins_cnp[] = {
 	[GMBUS_PIN_4_CNP] = { "dpd", GPIOE },
 };
 
+static const struct gmbus_pin gmbus_pins_icp[] = {
+	[GMBUS_PIN_1_BXT] = { "dpa", GPIOB },
+	[GMBUS_PIN_2_BXT] = { "dpb", GPIOC },
+	[GMBUS_PIN_9_TC1_ICP] = { "tc1", GPIOJ },
+	[GMBUS_PIN_10_TC2_ICP] = { "tc2", GPIOK },
+	[GMBUS_PIN_11_TC3_ICP] = { "tc3", GPIOL },
+	[GMBUS_PIN_12_TC4_ICP] = { "tc4", GPIOM },
+};
+
 /* pin is expected to be valid */
 static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
 					     unsigned int pin)
 {
-	if (HAS_PCH_CNP(dev_priv))
+	if (HAS_PCH_ICP(dev_priv))
+		return &gmbus_pins_icp[pin];
+	else if (HAS_PCH_CNP(dev_priv))
 		return &gmbus_pins_cnp[pin];
 	else if (IS_GEN9_LP(dev_priv))
 		return &gmbus_pins_bxt[pin];
@@ -96,7 +108,9 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 {
 	unsigned int size;
 
-	if (HAS_PCH_CNP(dev_priv))
+	if (HAS_PCH_ICP(dev_priv))
+		size = ARRAY_SIZE(gmbus_pins_icp);
+	else if (HAS_PCH_CNP(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_cnp);
 	else if (IS_GEN9_LP(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_bxt);
@@ -107,8 +121,7 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 	else
 		size = ARRAY_SIZE(gmbus_pins);
 
-	return pin < size &&
-		i915_mmio_reg_valid(get_gmbus_pin(dev_priv, pin)->reg);
+	return pin < size && get_gmbus_pin(dev_priv, pin)->name;
 }
 
 /* Intel GPIO access functions */
@@ -128,20 +141,44 @@ intel_i2c_reset(struct drm_i915_private *dev_priv)
 	I915_WRITE(GMBUS4, 0);
 }
 
-static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
+static void pnv_gmbus_clock_gating(struct drm_i915_private *dev_priv,
+				   bool enable)
 {
 	u32 val;
 
 	/* When using bit bashing for I2C, this bit needs to be set to 1 */
-	if (!IS_PINEVIEW(dev_priv))
-		return;
-
 	val = I915_READ(DSPCLK_GATE_D);
-	if (enable)
-		val |= DPCUNIT_CLOCK_GATE_DISABLE;
+	if (!enable)
+		val |= PNV_GMBUSUNIT_CLOCK_GATE_DISABLE;
 	else
-		val &= ~DPCUNIT_CLOCK_GATE_DISABLE;
+		val &= ~PNV_GMBUSUNIT_CLOCK_GATE_DISABLE;
 	I915_WRITE(DSPCLK_GATE_D, val);
+}
+
+static void pch_gmbus_clock_gating(struct drm_i915_private *dev_priv,
+				   bool enable)
+{
+	u32 val;
+
+	val = I915_READ(SOUTH_DSPCLK_GATE_D);
+	if (!enable)
+		val |= PCH_GMBUSUNIT_CLOCK_GATE_DISABLE;
+	else
+		val &= ~PCH_GMBUSUNIT_CLOCK_GATE_DISABLE;
+	I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
+}
+
+static void bxt_gmbus_clock_gating(struct drm_i915_private *dev_priv,
+				   bool enable)
+{
+	u32 val;
+
+	val = I915_READ(GEN9_CLKGATE_DIS_4);
+	if (!enable)
+		val |= BXT_GMBUS_GATING_DIS;
+	else
+		val &= ~BXT_GMBUS_GATING_DIS;
+	I915_WRITE(GEN9_CLKGATE_DIS_4, val);
 }
 
 static u32 get_reserved(struct intel_gmbus *bus)
@@ -221,7 +258,10 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
 	intel_i2c_reset(dev_priv);
-	intel_i2c_quirk_set(dev_priv, true);
+
+	if (IS_PINEVIEW(dev_priv))
+		pnv_gmbus_clock_gating(dev_priv, false);
+
 	set_data(bus, 1);
 	set_clock(bus, 1);
 	udelay(I2C_RISEFALL_TIME);
@@ -238,7 +278,9 @@ intel_gpio_post_xfer(struct i2c_adapter *adapter)
 
 	set_data(bus, 1);
 	set_clock(bus, 1);
-	intel_i2c_quirk_set(dev_priv, false);
+
+	if (IS_PINEVIEW(dev_priv))
+		pnv_gmbus_clock_gating(dev_priv, true);
 }
 
 static void
@@ -249,8 +291,7 @@ intel_gpio_setup(struct intel_gmbus *bus, unsigned int pin)
 
 	algo = &bus->bit_algo;
 
-	bus->gpio_reg = _MMIO(dev_priv->gpio_mmio_base +
-			      i915_mmio_reg_offset(get_gmbus_pin(dev_priv, pin)->reg));
+	bus->gpio_reg = GPIO(get_gmbus_pin(dev_priv, pin)->gpio);
 	bus->adapter.algo_data = algo;
 	algo->setsda = set_data;
 	algo->setscl = set_clock;
@@ -318,15 +359,39 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+static inline
+unsigned int gmbus_max_xfer_size(struct drm_i915_private *dev_priv)
+{
+	return INTEL_GEN(dev_priv) >= 9 ? GEN9_GMBUS_BYTE_COUNT_MAX :
+	       GMBUS_BYTE_COUNT_MAX;
+}
+
 static int
 gmbus_xfer_read_chunk(struct drm_i915_private *dev_priv,
 		      unsigned short addr, u8 *buf, unsigned int len,
-		      u32 gmbus1_index)
+		      u32 gmbus0_reg, u32 gmbus1_index)
 {
+	unsigned int size = len;
+	bool burst_read = len > gmbus_max_xfer_size(dev_priv);
+	bool extra_byte_added = false;
+
+	if (burst_read) {
+		/*
+		 * As per HW Spec, for 512Bytes need to read extra Byte and
+		 * Ignore the extra byte read.
+		 */
+		if (len == 512) {
+			extra_byte_added = true;
+			len++;
+		}
+		size = len % 256 + 256;
+		I915_WRITE_FW(GMBUS0, gmbus0_reg | GMBUS_BYTE_CNT_OVERRIDE);
+	}
+
 	I915_WRITE_FW(GMBUS1,
 		      gmbus1_index |
 		      GMBUS_CYCLE_WAIT |
-		      (len << GMBUS_BYTE_COUNT_SHIFT) |
+		      (size << GMBUS_BYTE_COUNT_SHIFT) |
 		      (addr << GMBUS_SLAVE_ADDR_SHIFT) |
 		      GMBUS_SLAVE_READ | GMBUS_SW_RDY);
 	while (len) {
@@ -339,17 +404,34 @@ gmbus_xfer_read_chunk(struct drm_i915_private *dev_priv,
 
 		val = I915_READ_FW(GMBUS3);
 		do {
+			if (extra_byte_added && len == 1)
+				break;
+
 			*buf++ = val & 0xff;
 			val >>= 8;
 		} while (--len && ++loop < 4);
+
+		if (burst_read && len == size - 4)
+			/* Reset the override bit */
+			I915_WRITE_FW(GMBUS0, gmbus0_reg);
 	}
 
 	return 0;
 }
 
+/*
+ * HW spec says that 512Bytes in Burst read need special treatment.
+ * But it doesn't talk about other multiple of 256Bytes. And couldn't locate
+ * an I2C slave, which supports such a lengthy burst read too for experiments.
+ *
+ * So until things get clarified on HW support, to avoid the burst read length
+ * in fold of 256Bytes except 512, max burst read length is fixed at 767Bytes.
+ */
+#define INTEL_GMBUS_BURST_READ_MAX_LEN		767U
+
 static int
 gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
-		u32 gmbus1_index)
+		u32 gmbus0_reg, u32 gmbus1_index)
 {
 	u8 *buf = msg->buf;
 	unsigned int rx_size = msg->len;
@@ -357,10 +439,13 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 	int ret;
 
 	do {
-		len = min(rx_size, GMBUS_BYTE_COUNT_MAX);
+		if (HAS_GMBUS_BURST_READ(dev_priv))
+			len = min(rx_size, INTEL_GMBUS_BURST_READ_MAX_LEN);
+		else
+			len = min(rx_size, gmbus_max_xfer_size(dev_priv));
 
-		ret = gmbus_xfer_read_chunk(dev_priv, msg->addr,
-					    buf, len, gmbus1_index);
+		ret = gmbus_xfer_read_chunk(dev_priv, msg->addr, buf, len,
+					    gmbus0_reg, gmbus1_index);
 		if (ret)
 			return ret;
 
@@ -373,7 +458,8 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 
 static int
 gmbus_xfer_write_chunk(struct drm_i915_private *dev_priv,
-		       unsigned short addr, u8 *buf, unsigned int len)
+		       unsigned short addr, u8 *buf, unsigned int len,
+		       u32 gmbus1_index)
 {
 	unsigned int chunk_size = len;
 	u32 val, loop;
@@ -386,7 +472,7 @@ gmbus_xfer_write_chunk(struct drm_i915_private *dev_priv,
 
 	I915_WRITE_FW(GMBUS3, val);
 	I915_WRITE_FW(GMBUS1,
-		      GMBUS_CYCLE_WAIT |
+		      gmbus1_index | GMBUS_CYCLE_WAIT |
 		      (chunk_size << GMBUS_BYTE_COUNT_SHIFT) |
 		      (addr << GMBUS_SLAVE_ADDR_SHIFT) |
 		      GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
@@ -409,7 +495,8 @@ gmbus_xfer_write_chunk(struct drm_i915_private *dev_priv,
 }
 
 static int
-gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
+gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
+		 u32 gmbus1_index)
 {
 	u8 *buf = msg->buf;
 	unsigned int tx_size = msg->len;
@@ -417,9 +504,10 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 	int ret;
 
 	do {
-		len = min(tx_size, GMBUS_BYTE_COUNT_MAX);
+		len = min(tx_size, gmbus_max_xfer_size(dev_priv));
 
-		ret = gmbus_xfer_write_chunk(dev_priv, msg->addr, buf, len);
+		ret = gmbus_xfer_write_chunk(dev_priv, msg->addr, buf, len,
+					     gmbus1_index);
 		if (ret)
 			return ret;
 
@@ -431,19 +519,22 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 }
 
 /*
- * The gmbus controller can combine a 1 or 2 byte write with a read that
- * immediately follows it by using an "INDEX" cycle.
+ * The gmbus controller can combine a 1 or 2 byte write with another read/write
+ * that immediately follows it by using an "INDEX" cycle.
  */
 static bool
-gmbus_is_index_read(struct i2c_msg *msgs, int i, int num)
+gmbus_is_index_xfer(struct i2c_msg *msgs, int i, int num)
 {
 	return (i + 1 < num &&
-		!(msgs[i].flags & I2C_M_RD) && msgs[i].len <= 2 &&
-		(msgs[i + 1].flags & I2C_M_RD));
+		msgs[i].addr == msgs[i + 1].addr &&
+		!(msgs[i].flags & I2C_M_RD) &&
+		(msgs[i].len == 1 || msgs[i].len == 2) &&
+		msgs[i + 1].len > 0);
 }
 
 static int
-gmbus_xfer_index_read(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
+gmbus_index_xfer(struct drm_i915_private *dev_priv, struct i2c_msg *msgs,
+		 u32 gmbus0_reg)
 {
 	u32 gmbus1_index = 0;
 	u32 gmbus5 = 0;
@@ -460,7 +551,11 @@ gmbus_xfer_index_read(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
 	if (gmbus5)
 		I915_WRITE_FW(GMBUS5, gmbus5);
 
-	ret = gmbus_xfer_read(dev_priv, &msgs[1], gmbus1_index);
+	if (msgs[1].flags & I2C_M_RD)
+		ret = gmbus_xfer_read(dev_priv, &msgs[1], gmbus0_reg,
+				      gmbus1_index);
+	else
+		ret = gmbus_xfer_write(dev_priv, &msgs[1], gmbus1_index);
 
 	/* Clear GMBUS5 after each index transfer */
 	if (gmbus5)
@@ -470,7 +565,8 @@ gmbus_xfer_index_read(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
 }
 
 static int
-do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
+do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num,
+	      u32 gmbus0_source)
 {
 	struct intel_gmbus *bus = container_of(adapter,
 					       struct intel_gmbus,
@@ -479,18 +575,27 @@ do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 	int i = 0, inc, try = 0;
 	int ret = 0;
 
+	/* Display WA #0868: skl,bxt,kbl,cfl,glk,cnl */
+	if (IS_GEN9_LP(dev_priv))
+		bxt_gmbus_clock_gating(dev_priv, false);
+	else if (HAS_PCH_SPT(dev_priv) ||
+		 HAS_PCH_KBP(dev_priv) || HAS_PCH_CNP(dev_priv))
+		pch_gmbus_clock_gating(dev_priv, false);
+
 retry:
-	I915_WRITE_FW(GMBUS0, bus->reg0);
+	I915_WRITE_FW(GMBUS0, gmbus0_source | bus->reg0);
 
 	for (; i < num; i += inc) {
 		inc = 1;
-		if (gmbus_is_index_read(msgs, i, num)) {
-			ret = gmbus_xfer_index_read(dev_priv, &msgs[i]);
-			inc = 2; /* an index read is two msgs */
+		if (gmbus_is_index_xfer(msgs, i, num)) {
+			ret = gmbus_index_xfer(dev_priv, &msgs[i],
+					       gmbus0_source | bus->reg0);
+			inc = 2; /* an index transmission is two msgs */
 		} else if (msgs[i].flags & I2C_M_RD) {
-			ret = gmbus_xfer_read(dev_priv, &msgs[i], 0);
+			ret = gmbus_xfer_read(dev_priv, &msgs[i],
+					      gmbus0_source | bus->reg0, 0);
 		} else {
-			ret = gmbus_xfer_write(dev_priv, &msgs[i]);
+			ret = gmbus_xfer_write(dev_priv, &msgs[i], 0);
 		}
 
 		if (!ret)
@@ -580,6 +685,13 @@ timeout:
 	ret = -EAGAIN;
 
 out:
+	/* Display WA #0868: skl,bxt,kbl,cfl,glk,cnl */
+	if (IS_GEN9_LP(dev_priv))
+		bxt_gmbus_clock_gating(dev_priv, true);
+	else if (HAS_PCH_SPT(dev_priv) ||
+		 HAS_PCH_KBP(dev_priv) || HAS_PCH_CNP(dev_priv))
+		pch_gmbus_clock_gating(dev_priv, true);
+
 	return ret;
 }
 
@@ -598,11 +710,50 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 		if (ret < 0)
 			bus->force_bit &= ~GMBUS_FORCE_BIT_RETRY;
 	} else {
-		ret = do_gmbus_xfer(adapter, msgs, num);
+		ret = do_gmbus_xfer(adapter, msgs, num, 0);
 		if (ret == -EAGAIN)
 			bus->force_bit |= GMBUS_FORCE_BIT_RETRY;
 	}
 
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
+
+	return ret;
+}
+
+int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
+{
+	struct intel_gmbus *bus = container_of(adapter, struct intel_gmbus,
+					       adapter);
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	int ret;
+	u8 cmd = DRM_HDCP_DDC_AKSV;
+	u8 buf[DRM_HDCP_KSV_LEN] = { 0 };
+	struct i2c_msg msgs[] = {
+		{
+			.addr = DRM_HDCP_DDC_ADDR,
+			.flags = 0,
+			.len = sizeof(cmd),
+			.buf = &cmd,
+		},
+		{
+			.addr = DRM_HDCP_DDC_ADDR,
+			.flags = 0,
+			.len = sizeof(buf),
+			.buf = buf,
+		}
+	};
+
+	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+	mutex_lock(&dev_priv->gmbus_mutex);
+
+	/*
+	 * In order to output Aksv to the receiver, use an indexed write to
+	 * pass the i2c command, and tell GMBUS to use the HW-provided value
+	 * instead of sourcing GMBUS3 for the data.
+	 */
+	ret = do_gmbus_xfer(adapter, msgs, ARRAY_SIZE(msgs), GMBUS_AKSV_SELECT);
+
+	mutex_unlock(&dev_priv->gmbus_mutex);
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
 
 	return ret;
@@ -666,15 +817,17 @@ int intel_setup_gmbus(struct drm_i915_private *dev_priv)
 	unsigned int pin;
 	int ret;
 
-	if (HAS_PCH_NOP(dev_priv))
+	if (INTEL_INFO(dev_priv)->num_pipes == 0)
 		return 0;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
 	else if (!HAS_GMCH_DISPLAY(dev_priv))
-		dev_priv->gpio_mmio_base =
-			i915_mmio_reg_offset(PCH_GPIOA) -
-			i915_mmio_reg_offset(GPIOA);
+		/*
+		 * Broxton uses the same PCH offsets for South Display Engine,
+		 * even though it doesn't have a PCH.
+		 */
+		dev_priv->gpio_mmio_base = PCH_DISPLAY_BASE;
 
 	mutex_init(&dev_priv->gmbus_mutex);
 	init_waitqueue_head(&dev_priv->gmbus_wait_queue);

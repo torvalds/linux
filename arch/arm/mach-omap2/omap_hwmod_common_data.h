@@ -18,11 +18,7 @@
 #include "common.h"
 #include "display.h"
 
-/* Common address space across OMAP2xxx/3xxx */
-extern struct omap_hwmod_addr_space omap2_dma_system_addrs[];
-
 /* Common IP block data across OMAP2xxx */
-extern struct omap_gpio_dev_attr omap2xxx_gpio_dev_attr;
 extern struct omap_hwmod omap2xxx_l3_main_hwmod;
 extern struct omap_hwmod omap2xxx_l4_core_hwmod;
 extern struct omap_hwmod omap2xxx_l4_wkup_hwmod;
@@ -88,44 +84,6 @@ extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_venc;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__rng;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__sham;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__aes;
-
-/* Common IP block data */
-extern struct omap_hwmod_dma_info omap2_uart1_sdma_reqs[];
-extern struct omap_hwmod_dma_info omap2_uart2_sdma_reqs[];
-extern struct omap_hwmod_dma_info omap2_uart3_sdma_reqs[];
-extern struct omap_hwmod_dma_info omap2_i2c1_sdma_reqs[];
-extern struct omap_hwmod_dma_info omap2_i2c2_sdma_reqs[];
-extern struct omap_hwmod_dma_info omap2_mcspi1_sdma_reqs[];
-extern struct omap_hwmod_dma_info omap2_mcspi2_sdma_reqs[];
-extern struct omap_hwmod_dma_info omap2_mcbsp1_sdma_reqs[];
-extern struct omap_hwmod_dma_info omap2_mcbsp2_sdma_reqs[];
-
-/* Common IP block data on OMAP2430/OMAP3 */
-extern struct omap_hwmod_dma_info omap2_mcbsp3_sdma_reqs[];
-
-/* Common IP block data across OMAP2/3 */
-extern struct omap_hwmod_irq_info omap2_timer1_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_timer2_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_timer3_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_timer4_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_timer5_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_timer6_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_timer7_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_timer8_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_timer9_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_timer10_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_timer11_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_uart1_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_uart2_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_uart3_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_dispc_irqs[];
-extern struct omap_hwmod_irq_info omap2_i2c1_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_i2c2_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_dma_system_irqs[];
-extern struct omap_hwmod_irq_info omap2_mcspi1_mpu_irqs[];
-extern struct omap_hwmod_irq_info omap2_mcspi2_mpu_irqs[];
-extern struct omap_hwmod_addr_space omap2xxx_timer12_addrs[];
-extern struct omap_hwmod_irq_info omap2_hdq1w_mpu_irqs[];
 
 /* OMAP hwmod classes - forward declarations */
 extern struct omap_hwmod_class l3_hwmod_class;

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 r8192e_pci-objs :=		\
 	r8192E_dev.o		\
 	r8192E_phy.o		\

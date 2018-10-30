@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (C) 2013 Altera Corporation
  *
@@ -18,6 +19,7 @@
  #define sys_mmap2 sys_mmap_pgoff
 
 #define __ARCH_WANT_RENAMEAT
+#define __ARCH_WANT_STAT64
 
 /* Use the standard ABI for syscalls */
 #include <asm-generic/unistd.h>

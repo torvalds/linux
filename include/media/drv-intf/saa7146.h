@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SAA7146__
 #define __SAA7146__
 
@@ -117,7 +118,7 @@ struct saa7146_dev
 {
 	struct module			*module;
 
-	struct v4l2_device 		v4l2_dev;
+	struct v4l2_device		v4l2_dev;
 	struct v4l2_ctrl_handler	ctrl_handler;
 
 	/* different device locks */

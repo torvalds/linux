@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* $Id: capicmd.h,v 1.2.6.2 2001/09/23 22:24:33 kai Exp $
  * 
  * CAPI 2.0 Interface for Linux

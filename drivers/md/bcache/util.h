@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef _BCACHE_UTIL_H
 #define _BCACHE_UTIL_H
@@ -10,6 +11,7 @@
 #include <linux/ratelimit.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
+#include <linux/crc64.h>
 
 #include "closure.h"
 
@@ -110,6 +112,8 @@ do {									\
 #define heap_peek(h)	((h)->used ? (h)->data[0] : NULL)
 
 #define heap_full(h)	((h)->used == (h)->size)
+
+#define heap_empty(h)	((h)->used == 0)
 
 #define DECLARE_FIFO(type, name)					\
 	struct {							\
@@ -285,10 +289,10 @@ do {									\
 #define ANYSINT_MAX(t)							\
 	((((t) 1 << (sizeof(t) * 8 - 2)) - (t) 1) * (t) 2 + (t) 1)
 
-int bch_strtoint_h(const char *, int *);
-int bch_strtouint_h(const char *, unsigned int *);
-int bch_strtoll_h(const char *, long long *);
-int bch_strtoull_h(const char *, unsigned long long *);
+int bch_strtoint_h(const char *cp, int *res);
+int bch_strtouint_h(const char *cp, unsigned int *res);
+int bch_strtoll_h(const char *cp, long long *res);
+int bch_strtoull_h(const char *cp, unsigned long long *res);
 
 static inline int bch_strtol_h(const char *cp, long *res)
 {
@@ -344,7 +348,7 @@ static inline int bch_strtoul_h(const char *cp, long *res)
 	snprintf(buf, size,						\
 		__builtin_types_compatible_p(typeof(var), int)		\
 		     ? "%i\n" :						\
-		__builtin_types_compatible_p(typeof(var), unsigned)	\
+		__builtin_types_compatible_p(typeof(var), unsigned int)	\
 		     ? "%u\n" :						\
 		__builtin_types_compatible_p(typeof(var), long)		\
 		     ? "%li\n" :					\
@@ -362,11 +366,6 @@ ssize_t bch_hprint(char *buf, int64_t v);
 bool bch_is_zero(const char *p, size_t n);
 int bch_parse_uuid(const char *s, char *uuid);
 
-ssize_t bch_snprint_string_list(char *buf, size_t size, const char * const list[],
-			    size_t selected);
-
-ssize_t bch_read_string_list(const char *buf, const char * const list[]);
-
 struct time_stats {
 	spinlock_t	lock;
 	/*
@@ -381,7 +380,7 @@ struct time_stats {
 
 void bch_time_stats_update(struct time_stats *stats, uint64_t time);
 
-static inline unsigned local_clock_us(void)
+static inline unsigned int local_clock_us(void)
 {
 	return local_clock() >> 10;
 }
@@ -404,7 +403,8 @@ do {									\
 	__print_time_stat(stats, name,					\
 			  average_duration,	duration_units);	\
 	sysfs_print(name ## _ ##max_duration ## _ ## duration_units,	\
-			div_u64((stats)->max_duration, NSEC_PER_ ## duration_units));\
+			div_u64((stats)->max_duration,			\
+				NSEC_PER_ ## duration_units));		\
 									\
 	sysfs_print(name ## _last_ ## frequency_units, (stats)->last	\
 		    ? div_s64(local_clock() - (stats)->last,		\
@@ -441,10 +441,10 @@ struct bch_ratelimit {
 	uint64_t		next;
 
 	/*
-	 * Rate at which we want to do work, in units per nanosecond
+	 * Rate at which we want to do work, in units per second
 	 * The units here correspond to the units passed to bch_next_delay()
 	 */
-	unsigned		rate;
+	atomic_long_t		rate;
 };
 
 static inline void bch_ratelimit_reset(struct bch_ratelimit *d)
@@ -544,10 +544,27 @@ dup:									\
 #define RB_PREV(ptr, member)						\
 	container_of_or_null(rb_prev(&(ptr)->member), typeof(*ptr), member)
 
-/* Does linear interpolation between powers of two */
-static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
+static inline uint64_t bch_crc64(const void *p, size_t len)
 {
-	unsigned fract = x & ~(~0 << fract_bits);
+	uint64_t crc = 0xffffffffffffffffULL;
+
+	crc = crc64_be(crc, p, len);
+	return crc ^ 0xffffffffffffffffULL;
+}
+
+static inline uint64_t bch_crc64_update(uint64_t crc,
+					const void *p,
+					size_t len)
+{
+	crc = crc64_be(crc, p, len);
+	return crc;
+}
+
+/* Does linear interpolation between powers of two */
+static inline unsigned int fract_exp_two(unsigned int x,
+					 unsigned int fract_bits)
+{
+	unsigned int fract = x & ~(~0 << fract_bits);
 
 	x >>= fract_bits;
 	x   = 1 << x;
@@ -557,19 +574,10 @@ static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
 }
 
 void bch_bio_map(struct bio *bio, void *base);
+int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask);
 
 static inline sector_t bdev_sectors(struct block_device *bdev)
 {
 	return bdev->bd_inode->i_size >> 9;
 }
-
-#define closure_bio_submit(bio, cl)					\
-do {									\
-	closure_get(cl);						\
-	generic_make_request(bio);					\
-} while (0)
-
-uint64_t bch_crc64_update(uint64_t, const void *, size_t);
-uint64_t bch_crc64(const void *, size_t);
-
 #endif /* _BCACHE_UTIL_H */

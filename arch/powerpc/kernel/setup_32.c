@@ -39,6 +39,11 @@
 #include <asm/udbg.h>
 #include <asm/code-patching.h>
 #include <asm/cpu_has_feature.h>
+#include <asm/asm-prototypes.h>
+#include <asm/kdump.h>
+#include <asm/feature-fixups.h>
+
+#include "setup.h"
 
 #define DBG(fmt...)
 
@@ -94,11 +99,10 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
  * We do the initial parsing of the flat device-tree and prepares
  * for the MMU to be fully initialized.
  */
-extern unsigned int memset_nocache_branch; /* Insn to be replaced by NOP */
-
 notrace void __init machine_init(u64 dt_ptr)
 {
-	unsigned int *addr = &memset_nocache_branch;
+	unsigned int *addr = (unsigned int *)((unsigned long)&patch__memset_nocache +
+					       patch__memset_nocache);
 	unsigned long insn;
 
 	/* Configure static keys first, now that we're relocated. */
@@ -107,7 +111,7 @@ notrace void __init machine_init(u64 dt_ptr)
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 
-	patch_instruction((unsigned int *)&memcpy, PPC_INST_NOP);
+	patch_instruction_site(&patch__memcpy_nocache, PPC_INST_NOP);
 
 	insn = create_cond_branch(addr, branch_target(addr), 0x820000);
 	patch_instruction(addr, insn);	/* replace b by bne cr0 */
@@ -121,7 +125,7 @@ notrace void __init machine_init(u64 dt_ptr)
 }
 
 /* Checks "l2cr=xxxx" command-line option */
-int __init ppc_setup_l2cr(char *str)
+static int __init ppc_setup_l2cr(char *str)
 {
 	if (cpu_has_feature(CPU_FTR_L2CR)) {
 		unsigned long val = simple_strtoul(str, NULL, 0);
@@ -134,7 +138,7 @@ int __init ppc_setup_l2cr(char *str)
 __setup("l2cr=", ppc_setup_l2cr);
 
 /* Checks "l3cr=xxxx" command-line option */
-int __init ppc_setup_l3cr(char *str)
+static int __init ppc_setup_l3cr(char *str)
 {
 	if (cpu_has_feature(CPU_FTR_L3CR)) {
 		unsigned long val = simple_strtoul(str, NULL, 0);
@@ -180,7 +184,7 @@ EXPORT_SYMBOL(nvram_sync);
 
 #endif /* CONFIG_NVRAM */
 
-int __init ppc_init(void)
+static int __init ppc_init(void)
 {
 	/* clear the progress line */
 	if (ppc_md.progress)
@@ -192,7 +196,6 @@ int __init ppc_init(void)
 	}
 	return 0;
 }
-
 arch_initcall(ppc_init);
 
 void __init irqstack_early_init(void)

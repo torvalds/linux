@@ -30,17 +30,22 @@
 #include <asm/set_memory.h>
 
 #ifdef CONFIG_KEXEC_FILE
-static struct kexec_file_ops *kexec_file_loaders[] = {
+const struct kexec_file_ops * const kexec_file_loaders[] = {
 		&kexec_bzImage64_ops,
+		NULL
 };
 #endif
 
 static void free_transition_pgtable(struct kimage *image)
 {
 	free_page((unsigned long)image->arch.p4d);
+	image->arch.p4d = NULL;
 	free_page((unsigned long)image->arch.pud);
+	image->arch.pud = NULL;
 	free_page((unsigned long)image->arch.pmd);
+	image->arch.pmd = NULL;
 	free_page((unsigned long)image->arch.pte);
+	image->arch.pte = NULL;
 }
 
 static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
@@ -90,7 +95,6 @@ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
 	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC_NOENC));
 	return 0;
 err:
-	free_transition_pgtable(image);
 	return result;
 }
 
@@ -293,11 +297,11 @@ void machine_kexec(struct kimage *image)
 		/*
 		 * We need to put APICs in legacy mode so that we can
 		 * get timer interrupts in second kernel. kexec/kdump
-		 * paths already have calls to disable_IO_APIC() in
-		 * one form or other. kexec jump path also need
-		 * one.
+		 * paths already have calls to restore_boot_irq_mode()
+		 * in one form or other. kexec jump path also need one.
 		 */
-		disable_IO_APIC();
+		clear_IO_APIC();
+		restore_boot_irq_mode();
 #endif
 	}
 
@@ -350,6 +354,8 @@ void arch_crash_save_vmcoreinfo(void)
 {
 	VMCOREINFO_NUMBER(phys_base);
 	VMCOREINFO_SYMBOL(init_top_pgt);
+	vmcoreinfo_append_str("NUMBER(pgtable_l5_enabled)=%d\n",
+			pgtable_l5_enabled());
 
 #ifdef CONFIG_NUMA
 	VMCOREINFO_SYMBOL(node_data);
@@ -363,27 +369,6 @@ void arch_crash_save_vmcoreinfo(void)
 /* arch-dependent functionality related to kexec file-based syscall */
 
 #ifdef CONFIG_KEXEC_FILE
-int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
-				  unsigned long buf_len)
-{
-	int i, ret = -ENOEXEC;
-	struct kexec_file_ops *fops;
-
-	for (i = 0; i < ARRAY_SIZE(kexec_file_loaders); i++) {
-		fops = kexec_file_loaders[i];
-		if (!fops || !fops->probe)
-			continue;
-
-		ret = fops->probe(buf, buf_len);
-		if (!ret) {
-			image->fops = fops;
-			return ret;
-		}
-	}
-
-	return ret;
-}
-
 void *arch_kexec_kernel_image_load(struct kimage *image)
 {
 	vfree(image->arch.elf_headers);
@@ -398,88 +383,53 @@ void *arch_kexec_kernel_image_load(struct kimage *image)
 				 image->cmdline_buf_len);
 }
 
-int arch_kimage_file_post_load_cleanup(struct kimage *image)
-{
-	if (!image->fops || !image->fops->cleanup)
-		return 0;
-
-	return image->fops->cleanup(image->image_loader_data);
-}
-
-#ifdef CONFIG_KEXEC_VERIFY_SIG
-int arch_kexec_kernel_verify_sig(struct kimage *image, void *kernel,
-				 unsigned long kernel_len)
-{
-	if (!image->fops || !image->fops->verify_sig) {
-		pr_debug("kernel loader does not support signature verification.");
-		return -EKEYREJECTED;
-	}
-
-	return image->fops->verify_sig(kernel, kernel_len);
-}
-#endif
-
 /*
  * Apply purgatory relocations.
  *
- * ehdr: Pointer to elf headers
- * sechdrs: Pointer to section headers.
- * relsec: section index of SHT_RELA section.
+ * @pi:		Purgatory to be relocated.
+ * @section:	Section relocations applying to.
+ * @relsec:	Section containing RELAs.
+ * @symtabsec:	Corresponding symtab.
  *
  * TODO: Some of the code belongs to generic code. Move that in kexec.c.
  */
-int arch_kexec_apply_relocations_add(const Elf64_Ehdr *ehdr,
-				     Elf64_Shdr *sechdrs, unsigned int relsec)
+int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
+				     Elf_Shdr *section, const Elf_Shdr *relsec,
+				     const Elf_Shdr *symtabsec)
 {
 	unsigned int i;
 	Elf64_Rela *rel;
 	Elf64_Sym *sym;
 	void *location;
-	Elf64_Shdr *section, *symtabsec;
 	unsigned long address, sec_base, value;
 	const char *strtab, *name, *shstrtab;
+	const Elf_Shdr *sechdrs;
 
-	/*
-	 * ->sh_offset has been modified to keep the pointer to section
-	 * contents in memory
-	 */
-	rel = (void *)sechdrs[relsec].sh_offset;
+	/* String & section header string table */
+	sechdrs = (void *)pi->ehdr + pi->ehdr->e_shoff;
+	strtab = (char *)pi->ehdr + sechdrs[symtabsec->sh_link].sh_offset;
+	shstrtab = (char *)pi->ehdr + sechdrs[pi->ehdr->e_shstrndx].sh_offset;
 
-	/* Section to which relocations apply */
-	section = &sechdrs[sechdrs[relsec].sh_info];
+	rel = (void *)pi->ehdr + relsec->sh_offset;
 
-	pr_debug("Applying relocate section %u to %u\n", relsec,
-		 sechdrs[relsec].sh_info);
+	pr_debug("Applying relocate section %s to %u\n",
+		 shstrtab + relsec->sh_name, relsec->sh_info);
 
-	/* Associated symbol table */
-	symtabsec = &sechdrs[sechdrs[relsec].sh_link];
-
-	/* String table */
-	if (symtabsec->sh_link >= ehdr->e_shnum) {
-		/* Invalid strtab section number */
-		pr_err("Invalid string table section index %d\n",
-		       symtabsec->sh_link);
-		return -ENOEXEC;
-	}
-
-	strtab = (char *)sechdrs[symtabsec->sh_link].sh_offset;
-
-	/* section header string table */
-	shstrtab = (char *)sechdrs[ehdr->e_shstrndx].sh_offset;
-
-	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
+	for (i = 0; i < relsec->sh_size / sizeof(*rel); i++) {
 
 		/*
 		 * rel[i].r_offset contains byte offset from beginning
 		 * of section to the storage unit affected.
 		 *
-		 * This is location to update (->sh_offset). This is temporary
-		 * buffer where section is currently loaded. This will finally
-		 * be loaded to a different address later, pointed to by
+		 * This is location to update. This is temporary buffer
+		 * where section is currently loaded. This will finally be
+		 * loaded to a different address later, pointed to by
 		 * ->sh_addr. kexec takes care of moving it
 		 *  (kexec_load_segment()).
 		 */
-		location = (void *)(section->sh_offset + rel[i].r_offset);
+		location = pi->purgatory_buf;
+		location += section->sh_offset;
+		location += rel[i].r_offset;
 
 		/* Final address of the location */
 		address = section->sh_addr + rel[i].r_offset;
@@ -490,8 +440,8 @@ int arch_kexec_apply_relocations_add(const Elf64_Ehdr *ehdr,
 		 * to apply. ELF64_R_SYM() and ELF64_R_TYPE() macros get
 		 * these respectively.
 		 */
-		sym = (Elf64_Sym *)symtabsec->sh_offset +
-				ELF64_R_SYM(rel[i].r_info);
+		sym = (void *)pi->ehdr + symtabsec->sh_offset;
+		sym += ELF64_R_SYM(rel[i].r_info);
 
 		if (sym->st_name)
 			name = strtab + sym->st_name;
@@ -514,12 +464,12 @@ int arch_kexec_apply_relocations_add(const Elf64_Ehdr *ehdr,
 
 		if (sym->st_shndx == SHN_ABS)
 			sec_base = 0;
-		else if (sym->st_shndx >= ehdr->e_shnum) {
+		else if (sym->st_shndx >= pi->ehdr->e_shnum) {
 			pr_err("Invalid section %d for symbol %s\n",
 			       sym->st_shndx, name);
 			return -ENOEXEC;
 		} else
-			sec_base = sechdrs[sym->st_shndx].sh_addr;
+			sec_base = pi->sechdrs[sym->st_shndx].sh_addr;
 
 		value = sym->st_value;
 		value += sec_base;
@@ -542,6 +492,7 @@ int arch_kexec_apply_relocations_add(const Elf64_Ehdr *ehdr,
 				goto overflow;
 			break;
 		case R_X86_64_PC32:
+		case R_X86_64_PLT32:
 			value -= (u64)address;
 			*(u32 *)location = value;
 			break;

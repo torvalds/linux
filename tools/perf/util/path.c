@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * I'm tired of doing "vsnprintf()" etc just to open a
  * file, so here's a "return static buffer with printf"
@@ -17,6 +18,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <unistd.h>
 
 static char bad_path[] = "/bad-path/";
@@ -75,4 +77,17 @@ bool is_regular_file(const char *file)
 		return false;
 
 	return S_ISREG(st.st_mode);
+}
+
+/* Helper function for filesystems that return a dent->d_type DT_UNKNOWN */
+bool is_directory(const char *base_path, const struct dirent *dent)
+{
+	char path[PATH_MAX];
+	struct stat st;
+
+	sprintf(path, "%s/%s", base_path, dent->d_name);
+	if (stat(path, &st))
+		return false;
+
+	return S_ISDIR(st.st_mode);
 }

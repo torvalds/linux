@@ -17,9 +17,28 @@
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/vfio.h>
 #include <linux/vgaarb.h>
 
 #include "vfio_pci_private.h"
+
+#ifdef __LITTLE_ENDIAN
+#define vfio_ioread64	ioread64
+#define vfio_iowrite64	iowrite64
+#define vfio_ioread32	ioread32
+#define vfio_iowrite32	iowrite32
+#define vfio_ioread16	ioread16
+#define vfio_iowrite16	iowrite16
+#else
+#define vfio_ioread64	ioread64be
+#define vfio_iowrite64	iowrite64be
+#define vfio_ioread32	ioread32be
+#define vfio_iowrite32	iowrite32be
+#define vfio_ioread16	ioread16be
+#define vfio_iowrite16	iowrite16be
+#endif
+#define vfio_ioread8	ioread8
+#define vfio_iowrite8	iowrite8
 
 /*
  * Read or write from an __iomem region (MMIO or I/O port) with an excluded
@@ -44,15 +63,15 @@ static ssize_t do_io_rw(void __iomem *io, char __user *buf,
 			fillable = 0;
 
 		if (fillable >= 4 && !(off % 4)) {
-			__le32 val;
+			u32 val;
 
 			if (iswrite) {
 				if (copy_from_user(&val, buf, 4))
 					return -EFAULT;
 
-				iowrite32(le32_to_cpu(val), io + off);
+				vfio_iowrite32(val, io + off);
 			} else {
-				val = cpu_to_le32(ioread32(io + off));
+				val = vfio_ioread32(io + off);
 
 				if (copy_to_user(buf, &val, 4))
 					return -EFAULT;
@@ -60,15 +79,15 @@ static ssize_t do_io_rw(void __iomem *io, char __user *buf,
 
 			filled = 4;
 		} else if (fillable >= 2 && !(off % 2)) {
-			__le16 val;
+			u16 val;
 
 			if (iswrite) {
 				if (copy_from_user(&val, buf, 2))
 					return -EFAULT;
 
-				iowrite16(le16_to_cpu(val), io + off);
+				vfio_iowrite16(val, io + off);
 			} else {
-				val = cpu_to_le16(ioread16(io + off));
+				val = vfio_ioread16(io + off);
 
 				if (copy_to_user(buf, &val, 2))
 					return -EFAULT;
@@ -82,9 +101,9 @@ static ssize_t do_io_rw(void __iomem *io, char __user *buf,
 				if (copy_from_user(&val, buf, 1))
 					return -EFAULT;
 
-				iowrite8(val, io + off);
+				vfio_iowrite8(val, io + off);
 			} else {
-				val = ioread8(io + off);
+				val = vfio_ioread8(io + off);
 
 				if (copy_to_user(buf, &val, 1))
 					return -EFAULT;
@@ -111,6 +130,30 @@ static ssize_t do_io_rw(void __iomem *io, char __user *buf,
 	}
 
 	return done;
+}
+
+static int vfio_pci_setup_barmap(struct vfio_pci_device *vdev, int bar)
+{
+	struct pci_dev *pdev = vdev->pdev;
+	int ret;
+	void __iomem *io;
+
+	if (vdev->barmap[bar])
+		return 0;
+
+	ret = pci_request_selected_regions(pdev, 1 << bar, "vfio");
+	if (ret)
+		return ret;
+
+	io = pci_iomap(pdev, bar, 0);
+	if (!io) {
+		pci_release_selected_regions(pdev, 1 << bar);
+		return -ENOMEM;
+	}
+
+	vdev->barmap[bar] = io;
+
+	return 0;
 }
 
 ssize_t vfio_pci_bar_rw(struct vfio_pci_device *vdev, char __user *buf,
@@ -147,22 +190,13 @@ ssize_t vfio_pci_bar_rw(struct vfio_pci_device *vdev, char __user *buf,
 		if (!io)
 			return -ENOMEM;
 		x_end = end;
-	} else if (!vdev->barmap[bar]) {
-		int ret;
-
-		ret = pci_request_selected_regions(pdev, 1 << bar, "vfio");
+	} else {
+		int ret = vfio_pci_setup_barmap(vdev, bar);
 		if (ret)
 			return ret;
 
-		io = pci_iomap(pdev, bar, 0);
-		if (!io) {
-			pci_release_selected_regions(pdev, 1 << bar);
-			return -ENOMEM;
-		}
-
-		vdev->barmap[bar] = io;
-	} else
 		io = vdev->barmap[bar];
+	}
 
 	if (bar == vdev->msix_bar) {
 		x_start = vdev->msix_offset;
@@ -241,4 +275,114 @@ ssize_t vfio_pci_vga_rw(struct vfio_pci_device *vdev, char __user *buf,
 		*ppos += done;
 
 	return done;
+}
+
+static int vfio_pci_ioeventfd_handler(void *opaque, void *unused)
+{
+	struct vfio_pci_ioeventfd *ioeventfd = opaque;
+
+	switch (ioeventfd->count) {
+	case 1:
+		vfio_iowrite8(ioeventfd->data, ioeventfd->addr);
+		break;
+	case 2:
+		vfio_iowrite16(ioeventfd->data, ioeventfd->addr);
+		break;
+	case 4:
+		vfio_iowrite32(ioeventfd->data, ioeventfd->addr);
+		break;
+#ifdef iowrite64
+	case 8:
+		vfio_iowrite64(ioeventfd->data, ioeventfd->addr);
+		break;
+#endif
+	}
+
+	return 0;
+}
+
+long vfio_pci_ioeventfd(struct vfio_pci_device *vdev, loff_t offset,
+			uint64_t data, int count, int fd)
+{
+	struct pci_dev *pdev = vdev->pdev;
+	loff_t pos = offset & VFIO_PCI_OFFSET_MASK;
+	int ret, bar = VFIO_PCI_OFFSET_TO_INDEX(offset);
+	struct vfio_pci_ioeventfd *ioeventfd;
+
+	/* Only support ioeventfds into BARs */
+	if (bar > VFIO_PCI_BAR5_REGION_INDEX)
+		return -EINVAL;
+
+	if (pos + count > pci_resource_len(pdev, bar))
+		return -EINVAL;
+
+	/* Disallow ioeventfds working around MSI-X table writes */
+	if (bar == vdev->msix_bar &&
+	    !(pos + count <= vdev->msix_offset ||
+	      pos >= vdev->msix_offset + vdev->msix_size))
+		return -EINVAL;
+
+#ifndef iowrite64
+	if (count == 8)
+		return -EINVAL;
+#endif
+
+	ret = vfio_pci_setup_barmap(vdev, bar);
+	if (ret)
+		return ret;
+
+	mutex_lock(&vdev->ioeventfds_lock);
+
+	list_for_each_entry(ioeventfd, &vdev->ioeventfds_list, next) {
+		if (ioeventfd->pos == pos && ioeventfd->bar == bar &&
+		    ioeventfd->data == data && ioeventfd->count == count) {
+			if (fd == -1) {
+				vfio_virqfd_disable(&ioeventfd->virqfd);
+				list_del(&ioeventfd->next);
+				vdev->ioeventfds_nr--;
+				kfree(ioeventfd);
+				ret = 0;
+			} else
+				ret = -EEXIST;
+
+			goto out_unlock;
+		}
+	}
+
+	if (fd < 0) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	if (vdev->ioeventfds_nr >= VFIO_PCI_IOEVENTFD_MAX) {
+		ret = -ENOSPC;
+		goto out_unlock;
+	}
+
+	ioeventfd = kzalloc(sizeof(*ioeventfd), GFP_KERNEL);
+	if (!ioeventfd) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
+
+	ioeventfd->addr = vdev->barmap[bar] + pos;
+	ioeventfd->data = data;
+	ioeventfd->pos = pos;
+	ioeventfd->bar = bar;
+	ioeventfd->count = count;
+
+	ret = vfio_virqfd_enable(ioeventfd, vfio_pci_ioeventfd_handler,
+				 NULL, NULL, &ioeventfd->virqfd, fd);
+	if (ret) {
+		kfree(ioeventfd);
+		goto out_unlock;
+	}
+
+	list_add(&ioeventfd->next, &vdev->ioeventfds_list);
+	vdev->ioeventfds_nr++;
+
+out_unlock:
+	mutex_unlock(&vdev->ioeventfds_lock);
+
+	return ret;
 }

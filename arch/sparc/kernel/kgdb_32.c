@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* kgdb.c: KGDB support for 32-bit sparc.
  *
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>
@@ -121,7 +122,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 			linux_regs->pc = addr;
 			linux_regs->npc = addr + 4;
 		}
-		/* fallthru */
+		/* fall through */
 
 	case 'D':
 	case 'k':

@@ -1,8 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_UHCI_HCD_H
 #define __LINUX_UHCI_HCD_H
 
 #include <linux/list.h>
 #include <linux/usb.h>
+#include <linux/clk.h>
 
 #define usb_packetid(pipe)	(usb_pipein(pipe) ? USB_PID_IN : USB_PID_OUT)
 #define PIPE_DEVEP_MASK		0x0007ff00
@@ -186,7 +188,7 @@ struct uhci_qh {
  * We need a special accessor for the element pointer because it is
  * subject to asynchronous updates by the controller.
  */
-#define qh_element(qh)		ACCESS_ONCE((qh)->element)
+#define qh_element(qh)		READ_ONCE((qh)->element)
 
 #define LINK_TO_QH(uhci, qh)	(UHCI_PTR_QH((uhci)) | \
 				cpu_to_hc32((uhci), (qh)->dma_handle))
@@ -274,7 +276,7 @@ struct uhci_td {
  * subject to asynchronous updates by the controller.
  */
 #define td_status(uhci, td)		hc32_to_cpu((uhci), \
-						ACCESS_ONCE((td)->status))
+						READ_ONCE((td)->status))
 
 #define LINK_TO_TD(uhci, td)		(cpu_to_hc32((uhci), (td)->dma_handle))
 
@@ -445,6 +447,8 @@ struct uhci_hcd {
 
 	int total_load;				/* Sum of array values */
 	short load[MAX_PHASE];			/* Periodic allocations */
+
+	struct clk *clk;			/* (optional) clock source */
 
 	/* Reset host controller */
 	void	(*reset_hc) (struct uhci_hcd *uhci);

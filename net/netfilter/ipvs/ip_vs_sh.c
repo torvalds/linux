@@ -96,7 +96,8 @@ ip_vs_sh_hashkey(int af, const union nf_inet_addr *addr,
 		addr_fold = addr->ip6[0]^addr->ip6[1]^
 			    addr->ip6[2]^addr->ip6[3];
 #endif
-	return (offset + (ntohs(port) + ntohl(addr_fold))*2654435761UL) &
+	return (offset + hash_32(ntohs(port) + ntohl(addr_fold),
+				 IP_VS_SH_TAB_BITS)) &
 		IP_VS_SH_TAB_MASK;
 }
 

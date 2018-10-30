@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Broadcom BM2835 V4L2 driver
  *
  * Copyright © 2013 Raspberry Pi (Trading) Ltd.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive
- * for more details.
  *
  * Authors: Vincent Sanders <vincent.sanders@collabora.co.uk>
  *          Dave Stevenson <dsteve@broadcom.com>
@@ -20,7 +17,9 @@
 #define MMAL_MAGIC MMAL_FOURCC('m', 'm', 'a', 'l')
 
 /** Special value signalling that time is not known */
-#define MMAL_TIME_UNKNOWN (1LL<<63)
+#define MMAL_TIME_UNKNOWN BIT_ULL(63)
+
+struct mmal_msg_context;
 
 /* mapping between v4l and mmal video modes */
 struct mmal_fmt {
@@ -31,6 +30,9 @@ struct mmal_fmt {
 	int   depth;
 	u32   mmal_component;  /* MMAL component index to be used to encode */
 	u32   ybbp;            /* depth of first Y plane for planar formats */
+	bool  remove_padding;  /* Does the GPU have to remove padding,
+				* or can we do hide padding via bytesperline.
+				*/
 };
 
 /* buffer for one video frame */
@@ -43,6 +45,8 @@ struct mmal_buffer {
 
 	void *buffer; /* buffer pointer */
 	unsigned long buffer_size; /* size of allocated buffer */
+
+	struct mmal_msg_context *msg_context;
 };
 
 /* */

@@ -44,17 +44,26 @@ struct intel_gvt_mpt {
 	void (*detach_vgpu)(unsigned long handle);
 	int (*inject_msi)(unsigned long handle, u32 addr, u16 data);
 	unsigned long (*from_virt_to_mfn)(void *p);
-	int (*set_wp_page)(unsigned long handle, u64 gfn);
-	int (*unset_wp_page)(unsigned long handle, u64 gfn);
+	int (*enable_page_track)(unsigned long handle, u64 gfn);
+	int (*disable_page_track)(unsigned long handle, u64 gfn);
 	int (*read_gpa)(unsigned long handle, unsigned long gpa, void *buf,
 			unsigned long len);
 	int (*write_gpa)(unsigned long handle, unsigned long gpa, void *buf,
 			 unsigned long len);
 	unsigned long (*gfn_to_mfn)(unsigned long handle, unsigned long gfn);
+
+	int (*dma_map_guest_page)(unsigned long handle, unsigned long gfn,
+				  unsigned long size, dma_addr_t *dma_addr);
+	void (*dma_unmap_guest_page)(unsigned long handle, dma_addr_t dma_addr);
+
 	int (*map_gfn_to_mfn)(unsigned long handle, unsigned long gfn,
 			      unsigned long mfn, unsigned int nr, bool map);
 	int (*set_trap_area)(unsigned long handle, u64 start, u64 end,
 			     bool map);
+	int (*set_opregion)(void *vgpu);
+	int (*get_vfio_device)(void *vgpu);
+	void (*put_vfio_device)(void *vgpu);
+	bool (*is_valid_gfn)(unsigned long handle, unsigned long gfn);
 };
 
 extern struct intel_gvt_mpt xengt_mpt;

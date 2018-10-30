@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
@@ -128,19 +129,6 @@ static const struct seq_operations dasd_devices_seq_ops = {
 	.next		= dasd_devices_next,
 	.stop		= dasd_devices_stop,
 	.show		= dasd_devices_show,
-};
-
-static int dasd_devices_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &dasd_devices_seq_ops);
-}
-
-static const struct file_operations dasd_devices_file_ops = {
-	.owner		= THIS_MODULE,
-	.open		= dasd_devices_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
 };
 
 #ifdef CONFIG_DASD_PROFILE
@@ -351,10 +339,10 @@ dasd_proc_init(void)
 	dasd_proc_root_entry = proc_mkdir("dasd", NULL);
 	if (!dasd_proc_root_entry)
 		goto out_nodasd;
-	dasd_devices_entry = proc_create("devices",
+	dasd_devices_entry = proc_create_seq("devices",
 					 S_IFREG | S_IRUGO | S_IWUSR,
 					 dasd_proc_root_entry,
-					 &dasd_devices_file_ops);
+					 &dasd_devices_seq_ops);
 	if (!dasd_devices_entry)
 		goto out_nodevices;
 	dasd_statistics_entry = proc_create("statistics",

@@ -75,5 +75,9 @@ void __init ptp_classifier_init(void);
 static inline void ptp_classifier_init(void)
 {
 }
+static inline unsigned int ptp_classify_raw(struct sk_buff *skb)
+{
+	return PTP_CLASS_NONE;
+}
 #endif
 #endif /* _PTP_CLASSIFY_H_ */

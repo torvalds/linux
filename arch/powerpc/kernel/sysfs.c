@@ -20,6 +20,7 @@
 #include <asm/firmware.h>
 
 #include "cacheinfo.h"
+#include "setup.h"
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -485,6 +486,7 @@ SYSFS_PMCSETUP(mmcra, SPRN_MMCRA);
 SYSFS_SPRSETUP(purr, SPRN_PURR);
 SYSFS_SPRSETUP(spurr, SPRN_SPURR);
 SYSFS_SPRSETUP(pir, SPRN_PIR);
+SYSFS_SPRSETUP(tscr, SPRN_TSCR);
 
 /*
   Lets only enable read for phyp resources and
@@ -495,6 +497,7 @@ static DEVICE_ATTR(mmcra, 0600, show_mmcra, store_mmcra);
 static DEVICE_ATTR(spurr, 0400, show_spurr, NULL);
 static DEVICE_ATTR(purr, 0400, show_purr, store_purr);
 static DEVICE_ATTR(pir, 0400, show_pir, NULL);
+static DEVICE_ATTR(tscr, 0600, show_tscr, store_tscr);
 
 /*
  * This is the system wide DSCR register default value. Any
@@ -586,10 +589,18 @@ static DEVICE_ATTR(dscr_default, 0600,
 
 static void sysfs_create_dscr_default(void)
 {
-	int err = 0;
-	if (cpu_has_feature(CPU_FTR_DSCR))
+	if (cpu_has_feature(CPU_FTR_DSCR)) {
+		int err = 0;
+		int cpu;
+
+		dscr_default = spr_default_dscr;
+		for_each_possible_cpu(cpu)
+			paca_ptrs[cpu]->dscr_default = dscr_default;
+
 		err = device_create_file(cpu_subsys.dev_root, &dev_attr_dscr_default);
+	}
 }
+
 #endif /* CONFIG_PPC64 */
 
 #ifdef HAS_PPC_PMC_PA6T
@@ -774,6 +785,10 @@ static int register_cpu_online(unsigned int cpu)
 
 	if (cpu_has_feature(CPU_FTR_PPCAS_ARCH_V2))
 		device_create_file(s, &dev_attr_pir);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_206) &&
+		!firmware_has_feature(FW_FEATURE_LPAR))
+		device_create_file(s, &dev_attr_tscr);
 #endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
@@ -856,6 +871,10 @@ static int unregister_cpu_online(unsigned int cpu)
 
 	if (cpu_has_feature(CPU_FTR_PPCAS_ARCH_V2))
 		device_remove_file(s, &dev_attr_pir);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_206) &&
+		!firmware_has_feature(FW_FEATURE_LPAR))
+		device_remove_file(s, &dev_attr_tscr);
 #endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_PPC_FSL_BOOK3E

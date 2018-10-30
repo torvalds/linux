@@ -38,12 +38,7 @@ int intel_lpss_resume(struct device *dev);
 #ifdef CONFIG_PM_SLEEP
 #define INTEL_LPSS_SLEEP_PM_OPS			\
 	.prepare = intel_lpss_prepare,		\
-	.suspend = intel_lpss_suspend,		\
-	.resume = intel_lpss_resume,		\
-	.freeze = intel_lpss_suspend,		\
-	.thaw = intel_lpss_resume,		\
-	.poweroff = intel_lpss_suspend,		\
-	.restore = intel_lpss_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_lpss_suspend, intel_lpss_resume)
 #else
 #define INTEL_LPSS_SLEEP_PM_OPS
 #endif

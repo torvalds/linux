@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/moduleloader.h>
 #include <linux/workqueue.h>
 #include <linux/netdevice.h>
@@ -9,8 +10,6 @@
 #include <asm/ptrace.h>
 
 #include "bpf_jit_32.h"
-
-int bpf_jit_enable __read_mostly;
 
 static inline bool is_simm13(unsigned int value)
 {
@@ -336,7 +335,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	if (!bpf_jit_enable)
 		return;
 
-	addrs = kmalloc(flen * sizeof(*addrs), GFP_KERNEL);
+	addrs = kmalloc_array(flen, sizeof(*addrs), GFP_KERNEL);
 	if (addrs == NULL)
 		return;
 

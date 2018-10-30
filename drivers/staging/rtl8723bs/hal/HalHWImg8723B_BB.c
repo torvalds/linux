@@ -1,19 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
 *
 * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
 *
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of version 2 of the GNU General Public License as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
 ******************************************************************************/
 
-
+#include <linux/kernel.h>
 #include "odm_precomp.h"
 
 static bool CheckPositive(
@@ -268,7 +260,7 @@ static u32 Array_MP_8723B_AGC_TAB[] = {
 void ODM_ReadAndConfig_MP_8723B_AGC_TAB(PDM_ODM_T pDM_Odm)
 {
 	u32 i = 0;
-	u32 ArrayLen = sizeof(Array_MP_8723B_AGC_TAB)/sizeof(u32);
+	u32 ArrayLen = ARRAY_SIZE(Array_MP_8723B_AGC_TAB);
 	u32 *Array = Array_MP_8723B_AGC_TAB;
 
 	ODM_RT_TRACE(
@@ -537,7 +529,7 @@ static u32 Array_MP_8723B_PHY_REG[] = {
 void ODM_ReadAndConfig_MP_8723B_PHY_REG(PDM_ODM_T pDM_Odm)
 {
 	u32 i = 0;
-	u32 ArrayLen = sizeof(Array_MP_8723B_PHY_REG)/sizeof(u32);
+	u32 ArrayLen = ARRAY_SIZE(Array_MP_8723B_PHY_REG);
 	u32 *Array = Array_MP_8723B_PHY_REG;
 
 	ODM_RT_TRACE(
@@ -617,7 +609,6 @@ static u32 Array_MP_8723B_PHY_REG_PG[] = {
 void ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(PDM_ODM_T pDM_Odm)
 {
 	u32 i = 0;
-	u32 ArrayLen = sizeof(Array_MP_8723B_PHY_REG_PG)/sizeof(u32);
 	u32 *Array = Array_MP_8723B_PHY_REG_PG;
 
 	ODM_RT_TRACE(
@@ -630,7 +621,7 @@ void ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(PDM_ODM_T pDM_Odm)
 	pDM_Odm->PhyRegPgVersion = 1;
 	pDM_Odm->PhyRegPgValueType = PHY_REG_PG_EXACT_VALUE;
 
-	for (i = 0; i < ArrayLen; i += 6) {
+	for (i = 0; i < ARRAY_SIZE(Array_MP_8723B_PHY_REG_PG); i += 6) {
 		u32 v1 = Array[i];
 		u32 v2 = Array[i+1];
 		u32 v3 = Array[i+2];

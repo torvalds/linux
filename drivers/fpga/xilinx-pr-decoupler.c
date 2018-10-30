@@ -79,7 +79,7 @@ static int xlnx_pr_decoupler_enable_show(struct fpga_bridge *bridge)
 	return !status;
 }
 
-static struct fpga_bridge_ops xlnx_pr_decoupler_br_ops = {
+static const struct fpga_bridge_ops xlnx_pr_decoupler_br_ops = {
 	.enable_set = xlnx_pr_decoupler_enable_set,
 	.enable_show = xlnx_pr_decoupler_enable_show,
 };
@@ -94,6 +94,7 @@ MODULE_DEVICE_TABLE(of, xlnx_pr_decoupler_of_match);
 static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 {
 	struct xlnx_pr_decoupler_data *priv;
+	struct fpga_bridge *br;
 	int err;
 	struct resource *res;
 
@@ -120,16 +121,27 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 
 	clk_disable(priv->clk);
 
-	err = fpga_bridge_register(&pdev->dev, "Xilinx PR Decoupler",
-				   &xlnx_pr_decoupler_br_ops, priv);
+	br = devm_fpga_bridge_create(&pdev->dev, "Xilinx PR Decoupler",
+				     &xlnx_pr_decoupler_br_ops, priv);
+	if (!br) {
+		err = -ENOMEM;
+		goto err_clk;
+	}
 
+	platform_set_drvdata(pdev, br);
+
+	err = fpga_bridge_register(br);
 	if (err) {
 		dev_err(&pdev->dev, "unable to register Xilinx PR Decoupler");
-		clk_unprepare(priv->clk);
-		return err;
+		goto err_clk;
 	}
 
 	return 0;
+
+err_clk:
+	clk_unprepare(priv->clk);
+
+	return err;
 }
 
 static int xlnx_pr_decoupler_remove(struct platform_device *pdev)
@@ -137,7 +149,7 @@ static int xlnx_pr_decoupler_remove(struct platform_device *pdev)
 	struct fpga_bridge *bridge = platform_get_drvdata(pdev);
 	struct xlnx_pr_decoupler_data *p = bridge->priv;
 
-	fpga_bridge_unregister(&pdev->dev);
+	fpga_bridge_unregister(bridge);
 
 	clk_unprepare(p->clk);
 

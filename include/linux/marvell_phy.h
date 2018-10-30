@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MARVELL_PHY_H
 #define _MARVELL_PHY_H
 
@@ -25,6 +26,8 @@
  * register and returns the switch family ID
  */
 #define MARVELL_PHY_ID_88E6390		0x01410f90
+
+#define MARVELL_PHY_FAMILY_ID(id)	((id) >> 4)
 
 /* struct phy_device dev_flags definitions */
 #define MARVELL_PHY_M1145_FLAGS_RESISTANCE	0x00000001

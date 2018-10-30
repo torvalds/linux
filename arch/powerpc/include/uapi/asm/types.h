@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * This file is never included by application software unless
  * explicitly requested (e.g., via linux/types.h) in which case the

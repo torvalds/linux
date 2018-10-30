@@ -12,7 +12,7 @@ bindings/nvmem/nvmem.txt
 
 Example:
 
-	qfprom: qfprom@00700000 {
+	qfprom: qfprom@700000 {
 		compatible 	= "qcom,qfprom";
 		reg		= <0x00700000 0x8000>;
 		...

@@ -223,7 +223,7 @@ static struct omap_system_dma_plat_info dma_plat_info __initdata = {
 	.dma_read	= dma_read,
 };
 
-static struct platform_device_info omap_dma_dev_info = {
+static struct platform_device_info omap_dma_dev_info __initdata = {
 	.name = "omap-dma-engine",
 	.id = -1,
 	.dma_mask = DMA_BIT_MASK(32),

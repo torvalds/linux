@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the ST STV6111 tuner
  *
@@ -11,7 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -25,7 +25,7 @@
 
 #include "stv6111.h"
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct stv {
 	struct i2c_adapter *i2c;
@@ -424,6 +424,7 @@ static int set_bandwidth(struct dvb_frontend *fe, u32 cutoff_frequency)
 {
 	struct stv *state = fe->tuner_priv;
 	u32 index = (cutoff_frequency + 999999) / 1000000;
+	int stat = 0;
 
 	if (index < 6)
 		index = 6;
@@ -435,12 +436,14 @@ static int set_bandwidth(struct dvb_frontend *fe, u32 cutoff_frequency)
 	state->reg[0x08] = (state->reg[0x08] & ~0xFC) | ((index - 6) << 2);
 	state->reg[0x09] = (state->reg[0x09] & ~0x0C) | 0x08;
 	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	write_regs(state, 0x08, 2);
-	wait_for_call_done(state, 0x08);
-	if (fe->ops.i2c_gate_ctrl)
+		stat = fe->ops.i2c_gate_ctrl(fe, 1);
+	if (!stat) {
+		write_regs(state, 0x08, 2);
+		wait_for_call_done(state, 0x08);
+	}
+	if (fe->ops.i2c_gate_ctrl && !stat)
 		fe->ops.i2c_gate_ctrl(fe, 0);
-	return 0;
+	return stat;
 }
 
 static int set_lof(struct stv *state, u32 local_frequency, u32 cutoff_frequency)
@@ -518,6 +521,7 @@ static int set_params(struct dvb_frontend *fe)
 	struct stv *state = fe->tuner_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	u32 freq, cutoff;
+	int stat = 0;
 
 	if (p->delivery_system != SYS_DVBS && p->delivery_system != SYS_DVBS2)
 		return -EINVAL;
@@ -526,9 +530,10 @@ static int set_params(struct dvb_frontend *fe)
 	cutoff = 5000000 + muldiv32(p->symbol_rate, 135, 200);
 
 	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	set_lof(state, freq, cutoff);
-	if (fe->ops.i2c_gate_ctrl)
+		stat = fe->ops.i2c_gate_ctrl(fe, 1);
+	if (!stat)
+		set_lof(state, freq, cutoff);
+	if (fe->ops.i2c_gate_ctrl && !stat)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 	return 0;
 }
@@ -575,14 +580,17 @@ static int get_rf_strength(struct dvb_frontend *fe, u16 *st)
 	if ((state->reg[0x03] & 0x60) == 0) {
 		/* RF Mode, Read AGC ADC */
 		u8 reg = 0;
+		int stat = 0;
 
 		if (fe->ops.i2c_gate_ctrl)
-			fe->ops.i2c_gate_ctrl(fe, 1);
-		write_reg(state, 0x02, state->reg[0x02] | 0x20);
-		read_reg(state, 2, &reg);
-		if (reg & 0x20)
+			stat = fe->ops.i2c_gate_ctrl(fe, 1);
+		if (!stat) {
+			write_reg(state, 0x02, state->reg[0x02] | 0x20);
 			read_reg(state, 2, &reg);
-		if (fe->ops.i2c_gate_ctrl)
+			if (reg & 0x20)
+				read_reg(state, 2, &reg);
+		}
+		if (fe->ops.i2c_gate_ctrl && !stat)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 
 		if ((state->reg[0x02] & 0x80) == 0)
@@ -638,9 +646,8 @@ static int get_rf_strength(struct dvb_frontend *fe, u16 *st)
 static const struct dvb_tuner_ops tuner_ops = {
 	.info = {
 		.name		= "ST STV6111",
-		.frequency_min	= 950000,
-		.frequency_max	= 2150000,
-		.frequency_step	= 0
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
 	},
 	.set_params		= set_params,
 	.release		= release,
@@ -652,7 +659,8 @@ struct dvb_frontend *stv6111_attach(struct dvb_frontend *fe,
 				    struct i2c_adapter *i2c, u8 adr)
 {
 	struct stv *state;
-	int stat;
+	int stat = -ENODEV;
+	int gatestat = 0;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
@@ -663,9 +671,10 @@ struct dvb_frontend *stv6111_attach(struct dvb_frontend *fe,
 	init_state(state);
 
 	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	stat = attach_init(state);
-	if (fe->ops.i2c_gate_ctrl)
+		gatestat = fe->ops.i2c_gate_ctrl(fe, 1);
+	if (!gatestat)
+		stat = attach_init(state);
+	if (fe->ops.i2c_gate_ctrl && !gatestat)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 	if (stat < 0) {
 		kfree(state);
@@ -678,4 +687,4 @@ EXPORT_SYMBOL_GPL(stv6111_attach);
 
 MODULE_DESCRIPTION("ST STV6111 satellite tuner driver");
 MODULE_AUTHOR("Ralph Metzler, Manfred Voelkel");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

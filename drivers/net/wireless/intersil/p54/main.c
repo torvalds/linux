@@ -27,7 +27,7 @@
 #include "lmac.h"
 
 static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_DESCRIPTION("Softmac Prism54 common code");
@@ -852,12 +852,11 @@ void p54_unregister_common(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 
-#ifdef CONFIG_P54_LEDS
-	p54_unregister_leds(priv);
-#endif /* CONFIG_P54_LEDS */
-
 	if (priv->registered) {
 		priv->registered = false;
+#ifdef CONFIG_P54_LEDS
+		p54_unregister_leds(priv);
+#endif /* CONFIG_P54_LEDS */
 		ieee80211_unregister_hw(dev);
 	}
 

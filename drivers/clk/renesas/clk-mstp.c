@@ -64,13 +64,13 @@ struct mstp_clock {
 static inline u32 cpg_mstp_read(struct mstp_clock_group *group,
 				u32 __iomem *reg)
 {
-	return group->width_8bit ? readb(reg) : clk_readl(reg);
+	return group->width_8bit ? readb(reg) : readl(reg);
 }
 
 static inline void cpg_mstp_write(struct mstp_clock_group *group, u32 val,
 				  u32 __iomem *reg)
 {
-	group->width_8bit ? writeb(val, reg) : clk_writel(val, reg);
+	group->width_8bit ? writeb(val, reg) : writel(val, reg);
 }
 
 static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
@@ -156,10 +156,8 @@ static struct clk * __init cpg_mstp_clock_register(const char *name,
 	struct clk *clk;
 
 	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
-	if (!clock) {
-		pr_err("%s: failed to allocate MSTP clock.\n", __func__);
+	if (!clock)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &cpg_mstp_clock_ops;
@@ -196,7 +194,6 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 	if (group == NULL || clks == NULL) {
 		kfree(group);
 		kfree(clks);
-		pr_err("%s: failed to allocate group\n", __func__);
 		return;
 	}
 
@@ -344,7 +341,7 @@ void __init cpg_mstp_add_clk_domain(struct device_node *np)
 		return;
 
 	pd->name = np->name;
-	pd->flags = GENPD_FLAG_PM_CLK;
+	pd->flags = GENPD_FLAG_PM_CLK | GENPD_FLAG_ACTIVE_WAKEUP;
 	pd->attach_dev = cpg_mstp_attach_dev;
 	pd->detach_dev = cpg_mstp_detach_dev;
 	pm_genpd_init(pd, &pm_domain_always_on_gov, false);

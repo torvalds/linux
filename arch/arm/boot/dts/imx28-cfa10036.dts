@@ -16,7 +16,7 @@
 	model = "Crystalfontz CFA-10036 Board";
 	compatible = "crystalfontz,cfa10036", "fsl,imx28";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x08000000>;
 	};
 
@@ -66,7 +66,7 @@
 
 			};
 
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
 				pinctrl-0 = <&mmc0_4bit_pins_a

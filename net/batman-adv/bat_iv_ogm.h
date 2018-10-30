@@ -1,4 +1,5 @@
-/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -15,11 +16,11 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _BATMAN_ADV_BATADV_IV_OGM_H_
-#define _BATMAN_ADV_BATADV_IV_OGM_H_
+#ifndef _NET_BATMAN_ADV_BAT_IV_OGM_H_
+#define _NET_BATMAN_ADV_BAT_IV_OGM_H_
 
 #include "main.h"
 
 int batadv_iv_init(void);
 
-#endif /* _BATMAN_ADV_BATADV_IV_OGM_H_ */
+#endif /* _NET_BATMAN_ADV_BAT_IV_OGM_H_ */

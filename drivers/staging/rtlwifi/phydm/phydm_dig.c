@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2016  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
@@ -198,7 +187,7 @@ static u8 odm_forbidden_igi_check(void *dm_void, u8 dig_dynamic_min,
 		if ((fa_cnt->cnt_all >
 		     (fa_cnt->cnt_all_pre + (fa_cnt->cnt_all_pre >> 3) +
 		      (fa_cnt->cnt_all_pre >> 4))) &&
-		    (current_igi < dig_tab->pre_ig_value)) {
+		    current_igi < dig_tab->pre_ig_value) {
 			if (dig_tab->large_fa_hit != 3)
 				dig_tab->large_fa_hit++;
 
@@ -319,7 +308,7 @@ void odm_write_dig(void *dm_void, u8 current_igi)
 		     __func__, ODM_REG(IGI_A, dm), ODM_BIT(IGI, dm));
 
 	/* 1 Check initial gain by upper bound */
-	if ((!dig_tab->is_psd_in_progress) && dm->is_linked) {
+	if (!dig_tab->is_psd_in_progress && dm->is_linked) {
 		if (current_igi > dig_tab->rx_gain_range_max) {
 			ODM_RT_TRACE(
 				dm, ODM_COMP_DIG,
@@ -353,7 +342,7 @@ void odm_write_dig(void *dm_void, u8 current_igi)
 
 		/*Add by YuChen for USB IO too slow issue*/
 		if ((dm->support_ability & ODM_BB_ADAPTIVITY) &&
-		    (current_igi > dig_tab->cur_ig_value)) {
+		    current_igi > dig_tab->cur_ig_value) {
 			dig_tab->cur_ig_value = current_igi;
 			phydm_adaptivity(dm);
 		}
@@ -388,7 +377,7 @@ void odm_pause_dig(void *dm_void, enum phydm_pause_type pause_type,
 	ODM_RT_TRACE(dm, ODM_COMP_DIG, "%s()=========> level = %d\n", __func__,
 		     pause_level);
 
-	if ((dig_tab->pause_dig_level == 0) &&
+	if (dig_tab->pause_dig_level == 0 &&
 	    (!(dm->support_ability & ODM_BB_DIG) ||
 	     !(dm->support_ability & ODM_BB_FA_CNT))) {
 		ODM_RT_TRACE(
@@ -490,6 +479,8 @@ void odm_pause_dig(void *dm_void, enum phydm_pause_type pause_type,
 				break;
 		}
 
+		/* pin max_level to be >= 0 */
+		max_level = max_t(s8, 0, max_level);
 		/* write IGI of lower level */
 		odm_write_dig(dm, dig_tab->pause_dig_value[max_level]);
 		ODM_RT_TRACE(dm, ODM_COMP_DIG,
@@ -718,7 +709,7 @@ void odm_DIG(void *dm_void)
 		/* 4 Modify DIG upper bound for 92E, 8723A\B, 8821 & 8812 BT */
 		if ((dm->support_ic_type & (ODM_RTL8192E | ODM_RTL8723B |
 					    ODM_RTL8812 | ODM_RTL8821)) &&
-		    (dm->is_bt_limited_dig == 1)) {
+		    dm->is_bt_limited_dig == 1) {
 			offset = 10;
 			ODM_RT_TRACE(
 				dm, ODM_COMP_DIG,
@@ -817,12 +808,12 @@ void odm_DIG(void *dm_void)
 	if (dm->is_linked && !first_connect) {
 		ODM_RT_TRACE(dm, ODM_COMP_DIG, "Beacon Num (%d)\n",
 			     dm->phy_dbg_info.num_qry_beacon_pkt);
-		if ((dm->phy_dbg_info.num_qry_beacon_pkt < 5) &&
-		    (dm->bsta_state)) {
+		if (dm->phy_dbg_info.num_qry_beacon_pkt < 5 &&
+		    dm->bsta_state) {
 			dig_tab->rx_gain_range_min = 0x1c;
 			ODM_RT_TRACE(
 				dm, ODM_COMP_DIG,
-				"DIG: Abnrormal #beacon (%d) case in STA mode: Force lower bound to 0x%x\n",
+				"DIG: Abnormal #beacon (%d) case in STA mode: Force lower bound to 0x%x\n",
 				dm->phy_dbg_info.num_qry_beacon_pkt,
 				dig_tab->rx_gain_range_min);
 		}
@@ -833,7 +824,7 @@ void odm_DIG(void *dm_void)
 		dig_tab->rx_gain_range_min = dig_tab->rx_gain_range_max;
 		ODM_RT_TRACE(
 			dm, ODM_COMP_DIG,
-			"DIG: Abnrormal lower bound case: Force lower bound to 0x%x\n",
+			"DIG: Abnormal lower bound case: Force lower bound to 0x%x\n",
 			dig_tab->rx_gain_range_min);
 	}
 
@@ -880,9 +871,9 @@ void odm_DIG(void *dm_void)
 				current_igi = current_igi - 2;
 
 			/* 4 Abnormal # beacon case */
-			if ((dm->phy_dbg_info.num_qry_beacon_pkt < 5) &&
-			    (fa_cnt->cnt_all < DM_DIG_FA_TH1) &&
-			    (dm->bsta_state)) {
+			if (dm->phy_dbg_info.num_qry_beacon_pkt < 5 &&
+			    fa_cnt->cnt_all < DM_DIG_FA_TH1 &&
+			    dm->bsta_state) {
 				current_igi = dig_tab->rx_gain_range_min;
 				ODM_RT_TRACE(
 					dm, ODM_COMP_DIG,
@@ -1319,7 +1310,7 @@ void odm_pause_cck_packet_detection(void *dm_void,
 	ODM_RT_TRACE(dm, ODM_COMP_DIG, "%s()=========> level = %d\n", __func__,
 		     pause_level);
 
-	if ((dig_tab->pause_cckpd_level == 0) &&
+	if (dig_tab->pause_cckpd_level == 0 &&
 	    (!(dm->support_ability & ODM_BB_CCK_PD) ||
 	     !(dm->support_ability & ODM_BB_FA_CNT))) {
 		ODM_RT_TRACE(

@@ -31,7 +31,6 @@ Required properties:
 - compatible: Should be "samsung,exynos-sysmmu"
 - reg: A tuple of base address and size of System MMU registers.
 - #iommu-cells: Should be <0>.
-- interrupt-parent: The phandle of the interrupt controller of System MMU
 - interrupts: An interrupt specifier for interrupt signal of System MMU,
 	      according to the format defined by a particular interrupt
 	      controller.
@@ -56,7 +55,7 @@ Examples:
 		iommus = <&sysmmu_gsc0>;
 	};
 
-	sysmmu_gsc0: sysmmu@13E80000 {
+	sysmmu_gsc0: sysmmu@13e80000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x13E80000 0x1000>;
 		interrupt-parent = <&combiner>;

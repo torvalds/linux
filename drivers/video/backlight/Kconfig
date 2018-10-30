@@ -111,22 +111,6 @@ config LCD_HP700
 	  If you have an HP Jornada 700 series handheld (710/720/728)
 	  say Y to enable LCD control driver.
 
-config LCD_S6E63M0
-	tristate "S6E63M0 AMOLED LCD Driver"
-	depends on SPI && BACKLIGHT_CLASS_DEVICE
-	default n
-	help
-	  If you have an S6E63M0 LCD Panel, say Y to enable its
-	  LCD control driver.
-
-config LCD_LD9040
-	tristate "LD9040 AMOLED LCD Driver"
-	depends on SPI && BACKLIGHT_CLASS_DEVICE
-	default n
-	help
-	  If you have an LD9040 Panel, say Y to enable its
-	  control driver.
-
 config LCD_AMS369FG06
 	tristate "AMS369FG06 AMOLED LCD Driver"
 	depends on SPI && BACKLIGHT_CLASS_DEVICE
@@ -149,6 +133,13 @@ config LCD_HX8357
 	help
 	  If you have a HX-8357 LCD panel, say Y to enable its LCD control
 	  driver.
+
+  config LCD_OTM3225A
+  	tristate "ORISE Technology OTM3225A support"
+  	depends on SPI
+  	help
+  	  If you have a panel based on the OTM3225A controller
+  	  chip then say y to include a driver for it.
 
 endif # LCD_CLASS_DEVICE
 
@@ -466,6 +457,12 @@ config BACKLIGHT_ARCXCNN
 	help
 	  If you have an ARCxCnnnn family backlight say Y to enable
 	  the backlight driver.
+
+config BACKLIGHT_RAVE_SP
+	tristate "RAVE SP Backlight driver"
+	depends on RAVE_SP_CORE
+	help
+	  Support for backlight control on RAVE SP device.
 
 endif # BACKLIGHT_CLASS_DEVICE
 

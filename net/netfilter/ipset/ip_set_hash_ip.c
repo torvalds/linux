@@ -123,13 +123,12 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 		return ret;
 
 	ip &= ip_set_hostmask(h->netmask);
+	e.ip = htonl(ip);
+	if (e.ip == 0)
+		return -IPSET_ERR_HASH_ELEM;
 
-	if (adt == IPSET_TEST) {
-		e.ip = htonl(ip);
-		if (e.ip == 0)
-			return -IPSET_ERR_HASH_ELEM;
+	if (adt == IPSET_TEST)
 		return adtfn(set, &e, &ext, &ext, flags);
-	}
 
 	ip_to = ip;
 	if (tb[IPSET_ATTR_IP_TO]) {
@@ -148,16 +147,19 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	hosts = h->netmask == 32 ? 1 : 2 << (32 - h->netmask - 1);
 
-	if (retried)
+	if (retried) {
 		ip = ntohl(h->next.ip);
-	for (; !before(ip_to, ip); ip += hosts) {
 		e.ip = htonl(ip);
-		if (e.ip == 0)
-			return -IPSET_ERR_HASH_ELEM;
+	}
+	for (; ip <= ip_to;) {
 		ret = adtfn(set, &e, &ext, &ext, flags);
-
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;
+
+		ip += hosts;
+		e.ip = htonl(ip);
+		if (e.ip == 0)
+			return 0;
 
 		ret = 0;
 	}

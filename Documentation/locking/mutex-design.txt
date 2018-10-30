@@ -21,37 +21,23 @@ Implementation
 --------------
 
 Mutexes are represented by 'struct mutex', defined in include/linux/mutex.h
-and implemented in kernel/locking/mutex.c. These locks use a three
-state atomic counter (->count) to represent the different possible
-transitions that can occur during the lifetime of a lock:
-
-	  1: unlocked
-	  0: locked, no waiters
-   negative: locked, with potential waiters
-
-In its most basic form it also includes a wait-queue and a spinlock
-that serializes access to it. CONFIG_SMP systems can also include
-a pointer to the lock task owner (->owner) as well as a spinner MCS
-lock (->osq), both described below in (ii).
+and implemented in kernel/locking/mutex.c. These locks use an atomic variable
+(->owner) to keep track of the lock state during its lifetime.  Field owner
+actually contains 'struct task_struct *' to the current lock owner and it is
+therefore NULL if not currently owned. Since task_struct pointers are aligned
+at at least L1_CACHE_BYTES, low bits (3) are used to store extra state (e.g.,
+if waiter list is non-empty).  In its most basic form it also includes a
+wait-queue and a spinlock that serializes access to it. Furthermore,
+CONFIG_MUTEX_SPIN_ON_OWNER=y systems use a spinner MCS lock (->osq), described
+below in (ii).
 
 When acquiring a mutex, there are three possible paths that can be
 taken, depending on the state of the lock:
 
-(i) fastpath: tries to atomically acquire the lock by decrementing the
-    counter. If it was already taken by another task it goes to the next
-    possible path. This logic is architecture specific. On x86-64, the
-    locking fastpath is 2 instructions:
-
-    0000000000000e10 <mutex_lock>:
-    e21:   f0 ff 0b                lock decl (%rbx)
-    e24:   79 08                   jns    e2e <mutex_lock+0x1e>
-
-   the unlocking fastpath is equally tight:
-
-    0000000000000bc0 <mutex_unlock>:
-    bc8:   f0 ff 07                lock incl (%rdi)
-    bcb:   7f 0a                   jg     bd7 <mutex_unlock+0x17>
-
+(i) fastpath: tries to atomically acquire the lock by cmpxchg()ing the owner with
+    the current task. This only works in the uncontended case (cmpxchg() checks
+    against 0UL, so all 3 state bits above have to be 0). If the lock is
+    contended it goes to the next possible path.
 
 (ii) midpath: aka optimistic spinning, tries to spin for acquisition
      while the lock owner is running and there are no other tasks ready
@@ -143,11 +129,10 @@ Test if the mutex is taken:
 Disadvantages
 -------------
 
-Unlike its original design and purpose, 'struct mutex' is larger than
-most locks in the kernel. E.g: on x86-64 it is 40 bytes, almost twice
-as large as 'struct semaphore' (24 bytes) and tied, along with rwsems,
-for the largest lock in the kernel. Larger structure sizes mean more
-CPU cache and memory footprint.
+Unlike its original design and purpose, 'struct mutex' is among the largest
+locks in the kernel. E.g: on x86-64 it is 32 bytes, where 'struct semaphore'
+is 24 bytes and rw_semaphore is 40 bytes. Larger structure sizes mean more CPU
+cache and memory footprint.
 
 When to use mutexes
 -------------------

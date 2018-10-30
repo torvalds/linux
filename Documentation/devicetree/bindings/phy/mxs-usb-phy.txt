@@ -23,7 +23,7 @@ Optional properties:
   the 17.78mA TX reference current. Default: 100
 
 Example:
-usbphy1: usbphy@020c9000 {
+usbphy1: usbphy@20c9000 {
 	compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
 	reg = <0x020c9000 0x1000>;
 	interrupts = <0 44 0x04>;

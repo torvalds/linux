@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SCM_BLK_H
 #define SCM_BLK_H
 
@@ -55,13 +56,7 @@ extern debug_info_t *scm_debug;
 
 static inline void SCM_LOG_HEX(int level, void *data, int length)
 {
-	if (!debug_level_enabled(scm_debug, level))
-		return;
-	while (length > 0) {
-		debug_event(scm_debug, level, data, length);
-		length -= scm_debug->buf_size;
-		data += scm_debug->buf_size;
-	}
+	debug_event(scm_debug, level, data, length);
 }
 
 static inline void SCM_LOG_STATE(int level, struct scm_device *scmdev)

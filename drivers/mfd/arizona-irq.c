@@ -184,6 +184,7 @@ static struct irq_chip arizona_irq_chip = {
 };
 
 static struct lock_class_key arizona_irq_lock_class;
+static struct lock_class_key arizona_irq_request_class;
 
 static int arizona_irq_map(struct irq_domain *h, unsigned int virq,
 			      irq_hw_number_t hw)
@@ -191,7 +192,8 @@ static int arizona_irq_map(struct irq_domain *h, unsigned int virq,
 	struct arizona *data = h->host_data;
 
 	irq_set_chip_data(virq, data);
-	irq_set_lockdep_class(virq, &arizona_irq_lock_class);
+	irq_set_lockdep_class(virq, &arizona_irq_lock_class,
+		&arizona_irq_request_class);
 	irq_set_chip_and_handler(virq, &arizona_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(virq, 1);
 	irq_set_noprobe(virq);

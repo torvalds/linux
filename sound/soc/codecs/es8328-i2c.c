@@ -39,19 +39,12 @@ static int es8328_i2c_probe(struct i2c_client *i2c,
 			devm_regmap_init_i2c(i2c, &es8328_regmap_config));
 }
 
-static int es8328_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_codec(&i2c->dev);
-	return 0;
-}
-
 static struct i2c_driver es8328_i2c_driver = {
 	.driver = {
 		.name		= "es8328",
 		.of_match_table = es8328_of_match,
 	},
 	.probe    = es8328_i2c_probe,
-	.remove   = es8328_i2c_remove,
 	.id_table = es8328_id,
 };
 

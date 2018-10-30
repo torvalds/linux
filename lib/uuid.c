@@ -29,15 +29,14 @@ EXPORT_SYMBOL(uuid_null);
 const u8 guid_index[16] = {3,2,1,0,5,4,7,6,8,9,10,11,12,13,14,15};
 const u8 uuid_index[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
 
-/***************************************************************
+/**
+ * generate_random_uuid - generate a random UUID
+ * @uuid: where to put the generated UUID
+ *
  * Random UUID interface
  *
- * Used here for a Boot ID, but can be useful for other kernel
- * drivers.
- ***************************************************************/
-
-/*
- * Generate random UUID
+ * Used to create a Boot ID or a filesystem UUID/GUID, but can be
+ * useful for other kernel drivers.
  */
 void generate_random_uuid(unsigned char uuid[16])
 {
@@ -73,16 +72,17 @@ void uuid_gen(uuid_t *bu)
 EXPORT_SYMBOL_GPL(uuid_gen);
 
 /**
-  * uuid_is_valid - checks if UUID string valid
-  * @uuid:	UUID string to check
-  *
-  * Description:
-  * It checks if the UUID string is following the format:
-  *	xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-  * where x is a hex digit.
-  *
-  * Return: true if input is valid UUID string.
-  */
+ * uuid_is_valid - checks if a UUID string is valid
+ * @uuid:	UUID string to check
+ *
+ * Description:
+ * It checks if the UUID string is following the format:
+ *	xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ *
+ * where x is a hex digit.
+ *
+ * Return: true if input is valid UUID string.
+ */
 bool uuid_is_valid(const char *uuid)
 {
 	unsigned int i;

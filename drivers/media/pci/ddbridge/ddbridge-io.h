@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ddbridge-io.h: Digital Devices bridge I/O inline functions
  *
@@ -13,7 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
  */
 
 #ifndef __DDBRIDGE_IO_H__
@@ -47,12 +47,12 @@ static inline void ddbwritel(struct ddb *dev, u32 val, u32 adr)
 
 static inline void ddbcpyto(struct ddb *dev, u32 adr, void *src, long count)
 {
-	return memcpy_toio(dev->regs + adr, src, count);
+	memcpy_toio(dev->regs + adr, src, count);
 }
 
 static inline void ddbcpyfrom(struct ddb *dev, void *dst, u32 adr, long count)
 {
-	return memcpy_fromio(dst, dev->regs + adr, count);
+	memcpy_fromio(dst, dev->regs + adr, count);
 }
 
 static inline u32 safe_ddbreadl(struct ddb *dev, u32 adr)

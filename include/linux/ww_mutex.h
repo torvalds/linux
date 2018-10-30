@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Wound/Wait Mutexes: blocking mutual exclusion locks with deadlock avoidance
  *
@@ -5,8 +6,10 @@
  *
  *  Copyright (C) 2004, 2005, 2006 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
  *
- * Wound/wait implementation:
+ * Wait/Die implementation:
  *  Copyright (C) 2013 Canonical Ltd.
+ * Choice of algorithm:
+ *  Copyright (C) 2018 WMWare Inc.
  *
  * This file contains the main data structure and API definitions.
  */
@@ -22,14 +25,17 @@ struct ww_class {
 	struct lock_class_key mutex_key;
 	const char *acquire_name;
 	const char *mutex_name;
+	unsigned int is_wait_die;
 };
 
 struct ww_acquire_ctx {
 	struct task_struct *task;
 	unsigned long stamp;
-	unsigned acquired;
+	unsigned int acquired;
+	unsigned short wounded;
+	unsigned short is_wait_die;
 #ifdef CONFIG_DEBUG_MUTEXES
-	unsigned done_acquire;
+	unsigned int done_acquire;
 	struct ww_class *ww_class;
 	struct ww_mutex *contending_lock;
 #endif
@@ -37,8 +43,8 @@ struct ww_acquire_ctx {
 	struct lockdep_map dep_map;
 #endif
 #ifdef CONFIG_DEBUG_WW_MUTEX_SLOWPATH
-	unsigned deadlock_inject_interval;
-	unsigned deadlock_inject_countdown;
+	unsigned int deadlock_inject_interval;
+	unsigned int deadlock_inject_countdown;
 #endif
 };
 
@@ -57,17 +63,21 @@ struct ww_mutex {
 # define __WW_CLASS_MUTEX_INITIALIZER(lockname, class)
 #endif
 
-#define __WW_CLASS_INITIALIZER(ww_class) \
+#define __WW_CLASS_INITIALIZER(ww_class, _is_wait_die)	    \
 		{ .stamp = ATOMIC_LONG_INIT(0) \
 		, .acquire_name = #ww_class "_acquire" \
-		, .mutex_name = #ww_class "_mutex" }
+		, .mutex_name = #ww_class "_mutex" \
+		, .is_wait_die = _is_wait_die }
 
 #define __WW_MUTEX_INITIALIZER(lockname, class) \
 		{ .base =  __MUTEX_INITIALIZER(lockname.base) \
 		__WW_CLASS_MUTEX_INITIALIZER(lockname, class) }
 
+#define DEFINE_WD_CLASS(classname) \
+	struct ww_class classname = __WW_CLASS_INITIALIZER(classname, 1)
+
 #define DEFINE_WW_CLASS(classname) \
-	struct ww_class classname = __WW_CLASS_INITIALIZER(classname)
+	struct ww_class classname = __WW_CLASS_INITIALIZER(classname, 0)
 
 #define DEFINE_WW_MUTEX(mutexname, ww_class) \
 	struct ww_mutex mutexname = __WW_MUTEX_INITIALIZER(mutexname, ww_class)
@@ -101,7 +111,7 @@ static inline void ww_mutex_init(struct ww_mutex *lock,
  *
  * Context-based w/w mutex acquiring can be done in any order whatsoever within
  * a given lock class. Deadlocks will be detected and handled with the
- * wait/wound logic.
+ * wait/die logic.
  *
  * Mixing of context-based w/w mutex acquiring and single w/w mutex locking can
  * result in undetected deadlocks and is so forbidden. Mixing different contexts
@@ -122,6 +132,8 @@ static inline void ww_acquire_init(struct ww_acquire_ctx *ctx,
 	ctx->task = current;
 	ctx->stamp = atomic_long_inc_return_relaxed(&ww_class->stamp);
 	ctx->acquired = 0;
+	ctx->wounded = false;
+	ctx->is_wait_die = ww_class->is_wait_die;
 #ifdef CONFIG_DEBUG_MUTEXES
 	ctx->ww_class = ww_class;
 	ctx->done_acquire = 0;
@@ -194,13 +206,13 @@ static inline void ww_acquire_fini(struct ww_acquire_ctx *ctx)
  * Lock the w/w mutex exclusively for this task.
  *
  * Deadlocks within a given w/w class of locks are detected and handled with the
- * wait/wound algorithm. If the lock isn't immediately avaiable this function
+ * wait/die algorithm. If the lock isn't immediately available this function
  * will either sleep until it is (wait case). Or it selects the current context
- * for backing off by returning -EDEADLK (wound case). Trying to acquire the
+ * for backing off by returning -EDEADLK (die case). Trying to acquire the
  * same lock with the same context twice is also detected and signalled by
  * returning -EALREADY. Returns 0 if the mutex was successfully acquired.
  *
- * In the wound case the caller must release all currently held w/w mutexes for
+ * In the die case the caller must release all currently held w/w mutexes for
  * the given context and then wait for this contending lock to be available by
  * calling ww_mutex_lock_slow. Alternatively callers can opt to not acquire this
  * lock and proceed with trying to acquire further w/w mutexes (e.g. when
@@ -225,14 +237,14 @@ extern int /* __must_check */ ww_mutex_lock(struct ww_mutex *lock, struct ww_acq
  * Lock the w/w mutex exclusively for this task.
  *
  * Deadlocks within a given w/w class of locks are detected and handled with the
- * wait/wound algorithm. If the lock isn't immediately avaiable this function
+ * wait/die algorithm. If the lock isn't immediately available this function
  * will either sleep until it is (wait case). Or it selects the current context
- * for backing off by returning -EDEADLK (wound case). Trying to acquire the
+ * for backing off by returning -EDEADLK (die case). Trying to acquire the
  * same lock with the same context twice is also detected and signalled by
  * returning -EALREADY. Returns 0 if the mutex was successfully acquired. If a
  * signal arrives while waiting for the lock then this function returns -EINTR.
  *
- * In the wound case the caller must release all currently held w/w mutexes for
+ * In the die case the caller must release all currently held w/w mutexes for
  * the given context and then wait for this contending lock to be available by
  * calling ww_mutex_lock_slow_interruptible. Alternatively callers can opt to
  * not acquire this lock and proceed with trying to acquire further w/w mutexes
@@ -255,7 +267,7 @@ extern int __must_check ww_mutex_lock_interruptible(struct ww_mutex *lock,
  * @lock: the mutex to be acquired
  * @ctx: w/w acquire context
  *
- * Acquires a w/w mutex with the given context after a wound case. This function
+ * Acquires a w/w mutex with the given context after a die case. This function
  * will sleep until the lock becomes available.
  *
  * The caller must have released all w/w mutexes already acquired with the
@@ -289,7 +301,7 @@ ww_mutex_lock_slow(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
  * @lock: the mutex to be acquired
  * @ctx: w/w acquire context
  *
- * Acquires a w/w mutex with the given context after a wound case. This function
+ * Acquires a w/w mutex with the given context after a die case. This function
  * will sleep until the lock becomes available and returns 0 when the lock has
  * been acquired. If a signal arrives while waiting for the lock then this
  * function returns -EINTR.

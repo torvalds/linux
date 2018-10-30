@@ -314,7 +314,7 @@ struct drm_crtc_helper_funcs {
 	 * implementation in drm_atomic_helper_check().
 	 *
 	 * When using drm_atomic_helper_check_planes() this hook is called
-	 * after the &drm_plane_helper_funcs.atomc_check hook for planes, which
+	 * after the &drm_plane_helper_funcs.atomic_check hook for planes, which
 	 * allows drivers to assign shared resources requested by planes in this
 	 * callback here. For more complicated dependencies the driver can call
 	 * the provided check helpers multiple times until the computed state
@@ -785,7 +785,7 @@ struct drm_connector_helper_funcs {
 	 *
 	 * This function should fill in all modes currently valid for the sink
 	 * into the &drm_connector.probed_modes list. It should also update the
-	 * EDID property by calling drm_mode_connector_update_edid_property().
+	 * EDID property by calling drm_connector_update_edid_property().
 	 *
 	 * The usual way to implement this is to cache the EDID retrieved in the
 	 * probe callback somewhere in the driver-private connector structure.
@@ -800,9 +800,6 @@ struct drm_connector_helper_funcs {
 	 * Virtual drivers that just want some standard VESA mode with a given
 	 * resolution can call drm_add_modes_noedid(), and mark the preferred
 	 * one using drm_set_preferred_mode().
-	 *
-	 * Finally drivers that support audio probably want to update the ELD
-	 * data, too, using drm_edid_to_eld().
 	 *
 	 * This function is only called after the @detect hook has indicated
 	 * that a sink is connected and when the EDID isn't overridden through
@@ -977,6 +974,21 @@ struct drm_connector_helper_funcs {
 	 */
 	int (*atomic_check)(struct drm_connector *connector,
 			    struct drm_connector_state *state);
+
+	/**
+	 * @atomic_commit:
+	 *
+	 * This hook is to be used by drivers implementing writeback connectors
+	 * that need a point when to commit the writeback job to the hardware.
+	 * The writeback_job to commit is available in
+	 * &drm_connector_state.writeback_job.
+	 *
+	 * This hook is optional.
+	 *
+	 * This callback is used by the atomic modeset helpers.
+	 */
+	void (*atomic_commit)(struct drm_connector *connector,
+			      struct drm_connector_state *state);
 };
 
 /**
@@ -1007,10 +1019,13 @@ struct drm_plane_helper_funcs {
 	 * This function must not block for outstanding rendering, since it is
 	 * called in the context of the atomic IOCTL even for async commits to
 	 * be able to return any errors to userspace. Instead the recommended
-	 * way is to fill out the fence member of the passed-in
+	 * way is to fill out the &drm_plane_state.fence of the passed-in
 	 * &drm_plane_state. If the driver doesn't support native fences then
 	 * equivalent functionality should be implemented through private
 	 * members in the plane structure.
+	 *
+	 * Drivers which always have their buffers pinned should use
+	 * drm_gem_fb_prepare_fb() for this hook.
 	 *
 	 * The helpers will call @cleanup_fb with matching arguments for every
 	 * successful call to this hook.

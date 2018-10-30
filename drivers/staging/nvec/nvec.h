@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * NVEC: NVIDIA compliant embedded controller interface
  *
@@ -7,11 +8,6 @@
  *           Ilya Petrov <ilya.muromec@gmail.com>
  *           Marc Dietrich <marvin24@gmx.de>
  *           Julian Andres Klode <jak@jak-linux.org>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  */
 
 #ifndef __LINUX_MFD_NVEC
@@ -136,7 +132,7 @@ struct nvec_msg {
  */
 struct nvec_chip {
 	struct device *dev;
-	int gpio;
+	struct gpio_desc *gpiod;
 	int irq;
 	u32 i2c_addr;
 	void __iomem *base;

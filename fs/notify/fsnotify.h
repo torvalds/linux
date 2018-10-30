@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __FS_NOTIFY_FSNOTIFY_H_
 #define __FS_NOTIFY_FSNOTIFY_H_
 
@@ -8,11 +9,23 @@
 
 #include "../mount.h"
 
-struct fsnotify_iter_info {
-	struct fsnotify_mark *inode_mark;
-	struct fsnotify_mark *vfsmount_mark;
-	int srcu_idx;
-};
+static inline struct inode *fsnotify_conn_inode(
+				struct fsnotify_mark_connector *conn)
+{
+	return container_of(conn->obj, struct inode, i_fsnotify_marks);
+}
+
+static inline struct mount *fsnotify_conn_mount(
+				struct fsnotify_mark_connector *conn)
+{
+	return container_of(conn->obj, struct mount, mnt_fsnotify_marks);
+}
+
+static inline struct super_block *fsnotify_conn_sb(
+				struct fsnotify_mark_connector *conn)
+{
+	return container_of(conn->obj, struct super_block, s_fsnotify_marks);
+}
 
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
@@ -24,8 +37,8 @@ extern struct srcu_struct fsnotify_mark_srcu;
 extern int fsnotify_compare_groups(struct fsnotify_group *a,
 				   struct fsnotify_group *b);
 
-/* Destroy all marks connected via given connector */
-extern void fsnotify_destroy_marks(struct fsnotify_mark_connector __rcu **connp);
+/* Destroy all marks attached to an object via connector */
+extern void fsnotify_destroy_marks(fsnotify_connp_t *connp);
 /* run the list of all marks associated with inode and destroy them */
 static inline void fsnotify_clear_marks_by_inode(struct inode *inode)
 {
@@ -35,6 +48,11 @@ static inline void fsnotify_clear_marks_by_inode(struct inode *inode)
 static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 {
 	fsnotify_destroy_marks(&real_mount(mnt)->mnt_fsnotify_marks);
+}
+/* run the list of all marks associated with sb and destroy them */
+static inline void fsnotify_clear_marks_by_sb(struct super_block *sb)
+{
+	fsnotify_destroy_marks(&sb->s_fsnotify_marks);
 }
 /* Wait until all marks queued for destruction are destroyed */
 extern void fsnotify_wait_marks_destroyed(void);

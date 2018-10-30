@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _VBUTIL_
 #define _VBUTIL_
 static inline void xgifb_reg_set(unsigned long port, u8 index, u8 data)

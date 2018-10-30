@@ -339,6 +339,10 @@ enum {
 	PVRDMA_CMD_DESTROY_UC,
 	PVRDMA_CMD_CREATE_BIND,
 	PVRDMA_CMD_DESTROY_BIND,
+	PVRDMA_CMD_CREATE_SRQ,
+	PVRDMA_CMD_MODIFY_SRQ,
+	PVRDMA_CMD_QUERY_SRQ,
+	PVRDMA_CMD_DESTROY_SRQ,
 	PVRDMA_CMD_MAX,
 };
 
@@ -361,6 +365,10 @@ enum {
 	PVRDMA_CMD_DESTROY_UC_RESP_NOOP,
 	PVRDMA_CMD_CREATE_BIND_RESP_NOOP,
 	PVRDMA_CMD_DESTROY_BIND_RESP_NOOP,
+	PVRDMA_CMD_CREATE_SRQ_RESP,
+	PVRDMA_CMD_MODIFY_SRQ_RESP,
+	PVRDMA_CMD_QUERY_SRQ_RESP,
+	PVRDMA_CMD_DESTROY_SRQ_RESP,
 	PVRDMA_CMD_MAX_RESP,
 };
 
@@ -495,6 +503,46 @@ struct pvrdma_cmd_destroy_cq {
 	u8 reserved[4];
 };
 
+struct pvrdma_cmd_create_srq {
+	struct pvrdma_cmd_hdr hdr;
+	u64 pdir_dma;
+	u32 pd_handle;
+	u32 nchunks;
+	struct pvrdma_srq_attr attrs;
+	u8 srq_type;
+	u8 reserved[7];
+};
+
+struct pvrdma_cmd_create_srq_resp {
+	struct pvrdma_cmd_resp_hdr hdr;
+	u32 srqn;
+	u8 reserved[4];
+};
+
+struct pvrdma_cmd_modify_srq {
+	struct pvrdma_cmd_hdr hdr;
+	u32 srq_handle;
+	u32 attr_mask;
+	struct pvrdma_srq_attr attrs;
+};
+
+struct pvrdma_cmd_query_srq {
+	struct pvrdma_cmd_hdr hdr;
+	u32 srq_handle;
+	u8 reserved[4];
+};
+
+struct pvrdma_cmd_query_srq_resp {
+	struct pvrdma_cmd_resp_hdr hdr;
+	struct pvrdma_srq_attr attrs;
+};
+
+struct pvrdma_cmd_destroy_srq {
+	struct pvrdma_cmd_hdr hdr;
+	u32 srq_handle;
+	u8 reserved[4];
+};
+
 struct pvrdma_cmd_create_qp {
 	struct pvrdma_cmd_hdr hdr;
 	u64 pdir_dma;
@@ -594,6 +642,10 @@ union pvrdma_cmd_req {
 	struct pvrdma_cmd_destroy_qp destroy_qp;
 	struct pvrdma_cmd_create_bind create_bind;
 	struct pvrdma_cmd_destroy_bind destroy_bind;
+	struct pvrdma_cmd_create_srq create_srq;
+	struct pvrdma_cmd_modify_srq modify_srq;
+	struct pvrdma_cmd_query_srq query_srq;
+	struct pvrdma_cmd_destroy_srq destroy_srq;
 };
 
 union pvrdma_cmd_resp {
@@ -608,6 +660,8 @@ union pvrdma_cmd_resp {
 	struct pvrdma_cmd_create_qp_resp create_qp_resp;
 	struct pvrdma_cmd_query_qp_resp query_qp_resp;
 	struct pvrdma_cmd_destroy_qp_resp destroy_qp_resp;
+	struct pvrdma_cmd_create_srq_resp create_srq_resp;
+	struct pvrdma_cmd_query_srq_resp query_srq_resp;
 };
 
 #endif /* __PVRDMA_DEV_API_H__ */

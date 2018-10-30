@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_util.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))

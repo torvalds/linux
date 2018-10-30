@@ -27,7 +27,7 @@
  * 2002-07-15 - Fix Stereo typo
  *
  * 2006-07-24 - Converted to V4L2 API
- *		by Mauro Carvalho Chehab <mchehab@infradead.org>
+ *		by Mauro Carvalho Chehab <mchehab@kernel.org>
  *
  * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@cisco.com>
  *

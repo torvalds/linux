@@ -24,6 +24,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -119,7 +120,7 @@ static int cpcap_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	cpcap2rtc_time(tm, &cpcap_tm);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int cpcap_rtc_set_time(struct device *dev, struct rtc_time *tm)

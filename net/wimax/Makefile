@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 obj-$(CONFIG_WIMAX)		+= wimax.o
 
@@ -10,5 +11,3 @@ wimax-y :=		\
 	stack.o
 
 wimax-$(CONFIG_DEBUG_FS) += debugfs.o
-
-

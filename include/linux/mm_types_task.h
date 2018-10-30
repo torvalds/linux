@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MM_TYPES_TASK_H
 #define _LINUX_MM_TYPES_TASK_H
 
@@ -31,7 +32,7 @@
 #define VMACACHE_MASK (VMACACHE_SIZE - 1)
 
 struct vmacache {
-	u32 seqnum;
+	u64 seqnum;
 	struct vm_area_struct *vmas[VMACACHE_SIZE];
 };
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASMARM_BUG_H
 #define _ASMARM_BUG_H
 
@@ -61,8 +62,8 @@ do {								\
 struct pt_regs;
 void die(const char *msg, struct pt_regs *regs, int err);
 
-struct siginfo;
-void arm_notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
+void arm_notify_die(const char *str, struct pt_regs *regs,
+		int signo, int si_code, void __user *addr,
 		unsigned long err, unsigned long trap);
 
 #ifdef CONFIG_ARM_LPAE

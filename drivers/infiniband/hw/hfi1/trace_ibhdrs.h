@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -96,13 +96,14 @@ __print_symbolic(opcode,                                   \
 	ib_opcode_name(CNP))
 
 u8 ibhdr_exhdr_len(struct ib_header *hdr);
-const char *parse_everbs_hdrs(struct trace_seq *p, u8 opcode, void *ehdrs);
+const char *parse_everbs_hdrs(struct trace_seq *p, u8 opcode,
+			      u8 l4, u32 dest_qpn, u32 src_qpn,
+			      void *ehdrs);
 u8 hfi1_trace_opa_hdr_len(struct hfi1_opa_header *opah);
 u8 hfi1_trace_packet_hdr_len(struct hfi1_packet *packet);
-const char *hfi1_trace_get_packet_type_str(u8 l4);
-const char *hfi1_trace_get_packet_str(struct hfi1_packet *packet);
+const char *hfi1_trace_get_packet_l4_str(u8 l4);
 void hfi1_trace_parse_9b_bth(struct ib_other_headers *ohdr,
-			     u8 *ack, u8 *becn, u8 *fecn, u8 *mig,
+			     u8 *ack, bool *becn, bool *fecn, u8 *mig,
 			     u8 *se, u8 *pad, u8 *opcode, u8 *tver,
 			     u16 *pkey, u32 *psn, u32 *qpn);
 void hfi1_trace_parse_9b_hdr(struct ib_header *hdr, bool sc5,
@@ -113,31 +114,33 @@ void hfi1_trace_parse_16b_bth(struct ib_other_headers *ohdr,
 			      u8 *pad, u8 *se, u8 *tver,
 			      u32 *psn, u32 *qpn);
 void hfi1_trace_parse_16b_hdr(struct hfi1_16b_header *hdr,
-			      u8 *age, u8 *becn, u8 *fecn,
+			      u8 *age, bool *becn, bool *fecn,
 			      u8 *l4, u8 *rc, u8 *sc,
 			      u16 *entropy, u16 *len, u16 *pkey,
 			      u32 *dlid, u32 *slid);
 
 const char *hfi1_trace_fmt_lrh(struct trace_seq *p, bool bypass,
-			       u8 age, u8 becn, u8 fecn, u8 l4,
+			       u8 age, bool becn, bool fecn, u8 l4,
 			       u8 lnh, const char *lnh_name, u8 lver,
 			       u8 rc, u8 sc, u8 sl, u16 entropy,
 			       u16 len, u16 pkey, u32 dlid, u32 slid);
 
-const char *hfi1_trace_fmt_bth(struct trace_seq *p, bool bypass,
-			       u8 ack, u8 becn, u8 fecn, u8 mig,
-			       u8 se, u8 pad, u8 opcode, const char *opname,
-			       u8 tver, u16 pkey, u32 psn, u32 qpn);
+const char *hfi1_trace_fmt_rest(struct trace_seq *p, bool bypass, u8 l4,
+				u8 ack, bool becn, bool fecn, u8 mig,
+				u8 se, u8 pad, u8 opcode, const char *opname,
+				u8 tver, u16 pkey, u32 psn, u32 qpn,
+				u32 dest_qpn, u32 src_qpn);
 
-#define __parse_ib_ehdrs(op, ehdrs) parse_everbs_hdrs(p, op, ehdrs)
+const char *hfi1_trace_get_packet_l2_str(u8 l2);
+
+#define __parse_ib_ehdrs(op, l4, dest_qpn, src_qpn, ehdrs) \
+			 parse_everbs_hdrs(p, op, l4, dest_qpn, src_qpn, ehdrs)
 
 #define lrh_name(lrh) { HFI1_##lrh, #lrh }
 #define show_lnh(lrh)                    \
 __print_symbolic(lrh,                    \
 	lrh_name(LRH_BTH),               \
 	lrh_name(LRH_GRH))
-#define PKT_ENTRY(pkt)	__string(ptype,  hfi1_trace_get_packet_str(packet))
-#define PKT_ASSIGN(pkt) __assign_str(ptype, hfi1_trace_get_packet_str(packet))
 
 DECLARE_EVENT_CLASS(hfi1_input_ibhdr_template,
 		    TP_PROTO(struct hfi1_devdata *dd,
@@ -146,12 +149,12 @@ DECLARE_EVENT_CLASS(hfi1_input_ibhdr_template,
 		    TP_ARGS(dd, packet, sc5),
 		    TP_STRUCT__entry(
 			DD_DEV_ENTRY(dd)
-			PKT_ENTRY(packet)
-			__field(bool, bypass)
+			__field(u8, etype)
 			__field(u8, ack)
 			__field(u8, age)
-			__field(u8, becn)
-			__field(u8, fecn)
+			__field(bool, becn)
+			__field(bool, fecn)
+			__field(u8, l2)
 			__field(u8, l4)
 			__field(u8, lnh)
 			__field(u8, lver)
@@ -170,16 +173,20 @@ DECLARE_EVENT_CLASS(hfi1_input_ibhdr_template,
 			__field(u32, psn)
 			__field(u32, qpn)
 			__field(u32, slid)
+			__field(u32, dest_qpn)
+			__field(u32, src_qpn)
 			/* extended headers */
 			__dynamic_array(u8, ehdrs,
 					hfi1_trace_packet_hdr_len(packet))
 			),
 		    TP_fast_assign(
 			DD_DEV_ASSIGN(dd);
-			PKT_ASSIGN(packet);
 
-			if (packet->etype == RHF_RCV_TYPE_BYPASS) {
-				__entry->bypass = true;
+			__entry->etype = packet->etype;
+			__entry->l2 = hfi1_16B_get_l2(packet->hdr);
+			__entry->dest_qpn = 0;
+			__entry->src_qpn = 0;
+			if (__entry->etype == RHF_RCV_TYPE_BYPASS) {
 				hfi1_trace_parse_16b_hdr(packet->hdr,
 							 &__entry->age,
 							 &__entry->becn,
@@ -193,17 +200,23 @@ DECLARE_EVENT_CLASS(hfi1_input_ibhdr_template,
 							 &__entry->dlid,
 							 &__entry->slid);
 
-				  hfi1_trace_parse_16b_bth(packet->ohdr,
-							   &__entry->ack,
-							   &__entry->mig,
-							   &__entry->opcode,
-							   &__entry->pad,
-							   &__entry->se,
-							   &__entry->tver,
-							   &__entry->psn,
-							   &__entry->qpn);
+				if (__entry->l4 == OPA_16B_L4_FM) {
+					__entry->opcode = IB_OPCODE_UD_SEND_ONLY;
+					__entry->dest_qpn = hfi1_16B_get_dest_qpn(packet->mgmt);
+					__entry->src_qpn = hfi1_16B_get_src_qpn(packet->mgmt);
+				}  else {
+					hfi1_trace_parse_16b_bth(packet->ohdr,
+								 &__entry->ack,
+								 &__entry->mig,
+								 &__entry->opcode,
+								 &__entry->pad,
+								 &__entry->se,
+								 &__entry->tver,
+								 &__entry->psn,
+								 &__entry->qpn);
+				}
 			} else {
-				__entry->bypass = false;
+				__entry->l4 = OPA_16B_L4_9B;
 				hfi1_trace_parse_9b_hdr(packet->hdr, sc5,
 							&__entry->lnh,
 							&__entry->lver,
@@ -225,17 +238,22 @@ DECLARE_EVENT_CLASS(hfi1_input_ibhdr_template,
 							  &__entry->pkey,
 							  &__entry->psn,
 							  &__entry->qpn);
-				}
-				/* extended headers */
+			}
+			/* extended headers */
+			if (__entry->l4 != OPA_16B_L4_FM)
 				memcpy(__get_dynamic_array(ehdrs),
 				       &packet->ohdr->u,
 				       __get_dynamic_array_len(ehdrs));
 			 ),
 		    TP_printk("[%s] (%s) %s %s hlen:%d %s",
 			      __get_str(dev),
-			      __get_str(ptype),
+			      __entry->etype != RHF_RCV_TYPE_BYPASS ?
+					show_packettype(__entry->etype) :
+					hfi1_trace_get_packet_l2_str(
+						__entry->l2),
 			      hfi1_trace_fmt_lrh(p,
-						 __entry->bypass,
+						 __entry->etype ==
+							RHF_RCV_TYPE_BYPASS,
 						 __entry->age,
 						 __entry->becn,
 						 __entry->fecn,
@@ -251,24 +269,31 @@ DECLARE_EVENT_CLASS(hfi1_input_ibhdr_template,
 						 __entry->pkey,
 						 __entry->dlid,
 						 __entry->slid),
-			      hfi1_trace_fmt_bth(p,
-						 __entry->bypass,
-						 __entry->ack,
-						 __entry->becn,
-						 __entry->fecn,
-						 __entry->mig,
-						 __entry->se,
-						 __entry->pad,
-						 __entry->opcode,
-						 show_ib_opcode(__entry->opcode),
-						 __entry->tver,
-						 __entry->pkey,
-						 __entry->psn,
-						 __entry->qpn),
+			      hfi1_trace_fmt_rest(p,
+						  __entry->etype ==
+							RHF_RCV_TYPE_BYPASS,
+						  __entry->l4,
+						  __entry->ack,
+						  __entry->becn,
+						  __entry->fecn,
+						  __entry->mig,
+						  __entry->se,
+						  __entry->pad,
+						  __entry->opcode,
+						  show_ib_opcode(__entry->opcode),
+						  __entry->tver,
+						  __entry->pkey,
+						  __entry->psn,
+						  __entry->qpn,
+						  __entry->dest_qpn,
+						  __entry->src_qpn),
 			      /* extended headers */
 			      __get_dynamic_array_len(ehdrs),
 			      __parse_ib_ehdrs(
 					__entry->opcode,
+					__entry->l4,
+					__entry->dest_qpn,
+					__entry->src_qpn,
 					(void *)__get_dynamic_array(ehdrs))
 			     )
 );
@@ -284,11 +309,11 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 		    TP_ARGS(dd, opah, sc5),
 		    TP_STRUCT__entry(
 			DD_DEV_ENTRY(dd)
-			__field(bool, bypass)
+			__field(u8, hdr_type)
 			__field(u8, ack)
 			__field(u8, age)
-			__field(u8, becn)
-			__field(u8, fecn)
+			__field(bool, becn)
+			__field(bool, fecn)
 			__field(u8, l4)
 			__field(u8, lnh)
 			__field(u8, lver)
@@ -307,6 +332,8 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 			__field(u32, psn)
 			__field(u32, qpn)
 			__field(u32, slid)
+			__field(u32, dest_qpn)
+			__field(u32, src_qpn)
 			/* extended headers */
 			__dynamic_array(u8, ehdrs,
 					hfi1_trace_opa_hdr_len(opah))
@@ -316,8 +343,10 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 
 			DD_DEV_ASSIGN(dd);
 
-			if (opah->hdr_type)  {
-				__entry->bypass = true;
+			__entry->hdr_type = opah->hdr_type;
+			__entry->dest_qpn = 0;
+			__entry->src_qpn = 0;
+			if (__entry->hdr_type)  {
 				hfi1_trace_parse_16b_hdr(&opah->opah,
 							 &__entry->age,
 							 &__entry->becn,
@@ -331,21 +360,28 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 							 &__entry->dlid,
 							 &__entry->slid);
 
-				if (entry->l4 == OPA_16B_L4_IB_LOCAL)
-					ohdr = &opah->opah.u.oth;
-				else
-					ohdr = &opah->opah.u.l.oth;
-				hfi1_trace_parse_16b_bth(ohdr,
-							 &__entry->ack,
-							 &__entry->mig,
-							 &__entry->opcode,
-							 &__entry->pad,
-							 &__entry->se,
-							 &__entry->tver,
-							 &__entry->psn,
-							 &__entry->qpn);
+				if (__entry->l4 == OPA_16B_L4_FM) {
+					ohdr = NULL;
+					__entry->opcode = IB_OPCODE_UD_SEND_ONLY;
+					__entry->dest_qpn = hfi1_16B_get_dest_qpn(&opah->opah.u.mgmt);
+					__entry->src_qpn = hfi1_16B_get_src_qpn(&opah->opah.u.mgmt);
+				} else {
+					if (__entry->l4 == OPA_16B_L4_IB_LOCAL)
+						ohdr = &opah->opah.u.oth;
+					else
+						ohdr = &opah->opah.u.l.oth;
+					hfi1_trace_parse_16b_bth(ohdr,
+								 &__entry->ack,
+								 &__entry->mig,
+								 &__entry->opcode,
+								 &__entry->pad,
+								 &__entry->se,
+								 &__entry->tver,
+								 &__entry->psn,
+								 &__entry->qpn);
+				}
 			} else {
-				__entry->bypass = false;
+				__entry->l4 = OPA_16B_L4_9B;
 				hfi1_trace_parse_9b_hdr(&opah->ibh, sc5,
 							&__entry->lnh,
 							&__entry->lver,
@@ -354,7 +390,7 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 							&__entry->len,
 							&__entry->dlid,
 							&__entry->slid);
-				if (entry->lnh == HFI1_LRH_BTH)
+				if (__entry->lnh == HFI1_LRH_BTH)
 					ohdr = &opah->ibh.u.oth;
 				else
 					ohdr = &opah->ibh.u.l.oth;
@@ -373,14 +409,15 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 			}
 
 			/* extended headers */
-			memcpy(__get_dynamic_array(ehdrs),
-			       &ohdr->u, __get_dynamic_array_len(ehdrs));
+			if (__entry->l4 != OPA_16B_L4_FM)
+				memcpy(__get_dynamic_array(ehdrs),
+				       &ohdr->u, __get_dynamic_array_len(ehdrs));
 		    ),
 		    TP_printk("[%s] (%s) %s %s hlen:%d %s",
 			      __get_str(dev),
-			      hfi1_trace_get_packet_type_str(__entry->l4),
+			      hfi1_trace_get_packet_l4_str(__entry->l4),
 			      hfi1_trace_fmt_lrh(p,
-						 __entry->bypass,
+						 !!__entry->hdr_type,
 						 __entry->age,
 						 __entry->becn,
 						 __entry->fecn,
@@ -396,24 +433,30 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 						 __entry->pkey,
 						 __entry->dlid,
 						 __entry->slid),
-			      hfi1_trace_fmt_bth(p,
-						 __entry->bypass,
-						 __entry->ack,
-						 __entry->becn,
-						 __entry->fecn,
-						 __entry->mig,
-						 __entry->se,
-						 __entry->pad,
-						 __entry->opcode,
-						 show_ib_opcode(__entry->opcode),
-						 __entry->tver,
-						 __entry->pkey,
-						 __entry->psn,
-						 __entry->qpn),
+			      hfi1_trace_fmt_rest(p,
+						  !!__entry->hdr_type,
+						  __entry->l4,
+						  __entry->ack,
+						  __entry->becn,
+						  __entry->fecn,
+						  __entry->mig,
+						  __entry->se,
+						  __entry->pad,
+						  __entry->opcode,
+						  show_ib_opcode(__entry->opcode),
+						  __entry->tver,
+						  __entry->pkey,
+						  __entry->psn,
+						  __entry->qpn,
+						  __entry->dest_qpn,
+						  __entry->src_qpn),
 			      /* extended headers */
 			      __get_dynamic_array_len(ehdrs),
 			      __parse_ib_ehdrs(
 					__entry->opcode,
+					__entry->l4,
+					__entry->dest_qpn,
+					__entry->src_qpn,
 					(void *)__get_dynamic_array(ehdrs))
 			     )
 );

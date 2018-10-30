@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _TOOLS_LINUX_ASM_X86_BARRIER_H
 #define _TOOLS_LINUX_ASM_X86_BARRIER_H
 
@@ -25,4 +26,18 @@
 #define wmb()	asm volatile("sfence" ::: "memory")
 #endif
 
+#if defined(__x86_64__)
+#define smp_store_release(p, v)			\
+do {						\
+	barrier();				\
+	WRITE_ONCE(*p, v);			\
+} while (0)
+
+#define smp_load_acquire(p)			\
+({						\
+	typeof(*p) ___p1 = READ_ONCE(*p);	\
+	barrier();				\
+	___p1;					\
+})
+#endif /* defined(__x86_64__) */
 #endif /* _TOOLS_LINUX_ASM_X86_BARRIER_H */

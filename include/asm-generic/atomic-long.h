@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_GENERIC_ATOMIC_LONG_H
 #define _ASM_GENERIC_ATOMIC_LONG_H
 /*
@@ -24,6 +25,7 @@ typedef atomic64_t atomic_long_t;
 
 #define ATOMIC_LONG_INIT(i)	ATOMIC64_INIT(i)
 #define ATOMIC_LONG_PFX(x)	atomic64 ## x
+#define ATOMIC_LONG_TYPE	s64
 
 #else
 
@@ -31,6 +33,7 @@ typedef atomic_t atomic_long_t;
 
 #define ATOMIC_LONG_INIT(i)	ATOMIC_INIT(i)
 #define ATOMIC_LONG_PFX(x)	atomic ## x
+#define ATOMIC_LONG_TYPE	int
 
 #endif
 
@@ -88,6 +91,21 @@ ATOMIC_LONG_ADD_SUB_OP(sub, _release)
 					   (old), (new)))
 #define atomic_long_cmpxchg(l, old, new) \
 	(ATOMIC_LONG_PFX(_cmpxchg)((ATOMIC_LONG_PFX(_t) *)(l), (old), (new)))
+
+
+#define atomic_long_try_cmpxchg_relaxed(l, old, new) \
+	(ATOMIC_LONG_PFX(_try_cmpxchg_relaxed)((ATOMIC_LONG_PFX(_t) *)(l), \
+					   (ATOMIC_LONG_TYPE *)(old), (ATOMIC_LONG_TYPE)(new)))
+#define atomic_long_try_cmpxchg_acquire(l, old, new) \
+	(ATOMIC_LONG_PFX(_try_cmpxchg_acquire)((ATOMIC_LONG_PFX(_t) *)(l), \
+					   (ATOMIC_LONG_TYPE *)(old), (ATOMIC_LONG_TYPE)(new)))
+#define atomic_long_try_cmpxchg_release(l, old, new) \
+	(ATOMIC_LONG_PFX(_try_cmpxchg_release)((ATOMIC_LONG_PFX(_t) *)(l), \
+					   (ATOMIC_LONG_TYPE *)(old), (ATOMIC_LONG_TYPE)(new)))
+#define atomic_long_try_cmpxchg(l, old, new) \
+	(ATOMIC_LONG_PFX(_try_cmpxchg)((ATOMIC_LONG_PFX(_t) *)(l), \
+				       (ATOMIC_LONG_TYPE *)(old), (ATOMIC_LONG_TYPE)(new)))
+
 
 #define atomic_long_xchg_relaxed(v, new) \
 	(ATOMIC_LONG_PFX(_xchg_relaxed)((ATOMIC_LONG_PFX(_t) *)(v), (new)))
@@ -242,5 +260,10 @@ static inline long atomic_long_add_unless(atomic_long_t *l, long a, long u)
 
 #define atomic_long_inc_not_zero(l) \
 	ATOMIC_LONG_PFX(_inc_not_zero)((ATOMIC_LONG_PFX(_t) *)(l))
+
+#define atomic_long_cond_read_relaxed(v, c) \
+	ATOMIC_LONG_PFX(_cond_read_relaxed)((ATOMIC_LONG_PFX(_t) *)(v), (c))
+#define atomic_long_cond_read_acquire(v, c) \
+	ATOMIC_LONG_PFX(_cond_read_acquire)((ATOMIC_LONG_PFX(_t) *)(v), (c))
 
 #endif  /*  _ASM_GENERIC_ATOMIC_LONG_H  */

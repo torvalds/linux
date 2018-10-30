@@ -1,16 +1,20 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: Kretprobe dynamic event with arguments
 
 [ -f kprobe_events ] || exit_unsupported # this is configurable
 
-echo 0 > events/enable
-echo > kprobe_events
+# Add new kretprobe event
 echo 'r:testprobe2 _do_fork $retval' > kprobe_events
-grep testprobe2 kprobe_events
+grep testprobe2 kprobe_events | grep -q 'arg1=\$retval'
 test -d events/kprobes/testprobe2
+
 echo 1 > events/kprobes/testprobe2/enable
 ( echo "forked")
+
+cat trace | grep testprobe2 | grep -q '<- _do_fork'
+
 echo 0 > events/kprobes/testprobe2/enable
 echo '-:testprobe2' >> kprobe_events
 clear_trace
-test -d events/kprobes/testprobe2 && exit 1 || exit 0
+test -d events/kprobes/testprobe2 && exit_fail || exit_pass

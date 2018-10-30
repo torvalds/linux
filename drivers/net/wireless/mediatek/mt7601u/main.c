@@ -64,6 +64,9 @@ static int mt7601u_add_interface(struct ieee80211_hw *hw,
 	 */
 	mvif->idx = idx;
 
+	if (!ether_addr_equal(dev->macaddr, vif->addr))
+		mt7601u_set_macaddr(dev, vif->addr);
+
 	if (dev->wcid_mask[wcid / BITS_PER_LONG] & BIT(wcid % BITS_PER_LONG))
 		return -ENOSPC;
 	dev->wcid_mask[wcid / BITS_PER_LONG] |= BIT(wcid % BITS_PER_LONG);
@@ -285,6 +288,12 @@ mt7601u_sw_scan_complete(struct ieee80211_hw *hw,
 
 	mt7601u_agc_restore(dev);
 	clear_bit(MT7601U_STATE_SCANNING, &dev->state);
+
+	ieee80211_queue_delayed_work(dev->hw, &dev->cal_work,
+				     MT_CALIBRATE_INTERVAL);
+	if (dev->freq_cal.enabled)
+		ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work,
+					     MT_FREQ_CAL_INIT_DELAY);
 }
 
 static int
@@ -298,6 +307,17 @@ mt7601u_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct mt76_wcid *wcid = msta ? &msta->wcid : &mvif->group_wcid;
 	int idx = key->keyidx;
 	int ret;
+
+	/* fall back to sw encryption for unsupported ciphers */
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	if (cmd == SET_KEY) {
 		key->hw_key_idx = wcid->idx;

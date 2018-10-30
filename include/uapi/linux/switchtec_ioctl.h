@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Microsemi Switchtec PCIe Driver
  * Copyright (c) 2017, Microsemi Corporation
@@ -87,7 +88,8 @@ struct switchtec_ioctl_event_summary {
 #define SWITCHTEC_IOCTL_EVENT_FORCE_SPEED		26
 #define SWITCHTEC_IOCTL_EVENT_CREDIT_TIMEOUT		27
 #define SWITCHTEC_IOCTL_EVENT_LINK_STATE		28
-#define SWITCHTEC_IOCTL_MAX_EVENTS			29
+#define SWITCHTEC_IOCTL_EVENT_GFMS			29
+#define SWITCHTEC_IOCTL_MAX_EVENTS			30
 
 #define SWITCHTEC_IOCTL_EVENT_LOCAL_PART_IDX -1
 #define SWITCHTEC_IOCTL_EVENT_IDX_ALL -2

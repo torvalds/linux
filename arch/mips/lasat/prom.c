@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PROM interface routines.
  */
@@ -12,6 +13,7 @@
 #include <asm/bootinfo.h>
 #include <asm/lasat/lasat.h>
 #include <asm/cpu.h>
+#include <asm/setup.h>
 
 #include "at93c.h"
 #include <asm/lasat/eeprom.h>

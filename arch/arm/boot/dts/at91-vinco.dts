@@ -128,7 +128,7 @@
 			i2c2: i2c@f8024000 {
 				status = "okay";
 
-				rtc1: rtc@64 {
+				rtc1: rtc@32 {
 					compatible = "epson,rx8900";
 					reg = <0x32>;
 				};
@@ -149,6 +149,18 @@
 				pinctrl-0 = <&pinctrl_usart4 &pinctrl_usart4_rts>;
 				linux,rs485-enabled-at-boot-time;
 				status = "okay";
+			};
+
+			tcb2: timer@fc024000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
 			};
 
 			macb1: ethernet@fc028000 {
@@ -180,14 +192,14 @@
 			};
 		};
 
-		usb0: gadget@00400000 {
+		usb0: gadget@400000 {
 			atmel,vbus-gpio = <&pioE 31 GPIO_ACTIVE_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usba_vbus>;
 			status = "disable";
 		};
 
-		usb1: ohci@00500000 {
+		usb1: ohci@500000 {
 			num-ports = <3>;
 			atmel,vbus-gpio = <0
 					   &pioE 11 GPIO_ACTIVE_LOW
@@ -196,7 +208,7 @@
 			status = "disable";
 		};
 
-		usb2: ehci@00600000 {
+		usb2: ehci@600000 {
 			/* 4G Modem */
 			status = "okay";
 		};

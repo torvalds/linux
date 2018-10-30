@@ -23,7 +23,7 @@ The primary means of communicating with the Switchtec management firmware is
 through the Memory-mapped Remote Procedure Call (MRPC) interface.
 Commands are submitted to the interface with a 4-byte command
 identifier and up to 1KB of command specific data. The firmware will
-respond with a 4 bytes return code and up to 1KB of command specific
+respond with a 4-byte return code and up to 1KB of command-specific
 data. The interface only processes a single command at a time.
 
 
@@ -36,8 +36,8 @@ device: /dev/switchtec#, one for each management endpoint in the system.
 The char device has the following semantics:
 
 * A write must consist of at least 4 bytes and no more than 1028 bytes.
-  The first four bytes will be interpreted as the command to run and
-  the remainder will be used as the input data. A write will send the
+  The first 4 bytes will be interpreted as the Command ID and the
+  remainder will be used as the input data. A write will send the
   command to the firmware to begin processing.
 
 * Each write must be followed by exactly one read. Any double write will
@@ -45,9 +45,9 @@ The char device has the following semantics:
   produce an error.
 
 * A read will block until the firmware completes the command and return
-  the four bytes of status plus up to 1024 bytes of output data. (The
-  length will be specified by the size parameter of the read call --
-  reading less than 4 bytes will produce an error.
+  the 4-byte Command Return Value plus up to 1024 bytes of output
+  data. (The length will be specified by the size parameter of the read
+  call -- reading less than 4 bytes will produce an error.)
 
 * The poll call will also be supported for userspace applications that
   need to do other things while waiting for the command to complete.
@@ -78,3 +78,25 @@ The following IOCTLs are also supported by the device:
   between PCI Function Framework number (used by the event system)
   and Switchtec Logic Port ID and Partition number (which is more
   user friendly).
+
+
+Non-Transparent Bridge (NTB) Driver
+===================================
+
+An NTB hardware driver is provided for the Switchtec hardware in
+ntb_hw_switchtec. Currently, it only supports switches configured with
+exactly 2 NT partitions and zero or more non-NT partitions. It also requires
+the following configuration settings:
+
+* Both NT partitions must be able to access each other's GAS spaces.
+  Thus, the bits in the GAS Access Vector under Management Settings
+  must be set to support this.
+* Kernel configuration MUST include support for NTB (CONFIG_NTB needs
+  to be set)
+
+NT EP BAR 2 will be dynamically configured as a Direct Window, and
+the configuration file does not need to configure it explicitly.
+
+Please refer to Documentation/ntb.txt in Linux source tree for an overall
+understanding of the Linux NTB stack. ntb_hw_switchtec works as an NTB
+Hardware Driver in this stack.

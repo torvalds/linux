@@ -15,50 +15,71 @@
 	compatible = "st,stih410-b2260", "st,stih410";
 
 	chosen {
-		bootargs = "console=ttyAS1,115200 clk_ignore_unused";
-		linux,stdout-path = &uart1;
+		bootargs = "clk_ignore_unused";
+		stdout-path = &uart1;
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x40000000>;
 	};
 
 	aliases {
-		ttyAS1 = &uart1;
+		serial1 = &uart1;
 		ethernet0 = &ethernet0;
 	};
 
-	soc {
-
-		leds {
-			compatible = "gpio-leds";
-			user_green_1 {
-				label = "User_green_1";
-				gpios = <&pio1 3 GPIO_ACTIVE_LOW>;
-				linux,default-trigger = "heartbeat";
-				default-state = "off";
-			};
-
-			user_green_2 {
-				label = "User_green_2";
-				gpios = <&pio4 1 GPIO_ACTIVE_LOW>;
-				default-state = "off";
-			};
-
-			user_green_3 {
-				label = "User_green_3";
-				gpios = <&pio2 1 GPIO_ACTIVE_LOW>;
-				default-state = "off";
-			};
-
-			user_green_4 {
-				label = "User_green_4";
-				gpios = <&pio2 5 GPIO_ACTIVE_LOW>;
-				default-state = "off";
-			};
+	leds {
+		compatible = "gpio-leds";
+		user_green_1 {
+			label = "User_green_1";
+			gpios = <&pio1 3 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
 		};
 
+		user_green_2 {
+			label = "User_green_2";
+			gpios = <&pio4 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		user_green_3 {
+			label = "User_green_3";
+			gpios = <&pio2 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		user_green_4 {
+			label = "User_green_4";
+			gpios = <&pio2 5 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+
+	sound: sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "STI-B2260";
+		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		simple-audio-card,dai-link@0 {
+			reg = <0>;
+			/* DAC */
+			format = "i2s";
+			mclk-fs = <128>;
+			cpu {
+				sound-dai = <&sti_uni_player0>;
+			};
+
+			codec {
+				sound-dai = <&sti_hdmi>;
+			};
+		};
+	};
+
+	soc {
 		/* Low speed expansion connector */
 		uart0: serial@9830000 {
 			label = "LS-UART0";
@@ -109,14 +130,14 @@
 			status = "okay";
 		};
 
-		mmc0: sdhci@09060000 {
+		mmc0: sdhci@9060000 {
 			pinctrl-0 = <&pinctrl_sd0>;
 			bus-width = <4>;
 			status = "okay";
 		};
 
 		/* high speed expansion connector */
-		mmc1: sdhci@09080000 {
+		mmc1: sdhci@9080000 {
 			status = "okay";
 		};
 
@@ -128,11 +149,11 @@
 			status = "okay";
 		};
 
-		usb2_picophy1: phy2 {
+		usb2_picophy1: phy2@0 {
 			status = "okay";
 		};
 
-		usb2_picophy2: phy3 {
+		usb2_picophy2: phy3@0 {
 			status = "okay";
 		};
 
@@ -182,26 +203,7 @@
 			status = "okay";
 		};
 
-		sound {
-			compatible = "simple-audio-card";
-			simple-audio-card,name = "STI-B2260";
-			status = "okay";
-
-			simple-audio-card,dai-link@0 {
-				/* DAC */
-				format = "i2s";
-				mclk-fs = <128>;
-				cpu {
-					sound-dai = <&sti_uni_player0>;
-				};
-
-				codec {
-					sound-dai = <&sti_hdmi>;
-				};
-			};
-		};
-
-		miphy28lp_phy: miphy28lp@9b22000 {
+		miphy28lp_phy: miphy28lp@0 {
 
 			phy_port1: port@9b2a000 {
 				st,osc-force-ext;

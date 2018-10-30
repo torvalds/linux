@@ -210,9 +210,9 @@ static irqreturn_t locomokbd_interrupt(int irq, void *dev_id)
 /*
  * LoCoMo timer checking for released keys
  */
-static void locomokbd_timer_callback(unsigned long data)
+static void locomokbd_timer_callback(struct timer_list *t)
 {
-	struct locomokbd *locomokbd = (struct locomokbd *) data;
+	struct locomokbd *locomokbd = from_timer(locomokbd, t, timer);
 
 	locomokbd_scankeyboard(locomokbd);
 }
@@ -264,8 +264,7 @@ static int locomokbd_probe(struct locomo_dev *dev)
 
 	spin_lock_init(&locomokbd->lock);
 
-	setup_timer(&locomokbd->timer, locomokbd_timer_callback,
-		    (unsigned long)locomokbd);
+	timer_setup(&locomokbd->timer, locomokbd_timer_callback, 0);
 
 	locomokbd->suspend_jiffies = jiffies;
 

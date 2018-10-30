@@ -21,7 +21,7 @@
 #ifndef E4000_H
 #define E4000_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /*
  * I2C address

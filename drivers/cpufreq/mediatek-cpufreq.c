@@ -310,28 +310,8 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 static void mtk_cpufreq_ready(struct cpufreq_policy *policy)
 {
 	struct mtk_cpu_dvfs_info *info = policy->driver_data;
-	struct device_node *np = of_node_get(info->cpu_dev->of_node);
-	u32 capacitance = 0;
 
-	if (WARN_ON(!np))
-		return;
-
-	if (of_find_property(np, "#cooling-cells", NULL)) {
-		of_property_read_u32(np, DYNAMIC_POWER, &capacitance);
-
-		info->cdev = of_cpufreq_power_cooling_register(np,
-						policy, capacitance, NULL);
-
-		if (IS_ERR(info->cdev)) {
-			dev_err(info->cpu_dev,
-				"running cpufreq without cooling device: %ld\n",
-				PTR_ERR(info->cdev));
-
-			info->cdev = NULL;
-		}
-	}
-
-	of_node_put(np);
+	info->cdev = of_cpufreq_cooling_register(policy);
 }
 
 static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
@@ -480,21 +460,12 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 		return ret;
 	}
 
-	ret = cpufreq_table_validate_and_show(policy, freq_table);
-	if (ret) {
-		pr_err("%s: invalid frequency table: %d\n", __func__, ret);
-		goto out_free_cpufreq_table;
-	}
-
 	cpumask_copy(policy->cpus, &info->cpus);
+	policy->freq_table = freq_table;
 	policy->driver_data = info;
 	policy->clk = info->cpu_clk;
 
 	return 0;
-
-out_free_cpufreq_table:
-	dev_pm_opp_free_cpufreq_table(info->cpu_dev, &freq_table);
-	return ret;
 }
 
 static int mtk_cpufreq_exit(struct cpufreq_policy *policy)
@@ -574,6 +545,7 @@ static struct platform_driver mtk_cpufreq_platdrv = {
 /* List of machines supported by this driver */
 static const struct of_device_id mtk_cpufreq_machines[] __initconst = {
 	{ .compatible = "mediatek,mt2701", },
+	{ .compatible = "mediatek,mt2712", },
 	{ .compatible = "mediatek,mt7622", },
 	{ .compatible = "mediatek,mt7623", },
 	{ .compatible = "mediatek,mt817x", },
@@ -597,7 +569,7 @@ static int __init mtk_cpufreq_driver_init(void)
 	match = of_match_node(mtk_cpufreq_machines, np);
 	of_node_put(np);
 	if (!match) {
-		pr_warn("Machine is not compatible with mtk-cpufreq\n");
+		pr_debug("Machine is not compatible with mtk-cpufreq\n");
 		return -ENODEV;
 	}
 
@@ -620,3 +592,7 @@ static int __init mtk_cpufreq_driver_init(void)
 	return 0;
 }
 device_initcall(mtk_cpufreq_driver_init);
+
+MODULE_DESCRIPTION("MediaTek CPUFreq driver");
+MODULE_AUTHOR("Pi-Cheng Chen <pi-cheng.chen@linaro.org>");
+MODULE_LICENSE("GPL v2");

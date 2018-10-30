@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * caam - Freescale FSL CAAM support for Public Key Cryptography descriptors
  *
@@ -92,6 +93,14 @@ struct caam_rsa_key {
 struct caam_rsa_ctx {
 	struct caam_rsa_key key;
 	struct device *dev;
+};
+
+/**
+ * caam_rsa_req_ctx - per request context.
+ * @src: input scatterlist (stripped of leading zeros)
+ */
+struct caam_rsa_req_ctx {
+	struct scatterlist src[2];
 };
 
 /**

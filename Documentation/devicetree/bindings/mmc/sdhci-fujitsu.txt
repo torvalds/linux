@@ -15,6 +15,8 @@ Required properties:
 Optional properties:
 - vqmmc-supply: phandle to the regulator device tree node, mentioned
   as the VCCQ/VDD_IO supply in the eMMC/SD specs.
+- fujitsu,cmd-dat-delay-select: boolean property indicating that this host
+  requires the CMD_DAT_DELAY control to be enabled.
 
 Example:
 

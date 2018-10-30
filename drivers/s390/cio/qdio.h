@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright IBM Corp. 2000, 2009
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
@@ -392,7 +393,7 @@ int test_nonshared_ind(struct qdio_irq *);
 /* prototypes for setup */
 void qdio_inbound_processing(unsigned long data);
 void qdio_outbound_processing(unsigned long data);
-void qdio_outbound_timer(unsigned long data);
+void qdio_outbound_timer(struct timer_list *t);
 void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		      struct irb *irb);
 int qdio_allocate_qs(struct qdio_irq *irq_ptr, int nr_input_qs,

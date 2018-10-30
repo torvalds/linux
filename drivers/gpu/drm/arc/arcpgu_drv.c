@@ -18,6 +18,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <linux/of_reserved_mem.h>
 
@@ -32,7 +33,7 @@ static void arcpgu_fb_output_poll_changed(struct drm_device *dev)
 }
 
 static const struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
-	.fb_create  = drm_fb_cma_create,
+	.fb_create  = drm_gem_fb_create,
 	.output_poll_changed = arcpgu_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
@@ -154,7 +155,6 @@ static int arcpgu_show_pxlclock(struct seq_file *m, void *arg)
 
 static struct drm_info_list arcpgu_debugfs_list[] = {
 	{ "clocks", arcpgu_show_pxlclock, 0 },
-	{ "fb", drm_fb_cma_debugfs_show, 0 },
 };
 
 static int arcpgu_debugfs_init(struct drm_minor *minor)
@@ -179,6 +179,7 @@ static struct drm_driver arcpgu_drm_driver = {
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
+	.gem_print_info = drm_gem_cma_print_info,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_import = drm_gem_prime_import,

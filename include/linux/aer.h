@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2006 Intel Corp.
  *     Tom Long Nguyen (tom.l.nguyen@intel.com)
@@ -13,6 +14,7 @@
 #define AER_NONFATAL			0
 #define AER_FATAL			1
 #define AER_CORRECTABLE			2
+#define DPC_FATAL			3
 
 struct pci_dev;
 

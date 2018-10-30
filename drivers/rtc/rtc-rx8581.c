@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/bcd.h>
+#include <linux/regmap.h>
 #include <linux/rtc.h>
 #include <linux/log2.h>
 
@@ -51,52 +52,20 @@
 #define RX8581_CTRL_RESET	0x01 /* RESET bit */
 
 struct rx8581 {
-	struct i2c_client	*client;
+	struct regmap		*regmap;
 	struct rtc_device	*rtc;
-	s32 (*read_block_data)(const struct i2c_client *client, u8 command,
-				u8 length, u8 *values);
-	s32 (*write_block_data)(const struct i2c_client *client, u8 command,
-				u8 length, const u8 *values);
 };
-
-static struct i2c_driver rx8581_driver;
-
-static int rx8581_read_block_data(const struct i2c_client *client, u8 command,
-					u8 length, u8 *values)
-{
-	s32 i, data;
-
-	for (i = 0; i < length; i++) {
-		data = i2c_smbus_read_byte_data(client, command + i);
-		if (data < 0)
-			return data;
-		values[i] = data;
-	}
-	return i;
-}
-
-static int rx8581_write_block_data(const struct i2c_client *client, u8 command,
-					u8 length, const u8 *values)
-{
-	s32 i, ret;
-
-	for (i = 0; i < length; i++) {
-		ret = i2c_smbus_write_byte_data(client, command + i,
-						values[i]);
-		if (ret < 0)
-			return ret;
-	}
-	return length;
-}
 
 /*
  * In the routines that deal directly with the rx8581 hardware, we use
  * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
  */
-static int rx8581_get_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int rx8581_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char date[7];
-	int data, err;
+	unsigned int data;
+	int err;
 	struct rx8581 *rx8581 = i2c_get_clientdata(client);
 
 	/* First we ensure that the "update flag" is not set, we read the
@@ -104,45 +73,38 @@ static int rx8581_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	 * has been set, we know that the time has changed during the read so
 	 * we repeat the whole process again.
 	 */
-	data = i2c_smbus_read_byte_data(client, RX8581_REG_FLAG);
-	if (data < 0) {
-		dev_err(&client->dev, "Unable to read device flags\n");
-		return -EIO;
+	err = regmap_read(rx8581->regmap, RX8581_REG_FLAG, &data);
+	if (err < 0)
+		return err;
+
+	if (data & RX8581_FLAG_VLF) {
+		dev_warn(dev,
+			 "low voltage detected, date/time is not reliable.\n");
+		return -EINVAL;
 	}
 
 	do {
 		/* If update flag set, clear it */
 		if (data & RX8581_FLAG_UF) {
-			err = i2c_smbus_write_byte_data(client,
-				RX8581_REG_FLAG, (data & ~RX8581_FLAG_UF));
-			if (err != 0) {
-				dev_err(&client->dev, "Unable to write device flags\n");
-				return -EIO;
-			}
+			err = regmap_write(rx8581->regmap, RX8581_REG_FLAG,
+					  data & ~RX8581_FLAG_UF);
+			if (err < 0)
+				return err;
 		}
 
 		/* Now read time and date */
-		err = rx8581->read_block_data(client, RX8581_REG_SC,
-			7, date);
-		if (err < 0) {
-			dev_err(&client->dev, "Unable to read date\n");
-			return -EIO;
-		}
+		err = regmap_bulk_read(rx8581->regmap, RX8581_REG_SC, date,
+				       sizeof(date));
+		if (err < 0)
+			return err;
 
 		/* Check flag register */
-		data = i2c_smbus_read_byte_data(client, RX8581_REG_FLAG);
-		if (data < 0) {
-			dev_err(&client->dev, "Unable to read device flags\n");
-			return -EIO;
-		}
+		err = regmap_read(rx8581->regmap, RX8581_REG_FLAG, &data);
+		if (err < 0)
+			return err;
 	} while (data & RX8581_FLAG_UF);
 
-	if (data & RX8581_FLAG_VLF)
-		dev_info(&client->dev,
-			"low voltage detected, date/time is not reliable.\n");
-
-	dev_dbg(&client->dev,
-		"%s: raw data is sec=%02x, min=%02x, hr=%02x, "
+	dev_dbg(dev, "%s: raw data is sec=%02x, min=%02x, hr=%02x, "
 		"wday=%02x, mday=%02x, mon=%02x, year=%02x\n",
 		__func__,
 		date[0], date[1], date[2], date[3], date[4], date[5], date[6]);
@@ -153,31 +115,25 @@ static int rx8581_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	tm->tm_wday = ilog2(date[RX8581_REG_DW] & 0x7F);
 	tm->tm_mday = bcd2bin(date[RX8581_REG_DM] & 0x3F);
 	tm->tm_mon = bcd2bin(date[RX8581_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
-	tm->tm_year = bcd2bin(date[RX8581_REG_YR]);
-	if (tm->tm_year < 70)
-		tm->tm_year += 100;	/* assume we are in 1970...2069 */
+	tm->tm_year = bcd2bin(date[RX8581_REG_YR]) + 100;
 
-
-	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
+	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
 		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-	err = rtc_valid_tm(tm);
-	if (err < 0)
-		dev_err(&client->dev, "retrieved date/time is not valid.\n");
-
-	return err;
+	return 0;
 }
 
-static int rx8581_set_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int rx8581_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	int data, err;
+	struct i2c_client *client = to_i2c_client(dev);
+	int err;
 	unsigned char buf[7];
 	struct rx8581 *rx8581 = i2c_get_clientdata(client);
 
-	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
+	dev_dbg(dev, "%s: secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
 		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
@@ -194,69 +150,30 @@ static int rx8581_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	buf[RX8581_REG_MO] = bin2bcd(tm->tm_mon + 1);
 
 	/* year and century */
-	buf[RX8581_REG_YR] = bin2bcd(tm->tm_year % 100);
+	buf[RX8581_REG_YR] = bin2bcd(tm->tm_year - 100);
 	buf[RX8581_REG_DW] = (0x1 << tm->tm_wday);
 
 	/* Stop the clock */
-	data = i2c_smbus_read_byte_data(client, RX8581_REG_CTRL);
-	if (data < 0) {
-		dev_err(&client->dev, "Unable to read control register\n");
-		return -EIO;
-	}
-
-	err = i2c_smbus_write_byte_data(client, RX8581_REG_CTRL,
-		(data | RX8581_CTRL_STOP));
-	if (err < 0) {
-		dev_err(&client->dev, "Unable to write control register\n");
-		return -EIO;
-	}
+	err = regmap_update_bits(rx8581->regmap, RX8581_REG_CTRL,
+				 RX8581_CTRL_STOP, RX8581_CTRL_STOP);
+	if (err < 0)
+		return err;
 
 	/* write register's data */
-	err = rx8581->write_block_data(client, RX8581_REG_SC, 7, buf);
-	if (err < 0) {
-		dev_err(&client->dev, "Unable to write to date registers\n");
-		return -EIO;
-	}
+	err = regmap_bulk_write(rx8581->regmap, RX8581_REG_SC,
+				buf, sizeof(buf));
+	if (err < 0)
+		return err;
 
 	/* get VLF and clear it */
-	data = i2c_smbus_read_byte_data(client, RX8581_REG_FLAG);
-	if (data < 0) {
-		dev_err(&client->dev, "Unable to read flag register\n");
-		return -EIO;
-	}
-
-	err = i2c_smbus_write_byte_data(client, RX8581_REG_FLAG,
-		(data & ~(RX8581_FLAG_VLF)));
-	if (err != 0) {
-		dev_err(&client->dev, "Unable to write flag register\n");
-		return -EIO;
-	}
+	err = regmap_update_bits(rx8581->regmap, RX8581_REG_FLAG,
+				 RX8581_FLAG_VLF, 0);
+	if (err < 0)
+		return err;
 
 	/* Restart the clock */
-	data = i2c_smbus_read_byte_data(client, RX8581_REG_CTRL);
-	if (data < 0) {
-		dev_err(&client->dev, "Unable to read control register\n");
-		return -EIO;
-	}
-
-	err = i2c_smbus_write_byte_data(client, RX8581_REG_CTRL,
-		(data & ~(RX8581_CTRL_STOP)));
-	if (err != 0) {
-		dev_err(&client->dev, "Unable to write control register\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int rx8581_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return rx8581_get_datetime(to_i2c_client(dev), tm);
-}
-
-static int rx8581_rtc_set_time(struct device *dev, struct rtc_time *tm)
-{
-	return rx8581_set_datetime(to_i2c_client(dev), tm);
+	return regmap_update_bits(rx8581->regmap, RX8581_REG_CTRL,
+				 RX8581_CTRL_STOP, 0);
 }
 
 static const struct rtc_class_ops rx8581_rtc_ops = {
@@ -268,38 +185,35 @@ static int rx8581_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct rx8581	  *rx8581;
+	static const struct regmap_config config = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0xf,
+	};
 
 	dev_dbg(&client->dev, "%s\n", __func__);
-
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA)
-		&& !i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -EIO;
 
 	rx8581 = devm_kzalloc(&client->dev, sizeof(struct rx8581), GFP_KERNEL);
 	if (!rx8581)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, rx8581);
-	rx8581->client = client;
 
-	if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
-		rx8581->read_block_data = i2c_smbus_read_i2c_block_data;
-		rx8581->write_block_data = i2c_smbus_write_i2c_block_data;
-	} else {
-		rx8581->read_block_data = rx8581_read_block_data;
-		rx8581->write_block_data = rx8581_write_block_data;
-	}
+	rx8581->regmap = devm_regmap_init_i2c(client, &config);
+	if (IS_ERR(rx8581->regmap))
+		return PTR_ERR(rx8581->regmap);
 
-	rx8581->rtc = devm_rtc_device_register(&client->dev,
-		rx8581_driver.driver.name, &rx8581_rtc_ops, THIS_MODULE);
-
-	if (IS_ERR(rx8581->rtc)) {
-		dev_err(&client->dev,
-			"unable to register the class device\n");
+	rx8581->rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(rx8581->rtc))
 		return PTR_ERR(rx8581->rtc);
-	}
 
-	return 0;
+	rx8581->rtc->ops = &rx8581_rtc_ops;
+	rx8581->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rx8581->rtc->range_max = RTC_TIMESTAMP_END_2099;
+	rx8581->rtc->start_secs = 0;
+	rx8581->rtc->set_start_time = true;
+
+	return rtc_register_device(rx8581->rtc);
 }
 
 static const struct i2c_device_id rx8581_id[] = {

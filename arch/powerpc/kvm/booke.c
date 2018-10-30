@@ -77,8 +77,10 @@ void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu)
 {
 	int i;
 
-	printk("pc:   %08lx msr:  %08llx\n", vcpu->arch.pc, vcpu->arch.shared->msr);
-	printk("lr:   %08lx ctr:  %08lx\n", vcpu->arch.lr, vcpu->arch.ctr);
+	printk("pc:   %08lx msr:  %08llx\n", vcpu->arch.regs.nip,
+			vcpu->arch.shared->msr);
+	printk("lr:   %08lx ctr:  %08lx\n", vcpu->arch.regs.link,
+			vcpu->arch.regs.ctr);
 	printk("srr0: %08llx srr1: %08llx\n", vcpu->arch.shared->srr0,
 					    vcpu->arch.shared->srr1);
 
@@ -305,6 +307,13 @@ void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu)
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_FP_UNAVAIL);
 }
 
+#ifdef CONFIG_ALTIVEC
+void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu)
+{
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ALTIVEC_UNAVAIL);
+}
+#endif
+
 void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu)
 {
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DECREMENTER);
@@ -484,24 +493,25 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	if (allowed) {
 		switch (int_class) {
 		case INT_CLASS_NONCRIT:
-			set_guest_srr(vcpu, vcpu->arch.pc,
+			set_guest_srr(vcpu, vcpu->arch.regs.nip,
 				      vcpu->arch.shared->msr);
 			break;
 		case INT_CLASS_CRIT:
-			set_guest_csrr(vcpu, vcpu->arch.pc,
+			set_guest_csrr(vcpu, vcpu->arch.regs.nip,
 				       vcpu->arch.shared->msr);
 			break;
 		case INT_CLASS_DBG:
-			set_guest_dsrr(vcpu, vcpu->arch.pc,
+			set_guest_dsrr(vcpu, vcpu->arch.regs.nip,
 				       vcpu->arch.shared->msr);
 			break;
 		case INT_CLASS_MC:
-			set_guest_mcsrr(vcpu, vcpu->arch.pc,
+			set_guest_mcsrr(vcpu, vcpu->arch.regs.nip,
 					vcpu->arch.shared->msr);
 			break;
 		}
 
-		vcpu->arch.pc = vcpu->arch.ivpr | vcpu->arch.ivor[priority];
+		vcpu->arch.regs.nip = vcpu->arch.ivpr |
+					vcpu->arch.ivor[priority];
 		if (update_esr == true)
 			kvmppc_set_esr(vcpu, vcpu->arch.queued_esr);
 		if (update_dear == true)
@@ -599,9 +609,9 @@ static void arm_next_watchdog(struct kvm_vcpu *vcpu)
 	spin_unlock_irqrestore(&vcpu->arch.wdt_lock, flags);
 }
 
-void kvmppc_watchdog_func(unsigned long data)
+void kvmppc_watchdog_func(struct timer_list *t)
 {
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
+	struct kvm_vcpu *vcpu = from_timer(vcpu, t, arch.wdt_timer);
 	u32 tsr, new_tsr;
 	int final;
 
@@ -819,7 +829,7 @@ static int emulation_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	case EMULATE_FAIL:
 		printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",
-		       __func__, vcpu->arch.pc, vcpu->arch.last_inst);
+		       __func__, vcpu->arch.regs.nip, vcpu->arch.last_inst);
 		/* For debugging, encode the failing instruction and
 		 * report it to userspace. */
 		run->hw.hardware_exit_reason = ~0ULL << 32;
@@ -868,7 +878,7 @@ static int kvmppc_handle_debug(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	 */
 	vcpu->arch.dbsr = 0;
 	run->debug.arch.status = 0;
-	run->debug.arch.address = vcpu->arch.pc;
+	run->debug.arch.address = vcpu->arch.regs.nip;
 
 	if (dbsr & (DBSR_IAC1 | DBSR_IAC2 | DBSR_IAC3 | DBSR_IAC4)) {
 		run->debug.arch.status |= KVMPPC_DEBUG_BREAKPOINT;
@@ -964,7 +974,7 @@ static int kvmppc_resume_inst_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	case EMULATE_FAIL:
 		pr_debug("%s: load instruction from guest address %lx failed\n",
-		       __func__, vcpu->arch.pc);
+		       __func__, vcpu->arch.regs.nip);
 		/* For debugging, encode the failing instruction and
 		 * report it to userspace. */
 		run->hw.hardware_exit_reason = ~0ULL << 32;
@@ -1162,7 +1172,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOKE_INTERRUPT_SPE_FP_DATA:
 	case BOOKE_INTERRUPT_SPE_FP_ROUND:
 		printk(KERN_CRIT "%s: unexpected SPE interrupt %u at %08lx\n",
-		       __func__, exit_nr, vcpu->arch.pc);
+		       __func__, exit_nr, vcpu->arch.regs.nip);
 		run->hw.hardware_exit_reason = exit_nr;
 		r = RESUME_HOST;
 		break;
@@ -1292,7 +1302,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	case BOOKE_INTERRUPT_ITLB_MISS: {
-		unsigned long eaddr = vcpu->arch.pc;
+		unsigned long eaddr = vcpu->arch.regs.nip;
 		gpa_t gpaddr;
 		gfn_t gfn;
 		int gtlb_index;
@@ -1384,7 +1394,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	int i;
 	int r;
 
-	vcpu->arch.pc = 0;
+	vcpu->arch.regs.nip = 0;
 	vcpu->arch.shared->pir = vcpu->vcpu_id;
 	kvmppc_set_gpr(vcpu, 1, (16<<20) - 8); /* -8 for the callee-save LR slot */
 	kvmppc_set_msr(vcpu, 0);
@@ -1412,8 +1422,7 @@ int kvmppc_subarch_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	/* setup watchdog timer once */
 	spin_lock_init(&vcpu->arch.wdt_lock);
-	setup_timer(&vcpu->arch.wdt_timer, kvmppc_watchdog_func,
-		    (unsigned long)vcpu);
+	timer_setup(&vcpu->arch.wdt_timer, kvmppc_watchdog_func, 0);
 
 	/*
 	 * Clear DBSR.MRR to avoid guest debug interrupt as
@@ -1432,10 +1441,12 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
 	int i;
 
-	regs->pc = vcpu->arch.pc;
+	vcpu_load(vcpu);
+
+	regs->pc = vcpu->arch.regs.nip;
 	regs->cr = kvmppc_get_cr(vcpu);
-	regs->ctr = vcpu->arch.ctr;
-	regs->lr = vcpu->arch.lr;
+	regs->ctr = vcpu->arch.regs.ctr;
+	regs->lr = vcpu->arch.regs.link;
 	regs->xer = kvmppc_get_xer(vcpu);
 	regs->msr = vcpu->arch.shared->msr;
 	regs->srr0 = kvmppc_get_srr0(vcpu);
@@ -1453,6 +1464,7 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		regs->gpr[i] = kvmppc_get_gpr(vcpu, i);
 
+	vcpu_put(vcpu);
 	return 0;
 }
 
@@ -1460,10 +1472,12 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
 	int i;
 
-	vcpu->arch.pc = regs->pc;
+	vcpu_load(vcpu);
+
+	vcpu->arch.regs.nip = regs->pc;
 	kvmppc_set_cr(vcpu, regs->cr);
-	vcpu->arch.ctr = regs->ctr;
-	vcpu->arch.lr = regs->lr;
+	vcpu->arch.regs.ctr = regs->ctr;
+	vcpu->arch.regs.link = regs->lr;
 	kvmppc_set_xer(vcpu, regs->xer);
 	kvmppc_set_msr(vcpu, regs->msr);
 	kvmppc_set_srr0(vcpu, regs->srr0);
@@ -1481,6 +1495,7 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		kvmppc_set_gpr(vcpu, i, regs->gpr[i]);
 
+	vcpu_put(vcpu);
 	return 0;
 }
 
@@ -1608,30 +1623,42 @@ int kvmppc_set_sregs_ivor(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
                                   struct kvm_sregs *sregs)
 {
+	int ret;
+
+	vcpu_load(vcpu);
+
 	sregs->pvr = vcpu->arch.pvr;
 
 	get_sregs_base(vcpu, sregs);
 	get_sregs_arch206(vcpu, sregs);
-	return vcpu->kvm->arch.kvm_ops->get_sregs(vcpu, sregs);
+	ret = vcpu->kvm->arch.kvm_ops->get_sregs(vcpu, sregs);
+
+	vcpu_put(vcpu);
+	return ret;
 }
 
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
                                   struct kvm_sregs *sregs)
 {
-	int ret;
+	int ret = -EINVAL;
 
+	vcpu_load(vcpu);
 	if (vcpu->arch.pvr != sregs->pvr)
-		return -EINVAL;
+		goto out;
 
 	ret = set_sregs_base(vcpu, sregs);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = set_sregs_arch206(vcpu, sregs);
 	if (ret < 0)
-		return ret;
+		goto out;
 
-	return vcpu->kvm->arch.kvm_ops->set_sregs(vcpu, sregs);
+	ret = vcpu->kvm->arch.kvm_ops->set_sregs(vcpu, sregs);
+
+out:
+	vcpu_put(vcpu);
+	return ret;
 }
 
 int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
@@ -1774,7 +1801,9 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 {
 	int r;
 
+	vcpu_load(vcpu);
 	r = kvmppc_core_vcpu_translate(vcpu, tr);
+	vcpu_put(vcpu);
 	return r;
 }
 
@@ -1997,12 +2026,15 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 {
 	struct debug_reg *dbg_reg;
 	int n, b = 0, w = 0;
+	int ret = 0;
+
+	vcpu_load(vcpu);
 
 	if (!(dbg->control & KVM_GUESTDBG_ENABLE)) {
 		vcpu->arch.dbg_reg.dbcr0 = 0;
 		vcpu->guest_debug = 0;
 		kvm_guest_protect_msr(vcpu, MSR_DE, false);
-		return 0;
+		goto out;
 	}
 
 	kvm_guest_protect_msr(vcpu, MSR_DE, true);
@@ -2034,8 +2066,9 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 #endif
 
 	if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
-		return 0;
+		goto out;
 
+	ret = -EINVAL;
 	for (n = 0; n < (KVMPPC_BOOKE_IAC_NUM + KVMPPC_BOOKE_DAC_NUM); n++) {
 		uint64_t addr = dbg->arch.bp[n].addr;
 		uint32_t type = dbg->arch.bp[n].type;
@@ -2046,21 +2079,24 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 		if (type & ~(KVMPPC_DEBUG_WATCH_READ |
 			     KVMPPC_DEBUG_WATCH_WRITE |
 			     KVMPPC_DEBUG_BREAKPOINT))
-			return -EINVAL;
+			goto out;
 
 		if (type & KVMPPC_DEBUG_BREAKPOINT) {
 			/* Setting H/W breakpoint */
 			if (kvmppc_booke_add_breakpoint(dbg_reg, addr, b++))
-				return -EINVAL;
+				goto out;
 		} else {
 			/* Setting H/W watchpoint */
 			if (kvmppc_booke_add_watchpoint(dbg_reg, addr,
 							type, w++))
-				return -EINVAL;
+				goto out;
 		}
 	}
 
-	return 0;
+	ret = 0;
+out:
+	vcpu_put(vcpu);
+	return ret;
 }
 
 void kvmppc_booke_vcpu_load(struct kvm_vcpu *vcpu, int cpu)

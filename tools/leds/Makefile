@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for LEDs tools
 
-CC = $(CROSS_COMPILE)gcc
 CFLAGS = -Wall -Wextra -g -I../../include/uapi
 
 all: uledmon led_hw_brightness_mon

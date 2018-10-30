@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 KASAN_SANITIZE := n
 UBSAN_SANITIZE_kasan.o := n
 KCOV_INSTRUMENT := n

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  cpuidle-pseries - idle state cpuidle driver.
  *  Adapted from drivers/idle/intel_idle.c and
@@ -50,8 +51,6 @@ static inline void idle_loop_epilog(unsigned long in_purr)
 	get_lppaca()->wait_state_cycles = cpu_to_be64(wait_cycles);
 	get_lppaca()->idle = 0;
 
-	if (irqs_disabled())
-		local_irq_enable();
 	ppc64_runlatch_on();
 }
 
@@ -85,6 +84,8 @@ static int snooze_loop(struct cpuidle_device *dev,
 
 	HMT_medium();
 	clear_thread_flag(TIF_POLLING_NRFLAG);
+
+	local_irq_disable();
 
 	idle_loop_epilog(in_purr);
 
@@ -120,6 +121,7 @@ static int dedicated_cede_loop(struct cpuidle_device *dev,
 	HMT_medium();
 	check_and_cede_processor();
 
+	local_irq_disable();
 	get_lppaca()->donate_dedicated_cpu = 0;
 
 	idle_loop_epilog(in_purr);
@@ -144,6 +146,7 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 	 */
 	check_and_cede_processor();
 
+	local_irq_disable();
 	idle_loop_epilog(in_purr);
 
 	return index;
@@ -171,11 +174,17 @@ static struct cpuidle_state dedicated_states[] = {
  * States for shared partition case.
  */
 static struct cpuidle_state shared_states[] = {
+	{ /* Snooze */
+		.name = "snooze",
+		.desc = "snooze",
+		.exit_latency = 0,
+		.target_residency = 0,
+		.enter = &snooze_loop },
 	{ /* Shared Cede */
 		.name = "Shared Cede",
 		.desc = "Shared Cede",
-		.exit_latency = 0,
-		.target_residency = 0,
+		.exit_latency = 10,
+		.target_residency = 100,
 		.enter = &shared_cede_loop },
 };
 

@@ -1,47 +1,13 @@
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2017, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #ifndef __AMLCODE_H__
 #define __AMLCODE_H__
@@ -274,23 +240,9 @@
 #define ARGI_DEVICE_REF             0x0D
 #define ARGI_REFERENCE              0x0E
 #define ARGI_TARGETREF              0x0F	/* Target, subject to implicit conversion */
-#define ARGI_SIMPLE_TARGET          0x10	/* Name, Local, Arg -- no implicit conversion */
-#define ARGI_STORE_TARGET           0x11	/* Target for store is TARGETREF + package objects */
-/*
- * #define ARGI_FIXED_TARGET           0x10     Target, no implicit conversion
- *
- * Removed 10/2016. ARGI_FIXED_TARGET was used for these operators:
- *      from_BCD
- *      to_BCD
- *      to_decimal_string
- *      to_hex_string
- *      to_integer
- *      to_buffer
- * The purpose of this type was to disable "implicit result conversion",
- * but this was incorrect per the ACPI spec and other ACPI implementations.
- * These operators now have the target operand defined as a normal
- * ARGI_TARGETREF.
- */
+#define ARGI_FIXED_TARGET           0x10	/* Target, no implicit conversion */
+#define ARGI_SIMPLE_TARGET          0x11	/* Name, Local, Arg -- no implicit conversion */
+#define ARGI_STORE_TARGET           0x12	/* Target for store is TARGETREF + package objects */
 
 /* Multiple/complex types */
 
@@ -480,15 +432,15 @@ typedef enum {
  */
 typedef enum {
 	AML_FIELD_ATTRIB_QUICK = 0x02,
-	AML_FIELD_ATTRIB_SEND_RCV = 0x04,
+	AML_FIELD_ATTRIB_SEND_RECEIVE = 0x04,
 	AML_FIELD_ATTRIB_BYTE = 0x06,
 	AML_FIELD_ATTRIB_WORD = 0x08,
 	AML_FIELD_ATTRIB_BLOCK = 0x0A,
-	AML_FIELD_ATTRIB_MULTIBYTE = 0x0B,
-	AML_FIELD_ATTRIB_WORD_CALL = 0x0C,
-	AML_FIELD_ATTRIB_BLOCK_CALL = 0x0D,
+	AML_FIELD_ATTRIB_BYTES = 0x0B,
+	AML_FIELD_ATTRIB_PROCESS_CALL = 0x0C,
+	AML_FIELD_ATTRIB_BLOCK_PROCESS_CALL = 0x0D,
 	AML_FIELD_ATTRIB_RAW_BYTES = 0x0E,
-	AML_FIELD_ATTRIB_RAW_PROCESS = 0x0F
+	AML_FIELD_ATTRIB_RAW_PROCESS_BYTES = 0x0F
 } AML_ACCESS_ATTRIBUTE;
 
 /* Bit fields in the AML method_flags byte */

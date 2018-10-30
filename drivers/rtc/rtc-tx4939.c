@@ -14,7 +14,30 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
-#include <asm/txx9/tx4939.h>
+
+#define TX4939_RTCCTL_ALME	0x00000080
+#define TX4939_RTCCTL_ALMD	0x00000040
+#define TX4939_RTCCTL_BUSY	0x00000020
+
+#define TX4939_RTCCTL_COMMAND	0x00000007
+#define TX4939_RTCCTL_COMMAND_NOP	0x00000000
+#define TX4939_RTCCTL_COMMAND_GETTIME	0x00000001
+#define TX4939_RTCCTL_COMMAND_SETTIME	0x00000002
+#define TX4939_RTCCTL_COMMAND_GETALARM	0x00000003
+#define TX4939_RTCCTL_COMMAND_SETALARM	0x00000004
+
+#define TX4939_RTCTBC_PM	0x00000080
+#define TX4939_RTCTBC_COMP	0x0000007f
+
+#define TX4939_RTC_REG_RAMSIZE	0x00000100
+#define TX4939_RTC_REG_RWBSIZE	0x00000006
+
+struct tx4939_rtc_reg {
+	__u32 ctl;
+	__u32 adr;
+	__u32 dat;
+	__u32 tbc;
+};
 
 struct tx4939rtc_plat_data {
 	struct rtc_device *rtc;
@@ -86,9 +109,10 @@ static int tx4939_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	for (i = 2; i < 6; i++)
 		buf[i] = __raw_readl(&rtcreg->dat);
 	spin_unlock_irq(&pdata->lock);
-	sec = (buf[5] << 24) | (buf[4] << 16) | (buf[3] << 8) | buf[2];
+	sec = ((unsigned long)buf[5] << 24) | (buf[4] << 16) |
+		(buf[3] << 8) | buf[2];
 	rtc_time_to_tm(sec, tm);
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int tx4939_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
@@ -147,7 +171,8 @@ static int tx4939_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	alrm->enabled = (ctl & TX4939_RTCCTL_ALME) ? 1 : 0;
 	alrm->pending = (ctl & TX4939_RTCCTL_ALMD) ? 1 : 0;
 	spin_unlock_irq(&pdata->lock);
-	sec = (buf[5] << 24) | (buf[4] << 16) | (buf[3] << 8) | buf[2];
+	sec = ((unsigned long)buf[5] << 24) | (buf[4] << 16) |
+		(buf[3] << 8) | buf[2];
 	rtc_time_to_tm(sec, &alrm->time);
 	return rtc_valid_tm(&alrm->time);
 }
@@ -189,51 +214,37 @@ static const struct rtc_class_ops tx4939_rtc_ops = {
 	.alarm_irq_enable	= tx4939_rtc_alarm_irq_enable,
 };
 
-static ssize_t tx4939_rtc_nvram_read(struct file *filp, struct kobject *kobj,
-				     struct bin_attribute *bin_attr,
-				     char *buf, loff_t pos, size_t size)
+static int tx4939_nvram_read(void *priv, unsigned int pos, void *val,
+			     size_t bytes)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct tx4939rtc_plat_data *pdata = get_tx4939rtc_plat_data(dev);
+	struct tx4939rtc_plat_data *pdata = priv;
 	struct tx4939_rtc_reg __iomem *rtcreg = pdata->rtcreg;
-	ssize_t count;
+	u8 *buf = val;
 
 	spin_lock_irq(&pdata->lock);
-	for (count = 0; count < size; count++) {
+	for (; bytes; bytes--) {
 		__raw_writel(pos++, &rtcreg->adr);
 		*buf++ = __raw_readl(&rtcreg->dat);
 	}
 	spin_unlock_irq(&pdata->lock);
-	return count;
+	return 0;
 }
 
-static ssize_t tx4939_rtc_nvram_write(struct file *filp, struct kobject *kobj,
-				      struct bin_attribute *bin_attr,
-				      char *buf, loff_t pos, size_t size)
+static int tx4939_nvram_write(void *priv, unsigned int pos, void *val,
+			      size_t bytes)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct tx4939rtc_plat_data *pdata = get_tx4939rtc_plat_data(dev);
+	struct tx4939rtc_plat_data *pdata = priv;
 	struct tx4939_rtc_reg __iomem *rtcreg = pdata->rtcreg;
-	ssize_t count;
+	u8 *buf = val;
 
 	spin_lock_irq(&pdata->lock);
-	for (count = 0; count < size; count++) {
+	for (; bytes; bytes--) {
 		__raw_writel(pos++, &rtcreg->adr);
 		__raw_writel(*buf++, &rtcreg->dat);
 	}
 	spin_unlock_irq(&pdata->lock);
-	return count;
+	return 0;
 }
-
-static struct bin_attribute tx4939_rtc_nvram_attr = {
-	.attr = {
-		.name = "nvram",
-		.mode = S_IRUGO | S_IWUSR,
-	},
-	.size = TX4939_RTC_REG_RAMSIZE,
-	.read = tx4939_rtc_nvram_read,
-	.write = tx4939_rtc_nvram_write,
-};
 
 static int __init tx4939_rtc_probe(struct platform_device *pdev)
 {
@@ -241,6 +252,12 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 	struct tx4939rtc_plat_data *pdata;
 	struct resource *res;
 	int irq, ret;
+	struct nvmem_config nvmem_cfg = {
+		.name = "tx4939_nvram",
+		.size = TX4939_RTC_REG_RAMSIZE,
+		.reg_read = tx4939_nvram_read,
+		.reg_write = tx4939_nvram_write,
+	};
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -260,21 +277,27 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 	if (devm_request_irq(&pdev->dev, irq, tx4939_rtc_interrupt,
 			     0, pdev->name, &pdev->dev) < 0)
 		return -EBUSY;
-	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				  &tx4939_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
-	pdata->rtc = rtc;
-	ret = sysfs_create_bin_file(&pdev->dev.kobj, &tx4939_rtc_nvram_attr);
 
-	return ret;
+	rtc->ops = &tx4939_rtc_ops;
+	rtc->nvram_old_abi = true;
+
+	pdata->rtc = rtc;
+
+	nvmem_cfg.priv = pdata;
+	ret = rtc_nvmem_register(rtc, &nvmem_cfg);
+	if (ret)
+		return ret;
+
+	return rtc_register_device(rtc);
 }
 
 static int __exit tx4939_rtc_remove(struct platform_device *pdev)
 {
 	struct tx4939rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
-	sysfs_remove_bin_file(&pdev->dev.kobj, &tx4939_rtc_nvram_attr);
 	spin_lock_irq(&pdata->lock);
 	tx4939_rtc_cmd(pdata->rtcreg, TX4939_RTCCTL_COMMAND_NOP);
 	spin_unlock_irq(&pdata->lock);

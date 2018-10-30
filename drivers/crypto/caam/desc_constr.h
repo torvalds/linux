@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * caam descriptor construction helper functions
  *
@@ -108,7 +109,7 @@ static inline void init_job_desc_shared(u32 * const desc, dma_addr_t ptr,
 	append_ptr(desc, ptr);
 }
 
-static inline void append_data(u32 * const desc, void *data, int len)
+static inline void append_data(u32 * const desc, const void *data, int len)
 {
 	u32 *offset = desc_end(desc);
 
@@ -171,7 +172,7 @@ static inline void append_cmd_ptr_extlen(u32 * const desc, dma_addr_t ptr,
 	append_cmd(desc, len);
 }
 
-static inline void append_cmd_data(u32 * const desc, void *data, int len,
+static inline void append_cmd_data(u32 * const desc, const void *data, int len,
 				   u32 command)
 {
 	append_cmd(desc, command | IMMEDIATE | len);
@@ -270,7 +271,7 @@ APPEND_SEQ_PTR_INTLEN(in, IN)
 APPEND_SEQ_PTR_INTLEN(out, OUT)
 
 #define APPEND_CMD_PTR_TO_IMM(cmd, op) \
-static inline void append_##cmd##_as_imm(u32 * const desc, void *data, \
+static inline void append_##cmd##_as_imm(u32 * const desc, const void *data, \
 					 unsigned int len, u32 options) \
 { \
 	PRINT_POS; \
@@ -311,7 +312,7 @@ APPEND_CMD_PTR_LEN(seq_out_ptr, SEQ_OUT_PTR, u32)
  * from length of immediate data provided, e.g., split keys
  */
 #define APPEND_CMD_PTR_TO_IMM2(cmd, op) \
-static inline void append_##cmd##_as_imm(u32 * const desc, void *data, \
+static inline void append_##cmd##_as_imm(u32 * const desc, const void *data, \
 					 unsigned int data_len, \
 					 unsigned int len, u32 options) \
 { \
@@ -451,7 +452,7 @@ struct alginfo {
 	unsigned int keylen_pad;
 	union {
 		dma_addr_t key_dma;
-		void *key_virt;
+		const void *key_virt;
 	};
 	bool key_inline;
 };
@@ -493,6 +494,47 @@ static inline int desc_inline_query(unsigned int sd_base_len,
 	}
 
 	return (rem_bytes >= 0) ? 0 : -1;
+}
+
+/**
+ * append_proto_dkp - Derived Key Protocol (DKP): key -> split key
+ * @desc: pointer to buffer used for descriptor construction
+ * @adata: pointer to authentication transform definitions.
+ *         keylen should be the length of initial key, while keylen_pad
+ *         the length of the derived (split) key.
+ *         Valid algorithm values - one of OP_ALG_ALGSEL_{MD5, SHA1, SHA224,
+ *         SHA256, SHA384, SHA512}.
+ */
+static inline void append_proto_dkp(u32 * const desc, struct alginfo *adata)
+{
+	u32 protid;
+
+	/*
+	 * Quick & dirty translation from OP_ALG_ALGSEL_{MD5, SHA*}
+	 * to OP_PCLID_DKP_{MD5, SHA*}
+	 */
+	protid = (adata->algtype & OP_ALG_ALGSEL_SUBMASK) |
+		 (0x20 << OP_ALG_ALGSEL_SHIFT);
+
+	if (adata->key_inline) {
+		int words;
+
+		append_operation(desc, OP_TYPE_UNI_PROTOCOL | protid |
+				 OP_PCL_DKP_SRC_IMM | OP_PCL_DKP_DST_IMM |
+				 adata->keylen);
+		append_data(desc, adata->key_virt, adata->keylen);
+
+		/* Reserve space in descriptor buffer for the derived key */
+		words = (ALIGN(adata->keylen_pad, CAAM_CMD_SZ) -
+			 ALIGN(adata->keylen, CAAM_CMD_SZ)) / CAAM_CMD_SZ;
+		if (words)
+			(*desc) = cpu_to_caam32(caam32_to_cpu(*desc) + words);
+	} else {
+		append_operation(desc, OP_TYPE_UNI_PROTOCOL | protid |
+				 OP_PCL_DKP_SRC_PTR | OP_PCL_DKP_DST_PTR |
+				 adata->keylen);
+		append_ptr(desc, adata->key_dma);
+	}
 }
 
 #endif /* DESC_CONSTR_H */

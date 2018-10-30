@@ -225,16 +225,18 @@ bool enable_call()
 
 void kick_available(void)
 {
+	bool need;
+
 	/* Flush in previous flags write */
 	/* Barrier C (for pairing) */
 	smp_mb();
-	if (!vring_need_event(vring_avail_event(&ring),
-			      guest.avail_idx,
-			      guest.kicked_avail_idx))
-		return;
+	need = vring_need_event(vring_avail_event(&ring),
+				guest.avail_idx,
+				guest.kicked_avail_idx);
 
 	guest.kicked_avail_idx = guest.avail_idx;
-	kick();
+	if (need)
+		kick();
 }
 
 /* host side */
@@ -316,14 +318,16 @@ bool use_buf(unsigned *lenp, void **bufp)
 
 void call_used(void)
 {
+	bool need;
+
 	/* Flush in previous flags write */
 	/* Barrier D (for pairing) */
 	smp_mb();
-	if (!vring_need_event(vring_used_event(&ring),
-			      host.used_idx,
-			      host.called_used_idx))
-		return;
+	need = vring_need_event(vring_used_event(&ring),
+				host.used_idx,
+				host.called_used_idx);
 
 	host.called_used_idx = host.used_idx;
-	call();
+	if (need)
+		call();
 }

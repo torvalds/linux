@@ -20,7 +20,6 @@ static struct kconf_id kconf_id_array[] = {
 	{ "tristate",		T_TYPE,			TF_COMMAND, S_TRISTATE },
 	{ "def_tristate",	T_DEFAULT,		TF_COMMAND, S_TRISTATE },
 	{ "bool",		T_TYPE,			TF_COMMAND, S_BOOLEAN },
-	{ "boolean",		T_TYPE,			TF_COMMAND, S_BOOLEAN },
 	{ "def_bool",		T_DEFAULT,		TF_COMMAND, S_BOOLEAN },
 	{ "int",		T_TYPE,			TF_COMMAND, S_INT },
 	{ "hex",		T_TYPE,			TF_COMMAND, S_HEX },
@@ -33,7 +32,6 @@ static struct kconf_id kconf_id_array[] = {
 	{ "on",			T_ON,			TF_PARAM },
 	{ "modules",		T_OPT_MODULES,		TF_OPTION },
 	{ "defconfig_list",	T_OPT_DEFCONFIG_LIST,	TF_OPTION },
-	{ "env",		T_OPT_ENV,		TF_OPTION },
 	{ "allnoconfig_y",	T_OPT_ALLNOCONFIG_Y,	TF_OPTION },
 };
 

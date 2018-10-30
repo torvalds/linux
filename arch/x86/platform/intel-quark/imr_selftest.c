@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * imr_selftest.c -- Intel Isolated Memory Region self-test driver
  *

@@ -15,12 +15,11 @@
 #include <linux/if_vlan.h>
 #include <linux/irq.h>
 #include <linux/gpio/consumer.h>
+#include <linux/kthread.h>
 #include <linux/phy.h>
+#include <linux/ptp_clock_kernel.h>
+#include <linux/timecounter.h>
 #include <net/dsa.h>
-
-#ifndef UINT64_MAX
-#define UINT64_MAX		(u64)(~((u64)0))
-#endif
 
 #define SMI_CMD			0x00
 #define SMI_CMD_BUSY		BIT(15)
@@ -38,6 +37,8 @@
 /* PVT limits for 4-bit port and 5-bit switch */
 #define MV88E6XXX_MAX_PVT_SWITCHES	32
 #define MV88E6XXX_MAX_PVT_PORTS		16
+
+#define MV88E6XXX_MAX_GPIO	16
 
 enum mv88e6xxx_egress_mode {
 	MV88E6XXX_EGRESS_MODE_UNMODIFIED,
@@ -105,8 +106,11 @@ struct mv88e6xxx_info {
 	const char *name;
 	unsigned int num_databases;
 	unsigned int num_ports;
+	unsigned int num_internal_phys;
+	unsigned int num_gpio;
 	unsigned int max_vid;
 	unsigned int port_base_addr;
+	unsigned int phy_base_addr;
 	unsigned int global1_addr;
 	unsigned int global2_addr;
 	unsigned int age_time_coeff;
@@ -126,6 +130,9 @@ struct mv88e6xxx_info {
 	 */
 	u8 atu_move_port_mask;
 	const struct mv88e6xxx_ops *ops;
+
+	/* Supports PTP */
+	bool ptp_support;
 };
 
 struct mv88e6xxx_atu_entry {
@@ -146,12 +153,54 @@ struct mv88e6xxx_vtu_entry {
 
 struct mv88e6xxx_bus_ops;
 struct mv88e6xxx_irq_ops;
+struct mv88e6xxx_gpio_ops;
+struct mv88e6xxx_avb_ops;
+struct mv88e6xxx_ptp_ops;
 
 struct mv88e6xxx_irq {
 	u16 masked;
 	struct irq_chip chip;
 	struct irq_domain *domain;
 	unsigned int nirqs;
+};
+
+/* state flags for mv88e6xxx_port_hwtstamp::state */
+enum {
+	MV88E6XXX_HWTSTAMP_ENABLED,
+	MV88E6XXX_HWTSTAMP_TX_IN_PROGRESS,
+};
+
+struct mv88e6xxx_port_hwtstamp {
+	/* Port index */
+	int port_id;
+
+	/* Timestamping state */
+	unsigned long state;
+
+	/* Resources for receive timestamping */
+	struct sk_buff_head rx_queue;
+	struct sk_buff_head rx_queue2;
+
+	/* Resources for transmit timestamping */
+	unsigned long tx_tstamp_start;
+	struct sk_buff *tx_skb;
+	u16 tx_seq_id;
+
+	/* Current timestamp configuration */
+	struct hwtstamp_config tstamp_config;
+};
+
+struct mv88e6xxx_port {
+	struct mv88e6xxx_chip *chip;
+	int port;
+	u64 serdes_stats[2];
+	u64 atu_member_violation;
+	u64 atu_miss_violation;
+	u64 atu_full_violation;
+	u64 vtu_member_violation;
+	u64 vtu_miss_violation;
+	u8 cmode;
+	int serdes_irq;
 };
 
 struct mv88e6xxx_chip {
@@ -194,7 +243,7 @@ struct mv88e6xxx_chip {
 	struct gpio_desc *reset;
 
 	/* set to size of eeprom if supported by the switch */
-	int		eeprom_len;
+	u32 eeprom_len;
 
 	/* List of mdio busses */
 	struct list_head mdios;
@@ -207,6 +256,35 @@ struct mv88e6xxx_chip {
 	int irq;
 	int device_irq;
 	int watchdog_irq;
+
+	int atu_prob_irq;
+	int vtu_prob_irq;
+	struct kthread_worker *kworker;
+	struct kthread_delayed_work irq_poll_work;
+
+	/* GPIO resources */
+	u8 gpio_data[2];
+
+	/* This cyclecounter abstracts the switch PTP time.
+	 * reg_lock must be held for any operation that read()s.
+	 */
+	struct cyclecounter	tstamp_cc;
+	struct timecounter	tstamp_tc;
+	struct delayed_work	overflow_work;
+
+	struct ptp_clock	*ptp_clock;
+	struct ptp_clock_info	ptp_clock_info;
+	struct delayed_work	tai_event_work;
+	struct ptp_pin_desc	pin_config[MV88E6XXX_MAX_GPIO];
+	u16 trig_config;
+	u16 evcap_config;
+	u16 enable_count;
+
+	/* Per-port timestamping resources. */
+	struct mv88e6xxx_port_hwtstamp port_hwtstamp[DSA_MAX_PORTS];
+
+	/* Array of port structures. */
+	struct mv88e6xxx_port ports[DSA_MAX_PORTS];
 };
 
 struct mv88e6xxx_bus_ops {
@@ -222,6 +300,9 @@ struct mv88e6xxx_mdio_bus {
 };
 
 struct mv88e6xxx_ops {
+	int (*ieee_pri_map)(struct mv88e6xxx_chip *chip);
+	int (*ip_pri_map)(struct mv88e6xxx_chip *chip);
+
 	/* Ingress Rate Limit unit (IRL) operations */
 	int (*irl_init_all)(struct mv88e6xxx_chip *chip, int port);
 
@@ -274,6 +355,13 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_duplex)(struct mv88e6xxx_chip *chip, int port, int dup);
 
+#define PAUSE_ON		1
+#define PAUSE_OFF		0
+
+	/* Enable/disable sending Pause */
+	int (*port_set_pause)(struct mv88e6xxx_chip *chip, int port,
+			      int pause);
+
 #define SPEED_MAX		INT_MAX
 #define SPEED_UNFORCED		-2
 
@@ -306,12 +394,16 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_cmode)(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode);
+	int (*port_get_cmode)(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
 
 	/* Some devices have a per port register indicating what is
 	 * the upstream port this port should forward to.
 	 */
 	int (*port_set_upstream_port)(struct mv88e6xxx_chip *chip, int port,
 				      int upstream_port);
+	/* Return the port link state, as required by phylink */
+	int (*port_link_state)(struct mv88e6xxx_chip *chip, int port,
+			       struct phylink_link_state *state);
 
 	/* Snapshot the statistics for a port. The statistics can then
 	 * be read back a leisure but still with a consistent view.
@@ -325,11 +417,17 @@ struct mv88e6xxx_ops {
 
 	/* Return the number of strings describing statistics */
 	int (*stats_get_sset_count)(struct mv88e6xxx_chip *chip);
-	void (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
-	void (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
-				uint64_t *data);
+	int (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
+	int (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
+			       uint64_t *data);
 	int (*set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
 	int (*set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+
+#define MV88E6XXX_CASCADE_PORT_NONE		0xe
+#define MV88E6XXX_CASCADE_PORT_MULTIPLE		0xf
+
+	int (*set_cascade_port)(struct mv88e6xxx_chip *chip, int port);
+
 	const struct mv88e6xxx_irq_ops *watchdog_ops;
 
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
@@ -337,11 +435,39 @@ struct mv88e6xxx_ops {
 	/* Power on/off a SERDES interface */
 	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, bool on);
 
+	/* SERDES interrupt handling */
+	int (*serdes_irq_setup)(struct mv88e6xxx_chip *chip, int port);
+	void (*serdes_irq_free)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Statistics from the SERDES interface */
+	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);
+	int (*serdes_get_strings)(struct mv88e6xxx_chip *chip,  int port,
+				  uint8_t *data);
+	int (*serdes_get_stats)(struct mv88e6xxx_chip *chip,  int port,
+				uint64_t *data);
+
 	/* VLAN Translation Unit operations */
 	int (*vtu_getnext)(struct mv88e6xxx_chip *chip,
 			   struct mv88e6xxx_vtu_entry *entry);
 	int (*vtu_loadpurge)(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry);
+
+	/* GPIO operations */
+	const struct mv88e6xxx_gpio_ops *gpio_ops;
+
+	/* Interface to the AVB/PTP registers */
+	const struct mv88e6xxx_avb_ops *avb_ops;
+
+	/* Remote Management Unit operations */
+	int (*rmu_disable)(struct mv88e6xxx_chip *chip);
+
+	/* Precision Time Protocol operations */
+	const struct mv88e6xxx_ptp_ops *ptp_ops;
+
+	/* Phylink */
+	void (*phylink_validate)(struct mv88e6xxx_chip *chip, int port,
+				 unsigned long *mask,
+				 struct phylink_link_state *state);
 };
 
 struct mv88e6xxx_irq_ops {
@@ -353,13 +479,67 @@ struct mv88e6xxx_irq_ops {
 	void (*irq_free)(struct mv88e6xxx_chip *chip);
 };
 
+struct mv88e6xxx_gpio_ops {
+	/* Get/set data on GPIO pin */
+	int (*get_data)(struct mv88e6xxx_chip *chip, unsigned int pin);
+	int (*set_data)(struct mv88e6xxx_chip *chip, unsigned int pin,
+			int value);
+
+	/* get/set GPIO direction */
+	int (*get_dir)(struct mv88e6xxx_chip *chip, unsigned int pin);
+	int (*set_dir)(struct mv88e6xxx_chip *chip, unsigned int pin,
+		       bool input);
+
+	/* get/set GPIO pin control */
+	int (*get_pctl)(struct mv88e6xxx_chip *chip, unsigned int pin,
+			int *func);
+	int (*set_pctl)(struct mv88e6xxx_chip *chip, unsigned int pin,
+			int func);
+};
+
+struct mv88e6xxx_avb_ops {
+	/* Access port-scoped Precision Time Protocol registers */
+	int (*port_ptp_read)(struct mv88e6xxx_chip *chip, int port, int addr,
+			     u16 *data, int len);
+	int (*port_ptp_write)(struct mv88e6xxx_chip *chip, int port, int addr,
+			      u16 data);
+
+	/* Access global Precision Time Protocol registers */
+	int (*ptp_read)(struct mv88e6xxx_chip *chip, int addr, u16 *data,
+			int len);
+	int (*ptp_write)(struct mv88e6xxx_chip *chip, int addr, u16 data);
+
+	/* Access global Time Application Interface registers */
+	int (*tai_read)(struct mv88e6xxx_chip *chip, int addr, u16 *data,
+			int len);
+	int (*tai_write)(struct mv88e6xxx_chip *chip, int addr, u16 data);
+};
+
+struct mv88e6xxx_ptp_ops {
+	u64 (*clock_read)(const struct cyclecounter *cc);
+	int (*ptp_enable)(struct ptp_clock_info *ptp,
+			  struct ptp_clock_request *rq, int on);
+	int (*ptp_verify)(struct ptp_clock_info *ptp, unsigned int pin,
+			  enum ptp_pin_function func, unsigned int chan);
+	void (*event_work)(struct work_struct *ugly);
+	int (*port_enable)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_disable)(struct mv88e6xxx_chip *chip, int port);
+	int (*global_enable)(struct mv88e6xxx_chip *chip);
+	int (*global_disable)(struct mv88e6xxx_chip *chip);
+	int n_ext_ts;
+	int arr0_sts_reg;
+	int arr1_sts_reg;
+	int dep_sts_reg;
+	u32 rx_filters;
+};
+
 #define STATS_TYPE_PORT		BIT(0)
 #define STATS_TYPE_BANK0	BIT(1)
 #define STATS_TYPE_BANK1	BIT(2)
 
 struct mv88e6xxx_hw_stat {
 	char string[ETH_GSTRING_LEN];
-	int sizeof_stat;
+	size_t size;
 	int reg;
 	int type;
 };
@@ -382,6 +562,11 @@ static inline unsigned int mv88e6xxx_num_ports(struct mv88e6xxx_chip *chip)
 static inline u16 mv88e6xxx_port_mask(struct mv88e6xxx_chip *chip)
 {
 	return GENMASK(mv88e6xxx_num_ports(chip) - 1, 0);
+}
+
+static inline unsigned int mv88e6xxx_num_gpio(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->num_gpio;
 }
 
 int mv88e6xxx_read(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);

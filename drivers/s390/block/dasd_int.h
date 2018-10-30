@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
@@ -95,14 +96,6 @@ do { \
 			    d_data); \
 } while(0)
 
-#define DBF_DEV_EXC(d_level, d_device, d_str, d_data...) \
-do { \
-	debug_sprintf_exception(d_device->debug_area, \
-				d_level, \
-				d_str "\n", \
-				d_data); \
-} while(0)
-
 #define DBF_EVENT(d_level, d_str, d_data...)\
 do { \
 	debug_sprintf_event(dasd_debug_area, \
@@ -120,14 +113,6 @@ do { \
 			    "0.%x.%04x " d_str "\n",			\
 			    __dev_id.ssid, __dev_id.devno, d_data);	\
 } while (0)
-
-#define DBF_EXC(d_level, d_str, d_data...)\
-do { \
-	debug_sprintf_exception(dasd_debug_area, \
-				d_level,\
-				d_str "\n", \
-				d_data); \
-} while(0)
 
 /* limit size for an errorstring */
 #define ERRORLENGTH 30
@@ -173,40 +158,33 @@ do { \
 
 struct dasd_ccw_req {
 	unsigned int magic;		/* Eye catcher */
+	int intrc;			/* internal error, e.g. from start_IO */
 	struct list_head devlist;	/* for dasd_device request queue */
 	struct list_head blocklist;	/* for dasd_block request queue */
-
-	/* Where to execute what... */
 	struct dasd_block *block;	/* the originating block device */
 	struct dasd_device *memdev;	/* the device used to allocate this */
 	struct dasd_device *startdev;	/* device the request is started on */
 	struct dasd_device *basedev;	/* base device if no block->base */
 	void *cpaddr;			/* address of ccw or tcw */
+	short retries;			/* A retry counter */
 	unsigned char cpmode;		/* 0 = cmd mode, 1 = itcw */
 	char status;			/* status of this request */
-	short retries;			/* A retry counter */
+	char lpm;			/* logical path mask */
 	unsigned long flags;        	/* flags of this request */
 	struct dasd_queue *dq;
-
-	/* ... and how */
 	unsigned long starttime;	/* jiffies time of request start */
 	unsigned long expires;		/* expiration period in jiffies */
-	char lpm;			/* logical path mask */
 	void *data;			/* pointer to data area */
-
-	/* these are important for recovering erroneous requests          */
-	int intrc;			/* internal error, e.g. from start_IO */
 	struct irb irb;			/* device status in case of an error */
 	struct dasd_ccw_req *refers;	/* ERP-chain queueing. */
 	void *function; 		/* originating ERP action */
+	void *mem_chunk;
 
-	/* these are for statistics only */
 	unsigned long buildclk;		/* TOD-clock of request generation */
 	unsigned long startclk;		/* TOD-clock of request start */
 	unsigned long stopclk;		/* TOD-clock of request interrupt */
 	unsigned long endclk;		/* TOD-clock of request termination */
 
-        /* Callback that is called after reaching final status. */
 	void (*callback)(struct dasd_ccw_req *, void *data);
 	void *callback_data;
 };
@@ -250,14 +228,6 @@ struct dasd_ccw_req {
 #define DASD_CQR_SUPPRESS_IL	6	/* Suppress 'Incorrect Length' error */
 #define DASD_CQR_SUPPRESS_CR	7	/* Suppress 'Command Reject' error */
 
-/*
- * There is no reliable way to determine the number of available CPUs on
- * LPAR but there is no big performance difference between 1 and the
- * maximum CPU number.
- * 64 is a good trade off performance wise.
- */
-#define DASD_NR_HW_QUEUES 64
-#define DASD_MAX_LCU_DEV 256
 #define DASD_REQ_PER_DEV 4
 
 /* Signature for error recovery functions. */
@@ -456,7 +426,7 @@ struct dasd_profile_info {
 	unsigned int dasd_io_nr_req[32]; /* hist. of # of requests in chanq */
 
 	/* new data */
-	struct timespec starttod;	   /* time of start or last reset */
+	struct timespec64 starttod;	   /* time of start or last reset */
 	unsigned int dasd_io_alias;	   /* requests using an alias */
 	unsigned int dasd_io_tpm;	   /* requests using transport mode */
 	unsigned int dasd_read_reqs;	   /* total number of read  requests */
@@ -729,18 +699,9 @@ extern const struct block_device_operations dasd_device_operations;
 extern struct kmem_cache *dasd_page_cache;
 
 struct dasd_ccw_req *
-dasd_kmalloc_request(int , int, int, struct dasd_device *);
-struct dasd_ccw_req *
-dasd_smalloc_request(int , int, int, struct dasd_device *);
-void dasd_kfree_request(struct dasd_ccw_req *, struct dasd_device *);
+dasd_smalloc_request(int, int, int, struct dasd_device *, struct dasd_ccw_req *);
 void dasd_sfree_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_wakeup_cb(struct dasd_ccw_req *, void *);
-
-static inline int
-dasd_kmalloc_set_cda(struct ccw1 *ccw, void *cda, struct dasd_device *device)
-{
-	return set_normalized_cda(ccw, cda);
-}
 
 struct dasd_device *dasd_alloc_device(void);
 void dasd_free_device(struct dasd_device *);

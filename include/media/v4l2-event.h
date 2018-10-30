@@ -24,40 +24,6 @@
 #include <linux/videodev2.h>
 #include <linux/wait.h>
 
-/*
- * Overview:
- *
- * Events are subscribed per-filehandle. An event specification consists of a
- * type and is optionally associated with an object identified through the
- * 'id' field. So an event is uniquely identified by the (type, id) tuple.
- *
- * The v4l2-fh struct has a list of subscribed events. The v4l2_subscribed_event
- * struct is added to that list, one for every subscribed event.
- *
- * Each v4l2_subscribed_event struct ends with an array of v4l2_kevent structs.
- * This array (ringbuffer, really) is used to store any events raised by the
- * driver. The v4l2_kevent struct links into the 'available' list of the
- * v4l2_fh struct so VIDIOC_DQEVENT will know which event to dequeue first.
- *
- * Finally, if the event subscription is associated with a particular object
- * such as a V4L2 control, then that object needs to know about that as well
- * so that an event can be raised by that object. So the 'node' field can
- * be used to link the v4l2_subscribed_event struct into a list of that
- * object.
- *
- * So to summarize:
- *
- * struct v4l2_fh has two lists: one of the subscribed events, and one of the
- * pending events.
- *
- * struct v4l2_subscribed_event has a ringbuffer of raised (pending) events of
- * that particular type.
- *
- * If struct v4l2_subscribed_event is associated with a specific object, then
- * that object will have an internal list of struct v4l2_subscribed_event so
- * it knows who subscribed an event to that object.
- */
-
 struct v4l2_fh;
 struct v4l2_subdev;
 struct v4l2_subscribed_event;
@@ -218,7 +184,7 @@ int v4l2_event_subdev_unsubscribe(struct v4l2_subdev *sd,
 				  struct v4l2_event_subscription *sub);
 /**
  * v4l2_src_change_event_subscribe - helper function that calls
- * 	v4l2_event_subscribe() if the event is %V4L2_EVENT_SOURCE_CHANGE.
+ *	v4l2_event_subscribe() if the event is %V4L2_EVENT_SOURCE_CHANGE.
  *
  * @fh: pointer to struct v4l2_fh
  * @sub: pointer to &struct v4l2_event_subscription

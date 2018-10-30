@@ -11,21 +11,6 @@
 #include <linux/module.h>
 #include <linux/sort.h>
 
-struct plt_entry {
-	/*
-	 * A program that conforms to the AArch64 Procedure Call Standard
-	 * (AAPCS64) must assume that a veneer that alters IP0 (x16) and/or
-	 * IP1 (x17) may be inserted at any branch instruction that is
-	 * exposed to a relocation that supports long branches. Since that
-	 * is exactly what we are dealing with here, we are free to use x16
-	 * as a scratch register in the PLT veneers.
-	 */
-	__le32	mov0;	/* movn	x16, #0x....			*/
-	__le32	mov1;	/* movk	x16, #0x...., lsl #16		*/
-	__le32	mov2;	/* movk	x16, #0x...., lsl #32		*/
-	__le32	br;	/* br	x16				*/
-};
-
 static bool in_init(const struct module *mod, void *loc)
 {
 	return (u64)loc - (u64)mod->init_layout.base < mod->init_layout.size;
@@ -40,40 +25,63 @@ u64 module_emit_plt_entry(struct module *mod, void *loc, const Elf64_Rela *rela,
 	int i = pltsec->plt_num_entries;
 	u64 val = sym->st_value + rela->r_addend;
 
-	/*
-	 * MOVK/MOVN/MOVZ opcode:
-	 * +--------+------------+--------+-----------+-------------+---------+
-	 * | sf[31] | opc[30:29] | 100101 | hw[22:21] | imm16[20:5] | Rd[4:0] |
-	 * +--------+------------+--------+-----------+-------------+---------+
-	 *
-	 * Rd     := 0x10 (x16)
-	 * hw     := 0b00 (no shift), 0b01 (lsl #16), 0b10 (lsl #32)
-	 * opc    := 0b11 (MOVK), 0b00 (MOVN), 0b10 (MOVZ)
-	 * sf     := 1 (64-bit variant)
-	 */
-	plt[i] = (struct plt_entry){
-		cpu_to_le32(0x92800010 | (((~val      ) & 0xffff)) << 5),
-		cpu_to_le32(0xf2a00010 | ((( val >> 16) & 0xffff)) << 5),
-		cpu_to_le32(0xf2c00010 | ((( val >> 32) & 0xffff)) << 5),
-		cpu_to_le32(0xd61f0200)
-	};
+	plt[i] = get_plt_entry(val);
 
 	/*
 	 * Check if the entry we just created is a duplicate. Given that the
 	 * relocations are sorted, this will be the last entry we allocated.
 	 * (if one exists).
 	 */
-	if (i > 0 &&
-	    plt[i].mov0 == plt[i - 1].mov0 &&
-	    plt[i].mov1 == plt[i - 1].mov1 &&
-	    plt[i].mov2 == plt[i - 1].mov2)
+	if (i > 0 && plt_entries_equal(plt + i, plt + i - 1))
 		return (u64)&plt[i - 1];
 
 	pltsec->plt_num_entries++;
-	BUG_ON(pltsec->plt_num_entries > pltsec->plt_max_entries);
+	if (WARN_ON(pltsec->plt_num_entries > pltsec->plt_max_entries))
+		return 0;
 
 	return (u64)&plt[i];
 }
+
+#ifdef CONFIG_ARM64_ERRATUM_843419
+u64 module_emit_veneer_for_adrp(struct module *mod, void *loc, u64 val)
+{
+	struct mod_plt_sec *pltsec = !in_init(mod, loc) ? &mod->arch.core :
+							  &mod->arch.init;
+	struct plt_entry *plt = (struct plt_entry *)pltsec->plt->sh_addr;
+	int i = pltsec->plt_num_entries++;
+	u32 mov0, mov1, mov2, br;
+	int rd;
+
+	if (WARN_ON(pltsec->plt_num_entries > pltsec->plt_max_entries))
+		return 0;
+
+	/* get the destination register of the ADRP instruction */
+	rd = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RD,
+					  le32_to_cpup((__le32 *)loc));
+
+	/* generate the veneer instructions */
+	mov0 = aarch64_insn_gen_movewide(rd, (u16)~val, 0,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_INVERSE);
+	mov1 = aarch64_insn_gen_movewide(rd, (u16)(val >> 16), 16,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_KEEP);
+	mov2 = aarch64_insn_gen_movewide(rd, (u16)(val >> 32), 32,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_KEEP);
+	br = aarch64_insn_gen_branch_imm((u64)&plt[i].br, (u64)loc + 4,
+					 AARCH64_INSN_BRANCH_NOLINK);
+
+	plt[i] = (struct plt_entry){
+			cpu_to_le32(mov0),
+			cpu_to_le32(mov1),
+			cpu_to_le32(mov2),
+			cpu_to_le32(br)
+		};
+
+	return (u64)&plt[i];
+}
+#endif
 
 #define cmp_3way(a,b)	((a) < (b) ? -1 : (a) > (b))
 
@@ -102,16 +110,21 @@ static bool duplicate_rel(const Elf64_Rela *rela, int num)
 }
 
 static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
-			       Elf64_Word dstidx)
+			       Elf64_Word dstidx, Elf_Shdr *dstsec)
 {
 	unsigned int ret = 0;
 	Elf64_Sym *s;
 	int i;
 
 	for (i = 0; i < num; i++) {
+		u64 min_align;
+
 		switch (ELF64_R_TYPE(rela[i].r_info)) {
 		case R_AARCH64_JUMP26:
 		case R_AARCH64_CALL26:
+			if (!IS_ENABLED(CONFIG_RANDOMIZE_BASE))
+				break;
+
 			/*
 			 * We only have to consider branch targets that resolve
 			 * to symbols that are defined in a different section.
@@ -143,6 +156,41 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 			if (rela[i].r_addend != 0 || !duplicate_rel(rela, i))
 				ret++;
 			break;
+		case R_AARCH64_ADR_PREL_PG_HI21_NC:
+		case R_AARCH64_ADR_PREL_PG_HI21:
+			if (!IS_ENABLED(CONFIG_ARM64_ERRATUM_843419) ||
+			    !cpus_have_const_cap(ARM64_WORKAROUND_843419))
+				break;
+
+			/*
+			 * Determine the minimal safe alignment for this ADRP
+			 * instruction: the section alignment at which it is
+			 * guaranteed not to appear at a vulnerable offset.
+			 *
+			 * This comes down to finding the least significant zero
+			 * bit in bits [11:3] of the section offset, and
+			 * increasing the section's alignment so that the
+			 * resulting address of this instruction is guaranteed
+			 * to equal the offset in that particular bit (as well
+			 * as all less signficant bits). This ensures that the
+			 * address modulo 4 KB != 0xfff8 or 0xfffc (which would
+			 * have all ones in bits [11:3])
+			 */
+			min_align = 2ULL << ffz(rela[i].r_offset | 0x7);
+
+			/*
+			 * Allocate veneer space for each ADRP that may appear
+			 * at a vulnerable offset nonetheless. At relocation
+			 * time, some of these will remain unused since some
+			 * ADRP instructions can be patched to ADR instructions
+			 * instead.
+			 */
+			if (min_align > SZ_4K)
+				ret++;
+			else
+				dstsec->sh_addralign = max(dstsec->sh_addralign,
+							   min_align);
+			break;
 		}
 	}
 	return ret;
@@ -154,6 +202,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	unsigned long core_plts = 0;
 	unsigned long init_plts = 0;
 	Elf64_Sym *syms = NULL;
+	Elf_Shdr *tramp = NULL;
 	int i;
 
 	/*
@@ -165,6 +214,10 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 			mod->arch.core.plt = sechdrs + i;
 		else if (!strcmp(secstrings + sechdrs[i].sh_name, ".init.plt"))
 			mod->arch.init.plt = sechdrs + i;
+		else if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE) &&
+			 !strcmp(secstrings + sechdrs[i].sh_name,
+				 ".text.ftrace_trampoline"))
+			tramp = sechdrs + i;
 		else if (sechdrs[i].sh_type == SHT_SYMTAB)
 			syms = (Elf64_Sym *)sechdrs[i].sh_addr;
 	}
@@ -195,10 +248,10 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 
 		if (strncmp(secstrings + dstsec->sh_name, ".init", 5) != 0)
 			core_plts += count_plts(syms, rels, numrels,
-						sechdrs[i].sh_info);
+						sechdrs[i].sh_info, dstsec);
 		else
 			init_plts += count_plts(syms, rels, numrels,
-						sechdrs[i].sh_info);
+						sechdrs[i].sh_info, dstsec);
 	}
 
 	mod->arch.core.plt->sh_type = SHT_NOBITS;
@@ -214,6 +267,13 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	mod->arch.init.plt->sh_size = (init_plts + 1) * sizeof(struct plt_entry);
 	mod->arch.init.plt_num_entries = 0;
 	mod->arch.init.plt_max_entries = init_plts;
+
+	if (tramp) {
+		tramp->sh_type = SHT_NOBITS;
+		tramp->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
+		tramp->sh_addralign = __alignof__(struct plt_entry);
+		tramp->sh_size = sizeof(struct plt_entry);
+	}
 
 	return 0;
 }

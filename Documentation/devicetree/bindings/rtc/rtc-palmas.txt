@@ -3,7 +3,6 @@ Palmas RTC controller bindings
 Required properties:
 - compatible:
   - "ti,palmas-rtc" for palma series of the RTC controller
-- interrupt-parent: Parent interrupt device, must be handle of palmas node.
 - interrupts: Interrupt number of RTC submodule on device.
 
 Optional properties:

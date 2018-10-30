@@ -598,15 +598,25 @@ out:
 	mutex_unlock(&cdev_list_lock);
 }
 
+static void __cxgbit_free_conn(struct cxgbit_sock *csk);
+
 void cxgbit_free_np(struct iscsi_np *np)
 {
 	struct cxgbit_np *cnp = np->np_context;
+	struct cxgbit_sock *csk, *tmp;
 
 	cnp->com.state = CSK_STATE_DEAD;
 	if (cnp->com.cdev)
 		cxgbit_free_cdev_np(cnp);
 	else
 		cxgbit_free_all_np(cnp);
+
+	spin_lock_bh(&cnp->np_accept_lock);
+	list_for_each_entry_safe(csk, tmp, &cnp->np_accept_list, accept_node) {
+		list_del_init(&csk->accept_node);
+		__cxgbit_free_conn(csk);
+	}
+	spin_unlock_bh(&cnp->np_accept_lock);
 
 	np->np_context = NULL;
 	cxgbit_put_cnp(cnp);
@@ -665,9 +675,49 @@ static int cxgbit_send_abort_req(struct cxgbit_sock *csk)
 	return cxgbit_l2t_send(csk->com.cdev, skb, csk->l2t);
 }
 
-void cxgbit_free_conn(struct iscsi_conn *conn)
+static void
+__cxgbit_abort_conn(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
-	struct cxgbit_sock *csk = conn->context;
+	__kfree_skb(skb);
+
+	if (csk->com.state != CSK_STATE_ESTABLISHED)
+		goto no_abort;
+
+	set_bit(CSK_ABORT_RPL_WAIT, &csk->com.flags);
+	csk->com.state = CSK_STATE_ABORTING;
+
+	cxgbit_send_abort_req(csk);
+
+	return;
+
+no_abort:
+	cxgbit_wake_up(&csk->com.wr_wait, __func__, CPL_ERR_NONE);
+	cxgbit_put_csk(csk);
+}
+
+void cxgbit_abort_conn(struct cxgbit_sock *csk)
+{
+	struct sk_buff *skb = alloc_skb(0, GFP_KERNEL | __GFP_NOFAIL);
+
+	cxgbit_get_csk(csk);
+	cxgbit_init_wr_wait(&csk->com.wr_wait);
+
+	spin_lock_bh(&csk->lock);
+	if (csk->lock_owner) {
+		cxgbit_skcb_rx_backlog_fn(skb) = __cxgbit_abort_conn;
+		__skb_queue_tail(&csk->backlogq, skb);
+	} else {
+		__cxgbit_abort_conn(csk, skb);
+	}
+	spin_unlock_bh(&csk->lock);
+
+	cxgbit_wait_for_reply(csk->com.cdev, &csk->com.wr_wait,
+			      csk->tid, 600, __func__);
+}
+
+static void __cxgbit_free_conn(struct cxgbit_sock *csk)
+{
+	struct iscsi_conn *conn = csk->conn;
 	bool release = false;
 
 	pr_debug("%s: state %d\n",
@@ -676,7 +726,7 @@ void cxgbit_free_conn(struct iscsi_conn *conn)
 	spin_lock_bh(&csk->lock);
 	switch (csk->com.state) {
 	case CSK_STATE_ESTABLISHED:
-		if (conn->conn_state == TARG_CONN_STATE_IN_LOGOUT) {
+		if (conn && (conn->conn_state == TARG_CONN_STATE_IN_LOGOUT)) {
 			csk->com.state = CSK_STATE_CLOSING;
 			cxgbit_send_halfclose(csk);
 		} else {
@@ -699,6 +749,11 @@ void cxgbit_free_conn(struct iscsi_conn *conn)
 
 	if (release)
 		cxgbit_put_csk(csk);
+}
+
+void cxgbit_free_conn(struct iscsi_conn *conn)
+{
+	__cxgbit_free_conn(conn->context);
 }
 
 static void cxgbit_set_emss(struct cxgbit_sock *csk, u16 opt)
@@ -763,6 +818,7 @@ void _cxgbit_free_csk(struct kref *kref)
 	spin_unlock_bh(&cdev->cskq.lock);
 
 	cxgbit_free_skb(csk);
+	cxgbit_put_cnp(csk->cnp);
 	cxgbit_put_cdev(cdev);
 
 	kfree(csk);
@@ -853,6 +909,9 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 		return -ENODEV;
 
 	rcu_read_lock();
+	if (!(n->nud_state & NUD_VALID))
+		neigh_event_send(n, NULL);
+
 	ret = -ENOMEM;
 	if (n->dev->flags & IFF_LOOPBACK) {
 		if (iptype == 4)
@@ -1308,6 +1367,7 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 		goto rel_skb;
 	}
 
+	cxgbit_get_cnp(cnp);
 	cxgbit_get_cdev(cdev);
 
 	spin_lock(&cdev->cskq.lock);
@@ -1709,12 +1769,17 @@ rel_skb:
 
 static void cxgbit_abort_rpl_rss(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
+	struct cpl_abort_rpl_rss *rpl = cplhdr(skb);
+
 	pr_debug("%s: csk %p; tid %u; state %d\n",
 		 __func__, csk, csk->tid, csk->com.state);
 
 	switch (csk->com.state) {
 	case CSK_STATE_ABORTING:
 		csk->com.state = CSK_STATE_DEAD;
+		if (test_bit(CSK_ABORT_RPL_WAIT, &csk->com.flags))
+			cxgbit_wake_up(&csk->com.wr_wait, __func__,
+				       rpl->status);
 		cxgbit_put_csk(csk);
 		break;
 	default:

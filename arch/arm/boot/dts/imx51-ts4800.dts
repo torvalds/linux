@@ -17,7 +17,7 @@
 		stdout-path = &uart1;
 	};
 
-	memory {
+	memory@90000000 {
 		reg = <0x90000000 0x10000000>;
 	};
 
@@ -50,7 +50,7 @@
 		power-supply = <&backlight_reg>;
 	};
 
-	display0: display@di0 {
+	display1: disp1 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "rgb24";
 		pinctrl-names = "default";
@@ -71,9 +71,9 @@
 			};
 		};
 
-		port@0 {
+		port {
 			display0_in: endpoint {
-				remote-endpoint = <&ipu_di0_disp0>;
+				remote-endpoint = <&ipu_di0_disp1>;
 			};
 		};
 	};
@@ -107,7 +107,7 @@
 	};
 };
 
-&ipu_di0_disp0 {
+&ipu_di0_disp1 {
 	remote-endpoint = <&display0_in>;
 };
 
@@ -149,18 +149,18 @@
 		#size-cells = <1>;
 		ranges = <0 0 0 0x1d000>;
 
-		syscon: syscon@b0010000 {
+		syscon: syscon@10000 {
 			compatible = "syscon", "simple-mfd";
 			reg = <0x10000 0x3d>;
 			reg-io-width = <2>;
 
-			wdt@e {
+			wdt {
 				compatible = "technologic,ts4800-wdt";
 				syscon = <&syscon 0xe>;
 			};
 		};
 
-		touchscreen {
+		touchscreen@12000 {
 			compatible = "technologic,ts4800-ts";
 			reg = <0x12000 0x1000>;
 			syscon = <&syscon 0x10 6>;

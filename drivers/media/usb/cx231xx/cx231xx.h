@@ -38,7 +38,6 @@
 #include <media/v4l2-fh.h>
 #include <media/rc-core.h>
 #include <media/i2c/ir-kbd-i2c.h>
-#include <media/videobuf-dvb.h>
 
 #include "cx231xx-reg.h"
 #include "cx231xx-pcb-cfg.h"
@@ -80,6 +79,9 @@
 #define CX231XX_BOARD_TERRATEC_GRABBY 22
 #define CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD 23
 #define CX231XX_BOARD_ASTROMETA_T2HYBRID 24
+#define CX231XX_BOARD_THE_IMAGING_SOURCE_DFG_USB2_PRO 25
+#define CX231XX_BOARD_HAUPPAUGE_935C 26
+#define CX231XX_BOARD_HAUPPAUGE_975 27
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4
@@ -342,6 +344,7 @@ struct cx231xx_board {
 
 	/* demod related */
 	int demod_addr;
+	int demod_addr2;
 	u8 demod_xfer_mode;	/* 0 - Serial; 1 - parallel */
 
 	/* GPIO Pins */
@@ -541,8 +544,6 @@ struct cx231xx_tsport {
 
 	int                        nr;
 	int                        sram_chno;
-
-	struct videobuf_dvb_frontends frontends;
 
 	/* dma queues */
 

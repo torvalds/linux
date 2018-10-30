@@ -365,7 +365,7 @@ Version 0.4 (2001-10-28)
 	(fs/befs/super.c)
 
 * Tell the kernel to only mount befs read-only. 
-	By setting the MS_RDONLY flag in befs_read_super().
+	By setting the SB_RDONLY flag in befs_read_super().
 	Not that it was possible to write before. But now the kernel won't even try.
 	(fs/befs/super.c)
 
@@ -389,7 +389,7 @@ Version 0.4 (2001-10-28)
 	(fs/nls/Config.in)
 
 * Added Configure.help entries for CONFIG_BEFS_FS and CONFIG_DEBUG_BEFS
-	(Documentation/Configure.help)
+	(currently at fs/befs/Kconfig)
 
 2001-08-??
 ==========

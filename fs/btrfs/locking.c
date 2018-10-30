@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2008 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
+
 #include <linux/sched.h>
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
@@ -78,22 +66,16 @@ void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw)
 		write_lock(&eb->lock);
 		WARN_ON(atomic_read(&eb->spinning_writers));
 		atomic_inc(&eb->spinning_writers);
-		/*
-		 * atomic_dec_and_test implies a barrier for waitqueue_active
-		 */
-		if (atomic_dec_and_test(&eb->blocking_writers) &&
-		    waitqueue_active(&eb->write_lock_wq))
-			wake_up(&eb->write_lock_wq);
+		/* atomic_dec_and_test implies a barrier */
+		if (atomic_dec_and_test(&eb->blocking_writers))
+			cond_wake_up_nomb(&eb->write_lock_wq);
 	} else if (rw == BTRFS_READ_LOCK_BLOCKING) {
 		BUG_ON(atomic_read(&eb->blocking_readers) == 0);
 		read_lock(&eb->lock);
 		atomic_inc(&eb->spinning_readers);
-		/*
-		 * atomic_dec_and_test implies a barrier for waitqueue_active
-		 */
-		if (atomic_dec_and_test(&eb->blocking_readers) &&
-		    waitqueue_active(&eb->read_lock_wq))
-			wake_up(&eb->read_lock_wq);
+		/* atomic_dec_and_test implies a barrier */
+		if (atomic_dec_and_test(&eb->blocking_readers))
+			cond_wake_up_nomb(&eb->read_lock_wq);
 	}
 }
 
@@ -233,12 +215,9 @@ void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
 	}
 	btrfs_assert_tree_read_locked(eb);
 	WARN_ON(atomic_read(&eb->blocking_readers) == 0);
-	/*
-	 * atomic_dec_and_test implies a barrier for waitqueue_active
-	 */
-	if (atomic_dec_and_test(&eb->blocking_readers) &&
-	    waitqueue_active(&eb->read_lock_wq))
-		wake_up(&eb->read_lock_wq);
+	/* atomic_dec_and_test implies a barrier */
+	if (atomic_dec_and_test(&eb->blocking_readers))
+		cond_wake_up_nomb(&eb->read_lock_wq);
 	atomic_dec(&eb->read_locks);
 }
 
@@ -287,12 +266,9 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 	if (blockers) {
 		WARN_ON(atomic_read(&eb->spinning_writers));
 		atomic_dec(&eb->blocking_writers);
-		/*
-		 * Make sure counter is updated before we wake up waiters.
-		 */
-		smp_mb();
-		if (waitqueue_active(&eb->write_lock_wq))
-			wake_up(&eb->write_lock_wq);
+		/* Use the lighter barrier after atomic */
+		smp_mb__after_atomic();
+		cond_wake_up_nomb(&eb->write_lock_wq);
 	} else {
 		WARN_ON(atomic_read(&eb->spinning_writers) != 1);
 		atomic_dec(&eb->spinning_writers);

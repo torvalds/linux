@@ -213,7 +213,7 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
 	unsigned long offset, maxoff;
-	struct inode *inode;
+	struct inode *inode = NULL;
 	struct romfs_inode ri;
 	const char *name;		/* got from dentry */
 	int len, ret;
@@ -233,7 +233,7 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	for (;;) {
 		if (!offset || offset >= maxoff)
-			goto out0;
+			break;
 
 		ret = romfs_dev_read(dir->i_sb, offset, &ri, sizeof(ri));
 		if (ret < 0)
@@ -244,37 +244,19 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 				       len);
 		if (ret < 0)
 			goto error;
-		if (ret == 1)
+		if (ret == 1) {
+			/* Hard link handling */
+			if ((be32_to_cpu(ri.next) & ROMFH_TYPE) == ROMFH_HRD)
+				offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
+			inode = romfs_iget(dir->i_sb, offset);
 			break;
+		}
 
 		/* next entry */
 		offset = be32_to_cpu(ri.next) & ROMFH_MASK;
 	}
 
-	/* Hard link handling */
-	if ((be32_to_cpu(ri.next) & ROMFH_TYPE) == ROMFH_HRD)
-		offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
-
-	inode = romfs_iget(dir->i_sb, offset);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
-		goto error;
-	}
-	goto outi;
-
-	/*
-	 * it's a bit funky, _lookup needs to return an error code
-	 * (negative) or a NULL, both as a dentry.  ENOENT should not
-	 * be returned, instead we need to create a negative dentry by
-	 * d_add(dentry, NULL); and return 0 as no error.
-	 * (Although as I see, it only matters on writable file
-	 * systems).
-	 */
-out0:
-	inode = NULL;
-outi:
-	d_add(dentry, inode);
-	ret = 0;
+	return d_splice_alias(inode, dentry);
 error:
 	return ERR_PTR(ret);
 }
@@ -451,7 +433,7 @@ static int romfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int romfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_RDONLY;
+	*flags |= SB_RDONLY;
 	return 0;
 }
 
@@ -502,7 +484,7 @@ static int romfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_maxbytes = 0xFFFFFFFF;
 	sb->s_magic = ROMFS_MAGIC;
-	sb->s_flags |= MS_RDONLY | MS_NOATIME;
+	sb->s_flags |= SB_RDONLY | SB_NOATIME;
 	sb->s_op = &romfs_super_ops;
 
 #ifdef CONFIG_ROMFS_ON_MTD

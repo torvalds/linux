@@ -1,18 +1,22 @@
 * Renesas R-Car generation 3 USB 3.0 PHY
 
 This file provides information on what the device node for the R-Car generation
-3 USB 3.0 PHY contains.
+3 and RZ/G2 USB 3.0 PHY contain.
 If you want to enable spread spectrum clock (ssc), you should use USB_EXTAL
 instead of USB3_CLK. However, if you don't want to these features, you don't
 need this driver.
 
 Required properties:
-- compatible: "renesas,r8a7795-usb3-phy" if the device is a part of an R8A7795
+- compatible: "renesas,r8a774a1-usb3-phy" if the device is a part of an R8A774A1
+	      SoC.
+	      "renesas,r8a7795-usb3-phy" if the device is a part of an R8A7795
 	      SoC.
 	      "renesas,r8a7796-usb3-phy" if the device is a part of an R8A7796
 	      SoC.
-	      "renesas,rcar-gen3-usb3-phy" for a generic R-Car Gen3 compatible
-	      device.
+	      "renesas,r8a77965-usb3-phy" if the device is a part of an
+	      R8A77965 SoC.
+	      "renesas,rcar-gen3-usb3-phy" for a generic R-Car Gen3 or RZ/G2
+	      compatible device.
 
 	      When compatible with the generic version, nodes must list the
 	      SoC-specific version corresponding to the platform first

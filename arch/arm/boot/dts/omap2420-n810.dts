@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "omap2420-n8x0-common.dtsi"
@@ -5,11 +6,70 @@
 / {
 	model = "Nokia N810";
 	compatible = "nokia,n810", "nokia,n8x0", "ti,omap2420", "ti,omap2";
+
+	vio_ape: vio_ape {
+		compatible = "regulator-fixed";
+		regulator-name = "vio_ape";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	v28_aic: v28_aic {
+		compatible = "regulator-fixed";
+		regulator-name = "v28_aic";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+	};
+};
+
+&omap2420_pmx {
+	mcbsp2_pins: mcbsp2_pins {
+		pinctrl-single,pins = <
+			OMAP2420_CORE_IOPAD(0x0124, PIN_INPUT | MUX_MODE1)	/* eac_ac_sclk.mcbsp2_clkx */
+			OMAP2420_CORE_IOPAD(0x0125, PIN_INPUT | MUX_MODE1)	/* eac_ac_fs.mcbsp2_fsx */
+			OMAP2420_CORE_IOPAD(0x0126, PIN_INPUT | MUX_MODE1)	/* eac_ac_din.mcbsp2_dr */
+			OMAP2420_CORE_IOPAD(0x0127, PIN_OUTPUT | MUX_MODE1)	/* eac_ac_dout.mcbsp2_dx */
+		>;
+	};
+
+	aic33_pins: aic33_pins {
+		pinctrl-single,pins = <
+			OMAP2420_CORE_IOPAD(0x0129, PIN_OUTPUT | MUX_MODE3)	/* eac_ac_rst.gpio118 */
+			OMAP2420_CORE_IOPAD(0x00e8, PIN_OUTPUT | MUX_MODE2)	/* vlynq_tx1.sys_clkout2 */
+		>;
+	};
 };
 
 &i2c2 {
-	aic3x@18 {
-		compatible = "tlv320aic3x";
+	aic33@18 {
+		compatible = "ti,tlv320aic33";
 		reg = <0x18>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&aic33_pins>;
+
+		gpio-reset = <&gpio4 22 GPIO_ACTIVE_LOW>; /* gpio118 */
+
+		ai3x-gpio-func = <
+			10 /* AIC3X_GPIO1_FUNC_DIGITAL_MIC_MODCLK */
+			5 /* AIC3X_GPIO2_FUNC_DIGITAL_MIC_INPUT */
+		>;
+		ai3x-micbias-vg = <1>; /* 2V */
+
+		AVDD-supply = <&v28_aic>;
+		DRVDD-supply = <&v28_aic>;
+		IOVDD-supply = <&vio_ape>;
+		DVDD-supply = <&vio_ape>;
+
+		assigned-clocks = <&sys_clkout2_src>, <&sys_clkout2>;
+		assigned-clock-parents = <&func_96m_ck>;
+		assigned-clock-rates = <0>, <12000000>;
 	};
+};
+
+&mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
+
+	status = "okay";
 };

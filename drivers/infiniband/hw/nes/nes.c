@@ -178,11 +178,16 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 					/* fall through */
 				case NETDEV_CHANGEADDR:
 					/* Add the address to the IP table */
-					if (upper_dev)
-						nesvnic->local_ipaddr =
-							((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address;
-					else
+					if (upper_dev) {
+						struct in_device *in;
+
+						rcu_read_lock();
+						in = __in_dev_get_rcu(upper_dev);
+						nesvnic->local_ipaddr = in->ifa_list->ifa_address;
+						rcu_read_unlock();
+					} else {
 						nesvnic->local_ipaddr = ifa->ifa_address;
+					}
 
 					nes_write_indexed(nesdev,
 							NES_IDX_DST_IP_ADDR+(0x10*PCI_FUNC(nesdev->pcidev->devfn)),
@@ -450,9 +455,6 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	int ret = 0;
 	void __iomem *mmio_regs = NULL;
 	u8 hw_rev;
-
-	assert(pcidev != NULL);
-	assert(ent != NULL);
 
 	printk(KERN_INFO PFX "NetEffect RNIC driver v%s loading. (%s)\n",
 			DRV_VERSION, pci_name(pcidev));
@@ -757,18 +759,18 @@ static void nes_remove(struct pci_dev *pcidev)
 	int netdev_index = 0;
 	unsigned long flags;
 
-		if (nesdev->netdev_count) {
-			netdev = nesdev->netdev[netdev_index];
-			if (netdev) {
-				netif_stop_queue(netdev);
-				unregister_netdev(netdev);
-				nes_netdev_destroy(netdev);
+	if (nesdev->netdev_count) {
+		netdev = nesdev->netdev[netdev_index];
+		if (netdev) {
+			netif_stop_queue(netdev);
+			unregister_netdev(netdev);
+			nes_netdev_destroy(netdev);
 
-				nesdev->netdev[netdev_index] = NULL;
-				nesdev->netdev_count--;
-				nesdev->nesadapter->netdev_count--;
-			}
+			nesdev->netdev[netdev_index] = NULL;
+			nesdev->netdev_count--;
+			nesdev->nesadapter->netdev_count--;
 		}
+	}
 
 	nes_notifiers_registered--;
 	if (nes_notifiers_registered == 0) {

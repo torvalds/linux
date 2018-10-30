@@ -165,9 +165,29 @@ static void dw_mci_exynos_set_clksel_timing(struct dw_mci *host, u32 timing)
 static int dw_mci_exynos_runtime_resume(struct device *dev)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
+	int ret;
+
+	ret = dw_mci_runtime_resume(dev);
+	if (ret)
+		return ret;
 
 	dw_mci_exynos_config_smu(host);
-	return dw_mci_runtime_resume(dev);
+
+	return ret;
+}
+#endif /* CONFIG_PM */
+
+#ifdef CONFIG_PM_SLEEP
+/**
+ * dw_mci_exynos_suspend_noirq - Exynos-specific suspend code
+ *
+ * This ensures that device will be in runtime active state in
+ * dw_mci_exynos_resume_noirq after calling pm_runtime_force_resume()
+ */
+static int dw_mci_exynos_suspend_noirq(struct device *dev)
+{
+	pm_runtime_get_noresume(dev);
+	return pm_runtime_force_suspend(dev);
 }
 
 /**
@@ -180,12 +200,16 @@ static int dw_mci_exynos_runtime_resume(struct device *dev)
  *
  * We run this code on all exynos variants because it doesn't hurt.
  */
-
 static int dw_mci_exynos_resume_noirq(struct device *dev)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 	u32 clksel;
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret)
+		return ret;
 
 	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
 		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
@@ -201,11 +225,11 @@ static int dw_mci_exynos_resume_noirq(struct device *dev)
 			mci_writel(host, CLKSEL, clksel);
 	}
 
+	pm_runtime_put(dev);
+
 	return 0;
 }
-#else
-#define dw_mci_exynos_resume_noirq	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static void dw_mci_exynos_config_hs400(struct dw_mci *host, u32 timing)
 {
@@ -229,6 +253,8 @@ static void dw_mci_exynos_config_hs400(struct dw_mci *host, u32 timing)
 	if (timing == MMC_TIMING_MMC_HS400) {
 		dqs |= DATA_STROBE_EN;
 		strobe = DQS_CTRL_RD_DELAY(strobe, priv->dqs_delay);
+	} else if (timing == MMC_TIMING_UHS_SDR104) {
+		dqs &= 0xffffff00;
 	} else {
 		dqs &= ~DATA_STROBE_EN;
 	}
@@ -287,6 +313,15 @@ static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 		/* Should be double rate for DDR mode */
 		if (ios->bus_width == MMC_BUS_WIDTH_8)
 			wanted <<= 1;
+		break;
+	case MMC_TIMING_UHS_SDR104:
+	case MMC_TIMING_UHS_SDR50:
+		clksel = (priv->sdr_timing & 0xfff8ffff) |
+			(priv->ciu_div << 16);
+		break;
+	case MMC_TIMING_UHS_DDR50:
+		clksel = (priv->ddr_timing & 0xfff8ffff) |
+			(priv->ciu_div << 16);
 		break;
 	default:
 		clksel = priv->sdr_timing;
@@ -487,6 +522,7 @@ static unsigned long exynos_dwmmc_caps[4] = {
 
 static const struct dw_mci_drv_data exynos_drv_data = {
 	.caps			= exynos_dwmmc_caps,
+	.num_caps		= ARRAY_SIZE(exynos_dwmmc_caps),
 	.init			= dw_mci_exynos_priv_init,
 	.set_ios		= dw_mci_exynos_set_ios,
 	.parse_dt		= dw_mci_exynos_parse_dt,
@@ -546,14 +582,11 @@ static int dw_mci_exynos_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops dw_mci_exynos_pmops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(dw_mci_exynos_suspend_noirq,
+				      dw_mci_exynos_resume_noirq)
 	SET_RUNTIME_PM_OPS(dw_mci_runtime_suspend,
 			   dw_mci_exynos_runtime_resume,
 			   NULL)
-	.resume_noirq = dw_mci_exynos_resume_noirq,
-	.thaw_noirq = dw_mci_exynos_resume_noirq,
-	.restore_noirq = dw_mci_exynos_resume_noirq,
 };
 
 static struct platform_driver dw_mci_exynos_pltfm_driver = {

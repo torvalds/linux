@@ -269,10 +269,11 @@ ABS_MT_ORIENTATION
     The orientation of the touching ellipse. The value should describe a signed
     quarter of a revolution clockwise around the touch center. The signed value
     range is arbitrary, but zero should be returned for an ellipse aligned with
-    the Y axis of the surface, a negative value when the ellipse is turned to
-    the left, and a positive value when the ellipse is turned to the
-    right. When completely aligned with the X axis, the range max should be
-    returned.
+    the Y axis (north) of the surface, a negative value when the ellipse is
+    turned to the left, and a positive value when the ellipse is turned to the
+    right. When aligned with the X axis in the positive direction, the range
+    max should be returned; when aligned with the X axis in the negative
+    direction, the range -max should be returned.
 
     Touch ellipsis are symmetrical by default. For devices capable of true 360
     degree orientation, the reported orientation must exceed the range max to
@@ -309,12 +310,12 @@ ABS_MT_TOOL_Y
 ABS_MT_TOOL_TYPE
     The type of approaching tool. A lot of kernel drivers cannot distinguish
     between different tool types, such as a finger or a pen. In such cases, the
-    event should be omitted. The protocol currently supports MT_TOOL_FINGER,
-    MT_TOOL_PEN, and MT_TOOL_PALM [#f2]_. For type B devices, this event is
-    handled by input core; drivers should instead use
-    input_mt_report_slot_state(). A contact's ABS_MT_TOOL_TYPE may change over
-    time while still touching the device, because the firmware may not be able
-    to determine which tool is being used when it first appears.
+    event should be omitted. The protocol currently mainly supports
+    MT_TOOL_FINGER, MT_TOOL_PEN, and MT_TOOL_PALM [#f2]_.
+    For type B devices, this event is handled by input core; drivers should
+    instead use input_mt_report_slot_state(). A contact's ABS_MT_TOOL_TYPE may
+    change over time while still touching the device, because the firmware may
+    not be able to determine which tool is being used when it first appears.
 
 ABS_MT_BLOB_ID
     The BLOB_ID groups several packets together into one arbitrarily shaped

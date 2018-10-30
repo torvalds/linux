@@ -157,8 +157,10 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 		hdmi->qfprom_mmio = NULL;
 	}
 
-	hdmi->hpd_regs = devm_kzalloc(&pdev->dev, sizeof(hdmi->hpd_regs[0]) *
-			config->hpd_reg_cnt, GFP_KERNEL);
+	hdmi->hpd_regs = devm_kcalloc(&pdev->dev,
+				      config->hpd_reg_cnt,
+				      sizeof(hdmi->hpd_regs[0]),
+				      GFP_KERNEL);
 	if (!hdmi->hpd_regs) {
 		ret = -ENOMEM;
 		goto fail;
@@ -178,8 +180,10 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 		hdmi->hpd_regs[i] = reg;
 	}
 
-	hdmi->pwr_regs = devm_kzalloc(&pdev->dev, sizeof(hdmi->pwr_regs[0]) *
-			config->pwr_reg_cnt, GFP_KERNEL);
+	hdmi->pwr_regs = devm_kcalloc(&pdev->dev,
+				      config->pwr_reg_cnt,
+				      sizeof(hdmi->pwr_regs[0]),
+				      GFP_KERNEL);
 	if (!hdmi->pwr_regs) {
 		ret = -ENOMEM;
 		goto fail;
@@ -199,8 +203,10 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 		hdmi->pwr_regs[i] = reg;
 	}
 
-	hdmi->hpd_clks = devm_kzalloc(&pdev->dev, sizeof(hdmi->hpd_clks[0]) *
-			config->hpd_clk_cnt, GFP_KERNEL);
+	hdmi->hpd_clks = devm_kcalloc(&pdev->dev,
+				      config->hpd_clk_cnt,
+				      sizeof(hdmi->hpd_clks[0]),
+				      GFP_KERNEL);
 	if (!hdmi->hpd_clks) {
 		ret = -ENOMEM;
 		goto fail;
@@ -208,7 +214,7 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 	for (i = 0; i < config->hpd_clk_cnt; i++) {
 		struct clk *clk;
 
-		clk = devm_clk_get(&pdev->dev, config->hpd_clk_names[i]);
+		clk = msm_clk_get(pdev, config->hpd_clk_names[i]);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
 			dev_err(&pdev->dev, "failed to get hpd clk: %s (%d)\n",
@@ -219,8 +225,10 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 		hdmi->hpd_clks[i] = clk;
 	}
 
-	hdmi->pwr_clks = devm_kzalloc(&pdev->dev, sizeof(hdmi->pwr_clks[0]) *
-			config->pwr_clk_cnt, GFP_KERNEL);
+	hdmi->pwr_clks = devm_kcalloc(&pdev->dev,
+				      config->pwr_clk_cnt,
+				      sizeof(hdmi->pwr_clks[0]),
+				      GFP_KERNEL);
 	if (!hdmi->pwr_clks) {
 		ret = -ENOMEM;
 		goto fail;
@@ -228,7 +236,7 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 	for (i = 0; i < config->pwr_clk_cnt; i++) {
 		struct clk *clk;
 
-		clk = devm_clk_get(&pdev->dev, config->pwr_clk_names[i]);
+		clk = msm_clk_get(pdev, config->pwr_clk_names[i]);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
 			dev_err(&pdev->dev, "failed to get pwr clk: %s (%d)\n",
@@ -361,7 +369,7 @@ static const char *hpd_reg_names_none[] = {};
 static struct hdmi_platform_config hdmi_tx_8660_config;
 
 static const char *hpd_reg_names_8960[] = {"core-vdda", "hdmi-mux"};
-static const char *hpd_clk_names_8960[] = {"core_clk", "master_iface_clk", "slave_iface_clk"};
+static const char *hpd_clk_names_8960[] = {"core", "master_iface", "slave_iface"};
 
 static struct hdmi_platform_config hdmi_tx_8960_config = {
 		HDMI_CFG(hpd_reg, 8960),
@@ -370,8 +378,8 @@ static struct hdmi_platform_config hdmi_tx_8960_config = {
 
 static const char *pwr_reg_names_8x74[] = {"core-vdda", "core-vcc"};
 static const char *hpd_reg_names_8x74[] = {"hpd-gdsc", "hpd-5v"};
-static const char *pwr_clk_names_8x74[] = {"extp_clk", "alt_iface_clk"};
-static const char *hpd_clk_names_8x74[] = {"iface_clk", "core_clk", "mdp_core_clk"};
+static const char *pwr_clk_names_8x74[] = {"extp", "alt_iface"};
+static const char *hpd_clk_names_8x74[] = {"iface", "core", "mdp_core"};
 static unsigned long hpd_clk_freq_8x74[] = {0, 19200000, 0};
 
 static struct hdmi_platform_config hdmi_tx_8974_config = {

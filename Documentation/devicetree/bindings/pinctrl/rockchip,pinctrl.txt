@@ -20,6 +20,7 @@ defined as gpio sub-nodes of the pinmux controller.
 
 Required properties for iomux controller:
   - compatible: should be
+		"rockchip,px30-pinctrl":    for Rockchip PX30
 		"rockchip,rv1108-pinctrl":  for Rockchip RV1108
 		"rockchip,rk2928-pinctrl":  for Rockchip RK2928
 		"rockchip,rk3066a-pinctrl": for Rockchip RK3066a
@@ -136,7 +137,7 @@ Example for rk3188:
 		#size-cells = <1>;
 		ranges;
 
-		gpio0: gpio0@0x2000a000 {
+		gpio0: gpio0@2000a000 {
 			compatible = "rockchip,rk3188-gpio-bank0";
 			reg = <0x2000a000 0x100>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
@@ -149,7 +150,7 @@ Example for rk3188:
 			#interrupt-cells = <2>;
 		};
 
-		gpio1: gpio1@0x2003c000 {
+		gpio1: gpio1@2003c000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2003c000 0x100>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;

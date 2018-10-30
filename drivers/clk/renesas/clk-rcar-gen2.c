@@ -62,8 +62,7 @@ static unsigned long cpg_z_clk_recalc_rate(struct clk_hw *hw,
 	unsigned int mult;
 	unsigned int val;
 
-	val = (clk_readl(zclk->reg) & CPG_FRQCRC_ZFC_MASK)
-	    >> CPG_FRQCRC_ZFC_SHIFT;
+	val = (readl(zclk->reg) & CPG_FRQCRC_ZFC_MASK) >> CPG_FRQCRC_ZFC_SHIFT;
 	mult = 32 - val;
 
 	return div_u64((u64)parent_rate * mult, 32);
@@ -95,21 +94,21 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	mult = div_u64((u64)rate * 32, parent_rate);
 	mult = clamp(mult, 1U, 32U);
 
-	if (clk_readl(zclk->kick_reg) & CPG_FRQCRB_KICK)
+	if (readl(zclk->kick_reg) & CPG_FRQCRB_KICK)
 		return -EBUSY;
 
-	val = clk_readl(zclk->reg);
+	val = readl(zclk->reg);
 	val &= ~CPG_FRQCRC_ZFC_MASK;
 	val |= (32 - mult) << CPG_FRQCRC_ZFC_SHIFT;
-	clk_writel(val, zclk->reg);
+	writel(val, zclk->reg);
 
 	/*
 	 * Set KICK bit in FRQCRB to update hardware setting and wait for
 	 * clock change completion.
 	 */
-	kick = clk_readl(zclk->kick_reg);
+	kick = readl(zclk->kick_reg);
 	kick |= CPG_FRQCRB_KICK;
-	clk_writel(kick, zclk->kick_reg);
+	writel(kick, zclk->kick_reg);
 
 	/*
 	 * Note: There is no HW information about the worst case latency.
@@ -121,7 +120,7 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	 * "super" safe value.
 	 */
 	for (i = 1000; i; i--) {
-		if (!(clk_readl(zclk->kick_reg) & CPG_FRQCRB_KICK))
+		if (!(readl(zclk->kick_reg) & CPG_FRQCRB_KICK))
 			return 0;
 
 		cpu_relax();
@@ -332,7 +331,7 @@ rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 			mult = config->pll0_mult;
 			div = 3;
 		} else {
-			u32 value = clk_readl(cpg->reg + CPG_PLL0CR);
+			u32 value = readl(cpg->reg + CPG_PLL0CR);
 			mult = ((value >> 24) & ((1 << 7) - 1)) + 1;
 		}
 		parent_name = "main";
@@ -418,12 +417,11 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 	}
 
 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
-	clks = kzalloc(num_clks * sizeof(*clks), GFP_KERNEL);
+	clks = kcalloc(num_clks, sizeof(*clks), GFP_KERNEL);
 	if (cpg == NULL || clks == NULL) {
 		/* We're leaking memory on purpose, there's no point in cleaning
 		 * up as the system won't boot anyway.
 		 */
-		pr_err("%s: failed to allocate cpg\n", __func__);
 		return;
 	}
 

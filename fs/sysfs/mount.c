@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/sysfs/symlink.c - operations for initializing and mounting sysfs
  *
@@ -5,12 +6,8 @@
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
  *
- * This file is released under the GPLv2.
- *
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
-
-#define DEBUG
 
 #include <linux/fs.h>
 #include <linux/magic.h>
@@ -28,9 +25,9 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 {
 	struct dentry *root;
 	void *ns;
-	bool new_sb;
+	bool new_sb = false;
 
-	if (!(flags & MS_KERNMOUNT)) {
+	if (!(flags & SB_KERNMOUNT)) {
 		if (!kobj_ns_current_may_mount(KOBJ_NS_TYPE_NET))
 			return ERR_PTR(-EPERM);
 	}
@@ -38,9 +35,9 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	ns = kobj_ns_grab_current(KOBJ_NS_TYPE_NET);
 	root = kernfs_mount_ns(fs_type, flags, sysfs_root,
 				SYSFS_MAGIC, &new_sb, ns);
-	if (IS_ERR(root) || !new_sb)
+	if (!new_sb)
 		kobj_ns_drop(KOBJ_NS_TYPE_NET, ns);
-	else if (new_sb)
+	else if (!IS_ERR(root))
 		root->d_sb->s_iflags |= SB_I_USERNS_VISIBLE;
 
 	return root;

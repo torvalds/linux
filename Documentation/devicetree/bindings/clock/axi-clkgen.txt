@@ -17,7 +17,7 @@ Optional properties:
 - clock-output-names : From common clock binding.
 
 Example:
-	clock@0xff000000 {
+	clock@ff000000 {
 		compatible = "adi,axi-clkgen";
 		#clock-cells = <0>;
 		reg = <0xff000000 0x1000>;

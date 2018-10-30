@@ -708,14 +708,12 @@ bool rtl8723e_rx_query_desc(struct ieee80211_hw *hw,
 			    u8 *pdesc, struct sk_buff *skb);
 void rtl8723e_set_desc(struct ieee80211_hw *hw,
 		       u8 *pdesc, bool istx, u8 desc_name, u8 *val);
-u32 rtl8723e_get_desc(u8 *pdesc, bool istx, u8 desc_name);
+u64 rtl8723e_get_desc(struct ieee80211_hw *hw,
+		      u8 *pdesc, bool istx, u8 desc_name);
 bool rtl8723e_is_tx_desc_closed(struct ieee80211_hw *hw,
 				u8 hw_queue, u16 index);
 void rtl8723e_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);
 void rtl8723e_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 			      bool firstseg, bool lastseg,
 			      struct sk_buff *skb);
-u32 rtl8723e_rx_command_packet(struct ieee80211_hw *hw,
-			       const struct rtl_stats *status,
-			       struct sk_buff *skb);
 #endif

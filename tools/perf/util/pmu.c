@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -10,6 +12,7 @@
 #include <dirent.h>
 #include <api/fs/fs.h>
 #include <locale.h>
+#include <regex.h>
 #include "util.h"
 #include "pmu.h"
 #include "parse-events.h"
@@ -231,6 +234,74 @@ static int perf_pmu__parse_snapshot(struct perf_pmu_alias *alias,
 	return 0;
 }
 
+static void perf_pmu_assign_str(char *name, const char *field, char **old_str,
+				char **new_str)
+{
+	if (!*old_str)
+		goto set_new;
+
+	if (*new_str) {	/* Have new string, check with old */
+		if (strcasecmp(*old_str, *new_str))
+			pr_debug("alias %s differs in field '%s'\n",
+				 name, field);
+		zfree(old_str);
+	} else		/* Nothing new --> keep old string */
+		return;
+set_new:
+	*old_str = *new_str;
+	*new_str = NULL;
+}
+
+static void perf_pmu_update_alias(struct perf_pmu_alias *old,
+				  struct perf_pmu_alias *newalias)
+{
+	perf_pmu_assign_str(old->name, "desc", &old->desc, &newalias->desc);
+	perf_pmu_assign_str(old->name, "long_desc", &old->long_desc,
+			    &newalias->long_desc);
+	perf_pmu_assign_str(old->name, "topic", &old->topic, &newalias->topic);
+	perf_pmu_assign_str(old->name, "metric_expr", &old->metric_expr,
+			    &newalias->metric_expr);
+	perf_pmu_assign_str(old->name, "metric_name", &old->metric_name,
+			    &newalias->metric_name);
+	perf_pmu_assign_str(old->name, "value", &old->str, &newalias->str);
+	old->scale = newalias->scale;
+	old->per_pkg = newalias->per_pkg;
+	old->snapshot = newalias->snapshot;
+	memcpy(old->unit, newalias->unit, sizeof(old->unit));
+}
+
+/* Delete an alias entry. */
+static void perf_pmu_free_alias(struct perf_pmu_alias *newalias)
+{
+	zfree(&newalias->name);
+	zfree(&newalias->desc);
+	zfree(&newalias->long_desc);
+	zfree(&newalias->topic);
+	zfree(&newalias->str);
+	zfree(&newalias->metric_expr);
+	zfree(&newalias->metric_name);
+	parse_events_terms__purge(&newalias->terms);
+	free(newalias);
+}
+
+/* Merge an alias, search in alias list. If this name is already
+ * present merge both of them to combine all information.
+ */
+static bool perf_pmu_merge_alias(struct perf_pmu_alias *newalias,
+				 struct list_head *alist)
+{
+	struct perf_pmu_alias *a;
+
+	list_for_each_entry(a, alist, list) {
+		if (!strcasecmp(newalias->name, a->name)) {
+			perf_pmu_update_alias(a, newalias);
+			perf_pmu_free_alias(newalias);
+			return true;
+		}
+	}
+	return false;
+}
+
 static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 				 char *desc, char *val,
 				 char *long_desc, char *topic,
@@ -238,9 +309,11 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 				 char *metric_expr,
 				 char *metric_name)
 {
+	struct parse_events_term *term;
 	struct perf_pmu_alias *alias;
 	int ret;
 	int num;
+	char newval[256];
 
 	alias = malloc(sizeof(*alias));
 	if (!alias)
@@ -257,6 +330,27 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 		pr_err("Cannot parse alias %s: %d\n", val, ret);
 		free(alias);
 		return ret;
+	}
+
+	/* Scan event and remove leading zeroes, spaces, newlines, some
+	 * platforms have terms specified as
+	 * event=0x0091 (read from files ../<PMU>/events/<FILE>
+	 * and terms specified as event=0x91 (read from JSON files).
+	 *
+	 * Rebuild string to make alias->str member comparable.
+	 */
+	memset(newval, 0, sizeof(newval));
+	ret = 0;
+	list_for_each_entry(term, &alias->terms, list) {
+		if (ret)
+			ret += scnprintf(newval + ret, sizeof(newval) - ret,
+					 ",");
+		if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM)
+			ret += scnprintf(newval + ret, sizeof(newval) - ret,
+					 "%s=%#x", term->config, term->val.num);
+		else if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR)
+			ret += scnprintf(newval + ret, sizeof(newval) - ret,
+					 "%s=%s", term->config, term->val.str);
 	}
 
 	alias->name = strdup(name);
@@ -282,9 +376,10 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 		snprintf(alias->unit, sizeof(alias->unit), "%s", unit);
 	}
 	alias->per_pkg = perpkg && sscanf(perpkg, "%d", &num) == 1 && num == 1;
-	alias->str = strdup(val);
+	alias->str = strdup(newval);
 
-	list_add_tail(&alias->list, list);
+	if (!perf_pmu_merge_alias(alias, list))
+		list_add_tail(&alias->list, list);
 
 	return 0;
 }
@@ -299,6 +394,9 @@ static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FI
 		return -EINVAL;
 
 	buf[ret] = 0;
+
+	/* Remove trailing newline from sysfs file */
+	rtrim(buf);
 
 	return __perf_pmu__new_alias(list, dir, name, NULL, buf, NULL, NULL, NULL,
 				     NULL, NULL, NULL);
@@ -348,7 +446,7 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 		if (pmu_alias_info_file(name))
 			continue;
 
-		snprintf(path, PATH_MAX, "%s/%s", dir, name);
+		scnprintf(path, PATH_MAX, "%s/%s", dir, name);
 
 		file = fopen(path, "r");
 		if (!file) {
@@ -403,6 +501,11 @@ static int pmu_alias_terms(struct perf_pmu_alias *alias,
 			parse_events_terms__purge(&list);
 			return ret;
 		}
+		/*
+		 * Weak terms don't override command line options,
+		 * which we don't want for implicit terms in aliases.
+		 */
+		cloned->weak = true;
 		list_add_tail(&cloned->list, &list);
 	}
 	list_splice(&list, terms);
@@ -470,31 +573,10 @@ static void pmu_read_sysfs(void)
 	closedir(dir);
 }
 
-static struct cpu_map *pmu_cpumask(const char *name)
+static struct cpu_map *__pmu_cpumask(const char *path)
 {
-	struct stat st;
-	char path[PATH_MAX];
 	FILE *file;
 	struct cpu_map *cpus;
-	const char *sysfs = sysfs__mountpoint();
-	const char *templates[] = {
-		 "%s/bus/event_source/devices/%s/cpumask",
-		 "%s/bus/event_source/devices/%s/cpus",
-		 NULL
-	};
-	const char **template;
-
-	if (!sysfs)
-		return NULL;
-
-	for (template = templates; *template; template++) {
-		snprintf(path, PATH_MAX, *template, sysfs, name);
-		if (stat(path, &st) == 0)
-			break;
-	}
-
-	if (!*template)
-		return NULL;
 
 	file = fopen(path, "r");
 	if (!file)
@@ -506,26 +588,114 @@ static struct cpu_map *pmu_cpumask(const char *name)
 }
 
 /*
+ * Uncore PMUs have a "cpumask" file under sysfs. CPU PMUs (e.g. on arm/arm64)
+ * may have a "cpus" file.
+ */
+#define CPUS_TEMPLATE_UNCORE	"%s/bus/event_source/devices/%s/cpumask"
+#define CPUS_TEMPLATE_CPU	"%s/bus/event_source/devices/%s/cpus"
+
+static struct cpu_map *pmu_cpumask(const char *name)
+{
+	char path[PATH_MAX];
+	struct cpu_map *cpus;
+	const char *sysfs = sysfs__mountpoint();
+	const char *templates[] = {
+		CPUS_TEMPLATE_UNCORE,
+		CPUS_TEMPLATE_CPU,
+		NULL
+	};
+	const char **template;
+
+	if (!sysfs)
+		return NULL;
+
+	for (template = templates; *template; template++) {
+		snprintf(path, PATH_MAX, *template, sysfs, name);
+		cpus = __pmu_cpumask(path);
+		if (cpus)
+			return cpus;
+	}
+
+	return NULL;
+}
+
+static bool pmu_is_uncore(const char *name)
+{
+	char path[PATH_MAX];
+	struct cpu_map *cpus;
+	const char *sysfs = sysfs__mountpoint();
+
+	snprintf(path, PATH_MAX, CPUS_TEMPLATE_UNCORE, sysfs, name);
+	cpus = __pmu_cpumask(path);
+	cpu_map__put(cpus);
+
+	return !!cpus;
+}
+
+/*
+ *  PMU CORE devices have different name other than cpu in sysfs on some
+ *  platforms.
+ *  Looking for possible sysfs files to identify the arm core device.
+ */
+static int is_arm_pmu_core(const char *name)
+{
+	struct stat st;
+	char path[PATH_MAX];
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return 0;
+
+	/* Look for cpu sysfs (specific to arm) */
+	scnprintf(path, PATH_MAX, "%s/bus/event_source/devices/%s/cpus",
+				sysfs, name);
+	if (stat(path, &st) == 0)
+		return 1;
+
+	return 0;
+}
+
+/*
  * Return the CPU id as a raw string.
  *
  * Each architecture should provide a more precise id string that
  * can be use to match the architecture's "mapfile".
  */
-char * __weak get_cpuid_str(void)
+char * __weak get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
 {
 	return NULL;
 }
 
-/*
- * From the pmu_events_map, find the table of PMU events that corresponds
- * to the current running CPU. Then, add all PMU events from that table
- * as aliases.
+/* Return zero when the cpuid from the mapfile.csv matches the
+ * cpuid string generated on this platform.
+ * Otherwise return non-zero.
  */
-static void pmu_add_cpu_aliases(struct list_head *head, const char *name)
+int strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
 {
-	int i;
-	struct pmu_events_map *map;
-	struct pmu_event *pe;
+	regex_t re;
+	regmatch_t pmatch[1];
+	int match;
+
+	if (regcomp(&re, mapcpuid, REG_EXTENDED) != 0) {
+		/* Warn unable to generate match particular string. */
+		pr_info("Invalid regular expression %s\n", mapcpuid);
+		return 1;
+	}
+
+	match = !regexec(&re, cpuid, 1, pmatch, 0);
+	regfree(&re);
+	if (match) {
+		size_t match_len = (pmatch[0].rm_eo - pmatch[0].rm_so);
+
+		/* Verify the entire string matched. */
+		if (match_len == strlen(cpuid))
+			return 0;
+	}
+	return 1;
+}
+
+static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
+{
 	char *cpuid;
 	static bool printed;
 
@@ -533,39 +703,79 @@ static void pmu_add_cpu_aliases(struct list_head *head, const char *name)
 	if (cpuid)
 		cpuid = strdup(cpuid);
 	if (!cpuid)
-		cpuid = get_cpuid_str();
+		cpuid = get_cpuid_str(pmu);
 	if (!cpuid)
-		return;
+		return NULL;
 
 	if (!printed) {
 		pr_debug("Using CPUID %s\n", cpuid);
 		printed = true;
 	}
+	return cpuid;
+}
+
+struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
+{
+	struct pmu_events_map *map;
+	char *cpuid = perf_pmu__getcpuid(pmu);
+	int i;
+
+	/* on some platforms which uses cpus map, cpuid can be NULL for
+	 * PMUs other than CORE PMUs.
+	 */
+	if (!cpuid)
+		return NULL;
 
 	i = 0;
-	while (1) {
+	for (;;) {
 		map = &pmu_events_map[i++];
-		if (!map->table)
-			goto out;
+		if (!map->table) {
+			map = NULL;
+			break;
+		}
 
-		if (!strcmp(map->cpuid, cpuid))
+		if (!strcmp_cpuid_str(map->cpuid, cpuid))
 			break;
 	}
+	free(cpuid);
+	return map;
+}
+
+/*
+ * From the pmu_events_map, find the table of PMU events that corresponds
+ * to the current running CPU. Then, add all PMU events from that table
+ * as aliases.
+ */
+static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
+{
+	int i;
+	struct pmu_events_map *map;
+	struct pmu_event *pe;
+	const char *name = pmu->name;
+	const char *pname;
+
+	map = perf_pmu__find_map(pmu);
+	if (!map)
+		return;
 
 	/*
 	 * Found a matching PMU events table. Create aliases
 	 */
 	i = 0;
 	while (1) {
-		const char *pname;
 
 		pe = &map->table[i++];
-		if (!pe->name)
+		if (!pe->name) {
+			if (pe->metric_group || pe->metric_name)
+				continue;
 			break;
+		}
 
-		pname = pe->pmu ? pe->pmu : "cpu";
-		if (strncmp(pname, name, strlen(pname)))
-			continue;
+		if (!is_arm_pmu_core(name)) {
+			pname = pe->pmu ? pe->pmu : "cpu";
+			if (strncmp(pname, name, strlen(pname)))
+				continue;
+		}
 
 		/* need type casts to override 'const' */
 		__perf_pmu__new_alias(head, NULL, (char *)pe->name,
@@ -575,9 +785,6 @@ static void pmu_add_cpu_aliases(struct list_head *head, const char *name)
 				(char *)pe->metric_expr,
 				(char *)pe->metric_name);
 	}
-
-out:
-	free(cpuid);
 }
 
 struct perf_event_attr * __weak
@@ -610,19 +817,20 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	if (pmu_aliases(name, &aliases))
 		return NULL;
 
-	pmu_add_cpu_aliases(&aliases, name);
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu)
 		return NULL;
 
 	pmu->cpus = pmu_cpumask(name);
+	pmu->name = strdup(name);
+	pmu->type = type;
+	pmu->is_uncore = pmu_is_uncore(name);
+	pmu_add_cpu_aliases(&aliases, pmu);
 
 	INIT_LIST_HEAD(&pmu->format);
 	INIT_LIST_HEAD(&pmu->aliases);
 	list_splice(&format, &pmu->format);
 	list_splice(&aliases, &pmu->aliases);
-	pmu->name = strdup(name);
-	pmu->type = type;
 	list_add_tail(&pmu->list, &pmus);
 
 	pmu->default_config = perf_pmu__get_default_config(pmu);
@@ -722,13 +930,14 @@ static void pmu_format_value(unsigned long *format, __u64 value, __u64 *v,
 
 static __u64 pmu_format_max_value(const unsigned long *format)
 {
-	__u64 w = 0;
-	int fbit;
+	int w;
 
-	for_each_set_bit(fbit, format, PERF_PMU_FORMAT_BITS)
-		w |= (1ULL << fbit);
-
-	return w;
+	w = bitmap_weight(format, PERF_PMU_FORMAT_BITS);
+	if (!w)
+		return 0;
+	if (w < 64)
+		return (1ULL << w) - 1;
+	return -1;
 }
 
 /*

@@ -3,13 +3,14 @@ config USB_CHIPIDEA
 	depends on ((USB_EHCI_HCD && USB_GADGET) || (USB_EHCI_HCD && !USB_GADGET) || (!USB_EHCI_HCD && USB_GADGET)) && HAS_DMA
 	select EXTCON
 	select RESET_CONTROLLER
+	select USB_ULPI_BUS
 	help
 	  Say Y here if your system has a dual role high speed USB
 	  controller based on ChipIdea silicon IP. It supports:
 	  Dual-role switch (ID, OTG FSM, sysfs), Host-only, and
 	  Peripheral-only.
 
-	  When compiled dynamically, the module will be called ci-hdrc.ko.
+	  When compiled dynamically, the module will be called ci_hdrc.ko.
 
 if USB_CHIPIDEA
 
@@ -38,12 +39,4 @@ config USB_CHIPIDEA_HOST
 	help
 	  Say Y here to enable host controller functionality of the
 	  ChipIdea driver.
-
-config USB_CHIPIDEA_ULPI
-	bool "ChipIdea ULPI PHY support"
-	depends on USB_ULPI_BUS=y || USB_ULPI_BUS=USB_CHIPIDEA
-	help
-	  Say Y here if you have a ULPI PHY attached to your ChipIdea
-	  controller.
-
 endif

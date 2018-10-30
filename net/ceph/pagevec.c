@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/ceph/ceph_debug.h>
 
 #include <linux/module.h>
@@ -19,14 +20,14 @@ struct page **ceph_get_direct_page_vector(const void __user *data,
 	int got = 0;
 	int rc = 0;
 
-	pages = kmalloc(sizeof(*pages) * num_pages, GFP_NOFS);
+	pages = kmalloc_array(num_pages, sizeof(*pages), GFP_NOFS);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 
 	while (got < num_pages) {
-		rc = get_user_pages_unlocked(
+		rc = get_user_pages_fast(
 		    (unsigned long)data + ((unsigned long)got * PAGE_SIZE),
-		    num_pages - got, pages + got, write_page ? FOLL_WRITE : 0);
+		    num_pages - got, write_page, pages + got);
 		if (rc < 0)
 			break;
 		BUG_ON(rc == 0);
@@ -73,7 +74,7 @@ struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags)
 	struct page **pages;
 	int i;
 
-	pages = kmalloc(sizeof(*pages) * num_pages, flags);
+	pages = kmalloc_array(num_pages, sizeof(*pages), flags);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 	for (i = 0; i < num_pages; i++) {
@@ -196,4 +197,3 @@ void ceph_zero_page_vector_range(int off, int len, struct page **pages)
 	}
 }
 EXPORT_SYMBOL(ceph_zero_page_vector_range);
-

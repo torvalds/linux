@@ -9,7 +9,7 @@ variable block sizes, is extent based, and makes extensive use of
 Btrees (directories, extents, free space) to aid both performance
 and scalability.
 
-Refer to the documentation at http://oss.sgi.com/projects/xfs/
+Refer to the documentation at https://xfs.wiki.kernel.org/
 for further details.  This implementation is on-disk compatible
 with the IRIX version of XFS.
 
@@ -223,8 +223,6 @@ Deprecated Mount Options
 
   Name				Removal Schedule
   ----				----------------
-  barrier			no earlier than v4.15
-  nobarrier			no earlier than v4.15
 
 
 Removed Mount Options
@@ -236,6 +234,8 @@ Removed Mount Options
   ihashsize			v4.0
   irixsgid			v4.0
   osyncisdsync/osyncisosync	v4.0
+  barrier			v4.19
+  nobarrier			v4.19
 
 
 sysctls

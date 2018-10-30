@@ -31,6 +31,8 @@
  * mutex protecting text section modification (dynamic code patching).
  * some users need to sleep (allocating memory...) while they hold this lock.
  *
+ * Note: Also protects SMP-alternatives modification on x86.
+ *
  * NOT exported to modules - patching kernel text is a really delicate matter.
  */
 DEFINE_MUTEX(text_mutex);
@@ -62,7 +64,7 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
 	return e;
 }
 
-static inline int init_kernel_text(unsigned long addr)
+int init_kernel_text(unsigned long addr)
 {
 	if (addr >= (unsigned long)_sinittext &&
 	    addr < (unsigned long)_einittext)
@@ -102,15 +104,7 @@ int core_kernel_data(unsigned long addr)
 
 int __kernel_text_address(unsigned long addr)
 {
-	if (core_kernel_text(addr))
-		return 1;
-	if (is_module_text_address(addr))
-		return 1;
-	if (is_ftrace_trampoline(addr))
-		return 1;
-	if (is_kprobe_optinsn_slot(addr) || is_kprobe_insn_slot(addr))
-		return 1;
-	if (is_bpf_text_address(addr))
+	if (kernel_text_address(addr))
 		return 1;
 	/*
 	 * There might be init symbols in saved stacktraces.
@@ -127,17 +121,42 @@ int __kernel_text_address(unsigned long addr)
 
 int kernel_text_address(unsigned long addr)
 {
+	bool no_rcu;
+	int ret = 1;
+
 	if (core_kernel_text(addr))
 		return 1;
+
+	/*
+	 * If a stack dump happens while RCU is not watching, then
+	 * RCU needs to be notified that it requires to start
+	 * watching again. This can happen either by tracing that
+	 * triggers a stack trace, or a WARN() that happens during
+	 * coming back from idle, or cpu on or offlining.
+	 *
+	 * is_module_text_address() as well as the kprobe slots
+	 * and is_bpf_text_address() require RCU to be watching.
+	 */
+	no_rcu = !rcu_is_watching();
+
+	/* Treat this like an NMI as it can happen anywhere */
+	if (no_rcu)
+		rcu_nmi_enter();
+
 	if (is_module_text_address(addr))
-		return 1;
+		goto out;
 	if (is_ftrace_trampoline(addr))
-		return 1;
+		goto out;
 	if (is_kprobe_optinsn_slot(addr) || is_kprobe_insn_slot(addr))
-		return 1;
+		goto out;
 	if (is_bpf_text_address(addr))
-		return 1;
-	return 0;
+		goto out;
+	ret = 0;
+out:
+	if (no_rcu)
+		rcu_nmi_exit();
+
+	return ret;
 }
 
 /*

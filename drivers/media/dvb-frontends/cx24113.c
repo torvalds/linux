@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "cx24113.h"
 
 static int debug;
@@ -533,10 +533,10 @@ static void cx24113_release(struct dvb_frontend *fe)
 
 static const struct dvb_tuner_ops cx24113_tuner_ops = {
 	.info = {
-		.name           = "Conexant CX24113",
-		.frequency_min  = 950000,
-		.frequency_max  = 2150000,
-		.frequency_step = 125,
+		.name              = "Conexant CX24113",
+		.frequency_min_hz  =  950 * MHz,
+		.frequency_max_hz  = 2150 * MHz,
+		.frequency_step_hz =  125 * kHz,
 	},
 
 	.release       = cx24113_release,
@@ -552,13 +552,11 @@ struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 		const struct cx24113_config *config, struct i2c_adapter *i2c)
 {
 	/* allocate memory for the internal state */
-	struct cx24113_state *state =
-		kzalloc(sizeof(struct cx24113_state), GFP_KERNEL);
+	struct cx24113_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
 	int rc;
-	if (state == NULL) {
-		cx_err("Unable to kzalloc\n");
-		goto error;
-	}
+
+	if (!state)
+		return NULL;
 
 	/* setup the state */
 	state->config = config;

@@ -42,8 +42,6 @@ _GLOBAL(copypage_power7)
 	lis	r8,0x8000	/* GO=1 */
 	clrldi	r8,r8,32
 
-.machine push
-.machine "power4"
 	/* setup read stream 0  */
 	dcbt	0,r4,0b01000  	/* addr from */
 	dcbt	0,r7,0b01010   /* length and depth from */
@@ -52,7 +50,6 @@ _GLOBAL(copypage_power7)
 	dcbtst	0,r10,0b01010  /* length and depth to */
 	eieio
 	dcbt	0,r8,0b01010	/* all streams GO */
-.machine pop
 
 #ifdef CONFIG_ALTIVEC
 	mflr	r0
@@ -60,7 +57,7 @@ _GLOBAL(copypage_power7)
 	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
-	bl	enter_vmx_copy
+	bl	enter_vmx_ops
 	cmpwi	r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
 	ld	r3,STK_REG(R31)(r1)
@@ -103,7 +100,7 @@ _GLOBAL(copypage_power7)
 	addi	r3,r3,128
 	bdnz	1b
 
-	b	exit_vmx_copy		/* tail call optimise */
+	b	exit_vmx_ops		/* tail call optimise */
 
 #else
 	li	r0,(PAGE_SIZE/128)

@@ -146,20 +146,6 @@ adfs_dir_lookup_byname(struct inode *inode, const struct qstr *name, struct obje
 
 	obj->parent_id = inode->i_ino;
 
-	/*
-	 * '.' is handled by reserved_lookup() in fs/namei.c
-	 */
-	if (name->len == 2 && name->name[0] == '.' && name->name[1] == '.') {
-		/*
-		 * Currently unable to fill in the rest of 'obj',
-		 * but this is better than nothing.  We need to
-		 * ascend one level to find it's parent.
-		 */
-		obj->name_len = 0;
-		obj->file_id  = obj->parent_id;
-		goto free_out;
-	}
-
 	read_lock(&adfs_dir_lock);
 
 	ret = ops->setpos(&dir, 0);
@@ -266,17 +252,17 @@ adfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 
 	error = adfs_dir_lookup_byname(dir, &dentry->d_name, &obj);
 	if (error == 0) {
-		error = -EACCES;
 		/*
 		 * This only returns NULL if get_empty_inode
 		 * fails.
 		 */
 		inode = adfs_iget(dir->i_sb, &obj);
-		if (inode)
-			error = 0;
+		if (!inode)
+			inode = ERR_PTR(-EACCES);
+	} else if (error != -ENOENT) {
+		inode = ERR_PTR(error);
 	}
-	d_add(dentry, inode);
-	return ERR_PTR(error);
+	return d_splice_alias(inode, dentry);
 }
 
 /*

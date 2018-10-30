@@ -60,6 +60,8 @@ following parameters:
 
 -  :ref:`DTV_STREAM_ID <DTV-STREAM-ID>`
 
+-  :ref:`DTV_SCRAMBLING_SEQUENCE_INDEX <DTV-SCRAMBLING-SEQUENCE-INDEX>`
+
 In addition, the :ref:`DTV QoS statistics <frontend-stat-properties>`
 are also valid.
 

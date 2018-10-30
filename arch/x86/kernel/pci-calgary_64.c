@@ -33,6 +33,7 @@
 #include <linux/string.h>
 #include <linux/crash_dump.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/bitmap.h>
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
@@ -445,8 +446,6 @@ static void* calgary_alloc_coherent(struct device *dev, size_t size,
 	npages = size >> PAGE_SHIFT;
 	order = get_order(size);
 
-	flag &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
-
 	/* alloc enough pages (and possibly more) */
 	ret = (void *)__get_free_pages(flag, order);
 	if (!ret)
@@ -493,7 +492,7 @@ static const struct dma_map_ops calgary_dma_ops = {
 	.map_page = calgary_map_page,
 	.unmap_page = calgary_unmap_page,
 	.mapping_error = calgary_mapping_error,
-	.dma_supported = x86_dma_supported,
+	.dma_supported = dma_direct_supported,
 };
 
 static inline void __iomem * busno_to_bbar(unsigned char num)
@@ -898,10 +897,9 @@ static void calioc2_dump_error_regs(struct iommu_table *tbl)
 	       PHB_ROOT_COMPLEX_STATUS);
 }
 
-static void calgary_watchdog(unsigned long data)
+static void calgary_watchdog(struct timer_list *t)
 {
-	struct pci_dev *dev = (struct pci_dev *)data;
-	struct iommu_table *tbl = pci_iommu(dev->bus);
+	struct iommu_table *tbl = from_timer(tbl, t, watchdog_timer);
 	void __iomem *bbar = tbl->bbar;
 	u32 val32;
 	void __iomem *target;
@@ -1016,8 +1014,7 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
 
-	setup_timer(&tbl->watchdog_timer, &calgary_watchdog,
-		    (unsigned long)dev);
+	timer_setup(&tbl->watchdog_timer, calgary_watchdog, 0);
 	mod_timer(&tbl->watchdog_timer, jiffies);
 }
 

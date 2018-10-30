@@ -16,10 +16,10 @@ CEC_RECEIVE, CEC_TRANSMIT - Receive or transmit a CEC message
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, CEC_RECEIVE, struct cec_msg *argp )
+.. c:function:: int ioctl( int fd, CEC_RECEIVE, struct cec_msg \*argp )
     :name: CEC_RECEIVE
 
-.. c:function:: int ioctl( int fd, CEC_TRANSMIT, struct cec_msg *argp )
+.. c:function:: int ioctl( int fd, CEC_TRANSMIT, struct cec_msg \*argp )
     :name: CEC_TRANSMIT
 
 Arguments
@@ -131,7 +131,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - ``tx_status``
       - The status bits of the transmitted message. See
 	:ref:`cec-tx-status` for the possible status values. It is 0 if
-	this messages was received, not transmitted.
+	this message was received, not transmitted.
     * - __u8
       - ``msg[16]``
       - The message payload. For :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` this is filled in by the
@@ -168,7 +168,7 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - ``tx_status``
       - The status bits of the transmitted message. See
 	:ref:`cec-tx-status` for the possible status values. It is 0 if
-	this messages was received, not transmitted.
+	this message was received, not transmitted.
     * - __u8
       - ``tx_arb_lost_cnt``
       - A counter of the number of transmit attempts that resulted in the
@@ -231,41 +231,60 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - ``CEC_TX_STATUS_OK``
       - 0x01
       - The message was transmitted successfully. This is mutually
-	exclusive with :ref:`CEC_TX_STATUS_MAX_RETRIES <CEC-TX-STATUS-MAX-RETRIES>`. Other bits can still
-	be set if earlier attempts met with failure before the transmit
-	was eventually successful.
+	exclusive with :ref:`CEC_TX_STATUS_MAX_RETRIES <CEC-TX-STATUS-MAX-RETRIES>`.
+	Other bits can still be set if earlier attempts met with failure before
+	the transmit was eventually successful.
     * .. _`CEC-TX-STATUS-ARB-LOST`:
 
       - ``CEC_TX_STATUS_ARB_LOST``
       - 0x02
-      - CEC line arbitration was lost.
+      - CEC line arbitration was lost, i.e. another transmit started at the
+        same time with a higher priority. Optional status, not all hardware
+	can detect this error condition.
     * .. _`CEC-TX-STATUS-NACK`:
 
       - ``CEC_TX_STATUS_NACK``
       - 0x04
-      - Message was not acknowledged.
+      - Message was not acknowledged. Note that some hardware cannot tell apart
+        a 'Not Acknowledged' status from other error conditions, i.e. the result
+	of a transmit is just OK or FAIL. In that case this status will be
+	returned when the transmit failed.
     * .. _`CEC-TX-STATUS-LOW-DRIVE`:
 
       - ``CEC_TX_STATUS_LOW_DRIVE``
       - 0x08
       - Low drive was detected on the CEC bus. This indicates that a
 	follower detected an error on the bus and requests a
-	retransmission.
+	retransmission. Optional status, not all hardware can detect this
+	error condition.
     * .. _`CEC-TX-STATUS-ERROR`:
 
       - ``CEC_TX_STATUS_ERROR``
       - 0x10
       - Some error occurred. This is used for any errors that do not fit
-	the previous two, either because the hardware could not tell which
-	error occurred, or because the hardware tested for other
-	conditions besides those two.
+	``CEC_TX_STATUS_ARB_LOST`` or ``CEC_TX_STATUS_LOW_DRIVE``, either because
+	the hardware could not tell which error occurred, or because the hardware
+	tested for other conditions besides those two. Optional status.
     * .. _`CEC-TX-STATUS-MAX-RETRIES`:
 
       - ``CEC_TX_STATUS_MAX_RETRIES``
       - 0x20
       - The transmit failed after one or more retries. This status bit is
-	mutually exclusive with :ref:`CEC_TX_STATUS_OK <CEC-TX-STATUS-OK>`. Other bits can still
-	be set to explain which failures were seen.
+	mutually exclusive with :ref:`CEC_TX_STATUS_OK <CEC-TX-STATUS-OK>`.
+	Other bits can still be set to explain which failures were seen.
+    * .. _`CEC-TX-STATUS-ABORTED`:
+
+      - ``CEC_TX_STATUS_ABORTED``
+      - 0x40
+      - The transmit was aborted due to an HDMI disconnect, or the adapter
+        was unconfigured, or a transmit was interrupted, or the driver
+	returned an error when attempting to start a transmit.
+    * .. _`CEC-TX-STATUS-TIMEOUT`:
+
+      - ``CEC_TX_STATUS_TIMEOUT``
+      - 0x80
+      - The transmit timed out. This should not normally happen and this
+	indicates a driver problem.
 
 
 .. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
@@ -294,6 +313,14 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - The message was received successfully but the reply was
 	``CEC_MSG_FEATURE_ABORT``. This status is only set if this message
 	was the reply to an earlier transmitted message.
+    * .. _`CEC-RX-STATUS-ABORTED`:
+
+      - ``CEC_RX_STATUS_ABORTED``
+      - 0x08
+      - The wait for a reply to an earlier transmitted message was aborted
+        because the HDMI cable was disconnected, the adapter was unconfigured
+	or the :ref:`CEC_TRANSMIT <CEC_RECEIVE>` that waited for a
+	reply was interrupted.
 
 
 

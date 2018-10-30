@@ -27,9 +27,12 @@
 
 #include <linux/list.h>
 #include <asm/sync_bitops.h>
+#include <asm/hyperv-tlfs.h>
 #include <linux/atomic.h>
 #include <linux/hyperv.h>
 #include <linux/interrupt.h>
+
+#include "hv_trace.h"
 
 /*
  * Timeout for services such as KVP and fcopy.
@@ -55,7 +58,9 @@ union hv_timer_config {
 		u64 periodic:1;
 		u64 lazy:1;
 		u64 auto_enable:1;
-		u64 reserved_z0:12;
+		u64 apic_vector:8;
+		u64 direct_mode:1;
+		u64 reserved_z0:3;
 		u64 sintx:4;
 		u64 reserved_z1:44;
 	};
@@ -182,6 +187,7 @@ struct hv_input_post_message {
 
 enum {
 	VMBUS_MESSAGE_CONNECTION_ID	= 1,
+	VMBUS_MESSAGE_CONNECTION_ID_4	= 4,
 	VMBUS_MESSAGE_PORT_ID		= 1,
 	VMBUS_EVENT_CONNECTION_ID	= 2,
 	VMBUS_EVENT_PORT_ID		= 2,
@@ -297,6 +303,8 @@ struct vmbus_connection {
 	 */
 	int connect_cpu;
 
+	u32 msg_conn_id;
+
 	atomic_t offer_in_progress;
 
 	enum vmbus_connect_state conn_state;
@@ -373,6 +381,8 @@ struct hv_device *vmbus_device_create(const uuid_le *type,
 
 int vmbus_device_register(struct hv_device *child_device_obj);
 void vmbus_device_unregister(struct hv_device *device_obj);
+int vmbus_add_channel_kobj(struct hv_device *device_obj,
+			   struct vmbus_channel *channel);
 
 struct vmbus_channel *relid2channel(u32 relid);
 

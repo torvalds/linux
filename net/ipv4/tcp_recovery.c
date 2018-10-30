@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/tcp.h>
 #include <net/tcp.h>
 
-int sysctl_tcp_recovery __read_mostly = TCP_RACK_LOSS_DETECTION;
-
-static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
+void tcp_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -20,6 +19,38 @@ static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 static bool tcp_rack_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
 {
 	return t1 > t2 || (t1 == t2 && after(seq1, seq2));
+}
+
+static u32 tcp_rack_reo_wnd(const struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (!tp->reord_seen) {
+		/* If reordering has not been observed, be aggressive during
+		 * the recovery or starting the recovery by DUPACK threshold.
+		 */
+		if (inet_csk(sk)->icsk_ca_state >= TCP_CA_Recovery)
+			return 0;
+
+		if (tp->sacked_out >= tp->reordering &&
+		    !(sock_net(sk)->ipv4.sysctl_tcp_recovery & TCP_RACK_NO_DUPTHRESH))
+			return 0;
+	}
+
+	/* To be more reordering resilient, allow min_rtt/4 settling delay.
+	 * Use min_rtt instead of the smoothed RTT because reordering is
+	 * often a path property and less related to queuing or delayed ACKs.
+	 * Upon receiving DSACKs, linearly increase the window up to the
+	 * smoothed RTT.
+	 */
+	return min((tcp_min_rtt(tp) >> 2) * tp->rack.reo_wnd_steps,
+		   tp->srtt_us >> 3);
+}
+
+s32 tcp_rack_skb_timeout(struct tcp_sock *tp, struct sk_buff *skb, u32 reo_wnd)
+{
+	return tp->rack.rtt_us + reo_wnd -
+	       tcp_stamp_us_delta(tp->tcp_mstamp, tcp_skb_timestamp_us(skb));
 }
 
 /* RACK loss detection (IETF draft draft-ietf-tcpm-rack-01):
@@ -45,58 +76,36 @@ static bool tcp_rack_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
 static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct sk_buff *skb;
+	struct sk_buff *skb, *n;
 	u32 reo_wnd;
 
 	*reo_timeout = 0;
-	/* To be more reordering resilient, allow min_rtt/4 settling delay
-	 * (lower-bounded to 1000uS). We use min_rtt instead of the smoothed
-	 * RTT because reordering is often a path property and less related
-	 * to queuing or delayed ACKs.
-	 */
-	reo_wnd = 1000;
-	if ((tp->rack.reord || !tp->lost_out) && tcp_min_rtt(tp) != ~0U)
-		reo_wnd = max(tcp_min_rtt(tp) >> 2, reo_wnd);
-
-	tcp_for_write_queue(skb, sk) {
+	reo_wnd = tcp_rack_reo_wnd(sk);
+	list_for_each_entry_safe(skb, n, &tp->tsorted_sent_queue,
+				 tcp_tsorted_anchor) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
+		s32 remaining;
 
-		if (skb == tcp_send_head(sk))
-			break;
-
-		/* Skip ones already (s)acked */
-		if (!after(scb->end_seq, tp->snd_una) ||
-		    scb->sacked & TCPCB_SACKED_ACKED)
+		/* Skip ones marked lost but not yet retransmitted */
+		if ((scb->sacked & TCPCB_LOST) &&
+		    !(scb->sacked & TCPCB_SACKED_RETRANS))
 			continue;
 
-		if (tcp_rack_sent_after(tp->rack.mstamp, skb->skb_mstamp,
-					tp->rack.end_seq, scb->end_seq)) {
-			/* Step 3 in draft-cheng-tcpm-rack-00.txt:
-			 * A packet is lost if its elapsed time is beyond
-			 * the recent RTT plus the reordering window.
-			 */
-			u32 elapsed = tcp_stamp_us_delta(tp->tcp_mstamp,
-							 skb->skb_mstamp);
-			s32 remaining = tp->rack.rtt_us + reo_wnd - elapsed;
-
-			if (remaining < 0) {
-				tcp_rack_mark_skb_lost(sk, skb);
-				continue;
-			}
-
-			/* Skip ones marked lost but not yet retransmitted */
-			if ((scb->sacked & TCPCB_LOST) &&
-			    !(scb->sacked & TCPCB_SACKED_RETRANS))
-				continue;
-
-			/* Record maximum wait time (+1 to avoid 0) */
-			*reo_timeout = max_t(u32, *reo_timeout, 1 + remaining);
-
-		} else if (!(scb->sacked & TCPCB_RETRANS)) {
-			/* Original data are sent sequentially so stop early
-			 * b/c the rest are all sent after rack_sent
-			 */
+		if (!tcp_rack_sent_after(tp->rack.mstamp,
+					 tcp_skb_timestamp_us(skb),
+					 tp->rack.end_seq, scb->end_seq))
 			break;
+
+		/* A packet is lost if it has not been s/acked beyond
+		 * the recent RTT plus the reordering window.
+		 */
+		remaining = tcp_rack_skb_timeout(tp, skb, reo_wnd);
+		if (remaining <= 0) {
+			tcp_mark_skb_lost(sk, skb);
+			list_del_init(&skb->tcp_tsorted_anchor);
+		} else {
+			/* Record maximum wait time */
+			*reo_timeout = max_t(u32, *reo_timeout, remaining);
 		}
 	}
 }
@@ -128,13 +137,8 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 {
 	u32 rtt_us;
 
-	if (tp->rack.mstamp &&
-	    !tcp_rack_sent_after(xmit_time, tp->rack.mstamp,
-				 end_seq, tp->rack.end_seq))
-		return;
-
 	rtt_us = tcp_stamp_us_delta(tp->tcp_mstamp, xmit_time);
-	if (sacked & TCPCB_RETRANS) {
+	if (rtt_us < tcp_min_rtt(tp) && (sacked & TCPCB_RETRANS)) {
 		/* If the sacked packet was retransmitted, it's ambiguous
 		 * whether the retransmission or the original (or the prior
 		 * retransmission) was sacked.
@@ -145,13 +149,15 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 		 * so it's at least one RTT (i.e., retransmission is at least
 		 * an RTT later).
 		 */
-		if (rtt_us < tcp_min_rtt(tp))
-			return;
+		return;
 	}
-	tp->rack.rtt_us = rtt_us;
-	tp->rack.mstamp = xmit_time;
-	tp->rack.end_seq = end_seq;
 	tp->rack.advanced = 1;
+	tp->rack.rtt_us = rtt_us;
+	if (tcp_rack_sent_after(xmit_time, tp->rack.mstamp,
+				end_seq, tp->rack.end_seq)) {
+		tp->rack.mstamp = xmit_time;
+		tp->rack.end_seq = end_seq;
+	}
 }
 
 /* We have waited long enough to accommodate reordering. Mark the expired
@@ -174,4 +180,72 @@ void tcp_rack_reo_timeout(struct sock *sk)
 	}
 	if (inet_csk(sk)->icsk_pending != ICSK_TIME_RETRANS)
 		tcp_rearm_rto(sk);
+}
+
+/* Updates the RACK's reo_wnd based on DSACK and no. of recoveries.
+ *
+ * If DSACK is received, increment reo_wnd by min_rtt/4 (upper bounded
+ * by srtt), since there is possibility that spurious retransmission was
+ * due to reordering delay longer than reo_wnd.
+ *
+ * Persist the current reo_wnd value for TCP_RACK_RECOVERY_THRESH (16)
+ * no. of successful recoveries (accounts for full DSACK-based loss
+ * recovery undo). After that, reset it to default (min_rtt/4).
+ *
+ * At max, reo_wnd is incremented only once per rtt. So that the new
+ * DSACK on which we are reacting, is due to the spurious retx (approx)
+ * after the reo_wnd has been updated last time.
+ *
+ * reo_wnd is tracked in terms of steps (of min_rtt/4), rather than
+ * absolute value to account for change in rtt.
+ */
+void tcp_rack_update_reo_wnd(struct sock *sk, struct rate_sample *rs)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (sock_net(sk)->ipv4.sysctl_tcp_recovery & TCP_RACK_STATIC_REO_WND ||
+	    !rs->prior_delivered)
+		return;
+
+	/* Disregard DSACK if a rtt has not passed since we adjusted reo_wnd */
+	if (before(rs->prior_delivered, tp->rack.last_delivered))
+		tp->rack.dsack_seen = 0;
+
+	/* Adjust the reo_wnd if update is pending */
+	if (tp->rack.dsack_seen) {
+		tp->rack.reo_wnd_steps = min_t(u32, 0xFF,
+					       tp->rack.reo_wnd_steps + 1);
+		tp->rack.dsack_seen = 0;
+		tp->rack.last_delivered = tp->delivered;
+		tp->rack.reo_wnd_persist = TCP_RACK_RECOVERY_THRESH;
+	} else if (!tp->rack.reo_wnd_persist) {
+		tp->rack.reo_wnd_steps = 1;
+	}
+}
+
+/* RFC6582 NewReno recovery for non-SACK connection. It simply retransmits
+ * the next unacked packet upon receiving
+ * a) three or more DUPACKs to start the fast recovery
+ * b) an ACK acknowledging new data during the fast recovery.
+ */
+void tcp_newreno_mark_lost(struct sock *sk, bool snd_una_advanced)
+{
+	const u8 state = inet_csk(sk)->icsk_ca_state;
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if ((state < TCP_CA_Recovery && tp->sacked_out >= tp->reordering) ||
+	    (state == TCP_CA_Recovery && snd_una_advanced)) {
+		struct sk_buff *skb = tcp_rtx_queue_head(sk);
+		u32 mss;
+
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST)
+			return;
+
+		mss = tcp_skb_mss(skb);
+		if (tcp_skb_pcount(skb) > 1 && skb->len > mss)
+			tcp_fragment(sk, TCP_FRAG_IN_RTX_QUEUE, skb,
+				     mss, mss, GFP_ATOMIC);
+
+		tcp_skb_mark_lost_uncond_verify(tp, skb);
+	}
 }

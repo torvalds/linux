@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # EP93xx Platform Support
 snd-soc-ep93xx-objs				:= ep93xx-pcm.o
 snd-soc-ep93xx-i2s-objs	 			:= ep93xx-i2s.o

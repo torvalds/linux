@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ross.h: Ross module specific definitions and defines.
  *

@@ -135,7 +135,7 @@ static int via_rng_init(struct hwrng *rng)
 	 * is always enabled if CPUID rng_en is set.  There is no
 	 * RNG configuration like it used to be the case in this
 	 * register */
-	if ((c->x86 == 6) && (c->x86_model >= 0x0f)) {
+	if (((c->x86 == 6) && (c->x86_model >= 0x0f))  || (c->x86 > 6)){
 		if (!boot_cpu_has(X86_FEATURE_XSTORE_EN)) {
 			pr_err(PFX "can't enable hardware RNG "
 				"if XSTORE is not enabled\n");
@@ -162,7 +162,7 @@ static int via_rng_init(struct hwrng *rng)
 	/* Enable secondary noise source on CPUs where it is present. */
 
 	/* Nehemiah stepping 8 and higher */
-	if ((c->x86_model == 9) && (c->x86_mask > 7))
+	if ((c->x86_model == 9) && (c->x86_stepping > 7))
 		lo |= VIA_NOISESRC2;
 
 	/* Esther */

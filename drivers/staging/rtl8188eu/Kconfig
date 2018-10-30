@@ -4,6 +4,9 @@ config R8188EU
 	depends on m
 	select WIRELESS_EXT
 	select WEXT_PRIV
+	select LIB80211
+	select LIB80211_CRYPT_WEP
+	select LIB80211_CRYPT_CCMP
 	---help---
 	This option adds the Realtek RTL8188EU USB device such as TP-Link TL-WN725N.
 	If built as a module, it will be called r8188eu.

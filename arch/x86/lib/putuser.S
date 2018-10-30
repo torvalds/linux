@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * __put_user functions.
  *
@@ -93,10 +94,10 @@ bad_put_user:
 	EXIT
 END(bad_put_user)
 
-	_ASM_EXTABLE(1b,bad_put_user)
-	_ASM_EXTABLE(2b,bad_put_user)
-	_ASM_EXTABLE(3b,bad_put_user)
-	_ASM_EXTABLE(4b,bad_put_user)
+	_ASM_EXTABLE_UA(1b, bad_put_user)
+	_ASM_EXTABLE_UA(2b, bad_put_user)
+	_ASM_EXTABLE_UA(3b, bad_put_user)
+	_ASM_EXTABLE_UA(4b, bad_put_user)
 #ifdef CONFIG_X86_32
-	_ASM_EXTABLE(5b,bad_put_user)
+	_ASM_EXTABLE_UA(5b, bad_put_user)
 #endif

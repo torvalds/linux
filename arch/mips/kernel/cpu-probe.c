@@ -414,6 +414,14 @@ static int __init ftlb_disable(char *s)
 
 __setup("noftlb", ftlb_disable);
 
+/*
+ * Check if the CPU has per tc perf counters
+ */
+static inline void cpu_set_mt_per_tc_perf(struct cpuinfo_mips *c)
+{
+	if (read_c0_config7() & MTI_CONF7_PTC)
+		c->options |= MIPS_CPU_MT_PER_TC_PERF_COUNTERS;
+}
 
 static inline void check_errata(void)
 {
@@ -847,6 +855,9 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_VP;
 	if (config5 & MIPS_CONF5_CA2)
 		c->ases |= MIPS_ASE_MIPS16E2;
+
+	if (config5 & MIPS_CONF5_CRCP)
+		elf_hwcap |= HWCAP_MIPS_CRC32;
 
 	return config5 & MIPS_CONF_M;
 }
@@ -1569,6 +1580,7 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_34K;
 		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 34Kc";
+		cpu_set_mt_per_tc_perf(c);
 		break;
 	case PRID_IMP_74K:
 		c->cputype = CPU_74K;
@@ -1589,6 +1601,7 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_1004K;
 		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 1004Kc";
+		cpu_set_mt_per_tc_perf(c);
 		break;
 	case PRID_IMP_1074K:
 		c->cputype = CPU_1074K;
@@ -1598,10 +1611,12 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_INTERAPTIV_UP:
 		c->cputype = CPU_INTERAPTIV;
 		__cpu_name[cpu] = "MIPS interAptiv";
+		cpu_set_mt_per_tc_perf(c);
 		break;
 	case PRID_IMP_INTERAPTIV_MP:
 		c->cputype = CPU_INTERAPTIV;
 		__cpu_name[cpu] = "MIPS interAptiv (multi)";
+		cpu_set_mt_per_tc_perf(c);
 		break;
 	case PRID_IMP_PROAPTIV_UP:
 		c->cputype = CPU_PROAPTIV;
@@ -1834,7 +1849,8 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 			set_elf_platform(cpu, "loongson3a");
 			set_isa(c, MIPS_CPU_ISA_M64R2);
 			break;
-		case PRID_REV_LOONGSON3A_R3:
+		case PRID_REV_LOONGSON3A_R3_0:
+		case PRID_REV_LOONGSON3A_R3_1:
 			c->cputype = CPU_LOONGSON3;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");

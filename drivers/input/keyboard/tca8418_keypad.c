@@ -234,14 +234,7 @@ static irqreturn_t tca8418_irq_handler(int irq, void *dev_id)
 static int tca8418_configure(struct tca8418_keypad *keypad_data,
 			     u32 rows, u32 cols)
 {
-	int reg, error;
-
-	/* Write config register, if this fails assume device not present */
-	error = tca8418_write_byte(keypad_data, REG_CFG,
-				CFG_INT_CFG | CFG_OVR_FLOW_IEN | CFG_KE_IEN);
-	if (error < 0)
-		return -ENODEV;
-
+	int reg, error = 0;
 
 	/* Assemble a mask for row and column registers */
 	reg  =  ~(~0 << rows);
@@ -257,6 +250,12 @@ static int tca8418_configure(struct tca8418_keypad *keypad_data,
 	error |= tca8418_write_byte(keypad_data, REG_DEBOUNCE_DIS2, reg >> 8);
 	error |= tca8418_write_byte(keypad_data, REG_DEBOUNCE_DIS3, reg >> 16);
 
+	if (error)
+		return error;
+
+	error = tca8418_write_byte(keypad_data, REG_CFG,
+				CFG_INT_CFG | CFG_OVR_FLOW_IEN | CFG_KE_IEN);
+
 	return error;
 }
 
@@ -268,6 +267,7 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 	struct input_dev *input;
 	u32 rows = 0, cols = 0;
 	int error, row_shift, max_keys;
+	u8 reg;
 
 	/* Check i2c driver capabilities */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE)) {
@@ -301,10 +301,10 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 	keypad_data->client = client;
 	keypad_data->row_shift = row_shift;
 
-	/* Initialize the chip or fail if chip isn't present */
-	error = tca8418_configure(keypad_data, rows, cols);
-	if (error < 0)
-		return error;
+	/* Read key lock register, if this fails assume device not present */
+	error = tca8418_read_byte(keypad_data, REG_KEY_LCK_EC, &reg);
+	if (error)
+		return -ENODEV;
 
 	/* Configure input device */
 	input = devm_input_allocate_device(dev);
@@ -339,6 +339,11 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 			client->irq, error);
 		return error;
 	}
+
+	/* Initialize the chip */
+	error = tca8418_configure(keypad_data, rows, cols);
+	if (error < 0)
+		return error;
 
 	error = input_register_device(input);
 	if (error) {

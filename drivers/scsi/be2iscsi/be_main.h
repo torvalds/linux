@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Broadcom. All Rights Reserved.
+ * Copyright 2017 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@
 #include <scsi/scsi_transport_iscsi.h>
 
 #define DRV_NAME		"be2iscsi"
-#define BUILD_STR		"11.4.0.0"
+#define BUILD_STR		"11.4.0.1"
 #define BE_NAME			"Emulex OneConnect" \
 				"Open-iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
@@ -59,7 +59,7 @@
 #define BE2_DEFPDU_DATA_SZ	8192
 #define BE2_MAX_NUM_CQ_PROC	512
 
-#define MAX_CPUS		64
+#define MAX_CPUS		64U
 #define BEISCSI_MAX_NUM_CPUS	7
 
 #define BEISCSI_VER_STRLEN 32
@@ -77,9 +77,7 @@
 
 #define BEISCSI_MAX_CMD_LEN	16	/* scsi_host->max_cmd_len */
 #define BEISCSI_NUM_MAX_LUN	256	/* scsi_host->max_lun */
-#define BEISCSI_NUM_DEVICES_SUPPORTED	0x01
 #define BEISCSI_MAX_FRAGS_INIT	192
-#define BE_NUM_MSIX_ENTRIES	1
 
 #define BE_SENSE_INFO_SIZE		258
 #define BE_ISCSI_PDU_HEADER_SIZE	64
@@ -155,8 +153,6 @@
 #define PAGES_REQUIRED(x) \
 	((x < PAGE_SIZE) ? 1 :  ((x + PAGE_SIZE - 1) / PAGE_SIZE))
 
-#define BEISCSI_MSI_NAME 20 /* size of msi_name string */
-
 #define MEM_DESCR_OFFSET 8
 #define BEISCSI_DEFQ_HDR 1
 #define BEISCSI_DEFQ_DATA 0
@@ -209,13 +205,8 @@ struct mem_array {
 };
 
 struct be_mem_descriptor {
-	unsigned int index;	/* Index of this memory parameter */
-	unsigned int category;	/* type indicates cached/non-cached */
-	unsigned int num_elements;	/* number of elements in this
-					 * descriptor
-					 */
-	unsigned int alignment_mask;	/* Alignment mask for this block */
 	unsigned int size_in_bytes;	/* Size required by memory block */
+	unsigned int num_elements;
 	struct mem_array *mem_array;
 };
 
@@ -238,32 +229,12 @@ struct hba_parameters {
 	unsigned int num_eq_entries;
 	unsigned int wrbs_per_cxn;
 	unsigned int hwi_ws_sz;
-	/**
-	 * These are calculated from other params. They're here
-	 * for debug purposes
-	 */
-	unsigned int num_mcc_pages;
-	unsigned int num_mcc_cq_pages;
-	unsigned int num_cq_pages;
-	unsigned int num_eq_pages;
-
-	unsigned int num_async_pdu_buf_pages;
-	unsigned int num_async_pdu_buf_sgl_pages;
-	unsigned int num_async_pdu_buf_cq_pages;
-
-	unsigned int num_async_pdu_hdr_pages;
-	unsigned int num_async_pdu_hdr_sgl_pages;
-	unsigned int num_async_pdu_hdr_cq_pages;
-
-	unsigned int num_sge;
 };
 
 #define BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr, cri) \
 	(phwi_ctrlr->wrb_context[cri].ulp_num)
 struct hwi_wrb_context {
 	spinlock_t wrb_lock;
-	struct list_head wrb_handle_list;
-	struct list_head wrb_handle_drvr_list;
 	struct wrb_handle **pwrb_handle_base;
 	struct wrb_handle **pwrb_handle_basestd;
 	struct iscsi_wrb *plast_wrb;
@@ -272,8 +243,6 @@ struct hwi_wrb_context {
 	unsigned short wrb_handles_available;
 	unsigned short cid;
 	uint8_t ulp_num;	/* ULP to which CID binded */
-	uint16_t register_set;
-	uint16_t doorbell_format;
 	uint32_t doorbell_offset;
 };
 
@@ -310,9 +279,6 @@ struct beiscsi_hba {
 	u8 __iomem *csr_va;	/* CSR */
 	u8 __iomem *db_va;	/* Door  Bell  */
 	u8 __iomem *pci_va;	/* PCI Config */
-	struct be_bus_address csr_pa;	/* CSR */
-	struct be_bus_address db_pa;	/* CSR */
-	struct be_bus_address pci_pa;	/* CSR */
 	/* PCI representation of our HBA */
 	struct pci_dev *pcidev;
 	unsigned int num_cpus;
@@ -324,7 +290,6 @@ struct beiscsi_hba {
 	unsigned short io_sgl_free_index;
 	unsigned short io_sgl_hndl_avbl;
 	struct sgl_handle **io_sgl_hndl_base;
-	struct sgl_handle **sgl_hndl_array;
 
 	unsigned short eh_sgl_alloc_index;
 	unsigned short eh_sgl_free_index;
@@ -1009,10 +974,6 @@ struct be_ring {
 };
 
 struct hwi_controller {
-	struct list_head io_sgl_list;
-	struct list_head eh_sgl_list;
-	struct sgl_handle *psgl_handle_base;
-
 	struct hwi_wrb_context *wrb_context;
 	struct be_ring default_pdu_hdr[BEISCSI_ULP_COUNT];
 	struct be_ring default_pdu_data[BEISCSI_ULP_COUNT];
@@ -1036,10 +997,6 @@ struct wrb_handle {
 };
 
 struct hwi_context_memory {
-	/* Adaptive interrupt coalescing (AIC) info */
-	u16 min_eqd;		/* in usecs */
-	u16 max_eqd;		/* in usecs */
-	u16 cur_eqd;		/* in usecs */
 	struct be_eq_obj be_eq[MAX_CPUS];
 	struct be_queue_info be_cq[MAX_CPUS - 1];
 

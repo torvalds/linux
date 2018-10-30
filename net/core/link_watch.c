@@ -92,7 +92,7 @@ static bool linkwatch_urgent_event(struct net_device *dev)
 	if (dev->ifindex != dev_get_iflink(dev))
 		return true;
 
-	if (dev->priv_flags & IFF_TEAM_PORT)
+	if (netif_is_lag_port(dev) || netif_is_lag_master(dev))
 		return true;
 
 	return netif_carrier_ok(dev) &&	qdisc_tx_changing(dev);
@@ -155,7 +155,7 @@ static void linkwatch_do_dev(struct net_device *dev)
 	clear_bit(__LINK_STATE_LINKWATCH_PENDING, &dev->state);
 
 	rfc2863_policy(dev);
-	if (dev->flags & IFF_UP) {
+	if (dev->flags & IFF_UP && netif_device_present(dev)) {
 		if (netif_carrier_ok(dev))
 			dev_activate(dev);
 		else

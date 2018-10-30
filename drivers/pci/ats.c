@@ -1,13 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/ats.c
- *
- * Copyright (C) 2009 Intel Corporation, Yu Zhao <yu.zhao@intel.com>
- * Copyright (C) 2011 Advanced Micro Devices,
- *
- * PCI Express I/O Virtualization (IOV) support.
+ * PCI Express I/O Virtualization (IOV) support
  *   Address Translation Service 1.0
  *   Page Request Interface added by Joerg Roedel <joerg.roedel@amd.com>
  *   PASID support added by Joerg Roedel <joerg.roedel@amd.com>
+ *
+ * Copyright (C) 2009 Intel Corporation, Yu Zhao <yu.zhao@intel.com>
+ * Copyright (C) 2011 Advanced Micro Devices,
  */
 
 #include <linux/export.h>
@@ -20,6 +19,9 @@
 void pci_ats_init(struct pci_dev *dev)
 {
 	int pos;
+
+	if (pci_ats_disabled())
+		return;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ATS);
 	if (!pos)
@@ -270,6 +272,9 @@ int pci_enable_pasid(struct pci_dev *pdev, int features)
 
 	if (WARN_ON(pdev->pasid_enabled))
 		return -EBUSY;
+
+	if (!pdev->eetlp_prefix_path)
+		return -EINVAL;
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PASID);
 	if (!pos)

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  R-Car Gen3 THS thermal sensor driver
  *  Based on rcar_thermal.c and work from Hien Dang and Khiem Nguyen.
  *
  * Copyright (C) 2016 Renesas Electronics Corporation.
  * Copyright (C) 2016 Sang Engineering
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
  */
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -24,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
+#include <linux/sys_soc.h>
 #include <linux/thermal.h>
 
 #include "thermal_core.h"
@@ -90,10 +82,6 @@ struct rcar_gen3_thermal_priv {
 	struct rcar_gen3_thermal_tsc *tscs[TSC_MAX_NUM];
 	unsigned int num_tscs;
 	spinlock_t lock; /* Protect interrupts on and off */
-	const struct rcar_gen3_thermal_data *data;
-};
-
-struct rcar_gen3_thermal_data {
 	void (*thermal_init)(struct rcar_gen3_thermal_tsc *tsc);
 };
 
@@ -135,7 +123,7 @@ static inline void rcar_gen3_thermal_write(struct rcar_gen3_thermal_tsc *tsc,
 #define RCAR3_THERMAL_GRAN 500 /* mili Celsius */
 
 /* no idea where these constants come from */
-#define TJ_1 96
+#define TJ_1 116
 #define TJ_3 -41
 
 static void rcar_gen3_thermal_calc_coefs(struct equation_coefs *coef,
@@ -149,7 +137,7 @@ static void rcar_gen3_thermal_calc_coefs(struct equation_coefs *coef,
 	 * Division is not scaled in BSP and if scaled it might overflow
 	 * the dividend (4095 * 4095 << 14 > INT_MAX) so keep it unscaled
 	 */
-	tj_2 = (FIXPT_INT((ptat[1] - ptat[2]) * 137)
+	tj_2 = (FIXPT_INT((ptat[1] - ptat[2]) * 157)
 		/ (ptat[0] - ptat[2])) - FIXPT_INT(41);
 
 	coef->a1 = FIXPT_DIV(FIXPT_INT(thcode[1] - thcode[2]),
@@ -210,8 +198,8 @@ static int rcar_gen3_thermal_set_trips(void *devdata, int low, int high)
 {
 	struct rcar_gen3_thermal_tsc *tsc = devdata;
 
-	low = clamp_val(low, -40000, 125000);
-	high = clamp_val(high, -40000, 125000);
+	low = clamp_val(low, -40000, 120000);
+	high = clamp_val(high, -40000, 120000);
 
 	rcar_gen3_thermal_write(tsc, REG_GEN3_IRQTEMP1,
 				rcar_gen3_thermal_mcelsius_to_temp(tsc, low));
@@ -278,7 +266,12 @@ static irqreturn_t rcar_gen3_thermal_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void r8a7795_thermal_init(struct rcar_gen3_thermal_tsc *tsc)
+static const struct soc_device_attribute r8a7795es1[] = {
+	{ .soc_id = "r8a7795", .revision = "ES1.*" },
+	{ /* sentinel */ }
+};
+
+static void rcar_gen3_thermal_init_r8a7795es1(struct rcar_gen3_thermal_tsc *tsc)
 {
 	rcar_gen3_thermal_write(tsc, REG_GEN3_CTSR,  CTSR_THBGR);
 	rcar_gen3_thermal_write(tsc, REG_GEN3_CTSR,  0x0);
@@ -303,7 +296,7 @@ static void r8a7795_thermal_init(struct rcar_gen3_thermal_tsc *tsc)
 	usleep_range(1000, 2000);
 }
 
-static void r8a7796_thermal_init(struct rcar_gen3_thermal_tsc *tsc)
+static void rcar_gen3_thermal_init(struct rcar_gen3_thermal_tsc *tsc)
 {
 	u32 reg_val;
 
@@ -324,17 +317,12 @@ static void r8a7796_thermal_init(struct rcar_gen3_thermal_tsc *tsc)
 	usleep_range(1000, 2000);
 }
 
-static const struct rcar_gen3_thermal_data r8a7795_data = {
-	.thermal_init = r8a7795_thermal_init,
-};
-
-static const struct rcar_gen3_thermal_data r8a7796_data = {
-	.thermal_init = r8a7796_thermal_init,
-};
-
 static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {
-	{ .compatible = "renesas,r8a7795-thermal", .data = &r8a7795_data},
-	{ .compatible = "renesas,r8a7796-thermal", .data = &r8a7796_data},
+	{ .compatible = "renesas,r8a774a1-thermal", },
+	{ .compatible = "renesas,r8a7795-thermal", },
+	{ .compatible = "renesas,r8a7796-thermal", },
+	{ .compatible = "renesas,r8a77965-thermal", },
+	{ .compatible = "renesas,r8a77980-thermal", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rcar_gen3_thermal_dt_ids);
@@ -360,18 +348,20 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 
 	/* default values if FUSEs are missing */
 	/* TODO: Read values from hardware on supported platforms */
-	int ptat[3] = { 2351, 1509, 435 };
+	int ptat[3] = { 2631, 1509, 435 };
 	int thcode[TSC_MAX_NUM][3] = {
-		{ 3248, 2800, 2221 },
-		{ 3245, 2795, 2216 },
-		{ 3250, 2805, 2237 },
+		{ 3397, 2800, 2221 },
+		{ 3393, 2795, 2216 },
+		{ 3389, 2805, 2237 },
 	};
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->data = of_device_get_match_data(dev);
+	priv->thermal_init = rcar_gen3_thermal_init;
+	if (soc_device_match(r8a7795es1))
+		priv->thermal_init = rcar_gen3_thermal_init_r8a7795es1;
 
 	spin_lock_init(&priv->lock);
 
@@ -423,7 +413,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 
 		priv->tscs[i] = tsc;
 
-		priv->data->thermal_init(tsc);
+		priv->thermal_init(tsc);
 		rcar_gen3_thermal_calc_coefs(&tsc->coef, ptat, thcode[i]);
 
 		zone = devm_thermal_zone_of_sensor_register(dev, i, tsc,
@@ -476,7 +466,7 @@ static int __maybe_unused rcar_gen3_thermal_resume(struct device *dev)
 	for (i = 0; i < priv->num_tscs; i++) {
 		struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
 
-		priv->data->thermal_init(tsc);
+		priv->thermal_init(tsc);
 		rcar_gen3_thermal_set_trips(tsc, tsc->low, tsc->high);
 	}
 

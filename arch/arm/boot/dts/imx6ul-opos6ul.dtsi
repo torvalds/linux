@@ -48,7 +48,7 @@
 #include "imx6ul.dtsi"
 
 / {
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0>; /* will be filled by U-Boot */
 	};
 

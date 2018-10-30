@@ -1,7 +1,7 @@
 /*
  * net/tipc/bcast.c: TIPC broadcast code
  *
- * Copyright (c) 2004-2006, 2014-2016, Ericsson AB
+ * Copyright (c) 2004-2006, 2014-2017, Ericsson AB
  * Copyright (c) 2004, Intel Corporation.
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
@@ -42,8 +42,8 @@
 #include "link.h"
 #include "name_table.h"
 
-#define	BCLINK_WIN_DEFAULT	50	/* bcast link window size (default) */
-#define	BCLINK_WIN_MIN	        32	/* bcast minimum link window size */
+#define BCLINK_WIN_DEFAULT  50	/* bcast link window size (default) */
+#define BCLINK_WIN_MIN      32	/* bcast minimum link window size */
 
 const char tipc_bclink_name[] = "broadcast-link";
 
@@ -51,12 +51,12 @@ const char tipc_bclink_name[] = "broadcast-link";
  * struct tipc_bc_base - base structure for keeping broadcast send state
  * @link: broadcast send link structure
  * @inputq: data input queue; will only carry SOCK_WAKEUP messages
- * @dest: array keeping number of reachable destinations per bearer
+ * @dests: array keeping number of reachable destinations per bearer
  * @primary_bearer: a bearer having links to all broadcast destinations, if any
  * @bcast_support: indicates if primary bearer, if any, supports broadcast
  * @rcast_support: indicates if all peer nodes support replicast
  * @rc_ratio: dest count as percentage of cluster size where send method changes
- * @bc_threshold: calculated drom rc_ratio; if dests > threshold use broadcast
+ * @bc_threshold: calculated from rc_ratio; if dests > threshold use broadcast
  */
 struct tipc_bc_base {
 	struct tipc_link *link;
@@ -74,6 +74,10 @@ static struct tipc_bc_base *tipc_bc_base(struct net *net)
 	return tipc_net(net)->bcbase;
 }
 
+/* tipc_bcast_get_mtu(): -get the MTU currently used by broadcast link
+ * Note: the MTU is decremented to give room for a tunnel header, in
+ * case the message needs to be sent as replicast
+ */
 int tipc_bcast_get_mtu(struct net *net)
 {
 	return tipc_link_mtu(tipc_bc_sndlink(net)) - INT_H_SIZE;
@@ -233,7 +237,7 @@ static int tipc_bcast_xmit(struct net *net, struct sk_buff_head *pkts,
 	struct sk_buff_head xmitq;
 	int rc = 0;
 
-	__skb_queue_head_init(&xmitq);
+	skb_queue_head_init(&xmitq);
 	tipc_bcast_lock(net);
 	if (tipc_link_bc_peers(l))
 		rc = tipc_link_xmit(l, pkts, &xmitq);
@@ -258,20 +262,20 @@ static int tipc_bcast_xmit(struct net *net, struct sk_buff_head *pkts,
 static int tipc_rcast_xmit(struct net *net, struct sk_buff_head *pkts,
 			   struct tipc_nlist *dests, u16 *cong_link_cnt)
 {
+	struct tipc_dest *dst, *tmp;
 	struct sk_buff_head _pkts;
-	struct u32_item *n, *tmp;
-	u32 dst, selector;
+	u32 dnode, selector;
 
 	selector = msg_link_selector(buf_msg(skb_peek(pkts)));
-	__skb_queue_head_init(&_pkts);
+	skb_queue_head_init(&_pkts);
 
-	list_for_each_entry_safe(n, tmp, &dests->list, list) {
-		dst = n->value;
-		if (!tipc_msg_pskb_copy(dst, pkts, &_pkts))
+	list_for_each_entry_safe(dst, tmp, &dests->list, list) {
+		dnode = dst->node;
+		if (!tipc_msg_pskb_copy(dnode, pkts, &_pkts))
 			return -ENOMEM;
 
 		/* Any other return value than -ELINKCONG is ignored */
-		if (tipc_node_xmit(net, &_pkts, dst, selector) == -ELINKCONG)
+		if (tipc_node_xmit(net, &_pkts, dnode, selector) == -ELINKCONG)
 			(*cong_link_cnt)++;
 	}
 	return 0;
@@ -508,14 +512,14 @@ int tipc_bcast_init(struct net *net)
 	struct tipc_bc_base *bb = NULL;
 	struct tipc_link *l = NULL;
 
-	bb = kzalloc(sizeof(*bb), GFP_ATOMIC);
+	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
 	if (!bb)
 		goto enomem;
 	tn->bcbase = bb;
 	spin_lock_init(&tipc_net(net)->bclock);
 
 	if (!tipc_link_bc_create(net, 0, 0,
-				 U16_MAX,
+				 FB_MTU,
 				 BCLINK_WIN_DEFAULT,
 				 0,
 				 &bb->inputq,
@@ -554,7 +558,7 @@ void tipc_nlist_add(struct tipc_nlist *nl, u32 node)
 {
 	if (node == nl->self)
 		nl->local = true;
-	else if (u32_push(&nl->list, node))
+	else if (tipc_dest_push(&nl->list, node, 0))
 		nl->remote++;
 }
 
@@ -562,13 +566,13 @@ void tipc_nlist_del(struct tipc_nlist *nl, u32 node)
 {
 	if (node == nl->self)
 		nl->local = false;
-	else if (u32_del(&nl->list, node))
+	else if (tipc_dest_del(&nl->list, node, 0))
 		nl->remote--;
 }
 
 void tipc_nlist_purge(struct tipc_nlist *nl)
 {
-	u32_list_purge(&nl->list);
+	tipc_dest_list_purge(&nl->list);
 	nl->remote = 0;
-	nl->local = 0;
+	nl->local = false;
 }

@@ -27,6 +27,14 @@ config USB_XHCI_HCD
 	  module will be called xhci-hcd.
 
 if USB_XHCI_HCD
+config USB_XHCI_DBGCAP
+	bool "xHCI support for debug capability"
+	depends on TTY
+	---help---
+	  Say 'Y' to enable the support for the xHCI debug capability. Make
+	  sure that your xHCI host supports the extended debug capability and
+	  you want a TTY serial device based on the xHCI debug capability
+	  before enabling this option. If unsure, say 'N'.
 
 config USB_XHCI_PCI
        tristate
@@ -44,13 +52,20 @@ config USB_XHCI_PLATFORM
 
 	  If unsure, say N.
 
+config USB_XHCI_HISTB
+	tristate "xHCI support for HiSilicon STB SoCs"
+	depends on USB_XHCI_PLATFORM && (ARCH_HISI || COMPILE_TEST)
+	help
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in HiSilicon STB SoCs.
+
 config USB_XHCI_MTK
-	tristate "xHCI support for Mediatek MT65xx/MT7621"
+	tristate "xHCI support for MediaTek SoCs"
 	select MFD_SYSCON
 	depends on (MIPS && SOC_MT7621) || ARCH_MEDIATEK || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
-	  found in Mediatek MT65xx SoCs.
+	  found in MediaTek SoCs.
 	  If unsure, say N.
 
 config USB_XHCI_MVEBU
@@ -177,6 +192,14 @@ config USB_EHCI_MXC
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
 
+config USB_EHCI_HCD_NPCM7XX
+	tristate "Support for Nuvoton NPCM7XX on-chip EHCI USB controller"
+	depends on (USB_EHCI_HCD && ARCH_NPCM7XX) || COMPILE_TEST
+	default y if (USB_EHCI_HCD && ARCH_NPCM7XX)
+	help
+	  Enables support for the on-chip EHCI controller on
+	  Nuvoton NPCM7XX chips.
+
 config USB_EHCI_HCD_OMAP
 	tristate "EHCI support for OMAP3 and later chips"
 	depends on ARCH_OMAP
@@ -222,25 +245,11 @@ config USB_EHCI_HCD_AT91
           Enables support for the on-chip EHCI controller on
           Atmel chips.
 
-config USB_EHCI_MSM
-	tristate "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
-	depends on ARCH_QCOM
-	select USB_EHCI_ROOT_HUB_TT
-	---help---
-	  Enables support for the USB Host controller present on the
-	  Qualcomm chipsets. Root Hub has inbuilt TT.
-	  This driver depends on OTG driver for PHY initialization,
-	  clock management, powering up VBUS, and power management.
-	  This driver is not supported on boards like trout which
-	  has an external PHY.
-
 config USB_EHCI_TEGRA
        tristate "NVIDIA Tegra HCD support"
        depends on ARCH_TEGRA
        select USB_EHCI_ROOT_HUB_TT
-       select USB_PHY
-	select USB_ULPI
-	select USB_ULPI_VIEWPORT
+       select USB_TEGRA_PHY
        help
          This driver enables support for the internal USB Host Controllers
          found in NVIDIA Tegra SoCs. The controllers are EHCI compliant.
@@ -267,7 +276,7 @@ config USB_EHCI_EXYNOS
 	Enable support for the Samsung Exynos SOC's on-chip EHCI controller.
 
 config USB_EHCI_MV
-	bool "EHCI support for Marvell PXA/MMP USB controller"
+	tristate "EHCI support for Marvell PXA/MMP USB controller"
 	depends on (ARCH_PXA || ARCH_MMP)
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
@@ -296,19 +305,6 @@ config USB_CNS3XXX_EHCI
 	  Enable support for the CNS3XXX SOC's on-chip EHCI controller.
 	  It is needed for high-speed (480Mbit/sec) USB 2.0 device
 	  support.
-
-config USB_EHCI_ATH79
-	bool "EHCI support for AR7XXX/AR9XXX SoCs (DEPRECATED)"
-	depends on (SOC_AR71XX || SOC_AR724X || SOC_AR913X || SOC_AR933X)
-	select USB_EHCI_ROOT_HUB_TT
-	select USB_EHCI_HCD_PLATFORM
-	default y
-	---help---
-	  This option is deprecated now and the driver was removed, use
-	  USB_EHCI_HCD_PLATFORM instead.
-
-	  Enables support for the built-in EHCI controller present
-	  on the Atheros AR7XXX/AR9XXX SoCs.
 
 config USB_EHCI_HCD_PLATFORM
 	tristate "Generic EHCI driver for a platform device"
@@ -364,6 +360,7 @@ config USB_ISP116X_HCD
 config USB_ISP1362_HCD
 	tristate "ISP1362 HCD support"
 	depends on HAS_IOMEM
+	depends on COMPILE_TEST # nothing uses this
 	---help---
 	  Supports the Philips ISP1362 chip as a host controller
 
@@ -492,18 +489,6 @@ config USB_OHCI_HCD_DAVINCI
 	  Enables support for the DaVinci DA8xx integrated OHCI
 	  controller. This driver cannot currently be a loadable
 	  module because it lacks a proper PHY abstraction.
-
-config USB_OHCI_ATH79
-	bool "USB OHCI support for the Atheros AR71XX/AR7240 SoCs (DEPRECATED)"
-	depends on (SOC_AR71XX || SOC_AR724X)
-	select USB_OHCI_HCD_PLATFORM
-	default y
-	help
-	  This option is deprecated now and the driver was removed, use
-	  USB_OHCI_HCD_PLATFORM instead.
-
-	  Enables support for the built-in OHCI controller present on the
-	  Atheros AR71XX/AR7240 SoCs.
 
 config USB_OHCI_HCD_PPC_OF_BE
 	bool "OHCI support for OF platform bus (big endian)"
@@ -636,14 +621,6 @@ config USB_UHCI_PLATFORM
 config USB_UHCI_ASPEED
        bool
        default y if ARCH_ASPEED
-
-config USB_UHCI_BIG_ENDIAN_MMIO
-	bool
-	default y if SPARC_LEON
-
-config USB_UHCI_BIG_ENDIAN_DESC
-	bool
-	default y if SPARC_LEON
 
 config USB_FHCI_HCD
 	tristate "Freescale QE USB Host Controller support"

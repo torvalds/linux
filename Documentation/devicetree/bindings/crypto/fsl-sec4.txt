@@ -99,13 +99,6 @@ PROPERTIES
            of the specifier is defined by the binding document
            describing the node's interrupt parent.
 
-   - interrupt-parent
-      Usage: (required if interrupt property is defined)
-      Value type: <phandle>
-      Definition: A single <phandle> value that points
-          to the interrupt parent to which the child domain
-          is being mapped.
-
    - clocks
       Usage: required if SEC 4.0 requires explicit enablement of clocks
       Value type: <prop_encoded-array>
@@ -198,13 +191,6 @@ Job Ring (JR) Node
            consists of one interrupt specifier. The format
            of the specifier is defined by the binding document
            describing the node's interrupt parent.
-
-   - interrupt-parent
-      Usage: (required if interrupt property is defined)
-      Value type: <phandle>
-      Definition: A single <phandle> value that points
-          to the interrupt parent to which the child domain
-          is being mapped.
 
 EXAMPLE
 	jr@1000 {
@@ -370,13 +356,6 @@ Secure Non-Volatile Storage (SNVS) Node
            of the specifier is defined by the binding document
            describing the node's interrupt parent.
 
-   - interrupt-parent
-      Usage: (required if interrupt property is defined)
-      Value type: <phandle>
-      Definition: A single <phandle> value that points
-          to the interrupt parent to which the child domain
-          is being mapped.
-
 EXAMPLE
 	sec_mon@314000 {
 		compatible = "fsl,sec-v4.0-mon", "syscon";
@@ -415,12 +394,27 @@ Secure Non-Volatile Storage (SNVS) Low Power (LP) RTC Node
 	value type: <u32>
 	Definition: LP register offset. default it is 0x34.
 
+   - clocks
+      Usage: optional, required if SNVS LP RTC requires explicit
+          enablement of clocks
+      Value type: <prop_encoded-array>
+      Definition:  a clock specifier describing the clock required for
+          enabling and disabling SNVS LP RTC.
+
+   - clock-names
+      Usage: optional, required if SNVS LP RTC requires explicit
+          enablement of clocks
+      Value type: <string>
+      Definition: clock name string should be "snvs-rtc".
+
 EXAMPLE
 	sec_mon_rtc_lp@1 {
 		compatible = "fsl,sec-v4.0-mon-rtc-lp";
 		interrupts = <93 2>;
 		regmap = <&snvs>;
 		offset = <0x34>;
+		clocks = <&clks IMX7D_SNVS_CLK>;
+		clock-names = "snvs-rtc";
 	};
 
 =====================================================================
@@ -456,7 +450,7 @@ System ON/OFF key driver
       Definition: this is phandle to the register map node.
 
 EXAMPLE:
-	snvs-pwrkey@0x020cc000 {
+	snvs-pwrkey@020cc000 {
 		compatible = "fsl,sec-v4.0-pwrkey";
 		regmap = <&snvs>;
 		interrupts = <0 4 0x4>
@@ -543,9 +537,11 @@ FULL EXAMPLE
 			regmap = <&sec_mon>;
 			offset = <0x34>;
 			interrupts = <93 2>;
+			clocks = <&clks IMX7D_SNVS_CLK>;
+			clock-names = "snvs-rtc";
 		};
 
-		snvs-pwrkey@0x020cc000 {
+		snvs-pwrkey@020cc000 {
 			compatible = "fsl,sec-v4.0-pwrkey";
 			regmap = <&sec_mon>;
 			interrupts = <0 4 0x4>;

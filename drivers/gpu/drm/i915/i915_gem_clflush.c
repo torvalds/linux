@@ -45,11 +45,6 @@ static const char *i915_clflush_get_timeline_name(struct dma_fence *fence)
 	return "clflush";
 }
 
-static bool i915_clflush_enable_signaling(struct dma_fence *fence)
-{
-	return true;
-}
-
 static void i915_clflush_release(struct dma_fence *fence)
 {
 	struct clflush *clflush = container_of(fence, typeof(*clflush), dma);
@@ -63,13 +58,12 @@ static void i915_clflush_release(struct dma_fence *fence)
 static const struct dma_fence_ops i915_clflush_ops = {
 	.get_driver_name = i915_clflush_get_driver_name,
 	.get_timeline_name = i915_clflush_get_timeline_name,
-	.enable_signaling = i915_clflush_enable_signaling,
-	.wait = dma_fence_default_wait,
 	.release = i915_clflush_release,
 };
 
 static void __i915_do_clflush(struct drm_i915_gem_object *obj)
 {
+	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
 	drm_clflush_sg(obj->mm.pages);
 	intel_fb_obj_flush(obj, ORIGIN_CPU);
 }
@@ -166,7 +160,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 		i915_sw_fence_await_reservation(&clflush->wait,
 						obj->resv, NULL,
 						true, I915_FENCE_TIMEOUT,
-						GFP_KERNEL);
+						I915_FENCE_GFP);
 
 		reservation_object_lock(obj->resv, NULL);
 		reservation_object_add_excl_fence(obj->resv, &clflush->dma);
@@ -176,7 +170,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	} else if (obj->mm.pages) {
 		__i915_do_clflush(obj);
 	} else {
-		GEM_BUG_ON(obj->base.write_domain != I915_GEM_DOMAIN_CPU);
+		GEM_BUG_ON(obj->write_domain != I915_GEM_DOMAIN_CPU);
 	}
 
 	obj->cache_dirty = false;

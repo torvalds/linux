@@ -397,23 +397,23 @@
 					xoadc-ref-supply = <&pm8058_l18>;
 
 					/* Board-specific channels */
-					mpp5@05 {
+					mpp5@5 {
 						/* Connected to AOUT of ALS sensor */
 						reg = <0x00 0x05>;
 					};
-					mpp6@06 {
+					mpp6@6 {
 						/* Connected to test point TP43 */
 						reg = <0x00 0x06>;
 					};
-					mpp7@07 {
+					mpp7@7 {
 						/* Connected to battery thermistor */
 						reg = <0x00 0x07>;
 					};
-					mpp8@08 {
+					mpp8@8 {
 						/* Connected to battery ID detector */
 						reg = <0x00 0x08>;
 					};
-					mpp9@09 {
+					mpp9@9 {
 						/* Connected to XO thermistor */
 						reg = <0x00 0x09>;
 					};
@@ -512,7 +512,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_gsbi12_i2c_pins>;
 
-				ak8975@0c {
+				ak8975@c {
 					compatible = "asahi-kasei,ak8975";
 					reg = <0x0c>;
 					/* FIXME: GPIO33 has interrupt 224 on the PM8058 */

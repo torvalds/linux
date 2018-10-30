@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function graph filters with stack tracer
 
 # Make sure that function graph filtering works, and is not
@@ -15,19 +16,15 @@ if [ ! -f set_ftrace_filter ]; then
 fi
 
 do_reset() {
-    reset_tracer
     if [ -e /proc/sys/kernel/stack_tracer_enabled ]; then
 	    echo 0 > /proc/sys/kernel/stack_tracer_enabled
     fi
-    enable_tracing
-    clear_trace
-    echo > set_ftrace_filter
 }
 
 fail() { # msg
     do_reset
     echo $1
-    exit $FAIL
+    exit_fail
 }
 
 disable_tracing

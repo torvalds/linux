@@ -68,7 +68,7 @@ static int rtc_suspend(struct device *dev)
 		return 0;
 	}
 
-	getnstimeofday64(&old_system);
+	ktime_get_real_ts64(&old_system);
 	old_rtc.tv_sec = rtc_tm_to_time64(&tm);
 
 
@@ -110,7 +110,7 @@ static int rtc_resume(struct device *dev)
 		return 0;
 
 	/* snapshot the current rtc and system time at resume */
-	getnstimeofday64(&new_system);
+	ktime_get_real_ts64(&new_system);
 	err = rtc_read_time(rtc, &tm);
 	if (err < 0) {
 		pr_debug("%s:  fail to read rtc time\n", dev_name(&rtc->dev));
@@ -161,6 +161,9 @@ static struct rtc_device *rtc_allocate_device(void)
 
 	device_initialize(&rtc->dev);
 
+	/* Drivers can revise this default after allocating the device. */
+	rtc->set_offset_nsec =  NSEC_PER_SEC / 2;
+
 	rtc->irq_freq = 1;
 	rtc->max_user_freq = 64;
 	rtc->dev.class = rtc_class;
@@ -169,7 +172,6 @@ static struct rtc_device *rtc_allocate_device(void)
 
 	mutex_init(&rtc->ops_lock);
 	spin_lock_init(&rtc->irq_lock);
-	spin_lock_init(&rtc->irq_task_lock);
 	init_waitqueue_head(&rtc->irq_queue);
 
 	/* Init timerqueue */
@@ -208,6 +210,73 @@ static int rtc_device_get_id(struct device *dev)
 	return id;
 }
 
+static void rtc_device_get_offset(struct rtc_device *rtc)
+{
+	time64_t range_secs;
+	u32 start_year;
+	int ret;
+
+	/*
+	 * If RTC driver did not implement the range of RTC hardware device,
+	 * then we can not expand the RTC range by adding or subtracting one
+	 * offset.
+	 */
+	if (rtc->range_min == rtc->range_max)
+		return;
+
+	ret = device_property_read_u32(rtc->dev.parent, "start-year",
+				       &start_year);
+	if (!ret) {
+		rtc->start_secs = mktime64(start_year, 1, 1, 0, 0, 0);
+		rtc->set_start_time = true;
+	}
+
+	/*
+	 * If user did not implement the start time for RTC driver, then no
+	 * need to expand the RTC range.
+	 */
+	if (!rtc->set_start_time)
+		return;
+
+	range_secs = rtc->range_max - rtc->range_min + 1;
+
+	/*
+	 * If the start_secs is larger than the maximum seconds (rtc->range_max)
+	 * supported by RTC hardware or the maximum seconds of new expanded
+	 * range (start_secs + rtc->range_max - rtc->range_min) is less than
+	 * rtc->range_min, which means the minimum seconds (rtc->range_min) of
+	 * RTC hardware will be mapped to start_secs by adding one offset, so
+	 * the offset seconds calculation formula should be:
+	 * rtc->offset_secs = rtc->start_secs - rtc->range_min;
+	 *
+	 * If the start_secs is larger than the minimum seconds (rtc->range_min)
+	 * supported by RTC hardware, then there is one region is overlapped
+	 * between the original RTC hardware range and the new expanded range,
+	 * and this overlapped region do not need to be mapped into the new
+	 * expanded range due to it is valid for RTC device. So the minimum
+	 * seconds of RTC hardware (rtc->range_min) should be mapped to
+	 * rtc->range_max + 1, then the offset seconds formula should be:
+	 * rtc->offset_secs = rtc->range_max - rtc->range_min + 1;
+	 *
+	 * If the start_secs is less than the minimum seconds (rtc->range_min),
+	 * which is similar to case 2. So the start_secs should be mapped to
+	 * start_secs + rtc->range_max - rtc->range_min + 1, then the
+	 * offset seconds formula should be:
+	 * rtc->offset_secs = -(rtc->range_max - rtc->range_min + 1);
+	 *
+	 * Otherwise the offset seconds should be 0.
+	 */
+	if (rtc->start_secs > rtc->range_max ||
+	    rtc->start_secs + range_secs - 1 < rtc->range_min)
+		rtc->offset_secs = rtc->start_secs - rtc->range_min;
+	else if (rtc->start_secs > rtc->range_min)
+		rtc->offset_secs = range_secs;
+	else if (rtc->start_secs < rtc->range_min)
+		rtc->offset_secs = -range_secs;
+	else
+		rtc->offset_secs = 0;
+}
+
 /**
  * rtc_device_register - register w/ RTC class
  * @dev: the device to register
@@ -217,9 +286,10 @@ static int rtc_device_get_id(struct device *dev)
  *
  * Returns the pointer to the new struct class device.
  */
-struct rtc_device *rtc_device_register(const char *name, struct device *dev,
-					const struct rtc_class_ops *ops,
-					struct module *owner)
+static struct rtc_device *rtc_device_register(const char *name,
+					      struct device *dev,
+					      const struct rtc_class_ops *ops,
+					      struct module *owner)
 {
 	struct rtc_device *rtc;
 	struct rtc_wkalrm alrm;
@@ -243,6 +313,8 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->dev.parent = dev;
 
 	dev_set_name(&rtc->dev, "rtc%d", id);
+
+	rtc_device_get_offset(rtc);
 
 	/* Check to see if there is an ALARM already set in hw */
 	err = __rtc_read_alarm(rtc, &alrm);
@@ -280,18 +352,14 @@ exit:
 			name, err);
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL_GPL(rtc_device_register);
-
 
 /**
  * rtc_device_unregister - removes the previously registered RTC class device
  *
  * @rtc: the RTC class device to destroy
  */
-void rtc_device_unregister(struct rtc_device *rtc)
+static void rtc_device_unregister(struct rtc_device *rtc)
 {
-	rtc_nvmem_unregister(rtc);
-
 	mutex_lock(&rtc->ops_lock);
 	/*
 	 * Remove innards of this RTC, then disable it, before
@@ -303,12 +371,12 @@ void rtc_device_unregister(struct rtc_device *rtc)
 	mutex_unlock(&rtc->ops_lock);
 	put_device(&rtc->dev);
 }
-EXPORT_SYMBOL_GPL(rtc_device_unregister);
 
 static void devm_rtc_device_release(struct device *dev, void *res)
 {
 	struct rtc_device *rtc = *(struct rtc_device **)res;
 
+	rtc_nvmem_unregister(rtc);
 	rtc_device_unregister(rtc);
 }
 
@@ -379,6 +447,8 @@ static void devm_rtc_release_device(struct device *dev, void *res)
 {
 	struct rtc_device *rtc = *(struct rtc_device **)res;
 
+	rtc_nvmem_unregister(rtc);
+
 	if (rtc->registered)
 		rtc_device_unregister(rtc);
 	else
@@ -432,6 +502,7 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 		return -EINVAL;
 
 	rtc->owner = owner;
+	rtc_device_get_offset(rtc);
 
 	/* Check to see if there is an ALARM already set in hw */
 	err = __rtc_read_alarm(rtc, &alrm);
@@ -449,8 +520,6 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 			MAJOR(rtc->dev.devt), rtc->id);
 
 	rtc_proc_add_device(rtc);
-
-	rtc_nvmem_register(rtc);
 
 	rtc->registered = true;
 	dev_info(rtc->dev.parent, "registered as %s\n",

@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  zcrypt 2.1.0
- *
- *  Copyright IBM Corp. 2001, 2012
+ *  Copyright IBM Corp. 2001, 2018
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *	       Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -10,20 +9,6 @@
  *  Major cleanup & driver split: Martin Schwidefsky <schwidefsky@de.ibm.com>
  *				  Ralph Wuerthner <rwuerthn@de.ibm.com>
  *  MSGTYPE restruct:		  Holger Dengler <hd@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _ZCRYPT_API_H_
@@ -34,48 +19,16 @@
 #include <asm/zcrypt.h>
 #include "ap_bus.h"
 
-/* deprecated status calls */
-#define ICAZ90STATUS		_IOR(ZCRYPT_IOCTL_MAGIC, 0x10, struct ica_z90_status)
-#define Z90STAT_PCIXCCCOUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x43, int)
-
 /**
- * This structure is deprecated and the corresponding ioctl() has been
- * replaced with individual ioctl()s for each piece of data!
+ * Supported device types
  */
-struct ica_z90_status {
-	int totalcount;
-	int leedslitecount; // PCICA
-	int leeds2count;    // PCICC
-	// int PCIXCCCount; is not in struct for backward compatibility
-	int requestqWaitCount;
-	int pendingqWaitCount;
-	int totalOpenCount;
-	int cryptoDomain;
-	// status: 0=not there, 1=PCICA, 2=PCICC, 3=PCIXCC_MCL2, 4=PCIXCC_MCL3,
-	//	   5=CEX2C
-	unsigned char status[64];
-	// qdepth: # work elements waiting for each device
-	unsigned char qdepth[64];
-};
-
-/**
- * device type for an actual device is either PCICA, PCICC, PCIXCC_MCL2,
- * PCIXCC_MCL3, CEX2C, or CEX2A
- *
- * NOTE: PCIXCC_MCL3 refers to a PCIXCC with May 2004 version of Licensed
- *	 Internal Code (LIC) (EC J12220 level 29).
- *	 PCIXCC_MCL2 refers to any LIC before this level.
- */
-#define ZCRYPT_PCICA		1
-#define ZCRYPT_PCICC		2
-#define ZCRYPT_PCIXCC_MCL2	3
-#define ZCRYPT_PCIXCC_MCL3	4
 #define ZCRYPT_CEX2C		5
 #define ZCRYPT_CEX2A		6
 #define ZCRYPT_CEX3C		7
 #define ZCRYPT_CEX3A		8
 #define ZCRYPT_CEX4	       10
 #define ZCRYPT_CEX5	       11
+#define ZCRYPT_CEX6	       12
 
 /**
  * Large random numbers are pulled in 4096 byte chunks from the crypto cards
@@ -191,6 +144,6 @@ struct zcrypt_ops *zcrypt_msgtype(unsigned char *, int);
 int zcrypt_api_init(void);
 void zcrypt_api_exit(void);
 long zcrypt_send_cprb(struct ica_xcRB *xcRB);
-void zcrypt_device_status_mask(struct zcrypt_device_matrix *devstatus);
+void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus);
 
 #endif /* _ZCRYPT_API_H_ */

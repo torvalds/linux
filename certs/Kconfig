@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Certificates for signature checking"
 
 config MODULE_SIG_KEY
@@ -12,7 +13,7 @@ config MODULE_SIG_KEY
 
          If this option is unchanged from its default "certs/signing_key.pem",
          then the kernel will automatically generate the private key and
-         certificate as described in Documentation/module-signing.txt
+         certificate as described in Documentation/admin-guide/module-signing.rst
 
 config SYSTEM_TRUSTED_KEYRING
 	bool "Provide system-wide ring of trusted keys"

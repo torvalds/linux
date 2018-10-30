@@ -26,24 +26,6 @@
 
 #include "soc15_common.h"
 
-extern struct nbio_hdp_flush_reg nbio_v7_0_hdp_flush_reg;
-extern struct nbio_pcie_index_data nbio_v7_0_pcie_index_data;
-int nbio_v7_0_init(struct amdgpu_device *adev);
-u32 nbio_v7_0_get_atombios_scratch_regs(struct amdgpu_device *adev,
-                                        uint32_t idx);
-void nbio_v7_0_set_atombios_scratch_regs(struct amdgpu_device *adev,
-                                         uint32_t idx, uint32_t val);
-void nbio_v7_0_mc_access_enable(struct amdgpu_device *adev, bool enable);
-void nbio_v7_0_hdp_flush(struct amdgpu_device *adev);
-u32 nbio_v7_0_get_memsize(struct amdgpu_device *adev);
-void nbio_v7_0_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
-				  bool use_doorbell, int doorbell_index);
-void nbio_v7_0_enable_doorbell_aperture(struct amdgpu_device *adev,
-					bool enable);
-void nbio_v7_0_ih_doorbell_range(struct amdgpu_device *adev,
-				bool use_doorbell, int doorbell_index);
-void nbio_v7_0_ih_control(struct amdgpu_device *adev);
-u32 nbio_v7_0_get_rev_id(struct amdgpu_device *adev);
-void nbio_v7_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,
-						bool enable);
+extern const struct amdgpu_nbio_funcs nbio_v7_0_funcs;
+
 #endif

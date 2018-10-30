@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 /include/ "bcm7346.dtsi"
@@ -58,6 +59,10 @@
 	status = "okay";
 };
 
+&watchdog {
+	status = "okay";
+};
+
 &enet0 {
 	status = "okay";
 };
@@ -111,5 +116,9 @@
 };
 
 &mspi {
+	status = "okay";
+};
+
+&waketimer {
 	status = "okay";
 };

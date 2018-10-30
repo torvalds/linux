@@ -28,8 +28,9 @@
 #include <fcntl.h>
 
 #include <linux/bpf.h>
+#include <bpf/bpf.h>
 
-#include "libbpf.h"
+#include "bpf_insn.h"
 
 enum {
 	MAP_KEY_PACKETS,

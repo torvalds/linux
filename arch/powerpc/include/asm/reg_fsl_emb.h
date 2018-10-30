@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Contains register definitions for the Freescale Embedded Performance
  * Monitor.
@@ -5,6 +6,8 @@
 #ifdef __KERNEL__
 #ifndef __ASM_POWERPC_REG_FSL_EMB_H__
 #define __ASM_POWERPC_REG_FSL_EMB_H__
+
+#include <linux/stringify.h>
 
 #ifndef __ASSEMBLY__
 /* Performance Monitor Registers */

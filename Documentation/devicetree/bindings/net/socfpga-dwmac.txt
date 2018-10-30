@@ -28,7 +28,7 @@ Required properties:
 
 Example:
 
-gmii_to_sgmii_converter: phy@0x100000240 {
+gmii_to_sgmii_converter: phy@100000240 {
 	compatible = "altr,gmii-to-sgmii-2.0";
 	reg = <0x00000001 0x00000240 0x00000008>,
 		<0x00000001 0x00000200 0x00000040>;

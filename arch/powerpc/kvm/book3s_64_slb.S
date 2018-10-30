@@ -17,6 +17,9 @@
  * Authors: Alexander Graf <agraf@suse.de>
  */
 
+#include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
+
 #define SHADOW_SLB_ENTRY_LEN	0x10
 #define OFFSET_ESID(x)		(SHADOW_SLB_ENTRY_LEN * x)
 #define OFFSET_VSID(x)		((SHADOW_SLB_ENTRY_LEN * x) + 8)
@@ -113,7 +116,7 @@ slb_do_enter:
 
 	/* Remove all SLB entries that are in use. */
 
-	li	r0, r0
+	li	r0, 0
 	slbmte	r0, r0
 	slbia
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MULTIFACE_H_
 #define _MULTIFACE_H_
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Oracle.  All rights reserved.
+ * Copyright (c) 2009, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -37,10 +37,15 @@
 #include "rdma_transport.h"
 #include "ib.h"
 
+/* Global IPv4 and IPv6 RDS RDMA listener cm_id */
 static struct rdma_cm_id *rds_rdma_listen_id;
+#if IS_ENABLED(CONFIG_IPV6)
+static struct rdma_cm_id *rds6_rdma_listen_id;
+#endif
 
-int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
-			      struct rdma_cm_event *event)
+static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
+					 struct rdma_cm_event *event,
+					 bool isv6)
 {
 	/* this can be null in the listening path */
 	struct rds_connection *conn = cm_id->context;
@@ -72,7 +77,7 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 
 	switch (event->event) {
 	case RDMA_CM_EVENT_CONNECT_REQUEST:
-		ret = trans->cm_handle_connect(cm_id, event);
+		ret = trans->cm_handle_connect(cm_id, event, isv6);
 		break;
 
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
@@ -90,7 +95,7 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 
 			ibic = conn->c_transport_data;
 			if (ibic && ibic->i_cm_id == cm_id)
-				ret = trans->cm_initiate_connect(cm_id);
+				ret = trans->cm_initiate_connect(cm_id, isv6);
 			else
 				rds_conn_drop(conn);
 		}
@@ -116,14 +121,14 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 
 	case RDMA_CM_EVENT_DISCONNECTED:
 		rdsdebug("DISCONNECT event - dropping connection "
-			"%pI4->%pI4\n", &conn->c_laddr,
+			 "%pI6c->%pI6c\n", &conn->c_laddr,
 			 &conn->c_faddr);
 		rds_conn_drop(conn);
 		break;
 
 	case RDMA_CM_EVENT_TIMEWAIT_EXIT:
 		if (conn) {
-			pr_info("RDS: RDMA_CM_EVENT_TIMEWAIT_EXIT event: dropping connection %pI4->%pI4\n",
+			pr_info("RDS: RDMA_CM_EVENT_TIMEWAIT_EXIT event: dropping connection %pI6c->%pI6c\n",
 				&conn->c_laddr, &conn->c_faddr);
 			rds_conn_drop(conn);
 		}
@@ -146,13 +151,28 @@ out:
 	return ret;
 }
 
-static int rds_rdma_listen_init(void)
+int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
+			      struct rdma_cm_event *event)
 {
-	struct sockaddr_in sin;
+	return rds_rdma_cm_event_handler_cmn(cm_id, event, false);
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+int rds6_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
+			       struct rdma_cm_event *event)
+{
+	return rds_rdma_cm_event_handler_cmn(cm_id, event, true);
+}
+#endif
+
+static int rds_rdma_listen_init_common(rdma_cm_event_handler handler,
+				       struct sockaddr *sa,
+				       struct rdma_cm_id **ret_cm_id)
+{
 	struct rdma_cm_id *cm_id;
 	int ret;
 
-	cm_id = rdma_create_id(&init_net, rds_rdma_cm_event_handler, NULL,
+	cm_id = rdma_create_id(&init_net, handler, NULL,
 			       RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(cm_id)) {
 		ret = PTR_ERR(cm_id);
@@ -161,15 +181,11 @@ static int rds_rdma_listen_init(void)
 		return ret;
 	}
 
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = (__force u32)htonl(INADDR_ANY);
-	sin.sin_port = (__force u16)htons(RDS_PORT);
-
 	/*
 	 * XXX I bet this binds the cm_id to a device.  If we want to support
 	 * fail-over we'll have to take this into consideration.
 	 */
-	ret = rdma_bind_addr(cm_id, (struct sockaddr *)&sin);
+	ret = rdma_bind_addr(cm_id, sa);
 	if (ret) {
 		printk(KERN_ERR "RDS/RDMA: failed to setup listener, "
 		       "rdma_bind_addr() returned %d\n", ret);
@@ -185,12 +201,51 @@ static int rds_rdma_listen_init(void)
 
 	rdsdebug("cm %p listening on port %u\n", cm_id, RDS_PORT);
 
-	rds_rdma_listen_id = cm_id;
+	*ret_cm_id = cm_id;
 	cm_id = NULL;
 out:
 	if (cm_id)
 		rdma_destroy_id(cm_id);
 	return ret;
+}
+
+/* Initialize the RDS RDMA listeners.  We create two listeners for
+ * compatibility reason.  The one on RDS_PORT is used for IPv4
+ * requests only.  The one on RDS_CM_PORT is used for IPv6 requests
+ * only.  So only IPv6 enabled RDS module will communicate using this
+ * port.
+ */
+static int rds_rdma_listen_init(void)
+{
+	int ret;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct sockaddr_in6 sin6;
+#endif
+	struct sockaddr_in sin;
+
+	sin.sin_family = PF_INET;
+	sin.sin_addr.s_addr = htonl(INADDR_ANY);
+	sin.sin_port = htons(RDS_PORT);
+	ret = rds_rdma_listen_init_common(rds_rdma_cm_event_handler,
+					  (struct sockaddr *)&sin,
+					  &rds_rdma_listen_id);
+	if (ret != 0)
+		return ret;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	sin6.sin6_family = PF_INET6;
+	sin6.sin6_addr = in6addr_any;
+	sin6.sin6_port = htons(RDS_CM_PORT);
+	sin6.sin6_scope_id = 0;
+	sin6.sin6_flowinfo = 0;
+	ret = rds_rdma_listen_init_common(rds6_rdma_cm_event_handler,
+					  (struct sockaddr *)&sin6,
+					  &rds6_rdma_listen_id);
+	/* Keep going even when IPv6 is not enabled in the system. */
+	if (ret != 0)
+		rdsdebug("Cannot set up IPv6 RDMA listener\n");
+#endif
+	return 0;
 }
 
 static void rds_rdma_listen_stop(void)
@@ -200,6 +255,13 @@ static void rds_rdma_listen_stop(void)
 		rdma_destroy_id(rds_rdma_listen_id);
 		rds_rdma_listen_id = NULL;
 	}
+#if IS_ENABLED(CONFIG_IPV6)
+	if (rds6_rdma_listen_id) {
+		rdsdebug("cm %p\n", rds6_rdma_listen_id);
+		rdma_destroy_id(rds6_rdma_listen_id);
+		rds6_rdma_listen_id = NULL;
+	}
+#endif
 }
 
 static int rds_rdma_init(void)
@@ -229,4 +291,3 @@ module_exit(rds_rdma_exit);
 MODULE_AUTHOR("Oracle Corporation <rds-devel@oss.oracle.com>");
 MODULE_DESCRIPTION("RDS: IB transport");
 MODULE_LICENSE("Dual BSD/GPL");
-

@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -16,11 +17,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -33,6 +29,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,6 +66,7 @@
 #include <linux/netdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/nl80211.h>
+#include "iwl-csr.h"
 
 enum iwl_device_family {
 	IWL_DEVICE_FAMILY_UNDEFINED,
@@ -89,7 +87,8 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_7000,
 	IWL_DEVICE_FAMILY_8000,
 	IWL_DEVICE_FAMILY_9000,
-	IWL_DEVICE_FAMILY_A000,
+	IWL_DEVICE_FAMILY_22000,
+	IWL_DEVICE_FAMILY_22560,
 };
 
 /*
@@ -106,6 +105,18 @@ enum iwl_led_mode {
 	IWL_LED_RF_STATE,
 	IWL_LED_BLINK,
 	IWL_LED_DISABLE,
+};
+
+/**
+ * enum iwl_nvm_type - nvm formats
+ * @IWL_NVM: the regular format
+ * @IWL_NVM_EXT: extended NVM format
+ * @IWL_NVM_SDP: NVM format used by 3168 series
+ */
+enum iwl_nvm_type {
+	IWL_NVM,
+	IWL_NVM_EXT,
+	IWL_NVM_SDP,
 };
 
 /*
@@ -139,6 +150,8 @@ enum iwl_led_mode {
 #define	ANT_AC		(ANT_A | ANT_C)
 #define ANT_BC		(ANT_B | ANT_C)
 #define ANT_ABC		(ANT_A | ANT_B | ANT_C)
+#define MAX_ANT_NUM 3
+
 
 static inline u8 num_of_ant(u8 mask)
 {
@@ -159,6 +172,7 @@ static inline u8 num_of_ant(u8 mask)
  * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
  *	is in flight. This is due to a HW bug in 7260, 3160 and 7265.
  * @scd_chain_ext_wa: should the chain extension feature in SCD be disabled.
+ * @max_tfd_queue_size: max number of entries in tfd queue.
  */
 struct iwl_base_params {
 	unsigned int wd_timeout;
@@ -174,6 +188,7 @@ struct iwl_base_params {
 	   scd_chain_ext_wa:1;
 
 	u16 num_of_queues;	/* def: HW dependent */
+	u32 max_tfd_queue_size;	/* def: HW dependent */
 
 	u8 max_ll_items;
 	u8 led_compensation;
@@ -254,7 +269,7 @@ struct iwl_tt_params {
 #define OTP_LOW_IMAGE_SIZE_FAMILY_7000	(16 * 512 * sizeof(u16)) /* 16 KB */
 #define OTP_LOW_IMAGE_SIZE_FAMILY_8000	(32 * 512 * sizeof(u16)) /* 32 KB */
 #define OTP_LOW_IMAGE_SIZE_FAMILY_9000	OTP_LOW_IMAGE_SIZE_FAMILY_8000
-#define OTP_LOW_IMAGE_SIZE_FAMILY_A000	OTP_LOW_IMAGE_SIZE_FAMILY_9000
+#define OTP_LOW_IMAGE_SIZE_FAMILY_22000	OTP_LOW_IMAGE_SIZE_FAMILY_9000
 
 struct iwl_eeprom_params {
 	const u8 regulatory_bands[7];
@@ -271,6 +286,52 @@ struct iwl_pwr_tx_backoff {
 };
 
 /**
+ * struct iwl_csr_params
+ *
+ * @flag_sw_reset: reset the device
+ * @flag_mac_clock_ready:
+ *	Indicates MAC (ucode processor, etc.) is powered up and can run.
+ *	Internal resources are accessible.
+ *	NOTE:  This does not indicate that the processor is actually running.
+ *	NOTE:  This does not indicate that device has completed
+ *	       init or post-power-down restore of internal SRAM memory.
+ *	       Use CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP as indication that
+ *	       SRAM is restored and uCode is in normal operation mode.
+ *	       This note is relevant only for pre 5xxx devices.
+ *	NOTE:  After device reset, this bit remains "0" until host sets
+ *	       INIT_DONE
+ * @flag_init_done: Host sets this to put device into fully operational
+ *	D0 power mode. Host resets this after SW_RESET to put device into
+ *	low power mode.
+ * @flag_mac_access_req: Host sets this to request and maintain MAC wakeup,
+ *	to allow host access to device-internal resources. Host must wait for
+ *	mac_clock_ready (and !GOING_TO_SLEEP) before accessing non-CSR device
+ *	registers.
+ * @flag_val_mac_access_en: mac access is enabled
+ * @flag_master_dis: disable master
+ * @flag_stop_master: stop master
+ * @addr_sw_reset: address for resetting the device
+ * @mac_addr0_otp: first part of MAC address from OTP
+ * @mac_addr1_otp: second part of MAC address from OTP
+ * @mac_addr0_strap: first part of MAC address from strap
+ * @mac_addr1_strap: second part of MAC address from strap
+ */
+struct iwl_csr_params {
+	u8 flag_sw_reset;
+	u8 flag_mac_clock_ready;
+	u8 flag_init_done;
+	u8 flag_mac_access_req;
+	u8 flag_val_mac_access_en;
+	u8 flag_master_dis;
+	u8 flag_stop_master;
+	u8 addr_sw_reset;
+	u32 mac_addr0_otp;
+	u32 mac_addr1_otp;
+	u32 mac_addr0_strap;
+	u32 mac_addr1_strap;
+};
+
+/**
  * struct iwl_cfg
  * @name: Official name of the device
  * @fw_name_pre: Firmware filename prefix. The api version and extension
@@ -282,8 +343,8 @@ struct iwl_pwr_tx_backoff {
  *	next step. Supported only in integrated solutions.
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
- * @max_inst_size: The maximal length of the fw inst section
- * @max_data_size: The maximal length of the fw data section
+ * @max_inst_size: The maximal length of the fw inst section (only DVM)
+ * @max_data_size: The maximal length of the fw data section (only DVM)
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
  * @non_shared_ant: the antenna that is for WiFi only
@@ -302,6 +363,7 @@ struct iwl_pwr_tx_backoff {
  * @mac_addr_from_csr: read HW address from CSR registers
  * @features: hw features, any combination of feature_whitelist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
+ * @csr: csr flags and addresses that are different across devices
  * @max_rx_agg_size: max RX aggregation size of the ADDBA request/response
  * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
  * @max_ht_ampdu_factor: the exponent of the max length of A-MPDU that the
@@ -318,9 +380,11 @@ struct iwl_pwr_tx_backoff {
  * @vht_mu_mimo_supported: VHT MU-MIMO support
  * @rf_id: need to read rf_id to determine the firmware image
  * @integrated: discrete or integrated
- * @gen2: a000 and on transport operation
+ * @gen2: 22000 and on transport operation
  * @cdb: CDB support
- * @ext_nvm: extended NVM format
+ * @nvm_type: see &enum iwl_nvm_type
+ * @d3_debug_data_base_addr: base address where D3 debug data is stored
+ * @d3_debug_data_length: length of the D3 debug data
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -340,8 +404,10 @@ struct iwl_cfg {
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 	const char *default_nvm_file_C_step;
 	const struct iwl_tt_params *thermal_params;
+	const struct iwl_csr_params *csr;
 	enum iwl_device_family device_family;
 	enum iwl_led_mode led_mode;
+	enum iwl_nvm_type nvm_type;
 	u32 max_data_size;
 	u32 max_inst_size;
 	netdev_features_t features;
@@ -351,9 +417,10 @@ struct iwl_cfg {
 	u32 dccm2_len;
 	u32 smem_offset;
 	u32 smem_len;
+	u32 soc_latency;
 	u16 nvm_ver;
 	u16 nvm_calib_ver;
-	u16 rx_with_siso_diversity:1,
+	u32 rx_with_siso_diversity:1,
 	    bt_shared_single_ant:1,
 	    internal_wimax_coex:1,
 	    host_interrupt_operation_mode:1,
@@ -369,7 +436,6 @@ struct iwl_cfg {
 	    use_tfh:1,
 	    gen2:1,
 	    cdb:1,
-	    ext_nvm:1,
 	    dbgc_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
@@ -381,6 +447,40 @@ struct iwl_cfg {
 	u8 max_vht_ampdu_exponent;
 	u8 ucode_api_max;
 	u8 ucode_api_min;
+	u32 min_umac_error_event_table;
+	u32 extra_phy_cfg_flags;
+	u32 d3_debug_data_base_addr;
+	u32 d3_debug_data_length;
+};
+
+static const struct iwl_csr_params iwl_csr_v1 = {
+	.flag_mac_clock_ready = 0,
+	.flag_val_mac_access_en = 0,
+	.flag_init_done = 2,
+	.flag_mac_access_req = 3,
+	.flag_sw_reset = 7,
+	.flag_master_dis = 8,
+	.flag_stop_master = 9,
+	.addr_sw_reset = (CSR_BASE + 0x020),
+	.mac_addr0_otp = 0x380,
+	.mac_addr1_otp = 0x384,
+	.mac_addr0_strap = 0x388,
+	.mac_addr1_strap = 0x38C
+};
+
+static const struct iwl_csr_params iwl_csr_v2 = {
+	.flag_init_done = 6,
+	.flag_mac_clock_ready = 20,
+	.flag_val_mac_access_en = 20,
+	.flag_mac_access_req = 21,
+	.flag_master_dis = 28,
+	.flag_stop_master = 29,
+	.flag_sw_reset = 31,
+	.addr_sw_reset = (CSR_BASE + 0x024),
+	.mac_addr0_otp = 0x30,
+	.mac_addr1_otp = 0x34,
+	.mac_addr0_strap = 0x38,
+	.mac_addr1_strap = 0x3C
 };
 
 /*
@@ -451,21 +551,40 @@ extern const struct iwl_cfg iwl8260_2ac_cfg;
 extern const struct iwl_cfg iwl8265_2ac_cfg;
 extern const struct iwl_cfg iwl8275_2ac_cfg;
 extern const struct iwl_cfg iwl4165_2ac_cfg;
-extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
-extern const struct iwl_cfg iwl8265_2ac_sdio_cfg;
-extern const struct iwl_cfg iwl4165_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl9160_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
+extern const struct iwl_cfg iwl9260_killer_2ac_cfg;
 extern const struct iwl_cfg iwl9270_2ac_cfg;
 extern const struct iwl_cfg iwl9460_2ac_cfg;
 extern const struct iwl_cfg iwl9560_2ac_cfg;
-extern const struct iwl_cfg iwla000_2ac_cfg_hr;
-extern const struct iwl_cfg iwla000_2ac_cfg_hr_cdb;
-extern const struct iwl_cfg iwla000_2ac_cfg_jf;
-extern const struct iwl_cfg iwla000_2ax_cfg_hr;
-extern const struct iwl_cfg iwla000_2ax_cfg_qnj_hr_f0;
-extern const struct iwl_cfg iwla000_2ax_cfg_qnj_jf_b0;
-extern const struct iwl_cfg iwla000_2ax_cfg_qnj_hr_a0;
-#endif /* CONFIG_IWLMVM */
+extern const struct iwl_cfg iwl9460_2ac_cfg_soc;
+extern const struct iwl_cfg iwl9461_2ac_cfg_soc;
+extern const struct iwl_cfg iwl9462_2ac_cfg_soc;
+extern const struct iwl_cfg iwl9560_2ac_cfg_soc;
+extern const struct iwl_cfg iwl9560_killer_2ac_cfg_soc;
+extern const struct iwl_cfg iwl9560_killer_s_2ac_cfg_soc;
+extern const struct iwl_cfg iwl9460_2ac_cfg_shared_clk;
+extern const struct iwl_cfg iwl9461_2ac_cfg_shared_clk;
+extern const struct iwl_cfg iwl9462_2ac_cfg_shared_clk;
+extern const struct iwl_cfg iwl9560_2ac_cfg_shared_clk;
+extern const struct iwl_cfg iwl9560_killer_2ac_cfg_shared_clk;
+extern const struct iwl_cfg iwl9560_killer_s_2ac_cfg_shared_clk;
+extern const struct iwl_cfg iwl22000_2ac_cfg_hr;
+extern const struct iwl_cfg iwl22000_2ac_cfg_hr_cdb;
+extern const struct iwl_cfg iwl22000_2ac_cfg_jf;
+extern const struct iwl_cfg iwl22000_2ax_cfg_hr;
+extern const struct iwl_cfg iwl9461_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg iwl9462_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg iwl9560_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg killer1550i_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg killer1550s_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_jf;
+extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0_f0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0_f0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_jf_b0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0;
+extern const struct iwl_cfg iwl22560_2ax_cfg_su_cdb;
+#endif /* CPTCFG_IWLMVM || CPTCFG_IWLFMAC */
 
 #endif /* __IWL_CONFIG_H__ */

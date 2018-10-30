@@ -45,7 +45,7 @@ struct brcmf_chip {
 	u32 rambase;
 	u32 ramsize;
 	u32 srsize;
-	char name[8];
+	char name[12];
 };
 
 /**
@@ -93,5 +93,6 @@ void brcmf_chip_resetcore(struct brcmf_core *core, u32 prereset, u32 reset,
 void brcmf_chip_set_passive(struct brcmf_chip *ci);
 bool brcmf_chip_set_active(struct brcmf_chip *ci, u32 rstvec);
 bool brcmf_chip_sr_capable(struct brcmf_chip *pub);
+char *brcmf_chip_name(u32 chipid, u32 chiprev, char *buf, uint len);
 
 #endif /* BRCMF_AXIDMP_H */

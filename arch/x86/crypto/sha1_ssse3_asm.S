@@ -37,7 +37,7 @@
 #define REG_A	%ecx
 #define REG_B	%esi
 #define REG_C	%edi
-#define REG_D	%ebp
+#define REG_D	%r12d
 #define REG_E	%edx
 
 #define REG_T1	%eax
@@ -74,10 +74,10 @@
 	ENTRY(\name)
 
 	push	%rbx
-	push	%rbp
 	push	%r12
+	push	%rbp
+	mov	%rsp, %rbp
 
-	mov	%rsp, %r12
 	sub	$64, %rsp		# allocate workspace
 	and	$~15, %rsp		# align stack
 
@@ -96,13 +96,12 @@
 	# cleanup workspace
 	mov	$8, %ecx
 	mov	%rsp, %rdi
-	xor	%rax, %rax
+	xor	%eax, %eax
 	rep stosq
 
-	mov	%r12, %rsp		# deallocate workspace
-
-	pop	%r12
+	mov	%rbp, %rsp		# deallocate workspace
 	pop	%rbp
+	pop	%r12
 	pop	%rbx
 	ret
 

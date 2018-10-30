@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * L2TP-over-IP socket for L2TPv3.
  *
@@ -59,14 +60,14 @@ struct sockaddr_l2tpip6 {
 /*
  * Commands.
  * Valid TLVs of each command are:-
- * TUNNEL_CREATE	- CONN_ID, pw_type, netns, ifname, ipinfo, udpinfo, udpcsum, vlanid
+ * TUNNEL_CREATE	- CONN_ID, pw_type, netns, ifname, ipinfo, udpinfo, udpcsum
  * TUNNEL_DELETE	- CONN_ID
  * TUNNEL_MODIFY	- CONN_ID, udpcsum
  * TUNNEL_GETSTATS	- CONN_ID, (stats)
  * TUNNEL_GET		- CONN_ID, (...)
- * SESSION_CREATE	- SESSION_ID, PW_TYPE, offset, data_seq, cookie, peer_cookie, offset, l2spec
+ * SESSION_CREATE	- SESSION_ID, PW_TYPE, cookie, peer_cookie, l2spec
  * SESSION_DELETE	- SESSION_ID
- * SESSION_MODIFY	- SESSION_ID, data_seq
+ * SESSION_MODIFY	- SESSION_ID
  * SESSION_GET		- SESSION_ID, (...)
  * SESSION_GETSTATS	- SESSION_ID, (stats)
  *
@@ -93,10 +94,10 @@ enum {
 	L2TP_ATTR_NONE,			/* no data */
 	L2TP_ATTR_PW_TYPE,		/* u16, enum l2tp_pwtype */
 	L2TP_ATTR_ENCAP_TYPE,		/* u16, enum l2tp_encap_type */
-	L2TP_ATTR_OFFSET,		/* u16 */
-	L2TP_ATTR_DATA_SEQ,		/* u16 */
+	L2TP_ATTR_OFFSET,		/* u16 (not used) */
+	L2TP_ATTR_DATA_SEQ,		/* u16 (not used) */
 	L2TP_ATTR_L2SPEC_TYPE,		/* u8, enum l2tp_l2spec_type */
-	L2TP_ATTR_L2SPEC_LEN,		/* u8, enum l2tp_l2spec_type */
+	L2TP_ATTR_L2SPEC_LEN,		/* u8 (not used) */
 	L2TP_ATTR_PROTO_VERSION,	/* u8 */
 	L2TP_ATTR_IFNAME,		/* string */
 	L2TP_ATTR_CONN_ID,		/* u32 */
@@ -104,7 +105,7 @@ enum {
 	L2TP_ATTR_SESSION_ID,		/* u32 */
 	L2TP_ATTR_PEER_SESSION_ID,	/* u32 */
 	L2TP_ATTR_UDP_CSUM,		/* u8 */
-	L2TP_ATTR_VLAN_ID,		/* u16 */
+	L2TP_ATTR_VLAN_ID,		/* u16 (not used) */
 	L2TP_ATTR_COOKIE,		/* 0, 4 or 8 bytes */
 	L2TP_ATTR_PEER_COOKIE,		/* 0, 4 or 8 bytes */
 	L2TP_ATTR_DEBUG,		/* u32, enum l2tp_debug_flags */
@@ -118,8 +119,8 @@ enum {
 	L2TP_ATTR_IP_DADDR,		/* u32 */
 	L2TP_ATTR_UDP_SPORT,		/* u16 */
 	L2TP_ATTR_UDP_DPORT,		/* u16 */
-	L2TP_ATTR_MTU,			/* u16 */
-	L2TP_ATTR_MRU,			/* u16 */
+	L2TP_ATTR_MTU,			/* u16 (not used) */
+	L2TP_ATTR_MRU,			/* u16 (not used) */
 	L2TP_ATTR_STATS,		/* nested */
 	L2TP_ATTR_IP6_SADDR,		/* struct in6_addr */
 	L2TP_ATTR_IP6_DADDR,		/* struct in6_addr */
@@ -168,6 +169,7 @@ enum l2tp_encap_type {
 	L2TP_ENCAPTYPE_IP,
 };
 
+/* For L2TP_ATTR_DATA_SEQ. Unused. */
 enum l2tp_seqmode {
 	L2TP_SEQ_NONE = 0,
 	L2TP_SEQ_IP = 1,

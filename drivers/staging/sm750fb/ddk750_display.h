@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DDK750_DISPLAY_H__
 #define DDK750_DISPLAY_H__
 
@@ -88,7 +89,7 @@
  * LCD1 means panel path TFT1  & panel path DVI (so enable DAC)
  * CRT means crt path DSUB
  */
-typedef enum _disp_output_t {
+enum disp_output {
 	do_LCD1_PRI = PNL_2_PRI | PRI_TP_ON | PNL_SEQ_ON | DAC_ON,
 	do_LCD1_SEC = PNL_2_SEC | SEC_TP_ON | PNL_SEQ_ON | DAC_ON,
 	do_LCD2_PRI = CRT_2_PRI | PRI_TP_ON | DUAL_TFT_ON,
@@ -99,9 +100,8 @@ typedef enum _disp_output_t {
 	 */
 	do_CRT_PRI = CRT_2_PRI | PRI_TP_ON | DPMS_ON | DAC_ON,
 	do_CRT_SEC = CRT_2_SEC | SEC_TP_ON | DPMS_ON | DAC_ON,
-}
-disp_output_t;
+};
 
-void ddk750_setLogicalDispOut(disp_output_t output);
+void ddk750_setLogicalDispOut(enum disp_output output);
 
 #endif

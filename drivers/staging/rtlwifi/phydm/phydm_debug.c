@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2016  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
@@ -29,6 +18,7 @@
 
 #include "mp_precomp.h"
 #include "phydm_precomp.h"
+#include <linux/kernel.h>
 
 bool phydm_api_set_txagc(struct phy_dm_struct *, u32, enum odm_rf_radio_path,
 			 u8, bool);
@@ -1441,9 +1431,9 @@ static void phydm_get_per_path_txagc(void *dm_void, u8 path, u32 *_used,
 	u32 out_len = *_out_len;
 
 	if (((dm->support_ic_type & (ODM_RTL8822B | ODM_RTL8197F)) &&
-	     (path <= ODM_RF_PATH_B)) ||
+	     path <= ODM_RF_PATH_B) ||
 	    ((dm->support_ic_type & (ODM_RTL8821C)) &&
-	     (path <= ODM_RF_PATH_A))) {
+	     path <= ODM_RF_PATH_A)) {
 		for (rate_idx = 0; rate_idx <= 0x53; rate_idx++) {
 			if (rate_idx == ODM_RATE1M)
 				PHYDM_SNPRINTF(output + used, out_len - used,
@@ -2107,8 +2097,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 
 	/* Parsing Cmd ID */
 	if (input_num) {
-		phydm_ary_size =
-			sizeof(phy_dm_ary) / sizeof(struct phydm_command);
+		phydm_ary_size = ARRAY_SIZE(phy_dm_ary);
 		for (i = 0; i < phydm_ary_size; i++) {
 			if (strcmp(phy_dm_ary[i].name, input[0]) == 0) {
 				id = phy_dm_ary[i].id;
@@ -2530,7 +2519,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 		}
 
 		/* NMH trigger */
-		if ((var1[0] <= 2) && (var1[0] != 0)) {
+		if (var1[0] <= 2 && var1[0] != 0) {
 			ccx_info->echo_NHM_en = true;
 			ccx_info->echo_IGI =
 				(u8)odm_get_bb_reg(dm, 0xC50, MASKBYTE0);
@@ -2808,7 +2797,7 @@ void phydm_fw_trace_handler(void *dm_void, u8 *cmd_buf, u8 cmd_len)
 	freg_num = (buf_0 & 0xf);
 	c2h_seq = (buf_0 & 0xf0) >> 4;
 
-	if ((c2h_seq != dm->pre_c2h_seq) && !dm->fw_buff_is_enpty) {
+	if (c2h_seq != dm->pre_c2h_seq && !dm->fw_buff_is_enpty) {
 		dm->fw_debug_trace[dm->c2h_cmd_start] = '\0';
 		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
 			     "[FW Dbg Queue Overflow] %s\n",

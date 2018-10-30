@@ -825,6 +825,8 @@ static int hwarc_probe(struct usb_interface *iface,
 
 	if (iface->cur_altsetting->desc.bNumEndpoints < 1)
 		return -ENODEV;
+	if (!usb_endpoint_xfer_int(&iface->cur_altsetting->endpoint[0].desc))
+		return -ENODEV;
 
 	result = -ENOMEM;
 	uwb_rc = uwb_rc_alloc();
@@ -871,6 +873,7 @@ error_get_version:
 error_rc_add:
 	usb_put_intf(iface);
 	usb_put_dev(hwarc->usb_dev);
+	kfree(hwarc);
 error_alloc:
 	uwb_rc_put(uwb_rc);
 error_rc_alloc:

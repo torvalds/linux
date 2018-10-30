@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #ifndef __TRACING_MAP_H
 #define __TRACING_MAP_H
 
@@ -5,10 +6,11 @@
 #define TRACING_MAP_BITS_MAX		17
 #define TRACING_MAP_BITS_MIN		7
 
-#define TRACING_MAP_KEYS_MAX		2
+#define TRACING_MAP_KEYS_MAX		3
 #define TRACING_MAP_VALS_MAX		3
 #define TRACING_MAP_FIELDS_MAX		(TRACING_MAP_KEYS_MAX + \
 					 TRACING_MAP_VALS_MAX)
+#define TRACING_MAP_VARS_MAX		16
 #define TRACING_MAP_SORT_KEYS_MAX	2
 
 typedef int (*tracing_map_cmp_fn_t) (void *val_a, void *val_b);
@@ -136,6 +138,8 @@ struct tracing_map_field {
 struct tracing_map_elt {
 	struct tracing_map		*map;
 	struct tracing_map_field	*fields;
+	atomic64_t			*vars;
+	bool				*var_set;
 	void				*key;
 	void				*private_data;
 };
@@ -191,6 +195,7 @@ struct tracing_map {
 	int				key_idx[TRACING_MAP_KEYS_MAX];
 	unsigned int			n_keys;
 	struct tracing_map_sort_key	sort_key;
+	unsigned int			n_vars;
 	atomic64_t			hits;
 	atomic64_t			drops;
 };
@@ -214,11 +219,6 @@ struct tracing_map {
  *	Element allocation occurs before tracing begins, when the
  *	tracing_map_init() call is made by client code.
  *
- * @elt_copy: At certain points in the lifetime of an element, it may
- *	need to be copied.  The copy should include a copy of the
- *	client-allocated data, which can be copied into the 'to'
- *	element from the 'from' element.
- *
  * @elt_free: When a tracing_map_elt is freed, this function is called
  *	and allows client-allocated per-element data to be freed.
  *
@@ -232,8 +232,6 @@ struct tracing_map {
  */
 struct tracing_map_ops {
 	int			(*elt_alloc)(struct tracing_map_elt *elt);
-	void			(*elt_copy)(struct tracing_map_elt *to,
-					    struct tracing_map_elt *from);
 	void			(*elt_free)(struct tracing_map_elt *elt);
 	void			(*elt_clear)(struct tracing_map_elt *elt);
 	void			(*elt_init)(struct tracing_map_elt *elt);
@@ -247,6 +245,7 @@ tracing_map_create(unsigned int map_bits,
 extern int tracing_map_init(struct tracing_map *map);
 
 extern int tracing_map_add_sum_field(struct tracing_map *map);
+extern int tracing_map_add_var(struct tracing_map *map);
 extern int tracing_map_add_key_field(struct tracing_map *map,
 				     unsigned int offset,
 				     tracing_map_cmp_fn_t cmp_fn);
@@ -266,7 +265,13 @@ extern int tracing_map_cmp_none(void *val_a, void *val_b);
 
 extern void tracing_map_update_sum(struct tracing_map_elt *elt,
 				   unsigned int i, u64 n);
+extern void tracing_map_set_var(struct tracing_map_elt *elt,
+				unsigned int i, u64 n);
+extern bool tracing_map_var_set(struct tracing_map_elt *elt, unsigned int i);
 extern u64 tracing_map_read_sum(struct tracing_map_elt *elt, unsigned int i);
+extern u64 tracing_map_read_var(struct tracing_map_elt *elt, unsigned int i);
+extern u64 tracing_map_read_var_once(struct tracing_map_elt *elt, unsigned int i);
+
 extern void tracing_map_set_field_descr(struct tracing_map *map,
 					unsigned int i,
 					unsigned int key_offset,

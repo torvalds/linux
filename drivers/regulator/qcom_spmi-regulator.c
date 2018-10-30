@@ -25,6 +25,8 @@
 #include <linux/regulator/driver.h>
 #include <linux/regmap.h>
 #include <linux/list.h>
+#include <linux/mfd/syscon.h>
+#include <linux/io.h>
 
 /* Pin control enable input pins. */
 #define SPMI_REGULATOR_PIN_CTRL_ENABLE_NONE		0x00
@@ -179,6 +181,23 @@ enum spmi_boost_registers {
 
 enum spmi_boost_byp_registers {
 	SPMI_BOOST_BYP_REG_CURRENT_LIMIT	= 0x4b,
+};
+
+enum spmi_saw3_registers {
+	SAW3_SECURE				= 0x00,
+	SAW3_ID					= 0x04,
+	SAW3_SPM_STS				= 0x0C,
+	SAW3_AVS_STS				= 0x10,
+	SAW3_PMIC_STS				= 0x14,
+	SAW3_RST				= 0x18,
+	SAW3_VCTL				= 0x1C,
+	SAW3_AVS_CTL				= 0x20,
+	SAW3_AVS_LIMIT				= 0x24,
+	SAW3_AVS_DLY				= 0x28,
+	SAW3_AVS_HYSTERESIS			= 0x2C,
+	SAW3_SPM_STS2				= 0x38,
+	SAW3_SPM_PMIC_DATA_3			= 0x4C,
+	SAW3_VERSION				= 0xFD0,
 };
 
 /* Used for indexing into ctrl_reg.  These are offets from 0x40 */
@@ -486,24 +505,6 @@ static int spmi_vreg_update_bits(struct spmi_regulator *vreg, u16 addr, u8 val,
 	return regmap_update_bits(vreg->regmap, vreg->base + addr, mask, val);
 }
 
-static int spmi_regulator_common_is_enabled(struct regulator_dev *rdev)
-{
-	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-	u8 reg;
-
-	spmi_vreg_read(vreg, SPMI_COMMON_REG_ENABLE, &reg, 1);
-
-	return (reg & SPMI_COMMON_ENABLE_MASK) == SPMI_COMMON_ENABLE;
-}
-
-static int spmi_regulator_common_enable(struct regulator_dev *rdev)
-{
-	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-
-	return spmi_vreg_update_bits(vreg, SPMI_COMMON_REG_ENABLE,
-		SPMI_COMMON_ENABLE, SPMI_COMMON_ENABLE_MASK);
-}
-
 static int spmi_regulator_vs_enable(struct regulator_dev *rdev)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
@@ -513,7 +514,7 @@ static int spmi_regulator_vs_enable(struct regulator_dev *rdev)
 		vreg->vs_enable_time = ktime_get();
 	}
 
-	return spmi_regulator_common_enable(rdev);
+	return regulator_enable_regmap(rdev);
 }
 
 static int spmi_regulator_vs_ocp(struct regulator_dev *rdev)
@@ -522,14 +523,6 @@ static int spmi_regulator_vs_ocp(struct regulator_dev *rdev)
 	u8 reg = SPMI_VS_OCP_OVERRIDE;
 
 	return spmi_vreg_write(vreg, SPMI_VS_REG_OCP, &reg, 1);
-}
-
-static int spmi_regulator_common_disable(struct regulator_dev *rdev)
-{
-	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-
-	return spmi_vreg_update_bits(vreg, SPMI_COMMON_REG_ENABLE,
-		SPMI_COMMON_DISABLE, SPMI_COMMON_ENABLE_MASK);
 }
 
 static int spmi_regulator_select_voltage(struct spmi_regulator *vreg,
@@ -593,13 +586,20 @@ static int spmi_sw_selector_to_hw(struct spmi_regulator *vreg,
 				  u8 *voltage_sel)
 {
 	const struct spmi_voltage_range *range, *end;
+	unsigned offset;
 
 	range = vreg->set_points->range;
 	end = range + vreg->set_points->count;
 
 	for (; range < end; range++) {
 		if (selector < range->n_voltages) {
-			*voltage_sel = selector;
+			/*
+			 * hardware selectors between set point min and real
+			 * min are invalid so we ignore them
+			 */
+			offset = range->set_point_min_uV - range->min_uV;
+			offset /= range->step_uV;
+			*voltage_sel = selector + offset;
 			*range_sel = range->range_sel;
 			return 0;
 		}
@@ -613,15 +613,35 @@ static int spmi_sw_selector_to_hw(struct spmi_regulator *vreg,
 static int spmi_hw_selector_to_sw(struct spmi_regulator *vreg, u8 hw_sel,
 				  const struct spmi_voltage_range *range)
 {
-	int sw_sel = hw_sel;
+	unsigned sw_sel = 0;
+	unsigned offset, max_hw_sel;
 	const struct spmi_voltage_range *r = vreg->set_points->range;
+	const struct spmi_voltage_range *end = r + vreg->set_points->count;
 
-	while (r != range) {
+	for (; r < end; r++) {
+		if (r == range && range->n_voltages) {
+			/*
+			 * hardware selectors between set point min and real
+			 * min and between set point max and real max are
+			 * invalid so we return an error if they're
+			 * programmed into the hardware
+			 */
+			offset = range->set_point_min_uV - range->min_uV;
+			offset /= range->step_uV;
+			if (hw_sel < offset)
+				return -EINVAL;
+
+			max_hw_sel = range->set_point_max_uV - range->min_uV;
+			max_hw_sel /= range->step_uV;
+			if (hw_sel > max_hw_sel)
+				return -EINVAL;
+
+			return sw_sel + hw_sel - offset;
+		}
 		sw_sel += r->n_voltages;
-		r++;
 	}
 
-	return sw_sel;
+	return -EINVAL;
 }
 
 static const struct spmi_voltage_range *
@@ -1034,10 +1054,93 @@ static irqreturn_t spmi_regulator_vs_ocp_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#define SAW3_VCTL_DATA_MASK	0xFF
+#define SAW3_VCTL_CLEAR_MASK	0x700FF
+#define SAW3_AVS_CTL_EN_MASK	0x1
+#define SAW3_AVS_CTL_TGGL_MASK	0x8000000
+#define SAW3_AVS_CTL_CLEAR_MASK	0x7efc00
+
+static struct regmap *saw_regmap;
+
+static void spmi_saw_set_vdd(void *data)
+{
+	u32 vctl, data3, avs_ctl, pmic_sts;
+	bool avs_enabled = false;
+	unsigned long timeout;
+	u8 voltage_sel = *(u8 *)data;
+
+	regmap_read(saw_regmap, SAW3_AVS_CTL, &avs_ctl);
+	regmap_read(saw_regmap, SAW3_VCTL, &vctl);
+	regmap_read(saw_regmap, SAW3_SPM_PMIC_DATA_3, &data3);
+
+	/* select the band */
+	vctl &= ~SAW3_VCTL_CLEAR_MASK;
+	vctl |= (u32)voltage_sel;
+
+	data3 &= ~SAW3_VCTL_CLEAR_MASK;
+	data3 |= (u32)voltage_sel;
+
+	/* If AVS is enabled, switch it off during the voltage change */
+	avs_enabled = SAW3_AVS_CTL_EN_MASK & avs_ctl;
+	if (avs_enabled) {
+		avs_ctl &= ~SAW3_AVS_CTL_TGGL_MASK;
+		regmap_write(saw_regmap, SAW3_AVS_CTL, avs_ctl);
+	}
+
+	regmap_write(saw_regmap, SAW3_RST, 1);
+	regmap_write(saw_regmap, SAW3_VCTL, vctl);
+	regmap_write(saw_regmap, SAW3_SPM_PMIC_DATA_3, data3);
+
+	timeout = jiffies + usecs_to_jiffies(100);
+	do {
+		regmap_read(saw_regmap, SAW3_PMIC_STS, &pmic_sts);
+		pmic_sts &= SAW3_VCTL_DATA_MASK;
+		if (pmic_sts == (u32)voltage_sel)
+			break;
+
+		cpu_relax();
+
+	} while (time_before(jiffies, timeout));
+
+	/* After successful voltage change, switch the AVS back on */
+	if (avs_enabled) {
+		pmic_sts &= 0x3f;
+		avs_ctl &= ~SAW3_AVS_CTL_CLEAR_MASK;
+		avs_ctl |= ((pmic_sts - 4) << 10);
+		avs_ctl |= (pmic_sts << 17);
+		avs_ctl |= SAW3_AVS_CTL_TGGL_MASK;
+		regmap_write(saw_regmap, SAW3_AVS_CTL, avs_ctl);
+	}
+}
+
+static int
+spmi_regulator_saw_set_voltage(struct regulator_dev *rdev, unsigned selector)
+{
+	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
+	int ret;
+	u8 range_sel, voltage_sel;
+
+	ret = spmi_sw_selector_to_hw(vreg, selector, &range_sel, &voltage_sel);
+	if (ret)
+		return ret;
+
+	if (0 != range_sel) {
+		dev_dbg(&rdev->dev, "range_sel = %02X voltage_sel = %02X", \
+			range_sel, voltage_sel);
+		return -EINVAL;
+	}
+
+	/* Always do the SAW register writes on the first CPU */
+	return smp_call_function_single(0, spmi_saw_set_vdd, \
+					&voltage_sel, true);
+}
+
+static struct regulator_ops spmi_saw_ops = {};
+
 static struct regulator_ops spmi_smps_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.set_voltage_sel	= spmi_regulator_common_set_voltage,
 	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
 	.get_voltage_sel	= spmi_regulator_common_get_voltage,
@@ -1050,9 +1153,9 @@ static struct regulator_ops spmi_smps_ops = {
 };
 
 static struct regulator_ops spmi_ldo_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.set_voltage_sel	= spmi_regulator_common_set_voltage,
 	.get_voltage_sel	= spmi_regulator_common_get_voltage,
 	.map_voltage		= spmi_regulator_common_map_voltage,
@@ -1067,9 +1170,9 @@ static struct regulator_ops spmi_ldo_ops = {
 };
 
 static struct regulator_ops spmi_ln_ldo_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.set_voltage_sel	= spmi_regulator_common_set_voltage,
 	.get_voltage_sel	= spmi_regulator_common_get_voltage,
 	.map_voltage		= spmi_regulator_common_map_voltage,
@@ -1080,8 +1183,8 @@ static struct regulator_ops spmi_ln_ldo_ops = {
 
 static struct regulator_ops spmi_vs_ops = {
 	.enable			= spmi_regulator_vs_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.set_pull_down		= spmi_regulator_common_set_pull_down,
 	.set_soft_start		= spmi_regulator_common_set_soft_start,
 	.set_over_current_protection = spmi_regulator_vs_ocp,
@@ -1090,9 +1193,9 @@ static struct regulator_ops spmi_vs_ops = {
 };
 
 static struct regulator_ops spmi_boost_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.set_voltage_sel	= spmi_regulator_single_range_set_voltage,
 	.get_voltage_sel	= spmi_regulator_single_range_get_voltage,
 	.map_voltage		= spmi_regulator_single_map_voltage,
@@ -1101,9 +1204,9 @@ static struct regulator_ops spmi_boost_ops = {
 };
 
 static struct regulator_ops spmi_ftsmps_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.set_voltage_sel	= spmi_regulator_common_set_voltage,
 	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
 	.get_voltage_sel	= spmi_regulator_common_get_voltage,
@@ -1116,9 +1219,9 @@ static struct regulator_ops spmi_ftsmps_ops = {
 };
 
 static struct regulator_ops spmi_ult_lo_smps_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.set_voltage_sel	= spmi_regulator_ult_lo_smps_set_voltage,
 	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
 	.get_voltage_sel	= spmi_regulator_ult_lo_smps_get_voltage,
@@ -1130,9 +1233,9 @@ static struct regulator_ops spmi_ult_lo_smps_ops = {
 };
 
 static struct regulator_ops spmi_ult_ho_smps_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.set_voltage_sel	= spmi_regulator_single_range_set_voltage,
 	.set_voltage_time_sel	= spmi_regulator_set_voltage_time_sel,
 	.get_voltage_sel	= spmi_regulator_single_range_get_voltage,
@@ -1145,9 +1248,9 @@ static struct regulator_ops spmi_ult_ho_smps_ops = {
 };
 
 static struct regulator_ops spmi_ult_ldo_ops = {
-	.enable			= spmi_regulator_common_enable,
-	.disable		= spmi_regulator_common_disable,
-	.is_enabled		= spmi_regulator_common_is_enabled,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
 	.set_voltage_sel	= spmi_regulator_single_range_set_voltage,
 	.get_voltage_sel	= spmi_regulator_single_range_get_voltage,
 	.map_voltage		= spmi_regulator_single_map_voltage,
@@ -1249,6 +1352,7 @@ static int spmi_regulator_match(struct spmi_regulator *vreg, u16 force_type)
 	}
 	dig_major_rev	= version[SPMI_COMMON_REG_DIG_MAJOR_REV
 					- SPMI_COMMON_REG_DIG_MAJOR_REV];
+
 	if (!force_type) {
 		type		= version[SPMI_COMMON_REG_TYPE -
 					  SPMI_COMMON_REG_DIG_MAJOR_REV];
@@ -1619,11 +1723,20 @@ static const struct spmi_regulator_data pm8994_regulators[] = {
 	{ }
 };
 
+static const struct spmi_regulator_data pmi8994_regulators[] = {
+	{ "s1", 0x1400, "vdd_s1", },
+	{ "s2", 0x1700, "vdd_s2", },
+	{ "s3", 0x1a00, "vdd_s3", },
+	{ "l1", 0x4000, "vdd_l1", },
+	{ }
+};
+
 static const struct of_device_id qcom_spmi_regulator_match[] = {
 	{ .compatible = "qcom,pm8841-regulators", .data = &pm8841_regulators },
 	{ .compatible = "qcom,pm8916-regulators", .data = &pm8916_regulators },
 	{ .compatible = "qcom,pm8941-regulators", .data = &pm8941_regulators },
 	{ .compatible = "qcom,pm8994-regulators", .data = &pm8994_regulators },
+	{ .compatible = "qcom,pmi8994-regulators", .data = &pmi8994_regulators },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_spmi_regulator_match);
@@ -1638,7 +1751,10 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	const char *name;
 	struct device *dev = &pdev->dev;
-	int ret;
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *syscon, *reg_node;
+	struct property *reg_prop;
+	int ret, lenp;
 	struct list_head *vreg_list;
 
 	vreg_list = devm_kzalloc(dev, sizeof(*vreg_list), GFP_KERNEL);
@@ -1655,7 +1771,25 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
+	if (of_find_property(node, "qcom,saw-reg", &lenp)) {
+		syscon = of_parse_phandle(node, "qcom,saw-reg", 0);
+		saw_regmap = syscon_node_to_regmap(syscon);
+		of_node_put(syscon);
+		if (IS_ERR(saw_regmap))
+			dev_err(dev, "ERROR reading SAW regmap\n");
+	}
+
 	for (reg = match->data; reg->name; reg++) {
+
+		if (saw_regmap) {
+			reg_node = of_get_child_by_name(node, reg->name);
+			reg_prop = of_find_property(reg_node, "qcom,saw-slave",
+						    &lenp);
+			of_node_put(reg_node);
+			if (reg_prop)
+				continue;
+		}
+
 		vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg)
 			return -ENOMEM;
@@ -1663,7 +1797,6 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 		vreg->dev = dev;
 		vreg->base = reg->base;
 		vreg->regmap = regmap;
-
 		if (reg->ocp) {
 			vreg->ocp_irq = platform_get_irq_byname(pdev, reg->ocp);
 			if (vreg->ocp_irq < 0) {
@@ -1671,10 +1804,12 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 				goto err;
 			}
 		}
-
 		vreg->desc.id = -1;
 		vreg->desc.owner = THIS_MODULE;
 		vreg->desc.type = REGULATOR_VOLTAGE;
+		vreg->desc.enable_reg = reg->base + SPMI_COMMON_REG_ENABLE;
+		vreg->desc.enable_mask = SPMI_COMMON_ENABLE_MASK;
+		vreg->desc.enable_val = SPMI_COMMON_ENABLE;
 		vreg->desc.name = name = reg->name;
 		vreg->desc.supply_name = reg->supply;
 		vreg->desc.of_match = reg->name;
@@ -1685,8 +1820,22 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 		if (ret)
 			continue;
 
+		if (saw_regmap) {
+			reg_node = of_get_child_by_name(node, reg->name);
+			reg_prop = of_find_property(reg_node, "qcom,saw-leader",
+						    &lenp);
+			of_node_put(reg_node);
+			if (reg_prop) {
+				spmi_saw_ops = *(vreg->desc.ops);
+				spmi_saw_ops.set_voltage_sel =
+					spmi_regulator_saw_set_voltage;
+				vreg->desc.ops = &spmi_saw_ops;
+			}
+		}
+
 		config.dev = dev;
 		config.driver_data = vreg;
+		config.regmap = regmap;
 		rdev = devm_regulator_register(dev, &vreg->desc, &config);
 		if (IS_ERR(rdev)) {
 			dev_err(dev, "failed to register %s\n", name);

@@ -1,0 +1,396 @@
+[
+    {
+        "id": "7d50",
+        "name": "Add skbmod action to set destination mac",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set dmac 11:22:33:44:55:66 index 5",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod pipe set dmac 11:22:33:44:55:66\\s+index 5",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "9b29",
+        "name": "Add skbmod action to set source mac",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set smac 77:88:99:AA:BB:CC index 7",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action skbmod index 7",
+        "matchPattern": "action order [0-9]*: skbmod pipe set smac 77:88:99:aa:bb:cc\\s+index 7",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "1724",
+        "name": "Add skbmod action with invalid mac",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set smac 00:44:55:44:55",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod pipe set smac 00:44:55:44:55",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "3cf1",
+        "name": "Add skbmod action with valid etype",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set etype 0xfefe",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod pipe set etype 0xFEFE",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "a749",
+        "name": "Add skbmod action with invalid etype",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set etype 0xfefef",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod pipe set etype 0xFEFEF",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "bfe6",
+        "name": "Add skbmod action to swap mac",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod swap mac",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action skbmod index 1",
+        "matchPattern": "action order [0-9]*: skbmod pipe swap mac",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "839b",
+        "name": "Add skbmod action with control pipe",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod swap mac pipe",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod pipe swap mac",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "c167",
+        "name": "Add skbmod action with control reclassify",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set etype 0xbeef reclassify",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod reclassify set etype 0xBEEF",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "0c2f",
+        "name": "Add skbmod action with control drop",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set etype 0x0001 drop",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action skbmod index 1",
+        "matchPattern": "action order [0-9]*: skbmod drop set etype 0x1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "d113",
+        "name": "Add skbmod action with control continue",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set etype 0x1 continue",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod continue set etype 0x1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "7242",
+        "name": "Add skbmod action with control pass",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set smac 00:00:00:00:00:01 pass",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod pass set smac 00:00:00:00:00:01",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "6046",
+        "name": "Add skbmod action with control reclassify and cookie",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set smac 00:01:02:03:04:01 reclassify index 1 cookie ddeeffaabb11cc22",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action skbmod index 1",
+        "matchPattern": "action order [0-9]*: skbmod reclassify set smac 00:01:02:03:04:01.*index 1 ref.*cookie ddeeffaabb11cc22",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "58cb",
+        "name": "List skbmod actions",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action skbmod set etype 0x0001",
+            "$TC actions add action skbmod set etype 0x0011",
+            "$TC actions add action skbmod set etype 0x0021",
+            "$TC actions add action skbmod set etype 0x0031",
+            "$TC actions add action skbmod set etype 0x0041"
+        ],
+        "cmdUnderTest": "$TC actions ls action skbmod",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod",
+        "matchCount": "5",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "9aa8",
+        "name": "Get a single skbmod action from a list",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action skbmod set etype 0x0001",
+            "$TC actions add action skbmod set etype 0x0011",
+            "$TC actions add action skbmod set etype 0x0021",
+            "$TC actions add action skbmod set etype 0x0031",
+            "$TC actions add action skbmod set etype 0x0041"
+        ],
+        "cmdUnderTest": "$TC actions ls action skbmod",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action skbmod index 4",
+        "matchPattern": "action order [0-9]*: skbmod pipe set etype 0x31",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "e93a",
+        "name": "Delete an skbmod action",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action skbmod set etype 0x1111 index 909"
+        ],
+        "cmdUnderTest": "$TC actions del action skbmod index 909",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod pipe set etype 0x1111\\s+index 909",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
+        "id": "40c2",
+        "name": "Flush skbmod actions",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            "$TC actions add action skbmod set etype 0x0001",
+            "$TC actions add action skbmod set etype 0x0011",
+            "$TC actions add action skbmod set etype 0x0021",
+            "$TC actions add action skbmod set etype 0x0031",
+            "$TC actions add action skbmod set etype 0x0041"
+        ],
+        "cmdUnderTest": "$TC actions flush action skbmod",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    }
+]

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef USX2YHWDEP_H
 #define USX2YHWDEP_H
 

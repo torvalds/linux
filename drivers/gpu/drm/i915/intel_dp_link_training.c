@@ -129,7 +129,8 @@ static bool
 intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 {
 	uint8_t voltage;
-	int voltage_tries, max_vswing_tries;
+	int voltage_tries, cr_tries, max_cr_tries;
+	bool max_vswing_reached = false;
 	uint8_t link_config[2];
 	uint8_t link_bw, rate_select;
 
@@ -138,6 +139,11 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 
 	intel_dp_compute_rate(intel_dp, intel_dp->link_rate,
 			      &link_bw, &rate_select);
+
+	if (link_bw)
+		DRM_DEBUG_KMS("Using LINK_BW_SET value %02x\n", link_bw);
+	else
+		DRM_DEBUG_KMS("Using LINK_RATE_SET value %02x\n", rate_select);
 
 	/* Write the link configuration data */
 	link_config[0] = link_bw;
@@ -165,9 +171,21 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 		return false;
 	}
 
+	/*
+	 * The DP 1.4 spec defines the max clock recovery retries value
+	 * as 10 but for pre-DP 1.4 devices we set a very tolerant
+	 * retry limit of 80 (4 voltage levels x 4 preemphasis levels x
+	 * x 5 identical voltage retries). Since the previous specs didn't
+	 * define a limit and created the possibility of an infinite loop
+	 * we want to prevent any sync from triggering that corner case.
+	 */
+	if (intel_dp->dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
+		max_cr_tries = 10;
+	else
+		max_cr_tries = 80;
+
 	voltage_tries = 1;
-	max_vswing_tries = 0;
-	for (;;) {
+	for (cr_tries = 0; cr_tries < max_cr_tries; ++cr_tries) {
 		uint8_t link_status[DP_LINK_STATUS_SIZE];
 
 		drm_dp_link_train_clock_recovery_delay(intel_dp->dpcd);
@@ -187,7 +205,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 			return false;
 		}
 
-		if (max_vswing_tries == 1) {
+		if (max_vswing_reached) {
 			DRM_DEBUG_KMS("Max Voltage Swing reached\n");
 			return false;
 		}
@@ -208,20 +226,38 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 			voltage_tries = 1;
 
 		if (intel_dp_link_max_vswing_reached(intel_dp))
-			++max_vswing_tries;
+			max_vswing_reached = true;
 
 	}
+	DRM_ERROR("Failed clock recovery %d times, giving up!\n", max_cr_tries);
+	return false;
 }
 
 /*
- * Pick training pattern for channel equalization. Training Pattern 3 for HBR2
+ * Pick training pattern for channel equalization. Training pattern 4 for HBR3
+ * or for 1.4 devices that support it, training Pattern 3 for HBR2
  * or 1.2 devices that support it, Training Pattern 2 otherwise.
  */
 static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 {
-	u32 training_pattern = DP_TRAINING_PATTERN_2;
-	bool source_tps3, sink_tps3;
+	bool source_tps3, sink_tps3, source_tps4, sink_tps4;
 
+	/*
+	 * Intel platforms that support HBR3 also support TPS4. It is mandatory
+	 * for all downstream devices that support HBR3. There are no known eDP
+	 * panels that support TPS4 as of Feb 2018 as per VESA eDP_v1.4b_E1
+	 * specification.
+	 */
+	source_tps4 = intel_dp_source_supports_hbr3(intel_dp);
+	sink_tps4 = drm_dp_tps4_supported(intel_dp->dpcd);
+	if (source_tps4 && sink_tps4) {
+		return DP_TRAINING_PATTERN_4;
+	} else if (intel_dp->link_rate == 810000) {
+		if (!source_tps4)
+			DRM_DEBUG_KMS("8.1 Gbps link rate without source HBR3/TPS4 support\n");
+		if (!sink_tps4)
+			DRM_DEBUG_KMS("8.1 Gbps link rate without sink TPS4 support\n");
+	}
 	/*
 	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
 	 * also mandatory for downstream devices that support HBR2. However, not
@@ -229,17 +265,16 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 	 */
 	source_tps3 = intel_dp_source_supports_hbr2(intel_dp);
 	sink_tps3 = drm_dp_tps3_supported(intel_dp->dpcd);
-
 	if (source_tps3 && sink_tps3) {
-		training_pattern = DP_TRAINING_PATTERN_3;
-	} else if (intel_dp->link_rate == 540000) {
+		return  DP_TRAINING_PATTERN_3;
+	} else if (intel_dp->link_rate >= 540000) {
 		if (!source_tps3)
-			DRM_DEBUG_KMS("5.4 Gbps link rate without source HBR2/TPS3 support\n");
+			DRM_DEBUG_KMS(">=5.4/6.48 Gbps link rate without source HBR2/TPS3 support\n");
 		if (!sink_tps3)
-			DRM_DEBUG_KMS("5.4 Gbps link rate without sink TPS3 support\n");
+			DRM_DEBUG_KMS(">=5.4/6.48 Gbps link rate without sink TPS3 support\n");
 	}
 
-	return training_pattern;
+	return DP_TRAINING_PATTERN_2;
 }
 
 static bool
@@ -248,18 +283,20 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 	int tries;
 	u32 training_pattern;
 	uint8_t link_status[DP_LINK_STATUS_SIZE];
+	bool channel_eq = false;
 
 	training_pattern = intel_dp_training_pattern(intel_dp);
+	/* Scrambling is disabled for TPS2/3 and enabled for TPS4 */
+	if (training_pattern != DP_TRAINING_PATTERN_4)
+		training_pattern |= DP_LINK_SCRAMBLING_DISABLE;
 
 	/* channel equalization */
 	if (!intel_dp_set_link_train(intel_dp,
-				     training_pattern |
-				     DP_LINK_SCRAMBLING_DISABLE)) {
+				     training_pattern)) {
 		DRM_ERROR("failed to start channel equalization\n");
 		return false;
 	}
 
-	intel_dp->channel_eq_status = false;
 	for (tries = 0; tries < 5; tries++) {
 
 		drm_dp_link_train_channel_eq_delay(intel_dp->dpcd);
@@ -279,7 +316,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 
 		if (drm_dp_channel_eq_ok(link_status,
 					 intel_dp->lane_count)) {
-			intel_dp->channel_eq_status = true;
+			channel_eq = true;
 			DRM_DEBUG_KMS("Channel EQ done. DP Training "
 				      "successful\n");
 			break;
@@ -301,12 +338,14 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 
 	intel_dp_set_idle_link_train(intel_dp);
 
-	return intel_dp->channel_eq_status;
+	return channel_eq;
 
 }
 
 void intel_dp_stop_link_train(struct intel_dp *intel_dp)
 {
+	intel_dp->link_trained = true;
+
 	intel_dp_set_link_train(intel_dp,
 				DP_TRAINING_PATTERN_DISABLE);
 }

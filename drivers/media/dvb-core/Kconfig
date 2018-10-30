@@ -40,3 +40,16 @@ config DVB_DEMUX_SECTION_LOSS_LOG
 	  be very verbose.
 
 	  If you are unsure about this, say N here.
+
+config DVB_ULE_DEBUG
+	bool "Enable DVB net ULE packet debug messages"
+	depends on DVB_CORE
+	default n
+	help
+	  Enable extra log messages meant to detect problems while
+	  handling DVB network ULE packet loss inside the Kernel.
+
+	  Should not be enabled on normal cases, as logs can
+	  be very verbose.
+
+	  If you are unsure about this, say N here.

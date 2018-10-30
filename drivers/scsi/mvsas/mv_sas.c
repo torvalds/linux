@@ -336,13 +336,13 @@ static int mvs_task_prep_smp(struct mvs_info *mvi,
 	 * DMA-map SMP request, response buffers
 	 */
 	sg_req = &task->smp_task.smp_req;
-	elem = dma_map_sg(mvi->dev, sg_req, 1, PCI_DMA_TODEVICE);
+	elem = dma_map_sg(mvi->dev, sg_req, 1, DMA_TO_DEVICE);
 	if (!elem)
 		return -ENOMEM;
 	req_len = sg_dma_len(sg_req);
 
 	sg_resp = &task->smp_task.smp_resp;
-	elem = dma_map_sg(mvi->dev, sg_resp, 1, PCI_DMA_FROMDEVICE);
+	elem = dma_map_sg(mvi->dev, sg_resp, 1, DMA_FROM_DEVICE);
 	if (!elem) {
 		rc = -ENOMEM;
 		goto err_out;
@@ -416,10 +416,10 @@ static int mvs_task_prep_smp(struct mvs_info *mvi,
 
 err_out_2:
 	dma_unmap_sg(mvi->dev, &tei->task->smp_task.smp_resp, 1,
-		     PCI_DMA_FROMDEVICE);
+		     DMA_FROM_DEVICE);
 err_out:
 	dma_unmap_sg(mvi->dev, &tei->task->smp_task.smp_req, 1,
-		     PCI_DMA_TODEVICE);
+		     DMA_TO_DEVICE);
 	return rc;
 }
 
@@ -904,9 +904,9 @@ static void mvs_slot_task_free(struct mvs_info *mvi, struct sas_task *task,
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:
 		dma_unmap_sg(mvi->dev, &task->smp_task.smp_resp, 1,
-			     PCI_DMA_FROMDEVICE);
+			     DMA_FROM_DEVICE);
 		dma_unmap_sg(mvi->dev, &task->smp_task.smp_req, 1,
-			     PCI_DMA_TODEVICE);
+			     DMA_TO_DEVICE);
 		break;
 
 	case SAS_PROTOCOL_SATA:
@@ -1283,9 +1283,10 @@ static void mvs_task_done(struct sas_task *task)
 	complete(&task->slow_task->completion);
 }
 
-static void mvs_tmf_timedout(unsigned long data)
+static void mvs_tmf_timedout(struct timer_list *t)
 {
-	struct sas_task *task = (struct sas_task *)data;
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;
 
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 	complete(&task->slow_task->completion);
@@ -1309,7 +1310,6 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 		memcpy(&task->ssp_task, parameter, para_len);
 		task->task_done = mvs_task_done;
 
-		task->slow_task->timer.data = (unsigned long) task;
 		task->slow_task->timer.function = mvs_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + MVS_TASK_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
@@ -1954,9 +1954,9 @@ static int mvs_handle_event(struct mvs_info *mvi, void *data, int handler)
 	return ret;
 }
 
-static void mvs_sig_time_out(unsigned long tphy)
+static void mvs_sig_time_out(struct timer_list *t)
 {
-	struct mvs_phy *phy = (struct mvs_phy *)tphy;
+	struct mvs_phy *phy = from_timer(phy, t, timer);
 	struct mvs_info *mvi = phy->mvi;
 	u8 phy_no;
 
@@ -2020,7 +2020,6 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 		MVS_CHIP_DISP->write_port_irq_mask(mvi, phy_no,
 					tmp | PHYEV_SIG_FIS);
 		if (phy->timer.function == NULL) {
-			phy->timer.data = (unsigned long)phy;
 			phy->timer.function = mvs_sig_time_out;
 			phy->timer.expires = jiffies + 5*HZ;
 			add_timer(&phy->timer);

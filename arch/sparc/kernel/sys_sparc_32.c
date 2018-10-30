@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* linux/arch/sparc/kernel/sys_sparc.c
  *
  * This file contains various random system calls that
@@ -33,7 +34,7 @@
 /* XXX Make this per-binary type, this way we can detect the type of
  * XXX a binary.  Every Sparc executable calls this very early on.
  */
-asmlinkage unsigned long sys_getpagesize(void)
+SYSCALL_DEFINE0(getpagesize)
 {
 	return PAGE_SIZE; /* Possibly older binaries want 8192 on sun4's? */
 }
@@ -72,7 +73,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
  */
-asmlinkage long sparc_pipe(struct pt_regs *regs)
+SYSCALL_DEFINE0(sparc_pipe)
 {
 	int fd[2];
 	int error;
@@ -80,7 +81,7 @@ asmlinkage long sparc_pipe(struct pt_regs *regs)
 	error = do_pipe_flags(fd, 0);
 	if (error)
 		goto out;
-	regs->u_regs[UREG_I1] = fd[1];
+	current_pt_regs()->u_regs[UREG_I1] = fd[1];
 	error = fd[0];
 out:
 	return error;
@@ -97,27 +98,27 @@ int sparc_mmap_check(unsigned long addr, unsigned long len)
 
 /* Linux version of mmap */
 
-asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags, unsigned long fd,
-	unsigned long pgoff)
+SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
+	unsigned long, prot, unsigned long, flags, unsigned long, fd,
+	unsigned long, pgoff)
 {
 	/* Make sure the shift for mmap2 is constant (12), no matter what PAGE_SIZE
 	   we have. */
-	return sys_mmap_pgoff(addr, len, prot, flags, fd,
-			      pgoff >> (PAGE_SHIFT - 12));
+	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
+			       pgoff >> (PAGE_SHIFT - 12));
 }
 
-asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags, unsigned long fd,
-	unsigned long off)
+SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+	unsigned long, prot, unsigned long, flags, unsigned long, fd,
+	unsigned long, off)
 {
 	/* no alignment check? */
-	return sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
+	return ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 }
 
-long sparc_remap_file_pages(unsigned long start, unsigned long size,
-			   unsigned long prot, unsigned long pgoff,
-			   unsigned long flags)
+SYSCALL_DEFINE5(sparc_remap_file_pages, unsigned long, start, unsigned long, size,
+			   unsigned long, prot, unsigned long, pgoff,
+			   unsigned long, flags)
 {
 	/* This works on an existing mmap so we don't need to validate
 	 * the range as that was done at the original mmap call.
@@ -126,11 +127,10 @@ long sparc_remap_file_pages(unsigned long start, unsigned long size,
 				    (pgoff >> (PAGE_SHIFT - 12)), flags);
 }
 
-/* we come to here via sys_nis_syscall so it can setup the regs argument */
-asmlinkage unsigned long
-c_sys_nis_syscall (struct pt_regs *regs)
+SYSCALL_DEFINE0(nis_syscall)
 {
 	static int count = 0;
+	struct pt_regs *regs = current_pt_regs();
 
 	if (count++ > 5)
 		return -ENOSYS;
@@ -147,17 +147,11 @@ c_sys_nis_syscall (struct pt_regs *regs)
 asmlinkage void
 sparc_breakpoint (struct pt_regs *regs)
 {
-	siginfo_t info;
 
 #ifdef DEBUG_SPARC_BREAKPOINT
         printk ("TRAP: Entering kernel PC=%x, nPC=%x\n", regs->pc, regs->npc);
 #endif
-	info.si_signo = SIGTRAP;
-	info.si_errno = 0;
-	info.si_code = TRAP_BRKPT;
-	info.si_addr = (void __user *)regs->pc;
-	info.si_trapno = 0;
-	force_sig_info(SIGTRAP, &info, current);
+	force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->pc, 0, current);
 
 #ifdef DEBUG_SPARC_BREAKPOINT
 	printk ("TRAP: Returning to space: PC=%x nPC=%x\n", regs->pc, regs->npc);
@@ -201,25 +195,29 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig,
 	return ret;
 }
 
-asmlinkage long sys_getdomainname(char __user *name, int len)
+SYSCALL_DEFINE2(getdomainname, char __user *, name, int, len)
 {
- 	int nlen, err;
- 	
+	int nlen, err;
+	char tmp[__NEW_UTS_LEN + 1];
+
 	if (len < 0)
 		return -EINVAL;
 
- 	down_read(&uts_sem);
- 	
+	down_read(&uts_sem);
+
 	nlen = strlen(utsname()->domainname) + 1;
 	err = -EINVAL;
 	if (nlen > len)
-		goto out;
+		goto out_unlock;
+	memcpy(tmp, utsname()->domainname, nlen);
 
-	err = -EFAULT;
-	if (!copy_to_user(name, utsname()->domainname, nlen))
-		err = 0;
+	up_read(&uts_sem);
 
-out:
+	if (copy_to_user(name, tmp, nlen))
+		return -EFAULT;
+	return 0;
+
+out_unlock:
 	up_read(&uts_sem);
 	return err;
 }

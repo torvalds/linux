@@ -203,14 +203,8 @@ void ptrace_disable(struct task_struct *child)
  */
 void ptrace_break(struct task_struct *tsk, struct pt_regs *regs)
 {
-	siginfo_t info;
-
-	info.si_signo = SIGTRAP;
-	info.si_errno = 0;
-	info.si_code  = TRAP_BRKPT;
-	info.si_addr  = (void __user *)instruction_pointer(regs);
-
-	force_sig_info(SIGTRAP, &info, tsk);
+	force_sig_fault(SIGTRAP, TRAP_BRKPT,
+			(void __user *)instruction_pointer(regs), tsk);
 }
 
 static int break_trap(struct pt_regs *regs, unsigned int instr)
@@ -390,7 +384,6 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 	struct arch_hw_breakpoint *bkpt = counter_arch_bp(bp);
 	long num;
 	int i;
-	siginfo_t info;
 
 	for (i = 0; i < ARM_MAX_HBP_SLOTS; ++i)
 		if (current->thread.debug.hbp[i] == bp)
@@ -398,12 +391,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 
 	num = (i == ARM_MAX_HBP_SLOTS) ? 0 : ptrace_hbp_idx_to_num(i);
 
-	info.si_signo	= SIGTRAP;
-	info.si_errno	= (int)num;
-	info.si_code	= TRAP_HWBKPT;
-	info.si_addr	= (void __user *)(bkpt->trigger);
-
-	force_sig_info(SIGTRAP, &info, current);
+	force_sig_ptrace_errno_trap((int)num, (void __user *)(bkpt->trigger));
 }
 
 /*

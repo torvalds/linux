@@ -108,22 +108,31 @@ struct v4l2_decode_vbi_line {
  * not yet implemented) since ops provide proper type-checking.
  */
 
-/* Subdevice external IO pin configuration */
-#define V4L2_SUBDEV_IO_PIN_DISABLE	(1 << 0) /* ENABLE assumed */
-#define V4L2_SUBDEV_IO_PIN_OUTPUT	(1 << 1)
-#define V4L2_SUBDEV_IO_PIN_INPUT	(1 << 2)
-#define V4L2_SUBDEV_IO_PIN_SET_VALUE	(1 << 3) /* Set output value */
-#define V4L2_SUBDEV_IO_PIN_ACTIVE_LOW	(1 << 4) /* ACTIVE HIGH assumed */
+/**
+ * enum v4l2_subdev_io_pin_bits - Subdevice external IO pin configuration
+ *	bits
+ *
+ * @V4L2_SUBDEV_IO_PIN_DISABLE: disables a pin config. ENABLE assumed.
+ * @V4L2_SUBDEV_IO_PIN_OUTPUT: set it if pin is an output.
+ * @V4L2_SUBDEV_IO_PIN_INPUT: set it if pin is an input.
+ * @V4L2_SUBDEV_IO_PIN_SET_VALUE: to set the output value via
+ *				  &struct v4l2_subdev_io_pin_config->value.
+ * @V4L2_SUBDEV_IO_PIN_ACTIVE_LOW: pin active is bit 0.
+ *				   Otherwise, ACTIVE HIGH is assumed.
+ */
+enum v4l2_subdev_io_pin_bits {
+	V4L2_SUBDEV_IO_PIN_DISABLE	= 0,
+	V4L2_SUBDEV_IO_PIN_OUTPUT	= 1,
+	V4L2_SUBDEV_IO_PIN_INPUT	= 2,
+	V4L2_SUBDEV_IO_PIN_SET_VALUE	= 3,
+	V4L2_SUBDEV_IO_PIN_ACTIVE_LOW	= 4,
+};
 
 /**
  * struct v4l2_subdev_io_pin_config - Subdevice external IO pin configuration
  *
- * @flags: bitmask with flags for this pin's config:
- *	   %V4L2_SUBDEV_IO_PIN_DISABLE - disables a pin config,
- *	   %V4L2_SUBDEV_IO_PIN_OUTPUT - if pin is an output,
- *	   %V4L2_SUBDEV_IO_PIN_INPUT - if pin is an input,
- *	   %V4L2_SUBDEV_IO_PIN_SET_VALUE - to set the output value via @value
- *	   and %V4L2_SUBDEV_IO_PIN_ACTIVE_LOW - if active is 0.
+ * @flags: bitmask with flags for this pin's config, whose bits are defined by
+ *	   &enum v4l2_subdev_io_pin_bits.
  * @pin: Chip external IO pin to configure
  * @function: Internal signal pad/function to route to IO pin
  * @value: Initial value for pin - e.g. GPIO output value
@@ -140,7 +149,7 @@ struct v4l2_subdev_io_pin_config {
 /**
  * struct v4l2_subdev_core_ops - Define core ops callbacks for subdevs
  *
- * @log_status: callback for %VIDIOC_LOG_STATUS ioctl handler code.
+ * @log_status: callback for VIDIOC_LOG_STATUS() ioctl handler code.
  *
  * @s_io_pin_config: configure one or more chip I/O pins for chips that
  *	multiplex different internal signal pads out to IO pins.  This function
@@ -168,9 +177,9 @@ struct v4l2_subdev_io_pin_config {
  * @compat_ioctl32: called when a 32 bits application uses a 64 bits Kernel,
  *		    in order to fix data passed from/to userspace.
  *
- * @g_register: callback for %VIDIOC_G_REGISTER ioctl handler code.
+ * @g_register: callback for VIDIOC_DBG_G_REGISTER() ioctl handler code.
  *
- * @s_register: callback for %VIDIOC_G_REGISTER ioctl handler code.
+ * @s_register: callback for VIDIOC_DBG_S_REGISTER() ioctl handler code.
  *
  * @s_power: puts subdevice in power saving mode (on == 0) or normal operation
  *	mode (on == 1).
@@ -215,31 +224,54 @@ struct v4l2_subdev_core_ops {
  * struct v4l2_subdev_tuner_ops - Callbacks used when v4l device was opened
  *	in radio mode.
  *
- * @s_radio: callback for %VIDIOC_S_RADIO ioctl handler code.
+ * @standby: puts the tuner in standby mode. It will be woken up
+ *	     automatically the next time it is used.
  *
- * @s_frequency: callback for %VIDIOC_S_FREQUENCY ioctl handler code.
+ * @s_radio: callback that switches the tuner to radio mode.
+ *	     drivers should explicitly call it when a tuner ops should
+ *	     operate on radio mode, before being able to handle it.
+ *	     Used on devices that have both AM/FM radio receiver and TV.
  *
- * @g_frequency: callback for %VIDIOC_G_FREQUENCY ioctl handler code.
+ * @s_frequency: callback for VIDIOC_S_FREQUENCY() ioctl handler code.
+ *
+ * @g_frequency: callback for VIDIOC_G_FREQUENCY() ioctl handler code.
  *		 freq->type must be filled in. Normally done by video_ioctl2()
  *		 or the bridge driver.
  *
- * @enum_freq_bands: callback for %VIDIOC_ENUM_FREQ_BANDS ioctl handler code.
+ * @enum_freq_bands: callback for VIDIOC_ENUM_FREQ_BANDS() ioctl handler code.
  *
- * @g_tuner: callback for %VIDIOC_G_TUNER ioctl handler code.
+ * @g_tuner: callback for VIDIOC_G_TUNER() ioctl handler code.
  *
- * @s_tuner: callback for %VIDIOC_S_TUNER ioctl handler code. @vt->type must be
+ * @s_tuner: callback for VIDIOC_S_TUNER() ioctl handler code. @vt->type must be
  *	     filled in. Normally done by video_ioctl2 or the
  *	     bridge driver.
  *
- * @g_modulator: callback for %VIDIOC_G_MODULATOR ioctl handler code.
+ * @g_modulator: callback for VIDIOC_G_MODULATOR() ioctl handler code.
  *
- * @s_modulator: callback for %VIDIOC_S_MODULATOR ioctl handler code.
+ * @s_modulator: callback for VIDIOC_S_MODULATOR() ioctl handler code.
  *
  * @s_type_addr: sets tuner type and its I2C addr.
  *
  * @s_config: sets tda9887 specific stuff, like port1, port2 and qss
+ *
+ * .. note::
+ *
+ *	On devices that have both AM/FM and TV, it is up to the driver
+ *	to explicitly call s_radio when the tuner should be switched to
+ *	radio mode, before handling other &struct v4l2_subdev_tuner_ops
+ *	that would require it. An example of such usage is::
+ *
+ *	  static void s_frequency(void *priv, const struct v4l2_frequency *f)
+ *	  {
+ *		...
+ *		if (f.type == V4L2_TUNER_RADIO)
+ *			v4l2_device_call_all(v4l2_dev, 0, tuner, s_radio);
+ *		...
+ *		v4l2_device_call_all(v4l2_dev, 0, tuner, s_frequency);
+ *	  }
  */
 struct v4l2_subdev_tuner_ops {
+	int (*standby)(struct v4l2_subdev *sd);
 	int (*s_radio)(struct v4l2_subdev *sd);
 	int (*s_frequency)(struct v4l2_subdev *sd, const struct v4l2_frequency *freq);
 	int (*g_frequency)(struct v4l2_subdev *sd, struct v4l2_frequency *freq);
@@ -285,25 +317,32 @@ struct v4l2_subdev_audio_ops {
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 };
 
-/* Indicates the @length field specifies maximum data length. */
-#define V4L2_MBUS_FRAME_DESC_FL_LEN_MAX		(1U << 0)
-/*
- * Indicates that the format does not have line offsets, i.e. the
- * receiver should use 1D DMA.
+/**
+ * enum v4l2_mbus_frame_desc_entry - media bus frame description flags
+ *
+ * @V4L2_MBUS_FRAME_DESC_FL_LEN_MAX:
+ *	Indicates that &struct v4l2_mbus_frame_desc_entry->length field
+ *	specifies maximum data length.
+ * @V4L2_MBUS_FRAME_DESC_FL_BLOB:
+ *	Indicates that the format does not have line offsets, i.e.
+ *	the receiver should use 1D DMA.
  */
-#define V4L2_MBUS_FRAME_DESC_FL_BLOB		(1U << 1)
+enum v4l2_mbus_frame_desc_flags {
+	V4L2_MBUS_FRAME_DESC_FL_LEN_MAX	= BIT(0),
+	V4L2_MBUS_FRAME_DESC_FL_BLOB	= BIT(1),
+};
 
 /**
  * struct v4l2_mbus_frame_desc_entry - media bus frame description structure
  *
- * @flags: bitmask flags: %V4L2_MBUS_FRAME_DESC_FL_LEN_MAX and
- *			  %V4L2_MBUS_FRAME_DESC_FL_BLOB.
- * @pixelcode: media bus pixel code, valid if FRAME_DESC_FL_BLOB is not set
- * @length: number of octets per frame, valid if V4L2_MBUS_FRAME_DESC_FL_BLOB
- *	    is set
+ * @flags:	bitmask flags, as defined by &enum v4l2_mbus_frame_desc_flags.
+ * @pixelcode:	media bus pixel code, valid if @flags
+ *		%FRAME_DESC_FL_BLOB is not set.
+ * @length:	number of octets per frame, valid if @flags
+ *		%V4L2_MBUS_FRAME_DESC_FL_LEN_MAX is set.
  */
 struct v4l2_mbus_frame_desc_entry {
-	u16 flags;
+	enum v4l2_mbus_frame_desc_flags flags;
 	u32 pixelcode;
 	u32 length;
 };
@@ -332,9 +371,9 @@ struct v4l2_mbus_frame_desc {
  *	regarding clock frequency dividers, etc. If not used, then set flags
  *	to 0. If the frequency is not supported, then -EINVAL is returned.
  *
- * @g_std: callback for %VIDIOC_G_STD ioctl handler code.
+ * @g_std: callback for VIDIOC_G_STD() ioctl handler code.
  *
- * @s_std: callback for %VIDIOC_S_STD ioctl handler code.
+ * @s_std: callback for VIDIOC_S_STD() ioctl handler code.
  *
  * @s_std_output: set v4l2_std_id for video OUTPUT devices. This is ignored by
  *	video input devices.
@@ -342,7 +381,7 @@ struct v4l2_mbus_frame_desc {
  * @g_std_output: get current standard for video OUTPUT devices. This is ignored
  *	by video input devices.
  *
- * @querystd: callback for %VIDIOC_QUERYSTD ioctl handler code.
+ * @querystd: callback for VIDIOC_QUERYSTD() ioctl handler code.
  *
  * @g_tvnorms: get &v4l2_std_id with all standards supported by the video
  *	CAPTURE device. This is ignored by video output devices.
@@ -358,13 +397,11 @@ struct v4l2_mbus_frame_desc {
  *
  * @g_pixelaspect: callback to return the pixelaspect ratio.
  *
- * @g_parm: callback for %VIDIOC_G_PARM ioctl handler code.
+ * @g_frame_interval: callback for VIDIOC_SUBDEV_G_FRAME_INTERVAL()
+ *		      ioctl handler code.
  *
- * @s_parm: callback for %VIDIOC_S_PARM ioctl handler code.
- *
- * @g_frame_interval: callback for %VIDIOC_G_FRAMEINTERVAL ioctl handler code.
- *
- * @s_frame_interval: callback for %VIDIOC_S_FRAMEINTERVAL ioctl handler code.
+ * @s_frame_interval: callback for VIDIOC_SUBDEV_S_FRAME_INTERVAL()
+ *		      ioctl handler code.
  *
  * @s_dv_timings: Set custom dv timings in the sub device. This is used
  *	when sub device is capable of setting detailed timing information
@@ -372,7 +409,7 @@ struct v4l2_mbus_frame_desc {
  *
  * @g_dv_timings: Get custom dv timings in the sub device.
  *
- * @query_dv_timings: callback for %VIDIOC_QUERY_DV_TIMINGS ioctl handler code.
+ * @query_dv_timings: callback for VIDIOC_QUERY_DV_TIMINGS() ioctl handler code.
  *
  * @g_mbus_config: get supported mediabus configurations
  *
@@ -397,8 +434,6 @@ struct v4l2_subdev_video_ops {
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 	int (*g_pixelaspect)(struct v4l2_subdev *sd, struct v4l2_fract *aspect);
-	int (*g_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
-	int (*s_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
 	int (*g_frame_interval)(struct v4l2_subdev *sd,
 				struct v4l2_subdev_frame_interval *interval);
 	int (*s_frame_interval)(struct v4l2_subdev *sd,
@@ -443,7 +478,8 @@ struct v4l2_subdev_video_ops {
  *	member (to determine whether CC data from the first or second field
  *	should be obtained).
  *
- * @g_sliced_vbi_cap: callback for %VIDIOC_SLICED_VBI_CAP ioctl handler code.
+ * @g_sliced_vbi_cap: callback for VIDIOC_G_SLICED_VBI_CAP() ioctl handler
+ *		      code.
  *
  * @s_raw_fmt: setup the video encoder/decoder for raw VBI.
  *
@@ -610,30 +646,30 @@ struct v4l2_subdev_pad_config {
  * struct v4l2_subdev_pad_ops - v4l2-subdev pad level operations
  *
  * @init_cfg: initialize the pad config to default values
- * @enum_mbus_code: callback for %VIDIOC_SUBDEV_ENUM_MBUS_CODE ioctl handler
+ * @enum_mbus_code: callback for VIDIOC_SUBDEV_ENUM_MBUS_CODE() ioctl handler
  *		    code.
- * @enum_frame_size: callback for %VIDIOC_SUBDEV_ENUM_FRAME_SIZE ioctl handler
+ * @enum_frame_size: callback for VIDIOC_SUBDEV_ENUM_FRAME_SIZE() ioctl handler
  *		     code.
  *
- * @enum_frame_interval: callback for %VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL ioctl
+ * @enum_frame_interval: callback for VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL() ioctl
  *			 handler code.
  *
- * @get_fmt: callback for %VIDIOC_SUBDEV_G_FMT ioctl handler code.
+ * @get_fmt: callback for VIDIOC_SUBDEV_G_FMT() ioctl handler code.
  *
- * @set_fmt: callback for %VIDIOC_SUBDEV_S_FMT ioctl handler code.
+ * @set_fmt: callback for VIDIOC_SUBDEV_S_FMT() ioctl handler code.
  *
- * @get_selection: callback for %VIDIOC_SUBDEV_G_SELECTION ioctl handler code.
+ * @get_selection: callback for VIDIOC_SUBDEV_G_SELECTION() ioctl handler code.
  *
- * @set_selection: callback for %VIDIOC_SUBDEV_S_SELECTION ioctl handler code.
+ * @set_selection: callback for VIDIOC_SUBDEV_S_SELECTION() ioctl handler code.
  *
- * @get_edid: callback for %VIDIOC_SUBDEV_G_EDID ioctl handler code.
+ * @get_edid: callback for VIDIOC_SUBDEV_G_EDID() ioctl handler code.
  *
- * @set_edid: callback for %VIDIOC_SUBDEV_S_EDID ioctl handler code.
+ * @set_edid: callback for VIDIOC_SUBDEV_S_EDID() ioctl handler code.
  *
- * @dv_timings_cap: callback for %VIDIOC_SUBDEV_DV_TIMINGS_CAP ioctl handler
+ * @dv_timings_cap: callback for VIDIOC_SUBDEV_DV_TIMINGS_CAP() ioctl handler
  *		    code.
  *
- * @enum_dv_timings: callback for %VIDIOC_SUBDEV_ENUM_DV_TIMINGS ioctl handler
+ * @enum_dv_timings: callback for VIDIOC_SUBDEV_ENUM_DV_TIMINGS() ioctl handler
  *		     code.
  *
  * @link_validate: used by the media controller code to check if the links
@@ -766,7 +802,7 @@ struct v4l2_subdev_platform_data {
  * @list: List of sub-devices
  * @owner: The owner is the same as the driver's &struct device owner.
  * @owner_v4l2_dev: true if the &sd->owner matches the owner of @v4l2_dev->dev
- *	ownner. Initialized by v4l2_device_register_subdev().
+ *	owner. Initialized by v4l2_device_register_subdev().
  * @flags: subdev flags. Can be:
  *   %V4L2_SUBDEV_FL_IS_I2C - Set this flag if this subdev is a i2c device;
  *   %V4L2_SUBDEV_FL_IS_SPI - Set this flag if this subdev is a spi device;
@@ -793,6 +829,8 @@ struct v4l2_subdev_platform_data {
  *	list.
  * @asd: Pointer to respective &struct v4l2_async_subdev.
  * @notifier: Pointer to the managing notifier.
+ * @subdev_notifier: A sub-device notifier implicitly registered for the sub-
+ *		     device using v4l2_device_register_sensor_subdev().
  * @pdata: common part of subdevice platform data
  *
  * Each instance of a subdev driver should create this struct, either
@@ -823,9 +861,17 @@ struct v4l2_subdev {
 	struct list_head async_list;
 	struct v4l2_async_subdev *asd;
 	struct v4l2_async_notifier *notifier;
+	struct v4l2_async_notifier *subdev_notifier;
 	struct v4l2_subdev_platform_data *pdata;
 };
 
+
+/**
+ * media_entity_to_v4l2_subdev - Returns a &struct v4l2_subdev from
+ *    the &struct media_entity embedded in it.
+ *
+ * @ent: pointer to &struct media_entity.
+ */
 #define media_entity_to_v4l2_subdev(ent)				\
 ({									\
 	typeof(ent) __me_sd_ent = (ent);				\
@@ -835,14 +881,20 @@ struct v4l2_subdev {
 		NULL;							\
 })
 
+/**
+ * vdev_to_v4l2_subdev - Returns a &struct v4l2_subdev from
+ *	the &struct video_device embedded on it.
+ *
+ * @vdev: pointer to &struct video_device
+ */
 #define vdev_to_v4l2_subdev(vdev) \
 	((struct v4l2_subdev *)video_get_drvdata(vdev))
 
 /**
  * struct v4l2_subdev_fh - Used for storing subdev information per file handle
  *
- * @vfh: pointer to struct v4l2_fh
- * @pad: pointer to v4l2_subdev_pad_config
+ * @vfh: pointer to &struct v4l2_fh
+ * @pad: pointer to &struct v4l2_subdev_pad_config
  */
 struct v4l2_subdev_fh {
 	struct v4l2_fh vfh;
@@ -851,23 +903,70 @@ struct v4l2_subdev_fh {
 #endif
 };
 
+/**
+ * to_v4l2_subdev_fh - Returns a &struct v4l2_subdev_fh from
+ *	the &struct v4l2_fh embedded on it.
+ *
+ * @fh: pointer to &struct v4l2_fh
+ */
 #define to_v4l2_subdev_fh(fh)	\
 	container_of(fh, struct v4l2_subdev_fh, vfh)
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-#define __V4L2_SUBDEV_MK_GET_TRY(rtype, fun_name, field_name)		\
-	static inline struct rtype *					\
-	fun_name(struct v4l2_subdev *sd,				\
-		 struct v4l2_subdev_pad_config *cfg,			\
-		 unsigned int pad)					\
-	{								\
-		BUG_ON(pad >= sd->entity.num_pads);			\
-		return &cfg[pad].field_name;				\
-	}
 
-__V4L2_SUBDEV_MK_GET_TRY(v4l2_mbus_framefmt, v4l2_subdev_get_try_format, try_fmt)
-__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, v4l2_subdev_get_try_crop, try_crop)
-__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, v4l2_subdev_get_try_compose, try_compose)
+/**
+ * v4l2_subdev_get_try_format - ancillary routine to call
+ *	&struct v4l2_subdev_pad_config->try_fmt
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ * @cfg: pointer to &struct v4l2_subdev_pad_config array.
+ * @pad: index of the pad in the @cfg array.
+ */
+static inline struct v4l2_mbus_framefmt
+*v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg,
+			    unsigned int pad)
+{
+	if (WARN_ON(pad >= sd->entity.num_pads))
+		pad = 0;
+	return &cfg[pad].try_fmt;
+}
+
+/**
+ * v4l2_subdev_get_try_crop - ancillary routine to call
+ *	&struct v4l2_subdev_pad_config->try_crop
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ * @cfg: pointer to &struct v4l2_subdev_pad_config array.
+ * @pad: index of the pad in the @cfg array.
+ */
+static inline struct v4l2_rect
+*v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_pad_config *cfg,
+			  unsigned int pad)
+{
+	if (WARN_ON(pad >= sd->entity.num_pads))
+		pad = 0;
+	return &cfg[pad].try_crop;
+}
+
+/**
+ * v4l2_subdev_get_try_crop - ancillary routine to call
+ *	&struct v4l2_subdev_pad_config->try_compose
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ * @cfg: pointer to &struct v4l2_subdev_pad_config array.
+ * @pad: index of the pad in the @cfg array.
+ */
+static inline struct v4l2_rect
+*v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_pad_config *cfg,
+			     unsigned int pad)
+{
+	if (WARN_ON(pad >= sd->entity.num_pads))
+		pad = 0;
+	return &cfg[pad].try_compose;
+}
 #endif
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;
@@ -975,9 +1074,16 @@ void v4l2_subdev_free_pad_config(struct v4l2_subdev_pad_config *cfg);
 void v4l2_subdev_init(struct v4l2_subdev *sd,
 		      const struct v4l2_subdev_ops *ops);
 
-/*
- * Call an ops of a v4l2_subdev, doing the right checks against
- * NULL pointers.
+/**
+ * v4l2_subdev_call - call an operation of a v4l2_subdev.
+ *
+ * @sd: pointer to the &struct v4l2_subdev
+ * @o: name of the element at &struct v4l2_subdev_ops that contains @f.
+ *     Each element there groups a set of callbacks functions.
+ * @f: callback function that will be called if @cond matches.
+ *     The callback functions are defined in groups, according to
+ *     each element at &struct v4l2_subdev_ops.
+ * @args...: arguments for @f.
  *
  * Example: err = v4l2_subdev_call(sd, video, s_std, norm);
  */
@@ -993,6 +1099,14 @@ void v4l2_subdev_init(struct v4l2_subdev *sd,
 		__result;						\
 	})
 
+/**
+ * v4l2_subdev_has_op - Checks if a subdev defines a certain operation.
+ *
+ * @sd: pointer to the &struct v4l2_subdev
+ * @o: The group of callback functions in &struct v4l2_subdev_ops
+ * which @f is a part of.
+ * @f: callback function to be checked for its existence.
+ */
 #define v4l2_subdev_has_op(sd, o, f) \
 	((sd)->ops->o && (sd)->ops->o->f)
 

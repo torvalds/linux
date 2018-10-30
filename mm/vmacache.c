@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014 Davidlohr Bueso.
  */
@@ -5,44 +6,18 @@
 #include <linux/sched/task.h>
 #include <linux/mm.h>
 #include <linux/vmacache.h>
+#include <asm/pgtable.h>
 
 /*
- * Flush vma caches for threads that share a given mm.
- *
- * The operation is safe because the caller holds the mmap_sem
- * exclusively and other threads accessing the vma cache will
- * have mmap_sem held at least for read, so no extra locking
- * is required to maintain the vma cache.
+ * Hash based on the pmd of addr if configured with MMU, which provides a good
+ * hit rate for workloads with spatial locality.  Otherwise, use pages.
  */
-void vmacache_flush_all(struct mm_struct *mm)
-{
-	struct task_struct *g, *p;
-
-	count_vm_vmacache_event(VMACACHE_FULL_FLUSHES);
-
-	/*
-	 * Single threaded tasks need not iterate the entire
-	 * list of process. We can avoid the flushing as well
-	 * since the mm's seqnum was increased and don't have
-	 * to worry about other threads' seqnum. Current's
-	 * flush will occur upon the next lookup.
-	 */
-	if (atomic_read(&mm->mm_users) == 1)
-		return;
-
-	rcu_read_lock();
-	for_each_process_thread(g, p) {
-		/*
-		 * Only flush the vmacache pointers as the
-		 * mm seqnum is already set and curr's will
-		 * be set upon invalidation when the next
-		 * lookup is done.
-		 */
-		if (mm == p->mm)
-			vmacache_flush(p);
-	}
-	rcu_read_unlock();
-}
+#ifdef CONFIG_MMU
+#define VMACACHE_SHIFT	PMD_SHIFT
+#else
+#define VMACACHE_SHIFT	PAGE_SHIFT
+#endif
+#define VMACACHE_HASH(addr) ((addr >> VMACACHE_SHIFT) & VMACACHE_MASK)
 
 /*
  * This task may be accessing a foreign mm via (for example)
@@ -86,6 +61,7 @@ static bool vmacache_valid(struct mm_struct *mm)
 
 struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
 {
+	int idx = VMACACHE_HASH(addr);
 	int i;
 
 	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
@@ -94,16 +70,20 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
 		return NULL;
 
 	for (i = 0; i < VMACACHE_SIZE; i++) {
-		struct vm_area_struct *vma = current->vmacache.vmas[i];
+		struct vm_area_struct *vma = current->vmacache.vmas[idx];
 
-		if (!vma)
-			continue;
-		if (WARN_ON_ONCE(vma->vm_mm != mm))
-			break;
-		if (vma->vm_start <= addr && vma->vm_end > addr) {
-			count_vm_vmacache_event(VMACACHE_FIND_HITS);
-			return vma;
+		if (vma) {
+#ifdef CONFIG_DEBUG_VM_VMACACHE
+			if (WARN_ON_ONCE(vma->vm_mm != mm))
+				break;
+#endif
+			if (vma->vm_start <= addr && vma->vm_end > addr) {
+				count_vm_vmacache_event(VMACACHE_FIND_HITS);
+				return vma;
+			}
 		}
+		if (++idx == VMACACHE_SIZE)
+			idx = 0;
 	}
 
 	return NULL;
@@ -114,6 +94,7 @@ struct vm_area_struct *vmacache_find_exact(struct mm_struct *mm,
 					   unsigned long start,
 					   unsigned long end)
 {
+	int idx = VMACACHE_HASH(start);
 	int i;
 
 	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
@@ -122,12 +103,14 @@ struct vm_area_struct *vmacache_find_exact(struct mm_struct *mm,
 		return NULL;
 
 	for (i = 0; i < VMACACHE_SIZE; i++) {
-		struct vm_area_struct *vma = current->vmacache.vmas[i];
+		struct vm_area_struct *vma = current->vmacache.vmas[idx];
 
 		if (vma && vma->vm_start == start && vma->vm_end == end) {
 			count_vm_vmacache_event(VMACACHE_FIND_HITS);
 			return vma;
 		}
+		if (++idx == VMACACHE_SIZE)
+			idx = 0;
 	}
 
 	return NULL;

@@ -41,6 +41,8 @@
 #include <linux/phy.h>
 #include <linux/sort.h>
 #include <linux/if_vlan.h>
+#include <linux/of_platform.h>
+#include <linux/fsl/ptp_qoriq.h>
 
 #include "gianfar.h"
 
@@ -228,7 +230,7 @@ static unsigned int gfar_usecs2ticks(struct gfar_private *priv,
 
 	/* Make sure we return a number greater than 0
 	 * if usecs > 0 */
-	return (usecs * 1000 + count - 1) / count;
+	return DIV_ROUND_UP(usecs * 1000, count);
 }
 
 /* Convert ethernet clock ticks to microseconds */
@@ -501,65 +503,44 @@ static int gfar_spauseparam(struct net_device *dev,
 	struct gfar_private *priv = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	u32 oldadv, newadv;
 
 	if (!phydev)
 		return -ENODEV;
 
-	if (!(phydev->supported & SUPPORTED_Pause) ||
-	    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
-	     (epause->rx_pause != epause->tx_pause)))
+	if (!phy_validate_pause(phydev, epause))
 		return -EINVAL;
 
 	priv->rx_pause_en = priv->tx_pause_en = 0;
+	phy_set_asym_pause(phydev, epause->rx_pause, epause->tx_pause);
 	if (epause->rx_pause) {
 		priv->rx_pause_en = 1;
 
 		if (epause->tx_pause) {
 			priv->tx_pause_en = 1;
-			/* FLOW_CTRL_RX & TX */
-			newadv = ADVERTISED_Pause;
-		} else  /* FLOW_CTLR_RX */
-			newadv = ADVERTISED_Pause | ADVERTISED_Asym_Pause;
+		}
 	} else if (epause->tx_pause) {
 		priv->tx_pause_en = 1;
-		/* FLOW_CTLR_TX */
-		newadv = ADVERTISED_Asym_Pause;
-	} else
-		newadv = 0;
+	}
 
 	if (epause->autoneg)
 		priv->pause_aneg_en = 1;
 	else
 		priv->pause_aneg_en = 0;
 
-	oldadv = phydev->advertising &
-		(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-	if (oldadv != newadv) {
-		phydev->advertising &=
-			~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-		phydev->advertising |= newadv;
-		if (phydev->autoneg)
-			/* inform link partner of our
-			 * new flow ctrl settings
-			 */
-			return phy_start_aneg(phydev);
+	if (!epause->autoneg) {
+		u32 tempval = gfar_read(&regs->maccfg1);
 
-		if (!epause->autoneg) {
-			u32 tempval;
-			tempval = gfar_read(&regs->maccfg1);
-			tempval &= ~(MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
+		tempval &= ~(MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
 
-			priv->tx_actual_en = 0;
-			if (priv->tx_pause_en) {
-				priv->tx_actual_en = 1;
-				tempval |= MACCFG1_TX_FLOW;
-			}
-
-			if (priv->rx_pause_en)
-				tempval |= MACCFG1_RX_FLOW;
-			gfar_write(&regs->maccfg1, tempval);
+		priv->tx_actual_en = 0;
+		if (priv->tx_pause_en) {
+			priv->tx_actual_en = 1;
+			tempval |= MACCFG1_TX_FLOW;
 		}
+
+		if (priv->rx_pause_en)
+			tempval |= MACCFG1_RX_FLOW;
+		gfar_write(&regs->maccfg1, tempval);
 	}
 
 	return 0;
@@ -738,7 +719,6 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 				       u64 class)
 {
-	unsigned int last_rule_idx = priv->cur_filer_idx;
 	unsigned int cmp_rqfpr;
 	unsigned int *local_rqfpr;
 	unsigned int *local_rqfcr;
@@ -817,7 +797,6 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 	}
 
 	priv->cur_filer_idx = l - 1;
-	last_rule_idx = l;
 
 	/* hash rules */
 	ethflow_to_filer_rules(priv, ethflow);
@@ -1509,24 +1488,35 @@ static int gfar_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	return ret;
 }
 
-int gfar_phc_index = -1;
-EXPORT_SYMBOL(gfar_phc_index);
-
 static int gfar_get_ts_info(struct net_device *dev,
 			    struct ethtool_ts_info *info)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	struct platform_device *ptp_dev;
+	struct device_node *ptp_node;
+	struct qoriq_ptp *ptp = NULL;
+
+	info->phc_index = -1;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER)) {
 		info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
 					SOF_TIMESTAMPING_SOFTWARE;
-		info->phc_index = -1;
 		return 0;
 	}
+
+	ptp_node = of_find_compatible_node(NULL, NULL, "fsl,etsec-ptp");
+	if (ptp_node) {
+		ptp_dev = of_find_device_by_node(ptp_node);
+		if (ptp_dev)
+			ptp = platform_get_drvdata(ptp_dev);
+	}
+
+	if (ptp)
+		info->phc_index = ptp->phc_index;
+
 	info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;
-	info->phc_index = gfar_phc_index;
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
 			 (1 << HWTSTAMP_TX_ON);
 	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |

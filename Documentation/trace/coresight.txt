@@ -187,13 +187,19 @@ that can be performed on them (see "struct coresight_ops").  The
 specific to that component only.  "Implementation defined" customisations are
 expected to be accessed and controlled using those entries.
 
-Last but not least, "struct module *owner" is expected to be set to reflect
-the information carried in "THIS_MODULE".
 
 How to use the tracer modules
 -----------------------------
 
-Before trace collection can start, a coresight sink needs to be identify.
+There are two ways to use the Coresight framework: 1) using the perf cmd line
+tools and 2) interacting directly with the Coresight devices using the sysFS
+interface.  Preference is given to the former as using the sysFS interface
+requires a deep understanding of the Coresight HW.  The following sections
+provide details on using both methods.
+
+1) Using the sysFS interface:
+
+Before trace collection can start, a coresight sink needs to be identified.
 There is no limit on the amount of sinks (nor sources) that can be enabled at
 any given moment.  As a generic operation, all device pertaining to the sink
 class will have an "active" entry in sysfs:
@@ -298,6 +304,97 @@ Instruction     13570831        0x8026B584      E28DD00C        false   ADD     
 Instruction     0       0x8026B588      E8BD8000        true    LDM      sp!,{pc}
 Timestamp                                       Timestamp: 17107041535
 
+2) Using perf framework:
+
+Coresight tracers are represented using the Perf framework's Performance
+Monitoring Unit (PMU) abstraction.  As such the perf framework takes charge of
+controlling when tracing gets enabled based on when the process of interest is
+scheduled.  When configured in a system, Coresight PMUs will be listed when
+queried by the perf command line tool:
+
+	linaro@linaro-nano:~$ ./perf list pmu
+
+		List of pre-defined events (to be used in -e):
+
+		cs_etm//                                    [Kernel PMU event]
+
+	linaro@linaro-nano:~$
+
+Regardless of the number of tracers available in a system (usually equal to the
+amount of processor cores), the "cs_etm" PMU will be listed only once.
+
+A Coresight PMU works the same way as any other PMU, i.e the name of the PMU is
+listed along with configuration options within forward slashes '/'.  Since a
+Coresight system will typically have more than one sink, the name of the sink to
+work with needs to be specified as an event option.  Names for sink to choose
+from are listed in sysFS under ($SYSFS)/bus/coresight/devices:
+
+	root@linaro-nano:~# ls /sys/bus/coresight/devices/
+		20010000.etf   20040000.funnel  20100000.stm  22040000.etm
+		22140000.etm  230c0000.funnel  23240000.etm 20030000.tpiu
+		20070000.etr     20120000.replicator  220c0000.funnel
+		23040000.etm  23140000.etm     23340000.etm
+
+	root@linaro-nano:~# perf record -e cs_etm/@20070000.etr/u --per-thread program
+
+The syntax within the forward slashes '/' is important.  The '@' character
+tells the parser that a sink is about to be specified and that this is the sink
+to use for the trace session.
+
+More information on the above and other example on how to use Coresight with
+the perf tools can be found in the "HOWTO.md" file of the openCSD gitHub
+repository [3].
+
+2.1) AutoFDO analysis using the perf tools:
+
+perf can be used to record and analyze trace of programs.
+
+Execution can be recorded using 'perf record' with the cs_etm event,
+specifying the name of the sink to record to, e.g:
+
+    perf record -e cs_etm/@20070000.etr/u --per-thread
+
+The 'perf report' and 'perf script' commands can be used to analyze execution,
+synthesizing instruction and branch events from the instruction trace.
+'perf inject' can be used to replace the trace data with the synthesized events.
+The --itrace option controls the type and frequency of synthesized events
+(see perf documentation).
+
+Note that only 64-bit programs are currently supported - further work is
+required to support instruction decode of 32-bit Arm programs.
+
+
+Generating coverage files for Feedback Directed Optimization: AutoFDO
+---------------------------------------------------------------------
+
+'perf inject' accepts the --itrace option in which case tracing data is
+removed and replaced with the synthesized events. e.g.
+
+	perf inject --itrace --strip -i perf.data -o perf.data.new
+
+Below is an example of using ARM ETM for autoFDO.  It requires autofdo
+(https://github.com/google/autofdo) and gcc version 5.  The bubble
+sort example is from the AutoFDO tutorial (https://gcc.gnu.org/wiki/AutoFDO/Tutorial).
+
+	$ gcc-5 -O3 sort.c -o sort
+	$ taskset -c 2 ./sort
+	Bubble sorting array of 30000 elements
+	5910 ms
+
+	$ perf record -e cs_etm/@20070000.etr/u --per-thread taskset -c 2 ./sort
+	Bubble sorting array of 30000 elements
+	12543 ms
+	[ perf record: Woken up 35 times to write data ]
+	[ perf record: Captured and wrote 69.640 MB perf.data ]
+
+	$ perf inject -i perf.data -o inj.data --itrace=il64 --strip
+	$ create_gcov --binary=./sort --profile=inj.data --gcov=sort.gcov -gcov_version=1
+	$ gcc-5 -O3 -fauto-profile=sort.gcov sort.c -o sort_autofdo
+	$ taskset -c 2 ./sort_autofdo
+	Bubble sorting array of 30000 elements
+	5806 ms
+
+
 How to use the STM module
 -------------------------
 
@@ -329,4 +426,5 @@ root@genericarmv8:~#
 Details on how to use the generic STM API can be found here [2].
 
 [1]. Documentation/ABI/testing/sysfs-bus-coresight-devices-stm
-[2]. Documentation/trace/stm.txt
+[2]. Documentation/trace/stm.rst
+[3]. https://github.com/Linaro/perf-opencsd

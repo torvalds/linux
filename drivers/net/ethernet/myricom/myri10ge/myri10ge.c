@@ -70,7 +70,6 @@
 #include <net/tcp.h>
 #include <asm/byteorder.h>
 #include <asm/processor.h>
-#include <net/busy_poll.h>
 
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
@@ -266,7 +265,7 @@ MODULE_FIRMWARE("myri10ge_rss_eth_z8e.dat");
 
 /* Careful: must be accessed under kernel_param_lock() */
 static char *myri10ge_fw_name = NULL;
-module_param(myri10ge_fw_name, charp, S_IRUGO | S_IWUSR);
+module_param(myri10ge_fw_name, charp, 0644);
 MODULE_PARM_DESC(myri10ge_fw_name, "Firmware image name");
 
 #define MYRI10GE_MAX_BOARDS 8
@@ -277,49 +276,49 @@ module_param_array_named(myri10ge_fw_names, myri10ge_fw_names, charp, NULL,
 MODULE_PARM_DESC(myri10ge_fw_names, "Firmware image names per board");
 
 static int myri10ge_ecrc_enable = 1;
-module_param(myri10ge_ecrc_enable, int, S_IRUGO);
+module_param(myri10ge_ecrc_enable, int, 0444);
 MODULE_PARM_DESC(myri10ge_ecrc_enable, "Enable Extended CRC on PCI-E");
 
 static int myri10ge_small_bytes = -1;	/* -1 == auto */
-module_param(myri10ge_small_bytes, int, S_IRUGO | S_IWUSR);
+module_param(myri10ge_small_bytes, int, 0644);
 MODULE_PARM_DESC(myri10ge_small_bytes, "Threshold of small packets");
 
 static int myri10ge_msi = 1;	/* enable msi by default */
-module_param(myri10ge_msi, int, S_IRUGO | S_IWUSR);
+module_param(myri10ge_msi, int, 0644);
 MODULE_PARM_DESC(myri10ge_msi, "Enable Message Signalled Interrupts");
 
 static int myri10ge_intr_coal_delay = 75;
-module_param(myri10ge_intr_coal_delay, int, S_IRUGO);
+module_param(myri10ge_intr_coal_delay, int, 0444);
 MODULE_PARM_DESC(myri10ge_intr_coal_delay, "Interrupt coalescing delay");
 
 static int myri10ge_flow_control = 1;
-module_param(myri10ge_flow_control, int, S_IRUGO);
+module_param(myri10ge_flow_control, int, 0444);
 MODULE_PARM_DESC(myri10ge_flow_control, "Pause parameter");
 
 static int myri10ge_deassert_wait = 1;
-module_param(myri10ge_deassert_wait, int, S_IRUGO | S_IWUSR);
+module_param(myri10ge_deassert_wait, int, 0644);
 MODULE_PARM_DESC(myri10ge_deassert_wait,
 		 "Wait when deasserting legacy interrupts");
 
 static int myri10ge_force_firmware = 0;
-module_param(myri10ge_force_firmware, int, S_IRUGO);
+module_param(myri10ge_force_firmware, int, 0444);
 MODULE_PARM_DESC(myri10ge_force_firmware,
 		 "Force firmware to assume aligned completions");
 
 static int myri10ge_initial_mtu = MYRI10GE_MAX_ETHER_MTU - ETH_HLEN;
-module_param(myri10ge_initial_mtu, int, S_IRUGO);
+module_param(myri10ge_initial_mtu, int, 0444);
 MODULE_PARM_DESC(myri10ge_initial_mtu, "Initial MTU");
 
 static int myri10ge_napi_weight = 64;
-module_param(myri10ge_napi_weight, int, S_IRUGO);
+module_param(myri10ge_napi_weight, int, 0444);
 MODULE_PARM_DESC(myri10ge_napi_weight, "Set NAPI weight");
 
 static int myri10ge_watchdog_timeout = 1;
-module_param(myri10ge_watchdog_timeout, int, S_IRUGO);
+module_param(myri10ge_watchdog_timeout, int, 0444);
 MODULE_PARM_DESC(myri10ge_watchdog_timeout, "Set watchdog timeout");
 
 static int myri10ge_max_irq_loops = 1048576;
-module_param(myri10ge_max_irq_loops, int, S_IRUGO);
+module_param(myri10ge_max_irq_loops, int, 0444);
 MODULE_PARM_DESC(myri10ge_max_irq_loops,
 		 "Set stuck legacy IRQ detection threshold");
 
@@ -330,21 +329,21 @@ module_param(myri10ge_debug, int, 0);
 MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
 
 static int myri10ge_fill_thresh = 256;
-module_param(myri10ge_fill_thresh, int, S_IRUGO | S_IWUSR);
+module_param(myri10ge_fill_thresh, int, 0644);
 MODULE_PARM_DESC(myri10ge_fill_thresh, "Number of empty rx slots allowed");
 
 static int myri10ge_reset_recover = 1;
 
 static int myri10ge_max_slices = 1;
-module_param(myri10ge_max_slices, int, S_IRUGO);
+module_param(myri10ge_max_slices, int, 0444);
 MODULE_PARM_DESC(myri10ge_max_slices, "Max tx/rx queues");
 
 static int myri10ge_rss_hash = MXGEFW_RSS_HASH_TYPE_SRC_DST_PORT;
-module_param(myri10ge_rss_hash, int, S_IRUGO);
+module_param(myri10ge_rss_hash, int, 0444);
 MODULE_PARM_DESC(myri10ge_rss_hash, "Type of RSS hashing to do");
 
 static int myri10ge_dca = 1;
-module_param(myri10ge_dca, int, S_IRUGO);
+module_param(myri10ge_dca, int, 0444);
 MODULE_PARM_DESC(myri10ge_dca, "Enable DCA if possible");
 
 #define MYRI10GE_FW_OFFSET 1024*1024
@@ -3501,7 +3500,7 @@ static void myri10ge_watchdog(struct work_struct *work)
  * cannot detect a NIC with a parity error in a timely fashion if the
  * NIC is lightly loaded.
  */
-static void myri10ge_watchdog_timer(unsigned long arg)
+static void myri10ge_watchdog_timer(struct timer_list *t)
 {
 	struct myri10ge_priv *mgp;
 	struct myri10ge_slice_state *ss;
@@ -3509,7 +3508,7 @@ static void myri10ge_watchdog_timer(unsigned long arg)
 	u32 rx_pause_cnt;
 	u16 cmd;
 
-	mgp = (struct myri10ge_priv *)arg;
+	mgp = from_timer(mgp, t, watchdog_timer);
 
 	rx_pause_cnt = ntohl(mgp->ss[0].fw_stats->dropped_pause);
 	busy_slice_cnt = 0;
@@ -3930,8 +3929,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_save_state(pdev);
 
 	/* Setup the watchdog timer */
-	setup_timer(&mgp->watchdog_timer, myri10ge_watchdog_timer,
-		    (unsigned long)mgp);
+	timer_setup(&mgp->watchdog_timer, myri10ge_watchdog_timer, 0);
 
 	netdev->ethtool_ops = &myri10ge_ethtool_ops;
 	INIT_WORK(&mgp->watchdog_work, myri10ge_watchdog);

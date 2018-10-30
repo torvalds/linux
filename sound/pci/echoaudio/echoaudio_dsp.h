@@ -627,8 +627,8 @@ sg_entry struct is read by the DSP, so all values must be little-endian. */
 #define MAX_SGLIST_ENTRIES 512
 
 struct sg_entry {
-	u32 addr;
-	u32 size;
+	__le32 addr;
+	__le32 size;
 };
 
 
@@ -643,18 +643,18 @@ struct sg_entry {
  ****************************************************************************/
 
 struct comm_page {		/*				Base	Length*/
-	u32 comm_size;		/* size of this object		0x000	4 */
-	u32 flags;		/* See Appendix A below		0x004	4 */
-	u32 unused;		/* Unused entry			0x008	4 */
-	u32 sample_rate;	/* Card sample rate in Hz	0x00c	4 */
-	u32 handshake;		/* DSP command handshake	0x010	4 */
-	u32 cmd_start;		/* Chs. to start mask		0x014	4 */
-	u32 cmd_stop;		/* Chs. to stop mask		0x018	4 */
-	u32 cmd_reset;		/* Chs. to reset mask		0x01c	4 */
-	u16 audio_format[DSP_MAXPIPES];	/* Chs. audio format	0x020	32*2 */
+	__le32 comm_size;	/* size of this object		0x000	4 */
+	__le32 flags;		/* See Appendix A below		0x004	4 */
+	__le32 unused;		/* Unused entry			0x008	4 */
+	__le32 sample_rate;	/* Card sample rate in Hz	0x00c	4 */
+	__le32 handshake;	/* DSP command handshake	0x010	4 */
+	__le32 cmd_start;	/* Chs. to start mask		0x014	4 */
+	__le32 cmd_stop;	/* Chs. to stop mask		0x018	4 */
+	__le32 cmd_reset;	/* Chs. to reset mask		0x01c	4 */
+	__le16 audio_format[DSP_MAXPIPES];	/* Chs. audio format	0x020	32*2 */
 	struct sg_entry sglist_addr[DSP_MAXPIPES];
 				/* Chs. Physical sglist addrs	0x060	32*8 */
-	u32 position[DSP_MAXPIPES];
+	__le32 position[DSP_MAXPIPES];
 				/* Positions for ea. ch.	0x160	32*4 */
 	s8 vu_meter[DSP_MAXPIPES];
 				/* VU meters			0x1e0	32*1 */
@@ -666,28 +666,28 @@ struct comm_page {		/*				Base	Length*/
 				/* Input gain			0x230	16*1 */
 	s8 monitors[MONITOR_ARRAY_SIZE];
 				/* Monitor map			0x240	0x180 */
-	u32 play_coeff[MAX_PLAY_TAPS];
+	__le32 play_coeff[MAX_PLAY_TAPS];
 			/* Gina/Darla play filters - obsolete	0x3c0	168*4 */
-	u32 rec_coeff[MAX_REC_TAPS];
+	__le32 rec_coeff[MAX_REC_TAPS];
 			/* Gina/Darla record filters - obsolete	0x660	192*4 */
-	u16 midi_input[MIDI_IN_BUFFER_SIZE];
+	__le16 midi_input[MIDI_IN_BUFFER_SIZE];
 			/* MIDI input data transfer buffer	0x960	256*2 */
 	u8 gd_clock_state;	/* Chg Gina/Darla clock state	0xb60	1 */
 	u8 gd_spdif_status;	/* Chg. Gina/Darla S/PDIF state	0xb61	1 */
 	u8 gd_resampler_state;	/* Should always be 3		0xb62	1 */
 	u8 filler2;		/*				0xb63	1 */
-	u32 nominal_level_mask;	/* -10 level enable mask	0xb64	4 */
-	u16 input_clock;	/* Chg. Input clock state	0xb68	2 */
-	u16 output_clock;	/* Chg. Output clock state	0xb6a	2 */
-	u32 status_clocks;	/* Current Input clock state	0xb6c	4 */
-	u32 ext_box_status;	/* External box status		0xb70	4 */
-	u32 cmd_add_buffer;	/* Pipes to add (obsolete)	0xb74	4 */
-	u32 midi_out_free_count;
+	__le32 nominal_level_mask;	/* -10 level enable mask	0xb64	4 */
+	__le16 input_clock;	/* Chg. Input clock state	0xb68	2 */
+	__le16 output_clock;	/* Chg. Output clock state	0xb6a	2 */
+	__le32 status_clocks;	/* Current Input clock state	0xb6c	4 */
+	__le32 ext_box_status;	/* External box status		0xb70	4 */
+	__le32 cmd_add_buffer;	/* Pipes to add (obsolete)	0xb74	4 */
+	__le32 midi_out_free_count;
 			/* # of bytes free in MIDI output FIFO	0xb78	4 */
-	u32 unused2;		/* Cyclic pipes			0xb7c	4 */
-	u32 control_register;
+	__le32 unused2;		/* Cyclic pipes			0xb7c	4 */
+	__le32 control_register;
 			/* Mona, Gina24, Layla24, 3G ctrl reg	0xb80	4 */
-	u32 e3g_frq_register;	/* 3G frequency register	0xb84	4 */
+	__le32 e3g_frq_register;	/* 3G frequency register	0xb84	4 */
 	u8 filler[24];		/* filler			0xb88	24*1 */
 	s8 vmixer[VMIXER_ARRAY_SIZE];
 				/* Vmixer levels		0xba0	64*1 */

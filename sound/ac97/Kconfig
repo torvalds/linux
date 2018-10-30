@@ -1,0 +1,18 @@
+#
+# AC97 configuration
+#
+
+
+config AC97_BUS_NEW
+	tristate
+	help
+	  This is the new AC97 bus type, successor of AC97_BUS. The ported
+	  drivers which benefit from the AC97 automatic probing should "select"
+	  this instead of the AC97_BUS.
+	  Say Y here if you want to have AC97 devices, which are sound oriented
+	  devices around an AC-Link.
+
+config AC97_BUS_COMPAT
+	bool
+	depends on AC97_BUS_NEW
+	depends on !AC97_BUS

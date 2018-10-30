@@ -74,12 +74,10 @@ struct thread_info {
 	.task		= &tsk,				\
 	.flags		= 0,				\
 	.cpu		= 0,				\
-	.preempt_count	= 1,				\
+	.preempt_count	= INIT_PREEMPT_COUNT,		\
 	.addr_limit	= KERNEL_DS,			\
 	.ksp            = 0,                            \
 }
-
-#define init_thread_info	(init_thread_union.thread_info)
 
 /* how to get the thread information struct from C */
 register struct thread_info *current_thread_info_reg asm("r10");

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "xyarray.h"
 #include "util.h"
 #include <stdlib.h>

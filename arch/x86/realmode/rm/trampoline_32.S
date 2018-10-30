@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  *	Trampoline.S	Derived from Setup.S by Linus Torvalds

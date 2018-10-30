@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _XENFS_XENBUS_H
 #define _XENFS_XENBUS_H
 

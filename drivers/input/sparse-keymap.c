@@ -21,7 +21,6 @@
 MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");
 MODULE_DESCRIPTION("Generic support for sparse keymaps");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION("0.1");
 
 static unsigned int sparse_keymap_get_key_index(struct input_dev *dev,
 						const struct key_entry *k)
@@ -255,6 +254,7 @@ void sparse_keymap_report_entry(struct input_dev *dev, const struct key_entry *k
 
 	case KE_VSW:
 		input_report_switch(dev, ke->sw.code, value);
+		input_sync(dev);
 		break;
 	}
 }

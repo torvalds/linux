@@ -592,12 +592,12 @@ static int ndev_init_isr(struct amd_ntb_dev *ndev,
 	ndev->db_mask = ndev->db_valid_mask;
 
 	/* Try to set up msix irq */
-	ndev->vec = kzalloc_node(msix_max * sizeof(*ndev->vec),
+	ndev->vec = kcalloc_node(msix_max, sizeof(*ndev->vec),
 				 GFP_KERNEL, node);
 	if (!ndev->vec)
 		goto err_msix_vec_alloc;
 
-	ndev->msix = kzalloc_node(msix_max * sizeof(*ndev->msix),
+	ndev->msix = kcalloc_node(msix_max, sizeof(*ndev->msix),
 				  GFP_KERNEL, node);
 	if (!ndev->msix)
 		goto err_msix_alloc;
@@ -1020,6 +1020,10 @@ static int amd_ntb_init_pci(struct amd_ntb_dev *ndev,
 			goto err_dma_mask;
 		dev_warn(&pdev->dev, "Cannot DMA consistent highmem\n");
 	}
+	rc = dma_coerce_mask_and_coherent(&ndev->ntb.dev,
+					  dma_get_mask(&pdev->dev));
+	if (rc)
+		goto err_dma_mask;
 
 	ndev->self_mmio = pci_iomap(pdev, 0, 0);
 	if (!ndev->self_mmio) {

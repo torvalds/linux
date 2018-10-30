@@ -78,7 +78,9 @@ struct host1x_syncpt_ops {
 	void (*load_wait_base)(struct host1x_syncpt *syncpt);
 	u32 (*load)(struct host1x_syncpt *syncpt);
 	int (*cpu_incr)(struct host1x_syncpt *syncpt);
-	int (*patch_wait)(struct host1x_syncpt *syncpt, void *patch_addr);
+	void (*assign_to_channel)(struct host1x_syncpt *syncpt,
+	                          struct host1x_channel *channel);
+	void (*enable_protection)(struct host1x *host);
 };
 
 struct host1x_intr_ops {
@@ -100,18 +102,21 @@ struct host1x_info {
 	int (*init)(struct host1x *host1x); /* initialize per SoC ops */
 	unsigned int sync_offset; /* offset of syncpoint registers */
 	u64 dma_mask; /* mask of addressable memory */
+	bool has_hypervisor; /* has hypervisor registers */
 };
 
 struct host1x {
 	const struct host1x_info *info;
 
 	void __iomem *regs;
+	void __iomem *hv_regs; /* hypervisor region */
 	struct host1x_syncpt *syncpt;
 	struct host1x_syncpt_base *bases;
 	struct device *dev;
 	struct clk *clk;
 	struct reset_control *rst;
 
+	struct iommu_group *group;
 	struct iommu_domain *domain;
 	struct iova_domain iova;
 	dma_addr_t iova_end;
@@ -140,6 +145,8 @@ struct host1x {
 	struct list_head list;
 };
 
+void host1x_hypervisor_writel(struct host1x *host1x, u32 r, u32 v);
+u32 host1x_hypervisor_readl(struct host1x *host1x, u32 r);
 void host1x_sync_writel(struct host1x *host1x, u32 r, u32 v);
 u32 host1x_sync_readl(struct host1x *host1x, u32 r);
 void host1x_ch_writel(struct host1x_channel *ch, u32 r, u32 v);
@@ -175,11 +182,16 @@ static inline int host1x_hw_syncpt_cpu_incr(struct host1x *host,
 	return host->syncpt_op->cpu_incr(sp);
 }
 
-static inline int host1x_hw_syncpt_patch_wait(struct host1x *host,
-					      struct host1x_syncpt *sp,
-					      void *patch_addr)
+static inline void host1x_hw_syncpt_assign_to_channel(
+	struct host1x *host, struct host1x_syncpt *sp,
+	struct host1x_channel *ch)
 {
-	return host->syncpt_op->patch_wait(sp, patch_addr);
+	return host->syncpt_op->assign_to_channel(sp, ch);
+}
+
+static inline void host1x_hw_syncpt_enable_protection(struct host1x *host)
+{
+	return host->syncpt_op->enable_protection(host);
 }
 
 static inline int host1x_hw_intr_init_host_sync(struct host1x *host, u32 cpm,

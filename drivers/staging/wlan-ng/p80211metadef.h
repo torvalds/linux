@@ -1,5 +1,5 @@
-/* This file is GENERATED AUTOMATICALLY.  DO NOT EDIT OR MODIFY.
- * --------------------------------------------------------------------
+/* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
+/* --------------------------------------------------------------------
  *
  * Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
  * --------------------------------------------------------------------
@@ -47,201 +47,201 @@
 #ifndef _P80211MKMETADEF_H
 #define _P80211MKMETADEF_H
 
-#define DIDmsg_dot11req_mibget \
+#define DIDMSG_DOT11REQ_MIBGET \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(1))
-#define DIDmsg_dot11req_mibget_mibattribute \
+#define DIDMSG_DOT11REQ_MIBGET_MIBATTRIBUTE \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_dot11req_mibget_resultcode \
+#define DIDMSG_DOT11REQ_MIBGET_RESULTCODE \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_mibset \
+#define DIDMSG_DOT11REQ_MIBSET \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(2))
-#define DIDmsg_dot11req_mibset_mibattribute \
+#define DIDMSG_DOT11REQ_MIBSET_MIBATTRIBUTE \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_dot11req_mibset_resultcode \
+#define DIDMSG_DOT11REQ_MIBSET_RESULTCODE \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_scan \
+#define DIDMSG_DOT11REQ_SCAN \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(4))
-#define DIDmsg_dot11req_scan_results \
+#define DIDMSG_DOT11REQ_SCAN_RESULTS \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(5))
-#define DIDmsg_dot11req_start \
+#define DIDMSG_DOT11REQ_START \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(13))
-#define DIDmsg_dot11ind_authenticate \
+#define DIDMSG_DOT11IND_AUTHENTICATE \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1))
-#define DIDmsg_dot11ind_associate \
+#define DIDMSG_DOT11IND_ASSOCIATE \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(3))
-#define DIDmsg_lnxreq_ifstate \
+#define DIDMSG_LNXREQ_IFSTATE \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(1))
-#define DIDmsg_lnxreq_wlansniff \
+#define DIDMSG_LNXREQ_WLANSNIFF \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(2))
-#define DIDmsg_lnxreq_hostwep \
+#define DIDMSG_LNXREQ_HOSTWEP \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(3))
-#define DIDmsg_lnxreq_commsquality \
+#define DIDMSG_LNXREQ_COMMSQUALITY \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(4))
-#define DIDmsg_lnxreq_autojoin \
+#define DIDMSG_LNXREQ_AUTOJOIN \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(5))
-#define DIDmsg_p2req_readpda \
+#define DIDMSG_P2REQ_READPDA \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2))
-#define DIDmsg_p2req_readpda_pda \
+#define DIDMSG_P2REQ_READPDA_PDA \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_p2req_readpda_resultcode \
+#define DIDMSG_P2REQ_READPDA_RESULTCODE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_p2req_ramdl_state \
+#define DIDMSG_P2REQ_RAMDL_STATE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(11))
-#define DIDmsg_p2req_ramdl_state_enable \
+#define DIDMSG_P2REQ_RAMDL_STATE_ENABLE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(11) | \
 			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_p2req_ramdl_state_exeaddr \
+#define DIDMSG_P2REQ_RAMDL_STATE_EXEADDR \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(11) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_p2req_ramdl_state_resultcode \
+#define DIDMSG_P2REQ_RAMDL_STATE_RESULTCODE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(11) | \
 			P80211DID_MKITEM(3) | 0x00000000)
-#define DIDmsg_p2req_ramdl_write \
+#define DIDMSG_P2REQ_RAMDL_WRITE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(12))
-#define DIDmsg_p2req_ramdl_write_addr \
+#define DIDMSG_P2REQ_RAMDL_WRITE_ADDR \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(12) | \
 			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_p2req_ramdl_write_len \
+#define DIDMSG_P2REQ_RAMDL_WRITE_LEN \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(12) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_p2req_ramdl_write_data \
+#define DIDMSG_P2REQ_RAMDL_WRITE_DATA \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(12) | \
 			P80211DID_MKITEM(3) | 0x00000000)
-#define DIDmsg_p2req_ramdl_write_resultcode \
+#define DIDMSG_P2REQ_RAMDL_WRITE_RESULTCODE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(12) | \
 			P80211DID_MKITEM(4) | 0x00000000)
-#define DIDmsg_p2req_flashdl_state \
+#define DIDMSG_P2REQ_FLASHDL_STATE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(13))
-#define DIDmsg_p2req_flashdl_write \
+#define DIDMSG_P2REQ_FLASHDL_WRITE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(14))
-#define DIDmib_cat_dot11smt \
+#define DIDMIB_CAT_DOT11SMT \
 			P80211DID_MKSECTION(1)
-#define DIDmib_dot11smt_dot11WEPDefaultKeysTable \
+#define DIDMIB_DOT11SMT_WEPDEFAULTKEYSTABLE \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(4))
-#define DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(_i) \
-			(DIDmib_dot11smt_dot11WEPDefaultKeysTable | \
+#define didmib_dot11smt_wepdefaultkeystable_key(_i) \
+			(DIDMIB_DOT11SMT_WEPDEFAULTKEYSTABLE | \
 			P80211DID_MKITEM(_i) | 0x0c000000)
-#define DIDmib_dot11smt_dot11PrivacyTable \
+#define DIDMIB_DOT11SMT_PRIVACYTABLE \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(6))
-#define DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked \
+#define DIDMIB_DOT11SMT_PRIVACYTABLE_PRIVACYINVOKED \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(6) | \
 			P80211DID_MKITEM(1) | 0x18000000)
-#define DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID \
+#define DIDMIB_DOT11SMT_PRIVACYTABLE_WEPDEFAULTKEYID \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(6) | \
 			P80211DID_MKITEM(2) | 0x18000000)
-#define DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted \
+#define DIDMIB_DOT11SMT_PRIVACYTABLE_EXCLUDEUNENCRYPTED \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(6) | \
 			P80211DID_MKITEM(4) | 0x18000000)
-#define DIDmib_dot11mac_dot11OperationTable \
+#define DIDMIB_DOT11MAC_OPERATIONTABLE \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1))
-#define DIDmib_dot11mac_dot11OperationTable_dot11MACAddress \
+#define DIDMIB_DOT11MAC_OPERATIONTABLE_MACADDRESS \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(1) | 0x18000000)
-#define DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold \
+#define DIDMIB_DOT11MAC_OPERATIONTABLE_RTSTHRESHOLD \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(2) | 0x18000000)
-#define DIDmib_dot11mac_dot11OperationTable_dot11ShortRetryLimit \
+#define DIDMIB_DOT11MAC_OPERATIONTABLE_SHORTRETRYLIMIT \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(3) | 0x10000000)
-#define DIDmib_dot11mac_dot11OperationTable_dot11LongRetryLimit \
+#define DIDMIB_DOT11MAC_OPERATIONTABLE_LONGRETRYLIMIT \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(4) | 0x10000000)
-#define DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold \
+#define DIDMIB_DOT11MAC_OPERATIONTABLE_FRAGMENTATIONTHRESHOLD \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(5) | 0x18000000)
-#define DIDmib_dot11mac_dot11OperationTable_dot11MaxTransmitMSDULifetime \
+#define DIDMIB_DOT11MAC_OPERATIONTABLE_MAXTRANSMITMSDULIFETIME \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(6) | 0x10000000)
-#define DIDmib_cat_dot11phy \
+#define DIDMIB_CAT_DOT11PHY \
 			P80211DID_MKSECTION(3)
-#define DIDmib_dot11phy_dot11PhyOperationTable \
+#define DIDMIB_DOT11PHY_OPERATIONTABLE \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(1))
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel \
+#define DIDMIB_DOT11PHY_TXPOWERTABLE_CURRENTTXPOWERLEVEL \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(3) | \
 			P80211DID_MKITEM(10) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyDSSSTable \
+#define DIDMIB_DOT11PHY_DSSSTABLE \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(5))
-#define DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel \
+#define DIDMIB_DOT11PHY_DSSSTABLE_CURRENTCHANNEL \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(5) | \
 			P80211DID_MKITEM(1) | 0x10000000)
-#define DIDmib_cat_lnx \
+#define DIDMIB_CAT_LNX \
 			P80211DID_MKSECTION(4)
-#define DIDmib_lnx_lnxConfigTable \
+#define DIDMIB_LNX_CONFIGTABLE \
 			(P80211DID_MKSECTION(4) | \
 			P80211DID_MKGROUP(1))
-#define DIDmib_lnx_lnxConfigTable_lnxRSNAIE \
+#define DIDMIB_LNX_CONFIGTABLE_RSNAIE \
 			(P80211DID_MKSECTION(4) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(1) | 0x18000000)
-#define DIDmib_cat_p2 \
+#define DIDMIB_CAT_P2 \
 			P80211DID_MKSECTION(5)
-#define DIDmib_p2_p2Static \
+#define DIDMIB_P2_STATIC \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2))
-#define DIDmib_p2_p2Static_p2CnfPortType \
+#define DIDMIB_P2_STATIC_CNFPORTTYPE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(1) | 0x18000000)
-#define DIDmib_p2_p2NIC_p2PRISupRange \
+#define DIDMIB_P2_NIC_PRISUPRANGE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(5) | \
 			P80211DID_MKITEM(6) | 0x10000000)
-#define DIDmib_p2_p2MAC \
+#define DIDMIB_P2_MAC \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(6))
-#define DIDmib_p2_p2MAC_p2CurrentTxRate \
+#define DIDMIB_P2_MAC_CURRENTTXRATE \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(6) | \
 			P80211DID_MKITEM(12) | 0x10000000)

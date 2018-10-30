@@ -16,6 +16,7 @@
 #include <linux/net.h>
 #include <linux/module.h>
 #include <net/ip.h>
+#include <net/ip_tunnels.h>
 #include <net/lwtunnel.h>
 #include <net/netevent.h>
 #include <net/netns/generic.h>
@@ -90,22 +91,43 @@ static void set_tun_src(struct net *net, struct net_device *dev,
 	rcu_read_unlock();
 }
 
+/* Compute flowlabel for outer IPv6 header */
+static __be32 seg6_make_flowlabel(struct net *net, struct sk_buff *skb,
+				  struct ipv6hdr *inner_hdr)
+{
+	int do_flowlabel = net->ipv6.sysctl.seg6_flowlabel;
+	__be32 flowlabel = 0;
+	u32 hash;
+
+	if (do_flowlabel > 0) {
+		hash = skb_get_hash(skb);
+		hash = rol32(hash, 16);
+		flowlabel = (__force __be32)hash & IPV6_FLOWLABEL_MASK;
+	} else if (!do_flowlabel && skb->protocol == htons(ETH_P_IPV6)) {
+		flowlabel = ip6_flowlabel(inner_hdr);
+	}
+	return flowlabel;
+}
+
 /* encapsulate an IPv6 packet within an outer IPv6 header with a given SRH */
 int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh, int proto)
 {
-	struct net *net = dev_net(skb_dst(skb)->dev);
+	struct dst_entry *dst = skb_dst(skb);
+	struct net *net = dev_net(dst->dev);
 	struct ipv6hdr *hdr, *inner_hdr;
 	struct ipv6_sr_hdr *isrh;
 	int hdrlen, tot_len, err;
+	__be32 flowlabel;
 
 	hdrlen = (osrh->hdrlen + 1) << 3;
 	tot_len = hdrlen + sizeof(*hdr);
 
-	err = skb_cow_head(skb, tot_len);
+	err = skb_cow_head(skb, tot_len + skb->mac_len);
 	if (unlikely(err))
 		return err;
 
 	inner_hdr = ipv6_hdr(skb);
+	flowlabel = seg6_make_flowlabel(net, skb, inner_hdr);
 
 	skb_push(skb, tot_len);
 	skb_reset_network_header(skb);
@@ -119,10 +141,10 @@ int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh, int proto)
 
 	if (skb->protocol == htons(ETH_P_IPV6)) {
 		ip6_flow_hdr(hdr, ip6_tclass(ip6_flowinfo(inner_hdr)),
-			     ip6_flowlabel(inner_hdr));
+			     flowlabel);
 		hdr->hop_limit = inner_hdr->hop_limit;
 	} else {
-		ip6_flow_hdr(hdr, 0, 0);
+		ip6_flow_hdr(hdr, 0, flowlabel);
 		hdr->hop_limit = ip6_dst_hoplimit(skb_dst(skb));
 	}
 
@@ -134,7 +156,7 @@ int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh, int proto)
 	isrh->nexthdr = proto;
 
 	hdr->daddr = isrh->segments[isrh->first_segment];
-	set_tun_src(net, skb->dev, &hdr->daddr, &hdr->saddr);
+	set_tun_src(net, dst->dev, &hdr->daddr, &hdr->saddr);
 
 #ifdef CONFIG_IPV6_SEG6_HMAC
 	if (sr_has_hmac(isrh)) {
@@ -159,7 +181,7 @@ int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 
 	hdrlen = (osrh->hdrlen + 1) << 3;
 
-	err = skb_cow_head(skb, hdrlen);
+	err = skb_cow_head(skb, hdrlen + skb->mac_len);
 	if (unlikely(err))
 		return err;
 
@@ -210,11 +232,6 @@ static int seg6_do_srh(struct sk_buff *skb)
 
 	tinfo = seg6_encap_lwtunnel(dst->lwtstate);
 
-	if (likely(!skb->encapsulation)) {
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-	}
-
 	switch (tinfo->mode) {
 	case SEG6_IPTUN_MODE_INLINE:
 		if (skb->protocol != htons(ETH_P_IPV6))
@@ -223,10 +240,12 @@ static int seg6_do_srh(struct sk_buff *skb)
 		err = seg6_do_srh_inline(skb, tinfo->srh);
 		if (err)
 			return err;
-
-		skb_reset_inner_headers(skb);
 		break;
 	case SEG6_IPTUN_MODE_ENCAP:
+		err = iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6);
+		if (err)
+			return err;
+
 		if (skb->protocol == htons(ETH_P_IPV6))
 			proto = IPPROTO_IPV6;
 		else if (skb->protocol == htons(ETH_P_IP))
@@ -238,6 +257,8 @@ static int seg6_do_srh(struct sk_buff *skb)
 		if (err)
 			return err;
 
+		skb_set_inner_transport_header(skb, skb_transport_offset(skb));
+		skb_set_inner_protocol(skb, skb->protocol);
 		skb->protocol = htons(ETH_P_IPV6);
 		break;
 	case SEG6_IPTUN_MODE_L2ENCAP:
@@ -260,8 +281,6 @@ static int seg6_do_srh(struct sk_buff *skb)
 
 	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
-
-	skb_set_inner_protocol(skb, skb->protocol);
 
 	return 0;
 }
@@ -418,7 +437,7 @@ static int seg6_build_state(struct nlattr *nla,
 
 	slwt = seg6_lwt_lwtunnel(newts);
 
-	err = dst_cache_init(&slwt->cache, GFP_KERNEL);
+	err = dst_cache_init(&slwt->cache, GFP_ATOMIC);
 	if (err) {
 		kfree(newts);
 		return err;

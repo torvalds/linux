@@ -25,8 +25,10 @@
 
 #include <asm/fixmap.h>
 #include <asm/pvclock.h>
+#include <asm/vgtod.h>
 
 static u8 valid_flags __read_mostly = 0;
+static struct pvclock_vsyscall_time_info *pvti_cpu0_va __read_mostly;
 
 void pvclock_set_flags(u8 flags)
 {
@@ -121,26 +123,45 @@ u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 
 void pvclock_read_wallclock(struct pvclock_wall_clock *wall_clock,
 			    struct pvclock_vcpu_time_info *vcpu_time,
-			    struct timespec *ts)
+			    struct timespec64 *ts)
 {
 	u32 version;
 	u64 delta;
-	struct timespec now;
+	struct timespec64 now;
 
 	/* get wallclock at system boot */
 	do {
 		version = wall_clock->version;
 		rmb();		/* fetch version before time */
+		/*
+		 * Note: wall_clock->sec is a u32 value, so it can
+		 * only store dates between 1970 and 2106. To allow
+		 * times beyond that, we need to create a new hypercall
+		 * interface with an extended pvclock_wall_clock structure
+		 * like ARM has.
+		 */
 		now.tv_sec  = wall_clock->sec;
 		now.tv_nsec = wall_clock->nsec;
 		rmb();		/* fetch time before checking version */
 	} while ((wall_clock->version & 1) || (version != wall_clock->version));
 
 	delta = pvclock_clocksource_read(vcpu_time);	/* time since system boot */
-	delta += now.tv_sec * (u64)NSEC_PER_SEC + now.tv_nsec;
+	delta += now.tv_sec * NSEC_PER_SEC + now.tv_nsec;
 
 	now.tv_nsec = do_div(delta, NSEC_PER_SEC);
 	now.tv_sec = delta;
 
-	set_normalized_timespec(ts, now.tv_sec, now.tv_nsec);
+	set_normalized_timespec64(ts, now.tv_sec, now.tv_nsec);
 }
+
+void pvclock_set_pvti_cpu0_va(struct pvclock_vsyscall_time_info *pvti)
+{
+	WARN_ON(vclock_was_used(VCLOCK_PVCLOCK));
+	pvti_cpu0_va = pvti;
+}
+
+struct pvclock_vsyscall_time_info *pvclock_get_pvti_cpu0_va(void)
+{
+	return pvti_cpu0_va;
+}
+EXPORT_SYMBOL_GPL(pvclock_get_pvti_cpu0_va);

@@ -3,10 +3,7 @@ config SSB_POSSIBLE
 	depends on HAS_IOMEM && HAS_DMA
 	default y
 
-menu "Sonics Silicon Backplane"
-	depends on SSB_POSSIBLE
-
-config SSB
+menuconfig SSB
 	tristate "Sonics Silicon Backplane support"
 	depends on SSB_POSSIBLE
 	help
@@ -21,6 +18,8 @@ config SSB
 
 	  If unsure, say N.
 
+if SSB
+
 # Common SPROM support routines
 config SSB_SPROM
 	bool
@@ -32,7 +31,7 @@ config SSB_BLOCKIO
 
 config SSB_PCIHOST_POSSIBLE
 	bool
-	depends on SSB && (PCI = y || PCI = SSB)
+	depends on SSB && (PCI = y || PCI = SSB) && (PCI_DRIVERS_LEGACY || !MIPS)
 	default y
 
 config SSB_PCIHOST
@@ -90,27 +89,6 @@ config SSB_HOST_SOC
 
 	  If unsure, say N
 
-config SSB_SILENT
-	bool "No SSB kernel messages"
-	depends on SSB && EXPERT
-	help
-	  This option turns off all Sonics Silicon Backplane printks.
-	  Note that you won't be able to identify problems, once
-	  messages are turned off.
-	  This might only be desired for production kernels on
-	  embedded devices to reduce the kernel size.
-
-	  Say N
-
-config SSB_DEBUG
-	bool "SSB debugging"
-	depends on SSB && !SSB_SILENT
-	help
-	  This turns on additional runtime checks and debugging
-	  messages. Turn this on for SSB troubleshooting.
-
-	  If unsure, say N
-
 config SSB_SERIAL
 	bool
 	depends on SSB
@@ -132,7 +110,7 @@ config SSB_DRIVER_PCICORE
 
 config SSB_PCICORE_HOSTMODE
 	bool "Hostmode support for SSB PCI core"
-	depends on SSB_DRIVER_PCICORE && SSB_DRIVER_MIPS
+	depends on SSB_DRIVER_PCICORE && SSB_DRIVER_MIPS && SSB = y
 	help
 	  PCIcore hostmode operation (external PCI bus).
 
@@ -185,4 +163,4 @@ config SSB_DRIVER_GPIO
 
 	  If unsure, say N
 
-endmenu
+endif # SSB

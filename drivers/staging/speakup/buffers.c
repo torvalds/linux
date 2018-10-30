@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/console.h>
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -27,7 +28,7 @@ void speakup_start_ttys(void)
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		if (speakup_console[i] && speakup_console[i]->tty_stopped)
 			continue;
-		if ((vc_cons[i].d) && (vc_cons[i].d->port.tty))
+		if (vc_cons[i].d && vc_cons[i].d->port.tty)
 			start_tty(vc_cons[i].d->port.tty);
 	}
 }
@@ -38,7 +39,7 @@ static void speakup_stop_ttys(void)
 	int i;
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
-		if ((vc_cons[i].d && (vc_cons[i].d->port.tty)))
+		if (vc_cons[i].d && vc_cons[i].d->port.tty)
 			stop_tty(vc_cons[i].d->port.tty);
 }
 
@@ -76,6 +77,10 @@ void synth_buffer_add(u16 ch)
 	*buff_in++ = ch;
 	if (buff_in > buffer_end)
 		buff_in = synth_buffer;
+	/* We have written something to the speech synthesis, so we are not
+	 * paused any more.
+	 */
+	spk_paused = false;
 }
 
 u16 synth_buffer_getc(void)

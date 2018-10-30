@@ -31,6 +31,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/sched/user.h>
+#include <linux/sched/mm.h>
 
 #include "inotify.h"
 
@@ -65,12 +66,11 @@ static int inotify_merge(struct list_head *list,
 
 int inotify_handle_event(struct fsnotify_group *group,
 			 struct inode *inode,
-			 struct fsnotify_mark *inode_mark,
-			 struct fsnotify_mark *vfsmount_mark,
 			 u32 mask, const void *data, int data_type,
 			 const unsigned char *file_name, u32 cookie,
 			 struct fsnotify_iter_info *iter_info)
 {
+	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct inotify_inode_mark *i_mark;
 	struct inotify_event_info *event;
 	struct fsnotify_event *fsn_event;
@@ -78,7 +78,8 @@ int inotify_handle_event(struct fsnotify_group *group,
 	int len = 0;
 	int alloc_len = sizeof(struct inotify_event_info);
 
-	BUG_ON(vfsmount_mark);
+	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
+		return 0;
 
 	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
 	    (data_type == FSNOTIFY_EVENT_PATH)) {
@@ -98,9 +99,19 @@ int inotify_handle_event(struct fsnotify_group *group,
 	i_mark = container_of(inode_mark, struct inotify_inode_mark,
 			      fsn_mark);
 
-	event = kmalloc(alloc_len, GFP_KERNEL);
-	if (unlikely(!event))
+	/* Whoever is interested in the event, pays for the allocation. */
+	memalloc_use_memcg(group->memcg);
+	event = kmalloc(alloc_len, GFP_KERNEL_ACCOUNT);
+	memalloc_unuse_memcg();
+
+	if (unlikely(!event)) {
+		/*
+		 * Treat lost event due to ENOMEM the same way as queue
+		 * overflow to let userspace know event was lost.
+		 */
+		fsnotify_queue_overflow(group);
 		return -ENOMEM;
+	}
 
 	fsn_event = &event->fse;
 	fsnotify_init_event(fsn_event, inode, mask);

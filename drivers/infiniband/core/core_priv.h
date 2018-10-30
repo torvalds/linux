@@ -40,7 +40,11 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/opa_addr.h>
 #include <rdma/ib_mad.h>
+#include <rdma/restrack.h>
 #include "mad_priv.h"
+
+/* Total number of ports combined across all struct ib_devices's */
+#define RDMA_MAX_PORTS 8192
 
 struct pkey_index_qp_list {
 	struct list_head    pkey_index_list;
@@ -83,15 +87,13 @@ int  ib_device_register_sysfs(struct ib_device *device,
 			      int (*port_callback)(struct ib_device *,
 						   u8, struct kobject *));
 void ib_device_unregister_sysfs(struct ib_device *device);
-
-void ib_cache_setup(void);
-void ib_cache_cleanup(void);
+int ib_device_rename(struct ib_device *ibdev, const char *name);
 
 typedef void (*roce_netdev_callback)(struct ib_device *device, u8 port,
 	      struct net_device *idev, void *cookie);
 
-typedef int (*roce_netdev_filter)(struct ib_device *device, u8 port,
-	     struct net_device *idev, void *cookie);
+typedef bool (*roce_netdev_filter)(struct ib_device *device, u8 port,
+				   struct net_device *idev, void *cookie);
 
 void ib_enum_roce_netdev(struct ib_device *ib_dev,
 			 roce_netdev_filter filter,
@@ -137,7 +139,6 @@ int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
 int roce_gid_mgmt_init(void);
 void roce_gid_mgmt_cleanup(void);
 
-int roce_rescan_device(struct ib_device *ib_dev);
 unsigned long roce_gid_type_mask_support(struct ib_device *ib_dev, u8 port);
 
 int ib_cache_setup_one(struct ib_device *device);
@@ -191,13 +192,6 @@ void ib_sa_cleanup(void);
 int rdma_nl_init(void);
 void rdma_nl_exit(void);
 
-/**
- * Check if there are any listeners to the netlink group
- * @group: the netlink group ID
- * Returns 0 on success or a negative for no listeners.
- */
-int ibnl_chk_listeners(unsigned int group);
-
 int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 			      struct nlmsghdr *nlh,
 			      struct netlink_ext_ack *extack);
@@ -213,11 +207,6 @@ int ib_get_cached_subnet_prefix(struct ib_device *device,
 				u64              *sn_pfx);
 
 #ifdef CONFIG_SECURITY_INFINIBAND
-int ib_security_pkey_access(struct ib_device *dev,
-			    u8 port_num,
-			    u16 pkey_index,
-			    void *sec);
-
 void ib_security_destroy_port_pkey_list(struct ib_device *device);
 
 void ib_security_cache_change(struct ib_device *device,
@@ -240,14 +229,6 @@ int ib_mad_agent_security_setup(struct ib_mad_agent *agent,
 void ib_mad_agent_security_cleanup(struct ib_mad_agent *agent);
 int ib_mad_enforce_security(struct ib_mad_agent_private *map, u16 pkey_index);
 #else
-static inline int ib_security_pkey_access(struct ib_device *dev,
-					  u8 port_num,
-					  u16 pkey_index,
-					  void *sec)
-{
-	return 0;
-}
-
 static inline void ib_security_destroy_port_pkey_list(struct ib_device *device)
 {
 }
@@ -314,8 +295,58 @@ static inline int ib_mad_enforce_security(struct ib_mad_agent_private *map,
 }
 #endif
 
-struct ib_device *__ib_device_get_by_index(u32 ifindex);
+struct ib_device *ib_device_get_by_index(u32 ifindex);
 /* RDMA device netlink */
 void nldev_init(void);
 void nldev_exit(void);
+
+static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
+					  struct ib_pd *pd,
+					  struct ib_qp_init_attr *attr,
+					  struct ib_udata *udata,
+					  struct ib_uobject *uobj)
+{
+	struct ib_qp *qp;
+
+	if (!dev->create_qp)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	qp = dev->create_qp(pd, attr, udata);
+	if (IS_ERR(qp))
+		return qp;
+
+	qp->device = dev;
+	qp->pd = pd;
+	qp->uobject = uobj;
+	/*
+	 * We don't track XRC QPs for now, because they don't have PD
+	 * and more importantly they are created internaly by driver,
+	 * see mlx5 create_dev_resources() as an example.
+	 */
+	if (attr->qp_type < IB_QPT_XRC_INI) {
+		qp->res.type = RDMA_RESTRACK_QP;
+		rdma_restrack_add(&qp->res);
+	} else
+		qp->res.valid = false;
+
+	return qp;
+}
+
+struct rdma_dev_addr;
+int rdma_resolve_ip_route(struct sockaddr *src_addr,
+			  const struct sockaddr *dst_addr,
+			  struct rdma_dev_addr *addr);
+
+int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
+				 const union ib_gid *dgid,
+				 u8 *dmac, const struct ib_gid_attr *sgid_attr,
+				 int *hoplimit);
+void rdma_copy_src_l2_addr(struct rdma_dev_addr *dev_addr,
+			   const struct net_device *dev);
+
+struct sa_path_rec;
+int roce_resolve_route_from_path(struct sa_path_rec *rec,
+				 const struct ib_gid_attr *attr);
+
+struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr);
 #endif /* _CORE_PRIV_H */

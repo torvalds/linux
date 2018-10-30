@@ -156,6 +156,17 @@ static void gf128mul_x8_bbe(be128 *x)
 	x->b = cpu_to_be64((b << 8) ^ _tt);
 }
 
+void gf128mul_x8_ble(le128 *r, const le128 *x)
+{
+	u64 a = le64_to_cpu(x->a);
+	u64 b = le64_to_cpu(x->b);
+	u64 _tt = gf128mul_table_be[a >> 56];
+
+	r->a = cpu_to_le64((a << 8) | (b >> 56));
+	r->b = cpu_to_le64((b << 8) ^ _tt);
+}
+EXPORT_SYMBOL(gf128mul_x8_ble);
+
 void gf128mul_lle(be128 *r, const be128 *b)
 {
 	be128 p[8];

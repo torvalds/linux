@@ -176,7 +176,7 @@ static void ath79_spi_cleanup(struct spi_device *spi)
 }
 
 static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned int nsecs,
-			       u32 word, u8 bits)
+			       u32 word, u8 bits, unsigned flags)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	u32 ioc = sp->ioc_base;

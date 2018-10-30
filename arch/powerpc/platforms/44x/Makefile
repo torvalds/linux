@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-y	+= misc_44x.o machine_check.o
 ifneq ($(CONFIG_PPC4xx_CPM),y)
 obj-y	+= idle.o

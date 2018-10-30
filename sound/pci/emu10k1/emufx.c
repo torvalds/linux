@@ -170,7 +170,7 @@ static char *audigy_outs[32] = {
 	/* 0x0f */ "Rear Right",
 	/* 0x10 */ "AC97 Front Left",
 	/* 0x11 */ "AC97 Front Right",
-	/* 0x12 */ "ADC Caputre Left",
+	/* 0x12 */ "ADC Capture Left",
 	/* 0x13 */ "ADC Capture Right",
 	/* 0x14 */ NULL,
 	/* 0x15 */ NULL,
@@ -421,14 +421,10 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 					    snd_fx8010_irq_handler_t *handler,
 					    unsigned char gpr_running,
 					    void *private_data,
-					    struct snd_emu10k1_fx8010_irq **r_irq)
+					    struct snd_emu10k1_fx8010_irq *irq)
 {
-	struct snd_emu10k1_fx8010_irq *irq;
 	unsigned long flags;
 	
-	irq = kmalloc(sizeof(*irq), GFP_ATOMIC);
-	if (irq == NULL)
-		return -ENOMEM;
 	irq->handler = handler;
 	irq->gpr_running = gpr_running;
 	irq->private_data = private_data;
@@ -443,8 +439,6 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 		emu->fx8010.irq_handlers = irq;
 	}
 	spin_unlock_irqrestore(&emu->fx8010.irq_lock, flags);
-	if (r_irq)
-		*r_irq = irq;
 	return 0;
 }
 
@@ -468,7 +462,6 @@ int snd_emu10k1_fx8010_unregister_irq_handler(struct snd_emu10k1 *emu,
 			tmp->next = tmp->next->next;
 	}
 	spin_unlock_irqrestore(&emu->fx8010.irq_lock, flags);
-	kfree(irq);
 	return 0;
 }
 
@@ -533,7 +526,7 @@ static int snd_emu10k1_gpr_poke(struct snd_emu10k1 *emu,
 		if (!test_bit(gpr, icode->gpr_valid))
 			continue;
 		if (in_kernel)
-			val = *(u32 *)&icode->gpr_map[gpr];
+			val = *(__force u32 *)&icode->gpr_map[gpr];
 		else if (get_user(val, &icode->gpr_map[gpr]))
 			return -EFAULT;
 		snd_emu10k1_ptr_write(emu, emu->gpr_base + gpr, 0, val);
@@ -567,8 +560,8 @@ static int snd_emu10k1_tram_poke(struct snd_emu10k1 *emu,
 		if (!test_bit(tram, icode->tram_valid))
 			continue;
 		if (in_kernel) {
-			val = *(u32 *)&icode->tram_data_map[tram];
-			addr = *(u32 *)&icode->tram_addr_map[tram];
+			val = *(__force u32 *)&icode->tram_data_map[tram];
+			addr = *(__force u32 *)&icode->tram_addr_map[tram];
 		} else {
 			if (get_user(val, &icode->tram_data_map[tram]) ||
 			    get_user(addr, &icode->tram_addr_map[tram]))
@@ -618,8 +611,8 @@ static int snd_emu10k1_code_poke(struct snd_emu10k1 *emu,
 		if (!test_bit(pc / 2, icode->code_valid))
 			continue;
 		if (in_kernel) {
-			lo = *(u32 *)&icode->code[pc + 0];
-			hi = *(u32 *)&icode->code[pc + 1];
+			lo = *(__force u32 *)&icode->code[pc + 0];
+			hi = *(__force u32 *)&icode->code[pc + 1];
 		} else {
 			if (get_user(lo, &icode->code[pc + 0]) ||
 			    get_user(hi, &icode->code[pc + 1]))
@@ -673,7 +666,7 @@ static unsigned int *copy_tlv(const unsigned int __user *_tlv, bool in_kernel)
 	if (!_tlv)
 		return NULL;
 	if (in_kernel)
-		memcpy(data, (void *)_tlv, sizeof(data));
+		memcpy(data, (__force void *)_tlv, sizeof(data));
 	else if (copy_from_user(data, _tlv, sizeof(data)))
 		return NULL;
 	if (data[1] >= MAX_TLV_SIZE)
@@ -683,7 +676,7 @@ static unsigned int *copy_tlv(const unsigned int __user *_tlv, bool in_kernel)
 		return NULL;
 	memcpy(tlv, data, sizeof(data));
 	if (in_kernel) {
-		memcpy(tlv + 2, (void *)(_tlv + 2),  data[1]);
+		memcpy(tlv + 2, (__force void *)(_tlv + 2),  data[1]);
 	} else if (copy_from_user(tlv + 2, _tlv + 2, data[1])) {
 		kfree(tlv);
 		return NULL;
@@ -700,7 +693,7 @@ static int copy_gctl(struct snd_emu10k1 *emu,
 
 	if (emu->support_tlv) {
 		if (in_kernel)
-			memcpy(gctl, (void *)&_gctl[idx], sizeof(*gctl));
+			memcpy(gctl, (__force void *)&_gctl[idx], sizeof(*gctl));
 		else if (copy_from_user(gctl, &_gctl[idx], sizeof(*gctl)))
 			return -EFAULT;
 		return 0;
@@ -708,7 +701,7 @@ static int copy_gctl(struct snd_emu10k1 *emu,
 
 	octl = (struct snd_emu10k1_fx8010_control_old_gpr __user *)_gctl;
 	if (in_kernel)
-		memcpy(gctl, (void *)&octl[idx], sizeof(*octl));
+		memcpy(gctl, (__force void *)&octl[idx], sizeof(*octl));
 	else if (copy_from_user(gctl, &octl[idx], sizeof(*octl)))
 		return -EFAULT;
 	gctl->tlv = NULL;
@@ -742,7 +735,7 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 	for (i = 0, _id = icode->gpr_del_controls;
 	     i < icode->gpr_del_control_count; i++, _id++) {
 		if (in_kernel)
-			id = *(struct snd_ctl_elem_id *)_id;
+			id = *(__force struct snd_ctl_elem_id *)_id;
 		else if (copy_from_user(&id, _id, sizeof(id)))
 	     		return -EFAULT;
 		if (snd_emu10k1_look_for_ctl(emu, &id) == NULL)
@@ -840,7 +833,7 @@ static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 		knew.device = gctl->id.device;
 		knew.subdevice = gctl->id.subdevice;
 		knew.info = snd_emu10k1_gpr_ctl_info;
-		knew.tlv.p = copy_tlv(gctl->tlv, in_kernel);
+		knew.tlv.p = copy_tlv((__force const unsigned int __user *)gctl->tlv, in_kernel);
 		if (knew.tlv.p)
 			knew.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 				SNDRV_CTL_ELEM_ACCESS_TLV_READ;
@@ -904,7 +897,7 @@ static int snd_emu10k1_del_controls(struct snd_emu10k1 *emu,
 	for (i = 0, _id = icode->gpr_del_controls;
 	     i < icode->gpr_del_control_count; i++, _id++) {
 		if (in_kernel)
-			id = *(struct snd_ctl_elem_id *)_id;
+			id = *(__force struct snd_ctl_elem_id *)_id;
 		else if (copy_from_user(&id, _id, sizeof(id)))
 			return -EFAULT;
 		down_write(&card->controls_rwsem);
@@ -2547,7 +2540,7 @@ static int snd_emu10k1_fx8010_ioctl(struct snd_hwdep * hw, struct file *file, un
 		emu->support_tlv = 1;
 		return put_user(SNDRV_EMU10K1_VERSION, (int __user *)argp);
 	case SNDRV_EMU10K1_IOCTL_INFO:
-		info = kmalloc(sizeof(*info), GFP_KERNEL);
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
 		snd_emu10k1_fx8010_info(emu, info);
@@ -2690,16 +2683,16 @@ int snd_emu10k1_efx_alloc_pm_buffer(struct snd_emu10k1 *emu)
 	int len;
 
 	len = emu->audigy ? 0x200 : 0x100;
-	emu->saved_gpr = kmalloc(len * 4, GFP_KERNEL);
+	emu->saved_gpr = kmalloc_array(len, 4, GFP_KERNEL);
 	if (! emu->saved_gpr)
 		return -ENOMEM;
 	len = emu->audigy ? 0x100 : 0xa0;
-	emu->tram_val_saved = kmalloc(len * 4, GFP_KERNEL);
-	emu->tram_addr_saved = kmalloc(len * 4, GFP_KERNEL);
+	emu->tram_val_saved = kmalloc_array(len, 4, GFP_KERNEL);
+	emu->tram_addr_saved = kmalloc_array(len, 4, GFP_KERNEL);
 	if (! emu->tram_val_saved || ! emu->tram_addr_saved)
 		return -ENOMEM;
 	len = emu->audigy ? 2 * 1024 : 2 * 512;
-	emu->saved_icode = vmalloc(len * 4);
+	emu->saved_icode = vmalloc(array_size(len, 4));
 	if (! emu->saved_icode)
 		return -ENOMEM;
 	return 0;

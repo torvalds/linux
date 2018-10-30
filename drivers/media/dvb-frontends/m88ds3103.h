@@ -25,6 +25,34 @@
  */
 
 /**
+ * enum m88ds3103_ts_mode - TS connection mode
+ * @M88DS3103_TS_SERIAL:	TS output pin D0, normal
+ * @M88DS3103_TS_SERIAL_D7:	TS output pin D7
+ * @M88DS3103_TS_PARALLEL:	TS Parallel mode
+ * @M88DS3103_TS_CI:		TS CI Mode
+ */
+enum m88ds3103_ts_mode {
+	M88DS3103_TS_SERIAL,
+	M88DS3103_TS_SERIAL_D7,
+	M88DS3103_TS_PARALLEL,
+	M88DS3103_TS_CI
+};
+
+/**
+ * enum m88ds3103_clock_out
+ * @M88DS3103_CLOCK_OUT_DISABLED:	Clock output is disabled
+ * @M88DS3103_CLOCK_OUT_ENABLED:	Clock output is enabled with crystal
+ *					clock.
+ * @M88DS3103_CLOCK_OUT_ENABLED_DIV2:	Clock output is enabled with half
+ *					crystal clock.
+ */
+enum m88ds3103_clock_out {
+	M88DS3103_CLOCK_OUT_DISABLED,
+	M88DS3103_CLOCK_OUT_ENABLED,
+	M88DS3103_CLOCK_OUT_ENABLED_DIV2
+};
+
+/**
  * struct m88ds3103_platform_data - Platform data for the m88ds3103 driver
  * @clk: Clock frequency.
  * @i2c_wr_max: Max bytes I2C adapter can write at once.
@@ -44,24 +72,16 @@
  * @get_dvb_frontend: Get DVB frontend.
  * @get_i2c_adapter: Get I2C adapter.
  */
-
 struct m88ds3103_platform_data {
 	u32 clk;
 	u16 i2c_wr_max;
-#define M88DS3103_TS_SERIAL             0 /* TS output pin D0, normal */
-#define M88DS3103_TS_SERIAL_D7          1 /* TS output pin D7 */
-#define M88DS3103_TS_PARALLEL           2 /* TS Parallel mode */
-#define M88DS3103_TS_CI                 3 /* TS CI Mode */
-	u8 ts_mode:2;
+	enum m88ds3103_ts_mode ts_mode;
 	u32 ts_clk;
+	enum m88ds3103_clock_out clk_out;
 	u8 ts_clk_pol:1;
 	u8 spec_inv:1;
 	u8 agc;
 	u8 agc_inv:1;
-#define M88DS3103_CLOCK_OUT_DISABLED        0
-#define M88DS3103_CLOCK_OUT_ENABLED         1
-#define M88DS3103_CLOCK_OUT_ENABLED_DIV2    2
-	u8 clk_out:2;
 	u8 envelope_mode:1;
 	u8 lnb_hv_pol:1;
 	u8 lnb_en_pol:1;
@@ -73,105 +93,60 @@ struct m88ds3103_platform_data {
 	u8 attach_in_use:1;
 };
 
-/*
- * Do not add new m88ds3103_attach() users! Use I2C bindings instead.
+/**
+ * struct m88ds3103_config - m88ds3102 configuration
+ *
+ * @i2c_addr:	I2C address. Default: none, must set. Example: 0x68, ...
+ * @clock:	Device's clock. Default: none, must set. Example: 27000000
+ * @i2c_wr_max: Max bytes I2C provider is asked to write at once.
+ *		Default: none, must set. Example: 33, 65, ...
+ * @ts_mode:	TS output mode, as defined by &enum m88ds3103_ts_mode.
+ *		Default: M88DS3103_TS_SERIAL.
+ * @ts_clk:	TS clk in KHz. Default: 0.
+ * @ts_clk_pol:	TS clk polarity.Default: 0.
+ *		1-active at falling edge; 0-active at rising edge.
+ * @spec_inv:	Spectrum inversion. Default: 0.
+ * @agc_inv:	AGC polarity. Default: 0.
+ * @clock_out:	Clock output, as defined by &enum m88ds3103_clock_out.
+ *		Default: M88DS3103_CLOCK_OUT_DISABLED.
+ * @envelope_mode: DiSEqC envelope mode. Default: 0.
+ * @agc:	AGC configuration. Default: none, must set.
+ * @lnb_hv_pol:	LNB H/V pin polarity. Default: 0. Values:
+ *		1: pin high set to VOLTAGE_13, pin low to set VOLTAGE_18;
+ *		0: pin high set to VOLTAGE_18, pin low to set VOLTAGE_13.
+ * @lnb_en_pol:	LNB enable pin polarity. Default: 0. Values:
+ *		1: pin high to enable, pin low to disable;
+ *		0: pin high to disable, pin low to enable.
  */
 struct m88ds3103_config {
-	/*
-	 * I2C address
-	 * Default: none, must set
-	 * 0x68, ...
-	 */
 	u8 i2c_addr;
-
-	/*
-	 * clock
-	 * Default: none, must set
-	 * 27000000
-	 */
 	u32 clock;
-
-	/*
-	 * max bytes I2C provider is asked to write at once
-	 * Default: none, must set
-	 * 33, 65, ...
-	 */
 	u16 i2c_wr_max;
-
-	/*
-	 * TS output mode
-	 * Default: M88DS3103_TS_SERIAL
-	 */
-#define M88DS3103_TS_SERIAL             0 /* TS output pin D0, normal */
-#define M88DS3103_TS_SERIAL_D7          1 /* TS output pin D7 */
-#define M88DS3103_TS_PARALLEL           2 /* TS Parallel mode */
-#define M88DS3103_TS_CI                 3 /* TS CI Mode */
 	u8 ts_mode;
-
-	/*
-	 * TS clk in KHz
-	 * Default: 0.
-	 */
 	u32 ts_clk;
-
-	/*
-	 * TS clk polarity.
-	 * Default: 0. 1-active at falling edge; 0-active at rising edge.
-	 */
 	u8 ts_clk_pol:1;
-
-	/*
-	 * spectrum inversion
-	 * Default: 0
-	 */
 	u8 spec_inv:1;
-
-	/*
-	 * AGC polarity
-	 * Default: 0
-	 */
 	u8 agc_inv:1;
-
-	/*
-	 * clock output
-	 * Default: M88DS3103_CLOCK_OUT_DISABLED
-	 */
-#define M88DS3103_CLOCK_OUT_DISABLED        0
-#define M88DS3103_CLOCK_OUT_ENABLED         1
-#define M88DS3103_CLOCK_OUT_ENABLED_DIV2    2
 	u8 clock_out;
-
-	/*
-	 * DiSEqC envelope mode
-	 * Default: 0
-	 */
 	u8 envelope_mode:1;
-
-	/*
-	 * AGC configuration
-	 * Default: none, must set
-	 */
 	u8 agc;
-
-	/*
-	 * LNB H/V pin polarity
-	 * Default: 0.
-	 * 1: pin high set to VOLTAGE_13, pin low to set VOLTAGE_18.
-	 * 0: pin high set to VOLTAGE_18, pin low to set VOLTAGE_13.
-	 */
 	u8 lnb_hv_pol:1;
-
-	/*
-	 * LNB enable pin polarity
-	 * Default: 0.
-	 * 1: pin high to enable, pin low to disable.
-	 * 0: pin high to disable, pin low to enable.
-	 */
 	u8 lnb_en_pol:1;
 };
 
 #if defined(CONFIG_DVB_M88DS3103) || \
 		(defined(CONFIG_DVB_M88DS3103_MODULE) && defined(MODULE))
+/**
+ * Attach a m88ds3103 demod
+ *
+ * @config: pointer to &struct m88ds3103_config with demod configuration.
+ * @i2c: i2c adapter to use.
+ * @tuner_i2c: on success, returns the I2C adapter associated with
+ *		m88ds3103 tuner.
+ *
+ * return: FE pointer on success, NULL on failure.
+ * Note: Do not add new m88ds3103_attach() users! Use I2C bindings instead.
+ */
 extern struct dvb_frontend *m88ds3103_attach(
 		const struct m88ds3103_config *config,
 		struct i2c_adapter *i2c,

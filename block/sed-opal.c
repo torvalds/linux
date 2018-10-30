@@ -490,7 +490,7 @@ static int opal_discovery0_end(struct opal_dev *dev)
 
 	if (!found_com_id) {
 		pr_debug("Could not find OPAL comid for device. Returning early\n");
-		return -EOPNOTSUPP;;
+		return -EOPNOTSUPP;
 	}
 
 	dev->comid = comid;
@@ -554,15 +554,14 @@ static void add_token_u64(int *err, struct opal_dev *cmd, u64 number)
 
 	size_t len;
 	int msb;
-	u8 n;
 
 	if (!(number & ~TINY_ATOM_DATA_MASK)) {
 		add_token_u8(err, cmd, number);
 		return;
 	}
 
-	msb = fls(number);
-	len = DIV_ROUND_UP(msb, 4);
+	msb = fls64(number);
+	len = DIV_ROUND_UP(msb, 8);
 
 	if (cmd->pos >= IO_BUFFER_LENGTH - len - 1) {
 		pr_debug("Error adding u64: end of buffer.\n");
@@ -570,10 +569,8 @@ static void add_token_u64(int *err, struct opal_dev *cmd, u64 number)
 		return;
 	}
 	add_short_atom_header(cmd, false, false, len);
-	while (len--) {
-		n = number >> (len * 8);
-		add_token_u8(err, cmd, n);
-	}
+	while (len--)
+		add_token_u8(err, cmd, number >> (len * 8));
 }
 
 static void add_token_bytestring(int *err, struct opal_dev *cmd,
@@ -871,25 +868,45 @@ static int response_parse(const u8 *buf, size_t length,
 static size_t response_get_string(const struct parsed_resp *resp, int n,
 				  const char **store)
 {
+	u8 skip;
+	const struct opal_resp_tok *token;
+
 	*store = NULL;
 	if (!resp) {
 		pr_debug("Response is NULL\n");
 		return 0;
 	}
 
-	if (n > resp->num) {
+	if (n >= resp->num) {
 		pr_debug("Response has %d tokens. Can't access %d\n",
 			 resp->num, n);
 		return 0;
 	}
 
-	if (resp->toks[n].type != OPAL_DTA_TOKENID_BYTESTRING) {
+	token = &resp->toks[n];
+	if (token->type != OPAL_DTA_TOKENID_BYTESTRING) {
 		pr_debug("Token is not a byte string!\n");
 		return 0;
 	}
 
-	*store = resp->toks[n].pos + 1;
-	return resp->toks[n].len - 1;
+	switch (token->width) {
+	case OPAL_WIDTH_TINY:
+	case OPAL_WIDTH_SHORT:
+		skip = 1;
+		break;
+	case OPAL_WIDTH_MEDIUM:
+		skip = 2;
+		break;
+	case OPAL_WIDTH_LONG:
+		skip = 4;
+		break;
+	default:
+		pr_debug("Token has invalid width!\n");
+		return 0;
+	}
+
+	*store = token->pos + skip;
+	return token->len - skip;
 }
 
 static u64 response_get_u64(const struct parsed_resp *resp, int n)
@@ -899,7 +916,7 @@ static u64 response_get_u64(const struct parsed_resp *resp, int n)
 		return 0;
 	}
 
-	if (n > resp->num) {
+	if (n >= resp->num) {
 		pr_debug("Response has %d tokens. Can't access %d\n",
 			 resp->num, n);
 		return 0;

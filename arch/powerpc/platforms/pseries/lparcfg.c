@@ -52,18 +52,20 @@
  * Track sum of all purrs across all processors. This is used to further
  * calculate usage values by different applications
  */
+static void cpu_get_purr(void *arg)
+{
+	atomic64_t *sum = arg;
+
+	atomic64_add(mfspr(SPRN_PURR), sum);
+}
+
 static unsigned long get_purr(void)
 {
-	unsigned long sum_purr = 0;
-	int cpu;
+	atomic64_t purr = ATOMIC64_INIT(0);
 
-	for_each_possible_cpu(cpu) {
-		struct cpu_usage *cu;
+	on_each_cpu(cpu_get_purr, &purr, 1);
 
-		cu = &per_cpu(cpu_usage_array, cpu);
-		sum_purr += cu->current_tb;
-	}
-	return sum_purr;
+	return atomic64_read(&purr);
 }
 
 /*
@@ -370,10 +372,10 @@ static void parse_system_parameter_string(struct seq_file *m)
  */
 static int lparcfg_count_active_processors(void)
 {
-	struct device_node *cpus_dn = NULL;
+	struct device_node *cpus_dn;
 	int count = 0;
 
-	while ((cpus_dn = of_find_node_by_type(cpus_dn, "cpu"))) {
+	for_each_node_by_type(cpus_dn, "cpu") {
 #ifdef LPARCFG_DEBUG
 		printk(KERN_ERR "cpus_dn %p\n", cpus_dn);
 #endif
@@ -485,7 +487,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	seq_printf(m, "shared_processor_mode=%d\n",
 		   lppaca_shared_proc(get_lppaca()));
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	seq_printf(m, "slb_size=%d\n", mmu_slb_size);
 #endif
 	parse_em_data(m);
@@ -583,8 +585,7 @@ static ssize_t update_mpp(u64 *entitlement, u8 *weight)
 static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 			     size_t count, loff_t * off)
 {
-	int kbuf_sz = 64;
-	char kbuf[kbuf_sz];
+	char kbuf[64];
 	char *tmp;
 	u64 new_entitled, *new_entitled_ptr = &new_entitled;
 	u8 new_weight, *new_weight_ptr = &new_weight;
@@ -593,7 +594,7 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return -EINVAL;
 
-	if (count > kbuf_sz)
+	if (count > sizeof(kbuf))
 		return -EINVAL;
 
 	if (copy_from_user(kbuf, buf, count))
@@ -697,11 +698,11 @@ static const struct file_operations lparcfg_fops = {
 
 static int __init lparcfg_init(void)
 {
-	umode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
+	umode_t mode = 0444;
 
 	/* Allow writing if we have FW_FEATURE_SPLPAR */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR))
-		mode |= S_IWUSR;
+		mode |= 0200;
 
 	if (!proc_create("powerpc/lparcfg", mode, NULL, &lparcfg_fops)) {
 		printk(KERN_ERR "Failed to create powerpc/lparcfg\n");

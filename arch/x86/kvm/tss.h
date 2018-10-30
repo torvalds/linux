@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __TSS_SEGMENT_H
 #define __TSS_SEGMENT_H
 

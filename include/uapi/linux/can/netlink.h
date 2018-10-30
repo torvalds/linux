@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * linux/can/netlink.h
  *
@@ -131,6 +132,7 @@ enum {
 	IFLA_CAN_TERMINATION_CONST,
 	IFLA_CAN_BITRATE_CONST,
 	IFLA_CAN_DATA_BITRATE_CONST,
+	IFLA_CAN_BITRATE_MAX,
 	__IFLA_CAN_MAX
 };
 

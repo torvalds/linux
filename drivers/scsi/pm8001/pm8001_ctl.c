@@ -98,6 +98,58 @@ static ssize_t pm8001_ctl_fw_version_show(struct device *cdev,
 	}
 }
 static DEVICE_ATTR(fw_version, S_IRUGO, pm8001_ctl_fw_version_show, NULL);
+
+/**
+ * pm8001_ctl_ila_version_show - ila version
+ * @cdev: pointer to embedded class device
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t pm8001_ctl_ila_version_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+
+	if (pm8001_ha->chip_id != chip_8001) {
+		return snprintf(buf, PAGE_SIZE, "%02x.%02x.%02x.%02x\n",
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.ila_version >> 24),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.ila_version >> 16),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.ila_version >> 8),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.ila_version));
+	}
+	return 0;
+}
+static DEVICE_ATTR(ila_version, 0444, pm8001_ctl_ila_version_show, NULL);
+
+/**
+ * pm8001_ctl_inactive_fw_version_show - Inacative firmware version number
+ * @cdev: pointer to embedded class device
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t pm8001_ctl_inactive_fw_version_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+
+	if (pm8001_ha->chip_id != chip_8001) {
+		return snprintf(buf, PAGE_SIZE, "%02x.%02x.%02x.%02x\n",
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.inc_fw_version >> 24),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.inc_fw_version >> 16),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.inc_fw_version >> 8),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.inc_fw_version));
+	}
+	return 0;
+}
+static
+DEVICE_ATTR(inc_fw_ver, 0444, pm8001_ctl_inactive_fw_version_show, NULL);
+
 /**
  * pm8001_ctl_max_out_io_show - max outstanding io supported
  * @cdev: pointer to embedded class device
@@ -653,7 +705,7 @@ static ssize_t pm8001_store_update_fw(struct device *cdev,
 		return -EINPROGRESS;
 	pm8001_ha->fw_status = FLASH_IN_PROGRESS;
 
-	cmd_ptr = kzalloc(count*2, GFP_KERNEL);
+	cmd_ptr = kcalloc(count, 2, GFP_KERNEL);
 	if (!cmd_ptr) {
 		pm8001_ha->fw_status = FAIL_OUT_MEMORY;
 		return -ENOMEM;
@@ -748,6 +800,8 @@ struct device_attribute *pm8001_host_attrs[] = {
 	&dev_attr_bios_version,
 	&dev_attr_ib_log,
 	&dev_attr_ob_log,
+	&dev_attr_ila_version,
+	&dev_attr_inc_fw_ver,
 	NULL,
 };
 

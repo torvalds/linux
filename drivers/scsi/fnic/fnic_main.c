@@ -407,18 +407,18 @@ static int fnic_notify_set(struct fnic *fnic)
 	return err;
 }
 
-static void fnic_notify_timer(unsigned long data)
+static void fnic_notify_timer(struct timer_list *t)
 {
-	struct fnic *fnic = (struct fnic *)data;
+	struct fnic *fnic = from_timer(fnic, t, notify_timer);
 
 	fnic_handle_link_event(fnic);
 	mod_timer(&fnic->notify_timer,
 		  round_jiffies(jiffies + FNIC_NOTIFY_TIMER_PERIOD));
 }
 
-static void fnic_fip_notify_timer(unsigned long data)
+static void fnic_fip_notify_timer(struct timer_list *t)
 {
-	struct fnic *fnic = (struct fnic *)data;
+	struct fnic *fnic = from_timer(fnic, t, fip_timer);
 
 	fnic_handle_fip_timer(fnic);
 }
@@ -611,28 +611,13 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * limitation for the device.  Try 64-bit first, and
 	 * fail to 32-bit.
 	 */
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			shost_printk(KERN_ERR, fnic->lport->host,
 				     "No usable DMA configuration "
 				     "aborting\n");
-			goto err_out_release_regions;
-		}
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (err) {
-			shost_printk(KERN_ERR, fnic->lport->host,
-				     "Unable to obtain 32-bit DMA "
-				     "for consistent allocations, aborting.\n");
-			goto err_out_release_regions;
-		}
-	} else {
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-		if (err) {
-			shost_printk(KERN_ERR, fnic->lport->host,
-				     "Unable to obtain 64-bit DMA "
-				     "for consistent allocations, aborting.\n");
 			goto err_out_release_regions;
 		}
 	}
@@ -777,8 +762,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		vnic_dev_add_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
 		fnic->set_vlan = fnic_set_vlan;
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_AUTO);
-		setup_timer(&fnic->fip_timer, fnic_fip_notify_timer,
-							(unsigned long)fnic);
+		timer_setup(&fnic->fip_timer, fnic_fip_notify_timer, 0);
 		spin_lock_init(&fnic->vlans_lock);
 		INIT_WORK(&fnic->fip_frame_work, fnic_handle_fip_frame);
 		INIT_WORK(&fnic->event_work, fnic_handle_event);
@@ -809,8 +793,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Setup notify timer when using MSI interrupts */
 	if (vnic_dev_get_intr_mode(fnic->vdev) == VNIC_DEV_INTR_MODE_MSI)
-		setup_timer(&fnic->notify_timer,
-			    fnic_notify_timer, (unsigned long)fnic);
+		timer_setup(&fnic->notify_timer, fnic_notify_timer, 0);
 
 	/* allocate RQ buffers and post them to RQ*/
 	for (i = 0; i < fnic->rq_count; i++) {

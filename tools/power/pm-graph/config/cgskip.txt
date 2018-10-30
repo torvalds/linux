@@ -1,0 +1,66 @@
+# -----------------------------------------------
+# CallGraph function skip list
+#
+# This file contains a list of functions which are
+# meant to be skipped in the callgraph trace. It reduces
+# the callgraph html file size by treating these functions
+# as leaves with no child calls. It can be editted by
+# adding or removing function symbol names.
+#
+# The sleepgraph tool automatically pulls this file in when
+# it is found in the config folder. It can be ignored if
+# the tool is called with "-cgskip off".
+# -----------------------------------------------
+
+# low level scheduling and timing
+up
+down_timeout
+mutex_lock
+down_read
+complete_all
+schedule_timeout
+wake_up_process
+msleep
+__udelay
+ktime_get
+
+# console calls
+printk
+dev_printk
+__dev_printk
+console_unlock
+
+# memory handling
+__kmalloc
+__kmalloc_track_caller
+kmem_cache_alloc
+kmem_cache_alloc_trace
+kmem_cache_free
+kstrdup
+kstrdup_const
+kmalloc_slab
+new_slab
+__slab_alloc
+__slab_free
+raw_pci_read
+pci_read
+alloc_pages_current
+
+# debugfs and sysfs setup
+debugfs_remove_recursive
+debugfs_create_dir
+debugfs_create_files
+debugfs_create_dir
+debugfs_get_inode
+sysfs_add_file_mode_ns
+sysfs_add_file
+sysfs_create_dir_ns
+sysfs_create_link
+sysfs_create_group
+sysfs_create_groups
+sysfs_create_bin_file
+dpm_sysfs_add
+sysfs_create_file_ns
+sysfs_merge_group
+sysfs_add_link_to_group
+sysfs_create_link_sd

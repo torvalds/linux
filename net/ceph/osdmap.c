@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/ceph/ceph_debug.h>
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/div64.h>
 
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/osdmap.h>
@@ -1299,8 +1299,9 @@ static int set_primary_affinity(struct ceph_osdmap *map, int osd, u32 aff)
 	if (!map->osd_primary_affinity) {
 		int i;
 
-		map->osd_primary_affinity = kmalloc(map->max_osd*sizeof(u32),
-						    GFP_NOFS);
+		map->osd_primary_affinity = kmalloc_array(map->max_osd,
+							  sizeof(u32),
+							  GFP_NOFS);
 		if (!map->osd_primary_affinity)
 			return -ENOMEM;
 
@@ -2140,85 +2141,15 @@ bool ceph_osds_changed(const struct ceph_osds *old_acting,
 }
 
 /*
- * calculate file layout from given offset, length.
- * fill in correct oid, logical length, and object extent
- * offset, length.
- *
- * for now, we write only a single su, until we can
- * pass a stride back to the caller.
- */
-int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
-				   u64 off, u64 len,
-				   u64 *ono,
-				   u64 *oxoff, u64 *oxlen)
-{
-	u32 osize = layout->object_size;
-	u32 su = layout->stripe_unit;
-	u32 sc = layout->stripe_count;
-	u32 bl, stripeno, stripepos, objsetno;
-	u32 su_per_object;
-	u64 t, su_offset;
-
-	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, len,
-	     osize, su);
-	if (su == 0 || sc == 0)
-		goto invalid;
-	su_per_object = osize / su;
-	if (su_per_object == 0)
-		goto invalid;
-	dout("osize %u / su %u = su_per_object %u\n", osize, su,
-	     su_per_object);
-
-	if ((su & ~PAGE_MASK) != 0)
-		goto invalid;
-
-	/* bl = *off / su; */
-	t = off;
-	do_div(t, su);
-	bl = t;
-	dout("off %llu / su %u = bl %u\n", off, su, bl);
-
-	stripeno = bl / sc;
-	stripepos = bl % sc;
-	objsetno = stripeno / su_per_object;
-
-	*ono = objsetno * sc + stripepos;
-	dout("objset %u * sc %u = ono %u\n", objsetno, sc, (unsigned int)*ono);
-
-	/* *oxoff = *off % layout->fl_stripe_unit;  # offset in su */
-	t = off;
-	su_offset = do_div(t, su);
-	*oxoff = su_offset + (stripeno % su_per_object) * su;
-
-	/*
-	 * Calculate the length of the extent being written to the selected
-	 * object. This is the minimum of the full length requested (len) or
-	 * the remainder of the current stripe being written to.
-	 */
-	*oxlen = min_t(u64, len, su - su_offset);
-
-	dout(" obj extent %llu~%llu\n", *oxoff, *oxlen);
-	return 0;
-
-invalid:
-	dout(" invalid layout\n");
-	*ono = 0;
-	*oxoff = 0;
-	*oxlen = 0;
-	return -EINVAL;
-}
-EXPORT_SYMBOL(ceph_calc_file_object_mapping);
-
-/*
  * Map an object into a PG.
  *
  * Should only be called with target_oid and target_oloc (as opposed to
  * base_oid and base_oloc), since tiering isn't taken into account.
  */
-int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
-				const struct ceph_object_id *oid,
-				const struct ceph_object_locator *oloc,
-				struct ceph_pg *raw_pgid)
+void __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
+				 const struct ceph_object_id *oid,
+				 const struct ceph_object_locator *oloc,
+				 struct ceph_pg *raw_pgid)
 {
 	WARN_ON(pi->id != oloc->pool);
 
@@ -2234,11 +2165,8 @@ int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
 		int nsl = oloc->pool_ns->len;
 		size_t total = nsl + 1 + oid->name_len;
 
-		if (total > sizeof(stack_buf)) {
-			buf = kmalloc(total, GFP_NOIO);
-			if (!buf)
-				return -ENOMEM;
-		}
+		if (total > sizeof(stack_buf))
+			buf = kmalloc(total, GFP_NOIO | __GFP_NOFAIL);
 		memcpy(buf, oloc->pool_ns->str, nsl);
 		buf[nsl] = '\037';
 		memcpy(buf + nsl + 1, oid->name, oid->name_len);
@@ -2250,7 +2178,6 @@ int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
 		     oid->name, nsl, oloc->pool_ns->str,
 		     raw_pgid->pool, raw_pgid->seed);
 	}
-	return 0;
 }
 
 int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
@@ -2264,7 +2191,8 @@ int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
 	if (!pi)
 		return -ENOENT;
 
-	return __ceph_object_locator_to_pg(pi, oid, oloc, raw_pgid);
+	__ceph_object_locator_to_pg(pi, oid, oloc, raw_pgid);
+	return 0;
 }
 EXPORT_SYMBOL(ceph_object_locator_to_pg);
 
@@ -2445,19 +2373,34 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 
 	pg = lookup_pg_mapping(&osdmap->pg_upmap_items, pgid);
 	if (pg) {
-		for (i = 0; i < raw->size; i++) {
-			for (j = 0; j < pg->pg_upmap_items.len; j++) {
-				int from = pg->pg_upmap_items.from_to[j][0];
-				int to = pg->pg_upmap_items.from_to[j][1];
+		/*
+		 * Note: this approach does not allow a bidirectional swap,
+		 * e.g., [[1,2],[2,1]] applied to [0,1,2] -> [0,2,1].
+		 */
+		for (i = 0; i < pg->pg_upmap_items.len; i++) {
+			int from = pg->pg_upmap_items.from_to[i][0];
+			int to = pg->pg_upmap_items.from_to[i][1];
+			int pos = -1;
+			bool exists = false;
 
-				if (from == raw->osds[i]) {
-					if (!(to != CRUSH_ITEM_NONE &&
-					      to < osdmap->max_osd &&
-					      osdmap->osd_weight[to] == 0))
-						raw->osds[i] = to;
+			/* make sure replacement doesn't already appear */
+			for (j = 0; j < raw->size; j++) {
+				int osd = raw->osds[j];
+
+				if (osd == to) {
+					exists = true;
 					break;
 				}
+				/* ignore mapping if target is marked out */
+				if (osd == from && pos < 0 &&
+				    !(to != CRUSH_ITEM_NONE &&
+				      to < osdmap->max_osd &&
+				      osdmap->osd_weight[to] == 0)) {
+					pos = j;
+				}
 			}
+			if (!exists && pos >= 0)
+				raw->osds[pos] = to;
 		}
 	}
 }

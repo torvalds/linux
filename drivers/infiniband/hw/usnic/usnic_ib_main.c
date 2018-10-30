@@ -76,7 +76,7 @@ static LIST_HEAD(usnic_ib_ibdev_list);
 static int usnic_ib_dump_vf_hdr(void *obj, char *buf, int buf_sz)
 {
 	struct usnic_ib_vf *vf = obj;
-	return scnprintf(buf, buf_sz, "PF: %s ", vf->pf->ib_dev.name);
+	return scnprintf(buf, buf_sz, "PF: %s ", dev_name(&vf->pf->ib_dev.dev));
 }
 /* End callback dump funcs */
 
@@ -95,24 +95,6 @@ void usnic_ib_log_vf(struct usnic_ib_vf *vf)
 }
 
 /* Start of netdev section */
-static inline const char *usnic_ib_netdev_event_to_string(unsigned long event)
-{
-	const char *event2str[] = {"NETDEV_NONE", "NETDEV_UP", "NETDEV_DOWN",
-		"NETDEV_REBOOT", "NETDEV_CHANGE",
-		"NETDEV_REGISTER", "NETDEV_UNREGISTER", "NETDEV_CHANGEMTU",
-		"NETDEV_CHANGEADDR", "NETDEV_GOING_DOWN", "NETDEV_FEAT_CHANGE",
-		"NETDEV_BONDING_FAILOVER", "NETDEV_PRE_UP",
-		"NETDEV_PRE_TYPE_CHANGE", "NETDEV_POST_TYPE_CHANGE",
-		"NETDEV_POST_INT", "NETDEV_UNREGISTER_FINAL", "NETDEV_RELEASE",
-		"NETDEV_NOTIFY_PEERS", "NETDEV_JOIN"
-	};
-
-	if (event >= ARRAY_SIZE(event2str))
-		return "UNKNOWN_NETDEV_EVENT";
-	else
-		return event2str[event];
-}
-
 static void usnic_ib_qp_grp_modify_active_to_err(struct usnic_ib_dev *us_ibdev)
 {
 	struct usnic_ib_ucontext *ctx;
@@ -156,7 +138,7 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 	netdev = us_ibdev->netdev;
 	switch (event) {
 	case NETDEV_REBOOT:
-		usnic_info("PF Reset on %s\n", us_ibdev->ib_dev.name);
+		usnic_info("PF Reset on %s\n", dev_name(&us_ibdev->ib_dev.dev));
 		usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
 		ib_event.event = IB_EVENT_PORT_ERR;
 		ib_event.device = &us_ibdev->ib_dev;
@@ -169,7 +151,8 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 		if (!us_ibdev->ufdev->link_up &&
 				netif_carrier_ok(netdev)) {
 			usnic_fwd_carrier_up(us_ibdev->ufdev);
-			usnic_info("Link UP on %s\n", us_ibdev->ib_dev.name);
+			usnic_info("Link UP on %s\n",
+				   dev_name(&us_ibdev->ib_dev.dev));
 			ib_event.event = IB_EVENT_PORT_ACTIVE;
 			ib_event.device = &us_ibdev->ib_dev;
 			ib_event.element.port_num = 1;
@@ -177,7 +160,8 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 		} else if (us_ibdev->ufdev->link_up &&
 				!netif_carrier_ok(netdev)) {
 			usnic_fwd_carrier_down(us_ibdev->ufdev);
-			usnic_info("Link DOWN on %s\n", us_ibdev->ib_dev.name);
+			usnic_info("Link DOWN on %s\n",
+				   dev_name(&us_ibdev->ib_dev.dev));
 			usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
 			ib_event.event = IB_EVENT_PORT_ERR;
 			ib_event.device = &us_ibdev->ib_dev;
@@ -185,18 +169,18 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 			ib_dispatch_event(&ib_event);
 		} else {
 			usnic_dbg("Ignoring %s on %s\n",
-					usnic_ib_netdev_event_to_string(event),
-					us_ibdev->ib_dev.name);
+					netdev_cmd_to_name(event),
+					dev_name(&us_ibdev->ib_dev.dev));
 		}
 		break;
 	case NETDEV_CHANGEADDR:
 		if (!memcmp(us_ibdev->ufdev->mac, netdev->dev_addr,
 				sizeof(us_ibdev->ufdev->mac))) {
 			usnic_dbg("Ignoring addr change on %s\n",
-					us_ibdev->ib_dev.name);
+				  dev_name(&us_ibdev->ib_dev.dev));
 		} else {
 			usnic_info(" %s old mac: %pM new mac: %pM\n",
-					us_ibdev->ib_dev.name,
+					dev_name(&us_ibdev->ib_dev.dev),
 					us_ibdev->ufdev->mac,
 					netdev->dev_addr);
 			usnic_fwd_set_mac(us_ibdev->ufdev, netdev->dev_addr);
@@ -211,19 +195,19 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 	case NETDEV_CHANGEMTU:
 		if (us_ibdev->ufdev->mtu != netdev->mtu) {
 			usnic_info("MTU Change on %s old: %u new: %u\n",
-					us_ibdev->ib_dev.name,
+					dev_name(&us_ibdev->ib_dev.dev),
 					us_ibdev->ufdev->mtu, netdev->mtu);
 			usnic_fwd_set_mtu(us_ibdev->ufdev, netdev->mtu);
 			usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
 		} else {
 			usnic_dbg("Ignoring MTU change on %s\n",
-					us_ibdev->ib_dev.name);
+				  dev_name(&us_ibdev->ib_dev.dev));
 		}
 		break;
 	default:
 		usnic_dbg("Ignoring event %s on %s",
-				usnic_ib_netdev_event_to_string(event),
-				us_ibdev->ib_dev.name);
+				netdev_cmd_to_name(event),
+				dev_name(&us_ibdev->ib_dev.dev));
 	}
 	mutex_unlock(&us_ibdev->usdev_lock);
 }
@@ -264,7 +248,7 @@ static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
 	switch (event) {
 	case NETDEV_DOWN:
 		usnic_info("%s via ip notifiers",
-				usnic_ib_netdev_event_to_string(event));
+				netdev_cmd_to_name(event));
 		usnic_fwd_del_ipaddr(us_ibdev->ufdev);
 		usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
 		ib_event.event = IB_EVENT_GID_CHANGE;
@@ -275,7 +259,7 @@ static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
 	case NETDEV_UP:
 		usnic_fwd_add_ipaddr(us_ibdev->ufdev, ifa->ifa_address);
 		usnic_info("%s via ip notifiers: ip %pI4",
-				usnic_ib_netdev_event_to_string(event),
+				netdev_cmd_to_name(event),
 				&us_ibdev->ufdev->inaddr);
 		ib_event.event = IB_EVENT_GID_CHANGE;
 		ib_event.device = &us_ibdev->ib_dev;
@@ -284,8 +268,8 @@ static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
 		break;
 	default:
 		usnic_info("Ignoring event %s on %s",
-				usnic_ib_netdev_event_to_string(event),
-				us_ibdev->ib_dev.name);
+				netdev_cmd_to_name(event),
+				dev_name(&us_ibdev->ib_dev.dev));
 	}
 	mutex_unlock(&us_ibdev->usdev_lock);
 
@@ -382,7 +366,6 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.num_comp_vectors = USNIC_IB_NUM_COMP_VECTORS;
 	us_ibdev->ib_dev.dev.parent = &dev->dev;
 	us_ibdev->ib_dev.uverbs_abi_ver = USNIC_UVERBS_ABI_VERSION;
-	strlcpy(us_ibdev->ib_dev.name, "usnic_%d", IB_DEVICE_NAME_MAX);
 
 	us_ibdev->ib_dev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
@@ -433,7 +416,10 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.get_dev_fw_str     = usnic_get_dev_fw_str;
 
 
-	if (ib_register_device(&us_ibdev->ib_dev, NULL))
+	us_ibdev->ib_dev.driver_id = RDMA_DRIVER_USNIC;
+	rdma_set_device_sysfs_group(&us_ibdev->ib_dev, &usnic_attr_group);
+
+	if (ib_register_device(&us_ibdev->ib_dev, "usnic_%d", NULL))
 		goto err_fwd_dealloc;
 
 	usnic_fwd_set_mtu(us_ibdev->ufdev, us_ibdev->netdev->mtu);
@@ -454,9 +440,9 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	kref_init(&us_ibdev->vf_cnt);
 
 	usnic_info("Added ibdev: %s netdev: %s with mac %pM Link: %u MTU: %u\n",
-			us_ibdev->ib_dev.name, netdev_name(us_ibdev->netdev),
-			us_ibdev->ufdev->mac, us_ibdev->ufdev->link_up,
-			us_ibdev->ufdev->mtu);
+		   dev_name(&us_ibdev->ib_dev.dev),
+		   netdev_name(us_ibdev->netdev), us_ibdev->ufdev->mac,
+		   us_ibdev->ufdev->link_up, us_ibdev->ufdev->mtu);
 	return us_ibdev;
 
 err_fwd_dealloc:
@@ -469,7 +455,7 @@ err_dealloc:
 
 static void usnic_ib_device_remove(struct usnic_ib_dev *us_ibdev)
 {
-	usnic_info("Unregistering %s\n", us_ibdev->ib_dev.name);
+	usnic_info("Unregistering %s\n", dev_name(&us_ibdev->ib_dev.dev));
 	usnic_ib_sysfs_unregister_usdev(us_ibdev);
 	usnic_fwd_dev_free(us_ibdev->ufdev);
 	ib_unregister_device(&us_ibdev->ib_dev);
@@ -608,7 +594,7 @@ static int usnic_ib_pci_probe(struct pci_dev *pdev,
 	mutex_unlock(&pf->usdev_lock);
 
 	usnic_info("Registering usnic VF %s into PF %s\n", pci_name(pdev),
-			pf->ib_dev.name);
+		   dev_name(&pf->ib_dev.dev));
 	usnic_ib_log_vf(vf);
 	return 0;
 

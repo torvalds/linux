@@ -30,20 +30,24 @@ nouveau-y += nouveau_vga.o
 # DRM - memory management
 nouveau-y += nouveau_bo.o
 nouveau-y += nouveau_gem.o
+nouveau-y += nouveau_mem.o
 nouveau-y += nouveau_prime.o
 nouveau-y += nouveau_sgdma.o
 nouveau-y += nouveau_ttm.o
+nouveau-y += nouveau_vmm.o
 
 # DRM - modesetting
 nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
+nouveau-y += nouveau_bios.o
 nouveau-y += nouveau_connector.o
 nouveau-y += nouveau_display.o
-nouveau-y += nv50_display.o
 nouveau-y += nouveau_dp.o
 nouveau-y += nouveau_fbcon.o
 nouveau-y += nv04_fbcon.o
 nouveau-y += nv50_fbcon.o
 nouveau-y += nvc0_fbcon.o
+include $(src)/dispnv04/Kbuild
+include $(src)/dispnv50/Kbuild
 
 # DRM - command submission
 nouveau-y += nouveau_abi16.o
@@ -56,9 +60,5 @@ nouveau-y += nv17_fence.o
 nouveau-y += nv50_fence.o
 nouveau-y += nv84_fence.o
 nouveau-y += nvc0_fence.o
-
-# DRM - prehistoric modesetting (NV04-G7x)
-nouveau-y += nouveau_bios.o
-include $(src)/dispnv04/Kbuild
 
 obj-$(CONFIG_DRM_NOUVEAU) += nouveau.o

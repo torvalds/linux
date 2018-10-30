@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NETNS_X_TABLES_H
 #define __NETNS_X_TABLES_H
 

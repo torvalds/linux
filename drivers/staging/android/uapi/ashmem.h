@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Apache-2.0 */
 /*
  * drivers/staging/android/uapi/ashmem.h
  *
  * Copyright 2008 Google Inc.
  * Author: Robert Love
- *
- * This file is dual licensed.  It may be redistributed and/or modified
- * under the terms of the Apache 2.0 License OR version 2 of the GNU
- * General Public License.
  */
 
 #ifndef _UAPI_LINUX_ASHMEM_H

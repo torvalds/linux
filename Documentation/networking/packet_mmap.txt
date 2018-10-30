@@ -7,15 +7,12 @@ socket interface on 2.4/2.6/3.x kernels. This type of sockets is used for
 i) capture network traffic with utilities like tcpdump, ii) transmit network
 traffic, or any other that needs raw access to network interface.
 
-You can find the latest version of this document at:
-    http://wiki.ipxwarzone.com/index.php5?title=Linux_packet_mmap
-
 Howto can be found at:
-    http://wiki.gnu-log.net (packet_mmap)
+    https://sites.google.com/site/packetmmap/
 
 Please send your comments to
     Ulisses Alonso Camaró <uaca@i.hate.spam.alumni.uv.es>
-    Johann Baudy <johann.baudy@gnu-log.net>
+    Johann Baudy
 
 -------------------------------------------------------------------------------
 + Why use PACKET_MMAP
@@ -51,17 +48,8 @@ From the user standpoint, you should use the higher level libpcap library, which
 is a de facto standard, portable across nearly all operating systems
 including Win32. 
 
-Said that, at time of this writing, official libpcap 0.8.1 is out and doesn't include
-support for PACKET_MMAP, and also probably the libpcap included in your distribution. 
-
-I'm aware of two implementations of PACKET_MMAP in libpcap:
-
-    http://wiki.ipxwarzone.com/		     (by Simon Patarin, based on libpcap 0.6.2)
-    http://public.lanl.gov/cpw/              (by Phil Wood, based on lastest libpcap)
-
-The rest of this document is intended for people who want to understand
-the low level details or want to improve libpcap by including PACKET_MMAP
-support.
+Packet MMAP support was integrated into libpcap around the time of version 1.3.0;
+TPACKET_V3 support was added in version 1.5.0
 
 --------------------------------------------------------------------------------
 + How to use mmap() directly to improve capture process
@@ -174,7 +162,7 @@ As capture, each frame contains two parts:
  /* bind socket to eth0 */
  bind(this->socket, (struct sockaddr *)&my_addr, sizeof(struct sockaddr_ll));
 
- A complete tutorial is available at: http://wiki.gnu-log.net/
+ A complete tutorial is available at: https://sites.google.com/site/packetmmap/
 
 By default, the user should put data at :
  frame base + TPACKET_HDRLEN - sizeof(struct sockaddr_ll)
@@ -1055,7 +1043,7 @@ TX_RING part only TP_STATUS_AVAILABLE is set, then the tp_sec and tp_{n,u}sec
 members do not contain a valid value. For TX_RINGs, by default no timestamp
 is generated!
 
-See include/linux/net_tstamp.h and Documentation/networking/timestamping
+See include/linux/net_tstamp.h and Documentation/networking/timestamping.txt
 for more information on hardware timestamps.
 
 -------------------------------------------------------------------------------

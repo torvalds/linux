@@ -1,23 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2015 Etnaviv Project
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2015-2018 Etnaviv Project
  */
 
 #ifndef __ETNAVIV_GEM_H__
 #define __ETNAVIV_GEM_H__
 
 #include <linux/reservation.h>
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 
 struct dma_fence;
@@ -26,8 +16,7 @@ struct etnaviv_gem_object;
 
 struct etnaviv_gem_userptr {
 	uintptr_t ptr;
-	struct task_struct *task;
-	struct work_struct *work;
+	struct mm_struct *mm;
 	bool ro;
 };
 
@@ -94,30 +83,41 @@ struct etnaviv_gem_submit_bo {
 	u32 flags;
 	struct etnaviv_gem_object *obj;
 	struct etnaviv_vram_mapping *mapping;
+	struct dma_fence *excl;
+	unsigned int nr_shared;
+	struct dma_fence **shared;
 };
 
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,
  * associated with the cmdstream submission for synchronization (and
- * make it easier to unwind when things go wrong, etc).  This only
- * lasts for the duration of the submit-ioctl.
+ * make it easier to unwind when things go wrong, etc).
  */
 struct etnaviv_gem_submit {
-	struct drm_device *dev;
+	struct drm_sched_job sched_job;
+	struct kref refcount;
 	struct etnaviv_gpu *gpu;
-	struct ww_acquire_ctx ticket;
-	struct dma_fence *fence;
+	struct dma_fence *out_fence, *in_fence;
+	int out_fence_id;
+	struct list_head node; /* GPU active submit list */
+	struct etnaviv_cmdbuf cmdbuf;
+	bool runtime_resumed;
+	u32 exec_state;
 	u32 flags;
+	unsigned int nr_pmrs;
+	struct etnaviv_perfmon_request *pmrs;
 	unsigned int nr_bos;
 	struct etnaviv_gem_submit_bo bos[0];
 	/* No new members here, the previous one is variable-length! */
 };
+
+void etnaviv_submit_put(struct etnaviv_gem_submit * submit);
 
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
 	struct timespec *timeout);
 int etnaviv_gem_new_private(struct drm_device *dev, size_t size, u32 flags,
 	struct reservation_object *robj, const struct etnaviv_gem_ops *ops,
 	struct etnaviv_gem_object **res);
-int etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj);
+void etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj);
 struct page **etnaviv_gem_get_pages(struct etnaviv_gem_object *obj);
 void etnaviv_gem_put_pages(struct etnaviv_gem_object *obj);
 

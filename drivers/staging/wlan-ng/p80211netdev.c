@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
 /* src/p80211/p80211knetdev.c
  *
  * Linux Kernel net device interface
@@ -94,8 +95,8 @@
 static int p80211knetdev_init(struct net_device *netdev);
 static int p80211knetdev_open(struct net_device *netdev);
 static int p80211knetdev_stop(struct net_device *netdev);
-static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
-					 struct net_device *netdev);
+static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
+						 struct net_device *netdev);
 static void p80211knetdev_set_multicast_list(struct net_device *dev);
 static int p80211knetdev_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 				  int cmd);
@@ -320,8 +321,8 @@ static void p80211netdev_rx_bh(unsigned long arg)
  *	zero on success, non-zero on failure.
  *----------------------------------------------------------------
  */
-static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
-					 struct net_device *netdev)
+static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
+						 struct net_device *netdev)
 {
 	int result = 0;
 	int txresult = -1;
@@ -637,24 +638,25 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 
 	/* Set up a dot11req_mibset */
 	memset(&dot11req, 0, sizeof(dot11req));
-	dot11req.msgcode = DIDmsg_dot11req_mibset;
+	dot11req.msgcode = DIDMSG_DOT11REQ_MIBSET;
 	dot11req.msglen = sizeof(dot11req);
 	memcpy(dot11req.devname,
-	       ((struct wlandevice *)dev->ml_priv)->name, WLAN_DEVNAMELEN_MAX - 1);
+	       ((struct wlandevice *)dev->ml_priv)->name,
+	       WLAN_DEVNAMELEN_MAX - 1);
 
 	/* Set up the mibattribute argument */
-	mibattr->did = DIDmsg_dot11req_mibset_mibattribute;
+	mibattr->did = DIDMSG_DOT11REQ_MIBSET_MIBATTRIBUTE;
 	mibattr->status = P80211ENUM_msgitem_status_data_ok;
 	mibattr->len = sizeof(mibattr->data);
 
-	macaddr->did = DIDmib_dot11mac_dot11OperationTable_dot11MACAddress;
+	macaddr->did = DIDMIB_DOT11MAC_OPERATIONTABLE_MACADDRESS;
 	macaddr->status = P80211ENUM_msgitem_status_data_ok;
 	macaddr->len = sizeof(macaddr->data);
 	macaddr->data.len = ETH_ALEN;
 	memcpy(&macaddr->data.data, new_addr->sa_data, ETH_ALEN);
 
 	/* Set up the resultcode argument */
-	resultcode->did = DIDmsg_dot11req_mibset_resultcode;
+	resultcode->did = DIDMSG_DOT11REQ_MIBSET_RESULTCODE;
 	resultcode->status = P80211ENUM_msgitem_status_no_value;
 	resultcode->len = sizeof(resultcode->data);
 	resultcode->data = 0;
@@ -925,10 +927,6 @@ static int p80211_rx_typedrop(struct wlandevice *wlandev, u16 fc)
 	/* Classify frame, increment counter */
 	ftype = WLAN_GET_FC_FTYPE(fc);
 	fstype = WLAN_GET_FC_FSTYPE(fc);
-#if 0
-	netdev_dbg(wlandev->netdev, "rx_typedrop : ftype=%d fstype=%d.\n",
-		   ftype, fstype);
-#endif
 	switch (ftype) {
 	case WLAN_FTYPE_MGMT:
 		if ((wlandev->netdev->flags & IFF_PROMISC) ||

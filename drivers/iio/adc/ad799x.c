@@ -526,13 +526,11 @@ static const struct attribute_group ad799x_event_attrs_group = {
 
 static const struct iio_info ad7991_info = {
 	.read_raw = &ad799x_read_raw,
-	.driver_module = THIS_MODULE,
 	.update_scan_mode = ad799x_update_scan_mode,
 };
 
 static const struct iio_info ad7993_4_7_8_noirq_info = {
 	.read_raw = &ad799x_read_raw,
-	.driver_module = THIS_MODULE,
 	.update_scan_mode = ad799x_update_scan_mode,
 };
 
@@ -543,7 +541,6 @@ static const struct iio_info ad7993_4_7_8_irq_info = {
 	.write_event_config = &ad799x_write_event_config,
 	.read_event_value = &ad799x_read_event_value,
 	.write_event_value = &ad799x_write_event_value,
-	.driver_module = THIS_MODULE,
 	.update_scan_mode = ad799x_update_scan_mode,
 };
 
@@ -895,6 +892,6 @@ static struct i2c_driver ad799x_driver = {
 };
 module_i2c_driver(ad799x_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD799x ADC");
 MODULE_LICENSE("GPL v2");

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Moved here from drivers/net/net_init.c, which is:
  *	Written 1993,1994,1995 by Donald Becker.

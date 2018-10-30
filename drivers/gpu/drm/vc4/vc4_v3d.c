@@ -68,38 +68,38 @@ static const struct {
 	REGDEF(V3D_VPMBASE),
 	REGDEF(V3D_PCTRC),
 	REGDEF(V3D_PCTRE),
-	REGDEF(V3D_PCTR0),
-	REGDEF(V3D_PCTRS0),
-	REGDEF(V3D_PCTR1),
-	REGDEF(V3D_PCTRS1),
-	REGDEF(V3D_PCTR2),
-	REGDEF(V3D_PCTRS2),
-	REGDEF(V3D_PCTR3),
-	REGDEF(V3D_PCTRS3),
-	REGDEF(V3D_PCTR4),
-	REGDEF(V3D_PCTRS4),
-	REGDEF(V3D_PCTR5),
-	REGDEF(V3D_PCTRS5),
-	REGDEF(V3D_PCTR6),
-	REGDEF(V3D_PCTRS6),
-	REGDEF(V3D_PCTR7),
-	REGDEF(V3D_PCTRS7),
-	REGDEF(V3D_PCTR8),
-	REGDEF(V3D_PCTRS8),
-	REGDEF(V3D_PCTR9),
-	REGDEF(V3D_PCTRS9),
-	REGDEF(V3D_PCTR10),
-	REGDEF(V3D_PCTRS10),
-	REGDEF(V3D_PCTR11),
-	REGDEF(V3D_PCTRS11),
-	REGDEF(V3D_PCTR12),
-	REGDEF(V3D_PCTRS12),
-	REGDEF(V3D_PCTR13),
-	REGDEF(V3D_PCTRS13),
-	REGDEF(V3D_PCTR14),
-	REGDEF(V3D_PCTRS14),
-	REGDEF(V3D_PCTR15),
-	REGDEF(V3D_PCTRS15),
+	REGDEF(V3D_PCTR(0)),
+	REGDEF(V3D_PCTRS(0)),
+	REGDEF(V3D_PCTR(1)),
+	REGDEF(V3D_PCTRS(1)),
+	REGDEF(V3D_PCTR(2)),
+	REGDEF(V3D_PCTRS(2)),
+	REGDEF(V3D_PCTR(3)),
+	REGDEF(V3D_PCTRS(3)),
+	REGDEF(V3D_PCTR(4)),
+	REGDEF(V3D_PCTRS(4)),
+	REGDEF(V3D_PCTR(5)),
+	REGDEF(V3D_PCTRS(5)),
+	REGDEF(V3D_PCTR(6)),
+	REGDEF(V3D_PCTRS(6)),
+	REGDEF(V3D_PCTR(7)),
+	REGDEF(V3D_PCTRS(7)),
+	REGDEF(V3D_PCTR(8)),
+	REGDEF(V3D_PCTRS(8)),
+	REGDEF(V3D_PCTR(9)),
+	REGDEF(V3D_PCTRS(9)),
+	REGDEF(V3D_PCTR(10)),
+	REGDEF(V3D_PCTRS(10)),
+	REGDEF(V3D_PCTR(11)),
+	REGDEF(V3D_PCTRS(11)),
+	REGDEF(V3D_PCTR(12)),
+	REGDEF(V3D_PCTRS(12)),
+	REGDEF(V3D_PCTR(13)),
+	REGDEF(V3D_PCTRS(13)),
+	REGDEF(V3D_PCTR(14)),
+	REGDEF(V3D_PCTRS(14)),
+	REGDEF(V3D_PCTR(15)),
+	REGDEF(V3D_PCTRS(15)),
 	REGDEF(V3D_DBGE),
 	REGDEF(V3D_FDBGO),
 	REGDEF(V3D_FDBGB),
@@ -218,8 +218,7 @@ try_again:
  * overall CMA pool before they make scenes complicated enough to run
  * out of bin space.
  */
-int
-vc4_allocate_bin_bo(struct drm_device *drm)
+static int vc4_allocate_bin_bo(struct drm_device *drm)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_v3d *v3d = vc4->v3d;
@@ -327,6 +326,9 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 		return ret;
 
 	vc4_v3d_init_hw(vc4->dev);
+
+	/* We disabled the IRQ as part of vc4_irq_uninstall in suspend. */
+	enable_irq(vc4->dev->irq);
 	vc4_irq_postinstall(vc4->dev);
 
 	return 0;

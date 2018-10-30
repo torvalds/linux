@@ -287,8 +287,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct tea5764_device *radio = video_drvdata(file);
 	struct video_device *dev = &radio->vdev;
 
-	strlcpy(v->driver, dev->dev.driver->name, sizeof(v->driver));
-	strlcpy(v->card, dev->name, sizeof(v->card));
+	strscpy(v->driver, dev->dev.driver->name, sizeof(v->driver));
+	strscpy(v->card, dev->name, sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info),
 		 "I2C:%s", dev_name(&dev->dev));
 	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
@@ -305,7 +305,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (v->index > 0)
 		return -EINVAL;
 
-	strlcpy(v->name, "FM", sizeof(v->name));
+	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	tea5764_i2c_read(radio);
 	v->rangelow   = FREQ_MIN * FREQ_MUL;
@@ -417,7 +417,7 @@ static const struct v4l2_ioctl_ops tea5764_ioctl_ops = {
 static const struct video_device tea5764_radio_template = {
 	.name		= "TEA5764 FM-Radio",
 	.fops           = &tea5764_fops,
-	.ioctl_ops 	= &tea5764_ioctl_ops,
+	.ioctl_ops	= &tea5764_ioctl_ops,
 	.release	= video_device_release_empty,
 };
 

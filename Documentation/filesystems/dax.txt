@@ -46,7 +46,6 @@ stall the CPU for an extended period, you should also not attempt to
 implement direct_access.
 
 These block devices may be used for inspiration:
-- axonram: Axon DDR2 device driver
 - brd: RAM backed block device driver
 - dcssblk: s390 dcss block device driver
 - pmem: NVDIMM persistent memory driver
@@ -76,7 +75,7 @@ exposure of uninitialized data through mmap.
 
 These filesystems may be used for inspiration:
 - ext2: see Documentation/filesystems/ext2.txt
-- ext4: see Documentation/filesystems/ext4.txt
+- ext4: see Documentation/filesystems/ext4/ext4.rst
 - xfs:  see Documentation/filesystems/xfs.txt
 
 

@@ -23,13 +23,13 @@
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
-#include <asm/tlbflush.h>
 #include <asm/trace.h>
 #include <asm/tlb.h>
 #include <asm/cputable.h>
 #include <asm/udbg.h>
 #include <asm/kexec.h>
 #include <asm/ppc-opcode.h>
+#include <asm/feature-fixups.h>
 
 #include <misc/cxl-base.h>
 
@@ -47,7 +47,105 @@
 
 DEFINE_RAW_SPINLOCK(native_tlbie_lock);
 
-static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
+static inline void tlbiel_hash_set_isa206(unsigned int set, unsigned int is)
+{
+	unsigned long rb;
+
+	rb = (set << PPC_BITLSHIFT(51)) | (is << PPC_BITLSHIFT(53));
+
+	asm volatile("tlbiel %0" : : "r" (rb));
+}
+
+/*
+ * tlbiel instruction for hash, set invalidation
+ * i.e., r=1 and is=01 or is=10 or is=11
+ */
+static inline void tlbiel_hash_set_isa300(unsigned int set, unsigned int is,
+					unsigned int pid,
+					unsigned int ric, unsigned int prs)
+{
+	unsigned long rb;
+	unsigned long rs;
+	unsigned int r = 0; /* hash format */
+
+	rb = (set << PPC_BITLSHIFT(51)) | (is << PPC_BITLSHIFT(53));
+	rs = ((unsigned long)pid << PPC_BITLSHIFT(31));
+
+	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4)
+		     : : "r"(rb), "r"(rs), "i"(ric), "i"(prs), "r"(r)
+		     : "memory");
+}
+
+
+static void tlbiel_all_isa206(unsigned int num_sets, unsigned int is)
+{
+	unsigned int set;
+
+	asm volatile("ptesync": : :"memory");
+
+	for (set = 0; set < num_sets; set++)
+		tlbiel_hash_set_isa206(set, is);
+
+	asm volatile("ptesync": : :"memory");
+}
+
+static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
+{
+	unsigned int set;
+
+	asm volatile("ptesync": : :"memory");
+
+	/*
+	 * Flush the first set of the TLB, and any caching of partition table
+	 * entries. Then flush the remaining sets of the TLB. Hash mode uses
+	 * partition scoped TLB translations.
+	 */
+	tlbiel_hash_set_isa300(0, is, 0, 2, 0);
+	for (set = 1; set < num_sets; set++)
+		tlbiel_hash_set_isa300(set, is, 0, 0, 0);
+
+	/*
+	 * Now invalidate the process table cache.
+	 *
+	 * From ISA v3.0B p. 1078:
+	 *     The following forms are invalid.
+	 *      * PRS=1, R=0, and RIC!=2 (The only process-scoped
+	 *        HPT caching is of the Process Table.)
+	 */
+	tlbiel_hash_set_isa300(0, is, 0, 2, 1);
+
+	asm volatile("ptesync": : :"memory");
+
+	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
+}
+
+void hash__tlbiel_all(unsigned int action)
+{
+	unsigned int is;
+
+	switch (action) {
+	case TLB_INVAL_SCOPE_GLOBAL:
+		is = 3;
+		break;
+	case TLB_INVAL_SCOPE_LPID:
+		is = 2;
+		break;
+	default:
+		BUG();
+	}
+
+	if (early_cpu_has_feature(CPU_FTR_ARCH_300))
+		tlbiel_all_isa300(POWER9_TLB_SETS_HASH, is);
+	else if (early_cpu_has_feature(CPU_FTR_ARCH_207S))
+		tlbiel_all_isa206(POWER8_TLB_SETS, is);
+	else if (early_cpu_has_feature(CPU_FTR_ARCH_206))
+		tlbiel_all_isa206(POWER7_TLB_SETS, is);
+	else
+		WARN(1, "%s called on pre-POWER7 CPU\n", __func__);
+}
+
+static inline unsigned long  ___tlbie(unsigned long vpn, int psize,
+						int apsize, int ssize)
 {
 	unsigned long va;
 	unsigned int penc;
@@ -100,7 +198,24 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
 			     : "memory");
 		break;
 	}
-	trace_tlbie(0, 0, va, 0, 0, 0, 0);
+	return va;
+}
+
+static inline void fixup_tlbie(unsigned long vpn, int psize, int apsize, int ssize)
+{
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
+		/* Need the extra ptesync to ensure we don't reorder tlbie*/
+		asm volatile("ptesync": : :"memory");
+		___tlbie(vpn, psize, apsize, ssize);
+	}
+}
+
+static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
+{
+	unsigned long rb;
+
+	rb = ___tlbie(vpn, psize, apsize, ssize);
+	trace_tlbie(0, 0, rb, 0, 0, 0, 0);
 }
 
 static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
@@ -172,6 +287,7 @@ static inline void tlbie(unsigned long vpn, int psize, int apsize,
 		asm volatile("ptesync": : :"memory");
 	} else {
 		__tlbie(vpn, psize, apsize, ssize);
+		fixup_tlbie(vpn, psize, apsize, ssize);
 		asm volatile("eieio; tlbsync; ptesync": : :"memory");
 	}
 	if (lock_tlbie && !use_local)
@@ -307,9 +423,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	DBG_LOW("    update(vpn=%016lx, avpnv=%016lx, group=%lx, newpp=%lx)",
 		vpn, want_v & HPTE_V_AVPN, slot, newpp);
 
-	hpte_v = be64_to_cpu(hptep->v);
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
+	hpte_v = hpte_get_old_v(hptep);
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
 	 * a tlb invalidate. If a hash bucket gets full, we "evict" a more/less
@@ -323,9 +437,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	} else {
 		native_lock_hpte(hptep);
 		/* recheck with locks held */
-		hpte_v = be64_to_cpu(hptep->v);
-		if (cpu_has_feature(CPU_FTR_ARCH_300))
-			hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
+		hpte_v = hpte_get_old_v(hptep);
 		if (unlikely(!HPTE_V_COMPARE(hpte_v, want_v) ||
 			     !(hpte_v & HPTE_V_VALID))) {
 			ret = -1;
@@ -365,11 +477,9 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
 	/* Bolted mappings are only ever in the primary group */
 	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
-		hptep = htab_address + slot;
-		hpte_v = be64_to_cpu(hptep->v);
-		if (cpu_has_feature(CPU_FTR_ARCH_300))
-			hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
 
+		hptep = htab_address + slot;
+		hpte_v = hpte_get_old_v(hptep);
 		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID))
 			/* HPTE matches */
 			return slot;
@@ -458,11 +568,19 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	DBG_LOW("    invalidate(vpn=%016lx, hash: %lx)\n", vpn, slot);
 
 	want_v = hpte_encode_avpn(vpn, bpsize, ssize);
-	native_lock_hpte(hptep);
-	hpte_v = be64_to_cpu(hptep->v);
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
+	hpte_v = hpte_get_old_v(hptep);
 
+	if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
+		native_lock_hpte(hptep);
+		/* recheck with locks held */
+		hpte_v = hpte_get_old_v(hptep);
+
+		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID))
+			/* Invalidate the hpte. NOTE: this also unlocks it */
+			hptep->v = 0;
+		else
+			native_unlock_hpte(hptep);
+	}
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
 	 * a tlb invalidate. If a hash bucket gets full, we "evict" a more/less
@@ -470,13 +588,6 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	 * (hpte_remove) because we assume the old translation is still
 	 * technically "valid".
 	 */
-	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
-		native_unlock_hpte(hptep);
-	else
-		/* Invalidate the hpte. NOTE: this also unlocks it */
-		hptep->v = 0;
-
-	/* Invalidate the TLB */
 	tlbie(vpn, bpsize, apsize, ssize, local);
 
 	local_irq_restore(flags);
@@ -518,17 +629,23 @@ static void native_hugepage_invalidate(unsigned long vsid,
 
 		hptep = htab_address + slot;
 		want_v = hpte_encode_avpn(vpn, psize, ssize);
-		native_lock_hpte(hptep);
-		hpte_v = be64_to_cpu(hptep->v);
-		if (cpu_has_feature(CPU_FTR_ARCH_300))
-			hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
+		hpte_v = hpte_get_old_v(hptep);
 
 		/* Even if we miss, we need to invalidate the TLB */
-		if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
-			native_unlock_hpte(hptep);
-		else
-			/* Invalidate the hpte. NOTE: this also unlocks it */
-			hptep->v = 0;
+		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
+			/* recheck with locks held */
+			native_lock_hpte(hptep);
+			hpte_v = hpte_get_old_v(hptep);
+
+			if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
+				/*
+				 * Invalidate the hpte. NOTE: this also unlocks it
+				 */
+
+				hptep->v = 0;
+			} else
+				native_unlock_hpte(hptep);
+		}
 		/*
 		 * We need to do tlb invalidate for all the address, tlbie
 		 * instruction compares entry_VA in tlb with the VA specified
@@ -652,7 +769,7 @@ static void native_hpte_clear(void)
 		if (hpte_v & HPTE_V_VALID) {
 			hpte_decode(hptep, slot, &psize, &apsize, &ssize, &vpn);
 			hptep->v = 0;
-			__tlbie(vpn, psize, apsize, ssize);
+			___tlbie(vpn, psize, apsize, ssize);
 		}
 	}
 
@@ -665,7 +782,7 @@ static void native_hpte_clear(void)
  */
 static void native_flush_hash_range(unsigned long number, int local)
 {
-	unsigned long vpn;
+	unsigned long vpn = 0;
 	unsigned long hash, index, hidx, shift, slot;
 	struct hash_pte *hptep;
 	unsigned long hpte_v;
@@ -696,16 +813,19 @@ static void native_flush_hash_range(unsigned long number, int local)
 			slot += hidx & _PTEIDX_GROUP_IX;
 			hptep = htab_address + slot;
 			want_v = hpte_encode_avpn(vpn, psize, ssize);
+			hpte_v = hpte_get_old_v(hptep);
+
+			if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
+				continue;
+			/* lock and try again */
 			native_lock_hpte(hptep);
-			hpte_v = be64_to_cpu(hptep->v);
-			if (cpu_has_feature(CPU_FTR_ARCH_300))
-				hpte_v = hpte_new_to_old_v(hpte_v,
-						be64_to_cpu(hptep->r));
-			if (!HPTE_V_COMPARE(hpte_v, want_v) ||
-			    !(hpte_v & HPTE_V_VALID))
+			hpte_v = hpte_get_old_v(hptep);
+
+			if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
 				native_unlock_hpte(hptep);
 			else
 				hptep->v = 0;
+
 		} pte_iterate_hashed_end();
 	}
 
@@ -737,6 +857,10 @@ static void native_flush_hash_range(unsigned long number, int local)
 				__tlbie(vpn, psize, psize, ssize);
 			} pte_iterate_hashed_end();
 		}
+		/*
+		 * Just do one more with the last used values.
+		 */
+		fixup_tlbie(vpn, psize, psize, ssize);
 		asm volatile("eieio; tlbsync; ptesync":::"memory");
 
 		if (lock_tlbie)
@@ -744,18 +868,6 @@ static void native_flush_hash_range(unsigned long number, int local)
 	}
 
 	local_irq_restore(flags);
-}
-
-static int native_register_proc_table(unsigned long base, unsigned long page_size,
-				      unsigned long table_size)
-{
-	unsigned long patb1 = base << 25; /* VSID */
-
-	patb1 |= (page_size << 5);  /* sllp */
-	patb1 |= table_size;
-
-	partition_tb->patb1 = cpu_to_be64(patb1);
-	return 0;
 }
 
 void __init hpte_init_native(void)
@@ -769,7 +881,4 @@ void __init hpte_init_native(void)
 	mmu_hash_ops.hpte_clear_all	= native_hpte_clear;
 	mmu_hash_ops.flush_hash_range = native_flush_hash_range;
 	mmu_hash_ops.hugepage_invalidate   = native_hugepage_invalidate;
-
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		register_process_table = native_register_proc_table;
 }

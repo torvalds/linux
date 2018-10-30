@@ -20,8 +20,12 @@
 #define __B53_H
 
 #include <linux/kernel.h>
+#include <net/dsa.h>
 
 struct b53_platform_data {
+	/* Must be first such that dsa_register_switch() can access it */
+	struct dsa_chip_data cd;
+
 	u32 chip_id;
 	u16 enabled_ports;
 

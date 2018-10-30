@@ -109,6 +109,38 @@ enum drm_mm_insert_mode {
 	 * Allocates the node from the bottom of the found hole.
 	 */
 	DRM_MM_INSERT_EVICT,
+
+	/**
+	 * @DRM_MM_INSERT_ONCE:
+	 *
+	 * Only check the first hole for suitablity and report -ENOSPC
+	 * immediately otherwise, rather than check every hole until a
+	 * suitable one is found. Can only be used in conjunction with another
+	 * search method such as DRM_MM_INSERT_HIGH or DRM_MM_INSERT_LOW.
+	 */
+	DRM_MM_INSERT_ONCE = BIT(31),
+
+	/**
+	 * @DRM_MM_INSERT_HIGHEST:
+	 *
+	 * Only check the highest hole (the hole with the largest address) and
+	 * insert the node at the top of the hole or report -ENOSPC if
+	 * unsuitable.
+	 *
+	 * Does not search all holes.
+	 */
+	DRM_MM_INSERT_HIGHEST = DRM_MM_INSERT_HIGH | DRM_MM_INSERT_ONCE,
+
+	/**
+	 * @DRM_MM_INSERT_LOWEST:
+	 *
+	 * Only check the lowest hole (the hole with the smallest address) and
+	 * insert the node at the bottom of the hole or report -ENOSPC if
+	 * unsuitable.
+	 *
+	 * Does not search all holes.
+	 */
+	DRM_MM_INSERT_LOWEST  = DRM_MM_INSERT_LOW | DRM_MM_INSERT_ONCE,
 };
 
 /**
@@ -173,7 +205,7 @@ struct drm_mm {
 	struct drm_mm_node head_node;
 	/* Keep an interval_tree for fast lookup of drm_mm_nodes by address. */
 	struct rb_root_cached interval_tree;
-	struct rb_root holes_size;
+	struct rb_root_cached holes_size;
 	struct rb_root holes_addr;
 
 	unsigned long scan_active;
@@ -386,7 +418,7 @@ int drm_mm_insert_node_in_range(struct drm_mm *mm,
  * @color: opaque tag value to use for this node
  * @mode: fine-tune the allocation search and placement
  *
- * This is a simplified version of drm_mm_insert_node_in_range_generic() with no
+ * This is a simplified version of drm_mm_insert_node_in_range() with no
  * range restrictions applied.
  *
  * The preallocated node must be cleared to 0.

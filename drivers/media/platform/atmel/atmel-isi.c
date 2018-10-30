@@ -411,7 +411,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	spin_lock_irqsave(&isi->irqlock, flags);
 	list_add_tail(&buf->list, &isi->video_buffer_list);
 
-	if (isi->active == NULL) {
+	if (!isi->active) {
 		isi->active = buf;
 		if (vb2_is_streaming(vb->vb2_queue))
 			start_dma(isi, buf);
@@ -655,9 +655,9 @@ static int isi_enum_fmt_vid_cap(struct file *file, void  *priv,
 static int isi_querycap(struct file *file, void *priv,
 			struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, "atmel-isi", sizeof(cap->driver));
-	strlcpy(cap->card, "Atmel Image Sensor Interface", sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform:isi", sizeof(cap->bus_info));
+	strscpy(cap->driver, "atmel-isi", sizeof(cap->driver));
+	strscpy(cap->card, "Atmel Image Sensor Interface", sizeof(cap->card));
+	strscpy(cap->bus_info, "platform:isi", sizeof(cap->bus_info));
 	return 0;
 }
 
@@ -668,7 +668,7 @@ static int isi_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
-	strlcpy(i->name, "Camera", sizeof(i->name));
+	strscpy(i->name, "Camera", sizeof(i->name));
 	return 0;
 }
 
@@ -689,22 +689,14 @@ static int isi_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct atmel_isi *isi = video_drvdata(file);
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	a->parm.capture.readbuffers = 2;
-	return v4l2_subdev_call(isi->entity.subdev, video, g_parm, a);
+	return v4l2_g_parm_cap(video_devdata(file), isi->entity.subdev, a);
 }
 
 static int isi_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct atmel_isi *isi = video_drvdata(file);
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	a->parm.capture.readbuffers = 2;
-	return v4l2_subdev_call(isi->entity.subdev, video, s_parm, a);
+	return v4l2_s_parm_cap(video_devdata(file), isi->entity.subdev, a);
 }
 
 static int isi_enum_framesizes(struct file *file, void *fh,
@@ -798,7 +790,7 @@ static int atmel_isi_parse_dt(struct atmel_isi *isi,
 			struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct v4l2_fwnode_endpoint ep;
+	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
 	int err;
 
 	/* Default settings for ISI */
@@ -1038,10 +1030,8 @@ static int isi_formats_init(struct atmel_isi *isi)
 	isi->user_formats = devm_kcalloc(isi->dev,
 					 num_fmts, sizeof(struct isi_format *),
 					 GFP_KERNEL);
-	if (!isi->user_formats) {
-		dev_err(isi->dev, "could not allocate memory\n");
+	if (!isi->user_formats)
 		return -ENOMEM;
-	}
 
 	memcpy(isi->user_formats, isi_fmts,
 	       num_fmts * sizeof(struct isi_format *));
@@ -1105,33 +1095,35 @@ static int isi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
+static const struct v4l2_async_notifier_operations isi_graph_notify_ops = {
+	.bound = isi_graph_notify_bound,
+	.unbind = isi_graph_notify_unbind,
+	.complete = isi_graph_notify_complete,
+};
+
 static int isi_graph_parse(struct atmel_isi *isi, struct device_node *node)
 {
 	struct device_node *ep = NULL;
 	struct device_node *remote;
 
-	while (1) {
-		ep = of_graph_get_next_endpoint(node, ep);
-		if (!ep)
-			return -EINVAL;
+	ep = of_graph_get_next_endpoint(node, ep);
+	if (!ep)
+		return -EINVAL;
 
-		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote) {
-			of_node_put(ep);
-			return -EINVAL;
-		}
+	remote = of_graph_get_remote_port_parent(ep);
+	of_node_put(ep);
+	if (!remote)
+		return -EINVAL;
 
-		/* Remote node to connect */
-		isi->entity.node = remote;
-		isi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		isi->entity.asd.match.fwnode.fwnode = of_fwnode_handle(remote);
-		return 0;
-	}
+	/* Remote node to connect */
+	isi->entity.node = remote;
+	isi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+	isi->entity.asd.match.fwnode = of_fwnode_handle(remote);
+	return 0;
 }
 
 static int isi_graph_init(struct atmel_isi *isi)
 {
-	struct v4l2_async_subdev **subdevs = NULL;
 	int ret;
 
 	/* Parse the graph to extract a list of subdevice DT nodes. */
@@ -1141,25 +1133,20 @@ static int isi_graph_init(struct atmel_isi *isi)
 		return ret;
 	}
 
-	/* Register the subdevices notifier. */
-	subdevs = devm_kzalloc(isi->dev, sizeof(*subdevs), GFP_KERNEL);
-	if (subdevs == NULL) {
+	v4l2_async_notifier_init(&isi->notifier);
+
+	ret = v4l2_async_notifier_add_subdev(&isi->notifier, &isi->entity.asd);
+	if (ret) {
 		of_node_put(isi->entity.node);
-		return -ENOMEM;
+		return ret;
 	}
 
-	subdevs[0] = &isi->entity.asd;
-
-	isi->notifier.subdevs = subdevs;
-	isi->notifier.num_subdevs = 1;
-	isi->notifier.bound = isi_graph_notify_bound;
-	isi->notifier.unbind = isi_graph_notify_unbind;
-	isi->notifier.complete = isi_graph_notify_complete;
+	isi->notifier.ops = &isi_graph_notify_ops;
 
 	ret = v4l2_async_notifier_register(&isi->v4l2_dev, &isi->notifier);
 	if (ret < 0) {
 		dev_err(isi->dev, "Notifier registration failed\n");
-		of_node_put(isi->entity.node);
+		v4l2_async_notifier_cleanup(&isi->notifier);
 		return ret;
 	}
 
@@ -1176,10 +1163,8 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	int ret, i;
 
 	isi = devm_kzalloc(&pdev->dev, sizeof(struct atmel_isi), GFP_KERNEL);
-	if (!isi) {
-		dev_err(&pdev->dev, "Can't allocate interface!\n");
+	if (!isi)
 		return -ENOMEM;
-	}
 
 	isi->pclk = devm_clk_get(&pdev->dev, "isi_clk");
 	if (IS_ERR(isi->pclk))
@@ -1204,7 +1189,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 		return ret;
 
 	isi->vdev = video_device_alloc();
-	if (isi->vdev == NULL) {
+	if (!isi->vdev) {
 		ret = -ENOMEM;
 		goto err_vdev_alloc;
 	}
@@ -1213,7 +1198,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	isi->vdev->fops = &isi_fops;
 	isi->vdev->v4l2_dev = &isi->v4l2_dev;
 	isi->vdev->queue = &isi->queue;
-	strlcpy(isi->vdev->name, KBUILD_MODNAME, sizeof(isi->vdev->name));
+	strscpy(isi->vdev->name, KBUILD_MODNAME, sizeof(isi->vdev->name));
 	isi->vdev->release = video_device_release;
 	isi->vdev->ioctl_ops = &isi_ioctl_ops;
 	isi->vdev->lock = &isi->lock;
@@ -1314,6 +1299,7 @@ static int atmel_isi_remove(struct platform_device *pdev)
 			isi->fb_descriptors_phys);
 	pm_runtime_disable(&pdev->dev);
 	v4l2_async_notifier_unregister(&isi->notifier);
+	v4l2_async_notifier_cleanup(&isi->notifier);
 	v4l2_device_unregister(&isi->v4l2_dev);
 
 	return 0;

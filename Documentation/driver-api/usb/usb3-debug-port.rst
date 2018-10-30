@@ -98,3 +98,55 @@ you to check the sanity of the setup.
 	cat /dev/ttyUSB0
 	done
 	===== end of bash scripts ===============
+
+Serial TTY
+==========
+
+The DbC support has been added to the xHCI driver. You can get a
+debug device provided by the DbC at runtime.
+
+In order to use this, you need to make sure your kernel has been
+configured to support USB_XHCI_DBGCAP. A sysfs attribute under
+the xHCI device node is used to enable or disable DbC. By default,
+DbC is disabled::
+
+	root@target:/sys/bus/pci/devices/0000:00:14.0# cat dbc
+	disabled
+
+Enable DbC with the following command::
+
+	root@target:/sys/bus/pci/devices/0000:00:14.0# echo enable > dbc
+
+You can check the DbC state at anytime::
+
+	root@target:/sys/bus/pci/devices/0000:00:14.0# cat dbc
+	enabled
+
+Connect the debug target to the debug host with a USB 3.0 super-
+speed A-to-A debugging cable. You can see /dev/ttyDBC0 created
+on the debug target. You will see below kernel message lines::
+
+	root@target: tail -f /var/log/kern.log
+	[  182.730103] xhci_hcd 0000:00:14.0: DbC connected
+	[  191.169420] xhci_hcd 0000:00:14.0: DbC configured
+	[  191.169597] xhci_hcd 0000:00:14.0: DbC now attached to /dev/ttyDBC0
+
+Accordingly, the DbC state has been brought up to::
+
+	root@target:/sys/bus/pci/devices/0000:00:14.0# cat dbc
+	configured
+
+On the debug host, you will see the debug device has been enumerated.
+You will see below kernel message lines::
+
+	root@host: tail -f /var/log/kern.log
+	[   79.454780] usb 2-2.1: new SuperSpeed USB device number 3 using xhci_hcd
+	[   79.475003] usb 2-2.1: LPM exit latency is zeroed, disabling LPM.
+	[   79.475389] usb 2-2.1: New USB device found, idVendor=1d6b, idProduct=0010
+	[   79.475390] usb 2-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+	[   79.475391] usb 2-2.1: Product: Linux USB Debug Target
+	[   79.475392] usb 2-2.1: Manufacturer: Linux Foundation
+	[   79.475393] usb 2-2.1: SerialNumber: 0001
+
+The debug device works now. You can use any communication or debugging
+program to talk between the host and the target.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /*
  * tveeprom - Contains structures and functions to work with Hauppauge

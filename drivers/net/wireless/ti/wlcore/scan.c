@@ -22,13 +22,13 @@
  */
 
 #include <linux/ieee80211.h>
+#include <linux/pm_runtime.h>
 
 #include "wlcore.h"
 #include "debug.h"
 #include "cmd.h"
 #include "scan.h"
 #include "acx.h"
-#include "ps.h"
 #include "tx.h"
 
 void wl1271_scan_complete_work(struct work_struct *work)
@@ -67,16 +67,16 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	wl->scan.req = NULL;
 	wl->scan_wlvif = NULL;
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
+	ret = pm_runtime_get_sync(wl->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(wl->dev);
 		goto out;
+	}
 
 	if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) {
 		/* restore hardware connection monitoring template */
 		wl1271_cmd_build_ap_probe_req(wl, wlvif, wlvif->probereq);
 	}
-
-	wl1271_ps_elp_sleep(wl);
 
 	if (wl->scan.failed) {
 		wl1271_info("Scan completed due to error.");
@@ -84,6 +84,9 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	}
 
 	wlcore_cmd_regdomain_config_locked(wl);
+
+	pm_runtime_mark_last_busy(wl->dev);
+	pm_runtime_put_autosuspend(wl->dev);
 
 	ieee80211_scan_completed(wl->hw, &info);
 

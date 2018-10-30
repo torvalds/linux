@@ -694,6 +694,7 @@ static int do_read(struct net_device *dev, void *cbuf, int cbuflen,
 /* end of idle handlers -- what should be seen is do_read, do_write */
 
 static struct timer_list ltpc_timer;
+static struct net_device *ltpc_timer_dev;
 
 static netdev_tx_t ltpc_xmit(struct sk_buff *skb, struct net_device *dev);
 
@@ -867,10 +868,8 @@ static void set_multicast_list(struct net_device *dev)
 
 static int ltpc_poll_counter;
 
-static void ltpc_poll(unsigned long l)
+static void ltpc_poll(struct timer_list *unused)
 {
-	struct net_device *dev = (struct net_device *) l;
-
 	del_timer(&ltpc_timer);
 
 	if(debug & DEBUG_VERBOSE) {
@@ -880,14 +879,10 @@ static void ltpc_poll(unsigned long l)
 		}
 		ltpc_poll_counter--;
 	}
-  
-	if (!dev)
-		return;  /* we've been downed */
 
 	/* poll 20 times per second */
-	idle(dev);
+	idle(ltpc_timer_dev);
 	ltpc_timer.expires = jiffies + HZ/20;
-	
 	add_timer(&ltpc_timer);
 }
 
@@ -1165,9 +1160,8 @@ struct net_device * __init ltpc_probe(void)
 		dev->irq = 0;
 		/* polled mode -- 20 times per second */
 		/* this is really, really slow... should it poll more often? */
-		init_timer(&ltpc_timer);
-		ltpc_timer.function=ltpc_poll;
-		ltpc_timer.data = (unsigned long) dev;
+		ltpc_timer_dev = dev;
+		timer_setup(&ltpc_timer, ltpc_poll, 0);
 
 		ltpc_timer.expires = jiffies + HZ/20;
 		add_timer(&ltpc_timer);
@@ -1253,8 +1247,6 @@ static void __exit ltpc_cleanup(void)
 
 	if(debug & DEBUG_VERBOSE) printk("unregister_netdev\n");
 	unregister_netdev(dev_ltpc);
-
-	ltpc_timer.data = 0;  /* signal the poll routine that we're done */
 
 	del_timer_sync(&ltpc_timer);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "au8830.h"
 #include "au88x0.h"
 static const struct pci_device_id snd_vortex_ids[] = {

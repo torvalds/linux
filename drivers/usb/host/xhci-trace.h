@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xHCI host controller driver
  *
@@ -5,10 +6,6 @@
  *
  * Author: Xenia Ragiadakou
  * Email : burzalodowa@gmail.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #undef TRACE_SYSTEM
@@ -26,6 +23,7 @@
 
 #include <linux/tracepoint.h>
 #include "xhci.h"
+#include "xhci-dbgcap.h"
 
 #define XHCI_MSG_MAX	500
 
@@ -158,6 +156,52 @@ DEFINE_EVENT(xhci_log_trb, xhci_queue_trb,
 	TP_ARGS(ring, trb)
 );
 
+DEFINE_EVENT(xhci_log_trb, xhci_dbc_handle_event,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb)
+);
+
+DEFINE_EVENT(xhci_log_trb, xhci_dbc_handle_transfer,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb)
+);
+
+DEFINE_EVENT(xhci_log_trb, xhci_dbc_gadget_ep_queue,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb)
+);
+
+DECLARE_EVENT_CLASS(xhci_log_free_virt_dev,
+	TP_PROTO(struct xhci_virt_device *vdev),
+	TP_ARGS(vdev),
+	TP_STRUCT__entry(
+		__field(void *, vdev)
+		__field(unsigned long long, out_ctx)
+		__field(unsigned long long, in_ctx)
+		__field(u8, fake_port)
+		__field(u8, real_port)
+		__field(u16, current_mel)
+
+	),
+	TP_fast_assign(
+		__entry->vdev = vdev;
+		__entry->in_ctx = (unsigned long long) vdev->in_ctx->dma;
+		__entry->out_ctx = (unsigned long long) vdev->out_ctx->dma;
+		__entry->fake_port = (u8) vdev->fake_port;
+		__entry->real_port = (u8) vdev->real_port;
+		__entry->current_mel = (u16) vdev->current_mel;
+		),
+	TP_printk("vdev %p ctx %llx | %llx fake_port %d real_port %d current_mel %d",
+		__entry->vdev, __entry->in_ctx, __entry->out_ctx,
+		__entry->fake_port, __entry->real_port, __entry->current_mel
+	)
+);
+
+DEFINE_EVENT(xhci_log_free_virt_dev, xhci_free_virt_device,
+	TP_PROTO(struct xhci_virt_device *vdev),
+	TP_ARGS(vdev)
+);
+
 DECLARE_EVENT_CLASS(xhci_log_virt_dev,
 	TP_PROTO(struct xhci_virt_device *vdev),
 	TP_ARGS(vdev),
@@ -191,11 +235,6 @@ DECLARE_EVENT_CLASS(xhci_log_virt_dev,
 );
 
 DEFINE_EVENT(xhci_log_virt_dev, xhci_alloc_virt_device,
-	TP_PROTO(struct xhci_virt_device *vdev),
-	TP_ARGS(vdev)
-);
-
-DEFINE_EVENT(xhci_log_virt_dev, xhci_free_virt_device,
 	TP_PROTO(struct xhci_virt_device *vdev),
 	TP_ARGS(vdev)
 );
@@ -388,6 +427,11 @@ DEFINE_EVENT(xhci_log_slot_ctx, xhci_handle_cmd_set_deq,
 	TP_ARGS(ctx)
 );
 
+DEFINE_EVENT(xhci_log_slot_ctx, xhci_configure_endpoint,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
 DECLARE_EVENT_CLASS(xhci_log_ring,
 	TP_PROTO(struct xhci_ring *ring),
 	TP_ARGS(ring),
@@ -476,6 +520,59 @@ DEFINE_EVENT(xhci_log_portsc, xhci_handle_port_status,
 	     TP_ARGS(portnum, portsc)
 );
 
+DEFINE_EVENT(xhci_log_portsc, xhci_get_port_status,
+	     TP_PROTO(u32 portnum, u32 portsc),
+	     TP_ARGS(portnum, portsc)
+);
+
+DEFINE_EVENT(xhci_log_portsc, xhci_hub_status_data,
+	     TP_PROTO(u32 portnum, u32 portsc),
+	     TP_ARGS(portnum, portsc)
+);
+
+DECLARE_EVENT_CLASS(xhci_dbc_log_request,
+	TP_PROTO(struct dbc_request *req),
+	TP_ARGS(req),
+	TP_STRUCT__entry(
+		__field(struct dbc_request *, req)
+		__field(bool, dir)
+		__field(unsigned int, actual)
+		__field(unsigned int, length)
+		__field(int, status)
+	),
+	TP_fast_assign(
+		__entry->req = req;
+		__entry->dir = req->direction;
+		__entry->actual = req->actual;
+		__entry->length = req->length;
+		__entry->status = req->status;
+	),
+	TP_printk("%s: req %p length %u/%u ==> %d",
+		__entry->dir ? "bulk-in" : "bulk-out",
+		__entry->req, __entry->actual,
+		__entry->length, __entry->status
+	)
+);
+
+DEFINE_EVENT(xhci_dbc_log_request, xhci_dbc_alloc_request,
+	TP_PROTO(struct dbc_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(xhci_dbc_log_request, xhci_dbc_free_request,
+	TP_PROTO(struct dbc_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(xhci_dbc_log_request, xhci_dbc_queue_request,
+	TP_PROTO(struct dbc_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(xhci_dbc_log_request, xhci_dbc_giveback_request,
+	TP_PROTO(struct dbc_request *req),
+	TP_ARGS(req)
+);
 #endif /* __XHCI_TRACE_H */
 
 /* this part must be outside header guard */

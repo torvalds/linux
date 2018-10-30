@@ -1,0 +1,42 @@
+Devlink configuration parameters
+================================
+Following is the list of configuration parameters via devlink interface.
+Each parameter can be generic or driver specific and are device level
+parameters.
+
+Note that the driver-specific files should contain the generic params
+they support to, with supported config modes.
+
+Each parameter can be set in different configuration modes:
+	runtime		- set while driver is running, no reset required.
+	driverinit	- applied while driver initializes, requires restart
+			driver by devlink reload command.
+	permanent	- written to device's non-volatile memory, hard reset
+			required.
+
+Following is the list of parameters:
+====================================
+enable_sriov		[DEVICE, GENERIC]
+			Enable Single Root I/O Virtualisation (SRIOV) in
+			the device.
+			Type: Boolean
+
+ignore_ari		[DEVICE, GENERIC]
+			Ignore Alternative Routing-ID Interpretation (ARI)
+			capability. If enabled, adapter will ignore ARI
+			capability even when platforms has the support
+			enabled and creates same number of partitions when
+			platform does not support ARI.
+			Type: Boolean
+
+msix_vec_per_pf_max	[DEVICE, GENERIC]
+			Provides the maximum number of MSIX interrupts that
+			a device can create. Value is same across all
+			physical functions (PFs) in the device.
+			Type: u32
+
+msix_vec_per_pf_min	[DEVICE, GENERIC]
+			Provides the minimum number of MSIX interrupts required
+			for the device initialization. Value is same across all
+			physical functions (PFs) in the device.
+			Type: u32

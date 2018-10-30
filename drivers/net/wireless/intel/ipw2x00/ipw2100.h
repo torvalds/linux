@@ -491,7 +491,7 @@ struct ipw2100_priv {
 
 	/* Statistics */
 	int resets;
-	int reset_backoff;
+	time64_t reset_backoff;
 
 	/* Context */
 	u8 essid[IW_ESSID_MAX_SIZE];
@@ -500,8 +500,8 @@ struct ipw2100_priv {
 	u8 channel;
 	int last_mode;
 
-	unsigned long connect_start;
-	unsigned long last_reset;
+	time64_t connect_start;
+	time64_t last_reset;
 
 	u32 channel_mask;
 	u32 fatal_error;
@@ -581,9 +581,9 @@ struct ipw2100_priv {
 
 	int user_requested_scan;
 
-	/* Track time in suspend */
-	unsigned long suspend_at;
-	unsigned long suspend_time;
+	/* Track time in suspend, using CLOCK_BOOTTIME */
+	time64_t suspend_at;
+	time64_t suspend_time;
 
 	u32 interrupts;
 	int tx_interrupts;
@@ -1009,7 +1009,7 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_PERCENT_RETRIES,	// current calculation of % missed tx retries
 	IPW_ORD_ASSOCIATED_AP_PTR,	// If associated, this is ptr to the associated
 	// AP table entry. set to 0 if not associated
-	IPW_ORD_AVAILABLE_AP_CNT,	// # of AP's decsribed in the AP table
+	IPW_ORD_AVAILABLE_AP_CNT,	// # of AP's described in the AP table
 	IPW_ORD_AP_LIST_PTR,	// Ptr to list of available APs
 	IPW_ORD_STAT_AP_ASSNS,	// # of associations
 	IPW_ORD_STAT_ASSN_FAIL,	// # of association failures

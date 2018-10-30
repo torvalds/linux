@@ -24,10 +24,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -654,6 +650,7 @@ static void gc_psx_report_one(struct gc_pad *pad, unsigned char psx_type,
 
 		input_report_key(dev, BTN_THUMBL, ~data[0] & 0x04);
 		input_report_key(dev, BTN_THUMBR, ~data[0] & 0x02);
+		/* fall through */
 
 	case GC_PSX_NEGCON:
 	case GC_PSX_ANALOG:
@@ -742,9 +739,9 @@ static void gc_psx_process_packet(struct gc *gc)
  * gc_timer() initiates reads of console pads data.
  */
 
-static void gc_timer(unsigned long private)
+static void gc_timer(struct timer_list *t)
 {
-	struct gc *gc = (void *) private;
+	struct gc *gc = from_timer(gc, t, timer);
 
 /*
  * N64 pads - must be read first, any read confuses them for 200 us
@@ -861,7 +858,7 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 
 	case GC_N64:
 		for (i = 0; i < 10; i++)
-			__set_bit(gc_n64_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY, gc_n64_btn[i]);
 
 		for (i = 0; i < 2; i++) {
 			input_set_abs_params(input_dev, ABS_X + i, -127, 126, 0, 2);
@@ -878,24 +875,27 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 		break;
 
 	case GC_SNESMOUSE:
-		__set_bit(BTN_LEFT, input_dev->keybit);
-		__set_bit(BTN_RIGHT, input_dev->keybit);
-		__set_bit(REL_X, input_dev->relbit);
-		__set_bit(REL_Y, input_dev->relbit);
+		input_set_capability(input_dev, EV_KEY, BTN_LEFT);
+		input_set_capability(input_dev, EV_KEY, BTN_RIGHT);
+		input_set_capability(input_dev, EV_REL, REL_X);
+		input_set_capability(input_dev, EV_REL, REL_Y);
 		break;
 
 	case GC_SNES:
 		for (i = 4; i < 8; i++)
-			__set_bit(gc_snes_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY, gc_snes_btn[i]);
+		/* fall through */
 	case GC_NES:
 		for (i = 0; i < 4; i++)
-			__set_bit(gc_snes_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY, gc_snes_btn[i]);
 		break;
 
 	case GC_MULTI2:
-		__set_bit(BTN_THUMB, input_dev->keybit);
+		input_set_capability(input_dev, EV_KEY, BTN_THUMB);
+		/* fall through */
 	case GC_MULTI:
-		__set_bit(BTN_TRIGGER, input_dev->keybit);
+		input_set_capability(input_dev, EV_KEY, BTN_TRIGGER);
+		/* fall through */
 		break;
 
 	case GC_PSX:
@@ -903,15 +903,17 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 			input_set_abs_params(input_dev,
 					     gc_psx_abs[i], 4, 252, 0, 2);
 		for (i = 0; i < 12; i++)
-			__set_bit(gc_psx_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY, gc_psx_btn[i]);
+		break;
 
 		break;
 
 	case GC_DDR:
 		for (i = 0; i < 4; i++)
-			__set_bit(gc_psx_ddr_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY,
+					     gc_psx_ddr_btn[i]);
 		for (i = 0; i < 12; i++)
-			__set_bit(gc_psx_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY, gc_psx_btn[i]);
 
 		break;
 	}
@@ -971,7 +973,7 @@ static void gc_attach(struct parport *pp)
 	mutex_init(&gc->mutex);
 	gc->pd = pd;
 	gc->parportno = pp->number;
-	setup_timer(&gc->timer, gc_timer, (long) gc);
+	timer_setup(&gc->timer, gc_timer, 0);
 
 	for (i = 0; i < n_pads && i < GC_MAX_DEVICES; i++) {
 		if (!pads[i])

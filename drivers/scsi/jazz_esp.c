@@ -38,30 +38,6 @@ static u8 jazz_esp_read8(struct esp *esp, unsigned long reg)
 	return *(volatile u8 *)(esp->regs + reg);
 }
 
-static dma_addr_t jazz_esp_map_single(struct esp *esp, void *buf,
-				      size_t sz, int dir)
-{
-	return dma_map_single(esp->dev, buf, sz, dir);
-}
-
-static int jazz_esp_map_sg(struct esp *esp, struct scatterlist *sg,
-				  int num_sg, int dir)
-{
-	return dma_map_sg(esp->dev, sg, num_sg, dir);
-}
-
-static void jazz_esp_unmap_single(struct esp *esp, dma_addr_t addr,
-				  size_t sz, int dir)
-{
-	dma_unmap_single(esp->dev, addr, sz, dir);
-}
-
-static void jazz_esp_unmap_sg(struct esp *esp, struct scatterlist *sg,
-			      int num_sg, int dir)
-{
-	dma_unmap_sg(esp->dev, sg, num_sg, dir);
-}
-
 static int jazz_esp_irq_pending(struct esp *esp)
 {
 	if (jazz_esp_read8(esp, ESP_STATUS) & ESP_STAT_INTR)
@@ -117,10 +93,6 @@ static int jazz_esp_dma_error(struct esp *esp)
 static const struct esp_driver_ops jazz_esp_ops = {
 	.esp_write8	=	jazz_esp_write8,
 	.esp_read8	=	jazz_esp_read8,
-	.map_single	=	jazz_esp_map_single,
-	.map_sg		=	jazz_esp_map_sg,
-	.unmap_single	=	jazz_esp_unmap_single,
-	.unmap_sg	=	jazz_esp_unmap_sg,
 	.irq_pending	=	jazz_esp_irq_pending,
 	.reset_dma	=	jazz_esp_reset_dma,
 	.dma_drain	=	jazz_esp_dma_drain,
@@ -147,7 +119,7 @@ static int esp_jazz_probe(struct platform_device *dev)
 	esp = shost_priv(host);
 
 	esp->host = host;
-	esp->dev = dev;
+	esp->dev = &dev->dev;
 	esp->ops = &jazz_esp_ops;
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
@@ -182,7 +154,7 @@ static int esp_jazz_probe(struct platform_device *dev)
 
 	dev_set_drvdata(&dev->dev, esp);
 
-	err = scsi_esp_register(esp, &dev->dev);
+	err = scsi_esp_register(esp);
 	if (err)
 		goto fail_free_irq;
 

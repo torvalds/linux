@@ -12,7 +12,6 @@ Required properties:
 - ngpios: Should be set to the number of GPIOs available on the SoC.
 
 Optional properties:
-- interrupt-parent: phandle of the parent interrupt controller.
 - interrupts: Interrupt specifier for the controllers interrupt.
 - interrupt-controller : Identifies the node as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode interrupt

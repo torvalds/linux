@@ -932,7 +932,6 @@ err_unlock:
 
 static const struct iio_info cpcap_adc_info = {
 	.read_raw = &cpcap_adc_read,
-	.driver_module = THIS_MODULE,
 };
 
 /*
@@ -1012,7 +1011,7 @@ static int cpcap_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	ddata->irq = platform_get_irq_byname(pdev, "adcdone");
-	if (!ddata->irq)
+	if (ddata->irq < 0)
 		return -ENODEV;
 
 	error = devm_request_threaded_irq(&pdev->dev, ddata->irq, NULL,

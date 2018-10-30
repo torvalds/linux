@@ -8,7 +8,7 @@
  * (c) 2002 Yurij Sysoev <yurij@naturesoft.net>
  * (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
  *
- * (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
+ * (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
  *	- Multituner support and i2c address binding
  *
  * This program is free software; you can redistribute it and/or modify
@@ -140,14 +140,14 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 	core->i2c_algo = cx8800_i2c_algo_template;
 
 	core->i2c_adap.dev.parent = &pci->dev;
-	strlcpy(core->i2c_adap.name, core->name, sizeof(core->i2c_adap.name));
+	strscpy(core->i2c_adap.name, core->name, sizeof(core->i2c_adap.name));
 	core->i2c_adap.owner = THIS_MODULE;
 	core->i2c_algo.udelay = i2c_udelay;
 	core->i2c_algo.data = core;
 	i2c_set_adapdata(&core->i2c_adap, &core->v4l2_dev);
 	core->i2c_adap.algo_data = &core->i2c_algo;
 	core->i2c_client.adapter = &core->i2c_adap;
-	strlcpy(core->i2c_client.name, "cx88xx internal", I2C_NAME_SIZE);
+	strscpy(core->i2c_client.name, "cx88xx internal", I2C_NAME_SIZE);
 
 	cx8800_bit_setscl(core, 1);
 	cx8800_bit_setsda(core, 1);

@@ -25,13 +25,13 @@
 
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
-#include <video/exynos7_decon.h>
 
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_iommu.h"
+#include "regs-decon7.h"
 
 /*
  * DECON stands for Display and Enhancement controller.
@@ -832,6 +832,8 @@ static int exynos7_decon_resume(struct device *dev)
 static const struct dev_pm_ops exynos7_decon_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos7_decon_suspend, exynos7_decon_resume,
 			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 struct platform_driver decon_driver = {

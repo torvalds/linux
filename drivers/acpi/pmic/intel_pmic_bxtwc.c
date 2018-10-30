@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * intel_pmic_bxtwc.c - Intel BXT WhiskeyCove PMIC operation region driver
+ * Intel BXT WhiskeyCove PMIC operation region driver
  *
  * Copyright (C) 2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -400,7 +392,7 @@ static int intel_bxtwc_pmic_opregion_probe(struct platform_device *pdev)
 			&intel_bxtwc_pmic_opregion_data);
 }
 
-static struct platform_device_id bxt_wc_opregion_id_table[] = {
+static const struct platform_device_id bxt_wc_opregion_id_table[] = {
 	{ .name = "bxt_wcove_region" },
 	{},
 };
@@ -412,9 +404,4 @@ static struct platform_driver intel_bxtwc_pmic_opregion_driver = {
 	},
 	.id_table = bxt_wc_opregion_id_table,
 };
-
-static int __init intel_bxtwc_pmic_opregion_driver_init(void)
-{
-	return platform_driver_register(&intel_bxtwc_pmic_opregion_driver);
-}
-device_initcall(intel_bxtwc_pmic_opregion_driver_init);
+builtin_platform_driver(intel_bxtwc_pmic_opregion_driver);

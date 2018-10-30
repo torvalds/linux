@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <ctype.h>
 #include "symbol/kallsyms.h"
 #include <stdio.h>
@@ -7,6 +8,12 @@ u8 kallsyms2elf_type(char type)
 {
 	type = tolower(type);
 	return (type == 't' || type == 'w') ? STT_FUNC : STT_OBJECT;
+}
+
+bool kallsyms__is_function(char symbol_type)
+{
+	symbol_type = toupper(symbol_type);
+	return symbol_type == 'T' || symbol_type == 'W';
 }
 
 int kallsyms__parse(const char *filename, void *arg,
@@ -36,6 +43,10 @@ int kallsyms__parse(const char *filename, void *arg,
 		line[--line_len] = '\0'; /* \n */
 
 		len = hex2u64(line, &start);
+
+		/* Skip the line if we failed to parse the address. */
+		if (!len)
+			continue;
 
 		len++;
 		if (len + 2 >= line_len)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Copyright IBM Corp. 2016
  *  Author(s): Harald Freudenberger <freude@de.ibm.com>
@@ -21,8 +22,5 @@
 	debug_sprintf_event(ap_dbf_info, ##__VA_ARGS__)
 
 extern debug_info_t *ap_dbf_info;
-
-int ap_debug_init(void);
-void ap_debug_exit(void);
 
 #endif /* AP_DEBUG_H */

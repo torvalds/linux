@@ -148,18 +148,10 @@ Nintendo Wii device tree
   - reg : should contain the controller registers location and length
   - interrupt-controller
   - interrupts : should contain the cascade interrupt of the "flipper" pic
-  - interrupt-parent: should contain the phandle of the "flipper" pic
 
 1.l) The General Purpose I/O (GPIO) controller node
 
-  Represents the dual access 32 GPIO controller interface.
-
-  Required properties:
-
-  - #gpio-cells : <2>
-  - compatible : should be "nintendo,hollywood-gpio"
-  - reg : should contain the IPC registers location and length
-  - gpio-controller
+  see Documentation/devicetree/bindings/gpio/nintendo,hollywood-gpio.txt
 
 1.m) The control node
 

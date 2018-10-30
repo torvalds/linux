@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_ELFCORE_COMPAT_H
 #define _LINUX_ELFCORE_COMPAT_H
 
@@ -26,10 +27,10 @@ struct compat_elf_prstatus
 	compat_pid_t			pr_ppid;
 	compat_pid_t			pr_pgrp;
 	compat_pid_t			pr_sid;
-	struct compat_timeval		pr_utime;
-	struct compat_timeval		pr_stime;
-	struct compat_timeval		pr_cutime;
-	struct compat_timeval		pr_cstime;
+	struct old_timeval32		pr_utime;
+	struct old_timeval32		pr_stime;
+	struct old_timeval32		pr_cutime;
+	struct old_timeval32		pr_cstime;
 	compat_elf_gregset_t		pr_reg;
 #ifdef CONFIG_BINFMT_ELF_FDPIC
 	compat_ulong_t			pr_exec_fdpic_loadmap;

@@ -6,7 +6,6 @@ Required properties:
 - reg-names:	must include the following entries:
 		"Txs": TX slave port region
 		"Cra": Control register access region
-- interrupt-parent:	interrupt source phandle.
 - interrupts:	specifies the interrupt source of the parent interrupt
 		controller.  The format of the interrupt specifier depends
 		on the parent interrupt controller.
@@ -25,7 +24,7 @@ Optional properties:
 - bus-range:	PCI bus numbers covered
 
 Example
-	pcie_0: pcie@0xc00000000 {
+	pcie_0: pcie@c00000000 {
 		compatible = "altr,pcie-root-port-1.0";
 		reg = <0xc0000000 0x20000000>,
 			<0xff220000 0x00004000>;

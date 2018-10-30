@@ -1,0 +1,85 @@
+/*
+ * DTS for Unifi Switch 8 port
+ *
+ * Copyright (C) 2017 Florian Fainelli <f.fainelli@gmail.com>
+ *
+ * Licensed under the GNU/GPL. See COPYING for details.
+ */
+
+/dts-v1/;
+
+#include "bcm-hr2.dtsi"
+
+/ {
+	compatible = "ubnt,unifi-switch8", "brcm,bcm53342", "brcm,hr2";
+	model = "Ubiquiti UniFi Switch 8 (BCM53342)";
+
+	/* Hurricane 2 designs use the second UART */
+	chosen {
+		bootargs = "console=ttyS1,115200 earlyprintk";
+	};
+
+	memory@0 {
+		reg = <0x00000000 0x08000000>,
+		      <0x68000000 0x08000000>;
+	};
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+	bspi-sel = <0>;
+
+	flash: m25p80@0 {
+		compatible = "m25p80";
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <12500000>;
+		spi-cpol;
+		spi-cpha;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0xc0000>;
+		};
+
+		partition@c0000 {
+			label = "u-boot-env";
+			reg = <0xc0000 0x10000>;
+		};
+
+		partition@d0000 {
+			label = "shmoo";
+			reg = <0xd0000 0x10000>;
+		};
+
+		partition@e0000 {
+			label = "kernel0";
+			reg = <0xe0000 0xf00000>;
+		};
+
+		partition@fe0000 {
+			label = "kernel1";
+			reg = <0xfe0000 0xf10000>;
+		};
+
+		partition@1ef0000 {
+			label = "cfg";
+			reg = <0x1ef0000 0x100000>;
+		};
+
+		partition@1ff0000 {
+			label = "EEPROM";
+			reg = <0x1ff0000 0x10000>;
+		};
+	};
+};
+
+&pcie0 {
+	/* Attaches to the internal switch */
+	status = "okay";
+};

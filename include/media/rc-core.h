@@ -17,22 +17,16 @@
 #define _RC_CORE
 
 #include <linux/spinlock.h>
+#include <linux/cdev.h>
 #include <linux/kfifo.h>
 #include <linux/time.h>
 #include <linux/timer.h>
 #include <media/rc-map.h>
 
-extern int rc_core_debug;
-#define IR_dprintk(level, fmt, ...)				\
-do {								\
-	if (rc_core_debug >= level)				\
-		printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
-} while (0)
-
 /**
- * enum rc_driver_type - type of the RC output
+ * enum rc_driver_type - type of the RC driver.
  *
- * @RC_DRIVER_SCANCODE:	 Driver or hardware generates a scancode
+ * @RC_DRIVER_SCANCODE:	 Driver or hardware generates a scancode.
  * @RC_DRIVER_IR_RAW:	 Driver or hardware generates pulse/space sequences.
  *			 It needs a Infra-Red pulse/space decoder
  * @RC_DRIVER_IR_RAW_TX: Device transmitter only,
@@ -65,6 +59,33 @@ enum rc_filter_type {
 	RC_FILTER_WAKEUP,
 
 	RC_FILTER_MAX
+};
+
+/**
+ * struct lirc_fh - represents an open lirc file
+ * @list: list of open file handles
+ * @rc: rcdev for this lirc chardev
+ * @carrier_low: when setting the carrier range, first the low end must be
+ *	set with an ioctl and then the high end with another ioctl
+ * @send_timeout_reports: report timeouts in lirc raw IR.
+ * @rawir: queue for incoming raw IR
+ * @scancodes: queue for incoming decoded scancodes
+ * @wait_poll: poll struct for lirc device
+ * @send_mode: lirc mode for sending, either LIRC_MODE_SCANCODE or
+ *	LIRC_MODE_PULSE
+ * @rec_mode: lirc mode for receiving, either LIRC_MODE_SCANCODE or
+ *	LIRC_MODE_MODE2
+ */
+struct lirc_fh {
+	struct list_head list;
+	struct rc_dev *rc;
+	int				carrier_low;
+	bool				send_timeout_reports;
+	DECLARE_KFIFO_PTR(rawir, unsigned int);
+	DECLARE_KFIFO_PTR(scancodes, struct lirc_scancode);
+	wait_queue_head_t		wait_poll;
+	u8				send_mode;
+	u8				rec_mode;
 };
 
 /**
@@ -106,6 +127,8 @@ enum rc_filter_type {
  * @keypressed: whether a key is currently pressed
  * @keyup_jiffies: time (in jiffies) when the current keypress should be released
  * @timer_keyup: timer for releasing a keypress
+ * @timer_repeat: timer for autorepeat events. This is needed for CEC, which
+ *	has non-standard repeats.
  * @last_keycode: keycode of last keypress
  * @last_protocol: protocol of last keypress
  * @last_scancode: scancode of last keypress
@@ -115,6 +138,15 @@ enum rc_filter_type {
  * @max_timeout: maximum timeout supported by device
  * @rx_resolution : resolution (in ns) of input sampler
  * @tx_resolution: resolution (in ns) of output sampler
+ * @lirc_dev: lirc device
+ * @lirc_cdev: lirc char cdev
+ * @gap_start: time when gap starts
+ * @gap_duration: duration of initial gap
+ * @gap: true if we're in a gap
+ * @lirc_fh_lock: protects lirc_fh list
+ * @lirc_fh: list of open files
+ * @registered: set to true by rc_register_device(), false by
+ *	rc_unregister_device
  * @change_protocol: allow changing the protocol used on hardware decoders
  * @open: callback to allow drivers to enable polling/irq when IR input device
  *	is opened.
@@ -165,6 +197,7 @@ struct rc_dev {
 	bool				keypressed;
 	unsigned long			keyup_jiffies;
 	struct timer_list		timer_keyup;
+	struct timer_list		timer_repeat;
 	u32				last_keycode;
 	enum rc_proto			last_protocol;
 	u32				last_scancode;
@@ -174,6 +207,16 @@ struct rc_dev {
 	u32				max_timeout;
 	u32				rx_resolution;
 	u32				tx_resolution;
+#ifdef CONFIG_LIRC
+	struct device			lirc_dev;
+	struct cdev			lirc_cdev;
+	ktime_t				gap_start;
+	u64				gap_duration;
+	bool				gap;
+	spinlock_t			lirc_fh_lock;
+	struct list_head		lirc_fh;
+#endif
+	bool				registered;
 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_proto);
 	int				(*open)(struct rc_dev *dev);
 	void				(*close)(struct rc_dev *dev);
@@ -248,20 +291,6 @@ int devm_rc_register_device(struct device *parent, struct rc_dev *dev);
  */
 void rc_unregister_device(struct rc_dev *dev);
 
-/**
- * rc_open - Opens a RC device
- *
- * @rdev: pointer to struct rc_dev.
- */
-int rc_open(struct rc_dev *rdev);
-
-/**
- * rc_close - Closes a RC device
- *
- * @rdev: pointer to struct rc_dev.
- */
-void rc_close(struct rc_dev *rdev);
-
 void rc_repeat(struct rc_dev *dev);
 void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,
 		u8 toggle);
@@ -288,13 +317,6 @@ struct ir_raw_event {
 	unsigned                carrier_report:1;
 };
 
-#define DEFINE_IR_RAW_EVENT(event) struct ir_raw_event event = {}
-
-static inline void init_ir_raw_event(struct ir_raw_event *ev)
-{
-	memset(ev, 0, sizeof(*ev));
-}
-
 #define IR_DEFAULT_TIMEOUT	MS_TO_NS(125)
 #define IR_MAX_DURATION         500000000	/* 500 ms */
 #define US_TO_NS(usec)		((usec) * 1000)
@@ -305,16 +327,18 @@ void ir_raw_event_handle(struct rc_dev *dev);
 int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev);
 int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse);
 int ir_raw_event_store_with_filter(struct rc_dev *dev,
-				struct ir_raw_event *ev);
+				   struct ir_raw_event *ev);
+int ir_raw_event_store_with_timeout(struct rc_dev *dev,
+				    struct ir_raw_event *ev);
 void ir_raw_event_set_idle(struct rc_dev *dev, bool idle);
 int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 			   struct ir_raw_event *events, unsigned int max);
+int ir_raw_encode_carrier(enum rc_proto protocol);
 
 static inline void ir_raw_event_reset(struct rc_dev *dev)
 {
-	struct ir_raw_event ev = { .reset = true };
-
-	ir_raw_event_store(dev, &ev);
+	ir_raw_event_store(dev, &((struct ir_raw_event) { .reset = true }));
+	dev->idle = true;
 	ir_raw_event_handle(dev);
 }
 

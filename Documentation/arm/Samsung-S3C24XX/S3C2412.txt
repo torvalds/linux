@@ -46,7 +46,7 @@ NAND
 ----
 
   The NAND hardware is similar to the S3C2440, and is supported by the
-  s3c2410 driver in the drivers/mtd/nand directory.
+  s3c2410 driver in the drivers/mtd/nand/raw directory.
 
 
 USB Host

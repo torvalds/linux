@@ -2481,24 +2481,13 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 	else
 		karg.host_no =  -1;
 
-	/* Reformat the fw_version into a string
-	 */
-	karg.fw_version[0] = ioc->facts.FWVersion.Struct.Major >= 10 ?
-		((ioc->facts.FWVersion.Struct.Major / 10) + '0') : '0';
-	karg.fw_version[1] = (ioc->facts.FWVersion.Struct.Major % 10 ) + '0';
-	karg.fw_version[2] = '.';
-	karg.fw_version[3] = ioc->facts.FWVersion.Struct.Minor >= 10 ?
-		((ioc->facts.FWVersion.Struct.Minor / 10) + '0') : '0';
-	karg.fw_version[4] = (ioc->facts.FWVersion.Struct.Minor % 10 ) + '0';
-	karg.fw_version[5] = '.';
-	karg.fw_version[6] = ioc->facts.FWVersion.Struct.Unit >= 10 ?
-		((ioc->facts.FWVersion.Struct.Unit / 10) + '0') : '0';
-	karg.fw_version[7] = (ioc->facts.FWVersion.Struct.Unit % 10 ) + '0';
-	karg.fw_version[8] = '.';
-	karg.fw_version[9] = ioc->facts.FWVersion.Struct.Dev >= 10 ?
-		((ioc->facts.FWVersion.Struct.Dev / 10) + '0') : '0';
-	karg.fw_version[10] = (ioc->facts.FWVersion.Struct.Dev % 10 ) + '0';
-	karg.fw_version[11] = '\0';
+	/* Reformat the fw_version into a string */
+	snprintf(karg.fw_version, sizeof(karg.fw_version),
+		 "%.2hhu.%.2hhu.%.2hhu.%.2hhu",
+		 ioc->facts.FWVersion.Struct.Major,
+		 ioc->facts.FWVersion.Struct.Minor,
+		 ioc->facts.FWVersion.Struct.Unit,
+		 ioc->facts.FWVersion.Struct.Dev);
 
 	/* Issue a config request to get the device serial number
 	 */
@@ -2525,8 +2514,8 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 				if (mpt_config(ioc, &cfg) == 0) {
 					ManufacturingPage0_t *pdata = (ManufacturingPage0_t *) pbuf;
 					if (strlen(pdata->BoardTracerNumber) > 1) {
-						strncpy(karg.serial_number, 									    pdata->BoardTracerNumber, 24);
-						karg.serial_number[24-1]='\0';
+						strlcpy(karg.serial_number,
+							pdata->BoardTracerNumber, 24);
 					}
 				}
 				pci_free_consistent(ioc->pcidev, hdr.PageLength * 4, pbuf, buf_dma);
@@ -2698,6 +2687,8 @@ mptctl_hp_targetinfo(unsigned long arg)
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
+	if (karg.hdr.id >= MPT_MAX_FC_DEVICES)
+		return -EINVAL;
 	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_hp_targetinfo called.\n",
 	    ioc->name));
 

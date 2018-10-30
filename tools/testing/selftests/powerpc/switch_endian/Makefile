@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 TEST_GEN_PROGS := switch_endian_test
 
 ASFLAGS += -O2 -Wall -g -nostdlib -m64
 
 EXTRA_CLEAN = $(OUTPUT)/*.o $(OUTPUT)/check-reversed.S
 
+top_srcdir = ../../../../..
 include ../../lib.mk
 
 $(OUTPUT)/switch_endian_test: $(OUTPUT)/check-reversed.S

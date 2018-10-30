@@ -139,8 +139,9 @@ static int max6900_i2c_write_regs(struct i2c_client *client, u8 const *buf)
 	return -EIO;
 }
 
-static int max6900_i2c_read_time(struct i2c_client *client, struct rtc_time *tm)
+static int max6900_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	int rc;
 	u8 regs[MAX6900_REG_LEN];
 
@@ -157,7 +158,7 @@ static int max6900_i2c_read_time(struct i2c_client *client, struct rtc_time *tm)
 		      bcd2bin(regs[MAX6900_REG_CENTURY]) * 100 - 1900;
 	tm->tm_wday = bcd2bin(regs[MAX6900_REG_DW]);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int max6900_i2c_clear_write_protect(struct i2c_client *client)
@@ -165,9 +166,9 @@ static int max6900_i2c_clear_write_protect(struct i2c_client *client)
 	return i2c_smbus_write_byte_data(client, MAX6900_REG_CONTROL_WRITE, 0);
 }
 
-static int
-max6900_i2c_set_time(struct i2c_client *client, struct rtc_time const *tm)
+static int max6900_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	u8 regs[MAX6900_REG_LEN];
 	int rc;
 
@@ -191,16 +192,6 @@ max6900_i2c_set_time(struct i2c_client *client, struct rtc_time const *tm)
 		return rc;
 
 	return 0;
-}
-
-static int max6900_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return max6900_i2c_read_time(to_i2c_client(dev), tm);
-}
-
-static int max6900_rtc_set_time(struct device *dev, struct rtc_time *tm)
-{
-	return max6900_i2c_set_time(to_i2c_client(dev), tm);
 }
 
 static const struct rtc_class_ops max6900_rtc_ops = {

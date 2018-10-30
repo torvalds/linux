@@ -519,6 +519,22 @@ void xgbe_debugfs_init(struct xgbe_prv_data *pdata)
 				   "debugfs_create_file failed\n");
 	}
 
+	if (pdata->vdata->an_cdr_workaround) {
+		pfile = debugfs_create_bool("an_cdr_workaround", 0600,
+					    pdata->xgbe_debugfs,
+					    &pdata->debugfs_an_cdr_workaround);
+		if (!pfile)
+			netdev_err(pdata->netdev,
+				   "debugfs_create_bool failed\n");
+
+		pfile = debugfs_create_bool("an_cdr_track_early", 0600,
+					    pdata->xgbe_debugfs,
+					    &pdata->debugfs_an_cdr_track_early);
+		if (!pfile)
+			netdev_err(pdata->netdev,
+				   "debugfs_create_bool failed\n");
+	}
+
 	kfree(buf);
 }
 

@@ -1,9 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SECCOMP_H
 #define _LINUX_SECCOMP_H
 
 #include <uapi/linux/seccomp.h>
 
-#define SECCOMP_FILTER_FLAG_MASK	(SECCOMP_FILTER_FLAG_TSYNC)
+#define SECCOMP_FILTER_FLAG_MASK	(SECCOMP_FILTER_FLAG_TSYNC	| \
+					 SECCOMP_FILTER_FLAG_LOG	| \
+					 SECCOMP_FILTER_FLAG_SPEC_ALLOW)
 
 #ifdef CONFIG_SECCOMP
 
@@ -93,9 +96,17 @@ static inline void get_seccomp_filter(struct task_struct *tsk)
 #if defined(CONFIG_SECCOMP_FILTER) && defined(CONFIG_CHECKPOINT_RESTORE)
 extern long seccomp_get_filter(struct task_struct *task,
 			       unsigned long filter_off, void __user *data);
+extern long seccomp_get_metadata(struct task_struct *task,
+				 unsigned long filter_off, void __user *data);
 #else
 static inline long seccomp_get_filter(struct task_struct *task,
 				      unsigned long n, void __user *data)
+{
+	return -EINVAL;
+}
+static inline long seccomp_get_metadata(struct task_struct *task,
+					unsigned long filter_off,
+					void __user *data)
 {
 	return -EINVAL;
 }

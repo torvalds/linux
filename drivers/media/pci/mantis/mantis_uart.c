@@ -27,11 +27,11 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 
 #include "mantis_common.h"
 #include "mantis_reg.h"
@@ -92,6 +92,7 @@ static void mantis_uart_work(struct work_struct *work)
 {
 	struct mantis_pci *mantis = container_of(work, struct mantis_pci, uart_work);
 	u32 stat;
+	unsigned long timeout;
 
 	stat = mmread(MANTIS_UART_STAT);
 
@@ -102,9 +103,15 @@ static void mantis_uart_work(struct work_struct *work)
 	 * MANTIS_UART_RXFIFO_DATA is only set if at least
 	 * config->bytes + 1 bytes are in the FIFO.
 	 */
+
+	/* FIXME: is 10ms good enough ? */
+	timeout = jiffies +  msecs_to_jiffies(10);
 	while (stat & MANTIS_UART_RXFIFO_DATA) {
 		mantis_uart_read(mantis);
 		stat = mmread(MANTIS_UART_STAT);
+
+		if (!time_is_after_jiffies(timeout))
+			break;
 	}
 
 	/* re-enable UART (RX) interrupt */

@@ -93,8 +93,15 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 	{MEI_PCI_DEVICE(MEI_DEV_ID_BXT_M, MEI_ME_PCH8_CFG)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_APL_I, MEI_ME_PCH8_CFG)},
 
+	{MEI_PCI_DEVICE(MEI_DEV_ID_GLK, MEI_ME_PCH8_CFG)},
+
 	{MEI_PCI_DEVICE(MEI_DEV_ID_KBP, MEI_ME_PCH8_CFG)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_KBP_2, MEI_ME_PCH8_CFG)},
+
+	{MEI_PCI_DEVICE(MEI_DEV_ID_CNP_LP, MEI_ME_PCH8_CFG)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_CNP_LP_4, MEI_ME_PCH8_CFG)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_CNP_H, MEI_ME_PCH8_CFG)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_CNP_H_4, MEI_ME_PCH8_CFG)},
 
 	/* required last entry */
 	{0, }
@@ -223,18 +230,24 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * MEI requires to resume from runtime suspend mode
 	 * in order to perform link reset flow upon system suspend.
 	 */
-	pdev->dev_flags |= PCI_DEV_FLAGS_NEEDS_RESUME;
+	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NEVER_SKIP);
 
 	/*
-	* For not wake-able HW runtime pm framework
-	* can't be used on pci device level.
-	* Use domain runtime pm callbacks instead.
-	*/
-	if (!pci_dev_run_wake(pdev))
-		mei_me_set_pm_domain(dev);
+	 * ME maps runtime suspend/resume to D0i states,
+	 * hence we need to go around native PCI runtime service which
+	 * eventually brings the device into D3cold/hot state,
+	 * but the mei device cannot wake up from D3 unlike from D0i3.
+	 * To get around the PCI device native runtime pm,
+	 * ME uses runtime pm domain handlers which take precedence
+	 * over the driver's pm handlers.
+	 */
+	mei_me_set_pm_domain(dev);
 
-	if (mei_pg_is_enabled(dev))
+	if (mei_pg_is_enabled(dev)) {
 		pm_runtime_put_noidle(&pdev->dev);
+		if (hw->d0i3_supported)
+			pm_runtime_allow(&pdev->dev);
+	}
 
 	dev_dbg(&pdev->dev, "initialization successful.\n");
 
@@ -271,8 +284,7 @@ static void mei_me_shutdown(struct pci_dev *pdev)
 	dev_dbg(&pdev->dev, "shutdown\n");
 	mei_stop(dev);
 
-	if (!pci_dev_run_wake(pdev))
-		mei_me_unset_pm_domain(dev);
+	mei_me_unset_pm_domain(dev);
 
 	mei_disable_interrupts(dev);
 	free_irq(pdev->irq, dev);
@@ -300,8 +312,7 @@ static void mei_me_remove(struct pci_dev *pdev)
 	dev_dbg(&pdev->dev, "stop\n");
 	mei_stop(dev);
 
-	if (!pci_dev_run_wake(pdev))
-		mei_me_unset_pm_domain(dev);
+	mei_me_unset_pm_domain(dev);
 
 	mei_disable_interrupts(dev);
 

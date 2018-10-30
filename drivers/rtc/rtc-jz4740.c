@@ -82,7 +82,7 @@ static inline uint32_t jz4740_rtc_reg_read(struct jz4740_rtc *rtc, size_t reg)
 static int jz4740_rtc_wait_write_ready(struct jz4740_rtc *rtc)
 {
 	uint32_t ctrl;
-	int timeout = 1000;
+	int timeout = 10000;
 
 	do {
 		ctrl = jz4740_rtc_reg_read(rtc, JZ_REG_RTC_CTRL);
@@ -94,7 +94,7 @@ static int jz4740_rtc_wait_write_ready(struct jz4740_rtc *rtc)
 static inline int jz4780_rtc_enable_write(struct jz4740_rtc *rtc)
 {
 	uint32_t ctrl;
-	int ret, timeout = 1000;
+	int ret, timeout = 10000;
 
 	ret = jz4740_rtc_wait_write_ready(rtc);
 	if (ret != 0)
@@ -173,7 +173,7 @@ static int jz4740_rtc_read_time(struct device *dev, struct rtc_time *time)
 
 	rtc_time_to_tm(secs, time);
 
-	return rtc_valid_tm(time);
+	return 0;
 }
 
 static int jz4740_rtc_set_mmss(struct device *dev, unsigned long secs)
@@ -368,7 +368,7 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 		ret = jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SCRATCHPAD, 0x12345678);
 		ret = jz4740_rtc_reg_write(rtc, JZ_REG_RTC_SEC, 0);
 		if (ret) {
-			dev_err(&pdev->dev, "Could not write write to RTC registers\n");
+			dev_err(&pdev->dev, "Could not write to RTC registers\n");
 			return ret;
 		}
 	}

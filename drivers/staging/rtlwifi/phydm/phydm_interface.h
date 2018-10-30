@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2016  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
@@ -171,17 +160,6 @@ void ODM_delay_us(u32 us);
 void ODM_sleep_ms(u32 ms);
 
 void ODM_sleep_us(u32 us);
-
-void odm_set_timer(struct phy_dm_struct *dm, struct timer_list *timer,
-		   u32 ms_delay);
-
-void odm_initialize_timer(struct phy_dm_struct *dm, struct timer_list *timer,
-			  void *call_back_func, void *context,
-			  const char *sz_id);
-
-void odm_cancel_timer(struct phy_dm_struct *dm, struct timer_list *timer);
-
-void odm_release_timer(struct phy_dm_struct *dm, struct timer_list *timer);
 
 /*
  * ODM FW relative API.

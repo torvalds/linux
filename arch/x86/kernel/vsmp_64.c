@@ -26,10 +26,7 @@
 
 #define TOPOLOGY_REGISTER_OFFSET 0x10
 
-/* Flag below is initialized once during vSMP PCI initialization. */
-static int irq_routing_comply = 1;
-
-#if defined CONFIG_PCI && defined CONFIG_PARAVIRT
+#if defined CONFIG_PCI && defined CONFIG_PARAVIRT_XXL
 /*
  * Interrupt control on vSMPowered systems:
  * ~AC is a shadow of IF.  If IF is 'on' AC should be 'off'
@@ -72,17 +69,17 @@ asmlinkage __visible void vsmp_irq_enable(void)
 }
 PV_CALLEE_SAVE_REGS_THUNK(vsmp_irq_enable);
 
-static unsigned __init vsmp_patch(u8 type, u16 clobbers, void *ibuf,
+static unsigned __init vsmp_patch(u8 type, void *ibuf,
 				  unsigned long addr, unsigned len)
 {
 	switch (type) {
-	case PARAVIRT_PATCH(pv_irq_ops.irq_enable):
-	case PARAVIRT_PATCH(pv_irq_ops.irq_disable):
-	case PARAVIRT_PATCH(pv_irq_ops.save_fl):
-	case PARAVIRT_PATCH(pv_irq_ops.restore_fl):
-		return paravirt_patch_default(type, clobbers, ibuf, addr, len);
+	case PARAVIRT_PATCH(irq.irq_enable):
+	case PARAVIRT_PATCH(irq.irq_disable):
+	case PARAVIRT_PATCH(irq.save_fl):
+	case PARAVIRT_PATCH(irq.restore_fl):
+		return paravirt_patch_default(type, ibuf, addr, len);
 	default:
-		return native_patch(type, clobbers, ibuf, addr, len);
+		return native_patch(type, ibuf, addr, len);
 	}
 
 }
@@ -105,9 +102,6 @@ static void __init set_vsmp_pv_ops(void)
 	if (cap & ctl & BIT(8)) {
 		ctl &= ~BIT(8);
 
-		/* Interrupt routing set to ignore */
-		irq_routing_comply = 0;
-
 #ifdef CONFIG_PROC_FS
 		/* Don't let users change irq affinity via procfs */
 		no_irq_affinity = 1;
@@ -117,11 +111,11 @@ static void __init set_vsmp_pv_ops(void)
 
 	if (cap & ctl & (1 << 4)) {
 		/* Setup irq ops and turn on vSMP  IRQ fastpath handling */
-		pv_irq_ops.irq_disable = PV_CALLEE_SAVE(vsmp_irq_disable);
-		pv_irq_ops.irq_enable  = PV_CALLEE_SAVE(vsmp_irq_enable);
-		pv_irq_ops.save_fl  = PV_CALLEE_SAVE(vsmp_save_fl);
-		pv_irq_ops.restore_fl  = PV_CALLEE_SAVE(vsmp_restore_fl);
-		pv_init_ops.patch = vsmp_patch;
+		pv_ops.irq.irq_disable = PV_CALLEE_SAVE(vsmp_irq_disable);
+		pv_ops.irq.irq_enable = PV_CALLEE_SAVE(vsmp_irq_enable);
+		pv_ops.irq.save_fl = PV_CALLEE_SAVE(vsmp_save_fl);
+		pv_ops.irq.restore_fl = PV_CALLEE_SAVE(vsmp_restore_fl);
+		pv_ops.init.patch = vsmp_patch;
 		ctl &= ~(1 << 4);
 	}
 	writel(ctl, address + 4);
@@ -211,23 +205,10 @@ static int apicid_phys_pkg_id(int initial_apic_id, int index_msb)
 	return hard_smp_processor_id() >> index_msb;
 }
 
-/*
- * In vSMP, all cpus should be capable of handling interrupts, regardless of
- * the APIC used.
- */
-static void fill_vector_allocation_domain(int cpu, struct cpumask *retmask,
-					  const struct cpumask *mask)
-{
-	cpumask_setall(retmask);
-}
-
 static void vsmp_apic_post_init(void)
 {
 	/* need to update phys_pkg_id */
 	apic->phys_pkg_id = apicid_phys_pkg_id;
-
-	if (!irq_routing_comply)
-		apic->vector_allocation_domain = fill_vector_allocation_domain;
 }
 
 void __init vsmp_init(void)

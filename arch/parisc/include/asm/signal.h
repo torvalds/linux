@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_PARISC_SIGNAL_H
 #define _ASM_PARISC_SIGNAL_H
 
@@ -19,14 +20,6 @@ typedef struct {
 	/* next_signal() assumes this is a long - no choice */
 	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
-
-#ifndef __KERNEL__
-struct sigaction {
-	__sighandler_t sa_handler;
-	unsigned long sa_flags;
-	sigset_t sa_mask;		/* mask last for extensibility */
-};
-#endif
 
 #include <asm/sigcontext.h>
 

@@ -8,7 +8,7 @@ Required properties:
 	"intermediate"	- A parent of "cpu" clock which is used as "intermediate" clock
 			  source (usually MAINPLL) when the original CPU PLL is under
 			  transition and not stable yet.
-	Please refer to Documentation/devicetree/bindings/clk/clock-bindings.txt for
+	Please refer to Documentation/devicetree/bindings/clock/clock-bindings.txt for
 	generic clock consumer properties.
 - operating-points-v2: Please refer to Documentation/devicetree/bindings/opp/opp.txt
 	for detail.
@@ -21,8 +21,6 @@ Optional properties:
 	       flow is handled by hardware, hence no software "voltage tracking" is
 	       needed.
 - #cooling-cells:
-- cooling-min-level:
-- cooling-max-level:
 	Please refer to Documentation/devicetree/bindings/thermal/thermal.txt
 	for detail.
 
@@ -67,8 +65,6 @@ Example 1 (MT7623 SoC):
 		clock-names = "cpu", "intermediate";
 		operating-points-v2 = <&cpu_opp_table>;
 		#cooling-cells = <2>;
-		cooling-min-level = <0>;
-		cooling-max-level = <7>;
 	};
 	cpu@1 {
 		device_type = "cpu";

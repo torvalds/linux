@@ -43,14 +43,14 @@
  * timelines.
  *
  * Fences can be created with SW_SYNC_IOC_CREATE_FENCE ioctl with struct
- * sw_sync_ioctl_create_fence as parameter.
+ * sw_sync_create_fence_data as parameter.
  *
  * To increment the timeline counter, SW_SYNC_IOC_INC ioctl should be used
  * with the increment as u32. This will update the last signaled value
  * from the timeline and signal any fence that has a seqno smaller or equal
  * to it.
  *
- * struct sw_sync_ioctl_create_fence
+ * struct sw_sync_create_fence_data
  * @value:	the seqno to initialise the fence with
  * @name:	the name of the new sync point
  * @fence:	return the fd of the new sync_file with the created fence
@@ -188,7 +188,6 @@ static const struct dma_fence_ops timeline_fence_ops = {
 	.get_timeline_name = timeline_fence_get_timeline_name,
 	.enable_signaling = timeline_fence_enable_signaling,
 	.signaled = timeline_fence_signaled,
-	.wait = dma_fence_default_wait,
 	.release = timeline_fence_release,
 	.fence_value_str = timeline_fence_value_str,
 	.timeline_value_str = timeline_fence_timeline_value_str,
@@ -235,10 +234,10 @@ static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 
 /**
  * sync_pt_create() - creates a sync pt
- * @parent:	fence's parent sync_timeline
- * @inc:	value of the fence
+ * @obj:	parent sync_timeline
+ * @value:	value of the fence
  *
- * Creates a new sync_pt as a child of @parent.  @size bytes will be
+ * Creates a new sync_pt (fence) as a child of @parent.  @size bytes will be
  * allocated allowing for implementation specific data to be kept after
  * the generic sync_timeline struct. Returns the sync_pt object or
  * NULL in case of error.
@@ -321,8 +320,16 @@ static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
 static int sw_sync_debugfs_release(struct inode *inode, struct file *file)
 {
 	struct sync_timeline *obj = file->private_data;
+	struct sync_pt *pt, *next;
 
-	smp_wmb();
+	spin_lock_irq(&obj->lock);
+
+	list_for_each_entry_safe(pt, next, &obj->pt_list, link) {
+		dma_fence_set_error(&pt->base, -ENOENT);
+		dma_fence_signal_locked(&pt->base);
+	}
+
+	spin_unlock_irq(&obj->lock);
 
 	sync_timeline_put(obj);
 	return 0;

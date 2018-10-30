@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
 #include <linux/power_supply.h>
 #include <linux/of.h>
@@ -429,13 +430,6 @@ static const struct abx500_maxim_parameters ab8500_maxi_params = {
 	.charger_curr_step = 100,
 };
 
-static const struct abx500_maxim_parameters abx540_maxi_params = {
-	.ena_maxi = true,
-	.chg_curr = 3000,
-	.wait_cycles = 10,
-	.charger_curr_step = 200,
-};
-
 static const struct abx500_bm_charger_parameters chg = {
 	.usb_volt_max		= 5500,
 	.usb_curr_max		= 1500,
@@ -452,17 +446,6 @@ static int ab8500_charge_output_curr_map[] = {
         900,    1000,   1100,   1200,   1300,   1400,   1500,   1500,
 };
 
-static int ab8540_charge_output_curr_map[] = {
-        0,      0,      0,      75,     100,    125,    150,    175,
-        200,    225,    250,    275,    300,    325,    350,    375,
-        400,    425,    450,    475,    500,    525,    550,    575,
-        600,    625,    650,    675,    700,    725,    750,    775,
-        800,    825,    850,    875,    900,    925,    950,    975,
-        1000,   1025,   1050,   1075,   1100,   1125,   1150,   1175,
-        1200,   1225,   1250,   1275,   1300,   1325,   1350,   1375,
-        1400,   1425,   1450,   1500,   1600,   1700,   1900,   2000,
-};
-
 /*
  * This array maps the raw hex value to charger input current used by the
  * AB8500 values
@@ -470,17 +453,6 @@ static int ab8540_charge_output_curr_map[] = {
 static int ab8500_charge_input_curr_map[] = {
         50,     98,     193,    290,    380,    450,    500,    600,
         700,    800,    900,    1000,   1100,   1300,   1400,   1500,
-};
-
-static int ab8540_charge_input_curr_map[] = {
-        25,     50,     75,     100,    125,    150,    175,    200,
-        225,    250,    275,    300,    325,    350,    375,    400,
-        425,    450,    475,    500,    525,    550,    575,    600,
-        625,    650,    675,    700,    725,    750,    775,    800,
-        825,    850,    875,    900,    925,    950,    975,    1000,
-        1025,   1050,   1075,   1100,   1125,   1150,   1175,   1200,
-        1225,   1250,   1275,   1300,   1325,   1350,   1375,   1400,
-        1425,   1450,   1475,   1500,   1500,   1500,   1500,   1500,
 };
 
 struct abx500_bm_data ab8500_bm_data = {
@@ -515,40 +487,6 @@ struct abx500_bm_data ab8500_bm_data = {
 	.fg_params              = &fg,
         .chg_input_curr         = ab8500_charge_input_curr_map,
         .n_chg_in_curr          = ARRAY_SIZE(ab8500_charge_input_curr_map),
-};
-
-struct abx500_bm_data ab8540_bm_data = {
-        .temp_under             = 3,
-        .temp_low               = 8,
-        .temp_high              = 43,
-        .temp_over              = 48,
-        .main_safety_tmr_h      = 4,
-        .temp_interval_chg      = 20,
-        .temp_interval_nochg    = 120,
-        .usb_safety_tmr_h       = 4,
-        .bkup_bat_v             = BUP_VCH_SEL_2P6V,
-        .bkup_bat_i             = BUP_ICH_SEL_150UA,
-        .no_maintenance         = false,
-        .capacity_scaling       = false,
-        .adc_therm              = ABx500_ADC_THERM_BATCTRL,
-        .chg_unknown_bat        = false,
-        .enable_overshoot       = false,
-        .fg_res                 = 100,
-        .cap_levels             = &cap_levels,
-        .bat_type               = bat_type_thermistor,
-        .n_btypes               = ARRAY_SIZE(bat_type_thermistor),
-        .batt_id                = 0,
-        .interval_charging      = 5,
-        .interval_not_charging  = 120,
-        .temp_hysteresis        = 3,
-        .gnd_lift_resistance    = 0,
-        .maxi                   = &abx540_maxi_params,
-        .chg_params             = &chg,
-        .fg_params              = &fg,
-        .chg_output_curr        = ab8540_charge_output_curr_map,
-        .n_chg_out_curr         = ARRAY_SIZE(ab8540_charge_output_curr_map),
-        .chg_input_curr         = ab8540_charge_input_curr_map,
-        .n_chg_in_curr          = ARRAY_SIZE(ab8540_charge_input_curr_map),
 };
 
 int ab8500_bm_of_probe(struct device *dev,

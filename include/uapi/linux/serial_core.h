@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  *  linux/drivers/char/serial_core.h
  *
@@ -74,6 +75,9 @@
 /* Sparc type numbers.  */
 #define PORT_SUNZILOG	38
 #define PORT_SUNSAB	39
+
+/* Nuvoton UART */
+#define PORT_NPCM	40
 
 /* Intel EG20 */
 #define PORT_PCH_8LINE	44

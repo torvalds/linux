@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Fast, simple, yet decent quality random number generator based on
  * a paper by David G. Carta ("Two Fast Implementations of the

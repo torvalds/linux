@@ -204,6 +204,8 @@ at91_clk_register_programmable(struct regmap *regmap,
 	if (ret) {
 		kfree(prog);
 		hw = ERR_PTR(ret);
+	} else {
+		pmc_register_pck(id);
 	}
 
 	return hw;

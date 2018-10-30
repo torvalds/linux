@@ -12,15 +12,7 @@
  * Software Foundation (version 2 of the License).
  */
 
-#if defined(__LITTLE_ENDIAN__)
-#define STWX_BE	stwbrx
-#define LWZX_BE	lwbrx
-#elif defined(__BIG_ENDIAN__)
-#define STWX_BE	stwx
-#define LWZX_BE	lwzx
-#else
-#error no endianness defined!
-#endif
+#include <asm/asm-compat.h>
 
 	.machine ppc64
 	.balign 256

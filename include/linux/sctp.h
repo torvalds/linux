@@ -102,11 +102,15 @@ enum sctp_cid {
 	/* AUTH Extension Section 4.1 */
 	SCTP_CID_AUTH			= 0x0F,
 
+	/* sctp ndata 5.1. I-DATA */
+	SCTP_CID_I_DATA			= 0x40,
+
 	/* PR-SCTP Sec 3.2 */
 	SCTP_CID_FWD_TSN		= 0xC0,
 
 	/* Use hex, as defined in ADDIP sec. 3.1 */
 	SCTP_CID_ASCONF			= 0xC1,
+	SCTP_CID_I_FWD_TSN		= 0xC2,
 	SCTP_CID_ASCONF_ACK		= 0x80,
 	SCTP_CID_RECONF			= 0x82,
 }; /* enum */
@@ -231,13 +235,30 @@ struct sctp_datahdr {
 	__be32 tsn;
 	__be16 stream;
 	__be16 ssn;
-	__be32 ppid;
+	__u32 ppid;
 	__u8  payload[0];
 };
 
 struct sctp_data_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_datahdr data_hdr;
+};
+
+struct sctp_idatahdr {
+	__be32 tsn;
+	__be16 stream;
+	__be16 reserved;
+	__be32 mid;
+	union {
+		__u32 ppid;
+		__be32 fsn;
+	};
+	__u8 payload[0];
+};
+
+struct sctp_idata_chunk {
+	struct sctp_chunkhdr chunk_hdr;
+	struct sctp_idatahdr data_hdr;
 };
 
 /* DATA Chuck Specific Flags */
@@ -596,6 +617,22 @@ struct sctp_fwdtsn_chunk {
 	struct sctp_fwdtsn_hdr fwdtsn_hdr;
 };
 
+struct sctp_ifwdtsn_skip {
+	__be16 stream;
+	__u8 reserved;
+	__u8 flags;
+	__be32 mid;
+};
+
+struct sctp_ifwdtsn_hdr {
+	__be32 new_cum_tsn;
+	struct sctp_ifwdtsn_skip skip[0];
+};
+
+struct sctp_ifwdtsn_chunk {
+	struct sctp_chunkhdr chunk_hdr;
+	struct sctp_ifwdtsn_hdr fwdtsn_hdr;
+};
 
 /* ADDIP
  * Section 3.1.1 Address Configuration Change Chunk (ASCONF)
@@ -716,28 +753,28 @@ struct sctp_reconf_chunk {
 
 struct sctp_strreset_outreq {
 	struct sctp_paramhdr param_hdr;
-	__u32 request_seq;
-	__u32 response_seq;
-	__u32 send_reset_at_tsn;
-	__u16 list_of_streams[0];
+	__be32 request_seq;
+	__be32 response_seq;
+	__be32 send_reset_at_tsn;
+	__be16 list_of_streams[0];
 };
 
 struct sctp_strreset_inreq {
 	struct sctp_paramhdr param_hdr;
-	__u32 request_seq;
-	__u16 list_of_streams[0];
+	__be32 request_seq;
+	__be16 list_of_streams[0];
 };
 
 struct sctp_strreset_tsnreq {
 	struct sctp_paramhdr param_hdr;
-	__u32 request_seq;
+	__be32 request_seq;
 };
 
 struct sctp_strreset_addstrm {
 	struct sctp_paramhdr param_hdr;
-	__u32 request_seq;
-	__u16 number_of_streams;
-	__u16 reserved;
+	__be32 request_seq;
+	__be16 number_of_streams;
+	__be16 reserved;
 };
 
 enum {
@@ -752,16 +789,23 @@ enum {
 
 struct sctp_strreset_resp {
 	struct sctp_paramhdr param_hdr;
-	__u32 response_seq;
-	__u32 result;
+	__be32 response_seq;
+	__be32 result;
 };
 
 struct sctp_strreset_resptsn {
 	struct sctp_paramhdr param_hdr;
-	__u32 response_seq;
-	__u32 result;
-	__u32 senders_next_tsn;
-	__u32 receivers_next_tsn;
+	__be32 response_seq;
+	__be32 result;
+	__be32 senders_next_tsn;
+	__be32 receivers_next_tsn;
+};
+
+enum {
+	SCTP_DSCP_SET_MASK = 0x1,
+	SCTP_DSCP_VAL_MASK = 0xfc,
+	SCTP_FLOWLABEL_SET_MASK = 0x100000,
+	SCTP_FLOWLABEL_VAL_MASK = 0xfffff
 };
 
 #endif /* __LINUX_SCTP_H__ */

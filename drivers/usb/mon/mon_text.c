@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * The USB Monitor, inspired by Dave Harding's USBMon.
  *
@@ -84,6 +85,8 @@ struct mon_reader_text {
 
 	wait_queue_head_t wait;
 	int printf_size;
+	size_t printf_offset;
+	size_t printf_togo;
 	char *printf_buf;
 	struct mutex printf_lock;
 
@@ -375,75 +378,103 @@ err_alloc:
 	return rc;
 }
 
-/*
- * For simplicity, we read one record in one system call and throw out
- * what does not fit. This means that the following does not work:
- *   dd if=/dbg/usbmon/0t bs=10
- * Also, we do not allow seeks and do not bother advancing the offset.
- */
-static ssize_t mon_text_read_t(struct file *file, char __user *buf,
-				size_t nbytes, loff_t *ppos)
+static ssize_t mon_text_copy_to_user(struct mon_reader_text *rp,
+    char __user * const buf, const size_t nbytes)
 {
-	struct mon_reader_text *rp = file->private_data;
-	struct mon_event_text *ep;
-	struct mon_text_ptr ptr;
+	const size_t togo = min(nbytes, rp->printf_togo);
 
-	ep = mon_text_read_wait(rp, file);
-	if (IS_ERR(ep))
-		return PTR_ERR(ep);
-	mutex_lock(&rp->printf_lock);
-	ptr.cnt = 0;
-	ptr.pbuf = rp->printf_buf;
-	ptr.limit = rp->printf_size;
-
-	mon_text_read_head_t(rp, &ptr, ep);
-	mon_text_read_statset(rp, &ptr, ep);
-	ptr.cnt += snprintf(ptr.pbuf + ptr.cnt, ptr.limit - ptr.cnt,
-	    " %d", ep->length);
-	mon_text_read_data(rp, &ptr, ep);
-
-	if (copy_to_user(buf, rp->printf_buf, ptr.cnt))
-		ptr.cnt = -EFAULT;
-	mutex_unlock(&rp->printf_lock);
-	kmem_cache_free(rp->e_slab, ep);
-	return ptr.cnt;
+	if (copy_to_user(buf, &rp->printf_buf[rp->printf_offset], togo))
+		return -EFAULT;
+	rp->printf_togo -= togo;
+	rp->printf_offset += togo;
+	return togo;
 }
 
-static ssize_t mon_text_read_u(struct file *file, char __user *buf,
-				size_t nbytes, loff_t *ppos)
+/* ppos is not advanced since the llseek operation is not permitted. */
+static ssize_t mon_text_read_t(struct file *file, char __user *buf,
+    size_t nbytes, loff_t *ppos)
 {
 	struct mon_reader_text *rp = file->private_data;
 	struct mon_event_text *ep;
 	struct mon_text_ptr ptr;
+	ssize_t ret;
 
-	ep = mon_text_read_wait(rp, file);
-	if (IS_ERR(ep))
-		return PTR_ERR(ep);
 	mutex_lock(&rp->printf_lock);
-	ptr.cnt = 0;
-	ptr.pbuf = rp->printf_buf;
-	ptr.limit = rp->printf_size;
 
-	mon_text_read_head_u(rp, &ptr, ep);
-	if (ep->type == 'E') {
+	if (rp->printf_togo == 0) {
+
+		ep = mon_text_read_wait(rp, file);
+		if (IS_ERR(ep)) {
+			mutex_unlock(&rp->printf_lock);
+			return PTR_ERR(ep);
+		}
+		ptr.cnt = 0;
+		ptr.pbuf = rp->printf_buf;
+		ptr.limit = rp->printf_size;
+
+		mon_text_read_head_t(rp, &ptr, ep);
 		mon_text_read_statset(rp, &ptr, ep);
-	} else if (ep->xfertype == USB_ENDPOINT_XFER_ISOC) {
-		mon_text_read_isostat(rp, &ptr, ep);
-		mon_text_read_isodesc(rp, &ptr, ep);
-	} else if (ep->xfertype == USB_ENDPOINT_XFER_INT) {
-		mon_text_read_intstat(rp, &ptr, ep);
-	} else {
-		mon_text_read_statset(rp, &ptr, ep);
+		ptr.cnt += snprintf(ptr.pbuf + ptr.cnt, ptr.limit - ptr.cnt,
+		    " %d", ep->length);
+		mon_text_read_data(rp, &ptr, ep);
+
+		rp->printf_togo = ptr.cnt;
+		rp->printf_offset = 0;
+
+		kmem_cache_free(rp->e_slab, ep);
 	}
-	ptr.cnt += snprintf(ptr.pbuf + ptr.cnt, ptr.limit - ptr.cnt,
-	    " %d", ep->length);
-	mon_text_read_data(rp, &ptr, ep);
 
-	if (copy_to_user(buf, rp->printf_buf, ptr.cnt))
-		ptr.cnt = -EFAULT;
+	ret = mon_text_copy_to_user(rp, buf, nbytes);
 	mutex_unlock(&rp->printf_lock);
-	kmem_cache_free(rp->e_slab, ep);
-	return ptr.cnt;
+	return ret;
+}
+
+/* ppos is not advanced since the llseek operation is not permitted. */
+static ssize_t mon_text_read_u(struct file *file, char __user *buf,
+    size_t nbytes, loff_t *ppos)
+{
+	struct mon_reader_text *rp = file->private_data;
+	struct mon_event_text *ep;
+	struct mon_text_ptr ptr;
+	ssize_t ret;
+
+	mutex_lock(&rp->printf_lock);
+
+	if (rp->printf_togo == 0) {
+
+		ep = mon_text_read_wait(rp, file);
+		if (IS_ERR(ep)) {
+			mutex_unlock(&rp->printf_lock);
+			return PTR_ERR(ep);
+		}
+		ptr.cnt = 0;
+		ptr.pbuf = rp->printf_buf;
+		ptr.limit = rp->printf_size;
+
+		mon_text_read_head_u(rp, &ptr, ep);
+		if (ep->type == 'E') {
+			mon_text_read_statset(rp, &ptr, ep);
+		} else if (ep->xfertype == USB_ENDPOINT_XFER_ISOC) {
+			mon_text_read_isostat(rp, &ptr, ep);
+			mon_text_read_isodesc(rp, &ptr, ep);
+		} else if (ep->xfertype == USB_ENDPOINT_XFER_INT) {
+			mon_text_read_intstat(rp, &ptr, ep);
+		} else {
+			mon_text_read_statset(rp, &ptr, ep);
+		}
+		ptr.cnt += snprintf(ptr.pbuf + ptr.cnt, ptr.limit - ptr.cnt,
+		    " %d", ep->length);
+		mon_text_read_data(rp, &ptr, ep);
+
+		rp->printf_togo = ptr.cnt;
+		rp->printf_offset = 0;
+
+		kmem_cache_free(rp->e_slab, ep);
+	}
+
+	ret = mon_text_copy_to_user(rp, buf, nbytes);
+	mutex_unlock(&rp->printf_lock);
+	return ret;
 }
 
 static struct mon_event_text *mon_text_read_wait(struct mon_reader_text *rp,
@@ -669,7 +700,6 @@ static const struct file_operations mon_fops_text_u = {
 
 int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 {
-	struct dentry *d;
 	enum { NAMESZ = 10 };
 	char name[NAMESZ];
 	int busnum = ubus? ubus->busnum: 0;
@@ -682,42 +712,32 @@ int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 		rc = snprintf(name, NAMESZ, "%dt", busnum);
 		if (rc <= 0 || rc >= NAMESZ)
 			goto err_print_t;
-		d = debugfs_create_file(name, 0600, mon_dir, mbus,
+		mbus->dent_t = debugfs_create_file(name, 0600, mon_dir, mbus,
 							     &mon_fops_text_t);
-		if (d == NULL)
-			goto err_create_t;
-		mbus->dent_t = d;
 	}
 
 	rc = snprintf(name, NAMESZ, "%du", busnum);
 	if (rc <= 0 || rc >= NAMESZ)
 		goto err_print_u;
-	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_text_u);
-	if (d == NULL)
-		goto err_create_u;
-	mbus->dent_u = d;
+	mbus->dent_u = debugfs_create_file(name, 0600, mon_dir, mbus,
+					   &mon_fops_text_u);
 
 	rc = snprintf(name, NAMESZ, "%ds", busnum);
 	if (rc <= 0 || rc >= NAMESZ)
 		goto err_print_s;
-	d = debugfs_create_file(name, 0600, mon_dir, mbus, &mon_fops_stat);
-	if (d == NULL)
-		goto err_create_s;
-	mbus->dent_s = d;
+	mbus->dent_s = debugfs_create_file(name, 0600, mon_dir, mbus,
+					   &mon_fops_stat);
 
 	return 1;
 
-err_create_s:
 err_print_s:
 	debugfs_remove(mbus->dent_u);
 	mbus->dent_u = NULL;
-err_create_u:
 err_print_u:
 	if (ubus != NULL) {
 		debugfs_remove(mbus->dent_t);
 		mbus->dent_t = NULL;
 	}
-err_create_t:
 err_print_t:
 	return 0;
 }
@@ -725,8 +745,7 @@ err_print_t:
 void mon_text_del(struct mon_bus *mbus)
 {
 	debugfs_remove(mbus->dent_u);
-	if (mbus->dent_t != NULL)
-		debugfs_remove(mbus->dent_t);
+	debugfs_remove(mbus->dent_t);
 	debugfs_remove(mbus->dent_s);
 }
 
@@ -744,18 +763,7 @@ static void mon_text_ctor(void *mem)
 
 int __init mon_text_init(void)
 {
-	struct dentry *mondir;
-
-	mondir = debugfs_create_dir("usbmon", usb_debug_root);
-	if (IS_ERR(mondir)) {
-		/* debugfs not available, but we can use usbmon without it */
-		return 0;
-	}
-	if (mondir == NULL) {
-		printk(KERN_NOTICE TAG ": unable to create usbmon directory\n");
-		return -ENOMEM;
-	}
-	mon_dir = mondir;
+	mon_dir = debugfs_create_dir("usbmon", usb_debug_root);
 	return 0;
 }
 

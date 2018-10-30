@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * PCI Backend - Data structures for special overlays for broken devices.
  *

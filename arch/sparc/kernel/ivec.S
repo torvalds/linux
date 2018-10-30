@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	/* The registers for cross calls will be:
 	 *
 	 * DATA 0: [low 32-bits]  Address of function to call, jmp to this

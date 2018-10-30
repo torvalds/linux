@@ -1,22 +1,26 @@
 RT5514 audio CODEC
 
-This device supports I2C only.
+This device supports both I2C and SPI.
 
 Required properties:
 
 - compatible : "realtek,rt5514".
 
-- reg : The I2C address of the device.
+- reg : the I2C address of the device for I2C, the chip select
+        number for SPI.
 
 Optional properties:
 
 - clocks: The phandle of the master clock to the CODEC
 - clock-names: Should be "mclk"
 
-- realtek,dmic-init-delay-ms
-  Set the DMIC initial delay (ms) to wait it ready.
+- interrupts: The interrupt number to the cpu. The interrupt specifier format
+	      depends on the interrupt controller.
 
-Pins on the device (for linking into audio routes) for RT5514:
+- realtek,dmic-init-delay-ms
+  Set the DMIC initial delay (ms) to wait it ready for I2C.
+
+Pins on the device (for linking into audio routes) for I2C:
 
   * DMIC1L
   * DMIC1R
@@ -27,7 +31,7 @@ Pins on the device (for linking into audio routes) for RT5514:
 
 Example:
 
-codec: rt5514@57 {
+rt5514: codec@57 {
 	compatible = "realtek,rt5514";
 	reg = <0x57>;
 };

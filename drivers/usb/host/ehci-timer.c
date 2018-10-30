@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012 by Alan Stern
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 /* This file is part of ehci-hcd.c */
@@ -356,7 +347,7 @@ static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 	 */
 	status = ehci_readl(ehci, &ehci->regs->status);
 	if ((status & STS_IAA) || !(cmd & CMD_IAAD)) {
-		COUNT(ehci->stats.lost_iaa);
+		INCR(ehci->stats.lost_iaa);
 		ehci_writel(ehci, STS_IAA, &ehci->regs->status);
 	}
 

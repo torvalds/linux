@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * String handling functions.
  *
@@ -6,14 +7,18 @@
 
 #include <linux/linkage.h>
 #include <asm/export.h>
+#include <asm/nospec-insn.h>
+
+	GEN_BR_THUNK %r14
 
 /*
  * void *memmove(void *dest, const void *src, size_t n)
  */
-ENTRY(memmove)
+WEAK(memmove)
+ENTRY(__memmove)
 	ltgr	%r4,%r4
 	lgr	%r1,%r2
-	bzr	%r14
+	jz	.Lmemmove_exit
 	aghi	%r4,-1
 	clgr	%r2,%r3
 	jnh	.Lmemmove_forward
@@ -32,16 +37,18 @@ ENTRY(memmove)
 .Lmemmove_forward_remainder:
 	larl	%r5,.Lmemmove_mvc
 	ex	%r4,0(%r5)
-	br	%r14
+.Lmemmove_exit:
+	BR_EX	%r14
 .Lmemmove_reverse:
 	ic	%r0,0(%r4,%r3)
 	stc	%r0,0(%r4,%r1)
 	brctg	%r4,.Lmemmove_reverse
 	ic	%r0,0(%r4,%r3)
 	stc	%r0,0(%r4,%r1)
-	br	%r14
+	BR_EX	%r14
 .Lmemmove_mvc:
 	mvc	0(1,%r1),0(%r3)
+ENDPROC(__memmove)
 EXPORT_SYMBOL(memmove)
 
 /*
@@ -59,9 +66,10 @@ EXPORT_SYMBOL(memmove)
  *	return __builtin_memset(s, c, n);
  * }
  */
-ENTRY(memset)
+WEAK(memset)
+ENTRY(__memset)
 	ltgr	%r4,%r4
-	bzr	%r14
+	jz	.Lmemset_exit
 	ltgr	%r3,%r3
 	jnz	.Lmemset_fill
 	aghi	%r4,-1
@@ -76,28 +84,34 @@ ENTRY(memset)
 .Lmemset_clear_remainder:
 	larl	%r3,.Lmemset_xc
 	ex	%r4,0(%r3)
-	br	%r14
+.Lmemset_exit:
+	BR_EX	%r14
 .Lmemset_fill:
-	stc	%r3,0(%r2)
 	cghi	%r4,1
 	lgr	%r1,%r2
-	ber	%r14
+	je	.Lmemset_fill_exit
 	aghi	%r4,-2
-	srlg	%r3,%r4,8
-	ltgr	%r3,%r3
+	srlg	%r5,%r4,8
+	ltgr	%r5,%r5
 	jz	.Lmemset_fill_remainder
 .Lmemset_fill_loop:
-	mvc	1(256,%r1),0(%r1)
+	stc	%r3,0(%r1)
+	mvc	1(255,%r1),0(%r1)
 	la	%r1,256(%r1)
-	brctg	%r3,.Lmemset_fill_loop
+	brctg	%r5,.Lmemset_fill_loop
 .Lmemset_fill_remainder:
-	larl	%r3,.Lmemset_mvc
-	ex	%r4,0(%r3)
-	br	%r14
+	stc	%r3,0(%r1)
+	larl	%r5,.Lmemset_mvc
+	ex	%r4,0(%r5)
+	BR_EX	%r14
+.Lmemset_fill_exit:
+	stc	%r3,0(%r1)
+	BR_EX	%r14
 .Lmemset_xc:
 	xc	0(1,%r1),0(%r1)
 .Lmemset_mvc:
 	mvc	1(1,%r1),0(%r1)
+ENDPROC(__memset)
 EXPORT_SYMBOL(memset)
 
 /*
@@ -105,9 +119,10 @@ EXPORT_SYMBOL(memset)
  *
  * void *memcpy(void *dest, const void *src, size_t n)
  */
-ENTRY(memcpy)
+WEAK(memcpy)
+ENTRY(__memcpy)
 	ltgr	%r4,%r4
-	bzr	%r14
+	jz	.Lmemcpy_exit
 	aghi	%r4,-1
 	srlg	%r5,%r4,8
 	ltgr	%r5,%r5
@@ -116,7 +131,8 @@ ENTRY(memcpy)
 .Lmemcpy_remainder:
 	larl	%r5,.Lmemcpy_mvc
 	ex	%r4,0(%r5)
-	br	%r14
+.Lmemcpy_exit:
+	BR_EX	%r14
 .Lmemcpy_loop:
 	mvc	0(256,%r1),0(%r3)
 	la	%r1,256(%r1)
@@ -125,4 +141,50 @@ ENTRY(memcpy)
 	j	.Lmemcpy_remainder
 .Lmemcpy_mvc:
 	mvc	0(1,%r1),0(%r3)
+ENDPROC(__memcpy)
 EXPORT_SYMBOL(memcpy)
+
+/*
+ * __memset16/32/64
+ *
+ * void *__memset16(uint16_t *s, uint16_t v, size_t count)
+ * void *__memset32(uint32_t *s, uint32_t v, size_t count)
+ * void *__memset64(uint64_t *s, uint64_t v, size_t count)
+ */
+.macro __MEMSET bits,bytes,insn
+ENTRY(__memset\bits)
+	ltgr	%r4,%r4
+	jz	.L__memset_exit\bits
+	cghi	%r4,\bytes
+	je	.L__memset_store\bits
+	aghi	%r4,-(\bytes+1)
+	srlg	%r5,%r4,8
+	ltgr	%r5,%r5
+	lgr	%r1,%r2
+	jz	.L__memset_remainder\bits
+.L__memset_loop\bits:
+	\insn	%r3,0(%r1)
+	mvc	\bytes(256-\bytes,%r1),0(%r1)
+	la	%r1,256(%r1)
+	brctg	%r5,.L__memset_loop\bits
+.L__memset_remainder\bits:
+	\insn	%r3,0(%r1)
+	larl	%r5,.L__memset_mvc\bits
+	ex	%r4,0(%r5)
+	BR_EX	%r14
+.L__memset_store\bits:
+	\insn	%r3,0(%r2)
+.L__memset_exit\bits:
+	BR_EX	%r14
+.L__memset_mvc\bits:
+	mvc	\bytes(1,%r1),0(%r1)
+.endm
+
+__MEMSET 16,2,sth
+EXPORT_SYMBOL(__memset16)
+
+__MEMSET 32,4,st
+EXPORT_SYMBOL(__memset32)
+
+__MEMSET 64,8,stg
+EXPORT_SYMBOL(__memset64)

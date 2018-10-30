@@ -13,6 +13,7 @@ Required properties:
                  at25df321a
                  at25df641
                  at26df081a
+                 mr25h128
                  mr25h256
                  mr25h10
                  mr25h40
@@ -68,6 +69,15 @@ Optional properties:
                    all chips and support for it can not be detected at runtime.
                    Refer to your chips' datasheet to check if this is supported
                    by your chip.
+- broken-flash-reset : Some flash devices utilize stateful addressing modes
+		   (e.g., for 32-bit addressing) which need to be managed
+		   carefully by a system. Because these sorts of flash don't
+		   have a standardized software reset command, and because some
+		   systems don't toggle the flash RESET# pin upon system reset
+		   (if the pin even exists at all), there are systems which
+		   cannot reboot properly if the flash is left in the "wrong"
+		   state. This boolean flag can be used on such systems, to
+		   denote the absence of a reliable reset mechanism.
 
 Example:
 

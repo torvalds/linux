@@ -29,13 +29,6 @@
 
 #define VIRTIO_GPU_FBCON_POLL_PERIOD (HZ / 60)
 
-struct virtio_gpu_fbdev {
-	struct drm_fb_helper           helper;
-	struct virtio_gpu_framebuffer  vgfb;
-	struct virtio_gpu_device       *vgdev;
-	struct delayed_work            work;
-};
-
 static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 				   bool store, int x, int y,
 				   int width, int height)
@@ -46,7 +39,7 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 	int bpp = fb->base.format->cpp[0];
 	int x2, y2;
 	unsigned long flags;
-	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(fb->obj);
+	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(fb->base.obj[0]);
 
 	if ((width <= 0) ||
 	    (x + width > fb->base.width) ||
@@ -102,7 +95,7 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 
 		offset = (y * fb->base.pitches[0]) + x * bpp;
 
-		virtio_gpu_cmd_transfer_to_host_2d(vgdev, obj->hw_res_handle,
+		virtio_gpu_cmd_transfer_to_host_2d(vgdev, obj,
 						   offset,
 						   cpu_to_le32(w),
 						   cpu_to_le32(h),
@@ -118,15 +111,16 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 
 int virtio_gpu_surface_dirty(struct virtio_gpu_framebuffer *vgfb,
 			     struct drm_clip_rect *clips,
-			     unsigned num_clips)
+			     unsigned int num_clips)
 {
 	struct virtio_gpu_device *vgdev = vgfb->base.dev->dev_private;
-	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(vgfb->obj);
+	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(vgfb->base.obj[0]);
 	struct drm_clip_rect norect;
 	struct drm_clip_rect *clips_ptr;
 	int left, right, top, bottom;
 	int i;
 	int inc = 1;
+
 	if (!num_clips) {
 		num_clips = 1;
 		clips = &norect;
@@ -172,6 +166,7 @@ static void virtio_gpu_3d_fillrect(struct fb_info *info,
 				   const struct fb_fillrect *rect)
 {
 	struct virtio_gpu_fbdev *vfbdev = info->par;
+
 	drm_fb_helper_sys_fillrect(info, rect);
 	virtio_gpu_dirty_update(&vfbdev->vgfb, true, rect->dx, rect->dy,
 			     rect->width, rect->height);
@@ -182,6 +177,7 @@ static void virtio_gpu_3d_copyarea(struct fb_info *info,
 				   const struct fb_copyarea *area)
 {
 	struct virtio_gpu_fbdev *vfbdev = info->par;
+
 	drm_fb_helper_sys_copyarea(info, area);
 	virtio_gpu_dirty_update(&vfbdev->vgfb, true, area->dx, area->dy,
 			   area->width, area->height);
@@ -192,6 +188,7 @@ static void virtio_gpu_3d_imageblit(struct fb_info *info,
 				    const struct fb_image *image)
 {
 	struct virtio_gpu_fbdev *vfbdev = info->par;
+
 	drm_fb_helper_sys_imageblit(info, image);
 	virtio_gpu_dirty_update(&vfbdev->vgfb, true, image->dx, image->dy,
 			     image->width, image->height);
@@ -205,12 +202,6 @@ static struct fb_ops virtio_gpufb_ops = {
 	.fb_copyarea = virtio_gpu_3d_copyarea,
 	.fb_imageblit = virtio_gpu_3d_imageblit,
 };
-
-static int virtio_gpu_vmap_fb(struct virtio_gpu_device *vgdev,
-			      struct virtio_gpu_object *obj)
-{
-	return virtio_gpu_object_kmap(obj, NULL);
-}
 
 static int virtio_gpufb_create(struct drm_fb_helper *helper,
 			       struct drm_fb_helper_surface_size *sizes)
@@ -229,7 +220,7 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 	mode_cmd.pitches[0] = mode_cmd.width * 4;
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(32, 24);
+	mode_cmd.pixel_format = DRM_FORMAT_HOST_XRGB8888;
 
 	format = virtio_gpu_translate_format(mode_cmd.pixel_format);
 	if (format == 0)
@@ -244,9 +235,9 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	virtio_gpu_cmd_create_resource(vgdev, resid, format,
 				       mode_cmd.width, mode_cmd.height);
 
-	ret = virtio_gpu_vmap_fb(vgdev, obj);
+	ret = virtio_gpu_object_kmap(obj);
 	if (ret) {
-		DRM_ERROR("failed to vmap fb %d\n", ret);
+		DRM_ERROR("failed to kmap fb %d\n", ret);
 		goto err_obj_vmap;
 	}
 
@@ -287,7 +278,7 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	return 0;
 
 err_fb_alloc:
-	virtio_gpu_cmd_resource_inval_backing(vgdev, resid);
+	virtio_gpu_object_detach(vgdev, obj);
 err_obj_attach:
 err_obj_vmap:
 	virtio_gpu_gem_free_object(&obj->gem_base);
@@ -301,8 +292,8 @@ static int virtio_gpu_fbdev_destroy(struct drm_device *dev,
 
 	drm_fb_helper_unregister_fbi(&vgfbdev->helper);
 
-	if (vgfb->obj)
-		vgfb->obj = NULL;
+	if (vgfb->base.obj[0])
+		vgfb->base.obj[0] = NULL;
 	drm_fb_helper_fini(&vgfbdev->helper);
 	drm_framebuffer_cleanup(&vgfb->base);
 

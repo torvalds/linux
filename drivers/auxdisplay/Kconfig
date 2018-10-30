@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.txt.
@@ -12,9 +13,6 @@ menuconfig AUXDISPLAY
 	  This option alone does not add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
-
-config CHARLCD
-	tristate "Character LCD core support" if COMPILE_TEST
 
 if AUXDISPLAY
 
@@ -135,8 +133,9 @@ config CFAG12864B_RATE
 
 config IMG_ASCII_LCD
 	tristate "Imagination Technologies ASCII LCD Display"
-	default y if MIPS_MALTA || MIPS_SEAD3
-	select SYSCON
+	depends on HAS_IOMEM
+	default y if MIPS_MALTA
+	select MFD_SYSCON
 	help
 	  Enable this to support the simple ASCII LCD displays found on
 	  development boards such as the MIPS Boston, MIPS Malta & MIPS SEAD3
@@ -155,8 +154,6 @@ config HT16K33
 	  Say yes here to add support for Holtek HT16K33, RAM mapping 16*8
 	  LED controller driver with keyscan.
 
-endif # AUXDISPLAY
-
 config ARM_CHARLCD
 	bool "ARM Ltd. Character LCD Driver"
 	depends on PLAT_VERSATILE
@@ -167,7 +164,9 @@ config ARM_CHARLCD
 	  line and the Linux version on the second line, but that's
 	  still useful.
 
-config PANEL
+endif # AUXDISPLAY
+
+menuconfig PANEL
 	tristate "Parallel port LCD/Keypad Panel support"
 	depends on PARPORT
 	select CHARLCD
@@ -446,3 +445,6 @@ config PANEL_BOOT_MESSAGE
 	  printf()-formatted message is valid with newline and escape codes.
 
 endif # PANEL
+
+config CHARLCD
+	tristate "Character LCD core support" if COMPILE_TEST

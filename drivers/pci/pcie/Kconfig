@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # PCI Express Port Bus Configuration
 #
@@ -22,7 +23,41 @@ config HOTPLUG_PCI_PCIE
 
 	  When in doubt, say N.
 
-source "drivers/pci/pcie/aer/Kconfig"
+config PCIEAER
+	bool "PCI Express Advanced Error Reporting support"
+	depends on PCIEPORTBUS
+	select RAS
+	default y
+	help
+	  This enables PCI Express Root Port Advanced Error Reporting
+	  (AER) driver support. Error reporting messages sent to Root
+	  Port will be handled by PCI Express AER driver.
+
+config PCIEAER_INJECT
+	tristate "PCI Express error injection support"
+	depends on PCIEAER
+	help
+	  This enables PCI Express Root Port Advanced Error Reporting
+	  (AER) software error injector.
+
+	  Debugging AER code is quite difficult because it is hard
+	  to trigger various real hardware errors. Software-based
+	  error injection can fake almost all kinds of errors with the
+	  help of a user space helper tool aer-inject, which can be
+	  gotten from:
+	     http://www.kernel.org/pub/linux/utils/pci/aer-inject/
+
+#
+# PCI Express ECRC
+#
+config PCIE_ECRC
+	bool "PCI Express ECRC settings control"
+	depends on PCIEAER
+	help
+	  Used to override firmware/bios settings for PCI Express ECRC
+	  (transaction layer end-to-end CRC checking).
+
+	  When in doubt, say N.
 
 #
 # PCI Express ASPM
@@ -48,7 +83,6 @@ config PCIEASPM
 config PCIEASPM_DEBUG
 	bool "Debug PCI Express ASPM"
 	depends on PCIEASPM
-	default n
 	help
 	  This enables PCI Express ASPM debug support. It will add per-device
 	  interface to control ASPM.
@@ -91,9 +125,8 @@ config PCIE_PME
 	depends on PCIEPORTBUS && PM
 
 config PCIE_DPC
-	bool "PCIe Downstream Port Containment support"
-	depends on PCIEPORTBUS
-	default n
+	bool "PCI Express Downstream Port Containment support"
+	depends on PCIEPORTBUS && PCIEAER
 	help
 	  This enables PCI Express Downstream Port Containment (DPC)
 	  driver support.  DPC events from Root and Downstream ports
@@ -102,8 +135,7 @@ config PCIE_DPC
 	  it is safe to answer N.
 
 config PCIE_PTM
-	bool "PCIe Precision Time Measurement support"
-	default n
+	bool "PCI Express Precision Time Measurement support"
 	depends on PCIEPORTBUS
 	help
 	  This enables PCI Express Precision Time Measurement (PTM)

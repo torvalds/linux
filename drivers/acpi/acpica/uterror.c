@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: uterror - Various internal error/warning output functions
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2017, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -182,6 +146,78 @@ acpi_ut_predefined_bios_error(const char *module_name,
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_prefixed_namespace_error
+ *
+ * PARAMETERS:  module_name         - Caller's module name (for error output)
+ *              line_number         - Caller's line number (for error output)
+ *              prefix_scope        - Scope/Path that prefixes the internal path
+ *              internal_path       - Name or path of the namespace node
+ *              lookup_status       - Exception code from NS lookup
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print error message with the full pathname constructed this way:
+ *
+ *                  prefix_scope_node_full_path.externalized_internal_path
+ *
+ * NOTE:        10/2017: Treat the major ns_lookup errors as firmware errors
+ *
+ ******************************************************************************/
+
+void
+acpi_ut_prefixed_namespace_error(const char *module_name,
+				 u32 line_number,
+				 union acpi_generic_state *prefix_scope,
+				 const char *internal_path,
+				 acpi_status lookup_status)
+{
+	char *full_path;
+	const char *message;
+
+	/*
+	 * Main cases:
+	 * 1) Object creation, object must not already exist
+	 * 2) Object lookup, object must exist
+	 */
+	switch (lookup_status) {
+	case AE_ALREADY_EXISTS:
+
+		acpi_os_printf(ACPI_MSG_BIOS_ERROR);
+		message = "Failure creating";
+		break;
+
+	case AE_NOT_FOUND:
+
+		acpi_os_printf(ACPI_MSG_BIOS_ERROR);
+		message = "Could not resolve";
+		break;
+
+	default:
+
+		acpi_os_printf(ACPI_MSG_ERROR);
+		message = "Failure resolving";
+		break;
+	}
+
+	/* Concatenate the prefix path and the internal path */
+
+	full_path =
+	    acpi_ns_build_prefixed_pathname(prefix_scope, internal_path);
+
+	acpi_os_printf("%s [%s], %s", message,
+		       full_path ? full_path : "Could not get pathname",
+		       acpi_format_exception(lookup_status));
+
+	if (full_path) {
+		ACPI_FREE(full_path);
+	}
+
+	ACPI_MSG_SUFFIX;
+}
+
+#ifdef __OBSOLETE_FUNCTION
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_namespace_error
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
@@ -240,6 +276,7 @@ acpi_ut_namespace_error(const char *module_name,
 	ACPI_MSG_SUFFIX;
 	ACPI_MSG_REDIRECT_END;
 }
+#endif
 
 /*******************************************************************************
  *

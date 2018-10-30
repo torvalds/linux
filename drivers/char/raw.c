@@ -321,7 +321,8 @@ static int __init raw_init(void)
 		max_raw_minors = MAX_RAW_MINORS;
 	}
 
-	raw_devices = vzalloc(sizeof(struct raw_device_data) * max_raw_minors);
+	raw_devices = vzalloc(array_size(max_raw_minors,
+					 sizeof(struct raw_device_data)));
 	if (!raw_devices) {
 		printk(KERN_ERR "Not enough memory for raw device structures\n");
 		ret = -ENOMEM;

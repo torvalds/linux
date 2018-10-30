@@ -394,7 +394,8 @@ static int ksz_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds)
+static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
+						  int port)
 {
 	return DSA_TAG_PROTO_KSZ;
 }
@@ -438,14 +439,21 @@ static void ksz_disable_port(struct dsa_switch *ds, int port,
 	ksz_port_cfg(dev, port, REG_PORT_CTRL_0, PORT_MAC_LOOPBACK, true);
 }
 
-static int ksz_sset_count(struct dsa_switch *ds)
+static int ksz_sset_count(struct dsa_switch *ds, int port, int sset)
 {
+	if (sset != ETH_SS_STATS)
+		return 0;
+
 	return TOTAL_SWITCH_COUNTER_NUM;
 }
 
-static void ksz_get_strings(struct dsa_switch *ds, int port, uint8_t *buf)
+static void ksz_get_strings(struct dsa_switch *ds, int port,
+			    u32 stringset, uint8_t *buf)
 {
 	int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
 
 	for (i = 0; i < TOTAL_SWITCH_COUNTER_NUM; i++) {
 		memcpy(buf + i * ETH_GSTRING_LEN, mib_names[i].string,
@@ -558,8 +566,7 @@ static int ksz_port_vlan_filtering(struct dsa_switch *ds, int port, bool flag)
 }
 
 static int ksz_port_vlan_prepare(struct dsa_switch *ds, int port,
-				 const struct switchdev_obj_port_vlan *vlan,
-				 struct switchdev_trans *trans)
+				 const struct switchdev_obj_port_vlan *vlan)
 {
 	/* nothing needed */
 
@@ -567,8 +574,7 @@ static int ksz_port_vlan_prepare(struct dsa_switch *ds, int port,
 }
 
 static void ksz_port_vlan_add(struct dsa_switch *ds, int port,
-			      const struct switchdev_obj_port_vlan *vlan,
-			      struct switchdev_trans *trans)
+			      const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 vlan_table[3];
@@ -857,16 +863,14 @@ exit:
 }
 
 static int ksz_port_mdb_prepare(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_mdb *mdb,
-				struct switchdev_trans *trans)
+				const struct switchdev_obj_port_mdb *mdb)
 {
 	/* nothing to do */
 	return 0;
 }
 
 static void ksz_port_mdb_add(struct dsa_switch *ds, int port,
-			     const struct switchdev_obj_port_mdb *mdb,
-			     struct switchdev_trans *trans)
+			     const struct switchdev_obj_port_mdb *mdb)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 static_table[4];
@@ -1092,6 +1096,15 @@ static const struct ksz_chip_data ksz_switch_chips[] = {
 	{
 		.chip_id = 0x00947700,
 		.dev_name = "KSZ9477",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x7F,	/* can be configured as cpu port */
+		.port_cnt = 7,		/* total physical port count */
+	},
+	{
+		.chip_id = 0x00989700,
+		.dev_name = "KSZ9897",
 		.num_vlans = 4096,
 		.num_alus = 4096,
 		.num_statics = 16,

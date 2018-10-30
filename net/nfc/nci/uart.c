@@ -192,10 +192,8 @@ static void nci_uart_tty_close(struct tty_struct *tty)
 	if (!nu)
 		return;
 
-	if (nu->tx_skb)
-		kfree_skb(nu->tx_skb);
-	if (nu->rx_skb)
-		kfree_skb(nu->rx_skb);
+	kfree_skb(nu->tx_skb);
+	kfree_skb(nu->rx_skb);
 
 	skb_queue_purge(&nu->tx_q);
 
@@ -305,7 +303,7 @@ static ssize_t nci_uart_tty_write(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static unsigned int nci_uart_tty_poll(struct tty_struct *tty,
+static __poll_t nci_uart_tty_poll(struct tty_struct *tty,
 				      struct file *filp, poll_table *wait)
 {
 	return 0;
@@ -465,6 +463,7 @@ static struct tty_ldisc_ops nci_uart_ldisc = {
 	.receive_buf	= nci_uart_tty_receive,
 	.write_wakeup	= nci_uart_tty_wakeup,
 	.ioctl		= nci_uart_tty_ioctl,
+	.compat_ioctl	= nci_uart_tty_ioctl,
 };
 
 static int __init nci_uart_init(void)

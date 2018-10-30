@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/cpumask.h>
 #include <linux/debugfs.h>
 #include <linux/fs.h>

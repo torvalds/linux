@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
 #include <linux/lockref.h>
 
@@ -78,6 +79,34 @@ int lockref_get_not_zero(struct lockref *lockref)
 	return retval;
 }
 EXPORT_SYMBOL(lockref_get_not_zero);
+
+/**
+ * lockref_put_not_zero - Decrements count unless count <= 1 before decrement
+ * @lockref: pointer to lockref structure
+ * Return: 1 if count updated successfully or 0 if count would become zero
+ */
+int lockref_put_not_zero(struct lockref *lockref)
+{
+	int retval;
+
+	CMPXCHG_LOOP(
+		new.count--;
+		if (old.count <= 1)
+			return 0;
+	,
+		return 1;
+	);
+
+	spin_lock(&lockref->lock);
+	retval = 0;
+	if (lockref->count > 1) {
+		lockref->count--;
+		retval = 1;
+	}
+	spin_unlock(&lockref->lock);
+	return retval;
+}
+EXPORT_SYMBOL(lockref_put_not_zero);
 
 /**
  * lockref_get_or_lock - Increments count unless the count is 0 or dead

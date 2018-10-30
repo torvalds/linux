@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * VMEbus User access driver
  *
@@ -7,12 +8,6 @@
  * Based on work by:
  *   Tom Armistead and Ajit Prem
  *     Copyright 2004 Motorola Inc.
- *
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -134,7 +129,7 @@ static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
 	if (copied < 0)
 		return (int)copied;
 
-	if (__copy_to_user(buf, image[minor].kern_buf, (unsigned long)copied))
+	if (copy_to_user(buf, image[minor].kern_buf, (unsigned long)copied))
 		return -EFAULT;
 
 	return copied;
@@ -146,7 +141,7 @@ static ssize_t resource_from_user(unsigned int minor, const char __user *buf,
 	if (count > image[minor].size_buf)
 		count = image[minor].size_buf;
 
-	if (__copy_from_user(image[minor].kern_buf, buf, (unsigned long)count))
+	if (copy_from_user(image[minor].kern_buf, buf, (unsigned long)count))
 		return -EFAULT;
 
 	return vme_master_write(image[minor].resource, image[minor].kern_buf,
@@ -159,7 +154,7 @@ static ssize_t buffer_to_user(unsigned int minor, char __user *buf,
 	void *image_ptr;
 
 	image_ptr = image[minor].kern_buf + *ppos;
-	if (__copy_to_user(buf, image_ptr, (unsigned long)count))
+	if (copy_to_user(buf, image_ptr, (unsigned long)count))
 		return -EFAULT;
 
 	return count;
@@ -171,7 +166,7 @@ static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
 	void *image_ptr;
 
 	image_ptr = image[minor].kern_buf + *ppos;
-	if (__copy_from_user(image_ptr, buf, (unsigned long)count))
+	if (copy_from_user(image_ptr, buf, (unsigned long)count))
 		return -EFAULT;
 
 	return count;
@@ -563,7 +558,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 	vme_user_cdev->owner = THIS_MODULE;
 	err = cdev_add(vme_user_cdev, MKDEV(VME_MAJOR, 0), VME_DEVS);
 	if (err)
-		goto err_char;
+		goto err_class;
 
 	/* Request slave resources and allocate buffers (128kB wide) */
 	for (i = SLAVE_MINOR; i < (SLAVE_MAX + 1); i++) {
@@ -573,7 +568,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		 * by all windows.
 		 */
 		image[i].resource = vme_slave_request(vme_user_bridge,
-			VME_A24, VME_SCT);
+						      VME_A24, VME_SCT);
 		if (!image[i].resource) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate slave resource\n");
@@ -582,7 +577,8 @@ static int vme_user_probe(struct vme_dev *vdev)
 		}
 		image[i].size_buf = PCI_BUF_SIZE;
 		image[i].kern_buf = vme_alloc_consistent(image[i].resource,
-			image[i].size_buf, &image[i].pci_buf);
+							 image[i].size_buf,
+							 &image[i].pci_buf);
 		if (!image[i].kern_buf) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate memory for buffer\n");
@@ -600,7 +596,8 @@ static int vme_user_probe(struct vme_dev *vdev)
 	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++) {
 		/* XXX Need to properly request attributes */
 		image[i].resource = vme_master_request(vme_user_bridge,
-			VME_A32, VME_SCT, VME_D32);
+						       VME_A32, VME_SCT,
+						       VME_D32);
 		if (!image[i].resource) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate master resource\n");
@@ -621,7 +618,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 	if (IS_ERR(vme_user_sysfs_class)) {
 		dev_err(&vdev->dev, "Error creating vme_user class.\n");
 		err = PTR_ERR(vme_user_sysfs_class);
-		goto err_class;
+		goto err_master;
 	}
 
 	/* Add sysfs Entries */
@@ -645,7 +642,8 @@ static int vme_user_probe(struct vme_dev *vdev)
 
 		num = (type[i] == SLAVE_MINOR) ? i - (MASTER_MAX + 1) : i;
 		image[i].device = device_create(vme_user_sysfs_class, NULL,
-					MKDEV(VME_MAJOR, i), NULL, name, num);
+						MKDEV(VME_MAJOR, i), NULL,
+						name, num);
 		if (IS_ERR(image[i].device)) {
 			dev_info(&vdev->dev, "Error creating sysfs device\n");
 			err = PTR_ERR(image[i].device);

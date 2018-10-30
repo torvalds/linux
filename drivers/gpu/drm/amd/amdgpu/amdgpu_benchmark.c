@@ -75,37 +75,56 @@ static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 {
 	struct amdgpu_bo *dobj = NULL;
 	struct amdgpu_bo *sobj = NULL;
+	struct amdgpu_bo_param bp;
 	uint64_t saddr, daddr;
 	int r, n;
 	int time;
 
+	memset(&bp, 0, sizeof(bp));
+	bp.size = size;
+	bp.byte_align = PAGE_SIZE;
+	bp.domain = sdomain;
+	bp.flags = 0;
+	bp.type = ttm_bo_type_kernel;
+	bp.resv = NULL;
 	n = AMDGPU_BENCHMARK_ITERATIONS;
-	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true, sdomain, 0, NULL,
-			     NULL, 0, &sobj);
+	r = amdgpu_bo_create(adev, &bp, &sobj);
 	if (r) {
 		goto out_cleanup;
 	}
 	r = amdgpu_bo_reserve(sobj, false);
 	if (unlikely(r != 0))
 		goto out_cleanup;
-	r = amdgpu_bo_pin(sobj, sdomain, &saddr);
+	r = amdgpu_bo_pin(sobj, sdomain);
+	if (r) {
+		amdgpu_bo_unreserve(sobj);
+		goto out_cleanup;
+	}
+	r = amdgpu_ttm_alloc_gart(&sobj->tbo);
 	amdgpu_bo_unreserve(sobj);
 	if (r) {
 		goto out_cleanup;
 	}
-	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true, ddomain, 0, NULL,
-			     NULL, 0, &dobj);
+	saddr = amdgpu_bo_gpu_offset(sobj);
+	bp.domain = ddomain;
+	r = amdgpu_bo_create(adev, &bp, &dobj);
 	if (r) {
 		goto out_cleanup;
 	}
 	r = amdgpu_bo_reserve(dobj, false);
 	if (unlikely(r != 0))
 		goto out_cleanup;
-	r = amdgpu_bo_pin(dobj, ddomain, &daddr);
+	r = amdgpu_bo_pin(dobj, ddomain);
+	if (r) {
+		amdgpu_bo_unreserve(sobj);
+		goto out_cleanup;
+	}
+	r = amdgpu_ttm_alloc_gart(&dobj->tbo);
 	amdgpu_bo_unreserve(dobj);
 	if (r) {
 		goto out_cleanup;
 	}
+	daddr = amdgpu_bo_gpu_offset(dobj);
 
 	if (adev->mman.buffer_funcs) {
 		time = amdgpu_benchmark_do_move(adev, size, saddr, daddr, n);

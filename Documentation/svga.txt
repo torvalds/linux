@@ -67,8 +67,7 @@ The menu looks like::
 <name-of-detected-video-adapter> tells what video adapter did Linux detect
 -- it's either a generic adapter name (MDA, CGA, HGC, EGA, VGA, VESA VGA [a VGA
 with VESA-compliant BIOS]) or a chipset name (e.g., Trident). Direct detection
-of chipsets is turned off by default (see CONFIG_VIDEO_SVGA in chapter 4 to see
-how to enable it if you really want) as it's inherently unreliable due to
+of chipsets is turned off by default as it's inherently unreliable due to
 absolutely insane PC design.
 
 "0  0F00  80x25" means that the first menu item (the menu items are numbered
@@ -138,7 +137,7 @@ The ID numbers can be divided to those regions::
 	0x0f05	VGA 80x30 (480 scans, 16-point font)
 	0x0f06	VGA 80x34 (480 scans, 14-point font)
 	0x0f07	VGA 80x60 (480 scans, 8-point font)
-	0x0f08	Graphics hack (see the CONFIG_VIDEO_HACK paragraph below)
+	0x0f08	Graphics hack (see the VIDEO_GFX_HACK paragraph below)
 
    0x1000 to 0x7fff - modes specified by resolution. The code has a "0xRRCC"
 	form where RR is a number of rows and CC is a number of columns.
@@ -160,58 +159,22 @@ end of the display.
 Options
 ~~~~~~~
 
-Some options can be set in the source text (in arch/i386/boot/video.S).
-All of them are simple #define's -- change them to #undef's when you want to
-switch them off. Currently supported:
+Build options for arch/x86/boot/* are selected by the kernel kconfig
+utility and the kernel .config file.
 
-CONFIG_VIDEO_SVGA - enables autodetection of SVGA cards. This is switched
-off by default as it's a bit unreliable due to terribly bad PC design. If you
-really want to have the adapter autodetected (maybe in case the ``scan`` feature
-doesn't work on your machine), switch this on and don't cry if the results
-are not completely sane. In case you really need this feature, please drop me
-a mail as I think of removing it some day.
-
-CONFIG_VIDEO_VESA - enables autodetection of VESA modes. If it doesn't work
-on your machine (or displays a "Error: Scanning of VESA modes failed" message),
-you can switch it off and report as a bug.
-
-CONFIG_VIDEO_COMPACT - enables compacting of the video mode list. If there
-are more modes with the same screen size, only the first one is kept (see above
-for more info on mode ordering). However, in very strange cases it's possible
-that the first "version" of the mode doesn't work although some of the others
-do -- in this case turn this switch off to see the rest.
-
-CONFIG_VIDEO_RETAIN - enables retaining of screen contents when switching
-video modes. Works only with some boot loaders which leave enough room for the
-buffer. (If you have old LILO, you can adjust heap_end_ptr and loadflags
-in setup.S, but it's better to upgrade the boot loader...)
-
-CONFIG_VIDEO_LOCAL - enables inclusion of "local modes" in the list. The
-local modes are added automatically to the beginning of the list not depending
-on hardware configuration. The local modes are listed in the source text after
-the "local_mode_table:" line. The comment before this line describes the format
-of the table (which also includes a video card name to be displayed on the
-top of the menu).
-
-CONFIG_VIDEO_400_HACK - force setting of 400 scan lines for standard VGA
-modes. This option is intended to be used on certain buggy BIOSes which draw
-some useless logo using font download and then fail to reset the correct mode.
-Don't use unless needed as it forces resetting the video card.
-
-CONFIG_VIDEO_GFX_HACK - includes special hack for setting of graphics modes
-to be used later by special drivers (e.g., 800x600 on IBM ThinkPad -- see
-ftp://ftp.phys.keio.ac.jp/pub/XFree86/800x600/XF86Configs/XF86Config.IBM_TP560).
+VIDEO_GFX_HACK - includes special hack for setting of graphics modes
+to be used later by special drivers.
 Allows to set _any_ BIOS mode including graphic ones and forcing specific
 text screen resolution instead of peeking it from BIOS variables. Don't use
 unless you think you know what you're doing. To activate this setup, use
-mode number 0x0f08 (see section 3).
+mode number 0x0f08 (see the Mode IDs section above).
 
 Still doesn't work?
 ~~~~~~~~~~~~~~~~~~~
 
 When the mode detection doesn't work (e.g., the mode list is incorrect or
 the machine hangs instead of displaying the menu), try to switch off some of
-the configuration options listed in section 4. If it fails, you can still use
+the configuration options listed under "Options". If it fails, you can still use
 your kernel with the video mode set directly via the kernel parameter.
 
 In either case, please send me a bug report containing what _exactly_
@@ -227,10 +190,6 @@ bottom of the display containing already scrolled-out text, your VGA BIOS
 contains the most common video BIOS bug called "incorrect vertical display
 end setting". Adding 0x8000 to the mode ID might fix the problem. Unfortunately,
 this must be done manually -- no autodetection mechanisms are available.
-
-If you have a VGA card and your display still looks as on EGA, your BIOS
-is probably broken and you need to set the CONFIG_VIDEO_400_HACK switch to
-force setting of the correct mode.
 
 History
 ~~~~~~~

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Analog Devices ADV748X 8 channel analog front end (AFE) receiver
  * with standard definition processor (SDP)
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/delay.h>
@@ -217,6 +213,7 @@ static int adv748x_afe_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	struct adv748x_afe *afe = adv748x_sd_to_afe(sd);
 	struct adv748x_state *state = adv748x_afe_to_state(afe);
+	int afe_std;
 	int ret;
 
 	mutex_lock(&state->mutex);
@@ -235,8 +232,12 @@ static int adv748x_afe_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	/* Read detected standard */
 	ret = adv748x_afe_status(afe, NULL, std);
 
+	afe_std = adv748x_afe_std(afe->curr_norm);
+	if (afe_std < 0)
+		goto unlock;
+
 	/* Restore original state */
-	adv748x_afe_set_video_standard(state, afe->curr_norm);
+	adv748x_afe_set_video_standard(state, afe_std);
 
 unlock:
 	mutex_unlock(&state->mutex);
@@ -262,6 +263,7 @@ static int adv748x_afe_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	ret = adv748x_afe_status(afe, status, NULL);
 
 	mutex_unlock(&state->mutex);
+
 	return ret;
 }
 
@@ -269,7 +271,8 @@ static int adv748x_afe_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct adv748x_afe *afe = adv748x_sd_to_afe(sd);
 	struct adv748x_state *state = adv748x_afe_to_state(afe);
-	int ret, signal = V4L2_IN_ST_NO_SIGNAL;
+	u32 signal = V4L2_IN_ST_NO_SIGNAL;
+	int ret;
 
 	mutex_lock(&state->mutex);
 
@@ -279,7 +282,7 @@ static int adv748x_afe_s_stream(struct v4l2_subdev *sd, int enable)
 			goto unlock;
 	}
 
-	ret = adv748x_txb_power(state, enable);
+	ret = adv748x_tx_power(&state->txb, enable);
 	if (ret)
 		goto unlock;
 
@@ -314,17 +317,17 @@ static const struct v4l2_subdev_video_ops adv748x_afe_video_ops = {
 static int adv748x_afe_propagate_pixelrate(struct adv748x_afe *afe)
 {
 	struct v4l2_subdev *tx;
-	unsigned int width, height, fps;
 
 	tx = adv748x_get_remote_sd(&afe->pads[ADV748X_AFE_SOURCE]);
 	if (!tx)
 		return -ENOLINK;
 
-	width = 720;
-	height = afe->curr_norm & V4L2_STD_525_60 ? 480 : 576;
-	fps = afe->curr_norm & V4L2_STD_525_60 ? 30 : 25;
-
-	return adv748x_csi2_set_pixelrate(tx, width * height * fps);
+	/*
+	 * The ADV748x ADC sampling frequency is twice the externally supplied
+	 * clock whose frequency is required to be 28.63636 MHz. It oversamples
+	 * with a factor of 4 resulting in a pixel rate of 14.3180180 MHz.
+	 */
+	return adv748x_csi2_set_pixelrate(tx, 14318180);
 }
 
 static int adv748x_afe_enum_mbus_code(struct v4l2_subdev *sd,

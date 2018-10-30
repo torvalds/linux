@@ -1,9 +1,0 @@
-choice
-	prompt "Machine type"
-	depends on MACH_XILFPGA
-	default XILFPGA_NEXYS4DDR
-
-config XILFPGA_NEXYS4DDR
-	bool "Nexys4DDR by Digilent"
-
-endchoice

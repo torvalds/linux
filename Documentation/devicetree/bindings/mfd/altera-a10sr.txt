@@ -5,7 +5,6 @@ Required parent device properties:
 - spi-max-frequency	: Maximum SPI frequency.
 - reg			: The SPI Chip Select address for the Arria10
 			  System Resource chip
-- interrupt-parent	: The parent interrupt controller.
 - interrupts		: The interrupt line the device is connected to.
 - interrupt-controller	: Marks the device node as an interrupt controller.
 - #interrupt-cells	: The number of cells to describe an IRQ, should be 2.

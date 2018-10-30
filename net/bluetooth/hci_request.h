@@ -36,6 +36,7 @@ struct hci_request {
 };
 
 void hci_req_init(struct hci_request *req, struct hci_dev *hdev);
+void hci_req_purge(struct hci_request *req);
 int hci_req_run(struct hci_request *req, hci_req_complete_t complete);
 int hci_req_run_skb(struct hci_request *req, hci_req_complete_skb_t complete);
 void hci_req_add(struct hci_request *req, u16 opcode, u32 plen,
@@ -78,6 +79,14 @@ int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 void hci_req_clear_adv_instance(struct hci_dev *hdev, struct sock *sk,
 				struct hci_request *req, u8 instance,
 				bool force);
+
+int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance);
+int __hci_req_start_ext_adv(struct hci_request *req, u8 instance);
+void __hci_req_enable_ext_advertising(struct hci_request *req);
+void __hci_req_clear_ext_adv_sets(struct hci_request *req);
+int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
+			   bool use_rpa, struct adv_info *adv_instance,
+			   u8 *own_addr_type, bdaddr_t *rand_addr);
 
 void __hci_req_update_class(struct hci_request *req);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/in.h>
+#include <linux/ipv6.h>
 #include <linux/poll.h>
 #include <net/sock.h>
 
@@ -77,6 +78,7 @@ static int rds_release(struct socket *sock)
 	rds_send_drop_to(rs, NULL);
 	rds_rdma_drop_keys(rs);
 	rds_notify_queue_get(rs, NULL);
+	rds_notify_msg_zcopy_purge(&rs->rs_zcookie_queue);
 
 	spin_lock_bh(&rds_sock_lock);
 	list_del_init(&rs->rs_item);
@@ -110,54 +112,109 @@ void rds_wake_sk_sleep(struct rds_sock *rs)
 }
 
 static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
-		       int *uaddr_len, int peer)
+		       int peer)
 {
-	struct sockaddr_in *sin = (struct sockaddr_in *)uaddr;
 	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
-
-	memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in *sin;
+	int uaddr_len;
 
 	/* racey, don't care */
 	if (peer) {
-		if (!rs->rs_conn_addr)
+		if (ipv6_addr_any(&rs->rs_conn_addr))
 			return -ENOTCONN;
 
-		sin->sin_port = rs->rs_conn_port;
-		sin->sin_addr.s_addr = rs->rs_conn_addr;
+		if (ipv6_addr_v4mapped(&rs->rs_conn_addr)) {
+			sin = (struct sockaddr_in *)uaddr;
+			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+			sin->sin_family = AF_INET;
+			sin->sin_port = rs->rs_conn_port;
+			sin->sin_addr.s_addr = rs->rs_conn_addr_v4;
+			uaddr_len = sizeof(*sin);
+		} else {
+			sin6 = (struct sockaddr_in6 *)uaddr;
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_port = rs->rs_conn_port;
+			sin6->sin6_addr = rs->rs_conn_addr;
+			sin6->sin6_flowinfo = 0;
+			/* scope_id is the same as in the bound address. */
+			sin6->sin6_scope_id = rs->rs_bound_scope_id;
+			uaddr_len = sizeof(*sin6);
+		}
 	} else {
-		sin->sin_port = rs->rs_bound_port;
-		sin->sin_addr.s_addr = rs->rs_bound_addr;
+		/* If socket is not yet bound and the socket is connected,
+		 * set the return address family to be the same as the
+		 * connected address, but with 0 address value.  If it is not
+		 * connected, set the family to be AF_UNSPEC (value 0) and
+		 * the address size to be that of an IPv4 address.
+		 */
+		if (ipv6_addr_any(&rs->rs_bound_addr)) {
+			if (ipv6_addr_any(&rs->rs_conn_addr)) {
+				sin = (struct sockaddr_in *)uaddr;
+				memset(sin, 0, sizeof(*sin));
+				sin->sin_family = AF_UNSPEC;
+				return sizeof(*sin);
+			}
+
+#if IS_ENABLED(CONFIG_IPV6)
+			if (!(ipv6_addr_type(&rs->rs_conn_addr) &
+			      IPV6_ADDR_MAPPED)) {
+				sin6 = (struct sockaddr_in6 *)uaddr;
+				memset(sin6, 0, sizeof(*sin6));
+				sin6->sin6_family = AF_INET6;
+				return sizeof(*sin6);
+			}
+#endif
+
+			sin = (struct sockaddr_in *)uaddr;
+			memset(sin, 0, sizeof(*sin));
+			sin->sin_family = AF_INET;
+			return sizeof(*sin);
+		}
+		if (ipv6_addr_v4mapped(&rs->rs_bound_addr)) {
+			sin = (struct sockaddr_in *)uaddr;
+			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+			sin->sin_family = AF_INET;
+			sin->sin_port = rs->rs_bound_port;
+			sin->sin_addr.s_addr = rs->rs_bound_addr_v4;
+			uaddr_len = sizeof(*sin);
+		} else {
+			sin6 = (struct sockaddr_in6 *)uaddr;
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_port = rs->rs_bound_port;
+			sin6->sin6_addr = rs->rs_bound_addr;
+			sin6->sin6_flowinfo = 0;
+			sin6->sin6_scope_id = rs->rs_bound_scope_id;
+			uaddr_len = sizeof(*sin6);
+		}
 	}
 
-	sin->sin_family = AF_INET;
-
-	*uaddr_len = sizeof(*sin);
-	return 0;
+	return uaddr_len;
 }
 
 /*
  * RDS' poll is without a doubt the least intuitive part of the interface,
- * as POLLIN and POLLOUT do not behave entirely as you would expect from
+ * as EPOLLIN and EPOLLOUT do not behave entirely as you would expect from
  * a network protocol.
  *
- * POLLIN is asserted if
+ * EPOLLIN is asserted if
  *  -	there is data on the receive queue.
  *  -	to signal that a previously congested destination may have become
  *	uncongested
  *  -	A notification has been queued to the socket (this can be a congestion
- *	update, or a RDMA completion).
+ *	update, or a RDMA completion, or a MSG_ZEROCOPY completion).
  *
- * POLLOUT is asserted if there is room on the send queue. This does not mean
+ * EPOLLOUT is asserted if there is room on the send queue. This does not mean
  * however, that the next sendmsg() call will succeed. If the application tries
  * to send to a congested destination, the system call may still fail (and
  * return ENOBUFS).
  */
-static unsigned int rds_poll(struct file *file, struct socket *sock,
+static __poll_t rds_poll(struct file *file, struct socket *sock,
 			     poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	unsigned long flags;
 
 	poll_wait(file, sk_sleep(sk), wait);
@@ -167,22 +224,25 @@ static unsigned int rds_poll(struct file *file, struct socket *sock,
 
 	read_lock_irqsave(&rs->rs_recv_lock, flags);
 	if (!rs->rs_cong_monitor) {
-		/* When a congestion map was updated, we signal POLLIN for
+		/* When a congestion map was updated, we signal EPOLLIN for
 		 * "historical" reasons. Applications can also poll for
 		 * WRBAND instead. */
 		if (rds_cong_updated_since(&rs->rs_cong_track))
-			mask |= (POLLIN | POLLRDNORM | POLLWRBAND);
+			mask |= (EPOLLIN | EPOLLRDNORM | EPOLLWRBAND);
 	} else {
 		spin_lock(&rs->rs_lock);
 		if (rs->rs_cong_notify)
-			mask |= (POLLIN | POLLRDNORM);
+			mask |= (EPOLLIN | EPOLLRDNORM);
 		spin_unlock(&rs->rs_lock);
 	}
 	if (!list_empty(&rs->rs_recv_queue) ||
-	    !list_empty(&rs->rs_notify_queue))
-		mask |= (POLLIN | POLLRDNORM);
+	    !list_empty(&rs->rs_notify_queue) ||
+	    !list_empty(&rs->rs_zcookie_queue.zcookie_head))
+		mask |= (EPOLLIN | EPOLLRDNORM);
 	if (rs->rs_snd_bytes < rds_sk_sndbuf(rs))
-		mask |= (POLLOUT | POLLWRNORM);
+		mask |= (EPOLLOUT | EPOLLWRNORM);
+	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
+		mask |= POLLERR;
 	read_unlock_irqrestore(&rs->rs_recv_lock, flags);
 
 	/* clear state any time we wake a seen-congested socket */
@@ -200,11 +260,12 @@ static int rds_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 static int rds_cancel_sent_to(struct rds_sock *rs, char __user *optval,
 			      int len)
 {
+	struct sockaddr_in6 sin6;
 	struct sockaddr_in sin;
 	int ret = 0;
 
 	/* racing with another thread binding seems ok here */
-	if (rs->rs_bound_addr == 0) {
+	if (ipv6_addr_any(&rs->rs_bound_addr)) {
 		ret = -ENOTCONN; /* XXX not a great errno */
 		goto out;
 	}
@@ -212,14 +273,23 @@ static int rds_cancel_sent_to(struct rds_sock *rs, char __user *optval,
 	if (len < sizeof(struct sockaddr_in)) {
 		ret = -EINVAL;
 		goto out;
+	} else if (len < sizeof(struct sockaddr_in6)) {
+		/* Assume IPv4 */
+		if (copy_from_user(&sin, optval, sizeof(struct sockaddr_in))) {
+			ret = -EFAULT;
+			goto out;
+		}
+		ipv6_addr_set_v4mapped(sin.sin_addr.s_addr, &sin6.sin6_addr);
+		sin6.sin6_port = sin.sin_port;
+	} else {
+		if (copy_from_user(&sin6, optval,
+				   sizeof(struct sockaddr_in6))) {
+			ret = -EFAULT;
+			goto out;
+		}
 	}
 
-	if (copy_from_user(&sin, optval, sizeof(sin))) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	rds_send_drop_to(rs, &sin);
+	rds_send_drop_to(rs, &sin6);
 out:
 	return ret;
 }
@@ -432,31 +502,91 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 		       int addr_len, int flags)
 {
 	struct sock *sk = sock->sk;
-	struct sockaddr_in *sin = (struct sockaddr_in *)uaddr;
+	struct sockaddr_in *sin;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
 	int ret = 0;
 
 	lock_sock(sk);
 
-	if (addr_len != sizeof(struct sockaddr_in)) {
-		ret = -EINVAL;
-		goto out;
-	}
+	switch (uaddr->sa_family) {
+	case AF_INET:
+		sin = (struct sockaddr_in *)uaddr;
+		if (addr_len < sizeof(struct sockaddr_in)) {
+			ret = -EINVAL;
+			break;
+		}
+		if (sin->sin_addr.s_addr == htonl(INADDR_ANY)) {
+			ret = -EDESTADDRREQ;
+			break;
+		}
+		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) ||
+		    sin->sin_addr.s_addr == htonl(INADDR_BROADCAST)) {
+			ret = -EINVAL;
+			break;
+		}
+		ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &rs->rs_conn_addr);
+		rs->rs_conn_port = sin->sin_port;
+		break;
 
-	if (sin->sin_family != AF_INET) {
+#if IS_ENABLED(CONFIG_IPV6)
+	case AF_INET6: {
+		struct sockaddr_in6 *sin6;
+		int addr_type;
+
+		sin6 = (struct sockaddr_in6 *)uaddr;
+		if (addr_len < sizeof(struct sockaddr_in6)) {
+			ret = -EINVAL;
+			break;
+		}
+		addr_type = ipv6_addr_type(&sin6->sin6_addr);
+		if (!(addr_type & IPV6_ADDR_UNICAST)) {
+			__be32 addr4;
+
+			if (!(addr_type & IPV6_ADDR_MAPPED)) {
+				ret = -EPROTOTYPE;
+				break;
+			}
+
+			/* It is a mapped address.  Need to do some sanity
+			 * checks.
+			 */
+			addr4 = sin6->sin6_addr.s6_addr32[3];
+			if (addr4 == htonl(INADDR_ANY) ||
+			    addr4 == htonl(INADDR_BROADCAST) ||
+			    IN_MULTICAST(ntohl(addr4))) {
+				ret = -EPROTOTYPE;
+				break;
+			}
+		}
+
+		if (addr_type & IPV6_ADDR_LINKLOCAL) {
+			/* If socket is arleady bound to a link local address,
+			 * the peer address must be on the same link.
+			 */
+			if (sin6->sin6_scope_id == 0 ||
+			    (!ipv6_addr_any(&rs->rs_bound_addr) &&
+			     rs->rs_bound_scope_id &&
+			     sin6->sin6_scope_id != rs->rs_bound_scope_id)) {
+				ret = -EINVAL;
+				break;
+			}
+			/* Remember the connected address scope ID.  It will
+			 * be checked against the binding local address when
+			 * the socket is bound.
+			 */
+			rs->rs_bound_scope_id = sin6->sin6_scope_id;
+		}
+		rs->rs_conn_addr = sin6->sin6_addr;
+		rs->rs_conn_port = sin6->sin6_port;
+		break;
+	}
+#endif
+
+	default:
 		ret = -EAFNOSUPPORT;
-		goto out;
+		break;
 	}
 
-	if (sin->sin_addr.s_addr == htonl(INADDR_ANY)) {
-		ret = -EDESTADDRREQ;
-		goto out;
-	}
-
-	rs->rs_conn_addr = sin->sin_addr.s_addr;
-	rs->rs_conn_port = sin->sin_port;
-
-out:
 	release_sock(sk);
 	return ret;
 }
@@ -512,6 +642,7 @@ static int __rds_create(struct socket *sock, struct sock *sk, int protocol)
 	INIT_LIST_HEAD(&rs->rs_recv_queue);
 	INIT_LIST_HEAD(&rs->rs_notify_queue);
 	INIT_LIST_HEAD(&rs->rs_cong_list);
+	rds_message_zcopy_queue_init(&rs->rs_zcookie_queue);
 	spin_lock_init(&rs->rs_rdma_lock);
 	rs->rs_rdma_keys = RB_ROOT;
 	rs->rs_rx_traces = 0;
@@ -574,8 +705,10 @@ static void rds_sock_inc_info(struct socket *sock, unsigned int len,
 		list_for_each_entry(inc, &rs->rs_recv_queue, i_item) {
 			total++;
 			if (total <= len)
-				rds_inc_info_copy(inc, iter, inc->i_saddr,
-						  rs->rs_bound_addr, 1);
+				rds_inc_info_copy(inc, iter,
+						  inc->i_saddr.s6_addr32[3],
+						  rs->rs_bound_addr_v4,
+						  1);
 		}
 
 		read_unlock(&rs->rs_recv_lock);
@@ -604,8 +737,8 @@ static void rds_sock_info(struct socket *sock, unsigned int len,
 	list_for_each_entry(rs, &rds_sock_list, rs_item) {
 		sinfo.sndbuf = rds_sk_sndbuf(rs);
 		sinfo.rcvbuf = rds_sk_rcvbuf(rs);
-		sinfo.bound_addr = rs->rs_bound_addr;
-		sinfo.connected_addr = rs->rs_conn_addr;
+		sinfo.bound_addr = rs->rs_bound_addr_v4;
+		sinfo.connected_addr = rs->rs_conn_addr_v4;
 		sinfo.bound_port = rs->rs_bound_port;
 		sinfo.connected_port = rs->rs_conn_port;
 		sinfo.inum = sock_i_ino(rds_rs_to_sk(rs));

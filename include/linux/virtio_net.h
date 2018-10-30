@@ -1,14 +1,33 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_VIRTIO_NET_H
 #define _LINUX_VIRTIO_NET_H
 
 #include <linux/if_vlan.h>
 #include <uapi/linux/virtio_net.h>
 
+static inline int virtio_net_hdr_set_proto(struct sk_buff *skb,
+					   const struct virtio_net_hdr *hdr)
+{
+	switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
+	case VIRTIO_NET_HDR_GSO_TCPV4:
+	case VIRTIO_NET_HDR_GSO_UDP:
+		skb->protocol = cpu_to_be16(ETH_P_IP);
+		break;
+	case VIRTIO_NET_HDR_GSO_TCPV6:
+		skb->protocol = cpu_to_be16(ETH_P_IPV6);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 					const struct virtio_net_hdr *hdr,
 					bool little_endian)
 {
-	unsigned short gso_type = 0;
+	unsigned int gso_type = 0;
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
 		switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
@@ -17,6 +36,9 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 			break;
 		case VIRTIO_NET_HDR_GSO_TCPV6:
 			gso_type = SKB_GSO_TCPV6;
+			break;
+		case VIRTIO_NET_HDR_GSO_UDP:
+			gso_type = SKB_GSO_UDP;
 			break;
 		default:
 			return -EINVAL;
@@ -54,7 +76,8 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 					  struct virtio_net_hdr *hdr,
 					  bool little_endian,
-					  bool has_data_valid)
+					  bool has_data_valid,
+					  int vlan_hlen)
 {
 	memset(hdr, 0, sizeof(*hdr));   /* no info leak */
 
@@ -79,12 +102,8 @@ static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		hdr->flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
-		if (skb_vlan_tag_present(skb))
-			hdr->csum_start = __cpu_to_virtio16(little_endian,
-				skb_checksum_start_offset(skb) + VLAN_HLEN);
-		else
-			hdr->csum_start = __cpu_to_virtio16(little_endian,
-				skb_checksum_start_offset(skb));
+		hdr->csum_start = __cpu_to_virtio16(little_endian,
+			skb_checksum_start_offset(skb) + vlan_hlen);
 		hdr->csum_offset = __cpu_to_virtio16(little_endian,
 				skb->csum_offset);
 	} else if (has_data_valid &&

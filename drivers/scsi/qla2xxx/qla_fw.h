@@ -753,9 +753,7 @@ struct els_entry_24xx {
 	uint8_t reserved_2;
 
 	uint8_t port_id[3];
-	uint8_t reserved_3;
-
-	uint16_t reserved_4;
+	uint8_t s_id[3];
 
 	uint16_t control_flags;		/* Control flags. */
 #define ECF_PAYLOAD_DESCR_MASK	(BIT_15|BIT_14|BIT_13)
@@ -1368,6 +1366,11 @@ struct vp_rpt_id_entry_24xx {
 			/* format 1 fabric */
 			uint8_t vpstat1_subcode; /* vp_status=1 subcode */
 			uint8_t flags;
+#define TOPO_MASK  0xE
+#define TOPO_FL    0x2
+#define TOPO_N2N   0x4
+#define TOPO_F     0x6
+
 			uint16_t fip_flags;
 			uint8_t rsv2[12];
 
@@ -1394,7 +1397,7 @@ struct vp_rpt_id_entry_24xx {
 
 		    uint8_t port_name[8];
 		    uint8_t node_name[8];
-		    uint32_t remote_nport_id;
+		    uint8_t remote_nport_id[4];
 		    uint32_t reserved_5;
 		} f2;
 	} u;

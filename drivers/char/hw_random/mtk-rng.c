@@ -135,6 +135,7 @@ static int mtk_rng_probe(struct platform_device *pdev)
 #endif
 	priv->rng.read = mtk_rng_read;
 	priv->rng.priv = (unsigned long)&pdev->dev;
+	priv->rng.quality = 900;
 
 	priv->clk = devm_clk_get(&pdev->dev, "rng");
 	if (IS_ERR(priv->clk)) {

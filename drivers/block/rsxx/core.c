@@ -58,7 +58,6 @@ MODULE_PARM_DESC(sync_start, "On by Default: Driver load will not complete "
 			     "until the card startup has completed.");
 
 static DEFINE_IDA(rsxx_disk_ida);
-static DEFINE_SPINLOCK(rsxx_ida_lock);
 
 /* --------------------Debugfs Setup ------------------- */
 
@@ -247,19 +246,19 @@ static void rsxx_debugfs_dev_new(struct rsxx_cardinfo *card)
 	if (IS_ERR_OR_NULL(card->debugfs_dir))
 		goto failed_debugfs_dir;
 
-	debugfs_stats = debugfs_create_file("stats", S_IRUGO,
+	debugfs_stats = debugfs_create_file("stats", 0444,
 					    card->debugfs_dir, card,
 					    &debugfs_stats_fops);
 	if (IS_ERR_OR_NULL(debugfs_stats))
 		goto failed_debugfs_stats;
 
-	debugfs_pci_regs = debugfs_create_file("pci_regs", S_IRUGO,
+	debugfs_pci_regs = debugfs_create_file("pci_regs", 0444,
 					       card->debugfs_dir, card,
 					       &debugfs_pci_regs_fops);
 	if (IS_ERR_OR_NULL(debugfs_pci_regs))
 		goto failed_debugfs_pci_regs;
 
-	debugfs_cram = debugfs_create_file("cram", S_IRUGO | S_IWUSR,
+	debugfs_cram = debugfs_create_file("cram", 0644,
 					   card->debugfs_dir, card,
 					   &debugfs_cram_fops);
 	if (IS_ERR_OR_NULL(debugfs_cram))
@@ -771,28 +770,19 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 	card->dev = dev;
 	pci_set_drvdata(dev, card);
 
-	do {
-		if (!ida_pre_get(&rsxx_disk_ida, GFP_KERNEL)) {
-			st = -ENOMEM;
-			goto failed_ida_get;
-		}
-
-		spin_lock(&rsxx_ida_lock);
-		st = ida_get_new(&rsxx_disk_ida, &card->disk_id);
-		spin_unlock(&rsxx_ida_lock);
-	} while (st == -EAGAIN);
-
-	if (st)
+	st = ida_alloc(&rsxx_disk_ida, GFP_KERNEL);
+	if (st < 0)
 		goto failed_ida_get;
+	card->disk_id = st;
 
 	st = pci_enable_device(dev);
 	if (st)
 		goto failed_enable;
 
 	pci_set_master(dev);
-	pci_set_dma_max_seg_size(dev, RSXX_HW_BLK_SIZE);
+	dma_set_max_seg_size(&dev->dev, RSXX_HW_BLK_SIZE);
 
-	st = pci_set_dma_mask(dev, DMA_BIT_MASK(64));
+	st = dma_set_mask(&dev->dev, DMA_BIT_MASK(64));
 	if (st) {
 		dev_err(CARD_TO_DEV(card),
 			"No usable DMA configuration,aborting\n");
@@ -873,7 +863,8 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 		dev_info(CARD_TO_DEV(card),
 			"Failed reading the number of DMA targets\n");
 
-	card->ctrl = kzalloc(card->n_targets * sizeof(*card->ctrl), GFP_KERNEL);
+	card->ctrl = kcalloc(card->n_targets, sizeof(*card->ctrl),
+			     GFP_KERNEL);
 	if (!card->ctrl) {
 		st = -ENOMEM;
 		goto failed_dma_setup;
@@ -984,9 +975,7 @@ failed_request_regions:
 failed_dma_mask:
 	pci_disable_device(dev);
 failed_enable:
-	spin_lock(&rsxx_ida_lock);
-	ida_remove(&rsxx_disk_ida, card->disk_id);
-	spin_unlock(&rsxx_ida_lock);
+	ida_free(&rsxx_disk_ida, card->disk_id);
 failed_ida_get:
 	kfree(card);
 
@@ -1049,6 +1038,7 @@ static void rsxx_pci_remove(struct pci_dev *dev)
 	pci_disable_device(dev);
 	pci_release_regions(dev);
 
+	ida_free(&rsxx_disk_ida, card->disk_id);
 	kfree(card);
 }
 

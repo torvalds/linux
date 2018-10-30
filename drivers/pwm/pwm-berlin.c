@@ -21,8 +21,18 @@
 #define BERLIN_PWM_EN			0x0
 #define  BERLIN_PWM_ENABLE		BIT(0)
 #define BERLIN_PWM_CONTROL		0x4
-#define  BERLIN_PWM_PRESCALE_MASK	0x7
-#define  BERLIN_PWM_PRESCALE_MAX	4096
+/*
+ * The prescaler claims to support 8 different moduli, configured using the
+ * low three bits of PWM_CONTROL. (Sequentially, they are 1, 4, 8, 16, 64,
+ * 256, 1024, and 4096.)  However, the moduli from 4 to 1024 appear to be
+ * implemented by internally shifting TCNT left without adding additional
+ * bits. So, the max TCNT that actually works for a modulus of 4 is 0x3fff;
+ * for 8, 0x1fff; and so on. This means that those moduli are entirely
+ * useless, as we could just do the shift ourselves. The 4096 modulus is
+ * implemented with a real prescaler, so we do use that, but we treat it
+ * as a flag instead of pretending the modulus is actually configurable.
+ */
+#define  BERLIN_PWM_PRESCALE_4096	0x7
 #define  BERLIN_PWM_INVERT_POLARITY	BIT(3)
 #define BERLIN_PWM_DUTY			0x8
 #define BERLIN_PWM_TCNT			0xc
@@ -45,10 +55,6 @@ static inline struct berlin_pwm_chip *to_berlin_pwm_chip(struct pwm_chip *chip)
 {
 	return container_of(chip, struct berlin_pwm_chip, chip);
 }
-
-static const u32 prescaler_table[] = {
-	1, 4, 8, 16, 64, 256, 1024, 4096
-};
 
 static inline u32 berlin_pwm_readl(struct berlin_pwm_chip *chip,
 				   unsigned int channel, unsigned long offset)
@@ -86,33 +92,32 @@ static int berlin_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm_dev,
 			     int duty_ns, int period_ns)
 {
 	struct berlin_pwm_chip *pwm = to_berlin_pwm_chip(chip);
-	unsigned int prescale;
+	bool prescale_4096 = false;
 	u32 value, duty, period;
-	u64 cycles, tmp;
+	u64 cycles;
 
 	cycles = clk_get_rate(pwm->clk);
 	cycles *= period_ns;
 	do_div(cycles, NSEC_PER_SEC);
 
-	for (prescale = 0; prescale < ARRAY_SIZE(prescaler_table); prescale++) {
-		tmp = cycles;
-		do_div(tmp, prescaler_table[prescale]);
+	if (cycles > BERLIN_PWM_MAX_TCNT) {
+		prescale_4096 = true;
+		cycles >>= 12; // Prescaled by 4096
 
-		if (tmp <= BERLIN_PWM_MAX_TCNT)
-			break;
+		if (cycles > BERLIN_PWM_MAX_TCNT)
+			return -ERANGE;
 	}
 
-	if (tmp > BERLIN_PWM_MAX_TCNT)
-		return -ERANGE;
-
-	period = tmp;
-	cycles = tmp * duty_ns;
+	period = cycles;
+	cycles *= duty_ns;
 	do_div(cycles, period_ns);
 	duty = cycles;
 
 	value = berlin_pwm_readl(pwm, pwm_dev->hwpwm, BERLIN_PWM_CONTROL);
-	value &= ~BERLIN_PWM_PRESCALE_MASK;
-	value |= prescale;
+	if (prescale_4096)
+		value |= BERLIN_PWM_PRESCALE_4096;
+	else
+		value &= ~BERLIN_PWM_PRESCALE_4096;
 	berlin_pwm_writel(pwm, pwm_dev->hwpwm, value, BERLIN_PWM_CONTROL);
 
 	berlin_pwm_writel(pwm, pwm_dev->hwpwm, duty, BERLIN_PWM_DUTY);

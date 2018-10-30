@@ -92,7 +92,7 @@ void ppc4xx_trng_probe(struct crypto4xx_core_device *core_dev)
 	if (!rng)
 		goto err_out;
 
-	rng->name = MODULE_NAME;
+	rng->name = KBUILD_MODNAME;
 	rng->data_present = ppc4xx_trng_data_present;
 	rng->data_read = ppc4xx_trng_data_read;
 	rng->priv = (unsigned long) dev;

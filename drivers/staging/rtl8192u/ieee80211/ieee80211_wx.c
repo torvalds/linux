@@ -147,13 +147,13 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 
 	if (network->mode >= IEEE_N_24G)//add N rate here;
 	{
-		PHT_CAPABILITY_ELE ht_cap = NULL;
+		struct ht_capability_ele *ht_cap = NULL;
 		bool is40M = false, isShortGI = false;
 		u8 max_mcs = 0;
 		if (!memcmp(network->bssht.bdHTCapBuf, EWC11NHTCap, 4))
-			ht_cap = (PHT_CAPABILITY_ELE)&network->bssht.bdHTCapBuf[4];
+			ht_cap = (struct ht_capability_ele *)&network->bssht.bdHTCapBuf[4];
 		else
-			ht_cap = (PHT_CAPABILITY_ELE)&network->bssht.bdHTCapBuf[0];
+			ht_cap = (struct ht_capability_ele *)&network->bssht.bdHTCapBuf[0];
 		is40M = (ht_cap->ChlWidth)?1:0;
 		isShortGI = (ht_cap->ChlWidth)?
 						((ht_cap->ShortGI40Mhz)?1:0):
@@ -364,11 +364,8 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 				    GFP_KERNEL);
 		if (!new_crypt)
 			return -ENOMEM;
-		new_crypt->ops = ieee80211_get_crypto_ops("WEP");
-		if (!new_crypt->ops) {
-			request_module("ieee80211_crypt_wep");
-			new_crypt->ops = ieee80211_get_crypto_ops("WEP");
-		}
+		new_crypt->ops = try_then_request_module(ieee80211_get_crypto_ops("WEP"),
+							 "ieee80211_crypt_wep");
 		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
 			new_crypt->priv = new_crypt->ops->init(key);
 
@@ -591,12 +588,8 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 	}
 	printk("alg name:%s\n",alg);
 
-	 ops = ieee80211_get_crypto_ops(alg);
-	if (ops == NULL) {
-		request_module(module);
-		ops = ieee80211_get_crypto_ops(alg);
-	}
-	if (ops == NULL) {
+	ops = try_then_request_module(ieee80211_get_crypto_ops(alg), module);
+	if (!ops) {
 		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
 		printk("========>unknown crypto alg %d\n", ext->alg);

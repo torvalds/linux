@@ -29,7 +29,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 
-static void ax25_ds_timeout(unsigned long);
+static void ax25_ds_timeout(struct timer_list *);
 
 /*
  *	Add DAMA slave timeout timer to timer list.
@@ -41,8 +41,7 @@ static void ax25_ds_timeout(unsigned long);
 
 void ax25_ds_setup_timer(ax25_dev *ax25_dev)
 {
-	setup_timer(&ax25_dev->dama.slave_timer, ax25_ds_timeout,
-		    (unsigned long)ax25_dev);
+	timer_setup(&ax25_dev->dama.slave_timer, ax25_ds_timeout, 0);
 }
 
 void ax25_ds_del_timer(ax25_dev *ax25_dev)
@@ -66,9 +65,9 @@ void ax25_ds_set_timer(ax25_dev *ax25_dev)
  *	Silently discard all (slave) connections in case our master forgot us...
  */
 
-static void ax25_ds_timeout(unsigned long arg)
+static void ax25_ds_timeout(struct timer_list *t)
 {
-	ax25_dev *ax25_dev = (struct ax25_dev *) arg;
+	ax25_dev *ax25_dev = from_timer(ax25_dev, t, dama.slave_timer);
 	ax25_cb *ax25;
 
 	if (ax25_dev == NULL || !ax25_dev->dama.slave)

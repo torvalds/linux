@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Split spinlock implementation out into its own file, so it can be
  * compiled in a FTRACE-compatible way.
@@ -10,6 +11,7 @@
 #include <linux/slab.h>
 
 #include <asm/paravirt.h>
+#include <asm/qspinlock.h>
 
 #include <xen/interface/xen.h>
 #include <xen/events.h>
@@ -20,8 +22,6 @@
 static DEFINE_PER_CPU(int, lock_kicker_irq) = -1;
 static DEFINE_PER_CPU(char *, irq_name);
 static bool xen_pvspin = true;
-
-#include <asm/qspinlock.h>
 
 static void xen_qlock_kick(int cpu)
 {
@@ -80,8 +80,11 @@ void xen_init_lock_cpu(int cpu)
 	int irq;
 	char *name;
 
-	if (!xen_pvspin)
+	if (!xen_pvspin) {
+		if (cpu == 0)
+			static_branch_disable(&virt_spin_lock_key);
 		return;
+	}
 
 	WARN(per_cpu(lock_kicker_irq, cpu) >= 0, "spinlock on CPU%d exists on IRQ%d!\n",
 	     cpu, per_cpu(lock_kicker_irq, cpu));
@@ -127,6 +130,10 @@ PV_CALLEE_SAVE_REGS_THUNK(xen_vcpu_stolen);
 void __init xen_init_spinlocks(void)
 {
 
+	/*  Don't need to use pvqspinlock code if there is only 1 vCPU. */
+	if (num_possible_cpus() == 1)
+		xen_pvspin = false;
+
 	if (!xen_pvspin) {
 		printk(KERN_DEBUG "xen: PV spinlocks disabled\n");
 		return;
@@ -134,11 +141,12 @@ void __init xen_init_spinlocks(void)
 	printk(KERN_DEBUG "xen: PV spinlocks enabled\n");
 
 	__pv_init_lock_hash();
-	pv_lock_ops.queued_spin_lock_slowpath = __pv_queued_spin_lock_slowpath;
-	pv_lock_ops.queued_spin_unlock = PV_CALLEE_SAVE(__pv_queued_spin_unlock);
-	pv_lock_ops.wait = xen_qlock_wait;
-	pv_lock_ops.kick = xen_qlock_kick;
-	pv_lock_ops.vcpu_is_preempted = PV_CALLEE_SAVE(xen_vcpu_stolen);
+	pv_ops.lock.queued_spin_lock_slowpath = __pv_queued_spin_lock_slowpath;
+	pv_ops.lock.queued_spin_unlock =
+		PV_CALLEE_SAVE(__pv_queued_spin_unlock);
+	pv_ops.lock.wait = xen_qlock_wait;
+	pv_ops.lock.kick = xen_qlock_kick;
+	pv_ops.lock.vcpu_is_preempted = PV_CALLEE_SAVE(xen_vcpu_stolen);
 }
 
 static __init int xen_parse_nopvspin(char *arg)

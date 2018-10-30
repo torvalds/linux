@@ -153,9 +153,9 @@ static int test_timeout(struct at_state_t *at_state)
 	return 1;
 }
 
-static void timer_tick(unsigned long data)
+static void timer_tick(struct timer_list *t)
 {
-	struct cardstate *cs = (struct cardstate *) data;
+	struct cardstate *cs = from_timer(cs, t, timer);
 	unsigned long flags;
 	unsigned channel;
 	struct at_state_t *at_state;
@@ -687,7 +687,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->ignoreframes = ignoreframes;
 	INIT_LIST_HEAD(&cs->temp_at_states);
 	cs->running = 0;
-	init_timer(&cs->timer); /* clear next & prev */
+	timer_setup(&cs->timer, timer_tick, 0);
 	spin_lock_init(&cs->ev_lock);
 	cs->ev_tail = 0;
 	cs->ev_head = 0;
@@ -710,7 +710,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->mode = M_UNKNOWN;
 	cs->mstate = MS_UNINITIALIZED;
 
-	cs->bcs = kmalloc(channels * sizeof(struct bc_state), GFP_KERNEL);
+	cs->bcs = kmalloc_array(channels, sizeof(struct bc_state), GFP_KERNEL);
 	cs->inbuf = kmalloc(sizeof(struct inbuf_t), GFP_KERNEL);
 	if (!cs->bcs || !cs->inbuf) {
 		pr_err("out of memory\n");
@@ -768,7 +768,6 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	spin_lock_irqsave(&cs->lock, flags);
 	cs->running = 1;
 	spin_unlock_irqrestore(&cs->lock, flags);
-	setup_timer(&cs->timer, timer_tick, (unsigned long) cs);
 	cs->timer.expires = jiffies + msecs_to_jiffies(GIG_TICK);
 	add_timer(&cs->timer);
 
@@ -1090,7 +1089,7 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 	drv->owner = owner;
 	INIT_LIST_HEAD(&drv->list);
 
-	drv->cs = kmalloc(minors * sizeof *drv->cs, GFP_KERNEL);
+	drv->cs = kmalloc_array(minors, sizeof(*drv->cs), GFP_KERNEL);
 	if (!drv->cs)
 		goto error;
 

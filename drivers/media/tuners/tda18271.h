@@ -22,7 +22,7 @@
 #define __TDA18271_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct tda18271_std_map_item {
 	u16 if_freq;

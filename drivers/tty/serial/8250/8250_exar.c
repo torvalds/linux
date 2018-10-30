@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Probe module for 8250/16550-type Exar chips PCI serial ports.
  *
  *  Based on drivers/tty/serial/8250/8250_pci.c,
  *
  *  Copyright (C) 2017 Sudip Mukherjee, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  */
 #include <linux/acpi.h>
 #include <linux/dmi.h>
@@ -37,6 +34,7 @@
 #define PCI_DEVICE_ID_EXAR_XR17V4358		0x4358
 #define PCI_DEVICE_ID_EXAR_XR17V8358		0x8358
 
+#define UART_EXAR_INT0		0x80
 #define UART_EXAR_8XMODE	0x88	/* 8X sampling rate select */
 
 #define UART_EXAR_FCTR		0x08	/* Feature Control Register */
@@ -111,11 +109,12 @@ struct exar8250_platform {
  * struct exar8250_board - board information
  * @num_ports: number of serial ports
  * @reg_shift: describes UART register mapping in PCI memory
+ * @setup: quirk run at ->probe() stage
+ * @exit: quirk run at ->remove() stage
  */
 struct exar8250_board {
 	unsigned int num_ports;
 	unsigned int reg_shift;
-	bool has_slave;
 	int	(*setup)(struct exar8250 *, struct pci_dev *,
 			 struct uart_8250_port *, int);
 	void	(*exit)(struct pci_dev *pcidev);
@@ -124,6 +123,7 @@ struct exar8250_board {
 struct exar8250 {
 	unsigned int		nr;
 	struct exar8250_board	*board;
+	void __iomem		*virt;
 	int			line[0];
 };
 
@@ -134,12 +134,9 @@ static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	const struct exar8250_board *board = priv->board;
 	unsigned int bar = 0;
 
-	if (!pcim_iomap_table(pcidev)[bar] && !pcim_iomap(pcidev, bar, 0))
-		return -ENOMEM;
-
 	port->port.iotype = UPIO_MEM;
 	port->port.mapbase = pci_resource_start(pcidev, bar) + offset;
-	port->port.membase = pcim_iomap_table(pcidev)[bar] + offset;
+	port->port.membase = priv->virt + offset;
 	port->port.regshift = board->reg_shift;
 
 	return 0;
@@ -276,8 +273,32 @@ static int xr17v35x_register_gpio(struct pci_dev *pcidev,
 	return 0;
 }
 
+static int generic_rs485_config(struct uart_port *port,
+				struct serial_rs485 *rs485)
+{
+	bool is_rs485 = !!(rs485->flags & SER_RS485_ENABLED);
+	u8 __iomem *p = port->membase;
+	u8 value;
+
+	value = readb(p + UART_EXAR_FCTR);
+	if (is_rs485)
+		value |= UART_FCTR_EXAR_485;
+	else
+		value &= ~UART_FCTR_EXAR_485;
+
+	writeb(value, p + UART_EXAR_FCTR);
+
+	if (is_rs485)
+		writeb(UART_EXAR_RS485_DLY(4), p + UART_MSR);
+
+	port->rs485 = *rs485;
+
+	return 0;
+}
+
 static const struct exar8250_platform exar8250_default_platform = {
 	.register_gpio = xr17v35x_register_gpio,
+	.rs485_config = generic_rs485_config,
 };
 
 static int iot2040_rs485_config(struct uart_port *port,
@@ -310,19 +331,7 @@ static int iot2040_rs485_config(struct uart_port *port,
 	value |= mode;
 	writeb(value, p + UART_EXAR_MPIOLVL_7_0);
 
-	value = readb(p + UART_EXAR_FCTR);
-	if (is_rs485)
-		value |= UART_FCTR_EXAR_485;
-	else
-		value &= ~UART_FCTR_EXAR_485;
-	writeb(value, p + UART_EXAR_FCTR);
-
-	if (is_rs485)
-		writeb(UART_EXAR_RS485_DLY(4), p + UART_MSR);
-
-	port->rs485 = *rs485;
-
-	return 0;
+	return generic_rs485_config(port, rs485);
 }
 
 static const struct property_entry iot2040_gpio_properties[] = {
@@ -368,7 +377,6 @@ static int
 pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 		   struct uart_8250_port *port, int idx)
 {
-	const struct exar8250_board *board = priv->board;
 	const struct exar8250_platform *platform;
 	const struct dmi_system_id *dmi_match;
 	unsigned int offset = idx * 0x400;
@@ -386,10 +394,10 @@ pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	port->port.rs485_config = platform->rs485_config;
 
 	/*
-	 * Setup the uart clock for the devices on expansion slot to
+	 * Setup the UART clock for the devices on expansion slot to
 	 * half the clock speed of the main chip (which is 125MHz)
 	 */
-	if (board->has_slave && idx >= 8)
+	if (idx >= 8)
 		port->port.uartclk /= 2;
 
 	ret = default_setup(priv, pcidev, idx, offset, port);
@@ -423,6 +431,29 @@ static void pci_xr17v35x_exit(struct pci_dev *pcidev)
 	port->port.private_data = NULL;
 }
 
+/*
+ * These Exar UARTs have an extra interrupt indicator that could fire for a
+ * few interrupts that are not presented/cleared through IIR.  One of which is
+ * a wakeup interrupt when coming out of sleep.  These interrupts are only
+ * cleared by reading global INT0 or INT1 registers as interrupts are
+ * associated with channel 0. The INT[3:0] registers _are_ accessible from each
+ * channel's address space, but for the sake of bus efficiency we register a
+ * dedicated handler at the PCI device level to handle them.
+ */
+static irqreturn_t exar_misc_handler(int irq, void *data)
+{
+	struct exar8250 *priv = data;
+
+	/* Clear all PCI interrupts by reading INT0. No effect on IIR */
+	readb(priv->virt + UART_EXAR_INT0);
+
+	/* Clear INT0 for Expansion Interface slave ports, too */
+	if (priv->board->num_ports > 8)
+		readb(priv->virt + 0x2000 + UART_EXAR_INT0);
+
+	return IRQ_HANDLED;
+}
+
 static int
 exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 {
@@ -451,6 +482,9 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	priv->board = board;
+	priv->virt = pcim_iomap(pcidev, bar, 0);
+	if (!priv->virt)
+		return -ENOMEM;
 
 	pci_set_master(pcidev);
 
@@ -463,6 +497,11 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 			  | UPF_EXAR_EFR;
 	uart.port.irq = pci_irq_vector(pcidev, 0);
 	uart.port.dev = &pcidev->dev;
+
+	rc = devm_request_irq(&pcidev->dev, uart.port.irq, exar_misc_handler,
+			 IRQF_SHARED, "exar_uart", priv);
+	if (rc)
+		return rc;
 
 	for (i = 0; i < nr_ports && i < maxnr; i++) {
 		rc = board->setup(priv, pcidev, &uart, i);
@@ -567,14 +606,12 @@ static const struct exar8250_board pbn_exar_XR17V35x = {
 
 static const struct exar8250_board pbn_exar_XR17V4358 = {
 	.num_ports	= 12,
-	.has_slave	= true,
 	.setup		= pci_xr17v35x_setup,
 	.exit		= pci_xr17v35x_exit,
 };
 
 static const struct exar8250_board pbn_exar_XR17V8358 = {
 	.num_ports	= 16,
-	.has_slave	= true,
 	.setup		= pci_xr17v35x_setup,
 	.exit		= pci_xr17v35x_exit,
 };

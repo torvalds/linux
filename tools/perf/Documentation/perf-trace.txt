@@ -63,6 +63,31 @@ filter out the startup phase of the program, which is often very different.
 --uid=::
         Record events in threads owned by uid. Name or number.
 
+-G::
+--cgroup::
+	Record events in threads in a cgroup.
+
+	Look for cgroups to set at the /sys/fs/cgroup/perf_event directory, then
+	remove the /sys/fs/cgroup/perf_event/ part and try:
+
+		perf trace -G A -e sched:*switch
+
+	Will set all raw_syscalls:sys_{enter,exit}, pgfault, vfs_getname, etc
+	_and_ sched:sched_switch to the 'A' cgroup, while:
+
+		perf trace -e sched:*switch -G A
+
+	will only set the sched:sched_switch event to the 'A' cgroup, all the
+	other events (raw_syscalls:sys_{enter,exit}, etc are left "without"
+	a cgroup (on the root cgroup, sys wide, etc).
+
+	Multiple cgroups:
+
+		perf trace -G A -e sched:*switch -G B
+
+	the syscall ones go to the 'A' cgroup, the sched:sched_switch goes
+	to the 'B' cgroup.
+
 --filter-pids=::
 	Filter out events for these pids and for 'trace' itself (comma separated list).
 
@@ -86,18 +111,21 @@ comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-
 In per-thread mode with inheritance mode on (default), Events are captured only when
 the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
---duration:
+--duration::
 	Show only events that had a duration greater than N.M ms.
 
---sched:
+--sched::
 	Accrue thread runtime and provide a summary at the end of the session.
 
--i
---input
+--failure::
+	Show only syscalls that failed, i.e. that returned < 0.
+
+-i::
+--input::
 	Process events from a given perf data file.
 
--T
---time
+-T::
+--time::
 	Print full timestamp rather time relative to first sample.
 
 --comm::
@@ -116,6 +144,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --tool_stats::
 	Show tool stats such as number of times fd->pathname was discovered thru
 	hooking the open syscall return + vfs_getname or via reading /proc/pid/fd, etc.
+
+-f::
+--force::
+	Don't complain, do it.
 
 -F=[all|min|maj]::
 --pf=[all|min|maj]::
@@ -158,6 +190,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
         Implies '--call-graph dwarf' when --call-graph not present on the
         command line, on systems where DWARF unwinding was built in.
+
+--print-sample::
+	Print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info for the
+	raw_syscalls:sys_{enter,exit} tracepoints, for debugging.
 
 --proc-map-timeout::
 	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,

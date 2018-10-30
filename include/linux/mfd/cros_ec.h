@@ -147,7 +147,7 @@ struct cros_ec_device {
 	bool mkbp_event_supported;
 	struct blocking_notifier_head event_notifier;
 
-	struct ec_response_get_next_event event_data;
+	struct ec_response_get_next_event_v1 event_data;
 	int event_size;
 	u32 host_event_wake_mask;
 };
@@ -183,6 +183,7 @@ struct cros_ec_debugfs;
  * @ec_dev: cros_ec_device structure to talk to the physical device
  * @dev: pointer to the platform device
  * @debug_info: cros_ec_debugfs structure for debugging information
+ * @has_kb_wake_angle: true if at least 2 accelerometer are connected to the EC.
  * @cmd_offset: offset to apply for each command.
  */
 struct cros_ec_dev {
@@ -191,9 +192,12 @@ struct cros_ec_dev {
 	struct cros_ec_device *ec_dev;
 	struct device *dev;
 	struct cros_ec_debugfs *debug_info;
+	bool has_kb_wake_angle;
 	u16 cmd_offset;
 	u32 features[2];
 };
+
+#define to_cros_ec_dev(dev)  container_of(dev, struct cros_ec_dev, class_dev)
 
 /**
  * cros_ec_suspend - Handle a suspend operation for the ChromeOS EC device
@@ -322,22 +326,10 @@ extern struct attribute_group cros_ec_attr_group;
 extern struct attribute_group cros_ec_lightbar_attr_group;
 extern struct attribute_group cros_ec_vbc_attr_group;
 
-/* ACPI GPE handler */
-#ifdef CONFIG_ACPI
-
-int cros_ec_acpi_install_gpe_handler(struct device *dev);
-void cros_ec_acpi_remove_gpe_handler(void);
-void cros_ec_acpi_clear_gpe(void);
-
-#else /* CONFIG_ACPI */
-
-static inline int cros_ec_acpi_install_gpe_handler(struct device *dev)
-{
-	return -ENODEV;
-}
-static inline void cros_ec_acpi_remove_gpe_handler(void) {}
-static inline void cros_ec_acpi_clear_gpe(void) {}
-
-#endif /* CONFIG_ACPI */
+/* debugfs stuff */
+int cros_ec_debugfs_init(struct cros_ec_dev *ec);
+void cros_ec_debugfs_remove(struct cros_ec_dev *ec);
+void cros_ec_debugfs_suspend(struct cros_ec_dev *ec);
+void cros_ec_debugfs_resume(struct cros_ec_dev *ec);
 
 #endif /* __LINUX_MFD_CROS_EC_H */

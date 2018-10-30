@@ -319,7 +319,7 @@ static void aac_rx_start_adapter(struct aac_dev *dev)
 	union aac_init *init;
 
 	init = dev->init;
-	init->r7.host_elapsed_seconds = cpu_to_le32(get_seconds());
+	init->r7.host_elapsed_seconds = cpu_to_le32(ktime_get_real_seconds());
 	// We can only use a 32 bit address here
 	rx_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa,
 	  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
@@ -561,11 +561,16 @@ int _aac_rx_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = rx_sync_cmd;
 	dev->a_ops.adapter_enable_int = aac_rx_disable_interrupt;
 	dev->OIMR = status = rx_readb (dev, MUnit.OIMR);
-	if ((((status & 0x0c) != 0x0c) || aac_reset_devices || reset_devices) &&
-	  !aac_rx_restart_adapter(dev, 0, IOP_HWSOFT_RESET))
-		/* Make sure the Hardware FIFO is empty */
-		while ((++restart < 512) &&
-		  (rx_readl(dev, MUnit.OutboundQueue) != 0xFFFFFFFFL));
+
+	if (((status & 0x0c) != 0x0c) || dev->init_reset) {
+		dev->init_reset = false;
+		if (!aac_rx_restart_adapter(dev, 0, IOP_HWSOFT_RESET)) {
+			/* Make sure the Hardware FIFO is empty */
+			while ((++restart < 512) &&
+			       (rx_readl(dev, MUnit.OutboundQueue) != 0xFFFFFFFFL));
+		}
+	}
+
 	/*
 	 *	Check to see if the board panic'd while booting.
 	 */

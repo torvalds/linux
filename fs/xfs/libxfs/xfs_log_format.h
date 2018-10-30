@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef	__XFS_LOG_FORMAT_H__
 #define __XFS_LOG_FORMAT_H__
@@ -88,6 +76,19 @@ static inline uint xlog_get_cycle(char *ptr)
 #define XFS_LOG			0xaa
 
 #define XLOG_UNMOUNT_TYPE	0x556e	/* Un for Unmount */
+
+/*
+ * Log item for unmount records.
+ *
+ * The unmount record used to have a string "Unmount filesystem--" in the
+ * data section where the "Un" was really a magic number (XLOG_UNMOUNT_TYPE).
+ * We just write the magic number now; see xfs_log_unmount_write.
+ */
+struct xfs_unmount_log_format {
+	uint16_t	magic;	/* XLOG_UNMOUNT_TYPE */
+	uint16_t	pad1;
+	uint32_t	pad2;	/* may as well make it 64 bits */
+};
 
 /* Region types for iovec's i_type */
 #define XLOG_REG_TYPE_BFORMAT		1
@@ -264,39 +265,7 @@ typedef struct xfs_trans_header {
  * (if any) is indicated in the ilf_dsize field.  Changes to this structure
  * must be added on to the end.
  */
-typedef struct xfs_inode_log_format {
-	uint16_t		ilf_type;	/* inode log item type */
-	uint16_t		ilf_size;	/* size of this item */
-	uint32_t		ilf_fields;	/* flags for fields logged */
-	uint16_t		ilf_asize;	/* size of attr d/ext/root */
-	uint16_t		ilf_dsize;	/* size of data/ext/root */
-	uint64_t		ilf_ino;	/* inode number */
-	union {
-		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
-		uuid_t		ilfu_uuid;	/* mount point value */
-	} ilf_u;
-	int64_t			ilf_blkno;	/* blkno of inode buffer */
-	int32_t			ilf_len;	/* len of inode buffer */
-	int32_t			ilf_boffset;	/* off of inode in buffer */
-} xfs_inode_log_format_t;
-
-typedef struct xfs_inode_log_format_32 {
-	uint16_t		ilf_type;	/* inode log item type */
-	uint16_t		ilf_size;	/* size of this item */
-	uint32_t		ilf_fields;	/* flags for fields logged */
-	uint16_t		ilf_asize;	/* size of attr d/ext/root */
-	uint16_t		ilf_dsize;	/* size of data/ext/root */
-	uint64_t		ilf_ino;	/* inode number */
-	union {
-		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
-		uuid_t		ilfu_uuid;	/* mount point value */
-	} ilf_u;
-	int64_t			ilf_blkno;	/* blkno of inode buffer */
-	int32_t			ilf_len;	/* len of inode buffer */
-	int32_t			ilf_boffset;	/* off of inode in buffer */
-} __attribute__((packed)) xfs_inode_log_format_32_t;
-
-typedef struct xfs_inode_log_format_64 {
+struct xfs_inode_log_format {
 	uint16_t		ilf_type;	/* inode log item type */
 	uint16_t		ilf_size;	/* size of this item */
 	uint32_t		ilf_fields;	/* flags for fields logged */
@@ -306,12 +275,33 @@ typedef struct xfs_inode_log_format_64 {
 	uint64_t		ilf_ino;	/* inode number */
 	union {
 		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
-		uuid_t		ilfu_uuid;	/* mount point value */
+		uint8_t		__pad[16];	/* unused */
 	} ilf_u;
 	int64_t			ilf_blkno;	/* blkno of inode buffer */
 	int32_t			ilf_len;	/* len of inode buffer */
 	int32_t			ilf_boffset;	/* off of inode in buffer */
-} xfs_inode_log_format_64_t;
+};
+
+/*
+ * Old 32 bit systems will log in this format without the 64 bit
+ * alignment padding. Recovery will detect this and convert it to the
+ * correct format.
+ */
+struct xfs_inode_log_format_32 {
+	uint16_t		ilf_type;	/* inode log item type */
+	uint16_t		ilf_size;	/* size of this item */
+	uint32_t		ilf_fields;	/* flags for fields logged */
+	uint16_t		ilf_asize;	/* size of attr d/ext/root */
+	uint16_t		ilf_dsize;	/* size of data/ext/root */
+	uint64_t		ilf_ino;	/* inode number */
+	union {
+		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
+		uint8_t		__pad[16];	/* unused */
+	} ilf_u;
+	int64_t			ilf_blkno;	/* blkno of inode buffer */
+	int32_t			ilf_len;	/* len of inode buffer */
+	int32_t			ilf_boffset;	/* off of inode in buffer */
+} __attribute__((packed));
 
 
 /*
@@ -322,7 +312,7 @@ typedef struct xfs_inode_log_format_64 {
 #define	XFS_ILOG_DEXT	0x004	/* log i_df.if_extents */
 #define	XFS_ILOG_DBROOT	0x008	/* log i_df.i_broot */
 #define	XFS_ILOG_DEV	0x010	/* log the dev field */
-#define	XFS_ILOG_UUID	0x020	/* log the uuid field */
+#define	XFS_ILOG_UUID	0x020	/* added long ago, but never used */
 #define	XFS_ILOG_ADATA	0x040	/* log i_af.if_data */
 #define	XFS_ILOG_AEXT	0x080	/* log i_af.if_extents */
 #define	XFS_ILOG_ABROOT	0x100	/* log i_af.i_broot */
@@ -340,9 +330,9 @@ typedef struct xfs_inode_log_format_64 {
 
 #define	XFS_ILOG_NONCORE	(XFS_ILOG_DDATA | XFS_ILOG_DEXT | \
 				 XFS_ILOG_DBROOT | XFS_ILOG_DEV | \
-				 XFS_ILOG_UUID | XFS_ILOG_ADATA | \
-				 XFS_ILOG_AEXT | XFS_ILOG_ABROOT | \
-				 XFS_ILOG_DOWNER | XFS_ILOG_AOWNER)
+				 XFS_ILOG_ADATA | XFS_ILOG_AEXT | \
+				 XFS_ILOG_ABROOT | XFS_ILOG_DOWNER | \
+				 XFS_ILOG_AOWNER)
 
 #define	XFS_ILOG_DFORK		(XFS_ILOG_DDATA | XFS_ILOG_DEXT | \
 				 XFS_ILOG_DBROOT)
@@ -352,10 +342,10 @@ typedef struct xfs_inode_log_format_64 {
 
 #define	XFS_ILOG_ALL		(XFS_ILOG_CORE | XFS_ILOG_DDATA | \
 				 XFS_ILOG_DEXT | XFS_ILOG_DBROOT | \
-				 XFS_ILOG_DEV | XFS_ILOG_UUID | \
-				 XFS_ILOG_ADATA | XFS_ILOG_AEXT | \
-				 XFS_ILOG_ABROOT | XFS_ILOG_TIMESTAMP | \
-				 XFS_ILOG_DOWNER | XFS_ILOG_AOWNER)
+				 XFS_ILOG_DEV | XFS_ILOG_ADATA | \
+				 XFS_ILOG_AEXT | XFS_ILOG_ABROOT | \
+				 XFS_ILOG_TIMESTAMP | XFS_ILOG_DOWNER | \
+				 XFS_ILOG_AOWNER)
 
 static inline int xfs_ilog_fbroot(int w)
 {

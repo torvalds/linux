@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -101,6 +102,7 @@ static const struct of_device_id sun6i_drc_of_table[] = {
 	{ .compatible = "allwinner,sun6i-a31-drc" },
 	{ .compatible = "allwinner,sun6i-a31s-drc" },
 	{ .compatible = "allwinner,sun8i-a33-drc" },
+	{ .compatible = "allwinner,sun9i-a80-drc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun6i_drc_of_table);

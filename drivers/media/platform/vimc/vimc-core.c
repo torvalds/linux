@@ -259,7 +259,7 @@ static struct component_match *vimc_add_subdevs(struct vimc_device *vimc)
 		dev_dbg(&vimc->pdev.dev, "new pdev for %s\n",
 			vimc->pipe_cfg->ents[i].drv);
 
-		strlcpy(pdata.entity_name, vimc->pipe_cfg->ents[i].name,
+		strscpy(pdata.entity_name, vimc->pipe_cfg->ents[i].name,
 			sizeof(pdata.entity_name));
 
 		vimc->subdevs[i] = platform_device_register_data(&vimc->pdev.dev,
@@ -267,11 +267,12 @@ static struct component_match *vimc_add_subdevs(struct vimc_device *vimc)
 						PLATFORM_DEVID_AUTO,
 						&pdata,
 						sizeof(pdata));
-		if (!vimc->subdevs[i]) {
+		if (IS_ERR(vimc->subdevs[i])) {
+			match = ERR_CAST(vimc->subdevs[i]);
 			while (--i >= 0)
 				platform_device_unregister(vimc->subdevs[i]);
 
-			return ERR_PTR(-ENOMEM);
+			return match;
 		}
 
 		component_match_add(&vimc->pdev.dev, &match, vimc_comp_compare,
@@ -316,7 +317,7 @@ static int vimc_probe(struct platform_device *pdev)
 	vimc->v4l2_dev.mdev = &vimc->mdev;
 
 	/* Initialize media device */
-	strlcpy(vimc->mdev.model, VIMC_MDEV_MODEL_NAME,
+	strscpy(vimc->mdev.model, VIMC_MDEV_MODEL_NAME,
 		sizeof(vimc->mdev.model));
 	vimc->mdev.dev = &pdev->dev;
 	media_device_init(&vimc->mdev);
@@ -327,7 +328,6 @@ static int vimc_probe(struct platform_device *pdev)
 	if (ret) {
 		media_device_cleanup(&vimc->mdev);
 		vimc_rm_subdevs(vimc);
-		kfree(vimc);
 		return ret;
 	}
 

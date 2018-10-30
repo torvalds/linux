@@ -120,6 +120,7 @@ static void bm_set_memory(u64 ba, u32 size)
  */
 static dma_addr_t fbpr_a;
 static size_t fbpr_sz;
+static int __bman_probed;
 
 static int bman_fbpr(struct reserved_mem *rmem)
 {
@@ -166,6 +167,12 @@ static irqreturn_t bman_isr(int irq, void *ptr)
 	return IRQ_HANDLED;
 }
 
+int bman_is_probed(void)
+{
+	return __bman_probed;
+}
+EXPORT_SYMBOL_GPL(bman_is_probed);
+
 static int fsl_bman_probe(struct platform_device *pdev)
 {
 	int ret, err_irq;
@@ -174,6 +181,8 @@ static int fsl_bman_probe(struct platform_device *pdev)
 	struct resource *res;
 	u16 id, bm_pool_cnt;
 	u8 major, minor;
+
+	__bman_probed = -1;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -200,6 +209,21 @@ static int fsl_bman_probe(struct platform_device *pdev)
 			id, major, minor);
 		return -ENODEV;
 	}
+
+	/*
+	 * If FBPR memory wasn't defined using the qbman compatible string
+	 * try using the of_reserved_mem_device method
+	 */
+	if (!fbpr_a) {
+		ret = qbman_init_private_mem(dev, 0, &fbpr_a, &fbpr_sz);
+		if (ret) {
+			dev_err(dev, "qbman_init_private_mem() failed 0x%x\n",
+				ret);
+			return -ENODEV;
+		}
+	}
+
+	dev_dbg(dev, "Allocated FBPR 0x%llx 0x%zx\n", fbpr_a, fbpr_sz);
 
 	bm_set_memory(fbpr_a, fbpr_sz);
 
@@ -239,6 +263,8 @@ static int fsl_bman_probe(struct platform_device *pdev)
 			0, bm_pool_cnt - 1, ret);
 		return ret;
 	}
+
+	__bman_probed = 1;
 
 	return 0;
 };

@@ -7,22 +7,22 @@ Required properties:
 - reg: Physical base address and length of the registers of controller
 - reg-names: The names of register regions. The following regions are required:
   * "dsi_ctrl"
-- qcom,dsi-host-index: The ID of DSI controller hardware instance. This should
-  be 0 or 1, since we have 2 DSI controllers at most for now.
 - interrupts: The interrupt signal from the DSI block.
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: Phandles to device clocks.
 - clock-names: the following clocks are required:
-  * "mdp_core_clk"
-  * "iface_clk"
-  * "bus_clk"
-  * "core_mmss_clk"
-  * "byte_clk"
-  * "pixel_clk"
-  * "core_clk"
+  * "mdp_core"
+  * "iface"
+  * "bus"
+  * "core_mmss"
+  * "byte"
+  * "pixel"
+  * "core"
   For DSIv2, we need an additional clock:
-   * "src_clk"
-- assigned-clocks: Parents of "byte_clk" and "pixel_clk" for the given platform.
+   * "src"
+  For DSI6G v2.0 onwards, we need also need the clock:
+   * "byte_intf"
+- assigned-clocks: Parents of "byte" and "pixel" for the given platform.
 - assigned-clock-parents: The Byte clock and Pixel clock PLL outputs provided
   by a DSI PHY block. See [1] for details on clock bindings.
 - vdd-supply: phandle to vdd regulator device node
@@ -43,8 +43,6 @@ Optional properties:
   the master link of the 2-DSI panel.
 - qcom,sync-dual-dsi: Boolean value indicating if the DSI controller is
   driving a 2-DSI panel whose 2 links need receive command simultaneously.
-- interrupt-parent: phandle to the MDP block if the interrupt signal is routed
-  through MDP block
 - pinctrl-names: the pin control state names; should contain "default"
 - pinctrl-0: the default pinctrl state (active)
 - pinctrl-n: the "sleep" pinctrl state
@@ -88,25 +86,53 @@ Required properties:
   * "qcom,dsi-phy-28nm-lp"
   * "qcom,dsi-phy-20nm"
   * "qcom,dsi-phy-28nm-8960"
-- reg: Physical base address and length of the registers of PLL, PHY and PHY
-  regulator
+  * "qcom,dsi-phy-14nm"
+  * "qcom,dsi-phy-10nm"
+- reg: Physical base address and length of the registers of PLL, PHY. Some
+  revisions require the PHY regulator base address, whereas others require the
+  PHY lane base address. See below for each PHY revision.
 - reg-names: The names of register regions. The following regions are required:
+  For DSI 28nm HPM/LP/8960 PHYs and 20nm PHY:
   * "dsi_pll"
   * "dsi_phy"
   * "dsi_phy_regulator"
+  For DSI 14nm and 10nm PHYs:
+  * "dsi_pll"
+  * "dsi_phy"
+  * "dsi_phy_lane"
 - clock-cells: Must be 1. The DSI PHY block acts as a clock provider, creating
   2 clocks: A byte clock (index 0), and a pixel clock (index 1).
-- qcom,dsi-phy-index: The ID of DSI PHY hardware instance. This should
-  be 0 or 1, since we have 2 DSI PHYs at most for now.
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: Phandles to device clocks. See [1] for details on clock bindings.
 - clock-names: the following clocks are required:
-  * "iface_clk"
+  * "iface"
+  For 28nm HPM/LP, 28nm 8960 PHYs:
 - vddio-supply: phandle to vdd-io regulator device node
+  For 20nm PHY:
+- vddio-supply: phandle to vdd-io regulator device node
+- vcca-supply: phandle to vcca regulator device node
+  For 14nm PHY:
+- vcca-supply: phandle to vcca regulator device node
+  For 10nm PHY:
+- vdds-supply: phandle to vdds regulator device node
 
 Optional properties:
 - qcom,dsi-phy-regulator-ldo-mode: Boolean value indicating if the LDO mode PHY
   regulator is wanted.
+- qcom,mdss-mdp-transfer-time-us:	Specifies the dsi transfer time for command mode
+					panels in microseconds. Driver uses this number to adjust
+					the clock rate according to the expected transfer time.
+					Increasing this value would slow down the mdp processing
+					and can result in slower performance.
+					Decreasing this value can speed up the mdp processing,
+					but this can also impact power consumption.
+					As a rule this time should not be higher than the time
+					that would be expected with the processing at the
+					dsi link rate since anyways this would be the maximum
+					transfer time that could be achieved.
+					If ping pong split is enabled, this time should not be higher
+					than two times the dsi link rate time.
+					If the property is not specified, then the default value is 14000 us.
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/graph.txt
@@ -123,13 +149,13 @@ Example:
 		reg = <0xfd922800 0x200>;
 		power-domains = <&mmcc MDSS_GDSC>;
 		clock-names =
-			"bus_clk",
-			"byte_clk",
-			"core_clk",
-			"core_mmss_clk",
-			"iface_clk",
-			"mdp_core_clk",
-			"pixel_clk";
+			"bus",
+			"byte",
+			"core",
+			"core_mmss",
+			"iface",
+			"mdp_core",
+			"pixel";
 		clocks =
 			<&mmcc MDSS_AXI_CLK>,
 			<&mmcc MDSS_BYTE0_CLK>,
@@ -156,6 +182,8 @@ Example:
 		qcom,dual-dsi-mode;
 		qcom,master-dsi;
 		qcom,sync-dual-dsi;
+
+		qcom,mdss-mdp-transfer-time-us = <12000>;
 
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&dsi_active>;
@@ -207,7 +235,7 @@ Example:
 		reg =   <0xfd922a00 0xd4>,
 			<0xfd922b00 0x2b0>,
 			<0xfd922d80 0x7b>;
-		clock-names = "iface_clk";
+		clock-names = "iface";
 		clocks = <&mmcc MDSS_AHB_CLK>;
 		#clock-cells = <1>;
 		vddio-supply = <&pma8084_l12>;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
   nubus.h: various definitions and prototypes for NuBus drivers to use.
 
@@ -219,28 +220,5 @@ enum nubus_display_res_id {
 	NUBUS_RESID_FIFTHMODE   = 0x0084,
 	NUBUS_RESID_SIXTHMODE   = 0x0085
 };
-
-struct nubus_dir
-{
-	unsigned char *base;
-	unsigned char *ptr;
-	int done;
-	int mask;
-};
-
-struct nubus_dirent
-{
-	unsigned char *base;
-	unsigned char type;
-	__u32 data;	/* Actually 24bits used */
-	int mask;
-};
-
-
-/* We'd like to get rid of this eventually.  Only daynaport.c uses it now. */
-static inline void *nubus_slot_addr(int slot)
-{
-	return (void *)(0xF0000000|(slot<<24));
-}
 
 #endif /* _UAPILINUX_NUBUS_H */

@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016-2017 Linaro Ltd., Rob Herring <robh@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/kernel.h>
 #include <linux/serdev.h>
@@ -35,23 +27,42 @@ static int ttyport_receive_buf(struct tty_port *port, const unsigned char *cp,
 {
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	int ret;
 
 	if (!test_bit(SERPORT_ACTIVE, &serport->flags))
 		return 0;
 
-	return serdev_controller_receive_buf(ctrl, cp, count);
+	ret = serdev_controller_receive_buf(ctrl, cp, count);
+
+	dev_WARN_ONCE(&ctrl->dev, ret < 0 || ret > count,
+				"receive_buf returns %d (count = %zu)\n",
+				ret, count);
+	if (ret < 0)
+		return 0;
+	else if (ret > count)
+		return count;
+
+	return ret;
 }
 
 static void ttyport_write_wakeup(struct tty_port *port)
 {
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	struct tty_struct *tty;
 
-	if (test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &port->tty->flags) &&
+	tty = tty_port_tty_get(port);
+	if (!tty)
+		return;
+
+	if (test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags) &&
 	    test_bit(SERPORT_ACTIVE, &serport->flags))
 		serdev_controller_write_wakeup(ctrl);
 
-	wake_up_interruptible_poll(&port->tty->write_wait, POLLOUT);
+	/* Wake up any tty_wait_until_sent() */
+	wake_up_interruptible(&tty->write_wait);
+
+	tty_kref_put(tty);
 }
 
 static const struct tty_port_client_operations client_ops = {
@@ -96,16 +107,23 @@ static int ttyport_open(struct serdev_controller *ctrl)
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
 	struct tty_struct *tty;
 	struct ktermios ktermios;
+	int ret;
 
 	tty = tty_init_dev(serport->tty_drv, serport->tty_idx);
 	if (IS_ERR(tty))
 		return PTR_ERR(tty);
 	serport->tty = tty;
 
-	if (tty->ops->open)
-		tty->ops->open(serport->tty, NULL);
-	else
-		tty_port_open(serport->port, tty, NULL);
+	if (!tty->ops->open || !tty->ops->close) {
+		ret = -ENODEV;
+		goto err_unlock;
+	}
+
+	ret = tty->ops->open(serport->tty, NULL);
+	if (ret)
+		goto err_close;
+
+	tty_unlock(serport->tty);
 
 	/* Bring the UART into a known 8 bits no parity hw fc state */
 	ktermios = tty->termios;
@@ -116,12 +134,21 @@ static int ttyport_open(struct serdev_controller *ctrl)
 	ktermios.c_cflag &= ~(CSIZE | PARENB);
 	ktermios.c_cflag |= CS8;
 	ktermios.c_cflag |= CRTSCTS;
+	/* Hangups are not supported so make sure to ignore carrier detect. */
+	ktermios.c_cflag |= CLOCAL;
 	tty_set_termios(tty, &ktermios);
 
 	set_bit(SERPORT_ACTIVE, &serport->flags);
 
-	tty_unlock(serport->tty);
 	return 0;
+
+err_close:
+	tty->ops->close(tty, NULL);
+err_unlock:
+	tty_unlock(tty);
+	tty_release_struct(tty, serport->tty_idx);
+
+	return ret;
 }
 
 static void ttyport_close(struct serdev_controller *ctrl)
@@ -131,8 +158,10 @@ static void ttyport_close(struct serdev_controller *ctrl)
 
 	clear_bit(SERPORT_ACTIVE, &serport->flags);
 
+	tty_lock(tty);
 	if (tty->ops->close)
 		tty->ops->close(tty, NULL);
+	tty_unlock(tty);
 
 	tty_release_struct(tty, serport->tty_idx);
 }
@@ -163,6 +192,29 @@ static void ttyport_set_flow_control(struct serdev_controller *ctrl, bool enable
 		ktermios.c_cflag &= ~CRTSCTS;
 
 	tty_set_termios(tty, &ktermios);
+}
+
+static int ttyport_set_parity(struct serdev_controller *ctrl,
+			      enum serdev_parity parity)
+{
+	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	struct tty_struct *tty = serport->tty;
+	struct ktermios ktermios = tty->termios;
+
+	ktermios.c_cflag &= ~(PARENB | PARODD | CMSPAR);
+	if (parity != SERDEV_PARITY_NONE) {
+		ktermios.c_cflag |= PARENB;
+		if (parity == SERDEV_PARITY_ODD)
+			ktermios.c_cflag |= PARODD;
+	}
+
+	tty_set_termios(tty, &ktermios);
+
+	if ((tty->termios.c_cflag & (PARENB | PARODD | CMSPAR)) !=
+	    (ktermios.c_cflag & (PARENB | PARODD | CMSPAR)))
+		return -EINVAL;
+
+	return 0;
 }
 
 static void ttyport_wait_until_sent(struct serdev_controller *ctrl, long timeout)
@@ -202,6 +254,7 @@ static const struct serdev_controller_ops ctrl_ops = {
 	.open = ttyport_open,
 	.close = ttyport_close,
 	.set_flow_control = ttyport_set_flow_control,
+	.set_parity = ttyport_set_parity,
 	.set_baudrate = ttyport_set_baudrate,
 	.wait_until_sent = ttyport_wait_until_sent,
 	.get_tiocm = ttyport_get_tiocm,

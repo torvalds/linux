@@ -233,10 +233,10 @@ static int vidioc_querycap(struct file *file, void  *priv,
 {
 	struct snd_tea575x *tea = video_drvdata(file);
 
-	strlcpy(v->driver, tea->v4l2_dev->name, sizeof(v->driver));
-	strlcpy(v->card, tea->card, sizeof(v->card));
+	strscpy(v->driver, tea->v4l2_dev->name, sizeof(v->driver));
+	strscpy(v->card, tea->card, sizeof(v->card));
 	strlcat(v->card, tea->tea5759 ? " TEA5759" : " TEA5757", sizeof(v->card));
-	strlcpy(v->bus_info, tea->bus_info, sizeof(v->bus_info));
+	strscpy(v->bus_info, tea->bus_info, sizeof(v->bus_info));
 	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 	if (!tea->cannot_read_data)
 		v->device_caps |= V4L2_CAP_HW_FREQ_SEEK;
@@ -296,7 +296,7 @@ int snd_tea575x_g_tuner(struct snd_tea575x *tea, struct v4l2_tuner *v)
 	snd_tea575x_enum_freq_bands(tea, &band_fm);
 
 	memset(v, 0, sizeof(*v));
-	strlcpy(v->name, tea->has_am ? "FM/AM" : "FM", sizeof(v->name));
+	strscpy(v->name, tea->has_am ? "FM/AM" : "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->capability = band_fm.capability;
 	v->rangelow = tea->has_am ? bands[BAND_AM].rangelow : band_fm.rangelow;
@@ -498,7 +498,7 @@ static const struct v4l2_ioctl_ops tea575x_ioctl_ops = {
 };
 
 static const struct video_device tea575x_radio = {
-	.ioctl_ops 	= &tea575x_ioctl_ops,
+	.ioctl_ops	= &tea575x_ioctl_ops,
 	.release        = video_device_release_empty,
 };
 
@@ -537,7 +537,7 @@ int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
 	tea->vd = tea575x_radio;
 	video_set_drvdata(&tea->vd, tea);
 	mutex_init(&tea->mutex);
-	strlcpy(tea->vd.name, tea->v4l2_dev->name, sizeof(tea->vd.name));
+	strscpy(tea->vd.name, tea->v4l2_dev->name, sizeof(tea->vd.name));
 	tea->vd.lock = &tea->mutex;
 	tea->vd.v4l2_dev = tea->v4l2_dev;
 	tea->fops = tea575x_fops;

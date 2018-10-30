@@ -45,6 +45,12 @@ config COMMON_CLK_MAX77686
 	  This driver supports Maxim 77620/77686/77802 crystal oscillator
 	  clock.
 
+config COMMON_CLK_MAX9485
+	tristate "Maxim 9485 Programmable Clock Generator"
+	depends on I2C
+	help
+	  This driver supports Maxim 9485 Programmable Audio Clock Generator
+
 config COMMON_CLK_RK808
 	tristate "Clock driver for RK805/RK808/RK818"
 	depends on MFD_RK808
@@ -55,12 +61,24 @@ config COMMON_CLK_RK808
 	  by control register.
 
 config COMMON_CLK_HI655X
-	tristate "Clock driver for Hi655x"
-	depends on MFD_HI655X_PMIC || COMPILE_TEST
+	tristate "Clock driver for Hi655x" if EXPERT
+	depends on (MFD_HI655X_PMIC || COMPILE_TEST)
+	depends on REGMAP
+	default MFD_HI655X_PMIC
 	---help---
 	  This driver supports the hi655x PMIC clock. This
 	  multi-function device has one fixed-rate oscillator, clocked
 	  at 32KHz.
+
+config COMMON_CLK_SCMI
+	tristate "Clock driver controlled via SCMI interface"
+	depends on ARM_SCMI_PROTOCOL || COMPILE_TEST
+	  ---help---
+	  This driver provides support for clocks that are controlled
+	  by firmware that implements the SCMI interface.
+
+	  This driver uses SCMI Message Protocol to interact with the
+	  firmware providing all the clock controls.
 
 config COMMON_CLK_SCPI
 	tristate "Clock driver controlled via SCPI interface"
@@ -89,6 +107,15 @@ config COMMON_CLK_SI514
 	help
 	---help---
 	  This driver supports the Silicon Labs 514 programmable clock
+	  generator.
+
+config COMMON_CLK_SI544
+	tristate "Clock driver for SiLabs 544 devices"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports the Silicon Labs 544 programmable clock
 	  generator.
 
 config COMMON_CLK_SI570
@@ -141,6 +168,18 @@ config COMMON_CLK_GEMINI
 	---help---
 	  This driver supports the SoC clocks on the Cortina Systems Gemini
 	  platform, also known as SL3516 or CS3516.
+
+config COMMON_CLK_ASPEED
+	bool "Clock driver for Aspeed BMC SoCs"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	default ARCH_ASPEED
+	select MFD_SYSCON
+	select RESET_CONTROLLER
+	---help---
+	  This driver supports the SoC clocks on the Aspeed BMC platforms.
+
+	  The G4 and G5 series, including the ast2400 and ast2500, are supported
+	  by this driver.
 
 config COMMON_CLK_S2MPS11
 	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
@@ -226,6 +265,25 @@ config COMMON_CLK_VC5
 	  This driver supports the IDT VersaClock 5 and VersaClock 6
 	  programmable clock generators.
 
+config COMMON_CLK_STM32MP157
+	def_bool COMMON_CLK && MACH_STM32MP157
+	help
+	---help---
+	  Support for stm32mp157 SoC family clocks
+
+config COMMON_CLK_STM32F
+	def_bool COMMON_CLK && (MACH_STM32F429 || MACH_STM32F469 || MACH_STM32F746)
+	help
+	---help---
+	  Support for stm32f4 and stm32f7 SoC families clocks
+
+config COMMON_CLK_STM32H7
+	def_bool COMMON_CLK && MACH_STM32H743
+	help
+	---help---
+	  Support for stm32h7 SoC family clocks
+
+source "drivers/clk/actions/Kconfig"
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
 source "drivers/clk/imgtec/Kconfig"
@@ -236,9 +294,11 @@ source "drivers/clk/mvebu/Kconfig"
 source "drivers/clk/qcom/Kconfig"
 source "drivers/clk/renesas/Kconfig"
 source "drivers/clk/samsung/Kconfig"
+source "drivers/clk/sprd/Kconfig"
 source "drivers/clk/sunxi-ng/Kconfig"
 source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/ti/Kconfig"
 source "drivers/clk/uniphier/Kconfig"
+source "drivers/clk/zynqmp/Kconfig"
 
 endmenu

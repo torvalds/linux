@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "tegra186.dtsi"
 
 #include <dt-bindings/mfd/max77620.h>
@@ -45,9 +46,13 @@
 				compatible = "ethernet-phy-ieee802.3-c22";
 				reg = <0x0>;
 				interrupt-parent = <&gpio>;
-				interrupts = <TEGRA_MAIN_GPIO(M, 5) IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <TEGRA_MAIN_GPIO(M, 5) IRQ_TYPE_LEVEL_LOW>;
 			};
 		};
+	};
+
+	memory-controller@2c00000 {
+		status = "okay";
 	};
 
 	serial@3100000 {
@@ -72,7 +77,7 @@
 		status = "okay";
 	};
 
-	i2c@3190000 {
+	ddc: i2c@3190000 {
 		status = "okay";
 	};
 
@@ -87,7 +92,7 @@
 	/* SDMMC1 (SD/MMC) */
 	sdhci@3400000 {
 		cd-gpios = <&gpio TEGRA_MAIN_GPIO(P, 5) GPIO_ACTIVE_LOW>;
-		wp-gpios = <&gpio TEGRA_MAIN_GPIO(P, 4) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA_MAIN_GPIO(P, 4) GPIO_ACTIVE_HIGH>;
 
 		vqmmc-supply = <&vddio_sdmmc1>;
 	};
@@ -316,7 +321,7 @@
 						regulator-max-microvolt = <2800000>;
 					};
 
-					avdd_1v05: ldo7 {
+					vdd_hdmi_1v05: ldo7 {
 						regulator-name = "VDD_HDMI_1V05";
 						regulator-min-microvolt = <1050000>;
 						regulator-max-microvolt = <1050000>;

@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MMU_H
 #define _ASM_X86_MMU_H
 
 #include <linux/spinlock.h>
+#include <linux/rwsem.h>
 #include <linux/mutex.h>
 #include <linux/atomic.h>
 
@@ -26,7 +28,8 @@ typedef struct {
 	atomic64_t tlb_gen;
 
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
-	struct ldt_struct *ldt;
+	struct rw_semaphore	ldt_usr_sem;
+	struct ldt_struct	*ldt;
 #endif
 
 #ifdef CONFIG_X86_64

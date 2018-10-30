@@ -149,16 +149,19 @@ struct bdb_general_features {
 	u8 ssc_freq:1;
 	u8 enable_lfp_on_override:1;
 	u8 disable_ssc_ddt:1;
-	u8 rsvd7:1;
+	u8 underscan_vga_timings:1;
 	u8 display_clock_mode:1;
-	u8 rsvd8:1; /* finish byte */
+	u8 vbios_hotplug_support:1;
 
         /* bits 3 */
 	u8 disable_smooth_vision:1;
 	u8 single_dvi:1;
-	u8 rsvd9:1;
+	u8 rotate_180:1;					/* 181 */
 	u8 fdi_rx_polarity_inverted:1;
-	u8 rsvd10:4; /* finish byte */
+	u8 vbios_extended_mode:1;				/* 160 */
+	u8 copy_ilfp_dtd_to_sdvo_lvds_dtd:1;			/* 160 */
+	u8 panel_best_fit_timing:1;				/* 160 */
+	u8 ignore_strap_state:1;				/* 160 */
 
         /* bits 4 */
 	u8 legacy_monitor_detect;
@@ -167,9 +170,10 @@ struct bdb_general_features {
 	u8 int_crt_support:1;
 	u8 int_tv_support:1;
 	u8 int_efp_support:1;
-	u8 dp_ssc_enb:1;	/* PCH attached eDP supports SSC */
+	u8 dp_ssc_enable:1;	/* PCH attached eDP supports SSC */
 	u8 dp_ssc_freq:1;	/* SSC freq for PCH attached eDP */
-	u8 rsvd11:3; /* finish byte */
+	u8 dp_ssc_dongle_supported:1;
+	u8 rsvd11:2; /* finish byte */
 } __packed;
 
 /* pre-915 */
@@ -206,6 +210,56 @@ struct bdb_general_features {
 #define DEVICE_TYPE_LFP_LVDS_DUAL	0x5162
 #define DEVICE_TYPE_LFP_LVDS_DUAL_HDCP	0x51e2
 
+/* Add the device class for LFP, TV, HDMI */
+#define DEVICE_TYPE_INT_LFP		0x1022
+#define DEVICE_TYPE_INT_TV		0x1009
+#define DEVICE_TYPE_HDMI		0x60D2
+#define DEVICE_TYPE_DP			0x68C6
+#define DEVICE_TYPE_DP_DUAL_MODE	0x60D6
+#define DEVICE_TYPE_eDP			0x78C6
+
+#define DEVICE_TYPE_CLASS_EXTENSION	(1 << 15)
+#define DEVICE_TYPE_POWER_MANAGEMENT	(1 << 14)
+#define DEVICE_TYPE_HOTPLUG_SIGNALING	(1 << 13)
+#define DEVICE_TYPE_INTERNAL_CONNECTOR	(1 << 12)
+#define DEVICE_TYPE_NOT_HDMI_OUTPUT	(1 << 11)
+#define DEVICE_TYPE_MIPI_OUTPUT		(1 << 10)
+#define DEVICE_TYPE_COMPOSITE_OUTPUT	(1 << 9)
+#define DEVICE_TYPE_DUAL_CHANNEL	(1 << 8)
+#define DEVICE_TYPE_HIGH_SPEED_LINK	(1 << 6)
+#define DEVICE_TYPE_LVDS_SIGNALING	(1 << 5)
+#define DEVICE_TYPE_TMDS_DVI_SIGNALING	(1 << 4)
+#define DEVICE_TYPE_VIDEO_SIGNALING	(1 << 3)
+#define DEVICE_TYPE_DISPLAYPORT_OUTPUT	(1 << 2)
+#define DEVICE_TYPE_DIGITAL_OUTPUT	(1 << 1)
+#define DEVICE_TYPE_ANALOG_OUTPUT	(1 << 0)
+
+/*
+ * Bits we care about when checking for DEVICE_TYPE_eDP. Depending on the
+ * system, the other bits may or may not be set for eDP outputs.
+ */
+#define DEVICE_TYPE_eDP_BITS \
+	(DEVICE_TYPE_INTERNAL_CONNECTOR |	\
+	 DEVICE_TYPE_MIPI_OUTPUT |		\
+	 DEVICE_TYPE_COMPOSITE_OUTPUT |		\
+	 DEVICE_TYPE_DUAL_CHANNEL |		\
+	 DEVICE_TYPE_LVDS_SIGNALING |		\
+	 DEVICE_TYPE_TMDS_DVI_SIGNALING |	\
+	 DEVICE_TYPE_VIDEO_SIGNALING |		\
+	 DEVICE_TYPE_DISPLAYPORT_OUTPUT |	\
+	 DEVICE_TYPE_ANALOG_OUTPUT)
+
+#define DEVICE_TYPE_DP_DUAL_MODE_BITS \
+	(DEVICE_TYPE_INTERNAL_CONNECTOR |	\
+	 DEVICE_TYPE_MIPI_OUTPUT |		\
+	 DEVICE_TYPE_COMPOSITE_OUTPUT |		\
+	 DEVICE_TYPE_LVDS_SIGNALING |		\
+	 DEVICE_TYPE_TMDS_DVI_SIGNALING |	\
+	 DEVICE_TYPE_VIDEO_SIGNALING |		\
+	 DEVICE_TYPE_DISPLAYPORT_OUTPUT |	\
+	 DEVICE_TYPE_DIGITAL_OUTPUT |		\
+	 DEVICE_TYPE_ANALOG_OUTPUT)
+
 #define DEVICE_CFG_NONE		0x00
 #define DEVICE_CFG_12BIT_DVOB	0x01
 #define DEVICE_CFG_12BIT_DVOC	0x02
@@ -226,77 +280,155 @@ struct bdb_general_features {
 #define DEVICE_WIRE_DVOB_MASTER 0x0d
 #define DEVICE_WIRE_DVOC_MASTER 0x0e
 
+/* dvo_port pre BDB 155 */
 #define DEVICE_PORT_DVOA	0x00 /* none on 845+ */
 #define DEVICE_PORT_DVOB	0x01
 #define DEVICE_PORT_DVOC	0x02
 
+/* dvo_port BDB 155+ */
+#define DVO_PORT_HDMIA		0
+#define DVO_PORT_HDMIB		1
+#define DVO_PORT_HDMIC		2
+#define DVO_PORT_HDMID		3
+#define DVO_PORT_LVDS		4
+#define DVO_PORT_TV		5
+#define DVO_PORT_CRT		6
+#define DVO_PORT_DPB		7
+#define DVO_PORT_DPC		8
+#define DVO_PORT_DPD		9
+#define DVO_PORT_DPA		10
+#define DVO_PORT_DPE		11				/* 193 */
+#define DVO_PORT_HDMIE		12				/* 193 */
+#define DVO_PORT_DPF		13				/* N/A */
+#define DVO_PORT_HDMIF		14				/* N/A */
+#define DVO_PORT_MIPIA		21				/* 171 */
+#define DVO_PORT_MIPIB		22				/* 171 */
+#define DVO_PORT_MIPIC		23				/* 171 */
+#define DVO_PORT_MIPID		24				/* 171 */
+
+#define HDMI_MAX_DATA_RATE_PLATFORM	0			/* 204 */
+#define HDMI_MAX_DATA_RATE_297		1			/* 204 */
+#define HDMI_MAX_DATA_RATE_165		2			/* 204 */
+
+#define LEGACY_CHILD_DEVICE_CONFIG_SIZE		33
+
+/* DDC Bus DDI Type 155+ */
+enum vbt_gmbus_ddi {
+	DDC_BUS_DDI_B = 0x1,
+	DDC_BUS_DDI_C,
+	DDC_BUS_DDI_D,
+	DDC_BUS_DDI_F,
+	ICL_DDC_BUS_DDI_A = 0x1,
+	ICL_DDC_BUS_DDI_B,
+	ICL_DDC_BUS_PORT_1 = 0x4,
+	ICL_DDC_BUS_PORT_2,
+	ICL_DDC_BUS_PORT_3,
+	ICL_DDC_BUS_PORT_4,
+};
+
+#define VBT_DP_MAX_LINK_RATE_HBR3	0
+#define VBT_DP_MAX_LINK_RATE_HBR2	1
+#define VBT_DP_MAX_LINK_RATE_HBR	2
+#define VBT_DP_MAX_LINK_RATE_LBR	3
+
 /*
- * We used to keep this struct but without any version control. We should avoid
- * using it in the future, but it should be safe to keep using it in the old
- * code. Do not change; we rely on its size.
+ * The child device config, aka the display device data structure, provides a
+ * description of a port and its configuration on the platform.
+ *
+ * The child device config size has been increased, and fields have been added
+ * and their meaning has changed over time. Care must be taken when accessing
+ * basically any of the fields to ensure the correct interpretation for the BDB
+ * version in question.
+ *
+ * When we copy the child device configs to dev_priv->vbt.child_dev, we reserve
+ * space for the full structure below, and initialize the tail not actually
+ * present in VBT to zeros. Accessing those fields is fine, as long as the
+ * default zero is taken into account, again according to the BDB version.
+ *
+ * BDB versions 155 and below are considered legacy, and version 155 seems to be
+ * a baseline for some of the VBT documentation. When adding new fields, please
+ * include the BDB version when the field was added, if it's above that.
  */
-struct old_child_dev_config {
+struct child_device_config {
 	u16 handle;
-	u16 device_type;
-	u8  device_id[10]; /* ascii string */
+	u16 device_type; /* See DEVICE_TYPE_* above */
+
+	union {
+		u8  device_id[10]; /* ascii string */
+		struct {
+			u8 i2c_speed;
+			u8 dp_onboard_redriver;			/* 158 */
+			u8 dp_ondock_redriver;			/* 158 */
+			u8 hdmi_level_shifter_value:5;		/* 169 */
+			u8 hdmi_max_data_rate:3;		/* 204 */
+			u16 dtd_buf_ptr;			/* 161 */
+			u8 edidless_efp:1;			/* 161 */
+			u8 compression_enable:1;		/* 198 */
+			u8 compression_method:1;		/* 198 */
+			u8 ganged_edp:1;			/* 202 */
+			u8 reserved0:4;
+			u8 compression_structure_index:4;	/* 198 */
+			u8 reserved1:4;
+			u8 slave_port;				/* 202 */
+			u8 reserved2;
+		} __packed;
+	} __packed;
+
 	u16 addin_offset;
-	u8  dvo_port; /* See Device_PORT_* above */
-	u8  i2c_pin;
-	u8  slave_addr;
-	u8  ddc_pin;
-	u16 edid_ptr;
-	u8  dvo_cfg; /* See DEVICE_CFG_* above */
-	u8  dvo2_port;
-	u8  i2c2_pin;
-	u8  slave2_addr;
-	u8  ddc2_pin;
-	u8  capabilities;
-	u8  dvo_wiring;/* See DEVICE_WIRE_* above */
-	u8  dvo2_wiring;
-	u16 extended_type;
-	u8  dvo_function;
-} __packed;
-
-/* This one contains field offsets that are known to be common for all BDB
- * versions. Notice that the meaning of the contents contents may still change,
- * but at least the offsets are consistent. */
-
-struct common_child_dev_config {
-	u16 handle;
-	u16 device_type;
-	u8 not_common1[12];
-	u8 dvo_port;
-	u8 not_common2[2];
+	u8 dvo_port; /* See DEVICE_PORT_* and DVO_PORT_* above */
+	u8 i2c_pin;
+	u8 slave_addr;
 	u8 ddc_pin;
 	u16 edid_ptr;
 	u8 dvo_cfg; /* See DEVICE_CFG_* above */
-	u8 efp_routed:1;
-	u8 lane_reversal:1;
-	u8 lspcon:1;
-	u8 iboost:1;
-	u8 hpd_invert:1;
-	u8 flag_reserved:3;
-	u8 hdmi_support:1;
-	u8 dp_support:1;
-	u8 tmds_support:1;
-	u8 support_reserved:5;
-	u8 aux_channel;
-	u8 not_common3[11];
-	u8 iboost_level;
-} __packed;
 
+	union {
+		struct {
+			u8 dvo2_port;
+			u8 i2c2_pin;
+			u8 slave2_addr;
+			u8 ddc2_pin;
+		} __packed;
+		struct {
+			u8 efp_routed:1;			/* 158 */
+			u8 lane_reversal:1;			/* 184 */
+			u8 lspcon:1;				/* 192 */
+			u8 iboost:1;				/* 196 */
+			u8 hpd_invert:1;			/* 196 */
+			u8 flag_reserved:3;
+			u8 hdmi_support:1;			/* 158 */
+			u8 dp_support:1;			/* 158 */
+			u8 tmds_support:1;			/* 158 */
+			u8 support_reserved:5;
+			u8 aux_channel;
+			u8 dongle_detect;
+		} __packed;
+	} __packed;
 
-/* This field changes depending on the BDB version, so the most reliable way to
- * read it is by checking the BDB version and reading the raw pointer. */
-union child_device_config {
-	/* This one is safe to be used anywhere, but the code should still check
-	 * the BDB version. */
-	u8 raw[33];
-	/* This one should only be kept for legacy code. */
-	struct old_child_dev_config old;
-	/* This one should also be safe to use anywhere, even without version
-	 * checks. */
-	struct common_child_dev_config common;
+	u8 pipe_cap:2;
+	u8 sdvo_stall:1;					/* 158 */
+	u8 hpd_status:2;
+	u8 integrated_encoder:1;
+	u8 capabilities_reserved:2;
+	u8 dvo_wiring; /* See DEVICE_WIRE_* above */
+
+	union {
+		u8 dvo2_wiring;
+		u8 mipi_bridge_type;				/* 171 */
+	} __packed;
+
+	u16 extended_type;
+	u8 dvo_function;
+	u8 dp_usb_type_c:1;					/* 195 */
+	u8 tbt:1;						/* 209 */
+	u8 flags2_reserved:2;					/* 195 */
+	u8 dp_port_trace_length:4;				/* 209 */
+	u8 dp_gpio_index;					/* 195 */
+	u16 dp_gpio_pin_num;					/* 195 */
+	u8 dp_iboost_level:4;					/* 196 */
+	u8 hdmi_iboost_level:4;					/* 196 */
+	u8 dp_max_link_rate:2;					/* 216 CNL+ */
+	u8 dp_max_link_rate_reserved:6;				/* 216 */
 } __packed;
 
 struct bdb_general_definitions {
@@ -324,7 +456,7 @@ struct bdb_general_definitions {
 	 * number = (block_size - sizeof(bdb_general_definitions))/
 	 *	     defs->child_dev_size;
 	 */
-	uint8_t devices[0];
+	u8 devices[0];
 } __packed;
 
 /* Mask for DRRS / Panel Channel / SSC / BLT control bits extraction */
@@ -511,7 +643,7 @@ struct bdb_sdvo_lvds_options {
 #define BDB_DRIVER_FEATURE_NO_LVDS		0
 #define BDB_DRIVER_FEATURE_INT_LVDS		1
 #define BDB_DRIVER_FEATURE_SDVO_LVDS		2
-#define BDB_DRIVER_FEATURE_EDP			3
+#define BDB_DRIVER_FEATURE_INT_SDVO_LVDS	3
 
 struct bdb_driver_features {
 	u8 boot_dev_algorithm:1;
@@ -585,9 +717,19 @@ struct bdb_driver_features {
 #define EDP_VSWING_1_2V		3
 
 
-struct edp_link_params {
+struct edp_fast_link_params {
 	u8 rate:4;
 	u8 lanes:4;
+	u8 preemphasis:4;
+	u8 vswing:4;
+} __packed;
+
+struct edp_pwm_delays {
+	u16 pwm_on_to_backlight_enable;
+	u16 backlight_disable_to_pwm_off;
+} __packed;
+
+struct edp_full_link_params {
 	u8 preemphasis:4;
 	u8 vswing:4;
 } __packed;
@@ -595,13 +737,18 @@ struct edp_link_params {
 struct bdb_edp {
 	struct edp_power_seq power_seqs[16];
 	u32 color_depth;
-	struct edp_link_params link_params[16];
+	struct edp_fast_link_params fast_link_params[16];
 	u32 sdrrs_msa_timing_delay;
 
 	/* ith bit indicates enabled/disabled for (i+1)th panel */
-	u16 edp_s3d_feature;
-	u16 edp_t3_optimization;
-	u64 edp_vswing_preemph;		/* v173 */
+	u16 edp_s3d_feature;					/* 162 */
+	u16 edp_t3_optimization;				/* 165 */
+	u64 edp_vswing_preemph;					/* 173 */
+	u16 fast_link_training;					/* 182 */
+	u16 dpcd_600h_write_required;				/* 185 */
+	struct edp_pwm_delays pwm_delays[16];			/* 186 */
+	u16 full_link_params_provided;				/* 199 */
+	struct edp_full_link_params full_link_params[16];	/* 199 */
 } __packed;
 
 struct psr_table {
@@ -744,81 +891,6 @@ struct bdb_psr {
 #define   SWF14_APM_SUSPEND	0x3
 #define   SWF14_APM_STANDBY	0x1
 #define   SWF14_APM_RESTORE	0x0
-
-/* Add the device class for LFP, TV, HDMI */
-#define	 DEVICE_TYPE_INT_LFP	0x1022
-#define	 DEVICE_TYPE_INT_TV	0x1009
-#define	 DEVICE_TYPE_HDMI	0x60D2
-#define	 DEVICE_TYPE_DP		0x68C6
-#define	 DEVICE_TYPE_DP_DUAL_MODE	0x60D6
-#define	 DEVICE_TYPE_eDP	0x78C6
-
-#define  DEVICE_TYPE_CLASS_EXTENSION	(1 << 15)
-#define  DEVICE_TYPE_POWER_MANAGEMENT	(1 << 14)
-#define  DEVICE_TYPE_HOTPLUG_SIGNALING	(1 << 13)
-#define  DEVICE_TYPE_INTERNAL_CONNECTOR	(1 << 12)
-#define  DEVICE_TYPE_NOT_HDMI_OUTPUT	(1 << 11)
-#define  DEVICE_TYPE_MIPI_OUTPUT	(1 << 10)
-#define  DEVICE_TYPE_COMPOSITE_OUTPUT	(1 << 9)
-#define  DEVICE_TYPE_DUAL_CHANNEL	(1 << 8)
-#define  DEVICE_TYPE_HIGH_SPEED_LINK	(1 << 6)
-#define  DEVICE_TYPE_LVDS_SINGALING	(1 << 5)
-#define  DEVICE_TYPE_TMDS_DVI_SIGNALING	(1 << 4)
-#define  DEVICE_TYPE_VIDEO_SIGNALING	(1 << 3)
-#define  DEVICE_TYPE_DISPLAYPORT_OUTPUT	(1 << 2)
-#define  DEVICE_TYPE_DIGITAL_OUTPUT	(1 << 1)
-#define  DEVICE_TYPE_ANALOG_OUTPUT	(1 << 0)
-
-/*
- * Bits we care about when checking for DEVICE_TYPE_eDP
- * Depending on the system, the other bits may or may not
- * be set for eDP outputs.
- */
-#define DEVICE_TYPE_eDP_BITS \
-	(DEVICE_TYPE_INTERNAL_CONNECTOR | \
-	 DEVICE_TYPE_MIPI_OUTPUT | \
-	 DEVICE_TYPE_COMPOSITE_OUTPUT | \
-	 DEVICE_TYPE_DUAL_CHANNEL | \
-	 DEVICE_TYPE_LVDS_SINGALING | \
-	 DEVICE_TYPE_TMDS_DVI_SIGNALING | \
-	 DEVICE_TYPE_VIDEO_SIGNALING | \
-	 DEVICE_TYPE_DISPLAYPORT_OUTPUT | \
-	 DEVICE_TYPE_ANALOG_OUTPUT)
-
-#define DEVICE_TYPE_DP_DUAL_MODE_BITS \
-	(DEVICE_TYPE_INTERNAL_CONNECTOR | \
-	 DEVICE_TYPE_MIPI_OUTPUT | \
-	 DEVICE_TYPE_COMPOSITE_OUTPUT | \
-	 DEVICE_TYPE_LVDS_SINGALING | \
-	 DEVICE_TYPE_TMDS_DVI_SIGNALING | \
-	 DEVICE_TYPE_VIDEO_SIGNALING | \
-	 DEVICE_TYPE_DISPLAYPORT_OUTPUT | \
-	 DEVICE_TYPE_DIGITAL_OUTPUT | \
-	 DEVICE_TYPE_ANALOG_OUTPUT)
-
-/* define the DVO port for HDMI output type */
-#define		DVO_B		1
-#define		DVO_C		2
-#define		DVO_D		3
-
-/* Possible values for the "DVO Port" field for versions >= 155: */
-#define DVO_PORT_HDMIA	0
-#define DVO_PORT_HDMIB	1
-#define DVO_PORT_HDMIC	2
-#define DVO_PORT_HDMID	3
-#define DVO_PORT_LVDS	4
-#define DVO_PORT_TV	5
-#define DVO_PORT_CRT	6
-#define DVO_PORT_DPB	7
-#define DVO_PORT_DPC	8
-#define DVO_PORT_DPD	9
-#define DVO_PORT_DPA	10
-#define DVO_PORT_DPE	11
-#define DVO_PORT_HDMIE	12
-#define DVO_PORT_MIPIA	21
-#define DVO_PORT_MIPIB	22
-#define DVO_PORT_MIPIC	23
-#define DVO_PORT_MIPID	24
 
 /* Block 52 contains MIPI configuration block
  * 6 * bdb_mipi_config, followed by 6 pps data block

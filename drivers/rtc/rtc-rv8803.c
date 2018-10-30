@@ -68,7 +68,6 @@ struct rv8803_data {
 	struct mutex flags_lock;
 	u8 ctrl;
 	enum rv8803_type type;
-	struct nvmem_config nvmem_cfg;
 };
 
 static int rv8803_read_reg(const struct i2c_client *client, u8 reg)
@@ -528,6 +527,15 @@ static int rv8803_probe(struct i2c_client *client,
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct rv8803_data *rv8803;
 	int err, flags;
+	struct nvmem_config nvmem_cfg = {
+		.name = "rv8803_nvram",
+		.word_size = 1,
+		.stride = 1,
+		.size = 1,
+		.reg_read = rv8803_nvram_read,
+		.reg_write = rv8803_nvram_write,
+		.priv = client,
+	};
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_I2C_BLOCK)) {
@@ -582,21 +590,6 @@ static int rv8803_probe(struct i2c_client *client,
 		}
 	}
 
-	rv8803->nvmem_cfg.name = "rv8803_nvram",
-	rv8803->nvmem_cfg.word_size = 1,
-	rv8803->nvmem_cfg.stride = 1,
-	rv8803->nvmem_cfg.size = 1,
-	rv8803->nvmem_cfg.reg_read = rv8803_nvram_read,
-	rv8803->nvmem_cfg.reg_write = rv8803_nvram_write,
-	rv8803->nvmem_cfg.priv = client;
-
-	rv8803->rtc->ops = &rv8803_rtc_ops;
-	rv8803->rtc->nvmem_config = &rv8803->nvmem_cfg;
-	rv8803->rtc->nvram_old_abi = true;
-	err = rtc_register_device(rv8803->rtc);
-	if (err)
-		return err;
-
 	err = rv8803_write_reg(rv8803->client, RV8803_EXT, RV8803_EXT_WADA);
 	if (err)
 		return err;
@@ -607,6 +600,14 @@ static int rv8803_probe(struct i2c_client *client,
 		return err;
 	}
 
+	rv8803->rtc->ops = &rv8803_rtc_ops;
+	rv8803->rtc->nvram_old_abi = true;
+	err = rtc_register_device(rv8803->rtc);
+	if (err)
+		return err;
+
+	rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
+
 	rv8803->rtc->max_user_freq = 1;
 
 	return 0;
@@ -614,6 +615,7 @@ static int rv8803_probe(struct i2c_client *client,
 
 static const struct i2c_device_id rv8803_id[] = {
 	{ "rv8803", rv_8803 },
+	{ "rx8803", rv_8803 },
 	{ "rx8900", rx_8900 },
 	{ }
 };
@@ -622,7 +624,11 @@ MODULE_DEVICE_TABLE(i2c, rv8803_id);
 static const struct of_device_id rv8803_of_match[] = {
 	{
 		.compatible = "microcrystal,rv8803",
-		.data = (void *)rx_8900
+		.data = (void *)rv_8803
+	},
+	{
+		.compatible = "epson,rx8803",
+		.data = (void *)rv_8803
 	},
 	{
 		.compatible = "epson,rx8900",

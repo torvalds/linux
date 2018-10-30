@@ -70,7 +70,20 @@
 #define PPSMC_MSG_SetPhyclkVoltageByFreq        0x26
 #define PPSMC_MSG_SetDppclkVoltageByFreq        0x27
 #define PPSMC_MSG_SetSoftMinVcn                 0x28
-#define PPSMC_Message_Count                     0x29
+#define PPSMC_MSG_GetGfxclkFrequency            0x2A
+#define PPSMC_MSG_GetFclkFrequency              0x2B
+#define PPSMC_MSG_GetMinGfxclkFrequency         0x2C
+#define PPSMC_MSG_GetMaxGfxclkFrequency         0x2D
+#define PPSMC_MSG_SoftReset                     0x2E
+#define PPSMC_MSG_SetGfxCGPG			0x2F
+#define PPSMC_MSG_SetSoftMaxGfxClk              0x30
+#define PPSMC_MSG_SetHardMinGfxClk              0x31
+#define PPSMC_MSG_SetSoftMaxSocclkByFreq        0x32
+#define PPSMC_MSG_SetSoftMaxFclkByFreq          0x33
+#define PPSMC_MSG_SetSoftMaxVcn                 0x34
+#define PPSMC_MSG_PowerGateMmHub                0x35
+#define PPSMC_MSG_SetRccPfcPmeRestoreRegister   0x36
+#define PPSMC_Message_Count                     0x37
 
 
 typedef uint16_t PPSMC_Result;

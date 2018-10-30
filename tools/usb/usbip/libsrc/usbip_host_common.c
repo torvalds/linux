@@ -43,7 +43,7 @@ static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 	int size;
 	int fd;
 	int length;
-	char status;
+	char status[2] = { 0 };
 	int value = 0;
 
 	size = snprintf(status_attr_path, sizeof(status_attr_path),
@@ -61,14 +61,14 @@ static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 		return -1;
 	}
 
-	length = read(fd, &status, 1);
+	length = read(fd, status, 1);
 	if (length < 0) {
 		err("error reading attribute %s", status_attr_path);
 		close(fd);
 		return -1;
 	}
 
-	value = atoi(&status);
+	value = atoi(status);
 
 	return value;
 }
@@ -234,14 +234,17 @@ int usbip_export_device(struct usbip_exported_device *edev, int sockfd)
 		switch (edev->status) {
 		case SDEV_ST_ERROR:
 			dbg("status SDEV_ST_ERROR");
+			ret = ST_DEV_ERR;
 			break;
 		case SDEV_ST_USED:
 			dbg("status SDEV_ST_USED");
+			ret = ST_DEV_BUSY;
 			break;
 		default:
 			dbg("status unknown: 0x%x", edev->status);
+			ret = -1;
 		}
-		return -1;
+		return ret;
 	}
 
 	/* only the first interface is true */

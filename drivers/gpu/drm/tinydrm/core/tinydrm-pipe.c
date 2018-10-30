@@ -9,12 +9,13 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modes.h>
 #include <drm/tinydrm/tinydrm.h>
 
 struct tinydrm_connector {
 	struct drm_connector base;
-	const struct drm_display_mode *mode;
+	struct drm_display_mode mode;
 };
 
 static inline struct tinydrm_connector *
@@ -28,7 +29,7 @@ static int tinydrm_connector_get_modes(struct drm_connector *connector)
 	struct tinydrm_connector *tconn = to_tinydrm_connector(connector);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(connector->dev, tconn->mode);
+	mode = drm_mode_duplicate(connector->dev, &tconn->mode);
 	if (!mode) {
 		DRM_ERROR("Failed to duplicate mode\n");
 		return 0;
@@ -50,7 +51,6 @@ static int tinydrm_connector_get_modes(struct drm_connector *connector)
 
 static const struct drm_connector_helper_funcs tinydrm_connector_hfuncs = {
 	.get_modes = tinydrm_connector_get_modes,
-	.best_encoder = drm_atomic_helper_best_encoder,
 };
 
 static enum drm_connector_status
@@ -92,7 +92,7 @@ tinydrm_connector_create(struct drm_device *drm,
 	if (!tconn)
 		return ERR_PTR(-ENOMEM);
 
-	tconn->mode = mode;
+	drm_mode_copy(&tconn->mode, mode);
 	connector = &tconn->base;
 
 	drm_connector_helper_add(connector, &tinydrm_connector_hfuncs);
@@ -125,9 +125,8 @@ void tinydrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &tdev->pipe.crtc;
 
 	if (fb && (fb != old_state->fb)) {
-		pipe->plane.fb = fb;
-		if (fb->funcs->dirty)
-			fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
+		if (tdev->fb_dirty)
+			tdev->fb_dirty(fb, NULL, 0, 0, NULL, 0);
 	}
 
 	if (crtc->state->event) {
@@ -138,23 +137,6 @@ void tinydrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	}
 }
 EXPORT_SYMBOL(tinydrm_display_pipe_update);
-
-/**
- * tinydrm_display_pipe_prepare_fb - Display pipe prepare_fb helper
- * @pipe: Simple display pipe
- * @plane_state: Plane state
- *
- * This function uses drm_fb_cma_prepare_fb() to check if the plane FB has an
- * dma-buf attached, extracts the exclusive fence and attaches it to plane
- * state for the atomic helper to wait on. Drivers can use this as their
- * &drm_simple_display_pipe_funcs->prepare_fb callback.
- */
-int tinydrm_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
-				    struct drm_plane_state *plane_state)
-{
-	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
-}
-EXPORT_SYMBOL(tinydrm_display_pipe_prepare_fb);
 
 static int tinydrm_rotate_mode(struct drm_display_mode *mode,
 			       unsigned int rotation)
@@ -199,35 +181,27 @@ tinydrm_display_pipe_init(struct tinydrm_device *tdev,
 			  unsigned int rotation)
 {
 	struct drm_device *drm = tdev->drm;
-	struct drm_display_mode *mode_copy;
+	struct drm_display_mode mode_copy;
 	struct drm_connector *connector;
 	int ret;
 
-	mode_copy = devm_kmalloc(drm->dev, sizeof(*mode_copy), GFP_KERNEL);
-	if (!mode_copy)
-		return -ENOMEM;
-
-	*mode_copy = *mode;
-	ret = tinydrm_rotate_mode(mode_copy, rotation);
+	drm_mode_copy(&mode_copy, mode);
+	ret = tinydrm_rotate_mode(&mode_copy, rotation);
 	if (ret) {
 		DRM_ERROR("Illegal rotation value %u\n", rotation);
 		return -EINVAL;
 	}
 
-	drm->mode_config.min_width = mode_copy->hdisplay;
-	drm->mode_config.max_width = mode_copy->hdisplay;
-	drm->mode_config.min_height = mode_copy->vdisplay;
-	drm->mode_config.max_height = mode_copy->vdisplay;
+	drm->mode_config.min_width = mode_copy.hdisplay;
+	drm->mode_config.max_width = mode_copy.hdisplay;
+	drm->mode_config.min_height = mode_copy.vdisplay;
+	drm->mode_config.max_height = mode_copy.vdisplay;
 
-	connector = tinydrm_connector_create(drm, mode_copy, connector_type);
+	connector = tinydrm_connector_create(drm, &mode_copy, connector_type);
 	if (IS_ERR(connector))
 		return PTR_ERR(connector);
 
-	ret = drm_simple_display_pipe_init(drm, &tdev->pipe, funcs, formats,
-					   format_count, NULL, connector);
-	if (ret)
-		return ret;
-
-	return 0;
+	return drm_simple_display_pipe_init(drm, &tdev->pipe, funcs, formats,
+					    format_count, NULL, connector);
 }
 EXPORT_SYMBOL(tinydrm_display_pipe_init);

@@ -12,6 +12,7 @@
 /dts-v1/;
 
 #include <dt-bindings/net/ti-dp83867.h>
+#include <dt-bindings/reset/snps,hsdk-reset.h>
 
 / {
 	model = "snps,hsdk";
@@ -22,6 +23,10 @@
 
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xf0005000,115200n8 console=ttyS0,115200n8 debug print-fatal-signals=1";
+	};
+
+	aliases {
+		ethernet = &gmac;
 	};
 
 	cpus {
@@ -57,10 +62,10 @@
 		};
 	};
 
-	core_clk: core-clk {
+	input_clk: input-clk {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
-		clock-frequency = <500000000>;
+		clock-frequency = <33333333>;
 	};
 
 	cpu_intc: cpu-interrupt-controller {
@@ -102,6 +107,27 @@
 
 		ranges = <0x00000000 0xf0000000 0x10000000>;
 
+		cgu_rst: reset-controller@8a0 {
+			compatible = "snps,hsdk-reset";
+			#reset-cells = <1>;
+			reg = <0x8A0 0x4>, <0xFF0 0x4>;
+		};
+
+		core_clk: core-clk@0 {
+			compatible = "snps,hsdk-core-pll-clock";
+			reg = <0x00 0x10>, <0x14B8 0x4>;
+			#clock-cells = <0>;
+			clocks = <&input_clk>;
+
+			/*
+			 * Set initial core pll output frequency to 1GHz.
+			 * It will be applied at the core pll driver probing
+			 * on early boot.
+			 */
+			assigned-clocks = <&core_clk>;
+			assigned-clock-rates = <1000000000>;
+		};
+
 		serial: serial@5000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x5000 0x100>;
@@ -120,7 +146,18 @@
 
 		mmcclk_ciu: mmcclk-ciu {
 			compatible = "fixed-clock";
-			clock-frequency = <100000000>;
+			/*
+			 * DW sdio controller has external ciu clock divider
+			 * controlled via register in SDIO IP. Due to its
+			 * unexpected default value (it should divide by 1
+			 * but it divides by 8) SDIO IP uses wrong clock and
+			 * works unstable (see STAR 9001204800)
+			 * We switched to the minimum possible value of the
+			 * divisor (div-by-2) in HSDK platform code.
+			 * So add temporary fix and change clock frequency
+			 * to 50000000 Hz until we fix dw sdio driver itself.
+			 */
+			clock-frequency = <50000000>;
 			#clock-cells = <0>;
 		};
 
@@ -130,7 +167,7 @@
 			#clock-cells = <0>;
 		};
 
-		ethernet@8000 {
+		gmac: ethernet@8000 {
 			#interrupt-cells = <1>;
 			compatible = "snps,dwmac";
 			reg = <0x8000 0x2000>;
@@ -141,6 +178,10 @@
 			clocks = <&gmacclk>;
 			clock-names = "stmmaceth";
 			phy-handle = <&phy0>;
+			resets = <&cgu_rst HSDK_ETH_RESET>;
+			reset-names = "stmmaceth";
+			mac-address = [00 00 00 00 00 00]; /* Filled in by U-Boot */
+			dma-coherent;
 
 			mdio {
 				#address-cells = <1>;
@@ -159,12 +200,14 @@
 			compatible = "snps,hsdk-v1.0-ohci", "generic-ohci";
 			reg = <0x60000 0x100>;
 			interrupts = <15>;
+			dma-coherent;
 		};
 
 		ehci@40000 {
 			compatible = "snps,hsdk-v1.0-ehci", "generic-ehci";
 			reg = <0x40000 0x100>;
 			interrupts = <15>;
+			dma-coherent;
 		};
 
 		mmc@a000 {
@@ -177,6 +220,7 @@
 			clock-names = "biu", "ciu";
 			interrupts = <12>;
 			bus-width = <4>;
+			dma-coherent;
 		};
 	};
 

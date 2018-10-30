@@ -49,6 +49,13 @@ report::
 	  parameters are defined by corresponding entries in
 	  /sys/bus/event_source/devices/<pmu>/format/*
 
+	Note that the last two syntaxes support prefix and glob matching in
+	the PMU name to simplify creation of events accross multiple instances
+	of the same type of PMU in large systems (e.g. memory controller PMUs).
+	Multiple PMU instances are typical for uncore PMUs, so the prefix
+	'uncore_' is also ignored when performing this match.
+
+
 -i::
 --no-inherit::
         child tasks do not inherit counters
@@ -109,6 +116,22 @@ Do not aggregate counts across all monitored CPUs.
 print counts using a CSV-style output to make it easy to import directly into
 spreadsheets. Columns are separated by the string specified in SEP.
 
+--table:: Display time for each run (-r option), in a table format, e.g.:
+
+  $ perf stat --null -r 5 --table perf bench sched pipe
+
+   Performance counter stats for 'perf bench sched pipe' (5 runs):
+
+             # Table of individual measurements:
+             5.189 (-0.293) #
+             5.189 (-0.294) #
+             5.186 (-0.296) #
+             5.663 (+0.181) ##
+             6.186 (+0.703) ####
+
+             # Final result:
+             5.483 +- 0.198 seconds time elapsed  ( +-  3.62% )
+
 -G name::
 --cgroup name::
 monitor only in the container (cgroup) called "name". This option is available only
@@ -118,7 +141,11 @@ can be provided. Each cgroup is applied to the corresponding event, i.e., first 
 to first event, second cgroup to second event and so on. It is possible to provide
 an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must have
 corresponding events, i.e., they always refer to events defined earlier on the command
-line.
+line. If the user wants to track multiple events for a specific cgroup, the user can
+use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
+
+If wanting to monitor, say, 'cycles' for a cgroup and also for system wide, this
+command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 
 -o file::
 --output file::
@@ -142,9 +169,22 @@ perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- m
 
 -I msecs::
 --interval-print msecs::
-Print count deltas every N milliseconds (minimum: 10ms)
+Print count deltas every N milliseconds (minimum: 1ms)
 The overhead percentage could be high in some cases, for instance with small, sub 100ms intervals.  Use with caution.
 	example: 'perf stat -I 1000 -e cycles -a sleep 5'
+
+--interval-count times::
+Print count deltas for fixed number of times.
+This option should be used together with "-I" option.
+	example: 'perf stat -I 1000 --interval-count 2 -e cycles -a'
+
+--interval-clear::
+Clear the screen before next interval.
+
+--timeout msecs::
+Stop the 'perf stat' session and print count deltas after N milliseconds (minimum: 10 ms).
+This option is not supported with the "-I" option.
+	example: 'perf stat --time 2000 -e cycles -a'
 
 --metric-only::
 Only print computed metrics. Print them in a single line.
@@ -199,6 +239,13 @@ Aggregate counts per processor socket for system-wide mode measurements.
 --per-core::
 Aggregate counts per physical processor for system-wide mode measurements.
 
+-M::
+--metrics::
+Print metrics or metricgroups specified in a comma separated list.
+For a group all metrics from the group are added.
+The events from the metrics are automatically measured.
+See perf list output for the possble metrics and metricgroups.
+
 -A::
 --no-aggr::
 Do not aggregate counts across all monitored CPUs.
@@ -239,6 +286,16 @@ taskset.
 --no-merge::
 Do not merge results from same PMUs.
 
+When multiple events are created from a single event specification,
+stat will, by default, aggregate the event counts and show the result
+in a single row. This option disables that behavior and shows
+the individual events and counts.
+
+Multiple events are created from a single event specification when:
+1. Prefix or glob matching is used for the PMU name.
+2. Aliases, which are listed immediately after the Kernel PMU events
+   by perf list, are used.
+
 --smi-cost::
 Measure SMI cost if msr/aperf/ and msr/smi/ events are supported.
 
@@ -256,20 +313,38 @@ Users who wants to get the actual value can apply --no-metric-only.
 EXAMPLES
 --------
 
-$ perf stat -- make -j
+$ perf stat -- make
 
- Performance counter stats for 'make -j':
+   Performance counter stats for 'make':
 
-    8117.370256  task clock ticks     #      11.281 CPU utilization factor
-            678  context switches     #       0.000 M/sec
-            133  CPU migrations       #       0.000 M/sec
-         235724  pagefaults           #       0.029 M/sec
-    24821162526  CPU cycles           #    3057.784 M/sec
-    18687303457  instructions         #    2302.138 M/sec
-      172158895  cache references     #      21.209 M/sec
-       27075259  cache misses         #       3.335 M/sec
+        83723.452481      task-clock:u (msec)       #    1.004 CPUs utilized
+                   0      context-switches:u        #    0.000 K/sec
+                   0      cpu-migrations:u          #    0.000 K/sec
+           3,228,188      page-faults:u             #    0.039 M/sec
+     229,570,665,834      cycles:u                  #    2.742 GHz
+     313,163,853,778      instructions:u            #    1.36  insn per cycle
+      69,704,684,856      branches:u                #  832.559 M/sec
+       2,078,861,393      branch-misses:u           #    2.98% of all branches
 
- Wall-clock time elapsed:   719.554352 msecs
+        83.409183620 seconds time elapsed
+
+        74.684747000 seconds user
+         8.739217000 seconds sys
+
+TIMINGS
+-------
+As displayed in the example above we can display 3 types of timings.
+We always display the time the counters were enabled/alive:
+
+        83.409183620 seconds time elapsed
+
+For workload sessions we also display time the workloads spent in
+user/system lands:
+
+        74.684747000 seconds user
+         8.739217000 seconds sys
+
+Those times are the very same as displayed by the 'time' tool.
 
 CSV FORMAT
 ----------

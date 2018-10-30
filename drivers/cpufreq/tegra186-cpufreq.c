@@ -78,7 +78,8 @@ static int tegra186_cpufreq_init(struct cpufreq_policy *policy)
 
 		policy->driver_data =
 			data->regs + info->offset + EDVD_CORE_VOLT_FREQ(core);
-		cpufreq_table_validate_and_show(policy, cluster->table);
+		policy->freq_table = cluster->table;
+		break;
 	}
 
 	policy->cpuinfo.transition_latency = 300 * 1000;
@@ -120,7 +121,7 @@ static struct cpufreq_frequency_table *init_vhint_table(
 	void *virt;
 
 	virt = dma_alloc_coherent(bpmp->dev, sizeof(*data), &phys,
-				  GFP_KERNEL | GFP_DMA32);
+				  GFP_KERNEL);
 	if (!virt)
 		return ERR_PTR(-ENOMEM);
 

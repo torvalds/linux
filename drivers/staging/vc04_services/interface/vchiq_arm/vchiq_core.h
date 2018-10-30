@@ -147,7 +147,6 @@ vchiq_static_assert((sizeof(BITSET_T) * 8) == 32);
 #define BITSET_SIZE(b)        ((b + 31) >> 5)
 #define BITSET_WORD(b)        (b >> 5)
 #define BITSET_BIT(b)         (1 << (b & 31))
-#define BITSET_ZERO(bs)       memset(bs, 0, sizeof(bs))
 #define BITSET_IS_SET(bs, b)  (bs[BITSET_WORD(b)] & BITSET_BIT(b))
 #define BITSET_SET(bs, b)     (bs[BITSET_WORD(b)] |= BITSET_BIT(b))
 #define BITSET_CLR(bs, b)     (bs[BITSET_WORD(b)] &= ~BITSET_BIT(b))
@@ -701,7 +700,6 @@ vchiq_platform_handle_timeout(VCHIQ_STATE_T *state);
 
 extern void
 vchiq_set_conn_state(VCHIQ_STATE_T *state, VCHIQ_CONNSTATE_T newstate);
-
 
 extern void
 vchiq_log_dump_mem(const char *label, uint32_t addr, const void *voidMem,

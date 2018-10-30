@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2016 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2016 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -81,7 +81,7 @@ static int vmw_simple_resource_init(struct vmw_private *dev_priv,
 		return ret;
 	}
 
-	vmw_resource_activate(&simple->res, simple->func->hw_destroy);
+	simple->res.hw_destroy = simple->func->hw_destroy;
 
 	return 0;
 }
@@ -149,20 +149,25 @@ vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
 	struct vmw_resource *res;
 	struct vmw_resource *tmp;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = true,
+		.no_wait_gpu = false
+	};
 	size_t alloc_size;
 	size_t account_size;
 	int ret;
 
 	alloc_size = offsetof(struct vmw_user_simple_resource, simple) +
 	  func->size;
-	account_size = ttm_round_pot(alloc_size) + VMW_IDA_ACC_SIZE;
+	account_size = ttm_round_pot(alloc_size) + VMW_IDA_ACC_SIZE +
+		TTM_OBJ_EXTRA_SIZE;
 
 	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (ret)
 		return ret;
 
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), account_size,
-				   false, true);
+				   &ctx);
 	ttm_read_unlock(&dev_priv->reservation_sem);
 	if (ret) {
 		if (ret != -ERESTARTSYS)
@@ -204,7 +209,7 @@ vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
 		goto out_err;
 	}
 
-	func->set_arg_handle(data, usimple->base.hash.key);
+	func->set_arg_handle(data, usimple->base.handle);
 out_err:
 	vmw_resource_unreference(&res);
 out_ret:

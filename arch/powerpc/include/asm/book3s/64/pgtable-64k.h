@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_64_PGTABLE_64K_H
 #define _ASM_POWERPC_BOOK3S_64_PGTABLE_64K_H
 
@@ -9,6 +10,9 @@
  *
  * Defined in such a way that we can optimize away code block at build time
  * if CONFIG_HUGETLB_PAGE=n.
+ *
+ * returns true for pmd migration entries, THP, devmap, hugetlb
+ * But compile time dependent on CONFIG_HUGETLB_PAGE
  */
 static inline int pmd_huge(pmd_t pmd)
 {
@@ -44,7 +48,16 @@ static inline int hugepd_ok(hugepd_t hpd)
 {
 	return 0;
 }
+
 #define is_hugepd(pdep)			0
+
+/*
+ * This should never get called
+ */
+static inline int get_hugepd_cache_index(int index)
+{
+	BUG();
+}
 
 #else /* !CONFIG_HUGETLB_PAGE */
 static inline int pmd_huge(pmd_t pmd) { return 0; }

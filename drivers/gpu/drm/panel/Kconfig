@@ -7,6 +7,16 @@ config DRM_PANEL
 menu "Display Panels"
 	depends on DRM && DRM_PANEL
 
+config DRM_PANEL_ARM_VERSATILE
+	tristate "ARM Versatile panel driver"
+	depends on OF
+	depends on MFD_SYSCON
+	select VIDEOMODE_HELPERS
+	help
+	  This driver supports the ARM Versatile panels connected to ARM
+	  reference designs. The panel is detected using special registers
+	  in the Versatile family syscon registers.
+
 config DRM_PANEL_LVDS
 	tristate "Generic LVDS panel driver"
 	depends on OF
@@ -27,6 +37,23 @@ config DRM_PANEL_SIMPLE
 	  a GPIO to be powered up. Optionally a backlight can be attached so
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
+
+config DRM_PANEL_ILITEK_IL9322
+	tristate "Ilitek ILI9322 320x240 QVGA panels"
+	depends on OF && SPI
+	select REGMAP
+	help
+	  Say Y here if you want to enable support for Ilitek IL9322
+	  QVGA (320x240) RGB, YUV and ITU-T BT.656 panels.
+
+config DRM_PANEL_ILITEK_ILI9881C
+	tristate "Ilitek ILI9881C-based panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y if you want to enable support for panels based on the
+	  Ilitek ILI9881c controller.
 
 config DRM_PANEL_INNOLUX_P079ZCA
 	tristate "Innolux P079ZCA panel"
@@ -63,6 +90,15 @@ config DRM_PANEL_LG_LG4573
 	  Say Y here if you want to enable support for LG4573 RGB panel.
 	  To compile this driver as a module, choose M here.
 
+config DRM_PANEL_ORISETECH_OTM8009A
+	tristate "Orise Technology otm8009a 480x800 dsi 2dl panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Orise Technology
+	  otm8009a 480x800 dsi 2dl panel.
+
 config DRM_PANEL_PANASONIC_VVX10F034N00
 	tristate "Panasonic VVX10F034N00 1920x1200 video mode panel"
 	depends on OF
@@ -73,8 +109,32 @@ config DRM_PANEL_PANASONIC_VVX10F034N00
 	  WUXGA (1920x1200) Novatek NT1397-based DSI panel as found in some
 	  Xperia Z2 tablets
 
+config DRM_PANEL_RASPBERRYPI_TOUCHSCREEN
+	tristate "Raspberry Pi 7-inch touchscreen panel"
+	depends on DRM_MIPI_DSI
+	help
+	  Say Y here if you want to enable support for the Raspberry
+	  Pi 7" Touchscreen.  To compile this driver as a module,
+	  choose M here.
+
+config DRM_PANEL_RAYDIUM_RM68200
+	tristate "Raydium RM68200 720x1280 DSI video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Raydium RM68200
+	  720x1280 DSI video mode panel.
+
 config DRM_PANEL_SAMSUNG_S6E3HA2
 	tristate "Samsung S6E3HA2 DSI video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+
+config DRM_PANEL_SAMSUNG_S6E63J0X03
+	tristate "Samsung S6E63J0X03 DSI command mode panel"
 	depends on OF
 	depends on DRM_MIPI_DSI
 	depends on BACKLIGHT_CLASS_DEVICE
@@ -85,6 +145,15 @@ config DRM_PANEL_SAMSUNG_S6E8AA0
 	depends on OF
 	select DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS
+
+config DRM_PANEL_SEIKO_43WVF1G
+	tristate "Seiko 43WVF1G panel"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  Say Y here if you want to enable support for the Seiko
+	  43WVF1G controller for 800x480 LCD panels
 
 config DRM_PANEL_SHARP_LQ101R1SX01
 	tristate "Sharp LQ101R1SX01 panel"

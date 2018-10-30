@@ -26,7 +26,7 @@
 #include <linux/i2c.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "drxd.h"
 #include "drxd_firm.h"
 
@@ -328,7 +328,7 @@ static int WriteTable(struct drxd_state *state, u8 * pTable)
 {
 	int status = 0;
 
-	if (pTable == NULL)
+	if (!pTable)
 		return 0;
 
 	while (!status) {
@@ -640,7 +640,7 @@ static int SetCfgIfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 				const u16 maxRur = 8;
 				static const u16 slowIncrDecLUT[] = {
 					3, 4, 4, 5, 6 };
-				const u16 fastIncrDecLUT[] = {
+				static const u16 fastIncrDecLUT[] = {
 					14, 15, 15, 16,
 					17, 18, 18, 19,
 					20, 21, 22, 23,
@@ -909,9 +909,8 @@ static int load_firmware(struct drxd_state *state, const char *fw_name)
 	}
 
 	state->microcode = kmemdup(fw->data, fw->size, GFP_KERNEL);
-	if (state->microcode == NULL) {
+	if (!state->microcode) {
 		release_firmware(fw);
-		printk(KERN_ERR "drxd: firmware load failure: no memory\n");
 		return -ENOMEM;
 	}
 
@@ -973,7 +972,6 @@ static int DownloadMicrocode(struct drxd_state *state,
 static int HI_Command(struct drxd_state *state, u16 cmd, u16 * pResult)
 {
 	u32 nrRetries = 0;
-	u16 waitCmd;
 	int status;
 
 	status = Write16(state, HI_RA_RAM_SRV_CMD__A, cmd, 0);
@@ -986,8 +984,8 @@ static int HI_Command(struct drxd_state *state, u16 cmd, u16 * pResult)
 			status = -1;
 			break;
 		}
-		status = Read16(state, HI_RA_RAM_SRV_CMD__A, &waitCmd, 0);
-	} while (waitCmd != 0);
+		status = Read16(state, HI_RA_RAM_SRV_CMD__A, NULL, 0);
+	} while (status != 0);
 
 	if (status >= 0)
 		status = Read16(state, HI_RA_RAM_SRV_RES__A, pResult, 0);
@@ -1299,12 +1297,11 @@ static int InitFT(struct drxd_state *state)
 
 static int SC_WaitForReady(struct drxd_state *state)
 {
-	u16 curCmd;
 	int i;
 
 	for (i = 0; i < DRXD_MAX_RETRIES; i += 1) {
-		int status = Read16(state, SC_RA_RAM_CMD__A, &curCmd, 0);
-		if (status == 0 || curCmd == 0)
+		int status = Read16(state, SC_RA_RAM_CMD__A, NULL, 0);
+		if (status == 0)
 			return status;
 	}
 	return -1;
@@ -1312,15 +1309,15 @@ static int SC_WaitForReady(struct drxd_state *state)
 
 static int SC_SendCommand(struct drxd_state *state, u16 cmd)
 {
-	int status = 0;
+	int status = 0, ret;
 	u16 errCode;
 
 	Write16(state, SC_RA_RAM_CMD__A, cmd, 0);
 	SC_WaitForReady(state);
 
-	Read16(state, SC_RA_RAM_CMD_ADDR__A, &errCode, 0);
+	ret = Read16(state, SC_RA_RAM_CMD_ADDR__A, &errCode, 0);
 
-	if (errCode == 0xFFFF) {
+	if (ret < 0 || errCode == 0xFFFF) {
 		printk(KERN_ERR "Command Error\n");
 		status = -1;
 	}
@@ -1331,13 +1328,13 @@ static int SC_SendCommand(struct drxd_state *state, u16 cmd)
 static int SC_ProcStartCommand(struct drxd_state *state,
 			       u16 subCmd, u16 param0, u16 param1)
 {
-	int status = 0;
+	int ret, status = 0;
 	u16 scExec;
 
 	mutex_lock(&state->mutex);
 	do {
-		Read16(state, SC_COMM_EXEC__A, &scExec, 0);
-		if (scExec != 1) {
+		ret = Read16(state, SC_COMM_EXEC__A, &scExec, 0);
+		if (ret < 0 || scExec != 1) {
 			status = -1;
 			break;
 		}
@@ -1973,8 +1970,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		switch (p->transmission_mode) {
 		default:	/* Not set, detect it automatically */
 			operationMode |= SC_RA_RAM_OP_AUTO_MODE__M;
-			/* try first guess DRX_FFTMODE_8K */
-			/* fall through */
+			/* fall through - try first guess DRX_FFTMODE_8K */
 		case TRANSMISSION_MODE_8K:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_MODE_8K;
 			if (state->type_A) {
@@ -2141,15 +2137,13 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			}
 			break;
 		}
-		status = status;
 		if (status < 0)
 			break;
 
 		switch (p->modulation) {
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_CONST__M;
-			/* try first guess DRX_CONSTELLATION_QAM64 */
-			/* fall through */
+			/* fall through - try first guess DRX_CONSTELLATION_QAM64 */
 		case QAM_64:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_CONST_QAM64;
 			if (state->type_A) {
@@ -2252,7 +2246,6 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			break;
 
 		}
-		status = status;
 		if (status < 0)
 			break;
 
@@ -2319,7 +2312,6 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			}
 			break;
 		}
-		status = status;
 		if (status < 0)
 			break;
 
@@ -2630,7 +2622,7 @@ static int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 			break;
 
 		/* Apply I2c address patch to B1 */
-		if (!state->type_A && state->m_HiI2cPatch != NULL) {
+		if (!state->type_A && state->m_HiI2cPatch) {
 			status = WriteTable(state, state->m_HiI2cPatch);
 			if (status < 0)
 				break;
@@ -2918,10 +2910,9 @@ static const struct dvb_frontend_ops drxd_ops = {
 	.delsys = { SYS_DVBT},
 	.info = {
 		 .name = "Micronas DRXD DVB-T",
-		 .frequency_min = 47125000,
-		 .frequency_max = 855250000,
-		 .frequency_stepsize = 166667,
-		 .frequency_tolerance = 0,
+		 .frequency_min_hz =  47125 * kHz,
+		 .frequency_max_hz = 855250 * kHz,
+		 .frequency_stepsize_hz = 166667,
 		 .caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
 		 FE_CAN_FEC_3_4 | FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 |
 		 FE_CAN_FEC_AUTO |

@@ -66,6 +66,29 @@ void hns_rcb_wait_fbd_clean(struct hnae_queue **qs, int q_num, u32 flag)
 			"queue(%d) wait fbd(%d) clean fail!!\n", i, fbd_num);
 }
 
+int hns_rcb_wait_tx_ring_clean(struct hnae_queue *qs)
+{
+	u32 head, tail;
+	int wait_cnt;
+
+	tail = dsaf_read_dev(&qs->tx_ring, RCB_REG_TAIL);
+	wait_cnt = 0;
+	while (wait_cnt++ < HNS_MAX_WAIT_CNT) {
+		head = dsaf_read_dev(&qs->tx_ring, RCB_REG_HEAD);
+		if (tail == head)
+			break;
+
+		usleep_range(100, 200);
+	}
+
+	if (wait_cnt >= HNS_MAX_WAIT_CNT) {
+		dev_err(qs->dev->dev, "rcb wait timeout, head not equal to tail.\n");
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 /**
  *hns_rcb_reset_ring_hw - ring reset
  *@q: ring struct pointer
@@ -705,7 +728,7 @@ void hns_rcb_get_queue_mode(enum dsaf_mode dsaf_mode, u16 *max_vfn,
 	}
 }
 
-int hns_rcb_get_ring_num(struct dsaf_device *dsaf_dev)
+static int hns_rcb_get_ring_num(struct dsaf_device *dsaf_dev)
 {
 	switch (dsaf_dev->dsaf_mode) {
 	case DSAF_MODE_ENABLE_FIX:
@@ -741,7 +764,7 @@ int hns_rcb_get_ring_num(struct dsaf_device *dsaf_dev)
 	}
 }
 
-void __iomem *hns_rcb_common_get_vaddr(struct rcb_common_cb *rcb_common)
+static void __iomem *hns_rcb_common_get_vaddr(struct rcb_common_cb *rcb_common)
 {
 	struct dsaf_device *dsaf_dev = rcb_common->dsaf_dev;
 
@@ -876,7 +899,7 @@ void hns_rcb_get_stats(struct hnae_queue *queue, u64 *data)
  */
 int hns_rcb_get_ring_sset_count(int stringset)
 {
-	if (stringset == ETH_SS_STATS || stringset == ETH_SS_PRIV_FLAGS)
+	if (stringset == ETH_SS_STATS)
 		return HNS_RING_STATIC_REG_NUM;
 
 	return 0;

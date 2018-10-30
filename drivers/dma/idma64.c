@@ -142,9 +142,8 @@ static void idma64_chan_irq(struct idma64 *idma64, unsigned short c,
 {
 	struct idma64_chan *idma64c = &idma64->chan[c];
 	struct idma64_desc *desc;
-	unsigned long flags;
 
-	spin_lock_irqsave(&idma64c->vchan.lock, flags);
+	spin_lock(&idma64c->vchan.lock);
 	desc = idma64c->desc;
 	if (desc) {
 		if (status_err & (1 << c)) {
@@ -161,7 +160,7 @@ static void idma64_chan_irq(struct idma64 *idma64, unsigned short c,
 		if (idma64c->desc == NULL || desc->status == DMA_ERROR)
 			idma64_stop_transfer(idma64c);
 	}
-	spin_unlock_irqrestore(&idma64c->vchan.lock, flags);
+	spin_unlock(&idma64c->vchan.lock);
 }
 
 static irqreturn_t idma64_irq(int irq, void *dev)
@@ -408,10 +407,6 @@ static int idma64_slave_config(struct dma_chan *chan,
 {
 	struct idma64_chan *idma64c = to_idma64_chan(chan);
 
-	/* Check if chan will be configured for slave transfers */
-	if (!is_slave_direction(config->direction))
-		return -EINVAL;
-
 	memcpy(&idma64c->config, config, sizeof(idma64c->config));
 
 	convert_burst(&idma64c->config.src_maxburst);
@@ -494,6 +489,13 @@ static int idma64_terminate_all(struct dma_chan *chan)
 
 	vchan_dma_desc_free_list(&idma64c->vchan, &head);
 	return 0;
+}
+
+static void idma64_synchronize(struct dma_chan *chan)
+{
+	struct idma64_chan *idma64c = to_idma64_chan(chan);
+
+	vchan_synchronize(&idma64c->vchan);
 }
 
 static int idma64_alloc_chan_resources(struct dma_chan *chan)
@@ -583,6 +585,7 @@ static int idma64_probe(struct idma64_chip *chip)
 	idma64->dma.device_pause = idma64_pause;
 	idma64->dma.device_resume = idma64_resume;
 	idma64->dma.device_terminate_all = idma64_terminate_all;
+	idma64->dma.device_synchronize = idma64_synchronize;
 
 	idma64->dma.src_addr_widths = IDMA64_BUSWIDTHS;
 	idma64->dma.dst_addr_widths = IDMA64_BUSWIDTHS;
@@ -670,8 +673,7 @@ static int idma64_platform_remove(struct platform_device *pdev)
 
 static int idma64_pm_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct idma64_chip *chip = platform_get_drvdata(pdev);
+	struct idma64_chip *chip = dev_get_drvdata(dev);
 
 	idma64_off(chip->idma64);
 	return 0;
@@ -679,8 +681,7 @@ static int idma64_pm_suspend(struct device *dev)
 
 static int idma64_pm_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct idma64_chip *chip = platform_get_drvdata(pdev);
+	struct idma64_chip *chip = dev_get_drvdata(dev);
 
 	idma64_on(chip->idma64);
 	return 0;

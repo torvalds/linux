@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ATMEL_ISC_REGS_H
 #define __ATMEL_ISC_REGS_H
 
@@ -42,6 +43,7 @@
 
 /* ISC Clock Status Register */
 #define ISC_CLKSR               0x00000020
+#define ISC_CLKSR_SIP		BIT(31)
 
 #define ISC_CLK(n)		BIT(n)
 

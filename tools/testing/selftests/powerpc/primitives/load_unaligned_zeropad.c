@@ -65,14 +65,6 @@ static int unprotect_region(void)
 extern char __start___ex_table[];
 extern char __stop___ex_table[];
 
-#if defined(__powerpc64__)
-#define UCONTEXT_NIA(UC)	(UC)->uc_mcontext.gp_regs[PT_NIP]
-#elif defined(__powerpc__)
-#define UCONTEXT_NIA(UC)	(UC)->uc_mcontext.uc_regs->gregs[PT_NIP]
-#else
-#error implement UCONTEXT_NIA
-#endif
-
 struct extbl_entry {
 	int insn;
 	int fixup;

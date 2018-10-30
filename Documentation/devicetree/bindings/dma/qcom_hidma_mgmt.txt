@@ -47,8 +47,8 @@ When the OS is not in control of the management interface (i.e. it's a guest),
 the channel nodes appear on their own, not under a management node.
 
 Required properties:
-- compatible: must contain "qcom,hidma-1.0" for initial HW or "qcom,hidma-1.1"
-for MSI capable HW.
+- compatible: must contain "qcom,hidma-1.0" for initial HW or
+  "qcom,hidma-1.1"/"qcom,hidma-1.2" for MSI capable HW.
 - reg: Addresses for the transfer and event channel
 - interrupts: Should contain the event interrupt
 - desc-count: Number of asynchronous requests this channel can handle
@@ -73,7 +73,7 @@ Hypervisor OS configuration:
 		max-read-transactions = <31>;
 		channel-reset-timeout-cycles = <0x500>;
 
-		hidma_24: dma-controller@0x5c050000 {
+		hidma_24: dma-controller@5c050000 {
 			compatible = "qcom,hidma-1.0";
 			reg = <0 0x5c050000 0x0 0x1000>,
 			      <0 0x5c0b0000 0x0 0x1000>;
@@ -85,7 +85,7 @@ Hypervisor OS configuration:
 
 Guest OS configuration:
 
-	hidma_24: dma-controller@0x5c050000 {
+	hidma_24: dma-controller@5c050000 {
 		compatible = "qcom,hidma-1.0";
 		reg = <0 0x5c050000 0x0 0x1000>,
 		      <0 0x5c0b0000 0x0 0x1000>;

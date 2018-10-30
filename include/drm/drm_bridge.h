@@ -29,6 +29,7 @@
 #include <drm/drm_modes.h>
 
 struct drm_bridge;
+struct drm_bridge_timings;
 struct drm_panel;
 
 /**
@@ -90,13 +91,13 @@ struct drm_bridge_funcs {
 	 *
 	 * drm_mode_status Enum
 	 */
-	enum drm_mode_status (*mode_valid)(struct drm_bridge *crtc,
+	enum drm_mode_status (*mode_valid)(struct drm_bridge *bridge,
 					   const struct drm_display_mode *mode);
 
 	/**
 	 * @mode_fixup:
 	 *
-	 * This callback is used to validate and adjust a mode. The paramater
+	 * This callback is used to validate and adjust a mode. The parameter
 	 * mode is the display mode that should be fed to the next element in
 	 * the display chain, either the final &drm_connector or the next
 	 * &drm_bridge. The parameter adjusted_mode is the input mode the bridge
@@ -177,6 +178,22 @@ struct drm_bridge_funcs {
 	 * then this would be &drm_encoder_helper_funcs.mode_set. The display
 	 * pipe (i.e.  clocks and timing signals) is off when this function is
 	 * called.
+	 *
+	 * The adjusted_mode parameter is the mode output by the CRTC for the
+	 * first bridge in the chain. It can be different from the mode
+	 * parameter that contains the desired mode for the connector at the end
+	 * of the bridges chain, for instance when the first bridge in the chain
+	 * performs scaling. The adjusted mode is mostly useful for the first
+	 * bridge in the chain and is likely irrelevant for the other bridges.
+	 *
+	 * For atomic drivers the adjusted_mode is the mode stored in
+	 * &drm_crtc_state.adjusted_mode.
+	 *
+	 * NOTE:
+	 *
+	 * If a need arises to store and access modes adjusted for other
+	 * locations than the connection between the CRTC and the first bridge,
+	 * the DRM framework will have to be extended with DRM bridge states.
 	 */
 	void (*mode_set)(struct drm_bridge *bridge,
 			 struct drm_display_mode *mode,
@@ -223,44 +240,78 @@ struct drm_bridge_funcs {
 };
 
 /**
+ * struct drm_bridge_timings - timing information for the bridge
+ */
+struct drm_bridge_timings {
+	/**
+	 * @sampling_edge:
+	 *
+	 * Tells whether the bridge samples the digital input signal
+	 * from the display engine on the positive or negative edge of the
+	 * clock, this should reuse the DRM_BUS_FLAG_PIXDATA_[POS|NEG]EDGE
+	 * bitwise flags from the DRM connector (bit 2 and 3 valid).
+	 */
+	u32 sampling_edge;
+	/**
+	 * @setup_time_ps:
+	 *
+	 * Defines the time in picoseconds the input data lines must be
+	 * stable before the clock edge.
+	 */
+	u32 setup_time_ps;
+	/**
+	 * @hold_time_ps:
+	 *
+	 * Defines the time in picoseconds taken for the bridge to sample the
+	 * input signal after the clock edge.
+	 */
+	u32 hold_time_ps;
+};
+
+/**
  * struct drm_bridge - central DRM bridge control structure
- * @dev: DRM device this bridge belongs to
- * @encoder: encoder to which this bridge is connected
- * @next: the next bridge in the encoder chain
- * @of_node: device node pointer to the bridge
- * @list: to keep track of all added bridges
- * @funcs: control functions
- * @driver_private: pointer to the bridge driver's internal context
  */
 struct drm_bridge {
+	/** @dev: DRM device this bridge belongs to */
 	struct drm_device *dev;
+	/** @encoder: encoder to which this bridge is connected */
 	struct drm_encoder *encoder;
+	/** @next: the next bridge in the encoder chain */
 	struct drm_bridge *next;
 #ifdef CONFIG_OF
+	/** @of_node: device node pointer to the bridge */
 	struct device_node *of_node;
 #endif
+	/** @list: to keep track of all added bridges */
 	struct list_head list;
-
+	/**
+	 * @timings:
+	 *
+	 * the timing specification for the bridge, if any (may be NULL)
+	 */
+	const struct drm_bridge_timings *timings;
+	/** @funcs: control functions */
 	const struct drm_bridge_funcs *funcs;
+	/** @driver_private: pointer to the bridge driver's internal context */
 	void *driver_private;
 };
 
-int drm_bridge_add(struct drm_bridge *bridge);
+void drm_bridge_add(struct drm_bridge *bridge);
 void drm_bridge_remove(struct drm_bridge *bridge);
 struct drm_bridge *of_drm_find_bridge(struct device_node *np);
 int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 		      struct drm_bridge *previous);
 
 bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
-			const struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode);
+			   const struct drm_display_mode *mode,
+			   struct drm_display_mode *adjusted_mode);
 enum drm_mode_status drm_bridge_mode_valid(struct drm_bridge *bridge,
 					   const struct drm_display_mode *mode);
 void drm_bridge_disable(struct drm_bridge *bridge);
 void drm_bridge_post_disable(struct drm_bridge *bridge);
 void drm_bridge_mode_set(struct drm_bridge *bridge,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode);
+			 struct drm_display_mode *mode,
+			 struct drm_display_mode *adjusted_mode);
 void drm_bridge_pre_enable(struct drm_bridge *bridge);
 void drm_bridge_enable(struct drm_bridge *bridge);
 

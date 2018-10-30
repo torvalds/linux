@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * V4L2 Driver for SuperH Mobile CEU interface
  *
@@ -7,11 +8,6 @@
  *
  * Copyright (C) 2006, Sascha Hauer, Pengutronix
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/init.h>
@@ -451,13 +447,18 @@ static void sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	struct list_head *buf_head, *tmp;
+	struct vb2_v4l2_buffer *vbuf;
 
 	spin_lock_irq(&pcdev->lock);
 
 	pcdev->active = NULL;
 
-	list_for_each_safe(buf_head, tmp, &pcdev->capture)
+	list_for_each_safe(buf_head, tmp, &pcdev->capture) {
+		vbuf = &list_entry(buf_head, struct sh_mobile_ceu_buffer,
+				   queue)->vb;
+		vb2_buffer_done(&vbuf->vb2_buf, VB2_BUF_STATE_DONE);
 		list_del_init(buf_head);
+	}
 
 	spin_unlock_irq(&pcdev->lock);
 
@@ -1106,7 +1107,7 @@ static void sh_mobile_ceu_put_formats(struct soc_camera_device *icd)
 /*
  * CEU can scale and crop, but we don't want to waste bandwidth and kill the
  * framerate by always requesting the maximum image from the client. See
- * Documentation/video4linux/sh_mobile_ceu_camera.txt for a description of
+ * Documentation/media/v4l-drivers/sh_mobile_ceu_camera.rst for a description of
  * scaling and cropping algorithms and for the meaning of referenced here steps.
  */
 static int sh_mobile_ceu_set_selection(struct soc_camera_device *icd,
@@ -1553,7 +1554,7 @@ static int sh_mobile_ceu_set_liveselection(struct soc_camera_device *icd,
 	return ret;
 }
 
-static unsigned int sh_mobile_ceu_poll(struct file *file, poll_table *pt)
+static __poll_t sh_mobile_ceu_poll(struct file *file, poll_table *pt)
 {
 	struct soc_camera_device *icd = file->private_data;
 
@@ -1563,9 +1564,9 @@ static unsigned int sh_mobile_ceu_poll(struct file *file, poll_table *pt)
 static int sh_mobile_ceu_querycap(struct soc_camera_host *ici,
 				  struct v4l2_capability *cap)
 {
-	strlcpy(cap->card, "SuperH_Mobile_CEU", sizeof(cap->card));
-	strlcpy(cap->driver, "sh_mobile_ceu", sizeof(cap->driver));
-	strlcpy(cap->bus_info, "platform:sh_mobile_ceu", sizeof(cap->bus_info));
+	strscpy(cap->card, "SuperH_Mobile_CEU", sizeof(cap->card));
+	strscpy(cap->driver, "sh_mobile_ceu", sizeof(cap->driver));
+	strscpy(cap->bus_info, "platform:sh_mobile_ceu", sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 

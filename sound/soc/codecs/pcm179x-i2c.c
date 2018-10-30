@@ -39,11 +39,6 @@ static int pcm179x_i2c_probe(struct i2c_client *client,
 	return pcm179x_common_init(&client->dev, regmap);
 }
 
-static int pcm179x_i2c_remove(struct i2c_client *client)
-{
-	return pcm179x_common_exit(&client->dev);
-}
-
 static const struct of_device_id pcm179x_of_match[] = {
 	{ .compatible = "ti,pcm1792a", },
 	{ }
@@ -63,7 +58,6 @@ static struct i2c_driver pcm179x_i2c_driver = {
 	},
 	.id_table	= pcm179x_i2c_ids,
 	.probe		= pcm179x_i2c_probe,
-	.remove		= pcm179x_i2c_remove,
 };
 
 module_i2c_driver(pcm179x_i2c_driver);

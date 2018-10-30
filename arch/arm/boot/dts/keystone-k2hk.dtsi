@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2013-2014 Texas Instruments, Inc.
- *
  * Keystone 2 Kepler/Hawking soc specific device tree
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 
 #include <dt-bindings/reset/ti-syscon.h>
@@ -55,11 +52,12 @@
 		rproc6 = &dsp6;
 		rproc7 = &dsp7;
 	};
+};
 
-	soc {
+&soc0 {
 		/include/ "keystone-k2hk-clocks.dtsi"
 
-		msm_ram: msmram@0c000000 {
+		msm_ram: msmram@c000000 {
 			compatible = "mmio-sram";
 			reg = <0x0c000000 0x600000>;
 			ranges = <0x0 0x0c000000 0x600000>;
@@ -71,7 +69,7 @@
 			};
 		};
 
-		psc: power-sleep-controller@02350000 {
+		psc: power-sleep-controller@2350000 {
 			pscrst: reset-controller {
 				compatible = "ti,k2hk-pscrst", "ti,syscon-reset";
 				#reset-cells = <1>;
@@ -89,60 +87,70 @@
 			};
 		};
 
-		dspgpio0: keystone_dsp_gpio@02620240 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x240>;
-		};
+		devctrl: device-state-control@2620000 {
+			dspgpio0: keystone_dsp_gpio@240 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x240 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x240>;
+			};
 
-		dspgpio1: keystone_dsp_gpio@2620244 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x244>;
-		};
+			dspgpio1: keystone_dsp_gpio@244 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x244 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x244>;
+			};
 
-		dspgpio2: keystone_dsp_gpio@2620248 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x248>;
-		};
+			dspgpio2: keystone_dsp_gpio@248 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x248 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x248>;
+			};
 
-		dspgpio3: keystone_dsp_gpio@262024c {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x24c>;
-		};
+			dspgpio3: keystone_dsp_gpio@24c {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x24c 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x24c>;
+			};
 
-		dspgpio4: keystone_dsp_gpio@2620250 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x250>;
-		};
+			dspgpio4: keystone_dsp_gpio@250 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x250 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x250>;
+			};
 
-		dspgpio5: keystone_dsp_gpio@2620254 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x254>;
-		};
+			dspgpio5: keystone_dsp_gpio@254 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x254 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x254>;
+			};
 
-		dspgpio6: keystone_dsp_gpio@2620258 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x258>;
-		};
+			dspgpio6: keystone_dsp_gpio@258 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x258 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x258>;
+			};
 
-		dspgpio7: keystone_dsp_gpio@262025c {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x25c>;
+			dspgpio7: keystone_dsp_gpio@25c {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x25c 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x25c>;
+			};
 		};
 
 		dsp0: dsp@10800000 {
@@ -273,7 +281,7 @@
 			status = "disabled";
 		};
 
-		mdio: mdio@02090300 {
+		mdio: mdio@2090300 {
 			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -284,5 +292,4 @@
 			bus_freq	= <2500000>;
 		};
 		/include/ "keystone-k2hk-netcp.dtsi"
-	};
 };

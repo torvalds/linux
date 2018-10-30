@@ -6,10 +6,10 @@ multiplexer/switch will have one child node for each child bus.
 
 Optional properties:
 - #address-cells = <1>;
-   This property is required is the i2c-mux child node does not exist.
+   This property is required if the i2c-mux child node does not exist.
 
 - #size-cells = <0>;
-   This property is required is the i2c-mux child node does not exist.
+   This property is required if the i2c-mux child node does not exist.
 
 - i2c-mux
    For i2c multiplexers/switches that have child nodes that are a mixture

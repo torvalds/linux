@@ -74,15 +74,6 @@ Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_atomic_helper.c
    :export:
 
-Legacy CRTC/Modeset Helper Functions Reference
-==============================================
-
-.. kernel-doc:: drivers/gpu/drm/drm_crtc_helper.c
-   :doc: overview
-
-.. kernel-doc:: drivers/gpu/drm/drm_crtc_helper.c
-   :export:
-
 Simple KMS Helper Reference
 ===========================
 
@@ -117,6 +108,15 @@ Framebuffer CMA Helper Functions Reference
    :export:
 
 .. _drm_bridges:
+
+Framebuffer GEM Helper Reference
+================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
+   :export:
 
 Bridges
 =======
@@ -163,6 +163,9 @@ Panel Helper Reference
 .. kernel-doc:: drivers/gpu/drm/drm_panel.c
    :export:
 
+.. kernel-doc:: drivers/gpu/drm/drm_panel_orientation_quirks.c
+   :export:
+
 Display Port Helper Functions Reference
 =======================================
 
@@ -173,6 +176,15 @@ Display Port Helper Functions Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_dp_helper.c
+   :export:
+
+Display Port CEC Helper Functions Reference
+===========================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_dp_cec.c
+   :doc: dp cec helpers
+
+.. kernel-doc:: drivers/gpu/drm/drm_dp_cec.c
    :export:
 
 Display Port Dual Mode Adaptor Helper Functions Reference
@@ -279,15 +291,6 @@ Flip-work Helper Reference
 .. kernel-doc:: drivers/gpu/drm/drm_flip_work.c
    :export:
 
-Plane Helper Reference
-======================
-
-.. kernel-doc:: drivers/gpu/drm/drm_plane_helper.c
-   :doc: overview
-
-.. kernel-doc:: drivers/gpu/drm/drm_plane_helper.c
-   :export:
-
 Auxiliary Modeset Helpers
 =========================
 
@@ -297,11 +300,29 @@ Auxiliary Modeset Helpers
 .. kernel-doc:: drivers/gpu/drm/drm_modeset_helper.c
    :export:
 
-Framebuffer GEM Helper Reference
-================================
+OF/DT Helpers
+=============
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
+.. kernel-doc:: drivers/gpu/drm/drm_of.c
    :doc: overview
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
+.. kernel-doc:: drivers/gpu/drm/drm_of.c
+   :export:
+
+Legacy Plane Helper Reference
+=============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_plane_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_plane_helper.c
+   :export:
+
+Legacy CRTC/Modeset Helper Functions Reference
+==============================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc_helper.c
    :export:

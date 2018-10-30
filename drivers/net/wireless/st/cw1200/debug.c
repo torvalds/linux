@@ -398,15 +398,15 @@ int cw1200_debug_init(struct cw1200_common *priv)
 	if (!d->debugfs_phy)
 		goto err;
 
-	if (!debugfs_create_file("status", S_IRUSR, d->debugfs_phy,
+	if (!debugfs_create_file("status", 0400, d->debugfs_phy,
 				 priv, &fops_status))
 		goto err;
 
-	if (!debugfs_create_file("counters", S_IRUSR, d->debugfs_phy,
+	if (!debugfs_create_file("counters", 0400, d->debugfs_phy,
 				 priv, &fops_counters))
 		goto err;
 
-	if (!debugfs_create_file("wsm_dumps", S_IWUSR, d->debugfs_phy,
+	if (!debugfs_create_file("wsm_dumps", 0200, d->debugfs_phy,
 				 priv, &fops_wsm_dumps))
 		goto err;
 

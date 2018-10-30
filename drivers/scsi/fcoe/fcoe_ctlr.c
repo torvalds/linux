@@ -49,7 +49,7 @@
 #define	FCOE_CTLR_MIN_FKA	500		/* min keep alive (mS) */
 #define	FCOE_CTLR_DEF_FKA	FIP_DEF_FKA	/* default keep alive (mS) */
 
-static void fcoe_ctlr_timeout(unsigned long);
+static void fcoe_ctlr_timeout(struct timer_list *);
 static void fcoe_ctlr_timer_work(struct work_struct *);
 static void fcoe_ctlr_recv_work(struct work_struct *);
 static int fcoe_ctlr_flogi_retry(struct fcoe_ctlr *);
@@ -156,7 +156,7 @@ void fcoe_ctlr_init(struct fcoe_ctlr *fip, enum fip_state mode)
 	mutex_init(&fip->ctlr_mutex);
 	spin_lock_init(&fip->ctlr_lock);
 	fip->flogi_oxid = FC_XID_UNKNOWN;
-	setup_timer(&fip->timer, fcoe_ctlr_timeout, (unsigned long)fip);
+	timer_setup(&fip->timer, fcoe_ctlr_timeout, 0);
 	INIT_WORK(&fip->timer_work, fcoe_ctlr_timer_work);
 	INIT_WORK(&fip->recv_work, fcoe_ctlr_recv_work);
 	skb_queue_head_init(&fip->fip_recv_list);
@@ -754,9 +754,9 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 	case ELS_LOGO:
 		if (fip->mode == FIP_MODE_VN2VN) {
 			if (fip->state != FIP_ST_VNMP_UP)
-				return -EINVAL;
+				goto drop;
 			if (ntoh24(fh->fh_d_id) == FC_FID_FLOGI)
-				return -EINVAL;
+				goto drop;
 		} else {
 			if (fip->state != FIP_ST_ENABLED)
 				return 0;
@@ -799,9 +799,9 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 	fip->send(fip, skb);
 	return -EINPROGRESS;
 drop:
-	kfree_skb(skb);
 	LIBFCOE_FIP_DBG(fip, "drop els_send op %u d_id %x\n",
 			op, ntoh24(fh->fh_d_id));
+	kfree_skb(skb);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(fcoe_ctlr_els_send);
@@ -1390,8 +1390,8 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	 */
 	num_vlink_desc = rlen / sizeof(*vp);
 	if (num_vlink_desc)
-		vlink_desc_arr = kmalloc(sizeof(vp) * num_vlink_desc,
-					 GFP_ATOMIC);
+		vlink_desc_arr = kmalloc_array(num_vlink_desc, sizeof(vp),
+					       GFP_ATOMIC);
 	if (!vlink_desc_arr)
 		return;
 	num_vlink_desc = 0;
@@ -1786,9 +1786,9 @@ unlock:
  * fcoe_ctlr_timeout() - FIP timeout handler
  * @arg: The FCoE controller that timed out
  */
-static void fcoe_ctlr_timeout(unsigned long arg)
+static void fcoe_ctlr_timeout(struct timer_list *t)
 {
-	struct fcoe_ctlr *fip = (struct fcoe_ctlr *)arg;
+	struct fcoe_ctlr *fip = from_timer(fip, t, timer);
 
 	schedule_work(&fip->timer_work);
 }
@@ -2175,15 +2175,13 @@ static void fcoe_ctlr_disc_stop_locked(struct fc_lport *lport)
 {
 	struct fc_rport_priv *rdata;
 
-	rcu_read_lock();
+	mutex_lock(&lport->disc.disc_mutex);
 	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers) {
 		if (kref_get_unless_zero(&rdata->kref)) {
 			fc_rport_logoff(rdata);
 			kref_put(&rdata->kref, fc_rport_destroy);
 		}
 	}
-	rcu_read_unlock();
-	mutex_lock(&lport->disc.disc_mutex);
 	lport->disc.disc_callback = NULL;
 	mutex_unlock(&lport->disc.disc_mutex);
 }
@@ -2712,7 +2710,7 @@ static unsigned long fcoe_ctlr_vn_age(struct fcoe_ctlr *fip)
 	unsigned long deadline;
 
 	next_time = jiffies + msecs_to_jiffies(FIP_VN_BEACON_INT * 10);
-	rcu_read_lock();
+	mutex_lock(&lport->disc.disc_mutex);
 	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers) {
 		if (!kref_get_unless_zero(&rdata->kref))
 			continue;
@@ -2733,7 +2731,7 @@ static unsigned long fcoe_ctlr_vn_age(struct fcoe_ctlr *fip)
 			next_time = deadline;
 		kref_put(&rdata->kref, fc_rport_destroy);
 	}
-	rcu_read_unlock();
+	mutex_unlock(&lport->disc.disc_mutex);
 	return next_time;
 }
 
@@ -3080,8 +3078,6 @@ static void fcoe_ctlr_vn_disc(struct fcoe_ctlr *fip)
 	mutex_lock(&disc->disc_mutex);
 	callback = disc->pending ? disc->disc_callback : NULL;
 	disc->pending = 0;
-	mutex_unlock(&disc->disc_mutex);
-	rcu_read_lock();
 	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
 		if (!kref_get_unless_zero(&rdata->kref))
 			continue;
@@ -3090,7 +3086,7 @@ static void fcoe_ctlr_vn_disc(struct fcoe_ctlr *fip)
 			fc_rport_login(rdata);
 		kref_put(&rdata->kref, fc_rport_destroy);
 	}
-	rcu_read_unlock();
+	mutex_unlock(&disc->disc_mutex);
 	if (callback)
 		callback(lport, DISC_EV_SUCCESS);
 }

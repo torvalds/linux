@@ -142,7 +142,7 @@ unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num)
 /*
  * Return the SPSR for the current mode of the virtual CPU.
  */
-unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu)
+unsigned long *__vcpu_spsr(struct kvm_vcpu *vcpu)
 {
 	unsigned long mode = *vcpu_cpsr(vcpu) & MODE_MASK;
 	switch (mode) {
@@ -165,145 +165,6 @@ unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu)
  * Inject exceptions into the guest
  */
 
-static u32 exc_vector_base(struct kvm_vcpu *vcpu)
-{
-	u32 sctlr = vcpu_cp15(vcpu, c1_SCTLR);
-	u32 vbar = vcpu_cp15(vcpu, c12_VBAR);
-
-	if (sctlr & SCTLR_V)
-		return 0xffff0000;
-	else /* always have security exceptions */
-		return vbar;
-}
-
-/*
- * Switch to an exception mode, updating both CPSR and SPSR. Follow
- * the logic described in AArch32.EnterMode() from the ARMv8 ARM.
- */
-static void kvm_update_psr(struct kvm_vcpu *vcpu, unsigned long mode)
-{
-	unsigned long cpsr = *vcpu_cpsr(vcpu);
-	u32 sctlr = vcpu_cp15(vcpu, c1_SCTLR);
-
-	*vcpu_cpsr(vcpu) = (cpsr & ~MODE_MASK) | mode;
-
-	switch (mode) {
-	case FIQ_MODE:
-		*vcpu_cpsr(vcpu) |= PSR_F_BIT;
-		/* Fall through */
-	case ABT_MODE:
-	case IRQ_MODE:
-		*vcpu_cpsr(vcpu) |= PSR_A_BIT;
-		/* Fall through */
-	default:
-		*vcpu_cpsr(vcpu) |= PSR_I_BIT;
-	}
-
-	*vcpu_cpsr(vcpu) &= ~(PSR_IT_MASK | PSR_J_BIT | PSR_E_BIT | PSR_T_BIT);
-
-	if (sctlr & SCTLR_TE)
-		*vcpu_cpsr(vcpu) |= PSR_T_BIT;
-	if (sctlr & SCTLR_EE)
-		*vcpu_cpsr(vcpu) |= PSR_E_BIT;
-
-	/* Note: These now point to the mode banked copies */
-	*vcpu_spsr(vcpu) = cpsr;
-}
-
-/**
- * kvm_inject_undefined - inject an undefined exception into the guest
- * @vcpu: The VCPU to receive the undefined exception
- *
- * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
- *
- * Modelled after TakeUndefInstrException() pseudocode.
- */
-void kvm_inject_undefined(struct kvm_vcpu *vcpu)
-{
-	unsigned long cpsr = *vcpu_cpsr(vcpu);
-	bool is_thumb = (cpsr & PSR_T_BIT);
-	u32 vect_offset = 4;
-	u32 return_offset = (is_thumb) ? 2 : 4;
-
-	kvm_update_psr(vcpu, UND_MODE);
-	*vcpu_reg(vcpu, 14) = *vcpu_pc(vcpu) - return_offset;
-
-	/* Branch to exception vector */
-	*vcpu_pc(vcpu) = exc_vector_base(vcpu) + vect_offset;
-}
-
-/*
- * Modelled after TakeDataAbortException() and TakePrefetchAbortException
- * pseudocode.
- */
-static void inject_abt(struct kvm_vcpu *vcpu, bool is_pabt, unsigned long addr)
-{
-	unsigned long cpsr = *vcpu_cpsr(vcpu);
-	bool is_thumb = (cpsr & PSR_T_BIT);
-	u32 vect_offset;
-	u32 return_offset = (is_thumb) ? 4 : 0;
-	bool is_lpae;
-
-	kvm_update_psr(vcpu, ABT_MODE);
-	*vcpu_reg(vcpu, 14) = *vcpu_pc(vcpu) + return_offset;
-
-	if (is_pabt)
-		vect_offset = 12;
-	else
-		vect_offset = 16;
-
-	/* Branch to exception vector */
-	*vcpu_pc(vcpu) = exc_vector_base(vcpu) + vect_offset;
-
-	if (is_pabt) {
-		/* Set IFAR and IFSR */
-		vcpu_cp15(vcpu, c6_IFAR) = addr;
-		is_lpae = (vcpu_cp15(vcpu, c2_TTBCR) >> 31);
-		/* Always give debug fault for now - should give guest a clue */
-		if (is_lpae)
-			vcpu_cp15(vcpu, c5_IFSR) = 1 << 9 | 0x22;
-		else
-			vcpu_cp15(vcpu, c5_IFSR) = 2;
-	} else { /* !iabt */
-		/* Set DFAR and DFSR */
-		vcpu_cp15(vcpu, c6_DFAR) = addr;
-		is_lpae = (vcpu_cp15(vcpu, c2_TTBCR) >> 31);
-		/* Always give debug fault for now - should give guest a clue */
-		if (is_lpae)
-			vcpu_cp15(vcpu, c5_DFSR) = 1 << 9 | 0x22;
-		else
-			vcpu_cp15(vcpu, c5_DFSR) = 2;
-	}
-
-}
-
-/**
- * kvm_inject_dabt - inject a data abort into the guest
- * @vcpu: The VCPU to receive the undefined exception
- * @addr: The address to report in the DFAR
- *
- * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
- */
-void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
-{
-	inject_abt(vcpu, false, addr);
-}
-
-/**
- * kvm_inject_pabt - inject a prefetch abort into the guest
- * @vcpu: The VCPU to receive the undefined exception
- * @addr: The address to report in the DFAR
- *
- * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
- */
-void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
-{
-	inject_abt(vcpu, true, addr);
-}
-
 /**
  * kvm_inject_vabt - inject an async abort / SError into the guest
  * @vcpu: The VCPU to receive the exception
@@ -313,5 +174,5 @@ void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
  */
 void kvm_inject_vabt(struct kvm_vcpu *vcpu)
 {
-	vcpu_set_hcr(vcpu, vcpu_get_hcr(vcpu) | HCR_VA);
+	*vcpu_hcr(vcpu) |= HCR_VA;
 }

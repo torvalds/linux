@@ -40,23 +40,43 @@
 #ifndef __BNXT_RE_H__
 #define __BNXT_RE_H__
 #define ROCE_DRV_MODULE_NAME		"bnxt_re"
-#define ROCE_DRV_MODULE_VERSION		"1.0.0"
 
 #define BNXT_RE_DESC	"Broadcom NetXtreme-C/E RoCE Driver"
+#define BNXT_RE_PAGE_SHIFT_4K		(12)
+#define BNXT_RE_PAGE_SHIFT_8K		(13)
+#define BNXT_RE_PAGE_SHIFT_64K		(16)
+#define BNXT_RE_PAGE_SHIFT_2M		(21)
+#define BNXT_RE_PAGE_SHIFT_8M		(23)
+#define BNXT_RE_PAGE_SHIFT_1G		(30)
 
-#define BNXT_RE_PAGE_SIZE_4K		BIT(12)
-#define BNXT_RE_PAGE_SIZE_8K		BIT(13)
-#define BNXT_RE_PAGE_SIZE_64K		BIT(16)
-#define BNXT_RE_PAGE_SIZE_2M		BIT(21)
-#define BNXT_RE_PAGE_SIZE_8M		BIT(23)
-#define BNXT_RE_PAGE_SIZE_1G		BIT(30)
+#define BNXT_RE_PAGE_SIZE_4K		BIT(BNXT_RE_PAGE_SHIFT_4K)
+#define BNXT_RE_PAGE_SIZE_8K		BIT(BNXT_RE_PAGE_SHIFT_8K)
+#define BNXT_RE_PAGE_SIZE_64K		BIT(BNXT_RE_PAGE_SHIFT_64K)
+#define BNXT_RE_PAGE_SIZE_2M		BIT(BNXT_RE_PAGE_SHIFT_2M)
+#define BNXT_RE_PAGE_SIZE_8M		BIT(BNXT_RE_PAGE_SHIFT_8M)
+#define BNXT_RE_PAGE_SIZE_1G		BIT(BNXT_RE_PAGE_SHIFT_1G)
 
-#define BNXT_RE_MAX_MR_SIZE		BIT(30)
+#define BNXT_RE_MAX_MR_SIZE_LOW		BIT_ULL(BNXT_RE_PAGE_SHIFT_1G)
+#define BNXT_RE_MAX_MR_SIZE_HIGH	BIT_ULL(39)
+#define BNXT_RE_MAX_MR_SIZE		BNXT_RE_MAX_MR_SIZE_HIGH
 
 #define BNXT_RE_MAX_QPC_COUNT		(64 * 1024)
 #define BNXT_RE_MAX_MRW_COUNT		(64 * 1024)
 #define BNXT_RE_MAX_SRQC_COUNT		(64 * 1024)
 #define BNXT_RE_MAX_CQ_COUNT		(64 * 1024)
+#define BNXT_RE_MAX_MRW_COUNT_64K	(64 * 1024)
+#define BNXT_RE_MAX_MRW_COUNT_256K	(256 * 1024)
+
+/* Number of MRs to reserve for PF, leaving remainder for VFs */
+#define BNXT_RE_RESVD_MR_FOR_PF         (32 * 1024)
+#define BNXT_RE_MAX_GID_PER_VF          128
+
+/*
+ * Percentage of resources of each type reserved for PF.
+ * Remaining resources are divided equally among VFs.
+ * [0, 100]
+ */
+#define BNXT_RE_PCT_RSVD_FOR_PF         50
 
 #define BNXT_RE_UD_QP_HW_STALL		0x400000
 
@@ -93,11 +113,15 @@ struct bnxt_re_dev {
 	struct ib_device		ibdev;
 	struct list_head		list;
 	unsigned long			flags;
-#define BNXT_RE_FLAG_NETDEV_REGISTERED	0
-#define BNXT_RE_FLAG_IBDEV_REGISTERED	1
-#define BNXT_RE_FLAG_GOT_MSIX		2
-#define BNXT_RE_FLAG_RCFW_CHANNEL_EN	8
-#define BNXT_RE_FLAG_QOS_WORK_REG	16
+#define BNXT_RE_FLAG_NETDEV_REGISTERED		0
+#define BNXT_RE_FLAG_IBDEV_REGISTERED		1
+#define BNXT_RE_FLAG_GOT_MSIX			2
+#define BNXT_RE_FLAG_HAVE_L2_REF		3
+#define BNXT_RE_FLAG_RCFW_CHANNEL_EN		4
+#define BNXT_RE_FLAG_QOS_WORK_REG		5
+#define BNXT_RE_FLAG_RESOURCES_ALLOCATED	7
+#define BNXT_RE_FLAG_RESOURCES_INITIALIZED	8
+#define BNXT_RE_FLAG_ISSUE_ROCE_STATS          29
 	struct net_device		*netdev;
 	unsigned int			version, major, minor;
 	struct bnxt_en_dev		*en_dev;
@@ -108,6 +132,8 @@ struct bnxt_re_dev {
 
 	struct delayed_work		worker;
 	u8				cur_prio_map;
+	u8				active_speed;
+	u8				active_width;
 
 	/* FP Notification Queue (CQ & SRQ) */
 	struct tasklet_struct		nq_task;
@@ -132,6 +158,7 @@ struct bnxt_re_dev {
 	atomic_t			srq_count;
 	atomic_t			mr_count;
 	atomic_t			mw_count;
+	atomic_t			sched_count;
 	/* Max of 2 lossless traffic class supported per port */
 	u16				cosq[2];
 
@@ -141,6 +168,9 @@ struct bnxt_re_dev {
 	struct bnxt_re_ah		*sqp_ah;
 	struct bnxt_re_sqp_entries sqp_tbl[1024];
 	atomic_t nq_alloc_cnt;
+	u32 is_virtfn;
+	u32 num_vfs;
+	struct bnxt_qplib_roce_stats	stats;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\

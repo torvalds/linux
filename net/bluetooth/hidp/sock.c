@@ -46,9 +46,8 @@ static int hidp_sock_release(struct socket *sock)
 	return 0;
 }
 
-static int hidp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+static int do_hidp_sock_ioctl(struct socket *sock, unsigned int cmd, void __user *argp)
 {
-	void __user *argp = (void __user *) arg;
 	struct hidp_connadd_req ca;
 	struct hidp_conndel_req cd;
 	struct hidp_connlist_req cl;
@@ -57,7 +56,7 @@ static int hidp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 	struct socket *isock;
 	int err;
 
-	BT_DBG("cmd %x arg %lx", cmd, arg);
+	BT_DBG("cmd %x arg %p", cmd, argp);
 
 	switch (cmd) {
 	case HIDPCONNADD:
@@ -122,6 +121,11 @@ static int hidp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 	return -EINVAL;
 }
 
+static int hidp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	return do_hidp_sock_ioctl(sock, cmd, (void __user *)arg);
+}
+
 #ifdef CONFIG_COMPAT
 struct compat_hidp_connadd_req {
 	int   ctrl_sock;	/* Connected control socket */
@@ -141,13 +145,15 @@ struct compat_hidp_connadd_req {
 
 static int hidp_sock_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
+	void __user *argp = compat_ptr(arg);
+	int err;
+
 	if (cmd == HIDPGETCONNLIST) {
 		struct hidp_connlist_req cl;
+		u32 __user *p = argp;
 		u32 uci;
-		int err;
 
-		if (get_user(cl.cnum, (u32 __user *) arg) ||
-				get_user(uci, (u32 __user *) (arg + 4)))
+		if (get_user(cl.cnum, p) || get_user(uci, p + 1))
 			return -EFAULT;
 
 		cl.ci = compat_ptr(uci);
@@ -157,39 +163,54 @@ static int hidp_sock_compat_ioctl(struct socket *sock, unsigned int cmd, unsigne
 
 		err = hidp_get_connlist(&cl);
 
-		if (!err && put_user(cl.cnum, (u32 __user *) arg))
+		if (!err && put_user(cl.cnum, p))
 			err = -EFAULT;
 
 		return err;
 	} else if (cmd == HIDPCONNADD) {
-		struct compat_hidp_connadd_req ca;
-		struct hidp_connadd_req __user *uca;
+		struct compat_hidp_connadd_req ca32;
+		struct hidp_connadd_req ca;
+		struct socket *csock;
+		struct socket *isock;
 
-		uca = compat_alloc_user_space(sizeof(*uca));
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
 
-		if (copy_from_user(&ca, (void __user *) arg, sizeof(ca)))
+		if (copy_from_user(&ca32, (void __user *) arg, sizeof(ca32)))
 			return -EFAULT;
 
-		if (put_user(ca.ctrl_sock, &uca->ctrl_sock) ||
-				put_user(ca.intr_sock, &uca->intr_sock) ||
-				put_user(ca.parser, &uca->parser) ||
-				put_user(ca.rd_size, &uca->rd_size) ||
-				put_user(compat_ptr(ca.rd_data), &uca->rd_data) ||
-				put_user(ca.country, &uca->country) ||
-				put_user(ca.subclass, &uca->subclass) ||
-				put_user(ca.vendor, &uca->vendor) ||
-				put_user(ca.product, &uca->product) ||
-				put_user(ca.version, &uca->version) ||
-				put_user(ca.flags, &uca->flags) ||
-				put_user(ca.idle_to, &uca->idle_to) ||
-				copy_to_user(&uca->name[0], &ca.name[0], 128))
-			return -EFAULT;
+		ca.ctrl_sock = ca32.ctrl_sock;
+		ca.intr_sock = ca32.intr_sock;
+		ca.parser = ca32.parser;
+		ca.rd_size = ca32.rd_size;
+		ca.rd_data = compat_ptr(ca32.rd_data);
+		ca.country = ca32.country;
+		ca.subclass = ca32.subclass;
+		ca.vendor = ca32.vendor;
+		ca.product = ca32.product;
+		ca.version = ca32.version;
+		ca.flags = ca32.flags;
+		ca.idle_to = ca32.idle_to;
+		memcpy(ca.name, ca32.name, 128);
 
-		arg = (unsigned long) uca;
+		csock = sockfd_lookup(ca.ctrl_sock, &err);
+		if (!csock)
+			return err;
 
-		/* Fall through. We don't actually write back any _changes_
-		   to the structure anyway, so there's no need to copy back
-		   into the original compat version */
+		isock = sockfd_lookup(ca.intr_sock, &err);
+		if (!isock) {
+			sockfd_put(csock);
+			return err;
+		}
+
+		err = hidp_connection_add(&ca, csock, isock);
+		if (!err && copy_to_user(argp, &ca32, sizeof(ca32)))
+			err = -EFAULT;
+
+		sockfd_put(csock);
+		sockfd_put(isock);
+
+		return err;
 	}
 
 	return hidp_sock_ioctl(sock, cmd, arg);
@@ -208,7 +229,6 @@ static const struct proto_ops hidp_sock_ops = {
 	.getname	= sock_no_getname,
 	.sendmsg	= sock_no_sendmsg,
 	.recvmsg	= sock_no_recvmsg,
-	.poll		= sock_no_poll,
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
 	.setsockopt	= sock_no_setsockopt,

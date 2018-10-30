@@ -68,6 +68,9 @@
  * @IWL_MVM_DQA_CMD_QUEUE: a queue reserved for sending HCMDs to the FW
  * @IWL_MVM_DQA_AUX_QUEUE: a queue reserved for aux frames
  * @IWL_MVM_DQA_P2P_DEVICE_QUEUE: a queue reserved for P2P device frames
+ * @IWL_MVM_DQA_INJECT_MONITOR_QUEUE: a queue reserved for injection using
+ *	monitor mode. Note this queue is the same as the queue for P2P device
+ *	but we can't have active monitor mode along with P2P device anyway.
  * @IWL_MVM_DQA_GCAST_QUEUE: a queue reserved for P2P GO/SoftAP GCAST frames
  * @IWL_MVM_DQA_BSS_CLIENT_QUEUE: a queue reserved for BSS activity, to ensure
  *	that we are never left without the possibility to connect to an AP.
@@ -87,6 +90,7 @@ enum iwl_mvm_dqa_txq {
 	IWL_MVM_DQA_CMD_QUEUE = 0,
 	IWL_MVM_DQA_AUX_QUEUE = 1,
 	IWL_MVM_DQA_P2P_DEVICE_QUEUE = 2,
+	IWL_MVM_DQA_INJECT_MONITOR_QUEUE = 2,
 	IWL_MVM_DQA_GCAST_QUEUE = 3,
 	IWL_MVM_DQA_BSS_CLIENT_QUEUE = 4,
 	IWL_MVM_DQA_MIN_MGMT_QUEUE = 5,
@@ -127,6 +131,8 @@ enum iwl_tx_queue_cfg_actions {
 	TX_QUEUE_CFG_TFD_SHORT_FORMAT		= BIT(1),
 };
 
+#define IWL_DEFAULT_QUEUE_SIZE 256
+#define IWL_MGMT_QUEUE_SIZE 16
 /**
  * struct iwl_tx_queue_cfg_cmd - txq hw scheduler config command
  * @sta_id: station id

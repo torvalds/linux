@@ -195,8 +195,10 @@ static int qman_offline_cpu(unsigned int cpu)
 	if (p) {
 		pcfg = qman_get_qm_portal_config(p);
 		if (pcfg) {
-			irq_set_affinity(pcfg->irq, cpumask_of(0));
-			qman_portal_update_sdest(pcfg, 0);
+			/* select any other online CPU */
+			cpu = cpumask_any_but(cpu_online_mask, cpu);
+			irq_set_affinity(pcfg->irq, cpumask_of(cpu));
+			qman_portal_update_sdest(pcfg, cpu);
 		}
 	}
 	return 0;
@@ -224,9 +226,16 @@ static int qman_portal_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct qm_portal_config *pcfg;
 	struct resource *addr_phys[2];
-	void __iomem *va;
 	int irq, cpu, err;
 	u32 val;
+
+	err = qman_is_probed();
+	if (!err)
+		return -EPROBE_DEFER;
+	if (err < 0) {
+		dev_err(&pdev->dev, "failing probe due to qman probe error\n");
+		return -ENODEV;
+	}
 
 	pcfg = devm_kmalloc(dev, sizeof(*pcfg), GFP_KERNEL);
 	if (!pcfg)
@@ -262,22 +271,20 @@ static int qman_portal_probe(struct platform_device *pdev)
 	}
 	pcfg->irq = irq;
 
-	va = ioremap_prot(addr_phys[0]->start, resource_size(addr_phys[0]), 0);
-	if (!va) {
-		dev_err(dev, "ioremap::CE failed\n");
+	pcfg->addr_virt_ce = memremap(addr_phys[0]->start,
+					resource_size(addr_phys[0]),
+					QBMAN_MEMREMAP_ATTR);
+	if (!pcfg->addr_virt_ce) {
+		dev_err(dev, "memremap::CE failed\n");
 		goto err_ioremap1;
 	}
 
-	pcfg->addr_virt[DPAA_PORTAL_CE] = va;
-
-	va = ioremap_prot(addr_phys[1]->start, resource_size(addr_phys[1]),
-			  _PAGE_GUARDED | _PAGE_NO_CACHE);
-	if (!va) {
+	pcfg->addr_virt_ci = ioremap(addr_phys[1]->start,
+				resource_size(addr_phys[1]));
+	if (!pcfg->addr_virt_ci) {
 		dev_err(dev, "ioremap::CI failed\n");
 		goto err_ioremap2;
 	}
-
-	pcfg->addr_virt[DPAA_PORTAL_CI] = va;
 
 	pcfg->pools = qm_get_pools_sdqcr();
 
@@ -310,9 +317,9 @@ static int qman_portal_probe(struct platform_device *pdev)
 	return 0;
 
 err_portal_init:
-	iounmap(pcfg->addr_virt[DPAA_PORTAL_CI]);
+	iounmap(pcfg->addr_virt_ci);
 err_ioremap2:
-	iounmap(pcfg->addr_virt[DPAA_PORTAL_CE]);
+	memunmap(pcfg->addr_virt_ce);
 err_ioremap1:
 	return -ENXIO;
 }

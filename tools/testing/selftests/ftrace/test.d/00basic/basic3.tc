@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: Basic trace clock test
 # flags: instance
 test -f trace_clock

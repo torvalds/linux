@@ -37,6 +37,8 @@
 #define   MAX_OCTEON_LINKS	       MAX_OCTEON_NICIF
 #define   MAX_OCTEON_MULTICAST_ADDR    32
 
+#define   MAX_OCTEON_FILL_COUNT        8
+
 /* CN6xxx IQ configuration macros */
 #define   CN6XXX_MAX_INPUT_QUEUES      32
 #define   CN6XXX_MAX_IQ_DESCRIPTORS    2048
@@ -436,9 +438,10 @@ struct octeon_config {
 #define  MAX_BAR1_IOREMAP_SIZE  (16 * OCTEON_BAR1_ENTRY_SIZE)
 
 /* Response lists - 1 ordered, 1 unordered-blocking, 1 unordered-nonblocking
+ *                  1 process done list, 1 zombie lists(timeouted sc list)
  * NoResponse Lists are now maintained with each IQ. (Dec' 2007).
  */
-#define MAX_RESPONSE_LISTS           4
+#define MAX_RESPONSE_LISTS           6
 
 /* Opcode hash bits. The opcode is hashed on the lower 6-bits to lookup the
  * dispatch table.

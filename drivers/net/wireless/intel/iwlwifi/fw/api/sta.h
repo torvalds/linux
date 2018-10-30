@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,9 +70,6 @@
  * @STA_FLG_REDUCED_TX_PWR_DATA: reduced TX power (data frames)
  * @STA_FLG_DISABLE_TX: set if TX should be disabled
  * @STA_FLG_PS: set if STA is in Power Save
- * @STA_FLG_INVALID: set if STA is invalid
- * @STA_FLG_DLP_EN: Direct Link Protocol is enabled
- * @STA_FLG_SET_ALL_KEYS: the current key applies to all key IDs
  * @STA_FLG_DRAIN_FLOW: drain flow
  * @STA_FLG_PAN: STA is for PAN interface
  * @STA_FLG_CLASS_AUTH: station is authenticated
@@ -100,7 +99,6 @@
  * @STA_FLG_MIMO_EN_SISO: no support for MIMO
  * @STA_FLG_MIMO_EN_MIMO2: 2 streams supported
  * @STA_FLG_MIMO_EN_MIMO3: 3 streams supported
- * @STA_FLG_MFP_EN: Management Frame Protection
  * @STA_FLG_AGG_MPDU_DENS_MSK: A-MPDU density (mask)
  * @STA_FLG_AGG_MPDU_DENS_SHIFT: A-MPDU density (bit shift)
  * @STA_FLG_AGG_MPDU_DENS_2US: A-MPDU density (2 usec gap)
@@ -395,7 +393,7 @@ enum iwl_sta_type {
  * @tfd_queue_msk: tfd queues used by this station.
  *	Obselete for new TX API (9 and above).
  * @rx_ba_window: aggregation window size
- * @sp_length: the size of the SP as it appears in the WME IE
+ * @sp_length: the size of the SP in actual number of frames
  * @uapsd_acs:  4 LS bits are trigger enabled ACs, 4 MS bits are the deliver
  *	enabled ACs.
  *

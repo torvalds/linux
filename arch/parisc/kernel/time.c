@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/parisc/kernel/time.c
  *
@@ -75,10 +76,10 @@ irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 	next_tick = cpuinfo->it_value;
 
 	/* Calculate how many ticks have elapsed. */
+	now = mfctl(16);
 	do {
 		++ticks_elapsed;
 		next_tick += cpt;
-		now = mfctl(16);
 	} while (next_tick - now > cpt);
 
 	/* Store (in CR16 cycles) up to when we are accounting right now. */
@@ -102,16 +103,17 @@ irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 	 * if one or the other wrapped. If "now" is "bigger" we'll end up
 	 * with a very large unsigned number.
 	 */
-	while (next_tick - mfctl(16) > cpt)
+	now = mfctl(16);
+	while (next_tick - now > cpt)
 		next_tick += cpt;
 
 	/* Program the IT when to deliver the next interrupt.
 	 * Only bottom 32-bits of next_tick are writable in CR16!
 	 * Timer interrupt will be delivered at least a few hundred cycles
-	 * after the IT fires, so if we are too close (<= 500 cycles) to the
+	 * after the IT fires, so if we are too close (<= 8000 cycles) to the
 	 * next cycle, simply skip it.
 	 */
-	if (next_tick - mfctl(16) <= 500)
+	if (next_tick - now <= 8000)
 		next_tick += cpt;
 	mtctl(next_tick, 16);
 
@@ -172,7 +174,7 @@ static int rtc_generic_get_time(struct device *dev, struct rtc_time *tm)
 
 	/* we treat tod_sec as unsigned, so this can work until year 2106 */
 	rtc_time64_to_tm(tod_data.tod_sec, tm);
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int rtc_generic_set_time(struct device *dev, struct rtc_time *tm)
@@ -203,7 +205,7 @@ static int __init rtc_init(void)
 device_initcall(rtc_init);
 #endif
 
-void read_persistent_clock(struct timespec *ts)
+void read_persistent_clock64(struct timespec64 *ts)
 {
 	static struct pdc_tod tod_data;
 	if (pdc_tod_read(&tod_data) == 0) {
@@ -247,13 +249,16 @@ static int __init init_cr16_clocksource(void)
 	 * different sockets, so mark them unstable and lower rating on
 	 * multi-socket SMP systems.
 	 */
-	if (num_online_cpus() > 1) {
+	if (num_online_cpus() > 1 && !running_on_qemu) {
 		int cpu;
 		unsigned long cpu0_loc;
 		cpu0_loc = per_cpu(cpu_data, 0).cpu_loc;
 
 		for_each_online_cpu(cpu) {
-			if (cpu0_loc == per_cpu(cpu_data, cpu).cpu_loc)
+			if (cpu == 0)
+				continue;
+			if ((cpu0_loc != 0) &&
+			    (cpu0_loc == per_cpu(cpu_data, cpu).cpu_loc))
 				continue;
 
 			clocksource_cr16.name = "cr16_unstable";

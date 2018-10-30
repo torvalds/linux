@@ -21,6 +21,9 @@ Required properties:
   - samsung,pll-clock-frequency: specifies frequency of the oscillator clock
   - #address-cells, #size-cells: should be set respectively to <1> and <0>
     according to DSI host bindings (see MIPI DSI bindings [1])
+  - samsung,burst-clock-frequency: specifies DSI frequency in high-speed burst
+    mode
+  - samsung,esc-clock-frequency: specifies DSI frequency in escape mode
 
 Optional properties:
   - power-domains: a phandle to DSIM power domain node
@@ -29,32 +32,16 @@ Child nodes:
   Should contain DSI peripheral nodes (see MIPI DSI bindings [1]).
 
 Video interfaces:
-  Device node can contain video interface port nodes according to [2].
-  The following are properties specific to those nodes:
-
-  port node inbound:
-    - reg: (required) must be 0.
-  port node outbound:
-    - reg: (required) must be 1.
-
-  endpoint node connected from mic node (reg = 0):
-    - remote-endpoint: specifies the endpoint in mic node. This node is required
-		       for Exynos5433 mipi dsi. So mic can access to panel node
-		       throughout this dsi node.
-  endpoint node connected to panel node (reg = 1):
-    - remote-endpoint: specifies the endpoint in panel node. This node is
-		       required in all kinds of exynos mipi dsi to represent
-		       the connection between mipi dsi and panel.
-    - samsung,burst-clock-frequency: specifies DSI frequency in high-speed burst
-      mode
-    - samsung,esc-clock-frequency: specifies DSI frequency in escape mode
+  Device node can contain following video interface port nodes according to [2]:
+  0: RGB input,
+  1: DSI output
 
 [1]: Documentation/devicetree/bindings/display/mipi-dsi-bus.txt
 [2]: Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Example:
 
-	dsi@11C80000 {
+	dsi@11c80000 {
 		compatible = "samsung,exynos4210-mipi-dsi";
 		reg = <0x11C80000 0x10000>;
 		interrupts = <0 79 0>;

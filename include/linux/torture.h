@@ -64,6 +64,8 @@ struct torture_random_state {
 	long trs_count;
 };
 #define DEFINE_TORTURE_RANDOM(name) struct torture_random_state name = { 0, 0 }
+#define DEFINE_TORTURE_RANDOM_PERCPU(name) \
+	DEFINE_PER_CPU(struct torture_random_state, name)
 unsigned long torture_random(struct torture_random_state *trsp);
 
 /* Task shuffler, which causes CPUs to occasionally go idle. */
@@ -75,11 +77,11 @@ void torture_shutdown_absorb(const char *title);
 int torture_shutdown_init(int ssecs, void (*cleanup)(void));
 
 /* Task stuttering, which forces load/no-load transitions. */
-void stutter_wait(const char *title);
+bool stutter_wait(const char *title);
 int torture_stutter_init(int s);
 
 /* Initialization and cleanup. */
-bool torture_init_begin(char *ttype, bool v, int *runnable);
+bool torture_init_begin(char *ttype, int v);
 void torture_init_end(void);
 bool torture_cleanup_begin(void);
 void torture_cleanup_end(void);
@@ -95,5 +97,11 @@ void _torture_stop_kthread(char *m, struct task_struct **tp);
 				"Failed to create " #n, &(tp))
 #define torture_stop_kthread(n, tp) \
 	_torture_stop_kthread("Stopping " #n " task", &(tp))
+
+#ifdef CONFIG_PREEMPT
+#define torture_preempt_schedule() preempt_schedule()
+#else
+#define torture_preempt_schedule()
+#endif
 
 #endif /* __LINUX_TORTURE_H */

@@ -465,9 +465,9 @@ static const struct dvb_tuner_ops mxl111sf_tuner_tuner_ops = {
 	.info = {
 		.name = "MaxLinear MxL111SF",
 #if 0
-		.frequency_min  = ,
-		.frequency_max  = ,
-		.frequency_step = ,
+		.frequency_min_hz  = ,
+		.frequency_max_hz  = ,
+		.frequency_step_hz = ,
 #endif
 	},
 #if 0

@@ -1,0 +1,9 @@
+menu "C-SKY Debug Options"
+config CSKY_BUILTIN_DTB
+	string "Use kernel builtin dtb"
+	help
+	  User could define the dtb instead of the one which is passed from
+	  bootloader.
+	  Sometimes for debug, we want to use a built-in dtb and then we needn't
+	  modify bootloader at all.
+endmenu

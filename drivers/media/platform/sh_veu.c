@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sh-mobile VEU mem2mem driver
  *
  * Copyright (C) 2012 Renesas Electronics Corporation
  * Author: Guennadi Liakhovetski, <g.liakhovetski@gmx.de>
  * Copyright (C) 2008 Magnus Damm
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License as
- * published by the Free Software Foundation
  */
 
 #include <linux/err.h>
@@ -267,7 +264,7 @@ static void sh_veu_process(struct sh_veu_dev *veu,
 	sh_veu_reg_write(veu, VEU_EIER, 1); /* enable interrupt in VEU */
 }
 
-/**
+/*
  * sh_veu_device_run() - prepares and starts the device
  *
  * This will be called by the framework when it decides to schedule a particular
@@ -348,9 +345,9 @@ static int sh_veu_context_init(struct sh_veu_dev *veu)
 static int sh_veu_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, "sh-veu", sizeof(cap->driver));
-	strlcpy(cap->card, "sh-mobile VEU", sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform:sh-veu", sizeof(cap->bus_info));
+	strscpy(cap->driver, "sh-veu", sizeof(cap->driver));
+	strscpy(cap->card, "sh-mobile VEU", sizeof(cap->card));
+	strscpy(cap->bus_info, "platform:sh-veu", sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
@@ -362,7 +359,8 @@ static int sh_veu_enum_fmt(struct v4l2_fmtdesc *f, const int *fmt, int fmt_num)
 	if (f->index >= fmt_num)
 		return -EINVAL;
 
-	strlcpy(f->description, sh_veu_fmt[fmt[f->index]].name, sizeof(f->description));
+	strscpy(f->description, sh_veu_fmt[fmt[f->index]].name,
+		sizeof(f->description));
 	f->pixelformat = sh_veu_fmt[fmt[f->index]].fourcc;
 	return 0;
 }
@@ -520,8 +518,8 @@ static void sh_veu_colour_offset(struct sh_veu_dev *veu, struct sh_veu_vfmt *vfm
 	/* dst_left and dst_top validity will be verified in CROP / COMPOSE */
 	unsigned int left = vfmt->frame.left & ~0x03;
 	unsigned int top = vfmt->frame.top;
-	dma_addr_t offset = ((left * veu->vfmt_out.fmt->depth) >> 3) +
-		top * veu->vfmt_out.bytesperline;
+	dma_addr_t offset = (dma_addr_t)top * veu->vfmt_out.bytesperline +
+			(((dma_addr_t)left * veu->vfmt_out.fmt->depth) >> 3);
 	unsigned int y_line;
 
 	vfmt->offset_y = offset;
@@ -1016,7 +1014,7 @@ static int sh_veu_release(struct file *file)
 	return 0;
 }
 
-static unsigned int sh_veu_poll(struct file *file,
+static __poll_t sh_veu_poll(struct file *file,
 				struct poll_table_struct *wait)
 {
 	struct sh_veu_file *veu_file = file->private_data;

@@ -34,8 +34,6 @@ void radeon_gem_object_free(struct drm_gem_object *gobj)
 	struct radeon_bo *robj = gem_to_radeon_bo(gobj);
 
 	if (robj) {
-		if (robj->gem_base.import_attach)
-			drm_prime_gem_destroy(&robj->gem_base, robj->tbo.sg);
 		radeon_mn_unregister(robj);
 		radeon_bo_unref(&robj);
 	}
@@ -285,6 +283,7 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *filp)
 {
+	struct ttm_operation_ctx ctx = { true, false };
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_gem_userptr *args = data;
 	struct drm_gem_object *gobj;
@@ -343,7 +342,7 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		}
 
 		radeon_ttm_placement_from_domain(bo, RADEON_GEM_DOMAIN_GTT);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		radeon_bo_unreserve(bo);
 		up_read(&current->mm->mmap_sem);
 		if (r)
@@ -451,7 +450,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 	else
 		r = 0;
 
-	cur_placement = ACCESS_ONCE(robj->tbo.mem.mem_type);
+	cur_placement = READ_ONCE(robj->tbo.mem.mem_type);
 	args->domain = radeon_mem_type_to_domain(cur_placement);
 	drm_gem_object_put_unlocked(gobj);
 	return r;
@@ -481,7 +480,7 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 		r = ret;
 
 	/* Flush HDP cache via MMIO if necessary */
-	cur_placement = ACCESS_ONCE(robj->tbo.mem.mem_type);
+	cur_placement = READ_ONCE(robj->tbo.mem.mem_type);
 	if (rdev->asic->mmio_hdp_flush &&
 	    radeon_mem_type_to_domain(cur_placement) == RADEON_GEM_DOMAIN_VRAM)
 		robj->rdev->asic->mmio_hdp_flush(rdev);

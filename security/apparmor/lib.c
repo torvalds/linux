@@ -198,20 +198,30 @@ const char *aa_file_perm_names[] = {
 /**
  * aa_perm_mask_to_str - convert a perm mask to its short string
  * @str: character buffer to store string in (at least 10 characters)
+ * @str_size: size of the @str buffer
+ * @chrs: NUL-terminated character buffer of permission characters
  * @mask: permission mask to convert
  */
-void aa_perm_mask_to_str(char *str, const char *chrs, u32 mask)
+void aa_perm_mask_to_str(char *str, size_t str_size, const char *chrs, u32 mask)
 {
 	unsigned int i, perm = 1;
+	size_t num_chrs = strlen(chrs);
 
-	for (i = 0; i < 32; perm <<= 1, i++) {
-		if (mask & perm)
+	for (i = 0; i < num_chrs; perm <<= 1, i++) {
+		if (mask & perm) {
+			/* Ensure that one byte is left for NUL-termination */
+			if (WARN_ON_ONCE(str_size <= 1))
+				break;
+
 			*str++ = chrs[i];
+			str_size--;
+		}
 	}
 	*str = '\0';
 }
 
-void aa_audit_perm_names(struct audit_buffer *ab, const char **names, u32 mask)
+void aa_audit_perm_names(struct audit_buffer *ab, const char * const *names,
+			 u32 mask)
 {
 	const char *fmt = "%s";
 	unsigned int i, perm = 1;
@@ -229,13 +239,13 @@ void aa_audit_perm_names(struct audit_buffer *ab, const char **names, u32 mask)
 }
 
 void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
-			u32 chrsmask, const char **names, u32 namesmask)
+			u32 chrsmask, const char * const *names, u32 namesmask)
 {
 	char str[33];
 
 	audit_log_format(ab, "\"");
 	if ((mask & chrsmask) && chrs) {
-		aa_perm_mask_to_str(str, chrs, mask & chrsmask);
+		aa_perm_mask_to_str(str, sizeof(str), chrs, mask & chrsmask);
 		mask &= ~chrsmask;
 		audit_log_format(ab, "%s", str);
 		if (mask & namesmask)
@@ -317,14 +327,11 @@ static u32 map_other(u32 x)
 void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
 		      struct aa_perms *perms)
 {
-	perms->deny = 0;
-	perms->kill = perms->stop = 0;
-	perms->complain = perms->cond = 0;
-	perms->hide = 0;
-	perms->prompt = 0;
-	perms->allow = dfa_user_allow(dfa, state);
-	perms->audit = dfa_user_audit(dfa, state);
-	perms->quiet = dfa_user_quiet(dfa, state);
+	*perms = (struct aa_perms) {
+		.allow = dfa_user_allow(dfa, state),
+		.audit = dfa_user_audit(dfa, state),
+		.quiet = dfa_user_quiet(dfa, state),
+	};
 
 	/* for v5 perm mapping in the policydb, the other set is used
 	 * to extend the general perm set
@@ -410,7 +417,7 @@ int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
  * @request: requested perms
  * @deny: Returns: explicit deny set
  * @sa: initialized audit structure (MAY BE NULL if not auditing)
- * @cb: callback fn for tpye specific fields (MAY BE NULL)
+ * @cb: callback fn for type specific fields (MAY BE NULL)
  *
  * Returns: 0 if permission else error code
  *
@@ -426,7 +433,6 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 		   void (*cb)(struct audit_buffer *, void *))
 {
 	int type, error;
-	bool stop = false;
 	u32 denied = request & (~perms->allow | perms->deny);
 
 	if (likely(!denied)) {
@@ -447,8 +453,6 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 		else
 			type = AUDIT_APPARMOR_DENIED;
 
-		if (denied & perms->stop)
-			stop = true;
 		if (denied == (denied & perms->hide))
 			error = -ENOENT;
 

@@ -135,10 +135,10 @@ static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
  * Userspace can query the state of these implicitly tracked fences using poll()
  * and related system calls:
  *
- * - Checking for POLLIN, i.e. read access, can be use to query the state of the
+ * - Checking for EPOLLIN, i.e. read access, can be use to query the state of the
  *   most recent write or exclusive fence.
  *
- * - Checking for POLLOUT, i.e. write access, can be used to query the state of
+ * - Checking for EPOLLOUT, i.e. write access, can be used to query the state of
  *   all attached fences, shared and exclusive ones.
  *
  * Note that this only signals the completion of the respective fences, i.e. the
@@ -157,24 +157,24 @@ static void dma_buf_poll_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 	spin_unlock_irqrestore(&dcb->poll->lock, flags);
 }
 
-static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
+static __poll_t dma_buf_poll(struct file *file, poll_table *poll)
 {
 	struct dma_buf *dmabuf;
 	struct reservation_object *resv;
 	struct reservation_object_list *fobj;
 	struct dma_fence *fence_excl;
-	unsigned long events;
+	__poll_t events;
 	unsigned shared_count, seq;
 
 	dmabuf = file->private_data;
 	if (!dmabuf || !dmabuf->resv)
-		return POLLERR;
+		return EPOLLERR;
 
 	resv = dmabuf->resv;
 
 	poll_wait(file, &dmabuf->poll, poll);
 
-	events = poll_requested_events(poll) & (POLLIN | POLLOUT);
+	events = poll_requested_events(poll) & (EPOLLIN | EPOLLOUT);
 	if (!events)
 		return 0;
 
@@ -193,12 +193,12 @@ retry:
 		goto retry;
 	}
 
-	if (fence_excl && (!(events & POLLOUT) || shared_count == 0)) {
+	if (fence_excl && (!(events & EPOLLOUT) || shared_count == 0)) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_excl;
-		unsigned long pevents = POLLIN;
+		__poll_t pevents = EPOLLIN;
 
 		if (shared_count == 0)
-			pevents |= POLLOUT;
+			pevents |= EPOLLOUT;
 
 		spin_lock_irq(&dmabuf->poll.lock);
 		if (dcb->active) {
@@ -228,19 +228,19 @@ retry:
 		}
 	}
 
-	if ((events & POLLOUT) && shared_count > 0) {
+	if ((events & EPOLLOUT) && shared_count > 0) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_shared;
 		int i;
 
 		/* Only queue a new callback if no event has fired yet */
 		spin_lock_irq(&dmabuf->poll.lock);
 		if (dcb->active)
-			events &= ~POLLOUT;
+			events &= ~EPOLLOUT;
 		else
-			dcb->active = POLLOUT;
+			dcb->active = EPOLLOUT;
 		spin_unlock_irq(&dmabuf->poll.lock);
 
-		if (!(events & POLLOUT))
+		if (!(events & EPOLLOUT))
 			goto out;
 
 		for (i = 0; i < shared_count; ++i) {
@@ -253,14 +253,14 @@ retry:
 				 *
 				 * call dma_buf_poll_cb and force a recheck!
 				 */
-				events &= ~POLLOUT;
+				events &= ~EPOLLOUT;
 				dma_buf_poll_cb(NULL, &dcb->cb);
 				break;
 			}
 			if (!dma_fence_add_callback(fence, &dcb->cb,
 						    dma_buf_poll_cb)) {
 				dma_fence_put(fence);
-				events &= ~POLLOUT;
+				events &= ~EPOLLOUT;
 				break;
 			}
 			dma_fence_put(fence);
@@ -351,13 +351,13 @@ static inline int is_dma_buf_file(struct file *file)
  *
  * 2. Userspace passes this file-descriptors to all drivers it wants this buffer
  *    to share with: First the filedescriptor is converted to a &dma_buf using
- *    dma_buf_get(). The the buffer is attached to the device using
+ *    dma_buf_get(). Then the buffer is attached to the device using
  *    dma_buf_attach().
  *
  *    Up to this stage the exporter is still free to migrate or reallocate the
  *    backing storage.
  *
- * 3. Once the buffer is attached to all devices userspace can inniate DMA
+ * 3. Once the buffer is attached to all devices userspace can initiate DMA
  *    access to the shared buffer. In the kernel this is done by calling
  *    dma_buf_map_attachment() and dma_buf_unmap_attachment().
  *
@@ -405,8 +405,6 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 			  || !exp_info->ops->map_dma_buf
 			  || !exp_info->ops->unmap_dma_buf
 			  || !exp_info->ops->release
-			  || !exp_info->ops->map_atomic
-			  || !exp_info->ops->map
 			  || !exp_info->ops->mmap)) {
 		return ERR_PTR(-EINVAL);
 	}
@@ -568,7 +566,7 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 	mutex_lock(&dmabuf->lock);
 
 	if (dmabuf->ops->attach) {
-		ret = dmabuf->ops->attach(dmabuf, dev, attach);
+		ret = dmabuf->ops->attach(dmabuf, attach);
 		if (ret)
 			goto err_attach;
 	}
@@ -617,7 +615,7 @@ EXPORT_SYMBOL_GPL(dma_buf_detach);
  * Returns sg_table containing the scatterlist to be returned; returns ERR_PTR
  * on error. May return -EINTR if it is interrupted by a signal.
  *
- * A mapping must be unmapped again using dma_buf_map_attachment(). Note that
+ * A mapping must be unmapped by using dma_buf_unmap_attachment(). Note that
  * the underlying backing storage is pinned for as long as a mapping exists,
  * therefore users/importers should not hold onto a mapping for undue amounts of
  * time.
@@ -625,7 +623,7 @@ EXPORT_SYMBOL_GPL(dma_buf_detach);
 struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 					enum dma_data_direction direction)
 {
-	struct sg_table *sg_table = ERR_PTR(-EINVAL);
+	struct sg_table *sg_table;
 
 	might_sleep();
 
@@ -687,25 +685,13 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  *      void \*dma_buf_kmap(struct dma_buf \*, unsigned long);
  *      void dma_buf_kunmap(struct dma_buf \*, unsigned long, void \*);
  *
- *   There are also atomic variants of these interfaces. Like for kmap they
- *   facilitate non-blocking fast-paths. Neither the importer nor the exporter
- *   (in the callback) is allowed to block when using these.
- *
- *   Interfaces::
- *      void \*dma_buf_kmap_atomic(struct dma_buf \*, unsigned long);
- *      void dma_buf_kunmap_atomic(struct dma_buf \*, unsigned long, void \*);
- *
- *   For importers all the restrictions of using kmap apply, like the limited
- *   supply of kmap_atomic slots. Hence an importer shall only hold onto at
- *   max 2 atomic dma_buf kmaps at the same time (in any given process context).
+ *   Implementing the functions is optional for exporters and for importers all
+ *   the restrictions of using kmap apply.
  *
  *   dma_buf kmap calls outside of the range specified in begin_cpu_access are
  *   undefined. If the range is not PAGE_SIZE aligned, kmap needs to succeed on
  *   the partial chunks at the beginning and end but may return stale or bogus
  *   data outside of the range (in these partial chunks).
- *
- *   Note that these calls need to always succeed. The exporter needs to
- *   complete any preparations that might fail in begin_cpu_access.
  *
  *   For some cases the overhead of kmap can be too high, a vmap interface
  *   is introduced. This interface should be used very carefully, as vmalloc
@@ -860,41 +846,6 @@ int dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access);
 
 /**
- * dma_buf_kmap_atomic - Map a page of the buffer object into kernel address
- * space. The same restrictions as for kmap_atomic and friends apply.
- * @dmabuf:	[in]	buffer to map page from.
- * @page_num:	[in]	page in PAGE_SIZE units to map.
- *
- * This call must always succeed, any necessary preparations that might fail
- * need to be done in begin_cpu_access.
- */
-void *dma_buf_kmap_atomic(struct dma_buf *dmabuf, unsigned long page_num)
-{
-	WARN_ON(!dmabuf);
-
-	return dmabuf->ops->map_atomic(dmabuf, page_num);
-}
-EXPORT_SYMBOL_GPL(dma_buf_kmap_atomic);
-
-/**
- * dma_buf_kunmap_atomic - Unmap a page obtained by dma_buf_kmap_atomic.
- * @dmabuf:	[in]	buffer to unmap page from.
- * @page_num:	[in]	page in PAGE_SIZE units to unmap.
- * @vaddr:	[in]	kernel space pointer obtained from dma_buf_kmap_atomic.
- *
- * This call must always succeed.
- */
-void dma_buf_kunmap_atomic(struct dma_buf *dmabuf, unsigned long page_num,
-			   void *vaddr)
-{
-	WARN_ON(!dmabuf);
-
-	if (dmabuf->ops->unmap_atomic)
-		dmabuf->ops->unmap_atomic(dmabuf, page_num, vaddr);
-}
-EXPORT_SYMBOL_GPL(dma_buf_kunmap_atomic);
-
-/**
  * dma_buf_kmap - Map a page of the buffer object into kernel address space. The
  * same restrictions as for kmap and friends apply.
  * @dmabuf:	[in]	buffer to map page from.
@@ -907,6 +858,8 @@ void *dma_buf_kmap(struct dma_buf *dmabuf, unsigned long page_num)
 {
 	WARN_ON(!dmabuf);
 
+	if (!dmabuf->ops->map)
+		return NULL;
 	return dmabuf->ops->map(dmabuf, page_num);
 }
 EXPORT_SYMBOL_GPL(dma_buf_kmap);
@@ -1179,8 +1132,7 @@ static int dma_buf_init_debugfs(void)
 
 static void dma_buf_uninit_debugfs(void)
 {
-	if (dma_buf_debugfs_dir)
-		debugfs_remove_recursive(dma_buf_debugfs_dir);
+	debugfs_remove_recursive(dma_buf_debugfs_dir);
 }
 #else
 static inline int dma_buf_init_debugfs(void)

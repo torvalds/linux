@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef _DRIVERS_FIRMWARE_EFI_EFISTUB_H
 #define _DRIVERS_FIRMWARE_EFI_EFISTUB_H
@@ -34,9 +35,6 @@ extern int __pure is_quiet(void);
 #define pr_efi_err(sys_table, msg) efi_printk(sys_table, "EFI stub: ERROR: "msg)
 
 void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
-
-efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg, void *__image,
-			     void **__fh);
 
 unsigned long get_dram_base(efi_system_table_t *sys_table_arg);
 

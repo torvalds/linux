@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_VIRTIO_H
 #define _LINUX_VIRTIO_H
 /* Everything a virtio driver needs to work with any particular virtio
@@ -155,6 +156,9 @@ int virtio_finalize_features(struct virtio_device *dev);
 int virtio_device_freeze(struct virtio_device *dev);
 int virtio_device_restore(struct virtio_device *dev);
 #endif
+
+#define virtio_device_for_each_vq(vdev, vq) \
+	list_for_each_entry(vq, &vdev->vqs, list)
 
 /**
  * virtio_driver - operations for a virtio I/O driver

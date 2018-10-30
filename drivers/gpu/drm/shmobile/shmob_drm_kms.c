@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * shmob_drm_kms.c  --  SH Mobile DRM Mode Setting
  *
  * Copyright (C) 2012 Renesas Electronics Corporation
  *
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <drm/drmP.h>
@@ -16,8 +12,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
-
-#include <video/sh_mobile_meram.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "shmob_drm_crtc.h"
 #include "shmob_drm_drv.h"
@@ -34,55 +29,46 @@ static const struct shmob_drm_format_info shmob_drm_format_infos[] = {
 		.bpp = 16,
 		.yuv = false,
 		.lddfr = LDDFR_PKF_RGB16,
-		.meram = SH_MOBILE_MERAM_PF_RGB,
 	}, {
 		.fourcc = DRM_FORMAT_RGB888,
 		.bpp = 24,
 		.yuv = false,
 		.lddfr = LDDFR_PKF_RGB24,
-		.meram = SH_MOBILE_MERAM_PF_RGB,
 	}, {
 		.fourcc = DRM_FORMAT_ARGB8888,
 		.bpp = 32,
 		.yuv = false,
 		.lddfr = LDDFR_PKF_ARGB32,
-		.meram = SH_MOBILE_MERAM_PF_RGB,
 	}, {
 		.fourcc = DRM_FORMAT_NV12,
 		.bpp = 12,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_420,
-		.meram = SH_MOBILE_MERAM_PF_NV,
 	}, {
 		.fourcc = DRM_FORMAT_NV21,
 		.bpp = 12,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_420,
-		.meram = SH_MOBILE_MERAM_PF_NV,
 	}, {
 		.fourcc = DRM_FORMAT_NV16,
 		.bpp = 16,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_422,
-		.meram = SH_MOBILE_MERAM_PF_NV,
 	}, {
 		.fourcc = DRM_FORMAT_NV61,
 		.bpp = 16,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_422,
-		.meram = SH_MOBILE_MERAM_PF_NV,
 	}, {
 		.fourcc = DRM_FORMAT_NV24,
 		.bpp = 24,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_444,
-		.meram = SH_MOBILE_MERAM_PF_NV24,
 	}, {
 		.fourcc = DRM_FORMAT_NV42,
 		.bpp = 24,
 		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_444,
-		.meram = SH_MOBILE_MERAM_PF_NV24,
 	},
 };
 
@@ -131,7 +117,7 @@ shmob_drm_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		}
 	}
 
-	return drm_fb_cma_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, mode_cmd);
 }
 
 static const struct drm_mode_config_funcs shmob_drm_mode_config_funcs = {

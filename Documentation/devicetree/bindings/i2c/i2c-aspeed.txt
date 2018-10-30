@@ -7,11 +7,10 @@ Required Properties:
 - compatible		: should be "aspeed,ast2400-i2c-bus"
 			  or "aspeed,ast2500-i2c-bus"
 - clocks		: root clock of bus, should reference the APB
-			  clock
+			  clock in the second cell
+- resets		: phandle to reset controller with the reset number in
+			  the second cell
 - interrupts		: interrupt number
-- interrupt-parent	: interrupt controller for bus, should reference a
-			  aspeed,ast2400-i2c-ic or aspeed,ast2500-i2c-ic
-			  interrupt controller
 
 Optional Properties:
 - bus-frequency	: frequency of the bus clock in Hz defaults to 100 kHz when not
@@ -40,7 +39,8 @@ i2c {
 		#interrupt-cells = <1>;
 		reg = <0x40 0x40>;
 		compatible = "aspeed,ast2400-i2c-bus";
-		clocks = <&clk_apb>;
+		clocks = <&syscon ASPEED_CLK_APB>;
+		resets = <&syscon ASPEED_RESET_I2C>;
 		bus-frequency = <100000>;
 		interrupts = <0>;
 		interrupt-parent = <&i2c_ic>;

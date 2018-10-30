@@ -111,15 +111,6 @@ static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 	i915_gem_object_unpin_map(obj);
 }
 
-static void *i915_gem_dmabuf_kmap_atomic(struct dma_buf *dma_buf, unsigned long page_num)
-{
-	return NULL;
-}
-
-static void i915_gem_dmabuf_kunmap_atomic(struct dma_buf *dma_buf, unsigned long page_num, void *addr)
-{
-
-}
 static void *i915_gem_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
@@ -225,9 +216,7 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.unmap_dma_buf = i915_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,
 	.map = i915_gem_dmabuf_kmap,
-	.map_atomic = i915_gem_dmabuf_kmap_atomic,
 	.unmap = i915_gem_dmabuf_kunmap,
-	.unmap_atomic = i915_gem_dmabuf_kunmap_atomic,
 	.mmap = i915_gem_dmabuf_mmap,
 	.vmap = i915_gem_dmabuf_vmap,
 	.vunmap = i915_gem_dmabuf_vunmap,
@@ -256,11 +245,21 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 	return drm_gem_dmabuf_export(dev, &exp_info);
 }
 
-static struct sg_table *
-i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
+static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 {
-	return dma_buf_map_attachment(obj->base.import_attach,
-				      DMA_BIDIRECTIONAL);
+	struct sg_table *pages;
+	unsigned int sg_page_sizes;
+
+	pages = dma_buf_map_attachment(obj->base.import_attach,
+				       DMA_BIDIRECTIONAL);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	sg_page_sizes = i915_sg_page_sizes(pages->sgl);
+
+	__i915_gem_object_set_pages(obj, pages, sg_page_sizes);
+
+	return 0;
 }
 
 static void i915_gem_object_put_pages_dmabuf(struct drm_i915_gem_object *obj,
@@ -320,8 +319,8 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	 * write-combined buffer or a delay through the chipset for GTT
 	 * writes that do require us to treat GTT as a separate cache domain.)
 	 */
-	obj->base.read_domains = I915_GEM_DOMAIN_GTT;
-	obj->base.write_domain = 0;
+	obj->read_domains = I915_GEM_DOMAIN_GTT;
+	obj->write_domain = 0;
 
 	return &obj->base;
 

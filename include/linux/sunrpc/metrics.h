@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  linux/include/linux/sunrpc/metrics.h
  *
@@ -81,7 +82,7 @@ void			rpc_count_iostats(const struct rpc_task *,
 					  struct rpc_iostats *);
 void			rpc_count_iostats_metrics(const struct rpc_task *,
 					  struct rpc_iostats *);
-void			rpc_print_iostats(struct seq_file *, struct rpc_clnt *);
+void			rpc_clnt_show_stats(struct seq_file *, struct rpc_clnt *);
 void			rpc_free_iostats(struct rpc_iostats *);
 
 #else  /*  CONFIG_PROC_FS  */
@@ -94,7 +95,7 @@ static inline void rpc_count_iostats_metrics(const struct rpc_task *task,
 {
 }
 
-static inline void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt) {}
+static inline void rpc_clnt_show_stats(struct seq_file *seq, struct rpc_clnt *clnt) {}
 static inline void rpc_free_iostats(struct rpc_iostats *stats) {}
 
 #endif  /*  CONFIG_PROC_FS  */

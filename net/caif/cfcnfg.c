@@ -268,17 +268,15 @@ static int caif_connect_req_to_link_param(struct cfcnfg *cnfg,
 	case CAIFPROTO_RFM:
 		l->linktype = CFCTRL_SRV_RFM;
 		l->u.datagram.connid = s->sockaddr.u.rfm.connection_id;
-		strncpy(l->u.rfm.volume, s->sockaddr.u.rfm.volume,
-			sizeof(l->u.rfm.volume)-1);
-		l->u.rfm.volume[sizeof(l->u.rfm.volume)-1] = 0;
+		strlcpy(l->u.rfm.volume, s->sockaddr.u.rfm.volume,
+			sizeof(l->u.rfm.volume));
 		break;
 	case CAIFPROTO_UTIL:
 		l->linktype = CFCTRL_SRV_UTIL;
 		l->endpoint = 0x00;
 		l->chtype = 0x00;
-		strncpy(l->u.utility.name, s->sockaddr.u.util.service,
-			sizeof(l->u.utility.name)-1);
-		l->u.utility.name[sizeof(l->u.utility.name)-1] = 0;
+		strlcpy(l->u.utility.name, s->sockaddr.u.util.service,
+			sizeof(l->u.utility.name));
 		caif_assert(sizeof(l->u.utility.name) > 10);
 		l->u.utility.paramlen = s->param.size;
 		if (l->u.utility.paramlen > sizeof(l->u.utility.params))

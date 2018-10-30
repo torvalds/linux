@@ -1,11 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for industrial I/O accelerometer drivers
 #
 
 # When adding new entries keep the list in alphabetical order
+obj-$(CONFIG_ADIS16201) += adis16201.o
+obj-$(CONFIG_ADIS16209) += adis16209.o
 obj-$(CONFIG_ADXL345) += adxl345_core.o
 obj-$(CONFIG_ADXL345_I2C) += adxl345_i2c.o
 obj-$(CONFIG_ADXL345_SPI) += adxl345_spi.o
+obj-$(CONFIG_ADXL372) += adxl372.o
+obj-$(CONFIG_ADXL372_I2C) += adxl372_i2c.o
+obj-$(CONFIG_ADXL372_SPI) += adxl372_spi.o
 obj-$(CONFIG_BMA180) += bma180.o
 obj-$(CONFIG_BMA220) += bma220_spi.o
 obj-$(CONFIG_BMC150_ACCEL) += bmc150-accel-core.o
@@ -42,6 +48,8 @@ obj-$(CONFIG_SCA3000)		+= sca3000.o
 
 obj-$(CONFIG_STK8312)		+= stk8312.o
 obj-$(CONFIG_STK8BA50)		+= stk8ba50.o
+
+obj-$(CONFIG_IIO_CROS_EC_ACCEL_LEGACY) += cros_ec_accel_legacy.o
 
 obj-$(CONFIG_IIO_SSP_SENSORS_COMMONS) += ssp_accel_sensor.o
 

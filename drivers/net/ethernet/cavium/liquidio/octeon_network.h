@@ -35,15 +35,60 @@
 #define   LIO_IFSTATE_RX_TIMESTAMP_ENABLED 0x08
 #define   LIO_IFSTATE_RESETTING		   0x10
 
+struct liquidio_if_cfg_resp {
+	u64 rh;
+	struct liquidio_if_cfg_info cfg_info;
+	u64 status;
+};
+
+#define LIO_IFCFG_WAIT_TIME    3000 /* In milli seconds */
+#define LIQUIDIO_NDEV_STATS_POLL_TIME_MS 200
+
+/* Structure of a node in list of gather components maintained by
+ * NIC driver for each network device.
+ */
+struct octnic_gather {
+	/* List manipulation. Next and prev pointers. */
+	struct list_head list;
+
+	/* Size of the gather component at sg in bytes. */
+	int sg_size;
+
+	/* Number of bytes that sg was adjusted to make it 8B-aligned. */
+	int adjust;
+
+	/* Gather component that can accommodate max sized fragment list
+	 * received from the IP layer.
+	 */
+	struct octeon_sg_entry *sg;
+
+	dma_addr_t sg_dma_ptr;
+};
+
 struct oct_nic_stats_resp {
 	u64     rh;
 	struct oct_link_stats stats;
 	u64     status;
 };
 
+struct oct_nic_vf_stats_resp {
+	u64     rh;
+	u64	spoofmac_cnt;
+	u64     status;
+};
+
 struct oct_nic_stats_ctrl {
 	struct completion complete;
 	struct net_device *netdev;
+};
+
+struct oct_nic_seapi_resp {
+	u64 rh;
+	union {
+		u32 fec_setting;
+		u32 speed;
+	};
+	u64 status;
 };
 
 /** LiquidIO per-interface network private data */
@@ -131,18 +176,22 @@ struct lio {
 	struct cavium_wq	txq_status_wq;
 
 	/* work queue for  rxq oom status */
-	struct cavium_wq	rxq_status_wq;
+	struct cavium_wq rxq_status_wq[MAX_POSSIBLE_OCTEON_OUTPUT_QUEUES];
 
 	/* work queue for  link status */
 	struct cavium_wq	link_status_wq;
 
+	/* work queue to regularly send local time to octeon firmware */
+	struct cavium_wq	sync_octeon_time_wq;
+
 	int netdev_uc_count;
+	struct cavium_wk stats_wk;
 };
 
 #define LIO_SIZE         (sizeof(struct lio))
 #define GET_LIO(netdev)  ((struct lio *)netdev_priv(netdev))
 
-#define LIO_MAX_CORES                12
+#define LIO_MAX_CORES                16
 
 /**
  * \brief Enable or disable feature
@@ -175,11 +224,31 @@ irqreturn_t liquidio_msix_intr_handler(int irq __attribute__((unused)),
 
 int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs);
 
+void lio_fetch_stats(struct work_struct *work);
+
+int lio_wait_for_clean_oq(struct octeon_device *oct);
 /**
  * \brief Register ethtool operations
  * @param netdev    pointer to network device
  */
 void liquidio_set_ethtool_ops(struct net_device *netdev);
+
+void lio_delete_glists(struct lio *lio);
+
+int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_qs);
+
+int liquidio_get_speed(struct lio *lio);
+int liquidio_set_speed(struct lio *lio, int speed);
+int liquidio_get_fec(struct lio *lio);
+int liquidio_set_fec(struct lio *lio, int on_off);
+
+/**
+ * \brief Net device change_mtu
+ * @param netdev network device
+ */
+int liquidio_change_mtu(struct net_device *netdev, int new_mtu);
+#define LIO_CHANGE_MTU_SUCCESS 1
+#define LIO_CHANGE_MTU_FAIL    2
 
 #define SKB_ADJ_MASK  0x3F
 #define SKB_ADJ       (SKB_ADJ_MASK + 1)
@@ -195,7 +264,7 @@ static inline void
 	struct sk_buff *skb;
 	struct octeon_skb_page_info *skb_pg_info;
 
-	page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+	page = alloc_page(GFP_ATOMIC);
 	if (unlikely(!page))
 		return NULL;
 
@@ -481,6 +550,77 @@ static inline int wait_for_pending_requests(struct octeon_device *oct)
 		return 1;
 
 	return 0;
+}
+
+/**
+ * \brief Stop Tx queues
+ * @param netdev network device
+ */
+static inline void stop_txqs(struct net_device *netdev)
+{
+	int i;
+
+	for (i = 0; i < netdev->real_num_tx_queues; i++)
+		netif_stop_subqueue(netdev, i);
+}
+
+/**
+ * \brief Wake Tx queues
+ * @param netdev network device
+ */
+static inline void wake_txqs(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	int i, qno;
+
+	for (i = 0; i < netdev->real_num_tx_queues; i++) {
+		qno = lio->linfo.txpciq[i % lio->oct_dev->num_iqs].s.q_no;
+
+		if (__netif_subqueue_stopped(netdev, i)) {
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
+						  tx_restart, 1);
+			netif_wake_subqueue(netdev, i);
+		}
+	}
+}
+
+/**
+ * \brief Start Tx queues
+ * @param netdev network device
+ */
+static inline void start_txqs(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	int i;
+
+	if (lio->linfo.link.s.link_up) {
+		for (i = 0; i < netdev->real_num_tx_queues; i++)
+			netif_start_subqueue(netdev, i);
+	}
+}
+
+static inline int skb_iq(struct octeon_device *oct, struct sk_buff *skb)
+{
+	return skb->queue_mapping % oct->num_iqs;
+}
+
+/**
+ * Remove the node at the head of the list. The list would be empty at
+ * the end of this call if there are no more nodes in the list.
+ */
+static inline struct list_head *lio_list_delete_head(struct list_head *root)
+{
+	struct list_head *node;
+
+	if (root->prev == root && root->next == root)
+		node = NULL;
+	else
+		node = root->next;
+
+	if (node)
+		list_del(node);
+
+	return node;
 }
 
 #endif

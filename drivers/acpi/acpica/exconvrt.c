@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: exconvrt - Object conversion routines
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2017, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -57,10 +23,10 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 max_length);
  *
  * FUNCTION:    acpi_ex_convert_to_integer
  *
- * PARAMETERS:  obj_desc        - Object to be converted. Must be an
- *                                Integer, Buffer, or String
- *              result_desc     - Where the new Integer object is returned
- *              flags           - Used for string conversion
+ * PARAMETERS:  obj_desc            - Object to be converted. Must be an
+ *                                    Integer, Buffer, or String
+ *              result_desc         - Where the new Integer object is returned
+ *              implicit_conversion - Used for string conversion
  *
  * RETURN:      Status
  *
@@ -70,14 +36,14 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 max_length);
 
 acpi_status
 acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
-			   union acpi_operand_object **result_desc, u32 flags)
+			   union acpi_operand_object **result_desc,
+			   u32 implicit_conversion)
 {
 	union acpi_operand_object *return_desc;
 	u8 *pointer;
 	u64 result;
 	u32 i;
 	u32 count;
-	acpi_status status;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_convert_to_integer, obj_desc);
 
@@ -123,12 +89,18 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 		 * hexadecimal as per the ACPI specification. The only exception (as
 		 * of ACPI 3.0) is that the to_integer() operator allows both decimal
 		 * and hexadecimal strings (hex prefixed with "0x").
+		 *
+		 * Explicit conversion is used only by to_integer.
+		 * All other string-to-integer conversions are implicit conversions.
 		 */
-		status = acpi_ut_strtoul64(ACPI_CAST_PTR(char, pointer),
-					   (acpi_gbl_integer_byte_width |
-					    flags), &result);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+		if (implicit_conversion) {
+			result =
+			    acpi_ut_implicit_strtoul64(ACPI_CAST_PTR
+						       (char, pointer));
+		} else {
+			result =
+			    acpi_ut_explicit_strtoul64(ACPI_CAST_PTR
+						       (char, pointer));
 		}
 		break;
 
@@ -592,6 +564,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 	 */
 	switch (GET_CURRENT_ARG_TYPE(walk_state->op_info->runtime_args)) {
 	case ARGI_SIMPLE_TARGET:
+	case ARGI_FIXED_TARGET:
 	case ARGI_INTEGER_REF:	/* Handles Increment, Decrement cases */
 
 		switch (destination_type) {
@@ -631,7 +604,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 			 */
 			status =
 			    acpi_ex_convert_to_integer(source_desc, result_desc,
-						       ACPI_STRTOUL_BASE16);
+						       ACPI_IMPLICIT_CONVERSION);
 			break;
 
 		case ACPI_TYPE_STRING:

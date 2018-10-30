@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPIS390_CMB_H
 #define _UAPIS390_CMB_H
 

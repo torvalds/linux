@@ -18,7 +18,7 @@ static inline unsigned long vma_start_pgoff(struct vm_area_struct *v)
 
 static inline unsigned long vma_last_pgoff(struct vm_area_struct *v)
 {
-	return v->vm_pgoff + ((v->vm_end - v->vm_start) >> PAGE_SHIFT) - 1;
+	return v->vm_pgoff + vma_pages(v) - 1;
 }
 
 INTERVAL_TREE_DEFINE(struct vm_area_struct, shared.rb,

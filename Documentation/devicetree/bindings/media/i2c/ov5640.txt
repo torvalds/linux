@@ -1,4 +1,4 @@
-* Omnivision OV5640 MIPI CSI-2 sensor
+* Omnivision OV5640 MIPI CSI-2 / parallel sensor
 
 Required Properties:
 - compatible: should be "ovti,ov5640"
@@ -13,12 +13,34 @@ Optional Properties:
 	       This is an active low signal to the OV5640.
 - powerdown-gpios: reference to the GPIO connected to the powerdown pin,
 		   if any. This is an active high signal to the OV5640.
+- rotation: as defined in
+	    Documentation/devicetree/bindings/media/video-interfaces.txt,
+	    valid values are 0 (sensor mounted upright) and 180 (sensor
+	    mounted upside down).
 
 The device node must contain one 'port' child node for its digital output
 video port, in accordance with the video interface bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 
-Example:
+OV5640 can be connected to a MIPI CSI-2 bus or a parallel bus endpoint.
+
+Endpoint node required properties for CSI-2 connection are:
+- remote-endpoint: a phandle to the bus receiver's endpoint node.
+- clock-lanes: should be set to <0> (clock lane on hardware lane 0)
+- data-lanes: should be set to <1> or <1 2> (one or two CSI-2 lanes supported)
+
+Endpoint node required properties for parallel connection are:
+- remote-endpoint: a phandle to the bus receiver's endpoint node.
+- bus-width: shall be set to <8> for 8 bits parallel bus
+	     or <10> for 10 bits parallel bus
+- data-shift: shall be set to <2> for 8 bits parallel bus
+	      (lines 9:2 are used) or <0> for 10 bits parallel bus
+- hsync-active: active state of the HSYNC signal, 0/1 for LOW/HIGH respectively.
+- vsync-active: active state of the VSYNC signal, 0/1 for LOW/HIGH respectively.
+- pclk-sample: sample data on rising (1) or falling (0) edge of the pixel clock
+	       signal.
+
+Examples:
 
 &i2c1 {
 	ov5640: camera@3c {
@@ -33,12 +55,37 @@ Example:
 		DVDD-supply = <&vgen2_reg>;  /* 1.5v */
 		powerdown-gpios = <&gpio1 19 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
+		rotation = <180>;
 
 		port {
+			/* MIPI CSI-2 bus endpoint */
 			ov5640_to_mipi_csi2: endpoint {
 				remote-endpoint = <&mipi_csi2_from_ov5640>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	ov5640: camera@3c {
+		compatible = "ovti,ov5640";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ov5640>;
+		reg = <0x3c>;
+		clocks = <&clk_ext_camera>;
+		clock-names = "xclk";
+
+		port {
+			/* Parallel bus endpoint */
+			ov5640_to_parallel: endpoint {
+				remote-endpoint = <&parallel_from_ov5640>;
+				bus-width = <8>;
+				data-shift = <2>; /* lines 9:2 are used */
+				hsync-active = <0>;
+				vsync-active = <0>;
+				pclk-sample = <1>;
 			};
 		};
 	};

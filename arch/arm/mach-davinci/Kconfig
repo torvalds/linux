@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if ARCH_DAVINCI
 
 config AINTC
@@ -58,6 +59,7 @@ config MACH_DA8XX_DT
 	default y
 	depends on ARCH_DAVINCI_DA850
 	select PINCTRL
+	select TIMER_OF
 	help
 	  Say y here to include support for TI DaVinci DA850 based using
 	  Flattened Device Tree. More information at Documentation/devicetree
@@ -229,18 +231,6 @@ config DAVINCI_MUX_WARNINGS
 	  Choose Y here to warn whenever driver initialization logic needs
 	  to change the pin multiplexing setup. When there are no warnings
 	  printed, it's safe to deselect DAVINCI_MUX for your product.
-
-config DAVINCI_RESET_CLOCKS
-	bool "Reset unused clocks during boot"
-	depends on ARCH_DAVINCI
-	help
-	  Say Y if you want to reset unused clocks during boot.
-	  This option saves power, but assumes all drivers are
-	  using the clock framework. Broken drivers that do not
-	  yet use clock framework may not work with this option.
-	  If you are booting from another operating system, you
-	  probably do not want this option enabled until your
-	  device drivers work properly.
 
 endmenu
 

@@ -15,10 +15,16 @@ Optional properties:
  - needs-reset-on-resume : boolean, set this to force EHCI reset after resume
  - has-transaction-translator : boolean, set this if EHCI have a Transaction
 				Translator built into the root hub.
- - clocks : a list of phandle + clock specifier pairs
- - phys : phandle + phy specifier pair
- - phy-names : "usb"
+ - clocks : a list of phandle + clock specifier pairs. In case of Renesas
+	    R-Car Gen3 SoCs:
+	    - if a host only channel: first clock should be host.
+	    - if a USB DRD channel: first clock should be host and second one
+				    should be peripheral.
+ - phys : see usb-hcd.txt in the current directory
  - resets : phandle + reset specifier pair
+
+additionally the properties from usb-hcd.txt (in the current directory) are
+supported.
 
 Example (Sequoia 440EPx):
     ehci@e0000300 {
@@ -30,7 +36,7 @@ Example (Sequoia 440EPx):
    };
 
 Example (Allwinner sun4i A10 SoC):
-   ehci0: usb@01c14000 {
+   ehci0: usb@1c14000 {
 	   compatible = "allwinner,sun4i-a10-ehci", "generic-ehci";
 	   reg = <0x01c14000 0x100>;
 	   interrupts = <39>;

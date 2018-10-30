@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * pci.c - DesignWare HS OTG Controller PCI driver
  *
@@ -76,13 +77,18 @@ static int dwc2_pci_quirks(struct pci_dev *pdev, struct platform_device *dwc2)
 	return 0;
 }
 
+/**
+ * dwc2_pci_probe() - Provides the cleanup entry points for the DWC_otg PCI
+ * driver
+ *
+ * @pci: The programming view of DWC_otg PCI
+ */
 static void dwc2_pci_remove(struct pci_dev *pci)
 {
 	struct dwc2_pci_glue *glue = pci_get_drvdata(pci);
 
 	platform_device_unregister(glue->dwc2);
 	usb_phy_generic_unregister(glue->phy);
-	kfree(glue);
 	pci_set_drvdata(pci, NULL);
 }
 
@@ -104,10 +110,17 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 
 	pci_set_master(pci);
 
+	phy = usb_phy_generic_register();
+	if (IS_ERR(phy)) {
+		dev_err(dev, "error registering generic PHY (%ld)\n",
+			PTR_ERR(phy));
+		return PTR_ERR(phy);
+	}
+
 	dwc2 = platform_device_alloc("dwc2", PLATFORM_DEVID_AUTO);
 	if (!dwc2) {
 		dev_err(dev, "couldn't allocate dwc2 device\n");
-		return -ENOMEM;
+		goto err;
 	}
 
 	memset(res, 0x00, sizeof(struct resource) * ARRAY_SIZE(res));
@@ -124,31 +137,26 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 	ret = platform_device_add_resources(dwc2, res, ARRAY_SIZE(res));
 	if (ret) {
 		dev_err(dev, "couldn't add resources to dwc2 device\n");
-		return ret;
+		goto err;
 	}
 
 	dwc2->dev.parent = dev;
 
-	phy = usb_phy_generic_register();
-	if (IS_ERR(phy)) {
-		dev_err(dev, "error registering generic PHY (%ld)\n",
-			PTR_ERR(phy));
-		return PTR_ERR(phy);
-	}
-
 	ret = dwc2_pci_quirks(pci, dwc2);
 	if (ret)
 		goto err;
+
+	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
+	if (!glue) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	ret = platform_device_add(dwc2);
 	if (ret) {
 		dev_err(dev, "failed to register dwc2 device\n");
 		goto err;
 	}
-
-	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
-	if (!glue)
-		return -ENOMEM;
 
 	glue->phy = phy;
 	glue->dwc2 = dwc2;

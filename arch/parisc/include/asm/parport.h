@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* 
  *
  * parport.h: ia32-compatible parport initialisation

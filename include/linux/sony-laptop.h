@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SONYLAPTOP_H_
 #define _SONYLAPTOP_H_
 
@@ -27,7 +28,11 @@
 #define SONY_PIC_COMMAND_GETCAMERAROMVERSION	18	/* obsolete */
 #define SONY_PIC_COMMAND_GETCAMERAREVISION	19	/* obsolete */
 
+#if IS_ENABLED(CONFIG_SONY_LAPTOP)
 int sony_pic_camera_command(int command, u8 value);
+#else
+static inline int sony_pic_camera_command(int command, u8 value) { return 0; };
+#endif
 
 #endif	/* __KERNEL__ */
 

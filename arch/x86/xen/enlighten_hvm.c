@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include <linux/acpi.h>
 #include <linux/cpu.h>
 #include <linux/kexec.h>
 #include <linux/memblock.h>
@@ -64,6 +67,19 @@ static void __init xen_hvm_init_mem_mapping(void)
 {
 	early_memunmap(HYPERVISOR_shared_info, PAGE_SIZE);
 	HYPERVISOR_shared_info = __va(PFN_PHYS(shared_info_pfn));
+
+	/*
+	 * The virtual address of the shared_info page has changed, so
+	 * the vcpu_info pointer for VCPU 0 is now stale.
+	 *
+	 * The prepare_boot_cpu callback will re-initialize it via
+	 * xen_vcpu_setup, but we can't rely on that to be called for
+	 * old Xen versions (xen_have_vector_callback == 0).
+	 *
+	 * It is, in any case, bad to have a stale vcpu_info pointer
+	 * so reset it now.
+	 */
+	xen_vcpu_info_reset(0);
 }
 
 static void __init init_hvm_pv_info(void)
@@ -188,8 +204,6 @@ static void __init xen_hvm_guest_init(void)
 	xen_hvm_init_time_ops();
 	xen_hvm_init_mmu_ops();
 
-	if (xen_pvh_domain())
-		machine_ops.emergency_restart = xen_emergency_restart;
 #ifdef CONFIG_KEXEC_CORE
 	machine_ops.shutdown = xen_hvm_shutdown;
 	machine_ops.crash_shutdown = xen_hvm_crash_shutdown;
@@ -226,12 +240,33 @@ static uint32_t __init xen_platform_hvm(void)
 	return xen_cpuid_base();
 }
 
-const struct hypervisor_x86 x86_hyper_xen_hvm = {
+static __init void xen_hvm_guest_late_init(void)
+{
+#ifdef CONFIG_XEN_PVH
+	/* Test for PVH domain (PVH boot path taken overrides ACPI flags). */
+	if (!xen_pvh &&
+	    (x86_platform.legacy.rtc || !x86_platform.legacy.no_vga))
+		return;
+
+	/* PVH detected. */
+	xen_pvh = true;
+
+	/* Make sure we don't fall back to (default) ACPI_IRQ_MODEL_PIC. */
+	if (!nr_ioapics && acpi_irq_model == ACPI_IRQ_MODEL_PIC)
+		acpi_irq_model = ACPI_IRQ_MODEL_PLATFORM;
+
+	machine_ops.emergency_restart = xen_emergency_restart;
+	pv_info.name = "Xen PVH";
+#endif
+}
+
+const __initconst struct hypervisor_x86 x86_hyper_xen_hvm = {
 	.name                   = "Xen HVM",
 	.detect                 = xen_platform_hvm,
-	.init_platform          = xen_hvm_guest_init,
-	.pin_vcpu               = xen_pin_vcpu,
-	.x2apic_available       = xen_x2apic_para_available,
-	.init_mem_mapping	= xen_hvm_init_mem_mapping,
+	.type			= X86_HYPER_XEN_HVM,
+	.init.init_platform     = xen_hvm_guest_init,
+	.init.x2apic_available  = xen_x2apic_para_available,
+	.init.init_mem_mapping	= xen_hvm_init_mem_mapping,
+	.init.guest_late_init	= xen_hvm_guest_late_init,
+	.runtime.pin_vcpu       = xen_pin_vcpu,
 };
-EXPORT_SYMBOL(x86_hyper_xen_hvm);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PERF_SYS_H
 #define _PERF_SYS_H
 
@@ -43,10 +44,6 @@
 
 #ifdef __arc__
 #define CPUINFO_PROC	{"Processor"}
-#endif
-
-#ifdef __metag__
-#define CPUINFO_PROC	{"CPU"}
 #endif
 
 #ifdef __xtensa__

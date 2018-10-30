@@ -40,8 +40,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 
-#include <media/i2c-addr.h>
-
 /* ---------------------------------------------------------------------- */
 /* insmod args                                                            */
 
@@ -136,7 +134,7 @@ struct CHIPSTATE {
 	/* thread */
 	struct task_struct   *thread;
 	struct timer_list    wt;
-	int 		     audmode;
+	int		     audmode;
 };
 
 static inline struct CHIPSTATE *to_state(struct v4l2_subdev *sd)
@@ -158,14 +156,18 @@ static int chip_write(struct CHIPSTATE *chip, int subaddr, int val)
 	struct v4l2_subdev *sd = &chip->sd;
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
 	unsigned char buffer[2];
+	int rc;
 
 	if (subaddr < 0) {
 		v4l2_dbg(1, debug, sd, "chip_write: 0x%x\n", val);
 		chip->shadow.bytes[1] = val;
 		buffer[0] = val;
-		if (1 != i2c_master_send(c, buffer, 1)) {
+		rc = i2c_master_send(c, buffer, 1);
+		if (rc != 1) {
 			v4l2_warn(sd, "I/O error (write 0x%x)\n", val);
-			return -1;
+			if (rc < 0)
+				return rc;
+			return -EIO;
 		}
 	} else {
 		if (subaddr + 1 >= ARRAY_SIZE(chip->shadow.bytes)) {
@@ -180,10 +182,13 @@ static int chip_write(struct CHIPSTATE *chip, int subaddr, int val)
 		chip->shadow.bytes[subaddr+1] = val;
 		buffer[0] = subaddr;
 		buffer[1] = val;
-		if (2 != i2c_master_send(c, buffer, 2)) {
+		rc = i2c_master_send(c, buffer, 2);
+		if (rc != 2) {
 			v4l2_warn(sd, "I/O error (write reg%d=0x%x)\n",
 				subaddr, val);
-			return -1;
+			if (rc < 0)
+				return rc;
+			return -EIO;
 		}
 	}
 	return 0;
@@ -216,10 +221,14 @@ static int chip_read(struct CHIPSTATE *chip)
 	struct v4l2_subdev *sd = &chip->sd;
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
 	unsigned char buffer;
+	int rc;
 
-	if (1 != i2c_master_recv(c, &buffer, 1)) {
+	rc = i2c_master_recv(c, &buffer, 1);
+	if (rc != 1) {
 		v4l2_warn(sd, "I/O error (read)\n");
-		return -1;
+		if (rc < 0)
+			return rc;
+		return -EIO;
 	}
 	v4l2_dbg(1, debug, sd, "chip_read: 0x%x\n", buffer);
 	return buffer;
@@ -229,6 +238,7 @@ static int chip_read2(struct CHIPSTATE *chip, int subaddr)
 {
 	struct v4l2_subdev *sd = &chip->sd;
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
+	int rc;
 	unsigned char write[1];
 	unsigned char read[1];
 	struct i2c_msg msgs[2] = {
@@ -247,9 +257,12 @@ static int chip_read2(struct CHIPSTATE *chip, int subaddr)
 
 	write[0] = subaddr;
 
-	if (2 != i2c_transfer(c->adapter, msgs, 2)) {
+	rc = i2c_transfer(c->adapter, msgs, 2);
+	if (rc != 2) {
 		v4l2_warn(sd, "I/O error (read2)\n");
-		return -1;
+		if (rc < 0)
+			return rc;
+		return -EIO;
 	}
 	v4l2_dbg(1, debug, sd, "chip_read2: reg%d=0x%x\n",
 		subaddr, read[0]);
@@ -260,7 +273,7 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 {
 	struct v4l2_subdev *sd = &chip->sd;
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
-	int i;
+	int i, rc;
 
 	if (0 == cmd->count)
 		return 0;
@@ -286,9 +299,12 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 		printk(KERN_CONT "\n");
 
 	/* send data to the chip */
-	if (cmd->count != i2c_master_send(c, cmd->bytes, cmd->count)) {
+	rc = i2c_master_send(c, cmd->bytes, cmd->count);
+	if (rc != cmd->count) {
 		v4l2_warn(sd, "I/O error (%s)\n", name);
-		return -1;
+		if (rc < 0)
+			return rc;
+		return -EIO;
 	}
 	return 0;
 }
@@ -300,9 +316,9 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
  *   if available, ...
  */
 
-static void chip_thread_wake(unsigned long data)
+static void chip_thread_wake(struct timer_list *t)
 {
-	struct CHIPSTATE *chip = (struct CHIPSTATE*)data;
+	struct CHIPSTATE *chip = from_timer(chip, t, wt);
 	wake_up_process(chip->thread);
 }
 
@@ -402,8 +418,12 @@ static int tda9840_getrxsubchans(struct CHIPSTATE *chip)
 	struct v4l2_subdev *sd = &chip->sd;
 	int val, mode;
 
-	val = chip_read(chip);
 	mode = V4L2_TUNER_SUB_MONO;
+
+	val = chip_read(chip);
+	if (val < 0)
+		return mode;
+
 	if (val & TDA9840_DS_DUAL)
 		mode |= V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	if (val & TDA9840_ST_STEREO)
@@ -447,7 +467,12 @@ static void tda9840_setaudmode(struct CHIPSTATE *chip, int mode)
 static int tda9840_checkit(struct CHIPSTATE *chip)
 {
 	int rc;
+
 	rc = chip_read(chip);
+	if (rc < 0)
+		return 0;
+
+
 	/* lower 5 bits should be 0 */
 	return ((rc & 0x1f) == 0) ? 1 : 0;
 }
@@ -565,6 +590,9 @@ static int  tda985x_getrxsubchans(struct CHIPSTATE *chip)
 	/* Allows forced mono */
 	mode = V4L2_TUNER_SUB_MONO;
 	val = chip_read(chip);
+	if (val < 0)
+		return mode;
+
 	if (val & TDA985x_STP)
 		mode = V4L2_TUNER_SUB_STEREO;
 	if (val & TDA985x_SAPP)
@@ -722,8 +750,12 @@ static int tda9873_getrxsubchans(struct CHIPSTATE *chip)
 	struct v4l2_subdev *sd = &chip->sd;
 	int val,mode;
 
-	val = chip_read(chip);
 	mode = V4L2_TUNER_SUB_MONO;
+
+	val = chip_read(chip);
+	if (val < 0)
+		return mode;
+
 	if (val & TDA9873_STEREO)
 		mode = V4L2_TUNER_SUB_STEREO;
 	if (val & TDA9873_DUAL)
@@ -782,7 +814,8 @@ static int tda9873_checkit(struct CHIPSTATE *chip)
 {
 	int rc;
 
-	if (-1 == (rc = chip_read2(chip,254)))
+	rc = chip_read2(chip, 254);
+	if (rc < 0)
 		return 0;
 	return (rc & ~0x1f) == 0x80;
 }
@@ -928,11 +961,14 @@ static int tda9874a_getrxsubchans(struct CHIPSTATE *chip)
 
 	mode = V4L2_TUNER_SUB_MONO;
 
-	if(-1 == (dsr = chip_read2(chip,TDA9874A_DSR)))
+	dsr = chip_read2(chip, TDA9874A_DSR);
+	if (dsr < 0)
 		return mode;
-	if(-1 == (nsr = chip_read2(chip,TDA9874A_NSR)))
+	nsr = chip_read2(chip, TDA9874A_NSR);
+	if (nsr < 0)
 		return mode;
-	if(-1 == (necr = chip_read2(chip,TDA9874A_NECR)))
+	necr = chip_read2(chip, TDA9874A_NECR);
+	if (necr < 0)
 		return mode;
 
 	/* need to store dsr/nsr somewhere */
@@ -1061,9 +1097,11 @@ static int tda9874a_checkit(struct CHIPSTATE *chip)
 	struct v4l2_subdev *sd = &chip->sd;
 	int dic,sic;	/* device id. and software id. codes */
 
-	if(-1 == (dic = chip_read2(chip,TDA9874A_DIC)))
+	dic = chip_read2(chip, TDA9874A_DIC);
+	if (dic < 0)
 		return 0;
-	if(-1 == (sic = chip_read2(chip,TDA9874A_SIC)))
+	sic = chip_read2(chip, TDA9874A_SIC);
+	if (sic < 0)
 		return 0;
 
 	v4l2_dbg(1, debug, sd, "tda9874a_checkit(): DIC=0x%X, SIC=0x%X.\n", dic, sic);
@@ -1203,7 +1241,11 @@ static int tda9875_checkit(struct CHIPSTATE *chip)
 	int dic, rev;
 
 	dic = chip_read2(chip, 254);
+	if (dic < 0)
+		return 0;
 	rev = chip_read2(chip, 255);
+	if (rev < 0)
+		return 0;
 
 	if (dic == 0 || dic == 2) { /* tda9875 and tda9875A */
 		v4l2_info(sd, "found tda9875%s rev. %d.\n",
@@ -1379,8 +1421,12 @@ static int ta8874z_getrxsubchans(struct CHIPSTATE *chip)
 {
 	int val, mode;
 
-	val = chip_read(chip);
 	mode = V4L2_TUNER_SUB_MONO;
+
+	val = chip_read(chip);
+	if (val < 0)
+		return mode;
+
 	if (val & TA8874Z_B1){
 		mode |= V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	}else if (!(val & TA8874Z_B0)){
@@ -1433,7 +1479,11 @@ static void ta8874z_setaudmode(struct CHIPSTATE *chip, int mode)
 static int ta8874z_checkit(struct CHIPSTATE *chip)
 {
 	int rc;
+
 	rc = chip_read(chip);
+	if (rc < 0)
+		return rc;
+
 	return ((rc & 0x1f) == 0x1f) ? 1 : 0;
 }
 
@@ -1931,7 +1981,7 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 
 	/* fill required data structures */
 	if (!id)
-		strlcpy(client->name, desc->name, I2C_NAME_SIZE);
+		strscpy(client->name, desc->name, I2C_NAME_SIZE);
 	chip->desc = desc;
 	chip->shadow.count = desc->registers+1;
 	chip->prevmode = -1;
@@ -1995,7 +2045,7 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 	v4l2_ctrl_handler_setup(&chip->hdl);
 
 	chip->thread = NULL;
-	init_timer(&chip->wt);
+	timer_setup(&chip->wt, chip_thread_wake, 0);
 	if (desc->flags & CHIP_NEED_CHECKMODE) {
 		if (!desc->getrxsubchans || !desc->setaudmode) {
 			/* This shouldn't be happen. Warn user, but keep working
@@ -2005,8 +2055,6 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 			return 0;
 		}
 		/* start async thread */
-		chip->wt.function = chip_thread_wake;
-		chip->wt.data     = (unsigned long)chip;
 		chip->thread = kthread_run(chip_thread, chip, "%s",
 					   client->name);
 		if (IS_ERR(chip->thread)) {

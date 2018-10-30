@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
 #include <sched.h>
 #include <unistd.h>
@@ -69,7 +70,7 @@ int main(int argc, char *argv[])
 			return pr_err("NS_GET_PARENT returned a wrong namespace");
 
 		if (ioctl(pns, NS_GET_PARENT) >= 0 || errno != EPERM)
-			return pr_err("Don't get EPERM");;
+			return pr_err("Don't get EPERM");
 	}
 
 	kill(pid, SIGKILL);

@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel CHT Whiskey Cove PMIC operation region driver
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
  * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
  * Copyright (C) 2013-2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/acpi.h>
@@ -260,11 +252,10 @@ static int intel_cht_wc_pmic_opregion_probe(struct platform_device *pdev)
 			&intel_cht_wc_pmic_opregion_data);
 }
 
-static struct platform_device_id cht_wc_opregion_id_table[] = {
+static const struct platform_device_id cht_wc_opregion_id_table[] = {
 	{ .name = "cht_wcove_region" },
 	{},
 };
-MODULE_DEVICE_TABLE(platform, cht_wc_opregion_id_table);
 
 static struct platform_driver intel_cht_wc_pmic_opregion_driver = {
 	.probe = intel_cht_wc_pmic_opregion_probe,
@@ -273,8 +264,4 @@ static struct platform_driver intel_cht_wc_pmic_opregion_driver = {
 	},
 	.id_table = cht_wc_opregion_id_table,
 };
-module_platform_driver(intel_cht_wc_pmic_opregion_driver);
-
-MODULE_DESCRIPTION("Intel CHT Whiskey Cove PMIC operation region driver");
-MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(intel_cht_wc_pmic_opregion_driver);

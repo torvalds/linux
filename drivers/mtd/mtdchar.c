@@ -160,8 +160,12 @@ static ssize_t mtdchar_read(struct file *file, char __user *buf, size_t count,
 
 	pr_debug("MTD_read\n");
 
-	if (*ppos + count > mtd->size)
-		count = mtd->size - *ppos;
+	if (*ppos + count > mtd->size) {
+		if (*ppos < mtd->size)
+			count = mtd->size - *ppos;
+		else
+			count = 0;
+	}
 
 	if (!count)
 		return 0;
@@ -246,7 +250,7 @@ static ssize_t mtdchar_write(struct file *file, const char __user *buf, size_t c
 
 	pr_debug("MTD_write\n");
 
-	if (*ppos == mtd->size)
+	if (*ppos >= mtd->size)
 		return -ENOSPC;
 
 	if (*ppos + count > mtd->size)
@@ -324,10 +328,6 @@ static ssize_t mtdchar_write(struct file *file, const char __user *buf, size_t c
     IOCTL calls for getting device parameters.
 
 ======================================================================*/
-static void mtdchar_erase_callback (struct erase_info *instr)
-{
-	wake_up((wait_queue_head_t *)instr->priv);
-}
 
 static int otp_select_filemode(struct mtd_file_info *mfi, int mode)
 {
@@ -375,12 +375,7 @@ static int mtdchar_writeoob(struct file *file, struct mtd_info *mtd,
 		return -EINVAL;
 
 	if (!mtd->_write_oob)
-		ret = -EOPNOTSUPP;
-	else
-		ret = access_ok(VERIFY_READ, ptr, length) ? 0 : -EFAULT;
-
-	if (ret)
-		return ret;
+		return -EOPNOTSUPP;
 
 	ops.ooblen = length;
 	ops.ooboffs = start & (mtd->writesize - 1);
@@ -418,9 +413,6 @@ static int mtdchar_readoob(struct file *file, struct mtd_info *mtd,
 
 	if (length > 4096)
 		return -EINVAL;
-
-	if (!access_ok(VERIFY_WRITE, ptr, length))
-		return -EFAULT;
 
 	ops.ooblen = length;
 	ops.ooboffs = start & (mtd->writesize - 1);
@@ -487,7 +479,7 @@ static int shrink_ecclayout(struct mtd_info *mtd,
 	for (i = 0; i < MTD_MAX_ECCPOS_ENTRIES;) {
 		u32 eccpos;
 
-		ret = mtd_ooblayout_ecc(mtd, section, &oobregion);
+		ret = mtd_ooblayout_ecc(mtd, section++, &oobregion);
 		if (ret < 0) {
 			if (ret != -ERANGE)
 				return ret;
@@ -534,7 +526,7 @@ static int get_oobinfo(struct mtd_info *mtd, struct nand_oobinfo *to)
 	for (i = 0; i < ARRAY_SIZE(to->eccpos);) {
 		u32 eccpos;
 
-		ret = mtd_ooblayout_ecc(mtd, section, &oobregion);
+		ret = mtd_ooblayout_ecc(mtd, section++, &oobregion);
 		if (ret < 0) {
 			if (ret != -ERANGE)
 				return ret;
@@ -618,9 +610,6 @@ static int mtdchar_write_ioctl(struct mtd_info *mtd,
 
 	usr_data = (const void __user *)(uintptr_t)req.usr_data;
 	usr_oob = (const void __user *)(uintptr_t)req.usr_oob;
-	if (!access_ok(VERIFY_READ, usr_data, req.len) ||
-	    !access_ok(VERIFY_READ, usr_oob, req.ooblen))
-		return -EFAULT;
 
 	if (!mtd->_write_oob)
 		return -EOPNOTSUPP;
@@ -662,20 +651,9 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 	struct mtd_info *mtd = mfi->mtd;
 	void __user *argp = (void __user *)arg;
 	int ret = 0;
-	u_long size;
 	struct mtd_info_user info;
 
 	pr_debug("MTD_ioctl\n");
-
-	size = (cmd & IOCSIZE_MASK) >> IOCSIZE_SHIFT;
-	if (cmd & IOC_IN) {
-		if (!access_ok(VERIFY_READ, argp, size))
-			return -EFAULT;
-	}
-	if (cmd & IOC_OUT) {
-		if (!access_ok(VERIFY_WRITE, argp, size))
-			return -EFAULT;
-	}
 
 	switch (cmd) {
 	case MEMGETREGIONCOUNT:
@@ -731,11 +709,6 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (!erase)
 			ret = -ENOMEM;
 		else {
-			wait_queue_head_t waitq;
-			DECLARE_WAITQUEUE(wait, current);
-
-			init_waitqueue_head(&waitq);
-
 			if (cmd == MEMERASE64) {
 				struct erase_info_user64 einfo64;
 
@@ -757,31 +730,8 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 				erase->addr = einfo32.start;
 				erase->len = einfo32.length;
 			}
-			erase->mtd = mtd;
-			erase->callback = mtdchar_erase_callback;
-			erase->priv = (unsigned long)&waitq;
 
-			/*
-			  FIXME: Allow INTERRUPTIBLE. Which means
-			  not having the wait_queue head on the stack.
-
-			  If the wq_head is on the stack, and we
-			  leave because we got interrupted, then the
-			  wq_head is no longer there when the
-			  callback routine tries to wake us up.
-			*/
 			ret = mtd_erase(mtd, erase);
-			if (!ret) {
-				set_current_state(TASK_UNINTERRUPTIBLE);
-				add_wait_queue(&waitq, &wait);
-				if (erase->state != MTD_ERASE_DONE &&
-				    erase->state != MTD_ERASE_FAILED)
-					schedule();
-				remove_wait_queue(&waitq, &wait);
-				set_current_state(TASK_RUNNING);
-
-				ret = (erase->state == MTD_ERASE_FAILED)?-EIO:0;
-			}
 			kfree(erase);
 		}
 		break;

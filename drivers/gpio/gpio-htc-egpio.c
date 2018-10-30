@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/gpio/driver.h>
 
 struct egpio_chip {
 	int              reg_start;
@@ -188,7 +189,6 @@ static void egpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	unsigned long     flag;
 	struct egpio_chip *egpio;
 	struct egpio_info *ei;
-	unsigned          bit;
 	int               pos;
 	int               reg;
 	int               shift;
@@ -198,7 +198,6 @@ static void egpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 	egpio = gpiochip_get_data(chip);
 	ei    = dev_get_drvdata(egpio->dev);
-	bit   = egpio_bit(ei, offset);
 	pos   = egpio_pos(ei, offset);
 	reg   = egpio->reg_start + pos;
 	shift = pos << ei->reg_shift;
@@ -320,8 +319,8 @@ static int __init egpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ei);
 
 	ei->nchips = pdata->num_chips;
-	ei->chip = devm_kzalloc(&pdev->dev,
-				sizeof(struct egpio_chip) * ei->nchips,
+	ei->chip = devm_kcalloc(&pdev->dev,
+				ei->nchips, sizeof(struct egpio_chip),
 				GFP_KERNEL);
 	if (!ei->chip) {
 		ret = -ENOMEM;
@@ -333,7 +332,13 @@ static int __init egpio_probe(struct platform_device *pdev)
 		ei->chip[i].is_out = pdata->chip[i].direction;
 		ei->chip[i].dev = &(pdev->dev);
 		chip = &(ei->chip[i].chip);
-		chip->label           = "htc-egpio";
+		chip->label = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+					     "htc-egpio-%d",
+					     i);
+		if (!chip->label) {
+			ret = -ENOMEM;
+			goto fail;
+		}
 		chip->parent          = &pdev->dev;
 		chip->owner           = THIS_MODULE;
 		chip->get             = egpio_get;

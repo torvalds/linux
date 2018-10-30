@@ -393,7 +393,7 @@ static int nxp_nci_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id nxp_nci_i2c_id_table[] = {
+static const struct i2c_device_id nxp_nci_i2c_id_table[] = {
 	{"nxp-nci_i2c", 0},
 	{}
 };

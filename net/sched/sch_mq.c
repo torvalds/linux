@@ -16,11 +16,43 @@
 #include <linux/errno.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
+#include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
+#include <net/sch_generic.h>
 
 struct mq_sched {
 	struct Qdisc		**qdiscs;
 };
+
+static int mq_offload(struct Qdisc *sch, enum tc_mq_command cmd)
+{
+	struct net_device *dev = qdisc_dev(sch);
+	struct tc_mq_qopt_offload opt = {
+		.command = cmd,
+		.handle = sch->handle,
+	};
+
+	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		return -EOPNOTSUPP;
+
+	return dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_MQ, &opt);
+}
+
+static void mq_offload_stats(struct Qdisc *sch)
+{
+	struct net_device *dev = qdisc_dev(sch);
+	struct tc_mq_qopt_offload opt = {
+		.command = TC_MQ_STATS,
+		.handle = sch->handle,
+		.stats = {
+			.bstats = &sch->bstats,
+			.qstats = &sch->qstats,
+		},
+	};
+
+	if (tc_can_offload(dev) && dev->netdev_ops->ndo_setup_tc)
+		dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_MQ, &opt);
+}
 
 static void mq_destroy(struct Qdisc *sch)
 {
@@ -28,14 +60,17 @@ static void mq_destroy(struct Qdisc *sch)
 	struct mq_sched *priv = qdisc_priv(sch);
 	unsigned int ntx;
 
+	mq_offload(sch, TC_MQ_DESTROY);
+
 	if (!priv->qdiscs)
 		return;
 	for (ntx = 0; ntx < dev->num_tx_queues && priv->qdiscs[ntx]; ntx++)
-		qdisc_destroy(priv->qdiscs[ntx]);
+		qdisc_put(priv->qdiscs[ntx]);
 	kfree(priv->qdiscs);
 }
 
-static int mq_init(struct Qdisc *sch, struct nlattr *opt)
+static int mq_init(struct Qdisc *sch, struct nlattr *opt,
+		   struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mq_sched *priv = qdisc_priv(sch);
@@ -59,7 +94,8 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt)
 		dev_queue = netdev_get_tx_queue(dev, ntx);
 		qdisc = qdisc_create_dflt(dev_queue, get_default_qdisc_ops(dev, ntx),
 					  TC_H_MAKE(TC_H_MAJ(sch->handle),
-						    TC_H_MIN(ntx + 1)));
+						    TC_H_MIN(ntx + 1)),
+					  extack);
 		if (!qdisc)
 			return -ENOMEM;
 		priv->qdiscs[ntx] = qdisc;
@@ -67,6 +103,8 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt)
 	}
 
 	sch->flags |= TCQ_F_MQROOT;
+
+	mq_offload(sch, TC_MQ_CREATE);
 	return 0;
 }
 
@@ -81,7 +119,7 @@ static void mq_attach(struct Qdisc *sch)
 		qdisc = priv->qdiscs[ntx];
 		old = dev_graft_qdisc(qdisc->dev_queue, qdisc);
 		if (old)
-			qdisc_destroy(old);
+			qdisc_put(old);
 #ifdef CONFIG_NET_SCHED
 		if (ntx < dev->real_num_tx_queues)
 			qdisc_hash_add(qdisc, false);
@@ -97,23 +135,44 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct net_device *dev = qdisc_dev(sch);
 	struct Qdisc *qdisc;
 	unsigned int ntx;
+	__u32 qlen = 0;
 
 	sch->q.qlen = 0;
 	memset(&sch->bstats, 0, sizeof(sch->bstats));
 	memset(&sch->qstats, 0, sizeof(sch->qstats));
 
+	/* MQ supports lockless qdiscs. However, statistics accounting needs
+	 * to account for all, none, or a mix of locked and unlocked child
+	 * qdiscs. Percpu stats are added to counters in-band and locking
+	 * qdisc totals are added at end.
+	 */
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
 		qdisc = netdev_get_tx_queue(dev, ntx)->qdisc_sleeping;
 		spin_lock_bh(qdisc_lock(qdisc));
-		sch->q.qlen		+= qdisc->q.qlen;
-		sch->bstats.bytes	+= qdisc->bstats.bytes;
-		sch->bstats.packets	+= qdisc->bstats.packets;
-		sch->qstats.backlog	+= qdisc->qstats.backlog;
-		sch->qstats.drops	+= qdisc->qstats.drops;
-		sch->qstats.requeues	+= qdisc->qstats.requeues;
-		sch->qstats.overlimits	+= qdisc->qstats.overlimits;
+
+		if (qdisc_is_percpu_stats(qdisc)) {
+			qlen = qdisc_qlen_sum(qdisc);
+			__gnet_stats_copy_basic(NULL, &sch->bstats,
+						qdisc->cpu_bstats,
+						&qdisc->bstats);
+			__gnet_stats_copy_queue(&sch->qstats,
+						qdisc->cpu_qstats,
+						&qdisc->qstats, qlen);
+		} else {
+			sch->q.qlen		+= qdisc->q.qlen;
+			sch->bstats.bytes	+= qdisc->bstats.bytes;
+			sch->bstats.packets	+= qdisc->bstats.packets;
+			sch->qstats.qlen	+= qdisc->qstats.qlen;
+			sch->qstats.backlog	+= qdisc->qstats.backlog;
+			sch->qstats.drops	+= qdisc->qstats.drops;
+			sch->qstats.requeues	+= qdisc->qstats.requeues;
+			sch->qstats.overlimits	+= qdisc->qstats.overlimits;
+		}
+
 		spin_unlock_bh(qdisc_lock(qdisc));
 	}
+	mq_offload_stats(sch);
+
 	return 0;
 }
 
@@ -130,19 +189,11 @@ static struct netdev_queue *mq_queue_get(struct Qdisc *sch, unsigned long cl)
 static struct netdev_queue *mq_select_queue(struct Qdisc *sch,
 					    struct tcmsg *tcm)
 {
-	unsigned int ntx = TC_H_MIN(tcm->tcm_parent);
-	struct netdev_queue *dev_queue = mq_queue_get(sch, ntx);
-
-	if (!dev_queue) {
-		struct net_device *dev = qdisc_dev(sch);
-
-		return netdev_get_tx_queue(dev, 0);
-	}
-	return dev_queue;
+	return mq_queue_get(sch, TC_H_MIN(tcm->tcm_parent));
 }
 
 static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
-		    struct Qdisc **old)
+		    struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct netdev_queue *dev_queue = mq_queue_get(sch, cl);
 	struct net_device *dev = qdisc_dev(sch);

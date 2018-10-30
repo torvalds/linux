@@ -16,15 +16,14 @@
  *
  */
 
+#include <linux/acpi.h>
+#include <linux/dmi.h>
+#include <linux/input.h>
+#include <linux/input/sparse-keymap.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/input.h>
 #include <linux/platform_device.h>
-#include <linux/input/sparse-keymap.h>
-#include <linux/acpi.h>
 #include <linux/suspend.h>
-#include <acpi/acpi_bus.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Hung");
@@ -66,11 +65,29 @@ static const struct key_entry intel_array_keymap[] = {
 	{ KE_IGNORE, 0xC5, { KEY_VOLUMEUP } },                /* Release */
 	{ KE_KEY,    0xC6, { KEY_VOLUMEDOWN } },              /* Press */
 	{ KE_IGNORE, 0xC7, { KEY_VOLUMEDOWN } },              /* Release */
-	{ KE_SW,     0xC8, { .sw = { SW_ROTATE_LOCK, 1 } } }, /* Press */
-	{ KE_SW,     0xC9, { .sw = { SW_ROTATE_LOCK, 0 } } }, /* Release */
+	{ KE_KEY,    0xC8, { KEY_ROTATE_LOCK_TOGGLE } },      /* Press */
+	{ KE_IGNORE, 0xC9, { KEY_ROTATE_LOCK_TOGGLE } },      /* Release */
 	{ KE_KEY,    0xCE, { KEY_POWER } },                   /* Press */
 	{ KE_IGNORE, 0xCF, { KEY_POWER } },                   /* Release */
 	{ KE_END },
+};
+
+static const struct dmi_system_id button_array_table[] = {
+	{
+		.ident = "Wacom MobileStudio Pro 13",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Wacom Co.,Ltd"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Wacom MobileStudio Pro 13"),
+		},
+	},
+	{
+		.ident = "Wacom MobileStudio Pro 16",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Wacom Co.,Ltd"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Wacom MobileStudio Pro 16"),
+		},
+	},
+	{ }
 };
 
 struct intel_hid_priv {
@@ -79,13 +96,140 @@ struct intel_hid_priv {
 	bool wakeup_mode;
 };
 
+#define HID_EVENT_FILTER_UUID	"eeec56b3-4442-408f-a792-4edd4d758054"
+
+enum intel_hid_dsm_fn_codes {
+	INTEL_HID_DSM_FN_INVALID,
+	INTEL_HID_DSM_BTNL_FN,
+	INTEL_HID_DSM_HDMM_FN,
+	INTEL_HID_DSM_HDSM_FN,
+	INTEL_HID_DSM_HDEM_FN,
+	INTEL_HID_DSM_BTNS_FN,
+	INTEL_HID_DSM_BTNE_FN,
+	INTEL_HID_DSM_HEBC_V1_FN,
+	INTEL_HID_DSM_VGBS_FN,
+	INTEL_HID_DSM_HEBC_V2_FN,
+	INTEL_HID_DSM_FN_MAX
+};
+
+static const char *intel_hid_dsm_fn_to_method[INTEL_HID_DSM_FN_MAX] = {
+	NULL,
+	"BTNL",
+	"HDMM",
+	"HDSM",
+	"HDEM",
+	"BTNS",
+	"BTNE",
+	"HEBC",
+	"VGBS",
+	"HEBC"
+};
+
+static unsigned long long intel_hid_dsm_fn_mask;
+static guid_t intel_dsm_guid;
+
+static bool intel_hid_execute_method(acpi_handle handle,
+				     enum intel_hid_dsm_fn_codes fn_index,
+				     unsigned long long arg)
+{
+	union acpi_object *obj, argv4, req;
+	acpi_status status;
+	char *method_name;
+
+	if (fn_index <= INTEL_HID_DSM_FN_INVALID ||
+	    fn_index >= INTEL_HID_DSM_FN_MAX)
+		return false;
+
+	method_name = (char *)intel_hid_dsm_fn_to_method[fn_index];
+
+	if (!(intel_hid_dsm_fn_mask & fn_index))
+		goto skip_dsm_exec;
+
+	/* All methods expects a package with one integer element */
+	req.type = ACPI_TYPE_INTEGER;
+	req.integer.value = arg;
+
+	argv4.type = ACPI_TYPE_PACKAGE;
+	argv4.package.count = 1;
+	argv4.package.elements = &req;
+
+	obj = acpi_evaluate_dsm(handle, &intel_dsm_guid, 1, fn_index, &argv4);
+	if (obj) {
+		acpi_handle_debug(handle, "Exec DSM Fn code: %d[%s] success\n",
+				  fn_index, method_name);
+		ACPI_FREE(obj);
+		return true;
+	}
+
+skip_dsm_exec:
+	status = acpi_execute_simple_method(handle, method_name, arg);
+	if (ACPI_SUCCESS(status))
+		return true;
+
+	return false;
+}
+
+static bool intel_hid_evaluate_method(acpi_handle handle,
+				      enum intel_hid_dsm_fn_codes fn_index,
+				      unsigned long long *result)
+{
+	union acpi_object *obj;
+	acpi_status status;
+	char *method_name;
+
+	if (fn_index <= INTEL_HID_DSM_FN_INVALID ||
+	    fn_index >= INTEL_HID_DSM_FN_MAX)
+		return false;
+
+	method_name = (char *)intel_hid_dsm_fn_to_method[fn_index];
+
+	if (!(intel_hid_dsm_fn_mask & fn_index))
+		goto skip_dsm_eval;
+
+	obj = acpi_evaluate_dsm_typed(handle, &intel_dsm_guid,
+				      1, fn_index,
+				      NULL,  ACPI_TYPE_INTEGER);
+	if (obj) {
+		*result = obj->integer.value;
+		acpi_handle_debug(handle,
+				  "Eval DSM Fn code: %d[%s] results: 0x%llx\n",
+				  fn_index, method_name, *result);
+		ACPI_FREE(obj);
+		return true;
+	}
+
+skip_dsm_eval:
+	status = acpi_evaluate_integer(handle, method_name, NULL, result);
+	if (ACPI_SUCCESS(status))
+		return true;
+
+	return false;
+}
+
+static void intel_hid_init_dsm(acpi_handle handle)
+{
+	union acpi_object *obj;
+
+	guid_parse(HID_EVENT_FILTER_UUID, &intel_dsm_guid);
+
+	obj = acpi_evaluate_dsm_typed(handle, &intel_dsm_guid, 1, 0, NULL,
+				      ACPI_TYPE_BUFFER);
+	if (obj) {
+		intel_hid_dsm_fn_mask = *obj->buffer.pointer;
+		ACPI_FREE(obj);
+	}
+
+	acpi_handle_debug(handle, "intel_hid_dsm_fn_mask = %llx\n",
+			  intel_hid_dsm_fn_mask);
+}
+
 static int intel_hid_set_enable(struct device *device, bool enable)
 {
-	acpi_status status;
+	acpi_handle handle = ACPI_HANDLE(device);
 
-	status = acpi_execute_simple_method(ACPI_HANDLE(device), "HDSM",
-					    enable);
-	if (ACPI_FAILURE(status)) {
+	/* Enable|disable features - power button is always enabled */
+	if (!intel_hid_execute_method(handle, INTEL_HID_DSM_HDSM_FN,
+				      enable)) {
 		dev_warn(device, "failed to %sable hotkeys\n",
 			 enable ? "en" : "dis");
 		return -EIO;
@@ -112,9 +256,8 @@ static void intel_button_array_enable(struct device *device, bool enable)
 	}
 
 	/* Enable|disable features - power button is always enabled */
-	status = acpi_execute_simple_method(handle, "BTNE",
-					    enable ? button_cap : 1);
-	if (ACPI_FAILURE(status))
+	if (!intel_hid_execute_method(handle, INTEL_HID_DSM_BTNE_FN,
+				      enable ? button_cap : 1))
 		dev_warn(device, "failed to set button capability\n");
 }
 
@@ -200,7 +343,6 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	struct platform_device *device = context;
 	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
 	unsigned long long ev_index;
-	acpi_status status;
 
 	if (priv->wakeup_mode) {
 		/*
@@ -226,6 +368,24 @@ wakeup:
 		return;
 	}
 
+	/*
+	 * Needed for suspend to work on some platforms that don't expose
+	 * the 5-button array, but still send notifies with power button
+	 * event code to this device object on power button actions.
+	 *
+	 * Report the power button press; catch and ignore the button release.
+	 */
+	if (!priv->array) {
+		if (event == 0xce) {
+			input_report_key(priv->input_dev, KEY_POWER, 1);
+			input_sync(priv->input_dev);
+			return;
+		}
+
+		if (event == 0xcf)
+			return;
+	}
+
 	/* 0xC0 is for HID events, other values are for 5 button array */
 	if (event != 0xc0) {
 		if (!priv->array ||
@@ -234,8 +394,8 @@ wakeup:
 		return;
 	}
 
-	status = acpi_evaluate_integer(handle, "HDEM", NULL, &ev_index);
-	if (ACPI_FAILURE(status)) {
+	if (!intel_hid_evaluate_method(handle, INTEL_HID_DSM_HDEM_FN,
+				       &ev_index)) {
 		dev_warn(&device->dev, "failed to get event index\n");
 		return;
 	}
@@ -245,16 +405,41 @@ wakeup:
 			 ev_index);
 }
 
+static bool button_array_present(struct platform_device *device)
+{
+	acpi_handle handle = ACPI_HANDLE(&device->dev);
+	unsigned long long event_cap;
+
+	if (intel_hid_evaluate_method(handle, INTEL_HID_DSM_HEBC_V2_FN,
+				      &event_cap)) {
+		/* Check presence of 5 button array or v2 power button */
+		if (event_cap & 0x60000)
+			return true;
+	}
+
+	if (intel_hid_evaluate_method(handle, INTEL_HID_DSM_HEBC_V1_FN,
+				      &event_cap)) {
+		if (event_cap & 0x20000)
+			return true;
+	}
+
+	if (dmi_check_system(button_array_table))
+		return true;
+
+	return false;
+}
+
 static int intel_hid_probe(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
-	unsigned long long event_cap, mode;
+	unsigned long long mode;
 	struct intel_hid_priv *priv;
 	acpi_status status;
 	int err;
 
-	status = acpi_evaluate_integer(handle, "HDMM", NULL, &mode);
-	if (ACPI_FAILURE(status)) {
+	intel_hid_init_dsm(handle);
+
+	if (!intel_hid_evaluate_method(handle, INTEL_HID_DSM_HDMM_FN, &mode)) {
 		dev_warn(&device->dev, "failed to read mode\n");
 		return -ENODEV;
 	}
@@ -281,8 +466,7 @@ static int intel_hid_probe(struct platform_device *device)
 	}
 
 	/* Setup 5 button array */
-	status = acpi_evaluate_integer(handle, "HEBC", NULL, &event_cap);
-	if (ACPI_SUCCESS(status) && (event_cap & 0x20000)) {
+	if (button_array_present(device)) {
 		dev_info(&device->dev, "platform supports 5 button array\n");
 		err = intel_button_array_input_setup(device);
 		if (err)
@@ -301,13 +485,16 @@ static int intel_hid_probe(struct platform_device *device)
 		goto err_remove_notify;
 
 	if (priv->array) {
+		unsigned long long dummy;
+
 		intel_button_array_enable(&device->dev, true);
 
 		/* Call button load method to enable HID power button */
-		status = acpi_evaluate_object(handle, "BTNL", NULL, NULL);
-		if (ACPI_FAILURE(status))
+		if (!intel_hid_evaluate_method(handle, INTEL_HID_DSM_BTNL_FN,
+					       &dummy)) {
 			dev_warn(&device->dev,
 				 "failed to enable HID power button\n");
+		}
 	}
 
 	device_init_wakeup(&device->dev, true);
@@ -323,6 +510,7 @@ static int intel_hid_remove(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
+	device_init_wakeup(&device->dev, false);
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 	intel_hid_set_enable(&device->dev, false);
 	intel_button_array_enable(&device->dev, false);

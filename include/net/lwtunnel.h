@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_LWTUNNEL_H
 #define __NET_LWTUNNEL_H 1
 
@@ -126,6 +127,17 @@ int lwtunnel_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int lwtunnel_input(struct sk_buff *skb);
 int lwtunnel_xmit(struct sk_buff *skb);
 
+static inline void lwtunnel_set_redirect(struct dst_entry *dst)
+{
+	if (lwtunnel_output_redirect(dst->lwtstate)) {
+		dst->lwtstate->orig_output = dst->output;
+		dst->output = lwtunnel_output;
+	}
+	if (lwtunnel_input_redirect(dst->lwtstate)) {
+		dst->lwtstate->orig_input = dst->input;
+		dst->input = lwtunnel_input;
+	}
+}
 #else
 
 static inline void lwtstate_free(struct lwtunnel_state *lws)
@@ -155,6 +167,10 @@ static inline bool lwtunnel_input_redirect(struct lwtunnel_state *lwtstate)
 static inline bool lwtunnel_xmit_redirect(struct lwtunnel_state *lwtstate)
 {
 	return false;
+}
+
+static inline void lwtunnel_set_redirect(struct dst_entry *dst)
+{
 }
 
 static inline unsigned int lwtunnel_headroom(struct lwtunnel_state *lwtstate,

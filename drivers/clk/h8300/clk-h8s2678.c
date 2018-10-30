@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * H8S2678 clock driver
  *
@@ -92,7 +93,7 @@ static void __init h8s2678_pll_clk_setup(struct device_node *node)
 
 	num_parents = of_clk_get_parent_count(node);
 	if (!num_parents) {
-		pr_err("%s: no parent found", clk_name);
+		pr_err("%s: no parent found\n", clk_name);
 		return;
 	}
 
@@ -103,13 +104,13 @@ static void __init h8s2678_pll_clk_setup(struct device_node *node)
 
 	pll_clock->sckcr = of_iomap(node, 0);
 	if (pll_clock->sckcr == NULL) {
-		pr_err("%s: failed to map divide register", clk_name);
+		pr_err("%s: failed to map divide register\n", clk_name);
 		goto free_clock;
 	}
 
 	pll_clock->pllcr = of_iomap(node, 1);
 	if (pll_clock->pllcr == NULL) {
-		pr_err("%s: failed to map multiply register", clk_name);
+		pr_err("%s: failed to map multiply register\n", clk_name);
 		goto unmap_sckcr;
 	}
 

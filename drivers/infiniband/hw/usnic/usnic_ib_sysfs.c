@@ -43,12 +43,11 @@
 #include "usnic_ib_qp_grp.h"
 #include "usnic_vnic.h"
 #include "usnic_ib_verbs.h"
-#include "usnic_log.h"
 #include "usnic_ib_sysfs.h"
+#include "usnic_log.h"
 
-static ssize_t usnic_ib_show_board(struct device *device,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t board_id_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
 {
 	struct usnic_ib_dev *us_ibdev =
 		container_of(device, struct usnic_ib_dev, ib_dev.dev);
@@ -60,13 +59,13 @@ static ssize_t usnic_ib_show_board(struct device *device,
 
 	return scnprintf(buf, PAGE_SIZE, "%hu\n", subsystem_device_id);
 }
+static DEVICE_ATTR_RO(board_id);
 
 /*
  * Report the configuration for this PF
  */
 static ssize_t
-usnic_ib_show_config(struct device *device, struct device_attribute *attr,
-			char *buf)
+config_show(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct usnic_ib_dev *us_ibdev;
 	char *ptr;
@@ -94,7 +93,7 @@ usnic_ib_show_config(struct device *device, struct device_attribute *attr,
 
 		n = scnprintf(ptr, left,
 			"%s: %s:%d.%d, %s, %pM, %u VFs\n Per VF:",
-			us_ibdev->ib_dev.name,
+			dev_name(&us_ibdev->ib_dev.dev),
 			busname,
 			PCI_SLOT(us_ibdev->pdev->devfn),
 			PCI_FUNC(us_ibdev->pdev->devfn),
@@ -119,17 +118,17 @@ usnic_ib_show_config(struct device *device, struct device_attribute *attr,
 		UPDATE_PTR_LEFT(n, ptr, left);
 	} else {
 		n = scnprintf(ptr, left, "%s: no VFs\n",
-				us_ibdev->ib_dev.name);
+				dev_name(&us_ibdev->ib_dev.dev));
 		UPDATE_PTR_LEFT(n, ptr, left);
 	}
 	mutex_unlock(&us_ibdev->usdev_lock);
 
 	return ptr - buf;
 }
+static DEVICE_ATTR_RO(config);
 
 static ssize_t
-usnic_ib_show_iface(struct device *device, struct device_attribute *attr,
-			char *buf)
+iface_show(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct usnic_ib_dev *us_ibdev;
 
@@ -138,10 +137,10 @@ usnic_ib_show_iface(struct device *device, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "%s\n",
 			netdev_name(us_ibdev->netdev));
 }
+static DEVICE_ATTR_RO(iface);
 
 static ssize_t
-usnic_ib_show_max_vf(struct device *device, struct device_attribute *attr,
-			char *buf)
+max_vf_show(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct usnic_ib_dev *us_ibdev;
 
@@ -150,10 +149,10 @@ usnic_ib_show_max_vf(struct device *device, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
 			kref_read(&us_ibdev->vf_cnt));
 }
+static DEVICE_ATTR_RO(max_vf);
 
 static ssize_t
-usnic_ib_show_qp_per_vf(struct device *device, struct device_attribute *attr,
-			char *buf)
+qp_per_vf_show(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct usnic_ib_dev *us_ibdev;
 	int qp_per_vf;
@@ -165,10 +164,10 @@ usnic_ib_show_qp_per_vf(struct device *device, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE,
 				"%d\n", qp_per_vf);
 }
+static DEVICE_ATTR_RO(qp_per_vf);
 
 static ssize_t
-usnic_ib_show_cq_per_vf(struct device *device, struct device_attribute *attr,
-			char *buf)
+cq_per_vf_show(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct usnic_ib_dev *us_ibdev;
 
@@ -177,21 +176,20 @@ usnic_ib_show_cq_per_vf(struct device *device, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "%d\n",
 			us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_CQ]);
 }
+static DEVICE_ATTR_RO(cq_per_vf);
 
-static DEVICE_ATTR(board_id, S_IRUGO, usnic_ib_show_board, NULL);
-static DEVICE_ATTR(config, S_IRUGO, usnic_ib_show_config, NULL);
-static DEVICE_ATTR(iface, S_IRUGO, usnic_ib_show_iface, NULL);
-static DEVICE_ATTR(max_vf, S_IRUGO, usnic_ib_show_max_vf, NULL);
-static DEVICE_ATTR(qp_per_vf, S_IRUGO, usnic_ib_show_qp_per_vf, NULL);
-static DEVICE_ATTR(cq_per_vf, S_IRUGO, usnic_ib_show_cq_per_vf, NULL);
+static struct attribute *usnic_class_attributes[] = {
+	&dev_attr_board_id.attr,
+	&dev_attr_config.attr,
+	&dev_attr_iface.attr,
+	&dev_attr_max_vf.attr,
+	&dev_attr_qp_per_vf.attr,
+	&dev_attr_cq_per_vf.attr,
+	NULL
+};
 
-static struct device_attribute *usnic_class_attributes[] = {
-	&dev_attr_board_id,
-	&dev_attr_config,
-	&dev_attr_iface,
-	&dev_attr_max_vf,
-	&dev_attr_qp_per_vf,
-	&dev_attr_cq_per_vf,
+const struct attribute_group usnic_attr_group = {
+	.attrs = usnic_class_attributes,
 };
 
 struct qpn_attribute {
@@ -278,18 +276,6 @@ static struct kobj_type usnic_ib_qpn_type = {
 
 int usnic_ib_sysfs_register_usdev(struct usnic_ib_dev *us_ibdev)
 {
-	int i;
-	int err;
-	for (i = 0; i < ARRAY_SIZE(usnic_class_attributes); ++i) {
-		err = device_create_file(&us_ibdev->ib_dev.dev,
-						usnic_class_attributes[i]);
-		if (err) {
-			usnic_err("Failed to create device file %d for %s eith err %d",
-				i, us_ibdev->ib_dev.name, err);
-			return -EINVAL;
-		}
-	}
-
 	/* create kernel object for looking at individual QPs */
 	kobject_get(&us_ibdev->ib_dev.dev.kobj);
 	us_ibdev->qpn_kobj = kobject_create_and_add("qpn",
@@ -304,12 +290,6 @@ int usnic_ib_sysfs_register_usdev(struct usnic_ib_dev *us_ibdev)
 
 void usnic_ib_sysfs_unregister_usdev(struct usnic_ib_dev *us_ibdev)
 {
-	int i;
-	for (i = 0; i < ARRAY_SIZE(usnic_class_attributes); ++i) {
-		device_remove_file(&us_ibdev->ib_dev.dev,
-					usnic_class_attributes[i]);
-	}
-
 	kobject_put(us_ibdev->qpn_kobj);
 }
 

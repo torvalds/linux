@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Header file for NI general purpose counter support code (ni_tio.c and
  * ni_tiocmd.c)
  *
  * COMEDI - Linux Control and Measurement Device Interface
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _COMEDI_NI_TIO_INTERNAL_H
@@ -179,5 +170,7 @@ unsigned int ni_tio_get_soft_copy(const struct ni_gpct *counter,
 int ni_tio_arm(struct ni_gpct *counter, bool arm, unsigned int start_trigger);
 int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned int gate,
 			unsigned int src);
+int ni_tio_set_gate_src_raw(struct ni_gpct *counter, unsigned int gate,
+			    unsigned int src);
 
 #endif /* _COMEDI_NI_TIO_INTERNAL_H */

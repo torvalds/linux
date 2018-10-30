@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_M68K_THREAD_INFO_H
 #define _ASM_M68K_THREAD_INFO_H
 
@@ -40,8 +41,6 @@ struct thread_info {
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
 
-#define init_stack		(init_thread_union.stack)
-
 #ifndef __ASSEMBLY__
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
@@ -56,8 +55,6 @@ static inline struct thread_info *current_thread_info(void)
 	return ti;
 }
 #endif
-
-#define init_thread_info	(init_thread_union.thread_info)
 
 /* entry.S relies on these definitions!
  * bits 0-7 are tested at every exception exit

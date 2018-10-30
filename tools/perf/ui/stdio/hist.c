@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include <linux/string.h>
 
@@ -18,64 +19,6 @@ static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)
 	for (i = 0; i < left_margin; i++)
 		ret += fprintf(fp, " ");
 
-	return ret;
-}
-
-static size_t inline__fprintf(struct map *map, u64 ip, int left_margin,
-			      int depth, int depth_mask, FILE *fp)
-{
-	struct dso *dso;
-	struct inline_node *node;
-	struct inline_list *ilist;
-	int ret = 0, i;
-
-	if (map == NULL)
-		return 0;
-
-	dso = map->dso;
-	if (dso == NULL)
-		return 0;
-
-	node = dso__parse_addr_inlines(dso,
-				       map__rip_2objdump(map, ip));
-	if (node == NULL)
-		return 0;
-
-	list_for_each_entry(ilist, &node->val, list) {
-		if ((ilist->filename != NULL) || (ilist->funcname != NULL)) {
-			ret += callchain__fprintf_left_margin(fp, left_margin);
-
-			for (i = 0; i < depth; i++) {
-				if (depth_mask & (1 << i))
-					ret += fprintf(fp, "|");
-				else
-					ret += fprintf(fp, " ");
-				ret += fprintf(fp, "          ");
-			}
-
-			if (callchain_param.key == CCKEY_ADDRESS ||
-			    callchain_param.key == CCKEY_SRCLINE) {
-				if (ilist->filename != NULL)
-					ret += fprintf(fp, "%s:%d (inline)",
-						       ilist->filename,
-						       ilist->line_nr);
-				else
-					ret += fprintf(fp, "??");
-			} else if (ilist->funcname != NULL)
-				ret += fprintf(fp, "%s (inline)",
-					       ilist->funcname);
-			else if (ilist->filename != NULL)
-				ret += fprintf(fp, "%s:%d (inline)",
-					       ilist->filename,
-					       ilist->line_nr);
-			else
-				ret += fprintf(fp, "??");
-
-			ret += fprintf(fp, "\n");
-		}
-	}
-
-	inline_node__delete(node);
 	return ret;
 }
 
@@ -137,9 +80,6 @@ static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_node *node,
 	fputc('\n', fp);
 	free(alloc_str);
 
-	if (symbol_conf.inline_name)
-		ret += inline__fprintf(chain->ms.map, chain->ip,
-				       left_margin, depth, depth_mask, fp);
 	return ret;
 }
 
@@ -314,13 +254,6 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 
 			if (++entries_printed == callchain_param.print_limit)
 				break;
-
-			if (symbol_conf.inline_name)
-				ret += inline__fprintf(chain->ms.map,
-						       chain->ip,
-						       left_margin,
-						       0, 0,
-						       fp);
 		}
 		root = &cnode->rb_root;
 	}
@@ -583,7 +516,7 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 	}
 	printed += putc('\n', fp);
 
-	if (symbol_conf.use_callchain && he->leaf) {
+	if (he->leaf && hist_entry__has_callchains(he) && symbol_conf.use_callchain) {
 		u64 total = hists__total_period(hists);
 
 		printed += hist_entry_callchain__fprintf(he, total, 0, fp);
@@ -596,11 +529,10 @@ out:
 
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 			       char *bf, size_t bfsz, FILE *fp,
-			       bool use_callchain)
+			       bool ignore_callchains)
 {
 	int ret;
 	int callchain_ret = 0;
-	int inline_ret = 0;
 	struct perf_hpp hpp = {
 		.buf		= bf,
 		.size		= size,
@@ -618,17 +550,11 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 
 	ret = fprintf(fp, "%s\n", bf);
 
-	if (use_callchain)
+	if (hist_entry__has_callchains(he) && !ignore_callchains)
 		callchain_ret = hist_entry_callchain__fprintf(he, total_period,
 							      0, fp);
 
-	if (callchain_ret == 0 && symbol_conf.inline_name) {
-		inline_ret = inline__fprintf(he->ms.map, he->ip, 0, 0, 0, fp);
-		ret += inline_ret;
-		if (inline_ret > 0)
-			ret += fprintf(fp, "\n");
-	} else
-		ret += callchain_ret;
+	ret += callchain_ret;
 
 	return ret;
 }
@@ -829,7 +755,7 @@ int hists__fprintf_headers(struct hists *hists, FILE *fp)
 
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp,
-		      bool use_callchain)
+		      bool ignore_callchains)
 {
 	struct rb_node *nd;
 	size_t ret = 0;
@@ -873,7 +799,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		if (percent < min_pcnt)
 			continue;
 
-		ret += hist_entry__fprintf(h, max_cols, line, linesz, fp, use_callchain);
+		ret += hist_entry__fprintf(h, max_cols, line, linesz, fp, ignore_callchains);
 
 		if (max_rows && ++nr_rows >= max_rows)
 			break;
@@ -893,8 +819,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		}
 
 		if (h->ms.map == NULL && verbose > 1) {
-			__map_groups__fprintf_maps(h->thread->mg,
-						   MAP__FUNCTION, fp);
+			map_groups__fprintf(h->thread->mg, fp);
 			fprintf(fp, "%.10s end\n", graph_dotted_line);
 		}
 	}
@@ -914,15 +839,11 @@ size_t events_stats__fprintf(struct events_stats *stats, FILE *fp)
 	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
 		const char *name;
 
-		if (stats->nr_events[i] == 0)
-			continue;
-
 		name = perf_event__name(i);
 		if (!strcmp(name, "UNKNOWN"))
 			continue;
 
-		ret += fprintf(fp, "%16s events: %10d\n", name,
-			       stats->nr_events[i]);
+		ret += fprintf(fp, "%16s events: %10d\n", name, stats->nr_events[i]);
 	}
 
 	return ret;

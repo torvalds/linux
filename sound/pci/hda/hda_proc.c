@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <linux/module.h>
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_local.h"
 
 static int dump_coef = -1;
@@ -825,8 +825,9 @@ static void print_codec_info(struct snd_info_entry *entry,
 		if (wid_caps & AC_WCAP_CONN_LIST) {
 			conn_len = snd_hda_get_num_raw_conns(codec, nid);
 			if (conn_len > 0) {
-				conn = kmalloc(sizeof(hda_nid_t) * conn_len,
-					       GFP_KERNEL);
+				conn = kmalloc_array(conn_len,
+						     sizeof(hda_nid_t),
+						     GFP_KERNEL);
 				if (!conn)
 					return;
 				if (snd_hda_get_raw_connections(codec, nid, conn,

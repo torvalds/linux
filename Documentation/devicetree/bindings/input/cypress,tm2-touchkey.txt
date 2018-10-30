@@ -3,8 +3,6 @@ Samsung tm2-touchkey
 Required properties:
 - compatible: must be "cypress,tm2-touchkey"
 - reg: I2C address of the chip.
-- interrupt-parent: a phandle for the interrupt controller (see interrupt
-	binding[0]).
 - interrupts: interrupt to which the chip is connected (see interrupt
 	binding[0]).
 - vcc-supply : internal regulator output. 1.8V

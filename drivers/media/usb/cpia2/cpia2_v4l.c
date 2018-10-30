@@ -169,10 +169,10 @@ static ssize_t cpia2_v4l_read(struct file *file, char __user *buf, size_t count,
  *  cpia2_v4l_poll
  *
  *****************************************************************************/
-static unsigned int cpia2_v4l_poll(struct file *filp, struct poll_table_struct *wait)
+static __poll_t cpia2_v4l_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct camera_data *cam = video_drvdata(filp);
-	unsigned int res;
+	__poll_t res;
 
 	mutex_lock(&cam->v4l2_lock);
 	res = cpia2_poll(cam, filp, wait);
@@ -219,12 +219,12 @@ static int cpia2_querycap(struct file *file, void *fh, struct v4l2_capability *v
 {
 	struct camera_data *cam = video_drvdata(file);
 
-	strcpy(vc->driver, "cpia2");
+	strscpy(vc->driver, "cpia2", sizeof(vc->driver));
 
 	if (cam->params.pnp_id.product == 0x151)
-		strcpy(vc->card, "QX5 Microscope");
+		strscpy(vc->card, "QX5 Microscope", sizeof(vc->card));
 	else
-		strcpy(vc->card, "CPiA2 Camera");
+		strscpy(vc->card, "CPiA2 Camera", sizeof(vc->card));
 	switch (cam->params.pnp_id.device_type) {
 	case DEVICE_STV_672:
 		strcat(vc->card, " (672/");
@@ -281,7 +281,7 @@ static int cpia2_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 {
 	if (i->index)
 		return -EINVAL;
-	strcpy(i->name, "Camera");
+	strscpy(i->name, "Camera", sizeof(i->name));
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	return 0;
 }
@@ -319,11 +319,11 @@ static int cpia2_enum_fmt_vid_cap(struct file *file, void *fh,
 	f->flags = V4L2_FMT_FLAG_COMPRESSED;
 	switch(index) {
 	case 0:
-		strcpy(f->description, "MJPEG");
+		strscpy(f->description, "MJPEG", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_MJPEG;
 		break;
 	case 1:
-		strcpy(f->description, "JPEG");
+		strscpy(f->description, "JPEG", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_JPEG;
 		break;
 	default:
@@ -808,7 +808,7 @@ static int cpia2_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	struct camera_data *cam = video_drvdata(file);
 
 	if(buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-	   buf->index > cam->num_frames)
+	   buf->index >= cam->num_frames)
 		return -EINVAL;
 
 	buf->m.offset = cam->buffers[buf->index].data - cam->frame_buffer;
@@ -859,7 +859,7 @@ static int cpia2_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 	if(buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
 	   buf->memory != V4L2_MEMORY_MMAP ||
-	   buf->index > cam->num_frames)
+	   buf->index >= cam->num_frames)
 		return -EINVAL;
 
 	DBG("QBUF #%d\n", buf->index);

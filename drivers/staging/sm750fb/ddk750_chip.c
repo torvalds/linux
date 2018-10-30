@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 
@@ -7,9 +8,9 @@
 
 #define MHz(x) ((x) * 1000000)
 
-static logical_chip_type_t chip;
+static enum logical_chip_type chip;
 
-logical_chip_type_t sm750_get_chip_type(void)
+enum logical_chip_type sm750_get_chip_type(void)
 {
 	return chip;
 }

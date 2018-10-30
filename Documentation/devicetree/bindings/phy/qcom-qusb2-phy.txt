@@ -4,7 +4,10 @@ Qualcomm QUSB2 phy controller
 QUSB2 controller supports LS/FS/HS usb connectivity on Qualcomm chipsets.
 
 Required properties:
- - compatible: compatible list, contains "qcom,msm8996-qusb2-phy".
+ - compatible: compatible list, contains
+	       "qcom,msm8996-qusb2-phy" for 14nm PHY on msm8996,
+	       "qcom,sdm845-qusb2-phy" for 10nm PHY on sdm845.
+
  - reg: offset and length of the PHY register set.
  - #phy-cells: must be 0.
 
@@ -24,6 +27,27 @@ Optional properties:
 		tuning parameter value for qusb2 phy.
 
  - qcom,tcsr-syscon: Phandle to TCSR syscon register region.
+ - qcom,imp-res-offset-value: It is a 6 bit value that specifies offset to be
+		added to PHY refgen RESCODE via IMP_CTRL1 register. It is a PHY
+		tuning parameter that may vary for different boards of same SOC.
+		This property is applicable to only QUSB2 v2 PHY (sdm845).
+ - qcom,hstx-trim-value: It is a 4 bit value that specifies tuning for HSTX
+		output current.
+		Possible range is - 15mA to 24mA (stepsize of 600 uA).
+		See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
+		This property is applicable to only QUSB2 v2 PHY (sdm845).
+		Default value is 22.2mA for sdm845.
+ - qcom,preemphasis-level: It is a 2 bit value that specifies pre-emphasis level.
+		Possible range is 0 to 15% (stepsize of 5%).
+		See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
+		This property is applicable to only QUSB2 v2 PHY (sdm845).
+		Default value is 10% for sdm845.
+- qcom,preemphasis-width: It is a 1 bit value that specifies how long the HSTX
+		pre-emphasis (specified using qcom,preemphasis-level) must be in
+		effect. Duration could be half-bit of full-bit.
+		See dt-bindings/phy/phy-qcom-qusb2.h for applicable values.
+		This property is applicable to only QUSB2 v2 PHY (sdm845).
+		Default value is full-bit width for sdm845.
 
 Example:
 	hsusb_phy: phy@7411000 {

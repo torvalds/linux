@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * rocket_int.h --- internal header file for rocket.c
  *

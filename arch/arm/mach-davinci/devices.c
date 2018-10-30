@@ -26,7 +26,6 @@
 
 
 #include "davinci.h"
-#include "clock.h"
 
 #define DAVINCI_I2C_BASE	     0x01C21000
 #define DAVINCI_ATA_BASE	     0x01C66000
@@ -282,17 +281,12 @@ static struct resource wdt_resources[] = {
 	},
 };
 
-struct platform_device davinci_wdt_device = {
+static struct platform_device davinci_wdt_device = {
 	.name		= "davinci-wdt",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(wdt_resources),
 	.resource	= wdt_resources,
 };
-
-void davinci_restart(enum reboot_mode mode, const char *cmd)
-{
-	davinci_watchdog_reset(&davinci_wdt_device);
-}
 
 int davinci_init_wdt(void)
 {

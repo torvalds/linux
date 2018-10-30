@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "bcm283x.dtsi"
 
 / {
@@ -17,10 +18,10 @@
 	soc {
 		ranges = <0x7e000000 0x20000000 0x02000000>;
 		dma-ranges = <0x40000000 0x00000000 0x20000000>;
+	};
 
-		arm-pmu {
-			compatible = "arm,arm1176-pmu";
-		};
+	arm-pmu {
+		compatible = "arm,arm1176-pmu";
 	};
 };
 

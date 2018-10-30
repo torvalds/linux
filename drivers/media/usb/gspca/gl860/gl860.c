@@ -582,7 +582,7 @@ int gl860_RTx(struct gspca_dev *gspca_dev,
 		pr_err("ctrl transfer failed %4d [p%02x r%d v%04x i%04x len%d]\n",
 		       r, pref, req, val, index, len);
 	else if (len > 1 && r < len)
-		PERR("short ctrl transfer %d/%d", r, len);
+		gspca_err(gspca_dev, "short ctrl transfer %d/%d\n", r, len);
 
 	msleep(1);
 
@@ -661,7 +661,7 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 		ctrl_out(gspca_dev, 0x40, 1, 0x006a, 0x000d, 0, NULL);
 		msleep(56);
 
-		PDEBUG(D_PROBE, "probing for sensor MI2020 or OVXXXX");
+		gspca_dbg(gspca_dev, D_PROBE, "probing for sensor MI2020 or OVXXXX\n");
 		nOV = 0;
 		for (ntry = 0; ntry < 4; ntry++) {
 			ctrl_out(gspca_dev, 0x40, 1, 0x0040, 0x0000, 0, NULL);
@@ -671,14 +671,14 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 			ctrl_out(gspca_dev, 0x40, 1, 0x7a00, 0x8030, 0, NULL);
 			msleep(10);
 			ctrl_in(gspca_dev, 0xc0, 2, 0x7a00, 0x8030, 1, &probe);
-			PDEBUG(D_PROBE, "probe=0x%02x", probe);
+			gspca_dbg(gspca_dev, D_PROBE, "probe=0x%02x\n", probe);
 			if (probe == 0xff)
 				nOV++;
 		}
 
 		if (nOV) {
-			PDEBUG(D_PROBE, "0xff -> OVXXXX");
-			PDEBUG(D_PROBE, "probing for sensor OV2640 or OV9655");
+			gspca_dbg(gspca_dev, D_PROBE, "0xff -> OVXXXX\n");
+			gspca_dbg(gspca_dev, D_PROBE, "probing for sensor OV2640 or OV9655");
 
 			nb26 = nb96 = 0;
 			for (ntry = 0; ntry < 4; ntry++) {
@@ -694,22 +694,23 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 						1, &probe);
 
 				if (probe == 0x26 || probe == 0x40) {
-					PDEBUG(D_PROBE,
-						"probe=0x%02x -> OV2640",
-						probe);
+					gspca_dbg(gspca_dev, D_PROBE,
+						  "probe=0x%02x -> OV2640\n",
+						  probe);
 					sd->sensor = ID_OV2640;
 					nb26 += 4;
 					break;
 				}
 				if (probe == 0x96 || probe == 0x55) {
-					PDEBUG(D_PROBE,
-						"probe=0x%02x -> OV9655",
-						probe);
+					gspca_dbg(gspca_dev, D_PROBE,
+						  "probe=0x%02x -> OV9655\n",
+						  probe);
 					sd->sensor = ID_OV9655;
 					nb96 += 4;
 					break;
 				}
-				PDEBUG(D_PROBE, "probe=0x%02x", probe);
+				gspca_dbg(gspca_dev, D_PROBE, "probe=0x%02x\n",
+					  probe);
 				if (probe == 0x00)
 					nb26++;
 				if (probe == 0xff)
@@ -719,21 +720,21 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 			if (nb26 < 4 && nb96 < 4)
 				return -1;
 		} else {
-			PDEBUG(D_PROBE, "Not any 0xff -> MI2020");
+			gspca_dbg(gspca_dev, D_PROBE, "Not any 0xff -> MI2020\n");
 			sd->sensor = ID_MI2020;
 		}
 	}
 
 	if (_MI1320_) {
-		PDEBUG(D_PROBE, "05e3:f191 sensor MI1320 (1.3M)");
+		gspca_dbg(gspca_dev, D_PROBE, "05e3:f191 sensor MI1320 (1.3M)\n");
 	} else if (_MI2020_) {
-		PDEBUG(D_PROBE, "05e3:0503 sensor MI2020 (2.0M)");
+		gspca_dbg(gspca_dev, D_PROBE, "05e3:0503 sensor MI2020 (2.0M)\n");
 	} else if (_OV9655_) {
-		PDEBUG(D_PROBE, "05e3:0503 sensor OV9655 (1.3M)");
+		gspca_dbg(gspca_dev, D_PROBE, "05e3:0503 sensor OV9655 (1.3M)\n");
 	} else if (_OV2640_) {
-		PDEBUG(D_PROBE, "05e3:0503 sensor OV2640 (2.0M)");
+		gspca_dbg(gspca_dev, D_PROBE, "05e3:0503 sensor OV2640 (2.0M)\n");
 	} else {
-		PDEBUG(D_PROBE, "***** Unknown sensor *****");
+		gspca_dbg(gspca_dev, D_PROBE, "***** Unknown sensor *****\n");
 		return -1;
 	}
 

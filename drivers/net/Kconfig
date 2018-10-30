@@ -149,9 +149,9 @@ config MACVTAP
 config IPVLAN
     tristate "IP-VLAN support"
     depends on INET
-    depends on IPV6
+    depends on IPV6 || !IPV6
     depends on NETFILTER
-    depends on NET_L3_MASTER_DEV
+    select NET_L3_MASTER_DEV
     ---help---
       This allows one to create virtual devices off of a main interface
       and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
@@ -198,6 +198,7 @@ config VXLAN
 config GENEVE
        tristate "Generic Network Virtualization Encapsulation"
        depends on INET && NET_UDP_TUNNEL
+       depends on IPV6 || !IPV6
        select NET_IP_TUNNEL
        select GRO_CELLS
        ---help---
@@ -331,6 +332,7 @@ config VETH
 config VIRTIO_NET
 	tristate "Virtio network driver"
 	depends on VIRTIO
+	select NET_FAILOVER
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
 	  QEMU based VMMs (like KVM or Xen).  Say Y or M.
@@ -483,6 +485,42 @@ config FUJITSU_ES
 	  This driver provides support for Extended Socket network device
           on Extended Partitioning of FUJITSU PRIMEQUEST 2000 E2 series.
 
+config THUNDERBOLT_NET
+	tristate "Networking over Thunderbolt cable"
+	depends on THUNDERBOLT && INET
+	help
+	  Select this if you want to create network between two
+	  computers over a Thunderbolt cable. The driver supports Apple
+	  ThunderboltIP protocol and allows communication with any host
+	  supporting the same protocol including Windows and macOS.
+
+	  To compile this driver a module, choose M here. The module will be
+	  called thunderbolt-net.
+
 source "drivers/net/hyperv/Kconfig"
+
+config NETDEVSIM
+	tristate "Simulated networking device"
+	depends on DEBUG_FS
+	depends on MAY_USE_DEVLINK
+	help
+	  This driver is a developer testing tool and software model that can
+	  be used to test various control path networking APIs, especially
+	  HW-offload related.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called netdevsim.
+
+config NET_FAILOVER
+	tristate "Failover driver"
+	select FAILOVER
+	help
+	  This provides an automated failover mechanism via APIs to create
+	  and destroy a failover master netdev and manages a primary and
+	  standby slave netdevs that get registered via the generic failover
+	  infrastructure. This can be used by paravirtual drivers to enable
+	  an alternate low latency datapath. It alsoenables live migration of
+	  a VM with direct attached VF by failing over to the paravirtual
+	  datapath when the VF is unplugged.
 
 endif # NETDEVICES

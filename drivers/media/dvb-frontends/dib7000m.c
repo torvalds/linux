@@ -16,7 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "dib7000m.h"
 
@@ -1443,9 +1443,9 @@ static const struct dvb_frontend_ops dib7000m_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "DiBcom 7000MA/MB/PA/PB/MC",
-		.frequency_min      = 44250000,
-		.frequency_max      = 867250000,
-		.frequency_stepsize = 62500,
+		.frequency_min_hz      =  44250 * kHz,
+		.frequency_max_hz      = 867250 * kHz,
+		.frequency_stepsize_hz = 62500,
 		.caps = FE_CAN_INVERSION_AUTO |
 			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

@@ -28,20 +28,28 @@ config RESET_ATH79
 	  This enables the ATH79 reset controller driver that supports the
 	  AR71xx SoC reset controller.
 
+config RESET_AXS10X
+	bool "AXS10x Reset Driver" if COMPILE_TEST
+	default ARC_PLAT_AXS10X
+	help
+	  This enables the reset controller driver for AXS10x.
+
 config RESET_BERLIN
 	bool "Berlin Reset Driver" if COMPILE_TEST
 	default ARCH_BERLIN
 	help
 	  This enables the reset controller driver for Marvell Berlin SoCs.
 
-config RESET_HSDK_V1
-	bool "HSDK v1 Reset Driver"
-	default n
+config RESET_HSDK
+	bool "Synopsys HSDK Reset Driver"
+	depends on HAS_IOMEM
+	depends on ARC_SOC_HSDK || COMPILE_TEST
 	help
-	  This enables the reset controller driver for HSDK v1.
+	  This enables the reset controller driver for HSDK board.
 
 config RESET_IMX7
 	bool "i.MX7 Reset Driver" if COMPILE_TEST
+	depends on HAS_IOMEM
 	default SOC_IMX7D
 	select MFD_SYSCON
 	help
@@ -65,6 +73,13 @@ config RESET_MESON
 	help
 	  This enables the reset driver for Amlogic Meson SoCs.
 
+config RESET_MESON_AUDIO_ARB
+	tristate "Meson Audio Memory Arbiter Reset Driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	help
+	  This enables the reset driver for Audio Memory Arbiter of
+	  Amlogic's A113 based SoCs
+
 config RESET_OXNAS
 	bool
 
@@ -74,21 +89,49 @@ config RESET_PISTACHIO
 	help
 	  This enables the reset driver for ImgTec Pistachio SoCs.
 
-config RESET_SOCFPGA
-	bool "SoCFPGA Reset Driver" if COMPILE_TEST
-	default ARCH_SOCFPGA
+config RESET_QCOM_AOSS
+	bool "Qcom AOSS Reset Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
 	help
-	  This enables the reset controller driver for Altera SoCFPGAs.
+	  This enables the AOSS (always on subsystem) reset driver
+	  for Qualcomm SDM845 SoCs. Say Y if you want to control
+	  reset signals provided by AOSS for Modem, Venus, ADSP,
+	  GPU, Camera, Wireless, Display subsystem. Otherwise, say N.
 
-config RESET_STM32
-	bool "STM32 Reset Driver" if COMPILE_TEST
-	default ARCH_STM32
+config RESET_QCOM_PDC
+	tristate "Qualcomm PDC Reset Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
 	help
-	  This enables the RCC reset controller driver for STM32 MCUs.
+	  This enables the PDC (Power Domain Controller) reset driver
+	  for Qualcomm Technologies Inc SDM845 SoCs. Say Y if you want
+	  to control reset signals provided by PDC for Modem, Compute,
+	  Display, GPU, Debug, AOP, Sensors, Audio, SP and APPS.
+
+config RESET_SIMPLE
+	bool "Simple Reset Controller Driver" if COMPILE_TEST
+	default ARCH_SOCFPGA || ARCH_STM32 || ARCH_STRATIX10 || ARCH_SUNXI || ARCH_ZX || ARCH_ASPEED
+	help
+	  This enables a simple reset controller driver for reset lines that
+	  that can be asserted and deasserted by toggling bits in a contiguous,
+	  exclusive register space.
+
+	  Currently this driver supports:
+	   - Altera SoCFPGAs
+	   - ASPEED BMC SoCs
+	   - RCC reset controller in STM32 MCUs
+	   - Allwinner SoCs
+	   - ZTE's zx2967 family
+
+config RESET_STM32MP157
+	bool "STM32MP157 Reset Driver" if COMPILE_TEST
+	default MACH_STM32MP157
+	help
+	  This enables the RCC reset controller driver for STM32 MPUs.
 
 config RESET_SUNXI
 	bool "Allwinner SoCs Reset Driver" if COMPILE_TEST && !ARCH_SUNXI
 	default ARCH_SUNXI
+	select RESET_SIMPLE
 	help
 	  This enables the reset driver for Allwinner SoCs.
 
@@ -120,11 +163,15 @@ config RESET_UNIPHIER
 	  Say Y if you want to control reset signals provided by System Control
 	  block, Media I/O block, Peripheral Block.
 
-config RESET_ZX2967
-	bool "ZTE ZX2967 Reset Driver"
-	depends on ARCH_ZX || COMPILE_TEST
+config RESET_UNIPHIER_USB3
+	tristate "USB3 reset driver for UniPhier SoCs"
+	depends on (ARCH_UNIPHIER || COMPILE_TEST) && OF
+	default ARCH_UNIPHIER
+	select RESET_SIMPLE
 	help
-	  This enables the reset controller driver for ZTE's zx2967 family.
+	  Support for the USB3 core reset on UniPhier SoCs.
+	  Say Y if you want to control reset signals provided by
+	  USB3 glue layer.
 
 config RESET_ZYNQ
 	bool "ZYNQ Reset Driver" if COMPILE_TEST

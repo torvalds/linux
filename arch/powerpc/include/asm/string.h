@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_STRING_H
 #define _ASM_POWERPC_STRING_H
 
@@ -11,6 +12,7 @@
 #define __HAVE_ARCH_MEMCMP
 #define __HAVE_ARCH_MEMCHR
 #define __HAVE_ARCH_MEMSET16
+#define __HAVE_ARCH_MEMCPY_FLUSHCACHE
 
 extern char * strcpy(char *,const char *);
 extern char * strncpy(char *,const char *, __kernel_size_t);
@@ -23,6 +25,7 @@ extern void * memcpy(void *,const void *,__kernel_size_t);
 extern void * memmove(void *,const void *,__kernel_size_t);
 extern int memcmp(const void *,const void *,__kernel_size_t);
 extern void * memchr(const void *,int,__kernel_size_t);
+extern void * memcpy_flushcache(void *,const void *,__kernel_size_t);
 
 #ifdef CONFIG_PPC64
 #define __HAVE_ARCH_MEMSET32
@@ -47,6 +50,8 @@ static inline void *memset64(uint64_t *p, uint64_t v, __kernel_size_t n)
 	return __memset64(p, v, n * 8);
 }
 #else
+#define __HAVE_ARCH_STRLEN
+
 extern void *memset16(uint16_t *, uint16_t, __kernel_size_t);
 #endif
 #endif /* __KERNEL__ */

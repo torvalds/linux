@@ -1,12 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0
 CFLAGS += -O2 -g -std=gnu89 -pthread -Wall -Wextra
 CFLAGS += -I../../../../usr/include/
 LDFLAGS += -pthread
 
-TEST_PROGS = sync_test
-
-all: $(TEST_PROGS)
+.PHONY: all clean
 
 include ../lib.mk
+
+# lib.mk TEST_CUSTOM_PROGS var is for custom tests that need special
+# build rules. lib.mk will run and install them.
+
+TEST_CUSTOM_PROGS := $(OUTPUT)/sync_test
+all: $(TEST_CUSTOM_PROGS)
 
 OBJS = sync_test.o sync.o
 
@@ -18,6 +23,16 @@ TESTS += sync_stress_parallelism.o
 TESTS += sync_stress_consumer.o
 TESTS += sync_stress_merge.o
 
-sync_test: $(OBJS) $(TESTS)
+OBJS := $(patsubst %,$(OUTPUT)/%,$(OBJS))
+TESTS := $(patsubst %,$(OUTPUT)/%,$(TESTS))
 
-EXTRA_CLEAN := sync_test $(OBJS) $(TESTS)
+$(TEST_CUSTOM_PROGS): $(TESTS) $(OBJS)
+	$(CC) -o $(TEST_CUSTOM_PROGS) $(OBJS) $(TESTS) $(CFLAGS) $(LDFLAGS)
+
+$(OBJS): $(OUTPUT)/%.o: %.c
+	$(CC) -c $^ -o $@ $(CFLAGS)
+
+$(TESTS): $(OUTPUT)/%.o: %.c
+	$(CC) -c $^ -o $@
+
+EXTRA_CLEAN := $(TEST_CUSTOM_PROGS) $(OBJS) $(TESTS)

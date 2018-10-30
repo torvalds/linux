@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: sunqe.h,v 1.13 2000/02/09 11:15:42 davem Exp $
  * sunqe.h: Definitions for the Sun QuadEthernet driver.
  *

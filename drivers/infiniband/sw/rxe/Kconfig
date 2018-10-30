@@ -1,8 +1,9 @@
 config RDMA_RXE
 	tristate "Software RDMA over Ethernet (RoCE) driver"
 	depends on INET && PCI && INFINIBAND
-	depends on NET_UDP_TUNNEL
-	depends on CRYPTO_CRC32
+	depends on !64BIT || ARCH_DMA_ADDR_T_64BIT
+	select NET_UDP_TUNNEL
+	select CRYPTO_CRC32
 	select DMA_VIRT_OPS
 	---help---
 	This driver implements the InfiniBand RDMA transport over

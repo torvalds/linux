@@ -22,8 +22,8 @@
 #define DM_IO_MAX_REGIONS	BITS_PER_LONG
 
 struct dm_io_client {
-	mempool_t *pool;
-	struct bio_set *bios;
+	mempool_t pool;
+	struct bio_set bios;
 };
 
 /*
@@ -49,33 +49,33 @@ struct dm_io_client *dm_io_client_create(void)
 {
 	struct dm_io_client *client;
 	unsigned min_ios = dm_get_reserved_bio_based_ios();
+	int ret;
 
-	client = kmalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
 		return ERR_PTR(-ENOMEM);
 
-	client->pool = mempool_create_slab_pool(min_ios, _dm_io_cache);
-	if (!client->pool)
+	ret = mempool_init_slab_pool(&client->pool, min_ios, _dm_io_cache);
+	if (ret)
 		goto bad;
 
-	client->bios = bioset_create(min_ios, 0, (BIOSET_NEED_BVECS |
-						  BIOSET_NEED_RESCUER));
-	if (!client->bios)
+	ret = bioset_init(&client->bios, min_ios, 0, BIOSET_NEED_BVECS);
+	if (ret)
 		goto bad;
 
 	return client;
 
    bad:
-	mempool_destroy(client->pool);
+	mempool_exit(&client->pool);
 	kfree(client);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(dm_io_client_create);
 
 void dm_io_client_destroy(struct dm_io_client *client)
 {
-	mempool_destroy(client->pool);
-	bioset_free(client->bios);
+	mempool_exit(&client->pool);
+	bioset_exit(&client->bios);
 	kfree(client);
 }
 EXPORT_SYMBOL(dm_io_client_destroy);
@@ -121,7 +121,7 @@ static void complete_io(struct io *io)
 		invalidate_kernel_vmap_range(io->vma_invalidate_address,
 					     io->vma_invalidate_size);
 
-	mempool_free(io, io->client->pool);
+	mempool_free(io, &io->client->pool);
 	fn(error_bits, context);
 }
 
@@ -345,7 +345,7 @@ static void do_region(int op, int op_flags, unsigned region,
 					  dm_sector_div_up(remaining, (PAGE_SIZE >> SECTOR_SHIFT)));
 		}
 
-		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);
+		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, &io->client->bios);
 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
 		bio_set_dev(bio, where->bdev);
 		bio->bi_end_io = endio;
@@ -443,7 +443,7 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 
 	init_completion(&sio.wait);
 
-	io = mempool_alloc(client->pool, GFP_NOIO);
+	io = mempool_alloc(&client->pool, GFP_NOIO);
 	io->error_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
 	io->client = client;
@@ -475,7 +475,7 @@ static int async_io(struct dm_io_client *client, unsigned int num_regions,
 		return -EIO;
 	}
 
-	io = mempool_alloc(client->pool, GFP_NOIO);
+	io = mempool_alloc(&client->pool, GFP_NOIO);
 	io->error_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
 	io->client = client;

@@ -6,6 +6,7 @@
  */
 #define _GNU_SOURCE
 #include <sched.h>
+#include <errno.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <asm/unistd.h>
@@ -19,7 +20,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/resource.h>
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 
 #define MAX_CNT 1000000
@@ -44,8 +45,13 @@ static void test_task_rename(int cpu)
 		exit(1);
 	}
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
-		write(fd, buf, sizeof(buf));
+	for (i = 0; i < MAX_CNT; i++) {
+		if (write(fd, buf, sizeof(buf)) < 0) {
+			printf("task rename failed: %s\n", strerror(errno));
+			close(fd);
+			return;
+		}
+	}
 	printf("task_rename:%d: %lld events per sec\n",
 	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
 	close(fd);
@@ -63,8 +69,13 @@ static void test_urandom_read(int cpu)
 		exit(1);
 	}
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
-		read(fd, buf, sizeof(buf));
+	for (i = 0; i < MAX_CNT; i++) {
+		if (read(fd, buf, sizeof(buf)) < 0) {
+			printf("failed to read from /dev/urandom: %s\n", strerror(errno));
+			close(fd);
+			return;
+		}
+	}
 	printf("urandom_read:%d: %lld events per sec\n",
 	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
 	close(fd);
@@ -155,6 +166,18 @@ int main(int argc, char **argv)
 		}
 		printf("w/TRACEPOINT\n");
 		run_perf_test(num_cpu, test_flags >> 4);
+		unload_progs();
+	}
+
+	if (test_flags & 0xC0) {
+		snprintf(filename, sizeof(filename),
+			 "%s_raw_tp_kern.o", argv[0]);
+		if (load_bpf_file(filename)) {
+			printf("%s", bpf_log_buf);
+			return 1;
+		}
+		printf("w/RAW_TRACEPOINT\n");
+		run_perf_test(num_cpu, test_flags >> 6);
 		unload_progs();
 	}
 

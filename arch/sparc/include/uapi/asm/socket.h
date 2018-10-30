@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _ASM_SOCKET_H
 #define _ASM_SOCKET_H
 
@@ -99,6 +100,9 @@
 #define SO_PEERGROUPS		0x003d
 
 #define SO_ZEROCOPY		0x003e
+
+#define SO_TXTIME		0x003f
+#define SCM_TXTIME		SO_TXTIME
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001

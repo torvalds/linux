@@ -263,8 +263,8 @@ static int stm32_spi_prepare_mbr(struct stm32_spi *spi, u32 speed_hz)
 	 * no need to check it there.
 	 * However, we need to ensure the following calculations.
 	 */
-	if ((div < SPI_MBR_DIV_MIN) &&
-	    (div > SPI_MBR_DIV_MAX))
+	if (div < SPI_MBR_DIV_MIN ||
+	    div > SPI_MBR_DIV_MAX)
 		return -EINVAL;
 
 	/* Determine the first power of 2 greater than or equal to div */
@@ -1129,7 +1129,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	if (!spi->clk_rate) {
 		dev_err(&pdev->dev, "clk rate = 0\n");
 		ret = -EINVAL;
-		goto err_master_put;
+		goto err_clk_disable;
 	}
 
 	spi->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);

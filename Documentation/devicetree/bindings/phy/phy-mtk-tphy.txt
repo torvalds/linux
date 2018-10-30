@@ -27,6 +27,10 @@ Optional properties (controller (parent) node):
  - reg		: offset and length of register shared by multiple ports,
 		  exclude port's private register. It is needed on mt2701
 		  and mt8173, but not on mt2712.
+ - mediatek,src-ref-clk-mhz	: frequency of reference clock for slew rate
+		  calibrate
+ - mediatek,src-coef	: coefficient for slew rate calibrate, depends on
+		  SoC process
 
 Required properties (port (child) node):
 - reg		: address and length of the register set for the port.
@@ -42,6 +46,12 @@ Required properties (port (child) node):
 			- PHY_TYPE_USB3
 			- PHY_TYPE_PCIE
 			- PHY_TYPE_SATA
+
+Optional properties (PHY_TYPE_USB2 port (child) node):
+- mediatek,eye-src	: u32, the value of slew rate calibrate
+- mediatek,eye-vrt	: u32, the selection of VRT reference voltage
+- mediatek,eye-term	: u32, the selection of HS_TX TERM reference voltage
+- mediatek,bc12	: bool, enable BC12 of u2phy if support it
 
 Example:
 

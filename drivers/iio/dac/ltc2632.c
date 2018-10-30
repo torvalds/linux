@@ -1,7 +1,8 @@
 /*
  * LTC2632 Digital to analog convertors spi driver
  *
- * Copyright 2017 Maxime Roussin-Bélanger
+ * Copyright 2017 Maxime Roussin-BÃ©langer
+ * expanded by Silvan Murer <silvan.murer@gmail.com>
  *
  * Licensed under the GPL-2.
  */
@@ -10,6 +11,7 @@
 #include <linux/spi/spi.h>
 #include <linux/module.h>
 #include <linux/iio/iio.h>
+#include <linux/regulator/consumer.h>
 
 #define LTC2632_DAC_CHANNELS                    2
 
@@ -28,7 +30,7 @@
 /**
  * struct ltc2632_chip_info - chip specific information
  * @channels:		channel spec for the DAC
- * @vref_mv:		reference voltage
+ * @vref_mv:		internal reference voltage
  */
 struct ltc2632_chip_info {
 	const struct iio_chan_spec *channels;
@@ -39,10 +41,14 @@ struct ltc2632_chip_info {
  * struct ltc2632_state - driver instance specific data
  * @spi_dev:			pointer to the spi_device struct
  * @powerdown_cache_mask	used to show current channel powerdown state
+ * @vref_mv			used reference voltage (internal or external)
+ * @vref_reg		regulator for the reference voltage
  */
 struct ltc2632_state {
 	struct spi_device *spi_dev;
 	unsigned int powerdown_cache_mask;
+	int vref_mv;
+	struct regulator *vref_reg;
 };
 
 enum ltc2632_supported_device_ids {
@@ -81,16 +87,11 @@ static int ltc2632_read_raw(struct iio_dev *indio_dev,
 			    int *val2,
 			    long m)
 {
-	struct ltc2632_chip_info *chip_info;
-
 	const struct ltc2632_state *st = iio_priv(indio_dev);
-	const struct spi_device_id *spi_dev_id = spi_get_device_id(st->spi_dev);
-
-	chip_info = (struct ltc2632_chip_info *)spi_dev_id->driver_data;
 
 	switch (m) {
 	case IIO_CHAN_INFO_SCALE:
-		*val = chip_info->vref_mv;
+		*val = st->vref_mv;
 		*val2 = chan->scan_type.realbits;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	}
@@ -159,7 +160,6 @@ static ssize_t ltc2632_write_dac_powerdown(struct iio_dev *indio_dev,
 static const struct iio_info ltc2632_info = {
 	.write_raw	= ltc2632_write_raw,
 	.read_raw	= ltc2632_read_raw,
-	.driver_module	= THIS_MODULE,
 };
 
 static const struct iio_chan_spec_ext_info ltc2632_ext_info[] = {
@@ -247,6 +247,45 @@ static int ltc2632_probe(struct spi_device *spi)
 	chip_info = (struct ltc2632_chip_info *)
 			spi_get_device_id(spi)->driver_data;
 
+	st->vref_reg = devm_regulator_get_optional(&spi->dev, "vref");
+	if (PTR_ERR(st->vref_reg) == -ENODEV) {
+		/* use internal reference voltage */
+		st->vref_reg = NULL;
+		st->vref_mv = chip_info->vref_mv;
+
+		ret = ltc2632_spi_write(spi, LTC2632_CMD_INTERNAL_REFER,
+				0, 0, 0);
+		if (ret) {
+			dev_err(&spi->dev,
+				"Set internal reference command failed, %d\n",
+				ret);
+			return ret;
+		}
+	} else if (IS_ERR(st->vref_reg)) {
+		dev_err(&spi->dev,
+				"Error getting voltage reference regulator\n");
+		return PTR_ERR(st->vref_reg);
+	} else {
+		/* use external reference voltage */
+		ret = regulator_enable(st->vref_reg);
+		if (ret) {
+			dev_err(&spi->dev,
+				"enable reference regulator failed, %d\n",
+				ret);
+			return ret;
+		}
+		st->vref_mv = regulator_get_voltage(st->vref_reg) / 1000;
+
+		ret = ltc2632_spi_write(spi, LTC2632_CMD_EXTERNAL_REFER,
+				0, 0, 0);
+		if (ret) {
+			dev_err(&spi->dev,
+				"Set external reference command failed, %d\n",
+				ret);
+			return ret;
+		}
+	}
+
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = dev_of_node(&spi->dev) ? dev_of_node(&spi->dev)->name
 						 : spi_get_device_id(spi)->name;
@@ -255,14 +294,20 @@ static int ltc2632_probe(struct spi_device *spi)
 	indio_dev->channels = chip_info->channels;
 	indio_dev->num_channels = LTC2632_DAC_CHANNELS;
 
-	ret = ltc2632_spi_write(spi, LTC2632_CMD_INTERNAL_REFER, 0, 0, 0);
-	if (ret) {
-		dev_err(&spi->dev,
-			"Set internal reference command failed, %d\n", ret);
-		return ret;
-	}
+	return iio_device_register(indio_dev);
+}
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+static int ltc2632_remove(struct spi_device *spi)
+{
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+	struct ltc2632_state *st = iio_priv(indio_dev);
+
+	iio_device_unregister(indio_dev);
+
+	if (st->vref_reg)
+		regulator_disable(st->vref_reg);
+
+	return 0;
 }
 
 static const struct spi_device_id ltc2632_id[] = {
@@ -275,15 +320,6 @@ static const struct spi_device_id ltc2632_id[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ltc2632_id);
-
-static struct spi_driver ltc2632_driver = {
-	.driver		= {
-		.name	= "ltc2632",
-	},
-	.probe		= ltc2632_probe,
-	.id_table	= ltc2632_id,
-};
-module_spi_driver(ltc2632_driver);
 
 static const struct of_device_id ltc2632_of_match[] = {
 	{
@@ -308,6 +344,17 @@ static const struct of_device_id ltc2632_of_match[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, ltc2632_of_match);
+
+static struct spi_driver ltc2632_driver = {
+	.driver		= {
+		.name	= "ltc2632",
+		.of_match_table = of_match_ptr(ltc2632_of_match),
+	},
+	.probe		= ltc2632_probe,
+	.remove		= ltc2632_remove,
+	.id_table	= ltc2632_id,
+};
+module_spi_driver(ltc2632_driver);
 
 MODULE_AUTHOR("Maxime Roussin-Belanger <maxime.roussinbelanger@gmail.com>");
 MODULE_DESCRIPTION("LTC2632 DAC SPI driver");

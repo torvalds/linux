@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
  * Copyright (c) 2013 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_DA_FORMAT_H__
 #define __XFS_DA_FORMAT_H__
@@ -874,5 +862,11 @@ struct xfs_attr3_rmt_hdr {
 #define XFS_ATTR3_RMT_BUF_SPACE(mp, bufsize)	\
 	((bufsize) - (xfs_sb_version_hascrc(&(mp)->m_sb) ? \
 			sizeof(struct xfs_attr3_rmt_hdr) : 0))
+
+/* Number of bytes in a directory block. */
+static inline unsigned int xfs_dir2_dirblock_bytes(struct xfs_sb *sbp)
+{
+	return 1 << (sbp->sb_blocklog + sbp->sb_dirblklog);
+}
 
 #endif /* __XFS_DA_FORMAT_H__ */

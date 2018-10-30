@@ -1341,7 +1341,7 @@ int zd_chip_control_leds(struct zd_chip *chip, enum led_status status)
 	case ZD_LED_SCANNING:
 		ioreqs[0].value = FW_LINK_OFF;
 		ioreqs[1].value = v[1] & ~other_led;
-		if (get_seconds() % 3 == 0) {
+		if ((u32)ktime_get_seconds() % 3 == 0) {
 			ioreqs[1].value &= ~chip->link_led;
 		} else {
 			ioreqs[1].value |= chip->link_led;

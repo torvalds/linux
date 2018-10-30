@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/arm/boot/compressed/string.c
  *
@@ -120,6 +121,16 @@ char *strchr(const char *s, int c)
 	return (char *)s;
 }
 
+char *strrchr(const char *s, int c)
+{
+	const char *last = NULL;
+	do {
+		if (*s == (char)c)
+			last = s;
+	} while (*s++);
+	return (char *)last;
+}
+
 #undef memset
 
 void *memset(void *s, int c, size_t count)
@@ -128,9 +139,4 @@ void *memset(void *s, int c, size_t count)
 	while (count--)
 		*xs++ = c;
 	return s;
-}
-
-void __memzero(void *s, size_t count)
-{
-	memset(s, 0, count);
 }

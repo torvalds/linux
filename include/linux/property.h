@@ -83,10 +83,16 @@ struct fwnode_handle *fwnode_get_next_parent(
 	struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_get_next_child_node(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
+struct fwnode_handle *fwnode_get_next_available_child_node(
+	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
 
 #define fwnode_for_each_child_node(fwnode, child)			\
 	for (child = fwnode_get_next_child_node(fwnode, NULL); child;	\
 	     child = fwnode_get_next_child_node(fwnode, child))
+
+#define fwnode_for_each_available_child_node(fwnode, child)		       \
+	for (child = fwnode_get_next_available_child_node(fwnode, NULL); child;\
+	     child = fwnode_get_next_available_child_node(fwnode, child))
 
 struct fwnode_handle *device_get_next_child_node(
 	struct device *dev, struct fwnode_handle *child);
@@ -100,8 +106,10 @@ struct fwnode_handle *fwnode_get_named_child_node(
 struct fwnode_handle *device_get_named_child_node(struct device *dev,
 						  const char *childname);
 
-void fwnode_handle_get(struct fwnode_handle *fwnode);
+struct fwnode_handle *fwnode_handle_get(struct fwnode_handle *fwnode);
 void fwnode_handle_put(struct fwnode_handle *fwnode);
+
+int fwnode_irq_get(struct fwnode_handle *fwnode, unsigned int index);
 
 unsigned int device_get_child_node_count(struct device *dev);
 
@@ -170,7 +178,7 @@ static inline int fwnode_property_read_u64(const struct fwnode_handle *fwnode,
  * @name: Name of the property.
  * @length: Length of data making up the value.
  * @is_array: True when the property is an array.
- * @is_string: True when property is a string.
+ * @type: Type of the data in unions.
  * @pointer: Pointer to the property (an array of items of the given type).
  * @value: Value of the property (when it is a single item of the given type).
  */
@@ -178,10 +186,9 @@ struct property_entry {
 	const char *name;
 	size_t length;
 	bool is_array;
-	bool is_string;
+	enum dev_prop_type type;
 	union {
 		union {
-			const void *raw_data;
 			const u8 *u8_data;
 			const u16 *u16_data;
 			const u32 *u32_data;
@@ -189,7 +196,6 @@ struct property_entry {
 			const char * const *str;
 		} pointer;
 		union {
-			unsigned long long raw_data;
 			u8 u8_data;
 			u16 u16_data;
 			u32 u32_data;
@@ -205,60 +211,60 @@ struct property_entry {
  * and structs.
  */
 
-#define PROPERTY_ENTRY_INTEGER_ARRAY(_name_, _type_, _val_)	\
-{								\
-	.name = _name_,						\
-	.length = ARRAY_SIZE(_val_) * sizeof(_type_),		\
-	.is_array = true,					\
-	.is_string = false,					\
-	{ .pointer = { ._type_##_data = _val_ } },		\
+#define PROPERTY_ENTRY_INTEGER_ARRAY(_name_, _type_, _Type_, _val_)	\
+(struct property_entry) {						\
+	.name = _name_,							\
+	.length = ARRAY_SIZE(_val_) * sizeof(_type_),			\
+	.is_array = true,						\
+	.type = DEV_PROP_##_Type_,					\
+	{ .pointer = { ._type_##_data = _val_ } },			\
 }
 
 #define PROPERTY_ENTRY_U8_ARRAY(_name_, _val_)			\
-	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u8, _val_)
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u8, U8, _val_)
 #define PROPERTY_ENTRY_U16_ARRAY(_name_, _val_)			\
-	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u16, _val_)
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u16, U16, _val_)
 #define PROPERTY_ENTRY_U32_ARRAY(_name_, _val_)			\
-	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u32, _val_)
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u32, U32, _val_)
 #define PROPERTY_ENTRY_U64_ARRAY(_name_, _val_)			\
-	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u64, _val_)
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u64, U64, _val_)
 
 #define PROPERTY_ENTRY_STRING_ARRAY(_name_, _val_)		\
-{								\
+(struct property_entry) {					\
 	.name = _name_,						\
 	.length = ARRAY_SIZE(_val_) * sizeof(const char *),	\
 	.is_array = true,					\
-	.is_string = true,					\
+	.type = DEV_PROP_STRING,				\
 	{ .pointer = { .str = _val_ } },			\
 }
 
-#define PROPERTY_ENTRY_INTEGER(_name_, _type_, _val_)	\
-{							\
-	.name = _name_,					\
-	.length = sizeof(_type_),			\
-	.is_string = false,				\
-	{ .value = { ._type_##_data = _val_ } },	\
+#define PROPERTY_ENTRY_INTEGER(_name_, _type_, _Type_, _val_)	\
+(struct property_entry) {					\
+	.name = _name_,						\
+	.length = sizeof(_type_),				\
+	.type = DEV_PROP_##_Type_,				\
+	{ .value = { ._type_##_data = _val_ } },		\
 }
 
 #define PROPERTY_ENTRY_U8(_name_, _val_)		\
-	PROPERTY_ENTRY_INTEGER(_name_, u8, _val_)
+	PROPERTY_ENTRY_INTEGER(_name_, u8, U8, _val_)
 #define PROPERTY_ENTRY_U16(_name_, _val_)		\
-	PROPERTY_ENTRY_INTEGER(_name_, u16, _val_)
+	PROPERTY_ENTRY_INTEGER(_name_, u16, U16, _val_)
 #define PROPERTY_ENTRY_U32(_name_, _val_)		\
-	PROPERTY_ENTRY_INTEGER(_name_, u32, _val_)
+	PROPERTY_ENTRY_INTEGER(_name_, u32, U32, _val_)
 #define PROPERTY_ENTRY_U64(_name_, _val_)		\
-	PROPERTY_ENTRY_INTEGER(_name_, u64, _val_)
+	PROPERTY_ENTRY_INTEGER(_name_, u64, U64, _val_)
 
 #define PROPERTY_ENTRY_STRING(_name_, _val_)		\
-{							\
+(struct property_entry) {				\
 	.name = _name_,					\
 	.length = sizeof(_val_),			\
-	.is_string = true,				\
+	.type = DEV_PROP_STRING,			\
 	{ .value = { .str = _val_ } },			\
 }
 
 #define PROPERTY_ENTRY_BOOL(_name_)		\
-{						\
+(struct property_entry) {			\
 	.name = _name_,				\
 }
 
@@ -275,10 +281,15 @@ bool device_dma_supported(struct device *dev);
 
 enum dev_dma_attr device_get_dma_attr(struct device *dev);
 
+const void *device_get_match_data(struct device *dev);
+
 int device_get_phy_mode(struct device *dev);
 
 void *device_get_mac_address(struct device *dev, char *addr, int alen);
 
+int fwnode_get_phy_mode(struct fwnode_handle *fwnode);
+void *fwnode_get_mac_address(struct fwnode_handle *fwnode,
+			     char *addr, int alen);
 struct fwnode_handle *fwnode_graph_get_next_endpoint(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *prev);
 struct fwnode_handle *
@@ -292,6 +303,10 @@ struct fwnode_handle *fwnode_graph_get_remote_endpoint(
 struct fwnode_handle *
 fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port,
 			     u32 endpoint);
+
+#define fwnode_graph_for_each_endpoint(fwnode, child)			\
+	for (child = NULL;						\
+	     (child = fwnode_graph_get_next_endpoint(fwnode, child)); )
 
 int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 				struct fwnode_endpoint *endpoint);

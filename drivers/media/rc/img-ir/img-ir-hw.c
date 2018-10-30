@@ -339,7 +339,7 @@ static void img_ir_decoder_preprocess(struct img_ir_decoder *decoder)
 /**
  * img_ir_decoder_convert() - Generate internal timings in decoder.
  * @decoder:	Decoder to be converted to internal timings.
- * @timings:	Timing register values.
+ * @reg_timings: Timing register values.
  * @clock_hz:	IR clock rate in Hz.
  *
  * Fills out the repeat timings and timing register values for a specific clock
@@ -867,9 +867,9 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 }
 
 /* timer function to end waiting for repeat. */
-static void img_ir_end_timer(unsigned long arg)
+static void img_ir_end_timer(struct timer_list *t)
 {
-	struct img_ir_priv *priv = (struct img_ir_priv *)arg;
+	struct img_ir_priv *priv = from_timer(priv, t, hw.end_timer);
 
 	spin_lock_irq(&priv->lock);
 	img_ir_end_repeat(priv);
@@ -881,9 +881,9 @@ static void img_ir_end_timer(unsigned long arg)
  * cleared when invalid interrupts were generated due to a quirk in the
  * img-ir decoder.
  */
-static void img_ir_suspend_timer(unsigned long arg)
+static void img_ir_suspend_timer(struct timer_list *t)
 {
-	struct img_ir_priv *priv = (struct img_ir_priv *)arg;
+	struct img_ir_priv *priv = from_timer(priv, t, hw.suspend_timer);
 
 	spin_lock_irq(&priv->lock);
 	/*
@@ -1055,9 +1055,8 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	img_ir_probe_hw_caps(priv);
 
 	/* Set up the end timer */
-	setup_timer(&hw->end_timer, img_ir_end_timer, (unsigned long)priv);
-	setup_timer(&hw->suspend_timer, img_ir_suspend_timer,
-				(unsigned long)priv);
+	timer_setup(&hw->end_timer, img_ir_end_timer, 0);
+	timer_setup(&hw->suspend_timer, img_ir_suspend_timer, 0);
 
 	/* Register a clock notifier */
 	if (!IS_ERR(priv->clk)) {

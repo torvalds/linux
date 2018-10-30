@@ -50,7 +50,7 @@ static irqreturn_t hub_eint_handler(int irq, void *arg)
 			if ((int)ret_stuff.v0)
 				panic("%s: Fatal TIO Error", __func__);
 		} else
-			bte_error_handler((unsigned long)NODEPDA(nasid_to_cnodeid(nasid)));
+			bte_error_handler(NODEPDA(nasid_to_cnodeid(nasid)));
 
 	return IRQ_HANDLED;
 }

@@ -103,9 +103,9 @@ static ssize_t dump_ack_store(struct dump_obj *dump_obj,
  * due to the dynamic size of the dump
  */
 static struct dump_attribute id_attribute =
-	__ATTR(id, S_IRUGO, dump_id_show, NULL);
+	__ATTR(id, 0444, dump_id_show, NULL);
 static struct dump_attribute type_attribute =
-	__ATTR(type, S_IRUGO, dump_type_show, NULL);
+	__ATTR(type, 0444, dump_type_show, NULL);
 static struct dump_attribute ack_attribute =
 	__ATTR(acknowledge, 0660, dump_ack_show, dump_ack_store);
 
@@ -225,13 +225,16 @@ static int64_t dump_read_info(uint32_t *dump_id, uint32_t *dump_size, uint32_t *
 	if (rc == OPAL_PARAMETER)
 		rc = opal_dump_info(&id, &size);
 
+	if (rc) {
+		pr_warn("%s: Failed to get dump info (%d)\n",
+			__func__, rc);
+		return rc;
+	}
+
 	*dump_id = be32_to_cpu(id);
 	*dump_size = be32_to_cpu(size);
 	*dump_type = be32_to_cpu(type);
 
-	if (rc)
-		pr_warn("%s: Failed to get dump info (%d)\n",
-			__func__, rc);
 	return rc;
 }
 
@@ -368,13 +371,12 @@ static irqreturn_t process_dump(int irq, void *data)
 {
 	int rc;
 	uint32_t dump_id, dump_size, dump_type;
-	struct dump_obj *dump;
 	char name[22];
 	struct kobject *kobj;
 
 	rc = dump_read_info(&dump_id, &dump_size, &dump_type);
 	if (rc != OPAL_SUCCESS)
-		return rc;
+		return IRQ_HANDLED;
 
 	sprintf(name, "0x%x-0x%x", dump_type, dump_id);
 
@@ -386,12 +388,10 @@ static irqreturn_t process_dump(int irq, void *data)
 	if (kobj) {
 		/* Drop reference added by kset_find_obj() */
 		kobject_put(kobj);
-		return 0;
+		return IRQ_HANDLED;
 	}
 
-	dump = create_dump_obj(dump_id, dump_size, dump_type);
-	if (!dump)
-		return -1;
+	create_dump_obj(dump_id, dump_size, dump_type);
 
 	return IRQ_HANDLED;
 }

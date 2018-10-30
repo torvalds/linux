@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015-2017 Intel Corporation.
+ * Copyright(c) 2015-2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -375,7 +375,7 @@ int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
 	 * From this point on, we are going to be using shared (between master
 	 * and subcontexts) context resources. We need to take the lock.
 	 */
-	mutex_lock(&uctxt->exp_lock);
+	mutex_lock(&uctxt->exp_mutex);
 	/*
 	 * The first step is to program the RcvArray entries which are complete
 	 * groups.
@@ -437,7 +437,6 @@ int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
 				hfi1_cdbg(TID,
 					  "Failed to program RcvArray entries %d",
 					  ret);
-				ret = -EFAULT;
 				goto unlock;
 			} else if (ret > 0) {
 				if (grp->used == grp->size)
@@ -462,7 +461,7 @@ int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
 		}
 	}
 unlock:
-	mutex_unlock(&uctxt->exp_lock);
+	mutex_unlock(&uctxt->exp_mutex);
 nomem:
 	hfi1_cdbg(TID, "total mapped: tidpairs:%u pages:%u (%d)", tididx,
 		  mapped_pages, ret);
@@ -473,7 +472,7 @@ nomem:
 		tinfo->tidcnt = tididx;
 		tinfo->length = mapped_pages * PAGE_SIZE;
 
-		if (copy_to_user((void __user *)(unsigned long)tinfo->tidlist,
+		if (copy_to_user(u64_to_user_ptr(tinfo->tidlist),
 				 tidlist, sizeof(tidlist[0]) * tididx)) {
 			/*
 			 * On failure to copy to the user level, we need to undo
@@ -513,12 +512,12 @@ int hfi1_user_exp_rcv_clear(struct hfi1_filedata *fd,
 	if (unlikely(tinfo->tidcnt > fd->tid_used))
 		return -EINVAL;
 
-	tidinfo = memdup_user((void __user *)(unsigned long)tinfo->tidlist,
+	tidinfo = memdup_user(u64_to_user_ptr(tinfo->tidlist),
 			      sizeof(tidinfo[0]) * tinfo->tidcnt);
 	if (IS_ERR(tidinfo))
 		return PTR_ERR(tidinfo);
 
-	mutex_lock(&uctxt->exp_lock);
+	mutex_lock(&uctxt->exp_mutex);
 	for (tididx = 0; tididx < tinfo->tidcnt; tididx++) {
 		ret = unprogram_rcvarray(fd, tidinfo[tididx], NULL);
 		if (ret) {
@@ -531,7 +530,7 @@ int hfi1_user_exp_rcv_clear(struct hfi1_filedata *fd,
 	fd->tid_used -= tididx;
 	spin_unlock(&fd->tid_lock);
 	tinfo->tidcnt = tididx;
-	mutex_unlock(&uctxt->exp_lock);
+	mutex_unlock(&uctxt->exp_mutex);
 
 	kfree(tidinfo);
 	return ret;
@@ -542,13 +541,9 @@ int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	unsigned long *ev = uctxt->dd->events +
-		(((uctxt->ctxt - uctxt->dd->first_dyn_alloc_ctxt) *
-		  HFI1_MAX_SHARED_CTXTS) + fd->subctxt);
+		(uctxt_offset(uctxt) + fd->subctxt);
 	u32 *array;
 	int ret = 0;
-
-	if (!fd->invalid_tids)
-		return -EINVAL;
 
 	/*
 	 * copy_to_user() can sleep, which will leave the invalid_lock
@@ -942,8 +937,7 @@ static int tid_rb_invalidate(void *arg, struct mmu_rb_node *mnode)
 			 * process in question.
 			 */
 			ev = uctxt->dd->events +
-			  (((uctxt->ctxt - uctxt->dd->first_dyn_alloc_ctxt) *
-			    HFI1_MAX_SHARED_CTXTS) + fdata->subctxt);
+				(uctxt_offset(uctxt) + fdata->subctxt);
 			set_bit(_HFI1_EVENT_TID_MMU_NOTIFY_BIT, ev);
 		}
 		fdata->invalid_tid_idx++;

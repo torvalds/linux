@@ -61,13 +61,12 @@ config ATH9K_DEBUGFS
 	depends on ATH9K && DEBUG_FS
 	select MAC80211_DEBUGFS
 	select ATH9K_COMMON_DEBUG
-	select RELAY
 	---help---
 	  Say Y, if you need access to ath9k's statistics for
 	  interrupts, rate control, etc.
 
-	  Also required for changing debug message flags at run time.
-	  As well as access to the FFT/spectral data and TX99.
+	  Also required for changing debug message flags at run time and for
+	  TX99.
 
 config ATH9K_STATION_STATISTICS
 	bool "Detailed station statistics"
@@ -177,7 +176,6 @@ config ATH9K_HTC_DEBUGFS
 	bool "Atheros ath9k_htc debugging"
 	depends on ATH9K_HTC && DEBUG_FS
 	select ATH9K_COMMON_DEBUG
-	select RELAY
 	---help---
 	  Say Y, if you need access to ath9k_htc's statistics.
 	  As well as access to the FFT/spectral data.
@@ -192,3 +190,11 @@ config ATH9K_HWRNG
 
 	  Say Y, feeds the entropy directly from the WiFi driver to the input
 	  pool.
+
+config ATH9K_COMMON_SPECTRAL
+	bool "Atheros ath9k/ath9k_htc spectral scan support"
+	depends on ATH9K_DEBUGFS || ATH9K_HTC_DEBUGFS
+	select RELAY
+	default n
+	---help---
+	  Say Y to enable access to the FFT/spectral data via debugfs.

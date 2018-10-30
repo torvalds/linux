@@ -76,7 +76,7 @@ int venus_boot(struct device *dev, const char *fwname)
 	}
 
 	ret = qcom_mdt_load(dev, mdt, fwname, VENUS_PAS_ID, mem_va, mem_phys,
-			    mem_size);
+			    mem_size, NULL);
 
 	release_firmware(mdt);
 

@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright © 2016 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2016 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -31,6 +31,7 @@
 #include <linux/frame.h>
 #include <asm/hypervisor.h>
 #include <drm/drmP.h>
+#include "vmwgfx_drv.h"
 #include "vmwgfx_msg.h"
 
 
@@ -234,7 +235,7 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 
 		if ((HIGH_WORD(ecx) & MESSAGE_STATUS_SUCCESS) == 0 ||
 		    (HIGH_WORD(ecx) & MESSAGE_STATUS_HB) == 0) {
-			DRM_ERROR("Failed to get reply size\n");
+			DRM_ERROR("Failed to get reply size for host message.\n");
 			return -EINVAL;
 		}
 
@@ -245,7 +246,7 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 		reply_len = ebx;
 		reply     = kzalloc(reply_len + 1, GFP_KERNEL);
 		if (!reply) {
-			DRM_ERROR("Cannot allocate memory for reply\n");
+			DRM_ERROR("Cannot allocate memory for host message reply.\n");
 			return -ENOMEM;
 		}
 
@@ -328,9 +329,7 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 {
 	struct rpc_channel channel;
 	char *msg, *reply = NULL;
-	size_t msg_len, reply_len = 0;
-	int ret = 0;
-
+	size_t reply_len = 0;
 
 	if (!vmw_msg_enabled)
 		return -ENODEV;
@@ -338,24 +337,21 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 	if (!guest_info_param || !length)
 		return -EINVAL;
 
-	msg_len = strlen(guest_info_param) + strlen("info-get ") + 1;
-	msg = kzalloc(msg_len, GFP_KERNEL);
+	msg = kasprintf(GFP_KERNEL, "info-get %s", guest_info_param);
 	if (!msg) {
-		DRM_ERROR("Cannot allocate memory to get %s", guest_info_param);
+		DRM_ERROR("Cannot allocate memory to get guest info \"%s\".",
+			  guest_info_param);
 		return -ENOMEM;
 	}
 
-	sprintf(msg, "info-get %s", guest_info_param);
+	if (vmw_open_channel(&channel, RPCI_PROTOCOL_NUM))
+		goto out_open;
 
-	if (vmw_open_channel(&channel, RPCI_PROTOCOL_NUM) ||
-	    vmw_send_msg(&channel, msg) ||
-	    vmw_recv_msg(&channel, (void *) &reply, &reply_len) ||
-	    vmw_close_channel(&channel)) {
-		DRM_ERROR("Failed to get %s", guest_info_param);
+	if (vmw_send_msg(&channel, msg) ||
+	    vmw_recv_msg(&channel, (void *) &reply, &reply_len))
+		goto out_msg;
 
-		ret = -EINVAL;
-	}
-
+	vmw_close_channel(&channel);
 	if (buffer && reply && reply_len > 0) {
 		/* Remove reply code, which are the first 2 characters of
 		 * the reply
@@ -372,7 +368,17 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 	kfree(reply);
 	kfree(msg);
 
-	return ret;
+	return 0;
+
+out_msg:
+	vmw_close_channel(&channel);
+	kfree(reply);
+out_open:
+	*length = 0;
+	kfree(msg);
+	DRM_ERROR("Failed to get guest info \"%s\".", guest_info_param);
+
+	return -EINVAL;
 }
 
 
@@ -388,7 +394,6 @@ int vmw_host_log(const char *log)
 {
 	struct rpc_channel channel;
 	char *msg;
-	int msg_len;
 	int ret = 0;
 
 
@@ -398,24 +403,28 @@ int vmw_host_log(const char *log)
 	if (!log)
 		return ret;
 
-	msg_len = strlen(log) + strlen("log ") + 1;
-	msg = kzalloc(msg_len, GFP_KERNEL);
+	msg = kasprintf(GFP_KERNEL, "log %s", log);
 	if (!msg) {
-		DRM_ERROR("Cannot allocate memory for log message\n");
+		DRM_ERROR("Cannot allocate memory for host log message.\n");
 		return -ENOMEM;
 	}
 
-	sprintf(msg, "log %s", log);
+	if (vmw_open_channel(&channel, RPCI_PROTOCOL_NUM))
+		goto out_open;
 
-	if (vmw_open_channel(&channel, RPCI_PROTOCOL_NUM) ||
-	    vmw_send_msg(&channel, msg) ||
-	    vmw_close_channel(&channel)) {
-		DRM_ERROR("Failed to send log\n");
+	if (vmw_send_msg(&channel, msg))
+		goto out_msg;
 
-		ret = -EINVAL;
-	}
-
+	vmw_close_channel(&channel);
 	kfree(msg);
 
-	return ret;
+	return 0;
+
+out_msg:
+	vmw_close_channel(&channel);
+out_open:
+	kfree(msg);
+	DRM_ERROR("Failed to send host log message.\n");
+
+	return -EINVAL;
 }

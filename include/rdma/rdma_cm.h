@@ -38,6 +38,7 @@
 #include <linux/in6.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_sa.h>
+#include <uapi/rdma/rdma_user_cm.h>
 
 /*
  * Upon receiving a device removal event, users must destroy the associated
@@ -63,14 +64,6 @@ enum rdma_cm_event_type {
 };
 
 const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event);
-
-enum rdma_port_space {
-	RDMA_PS_SDP   = 0x0001,
-	RDMA_PS_IPOIB = 0x0002,
-	RDMA_PS_IB    = 0x013F,
-	RDMA_PS_TCP   = 0x0106,
-	RDMA_PS_UDP   = 0x0111,
-};
 
 #define RDMA_IB_IP_PS_MASK   0xFFFFFFFFFFFF0000ULL
 #define RDMA_IB_IP_PS_TCP    0x0000000001060000ULL
@@ -120,20 +113,6 @@ struct rdma_cm_event {
 	} param;
 };
 
-enum rdma_cm_state {
-	RDMA_CM_IDLE,
-	RDMA_CM_ADDR_QUERY,
-	RDMA_CM_ADDR_RESOLVED,
-	RDMA_CM_ROUTE_QUERY,
-	RDMA_CM_ROUTE_RESOLVED,
-	RDMA_CM_CONNECT,
-	RDMA_CM_DISCONNECT,
-	RDMA_CM_ADDR_BOUND,
-	RDMA_CM_LISTEN,
-	RDMA_CM_DEVICE_REMOVAL,
-	RDMA_CM_DESTROYING
-};
-
 struct rdma_cm_id;
 
 /**
@@ -152,10 +131,16 @@ struct rdma_cm_id {
 	struct ib_qp		*qp;
 	rdma_cm_event_handler	 event_handler;
 	struct rdma_route	 route;
-	enum rdma_port_space	 ps;
+	enum rdma_ucm_port_space ps;
 	enum ib_qp_type		 qp_type;
 	u8			 port_num;
 };
+
+struct rdma_cm_id *__rdma_create_id(struct net *net,
+				    rdma_cm_event_handler event_handler,
+				    void *context, enum rdma_ucm_port_space ps,
+				    enum ib_qp_type qp_type,
+				    const char *caller);
 
 /**
  * rdma_create_id - Create an RDMA identifier.
@@ -167,12 +152,15 @@ struct rdma_cm_id {
  * @ps: RDMA port space.
  * @qp_type: type of queue pair associated with the id.
  *
- * The id holds a reference on the network namespace until it is destroyed.
+ * Returns a new rdma_cm_id. The id holds a reference on the network
+ * namespace until it is destroyed.
+ *
+ * The event handler callback serializes on the id's mutex and is
+ * allowed to sleep.
  */
-struct rdma_cm_id *rdma_create_id(struct net *net,
-				  rdma_cm_event_handler event_handler,
-				  void *context, enum rdma_port_space ps,
-				  enum ib_qp_type qp_type);
+#define rdma_create_id(net, event_handler, context, ps, qp_type) \
+	__rdma_create_id((net), (event_handler), (context), (ps), (qp_type), \
+			 KBUILD_MODNAME)
 
 /**
   * rdma_destroy_id - Destroys an RDMA identifier.
@@ -208,7 +196,8 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr);
  * @timeout_ms: Time to wait for resolution to complete.
  */
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
-		      struct sockaddr *dst_addr, int timeout_ms);
+		      const struct sockaddr *dst_addr,
+		      unsigned long timeout_ms);
 
 /**
  * rdma_resolve_route - Resolve the RDMA address bound to the RDMA identifier
@@ -218,7 +207,7 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
  * Users must have first called rdma_resolve_addr to resolve a dst_addr
  * into an RDMA address before calling this routine.
  */
-int rdma_resolve_route(struct rdma_cm_id *id, int timeout_ms);
+int rdma_resolve_route(struct rdma_cm_id *id, unsigned long timeout_ms);
 
 /**
  * rdma_create_qp - Allocate a QP and associate it with the specified RDMA
@@ -284,6 +273,9 @@ int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
  */
 int rdma_listen(struct rdma_cm_id *id, int backlog);
 
+int __rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		  const char *caller);
+
 /**
  * rdma_accept - Called to accept a connection request or response.
  * @id: Connection identifier associated with the request.
@@ -299,7 +291,8 @@ int rdma_listen(struct rdma_cm_id *id, int backlog);
  * state of the qp associated with the id is modified to error, such that any
  * previously posted receive buffers would be flushed.
  */
-int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
+#define rdma_accept(id, conn_param) \
+	__rdma_accept((id), (conn_param),  KBUILD_MODNAME)
 
 /**
  * rdma_notify - Notifies the RDMA CM of an asynchronous event that has
@@ -412,5 +405,27 @@ bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason);
  */
 const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
 				      struct rdma_cm_event *ev, u8 *data_len);
+
+/**
+ * rdma_read_gids - Return the SGID and DGID used for establishing
+ *                  connection. This can be used after rdma_resolve_addr()
+ *                  on client side. This can be use on new connection
+ *                  on server side. This is applicable to IB, RoCE, iWarp.
+ *                  If cm_id is not bound yet to the RDMA device, it doesn't
+ *                  copy and SGID or DGID to the given pointers.
+ * @id: Communication identifier whose GIDs are queried.
+ * @sgid: Pointer to SGID where SGID will be returned. It is optional.
+ * @dgid: Pointer to DGID where DGID will be returned. It is optional.
+ * Note: This API should not be used by any new ULPs or new code.
+ * Instead, users interested in querying GIDs should refer to path record
+ * of the rdma_cm_id to query the GIDs.
+ * This API is provided for compatibility for existing users.
+ */
+
+void rdma_read_gids(struct rdma_cm_id *cm_id, union ib_gid *sgid,
+		    union ib_gid *dgid);
+
+struct iw_cm_id *rdma_iw_cm_id(struct rdma_cm_id *cm_id);
+struct rdma_cm_id *rdma_res_to_id(struct rdma_restrack_entry *res);
 
 #endif /* RDMA_CM_H */

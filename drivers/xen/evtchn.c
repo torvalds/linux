@@ -322,7 +322,7 @@ static int evtchn_resize_ring(struct per_user_data *u)
 	else
 		new_size = 2 * u->ring_size;
 
-	new_ring = kvmalloc(new_size * sizeof(*new_ring), GFP_KERNEL);
+	new_ring = kvmalloc_array(new_size, sizeof(*new_ring), GFP_KERNEL);
 	if (!new_ring)
 		return -ENOMEM;
 
@@ -621,16 +621,16 @@ static long evtchn_ioctl(struct file *file,
 	return rc;
 }
 
-static unsigned int evtchn_poll(struct file *file, poll_table *wait)
+static __poll_t evtchn_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = POLLOUT | POLLWRNORM;
+	__poll_t mask = EPOLLOUT | EPOLLWRNORM;
 	struct per_user_data *u = file->private_data;
 
 	poll_wait(file, &u->evtchn_wait, wait);
 	if (u->ring_cons != u->ring_prod)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (u->ring_overflow)
-		mask = POLLERR;
+		mask = EPOLLERR;
 	return mask;
 }
 

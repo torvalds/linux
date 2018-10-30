@@ -135,6 +135,7 @@ struct sst_platform_info {
 	const struct sst_res_info *res_info;
 	const struct sst_lib_dnld_info *lib_info;
 	const char *platform;
+	bool streams_lost_on_suspend;
 };
 int add_sst_platform_device(void);
 #endif

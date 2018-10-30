@@ -63,6 +63,7 @@ struct drm_virtgpu_execbuffer {
 };
 
 #define VIRTGPU_PARAM_3D_FEATURES 1 /* do we have 3D features in the hw */
+#define VIRTGPU_PARAM_CAPSET_QUERY_FIX 2 /* do we have the capset fix */
 
 struct drm_virtgpu_getparam {
 	__u64 param;

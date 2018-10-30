@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Precise Delay Loops for i386
  *
@@ -106,10 +107,10 @@ static void delay_mwaitx(unsigned long __loops)
 		delay = min_t(u64, MWAITX_MAX_LOOPS, loops);
 
 		/*
-		 * Use cpu_tss as a cacheline-aligned, seldomly
+		 * Use cpu_tss_rw as a cacheline-aligned, seldomly
 		 * accessed per-cpu variable as the monitor target.
 		 */
-		__monitorx(raw_cpu_ptr(&cpu_tss), 0, 0);
+		__monitorx(raw_cpu_ptr(&cpu_tss_rw), 0, 0);
 
 		/*
 		 * AMD, like Intel, supports the EAX hint and EAX=0xf
@@ -161,7 +162,7 @@ void __delay(unsigned long loops)
 }
 EXPORT_SYMBOL(__delay);
 
-inline void __const_udelay(unsigned long xloops)
+void __const_udelay(unsigned long xloops)
 {
 	unsigned long lpj = this_cpu_read(cpu_info.loops_per_jiffy) ? : loops_per_jiffy;
 	int d0;

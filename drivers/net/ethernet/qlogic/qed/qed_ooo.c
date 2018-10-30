@@ -103,18 +103,28 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 {
 	u16 max_num_archipelagos = 0, cid_base;
 	struct qed_ooo_info *p_ooo_info;
+	enum protocol_type proto;
 	u16 max_num_isles = 0;
 	u32 i;
 
-	if (p_hwfn->hw_info.personality != QED_PCI_ISCSI) {
+	switch (p_hwfn->hw_info.personality) {
+	case QED_PCI_ISCSI:
+		proto = PROTOCOLID_ISCSI;
+		break;
+	case QED_PCI_ETH_RDMA:
+	case QED_PCI_ETH_IWARP:
+		proto = PROTOCOLID_IWARP;
+		break;
+	default:
 		DP_NOTICE(p_hwfn,
 			  "Failed to allocate qed_ooo_info: unknown personality\n");
 		return -EINVAL;
 	}
 
-	max_num_archipelagos = p_hwfn->pf_params.iscsi_pf_params.num_cons;
+	max_num_archipelagos = (u16)qed_cxt_get_proto_cid_count(p_hwfn, proto,
+								NULL);
 	max_num_isles = QED_MAX_NUM_ISLES + max_num_archipelagos;
-	cid_base = (u16)qed_cxt_get_proto_cid_start(p_hwfn, PROTOCOLID_ISCSI);
+	cid_base = (u16)qed_cxt_get_proto_cid_start(p_hwfn, proto);
 
 	if (!max_num_archipelagos) {
 		DP_NOTICE(p_hwfn,
@@ -201,9 +211,8 @@ void qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
 			if (!p_buffer)
 				break;
 
-			list_del(&p_buffer->list_entry);
-			list_add_tail(&p_buffer->list_entry,
-				      &p_ooo_info->free_buffers_list);
+			list_move_tail(&p_buffer->list_entry,
+				       &p_ooo_info->free_buffers_list);
 		}
 		list_add_tail(&p_isle->list_entry,
 			      &p_ooo_info->free_isles_list);
@@ -237,9 +246,8 @@ void qed_ooo_release_all_isles(struct qed_hwfn *p_hwfn,
 				if (!p_buffer)
 					break;
 
-			list_del(&p_buffer->list_entry);
-				list_add_tail(&p_buffer->list_entry,
-					      &p_ooo_info->free_buffers_list);
+				list_move_tail(&p_buffer->list_entry,
+					       &p_ooo_info->free_buffers_list);
 			}
 			list_add_tail(&p_isle->list_entry,
 				      &p_ooo_info->free_isles_list);
@@ -343,11 +351,9 @@ void qed_ooo_delete_isles(struct qed_hwfn *p_hwfn,
 			  struct qed_ooo_info *p_ooo_info,
 			  u32 cid, u8 drop_isle, u8 drop_size)
 {
-	struct qed_ooo_archipelago *p_archipelago = NULL;
 	struct qed_ooo_isle *p_isle = NULL;
 	u8 isle_idx;
 
-	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
 	for (isle_idx = 0; isle_idx < drop_size; isle_idx++) {
 		p_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid, drop_isle);
 		if (!p_isle) {
@@ -452,7 +458,6 @@ void qed_ooo_add_new_buffer(struct qed_hwfn *p_hwfn,
 void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 			struct qed_ooo_info *p_ooo_info, u32 cid, u8 left_isle)
 {
-	struct qed_ooo_archipelago *p_archipelago = NULL;
 	struct qed_ooo_isle *p_right_isle = NULL;
 	struct qed_ooo_isle *p_left_isle = NULL;
 
@@ -465,7 +470,6 @@ void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 		return;
 	}
 
-	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
 	list_del(&p_right_isle->list_entry);
 	p_ooo_info->cur_isles_number--;
 	if (left_isle) {

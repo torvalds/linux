@@ -121,6 +121,8 @@ extern void led_classdev_flash_unregister(struct led_classdev_flash *fled_cdev);
 static inline int led_set_flash_strobe(struct led_classdev_flash *fled_cdev,
 					bool state)
 {
+	if (!fled_cdev)
+		return -EINVAL;
 	return fled_cdev->ops->strobe_set(fled_cdev, state);
 }
 
@@ -136,6 +138,8 @@ static inline int led_set_flash_strobe(struct led_classdev_flash *fled_cdev,
 static inline int led_get_flash_strobe(struct led_classdev_flash *fled_cdev,
 					bool *state)
 {
+	if (!fled_cdev)
+		return -EINVAL;
 	if (fled_cdev->ops->strobe_get)
 		return fled_cdev->ops->strobe_get(fled_cdev, state);
 

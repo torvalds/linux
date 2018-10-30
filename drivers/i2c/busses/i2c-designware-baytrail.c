@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel BayTrail PMIC I2C bus semaphore implementaion
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -172,7 +164,7 @@ int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
 	dev_info(dev->dev, "I2C bus managed by PUNIT\n");
 	dev->acquire_lock = baytrail_i2c_acquire;
 	dev->release_lock = baytrail_i2c_release;
-	dev->pm_disabled = true;
+	dev->shared_with_punit = true;
 
 	pm_qos_add_request(&dev->pm_qos, PM_QOS_CPU_DMA_LATENCY,
 			   PM_QOS_DEFAULT_VALUE);

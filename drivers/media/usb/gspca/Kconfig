@@ -2,12 +2,13 @@ menuconfig USB_GSPCA
 	tristate "GSPCA based webcams"
 	depends on VIDEO_V4L2
 	depends on INPUT || INPUT=n
+	select VIDEOBUF2_VMALLOC
 	default m
 	---help---
 	  Say Y here if you want to enable selecting webcams based
 	  on the GSPCA framework.
 
-	  See <file:Documentation/video4linux/gspca.txt> for more info.
+	  See <file:Documentation/media/v4l-drivers/gspca-cardlist.rst> for more info.
 
 	  This driver uses the Video For Linux API. You must say Y or M to
 	  "Video For Linux" to use this driver.
@@ -204,11 +205,11 @@ config USB_GSPCA_SE401
 	tristate "SE401 USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
 	help
-	 Say Y here if you want support for cameras based on the
-	 Endpoints (formerly known as AOX) se401 chip.
+	  Say Y here if you want support for cameras based on the
+	  Endpoints (formerly known as AOX) se401 chip.
 
-	 To compile this driver as a module, choose M here: the
-	 module will be called gspca_se401.
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_se401.
 
 config USB_GSPCA_SN9C2028
 	tristate "SONIX Dual-Mode USB Camera Driver"
@@ -224,11 +225,11 @@ config USB_GSPCA_SN9C20X
 	tristate "SN9C20X USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
 	help
-	 Say Y here if you want support for cameras based on the
-	 sn9c20x chips (SN9C201 and SN9C202).
+	  Say Y here if you want support for cameras based on the
+	  sn9c20x chips (SN9C201 and SN9C202).
 
-	 To compile this driver as a module, choose M here: the
-	 module will be called gspca_sn9c20x.
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_sn9c20x.
 
 config USB_GSPCA_SONIXB
 	tristate "SONIX Bayer USB Camera Driver"

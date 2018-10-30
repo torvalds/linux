@@ -36,6 +36,7 @@
 #define RP_OFFSET	16
 #define FRAME_SIZE	128
 #define CALLEE_REG_FRAME_SIZE	144
+#define REG_SZ		8
 #define ASM_ULONG_INSN	.dword
 #else	/* CONFIG_64BIT */
 #define LDREG	ldw
@@ -50,6 +51,7 @@
 #define RP_OFFSET	20
 #define FRAME_SIZE	64
 #define CALLEE_REG_FRAME_SIZE	128
+#define REG_SZ		4
 #define ASM_ULONG_INSN	.word
 #endif
 
@@ -127,15 +129,8 @@
 	.macro	debug value
 	.endm
 
-
-	/* Shift Left - note the r and t can NOT be the same! */
-	.macro shl r, sa, t
-	dep,z	\r, 31-(\sa), 32-(\sa), \t
-	.endm
-
-	/* The PA 2.0 shift left */
 	.macro shlw r, sa, t
-	depw,z	\r, 31-(\sa), 32-(\sa), \t
+	zdep	\r, 31-(\sa), 32-(\sa), \t
 	.endm
 
 	/* And the PA 2.0W shift left */

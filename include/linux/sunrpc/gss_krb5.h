@@ -71,10 +71,10 @@ struct gss_krb5_enctype {
 	const u32		keyed_cksum;	/* is it a keyed cksum? */
 	const u32		keybytes;	/* raw key len, in bytes */
 	const u32		keylength;	/* final key len, in bytes */
-	u32 (*encrypt) (struct crypto_skcipher *tfm,
+	u32 (*encrypt) (struct crypto_sync_skcipher *tfm,
 			void *iv, void *in, void *out,
 			int length);		/* encryption function */
-	u32 (*decrypt) (struct crypto_skcipher *tfm,
+	u32 (*decrypt) (struct crypto_sync_skcipher *tfm,
 			void *iv, void *in, void *out,
 			int length);		/* decryption function */
 	u32 (*mk_key) (const struct gss_krb5_enctype *gk5e,
@@ -98,12 +98,12 @@ struct krb5_ctx {
 	u32			enctype;
 	u32			flags;
 	const struct gss_krb5_enctype *gk5e; /* enctype-specific info */
-	struct crypto_skcipher	*enc;
-	struct crypto_skcipher	*seq;
-	struct crypto_skcipher *acceptor_enc;
-	struct crypto_skcipher *initiator_enc;
-	struct crypto_skcipher *acceptor_enc_aux;
-	struct crypto_skcipher *initiator_enc_aux;
+	struct crypto_sync_skcipher *enc;
+	struct crypto_sync_skcipher *seq;
+	struct crypto_sync_skcipher *acceptor_enc;
+	struct crypto_sync_skcipher *initiator_enc;
+	struct crypto_sync_skcipher *acceptor_enc_aux;
+	struct crypto_sync_skcipher *initiator_enc_aux;
 	u8			Ksess[GSS_KRB5_MAX_KEYLEN]; /* session key */
 	u8			cksum[GSS_KRB5_MAX_KEYLEN];
 	s32			endtime;
@@ -118,7 +118,8 @@ struct krb5_ctx {
 	u8			acceptor_integ[GSS_KRB5_MAX_KEYLEN];
 };
 
-extern spinlock_t krb5_seq_lock;
+extern u32 gss_seq_send_fetch_and_inc(struct krb5_ctx *ctx);
+extern u64 gss_seq_send64_fetch_and_inc(struct krb5_ctx *ctx);
 
 /* The length of the Kerberos GSS token header */
 #define GSS_KRB5_TOK_HDR_LEN	(16)
@@ -262,24 +263,24 @@ gss_unwrap_kerberos(struct gss_ctx *ctx_id, int offset,
 
 
 u32
-krb5_encrypt(struct crypto_skcipher *key,
+krb5_encrypt(struct crypto_sync_skcipher *key,
 	     void *iv, void *in, void *out, int length);
 
 u32
-krb5_decrypt(struct crypto_skcipher *key,
+krb5_decrypt(struct crypto_sync_skcipher *key,
 	     void *iv, void *in, void *out, int length); 
 
 int
-gss_encrypt_xdr_buf(struct crypto_skcipher *tfm, struct xdr_buf *outbuf,
+gss_encrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *outbuf,
 		    int offset, struct page **pages);
 
 int
-gss_decrypt_xdr_buf(struct crypto_skcipher *tfm, struct xdr_buf *inbuf,
+gss_decrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *inbuf,
 		    int offset);
 
 s32
 krb5_make_seq_num(struct krb5_ctx *kctx,
-		struct crypto_skcipher *key,
+		struct crypto_sync_skcipher *key,
 		int direction,
 		u32 seqnum, unsigned char *cksum, unsigned char *buf);
 
@@ -320,12 +321,12 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset,
 
 int
 krb5_rc4_setup_seq_key(struct krb5_ctx *kctx,
-		       struct crypto_skcipher *cipher,
+		       struct crypto_sync_skcipher *cipher,
 		       unsigned char *cksum);
 
 int
 krb5_rc4_setup_enc_key(struct krb5_ctx *kctx,
-		       struct crypto_skcipher *cipher,
+		       struct crypto_sync_skcipher *cipher,
 		       s32 seqnum);
 void
 gss_krb5_make_confounder(char *p, u32 conflen);

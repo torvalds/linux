@@ -22,6 +22,8 @@
 
 #include "cpufreq_governor.h"
 
+#define CPUFREQ_DBS_MIN_SAMPLING_INTERVAL	(2 * TICK_NSEC / NSEC_PER_USEC)
+
 static DEFINE_PER_CPU(struct cpu_dbs_info, cpu_dbs);
 
 static DEFINE_MUTEX(gov_dbs_data_mutex);
@@ -47,10 +49,14 @@ ssize_t store_sampling_rate(struct gov_attr_set *attr_set, const char *buf,
 {
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);
 	struct policy_dbs_info *policy_dbs;
+	unsigned int sampling_interval;
 	int ret;
-	ret = sscanf(buf, "%u", &dbs_data->sampling_rate);
-	if (ret != 1)
+
+	ret = sscanf(buf, "%u", &sampling_interval);
+	if (ret != 1 || sampling_interval < CPUFREQ_DBS_MIN_SAMPLING_INTERVAL)
 		return -EINVAL;
+
+	dbs_data->sampling_rate = sampling_interval;
 
 	/*
 	 * We are operating under dbs_data->mutex and so the list and its
@@ -159,7 +165,7 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 			 * calls, so the previous load value can be used then.
 			 */
 			load = j_cdbs->prev_load;
-		} else if (unlikely(time_elapsed > 2 * sampling_rate &&
+		} else if (unlikely((int)idle_time > 2 * sampling_rate &&
 				    j_cdbs->prev_load)) {
 			/*
 			 * If the CPU had gone completely idle and a task has
@@ -179,10 +185,8 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 			 * clear prev_load to guarantee that the load will be
 			 * computed again next time.
 			 *
-			 * Detecting this situation is easy: the governor's
-			 * utilization update handler would not have run during
-			 * CPU-idle periods.  Hence, an unusually large
-			 * 'time_elapsed' (as compared to the sampling rate)
+			 * Detecting this situation is easy: an unusually large
+			 * 'idle_time' (as compared to the sampling rate)
 			 * indicates this scenario.
 			 */
 			load = j_cdbs->prev_load;
@@ -211,8 +215,8 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 			j_cdbs->prev_load = load;
 		}
 
-		if (time_elapsed > 2 * sampling_rate) {
-			unsigned int periods = time_elapsed / sampling_rate;
+		if (unlikely((int)idle_time > 2 * sampling_rate)) {
+			unsigned int periods = idle_time / sampling_rate;
 
 			if (periods < idle_periods)
 				idle_periods = periods;
@@ -272,7 +276,7 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 	struct policy_dbs_info *policy_dbs = cdbs->policy_dbs;
 	u64 delta_ns, lst;
 
-	if (!cpufreq_can_do_remote_dvfs(policy_dbs->policy))
+	if (!cpufreq_this_cpu_can_update(policy_dbs->policy))
 		return;
 
 	/*
@@ -430,7 +434,14 @@ int cpufreq_dbs_governor_init(struct cpufreq_policy *policy)
 	if (ret)
 		goto free_policy_dbs_info;
 
-	dbs_data->sampling_rate = cpufreq_policy_transition_delay_us(policy);
+	/*
+	 * The sampling interval should not be less than the transition latency
+	 * of the CPU and it also cannot be too small for dbs_update() to work
+	 * correctly.
+	 */
+	dbs_data->sampling_rate = max_t(unsigned int,
+					CPUFREQ_DBS_MIN_SAMPLING_INTERVAL,
+					cpufreq_policy_transition_delay_us(policy));
 
 	if (!have_governor_per_policy())
 		gov->gdbs_data = dbs_data;
@@ -544,12 +555,20 @@ EXPORT_SYMBOL_GPL(cpufreq_dbs_governor_stop);
 
 void cpufreq_dbs_governor_limits(struct cpufreq_policy *policy)
 {
-	struct policy_dbs_info *policy_dbs = policy->governor_data;
+	struct policy_dbs_info *policy_dbs;
+
+	/* Protect gov->gdbs_data against cpufreq_dbs_governor_exit() */
+	mutex_lock(&gov_dbs_data_mutex);
+	policy_dbs = policy->governor_data;
+	if (!policy_dbs)
+		goto out;
 
 	mutex_lock(&policy_dbs->update_mutex);
 	cpufreq_policy_apply_limits(policy);
 	gov_update_sample_delay(policy_dbs, 0);
-
 	mutex_unlock(&policy_dbs->update_mutex);
+
+out:
+	mutex_unlock(&gov_dbs_data_mutex);
 }
 EXPORT_SYMBOL_GPL(cpufreq_dbs_governor_limits);

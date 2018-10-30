@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/mm.h>
 #include <linux/sched/mm.h>
@@ -46,13 +34,13 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
 }
 
 void *
-kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
+kmem_alloc_large(size_t size, xfs_km_flags_t flags)
 {
 	unsigned nofs_flag = 0;
 	void	*ptr;
 	gfp_t	lflags;
 
-	ptr = kmem_zalloc(size, flags | KM_MAYFAIL);
+	ptr = kmem_alloc(size, flags | KM_MAYFAIL);
 	if (ptr)
 		return ptr;
 
@@ -67,7 +55,7 @@ kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
 		nofs_flag = memalloc_nofs_save();
 
 	lflags = kmem_flags_convert(flags);
-	ptr = __vmalloc(size, lflags | __GFP_ZERO, PAGE_KERNEL);
+	ptr = __vmalloc(size, lflags, PAGE_KERNEL);
 
 	if (flags & KM_NOFS)
 		memalloc_nofs_restore(nofs_flag);

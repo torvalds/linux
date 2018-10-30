@@ -1,0 +1,29 @@
+Device tree binding documentation for Motorola Mapphone MDM6600 USB PHY
+
+Required properties:
+- compatible		Must be "motorola,mapphone-mdm6600"
+- enable-gpios		GPIO to enable the USB PHY
+- power-gpios		GPIO to power on the device
+- reset-gpios		GPIO to reset the device
+- motorola,mode-gpios	Two GPIOs to configure MDM6600 USB start-up mode for
+			normal mode versus USB flashing mode
+- motorola,cmd-gpios	Three GPIOs to control the power state of the MDM6600
+- motorola,status-gpios	Three GPIOs to read the power state of the MDM6600
+
+Example:
+
+usb-phy {
+	compatible = "motorola,mapphone-mdm6600";
+	enable-gpios = <&gpio3 31 GPIO_ACTIVE_LOW>;
+	power-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio2 17 GPIO_ACTIVE_HIGH>;
+	motorola,mode-gpios = <&gpio5 20 GPIO_ACTIVE_HIGH>,
+			      <&gpio5 21 GPIO_ACTIVE_HIGH>;
+	motorola,cmd-gpios = <&gpio4 7 GPIO_ACTIVE_HIGH>,
+			     <&gpio4 8 GPIO_ACTIVE_HIGH>,
+			     <&gpio5 14 GPIO_ACTIVE_HIGH>;
+	motorola,status-gpios = <&gpio2 20 GPIO_ACTIVE_HIGH>,
+				<&gpio2 21 GPIO_ACTIVE_HIGH>,
+				<&gpio2 23 GPIO_ACTIVE_HIGH>;
+	#phy-cells = <0>;
+};

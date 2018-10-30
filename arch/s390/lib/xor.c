@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Optimized xor_block operation for RAID4/5
  *

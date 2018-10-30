@@ -729,8 +729,8 @@ static void create_le_conn_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 		goto done;
 	}
 
-	BT_ERR("HCI request failed to create LE connection: status 0x%2.2x",
-	       status);
+	bt_dev_err(hdev, "request failed to create LE connection: "
+		   "status 0x%2.2x", status);
 
 	if (!conn)
 		goto done;
@@ -748,39 +748,117 @@ static bool conn_use_rpa(struct hci_conn *conn)
 	return hci_dev_test_flag(hdev, HCI_PRIVACY);
 }
 
-static void hci_req_add_le_create_conn(struct hci_request *req,
-				       struct hci_conn *conn)
+static void set_ext_conn_params(struct hci_conn *conn,
+				struct hci_cp_le_ext_conn_param *p)
 {
-	struct hci_cp_le_create_conn cp;
+	struct hci_dev *hdev = conn->hdev;
+
+	memset(p, 0, sizeof(*p));
+
+	/* Set window to be the same value as the interval to
+	 * enable continuous scanning.
+	 */
+	p->scan_interval = cpu_to_le16(hdev->le_scan_interval);
+	p->scan_window = p->scan_interval;
+	p->conn_interval_min = cpu_to_le16(conn->le_conn_min_interval);
+	p->conn_interval_max = cpu_to_le16(conn->le_conn_max_interval);
+	p->conn_latency = cpu_to_le16(conn->le_conn_latency);
+	p->supervision_timeout = cpu_to_le16(conn->le_supv_timeout);
+	p->min_ce_len = cpu_to_le16(0x0000);
+	p->max_ce_len = cpu_to_le16(0x0000);
+}
+
+static void hci_req_add_le_create_conn(struct hci_request *req,
+				       struct hci_conn *conn,
+				       bdaddr_t *direct_rpa)
+{
 	struct hci_dev *hdev = conn->hdev;
 	u8 own_addr_type;
 
-	/* Update random address, but set require_privacy to false so
-	 * that we never connect with an non-resolvable address.
+	/* If direct address was provided we use it instead of current
+	 * address.
 	 */
-	if (hci_update_random_address(req, false, conn_use_rpa(conn),
-				      &own_addr_type))
-		return;
+	if (direct_rpa) {
+		if (bacmp(&req->hdev->random_addr, direct_rpa))
+			hci_req_add(req, HCI_OP_LE_SET_RANDOM_ADDR, 6,
+								direct_rpa);
 
-	memset(&cp, 0, sizeof(cp));
+		/* direct address is always RPA */
+		own_addr_type = ADDR_LE_DEV_RANDOM;
+	} else {
+		/* Update random address, but set require_privacy to false so
+		 * that we never connect with an non-resolvable address.
+		 */
+		if (hci_update_random_address(req, false, conn_use_rpa(conn),
+					      &own_addr_type))
+			return;
+	}
 
-	/* Set window to be the same value as the interval to enable
-	 * continuous scanning.
-	 */
-	cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
-	cp.scan_window = cp.scan_interval;
+	if (use_ext_conn(hdev)) {
+		struct hci_cp_le_ext_create_conn *cp;
+		struct hci_cp_le_ext_conn_param *p;
+		u8 data[sizeof(*cp) + sizeof(*p) * 3];
+		u32 plen;
 
-	bacpy(&cp.peer_addr, &conn->dst);
-	cp.peer_addr_type = conn->dst_type;
-	cp.own_address_type = own_addr_type;
-	cp.conn_interval_min = cpu_to_le16(conn->le_conn_min_interval);
-	cp.conn_interval_max = cpu_to_le16(conn->le_conn_max_interval);
-	cp.conn_latency = cpu_to_le16(conn->le_conn_latency);
-	cp.supervision_timeout = cpu_to_le16(conn->le_supv_timeout);
-	cp.min_ce_len = cpu_to_le16(0x0000);
-	cp.max_ce_len = cpu_to_le16(0x0000);
+		cp = (void *) data;
+		p = (void *) cp->data;
 
-	hci_req_add(req, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
+		memset(cp, 0, sizeof(*cp));
+
+		bacpy(&cp->peer_addr, &conn->dst);
+		cp->peer_addr_type = conn->dst_type;
+		cp->own_addr_type = own_addr_type;
+
+		plen = sizeof(*cp);
+
+		if (scan_1m(hdev)) {
+			cp->phys |= LE_SCAN_PHY_1M;
+			set_ext_conn_params(conn, p);
+
+			p++;
+			plen += sizeof(*p);
+		}
+
+		if (scan_2m(hdev)) {
+			cp->phys |= LE_SCAN_PHY_2M;
+			set_ext_conn_params(conn, p);
+
+			p++;
+			plen += sizeof(*p);
+		}
+
+		if (scan_coded(hdev)) {
+			cp->phys |= LE_SCAN_PHY_CODED;
+			set_ext_conn_params(conn, p);
+
+			plen += sizeof(*p);
+		}
+
+		hci_req_add(req, HCI_OP_LE_EXT_CREATE_CONN, plen, data);
+
+	} else {
+		struct hci_cp_le_create_conn cp;
+
+		memset(&cp, 0, sizeof(cp));
+
+		/* Set window to be the same value as the interval to enable
+		 * continuous scanning.
+		 */
+		cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
+		cp.scan_window = cp.scan_interval;
+
+		bacpy(&cp.peer_addr, &conn->dst);
+		cp.peer_addr_type = conn->dst_type;
+		cp.own_address_type = own_addr_type;
+		cp.conn_interval_min = cpu_to_le16(conn->le_conn_min_interval);
+		cp.conn_interval_max = cpu_to_le16(conn->le_conn_max_interval);
+		cp.conn_latency = cpu_to_le16(conn->le_conn_latency);
+		cp.supervision_timeout = cpu_to_le16(conn->le_supv_timeout);
+		cp.min_ce_len = cpu_to_le16(0x0000);
+		cp.max_ce_len = cpu_to_le16(0x0000);
+
+		hci_req_add(req, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
+	}
 
 	conn->state = BT_CONNECT;
 	clear_bit(HCI_CONN_SCANNING, &conn->flags);
@@ -790,42 +868,88 @@ static void hci_req_directed_advertising(struct hci_request *req,
 					 struct hci_conn *conn)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_adv_param cp;
 	u8 own_addr_type;
 	u8 enable;
 
-	/* Clear the HCI_LE_ADV bit temporarily so that the
-	 * hci_update_random_address knows that it's safe to go ahead
-	 * and write a new random address. The flag will be set back on
-	 * as soon as the SET_ADV_ENABLE HCI command completes.
-	 */
-	hci_dev_clear_flag(hdev, HCI_LE_ADV);
+	if (ext_adv_capable(hdev)) {
+		struct hci_cp_le_set_ext_adv_params cp;
+		bdaddr_t random_addr;
 
-	/* Set require_privacy to false so that the remote device has a
-	 * chance of identifying us.
-	 */
-	if (hci_update_random_address(req, false, conn_use_rpa(conn),
-				      &own_addr_type) < 0)
-		return;
+		/* Set require_privacy to false so that the remote device has a
+		 * chance of identifying us.
+		 */
+		if (hci_get_random_address(hdev, false, conn_use_rpa(conn), NULL,
+					   &own_addr_type, &random_addr) < 0)
+			return;
 
-	memset(&cp, 0, sizeof(cp));
-	cp.type = LE_ADV_DIRECT_IND;
-	cp.own_address_type = own_addr_type;
-	cp.direct_addr_type = conn->dst_type;
-	bacpy(&cp.direct_addr, &conn->dst);
-	cp.channel_map = hdev->le_adv_channel_map;
+		memset(&cp, 0, sizeof(cp));
 
-	hci_req_add(req, HCI_OP_LE_SET_ADV_PARAM, sizeof(cp), &cp);
+		cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_DIRECT_IND);
+		cp.own_addr_type = own_addr_type;
+		cp.channel_map = hdev->le_adv_channel_map;
+		cp.tx_power = HCI_TX_POWER_INVALID;
+		cp.primary_phy = HCI_ADV_PHY_1M;
+		cp.secondary_phy = HCI_ADV_PHY_1M;
+		cp.handle = 0; /* Use instance 0 for directed adv */
+		cp.own_addr_type = own_addr_type;
+		cp.peer_addr_type = conn->dst_type;
+		bacpy(&cp.peer_addr, &conn->dst);
 
-	enable = 0x01;
-	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
+		hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_PARAMS, sizeof(cp), &cp);
+
+		if (own_addr_type == ADDR_LE_DEV_RANDOM &&
+		    bacmp(&random_addr, BDADDR_ANY) &&
+		    bacmp(&random_addr, &hdev->random_addr)) {
+			struct hci_cp_le_set_adv_set_rand_addr cp;
+
+			memset(&cp, 0, sizeof(cp));
+
+			cp.handle = 0;
+			bacpy(&cp.bdaddr, &random_addr);
+
+			hci_req_add(req,
+				    HCI_OP_LE_SET_ADV_SET_RAND_ADDR,
+				    sizeof(cp), &cp);
+		}
+
+		__hci_req_enable_ext_advertising(req);
+	} else {
+		struct hci_cp_le_set_adv_param cp;
+
+		/* Clear the HCI_LE_ADV bit temporarily so that the
+		 * hci_update_random_address knows that it's safe to go ahead
+		 * and write a new random address. The flag will be set back on
+		 * as soon as the SET_ADV_ENABLE HCI command completes.
+		 */
+		hci_dev_clear_flag(hdev, HCI_LE_ADV);
+
+		/* Set require_privacy to false so that the remote device has a
+		 * chance of identifying us.
+		 */
+		if (hci_update_random_address(req, false, conn_use_rpa(conn),
+					      &own_addr_type) < 0)
+			return;
+
+		memset(&cp, 0, sizeof(cp));
+		cp.type = LE_ADV_DIRECT_IND;
+		cp.own_address_type = own_addr_type;
+		cp.direct_addr_type = conn->dst_type;
+		bacpy(&cp.direct_addr, &conn->dst);
+		cp.channel_map = hdev->le_adv_channel_map;
+
+		hci_req_add(req, HCI_OP_LE_SET_ADV_PARAM, sizeof(cp), &cp);
+
+		enable = 0x01;
+		hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable),
+			    &enable);
+	}
 
 	conn->state = BT_CONNECT;
 }
 
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, u8 sec_level, u16 conn_timeout,
-				u8 role)
+				u8 role, bdaddr_t *direct_rpa)
 {
 	struct hci_conn_params *params;
 	struct hci_conn *conn;
@@ -907,7 +1031,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		 */
 		if (hci_dev_test_flag(hdev, HCI_LE_SCAN) &&
 		    hdev->le_scan_type == LE_SCAN_ACTIVE) {
-			skb_queue_purge(&req.cmd_q);
+			hci_req_purge(&req);
 			hci_conn_del(conn);
 			return ERR_PTR(-EBUSY);
 		}
@@ -940,7 +1064,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		hci_dev_set_flag(hdev, HCI_LE_SCAN_INTERRUPTED);
 	}
 
-	hci_req_add_le_create_conn(&req, conn);
+	hci_req_add_le_create_conn(&req, conn, direct_rpa);
 
 create_conn:
 	err = hci_req_run(&req, create_le_conn_complete);

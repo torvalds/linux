@@ -34,11 +34,6 @@ parameters may be changed at runtime by the command
 			See drivers/scsi/BusLogic.c, comment before function
 			BusLogic_ParseDriverOptions().
 
-	eata=		[HW,SCSI]
-
-	fdomain=	[HW,SCSI]
-			See header of drivers/scsi/fdomain.c.
-
 	gdth=		[HW,SCSI]
 			See header of drivers/scsi/gdth.c.
 
@@ -50,10 +45,11 @@ parameters may be changed at runtime by the command
 	mac5380=	[HW,SCSI]
 			See drivers/scsi/mac_scsi.c.
 
-	max_luns=	[SCSI] Maximum number of LUNs to probe.
+	scsi_mod.max_luns=
+			[SCSI] Maximum number of LUNs to probe.
 			Should be between 1 and 2^32-1.
 
-	max_report_luns=
+	scsi_mod.max_report_luns=
 			[SCSI] Maximum number of LUNs received.
 			Should be between 1 and 16384.
 
@@ -69,8 +65,6 @@ parameters may be changed at runtime by the command
 	ncr53c400a=	[HW,SCSI]
 			See Documentation/scsi/g_NCR5380.txt.
 
-	ncr53c406a=	[HW,SCSI]
-
 	ncr53c8xx=	[HW,SCSI]
 
 	osst=		[HW,SCSI] SCSI Tape Driver
@@ -80,15 +74,17 @@ parameters may be changed at runtime by the command
 	scsi_debug_*=	[SCSI]
 			See drivers/scsi/scsi_debug.c.
 
-	scsi_default_dev_flags=
+	scsi_mod.default_dev_flags=
 			[SCSI] SCSI default device flags
 			Format: <integer>
 
-	scsi_dev_flags=	[SCSI] Black/white list entry for vendor and model
+	scsi_mod.dev_flags=
+			[SCSI] Black/white list entry for vendor and model
 			Format: <vendor>:<model>:<flags>
 			(flags are integer value)
 
-	scsi_logging_level=	[SCSI] a bit mask of logging levels
+	scsi_mod.scsi_logging_level=
+			[SCSI] a bit mask of logging levels
 			See drivers/scsi/scsi_logging.h for bits.  Also
 			settable via sysctl at dev.scsi.logging_level
 			(/proc/sys/dev/scsi/logging_level).
@@ -101,18 +97,16 @@ parameters may be changed at runtime by the command
 			allowing boot to proceed.  none ignores them, expecting
 			user space to do the scan.
 
+	scsi_mod.use_blk_mq=
+			[SCSI] use blk-mq I/O path by default
+			See SCSI_MQ_DEFAULT in drivers/scsi/Kconfig.
+			Format: <y/n>
+
 	sim710=		[SCSI,HW]
 			See header of drivers/scsi/sim710.c.
 
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
 			See Documentation/scsi/st.txt.
-
-	sym53c416=	[HW,SCSI]
-			See header of drivers/scsi/sym53c416.c.
-
-	tmscsim=	[HW,SCSI]
-			See comment before function dc390_setup() in
-			drivers/scsi/tmscsim.c.
 
 	wd33c93=	[HW,SCSI]
 			See header of drivers/scsi/wd33c93.c.

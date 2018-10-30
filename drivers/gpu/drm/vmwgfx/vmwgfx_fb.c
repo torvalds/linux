@@ -42,9 +42,7 @@ struct vmw_fb_par {
 	void *vmalloc;
 
 	struct mutex bo_mutex;
-	struct vmw_dma_buffer *vmw_bo;
-	struct ttm_bo_kmap_obj map;
-	void *bo_ptr;
+	struct vmw_buffer_object *vmw_bo;
 	unsigned bo_size;
 	struct drm_framebuffer *set_fb;
 	struct drm_display_mode *set_mode;
@@ -163,10 +161,17 @@ static int vmw_fb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-/*
- * Dirty code
+/**
+ * vmw_fb_dirty_flush - flush dirty regions to the kms framebuffer
+ *
+ * @work: The struct work_struct associated with this task.
+ *
+ * This function flushes the dirty regions of the vmalloc framebuffer to the
+ * kms framebuffer, and if the kms framebuffer is visible, also updated the
+ * corresponding displays. Note that this function runs even if the kms
+ * framebuffer is not bound to a crtc and thus not visible, but it's turned
+ * off during hibernation using the par->dirty.active bool.
  */
-
 static void vmw_fb_dirty_flush(struct work_struct *work)
 {
 	struct vmw_fb_par *par = container_of(work, struct vmw_fb_par,
@@ -174,13 +179,15 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 	struct vmw_private *vmw_priv = par->vmw_priv;
 	struct fb_info *info = vmw_priv->fb_info;
 	unsigned long irq_flags;
-	s32 dst_x1, dst_x2, dst_y1, dst_y2, w, h;
+	s32 dst_x1, dst_x2, dst_y1, dst_y2, w = 0, h = 0;
 	u32 cpp, max_x, max_y;
 	struct drm_clip_rect clip;
 	struct drm_framebuffer *cur_fb;
 	u8 *src_ptr, *dst_ptr;
+	struct vmw_buffer_object *vbo = par->vmw_bo;
+	void *virtual;
 
-	if (vmw_priv->suspended)
+	if (!READ_ONCE(par->dirty.active))
 		return;
 
 	mutex_lock(&par->bo_mutex);
@@ -188,10 +195,16 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 	if (!cur_fb)
 		goto out_unlock;
 
+	(void) ttm_read_lock(&vmw_priv->reservation_sem, false);
+	(void) ttm_bo_reserve(&vbo->base, false, false, NULL);
+	virtual = vmw_bo_map_and_cache(vbo);
+	if (!virtual)
+		goto out_unreserve;
+
 	spin_lock_irqsave(&par->dirty.lock, irq_flags);
 	if (!par->dirty.active) {
 		spin_unlock_irqrestore(&par->dirty.lock, irq_flags);
-		goto out_unlock;
+		goto out_unreserve;
 	}
 
 	/*
@@ -221,7 +234,7 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 	spin_unlock_irqrestore(&par->dirty.lock, irq_flags);
 
 	if (w && h) {
-		dst_ptr = (u8 *)par->bo_ptr  +
+		dst_ptr = (u8 *)virtual  +
 			(dst_y1 * par->set_fb->pitches[0] + dst_x1 * cpp);
 		src_ptr = (u8 *)par->vmalloc +
 			((dst_y1 + par->fb_y) * info->fix.line_length +
@@ -237,7 +250,12 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 		clip.x2 = dst_x2;
 		clip.y1 = dst_y1;
 		clip.y2 = dst_y2;
+	}
 
+out_unreserve:
+	ttm_bo_unreserve(&vbo->base);
+	ttm_read_unlock(&vmw_priv->reservation_sem);
+	if (w && h) {
 		WARN_ON_ONCE(par->set_fb->funcs->dirty(cur_fb, NULL, 0, 0,
 						       &clip, 1));
 		vmw_fifo_flush(vmw_priv, false);
@@ -373,9 +391,9 @@ static void vmw_fb_imageblit(struct fb_info *info, const struct fb_image *image)
  */
 
 static int vmw_fb_create_bo(struct vmw_private *vmw_priv,
-			    size_t size, struct vmw_dma_buffer **out)
+			    size_t size, struct vmw_buffer_object **out)
 {
-	struct vmw_dma_buffer *vmw_bo;
+	struct vmw_buffer_object *vmw_bo;
 	int ret;
 
 	(void) ttm_write_lock(&vmw_priv->reservation_sem, false);
@@ -386,10 +404,10 @@ static int vmw_fb_create_bo(struct vmw_private *vmw_priv,
 		goto err_unlock;
 	}
 
-	ret = vmw_dmabuf_init(vmw_priv, vmw_bo, size,
+	ret = vmw_bo_init(vmw_priv, vmw_bo, size,
 			      &vmw_sys_placement,
 			      false,
-			      &vmw_dmabuf_bo_free);
+			      &vmw_bo_bo_free);
 	if (unlikely(ret != 0))
 		goto err_unlock; /* init frees the buffer on failure */
 
@@ -421,53 +439,21 @@ static int vmw_fb_compute_depth(struct fb_var_screeninfo *var,
 static int vmwgfx_set_config_internal(struct drm_mode_set *set)
 {
 	struct drm_crtc *crtc = set->crtc;
-	struct drm_framebuffer *fb;
-	struct drm_crtc *tmp;
-	struct drm_modeset_acquire_ctx *ctx;
-	struct drm_device *dev = set->crtc->dev;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	ctx = dev->mode_config.acquire_ctx;
+	drm_modeset_acquire_init(&ctx, 0);
 
 restart:
-	/*
-	 * NOTE: ->set_config can also disable other crtcs (if we steal all
-	 * connectors from it), hence we need to refcount the fbs across all
-	 * crtcs. Atomic modeset will have saner semantics ...
-	 */
-	drm_for_each_crtc(tmp, dev)
-		tmp->primary->old_fb = tmp->primary->fb;
-
-	fb = set->fb;
-
-	ret = crtc->funcs->set_config(set, ctx);
-	if (ret == 0) {
-		crtc->primary->crtc = crtc;
-		crtc->primary->fb = fb;
-	}
-
-	drm_for_each_crtc(tmp, dev) {
-		if (tmp->primary->fb)
-			drm_framebuffer_get(tmp->primary->fb);
-		if (tmp->primary->old_fb)
-			drm_framebuffer_put(tmp->primary->old_fb);
-		tmp->primary->old_fb = NULL;
-	}
+	ret = crtc->funcs->set_config(set, &ctx);
 
 	if (ret == -EDEADLK) {
-		dev->mode_config.acquire_ctx = NULL;
-
-retry_locking:
-		drm_modeset_backoff(ctx);
-
-		ret = drm_modeset_lock_all_ctx(dev, ctx);
-		if (ret)
-			goto retry_locking;
-
-		dev->mode_config.acquire_ctx = ctx;
-
+		drm_modeset_backoff(&ctx);
 		goto restart;
 	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
 	return ret;
 }
@@ -500,22 +486,12 @@ static int vmw_fb_kms_detach(struct vmw_fb_par *par,
 	}
 
 	if (cur_fb) {
-		drm_framebuffer_unreference(cur_fb);
+		drm_framebuffer_put(cur_fb);
 		par->set_fb = NULL;
 	}
 
-	if (par->vmw_bo && detach_bo) {
-		struct vmw_private *vmw_priv = par->vmw_priv;
-
-		if (par->bo_ptr) {
-			ttm_bo_kunmap(&par->map);
-			par->bo_ptr = NULL;
-		}
-		if (unref_bo)
-			vmw_dmabuf_unreference(&par->vmw_bo);
-		else if (vmw_priv->active_display_unit != vmw_du_legacy)
-			vmw_dmabuf_unpin(par->vmw_priv, par->vmw_bo, false);
-	}
+	if (par->vmw_bo && detach_bo && unref_bo)
+		vmw_bo_unreference(&par->vmw_bo);
 
 	return 0;
 }
@@ -616,7 +592,6 @@ static int vmw_fb_set_par(struct fb_info *info)
 	}
 
 	mutex_lock(&par->bo_mutex);
-	drm_modeset_lock_all(vmw_priv->dev);
 	ret = vmw_fb_kms_framebuffer(info);
 	if (ret)
 		goto out_unlock;
@@ -636,38 +611,6 @@ static int vmw_fb_set_par(struct fb_info *info)
 	if (ret)
 		goto out_unlock;
 
-	if (!par->bo_ptr) {
-		struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(set.fb);
-
-		/*
-		 * Pin before mapping. Since we don't know in what placement
-		 * to pin, call into KMS to do it for us.  LDU doesn't require
-		 * additional pinning because set_config() would've pinned
-		 * it already
-		 */
-		if (vmw_priv->active_display_unit != vmw_du_legacy) {
-			ret = vfb->pin(vfb);
-			if (ret) {
-				DRM_ERROR("Could not pin the fbdev "
-					  "framebuffer.\n");
-				goto out_unlock;
-			}
-		}
-
-		ret = ttm_bo_kmap(&par->vmw_bo->base, 0,
-				  par->vmw_bo->base.num_pages, &par->map);
-		if (ret) {
-			if (vmw_priv->active_display_unit != vmw_du_legacy)
-				vfb->unpin(vfb);
-
-			DRM_ERROR("Could not map the fbdev framebuffer.\n");
-			goto out_unlock;
-		}
-
-		par->bo_ptr = ttm_kmap_obj_virtual(&par->map, &par->bo_iowrite);
-	}
-
-
 	vmw_fb_dirty_mark(par, par->fb_x, par->fb_y,
 			  par->set_fb->width, par->set_fb->height);
 
@@ -681,7 +624,6 @@ out_unlock:
 		drm_mode_destroy(vmw_priv->dev, old_mode);
 	par->set_mode = mode;
 
-	drm_modeset_unlock_all(vmw_priv->dev);
 	mutex_unlock(&par->bo_mutex);
 
 	return ret;
@@ -737,18 +679,14 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	par->max_width = fb_width;
 	par->max_height = fb_height;
 
-	drm_modeset_lock_all(vmw_priv->dev);
 	ret = vmw_kms_fbdev_init_data(vmw_priv, 0, par->max_width,
 				      par->max_height, &par->con,
 				      &par->crtc, &init_mode);
-	if (ret) {
-		drm_modeset_unlock_all(vmw_priv->dev);
+	if (ret)
 		goto err_kms;
-	}
 
 	info->var.xres = init_mode->hdisplay;
 	info->var.yres = init_mode->vdisplay;
-	drm_modeset_unlock_all(vmw_priv->dev);
 
 	/*
 	 * Create buffers and alloc memory
@@ -856,7 +794,9 @@ int vmw_fb_close(struct vmw_private *vmw_priv)
 	cancel_delayed_work_sync(&par->local_work);
 	unregister_framebuffer(info);
 
+	mutex_lock(&par->bo_mutex);
 	(void) vmw_fb_kms_detach(par, true, true);
+	mutex_unlock(&par->bo_mutex);
 
 	vfree(par->vmalloc);
 	framebuffer_release(info);
@@ -883,12 +823,6 @@ int vmw_fb_off(struct vmw_private *vmw_priv)
 	flush_delayed_work(&info->deferred_work);
 	flush_delayed_work(&par->local_work);
 
-	mutex_lock(&par->bo_mutex);
-	drm_modeset_lock_all(vmw_priv->dev);
-	(void) vmw_fb_kms_detach(par, true, false);
-	drm_modeset_unlock_all(vmw_priv->dev);
-	mutex_unlock(&par->bo_mutex);
-
 	return 0;
 }
 
@@ -904,10 +838,16 @@ int vmw_fb_on(struct vmw_private *vmw_priv)
 	info = vmw_priv->fb_info;
 	par = info->par;
 
-	vmw_fb_set_par(info);
 	spin_lock_irqsave(&par->dirty.lock, flags);
 	par->dirty.active = true;
 	spin_unlock_irqrestore(&par->dirty.lock, flags);
- 
+
+	/*
+	 * Need to reschedule a dirty update, because otherwise that's
+	 * only done in dirty_mark() if the previous coalesced
+	 * dirty region was empty.
+	 */
+	schedule_delayed_work(&par->local_work, 0);
+
 	return 0;
 }

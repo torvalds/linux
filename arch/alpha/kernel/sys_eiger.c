@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	linux/arch/alpha/kernel/sys_eiger.c
  *
@@ -141,7 +142,7 @@ eiger_init_irq(void)
 	}
 }
 
-static int __init
+static int
 eiger_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	u8 irq_orig;
@@ -158,7 +159,7 @@ eiger_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq_orig - 0x80;
 }
 
-static u8 __init
+static u8
 eiger_swizzle(struct pci_dev *dev, u8 *pinp)
 {
 	struct pci_controller *hose = dev->sysdata;

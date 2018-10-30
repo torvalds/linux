@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2013  Davidlohr Bueso <davidlohr@hp.com>
  *
@@ -21,6 +22,7 @@
 #include <errno.h>
 #include "bench.h"
 #include "futex.h"
+#include "cpumap.h"
 
 #include <err.h>
 #include <stdlib.h>
@@ -39,7 +41,7 @@ static bool done = false, silent = false, fshared = false;
 static pthread_mutex_t thread_lock;
 static pthread_cond_t thread_parent, thread_worker;
 static struct stats requeuetime_stats, requeued_stats;
-static unsigned int ncpus, threads_starting, nthreads = 0;
+static unsigned int threads_starting, nthreads = 0;
 static int futex_flag = 0;
 
 static const struct option options[] = {
@@ -82,19 +84,19 @@ static void *workerfn(void *arg __maybe_unused)
 }
 
 static void block_threads(pthread_t *w,
-			  pthread_attr_t thread_attr)
+			  pthread_attr_t thread_attr, struct cpu_map *cpu)
 {
-	cpu_set_t cpu;
+	cpu_set_t cpuset;
 	unsigned int i;
 
 	threads_starting = nthreads;
 
 	/* create and block all threads */
 	for (i = 0; i < nthreads; i++) {
-		CPU_ZERO(&cpu);
-		CPU_SET(i % ncpus, &cpu);
+		CPU_ZERO(&cpuset);
+		CPU_SET(cpu->map[i % cpu->nr], &cpuset);
 
-		if (pthread_attr_setaffinity_np(&thread_attr, sizeof(cpu_set_t), &cpu))
+		if (pthread_attr_setaffinity_np(&thread_attr, sizeof(cpu_set_t), &cpuset))
 			err(EXIT_FAILURE, "pthread_attr_setaffinity_np");
 
 		if (pthread_create(&w[i], &thread_attr, workerfn, NULL))
@@ -115,19 +117,22 @@ int bench_futex_requeue(int argc, const char **argv)
 	unsigned int i, j;
 	struct sigaction act;
 	pthread_attr_t thread_attr;
+	struct cpu_map *cpu;
 
 	argc = parse_options(argc, argv, options, bench_futex_requeue_usage, 0);
 	if (argc)
 		goto err;
 
-	ncpus = sysconf(_SC_NPROCESSORS_ONLN);
+	cpu = cpu_map__new(NULL);
+	if (!cpu)
+		err(EXIT_FAILURE, "cpu_map__new");
 
 	sigfillset(&act.sa_mask);
 	act.sa_sigaction = toggle_done;
 	sigaction(SIGINT, &act, NULL);
 
 	if (!nthreads)
-		nthreads = ncpus;
+		nthreads = cpu->nr;
 
 	worker = calloc(nthreads, sizeof(*worker));
 	if (!worker)
@@ -155,7 +160,7 @@ int bench_futex_requeue(int argc, const char **argv)
 		struct timeval start, end, runtime;
 
 		/* create, launch & block all threads */
-		block_threads(worker, thread_attr);
+		block_threads(worker, thread_attr, cpu);
 
 		/* make sure all threads are already blocked */
 		pthread_mutex_lock(&thread_lock);

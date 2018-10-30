@@ -131,6 +131,9 @@ enum axp20x_variants {
 #define AXP803_DCDC6_V_OUT		0x25
 #define AXP803_DCDC_FREQ_CTRL		0x3b
 
+/* Other DCDC regulator control registers are the same as AXP803 */
+#define AXP813_DCDC7_V_OUT		0x26
+
 /* Interrupt */
 #define AXP152_IRQ1_EN			0x40
 #define AXP152_IRQ2_EN			0x41
@@ -262,6 +265,8 @@ enum axp20x_variants {
 #define AXP288_ADC_TS_PIN_CTRL          0x84
 #define AXP288_RT_BATT_V_H		0xa0
 #define AXP288_RT_BATT_V_L		0xa1
+
+#define AXP813_ADC_RATE			0x85
 
 /* Fuel Gauge */
 #define AXP288_FG_RDC1_REG          0xba
@@ -587,11 +592,11 @@ enum axp806_irqs {
 	AXP806_IRQ_DCDCC_V_LOW,
 	AXP806_IRQ_DCDCD_V_LOW,
 	AXP806_IRQ_DCDCE_V_LOW,
-	AXP806_IRQ_PWROK_LONG,
-	AXP806_IRQ_PWROK_SHORT,
+	AXP806_IRQ_POK_LONG,
+	AXP806_IRQ_POK_SHORT,
 	AXP806_IRQ_WAKEUP,
-	AXP806_IRQ_PWROK_FALL,
-	AXP806_IRQ_PWROK_RISE,
+	AXP806_IRQ_POK_FALL,
+	AXP806_IRQ_POK_RISE,
 };
 
 enum axp809_irqs {
@@ -637,14 +642,9 @@ struct axp20x_dev {
 	struct regmap_irq_chip_data	*regmap_irqc;
 	long				variant;
 	int                             nr_cells;
-	struct mfd_cell                 *cells;
+	const struct mfd_cell           *cells;
 	const struct regmap_config	*regmap_cfg;
 	const struct regmap_irq_chip	*regmap_irq_chip;
-};
-
-struct axp288_extcon_pdata {
-	/* GPIO pin control to switch D+/D- lines b/w PMIC and SOC */
-	struct gpio_desc *gpio_mux_cntl;
 };
 
 /* generic helper function for reading 9-16 bit wide regs */

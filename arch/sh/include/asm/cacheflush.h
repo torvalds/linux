@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_CACHEFLUSH_H
 #define __ASM_SH_CACHEFLUSH_H
 
@@ -99,6 +100,13 @@ void kunmap_coherent(void *kvaddr);
 #define PG_dcache_clean	PG_arch_1
 
 void cpu_cache_init(void);
+
+static inline void *sh_cacheop_vaddr(void *vaddr)
+{
+	if (__in_29bit_mode())
+		vaddr = (void *)CAC_ADDR((unsigned long)vaddr);
+	return vaddr;
+}
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHEFLUSH_H */

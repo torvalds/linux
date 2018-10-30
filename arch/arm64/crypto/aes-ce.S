@@ -17,6 +17,11 @@
 
 	.arch		armv8-a+crypto
 
+	xtsmask		.req	v16
+
+	.macro		xts_reload_mask, tmp
+	.endm
+
 	/* preload all round keys */
 	.macro		load_round_keys, rounds, rk
 	cmp		\rounds, #12
@@ -30,18 +35,21 @@
 	.endm
 
 	/* prepare for encryption with key in rk[] */
-	.macro		enc_prepare, rounds, rk, ignore
-	load_round_keys	\rounds, \rk
+	.macro		enc_prepare, rounds, rk, temp
+	mov		\temp, \rk
+	load_round_keys	\rounds, \temp
 	.endm
 
 	/* prepare for encryption (again) but with new key in rk[] */
-	.macro		enc_switch_key, rounds, rk, ignore
-	load_round_keys	\rounds, \rk
+	.macro		enc_switch_key, rounds, rk, temp
+	mov		\temp, \rk
+	load_round_keys	\rounds, \temp
 	.endm
 
 	/* prepare for decryption with key in rk[] */
-	.macro		dec_prepare, rounds, rk, ignore
-	load_round_keys	\rounds, \rk
+	.macro		dec_prepare, rounds, rk, temp
+	mov		\temp, \rk
+	load_round_keys	\rounds, \temp
 	.endm
 
 	.macro		do_enc_Nx, de, mc, k, i0, i1, i2, i3

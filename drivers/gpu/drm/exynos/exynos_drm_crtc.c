@@ -95,8 +95,23 @@ static enum drm_mode_status exynos_crtc_mode_valid(struct drm_crtc *crtc,
 	return MODE_OK;
 }
 
+static bool exynos_crtc_mode_fixup(struct drm_crtc *crtc,
+		const struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+
+	if (exynos_crtc->ops->mode_fixup)
+		return exynos_crtc->ops->mode_fixup(exynos_crtc, mode,
+				adjusted_mode);
+
+	return true;
+}
+
+
 static const struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.mode_valid	= exynos_crtc_mode_valid,
+	.mode_fixup	= exynos_crtc_mode_fixup,
 	.atomic_check	= exynos_crtc_atomic_check,
 	.atomic_begin	= exynos_crtc_atomic_begin,
 	.atomic_flush	= exynos_crtc_atomic_flush,
@@ -213,7 +228,7 @@ struct exynos_drm_crtc *exynos_drm_crtc_get_by_type(struct drm_device *drm_dev,
 		if (to_exynos_crtc(crtc)->type == out_type)
 			return to_exynos_crtc(crtc);
 
-	return ERR_PTR(-EPERM);
+	return ERR_PTR(-ENODEV);
 }
 
 int exynos_drm_set_possible_crtcs(struct drm_encoder *encoder,

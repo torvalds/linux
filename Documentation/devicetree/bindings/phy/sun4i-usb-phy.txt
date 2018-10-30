@@ -11,6 +11,7 @@ Required properties:
   * allwinner,sun8i-a33-usb-phy
   * allwinner,sun8i-a83t-usb-phy
   * allwinner,sun8i-h3-usb-phy
+  * allwinner,sun8i-r40-usb-phy
   * allwinner,sun8i-v3s-usb-phy
   * allwinner,sun50i-a64-usb-phy
 - reg : a list of offset + length pairs
@@ -45,7 +46,7 @@ Optional properties:
 - usb3_vbus-supply : regulator phandle for controller usb3 vbus
 
 Example:
-	usbphy: phy@0x01c13400 {
+	usbphy: phy@01c13400 {
 		#phy-cells = <1>;
 		compatible = "allwinner,sun4i-a10-usb-phy";
 		/* phy base regs, phy1 pmu reg, phy2 pmu reg */

@@ -252,8 +252,7 @@ static int socrates_fpga_pic_host_xlate(struct irq_domain *h,
 		/* type is configurable */
 		if (intspec[1] != IRQ_TYPE_LEVEL_LOW &&
 		    intspec[1] != IRQ_TYPE_LEVEL_HIGH) {
-			pr_warning("FPGA PIC: invalid irq type, "
-				   "setting default active low\n");
+			pr_warn("FPGA PIC: invalid irq type, setting default active low\n");
 			*out_flags = IRQ_TYPE_LEVEL_LOW;
 		} else {
 			*out_flags = intspec[1];
@@ -267,7 +266,7 @@ static int socrates_fpga_pic_host_xlate(struct irq_domain *h,
 	if (intspec[2] <= 2)
 		fpga_irq->irq_line = intspec[2];
 	else
-		pr_warning("FPGA PIC: invalid irq routing\n");
+		pr_warn("FPGA PIC: invalid irq routing\n");
 
 	return 0;
 }
@@ -293,7 +292,7 @@ void socrates_fpga_pic_init(struct device_node *pic)
 	for (i = 0; i < 3; i++) {
 		socrates_fpga_irqs[i] = irq_of_parse_and_map(pic, i);
 		if (!socrates_fpga_irqs[i]) {
-			pr_warning("FPGA PIC: can't get irq%d.\n", i);
+			pr_warn("FPGA PIC: can't get irq%d\n", i);
 			continue;
 		}
 		irq_set_chained_handler(socrates_fpga_irqs[i],

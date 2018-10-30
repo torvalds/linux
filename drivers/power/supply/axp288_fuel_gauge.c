@@ -1,6 +1,7 @@
 /*
  * axp288_fuel_gauge.c - Xpower AXP288 PMIC Fuel Gauge Driver
  *
+ * Copyright (C) 2016-2017 Hans de Goede <hdegoede@redhat.com>
  * Copyright (C) 2014 Intel Corporation
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -16,13 +17,13 @@
  *
  */
 
+#include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/regmap.h>
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/mfd/axp20x.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
@@ -30,6 +31,12 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <asm/unaligned.h>
+
+#define PS_STAT_VBUS_TRIGGER		(1 << 0)
+#define PS_STAT_BAT_CHRG_DIR		(1 << 2)
+#define PS_STAT_VBAT_ABOVE_VHOLD	(1 << 3)
+#define PS_STAT_VBUS_VALID		(1 << 4)
+#define PS_STAT_VBUS_PRESENT		(1 << 5)
 
 #define CHRG_STAT_BAT_SAFE_MODE		(1 << 3)
 #define CHRG_STAT_BAT_VALID			(1 << 4)
@@ -80,7 +87,6 @@
 #define FG_LOW_CAP_CRIT_THR			4   /* 4 perc */
 #define FG_LOW_CAP_SHDN_THR			0   /* 0 perc */
 
-#define STATUS_MON_DELAY_JIFFIES    (HZ * 60)   /*60 sec */
 #define NR_RETRY_CNT    3
 #define DEV_NAME	"axp288_fuel_gauge"
 
@@ -100,16 +106,26 @@ enum {
 	WL1_IRQ,
 };
 
+enum {
+	BAT_TEMP = 0,
+	PMIC_TEMP,
+	SYSTEM_TEMP,
+	BAT_CHRG_CURR,
+	BAT_D_CURR,
+	BAT_VOLT,
+	IIO_CHANNEL_NUM
+};
+
 struct axp288_fg_info {
 	struct platform_device *pdev;
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *regmap_irqc;
 	int irq[AXP288_FG_INTR_NUM];
+	struct iio_channel *iio_channel[IIO_CHANNEL_NUM];
 	struct power_supply *bat;
 	struct mutex lock;
 	int status;
 	int max_volt;
-	struct delayed_work status_monitor;
 	struct dentry *debug_file;
 };
 
@@ -199,33 +215,6 @@ static int fuel_gauge_read_12bit_word(struct axp288_fg_info *info, int reg)
 	return (buf[0] << 4) | ((buf[1] >> 4) & 0x0f);
 }
 
-static int pmic_read_adc_val(const char *name, int *raw_val,
-		struct axp288_fg_info *info)
-{
-	int ret, val = 0;
-	struct iio_channel *indio_chan;
-
-	indio_chan = iio_channel_get(NULL, name);
-	if (IS_ERR_OR_NULL(indio_chan)) {
-		ret = PTR_ERR(indio_chan);
-		goto exit;
-	}
-	ret = iio_read_channel_raw(indio_chan, &val);
-	if (ret < 0) {
-		dev_err(&info->pdev->dev,
-			"IIO channel read error: %x, %x\n", ret, val);
-		goto err_exit;
-	}
-
-	dev_dbg(&info->pdev->dev, "adc raw val=%x\n", val);
-	*raw_val = val;
-
-err_exit:
-	iio_channel_release(indio_chan);
-exit:
-	return ret;
-}
-
 #ifdef CONFIG_DEBUG_FS
 static int fuel_gauge_debug_show(struct seq_file *s, void *data)
 {
@@ -296,22 +285,22 @@ static int fuel_gauge_debug_show(struct seq_file *s, void *data)
 		AXP288_FG_TUNE5,
 		fuel_gauge_reg_readb(info, AXP288_FG_TUNE5));
 
-	ret = pmic_read_adc_val("axp288-batt-temp", &raw_val, info);
+	ret = iio_read_channel_raw(info->iio_channel[BAT_TEMP], &raw_val);
 	if (ret >= 0)
 		seq_printf(s, "axp288-batttemp : %d\n", raw_val);
-	ret = pmic_read_adc_val("axp288-pmic-temp", &raw_val, info);
+	ret = iio_read_channel_raw(info->iio_channel[PMIC_TEMP], &raw_val);
 	if (ret >= 0)
 		seq_printf(s, "axp288-pmictemp : %d\n", raw_val);
-	ret = pmic_read_adc_val("axp288-system-temp", &raw_val, info);
+	ret = iio_read_channel_raw(info->iio_channel[SYSTEM_TEMP], &raw_val);
 	if (ret >= 0)
 		seq_printf(s, "axp288-systtemp : %d\n", raw_val);
-	ret = pmic_read_adc_val("axp288-chrg-curr", &raw_val, info);
+	ret = iio_read_channel_raw(info->iio_channel[BAT_CHRG_CURR], &raw_val);
 	if (ret >= 0)
 		seq_printf(s, "axp288-chrgcurr : %d\n", raw_val);
-	ret = pmic_read_adc_val("axp288-chrg-d-curr", &raw_val, info);
+	ret = iio_read_channel_raw(info->iio_channel[BAT_D_CURR], &raw_val);
 	if (ret >= 0)
 		seq_printf(s, "axp288-dchrgcur : %d\n", raw_val);
-	ret = pmic_read_adc_val("axp288-batt-volt", &raw_val, info);
+	ret = iio_read_channel_raw(info->iio_channel[BAT_VOLT], &raw_val);
 	if (ret >= 0)
 		seq_printf(s, "axp288-battvolt : %d\n", raw_val);
 
@@ -351,8 +340,7 @@ static inline void fuel_gauge_remove_debugfs(struct axp288_fg_info *info)
 
 static void fuel_gauge_get_status(struct axp288_fg_info *info)
 {
-	int pwr_stat, ret;
-	int charge, discharge;
+	int pwr_stat, fg_res, curr, ret;
 
 	pwr_stat = fuel_gauge_reg_readb(info, AXP20X_PWR_INPUT_STATUS);
 	if (pwr_stat < 0) {
@@ -360,36 +348,55 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 			"PWR STAT read failed:%d\n", pwr_stat);
 		return;
 	}
-	ret = pmic_read_adc_val("axp288-chrg-curr", &charge, info);
-	if (ret < 0) {
-		dev_err(&info->pdev->dev,
-			"ADC charge current read failed:%d\n", ret);
+
+	/* Report full if Vbus is valid and the reported capacity is 100% */
+	if (!(pwr_stat & PS_STAT_VBUS_VALID))
+		goto not_full;
+
+	fg_res = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
+	if (fg_res < 0) {
+		dev_err(&info->pdev->dev, "FG RES read failed: %d\n", fg_res);
 		return;
 	}
-	ret = pmic_read_adc_val("axp288-chrg-d-curr", &discharge, info);
-	if (ret < 0) {
-		dev_err(&info->pdev->dev,
-			"ADC discharge current read failed:%d\n", ret);
+	if (!(fg_res & FG_REP_CAP_VALID))
+		goto not_full;
+
+	fg_res &= ~FG_REP_CAP_VALID;
+	if (fg_res == 100) {
+		info->status = POWER_SUPPLY_STATUS_FULL;
 		return;
 	}
 
-	if (charge > 0)
-		info->status = POWER_SUPPLY_STATUS_CHARGING;
-	else if (discharge > 0)
-		info->status = POWER_SUPPLY_STATUS_DISCHARGING;
-	else {
-		if (pwr_stat & CHRG_STAT_BAT_PRESENT)
-			info->status = POWER_SUPPLY_STATUS_FULL;
-		else
-			info->status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+	/*
+	 * Sometimes the charger turns itself off before fg-res reaches 100%.
+	 * When this happens the AXP288 reports a not-charging status and
+	 * 0 mA discharge current.
+	 */
+	if (fg_res < 90 || (pwr_stat & PS_STAT_BAT_CHRG_DIR))
+		goto not_full;
+
+	ret = iio_read_channel_raw(info->iio_channel[BAT_D_CURR], &curr);
+	if (ret < 0) {
+		dev_err(&info->pdev->dev, "FG get current failed: %d\n", ret);
+		return;
 	}
+	if (curr == 0) {
+		info->status = POWER_SUPPLY_STATUS_FULL;
+		return;
+	}
+
+not_full:
+	if (pwr_stat & PS_STAT_BAT_CHRG_DIR)
+		info->status = POWER_SUPPLY_STATUS_CHARGING;
+	else
+		info->status = POWER_SUPPLY_STATUS_DISCHARGING;
 }
 
 static int fuel_gauge_get_vbatt(struct axp288_fg_info *info, int *vbatt)
 {
 	int ret = 0, raw_val;
 
-	ret = pmic_read_adc_val("axp288-batt-volt", &raw_val, info);
+	ret = iio_read_channel_raw(info->iio_channel[BAT_VOLT], &raw_val);
 	if (ret < 0)
 		goto vbatt_read_fail;
 
@@ -400,24 +407,19 @@ vbatt_read_fail:
 
 static int fuel_gauge_get_current(struct axp288_fg_info *info, int *cur)
 {
-	int ret, value = 0;
-	int charge, discharge;
+	int ret, discharge;
 
-	ret = pmic_read_adc_val("axp288-chrg-curr", &charge, info);
+	/* First check discharge current, so that we do only 1 read on bat. */
+	ret = iio_read_channel_raw(info->iio_channel[BAT_D_CURR], &discharge);
 	if (ret < 0)
-		goto current_read_fail;
-	ret = pmic_read_adc_val("axp288-chrg-d-curr", &discharge, info);
-	if (ret < 0)
-		goto current_read_fail;
+		return ret;
 
-	if (charge > 0)
-		value = charge;
-	else if (discharge > 0)
-		value = -1 * discharge;
+	if (discharge > 0) {
+		*cur = -1 * discharge;
+		return 0;
+	}
 
-	*cur = value;
-current_read_fail:
-	return ret;
+	return iio_read_channel_raw(info->iio_channel[BAT_CHRG_CURR], cur);
 }
 
 static int fuel_gauge_get_vocv(struct axp288_fg_info *info, int *vocv)
@@ -587,16 +589,6 @@ static int fuel_gauge_property_is_writeable(struct power_supply *psy,
 	return ret;
 }
 
-static void fuel_gauge_status_monitor(struct work_struct *work)
-{
-	struct axp288_fg_info *info = container_of(work,
-		struct axp288_fg_info, status_monitor.work);
-
-	fuel_gauge_get_status(info);
-	power_supply_changed(info->bat);
-	schedule_delayed_work(&info->status_monitor, STATUS_MON_DELAY_JIFFIES);
-}
-
 static irqreturn_t fuel_gauge_thread_handler(int irq, void *dev)
 {
 	struct axp288_fg_info *info = dev;
@@ -698,12 +690,71 @@ intr_failed:
 	}
 }
 
+/*
+ * Some devices have no battery (HDMI sticks) and the axp288 battery's
+ * detection reports one despite it not being there.
+ */
+static const struct dmi_system_id axp288_fuel_gauge_blacklist[] = {
+	{
+		/* Intel Cherry Trail Compute Stick, Windows version */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "STK1AW32SC"),
+		},
+	},
+	{
+		/* Intel Cherry Trail Compute Stick, version without an OS */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "STK1A32SC"),
+		},
+	},
+	{
+		/* Meegopad T08 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Default string"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "To be filled by OEM."),
+			DMI_MATCH(DMI_BOARD_NAME, "T3 MRD"),
+			DMI_MATCH(DMI_BOARD_VERSION, "V1.1"),
+		},
+	},
+	{
+		/* ECS EF20EA */
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
+		},
+	},
+	{}
+};
+
 static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 {
-	int ret = 0;
+	int i, ret = 0;
 	struct axp288_fg_info *info;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct power_supply_config psy_cfg = {};
+	static const char * const iio_chan_name[] = {
+		[BAT_TEMP] = "axp288-batt-temp",
+		[PMIC_TEMP] = "axp288-pmic-temp",
+		[SYSTEM_TEMP] = "axp288-system-temp",
+		[BAT_CHRG_CURR] = "axp288-chrg-curr",
+		[BAT_D_CURR] = "axp288-chrg-d-curr",
+		[BAT_VOLT] = "axp288-batt-volt",
+	};
+	unsigned int val;
+
+	if (dmi_check_system(axp288_fuel_gauge_blacklist))
+		return -ENODEV;
+
+	/*
+	 * On some devices the fuelgauge and charger parts of the axp288 are
+	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
+	 */
+	ret = regmap_read(axp20x->regmap, AXP20X_CC_CTRL, &val);
+	if (ret < 0)
+		return ret;
+	if (val == 0)
+		return -ENODEV;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -717,20 +768,40 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 
 	mutex_init(&info->lock);
-	INIT_DELAYED_WORK(&info->status_monitor, fuel_gauge_status_monitor);
+
+	for (i = 0; i < IIO_CHANNEL_NUM; i++) {
+		/*
+		 * Note cannot use devm_iio_channel_get because x86 systems
+		 * lack the device<->channel maps which iio_channel_get will
+		 * try to use when passed a non NULL device pointer.
+		 */
+		info->iio_channel[i] =
+			iio_channel_get(NULL, iio_chan_name[i]);
+		if (IS_ERR(info->iio_channel[i])) {
+			ret = PTR_ERR(info->iio_channel[i]);
+			dev_dbg(&pdev->dev, "error getting iiochan %s: %d\n",
+				iio_chan_name[i], ret);
+			/* Wait for axp288_adc to load */
+			if (ret == -ENODEV)
+				ret = -EPROBE_DEFER;
+
+			goto out_free_iio_chan;
+		}
+	}
 
 	ret = fuel_gauge_reg_readb(info, AXP288_FG_DES_CAP1_REG);
 	if (ret < 0)
-		return ret;
+		goto out_free_iio_chan;
 
 	if (!(ret & FG_DES_CAP1_VALID)) {
 		dev_err(&pdev->dev, "axp288 not configured by firmware\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out_free_iio_chan;
 	}
 
 	ret = fuel_gauge_reg_readb(info, AXP20X_CHRG_CTRL1);
 	if (ret < 0)
-		return ret;
+		goto out_free_iio_chan;
 	switch ((ret & CHRG_CCCV_CV_MASK) >> CHRG_CCCV_CV_BIT_POS) {
 	case CHRG_CCCV_CV_4100MV:
 		info->max_volt = 4100;
@@ -751,14 +822,20 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	if (IS_ERR(info->bat)) {
 		ret = PTR_ERR(info->bat);
 		dev_err(&pdev->dev, "failed to register battery: %d\n", ret);
-		return ret;
+		goto out_free_iio_chan;
 	}
 
 	fuel_gauge_create_debugfs(info);
 	fuel_gauge_init_irq(info);
-	schedule_delayed_work(&info->status_monitor, STATUS_MON_DELAY_JIFFIES);
 
 	return 0;
+
+out_free_iio_chan:
+	for (i = 0; i < IIO_CHANNEL_NUM; i++)
+		if (!IS_ERR_OR_NULL(info->iio_channel[i]))
+			iio_channel_release(info->iio_channel[i]);
+
+	return ret;
 }
 
 static const struct platform_device_id axp288_fg_id_table[] = {
@@ -772,13 +849,15 @@ static int axp288_fuel_gauge_remove(struct platform_device *pdev)
 	struct axp288_fg_info *info = platform_get_drvdata(pdev);
 	int i;
 
-	cancel_delayed_work_sync(&info->status_monitor);
 	power_supply_unregister(info->bat);
 	fuel_gauge_remove_debugfs(info);
 
 	for (i = 0; i < AXP288_FG_INTR_NUM; i++)
 		if (info->irq[i] >= 0)
 			free_irq(info->irq[i], info);
+
+	for (i = 0; i < IIO_CHANNEL_NUM; i++)
+		iio_channel_release(info->iio_channel[i]);
 
 	return 0;
 }

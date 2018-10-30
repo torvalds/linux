@@ -1,0 +1,25 @@
+Binding for Silicon Labs 544 programmable I2C clock generator.
+
+Reference
+This binding uses the common clock binding[1]. Details about the device can be
+found in the datasheet[2].
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+[2] Si544 datasheet
+    https://www.silabs.com/documents/public/data-sheets/si544-datasheet.pdf
+
+Required properties:
+ - compatible: One of "silabs,si514a", "silabs,si514b" "silabs,si514c" according
+               to the speed grade of the chip.
+ - reg: I2C device address.
+ - #clock-cells: From common clock bindings: Shall be 0.
+
+Optional properties:
+ - clock-output-names: From common clock bindings. Recommended to be "si544".
+
+Example:
+	si544: clock-controller@55 {
+		reg = <0x55>;
+		#clock-cells = <0>;
+		compatible = "silabs,si544b";
+	};

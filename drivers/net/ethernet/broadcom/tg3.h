@@ -1,10 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: tg3.h,v 1.37.2.32 2002/03/11 12:18:18 davem Exp $
  * tg3.h: Definitions for Broadcom Tigon3 ethernet driver.
  *
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2007-2014 Broadcom Corporation.
+ * Copyright (C) 2007-2016 Broadcom Corporation.
+ * Copyright (C) 2016-2017 Broadcom Limited.
+ * Copyright (C) 2018 Broadcom. All Rights Reserved. The term "Broadcom"
+ * refers to Broadcom Inc. and/or its subsidiaries.
  */
 
 #ifndef _T3_H
@@ -95,6 +99,7 @@
 #define TG3PCI_SUBDEVICE_ID_DELL_JAGUAR		0x0106
 #define TG3PCI_SUBDEVICE_ID_DELL_MERLOT		0x0109
 #define TG3PCI_SUBDEVICE_ID_DELL_SLIM_MERLOT	0x010a
+#define TG3PCI_SUBDEVICE_ID_DELL_5762		0x07f0
 #define TG3PCI_SUBVENDOR_ID_COMPAQ		PCI_VENDOR_ID_COMPAQ
 #define TG3PCI_SUBDEVICE_ID_COMPAQ_BANSHEE	0x007c
 #define TG3PCI_SUBDEVICE_ID_COMPAQ_BANSHEE_2	0x009a
@@ -280,6 +285,9 @@
 #define TG3PCI_STD_RING_PROD_IDX	0x00000098 /* 64-bit */
 #define TG3PCI_RCV_RET_RING_CON_IDX	0x000000a0 /* 64-bit */
 /* 0xa8 --> 0xb8 unused */
+#define TG3PCI_DEV_STATUS_CTRL		0x000000b4
+#define  MAX_READ_REQ_SIZE_2048		 0x00004000
+#define  MAX_READ_REQ_MASK		 0x00007000
 #define TG3PCI_DUAL_MAC_CTRL		0x000000b8
 #define  DUAL_MAC_CTRL_CH_MASK		 0x00000003
 #define  DUAL_MAC_CTRL_ID		 0x00000004
@@ -1857,7 +1865,7 @@
 #define NVRAM_STAT			0x00007004
 #define NVRAM_WRDATA			0x00007008
 #define NVRAM_ADDR			0x0000700c
-#define  NVRAM_ADDR_MSK			0x00ffffff
+#define  NVRAM_ADDR_MSK			0x07ffffff
 #define NVRAM_RDDATA			0x00007010
 #define NVRAM_CFG1			0x00007014
 #define  NVRAM_CFG1_FLASHIF_ENAB	 0x00000001
@@ -1939,6 +1947,11 @@
 #define  FLASH_5720_EEPROM_LD		 0x00000003
 #define  FLASH_5762_EEPROM_HD		 0x02000001
 #define  FLASH_5762_EEPROM_LD		 0x02000003
+#define  FLASH_5762_MX25L_100           0x00800000
+#define  FLASH_5762_MX25L_200           0x00800002
+#define  FLASH_5762_MX25L_400           0x00800001
+#define  FLASH_5762_MX25L_800           0x00800003
+#define  FLASH_5762_MX25L_160_320       0x03800002
 #define  FLASH_5720VENDOR_M_ATMEL_DB011D 0x01000000
 #define  FLASH_5720VENDOR_M_ATMEL_DB021D 0x01000002
 #define  FLASH_5720VENDOR_M_ATMEL_DB041D 0x01000001
@@ -2003,7 +2016,11 @@
 /* 0x702c unused */
 
 #define NVRAM_ADDR_LOCKOUT		0x00007030
-/* 0x7034 --> 0x7500 unused */
+#define NVRAM_AUTOSENSE_STATUS         0x00007038
+#define AUTOSENSE_DEVID                        0x00000010
+#define AUTOSENSE_DEVID_MASK           0x00000007
+#define AUTOSENSE_SIZE_IN_MB           17
+/* 0x703c --> 0x7500 unused */
 
 #define OTP_MODE			0x00007500
 #define OTP_MODE_OTP_THRU_GRC		 0x00000001
@@ -2493,6 +2510,7 @@
 #define TG3_APE_LOCK_PHY3		5
 #define TG3_APE_LOCK_GPIO		7
 
+#define TG3_APE_HB_INTERVAL             (tp->ape_hb_interval)
 #define TG3_EEPROM_SB_F1R2_MBA_OFF	0x10
 
 
@@ -3372,6 +3390,7 @@ struct tg3 {
 #define JEDEC_ST			0x20
 #define JEDEC_SAIFUN			0x4f
 #define JEDEC_SST			0xbf
+#define JEDEC_MACRONIX                 0xc2
 
 #define ATMEL_AT24C02_CHIP_SIZE		TG3_NVRAM_SIZE_2KB
 #define ATMEL_AT24C02_PAGE_SIZE		(8)
@@ -3407,6 +3426,10 @@ struct tg3 {
 	struct device			*hwmon_dev;
 	bool				link_up;
 	bool				pcierr_recovery;
+
+	u32                             ape_hb;
+	unsigned long                   ape_hb_interval;
+	unsigned long                   ape_hb_jiffies;
 };
 
 /* Accessor macros for chip and asic attributes

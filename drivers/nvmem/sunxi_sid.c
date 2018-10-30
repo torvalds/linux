@@ -40,7 +40,6 @@ static struct nvmem_config econfig = {
 	.read_only = true,
 	.stride = 4,
 	.word_size = 1,
-	.owner = THIS_MODULE,
 };
 
 struct sunxi_sid_cfg {
@@ -86,13 +85,14 @@ static int sunxi_sid_read(void *context, unsigned int offset,
 }
 
 static int sun8i_sid_register_readout(const struct sunxi_sid *sid,
-				      const unsigned int word)
+				      const unsigned int offset,
+				      u32 *out)
 {
 	u32 reg_val;
 	int ret;
 
 	/* Set word, lock access, and set read command */
-	reg_val = (word & SUN8I_SID_OFFSET_MASK)
+	reg_val = (offset & SUN8I_SID_OFFSET_MASK)
 		  << SUN8I_SID_OFFSET_SHIFT;
 	reg_val |= SUN8I_SID_OP_LOCK | SUN8I_SID_READ;
 	writel(reg_val, sid->base + SUN8I_SID_PRCTL);
@@ -102,7 +102,49 @@ static int sun8i_sid_register_readout(const struct sunxi_sid *sid,
 	if (ret)
 		return ret;
 
+	if (out)
+		*out = readl(sid->base + SUN8I_SID_RDKEY);
+
 	writel(0, sid->base + SUN8I_SID_PRCTL);
+
+	return 0;
+}
+
+/*
+ * On Allwinner H3, the value on the 0x200 offset of the SID controller seems
+ * to be not reliable at all.
+ * Read by the registers instead.
+ */
+static int sun8i_sid_read_byte_by_reg(const struct sunxi_sid *sid,
+				      const unsigned int offset,
+				      u8 *out)
+{
+	u32 word;
+	int ret;
+
+	ret = sun8i_sid_register_readout(sid, offset & ~0x03, &word);
+
+	if (ret)
+		return ret;
+
+	*out = (word >> ((offset & 0x3) * 8)) & 0xff;
+
+	return 0;
+}
+
+static int sun8i_sid_read_by_reg(void *context, unsigned int offset,
+				 void *val, size_t bytes)
+{
+	struct sunxi_sid *sid = context;
+	u8 *buf = val;
+	int ret;
+
+	while (bytes--) {
+		ret = sun8i_sid_read_byte_by_reg(sid, offset++, buf++);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -112,7 +154,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct nvmem_device *nvmem;
 	struct sunxi_sid *sid;
-	int ret, i, size;
+	int i, size;
 	char *randomness;
 	const struct sunxi_sid_cfg *cfg;
 
@@ -132,39 +174,23 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 
 	size = cfg->size;
 
-	if (cfg->need_register_readout) {
-		/*
-		 * H3's SID controller have a bug that the value at 0x200
-		 * offset is not the correct value when the hardware is reseted.
-		 * However, after doing a register-based read operation, the
-		 * value become right.
-		 * Do a full read operation here, but ignore its value
-		 * (as it's more fast to read by direct MMIO value than
-		 * with registers)
-		 */
-		for (i = 0; i < (size >> 2); i++) {
-			ret = sun8i_sid_register_readout(sid, i);
-			if (ret)
-				return ret;
-		}
-	}
-
 	econfig.size = size;
 	econfig.dev = dev;
-	econfig.reg_read = sunxi_sid_read;
+	if (cfg->need_register_readout)
+		econfig.reg_read = sun8i_sid_read_by_reg;
+	else
+		econfig.reg_read = sunxi_sid_read;
 	econfig.priv = sid;
-	nvmem = nvmem_register(&econfig);
+	nvmem = devm_nvmem_register(dev, &econfig);
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);
 
-	randomness = kzalloc(sizeof(u8) * (size), GFP_KERNEL);
-	if (!randomness) {
-		ret = -EINVAL;
-		goto err_unreg_nvmem;
-	}
+	randomness = kzalloc(size, GFP_KERNEL);
+	if (!randomness)
+		return -ENOMEM;
 
 	for (i = 0; i < size; i++)
-		randomness[i] = sunxi_sid_read_byte(sid, i);
+		econfig.reg_read(sid, i, &randomness[i], 1);
 
 	add_device_randomness(randomness, size);
 	kfree(randomness);
@@ -172,17 +198,6 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nvmem);
 
 	return 0;
-
-err_unreg_nvmem:
-	nvmem_unregister(nvmem);
-	return ret;
-}
-
-static int sunxi_sid_remove(struct platform_device *pdev)
-{
-	struct nvmem_device *nvmem = platform_get_drvdata(pdev);
-
-	return nvmem_unregister(nvmem);
 }
 
 static const struct sunxi_sid_cfg sun4i_a10_cfg = {
@@ -199,17 +214,22 @@ static const struct sunxi_sid_cfg sun8i_h3_cfg = {
 	.need_register_readout = true,
 };
 
+static const struct sunxi_sid_cfg sun50i_a64_cfg = {
+	.value_offset = 0x200,
+	.size = 0x100,
+};
+
 static const struct of_device_id sunxi_sid_of_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-sid", .data = &sun4i_a10_cfg },
 	{ .compatible = "allwinner,sun7i-a20-sid", .data = &sun7i_a20_cfg },
 	{ .compatible = "allwinner,sun8i-h3-sid", .data = &sun8i_h3_cfg },
+	{ .compatible = "allwinner,sun50i-a64-sid", .data = &sun50i_a64_cfg },
 	{/* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, sunxi_sid_of_match);
 
 static struct platform_driver sunxi_sid_driver = {
 	.probe = sunxi_sid_probe,
-	.remove = sunxi_sid_remove,
 	.driver = {
 		.name = "eeprom-sunxi-sid",
 		.of_match_table = sunxi_sid_of_match,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * pcm3724.c
  * Comedi driver for Advantech PCM-3724 Digital I/O board

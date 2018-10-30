@@ -27,6 +27,7 @@
 
 #include <media/drv-intf/saa7146_vv.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 
 static int debug;
 module_param(debug, int, 0);
@@ -187,19 +188,19 @@ static struct {
 
 static struct saa7146_standard hexium_standards[] = {
 	{
-		.name	= "PAL", 	.id	= V4L2_STD_PAL,
-		.v_offset	= 16,	.v_field 	= 288,
-		.h_offset	= 1,	.h_pixels 	= 680,
+		.name	= "PAL",	.id	= V4L2_STD_PAL,
+		.v_offset	= 16,	.v_field	= 288,
+		.h_offset	= 1,	.h_pixels	= 680,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}, {
-		.name	= "NTSC", 	.id	= V4L2_STD_NTSC,
-		.v_offset	= 16,	.v_field 	= 240,
-		.h_offset	= 1,	.h_pixels 	= 640,
+		.name	= "NTSC",	.id	= V4L2_STD_NTSC,
+		.v_offset	= 16,	.v_field	= 240,
+		.h_offset	= 1,	.h_pixels	= 640,
 		.v_max_out	= 480,	.h_max_out	= 640,
 	}, {
-		.name	= "SECAM", 	.id	= V4L2_STD_SECAM,
-		.v_offset	= 16,	.v_field 	= 288,
-		.h_offset	= 1,	.h_pixels 	= 720,
+		.name	= "SECAM",	.id	= V4L2_STD_SECAM,
+		.v_offset	= 16,	.v_field	= 288,
+		.h_offset	= 1,	.h_pixels	= 720,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}
 };
@@ -219,11 +220,9 @@ static int hexium_probe(struct saa7146_dev *dev)
 		return -EFAULT;
 	}
 
-	hexium = kzalloc(sizeof(struct hexium), GFP_KERNEL);
-	if (NULL == hexium) {
-		pr_err("hexium_probe: not enough kernel memory\n");
+	hexium = kzalloc(sizeof(*hexium), GFP_KERNEL);
+	if (!hexium)
 		return -ENOMEM;
-	}
 
 	/* enable i2c-port pins */
 	saa7146_write(dev, MC1, (MASK_08 | MASK_24 | MASK_10 | MASK_26));
@@ -268,7 +267,9 @@ static int hexium_probe(struct saa7146_dev *dev)
 
 	/* check if this is an old hexium Orion card by looking at
 	   a saa7110 at address 0x4e */
-	if (0 == (err = i2c_smbus_xfer(&hexium->i2c_adapter, 0x4e, 0, I2C_SMBUS_READ, 0x00, I2C_SMBUS_BYTE_DATA, &data))) {
+	err = i2c_smbus_xfer(&hexium->i2c_adapter, 0x4e, 0, I2C_SMBUS_READ,
+			     0x00, I2C_SMBUS_BYTE_DATA, &data);
+	if (err == 0) {
 		pr_info("device is a Hexium HV-PCI6/Orion (old)\n");
 		/* we store the pointer in our private data field */
 		dev->ext_priv = hexium;
@@ -460,7 +461,7 @@ static struct saa7146_ext_vv vv_data = {
 	.inputs = HEXIUM_INPUTS,
 	.capabilities = 0,
 	.stds = &hexium_standards[0],
-	.num_stds = sizeof(hexium_standards) / sizeof(struct saa7146_standard),
+	.num_stds = ARRAY_SIZE(hexium_standards),
 	.std_callback = &std_callback,
 };
 

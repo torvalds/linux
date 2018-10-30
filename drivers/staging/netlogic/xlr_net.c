@@ -290,13 +290,6 @@ static netdev_tx_t xlr_net_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static u16 xlr_net_select_queue(struct net_device *ndev, struct sk_buff *skb,
-				void *accel_priv,
-				select_queue_fallback_t fallback)
-{
-	return (u16)smp_processor_id();
-}
-
 static void xlr_hw_set_mac_addr(struct net_device *ndev)
 {
 	struct xlr_net_priv *priv = netdev_priv(ndev);
@@ -364,46 +357,46 @@ static void xlr_stats(struct net_device *ndev, struct rtnl_link_stats64 *stats)
 	stats->tx_bytes = xlr_nae_rdreg(priv->base_addr, TX_BYTE_COUNTER);
 	stats->tx_errors = xlr_nae_rdreg(priv->base_addr, TX_FCS_ERROR_COUNTER);
 	stats->rx_dropped = xlr_nae_rdreg(priv->base_addr,
-			RX_DROP_PACKET_COUNTER);
+					  RX_DROP_PACKET_COUNTER);
 	stats->tx_dropped = xlr_nae_rdreg(priv->base_addr,
-			TX_DROP_FRAME_COUNTER);
+					  TX_DROP_FRAME_COUNTER);
 
 	stats->multicast = xlr_nae_rdreg(priv->base_addr,
-			RX_MULTICAST_PACKET_COUNTER);
+					 RX_MULTICAST_PACKET_COUNTER);
 	stats->collisions = xlr_nae_rdreg(priv->base_addr,
-			TX_TOTAL_COLLISION_COUNTER);
+					  TX_TOTAL_COLLISION_COUNTER);
 
 	stats->rx_length_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_FRAME_LENGTH_ERROR_COUNTER);
+						RX_FRAME_LENGTH_ERROR_COUNTER);
 	stats->rx_over_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_DROP_PACKET_COUNTER);
+					      RX_DROP_PACKET_COUNTER);
 	stats->rx_crc_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_FCS_ERROR_COUNTER);
+					     RX_FCS_ERROR_COUNTER);
 	stats->rx_frame_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_ALIGNMENT_ERROR_COUNTER);
+					       RX_ALIGNMENT_ERROR_COUNTER);
 
 	stats->rx_fifo_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_DROP_PACKET_COUNTER);
+					      RX_DROP_PACKET_COUNTER);
 	stats->rx_missed_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_CARRIER_SENSE_ERROR_COUNTER);
+						RX_CARRIER_SENSE_ERROR_COUNTER);
 
 	stats->rx_errors = (stats->rx_over_errors + stats->rx_crc_errors +
-			stats->rx_frame_errors + stats->rx_fifo_errors +
-			stats->rx_missed_errors);
+			    stats->rx_frame_errors + stats->rx_fifo_errors +
+			    stats->rx_missed_errors);
 
 	stats->tx_aborted_errors = xlr_nae_rdreg(priv->base_addr,
 			TX_EXCESSIVE_COLLISION_PACKET_COUNTER);
 	stats->tx_carrier_errors = xlr_nae_rdreg(priv->base_addr,
-			TX_DROP_FRAME_COUNTER);
+						 TX_DROP_FRAME_COUNTER);
 	stats->tx_fifo_errors = xlr_nae_rdreg(priv->base_addr,
-			TX_DROP_FRAME_COUNTER);
+					      TX_DROP_FRAME_COUNTER);
 }
 
 static const struct net_device_ops xlr_netdev_ops = {
 	.ndo_open = xlr_net_open,
 	.ndo_stop = xlr_net_stop,
 	.ndo_start_xmit = xlr_net_start_xmit,
-	.ndo_select_queue = xlr_net_select_queue,
+	.ndo_select_queue = dev_pick_tx_cpu_id,
 	.ndo_set_mac_address = xlr_net_set_mac_addr,
 	.ndo_set_rx_mode = xlr_set_rx_mode,
 	.ndo_get_stats64 = xlr_stats,
@@ -448,41 +441,35 @@ static void *xlr_config_spill(struct xlr_net_priv *priv, int reg_start_0,
 static void xlr_config_fifo_spill_area(struct xlr_net_priv *priv)
 {
 	priv->frin_spill = xlr_config_spill(priv,
-			R_REG_FRIN_SPILL_MEM_START_0,
-			R_REG_FRIN_SPILL_MEM_START_1,
-			R_REG_FRIN_SPILL_MEM_SIZE,
-			MAX_FRIN_SPILL *
-			sizeof(u64));
+					    R_REG_FRIN_SPILL_MEM_START_0,
+					    R_REG_FRIN_SPILL_MEM_START_1,
+					    R_REG_FRIN_SPILL_MEM_SIZE,
+					    MAX_FRIN_SPILL * sizeof(u64));
 	priv->frout_spill = xlr_config_spill(priv,
-			R_FROUT_SPILL_MEM_START_0,
-			R_FROUT_SPILL_MEM_START_1,
-			R_FROUT_SPILL_MEM_SIZE,
-			MAX_FROUT_SPILL *
-			sizeof(u64));
+					     R_FROUT_SPILL_MEM_START_0,
+					     R_FROUT_SPILL_MEM_START_1,
+					     R_FROUT_SPILL_MEM_SIZE,
+					     MAX_FROUT_SPILL * sizeof(u64));
 	priv->class_0_spill = xlr_config_spill(priv,
-			R_CLASS0_SPILL_MEM_START_0,
-			R_CLASS0_SPILL_MEM_START_1,
-			R_CLASS0_SPILL_MEM_SIZE,
-			MAX_CLASS_0_SPILL *
-			sizeof(u64));
+					       R_CLASS0_SPILL_MEM_START_0,
+					       R_CLASS0_SPILL_MEM_START_1,
+					       R_CLASS0_SPILL_MEM_SIZE,
+					       MAX_CLASS_0_SPILL * sizeof(u64));
 	priv->class_1_spill = xlr_config_spill(priv,
-			R_CLASS1_SPILL_MEM_START_0,
-			R_CLASS1_SPILL_MEM_START_1,
-			R_CLASS1_SPILL_MEM_SIZE,
-			MAX_CLASS_1_SPILL *
-			sizeof(u64));
+					       R_CLASS1_SPILL_MEM_START_0,
+					       R_CLASS1_SPILL_MEM_START_1,
+					       R_CLASS1_SPILL_MEM_SIZE,
+					       MAX_CLASS_1_SPILL * sizeof(u64));
 	priv->class_2_spill = xlr_config_spill(priv,
-			R_CLASS2_SPILL_MEM_START_0,
-			R_CLASS2_SPILL_MEM_START_1,
-			R_CLASS2_SPILL_MEM_SIZE,
-			MAX_CLASS_2_SPILL *
-			sizeof(u64));
+					       R_CLASS2_SPILL_MEM_START_0,
+					       R_CLASS2_SPILL_MEM_START_1,
+					       R_CLASS2_SPILL_MEM_SIZE,
+					       MAX_CLASS_2_SPILL * sizeof(u64));
 	priv->class_3_spill = xlr_config_spill(priv,
-			R_CLASS3_SPILL_MEM_START_0,
-			R_CLASS3_SPILL_MEM_START_1,
-			R_CLASS3_SPILL_MEM_SIZE,
-			MAX_CLASS_3_SPILL *
-			sizeof(u64));
+					       R_CLASS3_SPILL_MEM_START_0,
+					       R_CLASS3_SPILL_MEM_START_1,
+					       R_CLASS3_SPILL_MEM_SIZE,
+					       MAX_CLASS_3_SPILL * sizeof(u64));
 }
 
 /*
@@ -999,8 +986,7 @@ static int xlr_net_probe(struct platform_device *pdev)
 	/*
 	 * Allocate our adapter data structure and attach it to the device.
 	 */
-	adapter = (struct xlr_adapter *)
-		devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
+	adapter = devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
 	if (!adapter)
 		return -ENOMEM;
 

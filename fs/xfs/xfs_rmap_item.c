@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -23,6 +9,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
+#include "xfs_shared.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
 #include "xfs_trans.h"
@@ -49,6 +36,24 @@ xfs_rui_item_free(
 		kmem_free(ruip);
 	else
 		kmem_zone_free(xfs_rui_zone, ruip);
+}
+
+/*
+ * Freeing the RUI requires that we remove it from the AIL if it has already
+ * been placed there. However, the RUI may not yet have been placed in the AIL
+ * when called by xfs_rui_release() from RUD processing due to the ordering of
+ * committed vs unpin operations in bulk insert operations. Hence the reference
+ * count to ensure only the last caller frees the RUI.
+ */
+void
+xfs_rui_release(
+	struct xfs_rui_log_item	*ruip)
+{
+	ASSERT(atomic_read(&ruip->rui_refcount) > 0);
+	if (atomic_dec_and_test(&ruip->rui_refcount)) {
+		xfs_trans_ail_remove(&ruip->rui_item, SHUTDOWN_LOG_IO_ERROR);
+		xfs_rui_item_free(ruip);
+	}
 }
 
 STATIC void
@@ -139,8 +144,8 @@ STATIC void
 xfs_rui_item_unlock(
 	struct xfs_log_item	*lip)
 {
-	if (lip->li_flags & XFS_LI_ABORTED)
-		xfs_rui_item_free(RUI_ITEM(lip));
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
+		xfs_rui_release(RUI_ITEM(lip));
 }
 
 /*
@@ -232,24 +237,6 @@ xfs_rui_copy_format(
 	return 0;
 }
 
-/*
- * Freeing the RUI requires that we remove it from the AIL if it has already
- * been placed there. However, the RUI may not yet have been placed in the AIL
- * when called by xfs_rui_release() from RUD processing due to the ordering of
- * committed vs unpin operations in bulk insert operations. Hence the reference
- * count to ensure only the last caller frees the RUI.
- */
-void
-xfs_rui_release(
-	struct xfs_rui_log_item	*ruip)
-{
-	ASSERT(atomic_read(&ruip->rui_refcount) > 0);
-	if (atomic_dec_and_test(&ruip->rui_refcount)) {
-		xfs_trans_ail_remove(&ruip->rui_item, SHUTDOWN_LOG_IO_ERROR);
-		xfs_rui_item_free(ruip);
-	}
-}
-
 static inline struct xfs_rud_log_item *RUD_ITEM(struct xfs_log_item *lip)
 {
 	return container_of(lip, struct xfs_rud_log_item, rud_item);
@@ -330,7 +317,7 @@ xfs_rud_item_unlock(
 {
 	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
 
-	if (lip->li_flags & XFS_LI_ABORTED) {
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
 		xfs_rui_release(rudp->rud_ruip);
 		kmem_zone_free(xfs_rud_zone, rudp);
 	}
@@ -470,7 +457,8 @@ xfs_rui_recover(
 		}
 	}
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
+			mp->m_rmap_maxlevels, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
 	rudp = xfs_trans_get_rud(tp, ruip);

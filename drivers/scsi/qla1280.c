@@ -758,9 +758,9 @@ enum action {
 };
 
 
-static void qla1280_mailbox_timeout(unsigned long __data)
+static void qla1280_mailbox_timeout(struct timer_list *t)
 {
-	struct scsi_qla_host *ha = (struct scsi_qla_host *)__data;
+	struct scsi_qla_host *ha = from_timer(ha, t, mailbox_timer);
 	struct device_reg __iomem *reg;
 	reg = ha->iobase;
 
@@ -1750,7 +1750,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 	uint8_t *sp, *tbuf;
 	dma_addr_t p_tbuf;
 
-	tbuf = pci_alloc_consistent(ha->pdev, 8000, &p_tbuf);
+	tbuf = dma_alloc_coherent(&ha->pdev->dev, 8000, &p_tbuf, GFP_KERNEL);
 	if (!tbuf)
 		return -ENOMEM;
 #endif
@@ -1841,7 +1841,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 
  out:
 #if DUMP_IT_BACK
-	pci_free_consistent(ha->pdev, 8000, tbuf, p_tbuf);
+	dma_free_coherent(&ha->pdev->dev, 8000, tbuf, p_tbuf);
 #endif
 	return err;
 }
@@ -2465,7 +2465,6 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	uint16_t __iomem *mptr;
 	uint16_t data;
 	DECLARE_COMPLETION_ONSTACK(wait);
-	struct timer_list timer;
 
 	ENTER("qla1280_mailbox_command");
 
@@ -2494,18 +2493,15 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	/* Issue set host interrupt command. */
 
 	/* set up a timer just in case we're really jammed */
-	init_timer_on_stack(&timer);
-	timer.expires = jiffies + 20*HZ;
-	timer.data = (unsigned long)ha;
-	timer.function = qla1280_mailbox_timeout;
-	add_timer(&timer);
+	timer_setup(&ha->mailbox_timer, qla1280_mailbox_timeout, 0);
+	mod_timer(&ha->mailbox_timer, jiffies + 20 * HZ);
 
 	spin_unlock_irq(ha->host->host_lock);
 	WRT_REG_WORD(&reg->host_cmd, HC_SET_HOST_INT);
 	data = qla1280_debounce_register(&reg->istatus);
 
 	wait_for_completion(&wait);
-	del_timer_sync(&timer);
+	del_timer_sync(&ha->mailbox_timer);
 
 	spin_lock_irq(ha->host->host_lock);
 
@@ -4263,8 +4259,8 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->devnum = devnum;	/* specifies microcode load address */
 
 #ifdef QLA_64BIT_PTR
-	if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(64))) {
-		if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&ha->pdev->dev, DMA_BIT_MASK(64))) {
+		if (dma_set_mask(&ha->pdev->dev, DMA_BIT_MASK(32))) {
 			printk(KERN_WARNING "scsi(%li): Unable to set a "
 			       "suitable DMA mask - aborting\n", ha->host_no);
 			error = -ENODEV;
@@ -4274,7 +4270,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		dprintk(2, "scsi(%li): 64 Bit PCI Addressing Enabled\n",
 			ha->host_no);
 #else
-	if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&ha->pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING "scsi(%li): Unable to set a "
 		       "suitable DMA mask - aborting\n", ha->host_no);
 		error = -ENODEV;
@@ -4282,17 +4278,17 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 #endif
 
-	ha->request_ring = pci_alloc_consistent(ha->pdev,
+	ha->request_ring = dma_alloc_coherent(&ha->pdev->dev,
 			((REQUEST_ENTRY_CNT + 1) * sizeof(request_t)),
-			&ha->request_dma);
+			&ha->request_dma, GFP_KERNEL);
 	if (!ha->request_ring) {
 		printk(KERN_INFO "qla1280: Failed to get request memory\n");
 		goto error_put_host;
 	}
 
-	ha->response_ring = pci_alloc_consistent(ha->pdev,
+	ha->response_ring = dma_alloc_coherent(&ha->pdev->dev,
 			((RESPONSE_ENTRY_CNT + 1) * sizeof(struct response)),
-			&ha->response_dma);
+			&ha->response_dma, GFP_KERNEL);
 	if (!ha->response_ring) {
 		printk(KERN_INFO "qla1280: Failed to get response memory\n");
 		goto error_free_request_ring;
@@ -4374,11 +4370,11 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	release_region(host->io_port, 0xff);
 #endif
  error_free_response_ring:
-	pci_free_consistent(ha->pdev,
+	dma_free_coherent(&ha->pdev->dev,
 			((RESPONSE_ENTRY_CNT + 1) * sizeof(struct response)),
 			ha->response_ring, ha->response_dma);
  error_free_request_ring:
-	pci_free_consistent(ha->pdev,
+	dma_free_coherent(&ha->pdev->dev,
 			((REQUEST_ENTRY_CNT + 1) * sizeof(request_t)),
 			ha->request_ring, ha->request_dma);
  error_put_host:
@@ -4408,10 +4404,10 @@ qla1280_remove_one(struct pci_dev *pdev)
 	release_region(host->io_port, 0xff);
 #endif
 
-	pci_free_consistent(ha->pdev,
+	dma_free_coherent(&ha->pdev->dev,
 			((REQUEST_ENTRY_CNT + 1) * (sizeof(request_t))),
 			ha->request_ring, ha->request_dma);
-	pci_free_consistent(ha->pdev,
+	dma_free_coherent(&ha->pdev->dev,
 			((RESPONSE_ENTRY_CNT + 1) * (sizeof(struct response))),
 			ha->response_ring, ha->response_dma);
 

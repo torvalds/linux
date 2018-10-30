@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # ==========================================================================
 # Generating modules.builtin
 # ==========================================================================
@@ -7,10 +8,10 @@ src := $(obj)
 PHONY := __modbuiltin
 __modbuiltin:
 
--include include/config/auto.conf
+include include/config/auto.conf
 # tristate.conf sets tristate variables to uppercase 'Y' or 'M'
 # That way, we get the list of built-in modules in obj-Y
--include include/config/tristate.conf
+include include/config/tristate.conf
 
 include scripts/Kbuild.include
 
@@ -52,9 +53,5 @@ FORCE:
 PHONY += $(subdir-ym)
 $(subdir-ym):
 	$(Q)$(MAKE) $(modbuiltin)=$@
-
-
-# Declare the contents of the .PHONY variable as phony.  We keep that
-# information in a variable se we can use it in if_changed and friends.
 
 .PHONY: $(PHONY)

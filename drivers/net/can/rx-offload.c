@@ -79,7 +79,7 @@ static int can_rx_offload_napi_poll(struct napi_struct *napi, int quota)
 static inline void __skb_queue_add_sort(struct sk_buff_head *head, struct sk_buff *new,
 					int (*compare)(struct sk_buff *a, struct sk_buff *b))
 {
-	struct sk_buff *pos, *insert = (struct sk_buff *)head;
+	struct sk_buff *pos, *insert = NULL;
 
 	skb_queue_reverse_walk(head, pos) {
 		const struct can_rx_offload_cb *cb_pos, *cb_new;
@@ -99,8 +99,10 @@ static inline void __skb_queue_add_sort(struct sk_buff_head *head, struct sk_buf
 		insert = pos;
 		break;
 	}
-
-	__skb_queue_after(head, insert, new);
+	if (!insert)
+		__skb_queue_head(head, new);
+	else
+		__skb_queue_after(head, insert, new);
 }
 
 static int can_rx_offload_compare(struct sk_buff *a, struct sk_buff *b)
@@ -256,7 +258,7 @@ int can_rx_offload_add_timestamp(struct net_device *dev, struct can_rx_offload *
 		weight = offload->mb_first - offload->mb_last;
 	}
 
-	return can_rx_offload_init_queue(dev, offload, weight);;
+	return can_rx_offload_init_queue(dev, offload, weight);
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_add_timestamp);
 

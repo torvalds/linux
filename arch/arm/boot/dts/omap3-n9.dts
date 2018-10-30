@@ -11,6 +11,7 @@
 /dts-v1/;
 
 #include "omap3-n950-n9.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Nokia N9";
@@ -26,6 +27,7 @@
 		clocks = <&isp 0>;
 		clock-frequency = <9600000>;
 		nokia,nvm-size = <(16 * 64)>;
+		flash-leds = <&as3645a_flash &as3645a_indicator>;
 		port {
 			smia_1_1: endpoint {
 				link-frequencies = /bits/ 64 <199200000 210000000 499200000>;
@@ -34,6 +36,13 @@
 				remote-endpoint = <&csi2a_ep>;
 			};
 		};
+	};
+};
+
+&i2c3 {
+	ak8975@f {
+		compatible = "asahi-kasei,ak8975";
+		reg = <0x0f>;
 	};
 };
 
@@ -70,4 +79,10 @@
 	st,max-limit-x = <(-3)>;
 	st,max-limit-y = <46>;
 	st,max-limit-z = <46>;
+};
+
+&twl_keypad {
+	linux,keymap = < MATRIX_KEY(6, 8, KEY_VOLUMEUP)
+			 MATRIX_KEY(7, 8, KEY_VOLUMEDOWN)
+			 >;
 };

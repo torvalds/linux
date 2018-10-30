@@ -1,17 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Thunderbolt bus support
  *
  * Copyright (C) 2017, Intel Corporation
- * Author:  Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <crypto/hash.h>
@@ -20,28 +18,262 @@
 
 static DEFINE_IDA(tb_domain_ida);
 
+static bool match_service_id(const struct tb_service_id *id,
+			     const struct tb_service *svc)
+{
+	if (id->match_flags & TBSVC_MATCH_PROTOCOL_KEY) {
+		if (strcmp(id->protocol_key, svc->key))
+			return false;
+	}
+
+	if (id->match_flags & TBSVC_MATCH_PROTOCOL_ID) {
+		if (id->protocol_id != svc->prtcid)
+			return false;
+	}
+
+	if (id->match_flags & TBSVC_MATCH_PROTOCOL_VERSION) {
+		if (id->protocol_version != svc->prtcvers)
+			return false;
+	}
+
+	if (id->match_flags & TBSVC_MATCH_PROTOCOL_VERSION) {
+		if (id->protocol_revision != svc->prtcrevs)
+			return false;
+	}
+
+	return true;
+}
+
+static const struct tb_service_id *__tb_service_match(struct device *dev,
+						      struct device_driver *drv)
+{
+	struct tb_service_driver *driver;
+	const struct tb_service_id *ids;
+	struct tb_service *svc;
+
+	svc = tb_to_service(dev);
+	if (!svc)
+		return NULL;
+
+	driver = container_of(drv, struct tb_service_driver, driver);
+	if (!driver->id_table)
+		return NULL;
+
+	for (ids = driver->id_table; ids->match_flags != 0; ids++) {
+		if (match_service_id(ids, svc))
+			return ids;
+	}
+
+	return NULL;
+}
+
+static int tb_service_match(struct device *dev, struct device_driver *drv)
+{
+	return !!__tb_service_match(dev, drv);
+}
+
+static int tb_service_probe(struct device *dev)
+{
+	struct tb_service *svc = tb_to_service(dev);
+	struct tb_service_driver *driver;
+	const struct tb_service_id *id;
+
+	driver = container_of(dev->driver, struct tb_service_driver, driver);
+	id = __tb_service_match(dev, &driver->driver);
+
+	return driver->probe(svc, id);
+}
+
+static int tb_service_remove(struct device *dev)
+{
+	struct tb_service *svc = tb_to_service(dev);
+	struct tb_service_driver *driver;
+
+	driver = container_of(dev->driver, struct tb_service_driver, driver);
+	if (driver->remove)
+		driver->remove(svc);
+
+	return 0;
+}
+
+static void tb_service_shutdown(struct device *dev)
+{
+	struct tb_service_driver *driver;
+	struct tb_service *svc;
+
+	svc = tb_to_service(dev);
+	if (!svc || !dev->driver)
+		return;
+
+	driver = container_of(dev->driver, struct tb_service_driver, driver);
+	if (driver->shutdown)
+		driver->shutdown(svc);
+}
+
 static const char * const tb_security_names[] = {
 	[TB_SECURITY_NONE] = "none",
 	[TB_SECURITY_USER] = "user",
 	[TB_SECURITY_SECURE] = "secure",
 	[TB_SECURITY_DPONLY] = "dponly",
+	[TB_SECURITY_USBONLY] = "usbonly",
 };
+
+static ssize_t boot_acl_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct tb *tb = container_of(dev, struct tb, dev);
+	uuid_t *uuids;
+	ssize_t ret;
+	int i;
+
+	uuids = kcalloc(tb->nboot_acl, sizeof(uuid_t), GFP_KERNEL);
+	if (!uuids)
+		return -ENOMEM;
+
+	pm_runtime_get_sync(&tb->dev);
+
+	if (mutex_lock_interruptible(&tb->lock)) {
+		ret = -ERESTARTSYS;
+		goto out;
+	}
+	ret = tb->cm_ops->get_boot_acl(tb, uuids, tb->nboot_acl);
+	if (ret) {
+		mutex_unlock(&tb->lock);
+		goto out;
+	}
+	mutex_unlock(&tb->lock);
+
+	for (ret = 0, i = 0; i < tb->nboot_acl; i++) {
+		if (!uuid_is_null(&uuids[i]))
+			ret += snprintf(buf + ret, PAGE_SIZE - ret, "%pUb",
+					&uuids[i]);
+
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s",
+			       i < tb->nboot_acl - 1 ? "," : "\n");
+	}
+
+out:
+	pm_runtime_mark_last_busy(&tb->dev);
+	pm_runtime_put_autosuspend(&tb->dev);
+	kfree(uuids);
+
+	return ret;
+}
+
+static ssize_t boot_acl_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct tb *tb = container_of(dev, struct tb, dev);
+	char *str, *s, *uuid_str;
+	ssize_t ret = 0;
+	uuid_t *acl;
+	int i = 0;
+
+	/*
+	 * Make sure the value is not bigger than tb->nboot_acl * UUID
+	 * length + commas and optional "\n". Also the smallest allowable
+	 * string is tb->nboot_acl * ",".
+	 */
+	if (count > (UUID_STRING_LEN + 1) * tb->nboot_acl + 1)
+		return -EINVAL;
+	if (count < tb->nboot_acl - 1)
+		return -EINVAL;
+
+	str = kstrdup(buf, GFP_KERNEL);
+	if (!str)
+		return -ENOMEM;
+
+	acl = kcalloc(tb->nboot_acl, sizeof(uuid_t), GFP_KERNEL);
+	if (!acl) {
+		ret = -ENOMEM;
+		goto err_free_str;
+	}
+
+	uuid_str = strim(str);
+	while ((s = strsep(&uuid_str, ",")) != NULL && i < tb->nboot_acl) {
+		size_t len = strlen(s);
+
+		if (len) {
+			if (len != UUID_STRING_LEN) {
+				ret = -EINVAL;
+				goto err_free_acl;
+			}
+			ret = uuid_parse(s, &acl[i]);
+			if (ret)
+				goto err_free_acl;
+		}
+
+		i++;
+	}
+
+	if (s || i < tb->nboot_acl) {
+		ret = -EINVAL;
+		goto err_free_acl;
+	}
+
+	pm_runtime_get_sync(&tb->dev);
+
+	if (mutex_lock_interruptible(&tb->lock)) {
+		ret = -ERESTARTSYS;
+		goto err_rpm_put;
+	}
+	ret = tb->cm_ops->set_boot_acl(tb, acl, tb->nboot_acl);
+	if (!ret) {
+		/* Notify userspace about the change */
+		kobject_uevent(&tb->dev.kobj, KOBJ_CHANGE);
+	}
+	mutex_unlock(&tb->lock);
+
+err_rpm_put:
+	pm_runtime_mark_last_busy(&tb->dev);
+	pm_runtime_put_autosuspend(&tb->dev);
+err_free_acl:
+	kfree(acl);
+err_free_str:
+	kfree(str);
+
+	return ret ?: count;
+}
+static DEVICE_ATTR_RW(boot_acl);
 
 static ssize_t security_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct tb *tb = container_of(dev, struct tb, dev);
+	const char *name = "unknown";
 
-	return sprintf(buf, "%s\n", tb_security_names[tb->security_level]);
+	if (tb->security_level < ARRAY_SIZE(tb_security_names))
+		name = tb_security_names[tb->security_level];
+
+	return sprintf(buf, "%s\n", name);
 }
 static DEVICE_ATTR_RO(security);
 
 static struct attribute *domain_attrs[] = {
+	&dev_attr_boot_acl.attr,
 	&dev_attr_security.attr,
 	NULL,
 };
 
+static umode_t domain_attr_is_visible(struct kobject *kobj,
+				      struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct tb *tb = container_of(dev, struct tb, dev);
+
+	if (attr == &dev_attr_boot_acl.attr) {
+		if (tb->nboot_acl &&
+		    tb->cm_ops->get_boot_acl &&
+		    tb->cm_ops->set_boot_acl)
+			return attr->mode;
+		return 0;
+	}
+
+	return attr->mode;
+}
+
 static struct attribute_group domain_attr_group = {
+	.is_visible = domain_attr_is_visible,
 	.attrs = domain_attrs,
 };
 
@@ -52,6 +284,10 @@ static const struct attribute_group *domain_attr_groups[] = {
 
 struct bus_type tb_bus_type = {
 	.name = "thunderbolt",
+	.match = tb_service_match,
+	.probe = tb_service_probe,
+	.remove = tb_service_remove,
+	.shutdown = tb_service_shutdown,
 };
 
 static void tb_domain_release(struct device *dev)
@@ -128,17 +364,26 @@ err_free:
 	return NULL;
 }
 
-static void tb_domain_event_cb(void *data, enum tb_cfg_pkg_type type,
+static bool tb_domain_event_cb(void *data, enum tb_cfg_pkg_type type,
 			       const void *buf, size_t size)
 {
 	struct tb *tb = data;
 
 	if (!tb->cm_ops->handle_event) {
 		tb_warn(tb, "domain does not have event handler\n");
-		return;
+		return true;
 	}
 
-	tb->cm_ops->handle_event(tb, type, buf, size);
+	switch (type) {
+	case TB_CFG_PKG_XDOMAIN_REQ:
+	case TB_CFG_PKG_XDOMAIN_RESP:
+		return tb_xdomain_handle_request(tb, type, buf, size);
+
+	default:
+		tb->cm_ops->handle_event(tb, type, buf, size);
+	}
+
+	return true;
 }
 
 /**
@@ -192,6 +437,13 @@ int tb_domain_add(struct tb *tb)
 
 	/* This starts event processing */
 	mutex_unlock(&tb->lock);
+
+	pm_runtime_no_callbacks(&tb->dev);
+	pm_runtime_set_active(&tb->dev);
+	pm_runtime_enable(&tb->dev);
+	pm_runtime_set_autosuspend_delay(&tb->dev, TB_AUTOSUSPEND_DELAY);
+	pm_runtime_mark_last_busy(&tb->dev);
+	pm_runtime_use_autosuspend(&tb->dev);
 
 	return 0;
 
@@ -272,26 +524,35 @@ int tb_domain_resume_noirq(struct tb *tb)
 
 int tb_domain_suspend(struct tb *tb)
 {
-	int ret;
-
-	mutex_lock(&tb->lock);
-	if (tb->cm_ops->suspend) {
-		ret = tb->cm_ops->suspend(tb);
-		if (ret) {
-			mutex_unlock(&tb->lock);
-			return ret;
-		}
-	}
-	mutex_unlock(&tb->lock);
-	return 0;
+	return tb->cm_ops->suspend ? tb->cm_ops->suspend(tb) : 0;
 }
 
 void tb_domain_complete(struct tb *tb)
 {
-	mutex_lock(&tb->lock);
 	if (tb->cm_ops->complete)
 		tb->cm_ops->complete(tb);
-	mutex_unlock(&tb->lock);
+}
+
+int tb_domain_runtime_suspend(struct tb *tb)
+{
+	if (tb->cm_ops->runtime_suspend) {
+		int ret = tb->cm_ops->runtime_suspend(tb);
+		if (ret)
+			return ret;
+	}
+	tb_ctl_stop(tb->ctl);
+	return 0;
+}
+
+int tb_domain_runtime_resume(struct tb *tb)
+{
+	tb_ctl_start(tb->ctl);
+	if (tb->cm_ops->runtime_resume) {
+		int ret = tb->cm_ops->runtime_resume(tb);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 /**
@@ -443,9 +704,92 @@ int tb_domain_disconnect_pcie_paths(struct tb *tb)
 	return tb->cm_ops->disconnect_pcie_paths(tb);
 }
 
+/**
+ * tb_domain_approve_xdomain_paths() - Enable DMA paths for XDomain
+ * @tb: Domain enabling the DMA paths
+ * @xd: XDomain DMA paths are created to
+ *
+ * Calls connection manager specific method to enable DMA paths to the
+ * XDomain in question.
+ *
+ * Return: 0% in case of success and negative errno otherwise. In
+ * particular returns %-ENOTSUPP if the connection manager
+ * implementation does not support XDomains.
+ */
+int tb_domain_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	if (!tb->cm_ops->approve_xdomain_paths)
+		return -ENOTSUPP;
+
+	return tb->cm_ops->approve_xdomain_paths(tb, xd);
+}
+
+/**
+ * tb_domain_disconnect_xdomain_paths() - Disable DMA paths for XDomain
+ * @tb: Domain disabling the DMA paths
+ * @xd: XDomain whose DMA paths are disconnected
+ *
+ * Calls connection manager specific method to disconnect DMA paths to
+ * the XDomain in question.
+ *
+ * Return: 0% in case of success and negative errno otherwise. In
+ * particular returns %-ENOTSUPP if the connection manager
+ * implementation does not support XDomains.
+ */
+int tb_domain_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	if (!tb->cm_ops->disconnect_xdomain_paths)
+		return -ENOTSUPP;
+
+	return tb->cm_ops->disconnect_xdomain_paths(tb, xd);
+}
+
+static int disconnect_xdomain(struct device *dev, void *data)
+{
+	struct tb_xdomain *xd;
+	struct tb *tb = data;
+	int ret = 0;
+
+	xd = tb_to_xdomain(dev);
+	if (xd && xd->tb == tb)
+		ret = tb_xdomain_disable_paths(xd);
+
+	return ret;
+}
+
+/**
+ * tb_domain_disconnect_all_paths() - Disconnect all paths for the domain
+ * @tb: Domain whose paths are disconnected
+ *
+ * This function can be used to disconnect all paths (PCIe, XDomain) for
+ * example in preparation for host NVM firmware upgrade. After this is
+ * called the paths cannot be established without resetting the switch.
+ *
+ * Return: %0 in case of success and negative errno otherwise.
+ */
+int tb_domain_disconnect_all_paths(struct tb *tb)
+{
+	int ret;
+
+	ret = tb_domain_disconnect_pcie_paths(tb);
+	if (ret)
+		return ret;
+
+	return bus_for_each_dev(&tb_bus_type, NULL, tb, disconnect_xdomain);
+}
+
 int tb_domain_init(void)
 {
-	return bus_register(&tb_bus_type);
+	int ret;
+
+	ret = tb_xdomain_init();
+	if (ret)
+		return ret;
+	ret = bus_register(&tb_bus_type);
+	if (ret)
+		tb_xdomain_exit();
+
+	return ret;
 }
 
 void tb_domain_exit(void)
@@ -453,4 +797,5 @@ void tb_domain_exit(void)
 	bus_unregister(&tb_bus_type);
 	ida_destroy(&tb_domain_ida);
 	tb_switch_exit();
+	tb_xdomain_exit();
 }

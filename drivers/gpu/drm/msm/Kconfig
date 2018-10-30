@@ -12,6 +12,7 @@ config DRM_MSM
 	select SHMEM
 	select TMPFS
 	select QCOM_SCM
+	select WANT_DEV_COREDUMP
 	select SND_SOC_HDMI_CODEC if SND_SOC
 	select SYNC_FILE
 	select PM_OPP
@@ -27,6 +28,19 @@ config DRM_MSM_REGISTER_LOGGING
 	  Compile in support for logging register reads/writes in a format
 	  that can be parsed by envytools demsm tool.  If enabled, register
 	  logging can be switched on via msm.reglog=y module param.
+
+config DRM_MSM_GPU_SUDO
+	bool "Enable SUDO flag on submits"
+	depends on DRM_MSM && EXPERT
+	default n
+	help
+	  Enable userspace that has CAP_SYS_RAWIO to submit GPU commands
+	  that are run from RB instead of IB1.  This essentially gives
+	  userspace kernel level access, but is useful for firmware
+	  debugging.
+
+	  Only use this if you are a driver developer.  This should *not*
+	  be enabled for production kernels.  If unsure, say N.
 
 config DRM_MSM_HDMI_HDCP
 	bool "Enable HDMI HDCP support in MSM DRM driver"
@@ -81,3 +95,10 @@ config DRM_MSM_DSI_14NM_PHY
 	default y
 	help
 	  Choose this option if DSI PHY on 8996 is used on the platform.
+
+config DRM_MSM_DSI_10NM_PHY
+	bool "Enable DSI 10nm PHY driver in MSM DRM (used by SDM845)"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if DSI PHY on SDM845 is used on the platform.

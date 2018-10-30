@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Simple interface to link xor_vmx.c and xor_vmx_glue.c
  *

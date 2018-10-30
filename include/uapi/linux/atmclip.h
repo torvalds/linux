@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* atmclip.h - Classical IP over ATM */
  
 /* Written 1995-1998 by Werner Almesberger, EPFL LRC/ICA */

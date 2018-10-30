@@ -23,10 +23,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
 #include <linux/kernel.h>
@@ -263,6 +259,7 @@ static unsigned char db9_saturn_read_packet(struct parport *port, unsigned char 
 			db9_saturn_write_sub(port, type, 3, powered, 0);
 			return data[0] = 0xe3;
 		}
+		/* else: fall through */
 	default:
 		return data[0];
 	}
@@ -282,11 +279,14 @@ static int db9_saturn_report(unsigned char id, unsigned char data[60], struct in
 		switch (data[j]) {
 		case 0x16: /* multi controller (analog 4 axis) */
 			input_report_abs(dev, db9_abs[5], data[j + 6]);
+			/* fall through */
 		case 0x15: /* mission stick (analog 3 axis) */
 			input_report_abs(dev, db9_abs[3], data[j + 4]);
 			input_report_abs(dev, db9_abs[4], data[j + 5]);
+			/* fall through */
 		case 0x13: /* racing controller (analog 1 axis) */
 			input_report_abs(dev, db9_abs[2], data[j + 3]);
+			/* fall through */
 		case 0x34: /* saturn keyboard (udlr ZXC ASD QE Esc) */
 		case 0x02: /* digital pad (digital 2 axis + buttons) */
 			input_report_abs(dev, db9_abs[0], !(data[j + 1] & 128) - !(data[j + 1] & 64));
@@ -364,9 +364,9 @@ static int db9_saturn(int mode, struct parport *port, struct input_dev *devs[])
 	return 0;
 }
 
-static void db9_timer(unsigned long private)
+static void db9_timer(struct timer_list *t)
 {
-	struct db9 *db9 = (void *) private;
+	struct db9 *db9 = from_timer(db9, t, timer);
 	struct parport *port = db9->pd->port;
 	struct input_dev *dev = db9->dev[0];
 	struct input_dev *dev2 = db9->dev[1];
@@ -380,6 +380,7 @@ static void db9_timer(unsigned long private)
 			input_report_abs(dev2, ABS_X, (data & DB9_RIGHT ? 0 : 1) - (data & DB9_LEFT ? 0 : 1));
 			input_report_abs(dev2, ABS_Y, (data & DB9_DOWN  ? 0 : 1) - (data & DB9_UP   ? 0 : 1));
 			input_report_key(dev2, BTN_TRIGGER, ~data & DB9_FIRE1);
+			/* fall through */
 
 		case DB9_MULTI_0802:
 
@@ -609,7 +610,7 @@ static void db9_attach(struct parport *pp)
 	db9->pd = pd;
 	db9->mode = mode;
 	db9->parportno = pp->number;
-	setup_timer(&db9->timer, db9_timer, (long)db9);
+	timer_setup(&db9->timer, db9_timer, 0);
 
 	for (i = 0; i < (min(db9_mode->n_pads, DB9_MAX_DEVICES)); i++) {
 

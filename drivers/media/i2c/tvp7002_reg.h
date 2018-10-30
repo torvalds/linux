@@ -5,7 +5,7 @@
  * Author: Santiago Nunez-Corrales <santiago.nunez@ridgerun.com>
  *
  * This code is partially based upon the TVP5150 driver
- * written by Mauro Carvalho Chehab (mchehab@infradead.org),
+ * written by Mauro Carvalho Chehab <mchehab@kernel.org>,
  * the TVP514x driver written by Vaibhav Hiremath <hvaibhav@ti.com>
  * and the TVP7002 driver in the TI LSP 2.10.00.14
  *
@@ -109,15 +109,15 @@
 #define TVP7002_L_FRAME_STAT_LSBS	0x37
 #define TVP7002_L_FRAME_STAT_MSBS	0x38
 #define TVP7002_CLK_L_STAT_LSBS		0x39
-#define TVP7002_CLK_L_STAT_MSBS      	0x3a
+#define TVP7002_CLK_L_STAT_MSBS		0x3a
 #define TVP7002_HSYNC_W			0x3b
 #define TVP7002_VSYNC_W                 0x3c
-#define TVP7002_L_LENGTH_TOL 		0x3d
+#define TVP7002_L_LENGTH_TOL		0x3d
 /* Reserved 0x3e */
 #define TVP7002_VIDEO_BWTH_CTL		0x3f
 #define TVP7002_AVID_START_PIXEL_LSBS	0x40
 #define TVP7002_AVID_START_PIXEL_MSBS   0x41
-#define TVP7002_AVID_STOP_PIXEL_LSBS  	0x42
+#define TVP7002_AVID_STOP_PIXEL_LSBS	0x42
 #define TVP7002_AVID_STOP_PIXEL_MSBS    0x43
 #define TVP7002_VBLK_F_0_START_L_OFF	0x44
 #define TVP7002_VBLK_F_1_START_L_OFF    0x45

@@ -5,6 +5,8 @@ Required properties:
 
 - reg : the I2C address of the device
 
+- #sound-dai-cells: must be equal to 0
+
 - clocks : the clock provider of SYS_MCLK
 
 - VDDA-supply : the regulator provider of VDDA
@@ -15,7 +17,7 @@ Optional properties:
 
 - VDDD-supply : the regulator provider of VDDD
 
-- micbias-resistor-k-ohms : the bias resistor to be used in kOmhs
+- micbias-resistor-k-ohms : the bias resistor to be used in kOhms
 	The resistor can take values of 2k, 4k or 8k.
 	If set to 0 it will be off.
 	If this node is not mentioned or if the value is unknown, then
@@ -37,9 +39,10 @@ VDDIO		1.8V		2.5V		3.3V
 
 Example:
 
-codec: sgtl5000@0a {
+sgtl5000: codec@a {
 	compatible = "fsl,sgtl5000";
 	reg = <0x0a>;
+	#sound-dai-cells = <0>;
 	clocks = <&clks 150>;
 	micbias-resistor-k-ohms = <2>;
 	micbias-voltage-m-volts = <2250>;

@@ -138,12 +138,16 @@ void msm_gem_vunmap(struct drm_gem_object *obj, enum msm_gem_lock subclass);
 struct msm_gem_submit {
 	struct drm_device *dev;
 	struct msm_gpu *gpu;
-	struct list_head node;   /* node in gpu submit_list */
+	struct list_head node;   /* node in ring submit list */
 	struct list_head bo_list;
 	struct ww_acquire_ctx ticket;
+	uint32_t seqno;		/* Sequence number of the submit on the ring */
 	struct dma_fence *fence;
+	struct msm_gpu_submitqueue *queue;
 	struct pid *pid;    /* submitting process */
 	bool valid;         /* true if no cmdstream patching needed */
+	bool in_rb;         /* "sudo" mode, copy cmds into RB */
+	struct msm_ringbuffer *ring;
 	unsigned int nr_cmds;
 	unsigned int nr_bos;
 	struct {

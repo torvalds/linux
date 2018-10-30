@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Broadcom BCM63xx SoC watchdog driver
  *
  *  Copyright (C) 2007, Miguel Gaio <miguel.gaio@efixo.com>
  *  Copyright (C) 2008, Florian Fainelli <florian@openwrt.org>
  *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -77,7 +74,7 @@ static void bcm63xx_wdt_isr(void *data)
 	die(PFX " fire", regs);
 }
 
-static void bcm63xx_timer_tick(unsigned long unused)
+static void bcm63xx_timer_tick(struct timer_list *unused)
 {
 	if (!atomic_dec_and_test(&bcm63xx_wdt_device.ticks)) {
 		bcm63xx_wdt_hw_start();
@@ -240,7 +237,7 @@ static int bcm63xx_wdt_probe(struct platform_device *pdev)
 	int ret;
 	struct resource *r;
 
-	setup_timer(&bcm63xx_wdt_device.timer, bcm63xx_timer_tick, 0L);
+	timer_setup(&bcm63xx_wdt_device.timer, bcm63xx_timer_tick, 0);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {

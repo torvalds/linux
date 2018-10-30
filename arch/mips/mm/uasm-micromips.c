@@ -19,7 +19,6 @@
 #include <asm/inst.h>
 #include <asm/elf.h>
 #include <asm/bugs.h>
-#define UASM_ISA	_UASM_ISA_MICROMIPS
 #include <asm/uasm.h>
 
 #define RS_MASK		0x1f
@@ -40,7 +39,7 @@
 
 #include "uasm.c"
 
-static const struct insn const insn_table_MM[insn_invalid] = {
+static const struct insn insn_table_MM[insn_invalid] = {
 	[insn_addu]	= {M(mm_pool32a_op, 0, 0, 0, 0, mm_addu32_op), RT | RS | RD},
 	[insn_addiu]	= {M(mm_addiu32_op, 0, 0, 0, 0, 0), RT | RS | SIMM},
 	[insn_and]	= {M(mm_pool32a_op, 0, 0, 0, 0, mm_and_op), RT | RS | RD},
@@ -80,7 +79,7 @@ static const struct insn const insn_table_MM[insn_invalid] = {
 	[insn_jr]	= {M(mm_pool32a_op, 0, 0, 0, mm_jalr_op, mm_pool32axf_op), RS},
 	[insn_lb]	= {M(mm_lb32_op, 0, 0, 0, 0, 0), RT | RS | SIMM},
 	[insn_ld]	= {0, 0},
-	[insn_lh]	= {M(mm_lh32_op, 0, 0, 0, 0, 0), RS | RS | SIMM},
+	[insn_lh]	= {M(mm_lh32_op, 0, 0, 0, 0, 0), RT | RS | SIMM},
 	[insn_ll]	= {M(mm_pool32c_op, 0, 0, (mm_ll_func << 1), 0, 0), RS | RT | SIMM},
 	[insn_lld]	= {0, 0},
 	[insn_lui]	= {M(mm_pool32i_op, mm_lui_op, 0, 0, 0, 0), RS | SIMM},

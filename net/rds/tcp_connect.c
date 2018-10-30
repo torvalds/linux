@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -66,7 +66,8 @@ void rds_tcp_state_change(struct sock *sk)
 		 * RDS connection as RDS_CONN_UP until the reconnect,
 		 * to avoid RDS datagram loss.
 		 */
-		if (!IS_CANONICAL(cp->cp_conn->c_laddr, cp->cp_conn->c_faddr) &&
+		if (rds_addr_cmp(&cp->cp_conn->c_laddr,
+				 &cp->cp_conn->c_faddr) >= 0 &&
 		    rds_conn_path_transition(cp, RDS_CONN_CONNECTING,
 					     RDS_CONN_ERROR)) {
 			rds_conn_path_drop(cp, false);
@@ -88,7 +89,11 @@ out:
 int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 {
 	struct socket *sock = NULL;
-	struct sockaddr_in src, dest;
+	struct sockaddr_in6 sin6;
+	struct sockaddr_in sin;
+	struct sockaddr *addr;
+	int addrlen;
+	bool isv6;
 	int ret;
 	struct rds_connection *conn = cp->cp_conn;
 	struct rds_tcp_connection *tc = cp->cp_transport_data;
@@ -105,37 +110,68 @@ int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 		mutex_unlock(&tc->t_conn_path_lock);
 		return 0;
 	}
-	ret = sock_create_kern(rds_conn_net(conn), PF_INET,
-			       SOCK_STREAM, IPPROTO_TCP, &sock);
+	if (ipv6_addr_v4mapped(&conn->c_laddr)) {
+		ret = sock_create_kern(rds_conn_net(conn), PF_INET,
+				       SOCK_STREAM, IPPROTO_TCP, &sock);
+		isv6 = false;
+	} else {
+		ret = sock_create_kern(rds_conn_net(conn), PF_INET6,
+				       SOCK_STREAM, IPPROTO_TCP, &sock);
+		isv6 = true;
+	}
+
 	if (ret < 0)
 		goto out;
 
 	rds_tcp_tune(sock);
 
-	src.sin_family = AF_INET;
-	src.sin_addr.s_addr = (__force u32)conn->c_laddr;
-	src.sin_port = (__force u16)htons(0);
+	if (isv6) {
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = conn->c_laddr;
+		sin6.sin6_port = 0;
+		sin6.sin6_flowinfo = 0;
+		sin6.sin6_scope_id = conn->c_dev_if;
+		addr = (struct sockaddr *)&sin6;
+		addrlen = sizeof(sin6);
+	} else {
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = conn->c_laddr.s6_addr32[3];
+		sin.sin_port = 0;
+		addr = (struct sockaddr *)&sin;
+		addrlen = sizeof(sin);
+	}
 
-	ret = sock->ops->bind(sock, (struct sockaddr *)&src, sizeof(src));
+	ret = sock->ops->bind(sock, addr, addrlen);
 	if (ret) {
-		rdsdebug("bind failed with %d at address %pI4\n",
+		rdsdebug("bind failed with %d at address %pI6c\n",
 			 ret, &conn->c_laddr);
 		goto out;
 	}
 
-	dest.sin_family = AF_INET;
-	dest.sin_addr.s_addr = (__force u32)conn->c_faddr;
-	dest.sin_port = (__force u16)htons(RDS_TCP_PORT);
+	if (isv6) {
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = conn->c_faddr;
+		sin6.sin6_port = htons(RDS_TCP_PORT);
+		sin6.sin6_flowinfo = 0;
+		sin6.sin6_scope_id = conn->c_dev_if;
+		addr = (struct sockaddr *)&sin6;
+		addrlen = sizeof(sin6);
+	} else {
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = conn->c_faddr.s6_addr32[3];
+		sin.sin_port = htons(RDS_TCP_PORT);
+		addr = (struct sockaddr *)&sin;
+		addrlen = sizeof(sin);
+	}
 
 	/*
 	 * once we call connect() we can start getting callbacks and they
 	 * own the socket
 	 */
 	rds_tcp_set_callbacks(sock, cp);
-	ret = sock->ops->connect(sock, (struct sockaddr *)&dest, sizeof(dest),
-				 O_NONBLOCK);
+	ret = sock->ops->connect(sock, addr, addrlen, O_NONBLOCK);
 
-	rdsdebug("connect to address %pI4 returned %d\n", &conn->c_faddr, ret);
+	rdsdebug("connect to address %pI6c returned %d\n", &conn->c_faddr, ret);
 	if (ret == -EINPROGRESS)
 		ret = 0;
 	if (ret == 0) {
@@ -170,7 +206,7 @@ void rds_tcp_conn_path_shutdown(struct rds_conn_path *cp)
 		 cp->cp_conn, tc, sock);
 
 	if (sock) {
-		if (cp->cp_conn->c_destroy_in_prog)
+		if (rds_destroy_pending(cp->cp_conn))
 			rds_tcp_set_linger(sock);
 		sock->ops->shutdown(sock, RCV_SHUTDOWN | SEND_SHUTDOWN);
 		lock_sock(sock->sk);

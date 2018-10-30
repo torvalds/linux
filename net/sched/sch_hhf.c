@@ -330,7 +330,7 @@ static struct sk_buff *dequeue_head(struct wdrr_bucket *bucket)
 	struct sk_buff *skb = bucket->head;
 
 	bucket->head = skb->next;
-	skb->next = NULL;
+	skb_mark_not_on_list(skb);
 	return skb;
 }
 
@@ -504,7 +504,8 @@ static const struct nla_policy hhf_policy[TCA_HHF_MAX + 1] = {
 	[TCA_HHF_NON_HH_WEIGHT]	 = { .type = NLA_U32 },
 };
 
-static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
+static int hhf_change(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	struct hhf_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_HHF_MAX + 1];
@@ -571,7 +572,8 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
+static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct hhf_sched_data *q = qdisc_priv(sch);
 	int i;
@@ -589,7 +591,7 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
 	q->hhf_non_hh_weight = 2;
 
 	if (opt) {
-		int err = hhf_change(sch, opt);
+		int err = hhf_change(sch, opt, extack);
 
 		if (err)
 			return err;
@@ -597,8 +599,8 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
 
 	if (!q->hh_flows) {
 		/* Initialize heavy-hitter flow table. */
-		q->hh_flows = kvzalloc(HH_FLOWS_CNT *
-					 sizeof(struct list_head), GFP_KERNEL);
+		q->hh_flows = kvcalloc(HH_FLOWS_CNT, sizeof(struct list_head),
+				       GFP_KERNEL);
 		if (!q->hh_flows)
 			return -ENOMEM;
 		for (i = 0; i < HH_FLOWS_CNT; i++)
@@ -612,8 +614,9 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
 
 		/* Initialize heavy-hitter filter arrays. */
 		for (i = 0; i < HHF_ARRAYS_CNT; i++) {
-			q->hhf_arrays[i] = kvzalloc(HHF_ARRAYS_LEN *
-						      sizeof(u32), GFP_KERNEL);
+			q->hhf_arrays[i] = kvcalloc(HHF_ARRAYS_LEN,
+						    sizeof(u32),
+						    GFP_KERNEL);
 			if (!q->hhf_arrays[i]) {
 				/* Note: hhf_destroy() will be called
 				 * by our caller.

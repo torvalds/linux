@@ -167,12 +167,6 @@ minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs)
 		if (unlikely(!mrs->att_hist)) {
 			mrs->prob_ewma = cur_prob;
 		} else {
-			/* update exponential weighted moving variance */
-			mrs->prob_ewmv = minstrel_ewmv(mrs->prob_ewmv,
-							cur_prob,
-							mrs->prob_ewma,
-							EWMA_LEVEL);
-
 			/*update exponential weighted moving avarage */
 			mrs->prob_ewma = minstrel_ewma(mrs->prob_ewma,
 						       cur_prob,
@@ -572,141 +566,6 @@ minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	minstrel_update_rates(mp, mi);
 }
 
-static void *
-minstrel_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
-{
-	struct ieee80211_supported_band *sband;
-	struct minstrel_sta_info *mi;
-	struct minstrel_priv *mp = priv;
-	struct ieee80211_hw *hw = mp->hw;
-	int max_rates = 0;
-	int i;
-
-	mi = kzalloc(sizeof(struct minstrel_sta_info), gfp);
-	if (!mi)
-		return NULL;
-
-	for (i = 0; i < NUM_NL80211_BANDS; i++) {
-		sband = hw->wiphy->bands[i];
-		if (sband && sband->n_bitrates > max_rates)
-			max_rates = sband->n_bitrates;
-	}
-
-	mi->r = kzalloc(sizeof(struct minstrel_rate) * max_rates, gfp);
-	if (!mi->r)
-		goto error;
-
-	mi->sample_table = kmalloc(SAMPLE_COLUMNS * max_rates, gfp);
-	if (!mi->sample_table)
-		goto error1;
-
-	mi->last_stats_update = jiffies;
-	return mi;
-
-error1:
-	kfree(mi->r);
-error:
-	kfree(mi);
-	return NULL;
-}
-
-static void
-minstrel_free_sta(void *priv, struct ieee80211_sta *sta, void *priv_sta)
-{
-	struct minstrel_sta_info *mi = priv_sta;
-
-	kfree(mi->sample_table);
-	kfree(mi->r);
-	kfree(mi);
-}
-
-static void
-minstrel_init_cck_rates(struct minstrel_priv *mp)
-{
-	static const int bitrates[4] = { 10, 20, 55, 110 };
-	struct ieee80211_supported_band *sband;
-	u32 rate_flags = ieee80211_chandef_rate_flags(&mp->hw->conf.chandef);
-	int i, j;
-
-	sband = mp->hw->wiphy->bands[NL80211_BAND_2GHZ];
-	if (!sband)
-		return;
-
-	for (i = 0, j = 0; i < sband->n_bitrates; i++) {
-		struct ieee80211_rate *rate = &sband->bitrates[i];
-
-		if (rate->flags & IEEE80211_RATE_ERP_G)
-			continue;
-
-		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
-			continue;
-
-		for (j = 0; j < ARRAY_SIZE(bitrates); j++) {
-			if (rate->bitrate != bitrates[j])
-				continue;
-
-			mp->cck_rates[j] = i;
-			break;
-		}
-	}
-}
-
-static void *
-minstrel_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
-{
-	struct minstrel_priv *mp;
-
-	mp = kzalloc(sizeof(struct minstrel_priv), GFP_ATOMIC);
-	if (!mp)
-		return NULL;
-
-	/* contention window settings
-	 * Just an approximation. Using the per-queue values would complicate
-	 * the calculations and is probably unnecessary */
-	mp->cw_min = 15;
-	mp->cw_max = 1023;
-
-	/* number of packets (in %) to use for sampling other rates
-	 * sample less often for non-mrr packets, because the overhead
-	 * is much higher than with mrr */
-	mp->lookaround_rate = 5;
-	mp->lookaround_rate_mrr = 10;
-
-	/* maximum time that the hw is allowed to stay in one MRR segment */
-	mp->segment_size = 6000;
-
-	if (hw->max_rate_tries > 0)
-		mp->max_retry = hw->max_rate_tries;
-	else
-		/* safe default, does not necessarily have to match hw properties */
-		mp->max_retry = 7;
-
-	if (hw->max_rates >= 4)
-		mp->has_mrr = true;
-
-	mp->hw = hw;
-	mp->update_interval = 100;
-
-#ifdef CONFIG_MAC80211_DEBUGFS
-	mp->fixed_rate_idx = (u32) -1;
-	mp->dbg_fixed_rate = debugfs_create_u32("fixed_rate_idx",
-			S_IRUGO | S_IWUGO, debugfsdir, &mp->fixed_rate_idx);
-#endif
-
-	minstrel_init_cck_rates(mp);
-
-	return mp;
-}
-
-static void
-minstrel_free(void *priv)
-{
-#ifdef CONFIG_MAC80211_DEBUGFS
-	debugfs_remove(((struct minstrel_priv *)priv)->dbg_fixed_rate);
-#endif
-	kfree(priv);
-}
-
 static u32 minstrel_get_expected_throughput(void *priv_sta)
 {
 	struct minstrel_sta_info *mi = priv_sta;
@@ -725,30 +584,8 @@ static u32 minstrel_get_expected_throughput(void *priv_sta)
 }
 
 const struct rate_control_ops mac80211_minstrel = {
-	.name = "minstrel",
 	.tx_status_ext = minstrel_tx_status,
 	.get_rate = minstrel_get_rate,
 	.rate_init = minstrel_rate_init,
-	.alloc = minstrel_alloc,
-	.free = minstrel_free,
-	.alloc_sta = minstrel_alloc_sta,
-	.free_sta = minstrel_free_sta,
-#ifdef CONFIG_MAC80211_DEBUGFS
-	.add_sta_debugfs = minstrel_add_sta_debugfs,
-	.remove_sta_debugfs = minstrel_remove_sta_debugfs,
-#endif
 	.get_expected_throughput = minstrel_get_expected_throughput,
 };
-
-int __init
-rc80211_minstrel_init(void)
-{
-	return ieee80211_rate_control_register(&mac80211_minstrel);
-}
-
-void
-rc80211_minstrel_exit(void)
-{
-	ieee80211_rate_control_unregister(&mac80211_minstrel);
-}
-

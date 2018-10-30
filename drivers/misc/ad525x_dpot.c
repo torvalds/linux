@@ -1,9 +1,9 @@
 /*
  * ad525x_dpot: Driver for the Analog Devices digital potentiometers
  * Copyright (c) 2009-2010 Analog Devices, Inc.
- * Author: Michael Hennerich <hennerich@blackfin.uclinux.org>
+ * Author: Michael Hennerich <michael.hennerich@analog.com>
  *
- * DEVID		#Wipers		#Positions 	Resistor Options (kOhm)
+ * DEVID		#Wipers		#Positions	Resistor Options (kOhm)
  * AD5258		1		64		1, 10, 50, 100
  * AD5259		1		256		5, 10, 50, 100
  * AD5251		2		64		1, 10, 50, 100
@@ -64,7 +64,7 @@
  * Author: Chris Verges <chrisv@cyberswitching.com>
  *
  * derived from ad5252.c
- * Copyright (c) 2006-2011 Michael Hennerich <hennerich@blackfin.uclinux.org>
+ * Copyright (c) 2006-2011 Michael Hennerich <michael.hennerich@analog.com>
  *
  * Licensed under the GPL-2 or later.
  */
@@ -84,12 +84,12 @@
 struct dpot_data {
 	struct ad_dpot_bus_data	bdata;
 	struct mutex update_lock;
-	unsigned rdac_mask;
-	unsigned max_pos;
+	unsigned int rdac_mask;
+	unsigned int max_pos;
 	unsigned long devid;
-	unsigned uid;
-	unsigned feat;
-	unsigned wipers;
+	unsigned int uid;
+	unsigned int feat;
+	unsigned int wipers;
 	u16 rdac_cache[MAX_RDACS];
 	DECLARE_BITMAP(otp_en_mask, MAX_RDACS);
 };
@@ -126,7 +126,7 @@ static inline int dpot_write_r8d16(struct dpot_data *dpot, u8 reg, u16 val)
 
 static s32 dpot_read_spi(struct dpot_data *dpot, u8 reg)
 {
-	unsigned ctrl = 0;
+	unsigned int ctrl = 0;
 	int value;
 
 	if (!(reg & (DPOT_ADDR_EEPROM | DPOT_ADDR_CMD))) {
@@ -175,7 +175,7 @@ static s32 dpot_read_spi(struct dpot_data *dpot, u8 reg)
 static s32 dpot_read_i2c(struct dpot_data *dpot, u8 reg)
 {
 	int value;
-	unsigned ctrl = 0;
+	unsigned int ctrl = 0;
 
 	switch (dpot->uid) {
 	case DPOT_UID(AD5246_ID):
@@ -238,7 +238,7 @@ static s32 dpot_read(struct dpot_data *dpot, u8 reg)
 
 static s32 dpot_write_spi(struct dpot_data *dpot, u8 reg, u16 value)
 {
-	unsigned val = 0;
+	unsigned int val = 0;
 
 	if (!(reg & (DPOT_ADDR_EEPROM | DPOT_ADDR_CMD | DPOT_ADDR_OTP))) {
 		if (dpot->feat & F_RDACS_WONLY)
@@ -328,7 +328,7 @@ static s32 dpot_write_spi(struct dpot_data *dpot, u8 reg, u16 value)
 static s32 dpot_write_i2c(struct dpot_data *dpot, u8 reg, u16 value)
 {
 	/* Only write the instruction byte for certain commands */
-	unsigned tmp = 0, ctrl = 0;
+	unsigned int tmp = 0, ctrl = 0;
 
 	switch (dpot->uid) {
 	case DPOT_UID(AD5246_ID):
@@ -515,11 +515,11 @@ set_##_name(struct device *dev, \
 #define DPOT_DEVICE_SHOW_SET(name, reg) \
 DPOT_DEVICE_SHOW(name, reg) \
 DPOT_DEVICE_SET(name, reg) \
-static DEVICE_ATTR(name, S_IWUSR | S_IRUGO, show_##name, set_##name);
+static DEVICE_ATTR(name, S_IWUSR | S_IRUGO, show_##name, set_##name)
 
 #define DPOT_DEVICE_SHOW_ONLY(name, reg) \
 DPOT_DEVICE_SHOW(name, reg) \
-static DEVICE_ATTR(name, S_IWUSR | S_IRUGO, show_##name, NULL);
+static DEVICE_ATTR(name, S_IWUSR | S_IRUGO, show_##name, NULL)
 
 DPOT_DEVICE_SHOW_SET(rdac0, DPOT_ADDR_RDAC | DPOT_RDAC0);
 DPOT_DEVICE_SHOW_SET(eeprom0, DPOT_ADDR_EEPROM | DPOT_RDAC0);
@@ -616,7 +616,7 @@ set_##_name(struct device *dev, \
 { \
 	return sysfs_do_cmd(dev, attr, buf, count, _cmd); \
 } \
-static DEVICE_ATTR(_name, S_IWUSR | S_IRUGO, NULL, set_##_name);
+static DEVICE_ATTR(_name, S_IWUSR | S_IRUGO, NULL, set_##_name)
 
 DPOT_DEVICE_DO_CMD(inc_all, DPOT_INC_ALL);
 DPOT_DEVICE_DO_CMD(dec_all, DPOT_DEC_ALL);
@@ -636,7 +636,7 @@ static const struct attribute_group ad525x_group_commands = {
 };
 
 static int ad_dpot_add_files(struct device *dev,
-		unsigned features, unsigned rdac)
+		unsigned int features, unsigned int rdac)
 {
 	int err = sysfs_create_file(&dev->kobj,
 		dpot_attrib_wipers[rdac]);
@@ -661,7 +661,7 @@ static int ad_dpot_add_files(struct device *dev,
 }
 
 static inline void ad_dpot_remove_files(struct device *dev,
-		unsigned features, unsigned rdac)
+		unsigned int features, unsigned int rdac)
 {
 	sysfs_remove_file(&dev->kobj,
 		dpot_attrib_wipers[rdac]);
@@ -760,6 +760,6 @@ EXPORT_SYMBOL(ad_dpot_remove);
 
 
 MODULE_AUTHOR("Chris Verges <chrisv@cyberswitching.com>, "
-	      "Michael Hennerich <hennerich@blackfin.uclinux.org>");
+	      "Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Digital potentiometer driver");
 MODULE_LICENSE("GPL");

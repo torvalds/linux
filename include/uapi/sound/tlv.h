@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -41,6 +42,10 @@
 #define SNDRV_CTL_TLVD_LENGTH(...) \
 	((unsigned int)sizeof((const unsigned int[]) { __VA_ARGS__ }))
 
+/* Accessor offsets for TLV data items */
+#define SNDRV_CTL_TLVO_TYPE		0
+#define SNDRV_CTL_TLVO_LEN		1
+
 #define SNDRV_CTL_TLVD_CONTAINER_ITEM(...) \
 	SNDRV_CTL_TLVD_ITEM(SNDRV_CTL_TLVT_CONTAINER, __VA_ARGS__)
 #define SNDRV_CTL_TLVD_DECLARE_CONTAINER(name, ...) \
@@ -60,6 +65,10 @@
 		SNDRV_CTL_TLVD_DB_SCALE_ITEM(min, step, mute) \
 	}
 
+/* Accessor offsets for min, mute and step items in dB scale type TLV */
+#define SNDRV_CTL_TLVO_DB_SCALE_MIN		2
+#define SNDRV_CTL_TLVO_DB_SCALE_MUTE_AND_STEP	3
+
 /* dB scale specified with min/max values instead of step */
 #define SNDRV_CTL_TLVD_DB_MINMAX_ITEM(min_dB, max_dB) \
 	SNDRV_CTL_TLVD_ITEM(SNDRV_CTL_TLVT_DB_MINMAX, (min_dB), (max_dB))
@@ -74,6 +83,10 @@
 		SNDRV_CTL_TLVD_DB_MINMAX_MUTE_ITEM(min_dB, max_dB) \
 	}
 
+/* Accessor offsets for min, max items in db-minmax types of TLV. */
+#define SNDRV_CTL_TLVO_DB_MINMAX_MIN	2
+#define SNDRV_CTL_TLVO_DB_MINMAX_MAX	3
+
 /* linear volume between min_dB and max_dB (.01dB unit) */
 #define SNDRV_CTL_TLVD_DB_LINEAR_ITEM(min_dB, max_dB) \
 	SNDRV_CTL_TLVD_ITEM(SNDRV_CTL_TLVT_DB_LINEAR, (min_dB), (max_dB))
@@ -81,6 +94,10 @@
 	unsigned int name[] = { \
 		SNDRV_CTL_TLVD_DB_LINEAR_ITEM(min_dB, max_dB) \
 	}
+
+/* Accessor offsets for min, max items in db-linear type of TLV. */
+#define SNDRV_CTL_TLVO_DB_LINEAR_MIN	2
+#define SNDRV_CTL_TLVO_DB_LINEAR_MAX	3
 
 /* dB range container:
  * Items in dB range container must be ordered by their values and by their

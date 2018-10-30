@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -159,6 +159,12 @@ restart:
 	if (!acquire_in_xmit(cp)) {
 		rds_stats_inc(s_send_lock_contention);
 		ret = -ENOMEM;
+		goto out;
+	}
+
+	if (rds_destroy_pending(cp->cp_conn)) {
+		release_in_xmit(cp);
+		ret = -ENETUNREACH; /* dont requeue send work */
 		goto out;
 	}
 
@@ -437,7 +443,12 @@ over_batch:
 		    !list_empty(&cp->cp_send_queue)) && !raced) {
 			if (batch_count < send_batch_count)
 				goto restart;
-			queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+			rcu_read_lock();
+			if (rds_destroy_pending(cp->cp_conn))
+				ret = -ENETUNREACH;
+			else
+				queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+			rcu_read_unlock();
 		} else if (raced) {
 			rds_stats_inc(s_send_lock_queue_raced);
 		}
@@ -638,7 +649,6 @@ static void rds_send_remove_from_sock(struct list_head *messages, int status)
 				rm->rdma.op_notifier = NULL;
 			}
 			was_on_sock = 1;
-			rm->m_rs = NULL;
 		}
 		spin_unlock(&rs->rs_lock);
 
@@ -699,7 +709,7 @@ void rds_send_drop_acked(struct rds_connection *conn, u64 ack,
 }
 EXPORT_SYMBOL_GPL(rds_send_drop_acked);
 
-void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
+void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in6 *dest)
 {
 	struct rds_message *rm, *tmp;
 	struct rds_connection *conn;
@@ -711,8 +721,9 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 	spin_lock_irqsave(&rs->rs_lock, flags);
 
 	list_for_each_entry_safe(rm, tmp, &rs->rs_send_queue, m_sock_item) {
-		if (dest && (dest->sin_addr.s_addr != rm->m_daddr ||
-			     dest->sin_port != rm->m_inc.i_hdr.h_dport))
+		if (dest &&
+		    (!ipv6_addr_equal(&dest->sin6_addr, &rm->m_daddr) ||
+		     dest->sin6_port != rm->m_inc.i_hdr.h_dport))
 			continue;
 
 		list_move(&rm->m_sock_item, &list);
@@ -745,9 +756,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		 */
 		if (!test_and_clear_bit(RDS_MSG_ON_CONN, &rm->m_flags)) {
 			spin_unlock_irqrestore(&cp->cp_lock, flags);
-			spin_lock_irqsave(&rm->m_rs_lock, flags);
-			rm->m_rs = NULL;
-			spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 			continue;
 		}
 		list_del_init(&rm->m_conn_item);
@@ -763,7 +771,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		__rds_send_complete(rs, rm, RDS_RDMA_CANCELED);
 		spin_unlock(&rs->rs_lock);
 
-		rm->m_rs = NULL;
 		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 
 		rds_message_put(rm);
@@ -787,7 +794,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		__rds_send_complete(rs, rm, RDS_RDMA_CANCELED);
 		spin_unlock(&rs->rs_lock);
 
-		rm->m_rs = NULL;
 		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 
 		rds_message_put(rm);
@@ -838,6 +844,7 @@ static int rds_send_queue_rm(struct rds_sock *rs, struct rds_connection *conn,
 		list_add_tail(&rm->m_sock_item, &rs->rs_send_queue);
 		set_bit(RDS_MSG_ON_SOCK, &rm->m_flags);
 		rds_message_addref(rm);
+		sock_hold(rds_rs_to_sk(rs));
 		rm->m_rs = rs;
 
 		/* The code ordering is a little weird, but we're
@@ -869,12 +876,13 @@ out:
  * rds_message is getting to be quite complicated, and we'd like to allocate
  * it all in one go. This figures out how big it needs to be up front.
  */
-static int rds_rm_size(struct msghdr *msg, int data_len)
+static int rds_rm_size(struct msghdr *msg, int num_sgs)
 {
 	struct cmsghdr *cmsg;
 	int size = 0;
 	int cmsg_groups = 0;
 	int retval;
+	bool zcopy_cookie = false;
 
 	for_each_cmsghdr(cmsg, msg) {
 		if (!CMSG_OK(msg, cmsg))
@@ -892,6 +900,10 @@ static int rds_rm_size(struct msghdr *msg, int data_len)
 			size += retval;
 
 			break;
+
+		case RDS_CMSG_ZCOPY_COOKIE:
+			zcopy_cookie = true;
+			/* fall through */
 
 		case RDS_CMSG_RDMA_DEST:
 		case RDS_CMSG_RDMA_MAP:
@@ -913,13 +925,29 @@ static int rds_rm_size(struct msghdr *msg, int data_len)
 
 	}
 
-	size += ceil(data_len, PAGE_SIZE) * sizeof(struct scatterlist);
+	if ((msg->msg_flags & MSG_ZEROCOPY) && !zcopy_cookie)
+		return -EINVAL;
+
+	size += num_sgs * sizeof(struct scatterlist);
 
 	/* Ensure (DEST, MAP) are never used with (ARGS, ATOMIC) */
 	if (cmsg_groups == 3)
 		return -EINVAL;
 
 	return size;
+}
+
+static int rds_cmsg_zcopy(struct rds_sock *rs, struct rds_message *rm,
+			  struct cmsghdr *cmsg)
+{
+	u32 *cookie;
+
+	if (cmsg->cmsg_len < CMSG_LEN(sizeof(*cookie)) ||
+	    !rm->data.op_mmp_znotifier)
+		return -EINVAL;
+	cookie = CMSG_DATA(cmsg);
+	rm->data.op_mmp_znotifier->z_cookie = *cookie;
+	return 0;
 }
 
 static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
@@ -964,6 +992,10 @@ static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
 			ret = rds_cmsg_atomic(rs, rm, cmsg);
 			break;
 
+		case RDS_CMSG_ZCOPY_COOKIE:
+			ret = rds_cmsg_zcopy(rs, rm, cmsg);
+			break;
+
 		default:
 			return -EINVAL;
 		}
@@ -975,7 +1007,8 @@ static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
 	return ret;
 }
 
-static int rds_send_mprds_hash(struct rds_sock *rs, struct rds_connection *conn)
+static int rds_send_mprds_hash(struct rds_sock *rs,
+			       struct rds_connection *conn, int nonblock)
 {
 	int hash;
 
@@ -986,9 +1019,20 @@ static int rds_send_mprds_hash(struct rds_sock *rs, struct rds_connection *conn)
 	if (conn->c_npaths == 0 && hash != 0) {
 		rds_send_ping(conn, 0);
 
+		/* The underlying connection is not up yet.  Need to wait
+		 * until it is up to be sure that the non-zero c_path can be
+		 * used.  But if we are interrupted, we have to use the zero
+		 * c_path in case the connection ends up being non-MP capable.
+		 */
 		if (conn->c_npaths == 0) {
-			wait_event_interruptible(conn->c_hs_waitq,
-						 (conn->c_npaths != 0));
+			/* Cannot wait for the connection be made, so just use
+			 * the base c_path.
+			 */
+			if (nonblock)
+				return 0;
+			if (wait_event_interruptible(conn->c_hs_waitq,
+						     conn->c_npaths != 0))
+				hash = 0;
 		}
 		if (conn->c_npaths == 1)
 			hash = 0;
@@ -1009,6 +1053,9 @@ static int rds_rdma_bytes(struct msghdr *msg, size_t *rdma_bytes)
 			continue;
 
 		if (cmsg->cmsg_type == RDS_CMSG_RDMA_ARGS) {
+			if (cmsg->cmsg_len <
+			    CMSG_LEN(sizeof(struct rds_rdma_args)))
+				return -EINVAL;
 			args = CMSG_DATA(cmsg);
 			*rdma_bytes += args->remote_vec.bytes;
 		}
@@ -1020,8 +1067,8 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 {
 	struct sock *sk = sock->sk;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
+	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin6, msg->msg_name);
 	DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
-	__be32 daddr;
 	__be16 dport;
 	struct rds_message *rm = NULL;
 	struct rds_connection *conn;
@@ -1030,36 +1077,123 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	int nonblock = msg->msg_flags & MSG_DONTWAIT;
 	long timeo = sock_sndtimeo(sk, nonblock);
 	struct rds_conn_path *cpath;
+	struct in6_addr daddr;
+	__u32 scope_id = 0;
 	size_t total_payload_len = payload_len, rdma_payload_len = 0;
+	bool zcopy = ((msg->msg_flags & MSG_ZEROCOPY) &&
+		      sock_flag(rds_rs_to_sk(rs), SOCK_ZEROCOPY));
+	int num_sgs = ceil(payload_len, PAGE_SIZE);
+	int namelen;
 
 	/* Mirror Linux UDP mirror of BSD error message compatibility */
 	/* XXX: Perhaps MSG_MORE someday */
-	if (msg->msg_flags & ~(MSG_DONTWAIT | MSG_CMSG_COMPAT)) {
+	if (msg->msg_flags & ~(MSG_DONTWAIT | MSG_CMSG_COMPAT | MSG_ZEROCOPY)) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
-	if (msg->msg_namelen) {
-		/* XXX fail non-unicast destination IPs? */
-		if (msg->msg_namelen < sizeof(*usin) || usin->sin_family != AF_INET) {
+	namelen = msg->msg_namelen;
+	if (namelen != 0) {
+		if (namelen < sizeof(*usin)) {
 			ret = -EINVAL;
 			goto out;
 		}
-		daddr = usin->sin_addr.s_addr;
-		dport = usin->sin_port;
+		switch (usin->sin_family) {
+		case AF_INET:
+			if (usin->sin_addr.s_addr == htonl(INADDR_ANY) ||
+			    usin->sin_addr.s_addr == htonl(INADDR_BROADCAST) ||
+			    IN_MULTICAST(ntohl(usin->sin_addr.s_addr))) {
+				ret = -EINVAL;
+				goto out;
+			}
+			ipv6_addr_set_v4mapped(usin->sin_addr.s_addr, &daddr);
+			dport = usin->sin_port;
+			break;
+
+#if IS_ENABLED(CONFIG_IPV6)
+		case AF_INET6: {
+			int addr_type;
+
+			if (namelen < sizeof(*sin6)) {
+				ret = -EINVAL;
+				goto out;
+			}
+			addr_type = ipv6_addr_type(&sin6->sin6_addr);
+			if (!(addr_type & IPV6_ADDR_UNICAST)) {
+				__be32 addr4;
+
+				if (!(addr_type & IPV6_ADDR_MAPPED)) {
+					ret = -EINVAL;
+					goto out;
+				}
+
+				/* It is a mapped address.  Need to do some
+				 * sanity checks.
+				 */
+				addr4 = sin6->sin6_addr.s6_addr32[3];
+				if (addr4 == htonl(INADDR_ANY) ||
+				    addr4 == htonl(INADDR_BROADCAST) ||
+				    IN_MULTICAST(ntohl(addr4))) {
+					ret = -EINVAL;
+					goto out;
+				}
+			}
+			if (addr_type & IPV6_ADDR_LINKLOCAL) {
+				if (sin6->sin6_scope_id == 0) {
+					ret = -EINVAL;
+					goto out;
+				}
+				scope_id = sin6->sin6_scope_id;
+			}
+
+			daddr = sin6->sin6_addr;
+			dport = sin6->sin6_port;
+			break;
+		}
+#endif
+
+		default:
+			ret = -EINVAL;
+			goto out;
+		}
 	} else {
 		/* We only care about consistency with ->connect() */
 		lock_sock(sk);
 		daddr = rs->rs_conn_addr;
 		dport = rs->rs_conn_port;
+		scope_id = rs->rs_bound_scope_id;
 		release_sock(sk);
 	}
 
 	lock_sock(sk);
-	if (daddr == 0 || rs->rs_bound_addr == 0) {
+	if (ipv6_addr_any(&rs->rs_bound_addr) || ipv6_addr_any(&daddr)) {
 		release_sock(sk);
-		ret = -ENOTCONN; /* XXX not a great errno */
+		ret = -ENOTCONN;
 		goto out;
+	} else if (namelen != 0) {
+		/* Cannot send to an IPv4 address using an IPv6 source
+		 * address and cannot send to an IPv6 address using an
+		 * IPv4 source address.
+		 */
+		if (ipv6_addr_v4mapped(&daddr) ^
+		    ipv6_addr_v4mapped(&rs->rs_bound_addr)) {
+			release_sock(sk);
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
+		/* If the socket is already bound to a link local address,
+		 * it can only send to peers on the same link.  But allow
+		 * communicating beween link local and non-link local address.
+		 */
+		if (scope_id != rs->rs_bound_scope_id) {
+			if (!scope_id) {
+				scope_id = rs->rs_bound_scope_id;
+			} else if (rs->rs_bound_scope_id) {
+				release_sock(sk);
+				ret = -EINVAL;
+				goto out;
+			}
+		}
 	}
 	release_sock(sk);
 
@@ -1078,8 +1212,15 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		goto out;
 	}
 
+	if (zcopy) {
+		if (rs->rs_transport->t_type != RDS_TRANS_TCP) {
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
+		num_sgs = iov_iter_npages(&msg->msg_iter, INT_MAX);
+	}
 	/* size of rm including all sgs */
-	ret = rds_rm_size(msg, payload_len);
+	ret = rds_rm_size(msg, num_sgs);
 	if (ret < 0)
 		goto out;
 
@@ -1091,12 +1232,12 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 
 	/* Attach data to the rm */
 	if (payload_len) {
-		rm->data.op_sg = rds_message_alloc_sgs(rm, ceil(payload_len, PAGE_SIZE));
+		rm->data.op_sg = rds_message_alloc_sgs(rm, num_sgs);
 		if (!rm->data.op_sg) {
 			ret = -ENOMEM;
 			goto out;
 		}
-		ret = rds_message_copy_from_user(rm, &msg->msg_iter);
+		ret = rds_message_copy_from_user(rm, &msg->msg_iter, zcopy);
 		if (ret)
 			goto out;
 	}
@@ -1106,19 +1247,27 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 
 	/* rds_conn_create has a spinlock that runs with IRQ off.
 	 * Caching the conn in the socket helps a lot. */
-	if (rs->rs_conn && rs->rs_conn->c_faddr == daddr)
+	if (rs->rs_conn && ipv6_addr_equal(&rs->rs_conn->c_faddr, &daddr))
 		conn = rs->rs_conn;
 	else {
 		conn = rds_conn_create_outgoing(sock_net(sock->sk),
-						rs->rs_bound_addr, daddr,
-					rs->rs_transport,
-					sock->sk->sk_allocation);
+						&rs->rs_bound_addr, &daddr,
+						rs->rs_transport,
+						sock->sk->sk_allocation,
+						scope_id);
 		if (IS_ERR(conn)) {
 			ret = PTR_ERR(conn);
 			goto out;
 		}
 		rs->rs_conn = conn;
 	}
+
+	if (conn->c_trans->t_mp_capable)
+		cpath = &conn->c_path[rds_send_mprds_hash(rs, conn, nonblock)];
+	else
+		cpath = &conn->c_path[0];
+
+	rm->m_conn_path = cpath;
 
 	/* Parse any control messages the user may have included. */
 	ret = rds_cmsg_send(rs, rm, msg, &allocated_mr);
@@ -1143,10 +1292,10 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		goto out;
 	}
 
-	if (conn->c_trans->t_mp_capable)
-		cpath = &conn->c_path[rds_send_mprds_hash(rs, conn)];
-	else
-		cpath = &conn->c_path[0];
+	if (rds_destroy_pending(conn)) {
+		ret = -EAGAIN;
+		goto out;
+	}
 
 	rds_conn_path_connect_if_down(cpath);
 
@@ -1187,9 +1336,17 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	rds_stats_inc(s_send_queued);
 
 	ret = rds_send_xmit(cpath);
-	if (ret == -ENOMEM || ret == -EAGAIN)
-		queue_delayed_work(rds_wq, &cpath->cp_send_w, 1);
-
+	if (ret == -ENOMEM || ret == -EAGAIN) {
+		ret = 0;
+		rcu_read_lock();
+		if (rds_destroy_pending(cpath->cp_conn))
+			ret = -ENETUNREACH;
+		else
+			queue_delayed_work(rds_wq, &cpath->cp_send_w, 1);
+		rcu_read_unlock();
+	}
+	if (ret)
+		goto out;
 	rds_message_put(rm);
 	return payload_len;
 
@@ -1267,7 +1424,10 @@ rds_send_probe(struct rds_conn_path *cp, __be16 sport,
 	rds_stats_inc(s_send_pong);
 
 	/* schedule the send work on rds_wq */
-	queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+	rcu_read_lock();
+	if (!rds_destroy_pending(cp->cp_conn))
+		queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+	rcu_read_unlock();
 
 	rds_message_put(rm);
 	return 0;

@@ -1,15 +1,11 @@
-/*
- * Copyright (c) 2006-2007 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>
- *	Vincent Sanders <vince@arm.linux.org.uk>
- *
- * S3C2440/S3C2442 CPU PLL tables (12MHz Crystal)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2006-2007 Simtec Electronics
+//	http://armlinux.simtec.co.uk/
+//	Ben Dooks <ben@simtec.co.uk>
+//	Vincent Sanders <vince@arm.linux.org.uk>
+//
+// S3C2440/S3C2442 CPU PLL tables (12MHz Crystal)
 
 #include <linux/types.h>
 #include <linux/kernel.h>

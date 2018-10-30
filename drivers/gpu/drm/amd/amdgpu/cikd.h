@@ -562,7 +562,7 @@
 #define	PRIVATE_BASE(x)	((x) << 0) /* scratch */
 #define	SHARED_BASE(x)	((x) << 16) /* LDS */
 
-#define KFD_CIK_SDMA_QUEUE_OFFSET	0x200
+#define KFD_CIK_SDMA_QUEUE_OFFSET (mmSDMA0_RLC1_RB_CNTL - mmSDMA0_RLC0_RB_CNTL)
 
 /* valid for both DEFAULT_MTYPE and APE1_MTYPE */
 enum {

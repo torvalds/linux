@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* iommu.h: Definitions for the sun5 IOMMU.
  *
  * Copyright (C) 1996, 1999, 2007 David S. Miller (davem@davemloft.net)
@@ -16,7 +17,7 @@
 #define IOPTE_WRITE   0x0000000000000002UL
 
 #define IOMMU_NUM_CTXS	4096
-#include <linux/iommu-common.h>
+#include <asm/iommu-common.h>
 
 struct iommu_arena {
 	unsigned long	*map;

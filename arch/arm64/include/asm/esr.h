@@ -43,7 +43,8 @@
 #define ESR_ELx_EC_HVC64	(0x16)
 #define ESR_ELx_EC_SMC64	(0x17)
 #define ESR_ELx_EC_SYS64	(0x18)
-/* Unallocated EC: 0x19 - 0x1E */
+#define ESR_ELx_EC_SVE		(0x19)
+/* Unallocated EC: 0x1A - 0x1E */
 #define ESR_ELx_EC_IMP_DEF	(0x1f)
 #define ESR_ELx_EC_IABT_LOW	(0x20)
 #define ESR_ELx_EC_IABT_CUR	(0x21)
@@ -85,6 +86,18 @@
 #define ESR_ELx_WNR_SHIFT	(6)
 #define ESR_ELx_WNR		(UL(1) << ESR_ELx_WNR_SHIFT)
 
+/* Asynchronous Error Type */
+#define ESR_ELx_IDS_SHIFT	(24)
+#define ESR_ELx_IDS		(UL(1) << ESR_ELx_IDS_SHIFT)
+#define ESR_ELx_AET_SHIFT	(10)
+#define ESR_ELx_AET		(UL(0x7) << ESR_ELx_AET_SHIFT)
+
+#define ESR_ELx_AET_UC		(UL(0) << ESR_ELx_AET_SHIFT)
+#define ESR_ELx_AET_UEU		(UL(1) << ESR_ELx_AET_SHIFT)
+#define ESR_ELx_AET_UEO		(UL(2) << ESR_ELx_AET_SHIFT)
+#define ESR_ELx_AET_UER		(UL(3) << ESR_ELx_AET_SHIFT)
+#define ESR_ELx_AET_CE		(UL(6) << ESR_ELx_AET_SHIFT)
+
 /* Shared ISS field definitions for Data/Instruction aborts */
 #define ESR_ELx_SET_SHIFT	(11)
 #define ESR_ELx_SET_MASK	(UL(3) << ESR_ELx_SET_SHIFT)
@@ -99,6 +112,7 @@
 #define ESR_ELx_FSC		(0x3F)
 #define ESR_ELx_FSC_TYPE	(0x3C)
 #define ESR_ELx_FSC_EXTABT	(0x10)
+#define ESR_ELx_FSC_SERROR	(0x11)
 #define ESR_ELx_FSC_ACCESS	(0x08)
 #define ESR_ELx_FSC_FAULT	(0x04)
 #define ESR_ELx_FSC_PERM	(0x0C)
@@ -123,10 +137,22 @@
 #define ESR_ELx_CV		(UL(1) << 24)
 #define ESR_ELx_COND_SHIFT	(20)
 #define ESR_ELx_COND_MASK	(UL(0xF) << ESR_ELx_COND_SHIFT)
+#define ESR_ELx_WFx_ISS_TI	(UL(1) << 0)
+#define ESR_ELx_WFx_ISS_WFI	(UL(0) << 0)
 #define ESR_ELx_WFx_ISS_WFE	(UL(1) << 0)
 #define ESR_ELx_xVC_IMM_MASK	((1UL << 16) - 1)
 
+#define DISR_EL1_IDS		(UL(1) << 24)
+/*
+ * DISR_EL1 and ESR_ELx share the bottom 13 bits, but the RES0 bits may mean
+ * different things in the future...
+ */
+#define DISR_EL1_ESR_MASK	(ESR_ELx_AET | ESR_ELx_EA | ESR_ELx_FSC)
+
 /* ESR value templates for specific events */
+#define ESR_ELx_WFx_MASK	(ESR_ELx_EC_MASK | ESR_ELx_WFx_ISS_TI)
+#define ESR_ELx_WFx_WFI_VAL	((ESR_ELx_EC_WFx << ESR_ELx_EC_SHIFT) |	\
+				 ESR_ELx_WFx_ISS_WFI)
 
 /* BRK instruction trap from AArch64 state */
 #define ESR_ELx_VAL_BRK64(imm)					\
@@ -166,6 +192,8 @@
 
 #define ESR_ELx_SYS64_ISS_SYS_OP_MASK	(ESR_ELx_SYS64_ISS_SYS_MASK | \
 					 ESR_ELx_SYS64_ISS_DIR_MASK)
+#define ESR_ELx_SYS64_ISS_RT(esr) \
+	(((esr) & ESR_ELx_SYS64_ISS_RT_MASK) >> ESR_ELx_SYS64_ISS_RT_SHIFT)
 /*
  * User space cache operations have the following sysreg encoding
  * in System instructions.
@@ -185,6 +213,18 @@
 #define ESR_ELx_SYS64_ISS_EL0_CACHE_OP_VAL \
 				(ESR_ELx_SYS64_ISS_SYS_VAL(1, 3, 1, 7, 0) | \
 				 ESR_ELx_SYS64_ISS_DIR_WRITE)
+/*
+ * User space MRS operations which are supported for emulation
+ * have the following sysreg encoding in System instructions.
+ * op0 = 3, op1= 0, crn = 0, {crm = 0, 4-7}, READ (L = 1)
+ */
+#define ESR_ELx_SYS64_ISS_SYS_MRS_OP_MASK	(ESR_ELx_SYS64_ISS_OP0_MASK | \
+						 ESR_ELx_SYS64_ISS_OP1_MASK | \
+						 ESR_ELx_SYS64_ISS_CRN_MASK | \
+						 ESR_ELx_SYS64_ISS_DIR_MASK)
+#define ESR_ELx_SYS64_ISS_SYS_MRS_OP_VAL \
+				(ESR_ELx_SYS64_ISS_SYS_VAL(3, 0, 0, 0, 0) | \
+				 ESR_ELx_SYS64_ISS_DIR_READ)
 
 #define ESR_ELx_SYS64_ISS_SYS_CTR	ESR_ELx_SYS64_ISS_SYS_VAL(3, 3, 1, 0, 0)
 #define ESR_ELx_SYS64_ISS_SYS_CTR_READ	(ESR_ELx_SYS64_ISS_SYS_CTR | \
@@ -218,6 +258,73 @@
 		 ESR_ELx_SYS64_ISS_CRM_SHIFT),			\
 		(((e) & ESR_ELx_SYS64_ISS_OP2_MASK) >>		\
 		 ESR_ELx_SYS64_ISS_OP2_SHIFT))
+
+/*
+ * ISS field definitions for floating-point exception traps
+ * (FP_EXC_32/FP_EXC_64).
+ *
+ * (The FPEXC_* constants are used instead for common bits.)
+ */
+
+#define ESR_ELx_FP_EXC_TFV	(UL(1) << 23)
+
+/*
+ * ISS field definitions for CP15 accesses
+ */
+#define ESR_ELx_CP15_32_ISS_DIR_MASK	0x1
+#define ESR_ELx_CP15_32_ISS_DIR_READ	0x1
+#define ESR_ELx_CP15_32_ISS_DIR_WRITE	0x0
+
+#define ESR_ELx_CP15_32_ISS_RT_SHIFT	5
+#define ESR_ELx_CP15_32_ISS_RT_MASK	(UL(0x1f) << ESR_ELx_CP15_32_ISS_RT_SHIFT)
+#define ESR_ELx_CP15_32_ISS_CRM_SHIFT	1
+#define ESR_ELx_CP15_32_ISS_CRM_MASK	(UL(0xf) << ESR_ELx_CP15_32_ISS_CRM_SHIFT)
+#define ESR_ELx_CP15_32_ISS_CRN_SHIFT	10
+#define ESR_ELx_CP15_32_ISS_CRN_MASK	(UL(0xf) << ESR_ELx_CP15_32_ISS_CRN_SHIFT)
+#define ESR_ELx_CP15_32_ISS_OP1_SHIFT	14
+#define ESR_ELx_CP15_32_ISS_OP1_MASK	(UL(0x7) << ESR_ELx_CP15_32_ISS_OP1_SHIFT)
+#define ESR_ELx_CP15_32_ISS_OP2_SHIFT	17
+#define ESR_ELx_CP15_32_ISS_OP2_MASK	(UL(0x7) << ESR_ELx_CP15_32_ISS_OP2_SHIFT)
+
+#define ESR_ELx_CP15_32_ISS_SYS_MASK	(ESR_ELx_CP15_32_ISS_OP1_MASK | \
+					 ESR_ELx_CP15_32_ISS_OP2_MASK | \
+					 ESR_ELx_CP15_32_ISS_CRN_MASK | \
+					 ESR_ELx_CP15_32_ISS_CRM_MASK | \
+					 ESR_ELx_CP15_32_ISS_DIR_MASK)
+#define ESR_ELx_CP15_32_ISS_SYS_VAL(op1, op2, crn, crm) \
+					(((op1) << ESR_ELx_CP15_32_ISS_OP1_SHIFT) | \
+					 ((op2) << ESR_ELx_CP15_32_ISS_OP2_SHIFT) | \
+					 ((crn) << ESR_ELx_CP15_32_ISS_CRN_SHIFT) | \
+					 ((crm) << ESR_ELx_CP15_32_ISS_CRM_SHIFT))
+
+#define ESR_ELx_CP15_64_ISS_DIR_MASK	0x1
+#define ESR_ELx_CP15_64_ISS_DIR_READ	0x1
+#define ESR_ELx_CP15_64_ISS_DIR_WRITE	0x0
+
+#define ESR_ELx_CP15_64_ISS_RT_SHIFT	5
+#define ESR_ELx_CP15_64_ISS_RT_MASK	(UL(0x1f) << ESR_ELx_CP15_64_ISS_RT_SHIFT)
+
+#define ESR_ELx_CP15_64_ISS_RT2_SHIFT	10
+#define ESR_ELx_CP15_64_ISS_RT2_MASK	(UL(0x1f) << ESR_ELx_CP15_64_ISS_RT2_SHIFT)
+
+#define ESR_ELx_CP15_64_ISS_OP1_SHIFT	16
+#define ESR_ELx_CP15_64_ISS_OP1_MASK	(UL(0xf) << ESR_ELx_CP15_64_ISS_OP1_SHIFT)
+#define ESR_ELx_CP15_64_ISS_CRM_SHIFT	1
+#define ESR_ELx_CP15_64_ISS_CRM_MASK	(UL(0xf) << ESR_ELx_CP15_64_ISS_CRM_SHIFT)
+
+#define ESR_ELx_CP15_64_ISS_SYS_VAL(op1, crm) \
+					(((op1) << ESR_ELx_CP15_64_ISS_OP1_SHIFT) | \
+					 ((crm) << ESR_ELx_CP15_64_ISS_CRM_SHIFT))
+
+#define ESR_ELx_CP15_64_ISS_SYS_MASK	(ESR_ELx_CP15_64_ISS_OP1_MASK |	\
+					 ESR_ELx_CP15_64_ISS_CRM_MASK | \
+					 ESR_ELx_CP15_64_ISS_DIR_MASK)
+
+#define ESR_ELx_CP15_64_ISS_SYS_CNTVCT	(ESR_ELx_CP15_64_ISS_SYS_VAL(1, 14) | \
+					 ESR_ELx_CP15_64_ISS_DIR_READ)
+
+#define ESR_ELx_CP15_32_ISS_SYS_CNTFRQ	(ESR_ELx_CP15_32_ISS_SYS_VAL(0, 0, 14, 0) |\
+					 ESR_ELx_CP15_32_ISS_DIR_READ)
 
 #ifndef __ASSEMBLY__
 #include <asm/types.h>

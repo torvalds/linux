@@ -188,8 +188,8 @@ static int stb6000_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 static const struct dvb_tuner_ops stb6000_tuner_ops = {
 	.info = {
 		.name = "ST STB6000",
-		.frequency_min = 950000,
-		.frequency_max = 2150000
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz
 	},
 	.release = stb6000_release,
 	.sleep = stb6000_sleep,

@@ -58,6 +58,14 @@ can never be transgressed.  If there is a good reason to go against the
 style (a line which becomes far less readable if split to fit within the
 80-column limit, for example), just do it.
 
+Note that you can also use the ``clang-format`` tool to help you with
+these rules, to quickly re-format parts of your code automatically,
+and to review full files in order to spot coding style mistakes,
+typos and possible improvements. It is also handy for sorting ``#includes``,
+for aligning variables/macros, for reflowing text and other similar tasks.
+See the file :ref:`Documentation/process/clang-format.rst <clangformat>`
+for more details.
+
 
 Abstraction layers
 ******************
@@ -307,7 +315,7 @@ variety of potential coding problems; it can also propose fixes for those
 problems.  Quite a few "semantic patches" for the kernel have been packaged
 under the scripts/coccinelle directory; running "make coccicheck" will run
 through those semantic patches and report on any problems found.  See
-Documentation/coccinelle.txt for more information.
+Documentation/dev-tools/coccinelle.rst for more information.
 
 Other kinds of portability errors are best found by compiling your code for
 other architectures.  If you do not happen to have an S/390 system or a

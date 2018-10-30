@@ -47,7 +47,7 @@ static struct map_info impa7_map[NUM_FLASHBANKS] = {
 /*
  * MTD partitioning stuff
  */
-static struct mtd_partition partitions[] =
+static const struct mtd_partition partitions[] =
 {
 	{
 		.name = "FileSystem",
@@ -88,9 +88,8 @@ static int __init init_impa7(void)
 		if (impa7_mtd[i]) {
 			impa7_mtd[i]->owner = THIS_MODULE;
 			devicesfound++;
-			mtd_device_parse_register(impa7_mtd[i], NULL, NULL,
-						  partitions,
-						  ARRAY_SIZE(partitions));
+			mtd_device_register(impa7_mtd[i], partitions,
+					    ARRAY_SIZE(partitions));
 		} else {
 			iounmap((void __iomem *)impa7_map[i].virt);
 		}

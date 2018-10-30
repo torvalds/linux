@@ -43,10 +43,9 @@ cryptoloop_init(struct loop_device *lo, const struct loop_info64 *info)
 	int cipher_len;
 	int mode_len;
 	char cms[LO_NAME_SIZE];			/* cipher-mode string */
-	char *cipher;
 	char *mode;
 	char *cmsp = cms;			/* c-m string pointer */
-	struct crypto_skcipher *tfm;
+	struct crypto_sync_skcipher *tfm;
 
 	/* encryption breaks for non sector aligned offsets */
 
@@ -56,7 +55,6 @@ cryptoloop_init(struct loop_device *lo, const struct loop_info64 *info)
 	strncpy(cms, info->lo_crypt_name, LO_NAME_SIZE);
 	cms[LO_NAME_SIZE - 1] = 0;
 
-	cipher = cmsp;
 	cipher_len = strcspn(cmsp, "-");
 
 	mode = cmsp + cipher_len;
@@ -82,13 +80,13 @@ cryptoloop_init(struct loop_device *lo, const struct loop_info64 *info)
 	*cmsp++ = ')';
 	*cmsp = 0;
 
-	tfm = crypto_alloc_skcipher(cms, 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_sync_skcipher(cms, 0, 0);
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
 
-	err = crypto_skcipher_setkey(tfm, info->lo_encrypt_key,
-				     info->lo_encrypt_key_size);
-	
+	err = crypto_sync_skcipher_setkey(tfm, info->lo_encrypt_key,
+					  info->lo_encrypt_key_size);
+
 	if (err != 0)
 		goto out_free_tfm;
 
@@ -96,7 +94,7 @@ cryptoloop_init(struct loop_device *lo, const struct loop_info64 *info)
 	return 0;
 
  out_free_tfm:
-	crypto_free_skcipher(tfm);
+	crypto_free_sync_skcipher(tfm);
 
  out:
 	return err;
@@ -111,8 +109,8 @@ cryptoloop_transfer(struct loop_device *lo, int cmd,
 		    struct page *loop_page, unsigned loop_off,
 		    int size, sector_t IV)
 {
-	struct crypto_skcipher *tfm = lo->key_data;
-	SKCIPHER_REQUEST_ON_STACK(req, tfm);
+	struct crypto_sync_skcipher *tfm = lo->key_data;
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 	struct scatterlist sg_out;
 	struct scatterlist sg_in;
 
@@ -121,7 +119,7 @@ cryptoloop_transfer(struct loop_device *lo, int cmd,
 	unsigned in_offs, out_offs;
 	int err;
 
-	skcipher_request_set_tfm(req, tfm);
+	skcipher_request_set_sync_tfm(req, tfm);
 	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP,
 				      NULL, NULL);
 
@@ -177,9 +175,9 @@ cryptoloop_ioctl(struct loop_device *lo, int cmd, unsigned long arg)
 static int
 cryptoloop_release(struct loop_device *lo)
 {
-	struct crypto_skcipher *tfm = lo->key_data;
+	struct crypto_sync_skcipher *tfm = lo->key_data;
 	if (tfm != NULL) {
-		crypto_free_skcipher(tfm);
+		crypto_free_sync_skcipher(tfm);
 		lo->key_data = NULL;
 		return 0;
 	}

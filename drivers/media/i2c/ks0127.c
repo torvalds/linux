@@ -195,7 +195,7 @@ struct adjust {
 struct ks0127 {
 	struct v4l2_subdev sd;
 	v4l2_std_id	norm;
-	u8 		regs[256];
+	u8		regs[256];
 };
 
 static inline struct ks0127 *to_ks0127(struct v4l2_subdev *sd)

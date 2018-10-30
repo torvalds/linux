@@ -55,7 +55,7 @@
  *    message being sent to host SCIF. SCIF_DISCNCT message processing on the
  *    host SCIF sets the host COSM SCIF endpoint state to DISCONNECTED and wakes
  *    up the host COSM thread blocked in scif_poll(..) resulting in
- *    scif_poll(..)  returning POLLHUP.
+ *    scif_poll(..)  returning EPOLLHUP.
  * 5. On the card, scif_peer_release_dev is next called which results in an
  *    SCIF_EXIT message being sent to the host and after receiving the
  *    SCIF_EXIT_ACK from the host the peer device teardown on the card is
@@ -79,7 +79,7 @@
  *    processing. This results in the COSM endpoint on the card being closed and
  *    the SCIF host peer device on the card getting unregistered similar to
  *    steps 3, 4 and 5 for the card shutdown case above. scif_poll(..) on the
- *    host returns POLLHUP as a result.
+ *    host returns EPOLLHUP as a result.
  * 4. On the host, card peer device unregister and SCIF HW remove(..) also
  *    subsequently complete.
  *
@@ -87,11 +87,11 @@
  * ----------
  * If a reset is issued after the card has crashed, there is no SCIF_DISCNT
  * message from the card which would result in scif_poll(..) returning
- * POLLHUP. In this case when the host SCIF driver sends a SCIF_REMOVE_NODE
+ * EPOLLHUP. In this case when the host SCIF driver sends a SCIF_REMOVE_NODE
  * message to itself resulting in the card SCIF peer device being unregistered,
  * this results in a scif_peer_release_dev -> scif_cleanup_scifdev->
  * scif_invalidate_ep call sequence which sets the endpoint state to
- * DISCONNECTED and results in scif_poll(..) returning POLLHUP.
+ * DISCONNECTED and results in scif_poll(..) returning EPOLLHUP.
  */
 
 #define COSM_SCIF_BACKLOG 16
@@ -179,9 +179,13 @@ static void cosm_set_crashed(struct cosm_device *cdev)
 static void cosm_send_time(struct cosm_device *cdev)
 {
 	struct cosm_msg msg = { .id = COSM_MSG_SYNC_TIME };
+	struct timespec64 ts;
 	int rc;
 
-	getnstimeofday64(&msg.timespec);
+	ktime_get_real_ts64(&ts);
+	msg.timespec.tv_sec = ts.tv_sec;
+	msg.timespec.tv_nsec = ts.tv_nsec;
+
 	rc = scif_send(cdev->epd, &msg, sizeof(msg), SCIF_SEND_BLOCK);
 	if (rc < 0)
 		dev_err(&cdev->dev, "%s %d scif_send failed rc %d\n",
@@ -190,7 +194,7 @@ static void cosm_send_time(struct cosm_device *cdev)
 
 /*
  * Close this cosm_device's endpoint after its peer endpoint on the card has
- * been closed. In all cases except MIC card crash POLLHUP on the host is
+ * been closed. In all cases except MIC card crash EPOLLHUP on the host is
  * triggered by the client's endpoint being closed.
  */
 static void cosm_scif_close(struct cosm_device *cdev)
@@ -252,7 +256,7 @@ void cosm_scif_work(struct work_struct *work)
 
 	while (1) {
 		pollepd.epd = cdev->epd;
-		pollepd.events = POLLIN;
+		pollepd.events = EPOLLIN;
 
 		/* Drop the mutex before blocking in scif_poll(..) */
 		mutex_unlock(&cdev->cosm_mutex);
@@ -266,11 +270,11 @@ void cosm_scif_work(struct work_struct *work)
 		}
 
 		/* There is a message from the card */
-		if (pollepd.revents & POLLIN)
+		if (pollepd.revents & EPOLLIN)
 			cosm_scif_recv(cdev);
 
 		/* The peer endpoint is closed or this endpoint disconnected */
-		if (pollepd.revents & POLLHUP) {
+		if (pollepd.revents & EPOLLHUP) {
 			cosm_scif_close(cdev);
 			break;
 		}

@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,15 +70,13 @@
  */
 enum iwl_mac_conf_subcmd_ids {
 	/**
-	 * @LINK_QUALITY_MEASUREMENT_CMD: &struct iwl_link_qual_msrmnt_cmd
+	 * @LOW_LATENCY_CMD: &struct iwl_mac_low_latency_cmd
 	 */
-	LINK_QUALITY_MEASUREMENT_CMD = 0x1,
-
+	LOW_LATENCY_CMD = 0x3,
 	/**
-	 * @LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF:
-	 * &struct iwl_link_qual_msrmnt_notif
+	 * @PROBE_RESPONSE_DATA_NOTIF: &struct iwl_probe_resp_data_notif
 	 */
-	LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF = 0xFE,
+	PROBE_RESPONSE_DATA_NOTIF = 0xFC,
 
 	/**
 	 * @CHANNEL_SWITCH_NOA_NOTIF: &struct iwl_channel_switch_noa_notif
@@ -84,61 +84,47 @@ enum iwl_mac_conf_subcmd_ids {
 	CHANNEL_SWITCH_NOA_NOTIF = 0xFF,
 };
 
-#define LQM_NUMBER_OF_STATIONS_IN_REPORT 16
-
-enum iwl_lqm_cmd_operatrions {
-	LQM_CMD_OPERATION_START_MEASUREMENT = 0x01,
-	LQM_CMD_OPERATION_STOP_MEASUREMENT = 0x02,
-};
-
-enum iwl_lqm_status {
-	LQM_STATUS_SUCCESS = 0,
-	LQM_STATUS_TIMEOUT = 1,
-	LQM_STATUS_ABORT = 2,
-};
+#define IWL_P2P_NOA_DESC_COUNT	(2)
 
 /**
- * struct iwl_link_qual_msrmnt_cmd - Link Quality Measurement command
- * @cmd_operation: command operation to be performed (start or stop)
- *	as defined above.
- * @mac_id: MAC ID the measurement applies to.
- * @measurement_time: time of the total measurement to be performed, in uSec.
- * @timeout: maximum time allowed until a response is sent, in uSec.
- */
-struct iwl_link_qual_msrmnt_cmd {
-	__le32 cmd_operation;
-	__le32 mac_id;
-	__le32 measurement_time;
-	__le32 timeout;
-} __packed /* LQM_CMD_API_S_VER_1 */;
-
-/**
- * struct iwl_link_qual_msrmnt_notif - Link Quality Measurement notification
+ * struct iwl_p2p_noa_attr - NOA attr contained in probe resp FW notification
  *
- * @frequent_stations_air_time: an array containing the total air time
- *	(in uSec) used by the most frequently transmitting stations.
- * @number_of_stations: the number of uniqe stations included in the array
- *	(a number between 0 to 16)
- * @total_air_time_other_stations: the total air time (uSec) used by all the
- *	stations which are not included in the above report.
- * @time_in_measurement_window: the total time in uSec in which a measurement
- *	took place.
- * @tx_frame_dropped: the number of TX frames dropped due to retry limit during
- *	measurement
- * @mac_id: MAC ID the measurement applies to.
- * @status: return status. may be one of the LQM_STATUS_* defined above.
- * @reserved: reserved.
+ * @id: attribute id
+ * @len_low: length low half
+ * @len_high: length high half
+ * @idx: instance of NoA timing
+ * @ctwin: GO's ct window and pwer save capability
+ * @desc: NoA descriptor
+ * @reserved: reserved for alignment purposes
  */
-struct iwl_link_qual_msrmnt_notif {
-	__le32 frequent_stations_air_time[LQM_NUMBER_OF_STATIONS_IN_REPORT];
-	__le32 number_of_stations;
-	__le32 total_air_time_other_stations;
-	__le32 time_in_measurement_window;
-	__le32 tx_frame_dropped;
+struct iwl_p2p_noa_attr {
+	u8 id;
+	u8 len_low;
+	u8 len_high;
+	u8 idx;
+	u8 ctwin;
+	struct ieee80211_p2p_noa_desc desc[IWL_P2P_NOA_DESC_COUNT];
+	u8 reserved;
+} __packed;
+
+#define IWL_PROBE_RESP_DATA_NO_CSA (0xff)
+
+/**
+ * struct iwl_probe_resp_data_notif - notification with NOA and CSA counter
+ *
+ * @mac_id: the mac which should send the probe response
+ * @noa_active: notifies if the noa attribute should be handled
+ * @noa_attr: P2P NOA attribute
+ * @csa_counter: current csa counter
+ * @reserved: reserved for alignment purposes
+ */
+struct iwl_probe_resp_data_notif {
 	__le32 mac_id;
-	__le32 status;
-	u8 reserved[12];
-} __packed; /* LQM_MEASUREMENT_COMPLETE_NTF_API_S_VER1 */
+	__le32 noa_active;
+	struct iwl_p2p_noa_attr noa_attr;
+	u8 csa_counter;
+	u8 reserved[3];
+} __packed; /* PROBE_RESPONSE_DATA_NTFY_API_S_VER_1 */
 
 /**
  * struct iwl_channel_switch_noa_notif - Channel switch NOA notification
@@ -148,5 +134,20 @@ struct iwl_link_qual_msrmnt_notif {
 struct iwl_channel_switch_noa_notif {
 	__le32 id_and_color;
 } __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_mac_low_latency_cmd - set/clear mac to 'low-latency mode'
+ *
+ * @mac_id: MAC ID to whom to apply the low-latency configurations
+ * @low_latency_rx: 1/0 to set/clear Rx low latency direction
+ * @low_latency_tx: 1/0 to set/clear Tx low latency direction
+ * @reserved: reserved for alignment purposes
+ */
+struct iwl_mac_low_latency_cmd {
+	__le32 mac_id;
+	u8 low_latency_rx;
+	u8 low_latency_tx;
+	__le16 reserved;
+} __packed; /* MAC_LOW_LATENCY_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_mac_cfg_h__ */

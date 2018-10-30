@@ -113,10 +113,10 @@ TRACE_EVENT(gma_index,
 );
 
 TRACE_EVENT(gma_translate,
-	TP_PROTO(int id, char *type, int ring_id, int pt_level,
+	TP_PROTO(int id, char *type, int ring_id, int root_entry_type,
 		unsigned long gma, unsigned long gpa),
 
-	TP_ARGS(id, type, ring_id, pt_level, gma, gpa),
+	TP_ARGS(id, type, ring_id, root_entry_type, gma, gpa),
 
 	TP_STRUCT__entry(
 		__array(char, buf, MAX_BUF_LEN)
@@ -124,8 +124,8 @@ TRACE_EVENT(gma_translate,
 
 	TP_fast_assign(
 		snprintf(__entry->buf, MAX_BUF_LEN,
-			"VM%d %s ring %d pt_level %d gma 0x%lx -> gpa 0x%lx\n",
-				id, type, ring_id, pt_level, gma, gpa);
+			"VM%d %s ring %d root_entry_type %d gma 0x%lx -> gpa 0x%lx\n",
+			id, type, ring_id, root_entry_type, gma, gpa);
 	),
 
 	TP_printk("%s", __entry->buf)
@@ -168,7 +168,7 @@ TRACE_EVENT(spt_change,
 	TP_printk("%s", __entry->buf)
 );
 
-TRACE_EVENT(gpt_change,
+TRACE_EVENT(spt_guest_change,
 	TP_PROTO(int id, const char *tag, void *spt, int type, u64 v,
 		unsigned long index),
 
@@ -224,19 +224,25 @@ TRACE_EVENT(oos_sync,
 	TP_printk("%s", __entry->buf)
 );
 
+#define GVT_CMD_STR_LEN 40
 TRACE_EVENT(gvt_command,
-	TP_PROTO(u8 vgpu_id, u8 ring_id, u32 ip_gma, u32 *cmd_va, u32 cmd_len,
-		 u32 buf_type),
+	TP_PROTO(u8 vgpu_id, u8 ring_id, u32 ip_gma, u32 *cmd_va,
+		u32 cmd_len,  u32 buf_type, u32 buf_addr_type,
+		void *workload, char *cmd_name),
 
-	TP_ARGS(vgpu_id, ring_id, ip_gma, cmd_va, cmd_len, buf_type),
+	TP_ARGS(vgpu_id, ring_id, ip_gma, cmd_va, cmd_len, buf_type,
+		buf_addr_type, workload, cmd_name),
 
 	TP_STRUCT__entry(
 		__field(u8, vgpu_id)
 		__field(u8, ring_id)
 		__field(u32, ip_gma)
 		__field(u32, buf_type)
+		__field(u32, buf_addr_type)
 		__field(u32, cmd_len)
+		__field(void*, workload)
 		__dynamic_array(u32, raw_cmd, cmd_len)
+		__array(char, cmd_name, GVT_CMD_STR_LEN)
 	),
 
 	TP_fast_assign(
@@ -244,17 +250,25 @@ TRACE_EVENT(gvt_command,
 		__entry->ring_id = ring_id;
 		__entry->ip_gma = ip_gma;
 		__entry->buf_type = buf_type;
+		__entry->buf_addr_type = buf_addr_type;
 		__entry->cmd_len = cmd_len;
+		__entry->workload = workload;
+		snprintf(__entry->cmd_name, GVT_CMD_STR_LEN, "%s", cmd_name);
 		memcpy(__get_dynamic_array(raw_cmd), cmd_va, cmd_len * sizeof(*cmd_va));
 	),
 
 
-	TP_printk("vgpu%d ring %d: buf_type %u, ip_gma %08x, raw cmd %s",
+	TP_printk("vgpu%d ring %d: address_type %u, buf_type %u, ip_gma %08x,cmd (name=%s,len=%u,raw cmd=%s), workload=%p\n",
 		__entry->vgpu_id,
 		__entry->ring_id,
+		__entry->buf_addr_type,
 		__entry->buf_type,
 		__entry->ip_gma,
-		__print_array(__get_dynamic_array(raw_cmd), __entry->cmd_len, 4))
+		__entry->cmd_name,
+		__entry->cmd_len,
+		__print_array(__get_dynamic_array(raw_cmd),
+			__entry->cmd_len, 4),
+		__entry->workload)
 );
 
 #define GVT_TEMP_STR_LEN 10
@@ -330,13 +344,14 @@ TRACE_EVENT(inject_msi,
 );
 
 TRACE_EVENT(render_mmio,
-	TP_PROTO(int id, char *action, unsigned int reg,
+	TP_PROTO(int old_id, int new_id, char *action, unsigned int reg,
 		 unsigned int old_val, unsigned int new_val),
 
-	TP_ARGS(id, action, reg, new_val, old_val),
+	TP_ARGS(old_id, new_id, action, reg, old_val, new_val),
 
 	TP_STRUCT__entry(
-		__field(int, id)
+		__field(int, old_id)
+		__field(int, new_id)
 		__array(char, buf, GVT_TEMP_STR_LEN)
 		__field(unsigned int, reg)
 		__field(unsigned int, old_val)
@@ -344,15 +359,17 @@ TRACE_EVENT(render_mmio,
 	),
 
 	TP_fast_assign(
-		__entry->id = id;
+		__entry->old_id = old_id;
+		__entry->new_id = new_id;
 		snprintf(__entry->buf, GVT_TEMP_STR_LEN, "%s", action);
 		__entry->reg = reg;
 		__entry->old_val = old_val;
 		__entry->new_val = new_val;
 	),
 
-	TP_printk("VM%u %s reg %x, old %08x new %08x\n",
-		  __entry->id, __entry->buf, __entry->reg,
+	TP_printk("VM%u -> VM%u %s reg %x, old %08x new %08x\n",
+		  __entry->old_id, __entry->new_id,
+		  __entry->buf, __entry->reg,
 		  __entry->old_val, __entry->new_val)
 );
 

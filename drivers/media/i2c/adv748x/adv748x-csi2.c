@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Analog Devices ADV748X CSI-2 Transmitter
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -17,11 +13,6 @@
 #include <media/v4l2-ioctl.h>
 
 #include "adv748x.h"
-
-static bool is_txa(struct adv748x_csi2 *tx)
-{
-	return tx == &tx->state->txa;
-}
 
 static int adv748x_csi2_set_virtual_channel(struct adv748x_csi2 *tx,
 					    unsigned int vc)
@@ -87,15 +78,15 @@ static int adv748x_csi2_registered(struct v4l2_subdev *sd)
 	 *
 	 * Link HDMI->TXA, and AFE->TXB directly.
 	 */
-	if (is_txa(tx)) {
+	if (is_txa(tx) && is_hdmi_enabled(state))
 		return adv748x_csi2_register_link(tx, sd->v4l2_dev,
 						  &state->hdmi.sd,
 						  ADV748X_HDMI_SOURCE);
-	} else {
+	if (!is_txa(tx) && is_afe_enabled(state))
 		return adv748x_csi2_register_link(tx, sd->v4l2_dev,
 						  &state->afe.sd,
 						  ADV748X_AFE_SOURCE);
-	}
+	return 0;
 }
 
 static const struct v4l2_subdev_internal_ops adv748x_csi2_internal_ops = {
@@ -223,13 +214,12 @@ static const struct v4l2_subdev_ops adv748x_csi2_ops = {
 
 int adv748x_csi2_set_pixelrate(struct v4l2_subdev *sd, s64 rate)
 {
-	struct v4l2_ctrl *ctrl;
+	struct adv748x_csi2 *tx = adv748x_sd_to_csi2(sd);
 
-	ctrl = v4l2_ctrl_find(sd->ctrl_handler, V4L2_CID_PIXEL_RATE);
-	if (!ctrl)
+	if (!tx->pixel_rate)
 		return -EINVAL;
 
-	return v4l2_ctrl_s_ctrl_int64(ctrl, rate);
+	return v4l2_ctrl_s_ctrl_int64(tx->pixel_rate, rate);
 }
 
 static int adv748x_csi2_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -251,8 +241,10 @@ static int adv748x_csi2_init_controls(struct adv748x_csi2 *tx)
 
 	v4l2_ctrl_handler_init(&tx->ctrl_hdl, 1);
 
-	v4l2_ctrl_new_std(&tx->ctrl_hdl, &adv748x_csi2_ctrl_ops,
-			  V4L2_CID_PIXEL_RATE, 1, INT_MAX, 1, 1);
+	tx->pixel_rate = v4l2_ctrl_new_std(&tx->ctrl_hdl,
+					   &adv748x_csi2_ctrl_ops,
+					   V4L2_CID_PIXEL_RATE, 1, INT_MAX,
+					   1, 1);
 
 	tx->sd.ctrl_handler = &tx->ctrl_hdl;
 	if (tx->ctrl_hdl.error) {
@@ -265,29 +257,20 @@ static int adv748x_csi2_init_controls(struct adv748x_csi2 *tx)
 
 int adv748x_csi2_init(struct adv748x_state *state, struct adv748x_csi2 *tx)
 {
-	struct device_node *ep;
 	int ret;
 
-	/* We can not use container_of to get back to the state with two TXs */
-	tx->state = state;
-	tx->page = is_txa(tx) ? ADV748X_PAGE_TXA : ADV748X_PAGE_TXB;
-
-	ep = state->endpoints[is_txa(tx) ? ADV748X_PORT_TXA : ADV748X_PORT_TXB];
-	if (!ep) {
-		adv_err(state, "No endpoint found for %s\n",
-				is_txa(tx) ? "txa" : "txb");
-		return -ENODEV;
-	}
+	if (!is_tx_enabled(tx))
+		return 0;
 
 	/* Initialise the virtual channel */
 	adv748x_csi2_set_virtual_channel(tx, 0);
 
 	adv748x_subdev_init(&tx->sd, state, &adv748x_csi2_ops,
-			    MEDIA_ENT_F_UNKNOWN,
+			    MEDIA_ENT_F_VID_IF_BRIDGE,
 			    is_txa(tx) ? "txa" : "txb");
 
 	/* Ensure that matching is based upon the endpoint fwnodes */
-	tx->sd.fwnode = of_fwnode_handle(ep);
+	tx->sd.fwnode = of_fwnode_handle(state->endpoints[tx->port]);
 
 	/* Register internal ops for incremental subdev registration */
 	tx->sd.internal_ops = &adv748x_csi2_internal_ops;
@@ -320,6 +303,9 @@ err_free_media:
 
 void adv748x_csi2_cleanup(struct adv748x_csi2 *tx)
 {
+	if (!is_tx_enabled(tx))
+		return;
+
 	v4l2_async_unregister_subdev(&tx->sd);
 	media_entity_cleanup(&tx->sd.entity);
 	v4l2_ctrl_handler_free(&tx->ctrl_hdl);

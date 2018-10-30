@@ -1089,6 +1089,7 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 				break;
 			case PCTRL_CMD_FTM:
 				p1 = 2;
+				/* fall through */
 			case PCTRL_CMD_FTH:
 				sendmsg(cs, dps | ISAR_HIS_PUMPCTRL,
 					PCTRL_CMD_SILON, 1, &p1);
@@ -1097,6 +1098,7 @@ isar_pump_statev_fax(struct BCState *bcs, u_char devt) {
 			case PCTRL_CMD_FRM:
 				if (frm_extra_delay)
 					mdelay(frm_extra_delay);
+				/* fall through */
 			case PCTRL_CMD_FRH:
 				p1 = bcs->hw.isar.mod = bcs->hw.isar.newmod;
 				bcs->hw.isar.newmod = 0;
@@ -1267,7 +1269,8 @@ isar_int_main(struct IsdnCardState *cs)
 }
 
 static void
-ftimer_handler(struct BCState *bcs) {
+ftimer_handler(struct timer_list *t) {
+	struct BCState *bcs = from_timer(bcs, t, hw.isar.ftimer);
 	if (bcs->cs->debug)
 		debugl1(bcs->cs, "ftimer flags %04lx",
 			bcs->Flag);
@@ -1902,8 +1905,6 @@ void initisar(struct IsdnCardState *cs)
 	cs->bcs[1].BC_SetStack = setstack_isar;
 	cs->bcs[0].BC_Close = close_isarstate;
 	cs->bcs[1].BC_Close = close_isarstate;
-	setup_timer(&cs->bcs[0].hw.isar.ftimer, (void *)ftimer_handler,
-		    (long)&cs->bcs[0]);
-	setup_timer(&cs->bcs[1].hw.isar.ftimer, (void *)ftimer_handler,
-		    (long)&cs->bcs[1]);
+	timer_setup(&cs->bcs[0].hw.isar.ftimer, ftimer_handler, 0);
+	timer_setup(&cs->bcs[1].hw.isar.ftimer, ftimer_handler, 0);
 }

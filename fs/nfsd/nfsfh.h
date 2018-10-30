@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de>
  *
@@ -10,6 +11,7 @@
 #include <linux/crc32.h>
 #include <linux/sunrpc/svc.h>
 #include <uapi/linux/nfsd/nfsfh.h>
+#include <linux/iversion.h>
 
 static inline __u32 ino_t_to_u32(ino_t ino)
 {
@@ -251,36 +253,20 @@ fh_clear_wcc(struct svc_fh *fhp)
  * By using both ctime and the i_version counter we guarantee that as
  * long as time doesn't go backwards we never reuse an old value.
  */
-static inline u64 nfsd4_change_attribute(struct inode *inode)
+static inline u64 nfsd4_change_attribute(struct kstat *stat,
+					 struct inode *inode)
 {
 	u64 chattr;
 
-	chattr =  inode->i_ctime.tv_sec;
+	chattr =  stat->ctime.tv_sec;
 	chattr <<= 30;
-	chattr += inode->i_ctime.tv_nsec;
-	chattr += inode->i_version;
+	chattr += stat->ctime.tv_nsec;
+	chattr += inode_query_iversion(inode);
 	return chattr;
 }
 
-/*
- * Fill in the pre_op attr for the wcc data
- */
-static inline void
-fill_pre_wcc(struct svc_fh *fhp)
-{
-	struct inode    *inode;
-
-	inode = d_inode(fhp->fh_dentry);
-	if (!fhp->fh_pre_saved) {
-		fhp->fh_pre_mtime = inode->i_mtime;
-		fhp->fh_pre_ctime = inode->i_ctime;
-		fhp->fh_pre_size  = inode->i_size;
-		fhp->fh_pre_change = nfsd4_change_attribute(inode);
-		fhp->fh_pre_saved = true;
-	}
-}
-
-extern void fill_post_wcc(struct svc_fh *);
+extern void fill_pre_wcc(struct svc_fh *fhp);
+extern void fill_post_wcc(struct svc_fh *fhp);
 #else
 #define fh_clear_wcc(ignored)
 #define fill_pre_wcc(ignored)

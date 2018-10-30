@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * net/dst.h	Protocol independent destination cache definitions.
  *
@@ -33,13 +34,9 @@ struct sk_buff;
 
 struct dst_entry {
 	struct net_device       *dev;
-	struct rcu_head		rcu_head;
-	struct dst_entry	*child;
 	struct  dst_ops	        *ops;
 	unsigned long		_metrics;
 	unsigned long           expires;
-	struct dst_entry	*path;
-	struct dst_entry	*from;
 #ifdef CONFIG_XFRM
 	struct xfrm_state	*xfrm;
 #else
@@ -58,8 +55,6 @@ struct dst_entry {
 #define DST_XFRM_QUEUE		0x0040
 #define DST_METADATA		0x0080
 
-	short			error;
-
 	/* A non-zero value of dst->obsolete forces by-hand validation
 	 * of the route entry.  Positive values are set by the generic
 	 * dst layer to indicate that the entry has been forcefully
@@ -75,35 +70,24 @@ struct dst_entry {
 #define DST_OBSOLETE_KILL	-2
 	unsigned short		header_len;	/* more space at head required */
 	unsigned short		trailer_len;	/* space to reserve at tail */
-	unsigned short		__pad3;
 
-#ifdef CONFIG_IP_ROUTE_CLASSID
-	__u32			tclassid;
-#else
-	__u32			__pad2;
-#endif
-
-#ifdef CONFIG_64BIT
-	/*
-	 * Align __refcnt to a 64 bytes alignment
-	 * (L1_CACHE_SIZE would be too much)
-	 */
-	long			__pad_to_align_refcnt[2];
-#endif
 	/*
 	 * __refcnt wants to be on a different cache line from
 	 * input/output/ops or performance tanks badly
 	 */
-	atomic_t		__refcnt;	/* client references	*/
+#ifdef CONFIG_64BIT
+	atomic_t		__refcnt;	/* 64-bit offset 64 */
+#endif
 	int			__use;
 	unsigned long		lastuse;
 	struct lwtunnel_state   *lwtstate;
-	union {
-		struct dst_entry	*next;
-		struct rtable __rcu	*rt_next;
-		struct rt6_info		*rt6_next;
-		struct dn_route __rcu	*dn_next;
-	};
+	struct rcu_head		rcu_head;
+	short			error;
+	short			__pad;
+	__u32			tclassid;
+#ifndef CONFIG_64BIT
+	atomic_t		__refcnt;	/* 32-bit offset 64 */
+#endif
 };
 
 struct dst_metrics {
@@ -249,29 +233,30 @@ static inline void dst_hold(struct dst_entry *dst)
 {
 	/*
 	 * If your kernel compilation stops here, please check
-	 * __pad_to_align_refcnt declaration in struct dst_entry
+	 * the placement of __refcnt in struct dst_entry
 	 */
 	BUILD_BUG_ON(offsetof(struct dst_entry, __refcnt) & 63);
 	WARN_ON(atomic_inc_not_zero(&dst->__refcnt) == 0);
 }
 
-static inline void dst_use(struct dst_entry *dst, unsigned long time)
-{
-	dst_hold(dst);
-	dst->__use++;
-	dst->lastuse = time;
-}
-
 static inline void dst_use_noref(struct dst_entry *dst, unsigned long time)
 {
-	dst->__use++;
-	dst->lastuse = time;
+	if (unlikely(time != dst->lastuse)) {
+		dst->__use++;
+		dst->lastuse = time;
+	}
+}
+
+static inline void dst_hold_and_use(struct dst_entry *dst, unsigned long time)
+{
+	dst_hold(dst);
+	dst_use_noref(dst, time);
 }
 
 static inline struct dst_entry *dst_clone(struct dst_entry *dst)
 {
 	if (dst)
-		atomic_inc(&dst->__refcnt);
+		dst_hold(dst);
 	return dst;
 }
 
@@ -312,21 +297,6 @@ static inline void skb_dst_copy(struct sk_buff *nskb, const struct sk_buff *oskb
 }
 
 /**
- * skb_dst_force - makes sure skb dst is refcounted
- * @skb: buffer
- *
- * If dst is not yet refcounted, let's do it
- */
-static inline void skb_dst_force(struct sk_buff *skb)
-{
-	if (skb_dst_is_noref(skb)) {
-		WARN_ON(!rcu_read_lock_held());
-		skb->_skb_refdst &= ~SKB_DST_NOREF;
-		dst_clone(skb_dst(skb));
-	}
-}
-
-/**
  * dst_hold_safe - Take a reference on a dst if possible
  * @dst: pointer to dst entry
  *
@@ -339,16 +309,17 @@ static inline bool dst_hold_safe(struct dst_entry *dst)
 }
 
 /**
- * skb_dst_force_safe - makes sure skb dst is refcounted
+ * skb_dst_force - makes sure skb dst is refcounted
  * @skb: buffer
  *
  * If dst is not yet refcounted and not destroyed, grab a ref on it.
  */
-static inline void skb_dst_force_safe(struct sk_buff *skb)
+static inline void skb_dst_force(struct sk_buff *skb)
 {
 	if (skb_dst_is_noref(skb)) {
 		struct dst_entry *dst = skb_dst(skb);
 
+		WARN_ON(!rcu_read_lock_held());
 		if (!dst_hold_safe(dst))
 			dst = NULL;
 
@@ -385,6 +356,7 @@ static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
  *	skb_tunnel_rx - prepare skb for rx reinsert
  *	@skb: buffer
  *	@dev: tunnel device
+ *	@net: netns for packet i/o
  *
  *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
  *	so make some cleanups, and perform accounting.
@@ -503,6 +475,14 @@ static inline struct dst_entry *xfrm_lookup(struct net *net,
 	return dst_orig;
 }
 
+static inline struct dst_entry *
+xfrm_lookup_with_ifid(struct net *net, struct dst_entry *dst_orig,
+		      const struct flowi *fl, const struct sock *sk,
+		      int flags, u32 if_id)
+{
+	return dst_orig;
+}
+
 static inline struct dst_entry *xfrm_lookup_route(struct net *net,
 						  struct dst_entry *dst_orig,
 						  const struct flowi *fl,
@@ -522,6 +502,12 @@ struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 			      const struct flowi *fl, const struct sock *sk,
 			      int flags);
 
+struct dst_entry *xfrm_lookup_with_ifid(struct net *net,
+					struct dst_entry *dst_orig,
+					const struct flowi *fl,
+					const struct sock *sk, int flags,
+					u32 if_id);
+
 struct dst_entry *xfrm_lookup_route(struct net *net, struct dst_entry *dst_orig,
 				    const struct flowi *fl, const struct sock *sk,
 				    int flags);
@@ -532,5 +518,23 @@ static inline struct xfrm_state *dst_xfrm(const struct dst_entry *dst)
 	return dst->xfrm;
 }
 #endif
+
+static inline void skb_dst_update_pmtu(struct sk_buff *skb, u32 mtu)
+{
+	struct dst_entry *dst = skb_dst(skb);
+
+	if (dst && dst->ops->update_pmtu)
+		dst->ops->update_pmtu(dst, NULL, skb, mtu);
+}
+
+static inline void skb_tunnel_check_pmtu(struct sk_buff *skb,
+					 struct dst_entry *encap_dst,
+					 int headroom)
+{
+	u32 encap_mtu = dst_mtu(encap_dst);
+
+	if (skb->len > encap_mtu - headroom)
+		skb_dst_update_pmtu(skb, encap_mtu - headroom);
+}
 
 #endif /* _NET_DST_H */

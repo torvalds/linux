@@ -203,7 +203,6 @@ static int srf04_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info srf04_iio_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= srf04_read_raw,
 };
 

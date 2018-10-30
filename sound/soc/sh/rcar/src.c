@@ -1,13 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Renesas R-Car SRC support
+//
+// Copyright (C) 2013 Renesas Solutions Corp.
+// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
 /*
- * Renesas R-Car SRC support
+ * you can enable below define if you don't need
+ * SSI interrupt status debug message when debugging
+ * see rsnd_dbg_irq_status()
  *
- * Copyright (C) 2013 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * #define RSND_DEBUG_NO_IRQ_STATUS 1
  */
+
 #include "rsnd.h"
 
 #define SRC_NAME "src"
@@ -153,7 +158,7 @@ static int rsnd_src_hw_params(struct rsnd_mod *mod,
 		struct snd_soc_dpcm *dpcm;
 		struct snd_pcm_hw_params *be_params;
 
-		list_for_each_entry(dpcm, &fe->dpcm[stream].be_clients, list_be) {
+		for_each_dpcm_be(fe, stream, dpcm) {
 			be_params = &dpcm->hw_params;
 
 			if (params_rate(fe_params) != params_rate(be_params))
@@ -325,7 +330,10 @@ static void rsnd_src_status_clear(struct rsnd_mod *mod)
 
 static bool rsnd_src_error_occurred(struct rsnd_mod *mod)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 val0, val1;
+	u32 status0, status1;
 	bool ret = false;
 
 	val0 = val1 = OUF_SRC(rsnd_mod_id(mod));
@@ -338,9 +346,15 @@ static bool rsnd_src_error_occurred(struct rsnd_mod *mod)
 	if (rsnd_src_sync_is_enabled(mod))
 		val0 = val0 & 0xffff;
 
-	if ((rsnd_mod_read(mod, SCU_SYS_STATUS0) & val0) ||
-	    (rsnd_mod_read(mod, SCU_SYS_STATUS1) & val1))
+	status0 = rsnd_mod_read(mod, SCU_SYS_STATUS0);
+	status1 = rsnd_mod_read(mod, SCU_SYS_STATUS1);
+	if ((status0 & val0) || (status1 & val1)) {
+		rsnd_dbg_irq_status(dev, "%s[%d] err status : 0x%08x, 0x%08x\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod),
+			status0, status1);
+
 		ret = true;
+	}
 
 	return ret;
 }
@@ -557,7 +571,7 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 		goto rsnd_src_probe_done;
 	}
 
-	src	= devm_kzalloc(dev, sizeof(*src) * nr, GFP_KERNEL);
+	src	= devm_kcalloc(dev, nr, sizeof(*src), GFP_KERNEL);
 	if (!src) {
 		ret = -ENOMEM;
 		goto rsnd_src_probe_done;

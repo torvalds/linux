@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_TC_IPT_H
 #define __NET_TC_IPT_H
 

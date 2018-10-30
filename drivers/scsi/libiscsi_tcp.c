@@ -695,7 +695,7 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 			struct scsi_data_buffer *sdb = scsi_in(task->sc);
 
 			/*
-			 * Setup copy of Data-In into the Scsi_Cmnd
+			 * Setup copy of Data-In into the struct scsi_cmnd
 			 * Scatterlist case:
 			 * We set up the iscsi_segment to point to the next
 			 * scatterlist entry to copy to. As we go along,
@@ -798,6 +798,8 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 
 /**
  * iscsi_tcp_hdr_recv_done - process PDU header
+ * @tcp_conn: iSCSI TCP connection
+ * @segment: the buffer segment being processed
  *
  * This is the callback invoked when the PDU header has
  * been received. If the header is followed by additional
@@ -876,9 +878,10 @@ EXPORT_SYMBOL_GPL(iscsi_tcp_recv_segment_is_hdr);
  * @conn: iscsi connection
  * @skb: network buffer with header and/or data segment
  * @offset: offset in skb
- * @offload: bool indicating if transfer was offloaded
+ * @offloaded: bool indicating if transfer was offloaded
+ * @status: iscsi TCP status result
  *
- * Will return status of transfer in status. And will return
+ * Will return status of transfer in @status. And will return
  * number of bytes copied.
  */
 int iscsi_tcp_recv_skb(struct iscsi_conn *conn, struct sk_buff *skb,
@@ -955,9 +958,7 @@ EXPORT_SYMBOL_GPL(iscsi_tcp_recv_skb);
 
 /**
  * iscsi_tcp_task_init - Initialize iSCSI SCSI_READ or SCSI_WRITE commands
- * @conn: iscsi connection
  * @task: scsi command task
- * @sc: scsi command
  */
 int iscsi_tcp_task_init(struct iscsi_task *task)
 {

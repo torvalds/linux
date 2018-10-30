@@ -117,7 +117,6 @@ static int ad8366_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad8366_info = {
 	.read_raw = &ad8366_read_raw,
 	.write_raw = &ad8366_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define AD8366_CHAN(_channel) {				\
@@ -162,11 +161,13 @@ static int ad8366_probe(struct spi_device *spi)
 	indio_dev->channels = ad8366_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad8366_channels);
 
+	ret = ad8366_write(indio_dev, 0 , 0);
+	if (ret < 0)
+		goto error_disable_reg;
+
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_disable_reg;
-
-	ad8366_write(indio_dev, 0, 0);
 
 	return 0;
 
@@ -208,6 +209,6 @@ static struct spi_driver ad8366_driver = {
 
 module_spi_driver(ad8366_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD8366 VGA");
 MODULE_LICENSE("GPL v2");

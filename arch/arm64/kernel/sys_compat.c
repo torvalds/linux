@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
+#include <asm/system_misc.h>
 #include <asm/unistd.h>
 
 static long
@@ -57,7 +58,7 @@ do_compat_cache_op(unsigned long start, unsigned long end, int flags)
 	if (end < start || flags)
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_READ, start, end - start))
+	if (!access_ok(VERIFY_READ, (const void __user *)start, end - start))
 		return -EFAULT;
 
 	return __do_compat_cache_op(start, end);
@@ -68,6 +69,7 @@ do_compat_cache_op(unsigned long start, unsigned long end, int flags)
 long compat_arm_syscall(struct pt_regs *regs)
 {
 	unsigned int no = regs->regs[7];
+	void __user *addr;
 
 	switch (no) {
 	/*
@@ -88,7 +90,7 @@ long compat_arm_syscall(struct pt_regs *regs)
 		return do_compat_cache_op(regs->regs[0], regs->regs[1], regs->regs[2]);
 
 	case __ARM_NR_compat_set_tls:
-		current->thread.tp_value = regs->regs[0];
+		current->thread.uw.tp_value = regs->regs[0];
 
 		/*
 		 * Protect against register corruption from context switch.
@@ -99,6 +101,21 @@ long compat_arm_syscall(struct pt_regs *regs)
 		return 0;
 
 	default:
-		return -ENOSYS;
+		/*
+		 * Calls 9f00xx..9f07ff are defined to return -ENOSYS
+		 * if not implemented, rather than raising SIGILL. This
+		 * way the calling program can gracefully determine whether
+		 * a feature is supported.
+		 */
+		if ((no & 0xffff) <= 0x7ff)
+			return -ENOSYS;
+		break;
 	}
+
+	addr  = (void __user *)instruction_pointer(regs) -
+		(compat_thumb_mode(regs) ? 2 : 4);
+
+	arm64_notify_die("Oops - bad compat syscall(2)", regs,
+			 SIGILL, ILL_ILLTRP, addr, no);
+	return 0;
 }

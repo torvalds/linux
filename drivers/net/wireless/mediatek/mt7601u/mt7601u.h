@@ -23,6 +23,7 @@
 #include <linux/completion.h>
 #include <net/mac80211.h>
 #include <linux/debugfs.h>
+#include <linux/average.h>
 
 #include "regs.h"
 
@@ -138,6 +139,8 @@ enum {
 	MT7601U_STATE_MORE_STATS,
 };
 
+DECLARE_EWMA(rssi, 10, 4);
+
 /**
  * struct mt7601u_dev - adapter structure
  * @lock:		protects @wcid->tx_rate.
@@ -147,7 +150,8 @@ enum {
  * @rx_lock:		protects @rx_q.
  * @con_mon_lock:	protects @ap_bssid, @bcn_*, @avg_rssi.
  * @mutex:		ensures exclusive access from mac80211 callbacks.
- * @vendor_req_mutex:	protects @vend_buf, ensures atomicity of split writes.
+ * @vendor_req_mutex:	protects @vend_buf, ensures atomicity of read/write
+ *			accesses
  * @reg_atomic_mutex:	ensures atomicity of indirect register accesses
  *			(accesses to RF and BBP).
  * @hw_atomic_mutex:	ensures exclusive access to HW during critical
@@ -219,7 +223,7 @@ struct mt7601u_dev {
 	s8 bcn_freq_off;
 	u8 bcn_phy_mode;
 
-	int avg_rssi; /* starts at 0 and converges */
+	struct ewma_rssi avg_rssi;
 
 	u8 agc_save;
 

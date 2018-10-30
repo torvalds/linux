@@ -171,57 +171,21 @@ static const struct seq_operations x25_seq_forward_ops = {
 	.show   = x25_seq_forward_show,
 };
 
-static int x25_seq_socket_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &x25_seq_socket_ops);
-}
-
-static int x25_seq_route_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &x25_seq_route_ops);
-}
-
-static int x25_seq_forward_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &x25_seq_forward_ops);
-}
-
-static const struct file_operations x25_seq_socket_fops = {
-	.open		= x25_seq_socket_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static const struct file_operations x25_seq_route_fops = {
-	.open		= x25_seq_route_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static const struct file_operations x25_seq_forward_fops = {
-	.open		= x25_seq_forward_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 int __init x25_proc_init(void)
 {
 	if (!proc_mkdir("x25", init_net.proc_net))
 		return -ENOMEM;
 
-	if (!proc_create("x25/route", S_IRUGO, init_net.proc_net,
-			&x25_seq_route_fops))
+	if (!proc_create_seq("x25/route", 0444, init_net.proc_net,
+			 &x25_seq_route_ops))
 		goto out;
 
-	if (!proc_create("x25/socket", S_IRUGO, init_net.proc_net,
-			&x25_seq_socket_fops))
+	if (!proc_create_seq("x25/socket", 0444, init_net.proc_net,
+			 &x25_seq_socket_ops))
 		goto out;
 
-	if (!proc_create("x25/forward", S_IRUGO, init_net.proc_net,
-			&x25_seq_forward_fops))
+	if (!proc_create_seq("x25/forward", 0444, init_net.proc_net,
+			 &x25_seq_forward_ops))
 		goto out;
 	return 0;
 

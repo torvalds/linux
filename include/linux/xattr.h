@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
   File: linux/xattr.h
 
@@ -45,7 +46,6 @@ struct xattr {
 	size_t value_len;
 };
 
-ssize_t xattr_getsecurity(struct inode *, const char *, void *, size_t);
 ssize_t __vfs_getxattr(struct dentry *, struct inode *, const char *, void *, size_t);
 ssize_t vfs_getxattr(struct dentry *, const char *, void *, size_t);
 ssize_t vfs_listxattr(struct dentry *d, char *list, size_t size);

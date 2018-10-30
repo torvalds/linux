@@ -195,15 +195,15 @@ static const struct v4l2_pix_format vga_mode[] = {
 static int val_reply(struct gspca_dev *gspca_dev, const char *reply, int rc)
 {
 	if (rc < 0) {
-		PERR("reply has error %d", rc);
+		gspca_err(gspca_dev, "reply has error %d\n", rc);
 		return -EIO;
 	}
 	if (rc != 1) {
-		PERR("Bad reply size %d", rc);
+		gspca_err(gspca_dev, "Bad reply size %d\n", rc);
 		return -EIO;
 	}
 	if (reply[0] != 0x08) {
-		PERR("Bad reply 0x%02x", (int)reply[0]);
+		gspca_err(gspca_dev, "Bad reply 0x%02x\n", (int)reply[0]);
 		return -EIO;
 	}
 	return 0;
@@ -214,21 +214,21 @@ static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
 	char *buff = gspca_dev->usb_buf;
 	int rc;
 
-	PDEBUG(D_USBO,
-		"reg_w bReq=0x0B, bReqT=0xC0, wVal=0x%04X, wInd=0x%04X\n",
-		value, index);
+	gspca_dbg(gspca_dev, D_USBO,
+		  "reg_w bReq=0x0B, bReqT=0xC0, wVal=0x%04X, wInd=0x%04X\n\n",
+		  value, index);
 	rc = usb_control_msg(gspca_dev->dev, usb_rcvctrlpipe(gspca_dev->dev, 0),
 		0x0B, 0xC0, value, index, buff, 1, 500);
-	PDEBUG(D_USBO, "rc=%d, ret={0x%02x}", rc, (int)buff[0]);
+	gspca_dbg(gspca_dev, D_USBO, "rc=%d, ret={0x%02x}\n", rc, (int)buff[0]);
 	if (rc < 0) {
-		PERR("Failed reg_w(0x0B, 0xC0, 0x%04X, 0x%04X) w/ rc %d\n",
-			value, index, rc);
+		gspca_err(gspca_dev, "Failed reg_w(0x0B, 0xC0, 0x%04X, 0x%04X) w/ rc %d\n",
+			  value, index, rc);
 		gspca_dev->usb_err = rc;
 		return;
 	}
 	if (val_reply(gspca_dev, buff, rc)) {
-		PERR("Bad reply to reg_w(0x0B, 0xC0, 0x%04X, 0x%04X\n",
-			value, index);
+		gspca_err(gspca_dev, "Bad reply to reg_w(0x0B, 0xC0, 0x%04X, 0x%04X\n",
+			  value, index);
 		gspca_dev->usb_err = -EIO;
 	}
 }
@@ -254,11 +254,11 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 	else if (w == 3264)
 		value = val * 3 / 2;
 	else {
-		PERR("Invalid width %u\n", w);
+		gspca_err(gspca_dev, "Invalid width %u\n", w);
 		gspca_dev->usb_err = -EINVAL;
 		return;
 	}
-	PDEBUG(D_STREAM, "exposure: 0x%04X ms\n", value);
+	gspca_dbg(gspca_dev, D_STREAM, "exposure: 0x%04X ms\n\n", value);
 	/* Wonder if theres a good reason for sending it twice */
 	/* probably not but leave it in because...why not */
 	reg_w(gspca_dev, value, REG_COARSE_INTEGRATION_TIME_);
@@ -286,9 +286,9 @@ static void setggain(struct gspca_dev *gspca_dev, u16 global_gain)
 	u16 normalized;
 
 	normalized = gainify(global_gain);
-	PDEBUG(D_STREAM, "gain G1/G2 (0x%04X): 0x%04X (src 0x%04X)\n",
-		 REG_GREEN1_GAIN,
-		 normalized, global_gain);
+	gspca_dbg(gspca_dev, D_STREAM, "gain G1/G2 (0x%04X): 0x%04X (src 0x%04X)\n\n",
+		  REG_GREEN1_GAIN,
+		  normalized, global_gain);
 
 	reg_w(gspca_dev, normalized, REG_GREEN1_GAIN);
 	reg_w(gspca_dev, normalized, REG_GREEN2_GAIN);
@@ -302,13 +302,13 @@ static void setbgain(struct gspca_dev *gspca_dev,
 	normalized = global_gain +
 		((u32)global_gain) * gain / GAIN_MAX;
 	if (normalized > GAIN_MAX) {
-		PDEBUG(D_STREAM, "Truncating blue 0x%04X w/ value 0x%04X\n",
-			 GAIN_MAX, normalized);
+		gspca_dbg(gspca_dev, D_STREAM, "Truncating blue 0x%04X w/ value 0x%04X\n\n",
+			  GAIN_MAX, normalized);
 		normalized = GAIN_MAX;
 	}
 	normalized = gainify(normalized);
-	PDEBUG(D_STREAM, "gain B (0x%04X): 0x%04X w/ source 0x%04X\n",
-		 REG_BLUE_GAIN, normalized, gain);
+	gspca_dbg(gspca_dev, D_STREAM, "gain B (0x%04X): 0x%04X w/ source 0x%04X\n\n",
+		  REG_BLUE_GAIN, normalized, gain);
 
 	reg_w(gspca_dev, normalized, REG_BLUE_GAIN);
 }
@@ -321,13 +321,13 @@ static void setrgain(struct gspca_dev *gspca_dev,
 	normalized = global_gain +
 		((u32)global_gain) * gain / GAIN_MAX;
 	if (normalized > GAIN_MAX) {
-		PDEBUG(D_STREAM, "Truncating gain 0x%04X w/ value 0x%04X\n",
-			 GAIN_MAX, normalized);
+		gspca_dbg(gspca_dev, D_STREAM, "Truncating gain 0x%04X w/ value 0x%04X\n\n",
+			  GAIN_MAX, normalized);
 		normalized = GAIN_MAX;
 	}
 	normalized = gainify(normalized);
-	PDEBUG(D_STREAM, "gain R (0x%04X): 0x%04X w / source 0x%04X\n",
-		 REG_RED_GAIN, normalized, gain);
+	gspca_dbg(gspca_dev, D_STREAM, "gain R (0x%04X): 0x%04X w / source 0x%04X\n\n",
+		  REG_RED_GAIN, normalized, gain);
 
 	reg_w(gspca_dev, normalized, REG_RED_GAIN);
 }
@@ -336,7 +336,7 @@ static void configure_wh(struct gspca_dev *gspca_dev)
 {
 	unsigned int w = gspca_dev->pixfmt.width;
 
-	PDEBUG(D_STREAM, "configure_wh\n");
+	gspca_dbg(gspca_dev, D_STREAM, "configure_wh\n\n");
 
 	if (w == 800) {
 		static const struct cmd reg_init_res[] = {
@@ -372,7 +372,7 @@ static void configure_wh(struct gspca_dev *gspca_dev)
 		reg_w_buf(gspca_dev,
 			       reg_init_res, ARRAY_SIZE(reg_init_res));
 	} else {
-		PERR("bad width %u\n", w);
+		gspca_err(gspca_dev, "bad width %u\n", w);
 		gspca_dev->usb_err = -EINVAL;
 		return;
 	}
@@ -392,7 +392,7 @@ static void configure_wh(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x0B4B, REG_FRAME_LENGTH_LINES_);
 		reg_w(gspca_dev, 0x1F40, REG_LINE_LENGTH_PCK_);
 	} else {
-		PERR("bad width %u\n", w);
+		gspca_err(gspca_dev, "bad width %u\n", w);
 		gspca_dev->usb_err = -EINVAL;
 		return;
 	}
@@ -425,14 +425,15 @@ static void configure_encrypted(struct gspca_dev *gspca_dev)
 		{0x0100, REG_MODE_SELECT},
 	};
 
-	PDEBUG(D_STREAM, "Encrypted begin, w = %u\n", gspca_dev->pixfmt.width);
+	gspca_dbg(gspca_dev, D_STREAM, "Encrypted begin, w = %u\n\n",
+		  gspca_dev->pixfmt.width);
 	reg_w_buf(gspca_dev, reg_init_begin, ARRAY_SIZE(reg_init_begin));
 	configure_wh(gspca_dev);
 	reg_w_buf(gspca_dev, reg_init_end, ARRAY_SIZE(reg_init_end));
 	reg_w(gspca_dev, 0x0100, REG_GROUPED_PARAMETER_HOLD);
 	reg_w(gspca_dev, 0x0000, REG_GROUPED_PARAMETER_HOLD);
 
-	PDEBUG(D_STREAM, "Encrypted end\n");
+	gspca_dbg(gspca_dev, D_STREAM, "Encrypted end\n\n");
 }
 
 static int configure(struct gspca_dev *gspca_dev)
@@ -440,7 +441,7 @@ static int configure(struct gspca_dev *gspca_dev)
 	int rc;
 	char *buff = gspca_dev->usb_buf;
 
-	PDEBUG(D_STREAM, "configure()\n");
+	gspca_dbg(gspca_dev, D_STREAM, "configure()\n\n");
 
 	/*
 	 * First driver sets a sort of encryption key
@@ -458,7 +459,7 @@ static int configure(struct gspca_dev *gspca_dev)
 	rc = usb_control_msg(gspca_dev->dev, usb_rcvctrlpipe(gspca_dev->dev, 0),
 			     0x16, 0xC0, 0x0000, 0x0000, buff, 2, 500);
 	if (val_reply(gspca_dev, buff, rc)) {
-		PERR("failed key req");
+		gspca_err(gspca_dev, "failed key req\n");
 		return -EIO;
 	}
 
@@ -475,21 +476,24 @@ static int configure(struct gspca_dev *gspca_dev)
 	rc = usb_control_msg(gspca_dev->dev, usb_sndctrlpipe(gspca_dev->dev, 0),
 			     0x01, 0x40, 0x0001, 0x000F, NULL, 0, 500);
 	if (rc < 0) {
-		PERR("failed to replay packet 176 w/ rc %d\n", rc);
+		gspca_err(gspca_dev, "failed to replay packet 176 w/ rc %d\n",
+			  rc);
 		return rc;
 	}
 
 	rc = usb_control_msg(gspca_dev->dev, usb_sndctrlpipe(gspca_dev->dev, 0),
 			     0x01, 0x40, 0x0000, 0x000F, NULL, 0, 500);
 	if (rc < 0) {
-		PERR("failed to replay packet 178 w/ rc %d\n", rc);
+		gspca_err(gspca_dev, "failed to replay packet 178 w/ rc %d\n",
+			  rc);
 		return rc;
 	}
 
 	rc = usb_control_msg(gspca_dev->dev, usb_sndctrlpipe(gspca_dev->dev, 0),
 			     0x01, 0x40, 0x0001, 0x000F, NULL, 0, 500);
 	if (rc < 0) {
-		PERR("failed to replay packet 180 w/ rc %d\n", rc);
+		gspca_err(gspca_dev, "failed to replay packet 180 w/ rc %d\n",
+			  rc);
 		return rc;
 	}
 
@@ -511,11 +515,12 @@ static int configure(struct gspca_dev *gspca_dev)
 	rc = usb_control_msg(gspca_dev->dev, usb_sndctrlpipe(gspca_dev->dev, 0),
 			     0x01, 0x40, 0x0003, 0x000F, NULL, 0, 500);
 	if (rc < 0) {
-		PERR("failed to replay final packet w/ rc %d\n", rc);
+		gspca_err(gspca_dev, "failed to replay final packet w/ rc %d\n",
+			  rc);
 		return rc;
 	}
 
-	PDEBUG(D_STREAM, "Configure complete\n");
+	gspca_dbg(gspca_dev, D_STREAM, "Configure complete\n\n");
 	return 0;
 }
 
@@ -545,7 +550,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	rc = configure(gspca_dev);
 	if (rc < 0) {
-		PERR("Failed configure");
+		gspca_err(gspca_dev, "Failed configure\n");
 		return rc;
 	}
 	/* First two frames have messed up gains
@@ -563,13 +568,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		/* can we finish a frame? */
 		if (sd->this_f + len == gspca_dev->pixfmt.sizeimage) {
 			gspca_frame_add(gspca_dev, LAST_PACKET, data, len);
-			PDEBUG(D_FRAM, "finish frame sz %u/%u w/ len %u\n",
-				 sd->this_f, gspca_dev->pixfmt.sizeimage, len);
+			gspca_dbg(gspca_dev, D_FRAM, "finish frame sz %u/%u w/ len %u\n\n",
+				  sd->this_f, gspca_dev->pixfmt.sizeimage, len);
 		/* lost some data, discard the frame */
 		} else {
 			gspca_frame_add(gspca_dev, DISCARD_PACKET, NULL, 0);
-			PDEBUG(D_FRAM, "abort frame sz %u/%u w/ len %u\n",
-				 sd->this_f, gspca_dev->pixfmt.sizeimage, len);
+			gspca_dbg(gspca_dev, D_FRAM, "abort frame sz %u/%u w/ len %u\n\n",
+				  sd->this_f, gspca_dev->pixfmt.sizeimage, len);
 		}
 		sd->this_f = 0;
 	} else {
@@ -641,7 +646,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_RED_BALANCE, 0, 1023, 1, 295);
 
 	if (hdl->error) {
-		PERR("Could not initialize controls\n");
+		gspca_err(gspca_dev, "Could not initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

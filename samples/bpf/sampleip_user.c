@@ -9,7 +9,6 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
@@ -22,6 +21,7 @@
 #include "libbpf.h"
 #include "bpf_load.h"
 #include "perf-sys.h"
+#include "trace_helpers.h"
 
 #define DEFAULT_FREQ	99
 #define DEFAULT_SECS	5

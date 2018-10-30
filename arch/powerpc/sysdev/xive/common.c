@@ -246,7 +246,7 @@ notrace void xmon_xive_do_dump(int cpu)
 		u64 val = xive_esb_read(&xc->ipi_data, XIVE_ESB_GET);
 		xmon_printf("  IPI state: %x:%c%c\n", xc->hw_ipi,
 			val & XIVE_ESB_VAL_P ? 'P' : 'p',
-			val & XIVE_ESB_VAL_P ? 'Q' : 'q');
+			val & XIVE_ESB_VAL_Q ? 'Q' : 'q');
 	}
 #endif
 }
@@ -266,7 +266,7 @@ static unsigned int xive_get_irq(void)
 	 * of pending priorities. This will also have the effect of
 	 * updating the CPPR to the most favored pending interrupts.
 	 *
-	 * In the future, if we have a way to differenciate a first
+	 * In the future, if we have a way to differentiate a first
 	 * entry (on HW interrupt) from a replay triggered by EOI,
 	 * we could skip this on replays unless we soft-mask tells us
 	 * that a new HW interrupt occurred.
@@ -319,7 +319,7 @@ void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
 		 * The FW told us to call it. This happens for some
 		 * interrupt sources that need additional HW whacking
 		 * beyond the ESB manipulation. For example LPC interrupts
-		 * on P9 DD1.0 need a latch to be clared in the LPC bridge
+		 * on P9 DD1.0 needed a latch to be clared in the LPC bridge
 		 * itself. The Firmware will take care of it.
 		 */
 		if (WARN_ON_ONCE(!xive_ops->eoi))
@@ -337,9 +337,9 @@ void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
 		 * This allows us to then do a re-trigger if Q was set
 		 * rather than synthesizing an interrupt in software
 		 *
-		 * For LSIs, using the HW EOI cycle works around a problem
-		 * on P9 DD1 PHBs where the other ESB accesses don't work
-		 * properly.
+		 * For LSIs the HW EOI cycle is used rather than PQ bits,
+		 * as they are automatically re-triggred in HW when still
+		 * pending.
 		 */
 		if (xd->flags & XIVE_IRQ_FLAG_LSI)
 			xive_esb_read(xd, XIVE_ESB_LOAD_EOI);
@@ -367,7 +367,8 @@ static void xive_irq_eoi(struct irq_data *d)
 	 * EOI the source if it hasn't been disabled and hasn't
 	 * been passed-through to a KVM guest
 	 */
-	if (!irqd_irq_disabled(d) && !irqd_is_forwarded_to_vcpu(d))
+	if (!irqd_irq_disabled(d) && !irqd_is_forwarded_to_vcpu(d) &&
+	    !(xd->flags & XIVE_IRQ_NO_EOI))
 		xive_do_source_eoi(irqd_to_hwirq(d), xd);
 
 	/*
@@ -1009,12 +1010,13 @@ static void xive_ipi_eoi(struct irq_data *d)
 {
 	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
 
-	DBG_VERBOSE("IPI eoi: irq=%d [0x%lx] (HW IRQ 0x%x) pending=%02x\n",
-		    d->irq, irqd_to_hwirq(d), xc->hw_ipi, xc->pending_prio);
-
 	/* Handle possible race with unplug and drop stale IPIs */
 	if (!xc)
 		return;
+
+	DBG_VERBOSE("IPI eoi: irq=%d [0x%lx] (HW IRQ 0x%x) pending=%02x\n",
+		    d->irq, irqd_to_hwirq(d), xc->hw_ipi, xc->pending_prio);
+
 	xive_do_source_eoi(xc->hw_ipi, &xc->ipi_data);
 	xive_do_queue_eoi(xc);
 }
@@ -1269,11 +1271,6 @@ static void xive_setup_cpu(void)
 {
 	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
 
-	/* Debug: Dump the TM state */
-	pr_devel("CPU %d [HW 0x%02x] VT=%02x\n",
-	    smp_processor_id(), hard_smp_processor_id(),
-	    in_8(xive_tima + xive_tima_offset + TM_WORD2));
-
 	/* The backend might have additional things to do */
 	if (xive_ops->setup_cpu)
 		xive_ops->setup_cpu(smp_processor_id(), xc);
@@ -1400,20 +1397,6 @@ void xive_teardown_cpu(void)
 	xc->cppr = 0;
 	out_8(xive_tima + xive_tima_offset + TM_CPPR, 0);
 
-	if (xive_ops->teardown_cpu)
-		xive_ops->teardown_cpu(cpu, xc);
-}
-
-void xive_kexec_teardown_cpu(int secondary)
-{
-	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
-	unsigned int cpu = smp_processor_id();
-
-	/* Set CPPR to 0 to disable flow of interrupts */
-	xc->cppr = 0;
-	out_8(xive_tima + xive_tima_offset + TM_CPPR, 0);
-
-	/* Backend cleanup if any */
 	if (xive_ops->teardown_cpu)
 		xive_ops->teardown_cpu(cpu, xc);
 

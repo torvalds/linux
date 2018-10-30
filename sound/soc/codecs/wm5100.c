@@ -55,7 +55,7 @@ struct wm5100_fll {
 struct wm5100_priv {
 	struct device *dev;
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 
 	struct regulator_bulk_data core_supplies[WM5100_NUM_CORE_SUPPLIES];
 
@@ -118,16 +118,16 @@ static int wm5100_sr_regs[WM5100_SYNC_SRS] = {
 	WM5100_CLOCKING_6,
 };
 
-static int wm5100_alloc_sr(struct snd_soc_codec *codec, int rate)
+static int wm5100_alloc_sr(struct snd_soc_component *component, int rate)
 {
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
 	int sr_code, sr_free, i;
 
 	for (i = 0; i < ARRAY_SIZE(wm5100_sr_code); i++)
 		if (wm5100_sr_code[i] == rate)
 			break;
 	if (i == ARRAY_SIZE(wm5100_sr_code)) {
-		dev_err(codec->dev, "Unsupported sample rate: %dHz\n", rate);
+		dev_err(component->dev, "Unsupported sample rate: %dHz\n", rate);
 		return -EINVAL;
 	}
 	sr_code = i;
@@ -140,50 +140,50 @@ static int wm5100_alloc_sr(struct snd_soc_codec *codec, int rate)
 				sr_free = i;
 				continue;
 			}
-			if ((snd_soc_read(codec, wm5100_sr_regs[i]) &
+			if ((snd_soc_component_read32(component, wm5100_sr_regs[i]) &
 			     WM5100_SAMPLE_RATE_1_MASK) == sr_code)
 				break;
 		}
 
 		if (i < ARRAY_SIZE(wm5100_sr_regs)) {
 			wm5100->sr_ref[i]++;
-			dev_dbg(codec->dev, "SR %dHz, slot %d, ref %d\n",
+			dev_dbg(component->dev, "SR %dHz, slot %d, ref %d\n",
 				rate, i, wm5100->sr_ref[i]);
 			return i;
 		}
 
 		if (sr_free == -1) {
-			dev_err(codec->dev, "All SR slots already in use\n");
+			dev_err(component->dev, "All SR slots already in use\n");
 			return -EBUSY;
 		}
 
-		dev_dbg(codec->dev, "Allocating SR slot %d for %dHz\n",
+		dev_dbg(component->dev, "Allocating SR slot %d for %dHz\n",
 			sr_free, rate);
 		wm5100->sr_ref[sr_free]++;
-		snd_soc_update_bits(codec, wm5100_sr_regs[sr_free],
+		snd_soc_component_update_bits(component, wm5100_sr_regs[sr_free],
 				    WM5100_SAMPLE_RATE_1_MASK,
 				    sr_code);
 
 		return sr_free;
 
 	} else {
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"SR %dHz incompatible with %dHz SYSCLK and %dHz ASYNCCLK\n",
 			rate, wm5100->sysclk, wm5100->asyncclk);
 		return -EINVAL;
 	}
 }
 
-static void wm5100_free_sr(struct snd_soc_codec *codec, int rate)
+static void wm5100_free_sr(struct snd_soc_component *component, int rate)
 {
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
 	int i, sr_code;
 
 	for (i = 0; i < ARRAY_SIZE(wm5100_sr_code); i++)
 		if (wm5100_sr_code[i] == rate)
 			break;
 	if (i == ARRAY_SIZE(wm5100_sr_code)) {
-		dev_err(codec->dev, "Unsupported sample rate: %dHz\n", rate);
+		dev_err(component->dev, "Unsupported sample rate: %dHz\n", rate);
 		return;
 	}
 	sr_code = wm5100_sr_code[i];
@@ -192,16 +192,16 @@ static void wm5100_free_sr(struct snd_soc_codec *codec, int rate)
 		if (!wm5100->sr_ref[i])
 			continue;
 
-		if ((snd_soc_read(codec, wm5100_sr_regs[i]) &
+		if ((snd_soc_component_read32(component, wm5100_sr_regs[i]) &
 		     WM5100_SAMPLE_RATE_1_MASK) == sr_code)
 			break;
 	}
 	if (i < ARRAY_SIZE(wm5100_sr_regs)) {
 		wm5100->sr_ref[i]--;
-		dev_dbg(codec->dev, "Dereference SR %dHz, count now %d\n",
+		dev_dbg(component->dev, "Dereference SR %dHz, count now %d\n",
 			rate, wm5100->sr_ref[i]);
 	} else {
-		dev_warn(codec->dev, "Freeing unreferenced sample rate %dHz\n",
+		dev_warn(component->dev, "Freeing unreferenced sample rate %dHz\n",
 			 rate);
 	}
 }
@@ -573,10 +573,10 @@ SND_SOC_BYTES_MASK("EQ4 Coefficients", WM5100_EQ4_1, 20, WM5100_EQ4_ENA),
 SND_SOC_BYTES_MASK("DRC Coefficients", WM5100_DRC1_CTRL1, 5,
 		   WM5100_DRCL_ENA | WM5100_DRCR_ENA),
 
-SND_SOC_BYTES("LHPF1 Coefficeints", WM5100_HPLPF1_2, 1),
-SND_SOC_BYTES("LHPF2 Coefficeints", WM5100_HPLPF2_2, 1),
-SND_SOC_BYTES("LHPF3 Coefficeints", WM5100_HPLPF3_2, 1),
-SND_SOC_BYTES("LHPF4 Coefficeints", WM5100_HPLPF4_2, 1),
+SND_SOC_BYTES("LHPF1 Coefficients", WM5100_HPLPF1_2, 1),
+SND_SOC_BYTES("LHPF2 Coefficients", WM5100_HPLPF2_2, 1),
+SND_SOC_BYTES("LHPF3 Coefficients", WM5100_HPLPF3_2, 1),
+SND_SOC_BYTES("LHPF4 Coefficients", WM5100_HPLPF4_2, 1),
 
 SOC_SINGLE("HPOUT1 High Performance Switch", WM5100_OUT_VOLUME_1L,
 	   WM5100_OUT1_OSR_SHIFT, 1, 0),
@@ -733,40 +733,39 @@ WM5100_MIXER_CONTROLS("LHPF3", WM5100_HPLP3MIX_INPUT_1_SOURCE),
 WM5100_MIXER_CONTROLS("LHPF4", WM5100_HPLP4MIX_INPUT_1_SOURCE),
 };
 
-static void wm5100_seq_notifier(struct snd_soc_dapm_context *dapm,
+static void wm5100_seq_notifier(struct snd_soc_component *component,
 				enum snd_soc_dapm_type event, int subseq)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
 	u16 val, expect, i;
 
 	/* Wait for the outputs to flag themselves as enabled */
 	if (wm5100->out_ena[0]) {
-		expect = snd_soc_read(codec, WM5100_CHANNEL_ENABLES_1);
+		expect = snd_soc_component_read32(component, WM5100_CHANNEL_ENABLES_1);
 		for (i = 0; i < 200; i++) {
-			val = snd_soc_read(codec, WM5100_OUTPUT_STATUS_1);
+			val = snd_soc_component_read32(component, WM5100_OUTPUT_STATUS_1);
 			if (val == expect) {
 				wm5100->out_ena[0] = false;
 				break;
 			}
 		}
 		if (i == 200) {
-			dev_err(codec->dev, "Timeout waiting for OUTPUT1 %x\n",
+			dev_err(component->dev, "Timeout waiting for OUTPUT1 %x\n",
 				expect);
 		}
 	}
 
 	if (wm5100->out_ena[1]) {
-		expect = snd_soc_read(codec, WM5100_OUTPUT_ENABLES_2);
+		expect = snd_soc_component_read32(component, WM5100_OUTPUT_ENABLES_2);
 		for (i = 0; i < 200; i++) {
-			val = snd_soc_read(codec, WM5100_OUTPUT_STATUS_2);
+			val = snd_soc_component_read32(component, WM5100_OUTPUT_STATUS_2);
 			if (val == expect) {
 				wm5100->out_ena[1] = false;
 				break;
 			}
 		}
 		if (i == 200) {
-			dev_err(codec->dev, "Timeout waiting for OUTPUT2 %x\n",
+			dev_err(component->dev, "Timeout waiting for OUTPUT2 %x\n",
 				expect);
 		}
 	}
@@ -776,8 +775,8 @@ static int wm5100_out_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
 
 	switch (w->reg) {
 	case WM5100_CHANNEL_ENABLES_1:
@@ -841,17 +840,17 @@ static int wm5100_post_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	ret = snd_soc_read(codec, WM5100_INTERRUPT_RAW_STATUS_3);
+	ret = snd_soc_component_read32(component, WM5100_INTERRUPT_RAW_STATUS_3);
 	ret &= WM5100_SPK_SHUTDOWN_WARN_STS |
 		WM5100_SPK_SHUTDOWN_STS | WM5100_CLKGEN_ERR_STS |
 		WM5100_CLKGEN_ERR_ASYNC_STS;
 	wm5100_log_status3(wm5100, ret);
 
-	ret = snd_soc_read(codec, WM5100_INTERRUPT_RAW_STATUS_4);
+	ret = snd_soc_component_read32(component, WM5100_INTERRUPT_RAW_STATUS_4);
 	wm5100_log_status4(wm5100, ret);
 
 	return 0;
@@ -1282,7 +1281,7 @@ static const struct reg_sequence wm5100_reva_patches[] = {
 
 static int wm5100_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	int lrclk, bclk, mask, base;
 
 	base = dai->driver->base;
@@ -1298,7 +1297,7 @@ static int wm5100_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		mask = 2;
 		break;
 	default:
-		dev_err(codec->dev, "Unsupported DAI format %d\n",
+		dev_err(component->dev, "Unsupported DAI format %d\n",
 			fmt & SND_SOC_DAIFMT_FORMAT_MASK);
 		return -EINVAL;
 	}
@@ -1317,7 +1316,7 @@ static int wm5100_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		bclk |= WM5100_AIF1_BCLK_MSTR;
 		break;
 	default:
-		dev_err(codec->dev, "Unsupported master mode %d\n",
+		dev_err(component->dev, "Unsupported master mode %d\n",
 			fmt & SND_SOC_DAIFMT_MASTER_MASK);
 		return -EINVAL;
 	}
@@ -1339,13 +1338,13 @@ static int wm5100_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, base + 1, WM5100_AIF1_BCLK_MSTR |
+	snd_soc_component_update_bits(component, base + 1, WM5100_AIF1_BCLK_MSTR |
 			    WM5100_AIF1_BCLK_INV, bclk);
-	snd_soc_update_bits(codec, base + 2, WM5100_AIF1TX_LRCLK_MSTR |
+	snd_soc_component_update_bits(component, base + 2, WM5100_AIF1TX_LRCLK_MSTR |
 			    WM5100_AIF1TX_LRCLK_INV, lrclk);
-	snd_soc_update_bits(codec, base + 3, WM5100_AIF1TX_LRCLK_MSTR |
+	snd_soc_component_update_bits(component, base + 3, WM5100_AIF1TX_LRCLK_MSTR |
 			    WM5100_AIF1TX_LRCLK_INV, lrclk);
-	snd_soc_update_bits(codec, base + 5, WM5100_AIF1_FMT_MASK, mask);
+	snd_soc_component_update_bits(component, base + 5, WM5100_AIF1_FMT_MASK, mask);
 
 	return 0;
 }
@@ -1400,8 +1399,8 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
 	bool async = wm5100->aif_async[dai->id];
 	int i, base, bclk, aif_rate, lrclk, wl, fl, sr;
 	int *bclk_rates;
@@ -1416,7 +1415,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 	if (fl < 0)
 		return fl;
 
-	dev_dbg(codec->dev, "Word length %d bits, frame length %d bits\n",
+	dev_dbg(component->dev, "Word length %d bits, frame length %d bits\n",
 		wl, fl);
 
 	/* Target BCLK rate */
@@ -1427,7 +1426,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 	/* Root for BCLK depends on SYS/ASYNCCLK */
 	if (!async) {
 		aif_rate = wm5100->sysclk;
-		sr = wm5100_alloc_sr(codec, params_rate(params));
+		sr = wm5100_alloc_sr(component, params_rate(params));
 		if (sr < 0)
 			return sr;
 	} else {
@@ -1439,23 +1438,23 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 			if (params_rate(params) == wm5100_sr_code[i])
 				break;
 		if (i == ARRAY_SIZE(wm5100_sr_code)) {
-			dev_err(codec->dev, "Invalid rate %dHzn",
+			dev_err(component->dev, "Invalid rate %dHzn",
 				params_rate(params));
 			return -EINVAL;
 		}
 
 		/* TODO: We should really check for symmetry */
-		snd_soc_update_bits(codec, WM5100_CLOCKING_8,
+		snd_soc_component_update_bits(component, WM5100_CLOCKING_8,
 				    WM5100_ASYNC_SAMPLE_RATE_MASK, i);
 	}
 
 	if (!aif_rate) {
-		dev_err(codec->dev, "%s has no rate set\n",
+		dev_err(component->dev, "%s has no rate set\n",
 			async ? "ASYNCCLK" : "SYSCLK");
 		return -EINVAL;
 	}
 
-	dev_dbg(codec->dev, "Target BCLK is %dHz, using %dHz %s\n",
+	dev_dbg(component->dev, "Target BCLK is %dHz, using %dHz %s\n",
 		bclk, aif_rate, async ? "ASYNCCLK" : "SYSCLK");
 
 	if (aif_rate % 4000)
@@ -1467,37 +1466,37 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 		if (bclk_rates[i] >= bclk && (bclk_rates[i] % bclk == 0))
 			break;
 	if (i == WM5100_NUM_BCLK_RATES) {
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"No valid BCLK for %dHz found from %dHz %s\n",
 			bclk, aif_rate, async ? "ASYNCCLK" : "SYSCLK");
 		return -EINVAL;
 	}
 
 	bclk = i;
-	dev_dbg(codec->dev, "Setting %dHz BCLK\n", bclk_rates[bclk]);
-	snd_soc_update_bits(codec, base + 1, WM5100_AIF1_BCLK_FREQ_MASK, bclk);
+	dev_dbg(component->dev, "Setting %dHz BCLK\n", bclk_rates[bclk]);
+	snd_soc_component_update_bits(component, base + 1, WM5100_AIF1_BCLK_FREQ_MASK, bclk);
 
 	lrclk = bclk_rates[bclk] / params_rate(params);
-	dev_dbg(codec->dev, "Setting %dHz LRCLK\n", bclk_rates[bclk] / lrclk);
+	dev_dbg(component->dev, "Setting %dHz LRCLK\n", bclk_rates[bclk] / lrclk);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK ||
 	    wm5100->aif_symmetric[dai->id])
-		snd_soc_update_bits(codec, base + 7,
+		snd_soc_component_update_bits(component, base + 7,
 				    WM5100_AIF1RX_BCPF_MASK, lrclk);
 	else
-		snd_soc_update_bits(codec, base + 6,
+		snd_soc_component_update_bits(component, base + 6,
 				    WM5100_AIF1TX_BCPF_MASK, lrclk);
 
 	i = (wl << WM5100_AIF1TX_WL_SHIFT) | fl;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_soc_update_bits(codec, base + 9,
+		snd_soc_component_update_bits(component, base + 9,
 				    WM5100_AIF1RX_WL_MASK |
 				    WM5100_AIF1RX_SLOT_LEN_MASK, i);
 	else
-		snd_soc_update_bits(codec, base + 8,
+		snd_soc_component_update_bits(component, base + 8,
 				    WM5100_AIF1TX_WL_MASK |
 				    WM5100_AIF1TX_SLOT_LEN_MASK, i);
 
-	snd_soc_update_bits(codec, base + 4, WM5100_AIF1_RATE_MASK, sr);
+	snd_soc_component_update_bits(component, base + 4, WM5100_AIF1_RATE_MASK, sr);
 
 	return 0;
 }
@@ -1507,10 +1506,10 @@ static const struct snd_soc_dai_ops wm5100_dai_ops = {
 	.hw_params = wm5100_hw_params,
 };
 
-static int wm5100_set_sysclk(struct snd_soc_codec *codec, int clk_id,
+static int wm5100_set_sysclk(struct snd_soc_component *component, int clk_id,
 			     int source, unsigned int freq, int dir)
 {
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
 	int *rate_store;
 	int fval, audio_rate, ret, reg;
 
@@ -1529,7 +1528,7 @@ static int wm5100_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		case WM5100_CLKSRC_MCLK1:
 		case WM5100_CLKSRC_MCLK2:
 		case WM5100_CLKSRC_SYSCLK:
-			snd_soc_update_bits(codec, WM5100_CLOCKING_1,
+			snd_soc_component_update_bits(component, WM5100_CLOCKING_1,
 					    WM5100_CLK_32K_SRC_MASK,
 					    source);
 			break;
@@ -1550,7 +1549,7 @@ static int wm5100_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			wm5100->aif_async[clk_id - 1] = true;
 			break;
 		default:
-			dev_err(codec->dev, "Invalid source %d\n", source);
+			dev_err(component->dev, "Invalid source %d\n", source);
 			return -EINVAL;
 		}	
 		return 0;
@@ -1559,35 +1558,35 @@ static int wm5100_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		switch (freq) {
 		case 5644800:
 		case 6144000:
-			snd_soc_update_bits(codec, WM5100_MISC_GPIO_1,
+			snd_soc_component_update_bits(component, WM5100_MISC_GPIO_1,
 					    WM5100_OPCLK_SEL_MASK, 0);
 			break;
 		case 11289600:
 		case 12288000:
-			snd_soc_update_bits(codec, WM5100_MISC_GPIO_1,
+			snd_soc_component_update_bits(component, WM5100_MISC_GPIO_1,
 					    WM5100_OPCLK_SEL_MASK, 0);
 			break;
 		case 22579200:
 		case 24576000:
-			snd_soc_update_bits(codec, WM5100_MISC_GPIO_1,
+			snd_soc_component_update_bits(component, WM5100_MISC_GPIO_1,
 					    WM5100_OPCLK_SEL_MASK, 0);
 			break;
 		default:
-			dev_err(codec->dev, "Unsupported OPCLK %dHz\n",
+			dev_err(component->dev, "Unsupported OPCLK %dHz\n",
 				freq);
 			return -EINVAL;
 		}
 		return 0;
 
 	default:
-		dev_err(codec->dev, "Unknown clock %d\n", clk_id);
+		dev_err(component->dev, "Unknown clock %d\n", clk_id);
 		return -EINVAL;
 	}
 
 	switch (source) {
 	case WM5100_CLKSRC_SYSCLK:
 	case WM5100_CLKSRC_ASYNCCLK:
-		dev_err(codec->dev, "Invalid source %d\n", source);
+		dev_err(component->dev, "Invalid source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -1605,7 +1604,7 @@ static int wm5100_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		fval = 2;
 		break;
 	default:
-		dev_err(codec->dev, "Invalid clock rate: %d\n", freq);
+		dev_err(component->dev, "Invalid clock rate: %d\n", freq);
 		return -EINVAL;
 	}
 
@@ -1632,7 +1631,7 @@ static int wm5100_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	 * match.
 	 */
 
-	snd_soc_update_bits(codec, reg, WM5100_SYSCLK_FREQ_MASK |
+	snd_soc_component_update_bits(component, reg, WM5100_SYSCLK_FREQ_MASK |
 			    WM5100_SYSCLK_SRC_MASK,
 			    fval << WM5100_SYSCLK_FREQ_SHIFT | source);
 
@@ -1641,13 +1640,13 @@ static int wm5100_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	 * this clock rate.
 	 */
 	if (clk_id == WM5100_CLK_SYSCLK) {
-		dev_dbg(codec->dev, "Setting primary audio rate to %dHz",
+		dev_dbg(component->dev, "Setting primary audio rate to %dHz",
 			audio_rate);
 		if (0 && *rate_store)
-			wm5100_free_sr(codec, audio_rate);
-		ret = wm5100_alloc_sr(codec, audio_rate);
+			wm5100_free_sr(component, audio_rate);
+		ret = wm5100_alloc_sr(component, audio_rate);
 		if (ret != 0)
-			dev_warn(codec->dev, "Primary audio slot is %d\n",
+			dev_warn(component->dev, "Primary audio slot is %d\n",
 				 ret);
 	}
 
@@ -1755,11 +1754,11 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	return 0;
 }
 
-static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
+static int wm5100_set_fll(struct snd_soc_component *component, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
-	struct i2c_client *i2c = to_i2c_client(codec->dev);
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *i2c = to_i2c_client(component->dev);
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
 	struct _fll_div factors;
 	struct wm5100_fll *fll;
 	int ret, base, lock, i, timeout;
@@ -1777,16 +1776,16 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		lock = WM5100_FLL2_LOCK_STS;
 		break;
 	default:
-		dev_err(codec->dev, "Unknown FLL %d\n",fll_id);
+		dev_err(component->dev, "Unknown FLL %d\n",fll_id);
 		return -EINVAL;
 	}
 
 	if (!Fout) {
-		dev_dbg(codec->dev, "FLL%d disabled", fll_id);
+		dev_dbg(component->dev, "FLL%d disabled", fll_id);
 		if (fll->fout)
-			pm_runtime_put(codec->dev);
+			pm_runtime_put(component->dev);
 		fll->fout = 0;
-		snd_soc_update_bits(codec, base + 1, WM5100_FLL1_ENA, 0);
+		snd_soc_component_update_bits(component, base + 1, WM5100_FLL1_ENA, 0);
 		return 0;
 	}
 
@@ -1800,7 +1799,7 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	case WM5100_FLL_SRC_AIF3BCLK:
 		break;
 	default:
-		dev_err(codec->dev, "Invalid FLL source %d\n", source);
+		dev_err(component->dev, "Invalid FLL source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -1809,36 +1808,36 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		return ret;
 
 	/* Disable the FLL while we reconfigure */
-	snd_soc_update_bits(codec, base + 1, WM5100_FLL1_ENA, 0);
+	snd_soc_component_update_bits(component, base + 1, WM5100_FLL1_ENA, 0);
 
-	snd_soc_update_bits(codec, base + 2,
+	snd_soc_component_update_bits(component, base + 2,
 			    WM5100_FLL1_OUTDIV_MASK | WM5100_FLL1_FRATIO_MASK,
 			    (factors.fll_outdiv << WM5100_FLL1_OUTDIV_SHIFT) |
 			    factors.fll_fratio);
-	snd_soc_update_bits(codec, base + 3, WM5100_FLL1_THETA_MASK,
+	snd_soc_component_update_bits(component, base + 3, WM5100_FLL1_THETA_MASK,
 			    factors.theta);
-	snd_soc_update_bits(codec, base + 5, WM5100_FLL1_N_MASK, factors.n);
-	snd_soc_update_bits(codec, base + 6,
+	snd_soc_component_update_bits(component, base + 5, WM5100_FLL1_N_MASK, factors.n);
+	snd_soc_component_update_bits(component, base + 6,
 			    WM5100_FLL1_REFCLK_DIV_MASK |
 			    WM5100_FLL1_REFCLK_SRC_MASK,
 			    (factors.fll_refclk_div
 			     << WM5100_FLL1_REFCLK_DIV_SHIFT) | source);
-	snd_soc_update_bits(codec, base + 7, WM5100_FLL1_LAMBDA_MASK,
+	snd_soc_component_update_bits(component, base + 7, WM5100_FLL1_LAMBDA_MASK,
 			    factors.lambda);
 
 	/* Clear any pending completions */
 	try_wait_for_completion(&fll->lock);
 
-	pm_runtime_get_sync(codec->dev);
+	pm_runtime_get_sync(component->dev);
 
-	snd_soc_update_bits(codec, base + 1, WM5100_FLL1_ENA, WM5100_FLL1_ENA);
+	snd_soc_component_update_bits(component, base + 1, WM5100_FLL1_ENA, WM5100_FLL1_ENA);
 
 	if (i2c->irq)
 		timeout = 2;
 	else
 		timeout = 50;
 
-	snd_soc_update_bits(codec, WM5100_CLOCKING_3, WM5100_SYSCLK_ENA,
+	snd_soc_component_update_bits(component, WM5100_CLOCKING_3, WM5100_SYSCLK_ENA,
 			    WM5100_SYSCLK_ENA);
 
 	/* Poll for the lock; will use interrupt when we can test */
@@ -1852,10 +1851,10 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			msleep(1);
 		}
 
-		ret = snd_soc_read(codec,
+		ret = snd_soc_component_read32(component,
 				   WM5100_INTERRUPT_RAW_STATUS_3);
 		if (ret < 0) {
-			dev_err(codec->dev,
+			dev_err(component->dev,
 				"Failed to read FLL status: %d\n",
 				ret);
 			continue;
@@ -1864,8 +1863,8 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 			break;
 	}
 	if (i == timeout) {
-		dev_err(codec->dev, "FLL%d lock timed out\n", fll_id);
-		pm_runtime_put(codec->dev);
+		dev_err(component->dev, "FLL%d lock timed out\n", fll_id);
+		pm_runtime_put(component->dev);
 		return -ETIMEDOUT;
 	}
 
@@ -1873,7 +1872,7 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	fll->fref = Fref;
 	fll->fout = Fout;
 
-	dev_dbg(codec->dev, "FLL%d running %dHz->%dHz\n", fll_id,
+	dev_dbg(component->dev, "FLL%d running %dHz->%dHz\n", fll_id,
 		Fref, Fout);
 
 	return 0;
@@ -2099,10 +2098,10 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 	}
 }
 
-int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
+int wm5100_detect(struct snd_soc_component *component, struct snd_soc_jack *jack)
 {
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
 	if (jack) {
 		wm5100->jack = jack;
@@ -2113,7 +2112,7 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 
 		/* Slowest detection rate, gives debounce for initial
 		 * detection */
-		snd_soc_update_bits(codec, WM5100_MIC_DETECT_1,
+		snd_soc_component_update_bits(component, WM5100_MIC_DETECT_1,
 				    WM5100_ACCDET_BIAS_STARTTIME_MASK |
 				    WM5100_ACCDET_RATE_MASK,
 				    (7 << WM5100_ACCDET_BIAS_STARTTIME_SHIFT) |
@@ -2132,18 +2131,18 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 		/* We start off just enabling microphone detection - even a
 		 * plain headphone will trigger detection.
 		 */
-		snd_soc_update_bits(codec, WM5100_MIC_DETECT_1,
+		snd_soc_component_update_bits(component, WM5100_MIC_DETECT_1,
 				    WM5100_ACCDET_ENA, WM5100_ACCDET_ENA);
 
-		snd_soc_update_bits(codec, WM5100_INTERRUPT_STATUS_3_MASK,
+		snd_soc_component_update_bits(component, WM5100_INTERRUPT_STATUS_3_MASK,
 				    WM5100_IM_ACCDET_EINT, 0);
 	} else {
-		snd_soc_update_bits(codec, WM5100_INTERRUPT_STATUS_3_MASK,
+		snd_soc_component_update_bits(component, WM5100_INTERRUPT_STATUS_3_MASK,
 				    WM5100_IM_HPDET_EINT |
 				    WM5100_IM_ACCDET_EINT,
 				    WM5100_IM_HPDET_EINT |
 				    WM5100_IM_ACCDET_EINT);
-		snd_soc_update_bits(codec, WM5100_MIC_DETECT_1,
+		snd_soc_component_update_bits(component, WM5100_MIC_DETECT_1,
 				    WM5100_ACCDET_ENA, 0);
 		wm5100->jack = NULL;
 	}
@@ -2330,22 +2329,22 @@ static void wm5100_free_gpio(struct i2c_client *i2c)
 }
 #endif
 
-static int wm5100_probe(struct snd_soc_codec *codec)
+static int wm5100_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct i2c_client *i2c = to_i2c_client(codec->dev);
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct i2c_client *i2c = to_i2c_client(component->dev);
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
 	int ret, i;
 
-	wm5100->codec = codec;
+	wm5100->component = component;
 
 	for (i = 0; i < ARRAY_SIZE(wm5100_dig_vu); i++)
-		snd_soc_update_bits(codec, wm5100_dig_vu[i], WM5100_OUT_VU,
+		snd_soc_component_update_bits(component, wm5100_dig_vu[i], WM5100_OUT_VU,
 				    WM5100_OUT_VU);
 
 	/* Don't debounce interrupts to support use of SYSCLK only */
-	snd_soc_write(codec, WM5100_IRQ_DEBOUNCE_1, 0);
-	snd_soc_write(codec, WM5100_IRQ_DEBOUNCE_2, 0);
+	snd_soc_component_write(component, WM5100_IRQ_DEBOUNCE_1, 0);
+	snd_soc_component_write(component, WM5100_IRQ_DEBOUNCE_2, 0);
 
 	/* TODO: check if we're symmetric */
 
@@ -2370,34 +2369,30 @@ err_gpio:
 	return ret;
 }
 
-static int wm5100_remove(struct snd_soc_codec *codec)
+static void wm5100_remove(struct snd_soc_component *component)
 {
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
+	struct wm5100_priv *wm5100 = snd_soc_component_get_drvdata(component);
 
 	if (wm5100->pdata.hp_pol) {
 		gpio_free(wm5100->pdata.hp_pol);
 	}
-
-	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
-	.probe =	wm5100_probe,
-	.remove =	wm5100_remove,
-
-	.set_sysclk = wm5100_set_sysclk,
-	.set_pll = wm5100_set_fll,
-	.idle_bias_off = 1,
-
-	.seq_notifier = wm5100_seq_notifier,
-	.component_driver = {
-		.controls		= wm5100_snd_controls,
-		.num_controls		= ARRAY_SIZE(wm5100_snd_controls),
-		.dapm_widgets		= wm5100_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(wm5100_dapm_widgets),
-		.dapm_routes		= wm5100_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(wm5100_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_wm5100 = {
+	.probe			= wm5100_probe,
+	.remove			= wm5100_remove,
+	.set_sysclk		= wm5100_set_sysclk,
+	.set_pll		= wm5100_set_fll,
+	.seq_notifier		= wm5100_seq_notifier,
+	.controls		= wm5100_snd_controls,
+	.num_controls		= ARRAY_SIZE(wm5100_snd_controls),
+	.dapm_widgets		= wm5100_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm5100_dapm_widgets),
+	.dapm_routes		= wm5100_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(wm5100_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm5100_regmap = {
@@ -2614,8 +2609,8 @@ static int wm5100_i2c_probe(struct i2c_client *i2c,
 	pm_runtime_enable(&i2c->dev);
 	pm_request_idle(&i2c->dev);
 
-	ret = snd_soc_register_codec(&i2c->dev,
-				     &soc_codec_dev_wm5100, wm5100_dai,
+	ret = devm_snd_soc_register_component(&i2c->dev,
+				     &soc_component_dev_wm5100, wm5100_dai,
 				     ARRAY_SIZE(wm5100_dai));
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to register WM5100: %d\n", ret);
@@ -2648,7 +2643,6 @@ static int wm5100_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm5100_priv *wm5100 = i2c_get_clientdata(i2c);
 
-	snd_soc_unregister_codec(&i2c->dev);
 	if (i2c->irq)
 		free_irq(i2c->irq, wm5100);
 	wm5100_free_gpio(i2c);

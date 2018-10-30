@@ -1,31 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Pinctrl GPIO driver for Intel Baytrail
- * Copyright (c) 2012-2013, Intel Corporation.
  *
+ * Copyright (c) 2012-2013, Intel Corporation
  * Author: Mathias Nyman <mathias.nyman@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/bitops.h>
-#include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/gpio/driver.h>
 #include <linux/acpi.h>
-#include <linux/platform_device.h>
-#include <linux/seq_file.h>
+#include <linux/bitops.h>
+#include <linux/gpio/driver.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
+#include <linux/seq_file.h>
+
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>
@@ -46,6 +39,9 @@
 #define BYT_TRIG_POS		BIT(25)
 #define BYT_TRIG_LVL		BIT(24)
 #define BYT_DEBOUNCE_EN		BIT(20)
+#define BYT_GLITCH_FILTER_EN	BIT(19)
+#define BYT_GLITCH_F_SLOW_CLK	BIT(17)
+#define BYT_GLITCH_F_FAST_CLK	BIT(16)
 #define BYT_PULL_STR_SHIFT	9
 #define BYT_PULL_STR_MASK	(3 << BYT_PULL_STR_SHIFT)
 #define BYT_PULL_STR_2K		(0 << BYT_PULL_STR_SHIFT)
@@ -687,7 +683,7 @@ static const struct pinctrl_pin_desc byt_ncore_pins[] = {
 	PINCTRL_PIN(27, "GPIO_NCORE27"),
 };
 
-static unsigned const byt_ncore_pins_map[BYT_NGPIO_NCORE] = {
+static const unsigned int byt_ncore_pins_map[BYT_NGPIO_NCORE] = {
 	19, 18, 17, 20, 21, 22, 24, 25, 23, 16,
 	14, 15, 12, 26, 27, 1, 4, 8, 11, 0,
 	3, 6, 10, 13, 2, 5, 9, 7,
@@ -931,7 +927,7 @@ static int byt_set_mux(struct pinctrl_dev *pctldev, unsigned int func_selector,
 	return 0;
 }
 
-static u32 byt_get_gpio_mux(struct byt_gpio *vg, unsigned offset)
+static u32 byt_get_gpio_mux(struct byt_gpio *vg, unsigned int offset)
 {
 	/* SCORE pin 92-93 */
 	if (!strcmp(vg->soc_data->uid, BYT_SCORE_ACPI_UID) &&
@@ -1315,7 +1311,7 @@ static const struct pinctrl_desc byt_pinctrl_desc = {
 	.owner		= THIS_MODULE,
 };
 
-static int byt_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int byt_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct byt_gpio *vg = gpiochip_get_data(chip);
 	void __iomem *reg = byt_gpio_reg(vg, offset, BYT_VAL_REG);
@@ -1329,7 +1325,7 @@ static int byt_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(val & BYT_LEVEL);
 }
 
-static void byt_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static void byt_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct byt_gpio *vg = gpiochip_get_data(chip);
 	void __iomem *reg = byt_gpio_reg(vg, offset, BYT_VAL_REG);
@@ -1363,9 +1359,9 @@ static int byt_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	raw_spin_unlock_irqrestore(&vg->lock, flags);
 
 	if (!(value & BYT_OUTPUT_EN))
-		return GPIOF_DIR_OUT;
+		return 0;
 	if (!(value & BYT_INPUT_EN))
-		return GPIOF_DIR_IN;
+		return 1;
 
 	return -EINVAL;
 }
@@ -1500,7 +1496,7 @@ static void byt_irq_ack(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct byt_gpio *vg = gpiochip_get_data(gc);
-	unsigned offset = irqd_to_hwirq(d);
+	unsigned int offset = irqd_to_hwirq(d);
 	void __iomem *reg;
 
 	reg = byt_gpio_reg(vg, offset, BYT_INT_STAT_REG);
@@ -1524,7 +1520,7 @@ static void byt_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct byt_gpio *vg = gpiochip_get_data(gc);
-	unsigned offset = irqd_to_hwirq(d);
+	unsigned int offset = irqd_to_hwirq(d);
 	unsigned long flags;
 	void __iomem *reg;
 	u32 value;
@@ -1539,11 +1535,13 @@ static void byt_irq_unmask(struct irq_data *d)
 	switch (irqd_get_trigger_type(d)) {
 	case IRQ_TYPE_LEVEL_HIGH:
 		value |= BYT_TRIG_LVL;
+		/* fall through */
 	case IRQ_TYPE_EDGE_RISING:
 		value |= BYT_TRIG_POS;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		value |= BYT_TRIG_LVL;
+		/* fall through */
 	case IRQ_TYPE_EDGE_FALLING:
 		value |= BYT_TRIG_NEG;
 		break;
@@ -1579,6 +1577,9 @@ static int byt_irq_type(struct irq_data *d, unsigned int type)
 	 */
 	value &= ~(BYT_DIRECT_IRQ_EN | BYT_TRIG_POS | BYT_TRIG_NEG |
 		   BYT_TRIG_LVL);
+	/* Enable glitch filtering */
+	value |= BYT_GLITCH_FILTER_EN | BYT_GLITCH_F_SLOW_CLK |
+		 BYT_GLITCH_F_FAST_CLK;
 
 	writel(value, reg);
 
@@ -1627,7 +1628,7 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 		pending = readl(reg);
 		raw_spin_unlock(&vg->lock);
 		for_each_set_bit(pin, &pending, 32) {
-			virq = irq_find_mapping(vg->chip.irqdomain, base + pin);
+			virq = irq_find_mapping(vg->chip.irq.domain, base + pin);
 			generic_handle_irq(virq);
 		}
 	}
@@ -1660,7 +1661,7 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 
 		value = readl(reg);
 		if (value & BYT_DIRECT_IRQ_EN) {
-			clear_bit(i, gc->irq_valid_mask);
+			clear_bit(i, gc->irq.valid_mask);
 			dev_dbg(dev, "excluding GPIO %d from IRQ domain\n", i);
 		} else if ((value & BYT_PIN_MUX) == byt_get_gpio_mux(vg, i)) {
 			byt_gpio_clear_triggering(vg, i);
@@ -1685,7 +1686,8 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 		value = readl(reg);
 		if (value)
 			dev_err(&vg->pdev->dev,
-				"GPIO interrupt error, pins misconfigured\n");
+				"GPIO interrupt error, pins misconfigured. INT_STAT%u: 0x%08x\n",
+				base / 32, value);
 	}
 }
 
@@ -1703,7 +1705,7 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 	gc->can_sleep	= false;
 	gc->parent	= &vg->pdev->dev;
 	gc->ngpio	= vg->soc_data->npins;
-	gc->irq_need_valid_mask	= true;
+	gc->irq.need_valid_mask	= true;
 
 #ifdef CONFIG_PM_SLEEP
 	vg->saved_context = devm_kcalloc(&vg->pdev->dev, gc->ngpio,
@@ -1774,13 +1776,11 @@ static const struct acpi_device_id byt_gpio_acpi_match[] = {
 	{ "INT33FC", (kernel_ulong_t)byt_soc_data },
 	{ }
 };
-MODULE_DEVICE_TABLE(acpi, byt_gpio_acpi_match);
 
 static int byt_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct byt_pinctrl_soc_data *soc_data = NULL;
 	const struct byt_pinctrl_soc_data **soc_table;
-	const struct acpi_device_id *acpi_id;
 	struct acpi_device *acpi_dev;
 	struct byt_gpio *vg;
 	int i, ret;
@@ -1789,11 +1789,7 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 	if (!acpi_dev)
 		return -ENODEV;
 
-	acpi_id = acpi_match_device(byt_gpio_acpi_match, &pdev->dev);
-	if (!acpi_id)
-		return -ENODEV;
-
-	soc_table = (const struct byt_pinctrl_soc_data **)acpi_id->driver_data;
+	soc_table = (const struct byt_pinctrl_soc_data **)device_get_match_data(&pdev->dev);
 
 	for (i = 0; soc_table[i]; i++) {
 		if (!strcmp(acpi_dev->pnp.unique_id, soc_table[i]->uid)) {

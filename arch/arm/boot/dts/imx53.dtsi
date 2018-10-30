@@ -26,7 +26,7 @@
 	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; reg = <0 0>; };
+	memory { device_type = "memory"; };
 
 	aliases {
 		ethernet0 = &fec;
@@ -80,7 +80,7 @@
 		ports = <&ipu_di0>, <&ipu_di1>;
 	};
 
-	tzic: tz-interrupt-controller@0fffc000 {
+	tzic: tz-interrupt-controller@fffc000 {
 		compatible = "fsl,imx53-tzic", "fsl,tzic";
 		interrupt-controller;
 		#interrupt-cells = <1>;
@@ -88,9 +88,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		ckil {
 			compatible = "fsl,imx-ckil", "fixed-clock";
 			#clock-cells = <0>;
@@ -114,6 +111,28 @@
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
+	};
+
+	pmu: pmu {
+		compatible = "arm,cortex-a8-pmu";
+		interrupt-parent = <&tzic>;
+		interrupts = <77>;
+	};
+
+	usbphy0: usbphy-0 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+		status = "okay";
+	};
+
+	usbphy1: usbphy-1 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY2_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+		status = "okay";
 	};
 
 	soc {
@@ -240,7 +259,7 @@
 					status = "disabled";
 				};
 
-				ecspi1: ecspi@50010000 {
+				ecspi1: spi@50010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx53-ecspi", "fsl,imx51-ecspi";
@@ -297,20 +316,6 @@
 			aipstz1: bridge@53f00000 {
 				compatible = "fsl,imx53-aipstz";
 				reg = <0x53f00000 0x60>;
-			};
-
-			usbphy0: usbphy@0 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
-				clock-names = "main_clk";
-				status = "okay";
-			};
-
-			usbphy1: usbphy@1 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX5_CLK_USB_PHY2_GATE>;
-				clock-names = "main_clk";
-				status = "okay";
 			};
 
 			usbotg: usb@53f80000 {
@@ -433,13 +438,11 @@
 				clock-names = "ipg", "per";
 			};
 
-			srtc: srtc@53fa4000 {
-				compatible = "fsl,imx53-rtc", "fsl,imx25-rtc";
+			srtc: rtc@53fa4000 {
+				compatible = "fsl,imx53-rtc";
 				reg = <0x53fa4000 0x4000>;
 				interrupts = <24>;
-				interrupt-parent = <&tzic>;
 				clocks = <&clks IMX5_CLK_SRTC_GATE>;
-				clock-names = "ipg";
 			};
 
 			iomuxc: iomuxc@53fa8000 {
@@ -482,6 +485,10 @@
 							remote-endpoint = <&ipu_di0_lvds0>;
 						};
 					};
+
+					port@2 {
+						reg = <2>;
+					};
 				};
 
 				lvds-channel@1 {
@@ -496,6 +503,10 @@
 						lvds1_in: endpoint {
 							remote-endpoint = <&ipu_di1_lvds1>;
 						};
+					};
+
+					port@2 {
+						reg = <2>;
 					};
 				};
 			};
@@ -545,7 +556,7 @@
 			};
 
 			can1: can@53fc8000 {
-				compatible = "fsl,imx53-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx53-flexcan", "fsl,imx25-flexcan";
 				reg = <0x53fc8000 0x4000>;
 				interrupts = <82>;
 				clocks = <&clks IMX5_CLK_CAN1_IPG_GATE>,
@@ -555,7 +566,7 @@
 			};
 
 			can2: can@53fcc000 {
-				compatible = "fsl,imx53-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx53-flexcan", "fsl,imx25-flexcan";
 				reg = <0x53fcc000 0x4000>;
 				interrupts = <83>;
 				clocks = <&clks IMX5_CLK_CAN2_IPG_GATE>,
@@ -661,6 +672,11 @@
 				status = "disabled";
 			};
 
+			tigerp: tigerp@63fa0000 {
+				compatible = "fsl,imx53-tigerp", "fsl,imx51-tigerp";
+				reg = <0x63fa0000 0x28>;
+			};
+
 			owire: owire@63fa4000 {
 				compatible = "fsl,imx53-owire", "fsl,imx21-owire";
 				reg = <0x63fa4000 0x4000>;
@@ -668,7 +684,7 @@
 				status = "disabled";
 			};
 
-			ecspi2: ecspi@63fac000 {
+			ecspi2: spi@63fac000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx53-ecspi", "fsl,imx51-ecspi";
@@ -691,7 +707,7 @@
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";
 			};
 
-			cspi: cspi@63fc0000 {
+			cspi: spi@63fc0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx53-cspi", "fsl,imx35-cspi";
@@ -821,11 +837,6 @@
 			compatible = "mmio-sram";
 			reg = <0xf8000000 0x20000>;
 			clocks = <&clks IMX5_CLK_OCRAM>;
-		};
-
-		pmu {
-			compatible = "arm,cortex-a8-pmu";
-			interrupts = <77>;
 		};
 	};
 };

@@ -1,0 +1,13 @@
+Device-Tree bindings for sigma delta modulator
+
+Required properties:
+- compatible: should be "ads1201", "sd-modulator". "sd-modulator" can be use
+	as a generic SD modulator if modulator not specified in compatible list.
+- #io-channel-cells = <0>: See the IIO bindings section "IIO consumers".
+
+Example node:
+
+	ads1202: adc {
+		compatible = "sd-modulator";
+		#io-channel-cells = <0>;
+	};

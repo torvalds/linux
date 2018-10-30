@@ -19,11 +19,14 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/vmalloc.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-subdev.h>
-#include <media/v4l2-tpg.h>
+#include <media/tpg/v4l2-tpg.h>
 
 #include "vimc-common.h"
 
@@ -38,6 +41,7 @@ struct vimc_sen_device {
 	u8 *frame;
 	/* The active format */
 	struct v4l2_mbus_framefmt mbus_format;
+	struct v4l2_ctrl_handler hdl;
 };
 
 static const struct v4l2_mbus_framefmt fmt_default = {
@@ -282,13 +286,57 @@ static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
+static struct v4l2_subdev_core_ops vimc_sen_core_ops = {
+	.log_status = v4l2_ctrl_subdev_log_status,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
 static const struct v4l2_subdev_video_ops vimc_sen_video_ops = {
 	.s_stream = vimc_sen_s_stream,
 };
 
 static const struct v4l2_subdev_ops vimc_sen_ops = {
+	.core = &vimc_sen_core_ops,
 	.pad = &vimc_sen_pad_ops,
 	.video = &vimc_sen_video_ops,
+};
+
+static int vimc_sen_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vimc_sen_device *vsen =
+		container_of(ctrl->handler, struct vimc_sen_device, hdl);
+
+	switch (ctrl->id) {
+	case VIMC_CID_TEST_PATTERN:
+		tpg_s_pattern(&vsen->tpg, ctrl->val);
+		break;
+	case V4L2_CID_HFLIP:
+		tpg_s_hflip(&vsen->tpg, ctrl->val);
+		break;
+	case V4L2_CID_VFLIP:
+		tpg_s_vflip(&vsen->tpg, ctrl->val);
+		break;
+	case V4L2_CID_BRIGHTNESS:
+		tpg_s_brightness(&vsen->tpg, ctrl->val);
+		break;
+	case V4L2_CID_CONTRAST:
+		tpg_s_contrast(&vsen->tpg, ctrl->val);
+		break;
+	case V4L2_CID_HUE:
+		tpg_s_hue(&vsen->tpg, ctrl->val);
+		break;
+	case V4L2_CID_SATURATION:
+		tpg_s_saturation(&vsen->tpg, ctrl->val);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops vimc_sen_ctrl_ops = {
+	.s_ctrl = vimc_sen_s_ctrl,
 };
 
 static void vimc_sen_comp_unbind(struct device *comp, struct device *master,
@@ -299,9 +347,27 @@ static void vimc_sen_comp_unbind(struct device *comp, struct device *master,
 				container_of(ved, struct vimc_sen_device, ved);
 
 	vimc_ent_sd_unregister(ved, &vsen->sd);
+	v4l2_ctrl_handler_free(&vsen->hdl);
 	tpg_free(&vsen->tpg);
 	kfree(vsen);
 }
+
+/* Image Processing Controls */
+static const struct v4l2_ctrl_config vimc_sen_ctrl_class = {
+	.flags = V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY,
+	.id = VIMC_CID_VIMC_CLASS,
+	.name = "VIMC Controls",
+	.type = V4L2_CTRL_TYPE_CTRL_CLASS,
+};
+
+static const struct v4l2_ctrl_config vimc_sen_ctrl_test_pattern = {
+	.ops = &vimc_sen_ctrl_ops,
+	.id = VIMC_CID_TEST_PATTERN,
+	.name = "Test Pattern",
+	.type = V4L2_CTRL_TYPE_MENU,
+	.max = TPG_PAT_NOISE,
+	.qmenu = tpg_pattern_strings,
+};
 
 static int vimc_sen_comp_bind(struct device *comp, struct device *master,
 			      void *master_data)
@@ -316,14 +382,36 @@ static int vimc_sen_comp_bind(struct device *comp, struct device *master,
 	if (!vsen)
 		return -ENOMEM;
 
+	v4l2_ctrl_handler_init(&vsen->hdl, 4);
+
+	v4l2_ctrl_new_custom(&vsen->hdl, &vimc_sen_ctrl_class, NULL);
+	v4l2_ctrl_new_custom(&vsen->hdl, &vimc_sen_ctrl_test_pattern, NULL);
+	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
+			  V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
+			  V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
+			  V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
+			  V4L2_CID_CONTRAST, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
+			  V4L2_CID_HUE, -128, 127, 1, 0);
+	v4l2_ctrl_new_std(&vsen->hdl, &vimc_sen_ctrl_ops,
+			  V4L2_CID_SATURATION, 0, 255, 1, 128);
+	vsen->sd.ctrl_handler = &vsen->hdl;
+	if (vsen->hdl.error) {
+		ret = vsen->hdl.error;
+		goto err_free_vsen;
+	}
+
 	/* Initialize ved and sd */
 	ret = vimc_ent_sd_register(&vsen->ved, &vsen->sd, v4l2_dev,
 				   pdata->entity_name,
-				   MEDIA_ENT_F_ATV_DECODER, 1,
+				   MEDIA_ENT_F_CAM_SENSOR, 1,
 				   (const unsigned long[1]) {MEDIA_PAD_FL_SOURCE},
 				   &vimc_sen_ops);
 	if (ret)
-		goto err_free_vsen;
+		goto err_free_hdl;
 
 	dev_set_drvdata(comp, &vsen->ved);
 	vsen->dev = comp;
@@ -342,6 +430,8 @@ static int vimc_sen_comp_bind(struct device *comp, struct device *master,
 
 err_unregister_ent_sd:
 	vimc_ent_sd_unregister(&vsen->ved,  &vsen->sd);
+err_free_hdl:
+	v4l2_ctrl_handler_free(&vsen->hdl);
 err_free_vsen:
 	kfree(vsen);
 

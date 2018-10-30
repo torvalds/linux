@@ -4,7 +4,7 @@
 
 /*
  * This driver needs external firmware. Please use the command
- * "<kerneldir>/Documentation/dvb/get_dvb_firmware sp887x" to
+ * "<kerneldir>/scripts/get_dvb_firmware sp887x" to
  * download/extract it, and then copy it to /usr/lib/hotplug/firmware
  * or /lib/firmware (depending on configuration of firmware hotplug).
  */
@@ -17,7 +17,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "sp887x.h"
 
 
@@ -57,7 +57,7 @@ static int sp887x_writereg (struct sp887x_state* state, u16 reg, u16 data)
 	int ret;
 
 	if ((ret = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-		/**
+		/*
 		 *  in case of soft reset we ignore ACK errors...
 		 */
 		if (!(reg == 0xf1a && data == 0x000 &&
@@ -130,13 +130,13 @@ static void sp887x_setup_agc (struct sp887x_state* state)
 
 #define BLOCKSIZE 30
 #define FW_SIZE 0x4000
-/**
+/*
  *  load firmware and setup MPEG interface...
  */
 static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware *fw)
 {
 	struct sp887x_state* state = fe->demodulator_priv;
-	u8 buf [BLOCKSIZE+2];
+	u8 buf [BLOCKSIZE + 2];
 	int i;
 	int fw_size = fw->size;
 	const unsigned char *mem = fw->data;
@@ -144,7 +144,7 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 	dprintk("%s\n", __func__);
 
 	/* ignore the first 10 bytes, then we expect 0x4000 bytes of firmware */
-	if (fw_size < FW_SIZE+10)
+	if (fw_size < FW_SIZE + 10)
 		return -ENODEV;
 
 	mem = fw->data + 10;
@@ -167,7 +167,7 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 		int c = BLOCKSIZE;
 		int err;
 
-		if (i+c > FW_SIZE)
+		if (c > FW_SIZE - i)
 			c = FW_SIZE - i;
 
 		/* bit 0x8000 in address is set to enable 13bit mode */
@@ -279,7 +279,7 @@ static int configure_reg0xc05(struct dtv_frontend_properties *p, u16 *reg0xc05)
 	return 0;
 }
 
-/**
+/*
  *  estimates division of two 24bit numbers,
  *  derived from the ves1820/stv0299 driver code
  */
@@ -594,9 +594,9 @@ static const struct dvb_frontend_ops sp887x_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Spase SP887x DVB-T",
-		.frequency_min =  50500000,
-		.frequency_max = 858000000,
-		.frequency_stepsize = 166666,
+		.frequency_min_hz =  50500 * kHz,
+		.frequency_max_hz = 858000 * kHz,
+		.frequency_stepsize_hz = 166666,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |

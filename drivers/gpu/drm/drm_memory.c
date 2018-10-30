@@ -80,7 +80,7 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 	 * page-table instead (that's probably faster anyhow...).
 	 */
 	/* note: use vmalloc() because num_pages could be large... */
-	page_map = vmalloc(num_pages * sizeof(struct page *));
+	page_map = vmalloc(array_size(num_pages, sizeof(struct page *)));
 	if (!page_map)
 		return NULL;
 
@@ -149,3 +149,16 @@ void drm_legacy_ioremapfree(struct drm_local_map *map, struct drm_device *dev)
 		iounmap(map->handle);
 }
 EXPORT_SYMBOL(drm_legacy_ioremapfree);
+
+u64 drm_get_max_iomem(void)
+{
+	struct resource *tmp;
+	resource_size_t max_iomem = 0;
+
+	for (tmp = iomem_resource.child; tmp; tmp = tmp->sibling) {
+		max_iomem = max(max_iomem,  tmp->end);
+	}
+
+	return max_iomem;
+}
+EXPORT_SYMBOL(drm_get_max_iomem);

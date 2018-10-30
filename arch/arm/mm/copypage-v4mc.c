@@ -70,7 +70,7 @@ void v4_mc_copy_user_highpage(struct page *to, struct page *from,
 	void *kto = kmap_atomic(to);
 
 	if (!test_and_set_bit(PG_dcache_clean, &from->flags))
-		__flush_dcache_page(page_mapping(from), from);
+		__flush_dcache_page(page_mapping_file(from), from);
 
 	raw_spin_lock(&minicache_lock);
 

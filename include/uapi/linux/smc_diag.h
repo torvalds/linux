@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_SMC_DIAG_H_
 #define _UAPI_SMC_DIAG_H_
 
@@ -17,14 +18,24 @@ struct smc_diag_req {
  * on the internal clcsock, and more SMC-related socket data
  */
 struct smc_diag_msg {
-	__u8	diag_family;
-	__u8	diag_state;
-	__u8	diag_fallback;
-	__u8	diag_shutdown;
+	__u8		diag_family;
+	__u8		diag_state;
+	union {
+		__u8	diag_mode;
+		__u8	diag_fallback; /* the old name of the field */
+	};
+	__u8		diag_shutdown;
 	struct inet_diag_sockid id;
 
-	__u32	diag_uid;
-	__u64	diag_inode;
+	__u32		diag_uid;
+	__aligned_u64	diag_inode;
+};
+
+/* Mode of a connection */
+enum {
+	SMC_DIAG_MODE_SMCR,
+	SMC_DIAG_MODE_FALLBACK_TCP,
+	SMC_DIAG_MODE_SMCD,
 };
 
 /* Extensions */
@@ -34,6 +45,8 @@ enum {
 	SMC_DIAG_CONNINFO,
 	SMC_DIAG_LGRINFO,
 	SMC_DIAG_SHUTDOWN,
+	SMC_DIAG_DMBINFO,
+	SMC_DIAG_FALLBACK,
 	__SMC_DIAG_MAX,
 };
 
@@ -82,4 +95,18 @@ struct smc_diag_lgrinfo {
 	struct smc_diag_linkinfo	lnk[1];
 	__u8				role;
 };
+
+struct smc_diag_fallback {
+	__u32 reason;
+	__u32 peer_diagnosis;
+};
+
+struct smcd_diag_dmbinfo {		/* SMC-D Socket internals */
+	__u32		linkid;		/* Link identifier */
+	__aligned_u64	peer_gid;	/* Peer GID */
+	__aligned_u64	my_gid;		/* My GID */
+	__aligned_u64	token;		/* Token of DMB */
+	__aligned_u64	peer_token;	/* Token of remote DMBE */
+};
+
 #endif /* _UAPI_SMC_DIAG_H_ */

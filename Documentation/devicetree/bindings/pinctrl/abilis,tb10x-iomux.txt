@@ -49,7 +49,7 @@ explained in Documentation/devicetree/bindings/gpio/gpio.txt.
 Example
 -------
 
-iomux: iomux@FF10601c {
+iomux: iomux@ff10601c {
 	compatible = "abilis,tb10x-iomux";
 	reg = <0xFF10601c 0x4>;
 	pctl_gpio_a: pctl-gpio-a {
@@ -59,7 +59,7 @@ iomux: iomux@FF10601c {
 		abilis,function = "uart0";
 	};
 };
-uart@FF100000 {
+uart@ff100000 {
 	compatible = "snps,dw-apb-uart";
 	reg = <0xFF100000 0x100>;
 	clock-frequency = <166666666>;
@@ -69,7 +69,7 @@ uart@FF100000 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pctl_uart0>;
 };
-gpioa: gpio@FF140000 {
+gpioa: gpio@ff140000 {
 	compatible = "abilis,tb10x-gpio";
 	reg = <0xFF140000 0x1000>;
 	gpio-controller;

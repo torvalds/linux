@@ -73,7 +73,6 @@
 #define M41T80_FEATURE_WD	BIT(3)	/* Extra watchdog resolution */
 #define M41T80_FEATURE_SQ_ALT	BIT(4)	/* RSx bits are in reg 4 */
 
-static DEFINE_MUTEX(m41t80_rtc_mutex);
 static const struct i2c_device_id m41t80_id[] = {
 	{ "m41t62", M41T80_FEATURE_SQ | M41T80_FEATURE_SQ_ALT },
 	{ "m41t65", M41T80_FEATURE_HT | M41T80_FEATURE_WD },
@@ -154,6 +153,8 @@ struct m41t80_data {
 	struct rtc_device *rtc;
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw sqw;
+	unsigned long freq;
+	unsigned int sqwe;
 #endif
 };
 
@@ -197,9 +198,9 @@ static irqreturn_t m41t80_handle_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int m41t80_get_datetime(struct i2c_client *client,
-			       struct rtc_time *tm)
+static int m41t80_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char buf[8];
 	int err, flags;
 
@@ -228,12 +229,12 @@ static int m41t80_get_datetime(struct i2c_client *client,
 
 	/* assume 20YY not 19YY, and ignore the Century Bit */
 	tm->tm_year = bcd2bin(buf[M41T80_REG_YEAR]) + 100;
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
-/* Sets the given date and time to the real time clock. */
-static int m41t80_set_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
 	unsigned char buf[8];
 	int err, flags;
@@ -294,16 +295,6 @@ static int m41t80_rtc_proc(struct device *dev, struct seq_file *seq)
 			   (reg & M41T80_FLAGS_BATT_LOW) ? "exhausted" : "ok");
 	}
 	return 0;
-}
-
-static int m41t80_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return m41t80_get_datetime(to_i2c_client(dev), tm);
-}
-
-static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *tm)
-{
-	return m41t80_set_datetime(to_i2c_client(dev), tm);
 }
 
 static int m41t80_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -443,43 +434,40 @@ static SIMPLE_DEV_PM_OPS(m41t80_pm, m41t80_suspend, m41t80_resume);
 #ifdef CONFIG_COMMON_CLK
 #define sqw_to_m41t80_data(_hw) container_of(_hw, struct m41t80_data, sqw)
 
-static unsigned long m41t80_sqw_recalc_rate(struct clk_hw *hw,
-					    unsigned long parent_rate)
+static unsigned long m41t80_decode_freq(int setting)
 {
-	struct m41t80_data *m41t80 = sqw_to_m41t80_data(hw);
+	return (setting == 0) ? 0 : (setting == 1) ? M41T80_SQW_MAX_FREQ :
+		M41T80_SQW_MAX_FREQ >> setting;
+}
+
+static unsigned long m41t80_get_freq(struct m41t80_data *m41t80)
+{
 	struct i2c_client *client = m41t80->client;
 	int reg_sqw = (m41t80->features & M41T80_FEATURE_SQ_ALT) ?
 		M41T80_REG_WDAY : M41T80_REG_SQW;
 	int ret = i2c_smbus_read_byte_data(client, reg_sqw);
-	unsigned long val = M41T80_SQW_MAX_FREQ;
 
 	if (ret < 0)
 		return 0;
+	return m41t80_decode_freq(ret >> 4);
+}
 
-	ret >>= 4;
-	if (ret == 0)
-		val = 0;
-	else if (ret > 1)
-		val = val / (1 << ret);
-
-	return val;
+static unsigned long m41t80_sqw_recalc_rate(struct clk_hw *hw,
+					    unsigned long parent_rate)
+{
+	return sqw_to_m41t80_data(hw)->freq;
 }
 
 static long m41t80_sqw_round_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long *prate)
 {
-	int i, freq = M41T80_SQW_MAX_FREQ;
-
-	if (freq <= rate)
-		return freq;
-
-	for (i = 2; i <= ilog2(M41T80_SQW_MAX_FREQ); i++) {
-		freq /= 1 << i;
-		if (freq <= rate)
-			return freq;
-	}
-
-	return 0;
+	if (rate >= M41T80_SQW_MAX_FREQ)
+		return M41T80_SQW_MAX_FREQ;
+	if (rate >= M41T80_SQW_MAX_FREQ / 4)
+		return M41T80_SQW_MAX_FREQ / 4;
+	if (!rate)
+		return 0;
+	return 1 << ilog2(rate);
 }
 
 static int m41t80_sqw_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -491,17 +479,12 @@ static int m41t80_sqw_set_rate(struct clk_hw *hw, unsigned long rate,
 		M41T80_REG_WDAY : M41T80_REG_SQW;
 	int reg, ret, val = 0;
 
-	if (rate) {
-		if (!is_power_of_2(rate))
-			return -EINVAL;
-		val = ilog2(rate);
-		if (val == ilog2(M41T80_SQW_MAX_FREQ))
-			val = 1;
-		else if (val < (ilog2(M41T80_SQW_MAX_FREQ) - 1))
-			val = ilog2(M41T80_SQW_MAX_FREQ) - val;
-		else
-			return -EINVAL;
-	}
+	if (rate >= M41T80_SQW_MAX_FREQ)
+		val = 1;
+	else if (rate >= M41T80_SQW_MAX_FREQ / 4)
+		val = 2;
+	else if (rate)
+		val = 15 - ilog2(rate);
 
 	reg = i2c_smbus_read_byte_data(client, reg_sqw);
 	if (reg < 0)
@@ -510,10 +493,9 @@ static int m41t80_sqw_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg = (reg & 0x0f) | (val << 4);
 
 	ret = i2c_smbus_write_byte_data(client, reg_sqw, reg);
-	if (ret < 0)
-		return ret;
-
-	return -EINVAL;
+	if (!ret)
+		m41t80->freq = m41t80_decode_freq(val);
+	return ret;
 }
 
 static int m41t80_sqw_control(struct clk_hw *hw, bool enable)
@@ -530,7 +512,10 @@ static int m41t80_sqw_control(struct clk_hw *hw, bool enable)
 	else
 		ret &= ~M41T80_ALMON_SQWE;
 
-	return i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON, ret);
+	ret = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON, ret);
+	if (!ret)
+		m41t80->sqwe = enable;
+	return ret;
 }
 
 static int m41t80_sqw_prepare(struct clk_hw *hw)
@@ -545,14 +530,7 @@ static void m41t80_sqw_unprepare(struct clk_hw *hw)
 
 static int m41t80_sqw_is_prepared(struct clk_hw *hw)
 {
-	struct m41t80_data *m41t80 = sqw_to_m41t80_data(hw);
-	struct i2c_client *client = m41t80->client;
-	int ret = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
-
-	if (ret < 0)
-		return ret;
-
-	return !!(ret & M41T80_ALMON_SQWE);
+	return sqw_to_m41t80_data(hw)->sqwe;
 }
 
 static const struct clk_ops m41t80_sqw_ops = {
@@ -587,6 +565,7 @@ static struct clk *m41t80_sqw_register_clk(struct m41t80_data *m41t80)
 	init.parent_names = NULL;
 	init.num_parents = 0;
 	m41t80->sqw.init = &init;
+	m41t80->freq = m41t80_get_freq(m41t80);
 
 	/* optional override of the clockname */
 	of_property_read_string(node, "clock-output-names", &init.name);
@@ -608,6 +587,7 @@ static struct clk *m41t80_sqw_register_clk(struct m41t80_data *m41t80)
  *
  *****************************************************************************
  */
+static DEFINE_MUTEX(m41t80_rtc_mutex);
 static struct i2c_client *save_client;
 
 /* Default margin */
@@ -765,7 +745,7 @@ static int wdt_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 		wdt_margin = new_margin;
 		wdt_ping();
-		/* Fall */
+		/* Fall through */
 	case WDIOC_GETTIMEOUT:
 		return put_user(wdt_margin, (int __user *)arg);
 
@@ -895,7 +875,6 @@ static int m41t80_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	int rc = 0;
-	struct rtc_device *rtc = NULL;
 	struct rtc_time tm;
 	struct m41t80_data *m41t80_data = NULL;
 	bool wakeup_source = false;
@@ -918,6 +897,10 @@ static int m41t80_probe(struct i2c_client *client,
 	else
 		m41t80_data->features = id->driver_data;
 	i2c_set_clientdata(client, m41t80_data);
+
+	m41t80_data->rtc =  devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(m41t80_data->rtc))
+		return PTR_ERR(m41t80_data->rtc);
 
 #ifdef CONFIG_OF
 	wakeup_source = of_property_read_bool(client->dev.of_node,
@@ -942,15 +925,11 @@ static int m41t80_probe(struct i2c_client *client,
 		device_init_wakeup(&client->dev, true);
 	}
 
-	rtc = devm_rtc_device_register(&client->dev, client->name,
-				       &m41t80_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
+	m41t80_data->rtc->ops = &m41t80_rtc_ops;
 
-	m41t80_data->rtc = rtc;
 	if (client->irq <= 0) {
 		/* We cannot support UIE mode if we do not have an IRQ line */
-		rtc->uie_unsupported = 1;
+		m41t80_data->rtc->uie_unsupported = 1;
 	}
 
 	/* Make sure HT (Halt Update) bit is cleared */
@@ -958,7 +937,7 @@ static int m41t80_probe(struct i2c_client *client,
 
 	if (rc >= 0 && rc & M41T80_ALHOUR_HT) {
 		if (m41t80_data->features & M41T80_FEATURE_HT) {
-			m41t80_get_datetime(client, &tm);
+			m41t80_rtc_read_time(&client->dev, &tm);
 			dev_info(&client->dev, "HT bit was set!\n");
 			dev_info(&client->dev,
 				 "Power Down at %04i-%02i-%02i %02i:%02i:%02i\n",
@@ -1003,6 +982,11 @@ static int m41t80_probe(struct i2c_client *client,
 	if (m41t80_data->features & M41T80_FEATURE_SQ)
 		m41t80_sqw_register_clk(m41t80_data);
 #endif
+
+	rc = rtc_register_device(m41t80_data->rtc);
+	if (rc)
+		return rc;
+
 	return 0;
 }
 

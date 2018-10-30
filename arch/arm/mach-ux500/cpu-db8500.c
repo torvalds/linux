@@ -23,7 +23,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/perf/arm_pmu.h>
 #include <linux/regulator/machine.h>
 
 #include <asm/outercache.h>
@@ -32,6 +31,7 @@
 #include <asm/mach/arch.h>
 
 #include "db8500-regs.h"
+#include "pm_domains.h"
 
 static int __init ux500_l2x0_unlock(void)
 {
@@ -111,42 +111,6 @@ static void ux500_restart(enum reboot_mode mode, const char *cmd)
 	prcmu_system_reset(0);
 }
 
-/*
- * The PMU IRQ lines of two cores are wired together into a single interrupt.
- * Bounce the interrupt to the other core if it's not ours.
- */
-static irqreturn_t db8500_pmu_handler(int irq, void *dev, irq_handler_t handler)
-{
-	irqreturn_t ret = handler(irq, dev);
-	int other = !smp_processor_id();
-
-	if (ret == IRQ_NONE && cpu_online(other))
-		irq_set_affinity(irq, cpumask_of(other));
-
-	/*
-	 * We should be able to get away with the amount of IRQ_NONEs we give,
-	 * while still having the spurious IRQ detection code kick in if the
-	 * interrupt really starts hitting spuriously.
-	 */
-	return ret;
-}
-
-static struct arm_pmu_platdata db8500_pmu_platdata = {
-	.handle_irq		= db8500_pmu_handler,
-	.irq_flags		= IRQF_NOBALANCING | IRQF_NO_THREAD,
-};
-
-static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
-	/* Requires call-back bindings. */
-	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
-	{},
-};
-
-static struct of_dev_auxdata u8540_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu", NULL),
-	{},
-};
-
 static const struct of_device_id u8500_local_bus_nodes[] = {
 	/* only create devices below soc node */
 	{ .compatible = "stericsson,db8500", },
@@ -157,20 +121,16 @@ static const struct of_device_id u8500_local_bus_nodes[] = {
 
 static void __init u8500_init_machine(void)
 {
-	/* automatically probe child nodes of dbx5x0 devices */
-	if (of_machine_is_compatible("st-ericsson,u8540"))
-		of_platform_populate(NULL, u8500_local_bus_nodes,
-				     u8540_auxdata_lookup, NULL);
-	else
-		of_platform_populate(NULL, u8500_local_bus_nodes,
-				     u8500_auxdata_lookup, NULL);
+	/* Initialize ux500 power domains */
+	ux500_pm_domains_init();
+
+	of_platform_populate(NULL, u8500_local_bus_nodes,
+			     NULL, NULL);
 }
 
 static const char * stericsson_dt_platform_compat[] = {
 	"st-ericsson,u8500",
-	"st-ericsson,u8540",
 	"st-ericsson,u9500",
-	"st-ericsson,u9540",
 	NULL,
 };
 

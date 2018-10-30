@@ -95,7 +95,7 @@ static ssize_t pt_cap_show(struct device *cdev,
 	return snprintf(buf, PAGE_SIZE, "%x\n", pt_cap_get(cap));
 }
 
-static struct attribute_group pt_cap_group = {
+static struct attribute_group pt_cap_group __ro_after_init = {
 	.name	= "caps",
 };
 
@@ -1186,11 +1186,15 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 	int range = 0;
 
 	list_for_each_entry(filter, filters, entry) {
-		/* PT doesn't support single address triggers */
-		if (!filter->range || !filter->size)
+		/*
+		 * PT doesn't support single address triggers and
+		 * 'start' filters.
+		 */
+		if (!filter->size ||
+		    filter->action == PERF_ADDR_FILTER_ACTION_START)
 			return -EOPNOTSUPP;
 
-		if (!filter->inode) {
+		if (!filter->path.dentry) {
 			if (!valid_kernel_ip(filter->offset))
 				return -EINVAL;
 
@@ -1217,7 +1221,7 @@ static void pt_event_addr_filters_sync(struct perf_event *event)
 		return;
 
 	list_for_each_entry(filter, &head->list, entry) {
-		if (filter->inode && !offs[range]) {
+		if (filter->path.dentry && !offs[range]) {
 			msr_a = msr_b = 0;
 		} else {
 			/* apply the offset */
@@ -1227,7 +1231,10 @@ static void pt_event_addr_filters_sync(struct perf_event *event)
 
 		filters->filter[range].msr_a  = msr_a;
 		filters->filter[range].msr_b  = msr_b;
-		filters->filter[range].config = filter->filter ? 1 : 2;
+		if (filter->action == PERF_ADDR_FILTER_ACTION_FILTER)
+			filters->filter[range].config = 1;
+		else
+			filters->filter[range].config = 2;
 		range++;
 	}
 

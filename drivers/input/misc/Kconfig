@@ -268,20 +268,6 @@ config INPUT_GPIO_BEEPER
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio-beeper.
 
-config INPUT_GPIO_TILT_POLLED
-	tristate "Polled GPIO tilt switch"
-	depends on GPIOLIB || COMPILE_TEST
-	select INPUT_POLLDEV
-	help
-	  This driver implements support for tilt switches connected
-	  to GPIO pins that are not capable of generating interrupts.
-
-	  The list of gpios to use and the mapping of their states
-	  to specific angles is done via platform data.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gpio_tilt_polled.
-
 config INPUT_GPIO_DECODER
 	tristate "Polled GPIO Decoder Input driver"
 	depends on GPIOLIB || COMPILE_TEST
@@ -425,7 +411,7 @@ config INPUT_YEALINK
 	  usb sound driver, so you might want to enable that as well.
 
 	  For information about how to use these additional functions, see
-	  <file:Documentation/input/yealink.txt>.
+	  <file:Documentation/input/devices/yealink.rst>.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called yealink.
@@ -468,7 +454,7 @@ config INPUT_TPS65218_PWRBUTTON
 	tristate "TPS65218 Power button driver"
 	depends on (MFD_TPS65217 || MFD_TPS65218)
 	help
-	  Say Y here if you want to enable power buttong reporting for
+	  Say Y here if you want to enable power button reporting for
 	  TPS65217 and TPS65218 Power Management IC devices.
 
 	  To compile this driver as a module, choose M here. The module will
@@ -609,7 +595,7 @@ config INPUT_GPIO_ROTARY_ENCODER
 	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here to add support for rotary encoders connected to GPIO lines.
-	  Check file:Documentation/input/rotary-encoder.txt for more
+	  Check file:Documentation/input/devices/rotary-encoder.rst for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the
@@ -668,15 +654,6 @@ config INPUT_DM355EVM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dm355evm_keys.
-
-config INPUT_BFIN_ROTARY
-	tristate "Blackfin Rotary support"
-	depends on BF54x || BF52x
-	help
-	  Say Y here if you want to use the Blackfin Rotary.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bfin-rotary.
 
 config INPUT_WM831X_ON
 	tristate "WM831X ON pin"
@@ -854,5 +831,24 @@ config INPUT_HISI_POWERKEY
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hisi_powerkey.
+
+config INPUT_RAVE_SP_PWRBUTTON
+	tristate "RAVE SP Power button Driver"
+	depends on RAVE_SP_CORE
+	help
+	  Say Y here if you want to enable power key reporting from RAVE SP
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rave-sp-pwrbutton.
+
+config INPUT_SC27XX_VIBRA
+	tristate "Spreadtrum sc27xx vibrator support"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables support for Spreadtrum sc27xx vibrator driver.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called sc27xx_vibra.
 
 endif

@@ -35,7 +35,7 @@ static notrace u32 __vdso_read_begin(const struct vdso_data *vdata)
 {
 	u32 seq;
 repeat:
-	seq = ACCESS_ONCE(vdata->seq_count);
+	seq = READ_ONCE(vdata->seq_count);
 	if (seq & 1) {
 		cpu_relax();
 		goto repeat;

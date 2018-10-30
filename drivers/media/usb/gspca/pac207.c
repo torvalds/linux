@@ -166,17 +166,17 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	idreg[1] = pac207_read_reg(gspca_dev, 0x0001);
 	idreg[0] = ((idreg[0] & 0x0f) << 4) | ((idreg[1] & 0xf0) >> 4);
 	idreg[1] = idreg[1] & 0x0f;
-	PDEBUG(D_PROBE, "Pixart Sensor ID 0x%02X Chips ID 0x%02X",
-		idreg[0], idreg[1]);
+	gspca_dbg(gspca_dev, D_PROBE, "Pixart Sensor ID 0x%02X Chips ID 0x%02X\n",
+		  idreg[0], idreg[1]);
 
 	if (idreg[0] != 0x27) {
-		PDEBUG(D_PROBE, "Error invalid sensor ID!");
+		gspca_dbg(gspca_dev, D_PROBE, "Error invalid sensor ID!\n");
 		return -ENODEV;
 	}
 
-	PDEBUG(D_PROBE,
-		"Pixart PAC207BCA Image Processor and Control Chip detected (vid/pid 0x%04X:0x%04X)",
-		id->idVendor, id->idProduct);
+	gspca_dbg(gspca_dev, D_PROBE,
+		  "Pixart PAC207BCA Image Processor and Control Chip detected (vid/pid 0x%04X:0x%04X)\n",
+		  id->idVendor, id->idProduct);
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = sif_mode;
@@ -315,9 +315,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		mode = 0x02;
 	if (gspca_dev->pixfmt.width == 176) {	/* 176x144 */
 		mode |= 0x01;
-		PDEBUG(D_STREAM, "pac207_start mode 176x144");
+		gspca_dbg(gspca_dev, D_STREAM, "pac207_start mode 176x144\n");
 	} else {				/* 352x288 */
-		PDEBUG(D_STREAM, "pac207_start mode 352x288");
+		gspca_dbg(gspca_dev, D_STREAM, "pac207_start mode 352x288\n");
 	}
 	pac207_write_reg(gspca_dev, 0x41, mode);
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright IBM Corp. 2004, 2005
  * Interface implementation for communication with the z/VM control program

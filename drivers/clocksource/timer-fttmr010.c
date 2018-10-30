@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Faraday Technology FTTMR010 timer driver
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
@@ -129,13 +130,17 @@ static int fttmr010_timer_set_next_event(unsigned long cycles,
 	cr &= ~fttmr010->t1_enable_val;
 	writel(cr, fttmr010->base + TIMER_CR);
 
-	/* Setup the match register forward/backward in time */
-	cr = readl(fttmr010->base + TIMER1_COUNT);
-	if (fttmr010->count_down)
-		cr -= cycles;
-	else
-		cr += cycles;
-	writel(cr, fttmr010->base + TIMER1_MATCH1);
+	if (fttmr010->count_down) {
+		/*
+		 * ASPEED Timer Controller will load TIMER1_LOAD register
+		 * into TIMER1_COUNT register when the timer is re-enabled.
+		 */
+		writel(cycles, fttmr010->base + TIMER1_LOAD);
+	} else {
+		/* Setup the match register forward in time */
+		cr = readl(fttmr010->base + TIMER1_COUNT);
+		writel(cr + cycles, fttmr010->base + TIMER1_MATCH1);
+	}
 
 	/* Start */
 	cr = readl(fttmr010->base + TIMER_CR);
@@ -263,14 +268,14 @@ static int __init fttmr010_common_init(struct device_node *np, bool is_aspeed)
 
 	fttmr010->base = of_iomap(np, 0);
 	if (!fttmr010->base) {
-		pr_err("Can't remap registers");
+		pr_err("Can't remap registers\n");
 		ret = -ENXIO;
 		goto out_free;
 	}
 	/* IRQ for timer 1 */
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0) {
-		pr_err("Can't parse IRQ");
+		pr_err("Can't parse IRQ\n");
 		ret = -EINVAL;
 		goto out_unmap;
 	}

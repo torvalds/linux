@@ -168,7 +168,7 @@ static void idtcps_remove(struct rio_dev *rdev)
 	spin_unlock(&rdev->rswitch->lock);
 }
 
-static struct rio_device_id idtcps_id_table[] = {
+static const struct rio_device_id idtcps_id_table[] = {
 	{RIO_DEVICE(RIO_DID_IDTCPS6Q, RIO_VID_IDT)},
 	{RIO_DEVICE(RIO_DID_IDTCPS8, RIO_VID_IDT)},
 	{RIO_DEVICE(RIO_DID_IDTCPS10Q, RIO_VID_IDT)},

@@ -387,7 +387,7 @@ static __init int _init_events_attrs(void)
 	while (amd_iommu_v2_event_descs[i].attr.attr.name)
 		i++;
 
-	attrs = kzalloc(sizeof(struct attribute **) * (i + 1), GFP_KERNEL);
+	attrs = kcalloc(i + 1, sizeof(struct attribute **), GFP_KERNEL);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -405,7 +405,7 @@ const struct attribute_group *amd_iommu_attr_groups[] = {
 	NULL,
 };
 
-static struct pmu iommu_pmu = {
+static const struct pmu iommu_pmu __initconst = {
 	.event_init	= perf_iommu_event_init,
 	.add		= perf_iommu_add,
 	.del		= perf_iommu_del,

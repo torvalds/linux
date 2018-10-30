@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2012-2014 Freescale Semiconductor, Inc.
  * Copyright (C) 2012 Marek Vasut <marex@denx.de>
  * on behalf of DENX Software Engineering GmbH
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -67,11 +61,26 @@
 #define ANADIG_ANA_MISC0_SET			0x154
 #define ANADIG_ANA_MISC0_CLR			0x158
 
+#define ANADIG_USB1_CHRG_DETECT_SET		0x1b4
+#define ANADIG_USB1_CHRG_DETECT_CLR		0x1b8
+#define ANADIG_USB1_CHRG_DETECT_EN_B		BIT(20)
+#define ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B	BIT(19)
+#define ANADIG_USB1_CHRG_DETECT_CHK_CONTACT	BIT(18)
+
 #define ANADIG_USB1_VBUS_DET_STAT		0x1c0
+#define ANADIG_USB1_VBUS_DET_STAT_VBUS_VALID	BIT(3)
+
+#define ANADIG_USB1_CHRG_DET_STAT		0x1d0
+#define ANADIG_USB1_CHRG_DET_STAT_DM_STATE	BIT(2)
+#define ANADIG_USB1_CHRG_DET_STAT_CHRG_DETECTED	BIT(1)
+#define ANADIG_USB1_CHRG_DET_STAT_PLUG_CONTACT	BIT(0)
+
 #define ANADIG_USB2_VBUS_DET_STAT		0x220
 
 #define ANADIG_USB1_LOOPBACK_SET		0x1e4
 #define ANADIG_USB1_LOOPBACK_CLR		0x1e8
+#define ANADIG_USB1_LOOPBACK_UTMI_TESTSTART	BIT(0)
+
 #define ANADIG_USB2_LOOPBACK_SET		0x244
 #define ANADIG_USB2_LOOPBACK_CLR		0x248
 
@@ -479,6 +488,147 @@ static int mxs_phy_on_disconnect(struct usb_phy *phy,
 	return 0;
 }
 
+#define MXS_USB_CHARGER_DATA_CONTACT_TIMEOUT	100
+static int mxs_charger_data_contact_detect(struct mxs_phy *x)
+{
+	struct regmap *regmap = x->regmap_anatop;
+	int i, stable_contact_count = 0;
+	u32 val;
+
+	/* Check if vbus is valid */
+	regmap_read(regmap, ANADIG_USB1_VBUS_DET_STAT, &val);
+	if (!(val & ANADIG_USB1_VBUS_DET_STAT_VBUS_VALID)) {
+		dev_err(x->phy.dev, "vbus is not valid\n");
+		return -EINVAL;
+	}
+
+	/* Enable charger detector */
+	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_CLR,
+				ANADIG_USB1_CHRG_DETECT_EN_B);
+	/*
+	 * - Do not check whether a charger is connected to the USB port
+	 * - Check whether the USB plug has been in contact with each other
+	 */
+	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_SET,
+			ANADIG_USB1_CHRG_DETECT_CHK_CONTACT |
+			ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+
+	/* Check if plug is connected */
+	for (i = 0; i < MXS_USB_CHARGER_DATA_CONTACT_TIMEOUT; i++) {
+		regmap_read(regmap, ANADIG_USB1_CHRG_DET_STAT, &val);
+		if (val & ANADIG_USB1_CHRG_DET_STAT_PLUG_CONTACT) {
+			stable_contact_count++;
+			if (stable_contact_count > 5)
+				/* Data pin makes contact */
+				break;
+			else
+				usleep_range(5000, 10000);
+		} else {
+			stable_contact_count = 0;
+			usleep_range(5000, 6000);
+		}
+	}
+
+	if (i == MXS_USB_CHARGER_DATA_CONTACT_TIMEOUT) {
+		dev_err(x->phy.dev,
+			"Data pin can't make good contact.\n");
+		/* Disable charger detector */
+		regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_SET,
+				ANADIG_USB1_CHRG_DETECT_EN_B |
+				ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static enum usb_charger_type mxs_charger_primary_detection(struct mxs_phy *x)
+{
+	struct regmap *regmap = x->regmap_anatop;
+	enum usb_charger_type chgr_type = UNKNOWN_TYPE;
+	u32 val;
+
+	/*
+	 * - Do check whether a charger is connected to the USB port
+	 * - Do not Check whether the USB plug has been in contact with
+	 *   each other
+	 */
+	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_CLR,
+			ANADIG_USB1_CHRG_DETECT_CHK_CONTACT |
+			ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+
+	msleep(100);
+
+	/* Check if it is a charger */
+	regmap_read(regmap, ANADIG_USB1_CHRG_DET_STAT, &val);
+	if (!(val & ANADIG_USB1_CHRG_DET_STAT_CHRG_DETECTED)) {
+		chgr_type = SDP_TYPE;
+		dev_dbg(x->phy.dev, "It is a standard downstream port\n");
+	}
+
+	/* Disable charger detector */
+	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_SET,
+			ANADIG_USB1_CHRG_DETECT_EN_B |
+			ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+
+	return chgr_type;
+}
+
+/*
+ * It must be called after DP is pulled up, which is used to
+ * differentiate DCP and CDP.
+ */
+static enum usb_charger_type mxs_charger_secondary_detection(struct mxs_phy *x)
+{
+	struct regmap *regmap = x->regmap_anatop;
+	int val;
+
+	msleep(80);
+
+	regmap_read(regmap, ANADIG_USB1_CHRG_DET_STAT, &val);
+	if (val & ANADIG_USB1_CHRG_DET_STAT_DM_STATE) {
+		dev_dbg(x->phy.dev, "It is a dedicate charging port\n");
+		return DCP_TYPE;
+	} else {
+		dev_dbg(x->phy.dev, "It is a charging downstream port\n");
+		return CDP_TYPE;
+	}
+}
+
+static enum usb_charger_type mxs_phy_charger_detect(struct usb_phy *phy)
+{
+	struct mxs_phy *mxs_phy = to_mxs_phy(phy);
+	struct regmap *regmap = mxs_phy->regmap_anatop;
+	void __iomem *base = phy->io_priv;
+	enum usb_charger_type chgr_type = UNKNOWN_TYPE;
+
+	if (!regmap)
+		return UNKNOWN_TYPE;
+
+	if (mxs_charger_data_contact_detect(mxs_phy))
+		return chgr_type;
+
+	chgr_type = mxs_charger_primary_detection(mxs_phy);
+
+	if (chgr_type != SDP_TYPE) {
+		/* Pull up DP via test */
+		writel_relaxed(BM_USBPHY_DEBUG_CLKGATE,
+				base + HW_USBPHY_DEBUG_CLR);
+		regmap_write(regmap, ANADIG_USB1_LOOPBACK_SET,
+				ANADIG_USB1_LOOPBACK_UTMI_TESTSTART);
+
+		chgr_type = mxs_charger_secondary_detection(mxs_phy);
+
+		/* Stop the test */
+		regmap_write(regmap, ANADIG_USB1_LOOPBACK_CLR,
+				ANADIG_USB1_LOOPBACK_UTMI_TESTSTART);
+		writel_relaxed(BM_USBPHY_DEBUG_CLKGATE,
+				base + HW_USBPHY_DEBUG_SET);
+	}
+
+	return chgr_type;
+}
+
 static int mxs_phy_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -567,6 +717,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	mxs_phy->phy.notify_disconnect	= mxs_phy_on_disconnect;
 	mxs_phy->phy.type		= USB_PHY_TYPE_USB2;
 	mxs_phy->phy.set_wakeup		= mxs_phy_set_wakeup;
+	mxs_phy->phy.charger_detect	= mxs_phy_charger_detect;
 
 	mxs_phy->clk = clk;
 	mxs_phy->data = of_id->data;

@@ -84,7 +84,8 @@ END(hpmc_pim_data)
 	.text
 
 	.import intr_save, code
-ENTRY_CFI(os_hpmc)
+	.align 16
+ENTRY(os_hpmc)
 .os_hpmc:
 
 	/*
@@ -300,11 +301,14 @@ os_hpmc_6:
 
 	b .
 	nop
-ENDPROC_CFI(os_hpmc)
+	.align 16	/* make function length multiple of 16 bytes */
 .os_hpmc_end:
 
 
 	__INITRODATA
-	.export os_hpmc_size
+.globl os_hpmc_size
+	.align 4
+	.type   os_hpmc_size, @object
+	.size   os_hpmc_size, 4
 os_hpmc_size:
 	.word .os_hpmc_end-.os_hpmc

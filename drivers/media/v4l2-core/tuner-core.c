@@ -94,8 +94,55 @@ static const struct v4l2_subdev_ops tuner_ops;
 } while (0)
 
 /*
- * Internal struct used inside the driver
+ * Internal enums/struct used inside the driver
  */
+
+/**
+ * enum tuner_pad_index - tuner pad index for MEDIA_ENT_F_TUNER
+ *
+ * @TUNER_PAD_RF_INPUT:
+ *	Radiofrequency (RF) sink pad, usually linked to a RF connector entity.
+ * @TUNER_PAD_OUTPUT:
+ *	tuner video output source pad. Contains the video chrominance
+ *	and luminance or the hole bandwidth of the signal converted to
+ *	an Intermediate Frequency (IF) or to baseband (on zero-IF tuners).
+ * @TUNER_PAD_AUD_OUT:
+ *	Tuner audio output source pad. Tuners used to decode analog TV
+ *	signals have an extra pad for audio output. Old tuners use an
+ *	analog stage with a saw filter for the audio IF frequency. The
+ *	output of the pad is, in this case, the audio IF, with should be
+ *	decoded either by the bridge chipset (that's the case of cx2388x
+ *	chipsets) or may require an external IF sound processor, like
+ *	msp34xx. On modern silicon tuners, the audio IF decoder is usually
+ *	incorporated at the tuner. On such case, the output of this pad
+ *	is an audio sampled data.
+ * @TUNER_NUM_PADS:
+ *	Number of pads of the tuner.
+ */
+enum tuner_pad_index {
+	TUNER_PAD_RF_INPUT,
+	TUNER_PAD_OUTPUT,
+	TUNER_PAD_AUD_OUT,
+	TUNER_NUM_PADS
+};
+
+/**
+ * enum if_vid_dec_pad_index - video IF-PLL pad index
+ *	for MEDIA_ENT_F_IF_VID_DECODER
+ *
+ * @IF_VID_DEC_PAD_IF_INPUT:
+ *	video Intermediate Frequency (IF) sink pad
+ * @IF_VID_DEC_PAD_OUT:
+ *	IF-PLL video output source pad. Contains the video chrominance
+ *	and luminance IF signals.
+ * @IF_VID_DEC_PAD_NUM_PADS:
+ *	Number of pads of the video IF-PLL.
+ */
+enum if_vid_dec_pad_index {
+	IF_VID_DEC_PAD_IF_INPUT,
+	IF_VID_DEC_PAD_OUT,
+	IF_VID_DEC_PAD_NUM_PADS
+};
 
 struct tuner {
 	/* device */
@@ -239,7 +286,7 @@ static const struct analog_demod_ops tuner_analog_ops = {
  * @type:		type of the tuner (e. g. tuner number)
  * @new_mode_mask:	Indicates if tuner supports TV and/or Radio
  * @new_config:		an optional parameter used by a few tuners to adjust
-			internal parameters, like LNA mode
+ *			internal parameters, like LNA mode
  * @tuner_callback:	an optional function to be called when switching
  *			to analog mode
  *
@@ -685,15 +732,20 @@ register_client:
 	 */
 	if (t->type == TUNER_TDA9887) {
 		t->pad[IF_VID_DEC_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
+		t->pad[IF_VID_DEC_PAD_IF_INPUT].sig_type = PAD_SIGNAL_ANALOG;
 		t->pad[IF_VID_DEC_PAD_OUT].flags = MEDIA_PAD_FL_SOURCE;
+		t->pad[IF_VID_DEC_PAD_OUT].sig_type = PAD_SIGNAL_ANALOG;
 		ret = media_entity_pads_init(&t->sd.entity,
 					     IF_VID_DEC_PAD_NUM_PADS,
 					     &t->pad[0]);
 		t->sd.entity.function = MEDIA_ENT_F_IF_VID_DECODER;
 	} else {
 		t->pad[TUNER_PAD_RF_INPUT].flags = MEDIA_PAD_FL_SINK;
+		t->pad[TUNER_PAD_RF_INPUT].sig_type = PAD_SIGNAL_ANALOG;
 		t->pad[TUNER_PAD_OUTPUT].flags = MEDIA_PAD_FL_SOURCE;
+		t->pad[TUNER_PAD_OUTPUT].sig_type = PAD_SIGNAL_ANALOG;
 		t->pad[TUNER_PAD_AUD_OUT].flags = MEDIA_PAD_FL_SOURCE;
+		t->pad[TUNER_PAD_AUD_OUT].sig_type = PAD_SIGNAL_AUDIO;
 		ret = media_entity_pads_init(&t->sd.entity, TUNER_NUM_PADS,
 					     &t->pad[0]);
 		t->sd.entity.function = MEDIA_ENT_F_TUNER;
@@ -750,6 +802,7 @@ static int tuner_remove(struct i2c_client *client)
 /**
  * check_mode - Verify if tuner supports the requested mode
  * @t: a pointer to the module's internal struct_tuner
+ * @mode: mode of the tuner, as defined by &enum v4l2_tuner_type.
  *
  * This function checks if the tuner is capable of tuning analog TV,
  * digital TV or radio, depending on what the caller wants. If the
@@ -757,6 +810,7 @@ static int tuner_remove(struct i2c_client *client)
  * returns 0.
  * This function is needed for boards that have a separate tuner for
  * radio (like devices with tea5767).
+ *
  * NOTE: mt20xx uses V4L2_TUNER_DIGITAL_TV and calls set_tv_freq to
  *       select a TV frequency. So, t_mode = T_ANALOG_TV could actually
  *	 be used to represent a Digital TV too.
@@ -1097,22 +1151,13 @@ static int tuner_s_radio(struct v4l2_subdev *sd)
  */
 
 /**
- * tuner_s_power - controls the power state of the tuner
+ * tuner_standby - places the tuner in standby mode
  * @sd: pointer to struct v4l2_subdev
- * @on: a zero value puts the tuner to sleep, non-zero wakes it up
  */
-static int tuner_s_power(struct v4l2_subdev *sd, int on)
+static int tuner_standby(struct v4l2_subdev *sd)
 {
 	struct tuner *t = to_tuner(sd);
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
-
-	if (on) {
-		if (t->standby && set_mode(t, t->mode) == 0) {
-			dprintk("Waking up tuner\n");
-			set_freq(t, 0);
-		}
-		return 0;
-	}
 
 	dprintk("Putting tuner to sleep\n");
 	t->standby = true;
@@ -1326,10 +1371,10 @@ static int tuner_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 static const struct v4l2_subdev_core_ops tuner_core_ops = {
 	.log_status = tuner_log_status,
-	.s_power = tuner_s_power,
 };
 
 static const struct v4l2_subdev_tuner_ops tuner_tuner_ops = {
+	.standby = tuner_standby,
 	.s_radio = tuner_s_radio,
 	.g_tuner = tuner_g_tuner,
 	.s_tuner = tuner_s_tuner,

@@ -79,7 +79,7 @@ static int panel_bridge_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
-	drm_mode_connector_attach_encoder(&panel_bridge->connector,
+	drm_connector_attach_encoder(&panel_bridge->connector,
 					  bridge->encoder);
 
 	ret = drm_panel_attach(panel_bridge->panel, &panel_bridge->connector);
@@ -188,7 +188,15 @@ EXPORT_SYMBOL(drm_panel_bridge_add);
  */
 void drm_panel_bridge_remove(struct drm_bridge *bridge)
 {
-	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
+	struct panel_bridge *panel_bridge;
+
+	if (!bridge)
+		return;
+
+	if (bridge->funcs != &panel_bridge_bridge_funcs)
+		return;
+
+	panel_bridge = drm_bridge_to_panel_bridge(bridge);
 
 	drm_bridge_remove(bridge);
 	devm_kfree(panel_bridge->panel->dev, bridge);

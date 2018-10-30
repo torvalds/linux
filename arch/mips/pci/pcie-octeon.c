@@ -94,8 +94,6 @@ union cvmx_pcie_address {
 
 static int cvmx_pcie_rc_initialize(int pcie_port);
 
-#include <dma-coherence.h>
-
 /**
  * Return the Core virtual base address for PCIe IO access. IOs are
  * read/written as an offset from this address.
@@ -639,7 +637,7 @@ static int __cvmx_pcie_rc_initialize_link_gen1(int pcie_port)
 			cvmx_dprintf("PCIe: Port %d link timeout\n", pcie_port);
 			return -1;
 		}
-		cvmx_wait(10000);
+		__delay(10000);
 		pciercx_cfg032.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG032(pcie_port));
 	} while (pciercx_cfg032.s.dlla == 0);
 
@@ -821,7 +819,7 @@ retry:
 	 * don't poll PESCX_CTL_STATUS2[PCIERST], but simply wait a
 	 * fixed number of cycles.
 	 */
-	cvmx_wait(400000);
+	__delay(400000);
 
 	/*
 	 * PESCX_BIST_STATUS2[PCLK_RUN] was missing on pass 1 of
@@ -1018,7 +1016,7 @@ retry:
 		i = in_p_offset;
 		while (i--) {
 			cvmx_write64_uint32(write_address, 0);
-			cvmx_wait(10000);
+			__delay(10000);
 		}
 
 		/*
@@ -1034,7 +1032,7 @@ retry:
 			dbg_data.u64 = cvmx_read_csr(CVMX_PEXP_NPEI_DBG_DATA);
 			old_in_fif_p_count = dbg_data.s.data & 0xff;
 			cvmx_write64_uint32(write_address, 0);
-			cvmx_wait(10000);
+			__delay(10000);
 			dbg_data.u64 = cvmx_read_csr(CVMX_PEXP_NPEI_DBG_DATA);
 			in_fif_p_count = dbg_data.s.data & 0xff;
 		} while (in_fif_p_count != ((old_in_fif_p_count+1) & 0xff));
@@ -1053,7 +1051,7 @@ retry:
 			cvmx_dprintf("PCIe: Port %d aligning TLP counters as workaround to maintain ordering\n", pcie_port);
 			while (in_fif_p_count != 0) {
 				cvmx_write64_uint32(write_address, 0);
-				cvmx_wait(10000);
+				__delay(10000);
 				in_fif_p_count = (in_fif_p_count + 1) & 0xff;
 			}
 			/*
@@ -1105,7 +1103,7 @@ static int __cvmx_pcie_rc_initialize_link_gen2(int pcie_port)
 	do {
 		if (cvmx_get_cycle() - start_cycle >  octeon_get_clock_rate())
 			return -1;
-		cvmx_wait(10000);
+		__delay(10000);
 		pciercx_cfg032.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG032(pcie_port));
 	} while ((pciercx_cfg032.s.dlla == 0) || (pciercx_cfg032.s.lt == 1));
 
@@ -1239,14 +1237,14 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 	/* CN63XX Pass 1.0 errata G-14395 requires the QLM De-emphasis be programmed */
 	if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_0)) {
 		if (pcie_port) {
-			union cvmx_ciu_qlm1 ciu_qlm;
+			union cvmx_ciu_qlm ciu_qlm;
 			ciu_qlm.u64 = cvmx_read_csr(CVMX_CIU_QLM1);
 			ciu_qlm.s.txbypass = 1;
 			ciu_qlm.s.txdeemph = 5;
 			ciu_qlm.s.txmargin = 0x17;
 			cvmx_write_csr(CVMX_CIU_QLM1, ciu_qlm.u64);
 		} else {
-			union cvmx_ciu_qlm0 ciu_qlm;
+			union cvmx_ciu_qlm ciu_qlm;
 			ciu_qlm.u64 = cvmx_read_csr(CVMX_CIU_QLM0);
 			ciu_qlm.s.txbypass = 1;
 			ciu_qlm.s.txdeemph = 5;
@@ -1464,8 +1462,7 @@ static int cvmx_pcie_rc_initialize(int pcie_port)
  *		 as it goes through each bridge.
  * Returns Interrupt number for the device
  */
-int __init octeon_pcie_pcibios_map_irq(const struct pci_dev *dev,
-				       u8 slot, u8 pin)
+int octeon_pcie_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	/*
 	 * The EBH5600 board with the PCI to PCIe bridge mistakenly

@@ -1,5 +1,8 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: Register/unregister many kprobe events
+
+[ -f kprobe_events ] || exit_unsupported # this is configurable
 
 # ftrace fentry skip size depends on the machine architecture.
 # Currently HAVE_KPROBES_ON_FTRACE defined on x86 and powerpc64le
@@ -9,9 +12,19 @@ case `uname -m` in
   *) OFFS=0;;
 esac
 
-echo "Setup up to 256 kprobes"
-grep t /proc/kallsyms | cut -f3 -d" " | grep -v .*\\..* | \
-head -n 256 | while read i; do echo p ${i}+${OFFS} ; done > kprobe_events ||:
+N=0
+echo "Setup up kprobes on first available 256 text symbols"
+grep -i " t " /proc/kallsyms | cut -f3 -d" " | grep -v .*\\..* | \
+while read i; do
+  echo p ${i}+${OFFS} >> kprobe_events && N=$((N+1)) ||:
+  test $N -eq 256 && break
+done
+
+L=`wc -l kprobe_events`
+if [ $L -ne $N ]; then
+  echo "The number of kprobes events ($L) is not $N"
+  exit_fail
+fi
 
 echo 1 > events/kprobes/enable
 echo 0 > events/kprobes/enable

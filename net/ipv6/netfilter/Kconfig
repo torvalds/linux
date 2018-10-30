@@ -5,36 +5,19 @@
 menu "IPv6: Netfilter Configuration"
 	depends on INET && IPV6 && NETFILTER
 
-config NF_DEFRAG_IPV6
-	tristate
-	default n
-
-config NF_CONNTRACK_IPV6
-	tristate "IPv6 connection tracking support"
-	depends on INET && IPV6 && NF_CONNTRACK
-	default m if NETFILTER_ADVANCED=n
-	select NF_DEFRAG_IPV6
-	---help---
-	  Connection tracking keeps a record of what packets have passed
-	  through your machine, in order to figure out how they are related
-	  into connections.
-
-	  This is IPv6 support on Layer 3 independent connection tracking.
-	  Layer 3 independent connection tracking is experimental scheme
-	  which generalize ip_conntrack to support other layer 3 protocols.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config NF_SOCKET_IPV6
 	tristate "IPv6 socket lookup support"
 	help
 	  This option enables the IPv6 socket lookup infrastructure. This
-	  is used by the ip6tables socket match.
+	  is used by the {ip6,nf}tables socket match.
+
+config NF_TPROXY_IPV6
+	tristate "IPv6 tproxy support"
 
 if NF_TABLES
 
 config NF_TABLES_IPV6
-	tristate "IPv6 nf_tables support"
+	bool "IPv6 nf_tables support"
 	help
 	  This option enables the IPv6 support for nf_tables.
 
@@ -47,6 +30,34 @@ config NFT_CHAIN_ROUTE_IPV6
 	  chain type is used to force packet re-routing after mangling header
 	  fields such as the source, destination, flowlabel, hop-limit and
 	  the packet mark.
+
+if NF_NAT_IPV6
+
+config NFT_CHAIN_NAT_IPV6
+	tristate "IPv6 nf_tables nat chain support"
+	help
+	  This option enables the "nat" chain for IPv6 in nf_tables. This
+	  chain type is used to perform Network Address Translation (NAT)
+	  packet transformations such as the source, destination address and
+	  source and destination ports.
+
+config NFT_MASQ_IPV6
+	tristate "IPv6 masquerade support for nf_tables"
+	depends on NFT_MASQ
+	select NF_NAT_MASQUERADE_IPV6
+	help
+	  This is the expression that provides IPv4 masquerading support for
+	  nf_tables.
+
+config NFT_REDIR_IPV6
+	tristate "IPv6 redirect support for nf_tables"
+	depends on NFT_REDIR
+	select NF_NAT_REDIRECT
+	help
+	  This is the expression that provides IPv4 redirect support for
+	  nf_tables.
+
+endif # NF_NAT_IPV6
 
 config NFT_REJECT_IPV6
 	select NF_REJECT_IPV6
@@ -71,6 +82,14 @@ config NFT_FIB_IPV6
 endif # NF_TABLES_IPV6
 endif # NF_TABLES
 
+config NF_FLOW_TABLE_IPV6
+	tristate "Netfilter flow table IPv6 module"
+	depends on NF_FLOW_TABLE
+	help
+	  This option adds the flow table IPv6 support.
+
+	  To compile it as a module, choose M here.
+
 config NF_DUP_IPV6
 	tristate "Netfilter IPv6 packet duplication to alternate destination"
 	depends on !NF_CONNTRACK || NF_CONNTRACK
@@ -89,7 +108,7 @@ config NF_LOG_IPV6
 
 config NF_NAT_IPV6
 	tristate "IPv6 NAT"
-	depends on NF_CONNTRACK_IPV6
+	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	select NF_NAT
 	help
@@ -99,38 +118,8 @@ config NF_NAT_IPV6
 
 if NF_NAT_IPV6
 
-config NFT_CHAIN_NAT_IPV6
-	depends on NF_TABLES_IPV6
-	tristate "IPv6 nf_tables nat chain support"
-	help
-	  This option enables the "nat" chain for IPv6 in nf_tables. This
-	  chain type is used to perform Network Address Translation (NAT)
-	  packet transformations such as the source, destination address and
-	  source and destination ports.
-
 config NF_NAT_MASQUERADE_IPV6
-	tristate "IPv6 masquerade support"
-	help
-	  This is the kernel functionality to provide NAT in the masquerade
-	  flavour (automatic source address selection) for IPv6.
-
-config NFT_MASQ_IPV6
-	tristate "IPv6 masquerade support for nf_tables"
-	depends on NF_TABLES_IPV6
-	depends on NFT_MASQ
-	select NF_NAT_MASQUERADE_IPV6
-	help
-	  This is the expression that provides IPv4 masquerading support for
-	  nf_tables.
-
-config NFT_REDIR_IPV6
-	tristate "IPv6 redirect support for nf_tables"
-	depends on NF_TABLES_IPV6
-	depends on NFT_REDIR
-	select NF_NAT_REDIRECT
-	help
-	  This is the expression that provides IPv4 redirect support for
-	  nf_tables.
+	bool
 
 endif # NF_NAT_IPV6
 
@@ -232,6 +221,15 @@ config IP6_NF_MATCH_RT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP6_NF_MATCH_SRH
+        tristate '"srh" Segment Routing header match support'
+        depends on NETFILTER_ADVANCED
+        help
+          srh matching allows you to match packets based on the segment
+	  routing header of the packet.
+
+          To compile it as a module, choose M here.  If unsure, say N.
+
 # The targets
 config IP6_NF_TARGET_HL
 	tristate '"HL" hoplimit target support'
@@ -310,7 +308,7 @@ config IP6_NF_SECURITY
 
 config IP6_NF_NAT
 	tristate "ip6tables NAT support"
-	depends on NF_CONNTRACK_IPV6
+	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	select NF_NAT
 	select NF_NAT_IPV6
@@ -347,6 +345,7 @@ config IP6_NF_TARGET_NPT
 endif # IP6_NF_NAT
 
 endif # IP6_NF_IPTABLES
-
 endmenu
 
+config NF_DEFRAG_IPV6
+	tristate

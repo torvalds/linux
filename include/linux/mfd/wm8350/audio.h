@@ -617,11 +617,8 @@ struct wm8350_audio_platform_data {
 	u32 codec_current_charge:2;	/* codec current @ vmid charge */
 };
 
-struct snd_soc_codec;
-
 struct wm8350_codec {
 	struct platform_device *pdev;
-	struct snd_soc_codec *codec;
 	struct wm8350_audio_platform_data *platform_data;
 };
 

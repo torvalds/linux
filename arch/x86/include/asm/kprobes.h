@@ -58,14 +58,16 @@ extern __visible kprobe_opcode_t optprobe_template_call[];
 extern __visible kprobe_opcode_t optprobe_template_end[];
 #define MAX_OPTIMIZED_LENGTH (MAX_INSN_SIZE + RELATIVE_ADDR_SIZE)
 #define MAX_OPTINSN_SIZE 				\
-	(((unsigned long)&optprobe_template_end -	\
-	  (unsigned long)&optprobe_template_entry) +	\
+	(((unsigned long)optprobe_template_end -	\
+	  (unsigned long)optprobe_template_entry) +	\
 	 MAX_OPTIMIZED_LENGTH + RELATIVEJUMP_SIZE)
 
 extern const int kretprobe_blacklist_size;
 
 void arch_remove_kprobe(struct kprobe *p);
 asmlinkage void kretprobe_trampoline(void);
+
+extern void arch_kprobe_override_function(struct pt_regs *regs);
 
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {
@@ -76,7 +78,7 @@ struct arch_specific_insn {
 	 * boostable = true: This instruction has been boosted: we have
 	 * added a relative jump after the instruction copy in insn,
 	 * so no single-step and fixup are needed (unless there's
-	 * a post_handler or break_handler).
+	 * a post_handler).
 	 */
 	bool boostable;
 	bool if_modifier;
@@ -109,9 +111,6 @@ struct kprobe_ctlblk {
 	unsigned long kprobe_status;
 	unsigned long kprobe_old_flags;
 	unsigned long kprobe_saved_flags;
-	unsigned long *jprobe_saved_sp;
-	struct pt_regs jprobe_saved_regs;
-	kprobe_opcode_t jprobes_stack[MAX_STACK_SIZE];
 	struct prev_kprobe prev_kprobe;
 };
 

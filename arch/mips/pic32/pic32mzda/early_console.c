@@ -13,6 +13,7 @@
  */
 #include <asm/mach-pic32/pic32.h>
 #include <asm/fw/fw.h>
+#include <asm/setup.h>
 
 #include "pic32mzda.h"
 #include "early_pin.h"
@@ -157,7 +158,7 @@ void __init fw_init_early_console(char port)
 	setup_early_console(port, baud);
 }
 
-int prom_putchar(char c)
+void prom_putchar(char c)
 {
 	if (console_port >= 0) {
 		while (__raw_readl(
@@ -166,6 +167,4 @@ int prom_putchar(char c)
 
 		__raw_writel(c, uart_base + U_TXR(console_port));
 	}
-
-	return 1;
 }

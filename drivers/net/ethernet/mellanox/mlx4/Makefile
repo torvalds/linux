@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_MLX4_CORE)		+= mlx4_core.o
 
 mlx4_core-y :=	alloc.o catas.o cmd.o cq.o eq.o fw.o fw_qos.o icm.o intf.o \
 		main.o mcg.o mr.o pd.o port.o profile.o qp.o reset.o sense.o \
-		srq.o resource_tracker.o
+		srq.o resource_tracker.o crdump.o
 
 obj-$(CONFIG_MLX4_EN)               += mlx4_en.o
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2006 Chelsio, Inc. All rights reserved.
  *
@@ -40,21 +41,21 @@
  * Make sure that all structs defined in this file remain laid out so
  * that they pack the same way on 32-bit and 64-bit architectures (to
  * avoid incompatibility between 32-bit userspace and 64-bit kernels).
- * In particular do not use pointer types -- pass pointers in __u64
+ * In particular do not use pointer types -- pass pointers in __aligned_u64
  * instead.
  */
 struct iwch_create_cq_req {
-	__u64 user_rptr_addr;
+	__aligned_u64 user_rptr_addr;
 };
 
 struct iwch_create_cq_resp_v0 {
-	__u64 key;
+	__aligned_u64 key;
 	__u32 cqid;
 	__u32 size_log2;
 };
 
 struct iwch_create_cq_resp {
-	__u64 key;
+	__aligned_u64 key;
 	__u32 cqid;
 	__u32 size_log2;
 	__u32 memsize;
@@ -62,8 +63,8 @@ struct iwch_create_cq_resp {
 };
 
 struct iwch_create_qp_resp {
-	__u64 key;
-	__u64 db_key;
+	__aligned_u64 key;
+	__aligned_u64 db_key;
 	__u32 qpid;
 	__u32 size_log2;
 	__u32 sq_size_log2;
@@ -73,4 +74,9 @@ struct iwch_create_qp_resp {
 struct iwch_reg_user_mr_resp {
 	__u32 pbl_addr;
 };
+
+struct iwch_alloc_pd_resp {
+	__u32 pdid;
+};
+
 #endif /* CXGB3_ABI_USER_H */

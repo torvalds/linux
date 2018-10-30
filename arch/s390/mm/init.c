@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999
@@ -41,6 +42,7 @@
 #include <asm/ctl_reg.h>
 #include <asm/sclp.h>
 #include <asm/set_memory.h>
+#include <asm/kasan.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(.bss..swapper_pg_dir);
 
@@ -94,10 +96,12 @@ void __init paging_init(void)
 	}
 	init_mm.context.asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
 	S390_lowcore.kernel_asce = init_mm.context.asce;
+	S390_lowcore.user_asce = S390_lowcore.kernel_asce;
 	crst_table_init((unsigned long *) init_mm.pgd, pgd_type);
 	vmem_map_init();
+	kasan_copy_shadow(init_mm.pgd);
 
-        /* enable virtual mapping in kernel mode */
+	/* enable virtual mapping in kernel mode */
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
@@ -105,6 +109,7 @@ void __init paging_init(void)
 	psw_bits(psw).dat = 1;
 	psw_bits(psw).as = PSW_BITS_AS_HOME;
 	__load_psw_mask(psw.mask);
+	kasan_free_early_identity();
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
@@ -144,8 +149,8 @@ void __init mem_init(void)
 
 void free_initmem(void)
 {
-	__set_memory((unsigned long) _sinittext,
-		     (_einittext - _sinittext) >> PAGE_SHIFT,
+	__set_memory((unsigned long)_sinittext,
+		     (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT,
 		     SET_MEMORY_RW | SET_MEMORY_NX);
 	free_initmem_default(POISON_FREE_INITMEM);
 }
@@ -220,7 +225,8 @@ device_initcall(s390_cma_mem_init);
 
 #endif /* CONFIG_CMA */
 
-int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
+int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
+		bool want_memblock)
 {
 	unsigned long start_pfn = PFN_DOWN(start);
 	unsigned long size_pages = PFN_DOWN(size);
@@ -230,14 +236,14 @@ int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
 	if (rc)
 		return rc;
 
-	rc = __add_pages(nid, start_pfn, size_pages, want_memblock);
+	rc = __add_pages(nid, start_pfn, size_pages, altmap, want_memblock);
 	if (rc)
 		vmem_remove_mapping(start, size);
 	return rc;
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
-int arch_remove_memory(u64 start, u64 size)
+int arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
 {
 	/*
 	 * There is no hardware or firmware interface which could trigger a

@@ -97,7 +97,7 @@ static ssize_t mei_dbgfs_read_active(struct file *fp, char __user *ubuf,
 	int pos = 0;
 	int ret;
 
-#define HDR "   |me|host|state|rd|wr|\n"
+#define HDR "   |me|host|state|rd|wr|wrq\n"
 
 	if (!dev)
 		return -ENODEV;
@@ -130,9 +130,10 @@ static ssize_t mei_dbgfs_read_active(struct file *fp, char __user *ubuf,
 	list_for_each_entry(cl, &dev->file_list, link) {
 
 		pos += scnprintf(buf + pos, bufsz - pos,
-			"%3d|%2d|%4d|%5d|%2d|%2d|\n",
+			"%3d|%2d|%4d|%5d|%2d|%2d|%3u\n",
 			i, mei_cl_me_id(cl), cl->host_client_id, cl->state,
-			!list_empty(&cl->rd_completed), cl->writing_state);
+			!list_empty(&cl->rd_completed), cl->writing_state,
+			cl->tx_cb_queued);
 		i++;
 	}
 out:
@@ -182,6 +183,8 @@ static ssize_t mei_dbgfs_read_devstate(struct file *fp, char __user *ubuf,
 				 dev->hbm_f_fa_supported);
 		pos += scnprintf(buf + pos, bufsz - pos, "\tOS: %01d\n",
 				 dev->hbm_f_os_supported);
+		pos += scnprintf(buf + pos, bufsz - pos, "\tDR: %01d\n",
+				 dev->hbm_f_dr_supported);
 	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "pg:  %s, %s\n",

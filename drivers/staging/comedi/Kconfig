@@ -75,14 +75,6 @@ config COMEDI_PARPORT
 	  To compile this driver as a module, choose M here: the module will be
 	  called comedi_parport.
 
-config COMEDI_SERIAL2002
-	tristate "Driver for serial connected hardware"
-	---help---
-	  Enable support for serial connected hardware
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called serial2002.
-
 config COMEDI_SSV_DNP
 	tristate "SSV Embedded Systems DIL/Net-PC support"
 	depends on X86_32 || COMPILE_TEST
@@ -785,8 +777,8 @@ config COMEDI_ADV_PCI_DIO
 	---help---
 	  Enable support for Advantech PCI DIO cards
 	  PCI-1730, PCI-1733, PCI-1734, PCI-1735U, PCI-1736UP, PCI-1739U,
-	  PCI-1750, PCI-1751, PCI-1752, PCI-1753/E, PCI-1754, PCI-1756 and
-	  PCI-1762
+	  PCI-1750, PCI-1751, PCI-1752, PCI-1753/E, PCI-1754, PCI-1756,
+	  PCI-1761 and PCI-1762
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called adv_pci_dio.
@@ -1320,6 +1312,10 @@ config COMEDI_NI_LABPC_ISADMA
 	select COMEDI_ISADMA
 
 config COMEDI_NI_TIO
+	tristate
+	select COMEDI_NI_ROUTING
+
+config COMEDI_NI_ROUTING
 	tristate
 
 endif # COMEDI

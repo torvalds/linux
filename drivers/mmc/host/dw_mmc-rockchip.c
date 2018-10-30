@@ -44,9 +44,8 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	 * bus_hz = cclkin / RK3288_CLKGEN_DIV
 	 * ios->clock = (div == 0) ? bus_hz : (bus_hz / (2 * div))
 	 *
-	 * Note: div can only be 0 or 1
-	 *       if DDR50 8bit mode(only emmc work in 8bit mode),
-	 *       div must be set 1
+	 * Note: div can only be 0 or 1, but div must be set to 1 for eMMC
+	 * DDR52 8-bit mode.
 	 */
 	if (ios->bus_width == MMC_BUS_WIDTH_8 &&
 	    ios->timing == MMC_TIMING_MMC_DDR52)
@@ -282,11 +281,11 @@ static int dw_mci_rk3288_parse_dt(struct dw_mci *host)
 
 	priv->drv_clk = devm_clk_get(host->dev, "ciu-drive");
 	if (IS_ERR(priv->drv_clk))
-		dev_dbg(host->dev, "ciu_drv not available\n");
+		dev_dbg(host->dev, "ciu-drive not available\n");
 
 	priv->sample_clk = devm_clk_get(host->dev, "ciu-sample");
 	if (IS_ERR(priv->sample_clk))
-		dev_dbg(host->dev, "ciu_sample not available\n");
+		dev_dbg(host->dev, "ciu-sample not available\n");
 
 	host->priv = priv;
 
@@ -319,6 +318,7 @@ static const struct dw_mci_drv_data rk2928_drv_data = {
 
 static const struct dw_mci_drv_data rk3288_drv_data = {
 	.caps			= dw_mci_rk3288_dwmmc_caps,
+	.num_caps		= ARRAY_SIZE(dw_mci_rk3288_dwmmc_caps),
 	.set_ios		= dw_mci_rk3288_set_ios,
 	.execute_tuning		= dw_mci_rk3288_execute_tuning,
 	.parse_dt		= dw_mci_rk3288_parse_dt,

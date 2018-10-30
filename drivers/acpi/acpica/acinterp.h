@@ -1,45 +1,11 @@
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
  *
+ * Copyright (C) 2000 - 2018, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2017, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #ifndef __ACINTERP_H__
 #define __ACINTERP_H__
@@ -101,7 +67,8 @@ typedef const struct acpi_exdump_info {
  */
 acpi_status
 acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
-			   union acpi_operand_object **result_desc, u32 flags);
+			   union acpi_operand_object **result_desc,
+			   u32 implicit_conversion);
 
 acpi_status
 acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
@@ -156,6 +123,9 @@ acpi_ex_trace_point(acpi_trace_event_type type,
 /*
  * exfield - ACPI AML (p-code) execution - field manipulation
  */
+acpi_status
+acpi_ex_get_protocol_buffer_length(u32 protocol_id, u32 *return_length);
+
 acpi_status
 acpi_ex_common_buffer_setup(union acpi_operand_object *obj_desc,
 			    u32 buffer_length, u32 * datum_count);
@@ -301,6 +271,26 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info);
 
 /*
+ * exserial - field_unit support for serial address spaces
+ */
+acpi_status
+acpi_ex_read_serial_bus(union acpi_operand_object *obj_desc,
+			union acpi_operand_object **return_buffer);
+
+acpi_status
+acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
+			 union acpi_operand_object *obj_desc,
+			 union acpi_operand_object **return_buffer);
+
+acpi_status
+acpi_ex_read_gpio(union acpi_operand_object *obj_desc, void *buffer);
+
+acpi_status
+acpi_ex_write_gpio(union acpi_operand_object *source_desc,
+		   union acpi_operand_object *obj_desc,
+		   union acpi_operand_object **return_buffer);
+
+/*
  * exsystem - Interface to OS services
  */
 acpi_status
@@ -423,9 +413,6 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 			     struct acpi_namespace_node *node,
 			     struct acpi_walk_state *walk_state,
 			     u8 implicit_conversion);
-
-#define ACPI_IMPLICIT_CONVERSION        TRUE
-#define ACPI_NO_IMPLICIT_CONVERSION     FALSE
 
 /*
  * exstoren - resolve/store object

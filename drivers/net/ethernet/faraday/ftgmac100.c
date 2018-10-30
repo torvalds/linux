@@ -21,6 +21,7 @@
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -59,6 +60,9 @@
 /* Min number of tx ring entries before stopping queue */
 #define TX_THRESHOLD		(MAX_SKB_FRAGS + 1)
 
+#define FTGMAC_100MHZ		100000000
+#define FTGMAC_25MHZ		25000000
+
 struct ftgmac100 {
 	/* Registers */
 	struct resource *res;
@@ -96,6 +100,7 @@ struct ftgmac100 {
 	struct napi_struct napi;
 	struct work_struct reset_task;
 	struct mii_bus *mii_bus;
+	struct clk *clk;
 
 	/* Link management */
 	int cur_speed;
@@ -707,8 +712,8 @@ static bool ftgmac100_prep_tx_csum(struct sk_buff *skb, u32 *csum_vlan)
 	return skb_checksum_help(skb) == 0;
 }
 
-static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
-				     struct net_device *netdev)
+static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
+					     struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
 	struct ftgmac100_txdes *txdes, *first;
@@ -1074,8 +1079,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv, phy_interface_t intf)
 	/* Indicate that we support PAUSE frames (see comment in
 	 * Documentation/networking/phy.txt)
 	 */
-	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-	phydev->advertising = phydev->supported;
+	phy_support_asym_pause(phydev);
 
 	/* Display what we found */
 	phy_attached_info(phydev);
@@ -1215,22 +1219,11 @@ static int ftgmac100_set_pauseparam(struct net_device *netdev,
 	priv->tx_pause = pause->tx_pause;
 	priv->rx_pause = pause->rx_pause;
 
-	if (phydev) {
-		phydev->advertising &= ~ADVERTISED_Pause;
-		phydev->advertising &= ~ADVERTISED_Asym_Pause;
+	if (phydev)
+		phy_set_asym_pause(phydev, pause->rx_pause, pause->tx_pause);
 
-		if (pause->rx_pause) {
-			phydev->advertising |= ADVERTISED_Pause;
-			phydev->advertising |= ADVERTISED_Asym_Pause;
-		}
-
-		if (pause->tx_pause)
-			phydev->advertising ^= ADVERTISED_Asym_Pause;
-	}
 	if (netif_running(netdev)) {
-		if (phydev && priv->aneg_pause)
-			phy_start_aneg(phydev);
-		else
+		if (!(phydev && priv->aneg_pause))
 			ftgmac100_config_pause(priv);
 	}
 
@@ -1730,8 +1723,24 @@ static void ftgmac100_ncsi_handler(struct ncsi_dev *nd)
 	if (unlikely(nd->state != ncsi_dev_state_functional))
 		return;
 
-	netdev_info(nd->dev, "NCSI interface %s\n",
-		    nd->link_up ? "up" : "down");
+	netdev_dbg(nd->dev, "NCSI interface %s\n",
+		   nd->link_up ? "up" : "down");
+}
+
+static void ftgmac100_setup_clk(struct ftgmac100 *priv)
+{
+	priv->clk = devm_clk_get(priv->dev, NULL);
+	if (IS_ERR(priv->clk))
+		return;
+
+	clk_prepare_enable(priv->clk);
+
+	/* Aspeed specifies a 100MHz clock is required for up to
+	 * 1000Mbit link speeds. As NCSI is limited to 100Mbit, 25MHz
+	 * is sufficient
+	 */
+	clk_set_rate(priv->clk, priv->use_ncsi ? FTGMAC_25MHZ :
+			FTGMAC_100MHZ);
 }
 
 static int ftgmac100_probe(struct platform_device *pdev)
@@ -1830,6 +1839,9 @@ static int ftgmac100_probe(struct platform_device *pdev)
 			goto err_setup_mdio;
 	}
 
+	if (priv->is_aspeed)
+		ftgmac100_setup_clk(priv);
+
 	/* Default ring sizes */
 	priv->rx_q_entries = priv->new_rx_q_entries = DEF_RX_QUEUE_ENTRIES;
 	priv->tx_q_entries = priv->new_tx_q_entries = DEF_TX_QUEUE_ENTRIES;
@@ -1882,6 +1894,8 @@ static int ftgmac100_remove(struct platform_device *pdev)
 	priv = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
+
+	clk_disable_unprepare(priv->clk);
 
 	/* There's a small chance the reset task will have been re-queued,
 	 * during stop, make sure it's gone before we free the structure.

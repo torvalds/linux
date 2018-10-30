@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_RDMA_NETLINK_H
 #define _UAPI_RDMA_NETLINK_H
 
@@ -227,20 +228,43 @@ enum rdma_nldev_command {
 
 	RDMA_NLDEV_CMD_GET, /* can dump */
 	RDMA_NLDEV_CMD_SET,
-	RDMA_NLDEV_CMD_NEW,
-	RDMA_NLDEV_CMD_DEL,
 
-	RDMA_NLDEV_CMD_PORT_GET, /* can dump */
-	RDMA_NLDEV_CMD_PORT_SET,
-	RDMA_NLDEV_CMD_PORT_NEW,
-	RDMA_NLDEV_CMD_PORT_DEL,
+	/* 3 - 4 are free to use */
+
+	RDMA_NLDEV_CMD_PORT_GET = 5, /* can dump */
+
+	/* 6 - 8 are free to use */
+
+	RDMA_NLDEV_CMD_RES_GET = 9, /* can dump */
+
+	RDMA_NLDEV_CMD_RES_QP_GET, /* can dump */
+
+	RDMA_NLDEV_CMD_RES_CM_ID_GET, /* can dump */
+
+	RDMA_NLDEV_CMD_RES_CQ_GET, /* can dump */
+
+	RDMA_NLDEV_CMD_RES_MR_GET, /* can dump */
+
+	RDMA_NLDEV_CMD_RES_PD_GET, /* can dump */
 
 	RDMA_NLDEV_NUM_OPS
+};
+
+enum {
+	RDMA_NLDEV_ATTR_ENTRY_STRLEN = 16,
+};
+
+enum rdma_nldev_print_type {
+	RDMA_NLDEV_PRINT_TYPE_UNSPEC,
+	RDMA_NLDEV_PRINT_TYPE_HEX,
 };
 
 enum rdma_nldev_attr {
 	/* don't change the order or add anything between, this is ABI! */
 	RDMA_NLDEV_ATTR_UNSPEC,
+
+	/* Pad attribute for 64b alignment */
+	RDMA_NLDEV_ATTR_PAD = RDMA_NLDEV_ATTR_UNSPEC,
 
 	/* Identifier for ib_device */
 	RDMA_NLDEV_ATTR_DEV_INDEX,		/* u32 */
@@ -302,6 +326,110 @@ enum rdma_nldev_attr {
 
 	RDMA_NLDEV_ATTR_DEV_NODE_TYPE,		/* u8 */
 
+	RDMA_NLDEV_ATTR_RES_SUMMARY,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY,	/* nested table */
+	RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_NAME,	/* string */
+	RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_CURR,	/* u64 */
+
+	RDMA_NLDEV_ATTR_RES_QP,			/* nested table */
+	RDMA_NLDEV_ATTR_RES_QP_ENTRY,		/* nested table */
+	/*
+	 * Local QPN
+	 */
+	RDMA_NLDEV_ATTR_RES_LQPN,		/* u32 */
+	/*
+	 * Remote QPN,
+	 * Applicable for RC and UC only IBTA 11.2.5.3 QUERY QUEUE PAIR
+	 */
+	RDMA_NLDEV_ATTR_RES_RQPN,		/* u32 */
+	/*
+	 * Receive Queue PSN,
+	 * Applicable for RC and UC only 11.2.5.3 QUERY QUEUE PAIR
+	 */
+	RDMA_NLDEV_ATTR_RES_RQ_PSN,		/* u32 */
+	/*
+	 * Send Queue PSN
+	 */
+	RDMA_NLDEV_ATTR_RES_SQ_PSN,		/* u32 */
+	RDMA_NLDEV_ATTR_RES_PATH_MIG_STATE,	/* u8 */
+	/*
+	 * QP types as visible to RDMA/core, the reserved QPT
+	 * are not exported through this interface.
+	 */
+	RDMA_NLDEV_ATTR_RES_TYPE,		/* u8 */
+	RDMA_NLDEV_ATTR_RES_STATE,		/* u8 */
+	/*
+	 * Process ID which created object,
+	 * in case of kernel origin, PID won't exist.
+	 */
+	RDMA_NLDEV_ATTR_RES_PID,		/* u32 */
+	/*
+	 * The name of process created following resource.
+	 * It will exist only for kernel objects.
+	 * For user created objects, the user is supposed
+	 * to read /proc/PID/comm file.
+	 */
+	RDMA_NLDEV_ATTR_RES_KERN_NAME,		/* string */
+
+	RDMA_NLDEV_ATTR_RES_CM_ID,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_CM_ID_ENTRY,	/* nested table */
+	/*
+	 * rdma_cm_id port space.
+	 */
+	RDMA_NLDEV_ATTR_RES_PS,			/* u32 */
+	/*
+	 * Source and destination socket addresses
+	 */
+	RDMA_NLDEV_ATTR_RES_SRC_ADDR,		/* __kernel_sockaddr_storage */
+	RDMA_NLDEV_ATTR_RES_DST_ADDR,		/* __kernel_sockaddr_storage */
+
+	RDMA_NLDEV_ATTR_RES_CQ,			/* nested table */
+	RDMA_NLDEV_ATTR_RES_CQ_ENTRY,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_CQE,		/* u32 */
+	RDMA_NLDEV_ATTR_RES_USECNT,		/* u64 */
+	RDMA_NLDEV_ATTR_RES_POLL_CTX,		/* u8 */
+
+	RDMA_NLDEV_ATTR_RES_MR,			/* nested table */
+	RDMA_NLDEV_ATTR_RES_MR_ENTRY,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_RKEY,		/* u32 */
+	RDMA_NLDEV_ATTR_RES_LKEY,		/* u32 */
+	RDMA_NLDEV_ATTR_RES_IOVA,		/* u64 */
+	RDMA_NLDEV_ATTR_RES_MRLEN,		/* u64 */
+
+	RDMA_NLDEV_ATTR_RES_PD,			/* nested table */
+	RDMA_NLDEV_ATTR_RES_PD_ENTRY,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY,	/* u32 */
+	RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY,	/* u32 */
+	/*
+	 * Provides logical name and index of netdevice which is
+	 * connected to physical port. This information is relevant
+	 * for RoCE and iWARP.
+	 *
+	 * The netdevices which are associated with containers are
+	 * supposed to be exported together with GID table once it
+	 * will be exposed through the netlink. Because the
+	 * associated netdevices are properties of GIDs.
+	 */
+	RDMA_NLDEV_ATTR_NDEV_INDEX,		/* u32 */
+	RDMA_NLDEV_ATTR_NDEV_NAME,		/* string */
+	/*
+	 * driver-specific attributes.
+	 */
+	RDMA_NLDEV_ATTR_DRIVER,			/* nested table */
+	RDMA_NLDEV_ATTR_DRIVER_ENTRY,		/* nested table */
+	RDMA_NLDEV_ATTR_DRIVER_STRING,		/* string */
+	/*
+	 * u8 values from enum rdma_nldev_print_type
+	 */
+	RDMA_NLDEV_ATTR_DRIVER_PRINT_TYPE,	/* u8 */
+	RDMA_NLDEV_ATTR_DRIVER_S32,		/* s32 */
+	RDMA_NLDEV_ATTR_DRIVER_U32,		/* u32 */
+	RDMA_NLDEV_ATTR_DRIVER_S64,		/* s64 */
+	RDMA_NLDEV_ATTR_DRIVER_U64,		/* u64 */
+
+	/*
+	 * Always the end
+	 */
 	RDMA_NLDEV_ATTR_MAX
 };
 #endif /* _UAPI_RDMA_NETLINK_H */

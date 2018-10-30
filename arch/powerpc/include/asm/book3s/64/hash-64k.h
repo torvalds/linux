@@ -1,10 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_64_HASH_64K_H
 #define _ASM_POWERPC_BOOK3S_64_HASH_64K_H
 
 #define H_PTE_INDEX_SIZE  8
 #define H_PMD_INDEX_SIZE  10
-#define H_PUD_INDEX_SIZE  7
+#define H_PUD_INDEX_SIZE  10
 #define H_PGD_INDEX_SIZE  8
+
+/*
+ * Each context is 512TB size. SLB miss for first context/default context
+ * is handled in the hotpath.
+ */
+#define MAX_EA_BITS_PER_CONTEXT		49
 
 /*
  * 64k aligned address free up few of the lower bits of RPN for us
@@ -12,31 +19,39 @@
  */
 #define H_PAGE_COMBO	_RPAGE_RPN0 /* this is a combo 4k page */
 #define H_PAGE_4K_PFN	_RPAGE_RPN1 /* PFN is for a single 4k page */
+#define H_PAGE_BUSY	_RPAGE_RPN44     /* software: PTE & hash are busy */
+#define H_PAGE_HASHPTE	_RPAGE_RPN43	/* PTE has associated HPTE */
+
+/* memory key bits. */
+#define H_PTE_PKEY_BIT0	_RPAGE_RSV1
+#define H_PTE_PKEY_BIT1	_RPAGE_RSV2
+#define H_PTE_PKEY_BIT2	_RPAGE_RSV3
+#define H_PTE_PKEY_BIT3	_RPAGE_RSV4
+#define H_PTE_PKEY_BIT4	_RPAGE_RSV5
+
 /*
  * We need to differentiate between explicit huge page and THP huge
  * page, since THP huge page also need to track real subpage details
  */
 #define H_PAGE_THP_HUGE  H_PAGE_4K_PFN
 
-/*
- * Used to track subpage group valid if H_PAGE_COMBO is set
- * This overloads H_PAGE_F_GIX and H_PAGE_F_SECOND
- */
-#define H_PAGE_COMBO_VALID	(H_PAGE_F_GIX | H_PAGE_F_SECOND)
-
 /* PTE flags to conserve for HPTE identification */
-#define _PAGE_HPTEFLAGS (H_PAGE_BUSY | H_PAGE_F_SECOND | \
-			 H_PAGE_F_GIX | H_PAGE_HASHPTE | H_PAGE_COMBO)
-/*
- * we support 16 fragments per PTE page of 64K size.
- */
-#define H_PTE_FRAG_NR	16
+#define _PAGE_HPTEFLAGS (H_PAGE_BUSY | H_PAGE_HASHPTE | H_PAGE_COMBO)
 /*
  * We use a 2K PTE page fragment and another 2K for storing
  * real_pte_t hash index
+ * 8 bytes per each pte entry and another 8 bytes for storing
+ * slot details.
  */
-#define H_PTE_FRAG_SIZE_SHIFT  12
-#define PTE_FRAG_SIZE (1UL << PTE_FRAG_SIZE_SHIFT)
+#define H_PTE_FRAG_SIZE_SHIFT  (H_PTE_INDEX_SIZE + 3 + 1)
+#define H_PTE_FRAG_NR	(PAGE_SIZE >> H_PTE_FRAG_SIZE_SHIFT)
+
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)
+#define H_PMD_FRAG_SIZE_SHIFT  (H_PMD_INDEX_SIZE + 3 + 1)
+#else
+#define H_PMD_FRAG_SIZE_SHIFT  (H_PMD_INDEX_SIZE + 3)
+#endif
+#define H_PMD_FRAG_NR	(PAGE_SIZE >> H_PMD_FRAG_SIZE_SHIFT)
 
 #ifndef __ASSEMBLY__
 #include <asm/errno.h>
@@ -48,30 +63,64 @@
  * generic accessors and iterators here
  */
 #define __real_pte __real_pte
-static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
+static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep, int offset)
 {
 	real_pte_t rpte;
 	unsigned long *hidxp;
 
 	rpte.pte = pte;
-	rpte.hidx = 0;
-	if (pte_val(pte) & H_PAGE_COMBO) {
-		/*
-		 * Make sure we order the hidx load against the H_PAGE_COMBO
-		 * check. The store side ordering is done in __hash_page_4K
-		 */
-		smp_rmb();
-		hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
-		rpte.hidx = *hidxp;
-	}
+
+	/*
+	 * Ensure that we do not read the hidx before we read the PTE. Because
+	 * the writer side is expected to finish writing the hidx first followed
+	 * by the PTE, by using smp_wmb(). pte_set_hash_slot() ensures that.
+	 */
+	smp_rmb();
+
+	hidxp = (unsigned long *)(ptep + offset);
+	rpte.hidx = *hidxp;
 	return rpte;
 }
 
+/*
+ * shift the hidx representation by one-modulo-0xf; i.e hidx 0 is respresented
+ * as 1, 1 as 2,... , and 0xf as 0.  This convention lets us represent a
+ * invalid hidx 0xf with a 0x0 bit value. PTEs are anyway zero'd when
+ * allocated. We dont have to zero them gain; thus save on the initialization.
+ */
+#define HIDX_UNSHIFT_BY_ONE(x) ((x + 0xfUL) & 0xfUL) /* shift backward by one */
+#define HIDX_SHIFT_BY_ONE(x) ((x + 0x1UL) & 0xfUL)   /* shift forward by one */
+#define HIDX_BITS(x, index)  (x << (index << 2))
+#define BITS_TO_HIDX(x, index)  ((x >> (index << 2)) & 0xfUL)
+#define INVALID_RPTE_HIDX  0x0UL
+
 static inline unsigned long __rpte_to_hidx(real_pte_t rpte, unsigned long index)
 {
-	if ((pte_val(rpte.pte) & H_PAGE_COMBO))
-		return (rpte.hidx >> (index<<2)) & 0xf;
-	return (pte_val(rpte.pte) >> H_PAGE_F_GIX_SHIFT) & 0xf;
+	return HIDX_UNSHIFT_BY_ONE(BITS_TO_HIDX(rpte.hidx, index));
+}
+
+/*
+ * Commit the hidx and return PTE bits that needs to be modified. The caller is
+ * expected to modify the PTE bits accordingly and commit the PTE to memory.
+ */
+static inline unsigned long pte_set_hidx(pte_t *ptep, real_pte_t rpte,
+					 unsigned int subpg_index,
+					 unsigned long hidx, int offset)
+{
+	unsigned long *hidxp = (unsigned long *)(ptep + offset);
+
+	rpte.hidx &= ~HIDX_BITS(0xfUL, subpg_index);
+	*hidxp = rpte.hidx  | HIDX_BITS(HIDX_SHIFT_BY_ONE(hidx), subpg_index);
+
+	/*
+	 * Anyone reading PTE must ensure hidx bits are read after reading the
+	 * PTE by using the read-side barrier smp_rmb(). __real_pte() can be
+	 * used for that.
+	 */
+	smp_wmb();
+
+	/* No PTE bits to be modified, return 0x0UL */
+	return 0x0UL;
 }
 
 #define __rpte_to_pte(r)	((r).pte)
@@ -88,10 +137,9 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 		shift = mmu_psize_defs[psize].shift;			\
 		for (index = 0; vpn < __end; index++,			\
 			     vpn += (1L << (shift - VPN_SHIFT))) {	\
-			if (!__split || __rpte_sub_valid(rpte, index))	\
-				do {
+		if (!__split || __rpte_sub_valid(rpte, index))
 
-#define pte_iterate_hashed_end() } while(0); } } while(0)
+#define pte_iterate_hashed_end()  } } while(0)
 
 #define pte_pagesize_index(mm, addr, pte)	\
 	(((pte) & H_PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)
@@ -110,13 +158,18 @@ static inline int hash__remap_4k_pfn(struct vm_area_struct *vma, unsigned long a
 }
 
 #define H_PTE_TABLE_SIZE	PTE_FRAG_SIZE
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined (CONFIG_HUGETLB_PAGE)
 #define H_PMD_TABLE_SIZE	((sizeof(pmd_t) << PMD_INDEX_SIZE) + \
 				 (sizeof(unsigned long) << PMD_INDEX_SIZE))
 #else
 #define H_PMD_TABLE_SIZE	(sizeof(pmd_t) << PMD_INDEX_SIZE)
 #endif
+#ifdef CONFIG_HUGETLB_PAGE
+#define H_PUD_TABLE_SIZE	((sizeof(pud_t) << PUD_INDEX_SIZE) +	\
+				 (sizeof(unsigned long) << PUD_INDEX_SIZE))
+#else
 #define H_PUD_TABLE_SIZE	(sizeof(pud_t) << PUD_INDEX_SIZE)
+#endif
 #define H_PGD_TABLE_SIZE	(sizeof(pgd_t) << PGD_INDEX_SIZE)
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -202,8 +255,6 @@ extern pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma,
 extern void hash__pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 					 pgtable_t pgtable);
 extern pgtable_t hash__pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
-extern void hash__pmdp_huge_split_prepare(struct vm_area_struct *vma,
-				      unsigned long address, pmd_t *pmdp);
 extern pmd_t hash__pmdp_huge_get_and_clear(struct mm_struct *mm,
 				       unsigned long addr, pmd_t *pmdp);
 extern int hash__has_transparent_hugepage(void);

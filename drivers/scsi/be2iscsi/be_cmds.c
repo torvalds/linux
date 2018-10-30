@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Broadcom. All Rights Reserved.
+ * Copyright 2017 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
@@ -520,7 +520,7 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 		 **/
 		tag_mem = &ctrl->ptag_state[tag].tag_mem_state;
 		if (tag_mem->size) {
-			pci_free_consistent(ctrl->pdev, tag_mem->size,
+			dma_free_coherent(&ctrl->pdev->dev, tag_mem->size,
 					tag_mem->va, tag_mem->dma);
 			tag_mem->size = 0;
 		}
@@ -675,8 +675,8 @@ static int be_mbox_notify(struct be_ctrl_info *ctrl)
 	return status;
 }
 
-void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
-				bool embedded, u8 sge_cnt)
+void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, u32 payload_len,
+			bool embedded, u8 sge_cnt)
 {
 	if (embedded)
 		wrb->emb_sgecnt_special |= MCC_WRB_EMBEDDED_MASK;
@@ -688,7 +688,7 @@ void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 }
 
 void be_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
-			u8 subsystem, u8 opcode, int cmd_len)
+			u8 subsystem, u8 opcode, u32 cmd_len)
 {
 	req_hdr->opcode = opcode;
 	req_hdr->subsystem = subsystem;
@@ -947,7 +947,6 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 	default:
 		mutex_unlock(&ctrl->mbox_lock);
 		BUG();
-		return -ENXIO;
 	}
 	be_cmd_hdr_prepare(&req->hdr, subsys, opcode, sizeof(*req));
 	if (queue_type != QTYPE_SGL)
@@ -1270,12 +1269,12 @@ int beiscsi_check_supported_fw(struct be_ctrl_info *ctrl,
 	struct be_sge *sge = nonembedded_sgl(wrb);
 	int status = 0;
 
-	nonemb_cmd.va = pci_alloc_consistent(ctrl->pdev,
+	nonemb_cmd.va = dma_alloc_coherent(&ctrl->pdev->dev,
 				sizeof(struct be_mgmt_controller_attributes),
-				&nonemb_cmd.dma);
+				&nonemb_cmd.dma, GFP_KERNEL);
 	if (nonemb_cmd.va == NULL) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BG_%d : pci_alloc_consistent failed in %s\n",
+			    "BG_%d : dma_alloc_coherent failed in %s\n",
 			    __func__);
 		return -ENOMEM;
 	}
@@ -1315,7 +1314,7 @@ int beiscsi_check_supported_fw(struct be_ctrl_info *ctrl,
 			    "BG_%d :  Failed in beiscsi_check_supported_fw\n");
 	mutex_unlock(&ctrl->mbox_lock);
 	if (nonemb_cmd.va)
-		pci_free_consistent(ctrl->pdev, nonemb_cmd.size,
+		dma_free_coherent(&ctrl->pdev->dev, nonemb_cmd.size,
 				    nonemb_cmd.va, nonemb_cmd.dma);
 
 	return status;
@@ -1517,6 +1516,52 @@ int beiscsi_get_port_name(struct be_ctrl_info *ctrl, struct beiscsi_hba *phba)
 
 	if (phba->port_name == 0)
 		phba->port_name = '?';
+
+	mutex_unlock(&ctrl->mbox_lock);
+	return ret;
+}
+
+int beiscsi_set_host_data(struct beiscsi_hba *phba)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_cmd_set_host_data *ioctl;
+	struct be_mcc_wrb *wrb;
+	int ret = 0;
+
+	if (is_chip_be2_be3r(phba))
+		return ret;
+
+	mutex_lock(&ctrl->mbox_lock);
+	wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	memset(wrb, 0, sizeof(*wrb));
+	ioctl = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*ioctl), true, 0);
+	be_cmd_hdr_prepare(&ioctl->h.req_hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_SET_HOST_DATA,
+			   EMBED_MBX_MAX_PAYLOAD_SIZE);
+	ioctl->param.req.param_id = BE_CMD_SET_HOST_PARAM_ID;
+	ioctl->param.req.param_len =
+		snprintf((char *)ioctl->param.req.param_data,
+			 sizeof(ioctl->param.req.param_data),
+			 "Linux iSCSI v%s", BUILD_STR);
+	ioctl->param.req.param_len = ALIGN(ioctl->param.req.param_len + 1, 4);
+	if (ioctl->param.req.param_len > BE_CMD_MAX_DRV_VERSION)
+		ioctl->param.req.param_len = BE_CMD_MAX_DRV_VERSION;
+	ret = be_mbox_notify(ctrl);
+	if (!ret) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BG_%d : HBA set host driver version\n");
+	} else {
+		/**
+		 * Check "MCC_STATUS_INVALID_LENGTH" for SKH.
+		 * Older FW versions return this error.
+		 */
+		if (ret == MCC_STATUS_ILLEGAL_REQUEST ||
+				ret == MCC_STATUS_INVALID_LENGTH)
+			__beiscsi_log(phba, KERN_INFO,
+				      "BG_%d : HBA failed to set host driver version\n");
+	}
 
 	mutex_unlock(&ctrl->mbox_lock);
 	return ret;

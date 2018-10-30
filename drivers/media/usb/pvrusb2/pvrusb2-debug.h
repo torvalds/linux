@@ -17,7 +17,7 @@
 
 extern int pvrusb2_debug;
 
-#define pvr2_trace(msk, fmt, arg...) do {if(msk & pvrusb2_debug) printk(KERN_INFO "pvrusb2: " fmt "\n", ##arg); } while (0)
+#define pvr2_trace(msk, fmt, arg...) do {if (msk & pvrusb2_debug) pr_info("pvrusb2: " fmt "\n", ##arg); } while (0)
 
 /* These are listed in *rough* order of decreasing usefulness and
    increasing noise level. */

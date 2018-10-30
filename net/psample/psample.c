@@ -296,6 +296,6 @@ static void __exit psample_module_exit(void)
 module_init(psample_module_init);
 module_exit(psample_module_exit);
 
-MODULE_AUTHOR("Yotam Gigi <yotamg@mellanox.com>");
+MODULE_AUTHOR("Yotam Gigi <yotam.gi@gmail.com>");
 MODULE_DESCRIPTION("netlink channel for packet sampling");
 MODULE_LICENSE("GPL v2");

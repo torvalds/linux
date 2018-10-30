@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PAT_H
 #define _ASM_X86_PAT_H
 
@@ -20,5 +21,7 @@ int io_reserve_memtype(resource_size_t start, resource_size_t end,
 			enum page_cache_mode *pcm);
 
 void io_free_memtype(resource_size_t start, resource_size_t end);
+
+bool pat_pfn_immune_to_uc_mtrr(unsigned long pfn);
 
 #endif /* _ASM_X86_PAT_H */

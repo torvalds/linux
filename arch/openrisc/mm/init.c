@@ -147,7 +147,7 @@ void __init paging_init(void)
 	 * (even if it is most probably not used until the next
 	 *  switch_mm)
 	 */
-	current_pgd = init_mm.pgd;
+	current_pgd[smp_processor_id()] = init_mm.pgd;
 
 	end = (unsigned long)__va(max_low_pfn * PAGE_SIZE);
 

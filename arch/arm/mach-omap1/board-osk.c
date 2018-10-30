@@ -167,7 +167,7 @@ static struct platform_device *osk5912_devices[] __initdata = {
 	&osk5912_cf_device,
 };
 
-static struct gpio_led tps_leds[] = {
+static const struct gpio_led tps_leds[] = {
 	/* NOTE:  D9 and D2 have hardware blink support.
 	 * Also, D9 requires non-battery power.
 	 */
@@ -295,7 +295,7 @@ static struct omap_usb_config osk_usb_config __initdata = {
 };
 
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
-static struct omap_lcd_config osk_lcd_config __initdata = {
+static const struct omap_lcd_config osk_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 #endif
@@ -303,22 +303,22 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 
 #include <linux/input.h>
-#include <linux/platform_data/at24.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
 #include <linux/platform_data/keypad-omap.h>
 
-static struct at24_platform_data at24c04 = {
-	.byte_len	= SZ_4K / 8,
-	.page_size	= 16,
+static const struct property_entry mistral_at24_properties[] = {
+	PROPERTY_ENTRY_U32("pagesize", 16),
+	{ }
 };
 
 static struct i2c_board_info __initdata mistral_i2c_board_info[] = {
 	{
 		/* NOTE:  powered from LCD supply */
 		I2C_BOARD_INFO("24c04", 0x50),
-		.platform_data	= &at24c04,
+		.properties = mistral_at24_properties,
 	},
 	/* TODO when driver support is ready:
 	 *  - optionally ov9640 camera sensor at 0x30
@@ -385,7 +385,7 @@ static struct platform_device osk5912_lcd_device = {
 	.id		= -1,
 };
 
-static struct gpio_led mistral_gpio_led_pins[] = {
+static const struct gpio_led mistral_gpio_led_pins[] = {
 	{
 		.name		= "mistral:red",
 		.default_trigger = "heartbeat",

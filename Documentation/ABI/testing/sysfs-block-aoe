@@ -1,0 +1,45 @@
+What:		/sys/block/etherd*/mac
+Date:		Apr, 2005
+KernelVersion:	v2.6.12
+Contact:	Ed L. Cashin <ed.cashin@acm.org>
+Description:
+		(RO) The ethernet address of the remote Ata over Ethernet (AoE)
+		device.
+
+What:		/sys/block/etherd*/netif
+Date:		Apr, 2005
+KernelVersion:	v2.6.12
+Contact:	Ed L. Cashin <ed.cashin@acm.org>
+Description:
+		(RO) The names of the network interfaces on the localhost (comma
+		separated) through which we are communicating with the remote
+		AoE device.
+
+What:		/sys/block/etherd*/state
+Date:		Apr, 2005
+KernelVersion:	v2.6.12
+Contact:	Ed L. Cashin <ed.cashin@acm.org>
+Description:
+		(RO) Device status. The state attribute is "up" when the device
+		is ready for I/O and "down" if detected but unusable. The
+		"down,closewait" state shows that the device is still open and
+		cannot come up again until it has been closed.  The "up,kickme"
+		state means that the driver wants to send more commands to the
+		target but found out there were already the max number of
+		commands waiting for a response. It will retry again after being
+		kicked by the periodic timer handler routine.
+
+What:		/sys/block/etherd*/firmware-version
+Date:		Apr, 2005
+KernelVersion:	v2.6.12
+Contact:	Ed L. Cashin <ed.cashin@acm.org>
+Description:
+		(RO) Version of the firmware in the target.
+
+What:		/sys/block/etherd*/payload
+Date:		Dec, 2012
+KernelVersion:	v3.10
+Contact:	Ed L. Cashin <ed.cashin@acm.org>
+Description:
+		(RO) The amount of user data transferred (in bytes) inside each AoE
+		command on the network, network headers excluded.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __BEN_VLAN_802_1Q_INC__
 #define __BEN_VLAN_802_1Q_INC__
 
@@ -96,6 +97,9 @@ static inline struct net_device *vlan_find_dev(struct net_device *real_dev,
 		if (((dev) = __vlan_group_get_device((grp), (i) / VLAN_N_VID, \
 							    (i) % VLAN_N_VID)))
 
+int vlan_filter_push_vids(struct vlan_info *vlan_info, __be16 proto);
+void vlan_filter_drop_vids(struct vlan_info *vlan_info, __be16 proto);
+
 /* found in vlan_dev.c */
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, u16 vlan_prio);
@@ -105,9 +109,10 @@ int vlan_dev_change_flags(const struct net_device *dev, u32 flag, u32 mask);
 void vlan_dev_get_realdev_name(const struct net_device *dev, char *result);
 
 int vlan_check_real_dev(struct net_device *real_dev,
-			__be16 protocol, u16 vlan_id);
+			__be16 protocol, u16 vlan_id,
+			struct netlink_ext_ack *extack);
 void vlan_setup(struct net_device *dev);
-int register_vlan_dev(struct net_device *dev);
+int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack);
 void unregister_vlan_dev(struct net_device *dev, struct list_head *head);
 bool vlan_dev_inherit_address(struct net_device *dev,
 			      struct net_device *real_dev);

@@ -75,17 +75,6 @@ helpers.
 
 Contact: Ville Syrjälä, Daniel Vetter, driver maintainers
 
-Implement deferred fbdev setup in the helper
---------------------------------------------
-
-Many (especially embedded drivers) want to delay fbdev setup until there's a
-real screen plugged in. This is to avoid the dreaded fallback to the low-res
-fbdev default. Many drivers have a hacked-up (and often broken) version of this,
-better to do it once in the shared helpers. Thierry has a patch series, but that
-one needs to be rebased and final polish applied.
-
-Contact: Thierry Reding, Daniel Vetter, driver maintainers
-
 Convert early atomic drivers to async commit helpers
 ----------------------------------------------------
 
@@ -138,6 +127,9 @@ interfaces to fix these issues:
   the acquire context explicitly on stack and then also pass it down into
   drivers explicitly so that the legacy-on-atomic functions can use them.
 
+  Except for some driver code this is done. This task should be finished by
+  adding WARN_ON(!drm_drv_uses_atomic_modeset) in drm_modeset_lock_all().
+
 * A bunch of the vtable hooks are now in the wrong place: DRM has a split
   between core vfunc tables (named ``drm_foo_funcs``), which are used to
   implement the userspace ABI. And then there's the optional hooks for the
@@ -145,11 +137,6 @@ interfaces to fix these issues:
   internal use. Some of these hooks should be move from ``_funcs`` to
   ``_helper_funcs`` since they are not part of the core ABI. There's a
   ``FIXME`` comment in the kerneldoc for each such case in ``drm_crtc.h``.
-
-* There's a new helper ``drm_atomic_helper_best_encoder()`` which could be
-  used by all atomic drivers which don't select the encoder for a given
-  connector at runtime. That's almost all of them, and would allow us to get
-  rid of a lot of ``best_encoder`` boilerplate in drivers.
 
 Contact: Daniel Vetter
 
@@ -171,38 +158,92 @@ private lock. The tricky part is the BO free functions, since those can't
 reliably take that lock any more. Instead state needs to be protected with
 suitable subordinate locks or some cleanup work pushed to a worker thread. For
 performance-critical drivers it might also be better to go with a more
-fine-grained per-buffer object and per-context lockings scheme. Currently the
-following drivers still use ``struct_mutex``: ``msm``, ``omapdrm`` and
-``udl``.
+fine-grained per-buffer object and per-context lockings scheme. Currently only the
+``msm`` driver still use ``struct_mutex``.
 
 Contact: Daniel Vetter, respective driver maintainers
+
+Convert instances of dev_info/dev_err/dev_warn to their DRM_DEV_* equivalent
+----------------------------------------------------------------------------
+
+For drivers which could have multiple instances, it is necessary to
+differentiate between which is which in the logs. Since DRM_INFO/WARN/ERROR
+don't do this, drivers used dev_info/warn/err to make this differentiation. We
+now have DRM_DEV_* variants of the drm print macros, so we can start to convert
+those drivers back to using drm-formwatted specific log messages.
+
+Before you start this conversion please contact the relevant maintainers to make
+sure your work will be merged - not everyone agrees that the DRM dmesg macros
+are better.
+
+Contact: Sean Paul, Maintainer of the driver you plan to convert
+
+Convert drivers to use simple modeset suspend/resume
+----------------------------------------------------
+
+Most drivers (except i915 and nouveau) that use
+drm_atomic_helper_suspend/resume() can probably be converted to use
+drm_mode_config_helper_suspend/resume(). Also there's still open-coded version
+of the atomic suspend/resume code in older atomic modeset drivers.
+
+Contact: Maintainer of the driver you plan to convert
+
+Convert drivers to use drm_fb_helper_fbdev_setup/teardown()
+-----------------------------------------------------------
+
+Most drivers can use drm_fb_helper_fbdev_setup() except maybe:
+
+- amdgpu which has special logic to decide whether to call
+  drm_helper_disable_unused_functions()
+
+- armada which isn't atomic and doesn't call
+  drm_helper_disable_unused_functions()
+
+- i915 which calls drm_fb_helper_initial_config() in a worker
+
+Drivers that use drm_framebuffer_remove() to clean up the fbdev framebuffer can
+probably use drm_fb_helper_fbdev_teardown().
+
+Contact: Maintainer of the driver you plan to convert
+
+Clean up mmap forwarding
+------------------------
+
+A lot of drivers forward gem mmap calls to dma-buf mmap for imported buffers.
+And also a lot of them forward dma-buf mmap to the gem mmap implementations.
+Would be great to refactor this all into a set of small common helpers.
+
+Contact: Daniel Vetter
+
+Put a reservation_object into drm_gem_object
+--------------------------------------------
+
+This would remove the need for the ->gem_prime_res_obj callback. It would also
+allow us to implement generic helpers for waiting for a bo, allowing for quite a
+bit of refactoring in the various wait ioctl implementations.
+
+Contact: Daniel Vetter
+
+idr_init_base()
+---------------
+
+DRM core&drivers uses a lot of idr (integer lookup directories) for mapping
+userspace IDs to internal objects, and in most places ID=0 means NULL and hence
+is never used. Switching to idr_init_base() for these would make the idr more
+efficient.
+
+Contact: Daniel Vetter
 
 Core refactorings
 =================
 
-Use new IDR deletion interface to clean up drm_gem_handle_delete()
-------------------------------------------------------------------
-
-See the "This is gross" comment -- apparently the IDR system now can return an
-error code instead of oopsing.
-
 Clean up the DRM header mess
 ----------------------------
 
-Currently the DRM subsystem has only one global header, ``drmP.h``. This is
-used both for functions exported to helper libraries and drivers and functions
-only used internally in the ``drm.ko`` module. The goal would be to move all
-header declarations not needed outside of ``drm.ko`` into
-``drivers/gpu/drm/drm_*_internal.h`` header files. ``EXPORT_SYMBOL`` also
-needs to be dropped for these functions.
-
-This would nicely tie in with the below task to create kerneldoc after the API
-is cleaned up. Or with the "hide legacy cruft better" task.
-
-Note that this is well in progress, but ``drmP.h`` is still huge. The updated
-plan is to switch to per-file driver API headers, which will also structure
-the kerneldoc better. This should also allow more fine-grained ``#include``
-directives.
+The DRM subsystem originally had only one huge global header, ``drmP.h``. This
+is now split up, but many source files still include it. The remaining part of
+the cleanup work here is to replace any ``#include <drm/drmP.h>`` by only the
+headers needed (and fixing up any missing pre-declarations in the headers).
 
 In the end no .c file should need to include ``drmP.h`` anymore.
 
@@ -218,26 +259,6 @@ values for functions that never fail. Then write kerneldoc for all exported
 functions and an overview section and integrate it all into the drm book.
 
 See https://dri.freedesktop.org/docs/drm/ for what's there already.
-
-Contact: Daniel Vetter
-
-Hide legacy cruft better
-------------------------
-
-Way back DRM supported only drivers which shadow-attached to PCI devices with
-userspace or fbdev drivers setting up outputs. Modern DRM drivers take charge
-of the entire device, you can spot them with the DRIVER_MODESET flag.
-
-Unfortunately there's still large piles of legacy code around which needs to
-be hidden so that driver writers don't accidentally end up using it. And to
-prevent security issues in those legacy IOCTLs from being exploited on modern
-drivers. This has multiple possible subtasks:
-
-* Extract support code for legacy features into a ``drm-legacy.ko`` kernel
-  module and compile it only when one of the legacy drivers is enabled.
-
-This is mostly done, the only thing left is to split up ``drm_irq.c`` into
-legacy cruft and the parts needed by modern KMS drivers.
 
 Contact: Daniel Vetter
 
@@ -306,6 +327,18 @@ There's a bunch of issues with it:
 
 Contact: Daniel Vetter
 
+KMS cleanups
+------------
+
+Some of these date from the very introduction of KMS in 2008 ...
+
+- drm_mode_config.crtc_idr is misnamed, since it contains all KMS object. Should
+  be renamed to drm_mode_config.object_idr.
+
+- drm_display_mode doesn't need to be derived from drm_mode_object. That's
+  leftovers from older (never merged into upstream) KMS designs where modes
+  where set using their ID, including support to add/remove modes.
+
 Better Testing
 ==============
 
@@ -327,17 +360,12 @@ converting things over. For modeset tests we also first need a bit of
 infrastructure to use dumb buffers for untiled buffers, to be able to run all
 the non-i915 specific modeset tests.
 
-Contact: Daniel Vetter
+Extend virtual test driver (VKMS)
+---------------------------------
 
-Create a virtual KMS driver for testing (vkms)
-----------------------------------------------
-
-With all the latest helpers it should be fairly simple to create a virtual KMS
-driver useful for testing, or for running X or similar on headless machines
-(to be able to still use the GPU). This would be similar to vgem, but aimed at
-the modeset side.
-
-Once the basics are there there's tons of possibilities to extend it.
+See the documentation of :ref:`VKMS <vkms>` for more details. This is an ideal
+internship task, since it only requires a virtual machine and can be sized to
+fit the available time.
 
 Contact: Daniel Vetter
 
@@ -353,7 +381,16 @@ those drivers as simple as possible, so lots of room for refactoring:
 - backlight helpers, probably best to put them into a new drm_backlight.c.
   This is because drivers/video is de-facto unmaintained. We could also
   move drivers/video/backlight to drivers/gpu/backlight and take it all
-  over within drm-misc, but that's more work.
+  over within drm-misc, but that's more work. Backlight helpers require a fair
+  bit of reworking and refactoring. A simple example is the enabling of a backlight.
+  Tinydrm has helpers for this. It would be good if other drivers can also use the
+  helper. However, there are various cases we need to consider i.e different
+  drivers seem to have different ways of enabling/disabling a backlight.
+  We also need to consider the backlight drivers (like gpio_backlight). The situation
+  is further complicated by the fact that the backlight is tied to fbdev
+  via fb_notifier_callback() which has complicated logic. For further details, refer
+  to the following discussion thread:
+  https://groups.google.com/forum/#!topic/outreachy-kernel/8rBe30lwtdA
 
 - spi helpers, probably best put into spi core/helper code. Thierry said
   the spi maintainer is fast&reactive, so shouldn't be a big issue.
@@ -362,11 +399,6 @@ those drivers as simple as possible, so lots of room for refactoring:
   least) into a separate helper, like we have for mipi-dsi already. Or follow
   one of the ideas for having a shared dsi/dbi helper, abstracting away the
   transport details more.
-
-- tinydrm_lastclose could be drm_fb_helper_lastclose. Only thing we need
-  for that is to store the drm_fb_helper pointer somewhere in
-  drm_device->mode_config. And then we could roll that out to all the
-  drivers.
 
 - tinydrm_gem_cma_prime_import_sg_table should probably go into the cma
   helpers, as a _vmapped variant (since not every driver needs the vmap).
@@ -381,14 +413,26 @@ those drivers as simple as possible, so lots of room for refactoring:
   a drm_device wrong. Doesn't matter, since everyone else gets it wrong
   too :-)
 
-- With the fbdev pointer in dev->mode_config we could also make
-  suspend/resume helpers entirely generic, at least if we add a
-  dev->mode_config.suspend_state. We could even provide a generic pm_ops
-  structure with those.
-
 - also rework the drm_framebuffer_funcs->dirty hook wire-up, see above.
 
 Contact: Noralf Trønnes, Daniel Vetter
+
+AMD DC Display Driver
+---------------------
+
+AMD DC is the display driver for AMD devices starting with Vega. There has been
+a bunch of progress cleaning it up but there's still plenty of work to be done.
+
+See drivers/gpu/drm/amd/display/TODO for tasks.
+
+Contact: Harry Wentland, Alex Deucher
+
+i915
+----
+
+- Our early/late pm callbacks could be removed in favour of using
+  device_link_add to model the dependency between i915 and snd_had. See
+  https://dri.freedesktop.org/docs/drm/driver-api/device_link.html
 
 Outside DRM
 ===========

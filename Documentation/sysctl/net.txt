@@ -45,6 +45,7 @@ through bpf(2) and passing a verifier in the kernel, a JIT will then
 translate these BPF proglets into native CPU instructions. There are
 two flavors of JITs, the newer eBPF JIT currently supported on:
   - x86_64
+  - x86_32
   - arm64
   - arm32
   - ppc64
@@ -91,11 +92,21 @@ Values :
 	0 - disable JIT kallsyms export (default value)
 	1 - enable JIT kallsyms export for privileged users only
 
+bpf_jit_limit
+-------------
+
+This enforces a global limit for memory allocations to the BPF JIT
+compiler in order to reject unprivileged JIT requests once it has
+been surpassed. bpf_jit_limit contains the value of the global limit
+in bytes.
+
 dev_weight
 --------------
 
 The maximum number of packets that kernel can handle on a NAPI interrupt,
-it's a Per-CPU variable.
+it's a Per-CPU variable. For drivers that support LRO or GRO_HW, a hardware
+aggregated packet is counted as one packet in this context.
+
 Default: 64
 
 dev_weight_rx_bias
@@ -267,6 +278,18 @@ optmem_max
 
 Maximum ancillary buffer size allowed per socket. Ancillary data is a sequence
 of struct cmsghdr structures with appended data.
+
+fb_tunnels_only_for_init_net
+----------------------------
+
+Controls if fallback tunnels (like tunl0, gre0, gretap0, erspan0,
+sit0, ip6tnl0, ip6gre0) are automatically created when a new
+network namespace is created, if corresponding tunnel is present
+in initial network namespace.
+If set to 1, these devices are not automatically created, and
+user space is responsible for creating them if needed.
+
+Default : 0  (for compatibility reasons)
 
 2. /proc/sys/net/unix - Parameters for Unix domain sockets
 -------------------------------------------------------

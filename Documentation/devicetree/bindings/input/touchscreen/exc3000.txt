@@ -1,0 +1,26 @@
+* EETI EXC3000 Multiple Touch Controller
+
+Required properties:
+- compatible: must be "eeti,exc3000"
+- reg: i2c slave address
+- interrupts: touch controller interrupt
+- touchscreen-size-x: See touchscreen.txt
+- touchscreen-size-y: See touchscreen.txt
+
+Optional properties:
+- touchscreen-inverted-x: See touchscreen.txt
+- touchscreen-inverted-y: See touchscreen.txt
+- touchscreen-swapped-x-y: See touchscreen.txt
+
+Example:
+
+	touchscreen@2a {
+		compatible = "eeti,exc3000";
+		reg = <0x2a>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
+		touchscreen-size-x = <4096>;
+		touchscreen-size-y = <4096>;
+		touchscreen-inverted-x;
+		touchscreen-swapped-x-y;
+	};

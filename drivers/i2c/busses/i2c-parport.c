@@ -237,7 +237,6 @@ static void i2c_parport_attach(struct parport *port)
 
 	/* Setup SMBus alert if supported */
 	if (adapter_parm[type].smbus_alert) {
-		adapter->alert_data.alert_edge_triggered = 1;
 		adapter->ara = i2c_setup_smbus_alert(&adapter->adapter,
 						     &adapter->alert_data);
 		if (adapter->ara)

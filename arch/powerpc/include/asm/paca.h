@@ -32,6 +32,7 @@
 #include <asm/accounting.h>
 #include <asm/hmi.h>
 #include <asm/cpuidle.h>
+#include <asm/atomic.h>
 
 register struct paca_struct *local_paca asm("r13");
 
@@ -46,7 +47,10 @@ extern unsigned int debug_smp_processor_id(void); /* from linux/smp.h */
 #define get_paca()	local_paca
 #endif
 
+#ifdef CONFIG_PPC_PSERIES
 #define get_lppaca()	(get_paca()->lppaca_ptr)
+#endif
+
 #define get_slb_shadow()	(get_paca()->slb_shadow_ptr)
 
 struct task_struct;
@@ -58,7 +62,7 @@ struct task_struct;
  * processor.
  */
 struct paca_struct {
-#ifdef CONFIG_PPC_BOOK3S
+#ifdef CONFIG_PPC_PSERIES
 	/*
 	 * Because hw_cpu_id, unlike other paca fields, is accessed
 	 * routinely from other CPUs (from the IRQ code), we stick to
@@ -67,7 +71,8 @@ struct paca_struct {
 	 */
 
 	struct lppaca *lppaca_ptr;	/* Pointer to LpPaca for PLIC */
-#endif /* CONFIG_PPC_BOOK3S */
+#endif /* CONFIG_PPC_PSERIES */
+
 	/*
 	 * MAGIC: the spinlock functions in arch/powerpc/lib/locks.c 
 	 * load lock_token and paca_index with a single lwz
@@ -91,14 +96,14 @@ struct paca_struct {
 	u8 cpu_start;			/* At startup, processor spins until */
 					/* this becomes non-zero. */
 	u8 kexec_state;		/* set when kexec down has irqs off */
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	struct slb_shadow *slb_shadow_ptr;
 	struct dtl_entry *dispatch_log;
 	struct dtl_entry *dispatch_log_end;
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif
 	u64 dscr_default;		/* per-CPU default DSCR */
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	/*
 	 * Now, starting in cacheline 2, the exception save areas
 	 */
@@ -108,9 +113,15 @@ struct paca_struct {
  				 * on the linear mapping */
 	/* SLB related definitions */
 	u16 vmalloc_sllp;
-	u16 slb_cache_ptr;
+	u8 slb_cache_ptr;
+	u8 stab_rr;			/* stab/slb round-robin counter */
+#ifdef CONFIG_DEBUG_VM
+	u8 in_kernel_slb_handler;
+#endif
+	u32 slb_used_bitmap;		/* Bitmaps for first 32 SLB entries. */
+	u32 slb_kern_bitmap;
 	u32 slb_cache[SLB_CACHE_ENTRIES];
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC_BOOK3E
 	u64 exgen[8] __aligned(0x40);
@@ -141,9 +152,9 @@ struct paca_struct {
 #ifdef CONFIG_PPC_BOOK3S
 	mm_context_id_t mm_ctx_id;
 #ifdef CONFIG_PPC_MM_SLICES
-	u64 mm_ctx_low_slices_psize;
+	unsigned char mm_ctx_low_slices_psize[BITS_PER_LONG / BITS_PER_BYTE];
 	unsigned char mm_ctx_high_slices_psize[SLICE_ARRAY_SIZE];
-	unsigned long addr_limit;
+	unsigned long mm_ctx_slb_addr_limit;
 #else
 	u16 mm_ctx_user_psize;
 	u16 mm_ctx_sllp;
@@ -155,15 +166,17 @@ struct paca_struct {
 	 */
 	struct task_struct *__current;	/* Pointer to current */
 	u64 kstack;			/* Saved Kernel stack addr */
-	u64 stab_rr;			/* stab/slb round-robin counter */
-	u64 saved_r1;			/* r1 save for RTAS calls or PM */
+	u64 saved_r1;			/* r1 save for RTAS calls or PM or EE=0 */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u16 trap_save;			/* Used when bad stack is encountered */
-	u8 soft_enabled;		/* irq soft-enable flag */
+	u8 irq_soft_mask;		/* mask for irq soft masking */
 	u8 irq_happened;		/* irq happened while soft-disabled */
 	u8 io_sync;			/* writel() needs spin_unlock sync */
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
 	u8 nap_state_lost;		/* NV GPR values lost in power7_idle */
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	u8 pmcregs_in_use;		/* pseries puts this in lppaca */
+#endif
 	u64 sprg_vdso;			/* Saved user-visible sprg */
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	u64 tm_scratch;                 /* TM scratch area for reclaim */
@@ -177,11 +190,8 @@ struct paca_struct {
 	u8 thread_mask;
 	/* Mask to denote subcore sibling threads */
 	u8 subcore_sibling_mask;
-	/*
-	 * Pointer to an array which contains pointer
-	 * to the sibling threads' paca.
-	 */
-	struct paca_struct **thread_sibling_pacas;
+	/* Flag to request this thread not to stop */
+	atomic_t dont_stop;
 	/* The PSSCR value that the kernel requested before going to stop */
 	u64 requested_psscr;
 
@@ -192,7 +202,7 @@ struct paca_struct {
 	struct stop_sprs stop_sprs;
 #endif
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	/* Non-maskable exceptions that are not performance critical */
 	u64 exnmi[EX_SIZE];	/* used for system reset (nmi) */
 	u64 exmc[EX_SIZE];	/* used for machine checks */
@@ -210,7 +220,9 @@ struct paca_struct {
 	 */
 	u16 in_mce;
 	u8 hmi_event_available;		/* HMI event is available */
+	u8 hmi_p9_special_emu;		/* HMI P9 special emulation */
 #endif
+	u8 ftrace_enabled;		/* Hard disable ftrace */
 
 	/* Stuff for accurate time accounting */
 	struct cpu_accounting_data accounting;
@@ -231,18 +243,41 @@ struct paca_struct {
 	struct sibling_subcore_state *sibling_subcore_state;
 #endif
 #endif
-};
+#ifdef CONFIG_PPC_BOOK3S_64
+	/*
+	 * rfi fallback flush must be in its own cacheline to prevent
+	 * other paca data leaking into the L1d
+	 */
+	u64 exrfi[EX_SIZE] __aligned(0x80);
+	void *rfi_flush_fallback_area;
+	u64 l1d_flush_size;
+#endif
+#ifdef CONFIG_PPC_PSERIES
+	u8 *mce_data_buf;		/* buffer to hold per cpu rtas errlog */
+#endif /* CONFIG_PPC_PSERIES */
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* Capture SLB related old contents in MCE handler. */
+	struct slb_entry *mce_faulty_slbs;
+	u16 slb_save_cache_ptr;
+#endif /* CONFIG_PPC_BOOK3S_64 */
+#ifdef CONFIG_STACKPROTECTOR
+	unsigned long canary;
+#endif
+} ____cacheline_aligned;
 
 extern void copy_mm_to_paca(struct mm_struct *mm);
-extern struct paca_struct *paca;
+extern struct paca_struct **paca_ptrs;
 extern void initialise_paca(struct paca_struct *new_paca, int cpu);
 extern void setup_paca(struct paca_struct *new_paca);
-extern void allocate_pacas(void);
+extern void allocate_paca_ptrs(void);
+extern void allocate_paca(int cpu);
 extern void free_unused_pacas(void);
 
 #else /* CONFIG_PPC64 */
 
-static inline void allocate_pacas(void) { };
+static inline void allocate_paca_ptrs(void) { };
+static inline void allocate_paca(int cpu) { };
 static inline void free_unused_pacas(void) { };
 
 #endif /* CONFIG_PPC64 */

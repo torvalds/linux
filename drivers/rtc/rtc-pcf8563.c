@@ -387,7 +387,7 @@ static int pcf8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	if (err)
 		return err;
 
-	return pcf8563_set_alarm_mode(client, 1);
+	return pcf8563_set_alarm_mode(client, !!tm->enabled);
 }
 
 static int pcf8563_irq_enable(struct device *dev, unsigned int enabled)
@@ -422,7 +422,7 @@ static unsigned long pcf8563_clkout_recalc_rate(struct clk_hw *hw,
 		return 0;
 
 	buf &= PCF8563_REG_CLKO_F_MASK;
-	return clkout_rates[ret];
+	return clkout_rates[buf];
 }
 
 static long pcf8563_clkout_round_rate(struct clk_hw *hw, unsigned long rate,

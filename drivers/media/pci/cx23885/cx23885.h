@@ -107,6 +107,10 @@
 #define CX23885_BOARD_VIEWCAST_460E            55
 #define CX23885_BOARD_HAUPPAUGE_QUADHD_DVB     56
 #define CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC    57
+#define CX23885_BOARD_HAUPPAUGE_HVR1265_K4     58
+#define CX23885_BOARD_HAUPPAUGE_STARBURST2     59
+#define CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885 60
+#define CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885 61
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -357,7 +361,7 @@ struct cx23885_audio_dev {
 
 struct cx23885_dev {
 	atomic_t                   refcount;
-	struct v4l2_device 	   v4l2_dev;
+	struct v4l2_device	   v4l2_dev;
 	struct v4l2_ctrl_handler   ctrl_handler;
 
 	/* pci stuff */
@@ -407,7 +411,7 @@ struct cx23885_dev {
 	unsigned int               tuner_bus;
 	unsigned int               radio_type;
 	unsigned char              radio_addr;
-	struct v4l2_subdev 	   *sd_cx25840;
+	struct v4l2_subdev	   *sd_cx25840;
 	struct work_struct	   cx25840_work;
 
 	/* Infrared */
@@ -591,7 +595,7 @@ int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm);
 extern int cx23885_vbi_fmt(struct file *file, void *priv,
 	struct v4l2_format *f);
 extern void cx23885_vbi_timeout(unsigned long data);
-extern struct vb2_ops cx23885_vbi_qops;
+extern const struct vb2_ops cx23885_vbi_qops;
 extern int cx23885_vbi_irq(struct cx23885_dev *dev, u32 status);
 
 /* cx23885-i2c.c                                                */

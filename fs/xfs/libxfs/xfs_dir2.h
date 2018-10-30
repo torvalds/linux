@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_DIR2_H__
 #define __XFS_DIR2_H__
@@ -21,7 +9,6 @@
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 
-struct xfs_defer_ops;
 struct xfs_da_args;
 struct xfs_inode;
 struct xfs_mount;
@@ -130,19 +117,16 @@ extern int xfs_dir_init(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_inode *pdp);
 extern int xfs_dir_createname(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_name *name, xfs_ino_t inum,
-				xfs_fsblock_t *first,
-				struct xfs_defer_ops *dfops, xfs_extlen_t tot);
+				xfs_extlen_t tot);
 extern int xfs_dir_lookup(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_name *name, xfs_ino_t *inum,
 				struct xfs_name *ci_name);
 extern int xfs_dir_removename(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_name *name, xfs_ino_t ino,
-				xfs_fsblock_t *first,
-				struct xfs_defer_ops *dfops, xfs_extlen_t tot);
+				xfs_extlen_t tot);
 extern int xfs_dir_replace(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_name *name, xfs_ino_t inum,
-				xfs_fsblock_t *first,
-				struct xfs_defer_ops *dfops, xfs_extlen_t tot);
+				xfs_extlen_t tot);
 extern int xfs_dir_canenter(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_name *name);
 
@@ -173,7 +157,7 @@ extern void xfs_dir2_data_log_unused(struct xfs_da_args *args,
 extern void xfs_dir2_data_make_free(struct xfs_da_args *args,
 		struct xfs_buf *bp, xfs_dir2_data_aoff_t offset,
 		xfs_dir2_data_aoff_t len, int *needlogp, int *needscanp);
-extern void xfs_dir2_data_use_free(struct xfs_da_args *args,
+extern int xfs_dir2_data_use_free(struct xfs_da_args *args,
 		struct xfs_buf *bp, struct xfs_dir2_data_unused *dup,
 		xfs_dir2_data_aoff_t offset, xfs_dir2_data_aoff_t len,
 		int *needlogp, int *needscanp);
@@ -323,5 +307,24 @@ xfs_dir2_leaf_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_leaf *lp)
 		((char *)lp + geo->blksize -
 		  sizeof(struct xfs_dir2_leaf_tail));
 }
+
+/*
+ * The Linux API doesn't pass down the total size of the buffer
+ * we read into down to the filesystem.  With the filldir concept
+ * it's not needed for correct information, but the XFS dir2 leaf
+ * code wants an estimate of the buffer size to calculate it's
+ * readahead window and size the buffers used for mapping to
+ * physical blocks.
+ *
+ * Try to give it an estimate that's good enough, maybe at some
+ * point we can change the ->readdir prototype to include the
+ * buffer size.  For now we use the current glibc buffer size.
+ * musl libc hardcodes 2k and dietlibc uses PAGE_SIZE.
+ */
+#define XFS_READDIR_BUFSIZE	(32768)
+
+unsigned char xfs_dir3_get_dtype(struct xfs_mount *mp, uint8_t filetype);
+void *xfs_dir3_data_endp(struct xfs_da_geometry *geo,
+		struct xfs_dir2_data_hdr *hdr);
 
 #endif	/* __XFS_DIR2_H__ */

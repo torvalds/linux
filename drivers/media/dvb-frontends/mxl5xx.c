@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the MaxLinear MxL5xx family of tuners/demods
  *
@@ -17,7 +18,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -33,7 +33,7 @@
 #include <asm/div64.h>
 #include <asm/unaligned.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mxl5xx.h"
 #include "mxl5xx_regs.h"
 #include "mxl5xx_defs.h"
@@ -43,7 +43,7 @@
 #define BYTE2(v) ((v >> 16) & 0xff)
 #define BYTE3(v) ((v >> 24) & 0xff)
 
-LIST_HEAD(mxllist);
+static LIST_HEAD(mxllist);
 
 struct mxl_base {
 	struct list_head     mxllist;
@@ -375,9 +375,41 @@ static void release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int get_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
+}
+
+static u32 gold2root(u32 gold)
+{
+	u32 x, g, tmp = gold;
+
+	if (tmp >= 0x3ffff)
+		tmp = 0;
+	for (g = 0, x = 1; g < tmp; g++)
+		x = (((x ^ (x >> 7)) & 1) << 17) | (x >> 1);
+	return x;
+}
+
+static int cfg_scrambler(struct mxl *state, u32 gold)
+{
+	u32 root;
+	u8 buf[26] = {
+		MXL_HYDRA_PLID_CMD_WRITE, 24,
+		0, MXL_HYDRA_DEMOD_SCRAMBLE_CODE_CMD, 0, 0,
+		state->demod, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 1, 0, 0, 0,
+	};
+
+	root = gold2root(gold);
+
+	buf[25] = (root >> 24) & 0xff;
+	buf[24] = (root >> 16) & 0xff;
+	buf[23] = (root >> 8) & 0xff;
+	buf[22] = root & 0xff;
+
+	return send_command(state, sizeof(buf), buf);
 }
 
 static int cfg_demod_abort_tune(struct mxl *state)
@@ -437,7 +469,7 @@ static int set_parameters(struct dvb_frontend *fe)
 		demod_chan_cfg.roll_off = MXL_HYDRA_ROLLOFF_AUTO;
 		demod_chan_cfg.modulation_scheme = MXL_HYDRA_MOD_AUTO;
 		demod_chan_cfg.pilots = MXL_HYDRA_PILOTS_AUTO;
-		/* cfg_scrambler(state); */
+		cfg_scrambler(state, p->scrambling_sequence_index);
 		break;
 	default:
 		return -EINVAL;
@@ -636,16 +668,9 @@ static int tune(struct dvb_frontend *fe, bool re_tune,
 		if (r)
 			return r;
 		state->tune_time = jiffies;
-		return 0;
 	}
-	if (*status & FE_HAS_LOCK)
-		return 0;
 
-	r = read_status(fe, status);
-	if (r)
-		return r;
-
-	return 0;
+	return read_status(fe, status);
 }
 
 static enum fe_code_rate conv_fec(enum MXL_HYDRA_FEC_E fec)
@@ -714,6 +739,7 @@ static int get_frontend(struct dvb_frontend *fe,
 		default:
 			break;
 		}
+		/* Fall through */
 	case SYS_DVBS:
 		switch ((enum MXL_HYDRA_MODULATION_E)
 			reg_data[DMD_MODULATION_SCHEME_ADDR]) {
@@ -759,10 +785,8 @@ static struct dvb_frontend_ops mxl_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name			= "MaxLinear MxL5xx DVB-S/S2 tuner-demodulator",
-		.frequency_min		= 300000,
-		.frequency_max		= 2350000,
-		.frequency_stepsize	= 0,
-		.frequency_tolerance	= 0,
+		.frequency_min_hz	=  300 * MHz,
+		.frequency_max_hz	= 2350 * MHz,
 		.symbol_rate_min	= 1000000,
 		.symbol_rate_max	= 45000000,
 		.caps			= FE_CAN_INVERSION_AUTO |
@@ -1870,4 +1894,4 @@ EXPORT_SYMBOL_GPL(mxl5xx_attach);
 
 MODULE_DESCRIPTION("MaxLinear MxL5xx DVB-S/S2 tuner-demodulator driver");
 MODULE_AUTHOR("Ralph and Marcus Metzler, Metzler Brothers Systementwicklung GbR");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

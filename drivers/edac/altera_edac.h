@@ -1,23 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- *
+ * Copyright (C) 2017-2018, Intel Corporation
  * Copyright (C) 2015 Altera Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _ALTERA_EDAC_H
 #define _ALTERA_EDAC_H
 
+#include <linux/arm-smccc.h>
 #include <linux/edac.h>
 #include <linux/types.h>
 
@@ -94,6 +84,7 @@
 /* SDRAM Controller Address Width Register */
 #define CV_DRAMADDRW               0xFFC2502C
 #define A10_DRAMADDRW              0xFFCFA0A8
+#define S10_DRAMADDRW              0xF80110E0
 
 /* SDRAM Controller Address Widths Field Register */
 #define DRAMADDRW_COLBIT_MASK      0x001F
@@ -115,6 +106,7 @@
 /* SDRAM Controller Interface Data Width Register */
 #define CV_DRAMIFWIDTH             0xFFC25030
 #define A10_DRAMIFWIDTH            0xFFCFB008
+#define S10_DRAMIFWIDTH            0xF8011008
 
 /* SDRAM Controller Interface Data Width Defines */
 #define CV_DRAMIFWIDTH_16B_ECC     24
@@ -296,6 +288,43 @@ struct altr_sdram_mc_data {
 /* A10 ECC Controller memory initialization timeout */
 #define ALTR_A10_ECC_INIT_WATCHDOG_10US      10000
 
+/************* Stratix10 Defines **************/
+
+/* Stratix10 ECC Manager Defines */
+#define S10_SYSMGR_ECC_INTMASK_CLR_OFST   0x98
+#define S10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xA0
+
+/* Sticky registers for Uncorrected Errors */
+#define S10_SYSMGR_UE_VAL_OFST            0x120
+#define S10_SYSMGR_UE_ADDR_OFST           0x124
+
+#define S10_DDR0_IRQ_MASK                 BIT(16)
+
+/* Define ECC Block Offsets for peripherals */
+#define ECC_BLK_ADDRESS_OFST              0x40
+#define ECC_BLK_RDATA0_OFST               0x44
+#define ECC_BLK_RDATA1_OFST               0x48
+#define ECC_BLK_RDATA2_OFST               0x4C
+#define ECC_BLK_RDATA3_OFST               0x50
+#define ECC_BLK_WDATA0_OFST               0x54
+#define ECC_BLK_WDATA1_OFST               0x58
+#define ECC_BLK_WDATA2_OFST               0x5C
+#define ECC_BLK_WDATA3_OFST               0x60
+#define ECC_BLK_RECC0_OFST                0x64
+#define ECC_BLK_RECC1_OFST                0x68
+#define ECC_BLK_WECC0_OFST                0x6C
+#define ECC_BLK_WECC1_OFST                0x70
+#define ECC_BLK_DBYTECTRL_OFST            0x74
+#define ECC_BLK_ACCCTRL_OFST              0x78
+#define ECC_BLK_STARTACC_OFST             0x7C
+
+#define ECC_XACT_KICK                     0x10000
+#define ECC_WORD_WRITE                    0xF
+#define ECC_WRITE_DOVR                    0x101
+#define ECC_WRITE_EDOVR                   0x103
+#define ECC_READ_EOVR                     0x2
+#define ECC_READ_EDOVR                    0x3
+
 struct altr_edac_device_dev;
 
 struct edac_device_prv_data {
@@ -338,6 +367,72 @@ struct altr_arria10_edac {
 	struct irq_domain	*domain;
 	struct irq_chip		irq_chip;
 	struct list_head	a10_ecc_devices;
+	struct notifier_block	panic_notifier;
 };
+
+/*
+ * Functions specified by ARM SMC Calling convention:
+ *
+ * FAST call executes atomic operations, returns when the requested operation
+ * has completed.
+ * STD call starts a operation which can be preempted by a non-secure
+ * interrupt. The call can return before the requested operation has
+ * completed.
+ *
+ * a0..a7 is used as register names in the descriptions below, on arm32
+ * that translates to r0..r7 and on arm64 to w0..w7.
+ */
+
+#define INTEL_SIP_SMC_STD_CALL_VAL(func_num) \
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_STD_CALL, ARM_SMCCC_SMC_64, \
+	ARM_SMCCC_OWNER_SIP, (func_num))
+
+#define INTEL_SIP_SMC_FAST_CALL_VAL(func_num) \
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_64, \
+	ARM_SMCCC_OWNER_SIP, (func_num))
+
+#define INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION		0xFFFFFFFF
+#define INTEL_SIP_SMC_STATUS_OK				0x0
+#define INTEL_SIP_SMC_REG_ERROR				0x5
+
+/*
+ * Request INTEL_SIP_SMC_REG_READ
+ *
+ * Read a protected register using SMCCC
+ *
+ * Call register usage:
+ * a0: INTEL_SIP_SMC_REG_READ.
+ * a1: register address.
+ * a2-7: not used.
+ *
+ * Return status:
+ * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_REG_ERROR, or
+ *     INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION
+ * a1: Value in the register
+ * a2-3: not used.
+ */
+#define INTEL_SIP_SMC_FUNCID_REG_READ 7
+#define INTEL_SIP_SMC_REG_READ \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_REG_READ)
+
+/*
+ * Request INTEL_SIP_SMC_REG_WRITE
+ *
+ * Write a protected register using SMCCC
+ *
+ * Call register usage:
+ * a0: INTEL_SIP_SMC_REG_WRITE.
+ * a1: register address
+ * a2: value to program into register.
+ * a3-7: not used.
+ *
+ * Return status:
+ * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_REG_ERROR, or
+ *     INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION
+ * a1-3: not used.
+ */
+#define INTEL_SIP_SMC_FUNCID_REG_WRITE 8
+#define INTEL_SIP_SMC_REG_WRITE \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_REG_WRITE)
 
 #endif	/* #ifndef _ALTERA_EDAC_H */

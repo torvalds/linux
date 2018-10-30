@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SOUND_FIREWIRE_FCP_H_INCLUDED
 #define SOUND_FIREWIRE_FCP_H_INCLUDED
 

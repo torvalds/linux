@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2013 Facebook.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/types.h>
@@ -37,7 +24,7 @@ static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 	u32 size = sizeof(*item) + sizeof(*iref) + sizeof(*block_info);
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, NULL);
 
 	ins.objectid = bytenr;
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
@@ -45,14 +32,14 @@ static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_msg("Couldn't allocate path\n");
+		test_err("couldn't allocate path");
 		return -ENOMEM;
 	}
 
 	path->leave_spinning = 1;
 	ret = btrfs_insert_empty_item(&trans, root, path, &ins, size);
 	if (ret) {
-		test_msg("Couldn't insert ref %d\n", ret);
+		test_err("couldn't insert ref %d", ret);
 		btrfs_free_path(path);
 		return ret;
 	}
@@ -63,7 +50,7 @@ static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 	btrfs_set_extent_generation(leaf, item, 1);
 	btrfs_set_extent_flags(leaf, item, BTRFS_EXTENT_FLAG_TREE_BLOCK);
 	block_info = (struct btrfs_tree_block_info *)(item + 1);
-	btrfs_set_tree_block_level(leaf, block_info, 1);
+	btrfs_set_tree_block_level(leaf, block_info, 0);
 	iref = (struct btrfs_extent_inline_ref *)(block_info + 1);
 	if (parent > 0) {
 		btrfs_set_extent_inline_ref_type(leaf, iref,
@@ -87,7 +74,7 @@ static int add_tree_ref(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 	u64 refs;
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, NULL);
 
 	key.objectid = bytenr;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
@@ -95,14 +82,14 @@ static int add_tree_ref(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_msg("Couldn't allocate path\n");
+		test_err("couldn't allocate path");
 		return -ENOMEM;
 	}
 
 	path->leave_spinning = 1;
 	ret = btrfs_search_slot(&trans, root, &key, path, 0, 1);
 	if (ret) {
-		test_msg("Couldn't find extent ref\n");
+		test_err("couldn't find extent ref");
 		btrfs_free_path(path);
 		return ret;
 	}
@@ -124,7 +111,7 @@ static int add_tree_ref(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 
 	ret = btrfs_insert_empty_item(&trans, root, path, &key, 0);
 	if (ret)
-		test_msg("Failed to insert backref\n");
+		test_err("failed to insert backref");
 	btrfs_free_path(path);
 	return ret;
 }
@@ -137,7 +124,7 @@ static int remove_extent_item(struct btrfs_root *root, u64 bytenr,
 	struct btrfs_path *path;
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, NULL);
 
 	key.objectid = bytenr;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
@@ -145,14 +132,14 @@ static int remove_extent_item(struct btrfs_root *root, u64 bytenr,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_msg("Couldn't allocate path\n");
+		test_err("couldn't allocate path");
 		return -ENOMEM;
 	}
 	path->leave_spinning = 1;
 
 	ret = btrfs_search_slot(&trans, root, &key, path, -1, 1);
 	if (ret) {
-		test_msg("Didn't find our key %d\n", ret);
+		test_err("didn't find our key %d", ret);
 		btrfs_free_path(path);
 		return ret;
 	}
@@ -171,7 +158,7 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 	u64 refs;
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, NULL);
 
 	key.objectid = bytenr;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
@@ -179,14 +166,14 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_msg("Couldn't allocate path\n");
+		test_err("couldn't allocate path");
 		return -ENOMEM;
 	}
 
 	path->leave_spinning = 1;
 	ret = btrfs_search_slot(&trans, root, &key, path, 0, 1);
 	if (ret) {
-		test_msg("Couldn't find extent ref\n");
+		test_err("couldn't find extent ref");
 		btrfs_free_path(path);
 		return ret;
 	}
@@ -208,7 +195,7 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 
 	ret = btrfs_search_slot(&trans, root, &key, path, -1, 1);
 	if (ret) {
-		test_msg("Couldn't find backref %d\n", ret);
+		test_err("couldn't find backref %d", ret);
 		btrfs_free_path(path);
 		return ret;
 	}
@@ -226,12 +213,12 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 	struct ulist *new_roots = NULL;
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, fs_info);
 
-	test_msg("Qgroup basic add\n");
-	ret = btrfs_create_qgroup(NULL, fs_info, BTRFS_FS_TREE_OBJECTID);
+	test_msg("qgroup basic add");
+	ret = btrfs_create_qgroup(&trans, BTRFS_FS_TREE_OBJECTID);
 	if (ret) {
-		test_msg("Couldn't create a qgroup %d\n", ret);
+		test_err("couldn't create a qgroup %d", ret);
 		return ret;
 	}
 
@@ -240,10 +227,11 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 	 * we can only call btrfs_qgroup_account_extent() directly to test
 	 * quota.
 	 */
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots);
+	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots,
+			false);
 	if (ret) {
 		ulist_free(old_roots);
-		test_msg("Couldn't find old roots: %d\n", ret);
+		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
 
@@ -252,33 +240,35 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 	if (ret)
 		return ret;
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots);
+	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots,
+			false);
 	if (ret) {
 		ulist_free(old_roots);
 		ulist_free(new_roots);
-		test_msg("Couldn't find old roots: %d\n", ret);
+		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
 
-	ret = btrfs_qgroup_account_extent(&trans, fs_info, nodesize,
-					  nodesize, old_roots, new_roots);
+	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
+					  new_roots);
 	if (ret) {
-		test_msg("Couldn't account space for a qgroup %d\n", ret);
+		test_err("couldn't account space for a qgroup %d", ret);
 		return ret;
 	}
 
 	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID,
 				nodesize, nodesize)) {
-		test_msg("Qgroup counts didn't match expected values\n");
+		test_err("qgroup counts didn't match expected values");
 		return -EINVAL;
 	}
 	old_roots = NULL;
 	new_roots = NULL;
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots);
+	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots,
+			false);
 	if (ret) {
 		ulist_free(old_roots);
-		test_msg("Couldn't find old roots: %d\n", ret);
+		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
 
@@ -286,23 +276,24 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 	if (ret)
 		return -EINVAL;
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots);
+	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots,
+			false);
 	if (ret) {
 		ulist_free(old_roots);
 		ulist_free(new_roots);
-		test_msg("Couldn't find old roots: %d\n", ret);
+		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
 
-	ret = btrfs_qgroup_account_extent(&trans, fs_info, nodesize,
-					  nodesize, old_roots, new_roots);
+	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
+					  new_roots);
 	if (ret) {
-		test_msg("Couldn't account space for a qgroup %d\n", ret);
+		test_err("couldn't account space for a qgroup %d", ret);
 		return -EINVAL;
 	}
 
 	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID, 0, 0)) {
-		test_msg("Qgroup counts didn't match expected values\n");
+		test_err("qgroup counts didn't match expected values");
 		return -EINVAL;
 	}
 
@@ -323,24 +314,25 @@ static int test_multiple_refs(struct btrfs_root *root,
 	struct ulist *new_roots = NULL;
 	int ret;
 
-	btrfs_init_dummy_trans(&trans);
+	btrfs_init_dummy_trans(&trans, fs_info);
 
-	test_msg("Qgroup multiple refs test\n");
+	test_msg("qgroup multiple refs test");
 
 	/*
 	 * We have BTRFS_FS_TREE_OBJECTID created already from the
 	 * previous test.
 	 */
-	ret = btrfs_create_qgroup(NULL, fs_info, BTRFS_FIRST_FREE_OBJECTID);
+	ret = btrfs_create_qgroup(&trans, BTRFS_FIRST_FREE_OBJECTID);
 	if (ret) {
-		test_msg("Couldn't create a qgroup %d\n", ret);
+		test_err("couldn't create a qgroup %d", ret);
 		return ret;
 	}
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots);
+	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots,
+			false);
 	if (ret) {
 		ulist_free(old_roots);
-		test_msg("Couldn't find old roots: %d\n", ret);
+		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
 
@@ -349,31 +341,33 @@ static int test_multiple_refs(struct btrfs_root *root,
 	if (ret)
 		return ret;
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots);
+	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots,
+			false);
 	if (ret) {
 		ulist_free(old_roots);
 		ulist_free(new_roots);
-		test_msg("Couldn't find old roots: %d\n", ret);
+		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
 
-	ret = btrfs_qgroup_account_extent(&trans, fs_info, nodesize,
-					  nodesize, old_roots, new_roots);
+	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
+					  new_roots);
 	if (ret) {
-		test_msg("Couldn't account space for a qgroup %d\n", ret);
+		test_err("couldn't account space for a qgroup %d", ret);
 		return ret;
 	}
 
 	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID,
 				       nodesize, nodesize)) {
-		test_msg("Qgroup counts didn't match expected values\n");
+		test_err("qgroup counts didn't match expected values");
 		return -EINVAL;
 	}
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots);
+	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots,
+			false);
 	if (ret) {
 		ulist_free(old_roots);
-		test_msg("Couldn't find old roots: %d\n", ret);
+		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
 
@@ -382,37 +376,39 @@ static int test_multiple_refs(struct btrfs_root *root,
 	if (ret)
 		return ret;
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots);
+	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots,
+			false);
 	if (ret) {
 		ulist_free(old_roots);
 		ulist_free(new_roots);
-		test_msg("Couldn't find old roots: %d\n", ret);
+		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
 
-	ret = btrfs_qgroup_account_extent(&trans, fs_info, nodesize,
-					  nodesize, old_roots, new_roots);
+	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
+					  new_roots);
 	if (ret) {
-		test_msg("Couldn't account space for a qgroup %d\n", ret);
+		test_err("couldn't account space for a qgroup %d", ret);
 		return ret;
 	}
 
 	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID,
 					nodesize, 0)) {
-		test_msg("Qgroup counts didn't match expected values\n");
+		test_err("qgroup counts didn't match expected values");
 		return -EINVAL;
 	}
 
 	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FIRST_FREE_OBJECTID,
 					nodesize, 0)) {
-		test_msg("Qgroup counts didn't match expected values\n");
+		test_err("qgroup counts didn't match expected values");
 		return -EINVAL;
 	}
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots);
+	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &old_roots,
+			false);
 	if (ret) {
 		ulist_free(old_roots);
-		test_msg("Couldn't find old roots: %d\n", ret);
+		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
 
@@ -421,30 +417,31 @@ static int test_multiple_refs(struct btrfs_root *root,
 	if (ret)
 		return ret;
 
-	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots);
+	ret = btrfs_find_all_roots(&trans, fs_info, nodesize, 0, &new_roots,
+			false);
 	if (ret) {
 		ulist_free(old_roots);
 		ulist_free(new_roots);
-		test_msg("Couldn't find old roots: %d\n", ret);
+		test_err("couldn't find old roots: %d", ret);
 		return ret;
 	}
 
-	ret = btrfs_qgroup_account_extent(&trans, fs_info, nodesize,
-					  nodesize, old_roots, new_roots);
+	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
+					  new_roots);
 	if (ret) {
-		test_msg("Couldn't account space for a qgroup %d\n", ret);
+		test_err("couldn't account space for a qgroup %d", ret);
 		return ret;
 	}
 
 	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FIRST_FREE_OBJECTID,
 					0, 0)) {
-		test_msg("Qgroup counts didn't match expected values\n");
+		test_err("qgroup counts didn't match expected values");
 		return -EINVAL;
 	}
 
 	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID,
 					nodesize, nodesize)) {
-		test_msg("Qgroup counts didn't match expected values\n");
+		test_err("qgroup counts didn't match expected values");
 		return -EINVAL;
 	}
 
@@ -460,13 +457,13 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
-		test_msg("Couldn't allocate dummy fs info\n");
+		test_err("couldn't allocate dummy fs info");
 		return -ENOMEM;
 	}
 
 	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
-		test_msg("Couldn't allocate root\n");
+		test_err("couldn't allocate root");
 		ret = PTR_ERR(root);
 		goto out;
 	}
@@ -488,7 +485,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	 */
 	root->node = alloc_test_extent_buffer(root->fs_info, nodesize);
 	if (!root->node) {
-		test_msg("Couldn't allocate dummy buffer\n");
+		test_err("couldn't allocate dummy buffer");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -498,7 +495,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 
 	tmp_root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(tmp_root)) {
-		test_msg("Couldn't allocate a fs root\n");
+		test_err("couldn't allocate a fs root");
 		ret = PTR_ERR(tmp_root);
 		goto out;
 	}
@@ -507,13 +504,13 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	root->fs_info->fs_root = tmp_root;
 	ret = btrfs_insert_fs_root(root->fs_info, tmp_root);
 	if (ret) {
-		test_msg("Couldn't insert fs root %d\n", ret);
+		test_err("couldn't insert fs root %d", ret);
 		goto out;
 	}
 
 	tmp_root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(tmp_root)) {
-		test_msg("Couldn't allocate a fs root\n");
+		test_err("couldn't allocate a fs root");
 		ret = PTR_ERR(tmp_root);
 		goto out;
 	}
@@ -521,11 +518,11 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	tmp_root->root_key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	ret = btrfs_insert_fs_root(root->fs_info, tmp_root);
 	if (ret) {
-		test_msg("Couldn't insert fs root %d\n", ret);
+		test_err("couldn't insert fs root %d", ret);
 		goto out;
 	}
 
-	test_msg("Running qgroup tests\n");
+	test_msg("running qgroup tests");
 	ret = test_no_shared_qgroup(root, sectorsize, nodesize);
 	if (ret)
 		goto out;

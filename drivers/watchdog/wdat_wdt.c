@@ -392,7 +392,7 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 
 		memset(&r, 0, sizeof(r));
 		r.start = gas->address;
-		r.end = r.start + gas->access_width;
+		r.end = r.start + gas->access_width - 1;
 		if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 			r.flags = IORESOURCE_MEM;
 		} else if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
@@ -447,8 +447,7 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int wdat_wdt_suspend_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct wdat_wdt *wdat = platform_get_drvdata(pdev);
+	struct wdat_wdt *wdat = dev_get_drvdata(dev);
 	int ret;
 
 	if (!watchdog_active(&wdat->wdd))
@@ -475,8 +474,7 @@ static int wdat_wdt_suspend_noirq(struct device *dev)
 
 static int wdat_wdt_resume_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct wdat_wdt *wdat = platform_get_drvdata(pdev);
+	struct wdat_wdt *wdat = dev_get_drvdata(dev);
 	int ret;
 
 	if (!watchdog_active(&wdat->wdd))

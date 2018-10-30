@@ -43,7 +43,8 @@ void mock_device_flush(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id)
 		mock_engine_flush(engine);
 
-	i915_gem_retire_requests(i915);
+	i915_retire_requests(i915);
+	GEM_BUG_ON(i915->gt.active_requests);
 }
 
 static void mock_device_release(struct drm_device *dev)
@@ -72,8 +73,8 @@ static void mock_device_release(struct drm_device *dev)
 
 	mutex_lock(&i915->drm.struct_mutex);
 	mock_fini_ggtt(i915);
-	i915_gem_timeline_fini(&i915->gt.global_timeline);
 	mutex_unlock(&i915->drm.struct_mutex);
+	WARN_ON(!list_empty(&i915->gt.timelines));
 
 	destroy_workqueue(i915->wq);
 
@@ -82,6 +83,10 @@ static void mock_device_release(struct drm_device *dev)
 	kmem_cache_destroy(i915->requests);
 	kmem_cache_destroy(i915->vmas);
 	kmem_cache_destroy(i915->objects);
+
+	i915_gemfs_fini(i915);
+
+	drm_mode_config_cleanup(&i915->drm);
 
 	drm_dev_fini(&i915->drm);
 	put_device(&i915->drm.pdev->dev);
@@ -131,8 +136,6 @@ static struct dev_pm_domain pm_domain = {
 struct drm_i915_private *mock_gem_device(void)
 {
 	struct drm_i915_private *i915;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	struct pci_dev *pdev;
 	int err;
 
@@ -146,10 +149,16 @@ struct drm_i915_private *mock_gem_device(void)
 	dev_set_name(&pdev->dev, "mock");
 	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 
+#if IS_ENABLED(CONFIG_IOMMU_API) && defined(CONFIG_INTEL_IOMMU)
+	/* hack to disable iommu for the fake device; force identity mapping */
+	pdev->dev.archdata.iommu = (void *)-1;
+#endif
+
 	dev_pm_domain_set(&pdev->dev, &pm_domain);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	WARN_ON(pm_runtime_get_sync(&pdev->dev));
+	if (pm_runtime_enabled(&pdev->dev))
+		WARN_ON(pm_runtime_get_sync(&pdev->dev));
 
 	i915 = (struct drm_i915_private *)(pdev + 1);
 	pci_set_drvdata(pdev, i915);
@@ -167,20 +176,20 @@ struct drm_i915_private *mock_gem_device(void)
 
 	mkwrite_device_info(i915)->gen = -1;
 
-	spin_lock_init(&i915->mm.object_stat_lock);
+	mkwrite_device_info(i915)->page_sizes =
+		I915_GTT_PAGE_SIZE_4K |
+		I915_GTT_PAGE_SIZE_64K |
+		I915_GTT_PAGE_SIZE_2M;
+
 	mock_uncore_init(i915);
+	i915_gem_init__mm(i915);
 
 	init_waitqueue_head(&i915->gpu_error.wait_queue);
 	init_waitqueue_head(&i915->gpu_error.reset_queue);
 
 	i915->wq = alloc_ordered_workqueue("mock", 0);
 	if (!i915->wq)
-		goto put_device;
-
-	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
-	init_llist_head(&i915->mm.free_list);
-	INIT_LIST_HEAD(&i915->mm.unbound_list);
-	INIT_LIST_HEAD(&i915->mm.bound_list);
+		goto err_drv;
 
 	mock_init_contexts(i915);
 
@@ -214,32 +223,33 @@ struct drm_i915_private *mock_gem_device(void)
 	if (!i915->priorities)
 		goto err_dependencies;
 
-	mutex_lock(&i915->drm.struct_mutex);
 	INIT_LIST_HEAD(&i915->gt.timelines);
-	err = i915_gem_timeline_init__global(i915);
-	if (err) {
-		mutex_unlock(&i915->drm.struct_mutex);
-		goto err_priorities;
-	}
+	INIT_LIST_HEAD(&i915->gt.active_rings);
+	INIT_LIST_HEAD(&i915->gt.closed_vma);
+
+	mutex_lock(&i915->drm.struct_mutex);
 
 	mock_init_ggtt(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	mkwrite_device_info(i915)->ring_mask = BIT(0);
-	i915->engine[RCS] = mock_engine(i915, "mock", RCS);
-	if (!i915->engine[RCS])
-		goto err_priorities;
-
 	i915->kernel_context = mock_context(i915, NULL);
 	if (!i915->kernel_context)
-		goto err_engine;
+		goto err_unlock;
+
+	i915->engine[RCS] = mock_engine(i915, "mock", RCS);
+	if (!i915->engine[RCS])
+		goto err_context;
+
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	WARN_ON(i915_gemfs_init(i915));
 
 	return i915;
 
-err_engine:
-	for_each_engine(engine, i915, id)
-		mock_engine_free(engine);
-err_priorities:
+err_context:
+	i915_gem_contexts_fini(i915);
+err_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
 	kmem_cache_destroy(i915->priorities);
 err_dependencies:
 	kmem_cache_destroy(i915->dependencies);
@@ -251,6 +261,9 @@ err_objects:
 	kmem_cache_destroy(i915->objects);
 err_wq:
 	destroy_workqueue(i915->wq);
+err_drv:
+	drm_mode_config_cleanup(&i915->drm);
+	drm_dev_fini(&i915->drm);
 put_device:
 	put_device(&pdev->dev);
 err:

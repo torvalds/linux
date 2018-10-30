@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_SOCKET_H
 #define _UAPI_ASM_SOCKET_H
 
@@ -102,5 +103,8 @@
 #define SO_PEERGROUPS		0x4034
 
 #define SO_ZEROCOPY		0x4035
+
+#define SO_TXTIME		0x4036
+#define SCM_TXTIME		SO_TXTIME
 
 #endif /* _UAPI_ASM_SOCKET_H */

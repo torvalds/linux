@@ -62,12 +62,6 @@
 #define HW_ATL_A0_MPI_SPEED_MSK       0xFFFFU
 #define HW_ATL_A0_MPI_SPEED_SHIFT     16U
 
-#define HW_ATL_A0_RATE_10G            BIT(0)
-#define HW_ATL_A0_RATE_5G             BIT(1)
-#define HW_ATL_A0_RATE_2G5            BIT(3)
-#define HW_ATL_A0_RATE_1G             BIT(4)
-#define HW_ATL_A0_RATE_100M           BIT(5)
-
 #define HW_ATL_A0_TXBUF_MAX 160U
 #define HW_ATL_A0_RXBUF_MAX 320U
 
@@ -88,69 +82,12 @@
 
 #define HW_ATL_A0_FW_VER_EXPECTED 0x01050006U
 
-/* Hardware tx descriptor */
-struct __packed hw_atl_txd_s {
-	u64 buf_addr;
-	u32 ctl;
-	u32 ctl2; /* 63..46 - payload length, 45 - ctx enable, 44 - ctx index */
-};
+#define HW_ATL_A0_MIN_RXD \
+	(ALIGN(AQ_CFG_SKB_FRAGS_MAX + 1U, AQ_HW_RXD_MULTIPLE))
+#define HW_ATL_A0_MIN_TXD \
+	(ALIGN(AQ_CFG_SKB_FRAGS_MAX + 1U, AQ_HW_TXD_MULTIPLE))
 
-/* Hardware tx context descriptor */
-struct __packed hw_atl_txc_s {
-	u32 rsvd;
-	u32 len;
-	u32 ctl;
-	u32 len2;
-};
-
-/* Hardware rx descriptor */
-struct __packed hw_atl_rxd_s {
-	u64 buf_addr;
-	u64 hdr_addr;
-};
-
-/* Hardware rx descriptor writeback */
-struct __packed hw_atl_rxd_wb_s {
-	u32 type;
-	u32 rss_hash;
-	u16 status;
-	u16 pkt_len;
-	u16 next_desc_ptr;
-	u16 vlan;
-};
-
-/* HW layer capabilities */
-static struct aq_hw_caps_s hw_atl_a0_hw_caps_ = {
-	.ports = 1U,
-	.is_64_dma = true,
-	.msix_irqs = 4U,
-	.irq_mask = ~0U,
-	.vecs = HW_ATL_A0_RSS_MAX,
-	.tcs = HW_ATL_A0_TC_MAX,
-	.rxd_alignment = 1U,
-	.rxd_size = HW_ATL_A0_RXD_SIZE,
-	.rxds = 248U,
-	.txd_alignment = 1U,
-	.txd_size = HW_ATL_A0_TXD_SIZE,
-	.txds = 8U * 1024U,
-	.txhwb_alignment = 4096U,
-	.tx_rings = HW_ATL_A0_TX_RINGS,
-	.rx_rings = HW_ATL_A0_RX_RINGS,
-	.hw_features = NETIF_F_HW_CSUM |
-			NETIF_F_RXCSUM |
-			NETIF_F_RXHASH |
-			NETIF_F_SG |
-			NETIF_F_TSO,
-	.hw_priv_flags = IFF_UNICAST_FLT,
-	.link_speed_msk = (HW_ATL_A0_RATE_10G |
-			HW_ATL_A0_RATE_5G |
-			HW_ATL_A0_RATE_2G5 |
-			HW_ATL_A0_RATE_1G |
-			HW_ATL_A0_RATE_100M),
-	.flow_control = true,
-	.mtu = HW_ATL_A0_MTU_JUMBO,
-	.mac_regs_count = 88,
-	.fw_ver_expected = HW_ATL_A0_FW_VER_EXPECTED,
-};
+#define HW_ATL_A0_MAX_RXD 8184U
+#define HW_ATL_A0_MAX_TXD 8184U
 
 #endif /* HW_ATL_A0_INTERNAL_H */

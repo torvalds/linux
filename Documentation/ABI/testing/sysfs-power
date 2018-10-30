@@ -18,7 +18,8 @@ Description:
 		Writing one of the above strings to this file causes the system
 		to transition into the corresponding state, if available.
 
-		See Documentation/power/states.txt for more information.
+		See Documentation/admin-guide/pm/sleep-states.rst for more
+		information.
 
 What:		/sys/power/mem_sleep
 Date:		November 2016
@@ -35,7 +36,8 @@ Description:
 		represented by it to be used on subsequent attempts to suspend
 		the system.
 
-		See Documentation/power/states.txt for more information.
+		See Documentation/admin-guide/pm/sleep-states.rst for more
+		information.
 
 What:		/sys/power/disk
 Date:		September 2006
@@ -97,7 +99,7 @@ Description:
 		this file, the suspend image will be as small as possible.
 
 		Reading from this file will display the current image size
-		limit, which is set to 500 MB by default.
+		limit, which is set to around 2/5 of available RAM by default.
 
 What:		/sys/power/pm_trace
 Date:		August 2006
@@ -127,7 +129,7 @@ Description:
 
 What;		/sys/power/pm_trace_dev_match
 Date:		October 2010
-Contact:	James Hogan <james@albanarts.com>
+Contact:	James Hogan <jhogan@kernel.org>
 Description:
 		The /sys/power/pm_trace_dev_match file contains the name of the
 		device associated with the last PM event point saved in the RTC
@@ -285,3 +287,17 @@ Description:
 		Writing a "1" to this file enables the debug messages and
 		writing a "0" (default) to it disables them.  Reads from
 		this file return the current value.
+
+What:		/sys/power/resume_offset
+Date:		April 2018
+Contact:	Mario Limonciello <mario.limonciello@dell.com>
+Description:
+		This file is used for telling the kernel an offset into a disk
+		to use when hibernating the system such as with a swap file.
+
+		Reads from this file will display the current offset
+		the kernel will be using on the next hibernation
+		attempt.
+
+		Using this sysfs file will override any values that were
+		set using the kernel command line for disk offset.

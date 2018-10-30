@@ -71,6 +71,39 @@ Other Functions
 .. kernel-doc:: fs/block_dev.c
    :export:
 
+.. kernel-doc:: fs/anon_inodes.c
+   :export:
+
+.. kernel-doc:: fs/attr.c
+   :export:
+
+.. kernel-doc:: fs/d_path.c
+   :export:
+
+.. kernel-doc:: fs/dax.c
+   :export:
+
+.. kernel-doc:: fs/direct-io.c
+   :export:
+
+.. kernel-doc:: fs/file_table.c
+   :export:
+
+.. kernel-doc:: fs/libfs.c
+   :export:
+
+.. kernel-doc:: fs/posix_acl.c
+   :export:
+
+.. kernel-doc:: fs/stat.c
+   :export:
+
+.. kernel-doc:: fs/sync.c
+   :export:
+
+.. kernel-doc:: fs/xattr.c
+   :export:
+
 The proc filesystem
 ===================
 
@@ -315,3 +348,14 @@ exported for use by modules.
    :internal:
 
 .. kernel-doc:: fs/pipe.c
+
+Encryption API
+==============
+
+A library which filesystems can hook into to support transparent
+encryption of files and directories.
+
+.. toctree::
+    :maxdepth: 2
+
+    fscrypt

@@ -46,10 +46,10 @@ It consists of the three gpio pins and an spi interface (here chip select 0)
 
 For Raspbian users only
 =======================
-Since Raspbian supports device tree overlays, you may use and overlay, instead
+Since Raspbian supports device tree overlays, you may use an overlay instead
 of editing your boards device tree.
-For using the overlay, you need to compile the file pi433-overlay.dts you can
-find aside to this documentation.
+To use the overlay, you need to compile the file pi433-overlay.dts which can
+be found alongside this documentation.
 The file needs to be compiled - either manually or by integration in your kernel
 source tree. For a manual compile, you may use a command line like the following:
 'linux/scripts/dtc/dtc -@ -I dts -O dtb -o pi433.dtbo pi433-overlay.dts'

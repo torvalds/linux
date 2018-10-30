@@ -1,14 +1,7 @@
-/*
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2011 Freescale Semiconductor, Inc.
+// Copyright 2011 Linaro Ltd.
 
 /dts-v1/;
 #include "imx51.dtsi"
@@ -21,25 +14,48 @@
 		stdout-path = &uart1;
 	};
 
-	memory {
+	memory@90000000 {
 		reg = <0x90000000 0x20000000>;
 	};
 
-	clocks {
-		ckih1 {
-			clock-frequency = <22579200>;
-		};
-
-		clk_26M: codec_clock {
-			compatible = "fixed-clock";
-			reg=<0>;
-			#clock-cells = <0>;
-			clock-frequency = <26000000>;
-			gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
-		};
+	ckih1 {
+		clock-frequency = <22579200>;
 	};
 
-	display0: display@di0 {
+	clk_osc: clk-osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	clk_osc_gate: clk-osc-gate {
+		compatible = "gpio-gate-clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_clk26mhz_osc>;
+		clocks = <&clk_osc>;
+		#clock-cells = <0>;
+		enable-gpios = <&gpio3 1 GPIO_ACTIVE_HIGH>;
+	};
+
+	clk_audio: clk-audio {
+		compatible = "gpio-gate-clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_clk26mhz_audio>;
+		clocks = <&clk_osc_gate>;
+		#clock-cells = <0>;
+		enable-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
+	};
+
+	clk_usb: clk-usb {
+		compatible = "gpio-gate-clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_clk26mhz_usb>;
+		clocks = <&clk_osc_gate>;
+		#clock-cells = <0>;
+		enable-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+	};
+
+	display1: disp1 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "rgb24";
 		pinctrl-names = "default";
@@ -61,12 +77,12 @@
 
 		port {
 			display0_in: endpoint {
-				remote-endpoint = <&ipu_di0_disp0>;
+				remote-endpoint = <&ipu_di0_disp1>;
 			};
 		};
 	};
 
-	display1: display@di1 {
+	display2: disp2 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "rgb565";
 		pinctrl-names = "default";
@@ -93,7 +109,7 @@
 
 		port {
 			display1_in: endpoint {
-				remote-endpoint = <&ipu_di1_disp1>;
+				remote-endpoint = <&ipu_di1_disp2>;
 			};
 		};
 	};
@@ -154,18 +170,15 @@
 		mux-ext-port = <3>;
 	};
 
-	usbphy {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "simple-bus";
-
-		usbh1phy: usbh1phy@0 {
-			compatible = "usb-nop-xceiv";
-			reg = <0>;
-			clocks = <&clks IMX5_CLK_DUMMY>;
-			clock-names = "main_clk";
-			reset-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
-		};
+	usbphy1: usbphy1 {
+		compatible = "usb-nop-xceiv";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbh1reg>;
+		clocks = <&clk_usb>;
+		clock-names = "main_clk";
+		reset-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&vusb_reg>;
+		#phy-cells = <0>;
 	};
 };
 
@@ -191,6 +204,7 @@
 		reg = <0>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+		fsl,mc13xxx-uses-adc;
 		fsl,mc13xxx-uses-rtc;
 
 		regulators {
@@ -238,6 +252,10 @@
 			vsd_reg: vsd {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3150000>;
+			};
+
+			vusb_reg: vusb {
+				regulator-boot-on;
 			};
 
 			vusb2_reg: vusb2 {
@@ -337,22 +355,21 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	sgtl5000: codec@0a {
+	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_clkcodec>;
 		reg = <0x0a>;
-		clocks = <&clk_26M>;
+		#sound-dai-cells = <0>;
+		clocks = <&clk_audio>;
 		VDDA-supply = <&vdig_reg>;
 		VDDIO-supply = <&vvideo_reg>;
 	};
 };
 
-&ipu_di0_disp0 {
+&ipu_di0_disp1 {
 	remote-endpoint = <&display0_in>;
 };
 
-&ipu_di1_disp1 {
+&ipu_di1_disp2 {
 	remote-endpoint = <&display1_in>;
 };
 
@@ -378,6 +395,10 @@
 		MATRIX_KEY(3, 3, KEY_POWER)
 	>;
 	status = "okay";
+};
+
+&pmu {
+	secure-reg-access;
 };
 
 &ssi2 {
@@ -408,9 +429,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbh1>;
 	vbus-supply = <&reg_hub_reset>;
-	fsl,usbphy = <&usbh1phy>;
+	fsl,usbphy = <&usbphy1>;
 	phy_type = "ulpi";
 	status = "okay";
+};
+
+&usbphy0 {
+	vcc-supply = <&vusb_reg>;
 };
 
 &usbotg {
@@ -431,9 +456,21 @@
 			>;
 		};
 
-		pinctrl_clkcodec: clkcodecgrp {
+		pinctrl_clk26mhz_audio: clk26mhzaudiocgrp {
 			fsl,pins = <
-				MX51_PAD_CSPI1_RDY__GPIO4_26		0x80000000
+				MX51_PAD_CSPI1_RDY__GPIO4_26		0x85
+			>;
+		};
+
+		pinctrl_clk26mhz_osc: clk26mhzoscgrp {
+			fsl,pins = <
+				MX51_PAD_DI1_PIN12__GPIO3_1		0x85
+			>;
+		};
+
+		pinctrl_clk26mhz_usb: clk26mhzusbgrp {
+			fsl,pins = <
+				MX51_PAD_EIM_D17__GPIO2_1		0x85
 			>;
 		};
 

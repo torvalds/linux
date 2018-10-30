@@ -31,22 +31,22 @@
  * http://www.spinics.net/lists/linux-usb-devel/msg10109.html
  *
  * Version 0.01:	First working version.
- * 			It's required to blacklist AverMedia USB Radio
- * 			in usbhid/hid-quirks.c
+ *			It's required to blacklist AverMedia USB Radio
+ *			in usbhid/hid-quirks.c
  * Version 0.10:	A lot of cleanups and fixes: unpluging the device,
- * 			few mutex locks were added, codinstyle issues, etc.
- * 			Added stereo support. Thanks to
- * 			Douglas Schilling Landgraf <dougsland@gmail.com> and
- * 			David Ellingsworth <david@identd.dyndns.org>
- * 			for discussion, help and support.
+ *			few mutex locks were added, codinstyle issues, etc.
+ *			Added stereo support. Thanks to
+ *			Douglas Schilling Landgraf <dougsland@gmail.com> and
+ *			David Ellingsworth <david@identd.dyndns.org>
+ *			for discussion, help and support.
  * Version 0.11:	Converted to v4l2_device.
  *
  * Many things to do:
- * 	- Correct power management of device (suspend & resume)
- * 	- Add code for scanning and smooth tuning
- * 	- Add code for sensitivity value
- * 	- Correct mistakes
- * 	- In Japan another FREQ_MIN and FREQ_MAX
+ *	- Correct power management of device (suspend & resume)
+ *	- Add code for scanning and smooth tuning
+ *	- Add code for sensitivity value
+ *	- Correct mistakes
+ *	- In Japan another FREQ_MIN and FREQ_MAX
  */
 
 /* kernel includes */
@@ -266,8 +266,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	struct amradio_device *radio = video_drvdata(file);
 
-	strlcpy(v->driver, "radio-mr800", sizeof(v->driver));
-	strlcpy(v->card, "AverMedia MR 800 USB FM Radio", sizeof(v->card));
+	strscpy(v->driver, "radio-mr800", sizeof(v->driver));
+	strscpy(v->card, "AverMedia MR 800 USB FM Radio", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
 	v->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER |
 					V4L2_CAP_HW_FREQ_SEEK;
@@ -291,7 +291,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (retval)
 		return retval;
 
-	strcpy(v->name, "FM");
+	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = FREQ_MIN * FREQ_MUL;
 	v->rangehigh = FREQ_MAX * FREQ_MUL;
@@ -511,7 +511,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
 	struct amradio_device *radio;
-	int retval = 0;
+	int retval;
 
 	radio = kzalloc(sizeof(struct amradio_device), GFP_KERNEL);
 
@@ -547,7 +547,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 
 	radio->v4l2_dev.ctrl_handler = &radio->hdl;
 	radio->v4l2_dev.release = usb_amradio_release;
-	strlcpy(radio->vdev.name, radio->v4l2_dev.name,
+	strscpy(radio->vdev.name, radio->v4l2_dev.name,
 		sizeof(radio->vdev.name));
 	radio->vdev.v4l2_dev = &radio->v4l2_dev;
 	radio->vdev.fops = &usb_amradio_fops;

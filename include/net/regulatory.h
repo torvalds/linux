@@ -4,6 +4,7 @@
  * regulatory support structures
  *
  * Copyright 2008-2009	Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
+ * Copyright (C) 2018 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -78,7 +79,7 @@ struct regulatory_request {
 	int wiphy_idx;
 	enum nl80211_reg_initiator initiator;
 	enum nl80211_user_reg_hint_type user_reg_hint_type;
-	char alpha2[2];
+	char alpha2[3];
 	enum nl80211_dfs_regions dfs_region;
 	bool intersect;
 	bool processed;
@@ -188,11 +189,38 @@ struct ieee80211_power_rule {
 	u32 max_eirp;
 };
 
+/**
+ * struct ieee80211_wmm_ac - used to store per ac wmm regulatory limitation
+ *
+ * The information provided in this structure is required for QoS
+ * transmit queue configuration. Cf. IEEE 802.11 7.3.2.29.
+ *
+ * @cw_min: minimum contention window [a value of the form
+ *      2^n-1 in the range 1..32767]
+ * @cw_max: maximum contention window [like @cw_min]
+ * @cot: maximum burst time in units of 32 usecs, 0 meaning disabled
+ * @aifsn: arbitration interframe space [0..255]
+ *
+ */
+struct ieee80211_wmm_ac {
+	u16 cw_min;
+	u16 cw_max;
+	u16 cot;
+	u8 aifsn;
+};
+
+struct ieee80211_wmm_rule {
+	struct ieee80211_wmm_ac client[IEEE80211_NUM_ACS];
+	struct ieee80211_wmm_ac ap[IEEE80211_NUM_ACS];
+};
+
 struct ieee80211_reg_rule {
 	struct ieee80211_freq_range freq_range;
 	struct ieee80211_power_rule power_rule;
+	struct ieee80211_wmm_rule wmm_rule;
 	u32 flags;
 	u32 dfs_cac_ms;
+	bool has_wmm;
 };
 
 struct ieee80211_regdomain {

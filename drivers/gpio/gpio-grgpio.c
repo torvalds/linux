@@ -26,15 +26,15 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_platform.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/bitops.h>
 
 #define GRGPIO_MAX_NGPIO 32
 
@@ -96,12 +96,11 @@ static void grgpio_set_imask(struct grgpio_priv *priv, unsigned int offset,
 			     int val)
 {
 	struct gpio_chip *gc = &priv->gc;
-	unsigned long mask = gc->pin2mask(gc, offset);
 
 	if (val)
-		priv->imask |= mask;
+		priv->imask |= BIT(offset);
 	else
-		priv->imask &= ~mask;
+		priv->imask &= ~BIT(offset);
 	gc->write_reg(priv->regs + GRGPIO_IMASK, priv->imask);
 }
 

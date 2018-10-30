@@ -16,7 +16,7 @@
 #include <linux/sort.h>
 
 #include "include/apparmor.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/label.h"
 #include "include/policy.h"
 #include "include/secid.h"
@@ -49,7 +49,7 @@ static void free_proxy(struct aa_proxy *proxy)
 		/* p->label will not updated any more as p is dead */
 		aa_put_label(rcu_dereference_protected(proxy->label, true));
 		memset(proxy, 0, sizeof(*proxy));
-		proxy->label = (struct aa_label *) PROXY_POISON;
+		RCU_INIT_POINTER(proxy->label, (struct aa_label *)PROXY_POISON);
 		kfree(proxy);
 	}
 }
@@ -80,7 +80,7 @@ void __aa_proxy_redirect(struct aa_label *orig, struct aa_label *new)
 
 	AA_BUG(!orig);
 	AA_BUG(!new);
-	AA_BUG(!write_is_locked(&labels_set(orig)->lock));
+	lockdep_assert_held_exclusive(&labels_set(orig)->lock);
 
 	tmp = rcu_dereference_protected(orig->proxy->label,
 					&labels_ns(orig)->lock);
@@ -128,7 +128,7 @@ static int ns_cmp(struct aa_ns *a, struct aa_ns *b)
 }
 
 /**
- * profile_cmp - profile comparision for set ordering
+ * profile_cmp - profile comparison for set ordering
  * @a: profile to compare (NOT NULL)
  * @b: profile to compare (NOT NULL)
  *
@@ -157,7 +157,7 @@ static int profile_cmp(struct aa_profile *a, struct aa_profile *b)
 }
 
 /**
- * vec_cmp - label comparision for set ordering
+ * vec_cmp - label comparison for set ordering
  * @a: label to compare (NOT NULL)
  * @vec: vector of profiles to compare (NOT NULL)
  * @n: length of @vec
@@ -402,13 +402,12 @@ static void label_free_or_put_new(struct aa_label *label, struct aa_label *new)
 		aa_put_label(new);
 }
 
-bool aa_label_init(struct aa_label *label, int size)
+bool aa_label_init(struct aa_label *label, int size, gfp_t gfp)
 {
 	AA_BUG(!label);
 	AA_BUG(size < 1);
 
-	label->secid = aa_alloc_secid();
-	if (label->secid == AA_SECID_INVALID)
+	if (aa_alloc_secid(label, gfp) < 0)
 		return false;
 
 	label->size = size;			/* doesn't include null */
@@ -441,7 +440,7 @@ struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp)
 	if (!new)
 		goto fail;
 
-	if (!aa_label_init(new, size))
+	if (!aa_label_init(new, size, gfp))
 		goto fail;
 
 	if (!proxy) {
@@ -463,7 +462,7 @@ fail:
 
 
 /**
- * label_cmp - label comparision for set ordering
+ * label_cmp - label comparison for set ordering
  * @a: label to compare (NOT NULL)
  * @b: label to compare (NOT NULL)
  *
@@ -571,7 +570,7 @@ static bool __label_remove(struct aa_label *label, struct aa_label *new)
 
 	AA_BUG(!ls);
 	AA_BUG(!label);
-	AA_BUG(!write_is_locked(&ls->lock));
+	lockdep_assert_held_exclusive(&ls->lock);
 
 	if (new)
 		__aa_proxy_redirect(label, new);
@@ -608,7 +607,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 	AA_BUG(!ls);
 	AA_BUG(!old);
 	AA_BUG(!new);
-	AA_BUG(!write_is_locked(&ls->lock));
+	lockdep_assert_held_exclusive(&ls->lock);
 	AA_BUG(new->flags & FLAG_IN_TREE);
 
 	if (!label_is_stale(old))
@@ -645,7 +644,7 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 	AA_BUG(!ls);
 	AA_BUG(!label);
 	AA_BUG(labels_set(label) != ls);
-	AA_BUG(!write_is_locked(&ls->lock));
+	lockdep_assert_held_exclusive(&ls->lock);
 	AA_BUG(label->flags & FLAG_IN_TREE);
 
 	/* Figure out where to put new node */
@@ -1450,9 +1449,11 @@ bool aa_update_label_name(struct aa_ns *ns, struct aa_label *label, gfp_t gfp)
  * cached label name is present and visible
  * @label->hname only exists if label is namespace hierachical
  */
-static inline bool use_label_hname(struct aa_ns *ns, struct aa_label *label)
+static inline bool use_label_hname(struct aa_ns *ns, struct aa_label *label,
+				   int flags)
 {
-	if (label->hname && labels_ns(label) == ns)
+	if (label->hname && (!ns || labels_ns(label) == ns) &&
+	    !(flags & ~FLAG_SHOW_MODE))
 		return true;
 
 	return false;
@@ -1495,7 +1496,7 @@ static int aa_profile_snxprint(char *str, size_t size, struct aa_ns *view,
 		view = profiles_ns(profile);
 
 	if (view != profile->ns &&
-	    (!prev_ns || (prev_ns && *prev_ns != profile->ns))) {
+	    (!prev_ns || (*prev_ns != profile->ns))) {
 		if (prev_ns)
 			*prev_ns = profile->ns;
 		ns_name = aa_ns_name(view, profile->ns,
@@ -1605,8 +1606,13 @@ int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
 	AA_BUG(!str && size != 0);
 	AA_BUG(!label);
 
-	if (!ns)
+	if (flags & FLAG_ABS_ROOT) {
+		ns = root_ns;
+		len = snprintf(str, size, "=");
+		update_for_len(total, len, size, str);
+	} else if (!ns) {
 		ns = labels_ns(label);
+	}
 
 	label_for_each(i, label, profile) {
 		if (aa_ns_visible(ns, profile->ns, flags & FLAG_VIEW_SUBNS)) {
@@ -1710,10 +1716,8 @@ void aa_label_xaudit(struct audit_buffer *ab, struct aa_ns *ns,
 	AA_BUG(!ab);
 	AA_BUG(!label);
 
-	if (!ns)
-		ns = labels_ns(label);
-
-	if (!use_label_hname(ns, label) || display_mode(ns, label, flags)) {
+	if (!use_label_hname(ns, label, flags) ||
+	    display_mode(ns, label, flags)) {
 		len  = aa_label_asxprint(&name, ns, label, flags, gfp);
 		if (len == -1) {
 			AA_DEBUG("label print error");
@@ -1738,10 +1742,7 @@ void aa_label_seq_xprint(struct seq_file *f, struct aa_ns *ns,
 	AA_BUG(!f);
 	AA_BUG(!label);
 
-	if (!ns)
-		ns = labels_ns(label);
-
-	if (!use_label_hname(ns, label)) {
+	if (!use_label_hname(ns, label, flags)) {
 		char *str;
 		int len;
 
@@ -1764,10 +1765,7 @@ void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,
 {
 	AA_BUG(!label);
 
-	if (!ns)
-		ns = labels_ns(label);
-
-	if (!use_label_hname(ns, label)) {
+	if (!use_label_hname(ns, label, flags)) {
 		char *str;
 		int len;
 
@@ -1809,14 +1807,17 @@ void aa_label_printk(struct aa_label *label, gfp_t gfp)
 	aa_put_ns(ns);
 }
 
-static int label_count_str_entries(const char *str)
+static int label_count_strn_entries(const char *str, size_t n)
 {
+	const char *end = str + n;
 	const char *split;
 	int count = 1;
 
 	AA_BUG(!str);
 
-	for (split = strstr(str, "//&"); split; split = strstr(str, "//&")) {
+	for (split = aa_label_strn_split(str, end - str);
+	     split;
+	     split = aa_label_strn_split(str, end - str)) {
 		count++;
 		str = split + 3;
 	}
@@ -1844,9 +1845,10 @@ static struct aa_profile *fqlookupn_profile(struct aa_label *base,
 }
 
 /**
- * aa_label_parse - parse, validate and convert a text string to a label
+ * aa_label_strn_parse - parse, validate and convert a text string to a label
  * @base: base label to use for lookups (NOT NULL)
  * @str: null terminated text string (NOT NULL)
+ * @n: length of str to parse, will stop at \0 if encountered before n
  * @gfp: allocation type
  * @create: true if should create compound labels if they don't exist
  * @force_stack: true if should stack even if no leading &
@@ -1854,19 +1856,24 @@ static struct aa_profile *fqlookupn_profile(struct aa_label *base,
  * Returns: the matching refcounted label if present
  *     else ERRPTR
  */
-struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
-				gfp_t gfp, bool create, bool force_stack)
+struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,
+				     size_t n, gfp_t gfp, bool create,
+				     bool force_stack)
 {
 	DEFINE_VEC(profile, vec);
 	struct aa_label *label, *currbase = base;
 	int i, len, stack = 0, error;
-	char *split;
+	const char *end = str + n;
+	const char *split;
 
 	AA_BUG(!base);
 	AA_BUG(!str);
 
-	str = skip_spaces(str);
-	len = label_count_str_entries(str);
+	str = skipn_spaces(str, n);
+	if (str == NULL || (*str == '=' && base != &root_ns->unconfined->label))
+		return ERR_PTR(-EINVAL);
+
+	len = label_count_strn_entries(str, end - str);
 	if (*str == '&' || force_stack) {
 		/* stack on top of base */
 		stack = base->size;
@@ -1874,6 +1881,7 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 		if (*str == '&')
 			str++;
 	}
+
 	error = vec_setup(profile, vec, len, gfp);
 	if (error)
 		return ERR_PTR(error);
@@ -1881,7 +1889,8 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 	for (i = 0; i < stack; i++)
 		vec[i] = aa_get_profile(base->vec[i]);
 
-	for (split = strstr(str, "//&"), i = stack; split && i < len; i++) {
+	for (split = aa_label_strn_split(str, end - str), i = stack;
+	     split && i < len; i++) {
 		vec[i] = fqlookupn_profile(base, currbase, str, split - str);
 		if (!vec[i])
 			goto fail;
@@ -1892,11 +1901,11 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 		if (vec[i]->ns != labels_ns(currbase))
 			currbase = &vec[i]->label;
 		str = split + 3;
-		split = strstr(str, "//&");
+		split = aa_label_strn_split(str, end - str);
 	}
 	/* last element doesn't have a split */
 	if (i < len) {
-		vec[i] = fqlookupn_profile(base, currbase, str, strlen(str));
+		vec[i] = fqlookupn_profile(base, currbase, str, end - str);
 		if (!vec[i])
 			goto fail;
 	}
@@ -1928,6 +1937,12 @@ fail:
 	goto out;
 }
 
+struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
+				gfp_t gfp, bool create, bool force_stack)
+{
+	return aa_label_strn_parse(base, str, strlen(str), gfp, create,
+				   force_stack);
+}
 
 /**
  * aa_labelset_destroy - remove all labels from the label set
@@ -1995,7 +2010,7 @@ out:
 
 /**
  * __label_update - insert updated version of @label into labelset
- * @label - the label to update/repace
+ * @label - the label to update/replace
  *
  * Returns: new label that is up to date
  *     else NULL on failure
@@ -2113,7 +2128,7 @@ void __aa_labelset_update_subtree(struct aa_ns *ns)
 	__labelset_update(ns);
 
 	list_for_each_entry(child, &ns->sub_ns, base.list) {
-		mutex_lock(&child->lock);
+		mutex_lock_nested(&child->lock, child->level);
 		__aa_labelset_update_subtree(child);
 		mutex_unlock(&child->lock);
 	}

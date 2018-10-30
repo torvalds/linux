@@ -57,8 +57,4 @@ PROPERTIES
       Usage: required
       Value type: <prop-encoded-array>
 
-   - interrupt-parent
-      Usage: required
-      Value type: <phandle>
-
 =====================================================================

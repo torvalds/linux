@@ -10,9 +10,11 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/bio.h>
+#include <linux/dax.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/uio.h>
 
 #define DM_MSG_PREFIX "log-writes"
 
@@ -50,10 +52,11 @@
  * in fact we want to do the data and the discard in the order that they
  * completed.
  */
-#define LOG_FLUSH_FLAG (1 << 0)
-#define LOG_FUA_FLAG (1 << 1)
-#define LOG_DISCARD_FLAG (1 << 2)
-#define LOG_MARK_FLAG (1 << 3)
+#define LOG_FLUSH_FLAG		(1 << 0)
+#define LOG_FUA_FLAG		(1 << 1)
+#define LOG_DISCARD_FLAG	(1 << 2)
+#define LOG_MARK_FLAG		(1 << 3)
+#define LOG_METADATA_FLAG	(1 << 4)
 
 #define WRITE_LOG_VERSION 1ULL
 #define WRITE_LOG_MAGIC 0x6a736677736872ULL
@@ -246,27 +249,108 @@ error:
 	return -1;
 }
 
+static int write_inline_data(struct log_writes_c *lc, void *entry,
+			     size_t entrylen, void *data, size_t datalen,
+			     sector_t sector)
+{
+	int num_pages, bio_pages, pg_datalen, pg_sectorlen, i;
+	struct page *page;
+	struct bio *bio;
+	size_t ret;
+	void *ptr;
+
+	while (datalen) {
+		num_pages = ALIGN(datalen, PAGE_SIZE) >> PAGE_SHIFT;
+		bio_pages = min(num_pages, BIO_MAX_PAGES);
+
+		atomic_inc(&lc->io_blocks);
+
+		bio = bio_alloc(GFP_KERNEL, bio_pages);
+		if (!bio) {
+			DMERR("Couldn't alloc inline data bio");
+			goto error;
+		}
+
+		bio->bi_iter.bi_size = 0;
+		bio->bi_iter.bi_sector = sector;
+		bio_set_dev(bio, lc->logdev->bdev);
+		bio->bi_end_io = log_end_io;
+		bio->bi_private = lc;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+
+		for (i = 0; i < bio_pages; i++) {
+			pg_datalen = min_t(int, datalen, PAGE_SIZE);
+			pg_sectorlen = ALIGN(pg_datalen, lc->sectorsize);
+
+			page = alloc_page(GFP_KERNEL);
+			if (!page) {
+				DMERR("Couldn't alloc inline data page");
+				goto error_bio;
+			}
+
+			ptr = kmap_atomic(page);
+			memcpy(ptr, data, pg_datalen);
+			if (pg_sectorlen > pg_datalen)
+				memset(ptr + pg_datalen, 0, pg_sectorlen - pg_datalen);
+			kunmap_atomic(ptr);
+
+			ret = bio_add_page(bio, page, pg_sectorlen, 0);
+			if (ret != pg_sectorlen) {
+				DMERR("Couldn't add page of inline data");
+				__free_page(page);
+				goto error_bio;
+			}
+
+			datalen -= pg_datalen;
+			data	+= pg_datalen;
+		}
+		submit_bio(bio);
+
+		sector += bio_pages * PAGE_SECTORS;
+	}
+	return 0;
+error_bio:
+	bio_free_pages(bio);
+	bio_put(bio);
+error:
+	put_io_block(lc);
+	return -1;
+}
+
 static int log_one_block(struct log_writes_c *lc,
 			 struct pending_block *block, sector_t sector)
 {
 	struct bio *bio;
 	struct log_write_entry entry;
-	size_t ret;
+	size_t metadatalen, ret;
 	int i;
 
 	entry.sector = cpu_to_le64(block->sector);
 	entry.nr_sectors = cpu_to_le64(block->nr_sectors);
 	entry.flags = cpu_to_le64(block->flags);
 	entry.data_len = cpu_to_le64(block->datalen);
+
+	metadatalen = (block->flags & LOG_MARK_FLAG) ? block->datalen : 0;
 	if (write_metadata(lc, &entry, sizeof(entry), block->data,
-			   block->datalen, sector)) {
+			   metadatalen, sector)) {
 		free_pending_block(lc, block);
 		return -1;
 	}
 
+	sector += dev_to_bio_sectors(lc, 1);
+
+	if (block->datalen && metadatalen == 0) {
+		if (write_inline_data(lc, &entry, sizeof(entry), block->data,
+				      block->datalen, sector)) {
+			free_pending_block(lc, block);
+			return -1;
+		}
+		/* we don't support both inline data & bio data */
+		goto out;
+	}
+
 	if (!block->vec_cnt)
 		goto out;
-	sector += dev_to_bio_sectors(lc, 1);
 
 	atomic_inc(&lc->io_blocks);
 	bio = bio_alloc(GFP_KERNEL, min(block->vec_cnt, BIO_MAX_PAGES));
@@ -511,7 +595,7 @@ static int log_mark(struct log_writes_c *lc, char *data)
 		return -ENOMEM;
 	}
 
-	block->data = kstrndup(data, maxsize, GFP_KERNEL);
+	block->data = kstrndup(data, maxsize - 1, GFP_KERNEL);
 	if (!block->data) {
 		DMERR("Error copying mark data");
 		kfree(block);
@@ -571,6 +655,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 	bool flush_bio = (bio->bi_opf & REQ_PREFLUSH);
 	bool fua_bio = (bio->bi_opf & REQ_FUA);
 	bool discard_bio = (bio_op(bio) == REQ_OP_DISCARD);
+	bool meta_bio = (bio->bi_opf & REQ_META);
 
 	pb->block = NULL;
 
@@ -615,6 +700,8 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 		block->flags |= LOG_FUA_FLAG;
 	if (discard_bio)
 		block->flags |= LOG_DISCARD_FLAG;
+	if (meta_bio)
+		block->flags |= LOG_METADATA_FLAG;
 
 	block->sector = bio_to_dev_sectors(lc, bio->bi_iter.bi_sector);
 	block->nr_sectors = bio_to_dev_sectors(lc, bio_sectors(bio));
@@ -732,7 +819,7 @@ static void log_writes_status(struct dm_target *ti, status_type_t type,
 }
 
 static int log_writes_prepare_ioctl(struct dm_target *ti,
-		struct block_device **bdev, fmode_t *mode)
+				    struct block_device **bdev)
 {
 	struct log_writes_c *lc = ti->private;
 	struct dm_dev *dev = lc->dev;
@@ -759,7 +846,8 @@ static int log_writes_iterate_devices(struct dm_target *ti,
  * Messages supported:
  *   mark <mark data> - specify the marked data.
  */
-static int log_writes_message(struct dm_target *ti, unsigned argc, char **argv)
+static int log_writes_message(struct dm_target *ti, unsigned argc, char **argv,
+			      char *result, unsigned maxlen)
 {
 	int r = -EINVAL;
 	struct log_writes_c *lc = ti->private;
@@ -792,9 +880,110 @@ static void log_writes_io_hints(struct dm_target *ti, struct queue_limits *limit
 	limits->io_min = limits->physical_block_size;
 }
 
+#if IS_ENABLED(CONFIG_DAX_DRIVER)
+static int log_dax(struct log_writes_c *lc, sector_t sector, size_t bytes,
+		   struct iov_iter *i)
+{
+	struct pending_block *block;
+
+	if (!bytes)
+		return 0;
+
+	block = kzalloc(sizeof(struct pending_block), GFP_KERNEL);
+	if (!block) {
+		DMERR("Error allocating dax pending block");
+		return -ENOMEM;
+	}
+
+	block->data = kzalloc(bytes, GFP_KERNEL);
+	if (!block->data) {
+		DMERR("Error allocating dax data space");
+		kfree(block);
+		return -ENOMEM;
+	}
+
+	/* write data provided via the iterator */
+	if (!copy_from_iter(block->data, bytes, i)) {
+		DMERR("Error copying dax data");
+		kfree(block->data);
+		kfree(block);
+		return -EIO;
+	}
+
+	/* rewind the iterator so that the block driver can use it */
+	iov_iter_revert(i, bytes);
+
+	block->datalen = bytes;
+	block->sector = bio_to_dev_sectors(lc, sector);
+	block->nr_sectors = ALIGN(bytes, lc->sectorsize) >> lc->sectorshift;
+
+	atomic_inc(&lc->pending_blocks);
+	spin_lock_irq(&lc->blocks_lock);
+	list_add_tail(&block->list, &lc->unflushed_blocks);
+	spin_unlock_irq(&lc->blocks_lock);
+	wake_up_process(lc->log_kthread);
+
+	return 0;
+}
+
+static long log_writes_dax_direct_access(struct dm_target *ti, pgoff_t pgoff,
+					 long nr_pages, void **kaddr, pfn_t *pfn)
+{
+	struct log_writes_c *lc = ti->private;
+	sector_t sector = pgoff * PAGE_SECTORS;
+	int ret;
+
+	ret = bdev_dax_pgoff(lc->dev->bdev, sector, nr_pages * PAGE_SIZE, &pgoff);
+	if (ret)
+		return ret;
+	return dax_direct_access(lc->dev->dax_dev, pgoff, nr_pages, kaddr, pfn);
+}
+
+static size_t log_writes_dax_copy_from_iter(struct dm_target *ti,
+					    pgoff_t pgoff, void *addr, size_t bytes,
+					    struct iov_iter *i)
+{
+	struct log_writes_c *lc = ti->private;
+	sector_t sector = pgoff * PAGE_SECTORS;
+	int err;
+
+	if (bdev_dax_pgoff(lc->dev->bdev, sector, ALIGN(bytes, PAGE_SIZE), &pgoff))
+		return 0;
+
+	/* Don't bother doing anything if logging has been disabled */
+	if (!lc->logging_enabled)
+		goto dax_copy;
+
+	err = log_dax(lc, sector, bytes, i);
+	if (err) {
+		DMWARN("Error %d logging DAX write", err);
+		return 0;
+	}
+dax_copy:
+	return dax_copy_from_iter(lc->dev->dax_dev, pgoff, addr, bytes, i);
+}
+
+static size_t log_writes_dax_copy_to_iter(struct dm_target *ti,
+					  pgoff_t pgoff, void *addr, size_t bytes,
+					  struct iov_iter *i)
+{
+	struct log_writes_c *lc = ti->private;
+	sector_t sector = pgoff * PAGE_SECTORS;
+
+	if (bdev_dax_pgoff(lc->dev->bdev, sector, ALIGN(bytes, PAGE_SIZE), &pgoff))
+		return 0;
+	return dax_copy_to_iter(lc->dev->dax_dev, pgoff, addr, bytes, i);
+}
+
+#else
+#define log_writes_dax_direct_access NULL
+#define log_writes_dax_copy_from_iter NULL
+#define log_writes_dax_copy_to_iter NULL
+#endif
+
 static struct target_type log_writes_target = {
 	.name   = "log-writes",
-	.version = {1, 0, 0},
+	.version = {1, 1, 0},
 	.module = THIS_MODULE,
 	.ctr    = log_writes_ctr,
 	.dtr    = log_writes_dtr,
@@ -805,6 +994,9 @@ static struct target_type log_writes_target = {
 	.message = log_writes_message,
 	.iterate_devices = log_writes_iterate_devices,
 	.io_hints = log_writes_io_hints,
+	.direct_access = log_writes_dax_direct_access,
+	.dax_copy_from_iter = log_writes_dax_copy_from_iter,
+	.dax_copy_to_iter = log_writes_dax_copy_to_iter,
 };
 
 static int __init dm_log_writes_init(void)

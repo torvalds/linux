@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SVC Greybus driver.
  *
  * Copyright 2015 Google Inc.
  * Copyright 2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/debugfs.h>
@@ -1138,7 +1137,6 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 	struct gb_svc *svc = gb_connection_get_data(op->connection);
 	struct gb_message *request = op->request;
 	struct gb_svc_intf_reset_request *reset;
-	u8 intf_id;
 
 	if (request->payload_size < sizeof(*reset)) {
 		dev_warn(&svc->dev, "short reset request received (%zu < %zu)\n",
@@ -1146,8 +1144,6 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 		return -EINVAL;
 	}
 	reset = request->payload;
-
-	intf_id = reset->intf_id;
 
 	/* FIXME Reset the interface here */
 

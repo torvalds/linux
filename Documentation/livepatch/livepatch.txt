@@ -72,8 +72,7 @@ example, they add a NULL pointer or a boundary check, fix a race by adding
 a missing memory barrier, or add some locking around a critical section.
 Most of these changes are self contained and the function presents itself
 the same way to the rest of the system. In this case, the functions might
-be updated independently one by one.  (This can be done by setting the
-'immediate' flag in the klp_patch struct.)
+be updated independently one by one.
 
 But there are more complex fixes. For example, a patch might change
 ordering of locking in multiple functions at the same time. Or a patch
@@ -125,12 +124,6 @@ safe to patch tasks:
    b) Patching CPU-bound user tasks.  If the task is highly CPU-bound
       then it will get patched the next time it gets interrupted by an
       IRQ.
-   c) In the future it could be useful for applying patches for
-      architectures which don't yet have HAVE_RELIABLE_STACKTRACE.  In
-      this case you would have to signal most of the tasks on the
-      system.  However this isn't supported yet because there's
-      currently no way to patch kthreads without
-      HAVE_RELIABLE_STACKTRACE.
 
 3. For idle "swapper" tasks, since they don't ever exit the kernel, they
    instead have a klp_update_patch_state() call in the idle loop which
@@ -138,27 +131,16 @@ safe to patch tasks:
 
    (Note there's not yet such an approach for kthreads.)
 
-All the above approaches may be skipped by setting the 'immediate' flag
-in the 'klp_patch' struct, which will disable per-task consistency and
-patch all tasks immediately.  This can be useful if the patch doesn't
-change any function or data semantics.  Note that, even with this flag
-set, it's possible that some tasks may still be running with an old
-version of the function, until that function returns.
+Architectures which don't have HAVE_RELIABLE_STACKTRACE solely rely on
+the second approach. It's highly likely that some tasks may still be
+running with an old version of the function, until that function
+returns. In this case you would have to signal the tasks. This
+especially applies to kthreads. They may not be woken up and would need
+to be forced. See below for more information.
 
-There's also an 'immediate' flag in the 'klp_func' struct which allows
-you to specify that certain functions in the patch can be applied
-without per-task consistency.  This might be useful if you want to patch
-a common function like schedule(), and the function change doesn't need
-consistency but the rest of the patch does.
-
-For architectures which don't have HAVE_RELIABLE_STACKTRACE, the user
-must set patch->immediate which causes all tasks to be patched
-immediately.  This option should be used with care, only when the patch
-doesn't change any function or data semantics.
-
-In the future, architectures which don't have HAVE_RELIABLE_STACKTRACE
-may be allowed to use per-task consistency if we can come up with
-another way to patch kthreads.
+Unless we can come up with another way to patch kthreads, architectures
+without HAVE_RELIABLE_STACKTRACE are not considered fully supported by
+the kernel livepatching.
 
 The /sys/kernel/livepatch/<patch>/transition file shows whether a patch
 is in transition.  Only a single patch (the topmost patch on the stack)
@@ -176,8 +158,31 @@ If a patch is in transition, this file shows 0 to indicate the task is
 unpatched and 1 to indicate it's patched.  Otherwise, if no patch is in
 transition, it shows -1.  Any tasks which are blocking the transition
 can be signaled with SIGSTOP and SIGCONT to force them to change their
-patched state.
+patched state. This may be harmful to the system though.
+/sys/kernel/livepatch/<patch>/signal attribute provides a better alternative.
+Writing 1 to the attribute sends a fake signal to all remaining blocking
+tasks. No proper signal is actually delivered (there is no data in signal
+pending structures). Tasks are interrupted or woken up, and forced to change
+their patched state.
 
+Administrator can also affect a transition through
+/sys/kernel/livepatch/<patch>/force attribute. Writing 1 there clears
+TIF_PATCH_PENDING flag of all tasks and thus forces the tasks to the patched
+state. Important note! The force attribute is intended for cases when the
+transition gets stuck for a long time because of a blocking task. Administrator
+is expected to collect all necessary data (namely stack traces of such blocking
+tasks) and request a clearance from a patch distributor to force the transition.
+Unauthorized usage may cause harm to the system. It depends on the nature of the
+patch, which functions are (un)patched, and which functions the blocking tasks
+are sleeping in (/proc/<pid>/stack may help here). Removal (rmmod) of patch
+modules is permanently disabled when the force feature is used. It cannot be
+guaranteed there is no task sleeping in such module. It implies unbounded
+reference count if a patch module is disabled and enabled in a loop.
+
+Moreover, the usage of force may also affect future applications of live
+patches and cause even more harm to the system. Administrator should first
+consider to simply cancel a transition (see above). If force is used, reboot
+should be planned and no more live patches applied.
 
 3.1 Adding consistency model support to new architectures
 ---------------------------------------------------------
@@ -215,13 +220,6 @@ few options:
    user tasks and waking kthreads to patch them.  But it could still be
    a good backup option for those architectures which don't have
    reliable stack traces yet.
-
-In the meantime, patches for such architectures can bypass the
-consistency model by setting klp_patch.immediate to true.  This option
-is perfectly fine for patches which don't change the semantics of the
-patched functions.  In practice, this is usable for ~90% of security
-fixes.  Use of this option also means the patch can't be unloaded after
-it has been disabled.
 
 
 4. Livepatch module
@@ -278,9 +276,6 @@ into three levels:
     only for a particular object ( vmlinux or a kernel module ). Note that
     kallsyms allows for searching symbols according to the object name.
 
-    There's also an 'immediate' flag which, when set, patches the
-    function immediately, bypassing the consistency model safety checks.
-
   + struct klp_object defines an array of patched functions (struct
     klp_func) in the same object. Where the object is either vmlinux
     (NULL) or a module name.
@@ -299,9 +294,6 @@ into three levels:
     symbols are found. The only exception are symbols from objects
     (kernel modules) that have not been loaded yet.
 
-    Setting the 'immediate' flag applies the patch to all tasks
-    immediately, bypassing the consistency model safety checks.
-
     For more details on how the patch is applied on a per-task basis,
     see the "Consistency model" section.
 
@@ -316,14 +308,12 @@ section "Livepatch life-cycle" below for more details about these
 two operations.
 
 Module removal is only safe when there are no users of the underlying
-functions. The immediate consistency model is not able to detect this. The
-code just redirects the functions at the very beginning and it does not
-check if the functions are in use. In other words, it knows when the
-functions get called but it does not know when the functions return.
-Therefore it cannot be decided when the livepatch module can be safely
-removed. This is solved by a hybrid consistency model. When the system is
-transitioned to a new patch state (patched/unpatched) it is guaranteed that
-no task sleeps or runs in the old code.
+functions. This is the reason why the force feature permanently disables
+the removal. The forced tasks entered the functions but we cannot say
+that they returned back.  Therefore it cannot be decided when the
+livepatch module can be safely removed. When the system is successfully
+transitioned to a new patch state (patched/unpatched) without being
+forced it is guaranteed that no task sleeps or runs in the old code.
 
 
 5. Livepatch life-cycle
@@ -337,19 +327,12 @@ First, the patch is applied only when all patched symbols for already
 loaded objects are found. The error handling is much easier if this
 check is done before particular functions get redirected.
 
-Second, the immediate consistency model does not guarantee that anyone is not
-sleeping in the new code after the patch is reverted. This means that the new
-code needs to stay around "forever". If the code is there, one could apply it
-again. Therefore it makes sense to separate the operations that might be done
-once and those that need to be repeated when the patch is enabled (applied)
-again.
-
-Third, it might take some time until the entire system is migrated
-when a more complex consistency model is used. The patch revert might
-block the livepatch module removal for too long. Therefore it is useful
-to revert the patch using a separate operation that might be called
-explicitly. But it does not make sense to remove all information
-until the livepatch module is really removed.
+Second, it might take some time until the entire system is migrated with
+the hybrid consistency model being used. The patch revert might block
+the livepatch module removal for too long. Therefore it is useful to
+revert the patch using a separate operation that might be called
+explicitly. But it does not make sense to remove all information until
+the livepatch module is really removed.
 
 
 5.1. Registration
@@ -435,6 +418,9 @@ Information about the registered patches can be found under
 /sys/kernel/livepatch. The patches could be enabled and disabled
 by writing there.
 
+/sys/kernel/livepatch/<patch>/signal and /sys/kernel/livepatch/<patch>/force
+attributes allow administrator to affect a patching operation.
+
 See Documentation/ABI/testing/sysfs-kernel-livepatch for more details.
 
 
@@ -442,30 +428,6 @@ See Documentation/ABI/testing/sysfs-kernel-livepatch for more details.
 ==============
 
 The current Livepatch implementation has several limitations:
-
-
-  + The patch must not change the semantic of the patched functions.
-
-    The current implementation guarantees only that either the old
-    or the new function is called. The functions are patched one
-    by one. It means that the patch must _not_ change the semantic
-    of the function.
-
-
-  + Data structures can not be patched.
-
-    There is no support to version data structures or anyhow migrate
-    one structure into another. Also the simple consistency model does
-    not allow to switch more functions atomically.
-
-    Once there is more complex consistency mode, it will be possible to
-    use some workarounds. For example, it will be possible to use a hole
-    for a new member because the data structure is aligned. Or it will
-    be possible to use an existing member for something else.
-
-    There are no plans to add more generic support for modified structures
-    at the moment.
-
 
   + Only functions that can be traced could be patched.
 

@@ -140,7 +140,7 @@ bonding module at load time, or are specified via sysfs.
 
 	Module options may be given as command line arguments to the
 insmod or modprobe command, but are usually specified in either the
-/etc/modrobe.d/*.conf configuration files, or in a distro-specific
+/etc/modprobe.d/*.conf configuration files, or in a distro-specific
 configuration file (some of which are detailed in the next section).
 
 	Details on bonding support for sysfs is provided in the
@@ -1490,7 +1490,7 @@ To remove an ARP target:
 
 To configure the interval between learning packet transmits:
 # echo 12 > /sys/class/net/bond0/bonding/lp_interval
-	NOTE: the lp_inteval is the number of seconds between instances where
+	NOTE: the lp_interval is the number of seconds between instances where
 the bonding driver sends learning packets to each slaves peer switch.  The
 default interval is 1 second.
 
@@ -2387,7 +2387,7 @@ broadcast: Like active-backup, there is not much advantage to this
 	and packet type ID), so in a "gatewayed" configuration, all
 	outgoing traffic will generally use the same device.  Incoming
 	traffic may also end up on a single device, but that is
-	dependent upon the balancing policy of the peer's 8023.ad
+	dependent upon the balancing policy of the peer's 802.3ad
 	implementation.  In a "local" configuration, traffic will be
 	distributed across the devices in the bond.
 

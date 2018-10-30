@@ -36,6 +36,7 @@
 #include <media/tveeprom.h>
 #include <media/v4l2-event.h>
 #ifdef CONFIG_VIDEO_IVTV_DEPRECATED_IOCTLS
+#include <linux/compat.h>
 #include <linux/dvb/audio.h>
 #include <linux/dvb/video.h>
 #endif
@@ -747,8 +748,8 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
-	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
+	strscpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
+	strscpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
 	vcap->capabilities = itv->v4l2_cap | V4L2_CAP_DEVICE_CAPS;
 	vcap->device_caps = s->caps;
@@ -1227,9 +1228,9 @@ static int ivtv_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	ivtv_call_all(itv, tuner, g_tuner, vt);
 
 	if (vt->type == V4L2_TUNER_RADIO)
-		strlcpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
+		strscpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
 	else
-		strlcpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
+		strscpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
 	return 0;
 }
 
@@ -1627,6 +1628,21 @@ static __inline__ void warn_deprecated_ioctl(const char *name)
 	pr_warn_once("warning: the %s ioctl is deprecated. Don't use it, as it will be removed soon\n",
 		     name);
 }
+
+#ifdef CONFIG_COMPAT
+struct compat_video_event {
+	__s32 type;
+	/* unused, make sure to use atomic time for y2038 if it ever gets used */
+	compat_long_t timestamp;
+	union {
+		video_size_t size;
+		unsigned int frame_rate;        /* in frames per 1000sec */
+		unsigned char vsync_field;      /* unknown/odd/even/progressive */
+	} u;
+};
+#define VIDEO_GET_EVENT32 _IOR('o', 28, struct compat_video_event)
+#endif
+
 #endif
 
 static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
@@ -1749,7 +1765,13 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		return ivtv_video_command(itv, id, dc, try);
 	}
 
+#ifdef CONFIG_COMPAT
+	case VIDEO_GET_EVENT32:
+#endif
 	case VIDEO_GET_EVENT: {
+#ifdef CONFIG_COMPAT
+		struct compat_video_event *ev32 = arg;
+#endif
 		struct video_event *ev = arg;
 		DEFINE_WAIT(wait);
 
@@ -1763,14 +1785,22 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 			if (test_and_clear_bit(IVTV_F_I_EV_DEC_STOPPED, &itv->i_flags))
 				ev->type = VIDEO_EVENT_DECODER_STOPPED;
 			else if (test_and_clear_bit(IVTV_F_I_EV_VSYNC, &itv->i_flags)) {
+				unsigned char vsync_field;
+
 				ev->type = VIDEO_EVENT_VSYNC;
-				ev->u.vsync_field = test_bit(IVTV_F_I_EV_VSYNC_FIELD, &itv->i_flags) ?
+				vsync_field = test_bit(IVTV_F_I_EV_VSYNC_FIELD, &itv->i_flags) ?
 					VIDEO_VSYNC_FIELD_ODD : VIDEO_VSYNC_FIELD_EVEN;
 				if (itv->output_mode == OUT_UDMA_YUV &&
 					(itv->yuv_info.lace_mode & IVTV_YUV_MODE_MASK) ==
 								IVTV_YUV_MODE_PROGRESSIVE) {
-					ev->u.vsync_field = VIDEO_VSYNC_FIELD_PROGRESSIVE;
+					vsync_field = VIDEO_VSYNC_FIELD_PROGRESSIVE;
 				}
+#ifdef CONFIG_COMPAT
+				if (cmd == VIDEO_GET_EVENT32)
+					ev32->u.vsync_field = vsync_field;
+				else
+#endif
+					ev->u.vsync_field = vsync_field;
 			}
 			if (ev->type)
 				return 0;
@@ -1884,65 +1914,65 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 }
 
 static const struct v4l2_ioctl_ops ivtv_ioctl_ops = {
-	.vidioc_querycap    		    = ivtv_querycap,
-	.vidioc_s_audio     		    = ivtv_s_audio,
-	.vidioc_g_audio     		    = ivtv_g_audio,
-	.vidioc_enumaudio   		    = ivtv_enumaudio,
-	.vidioc_s_audout     		    = ivtv_s_audout,
-	.vidioc_g_audout     		    = ivtv_g_audout,
-	.vidioc_enum_input   		    = ivtv_enum_input,
-	.vidioc_enum_output   		    = ivtv_enum_output,
-	.vidioc_enumaudout   		    = ivtv_enumaudout,
-	.vidioc_cropcap       		    = ivtv_cropcap,
+	.vidioc_querycap		    = ivtv_querycap,
+	.vidioc_s_audio			    = ivtv_s_audio,
+	.vidioc_g_audio			    = ivtv_g_audio,
+	.vidioc_enumaudio		    = ivtv_enumaudio,
+	.vidioc_s_audout		    = ivtv_s_audout,
+	.vidioc_g_audout		    = ivtv_g_audout,
+	.vidioc_enum_input		    = ivtv_enum_input,
+	.vidioc_enum_output		    = ivtv_enum_output,
+	.vidioc_enumaudout		    = ivtv_enumaudout,
+	.vidioc_cropcap			    = ivtv_cropcap,
 	.vidioc_s_selection		    = ivtv_s_selection,
 	.vidioc_g_selection		    = ivtv_g_selection,
-	.vidioc_g_input      		    = ivtv_g_input,
-	.vidioc_s_input      		    = ivtv_s_input,
-	.vidioc_g_output     		    = ivtv_g_output,
-	.vidioc_s_output     		    = ivtv_s_output,
-	.vidioc_g_frequency 		    = ivtv_g_frequency,
-	.vidioc_s_frequency  		    = ivtv_s_frequency,
-	.vidioc_s_tuner      		    = ivtv_s_tuner,
-	.vidioc_g_tuner      		    = ivtv_g_tuner,
-	.vidioc_g_enc_index 		    = ivtv_g_enc_index,
+	.vidioc_g_input			    = ivtv_g_input,
+	.vidioc_s_input			    = ivtv_s_input,
+	.vidioc_g_output		    = ivtv_g_output,
+	.vidioc_s_output		    = ivtv_s_output,
+	.vidioc_g_frequency		    = ivtv_g_frequency,
+	.vidioc_s_frequency		    = ivtv_s_frequency,
+	.vidioc_s_tuner			    = ivtv_s_tuner,
+	.vidioc_g_tuner			    = ivtv_g_tuner,
+	.vidioc_g_enc_index		    = ivtv_g_enc_index,
 	.vidioc_g_fbuf			    = ivtv_g_fbuf,
 	.vidioc_s_fbuf			    = ivtv_s_fbuf,
-	.vidioc_g_std 			    = ivtv_g_std,
-	.vidioc_s_std 			    = ivtv_s_std,
+	.vidioc_g_std			    = ivtv_g_std,
+	.vidioc_s_std			    = ivtv_s_std,
 	.vidioc_overlay			    = ivtv_overlay,
 	.vidioc_log_status		    = ivtv_log_status,
-	.vidioc_enum_fmt_vid_cap 	    = ivtv_enum_fmt_vid_cap,
-	.vidioc_encoder_cmd  		    = ivtv_encoder_cmd,
-	.vidioc_try_encoder_cmd 	    = ivtv_try_encoder_cmd,
+	.vidioc_enum_fmt_vid_cap	    = ivtv_enum_fmt_vid_cap,
+	.vidioc_encoder_cmd		    = ivtv_encoder_cmd,
+	.vidioc_try_encoder_cmd		    = ivtv_try_encoder_cmd,
 	.vidioc_decoder_cmd		    = ivtv_decoder_cmd,
 	.vidioc_try_decoder_cmd		    = ivtv_try_decoder_cmd,
-	.vidioc_enum_fmt_vid_out 	    = ivtv_enum_fmt_vid_out,
-	.vidioc_g_fmt_vid_cap 		    = ivtv_g_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_out	    = ivtv_enum_fmt_vid_out,
+	.vidioc_g_fmt_vid_cap		    = ivtv_g_fmt_vid_cap,
 	.vidioc_g_fmt_vbi_cap		    = ivtv_g_fmt_vbi_cap,
 	.vidioc_g_fmt_sliced_vbi_cap        = ivtv_g_fmt_sliced_vbi_cap,
 	.vidioc_g_fmt_vid_out               = ivtv_g_fmt_vid_out,
 	.vidioc_g_fmt_vid_out_overlay       = ivtv_g_fmt_vid_out_overlay,
 	.vidioc_g_fmt_sliced_vbi_out        = ivtv_g_fmt_sliced_vbi_out,
-	.vidioc_s_fmt_vid_cap  		    = ivtv_s_fmt_vid_cap,
-	.vidioc_s_fmt_vbi_cap 		    = ivtv_s_fmt_vbi_cap,
+	.vidioc_s_fmt_vid_cap		    = ivtv_s_fmt_vid_cap,
+	.vidioc_s_fmt_vbi_cap		    = ivtv_s_fmt_vbi_cap,
 	.vidioc_s_fmt_sliced_vbi_cap        = ivtv_s_fmt_sliced_vbi_cap,
 	.vidioc_s_fmt_vid_out               = ivtv_s_fmt_vid_out,
 	.vidioc_s_fmt_vid_out_overlay       = ivtv_s_fmt_vid_out_overlay,
 	.vidioc_s_fmt_sliced_vbi_out        = ivtv_s_fmt_sliced_vbi_out,
-	.vidioc_try_fmt_vid_cap  	    = ivtv_try_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap		    = ivtv_try_fmt_vid_cap,
 	.vidioc_try_fmt_vbi_cap		    = ivtv_try_fmt_vbi_cap,
 	.vidioc_try_fmt_sliced_vbi_cap      = ivtv_try_fmt_sliced_vbi_cap,
-	.vidioc_try_fmt_vid_out 	    = ivtv_try_fmt_vid_out,
+	.vidioc_try_fmt_vid_out		    = ivtv_try_fmt_vid_out,
 	.vidioc_try_fmt_vid_out_overlay     = ivtv_try_fmt_vid_out_overlay,
-	.vidioc_try_fmt_sliced_vbi_out 	    = ivtv_try_fmt_sliced_vbi_out,
-	.vidioc_g_sliced_vbi_cap 	    = ivtv_g_sliced_vbi_cap,
+	.vidioc_try_fmt_sliced_vbi_out	    = ivtv_try_fmt_sliced_vbi_out,
+	.vidioc_g_sliced_vbi_cap	    = ivtv_g_sliced_vbi_cap,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register 		    = ivtv_g_register,
-	.vidioc_s_register 		    = ivtv_s_register,
+	.vidioc_g_register		    = ivtv_g_register,
+	.vidioc_s_register		    = ivtv_s_register,
 #endif
-	.vidioc_default 		    = ivtv_default,
-	.vidioc_subscribe_event 	    = ivtv_subscribe_event,
-	.vidioc_unsubscribe_event 	    = v4l2_event_unsubscribe,
+	.vidioc_default			    = ivtv_default,
+	.vidioc_subscribe_event		    = ivtv_subscribe_event,
+	.vidioc_unsubscribe_event	    = v4l2_event_unsubscribe,
 };
 
 void ivtv_set_funcs(struct video_device *vdev)

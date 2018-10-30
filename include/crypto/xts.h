@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CRYPTO_XTS_H
 #define _CRYPTO_XTS_H
 
@@ -5,26 +6,9 @@
 #include <crypto/internal/skcipher.h>
 #include <linux/fips.h>
 
-struct scatterlist;
-struct blkcipher_desc;
-
 #define XTS_BLOCK_SIZE 16
 
-struct xts_crypt_req {
-	le128 *tbuf;
-	unsigned int tbuflen;
-
-	void *tweak_ctx;
-	void (*tweak_fn)(void *ctx, u8* dst, const u8* src);
-	void *crypt_ctx;
-	void (*crypt_fn)(void *ctx, u8 *blks, unsigned int nbytes);
-};
-
 #define XTS_TWEAK_CAST(x) ((void (*)(void *, u8*, const u8*))(x))
-
-int xts_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-	      struct scatterlist *src, unsigned int nbytes,
-	      struct xts_crypt_req *req);
 
 static inline int xts_check_key(struct crypto_tfm *tfm,
 				const u8 *key, unsigned int keylen)

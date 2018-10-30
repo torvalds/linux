@@ -168,24 +168,25 @@ static void kexec_prepare_cpus_wait(int wait_state)
 	 * are correctly onlined.  If somehow we start a CPU on boot with RTAS
 	 * start-cpu, but somehow that CPU doesn't write callin_cpu_map[] in
 	 * time, the boot CPU will timeout.  If it does eventually execute
-	 * stuff, the secondary will start up (paca[].cpu_start was written) and
-	 * get into a peculiar state.  If the platform supports
-	 * smp_ops->take_timebase(), the secondary CPU will probably be spinning
-	 * in there.  If not (i.e. pseries), the secondary will continue on and
-	 * try to online itself/idle/etc. If it survives that, we need to find
-	 * these possible-but-not-online-but-should-be CPUs and chaperone them
-	 * into kexec_smp_wait().
+	 * stuff, the secondary will start up (paca_ptrs[]->cpu_start was
+	 * written) and get into a peculiar state.
+	 * If the platform supports smp_ops->take_timebase(), the secondary CPU
+	 * will probably be spinning in there.  If not (i.e. pseries), the
+	 * secondary will continue on and try to online itself/idle/etc. If it
+	 * survives that, we need to find these
+	 * possible-but-not-online-but-should-be CPUs and chaperone them into
+	 * kexec_smp_wait().
 	 */
 	for_each_online_cpu(i) {
 		if (i == my_cpu)
 			continue;
 
-		while (paca[i].kexec_state < wait_state) {
+		while (paca_ptrs[i]->kexec_state < wait_state) {
 			barrier();
 			if (i != notified) {
 				printk(KERN_INFO "kexec: waiting for cpu %d "
 				       "(physical %d) to enter %i state\n",
-				       i, paca[i].hw_cpu_id, wait_state);
+				       i, paca_ptrs[i]->hw_cpu_id, wait_state);
 				notified = i;
 			}
 		}
@@ -230,15 +231,15 @@ static void kexec_prepare_cpus(void)
 	/* we are sure every CPU has IRQs off at this point */
 	kexec_all_irq_disabled = 1;
 
-	/* after we tell the others to go down */
-	if (ppc_md.kexec_cpu_down)
-		ppc_md.kexec_cpu_down(0, 0);
-
 	/*
 	 * Before removing MMU mappings make sure all CPUs have entered real
 	 * mode:
 	 */
 	kexec_prepare_cpus_wait(KEXEC_STATE_REAL_MODE);
+
+	/* after we tell the others to go down */
+	if (ppc_md.kexec_cpu_down)
+		ppc_md.kexec_cpu_down(0, 0);
 
 	put_cpu();
 }
@@ -322,18 +323,24 @@ void default_machine_kexec(struct kimage *image)
 	kexec_stack.thread_info.cpu = current_thread_info()->cpu;
 
 	/* We need a static PACA, too; copy this CPU's PACA over and switch to
-	 * it.  Also poison per_cpu_offset to catch anyone using non-static
-	 * data.
+	 * it. Also poison per_cpu_offset and NULL lppaca to catch anyone using
+	 * non-static data.
 	 */
 	memcpy(&kexec_paca, get_paca(), sizeof(struct paca_struct));
 	kexec_paca.data_offset = 0xedeaddeadeeeeeeeUL;
-	paca = (struct paca_struct *)RELOC_HIDE(&kexec_paca, 0) -
-		kexec_paca.paca_index;
+#ifdef CONFIG_PPC_PSERIES
+	kexec_paca.lppaca_ptr = NULL;
+#endif
+	paca_ptrs[kexec_paca.paca_index] = &kexec_paca;
+
 	setup_paca(&kexec_paca);
 
-	/* XXX: If anyone does 'dynamic lppacas' this will also need to be
-	 * switched to a static version!
+	/*
+	 * The lppaca should be unregistered at this point so the HV won't
+	 * touch it. In the case of a crash, none of the lppacas are
+	 * unregistered so there is not much we can do about it here.
 	 */
+
 	/*
 	 * On Book3S, the copy must happen with the MMU off if we are either
 	 * using Radix page tables or we are not in an LPAR since we can
@@ -360,7 +367,7 @@ void default_machine_kexec(struct kimage *image)
 	/* NOTREACHED */
 }
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 /* Values we need to export to the second kernel via the device tree. */
 static unsigned long htab_base;
 static unsigned long htab_size;
@@ -402,4 +409,4 @@ static int __init export_htab_values(void)
 	return 0;
 }
 late_initcall(export_htab_values);
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */

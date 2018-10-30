@@ -3,7 +3,7 @@ Date:		January 1, 2010
 KernelVersion:	2.6.33
 Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:	Some Samsung laptops have different "performance levels"
-		that are can be modified by a function key, and by this
+		that can be modified by a function key, and by this
 		sysfs file.  These values don't always make a whole lot
 		of sense, but some users like to modify them to keep
 		their fans quiet at all costs.  Reading from this file

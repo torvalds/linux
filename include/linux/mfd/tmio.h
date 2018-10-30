@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef MFD_TMIO_H
 #define MFD_TMIO_H
 
@@ -24,26 +25,6 @@
 		writew((val) >> 16, (addr) + 2); \
 	} while (0)
 
-#define CNF_CMD     0x04
-#define CNF_CTL_BASE   0x10
-#define CNF_INT_PIN  0x3d
-#define CNF_STOP_CLK_CTL 0x40
-#define CNF_GCLK_CTL 0x41
-#define CNF_SD_CLK_MODE 0x42
-#define CNF_PIN_STATUS 0x44
-#define CNF_PWR_CTL_1 0x48
-#define CNF_PWR_CTL_2 0x49
-#define CNF_PWR_CTL_3 0x4a
-#define CNF_CARD_DETECT_MODE 0x4c
-#define CNF_SD_SLOT 0x50
-#define CNF_EXT_GCLK_CTL_1 0xf0
-#define CNF_EXT_GCLK_CTL_2 0xf1
-#define CNF_EXT_GCLK_CTL_3 0xf9
-#define CNF_SD_LED_EN_1 0xfa
-#define CNF_SD_LED_EN_2 0xfe
-
-#define   SDCREN 0x2   /* Enable access to MMC CTL regs. (flag in COMMAND_REG)*/
-
 #define sd_config_write8(base, shift, reg, val) \
 	tmio_iowrite8((val), (base) + ((reg) << (shift)))
 #define sd_config_write16(base, shift, reg, val) \
@@ -55,7 +36,6 @@
 	} while (0)
 
 /* tmio MMC platform flags */
-#define TMIO_MMC_WRPROTECT_DISABLE	BIT(0)
 /*
  * Some controllers can support a 2-byte block size when the bus width
  * is configured in 4-bit mode.
@@ -82,13 +62,6 @@
 #define TMIO_MMC_USE_GPIO_CD		BIT(5)
 
 /*
- * Some controllers doesn't have over 0x100 register.
- * it is used to checking accessibility of
- * CTL_SD_CARD_CLK_CTL / CTL_CLK_AND_WAIT_CTL
- */
-#define TMIO_MMC_HAVE_HIGH_REG		BIT(6)
-
-/*
  * Some controllers have CMD12 automatically
  * issue/non-issue register
  */
@@ -109,6 +82,9 @@
 
 /* Some controllers have a CBSY bit */
 #define TMIO_MMC_HAVE_CBSY		BIT(11)
+
+/* Some controllers that support HS400 use use 4 taps while others use 8. */
+#define TMIO_MMC_HAVE_4TAP_HS400	BIT(13)
 
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);

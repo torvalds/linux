@@ -61,7 +61,7 @@ Timing property for child nodes. It is mandatory, not optional.
 
 Example for an imx6q-sabreauto board, the NOR flash connected to the WEIM:
 
-	weim: weim@021b8000 {
+	weim: weim@21b8000 {
 		compatible = "fsl,imx6q-weim";
 		reg = <0x021b8000 0x4000>;
 		clocks = <&clks 196>;

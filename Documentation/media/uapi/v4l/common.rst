@@ -41,6 +41,6 @@ applicable to all devices.
     extended-controls
     format
     planar-apis
-    crop
     selection-api
+    crop
     streaming-par

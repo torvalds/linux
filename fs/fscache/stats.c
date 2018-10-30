@@ -21,7 +21,6 @@
 atomic_t fscache_n_op_pend;
 atomic_t fscache_n_op_run;
 atomic_t fscache_n_op_enqueue;
-atomic_t fscache_n_op_requeue;
 atomic_t fscache_n_op_deferred_release;
 atomic_t fscache_n_op_initialised;
 atomic_t fscache_n_op_release;
@@ -139,7 +138,7 @@ atomic_t fscache_n_cache_culled_objects;
 /*
  * display the general statistics
  */
-static int fscache_stats_show(struct seq_file *m, void *v)
+int fscache_stats_show(struct seq_file *m, void *v)
 {
 	seq_puts(m, "FS-Cache statistics\n");
 
@@ -285,18 +284,3 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_cache_culled_objects));
 	return 0;
 }
-
-/*
- * open "/proc/fs/fscache/stats" allowing provision of a statistical summary
- */
-static int fscache_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fscache_stats_show, NULL);
-}
-
-const struct file_operations fscache_stats_fops = {
-	.open		= fscache_stats_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release        = single_release,
-};

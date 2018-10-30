@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 
 #include <asm/fixmap.h>
@@ -26,8 +27,9 @@ void xen_pv_pre_suspend(void)
 void xen_pv_post_suspend(int suspend_cancelled)
 {
 	xen_build_mfn_list_list();
-
-	xen_setup_shared_info();
+	set_fixmap(FIX_PARAVIRT_BOOTMAP, xen_start_info->shared_info);
+	HYPERVISOR_shared_info = (void *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
+	xen_setup_mfn_list_list();
 
 	if (suspend_cancelled) {
 		xen_start_info->store_mfn =

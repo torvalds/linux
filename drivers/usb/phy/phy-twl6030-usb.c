@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * twl6030_usb - TWL6030 USB transceiver, talking to OMAP OTG driver.
  *
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Author: Hema HK <hemahk@ti.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/module.h>
@@ -181,7 +168,7 @@ static int twl6030_usb_ldo_init(struct twl6030_usb *twl)
 	return 0;
 }
 
-static ssize_t twl6030_usb_vbus_show(struct device *dev,
+static ssize_t vbus_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct twl6030_usb *twl = dev_get_drvdata(dev);
@@ -207,7 +194,7 @@ static ssize_t twl6030_usb_vbus_show(struct device *dev,
 
 	return ret;
 }
-static DEVICE_ATTR(vbus, 0444, twl6030_usb_vbus_show, NULL);
+static DEVICE_ATTR_RO(vbus);
 
 static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 {

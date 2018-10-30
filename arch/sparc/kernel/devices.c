@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* devices.c: Initial scan of the prom device tree for important
  *	      Sparc device nodes which we need to find.
  *

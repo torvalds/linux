@@ -58,6 +58,7 @@
 #include <net/neighbour.h>
 #include <net/route.h>
 #include <net/ip_fib.h>
+#include <net/secure_seq.h>
 #include <net/tcp.h>
 #include <linux/fcntl.h>
 
@@ -840,7 +841,7 @@ static void handle_recv_entry(struct nes_cm_node *cm_node, u32 rem_node)
 /**
  * nes_cm_timer_tick
  */
-static void nes_cm_timer_tick(unsigned long pass)
+static void nes_cm_timer_tick(struct timer_list *unused)
 {
 	unsigned long flags;
 	unsigned long nexttimeout = jiffies + NES_LONG_TIME;
@@ -1365,7 +1366,7 @@ static int mini_cm_del_listen(struct nes_cm_core *cm_core,
 static inline int mini_cm_accelerated(struct nes_cm_core *cm_core,
 				      struct nes_cm_node *cm_node)
 {
-	cm_node->accelerated = 1;
+	cm_node->accelerated = true;
 
 	if (cm_node->accept_pend) {
 		BUG_ON(!cm_node->listener);
@@ -1389,7 +1390,6 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	struct rtable *rt;
 	struct neighbour *neigh;
 	int rc = arpindex;
-	struct net_device *netdev;
 	struct nes_adapter *nesadapter = nesvnic->nesdev->nesadapter;
 	__be32 dst_ipaddr = htonl(dst_ip);
 
@@ -1399,11 +1399,6 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 		       __func__, dst_ip);
 		return rc;
 	}
-
-	if (netif_is_bond_slave(nesvnic->netdev))
-		netdev = netdev_master_upper_dev_get(nesvnic->netdev);
-	else
-		netdev = nesvnic->netdev;
 
 	neigh = dst_neigh_lookup(&rt->dst, &dst_ipaddr);
 
@@ -1451,7 +1446,6 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 					struct nes_cm_listener *listener)
 {
 	struct nes_cm_node *cm_node;
-	struct timespec ts;
 	int oldarpindex = 0;
 	int arpindex = 0;
 	struct nes_device *nesdev;
@@ -1502,8 +1496,10 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 	cm_node->tcp_cntxt.rcv_wscale = NES_CM_DEFAULT_RCV_WND_SCALE;
 	cm_node->tcp_cntxt.rcv_wnd = NES_CM_DEFAULT_RCV_WND_SCALED >>
 				     NES_CM_DEFAULT_RCV_WND_SCALE;
-	ts = current_kernel_time();
-	cm_node->tcp_cntxt.loc_seq_num = htonl(ts.tv_nsec);
+	cm_node->tcp_cntxt.loc_seq_num = secure_tcp_seq(htonl(cm_node->loc_addr),
+							htonl(cm_node->rem_addr),
+							htons(cm_node->loc_port),
+							htons(cm_node->rem_port));
 	cm_node->tcp_cntxt.mss = nesvnic->max_frame_size - sizeof(struct iphdr) -
 				 sizeof(struct tcphdr) - ETH_HLEN - VLAN_HLEN;
 	cm_node->tcp_cntxt.rcv_nxt = 0;
@@ -1768,6 +1764,7 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	case NES_CM_STATE_FIN_WAIT1:
 	case NES_CM_STATE_LAST_ACK:
 		cm_node->cm_id->rem_ref(cm_node->cm_id);
+		/* fall through */
 	case NES_CM_STATE_TIME_WAIT:
 		cm_node->state = NES_CM_STATE_CLOSED;
 		rem_ref_cm_node(cm_node->cm_core, cm_node);
@@ -2670,8 +2667,7 @@ static struct nes_cm_core *nes_cm_alloc_core(void)
 		return NULL;
 
 	INIT_LIST_HEAD(&cm_core->connected_nodes);
-	init_timer(&cm_core->tcp_timer);
-	cm_core->tcp_timer.function = nes_cm_timer_tick;
+	timer_setup(&cm_core->tcp_timer, nes_cm_timer_tick, 0);
 
 	cm_core->mtu = NES_CM_DEFAULT_MTU;
 	cm_core->state = NES_CM_STATE_INITED;
@@ -3074,7 +3070,6 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	u32 crc_value;
 	int ret;
 	int passive_state;
-	struct nes_ib_device *nesibdev;
 	struct ib_mr *ibmr = NULL;
 	struct nes_pd *nespd;
 	u64 tagged_offset;
@@ -3157,7 +3152,6 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	if (raddr->sin_addr.s_addr != laddr->sin_addr.s_addr) {
 		u64temp = (unsigned long)nesqp;
-		nesibdev = nesvnic->nesibdev;
 		nespd = nesqp->nespd;
 		tagged_offset = (u64)(unsigned long)*start_buff;
 		ibmr = nes_reg_phys_mr(&nespd->ibpd,

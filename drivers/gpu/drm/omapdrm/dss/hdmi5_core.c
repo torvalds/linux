@@ -1,8 +1,7 @@
 /*
  * OMAP5 HDMI CORE IP driver library
  *
- * Copyright (C) 2014 Texas Instruments Incorporated
- *
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  * Authors:
  *	Yong Zhi
  *	Mythri pk
@@ -51,14 +50,14 @@ static void hdmi_core_ddc_init(struct hdmi_core_data *core)
 {
 	void __iomem *base = core->base;
 	const unsigned long long iclk = 266000000;	/* DSS L3 ICLK */
-	const unsigned ss_scl_high = 4600;		/* ns */
-	const unsigned ss_scl_low = 5400;		/* ns */
-	const unsigned fs_scl_high = 600;		/* ns */
-	const unsigned fs_scl_low = 1300;		/* ns */
-	const unsigned sda_hold = 1000;			/* ns */
-	const unsigned sfr_div = 10;
+	const unsigned int ss_scl_high = 4600;		/* ns */
+	const unsigned int ss_scl_low = 5400;		/* ns */
+	const unsigned int fs_scl_high = 600;		/* ns */
+	const unsigned int fs_scl_low = 1300;		/* ns */
+	const unsigned int sda_hold = 1000;		/* ns */
+	const unsigned int sfr_div = 10;
 	unsigned long long sfr;
-	unsigned v;
+	unsigned int v;
 
 	sfr = iclk / sfr_div;	/* SFR_DIV */
 	sfr /= 1000;		/* SFR clock in kHz */
@@ -288,7 +287,7 @@ void hdmi5_core_dump(struct hdmi_core_data *core, struct seq_file *s)
 }
 
 static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
-			struct hdmi_config *cfg)
+			   const struct hdmi_config *cfg)
 {
 	DSSDBG("hdmi_core_init\n");
 
@@ -326,10 +325,10 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 
 /* DSS_HDMI_CORE_VIDEO_CONFIG */
 static void hdmi_core_video_config(struct hdmi_core_data *core,
-			struct hdmi_core_vid_config *cfg)
+			const struct hdmi_core_vid_config *cfg)
 {
 	void __iomem *base = core->base;
-	struct videomode *vm = &cfg->v_fc_config.vm;
+	const struct videomode *vm = &cfg->v_fc_config.vm;
 	unsigned char r = 0;
 	bool vsync_pol, hsync_pol;
 
@@ -431,11 +430,11 @@ static void hdmi_core_write_avi_infoframe(struct hdmi_core_data *core,
 	void __iomem *base = core->base;
 	u8 data[HDMI_INFOFRAME_SIZE(AVI)];
 	u8 *ptr;
-	unsigned y, a, b, s;
-	unsigned c, m, r;
-	unsigned itc, ec, q, sc;
-	unsigned vic;
-	unsigned yq, cn, pr;
+	unsigned int y, a, b, s;
+	unsigned int c, m, r;
+	unsigned int itc, ec, q, sc;
+	unsigned int vic;
+	unsigned int yq, cn, pr;
 
 	hdmi_avi_infoframe_pack(frame, data, sizeof(data));
 

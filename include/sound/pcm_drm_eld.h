@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SOUND_PCM_DRM_ELD_H
 #define __SOUND_PCM_DRM_ELD_H
 

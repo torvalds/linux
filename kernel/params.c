@@ -111,8 +111,8 @@ bool parameq(const char *a, const char *b)
 static void param_check_unsafe(const struct kernel_param *kp)
 {
 	if (kp->flags & KERNEL_PARAM_FL_UNSAFE) {
-		pr_warn("Setting dangerous option %s - tainting kernel\n",
-			kp->name);
+		pr_notice("Setting dangerous option %s - tainting kernel\n",
+			  kp->name);
 		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
 	}
 }
@@ -224,7 +224,7 @@ char *parse_args(const char *doing,
 	}								\
 	int param_get_##name(char *buffer, const struct kernel_param *kp) \
 	{								\
-		return scnprintf(buffer, PAGE_SIZE, format,		\
+		return scnprintf(buffer, PAGE_SIZE, format "\n",	\
 				*((type *)kp->arg));			\
 	}								\
 	const struct kernel_param_ops param_ops_##name = {			\
@@ -236,14 +236,14 @@ char *parse_args(const char *doing,
 	EXPORT_SYMBOL(param_ops_##name)
 
 
-STANDARD_PARAM_DEF(byte, unsigned char, "%hhu", kstrtou8);
-STANDARD_PARAM_DEF(short, short, "%hi", kstrtos16);
-STANDARD_PARAM_DEF(ushort, unsigned short, "%hu", kstrtou16);
-STANDARD_PARAM_DEF(int, int, "%i", kstrtoint);
-STANDARD_PARAM_DEF(uint, unsigned int, "%u", kstrtouint);
-STANDARD_PARAM_DEF(long, long, "%li", kstrtol);
-STANDARD_PARAM_DEF(ulong, unsigned long, "%lu", kstrtoul);
-STANDARD_PARAM_DEF(ullong, unsigned long long, "%llu", kstrtoull);
+STANDARD_PARAM_DEF(byte,	unsigned char,		"%hhu", kstrtou8);
+STANDARD_PARAM_DEF(short,	short,			"%hi",  kstrtos16);
+STANDARD_PARAM_DEF(ushort,	unsigned short,		"%hu",  kstrtou16);
+STANDARD_PARAM_DEF(int,		int,			"%i",   kstrtoint);
+STANDARD_PARAM_DEF(uint,	unsigned int,		"%u",   kstrtouint);
+STANDARD_PARAM_DEF(long,	long,			"%li",  kstrtol);
+STANDARD_PARAM_DEF(ulong,	unsigned long,		"%lu",  kstrtoul);
+STANDARD_PARAM_DEF(ullong,	unsigned long long,	"%llu", kstrtoull);
 
 int param_set_charp(const char *val, const struct kernel_param *kp)
 {
@@ -270,7 +270,7 @@ EXPORT_SYMBOL(param_set_charp);
 
 int param_get_charp(char *buffer, const struct kernel_param *kp)
 {
-	return scnprintf(buffer, PAGE_SIZE, "%s", *((char **)kp->arg));
+	return scnprintf(buffer, PAGE_SIZE, "%s\n", *((char **)kp->arg));
 }
 EXPORT_SYMBOL(param_get_charp);
 
@@ -301,7 +301,7 @@ EXPORT_SYMBOL(param_set_bool);
 int param_get_bool(char *buffer, const struct kernel_param *kp)
 {
 	/* Y and N chosen as being relatively non-coder friendly */
-	return sprintf(buffer, "%c", *(bool *)kp->arg ? 'Y' : 'N');
+	return sprintf(buffer, "%c\n", *(bool *)kp->arg ? 'Y' : 'N');
 }
 EXPORT_SYMBOL(param_get_bool);
 
@@ -360,7 +360,7 @@ EXPORT_SYMBOL(param_set_invbool);
 
 int param_get_invbool(char *buffer, const struct kernel_param *kp)
 {
-	return sprintf(buffer, "%c", (*(bool *)kp->arg) ? 'N' : 'Y');
+	return sprintf(buffer, "%c\n", (*(bool *)kp->arg) ? 'N' : 'Y');
 }
 EXPORT_SYMBOL(param_get_invbool);
 
@@ -460,8 +460,9 @@ static int param_array_get(char *buffer, const struct kernel_param *kp)
 	struct kernel_param p = *kp;
 
 	for (i = off = 0; i < (arr->num ? *arr->num : arr->max); i++) {
+		/* Replace \n with comma */
 		if (i)
-			buffer[off++] = ',';
+			buffer[off - 1] = ',';
 		p.arg = arr->elem + arr->elemsize * i;
 		check_kparam_locked(p.mod);
 		ret = arr->ops->get(buffer + off, &p);
@@ -507,7 +508,7 @@ EXPORT_SYMBOL(param_set_copystring);
 int param_get_string(char *buffer, const struct kernel_param *kp)
 {
 	const struct kparam_string *kps = kp->str;
-	return strlcpy(buffer, kps->string, kps->maxlen);
+	return scnprintf(buffer, PAGE_SIZE, "%s\n", kps->string);
 }
 EXPORT_SYMBOL(param_get_string);
 
@@ -549,10 +550,6 @@ static ssize_t param_attr_show(struct module_attribute *mattr,
 	kernel_param_lock(mk->mod);
 	count = attribute->param->ops->get(buf, attribute->param);
 	kernel_param_unlock(mk->mod);
-	if (count > 0) {
-		strcat(buf, "\n");
-		++count;
-	}
 	return count;
 }
 
@@ -600,7 +597,7 @@ EXPORT_SYMBOL(kernel_param_unlock);
 /*
  * add_sysfs_param - add a parameter to sysfs
  * @mk: struct module_kobject
- * @kparam: the actual parameter definition to add to sysfs
+ * @kp: the actual parameter definition to add to sysfs
  * @name: name of parameter
  *
  * Create a kobject if for a (per-module) parameter if mp NULL, and

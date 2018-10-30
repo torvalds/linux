@@ -1,4 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
+ * Copyright (c) 2015-2017 Oracle. All rights reserved.
  * Copyright (c) 2003-2007 Network Appliance, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -48,65 +50,6 @@
 
 enum {
 	RPCRDMA_V1_DEF_INLINE_SIZE	= 1024,
-};
-
-struct rpcrdma_segment {
-	__be32 rs_handle;	/* Registered memory handle */
-	__be32 rs_length;	/* Length of the chunk in bytes */
-	__be64 rs_offset;	/* Chunk virtual address or offset */
-};
-
-/*
- * read chunk(s), encoded as a linked list.
- */
-struct rpcrdma_read_chunk {
-	__be32 rc_discrim;	/* 1 indicates presence */
-	__be32 rc_position;	/* Position in XDR stream */
-	struct rpcrdma_segment rc_target;
-};
-
-/*
- * write chunk, and reply chunk.
- */
-struct rpcrdma_write_chunk {
-	struct rpcrdma_segment wc_target;
-};
-
-/*
- * write chunk(s), encoded as a counted array.
- */
-struct rpcrdma_write_array {
-	__be32 wc_discrim;	/* 1 indicates presence */
-	__be32 wc_nchunks;	/* Array count */
-	struct rpcrdma_write_chunk wc_array[0];
-};
-
-struct rpcrdma_msg {
-	__be32 rm_xid;	/* Mirrors the RPC header xid */
-	__be32 rm_vers;	/* Version of this protocol */
-	__be32 rm_credit;	/* Buffers requested/granted */
-	__be32 rm_type;	/* Type of message (enum rpcrdma_proc) */
-	union {
-
-		struct {			/* no chunks */
-			__be32 rm_empty[3];	/* 3 empty chunk lists */
-		} rm_nochunks;
-
-		struct {			/* no chunks and padded */
-			__be32 rm_align;	/* Padding alignment */
-			__be32 rm_thresh;	/* Padding threshold */
-			__be32 rm_pempty[3];	/* 3 empty chunk lists */
-		} rm_padded;
-
-		struct {
-			__be32 rm_err;
-			__be32 rm_vers_low;
-			__be32 rm_vers_high;
-		} rm_error;
-
-		__be32 rm_chunks[0];	/* read, write and reply chunks */
-
-	} rm_body;
 };
 
 /*

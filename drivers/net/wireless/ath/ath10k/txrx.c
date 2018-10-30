@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -94,18 +95,14 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		wake_up(&htt->empty_tx_wq);
 	spin_unlock_bh(&htt->tx_lock);
 
-	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
+	if (ar->dev_type != ATH10K_DEV_TYPE_HL)
+		dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 
 	ath10k_report_offchan_tx(htt->ar, msdu);
 
 	info = IEEE80211_SKB_CB(msdu);
 	memset(&info->status, 0, sizeof(info->status));
 	trace_ath10k_txrx_tx_unref(ar, tx_done->msdu_id);
-
-	if (tx_done->status == HTT_TX_COMPL_STATE_DISCARD) {
-		ieee80211_free_txskb(htt->ar->hw, msdu);
-		return 0;
-	}
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		info->flags |= IEEE80211_TX_STAT_ACK;
@@ -116,6 +113,20 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	if ((tx_done->status == HTT_TX_COMPL_STATE_ACK) &&
 	    (info->flags & IEEE80211_TX_CTL_NO_ACK))
 		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+
+	if (tx_done->status == HTT_TX_COMPL_STATE_DISCARD) {
+		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+			info->flags &= ~IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+		else
+			info->flags &= ~IEEE80211_TX_STAT_ACK;
+	}
+
+	if (tx_done->status == HTT_TX_COMPL_STATE_ACK &&
+	    tx_done->ack_rssi != ATH10K_INVALID_RSSI) {
+		info->status.ack_signal = ATH10K_DEFAULT_NOISE_FLOOR +
+						tx_done->ack_rssi;
+		info->status.is_valid_ack_signal = true;
+	}
 
 	ieee80211_tx_status(htt->ar->hw, msdu);
 	/* we do not own the msdu anymore */

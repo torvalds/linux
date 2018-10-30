@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 2007
  *    Author(s): Frank Pavlic <fpavlic@de.ibm.com>,
@@ -9,6 +10,7 @@
 #define __QETH_CORE_MPC_H__
 
 #include <asm/qeth.h>
+#include <uapi/linux/if_ether.h>
 
 #define IPA_PDU_HEADER_SIZE	0x40
 #define QETH_IPA_PDU_LEN_TOTAL(buffer) (buffer + 0x0e)
@@ -24,7 +26,6 @@ extern unsigned char IPA_PDU_HEADER[];
 #define QETH_SEQ_NO_LENGTH	4
 #define QETH_MPC_TOKEN_LENGTH	4
 #define QETH_MCL_LENGTH		4
-#define OSA_ADDR_LEN		6
 
 #define QETH_TIMEOUT		(10 * HZ)
 #define QETH_IPA_TIMEOUT	(45 * HZ)
@@ -33,6 +34,18 @@ extern unsigned char IPA_PDU_HEADER[];
 #define QETH_CLEAR_CHANNEL_PARM	-10
 #define QETH_HALT_CHANNEL_PARM	-11
 #define QETH_RCD_PARM -12
+
+static inline bool qeth_intparm_is_iob(unsigned long intparm)
+{
+	switch (intparm) {
+	case QETH_CLEAR_CHANNEL_PARM:
+	case QETH_HALT_CHANNEL_PARM:
+	case QETH_RCD_PARM:
+	case 0:
+		return false;
+	}
+	return true;
+}
 
 /*****************************************************************************/
 /* IP Assist related definitions                                             */
@@ -43,14 +56,31 @@ extern unsigned char IPA_PDU_HEADER[];
 #define IPA_CMD_INITIATOR_OSA_REPLY   0x81
 #define IPA_CMD_PRIM_VERSION_NO 0x01
 
+struct qeth_ipa_caps {
+	u32 supported;
+	u32 enabled;
+};
+
+static inline bool qeth_ipa_caps_supported(struct qeth_ipa_caps *caps, u32 mask)
+{
+	return (caps->supported & mask) == mask;
+}
+
+static inline bool qeth_ipa_caps_enabled(struct qeth_ipa_caps *caps, u32 mask)
+{
+	return (caps->enabled & mask) == mask;
+}
+
 enum qeth_card_types {
-	QETH_CARD_TYPE_UNKNOWN = 0,
 	QETH_CARD_TYPE_OSD     = 1,
 	QETH_CARD_TYPE_IQD     = 5,
 	QETH_CARD_TYPE_OSN     = 6,
 	QETH_CARD_TYPE_OSM     = 3,
 	QETH_CARD_TYPE_OSX     = 2,
 };
+
+#define IS_IQD(card)	((card)->info.type == QETH_CARD_TYPE_IQD)
+#define IS_OSN(card)	((card)->info.type == QETH_CARD_TYPE_OSN)
 
 #define QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE 0x18
 /* only the first two bytes are looked at in qeth_get_cardname_short */
@@ -90,6 +120,7 @@ enum qeth_ipa_cmds {
 	IPA_CMD_DELGMAC			= 0x24,
 	IPA_CMD_SETVLAN			= 0x25,
 	IPA_CMD_DELVLAN			= 0x26,
+	IPA_CMD_VNICC			= 0x2a,
 	IPA_CMD_SETBRIDGEPORT_OSA	= 0x2b,
 	IPA_CMD_SETCCID			= 0x41,
 	IPA_CMD_DELCCID			= 0x42,
@@ -165,6 +196,8 @@ enum qeth_ipa_return_codes {
 	IPA_RC_L2_INVALID_VLAN_ID	= 0x2015,
 	IPA_RC_L2_DUP_VLAN_ID		= 0x2016,
 	IPA_RC_L2_VLAN_ID_NOT_FOUND	= 0x2017,
+	IPA_RC_L2_VLAN_ID_NOT_ALLOWED	= 0x2050,
+	IPA_RC_VNICC_VNICBP		= 0x20B0,
 	IPA_RC_SBP_OSA_NOT_CONFIGURED	= 0x2B0C,
 	IPA_RC_SBP_OSA_OS_MISMATCH	= 0x2B10,
 	IPA_RC_SBP_OSA_ANO_DEV_PRIMARY	= 0x2B14,
@@ -197,6 +230,9 @@ enum qeth_ipa_return_codes {
 	IPA_RC_ENOMEM			= 0xfffe,
 	IPA_RC_FFFF			= 0xffff
 };
+/* for VNIC Characteristics */
+#define IPA_RC_VNICC_OOSEQ 0x0005
+
 /* for SET_DIAGNOSTIC_ASSIST */
 #define IPA_RC_INVALID_SUBCMD		IPA_RC_IP_TABLE_FULL
 #define IPA_RC_HARDWARE_AUTH_ERROR	IPA_RC_UNKNOWN_ERROR
@@ -228,6 +264,8 @@ enum qeth_ipa_funcs {
 	IPA_QUERY_ARP_ASSIST	= 0x00040000L,
 	IPA_INBOUND_TSO         = 0x00080000L,
 	IPA_OUTBOUND_TSO        = 0x00100000L,
+	IPA_INBOUND_CHECKSUM_V6 = 0x00400000L,
+	IPA_OUTBOUND_CHECKSUM_V6 = 0x00800000L,
 };
 
 /* SETIP/DELIP IPA Command: ***************************************************/
@@ -382,14 +420,25 @@ struct qeth_checksum_cmd {
 	__u32 enabled;
 } __packed;
 
+enum qeth_ipa_large_send_caps {
+	QETH_IPA_LARGE_SEND_TCP		= 0x00000001,
+};
+
+struct qeth_tso_start_data {
+	u32 mss;
+	u32 supported;
+};
+
 /* SETASSPARMS IPA Command: */
 struct qeth_ipacmd_setassparms {
 	struct qeth_ipacmd_setassparms_hdr hdr;
 	union {
 		__u32 flags_32bit;
+		struct qeth_ipa_caps caps;
 		struct qeth_checksum_cmd chksum;
 		struct qeth_arp_cache_entry add_arp_entry;
 		struct qeth_arp_query_data query_arp;
+		struct qeth_tso_start_data tso;
 		__u8 ip[16];
 	} data;
 } __attribute__ ((packed));
@@ -410,12 +459,11 @@ struct qeth_query_cmds_supp {
 } __attribute__ ((packed));
 
 struct qeth_change_addr {
-	__u32 cmd;
-	__u32 addr_size;
-	__u32 no_macs;
-	__u8 addr[OSA_ADDR_LEN];
-} __attribute__ ((packed));
-
+	u32 cmd;
+	u32 addr_size;
+	u32 no_macs;
+	u8 addr[ETH_ALEN];
+};
 
 struct qeth_snmp_cmd {
 	__u8  token[16];
@@ -550,6 +598,71 @@ struct qeth_ipacmd_diagass {
 	__u32  ext;
 	__u8   cdata[64];
 } __attribute__ ((packed));
+
+/* VNIC Characteristics IPA Command: *****************************************/
+/* IPA commands/sub commands for VNICC */
+#define IPA_VNICC_QUERY_CHARS		0x00000000L
+#define IPA_VNICC_QUERY_CMDS		0x00000001L
+#define IPA_VNICC_ENABLE		0x00000002L
+#define IPA_VNICC_DISABLE		0x00000004L
+#define IPA_VNICC_SET_TIMEOUT		0x00000008L
+#define IPA_VNICC_GET_TIMEOUT		0x00000010L
+
+/* VNICC flags */
+#define QETH_VNICC_FLOODING		0x80000000
+#define QETH_VNICC_MCAST_FLOODING	0x40000000
+#define QETH_VNICC_LEARNING		0x20000000
+#define QETH_VNICC_TAKEOVER_SETVMAC	0x10000000
+#define QETH_VNICC_TAKEOVER_LEARNING	0x08000000
+#define QETH_VNICC_BRIDGE_INVISIBLE	0x04000000
+#define QETH_VNICC_RX_BCAST		0x02000000
+
+/* VNICC default values */
+#define QETH_VNICC_ALL			0xff000000
+#define QETH_VNICC_DEFAULT		QETH_VNICC_RX_BCAST
+/* default VNICC timeout in seconds */
+#define QETH_VNICC_DEFAULT_TIMEOUT	600
+
+/* VNICC header */
+struct qeth_ipacmd_vnicc_hdr {
+	u32 sup;
+	u32 cur;
+};
+
+/* VNICC sub command header */
+struct qeth_vnicc_sub_hdr {
+	u16 data_length;
+	u16 reserved;
+	u32 sub_command;
+};
+
+/* query supported commands for VNIC characteristic */
+struct qeth_vnicc_query_cmds {
+	u32 vnic_char;
+	u32 sup_cmds;
+};
+
+/* enable/disable VNIC characteristic */
+struct qeth_vnicc_set_char {
+	u32 vnic_char;
+};
+
+/* get/set timeout for VNIC characteristic */
+struct qeth_vnicc_getset_timeout {
+	u32 vnic_char;
+	u32 timeout;
+};
+
+/* complete VNICC IPA command message */
+struct qeth_ipacmd_vnicc {
+	struct qeth_ipacmd_vnicc_hdr hdr;
+	struct qeth_vnicc_sub_hdr sub_hdr;
+	union {
+		struct qeth_vnicc_query_cmds query_cmds;
+		struct qeth_vnicc_set_char set_char;
+		struct qeth_vnicc_getset_timeout getset_timeout;
+	};
+};
 
 /* SETBRIDGEPORT IPA Command:	 *********************************************/
 enum qeth_ipa_sbp_cmd {
@@ -692,6 +805,7 @@ struct qeth_ipa_cmd {
 		struct qeth_ipacmd_diagass		diagass;
 		struct qeth_ipacmd_setbridgeport	sbp;
 		struct qeth_ipacmd_addr_change		addrchange;
+		struct qeth_ipacmd_vnicc		vnicc;
 	} data;
 } __attribute__ ((packed));
 
@@ -709,8 +823,8 @@ enum qeth_ipa_arp_return_codes {
 	QETH_IPA_ARP_RC_Q_NO_DATA    = 0x0008,
 };
 
-extern char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
-extern char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
+extern const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
+extern const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 
 #define QETH_SETASS_BASE_LEN (sizeof(struct qeth_ipacmd_hdr) + \
 			       sizeof(struct qeth_ipacmd_setassparms_hdr))
@@ -729,10 +843,6 @@ extern char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 /*****************************************************************************/
 /* END OF   IP Assist related definitions                                    */
 /*****************************************************************************/
-
-
-extern unsigned char WRITE_CCW[];
-extern unsigned char READ_CCW[];
 
 extern unsigned char CM_ENABLE[];
 #define CM_ENABLE_SIZE 0x63

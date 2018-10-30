@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Lewisburg pinctrl/GPIO driver
  *
  * Copyright (C) 2017, Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
+
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-intel.h"
@@ -316,10 +313,7 @@ static int lbg_pinctrl_probe(struct platform_device *pdev)
 	return intel_pinctrl_probe(pdev, &lbg_soc_data);
 }
 
-static const struct dev_pm_ops lbg_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend,
-				     intel_pinctrl_resume)
-};
+static INTEL_PINCTRL_PM_OPS(lbg_pinctrl_pm_ops);
 
 static const struct acpi_device_id lbg_pinctrl_acpi_match[] = {
 	{ "INT3536" },

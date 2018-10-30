@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Sysctl interface for parport devices.
  * 
  * Authors: David Campbell

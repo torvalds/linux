@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * OHCI HCD (Host Controller Driver) for USB.
  *
@@ -229,6 +230,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 		} else {
 			return -EPROBE_DEFER;
 		}
+		hcd->skip_phy_initialization = 1;
 		ohci->start_hnp = start_hnp;
 	}
 #endif

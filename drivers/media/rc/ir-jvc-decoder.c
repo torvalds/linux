@@ -39,7 +39,7 @@ enum jvc_state {
 /**
  * ir_jvc_decode() - Decode one JVC pulse or space
  * @dev:	the struct rc_dev descriptor of the device
- * @duration:   the struct ir_raw_event descriptor of the pulse/space
+ * @ev:   the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
@@ -56,8 +56,8 @@ static int ir_jvc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	if (!geq_margin(ev.duration, JVC_UNIT, JVC_UNIT / 2))
 		goto out;
 
-	IR_dprintk(2, "JVC decode started at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "JVC decode started at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 again:
 	switch (data->state) {
@@ -136,15 +136,15 @@ again:
 			u32 scancode;
 			scancode = (bitrev8((data->bits >> 8) & 0xff) << 8) |
 				   (bitrev8((data->bits >> 0) & 0xff) << 0);
-			IR_dprintk(1, "JVC scancode 0x%04x\n", scancode);
+			dev_dbg(&dev->dev, "JVC scancode 0x%04x\n", scancode);
 			rc_keydown(dev, RC_PROTO_JVC, scancode, data->toggle);
 			data->first = false;
 			data->old_bits = data->bits;
 		} else if (data->bits == data->old_bits) {
-			IR_dprintk(1, "JVC repeat\n");
+			dev_dbg(&dev->dev, "JVC repeat\n");
 			rc_repeat(dev);
 		} else {
-			IR_dprintk(1, "JVC invalid repeat msg\n");
+			dev_dbg(&dev->dev, "JVC invalid repeat msg\n");
 			break;
 		}
 
@@ -164,8 +164,8 @@ again:
 	}
 
 out:
-	IR_dprintk(1, "JVC decode failed at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "JVC decode failed at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
@@ -212,6 +212,8 @@ static struct ir_raw_handler jvc_handler = {
 	.protocols	= RC_PROTO_BIT_JVC,
 	.decode		= ir_jvc_decode,
 	.encode		= ir_jvc_encode,
+	.carrier	= 38000,
+	.min_timeout	= JVC_TRAILER_SPACE,
 };
 
 static int __init ir_jvc_decode_init(void)

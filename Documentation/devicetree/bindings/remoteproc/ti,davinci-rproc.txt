@@ -45,12 +45,6 @@ The following are the mandatory properties:
 			per the bindings in
 			Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
 
-Optional properties:
---------------------
-- interrupt-parent:	phandle to the interrupt controller node. This property
-			is needed if the device node hierarchy doesn't have an
-			interrupt controller.
-
 
 Example:
 --------

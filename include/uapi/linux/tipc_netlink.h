@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
 /*
  * Copyright (c) 2014, Ericsson AB
  * All rights reserved.
@@ -113,6 +114,14 @@ enum {
 	TIPC_NLA_SOCK_REF,		/* u32 */
 	TIPC_NLA_SOCK_CON,		/* nest */
 	TIPC_NLA_SOCK_HAS_PUBL,		/* flag */
+	TIPC_NLA_SOCK_STAT,		/* nest */
+	TIPC_NLA_SOCK_TYPE,		/* u32 */
+	TIPC_NLA_SOCK_INO,		/* u32 */
+	TIPC_NLA_SOCK_UID,		/* u32 */
+	TIPC_NLA_SOCK_TIPC_STATE,	/* u32 */
+	TIPC_NLA_SOCK_COOKIE,		/* u64 */
+	TIPC_NLA_SOCK_PAD,		/* flag */
+	TIPC_NLA_SOCK_GROUP,		/* nest */
 
 	__TIPC_NLA_SOCK_MAX,
 	TIPC_NLA_SOCK_MAX = __TIPC_NLA_SOCK_MAX - 1
@@ -161,6 +170,8 @@ enum {
 	TIPC_NLA_NET_UNSPEC,
 	TIPC_NLA_NET_ID,		/* u32 */
 	TIPC_NLA_NET_ADDR,		/* u32 */
+	TIPC_NLA_NET_NODEID,		/* u64 */
+	TIPC_NLA_NET_NODEID_W1,		/* u64 */
 
 	__TIPC_NLA_NET_MAX,
 	TIPC_NLA_NET_MAX = __TIPC_NLA_NET_MAX - 1
@@ -223,6 +234,19 @@ enum {
 	TIPC_NLA_MON_PEER_MAX = __TIPC_NLA_MON_PEER_MAX - 1
 };
 
+/* Nest, socket group info */
+enum {
+	TIPC_NLA_SOCK_GROUP_ID,			/* u32 */
+	TIPC_NLA_SOCK_GROUP_OPEN,		/* flag */
+	TIPC_NLA_SOCK_GROUP_NODE_SCOPE,		/* flag */
+	TIPC_NLA_SOCK_GROUP_CLUSTER_SCOPE,	/* flag */
+	TIPC_NLA_SOCK_GROUP_INSTANCE,		/* u32 */
+	TIPC_NLA_SOCK_GROUP_BC_SEND_NEXT,	/* u32 */
+
+	__TIPC_NLA_SOCK_GROUP_MAX,
+	TIPC_NLA_SOCK_GROUP_MAX = __TIPC_NLA_SOCK_GROUP_MAX - 1
+};
+
 /* Nest, connection info */
 enum {
 	TIPC_NLA_CON_UNSPEC,
@@ -237,6 +261,18 @@ enum {
 	TIPC_NLA_CON_MAX = __TIPC_NLA_CON_MAX - 1
 };
 
+/* Nest, socket statistics info */
+enum {
+	TIPC_NLA_SOCK_STAT_RCVQ,	/* u32 */
+	TIPC_NLA_SOCK_STAT_SENDQ,	/* u32 */
+	TIPC_NLA_SOCK_STAT_LINK_CONG,	/* flag */
+	TIPC_NLA_SOCK_STAT_CONN_CONG,	/* flag */
+	TIPC_NLA_SOCK_STAT_DROP,	/* u32 */
+
+	__TIPC_NLA_SOCK_STAT_MAX,
+	TIPC_NLA_SOCK_STAT_MAX = __TIPC_NLA_SOCK_STAT_MAX - 1
+};
+
 /* Nest, link propreties. Valid for link, media and bearer */
 enum {
 	TIPC_NLA_PROP_UNSPEC,
@@ -244,6 +280,7 @@ enum {
 	TIPC_NLA_PROP_PRIO,		/* u32 */
 	TIPC_NLA_PROP_TOL,		/* u32 */
 	TIPC_NLA_PROP_WIN,		/* u32 */
+	TIPC_NLA_PROP_MTU,		/* u32 */
 
 	__TIPC_NLA_PROP_MAX,
 	TIPC_NLA_PROP_MAX = __TIPC_NLA_PROP_MAX - 1

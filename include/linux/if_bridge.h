@@ -49,6 +49,8 @@ struct br_ip_list {
 #define BR_MULTICAST_TO_UNICAST	BIT(12)
 #define BR_VLAN_TUNNEL		BIT(13)
 #define BR_BCAST_FLOOD		BIT(14)
+#define BR_NEIGH_SUPPRESS	BIT(15)
+#define BR_ISOLATED		BIT(16)
 
 #define BR_DEFAULT_AGEING_TIME	(300 * HZ)
 
@@ -63,6 +65,7 @@ int br_multicast_list_adjacent(struct net_device *dev,
 bool br_multicast_has_querier_anywhere(struct net_device *dev, int proto);
 bool br_multicast_has_querier_adjacent(struct net_device *dev, int proto);
 bool br_multicast_enabled(const struct net_device *dev);
+bool br_multicast_router(const struct net_device *dev);
 #else
 static inline int br_multicast_list_adjacent(struct net_device *dev,
 					     struct list_head *br_ip_list)
@@ -83,14 +86,46 @@ static inline bool br_multicast_enabled(const struct net_device *dev)
 {
 	return false;
 }
+static inline bool br_multicast_router(const struct net_device *dev)
+{
+	return false;
+}
 #endif
 
 #if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_BRIDGE_VLAN_FILTERING)
 bool br_vlan_enabled(const struct net_device *dev);
+int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid);
+int br_vlan_get_info(const struct net_device *dev, u16 vid,
+		     struct bridge_vlan_info *p_vinfo);
 #else
 static inline bool br_vlan_enabled(const struct net_device *dev)
 {
 	return false;
+}
+
+static inline int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid)
+{
+	return -EINVAL;
+}
+
+static inline int br_vlan_get_info(const struct net_device *dev, u16 vid,
+				   struct bridge_vlan_info *p_vinfo)
+{
+	return -EINVAL;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_BRIDGE)
+struct net_device *br_fdb_find_port(const struct net_device *br_dev,
+				    const unsigned char *addr,
+				    __u16 vid);
+#else
+static inline struct net_device *
+br_fdb_find_port(const struct net_device *br_dev,
+		 const unsigned char *addr,
+		 __u16 vid)
+{
+	return NULL;
 }
 #endif
 

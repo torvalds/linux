@@ -1,4 +1,5 @@
-/* Copyright (C) 2013-2017  B.A.T.M.A.N. contributors:
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (C) 2013-2018  B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
  *
@@ -15,8 +16,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _BATMAN_ADV_BATADV_V_OGM_H_
-#define _BATMAN_ADV_BATADV_V_OGM_H_
+#ifndef _NET_BATMAN_ADV_BAT_V_OGM_H_
+#define _NET_BATMAN_ADV_BAT_V_OGM_H_
 
 #include "main.h"
 
@@ -33,4 +34,4 @@ void batadv_v_ogm_primary_iface_set(struct batadv_hard_iface *primary_iface);
 int batadv_v_ogm_packet_recv(struct sk_buff *skb,
 			     struct batadv_hard_iface *if_incoming);
 
-#endif /* _BATMAN_ADV_BATADV_V_OGM_H_ */
+#endif /* _NET_BATMAN_ADV_BAT_V_OGM_H_ */

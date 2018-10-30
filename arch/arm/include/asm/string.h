@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_ARM_STRING_H
 #define __ASM_ARM_STRING_H
 
@@ -37,19 +38,5 @@ static inline void *memset64(uint64_t *p, uint64_t v, __kernel_size_t n)
 {
 	return __memset64(p, v, n * 8, v >> 32);
 }
-
-extern void __memzero(void *ptr, __kernel_size_t n);
-
-#define memset(p,v,n)							\
-	({								\
-	 	void *__p = (p); size_t __n = n;			\
-		if ((__n) != 0) {					\
-			if (__builtin_constant_p((v)) && (v) == 0)	\
-				__memzero((__p),(__n));			\
-			else						\
-				memset((__p),(v),(__n));		\
-		}							\
-		(__p);							\
-	})
 
 #endif

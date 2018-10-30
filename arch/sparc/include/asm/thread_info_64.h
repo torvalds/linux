@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* thread_info.h: sparc64 low-level thread information
  *
  * Copyright (C) 2002  David S. Miller (davem@redhat.com)
@@ -119,12 +120,13 @@ struct thread_info {
 	.preempt_count	=	INIT_PREEMPT_COUNT,	\
 }
 
-#define init_thread_info	(init_thread_union.thread_info)
-#define init_stack		(init_thread_union.stack)
-
 /* how to get the thread information struct from C */
+#ifndef BUILD_VDSO
 register struct thread_info *current_thread_info_reg asm("g6");
 #define current_thread_info()	(current_thread_info_reg)
+#else
+extern struct thread_info *current_thread_info(void);
+#endif
 
 /* thread information allocation */
 #if PAGE_SHIFT == 13
@@ -190,7 +192,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
  *       in using in assembly, else we can't use the mask as
  *       an immediate value in instructions such as andcc.
  */
-/* flag bit 12 is available */
+#define TIF_MCDPER		12	/* Precise MCD exception */
 #define TIF_MEMDIE		13	/* is terminating due to OOM killer */
 #define TIF_POLLING_NRFLAG	14
 

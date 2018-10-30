@@ -14,8 +14,8 @@
  */
 
 #include "bnx2fc.h"
-static void bnx2fc_upld_timer(unsigned long data);
-static void bnx2fc_ofld_timer(unsigned long data);
+static void bnx2fc_upld_timer(struct timer_list *t);
+static void bnx2fc_ofld_timer(struct timer_list *t);
 static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 			   struct fcoe_port *port,
 			   struct fc_rport_priv *rdata);
@@ -27,10 +27,10 @@ static void bnx2fc_free_session_resc(struct bnx2fc_hba *hba,
 			      struct bnx2fc_rport *tgt);
 static void bnx2fc_free_conn_id(struct bnx2fc_hba *hba, u32 conn_id);
 
-static void bnx2fc_upld_timer(unsigned long data)
+static void bnx2fc_upld_timer(struct timer_list *t)
 {
 
-	struct bnx2fc_rport *tgt = (struct bnx2fc_rport *)data;
+	struct bnx2fc_rport *tgt = from_timer(tgt, t, upld_timer);
 
 	BNX2FC_TGT_DBG(tgt, "upld_timer - Upload compl not received!!\n");
 	/* fake upload completion */
@@ -40,10 +40,10 @@ static void bnx2fc_upld_timer(unsigned long data)
 	wake_up_interruptible(&tgt->upld_wait);
 }
 
-static void bnx2fc_ofld_timer(unsigned long data)
+static void bnx2fc_ofld_timer(struct timer_list *t)
 {
 
-	struct bnx2fc_rport *tgt = (struct bnx2fc_rport *)data;
+	struct bnx2fc_rport *tgt = from_timer(tgt, t, ofld_timer);
 
 	BNX2FC_TGT_DBG(tgt, "entered bnx2fc_ofld_timer\n");
 	/* NOTE: This function should never be called, as
@@ -65,7 +65,7 @@ static void bnx2fc_ofld_timer(unsigned long data)
 
 static void bnx2fc_ofld_wait(struct bnx2fc_rport *tgt)
 {
-	setup_timer(&tgt->ofld_timer, bnx2fc_ofld_timer, (unsigned long)tgt);
+	timer_setup(&tgt->ofld_timer, bnx2fc_ofld_timer, 0);
 	mod_timer(&tgt->ofld_timer, jiffies + BNX2FC_FW_TIMEOUT);
 
 	wait_event_interruptible(tgt->ofld_wait,
@@ -277,7 +277,7 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 
 static void bnx2fc_upld_wait(struct bnx2fc_rport *tgt)
 {
-	setup_timer(&tgt->upld_timer, bnx2fc_upld_timer, (unsigned long)tgt);
+	timer_setup(&tgt->upld_timer, bnx2fc_upld_timer, 0);
 	mod_timer(&tgt->upld_timer, jiffies + BNX2FC_FW_TIMEOUT);
 	wait_event_interruptible(tgt->upld_wait,
 				 (test_bit(
@@ -672,56 +672,52 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->sq_mem_size = (tgt->sq_mem_size + (CNIC_PAGE_SIZE - 1)) &
 			   CNIC_PAGE_MASK;
 
-	tgt->sq = dma_alloc_coherent(&hba->pcidev->dev, tgt->sq_mem_size,
-				     &tgt->sq_dma, GFP_KERNEL);
+	tgt->sq = dma_zalloc_coherent(&hba->pcidev->dev, tgt->sq_mem_size,
+				      &tgt->sq_dma, GFP_KERNEL);
 	if (!tgt->sq) {
 		printk(KERN_ERR PFX "unable to allocate SQ memory %d\n",
 			tgt->sq_mem_size);
 		goto mem_alloc_failure;
 	}
-	memset(tgt->sq, 0, tgt->sq_mem_size);
 
 	/* Allocate and map CQ */
 	tgt->cq_mem_size = tgt->max_cqes * BNX2FC_CQ_WQE_SIZE;
 	tgt->cq_mem_size = (tgt->cq_mem_size + (CNIC_PAGE_SIZE - 1)) &
 			   CNIC_PAGE_MASK;
 
-	tgt->cq = dma_alloc_coherent(&hba->pcidev->dev, tgt->cq_mem_size,
-				     &tgt->cq_dma, GFP_KERNEL);
+	tgt->cq = dma_zalloc_coherent(&hba->pcidev->dev, tgt->cq_mem_size,
+				      &tgt->cq_dma, GFP_KERNEL);
 	if (!tgt->cq) {
 		printk(KERN_ERR PFX "unable to allocate CQ memory %d\n",
 			tgt->cq_mem_size);
 		goto mem_alloc_failure;
 	}
-	memset(tgt->cq, 0, tgt->cq_mem_size);
 
 	/* Allocate and map RQ and RQ PBL */
 	tgt->rq_mem_size = tgt->max_rqes * BNX2FC_RQ_WQE_SIZE;
 	tgt->rq_mem_size = (tgt->rq_mem_size + (CNIC_PAGE_SIZE - 1)) &
 			   CNIC_PAGE_MASK;
 
-	tgt->rq = dma_alloc_coherent(&hba->pcidev->dev, tgt->rq_mem_size,
-					&tgt->rq_dma, GFP_KERNEL);
+	tgt->rq = dma_zalloc_coherent(&hba->pcidev->dev, tgt->rq_mem_size,
+				      &tgt->rq_dma, GFP_KERNEL);
 	if (!tgt->rq) {
 		printk(KERN_ERR PFX "unable to allocate RQ memory %d\n",
 			tgt->rq_mem_size);
 		goto mem_alloc_failure;
 	}
-	memset(tgt->rq, 0, tgt->rq_mem_size);
 
 	tgt->rq_pbl_size = (tgt->rq_mem_size / CNIC_PAGE_SIZE) * sizeof(void *);
 	tgt->rq_pbl_size = (tgt->rq_pbl_size + (CNIC_PAGE_SIZE - 1)) &
 			   CNIC_PAGE_MASK;
 
-	tgt->rq_pbl = dma_alloc_coherent(&hba->pcidev->dev, tgt->rq_pbl_size,
-					 &tgt->rq_pbl_dma, GFP_KERNEL);
+	tgt->rq_pbl = dma_zalloc_coherent(&hba->pcidev->dev, tgt->rq_pbl_size,
+					  &tgt->rq_pbl_dma, GFP_KERNEL);
 	if (!tgt->rq_pbl) {
 		printk(KERN_ERR PFX "unable to allocate RQ PBL %d\n",
 			tgt->rq_pbl_size);
 		goto mem_alloc_failure;
 	}
 
-	memset(tgt->rq_pbl, 0, tgt->rq_pbl_size);
 	num_pages = tgt->rq_mem_size / CNIC_PAGE_SIZE;
 	page = tgt->rq_dma;
 	pbl = (u32 *)tgt->rq_pbl;
@@ -739,44 +735,43 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->xferq_mem_size = (tgt->xferq_mem_size + (CNIC_PAGE_SIZE - 1)) &
 			       CNIC_PAGE_MASK;
 
-	tgt->xferq = dma_alloc_coherent(&hba->pcidev->dev, tgt->xferq_mem_size,
-					&tgt->xferq_dma, GFP_KERNEL);
+	tgt->xferq = dma_zalloc_coherent(&hba->pcidev->dev,
+					 tgt->xferq_mem_size, &tgt->xferq_dma,
+					 GFP_KERNEL);
 	if (!tgt->xferq) {
 		printk(KERN_ERR PFX "unable to allocate XFERQ %d\n",
 			tgt->xferq_mem_size);
 		goto mem_alloc_failure;
 	}
-	memset(tgt->xferq, 0, tgt->xferq_mem_size);
 
 	/* Allocate and map CONFQ & CONFQ PBL */
 	tgt->confq_mem_size = tgt->max_sqes * BNX2FC_CONFQ_WQE_SIZE;
 	tgt->confq_mem_size = (tgt->confq_mem_size + (CNIC_PAGE_SIZE - 1)) &
 			       CNIC_PAGE_MASK;
 
-	tgt->confq = dma_alloc_coherent(&hba->pcidev->dev, tgt->confq_mem_size,
-					&tgt->confq_dma, GFP_KERNEL);
+	tgt->confq = dma_zalloc_coherent(&hba->pcidev->dev,
+					 tgt->confq_mem_size, &tgt->confq_dma,
+					 GFP_KERNEL);
 	if (!tgt->confq) {
 		printk(KERN_ERR PFX "unable to allocate CONFQ %d\n",
 			tgt->confq_mem_size);
 		goto mem_alloc_failure;
 	}
-	memset(tgt->confq, 0, tgt->confq_mem_size);
 
 	tgt->confq_pbl_size =
 		(tgt->confq_mem_size / CNIC_PAGE_SIZE) * sizeof(void *);
 	tgt->confq_pbl_size =
 		(tgt->confq_pbl_size + (CNIC_PAGE_SIZE - 1)) & CNIC_PAGE_MASK;
 
-	tgt->confq_pbl = dma_alloc_coherent(&hba->pcidev->dev,
-					    tgt->confq_pbl_size,
-					    &tgt->confq_pbl_dma, GFP_KERNEL);
+	tgt->confq_pbl = dma_zalloc_coherent(&hba->pcidev->dev,
+					     tgt->confq_pbl_size,
+					     &tgt->confq_pbl_dma, GFP_KERNEL);
 	if (!tgt->confq_pbl) {
 		printk(KERN_ERR PFX "unable to allocate CONFQ PBL %d\n",
 			tgt->confq_pbl_size);
 		goto mem_alloc_failure;
 	}
 
-	memset(tgt->confq_pbl, 0, tgt->confq_pbl_size);
 	num_pages = tgt->confq_mem_size / CNIC_PAGE_SIZE;
 	page = tgt->confq_dma;
 	pbl = (u32 *)tgt->confq_pbl;
@@ -792,15 +787,14 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	/* Allocate and map ConnDB */
 	tgt->conn_db_mem_size = sizeof(struct fcoe_conn_db);
 
-	tgt->conn_db = dma_alloc_coherent(&hba->pcidev->dev,
-					  tgt->conn_db_mem_size,
-					  &tgt->conn_db_dma, GFP_KERNEL);
+	tgt->conn_db = dma_zalloc_coherent(&hba->pcidev->dev,
+					   tgt->conn_db_mem_size,
+					   &tgt->conn_db_dma, GFP_KERNEL);
 	if (!tgt->conn_db) {
 		printk(KERN_ERR PFX "unable to allocate conn_db %d\n",
 						tgt->conn_db_mem_size);
 		goto mem_alloc_failure;
 	}
-	memset(tgt->conn_db, 0, tgt->conn_db_mem_size);
 
 
 	/* Allocate and map LCQ */
@@ -808,15 +802,14 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->lcq_mem_size = (tgt->lcq_mem_size + (CNIC_PAGE_SIZE - 1)) &
 			     CNIC_PAGE_MASK;
 
-	tgt->lcq = dma_alloc_coherent(&hba->pcidev->dev, tgt->lcq_mem_size,
-				      &tgt->lcq_dma, GFP_KERNEL);
+	tgt->lcq = dma_zalloc_coherent(&hba->pcidev->dev, tgt->lcq_mem_size,
+				       &tgt->lcq_dma, GFP_KERNEL);
 
 	if (!tgt->lcq) {
 		printk(KERN_ERR PFX "unable to allocate lcq %d\n",
 		       tgt->lcq_mem_size);
 		goto mem_alloc_failure;
 	}
-	memset(tgt->lcq, 0, tgt->lcq_mem_size);
 
 	tgt->conn_db->rq_prod = 0x8000;
 

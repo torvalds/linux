@@ -19,6 +19,12 @@ config USB_EHCI_BIG_ENDIAN_MMIO
 config USB_EHCI_BIG_ENDIAN_DESC
 	bool
 
+config USB_UHCI_BIG_ENDIAN_MMIO
+	bool
+
+config USB_UHCI_BIG_ENDIAN_DESC
+	bool
+
 menuconfig USB_SUPPORT
 	bool "USB support"
 	depends on HAS_IOMEM
@@ -77,11 +83,12 @@ config USB_PCI
 	depends on PCI
 	default y
 	---help---
-	  A lot of embeded system SOC (e.g. freescale T2080) have both
-	  PCI and USB modules. But USB module is controlled by registers
-	  directly, it have no relationship with PCI module.
+	  Many embedded system SOCs (e.g. freescale T2080) have both
+	  PCI and USB modules with the USB module directly controlled by
+	  registers and having no relationship to the PCI module.
 
-	  When say N here it will not build PCI related code in USB driver.
+	  If you have such a device you may say N here and PCI related code
+	  will not be built in the USB driver.
 
 if USB
 
@@ -164,6 +171,8 @@ source "drivers/usb/gadget/Kconfig"
 
 source "drivers/usb/typec/Kconfig"
 
+source "drivers/usb/roles/Kconfig"
+
 config USB_LED_TRIG
 	bool "USB LED Triggers"
 	depends on LEDS_CLASS && LEDS_TRIGGERS
@@ -195,5 +204,9 @@ config USB_ULPI_BUS
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called ulpi.
+
+config USB_ROLE_SWITCH
+	tristate
+	select USB_COMMON
 
 endif # USB_SUPPORT

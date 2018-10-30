@@ -72,7 +72,6 @@ this flag, a process must first signal intent by setting a socket option:
 	if (setsockopt(fd, SOL_SOCKET, SO_ZEROCOPY, &one, sizeof(one)))
 		error(1, errno, "setsockopt zerocopy");
 
-
 Transmission
 ------------
 

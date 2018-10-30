@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree file for Wiliboard WBD-111
  */
@@ -13,7 +14,8 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory { /* 128 MB */
+	memory@0 {
+		/* 128 MB */
 		device_type = "memory";
 		reg = <0x00000000 0x8000000>;
 	};
@@ -25,11 +27,9 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@5 {
-			debounce_interval = <50>;
+		button-setup {
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "reset";
@@ -41,30 +41,43 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led@1 {
+		led-red-l3 {
 			label = "wbd111:red:L3";
 			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@2 {
+		led-green-l4 {
 			label = "wbd111:green:L4";
 			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@3 {
+		led-red-l4 {
 			label = "wbd111:red:L4";
 			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
-		led@5 {
+		led-greeb-l3 {
 			label = "wbd111:green:L3";
 			/* Conflict with TVC and extended parallel flash */
 			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	mdio0: ethernet-phy {
+		compatible = "virtual,mdio-gpio";
+		gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, /* MDC */
+			<&gpio0 21 GPIO_ACTIVE_HIGH>; /* MDIO */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@1 {
+			reg = <1>;
+			device_type = "ethernet-phy";
 		};
 	};
 
@@ -123,6 +136,40 @@
 		gpio0: gpio@4d000000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&gpio0_default_pins>;
+		};
+
+		pci@50000000 {
+			status = "okay";
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map =
+				<0x4800 0 0 1 &pci_intc 0>, /* Slot 9 */
+				<0x4800 0 0 2 &pci_intc 1>,
+				<0x4800 0 0 3 &pci_intc 2>,
+				<0x4800 0 0 4 &pci_intc 3>,
+				<0x5000 0 0 1 &pci_intc 1>, /* Slot 10 */
+				<0x5000 0 0 2 &pci_intc 2>,
+				<0x5000 0 0 3 &pci_intc 3>,
+				<0x5000 0 0 4 &pci_intc 0>,
+				<0x5800 0 0 1 &pci_intc 2>, /* Slot 11 */
+				<0x5800 0 0 2 &pci_intc 3>,
+				<0x5800 0 0 3 &pci_intc 0>,
+				<0x5800 0 0 4 &pci_intc 1>,
+				<0x6000 0 0 1 &pci_intc 3>, /* Slot 12 */
+				<0x6000 0 0 2 &pci_intc 0>,
+				<0x6000 0 0 3 &pci_intc 1>,
+				<0x6000 0 0 4 &pci_intc 2>;
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				phy-handle = <&phy0>;
+			};
+			ethernet-port@1 {
+				/* Not used in this platform */
+			};
 		};
 	};
 };

@@ -115,7 +115,7 @@ static const struct radar_detector_specs jp_radar_ref_types[] = {
 	JP_PATTERN(4, 0, 5, 150, 230, 1, 23, 50, false),
 	JP_PATTERN(5, 6, 10, 200, 500, 1, 16, 50, false),
 	JP_PATTERN(6, 11, 20, 200, 500, 1, 12, 50, false),
-	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 3, 50, false),
+	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 3, 50, true),
 	JP_PATTERN(5, 0, 1, 333, 333, 1, 9, 50, false),
 };
 
@@ -268,7 +268,8 @@ static void dpd_exit(struct dfs_pattern_detector *dpd)
 }
 
 static bool
-dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
+dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event,
+	      struct radar_detector_specs *rs)
 {
 	u32 i;
 	struct channel_detector *cd;
@@ -294,6 +295,8 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 		struct pri_detector *pd = cd->detectors[i];
 		struct pri_sequence *ps = pd->add_pulse(pd, event);
 		if (ps != NULL) {
+			if (rs != NULL)
+				memcpy(rs, pd->rs, sizeof(*rs));
 			ath_dbg(dpd->common, DFS,
 				"DFS: radar found on freq=%d: id=%d, pri=%d, "
 				"count=%d, count_false=%d\n",

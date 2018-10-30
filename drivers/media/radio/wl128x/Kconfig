@@ -7,11 +7,11 @@ config RADIO_WL128X
 	depends on VIDEO_V4L2 && RFKILL && TTY && TI_ST
 	depends on GPIOLIB || COMPILE_TEST
 	help
-	Choose Y here if you have this FM radio chip.
+	  Choose Y here if you have this FM radio chip.
 
-	In order to control your radio card, you will need to use programs
-	that are compatible with the Video For Linux 2 API.  Information on
-	this API and pointers to "v4l2" programs may be found at
-	<file:Documentation/video4linux/API.html>.
+	  In order to control your radio card, you will need to use programs
+	  that are compatible with the Video For Linux 2 API.  Information on
+	  this API and pointers to "v4l2" programs may be found at
+	  <file:Documentation/media/media_uapi.rst>.
 
 endmenu

@@ -361,12 +361,12 @@ static const struct fpga_manager_ops altera_cvp_ops = {
 	.write_complete	= altera_cvp_write_complete,
 };
 
-static ssize_t show_chkcfg(struct device_driver *dev, char *buf)
+static ssize_t chkcfg_show(struct device_driver *dev, char *buf)
 {
 	return snprintf(buf, 3, "%d\n", altera_cvp_chkcfg);
 }
 
-static ssize_t store_chkcfg(struct device_driver *drv, const char *buf,
+static ssize_t chkcfg_store(struct device_driver *drv, const char *buf,
 			    size_t count)
 {
 	int ret;
@@ -378,13 +378,11 @@ static ssize_t store_chkcfg(struct device_driver *drv, const char *buf,
 	return count;
 }
 
-static DRIVER_ATTR(chkcfg, 0600, show_chkcfg, store_chkcfg);
+static DRIVER_ATTR_RW(chkcfg);
 
 static int altera_cvp_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *dev_id);
 static void altera_cvp_remove(struct pci_dev *pdev);
-
-#define PCI_VENDOR_ID_ALTERA	0x1172
 
 static struct pci_device_id altera_cvp_id_tbl[] = {
 	{ PCI_VDEVICE(ALTERA, PCI_ANY_ID) },
@@ -403,6 +401,7 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *dev_id)
 {
 	struct altera_cvp_conf *conf;
+	struct fpga_manager *mgr;
 	u16 cmd, val;
 	int ret;
 
@@ -454,8 +453,16 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 	snprintf(conf->mgr_name, sizeof(conf->mgr_name), "%s @%s",
 		 ALTERA_CVP_MGR_NAME, pci_name(pdev));
 
-	ret = fpga_mgr_register(&pdev->dev, conf->mgr_name,
-				&altera_cvp_ops, conf);
+	mgr = devm_fpga_mgr_create(&pdev->dev, conf->mgr_name,
+				   &altera_cvp_ops, conf);
+	if (!mgr) {
+		ret = -ENOMEM;
+		goto err_unmap;
+	}
+
+	pci_set_drvdata(pdev, mgr);
+
+	ret = fpga_mgr_register(mgr);
 	if (ret)
 		goto err_unmap;
 
@@ -463,7 +470,7 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 				 &driver_attr_chkcfg);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't create sysfs chkcfg file\n");
-		fpga_mgr_unregister(&pdev->dev);
+		fpga_mgr_unregister(mgr);
 		goto err_unmap;
 	}
 
@@ -485,7 +492,7 @@ static void altera_cvp_remove(struct pci_dev *pdev)
 	u16 cmd;
 
 	driver_remove_file(&altera_cvp_driver.driver, &driver_attr_chkcfg);
-	fpga_mgr_unregister(&pdev->dev);
+	fpga_mgr_unregister(mgr);
 	pci_iounmap(pdev, conf->map);
 	pci_release_region(pdev, CVP_BAR);
 	pci_read_config_word(pdev, PCI_COMMAND, &cmd);

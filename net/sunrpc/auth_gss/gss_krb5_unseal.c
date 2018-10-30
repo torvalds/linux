@@ -155,10 +155,12 @@ gss_verify_mic_v2(struct krb5_ctx *ctx,
 	u8 flags;
 	int i;
 	unsigned int cksum_usage;
+	__be16 be16_ptr;
 
 	dprintk("RPC:       %s\n", __func__);
 
-	if (be16_to_cpu(*((__be16 *)ptr)) != KG2_TOK_MIC)
+	memcpy(&be16_ptr, (char *) ptr, 2);
+	if (be16_to_cpu(be16_ptr) != KG2_TOK_MIC)
 		return GSS_S_DEFECTIVE_TOKEN;
 
 	flags = ptr[2];
@@ -223,4 +225,3 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 		return gss_verify_mic_v2(ctx, message_buffer, read_token);
 	}
 }
-

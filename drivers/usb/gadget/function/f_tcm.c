@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Target based USB-Gadget
  *
  * UAS protocol handling, target callbacks, configfs handling,
  * BBB (USB Mass Storage Class Bulk-Only (BBB) and Transport protocol handling.
  *
  * Author: Sebastian Andrzej Siewior <bigeasy at linutronix dot de>
- * License: GPLv2 as published by FSF.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -1071,15 +1071,16 @@ static struct usbg_cmd *usbg_get_cmd(struct f_uas *fu,
 {
 	struct se_session *se_sess = tv_nexus->tvn_se_sess;
 	struct usbg_cmd *cmd;
-	int tag;
+	int tag, cpu;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
+	tag = sbitmap_queue_get(&se_sess->sess_tag_pool, &cpu);
 	if (tag < 0)
 		return ERR_PTR(-ENOMEM);
 
 	cmd = &((struct usbg_cmd *)se_sess->sess_cmd_map)[tag];
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->se_cmd.map_tag = tag;
+	cmd->se_cmd.map_cpu = cpu;
 	cmd->se_cmd.tag = cmd->tag = scsi_tag;
 	cmd->fu = fu;
 
@@ -1094,7 +1095,7 @@ static int usbg_submit_command(struct f_uas *fu,
 	struct command_iu *cmd_iu = cmdbuf;
 	struct usbg_cmd *cmd;
 	struct usbg_tpg *tpg = fu->tpg;
-	struct tcm_usbg_nexus *tv_nexus = tpg->tpg_nexus;
+	struct tcm_usbg_nexus *tv_nexus;
 	u32 cmd_len;
 	u16 scsi_tag;
 
@@ -1145,6 +1146,7 @@ static int usbg_submit_command(struct f_uas *fu,
 	default:
 		pr_debug_once("Unsupported prio_attr: %02x.\n",
 				cmd_iu->prio_attr);
+		/* fall through */
 	case UAS_SIMPLE_TAG:
 		cmd->prio_attr = TCM_SIMPLE_TAG;
 		break;
@@ -1287,7 +1289,7 @@ static void usbg_release_cmd(struct se_cmd *se_cmd)
 	struct se_session *se_sess = se_cmd->se_sess;
 
 	kfree(cmd->data_buf);
-	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
+	target_free_tag(se_sess, se_cmd);
 }
 
 static u32 usbg_sess_get_index(struct se_session *se_sess)
@@ -1342,10 +1344,8 @@ static int usbg_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
 	return 0;
 }
 
-static struct se_portal_group *usbg_make_tpg(
-	struct se_wwn *wwn,
-	struct config_group *group,
-	const char *name)
+static struct se_portal_group *usbg_make_tpg(struct se_wwn *wwn,
+					     const char *name)
 {
 	struct usbg_tport *tport = container_of(wwn, struct usbg_tport,
 			tport_wwn);
@@ -1378,7 +1378,7 @@ static struct se_portal_group *usbg_make_tpg(
 			goto unlock_dep;
 	} else {
 		ret = configfs_depend_item_unlocked(
-			group->cg_subsys,
+			wwn->wwn_group.cg_subsys,
 			&opts->func_inst.group.cg_item);
 		if (ret)
 			goto unlock_dep;
@@ -1592,7 +1592,7 @@ static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 		goto out_unlock;
 	}
 
-	tv_nexus->tvn_se_sess = target_alloc_session(&tpg->se_tpg,
+	tv_nexus->tvn_se_sess = target_setup_session(&tpg->se_tpg,
 						     USB_G_DEFAULT_SESSION_TAGS,
 						     sizeof(struct usbg_cmd),
 						     TARGET_PROT_NORMAL, name,
@@ -1638,7 +1638,7 @@ static int tcm_usbg_drop_nexus(struct usbg_tpg *tpg)
 	/*
 	 * Release the SCSI I_T Nexus to the emulated vHost Target Port
 	 */
-	transport_deregister_session(tv_nexus->tvn_se_sess);
+	target_remove_session(se_sess);
 	tpg->tpg_nexus = NULL;
 
 	kfree(tv_nexus);
@@ -2166,7 +2166,7 @@ static struct configfs_item_operations tcm_item_ops = {
 	.release		= tcm_attr_release,
 };
 
-static struct config_item_type tcm_func_type = {
+static const struct config_item_type tcm_func_type = {
 	.ct_item_ops	= &tcm_item_ops,
 	.ct_owner	= THIS_MODULE,
 };

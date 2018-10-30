@@ -17,13 +17,14 @@
 #include <linux/errno.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
+#include <linux/idr.h>
 #include <net/netlink.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
 
 struct basic_head {
-	u32			hgenerator;
 	struct list_head	flist;
+	struct idr		handle_idr;
 	struct rcu_head		rcu;
 };
 
@@ -34,7 +35,7 @@ struct basic_filter {
 	struct tcf_result	res;
 	struct tcf_proto	*tp;
 	struct list_head	link;
-	struct rcu_head		rcu;
+	struct rcu_work		rwork;
 };
 
 static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
@@ -78,20 +79,30 @@ static int basic_init(struct tcf_proto *tp)
 	if (head == NULL)
 		return -ENOBUFS;
 	INIT_LIST_HEAD(&head->flist);
+	idr_init(&head->handle_idr);
 	rcu_assign_pointer(tp->root, head);
 	return 0;
 }
 
-static void basic_delete_filter(struct rcu_head *head)
+static void __basic_delete_filter(struct basic_filter *f)
 {
-	struct basic_filter *f = container_of(head, struct basic_filter, rcu);
-
 	tcf_exts_destroy(&f->exts);
 	tcf_em_tree_destroy(&f->ematches);
+	tcf_exts_put_net(&f->exts);
 	kfree(f);
 }
 
-static void basic_destroy(struct tcf_proto *tp)
+static void basic_delete_filter_work(struct work_struct *work)
+{
+	struct basic_filter *f = container_of(to_rcu_work(work),
+					      struct basic_filter,
+					      rwork);
+	rtnl_lock();
+	__basic_delete_filter(f);
+	rtnl_unlock();
+}
+
+static void basic_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct basic_head *head = rtnl_dereference(tp->root);
 	struct basic_filter *f, *n;
@@ -99,19 +110,27 @@ static void basic_destroy(struct tcf_proto *tp)
 	list_for_each_entry_safe(f, n, &head->flist, link) {
 		list_del_rcu(&f->link);
 		tcf_unbind_filter(tp, &f->res);
-		call_rcu(&f->rcu, basic_delete_filter);
+		idr_remove(&head->handle_idr, f->handle);
+		if (tcf_exts_get_net(&f->exts))
+			tcf_queue_work(&f->rwork, basic_delete_filter_work);
+		else
+			__basic_delete_filter(f);
 	}
+	idr_destroy(&head->handle_idr);
 	kfree_rcu(head, rcu);
 }
 
-static int basic_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int basic_delete(struct tcf_proto *tp, void *arg, bool *last,
+			struct netlink_ext_ack *extack)
 {
 	struct basic_head *head = rtnl_dereference(tp->root);
 	struct basic_filter *f = arg;
 
 	list_del_rcu(&f->link);
 	tcf_unbind_filter(tp, &f->res);
-	call_rcu(&f->rcu, basic_delete_filter);
+	idr_remove(&head->handle_idr, f->handle);
+	tcf_exts_get_net(&f->exts);
+	tcf_queue_work(&f->rwork, basic_delete_filter_work);
 	*last = list_empty(&head->flist);
 	return 0;
 }
@@ -124,11 +143,12 @@ static const struct nla_policy basic_policy[TCA_BASIC_MAX + 1] = {
 static int basic_set_parms(struct net *net, struct tcf_proto *tp,
 			   struct basic_filter *f, unsigned long base,
 			   struct nlattr **tb,
-			   struct nlattr *est, bool ovr)
+			   struct nlattr *est, bool ovr,
+			   struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr);
+	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr, extack);
 	if (err < 0)
 		return err;
 
@@ -147,7 +167,8 @@ static int basic_set_parms(struct net *net, struct tcf_proto *tp,
 
 static int basic_change(struct net *net, struct sk_buff *in_skb,
 			struct tcf_proto *tp, unsigned long base, u32 handle,
-			struct nlattr **tca, void **arg, bool ovr)
+			struct nlattr **tca, void **arg, bool ovr,
+			struct netlink_ext_ack *extack)
 {
 	int err;
 	struct basic_head *head = rtnl_dereference(tp->root);
@@ -176,36 +197,34 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		goto errout;
 
-	err = -EINVAL;
-	if (handle) {
-		fnew->handle = handle;
-	} else if (fold) {
-		fnew->handle = fold->handle;
-	} else {
-		unsigned int i = 0x80000000;
-		do {
-			if (++head->hgenerator == 0x7FFFFFFF)
-				head->hgenerator = 1;
-		} while (--i > 0 && basic_get(tp, head->hgenerator));
-
-		if (i <= 0) {
-			pr_err("Insufficient number of handles\n");
-			goto errout;
-		}
-
-		fnew->handle = head->hgenerator;
+	if (!handle) {
+		handle = 1;
+		err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+				    INT_MAX, GFP_KERNEL);
+	} else if (!fold) {
+		err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+				    handle, GFP_KERNEL);
 	}
-
-	err = basic_set_parms(net, tp, fnew, base, tb, tca[TCA_RATE], ovr);
-	if (err < 0)
+	if (err)
 		goto errout;
+	fnew->handle = handle;
+
+	err = basic_set_parms(net, tp, fnew, base, tb, tca[TCA_RATE], ovr,
+			      extack);
+	if (err < 0) {
+		if (!fold)
+			idr_remove(&head->handle_idr, fnew->handle);
+		goto errout;
+	}
 
 	*arg = fnew;
 
 	if (fold) {
+		idr_replace(&head->handle_idr, fnew, fnew->handle);
 		list_replace_rcu(&fold->link, &fnew->link);
 		tcf_unbind_filter(tp, &fold->res);
-		call_rcu(&fold->rcu, basic_delete_filter);
+		tcf_exts_get_net(&fold->exts);
+		tcf_queue_work(&fold->rwork, basic_delete_filter_work);
 	} else {
 		list_add_rcu(&fnew->link, &head->flist);
 	}
@@ -305,4 +324,3 @@ static void __exit exit_basic(void)
 module_init(init_basic)
 module_exit(exit_basic)
 MODULE_LICENSE("GPL");
-

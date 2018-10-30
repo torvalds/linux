@@ -1414,11 +1414,11 @@ static int sst_fill_module_list(struct snd_kcontrol *kctl,
  * name. First part of control name contains the pipe name (widget name).
  */
 static int sst_fill_widget_module_info(struct snd_soc_dapm_widget *w,
-	struct snd_soc_platform *platform)
+	struct snd_soc_component *component)
 {
 	struct snd_kcontrol *kctl;
 	int index, ret = 0;
-	struct snd_card *card = platform->component.card->snd_card;
+	struct snd_card *card = component->card->snd_card;
 	char *idx;
 
 	down_read(&card->controls_rwsem);
@@ -1468,13 +1468,13 @@ static int sst_fill_widget_module_info(struct snd_soc_dapm_widget *w,
 /**
  * sst_fill_linked_widgets - fill the parent pointer for the linked widget
  */
-static void sst_fill_linked_widgets(struct snd_soc_platform *platform,
+static void sst_fill_linked_widgets(struct snd_soc_component *component,
 						struct sst_ids *ids)
 {
 	struct snd_soc_dapm_widget *w;
 	unsigned int len = strlen(ids->parent_wname);
 
-	list_for_each_entry(w, &platform->component.card->widgets, list) {
+	list_for_each_entry(w, &component->card->widgets, list) {
 		if (!strncmp(ids->parent_wname, w->name, len)) {
 			ids->parent_w = w;
 			break;
@@ -1485,41 +1485,41 @@ static void sst_fill_linked_widgets(struct snd_soc_platform *platform,
 /**
  * sst_map_modules_to_pipe - fill algo/gains list for all pipes
  */
-static int sst_map_modules_to_pipe(struct snd_soc_platform *platform)
+static int sst_map_modules_to_pipe(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_widget *w;
 	int ret = 0;
 
-	list_for_each_entry(w, &platform->component.card->widgets, list) {
+	list_for_each_entry(w, &component->card->widgets, list) {
 		if (is_sst_dapm_widget(w) && (w->priv)) {
 			struct sst_ids *ids = w->priv;
 
-			dev_dbg(platform->dev, "widget type=%d name=%s\n",
+			dev_dbg(component->dev, "widget type=%d name=%s\n",
 					w->id, w->name);
 			INIT_LIST_HEAD(&ids->algo_list);
 			INIT_LIST_HEAD(&ids->gain_list);
-			ret = sst_fill_widget_module_info(w, platform);
+			ret = sst_fill_widget_module_info(w, component);
 
 			if (ret < 0)
 				return ret;
 
 			/* fill linked widgets */
 			if (ids->parent_wname !=  NULL)
-				sst_fill_linked_widgets(platform, ids);
+				sst_fill_linked_widgets(component, ids);
 		}
 	}
 	return 0;
 }
 
-int sst_dsp_init_v2_dpcm(struct snd_soc_platform *platform)
+int sst_dsp_init_v2_dpcm(struct snd_soc_component *component)
 {
 	int i, ret = 0;
 	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(&platform->component);
-	struct sst_data *drv = snd_soc_platform_get_drvdata(platform);
+			snd_soc_component_get_dapm(component);
+	struct sst_data *drv = snd_soc_component_get_drvdata(component);
 	unsigned int gains = ARRAY_SIZE(sst_gain_controls)/3;
 
-	drv->byte_stream = devm_kzalloc(platform->dev,
+	drv->byte_stream = devm_kzalloc(component->dev,
 					SST_MAX_BIN_BYTES, GFP_KERNEL);
 	if (!drv->byte_stream)
 		return -ENOMEM;
@@ -1537,26 +1537,26 @@ int sst_dsp_init_v2_dpcm(struct snd_soc_platform *platform)
 		sst_gains[i].ramp_duration = SST_GAIN_RAMP_DURATION_DEFAULT;
 	}
 
-	ret = snd_soc_add_platform_controls(platform, sst_gain_controls,
+	ret = snd_soc_add_component_controls(component, sst_gain_controls,
 			ARRAY_SIZE(sst_gain_controls));
 	if (ret)
 		return ret;
 
 	/* Initialize algo control params */
-	ret = sst_algo_control_init(platform->dev);
+	ret = sst_algo_control_init(component->dev);
 	if (ret)
 		return ret;
-	ret = snd_soc_add_platform_controls(platform, sst_algo_controls,
+	ret = snd_soc_add_component_controls(component, sst_algo_controls,
 			ARRAY_SIZE(sst_algo_controls));
 	if (ret)
 		return ret;
 
-	ret = snd_soc_add_platform_controls(platform, sst_slot_controls,
+	ret = snd_soc_add_component_controls(component, sst_slot_controls,
 			ARRAY_SIZE(sst_slot_controls));
 	if (ret)
 		return ret;
 
-	ret = sst_map_modules_to_pipe(platform);
+	ret = sst_map_modules_to_pipe(component);
 
 	return ret;
 }

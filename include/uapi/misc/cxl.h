@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -19,20 +20,22 @@ struct cxl_ioctl_start_work {
 	__u64 work_element_descriptor;
 	__u64 amr;
 	__s16 num_interrupts;
-	__s16 reserved1;
-	__s32 reserved2;
+	__u16 tid;
+	__s32 reserved1;
+	__u64 reserved2;
 	__u64 reserved3;
 	__u64 reserved4;
 	__u64 reserved5;
-	__u64 reserved6;
 };
 
 #define CXL_START_WORK_AMR		0x0000000000000001ULL
 #define CXL_START_WORK_NUM_IRQS		0x0000000000000002ULL
 #define CXL_START_WORK_ERR_FF		0x0000000000000004ULL
+#define CXL_START_WORK_TID		0x0000000000000008ULL
 #define CXL_START_WORK_ALL		(CXL_START_WORK_AMR |\
 					 CXL_START_WORK_NUM_IRQS |\
-					 CXL_START_WORK_ERR_FF)
+					 CXL_START_WORK_ERR_FF |\
+					 CXL_START_WORK_TID)
 
 
 /* Possible modes that an afu can be in */

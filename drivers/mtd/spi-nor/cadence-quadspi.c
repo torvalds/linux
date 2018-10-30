@@ -18,6 +18,8 @@
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -31,12 +33,16 @@
 #include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/sched.h>
 #include <linux/spi/spi.h>
 #include <linux/timer.h>
 
 #define CQSPI_NAME			"cadence-qspi"
 #define CQSPI_MAX_CHIPSELECT		16
+
+/* Quirks */
+#define CQSPI_NEEDS_WR_DELAY		BIT(0)
 
 struct cqspi_st;
 
@@ -54,6 +60,7 @@ struct cqspi_flash_pdata {
 	u8		data_width;
 	u8		cs;
 	bool		registered;
+	bool		use_direct_mode;
 };
 
 struct cqspi_st {
@@ -64,8 +71,13 @@ struct cqspi_st {
 
 	void __iomem		*iobase;
 	void __iomem		*ahb_base;
+	resource_size_t		ahb_size;
 	struct completion	transfer_complete;
 	struct mutex		bus_mutex;
+
+	struct dma_chan		*rx_chan;
+	struct completion	rx_dma_complete;
+	dma_addr_t		mmap_phys_base;
 
 	int			current_cs;
 	int			current_page_size;
@@ -75,7 +87,9 @@ struct cqspi_st {
 	bool			is_decoded_cs;
 	u32			fifo_depth;
 	u32			fifo_width;
+	bool			rclk_en;
 	u32			trigger_address;
+	u32			wr_delay;
 	struct cqspi_flash_pdata f_pdata[CQSPI_MAX_CHIPSELECT];
 };
 
@@ -97,6 +111,7 @@ struct cqspi_st {
 /* Register map */
 #define CQSPI_REG_CONFIG			0x00
 #define CQSPI_REG_CONFIG_ENABLE_MASK		BIT(0)
+#define CQSPI_REG_CONFIG_ENB_DIR_ACC_CTRL	BIT(7)
 #define CQSPI_REG_CONFIG_DECODE_MASK		BIT(9)
 #define CQSPI_REG_CONFIG_CHIPSELECT_LSB		10
 #define CQSPI_REG_CONFIG_DMA_MASK		BIT(15)
@@ -444,16 +459,13 @@ static int cqspi_command_write_addr(struct spi_nor *nor,
 	return cqspi_exec_flash_cmd(cqspi, reg);
 }
 
-static int cqspi_indirect_read_setup(struct spi_nor *nor,
-				     const unsigned int from_addr)
+static int cqspi_read_setup(struct spi_nor *nor)
 {
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	struct cqspi_st *cqspi = f_pdata->cqspi;
 	void __iomem *reg_base = cqspi->iobase;
 	unsigned int dummy_clk = 0;
 	unsigned int reg;
-
-	writel(from_addr, reg_base + CQSPI_REG_INDIRECTRDSTARTADDR);
 
 	reg = nor->read_opcode << CQSPI_REG_RD_INSTR_OPCODE_LSB;
 	reg |= cqspi_calc_rdreg(nor, nor->read_opcode);
@@ -487,17 +499,20 @@ static int cqspi_indirect_read_setup(struct spi_nor *nor,
 	return 0;
 }
 
-static int cqspi_indirect_read_execute(struct spi_nor *nor,
-				       u8 *rxbuf, const unsigned n_rx)
+static int cqspi_indirect_read_execute(struct spi_nor *nor, u8 *rxbuf,
+				       loff_t from_addr, const size_t n_rx)
 {
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	struct cqspi_st *cqspi = f_pdata->cqspi;
 	void __iomem *reg_base = cqspi->iobase;
 	void __iomem *ahb_base = cqspi->ahb_base;
 	unsigned int remaining = n_rx;
+	unsigned int mod_bytes = n_rx % 4;
 	unsigned int bytes_to_read = 0;
+	u8 *rxbuf_end = rxbuf + n_rx;
 	int ret = 0;
 
+	writel(from_addr, reg_base + CQSPI_REG_INDIRECTRDSTARTADDR);
 	writel(remaining, reg_base + CQSPI_REG_INDIRECTRDBYTES);
 
 	/* Clear all interrupts. */
@@ -510,24 +525,36 @@ static int cqspi_indirect_read_execute(struct spi_nor *nor,
 	       reg_base + CQSPI_REG_INDIRECTRD);
 
 	while (remaining > 0) {
-		ret = wait_for_completion_timeout(&cqspi->transfer_complete,
-						  msecs_to_jiffies
-						  (CQSPI_READ_TIMEOUT_MS));
+		if (!wait_for_completion_timeout(&cqspi->transfer_complete,
+				msecs_to_jiffies(CQSPI_READ_TIMEOUT_MS)))
+			ret = -ETIMEDOUT;
 
 		bytes_to_read = cqspi_get_rd_sram_level(cqspi);
 
-		if (!ret && bytes_to_read == 0) {
+		if (ret && bytes_to_read == 0) {
 			dev_err(nor->dev, "Indirect read timeout, no bytes\n");
-			ret = -ETIMEDOUT;
 			goto failrd;
 		}
 
 		while (bytes_to_read != 0) {
+			unsigned int word_remain = round_down(remaining, 4);
+
 			bytes_to_read *= cqspi->fifo_width;
 			bytes_to_read = bytes_to_read > remaining ?
 					remaining : bytes_to_read;
-			ioread32_rep(ahb_base, rxbuf,
-				     DIV_ROUND_UP(bytes_to_read, 4));
+			bytes_to_read = round_down(bytes_to_read, 4);
+			/* Read 4 byte word chunks then single bytes */
+			if (bytes_to_read) {
+				ioread32_rep(ahb_base, rxbuf,
+					     (bytes_to_read / 4));
+			} else if (!word_remain && mod_bytes) {
+				unsigned int temp = ioread32(ahb_base);
+
+				bytes_to_read = mod_bytes;
+				memcpy(rxbuf, &temp, min((unsigned int)
+							 (rxbuf_end - rxbuf),
+							 bytes_to_read));
+			}
 			rxbuf += bytes_to_read;
 			remaining -= bytes_to_read;
 			bytes_to_read = cqspi_get_rd_sram_level(cqspi);
@@ -564,8 +591,7 @@ failrd:
 	return ret;
 }
 
-static int cqspi_indirect_write_setup(struct spi_nor *nor,
-				      const unsigned int to_addr)
+static int cqspi_write_setup(struct spi_nor *nor)
 {
 	unsigned int reg;
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
@@ -578,8 +604,6 @@ static int cqspi_indirect_write_setup(struct spi_nor *nor,
 	reg = cqspi_calc_rdreg(nor, nor->program_opcode);
 	writel(reg, reg_base + CQSPI_REG_RD_INSTR);
 
-	writel(to_addr, reg_base + CQSPI_REG_INDIRECTWRSTARTADDR);
-
 	reg = readl(reg_base + CQSPI_REG_SIZE);
 	reg &= ~CQSPI_REG_SIZE_ADDRESS_MASK;
 	reg |= (nor->addr_width - 1);
@@ -587,8 +611,8 @@ static int cqspi_indirect_write_setup(struct spi_nor *nor,
 	return 0;
 }
 
-static int cqspi_indirect_write_execute(struct spi_nor *nor,
-					const u8 *txbuf, const unsigned n_tx)
+static int cqspi_indirect_write_execute(struct spi_nor *nor, loff_t to_addr,
+					const u8 *txbuf, const size_t n_tx)
 {
 	const unsigned int page_size = nor->page_size;
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
@@ -598,6 +622,7 @@ static int cqspi_indirect_write_execute(struct spi_nor *nor,
 	unsigned int write_bytes;
 	int ret;
 
+	writel(to_addr, reg_base + CQSPI_REG_INDIRECTWRSTARTADDR);
 	writel(remaining, reg_base + CQSPI_REG_INDIRECTWRBYTES);
 
 	/* Clear all interrupts. */
@@ -608,16 +633,23 @@ static int cqspi_indirect_write_execute(struct spi_nor *nor,
 	reinit_completion(&cqspi->transfer_complete);
 	writel(CQSPI_REG_INDIRECTWR_START_MASK,
 	       reg_base + CQSPI_REG_INDIRECTWR);
+	/*
+	 * As per 66AK2G02 TRM SPRUHY8F section 11.15.5.3 Indirect Access
+	 * Controller programming sequence, couple of cycles of
+	 * QSPI_REF_CLK delay is required for the above bit to
+	 * be internally synchronized by the QSPI module. Provide 5
+	 * cycles of delay.
+	 */
+	if (cqspi->wr_delay)
+		ndelay(cqspi->wr_delay);
 
 	while (remaining > 0) {
 		write_bytes = remaining > page_size ? page_size : remaining;
 		iowrite32_rep(cqspi->ahb_base, txbuf,
 			      DIV_ROUND_UP(write_bytes, 4));
 
-		ret = wait_for_completion_timeout(&cqspi->transfer_complete,
-						  msecs_to_jiffies
-						  (CQSPI_TIMEOUT_MS));
-		if (!ret) {
+		if (!wait_for_completion_timeout(&cqspi->transfer_complete,
+					msecs_to_jiffies(CQSPI_TIMEOUT_MS))) {
 			dev_err(nor->dev, "Indirect write timeout\n");
 			ret = -ETIMEDOUT;
 			goto failwr;
@@ -775,7 +807,7 @@ static void cqspi_config_baudrate_div(struct cqspi_st *cqspi)
 }
 
 static void cqspi_readdata_capture(struct cqspi_st *cqspi,
-				   const unsigned int bypass,
+				   const bool bypass,
 				   const unsigned int delay)
 {
 	void __iomem *reg_base = cqspi->iobase;
@@ -839,7 +871,8 @@ static void cqspi_configure(struct spi_nor *nor)
 		cqspi->sclk = sclk;
 		cqspi_config_baudrate_div(cqspi);
 		cqspi_delay(nor);
-		cqspi_readdata_capture(cqspi, 1, f_pdata->read_delay);
+		cqspi_readdata_capture(cqspi, !cqspi->rclk_en,
+				       f_pdata->read_delay);
 	}
 
 	if (switch_cs || switch_ck)
@@ -878,37 +911,112 @@ static int cqspi_set_protocol(struct spi_nor *nor, const int read)
 static ssize_t cqspi_write(struct spi_nor *nor, loff_t to,
 			   size_t len, const u_char *buf)
 {
+	struct cqspi_flash_pdata *f_pdata = nor->priv;
+	struct cqspi_st *cqspi = f_pdata->cqspi;
 	int ret;
 
 	ret = cqspi_set_protocol(nor, 0);
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_write_setup(nor, to);
+	ret = cqspi_write_setup(nor);
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_write_execute(nor, buf, len);
+	if (f_pdata->use_direct_mode) {
+		memcpy_toio(cqspi->ahb_base + to, buf, len);
+		ret = cqspi_wait_idle(cqspi);
+	} else {
+		ret = cqspi_indirect_write_execute(nor, to, buf, len);
+	}
 	if (ret)
 		return ret;
 
 	return len;
 }
 
+static void cqspi_rx_dma_callback(void *param)
+{
+	struct cqspi_st *cqspi = param;
+
+	complete(&cqspi->rx_dma_complete);
+}
+
+static int cqspi_direct_read_execute(struct spi_nor *nor, u_char *buf,
+				     loff_t from, size_t len)
+{
+	struct cqspi_flash_pdata *f_pdata = nor->priv;
+	struct cqspi_st *cqspi = f_pdata->cqspi;
+	enum dma_ctrl_flags flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
+	dma_addr_t dma_src = (dma_addr_t)cqspi->mmap_phys_base + from;
+	int ret = 0;
+	struct dma_async_tx_descriptor *tx;
+	dma_cookie_t cookie;
+	dma_addr_t dma_dst;
+
+	if (!cqspi->rx_chan || !virt_addr_valid(buf)) {
+		memcpy_fromio(buf, cqspi->ahb_base + from, len);
+		return 0;
+	}
+
+	dma_dst = dma_map_single(nor->dev, buf, len, DMA_FROM_DEVICE);
+	if (dma_mapping_error(nor->dev, dma_dst)) {
+		dev_err(nor->dev, "dma mapping failed\n");
+		return -ENOMEM;
+	}
+	tx = dmaengine_prep_dma_memcpy(cqspi->rx_chan, dma_dst, dma_src,
+				       len, flags);
+	if (!tx) {
+		dev_err(nor->dev, "device_prep_dma_memcpy error\n");
+		ret = -EIO;
+		goto err_unmap;
+	}
+
+	tx->callback = cqspi_rx_dma_callback;
+	tx->callback_param = cqspi;
+	cookie = tx->tx_submit(tx);
+	reinit_completion(&cqspi->rx_dma_complete);
+
+	ret = dma_submit_error(cookie);
+	if (ret) {
+		dev_err(nor->dev, "dma_submit_error %d\n", cookie);
+		ret = -EIO;
+		goto err_unmap;
+	}
+
+	dma_async_issue_pending(cqspi->rx_chan);
+	if (!wait_for_completion_timeout(&cqspi->rx_dma_complete,
+					 msecs_to_jiffies(len))) {
+		dmaengine_terminate_sync(cqspi->rx_chan);
+		dev_err(nor->dev, "DMA wait_for_completion_timeout\n");
+		ret = -ETIMEDOUT;
+		goto err_unmap;
+	}
+
+err_unmap:
+	dma_unmap_single(nor->dev, dma_dst, len, DMA_FROM_DEVICE);
+
+	return 0;
+}
+
 static ssize_t cqspi_read(struct spi_nor *nor, loff_t from,
 			  size_t len, u_char *buf)
 {
+	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	int ret;
 
 	ret = cqspi_set_protocol(nor, 1);
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_read_setup(nor, from);
+	ret = cqspi_read_setup(nor);
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_read_execute(nor, buf, len);
+	if (f_pdata->use_direct_mode)
+		ret = cqspi_direct_read_execute(nor, buf, from, len);
+	else
+		ret = cqspi_indirect_read_execute(nor, buf, from, len);
 	if (ret)
 		return ret;
 
@@ -1036,11 +1144,15 @@ static int cqspi_of_get_pdata(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	cqspi->rclk_en = of_property_read_bool(np, "cdns,rclk-en");
+
 	return 0;
 }
 
 static void cqspi_controller_init(struct cqspi_st *cqspi)
 {
+	u32 reg;
+
 	cqspi_controller_enable(cqspi, 0);
 
 	/* Configure the remap address register, no remap */
@@ -1063,7 +1175,27 @@ static void cqspi_controller_init(struct cqspi_st *cqspi)
 	writel(cqspi->fifo_depth * cqspi->fifo_width / 8,
 	       cqspi->iobase + CQSPI_REG_INDIRECTWRWATERMARK);
 
+	/* Enable Direct Access Controller */
+	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
+	reg |= CQSPI_REG_CONFIG_ENB_DIR_ACC_CTRL;
+	writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
+
 	cqspi_controller_enable(cqspi, 1);
+}
+
+static void cqspi_request_mmap_dma(struct cqspi_st *cqspi)
+{
+	dma_cap_mask_t mask;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_MEMCPY, mask);
+
+	cqspi->rx_chan = dma_request_chan_by_mask(&mask);
+	if (IS_ERR(cqspi->rx_chan)) {
+		dev_err(&cqspi->pdev->dev, "No Rx DMA available\n");
+		cqspi->rx_chan = NULL;
+	}
+	init_completion(&cqspi->rx_dma_complete);
 }
 
 static int cqspi_setup_flash(struct cqspi_st *cqspi, struct device_node *np)
@@ -1138,6 +1270,15 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi, struct device_node *np)
 			goto err;
 
 		f_pdata->registered = true;
+
+		if (mtd->size <= cqspi->ahb_size) {
+			f_pdata->use_direct_mode = true;
+			dev_dbg(nor->dev, "using direct mode for %s\n",
+				mtd->name);
+
+			if (!cqspi->rx_chan)
+				cqspi_request_mmap_dma(cqspi);
+		}
 	}
 
 	return 0;
@@ -1156,6 +1297,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	struct cqspi_st *cqspi;
 	struct resource *res;
 	struct resource *res_ahb;
+	unsigned long data;
 	int ret;
 	int irq;
 
@@ -1196,6 +1338,8 @@ static int cqspi_probe(struct platform_device *pdev)
 		dev_err(dev, "Cannot remap AHB address.\n");
 		return PTR_ERR(cqspi->ahb_base);
 	}
+	cqspi->mmap_phys_base = (dma_addr_t)res_ahb->start;
+	cqspi->ahb_size = resource_size(res_ahb);
 
 	init_completion(&cqspi->transfer_complete);
 
@@ -1206,13 +1350,24 @@ static int cqspi_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	ret = clk_prepare_enable(cqspi->clk);
-	if (ret) {
-		dev_err(dev, "Cannot enable QSPI clock.\n");
+	pm_runtime_enable(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
 		return ret;
 	}
 
+	ret = clk_prepare_enable(cqspi->clk);
+	if (ret) {
+		dev_err(dev, "Cannot enable QSPI clock.\n");
+		goto probe_clk_failed;
+	}
+
 	cqspi->master_ref_clk_hz = clk_get_rate(cqspi->clk);
+	data  = (unsigned long)of_device_get_match_data(dev);
+	if (data & CQSPI_NEEDS_WR_DELAY)
+		cqspi->wr_delay = 5 * DIV_ROUND_UP(NSEC_PER_SEC,
+						   cqspi->master_ref_clk_hz);
 
 	ret = devm_request_irq(dev, irq, cqspi_irq_handler, 0,
 			       pdev->name, cqspi);
@@ -1233,10 +1388,13 @@ static int cqspi_probe(struct platform_device *pdev)
 	}
 
 	return ret;
-probe_irq_failed:
-	cqspi_controller_enable(cqspi, 0);
 probe_setup_failed:
+	cqspi_controller_enable(cqspi, 0);
+probe_irq_failed:
 	clk_disable_unprepare(cqspi->clk);
+probe_clk_failed:
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 	return ret;
 }
 
@@ -1251,7 +1409,13 @@ static int cqspi_remove(struct platform_device *pdev)
 
 	cqspi_controller_enable(cqspi, 0);
 
+	if (cqspi->rx_chan)
+		dma_release_channel(cqspi->rx_chan);
+
 	clk_disable_unprepare(cqspi->clk);
+
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
@@ -1284,7 +1448,14 @@ static const struct dev_pm_ops cqspi__dev_pm_ops = {
 #endif
 
 static const struct of_device_id cqspi_dt_ids[] = {
-	{.compatible = "cdns,qspi-nor",},
+	{
+		.compatible = "cdns,qspi-nor",
+		.data = (void *)0,
+	},
+	{
+		.compatible = "ti,k2g-qspi",
+		.data = (void *)CQSPI_NEEDS_WR_DELAY,
+	},
 	{ /* end of table */ }
 };
 

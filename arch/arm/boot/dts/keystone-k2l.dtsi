@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2014 Texas Instruments, Inc.
- *
  * Keystone 2 Lamarr SoC specific device tree
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2014-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 
 #include <dt-bindings/reset/ti-syscon.h>
@@ -39,11 +36,12 @@
 		rproc2 = &dsp2;
 		rproc3 = &dsp3;
 	};
+};
 
-	soc {
+&soc0 {
 		/include/ "keystone-k2l-clocks.dtsi"
 
-		uart2: serial@02348400 {
+		uart2: serial@2348400 {
 			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
@@ -53,7 +51,7 @@
 			interrupts = <GIC_SPI 432 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		uart3:	serial@02348800 {
+		uart3:	serial@2348800 {
 			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
@@ -63,7 +61,51 @@
 			interrupts = <GIC_SPI 435 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		k2l_pmx: pinmux@02620690 {
+		gpio1: gpio@2348000 {
+			compatible = "ti,keystone-gpio";
+			reg = <0x02348000 0x100>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			/* HW Interrupts mapped to GPIO pins */
+			interrupts = <GIC_SPI 152 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 153 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 154 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 155 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 156 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 157 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 158 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 159 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 160 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 161 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 162 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 163 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 164 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 165 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 166 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 167 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 168 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 169 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 170 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 171 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 172 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 173 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 174 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 175 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 176 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 401 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 402 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 403 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 404 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 405 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 406 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 407 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkgpio>;
+			clock-names = "gpio";
+			ti,ngpio = <32>;
+			ti,davinci-gpio-unbanked = <32>;
+		};
+
+		k2l_pmx: pinmux@2620690 {
 			compatible = "pinctrl-single";
 			reg = <0x02620690 0xc>;
 			#address-cells = <1>;
@@ -213,7 +255,7 @@
 			};
 		};
 
-		msm_ram: msmram@0c000000 {
+		msm_ram: msmram@c000000 {
 			compatible = "mmio-sram";
 			reg = <0x0c000000 0x200000>;
 			ranges = <0x0 0x0c000000 0x200000>;
@@ -225,7 +267,7 @@
 			};
 		};
 
-		psc: power-sleep-controller@02350000 {
+		psc: power-sleep-controller@2350000 {
 			pscrst: reset-controller {
 				compatible = "ti,k2l-pscrst", "ti,syscon-reset";
 				#reset-cells = <1>;
@@ -247,32 +289,38 @@
 			clocks = <&clkosr>;
 		};
 
-		dspgpio0: keystone_dsp_gpio@02620240 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x240>;
-		};
+		devctrl: device-state-control@2620000 {
+			dspgpio0: keystone_dsp_gpio@240 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x240 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x240>;
+			};
 
-		dspgpio1: keystone_dsp_gpio@2620244 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x244>;
-		};
+			dspgpio1: keystone_dsp_gpio@244 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x244 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x244>;
+			};
 
-		dspgpio2: keystone_dsp_gpio@2620248 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x248>;
-		};
+			dspgpio2: keystone_dsp_gpio@248 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x248 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x248>;
+			};
 
-		dspgpio3: keystone_dsp_gpio@262024c {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x24c>;
+			dspgpio3: keystone_dsp_gpio@24c {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x24c 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x24c>;
+			};
 		};
 
 		dsp0: dsp@10800000 {
@@ -350,7 +398,6 @@
 			bus_freq	= <2500000>;
 		};
 		/include/ "keystone-k2l-netcp.dtsi"
-	};
 };
 
 &spi0 {

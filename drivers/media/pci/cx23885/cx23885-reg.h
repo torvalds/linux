@@ -288,6 +288,18 @@ Channel manager Data Structure entry = 20 DWORD
 #define AUDIO_EXT_INT_MSTAT	0x00040068
 #define AUDIO_EXT_INT_SSTAT	0x0004006C
 
+/* Bits [7:0] set in both TC_REQ and TC_REQ_SET
+ * indicate a stall in the RISC engine for a
+ * particular rider traffic class. This causes
+ * the 885 and 888 bridges (unknown about 887)
+ * to become inoperable. Setting bits in
+ * TC_REQ_SET resets the corresponding bits
+ * in TC_REQ (and TC_REQ_SET) allowing
+ * operation to continue.
+ */
+#define TC_REQ		0x00040090
+#define TC_REQ_SET	0x00040094
+
 #define RDR_CFG0	0x00050000
 #define RDR_CFG1	0x00050004
 #define RDR_CFG2	0x00050008
@@ -386,6 +398,8 @@ Channel manager Data Structure entry = 20 DWORD
 #define VID_B_PIXEL_FRMT	0x00130184
 
 /* Video C Interface */
+#define VID_C_DMA		0x00130200
+#define VBI_C_DMA		0x00130208
 #define VID_C_GPCNT		0x00130220
 #define VID_C_GPCNT_CTL		0x00130230
 #define VBI_C_GPCNT_CTL		0x00130234

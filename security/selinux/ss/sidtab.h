@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * A security identifier table (sidtab) is a hash table
  * of security context structures indexed by SID value.

@@ -256,8 +256,6 @@ static void rmd160_transform(u32 *state, const __le32 *in)
 	state[3] = state[4] + aa + bbb;
 	state[4] = state[0] + bb + ccc;
 	state[0] = ddd;
-
-	return;
 }
 
 static int rmd160_init(struct shash_desc *desc)
@@ -349,7 +347,6 @@ static struct shash_alg alg = {
 	.descsize	=	sizeof(struct rmd160_ctx),
 	.base		=	{
 		.cra_name	 =	"rmd160",
-		.cra_flags	 =	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	 =	RMD160_BLOCK_SIZE,
 		.cra_module	 =	THIS_MODULE,
 	}

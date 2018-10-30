@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -161,7 +162,7 @@ static ssize_t orangefs_devreq_read(struct file *file,
 	struct orangefs_kernel_op_s *op, *temp;
 	__s32 proto_ver = ORANGEFS_KERNEL_PROTO_VERSION;
 	static __s32 magic = ORANGEFS_DEVREQ_MAGIC;
-	struct orangefs_kernel_op_s *cur_op = NULL;
+	struct orangefs_kernel_op_s *cur_op;
 	unsigned long ret;
 
 	/* We do not support blocking IO. */
@@ -185,6 +186,7 @@ static ssize_t orangefs_devreq_read(struct file *file,
 		return -EAGAIN;
 
 restart:
+	cur_op = NULL;
 	/* Get next op (if any) from top of list. */
 	spin_lock(&orangefs_request_list_lock);
 	list_for_each_entry_safe(op, temp, &orangefs_request_list, list) {
@@ -279,14 +281,17 @@ restart:
 	ret = copy_to_user(buf, &proto_ver, sizeof(__s32));
 	if (ret != 0)
 		goto error;
-	ret = copy_to_user(buf+sizeof(__s32), &magic, sizeof(__s32));
+	ret = copy_to_user(buf + sizeof(__s32), &magic, sizeof(__s32));
 	if (ret != 0)
 		goto error;
-	ret = copy_to_user(buf+2 * sizeof(__s32), &cur_op->tag, sizeof(__u64));
+	ret = copy_to_user(buf + 2 * sizeof(__s32),
+		&cur_op->tag,
+		sizeof(__u64));
 	if (ret != 0)
 		goto error;
-	ret = copy_to_user(buf+2*sizeof(__s32)+sizeof(__u64), &cur_op->upcall,
-			   sizeof(struct orangefs_upcall_s));
+	ret = copy_to_user(buf + 2 * sizeof(__s32) + sizeof(__u64),
+		&cur_op->upcall,
+		sizeof(struct orangefs_upcall_s));
 	if (ret != 0)
 		goto error;
 
@@ -379,7 +384,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 			   (unsigned int) MAX_DEV_REQ_DOWNSIZE);
 		return -EFAULT;
 	}
-     
+
 	if (!copy_from_iter_full(&head, head_size, iter)) {
 		gossip_err("%s: failed to copy head.\n", __func__);
 		return -EFAULT;
@@ -424,7 +429,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		goto wakeup;
 
 	/*
-	 * We've successfully peeled off the head and the downcall. 
+	 * We've successfully peeled off the head and the downcall.
 	 * Something has gone awry if total doesn't equal the
 	 * sum of head_size, downcall_size and trailer_size.
 	 */
@@ -461,11 +466,10 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	if (op->downcall.type != ORANGEFS_VFS_OP_READDIR)
 		goto wakeup;
 
-	op->downcall.trailer_buf = vmalloc(op->downcall.trailer_size);
+	op->downcall.trailer_buf = vzalloc(op->downcall.trailer_size);
 	if (!op->downcall.trailer_buf)
 		goto Enomem;
 
-	memset(op->downcall.trailer_buf, 0, op->downcall.trailer_size);
 	if (!copy_from_iter_full(op->downcall.trailer_buf,
 			         op->downcall.trailer_size, iter)) {
 		gossip_err("%s: failed to copy trailer.\n", __func__);
@@ -476,7 +480,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 wakeup:
 	/*
 	 * Return to vfs waitqueue, and back to service_operation
-	 * through wait_for_matching_downcall. 
+	 * through wait_for_matching_downcall.
 	 */
 	spin_lock(&op->lock);
 	if (unlikely(op_is_cancel(op))) {
@@ -715,37 +719,6 @@ struct ORANGEFS_dev_map_desc32 {
 	__s32 count;
 };
 
-static unsigned long translate_dev_map26(unsigned long args, long *error)
-{
-	struct ORANGEFS_dev_map_desc32 __user *p32 = (void __user *)args;
-	/*
-	 * Depending on the architecture, allocate some space on the
-	 * user-call-stack based on our expected layout.
-	 */
-	struct ORANGEFS_dev_map_desc __user *p =
-	    compat_alloc_user_space(sizeof(*p));
-	compat_uptr_t addr;
-
-	*error = 0;
-	/* get the ptr from the 32 bit user-space */
-	if (get_user(addr, &p32->ptr))
-		goto err;
-	/* try to put that into a 64-bit layout */
-	if (put_user(compat_ptr(addr), &p->ptr))
-		goto err;
-	/* copy the remaining fields */
-	if (copy_in_user(&p->total_size, &p32->total_size, sizeof(__s32)))
-		goto err;
-	if (copy_in_user(&p->size, &p32->size, sizeof(__s32)))
-		goto err;
-	if (copy_in_user(&p->count, &p32->count, sizeof(__s32)))
-		goto err;
-	return (unsigned long)p;
-err:
-	*error = -EFAULT;
-	return 0;
-}
-
 /*
  * 32 bit user-space apps' ioctl handlers when kernel modules
  * is compiled as a 64 bit one
@@ -754,31 +727,58 @@ static long orangefs_devreq_compat_ioctl(struct file *filp, unsigned int cmd,
 				      unsigned long args)
 {
 	long ret;
-	unsigned long arg = args;
 
 	/* Check for properly constructed commands */
 	ret = check_ioctl_command(cmd);
 	if (ret < 0)
 		return ret;
 	if (cmd == ORANGEFS_DEV_MAP) {
-		/*
-		 * convert the arguments to what we expect internally
-		 * in kernel space
-		 */
-		arg = translate_dev_map26(args, &ret);
-		if (ret < 0) {
-			gossip_err("Could not translate dev map\n");
-			return ret;
-		}
+		struct ORANGEFS_dev_map_desc desc;
+		struct ORANGEFS_dev_map_desc32 d32;
+
+		if (copy_from_user(&d32, (void __user *)args, sizeof(d32)))
+			return -EFAULT;
+
+		desc.ptr = compat_ptr(d32.ptr);
+		desc.total_size = d32.total_size;
+		desc.size = d32.size;
+		desc.count = d32.count;
+		return orangefs_bufmap_initialize(&desc);
 	}
 	/* no other ioctl requires translation */
-	return dispatch_ioctl_command(cmd, arg);
+	return dispatch_ioctl_command(cmd, args);
 }
 
 #endif /* CONFIG_COMPAT is in .config */
 
+static __poll_t orangefs_devreq_poll(struct file *file,
+				      struct poll_table_struct *poll_table)
+{
+	__poll_t poll_revent_mask = 0;
+
+	poll_wait(file, &orangefs_request_list_waitq, poll_table);
+
+	if (!list_empty(&orangefs_request_list))
+		poll_revent_mask |= EPOLLIN;
+	return poll_revent_mask;
+}
+
 /* the assigned character device major number */
 static int orangefs_dev_major;
+
+static const struct file_operations orangefs_devreq_file_operations = {
+	.owner = THIS_MODULE,
+	.read = orangefs_devreq_read,
+	.write_iter = orangefs_devreq_write_iter,
+	.open = orangefs_devreq_open,
+	.release = orangefs_devreq_release,
+	.unlocked_ioctl = orangefs_devreq_ioctl,
+
+#ifdef CONFIG_COMPAT		/* CONFIG_COMPAT is in .config */
+	.compat_ioctl = orangefs_devreq_compat_ioctl,
+#endif
+	.poll = orangefs_devreq_poll
+};
 
 /*
  * Initialize orangefs device specific state:
@@ -812,29 +812,3 @@ void orangefs_dev_cleanup(void)
 		     "*** /dev/%s character device unregistered ***\n",
 		     ORANGEFS_REQDEVICE_NAME);
 }
-
-static unsigned int orangefs_devreq_poll(struct file *file,
-				      struct poll_table_struct *poll_table)
-{
-	int poll_revent_mask = 0;
-
-	poll_wait(file, &orangefs_request_list_waitq, poll_table);
-
-	if (!list_empty(&orangefs_request_list))
-		poll_revent_mask |= POLL_IN;
-	return poll_revent_mask;
-}
-
-const struct file_operations orangefs_devreq_file_operations = {
-	.owner = THIS_MODULE,
-	.read = orangefs_devreq_read,
-	.write_iter = orangefs_devreq_write_iter,
-	.open = orangefs_devreq_open,
-	.release = orangefs_devreq_release,
-	.unlocked_ioctl = orangefs_devreq_ioctl,
-
-#ifdef CONFIG_COMPAT		/* CONFIG_COMPAT is in .config */
-	.compat_ioctl = orangefs_devreq_compat_ioctl,
-#endif
-	.poll = orangefs_devreq_poll
-};

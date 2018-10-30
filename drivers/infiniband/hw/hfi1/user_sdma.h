@@ -1,7 +1,7 @@
 #ifndef _HFI1_USER_SDMA_H
 #define _HFI1_USER_SDMA_H
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -80,23 +80,35 @@
 #define PBC2LRH(x) ((((x) & 0xfff) << 2) - 4)
 #define LRH2PBC(x) ((((x) >> 2) + 1) & 0xfff)
 
-#define AHG_HEADER_SET(arr, idx, dw, bit, width, value)			\
-	do {								\
-		if ((idx) < ARRAY_SIZE((arr)))				\
-			(arr)[(idx++)] = sdma_build_ahg_descriptor(	\
-				(__force u16)(value), (dw), (bit),	\
-							(width));	\
-		else							\
-			return -ERANGE;					\
-	} while (0)
+/**
+ * Build an SDMA AHG header update descriptor and save it to an array.
+ * @arr        - Array to save the descriptor to.
+ * @idx        - Index of the array at which the descriptor will be saved.
+ * @array_size - Size of the array arr.
+ * @dw         - Update index into the header in DWs.
+ * @bit        - Start bit.
+ * @width      - Field width.
+ * @value      - 16 bits of immediate data to write into the field.
+ * Returns -ERANGE if idx is invalid. If successful, returns the next index
+ * (idx + 1) of the array to be used for the next descriptor.
+ */
+static inline int ahg_header_set(u32 *arr, int idx, size_t array_size,
+				 u8 dw, u8 bit, u8 width, u16 value)
+{
+	if ((size_t)idx >= array_size)
+		return -ERANGE;
+	arr[idx++] = sdma_build_ahg_descriptor(value, dw, bit, width);
+	return idx;
+}
 
 /* Tx request flag bits */
 #define TXREQ_FLAGS_REQ_ACK   BIT(0)      /* Set the ACK bit in the header */
 #define TXREQ_FLAGS_REQ_DISABLE_SH BIT(1) /* Disable header suppression */
 
-#define SDMA_PKT_Q_INACTIVE BIT(0)
-#define SDMA_PKT_Q_ACTIVE   BIT(1)
-#define SDMA_PKT_Q_DEFERRED BIT(2)
+enum pkt_q_sdma_state {
+	SDMA_PKT_Q_ACTIVE,
+	SDMA_PKT_Q_DEFERRED,
+};
 
 /*
  * Maximum retry attempts to submit a TX request
@@ -111,8 +123,6 @@
 		 (req)->pq->ctxt, (req)->pq->subctxt, (req)->info.comp_idx, \
 		 ##__VA_ARGS__)
 
-extern uint extended_psn;
-
 struct hfi1_user_sdma_pkt_q {
 	u16 ctxt;
 	u16 subctxt;
@@ -124,7 +134,7 @@ struct hfi1_user_sdma_pkt_q {
 	struct user_sdma_request *reqs;
 	unsigned long *req_in_use;
 	struct iowait busy;
-	unsigned state;
+	enum pkt_q_sdma_state state;
 	wait_queue_head_t wait;
 	unsigned long unpinned;
 	struct mmu_rb_handler *handler;
@@ -194,14 +204,12 @@ struct user_sdma_request {
 	s8 ahg_idx;
 
 	/* Writeable fields shared with interrupt */
-	u64 seqcomp ____cacheline_aligned_in_smp;
-	u64 seqsubmitted;
-	/* status of the last txreq completed */
-	int status;
+	u16 seqcomp ____cacheline_aligned_in_smp;
+	u16 seqsubmitted;
 
 	/* Send side fields */
 	struct list_head txps ____cacheline_aligned_in_smp;
-	u64 seqnum;
+	u16 seqnum;
 	/*
 	 * KDETH.OFFSET (TID) field
 	 * The offset can cover multiple packets, depending on the
@@ -219,7 +227,6 @@ struct user_sdma_request {
 	u16 tididx;
 	/* progress index moving along the iovs array */
 	u8 iov_idx;
-	u8 done;
 	u8 has_error;
 
 	struct user_sdma_iovec iovs[MAX_VECTORS_PER_REQ];
@@ -239,7 +246,7 @@ struct user_sdma_txreq {
 	struct user_sdma_request *req;
 	u16 flags;
 	unsigned int busycount;
-	u64 seqnum;
+	u16 seqnum;
 };
 
 int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,

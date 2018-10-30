@@ -188,6 +188,7 @@
 #define DA7213_DAI_FORMAT_I2S_MODE				(0x0 << 0)
 #define DA7213_DAI_FORMAT_LEFT_J				(0x1 << 0)
 #define DA7213_DAI_FORMAT_RIGHT_J				(0x2 << 0)
+#define DA7213_DAI_FORMAT_DSP					(0x3 << 0)
 #define DA7213_DAI_FORMAT_MASK					(0x3 << 0)
 #define DA7213_DAI_WORD_LENGTH_S16_LE				(0x0 << 2)
 #define DA7213_DAI_WORD_LENGTH_S20_LE				(0x1 << 2)

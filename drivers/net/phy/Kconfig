@@ -28,7 +28,7 @@ config MDIO_BCM_IPROC
 
 config MDIO_BCM_UNIMAC
 	tristate "Broadcom UniMAC MDIO bus controller"
-	depends on HAS_IOMEM && OF_MDIO
+	depends on HAS_IOMEM
 	help
 	  This module provides a driver for the Broadcom UniMAC MDIO busses.
 	  This hardware can be found in the Broadcom GENET Ethernet MAC
@@ -92,7 +92,8 @@ config MDIO_CAVIUM
 
 config MDIO_GPIO
 	tristate "GPIO lib-based bitbanged MDIO buses"
-	depends on MDIO_BITBANG && GPIOLIB
+	depends on MDIO_BITBANG
+	depends on GPIOLIB || COMPILE_TEST
 	---help---
 	  Supports GPIO lib-based MDIO busses.
 
@@ -118,10 +119,17 @@ config MDIO_I2C
 
 config MDIO_MOXART
 	tristate "MOXA ART MDIO interface support"
-	depends on ARCH_MOXART
+	depends on ARCH_MOXART || COMPILE_TEST
 	help
 	  This driver supports the MDIO interface found in the network
 	  interface units of the MOXA ART SoC
+
+config MDIO_MSCC_MIIM
+	tristate "Microsemi MIIM interface support"
+	depends on HAS_IOMEM
+	help
+	  This driver supports the MIIM (MDIO) interface found in the network
+	  switches of the Microsemi SoCs
 
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
@@ -135,7 +143,7 @@ config MDIO_OCTEON
 
 config MDIO_SUN4I
 	tristate "Allwinner sun4i MDIO interface support"
-	depends on ARCH_SUNXI
+	depends on ARCH_SUNXI || COMPILE_TEST
 	help
 	  This driver supports the MDIO interface found in the network
 	  interface units of the Allwinner SoC that have an EMAC (A10,
@@ -160,15 +168,6 @@ config MDIO_XGENE
 
 endif
 
-menuconfig PHYLIB
-	tristate "PHY Device support and infrastructure"
-	depends on NETDEVICES
-	select MDIO_DEVICE
-	help
-	  Ethernet controllers are usually attached to PHY
-	  devices.  This option provides infrastructure for
-	  managing PHY devices.
-
 config PHYLINK
 	tristate
 	depends on NETDEVICES
@@ -178,6 +177,15 @@ config PHYLINK
 	  PHYlink models the link between the PHY and MAC, allowing fixed
 	  configuration links, PHYs, and Serdes links with MAC level
 	  autonegotiation modes.
+
+menuconfig PHYLIB
+	tristate "PHY Device support and infrastructure"
+	depends on NETDEVICES
+	select MDIO_DEVICE
+	help
+	  Ethernet controllers are usually attached to PHY
+	  devices.  This option provides infrastructure for
+	  managing PHY devices.
 
 if PHYLIB
 
@@ -191,11 +199,14 @@ config LED_TRIGGER_PHY
 	  Adds support for a set of LED trigger events per-PHY.  Link
 	  state change will trigger the events, for consumption by an
 	  LED class driver.  There are triggers for each link speed currently
-	  supported by the phy, and are of the form:
+	  supported by the PHY and also a one common "link" trigger as a
+	  logical-or of all the link speed ones.
+	  All these triggers are named according to the following pattern:
 	      <mii bus id>:<phy>:<speed>
 
 	  Where speed is in the form:
-		<Speed in megabits>Mbps or <Speed in gigabits>Gbps
+		<Speed in megabits>Mbps OR <Speed in gigabits>Gbps OR link
+		for any speed known to the PHY.
 
 
 comment "MII PHY device drivers"
@@ -203,6 +214,7 @@ comment "MII PHY device drivers"
 config SFP
 	tristate "SFP cage support"
 	depends on I2C && PHYLINK
+	depends on HWMON || HWMON=n
 	select MDIO_I2C
 
 config AMD_PHY
@@ -215,6 +227,12 @@ config AQUANTIA_PHY
 	---help---
 	  Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
 
+config ASIX_PHY
+	tristate "Asix PHYs"
+	help
+	  Currently supports the Asix Electronics PHY found in the X-Surf 100
+	  AX88796B package.
+
 config AT803X_PHY
 	tristate "AT803X PHYs"
 	---help---
@@ -222,7 +240,7 @@ config AT803X_PHY
 
 config BCM63XX_PHY
 	tristate "Broadcom 63xx SOCs internal PHY"
-	depends on BCM63XX
+	depends on BCM63XX || COMPILE_TEST
 	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
@@ -276,6 +294,16 @@ config DAVICOM_PHY
 	tristate "Davicom PHYs"
 	---help---
 	  Currently supports dm9161e and dm9131
+
+config DP83822_PHY
+	tristate "Texas Instruments DP83822 PHY"
+	---help---
+	  Supports the DP83822 PHY.
+
+config DP83TC811_PHY
+	tristate "Texas Instruments DP83TC822 PHY"
+	---help---
+	  Supports the DP83TC822 PHY.
 
 config DP83848_PHY
 	tristate "Texas Instruments DP83848 PHY"
@@ -346,6 +374,11 @@ config MICROCHIP_PHY
 	help
 	  Supports the LAN88XX PHYs.
 
+config MICROCHIP_T1_PHY
+	tristate "Microchip T1 PHYs"
+	---help---
+	  Supports the LAN87XX PHYs.
+
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
 	---help---
@@ -365,6 +398,11 @@ config REALTEK_PHY
 	tristate "Realtek PHYs"
 	---help---
 	  Supports the Realtek 821x PHY.
+
+config RENESAS_PHY
+	tristate "Driver for Renesas PHYs"
+	---help---
+	  Supports the Renesas PHYs uPD60620 and uPD60620A.
 
 config ROCKCHIP_PHY
         tristate "Driver for Rockchip Ethernet PHYs"

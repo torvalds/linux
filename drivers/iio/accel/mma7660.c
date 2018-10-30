@@ -168,7 +168,6 @@ static int mma7660_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info mma7660_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw		= mma7660_read_raw,
 	.attrs			= &mma7660_attribute_group,
 };

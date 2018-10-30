@@ -19,9 +19,11 @@
  *
  */
 
+#include <linux/pm_runtime.h>
+
+#include "acx.h"
 #include "wlcore.h"
 #include "debug.h"
-#include "ps.h"
 #include "sysfs.h"
 
 static ssize_t wl1271_sysfs_show_bt_coex_state(struct device *dev,
@@ -68,19 +70,22 @@ static ssize_t wl1271_sysfs_store_bt_coex_state(struct device *dev,
 	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
+	ret = pm_runtime_get_sync(wl->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(wl->dev);
 		goto out;
+	}
 
 	wl1271_acx_sg_enable(wl, wl->sg_enabled);
-	wl1271_ps_elp_sleep(wl);
+	pm_runtime_mark_last_busy(wl->dev);
+	pm_runtime_put_autosuspend(wl->dev);
 
  out:
 	mutex_unlock(&wl->mutex);
 	return count;
 }
 
-static DEVICE_ATTR(bt_coex_state, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(bt_coex_state, 0644,
 		   wl1271_sysfs_show_bt_coex_state,
 		   wl1271_sysfs_store_bt_coex_state);
 
@@ -103,8 +108,7 @@ static ssize_t wl1271_sysfs_show_hw_pg_ver(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(hw_pg_ver, S_IRUGO,
-		   wl1271_sysfs_show_hw_pg_ver, NULL);
+static DEVICE_ATTR(hw_pg_ver, 0444, wl1271_sysfs_show_hw_pg_ver, NULL);
 
 static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
 				       struct bin_attribute *bin_attr,
@@ -139,7 +143,7 @@ static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
 }
 
 static const struct bin_attribute fwlog_attr = {
-	.attr = {.name = "fwlog", .mode = S_IRUSR},
+	.attr = { .name = "fwlog", .mode = 0400 },
 	.read = wl1271_sysfs_read_fwlog,
 };
 

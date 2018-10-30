@@ -1,13 +1,9 @@
-/*
- * Freescale imx6dl pinctrl driver
- *
- * Author: Shawn Guo <shawn.guo@linaro.org>
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Freescale imx6dl pinctrl driver
+//
+// Author: Shawn Guo <shawn.guo@linaro.org>
+// Copyright (C) 2013 Freescale Semiconductor, Inc.
 
 #include <linux/err.h>
 #include <linux/init.h>
@@ -457,7 +453,7 @@ static const struct pinctrl_pin_desc imx6dl_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX6DL_PAD_SD4_DAT7),
 };
 
-static struct imx_pinctrl_soc_info imx6dl_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx6dl_pinctrl_info = {
 	.pins = imx6dl_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx6dl_pinctrl_pads),
 	.gpr_compatible = "fsl,imx6q-iomuxc-gpr",

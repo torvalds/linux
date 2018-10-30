@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ulpi.h -- ULPI defines and function prorotypes
  *

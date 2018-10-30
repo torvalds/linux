@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
@@ -425,7 +426,7 @@ dasd_add_busid(const char *bus_id, int features)
 	if (!devmap) {
 		/* This bus_id is new. */
 		new->devindex = dasd_max_devindex++;
-		strncpy(new->bus_id, bus_id, DASD_BUS_ID_SIZE);
+		strlcpy(new->bus_id, bus_id, DASD_BUS_ID_SIZE);
 		new->features = features;
 		new->device = NULL;
 		list_add(&new->list, &dasd_hashlists[hash]);
@@ -1549,9 +1550,49 @@ dasd_path_threshold_store(struct device *dev, struct device_attribute *attr,
 	dasd_put_device(device);
 	return count;
 }
-
 static DEVICE_ATTR(path_threshold, 0644, dasd_path_threshold_show,
 		   dasd_path_threshold_store);
+
+/*
+ * configure if path is disabled after IFCC/CCC error threshold is
+ * exceeded
+ */
+static ssize_t
+dasd_path_autodisable_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct dasd_devmap *devmap;
+	int flag;
+
+	devmap = dasd_find_busid(dev_name(dev));
+	if (!IS_ERR(devmap))
+		flag = (devmap->features & DASD_FEATURE_PATH_AUTODISABLE) != 0;
+	else
+		flag = (DASD_FEATURE_DEFAULT &
+			DASD_FEATURE_PATH_AUTODISABLE) != 0;
+	return snprintf(buf, PAGE_SIZE, flag ? "1\n" : "0\n");
+}
+
+static ssize_t
+dasd_path_autodisable_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	unsigned int val;
+	int rc;
+
+	if (kstrtouint(buf, 0, &val) || val > 1)
+		return -EINVAL;
+
+	rc = dasd_set_feature(to_ccwdev(dev),
+			      DASD_FEATURE_PATH_AUTODISABLE, val);
+
+	return rc ? : count;
+}
+
+static DEVICE_ATTR(path_autodisable, 0644,
+		   dasd_path_autodisable_show,
+		   dasd_path_autodisable_store);
 /*
  * interval for IFCC/CCC checks
  * meaning time with no IFCC/CCC error before the error counter
@@ -1622,6 +1663,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_host_access_count.attr,
 	&dev_attr_path_masks.attr,
 	&dev_attr_path_threshold.attr,
+	&dev_attr_path_autodisable.attr,
 	&dev_attr_path_interval.attr,
 	&dev_attr_path_reset.attr,
 	&dev_attr_hpf.attr,

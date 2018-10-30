@@ -2,7 +2,7 @@
  * Ingenic JZ4740 SoC CGU driver
  *
  * Copyright (c) 2015 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -134,7 +134,7 @@ static const struct ingenic_cgu_clk_info jz4740_cgu_clocks[] = {
 		"i2s", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4740_CLK_EXT, JZ4740_CLK_PLL_HALF, -1, -1 },
 		.mux = { CGU_REG_CPCCR, 31, 1 },
-		.div = { CGU_REG_I2SCDR, 0, 1, 8, -1, -1, -1 },
+		.div = { CGU_REG_I2SCDR, 0, 1, 9, -1, -1, -1 },
 		.gate = { CGU_REG_CLKGR, 6 },
 	},
 
@@ -161,7 +161,7 @@ static const struct ingenic_cgu_clk_info jz4740_cgu_clocks[] = {
 	},
 
 	[JZ4740_CLK_UDC] = {
-		"udc", CGU_CLK_MUX | CGU_CLK_DIV,
+		"udc", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4740_CLK_EXT, JZ4740_CLK_PLL_HALF, -1, -1 },
 		.mux = { CGU_REG_CPCCR, 29, 1 },
 		.div = { CGU_REG_CPCCR, 23, 1, 6, -1, -1, -1 },

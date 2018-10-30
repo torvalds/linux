@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  User-space Probes (UProbes) for s390
  *
@@ -147,6 +148,15 @@ unsigned long arch_uretprobe_hijack_return_addr(unsigned long trampoline,
 	orig = regs->gprs[14];
 	regs->gprs[14] = trampoline;
 	return orig;
+}
+
+bool arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check ctx,
+			     struct pt_regs *regs)
+{
+	if (ctx == RP_CHECK_CHAIN_CALL)
+		return user_stack_pointer(regs) <= ret->stack;
+	else
+		return user_stack_pointer(regs) < ret->stack;
 }
 
 /* Instruction Emulation */

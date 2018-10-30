@@ -42,7 +42,6 @@
 #include "vchiq_core.h"
 #include "vchiq_debugfs.h"
 
-
 enum vc_suspend_status {
 	VC_SUSPEND_FORCE_CANCELED = -3, /* Force suspend canceled, too busy */
 	VC_SUSPEND_REJECTED = -2,  /* Videocore rejected suspend request */
@@ -61,14 +60,11 @@ enum vc_resume_status {
 	VC_RESUME_RESUMED      /* Videocore resumed successfully (active) */
 };
 
-
 enum USE_TYPE_E {
 	USE_TYPE_SERVICE,
 	USE_TYPE_SERVICE_NO_RESUME,
 	USE_TYPE_VCHIQ
 };
-
-
 
 typedef struct vchiq_arm_state_struct {
 	/* Keepalive-related data */
@@ -87,6 +83,7 @@ typedef struct vchiq_arm_state_struct {
 
 	unsigned int wake_address;
 
+	VCHIQ_STATE_T *state;
 	struct timer_list suspend_timer;
 	int suspend_timer_timeout;
 	int suspend_timer_running;
@@ -125,6 +122,11 @@ typedef struct vchiq_arm_state_struct {
 	unsigned long long last_wake_time;
 
 } VCHIQ_ARM_STATE_T;
+
+struct vchiq_drvdata {
+	const unsigned int cache_line_size;
+	struct rpi_firmware *fw;
+};
 
 extern int vchiq_arm_log_level;
 extern int vchiq_susp_log_level;
@@ -215,6 +217,5 @@ set_resume_state(VCHIQ_ARM_STATE_T *arm_state,
 
 extern void
 start_suspend_timer(VCHIQ_ARM_STATE_T *arm_state);
-
 
 #endif /* VCHIQ_ARM_H */

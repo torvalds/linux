@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Denverton SoC pinctrl/GPIO driver
  *
  * Copyright (C) 2017, Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
+
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-intel.h"
@@ -207,7 +204,7 @@ static const unsigned int dnv_uart0_pins[] = { 60, 61, 64, 65 };
 static const unsigned int dnv_uart0_modes[] = { 2, 3, 1, 1 };
 static const unsigned int dnv_uart1_pins[] = { 94, 95, 96, 97 };
 static const unsigned int dnv_uart2_pins[] = { 60, 61, 62, 63 };
-static const unsigned int dnv_uart2_modes[] = { 1, 1, 2, 2 };
+static const unsigned int dnv_uart2_modes[] = { 1, 2, 2, 2 };
 static const unsigned int dnv_emmc_pins[] = {
 	142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152,
 };
@@ -265,10 +262,7 @@ static int dnv_pinctrl_probe(struct platform_device *pdev)
 	return intel_pinctrl_probe(pdev, &dnv_soc_data);
 }
 
-static const struct dev_pm_ops dnv_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend,
-				     intel_pinctrl_resume)
-};
+static INTEL_PINCTRL_PM_OPS(dnv_pinctrl_pm_ops);
 
 static const struct acpi_device_id dnv_pinctrl_acpi_match[] = {
 	{ "INTC3000" },

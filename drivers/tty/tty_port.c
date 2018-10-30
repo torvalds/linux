@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Tty port functions
  */
@@ -78,7 +79,7 @@ EXPORT_SYMBOL(tty_port_init);
  * @driver: tty_driver for this device
  * @index: index of the tty
  *
- * Provide the tty layer wit ha link from a tty (specified by @index) to a
+ * Provide the tty layer with a link from a tty (specified by @index) to a
  * tty_port (@port). Use this only if neither tty_port_register_device nor
  * tty_port_install is used in the driver. If used, this has to be called before
  * tty_register_driver.
@@ -235,7 +236,7 @@ EXPORT_SYMBOL(tty_port_free_xmit_buf);
 
 /**
  * tty_port_destroy -- destroy inited port
- * @port: tty port to be doestroyed
+ * @port: tty port to be destroyed
  *
  * When a port was initialized using tty_port_init, one has to destroy the
  * port by this function. Either indirectly by using tty_port refcounting
@@ -278,7 +279,6 @@ EXPORT_SYMBOL(tty_port_put);
  *	Return a refcount protected tty instance or NULL if the port is not
  *	associated with a tty (eg due to close or hangup)
  */
-
 struct tty_struct *tty_port_tty_get(struct tty_port *port)
 {
 	unsigned long flags;
@@ -299,7 +299,6 @@ EXPORT_SYMBOL(tty_port_tty_get);
  *	Associate the port and tty pair. Manages any internal refcounts.
  *	Pass NULL to deassociate a port
  */
-
 void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty)
 {
 	unsigned long flags;
@@ -342,7 +341,6 @@ out:
  *
  *	Caller holds tty lock.
  */
-
 void tty_port_hangup(struct tty_port *port)
 {
 	struct tty_struct *tty;
@@ -398,7 +396,6 @@ EXPORT_SYMBOL_GPL(tty_port_tty_wakeup);
  *	to hide some internal details. This will eventually become entirely
  *	internal to the tty port.
  */
-
 int tty_port_carrier_raised(struct tty_port *port)
 {
 	if (port->ops->carrier_raised == NULL)
@@ -415,7 +412,6 @@ EXPORT_SYMBOL(tty_port_carrier_raised);
  *	to hide some internal details. This will eventually become entirely
  *	internal to the tty port.
  */
-
 void tty_port_raise_dtr_rts(struct tty_port *port)
 {
 	if (port->ops->dtr_rts)
@@ -431,7 +427,6 @@ EXPORT_SYMBOL(tty_port_raise_dtr_rts);
  *	to hide some internal details. This will eventually become entirely
  *	internal to the tty port.
  */
-
 void tty_port_lower_dtr_rts(struct tty_port *port)
 {
 	if (port->ops->dtr_rts)
@@ -463,7 +458,6 @@ EXPORT_SYMBOL(tty_port_lower_dtr_rts);
  *      NB: May drop and reacquire tty lock when blocking, so tty and tty_port
  *      may have changed state (eg., may have been hung up).
  */
-
 int tty_port_block_til_ready(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp)
 {

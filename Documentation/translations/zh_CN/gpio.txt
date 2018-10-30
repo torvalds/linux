@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/gpio.txt
+Chinese translated version of Documentation/gpio
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -10,7 +10,7 @@ Maintainer: Grant Likely <grant.likely@secretlab.ca>
 		Linus Walleij <linus.walleij@linaro.org>
 Chinese maintainer: Fu Wei <tekkamanninja@gmail.com>
 ---------------------------------------------------------------------
-Documentation/gpio.txt 的中文翻译
+Documentation/gpio 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -257,9 +257,9 @@ GPIO 值的命令需要等待其信息排到队首才发送命令，再获得其
 简单地关闭未使用时钟)。
 
 对于 GPIO 使用 pinctrl 子系统已知的引脚，子系统应该被告知其使用情况；
-一个 gpiolib 驱动的 .request()操作应调用 pinctrl_request_gpio()，
-而 gpiolib 驱动的 .free()操作应调用 pinctrl_free_gpio()。pinctrl
-子系统允许 pinctrl_request_gpio()在某个引脚或引脚组以复用形式“属于”
+一个 gpiolib 驱动的 .request()操作应调用 pinctrl_gpio_request()，
+而 gpiolib 驱动的 .free()操作应调用 pinctrl_gpio_free()。pinctrl
+子系统允许 pinctrl_gpio_request()在某个引脚或引脚组以复用形式“属于”
 一个设备时都成功返回。
 
 任何须将 GPIO 信号导向适当引脚的引脚复用硬件的编程应该发生在 GPIO

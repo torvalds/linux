@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ZBUD_H_
 #define _ZBUD_H_
 

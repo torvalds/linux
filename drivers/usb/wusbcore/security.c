@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Wireless USB Host Controller
  * Security support: encryption enablement, etc
  *
  * Copyright (C) 2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * FIXME: docs
  */
@@ -28,6 +14,7 @@
 #include <linux/random.h>
 #include <linux/export.h>
 #include "wusbhc.h"
+#include <asm/unaligned.h>
 
 static void wusbhc_gtk_rekey_work(struct work_struct *work);
 
@@ -230,7 +217,7 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 
 	result = usb_get_descriptor(usb_dev, USB_DT_SECURITY,
 				    0, secd, sizeof(*secd));
-	if (result < sizeof(*secd)) {
+	if (result < (int)sizeof(*secd)) {
 		dev_err(dev, "Can't read security descriptor or "
 			"not enough data: %d\n", result);
 		goto out;
@@ -367,7 +354,6 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 	struct usb_device *usb_dev = wusb_dev->usb_dev;
 	struct device *dev = &usb_dev->dev;
 	u32 tkid;
-	__le32 tkid_le;
 	struct usb_handshake *hs;
 	struct aes_ccm_nonce ccm_n;
 	u8 mic[8];
@@ -385,11 +371,10 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 		goto error_dev_set_encryption;
 
 	tkid = wusbhc_next_tkid(wusbhc, wusb_dev);
-	tkid_le = cpu_to_le32(tkid);
 
 	hs[0].bMessageNumber = 1;
 	hs[0].bStatus = 0;
-	memcpy(hs[0].tTKID, &tkid_le, sizeof(hs[0].tTKID));
+	put_unaligned_le32(tkid, hs[0].tTKID);
 	hs[0].bReserved = 0;
 	memcpy(hs[0].CDID, &wusb_dev->cdid, sizeof(hs[0].CDID));
 	get_random_bytes(&hs[0].nonce, sizeof(hs[0].nonce));
@@ -441,7 +426,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 
 	/* Setup the CCM nonce */
 	memset(&ccm_n.sfn, 0, sizeof(ccm_n.sfn)); /* Per WUSB1.0[6.5.2] */
-	memcpy(ccm_n.tkid, &tkid_le, sizeof(ccm_n.tkid));
+	put_unaligned_le32(tkid, ccm_n.tkid);
 	ccm_n.src_addr = wusbhc->uwb_rc->uwb_dev.dev_addr;
 	ccm_n.dest_addr.data[0] = wusb_dev->addr;
 	ccm_n.dest_addr.data[1] = 0;
@@ -472,7 +457,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 	/* Send Handshake3 */
 	hs[2].bMessageNumber = 3;
 	hs[2].bStatus = 0;
-	memcpy(hs[2].tTKID, &tkid_le, sizeof(hs[2].tTKID));
+	put_unaligned_le32(tkid, hs[2].tTKID);
 	hs[2].bReserved = 0;
 	memcpy(hs[2].CDID, &wusb_dev->cdid, sizeof(hs[2].CDID));
 	memcpy(hs[2].nonce, hs[0].nonce, sizeof(hs[2].nonce));

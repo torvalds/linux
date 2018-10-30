@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# SPDX-License-Identifier: GPL-2.0
 
 import os
 from optparse import OptionParser
@@ -16,7 +17,7 @@ if options.verbose is not None:
 
 vmbus_sys_path = '/sys/bus/vmbus/devices'
 if not os.path.isdir(vmbus_sys_path):
-	print "%s doesn't exist: exiting..." % vmbus_sys_path
+	print("%s doesn't exist: exiting..." % vmbus_sys_path)
 	exit(-1)
 
 vmbus_dev_dict = {
@@ -92,11 +93,11 @@ format2 = '%2s: Class_ID = %s - %s\n\tDevice_ID = %s\n\tSysfs path: %s\n%s'
 
 for d in vmbus_dev_list:
 	if verbose == 0:
-		print ('VMBUS ID ' + format0) % (d.vmbus_id, d.dev_desc)
+		print(('VMBUS ID ' + format0) % (d.vmbus_id, d.dev_desc))
 	elif verbose == 1:
-		print ('VMBUS ID ' + format1) %	\
-			(d.vmbus_id, d.class_id, d.dev_desc, d.chn_vp_mapping)
+		print (('VMBUS ID ' + format1) %	\
+			(d.vmbus_id, d.class_id, d.dev_desc, d.chn_vp_mapping))
 	else:
-		print ('VMBUS ID ' + format2) % \
+		print (('VMBUS ID ' + format2) % \
 			(d.vmbus_id, d.class_id, d.dev_desc, \
-			d.device_id, d.sysfs_path, d.chn_vp_mapping)
+			d.device_id, d.sysfs_path, d.chn_vp_mapping))

@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #ifndef _NFP_PORT_H_
 #define _NFP_PORT_H_
@@ -72,13 +42,18 @@ enum nfp_port_flags {
  * @netdev:	backpointer to associated netdev
  * @type:	what port type does the entity represent
  * @flags:	port flags
+ * @tc_offload_cnt:	number of active TC offloads, how offloads are counted
+ *			is not defined, use as a boolean
  * @app:	backpointer to the app structure
  * @dl_port:	devlink port structure
  * @eth_id:	for %NFP_PORT_PHYS_PORT port ID in NFP enumeration scheme
+ * @eth_forced:	for %NFP_PORT_PHYS_PORT port is forced UP or DOWN, don't change
  * @eth_port:	for %NFP_PORT_PHYS_PORT translated ETH Table port entry
  * @eth_stats:	for %NFP_PORT_PHYS_PORT MAC stats if available
  * @pf_id:	for %NFP_PORT_PF_PORT, %NFP_PORT_VF_PORT ID of the PCI PF (0-3)
  * @vf_id:	for %NFP_PORT_VF_PORT ID of the PCI VF within @pf_id
+ * @pf_split:	for %NFP_PORT_PF_PORT %true if PCI PF has more than one vNIC
+ * @pf_split_id:for %NFP_PORT_PF_PORT ID of PCI PF vNIC (valid if @pf_split)
  * @vnic:	for %NFP_PORT_PF_PORT, %NFP_PORT_VF_PORT vNIC ctrl memory
  * @port_list:	entry on pf's list of ports
  */
@@ -87,6 +62,7 @@ struct nfp_port {
 	enum nfp_port_type type;
 
 	unsigned long flags;
+	unsigned long tc_offload_cnt;
 
 	struct nfp_app *app;
 
@@ -96,6 +72,7 @@ struct nfp_port {
 		/* NFP_PORT_PHYS_PORT */
 		struct {
 			unsigned int eth_id;
+			bool eth_forced;
 			struct nfp_eth_table_port *eth_port;
 			u8 __iomem *eth_stats;
 		};
@@ -103,6 +80,8 @@ struct nfp_port {
 		struct {
 			unsigned int pf_id;
 			unsigned int vf_id;
+			bool pf_split;
+			unsigned int pf_split_id;
 			u8 __iomem *vnic;
 		};
 	};
@@ -113,6 +92,8 @@ struct nfp_port {
 extern const struct ethtool_ops nfp_port_ethtool_ops;
 extern const struct switchdev_ops nfp_port_switchdev_ops;
 
+__printf(2, 3) u8 *nfp_pr_et(u8 *data, const char *fmt, ...);
+
 int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 		      void *type_data);
 
@@ -120,6 +101,9 @@ static inline bool nfp_port_is_vnic(const struct nfp_port *port)
 {
 	return port->type == NFP_PORT_PF_PORT || port->type == NFP_PORT_VF_PORT;
 }
+
+int
+nfp_port_set_features(struct net_device *netdev, netdev_features_t features);
 
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev);
 struct nfp_port *
@@ -157,7 +141,7 @@ void nfp_devlink_port_unregister(struct nfp_port *port);
 							/* unused 0x008 */
 #define NFP_MAC_STATS_RX_FRAME_TOO_LONG_ERRORS		(NFP_MAC_STATS_BASE + 0x010)
 #define NFP_MAC_STATS_RX_RANGE_LENGTH_ERRORS		(NFP_MAC_STATS_BASE + 0x018)
-#define NFP_MAC_STATS_RX_VLAN_REVEIVE_OK		(NFP_MAC_STATS_BASE + 0x020)
+#define NFP_MAC_STATS_RX_VLAN_RECEIVED_OK		(NFP_MAC_STATS_BASE + 0x020)
 #define NFP_MAC_STATS_RX_IN_ERRORS			(NFP_MAC_STATS_BASE + 0x028)
 #define NFP_MAC_STATS_RX_IN_BROADCAST_PKTS		(NFP_MAC_STATS_BASE + 0x030)
 #define NFP_MAC_STATS_RX_DROP_EVENTS			(NFP_MAC_STATS_BASE + 0x038)

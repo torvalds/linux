@@ -18,8 +18,7 @@
 static int ad7606_par16_read_block(struct device *dev,
 				   int count, void *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	insw((unsigned long)st->base_address, buf, count);
@@ -34,8 +33,7 @@ static const struct ad7606_bus_ops ad7606_par16_bops = {
 static int ad7606_par8_read_block(struct device *dev,
 				  int count, void *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	insb((unsigned long)st->base_address, buf, count * 2);
@@ -81,6 +79,9 @@ static int ad7606_par_remove(struct platform_device *pdev)
 
 static const struct platform_device_id ad7606_driver_ids[] = {
 	{
+		.name		= "ad7605-4",
+		.driver_data	= ID_AD7605_4,
+	}, {
 		.name		= "ad7606-8",
 		.driver_data	= ID_AD7606_8,
 	}, {
@@ -107,6 +108,6 @@ static struct platform_driver ad7606_driver = {
 
 module_platform_driver(ad7606_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7606 ADC");
 MODULE_LICENSE("GPL v2");

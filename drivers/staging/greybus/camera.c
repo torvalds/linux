@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus Camera protocol driver.
  *
  * Copyright 2015 Google Inc.
  * Copyright 2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/debugfs.h>
@@ -919,7 +918,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 	/* Retrieve number of streams to configure */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 
 	ret = kstrtouint(token, 10, &nstreams);
@@ -930,7 +929,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 		return -EINVAL;
 
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 
 	ret = kstrtouint(token, 10, &flags);
@@ -947,7 +946,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 		/* width */
 		token = strsep(&buf, ";");
-		if (token == NULL) {
+		if (!token) {
 			ret = -EINVAL;
 			goto done;
 		}
@@ -957,7 +956,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 		/* height */
 		token = strsep(&buf, ";");
-		if (token == NULL)
+		if (!token)
 			goto done;
 
 		ret = kstrtouint(token, 10, &stream->height);
@@ -966,7 +965,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 		/* Image format code */
 		token = strsep(&buf, ";");
-		if (token == NULL)
+		if (!token)
 			goto done;
 
 		ret = kstrtouint(token, 16, &stream->format);
@@ -1010,7 +1009,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 
 	/* Request id */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 	ret = kstrtouint(token, 10, &request_id);
 	if (ret < 0)
@@ -1018,7 +1017,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 
 	/* Stream mask */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 	ret = kstrtouint(token, 16, &streams_mask);
 	if (ret < 0)
@@ -1026,7 +1025,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 
 	/* number of frames */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 	ret = kstrtouint(token, 10, &num_frames);
 	if (ret < 0)
@@ -1175,32 +1174,22 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 		 gcam->bundle->id);
 
 	gcam->debugfs.root = debugfs_create_dir(dirname, gb_debugfs_get());
-	if (IS_ERR(gcam->debugfs.root)) {
-		gcam_err(gcam, "debugfs root create failed (%ld)\n",
-			 PTR_ERR(gcam->debugfs.root));
-		return PTR_ERR(gcam->debugfs.root);
-	}
 
-	gcam->debugfs.buffers = vmalloc(sizeof(*gcam->debugfs.buffers) *
-					GB_CAMERA_DEBUGFS_BUFFER_MAX);
+	gcam->debugfs.buffers =
+		vmalloc(array_size(GB_CAMERA_DEBUGFS_BUFFER_MAX,
+				   sizeof(*gcam->debugfs.buffers)));
 	if (!gcam->debugfs.buffers)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(gb_camera_debugfs_entries); ++i) {
 		const struct gb_camera_debugfs_entry *entry =
 			&gb_camera_debugfs_entries[i];
-		struct dentry *dentry;
 
 		gcam->debugfs.buffers[i].length = 0;
 
-		dentry = debugfs_create_file(entry->name, entry->mask,
-					     gcam->debugfs.root, gcam,
-					     &gb_camera_debugfs_ops);
-		if (IS_ERR(dentry)) {
-			gcam_err(gcam,
-				 "debugfs operation %s create failed (%ld)\n",
-				 entry->name, PTR_ERR(dentry));
-			return PTR_ERR(dentry);
+		debugfs_create_file(entry->name, entry->mask,
+				    gcam->debugfs.root, gcam,
+				    &gb_camera_debugfs_ops);
 		}
 	}
 

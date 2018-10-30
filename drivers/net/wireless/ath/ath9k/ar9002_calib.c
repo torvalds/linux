@@ -676,10 +676,10 @@ static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 			return 0;
 
 		ah->cal_list_curr = currCal = currCal->calNext;
-		if (currCal->calState == CAL_WAITING) {
+		if (currCal->calState == CAL_WAITING)
 			ath9k_hw_reset_calibration(ah, currCal);
-			return 0;
-		}
+
+		return 0;
 	}
 
 	/* Do NF cal only at longer intervals */

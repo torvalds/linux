@@ -186,7 +186,7 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	 */
 	if (dev->vendor == 0x1959 && dev->device == 0xa007 &&
 	    !firmware_has_feature(FW_FEATURE_LPAR)) {
-		dev->dev.dma_ops = &dma_direct_ops;
+		dev->dev.dma_ops = &dma_nommu_ops;
 		/*
 		 * Set the coherent DMA mask to prevent the iommu
 		 * being used unnecessarily
@@ -210,7 +210,7 @@ static int __init iob_init(struct device_node *dn)
 	/* For 2G space, 8x64 pages (2^21 bytes) is max total l2 size */
 	iob_l2_base = (u32 *)__va(memblock_alloc_base(1UL<<21, 1UL<<21, 0x80000000));
 
-	printk(KERN_INFO "IOBMAP L2 allocated at: %p\n", iob_l2_base);
+	pr_info("IOBMAP L2 allocated at: %p\n", iob_l2_base);
 
 	/* Allocate a spare page to map all invalid IOTLB pages. */
 	tmp = memblock_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);

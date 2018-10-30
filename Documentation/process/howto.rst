@@ -57,12 +57,13 @@ of doing things.
 Legal Issues
 ------------
 
-The Linux kernel source code is released under the GPL.  Please see the
-file, COPYING, in the main directory of the source tree, for details on
-the license.  If you have further questions about the license, please
-contact a lawyer, and do not ask on the Linux kernel mailing list.  The
-people on the mailing lists are not lawyers, and you should not rely on
-their statements on legal matters.
+The Linux kernel source code is released under the GPL.  Please see the file
+COPYING in the main directory of the source tree. The Linux kernel licensing
+rules and how to use `SPDX <https://spdx.org/>`_ identifiers in source code are
+descibed in :ref:`Documentation/process/license-rules.rst <kernel_licensing>`.
+If you have further questions about the license, please contact a lawyer, and do
+not ask on the Linux kernel mailing list.  The people on the mailing lists are
+not lawyers, and you should not rely on their statements on legal matters.
 
 For common questions and answers about the GPL, please see:
 
@@ -85,7 +86,7 @@ linux-api@vger.kernel.org.
 Here is a list of files that are in the kernel source tree that are
 required reading:
 
-  README
+  :ref:`Documentation/admin-guide/README.rst <readme>`
     This file gives a short background on the Linux kernel and describes
     what is necessary to do to configure and build the kernel.  People
     who are new to the kernel should start here.
@@ -212,13 +213,6 @@ source tree.  Working with the developers in charge of this project, you
 will learn the basics of getting your patch into the Linux kernel tree,
 and possibly be pointed in the direction of what to go work on next, if
 you do not already have an idea.
-
-If you already have a chunk of code that you want to put into the kernel
-tree, but need some help getting it in the proper form, the
-kernel-mentors project was created to help you out with this.  It is a
-mailing list, and can be found at:
-
-	https://selenic.com/mailman/listinfo/kernel-mentors
 
 Before making any actual modifications to the Linux kernel code, it is
 imperative to understand how the code in question works.  For this
@@ -381,14 +375,6 @@ bugs is one of the best ways to get merits among other developers, because
 not many people like wasting time fixing other people's bugs.
 
 To work in the already reported bug reports, go to https://bugzilla.kernel.org.
-If you want to be advised of the future bug reports, you can subscribe to the
-bugme-new mailing list (only new bug reports are mailed here) or to the
-bugme-janitor mailing list (every change in the bugzilla is mailed here)
-
-	https://lists.linux-foundation.org/mailman/listinfo/bugme-new
-
-	https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
-
 
 
 Mailing lists

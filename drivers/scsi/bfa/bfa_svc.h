@@ -505,7 +505,7 @@ struct bfa_fcport_s {
 	struct list_head	stats_pending_q;
 	struct list_head	statsclr_pending_q;
 	bfa_boolean_t		stats_qfull;
-	u32		stats_reset_time; /*  stats reset time stamp */
+	time64_t		stats_reset_time; /*  stats reset time stamp */
 	bfa_boolean_t		diag_busy; /*  diag busy status */
 	bfa_boolean_t		beacon; /*  port beacon status */
 	bfa_boolean_t		link_e2e_beacon; /*  link beacon status */

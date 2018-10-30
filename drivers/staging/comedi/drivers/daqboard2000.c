@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/daqboard2000.c
  * hardware driver for IOtech DAQboard/2000
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 /*
  * Driver: daqboard2000
@@ -249,7 +240,7 @@ enum db2k_boardid {
 
 struct db2k_boardtype {
 	const char *name;
-	bool has_2_ao:1;	/* false: 4 AO chans; true: 2 AO chans */
+	unsigned int has_2_ao:1;/* false: 4 AO chans; true: 2 AO chans */
 };
 
 static const struct db2k_boardtype db2k_boardtypes[] = {

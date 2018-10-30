@@ -23,6 +23,7 @@
 #define  _OCTEON_DEVICE_H_
 
 #include <linux/interrupt.h>
+#include <net/devlink.h>
 
 /** PCI VendorId Device Id */
 #define  OCTEON_CN68XX_PCIID          0x91177d
@@ -42,12 +43,26 @@
 #define  OCTEON_CN23XX_REV_1_1        0x01
 #define  OCTEON_CN23XX_REV_2_0        0x80
 
+/**SubsystemId for the chips */
+#define	 OCTEON_CN2350_10GB_SUBSYS_ID_1	0X3177d
+#define	 OCTEON_CN2350_10GB_SUBSYS_ID_2	0X4177d
+#define	 OCTEON_CN2360_10GB_SUBSYS_ID	0X5177d
+#define	 OCTEON_CN2350_25GB_SUBSYS_ID	0X7177d
+#define	 OCTEON_CN2360_25GB_SUBSYS_ID	0X6177d
+
 /** Endian-swap modes supported by Octeon. */
 enum octeon_pci_swap_mode {
 	OCTEON_PCI_PASSTHROUGH = 0,
 	OCTEON_PCI_64BIT_SWAP = 1,
 	OCTEON_PCI_32BIT_BYTE_SWAP = 2,
 	OCTEON_PCI_32BIT_LW_SWAP = 3
+};
+
+enum lio_fw_state {
+	FW_IS_PRELOADED = 0,
+	FW_NEEDS_TO_BE_LOADED = 1,
+	FW_IS_BEING_LOADED = 2,
+	FW_HAS_BEEN_LOADED = 3,
 };
 
 enum {
@@ -273,7 +288,16 @@ struct oct_fw_info {
 	 */
 	u32 app_mode;
 	char   liquidio_firmware_version[32];
+	/* Fields extracted from legacy string 'liquidio_firmware_version' */
+	struct {
+		u8  maj;
+		u8  min;
+		u8  rev;
+	} ver;
 };
+
+#define OCT_FW_VER(maj, min, rev) \
+	(((u32)(maj) << 16) | ((u32)(min) << 8) | ((u32)(rev)))
 
 /* wrappers around work structs */
 struct cavium_wk {
@@ -292,6 +316,8 @@ struct octdev_props {
 	 * device pointer (used for OS specific calls).
 	 */
 	int    rx_on;
+	int    fec;
+	int    fec_boot;
 	int    napi_enabled;
 	int    gmxport;
 	struct net_device *netdev;
@@ -362,6 +388,8 @@ struct octeon_sriov_info {
 
 	u32	sriov_enabled;
 
+	struct lio_trusted_vf	trusted_vf;
+
 	/*lookup table that maps DPI ring number to VF pci_dev struct pointer*/
 	struct pci_dev *dpiring_to_vfpcidev_lut[MAX_POSSIBLE_VFS];
 
@@ -370,6 +398,8 @@ struct octeon_sriov_info {
 	u16	vf_vlantci[MAX_POSSIBLE_VFS];
 
 	int	vf_linkstate[MAX_POSSIBLE_VFS];
+
+	bool    vf_spoofchk[MAX_POSSIBLE_VFS];
 
 	u64	vf_drv_loaded_mask;
 };
@@ -382,6 +412,15 @@ struct octeon_ioq_vector {
 	struct octeon_mbox     *mbox;
 	struct cpumask		affinity_mask;
 	u32			ioq_num;
+};
+
+struct lio_vf_rep_list {
+	int num_vfs;
+	struct net_device *ndev[CN23XX_MAX_VFS_PER_PF];
+};
+
+struct lio_devlink_priv {
+	struct octeon_device *oct;
 };
 
 /** The Octeon device.
@@ -410,6 +449,8 @@ struct octeon_device {
 	u16 chip_id;
 
 	u16 rev_id;
+
+	u32 subsystem_id;
 
 	u16 pf_num;
 
@@ -557,7 +598,22 @@ struct octeon_device {
 	} loc;
 
 	atomic_t *adapter_refcount; /* reference count of adapter */
+
+	atomic_t *adapter_fw_state; /* per-adapter, lio_fw_state */
+
 	bool ptp_enable;
+
+	struct lio_vf_rep_list vf_rep_list;
+	struct devlink *devlink;
+	enum devlink_eswitch_mode eswitch_mode;
+
+	/* for 25G NIC speed change */
+	u8  speed_boot;
+	u8  speed_setting;
+	u8  no_speed_setting;
+
+	u32    vfstats_poll;
+#define LIO_VFSTATS_POLL 10
 };
 
 #define  OCT_DRV_ONLINE 1
@@ -841,7 +897,7 @@ void *oct_get_config_info(struct octeon_device *oct, u16 card_type);
 struct octeon_config *octeon_get_conf(struct octeon_device *oct);
 
 void octeon_free_ioq_vector(struct octeon_device *oct);
-int octeon_allocate_ioq_vector(struct octeon_device  *oct);
+int octeon_allocate_ioq_vector(struct octeon_device  *oct, u32 num_ioqs);
 void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq);
 
 /* LiquidIO driver pivate flags */

@@ -125,7 +125,7 @@ struct fscache_cache *fscache_select_cache_for_object(
 	}
 
 	/* the parent is unbacked */
-	if (cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX) {
+	if (cookie->type != FSCACHE_COOKIE_TYPE_INDEX) {
 		/* cookie not an index and is unbacked */
 		spin_unlock(&cookie->lock);
 		_leave(" = NULL [cookie ub,ni]");
@@ -220,6 +220,7 @@ int fscache_add_cache(struct fscache_cache *cache,
 {
 	struct fscache_cache_tag *tag;
 
+	ASSERTCMP(ifsdef->cookie, ==, &fscache_fsdef_index);
 	BUG_ON(!cache->ops);
 	BUG_ON(!ifsdef);
 
@@ -248,7 +249,6 @@ int fscache_add_cache(struct fscache_cache *cache,
 	if (!cache->kobj)
 		goto error;
 
-	ifsdef->cookie = &fscache_fsdef_index;
 	ifsdef->cache = cache;
 	cache->fsdef = ifsdef;
 

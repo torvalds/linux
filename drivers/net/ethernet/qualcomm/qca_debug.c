@@ -60,6 +60,7 @@ static const char qcaspi_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"Write buffer misses",
 	"Transmit ring full",
 	"SPI errors",
+	"Write verify errors",
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -151,7 +152,7 @@ qcaspi_init_device_debugfs(struct qcaspi *qca)
 			dev_name(&qca->net_dev->dev));
 		return;
 	}
-	debugfs_create_file("info", S_IFREG | S_IRUGO, device_root, qca,
+	debugfs_create_file("info", S_IFREG | 0444, device_root, qca,
 			    &qcaspi_info_ops);
 }
 

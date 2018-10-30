@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for an envelope detector using a DAC and a comparator
  *
  * Copyright (C) 2016 Axentia Technologies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -322,7 +319,6 @@ static const struct iio_chan_spec envelope_detector_iio_channel = {
 
 static const struct iio_info envelope_detector_info = {
 	.read_raw = &envelope_detector_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int envelope_detector_probe(struct platform_device *pdev)

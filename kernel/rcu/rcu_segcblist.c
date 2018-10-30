@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/rcupdate.h>
 
 #include "rcu_segcblist.h"
 
@@ -400,24 +401,6 @@ bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 		rsclp->gp_seq[i] = seq;
 	}
 	return true;
-}
-
-/*
- * Scan the specified rcu_segcblist structure for callbacks that need
- * a grace period later than the one specified by "seq".  We don't look
- * at the RCU_DONE_TAIL or RCU_NEXT_TAIL segments because they don't
- * have a grace-period sequence number.
- */
-bool rcu_segcblist_future_gp_needed(struct rcu_segcblist *rsclp,
-				    unsigned long seq)
-{
-	int i;
-
-	for (i = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++)
-		if (rsclp->tails[i - 1] != rsclp->tails[i] &&
-		    ULONG_CMP_LT(seq, rsclp->gp_seq[i]))
-			return true;
-	return false;
 }
 
 /*

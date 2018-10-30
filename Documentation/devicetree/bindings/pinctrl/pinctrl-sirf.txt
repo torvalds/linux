@@ -41,7 +41,7 @@ For example, pinctrl might have subnodes like the following:
 
 For a specific board, if it wants to use uart2 without hardware flow control,
 it can add the following to its board-specific .dts file.
-uart2: uart@0xb0070000 {
+uart2: uart@b0070000 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_noflow_pins_a>;
 }

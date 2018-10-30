@@ -20,7 +20,7 @@ if LIBNVDIMM
 config BLK_DEV_PMEM
 	tristate "PMEM: Persistent memory block device support"
 	default LIBNVDIMM
-	select DAX
+	select DAX_DRIVER
 	select ND_BTT if BTT
 	select ND_PFN if NVDIMM_PFN
 	help
@@ -96,10 +96,20 @@ config NVDIMM_DAX
 	help
 	  Support raw device dax access to a persistent memory
 	  namespace.  For environments that want to hard partition
-	  peristent memory, this capability provides a mechanism to
+	  persistent memory, this capability provides a mechanism to
 	  sub-divide a namespace into character devices that can only be
 	  accessed via DAX (mmap(2)).
 
 	  Select Y if unsure
+
+config OF_PMEM
+	tristate "Device-tree support for persistent memory regions"
+	depends on OF
+	default LIBNVDIMM
+	help
+	  Allows regions of persistent memory to be described in the
+	  device-tree.
+
+	  Select Y if unsure.
 
 endif

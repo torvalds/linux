@@ -1858,7 +1858,7 @@ static s32 pixinc(int pixels, u8 ps)
 		return 1 - (-pixels + 1) * ps;
 	else
 		BUG();
-		return 0;
+	return 0;
 }
 
 static void calc_vrfb_rotation_offset(u8 rotation, bool mirror,
@@ -1905,6 +1905,7 @@ static void calc_vrfb_rotation_offset(u8 rotation, bool mirror,
 		if (color_mode == OMAP_DSS_COLOR_YUV2 ||
 			color_mode == OMAP_DSS_COLOR_UYVY)
 			width = width >> 1;
+		/* fall through */
 	case OMAP_DSS_ROT_90:
 	case OMAP_DSS_ROT_270:
 		*offset1 = 0;
@@ -1927,6 +1928,7 @@ static void calc_vrfb_rotation_offset(u8 rotation, bool mirror,
 		if (color_mode == OMAP_DSS_COLOR_YUV2 ||
 			color_mode == OMAP_DSS_COLOR_UYVY)
 			width = width >> 1;
+		/* fall through */
 	case OMAP_DSS_ROT_90 + 4:
 	case OMAP_DSS_ROT_270 + 4:
 		*offset1 = 0;
@@ -3976,52 +3978,33 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.has_writeback		=	true,
 };
 
-static int dispc_init_features(struct platform_device *pdev)
+static const struct dispc_features *dispc_get_features(void)
 {
-	const struct dispc_features *src;
-	struct dispc_features *dst;
-
-	dst = devm_kzalloc(&pdev->dev, sizeof(*dst), GFP_KERNEL);
-	if (!dst) {
-		dev_err(&pdev->dev, "Failed to allocate DISPC Features\n");
-		return -ENOMEM;
-	}
-
 	switch (omapdss_get_version()) {
 	case OMAPDSS_VER_OMAP24xx:
-		src = &omap24xx_dispc_feats;
-		break;
+		return &omap24xx_dispc_feats;
 
 	case OMAPDSS_VER_OMAP34xx_ES1:
-		src = &omap34xx_rev1_0_dispc_feats;
-		break;
+		return &omap34xx_rev1_0_dispc_feats;
 
 	case OMAPDSS_VER_OMAP34xx_ES3:
 	case OMAPDSS_VER_OMAP3630:
 	case OMAPDSS_VER_AM35xx:
 	case OMAPDSS_VER_AM43xx:
-		src = &omap34xx_rev3_0_dispc_feats;
-		break;
+		return &omap34xx_rev3_0_dispc_feats;
 
 	case OMAPDSS_VER_OMAP4430_ES1:
 	case OMAPDSS_VER_OMAP4430_ES2:
 	case OMAPDSS_VER_OMAP4:
-		src = &omap44xx_dispc_feats;
-		break;
+		return &omap44xx_dispc_feats;
 
 	case OMAPDSS_VER_OMAP5:
 	case OMAPDSS_VER_DRA7xx:
-		src = &omap54xx_dispc_feats;
-		break;
+		return &omap54xx_dispc_feats;
 
 	default:
-		return -ENODEV;
+		return NULL;
 	}
-
-	memcpy(dst, src, sizeof(*dst));
-	dispc.feat = dst;
-
-	return 0;
 }
 
 static irqreturn_t dispc_irq_handler(int irq, void *arg)
@@ -4078,9 +4061,9 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 
 	spin_lock_init(&dispc.control_lock);
 
-	r = dispc_init_features(dispc.pdev);
-	if (r)
-		return r;
+	dispc.feat = dispc_get_features();
+	if (!dispc.feat)
+		return -ENODEV;
 
 	dispc_mem = platform_get_resource(dispc.pdev, IORESOURCE_MEM, 0);
 	if (!dispc_mem) {

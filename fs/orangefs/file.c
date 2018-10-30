@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -37,70 +38,6 @@ static int flush_racache(struct inode *inode)
 	    __func__, ret);
 
 	op_release(new_op);
-	return ret;
-}
-
-/*
- * Copy to client-core's address space from the buffers specified
- * by the iovec upto total_size bytes.
- * NOTE: the iovector can either contain addresses which
- *       can futher be kernel-space or user-space addresses.
- *       or it can pointers to struct page's
- */
-static int precopy_buffers(int buffer_index,
-			   struct iov_iter *iter,
-			   size_t total_size)
-{
-	int ret = 0;
-	/*
-	 * copy data from application/kernel by pulling it out
-	 * of the iovec.
-	 */
-
-
-	if (total_size) {
-		ret = orangefs_bufmap_copy_from_iovec(iter,
-						      buffer_index,
-						      total_size);
-		if (ret < 0)
-		gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
-			   __func__,
-			   (long)ret);
-	}
-
-	if (ret < 0)
-		gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
-			__func__,
-			(long)ret);
-	return ret;
-}
-
-/*
- * Copy from client-core's address space to the buffers specified
- * by the iovec upto total_size bytes.
- * NOTE: the iovector can either contain addresses which
- *       can futher be kernel-space or user-space addresses.
- *       or it can pointers to struct page's
- */
-static int postcopy_buffers(int buffer_index,
-			    struct iov_iter *iter,
-			    size_t total_size)
-{
-	int ret = 0;
-	/*
-	 * copy data to application/kernel by pushing it out to
-	 * the iovec. NOTE; target buffers can be addresses or
-	 * struct page pointers.
-	 */
-	if (total_size) {
-		ret = orangefs_bufmap_copy_to_iovec(iter,
-						    buffer_index,
-						    total_size);
-		if (ret < 0)
-			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
-				__func__,
-				(long)ret);
-	}
 	return ret;
 }
 
@@ -156,14 +93,15 @@ populate_shared_memory:
 		     total_size);
 	/*
 	 * Stage 1: copy the buffers into client-core's address space
-	 * precopy_buffers only pertains to writes.
 	 */
-	if (type == ORANGEFS_IO_WRITE) {
-		ret = precopy_buffers(buffer_index,
-				      iter,
-				      total_size);
-		if (ret < 0)
+	if (type == ORANGEFS_IO_WRITE && total_size) {
+		ret = orangefs_bufmap_copy_from_iovec(iter, buffer_index,
+		    total_size);
+		if (ret < 0) {
+			gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
+			    __func__, (long)ret);
 			goto out;
+		}
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
@@ -224,7 +162,7 @@ populate_shared_memory:
 				else
 					ret = 0;
 				break;
-			/* 
+			/*
 			 * If the op was in progress when the interrupt
 			 * occurred, then the client-core was able to
 			 * trigger the write.
@@ -259,14 +197,20 @@ populate_shared_memory:
 
 	/*
 	 * Stage 3: Post copy buffers from client-core's address space
-	 * postcopy_buffers only pertains to reads.
 	 */
-	if (type == ORANGEFS_IO_READ) {
-		ret = postcopy_buffers(buffer_index,
-				       iter,
-				       new_op->downcall.resp.io.amt_complete);
-		if (ret < 0)
+	if (type == ORANGEFS_IO_READ && new_op->downcall.resp.io.amt_complete) {
+		/*
+		 * NOTE: the iovector can either contain addresses which
+		 *       can futher be kernel-space or user-space addresses.
+		 *       or it can pointers to struct page's
+		 */
+		ret = orangefs_bufmap_copy_to_iovec(iter, buffer_index,
+		    new_op->downcall.resp.io.amt_complete);
+		if (ret < 0) {
+			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
+			    __func__, (long)ret);
 			goto out;
+		}
 	}
 	gossip_debug(GOSSIP_FILE_DEBUG,
 	    "%s(%pU): Amount %s, returned by the sys-io call:%d\n",
@@ -382,9 +326,15 @@ out:
 		if (type == ORANGEFS_IO_READ) {
 			file_accessed(file);
 		} else {
-			SetMtimeFlag(orangefs_inode);
-			inode->i_mtime = current_time(inode);
-			mark_inode_dirty_sync(inode);
+			file_update_time(file);
+			/*
+			 * Must invalidate to ensure write loop doesn't
+			 * prevent kernel from reading updated
+			 * attribute.  Size probably changed because of
+			 * the write, and other clients could update
+			 * any other attribute.
+			 */
+			orangefs_inode->getattr_time = jiffies - 1;
 		}
 	}
 
@@ -445,7 +395,7 @@ ssize_t orangefs_inode_read(struct inode *inode,
 static ssize_t orangefs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
-	loff_t pos = *(&iocb->ki_pos);
+	loff_t pos = iocb->ki_pos;
 	ssize_t rc = 0;
 
 	BUG_ON(iocb->private);
@@ -485,9 +435,6 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 		}
 	}
 
-	if (file->f_pos > i_size_read(file->f_mapping->host))
-		orangefs_i_size_write(file->f_mapping->host, file->f_pos);
-
 	rc = generic_write_checks(iocb, iter);
 
 	if (rc <= 0) {
@@ -501,7 +448,7 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 	 * pos to the end of the file, so we will wait till now to set
 	 * pos...
 	 */
-	pos = *(&iocb->ki_pos);
+	pos = iocb->ki_pos;
 
 	rc = do_readv_writev(ORANGEFS_IO_WRITE,
 			     file,
@@ -581,6 +528,29 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	return ret;
 }
 
+static vm_fault_t orangefs_fault(struct vm_fault *vmf)
+{
+	struct file *file = vmf->vma->vm_file;
+	int ret;
+
+	ret = orangefs_inode_getattr(file->f_mapping->host, 0, 1,
+	    STATX_SIZE);
+	if (ret == -ESTALE)
+		ret = -EIO;
+	if (ret) {
+		gossip_err("%s: orangefs_inode_getattr failed, ret:%d:.\n",
+				__func__, ret);
+		return VM_FAULT_SIGBUS;
+	}
+	return filemap_fault(vmf);
+}
+
+static const struct vm_operations_struct orangefs_file_vm_ops = {
+	.fault = orangefs_fault,
+	.map_pages = filemap_map_pages,
+	.page_mkwrite = filemap_page_mkwrite,
+};
+
 /*
  * Memory map a region of a file.
  */
@@ -592,12 +562,16 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 			(char *)file->f_path.dentry->d_name.name :
 			(char *)"Unknown"));
 
+	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
+		return -EINVAL;
+
 	/* set the sequential readahead hint */
 	vma->vm_flags |= VM_SEQ_READ;
 	vma->vm_flags &= ~VM_RAND_READ;
 
-	/* Use readonly mmap since we cannot support writable maps. */
-	return generic_file_readonly_mmap(file, vma);
+	file_accessed(file);
+	vma->vm_ops = &orangefs_file_vm_ops;
+	return 0;
 }
 
 #define mapping_nrpages(idata) ((idata)->nrpages)
@@ -613,8 +587,6 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_file_release: called on %pD\n",
 		     file);
-
-	orangefs_flush_inode(inode);
 
 	/*
 	 * remove all associated inode pages from the page cache and
@@ -665,8 +637,6 @@ static int orangefs_fsync(struct file *file,
 		     ret);
 
 	op_release(new_op);
-
-	orangefs_flush_inode(file_inode(file));
 	return ret;
 }
 

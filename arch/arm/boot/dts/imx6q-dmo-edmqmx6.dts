@@ -29,7 +29,7 @@
 		stmpe-i2c1 = &stmpe2;
 	};
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x80000000>;
 	};
 
@@ -139,7 +139,7 @@
 		     &pinctrl_pfuze>;
 	status = "okay";
 
-	pmic: pfuze100@08 {
+	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 		interrupt-parent = <&gpio3>;

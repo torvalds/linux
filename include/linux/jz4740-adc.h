@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __LINUX_JZ4740_ADC
 #define __LINUX_JZ4740_ADC

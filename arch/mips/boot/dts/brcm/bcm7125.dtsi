@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -194,6 +195,13 @@
 			reg = <0x406580 0x28>;
 			#pwm-cells = <2>;
 			clocks = <&upg_clk>;
+			status = "disabled";
+		};
+
+		watchdog: watchdog@4067e8 {
+			clocks = <&upg_clk>;
+			compatible = "brcm,bcm7038-wdt";
+			reg = <0x4067e8 0x14>;
 			status = "disabled";
 		};
 

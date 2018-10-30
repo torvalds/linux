@@ -16,6 +16,17 @@
 #ifndef __PINMUX_TEGRA_H__
 #define __PINMUX_TEGRA_H__
 
+struct tegra_pmx {
+	struct device *dev;
+	struct pinctrl_dev *pctl;
+
+	const struct tegra_pinctrl_soc_data *soc;
+	const char **group_pins;
+
+	int nbanks;
+	void __iomem **regs;
+};
+
 enum tegra_pinconf_param {
 	/* argument: tegra_pinconf_pull */
 	TEGRA_PINCONF_PARAM_PULL,
@@ -178,6 +189,7 @@ struct tegra_pingroup {
  */
 struct tegra_pinctrl_soc_data {
 	unsigned ngpios;
+	const char *gpio_compatible;
 	const struct pinctrl_pin_desc *pins;
 	unsigned npins;
 	struct tegra_function *functions;

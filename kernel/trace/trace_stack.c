@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  *
@@ -77,7 +78,7 @@ check_stack(unsigned long ip, unsigned long *stack)
 {
 	unsigned long this_size, flags; unsigned long *p, *top, *start;
 	static int tracer_frame;
-	int frame_size = ACCESS_ONCE(tracer_frame);
+	int frame_size = READ_ONCE(tracer_frame);
 	int i, x;
 
 	this_size = ((unsigned long)stack) & (THREAD_SIZE-1);
@@ -96,22 +97,8 @@ check_stack(unsigned long ip, unsigned long *stack)
 	if (in_nmi())
 		return;
 
-	/*
-	 * There's a slight chance that we are tracing inside the
-	 * RCU infrastructure, and rcu_irq_enter() will not work
-	 * as expected.
-	 */
-	if (unlikely(rcu_irq_enter_disabled()))
-		return;
-
 	local_irq_save(flags);
 	arch_spin_lock(&stack_trace_max_lock);
-
-	/*
-	 * RCU may not be watching, make it see us.
-	 * The stack trace code uses rcu_sched.
-	 */
-	rcu_irq_enter();
 
 	/* In case another CPU set the tracer_frame on us */
 	if (unlikely(!frame_size))
@@ -205,7 +192,6 @@ check_stack(unsigned long ip, unsigned long *stack)
 	}
 
  out:
-	rcu_irq_exit();
 	arch_spin_unlock(&stack_trace_max_lock);
 	local_irq_restore(flags);
 }
@@ -221,6 +207,10 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	/* no atomic needed, we only modify this variable by this cpu */
 	__this_cpu_inc(disable_stack_tracer);
 	if (__this_cpu_read(disable_stack_tracer) != 1)
+		goto out;
+
+	/* If rcu is not watching, then save stack trace can fail */
+	if (!rcu_is_watching())
 		goto out;
 
 	ip += MCOUNT_INSN_SIZE;
@@ -482,7 +472,7 @@ static __init int stack_trace_init(void)
 			NULL, &stack_trace_fops);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-	trace_create_file("stack_trace_filter", 0444, d_tracer,
+	trace_create_file("stack_trace_filter", 0644, d_tracer,
 			  &trace_ops, &stack_trace_filter_fops);
 #endif
 

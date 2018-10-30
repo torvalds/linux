@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __BCM63XX_SMP_H
 #define __BCM63XX_SMP_H
 

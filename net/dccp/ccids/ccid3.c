@@ -195,10 +195,10 @@ static inline void ccid3_hc_tx_update_win_count(struct ccid3_hc_tx_sock *hc,
 	}
 }
 
-static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
+static void ccid3_hc_tx_no_feedback_timer(struct timer_list *t)
 {
-	struct sock *sk = (struct sock *)data;
-	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
+	struct ccid3_hc_tx_sock *hc = from_timer(hc, t, tx_no_feedback_timer);
+	struct sock *sk = hc->sk;
 	unsigned long t_nfb = USEC_PER_SEC / 5;
 
 	bh_lock_sock(sk);
@@ -505,8 +505,9 @@ static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
 
 	hc->tx_state = TFRC_SSTATE_NO_SENT;
 	hc->tx_hist  = NULL;
-	setup_timer(&hc->tx_no_feedback_timer,
-			ccid3_hc_tx_no_feedback_timer, (unsigned long)sk);
+	hc->sk	     = sk;
+	timer_setup(&hc->tx_no_feedback_timer,
+		    ccid3_hc_tx_no_feedback_timer, 0);
 	return 0;
 }
 
@@ -599,7 +600,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 {
 	struct ccid3_hc_rx_sock *hc = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	ktime_t now = ktime_get_real();
+	ktime_t now = ktime_get();
 	s64 delta = 0;
 
 	switch (fbtype) {
@@ -624,15 +625,14 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 	case CCID3_FBACK_PERIODIC:
 		delta = ktime_us_delta(now, hc->rx_tstamp_last_feedback);
 		if (delta <= 0)
-			DCCP_BUG("delta (%ld) <= 0", (long)delta);
-		else
-			hc->rx_x_recv = scaled_div32(hc->rx_bytes_recv, delta);
+			delta = 1;
+		hc->rx_x_recv = scaled_div32(hc->rx_bytes_recv, delta);
 		break;
 	default:
 		return;
 	}
 
-	ccid3_pr_debug("Interval %ldusec, X_recv=%u, 1/p=%u\n", (long)delta,
+	ccid3_pr_debug("Interval %lldusec, X_recv=%u, 1/p=%u\n", delta,
 		       hc->rx_x_recv, hc->rx_pinv);
 
 	hc->rx_tstamp_last_feedback = now;
@@ -679,7 +679,8 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 static u32 ccid3_first_li(struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hc = ccid3_hc_rx_sk(sk);
-	u32 x_recv, p, delta;
+	u32 x_recv, p;
+	s64 delta;
 	u64 fval;
 
 	if (hc->rx_rtt == 0) {
@@ -687,7 +688,9 @@ static u32 ccid3_first_li(struct sock *sk)
 		hc->rx_rtt = DCCP_FALLBACK_RTT;
 	}
 
-	delta  = ktime_to_us(net_timedelta(hc->rx_tstamp_last_feedback));
+	delta = ktime_us_delta(ktime_get(), hc->rx_tstamp_last_feedback);
+	if (delta <= 0)
+		delta = 1;
 	x_recv = scaled_div32(hc->rx_bytes_recv, delta);
 	if (x_recv == 0) {		/* would also trigger divide-by-zero */
 		DCCP_WARN("X_recv==0\n");

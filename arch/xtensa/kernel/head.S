@@ -181,6 +181,8 @@ ENTRY(_startup)
 
 	isync
 
+	initialize_cacheattr
+
 #ifdef CONFIG_HAVE_SMP
 	movi	a2, CCON	# MX External Register to Configure Cache
 	movi	a3, 1
@@ -264,11 +266,8 @@ ENTRY(_startup)
 
 	/* init_arch kick-starts the linux kernel */
 
-	movi	a4, init_arch
-	callx4	a4
-
-	movi	a4, start_kernel
-	callx4	a4
+	call4	init_arch
+	call4	start_kernel
 
 should_never_return:
 	j	should_never_return
@@ -294,8 +293,7 @@ should_never_return:
 	movi	a6, 0
 	wsr	a6, excsave1
 
-	movi	a4, secondary_start_kernel
-	callx4	a4
+	call4	secondary_start_kernel
 	j	should_never_return
 
 #endif  /* CONFIG_SMP */

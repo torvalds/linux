@@ -23,26 +23,12 @@
  */
 #include "priv.h"
 
-#include <subdev/fb.h>
-
-int
-nvkm_ltc_tags_alloc(struct nvkm_ltc *ltc, u32 n, struct nvkm_mm_node **pnode)
-{
-	int ret = nvkm_mm_head(&ltc->tags, 0, 1, n, n, 1, pnode);
-	if (ret)
-		*pnode = NULL;
-	return ret;
-}
+#include <core/memory.h>
 
 void
-nvkm_ltc_tags_free(struct nvkm_ltc *ltc, struct nvkm_mm_node **pnode)
+nvkm_ltc_tags_clear(struct nvkm_device *device, u32 first, u32 count)
 {
-	nvkm_mm_free(&ltc->tags, pnode);
-}
-
-void
-nvkm_ltc_tags_clear(struct nvkm_ltc *ltc, u32 first, u32 count)
-{
+	struct nvkm_ltc *ltc = device->ltc;
 	const u32 limit = first + count - 1;
 
 	BUG_ON((first > limit) || (limit >= ltc->num_tags));
@@ -66,6 +52,14 @@ nvkm_ltc_zbc_depth_get(struct nvkm_ltc *ltc, int index, const u32 depth)
 {
 	ltc->zbc_depth[index] = depth;
 	ltc->func->zbc_clear_depth(ltc, index, depth);
+	return index;
+}
+
+int
+nvkm_ltc_zbc_stencil_get(struct nvkm_ltc *ltc, int index, const u32 stencil)
+{
+	ltc->zbc_stencil[index] = stencil;
+	ltc->func->zbc_clear_stencil(ltc, index, stencil);
 	return index;
 }
 
@@ -106,6 +100,8 @@ nvkm_ltc_init(struct nvkm_subdev *subdev)
 	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
 		ltc->func->zbc_clear_color(ltc, i, ltc->zbc_color[i]);
 		ltc->func->zbc_clear_depth(ltc, i, ltc->zbc_depth[i]);
+		if (ltc->func->zbc_clear_stencil)
+			ltc->func->zbc_clear_stencil(ltc, i, ltc->zbc_stencil[i]);
 	}
 
 	ltc->func->init(ltc);
@@ -116,10 +112,7 @@ static void *
 nvkm_ltc_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_ltc *ltc = nvkm_ltc(subdev);
-	struct nvkm_ram *ram = ltc->subdev.device->fb->ram;
-	nvkm_mm_fini(&ltc->tags);
-	if (ram)
-		nvkm_mm_free(&ram->vram, &ltc->tag_ram);
+	nvkm_memory_unref(&ltc->tag_ram);
 	return ltc;
 }
 

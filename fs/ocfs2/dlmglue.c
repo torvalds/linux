@@ -96,7 +96,9 @@ struct ocfs2_unblock_ctl {
 };
 
 /* Lockdep class keys */
-struct lock_class_key lockdep_keys[OCFS2_NUM_LOCK_TYPES];
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static struct lock_class_key lockdep_keys[OCFS2_NUM_LOCK_TYPES];
+#endif
 
 static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
 					int new_level);
@@ -257,6 +259,10 @@ static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
 
 static struct ocfs2_lock_res_ops ocfs2_nfs_sync_lops = {
 	.flags		= 0,
+};
+
+static struct ocfs2_lock_res_ops ocfs2_trim_fs_lops = {
+	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_orphan_scan_lops = {
@@ -676,6 +682,24 @@ static void ocfs2_nfs_sync_lock_res_init(struct ocfs2_lock_res *res,
 				   &ocfs2_nfs_sync_lops, osb);
 }
 
+void ocfs2_trim_fs_lock_res_init(struct ocfs2_super *osb)
+{
+	struct ocfs2_lock_res *lockres = &osb->osb_trim_fs_lockres;
+
+	ocfs2_lock_res_init_once(lockres);
+	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_TRIM_FS, 0, 0, lockres->l_name);
+	ocfs2_lock_res_init_common(osb, lockres, OCFS2_LOCK_TYPE_TRIM_FS,
+				   &ocfs2_trim_fs_lops, osb);
+}
+
+void ocfs2_trim_fs_lock_res_uninit(struct ocfs2_super *osb)
+{
+	struct ocfs2_lock_res *lockres = &osb->osb_trim_fs_lockres;
+
+	ocfs2_simple_drop_lockres(osb, lockres);
+	ocfs2_lock_res_free(lockres);
+}
+
 static void ocfs2_orphan_scan_lock_res_init(struct ocfs2_lock_res *res,
 					    struct ocfs2_super *osb)
 {
@@ -766,6 +790,23 @@ static inline void ocfs2_add_holder(struct ocfs2_lock_res *lockres,
 	spin_unlock(&lockres->l_lock);
 }
 
+static struct ocfs2_lock_holder *
+ocfs2_pid_holder(struct ocfs2_lock_res *lockres,
+		struct pid *pid)
+{
+	struct ocfs2_lock_holder *oh;
+
+	spin_lock(&lockres->l_lock);
+	list_for_each_entry(oh, &lockres->l_holders, oh_list) {
+		if (oh->oh_owner_pid == pid) {
+			spin_unlock(&lockres->l_lock);
+			return oh;
+		}
+	}
+	spin_unlock(&lockres->l_lock);
+	return NULL;
+}
+
 static inline void ocfs2_remove_holder(struct ocfs2_lock_res *lockres,
 				       struct ocfs2_lock_holder *oh)
 {
@@ -776,24 +817,6 @@ static inline void ocfs2_remove_holder(struct ocfs2_lock_res *lockres,
 	put_pid(oh->oh_owner_pid);
 }
 
-static inline int ocfs2_is_locked_by_me(struct ocfs2_lock_res *lockres)
-{
-	struct ocfs2_lock_holder *oh;
-	struct pid *pid;
-
-	/* look in the list of holders for one with the current task as owner */
-	spin_lock(&lockres->l_lock);
-	pid = task_pid(current);
-	list_for_each_entry(oh, &lockres->l_holders, oh_list) {
-		if (oh->oh_owner_pid == pid) {
-			spin_unlock(&lockres->l_lock);
-			return 1;
-		}
-	}
-	spin_unlock(&lockres->l_lock);
-
-	return 0;
-}
 
 static inline void ocfs2_inc_holders(struct ocfs2_lock_res *lockres,
 				     int level)
@@ -1734,11 +1757,31 @@ int ocfs2_rw_lock(struct inode *inode, int write)
 
 	level = write ? DLM_LOCK_EX : DLM_LOCK_PR;
 
-	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres, level, 0,
-				    0);
+	status = ocfs2_cluster_lock(osb, lockres, level, 0, 0);
 	if (status < 0)
 		mlog_errno(status);
 
+	return status;
+}
+
+int ocfs2_try_rw_lock(struct inode *inode, int write)
+{
+	int status, level;
+	struct ocfs2_lock_res *lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	mlog(0, "inode %llu try to take %s RW lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+	     write ? "EXMODE" : "PRMODE");
+
+	if (ocfs2_mount_local(osb))
+		return 0;
+
+	lockres = &OCFS2_I(inode)->ip_rw_lockres;
+
+	level = write ? DLM_LOCK_EX : DLM_LOCK_PR;
+
+	status = ocfs2_cluster_lock(osb, lockres, level, DLM_LKF_NOQUEUE, 0);
 	return status;
 }
 
@@ -1753,7 +1796,7 @@ void ocfs2_rw_unlock(struct inode *inode, int write)
 	     write ? "EXMODE" : "PRMODE");
 
 	if (!ocfs2_mount_local(osb))
-		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
+		ocfs2_cluster_unlock(osb, lockres, level);
 }
 
 /*
@@ -1773,8 +1816,7 @@ int ocfs2_open_lock(struct inode *inode)
 
 	lockres = &OCFS2_I(inode)->ip_open_lockres;
 
-	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres,
-				    DLM_LOCK_PR, 0, 0);
+	status = ocfs2_cluster_lock(osb, lockres, DLM_LOCK_PR, 0, 0);
 	if (status < 0)
 		mlog_errno(status);
 
@@ -1811,8 +1853,7 @@ int ocfs2_try_open_lock(struct inode *inode, int write)
 	 * other nodes and the -EAGAIN will indicate to the caller that
 	 * this inode is still in use.
 	 */
-	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres,
-				    level, DLM_LKF_NOQUEUE, 0);
+	status = ocfs2_cluster_lock(osb, lockres, level, DLM_LKF_NOQUEUE, 0);
 
 out:
 	return status;
@@ -1833,11 +1874,9 @@ void ocfs2_open_unlock(struct inode *inode)
 		goto out;
 
 	if(lockres->l_ro_holders)
-		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres,
-				     DLM_LOCK_PR);
+		ocfs2_cluster_unlock(osb, lockres, DLM_LOCK_PR);
 	if(lockres->l_ex_holders)
-		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres,
-				     DLM_LOCK_EX);
+		ocfs2_cluster_unlock(osb, lockres, DLM_LOCK_EX);
 
 out:
 	return;
@@ -2103,6 +2142,7 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_lock_res *lockres = &oi->ip_inode_lockres;
 	struct ocfs2_meta_lvb *lvb;
+	struct timespec ts;
 
 	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
 
@@ -2123,12 +2163,15 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 	lvb->lvb_igid      = cpu_to_be32(i_gid_read(inode));
 	lvb->lvb_imode     = cpu_to_be16(inode->i_mode);
 	lvb->lvb_inlink    = cpu_to_be16(inode->i_nlink);
+	ts = timespec64_to_timespec(inode->i_atime);
 	lvb->lvb_iatime_packed  =
-		cpu_to_be64(ocfs2_pack_timespec(&inode->i_atime));
+		cpu_to_be64(ocfs2_pack_timespec(&ts));
+	ts = timespec64_to_timespec(inode->i_ctime);
 	lvb->lvb_ictime_packed =
-		cpu_to_be64(ocfs2_pack_timespec(&inode->i_ctime));
+		cpu_to_be64(ocfs2_pack_timespec(&ts));
+	ts = timespec64_to_timespec(inode->i_mtime);
 	lvb->lvb_imtime_packed =
-		cpu_to_be64(ocfs2_pack_timespec(&inode->i_mtime));
+		cpu_to_be64(ocfs2_pack_timespec(&ts));
 	lvb->lvb_iattr    = cpu_to_be32(oi->ip_attr);
 	lvb->lvb_idynfeatures = cpu_to_be16(oi->ip_dyn_features);
 	lvb->lvb_igeneration = cpu_to_be32(inode->i_generation);
@@ -2146,6 +2189,7 @@ static void ocfs2_unpack_timespec(struct timespec *spec,
 
 static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 {
+	struct timespec ts;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_lock_res *lockres = &oi->ip_inode_lockres;
 	struct ocfs2_meta_lvb *lvb;
@@ -2173,12 +2217,15 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	i_gid_write(inode, be32_to_cpu(lvb->lvb_igid));
 	inode->i_mode    = be16_to_cpu(lvb->lvb_imode);
 	set_nlink(inode, be16_to_cpu(lvb->lvb_inlink));
-	ocfs2_unpack_timespec(&inode->i_atime,
+	ocfs2_unpack_timespec(&ts,
 			      be64_to_cpu(lvb->lvb_iatime_packed));
-	ocfs2_unpack_timespec(&inode->i_mtime,
+	inode->i_atime = timespec_to_timespec64(ts);
+	ocfs2_unpack_timespec(&ts,
 			      be64_to_cpu(lvb->lvb_imtime_packed));
-	ocfs2_unpack_timespec(&inode->i_ctime,
+	inode->i_mtime = timespec_to_timespec64(ts);
+	ocfs2_unpack_timespec(&ts,
 			      be64_to_cpu(lvb->lvb_ictime_packed));
+	inode->i_ctime = timespec_to_timespec64(ts);
 	spin_unlock(&oi->ip_lock);
 }
 
@@ -2486,6 +2533,15 @@ int ocfs2_inode_lock_with_page(struct inode *inode,
 	ret = ocfs2_inode_lock_full(inode, ret_bh, ex, OCFS2_LOCK_NONBLOCK);
 	if (ret == -EAGAIN) {
 		unlock_page(page);
+		/*
+		 * If we can't get inode lock immediately, we should not return
+		 * directly here, since this will lead to a softlockup problem.
+		 * The method is to get a blocking lock and immediately unlock
+		 * before returning, this can avoid CPU resource waste due to
+		 * lots of retries, and benefits fairness in getting lock.
+		 */
+		if (ocfs2_inode_lock(inode, ret_bh, ex) == 0)
+			ocfs2_inode_unlock(inode, ex);
 		ret = AOP_TRUNCATED_PAGE;
 	}
 
@@ -2494,13 +2550,18 @@ int ocfs2_inode_lock_with_page(struct inode *inode,
 
 int ocfs2_inode_lock_atime(struct inode *inode,
 			  struct vfsmount *vfsmnt,
-			  int *level)
+			  int *level, int wait)
 {
 	int ret;
 
-	ret = ocfs2_inode_lock(inode, NULL, 0);
+	if (wait)
+		ret = ocfs2_inode_lock(inode, NULL, 0);
+	else
+		ret = ocfs2_try_inode_lock(inode, NULL, 0);
+
 	if (ret < 0) {
-		mlog_errno(ret);
+		if (ret != -EAGAIN)
+			mlog_errno(ret);
 		return ret;
 	}
 
@@ -2512,9 +2573,14 @@ int ocfs2_inode_lock_atime(struct inode *inode,
 		struct buffer_head *bh = NULL;
 
 		ocfs2_inode_unlock(inode, 0);
-		ret = ocfs2_inode_lock(inode, &bh, 1);
+		if (wait)
+			ret = ocfs2_inode_lock(inode, &bh, 1);
+		else
+			ret = ocfs2_try_inode_lock(inode, &bh, 1);
+
 		if (ret < 0) {
-			mlog_errno(ret);
+			if (ret != -EAGAIN)
+				mlog_errno(ret);
 			return ret;
 		}
 		*level = 1;
@@ -2539,9 +2605,9 @@ void ocfs2_inode_unlock(struct inode *inode,
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     ex ? "EXMODE" : "PRMODE");
 
-	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)) &&
+	if (!ocfs2_is_hard_readonly(osb) &&
 	    !ocfs2_mount_local(osb))
-		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
+		ocfs2_cluster_unlock(osb, lockres, level);
 }
 
 /*
@@ -2553,34 +2619,93 @@ void ocfs2_inode_unlock(struct inode *inode,
  *
  * return < 0 on error, return == 0 if there's no lock holder on the stack
  * before this call, return == 1 if this call would be a recursive locking.
+ * return == -1 if this lock attempt will cause an upgrade which is forbidden.
+ *
+ * When taking lock levels into account,we face some different situations.
+ *
+ * 1. no lock is held
+ *    In this case, just lock the inode as requested and return 0
+ *
+ * 2. We are holding a lock
+ *    For this situation, things diverges into several cases
+ *
+ *    wanted     holding	     what to do
+ *    ex		ex	    see 2.1 below
+ *    ex		pr	    see 2.2 below
+ *    pr		ex	    see 2.1 below
+ *    pr		pr	    see 2.1 below
+ *
+ *    2.1 lock level that is been held is compatible
+ *    with the wanted level, so no lock action will be tacken.
+ *
+ *    2.2 Otherwise, an upgrade is needed, but it is forbidden.
+ *
+ * Reason why upgrade within a process is forbidden is that
+ * lock upgrade may cause dead lock. The following illustrates
+ * how it happens.
+ *
+ *         thread on node1                             thread on node2
+ * ocfs2_inode_lock_tracker(ex=0)
+ *
+ *                                <======   ocfs2_inode_lock_tracker(ex=1)
+ *
+ * ocfs2_inode_lock_tracker(ex=1)
  */
 int ocfs2_inode_lock_tracker(struct inode *inode,
 			     struct buffer_head **ret_bh,
 			     int ex,
 			     struct ocfs2_lock_holder *oh)
 {
-	int status;
-	int arg_flags = 0, has_locked;
+	int status = 0;
 	struct ocfs2_lock_res *lockres;
+	struct ocfs2_lock_holder *tmp_oh;
+	struct pid *pid = task_pid(current);
+
 
 	lockres = &OCFS2_I(inode)->ip_inode_lockres;
-	has_locked = ocfs2_is_locked_by_me(lockres);
-	/* Just get buffer head if the cluster lock has been taken */
-	if (has_locked)
-		arg_flags = OCFS2_META_LOCK_GETBH;
+	tmp_oh = ocfs2_pid_holder(lockres, pid);
 
-	if (likely(!has_locked || ret_bh)) {
-		status = ocfs2_inode_lock_full(inode, ret_bh, ex, arg_flags);
+	if (!tmp_oh) {
+		/*
+		 * This corresponds to the case 1.
+		 * We haven't got any lock before.
+		 */
+		status = ocfs2_inode_lock_full(inode, ret_bh, ex, 0);
+		if (status < 0) {
+			if (status != -ENOENT)
+				mlog_errno(status);
+			return status;
+		}
+
+		oh->oh_ex = ex;
+		ocfs2_add_holder(lockres, oh);
+		return 0;
+	}
+
+	if (unlikely(ex && !tmp_oh->oh_ex)) {
+		/*
+		 * case 2.2 upgrade may cause dead lock, forbid it.
+		 */
+		mlog(ML_ERROR, "Recursive locking is not permitted to "
+		     "upgrade to EX level from PR level.\n");
+		dump_stack();
+		return -EINVAL;
+	}
+
+	/*
+	 *  case 2.1 OCFS2_META_LOCK_GETBH flag make ocfs2_inode_lock_full.
+	 *  ignore the lock level and just update it.
+	 */
+	if (ret_bh) {
+		status = ocfs2_inode_lock_full(inode, ret_bh, ex,
+					       OCFS2_META_LOCK_GETBH);
 		if (status < 0) {
 			if (status != -ENOENT)
 				mlog_errno(status);
 			return status;
 		}
 	}
-	if (!has_locked)
-		ocfs2_add_holder(lockres, oh);
-
-	return has_locked;
+	return tmp_oh ? 1 : 0;
 }
 
 void ocfs2_inode_unlock_tracker(struct inode *inode,
@@ -2592,12 +2717,13 @@ void ocfs2_inode_unlock_tracker(struct inode *inode,
 
 	lockres = &OCFS2_I(inode)->ip_inode_lockres;
 	/* had_lock means that the currect process already takes the cluster
-	 * lock previously. If had_lock is 1, we have nothing to do here, and
-	 * it will get unlocked where we got the lock.
+	 * lock previously.
+	 * If had_lock is 1, we have nothing to do here.
+	 * If had_lock is 0, we will release the lock.
 	 */
 	if (!had_lock) {
+		ocfs2_inode_unlock(inode, oh->oh_ex);
 		ocfs2_remove_holder(lockres, oh);
-		ocfs2_inode_unlock(inode, ex);
 	}
 }
 
@@ -2743,6 +2869,70 @@ void ocfs2_nfs_sync_unlock(struct ocfs2_super *osb, int ex)
 	if (!ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(osb, lockres,
 				     ex ? LKM_EXMODE : LKM_PRMODE);
+}
+
+int ocfs2_trim_fs_lock(struct ocfs2_super *osb,
+		       struct ocfs2_trim_fs_info *info, int trylock)
+{
+	int status;
+	struct ocfs2_trim_fs_lvb *lvb;
+	struct ocfs2_lock_res *lockres = &osb->osb_trim_fs_lockres;
+
+	if (info)
+		info->tf_valid = 0;
+
+	if (ocfs2_is_hard_readonly(osb))
+		return -EROFS;
+
+	if (ocfs2_mount_local(osb))
+		return 0;
+
+	status = ocfs2_cluster_lock(osb, lockres, DLM_LOCK_EX,
+				    trylock ? DLM_LKF_NOQUEUE : 0, 0);
+	if (status < 0) {
+		if (status != -EAGAIN)
+			mlog_errno(status);
+		return status;
+	}
+
+	if (info) {
+		lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
+		if (ocfs2_dlm_lvb_valid(&lockres->l_lksb) &&
+		    lvb->lvb_version == OCFS2_TRIMFS_LVB_VERSION) {
+			info->tf_valid = 1;
+			info->tf_success = lvb->lvb_success;
+			info->tf_nodenum = be32_to_cpu(lvb->lvb_nodenum);
+			info->tf_start = be64_to_cpu(lvb->lvb_start);
+			info->tf_len = be64_to_cpu(lvb->lvb_len);
+			info->tf_minlen = be64_to_cpu(lvb->lvb_minlen);
+			info->tf_trimlen = be64_to_cpu(lvb->lvb_trimlen);
+		}
+	}
+
+	return status;
+}
+
+void ocfs2_trim_fs_unlock(struct ocfs2_super *osb,
+			  struct ocfs2_trim_fs_info *info)
+{
+	struct ocfs2_trim_fs_lvb *lvb;
+	struct ocfs2_lock_res *lockres = &osb->osb_trim_fs_lockres;
+
+	if (ocfs2_mount_local(osb))
+		return;
+
+	if (info) {
+		lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
+		lvb->lvb_version = OCFS2_TRIMFS_LVB_VERSION;
+		lvb->lvb_success = info->tf_success;
+		lvb->lvb_nodenum = cpu_to_be32(info->tf_nodenum);
+		lvb->lvb_start = cpu_to_be64(info->tf_start);
+		lvb->lvb_len = cpu_to_be64(info->tf_len);
+		lvb->lvb_minlen = cpu_to_be64(info->tf_minlen);
+		lvb->lvb_trimlen = cpu_to_be64(info->tf_trimlen);
+	}
+
+	ocfs2_cluster_unlock(osb, lockres, DLM_LOCK_EX);
 }
 
 int ocfs2_dentry_lock(struct dentry *dentry, int ex)
@@ -3411,7 +3601,7 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 	 * On DLM_LKF_VALBLK, fsdlm behaves differently with o2cb. It always
 	 * expects DLM_LKF_VALBLK being set if the LKB has LVB, so that
 	 * we can recover correctly from node failure. Otherwise, we may get
-	 * invalid LVB in LKB, but without DLM_SBF_VALNOTVALID being set.
+	 * invalid LVB in LKB, but without DLM_SBF_VALNOTVALID being set.
 	 */
 	if (!ocfs2_is_o2cb_active() &&
 	    lockres->l_ops->flags & LOCK_TYPE_USES_LVB)

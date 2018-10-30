@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/arm/include/asm/hardware/sa1111.h
  *
@@ -13,33 +14,6 @@
 #define _ASM_ARCH_SA1111
 
 #include <mach/bitfield.h>
-
-/*
- * The SA1111 is always located at virtual 0xf4000000, and is always
- * "native" endian.
- */
-
-#define SA1111_VBASE		0xf4000000
-
-/* Don't use these! */
-#define SA1111_p2v( x )         ((x) - SA1111_BASE + SA1111_VBASE)
-#define SA1111_v2p( x )         ((x) - SA1111_VBASE + SA1111_BASE)
-
-#ifndef __ASSEMBLY__
-#define _SA1111(x)	((x) + sa1111->resource.start)
-#endif
-
-#define sa1111_writel(val,addr)	__raw_writel(val, addr)
-#define sa1111_readl(addr)	__raw_readl(addr)
-
-/*
- * 26 bits of the SA-1110 address bus are available to the SA-1111.
- * Use these when feeding target addresses to the DMA engines.
- */
-
-#define SA1111_ADDR_WIDTH	(26)
-#define SA1111_ADDR_MASK	((1<<SA1111_ADDR_WIDTH)-1)
-#define SA1111_DMA_ADDR(x)	((x)&SA1111_ADDR_MASK)
 
 /*
  * Don't ask the (SAC) DMA engines to move less than this amount.
@@ -416,7 +390,7 @@ struct sa1111_dev {
 	struct resource	res;
 	void __iomem	*mapbase;
 	unsigned int	skpcr_mask;
-	unsigned int	irq[6];
+	unsigned int	hwirq[6];
 	u64		dma_mask;
 };
 
@@ -430,9 +404,6 @@ struct sa1111_driver {
 	unsigned int		devid;
 	int (*probe)(struct sa1111_dev *);
 	int (*remove)(struct sa1111_dev *);
-	int (*suspend)(struct sa1111_dev *, pm_message_t);
-	int (*resume)(struct sa1111_dev *);
-	void (*shutdown)(struct sa1111_dev *);
 };
 
 #define SA1111_DRV(_d)	container_of((_d), struct sa1111_driver, drv)

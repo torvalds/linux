@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_TTY_LDISC_H
 #define _LINUX_TTY_LDISC_H
 
@@ -53,10 +54,16 @@
  *	low-level driver can "grab" an ioctl request before the line
  *	discpline has a chance to see it.
  *
- * long	(*compat_ioctl)(struct tty_struct * tty, struct file * file,
+ * int	(*compat_ioctl)(struct tty_struct * tty, struct file * file,
  *		        unsigned int cmd, unsigned long arg);
  *
  *	Process ioctl calls from 32-bit process on 64-bit system
+ *
+ *	NOTE: only ioctls that are neither "pointer to compatible
+ *	structure" nor tty-generic.  Something private that takes
+ *	an integer or a pointer to wordsize-sensitive structure
+ *	belongs here, but most of ldiscs will happily leave
+ *	it NULL.
  *
  * void	(*set_termios)(struct tty_struct *tty, struct ktermios * old);
  *
@@ -118,13 +125,13 @@
 
 #include <linux/fs.h>
 #include <linux/wait.h>
-
+#include <linux/atomic.h>
 
 /*
  * the semaphore definition
  */
 struct ld_semaphore {
-	long			count;
+	atomic_long_t		count;
 	raw_spinlock_t		wait_lock;
 	unsigned int		wait_readers;
 	struct list_head	read_wait;
@@ -183,10 +190,10 @@ struct tty_ldisc_ops {
 			 const unsigned char *buf, size_t nr);
 	int	(*ioctl)(struct tty_struct *tty, struct file *file,
 			 unsigned int cmd, unsigned long arg);
-	long	(*compat_ioctl)(struct tty_struct *tty, struct file *file,
+	int	(*compat_ioctl)(struct tty_struct *tty, struct file *file,
 				unsigned int cmd, unsigned long arg);
 	void	(*set_termios)(struct tty_struct *tty, struct ktermios *old);
-	unsigned int (*poll)(struct tty_struct *, struct file *,
+	__poll_t (*poll)(struct tty_struct *, struct file *,
 			     struct poll_table_struct *);
 	int	(*hangup)(struct tty_struct *tty);
 

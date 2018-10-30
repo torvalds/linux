@@ -88,13 +88,6 @@ static int via_num_unichrome = ARRAY_SIZE(via_unichrome_irqs);
 static int via_irqmap_unichrome[] = {-1, -1, -1, 0, -1, 1};
 
 
-static unsigned time_diff(struct timeval *now, struct timeval *then)
-{
-	return (now->tv_usec >= then->tv_usec) ?
-		now->tv_usec - then->tv_usec :
-		1000000 - (then->tv_usec - now->tv_usec);
-}
-
 u32 via_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
@@ -111,7 +104,7 @@ irqreturn_t via_driver_irq_handler(int irq, void *arg)
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
 	int handled = 0;
-	struct timeval cur_vblank;
+	ktime_t cur_vblank;
 	drm_via_irq_t *cur_irq = dev_priv->via_irqs;
 	int i;
 
@@ -119,18 +112,18 @@ irqreturn_t via_driver_irq_handler(int irq, void *arg)
 	if (status & VIA_IRQ_VBLANK_PENDING) {
 		atomic_inc(&dev_priv->vbl_received);
 		if (!(atomic_read(&dev_priv->vbl_received) & 0x0F)) {
-			do_gettimeofday(&cur_vblank);
+			cur_vblank = ktime_get();
 			if (dev_priv->last_vblank_valid) {
-				dev_priv->usec_per_vblank =
-					time_diff(&cur_vblank,
-						  &dev_priv->last_vblank) >> 4;
+				dev_priv->nsec_per_vblank =
+					ktime_sub(cur_vblank,
+						dev_priv->last_vblank) >> 4;
 			}
 			dev_priv->last_vblank = cur_vblank;
 			dev_priv->last_vblank_valid = 1;
 		}
 		if (!(atomic_read(&dev_priv->vbl_received) & 0xFF)) {
-			DRM_DEBUG("US per vblank is: %u\n",
-				  dev_priv->usec_per_vblank);
+			DRM_DEBUG("nsec per vblank is: %llu\n",
+				  ktime_to_ns(dev_priv->nsec_per_vblank));
 		}
 		drm_handle_vblank(dev, 0);
 		handled = 1;
@@ -350,7 +343,7 @@ void via_driver_irq_uninstall(struct drm_device *dev)
 int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_via_irqwait_t *irqwait = data;
-	struct timeval now;
+	struct timespec64 now;
 	int ret = 0;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	drm_via_irq_t *cur_irq = dev_priv->via_irqs;
@@ -384,9 +377,9 @@ int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 	ret = via_driver_irq_wait(dev, irqwait->request.irq, force_sequence,
 				  &irqwait->request.sequence);
-	do_gettimeofday(&now);
+	ktime_get_ts64(&now);
 	irqwait->reply.tval_sec = now.tv_sec;
-	irqwait->reply.tval_usec = now.tv_usec;
+	irqwait->reply.tval_usec = now.tv_nsec / NSEC_PER_USEC;
 
 	return ret;
 }

@@ -88,6 +88,7 @@ l3_1tr6_setup_req(struct l3_process *pc, u_char pr, void *arg)
 			break;
 		case 'C':
 			channel = 0x08;
+			/* fall through */
 		case 'P':
 			channel |= 0x80;
 			teln++;

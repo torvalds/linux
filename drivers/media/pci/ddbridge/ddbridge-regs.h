@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ddbridge-regs.h: Digital Devices PCIe bridge driver
  *
@@ -7,15 +8,14 @@
  * modify it under the terms of the GNU General Public License
  * version 2 only, as published by the Free Software Foundation.
  *
- *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
+
+#ifndef __DDBRIDGE_REGS_H__
+#define __DDBRIDGE_REGS_H__
 
 /* ------------------------------------------------------------------------- */
 /* SPI Controller */
@@ -29,14 +29,6 @@
 #define GPIO_OUTPUT      0x20
 #define GPIO_INPUT       0x24
 #define GPIO_DIRECTION   0x28
-
-/* ------------------------------------------------------------------------- */
-/* MDIO */
-
-#define MDIO_CTRL        0x20
-#define MDIO_ADR         0x24
-#define MDIO_REG         0x28
-#define MDIO_VAL         0x2C
 
 /* ------------------------------------------------------------------------- */
 
@@ -95,27 +87,27 @@
 #define DMA_BASE_WRITE        (0x100)
 #define DMA_BASE_READ         (0x140)
 
-#define TS_CONTROL(_io)         (_io->regs + 0x00)
-#define TS_CONTROL2(_io)        (_io->regs + 0x04)
+#define TS_CONTROL(_io)         ((_io)->regs + 0x00)
+#define TS_CONTROL2(_io)        ((_io)->regs + 0x04)
 
 /* ------------------------------------------------------------------------- */
 /* DMA  Buffer */
 
-#define DMA_BUFFER_CONTROL(_dma)       (_dma->regs + 0x00)
-#define DMA_BUFFER_ACK(_dma)           (_dma->regs + 0x04)
-#define DMA_BUFFER_CURRENT(_dma)       (_dma->regs + 0x08)
-#define DMA_BUFFER_SIZE(_dma)          (_dma->regs + 0x0c)
+#define DMA_BUFFER_CONTROL(_dma)       ((_dma)->regs + 0x00)
+#define DMA_BUFFER_ACK(_dma)           ((_dma)->regs + 0x04)
+#define DMA_BUFFER_CURRENT(_dma)       ((_dma)->regs + 0x08)
+#define DMA_BUFFER_SIZE(_dma)          ((_dma)->regs + 0x0c)
 
 /* ------------------------------------------------------------------------- */
 /* CI Interface (only CI-Bridge) */
 
-#define CI_BASE                     (0x400)
-#define CI_CONTROL(i)               (CI_BASE + (i) * 32 + 0x00)
+#define CI_BASE                         (0x400)
+#define CI_CONTROL(i)                   (CI_BASE + (i) * 32 + 0x00)
 
-#define CI_DO_ATTRIBUTE_RW(i)       (CI_BASE + (i) * 32 + 0x04)
-#define CI_DO_IO_RW(i)              (CI_BASE + (i) * 32 + 0x08)
-#define CI_READDATA(i)              (CI_BASE + (i) * 32 + 0x0c)
-#define CI_DO_READ_ATTRIBUTES(i)    (CI_BASE + (i) * 32 + 0x10)
+#define CI_DO_ATTRIBUTE_RW(i)           (CI_BASE + (i) * 32 + 0x04)
+#define CI_DO_IO_RW(i)                  (CI_BASE + (i) * 32 + 0x08)
+#define CI_READDATA(i)                  (CI_BASE + (i) * 32 + 0x0c)
+#define CI_DO_READ_ATTRIBUTES(i)        (CI_BASE + (i) * 32 + 0x10)
 
 #define CI_RESET_CAM                    (0x00000001)
 #define CI_POWER_ON                     (0x00000002)
@@ -132,7 +124,7 @@
 #define CI_BUFFER_BASE                  (0x3000)
 #define CI_BUFFER_SIZE                  (0x0800)
 
-#define CI_BUFFER(i)                  (CI_BUFFER_BASE + (i) * CI_BUFFER_SIZE)
+#define CI_BUFFER(i)                    (CI_BUFFER_BASE + (i) * CI_BUFFER_SIZE)
 
 /* ------------------------------------------------------------------------- */
 /* LNB commands (mxl5xx / Max S8) */
@@ -140,7 +132,7 @@
 #define LNB_BASE			(0x400)
 #define LNB_CONTROL(i)			(LNB_BASE + (i) * 0x20 + 0x00)
 
-#define LNB_CMD				(7ULL <<  0)
+#define LNB_CMD				(7ULL << 0)
 #define LNB_CMD_NOP			0
 #define LNB_CMD_INIT			1
 #define LNB_CMD_LOW			3
@@ -148,9 +140,10 @@
 #define LNB_CMD_OFF			5
 #define LNB_CMD_DISEQC			6
 
-#define LNB_BUSY			(1ULL <<  4)
-#define LNB_TONE			(1ULL << 15)
+#define LNB_BUSY			BIT_ULL(4)
+#define LNB_TONE			BIT_ULL(15)
 
 #define LNB_BUF_LEVEL(i)		(LNB_BASE + (i) * 0x20 + 0x10)
 #define LNB_BUF_WRITE(i)		(LNB_BASE + (i) * 0x20 + 0x14)
 
+#endif /* __DDBRIDGE_REGS_H__ */

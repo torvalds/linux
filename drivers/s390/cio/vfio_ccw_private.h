@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Private stuff for vfio_ccw driver
  *
@@ -40,7 +41,7 @@ struct vfio_ccw_private {
 	atomic_t		avail;
 	struct mdev_device	*mdev;
 	struct notifier_block	nb;
-	struct ccw_io_region	io_region;
+	struct ccw_io_region	*io_region;
 
 	struct channel_program	cp;
 	struct irb		irb;

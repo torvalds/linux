@@ -1,19 +1,13 @@
-/*
- * drivers/dma/imx-dma.c
- *
- * This file contains a driver for the Freescale i.MX DMA engine
- * found on i.MX1/21/27
- *
- * Copyright 2010 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
- * Copyright 2012 Javier Martin, Vista Silicon <javier.martin@vista-silicon.com>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// drivers/dma/imx-dma.c
+//
+// This file contains a driver for the Freescale i.MX DMA engine
+// found on i.MX1/21/27
+//
+// Copyright 2010 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
+// Copyright 2012 Javier Martin, Vista Silicon <javier.martin@vista-silicon.com>
+
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -168,6 +162,7 @@ struct imxdma_channel {
 	bool				enabled_2d;
 	int				slot_2d;
 	unsigned int			irq;
+	struct dma_slave_config		config;
 };
 
 enum imx_dma_type {
@@ -364,9 +359,9 @@ static void imxdma_disable_hw(struct imxdma_channel *imxdmac)
 	local_irq_restore(flags);
 }
 
-static void imxdma_watchdog(unsigned long data)
+static void imxdma_watchdog(struct timer_list *t)
 {
-	struct imxdma_channel *imxdmac = (struct imxdma_channel *)data;
+	struct imxdma_channel *imxdmac = from_timer(imxdmac, t, watchdog);
 	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	int channel = imxdmac->channel;
 
@@ -681,14 +676,15 @@ static int imxdma_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
-static int imxdma_config(struct dma_chan *chan,
-			 struct dma_slave_config *dmaengine_cfg)
+static int imxdma_config_write(struct dma_chan *chan,
+			       struct dma_slave_config *dmaengine_cfg,
+			       enum dma_transfer_direction direction)
 {
 	struct imxdma_channel *imxdmac = to_imxdma_chan(chan);
 	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	unsigned int mode = 0;
 
-	if (dmaengine_cfg->direction == DMA_DEV_TO_MEM) {
+	if (direction == DMA_DEV_TO_MEM) {
 		imxdmac->per_address = dmaengine_cfg->src_addr;
 		imxdmac->watermark_level = dmaengine_cfg->src_maxburst;
 		imxdmac->word_size = dmaengine_cfg->src_addr_width;
@@ -729,6 +725,16 @@ static int imxdma_config(struct dma_chan *chan,
 	return 0;
 }
 
+static int imxdma_config(struct dma_chan *chan,
+			 struct dma_slave_config *dmaengine_cfg)
+{
+	struct imxdma_channel *imxdmac = to_imxdma_chan(chan);
+
+	memcpy(&imxdmac->config, dmaengine_cfg, sizeof(*dmaengine_cfg));
+
+	return 0;
+}
+
 static enum dma_status imxdma_tx_status(struct dma_chan *chan,
 					    dma_cookie_t cookie,
 					    struct dma_tx_state *txstate)
@@ -765,7 +771,7 @@ static int imxdma_alloc_chan_resources(struct dma_chan *chan)
 		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 		if (!desc)
 			break;
-		__memzero(&desc->desc, sizeof(struct dma_async_tx_descriptor));
+		memset(&desc->desc, 0, sizeof(struct dma_async_tx_descriptor));
 		dma_async_tx_descriptor_init(&desc->desc, chan);
 		desc->desc.tx_submit = imxdma_tx_submit;
 		/* txd.flags will be overwritten in prep funcs */
@@ -910,6 +916,8 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_cyclic(
 	}
 	desc->desc.callback = NULL;
 	desc->desc.callback_param = NULL;
+
+	imxdma_config_write(chan, &imxdmac->config, direction);
 
 	return &desc->desc;
 }
@@ -1153,9 +1161,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 			}
 
 			imxdmac->irq = irq + i;
-			init_timer(&imxdmac->watchdog);
-			imxdmac->watchdog.function = &imxdma_watchdog;
-			imxdmac->watchdog.data = (unsigned long)imxdmac;
+			timer_setup(&imxdmac->watchdog, imxdma_watchdog, 0);
 		}
 
 		imxdmac->imxdma = imxdma;

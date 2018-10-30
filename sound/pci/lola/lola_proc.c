@@ -214,7 +214,7 @@ void lola_proc_debug_new(struct lola *chip)
 		snd_info_set_text_ops(entry, chip, lola_proc_codec_read);
 	if (!snd_card_proc_new(chip->card, "codec_rw", &entry)) {
 		snd_info_set_text_ops(entry, chip, lola_proc_codec_rw_read);
-		entry->mode |= S_IWUSR;
+		entry->mode |= 0200;
 		entry->c.text.write = lola_proc_codec_rw_write;
 	}
 	if (!snd_card_proc_new(chip->card, "regs", &entry))

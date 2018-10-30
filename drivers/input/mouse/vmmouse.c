@@ -316,11 +316,9 @@ static int vmmouse_enable(struct psmouse *psmouse)
 /*
  * Array of supported hypervisors.
  */
-static const struct hypervisor_x86 *vmmouse_supported_hypervisors[] = {
-	&x86_hyper_vmware,
-#ifdef CONFIG_KVM_GUEST
-	&x86_hyper_kvm,
-#endif
+static enum x86_hypervisor_type vmmouse_supported_hypervisors[] = {
+	X86_HYPER_VMWARE,
+	X86_HYPER_KVM,
 };
 
 /**
@@ -331,7 +329,7 @@ static bool vmmouse_check_hypervisor(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vmmouse_supported_hypervisors); i++)
-		if (vmmouse_supported_hypervisors[i] == x86_hyper)
+		if (vmmouse_supported_hypervisors[i] == x86_hyper_type)
 			return true;
 
 	return false;

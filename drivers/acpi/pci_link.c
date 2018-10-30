@@ -173,8 +173,8 @@ static int acpi_pci_link_get_possible(struct acpi_pci_link *link)
 	status = acpi_walk_resources(link->device->handle, METHOD_NAME__PRS,
 				     acpi_pci_link_check_possible, link);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRS"));
-		return -ENODEV;
+		acpi_handle_debug(link->device->handle, "_PRS not present or invalid");
+		return 0;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -612,7 +612,7 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 			acpi_isa_irq_penalty[link->irq.active] +=
 				PIRQ_PENALTY_PCI_USING;
 
-		printk(KERN_WARNING PREFIX "%s [%s] enabled at IRQ %d\n",
+		pr_info("%s [%s] enabled at IRQ %d\n",
 		       acpi_device_name(link->device),
 		       acpi_device_bid(link->device), link->irq.active);
 	}

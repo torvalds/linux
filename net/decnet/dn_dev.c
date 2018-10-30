@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -1038,14 +1039,14 @@ static void dn_eth_down(struct net_device *dev)
 
 static void dn_dev_set_timer(struct net_device *dev);
 
-static void dn_dev_timer_func(unsigned long arg)
+static void dn_dev_timer_func(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)arg;
-	struct dn_dev *dn_db;
+	struct dn_dev *dn_db = from_timer(dn_db, t, timer);
+	struct net_device *dev;
 	struct dn_ifaddr *ifa;
 
 	rcu_read_lock();
-	dn_db = rcu_dereference(dev->dn_ptr);
+	dev = dn_db->dev;
 	if (dn_db->t3 <= dn_db->parms.t2) {
 		if (dn_db->parms.timer3) {
 			for (ifa = rcu_dereference(dn_db->ifa_list);
@@ -1070,8 +1071,6 @@ static void dn_dev_set_timer(struct net_device *dev)
 	if (dn_db->parms.t2 > dn_db->parms.t3)
 		dn_db->parms.t2 = dn_db->parms.t3;
 
-	dn_db->timer.data = (unsigned long)dev;
-	dn_db->timer.function = dn_dev_timer_func;
 	dn_db->timer.expires = jiffies + (dn_db->parms.t2 * HZ);
 
 	add_timer(&dn_db->timer);
@@ -1100,7 +1099,7 @@ static struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 
 	rcu_assign_pointer(dev->dn_ptr, dn_db);
 	dn_db->dev = dev;
-	init_timer(&dn_db->timer);
+	timer_setup(&dn_db->timer, dn_dev_timer_func, 0);
 
 	dn_db->uptime = jiffies;
 
@@ -1364,7 +1363,7 @@ static int dn_dev_seq_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq, "%-8s %1s     %04u %04u   %04lu %04lu"
 				"   %04hu    %03d %02x    %-10s %-7s %-7s\n",
-				dev->name ? dev->name : "???",
+				dev->name,
 				dn_type2asc(dn_db->parms.mode),
 				0, 0,
 				dn_db->t3, dn_db->parms.t3,
@@ -1383,20 +1382,6 @@ static const struct seq_operations dn_dev_seq_ops = {
 	.stop	= dn_dev_seq_stop,
 	.show	= dn_dev_seq_show,
 };
-
-static int dn_dev_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &dn_dev_seq_ops);
-}
-
-static const struct file_operations dn_dev_seq_fops = {
-	.owner	 = THIS_MODULE,
-	.open	 = dn_dev_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release,
-};
-
 #endif /* CONFIG_PROC_FS */
 
 static int addr[2];
@@ -1419,11 +1404,14 @@ void __init dn_dev_init(void)
 
 	dn_dev_devices_on();
 
-	rtnl_register(PF_DECnet, RTM_NEWADDR, dn_nl_newaddr, NULL, 0);
-	rtnl_register(PF_DECnet, RTM_DELADDR, dn_nl_deladdr, NULL, 0);
-	rtnl_register(PF_DECnet, RTM_GETADDR, NULL, dn_nl_dump_ifaddr, 0);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_NEWADDR,
+			     dn_nl_newaddr, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_DELADDR,
+			     dn_nl_deladdr, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_GETADDR,
+			     NULL, dn_nl_dump_ifaddr, 0);
 
-	proc_create("decnet_dev", S_IRUGO, init_net.proc_net, &dn_dev_seq_fops);
+	proc_create_seq("decnet_dev", 0444, init_net.proc_net, &dn_dev_seq_ops);
 
 #ifdef CONFIG_SYSCTL
 	{

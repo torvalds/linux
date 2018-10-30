@@ -6,9 +6,14 @@ Required properties:
 - interrupts : Should contain uart interrupt
 
 Optional properties:
-- fsl,irda-mode : Indicate the uart supports irda mode
 - fsl,dte-mode : Indicate the uart works in DTE mode. The uart works
                   in DCE mode by default.
+- rs485-rts-delay, rs485-rts-active-low, rs485-rx-during-tx,
+  linux,rs485-enabled-at-boot-time: see rs485.txt. Note that for RS485
+  you must enable either the "uart-has-rtscts" or the "rts-gpios"
+  properties. In case you use "uart-has-rtscts" the signal that controls
+  the transceiver is actually CTS_B, not RTS_B. CTS_B is always output,
+  and RTS_B is input, regardless of dte-mode.
 
 Please check Documentation/devicetree/bindings/serial/serial.txt
 for the complete list of generic properties.

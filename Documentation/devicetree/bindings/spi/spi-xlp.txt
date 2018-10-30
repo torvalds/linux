@@ -13,7 +13,6 @@ Required properties:
 - reg			: Should contain register location and length.
 - clocks		: Phandle of the spi clock
 - interrupts		: Interrupt number used by this controller.
-- interrupt-parent	: Phandle of the parent interrupt controller.
 
 SPI slave nodes must be children of the SPI master node and can contain
 properties described in Documentation/devicetree/bindings/spi/spi-bus.txt.

@@ -64,6 +64,12 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	cmpwi	cr0,r3,CLOCK_REALTIME
 	cmpwi	cr1,r3,CLOCK_MONOTONIC
 	cror	cr0*4+eq,cr0*4+eq,cr1*4+eq
+
+	cmpwi	cr5,r3,CLOCK_REALTIME_COARSE
+	cmpwi	cr6,r3,CLOCK_MONOTONIC_COARSE
+	cror	cr5*4+eq,cr5*4+eq,cr6*4+eq
+
+	cror	cr0*4+eq,cr0*4+eq,cr5*4+eq
 	bne	cr0,99f
 
 	mflr	r12			/* r12 saves lr */
@@ -72,6 +78,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	bl	V_LOCAL_FUNC(__get_datapage)	/* get data page */
 	lis	r7,NSEC_PER_SEC@h	/* want nanoseconds */
 	ori	r7,r7,NSEC_PER_SEC@l
+	beq	cr5,70f
 50:	bl	V_LOCAL_FUNC(__do_get_tspec)	/* get time from tb & kernel */
 	bne	cr1,80f			/* if not monotonic, all done */
 
@@ -97,19 +104,57 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	ld	r0,CFG_TB_UPDATE_COUNT(r3)
         cmpld   cr0,r0,r8		/* check if updated */
 	bne-	50b
+	b	78f
 
-	/* Add wall->monotonic offset and check for overflow or underflow.
+	/*
+	 * For coarse clocks we get data directly from the vdso data page, so
+	 * we don't need to call __do_get_tspec, but we still need to do the
+	 * counter trick.
 	 */
-	add	r4,r4,r6
-	add	r5,r5,r9
-	cmpd	cr0,r5,r7
-	cmpdi	cr1,r5,0
-	blt	1f
-	subf	r5,r7,r5
-	addi	r4,r4,1
-1:	bge	cr1,80f
-	addi	r4,r4,-1
-	add	r5,r5,r7
+70:	ld      r8,CFG_TB_UPDATE_COUNT(r3)
+	andi.   r0,r8,1                 /* pending update ? loop */
+	bne-    70b
+	add     r3,r3,r0		/* r0 is already 0 */
+
+	/*
+	 * CLOCK_REALTIME_COARSE, below values are needed for MONOTONIC_COARSE
+	 * too
+	 */
+	ld      r4,STAMP_XTIME+TSPC64_TV_SEC(r3)
+	ld      r5,STAMP_XTIME+TSPC64_TV_NSEC(r3)
+	bne     cr6,75f
+
+	/* CLOCK_MONOTONIC_COARSE */
+	lwa     r6,WTOM_CLOCK_SEC(r3)
+	lwa     r9,WTOM_CLOCK_NSEC(r3)
+
+	/* check if counter has updated */
+	or      r0,r6,r9
+75:	or	r0,r0,r4
+	or	r0,r0,r5
+	xor     r0,r0,r0
+	add     r3,r3,r0
+	ld      r0,CFG_TB_UPDATE_COUNT(r3)
+	cmpld   cr0,r0,r8               /* check if updated */
+	bne-    70b
+
+	/* Counter has not updated, so continue calculating proper values for
+	 * sec and nsec if monotonic coarse, or just return with the proper
+	 * values for realtime.
+	 */
+	bne     cr6,80f
+
+	/* Add wall->monotonic offset and check for overflow or underflow */
+78:	add     r4,r4,r6
+	add     r5,r5,r9
+	cmpd    cr0,r5,r7
+	cmpdi   cr1,r5,0
+	blt     79f
+	subf    r5,r7,r5
+	addi    r4,r4,1
+79:	bge     cr1,80f
+	addi    r4,r4,-1
+	add     r5,r5,r7
 
 80:	std	r4,TSPC64_TV_SEC(r11)
 	std	r5,TSPC64_TV_NSEC(r11)
@@ -124,6 +169,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	 */
 99:
 	li	r0,__NR_clock_gettime
+  .cfi_restore lr
 	sc
 	blr
   .cfi_endproc

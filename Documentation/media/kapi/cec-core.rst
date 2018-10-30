@@ -103,17 +103,21 @@ your driver:
 		/* Low-level callbacks */
 		int (*adap_enable)(struct cec_adapter *adap, bool enable);
 		int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
+		int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
 		int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
 		int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 				      u32 signal_free_time, struct cec_msg *msg);
 		void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
 		void (*adap_free)(struct cec_adapter *adap);
 
+		/* Error injection callbacks */
+		...
+
 		/* High-level callbacks */
 		...
 	};
 
-The five low-level ops deal with various aspects of controlling the CEC adapter
+The seven low-level ops deal with various aspects of controlling the CEC adapter
 hardware:
 
 
@@ -142,6 +146,19 @@ called if the CEC_CAP_MONITOR_ALL capability is set. This callback is optional
 (some hardware may always be in 'monitor all' mode).
 
 Note that adap_monitor_all_enable must return 0 if enable is false.
+
+
+To enable/disable the 'monitor pin' mode:
+
+.. c:function::
+	int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
+
+If enabled, then the adapter should be put in a mode to also monitor CEC pin
+changes. Not all hardware supports this and this function is only called if
+the CEC_CAP_MONITOR_PIN capability is set. This callback is optional
+(some hardware may always be in 'monitor pin' mode).
+
+Note that adap_monitor_pin_enable must return 0 if enable is false.
 
 
 To program a new logical address:
@@ -227,9 +244,12 @@ CEC_TX_STATUS_LOW_DRIVE:
 	retransmission.
 
 CEC_TX_STATUS_ERROR:
-	some unspecified error occurred: this can be one of
-	the previous two if the hardware cannot differentiate or something
-	else entirely.
+	some unspecified error occurred: this can be one of ARB_LOST
+	or LOW_DRIVE if the hardware cannot differentiate or something
+	else entirely. Some hardware only supports OK and FAIL as the
+	result of a transmit, i.e. there is no way to differentiate
+	between the different possible errors. In that case map FAIL
+	to CEC_TX_STATUS_NACK and not to CEC_TX_STATUS_ERROR.
 
 CEC_TX_STATUS_MAX_RETRIES:
 	could not transmit the message after trying multiple times.
@@ -238,12 +258,19 @@ CEC_TX_STATUS_MAX_RETRIES:
 	doesn't have to make another attempt to transmit the message
 	since the hardware did that already.
 
+The hardware must be able to differentiate between OK, NACK and 'something
+else'.
+
 The \*_cnt arguments are the number of error conditions that were seen.
 This may be 0 if no information is available. Drivers that do not support
 hardware retry can just set the counter corresponding to the transmit error
 to 1, if the hardware does support retry then either set these counters to
 0 if the hardware provides no feedback of which errors occurred and how many
 times, or fill in the correct values as reported by the hardware.
+
+Be aware that calling these functions can immediately start a new transmit
+if there is one pending in the queue. So make sure that the hardware is in
+a state where new transmits can be started *before* calling these functions.
 
 The cec_transmit_attempt_done() function is a helper for cases where the
 hardware never retries, so the transmit is always for just a single
@@ -269,6 +296,70 @@ handling the receive interrupt. The framework expects to see the cec_transmit_do
 call before the cec_received_msg call, otherwise it can get confused if the
 received message was in reply to the transmitted message.
 
+Optional: Implementing Error Injection Support
+----------------------------------------------
+
+If the CEC adapter supports Error Injection functionality, then that can
+be exposed through the Error Injection callbacks:
+
+.. code-block:: none
+
+	struct cec_adap_ops {
+		/* Low-level callbacks */
+		...
+
+		/* Error injection callbacks */
+		int (*error_inj_show)(struct cec_adapter *adap, struct seq_file *sf);
+		bool (*error_inj_parse_line)(struct cec_adapter *adap, char *line);
+
+		/* High-level CEC message callback */
+		...
+	};
+
+If both callbacks are set, then an ``error-inj`` file will appear in debugfs.
+The basic syntax is as follows:
+
+Leading spaces/tabs are ignored. If the next character is a ``#`` or the end of the
+line was reached, then the whole line is ignored. Otherwise a command is expected.
+
+This basic parsing is done in the CEC Framework. It is up to the driver to decide
+what commands to implement. The only requirement is that the command ``clear`` without
+any arguments must be implemented and that it will remove all current error injection
+commands.
+
+This ensures that you can always do ``echo clear >error-inj`` to clear any error
+injections without having to know the details of the driver-specific commands.
+
+Note that the output of ``error-inj`` shall be valid as input to ``error-inj``.
+So this must work:
+
+.. code-block:: none
+
+	$ cat error-inj >einj.txt
+	$ cat einj.txt >error-inj
+
+The first callback is called when this file is read and it should show the
+the current error injection state:
+
+.. c:function::
+	int (*error_inj_show)(struct cec_adapter *adap, struct seq_file *sf);
+
+It is recommended that it starts with a comment block with basic usage
+information. It returns 0 for success and an error otherwise.
+
+The second callback will parse commands written to the ``error-inj`` file:
+
+.. c:function::
+	bool (*error_inj_parse_line)(struct cec_adapter *adap, char *line);
+
+The ``line`` argument points to the start of the command. Any leading
+spaces or tabs have already been skipped. It is a single line only (so there
+are no embedded newlines) and it is 0-terminated. The callback is free to
+modify the contents of the buffer. It is only called for lines containing a
+command, so this callback is never called for empty lines or comment lines.
+
+Return true if the command was valid or false if there were syntax errors.
+
 Implementing the High-Level CEC Adapter
 ---------------------------------------
 
@@ -279,6 +370,9 @@ CEC protocol driven. The following high-level callbacks are available:
 
 	struct cec_adap_ops {
 		/* Low-level callbacks */
+		...
+
+		/* Error injection callbacks */
 		...
 
 		/* High-level CEC message callback */

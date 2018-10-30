@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _TRANSP_V6_H
 #define _TRANSP_V6_H
 
@@ -41,11 +42,17 @@ void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
 				    struct sk_buff *skb);
 
 int ip6_datagram_send_ctl(struct net *net, struct sock *sk, struct msghdr *msg,
-			  struct flowi6 *fl6, struct ipcm6_cookie *ipc6,
-			  struct sockcm_cookie *sockc);
+			  struct flowi6 *fl6, struct ipcm6_cookie *ipc6);
 
-void ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp,
-			     __u16 srcp, __u16 destp, int bucket);
+void __ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp,
+			       __u16 srcp, __u16 destp, int rqueue, int bucket);
+static inline void
+ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp, __u16 srcp,
+			__u16 destp, int bucket)
+{
+	__ip6_dgram_sock_seq_show(seq, sp, srcp, destp, sk_rmem_alloc_get(sp),
+				  bucket);
+}
 
 #define LOOPBACK4_IPV6 cpu_to_be32(0x7f000006)
 

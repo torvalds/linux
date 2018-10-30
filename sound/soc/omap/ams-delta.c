@@ -22,7 +22,7 @@
  *
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/spinlock.h>
 #include <linux/tty.h>
 #include <linux/module.h>
@@ -32,7 +32,6 @@
 
 #include <asm/mach-types.h>
 
-#include <mach/board-ams-delta.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include "omap-mcbsp.h"
@@ -93,7 +92,7 @@ static unsigned short ams_delta_audio_agc;
  * Used for passing a codec structure pointer
  * from the board initialization code to the tty line discipline.
  */
-static struct snd_soc_codec *cx20442_codec;
+static struct snd_soc_component *cx20442_codec;
 
 static int ams_delta_set_audio_mode(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
@@ -105,7 +104,7 @@ static int ams_delta_set_audio_mode(struct snd_kcontrol *kcontrol,
 	int pin, changed = 0;
 
 	/* Refuse any mode changes if we are not able to control the codec. */
-	if (!cx20442_codec->hw_write)
+	if (!cx20442_codec->card->pop_time)
 		return -EUNATCH;
 
 	if (ucontrol->value.enumerated.item[0] >= control->items)
@@ -213,7 +212,6 @@ static const struct snd_kcontrol_new ams_delta_audio_controls[] = {
 static struct snd_soc_jack ams_delta_hook_switch;
 static struct snd_soc_jack_gpio ams_delta_hook_switch_gpios[] = {
 	{
-		.gpio = 4,
 		.name = "hook_switch",
 		.report = SND_JACK_HEADSET,
 		.invert = 1,
@@ -259,8 +257,9 @@ static struct timer_list cx81801_timer;
 static bool cx81801_cmd_pending;
 static bool ams_delta_muted;
 static DEFINE_SPINLOCK(ams_delta_lock);
+static struct gpio_desc *gpiod_modem_codec;
 
-static void cx81801_timeout(unsigned long data)
+static void cx81801_timeout(struct timer_list *unused)
 {
 	int muted;
 
@@ -272,7 +271,7 @@ static void cx81801_timeout(unsigned long data)
 	/* Reconnect the codec DAI back from the modem to the CPU DAI
 	 * only if digital mute still off */
 	if (!muted)
-		ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_CODEC, 0);
+		gpiod_set_value(gpiod_modem_codec, 0);
 }
 
 /* Line discipline .open() */
@@ -300,15 +299,15 @@ static int cx81801_open(struct tty_struct *tty)
 /* Line discipline .close() */
 static void cx81801_close(struct tty_struct *tty)
 {
-	struct snd_soc_codec *codec = tty->disc_data;
-	struct snd_soc_dapm_context *dapm = &codec->component.card->dapm;
+	struct snd_soc_component *component = tty->disc_data;
+	struct snd_soc_dapm_context *dapm = &component->card->dapm;
 
 	del_timer_sync(&cx81801_timer);
 
 	/* Prevent the hook switch from further changing the DAPM pins */
 	INIT_LIST_HEAD(&ams_delta_hook_switch.pins);
 
-	if (!codec)
+	if (!component)
 		return;
 
 	v253_ops.close(tty);
@@ -338,18 +337,18 @@ static int cx81801_hangup(struct tty_struct *tty)
 static void cx81801_receive(struct tty_struct *tty,
 				const unsigned char *cp, char *fp, int count)
 {
-	struct snd_soc_codec *codec = tty->disc_data;
+	struct snd_soc_component *component = tty->disc_data;
 	const unsigned char *c;
 	int apply, ret;
 
-	if (!codec)
+	if (!component)
 		return;
 
-	if (!codec->hw_write) {
+	if (!component->card->pop_time) {
 		/* First modem response, complete setup procedure */
 
 		/* Initialize timer used for config pulse generation */
-		setup_timer(&cx81801_timer, cx81801_timeout, 0);
+		timer_setup(&cx81801_timer, cx81801_timeout, 0);
 
 		v253_ops.receive_buf(tty, cp, fp, count);
 
@@ -358,7 +357,7 @@ static void cx81801_receive(struct tty_struct *tty,
 					ARRAY_SIZE(ams_delta_hook_switch_pins),
 					ams_delta_hook_switch_pins);
 		if (ret)
-			dev_warn(codec->dev,
+			dev_warn(component->dev,
 				"Failed to link hook switch to DAPM pins, "
 				"will continue with hook switch unlinked.\n");
 
@@ -381,8 +380,7 @@ static void cx81801_receive(struct tty_struct *tty,
 		/* Apply config pulse by connecting the codec to the modem
 		 * if not already done */
 		if (apply)
-			ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_CODEC,
-						AMS_DELTA_LATCH2_MODEM_CODEC);
+			gpiod_set_value(gpiod_modem_codec, 1);
 		break;
 	}
 }
@@ -432,8 +430,7 @@ static int ams_delta_digital_mute(struct snd_soc_dai *dai, int mute)
 	spin_unlock_bh(&ams_delta_lock);
 
 	if (apply)
-		ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_CODEC,
-				mute ? AMS_DELTA_LATCH2_MODEM_CODEC : 0);
+		gpiod_set_value(gpiod_modem_codec, !!mute);
 	return 0;
 }
 
@@ -467,15 +464,7 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	/* Codec is ready, now add/activate board specific controls */
 
 	/* Store a pointer to the codec structure for tty ldisc use */
-	cx20442_codec = rtd->codec;
-
-	/* Set up digital mute if not provided by the codec */
-	if (!codec_dai->driver->ops) {
-		codec_dai->driver->ops = &ams_delta_dai_ops;
-	} else {
-		ams_delta_ops.startup = ams_delta_startup;
-		ams_delta_ops.shutdown = ams_delta_shutdown;
-	}
+	cx20442_codec = rtd->codec_dai->component;
 
 	/* Add hook switch - can be used to control the codec from userspace
 	 * even if line discipline fails */
@@ -486,13 +475,28 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 				"Failed to allocate resources for hook switch, "
 				"will continue without one.\n");
 	else {
-		ret = snd_soc_jack_add_gpios(&ams_delta_hook_switch,
+		ret = snd_soc_jack_add_gpiods(card->dev, &ams_delta_hook_switch,
 					ARRAY_SIZE(ams_delta_hook_switch_gpios),
 					ams_delta_hook_switch_gpios);
 		if (ret)
 			dev_warn(card->dev,
 				"Failed to set up hook switch GPIO line, "
 				"will continue with hook switch inactive.\n");
+	}
+
+	gpiod_modem_codec = devm_gpiod_get(card->dev, "modem_codec",
+					   GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiod_modem_codec)) {
+		dev_warn(card->dev, "Failed to obtain modem_codec GPIO\n");
+		return 0;
+	}
+
+	/* Set up digital mute if not provided by the codec */
+	if (!codec_dai->driver->ops) {
+		codec_dai->driver->ops = &ams_delta_dai_ops;
+	} else {
+		ams_delta_ops.startup = ams_delta_startup;
+		ams_delta_ops.shutdown = ams_delta_shutdown;
 	}
 
 	/* Register optional line discipline for over the modem control */

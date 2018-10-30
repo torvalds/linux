@@ -90,3 +90,7 @@
 		};
 	};
 };
+
+&usb3_phy {
+	status = "okay";
+};

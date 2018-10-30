@@ -1,14 +1,8 @@
-/*
- *
- *  Support for audio capture for tm5600/6000/6010
- *    (c) 2007-2008 Mauro Carvalho Chehab
- *
- *  Based on cx88-alsa.c
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+// Support for audio capture for tm5600/6000/6010
+// Copyright (c) 2007-2008 Mauro Carvalho Chehab <mchehab@kernel.org>
+//
+// Based on cx88-alsa.c
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -57,7 +51,7 @@ MODULE_PARM_DESC(index, "Index value for tm6000x capture interface(s).");
 
 MODULE_DESCRIPTION("ALSA driver module for tm5600/tm6000/tm6010 based TV cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_SUPPORTED_DEVICE("{{Trident,tm5600},{{Trident,tm6000},{{Trident,tm6010}");
 static unsigned int debug;
 module_param(debug, int, 0644);
@@ -435,8 +429,8 @@ static int tm6000_audio_init(struct tm6000_core *dev)
 		snd_printk(KERN_ERR "cannot create card instance %d\n", devnr);
 		return rc;
 	}
-	strcpy(card->driver, "tm6000-alsa");
-	strcpy(card->shortname, "TM5600/60x0");
+	strscpy(card->driver, "tm6000-alsa", sizeof(card->driver));
+	strscpy(card->shortname, "TM5600/60x0", sizeof(card->shortname));
 	sprintf(card->longname, "TM5600/60x0 Audio at bus %d device %d",
 		dev->udev->bus->busnum, dev->udev->devnum);
 
@@ -462,7 +456,7 @@ static int tm6000_audio_init(struct tm6000_core *dev)
 
 	pcm->info_flags = 0;
 	pcm->private_data = chip;
-	strcpy(pcm->name, "Trident TM5600/60x0");
+	strscpy(pcm->name, "Trident TM5600/60x0", sizeof(pcm->name));
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_tm6000_pcm_ops);
 

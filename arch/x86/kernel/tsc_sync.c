@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * check TSC synchronization.
  *
@@ -30,12 +31,30 @@ struct tsc_adjust {
 
 static DEFINE_PER_CPU(struct tsc_adjust, tsc_adjust);
 
+/*
+ * TSC's on different sockets may be reset asynchronously.
+ * This may cause the TSC ADJUST value on socket 0 to be NOT 0.
+ */
+bool __read_mostly tsc_async_resets;
+
+void mark_tsc_async_resets(char *reason)
+{
+	if (tsc_async_resets)
+		return;
+	tsc_async_resets = true;
+	pr_info("tsc: Marking TSC async resets true due to %s\n", reason);
+}
+
 void tsc_verify_tsc_adjust(bool resume)
 {
 	struct tsc_adjust *adj = this_cpu_ptr(&tsc_adjust);
 	s64 curval;
 
 	if (!boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+		return;
+
+	/* Skip unnecessary error messages if TSC already unstable */
+	if (check_tsc_unstable())
 		return;
 
 	/* Rate limit the MSR check */
@@ -71,12 +90,22 @@ static void tsc_sanitize_first_cpu(struct tsc_adjust *cur, s64 bootval,
 	 * non zero. We don't do that on non boot cpus because physical
 	 * hotplug should have set the ADJUST register to a value > 0 so
 	 * the TSC is in sync with the already running cpus.
+	 *
+	 * Also don't force the ADJUST value to zero if that is a valid value
+	 * for socket 0 as determined by the system arch.  This is required
+	 * when multiple sockets are reset asynchronously with each other
+	 * and socket 0 may not have an TSC ADJUST value of 0.
 	 */
 	if (bootcpu && bootval != 0) {
-		pr_warn(FW_BUG "TSC ADJUST: CPU%u: %lld force to 0\n", cpu,
-			bootval);
-		wrmsrl(MSR_IA32_TSC_ADJUST, 0);
-		bootval = 0;
+		if (likely(!tsc_async_resets)) {
+			pr_warn(FW_BUG "TSC ADJUST: CPU%u: %lld force to 0\n",
+				cpu, bootval);
+			wrmsrl(MSR_IA32_TSC_ADJUST, 0);
+			bootval = 0;
+		} else {
+			pr_info("TSC ADJUST: CPU%u: %lld NOT forced to 0\n",
+				cpu, bootval);
+		}
 	}
 	cur->adjusted = bootval;
 }
@@ -88,6 +117,10 @@ bool __init tsc_store_and_check_tsc_adjust(bool bootcpu)
 	s64 bootval;
 
 	if (!boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+		return false;
+
+	/* Skip unnecessary error messages if TSC already unstable */
+	if (check_tsc_unstable())
 		return false;
 
 	rdmsrl(MSR_IA32_TSC_ADJUST, bootval);
@@ -118,6 +151,13 @@ bool tsc_store_and_check_tsc_adjust(bool bootcpu)
 	cur->warned = false;
 
 	/*
+	 * If a non-zero TSC value for socket 0 may be valid then the default
+	 * adjusted value cannot assumed to be zero either.
+	 */
+	if (tsc_async_resets)
+		cur->adjusted = bootval;
+
+	/*
 	 * Check whether this CPU is the first in a package to come up. In
 	 * this case do not check the boot value against another package
 	 * because the new package might have been physically hotplugged,
@@ -138,10 +178,9 @@ bool tsc_store_and_check_tsc_adjust(bool bootcpu)
 	 * Compare the boot value and complain if it differs in the
 	 * package.
 	 */
-	if (bootval != ref->bootval) {
-		pr_warn(FW_BUG "TSC ADJUST differs: Reference CPU%u: %lld CPU%u: %lld\n",
-			refcpu, ref->bootval, cpu, bootval);
-	}
+	if (bootval != ref->bootval)
+		printk_once(FW_BUG "TSC ADJUST differs within socket(s), fixing all errors\n");
+
 	/*
 	 * The TSC_ADJUST values in a package must be the same. If the boot
 	 * value on this newly upcoming CPU differs from the adjustment
@@ -149,8 +188,6 @@ bool tsc_store_and_check_tsc_adjust(bool bootcpu)
 	 * adjusted value.
 	 */
 	if (bootval != ref->adjusted) {
-		pr_warn("TSC ADJUST synchronize: Reference CPU%u: %lld CPU%u: %lld\n",
-			refcpu, ref->adjusted, cpu, bootval);
 		cur->adjusted = ref->adjusted;
 		wrmsrl(MSR_IA32_TSC_ADJUST, ref->adjusted);
 	}

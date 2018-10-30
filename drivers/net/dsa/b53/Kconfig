@@ -1,6 +1,8 @@
 menuconfig B53
 	tristate "Broadcom BCM53xx managed switch support"
 	depends on NET_DSA
+	select NET_DSA_TAG_BRCM
+	select NET_DSA_TAG_BRCM_PREPEND
 	help
 	  This driver adds support for Broadcom managed switch chips. It supports
 	  BCM5325E, BCM5365, BCM539x, BCM53115 and BCM53125 as well as BCM63XX
@@ -21,6 +23,7 @@ config B53_MDIO_DRIVER
 config B53_MMAP_DRIVER
 	tristate "B53 MMAP connected switch driver"
 	depends on B53 && HAS_IOMEM
+	default BCM63XX || BMIPS_GENERIC
 	help
 	  Select to enable support for memory-mapped switches like the BCM63XX
 	  integrated switches.
@@ -28,6 +31,15 @@ config B53_MMAP_DRIVER
 config B53_SRAB_DRIVER
 	tristate "B53 SRAB connected switch driver"
 	depends on B53 && HAS_IOMEM
+	depends on B53_SERDES || !B53_SERDES
+	default ARCH_BCM_IPROC
 	help
 	  Select to enable support for memory-mapped Switch Register Access
 	  Bridge Registers (SRAB) like it is found on the BCM53010
+
+config B53_SERDES
+	tristate "B53 SerDes support"
+	depends on B53
+	default ARCH_BCM_NSP
+	help
+	  Select to enable support for SerDes on e.g: Northstar Plus SoCs.

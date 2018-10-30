@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the ST7735R LCD Controller
  *
  * Copyright (C) 2013 Noralf Tronnes
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -142,7 +133,7 @@ static int set_var(struct fbtft_par *par)
  * VRF0P VOS0P PK0P PK1P PK2P PK3P PK4P PK5P PK6P PK7P PK8P PK9P SELV0P SELV1P SELV62P SELV63P
  * VRF0N VOS0N PK0N PK1N PK2N PK3N PK4N PK5N PK6N PK7N PK8N PK9N SELV0N SELV1N SELV62N SELV63N
  */
-#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
+#define CURVE(num, idx)  curves[(num) * par->gamma.num_values + (idx)]
 static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	int i, j;
@@ -154,13 +145,18 @@ static int set_gamma(struct fbtft_par *par, u32 *curves)
 
 	for (i = 0; i < par->gamma.num_curves; i++)
 		write_reg(par, 0xE0 + i,
-			CURVE(i, 0), CURVE(i, 1), CURVE(i, 2), CURVE(i, 3),
-			CURVE(i, 4), CURVE(i, 5), CURVE(i, 6), CURVE(i, 7),
-			CURVE(i, 8), CURVE(i, 9), CURVE(i, 10), CURVE(i, 11),
-			CURVE(i, 12), CURVE(i, 13), CURVE(i, 14), CURVE(i, 15));
+			  CURVE(i, 0),  CURVE(i, 1),
+			  CURVE(i, 2),  CURVE(i, 3),
+			  CURVE(i, 4),  CURVE(i, 5),
+			  CURVE(i, 6),  CURVE(i, 7),
+			  CURVE(i, 8),  CURVE(i, 9),
+			  CURVE(i, 10), CURVE(i, 11),
+			  CURVE(i, 12), CURVE(i, 13),
+			  CURVE(i, 14), CURVE(i, 15));
 
 	return 0;
 }
+
 #undef CURVE
 
 static struct fbtft_display display = {

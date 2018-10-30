@@ -86,7 +86,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		greh = (struct gre_base_hdr *)skb_transport_header(skb);
 		pcsum = (__sum16 *)(greh + 1);
 
-		if (gso_partial) {
+		if (gso_partial && skb_is_gso(skb)) {
 			unsigned int partial_adj;
 
 			/* Adjust checksum to account for the fact that
@@ -108,10 +108,10 @@ out:
 	return segs;
 }
 
-static struct sk_buff **gre_gro_receive(struct sk_buff **head,
-					struct sk_buff *skb)
+static struct sk_buff *gre_gro_receive(struct list_head *head,
+				       struct sk_buff *skb)
 {
-	struct sk_buff **pp = NULL;
+	struct sk_buff *pp = NULL;
 	struct sk_buff *p;
 	const struct gre_base_hdr *greh;
 	unsigned int hlen, grehlen;
@@ -182,7 +182,7 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 					     null_compute_pseudo);
 	}
 
-	for (p = *head; p; p = p->next) {
+	list_for_each_entry(p, head, list) {
 		const struct gre_base_hdr *greh2;
 
 		if (!NAPI_GRO_CB(p)->same_flow)
@@ -223,7 +223,7 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 out_unlock:
 	rcu_read_unlock();
 out:
-	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_flush_final(skb, pp, flush);
 
 	return pp;
 }

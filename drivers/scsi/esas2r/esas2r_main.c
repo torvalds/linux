@@ -235,7 +235,6 @@ static struct scsi_host_template driver_template = {
 	.module				= THIS_MODULE,
 	.show_info			= esas2r_show_info,
 	.name				= ESAS2R_LONGNAME,
-	.release			= esas2r_release,
 	.info				= esas2r_info,
 	.ioctl				= esas2r_ioctl,
 	.queuecommand			= esas2r_queuecommand,
@@ -284,7 +283,7 @@ MODULE_PARM_DESC(num_requests,
 int num_ae_requests = 4;
 module_param(num_ae_requests, int, 0);
 MODULE_PARM_DESC(num_ae_requests,
-		 "Number of VDA asynchromous event requests.  Default 4.");
+		 "Number of VDA asynchronous event requests.  Default 4.");
 
 int cmd_per_lun = ESAS2R_DEFAULT_CMD_PER_LUN;
 module_param(cmd_per_lun, int, 0);
@@ -520,44 +519,16 @@ static int esas2r_probe(struct pci_dev *pcid,
 
 static void esas2r_remove(struct pci_dev *pdev)
 {
-	struct Scsi_Host *host;
-	int index;
-
-	if (pdev == NULL) {
-		esas2r_log(ESAS2R_LOG_WARN, "esas2r_remove pdev==NULL");
-		return;
-	}
-
-	host = pci_get_drvdata(pdev);
-
-	if (host == NULL) {
-		/*
-		 * this can happen if pci_set_drvdata was already called
-		 * to clear the host pointer.  if this is the case, we
-		 * are okay; this channel has already been cleaned up.
-		 */
-
-		return;
-	}
+	struct Scsi_Host *host = pci_get_drvdata(pdev);
+	struct esas2r_adapter *a = (struct esas2r_adapter *)host->hostdata;
 
 	esas2r_log_dev(ESAS2R_LOG_INFO, &(pdev->dev),
 		       "esas2r_remove(%p) called; "
 		       "host:%p", pdev,
 		       host);
 
-	index = esas2r_cleanup(host);
-
-	if (index < 0)
-		esas2r_log_dev(ESAS2R_LOG_WARN, &(pdev->dev),
-			       "unknown host in %s",
-			       __func__);
-
+	esas2r_kill_adapter(a->index);
 	found_adapters--;
-
-	/* if this was the last adapter, clean up the rest of the driver */
-
-	if (found_adapters == 0)
-		esas2r_cleanup(NULL);
 }
 
 static int __init esas2r_init(void)
@@ -638,30 +609,7 @@ static int __init esas2r_init(void)
 	for (i = 0; i < MAX_ADAPTERS; i++)
 		esas2r_adapters[i] = NULL;
 
-	/* initialize */
-
-	driver_template.module = THIS_MODULE;
-
-	if (pci_register_driver(&esas2r_pci_driver) != 0)
-		esas2r_log(ESAS2R_LOG_CRIT, "pci_register_driver FAILED");
-	else
-		esas2r_log(ESAS2R_LOG_INFO, "pci_register_driver() OK");
-
-	if (!found_adapters) {
-		pci_unregister_driver(&esas2r_pci_driver);
-		esas2r_cleanup(NULL);
-
-		esas2r_log(ESAS2R_LOG_CRIT,
-			   "driver will not be loaded because no ATTO "
-			   "%s devices were found",
-			   ESAS2R_DRVR_NAME);
-		return -1;
-	} else {
-		esas2r_log(ESAS2R_LOG_INFO, "found %d adapters",
-			   found_adapters);
-	}
-
-	return 0;
+	return pci_register_driver(&esas2r_pci_driver);
 }
 
 /* Handle ioctl calls to "/proc/scsi/esas2r/ATTOnode" */
@@ -751,18 +699,6 @@ int esas2r_show_info(struct seq_file *m, struct Scsi_Host *sh)
 	seq_putc(m, '\n');
 	return 0;
 
-}
-
-int esas2r_release(struct Scsi_Host *sh)
-{
-	esas2r_log_dev(ESAS2R_LOG_INFO, &(sh->shost_gendev),
-		       "esas2r_release() called");
-
-	esas2r_cleanup(sh);
-	if (sh->irq)
-		free_irq(sh->irq, NULL);
-	scsi_unregister(sh);
-	return 0;
 }
 
 const char *esas2r_info(struct Scsi_Host *sh)
@@ -1631,23 +1567,21 @@ void esas2r_adapter_tasklet(unsigned long context)
 	}
 }
 
-static void esas2r_timer_callback(unsigned long context);
+static void esas2r_timer_callback(struct timer_list *t);
 
 void esas2r_kickoff_timer(struct esas2r_adapter *a)
 {
-	init_timer(&a->timer);
+	timer_setup(&a->timer, esas2r_timer_callback, 0);
 
-	a->timer.function = esas2r_timer_callback;
-	a->timer.data = (unsigned long)a;
 	a->timer.expires = jiffies +
 			   msecs_to_jiffies(100);
 
 	add_timer(&a->timer);
 }
 
-static void esas2r_timer_callback(unsigned long context)
+static void esas2r_timer_callback(struct timer_list *t)
 {
-	struct esas2r_adapter *a = (struct esas2r_adapter *)context;
+	struct esas2r_adapter *a = from_timer(a, t, timer);
 
 	set_bit(AF2_TIMER_TICK, &a->flags2);
 

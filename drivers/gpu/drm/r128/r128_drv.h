@@ -147,6 +147,10 @@ extern int r128_engine_reset(struct drm_device *dev, void *data, struct drm_file
 extern int r128_fullscreen(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int r128_cce_buffers(struct drm_device *dev, void *data, struct drm_file *file_priv);
 
+extern int r128_cce_stipple(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int r128_cce_depth(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int r128_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv);
+
 extern void r128_freelist_reset(struct drm_device *dev);
 
 extern int r128_wait_ring(drm_r128_private_t *dev_priv, int n);

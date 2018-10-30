@@ -11,6 +11,8 @@
 #include <linux/acpi.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 #include <linux/percpu.h>
 #include <linux/perf/arm_pmu.h>
 
@@ -87,7 +89,13 @@ static int arm_pmu_acpi_parse_irqs(void)
 			pr_warn("No ACPI PMU IRQ for CPU%d\n", cpu);
 		}
 
+		/*
+		 * Log and request the IRQ so the core arm_pmu code can manage
+		 * it. We'll have to sanity-check IRQs later when we associate
+		 * them with their PMUs.
+		 */
 		per_cpu(pmu_irqs, cpu) = irq;
+		armpmu_request_irq(irq, cpu);
 	}
 
 	return 0;
@@ -127,7 +135,7 @@ static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
 		return pmu;
 	}
 
-	pmu = armpmu_alloc();
+	pmu = armpmu_alloc_atomic();
 	if (!pmu) {
 		pr_warn("Unable to allocate PMU for CPU%d\n",
 			smp_processor_id());
@@ -137,6 +145,35 @@ static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
 	pmu->acpi_cpuid = cpuid;
 
 	return pmu;
+}
+
+/*
+ * Check whether the new IRQ is compatible with those already associated with
+ * the PMU (e.g. we don't have mismatched PPIs).
+ */
+static bool pmu_irq_matches(struct arm_pmu *pmu, int irq)
+{
+	struct pmu_hw_events __percpu *hw_events = pmu->hw_events;
+	int cpu;
+
+	if (!irq)
+		return true;
+
+	for_each_cpu(cpu, &pmu->supported_cpus) {
+		int other_irq = per_cpu(hw_events->irq, cpu);
+		if (!other_irq)
+			continue;
+
+		if (irq == other_irq)
+			continue;
+		if (!irq_is_percpu_devid(irq) && !irq_is_percpu_devid(other_irq))
+			continue;
+
+		pr_warn("mismatched PPIs detected\n");
+		return false;
+	}
+
+	return true;
 }
 
 /*
@@ -164,19 +201,14 @@ static int arm_pmu_acpi_cpu_starting(unsigned int cpu)
 	if (!pmu)
 		return -ENOMEM;
 
-	cpumask_set_cpu(cpu, &pmu->supported_cpus);
-
 	per_cpu(probed_pmus, cpu) = pmu;
 
-	/*
-	 * Log and request the IRQ so the core arm_pmu code can manage it.  In
-	 * some situations (e.g. mismatched PPIs), we may fail to request the
-	 * IRQ. However, it may be too late for us to do anything about it.
-	 * The common ARM PMU code will log a warning in this case.
-	 */
-	hw_events = pmu->hw_events;
-	per_cpu(hw_events->irq, cpu) = irq;
-	armpmu_request_irq(pmu, cpu);
+	if (pmu_irq_matches(pmu, irq)) {
+		hw_events = pmu->hw_events;
+		per_cpu(hw_events->irq, cpu) = irq;
+	}
+
+	cpumask_set_cpu(cpu, &pmu->supported_cpus);
 
 	/*
 	 * Ideally, we'd probe the PMU here when we find the first matching
@@ -192,9 +224,6 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 {
 	int pmu_idx = 0;
 	int cpu, ret;
-
-	if (acpi_disabled)
-		return 0;
 
 	/*
 	 * Initialise and register the set of PMUs which we know about right
@@ -235,6 +264,7 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 		ret = armpmu_register(pmu);
 		if (ret) {
 			pr_warn("Failed to register PMU for CPU%d\n", cpu);
+			kfree(pmu->name);
 			return ret;
 		}
 	}
@@ -249,11 +279,6 @@ static int arm_pmu_acpi_init(void)
 	if (acpi_disabled)
 		return 0;
 
-	/*
-	 * We can't request IRQs yet, since we don't know the cookie value
-	 * until we know which CPUs share the same logical PMU. We'll handle
-	 * that in arm_pmu_acpi_cpu_starting().
-	 */
 	ret = arm_pmu_acpi_parse_irqs();
 	if (ret)
 		return ret;

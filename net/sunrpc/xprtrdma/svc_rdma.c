@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
+ * Copyright (c) 2015-2018 Oracle.  All rights reserved.
  * Copyright (c) 2005-2006 Network Appliance, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -46,14 +48,13 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/svc_rdma.h>
-#include "xprt_rdma.h"
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
 /* RPC/RDMA parameters */
-unsigned int svcrdma_ord = RPCRDMA_ORD;
+unsigned int svcrdma_ord = 16;	/* historical default */
 static unsigned int min_ord = 1;
-static unsigned int max_ord = 4096;
+static unsigned int max_ord = 255;
 unsigned int svcrdma_max_requests = RPCRDMA_MAX_REQUESTS;
 unsigned int svcrdma_max_bc_requests = RPCRDMA_MAX_BC_REQUESTS;
 static unsigned int min_max_requests = 4;
@@ -93,7 +94,6 @@ static int read_reset_stat(struct ctl_table *table, int write,
 		atomic_set(stat, 0);
 	else {
 		char str_buf[32];
-		char *data;
 		int len = snprintf(str_buf, 32, "%d\n", atomic_read(stat));
 		if (len >= 32)
 			return -EFAULT;
@@ -102,7 +102,6 @@ static int read_reset_stat(struct ctl_table *table, int write,
 			*lenp = 0;
 			return 0;
 		}
-		data = &str_buf[*ppos];
 		len -= *ppos;
 		if (len > *lenp)
 			len = *lenp;

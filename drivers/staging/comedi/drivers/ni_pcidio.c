@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Comedi driver for National Instruments PCI-DIO-32HS
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1999,2002 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -269,18 +260,22 @@ enum nidio_boardid {
 struct nidio_board {
 	const char *name;
 	unsigned int uses_firmware:1;
+	unsigned int dio_speed;
 };
 
 static const struct nidio_board nidio_boards[] = {
 	[BOARD_PCIDIO_32HS] = {
 		.name		= "pci-dio-32hs",
+		.dio_speed	= 50,
 	},
 	[BOARD_PXI6533] = {
 		.name		= "pxi-6533",
+		.dio_speed	= 50,
 	},
 	[BOARD_PCI6534] = {
 		.name		= "pci-6534",
 		.uses_firmware	= 1,
+		.dio_speed	= 50,
 	},
 };
 
@@ -475,6 +470,15 @@ static int ni_pcidio_insn_config(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	int ret;
+
+	if (data[0] == INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS) {
+		const struct nidio_board *board = dev->board_ptr;
+
+		/* we don't care about actual channels */
+		data[1] = board->dio_speed;
+		data[2] = 0;
+		return 0;
+	}
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
 	if (ret)

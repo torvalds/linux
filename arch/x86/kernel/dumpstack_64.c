@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
@@ -35,6 +36,15 @@ const char *stack_type_name(enum stack_type type)
 
 	if (type == STACK_TYPE_IRQ)
 		return "IRQ";
+
+	if (type == STACK_TYPE_ENTRY) {
+		/*
+		 * On 64-bit, we have a generic entry stack that we
+		 * use for all the kernel entry points, including
+		 * SYSENTER.
+		 */
+		return "ENTRY_TRAMPOLINE";
+	}
 
 	if (type >= STACK_TYPE_EXCEPTION && type <= STACK_TYPE_EXCEPTION_LAST)
 		return exception_stack_names[type - STACK_TYPE_EXCEPTION];
@@ -114,6 +124,9 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 	if (in_irq_stack(stack, info))
 		goto recursion_check;
 
+	if (in_entry_stack(stack, info))
+		goto recursion_check;
+
 	goto unknown;
 
 recursion_check:
@@ -135,46 +148,4 @@ recursion_check:
 unknown:
 	info->type = STACK_TYPE_UNKNOWN;
 	return -EINVAL;
-}
-
-void show_regs(struct pt_regs *regs)
-{
-	int i;
-
-	show_regs_print_info(KERN_DEFAULT);
-	__show_regs(regs, 1);
-
-	/*
-	 * When in-kernel, we also print out the stack and code at the
-	 * time of the fault..
-	 */
-	if (!user_mode(regs)) {
-		unsigned int code_prologue = code_bytes * 43 / 64;
-		unsigned int code_len = code_bytes;
-		unsigned char c;
-		u8 *ip;
-
-		show_trace_log_lvl(current, regs, NULL, KERN_DEFAULT);
-
-		printk(KERN_DEFAULT "Code: ");
-
-		ip = (u8 *)regs->ip - code_prologue;
-		if (ip < (u8 *)PAGE_OFFSET || probe_kernel_address(ip, c)) {
-			/* try starting at IP */
-			ip = (u8 *)regs->ip;
-			code_len = code_len - code_prologue + 1;
-		}
-		for (i = 0; i < code_len; i++, ip++) {
-			if (ip < (u8 *)PAGE_OFFSET ||
-					probe_kernel_address(ip, c)) {
-				pr_cont(" Bad RIP value.");
-				break;
-			}
-			if (ip == (u8 *)regs->ip)
-				pr_cont("<%02x> ", c);
-			else
-				pr_cont("%02x ", c);
-		}
-	}
-	pr_cont("\n");
 }

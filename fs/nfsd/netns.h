@@ -102,12 +102,13 @@ struct nfsd_net {
 
 	time_t nfsd4_lease;
 	time_t nfsd4_grace;
+	bool somebody_reclaimed;
 
 	bool nfsd_net_up;
 	bool lockd_up;
 
 	/* Time of server startup */
-	struct timeval nfssvc_boot;
+	struct timespec64 nfssvc_boot;
 
 	/*
 	 * Max number of connections this nfsd container will allow. Defaults
@@ -119,6 +120,9 @@ struct nfsd_net {
 	u32 clverifier_counter;
 
 	struct svc_serv *nfsd_serv;
+
+	wait_queue_head_t ntf_wq;
+	atomic_t ntf_refcnt;
 };
 
 /* Simple check to find out if a given net was properly initialized */

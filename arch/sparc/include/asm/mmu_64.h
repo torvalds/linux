@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __MMU_H
 #define __MMU_H
 
@@ -89,6 +90,20 @@ struct tsb_config {
 #define MM_NUM_TSBS	1
 #endif
 
+/* ADI tags are stored when a page is swapped out and the storage for
+ * tags is allocated dynamically. There is a tag storage descriptor
+ * associated with each set of tag storage pages. Tag storage descriptors
+ * are allocated dynamically. Since kernel will allocate a full page for
+ * each tag storage descriptor, we can store up to
+ * PAGE_SIZE/sizeof(tag storage descriptor) descriptors on that page.
+ */
+typedef struct {
+	unsigned long	start;		/* Start address for this tag storage */
+	unsigned long	end;		/* Last address for tag storage */
+	unsigned char	*tags;		/* Where the tags are */
+	unsigned long	tag_users;	/* number of references to descriptor */
+} tag_storage_desc_t;
+
 typedef struct {
 	spinlock_t		lock;
 	unsigned long		sparc64_ctx_val;
@@ -96,6 +111,10 @@ typedef struct {
 	unsigned long		thp_pte_count;
 	struct tsb_config	tsb_block[MM_NUM_TSBS];
 	struct hv_tsb_descr	tsb_descr[MM_NUM_TSBS];
+	void			*vdso;
+	bool			adi;
+	tag_storage_desc_t	*tag_store;
+	spinlock_t		tag_lock;
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */

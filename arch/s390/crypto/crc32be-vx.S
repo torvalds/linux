@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Hardware-accelerated CRC-32 variants for Linux on z Systems
  *
@@ -12,6 +13,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/nospec-insn.h>
 #include <asm/vx-insn.h>
 
 /* Vector register range containing CRC-32 constants */
@@ -65,6 +67,8 @@
 	.quad		0x104C11DB7, 0			# P(x)
 
 .previous
+
+	GEN_BR_THUNK %r14
 
 .text
 /*
@@ -202,6 +206,6 @@ ENTRY(crc32_be_vgfm_16)
 
 .Ldone:
 	VLGVF	%r2,%v2,3
-	br	%r14
+	BR_EX	%r14
 
 .previous

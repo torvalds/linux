@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * host.c - ChipIdea USB host controller driver
  *
  * Copyright (c) 2012 Intel Corporation
  *
  * Author: Alexander Shishkin
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -25,6 +13,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/usb/chipidea.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "../host/ehci.h"
 
@@ -136,10 +125,11 @@ static int host_start(struct ci_hdrc *ci)
 
 	hcd->power_budget = ci->platdata->power_budget;
 	hcd->tpl_support = ci->platdata->tpl_support;
-	if (ci->phy)
-		hcd->phy = ci->phy;
-	else
-		hcd->usb_phy = ci->usb_phy;
+	if (ci->phy || ci->usb_phy) {
+		hcd->skip_phy_initialization = 1;
+		if (ci->usb_phy)
+			hcd->usb_phy = ci->usb_phy;
+	}
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = ci->hw_bank.cap;
@@ -163,6 +153,10 @@ static int host_start(struct ci_hdrc *ci)
 			priv->reg_vbus = ci->platdata->reg_vbus;
 		}
 	}
+
+	if (ci->platdata->pins_host)
+		pinctrl_select_state(ci->platdata->pctl,
+				     ci->platdata->pins_host);
 
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret) {
@@ -208,6 +202,10 @@ static void host_stop(struct ci_hdrc *ci)
 	}
 	ci->hcd = NULL;
 	ci->otg.host = NULL;
+
+	if (ci->platdata->pins_host && ci->platdata->pins_default)
+		pinctrl_select_state(ci->platdata->pctl,
+				     ci->platdata->pins_default);
 }
 
 

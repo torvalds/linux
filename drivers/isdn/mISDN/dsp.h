@@ -259,7 +259,7 @@ extern u8 *dsp_dtmf_goertzel_decode(struct dsp *dsp, u8 *data, int len,
 
 extern int dsp_tone(struct dsp *dsp, int tone);
 extern void dsp_tone_copy(struct dsp *dsp, u8 *data, int len);
-extern void dsp_tone_timeout(void *arg);
+extern void dsp_tone_timeout(struct timer_list *t);
 
 extern void dsp_bf_encrypt(struct dsp *dsp, u8 *data, int len);
 extern void dsp_bf_decrypt(struct dsp *dsp, u8 *data, int len);

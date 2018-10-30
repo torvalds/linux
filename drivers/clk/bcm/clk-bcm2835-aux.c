@@ -14,7 +14,6 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/clk/bcm2835.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <dt-bindings/clock/bcm2835-aux.h>
@@ -41,8 +40,10 @@ static int bcm2835_aux_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	onecell = devm_kmalloc(dev, sizeof(*onecell) + sizeof(*onecell->hws) *
-			       BCM2835_AUX_CLOCK_COUNT, GFP_KERNEL);
+	onecell = devm_kmalloc(dev,
+			       struct_size(onecell, hws,
+					   BCM2835_AUX_CLOCK_COUNT),
+			       GFP_KERNEL);
 	if (!onecell)
 		return -ENOMEM;
 	onecell->num = BCM2835_AUX_CLOCK_COUNT;

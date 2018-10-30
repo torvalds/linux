@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_MACH_BMIPS_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_BMIPS_CPU_FEATURE_OVERRIDES_H
 

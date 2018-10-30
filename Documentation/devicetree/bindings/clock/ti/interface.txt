@@ -9,7 +9,7 @@ companion clock finding (match corresponding functional gate
 clock) and hardware autoidle enable / disable.
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
-[2] Documentation/devicetree/bindings/clock/gate-clock.txt
+[2] Documentation/devicetree/bindings/clock/gpio-gate-clock.txt
 
 Required properties:
 - compatible : shall be one of:

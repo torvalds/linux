@@ -21,7 +21,7 @@
 	model = "Armadeus Systems APF51 module";
 	compatible = "armadeus,imx51-apf51", "fsl,imx51";
 
-	memory {
+	memory@90000000 {
 		reg = <0x90000000 0x20000000>;
 	};
 

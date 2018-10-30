@@ -38,7 +38,7 @@ static unsigned int dma_chan_attr = CCP_DMA_DFLT;
 module_param(dma_chan_attr, uint, 0444);
 MODULE_PARM_DESC(dma_chan_attr, "Set DMA channel visibility: 0 (default) = device defaults, 1 = make private, 2 = make public");
 
-unsigned int ccp_get_dma_chan_attr(struct ccp_device *ccp)
+static unsigned int ccp_get_dma_chan_attr(struct ccp_device *ccp)
 {
 	switch (dma_chan_attr) {
 	case CCP_DMA_DFLT:
@@ -223,6 +223,7 @@ static struct ccp_dma_desc *ccp_handle_active_desc(struct ccp_dma_chan *chan,
 				desc->tx_desc.cookie, desc->status);
 
 			dma_cookie_complete(tx_desc);
+			dma_descriptor_unmap(tx_desc);
 		}
 
 		desc = __ccp_next_dma_desc(chan, desc);
@@ -230,9 +231,7 @@ static struct ccp_dma_desc *ccp_handle_active_desc(struct ccp_dma_chan *chan,
 		spin_unlock_irqrestore(&chan->lock, flags);
 
 		if (tx_desc) {
-			if (tx_desc->callback &&
-			    (tx_desc->flags & DMA_PREP_INTERRUPT))
-				tx_desc->callback(tx_desc->callback_param);
+			dmaengine_desc_get_callback_invoke(tx_desc, NULL);
 
 			dma_run_dependencies(tx_desc);
 		}

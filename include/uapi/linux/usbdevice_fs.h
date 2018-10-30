@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*****************************************************************************/
 
 /*
@@ -78,7 +79,7 @@ struct usbdevfs_connectinfo {
 #define USBDEVFS_URB_SHORT_NOT_OK	0x01
 #define USBDEVFS_URB_ISO_ASAP		0x02
 #define USBDEVFS_URB_BULK_CONTINUATION	0x04
-#define USBDEVFS_URB_NO_FSBR		0x20
+#define USBDEVFS_URB_NO_FSBR		0x20	/* Not used */
 #define USBDEVFS_URB_ZERO_PACKET	0x40
 #define USBDEVFS_URB_NO_INTERRUPT	0x80
 

@@ -466,7 +466,7 @@ static bool raydium_i2c_boot_trigger(struct i2c_client *client)
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 static bool raydium_i2c_fw_trigger(struct i2c_client *client)
@@ -492,7 +492,7 @@ static bool raydium_i2c_fw_trigger(struct i2c_client *client)
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 static int raydium_i2c_check_path(struct i2c_client *client)
@@ -752,13 +752,20 @@ static int raydium_i2c_fw_update(struct raydium_data *ts)
 {
 	struct i2c_client *client = ts->client;
 	const struct firmware *fw = NULL;
-	const char *fw_file = "raydium.fw";
+	char *fw_file;
 	int error;
+
+	fw_file = kasprintf(GFP_KERNEL, "raydium_%#04x.fw",
+			    le32_to_cpu(ts->info.hw_ver));
+	if (!fw_file)
+		return -ENOMEM;
+
+	dev_dbg(&client->dev, "firmware name: %s\n", fw_file);
 
 	error = request_firmware(&fw, fw_file, &client->dev);
 	if (error) {
 		dev_err(&client->dev, "Unable to open firmware %s\n", fw_file);
-		return error;
+		goto out_free_fw_file;
 	}
 
 	disable_irq(client->irq);
@@ -786,6 +793,9 @@ out_enable_irq:
 	msleep(100);
 
 	release_firmware(fw);
+
+out_free_fw_file:
+	kfree(fw_file);
 
 	return error;
 }
@@ -942,13 +952,6 @@ static struct attribute *raydium_i2c_attributes[] = {
 static const struct attribute_group raydium_i2c_attribute_group = {
 	.attrs = raydium_i2c_attributes,
 };
-
-static void raydium_i2c_remove_sysfs_group(void *_data)
-{
-	struct raydium_data *ts = _data;
-
-	sysfs_remove_group(&ts->client->dev.kobj, &raydium_i2c_attribute_group);
-}
 
 static int raydium_i2c_power_on(struct raydium_data *ts)
 {
@@ -1120,20 +1123,11 @@ static int raydium_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = sysfs_create_group(&client->dev.kobj,
+	error = devm_device_add_group(&client->dev,
 				   &raydium_i2c_attribute_group);
 	if (error) {
 		dev_err(&client->dev, "failed to create sysfs attributes: %d\n",
 			error);
-		return error;
-	}
-
-	error = devm_add_action(&client->dev,
-				raydium_i2c_remove_sysfs_group, ts);
-	if (error) {
-		raydium_i2c_remove_sysfs_group(ts);
-		dev_err(&client->dev,
-			"Failed to add sysfs cleanup action: %d\n", error);
 		return error;
 	}
 

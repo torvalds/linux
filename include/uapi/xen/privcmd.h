@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR MIT) */
 /******************************************************************************
  * privcmd.h
  *
@@ -88,6 +89,15 @@ struct privcmd_dm_op {
 	const struct privcmd_dm_op_buf __user *ubufs;
 };
 
+struct privcmd_mmap_resource {
+	domid_t dom;
+	__u32 type;
+	__u32 id;
+	__u32 idx;
+	__u64 num;
+	__u64 addr;
+};
+
 /*
  * @cmd: IOCTL_PRIVCMD_HYPERCALL
  * @arg: &privcmd_hypercall_t
@@ -113,5 +123,7 @@ struct privcmd_dm_op {
 	_IOC(_IOC_NONE, 'P', 5, sizeof(struct privcmd_dm_op))
 #define IOCTL_PRIVCMD_RESTRICT					\
 	_IOC(_IOC_NONE, 'P', 6, sizeof(domid_t))
+#define IOCTL_PRIVCMD_MMAP_RESOURCE				\
+	_IOC(_IOC_NONE, 'P', 7, sizeof(struct privcmd_mmap_resource))
 
 #endif /* __LINUX_PUBLIC_PRIVCMD_H__ */

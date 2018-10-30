@@ -35,7 +35,7 @@
 
 #include <rdma/ib_verbs.h>
 #include <linux/mlx5/driver.h>
-
+#include <linux/refcount.h>
 
 struct mlx5_core_cq {
 	u32			cqn;
@@ -43,7 +43,7 @@ struct mlx5_core_cq {
 	__be32		       *set_ci_db;
 	__be32		       *arm_db;
 	struct mlx5_uars_page  *uar;
-	atomic_t		refcount;
+	refcount_t		refcount;
 	struct completion	free;
 	unsigned		vector;
 	unsigned int		irqn;
@@ -60,6 +60,8 @@ struct mlx5_core_cq {
 	} tasklet_ctx;
 	int			reset_notify_added;
 	struct list_head	reset_notify;
+	struct mlx5_eq		*eq;
+	u16 uid;
 };
 
 
@@ -125,11 +127,16 @@ struct mlx5_cq_modify_params {
 enum {
 	CQE_SIZE_64 = 0,
 	CQE_SIZE_128 = 1,
+	CQE_SIZE_128_PAD = 2,
 };
 
-static inline int cqe_sz_to_mlx_sz(u8 size)
+#define MLX5_MAX_CQ_PERIOD (BIT(__mlx5_bit_sz(cqc, cq_period)) - 1)
+#define MLX5_MAX_CQ_COUNT (BIT(__mlx5_bit_sz(cqc, cq_max_count)) - 1)
+
+static inline int cqe_sz_to_mlx_sz(u8 size, int padding_128_en)
 {
-	return size == 64 ? CQE_SIZE_64 : CQE_SIZE_128;
+	return padding_128_en ? CQE_SIZE_128_PAD :
+				size == 64 ? CQE_SIZE_64 : CQE_SIZE_128;
 }
 
 static inline void mlx5_cq_set_ci(struct mlx5_core_cq *cq)
@@ -166,8 +173,17 @@ static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 	mlx5_write64(doorbell, uar_page + MLX5_CQ_DOORBELL, NULL);
 }
 
-int mlx5_init_cq_table(struct mlx5_core_dev *dev);
-void mlx5_cleanup_cq_table(struct mlx5_core_dev *dev);
+static inline void mlx5_cq_hold(struct mlx5_core_cq *cq)
+{
+	refcount_inc(&cq->refcount);
+}
+
+static inline void mlx5_cq_put(struct mlx5_core_cq *cq)
+{
+	if (refcount_dec_and_test(&cq->refcount))
+		complete(&cq->free);
+}
+
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 			u32 *in, int inlen);
 int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
@@ -178,6 +194,12 @@ int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,
 				   struct mlx5_core_cq *cq, u16 cq_period,
 				   u16 cq_max_count);
+static inline void mlx5_dump_err_cqe(struct mlx5_core_dev *dev,
+				     struct mlx5_err_cqe *err_cqe)
+{
+	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 16, 1, err_cqe,
+		       sizeof(*err_cqe), false);
+}
 int mlx5_debug_cq_add(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 void mlx5_debug_cq_remove(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 

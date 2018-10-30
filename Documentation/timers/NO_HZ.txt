@@ -131,13 +131,6 @@ error message, and the boot CPU will be removed from the mask.  Note that
 this means that your system must have at least two CPUs in order for
 CONFIG_NO_HZ_FULL=y to do anything for you.
 
-Alternatively, the CONFIG_NO_HZ_FULL_ALL=y Kconfig parameter specifies
-that all CPUs other than the boot CPU are adaptive-ticks CPUs.  This
-Kconfig parameter will be overridden by the "nohz_full=" boot parameter,
-so that if both the CONFIG_NO_HZ_FULL_ALL=y Kconfig parameter and
-the "nohz_full=1" boot parameter is specified, the boot parameter will
-prevail so that only CPU 1 will be an adaptive-ticks CPU.
-
 Finally, adaptive-ticks CPUs must have their RCU callbacks offloaded.
 This is covered in the "RCU IMPLICATIONS" section below.
 

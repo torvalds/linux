@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  ebtables
  *
@@ -15,10 +16,6 @@
 #include <linux/if.h>
 #include <linux/if_ether.h>
 #include <uapi/linux/netfilter_bridge/ebtables.h>
-
-/* return values for match() functions */
-#define EBT_MATCH 0
-#define EBT_NOMATCH 1
 
 struct ebt_match {
 	struct list_head list;
@@ -108,9 +105,10 @@ struct ebt_table {
 
 #define EBT_ALIGN(s) (((s) + (__alignof__(struct _xt_align)-1)) & \
 		     ~(__alignof__(struct _xt_align)-1))
-extern struct ebt_table *ebt_register_table(struct net *net,
-					    const struct ebt_table *table,
-					    const struct nf_hook_ops *);
+extern int ebt_register_table(struct net *net,
+			      const struct ebt_table *table,
+			      const struct nf_hook_ops *ops,
+			      struct ebt_table **res);
 extern void ebt_unregister_table(struct net *net, struct ebt_table *table,
 				 const struct nf_hook_ops *);
 extern unsigned int ebt_do_table(struct sk_buff *skb,

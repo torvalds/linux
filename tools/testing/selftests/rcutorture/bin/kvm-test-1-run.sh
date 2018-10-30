@@ -38,11 +38,11 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-T=/tmp/kvm-test-1-run.sh.$$
+T=${TMPDIR-/tmp}/kvm-test-1-run.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
-. $KVM/bin/functions.sh
+. functions.sh
 . $CONFIGFRAG/ver_functions.sh
 
 config_template=${1}
@@ -98,14 +98,15 @@ then
 	ln -s $base_resdir/.config $resdir  # for kvm-recheck.sh
 	# Arch-independent indicator
 	touch $resdir/builtkernel
-elif kvm-build.sh $T/Kc2 $builddir
+elif kvm-build.sh $T/Kc2 $builddir $resdir
 then
 	# Had to build a kernel for this test.
 	QEMU="`identify_qemu $builddir/vmlinux`"
 	BOOT_IMAGE="`identify_boot_image $QEMU`"
-	cp $builddir/Make*.out $resdir
 	cp $builddir/vmlinux $resdir
 	cp $builddir/.config $resdir
+	cp $builddir/Module.symvers $resdir > /dev/null || :
+	cp $builddir/System.map $resdir > /dev/null || :
 	if test -n "$BOOT_IMAGE"
 	then
 		cp $builddir/$BOOT_IMAGE $resdir
@@ -119,7 +120,6 @@ then
 	parse-build.sh $resdir/Make.out $title
 else
 	# Build failed.
-	cp $builddir/Make*.out $resdir
 	cp $builddir/.config $resdir || :
 	echo Build failed, not running KVM, see $resdir.
 	if test -f $builddir.wait
@@ -154,9 +154,7 @@ cpu_count=`configfrag_boot_cpus "$boot_args" "$config_template" "$cpu_count"`
 vcpus=`identify_qemu_vcpus`
 if test $cpu_count -gt $vcpus
 then
-	echo CPU count limited from $cpu_count to $vcpus
-	touch $resdir/Warnings
-	echo CPU count limited from $cpu_count to $vcpus >> $resdir/Warnings
+	echo CPU count limited from $cpu_count to $vcpus | tee -a $resdir/Warnings
 	cpu_count=$vcpus
 fi
 qemu_args="`specify_qemu_cpus "$QEMU" "$qemu_args" "$cpu_count"`"
@@ -179,8 +177,8 @@ then
 	exit 0
 fi
 echo "NOTE: $QEMU either did not run or was interactive" > $resdir/console.log
-echo $QEMU $qemu_args -m 512 -kernel $KERNEL -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
-( $QEMU $qemu_args -m 512 -kernel $KERNEL -append "$qemu_append $boot_args"& echo $! > $resdir/qemu_pid; wait `cat  $resdir/qemu_pid`; echo $? > $resdir/qemu-retval ) &
+echo $QEMU $qemu_args -m $TORTURE_QEMU_MEM -kernel $KERNEL -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
+( $QEMU $qemu_args -m $TORTURE_QEMU_MEM -kernel $KERNEL -append "$qemu_append $boot_args"& echo $! > $resdir/qemu_pid; wait `cat  $resdir/qemu_pid`; echo $? > $resdir/qemu-retval ) &
 commandcompleted=0
 sleep 10 # Give qemu's pid a chance to reach the file
 if test -s "$resdir/qemu_pid"
@@ -269,5 +267,4 @@ then
 	echo Unknown PID, cannot kill qemu command
 fi
 
-parse-torture.sh $resdir/console.log $title
 parse-console.sh $resdir/console.log $title

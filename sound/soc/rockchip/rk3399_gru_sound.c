@@ -23,6 +23,7 @@
 #include <linux/of_gpio.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
+#include <linux/i2c.h>
 #include <linux/input.h>
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -47,18 +48,7 @@ static const struct snd_soc_dapm_widget rockchip_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Speakers", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
-};
-
-static const struct snd_soc_dapm_route rockchip_dapm_routes[] = {
-	/* Input Lines */
-	{"MIC", NULL, "Headset Mic"},
-	{"DMIC1L", NULL, "Int Mic"},
-	{"DMIC1R", NULL, "Int Mic"},
-
-	/* Output Lines */
-	{"Headphones", NULL, "HPL"},
-	{"Headphones", NULL, "HPR"},
-	{"Speakers", NULL, "Speaker"},
+	SND_SOC_DAPM_LINE("HDMI", NULL),
 };
 
 static const struct snd_kcontrol_new rockchip_controls[] = {
@@ -66,6 +56,7 @@ static const struct snd_kcontrol_new rockchip_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Speakers"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Int Mic"),
+	SOC_DAPM_PIN_SWITCH("HDMI"),
 };
 
 static int rockchip_sound_max98357a_hw_params(struct snd_pcm_substream *substream,
@@ -185,7 +176,7 @@ static int rockchip_sound_da7219_hw_params(struct snd_pcm_substream *substream,
 
 static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec_dais[0]->codec;
+	struct snd_soc_component *component = rtd->codec_dais[0]->component;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
@@ -215,7 +206,8 @@ static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	snd_jack_set_key(rockchip_sound_jack.jack, SND_JACK_BTN_0, KEY_MEDIA);
+	snd_jack_set_key(
+		rockchip_sound_jack.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
 	snd_jack_set_key(
 		rockchip_sound_jack.jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
 	snd_jack_set_key(
@@ -223,46 +215,7 @@ static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 	snd_jack_set_key(
 		rockchip_sound_jack.jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
 
-	da7219_aad_jack_det(codec, &rockchip_sound_jack);
-
-	return 0;
-}
-
-static int rockchip_sound_cdndp_hw_params(struct snd_pcm_substream *substream,
-					  struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	int mclk, ret;
-
-	/* in bypass mode, the mclk has to be one of the frequencies below */
-	switch (params_rate(params)) {
-	case 8000:
-	case 16000:
-	case 24000:
-	case 32000:
-	case 48000:
-	case 64000:
-	case 96000:
-		mclk = 12288000;
-		break;
-	case 11025:
-	case 22050:
-	case 44100:
-	case 88200:
-		mclk = 11289600;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, mclk,
-				     SND_SOC_CLOCK_OUT);
-	if (ret < 0) {
-		dev_err(codec_dai->dev, "Can't set cpu clock out %d\n", ret);
-		return ret;
-	}
+	da7219_aad_jack_det(component, &rockchip_sound_jack);
 
 	return 0;
 }
@@ -301,10 +254,6 @@ static const struct snd_soc_ops rockchip_sound_da7219_ops = {
 	.hw_params = rockchip_sound_da7219_hw_params,
 };
 
-static const struct snd_soc_ops rockchip_sound_cdndp_ops = {
-	.hw_params = rockchip_sound_cdndp_hw_params,
-};
-
 static const struct snd_soc_ops rockchip_sound_dmic_ops = {
 	.hw_params = rockchip_sound_dmic_hw_params,
 };
@@ -314,8 +263,6 @@ static struct snd_soc_card rockchip_sound_card = {
 	.owner = THIS_MODULE,
 	.dapm_widgets = rockchip_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(rockchip_dapm_widgets),
-	.dapm_routes = rockchip_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rockchip_dapm_routes),
 	.controls = rockchip_controls,
 	.num_controls = ARRAY_SIZE(rockchip_controls),
 };
@@ -329,21 +276,11 @@ enum {
 	DAILINK_RT5514_DSP,
 };
 
-static const char * const dailink_compat[] = {
-	[DAILINK_CDNDP] = "rockchip,rk3399-cdn-dp",
-	[DAILINK_DA7219] = "dlg,da7219",
-	[DAILINK_DMIC] = "dmic-codec",
-	[DAILINK_MAX98357A] = "maxim,max98357a",
-	[DAILINK_RT5514] = "realtek,rt5514-i2c",
-	[DAILINK_RT5514_DSP] = "realtek,rt5514-spi",
-};
-
 static const struct snd_soc_dai_link rockchip_dais[] = {
 	[DAILINK_CDNDP] = {
 		.name = "DP",
 		.stream_name = "DP PCM",
-		.codec_dai_name = "i2s-hifi",
-		.ops = &rockchip_sound_cdndp_ops,
+		.codec_dai_name = "spdif-hifi",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 	},
@@ -387,17 +324,122 @@ static const struct snd_soc_dai_link rockchip_dais[] = {
 	[DAILINK_RT5514_DSP] = {
 		.name = "RT5514 DSP",
 		.stream_name = "Wake on Voice",
-		.codec_dai_name = "rt5514-dsp-cpu-dai",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
 	},
 };
 
+static const struct snd_soc_dapm_route rockchip_sound_cdndp_routes[] = {
+	/* Output */
+	{"HDMI", NULL, "TX"},
+};
+
+static const struct snd_soc_dapm_route rockchip_sound_da7219_routes[] = {
+	/* Output */
+	{"Headphones", NULL, "HPL"},
+	{"Headphones", NULL, "HPR"},
+
+	/* Input */
+	{"MIC", NULL, "Headset Mic"},
+};
+
+static const struct snd_soc_dapm_route rockchip_sound_dmic_routes[] = {
+	/* Input */
+	{"DMic", NULL, "Int Mic"},
+};
+
+static const struct snd_soc_dapm_route rockchip_sound_max98357a_routes[] = {
+	/* Output */
+	{"Speakers", NULL, "Speaker"},
+};
+
+static const struct snd_soc_dapm_route rockchip_sound_rt5514_routes[] = {
+	/* Input */
+	{"DMIC1L", NULL, "Int Mic"},
+	{"DMIC1R", NULL, "Int Mic"},
+};
+
+struct rockchip_sound_route {
+	const struct snd_soc_dapm_route *routes;
+	int num_routes;
+};
+
+static const struct rockchip_sound_route rockchip_routes[] = {
+	[DAILINK_CDNDP] = {
+		.routes = rockchip_sound_cdndp_routes,
+		.num_routes = ARRAY_SIZE(rockchip_sound_cdndp_routes),
+	},
+	[DAILINK_DA7219] = {
+		.routes = rockchip_sound_da7219_routes,
+		.num_routes = ARRAY_SIZE(rockchip_sound_da7219_routes),
+	},
+	[DAILINK_DMIC] = {
+		.routes = rockchip_sound_dmic_routes,
+		.num_routes = ARRAY_SIZE(rockchip_sound_dmic_routes),
+	},
+	[DAILINK_MAX98357A] = {
+		.routes = rockchip_sound_max98357a_routes,
+		.num_routes = ARRAY_SIZE(rockchip_sound_max98357a_routes),
+	},
+	[DAILINK_RT5514] = {
+		.routes = rockchip_sound_rt5514_routes,
+		.num_routes = ARRAY_SIZE(rockchip_sound_rt5514_routes),
+	},
+	[DAILINK_RT5514_DSP] = {},
+};
+
+struct dailink_match_data {
+	const char *compatible;
+	struct bus_type *bus_type;
+};
+
+static const struct dailink_match_data dailink_match[] = {
+	[DAILINK_CDNDP] = {
+		.compatible = "rockchip,rk3399-cdn-dp",
+	},
+	[DAILINK_DA7219] = {
+		.compatible = "dlg,da7219",
+	},
+	[DAILINK_DMIC] = {
+		.compatible = "dmic-codec",
+	},
+	[DAILINK_MAX98357A] = {
+		.compatible = "maxim,max98357a",
+	},
+	[DAILINK_RT5514] = {
+		.compatible = "realtek,rt5514",
+		.bus_type = &i2c_bus_type,
+	},
+	[DAILINK_RT5514_DSP] = {
+		.compatible = "realtek,rt5514",
+		.bus_type = &spi_bus_type,
+	},
+};
+
+static int of_dev_node_match(struct device *dev, void *data)
+{
+	return dev->of_node == data;
+}
+
 static int rockchip_sound_codec_node_match(struct device_node *np_codec)
 {
+	struct device *dev;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(dailink_compat); i++) {
-		if (of_device_is_compatible(np_codec, dailink_compat[i]))
-			return i;
+	for (i = 0; i < ARRAY_SIZE(dailink_match); i++) {
+		if (!of_device_is_compatible(np_codec,
+					     dailink_match[i].compatible))
+			continue;
+
+		if (dailink_match[i].bus_type) {
+			dev = bus_find_device(dailink_match[i].bus_type, NULL,
+					      np_codec, of_dev_node_match);
+			if (!dev)
+				continue;
+			put_device(dev);
+		}
+
+		return i;
 	}
 	return -1;
 }
@@ -408,16 +450,28 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 	struct device_node *np_cpu, *np_cpu0, *np_cpu1;
 	struct device_node *np_codec;
 	struct snd_soc_dai_link *dai;
+	struct snd_soc_dapm_route *routes;
 	int i, index;
+	int num_routes;
 
 	card->dai_link = devm_kzalloc(dev, sizeof(rockchip_dais),
 				      GFP_KERNEL);
 	if (!card->dai_link)
 		return -ENOMEM;
 
+	num_routes = 0;
+	for (i = 0; i < ARRAY_SIZE(rockchip_routes); i++)
+		num_routes += rockchip_routes[i].num_routes;
+	routes = devm_kcalloc(dev, num_routes, sizeof(*routes),
+			      GFP_KERNEL);
+	if (!routes)
+		return -ENOMEM;
+	card->dapm_routes = routes;
+
 	np_cpu0 = of_parse_phandle(dev->of_node, "rockchip,cpu", 0);
 	np_cpu1 = of_parse_phandle(dev->of_node, "rockchip,cpu", 1);
 
+	card->num_dapm_routes = 0;
 	card->num_links = 0;
 	for (i = 0; i < ARRAY_SIZE(rockchip_dais); i++) {
 		np_codec = of_parse_phandle(dev->of_node,
@@ -432,7 +486,18 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 		if (index < 0)
 			continue;
 
-		np_cpu = (index == DAILINK_CDNDP) ? np_cpu1 : np_cpu0;
+		switch (index) {
+		case DAILINK_CDNDP:
+			np_cpu = np_cpu1;
+			break;
+		case DAILINK_RT5514_DSP:
+			np_cpu = np_codec;
+			break;
+		default:
+			np_cpu = np_cpu0;
+			break;
+		}
+
 		if (!np_cpu) {
 			dev_err(dev, "Missing 'rockchip,cpu' for %s\n",
 				rockchip_dais[index].name);
@@ -442,9 +507,21 @@ static int rockchip_sound_of_parse_dais(struct device *dev,
 		dai = &card->dai_link[card->num_links++];
 		*dai = rockchip_dais[index];
 
-		dai->codec_of_node = np_codec;
+		if (!dai->codec_name)
+			dai->codec_of_node = np_codec;
 		dai->platform_of_node = np_cpu;
 		dai->cpu_of_node = np_cpu;
+
+		if (card->num_dapm_routes + rockchip_routes[index].num_routes >
+		    num_routes) {
+			dev_err(dev, "Too many routes\n");
+			return -EINVAL;
+		}
+
+		memcpy(routes + card->num_dapm_routes,
+		       rockchip_routes[index].routes,
+		       rockchip_routes[index].num_routes * sizeof(*routes));
+		card->num_dapm_routes += rockchip_routes[index].num_routes;
 	}
 
 	return 0;

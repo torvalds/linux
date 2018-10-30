@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/exportfs.h>
 #include <linux/slab.h>
+#include <linux/iversion.h>
 
 #include "exofs.h"
 
@@ -159,7 +160,7 @@ static struct inode *exofs_alloc_inode(struct super_block *sb)
 	if (!oi)
 		return NULL;
 
-	oi->vfs_inode.i_version = 1;
+	inode_set_iversion(&oi->vfs_inode, 1);
 	return &oi->vfs_inode;
 }
 
@@ -192,10 +193,13 @@ static void exofs_init_once(void *foo)
  */
 static int init_inodecache(void)
 {
-	exofs_inode_cachep = kmem_cache_create("exofs_inode_cache",
+	exofs_inode_cachep = kmem_cache_create_usercopy("exofs_inode_cache",
 				sizeof(struct exofs_i_info), 0,
 				SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
-				SLAB_ACCOUNT, exofs_init_once);
+				SLAB_ACCOUNT,
+				offsetof(struct exofs_i_info, i_data),
+				sizeof_field(struct exofs_i_info, i_data),
+				exofs_init_once);
 	if (exofs_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;
@@ -225,7 +229,7 @@ void exofs_make_credential(u8 cred_a[OSD_CAP_LEN], const struct osd_obj_id *obj)
 static int exofs_read_kern(struct osd_dev *od, u8 *cred, struct osd_obj_id *obj,
 		    u64 offset, void *p, unsigned length)
 {
-	struct osd_request *or = osd_start_request(od, GFP_KERNEL);
+	struct osd_request *or = osd_start_request(od);
 /*	struct osd_sense_info osi = {.key = 0};*/
 	int ret;
 
@@ -545,27 +549,26 @@ static int exofs_devs_2_odi(struct exofs_dt_device_info *dt_dev,
 static int __alloc_dev_table(struct exofs_sb_info *sbi, unsigned numdevs,
 		      struct exofs_dev **peds)
 {
-	struct __alloc_ore_devs_and_exofs_devs {
-		/* Twice bigger table: See exofs_init_comps() and comment at
-		 * exofs_read_lookup_dev_table()
-		 */
-		struct ore_dev *oreds[numdevs * 2 - 1];
-		struct exofs_dev eds[numdevs];
-	} *aoded;
+	/* Twice bigger table: See exofs_init_comps() and comment at
+	 * exofs_read_lookup_dev_table()
+	 */
+	const size_t numores = numdevs * 2 - 1;
 	struct exofs_dev *eds;
 	unsigned i;
 
-	aoded = kzalloc(sizeof(*aoded), GFP_KERNEL);
-	if (unlikely(!aoded)) {
+	sbi->oc.ods = kzalloc(numores * sizeof(struct ore_dev *) +
+			      numdevs * sizeof(struct exofs_dev), GFP_KERNEL);
+	if (unlikely(!sbi->oc.ods)) {
 		EXOFS_ERR("ERROR: failed allocating Device array[%d]\n",
 			  numdevs);
 		return -ENOMEM;
 	}
 
-	sbi->oc.ods = aoded->oreds;
-	*peds = eds = aoded->eds;
+	/* Start of allocated struct exofs_dev entries */
+	*peds = eds = (void *)sbi->oc.ods[numores];
+	/* Initialize pointers into struct exofs_dev */
 	for (i = 0; i < numdevs; ++i)
-		aoded->oreds[i] = &eds[i].ored;
+		sbi->oc.ods[i] = &eds[i].ored;
 	return 0;
 }
 

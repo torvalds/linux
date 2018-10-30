@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * tpl0102.c - Support for Texas Instruments digital potentiometers
  *
- * Copyright (C) 2016 Matt Ranostay <mranostay@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * Copyright (C) 2016, 2018
+ * Author: Matt Ranostay <matt.ranostay@konsulko.com>
  *
  * TODO: enable/disable hi-z output control
  */
@@ -106,7 +98,6 @@ static int tpl0102_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info tpl0102_info = {
 	.read_raw = tpl0102_read_raw,
 	.write_raw = tpl0102_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int tpl0102_probe(struct i2c_client *client,
@@ -157,6 +148,6 @@ static struct i2c_driver tpl0102_driver = {
 
 module_i2c_driver(tpl0102_driver);
 
-MODULE_AUTHOR("Matt Ranostay <mranostay@gmail.com>");
+MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
 MODULE_DESCRIPTION("TPL0102 digital potentiometer");
 MODULE_LICENSE("GPL");

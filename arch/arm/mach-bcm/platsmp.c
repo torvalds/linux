@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/irqchip/irq-bcm2836.h>
 #include <linux/jiffies.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -287,6 +288,38 @@ out:
 	return ret;
 }
 
+static int bcm2836_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	void __iomem *intc_base;
+	struct device_node *dn;
+	char *name;
+
+	name = "brcm,bcm2836-l1-intc";
+	dn = of_find_compatible_node(NULL, NULL, name);
+	if (!dn) {
+		pr_err("unable to find intc node\n");
+		return -ENODEV;
+	}
+
+	intc_base = of_iomap(dn, 0);
+	of_node_put(dn);
+
+	if (!intc_base) {
+		pr_err("unable to remap intc base register\n");
+		return -ENOMEM;
+	}
+
+	writel(virt_to_phys(secondary_startup),
+	       intc_base + LOCAL_MAILBOX3_SET0 + 16 * cpu);
+
+	dsb(sy);
+	sev();
+
+	iounmap(intc_base);
+
+	return 0;
+}
+
 static const struct smp_operations kona_smp_ops __initconst = {
 	.smp_prepare_cpus	= bcm_smp_prepare_cpus,
 	.smp_boot_secondary	= kona_boot_secondary,
@@ -305,3 +338,8 @@ static const struct smp_operations nsp_smp_ops __initconst = {
 	.smp_boot_secondary	= nsp_boot_secondary,
 };
 CPU_METHOD_OF_DECLARE(bcm_smp_nsp, "brcm,bcm-nsp-smp", &nsp_smp_ops);
+
+const struct smp_operations bcm2836_smp_ops __initconst = {
+	.smp_boot_secondary	= bcm2836_boot_secondary,
+};
+CPU_METHOD_OF_DECLARE(bcm_smp_bcm2836, "brcm,bcm2836-smp", &bcm2836_smp_ops);

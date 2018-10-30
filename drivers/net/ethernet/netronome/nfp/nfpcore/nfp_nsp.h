@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 #ifndef NSP_NSP_H
 #define NSP_NSP_H 1
@@ -48,6 +18,25 @@ u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state);
 int nfp_nsp_wait(struct nfp_nsp *state);
 int nfp_nsp_device_soft_reset(struct nfp_nsp *state);
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw);
+int nfp_nsp_write_flash(struct nfp_nsp *state, const struct firmware *fw);
+int nfp_nsp_mac_reinit(struct nfp_nsp *state);
+int nfp_nsp_load_stored_fw(struct nfp_nsp *state);
+int nfp_nsp_hwinfo_lookup(struct nfp_nsp *state, void *buf, unsigned int size);
+
+static inline bool nfp_nsp_has_mac_reinit(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 20;
+}
+
+static inline bool nfp_nsp_has_stored_fw_load(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 23;
+}
+
+static inline bool nfp_nsp_has_hwinfo_lookup(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 24;
+}
 
 enum nfp_eth_interface {
 	NFP_INTERFACE_NONE	= 0,
@@ -73,32 +62,47 @@ enum nfp_eth_aneg {
 	NFP_ANEG_DISABLED,
 };
 
+enum nfp_eth_fec {
+	NFP_FEC_AUTO_BIT = 0,
+	NFP_FEC_BASER_BIT,
+	NFP_FEC_REED_SOLOMON_BIT,
+	NFP_FEC_DISABLED_BIT,
+};
+
+#define NFP_FEC_AUTO		BIT(NFP_FEC_AUTO_BIT)
+#define NFP_FEC_BASER		BIT(NFP_FEC_BASER_BIT)
+#define NFP_FEC_REED_SOLOMON	BIT(NFP_FEC_REED_SOLOMON_BIT)
+#define NFP_FEC_DISABLED	BIT(NFP_FEC_DISABLED_BIT)
+
 /**
  * struct nfp_eth_table - ETH table information
  * @count:	number of table entries
  * @max_index:	max of @index fields of all @ports
  * @ports:	table of ports
  *
- * @eth_index:	port index according to legacy ethX numbering
- * @index:	chip-wide first channel index
- * @nbi:	NBI index
- * @base:	first channel index (within NBI)
- * @lanes:	number of channels
- * @speed:	interface speed (in Mbps)
- * @interface:	interface (module) plugged in
- * @media:	media type of the @interface
- * @aneg:	auto negotiation mode
- * @mac_addr:	interface MAC address
- * @label_port:	port id
- * @label_subport:  id of interface within port (for split ports)
- * @enabled:	is enabled?
- * @tx_enabled:	is TX enabled?
- * @rx_enabled:	is RX enabled?
- * @override_changed: is media reconfig pending?
+ * @ports.eth_index:	port index according to legacy ethX numbering
+ * @ports.index:	chip-wide first channel index
+ * @ports.nbi:		NBI index
+ * @ports.base:		first channel index (within NBI)
+ * @ports.lanes:	number of channels
+ * @ports.speed:	interface speed (in Mbps)
+ * @ports.interface:	interface (module) plugged in
+ * @ports.media:	media type of the @interface
+ * @ports.fec:		forward error correction mode
+ * @ports.aneg:		auto negotiation mode
+ * @ports.mac_addr:	interface MAC address
+ * @ports.label_port:	port id
+ * @ports.label_subport:  id of interface within port (for split ports)
+ * @ports.enabled:	is enabled?
+ * @ports.tx_enabled:	is TX enabled?
+ * @ports.rx_enabled:	is RX enabled?
+ * @ports.override_changed: is media reconfig pending?
  *
- * @port_type:	one of %PORT_* defines for ethtool
- * @port_lanes:	total number of lanes on the port (sum of lanes of all subports)
- * @is_split:	is interface part of a split port
+ * @ports.port_type:	one of %PORT_* defines for ethtool
+ * @ports.port_lanes:	total number of lanes on the port (sum of lanes of all
+ *			subports)
+ * @ports.is_split:	is interface part of a split port
+ * @ports.fec_modes_supported:	bitmap of FEC modes supported
  */
 struct nfp_eth_table {
 	unsigned int count;
@@ -114,6 +118,7 @@ struct nfp_eth_table {
 		unsigned int interface;
 		enum nfp_eth_media media;
 
+		enum nfp_eth_fec fec;
 		enum nfp_eth_aneg aneg;
 
 		u8 mac_addr[ETH_ALEN];
@@ -133,6 +138,8 @@ struct nfp_eth_table {
 		unsigned int port_lanes;
 
 		bool is_split;
+
+		unsigned int fec_modes_supported;
 	} ports[0];
 };
 
@@ -143,6 +150,19 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp);
 int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable);
 int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx,
 			   bool configed);
+int
+nfp_eth_set_fec(struct nfp_cpp *cpp, unsigned int idx, enum nfp_eth_fec mode);
+
+static inline bool nfp_eth_can_support_fec(struct nfp_eth_table_port *eth_port)
+{
+	return !!eth_port->fec_modes_supported;
+}
+
+static inline unsigned int
+nfp_eth_supported_fec_modes(struct nfp_eth_table_port *eth_port)
+{
+	return eth_port->fec_modes_supported;
+}
 
 struct nfp_nsp *nfp_eth_config_start(struct nfp_cpp *cpp, unsigned int idx);
 int nfp_eth_config_commit_end(struct nfp_nsp *nsp);

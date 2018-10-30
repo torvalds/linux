@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dts file for Hisilicon Hi6220 SoC
  *
@@ -87,10 +88,8 @@
 			next-level-cache = <&CLUSTER0_L2>;
 			clocks = <&stub_clock 0>;
 			operating-points-v2 = <&cpu_opp_table>;
-			cooling-min-level = <4>;
-			cooling-max-level = <0>;
-			#cooling-cells = <2>; /* min followed by max */
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			#cooling-cells = <2>; /* min followed by max */
 			dynamic-power-coefficient = <311>;
 		};
 
@@ -100,8 +99,11 @@
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
+			clocks = <&stub_clock 0>;
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <311>;
 		};
 
 		cpu2: cpu@2 {
@@ -110,8 +112,11 @@
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
+			clocks = <&stub_clock 0>;
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <311>;
 		};
 
 		cpu3: cpu@3 {
@@ -120,8 +125,11 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
+			clocks = <&stub_clock 0>;
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <311>;
 		};
 
 		cpu4: cpu@100 {
@@ -130,8 +138,11 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER1_L2>;
+			clocks = <&stub_clock 0>;
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <311>;
 		};
 
 		cpu5: cpu@101 {
@@ -140,8 +151,11 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER1_L2>;
+			clocks = <&stub_clock 0>;
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <311>;
 		};
 
 		cpu6: cpu@102 {
@@ -150,8 +164,11 @@
 			reg = <0x0 0x102>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER1_L2>;
+			clocks = <&stub_clock 0>;
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <311>;
 		};
 
 		cpu7: cpu@103 {
@@ -160,8 +177,11 @@
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 			next-level-cache = <&CLUSTER1_L2>;
+			clocks = <&stub_clock 0>;
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <311>;
 		};
 
 		CLUSTER0_L2: l2-cache0 {
@@ -816,6 +836,14 @@
 			pinctrl-1 = <&sdio_pmx_idle &sdio_clk_cfg_idle &sdio_cfg_idle>;
 		};
 
+		watchdog0: watchdog@f8005000 {
+			compatible = "arm,sp805-wdt", "arm,primecell";
+			reg = <0x0 0xf8005000 0x0 0x1000>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ao_ctrl HI6220_WDT0_PCLK>;
+			clock-names = "apb_pclk";
+		};
+
 		tsensor: tsensor@0,f7030700 {
 			compatible = "hisilicon,tsensor";
 			reg = <0x0 0xf7030700 0x0 0x1000>;
@@ -986,3 +1014,5 @@
 		};
 	};
 };
+
+#include "hi6220-coresight.dtsi"

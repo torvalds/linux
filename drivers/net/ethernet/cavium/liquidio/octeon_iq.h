@@ -62,8 +62,8 @@ struct oct_iq_stats {
 	u64 tx_tot_bytes;/**< Total count of bytes sento to network. */
 	u64 tx_gso;  /* count of tso */
 	u64 tx_vxlan; /* tunnel */
-	u64 tx_dmamap_fail;
-	u64 tx_restart;
+	u64 tx_dmamap_fail; /* Number of times dma mapping failed */
+	u64 tx_restart; /* Number of times this queue restarted */
 };
 
 #define OCT_IQ_STATS_SIZE   (sizeof(struct oct_iq_stats))
@@ -82,7 +82,19 @@ struct octeon_instr_queue {
 	/** A spinlock to protect while posting on the ring.  */
 	spinlock_t post_lock;
 
+	/** This flag indicates if the queue can be used for soft commands.
+	 *  If this flag is set, post_lock must be acquired before posting
+	 *  a command to the queue.
+	 *  If this flag is clear, post_lock is invalid for the queue.
+	 *  All control commands (soft commands) will go through only Queue 0
+	 *  (control and data queue). So only queue-0 needs post_lock,
+	 *  other queues are only data queues and does not need post_lock
+	 */
+	bool allow_soft_cmds;
+
 	u32 pkt_in_done;
+
+	u32 pkts_processed;
 
 	/** A spinlock to protect access to the input ring.*/
 	spinlock_t iq_flush_running_lock;
@@ -280,12 +292,18 @@ struct octeon_soft_command {
 	u32  ctxsize;
 
 	/** Time out and callback */
-	size_t wait_time;
-	size_t timeout;
+	size_t expiry_time;
 	u32 iq_no;
 	void (*callback)(struct octeon_device *, u32, void *);
 	void *callback_arg;
+
+	int caller_is_done;
+	u32 sc_status;
+	struct completion complete;
 };
+
+/* max timeout (in milli sec) for soft request */
+#define LIO_SC_MAX_TMO_MS       60000
 
 /** Maximum number of buffers to allocate into soft command buffer pool
  */
@@ -307,6 +325,8 @@ struct octeon_sc_buffer_pool {
 		(((octeon_dev_ptr)->instr_queue[iq_no]->stats.field) += count)
 
 int octeon_setup_sc_buffer_pool(struct octeon_device *oct);
+int octeon_free_sc_done_list(struct octeon_device *oct);
+int octeon_free_sc_zombie_list(struct octeon_device *oct);
 int octeon_free_sc_buffer_pool(struct octeon_device *oct);
 struct octeon_soft_command *
 	octeon_alloc_soft_command(struct octeon_device *oct,
@@ -343,6 +363,9 @@ int octeon_delete_instr_queue(struct octeon_device *octeon_dev, u32 iq_no);
 
 int lio_wait_for_instr_fetch(struct octeon_device *oct);
 
+void
+octeon_ring_doorbell_locked(struct octeon_device *oct, u32 iq_no);
+
 int
 octeon_register_reqtype_free_fn(struct octeon_device *oct, int reqtype,
 				void (*fn)(void *));
@@ -354,6 +377,9 @@ lio_process_iq_request_list(struct octeon_device *oct,
 int octeon_send_command(struct octeon_device *oct, u32 iq_no,
 			u32 force_db, void *cmd, void *buf,
 			u32 datasize, u32 reqtype);
+
+void octeon_dump_soft_command(struct octeon_device *oct,
+			      struct octeon_soft_command *sc);
 
 void octeon_prepare_soft_command(struct octeon_device *oct,
 				 struct octeon_soft_command *sc,

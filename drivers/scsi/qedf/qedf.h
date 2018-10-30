@@ -1,6 +1,6 @@
 /*
  *  QLogic FCoE Offload Driver
- *  Copyright (c) 2016-2017 Cavium Inc.
+ *  Copyright (c) 2016-2018 Cavium Inc.
  *
  *  This software is available under the terms of the GNU General Public License
  *  (GPL) Version 2, available from the file COPYING in the main directory of
@@ -129,7 +129,7 @@ struct qedf_ioreq {
 	struct delayed_work timeout_work;
 	struct completion tm_done;
 	struct completion abts_done;
-	struct fcoe_task_context *task;
+	struct e4_fcoe_task_context *task;
 	struct fcoe_task_params *task_params;
 	struct scsi_sgl_task_params *sgl_task_params;
 	int idx;
@@ -180,6 +180,7 @@ struct qedf_rport {
 	spinlock_t rport_lock;
 #define QEDF_RPORT_SESSION_READY 1
 #define QEDF_RPORT_UPLOADING_CONNECTION	2
+#define QEDF_RPORT_IN_RESET 3
 	unsigned long flags;
 	unsigned long retry_delay_timestamp;
 	struct fc_rport *rport;
@@ -300,6 +301,7 @@ struct qedf_ctx {
 #define QEDF_FALLBACK_VLAN	1002
 #define QEDF_DEFAULT_PRIO	3
 	int vlan_id;
+	u8 prio;
 	struct qed_dev *cdev;
 	struct qed_dev_fcoe_info dev_info;
 	struct qed_int_info int_info;
@@ -365,6 +367,7 @@ struct qedf_ctx {
 #define QEDF_IO_WORK_MIN		64
 	mempool_t *io_mempool;
 	struct workqueue_struct *dpc_wq;
+	struct delayed_work grcdump_work;
 
 	u32 slow_sge_ios;
 	u32 fast_sge_ios;
@@ -383,11 +386,16 @@ struct qedf_ctx {
 	u32 flogi_failed;
 
 	/* Used for fc statistics */
+	struct mutex stats_mutex;
 	u64 input_requests;
 	u64 output_requests;
 	u64 control_requests;
 	u64 packet_aborts;
 	u64 alloc_failures;
+	u8 lun_resets;
+	u8 target_resets;
+	u8 task_set_fulls;
+	u8 busy;
 };
 
 struct io_bdt {
@@ -465,7 +473,7 @@ extern void qedf_cmd_timer_set(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 	unsigned int timer_msec);
 extern int qedf_init_mp_req(struct qedf_ioreq *io_req);
 extern void qedf_init_mp_task(struct qedf_ioreq *io_req,
-	struct fcoe_task_context *task_ctx, struct fcoe_wqe *wqe);
+	struct e4_fcoe_task_context *task_ctx, struct fcoe_wqe *sqe);
 extern u16 qedf_get_sqe_idx(struct qedf_rport *fcport);
 extern void qedf_ring_doorbell(struct qedf_rport *fcport);
 extern void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
@@ -496,7 +504,10 @@ extern int qedf_post_io_req(struct qedf_rport *fcport,
 extern void qedf_process_seq_cleanup_compl(struct qedf_ctx *qedf,
 	struct fcoe_cqe *cqe, struct qedf_ioreq *io_req);
 extern int qedf_send_flogi(struct qedf_ctx *qedf);
+extern void qedf_get_protocol_tlv_data(void *dev, void *data);
 extern void qedf_fp_io_handler(struct work_struct *work);
+extern void qedf_get_generic_tlv_data(void *dev, struct qed_generic_tlvs *data);
+extern void qedf_wq_grcdump(struct work_struct *work);
 
 #define FCOE_WORD_TO_BYTE  4
 #define QEDF_MAX_TASK_NUM	0xFFFF

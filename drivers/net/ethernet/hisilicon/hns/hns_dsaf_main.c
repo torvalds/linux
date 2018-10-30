@@ -28,7 +28,7 @@
 #include "hns_dsaf_rcb.h"
 #include "hns_dsaf_misc.h"
 
-const char *g_dsaf_mode_match[DSAF_MODE_MAX] = {
+const static char *g_dsaf_mode_match[DSAF_MODE_MAX] = {
 	[DSAF_MODE_DISABLE_2PORT_64VM] = "2port-64vf",
 	[DSAF_MODE_DISABLE_6PORT_0VM] = "6port-16rss",
 	[DSAF_MODE_DISABLE_6PORT_16VM] = "6port-16vf",
@@ -42,7 +42,7 @@ static const struct acpi_device_id hns_dsaf_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, hns_dsaf_acpi_match);
 
-int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
+static int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 {
 	int ret, i;
 	u32 desc_num;
@@ -959,7 +959,8 @@ static void hns_dsaf_tcam_mc_invld(struct dsaf_device *dsaf_dev, u32 address)
 	spin_unlock_bh(&dsaf_dev->tcam_lock);
 }
 
-void hns_dsaf_tcam_addr_get(struct dsaf_drv_tbl_tcam_key *mac_key, u8 *addr)
+static void
+hns_dsaf_tcam_addr_get(struct dsaf_drv_tbl_tcam_key *mac_key, u8 *addr)
 {
 	addr[0] = mac_key->high.bits.mac_0;
 	addr[1] = mac_key->high.bits.mac_1;
@@ -1406,8 +1407,8 @@ static int hns_dsaf_init(struct dsaf_device *dsaf_dev)
 		return ret;
 
 	/* malloc mem for tcam mac key(vlan+mac) */
-	priv->soft_mac_tbl = vzalloc(sizeof(*priv->soft_mac_tbl)
-		  * DSAF_TCAM_SUM);
+	priv->soft_mac_tbl = vzalloc(array_size(DSAF_TCAM_SUM,
+						sizeof(*priv->soft_mac_tbl)));
 	if (!priv->soft_mac_tbl) {
 		ret = -ENOMEM;
 		goto remove_hw;
@@ -1648,6 +1649,15 @@ int hns_dsaf_rm_mac_addr(
 				      mac_entry->addr);
 }
 
+static void hns_dsaf_setup_mc_mask(struct dsaf_device *dsaf_dev,
+				   u8 port_num, u8 *mask, u8 *addr)
+{
+	if (MAC_IS_BROADCAST(addr))
+		memset(mask, 0xff, ETH_ALEN);
+	else
+		memcpy(mask, dsaf_dev->mac_cb[port_num]->mc_mask, ETH_ALEN);
+}
+
 static void hns_dsaf_mc_mask_bit_clear(char *dst, const char *src)
 {
 	u16 *a = (u16 *)dst;
@@ -1673,10 +1683,8 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 	struct dsaf_tbl_tcam_mcast_cfg mac_data;
 	struct dsaf_drv_priv *priv = hns_dsaf_dev_priv(dsaf_dev);
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry = priv->soft_mac_tbl;
-	struct dsaf_drv_tbl_tcam_key tmp_mac_key;
 	struct dsaf_tbl_tcam_data tcam_data;
 	u8 mc_addr[ETH_ALEN];
-	u8 *mc_mask;
 	int mskid;
 
 	/*chechk mac addr */
@@ -1687,9 +1695,12 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 	}
 
 	ether_addr_copy(mc_addr, mac_entry->addr);
-	mc_mask = dsaf_dev->mac_cb[mac_entry->in_port_num]->mc_mask;
 	if (!AE_IS_VER1(dsaf_dev->dsaf_ver)) {
+		u8 mc_mask[ETH_ALEN];
+
 		/* prepare for key data setting */
+		hns_dsaf_setup_mc_mask(dsaf_dev, mac_entry->in_port_num,
+				       mc_mask, mac_entry->addr);
 		hns_dsaf_mc_mask_bit_clear(mc_addr, mc_mask);
 
 		/* config key mask */
@@ -1728,10 +1739,6 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 		/* if exist, add in */
 		hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data,
 				     &mac_data);
-
-		tmp_mac_key.high.val =
-			le32_to_cpu(tcam_data.tbl_tcam_data_high);
-		tmp_mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
 	}
 
 	/* config hardware entry */
@@ -1841,10 +1848,9 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 	struct dsaf_tbl_tcam_data tcam_data;
 	int mskid;
 	const u8 empty_msk[sizeof(mac_data.tbl_mcast_port_msk)] = {0};
-	struct dsaf_drv_tbl_tcam_key mask_key, tmp_mac_key;
+	struct dsaf_drv_tbl_tcam_key mask_key;
 	struct dsaf_tbl_tcam_data *pmask_key = NULL;
 	u8 mc_addr[ETH_ALEN];
-	u8 *mc_mask;
 
 	if (!(void *)mac_entry) {
 		dev_err(dsaf_dev->dev,
@@ -1861,14 +1867,17 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 
 	/* always mask vlan_id field */
 	ether_addr_copy(mc_addr, mac_entry->addr);
-	mc_mask = dsaf_dev->mac_cb[mac_entry->in_port_num]->mc_mask;
 
 	if (!AE_IS_VER1(dsaf_dev->dsaf_ver)) {
+		u8 mc_mask[ETH_ALEN];
+
 		/* prepare for key data setting */
+		hns_dsaf_setup_mc_mask(dsaf_dev, mac_entry->in_port_num,
+				       mc_mask, mac_entry->addr);
 		hns_dsaf_mc_mask_bit_clear(mc_addr, mc_mask);
 
 		/* config key mask */
-		hns_dsaf_set_mac_key(dsaf_dev, &mask_key, 0x00, 0xff, mc_addr);
+		hns_dsaf_set_mac_key(dsaf_dev, &mask_key, 0x00, 0xff, mc_mask);
 
 		mask_key.high.val = le32_to_cpu(mask_key.high.val);
 		mask_key.low.val = le32_to_cpu(mask_key.low.val);
@@ -1901,9 +1910,6 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 
 	/* read entry */
 	hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data, &mac_data);
-
-	tmp_mac_key.high.val = le32_to_cpu(tcam_data.tbl_tcam_data_high);
-	tmp_mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
 
 	/*del the port*/
 	if (mac_entry->port_num < DSAF_SERVICE_NW_NUM) {
@@ -2071,8 +2077,9 @@ static void hns_dsaf_pfc_unit_cnt(struct dsaf_device *dsaf_dev, int  mac_id,
  * @dsaf_id: dsa fabric id
  * @xge_ge_work_mode
  */
-void hns_dsaf_port_work_rate_cfg(struct dsaf_device *dsaf_dev, int mac_id,
-				 enum dsaf_port_rate_mode rate_mode)
+static void
+hns_dsaf_port_work_rate_cfg(struct dsaf_device *dsaf_dev, int mac_id,
+			    enum dsaf_port_rate_mode rate_mode)
 {
 	u32 port_work_mode;
 
@@ -2718,6 +2725,35 @@ void hns_dsaf_set_promisc_tcam(struct dsaf_device *dsaf_dev,
 	/* config software entry */
 	soft_mac_entry += entry_index;
 	soft_mac_entry->index = enable ? entry_index : DSAF_INVALID_ENTRY_IDX;
+}
+
+int hns_dsaf_wait_pkt_clean(struct dsaf_device *dsaf_dev, int port)
+{
+	u32 val, val_tmp;
+	int wait_cnt;
+
+	if (port >= DSAF_SERVICE_NW_NUM)
+		return 0;
+
+	wait_cnt = 0;
+	while (wait_cnt++ < HNS_MAX_WAIT_CNT) {
+		val = dsaf_read_dev(dsaf_dev, DSAF_VOQ_IN_PKT_NUM_0_REG +
+			(port + DSAF_XGE_NUM) * 0x40);
+		val_tmp = dsaf_read_dev(dsaf_dev, DSAF_VOQ_OUT_PKT_NUM_0_REG +
+			(port + DSAF_XGE_NUM) * 0x40);
+		if (val == val_tmp)
+			break;
+
+		usleep_range(100, 200);
+	}
+
+	if (wait_cnt >= HNS_MAX_WAIT_CNT) {
+		dev_err(dsaf_dev->dev, "hns dsaf clean wait timeout(%u - %u).\n",
+			val, val_tmp);
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 /**

@@ -1,18 +1,17 @@
-* STMicroelectronics 10/100/1000 Ethernet driver (GMAC)
+* STMicroelectronics 10/100/1000/2500/10000 Ethernet (GMAC/XGMAC)
 
 Required properties:
-- compatible: Should be "snps,dwmac-<ip_version>", "snps,dwmac"
+- compatible: Should be "snps,dwmac-<ip_version>", "snps,dwmac" or
+	"snps,dwxgmac-<ip_version>", "snps,dwxgmac".
 	For backwards compatibility: "st,spear600-gmac" is also supported.
 - reg: Address and length of the register set for the device
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the STMMAC interrupts
 - interrupt-names: Should contain a list of interrupt names corresponding to
 	the interrupts in the interrupts property, if available.
 	Valid interrupt names are:
   - "macirq" (combined signal for various interrupt events)
   - "eth_wake_irq" (the interrupt to manage the remote wake-up packet detection)
-  - "eth_lpi" (the interrupt that occurs when Tx or Rx enters/exits LPI state)
+  - "eth_lpi" (the interrupt that occurs when Rx exits the LPI state)
 - phy-mode: See ethernet.txt file in the same directory.
 - snps,reset-gpio 	gpio number for phy reset.
 - snps,reset-active-low boolean flag to indicate if phy reset is active low.

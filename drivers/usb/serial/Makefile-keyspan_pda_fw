@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 # some rules to handle the quirks of the 'as31' assembler, like
 # insisting upon fixed suffixes for the input and output files,

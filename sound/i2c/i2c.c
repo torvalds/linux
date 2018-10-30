@@ -338,16 +338,3 @@ static int snd_i2c_bit_probeaddr(struct snd_i2c_bus *bus, unsigned short addr)
 	snd_i2c_bit_stop(bus);
 	return err;
 }
-
-
-static int __init alsa_i2c_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_i2c_exit(void)
-{
-}
-
-module_init(alsa_i2c_init)
-module_exit(alsa_i2c_exit)

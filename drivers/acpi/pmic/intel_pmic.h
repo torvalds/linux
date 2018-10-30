@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __INTEL_PMIC_H
 #define __INTEL_PMIC_H
 

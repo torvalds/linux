@@ -170,7 +170,7 @@ next_chunk:
 
 		chunk = list_entry(entry, struct sctp_chunk, list);
 
-		if ((skb_shinfo(chunk->skb)->gso_type & SKB_GSO_SCTP) == SKB_GSO_SCTP) {
+		if (skb_is_gso(chunk->skb) && skb_is_gso_sctp(chunk->skb)) {
 			/* GSO-marked skbs but without frags, handle
 			 * them normally
 			 */
@@ -217,7 +217,7 @@ new_skb:
 	skb_pull(chunk->skb, sizeof(*ch));
 	chunk->subh.v = NULL; /* Subheader is no longer valid.  */
 
-	if (chunk->chunk_end + sizeof(*ch) < skb_tail_pointer(chunk->skb)) {
+	if (chunk->chunk_end + sizeof(*ch) <= skb_tail_pointer(chunk->skb)) {
 		/* This is not a singleton */
 		chunk->singleton = 0;
 	} else if (chunk->chunk_end > skb_tail_pointer(chunk->skb)) {

@@ -19,7 +19,9 @@
 void gma_get_core_freq(struct drm_device *dev)
 {
 	uint32_t clock;
-	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	struct pci_dev *pci_root =
+		pci_get_domain_bus_and_slot(pci_domain_nr(dev->pdev->bus),
+					    0, 0);
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	/*pci_write_config_dword(pci_root, 0xD4, 0x00C32004);*/

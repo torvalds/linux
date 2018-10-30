@@ -154,11 +154,11 @@ static const struct snd_kcontrol_new cs4265_snd_controls[] = {
 	SOC_SINGLE("E to F Buffer Disable Switch", CS4265_SPDIF_CTL1,
 				6, 1, 0),
 	SOC_ENUM("C Data Access", cam_mode_enum),
+	SOC_SINGLE("SPDIF Switch", CS4265_SPDIF_CTL2, 5, 1, 1),
 	SOC_SINGLE("Validity Bit Control Switch", CS4265_SPDIF_CTL2,
 				3, 1, 0),
 	SOC_ENUM("SPDIF Mono/Stereo", spdif_mono_stereo_enum),
-	SOC_SINGLE("MMTLR Data Switch", 0,
-				1, 1, 0),
+	SOC_SINGLE("MMTLR Data Switch", CS4265_SPDIF_CTL2, 0, 1, 0),
 	SOC_ENUM("Mono Channel Select", spdif_mono_select_enum),
 	SND_SOC_BYTES("C Data Buffer", CS4265_C_DATA_BUFF, 24),
 };
@@ -221,10 +221,11 @@ static const struct snd_soc_dapm_route cs4265_audio_map[] = {
 	{"LINEOUTR", NULL, "DAC"},
 	{"SPDIFOUT", NULL, "SPDIF"},
 
+	{"Pre-amp MIC", NULL, "MICL"},
+	{"Pre-amp MIC", NULL, "MICR"},
+	{"ADC Mux", "MIC", "Pre-amp MIC"},
 	{"ADC Mux", "LINEIN", "LINEINL"},
 	{"ADC Mux", "LINEIN", "LINEINR"},
-	{"ADC Mux", "MIC", "MICL"},
-	{"ADC Mux", "MIC", "MICR"},
 	{"ADC", NULL, "ADC Mux"},
 	{"DOUT", NULL, "ADC"},
 	{"DAI1 Capture", NULL, "DOUT"},
@@ -322,12 +323,12 @@ static int cs4265_get_clk_index(int mclk, int rate)
 static int cs4265_set_sysclk(struct snd_soc_dai *codec_dai, int clk_id,
 			unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct cs4265_private *cs4265 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct cs4265_private *cs4265 = snd_soc_component_get_drvdata(component);
 	int i;
 
 	if (clk_id != 0) {
-		dev_err(codec->dev, "Invalid clk_id %d\n", clk_id);
+		dev_err(component->dev, "Invalid clk_id %d\n", clk_id);
 		return -EINVAL;
 	}
 	for (i = 0; i < ARRAY_SIZE(clk_map_table); i++) {
@@ -337,24 +338,24 @@ static int cs4265_set_sysclk(struct snd_soc_dai *codec_dai, int clk_id,
 		}
 	}
 	cs4265->sysclk = 0;
-	dev_err(codec->dev, "Invalid freq parameter %d\n", freq);
+	dev_err(component->dev, "Invalid freq parameter %d\n", freq);
 	return -EINVAL;
 }
 
 static int cs4265_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct cs4265_private *cs4265 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct cs4265_private *cs4265 = snd_soc_component_get_drvdata(component);
 	u8 iface = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		snd_soc_update_bits(codec, CS4265_ADC_CTL,
+		snd_soc_component_update_bits(component, CS4265_ADC_CTL,
 				CS4265_ADC_MASTER,
 				CS4265_ADC_MASTER);
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		snd_soc_update_bits(codec, CS4265_ADC_CTL,
+		snd_soc_component_update_bits(component, CS4265_ADC_CTL,
 				CS4265_ADC_MASTER,
 				0);
 		break;
@@ -383,20 +384,20 @@ static int cs4265_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 static int cs4265_digital_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
 	if (mute) {
-		snd_soc_update_bits(codec, CS4265_DAC_CTL,
+		snd_soc_component_update_bits(component, CS4265_DAC_CTL,
 			CS4265_DAC_CTL_MUTE,
 			CS4265_DAC_CTL_MUTE);
-		snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
+		snd_soc_component_update_bits(component, CS4265_SPDIF_CTL2,
 			CS4265_SPDIF_CTL2_MUTE,
 			CS4265_SPDIF_CTL2_MUTE);
 	} else {
-		snd_soc_update_bits(codec, CS4265_DAC_CTL,
+		snd_soc_component_update_bits(component, CS4265_DAC_CTL,
 			CS4265_DAC_CTL_MUTE,
 			0);
-		snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
+		snd_soc_component_update_bits(component, CS4265_SPDIF_CTL2,
 			CS4265_SPDIF_CTL2_MUTE,
 			0);
 	}
@@ -407,8 +408,8 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 				     struct snd_pcm_hw_params *params,
 				     struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct cs4265_private *cs4265 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct cs4265_private *cs4265 = snd_soc_component_get_drvdata(component);
 	int index;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
@@ -418,45 +419,45 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	index = cs4265_get_clk_index(cs4265->sysclk, params_rate(params));
 	if (index >= 0) {
-		snd_soc_update_bits(codec, CS4265_ADC_CTL,
+		snd_soc_component_update_bits(component, CS4265_ADC_CTL,
 			CS4265_ADC_FM, clk_map_table[index].fm_mode << 6);
-		snd_soc_update_bits(codec, CS4265_MCLK_FREQ,
+		snd_soc_component_update_bits(component, CS4265_MCLK_FREQ,
 			CS4265_MCLK_FREQ_MASK,
 			clk_map_table[index].mclkdiv << 4);
 
 	} else {
-		dev_err(codec->dev, "can't get correct mclk\n");
+		dev_err(component->dev, "can't get correct mclk\n");
 		return -EINVAL;
 	}
 
 	switch (cs4265->format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		snd_soc_update_bits(codec, CS4265_DAC_CTL,
+		snd_soc_component_update_bits(component, CS4265_DAC_CTL,
 			CS4265_DAC_CTL_DIF, (1 << 4));
-		snd_soc_update_bits(codec, CS4265_ADC_CTL,
+		snd_soc_component_update_bits(component, CS4265_ADC_CTL,
 			CS4265_ADC_DIF, (1 << 4));
-		snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
+		snd_soc_component_update_bits(component, CS4265_SPDIF_CTL2,
 			CS4265_SPDIF_CTL2_DIF, (1 << 6));
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
 		if (params_width(params) == 16) {
-			snd_soc_update_bits(codec, CS4265_DAC_CTL,
+			snd_soc_component_update_bits(component, CS4265_DAC_CTL,
 				CS4265_DAC_CTL_DIF, (2 << 4));
-			snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
+			snd_soc_component_update_bits(component, CS4265_SPDIF_CTL2,
 				CS4265_SPDIF_CTL2_DIF, (2 << 6));
 		} else {
-			snd_soc_update_bits(codec, CS4265_DAC_CTL,
+			snd_soc_component_update_bits(component, CS4265_DAC_CTL,
 				CS4265_DAC_CTL_DIF, (3 << 4));
-			snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
+			snd_soc_component_update_bits(component, CS4265_SPDIF_CTL2,
 				CS4265_SPDIF_CTL2_DIF, (3 << 6));
 		}
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		snd_soc_update_bits(codec, CS4265_DAC_CTL,
+		snd_soc_component_update_bits(component, CS4265_DAC_CTL,
 			CS4265_DAC_CTL_DIF, 0);
-		snd_soc_update_bits(codec, CS4265_ADC_CTL,
+		snd_soc_component_update_bits(component, CS4265_ADC_CTL,
 			CS4265_ADC_DIF, 0);
-		snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
+		snd_soc_component_update_bits(component, CS4265_SPDIF_CTL2,
 			CS4265_SPDIF_CTL2_DIF, 0);
 
 		break;
@@ -466,23 +467,23 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int cs4265_set_bias_level(struct snd_soc_codec *codec,
+static int cs4265_set_bias_level(struct snd_soc_component *component,
 					enum snd_soc_bias_level level)
 {
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
 	case SND_SOC_BIAS_PREPARE:
-		snd_soc_update_bits(codec, CS4265_PWRCTL,
+		snd_soc_component_update_bits(component, CS4265_PWRCTL,
 			CS4265_PWRCTL_PDN, 0);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_update_bits(codec, CS4265_PWRCTL,
+		snd_soc_component_update_bits(component, CS4265_PWRCTL,
 			CS4265_PWRCTL_PDN,
 			CS4265_PWRCTL_PDN);
 		break;
 	case SND_SOC_BIAS_OFF:
-		snd_soc_update_bits(codec, CS4265_PWRCTL,
+		snd_soc_component_update_bits(component, CS4265_PWRCTL,
 			CS4265_PWRCTL_PDN,
 			CS4265_PWRCTL_PDN);
 		break;
@@ -496,7 +497,8 @@ static int cs4265_set_bias_level(struct snd_soc_codec *codec,
 			SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000)
 
 #define CS4265_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_U16_LE | \
-			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_U24_LE)
+			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_U24_LE | \
+			SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_U32_LE)
 
 static const struct snd_soc_dai_ops cs4265_ops = {
 	.hw_params	= cs4265_pcm_hw_params,
@@ -544,17 +546,18 @@ static struct snd_soc_dai_driver cs4265_dai[] = {
 	},
 };
 
-static const struct snd_soc_codec_driver soc_codec_cs4265 = {
-	.set_bias_level = cs4265_set_bias_level,
-
-	.component_driver = {
-		.controls		= cs4265_snd_controls,
-		.num_controls		= ARRAY_SIZE(cs4265_snd_controls),
-		.dapm_widgets		= cs4265_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(cs4265_dapm_widgets),
-		.dapm_routes		= cs4265_audio_map,
-		.num_dapm_routes	= ARRAY_SIZE(cs4265_audio_map),
-	},
+static const struct snd_soc_component_driver soc_component_cs4265 = {
+	.set_bias_level		= cs4265_set_bias_level,
+	.controls		= cs4265_snd_controls,
+	.num_controls		= ARRAY_SIZE(cs4265_snd_controls),
+	.dapm_widgets		= cs4265_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(cs4265_dapm_widgets),
+	.dapm_routes		= cs4265_audio_map,
+	.num_dapm_routes	= ARRAY_SIZE(cs4265_audio_map),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs4265_regmap = {
@@ -616,16 +619,10 @@ static int cs4265_i2c_probe(struct i2c_client *i2c_client,
 
 	regmap_write(cs4265->regmap, CS4265_PWRCTL, 0x0F);
 
-	ret =  snd_soc_register_codec(&i2c_client->dev,
-			&soc_codec_cs4265, cs4265_dai,
+	ret = devm_snd_soc_register_component(&i2c_client->dev,
+			&soc_component_cs4265, cs4265_dai,
 			ARRAY_SIZE(cs4265_dai));
 	return ret;
-}
-
-static int cs4265_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
 }
 
 static const struct of_device_id cs4265_of_match[] = {
@@ -647,7 +644,6 @@ static struct i2c_driver cs4265_i2c_driver = {
 	},
 	.id_table = cs4265_id,
 	.probe =    cs4265_i2c_probe,
-	.remove =   cs4265_i2c_remove,
 };
 
 module_i2c_driver(cs4265_i2c_driver);

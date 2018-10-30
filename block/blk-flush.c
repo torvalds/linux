@@ -94,7 +94,7 @@ enum {
 };
 
 static bool blk_kick_flush(struct request_queue *q,
-			   struct blk_flush_queue *fq);
+			   struct blk_flush_queue *fq, unsigned int flags);
 
 static unsigned int blk_flush_policy(unsigned long fflags, struct request *rq)
 {
@@ -169,9 +169,11 @@ static bool blk_flush_complete_seq(struct request *rq,
 	struct request_queue *q = rq->q;
 	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
 	bool queued = false, kicked;
+	unsigned int cmd_flags;
 
 	BUG_ON(rq->flush.seq & seq);
 	rq->flush.seq |= seq;
+	cmd_flags = rq->cmd_flags;
 
 	if (likely(!error))
 		seq = blk_flush_cur_seq(rq);
@@ -212,7 +214,7 @@ static bool blk_flush_complete_seq(struct request *rq,
 		BUG();
 	}
 
-	kicked = blk_kick_flush(q, fq);
+	kicked = blk_kick_flush(q, fq, cmd_flags);
 	return kicked | queued;
 }
 
@@ -231,8 +233,13 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 		/* release the tag's ownership to the req cloned from */
 		spin_lock_irqsave(&fq->mq_flush_lock, flags);
 		hctx = blk_mq_map_queue(q, flush_rq->mq_ctx->cpu);
-		blk_mq_tag_set_rq(hctx, flush_rq->tag, fq->orig_rq);
-		flush_rq->tag = -1;
+		if (!q->elevator) {
+			blk_mq_tag_set_rq(hctx, flush_rq->tag, fq->orig_rq);
+			flush_rq->tag = -1;
+		} else {
+			blk_mq_put_driver_tag_hctx(hctx, flush_rq);
+			flush_rq->internal_tag = -1;
+		}
 	}
 
 	running = &fq->flush_queue[fq->flush_running_idx];
@@ -276,6 +283,7 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
  * blk_kick_flush - consider issuing flush request
  * @q: request_queue being kicked
  * @fq: flush queue
+ * @flags: cmd_flags of the original request
  *
  * Flush related states of @q have changed, consider issuing flush request.
  * Please read the comment at the top of this file for more info.
@@ -286,7 +294,8 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
  * RETURNS:
  * %true if flush was issued, %false otherwise.
  */
-static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
+static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
+			   unsigned int flags)
 {
 	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
 	struct request *first_rq =
@@ -318,22 +327,30 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	blk_rq_init(q, flush_rq);
 
 	/*
-	 * Borrow tag from the first request since they can't
-	 * be in flight at the same time. And acquire the tag's
-	 * ownership for flush req.
+	 * In case of none scheduler, borrow tag from the first request
+	 * since they can't be in flight at the same time. And acquire
+	 * the tag's ownership for flush req.
+	 *
+	 * In case of IO scheduler, flush rq need to borrow scheduler tag
+	 * just for cheating put/get driver tag.
 	 */
 	if (q->mq_ops) {
 		struct blk_mq_hw_ctx *hctx;
 
 		flush_rq->mq_ctx = first_rq->mq_ctx;
-		flush_rq->tag = first_rq->tag;
-		fq->orig_rq = first_rq;
 
-		hctx = blk_mq_map_queue(q, first_rq->mq_ctx->cpu);
-		blk_mq_tag_set_rq(hctx, first_rq->tag, flush_rq);
+		if (!q->elevator) {
+			fq->orig_rq = first_rq;
+			flush_rq->tag = first_rq->tag;
+			hctx = blk_mq_map_queue(q, first_rq->mq_ctx->cpu);
+			blk_mq_tag_set_rq(hctx, first_rq->tag, flush_rq);
+		} else {
+			flush_rq->internal_tag = first_rq->internal_tag;
+		}
 	}
 
 	flush_rq->cmd_flags = REQ_OP_FLUSH | REQ_PREFLUSH;
+	flush_rq->cmd_flags |= (flags & REQ_DRV) | (flags & REQ_FAILFAST_MASK);
 	flush_rq->rq_flags |= RQF_FLUSH_SEQ;
 	flush_rq->rq_disk = first_rq->rq_disk;
 	flush_rq->end_io = flush_end_io;
@@ -393,6 +410,11 @@ static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, ctx);
 
 	hctx = blk_mq_map_queue(q, ctx->cpu);
+
+	if (q->elevator) {
+		WARN_ON(rq->tag < 0);
+		blk_mq_put_driver_tag_hctx(hctx, rq);
+	}
 
 	/*
 	 * After populating an empty queue, kick it to avoid stall.  Read
@@ -463,7 +485,7 @@ void blk_insert_flush(struct request *rq)
 	if ((policy & REQ_FSEQ_DATA) &&
 	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
 		if (q->mq_ops)
-			blk_mq_sched_insert_request(rq, false, true, false, false);
+			blk_mq_request_bypass_insert(rq, false);
 		else
 			list_add_tail(&rq->queuelist, &q->queue_head);
 		return;
@@ -544,12 +566,12 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 EXPORT_SYMBOL(blkdev_issue_flush);
 
 struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
-		int node, int cmd_size)
+		int node, int cmd_size, gfp_t flags)
 {
 	struct blk_flush_queue *fq;
 	int rq_sz = sizeof(struct request);
 
-	fq = kzalloc_node(sizeof(*fq), GFP_KERNEL, node);
+	fq = kzalloc_node(sizeof(*fq), flags, node);
 	if (!fq)
 		goto fail;
 
@@ -557,7 +579,7 @@ struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
 		spin_lock_init(&fq->mq_flush_lock);
 
 	rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
-	fq->flush_rq = kzalloc_node(rq_sz, GFP_KERNEL, node);
+	fq->flush_rq = kzalloc_node(rq_sz, flags, node);
 	if (!fq->flush_rq)
 		goto fail_rq;
 

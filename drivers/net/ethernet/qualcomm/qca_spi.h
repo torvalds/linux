@@ -73,6 +73,7 @@ struct qcaspi_stats {
 	u64 write_buf_miss;
 	u64 ring_full;
 	u64 spi_err;
+	u64 write_verify_failed;
 };
 
 struct qcaspi {
@@ -82,11 +83,6 @@ struct qcaspi {
 
 	struct tx_ring txr;
 	struct qcaspi_stats stats;
-
-	struct spi_message spi_msg1;
-	struct spi_message spi_msg2;
-	struct spi_transfer spi_xfer1;
-	struct spi_transfer spi_xfer2[2];
 
 	u8 *rx_buffer;
 	u32 buffer_size;

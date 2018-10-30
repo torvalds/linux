@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Transactional memory support routines to reclaim and recheckpoint
  * transactional process state.
@@ -11,6 +12,8 @@
 #include <asm/ptrace.h>
 #include <asm/reg.h>
 #include <asm/bug.h>
+#include <asm/export.h>
+#include <asm/feature-fixups.h>
 
 #ifdef CONFIG_VSX
 /* See fpu.S, this is borrowed from there */
@@ -54,6 +57,16 @@ _GLOBAL(tm_enable)
 	or	r4, r4, r3
 	mtmsrd	r4
 1:	blr
+EXPORT_SYMBOL_GPL(tm_enable);
+
+_GLOBAL(tm_disable)
+	mfmsr	r4
+	li	r3, MSR_TM >> 32
+	sldi	r3, r3, 32
+	andc	r4, r4, r3
+	mtmsrd	r4
+	blr
+EXPORT_SYMBOL_GPL(tm_disable);
 
 _GLOBAL(tm_save_sprs)
 	mfspr	r0, SPRN_TFHAR
@@ -77,17 +90,16 @@ _GLOBAL(tm_restore_sprs)
 _GLOBAL(tm_abort)
 	TABORT(R3)
 	blr
+EXPORT_SYMBOL_GPL(tm_abort);
 
-/* void tm_reclaim(struct thread_struct *thread,
- *                 unsigned long orig_msr,
+/*
+ * void tm_reclaim(struct thread_struct *thread,
  *		   uint8_t cause)
  *
  *	- Performs a full reclaim.  This destroys outstanding
- *	  transactions and updates thread->regs.tm_ckpt_* with the
- *	  original checkpointed state.  Note that thread->regs is
- *	  unchanged.
- *	- FP regs are written back to thread->transact_fpr before
- *	  reclaiming.  These are the transactional (current) versions.
+ *	  transactions and updates thread.ckpt_regs, thread.ckfp_state and
+ *	  thread.ckvr_state with the original checkpointed state.  Note that
+ *	  thread->regs is unchanged.
  *
  * Purpose is to both abort transactions of, and preserve the state of,
  * a transactions at a context switch. We preserve/restore both sets of process
@@ -98,9 +110,9 @@ _GLOBAL(tm_abort)
  * Call with IRQs off, stacks get all out of sync for some periods in here!
  */
 _GLOBAL(tm_reclaim)
-	mfcr	r6
+	mfcr	r5
 	mflr	r0
-	stw	r6, 8(r1)
+	stw	r5, 8(r1)
 	std	r0, 16(r1)
 	std	r2, STK_GOT(r1)
 	stdu	r1, -TM_FRAME_SIZE(r1)
@@ -108,7 +120,6 @@ _GLOBAL(tm_reclaim)
 	/* We've a struct pt_regs at [r1+STACK_FRAME_OVERHEAD]. */
 
 	std	r3, STK_PARAM(R3)(r1)
-	std	r4, STK_PARAM(R4)(r1)
 	SAVE_NVGPRS(r1)
 
 	/* We need to setup MSR for VSX register save instructions. */
@@ -138,8 +149,8 @@ _GLOBAL(tm_reclaim)
 	std	r1, PACAR1(r13)
 
 	/* Clear MSR RI since we are about to change r1, EE is already off. */
-	li	r4, 0
-	mtmsrd	r4, 1
+	li	r5, 0
+	mtmsrd	r5, 1
 
 	/*
 	 * BE CAREFUL HERE:
@@ -151,28 +162,43 @@ _GLOBAL(tm_reclaim)
 	 * to user register state.  (FPRs, CCR etc. also!)
 	 * Use an sprg and a tm_scratch in the PACA to shuffle.
 	 */
-	TRECLAIM(R5)				/* Cause in r5 */
+	TRECLAIM(R4)				/* Cause in r4 */
 
-	/* ******************** GPRs ******************** */
-	/* Stash the checkpointed r13 away in the scratch SPR and get the real
-	 *  paca
+	/*
+	 * ******************** GPRs ********************
+	 * Stash the checkpointed r13 in the scratch SPR and get the real paca.
 	 */
 	SET_SCRATCH0(r13)
 	GET_PACA(r13)
 
-	/* Stash the checkpointed r1 away in paca tm_scratch and get the real
-	 * stack pointer back
+	/*
+	 * Stash the checkpointed r1 away in paca->tm_scratch and get the real
+	 * stack pointer back into r1.
 	 */
 	std	r1, PACATMSCRATCH(r13)
 	ld	r1, PACAR1(r13)
 
-	/* Store the PPR in r11 and reset to decent value */
 	std	r11, GPR11(r1)			/* Temporary stash */
+
+	/*
+	 * Move the saved user r1 to the kernel stack in case PACATMSCRATCH is
+	 * clobbered by an exception once we turn on MSR_RI below.
+	 */
+	ld	r11, PACATMSCRATCH(r13)
+	std	r11, GPR1(r1)
+
+	/*
+	 * Store r13 away so we can free up the scratch SPR for the SLB fault
+	 * handler (needed once we start accessing the thread_struct).
+	 */
+	GET_SCRATCH0(r11)
+	std	r11, GPR13(r1)
 
 	/* Reset MSR RI so we can take SLB faults again */
 	li	r11, MSR_RI
 	mtmsrd	r11, 1
 
+	/* Store the PPR in r11 and reset to decent value */
 	mfspr	r11, SPRN_PPR
 	HMT_MEDIUM
 
@@ -185,23 +211,24 @@ _GLOBAL(tm_reclaim)
 
 	addi	r7, r12, PT_CKPT_REGS		/* Thread's ckpt_regs */
 
-	/* Make r7 look like an exception frame so that we
-	 * can use the neat GPRx(n) macros.  r7 is NOT a pt_regs ptr!
+	/*
+	 * Make r7 look like an exception frame so that we can use the neat
+	 * GPRx(n) macros. r7 is NOT a pt_regs ptr!
 	 */
 	subi	r7, r7, STACK_FRAME_OVERHEAD
 
 	/* Sync the userland GPRs 2-12, 14-31 to thread->regs: */
 	SAVE_GPR(0, r7)				/* user r0 */
-	SAVE_GPR(2, r7)			/* user r2 */
+	SAVE_GPR(2, r7)				/* user r2 */
 	SAVE_4GPRS(3, r7)			/* user r3-r6 */
 	SAVE_GPR(8, r7)				/* user r8 */
 	SAVE_GPR(9, r7)				/* user r9 */
 	SAVE_GPR(10, r7)			/* user r10 */
-	ld	r3, PACATMSCRATCH(r13)		/* user r1 */
+	ld	r3, GPR1(r1)			/* user r1 */
 	ld	r4, GPR7(r1)			/* user r7 */
 	ld	r5, GPR11(r1)			/* user r11 */
 	ld	r6, GPR12(r1)			/* user r12 */
-	GET_SCRATCH0(8)				/* user r13 */
+	ld	r8, GPR13(r1)			/* user r13 */
 	std	r3, GPR1(r7)
 	std	r4, GPR7(r7)
 	std	r5, GPR11(r7)
@@ -213,7 +240,8 @@ _GLOBAL(tm_reclaim)
 	/* ******************** NIP ******************** */
 	mfspr	r3, SPRN_TFHAR
 	std	r3, _NIP(r7)			/* Returns to failhandler */
-	/* The checkpointed NIP is ignored when rescheduling/rechkpting,
+	/*
+	 * The checkpointed NIP is ignored when rescheduling/rechkpting,
 	 * but is used in signal return to 'wind back' to the abort handler.
 	 */
 
@@ -236,48 +264,40 @@ _GLOBAL(tm_reclaim)
 	std	r3, THREAD_TM_TAR(r12)
 	std	r4, THREAD_TM_DSCR(r12)
 
-	/* MSR and flags:  We don't change CRs, and we don't need to alter
-	 * MSR.
+	/*
+	 * MSR and flags: We don't change CRs, and we don't need to alter MSR.
 	 */
 
 
-	/* ******************** FPR/VR/VSRs ************
-	 * After reclaiming, capture the checkpointed FPRs/VRs /if used/.
-	 *
-	 * (If VSX used, FP and VMX are implied.  Or, we don't need to look
-	 * at MSR.VSX as copying FP regs if .FP, vector regs if .VMX covers it.)
-	 *
-	 * We're passed the thread's MSR as the second parameter
+	/*
+	 * ******************** FPR/VR/VSRs ************
+	 * After reclaiming, capture the checkpointed FPRs/VRs.
 	 *
 	 * We enabled VEC/FP/VSX in the msr above, so we can execute these
 	 * instructions!
 	 */
-	ld	r4, STK_PARAM(R4)(r1)		/* Second parameter, MSR * */
 	mr	r3, r12
-	andis.		r0, r4, MSR_VEC@h
-	beq	dont_backup_vec
 
+	/* Altivec (VEC/VMX/VR)*/
 	addi	r7, r3, THREAD_CKVRSTATE
-	SAVE_32VRS(0, r6, r7)	/* r6 scratch, r7 transact vr state */
+	SAVE_32VRS(0, r6, r7)	/* r6 scratch, r7 ckvr_state */
 	mfvscr	v0
 	li	r6, VRSTATE_VSCR
 	stvx	v0, r7, r6
-dont_backup_vec:
+
+	/* VRSAVE */
 	mfspr	r0, SPRN_VRSAVE
 	std	r0, THREAD_CKVRSAVE(r3)
 
-	andi.	r0, r4, MSR_FP
-	beq	dont_backup_fp
-
+	/* Floating Point (FP) */
 	addi	r7, r3, THREAD_CKFPSTATE
-	SAVE_32FPRS_VSRS(0, R6, R7)	/* r6 scratch, r7 transact fp state */
-
+	SAVE_32FPRS_VSRS(0, R6, R7)	/* r6 scratch, r7 ckfp_state */
 	mffs    fr0
 	stfd    fr0,FPSTATE_FPSCR(r7)
 
-dont_backup_fp:
 
-	/* TM regs, incl TEXASR -- these live in thread_struct.  Note they've
+	/*
+	 * TM regs, incl TEXASR -- these live in thread_struct.  Note they've
 	 * been updated by the treclaim, to explain to userland the failure
 	 * cause (aborted).
 	 */
@@ -313,8 +333,8 @@ dont_backup_fp:
 	blr
 
 
-	/* void __tm_recheckpoint(struct thread_struct *thread,
-	 *			  unsigned long orig_msr)
+	/*
+	 * void __tm_recheckpoint(struct thread_struct *thread)
 	 *	- Restore the checkpointed register state saved by tm_reclaim
 	 *	  when we switch_to a process.
 	 *
@@ -329,7 +349,8 @@ _GLOBAL(__tm_recheckpoint)
 	std	r2, STK_GOT(r1)
 	stdu	r1, -TM_FRAME_SIZE(r1)
 
-	/* We've a struct pt_regs at [r1+STACK_FRAME_OVERHEAD].
+	/*
+	 * We've a struct pt_regs at [r1+STACK_FRAME_OVERHEAD].
 	 * This is used for backing up the NVGPRs:
 	 */
 	SAVE_NVGPRS(r1)
@@ -338,27 +359,25 @@ _GLOBAL(__tm_recheckpoint)
 
 	addi	r7, r3, PT_CKPT_REGS		/* Thread's ckpt_regs */
 
-	/* Make r7 look like an exception frame so that we
-	 * can use the neat GPRx(n) macros.  r7 is now NOT a pt_regs ptr!
+	/*
+	 * Make r7 look like an exception frame so that we can use the neat
+	 * GPRx(n) macros. r7 is now NOT a pt_regs ptr!
 	 */
 	subi	r7, r7, STACK_FRAME_OVERHEAD
 
+	/* We need to setup MSR for FP/VMX/VSX register save instructions. */
 	mfmsr	r6
-	/* R4 = original MSR to indicate whether thread used FP/Vector etc. */
-
-	/* Enable FP/vec in MSR if necessary! */
-	lis	r5, MSR_VEC@h
+	mr	r5, r6
 	ori	r5, r5, MSR_FP
-	and.	r5, r4, r5
-	beq	restore_gprs			/* if neither, skip both */
-
+#ifdef CONFIG_ALTIVEC
+	oris	r5, r5, MSR_VEC@h
+#endif
 #ifdef CONFIG_VSX
 	BEGIN_FTR_SECTION
-	oris	r5, r5, MSR_VSX@h
+	oris	r5,r5, MSR_VSX@h
 	END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
-	or	r5, r6, r5			/* Set MSR.FP+.VSX/.VEC */
-	mtmsr	r5
+	mtmsrd	r5
 
 #ifdef CONFIG_ALTIVEC
 	/*
@@ -367,28 +386,20 @@ _GLOBAL(__tm_recheckpoint)
 	 * thread.fp_state[] version holds the 'live' (transactional)
 	 * and will be loaded subsequently by any FPUnavailable trap.
 	 */
-	andis.	r0, r4, MSR_VEC@h
-	beq	dont_restore_vec
-
 	addi	r8, r3, THREAD_CKVRSTATE
 	li	r5, VRSTATE_VSCR
 	lvx	v0, r8, r5
 	mtvscr	v0
 	REST_32VRS(0, r5, r8)			/* r5 scratch, r8 ptr */
-dont_restore_vec:
 	ld	r5, THREAD_CKVRSAVE(r3)
 	mtspr	SPRN_VRSAVE, r5
 #endif
-
-	andi.	r0, r4, MSR_FP
-	beq	dont_restore_fp
 
 	addi	r8, r3, THREAD_CKFPSTATE
 	lfd	fr0, FPSTATE_FPSCR(r8)
 	MTFSF_L(fr0)
 	REST_32FPRS_VSRS(0, R4, R8)
 
-dont_restore_fp:
 	mtmsr	r6				/* FP/Vec off again! */
 
 restore_gprs:
@@ -418,14 +429,15 @@ restore_gprs:
 
 	REST_NVGPRS(r7)				/* GPR14-31 */
 
-	/* Load up PPR and DSCR here so we don't run with user values for long
-	 */
+	/* Load up PPR and DSCR here so we don't run with user values for long */
 	mtspr	SPRN_DSCR, r5
 	mtspr	SPRN_PPR, r6
 
-	/* Do final sanity check on TEXASR to make sure FS is set.  Do this
+	/*
+	 * Do final sanity check on TEXASR to make sure FS is set. Do this
 	 * here before we load up the userspace r1 so any bugs we hit will get
-	 * a call chain */
+	 * a call chain.
+	 */
 	mfspr	r5, SPRN_TEXASR
 	srdi	r5, r5, 16
 	li	r6, (TEXASR_FS)@h
@@ -433,8 +445,9 @@ restore_gprs:
 1:	tdeqi	r6, 0
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
 
-	/* Do final sanity check on MSR to make sure we are not transactional
-	 * or suspended
+	/*
+	 * Do final sanity check on MSR to make sure we are not transactional
+	 * or suspended.
 	 */
 	mfmsr   r6
 	li	r5, (MSR_TS_MASK)@higher
@@ -450,8 +463,8 @@ restore_gprs:
 	REST_GPR(6, r7)
 
 	/*
-	 * Store r1 and r5 on the stack so that we can access them
-	 * after we clear MSR RI.
+	 * Store r1 and r5 on the stack so that we can access them after we
+	 * clear MSR RI.
 	 */
 
 	REST_GPR(5, r7)
@@ -481,7 +494,8 @@ restore_gprs:
 
 	HMT_MEDIUM
 
-	/* Our transactional state has now changed.
+	/*
+	 * Our transactional state has now changed.
 	 *
 	 * Now just get out of here.  Transactional (current) state will be
 	 * updated once restore is called on the return path in the _switch-ed

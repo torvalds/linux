@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ROMIMAGE_MACRO_H
 #define __ROMIMAGE_MACRO_H
 

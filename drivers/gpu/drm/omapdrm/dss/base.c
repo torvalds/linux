@@ -1,12 +1,247 @@
+/*
+ * OMAP Display Subsystem Base
+ *
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ */
+
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
-#include <linux/list.h>
+
+#include "dss.h"
 #include "omapdss.h"
 
-static bool dss_initialized;
-static const struct dispc_ops *ops;
+static struct dss_device *dss_device;
+
+struct dss_device *omapdss_get_dss(void)
+{
+	return dss_device;
+}
+EXPORT_SYMBOL(omapdss_get_dss);
+
+void omapdss_set_dss(struct dss_device *dss)
+{
+	dss_device = dss;
+}
+EXPORT_SYMBOL(omapdss_set_dss);
+
+struct dispc_device *dispc_get_dispc(struct dss_device *dss)
+{
+	return dss->dispc;
+}
+EXPORT_SYMBOL(dispc_get_dispc);
+
+const struct dispc_ops *dispc_get_ops(struct dss_device *dss)
+{
+	return dss->dispc_ops;
+}
+EXPORT_SYMBOL(dispc_get_ops);
+
+
+/* -----------------------------------------------------------------------------
+ * OMAP DSS Devices Handling
+ */
+
+static LIST_HEAD(omapdss_devices_list);
+static DEFINE_MUTEX(omapdss_devices_lock);
+
+void omapdss_device_register(struct omap_dss_device *dssdev)
+{
+	mutex_lock(&omapdss_devices_lock);
+	list_add_tail(&dssdev->list, &omapdss_devices_list);
+	mutex_unlock(&omapdss_devices_lock);
+}
+EXPORT_SYMBOL_GPL(omapdss_device_register);
+
+void omapdss_device_unregister(struct omap_dss_device *dssdev)
+{
+	mutex_lock(&omapdss_devices_lock);
+	list_del(&dssdev->list);
+	mutex_unlock(&omapdss_devices_lock);
+}
+EXPORT_SYMBOL_GPL(omapdss_device_unregister);
+
+static bool omapdss_device_is_registered(struct device_node *node)
+{
+	struct omap_dss_device *dssdev;
+	bool found = false;
+
+	mutex_lock(&omapdss_devices_lock);
+
+	list_for_each_entry(dssdev, &omapdss_devices_list, list) {
+		if (dssdev->dev->of_node == node) {
+			found = true;
+			break;
+		}
+	}
+
+	mutex_unlock(&omapdss_devices_lock);
+	return found;
+}
+
+struct omap_dss_device *omapdss_device_get(struct omap_dss_device *dssdev)
+{
+	if (!try_module_get(dssdev->owner))
+		return NULL;
+
+	if (get_device(dssdev->dev) == NULL) {
+		module_put(dssdev->owner);
+		return NULL;
+	}
+
+	return dssdev;
+}
+EXPORT_SYMBOL(omapdss_device_get);
+
+void omapdss_device_put(struct omap_dss_device *dssdev)
+{
+	put_device(dssdev->dev);
+	module_put(dssdev->owner);
+}
+EXPORT_SYMBOL(omapdss_device_put);
+
+struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
+						    unsigned int port)
+{
+	struct omap_dss_device *dssdev;
+
+	list_for_each_entry(dssdev, &omapdss_devices_list, list) {
+		if (dssdev->dev->of_node == src && dssdev->of_ports & BIT(port))
+			return omapdss_device_get(dssdev);
+	}
+
+	return NULL;
+}
+
+/*
+ * Search for the next device starting at @from. The type argument specfies
+ * which device types to consider when searching. Searching for multiple types
+ * is supported by and'ing their type flags. Release the reference to the @from
+ * device, and acquire a reference to the returned device if found.
+ */
+struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
+						enum omap_dss_device_type type)
+{
+	struct omap_dss_device *dssdev;
+	struct list_head *list;
+
+	mutex_lock(&omapdss_devices_lock);
+
+	if (list_empty(&omapdss_devices_list)) {
+		dssdev = NULL;
+		goto done;
+	}
+
+	/*
+	 * Start from the from entry if given or from omapdss_devices_list
+	 * otherwise.
+	 */
+	list = from ? &from->list : &omapdss_devices_list;
+
+	list_for_each_entry(dssdev, list, list) {
+		/*
+		 * Stop if we reach the omapdss_devices_list, that's the end of
+		 * the list.
+		 */
+		if (&dssdev->list == &omapdss_devices_list) {
+			dssdev = NULL;
+			goto done;
+		}
+
+		/*
+		 * Accept display entities if the display type is requested,
+		 * and output entities if the output type is requested.
+		 */
+		if ((type & OMAP_DSS_DEVICE_TYPE_DISPLAY) &&
+		    !dssdev->output_type)
+			goto done;
+		if ((type & OMAP_DSS_DEVICE_TYPE_OUTPUT) && dssdev->id &&
+		    dssdev->next)
+			goto done;
+	}
+
+	dssdev = NULL;
+
+done:
+	if (from)
+		omapdss_device_put(from);
+	if (dssdev)
+		omapdss_device_get(dssdev);
+
+	mutex_unlock(&omapdss_devices_lock);
+	return dssdev;
+}
+EXPORT_SYMBOL(omapdss_device_get_next);
+
+int omapdss_device_connect(struct dss_device *dss,
+			   struct omap_dss_device *src,
+			   struct omap_dss_device *dst)
+{
+	int ret;
+
+	dev_dbg(dst->dev, "connect\n");
+
+	if (omapdss_device_is_connected(dst))
+		return -EBUSY;
+
+	dst->dss = dss;
+
+	ret = dst->ops->connect(src, dst);
+	if (ret < 0) {
+		dst->dss = NULL;
+		return ret;
+	}
+
+	if (src) {
+		WARN_ON(src->dst);
+		dst->src = src;
+		src->dst = dst;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(omapdss_device_connect);
+
+void omapdss_device_disconnect(struct omap_dss_device *src,
+			       struct omap_dss_device *dst)
+{
+	dev_dbg(dst->dev, "disconnect\n");
+
+	if (!dst->id && !omapdss_device_is_connected(dst)) {
+		WARN_ON(dst->output_type);
+		return;
+	}
+
+	if (src) {
+		if (WARN_ON(dst != src->dst))
+			return;
+
+		dst->src = NULL;
+		src->dst = NULL;
+	}
+
+	WARN_ON(dst->state != OMAP_DSS_DISPLAY_DISABLED);
+
+	dst->ops->disconnect(src, dst);
+	dst->dss = NULL;
+}
+EXPORT_SYMBOL_GPL(omapdss_device_disconnect);
+
+/* -----------------------------------------------------------------------------
+ * Components Handling
+ */
 
 static struct list_head omapdss_comp_list;
 
@@ -15,30 +250,6 @@ struct omapdss_comp_node {
 	struct device_node *node;
 	bool dss_core_component;
 };
-
-void omapdss_set_is_initialized(bool set)
-{
-	dss_initialized = set;
-}
-EXPORT_SYMBOL(omapdss_set_is_initialized);
-
-bool omapdss_is_initialized(void)
-{
-	return dss_initialized;
-}
-EXPORT_SYMBOL(omapdss_is_initialized);
-
-void dispc_set_ops(const struct dispc_ops *o)
-{
-	ops = o;
-}
-EXPORT_SYMBOL(dispc_set_ops);
-
-const struct dispc_ops *dispc_get_ops(void)
-{
-	return ops;
-}
-EXPORT_SYMBOL(dispc_get_ops);
 
 static bool omapdss_list_contains(const struct device_node *node)
 {
@@ -114,9 +325,7 @@ static bool omapdss_component_is_loaded(struct omapdss_comp_node *comp)
 {
 	if (comp->dss_core_component)
 		return true;
-	if (omapdss_component_is_display(comp->node))
-		return true;
-	if (omapdss_component_is_output(comp->node))
+	if (omapdss_device_is_registered(comp->node))
 		return true;
 
 	return false;

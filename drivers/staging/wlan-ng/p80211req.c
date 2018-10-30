@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
 /* src/p80211/p80211req.c
  *
  * Request/Indication/MacMgmt interface handling functions
@@ -116,7 +117,7 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 
 	/* Check to make sure the MSD is running */
 	if (!((wlandev->msdstate == WLAN_MSD_HWPRESENT &&
-	       msg->msgcode == DIDmsg_lnxreq_ifstate) ||
+	       msg->msgcode == DIDMSG_LNXREQ_IFSTATE) ||
 	      wlandev->msdstate == WLAN_MSD_RUNNING ||
 	      wlandev->msdstate == WLAN_MSD_FWLOAD)) {
 		return -ENODEV;
@@ -124,7 +125,7 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 
 	/* Check Permissions */
 	if (!capable(CAP_NET_ADMIN) &&
-	    (msg->msgcode != DIDmsg_dot11req_mibget)) {
+	    (msg->msgcode != DIDMSG_DOT11REQ_MIBGET)) {
 		netdev_err(wlandev->netdev,
 			   "%s: only dot11req_mibget allowed for non-root.\n",
 			   wlandev->name);
@@ -171,7 +172,7 @@ static void p80211req_handlemsg(struct wlandevice *wlandev,
 				struct p80211msg *msg)
 {
 	switch (msg->msgcode) {
-	case DIDmsg_lnxreq_hostwep:{
+	case DIDMSG_LNXREQ_HOSTWEP: {
 		struct p80211msg_lnxreq_hostwep *req =
 			(struct p80211msg_lnxreq_hostwep *)msg;
 		wlandev->hostwep &=
@@ -181,15 +182,15 @@ static void p80211req_handlemsg(struct wlandevice *wlandev,
 		if (req->encrypt.data == P80211ENUM_truth_true)
 			wlandev->hostwep |= HOSTWEP_ENCRYPT;
 
-	break;
+		break;
 	}
-	case DIDmsg_dot11req_mibget:
-	case DIDmsg_dot11req_mibset:{
-		int isget = (msg->msgcode == DIDmsg_dot11req_mibget);
+	case DIDMSG_DOT11REQ_MIBGET:
+	case DIDMSG_DOT11REQ_MIBSET: {
+		int isget = (msg->msgcode == DIDMSG_DOT11REQ_MIBGET);
 		struct p80211msg_dot11req_mibget *mib_msg =
 			(struct p80211msg_dot11req_mibget *)msg;
 		p80211req_mibset_mibget(wlandev, mib_msg, isget);
-	break;
+		break;
 	}
 	}			/* switch msg->msgcode */
 }
@@ -204,17 +205,17 @@ static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 	u8 *key = mibitem->data + sizeof(struct p80211pstrd);
 
 	switch (mibitem->did) {
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(1):
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(2):
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(3):
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(4):
+	case didmib_dot11smt_wepdefaultkeystable_key(1):
+	case didmib_dot11smt_wepdefaultkeystable_key(2):
+	case didmib_dot11smt_wepdefaultkeystable_key(3):
+	case didmib_dot11smt_wepdefaultkeystable_key(4):
 		if (!isget)
 			wep_change_key(wlandev,
 				       P80211DID_ITEM(mibitem->did) - 1,
 				       key, pstr->len);
 		break;
 
-	case DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID:{
+	case DIDMIB_DOT11SMT_PRIVACYTABLE_WEPDEFAULTKEYID: {
 		u32 *data = (u32 *)mibitem->data;
 
 		if (isget) {
@@ -223,21 +224,21 @@ static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 			wlandev->hostwep &= ~(HOSTWEP_DEFAULTKEY_MASK);
 			wlandev->hostwep |= (*data & HOSTWEP_DEFAULTKEY_MASK);
 		}
-	break;
+		break;
 	}
-	case DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked:{
+	case DIDMIB_DOT11SMT_PRIVACYTABLE_PRIVACYINVOKED: {
 		u32 *data = (u32 *)mibitem->data;
 
 		p80211req_handle_action(wlandev, data, isget,
 					HOSTWEP_PRIVACYINVOKED);
-	break;
+		break;
 	}
-	case DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted:{
+	case DIDMIB_DOT11SMT_PRIVACYTABLE_EXCLUDEUNENCRYPTED: {
 		u32 *data = (u32 *)mibitem->data;
 
 		p80211req_handle_action(wlandev, data, isget,
 					HOSTWEP_EXCLUDEUNENCRYPTED);
-	break;
+		break;
 	}
 	}
 }

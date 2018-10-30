@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *   linux/arch/parisc/kernel/pa7300lc.c
  *	- PA7300LC-specific functions	

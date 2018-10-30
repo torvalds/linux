@@ -23,6 +23,7 @@ This part describes the CEC: Consumer Electronics Control
 
     cec-intro
     cec-funcs
+    cec-pin-error-inj
     cec-header
 
 

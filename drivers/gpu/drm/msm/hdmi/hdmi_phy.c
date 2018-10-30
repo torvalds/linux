@@ -21,12 +21,12 @@ static int msm_hdmi_phy_resource_init(struct hdmi_phy *phy)
 	struct device *dev = &phy->pdev->dev;
 	int i, ret;
 
-	phy->regs = devm_kzalloc(dev, sizeof(phy->regs[0]) * cfg->num_regs,
+	phy->regs = devm_kcalloc(dev, cfg->num_regs, sizeof(phy->regs[0]),
 				 GFP_KERNEL);
 	if (!phy->regs)
 		return -ENOMEM;
 
-	phy->clks = devm_kzalloc(dev, sizeof(phy->clks[0]) * cfg->num_clks,
+	phy->clks = devm_kcalloc(dev, cfg->num_clks, sizeof(phy->clks[0]),
 				 GFP_KERNEL);
 	if (!phy->clks)
 		return -ENOMEM;
@@ -48,7 +48,7 @@ static int msm_hdmi_phy_resource_init(struct hdmi_phy *phy)
 	for (i = 0; i < cfg->num_clks; i++) {
 		struct clk *clk;
 
-		clk = devm_clk_get(dev, cfg->clk_names[i]);
+		clk = msm_clk_get(phy->pdev, cfg->clk_names[i]);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
 			dev_err(dev, "failed to get phy clock: %s (%d)\n",

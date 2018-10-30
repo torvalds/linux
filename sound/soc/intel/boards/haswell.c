@@ -76,7 +76,7 @@ static int haswell_rt5640_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* set correct codec filter for DAI format and clock config */
-	snd_soc_update_bits(rtd->codec, 0x83, 0xffff, 0x8000);
+	snd_soc_component_update_bits(codec_dai->component, 0x83, 0xffff, 0x8000);
 
 	return ret;
 }
@@ -87,7 +87,8 @@ static const struct snd_soc_ops haswell_rt5640_ops = {
 
 static int haswell_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct sst_pdata *pdata = dev_get_platdata(rtd->platform->dev);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct sst_pdata *pdata = dev_get_platdata(component->dev);
 	struct sst_hsw *haswell = pdata->dsp;
 	int ret;
 

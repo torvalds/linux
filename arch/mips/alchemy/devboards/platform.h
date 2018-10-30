@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DEVBOARD_PLATFORM_H_
 #define _DEVBOARD_PLATFORM_H_
 

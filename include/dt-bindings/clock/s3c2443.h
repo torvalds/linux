@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2013 Heiko Stuebner <heiko@sntech.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Device Tree binding constants clock controllers of Samsung S3C2443 and later.
  */
@@ -26,6 +23,8 @@
 #define ARMCLK			4
 #define HCLK			5
 #define PCLK			6
+#define MPLL			7
+#define EPLL			8
 
 /* Special clocks */
 #define SCLK_HSSPI0		16

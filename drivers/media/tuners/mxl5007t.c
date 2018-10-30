@@ -59,8 +59,6 @@ MODULE_PARM_DESC(debug, "set debug level");
 
 /* ------------------------------------------------------------------------- */
 
-#define MHz 1000000
-
 enum mxl5007t_mode {
 	MxL_MODE_ISDBT     =    0,
 	MxL_MODE_DVBT      =    1,

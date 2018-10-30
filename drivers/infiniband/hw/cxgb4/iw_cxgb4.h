@@ -55,6 +55,7 @@
 #include <rdma/iw_cm.h>
 #include <rdma/rdma_netlink.h>
 #include <rdma/iw_portmap.h>
+#include <rdma/restrack.h>
 
 #include "cxgb4.h"
 #include "cxgb4_uld.h"
@@ -96,6 +97,7 @@ struct c4iw_resource {
 	struct c4iw_id_table tpt_table;
 	struct c4iw_id_table qid_table;
 	struct c4iw_id_table pdid_table;
+	struct c4iw_id_table srq_table;
 };
 
 struct c4iw_qid_list {
@@ -129,6 +131,8 @@ struct c4iw_stats {
 	struct c4iw_stat stag;
 	struct c4iw_stat pbl;
 	struct c4iw_stat rqt;
+	struct c4iw_stat srqt;
+	struct c4iw_stat srq;
 	struct c4iw_stat ocqp;
 	u64  db_full;
 	u64  db_empty;
@@ -153,8 +157,8 @@ struct c4iw_hw_queue {
 };
 
 struct wr_log_entry {
-	struct timespec post_host_ts;
-	struct timespec poll_host_ts;
+	ktime_t post_host_time;
+	ktime_t poll_host_time;
 	u64 post_sge_ts;
 	u64 cqe_sge_ts;
 	u64 poll_sge_ts;
@@ -185,6 +189,10 @@ struct c4iw_rdev {
 	struct wr_log_entry *wr_log;
 	int wr_log_size;
 	struct workqueue_struct *free_workq;
+	struct completion rqt_compl;
+	struct completion pbl_compl;
+	struct kref rqt_kref;
+	struct kref pbl_kref;
 };
 
 static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
@@ -202,7 +210,26 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 struct c4iw_wr_wait {
 	struct completion completion;
 	int ret;
+	struct kref kref;
 };
+
+void _c4iw_free_wr_wait(struct kref *kref);
+
+static inline void c4iw_put_wr_wait(struct c4iw_wr_wait *wr_waitp)
+{
+	pr_debug("wr_wait %p ref before put %u\n", wr_waitp,
+		 kref_read(&wr_waitp->kref));
+	WARN_ON(kref_read(&wr_waitp->kref) == 0);
+	kref_put(&wr_waitp->kref, _c4iw_free_wr_wait);
+}
+
+static inline void c4iw_get_wr_wait(struct c4iw_wr_wait *wr_waitp)
+{
+	pr_debug("wr_wait %p ref before get %u\n", wr_waitp,
+		 kref_read(&wr_waitp->kref));
+	WARN_ON(kref_read(&wr_waitp->kref) == 0);
+	kref_get(&wr_waitp->kref);
+}
 
 static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
 {
@@ -210,10 +237,23 @@ static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
 	init_completion(&wr_waitp->completion);
 }
 
-static inline void c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret)
+static inline void _c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret,
+				 bool deref)
 {
 	wr_waitp->ret = ret;
 	complete(&wr_waitp->completion);
+	if (deref)
+		c4iw_put_wr_wait(wr_waitp);
+}
+
+static inline void c4iw_wake_up_noref(struct c4iw_wr_wait *wr_waitp, int ret)
+{
+	_c4iw_wake_up(wr_waitp, ret, false);
+}
+
+static inline void c4iw_wake_up_deref(struct c4iw_wr_wait *wr_waitp, int ret)
+{
+	_c4iw_wake_up(wr_waitp, ret, true);
 }
 
 static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
@@ -230,16 +270,38 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 
 	ret = wait_for_completion_timeout(&wr_waitp->completion, C4IW_WR_TO);
 	if (!ret) {
-		pr_debug("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
-			 func, pci_name(rdev->lldi.pdev), hwtid, qpid);
+		pr_err("%s - Device %s not responding (disabling device) - tid %u qpid %u\n",
+		       func, pci_name(rdev->lldi.pdev), hwtid, qpid);
 		rdev->flags |= T4_FATAL_ERROR;
 		wr_waitp->ret = -EIO;
+		goto out;
 	}
-out:
 	if (wr_waitp->ret)
 		pr_debug("%s: FW reply %d tid %u qpid %u\n",
 			 pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
+out:
 	return wr_waitp->ret;
+}
+
+int c4iw_ofld_send(struct c4iw_rdev *rdev, struct sk_buff *skb);
+
+static inline int c4iw_ref_send_wait(struct c4iw_rdev *rdev,
+				     struct sk_buff *skb,
+				     struct c4iw_wr_wait *wr_waitp,
+				     u32 hwtid, u32 qpid,
+				     const char *func)
+{
+	int ret;
+
+	pr_debug("%s wr_wait %p hwtid %u qpid %u\n", func, wr_waitp, hwtid,
+		 qpid);
+	c4iw_get_wr_wait(wr_waitp);
+	ret = c4iw_ofld_send(rdev, skb);
+	if (ret) {
+		c4iw_put_wr_wait(wr_waitp);
+		return ret;
+	}
+	return c4iw_wait_for_reply(rdev, wr_waitp, hwtid, qpid, func);
 }
 
 enum db_state {
@@ -266,6 +328,13 @@ struct c4iw_dev {
 	struct list_head db_fc_list;
 	u32 avail_ird;
 	wait_queue_head_t wait;
+};
+
+struct uld_ctx {
+	struct list_head entry;
+	struct cxgb4_lld_info lldi;
+	struct c4iw_dev *dev;
+	struct work_struct reg_work;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -310,7 +379,6 @@ static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
 		idr_preload_end();
 	}
 
-	BUG_ON(ret == -ENOSPC);
 	return ret < 0 ? ret : 0;
 }
 
@@ -394,6 +462,7 @@ struct c4iw_mr {
 	dma_addr_t mpl_addr;
 	u32 max_mpl_len;
 	u32 mpl_len;
+	struct c4iw_wr_wait *wr_waitp;
 };
 
 static inline struct c4iw_mr *to_c4iw_mr(struct ib_mr *ibmr)
@@ -407,6 +476,7 @@ struct c4iw_mw {
 	struct sk_buff *dereg_skb;
 	u64 kva;
 	struct tpt_attributes attr;
+	struct c4iw_wr_wait *wr_waitp;
 };
 
 static inline struct c4iw_mw *to_c4iw_mw(struct ib_mw *ibmw)
@@ -423,6 +493,7 @@ struct c4iw_cq {
 	spinlock_t comp_handler_lock;
 	atomic_t refcnt;
 	wait_queue_head_t wait;
+	struct c4iw_wr_wait *wr_waitp;
 };
 
 static inline struct c4iw_cq *to_c4iw_cq(struct ib_cq *ibcq)
@@ -480,15 +551,36 @@ struct c4iw_qp {
 	struct mutex mutex;
 	struct kref kref;
 	wait_queue_head_t wait;
-	struct timer_list timer;
 	int sq_sig_all;
+	struct c4iw_srq *srq;
 	struct work_struct free_work;
 	struct c4iw_ucontext *ucontext;
+	struct c4iw_wr_wait *wr_waitp;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
 {
 	return container_of(ibqp, struct c4iw_qp, ibqp);
+}
+
+struct c4iw_srq {
+	struct ib_srq ibsrq;
+	struct list_head db_fc_entry;
+	struct c4iw_dev *rhp;
+	struct t4_srq wq;
+	struct sk_buff *destroy_skb;
+	u32 srq_limit;
+	u32 pdid;
+	int idx;
+	u32 flags;
+	spinlock_t lock; /* protects srq */
+	struct c4iw_wr_wait *wr_waitp;
+	bool armed;
+};
+
+static inline struct c4iw_srq *to_c4iw_srq(struct ib_srq *ibsrq)
+{
+	return container_of(ibsrq, struct c4iw_srq, ibsrq);
 }
 
 struct c4iw_ucontext {
@@ -498,6 +590,7 @@ struct c4iw_ucontext {
 	spinlock_t mmap_lock;
 	struct list_head mmaps;
 	struct kref kref;
+	bool is_32b_cqe;
 };
 
 static inline struct c4iw_ucontext *to_c4iw_ucontext(struct ib_ucontext *c)
@@ -537,8 +630,7 @@ static inline struct c4iw_mm_entry *remove_mmap(struct c4iw_ucontext *ucontext,
 		if (mm->key == key && mm->len == len) {
 			list_del_init(&mm->entry);
 			spin_unlock(&ucontext->mmap_lock);
-			pr_debug("%s key 0x%x addr 0x%llx len %d\n",
-				 __func__, key,
+			pr_debug("key 0x%x addr 0x%llx len %d\n", key,
 				 (unsigned long long)mm->addr, mm->len);
 			return mm;
 		}
@@ -551,8 +643,8 @@ static inline void insert_mmap(struct c4iw_ucontext *ucontext,
 			       struct c4iw_mm_entry *mm)
 {
 	spin_lock(&ucontext->mmap_lock);
-	pr_debug("%s key 0x%x addr 0x%llx len %d\n",
-		 __func__, mm->key, (unsigned long long)mm->addr, mm->len);
+	pr_debug("key 0x%x addr 0x%llx len %d\n",
+		 mm->key, (unsigned long long)mm->addr, mm->len);
 	list_add_tail(&mm->entry, &ucontext->mmaps);
 	spin_unlock(&ucontext->mmap_lock);
 }
@@ -631,8 +723,6 @@ static inline int to_ib_qp_state(int c4iw_qp_state)
 	return IB_QPS_ERR;
 }
 
-#define C4IW_DRAIN_OPCODE FW_RI_SGE_EC_CR_RETURN
-
 static inline u32 c4iw_ib_to_tpt_access(int a)
 {
 	return (a & IB_ACCESS_REMOTE_WRITE ? FW_RI_MEM_ACCESS_REM_WRITE : 0) |
@@ -671,16 +761,14 @@ enum c4iw_mmid_state {
 #define MPA_V2_IRD_ORD_MASK             0x3FFF
 
 #define c4iw_put_ep(ep) {						\
-	pr_debug("put_ep (via %s:%u) ep %p refcnt %d\n",		\
-		 __func__, __LINE__,					\
+	pr_debug("put_ep ep %p refcnt %d\n",		\
 		 ep, kref_read(&((ep)->kref)));				\
 	WARN_ON(kref_read(&((ep)->kref)) < 1);				\
 	kref_put(&((ep)->kref), _c4iw_free_ep);				\
 }
 
 #define c4iw_get_ep(ep) {						\
-	pr_debug("get_ep (via %s:%u) ep %p, refcnt %d\n",		\
-		 __func__, __LINE__,					\
+	pr_debug("get_ep ep %p, refcnt %d\n",		\
 		 ep, kref_read(&((ep)->kref)));				\
 	kref_get(&((ep)->kref));					\
 }
@@ -822,7 +910,10 @@ enum conn_pre_alloc_buffers {
 	CN_MAX_CON_BUF
 };
 
-#define FLOWC_LEN 80
+enum {
+	FLOWC_LEN = offsetof(struct fw_flowc_wr, mnemval[FW_FLOWC_MNEM_MAX])
+};
+
 union cpl_wr_size {
 	struct cpl_abort_req abrt_req;
 	struct cpl_abort_rpl abrt_rpl;
@@ -841,7 +932,7 @@ struct c4iw_ep_common {
 	struct mutex mutex;
 	struct sockaddr_storage local_addr;
 	struct sockaddr_storage remote_addr;
-	struct c4iw_wr_wait wr_wait;
+	struct c4iw_wr_wait *wr_waitp;
 	unsigned long flags;
 	unsigned long history;
 };
@@ -889,6 +980,7 @@ struct c4iw_ep {
 	unsigned int retry_count;
 	int snd_win;
 	int rcv_win;
+	u32 snd_wscale;
 	struct c4iw_ep_stats stats;
 };
 
@@ -925,7 +1017,8 @@ void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qpid,
 		   struct c4iw_dev_ucontext *uctx);
 u32 c4iw_get_resource(struct c4iw_id_table *id_table);
 void c4iw_put_resource(struct c4iw_id_table *id_table, u32 entry);
-int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid);
+int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt,
+		       u32 nr_pdid, u32 nr_srqt);
 int c4iw_init_ctrl_qp(struct c4iw_rdev *rdev);
 int c4iw_pblpool_create(struct c4iw_rdev *rdev);
 int c4iw_rqtpool_create(struct c4iw_rdev *rdev);
@@ -935,7 +1028,7 @@ void c4iw_rqtpool_destroy(struct c4iw_rdev *rdev);
 void c4iw_ocqp_pool_destroy(struct c4iw_rdev *rdev);
 void c4iw_destroy_resource(struct c4iw_resource *rscp);
 int c4iw_destroy_ctrl_qp(struct c4iw_rdev *rdev);
-int c4iw_register_device(struct c4iw_dev *dev);
+void c4iw_register_device(struct work_struct *work);
 void c4iw_unregister_device(struct c4iw_dev *dev);
 int __init c4iw_cm_init(void);
 void c4iw_cm_term(void);
@@ -944,10 +1037,10 @@ void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
 void c4iw_init_dev_ucontext(struct c4iw_rdev *rdev,
 			    struct c4iw_dev_ucontext *uctx);
 int c4iw_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		      struct ib_send_wr **bad_wr);
-int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr);
+int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		   const struct ib_send_wr **bad_wr);
+int c4iw_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr);
 int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog);
 int c4iw_destroy_listen(struct iw_cm_id *cm_id);
@@ -961,6 +1054,7 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		   unsigned int *sg_offset);
 int c4iw_dealloc_mw(struct ib_mw *mw);
+void c4iw_dealloc(struct uld_ctx *ctx);
 struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 			    struct ib_udata *udata);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
@@ -973,8 +1067,14 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,
 			     struct ib_ucontext *ib_context,
 			     struct ib_udata *udata);
-int c4iw_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata);
 int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+int c4iw_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *attr,
+		    enum ib_srq_attr_mask srq_attr_mask,
+		    struct ib_udata *udata);
+int c4iw_destroy_srq(struct ib_srq *ib_srq);
+struct ib_srq *c4iw_create_srq(struct ib_pd *pd,
+			       struct ib_srq_init_attr *attrs,
+			       struct ib_udata *udata);
 int c4iw_destroy_qp(struct ib_qp *ib_qp);
 struct ib_qp *c4iw_create_qp(struct ib_pd *pd,
 			     struct ib_qp_init_attr *attrs,
@@ -990,8 +1090,7 @@ u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_pblpool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 u32 c4iw_ocqp_pool_alloc(struct c4iw_rdev *rdev, int size);
 void c4iw_ocqp_pool_free(struct c4iw_rdev *rdev, u32 addr, int size);
-int c4iw_ofld_send(struct c4iw_rdev *rdev, struct sk_buff *skb);
-void c4iw_flush_hw_cq(struct c4iw_cq *chp);
+void c4iw_flush_hw_cq(struct c4iw_cq *chp, struct c4iw_qp *flush_qhp);
 void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count);
 int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp);
 int c4iw_flush_rq(struct t4_wq *wq, struct t4_cq *cq, int count);
@@ -1012,11 +1111,23 @@ extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
 void __iomem *c4iw_bar2_addrs(struct c4iw_rdev *rdev, unsigned int qid,
 			      enum cxgb4_bar2_qtype qtype,
 			      unsigned int *pbar2_qid, u64 *pbar2_pa);
+int c4iw_alloc_srq_idx(struct c4iw_rdev *rdev);
+void c4iw_free_srq_idx(struct c4iw_rdev *rdev, int idx);
 extern void c4iw_log_wr_stats(struct t4_wq *wq, struct t4_cqe *cqe);
 extern int c4iw_wr_log;
 extern int db_fc_threshold;
 extern int db_coalescing_threshold;
 extern int use_dsgl;
 void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey);
+void c4iw_dispatch_srq_limit_reached_event(struct c4iw_srq *srq);
+void c4iw_copy_wr_to_srq(struct t4_srq *srq, union t4_recv_wr *wqe, u8 len16);
+void c4iw_flush_srqidx(struct c4iw_qp *qhp, u32 srqidx);
+int c4iw_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+		       const struct ib_recv_wr **bad_wr);
+struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp);
+
+typedef int c4iw_restrack_func(struct sk_buff *msg,
+			       struct rdma_restrack_entry *res);
+extern c4iw_restrack_func *c4iw_restrack_funcs[RDMA_RESTRACK_MAX];
 
 #endif

@@ -248,7 +248,7 @@ static int snd_line6_capture_close(struct snd_pcm_substream *substream)
 }
 
 /* capture operators */
-struct snd_pcm_ops snd_line6_capture_ops = {
+const struct snd_pcm_ops snd_line6_capture_ops = {
 	.open = snd_line6_capture_open,
 	.close = snd_line6_capture_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -264,8 +264,8 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 	struct usb_line6 *line6 = line6pcm->line6;
 	int i;
 
-	line6pcm->in.urbs = kzalloc(
-		sizeof(struct urb *) * line6->iso_buffers, GFP_KERNEL);
+	line6pcm->in.urbs = kcalloc(line6->iso_buffers, sizeof(struct urb *),
+				    GFP_KERNEL);
 	if (line6pcm->in.urbs == NULL)
 		return -ENOMEM;
 

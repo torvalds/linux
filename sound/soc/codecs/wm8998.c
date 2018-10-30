@@ -41,12 +41,12 @@ static int wm8998_asrc_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	unsigned int val;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		val = snd_soc_read(codec, ARIZONA_ASRC_RATE1);
+		val = snd_soc_component_read32(component, ARIZONA_ASRC_RATE1);
 		val &= ARIZONA_ASRC_RATE1_MASK;
 		val >>= ARIZONA_ASRC_RATE1_SHIFT;
 
@@ -54,23 +54,23 @@ static int wm8998_asrc_ev(struct snd_soc_dapm_widget *w,
 		case 0:
 		case 1:
 		case 2:
-			val = snd_soc_read(codec,
+			val = snd_soc_component_read32(component,
 					   ARIZONA_SAMPLE_RATE_1 + val);
 			if (val >= 0x11) {
-				dev_warn(codec->dev,
+				dev_warn(component->dev,
 					 "Unsupported ASRC rate1 (%s)\n",
 					 arizona_sample_rate_val_to_name(val));
 			return -EINVAL;
 			}
 			break;
 		default:
-			dev_err(codec->dev,
+			dev_err(component->dev,
 				"Illegal ASRC rate1 selector (0x%x)\n",
 				val);
 			return -EINVAL;
 		}
 
-		val = snd_soc_read(codec, ARIZONA_ASRC_RATE2);
+		val = snd_soc_component_read32(component, ARIZONA_ASRC_RATE2);
 		val &= ARIZONA_ASRC_RATE2_MASK;
 		val >>= ARIZONA_ASRC_RATE2_SHIFT;
 
@@ -78,17 +78,17 @@ static int wm8998_asrc_ev(struct snd_soc_dapm_widget *w,
 		case 8:
 		case 9:
 			val -= 0x8;
-			val = snd_soc_read(codec,
+			val = snd_soc_component_read32(component,
 					   ARIZONA_ASYNC_SAMPLE_RATE_1 + val);
 			if (val >= 0x11) {
-				dev_warn(codec->dev,
+				dev_warn(component->dev,
 					 "Unsupported ASRC rate2 (%s)\n",
 					 arizona_sample_rate_val_to_name(val));
 				return -EINVAL;
 			}
 			break;
 		default:
-			dev_err(codec->dev,
+			dev_err(component->dev,
 				"Illegal ASRC rate2 selector (0x%x)\n",
 				val);
 			return -EINVAL;
@@ -101,93 +101,49 @@ static int wm8998_asrc_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int wm8998_in1mux_put(struct snd_kcontrol *kcontrol,
+static int wm8998_inmux_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct wm8998_priv *wm8998 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct wm8998_priv *wm8998 = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = wm8998->core.arizona;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int mux, inmode;
-	unsigned int mode_val, src_val;
-
-	mux = ucontrol->value.enumerated.item[0];
-	if (mux > 1)
-		return -EINVAL;
-
-	/* L and R registers have same shift and mask */
-	inmode = arizona->pdata.inmode[2 * mux];
-	src_val = mux << ARIZONA_IN1L_SRC_SHIFT;
-	if (inmode & ARIZONA_INMODE_SE)
-		src_val |= 1 << ARIZONA_IN1L_SRC_SE_SHIFT;
-
-	switch (arizona->pdata.inmode[0]) {
-	case ARIZONA_INMODE_DMIC:
-		if (mux)
-			mode_val = 0;	/* B always analogue */
-		else
-			mode_val = 1 << ARIZONA_IN1_MODE_SHIFT;
-
-		snd_soc_update_bits(codec, ARIZONA_IN1L_CONTROL,
-				    ARIZONA_IN1_MODE_MASK, mode_val);
-
-		/* IN1A is digital so L and R must change together */
-		/* src_val setting same for both registers */
-		snd_soc_update_bits(codec,
-				    ARIZONA_ADC_DIGITAL_VOLUME_1L,
-				    ARIZONA_IN1L_SRC_MASK |
-				    ARIZONA_IN1L_SRC_SE_MASK, src_val);
-		snd_soc_update_bits(codec,
-				    ARIZONA_ADC_DIGITAL_VOLUME_1R,
-				    ARIZONA_IN1R_SRC_MASK |
-				    ARIZONA_IN1R_SRC_SE_MASK, src_val);
-		break;
-	default:
-		/* both analogue */
-		snd_soc_update_bits(codec,
-				    e->reg,
-				    ARIZONA_IN1L_SRC_MASK |
-				    ARIZONA_IN1L_SRC_SE_MASK,
-				    src_val);
-		break;
-	}
-
-	return snd_soc_dapm_mux_update_power(dapm, kcontrol,
-					     ucontrol->value.enumerated.item[0],
-					     e, NULL);
-}
-
-static int wm8998_in2mux_put(struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct wm8998_priv *wm8998 = snd_soc_codec_get_drvdata(codec);
-	struct arizona *arizona = wm8998->core.arizona;
-	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int mode_reg, mode_index;
 	unsigned int mux, inmode, src_val, mode_val;
 
 	mux = ucontrol->value.enumerated.item[0];
 	if (mux > 1)
 		return -EINVAL;
 
-	inmode = arizona->pdata.inmode[1 + (2 * mux)];
+	switch (e->reg) {
+	case ARIZONA_ADC_DIGITAL_VOLUME_2L:
+		mode_reg = ARIZONA_IN2L_CONTROL;
+		mode_index = 1 + (2 * mux);
+		break;
+	default:
+		mode_reg = ARIZONA_IN1L_CONTROL;
+		mode_index = (2 * mux);
+		break;
+	}
+
+	inmode = arizona->pdata.inmode[mode_index];
 	if (inmode & ARIZONA_INMODE_DMIC)
-		mode_val = 1 << ARIZONA_IN2_MODE_SHIFT;
+		mode_val = 1 << ARIZONA_IN1_MODE_SHIFT;
 	else
 		mode_val = 0;
 
-	src_val = mux << ARIZONA_IN2L_SRC_SHIFT;
+	src_val = mux << ARIZONA_IN1L_SRC_SHIFT;
 	if (inmode & ARIZONA_INMODE_SE)
-		src_val |= 1 << ARIZONA_IN2L_SRC_SE_SHIFT;
+		src_val |= 1 << ARIZONA_IN1L_SRC_SE_SHIFT;
 
-	snd_soc_update_bits(codec, ARIZONA_IN2L_CONTROL,
-			    ARIZONA_IN2_MODE_MASK, mode_val);
+	snd_soc_component_update_bits(component, mode_reg,
+				      ARIZONA_IN1_MODE_MASK, mode_val);
 
-	snd_soc_update_bits(codec, ARIZONA_ADC_DIGITAL_VOLUME_2L,
-			    ARIZONA_IN2L_SRC_MASK | ARIZONA_IN2L_SRC_SE_MASK,
-			    src_val);
+	snd_soc_component_update_bits(component, e->reg,
+				      ARIZONA_IN1L_SRC_MASK |
+				      ARIZONA_IN1L_SRC_SE_MASK,
+				      src_val);
 
 	return snd_soc_dapm_mux_update_power(dapm, kcontrol,
 					     ucontrol->value.enumerated.item[0],
@@ -216,14 +172,14 @@ static SOC_ENUM_SINGLE_DECL(wm8998_in2mux_enum,
 
 static const struct snd_kcontrol_new wm8998_in1mux[2] = {
 	SOC_DAPM_ENUM_EXT("IN1L Mux", wm8998_in1muxl_enum,
-			  snd_soc_dapm_get_enum_double, wm8998_in1mux_put),
+			  snd_soc_dapm_get_enum_double, wm8998_inmux_put),
 	SOC_DAPM_ENUM_EXT("IN1R Mux", wm8998_in1muxr_enum,
-			  snd_soc_dapm_get_enum_double, wm8998_in1mux_put),
+			  snd_soc_dapm_get_enum_double, wm8998_inmux_put),
 };
 
 static const struct snd_kcontrol_new wm8998_in2mux =
 	SOC_DAPM_ENUM_EXT("IN2 Mux", wm8998_in2mux_enum,
-			  snd_soc_dapm_get_enum_double, wm8998_in2mux_put);
+			  snd_soc_dapm_get_enum_double, wm8998_inmux_put);
 
 static DECLARE_TLV_DB_SCALE(ana_tlv, 0, 100, 0);
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
@@ -368,7 +324,7 @@ SOC_DOUBLE_R("HPOUT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_1L,
 SOC_DOUBLE_R("LINEOUT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_2L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_2R, ARIZONA_OUT2L_MUTE_SHIFT, 1, 1),
 SOC_SINGLE("EPOUT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_3L,
-	     ARIZONA_OUT3L_MUTE_SHIFT, 1, 1),
+	   ARIZONA_OUT3L_MUTE_SHIFT, 1, 1),
 SOC_DOUBLE_R("Speaker Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_4L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_4R, ARIZONA_OUT4L_MUTE_SHIFT, 1, 1),
 SOC_DOUBLE_R("SPKDAT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_5L,
@@ -381,7 +337,7 @@ SOC_DOUBLE_R_TLV("LINEOUT Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_2L,
 		 ARIZONA_DAC_DIGITAL_VOLUME_2R, ARIZONA_OUT2L_VOL_SHIFT,
 		 0xbf, 0, digital_tlv),
 SOC_SINGLE_TLV("EPOUT Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_3L,
-		 ARIZONA_OUT3L_VOL_SHIFT, 0xbf, 0, digital_tlv),
+	       ARIZONA_OUT3L_VOL_SHIFT, 0xbf, 0, digital_tlv),
 SOC_DOUBLE_R_TLV("Speaker Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_4L,
 		 ARIZONA_DAC_DIGITAL_VOLUME_4R, ARIZONA_OUT4L_VOL_SHIFT,
 		 0xbf, 0, digital_tlv),
@@ -661,12 +617,12 @@ SND_SOC_DAPM_PGA("ISRC2DEC2", ARIZONA_ISRC_2_CTRL_3,
 		 ARIZONA_ISRC2_DEC1_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_MUX("AEC1 Loopback", ARIZONA_DAC_AEC_CONTROL_1,
-		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &wm8998_aec_loopback_mux[0]),
+		 ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
+		 &wm8998_aec_loopback_mux[0]),
 
 SND_SOC_DAPM_MUX("AEC2 Loopback", ARIZONA_DAC_AEC_CONTROL_2,
-		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &wm8998_aec_loopback_mux[1]),
+		 ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
+		 &wm8998_aec_loopback_mux[1]),
 
 SND_SOC_DAPM_AIF_OUT("AIF1TX1", NULL, 0,
 		     ARIZONA_AIF1_TX_ENABLES, ARIZONA_AIF1TX1_ENA_SHIFT, 0),
@@ -785,9 +741,9 @@ SND_SOC_DAPM_PGA_E("OUT5R", ARIZONA_OUTPUT_ENABLES_1,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 
 SND_SOC_DAPM_PGA("SPD1TX1", ARIZONA_SPD1_TX_CONTROL,
-		   ARIZONA_SPD1_VAL1_SHIFT, 0, NULL, 0),
+		 ARIZONA_SPD1_VAL1_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SPD1TX2", ARIZONA_SPD1_TX_CONTROL,
-		   ARIZONA_SPD1_VAL2_SHIFT, 0, NULL, 0),
+		 ARIZONA_SPD1_VAL2_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_OUT_DRV("SPD1", ARIZONA_SPD1_TX_CONTROL,
 		     ARIZONA_SPD1_ENA_SHIFT, 0, NULL, 0),
 
@@ -1295,10 +1251,10 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 	},
 };
 
-static int wm8998_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
-			  unsigned int Fref, unsigned int Fout)
+static int wm8998_set_fll(struct snd_soc_component *component, int fll_id,
+			  int source, unsigned int Fref, unsigned int Fout)
 {
-	struct wm8998_priv *wm8998 = snd_soc_codec_get_drvdata(codec);
+	struct wm8998_priv *wm8998 = snd_soc_component_get_drvdata(component);
 
 	switch (fll_id) {
 	case WM8998_FLL1:
@@ -1316,34 +1272,32 @@ static int wm8998_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	}
 }
 
-static int wm8998_codec_probe(struct snd_soc_codec *codec)
+static int wm8998_component_probe(struct snd_soc_component *component)
 {
-	struct wm8998_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
+	struct wm8998_priv *priv = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct arizona *arizona = priv->core.arizona;
 	int ret;
 
-	priv->core.arizona->dapm = dapm;
+	arizona->dapm = dapm;
+	snd_soc_component_init_regmap(component, arizona->regmap);
 
-	ret = arizona_init_spk(codec);
+	ret = arizona_init_spk(component);
 	if (ret < 0)
 		return ret;
 
-	arizona_init_gpio(codec);
-	arizona_init_notifiers(codec);
+	arizona_init_gpio(component);
 
 	snd_soc_component_disable_pin(component, "HAPTICS");
 
 	return 0;
 }
 
-static int wm8998_codec_remove(struct snd_soc_codec *codec)
+static void wm8998_component_remove(struct snd_soc_component *component)
 {
-	struct wm8998_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct wm8998_priv *priv = snd_soc_component_get_drvdata(component);
 
 	priv->core.arizona->dapm = NULL;
-
-	return 0;
 }
 
 #define WM8998_DIG_VU 0x0200
@@ -1360,31 +1314,20 @@ static unsigned int wm8998_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_5R,
 };
 
-static struct regmap *wm8998_get_regmap(struct device *dev)
-{
-	struct wm8998_priv *priv = dev_get_drvdata(dev);
-
-	return priv->core.arizona->regmap;
-}
-
-static const struct snd_soc_codec_driver soc_codec_dev_wm8998 = {
-	.probe = wm8998_codec_probe,
-	.remove = wm8998_codec_remove,
-	.get_regmap = wm8998_get_regmap,
-
-	.idle_bias_off = true,
-
-	.set_sysclk = arizona_set_sysclk,
-	.set_pll = wm8998_set_fll,
-
-	.component_driver = {
-		.controls		= wm8998_snd_controls,
-		.num_controls		= ARRAY_SIZE(wm8998_snd_controls),
-		.dapm_widgets		= wm8998_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(wm8998_dapm_widgets),
-		.dapm_routes		= wm8998_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(wm8998_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_wm8998 = {
+	.probe			= wm8998_component_probe,
+	.remove			= wm8998_component_remove,
+	.set_sysclk		= arizona_set_sysclk,
+	.set_pll		= wm8998_set_fll,
+	.controls		= wm8998_snd_controls,
+	.num_controls		= ARRAY_SIZE(wm8998_snd_controls),
+	.dapm_widgets		= wm8998_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm8998_dapm_widgets),
+	.dapm_routes		= wm8998_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(wm8998_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int wm8998_probe(struct platform_device *pdev)
@@ -1398,6 +1341,14 @@ static int wm8998_probe(struct platform_device *pdev)
 	if (!wm8998)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm8998);
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(arizona->dev)) {
+			ret = arizona_of_get_audio_pdata(arizona);
+			if (ret < 0)
+				return ret;
+		}
+	}
 
 	wm8998->core.arizona = arizona;
 	wm8998->core.num_inputs = 3;	/* IN1L, IN1R, IN2 */
@@ -1423,14 +1374,18 @@ static int wm8998_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
+	arizona_init_common(arizona);
+
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8998,
-				     wm8998_dai, ARRAY_SIZE(wm8998_dai));
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &soc_component_dev_wm8998,
+					      wm8998_dai,
+					      ARRAY_SIZE(wm8998_dai));
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		goto err_spk_irqs;
 	}
 
@@ -1447,7 +1402,6 @@ static int wm8998_remove(struct platform_device *pdev)
 	struct wm8998_priv *wm8998 = platform_get_drvdata(pdev);
 	struct arizona *arizona = wm8998->core.arizona;
 
-	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	arizona_free_spk_irqs(arizona);

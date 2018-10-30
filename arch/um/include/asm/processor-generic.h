@@ -63,8 +63,6 @@ static inline void mm_copy_segments(struct mm_struct *from_mm,
 {
 }
 
-#define init_stack	(init_thread_union.stack)
-
 /*
  * User space process size: 3GB (default).
  */

@@ -25,8 +25,8 @@
 
 #include <sound/hdaudio_ext.h>
 #include <sound/soc.h>
+#include <uapi/sound/skl-tplg-interface.h>
 #include "skl.h"
-#include "skl-tplg-interface.h"
 
 #define BITS_PER_BYTE 8
 #define MAX_TS_GROUPS 8
@@ -34,7 +34,7 @@
 #define MAX_FIXED_DMIC_PARAMS_SIZE 727
 
 /* Maximum number of coefficients up down mixer module */
-#define UP_DOWN_MIXER_MAX_COEFF		6
+#define UP_DOWN_MIXER_MAX_COEFF		8
 
 #define MODULE_MAX_IN_PINS	8
 #define MODULE_MAX_OUT_PINS	8
@@ -161,6 +161,7 @@ struct skl_up_down_mixer_cfg {
 	u32 coeff_sel;
 	/* Pass the user coeff in this array */
 	s32 coeff[UP_DOWN_MIXER_MAX_COEFF];
+	u32 ch_map;
 } __packed;
 
 struct skl_algo_cfg {
@@ -220,9 +221,18 @@ struct skl_mod_inst_map {
 	u16 inst_id;
 };
 
+struct skl_uuid_inst_map {
+	u16 inst_id;
+	u16 reserved;
+	uuid_le mod_uuid;
+} __packed;
+
 struct skl_kpb_params {
 	u32 num_modules;
-	struct skl_mod_inst_map map[0];
+	union {
+		struct skl_mod_inst_map map[0];
+		struct skl_uuid_inst_map map_uuid[0];
+	} u;
 };
 
 struct skl_module_inst_id {
@@ -448,19 +458,19 @@ enum skl_channel {
 
 static inline struct skl *get_skl_ctx(struct device *dev)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+	struct hdac_bus *bus = dev_get_drvdata(dev);
 
-	return ebus_to_skl(ebus);
+	return bus_to_skl(bus);
 }
 
 int skl_tplg_be_update_params(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params);
-int skl_dsp_set_dma_control(struct skl_sst *ctx,
-		struct skl_module_cfg *mconfig);
+int skl_dsp_set_dma_control(struct skl_sst *ctx, u32 *caps,
+			u32 caps_size, u32 node_id);
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
-int skl_tplg_init(struct snd_soc_platform *platform,
-				struct hdac_ext_bus *ebus);
+int skl_tplg_init(struct snd_soc_component *component,
+				struct hdac_bus *ebus);
 struct skl_module_cfg *skl_tplg_fe_get_cpr_module(
 		struct snd_soc_dai *dai, int stream);
 int skl_tplg_update_pipe_params(struct device *dev,
@@ -501,4 +511,10 @@ int skl_pcm_host_dma_prepare(struct device *dev,
 			struct skl_pipe_params *params);
 int skl_pcm_link_dma_prepare(struct device *dev,
 			struct skl_pipe_params *params);
+
+int skl_dai_load(struct snd_soc_component *cmp, int index,
+		struct snd_soc_dai_driver *dai_drv,
+		struct snd_soc_tplg_pcm *pcm, struct snd_soc_dai *dai);
+void skl_tplg_add_moduleid_in_bind_params(struct skl *skl,
+				struct snd_soc_dapm_widget *w);
 #endif

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_VIRTIO_RING_H
 #define _LINUX_VIRTIO_RING_H
 
@@ -34,7 +35,7 @@ static inline void virtio_rmb(bool weak_barriers)
 	if (weak_barriers)
 		virt_rmb();
 	else
-		rmb();
+		dma_rmb();
 }
 
 static inline void virtio_wmb(bool weak_barriers)
@@ -42,7 +43,7 @@ static inline void virtio_wmb(bool weak_barriers)
 	if (weak_barriers)
 		virt_wmb();
 	else
-		wmb();
+		dma_wmb();
 }
 
 static inline void virtio_store_mb(bool weak_barriers,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 &usb {
 	dr_mode = "otg";
 	g-rx-fifo-size = <256>;

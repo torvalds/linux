@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "tegra210.dtsi"
 
 / {
@@ -50,5 +51,28 @@
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
+	};
+
+	cpus {
+		cpu@0 {
+			enable-method = "psci";
+		};
+
+		cpu@1 {
+			enable-method = "psci";
+		};
+
+		cpu@2 {
+			enable-method = "psci";
+		};
+
+		cpu@3 {
+			enable-method = "psci";
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
 	};
 };

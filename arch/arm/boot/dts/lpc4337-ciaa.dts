@@ -174,17 +174,17 @@
 	clock-frequency = <400000>;
 
 	eeprom@50 {
-		compatible = "microchip,24c512";
+		compatible = "microchip,24c512", "atmel,24c512";
 		reg = <0x50>;
 	};
 
 	eeprom@51 {
-		compatible = "microchip,24c02";
+		compatible = "microchip,24c02", "atmel,24c02";
 		reg = <0x51>;
 	};
 
 	eeprom@54 {
-		compatible = "microchip,24c512";
+		compatible = "microchip,24c512", "atmel,24c512";
 		reg = <0x54>;
 	};
 };

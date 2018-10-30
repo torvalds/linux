@@ -13,26 +13,32 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/console.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/pm_runtime.h>
+#include <linux/debugfs.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_modeset_helper.h>
 #include <drm/drm_of.h>
 
 #include "malidp_drv.h"
+#include "malidp_mw.h"
 #include "malidp_regs.h"
 #include "malidp_hw.h"
 
 #define MALIDP_CONF_VALID_TIMEOUT	250
+#define AFBC_HEADER_SIZE		16
+#define AFBC_SUPERBLK_ALIGNMENT		128
 
 static void malidp_write_gamma_table(struct malidp_hw_device *hwdev,
 				     u32 data[MALIDP_COEFFTAB_NUM_COEFFS])
@@ -46,10 +52,10 @@ static void malidp_write_gamma_table(struct malidp_hw_device *hwdev,
 	 * directly.
 	 */
 	malidp_hw_write(hwdev, gamma_write_mask,
-			hwdev->map.coeffs_base + MALIDP_COEF_TABLE_ADDR);
+			hwdev->hw->map.coeffs_base + MALIDP_COEF_TABLE_ADDR);
 	for (i = 0; i < MALIDP_COEFFTAB_NUM_COEFFS; ++i)
 		malidp_hw_write(hwdev, data[i],
-				hwdev->map.coeffs_base +
+				hwdev->hw->map.coeffs_base +
 				MALIDP_COEF_TABLE_DATA);
 }
 
@@ -102,7 +108,7 @@ void malidp_atomic_commit_update_coloradj(struct drm_crtc *crtc,
 			for (i = 0; i < MALIDP_COLORADJ_NUM_COEFFS; ++i)
 				malidp_hw_write(hwdev,
 						mc->coloradj_coeffs[i],
-						hwdev->map.coeffs_base +
+						hwdev->hw->map.coeffs_base +
 						MALIDP_COLOR_ADJ_COEF + 4 * i);
 
 		malidp_hw_setbits(hwdev, MALIDP_DISP_FUNC_CADJ,
@@ -119,8 +125,8 @@ static void malidp_atomic_commit_se_config(struct drm_crtc *crtc,
 	struct malidp_hw_device *hwdev = malidp->dev;
 	struct malidp_se_config *s = &cs->scaler_config;
 	struct malidp_se_config *old_s = &old_cs->scaler_config;
-	u32 se_control = hwdev->map.se_base +
-			 ((hwdev->map.features & MALIDP_REGMAP_HAS_CLEARIRQ) ?
+	u32 se_control = hwdev->hw->map.se_base +
+			 ((hwdev->hw->map.features & MALIDP_REGMAP_HAS_CLEARIRQ) ?
 			 0x10 : 0xC);
 	u32 layer_control = se_control + MALIDP_SE_LAYER_CONTROL;
 	u32 scr = se_control + MALIDP_SE_SCALING_CONTROL;
@@ -134,7 +140,7 @@ static void malidp_atomic_commit_se_config(struct drm_crtc *crtc,
 		return;
 	}
 
-	hwdev->se_set_scaling_coeffs(hwdev, s, old_s);
+	hwdev->hw->se_set_scaling_coeffs(hwdev, s, old_s);
 	val = malidp_hw_read(hwdev, se_control);
 	val |= MALIDP_SE_SCALING_EN | MALIDP_SE_ALPHA_EN;
 
@@ -168,47 +174,45 @@ static int malidp_set_and_wait_config_valid(struct drm_device *drm)
 	struct malidp_hw_device *hwdev = malidp->dev;
 	int ret;
 
-	atomic_set(&malidp->config_valid, 0);
-	hwdev->set_config_valid(hwdev);
+	hwdev->hw->set_config_valid(hwdev, 1);
 	/* don't wait for config_valid flag if we are in config mode */
-	if (hwdev->in_config_mode(hwdev))
+	if (hwdev->hw->in_config_mode(hwdev)) {
+		atomic_set(&malidp->config_valid, MALIDP_CONFIG_VALID_DONE);
 		return 0;
+	}
 
 	ret = wait_event_interruptible_timeout(malidp->wq,
-			atomic_read(&malidp->config_valid) == 1,
+			atomic_read(&malidp->config_valid) == MALIDP_CONFIG_VALID_DONE,
 			msecs_to_jiffies(MALIDP_CONF_VALID_TIMEOUT));
 
 	return (ret > 0) ? 0 : -ETIMEDOUT;
 }
 
-static void malidp_output_poll_changed(struct drm_device *drm)
-{
-	struct malidp_drm *malidp = drm->dev_private;
-
-	drm_fbdev_cma_hotplug_event(malidp->fbdev);
-}
-
 static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 {
-	struct drm_pending_vblank_event *event;
 	struct drm_device *drm = state->dev;
 	struct malidp_drm *malidp = drm->dev_private;
 
-	if (malidp->crtc.enabled) {
+	malidp->event = malidp->crtc.state->event;
+	malidp->crtc.state->event = NULL;
+
+	if (malidp->crtc.state->active) {
+		/*
+		 * if we have an event to deliver to userspace, make sure
+		 * the vblank is enabled as we are sending it from the IRQ
+		 * handler.
+		 */
+		if (malidp->event)
+			drm_crtc_vblank_get(&malidp->crtc);
+
 		/* only set config_valid if the CRTC is enabled */
-		if (malidp_set_and_wait_config_valid(drm))
+		if (malidp_set_and_wait_config_valid(drm) < 0)
 			DRM_DEBUG_DRIVER("timed out waiting for updated configuration\n");
-	}
-
-	event = malidp->crtc.state->event;
-	if (event) {
-		malidp->crtc.state->event = NULL;
-
+	} else if (malidp->event) {
+		/* CRTC inactive means vblank IRQ is disabled, send event directly */
 		spin_lock_irq(&drm->event_lock);
-		if (drm_crtc_vblank_get(&malidp->crtc) == 0)
-			drm_crtc_arm_vblank_event(&malidp->crtc, event);
-		else
-			drm_crtc_send_vblank_event(&malidp->crtc, event);
+		drm_crtc_send_vblank_event(&malidp->crtc, malidp->event);
+		malidp->event = NULL;
 		spin_unlock_irq(&drm->event_lock);
 	}
 	drm_atomic_helper_commit_hw_done(state);
@@ -217,11 +221,19 @@ static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *drm = state->dev;
+	struct malidp_drm *malidp = drm->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 	int i;
 
 	pm_runtime_get_sync(drm->dev);
+
+	/*
+	 * set config_valid to a special value to let IRQ handlers
+	 * know that we are updating registers
+	 */
+	atomic_set(&malidp->config_valid, MALIDP_CONFIG_START);
+	malidp->dev->hw->set_config_valid(malidp->dev, 0);
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 
@@ -231,13 +243,13 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 		malidp_atomic_commit_se_config(crtc, old_crtc_state);
 	}
 
-	drm_atomic_helper_commit_planes(drm, state, 0);
+	drm_atomic_helper_commit_planes(drm, state, DRM_PLANE_COMMIT_ACTIVE_ONLY);
+
+	malidp_mw_atomic_commit(drm, state);
 
 	drm_atomic_helper_commit_modeset_enables(drm, state);
 
 	malidp_atomic_commit_hw_done(state);
-
-	drm_atomic_helper_wait_for_vblanks(drm, state);
 
 	pm_runtime_put(drm->dev);
 
@@ -248,9 +260,134 @@ static const struct drm_mode_config_helper_funcs malidp_mode_config_helpers = {
 	.atomic_commit_tail = malidp_atomic_commit_tail,
 };
 
+static bool
+malidp_verify_afbc_framebuffer_caps(struct drm_device *dev,
+				    const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	const struct drm_format_info *info;
+
+	if ((mode_cmd->modifier[0] >> 56) != DRM_FORMAT_MOD_VENDOR_ARM) {
+		DRM_DEBUG_KMS("Unknown modifier (not Arm)\n");
+		return false;
+	}
+
+	if (mode_cmd->modifier[0] &
+	    ~DRM_FORMAT_MOD_ARM_AFBC(AFBC_MOD_VALID_BITS)) {
+		DRM_DEBUG_KMS("Unsupported modifiers\n");
+		return false;
+	}
+
+	info = drm_get_format_info(dev, mode_cmd);
+	if (!info) {
+		DRM_DEBUG_KMS("Unable to get the format information\n");
+		return false;
+	}
+
+	if (info->num_planes != 1) {
+		DRM_DEBUG_KMS("AFBC buffers expect one plane\n");
+		return false;
+	}
+
+	if (mode_cmd->offsets[0] != 0) {
+		DRM_DEBUG_KMS("AFBC buffers' plane offset should be 0\n");
+		return false;
+	}
+
+	switch (mode_cmd->modifier[0] & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) {
+	case AFBC_FORMAT_MOD_BLOCK_SIZE_16x16:
+		if ((mode_cmd->width % 16) || (mode_cmd->height % 16)) {
+			DRM_DEBUG_KMS("AFBC buffers must be aligned to 16 pixels\n");
+			return false;
+		}
+		break;
+	default:
+		DRM_DEBUG_KMS("Unsupported AFBC block size\n");
+		return false;
+	}
+
+	return true;
+}
+
+static bool
+malidp_verify_afbc_framebuffer_size(struct drm_device *dev,
+				    struct drm_file *file,
+				    const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	int n_superblocks = 0;
+	const struct drm_format_info *info;
+	struct drm_gem_object *objs = NULL;
+	u32 afbc_superblock_size = 0, afbc_superblock_height = 0;
+	u32 afbc_superblock_width = 0, afbc_size = 0;
+
+	switch (mode_cmd->modifier[0] & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) {
+	case AFBC_FORMAT_MOD_BLOCK_SIZE_16x16:
+		afbc_superblock_height = 16;
+		afbc_superblock_width = 16;
+		break;
+	default:
+		DRM_DEBUG_KMS("AFBC superblock size is not supported\n");
+		return false;
+	}
+
+	info = drm_get_format_info(dev, mode_cmd);
+
+	n_superblocks = (mode_cmd->width / afbc_superblock_width) *
+		(mode_cmd->height / afbc_superblock_height);
+
+	afbc_superblock_size = info->cpp[0] * afbc_superblock_width *
+		afbc_superblock_height;
+
+	afbc_size = ALIGN(n_superblocks * AFBC_HEADER_SIZE, AFBC_SUPERBLK_ALIGNMENT);
+	afbc_size += n_superblocks * ALIGN(afbc_superblock_size, AFBC_SUPERBLK_ALIGNMENT);
+
+	if (mode_cmd->width * info->cpp[0] != mode_cmd->pitches[0]) {
+		DRM_DEBUG_KMS("Invalid value of pitch (=%u) should be same as width (=%u) * cpp (=%u)\n",
+			      mode_cmd->pitches[0], mode_cmd->width, info->cpp[0]);
+		return false;
+	}
+
+	objs = drm_gem_object_lookup(file, mode_cmd->handles[0]);
+	if (!objs) {
+		DRM_DEBUG_KMS("Failed to lookup GEM object\n");
+		return false;
+	}
+
+	if (objs->size < afbc_size) {
+		DRM_DEBUG_KMS("buffer size (%zu) too small for AFBC buffer size = %u\n",
+			      objs->size, afbc_size);
+		drm_gem_object_put_unlocked(objs);
+		return false;
+	}
+
+	drm_gem_object_put_unlocked(objs);
+
+	return true;
+}
+
+static bool
+malidp_verify_afbc_framebuffer(struct drm_device *dev, struct drm_file *file,
+			       const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	if (malidp_verify_afbc_framebuffer_caps(dev, mode_cmd))
+		return malidp_verify_afbc_framebuffer_size(dev, file, mode_cmd);
+
+	return false;
+}
+
+struct drm_framebuffer *
+malidp_fb_create(struct drm_device *dev, struct drm_file *file,
+		 const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	if (mode_cmd->modifier[0]) {
+		if (!malidp_verify_afbc_framebuffer(dev, file, mode_cmd))
+			return ERR_PTR(-EINVAL);
+	}
+
+	return drm_gem_fb_create(dev, file, mode_cmd);
+}
+
 static const struct drm_mode_config_funcs malidp_mode_config_funcs = {
-	.fb_create = drm_fb_cma_create,
-	.output_poll_changed = malidp_output_poll_changed,
+	.fb_create = malidp_fb_create,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -271,17 +408,22 @@ static int malidp_init(struct drm_device *drm)
 	drm->mode_config.helper_private = &malidp_mode_config_helpers;
 
 	ret = malidp_crtc_init(drm);
-	if (ret) {
-		drm_mode_config_cleanup(drm);
-		return ret;
-	}
+	if (ret)
+		goto crtc_fail;
+
+	ret = malidp_mw_connector_init(drm);
+	if (ret)
+		goto crtc_fail;
 
 	return 0;
+
+crtc_fail:
+	drm_mode_config_cleanup(drm);
+	return ret;
 }
 
 static void malidp_fini(struct drm_device *drm)
 {
-	malidp_de_planes_destroy(drm);
 	drm_mode_config_cleanup(drm);
 }
 
@@ -289,6 +431,8 @@ static int malidp_irq_init(struct platform_device *pdev)
 {
 	int irq_de, irq_se, ret = 0;
 	struct drm_device *drm = dev_get_drvdata(&pdev->dev);
+	struct malidp_drm *malidp = drm->dev_private;
+	struct malidp_hw_device *hwdev = malidp->dev;
 
 	/* fetch the interrupts from DT */
 	irq_de = platform_get_irq_byname(pdev, "DE");
@@ -308,29 +452,134 @@ static int malidp_irq_init(struct platform_device *pdev)
 
 	ret = malidp_se_irq_init(drm, irq_se);
 	if (ret) {
-		malidp_de_irq_fini(drm);
+		malidp_de_irq_fini(hwdev);
 		return ret;
 	}
 
 	return 0;
 }
 
-static void malidp_lastclose(struct drm_device *drm)
+DEFINE_DRM_GEM_CMA_FOPS(fops);
+
+static int malidp_dumb_create(struct drm_file *file_priv,
+			      struct drm_device *drm,
+			      struct drm_mode_create_dumb *args)
 {
 	struct malidp_drm *malidp = drm->dev_private;
+	/* allocate for the worst case scenario, i.e. rotated buffers */
+	u8 alignment = malidp_hw_get_pitch_align(malidp->dev, 1);
 
-	drm_fbdev_cma_restore_mode(malidp->fbdev);
+	args->pitch = ALIGN(DIV_ROUND_UP(args->width * args->bpp, 8), alignment);
+
+	return drm_gem_cma_dumb_create_internal(file_priv, drm, args);
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(fops);
+#ifdef CONFIG_DEBUG_FS
+
+static void malidp_error_stats_init(struct malidp_error_stats *error_stats)
+{
+	error_stats->num_errors = 0;
+	error_stats->last_error_status = 0;
+	error_stats->last_error_vblank = -1;
+}
+
+void malidp_error(struct malidp_drm *malidp,
+		  struct malidp_error_stats *error_stats, u32 status,
+		  u64 vblank)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&malidp->errors_lock, irqflags);
+	error_stats->last_error_status = status;
+	error_stats->last_error_vblank = vblank;
+	error_stats->num_errors++;
+	spin_unlock_irqrestore(&malidp->errors_lock, irqflags);
+}
+
+void malidp_error_stats_dump(const char *prefix,
+			     struct malidp_error_stats error_stats,
+			     struct seq_file *m)
+{
+	seq_printf(m, "[%s] num_errors : %d\n", prefix,
+		   error_stats.num_errors);
+	seq_printf(m, "[%s] last_error_status  : 0x%08x\n", prefix,
+		   error_stats.last_error_status);
+	seq_printf(m, "[%s] last_error_vblank : %lld\n", prefix,
+		   error_stats.last_error_vblank);
+}
+
+static int malidp_show_stats(struct seq_file *m, void *arg)
+{
+	struct drm_device *drm = m->private;
+	struct malidp_drm *malidp = drm->dev_private;
+	unsigned long irqflags;
+	struct malidp_error_stats de_errors, se_errors;
+
+	spin_lock_irqsave(&malidp->errors_lock, irqflags);
+	de_errors = malidp->de_errors;
+	se_errors = malidp->se_errors;
+	spin_unlock_irqrestore(&malidp->errors_lock, irqflags);
+	malidp_error_stats_dump("DE", de_errors, m);
+	malidp_error_stats_dump("SE", se_errors, m);
+	return 0;
+}
+
+static int malidp_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, malidp_show_stats, inode->i_private);
+}
+
+static ssize_t malidp_debugfs_write(struct file *file, const char __user *ubuf,
+				    size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_device *drm = m->private;
+	struct malidp_drm *malidp = drm->dev_private;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&malidp->errors_lock, irqflags);
+	malidp_error_stats_init(&malidp->de_errors);
+	malidp_error_stats_init(&malidp->se_errors);
+	spin_unlock_irqrestore(&malidp->errors_lock, irqflags);
+	return len;
+}
+
+static const struct file_operations malidp_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = malidp_debugfs_open,
+	.read = seq_read,
+	.write = malidp_debugfs_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int malidp_debugfs_init(struct drm_minor *minor)
+{
+	struct malidp_drm *malidp = minor->dev->dev_private;
+	struct dentry *dentry = NULL;
+
+	malidp_error_stats_init(&malidp->de_errors);
+	malidp_error_stats_init(&malidp->se_errors);
+	spin_lock_init(&malidp->errors_lock);
+	dentry = debugfs_create_file("debug",
+				     S_IRUGO | S_IWUSR,
+				     minor->debugfs_root, minor->dev,
+				     &malidp_debugfs_fops);
+	if (!dentry) {
+		DRM_ERROR("Cannot create debug file\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+#endif //CONFIG_DEBUG_FS
 
 static struct drm_driver malidp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_PRIME,
-	.lastclose = malidp_lastclose,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.dumb_create = drm_gem_cma_dumb_create,
+	.dumb_create = malidp_dumb_create,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,
@@ -340,6 +589,9 @@ static struct drm_driver malidp_driver = {
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_init = malidp_debugfs_init,
+#endif
 	.fops = &fops,
 	.name = "mali-dp",
 	.desc = "ARM Mali Display Processor driver",
@@ -454,8 +706,10 @@ static int malidp_runtime_pm_suspend(struct device *dev)
 	struct malidp_hw_device *hwdev = malidp->dev;
 
 	/* we can only suspend if the hardware is in config mode */
-	WARN_ON(!hwdev->in_config_mode(hwdev));
+	WARN_ON(!hwdev->hw->in_config_mode(hwdev));
 
+	malidp_se_irq_fini(hwdev);
+	malidp_de_irq_fini(hwdev);
 	hwdev->pm_suspended = true;
 	clk_disable_unprepare(hwdev->mclk);
 	clk_disable_unprepare(hwdev->aclk);
@@ -474,6 +728,8 @@ static int malidp_runtime_pm_resume(struct device *dev)
 	clk_prepare_enable(hwdev->aclk);
 	clk_prepare_enable(hwdev->mclk);
 	hwdev->pm_suspended = false;
+	malidp_de_irq_hw_init(hwdev);
+	malidp_se_irq_hw_init(hwdev);
 
 	return 0;
 }
@@ -486,6 +742,7 @@ static int malidp_bind(struct device *dev)
 	struct malidp_hw_device *hwdev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct of_device_id const *dev_id;
+	struct drm_encoder *encoder;
 	/* number of lines for the R, G and B output */
 	u8 output_width[MAX_OUTPUT_CHANNELS];
 	int ret = 0, i;
@@ -499,11 +756,7 @@ static int malidp_bind(struct device *dev)
 	if (!hwdev)
 		return -ENOMEM;
 
-	/*
-	 * copy the associated data from malidp_drm_of_match to avoid
-	 * having to keep a reference to the OF node after binding
-	 */
-	memcpy(hwdev, of_device_get_match_data(dev), sizeof(*hwdev));
+	hwdev->hw = (struct malidp_hw *)of_device_get_match_data(dev);
 	malidp->dev = hwdev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -567,13 +820,13 @@ static int malidp_bind(struct device *dev)
 		goto query_hw_fail;
 	}
 
-	ret = hwdev->query_hw(hwdev);
+	ret = hwdev->hw->query_hw(hwdev);
 	if (ret) {
 		DRM_ERROR("Invalid HW configuration\n");
 		goto query_hw_fail;
 	}
 
-	version = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_DE_CORE_ID);
+	version = malidp_hw_read(hwdev, hwdev->hw->map.dc_base + MALIDP_DE_CORE_ID);
 	DRM_INFO("found ARM Mali-DP%3x version r%dp%d\n", version >> 16,
 		 (version >> 12) & 0xf, (version >> 8) & 0xf);
 
@@ -588,9 +841,10 @@ static int malidp_bind(struct device *dev)
 
 	for (i = 0; i < MAX_OUTPUT_CHANNELS; i++)
 		out_depth = (out_depth << 8) | (output_width[i] & 0xf);
-	malidp_hw_write(hwdev, out_depth, hwdev->map.out_depth_base);
+	malidp_hw_write(hwdev, out_depth, hwdev->hw->map.out_depth_base);
+	hwdev->output_color_depth = out_depth;
 
-	atomic_set(&malidp->config_valid, 0);
+	atomic_set(&malidp->config_valid, MALIDP_CONFIG_VALID_INIT);
 	init_waitqueue_head(&malidp->wq);
 
 	ret = malidp_init(drm);
@@ -610,6 +864,15 @@ static int malidp_bind(struct device *dev)
 		goto bind_fail;
 	}
 
+	/* We expect to have a maximum of two encoders one for the actual
+	 * display and a virtual one for the writeback connector
+	 */
+	WARN_ON(drm->mode_config.num_encoder > 2);
+	list_for_each_entry(encoder, &drm->mode_config.encoder_list, head) {
+		encoder->possible_clones =
+				(1 << drm->mode_config.num_encoder) -  1;
+	}
+
 	ret = malidp_irq_init(pdev);
 	if (ret < 0)
 		goto irq_init_fail;
@@ -617,6 +880,7 @@ static int malidp_bind(struct device *dev)
 	drm->irq_enabled = true;
 
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
+	drm_crtc_vblank_reset(&malidp->crtc);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialise vblank\n");
 		goto vblank_fail;
@@ -625,36 +889,25 @@ static int malidp_bind(struct device *dev)
 
 	drm_mode_config_reset(drm);
 
-	malidp->fbdev = drm_fbdev_cma_init(drm, 32,
-					   drm->mode_config.num_connector);
-
-	if (IS_ERR(malidp->fbdev)) {
-		ret = PTR_ERR(malidp->fbdev);
-		malidp->fbdev = NULL;
-		goto fbdev_fail;
-	}
-
 	drm_kms_helper_poll_init(drm);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		goto register_fail;
 
+	drm_fbdev_generic_setup(drm, 32);
+
 	return 0;
 
 register_fail:
-	if (malidp->fbdev) {
-		drm_fbdev_cma_fini(malidp->fbdev);
-		malidp->fbdev = NULL;
-	}
 	drm_kms_helper_poll_fini(drm);
-fbdev_fail:
 	pm_runtime_get_sync(dev);
 vblank_fail:
-	malidp_se_irq_fini(drm);
-	malidp_de_irq_fini(drm);
+	malidp_se_irq_fini(hwdev);
+	malidp_de_irq_fini(hwdev);
 	drm->irq_enabled = false;
 irq_init_fail:
+	drm_atomic_helper_shutdown(drm);
 	component_unbind_all(dev, drm);
 bind_fail:
 	of_node_put(malidp->crtc.port);
@@ -670,7 +923,7 @@ query_hw_fail:
 		malidp_runtime_pm_suspend(dev);
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 alloc_fail:
 	of_reserved_mem_device_release(dev);
 
@@ -681,16 +934,16 @@ static void malidp_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct malidp_drm *malidp = drm->dev_private;
+	struct malidp_hw_device *hwdev = malidp->dev;
 
 	drm_dev_unregister(drm);
-	if (malidp->fbdev) {
-		drm_fbdev_cma_fini(malidp->fbdev);
-		malidp->fbdev = NULL;
-	}
 	drm_kms_helper_poll_fini(drm);
 	pm_runtime_get_sync(dev);
-	malidp_se_irq_fini(drm);
-	malidp_de_irq_fini(drm);
+	drm_crtc_vblank_off(&malidp->crtc);
+	malidp_se_irq_fini(hwdev);
+	malidp_de_irq_fini(hwdev);
+	drm->irq_enabled = false;
+	drm_atomic_helper_shutdown(drm);
 	component_unbind_all(dev, drm);
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
@@ -703,7 +956,7 @@ static void malidp_unbind(struct device *dev)
 		malidp_runtime_pm_suspend(dev);
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 	of_reserved_mem_device_release(dev);
 }
 
@@ -748,40 +1001,38 @@ static int malidp_platform_remove(struct platform_device *pdev)
 static int __maybe_unused malidp_pm_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct malidp_drm *malidp = drm->dev_private;
 
-	drm_kms_helper_poll_disable(drm);
-	console_lock();
-	drm_fbdev_cma_set_suspend(malidp->fbdev, 1);
-	console_unlock();
-	malidp->pm_state = drm_atomic_helper_suspend(drm);
-	if (IS_ERR(malidp->pm_state)) {
-		console_lock();
-		drm_fbdev_cma_set_suspend(malidp->fbdev, 0);
-		console_unlock();
-		drm_kms_helper_poll_enable(drm);
-		return PTR_ERR(malidp->pm_state);
-	}
-
-	return 0;
+	return drm_mode_config_helper_suspend(drm);
 }
 
 static int __maybe_unused malidp_pm_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct malidp_drm *malidp = drm->dev_private;
 
-	drm_atomic_helper_resume(drm, malidp->pm_state);
-	console_lock();
-	drm_fbdev_cma_set_suspend(malidp->fbdev, 0);
-	console_unlock();
-	drm_kms_helper_poll_enable(drm);
+	drm_mode_config_helper_resume(drm);
 
+	return 0;
+}
+
+static int __maybe_unused malidp_pm_suspend_late(struct device *dev)
+{
+	if (!pm_runtime_status_suspended(dev)) {
+		malidp_runtime_pm_suspend(dev);
+		pm_runtime_set_suspended(dev);
+	}
+	return 0;
+}
+
+static int __maybe_unused malidp_pm_resume_early(struct device *dev)
+{
+	malidp_runtime_pm_resume(dev);
+	pm_runtime_set_active(dev);
 	return 0;
 }
 
 static const struct dev_pm_ops malidp_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(malidp_pm_suspend, malidp_pm_resume) \
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(malidp_pm_suspend_late, malidp_pm_resume_early) \
 	SET_RUNTIME_PM_OPS(malidp_runtime_pm_suspend, malidp_runtime_pm_resume, NULL)
 };
 

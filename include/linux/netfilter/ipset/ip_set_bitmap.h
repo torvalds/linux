@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __IP_SET_BITMAP_H
 #define __IP_SET_BITMAP_H
 

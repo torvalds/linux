@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Xen stolen ticks accounting.
  */
@@ -5,6 +6,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/math64.h>
 #include <linux/gfp.h>
+#include <linux/slab.h>
 
 #include <asm/paravirt.h>
 #include <asm/xen/hypervisor.h>
@@ -18,6 +20,8 @@
 
 /* runstate info updated by Xen */
 static DEFINE_PER_CPU(struct vcpu_runstate_info, xen_runstate);
+
+static DEFINE_PER_CPU(u64[4], old_runstate_time);
 
 /* return an consistent snapshot of 64-bit time/counter value */
 static u64 get64(const u64 *p)
@@ -47,8 +51,8 @@ static u64 get64(const u64 *p)
 	return ret;
 }
 
-static void xen_get_runstate_snapshot_cpu(struct vcpu_runstate_info *res,
-					  unsigned int cpu)
+static void xen_get_runstate_snapshot_cpu_delta(
+			      struct vcpu_runstate_info *res, unsigned int cpu)
 {
 	u64 state_time;
 	struct vcpu_runstate_info *state;
@@ -64,6 +68,71 @@ static void xen_get_runstate_snapshot_cpu(struct vcpu_runstate_info *res,
 		rmb();	/* Hypervisor might update data. */
 	} while (get64(&state->state_entry_time) != state_time ||
 		 (state_time & XEN_RUNSTATE_UPDATE));
+}
+
+static void xen_get_runstate_snapshot_cpu(struct vcpu_runstate_info *res,
+					  unsigned int cpu)
+{
+	int i;
+
+	xen_get_runstate_snapshot_cpu_delta(res, cpu);
+
+	for (i = 0; i < 4; i++)
+		res->time[i] += per_cpu(old_runstate_time, cpu)[i];
+}
+
+void xen_manage_runstate_time(int action)
+{
+	static struct vcpu_runstate_info *runstate_delta;
+	struct vcpu_runstate_info state;
+	int cpu, i;
+
+	switch (action) {
+	case -1: /* backup runstate time before suspend */
+		if (unlikely(runstate_delta))
+			pr_warn_once("%s: memory leak as runstate_delta is not NULL\n",
+					__func__);
+
+		runstate_delta = kmalloc_array(num_possible_cpus(),
+					sizeof(*runstate_delta),
+					GFP_ATOMIC);
+		if (unlikely(!runstate_delta)) {
+			pr_warn("%s: failed to allocate runstate_delta\n",
+					__func__);
+			return;
+		}
+
+		for_each_possible_cpu(cpu) {
+			xen_get_runstate_snapshot_cpu_delta(&state, cpu);
+			memcpy(runstate_delta[cpu].time, state.time,
+					sizeof(runstate_delta[cpu].time));
+		}
+
+		break;
+
+	case 0: /* backup runstate time after resume */
+		if (unlikely(!runstate_delta)) {
+			pr_warn("%s: cannot accumulate runstate time as runstate_delta is NULL\n",
+					__func__);
+			return;
+		}
+
+		for_each_possible_cpu(cpu) {
+			for (i = 0; i < 4; i++)
+				per_cpu(old_runstate_time, cpu)[i] +=
+					runstate_delta[cpu].time[i];
+		}
+
+		break;
+
+	default: /* do not accumulate runstate time for checkpointing */
+		break;
+	}
+
+	if (action != -1 && runstate_delta) {
+		kfree(runstate_delta);
+		runstate_delta = NULL;
+	}
 }
 
 /*
@@ -106,7 +175,7 @@ void __init xen_time_setup_guest(void)
 	xen_runstate_remote = !HYPERVISOR_vm_assist(VMASST_CMD_enable,
 					VMASST_TYPE_runstate_update_flag);
 
-	pv_time_ops.steal_clock = xen_steal_clock;
+	pv_ops.time.steal_clock = xen_steal_clock;
 
 	static_key_slow_inc(&paravirt_steal_enabled);
 	if (xen_runstate_remote)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _5LEVEL_FIXUP_H
 #define _5LEVEL_FIXUP_H
 
@@ -7,6 +8,7 @@
 #define P4D_SHIFT			PGDIR_SHIFT
 #define P4D_SIZE			PGDIR_SIZE
 #define P4D_MASK			PGDIR_MASK
+#define MAX_PTRS_PER_P4D		1
 #define PTRS_PER_P4D			1
 
 #define p4d_t				pgd_t

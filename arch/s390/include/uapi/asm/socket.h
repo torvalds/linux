@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *  S390 version
  *
@@ -109,5 +110,8 @@
 #define SO_PEERGROUPS		59
 
 #define SO_ZEROCOPY		60
+
+#define SO_TXTIME		61
+#define SCM_TXTIME		SO_TXTIME
 
 #endif /* _ASM_SOCKET_H */

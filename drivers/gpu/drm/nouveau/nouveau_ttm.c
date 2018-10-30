@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright (c) 2007-2008 Tungsten Graphics, Inc., Cedar Park, TX., USA,
- * All Rights Reserved.
  * Copyright (c) 2009 VMware, Inc., Palo Alto, CA., USA,
- * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,53 +22,37 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #include "nouveau_drv.h"
-#include "nouveau_ttm.h"
 #include "nouveau_gem.h"
+#include "nouveau_mem.h"
+#include "nouveau_ttm.h"
 
 #include <drm/drm_legacy.h>
 
 #include <core/tegra.h>
 
 static int
-nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
+nouveau_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
-	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_fb *fb = nvxx_fb(&drm->client.device);
-	man->priv = fb;
 	return 0;
 }
 
 static int
-nouveau_vram_manager_fini(struct ttm_mem_type_manager *man)
+nouveau_manager_fini(struct ttm_mem_type_manager *man)
 {
-	man->priv = NULL;
 	return 0;
 }
 
-static inline void
-nvkm_mem_node_cleanup(struct nvkm_mem *node)
+static void
+nouveau_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *reg)
 {
-	if (node->vma[0].node) {
-		nvkm_vm_unmap(&node->vma[0]);
-		nvkm_vm_put(&node->vma[0]);
-	}
-
-	if (node->vma[1].node) {
-		nvkm_vm_unmap(&node->vma[1]);
-		nvkm_vm_put(&node->vma[1]);
-	}
+	nouveau_mem_del(reg);
 }
 
 static void
-nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
-			 struct ttm_mem_reg *reg)
+nouveau_manager_debug(struct ttm_mem_type_manager *man,
+		      struct drm_printer *printer)
 {
-	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_ram *ram = nvxx_fb(&drm->client.device)->ram;
-	nvkm_mem_node_cleanup(reg->mm_node);
-	ram->func->put(ram, (struct nvkm_mem **)&reg->mm_node);
 }
 
 static int
@@ -78,61 +61,39 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *reg)
 {
-	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_ram *ram = nvxx_fb(&drm->client.device)->ram;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nvkm_mem *node;
-	u32 size_nc = 0;
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
+	struct nouveau_mem *mem;
 	int ret;
 
 	if (drm->client.device.info.ram_size == 0)
 		return -ENOMEM;
 
-	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
-		size_nc = 1 << nvbo->page_shift;
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	mem = nouveau_mem(reg);
+	if (ret)
+		return ret;
 
-	ret = ram->func->get(ram, reg->num_pages << PAGE_SHIFT,
-			     reg->page_alignment << PAGE_SHIFT, size_nc,
-			     (nvbo->tile_flags >> 8) & 0x3ff, &node);
+	ret = nouveau_mem_vram(reg, nvbo->contig, nvbo->page);
 	if (ret) {
-		reg->mm_node = NULL;
-		return (ret == -ENOSPC) ? 0 : ret;
+		nouveau_mem_del(reg);
+		if (ret == -ENOSPC) {
+			reg->mm_node = NULL;
+			return 0;
+		}
+		return ret;
 	}
 
-	node->page_shift = nvbo->page_shift;
-
-	reg->mm_node = node;
-	reg->start   = node->offset >> PAGE_SHIFT;
 	return 0;
 }
 
 const struct ttm_mem_type_manager_func nouveau_vram_manager = {
-	.init = nouveau_vram_manager_init,
-	.takedown = nouveau_vram_manager_fini,
+	.init = nouveau_manager_init,
+	.takedown = nouveau_manager_fini,
 	.get_node = nouveau_vram_manager_new,
-	.put_node = nouveau_vram_manager_del,
+	.put_node = nouveau_manager_del,
+	.debug = nouveau_manager_debug,
 };
-
-static int
-nouveau_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
-{
-	return 0;
-}
-
-static int
-nouveau_gart_manager_fini(struct ttm_mem_type_manager *man)
-{
-	return 0;
-}
-
-static void
-nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
-			 struct ttm_mem_reg *reg)
-{
-	nvkm_mem_node_cleanup(reg->mm_node);
-	kfree(reg->mm_node);
-	reg->mm_node = NULL;
-}
 
 static int
 nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
@@ -140,90 +101,27 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *reg)
 {
-	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nvkm_mem *node;
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
+	struct nouveau_mem *mem;
+	int ret;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	mem = nouveau_mem(reg);
+	if (ret)
+		return ret;
 
-	node->page_shift = 12;
-
-	switch (drm->client.device.info.family) {
-	case NV_DEVICE_INFO_V0_TNT:
-	case NV_DEVICE_INFO_V0_CELSIUS:
-	case NV_DEVICE_INFO_V0_KELVIN:
-	case NV_DEVICE_INFO_V0_RANKINE:
-	case NV_DEVICE_INFO_V0_CURIE:
-		break;
-	case NV_DEVICE_INFO_V0_TESLA:
-		if (drm->client.device.info.chipset != 0x50)
-			node->memtype = (nvbo->tile_flags & 0x7f00) >> 8;
-		break;
-	case NV_DEVICE_INFO_V0_FERMI:
-	case NV_DEVICE_INFO_V0_KEPLER:
-	case NV_DEVICE_INFO_V0_MAXWELL:
-	case NV_DEVICE_INFO_V0_PASCAL:
-		node->memtype = (nvbo->tile_flags & 0xff00) >> 8;
-		break;
-	default:
-		NV_WARN(drm, "%s: unhandled family type %x\n", __func__,
-			drm->client.device.info.family);
-		break;
-	}
-
-	reg->mm_node = node;
-	reg->start   = 0;
+	reg->start = 0;
 	return 0;
-}
-
-static void
-nouveau_gart_manager_debug(struct ttm_mem_type_manager *man,
-			   struct drm_printer *printer)
-{
 }
 
 const struct ttm_mem_type_manager_func nouveau_gart_manager = {
-	.init = nouveau_gart_manager_init,
-	.takedown = nouveau_gart_manager_fini,
+	.init = nouveau_manager_init,
+	.takedown = nouveau_manager_fini,
 	.get_node = nouveau_gart_manager_new,
-	.put_node = nouveau_gart_manager_del,
-	.debug = nouveau_gart_manager_debug
+	.put_node = nouveau_manager_del,
+	.debug = nouveau_manager_debug
 };
-
-/*XXX*/
-#include <subdev/mmu/nv04.h>
-static int
-nv04_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
-{
-	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_mmu *mmu = nvxx_mmu(&drm->client.device);
-	struct nv04_mmu *priv = (void *)mmu;
-	struct nvkm_vm *vm = NULL;
-	nvkm_vm_ref(priv->vm, &vm, NULL);
-	man->priv = vm;
-	return 0;
-}
-
-static int
-nv04_gart_manager_fini(struct ttm_mem_type_manager *man)
-{
-	struct nvkm_vm *vm = man->priv;
-	nvkm_vm_ref(NULL, &vm, NULL);
-	man->priv = NULL;
-	return 0;
-}
-
-static void
-nv04_gart_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *reg)
-{
-	struct nvkm_mem *node = reg->mm_node;
-	if (node->vma[0].node)
-		nvkm_vm_put(&node->vma[0]);
-	kfree(reg->mm_node);
-	reg->mm_node = NULL;
-}
 
 static int
 nv04_gart_manager_new(struct ttm_mem_type_manager *man,
@@ -231,39 +129,37 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 		      const struct ttm_place *place,
 		      struct ttm_mem_reg *reg)
 {
-	struct nvkm_mem *node;
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
+	struct nouveau_mem *mem;
 	int ret;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
+	mem = nouveau_mem(reg);
+	if (ret)
+		return ret;
 
-	node->page_shift = 12;
-
-	ret = nvkm_vm_get(man->priv, reg->num_pages << 12, node->page_shift,
-			  NV_MEM_ACCESS_RW, &node->vma[0]);
+	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
+			   reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
 	if (ret) {
-		kfree(node);
+		nouveau_mem_del(reg);
+		if (ret == -ENOSPC) {
+			reg->mm_node = NULL;
+			return 0;
+		}
 		return ret;
 	}
 
-	reg->mm_node = node;
-	reg->start   = node->vma[0].offset >> PAGE_SHIFT;
+	reg->start = mem->vma[0].addr >> PAGE_SHIFT;
 	return 0;
 }
 
-static void
-nv04_gart_manager_debug(struct ttm_mem_type_manager *man,
-			struct drm_printer *printer)
-{
-}
-
 const struct ttm_mem_type_manager_func nv04_gart_manager = {
-	.init = nv04_gart_manager_init,
-	.takedown = nv04_gart_manager_fini,
+	.init = nouveau_manager_init,
+	.takedown = nouveau_manager_fini,
 	.get_node = nv04_gart_manager_new,
-	.put_node = nv04_gart_manager_del,
-	.debug = nv04_gart_manager_debug
+	.put_node = nouveau_manager_del,
+	.debug = nouveau_manager_debug
 };
 
 int
@@ -338,14 +234,60 @@ nouveau_ttm_global_release(struct nouveau_drm *drm)
 	drm->ttm.mem_global_ref.release = NULL;
 }
 
+static int
+nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
+{
+	struct nvif_mmu *mmu = &drm->client.mmu;
+	int typei;
+
+	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE |
+					    kind | NVIF_MEM_COHERENT);
+	if (typei < 0)
+		return -ENOSYS;
+
+	drm->ttm.type_host[!!kind] = typei;
+
+	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE | kind);
+	if (typei < 0)
+		return -ENOSYS;
+
+	drm->ttm.type_ncoh[!!kind] = typei;
+	return 0;
+}
+
 int
 nouveau_ttm_init(struct nouveau_drm *drm)
 {
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nvkm_pci *pci = device->pci;
+	struct nvif_mmu *mmu = &drm->client.mmu;
 	struct drm_device *dev = drm->dev;
-	u8 bits;
-	int ret;
+	int typei, ret;
+
+	ret = nouveau_ttm_init_host(drm, 0);
+	if (ret)
+		return ret;
+
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
+	    drm->client.device.info.chipset != 0x50) {
+		ret = nouveau_ttm_init_host(drm, NVIF_MEM_KIND);
+		if (ret)
+			return ret;
+	}
+
+	if (drm->client.device.info.platform != NV_DEVICE_INFO_V0_SOC &&
+	    drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		typei = nvif_mmu_type(mmu, NVIF_MEM_VRAM | NVIF_MEM_MAPPABLE |
+					   NVIF_MEM_KIND |
+					   NVIF_MEM_COMP |
+					   NVIF_MEM_DISP);
+		if (typei < 0)
+			return -ENOSYS;
+
+		drm->ttm.type_vram = typei;
+	} else {
+		drm->ttm.type_vram = -1;
+	}
 
 	if (pci && pci->agp.bridge) {
 		drm->agp.bridge = pci->agp.bridge;
@@ -353,34 +295,6 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->agp.size = pci->agp.size;
 		drm->agp.cma = pci->agp.cma;
 	}
-
-	bits = nvxx_mmu(&drm->client.device)->dma_bits;
-	if (nvxx_device(&drm->client.device)->func->pci) {
-		if (drm->agp.bridge)
-			bits = 32;
-	} else if (device->func->tegra) {
-		struct nvkm_device_tegra *tegra = device->func->tegra(device);
-
-		/*
-		 * If the platform can use a IOMMU, then the addressable DMA
-		 * space is constrained by the IOMMU bit
-		 */
-		if (tegra->func->iommu_bit)
-			bits = min(bits, tegra->func->iommu_bit);
-
-	}
-
-	ret = dma_set_mask(dev->dev, DMA_BIT_MASK(bits));
-	if (ret && bits != 32) {
-		bits = 32;
-		ret = dma_set_mask(dev->dev, DMA_BIT_MASK(bits));
-	}
-	if (ret)
-		return ret;
-
-	ret = dma_set_coherent_mask(dev->dev, DMA_BIT_MASK(bits));
-	if (ret)
-		dma_set_coherent_mask(dev->dev, DMA_BIT_MASK(32));
 
 	ret = nouveau_ttm_global_init(drm);
 	if (ret)
@@ -391,7 +305,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 				  &nouveau_bo_driver,
 				  dev->anon_inode->i_mapping,
 				  DRM_FILE_PAGE_OFFSET,
-				  bits <= 32 ? true : false);
+				  drm->client.mmu.dmabits <= 32 ? true : false);
 	if (ret) {
 		NV_ERROR(drm, "error initialising bo driver, %d\n", ret);
 		return ret;
@@ -415,7 +329,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 
 	/* GART init */
 	if (!drm->agp.bridge) {
-		drm->gem.gart_available = nvxx_mmu(&drm->client.device)->limit;
+		drm->gem.gart_available = drm->client.vmm.vmm.limit;
 	} else {
 		drm->gem.gart_available = drm->agp.size;
 	}

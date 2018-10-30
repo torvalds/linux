@@ -1,4 +1,4 @@
-generic-y += clkdev.h
+generic-y += compat.h
 generic-y += current.h
 generic-y += early_ioremap.h
 generic-y += emergency-restart.h
@@ -20,7 +20,6 @@ generic-y += simd.h
 generic-y += sizes.h
 generic-y += timex.h
 generic-y += trace_clock.h
-generic-y += unaligned.h
 
 generated-y += mach-types.h
 generated-y += unistd-nr.h

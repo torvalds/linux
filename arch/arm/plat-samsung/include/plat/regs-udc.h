@@ -1,12 +1,7 @@
-/* arch/arm/plat-samsung/include/plat/regs-udc.h
- *
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
  * Copyright (C) 2004 Herbert Poetzl <herbert@13thfloor.at>
- *
- * This include file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
-*/
+ */
 
 #ifndef __ASM_ARCH_REGS_UDC_H
 #define __ASM_ARCH_REGS_UDC_H

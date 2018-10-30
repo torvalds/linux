@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ipmi_devintf.c
  *
@@ -8,27 +9,6 @@
  *         source@mvista.com
  *
  * Copyright 2002 MontaVista Software Inc.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation; either version 2 of the License, or (at your
- *  option) any later version.
- *
- *
- *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- *  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- *  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
- *  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
- *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -46,7 +26,7 @@
 
 struct ipmi_file_private
 {
-	ipmi_user_t          user;
+	struct ipmi_user     *user;
 	spinlock_t           recv_msg_lock;
 	struct list_head     recv_msgs;
 	struct file          *file;
@@ -57,7 +37,6 @@ struct ipmi_file_private
 	unsigned int         default_retry_time_ms;
 };
 
-static DEFINE_MUTEX(ipmi_mutex);
 static void file_receive_handler(struct ipmi_recv_msg *msg,
 				 void                 *handler_data)
 {
@@ -65,31 +44,29 @@ static void file_receive_handler(struct ipmi_recv_msg *msg,
 	int                      was_empty;
 	unsigned long            flags;
 
-	spin_lock_irqsave(&(priv->recv_msg_lock), flags);
-
-	was_empty = list_empty(&(priv->recv_msgs));
-	list_add_tail(&(msg->link), &(priv->recv_msgs));
+	spin_lock_irqsave(&priv->recv_msg_lock, flags);
+	was_empty = list_empty(&priv->recv_msgs);
+	list_add_tail(&msg->link, &priv->recv_msgs);
+	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 
 	if (was_empty) {
 		wake_up_interruptible(&priv->wait);
 		kill_fasync(&priv->fasync_queue, SIGIO, POLL_IN);
 	}
-
-	spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
 }
 
-static unsigned int ipmi_poll(struct file *file, poll_table *wait)
+static __poll_t ipmi_poll(struct file *file, poll_table *wait)
 {
 	struct ipmi_file_private *priv = file->private_data;
-	unsigned int             mask = 0;
+	__poll_t             mask = 0;
 	unsigned long            flags;
 
 	poll_wait(file, &priv->wait, wait);
 
 	spin_lock_irqsave(&priv->recv_msg_lock, flags);
 
-	if (!list_empty(&(priv->recv_msgs)))
-		mask |= (POLLIN | POLLRDNORM);
+	if (!list_empty(&priv->recv_msgs))
+		mask |= (EPOLLIN | EPOLLRDNORM);
 
 	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 
@@ -99,13 +76,8 @@ static unsigned int ipmi_poll(struct file *file, poll_table *wait)
 static int ipmi_fasync(int fd, struct file *file, int on)
 {
 	struct ipmi_file_private *priv = file->private_data;
-	int                      result;
 
-	mutex_lock(&ipmi_mutex); /* could race against open() otherwise */
-	result = fasync_helper(fd, file, on, &priv->fasync_queue);
-	mutex_unlock(&ipmi_mutex);
-
-	return (result);
+	return fasync_helper(fd, file, on, &priv->fasync_queue);
 }
 
 static const struct ipmi_user_hndl ipmi_hndlrs =
@@ -119,18 +91,16 @@ static int ipmi_open(struct inode *inode, struct file *file)
 	int                      rv;
 	struct ipmi_file_private *priv;
 
-
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	mutex_lock(&ipmi_mutex);
 	priv->file = file;
 
 	rv = ipmi_create_user(if_num,
 			      &ipmi_hndlrs,
 			      priv,
-			      &(priv->user));
+			      &priv->user);
 	if (rv) {
 		kfree(priv);
 		goto out;
@@ -138,8 +108,8 @@ static int ipmi_open(struct inode *inode, struct file *file)
 
 	file->private_data = priv;
 
-	spin_lock_init(&(priv->recv_msg_lock));
-	INIT_LIST_HEAD(&(priv->recv_msgs));
+	spin_lock_init(&priv->recv_msg_lock);
+	INIT_LIST_HEAD(&priv->recv_msgs);
 	init_waitqueue_head(&priv->wait);
 	priv->fasync_queue = NULL;
 	mutex_init(&priv->recv_mutex);
@@ -149,7 +119,6 @@ static int ipmi_open(struct inode *inode, struct file *file)
 	priv->default_retry_time_ms = 0;
 
 out:
-	mutex_unlock(&ipmi_mutex);
 	return rv;
 }
 
@@ -157,7 +126,7 @@ static int ipmi_release(struct inode *inode, struct file *file)
 {
 	struct ipmi_file_private *priv = file->private_data;
 	int                      rv;
-	struct  ipmi_recv_msg *msg, *next;
+	struct ipmi_recv_msg *msg, *next;
 
 	rv = ipmi_destroy_user(priv->user);
 	if (rv)
@@ -166,13 +135,12 @@ static int ipmi_release(struct inode *inode, struct file *file)
 	list_for_each_entry_safe(msg, next, &priv->recv_msgs, link)
 		ipmi_free_recv_msg(msg);
 
-
 	kfree(priv);
 
 	return 0;
 }
 
-static int handle_send_req(ipmi_user_t     user,
+static int handle_send_req(struct ipmi_user *user,
 			   struct ipmi_req *req,
 			   int             retries,
 			   unsigned int    retry_time_ms)
@@ -209,8 +177,7 @@ static int handle_send_req(ipmi_user_t     user,
 
 		if (copy_from_user(msg.data,
 				   req->msg.data,
-				   req->msg.data_len))
-		{
+				   req->msg.data_len)) {
 			rv = -EFAULT;
 			goto out;
 		}
@@ -253,25 +220,24 @@ static int handle_recv(struct ipmi_file_private *priv,
 	mutex_lock(&priv->recv_mutex);
 
 	/* Grab the message off the list. */
-	spin_lock_irqsave(&(priv->recv_msg_lock), flags);
+	spin_lock_irqsave(&priv->recv_msg_lock, flags);
 	if (list_empty(&(priv->recv_msgs))) {
-		spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
+		spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 		rv = -EAGAIN;
 		goto recv_err;
 	}
 	entry = priv->recv_msgs.next;
 	msg = list_entry(entry, struct ipmi_recv_msg, link);
 	list_del(entry);
-	spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
+	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 
 	addr_len = ipmi_addr_length(msg->addr.addr_type);
-	if (rsp->addr_len < addr_len)
-	{
+	if (rsp->addr_len < addr_len) {
 		rv = -EINVAL;
 		goto recv_putback_on_err;
 	}
 
-	if (copy_to_user(rsp->addr, &(msg->addr), addr_len)) {
+	if (copy_to_user(rsp->addr, &msg->addr, addr_len)) {
 		rv = -EFAULT;
 		goto recv_putback_on_err;
 	}
@@ -293,8 +259,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 
 		if (copy_to_user(rsp->msg.data,
 				 msg->msg.data,
-				 msg->msg.data_len))
-		{
+				 msg->msg.data_len)) {
 			rv = -EFAULT;
 			goto recv_putback_on_err;
 		}
@@ -314,9 +279,9 @@ static int handle_recv(struct ipmi_file_private *priv,
 recv_putback_on_err:
 	/* If we got an error, put the message back onto
 	   the head of the queue. */
-	spin_lock_irqsave(&(priv->recv_msg_lock), flags);
-	list_add(entry, &(priv->recv_msgs));
-	spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
+	spin_lock_irqsave(&priv->recv_msg_lock, flags);
+	list_add(entry, &priv->recv_msgs);
+	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 recv_err:
 	mutex_unlock(&priv->recv_mutex);
 	return rv;
@@ -327,9 +292,9 @@ static int copyout_recv(struct ipmi_recv *rsp, void __user *to)
 	return copy_to_user(to, rsp, sizeof(struct ipmi_recv)) ? -EFAULT : 0;
 }
 
-static int ipmi_ioctl(struct file   *file,
-		      unsigned int  cmd,
-		      unsigned long data)
+static long ipmi_ioctl(struct file   *file,
+		       unsigned int  cmd,
+		       unsigned long data)
 {
 	int                      rv = -EINVAL;
 	struct ipmi_file_private *priv = file->private_data;
@@ -340,16 +305,20 @@ static int ipmi_ioctl(struct file   *file,
 	case IPMICTL_SEND_COMMAND:
 	{
 		struct ipmi_req req;
+		int retries;
+		unsigned int retry_time_ms;
 
 		if (copy_from_user(&req, arg, sizeof(req))) {
 			rv = -EFAULT;
 			break;
 		}
 
-		rv = handle_send_req(priv->user,
-				     &req,
-				     priv->default_retries,
-				     priv->default_retry_time_ms);
+		mutex_lock(&priv->recv_mutex);
+		retries = priv->default_retries;
+		retry_time_ms = priv->default_retry_time_ms;
+		mutex_unlock(&priv->recv_mutex);
+
+		rv = handle_send_req(priv->user, &req, retries, retry_time_ms);
 		break;
 	}
 
@@ -589,8 +558,10 @@ static int ipmi_ioctl(struct file   *file,
 			break;
 		}
 
+		mutex_lock(&priv->recv_mutex);
 		priv->default_retries = parms.retries;
 		priv->default_retry_time_ms = parms.retry_time_ms;
+		mutex_unlock(&priv->recv_mutex);
 		rv = 0;
 		break;
 	}
@@ -599,8 +570,10 @@ static int ipmi_ioctl(struct file   *file,
 	{
 		struct ipmi_timing_parms parms;
 
+		mutex_lock(&priv->recv_mutex);
 		parms.retries = priv->default_retries;
 		parms.retry_time_ms = priv->default_retry_time_ms;
+		mutex_unlock(&priv->recv_mutex);
 
 		if (copy_to_user(arg, &parms, sizeof(parms))) {
 			rv = -EFAULT;
@@ -635,30 +608,16 @@ static int ipmi_ioctl(struct file   *file,
 		rv = ipmi_set_maintenance_mode(priv->user, mode);
 		break;
 	}
+
+	default:
+		rv = -ENOTTY;
+		break;
 	}
   
 	return rv;
 }
 
-/*
- * Note: it doesn't make sense to take the BKL here but
- *       not in compat_ipmi_ioctl. -arnd
- */
-static long ipmi_unlocked_ioctl(struct file   *file,
-			        unsigned int  cmd,
-			        unsigned long data)
-{
-	int ret;
-
-	mutex_lock(&ipmi_mutex);
-	ret = ipmi_ioctl(file, cmd, data);
-	mutex_unlock(&ipmi_mutex);
-
-	return ret;
-}
-
 #ifdef CONFIG_COMPAT
-
 /*
  * The following code contains code for supporting 32-bit compatible
  * ioctls on 64-bit kernels.  This allows running 32-bit apps on the
@@ -769,15 +728,21 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 	{
 		struct ipmi_req	rp;
 		struct compat_ipmi_req r32;
+		int retries;
+		unsigned int retry_time_ms;
 
 		if (copy_from_user(&r32, compat_ptr(arg), sizeof(r32)))
 			return -EFAULT;
 
 		get_compat_ipmi_req(&rp, &r32);
 
+		mutex_lock(&priv->recv_mutex);
+		retries = priv->default_retries;
+		retry_time_ms = priv->default_retry_time_ms;
+		mutex_unlock(&priv->recv_mutex);
+
 		return handle_send_req(priv->user, &rp,
-				priv->default_retries,
-				priv->default_retry_time_ms);
+				       retries, retry_time_ms);
 	}
 	case COMPAT_IPMICTL_SEND_COMMAND_SETTIME:
 	{
@@ -811,25 +776,13 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 		return ipmi_ioctl(filep, cmd, arg);
 	}
 }
-
-static long unlocked_compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
-				       unsigned long arg)
-{
-	int ret;
-
-	mutex_lock(&ipmi_mutex);
-	ret = compat_ipmi_ioctl(filep, cmd, arg);
-	mutex_unlock(&ipmi_mutex);
-
-	return ret;
-}
 #endif
 
 static const struct file_operations ipmi_fops = {
 	.owner		= THIS_MODULE,
-	.unlocked_ioctl	= ipmi_unlocked_ioctl,
+	.unlocked_ioctl	= ipmi_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl   = unlocked_compat_ipmi_ioctl,
+	.compat_ioctl   = compat_ipmi_ioctl,
 #endif
 	.open		= ipmi_open,
 	.release	= ipmi_release,
@@ -865,8 +818,7 @@ static void ipmi_new_smi(int if_num, struct device *device)
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		printk(KERN_ERR "ipmi_devintf: Unable to create the"
-		       " ipmi class device link\n");
+		pr_err("ipmi_devintf: Unable to create the ipmi class device link\n");
 		return;
 	}
 	entry->dev = dev;
@@ -908,18 +860,18 @@ static int __init init_ipmi_devintf(void)
 	if (ipmi_major < 0)
 		return -EINVAL;
 
-	printk(KERN_INFO "ipmi device interface\n");
+	pr_info("ipmi device interface\n");
 
 	ipmi_class = class_create(THIS_MODULE, "ipmi");
 	if (IS_ERR(ipmi_class)) {
-		printk(KERN_ERR "ipmi: can't register device class\n");
+		pr_err("ipmi: can't register device class\n");
 		return PTR_ERR(ipmi_class);
 	}
 
 	rv = register_chrdev(ipmi_major, DEVICE_NAME, &ipmi_fops);
 	if (rv < 0) {
 		class_destroy(ipmi_class);
-		printk(KERN_ERR "ipmi: can't get major %d\n", ipmi_major);
+		pr_err("ipmi: can't get major %d\n", ipmi_major);
 		return rv;
 	}
 
@@ -931,7 +883,7 @@ static int __init init_ipmi_devintf(void)
 	if (rv) {
 		unregister_chrdev(ipmi_major, DEVICE_NAME);
 		class_destroy(ipmi_class);
-		printk(KERN_WARNING "ipmi: can't register smi watcher\n");
+		pr_warn("ipmi: can't register smi watcher\n");
 		return rv;
 	}
 

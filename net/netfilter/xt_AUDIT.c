@@ -72,7 +72,7 @@ audit_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	struct audit_buffer *ab;
 	int fam = -1;
 
-	if (audit_enabled == 0)
+	if (audit_enabled == AUDIT_OFF)
 		goto errout;
 	ab = audit_log_start(NULL, GFP_ATOMIC, AUDIT_NETFILTER_PKT);
 	if (ab == NULL)
@@ -120,8 +120,8 @@ static int audit_tg_check(const struct xt_tgchk_param *par)
 	const struct xt_audit_info *info = par->targinfo;
 
 	if (info->type > XT_AUDIT_TYPE_MAX) {
-		pr_info("Audit type out of range (valid range: 0..%hhu)\n",
-			XT_AUDIT_TYPE_MAX);
+		pr_info_ratelimited("Audit type out of range (valid range: 0..%hhu)\n",
+				    XT_AUDIT_TYPE_MAX);
 		return -ERANGE;
 	}
 

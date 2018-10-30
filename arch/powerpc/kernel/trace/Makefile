@@ -1,12 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the powerpc trace subsystem
 #
 
-subdir-ccflags-$(CONFIG_PPC_WERROR)	:= -Werror
-
 ifdef CONFIG_FUNCTION_TRACER
 # do not trace tracer code
-CFLAGS_REMOVE_ftrace.o = -mno-sched-epilog $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
 endif
 
 obj32-$(CONFIG_FUNCTION_TRACER)		+= ftrace_32.o

@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
  *
  ******************************************************************************/
 #ifndef __RTW_LED_H_
@@ -58,7 +49,8 @@ struct LED_871x {
 
 	enum LED_STATE_871x	CurrLedState; /*  Current LED state. */
 	enum LED_STATE_871x	BlinkingLedState; /*  Next state for blinking,
-				   * either RTW_LED_ON or RTW_LED_OFF are. */
+						   * either RTW_LED_ON or RTW_LED_OFF are.
+						   */
 
 	u8 bLedOn; /*  true if LED is ON, false if LED is OFF. */
 
@@ -75,7 +67,8 @@ struct LED_871x {
 	u8 bLedLinkBlinkInProgress;
 	u8 bLedScanBlinkInProgress;
 	struct work_struct BlinkWorkItem; /* Workitem used by BlinkTimer to
-					   * manipulate H/W to blink LED. */
+					   * manipulate H/W to blink LED.
+					   */
 };
 
 #define IS_LED_WPS_BLINKING(_LED_871x)					\
@@ -91,7 +84,6 @@ struct led_priv {
 	/* add for led control */
 };
 
-void BlinkTimerCallback(unsigned long data);
 void BlinkWorkItemCallback(struct work_struct *work);
 
 void ResetLedStatus(struct LED_871x *pLed);

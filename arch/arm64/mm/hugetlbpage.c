@@ -54,14 +54,14 @@ static inline pgprot_t pte_pgprot(pte_t pte)
 static int find_num_contig(struct mm_struct *mm, unsigned long addr,
 			   pte_t *ptep, size_t *pgsize)
 {
-	pgd_t *pgd = pgd_offset(mm, addr);
-	pud_t *pud;
-	pmd_t *pmd;
+	pgd_t *pgdp = pgd_offset(mm, addr);
+	pud_t *pudp;
+	pmd_t *pmdp;
 
 	*pgsize = PAGE_SIZE;
-	pud = pud_offset(pgd, addr);
-	pmd = pmd_offset(pud, addr);
-	if ((pte_t *)pmd == ptep) {
+	pudp = pud_offset(pgdp, addr);
+	pmdp = pmd_offset(pudp, addr);
+	if ((pte_t *)pmdp == ptep) {
 		*pgsize = PMD_SIZE;
 		return CONT_PMDS;
 	}
@@ -108,7 +108,6 @@ static pte_t get_clear_flush(struct mm_struct *mm,
 			     unsigned long pgsize,
 			     unsigned long ncontig)
 {
-	struct vm_area_struct vma = { .vm_mm = mm };
 	pte_t orig_pte = huge_ptep_get(ptep);
 	bool valid = pte_valid(orig_pte);
 	unsigned long i, saddr = addr;
@@ -118,15 +117,20 @@ static pte_t get_clear_flush(struct mm_struct *mm,
 
 		/*
 		 * If HW_AFDBM is enabled, then the HW could turn on
-		 * the dirty bit for any page in the set, so check
-		 * them all.  All hugetlb entries are already young.
+		 * the dirty or accessed bit for any page in the set,
+		 * so check them all.
 		 */
 		if (pte_dirty(pte))
 			orig_pte = pte_mkdirty(orig_pte);
+
+		if (pte_young(pte))
+			orig_pte = pte_mkyoung(orig_pte);
 	}
 
-	if (valid)
+	if (valid) {
+		struct vm_area_struct vma = TLB_FLUSH_VMA(mm, 0);
 		flush_tlb_range(&vma, saddr, addr);
+	}
 	return orig_pte;
 }
 
@@ -145,7 +149,7 @@ static void clear_flush(struct mm_struct *mm,
 			     unsigned long pgsize,
 			     unsigned long ncontig)
 {
-	struct vm_area_struct vma = { .vm_mm = mm };
+	struct vm_area_struct vma = TLB_FLUSH_VMA(mm, 0);
 	unsigned long i, saddr = addr;
 
 	for (i = 0; i < ncontig; i++, addr += pgsize, ptep++)
@@ -181,11 +185,8 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	clear_flush(mm, addr, ptep, pgsize, ncontig);
 
-	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn) {
-		pr_debug("%s: set pte %p to 0x%llx\n", __func__, ptep,
-			 pte_val(pfn_pte(pfn, hugeprot)));
+	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn)
 		set_pte_at(mm, addr, ptep, pfn_pte(pfn, hugeprot));
-	}
 }
 
 void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -203,20 +204,20 @@ void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr,
 pte_t *huge_pte_alloc(struct mm_struct *mm,
 		      unsigned long addr, unsigned long sz)
 {
-	pgd_t *pgd;
-	pud_t *pud;
-	pte_t *pte = NULL;
+	pgd_t *pgdp;
+	pud_t *pudp;
+	pmd_t *pmdp;
+	pte_t *ptep = NULL;
 
-	pr_debug("%s: addr:0x%lx sz:0x%lx\n", __func__, addr, sz);
-	pgd = pgd_offset(mm, addr);
-	pud = pud_alloc(mm, pgd, addr);
-	if (!pud)
+	pgdp = pgd_offset(mm, addr);
+	pudp = pud_alloc(mm, pgdp, addr);
+	if (!pudp)
 		return NULL;
 
 	if (sz == PUD_SIZE) {
-		pte = (pte_t *)pud;
+		ptep = (pte_t *)pudp;
 	} else if (sz == (PAGE_SIZE * CONT_PTES)) {
-		pmd_t *pmd = pmd_alloc(mm, pud, addr);
+		pmdp = pmd_alloc(mm, pudp, addr);
 
 		WARN_ON(addr & (sz - 1));
 		/*
@@ -226,60 +227,55 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 		 * will be no pte_unmap() to correspond with this
 		 * pte_alloc_map().
 		 */
-		pte = pte_alloc_map(mm, pmd, addr);
+		ptep = pte_alloc_map(mm, pmdp, addr);
 	} else if (sz == PMD_SIZE) {
 		if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
-		    pud_none(*pud))
-			pte = huge_pmd_share(mm, addr, pud);
+		    pud_none(READ_ONCE(*pudp)))
+			ptep = huge_pmd_share(mm, addr, pudp);
 		else
-			pte = (pte_t *)pmd_alloc(mm, pud, addr);
+			ptep = (pte_t *)pmd_alloc(mm, pudp, addr);
 	} else if (sz == (PMD_SIZE * CONT_PMDS)) {
-		pmd_t *pmd;
-
-		pmd = pmd_alloc(mm, pud, addr);
+		pmdp = pmd_alloc(mm, pudp, addr);
 		WARN_ON(addr & (sz - 1));
-		return (pte_t *)pmd;
+		return (pte_t *)pmdp;
 	}
 
-	pr_debug("%s: addr:0x%lx sz:0x%lx ret pte=%p/0x%llx\n", __func__, addr,
-	       sz, pte, pte_val(*pte));
-	return pte;
+	return ptep;
 }
 
 pte_t *huge_pte_offset(struct mm_struct *mm,
 		       unsigned long addr, unsigned long sz)
 {
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
+	pgd_t *pgdp;
+	pud_t *pudp, pud;
+	pmd_t *pmdp, pmd;
 
-	pgd = pgd_offset(mm, addr);
-	pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
-	if (!pgd_present(*pgd))
+	pgdp = pgd_offset(mm, addr);
+	if (!pgd_present(READ_ONCE(*pgdp)))
 		return NULL;
 
-	pud = pud_offset(pgd, addr);
-	if (sz != PUD_SIZE && pud_none(*pud))
+	pudp = pud_offset(pgdp, addr);
+	pud = READ_ONCE(*pudp);
+	if (sz != PUD_SIZE && pud_none(pud))
 		return NULL;
 	/* hugepage or swap? */
-	if (pud_huge(*pud) || !pud_present(*pud))
-		return (pte_t *)pud;
+	if (pud_huge(pud) || !pud_present(pud))
+		return (pte_t *)pudp;
 	/* table; check the next level */
 
 	if (sz == CONT_PMD_SIZE)
 		addr &= CONT_PMD_MASK;
 
-	pmd = pmd_offset(pud, addr);
+	pmdp = pmd_offset(pudp, addr);
+	pmd = READ_ONCE(*pmdp);
 	if (!(sz == PMD_SIZE || sz == CONT_PMD_SIZE) &&
-	    pmd_none(*pmd))
+	    pmd_none(pmd))
 		return NULL;
-	if (pmd_huge(*pmd) || !pmd_present(*pmd))
-		return (pte_t *)pmd;
+	if (pmd_huge(pmd) || !pmd_present(pmd))
+		return (pte_t *)pmdp;
 
-	if (sz == CONT_PTE_SIZE) {
-		pte_t *pte = pte_offset_kernel(pmd, (addr & CONT_PTE_MASK));
-		return pte;
-	}
+	if (sz == CONT_PTE_SIZE)
+		return pte_offset_kernel(pmdp, (addr & CONT_PTE_MASK));
 
 	return NULL;
 }
@@ -327,11 +323,40 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 	return get_clear_flush(mm, addr, ptep, pgsize, ncontig);
 }
 
+/*
+ * huge_ptep_set_access_flags will update access flags (dirty, accesssed)
+ * and write permission.
+ *
+ * For a contiguous huge pte range we need to check whether or not write
+ * permission has to change only on the first pte in the set. Then for
+ * all the contiguous ptes we need to check whether or not there is a
+ * discrepancy between dirty or young.
+ */
+static int __cont_access_flags_changed(pte_t *ptep, pte_t pte, int ncontig)
+{
+	int i;
+
+	if (pte_write(pte) != pte_write(huge_ptep_get(ptep)))
+		return 1;
+
+	for (i = 0; i < ncontig; i++) {
+		pte_t orig_pte = huge_ptep_get(ptep + i);
+
+		if (pte_dirty(pte) != pte_dirty(orig_pte))
+			return 1;
+
+		if (pte_young(pte) != pte_young(orig_pte))
+			return 1;
+	}
+
+	return 0;
+}
+
 int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 			       unsigned long addr, pte_t *ptep,
 			       pte_t pte, int dirty)
 {
-	int ncontig, i, changed = 0;
+	int ncontig, i;
 	size_t pgsize = 0;
 	unsigned long pfn = pte_pfn(pte), dpfn;
 	pgprot_t hugeprot;
@@ -343,19 +368,23 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 	ncontig = find_num_contig(vma->vm_mm, addr, ptep, &pgsize);
 	dpfn = pgsize >> PAGE_SHIFT;
 
-	orig_pte = get_clear_flush(vma->vm_mm, addr, ptep, pgsize, ncontig);
-	if (!pte_same(orig_pte, pte))
-		changed = 1;
+	if (!__cont_access_flags_changed(ptep, pte, ncontig))
+		return 0;
 
-	/* Make sure we don't lose the dirty state */
+	orig_pte = get_clear_flush(vma->vm_mm, addr, ptep, pgsize, ncontig);
+
+	/* Make sure we don't lose the dirty or young state */
 	if (pte_dirty(orig_pte))
 		pte = pte_mkdirty(pte);
+
+	if (pte_young(orig_pte))
+		pte = pte_mkyoung(pte);
 
 	hugeprot = pte_pgprot(pte);
 	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn)
 		set_pte_at(vma->vm_mm, addr, ptep, pfn_pte(pfn, hugeprot));
 
-	return changed;
+	return 1;
 }
 
 void huge_ptep_set_wrprotect(struct mm_struct *mm,
@@ -367,7 +396,7 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
 	size_t pgsize;
 	pte_t pte;
 
-	if (!pte_cont(*ptep)) {
+	if (!pte_cont(READ_ONCE(*ptep))) {
 		ptep_set_wrprotect(mm, addr, ptep);
 		return;
 	}
@@ -391,7 +420,7 @@ void huge_ptep_clear_flush(struct vm_area_struct *vma,
 	size_t pgsize;
 	int ncontig;
 
-	if (!pte_cont(*ptep)) {
+	if (!pte_cont(READ_ONCE(*ptep))) {
 		ptep_clear_flush(vma, addr, ptep);
 		return;
 	}

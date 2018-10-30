@@ -108,6 +108,7 @@ static int zx_hdmi_config_video_vsi(struct zx_hdmi *hdmi,
 	int ret;
 
 	ret = drm_hdmi_vendor_infoframe_from_display_mode(&frame.vendor.hdmi,
+							  &hdmi->connector,
 							  mode);
 	if (ret) {
 		DRM_DEV_ERROR(hdmi->dev, "failed to get vendor infoframe: %d\n",
@@ -271,7 +272,7 @@ static int zx_hdmi_connector_get_modes(struct drm_connector *connector)
 
 	hdmi->sink_is_hdmi = drm_detect_hdmi_monitor(edid);
 	hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
 	kfree(edid);
 
@@ -325,7 +326,7 @@ static int zx_hdmi_register(struct drm_device *drm, struct zx_hdmi *hdmi)
 	drm_connector_helper_add(&hdmi->connector,
 				 &zx_hdmi_connector_helper_funcs);
 
-	drm_mode_connector_attach_encoder(&hdmi->connector, encoder);
+	drm_connector_attach_encoder(&hdmi->connector, encoder);
 
 	return 0;
 }

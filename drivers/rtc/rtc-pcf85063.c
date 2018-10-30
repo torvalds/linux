@@ -43,37 +43,38 @@ static struct i2c_driver pcf85063_driver;
 
 static int pcf85063_stop_clock(struct i2c_client *client, u8 *ctrl1)
 {
-	s32 ret;
+	int rc;
+	u8 reg;
 
-	ret = i2c_smbus_read_byte_data(client, PCF85063_REG_CTRL1);
-	if (ret < 0) {
+	rc = i2c_smbus_read_byte_data(client, PCF85063_REG_CTRL1);
+	if (rc < 0) {
 		dev_err(&client->dev, "Failing to stop the clock\n");
 		return -EIO;
 	}
 
 	/* stop the clock */
-	ret |= PCF85063_REG_CTRL1_STOP;
+	reg = rc | PCF85063_REG_CTRL1_STOP;
 
-	ret = i2c_smbus_write_byte_data(client, PCF85063_REG_CTRL1, ret);
-	if (ret < 0) {
+	rc = i2c_smbus_write_byte_data(client, PCF85063_REG_CTRL1, reg);
+	if (rc < 0) {
 		dev_err(&client->dev, "Failing to stop the clock\n");
 		return -EIO;
 	}
 
-	*ctrl1 = ret;
+	*ctrl1 = reg;
 
 	return 0;
 }
 
 static int pcf85063_start_clock(struct i2c_client *client, u8 ctrl1)
 {
-	s32 ret;
+	int rc;
 
 	/* start the clock */
-	ctrl1 &= PCF85063_REG_CTRL1_STOP;
+	ctrl1 &= ~PCF85063_REG_CTRL1_STOP;
 
-	ret = i2c_smbus_write_byte_data(client, PCF85063_REG_CTRL1, ctrl1);
-	if (ret < 0) {
+	rc = i2c_smbus_write_byte_data(client, PCF85063_REG_CTRL1, ctrl1);
+	if (rc < 0) {
 		dev_err(&client->dev, "Failing to start the clock\n");
 		return -EIO;
 	}
@@ -81,8 +82,9 @@ static int pcf85063_start_clock(struct i2c_client *client, u8 ctrl1)
 	return 0;
 }
 
-static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int pcf85063_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	int rc;
 	u8 regs[7];
 
@@ -114,11 +116,12 @@ static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	tm->tm_year = bcd2bin(regs[6]);
 	tm->tm_year += 100;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
-static int pcf85063_set_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int pcf85063_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	int rc;
 	u8 regs[7];
 	u8 ctrl1;
@@ -170,16 +173,6 @@ static int pcf85063_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		return rc;
 
 	return 0;
-}
-
-static int pcf85063_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return pcf85063_get_datetime(to_i2c_client(dev), tm);
-}
-
-static int pcf85063_rtc_set_time(struct device *dev, struct rtc_time *tm)
-{
-	return pcf85063_set_datetime(to_i2c_client(dev), tm);
 }
 
 static const struct rtc_class_ops pcf85063_rtc_ops = {

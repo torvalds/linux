@@ -1,0 +1,34 @@
+Texas Instruments 8/10/12-bit 2/4-channel DAC driver
+
+Required properties:
+ - compatible:		Must be one of:
+			"ti,dac082s085"
+			"ti,dac102s085"
+			"ti,dac122s085"
+			"ti,dac084s085"
+			"ti,dac104s085"
+			"ti,dac124s085"
+ - reg: 		Chip select number.
+ - spi-cpha, spi-cpol:	SPI mode (0,1) or (1,0) must be used, so specify
+			either spi-cpha or spi-cpol (but not both).
+ - vref-supply: 	Phandle to the external reference voltage supply.
+
+For other required and optional properties of SPI slave nodes please refer to
+../../spi/spi-bus.txt.
+
+Example:
+	vref_2v5_reg: regulator-vref {
+		compatible = "regulator-fixed";
+		regulator-name = "2v5";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-always-on;
+	};
+
+	dac@0 {
+		compatible = "ti,dac082s085";
+		reg = <0>;
+		spi-max-frequency = <40000000>;
+		spi-cpol;
+		vref-supply = <&vref_2v5_reg>;
+	};

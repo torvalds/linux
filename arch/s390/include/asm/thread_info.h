@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 2002, 2006
@@ -10,18 +11,23 @@
 #include <linux/const.h>
 
 /*
- * Size of kernel stack for each process
+ * General size of kernel stacks
  */
+#ifdef CONFIG_KASAN
+#define THREAD_SIZE_ORDER 3
+#else
 #define THREAD_SIZE_ORDER 2
-#define ASYNC_ORDER  2
-
+#endif
+#define BOOT_STACK_ORDER  2
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
-#define ASYNC_SIZE  (PAGE_SIZE << ASYNC_ORDER)
 
 #ifndef __ASSEMBLY__
 #include <asm/lowcore.h>
 #include <asm/page.h>
 #include <asm/processor.h>
+
+#define STACK_INIT_OFFSET \
+	(THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs))
 
 /*
  * low level task data that entry.S needs immediate access to
@@ -41,10 +47,11 @@ struct thread_info {
 	.flags		= 0,			\
 }
 
-#define init_stack		(init_thread_union.stack)
-
 void arch_release_task_struct(struct task_struct *tsk);
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
+
+void arch_setup_new_exec(void);
+#define arch_setup_new_exec arch_setup_new_exec
 
 #endif
 
@@ -59,6 +66,8 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 #define TIF_GUARDED_STORAGE	4	/* load guarded storage control block */
 #define TIF_PATCH_PENDING	5	/* pending live patching update */
 #define TIF_PGSTE		6	/* New mm's will use 4K page tables */
+#define TIF_ISOLATE_BP		8	/* Run process with isolated BP */
+#define TIF_ISOLATE_BP_GUEST	9	/* Run KVM guests with isolated BP */
 
 #define TIF_31BIT		16	/* 32bit process */
 #define TIF_MEMDIE		17	/* is terminating due to OOM killer */
@@ -79,6 +88,8 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 #define _TIF_UPROBE		_BITUL(TIF_UPROBE)
 #define _TIF_GUARDED_STORAGE	_BITUL(TIF_GUARDED_STORAGE)
 #define _TIF_PATCH_PENDING	_BITUL(TIF_PATCH_PENDING)
+#define _TIF_ISOLATE_BP		_BITUL(TIF_ISOLATE_BP)
+#define _TIF_ISOLATE_BP_GUEST	_BITUL(TIF_ISOLATE_BP_GUEST)
 
 #define _TIF_31BIT		_BITUL(TIF_31BIT)
 #define _TIF_SINGLE_STEP	_BITUL(TIF_SINGLE_STEP)

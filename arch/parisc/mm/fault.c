@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/extable.h>
 #include <linux/uaccess.h>
+#include <linux/hugetlb.h>
 
 #include <asm/traps.h>
 
@@ -261,7 +262,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	unsigned long acc_type;
-	int fault;
+	vm_fault_t fault = 0;
 	unsigned int flags;
 
 	if (faulthandler_disabled())
@@ -315,7 +316,8 @@ good_area:
 			goto out_of_memory;
 		else if (fault & VM_FAULT_SIGSEGV)
 			goto bad_area;
-		else if (fault & VM_FAULT_SIGBUS)
+		else if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
+				  VM_FAULT_HWPOISON_LARGE))
 			goto bad_area;
 		BUG();
 	}
@@ -351,24 +353,22 @@ bad_area:
 	up_read(&mm->mmap_sem);
 
 	if (user_mode(regs)) {
-		struct siginfo si;
-
-		show_signal_msg(regs, code, address, tsk, vma);
+		int signo, si_code;
 
 		switch (code) {
 		case 15:	/* Data TLB miss fault/Data page fault */
 			/* send SIGSEGV when outside of vma */
 			if (!vma ||
 			    address < vma->vm_start || address >= vma->vm_end) {
-				si.si_signo = SIGSEGV;
-				si.si_code = SEGV_MAPERR;
+				signo = SIGSEGV;
+				si_code = SEGV_MAPERR;
 				break;
 			}
 
 			/* send SIGSEGV for wrong permissions */
 			if ((vma->vm_flags & acc_type) != acc_type) {
-				si.si_signo = SIGSEGV;
-				si.si_code = SEGV_ACCERR;
+				signo = SIGSEGV;
+				si_code = SEGV_ACCERR;
 				break;
 			}
 
@@ -376,19 +376,40 @@ bad_area:
 			/* fall through */
 		case 17:	/* NA data TLB miss / page fault */
 		case 18:	/* Unaligned access - PCXS only */
-			si.si_signo = SIGBUS;
-			si.si_code = (code == 18) ? BUS_ADRALN : BUS_ADRERR;
+			signo = SIGBUS;
+			si_code = (code == 18) ? BUS_ADRALN : BUS_ADRERR;
 			break;
 		case 16:	/* Non-access instruction TLB miss fault */
 		case 26:	/* PCXL: Data memory access rights trap */
 		default:
-			si.si_signo = SIGSEGV;
-			si.si_code = (code == 26) ? SEGV_ACCERR : SEGV_MAPERR;
+			signo = SIGSEGV;
+			si_code = (code == 26) ? SEGV_ACCERR : SEGV_MAPERR;
 			break;
 		}
-		si.si_errno = 0;
-		si.si_addr = (void __user *) address;
-		force_sig_info(si.si_signo, &si, current);
+#ifdef CONFIG_MEMORY_FAILURE
+		if (fault & (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE)) {
+			unsigned int lsb = 0;
+			printk(KERN_ERR
+	"MCE: Killing %s:%d due to hardware memory corruption fault at %08lx\n",
+			tsk->comm, tsk->pid, address);
+			/*
+			 * Either small page or large page may be poisoned.
+			 * In other words, VM_FAULT_HWPOISON_LARGE and
+			 * VM_FAULT_HWPOISON are mutually exclusive.
+			 */
+			if (fault & VM_FAULT_HWPOISON_LARGE)
+				lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault));
+			else if (fault & VM_FAULT_HWPOISON)
+				lsb = PAGE_SHIFT;
+
+			force_sig_mceerr(BUS_MCEERR_AR, (void __user *) address,
+					 lsb, current);
+			return;
+		}
+#endif
+		show_signal_msg(regs, code, address, tsk, vma);
+
+		force_sig_fault(signo, si_code, (void __user *) address, current);
 		return;
 	}
 

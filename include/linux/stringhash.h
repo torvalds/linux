@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_STRINGHASH_H
 #define __LINUX_STRINGHASH_H
 
@@ -49,9 +50,9 @@ partial_name_hash(unsigned long c, unsigned long prevhash)
  * losing bits).  This also has the property (wanted by the dcache)
  * that the msbits make a good hash table index.
  */
-static inline unsigned long end_name_hash(unsigned long hash)
+static inline unsigned int end_name_hash(unsigned long hash)
 {
-	return __hash_32((unsigned int)hash);
+	return hash_long(hash, 32);
 }
 
 /*

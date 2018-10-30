@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
@@ -465,10 +454,10 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	/* <1> timer */
-	setup_timer(&rtlpriv->works.watchdog_timer,
-		    rtl_watch_dog_timer_callback, (unsigned long)hw);
-	setup_timer(&rtlpriv->works.dualmac_easyconcurrent_retrytimer,
-		    rtl_easy_concurrent_retrytimer_callback, (unsigned long)hw);
+	timer_setup(&rtlpriv->works.watchdog_timer,
+		    rtl_watch_dog_timer_callback, 0);
+	timer_setup(&rtlpriv->works.dualmac_easyconcurrent_retrytimer,
+		    rtl_easy_concurrent_retrytimer_callback, 0);
 	/* <2> work queue */
 	rtlpriv->works.hw = hw;
 	rtlpriv->works.rtl_wq = alloc_workqueue("%s", 0, 0, rtlpriv->cfg->name);
@@ -637,7 +626,7 @@ static void _rtl_query_shortgi(struct ieee80211_hw *hw,
 	sgi_20 = sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20;
 	sgi_80 = sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80;
 
-	if ((!sta->ht_cap.ht_supported) && (!sta->vht_cap.vht_supported))
+	if (!sta->ht_cap.ht_supported && !sta->vht_cap.vht_supported)
 		return;
 
 	if (!sgi_40 && !sgi_20)
@@ -696,9 +685,8 @@ static void _rtl_query_protection_mode(struct ieee80211_hw *hw,
 	}
 }
 
-u8 rtl_mrate_idx_to_arfr_id(
-	struct ieee80211_hw *hw, u8 rate_index,
-	enum wireless_mode wirelessmode)
+u8 rtl_mrate_idx_to_arfr_id(struct ieee80211_hw *hw, u8 rate_index,
+			    enum wireless_mode wirelessmode)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
@@ -710,20 +698,20 @@ u8 rtl_mrate_idx_to_arfr_id(
 			ret = RATEID_IDX_BGN_40M_1SS;
 		else
 			ret = RATEID_IDX_BGN_40M_2SS;
-		; break;
+		break;
 	case RATR_INX_WIRELESS_N:
 	case RATR_INX_WIRELESS_NG:
 		if (rtlphy->rf_type == RF_1T1R)
 			ret = RATEID_IDX_GN_N1SS;
 		else
 			ret = RATEID_IDX_GN_N2SS;
-		; break;
+		break;
 	case RATR_INX_WIRELESS_NB:
 		if (rtlphy->rf_type == RF_1T1R)
 			ret = RATEID_IDX_BGN_20M_1SS_BN;
 		else
 			ret = RATEID_IDX_BGN_20M_2SS_BN;
-		; break;
+		break;
 	case RATR_INX_WIRELESS_GB:
 		ret = RATEID_IDX_BG;
 		break;
@@ -734,10 +722,10 @@ u8 rtl_mrate_idx_to_arfr_id(
 		ret = RATEID_IDX_B;
 		break;
 	case RATR_INX_WIRELESS_MC:
-		if ((wirelessmode == WIRELESS_MODE_B) ||
-		    (wirelessmode == WIRELESS_MODE_G) ||
-		    (wirelessmode == WIRELESS_MODE_N_24G) ||
-		    (wirelessmode == WIRELESS_MODE_AC_24G))
+		if (wirelessmode == WIRELESS_MODE_B ||
+		    wirelessmode == WIRELESS_MODE_G ||
+		    wirelessmode == WIRELESS_MODE_N_24G ||
+		    wirelessmode == WIRELESS_MODE_AC_24G)
 			ret = RATEID_IDX_BG;
 		else
 			ret = RATEID_IDX_G;
@@ -920,7 +908,7 @@ static u8 _rtl_get_vht_highest_n_rate(struct ieee80211_hw *hw,
 		else if ((tx_mcs_map  & 0x000c) >> 2 ==
 			IEEE80211_VHT_MCS_SUPPORT_0_8)
 			hw_rate =
-			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_2SS_MCS9];
+			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_2SS_MCS8];
 		else
 			hw_rate =
 			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_2SS_MCS9];
@@ -932,7 +920,7 @@ static u8 _rtl_get_vht_highest_n_rate(struct ieee80211_hw *hw,
 		else if ((tx_mcs_map  & 0x0003) ==
 			IEEE80211_VHT_MCS_SUPPORT_0_8)
 			hw_rate =
-			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_1SS_MCS9];
+			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_1SS_MCS8];
 		else
 			hw_rate =
 			rtlpriv->cfg->maps[RTL_RC_VHT_RATE_1SS_MCS9];
@@ -948,8 +936,8 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	u8 hw_rate;
 
-	if ((get_rf_type(rtlphy) == RF_2T2R) &&
-	    (sta->ht_cap.mcs.rx_mask[1] != 0))
+	if (get_rf_type(rtlphy) == RF_2T2R &&
+	    sta->ht_cap.mcs.rx_mask[1] != 0)
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS15];
 	else
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS7];
@@ -1248,67 +1236,61 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 	if (rtl_is_tx_report_skb(hw, skb))
 		tcb_desc->use_spe_rpt = 1;
 
-	if (ieee80211_is_data(fc)) {
-		/*
-		 *we set data rate INX 0
-		 *in rtl_rc.c   if skb is special data or
-		 *mgt which need low data rate.
-		 */
-
-		/*
-		 *So tcb_desc->hw_rate is just used for
-		 *special data and mgt frames
-		 */
-		if (info->control.rates[0].idx == 0 ||
-		    ieee80211_is_nullfunc(fc)) {
-			tcb_desc->use_driver_rate = true;
-			tcb_desc->ratr_index =
-					SET_RATE_ID(RATR_INX_WIRELESS_MC);
-
-			tcb_desc->disable_ratefallback = 1;
-		} else {
-			/* because hw will never use hw_rate
-			 * when tcb_desc->use_driver_rate = false
-			 * so we never set highest N rate here,
-			 * and N rate will all be controlled by FW
-			 * when tcb_desc->use_driver_rate = false
-			 */
-			if (sta && sta->vht_cap.vht_supported) {
-				tcb_desc->hw_rate =
-				_rtl_get_vht_highest_n_rate(hw, sta);
-			} else {
-				if (sta && (sta->ht_cap.ht_supported)) {
-					tcb_desc->hw_rate =
-					    _rtl_get_highest_n_rate(hw, sta);
-				} else {
-					if (rtlmac->mode == WIRELESS_MODE_B) {
-						tcb_desc->hw_rate =
-						    rtlpriv->cfg->maps[RTL_RC_CCK_RATE11M];
-					} else {
-						tcb_desc->hw_rate =
-						    rtlpriv->cfg->maps[RTL_RC_OFDM_RATE54M];
-					}
-				}
-			}
-		}
-
-		if (is_multicast_ether_addr(hdr->addr1))
-			tcb_desc->multicast = 1;
-		else if (is_broadcast_ether_addr(hdr->addr1))
-			tcb_desc->broadcast = 1;
-
-		_rtl_txrate_selectmode(hw, sta, tcb_desc);
-		_rtl_query_bandwidth_mode(hw, sta, tcb_desc);
-		_rtl_qurey_shortpreamble_mode(hw, tcb_desc, info);
-		_rtl_query_shortgi(hw, sta, tcb_desc, info);
-		_rtl_query_protection_mode(hw, tcb_desc, info);
-	} else {
+	if (!ieee80211_is_data(fc)) {
 		tcb_desc->use_driver_rate = true;
 		tcb_desc->ratr_index = SET_RATE_ID(RATR_INX_WIRELESS_MC);
 		tcb_desc->disable_ratefallback = 1;
 		tcb_desc->mac_id = 0;
 		tcb_desc->packet_bw = false;
+
+		return;
 	}
+
+	/*
+	 * We set data rate INX 0
+	 * in rtl_rc.c if skb is special data or
+	 * mgt which need low data rate.
+	 */
+
+	/*
+	 * So tcb_desc->hw_rate is just used for
+	 * special data and mgt frames
+	 */
+	if (info->control.rates[0].idx == 0 || ieee80211_is_nullfunc(fc)) {
+		tcb_desc->use_driver_rate = true;
+		tcb_desc->ratr_index = SET_RATE_ID(RATR_INX_WIRELESS_MC);
+
+		tcb_desc->disable_ratefallback = 1;
+	} else if (sta && sta->vht_cap.vht_supported) {
+		/*
+		 * Because hw will never use hw_rate
+		 * when tcb_desc->use_driver_rate = false
+		 * so we never set highest N rate here,
+		 * and N rate will all be controlled by FW
+		 * when tcb_desc->use_driver_rate = false
+		 */
+		tcb_desc->hw_rate = _rtl_get_vht_highest_n_rate(hw, sta);
+	} else if (sta && sta->ht_cap.ht_supported) {
+		tcb_desc->hw_rate = _rtl_get_highest_n_rate(hw, sta);
+	} else {
+		enum rtl_var_map var = RTL_RC_OFDM_RATE54M;
+
+		if (rtlmac->mode == WIRELESS_MODE_B)
+			var = RTL_RC_CCK_RATE11M;
+
+		tcb_desc->hw_rate = rtlpriv->cfg->maps[var];
+	}
+
+	if (is_multicast_ether_addr(hdr->addr1))
+		tcb_desc->multicast = 1;
+	else if (is_broadcast_ether_addr(hdr->addr1))
+		tcb_desc->broadcast = 1;
+
+	_rtl_txrate_selectmode(hw, sta, tcb_desc);
+	_rtl_query_bandwidth_mode(hw, sta, tcb_desc);
+	_rtl_qurey_shortpreamble_mode(hw, tcb_desc, info);
+	_rtl_query_shortgi(hw, sta, tcb_desc, info);
+	_rtl_query_protection_mode(hw, tcb_desc, info);
 #undef SET_RATE_ID
 }
 
@@ -1849,7 +1831,7 @@ void rtl_rx_ampdu_apply(struct rtl_priv *rtlpriv)
 		 reject_agg, ctrl_agg_size, agg_size);
 
 	rtlpriv->hw->max_rx_aggregation_subframes =
-		(ctrl_agg_size ? agg_size : IEEE80211_MAX_AMPDU_BUF);
+		(ctrl_agg_size ? agg_size : IEEE80211_MAX_AMPDU_BUF_HT);
 }
 
 /*********************************************************
@@ -2080,9 +2062,9 @@ void rtl_watchdog_wq_callback(void *data)
 		    rtlpriv->btcoexist.btc_ops->btc_is_bt_ctrl_lps(rtlpriv))
 			goto label_lps_done;
 
-		if (((rtlpriv->link_info.num_rx_inperiod +
-		      rtlpriv->link_info.num_tx_inperiod) > 8) ||
-		    (rtlpriv->link_info.num_rx_inperiod > 2))
+		if (rtlpriv->link_info.num_rx_inperiod +
+		      rtlpriv->link_info.num_tx_inperiod > 8 ||
+		    rtlpriv->link_info.num_rx_inperiod > 2)
 			rtl_lps_leave(hw);
 		else
 			rtl_lps_enter(hw);
@@ -2161,10 +2143,9 @@ label_lps_done:
 	rtl_scan_list_expire(hw);
 }
 
-void rtl_watch_dog_timer_callback(unsigned long data)
+void rtl_watch_dog_timer_callback(struct timer_list *t)
 {
-	struct ieee80211_hw *hw = (struct ieee80211_hw *)data;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_priv *rtlpriv = from_timer(rtlpriv, t, works.watchdog_timer);
 
 	queue_delayed_work(rtlpriv->works.rtl_wq,
 			   &rtlpriv->works.watchdog_wq, 0);
@@ -2270,10 +2251,11 @@ void rtl_c2hcmd_wq_callback(void *data)
 	rtl_c2hcmd_launcher(hw, 1);
 }
 
-void rtl_easy_concurrent_retrytimer_callback(unsigned long data)
+void rtl_easy_concurrent_retrytimer_callback(struct timer_list *t)
 {
-	struct ieee80211_hw *hw = (struct ieee80211_hw *)data;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_priv *rtlpriv =
+		from_timer(rtlpriv, t, works.dualmac_easyconcurrent_retrytimer);
+	struct ieee80211_hw *hw = rtlpriv->hw;
 	struct rtl_priv *buddy_priv = rtlpriv->buddy_priv;
 
 	if (!buddy_priv)
@@ -2334,9 +2316,7 @@ static struct sk_buff *rtl_make_smps_action(struct ieee80211_hw *hw,
 	case IEEE80211_SMPS_AUTOMATIC:/* 0 */
 	case IEEE80211_SMPS_NUM_MODES:/* 4 */
 		WARN_ON(1);
-	/* Here will get a 'MISSING_BREAK' in Coverity Test, just ignore it.
-	 * According to Kernel Code, here is right.
-	 */
+	/* fall through */
 	case IEEE80211_SMPS_OFF:/* 1 */ /*MIMO_PS_NOLIMIT*/
 		action_frame->u.action.u.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DISABLED;/* 0 */
@@ -2552,8 +2532,8 @@ bool rtl_check_beacon_key(struct ieee80211_hw *hw, void *data, unsigned int len)
 	bcn_key.valid = true;
 
 	/* update cur_beacon_keys or compare beacon key */
-	if ((rtlpriv->mac80211.link_state != MAC80211_LINKED) &&
-	    (rtlpriv->mac80211.link_state != MAC80211_LINKED_SCANNING))
+	if (rtlpriv->mac80211.link_state != MAC80211_LINKED &&
+	    rtlpriv->mac80211.link_state != MAC80211_LINKED_SCANNING)
 		return true;
 
 	if (!cur_bcn_key->valid) {
@@ -2576,8 +2556,8 @@ bool rtl_check_beacon_key(struct ieee80211_hw *hw, void *data, unsigned int len)
 		goto chk_exit;
 	}
 
-	if ((cur_bcn_key->bcn_channel == bcn_key.bcn_channel) &&
-	    (cur_bcn_key->ht_cap_info == bcn_key.ht_cap_info)) {
+	if (cur_bcn_key->bcn_channel == bcn_key.bcn_channel &&
+	    cur_bcn_key->ht_cap_info == bcn_key.ht_cap_info) {
 		/* Beacon HT info IE, secondary channel offset check */
 		/* 40M -> 20M */
 		if (cur_bcn_key->ht_info_infos_0_sco >

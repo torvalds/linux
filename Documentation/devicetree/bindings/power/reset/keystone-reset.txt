@@ -37,12 +37,12 @@ Example 1:
 Setup keystone reset so that in case software reset or
 WDT0 is triggered it issues hard reset for SoC.
 
-pllctrl: pll-controller@02310000 {
+pllctrl: pll-controller@2310000 {
 	compatible = "ti,keystone-pllctrl", "syscon";
 	reg = <0x02310000 0x200>;
 };
 
-devctrl: device-state-control@02620000 {
+devctrl: device-state-control@2620000 {
 	compatible = "ti,keystone-devctrl", "syscon";
 	reg = <0x02620000 0x1000>;
 };

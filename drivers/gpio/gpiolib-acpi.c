@@ -1,17 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ACPI helpers for GPIO API
  *
  * Copyright (C) 2012, Intel Corporation
  * Authors: Mathias Nyman <mathias.nyman@linux.intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/errno.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
@@ -48,7 +44,19 @@ struct acpi_gpio_chip {
 	struct mutex conn_lock;
 	struct gpio_chip *chip;
 	struct list_head events;
+	struct list_head deferred_req_irqs_list_entry;
 };
+
+/*
+ * For gpiochips which call acpi_gpiochip_request_interrupts() before late_init
+ * (so builtin drivers) we register the ACPI GpioInt event handlers from a
+ * late_initcall_sync handler, so that other builtin drivers can register their
+ * OpRegions before the event handlers can run.  This list contains gpiochips
+ * for which the acpi_gpiochip_request_interrupts() has been deferred.
+ */
+static DEFINE_MUTEX(acpi_gpio_deferred_req_irqs_lock);
+static LIST_HEAD(acpi_gpio_deferred_req_irqs_list);
+static bool acpi_gpio_deferred_req_irqs_done;
 
 static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
 {
@@ -57,58 +65,6 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
 
 	return ACPI_HANDLE(gc->parent) == data;
 }
-
-#ifdef CONFIG_PINCTRL
-/**
- * acpi_gpiochip_pin_to_gpio_offset() - translates ACPI GPIO to Linux GPIO
- * @gdev: GPIO device
- * @pin: ACPI GPIO pin number from GpioIo/GpioInt resource
- *
- * Function takes ACPI GpioIo/GpioInt pin number as a parameter and
- * translates it to a corresponding offset suitable to be passed to a
- * GPIO controller driver.
- *
- * Typically the returned offset is same as @pin, but if the GPIO
- * controller uses pin controller and the mapping is not contiguous the
- * offset might be different.
- */
-static int acpi_gpiochip_pin_to_gpio_offset(struct gpio_device *gdev, int pin)
-{
-	struct gpio_pin_range *pin_range;
-
-	/* If there are no ranges in this chip, use 1:1 mapping */
-	if (list_empty(&gdev->pin_ranges))
-		return pin;
-
-	list_for_each_entry(pin_range, &gdev->pin_ranges, node) {
-		const struct pinctrl_gpio_range *range = &pin_range->range;
-		int i;
-
-		if (range->pins) {
-			for (i = 0; i < range->npins; i++) {
-				if (range->pins[i] == pin)
-					return range->base + i - gdev->base;
-			}
-		} else {
-			if (pin >= range->pin_base &&
-			    pin < range->pin_base + range->npins) {
-				unsigned gpio_base;
-
-				gpio_base = range->base - gdev->base;
-				return gpio_base + pin - range->pin_base;
-			}
-		}
-	}
-
-	return -EINVAL;
-}
-#else
-static inline int acpi_gpiochip_pin_to_gpio_offset(struct gpio_device *gdev,
-						   int pin)
-{
-	return pin;
-}
-#endif
 
 /**
  * acpi_get_gpiod() - Translate ACPI GPIO pin to GPIO descriptor usable with GPIO API
@@ -125,7 +81,6 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 	struct gpio_chip *chip;
 	acpi_handle handle;
 	acpi_status status;
-	int offset;
 
 	status = acpi_get_handle(NULL, path, &handle);
 	if (ACPI_FAILURE(status))
@@ -135,11 +90,7 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 	if (!chip)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	offset = acpi_gpiochip_pin_to_gpio_offset(chip->gpiodev, pin);
-	if (offset < 0)
-		return ERR_PTR(offset);
-
-	return gpiochip_get_desc(chip, offset);
+	return gpiochip_get_desc(chip, pin);
 }
 
 static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
@@ -193,7 +144,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	irq_handler_t handler = NULL;
 	struct gpio_desc *desc;
 	unsigned long irqflags;
-	int ret, pin, irq;
+	int ret, pin, irq, value;
 
 	if (!acpi_gpio_get_irq_resource(ares, &agpio))
 		return AE_OK;
@@ -203,7 +154,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 
 	if (pin <= 255) {
 		char ev_name[5];
-		sprintf(ev_name, "_%c%02X",
+		sprintf(ev_name, "_%c%02hhX",
 			agpio->triggering == ACPI_EDGE_SENSITIVE ? 'E' : 'L',
 			pin);
 		if (ACPI_SUCCESS(acpi_get_handle(handle, ev_name, &evt_handle)))
@@ -216,10 +167,6 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	if (!handler)
 		return AE_OK;
 
-	pin = acpi_gpiochip_pin_to_gpio_offset(chip->gpiodev, pin);
-	if (pin < 0)
-		return AE_BAD_PARAMETER;
-
 	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event");
 	if (IS_ERR(desc)) {
 		dev_err(chip->parent, "Failed to request GPIO\n");
@@ -227,6 +174,8 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	}
 
 	gpiod_direction_input(desc);
+
+	value = gpiod_get_value_cansleep(desc);
 
 	ret = gpiochip_lock_as_irq(chip, pin);
 	if (ret) {
@@ -283,6 +232,17 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 		enable_irq_wake(irq);
 
 	list_add_tail(&event->node, &acpi_gpio->events);
+
+	/*
+	 * Make sure we trigger the initial state of the IRQ when using RISING
+	 * or FALLING.  Note we run the handlers on late_init, the AML code
+	 * may refer to OperationRegions from other (builtin) drivers which
+	 * may be probed after us.
+	 */
+	if (((irqflags & IRQF_TRIGGER_RISING) && value == 1) ||
+	    ((irqflags & IRQF_TRIGGER_FALLING) && value == 0))
+		handler(event->irq, event);
+
 	return AE_OK;
 
 fail_free_event:
@@ -310,6 +270,7 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 	struct acpi_gpio_chip *acpi_gpio;
 	acpi_handle handle;
 	acpi_status status;
+	bool defer;
 
 	if (!chip->parent || !chip->to_irq)
 		return;
@@ -320,6 +281,16 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 
 	status = acpi_get_data(handle, acpi_gpio_chip_dh, (void **)&acpi_gpio);
 	if (ACPI_FAILURE(status))
+		return;
+
+	mutex_lock(&acpi_gpio_deferred_req_irqs_lock);
+	defer = !acpi_gpio_deferred_req_irqs_done;
+	if (defer)
+		list_add(&acpi_gpio->deferred_req_irqs_list_entry,
+			 &acpi_gpio_deferred_req_irqs_list);
+	mutex_unlock(&acpi_gpio_deferred_req_irqs_lock);
+
+	if (defer)
 		return;
 
 	acpi_walk_resources(handle, "_AEI",
@@ -351,6 +322,11 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 	status = acpi_get_data(handle, acpi_gpio_chip_dh, (void **)&acpi_gpio);
 	if (ACPI_FAILURE(status))
 		return;
+
+	mutex_lock(&acpi_gpio_deferred_req_irqs_lock);
+	if (!list_empty(&acpi_gpio->deferred_req_irqs_list_entry))
+		list_del_init(&acpi_gpio->deferred_req_irqs_list_entry);
+	mutex_unlock(&acpi_gpio_deferred_req_irqs_lock);
 
 	list_for_each_entry_safe_reverse(event, ep, &acpi_gpio->events, node) {
 		struct gpio_desc *desc;
@@ -414,7 +390,8 @@ EXPORT_SYMBOL_GPL(devm_acpi_dev_remove_driver_gpios);
 
 static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 				      const char *name, int index,
-				      struct acpi_reference_args *args)
+				      struct fwnode_reference_args *args,
+				      unsigned int *quirks)
 {
 	const struct acpi_gpio_mapping *gm;
 
@@ -425,11 +402,13 @@ static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
 		if (!strcmp(name, gm->name) && gm->data && index < gm->size) {
 			const struct acpi_gpio_params *par = gm->data + index;
 
-			args->adev = adev;
+			args->fwnode = acpi_fwnode_handle(adev);
 			args->args[0] = par->crs_entry_index;
 			args->args[1] = par->line_index;
 			args->args[2] = par->active_low;
 			args->nargs = 3;
+
+			*quirks = gm->quirks;
 			return true;
 		}
 
@@ -461,8 +440,8 @@ acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio)
 	}
 }
 
-int
-acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
+static int
+__acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
 {
 	int ret = 0;
 
@@ -489,12 +468,31 @@ acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
 	return ret;
 }
 
+int
+acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *info)
+{
+	struct device *dev = &info->adev->dev;
+	enum gpiod_flags old = *flags;
+	int ret;
+
+	ret = __acpi_gpio_update_gpiod_flags(&old, info->flags);
+	if (info->quirks & ACPI_GPIO_QUIRK_NO_IO_RESTRICTION) {
+		if (ret)
+			dev_warn(dev, FW_BUG "GPIO not in correct mode, fixing\n");
+	} else {
+		if (ret)
+			dev_dbg(dev, "Override GPIO initialization flags\n");
+		*flags = old;
+	}
+
+	return ret;
+}
+
 struct acpi_gpio_lookup {
 	struct acpi_gpio_info info;
 	int index;
 	int pin_index;
 	bool active_low;
-	struct acpi_device *adev;
 	struct gpio_desc *desc;
 	int n;
 };
@@ -531,8 +529,8 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 			lookup->info.triggering = agpio->triggering;
 		} else {
 			lookup->info.flags = acpi_gpio_to_gpiod_flags(agpio);
+			lookup->info.polarity = lookup->active_low;
 		}
-
 	}
 
 	return 1;
@@ -541,12 +539,13 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
 				     struct acpi_gpio_info *info)
 {
+	struct acpi_device *adev = lookup->info.adev;
 	struct list_head res_list;
 	int ret;
 
 	INIT_LIST_HEAD(&res_list);
 
-	ret = acpi_dev_get_resources(lookup->adev, &res_list,
+	ret = acpi_dev_get_resources(adev, &res_list,
 				     acpi_populate_gpio_lookup,
 				     lookup);
 	if (ret < 0)
@@ -557,11 +556,8 @@ static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
 	if (!lookup->desc)
 		return -ENOENT;
 
-	if (info) {
+	if (info)
 		*info = lookup->info;
-		if (lookup->active_low)
-			info->polarity = lookup->active_low;
-	}
 	return 0;
 }
 
@@ -569,7 +565,8 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 				     const char *propname, int index,
 				     struct acpi_gpio_lookup *lookup)
 {
-	struct acpi_reference_args args;
+	struct fwnode_reference_args args;
+	unsigned int quirks = 0;
 	int ret;
 
 	memset(&args, 0, sizeof(args));
@@ -581,20 +578,25 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 		if (!adev)
 			return ret;
 
-		if (!acpi_get_driver_gpio_data(adev, propname, index, &args))
+		if (!acpi_get_driver_gpio_data(adev, propname, index, &args,
+					       &quirks))
 			return ret;
 	}
 	/*
 	 * The property was found and resolved, so need to lookup the GPIO based
 	 * on returned args.
 	 */
-	lookup->adev = args.adev;
+	if (!to_acpi_device_node(args.fwnode))
+		return -EINVAL;
 	if (args.nargs != 3)
 		return -EPROTO;
 
 	lookup->index = args.args[0];
 	lookup->pin_index = args.args[1];
 	lookup->active_low = !!args.args[2];
+
+	lookup->info.adev = to_acpi_device_node(args.fwnode);
+	lookup->info.quirks = quirks;
 
 	return 0;
 }
@@ -643,11 +645,11 @@ static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 			return ERR_PTR(ret);
 
 		dev_dbg(&adev->dev, "GPIO: _DSD returned %s %d %d %u\n",
-			dev_name(&lookup.adev->dev), lookup.index,
+			dev_name(&lookup.info.adev->dev), lookup.index,
 			lookup.pin_index, lookup.active_low);
 	} else {
 		dev_dbg(&adev->dev, "GPIO: looking up %d in _CRS\n", index);
-		lookup.adev = adev;
+		lookup.info.adev = adev;
 	}
 
 	ret = acpi_gpio_resource_lookup(&lookup, info);
@@ -664,7 +666,6 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 	struct acpi_gpio_info info;
 	struct gpio_desc *desc;
 	char propname[32];
-	int err;
 	int i;
 
 	/* Try first from _DSD */
@@ -703,10 +704,7 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 	if (info.polarity == GPIO_ACTIVE_LOW)
 		*lookupflags |= GPIO_ACTIVE_LOW;
 
-	err = acpi_gpio_update_gpiod_flags(dflags, info.flags);
-	if (err)
-		dev_dbg(dev, "Override GPIO initialization flags\n");
-
+	acpi_gpio_update_gpiod_flags(dflags, &info);
 	return desc;
 }
 
@@ -852,12 +850,6 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		struct gpio_desc *desc;
 		bool found;
 
-		pin = acpi_gpiochip_pin_to_gpio_offset(chip->gpiodev, pin);
-		if (pin < 0) {
-			status = AE_BAD_PARAMETER;
-			goto out;
-		}
-
 		mutex_lock(&achip->conn_lock);
 
 		found = false;
@@ -990,11 +982,7 @@ static struct gpio_desc *acpi_gpiochip_parse_own_gpio(
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	ret = acpi_gpiochip_pin_to_gpio_offset(chip->gpiodev, gpios[0]);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	desc = gpiochip_get_desc(chip, ret);
+	desc = gpiochip_get_desc(chip, gpios[0]);
 	if (IS_ERR(desc))
 		return desc;
 
@@ -1065,6 +1053,7 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 
 	acpi_gpio->chip = chip;
 	INIT_LIST_HEAD(&acpi_gpio->events);
+	INIT_LIST_HEAD(&acpi_gpio->deferred_req_irqs_list_entry);
 
 	status = acpi_attach_data(handle, acpi_gpio_chip_dh, acpi_gpio);
 	if (ACPI_FAILURE(status)) {
@@ -1074,7 +1063,7 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 	}
 
 	if (!chip->names)
-		devprop_gpiochip_set_names(chip);
+		devprop_gpiochip_set_names(chip, dev_fwnode(chip->parent));
 
 	acpi_gpiochip_request_regions(acpi_gpio);
 	acpi_gpiochip_scan_gpios(acpi_gpio);
@@ -1205,8 +1194,34 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 bool acpi_can_fallback_to_crs(struct acpi_device *adev, const char *con_id)
 {
 	/* Never allow fallback if the device has properties */
-	if (adev->data.properties || adev->driver_gpios)
+	if (acpi_dev_has_props(adev) || adev->driver_gpios)
 		return false;
 
 	return con_id == NULL;
 }
+
+/* Run deferred acpi_gpiochip_request_interrupts() */
+static int acpi_gpio_handle_deferred_request_interrupts(void)
+{
+	struct acpi_gpio_chip *acpi_gpio, *tmp;
+
+	mutex_lock(&acpi_gpio_deferred_req_irqs_lock);
+	list_for_each_entry_safe(acpi_gpio, tmp,
+				 &acpi_gpio_deferred_req_irqs_list,
+				 deferred_req_irqs_list_entry) {
+		acpi_handle handle;
+
+		handle = ACPI_HANDLE(acpi_gpio->chip->parent);
+		acpi_walk_resources(handle, "_AEI",
+				    acpi_gpiochip_request_interrupt, acpi_gpio);
+
+		list_del_init(&acpi_gpio->deferred_req_irqs_list_entry);
+	}
+
+	acpi_gpio_deferred_req_irqs_done = true;
+	mutex_unlock(&acpi_gpio_deferred_req_irqs_lock);
+
+	return 0;
+}
+/* We must use _sync so that this runs after the first deferred_probe run */
+late_initcall_sync(acpi_gpio_handle_deferred_request_interrupts);

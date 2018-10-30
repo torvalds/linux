@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,7 +17,7 @@
 #include "rmnet_vnd.h"
 
 static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
-				    struct rmnet_port *rdinfo,
+				    struct rmnet_port *port,
 				    int enable)
 {
 	struct rmnet_map_control_command *cmd;
@@ -37,7 +37,12 @@ static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
 		return RX_HANDLER_CONSUMED;
 	}
 
-	ep = &rdinfo->muxed_ep[mux_id];
+	ep = rmnet_get_endpoint(port, mux_id);
+	if (!ep) {
+		kfree_skb(skb);
+		return RX_HANDLER_CONSUMED;
+	}
+
 	vnd = ep->egress_dev;
 
 	ip_family = cmd->flow_control.ip_family;
@@ -58,26 +63,30 @@ static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
 }
 
 static void rmnet_map_send_ack(struct sk_buff *skb,
-			       unsigned char type)
+			       unsigned char type,
+			       struct rmnet_port *port)
 {
 	struct rmnet_map_control_command *cmd;
-	int xmit_status;
+	struct net_device *dev = skb->dev;
+
+	if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4)
+		skb_trim(skb,
+			 skb->len - sizeof(struct rmnet_map_dl_csum_trailer));
 
 	skb->protocol = htons(ETH_P_MAP);
 
 	cmd = RMNET_MAP_GET_CMD_START(skb);
 	cmd->cmd_type = type & 0x03;
 
-	netif_tx_lock(skb->dev);
-	xmit_status = skb->dev->netdev_ops->ndo_start_xmit(skb, skb->dev);
-	netif_tx_unlock(skb->dev);
+	netif_tx_lock(dev);
+	dev->netdev_ops->ndo_start_xmit(skb, dev);
+	netif_tx_unlock(dev);
 }
 
 /* Process MAP command frame and send N/ACK message as appropriate. Message cmd
  * name is decoded here and appropriate handler is called.
  */
-rx_handler_result_t rmnet_map_command(struct sk_buff *skb,
-				      struct rmnet_port *port)
+void rmnet_map_command(struct sk_buff *skb, struct rmnet_port *port)
 {
 	struct rmnet_map_control_command *cmd;
 	unsigned char command_name;
@@ -101,6 +110,5 @@ rx_handler_result_t rmnet_map_command(struct sk_buff *skb,
 		break;
 	}
 	if (rc == RMNET_MAP_COMMAND_ACK)
-		rmnet_map_send_ack(skb, rc);
-	return RX_HANDLER_CONSUMED;
+		rmnet_map_send_ack(skb, rc, port);
 }

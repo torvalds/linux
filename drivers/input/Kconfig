@@ -16,7 +16,7 @@ config INPUT
 
 	  Say N here if you have a headless (no monitor, no keyboard) system.
 
-	  More information is available: <file:Documentation/input/input.txt>
+	  More information is available: <file:Documentation/input/input.rst>
 
 	  If unsure, say Y.
 
@@ -144,7 +144,7 @@ config INPUT_JOYDEV
 
 	  If unsure, say Y.
 
-	  More information is available: <file:Documentation/input/joystick.txt>
+	  More information is available: <file:Documentation/input/joydev/joystick.rst>
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called joydev.

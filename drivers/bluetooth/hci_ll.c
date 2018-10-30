@@ -53,21 +53,19 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <linux/gpio/consumer.h>
+#include <linux/nvmem-consumer.h>
 
 #include "hci_uart.h"
+
+/* Vendor-specific HCI commands */
+#define HCI_VS_WRITE_BD_ADDR			0xfc06
+#define HCI_VS_UPDATE_UART_HCI_BAUDRATE		0xff36
 
 /* HCILL commands */
 #define HCILL_GO_TO_SLEEP_IND	0x30
 #define HCILL_GO_TO_SLEEP_ACK	0x31
 #define HCILL_WAKE_UP_IND	0x32
 #define HCILL_WAKE_UP_ACK	0x33
-
-/* HCILL receiver States */
-#define HCILL_W4_PACKET_TYPE	0
-#define HCILL_W4_EVENT_HDR	1
-#define HCILL_W4_ACL_HDR	2
-#define HCILL_W4_SCO_HDR	3
-#define HCILL_W4_DATA		4
 
 /* HCILL states */
 enum hcill_states_e {
@@ -77,20 +75,15 @@ enum hcill_states_e {
 	HCILL_AWAKE_TO_ASLEEP
 };
 
-struct hcill_cmd {
-	u8 cmd;
-} __packed;
-
 struct ll_device {
 	struct hci_uart hu;
 	struct serdev_device *serdev;
 	struct gpio_desc *enable_gpio;
 	struct clk *ext_clk;
+	bdaddr_t bdaddr;
 };
 
 struct ll_struct {
-	unsigned long rx_state;
-	unsigned long rx_count;
 	struct sk_buff *rx_skb;
 	struct sk_buff_head txq;
 	spinlock_t hcill_lock;		/* HCILL state lock	*/
@@ -107,7 +100,6 @@ static int send_hcill_cmd(u8 cmd, struct hci_uart *hu)
 	int err = 0;
 	struct sk_buff *skb = NULL;
 	struct ll_struct *ll = hu->priv;
-	struct hcill_cmd *hcill_packet;
 
 	BT_DBG("hu %p cmd 0x%x", hu, cmd);
 
@@ -120,8 +112,7 @@ static int send_hcill_cmd(u8 cmd, struct hci_uart *hu)
 	}
 
 	/* prepare packet */
-	hcill_packet = skb_put(skb, 1);
-	hcill_packet->cmd = cmd;
+	skb_put_u8(skb, cmd);
 
 	/* send packet */
 	skb_queue_tail(&ll->txq, skb);
@@ -150,7 +141,6 @@ static int ll_open(struct hci_uart *hu)
 
 	if (hu->serdev) {
 		struct ll_device *lldev = serdev_device_get_drvdata(hu->serdev);
-		serdev_device_open(hu->serdev);
 		if (!IS_ERR(lldev->ext_clk))
 			clk_prepare_enable(lldev->ext_clk);
 	}
@@ -188,8 +178,6 @@ static int ll_close(struct hci_uart *hu)
 		gpiod_set_value_cansleep(lldev->enable_gpio, 0);
 
 		clk_disable_unprepare(lldev->ext_clk);
-
-		serdev_device_close(hu->serdev);
 	}
 
 	hu->priv = NULL;
@@ -242,7 +230,7 @@ static void ll_device_want_to_wakeup(struct hci_uart *hu)
 		 * perfectly safe to always send one.
 		 */
 		BT_DBG("dual wake-up-indication");
-		/* deliberate fall-through - do not add break */
+		/* fall through */
 	case HCILL_ASLEEP:
 		/* acknowledge device wake up */
 		if (send_hcill_cmd(HCILL_WAKE_UP_ACK, hu) < 0) {
@@ -373,155 +361,88 @@ static int ll_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	return 0;
 }
 
-static inline int ll_check_data_len(struct hci_dev *hdev, struct ll_struct *ll, int len)
+static int ll_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	int room = skb_tailroom(ll->rx_skb);
+	struct hci_uart *hu = hci_get_drvdata(hdev);
+	struct ll_struct *ll = hu->priv;
 
-	BT_DBG("len %d room %d", len, room);
-
-	if (!len) {
-		hci_recv_frame(hdev, ll->rx_skb);
-	} else if (len > room) {
-		BT_ERR("Data length is too large");
-		kfree_skb(ll->rx_skb);
-	} else {
-		ll->rx_state = HCILL_W4_DATA;
-		ll->rx_count = len;
-		return len;
+	switch (hci_skb_pkt_type(skb)) {
+	case HCILL_GO_TO_SLEEP_IND:
+		BT_DBG("HCILL_GO_TO_SLEEP_IND packet");
+		ll_device_want_to_sleep(hu);
+		break;
+	case HCILL_GO_TO_SLEEP_ACK:
+		/* shouldn't happen */
+		bt_dev_err(hdev, "received HCILL_GO_TO_SLEEP_ACK in state %ld",
+			   ll->hcill_state);
+		break;
+	case HCILL_WAKE_UP_IND:
+		BT_DBG("HCILL_WAKE_UP_IND packet");
+		ll_device_want_to_wakeup(hu);
+		break;
+	case HCILL_WAKE_UP_ACK:
+		BT_DBG("HCILL_WAKE_UP_ACK packet");
+		ll_device_woke_up(hu);
+		break;
 	}
 
-	ll->rx_state = HCILL_W4_PACKET_TYPE;
-	ll->rx_skb   = NULL;
-	ll->rx_count = 0;
-
+	kfree_skb(skb);
 	return 0;
 }
+
+#define LL_RECV_SLEEP_IND \
+	.type = HCILL_GO_TO_SLEEP_IND, \
+	.hlen = 0, \
+	.loff = 0, \
+	.lsize = 0, \
+	.maxlen = 0
+
+#define LL_RECV_SLEEP_ACK \
+	.type = HCILL_GO_TO_SLEEP_ACK, \
+	.hlen = 0, \
+	.loff = 0, \
+	.lsize = 0, \
+	.maxlen = 0
+
+#define LL_RECV_WAKE_IND \
+	.type = HCILL_WAKE_UP_IND, \
+	.hlen = 0, \
+	.loff = 0, \
+	.lsize = 0, \
+	.maxlen = 0
+
+#define LL_RECV_WAKE_ACK \
+	.type = HCILL_WAKE_UP_ACK, \
+	.hlen = 0, \
+	.loff = 0, \
+	.lsize = 0, \
+	.maxlen = 0
+
+static const struct h4_recv_pkt ll_recv_pkts[] = {
+	{ H4_RECV_ACL,       .recv = hci_recv_frame },
+	{ H4_RECV_SCO,       .recv = hci_recv_frame },
+	{ H4_RECV_EVENT,     .recv = hci_recv_frame },
+	{ LL_RECV_SLEEP_IND, .recv = ll_recv_frame  },
+	{ LL_RECV_SLEEP_ACK, .recv = ll_recv_frame  },
+	{ LL_RECV_WAKE_IND,  .recv = ll_recv_frame  },
+	{ LL_RECV_WAKE_ACK,  .recv = ll_recv_frame  },
+};
 
 /* Recv data */
 static int ll_recv(struct hci_uart *hu, const void *data, int count)
 {
 	struct ll_struct *ll = hu->priv;
-	const char *ptr;
-	struct hci_event_hdr *eh;
-	struct hci_acl_hdr   *ah;
-	struct hci_sco_hdr   *sh;
-	int len, type, dlen;
 
-	BT_DBG("hu %p count %d rx_state %ld rx_count %ld", hu, count, ll->rx_state, ll->rx_count);
+	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
+		return -EUNATCH;
 
-	ptr = data;
-	while (count) {
-		if (ll->rx_count) {
-			len = min_t(unsigned int, ll->rx_count, count);
-			skb_put_data(ll->rx_skb, ptr, len);
-			ll->rx_count -= len; count -= len; ptr += len;
-
-			if (ll->rx_count)
-				continue;
-
-			switch (ll->rx_state) {
-			case HCILL_W4_DATA:
-				BT_DBG("Complete data");
-				hci_recv_frame(hu->hdev, ll->rx_skb);
-
-				ll->rx_state = HCILL_W4_PACKET_TYPE;
-				ll->rx_skb = NULL;
-				continue;
-
-			case HCILL_W4_EVENT_HDR:
-				eh = hci_event_hdr(ll->rx_skb);
-
-				BT_DBG("Event header: evt 0x%2.2x plen %d", eh->evt, eh->plen);
-
-				ll_check_data_len(hu->hdev, ll, eh->plen);
-				continue;
-
-			case HCILL_W4_ACL_HDR:
-				ah = hci_acl_hdr(ll->rx_skb);
-				dlen = __le16_to_cpu(ah->dlen);
-
-				BT_DBG("ACL header: dlen %d", dlen);
-
-				ll_check_data_len(hu->hdev, ll, dlen);
-				continue;
-
-			case HCILL_W4_SCO_HDR:
-				sh = hci_sco_hdr(ll->rx_skb);
-
-				BT_DBG("SCO header: dlen %d", sh->dlen);
-
-				ll_check_data_len(hu->hdev, ll, sh->dlen);
-				continue;
-			}
-		}
-
-		/* HCILL_W4_PACKET_TYPE */
-		switch (*ptr) {
-		case HCI_EVENT_PKT:
-			BT_DBG("Event packet");
-			ll->rx_state = HCILL_W4_EVENT_HDR;
-			ll->rx_count = HCI_EVENT_HDR_SIZE;
-			type = HCI_EVENT_PKT;
-			break;
-
-		case HCI_ACLDATA_PKT:
-			BT_DBG("ACL packet");
-			ll->rx_state = HCILL_W4_ACL_HDR;
-			ll->rx_count = HCI_ACL_HDR_SIZE;
-			type = HCI_ACLDATA_PKT;
-			break;
-
-		case HCI_SCODATA_PKT:
-			BT_DBG("SCO packet");
-			ll->rx_state = HCILL_W4_SCO_HDR;
-			ll->rx_count = HCI_SCO_HDR_SIZE;
-			type = HCI_SCODATA_PKT;
-			break;
-
-		/* HCILL signals */
-		case HCILL_GO_TO_SLEEP_IND:
-			BT_DBG("HCILL_GO_TO_SLEEP_IND packet");
-			ll_device_want_to_sleep(hu);
-			ptr++; count--;
-			continue;
-
-		case HCILL_GO_TO_SLEEP_ACK:
-			/* shouldn't happen */
-			BT_ERR("received HCILL_GO_TO_SLEEP_ACK (in state %ld)", ll->hcill_state);
-			ptr++; count--;
-			continue;
-
-		case HCILL_WAKE_UP_IND:
-			BT_DBG("HCILL_WAKE_UP_IND packet");
-			ll_device_want_to_wakeup(hu);
-			ptr++; count--;
-			continue;
-
-		case HCILL_WAKE_UP_ACK:
-			BT_DBG("HCILL_WAKE_UP_ACK packet");
-			ll_device_woke_up(hu);
-			ptr++; count--;
-			continue;
-
-		default:
-			BT_ERR("Unknown HCI packet type %2.2x", (__u8)*ptr);
-			hu->hdev->stat.err_rx++;
-			ptr++; count--;
-			continue;
-		}
-
-		ptr++; count--;
-
-		/* Allocate packet */
-		ll->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC);
-		if (!ll->rx_skb) {
-			BT_ERR("Can't allocate mem for new packet");
-			ll->rx_state = HCILL_W4_PACKET_TYPE;
-			ll->rx_count = 0;
-			return -ENOMEM;
-		}
-
-		hci_skb_pkt_type(ll->rx_skb) = type;
+	ll->rx_skb = h4_recv_buf(hu->hdev, ll->rx_skb, data, count,
+				 ll_recv_pkts, ARRAY_SIZE(ll_recv_pkts));
+	if (IS_ERR(ll->rx_skb)) {
+		int err = PTR_ERR(ll->rx_skb);
+		bt_dev_err(hu->hdev, "Frame reassembly failed (%d)", err);
+		ll->rx_skb = NULL;
+		return err;
 	}
 
 	return count;
@@ -620,7 +541,7 @@ static int download_firmware(struct ll_device *lldev)
 		case ACTION_SEND_COMMAND:	/* action send */
 			bt_dev_dbg(lldev->hu.hdev, "S");
 			cmd = (struct hci_command *)action_ptr;
-			if (cmd->opcode == 0xff36) {
+			if (cmd->opcode == HCI_VS_UPDATE_UART_HCI_BAUDRATE) {
 				/* ignore remote change
 				 * baud rate HCI VS command
 				 */
@@ -628,11 +549,11 @@ static int download_firmware(struct ll_device *lldev)
 				break;
 			}
 			if (cmd->prefix != 1)
-				bt_dev_dbg(lldev->hu.hdev, "command type %d\n", cmd->prefix);
+				bt_dev_dbg(lldev->hu.hdev, "command type %d", cmd->prefix);
 
 			skb = __hci_cmd_sync(lldev->hu.hdev, cmd->opcode, cmd->plen, &cmd->speed, HCI_INIT_TIMEOUT);
 			if (IS_ERR(skb)) {
-				bt_dev_err(lldev->hu.hdev, "send command failed\n");
+				bt_dev_err(lldev->hu.hdev, "send command failed");
 				err = PTR_ERR(skb);
 				goto out_rel_fw;
 			}
@@ -644,7 +565,7 @@ static int download_firmware(struct ll_device *lldev)
 			break;
 		case ACTION_DELAY:	/* sleep */
 			bt_dev_info(lldev->hu.hdev, "sleep command in scr");
-			mdelay(((struct bts_action_delay *)action_ptr)->msec);
+			msleep(((struct bts_action_delay *)action_ptr)->msec);
 			break;
 		}
 		len -= (sizeof(struct bts_action) +
@@ -659,6 +580,24 @@ out_rel_fw:
 	return err;
 }
 
+static int ll_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
+{
+	bdaddr_t bdaddr_swapped;
+	struct sk_buff *skb;
+
+	/* HCI_VS_WRITE_BD_ADDR (at least on a CC2560A chip) expects the BD
+	 * address to be MSB first, but bdaddr_t has the convention of being
+	 * LSB first.
+	 */
+	baswap(&bdaddr_swapped, bdaddr);
+	skb = __hci_cmd_sync(hdev, HCI_VS_WRITE_BD_ADDR, sizeof(bdaddr_t),
+			     &bdaddr_swapped, HCI_INIT_TIMEOUT);
+	if (!IS_ERR(skb))
+		kfree_skb(skb);
+
+	return PTR_ERR_OR_ZERO(skb);
+}
+
 static int ll_setup(struct hci_uart *hu)
 {
 	int err, retry = 3;
@@ -671,14 +610,20 @@ static int ll_setup(struct hci_uart *hu)
 
 	lldev = serdev_device_get_drvdata(serdev);
 
+	hu->hdev->set_bdaddr = ll_set_bdaddr;
+
 	serdev_device_set_flow_control(serdev, true);
 
 	do {
-		/* Configure BT_EN to HIGH state */
+		/* Reset the Bluetooth device */
 		gpiod_set_value_cansleep(lldev->enable_gpio, 0);
 		msleep(5);
 		gpiod_set_value_cansleep(lldev->enable_gpio, 1);
-		msleep(100);
+		err = serdev_device_wait_for_cts(serdev, true, 200);
+		if (err) {
+			bt_dev_err(hu->hdev, "Failed to get CTS");
+			return err;
+		}
 
 		err = download_firmware(lldev);
 		if (!err)
@@ -691,6 +636,18 @@ static int ll_setup(struct hci_uart *hu)
 	if (err)
 		return err;
 
+	/* Set BD address if one was specified at probe */
+	if (!bacmp(&lldev->bdaddr, BDADDR_NONE)) {
+		/* This means that there was an error getting the BD address
+		 * during probe, so mark the device as having a bad address.
+		 */
+		set_bit(HCI_QUIRK_INVALID_BDADDR, &hu->hdev->quirks);
+	} else if (bacmp(&lldev->bdaddr, BDADDR_ANY)) {
+		err = ll_set_bdaddr(hu->hdev, &lldev->bdaddr);
+		if (err)
+			set_bit(HCI_QUIRK_INVALID_BDADDR, &hu->hdev->quirks);
+	}
+
 	/* Operational speed if any */
 	if (hu->oper_speed)
 		speed = hu->oper_speed;
@@ -700,7 +657,12 @@ static int ll_setup(struct hci_uart *hu)
 		speed = 0;
 
 	if (speed) {
-		struct sk_buff *skb = __hci_cmd_sync(hu->hdev, 0xff36, sizeof(speed), &speed, HCI_INIT_TIMEOUT);
+		__le32 speed_le = cpu_to_le32(speed);
+		struct sk_buff *skb;
+
+		skb = __hci_cmd_sync(hu->hdev, HCI_VS_UPDATE_UART_HCI_BAUDRATE,
+				     sizeof(speed_le), &speed_le,
+				     HCI_INIT_TIMEOUT);
 		if (!IS_ERR(skb)) {
 			kfree_skb(skb);
 			serdev_device_set_baudrate(serdev, speed);
@@ -716,6 +678,7 @@ static int hci_ti_probe(struct serdev_device *serdev)
 {
 	struct hci_uart *hu;
 	struct ll_device *lldev;
+	struct nvmem_cell *bdaddr_cell;
 	u32 max_speed = 3000000;
 
 	lldev = devm_kzalloc(&serdev->dev, sizeof(struct ll_device), GFP_KERNEL);
@@ -737,6 +700,52 @@ static int hci_ti_probe(struct serdev_device *serdev)
 	of_property_read_u32(serdev->dev.of_node, "max-speed", &max_speed);
 	hci_uart_set_speeds(hu, 115200, max_speed);
 
+	/* optional BD address from nvram */
+	bdaddr_cell = nvmem_cell_get(&serdev->dev, "bd-address");
+	if (IS_ERR(bdaddr_cell)) {
+		int err = PTR_ERR(bdaddr_cell);
+
+		if (err == -EPROBE_DEFER)
+			return err;
+
+		/* ENOENT means there is no matching nvmem cell and ENOSYS
+		 * means that nvmem is not enabled in the kernel configuration.
+		 */
+		if (err != -ENOENT && err != -ENOSYS) {
+			/* If there was some other error, give userspace a
+			 * chance to fix the problem instead of failing to load
+			 * the driver. Using BDADDR_NONE as a flag that is
+			 * tested later in the setup function.
+			 */
+			dev_warn(&serdev->dev,
+				 "Failed to get \"bd-address\" nvmem cell (%d)\n",
+				 err);
+			bacpy(&lldev->bdaddr, BDADDR_NONE);
+		}
+	} else {
+		bdaddr_t *bdaddr;
+		size_t len;
+
+		bdaddr = nvmem_cell_read(bdaddr_cell, &len);
+		nvmem_cell_put(bdaddr_cell);
+		if (IS_ERR(bdaddr)) {
+			dev_err(&serdev->dev, "Failed to read nvmem bd-address\n");
+			return PTR_ERR(bdaddr);
+		}
+		if (len != sizeof(bdaddr_t)) {
+			dev_err(&serdev->dev, "Invalid nvmem bd-address length\n");
+			kfree(bdaddr);
+			return -EINVAL;
+		}
+
+		/* As per the device tree bindings, the value from nvmem is
+		 * expected to be MSB first, but in the kernel it is expected
+		 * that bdaddr_t is LSB first.
+		 */
+		baswap(&lldev->bdaddr, bdaddr);
+		kfree(bdaddr);
+	}
+
 	return hci_uart_register_device(hu, &llp);
 }
 
@@ -748,6 +757,7 @@ static void hci_ti_remove(struct serdev_device *serdev)
 }
 
 static const struct of_device_id hci_ti_of_match[] = {
+	{ .compatible = "ti,cc2560" },
 	{ .compatible = "ti,wl1271-st" },
 	{ .compatible = "ti,wl1273-st" },
 	{ .compatible = "ti,wl1281-st" },

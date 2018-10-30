@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* sunserialcore.h
  *
  * Generic SUN serial/kbd/ms layer.  Based entirely

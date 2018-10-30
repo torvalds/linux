@@ -29,10 +29,10 @@ DECLARE_WORK(key_gc_work, key_garbage_collector);
 /*
  * Reaper for links from keyrings to dead keys.
  */
-static void key_gc_timer_func(unsigned long);
-static DEFINE_TIMER(key_gc_timer, key_gc_timer_func, 0, 0);
+static void key_gc_timer_func(struct timer_list *);
+static DEFINE_TIMER(key_gc_timer, key_gc_timer_func);
 
-static time_t key_gc_next_run = LONG_MAX;
+static time64_t key_gc_next_run = TIME64_MAX;
 static struct key_type *key_gc_dead_keytype;
 
 static unsigned long key_gc_flags;
@@ -53,12 +53,12 @@ struct key_type key_type_dead = {
  * Schedule a garbage collection run.
  * - time precision isn't particularly important
  */
-void key_schedule_gc(time_t gc_at)
+void key_schedule_gc(time64_t gc_at)
 {
 	unsigned long expires;
-	time_t now = current_kernel_time().tv_sec;
+	time64_t now = ktime_get_real_seconds();
 
-	kenter("%ld", gc_at - now);
+	kenter("%lld", gc_at - now);
 
 	if (gc_at <= now || test_bit(KEY_GC_REAP_KEYTYPE, &key_gc_flags)) {
 		kdebug("IMMEDIATE");
@@ -84,10 +84,10 @@ void key_schedule_gc_links(void)
  * Some key's cleanup time was met after it expired, so we need to get the
  * reaper to go through a cycle finding expired keys.
  */
-static void key_gc_timer_func(unsigned long data)
+static void key_gc_timer_func(struct timer_list *unused)
 {
 	kenter("");
-	key_gc_next_run = LONG_MAX;
+	key_gc_next_run = TIME64_MAX;
 	key_schedule_gc_links();
 }
 
@@ -129,15 +129,15 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 	while (!list_empty(keys)) {
 		struct key *key =
 			list_entry(keys->next, struct key, graveyard_link);
+		short state = key->state;
+
 		list_del(&key->graveyard_link);
 
 		kdebug("- %u", key->serial);
 		key_check(key);
 
 		/* Throw away the key data if the key is instantiated */
-		if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags) &&
-		    !test_bit(KEY_FLAG_NEGATIVE, &key->flags) &&
-		    key->type->destroy)
+		if (state == KEY_IS_POSITIVE && key->type->destroy)
 			key->type->destroy(key);
 
 		security_key_free(key);
@@ -151,7 +151,7 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 		}
 
 		atomic_dec(&key->user->nkeys);
-		if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
+		if (state != KEY_IS_UNINSTANTIATED)
 			atomic_dec(&key->user->nikeys);
 
 		key_user_put(key->user);
@@ -184,11 +184,11 @@ static void key_garbage_collector(struct work_struct *work)
 
 	struct rb_node *cursor;
 	struct key *key;
-	time_t new_timer, limit;
+	time64_t new_timer, limit;
 
 	kenter("[%lx,%x]", key_gc_flags, gc_state);
 
-	limit = current_kernel_time().tv_sec;
+	limit = ktime_get_real_seconds();
 	if (limit > key_gc_delay)
 		limit -= key_gc_delay;
 	else
@@ -204,7 +204,7 @@ static void key_garbage_collector(struct work_struct *work)
 		gc_state |= KEY_GC_REAPING_DEAD_1;
 	kdebug("new pass %x", gc_state);
 
-	new_timer = LONG_MAX;
+	new_timer = TIME64_MAX;
 
 	/* As only this function is permitted to remove things from the key
 	 * serial tree, if cursor is non-NULL then it will always point to a
@@ -235,7 +235,7 @@ continue_scanning:
 
 		if (gc_state & KEY_GC_SET_TIMER) {
 			if (key->expiry > limit && key->expiry < new_timer) {
-				kdebug("will expire %x in %ld",
+				kdebug("will expire %x in %lld",
 				       key_serial(key), key->expiry - limit);
 				new_timer = key->expiry;
 			}
@@ -276,7 +276,7 @@ maybe_resched:
 	 */
 	kdebug("pass complete");
 
-	if (gc_state & KEY_GC_SET_TIMER && new_timer != (time_t)LONG_MAX) {
+	if (gc_state & KEY_GC_SET_TIMER && new_timer != (time64_t)TIME64_MAX) {
 		new_timer += key_gc_delay;
 		key_schedule_gc(new_timer);
 	}

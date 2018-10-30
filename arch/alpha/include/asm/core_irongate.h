@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ALPHA_IRONGATE__H__
 #define __ALPHA_IRONGATE__H__
 

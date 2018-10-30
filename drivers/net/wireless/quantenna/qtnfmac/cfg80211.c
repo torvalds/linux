@@ -73,9 +73,47 @@ qtnf_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_AP] = {
 		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
-		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4),
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_ASSOC_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_REASSOC_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 	},
 };
+
+static int
+qtnf_validate_iface_combinations(struct wiphy *wiphy,
+				 struct qtnf_vif *change_vif,
+				 enum nl80211_iftype new_type)
+{
+	struct qtnf_wmac *mac;
+	struct qtnf_vif *vif;
+	int i;
+	int ret = 0;
+	struct iface_combination_params params = {
+		.num_different_channels = 1,
+	};
+
+	mac = wiphy_priv(wiphy);
+	if (!mac)
+		return -EFAULT;
+
+	for (i = 0; i < QTNF_MAX_INTF; i++) {
+		vif = &mac->iflist[i];
+		if (vif->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED)
+			params.iftype_num[vif->wdev.iftype]++;
+	}
+
+	if (change_vif) {
+		params.iftype_num[new_type]++;
+		params.iftype_num[change_vif->wdev.iftype]--;
+	} else {
+		params.iftype_num[new_type]++;
+	}
+
+	ret = cfg80211_check_combinations(wiphy, &params);
+
+	return ret;
+}
 
 static int
 qtnf_change_virtual_intf(struct wiphy *wiphy,
@@ -87,6 +125,13 @@ qtnf_change_virtual_intf(struct wiphy *wiphy,
 	u8 *mac_addr;
 	int ret;
 
+	ret = qtnf_validate_iface_combinations(wiphy, vif, type);
+	if (ret) {
+		pr_err("VIF%u.%u combination check: failed to set type %d\n",
+		       vif->mac->macid, vif->vifid, type);
+		return ret;
+	}
+
 	if (params)
 		mac_addr = params->macaddr;
 	else
@@ -96,8 +141,8 @@ qtnf_change_virtual_intf(struct wiphy *wiphy,
 
 	ret = qtnf_cmd_send_change_intf_type(vif, type, mac_addr);
 	if (ret) {
-		pr_err("VIF%u.%u: failed to change VIF type: %d\n",
-		       vif->mac->macid, vif->vifid, ret);
+		pr_err("VIF%u.%u: failed to change type to %d\n",
+		       vif->mac->macid, vif->vifid, type);
 		return ret;
 	}
 
@@ -115,9 +160,7 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	vif = qtnf_netdev_get_priv(wdev->netdev);
 
-	if (qtnf_cmd_send_del_intf(vif))
-		pr_err("VIF%u.%u: failed to delete VIF\n", vif->mac->macid,
-		       vif->vifid);
+	qtnf_scan_done(vif->mac, true);
 
 	/* Stop data */
 	netif_tx_stop_all_queues(netdev);
@@ -127,10 +170,13 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdevice(netdev);
 
+	if (qtnf_cmd_send_del_intf(vif))
+		pr_err("VIF%u.%u: failed to delete VIF\n", vif->mac->macid,
+		       vif->vifid);
+
 	vif->netdev->ieee80211_ptr = NULL;
 	vif->netdev = NULL;
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
-	eth_zero_addr(vif->mac_addr);
 
 	return 0;
 }
@@ -144,11 +190,19 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 	struct qtnf_wmac *mac;
 	struct qtnf_vif *vif;
 	u8 *mac_addr = NULL;
+	int ret;
 
 	mac = wiphy_priv(wiphy);
 
 	if (!mac)
 		return ERR_PTR(-EFAULT);
+
+	ret = qtnf_validate_iface_combinations(wiphy, NULL, type);
+	if (ret) {
+		pr_err("MAC%u invalid combination: failed to add type %d\n",
+		       mac->macid, type);
+		return ERR_PTR(ret);
+	}
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
@@ -160,10 +214,11 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		}
 
 		eth_zero_addr(vif->mac_addr);
+		eth_zero_addr(vif->bssid);
 		vif->bss_priority = QTNF_DEF_BSS_PRIORITY;
+		memset(&vif->wdev, 0, sizeof(vif->wdev));
 		vif->wdev.wiphy = wiphy;
 		vif->wdev.iftype = type;
-		vif->sta_state = QTNF_STA_DISCONNECTED;
 		break;
 	default:
 		pr_err("MAC%u: unsupported IF type %d\n", mac->macid, type);
@@ -173,18 +228,22 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 	if (params)
 		mac_addr = params->macaddr;
 
-	if (qtnf_cmd_send_add_intf(vif, type, mac_addr)) {
-		pr_err("VIF%u.%u: failed to add VIF\n", mac->macid, vif->vifid);
+	ret = qtnf_cmd_send_add_intf(vif, type, mac_addr);
+	if (ret) {
+		pr_err("VIF%u.%u: failed to add VIF %pM\n",
+		       mac->macid, vif->vifid, mac_addr);
 		goto err_cmd;
 	}
 
 	if (!is_valid_ether_addr(vif->mac_addr)) {
 		pr_err("VIF%u.%u: FW reported bad MAC: %pM\n",
 		       mac->macid, vif->vifid, vif->mac_addr);
+		ret = -EINVAL;
 		goto err_mac;
 	}
 
-	if (qtnf_core_net_attach(mac, vif, name, name_assign_t, type)) {
+	ret = qtnf_core_net_attach(mac, vif, name, name_assign_t);
+	if (ret) {
 		pr_err("VIF%u.%u: failed to attach netdev\n", mac->macid,
 		       vif->vifid);
 		goto err_net;
@@ -200,7 +259,7 @@ err_mac:
 err_cmd:
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
 
-	return ERR_PTR(-EFAULT);
+	return ERR_PTR(ret);
 }
 
 static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
@@ -209,10 +268,10 @@ static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
 	int ret = 0;
 
 	if (!info->beacon_ies || !info->beacon_ies_len) {
-		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_MGMT_FRAME_BEACON,
+		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_IE_SET_BEACON_IES,
 						   NULL, 0);
 	} else {
-		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_MGMT_FRAME_BEACON,
+		ret = qtnf_cmd_send_mgmt_set_appie(vif, QLINK_IE_SET_BEACON_IES,
 						   info->beacon_ies,
 						   info->beacon_ies_len);
 	}
@@ -222,11 +281,11 @@ static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
 
 	if (!info->proberesp_ies || !info->proberesp_ies_len) {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_PROBE_RESP,
+						   QLINK_IE_SET_PROBE_RESP_IES,
 						   NULL, 0);
 	} else {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_PROBE_RESP,
+						   QLINK_IE_SET_PROBE_RESP_IES,
 						   info->proberesp_ies,
 						   info->proberesp_ies_len);
 	}
@@ -236,11 +295,11 @@ static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
 
 	if (!info->assocresp_ies || !info->assocresp_ies_len) {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_ASSOC_RESP,
+						   QLINK_IE_SET_ASSOC_RESP,
 						   NULL, 0);
 	} else {
 		ret = qtnf_cmd_send_mgmt_set_appie(vif,
-						   QLINK_MGMT_FRAME_ASSOC_RESP,
+						   QLINK_IE_SET_ASSOC_RESP,
 						   info->assocresp_ies,
 						   info->assocresp_ies_len);
 	}
@@ -254,11 +313,6 @@ static int qtnf_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 
-	if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-		pr_err("VIF%u.%u: not started\n", vif->mac->macid, vif->vifid);
-		return -EFAULT;
-	}
-
 	return qtnf_mgmt_set_appie(vif, info);
 }
 
@@ -266,67 +320,13 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			 struct cfg80211_ap_settings *settings)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
-	struct qtnf_wmac *mac = wiphy_priv(wiphy);
-	struct qtnf_bss_config *bss_cfg;
 	int ret;
 
-	if (!cfg80211_chandef_identical(&mac->chandef, &settings->chandef)) {
-		memcpy(&mac->chandef, &settings->chandef, sizeof(mac->chandef));
-		if (vif->vifid != 0)
-			pr_warn("%s: unexpected chan %u (%u MHz)\n", dev->name,
-				settings->chandef.chan->hw_value,
-				settings->chandef.chan->center_freq);
-	}
-
-	bss_cfg = &vif->bss_cfg;
-	memset(bss_cfg, 0, sizeof(*bss_cfg));
-
-	bss_cfg->bcn_period = settings->beacon_interval;
-	bss_cfg->dtim = settings->dtim_period;
-	bss_cfg->auth_type = settings->auth_type;
-	bss_cfg->privacy = settings->privacy;
-
-	bss_cfg->ssid_len = settings->ssid_len;
-	memcpy(&bss_cfg->ssid, settings->ssid, bss_cfg->ssid_len);
-
-	memcpy(&bss_cfg->crypto, &settings->crypto,
-	       sizeof(struct cfg80211_crypto_settings));
-
-	ret = qtnf_cmd_send_config_ap(vif);
-	if (ret) {
-		pr_err("VIF%u.%u: failed to push config to FW\n",
-		       vif->mac->macid, vif->vifid);
-		goto out;
-	}
-
-	if (!(vif->bss_status & QTNF_STATE_AP_CONFIG)) {
-		pr_err("VIF%u.%u: AP config failed in FW\n", vif->mac->macid,
-		       vif->vifid);
-		ret = -EFAULT;
-		goto out;
-	}
-
-	ret = qtnf_mgmt_set_appie(vif, &settings->beacon);
-	if (ret) {
-		pr_err("VIF%u.%u: failed to add IEs to beacon\n",
-		       vif->mac->macid, vif->vifid);
-		goto out;
-	}
-
-	ret = qtnf_cmd_send_start_ap(vif);
-	if (ret) {
+	ret = qtnf_cmd_send_start_ap(vif, settings);
+	if (ret)
 		pr_err("VIF%u.%u: failed to start AP\n", vif->mac->macid,
 		       vif->vifid);
-		goto out;
-	}
 
-	if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-		pr_err("VIF%u.%u: FW failed to start AP operation\n",
-		       vif->mac->macid, vif->vifid);
-		ret = -EFAULT;
-	}
-
-out:
 	return ret;
 }
 
@@ -335,15 +335,14 @@ static int qtnf_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
 
+	qtnf_scan_done(vif->mac, true);
+
 	ret = qtnf_cmd_send_stop_ap(vif);
-	if (ret) {
+	if (ret)
 		pr_err("VIF%u.%u: failed to stop AP operation in FW\n",
 		       vif->mac->macid, vif->vifid);
-		vif->bss_status &= ~QTNF_STATE_AP_START;
-		vif->bss_status &= ~QTNF_STATE_AP_CONFIG;
 
-		netif_carrier_off(vif->netdev);
-	}
+	netif_carrier_off(vif->netdev);
 
 	return ret;
 }
@@ -392,6 +391,13 @@ qtnf_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 		return;
 
 	switch (frame_type & IEEE80211_FCTL_STYPE) {
+	case IEEE80211_STYPE_REASSOC_REQ:
+	case IEEE80211_STYPE_ASSOC_REQ:
+		qlink_frame_type = QLINK_MGMT_FRAME_ASSOC_REQ;
+		break;
+	case IEEE80211_STYPE_AUTH:
+		qlink_frame_type = QLINK_MGMT_FRAME_AUTH;
+		break;
 	case IEEE80211_STYPE_PROBE_REQ:
 		qlink_frame_type = QLINK_MGMT_FRAME_PROBE_REQ;
 		break;
@@ -425,6 +431,7 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	const struct ieee80211_mgmt *mgmt_frame = (void *)params->buf;
 	u32 short_cookie = prandom_u32();
 	u16 flags = 0;
+	u16 freq;
 
 	*cookie = short_cookie;
 
@@ -437,13 +444,21 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (params->dont_wait_for_ack)
 		flags |= QLINK_MGMT_FRAME_TX_FLAG_ACK_NOWAIT;
 
+	/* If channel is not specified, pass "freq = 0" to tell device
+	 * firmware to use current channel.
+	 */
+	if (params->chan)
+		freq = params->chan->center_freq;
+	else
+		freq = 0;
+
 	pr_debug("%s freq:%u; FC:%.4X; DA:%pM; len:%zu; C:%.8X; FL:%.4X\n",
-		 wdev->netdev->name, params->chan->center_freq,
+		 wdev->netdev->name, freq,
 		 le16_to_cpu(mgmt_frame->frame_control), mgmt_frame->da,
 		 params->len, short_cookie, flags);
 
 	return qtnf_cmd_send_mgmt_frame(vif, short_cookie, flags,
-					params->chan->center_freq,
+					freq,
 					params->buf, params->len);
 }
 
@@ -453,6 +468,7 @@ qtnf_get_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 
+	sinfo->generation = vif->generation;
 	return qtnf_cmd_get_sta_info(vif, mac, sinfo);
 }
 
@@ -464,20 +480,34 @@ qtnf_dump_station(struct wiphy *wiphy, struct net_device *dev,
 	const struct qtnf_sta_node *sta_node;
 	int ret;
 
-	sta_node = qtnf_sta_list_lookup_index(&vif->sta_list, idx);
+	switch (vif->wdev.iftype) {
+	case NL80211_IFTYPE_STATION:
+		if (idx != 0 || !vif->wdev.current_bss)
+			return -ENOENT;
 
-	if (unlikely(!sta_node))
-		return -ENOENT;
+		ether_addr_copy(mac, vif->bssid);
+		break;
+	case NL80211_IFTYPE_AP:
+		sta_node = qtnf_sta_list_lookup_index(&vif->sta_list, idx);
+		if (unlikely(!sta_node))
+			return -ENOENT;
 
-	ether_addr_copy(mac, sta_node->mac_addr);
-
-	ret = qtnf_cmd_get_sta_info(vif, sta_node->mac_addr, sinfo);
-
-	if (unlikely(ret == -ENOENT)) {
-		qtnf_sta_list_del(&vif->sta_list, mac);
-		cfg80211_del_sta(vif->netdev, mac, GFP_KERNEL);
-		sinfo->filled = 0;
+		ether_addr_copy(mac, sta_node->mac_addr);
+		break;
+	default:
+		return -ENOTSUPP;
 	}
+
+	ret = qtnf_cmd_get_sta_info(vif, mac, sinfo);
+
+	if (vif->wdev.iftype == NL80211_IFTYPE_AP) {
+		if (ret == -ENOENT) {
+			cfg80211_del_sta(vif->netdev, mac, GFP_KERNEL);
+			sinfo->filled = 0;
+		}
+	}
+
+	sinfo->generation = vif->generation;
 
 	return ret;
 }
@@ -505,9 +535,16 @@ static int qtnf_del_key(struct wiphy *wiphy, struct net_device *dev,
 	int ret;
 
 	ret = qtnf_cmd_send_del_key(vif, key_index, pairwise, mac_addr);
-	if (ret)
-		pr_err("VIF%u.%u: failed to delete key: idx=%u pw=%u\n",
-		       vif->mac->macid, vif->vifid, key_index, pairwise);
+	if (ret) {
+		if (ret == -ENOENT) {
+			pr_debug("VIF%u.%u: key index %d out of bounds\n",
+				 vif->mac->macid, vif->vifid, key_index);
+		} else {
+			pr_err("VIF%u.%u: failed to delete key: idx=%u pw=%u\n",
+			       vif->mac->macid, vif->vifid,
+			       key_index, pairwise);
+		}
+	}
 
 	return ret;
 }
@@ -570,42 +607,37 @@ qtnf_del_station(struct wiphy *wiphy, struct net_device *dev,
 	    !qtnf_sta_list_lookup(&vif->sta_list, params->mac))
 		return 0;
 
-	qtnf_scan_done(vif->mac, true);
-
 	ret = qtnf_cmd_send_del_sta(vif, params);
 	if (ret)
 		pr_err("VIF%u.%u: failed to delete STA %pM\n",
 		       vif->mac->macid, vif->vifid, params->mac);
+
 	return ret;
-}
-
-static void qtnf_scan_timeout(unsigned long data)
-{
-	struct qtnf_wmac *mac = (struct qtnf_wmac *)data;
-
-	pr_warn("mac%d scan timed out\n", mac->macid);
-	qtnf_scan_done(mac, true);
 }
 
 static int
 qtnf_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	int ret;
+
+	cancel_delayed_work_sync(&mac->scan_timeout);
 
 	mac->scan_req = request;
 
-	if (qtnf_cmd_send_scan(mac)) {
+	ret = qtnf_cmd_send_scan(mac);
+	if (ret) {
 		pr_err("MAC%u: failed to start scan\n", mac->macid);
 		mac->scan_req = NULL;
-		return -EFAULT;
+		goto out;
 	}
 
-	mac->scan_timeout.data = (unsigned long)mac;
-	mac->scan_timeout.function = qtnf_scan_timeout;
-	mod_timer(&mac->scan_timeout,
-		  jiffies + QTNF_SCAN_TIMEOUT_SEC * HZ);
+	pr_debug("MAC%u: scan started\n", mac->macid);
+	queue_delayed_work(mac->bus->workqueue, &mac->scan_timeout,
+			   QTNF_SCAN_TIMEOUT_SEC * HZ);
 
-	return 0;
+out:
+	return ret;
 }
 
 static int
@@ -613,70 +645,25 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	     struct cfg80211_connect_params *sme)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
-	struct qtnf_wmac *mac = wiphy_priv(wiphy);
-	struct cfg80211_chan_def chandef;
-	struct qtnf_bss_config *bss_cfg;
 	int ret;
 
 	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
-	if (vif->sta_state != QTNF_STA_DISCONNECTED)
-		return -EBUSY;
-
-	bss_cfg = &vif->bss_cfg;
-	memset(bss_cfg, 0, sizeof(*bss_cfg));
-
-	if (sme->channel) {
-		/* FIXME: need to set proper nl80211_channel_type value */
-		cfg80211_chandef_create(&chandef, sme->channel,
-					NL80211_CHAN_HT20);
-		/* fall-back to minimal safe chandef description */
-		if (!cfg80211_chandef_valid(&chandef))
-			cfg80211_chandef_create(&chandef, sme->channel,
-						NL80211_CHAN_HT20);
-
-		memcpy(&mac->chandef, &chandef, sizeof(mac->chandef));
-	}
-
-	bss_cfg->ssid_len = sme->ssid_len;
-	memcpy(&bss_cfg->ssid, sme->ssid, bss_cfg->ssid_len);
-	bss_cfg->auth_type = sme->auth_type;
-	bss_cfg->privacy = sme->privacy;
-	bss_cfg->mfp = sme->mfp;
-
-	if ((sme->bg_scan_period > 0) &&
-	    (sme->bg_scan_period <= QTNF_MAX_BG_SCAN_PERIOD))
-		bss_cfg->bg_scan_period = sme->bg_scan_period;
-	else if (sme->bg_scan_period == -1)
-		bss_cfg->bg_scan_period = QTNF_DEFAULT_BG_SCAN_PERIOD;
-	else
-		bss_cfg->bg_scan_period = 0; /* disabled */
-
-	bss_cfg->connect_flags = 0;
-
-	if (sme->flags & ASSOC_REQ_DISABLE_HT)
-		bss_cfg->connect_flags |= QLINK_STA_CONNECT_DISABLE_HT;
-	if (sme->flags & ASSOC_REQ_DISABLE_VHT)
-		bss_cfg->connect_flags |= QLINK_STA_CONNECT_DISABLE_VHT;
-	if (sme->flags & ASSOC_REQ_USE_RRM)
-		bss_cfg->connect_flags |= QLINK_STA_CONNECT_USE_RRM;
-
-	memcpy(&bss_cfg->crypto, &sme->crypto, sizeof(bss_cfg->crypto));
 	if (sme->bssid)
-		ether_addr_copy(bss_cfg->bssid, sme->bssid);
+		ether_addr_copy(vif->bssid, sme->bssid);
 	else
-		eth_zero_addr(bss_cfg->bssid);
+		eth_zero_addr(vif->bssid);
 
 	ret = qtnf_cmd_send_connect(vif, sme);
 	if (ret) {
-		pr_err("VIF%u.%u: failed to connect\n", vif->mac->macid,
-		       vif->vifid);
-		return ret;
+		pr_err("VIF%u.%u: failed to connect\n",
+		       vif->mac->macid, vif->vifid);
+		goto out;
 	}
 
-	vif->sta_state = QTNF_STA_CONNECTING;
-	return 0;
+out:
+	return ret;
 }
 
 static int
@@ -685,7 +672,7 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct qtnf_vif *vif;
-	int ret;
+	int ret = 0;
 
 	vif = qtnf_mac_get_base_vif(mac);
 	if (!vif) {
@@ -693,21 +680,24 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		return -EFAULT;
 	}
 
-	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
-
-	if (vif->sta_state == QTNF_STA_DISCONNECTED)
-		return 0;
-
-	ret = qtnf_cmd_send_disconnect(vif, reason_code);
-	if (ret) {
-		pr_err("VIF%u.%u: failed to disconnect\n", mac->macid,
-		       vif->vifid);
-		return ret;
+	if (vif->wdev.iftype != NL80211_IFTYPE_STATION) {
+		ret = -EOPNOTSUPP;
+		goto out;
 	}
 
-	vif->sta_state = QTNF_STA_DISCONNECTED;
-	return 0;
+	ret = qtnf_cmd_send_disconnect(vif, reason_code);
+	if (ret)
+		pr_err("VIF%u.%u: failed to disconnect\n",
+		       mac->macid, vif->vifid);
+
+	if (vif->wdev.current_bss) {
+		netif_carrier_off(vif->netdev);
+		cfg80211_disconnected(vif->netdev, reason_code,
+				      NULL, 0, true, GFP_KERNEL);
+	}
+
+out:
+	return ret;
 }
 
 static int
@@ -715,15 +705,12 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 		 int idx, struct survey_info *survey)
 {
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct ieee80211_supported_band *sband;
-	struct cfg80211_chan_def *chandef;
+	const struct cfg80211_chan_def *chandef = &wdev->chandef;
 	struct ieee80211_channel *chan;
 	struct qtnf_chan_stats stats;
-	struct qtnf_vif *vif;
 	int ret;
-
-	vif = qtnf_netdev_get_priv(dev);
-	chandef = &mac->chandef;
 
 	sband = wiphy->bands[NL80211_BAND_2GHZ];
 	if (sband && idx >= sband->n_channels) {
@@ -779,7 +766,6 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	default:
 		pr_debug("failed to get chan(%d) stats from card\n",
 			 chan->hw_value);
-		ret = -EINVAL;
 		break;
 	}
 
@@ -790,46 +776,38 @@ static int
 qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 struct cfg80211_chan_def *chandef)
 {
-	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct net_device *ndev = wdev->netdev;
 	struct qtnf_vif *vif;
+	int ret;
 
 	if (!ndev)
 		return -ENODEV;
 
 	vif = qtnf_netdev_get_priv(wdev->netdev);
 
-	switch (vif->wdev.iftype) {
-	case NL80211_IFTYPE_STATION:
-		if (vif->sta_state == QTNF_STA_DISCONNECTED) {
-			pr_warn("%s: STA disconnected\n", ndev->name);
-			return -ENODATA;
-		}
-		break;
-	case NL80211_IFTYPE_AP:
-		if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-			pr_warn("%s: AP not started\n", ndev->name);
-			return -ENODATA;
-		}
-		break;
-	default:
-		pr_err("unsupported vif type (%d)\n", vif->wdev.iftype);
-		return -ENODATA;
+	ret = qtnf_cmd_get_channel(vif, chandef);
+	if (ret) {
+		pr_err("%s: failed to get channel: %d\n", ndev->name, ret);
+		ret = -ENODATA;
+		goto out;
 	}
 
-	if (!cfg80211_chandef_valid(&mac->chandef)) {
-		pr_err("invalid channel settings on %s\n", ndev->name);
-		return -ENODATA;
+	if (!cfg80211_chandef_valid(chandef)) {
+		pr_err("%s: bad channel freq=%u cf1=%u cf2=%u bw=%u\n",
+		       ndev->name, chandef->chan->center_freq,
+		       chandef->center_freq1, chandef->center_freq2,
+		       chandef->width);
+		ret = -ENODATA;
+		goto out;
 	}
 
-	memcpy(chandef, &mac->chandef, sizeof(*chandef));
-	return 0;
+out:
+	return ret;
 }
 
 static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 			       struct cfg80211_csa_settings *params)
 {
-	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
 
@@ -837,47 +815,130 @@ static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		 params->chandef.chan->hw_value, params->count,
 		 params->radar_required, params->block_tx);
 
-	switch (vif->wdev.iftype) {
-	case NL80211_IFTYPE_AP:
-		if (!(vif->bss_status & QTNF_STATE_AP_START)) {
-			pr_warn("AP not started on %s\n", dev->name);
-			return -ENOTCONN;
-		}
-		break;
-	default:
-		pr_err("unsupported vif type (%d) on %s\n",
-		       vif->wdev.iftype, dev->name);
-		return -EOPNOTSUPP;
-	}
-
-	if (vif->vifid != 0) {
-		if (!(mac->status & QTNF_MAC_CSA_ACTIVE))
-			return -EOPNOTSUPP;
-
-		if (!cfg80211_chandef_identical(&params->chandef,
-						&mac->csa_chandef))
-			return -EINVAL;
-
-		return 0;
-	}
-
 	if (!cfg80211_chandef_valid(&params->chandef)) {
 		pr_err("%s: invalid channel\n", dev->name);
 		return -EINVAL;
 	}
 
-	if (cfg80211_chandef_identical(&params->chandef, &mac->chandef)) {
-		pr_err("%s: switch request to the same channel\n", dev->name);
-		return -EALREADY;
-	}
-
-	ret = qtnf_cmd_send_chan_switch(mac, params);
+	ret = qtnf_cmd_send_chan_switch(vif, params);
 	if (ret)
 		pr_warn("%s: failed to switch to channel (%u)\n",
 			dev->name, params->chandef.chan->hw_value);
 
 	return ret;
 }
+
+static int qtnf_start_radar_detection(struct wiphy *wiphy,
+				      struct net_device *ndev,
+				      struct cfg80211_chan_def *chandef,
+				      u32 cac_time_ms)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
+	int ret;
+
+	if (wiphy_ext_feature_isset(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD))
+		return -ENOTSUPP;
+
+	ret = qtnf_cmd_start_cac(vif, chandef, cac_time_ms);
+	if (ret)
+		pr_err("%s: failed to start CAC ret=%d\n", ndev->name, ret);
+
+	return ret;
+}
+
+static int qtnf_set_mac_acl(struct wiphy *wiphy,
+			    struct net_device *dev,
+			    const struct cfg80211_acl_data *params)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	ret = qtnf_cmd_set_mac_acl(vif, params);
+	if (ret)
+		pr_err("%s: failed to set mac ACL ret=%d\n", dev->name, ret);
+
+	return ret;
+}
+
+static int qtnf_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
+			       bool enabled, int timeout)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	ret = qtnf_cmd_send_pm_set(vif, enabled ? QLINK_PM_AUTO_STANDBY :
+				   QLINK_PM_OFF, timeout);
+	if (ret)
+		pr_err("%s: failed to set PM mode ret=%d\n", dev->name, ret);
+
+	return ret;
+}
+
+#ifdef CONFIG_PM
+static int qtnf_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wowlan)
+{
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	struct qtnf_vif *vif;
+	int ret = 0;
+
+	vif = qtnf_mac_get_base_vif(mac);
+	if (!vif) {
+		pr_err("MAC%u: primary VIF is not configured\n", mac->macid);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	if (!wowlan) {
+		pr_debug("WoWLAN triggers are not enabled\n");
+		qtnf_virtual_intf_cleanup(vif->netdev);
+		goto exit;
+	}
+
+	qtnf_scan_done(vif->mac, true);
+
+	ret = qtnf_cmd_send_wowlan_set(vif, wowlan);
+	if (ret) {
+		pr_err("MAC%u: failed to set WoWLAN triggers\n",
+		       mac->macid);
+		goto exit;
+	}
+
+exit:
+	return ret;
+}
+
+static int qtnf_resume(struct wiphy *wiphy)
+{
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	struct qtnf_vif *vif;
+	int ret = 0;
+
+	vif = qtnf_mac_get_base_vif(mac);
+	if (!vif) {
+		pr_err("MAC%u: primary VIF is not configured\n", mac->macid);
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	ret = qtnf_cmd_send_wowlan_set(vif, NULL);
+	if (ret) {
+		pr_err("MAC%u: failed to reset WoWLAN triggers\n",
+		       mac->macid);
+		goto exit;
+	}
+
+exit:
+	return ret;
+}
+
+static void qtnf_set_wakeup(struct wiphy *wiphy, bool enabled)
+{
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	struct qtnf_bus *bus = mac->bus;
+
+	device_set_wakeup_enable(bus->dev, enabled);
+}
+#endif
 
 static struct cfg80211_ops qtn_cfg80211_ops = {
 	.add_virtual_intf	= qtnf_add_virtual_intf,
@@ -902,7 +963,15 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.disconnect		= qtnf_disconnect,
 	.dump_survey		= qtnf_dump_survey,
 	.get_channel		= qtnf_get_channel,
-	.channel_switch		= qtnf_channel_switch
+	.channel_switch		= qtnf_channel_switch,
+	.start_radar_detection	= qtnf_start_radar_detection,
+	.set_mac_acl		= qtnf_set_mac_acl,
+	.set_power_mgmt		= qtnf_set_power_mgmt,
+#ifdef CONFIG_PM
+	.suspend		= qtnf_suspend,
+	.resume			= qtnf_resume,
+	.set_wakeup		= qtnf_set_wakeup,
+#endif
 };
 
 static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
@@ -920,9 +989,16 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 
 	ret = qtnf_cmd_reg_notify(bus, req);
 	if (ret) {
-		if (ret != -EOPNOTSUPP && ret != -EALREADY)
+		if (ret == -EOPNOTSUPP) {
+			pr_warn("reg update not supported\n");
+		} else if (ret == -EALREADY) {
+			pr_info("regulatory domain is already set to %c%c",
+				req->alpha2[0], req->alpha2[1]);
+		} else {
 			pr_err("failed to update reg domain to %c%c\n",
 			       req->alpha2[0], req->alpha2[1]);
+		}
+
 		return;
 	}
 
@@ -931,14 +1007,16 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 			continue;
 
 		mac = bus->mac[mac_idx];
+		if (!mac)
+			continue;
+
 		wiphy = priv_to_wiphy(mac);
 
 		for (band = 0; band < NUM_NL80211_BANDS; ++band) {
 			if (!wiphy->bands[band])
 				continue;
 
-			ret = qtnf_cmd_get_mac_chan_info(mac,
-							 wiphy->bands[band]);
+			ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
 			if (ret)
 				pr_err("failed to get chan info for mac %u band %u\n",
 				       mac_idx, band);
@@ -946,36 +1024,15 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 	}
 }
 
-void qtnf_band_setup_htvht_caps(struct qtnf_mac_info *macinfo,
-				struct ieee80211_supported_band *band)
-{
-	struct ieee80211_sta_ht_cap *ht_cap;
-	struct ieee80211_sta_vht_cap *vht_cap;
-
-	ht_cap = &band->ht_cap;
-	ht_cap->ht_supported = true;
-	memcpy(&ht_cap->cap, &macinfo->ht_cap.cap_info,
-	       sizeof(u16));
-	ht_cap->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	ht_cap->ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
-	memcpy(&ht_cap->mcs, &macinfo->ht_cap.mcs,
-	       sizeof(ht_cap->mcs));
-
-	if (macinfo->phymode_cap & QLINK_PHYMODE_AC) {
-		vht_cap = &band->vht_cap;
-		vht_cap->vht_supported = true;
-		memcpy(&vht_cap->cap,
-		       &macinfo->vht_cap.vht_cap_info, sizeof(u32));
-		/* Update MCS support for VHT */
-		memcpy(&vht_cap->vht_mcs,
-		       &macinfo->vht_cap.supp_mcs,
-		       sizeof(struct ieee80211_vht_mcs_info));
-	}
-}
-
 struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 {
 	struct wiphy *wiphy;
+
+	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
+		qtn_cfg80211_ops.start_radar_detection = NULL;
+
+	if (!(bus->hw_info.hw_capab & QLINK_HW_CAPAB_PWR_MGMT))
+		qtn_cfg80211_ops.set_power_mgmt	= NULL;
 
 	wiphy = wiphy_new(&qtn_cfg80211_ops, sizeof(struct qtnf_wmac));
 	if (!wiphy)
@@ -986,29 +1043,29 @@ struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 	return wiphy;
 }
 
-static int qtnf_wiphy_setup_if_comb(struct wiphy *wiphy,
-				    struct ieee80211_iface_combination *if_comb,
-				    const struct qtnf_mac_info *mac_info)
+static int
+qtnf_wiphy_setup_if_comb(struct wiphy *wiphy, struct qtnf_mac_info *mac_info)
 {
-	size_t max_interfaces = 0;
+	struct ieee80211_iface_combination *if_comb;
+	size_t n_if_comb;
 	u16 interface_modes = 0;
-	size_t i;
+	size_t i, j;
 
-	if (unlikely(!mac_info->limits || !mac_info->n_limits))
+	if_comb = mac_info->if_comb;
+	n_if_comb = mac_info->n_if_comb;
+
+	if (!if_comb || !n_if_comb)
 		return -ENOENT;
 
-	if_comb->limits = mac_info->limits;
-	if_comb->n_limits = mac_info->n_limits;
+	for (i = 0; i < n_if_comb; i++) {
+		if_comb[i].radar_detect_widths = mac_info->radar_detect_widths;
 
-	for (i = 0; i < mac_info->n_limits; i++) {
-		max_interfaces += mac_info->limits[i].max;
-		interface_modes |= mac_info->limits[i].types;
+		for (j = 0; j < if_comb[i].n_limits; j++)
+			interface_modes |= if_comb[i].limits[j].types;
 	}
 
-	if_comb->num_different_channels = 1;
-	if_comb->beacon_int_infra_match = true;
-	if_comb->max_interfaces = max_interfaces;
-	if_comb->radar_detect_widths = mac_info->radar_detect_widths;
+	wiphy->iface_combinations = if_comb;
+	wiphy->n_iface_combinations = n_if_comb;
 	wiphy->interface_modes = interface_modes;
 
 	return 0;
@@ -1017,7 +1074,7 @@ static int qtnf_wiphy_setup_if_comb(struct wiphy *wiphy,
 int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 {
 	struct wiphy *wiphy = priv_to_wiphy(mac);
-	struct ieee80211_iface_combination *iface_comb = NULL;
+	struct qtnf_mac_info *macinfo = &mac->macinfo;
 	int ret;
 
 	if (!wiphy) {
@@ -1025,31 +1082,23 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		return -EFAULT;
 	}
 
-	iface_comb = kzalloc(sizeof(*iface_comb), GFP_KERNEL);
-	if (!iface_comb)
-		return -ENOMEM;
+	wiphy->frag_threshold = macinfo->frag_thr;
+	wiphy->rts_threshold = macinfo->rts_thr;
+	wiphy->retry_short = macinfo->sretry_limit;
+	wiphy->retry_long = macinfo->lretry_limit;
+	wiphy->coverage_class = macinfo->coverage_class;
 
-	ret = qtnf_wiphy_setup_if_comb(wiphy, iface_comb, &mac->macinfo);
-	if (ret)
-		goto out;
-
-	pr_info("MAC%u: phymode=%#x radar=%#x\n", mac->macid,
-		mac->macinfo.phymode_cap, mac->macinfo.radar_detect_widths);
-
-	wiphy->frag_threshold = mac->macinfo.frag_thr;
-	wiphy->rts_threshold = mac->macinfo.rts_thr;
-	wiphy->retry_short = mac->macinfo.sretry_limit;
-	wiphy->retry_long = mac->macinfo.lretry_limit;
-	wiphy->coverage_class = mac->macinfo.coverage_class;
-
-	wiphy->max_scan_ssids = QTNF_MAX_SSID_LIST_LENGTH;
+	wiphy->max_scan_ssids =
+		(hw_info->max_scan_ssids) ? hw_info->max_scan_ssids : 1;
 	wiphy->max_scan_ie_len = QTNF_MAX_VSIE_LEN;
 	wiphy->mgmt_stypes = qtnf_mgmt_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
-
-	wiphy->iface_combinations = iface_comb;
-	wiphy->n_iface_combinations = 1;
+	wiphy->max_acl_mac_addrs = macinfo->max_acl_mac_addrs;
 	wiphy->max_num_csa_counters = 2;
+
+	ret = qtnf_wiphy_setup_if_comb(wiphy, macinfo);
+	if (ret)
+		goto out;
 
 	/* Initialize cipher suits */
 	wiphy->cipher_suites = qtnf_cipher_suites;
@@ -1059,18 +1108,42 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
+		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD);
+
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_SCAN_DWELL)
+		wiphy_ext_feature_set(wiphy,
+				      NL80211_EXT_FEATURE_SET_SCAN_DWELL);
 
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2;
 
-	wiphy->available_antennas_tx = mac->macinfo.num_tx_chain;
-	wiphy->available_antennas_rx = mac->macinfo.num_rx_chain;
+	wiphy->available_antennas_tx = macinfo->num_tx_chain;
+	wiphy->available_antennas_rx = macinfo->num_rx_chain;
 
-	wiphy->max_ap_assoc_sta = mac->macinfo.max_ap_assoc_sta;
+	wiphy->max_ap_assoc_sta = macinfo->max_ap_assoc_sta;
+	wiphy->ht_capa_mod_mask = &macinfo->ht_cap_mod_mask;
+	wiphy->vht_capa_mod_mask = &macinfo->vht_cap_mod_mask;
 
 	ether_addr_copy(wiphy->perm_addr, mac->macaddr);
 
-	if (hw_info->hw_capab & QLINK_HW_SUPPORTS_REG_UPDATE) {
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_STA_INACT_TIMEOUT)
+		wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
+
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR)
+		wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
+
+	if (!(hw_info->hw_capab & QLINK_HW_CAPAB_OBSS_SCAN))
+		wiphy->features |= NL80211_FEATURE_NEED_OBSS_SCAN;
+
+#ifdef CONFIG_PM
+	if (macinfo->wowlan)
+		wiphy->wowlan = macinfo->wowlan;
+#endif
+
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_REG_UPDATE) {
 		wiphy->regulatory_flags |= REGULATORY_STRICT_REG |
 			REGULATORY_CUSTOM_REG;
 		wiphy->reg_notifier = qtnf_cfg80211_reg_notifier;
@@ -1078,6 +1151,19 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	} else {
 		wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
 	}
+
+	if (mac->macinfo.extended_capabilities_len) {
+		wiphy->extended_capabilities =
+			mac->macinfo.extended_capabilities;
+		wiphy->extended_capabilities_mask =
+			mac->macinfo.extended_capabilities_mask;
+		wiphy->extended_capabilities_len =
+			mac->macinfo.extended_capabilities_len;
+	}
+
+	strlcpy(wiphy->fw_version, hw_info->fw_version,
+		sizeof(wiphy->fw_version));
+	wiphy->hw_version = hw_info->hw_version;
 
 	ret = wiphy_register(wiphy);
 	if (ret < 0)
@@ -1090,12 +1176,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		ret = regulatory_hint(wiphy, hw_info->rd->alpha2);
 
 out:
-	if (ret) {
-		kfree(iface_comb);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 void qtnf_netdev_updown(struct net_device *ndev, bool up)
@@ -1103,7 +1184,8 @@ void qtnf_netdev_updown(struct net_device *ndev, bool up)
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
 
 	if (qtnf_cmd_send_updown_intf(vif, up))
-		pr_err("failed to send up/down command to FW\n");
+		pr_err("failed to send %s command to VIF%u.%u\n",
+		       up ? "UP" : "DOWN", vif->mac->macid, vif->vifid);
 }
 
 void qtnf_virtual_intf_cleanup(struct net_device *ndev)
@@ -1111,56 +1193,20 @@ void qtnf_virtual_intf_cleanup(struct net_device *ndev)
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
 	struct qtnf_wmac *mac = wiphy_priv(vif->wdev.wiphy);
 
-	if (vif->wdev.iftype == NL80211_IFTYPE_STATION) {
-		switch (vif->sta_state) {
-		case QTNF_STA_DISCONNECTED:
-			break;
-		case QTNF_STA_CONNECTING:
-			cfg80211_connect_result(vif->netdev,
-						vif->bss_cfg.bssid, NULL, 0,
-						NULL, 0,
-						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
-			qtnf_disconnect(vif->wdev.wiphy, ndev,
-					WLAN_REASON_DEAUTH_LEAVING);
-			break;
-		case QTNF_STA_CONNECTED:
-			cfg80211_disconnected(vif->netdev,
-					      WLAN_REASON_DEAUTH_LEAVING,
-					      NULL, 0, 1, GFP_KERNEL);
-			qtnf_disconnect(vif->wdev.wiphy, ndev,
-					WLAN_REASON_DEAUTH_LEAVING);
-			break;
-		}
+	if (vif->wdev.iftype == NL80211_IFTYPE_STATION)
+		qtnf_disconnect(vif->wdev.wiphy, ndev,
+				WLAN_REASON_DEAUTH_LEAVING);
 
-		vif->sta_state = QTNF_STA_DISCONNECTED;
-		qtnf_scan_done(mac, true);
-	}
+	qtnf_scan_done(mac, true);
 }
 
 void qtnf_cfg80211_vif_reset(struct qtnf_vif *vif)
 {
-	if (vif->wdev.iftype == NL80211_IFTYPE_STATION) {
-		switch (vif->sta_state) {
-		case QTNF_STA_CONNECTING:
-			cfg80211_connect_result(vif->netdev,
-						vif->bss_cfg.bssid, NULL, 0,
-						NULL, 0,
-						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
-			break;
-		case QTNF_STA_CONNECTED:
-			cfg80211_disconnected(vif->netdev,
-					      WLAN_REASON_DEAUTH_LEAVING,
-					      NULL, 0, 1, GFP_KERNEL);
-			break;
-		case QTNF_STA_DISCONNECTED:
-			break;
-		}
-	}
+	if (vif->wdev.iftype == NL80211_IFTYPE_STATION)
+		cfg80211_disconnected(vif->netdev, WLAN_REASON_DEAUTH_LEAVING,
+				      NULL, 0, 1, GFP_KERNEL);
 
 	cfg80211_shutdown_all_interfaces(vif->wdev.wiphy);
-	vif->sta_state = QTNF_STA_DISCONNECTED;
 }
 
 void qtnf_band_init_rates(struct ieee80211_supported_band *band)

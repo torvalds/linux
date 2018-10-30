@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* usb-urb.c is part of the DVB USB library.
  *
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
@@ -32,7 +33,7 @@ static void usb_urb_complete(struct urb *urb)
 		case -ESHUTDOWN:
 			return;
 		default:        /* error */
-			deb_ts("urb completition error %d.\n", urb->status);
+			deb_ts("urb completion error %d.\n", urb->status);
 			break;
 	}
 
@@ -56,7 +57,7 @@ static void usb_urb_complete(struct urb *urb)
 				stream->complete(stream, b, urb->actual_length);
 			break;
 		default:
-			err("unknown endpoint type in completition handler.");
+			err("unknown endpoint type in completion handler.");
 			return;
 	}
 	usb_submit_urb(urb,GFP_ATOMIC);
@@ -117,7 +118,7 @@ static int usb_allocate_stream_buffers(struct usb_data_stream *stream, int num, 
 	for (stream->buf_num = 0; stream->buf_num < num; stream->buf_num++) {
 		deb_mem("allocating buffer %d\n",stream->buf_num);
 		if (( stream->buf_list[stream->buf_num] =
-					usb_alloc_coherent(stream->udev, size, GFP_ATOMIC,
+					usb_alloc_coherent(stream->udev, size, GFP_KERNEL,
 					&stream->dma_addr[stream->buf_num]) ) == NULL) {
 			deb_mem("not enough memory for urb-buffer allocation.\n");
 			usb_free_stream_buffers(stream);
@@ -144,7 +145,7 @@ static int usb_bulk_urb_init(struct usb_data_stream *stream)
 
 	/* allocate the URBs */
 	for (i = 0; i < stream->props.count; i++) {
-		stream->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
+		stream->urb_list[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!stream->urb_list[i]) {
 			deb_mem("not enough memory for urb_alloc_urb!.\n");
 			for (j = 0; j < i; j++)
@@ -177,7 +178,7 @@ static int usb_isoc_urb_init(struct usb_data_stream *stream)
 		struct urb *urb;
 		int frame_offset = 0;
 
-		stream->urb_list[i] = usb_alloc_urb(stream->props.u.isoc.framesperurb, GFP_ATOMIC);
+		stream->urb_list[i] = usb_alloc_urb(stream->props.u.isoc.framesperurb, GFP_KERNEL);
 		if (!stream->urb_list[i]) {
 			deb_mem("not enough memory for urb_alloc_urb!\n");
 			for (j = 0; j < i; j++)

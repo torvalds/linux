@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* MFD cell driver data for the DS1WM driver
  *
  * to be defined in the MFD device that is

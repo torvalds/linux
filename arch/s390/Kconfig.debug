@@ -1,9 +1,7 @@
-menu "Kernel hacking"
+# SPDX-License-Identifier: GPL-2.0
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
-
-source "lib/Kconfig.debug"
 
 config S390_PTDUMP
 	bool "Export kernel pagetable layout to userspace via debugfs"
@@ -19,5 +17,3 @@ config S390_PTDUMP
 
 config EARLY_PRINTK
 	def_bool y
-
-endmenu

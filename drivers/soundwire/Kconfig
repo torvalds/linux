@@ -1,0 +1,37 @@
+#
+# SoundWire subsystem configuration
+#
+
+menuconfig SOUNDWIRE
+	bool "SoundWire support"
+	---help---
+	  SoundWire is a 2-Pin interface with data and clock line ratified
+	  by the MIPI Alliance. SoundWire is used for transporting data
+	  typically related to audio functions. SoundWire interface is
+	  optimized to integrate audio devices in mobile or mobile inspired
+	  systems. Say Y to enable this subsystem, N if you do not have such
+	  a device
+
+if SOUNDWIRE
+
+comment "SoundWire Devices"
+
+config SOUNDWIRE_BUS
+	tristate
+	select REGMAP_SOUNDWIRE
+
+config SOUNDWIRE_CADENCE
+	tristate
+
+config SOUNDWIRE_INTEL
+	tristate "Intel SoundWire Master driver"
+	select SOUNDWIRE_CADENCE
+	select SOUNDWIRE_BUS
+	depends on X86 && ACPI && SND_SOC
+	---help---
+	  SoundWire Intel Master driver.
+	  If you have an Intel platform which has a SoundWire Master then
+	  enable this config option to get the SoundWire support for that
+	  device.
+
+endif

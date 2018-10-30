@@ -14,9 +14,9 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/platform_data/gpio-omap.h>
+#include <linux/types.h>
+
 #include <linux/platform_data/hsmmc-omap.h>
-#include <linux/platform_data/spi-omap2-mcspi.h>
 #include "omap_hwmod.h"
 #include "i2c.h"
 #include "wd_timer.h"
@@ -537,11 +537,6 @@ struct omap_hwmod_class am33xx_gpio_hwmod_class = {
 	.rev		= 2,
 };
 
-struct omap_gpio_dev_attr gpio_dev_attr = {
-	.bank_width	= 32,
-	.dbck_flag	= true,
-};
-
 /* gpio1 */
 static struct omap_hwmod_opt_clk gpio1_opt_clks[] = {
 	{ .role = "dbclk", .clk = "gpio1_dbclk" },
@@ -560,7 +555,6 @@ struct omap_hwmod am33xx_gpio1_hwmod = {
 	},
 	.opt_clks	= gpio1_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio1_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio2 */
@@ -581,7 +575,6 @@ struct omap_hwmod am33xx_gpio2_hwmod = {
 	},
 	.opt_clks	= gpio2_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio2_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio3 */
@@ -602,7 +595,6 @@ struct omap_hwmod am33xx_gpio3_hwmod = {
 	},
 	.opt_clks	= gpio3_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio3_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpmc */
@@ -637,6 +629,7 @@ struct omap_hwmod am33xx_gpmc_hwmod = {
 
 /* 'i2c' class */
 static struct omap_hwmod_class_sysconfig am33xx_i2c_sysc = {
+	.rev_offs	= 0,
 	.sysc_offs	= 0x0010,
 	.syss_offs	= 0x0090,
 	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
@@ -654,10 +647,6 @@ static struct omap_hwmod_class i2c_class = {
 	.reset		= &omap_i2c_reset,
 };
 
-static struct omap_i2c_dev_attr i2c_dev_attr = {
-	.flags = OMAP_I2C_FLAG_BUS_SHIFT_NONE,
-};
-
 /* i2c1 */
 struct omap_hwmod am33xx_i2c1_hwmod = {
 	.name		= "i2c1",
@@ -670,7 +659,6 @@ struct omap_hwmod am33xx_i2c1_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /* i2c1 */
@@ -685,7 +673,6 @@ struct omap_hwmod am33xx_i2c2_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /* i2c3 */
@@ -700,7 +687,6 @@ struct omap_hwmod am33xx_i2c3_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /*
@@ -778,9 +764,9 @@ struct omap_hwmod am33xx_mcasp1_hwmod = {
 
 /* 'mmc' class */
 static struct omap_hwmod_class_sysconfig am33xx_mmc_sysc = {
-	.rev_offs	= 0x1fc,
-	.sysc_offs	= 0x10,
-	.syss_offs	= 0x14,
+	.rev_offs	= 0x2fc,
+	.sysc_offs	= 0x110,
+	.syss_offs	= 0x114,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 			  SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			  SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
@@ -893,13 +879,9 @@ static struct omap_hwmod_class_sysconfig am33xx_mcspi_sysc = {
 struct omap_hwmod_class am33xx_spi_hwmod_class = {
 	.name		= "mcspi",
 	.sysc		= &am33xx_mcspi_sysc,
-	.rev		= OMAP4_MCSPI_REV,
 };
 
 /* spi0 */
-struct omap2_mcspi_dev_attr mcspi_attrib = {
-	.num_chipselect	= 2,
-};
 struct omap_hwmod am33xx_spi0_hwmod = {
 	.name		= "spi0",
 	.class		= &am33xx_spi_hwmod_class,
@@ -910,7 +892,6 @@ struct omap_hwmod am33xx_spi0_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi_attrib,
 };
 
 /* spi1 */
@@ -924,7 +905,6 @@ struct omap_hwmod am33xx_spi1_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi_attrib,
 };
 
 /*

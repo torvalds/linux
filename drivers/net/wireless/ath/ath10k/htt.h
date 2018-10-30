@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -28,7 +29,6 @@
 #include "htc.h"
 #include "hw.h"
 #include "rx_desc.h"
-#include "hw.h"
 
 enum htt_dbg_stats_type {
 	HTT_DBG_STATS_WAL_PDEV_TXRX = 1 << 0,
@@ -107,6 +107,14 @@ struct htt_msdu_ext_desc {
 	struct htt_data_tx_desc_frag frags[6];
 };
 
+struct htt_msdu_ext_desc_64 {
+	__le32 tso_flag[5];
+	__le16 ip_identification;
+	u8 flags;
+	u8 reserved;
+	struct htt_data_tx_desc_frag frags[6];
+};
+
 #define	HTT_MSDU_EXT_DESC_FLAG_IPV4_CSUM_ENABLE		BIT(0)
 #define	HTT_MSDU_EXT_DESC_FLAG_UDP_IPV4_CSUM_ENABLE	BIT(1)
 #define	HTT_MSDU_EXT_DESC_FLAG_UDP_IPV6_CSUM_ENABLE	BIT(2)
@@ -118,6 +126,19 @@ struct htt_msdu_ext_desc {
 				 | HTT_MSDU_EXT_DESC_FLAG_UDP_IPV6_CSUM_ENABLE \
 				 | HTT_MSDU_EXT_DESC_FLAG_TCP_IPV4_CSUM_ENABLE \
 				 | HTT_MSDU_EXT_DESC_FLAG_TCP_IPV6_CSUM_ENABLE)
+
+#define HTT_MSDU_EXT_DESC_FLAG_IPV4_CSUM_ENABLE_64		BIT(16)
+#define HTT_MSDU_EXT_DESC_FLAG_UDP_IPV4_CSUM_ENABLE_64		BIT(17)
+#define HTT_MSDU_EXT_DESC_FLAG_UDP_IPV6_CSUM_ENABLE_64		BIT(18)
+#define HTT_MSDU_EXT_DESC_FLAG_TCP_IPV4_CSUM_ENABLE_64		BIT(19)
+#define HTT_MSDU_EXT_DESC_FLAG_TCP_IPV6_CSUM_ENABLE_64		BIT(20)
+#define HTT_MSDU_EXT_DESC_FLAG_PARTIAL_CSUM_ENABLE_64		BIT(21)
+
+#define HTT_MSDU_CHECKSUM_ENABLE_64  (HTT_MSDU_EXT_DESC_FLAG_IPV4_CSUM_ENABLE_64 \
+				     | HTT_MSDU_EXT_DESC_FLAG_UDP_IPV4_CSUM_ENABLE_64 \
+				     | HTT_MSDU_EXT_DESC_FLAG_UDP_IPV6_CSUM_ENABLE_64 \
+				     | HTT_MSDU_EXT_DESC_FLAG_TCP_IPV4_CSUM_ENABLE_64 \
+				     | HTT_MSDU_EXT_DESC_FLAG_TCP_IPV6_CSUM_ENABLE_64)
 
 enum htt_data_tx_desc_flags0 {
 	HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT = 1 << 0,
@@ -179,6 +200,22 @@ struct htt_data_tx_desc {
 	u8 prefetch[0]; /* start of frame, for FW classification engine */
 } __packed;
 
+struct htt_data_tx_desc_64 {
+	u8 flags0; /* %HTT_DATA_TX_DESC_FLAGS0_ */
+	__le16 flags1; /* %HTT_DATA_TX_DESC_FLAGS1_ */
+	__le16 len;
+	__le16 id;
+	__le64 frags_paddr;
+	union {
+		__le32 peerid;
+		struct {
+			__le16 peerid;
+			__le16 freq;
+		} __packed offchan_tx;
+	} __packed;
+	u8 prefetch[0]; /* start of frame, for FW classification engine */
+} __packed;
+
 enum htt_rx_ring_flags {
 	HTT_RX_RING_FLAGS_MAC80211_HDR = 1 << 0,
 	HTT_RX_RING_FLAGS_MSDU_PAYLOAD = 1 << 1,
@@ -200,10 +237,34 @@ enum htt_rx_ring_flags {
 
 #define HTT_RX_RING_SIZE_MIN 128
 #define HTT_RX_RING_SIZE_MAX 2048
+#define HTT_RX_RING_SIZE HTT_RX_RING_SIZE_MAX
+#define HTT_RX_RING_FILL_LEVEL (((HTT_RX_RING_SIZE) / 2) - 1)
+#define HTT_RX_RING_FILL_LEVEL_DUAL_MAC (HTT_RX_RING_SIZE - 1)
 
-struct htt_rx_ring_setup_ring {
+struct htt_rx_ring_setup_ring32 {
 	__le32 fw_idx_shadow_reg_paddr;
 	__le32 rx_ring_base_paddr;
+	__le16 rx_ring_len; /* in 4-byte words */
+	__le16 rx_ring_bufsize; /* rx skb size - in bytes */
+	__le16 flags; /* %HTT_RX_RING_FLAGS_ */
+	__le16 fw_idx_init_val;
+
+	/* the following offsets are in 4-byte units */
+	__le16 mac80211_hdr_offset;
+	__le16 msdu_payload_offset;
+	__le16 ppdu_start_offset;
+	__le16 ppdu_end_offset;
+	__le16 mpdu_start_offset;
+	__le16 mpdu_end_offset;
+	__le16 msdu_start_offset;
+	__le16 msdu_end_offset;
+	__le16 rx_attention_offset;
+	__le16 frag_info_offset;
+} __packed;
+
+struct htt_rx_ring_setup_ring64 {
+	__le64 fw_idx_shadow_reg_paddr;
+	__le64 rx_ring_base_paddr;
 	__le16 rx_ring_len; /* in 4-byte words */
 	__le16 rx_ring_bufsize; /* rx skb size - in bytes */
 	__le16 flags; /* %HTT_RX_RING_FLAGS_ */
@@ -227,9 +288,14 @@ struct htt_rx_ring_setup_hdr {
 	__le16 rsvd0;
 } __packed;
 
-struct htt_rx_ring_setup {
+struct htt_rx_ring_setup_32 {
 	struct htt_rx_ring_setup_hdr hdr;
-	struct htt_rx_ring_setup_ring rings[0];
+	struct htt_rx_ring_setup_ring32 rings[0];
+} __packed;
+
+struct htt_rx_ring_setup_64 {
+	struct htt_rx_ring_setup_hdr hdr;
+	struct htt_rx_ring_setup_ring64 rings[0];
 } __packed;
 
 /*
@@ -480,12 +546,18 @@ struct htt_ver_resp {
 	u8 rsvd0;
 } __packed;
 
+#define HTT_MGMT_TX_CMPL_FLAG_ACK_RSSI BIT(0)
+
+#define HTT_MGMT_TX_CMPL_INFO_ACK_RSSI_MASK	GENMASK(7, 0)
+
 struct htt_mgmt_tx_completion {
 	u8 rsvd0;
 	u8 rsvd1;
-	u8 rsvd2;
+	u8 flags;
 	__le32 desc_id;
 	__le32 status;
+	__le32 ppdu_id;
+	__le32 info;
 } __packed;
 
 #define HTT_RX_INDICATION_INFO0_EXT_TID_MASK  (0x1F)
@@ -503,6 +575,8 @@ struct htt_mgmt_tx_completion {
 #define HTT_RX_INDICATION_INFO1_RELEASE_END_SEQNO_LSB    18
 #define HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES_MASK     0xFF000000
 #define HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES_LSB      24
+
+#define HTT_TX_CMPL_FLAG_DATA_RSSI BIT(0)
 
 struct htt_rx_indication_hdr {
 	u8 info0; /* %HTT_RX_INDICATION_INFO0_ */
@@ -646,6 +720,15 @@ struct htt_rx_indication {
 	struct htt_rx_indication_mpdu_range mpdu_ranges[0];
 } __packed;
 
+/* High latency version of the RX indication */
+struct htt_rx_indication_hl {
+	struct htt_rx_indication_hdr hdr;
+	struct htt_rx_indication_ppdu ppdu;
+	struct htt_rx_indication_prefix prefix;
+	struct fw_rx_desc_hl fw_desc;
+	struct htt_rx_indication_mpdu_range mpdu_ranges[0];
+} __packed;
+
 static inline struct htt_rx_indication_mpdu_range *
 		htt_rx_ind_get_mpdu_ranges(struct htt_rx_indication *rx_ind)
 {
@@ -655,6 +738,18 @@ static inline struct htt_rx_indication_mpdu_range *
 	     + sizeof(rx_ind->ppdu)
 	     + sizeof(rx_ind->prefix)
 	     + roundup(__le16_to_cpu(rx_ind->prefix.fw_rx_desc_bytes), 4);
+	return ptr;
+}
+
+static inline struct htt_rx_indication_mpdu_range *
+	htt_rx_ind_get_mpdu_ranges_hl(struct htt_rx_indication_hl *rx_ind)
+{
+	void *ptr = rx_ind;
+
+	ptr += sizeof(rx_ind->hdr)
+	     + sizeof(rx_ind->ppdu)
+	     + sizeof(rx_ind->prefix)
+	     + sizeof(rx_ind->fw_desc);
 	return ptr;
 }
 
@@ -767,7 +862,7 @@ struct htt_data_tx_completion {
 		} __packed;
 	} __packed;
 	u8 num_msdus;
-	u8 rsvd0;
+	u8 flags2; /* HTT_TX_CMPL_FLAG_DATA_RSSI */
 	__le16 msdus[0]; /* variable length based on %num_msdus */
 } __packed;
 
@@ -855,13 +950,23 @@ struct htt_rx_in_ord_msdu_desc {
 	u8 reserved;
 } __packed;
 
+struct htt_rx_in_ord_msdu_desc_ext {
+	__le64 msdu_paddr;
+	__le16 msdu_len;
+	u8 fw_desc;
+	u8 reserved;
+} __packed;
+
 struct htt_rx_in_ord_ind {
 	u8 info;
 	__le16 peer_id;
 	u8 vdev_id;
 	u8 reserved;
 	__le16 msdu_count;
-	struct htt_rx_in_ord_msdu_desc msdu_descs[0];
+	union {
+		struct htt_rx_in_ord_msdu_desc msdu_descs32[0];
+		struct htt_rx_in_ord_msdu_desc_ext msdu_descs64[0];
+	} __packed;
 } __packed;
 
 #define HTT_RX_IN_ORD_IND_INFO_TID_MASK		0x0000001f
@@ -1351,11 +1456,20 @@ struct htt_q_state_conf {
 	u8 pad[2];
 } __packed;
 
-struct htt_frag_desc_bank_cfg {
+struct htt_frag_desc_bank_cfg32 {
 	u8 info; /* HTT_FRAG_DESC_BANK_CFG_INFO_ */
 	u8 num_banks;
 	u8 desc_size;
 	__le32 bank_base_addrs[HTT_FRAG_DESC_BANK_MAX];
+	struct htt_frag_desc_bank_id bank_id[HTT_FRAG_DESC_BANK_MAX];
+	struct htt_q_state_conf q_state;
+} __packed;
+
+struct htt_frag_desc_bank_cfg64 {
+	u8 info; /* HTT_FRAG_DESC_BANK_CFG_INFO_ */
+	u8 num_banks;
+	u8 desc_size;
+	__le64 bank_base_addrs[HTT_FRAG_DESC_BANK_MAX];
 	struct htt_frag_desc_bank_id bank_id[HTT_FRAG_DESC_BANK_MAX];
 	struct htt_q_state_conf q_state;
 } __packed;
@@ -1497,6 +1611,23 @@ struct htt_peer_tx_stats {
 	u8 payload[0];
 } __packed;
 
+#define ATH10K_10_2_TX_STATS_OFFSET	136
+#define PEER_STATS_FOR_NO_OF_PPDUS	4
+
+struct ath10k_10_2_peer_tx_stats {
+	u8 ratecode[PEER_STATS_FOR_NO_OF_PPDUS];
+	u8 success_pkts[PEER_STATS_FOR_NO_OF_PPDUS];
+	__le16 success_bytes[PEER_STATS_FOR_NO_OF_PPDUS];
+	u8 retry_pkts[PEER_STATS_FOR_NO_OF_PPDUS];
+	__le16 retry_bytes[PEER_STATS_FOR_NO_OF_PPDUS];
+	u8 failed_pkts[PEER_STATS_FOR_NO_OF_PPDUS];
+	__le16 failed_bytes[PEER_STATS_FOR_NO_OF_PPDUS];
+	u8 flags[PEER_STATS_FOR_NO_OF_PPDUS];
+	__le32 tx_duration;
+	u8 tx_ppdu_cnt;
+	u8 peer_id;
+} __packed;
+
 union htt_rx_pn_t {
 	/* WEP: 24-bit PN */
 	u32 pn24;
@@ -1514,11 +1645,13 @@ struct htt_cmd {
 		struct htt_ver_req ver_req;
 		struct htt_mgmt_tx_desc mgmt_tx;
 		struct htt_data_tx_desc data_tx;
-		struct htt_rx_ring_setup rx_setup;
+		struct htt_rx_ring_setup_32 rx_setup_32;
+		struct htt_rx_ring_setup_64 rx_setup_64;
 		struct htt_stats_req stats_req;
 		struct htt_oob_sync_req oob_sync_req;
 		struct htt_aggr_conf aggr_conf;
-		struct htt_frag_desc_bank_cfg frag_desc_bank_cfg;
+		struct htt_frag_desc_bank_cfg32 frag_desc_bank_cfg32;
+		struct htt_frag_desc_bank_cfg64 frag_desc_bank_cfg64;
 		struct htt_tx_fetch_resp tx_fetch_resp;
 	};
 } __packed;
@@ -1530,6 +1663,7 @@ struct htt_resp {
 		struct htt_mgmt_tx_completion mgmt_tx_completion;
 		struct htt_data_tx_completion data_tx_completion;
 		struct htt_rx_indication rx_ind;
+		struct htt_rx_indication_hl rx_ind_hl;
 		struct htt_rx_fragment_indication rx_frag_ind;
 		struct htt_rx_peer_map peer_map;
 		struct htt_rx_peer_unmap peer_unmap;
@@ -1557,6 +1691,7 @@ struct htt_resp {
 struct htt_tx_done {
 	u16 msdu_id;
 	u16 status;
+	u8 ack_rssi;
 };
 
 enum htt_tx_compl_state {
@@ -1576,11 +1711,18 @@ struct htt_peer_unmap_event {
 	u16 peer_id;
 };
 
-struct ath10k_htt_txbuf {
+struct ath10k_htt_txbuf_32 {
 	struct htt_data_tx_desc_frag frags[2];
 	struct ath10k_htc_hdr htc_hdr;
 	struct htt_cmd_hdr cmd_hdr;
 	struct htt_data_tx_desc cmd_tx;
+} __packed;
+
+struct ath10k_htt_txbuf_64 {
+	struct htt_data_tx_desc_frag frags[2];
+	struct ath10k_htc_hdr htc_hdr;
+	struct htt_cmd_hdr cmd_hdr;
+	struct htt_data_tx_desc_64 cmd_tx;
 } __packed;
 
 struct ath10k_htt {
@@ -1627,7 +1769,10 @@ struct ath10k_htt {
 		 * rx buffers the host SW provides for the MAC HW to
 		 * fill.
 		 */
-		__le32 *paddrs_ring;
+		union {
+			__le64 *paddrs_ring_64;
+			__le32 *paddrs_ring_32;
+		};
 
 		/*
 		 * Base address of ring, as a "physical" device address
@@ -1695,7 +1840,7 @@ struct ath10k_htt {
 	/* This is used to group tx/rx completions separately and process them
 	 * in batches to reduce cache stalls
 	 */
-	struct sk_buff_head rx_compl_q;
+	struct sk_buff_head rx_msdus_q;
 	struct sk_buff_head rx_in_ord_compl_q;
 	struct sk_buff_head tx_fetch_ind_q;
 
@@ -1704,12 +1849,20 @@ struct ath10k_htt {
 
 	struct {
 		dma_addr_t paddr;
-		struct htt_msdu_ext_desc *vaddr;
+		union {
+			struct htt_msdu_ext_desc *vaddr_desc_32;
+			struct htt_msdu_ext_desc_64 *vaddr_desc_64;
+		};
+		size_t size;
 	} frag_desc;
 
 	struct {
 		dma_addr_t paddr;
-		struct ath10k_htt_txbuf *vaddr;
+		union {
+			struct ath10k_htt_txbuf_32 *vaddr_txbuff_32;
+			struct ath10k_htt_txbuf_64 *vaddr_txbuff_64;
+		};
+		size_t size;
 	} txbuf;
 
 	struct {
@@ -1724,7 +1877,117 @@ struct ath10k_htt {
 	} tx_q_state;
 
 	bool tx_mem_allocated;
+	const struct ath10k_htt_tx_ops *tx_ops;
+	const struct ath10k_htt_rx_ops *rx_ops;
 };
+
+struct ath10k_htt_tx_ops {
+	int (*htt_send_rx_ring_cfg)(struct ath10k_htt *htt);
+	int (*htt_send_frag_desc_bank_cfg)(struct ath10k_htt *htt);
+	int (*htt_alloc_frag_desc)(struct ath10k_htt *htt);
+	void (*htt_free_frag_desc)(struct ath10k_htt *htt);
+	int (*htt_tx)(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
+		      struct sk_buff *msdu);
+	int (*htt_alloc_txbuff)(struct ath10k_htt *htt);
+	void (*htt_free_txbuff)(struct ath10k_htt *htt);
+};
+
+static inline int ath10k_htt_send_rx_ring_cfg(struct ath10k_htt *htt)
+{
+	if (!htt->tx_ops->htt_send_rx_ring_cfg)
+		return -EOPNOTSUPP;
+
+	return htt->tx_ops->htt_send_rx_ring_cfg(htt);
+}
+
+static inline int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
+{
+	if (!htt->tx_ops->htt_send_frag_desc_bank_cfg)
+		return -EOPNOTSUPP;
+
+	return htt->tx_ops->htt_send_frag_desc_bank_cfg(htt);
+}
+
+static inline int ath10k_htt_alloc_frag_desc(struct ath10k_htt *htt)
+{
+	if (!htt->tx_ops->htt_alloc_frag_desc)
+		return -EOPNOTSUPP;
+
+	return htt->tx_ops->htt_alloc_frag_desc(htt);
+}
+
+static inline void ath10k_htt_free_frag_desc(struct ath10k_htt *htt)
+{
+	if (htt->tx_ops->htt_free_frag_desc)
+		htt->tx_ops->htt_free_frag_desc(htt);
+}
+
+static inline int ath10k_htt_tx(struct ath10k_htt *htt,
+				enum ath10k_hw_txrx_mode txmode,
+				struct sk_buff *msdu)
+{
+	return htt->tx_ops->htt_tx(htt, txmode, msdu);
+}
+
+static inline int ath10k_htt_alloc_txbuff(struct ath10k_htt *htt)
+{
+	if (!htt->tx_ops->htt_alloc_txbuff)
+		return -EOPNOTSUPP;
+
+	return htt->tx_ops->htt_alloc_txbuff(htt);
+}
+
+static inline void ath10k_htt_free_txbuff(struct ath10k_htt *htt)
+{
+	if (htt->tx_ops->htt_free_txbuff)
+		htt->tx_ops->htt_free_txbuff(htt);
+}
+
+struct ath10k_htt_rx_ops {
+	size_t (*htt_get_rx_ring_size)(struct ath10k_htt *htt);
+	void (*htt_config_paddrs_ring)(struct ath10k_htt *htt, void *vaddr);
+	void (*htt_set_paddrs_ring)(struct ath10k_htt *htt, dma_addr_t paddr,
+				    int idx);
+	void* (*htt_get_vaddr_ring)(struct ath10k_htt *htt);
+	void (*htt_reset_paddrs_ring)(struct ath10k_htt *htt, int idx);
+};
+
+static inline size_t ath10k_htt_get_rx_ring_size(struct ath10k_htt *htt)
+{
+	if (!htt->rx_ops->htt_get_rx_ring_size)
+		return 0;
+
+	return htt->rx_ops->htt_get_rx_ring_size(htt);
+}
+
+static inline void ath10k_htt_config_paddrs_ring(struct ath10k_htt *htt,
+						 void *vaddr)
+{
+	if (htt->rx_ops->htt_config_paddrs_ring)
+		htt->rx_ops->htt_config_paddrs_ring(htt, vaddr);
+}
+
+static inline void ath10k_htt_set_paddrs_ring(struct ath10k_htt *htt,
+					      dma_addr_t paddr,
+					      int idx)
+{
+	if (htt->rx_ops->htt_set_paddrs_ring)
+		htt->rx_ops->htt_set_paddrs_ring(htt, paddr, idx);
+}
+
+static inline void *ath10k_htt_get_vaddr_ring(struct ath10k_htt *htt)
+{
+	if (!htt->rx_ops->htt_get_vaddr_ring)
+		return NULL;
+
+	return htt->rx_ops->htt_get_vaddr_ring(htt);
+}
+
+static inline void ath10k_htt_reset_paddrs_ring(struct ath10k_htt *htt, int idx)
+{
+	if (htt->rx_ops->htt_reset_paddrs_ring)
+		htt->rx_ops->htt_reset_paddrs_ring(htt, idx);
+}
 
 #define RX_HTT_HDR_STATUS_LEN 64
 
@@ -1753,6 +2016,31 @@ struct htt_rx_desc {
 	u8 rx_hdr_status[RX_HTT_HDR_STATUS_LEN];
 	u8 msdu_payload[0];
 };
+
+#define HTT_RX_DESC_HL_INFO_SEQ_NUM_MASK           0x00000fff
+#define HTT_RX_DESC_HL_INFO_SEQ_NUM_LSB            0
+#define HTT_RX_DESC_HL_INFO_ENCRYPTED_MASK         0x00001000
+#define HTT_RX_DESC_HL_INFO_ENCRYPTED_LSB          12
+#define HTT_RX_DESC_HL_INFO_CHAN_INFO_PRESENT_MASK 0x00002000
+#define HTT_RX_DESC_HL_INFO_CHAN_INFO_PRESENT_LSB  13
+#define HTT_RX_DESC_HL_INFO_MCAST_BCAST_MASK       0x00008000
+#define HTT_RX_DESC_HL_INFO_MCAST_BCAST_LSB        15
+#define HTT_RX_DESC_HL_INFO_FRAGMENT_MASK          0x00010000
+#define HTT_RX_DESC_HL_INFO_FRAGMENT_LSB           16
+#define HTT_RX_DESC_HL_INFO_KEY_ID_OCT_MASK        0x01fe0000
+#define HTT_RX_DESC_HL_INFO_KEY_ID_OCT_LSB         17
+
+struct htt_rx_desc_base_hl {
+	__le32 info; /* HTT_RX_DESC_HL_INFO_ */
+};
+
+struct htt_rx_chan_info {
+	__le16 primary_chan_center_freq_mhz;
+	__le16 contig_chan1_center_freq_mhz;
+	__le16 contig_chan2_center_freq_mhz;
+	u8 phy_mode;
+	u8 reserved;
+} __packed;
 
 #define HTT_RX_DESC_ALIGN 8
 
@@ -1803,8 +2091,6 @@ void ath10k_htt_htc_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);
 int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie);
-int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt);
-int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt);
 int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_ampdu,
 				u8 max_subfrms_amsdu);
@@ -1829,11 +2115,9 @@ int ath10k_htt_tx_mgmt_inc_pending(struct ath10k_htt *htt, bool is_mgmt,
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb);
 void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id);
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu);
-int ath10k_htt_tx(struct ath10k_htt *htt,
-		  enum ath10k_hw_txrx_mode txmode,
-		  struct sk_buff *msdu);
 void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
 					     struct sk_buff *skb);
 int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget);
-
+void ath10k_htt_set_tx_ops(struct ath10k_htt *htt);
+void ath10k_htt_set_rx_ops(struct ath10k_htt *htt);
 #endif

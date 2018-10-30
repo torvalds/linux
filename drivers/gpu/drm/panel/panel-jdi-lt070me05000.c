@@ -192,8 +192,7 @@ static int jdi_panel_disable(struct drm_panel *panel)
 	if (!jdi->enabled)
 		return 0;
 
-	jdi->backlight->props.power = FB_BLANK_POWERDOWN;
-	backlight_update_status(jdi->backlight);
+	backlight_disable(jdi->backlight);
 
 	jdi->enabled = false;
 
@@ -289,8 +288,7 @@ static int jdi_panel_enable(struct drm_panel *panel)
 	if (jdi->enabled)
 		return 0;
 
-	jdi->backlight->props.power = FB_BLANK_UNBLANK;
-	backlight_update_status(jdi->backlight);
+	backlight_enable(jdi->backlight);
 
 	jdi->enabled = true;
 
@@ -502,7 +500,6 @@ static int jdi_panel_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n",
 			ret);
 
-	drm_panel_detach(&jdi->base);
 	jdi_panel_del(jdi);
 
 	return 0;

@@ -499,7 +499,7 @@ static void rtl8187b_status_cb(struct urb *urb)
 	if (cmd_type == 1) {
 		unsigned int pkt_rc, seq_no;
 		bool tok;
-		struct sk_buff *skb;
+		struct sk_buff *skb, *iter;
 		struct ieee80211_hdr *ieee80211hdr;
 		unsigned long flags;
 
@@ -508,8 +508,9 @@ static void rtl8187b_status_cb(struct urb *urb)
 		seq_no = (val >> 16) & 0xFFF;
 
 		spin_lock_irqsave(&priv->b_tx_status.queue.lock, flags);
-		skb_queue_reverse_walk(&priv->b_tx_status.queue, skb) {
-			ieee80211hdr = (struct ieee80211_hdr *)skb->data;
+		skb = NULL;
+		skb_queue_reverse_walk(&priv->b_tx_status.queue, iter) {
+			ieee80211hdr = (struct ieee80211_hdr *)iter->data;
 
 			/*
 			 * While testing, it was discovered that the seq_no
@@ -522,10 +523,12 @@ static void rtl8187b_status_cb(struct urb *urb)
 			 * it's unlikely we wrongly ack some sent data
 			 */
 			if ((le16_to_cpu(ieee80211hdr->seq_ctrl)
-			    & 0xFFF) == seq_no)
+			     & 0xFFF) == seq_no) {
+				skb = iter;
 				break;
+			}
 		}
-		if (skb != (struct sk_buff *) &priv->b_tx_status.queue) {
+		if (skb) {
 			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 			__skb_unlink(skb, &priv->b_tx_status.queue);
@@ -1450,6 +1453,7 @@ static int rtl8187_probe(struct usb_interface *intf,
 		goto err_free_dev;
 	}
 	mutex_init(&priv->io_mutex);
+	mutex_init(&priv->conf_mutex);
 
 	SET_IEEE80211_DEV(dev, &intf->dev);
 	usb_set_intfdata(intf, dev);
@@ -1625,7 +1629,6 @@ static int rtl8187_probe(struct usb_interface *intf,
 		printk(KERN_ERR "rtl8187: Cannot register device\n");
 		goto err_free_dmabuf;
 	}
-	mutex_init(&priv->conf_mutex);
 	skb_queue_head_init(&priv->b_tx_status.queue);
 
 	wiphy_info(dev->wiphy, "hwaddr %pM, %s V%d + %s, rfkill mask %d\n",

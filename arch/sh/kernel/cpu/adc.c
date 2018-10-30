@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/arch/sh/kernel/adc.c -- SH3 on-chip ADC support
  *

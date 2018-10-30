@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2014,2016-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -458,4 +458,27 @@ int ath10k_bmi_fast_download(struct ath10k *ar,
 	ret = ath10k_bmi_lz_stream_start(ar, 0x00);
 
 	return ret;
+}
+
+int ath10k_bmi_set_start(struct ath10k *ar, u32 address)
+{
+	struct bmi_cmd cmd;
+	u32 cmdlen = sizeof(cmd.id) + sizeof(cmd.set_app_start);
+	int ret;
+
+	if (ar->bmi.done_sent) {
+		ath10k_warn(ar, "bmi set start command disallowed\n");
+		return -EBUSY;
+	}
+
+	cmd.id = __cpu_to_le32(BMI_SET_APP_START);
+	cmd.set_app_start.addr = __cpu_to_le32(address);
+
+	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, NULL, NULL);
+	if (ret) {
+		ath10k_warn(ar, "unable to set start to the device:%d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }

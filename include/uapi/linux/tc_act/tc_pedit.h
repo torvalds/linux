@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_TC_PED_H
 #define __LINUX_TC_PED_H
 
@@ -16,13 +17,15 @@ enum {
 	TCA_PEDIT_KEY_EX,
 	__TCA_PEDIT_MAX
 };
+
 #define TCA_PEDIT_MAX (__TCA_PEDIT_MAX - 1)
-                                                                                
+
 enum {
 	TCA_PEDIT_KEY_EX_HTYPE = 1,
 	TCA_PEDIT_KEY_EX_CMD = 2,
 	__TCA_PEDIT_KEY_EX_MAX
 };
+
 #define TCA_PEDIT_KEY_EX_MAX (__TCA_PEDIT_KEY_EX_MAX - 1)
 
  /* TCA_PEDIT_KEY_EX_HDR_TYPE_NETWROK is a special case for legacy users. It
@@ -37,6 +40,7 @@ enum pedit_header_type {
 	TCA_PEDIT_KEY_EX_HDR_TYPE_UDP = 5,
 	__PEDIT_HDR_TYPE_MAX,
 };
+
 #define TCA_PEDIT_HDR_TYPE_MAX (__PEDIT_HDR_TYPE_MAX - 1)
 
 enum pedit_cmd {
@@ -44,6 +48,7 @@ enum pedit_cmd {
 	TCA_PEDIT_KEY_EX_CMD_ADD = 1,
 	__PEDIT_CMD_MAX,
 };
+
 #define TCA_PEDIT_CMD_MAX (__PEDIT_CMD_MAX - 1)
 
 struct tc_pedit_key {
@@ -54,13 +59,14 @@ struct tc_pedit_key {
 	__u32           offmask;
 	__u32           shift;
 };
-                                                                                
+
 struct tc_pedit_sel {
 	tc_gen;
 	unsigned char           nkeys;
 	unsigned char           flags;
 	struct tc_pedit_key     keys[0];
 };
+
 #define tc_pedit tc_pedit_sel
 
 #endif

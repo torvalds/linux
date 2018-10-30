@@ -115,7 +115,7 @@ static int nfnl_acct_new(struct net *net, struct sock *nfnl,
 		nfacct->flags = flags;
 	}
 
-	strncpy(nfacct->name, nla_data(tb[NFACCT_NAME]), NFACCT_NAME_MAX);
+	nla_strlcpy(nfacct->name, tb[NFACCT_NAME], NFACCT_NAME_MAX);
 
 	if (tb[NFACCT_BYTES]) {
 		atomic64_set(&nfacct->bytes,
@@ -238,29 +238,33 @@ static const struct nla_policy filter_policy[NFACCT_FILTER_MAX + 1] = {
 	[NFACCT_FILTER_VALUE]	= { .type = NLA_U32 },
 };
 
-static struct nfacct_filter *
-nfacct_filter_alloc(const struct nlattr * const attr)
+static int nfnl_acct_start(struct netlink_callback *cb)
 {
-	struct nfacct_filter *filter;
+	const struct nlattr *const attr = cb->data;
 	struct nlattr *tb[NFACCT_FILTER_MAX + 1];
+	struct nfacct_filter *filter;
 	int err;
+
+	if (!attr)
+		return 0;
 
 	err = nla_parse_nested(tb, NFACCT_FILTER_MAX, attr, filter_policy,
 			       NULL);
 	if (err < 0)
-		return ERR_PTR(err);
+		return err;
 
 	if (!tb[NFACCT_FILTER_MASK] || !tb[NFACCT_FILTER_VALUE])
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	filter = kzalloc(sizeof(struct nfacct_filter), GFP_KERNEL);
 	if (!filter)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	filter->mask = ntohl(nla_get_be32(tb[NFACCT_FILTER_MASK]));
 	filter->value = ntohl(nla_get_be32(tb[NFACCT_FILTER_VALUE]));
+	cb->data = filter;
 
-	return filter;
+	return 0;
 }
 
 static int nfnl_acct_get(struct net *net, struct sock *nfnl,
@@ -275,18 +279,11 @@ static int nfnl_acct_get(struct net *net, struct sock *nfnl,
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.dump = nfnl_acct_dump,
+			.start = nfnl_acct_start,
 			.done = nfnl_acct_done,
+			.data = (void *)tb[NFACCT_FILTER],
 		};
 
-		if (tb[NFACCT_FILTER]) {
-			struct nfacct_filter *filter;
-
-			filter = nfacct_filter_alloc(tb[NFACCT_FILTER]);
-			if (IS_ERR(filter))
-				return PTR_ERR(filter);
-
-			c.data = filter;
-		}
 		return netlink_dump_start(nfnl, skb, nlh, &c);
 	}
 
@@ -467,8 +464,7 @@ static void nfnl_overquota_report(struct net *net, struct nf_acct *nfacct)
 			  GFP_ATOMIC);
 }
 
-int nfnl_acct_overquota(struct net *net, const struct sk_buff *skb,
-			struct nf_acct *nfacct)
+int nfnl_acct_overquota(struct net *net, struct nf_acct *nfacct)
 {
 	u64 now;
 	u64 *quota;
@@ -527,7 +523,6 @@ static int __init nfnl_acct_init(void)
 		goto err_out;
 	}
 
-	pr_info("nfnl_acct: registering with nfnetlink.\n");
 	ret = nfnetlink_subsys_register(&nfnl_acct_subsys);
 	if (ret < 0) {
 		pr_err("nfnl_acct_init: cannot register with nfnetlink.\n");
@@ -543,7 +538,6 @@ err_out:
 
 static void __exit nfnl_acct_exit(void)
 {
-	pr_info("nfnl_acct: unregistering from nfnetlink.\n");
 	nfnetlink_subsys_unregister(&nfnl_acct_subsys);
 	unregister_pernet_subsys(&nfnl_acct_ops);
 }

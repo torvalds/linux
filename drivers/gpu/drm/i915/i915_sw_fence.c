@@ -9,6 +9,7 @@
 
 #include <linux/slab.h>
 #include <linux/dma-fence.h>
+#include <linux/irq_work.h>
 #include <linux/reservation.h>
 
 #include "i915_sw_fence.h"
@@ -23,12 +24,12 @@ enum {
 	DEBUG_FENCE_NOTIFY,
 };
 
-#ifdef CONFIG_DRM_I915_SW_FENCE_DEBUG_OBJECTS
-
 static void *i915_sw_fence_debug_hint(void *addr)
 {
 	return (void *)(((struct i915_sw_fence *)addr)->flags & I915_SW_FENCE_MASK);
 }
+
+#ifdef CONFIG_DRM_I915_SW_FENCE_DEBUG_OBJECTS
 
 static struct debug_obj_descr i915_sw_fence_debug_descr = {
 	.name = "i915_sw_fence",
@@ -38,6 +39,11 @@ static struct debug_obj_descr i915_sw_fence_debug_descr = {
 static inline void debug_fence_init(struct i915_sw_fence *fence)
 {
 	debug_object_init(fence, &i915_sw_fence_debug_descr);
+}
+
+static inline void debug_fence_init_onstack(struct i915_sw_fence *fence)
+{
+	debug_object_init_on_stack(fence, &i915_sw_fence_debug_descr);
 }
 
 static inline void debug_fence_activate(struct i915_sw_fence *fence)
@@ -75,6 +81,10 @@ static inline void debug_fence_assert(struct i915_sw_fence *fence)
 #else
 
 static inline void debug_fence_init(struct i915_sw_fence *fence)
+{
+}
+
+static inline void debug_fence_init_onstack(struct i915_sw_fence *fence)
 {
 }
 
@@ -293,6 +303,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 	int pending;
 
 	debug_fence_assert(fence);
+	might_sleep_if(gfpflags_allow_blocking(gfp));
 
 	if (i915_sw_fence_done(signaler))
 		return 0;
@@ -354,36 +365,66 @@ int i915_sw_fence_await_sw_fence_gfp(struct i915_sw_fence *fence,
 struct i915_sw_dma_fence_cb {
 	struct dma_fence_cb base;
 	struct i915_sw_fence *fence;
-	struct dma_fence *dma;
-	struct timer_list timer;
 };
 
-static void timer_i915_sw_fence_wake(unsigned long data)
-{
-	struct i915_sw_dma_fence_cb *cb = (struct i915_sw_dma_fence_cb *)data;
-
-	pr_warn("asynchronous wait on fence %s:%s:%x timed out\n",
-		cb->dma->ops->get_driver_name(cb->dma),
-		cb->dma->ops->get_timeline_name(cb->dma),
-		cb->dma->seqno);
-	dma_fence_put(cb->dma);
-	cb->dma = NULL;
-
-	i915_sw_fence_complete(cb->fence);
-	cb->timer.function = NULL;
-}
+struct i915_sw_dma_fence_cb_timer {
+	struct i915_sw_dma_fence_cb base;
+	struct dma_fence *dma;
+	struct timer_list timer;
+	struct irq_work work;
+	struct rcu_head rcu;
+};
 
 static void dma_i915_sw_fence_wake(struct dma_fence *dma,
 				   struct dma_fence_cb *data)
 {
 	struct i915_sw_dma_fence_cb *cb = container_of(data, typeof(*cb), base);
 
+	i915_sw_fence_complete(cb->fence);
+	kfree(cb);
+}
+
+static void timer_i915_sw_fence_wake(struct timer_list *t)
+{
+	struct i915_sw_dma_fence_cb_timer *cb = from_timer(cb, t, timer);
+	struct i915_sw_fence *fence;
+
+	fence = xchg(&cb->base.fence, NULL);
+	if (!fence)
+		return;
+
+	pr_notice("Asynchronous wait on fence %s:%s:%x timed out (hint:%pS)\n",
+		  cb->dma->ops->get_driver_name(cb->dma),
+		  cb->dma->ops->get_timeline_name(cb->dma),
+		  cb->dma->seqno,
+		  i915_sw_fence_debug_hint(fence));
+
+	i915_sw_fence_complete(fence);
+}
+
+static void dma_i915_sw_fence_wake_timer(struct dma_fence *dma,
+					 struct dma_fence_cb *data)
+{
+	struct i915_sw_dma_fence_cb_timer *cb =
+		container_of(data, typeof(*cb), base.base);
+	struct i915_sw_fence *fence;
+
+	fence = xchg(&cb->base.fence, NULL);
+	if (fence)
+		i915_sw_fence_complete(fence);
+
+	irq_work_queue(&cb->work);
+}
+
+static void irq_i915_sw_fence_work(struct irq_work *wrk)
+{
+	struct i915_sw_dma_fence_cb_timer *cb =
+		container_of(wrk, typeof(*cb), work);
+
 	del_timer_sync(&cb->timer);
-	if (cb->timer.function)
-		i915_sw_fence_complete(cb->fence);
 	dma_fence_put(cb->dma);
 
-	kfree(cb);
+	kfree_rcu(cb, rcu);
 }
 
 int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
@@ -392,14 +433,19 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 				  gfp_t gfp)
 {
 	struct i915_sw_dma_fence_cb *cb;
+	dma_fence_func_t func;
 	int ret;
 
 	debug_fence_assert(fence);
+	might_sleep_if(gfpflags_allow_blocking(gfp));
 
 	if (dma_fence_is_signaled(dma))
 		return 0;
 
-	cb = kmalloc(sizeof(*cb), gfp);
+	cb = kmalloc(timeout ?
+		     sizeof(struct i915_sw_dma_fence_cb_timer) :
+		     sizeof(struct i915_sw_dma_fence_cb),
+		     gfp);
 	if (!cb) {
 		if (!gfpflags_allow_blocking(gfp))
 			return -ENOMEM;
@@ -410,20 +456,26 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 	cb->fence = fence;
 	i915_sw_fence_await(fence);
 
-	cb->dma = NULL;
-	__setup_timer(&cb->timer,
-		      timer_i915_sw_fence_wake, (unsigned long)cb,
-		      TIMER_IRQSAFE);
+	func = dma_i915_sw_fence_wake;
 	if (timeout) {
-		cb->dma = dma_fence_get(dma);
-		mod_timer(&cb->timer, round_jiffies_up(jiffies + timeout));
+		struct i915_sw_dma_fence_cb_timer *timer =
+			container_of(cb, typeof(*timer), base);
+
+		timer->dma = dma_fence_get(dma);
+		init_irq_work(&timer->work, irq_i915_sw_fence_work);
+
+		timer_setup(&timer->timer,
+			    timer_i915_sw_fence_wake, TIMER_IRQSAFE);
+		mod_timer(&timer->timer, round_jiffies_up(jiffies + timeout));
+
+		func = dma_i915_sw_fence_wake_timer;
 	}
 
-	ret = dma_fence_add_callback(dma, &cb->base, dma_i915_sw_fence_wake);
+	ret = dma_fence_add_callback(dma, &cb->base, func);
 	if (ret == 0) {
 		ret = 1;
 	} else {
-		dma_i915_sw_fence_wake(dma, &cb->base);
+		func(dma, &cb->base);
 		if (ret == -ENOENT) /* fence already signaled */
 			ret = 0;
 	}
@@ -442,6 +494,7 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 	int ret = 0, pending;
 
 	debug_fence_assert(fence);
+	might_sleep_if(gfpflags_allow_blocking(gfp));
 
 	if (write) {
 		struct dma_fence **shared;
@@ -492,5 +545,6 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/lib_sw_fence.c"
 #include "selftests/i915_sw_fence.c"
 #endif

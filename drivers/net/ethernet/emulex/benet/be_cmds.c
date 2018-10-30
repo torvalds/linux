@@ -19,7 +19,7 @@
 #include "be.h"
 #include "be_cmds.h"
 
-char *be_misconfig_evt_port_state[] = {
+const char * const be_misconfig_evt_port_state[] = {
 	"Physical Link is functional",
 	"Optics faulted/incorrectly installed/not installed - Reseat optics. If issue not resolved, replace.",
 	"Optics of two types installed – Remove one optic or install matching pair of optics.",
@@ -103,7 +103,7 @@ static struct be_cmd_priv_map cmd_priv_map[] = {
 static bool be_cmd_allowed(struct be_adapter *adapter, u8 opcode, u8 subsystem)
 {
 	int i;
-	int num_entries = sizeof(cmd_priv_map)/sizeof(struct be_cmd_priv_map);
+	int num_entries = ARRAY_SIZE(cmd_priv_map);
 	u32 cmd_privileges = adapter->cmd_privileges;
 
 	for (i = 0; i < num_entries; i++)
@@ -4500,7 +4500,7 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 				port_res->max_vfs += le16_to_cpu(pcie->num_vfs);
 			}
 		}
-		return status;
+		goto err;
 	}
 
 	pcie = be_get_pcie_desc(resp->func_param, desc_count,

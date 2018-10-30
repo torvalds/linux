@@ -32,7 +32,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_RXRPC);
 
 unsigned int rxrpc_debug; // = RXRPC_DEBUG_KPROTO;
-module_param_named(debug, rxrpc_debug, uint, S_IWUSR | S_IRUGO);
+module_param_named(debug, rxrpc_debug, uint, 0644);
 MODULE_PARM_DESC(debug, "RxRPC debugging mask");
 
 static struct proto rxrpc_proto;
@@ -40,6 +40,7 @@ static const struct proto_ops rxrpc_rpc_ops;
 
 /* current debugging ID */
 atomic_t rxrpc_debug_id;
+EXPORT_SYMBOL(rxrpc_debug_id);
 
 /* count of skbs currently in use */
 atomic_t rxrpc_n_tx_skbs, rxrpc_n_rx_skbs;
@@ -96,7 +97,8 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 	    srx->transport_len > len)
 		return -EINVAL;
 
-	if (srx->transport.family != rx->family)
+	if (srx->transport.family != rx->family &&
+	    srx->transport.family == AF_INET && rx->family != AF_INET6)
 		return -EAFNOSUPPORT;
 
 	switch (srx->transport.family) {
@@ -246,6 +248,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 			ret = 0;
 			break;
 		}
+		/* Fall through */
 	default:
 		ret = -EBUSY;
 		break;
@@ -265,6 +268,8 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * @tx_total_len: Total length of data to transmit during the call (or -1)
  * @gfp: The allocation constraints
  * @notify_rx: Where to send notifications instead of socket queue
+ * @upgrade: Request service upgrade for call
+ * @debug_id: The debug ID for tracing to be assigned to the call
  *
  * Allow a kernel service to begin a call on the nominated socket.  This just
  * sets up all the internal tracking structures and allocates connection and
@@ -279,9 +284,12 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   unsigned long user_call_ID,
 					   s64 tx_total_len,
 					   gfp_t gfp,
-					   rxrpc_notify_rx_t notify_rx)
+					   rxrpc_notify_rx_t notify_rx,
+					   bool upgrade,
+					   unsigned int debug_id)
 {
 	struct rxrpc_conn_parameters cp;
+	struct rxrpc_call_params p;
 	struct rxrpc_call *call;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	int ret;
@@ -299,23 +307,37 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	if (key && !key->payload.data[0])
 		key = NULL; /* a no-security key */
 
+	memset(&p, 0, sizeof(p));
+	p.user_call_ID = user_call_ID;
+	p.tx_total_len = tx_total_len;
+
 	memset(&cp, 0, sizeof(cp));
 	cp.local		= rx->local;
 	cp.key			= key;
-	cp.security_level	= 0;
+	cp.security_level	= rx->min_sec_level;
 	cp.exclusive		= false;
+	cp.upgrade		= upgrade;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, tx_total_len,
-				     gfp);
+	call = rxrpc_new_client_call(rx, &cp, srx, &p, gfp, debug_id);
 	/* The socket has been unlocked. */
-	if (!IS_ERR(call))
+	if (!IS_ERR(call)) {
 		call->notify_rx = notify_rx;
+		mutex_unlock(&call->user_mutex);
+	}
 
-	mutex_unlock(&call->user_mutex);
+	rxrpc_put_peer(cp.peer);
 	_leave(" = %p", call);
 	return call;
 }
 EXPORT_SYMBOL(rxrpc_kernel_begin_call);
+
+/*
+ * Dummy function used to stop the notifier talking to recvmsg().
+ */
+static void rxrpc_dummy_notify_rx(struct sock *sk, struct rxrpc_call *rxcall,
+				  unsigned long call_user_ID)
+{
+}
 
 /**
  * rxrpc_kernel_end_call - Allow a kernel service to end a call it was using
@@ -331,10 +353,51 @@ void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 
 	mutex_lock(&call->user_mutex);
 	rxrpc_release_call(rxrpc_sk(sock->sk), call);
+
+	/* Make sure we're not going to call back into a kernel service */
+	if (call->notify_rx) {
+		spin_lock_bh(&call->notify_lock);
+		call->notify_rx = rxrpc_dummy_notify_rx;
+		spin_unlock_bh(&call->notify_lock);
+	}
+
 	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put_kernel);
 }
 EXPORT_SYMBOL(rxrpc_kernel_end_call);
+
+/**
+ * rxrpc_kernel_check_life - Check to see whether a call is still alive
+ * @sock: The socket the call is on
+ * @call: The call to check
+ *
+ * Allow a kernel service to find out whether a call is still alive - ie. we're
+ * getting ACKs from the server.  Returns a number representing the life state
+ * which can be compared to that returned by a previous call.
+ *
+ * If this is a client call, ping ACKs will be sent to the server to find out
+ * whether it's still responsive and whether the call is still alive on the
+ * server.
+ */
+u32 rxrpc_kernel_check_life(struct socket *sock, struct rxrpc_call *call)
+{
+	return call->acks_latest;
+}
+EXPORT_SYMBOL(rxrpc_kernel_check_life);
+
+/**
+ * rxrpc_kernel_get_epoch - Retrieve the epoch value from a call.
+ * @sock: The socket the call is on
+ * @call: The call to query
+ *
+ * Allow a kernel service to retrieve the epoch value from a service call to
+ * see if the client at the other end rebooted.
+ */
+u32 rxrpc_kernel_get_epoch(struct socket *sock, struct rxrpc_call *call)
+{
+	return call->conn->proto.epoch;
+}
+EXPORT_SYMBOL(rxrpc_kernel_get_epoch);
 
 /**
  * rxrpc_kernel_check_call - Check a call's state
@@ -400,6 +463,7 @@ int rxrpc_kernel_retry_call(struct socket *sock, struct rxrpc_call *call,
 		ret = rxrpc_retry_client_call(rx, call, &cp, srx, GFP_KERNEL);
 
 	mutex_unlock(&call->user_mutex);
+	rxrpc_put_peer(cp.peer);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -537,6 +601,7 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 			m->msg_name = &rx->connect_srx;
 			m->msg_namelen = sizeof(rx->connect_srx);
 		}
+		/* Fall through */
 	case RXRPC_SERVER_BOUND:
 	case RXRPC_SERVER_LISTENING:
 		ret = rxrpc_do_sendmsg(rx, m, len);
@@ -684,26 +749,26 @@ static int rxrpc_getsockopt(struct socket *sock, int level, int optname,
 /*
  * permit an RxRPC socket to be polled
  */
-static unsigned int rxrpc_poll(struct file *file, struct socket *sock,
+static __poll_t rxrpc_poll(struct file *file, struct socket *sock,
 			       poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct rxrpc_sock *rx = rxrpc_sk(sk);
-	unsigned int mask;
+	__poll_t mask;
 
-	sock_poll_wait(file, sk_sleep(sk), wait);
+	sock_poll_wait(file, sock, wait);
 	mask = 0;
 
 	/* the socket is readable if there are any messages waiting on the Rx
 	 * queue */
 	if (!list_empty(&rx->recvmsg_q))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* the socket is writable if there is space to add new data to the
 	 * socket; there is no guarantee that any particular call in progress
 	 * on the socket may have space in the Tx ACK window */
 	if (rxrpc_writable(sk))
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 
 	return mask;
 }
@@ -714,6 +779,7 @@ static unsigned int rxrpc_poll(struct file *file, struct socket *sock,
 static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 			int kern)
 {
+	struct rxrpc_net *rxnet;
 	struct rxrpc_sock *rx;
 	struct sock *sk;
 
@@ -752,6 +818,9 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	rwlock_init(&rx->recvmsg_lock);
 	rwlock_init(&rx->call_lock);
 	memset(&rx->srx, 0, sizeof(rx->srx));
+
+	rxnet = rxrpc_net(sock_net(&rx->sk));
+	timer_reduce(&rxnet->peer_keepalive_timer, jiffies + 1);
 
 	_leave(" = 0 [%p]", rx);
 	return 0;
@@ -815,12 +884,26 @@ static void rxrpc_sock_destructor(struct sock *sk)
 static int rxrpc_release_sock(struct sock *sk)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sk);
+	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&rx->sk));
 
 	_enter("%p{%d,%d}", sk, sk->sk_state, refcount_read(&sk->sk_refcnt));
 
 	/* declare the socket closed for business */
 	sock_orphan(sk);
 	sk->sk_shutdown = SHUTDOWN_MASK;
+
+	/* We want to kill off all connections from a service socket
+	 * as fast as possible because we can't share these; client
+	 * sockets, on the other hand, can share an endpoint.
+	 */
+	switch (sk->sk_state) {
+	case RXRPC_SERVER_BOUND:
+	case RXRPC_SERVER_BOUND2:
+	case RXRPC_SERVER_LISTENING:
+	case RXRPC_SERVER_LISTEN_DISABLED:
+		rx->local->service_closed = true;
+		break;
+	}
 
 	spin_lock_bh(&sk->sk_receive_queue.lock);
 	sk->sk_state = RXRPC_CLOSE;
@@ -837,6 +920,8 @@ static int rxrpc_release_sock(struct sock *sk)
 	rxrpc_release_calls_on_socket(rx);
 	flush_workqueue(rxrpc_workqueue);
 	rxrpc_purge_queue(&sk->sk_receive_queue);
+	rxrpc_queue_work(&rxnet->service_conn_reaper);
+	rxrpc_queue_work(&rxnet->client_conn_reaper);
 
 	rxrpc_put_local(rx->local);
 	rx->local = NULL;

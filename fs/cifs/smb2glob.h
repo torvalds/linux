@@ -33,7 +33,7 @@
 
 /*
  * Identifiers for functions that use the open, operation, close pattern
- * in smb2inode.c:smb2_open_op_close()
+ * in smb2inode.c:smb2_compound_op()
  */
 #define SMB2_OP_SET_DELETE 1
 #define SMB2_OP_SET_INFO 2
@@ -60,10 +60,5 @@
 
 /* Maximum buffer size value we can send with 1 credit */
 #define SMB2_MAX_BUFFER_SIZE 65536
-
-static inline struct smb2_sync_hdr *get_sync_hdr(void *buf)
-{
-	return &(((struct smb2_hdr *)buf)->sync_hdr);
-}
 
 #endif	/* _SMB2_GLOB_H */

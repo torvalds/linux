@@ -2154,13 +2154,11 @@ il4965_rs_initialize_lq(struct il_priv *il, struct ieee80211_conf *conf,
 	u8 use_green;
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
-	struct il_station_priv *sta_priv;
 
 	if (!sta || !lq_sta)
 		return;
 
 	use_green = il4965_rs_use_green(il, sta);
-	sta_priv = (void *)sta->drv_priv;
 
 	i = lq_sta->last_txrate_idx;
 
@@ -2770,16 +2768,16 @@ il4965_rs_add_debugfs(void *il, void *il_sta, struct dentry *dir)
 {
 	struct il_lq_sta *lq_sta = il_sta;
 	lq_sta->rs_sta_dbgfs_scale_table_file =
-	    debugfs_create_file("rate_scale_table", S_IRUSR | S_IWUSR, dir,
+	    debugfs_create_file("rate_scale_table", 0600, dir,
 				lq_sta, &rs_sta_dbgfs_scale_table_ops);
 	lq_sta->rs_sta_dbgfs_stats_table_file =
-	    debugfs_create_file("rate_stats_table", S_IRUSR, dir, lq_sta,
+	    debugfs_create_file("rate_stats_table", 0400, dir, lq_sta,
 				&rs_sta_dbgfs_stats_table_ops);
 	lq_sta->rs_sta_dbgfs_rate_scale_data_file =
-	    debugfs_create_file("rate_scale_data", S_IRUSR, dir, lq_sta,
+	    debugfs_create_file("rate_scale_data", 0400, dir, lq_sta,
 				&rs_sta_dbgfs_rate_scale_data_ops);
 	lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file =
-	    debugfs_create_u8("tx_agg_tid_enable", S_IRUSR | S_IWUSR, dir,
+	    debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
 			      &lq_sta->tx_agg_tid_en);
 
 }

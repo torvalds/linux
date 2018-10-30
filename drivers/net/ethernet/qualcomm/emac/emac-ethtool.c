@@ -88,6 +88,8 @@ static void emac_set_msglevel(struct net_device *netdev, u32 data)
 static int emac_get_sset_count(struct net_device *netdev, int sset)
 {
 	switch (sset) {
+	case ETH_SS_PRIV_FLAGS:
+		return 1;
 	case ETH_SS_STATS:
 		return EMAC_STATS_LEN;
 	default:
@@ -100,6 +102,10 @@ static void emac_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	unsigned int i;
 
 	switch (stringset) {
+	case ETH_SS_PRIV_FLAGS:
+		strcpy(data, "single-pause-mode");
+		break;
+
 	case ETH_SS_STATS:
 		for (i = 0; i < EMAC_STATS_LEN; i++) {
 			strlcpy(data, emac_ethtool_stat_strings[i],
@@ -230,6 +236,27 @@ static int emac_get_regs_len(struct net_device *netdev)
 	return EMAC_MAX_REG_SIZE * sizeof(u32);
 }
 
+#define EMAC_PRIV_ENABLE_SINGLE_PAUSE	BIT(0)
+
+static int emac_set_priv_flags(struct net_device *netdev, u32 flags)
+{
+	struct emac_adapter *adpt = netdev_priv(netdev);
+
+	adpt->single_pause_mode = !!(flags & EMAC_PRIV_ENABLE_SINGLE_PAUSE);
+
+	if (netif_running(netdev))
+		return emac_reinit_locked(adpt);
+
+	return 0;
+}
+
+static u32 emac_get_priv_flags(struct net_device *netdev)
+{
+	struct emac_adapter *adpt = netdev_priv(netdev);
+
+	return adpt->single_pause_mode ? EMAC_PRIV_ENABLE_SINGLE_PAUSE : 0;
+}
+
 static const struct ethtool_ops emac_ethtool_ops = {
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
@@ -253,6 +280,9 @@ static const struct ethtool_ops emac_ethtool_ops = {
 
 	.get_regs_len    = emac_get_regs_len,
 	.get_regs        = emac_get_regs,
+
+	.set_priv_flags = emac_set_priv_flags,
+	.get_priv_flags = emac_get_priv_flags,
 };
 
 void emac_set_ethtool_ops(struct net_device *netdev)

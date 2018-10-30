@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_VDSO_H
 #define __ASM_VDSO_H
 
@@ -10,8 +11,6 @@ struct mm_struct;
 #ifdef CONFIG_VDSO
 
 void arm_install_vdso(struct mm_struct *mm, unsigned long addr);
-
-extern char vdso_start, vdso_end;
 
 extern unsigned int vdso_total_pages;
 

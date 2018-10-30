@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #if !defined(_TRACE_KVM_PR_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_KVM_PR_H
@@ -251,21 +252,6 @@ TRACE_EVENT(kvm_exit,
 		__entry->srr1,
 		__entry->last_inst
 		)
-);
-
-TRACE_EVENT(kvm_unmap_hva,
-	TP_PROTO(unsigned long hva),
-	TP_ARGS(hva),
-
-	TP_STRUCT__entry(
-		__field(	unsigned long,	hva		)
-	),
-
-	TP_fast_assign(
-		__entry->hva		= hva;
-	),
-
-	TP_printk("unmap hva 0x%lx\n", __entry->hva)
 );
 
 #endif /* _TRACE_KVM_H */

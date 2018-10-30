@@ -98,8 +98,12 @@ static inline void pte_free(struct mm_struct *mm, struct page *pte)
 	__free_page(pte);
 }
 
+#define __pte_free_tlb(tlb, pte, addr)	\
+do {					\
+	pgtable_page_dtor(pte);		\
+	tlb_remove_page((tlb), (pte));	\
+} while (0)
 
-#define __pte_free_tlb(tlb, pte, addr) tlb_remove_page((tlb), (pte))
 #define pmd_pgtable(pmd) pmd_page(pmd)
 
 #define check_pgt_cache()          do { } while (0)

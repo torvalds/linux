@@ -143,23 +143,23 @@ static bool wm9090_readable(struct device *dev, unsigned int reg)
 	}
 }
 
-static void wait_for_dc_servo(struct snd_soc_codec *codec)
+static void wait_for_dc_servo(struct snd_soc_component *component)
 {
 	unsigned int reg;
 	int count = 0;
 
-	dev_dbg(codec->dev, "Waiting for DC servo...\n");
+	dev_dbg(component->dev, "Waiting for DC servo...\n");
 	do {
 		count++;
 		msleep(1);
-		reg = snd_soc_read(codec, WM9090_DC_SERVO_READBACK_0);
-		dev_dbg(codec->dev, "DC servo status: %x\n", reg);
+		reg = snd_soc_component_read32(component, WM9090_DC_SERVO_READBACK_0);
+		dev_dbg(component->dev, "DC servo status: %x\n", reg);
 	} while ((reg & WM9090_DCS_CAL_COMPLETE_MASK)
 		 != WM9090_DCS_CAL_COMPLETE_MASK && count < 1000);
 
 	if ((reg & WM9090_DCS_CAL_COMPLETE_MASK)
 	    != WM9090_DCS_CAL_COMPLETE_MASK)
-		dev_err(codec->dev, "Timed out waiting for DC Servo\n");
+		dev_err(component->dev, "Timed out waiting for DC Servo\n");
 }
 
 static const DECLARE_TLV_DB_RANGE(in_tlv,
@@ -251,22 +251,22 @@ SOC_SINGLE_TLV("MIXOUTR IN2B Volume", WM9090_OUTPUT_MIXER4, 0, 3, 1,
 static int hp_ev(struct snd_soc_dapm_widget *w,
 		 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	unsigned int reg = snd_soc_read(codec, WM9090_ANALOGUE_HP_0);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	unsigned int reg = snd_soc_component_read32(component, WM9090_ANALOGUE_HP_0);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, WM9090_CHARGE_PUMP_1,
+		snd_soc_component_update_bits(component, WM9090_CHARGE_PUMP_1,
 				    WM9090_CP_ENA, WM9090_CP_ENA);
 
 		msleep(5);
 
-		snd_soc_update_bits(codec, WM9090_POWER_MANAGEMENT_1,
+		snd_soc_component_update_bits(component, WM9090_POWER_MANAGEMENT_1,
 				    WM9090_HPOUT1L_ENA | WM9090_HPOUT1R_ENA,
 				    WM9090_HPOUT1L_ENA | WM9090_HPOUT1R_ENA);
 
 		reg |= WM9090_HPOUT1L_DLY | WM9090_HPOUT1R_DLY;
-		snd_soc_write(codec, WM9090_ANALOGUE_HP_0, reg);
+		snd_soc_component_write(component, WM9090_ANALOGUE_HP_0, reg);
 
 		/* Start the DC servo.  We don't currently use the
 		 * ability to save the state since we don't have full
@@ -274,16 +274,16 @@ static int hp_ev(struct snd_soc_dapm_widget *w,
 		 * DC offsets; see the WM8904 driver for an example of
 		 * doing so.
 		 */
-		snd_soc_write(codec, WM9090_DC_SERVO_0,
+		snd_soc_component_write(component, WM9090_DC_SERVO_0,
 			      WM9090_DCS_ENA_CHAN_0 |
 			      WM9090_DCS_ENA_CHAN_1 |
 			      WM9090_DCS_TRIG_STARTUP_1 |
 			      WM9090_DCS_TRIG_STARTUP_0);
-		wait_for_dc_servo(codec);
+		wait_for_dc_servo(component);
 
 		reg |= WM9090_HPOUT1R_OUTP | WM9090_HPOUT1R_RMV_SHORT |
 			WM9090_HPOUT1L_OUTP | WM9090_HPOUT1L_RMV_SHORT;
-		snd_soc_write(codec, WM9090_ANALOGUE_HP_0, reg);
+		snd_soc_component_write(component, WM9090_ANALOGUE_HP_0, reg);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
@@ -294,15 +294,15 @@ static int hp_ev(struct snd_soc_dapm_widget *w,
 			 WM9090_HPOUT1R_DLY |
 			 WM9090_HPOUT1R_OUTP);
 
-		snd_soc_write(codec, WM9090_ANALOGUE_HP_0, reg);
+		snd_soc_component_write(component, WM9090_ANALOGUE_HP_0, reg);
 
-		snd_soc_write(codec, WM9090_DC_SERVO_0, 0);
+		snd_soc_component_write(component, WM9090_DC_SERVO_0, 0);
 
-		snd_soc_update_bits(codec, WM9090_POWER_MANAGEMENT_1,
+		snd_soc_component_update_bits(component, WM9090_POWER_MANAGEMENT_1,
 				    WM9090_HPOUT1L_ENA | WM9090_HPOUT1R_ENA,
 				    0);
 
-		snd_soc_update_bits(codec, WM9090_CHARGE_PUMP_1,
+		snd_soc_component_update_bits(component, WM9090_CHARGE_PUMP_1,
 				    WM9090_CP_ENA, 0);
 		break;
 	}
@@ -419,10 +419,10 @@ static const struct snd_soc_dapm_route audio_map_in2_diff[] = {
 	{ "IN2A PGA", NULL, "IN2-" },	
 };
 
-static int wm9090_add_controls(struct snd_soc_codec *codec)
+static int wm9090_add_controls(struct snd_soc_component *component)
 {
-	struct wm9090_priv *wm9090 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct wm9090_priv *wm9090 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	int i;
 
 	snd_soc_dapm_new_controls(dapm, wm9090_dapm_widgets,
@@ -430,7 +430,7 @@ static int wm9090_add_controls(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_add_codec_controls(codec, wm9090_controls,
+	snd_soc_add_component_controls(component, wm9090_controls,
 			     ARRAY_SIZE(wm9090_controls));
 
 	if (wm9090->pdata.lin1_diff) {
@@ -439,7 +439,7 @@ static int wm9090_add_controls(struct snd_soc_codec *codec)
 	} else {
 		snd_soc_dapm_add_routes(dapm, audio_map_in1_se,
 					ARRAY_SIZE(audio_map_in1_se));
-		snd_soc_add_codec_controls(codec, wm9090_in1_se_controls,
+		snd_soc_add_component_controls(component, wm9090_in1_se_controls,
 				     ARRAY_SIZE(wm9090_in1_se_controls));
 	}
 
@@ -449,18 +449,18 @@ static int wm9090_add_controls(struct snd_soc_codec *codec)
 	} else {
 		snd_soc_dapm_add_routes(dapm, audio_map_in2_se,
 					ARRAY_SIZE(audio_map_in2_se));
-		snd_soc_add_codec_controls(codec, wm9090_in2_se_controls,
+		snd_soc_add_component_controls(component, wm9090_in2_se_controls,
 				     ARRAY_SIZE(wm9090_in2_se_controls));
 	}
 
 	if (wm9090->pdata.agc_ena) {
 		for (i = 0; i < ARRAY_SIZE(wm9090->pdata.agc); i++)
-			snd_soc_write(codec, WM9090_AGC_CONTROL_0 + i,
+			snd_soc_component_write(component, WM9090_AGC_CONTROL_0 + i,
 				      wm9090->pdata.agc[i]);
-		snd_soc_update_bits(codec, WM9090_POWER_MANAGEMENT_3,
+		snd_soc_component_update_bits(component, WM9090_POWER_MANAGEMENT_3,
 				    WM9090_AGC_ENA, WM9090_AGC_ENA);
 	} else {
-		snd_soc_update_bits(codec, WM9090_POWER_MANAGEMENT_3,
+		snd_soc_component_update_bits(component, WM9090_POWER_MANAGEMENT_3,
 				    WM9090_AGC_ENA, 0);
 	}
 
@@ -472,19 +472,19 @@ static int wm9090_add_controls(struct snd_soc_codec *codec)
  * The machine driver should call this from their set_bias_level; if there
  * isn't one then this can just be set as the set_bias_level function.
  */
-static int wm9090_set_bias_level(struct snd_soc_codec *codec,
+static int wm9090_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
-	struct wm9090_priv *wm9090 = snd_soc_codec_get_drvdata(codec);
+	struct wm9090_priv *wm9090 = snd_soc_component_get_drvdata(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		snd_soc_update_bits(codec, WM9090_ANTIPOP2, WM9090_VMID_ENA,
+		snd_soc_component_update_bits(component, WM9090_ANTIPOP2, WM9090_VMID_ENA,
 				    WM9090_VMID_ENA);
-		snd_soc_update_bits(codec, WM9090_POWER_MANAGEMENT_1,
+		snd_soc_component_update_bits(component, WM9090_POWER_MANAGEMENT_1,
 				    WM9090_BIAS_ENA |
 				    WM9090_VMID_RES_MASK,
 				    WM9090_BIAS_ENA |
@@ -493,7 +493,7 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			/* Restore the register cache */
 			regcache_sync(wm9090->regmap);
 		}
@@ -502,9 +502,9 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 		 * ground referenced outputs and class D speaker mean that
 		 * latency is not an issue.
 		 */
-		snd_soc_update_bits(codec, WM9090_POWER_MANAGEMENT_1,
+		snd_soc_component_update_bits(component, WM9090_POWER_MANAGEMENT_1,
 				    WM9090_BIAS_ENA | WM9090_VMID_RES_MASK, 0);
-		snd_soc_update_bits(codec, WM9090_ANTIPOP2,
+		snd_soc_component_update_bits(component, WM9090_ANTIPOP2,
 				    WM9090_VMID_ENA, 0);
 		break;
 
@@ -515,45 +515,49 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm9090_probe(struct snd_soc_codec *codec)
+static int wm9090_probe(struct snd_soc_component *component)
 {
 	/* Configure some defaults; they will be written out when we
 	 * bring the bias up.
 	 */
-	snd_soc_update_bits(codec, WM9090_IN1_LINE_INPUT_A_VOLUME,
+	snd_soc_component_update_bits(component, WM9090_IN1_LINE_INPUT_A_VOLUME,
 			    WM9090_IN1_VU | WM9090_IN1A_ZC,
 			    WM9090_IN1_VU | WM9090_IN1A_ZC);
-	snd_soc_update_bits(codec, WM9090_IN1_LINE_INPUT_B_VOLUME,
+	snd_soc_component_update_bits(component, WM9090_IN1_LINE_INPUT_B_VOLUME,
 			    WM9090_IN1_VU | WM9090_IN1B_ZC,
 			    WM9090_IN1_VU | WM9090_IN1B_ZC);
-	snd_soc_update_bits(codec, WM9090_IN2_LINE_INPUT_A_VOLUME,
+	snd_soc_component_update_bits(component, WM9090_IN2_LINE_INPUT_A_VOLUME,
 			    WM9090_IN2_VU | WM9090_IN2A_ZC,
 			    WM9090_IN2_VU | WM9090_IN2A_ZC);
-	snd_soc_update_bits(codec, WM9090_IN2_LINE_INPUT_B_VOLUME,
+	snd_soc_component_update_bits(component, WM9090_IN2_LINE_INPUT_B_VOLUME,
 			    WM9090_IN2_VU | WM9090_IN2B_ZC,
 			    WM9090_IN2_VU | WM9090_IN2B_ZC);
-	snd_soc_update_bits(codec, WM9090_SPEAKER_VOLUME_LEFT,
+	snd_soc_component_update_bits(component, WM9090_SPEAKER_VOLUME_LEFT,
 			    WM9090_SPKOUT_VU | WM9090_SPKOUTL_ZC,
 			    WM9090_SPKOUT_VU | WM9090_SPKOUTL_ZC);
-	snd_soc_update_bits(codec, WM9090_LEFT_OUTPUT_VOLUME,
+	snd_soc_component_update_bits(component, WM9090_LEFT_OUTPUT_VOLUME,
 			    WM9090_HPOUT1_VU | WM9090_HPOUT1L_ZC,
 			    WM9090_HPOUT1_VU | WM9090_HPOUT1L_ZC);
-	snd_soc_update_bits(codec, WM9090_RIGHT_OUTPUT_VOLUME,
+	snd_soc_component_update_bits(component, WM9090_RIGHT_OUTPUT_VOLUME,
 			    WM9090_HPOUT1_VU | WM9090_HPOUT1R_ZC,
 			    WM9090_HPOUT1_VU | WM9090_HPOUT1R_ZC);
 
-	snd_soc_update_bits(codec, WM9090_CLOCKING_1,
+	snd_soc_component_update_bits(component, WM9090_CLOCKING_1,
 			    WM9090_TOCLK_ENA, WM9090_TOCLK_ENA);
 
-	wm9090_add_controls(codec);
+	wm9090_add_controls(component);
 
 	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_wm9090 = {
-	.probe = 	wm9090_probe,
-	.set_bias_level = wm9090_set_bias_level,
-	.suspend_bias_off = true,
+static const struct snd_soc_component_driver soc_component_dev_wm9090 = {
+	.probe			= wm9090_probe,
+	.set_bias_level		= wm9090_set_bias_level,
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm9090_regmap = {
@@ -607,19 +611,13 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm9090);
 
-	ret =  snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_wm9090,  NULL, 0);
+	ret =  devm_snd_soc_register_component(&i2c->dev,
+			&soc_component_dev_wm9090,  NULL, 0);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
 		return ret;
 	}
 
-	return 0;
-}
-
-static int wm9090_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_codec(&i2c->dev);
 	return 0;
 }
 
@@ -635,7 +633,6 @@ static struct i2c_driver wm9090_i2c_driver = {
 		.name = "wm9090",
 	},
 	.probe = wm9090_i2c_probe,
-	.remove = wm9090_i2c_remove,
 	.id_table = wm9090_id,
 };
 

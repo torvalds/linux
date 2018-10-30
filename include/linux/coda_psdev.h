@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CODA_PSDEV_H
 #define __CODA_PSDEV_H
 

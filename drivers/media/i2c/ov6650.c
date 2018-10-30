@@ -201,7 +201,7 @@ struct ov6650 {
 	struct v4l2_rect	rect;		/* sensor cropping window */
 	unsigned long		pclk_limit;	/* from host */
 	unsigned long		pclk_max;	/* from resolution and format */
-	struct v4l2_fract	tpf;		/* as requested with s_parm */
+	struct v4l2_fract	tpf;		/* as requested with s_frame_interval */
 	u32 code;
 	enum v4l2_colorspace	colorspace;
 };
@@ -449,7 +449,6 @@ static int ov6650_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-	case V4L2_SEL_TGT_CROP_DEFAULT:
 		sel->r.left = DEF_HSTRT << 1;
 		sel->r.top = DEF_VSTRT << 1;
 		sel->r.width = W_CIF;
@@ -723,41 +722,30 @@ static int ov6650_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov6650_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+static int ov6650_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *ival)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
-	struct v4l2_captureparm *cp = &parms->parm.capture;
 
-	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	memset(cp, 0, sizeof(*cp));
-	cp->capability = V4L2_CAP_TIMEPERFRAME;
-	cp->timeperframe.numerator = GET_CLKRC_DIV(to_clkrc(&priv->tpf,
+	ival->interval.numerator = GET_CLKRC_DIV(to_clkrc(&priv->tpf,
 			priv->pclk_limit, priv->pclk_max));
-	cp->timeperframe.denominator = FRAME_RATE_MAX;
+	ival->interval.denominator = FRAME_RATE_MAX;
 
 	dev_dbg(&client->dev, "Frame interval: %u/%u s\n",
-		cp->timeperframe.numerator, cp->timeperframe.denominator);
+		ival->interval.numerator, ival->interval.denominator);
 
 	return 0;
 }
 
-static int ov6650_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+static int ov6650_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *ival)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
-	struct v4l2_captureparm *cp = &parms->parm.capture;
-	struct v4l2_fract *tpf = &cp->timeperframe;
+	struct v4l2_fract *tpf = &ival->interval;
 	int div, ret;
 	u8 clkrc;
-
-	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	if (cp->extendedmode != 0)
-		return -EINVAL;
 
 	if (tpf->numerator == 0 || tpf->denominator == 0)
 		div = 1;  /* Reset to full rate */
@@ -921,8 +909,8 @@ static int ov6650_s_mbus_config(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops ov6650_video_ops = {
 	.s_stream	= ov6650_s_stream,
-	.g_parm		= ov6650_g_parm,
-	.s_parm		= ov6650_s_parm,
+	.g_frame_interval = ov6650_g_frame_interval,
+	.s_frame_interval = ov6650_s_frame_interval,
 	.g_mbus_config	= ov6650_g_mbus_config,
 	.s_mbus_config	= ov6650_s_mbus_config,
 };
@@ -951,11 +939,8 @@ static int ov6650_probe(struct i2c_client *client,
 	int ret;
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&client->dev,
-			"Failed to allocate memory for private data!\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov6650_subdev_ops);
 	v4l2_ctrl_handler_init(&priv->hdl, 13);

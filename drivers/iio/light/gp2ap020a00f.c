@@ -1384,7 +1384,6 @@ static const struct iio_info gp2ap020a00f_info = {
 	.read_event_config = &gp2ap020a00f_read_event_config,
 	.write_event_value = &gp2ap020a00f_write_event_val,
 	.write_event_config = &gp2ap020a00f_write_event_config,
-	.driver_module = THIS_MODULE,
 };
 
 static int gp2ap020a00f_buffer_postenable(struct iio_dev *indio_dev)
@@ -1481,7 +1480,6 @@ static const struct iio_buffer_setup_ops gp2ap020a00f_buffer_setup_ops = {
 };
 
 static const struct iio_trigger_ops gp2ap020a00f_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 static int gp2ap020a00f_probe(struct i2c_client *client,

@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "l64781.h"
 
 
@@ -517,7 +517,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 	state->i2c = i2c;
 	state->first = 1;
 
-	/**
+	/*
 	 *  the L64781 won't show up before we send the reset_and_configure()
 	 *  broadcast. If nothing responds there is no L64781 on the bus...
 	 */
@@ -546,7 +546,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/* Responds to all reads with 0 */
 	if (l64781_readreg(state, 0x1a) != 0) {
-		dprintk("Read 1 returned unexpcted value\n");
+		dprintk("Read 1 returned unexpected value\n");
 		goto error;
 	}
 
@@ -555,7 +555,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/* Responds with register default value */
 	if (l64781_readreg(state, 0x1a) != 0xa1) {
-		dprintk("Read 2 returned unexpcted value\n");
+		dprintk("Read 2 returned unexpected value\n");
 		goto error;
 	}
 
@@ -575,10 +575,9 @@ static const struct dvb_frontend_ops l64781_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "LSI L64781 DVB-T",
-	/*	.frequency_min = ???,*/
-	/*	.frequency_max = ???,*/
-		.frequency_stepsize = 166666,
-	/*      .frequency_tolerance = ???,*/
+	/*	.frequency_min_hz = ???,*/
+	/*	.frequency_max_hz = ???,*/
+		.frequency_stepsize_hz = 166666,
 	/*      .symbol_rate_tolerance = ???,*/
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		      FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 |

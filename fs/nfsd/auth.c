@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de> */
 
 #include <linux/sched.h>
@@ -60,6 +61,9 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 			else
 				gi->gid[i] = rqgi->gid[i];
 		}
+
+		/* Each thread allocates its own gi, no race */
+		groups_sort(gi);
 	} else {
 		gi = get_group_info(rqgi);
 	}

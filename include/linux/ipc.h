@@ -1,13 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_IPC_H
 #define _LINUX_IPC_H
 
 #include <linux/spinlock.h>
 #include <linux/uidgid.h>
-#include <linux/rhashtable.h>
+#include <linux/rhashtable-types.h>
 #include <uapi/linux/ipc.h>
 #include <linux/refcount.h>
-
-#define IPCMNI 32768  /* <= MAX_INT limit for ipc arrays (including sysctl changes) */
 
 /* used by in-kernel data structures */
 struct kern_ipc_perm {

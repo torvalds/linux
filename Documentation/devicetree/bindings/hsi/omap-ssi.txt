@@ -1,10 +1,12 @@
 OMAP SSI controller bindings
 
-OMAP Synchronous Serial Interface (SSI) controller implements a legacy
-variant of MIPI's High Speed Synchronous Serial Interface (HSI).
+OMAP3's Synchronous Serial Interface (SSI) controller implements a
+legacy variant of MIPI's High Speed Synchronous Serial Interface (HSI),
+while the controller found inside OMAP4 is supposed to be fully compliant
+with the HSI standard.
 
 Required properties:
-- compatible:		Should include "ti,omap3-ssi".
+- compatible:		Should include "ti,omap3-ssi" or "ti,omap4-hsi"
 - reg-names:		Contains the values "sys" and "gdd" (in this order).
 - reg:			Contains a matching register specifier for each entry
 			in reg-names.
@@ -27,16 +29,20 @@ Each port is represented as a sub-node of the ti,omap3-ssi device.
 Required Port sub-node properties:
 - compatible:		Should be set to the following value
 			ti,omap3-ssi-port (applicable to OMAP34xx devices)
+			ti,omap4-hsi-port (applicable to OMAP44xx devices)
 - reg-names:		Contains the values "tx" and "rx" (in this order).
 - reg:			Contains a matching register specifier for each entry
 			in reg-names.
-- interrupt-parent	Should be a phandle for the interrupt controller
 - interrupts:		Should contain interrupt specifiers for mpu interrupts
 			0 and 1 (in this order).
 - ti,ssi-cawake-gpio:	Defines which GPIO pin is used to signify CAWAKE
 			events for the port. This is an optional board-specific
 			property. If it's missing the port will not be
 			enabled.
+
+Optional properties:
+- ti,hwmods:		Shall contain TI interconnect module name if needed
+			by the SoC
 
 Example for Nokia N900:
 

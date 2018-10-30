@@ -1,33 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  zcrypt 2.1.0
- *
  *  Copyright IBM Corp. 2001, 2006
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
  *  Hotplug & misc device support: Jochen Roehrig (roehrig@de.ibm.com)
  *  Major cleanup & driver split: Martin Schwidefsky <schwidefsky@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _ZCRYPT_CEX2A_H_
 #define _ZCRYPT_CEX2A_H_
 
 /**
- * The type 50 message family is associated with a CEX2A card.
+ * The type 50 message family is associated with CEXxA cards.
  *
  * The four members of the family are described below.
  *
@@ -43,7 +28,7 @@ struct type50_hdr {
 	unsigned char	reserved2;
 	unsigned char	ignored;
 	unsigned short	reserved3;
-} __attribute__((packed));
+} __packed;
 
 #define TYPE50_TYPE_CODE	0x50
 
@@ -62,7 +47,7 @@ struct type50_meb1_msg {
 	unsigned char	exponent[128];
 	unsigned char	modulus[128];
 	unsigned char	message[128];
-} __attribute__((packed));
+} __packed;
 
 /* Mod-Exp, with a large modulus */
 struct type50_meb2_msg {
@@ -72,7 +57,7 @@ struct type50_meb2_msg {
 	unsigned char	exponent[256];
 	unsigned char	modulus[256];
 	unsigned char	message[256];
-} __attribute__((packed));
+} __packed;
 
 /* Mod-Exp, with a larger modulus */
 struct type50_meb3_msg {
@@ -82,7 +67,7 @@ struct type50_meb3_msg {
 	unsigned char	exponent[512];
 	unsigned char	modulus[512];
 	unsigned char	message[512];
-} __attribute__((packed));
+} __packed;
 
 /* CRT, with a small modulus */
 struct type50_crb1_msg {
@@ -95,7 +80,7 @@ struct type50_crb1_msg {
 	unsigned char	dq[64];
 	unsigned char	u[64];
 	unsigned char	message[128];
-} __attribute__((packed));
+} __packed;
 
 /* CRT, with a large modulus */
 struct type50_crb2_msg {
@@ -108,7 +93,7 @@ struct type50_crb2_msg {
 	unsigned char	dq[128];
 	unsigned char	u[128];
 	unsigned char	message[256];
-} __attribute__((packed));
+} __packed;
 
 /* CRT, with a larger modulus */
 struct type50_crb3_msg {
@@ -121,10 +106,10 @@ struct type50_crb3_msg {
 	unsigned char	dq[256];
 	unsigned char	u[256];
 	unsigned char	message[512];
-} __attribute__((packed));
+} __packed;
 
 /**
- * The type 80 response family is associated with a CEX2A card.
+ * The type 80 response family is associated with a CEXxA cards.
  *
  * Note that all unsigned char arrays are right-justified and left-padded
  * with zeroes.
@@ -141,7 +126,7 @@ struct type80_hdr {
 	unsigned char	code;		/* 0x00 */
 	unsigned char	reserved2[3];
 	unsigned char	reserved3[8];
-} __attribute__((packed));
+} __packed;
 
 int zcrypt_cex2a_init(void);
 void zcrypt_cex2a_exit(void);

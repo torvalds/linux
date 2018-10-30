@@ -46,10 +46,6 @@ config GENERIC_IOMAP
 	bool
 	select GENERIC_PCI_IOMAP
 
-config GENERIC_IO
-	bool
-	default n
-
 config STMP_DEVICE
 	bool
 
@@ -58,6 +54,22 @@ config ARCH_USE_CMPXCHG_LOCKREF
 
 config ARCH_HAS_FAST_MULTIPLIER
 	bool
+
+config INDIRECT_PIO
+	bool "Access I/O in non-MMIO mode"
+	depends on ARM64
+	help
+	  On some platforms where no separate I/O space exists, there are I/O
+	  hosts which can not be accessed in MMIO mode. Using the logical PIO
+	  mechanism, the host-local I/O resource can be mapped into system
+	  logic PIO space shared with MMIO hosts, such as PCI/PCIe, then the
+	  system can access the I/O devices with the mapped-logic PIO through
+	  I/O accessors.
+
+	  This way has relatively little I/O performance cost. Please make
+	  sure your devices really need this configure item enabled.
+
+	  When in doubt, say N.
 
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
@@ -158,6 +170,14 @@ config CRC32_BIT
 
 endchoice
 
+config CRC64
+	tristate "CRC64 functions"
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require CRC64 functions, but a module built outside
+	  the kernel tree does. Such modules that use library CRC64
+	  functions require M here.
+
 config CRC4
 	tristate "CRC4 functions"
 	help
@@ -211,7 +231,6 @@ config AUDIT_COMPAT_GENERIC
 
 config RANDOM32_SELFTEST
 	bool "PRNG perform self test on init"
-	default n
 	help
 	  This option enables the 32 bit PRNG library functions to perform a
 	  self test on initialization.
@@ -380,8 +399,11 @@ config INTERVAL_TREE
 
 	  for more information.
 
-config RADIX_TREE_MULTIORDER
+config XARRAY_MULTI
 	bool
+	help
+	  Support entries which occupy multiple consecutive indices in the
+	  XArray.
 
 config ASSOCIATIVE_ARRAY
 	bool
@@ -393,7 +415,7 @@ config ASSOCIATIVE_ARRAY
 
 	  See:
 
-		Documentation/assoc_array.txt
+		Documentation/core-api/assoc_array.rst
 
 	  for more information.
 
@@ -408,20 +430,14 @@ config HAS_IOPORT_MAP
 	depends on HAS_IOMEM && !NO_IOPORT_MAP
 	default y
 
-config HAS_DMA
-	bool
-	depends on !NO_DMA
-	default y
+source "kernel/dma/Kconfig"
 
-config DMA_NOOP_OPS
+config SGL_ALLOC
 	bool
-	depends on HAS_DMA && (!64BIT || ARCH_DMA_ADDR_T_64BIT)
 	default n
 
-config DMA_VIRT_OPS
+config IOMMU_HELPER
 	bool
-	depends on HAS_DMA && (!64BIT || ARCH_DMA_ADDR_T_64BIT)
-	default n
 
 config CHECK_SIGNATURE
 	bool
@@ -570,6 +586,9 @@ config ARCH_HAS_PMEM_API
 config ARCH_HAS_UACCESS_FLUSHCACHE
 	bool
 
+config ARCH_HAS_UACCESS_MCSAFE
+	bool
+
 config STACKDEPOT
 	bool
 	select STACKTRACE
@@ -584,6 +603,27 @@ config PRIME_NUMBERS
 	tristate
 
 config STRING_SELFTEST
-	bool "Test string functions"
+	tristate "Test string functions"
 
 endmenu
+
+config GENERIC_LIB_ASHLDI3
+	bool
+
+config GENERIC_LIB_ASHRDI3
+	bool
+
+config GENERIC_LIB_LSHRDI3
+	bool
+
+config GENERIC_LIB_MULDI3
+	bool
+
+config GENERIC_LIB_CMPDI2
+	bool
+
+config GENERIC_LIB_UCMPDI2
+	bool
+
+config GENERIC_LIB_UMODDI3
+	bool

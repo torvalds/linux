@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 # perf archive
 # Arnaldo Carvalho de Melo <acme@redhat.com>
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/firmware.h>
 #include <drm/drmP.h>

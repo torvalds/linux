@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -63,13 +63,20 @@ static u8 __get_ib_hdr_len(struct ib_header *hdr)
 
 static u8 __get_16b_hdr_len(struct hfi1_16b_header *hdr)
 {
-	struct ib_other_headers *ohdr;
+	struct ib_other_headers *ohdr = NULL;
 	u8 opcode;
+	u8 l4 = hfi1_16B_get_l4(hdr);
 
-	if (hfi1_16B_get_l4(hdr) == OPA_16B_L4_IB_LOCAL)
+	if (l4 == OPA_16B_L4_FM) {
+		opcode = IB_OPCODE_UD_SEND_ONLY;
+		return (8 + 8); /* No BTH */
+	}
+
+	if (l4 == OPA_16B_L4_IB_LOCAL)
 		ohdr = &hdr->u.oth;
 	else
 		ohdr = &hdr->u.l.oth;
+
 	opcode = ib_bth_get_opcode(ohdr);
 	return hdr_len_by_opcode[opcode] == 0 ?
 	       0 : hdr_len_by_opcode[opcode] - (12 + 8 + 8);
@@ -91,12 +98,17 @@ u8 hfi1_trace_opa_hdr_len(struct hfi1_opa_header *opa_hdr)
 		return __get_16b_hdr_len(&opa_hdr->opah);
 }
 
-const char *hfi1_trace_get_packet_str(struct hfi1_packet *packet)
+const char *hfi1_trace_get_packet_l4_str(u8 l4)
 {
-	if (packet->etype != RHF_RCV_TYPE_BYPASS)
-		return "IB";
+	if (l4)
+		return "16B";
+	else
+		return "9B";
+}
 
-	switch (hfi1_16B_get_l2(packet->hdr)) {
+const char *hfi1_trace_get_packet_l2_str(u8 l2)
+{
+	switch (l2) {
 	case 0:
 		return "0";
 	case 1:
@@ -107,14 +119,6 @@ const char *hfi1_trace_get_packet_str(struct hfi1_packet *packet)
 		return "9B";
 	}
 	return "";
-}
-
-const char *hfi1_trace_get_packet_type_str(u8 l4)
-{
-	if (l4)
-		return "16B";
-	else
-		return "9B";
 }
 
 #define IMM_PRN  "imm:%d"
@@ -141,7 +145,7 @@ static const char *parse_syndrome(u8 syndrome)
 }
 
 void hfi1_trace_parse_9b_bth(struct ib_other_headers *ohdr,
-			     u8 *ack, u8 *becn, u8 *fecn, u8 *mig,
+			     u8 *ack, bool *becn, bool *fecn, u8 *mig,
 			     u8 *se, u8 *pad, u8 *opcode, u8 *tver,
 			     u16 *pkey, u32 *psn, u32 *qpn)
 {
@@ -154,7 +158,7 @@ void hfi1_trace_parse_9b_bth(struct ib_other_headers *ohdr,
 	*opcode = ib_bth_get_opcode(ohdr);
 	*tver = ib_bth_get_tver(ohdr);
 	*pkey = ib_bth_get_pkey(ohdr);
-	*psn = ib_bth_get_psn(ohdr);
+	*psn = mask_psn(ib_bth_get_psn(ohdr));
 	*qpn = ib_bth_get_qpn(ohdr);
 }
 
@@ -169,7 +173,7 @@ void hfi1_trace_parse_16b_bth(struct ib_other_headers *ohdr,
 	*pad = ib_bth_get_pad(ohdr);
 	*se = ib_bth_get_se(ohdr);
 	*tver = ib_bth_get_tver(ohdr);
-	*psn = ib_bth_get_psn(ohdr);
+	*psn = mask_psn(ib_bth_get_psn(ohdr));
 	*qpn = ib_bth_get_qpn(ohdr);
 }
 
@@ -187,7 +191,7 @@ void hfi1_trace_parse_9b_hdr(struct ib_header *hdr, bool sc5,
 }
 
 void hfi1_trace_parse_16b_hdr(struct hfi1_16b_header *hdr,
-			      u8 *age, u8 *becn, u8 *fecn,
+			      u8 *age, bool *becn, bool *fecn,
 			      u8 *l4, u8 *rc, u8 *sc,
 			      u16 *entropy, u16 *len, u16 *pkey,
 			      u32 *dlid, u32 *slid)
@@ -210,7 +214,7 @@ void hfi1_trace_parse_16b_hdr(struct hfi1_16b_header *hdr,
 #define LRH_16B_PRN "age:%d becn:%d fecn:%d l4:%d " \
 		    "rc:%d sc:%d pkey:0x%.4x entropy:0x%.4x"
 const char *hfi1_trace_fmt_lrh(struct trace_seq *p, bool bypass,
-			       u8 age, u8 becn, u8 fecn, u8 l4,
+			       u8 age, bool becn, bool fecn, u8 l4,
 			       u8 lnh, const char *lnh_name, u8 lver,
 			       u8 rc, u8 sc, u8 sl, u16 entropy,
 			       u16 len, u16 pkey, u32 dlid, u32 slid)
@@ -237,17 +241,24 @@ const char *hfi1_trace_fmt_lrh(struct trace_seq *p, bool bypass,
 #define BTH_16B_PRN \
 	"op:0x%.2x,%s se:%d m:%d pad:%d tver:%d " \
 	"qpn:0x%.6x a:%d psn:0x%.8x"
-const char *hfi1_trace_fmt_bth(struct trace_seq *p, bool bypass,
-			       u8 ack, u8 becn, u8 fecn, u8 mig,
-			       u8 se, u8 pad, u8 opcode, const char *opname,
-			       u8 tver, u16 pkey, u32 psn, u32 qpn)
+#define L4_FM_16B_PRN \
+	"op:0x%.2x,%s dest_qpn:0x%.6x src_qpn:0x%.6x"
+const char *hfi1_trace_fmt_rest(struct trace_seq *p, bool bypass, u8 l4,
+				u8 ack, bool becn, bool fecn, u8 mig,
+				u8 se, u8 pad, u8 opcode, const char *opname,
+				u8 tver, u16 pkey, u32 psn, u32 qpn,
+				u32 dest_qpn, u32 src_qpn)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
 	if (bypass)
-		trace_seq_printf(p, BTH_16B_PRN,
-				 opcode, opname,
-				 se, mig, pad, tver, qpn, ack, psn);
+		if (l4 == OPA_16B_L4_FM)
+			trace_seq_printf(p, L4_FM_16B_PRN,
+					 opcode, opname, dest_qpn, src_qpn);
+		else
+			trace_seq_printf(p, BTH_16B_PRN,
+					 opcode, opname,
+					 se, mig, pad, tver, qpn, ack, psn);
 
 	else
 		trace_seq_printf(p, BTH_9B_PRN,
@@ -261,11 +272,16 @@ const char *hfi1_trace_fmt_bth(struct trace_seq *p, bool bypass,
 
 const char *parse_everbs_hdrs(
 	struct trace_seq *p,
-	u8 opcode,
+	u8 opcode, u8 l4, u32 dest_qpn, u32 src_qpn,
 	void *ehdrs)
 {
 	union ib_ehdrs *eh = ehdrs;
 	const char *ret = trace_seq_buffer_ptr(p);
+
+	if (l4 == OPA_16B_L4_FM) {
+		trace_seq_printf(p, "mgmt pkt");
+		goto out;
+	}
 
 	switch (opcode) {
 	/* imm */
@@ -337,6 +353,7 @@ const char *parse_everbs_hdrs(
 				 be32_to_cpu(eh->ieth));
 		break;
 	}
+out:
 	trace_seq_putc(p, 0);
 	return ret;
 }
@@ -377,6 +394,7 @@ const char *print_u32_array(
 	return ret;
 }
 
+__hfi1_trace_fn(AFFINITY);
 __hfi1_trace_fn(PKT);
 __hfi1_trace_fn(PROC);
 __hfi1_trace_fn(SDMA);

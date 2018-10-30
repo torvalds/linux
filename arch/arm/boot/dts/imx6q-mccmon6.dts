@@ -19,7 +19,7 @@
 	model = "Liebherr (LWN) monitor6 i.MX6 Quad Board";
 	compatible = "lwn,mccmon6", "fsl,imx6q";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x80000000>;
 	};
 
@@ -121,7 +121,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	pfuze100: pmic@08 {
+	pfuze100: pmic@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 

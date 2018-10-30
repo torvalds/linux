@@ -170,8 +170,8 @@ int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
 		return -EINVAL;
 
 	if (!keymap) {
-		keymap = devm_kzalloc(input_dev->dev.parent,
-				      max_keys * sizeof(*keymap),
+		keymap = devm_kcalloc(input_dev->dev.parent,
+				      max_keys, sizeof(*keymap),
 				      GFP_KERNEL);
 		if (!keymap) {
 			dev_err(input_dev->dev.parent,

@@ -40,7 +40,6 @@ static void mvme147_get_model(char *model);
 extern void mvme147_sched_init(irq_handler_t handler);
 extern u32 mvme147_gettimeoffset(void);
 extern int mvme147_hwclk (int, struct rtc_time *);
-extern int mvme147_set_clock_mmss (unsigned long);
 extern void mvme147_reset (void);
 
 
@@ -92,7 +91,6 @@ void __init config_mvme147(void)
 	mach_init_IRQ		= mvme147_init_IRQ;
 	arch_gettimeoffset	= mvme147_gettimeoffset;
 	mach_hwclk		= mvme147_hwclk;
-	mach_set_clock_mmss	= mvme147_set_clock_mmss;
 	mach_reset		= mvme147_reset;
 	mach_get_model		= mvme147_get_model;
 
@@ -153,17 +151,14 @@ int mvme147_hwclk(int op, struct rtc_time *t)
 	if (!op) {
 		m147_rtc->ctrl = RTC_READ;
 		t->tm_year = bcd2int (m147_rtc->bcd_year);
-		t->tm_mon  = bcd2int (m147_rtc->bcd_mth);
+		t->tm_mon  = bcd2int(m147_rtc->bcd_mth) - 1;
 		t->tm_mday = bcd2int (m147_rtc->bcd_dom);
 		t->tm_hour = bcd2int (m147_rtc->bcd_hr);
 		t->tm_min  = bcd2int (m147_rtc->bcd_min);
 		t->tm_sec  = bcd2int (m147_rtc->bcd_sec);
 		m147_rtc->ctrl = 0;
+		if (t->tm_year < 70)
+			t->tm_year += 100;
 	}
-	return 0;
-}
-
-int mvme147_set_clock_mmss (unsigned long nowtime)
-{
 	return 0;
 }

@@ -97,14 +97,14 @@ static void __init vmware_sched_clock_setup(void)
 	d->cyc2ns_offset = mul_u64_u32_shr(tsc_now, d->cyc2ns_mul,
 					   d->cyc2ns_shift);
 
-	pv_time_ops.sched_clock = vmware_sched_clock;
+	pv_ops.time.sched_clock = vmware_sched_clock;
 	pr_info("using sched offset of %llu ns\n", d->cyc2ns_offset);
 }
 
 static void __init vmware_paravirt_ops_setup(void)
 {
 	pv_info.name = "VMware hypervisor";
-	pv_cpu_ops.io_delay = paravirt_nop;
+	pv_ops.cpu.io_delay = paravirt_nop;
 
 	if (vmware_tsc_khz && vmw_sched_clock)
 		vmware_sched_clock_setup();
@@ -205,10 +205,10 @@ static bool __init vmware_legacy_x2apic_available(void)
 	       (eax & (1 << VMWARE_PORT_CMD_LEGACY_X2APIC)) != 0;
 }
 
-const __refconst struct hypervisor_x86 x86_hyper_vmware = {
+const __initconst struct hypervisor_x86 x86_hyper_vmware = {
 	.name			= "VMware",
 	.detect			= vmware_platform,
-	.init_platform		= vmware_platform_setup,
-	.x2apic_available	= vmware_legacy_x2apic_available,
+	.type			= X86_HYPER_VMWARE,
+	.init.init_platform	= vmware_platform_setup,
+	.init.x2apic_available	= vmware_legacy_x2apic_available,
 };
-EXPORT_SYMBOL(x86_hyper_vmware);

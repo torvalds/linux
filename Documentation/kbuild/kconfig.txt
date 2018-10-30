@@ -2,9 +2,9 @@ This file contains some assistance for using "make *config".
 
 Use "make help" to list all of the possible configuration targets.
 
-The xconfig ('qconf') and menuconfig ('mconf') programs also
-have embedded help text.  Be sure to check it for navigation,
-search, and other general help text.
+The xconfig ('qconf'), menuconfig ('mconf'), and nconfig ('nconf')
+programs also have embedded help text.  Be sure to check that for
+navigation, search, and other general help text.
 
 ======================================================================
 General
@@ -17,13 +17,16 @@ this happens, using a previously working .config file and running
 for you, so you may find that you need to see what NEW kernel
 symbols have been introduced.
 
-To see a list of new config symbols when using "make oldconfig", use
+To see a list of new config symbols, use
 
 	cp user/some/old.config .config
 	make listnewconfig
 
 and the config program will list any new symbols, one per line.
 
+Alternatively, you can use the brute force method:
+
+	make oldconfig
 	scripts/diffconfig .config.old .config | less
 
 ______________________________________________________________________
@@ -119,7 +122,7 @@ Examples:
 		15% of tristates will be set to 'y', 15% to 'm', 70% to 'n'
 
 ______________________________________________________________________
-Environment variables for 'silentoldconfig'
+Environment variables for 'syncconfig'
 
 KCONFIG_NOSILENTUPDATE
 --------------------------------------------------
@@ -160,7 +163,7 @@ Searching in menuconfig:
 		This lists all config symbols that contain "hotplug",
 		e.g., HOTPLUG_CPU, MEMORY_HOTPLUG.
 
-	For search help, enter / followed TAB-TAB-TAB (to highlight
+	For search help, enter / followed by TAB-TAB (to highlight
 	<Help>) and Enter.  This will tell you that you can also use
 	regular expressions (regexes) in the search string, so if you
 	are not interested in MEMORY_HOTPLUG, you could try
@@ -203,6 +206,39 @@ Example:
 
 
 ======================================================================
+nconfig
+--------------------------------------------------
+
+nconfig is an alternate text-based configurator.  It lists function
+keys across the bottom of the terminal (window) that execute commands.
+You can also just use the corresponding numeric key to execute the
+commands unless you are in a data entry window.  E.g., instead of F6
+for Save, you can just press 6.
+
+Use F1 for Global help or F3 for the Short help menu.
+
+Searching in nconfig:
+
+	You can search either in the menu entry "prompt" strings
+	or in the configuration symbols.
+
+	Use / to begin a search through the menu entries.  This does
+	not support regular expressions.  Use <Down> or <Up> for
+	Next hit and Previous hit, respectively.  Use <Esc> to
+	terminate the search mode.
+
+	F8 (SymSearch) searches the configuration symbols for the
+	given string or regular expression (regex).
+
+NCONFIG_MODE
+--------------------------------------------------
+This mode shows all sub-menus in one large tree.
+
+Example:
+	make NCONFIG_MODE=single_menu nconfig
+
+
+======================================================================
 xconfig
 --------------------------------------------------
 
@@ -230,8 +266,7 @@ gconfig
 
 Searching in gconfig:
 
-	None (gconfig isn't maintained as well as xconfig or menuconfig);
-	however, gconfig does have a few more viewing choices than
-	xconfig does.
+	There is no search command in gconfig.  However, gconfig does
+	have several different viewing choices, modes, and options.
 
 ###

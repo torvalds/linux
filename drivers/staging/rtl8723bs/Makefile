@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 r8723bs-y = \
 		core/rtw_ap.o \
 		core/rtw_btcoex.o \
@@ -22,7 +23,7 @@ r8723bs-y = \
 		hal/hal_com_phycfg.o \
 		hal/hal_btcoex.o \
 		hal/hal_sdio.o \
-		hal/Hal8723BPwrSeq.o \
+		hal/hal_pwr_seq.o \
 		hal/HalPhyRf.o \
 		hal/HalPwrSeqCmd.o \
 		hal/odm.o \

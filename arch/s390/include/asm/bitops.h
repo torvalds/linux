@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 1999,2013
  *
@@ -258,6 +259,11 @@ static inline void set_bit_inv(unsigned long nr, volatile unsigned long *ptr)
 static inline void clear_bit_inv(unsigned long nr, volatile unsigned long *ptr)
 {
 	return clear_bit(nr ^ (BITS_PER_LONG - 1), ptr);
+}
+
+static inline int test_and_clear_bit_inv(unsigned long nr, volatile unsigned long *ptr)
+{
+	return test_and_clear_bit(nr ^ (BITS_PER_LONG - 1), ptr);
 }
 
 static inline void __set_bit_inv(unsigned long nr, volatile unsigned long *ptr)

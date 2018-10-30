@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 hostap-y := hostap_80211_rx.o hostap_80211_tx.o hostap_ap.o hostap_info.o \
             hostap_ioctl.o hostap_main.o hostap_proc.o 
 obj-$(CONFIG_HOSTAP) += hostap.o

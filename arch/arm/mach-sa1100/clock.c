@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/arm/mach-sa1100/clock.c
  */
@@ -162,6 +163,8 @@ static struct clk_lookup sa11xx_clkregs[] = {
 	CLKDEV_INIT("sa1100-rtc", NULL, NULL),
 	CLKDEV_INIT("sa11x0-fb", NULL, &clk_cpu),
 	CLKDEV_INIT("sa11x0-pcmcia", NULL, &clk_cpu),
+	CLKDEV_INIT("sa11x0-pcmcia.0", NULL, &clk_cpu),
+	CLKDEV_INIT("sa11x0-pcmcia.1", NULL, &clk_cpu),
 	/* sa1111 names devices using internal offsets, PCMCIA is at 0x1800 */
 	CLKDEV_INIT("1800", NULL, &clk_cpu),
 	CLKDEV_INIT(NULL, "OSTIMER0", &clk_36864),

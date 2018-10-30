@@ -100,7 +100,7 @@ static int m48t86_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		if (m48t86_readb(dev, M48T86_HOUR) & 0x80)
 			tm->tm_hour += 12;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int m48t86_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -163,34 +163,29 @@ static const struct rtc_class_ops m48t86_rtc_ops = {
 	.proc		= m48t86_rtc_proc,
 };
 
-static ssize_t m48t86_nvram_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *attr,
-				 char *buf, loff_t off, size_t count)
+static int m48t86_nvram_read(void *priv, unsigned int off, void *buf,
+			     size_t count)
 {
-	struct device *dev = kobj_to_dev(kobj);
+	struct device *dev = priv;
 	unsigned int i;
 
 	for (i = 0; i < count; i++)
-		buf[i] = m48t86_readb(dev, M48T86_NVRAM(off + i));
+		((u8 *)buf)[i] = m48t86_readb(dev, M48T86_NVRAM(off + i));
 
-	return count;
+	return 0;
 }
 
-static ssize_t m48t86_nvram_write(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *attr,
-				  char *buf, loff_t off, size_t count)
+static int m48t86_nvram_write(void *priv, unsigned int off, void *buf,
+			      size_t count)
 {
-	struct device *dev = kobj_to_dev(kobj);
+	struct device *dev = priv;
 	unsigned int i;
 
 	for (i = 0; i < count; i++)
-		m48t86_writeb(dev, buf[i], M48T86_NVRAM(off + i));
+		m48t86_writeb(dev, ((u8 *)buf)[i], M48T86_NVRAM(off + i));
 
-	return count;
+	return 0;
 }
-
-static BIN_ATTR(nvram, 0644, m48t86_nvram_read, m48t86_nvram_write,
-		M48T86_NVRAM_LEN);
 
 /*
  * The RTC is an optional feature at purchase time on some Technologic Systems
@@ -228,6 +223,16 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 	struct m48t86_rtc_info *info;
 	struct resource *res;
 	unsigned char reg;
+	int err;
+	struct nvmem_config m48t86_nvmem_cfg = {
+		.name = "m48t86_nvram",
+		.word_size = 1,
+		.stride = 1,
+		.size = M48T86_NVRAM_LEN,
+		.reg_read = m48t86_nvram_read,
+		.reg_write = m48t86_nvram_write,
+		.priv = &pdev->dev,
+	};
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -254,25 +259,24 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	info->rtc = devm_rtc_device_register(&pdev->dev, "m48t86",
-					     &m48t86_rtc_ops, THIS_MODULE);
+	info->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(info->rtc))
 		return PTR_ERR(info->rtc);
+
+	info->rtc->ops = &m48t86_rtc_ops;
+	info->rtc->nvram_old_abi = true;
+
+	err = rtc_register_device(info->rtc);
+	if (err)
+		return err;
+
+	rtc_nvmem_register(info->rtc, &m48t86_nvmem_cfg);
 
 	/* read battery status */
 	reg = m48t86_readb(&pdev->dev, M48T86_D);
 	dev_info(&pdev->dev, "battery %s\n",
 		 (reg & M48T86_D_VRT) ? "ok" : "exhausted");
 
-	if (device_create_bin_file(&pdev->dev, &bin_attr_nvram))
-		dev_err(&pdev->dev, "failed to create nvram sysfs entry\n");
-
-	return 0;
-}
-
-static int m48t86_rtc_remove(struct platform_device *pdev)
-{
-	device_remove_bin_file(&pdev->dev, &bin_attr_nvram);
 	return 0;
 }
 
@@ -281,7 +285,6 @@ static struct platform_driver m48t86_rtc_platform_driver = {
 		.name	= "rtc-m48t86",
 	},
 	.probe		= m48t86_rtc_probe,
-	.remove		= m48t86_rtc_remove,
 };
 
 module_platform_driver(m48t86_rtc_platform_driver);

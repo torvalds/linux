@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * WUSB Wire Adapter
  * Data transfer and URB enqueing
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * How transfers work: get a buffer, break it up in segments (segment
  * size is a multiple of the maxpacket size). For each segment issue a
@@ -1932,7 +1918,7 @@ EXPORT_SYMBOL_GPL(wa_urb_enqueue);
  */
 int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 {
-	unsigned long flags, flags2;
+	unsigned long flags;
 	struct wa_xfer *xfer;
 	struct wa_seg *seg;
 	struct wa_rpipe *rpipe;
@@ -1978,10 +1964,10 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 		goto out_unlock;
 	}
 	/* Check the delayed list -> if there, release and complete */
-	spin_lock_irqsave(&wa->xfer_list_lock, flags2);
+	spin_lock(&wa->xfer_list_lock);
 	if (!list_empty(&xfer->list_node) && xfer->seg == NULL)
 		goto dequeue_delayed;
-	spin_unlock_irqrestore(&wa->xfer_list_lock, flags2);
+	spin_unlock(&wa->xfer_list_lock);
 	if (xfer->seg == NULL)  	/* still hasn't reached */
 		goto out_unlock;	/* setup(), enqueue_b() completes */
 	/* Ok, the xfer is in flight already, it's been setup and submitted.*/
@@ -2068,7 +2054,7 @@ out_unlock:
 
 dequeue_delayed:
 	list_del_init(&xfer->list_node);
-	spin_unlock_irqrestore(&wa->xfer_list_lock, flags2);
+	spin_unlock(&wa->xfer_list_lock);
 	xfer->result = urb->status;
 	spin_unlock_irqrestore(&xfer->lock, flags);
 	wa_xfer_giveback(xfer);
@@ -2156,6 +2142,7 @@ static void wa_complete_remaining_xfer_segs(struct wa_xfer *xfer,
 		 * do not increment RPIPE avail for the WA_SEG_DELAYED case
 		 * since it has not been submitted to the RPIPE.
 		 */
+		/* fall through */
 		case WA_SEG_DELAYED:
 			xfer->segs_done++;
 			current_seg->status = status;

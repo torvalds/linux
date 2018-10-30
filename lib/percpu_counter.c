@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Fast batching percpu counters.
  */
 
 #include <linux/percpu_counter.h>
-#include <linux/notifier.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/cpu.h>

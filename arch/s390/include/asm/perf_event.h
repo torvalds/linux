@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Performance event support - s390 specific definitions.
  *
@@ -39,6 +40,7 @@ struct pt_regs;
 extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
 extern unsigned long perf_misc_flags(struct pt_regs *regs);
 #define perf_misc_flags(regs) perf_misc_flags(regs)
+#define perf_arch_bpf_user_pt_regs(regs) &regs->user_regs
 
 /* Perf pt_regs extension for sample-data-entry indicators */
 struct perf_sf_sde_regs {
@@ -63,27 +65,10 @@ struct perf_sf_sde_regs {
 #define REG_OVERFLOW		1
 #define OVERFLOW_REG(hwc)	((hwc)->extra_reg.config)
 #define SFB_ALLOC_REG(hwc)	((hwc)->extra_reg.alloc)
-#define RAWSAMPLE_REG(hwc)	((hwc)->config)
 #define TEAR_REG(hwc)		((hwc)->last_tag)
 #define SAMPL_RATE(hwc)		((hwc)->event_base)
 #define SAMPL_FLAGS(hwc)	((hwc)->config_base)
 #define SAMPL_DIAG_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_DIAG_MODE)
 #define SDB_FULL_BLOCKS(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_FULL_BLOCKS)
-
-/* Structure for sampling data entries to be passed as perf raw sample data
- * to user space.  Note that raw sample data must be aligned and, thus, might
- * be padded with zeros.
- */
-struct sf_raw_sample {
-#define SF_RAW_SAMPLE_BASIC	PERF_CPUM_SF_BASIC_MODE
-#define SF_RAW_SAMPLE_DIAG	PERF_CPUM_SF_DIAG_MODE
-	u64			format;
-	u32			 size;	  /* Size of sf_raw_sample */
-	u16			bsdes;	  /* Basic-sampling data entry size */
-	u16			dsdes;	  /* Diagnostic-sampling data entry size */
-	struct hws_basic_entry	basic;	  /* Basic-sampling data entry */
-	struct hws_diag_entry	 diag;	  /* Diagnostic-sampling data entry */
-	u8		    padding[];	  /* Padding to next multiple of 8 */
-} __packed;
 
 #endif /* _ASM_S390_PERF_EVENT_H */

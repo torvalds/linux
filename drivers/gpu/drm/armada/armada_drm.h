@@ -42,11 +42,12 @@ struct armada_private;
 
 struct armada_variant {
 	bool has_spu_adv_reg;
-	uint32_t spu_adv_reg;
 	int (*init)(struct armada_crtc *, struct device *);
 	int (*compute_clock)(struct armada_crtc *,
 			     const struct drm_display_mode *,
 			     uint32_t *);
+	void (*disable)(struct armada_crtc *);
+	void (*enable)(struct armada_crtc *, const struct drm_display_mode *);
 };
 
 /* Variant ops */
@@ -54,14 +55,10 @@ extern const struct armada_variant armada510_ops;
 
 struct armada_private {
 	struct drm_device	drm;
-	struct work_struct	fb_unref_work;
-	DECLARE_KFIFO(fb_unref, struct drm_framebuffer *, 8);
 	struct drm_fb_helper	*fbdev;
 	struct armada_crtc	*dcrtc[2];
 	struct drm_mm		linear; /* protected by linear_lock */
 	struct mutex		linear_lock;
-	struct drm_property	*csc_yuv_prop;
-	struct drm_property	*csc_rgb_prop;
 	struct drm_property	*colorkey_prop;
 	struct drm_property	*colorkey_min_prop;
 	struct drm_property	*colorkey_max_prop;
@@ -76,15 +73,7 @@ struct armada_private {
 #endif
 };
 
-void __armada_drm_queue_unref_work(struct drm_device *,
-	struct drm_framebuffer *);
-void armada_drm_queue_unref_work(struct drm_device *,
-	struct drm_framebuffer *);
-
-extern const struct drm_mode_config_funcs armada_drm_mode_config_funcs;
-
 int armada_fbdev_init(struct drm_device *);
-void armada_fbdev_lastclose(struct drm_device *);
 void armada_fbdev_fini(struct drm_device *);
 
 int armada_overlay_plane_create(struct drm_device *, unsigned long);

@@ -24,6 +24,8 @@
 #ifndef __SOUND_MEMALLOC_H
 #define __SOUND_MEMALLOC_H
 
+#include <asm/page.h>
+
 struct device;
 
 /*
@@ -34,11 +36,9 @@ struct snd_dma_device {
 	struct device *dev;		/* generic device */
 };
 
-#ifndef snd_dma_pci_data
 #define snd_dma_pci_data(pci)	(&(pci)->dev)
 #define snd_dma_isa_data()	NULL
 #define snd_dma_continuous_data(x)	((struct device *)(__force unsigned long)(x))
-#endif
 
 
 /*
@@ -47,10 +47,13 @@ struct snd_dma_device {
 #define SNDRV_DMA_TYPE_UNKNOWN		0	/* not defined */
 #define SNDRV_DMA_TYPE_CONTINUOUS	1	/* continuous no-DMA memory */
 #define SNDRV_DMA_TYPE_DEV		2	/* generic device continuous */
+#define SNDRV_DMA_TYPE_DEV_UC		5	/* continuous non-cahced */
 #ifdef CONFIG_SND_DMA_SGBUF
 #define SNDRV_DMA_TYPE_DEV_SG		3	/* generic device SG-buffer */
+#define SNDRV_DMA_TYPE_DEV_UC_SG	6	/* SG non-cached */
 #else
 #define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* no SG-buf support */
+#define SNDRV_DMA_TYPE_DEV_UC_SG	SNDRV_DMA_TYPE_DEV_UC
 #endif
 #ifdef CONFIG_GENERIC_ALLOCATOR
 #define SNDRV_DMA_TYPE_DEV_IRAM		4	/* generic device iram-buffer */
@@ -68,6 +71,14 @@ struct snd_dma_buffer {
 	size_t bytes;		/* buffer size in bytes */
 	void *private_data;	/* private for allocator; don't touch */
 };
+
+/*
+ * return the pages matching with the given byte size
+ */
+static inline unsigned int snd_sgbuf_aligned_pages(size_t size)
+{
+	return (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+}
 
 #ifdef CONFIG_SND_DMA_SGBUF
 /*
@@ -91,14 +102,6 @@ struct snd_sg_buf {
 	struct page **page_table;	/* page table (for vmap/vunmap) */
 	struct device *dev;
 };
-
-/*
- * return the pages matching with the given byte size
- */
-static inline unsigned int snd_sgbuf_aligned_pages(size_t size)
-{
-	return (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-}
 
 /*
  * return the physical address at the corresponding offset

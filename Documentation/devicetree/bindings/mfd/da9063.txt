@@ -1,4 +1,4 @@
-* Dialog DA9063 Power Management Integrated Circuit (PMIC)
+* Dialog DA9063/DA9063L Power Management Integrated Circuit (PMIC)
 
 DA9093 consists of a large and varied group of sub-devices (I2C Only):
 
@@ -6,25 +6,23 @@ Device                   Supply Names    Description
 ------                   ------------    -----------
 da9063-regulator        :               : LDOs & BUCKs
 da9063-onkey            :               : On Key
-da9063-rtc              :               : Real-Time Clock
+da9063-rtc              :               : Real-Time Clock (DA9063 only)
 da9063-watchdog         :               : Watchdog
 
 ======
 
 Required properties:
 
-- compatible : Should be "dlg,da9063"
+- compatible : Should be "dlg,da9063" or "dlg,da9063l"
 - reg : Specifies the I2C slave address (this defaults to 0x58 but it can be
   modified to match the chip's OTP settings).
-- interrupt-parent : Specifies the reference to the interrupt controller for
-  the DA9063.
 - interrupts : IRQ line information.
 - interrupt-controller
 
 Sub-nodes:
 
-- regulators : This node defines the settings for the LDOs and BUCKs. The
-  DA9063 regulators are bound using their names listed below:
+- regulators : This node defines the settings for the LDOs and BUCKs.
+  The DA9063(L) regulators are bound using their names listed below:
 
     bcore1    : BUCK CORE1
     bcore2    : BUCK CORE2
@@ -32,16 +30,16 @@ Sub-nodes:
     bmem      : BUCK MEM
     bio       : BUCK IO
     bperi     : BUCK PERI
-    ldo1      : LDO_1
-    ldo2      : LDO_2
+    ldo1      : LDO_1	(DA9063 only)
+    ldo2      : LDO_2	(DA9063 only)
     ldo3      : LDO_3
-    ldo4      : LDO_4
-    ldo5      : LDO_5
-    ldo6      : LDO_6
+    ldo4      : LDO_4	(DA9063 only)
+    ldo5      : LDO_5	(DA9063 only)
+    ldo6      : LDO_6	(DA9063 only)
     ldo7      : LDO_7
     ldo8      : LDO_8
     ldo9      : LDO_9
-    ldo10     : LDO_10
+    ldo10     : LDO_10	(DA9063 only)
     ldo11     : LDO_11
 
   The component follows the standard regulator framework and the bindings
@@ -49,8 +47,9 @@ Sub-nodes:
   Documentation/devicetree/bindings/regulator/regulator.txt
 
 - rtc : This node defines settings for the Real-Time Clock associated with
-  the DA9063. There are currently no entries in this binding, however
-  compatible = "dlg,da9063-rtc" should be added if a node is created.
+  the DA9063 only. The RTC is not present in DA9063L. There are currently
+  no entries in this binding, however compatible = "dlg,da9063-rtc" should
+  be added if a node is created.
 
 - onkey : This node defines the OnKey settings for controlling the key
   functionality of the device. The node should contain the compatible property
@@ -65,8 +64,9 @@ Sub-nodes:
     and KEY_SLEEP.
 
 - watchdog : This node defines settings for the Watchdog timer associated
-  with the DA9063. There are currently no entries in this binding, however
-  compatible = "dlg,da9063-watchdog" should be added if a node is created.
+  with the DA9063 and DA9063L. There are currently no entries in this
+  binding, however compatible = "dlg,da9063-watchdog" should be added
+  if a node is created.
 
 
 Example:

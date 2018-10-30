@@ -28,7 +28,7 @@ Deprecated properties:
   This property is deprecated. Instead, a 'steps-per-period ' value should
   be used, such as "rotary-encoder,steps-per-period = <2>".
 
-See Documentation/input/rotary-encoder.txt for more information.
+See Documentation/input/devices/rotary-encoder.rst for more information.
 
 Example:
 

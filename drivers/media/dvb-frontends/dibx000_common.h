@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DIBX000_COMMON_H
 #define DIBX000_COMMON_H
 
@@ -221,8 +222,6 @@ struct dvb_frontend_parametersContext {
 #define FE_STATUS_DATA_LOCKED         -8
 
 #define FE_CALLBACK_TIME_NEVER 0xffffffff
-
-#define ABS(x) ((x < 0) ? (-x) : (x))
 
 #define DATA_BUS_ACCESS_MODE_8BIT                 0x01
 #define DATA_BUS_ACCESS_MODE_16BIT                0x02

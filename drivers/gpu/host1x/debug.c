@@ -40,7 +40,19 @@ void host1x_debug_output(struct output *o, const char *fmt, ...)
 	len = vsnprintf(o->buf, sizeof(o->buf), fmt, args);
 	va_end(args);
 
-	o->fn(o->ctx, o->buf, len);
+	o->fn(o->ctx, o->buf, len, false);
+}
+
+void host1x_debug_cont(struct output *o, const char *fmt, ...)
+{
+	va_list args;
+	int len;
+
+	va_start(args, fmt);
+	len = vsnprintf(o->buf, sizeof(o->buf), fmt, args);
+	va_end(args);
+
+	o->fn(o->ctx, o->buf, len, true);
 }
 
 static int show_channel(struct host1x_channel *ch, void *data, bool show_fifo)
@@ -91,7 +103,7 @@ static void show_syncpts(struct host1x *m, struct output *o)
 
 static void show_all(struct host1x *m, struct output *o, bool show_fifo)
 {
-	int i;
+	unsigned int i;
 
 	host1x_hw_show_mlocks(m, o);
 	show_syncpts(m, o);

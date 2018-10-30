@@ -35,7 +35,10 @@
 #include <asm/pgtable.h>
 #include <asm/signal.h>
 #include <asm/unistd.h>
+#include <asm/ldcw.h>
+#include <asm/traps.h>
 #include <asm/thread_info.h>
+#include <asm/alternative.h>
 
 #include <linux/linkage.h>
 
@@ -46,6 +49,14 @@
 #endif
 
 	.import		pa_tlb_lock,data
+	.macro  load_pa_tlb_lock reg
+#if __PA_LDCW_ALIGNMENT > 4
+	load32	PA(pa_tlb_lock) + __PA_LDCW_ALIGNMENT-1, \reg
+	depi	0,31,__PA_LDCW_ALIGN_ORDER, \reg
+#else
+	load32	PA(pa_tlb_lock), \reg
+#endif
+	.endm
 
 	/* space_to_prot macro creates a prot id from a space id */
 
@@ -176,7 +187,7 @@
 	bv,n	0(%r3)
 	nop
 	.word	0		/* checksum (will be patched) */
-	.word	PA(os_hpmc)	/* address of handler */
+	.word	0		/* address of handler */
 	.word	0		/* length of handler */
 	.endm
 
@@ -383,6 +394,7 @@
 	*/
 	.macro		space_check	spc,tmp,fault
 	mfsp		%sr7,\tmp
+	/* check against %r0 which is same value as LINUX_GATEWAY_SPACE */
 	or,COND(<>)	%r0,\spc,%r0	/* user may execute gateway page
 					 * as kernel, so defeat the space
 					 * check if it is */
@@ -416,13 +428,10 @@
 	ldw,s		\index(\pmd),\pmd
 	bb,>=,n		\pmd,_PxD_PRESENT_BIT,\fault
 	dep		%r0,31,PxD_FLAG_SHIFT,\pmd /* clear flags */
-	copy		\pmd,%r9
-	SHLREG		%r9,PxD_VALUE_SHIFT,\pmd
+	SHLREG		\pmd,PxD_VALUE_SHIFT,\pmd
 	extru		\va,31-PAGE_SHIFT,ASM_BITS_PER_PTE,\index
 	dep		%r0,31,PAGE_SHIFT,\pmd  /* clear offset */
 	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd /* pmd is now pte */
-	LDREG		%r0(\pmd),\pte
-	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
 	.endm
 
 	/* Look up PTE in a 3-Level scheme.
@@ -438,7 +447,6 @@
 	.macro		L3_ptep pgd,pte,index,va,fault
 #if CONFIG_PGTABLE_LEVELS == 3 /* we might have a 2-Level scheme, e.g. with 16kb page size */
 	extrd,u		\va,63-ASM_PGDIR_SHIFT,ASM_BITS_PER_PGD,\index
-	copy		%r0,\pte
 	extrd,u,*=	\va,63-ASM_PGDIR_SHIFT,64-ASM_PGDIR_SHIFT,%r0
 	ldw,s		\index(\pgd),\pgd
 	extrd,u,*=	\va,63-ASM_PGDIR_SHIFT,64-ASM_PGDIR_SHIFT,%r0
@@ -453,34 +461,39 @@
 	L2_ptep		\pgd,\pte,\index,\va,\fault
 	.endm
 
-	/* Acquire pa_tlb_lock lock and recheck page is still present. */
+	/* Acquire pa_tlb_lock lock and check page is present. */
 	.macro		tlb_lock	spc,ptp,pte,tmp,tmp1,fault
 #ifdef CONFIG_SMP
-	cmpib,COND(=),n	0,\spc,2f
-	load32		PA(pa_tlb_lock),\tmp
+98:	cmpib,COND(=),n	0,\spc,2f
+	load_pa_tlb_lock \tmp
 1:	LDCW		0(\tmp),\tmp1
 	cmpib,COND(=)	0,\tmp1,1b
 	nop
 	LDREG		0(\ptp),\pte
-	bb,<,n		\pte,_PAGE_PRESENT_BIT,2f
+	bb,<,n		\pte,_PAGE_PRESENT_BIT,3f
 	b		\fault
-	stw		 \spc,0(\tmp)
-2:
+	stw,ma		\spc,0(\tmp)
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
+2:	LDREG		0(\ptp),\pte
+	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
+3:
 	.endm
 
 	/* Release pa_tlb_lock lock without reloading lock address. */
 	.macro		tlb_unlock0	spc,tmp
 #ifdef CONFIG_SMP
-	or,COND(=)	%r0,\spc,%r0
-	stw             \spc,0(\tmp)
+98:	or,COND(=)	%r0,\spc,%r0
+	stw,ma		\spc,0(\tmp)
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 	.endm
 
 	/* Release pa_tlb_lock lock. */
 	.macro		tlb_unlock1	spc,tmp
 #ifdef CONFIG_SMP
-	load32		PA(pa_tlb_lock),\tmp
+98:	load_pa_tlb_lock \tmp
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 	tlb_unlock0	\spc,\tmp
 #endif
 	.endm
@@ -681,7 +694,7 @@ ENTRY(fault_vector_20)
 	def		 3
 	extint		 4
 	def		 5
-	itlb_20		 6
+	itlb_20		 PARISC_ITLB_TRAP
 	def		 7
 	def		 8
 	def              9
@@ -724,7 +737,7 @@ ENTRY(fault_vector_11)
 	def		 3
 	extint		 4
 	def		 5
-	itlb_11		 6
+	itlb_11		 PARISC_ITLB_TRAP
 	def		 7
 	def		 8
 	def              9
@@ -755,7 +768,6 @@ END(fault_vector_11)
 #endif
 	/* Fault vector is separately protected and *must* be on its own page */
 	.align		PAGE_SIZE
-ENTRY(end_fault_vector)
 
 	.import		handle_interruption,code
 	.import		do_cpu_irq_mask,code
@@ -766,8 +778,7 @@ ENTRY(end_fault_vector)
 	 * copy_thread moved args into task save area.
 	 */
 
-ENTRY_CFI(ret_from_kernel_thread)
-
+ENTRY(ret_from_kernel_thread)
 	/* Call schedule_tail first though */
 	BL	schedule_tail, %r2
 	nop
@@ -782,7 +793,7 @@ ENTRY_CFI(ret_from_kernel_thread)
 	copy	%r31, %r2
 	b	finish_child_return
 	nop
-ENDPROC_CFI(ret_from_kernel_thread)
+END(ret_from_kernel_thread)
 
 
 	/*
@@ -807,7 +818,7 @@ ENTRY_CFI(_switch_to)
 	bv	%r0(%r2)
 	mtctl   %r25,%cr30
 
-_switch_to_ret:
+ENTRY(_switch_to_ret)
 	mtctl	%r0, %cr0		/* Needed for single stepping */
 	callee_rest
 	callee_rest_float
@@ -877,10 +888,7 @@ ENTRY_CFI(syscall_exit_rfi)
 	STREG   %r19,PT_SR6(%r16)
 	STREG   %r19,PT_SR7(%r16)
 
-intr_return:
-	/* NOTE: Need to enable interrupts incase we schedule. */
-	ssm     PSW_SM_I, %r0
-
+ENTRY(intr_return)
 	/* check for reschedule */
 	mfctl   %cr30,%r1
 	LDREG   TI_FLAGS(%r1),%r19	/* sched.h: TIF_NEED_RESCHED */
@@ -903,9 +911,14 @@ intr_check_sig:
 	 * Only do signals if we are returning to user space
 	 */
 	LDREG	PT_IASQ0(%r16), %r20
-	cmpib,COND(=),n 0,%r20,intr_restore /* backward */
+	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* backward */
 	LDREG	PT_IASQ1(%r16), %r20
-	cmpib,COND(=),n 0,%r20,intr_restore /* backward */
+	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* backward */
+
+	/* NOTE: We need to enable interrupts if we have to deliver
+	 * signals. We used to do this earlier but it caused kernel
+	 * stack overflows. */
+	ssm     PSW_SM_I, %r0
 
 	copy	%r0, %r25			/* long in_syscall = 0 */
 #ifdef CONFIG_64BIT
@@ -957,6 +970,10 @@ intr_do_resched:
 	LDREG	PT_IASQ1(%r16), %r20
 	cmpib,COND(=)	0, %r20, intr_do_preempt
 	nop
+
+	/* NOTE: We need to enable interrupts if we schedule.  We used
+	 * to do this earlier but it caused kernel stack overflows. */
+	ssm     PSW_SM_I, %r0
 
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29		/* Reference param save area */
@@ -1051,21 +1068,12 @@ ENTRY_CFI(intr_save)		/* for os_hpmc */
 	save_specials	%r29
 
 	/* If this trap is a itlb miss, skip saving/adjusting isr/ior */
-
-	/*
-	 * FIXME: 1) Use a #define for the hardwired "6" below (and in
-	 *           traps.c.
-	 *        2) Once we start executing code above 4 Gb, we need
-	 *           to adjust iasq/iaoq here in the same way we
-	 *           adjust isr/ior below.
-	 */
-
-	cmpib,COND(=),n        6,%r26,skip_save_ior
+	cmpib,COND(=),n        PARISC_ITLB_TRAP,%r26,skip_save_ior
 
 
-	mfctl           %cr20, %r16 /* isr */
+	mfctl           %isr, %r16
 	nop		/* serialize mfctl on PA 2.0 to avoid 4 cycle penalty */
-	mfctl           %cr21, %r17 /* ior */
+	mfctl           %ior, %r17
 
 
 #ifdef CONFIG_64BIT
@@ -1077,22 +1085,34 @@ ENTRY_CFI(intr_save)		/* for os_hpmc */
 	extrd,u,*<>     %r8,PSW_W_BIT,1,%r0
 	depdi           0,1,2,%r17
 
-	/*
-	 * FIXME: This code has hardwired assumptions about the split
-	 *        between space bits and offset bits. This will change
-	 *        when we allow alternate page sizes.
-	 */
-
-	/* adjust isr/ior. */
-	extrd,u         %r16,63,SPACEID_SHIFT,%r1	/* get high bits from isr for ior */
-	depd            %r1,31,SPACEID_SHIFT,%r17	/* deposit them into ior */
-	depdi           0,63,SPACEID_SHIFT,%r16		/* clear them from isr */
+	/* adjust isr/ior: get high bits from isr and deposit in ior */
+	space_adjust	%r16,%r17,%r1
 #endif
 	STREG           %r16, PT_ISR(%r29)
 	STREG           %r17, PT_IOR(%r29)
 
+#if 0 && defined(CONFIG_64BIT)
+	/* Revisit when we have 64-bit code above 4Gb */
+	b,n		intr_save2
 
 skip_save_ior:
+	/* We have a itlb miss, and when executing code above 4 Gb on ILP64, we
+	 * need to adjust iasq/iaoq here in the same way we adjusted isr/ior
+	 * above.
+	 */
+	extrd,u,*	%r8,PSW_W_BIT,1,%r1
+	cmpib,COND(=),n	1,%r1,intr_save2
+	LDREG		PT_IASQ0(%r29), %r16
+	LDREG		PT_IAOQ0(%r29), %r17
+	/* adjust iasq/iaoq */
+	space_adjust	%r16,%r17,%r1
+	STREG           %r16, PT_IASQ0(%r29)
+	STREG           %r17, PT_IAOQ0(%r29)
+#else
+skip_save_ior:
+#endif
+
+intr_save2:
 	virt_map
 	save_general	%r29
 
@@ -1639,7 +1659,7 @@ dbit_fault:
 
 itlb_fault:
 	b               intr_save
-	ldi             6,%r8
+	ldi             PARISC_ITLB_TRAP,%r8
 
 nadtlb_fault:
 	b               intr_save
@@ -1730,7 +1750,7 @@ fork_like fork
 fork_like vfork
 
 	/* Set the return value for the child */
-ENTRY_CFI(child_return)
+ENTRY(child_return)
 	BL	schedule_tail, %r2
 	nop
 finish_child_return:
@@ -1742,7 +1762,7 @@ finish_child_return:
 	reg_restore %r1
 	b	syscall_exit
 	copy	%r0,%r28
-ENDPROC_CFI(child_return)
+END(child_return)
 
 ENTRY_CFI(sys_rt_sigreturn_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26
@@ -1774,7 +1794,7 @@ ENTRY_CFI(sys_rt_sigreturn_wrapper)
 	LDREG	PT_GR28(%r1),%r28  /* reload original r28 for syscall_exit */
 ENDPROC_CFI(sys_rt_sigreturn_wrapper)
 
-ENTRY_CFI(syscall_exit)
+ENTRY(syscall_exit)
 	/* NOTE: Not all syscalls exit this way.  rt_sigreturn will exit
 	 * via syscall_exit_rfi if the signal was received while the process
 	 * was running.
@@ -1973,21 +1993,16 @@ syscall_do_resched:
 #else
 	nop
 #endif
-ENDPROC_CFI(syscall_exit)
+END(syscall_exit)
 
 
 #ifdef CONFIG_FUNCTION_TRACER
 
 	.import ftrace_function_trampoline,code
 	.align L1_CACHE_BYTES
-	.globl mcount
-	.type  mcount, @function
-ENTRY(mcount)
+ENTRY_CFI(mcount, caller)
 _mcount:
 	.export _mcount,data
-	.proc
-	.callinfo caller,frame=0
-	.entry
 	/*
 	 * The 64bit mcount() function pointer needs 4 dwords, of which the
 	 * first two are free.  We optimize it here and put 2 instructions for
@@ -2009,18 +2024,11 @@ ftrace_stub:
 	.dword mcount
 	.dword 0 /* code in head.S puts value of global gp here */
 #endif
-	.exit
-	.procend
-ENDPROC(mcount)
+ENDPROC_CFI(mcount)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.align 8
-	.globl return_to_handler
-	.type  return_to_handler, @function
-ENTRY_CFI(return_to_handler)
-	.proc
-	.callinfo caller,frame=FRAME_SIZE
-	.entry
+ENTRY_CFI(return_to_handler, caller,frame=FRAME_SIZE)
 	.export parisc_return_to_handler,data
 parisc_return_to_handler:
 	copy %r3,%r1
@@ -2059,8 +2067,6 @@ parisc_return_to_handler:
 	bv	%r0(%rp)
 #endif
 	LDREGM -FRAME_SIZE(%sp),%r3
-	.exit
-	.procend
 ENDPROC_CFI(return_to_handler)
 
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
@@ -2070,31 +2076,31 @@ ENDPROC_CFI(return_to_handler)
 #ifdef CONFIG_IRQSTACKS
 /* void call_on_stack(unsigned long param1, void *func,
 		      unsigned long new_stack) */
-ENTRY_CFI(call_on_stack)
+ENTRY_CFI(call_on_stack, FRAME=2*FRAME_SIZE,CALLS,SAVE_RP,SAVE_SP)
+ENTRY(_call_on_stack)
 	copy	%sp, %r1
 
 	/* Regarding the HPPA calling conventions for function pointers,
 	   we assume the PIC register is not changed across call.  For
 	   CONFIG_64BIT, the argument pointer is left to point at the
 	   argument region allocated for the call to call_on_stack. */
+
+	/* Switch to new stack.  We allocate two frames.  */
+	ldo	2*FRAME_SIZE(%arg2), %sp
 # ifdef CONFIG_64BIT
-	/* Switch to new stack.  We allocate two 128 byte frames.  */
-	ldo	256(%arg2), %sp
 	/* Save previous stack pointer and return pointer in frame marker */
-	STREG	%rp, -144(%sp)
+	STREG	%rp, -FRAME_SIZE-RP_OFFSET(%sp)
 	/* Calls always use function descriptor */
 	LDREG	16(%arg1), %arg1
 	bve,l	(%arg1), %rp
-	STREG	%r1, -136(%sp)
-	LDREG	-144(%sp), %rp
+	STREG	%r1, -FRAME_SIZE-REG_SZ(%sp)
+	LDREG	-FRAME_SIZE-RP_OFFSET(%sp), %rp
 	bve	(%rp)
-	LDREG	-136(%sp), %sp
+	LDREG	-FRAME_SIZE-REG_SZ(%sp), %sp
 # else
-	/* Switch to new stack.  We allocate two 64 byte frames.  */
-	ldo	128(%arg2), %sp
 	/* Save previous stack pointer and return pointer in frame marker */
-	STREG	%r1, -68(%sp)
-	STREG	%rp, -84(%sp)
+	STREG	%r1, -FRAME_SIZE-REG_SZ(%sp)
+	STREG	%rp, -FRAME_SIZE-RP_OFFSET(%sp)
 	/* Calls use function descriptor if PLABEL bit is set */
 	bb,>=,n	%arg1, 30, 1f
 	depwi	0,31,2, %arg1
@@ -2102,9 +2108,9 @@ ENTRY_CFI(call_on_stack)
 1:
 	be,l	0(%sr4,%arg1), %sr0, %r31
 	copy	%r31, %rp
-	LDREG	-84(%sp), %rp
+	LDREG	-FRAME_SIZE-RP_OFFSET(%sp), %rp
 	bv	(%rp)
-	LDREG	-68(%sp), %sp
+	LDREG	-FRAME_SIZE-REG_SZ(%sp), %sp
 # endif /* CONFIG_64BIT */
 ENDPROC_CFI(call_on_stack)
 #endif /* CONFIG_IRQSTACKS */

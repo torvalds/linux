@@ -30,7 +30,7 @@
 #define VIA_WDT_CONF_MMIO	0x02	/* 1: enable watchdog MMIO */
 
 /*
- * The MMIO region contains the watchog control register and the
+ * The MMIO region contains the watchdog control register and the
  * hardware timer counter.
  */
 #define VIA_WDT_MMIO_LEN	8	/* MMIO region length in bytes */
@@ -67,8 +67,8 @@ static struct watchdog_device wdt_dev;
 static struct resource wdt_res;
 static void __iomem *wdt_mem;
 static unsigned int mmio;
-static void wdt_timer_tick(unsigned long data);
-static DEFINE_TIMER(timer, wdt_timer_tick, 0, 0);
+static void wdt_timer_tick(struct timer_list *unused);
+static DEFINE_TIMER(timer, wdt_timer_tick);
 					/* The timer that pings the watchdog */
 static unsigned long next_heartbeat;	/* the next_heartbeat for the timer */
 
@@ -82,13 +82,13 @@ static inline void wdt_reset(void)
 /*
  * Timer tick: the timer will make sure that the watchdog timer hardware
  * is being reset in time. The conditions to do this are:
- *  1) the watchog timer has been started and /dev/watchdog is open
+ *  1) the watchdog timer has been started and /dev/watchdog is open
  *     and there is still time left before userspace should send the
  *     next heartbeat/ping. (note: the internal heartbeat is much smaller
  *     then the external/userspace heartbeat).
  *  2) the watchdog timer has been stopped by userspace.
  */
-static void wdt_timer_tick(unsigned long data)
+static void wdt_timer_tick(struct timer_list *unused)
 {
 	if (time_before(jiffies, next_heartbeat) ||
 	   (!watchdog_active(&wdt_dev))) {

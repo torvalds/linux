@@ -6,32 +6,6 @@
 #include <linux/ide.h>
 #include <linux/bitops.h>
 
-/**
- *	ide_toggle_bounce	-	handle bounce buffering
- *	@drive: drive to update
- *	@on: on/off boolean
- *
- *	Enable or disable bounce buffering for the device. Drives move
- *	between PIO and DMA and that changes the rules we need.
- */
-
-void ide_toggle_bounce(ide_drive_t *drive, int on)
-{
-	u64 addr = BLK_BOUNCE_HIGH;	/* dma64_addr_t */
-
-	if (!PCI_DMA_BUS_IS_PHYS) {
-		addr = BLK_BOUNCE_ANY;
-	} else if (on && drive->media == ide_disk) {
-		struct device *dev = drive->hwif->dev;
-
-		if (dev && dev->dma_mask)
-			addr = *dev->dma_mask;
-	}
-
-	if (drive->queue)
-		blk_queue_bounce_limit(drive->queue, addr);
-}
-
 u64 ide_get_lba_addr(struct ide_cmd *cmd, int lba48)
 {
 	struct ide_taskfile *tf = &cmd->tf;

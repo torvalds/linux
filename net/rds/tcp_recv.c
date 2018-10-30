@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -179,7 +179,7 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 			tc->t_tinc = tinc;
 			rdsdebug("alloced tinc %p\n", tinc);
 			rds_inc_path_init(&tinc->ti_inc, cp,
-					  cp->cp_conn->c_faddr);
+					  &cp->cp_conn->c_faddr);
 			tinc->ti_inc.i_rx_lat_trace[RDS_MSG_RX_HDR] =
 					local_clock();
 
@@ -239,8 +239,9 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 			if (tinc->ti_inc.i_hdr.h_flags == RDS_FLAG_CONG_BITMAP)
 				rds_tcp_cong_recv(conn, tinc);
 			else
-				rds_recv_incoming(conn, conn->c_faddr,
-						  conn->c_laddr, &tinc->ti_inc,
+				rds_recv_incoming(conn, &conn->c_faddr,
+						  &conn->c_laddr,
+						  &tinc->ti_inc,
 						  arg->gfp);
 
 			tc->t_tinc_hdr_rem = sizeof(struct rds_header);
@@ -321,8 +322,12 @@ void rds_tcp_data_ready(struct sock *sk)
 	ready = tc->t_orig_data_ready;
 	rds_tcp_stats_inc(s_tcp_data_ready_calls);
 
-	if (rds_tcp_read_sock(cp, GFP_ATOMIC) == -ENOMEM)
-		queue_delayed_work(rds_wq, &cp->cp_recv_w, 0);
+	if (rds_tcp_read_sock(cp, GFP_ATOMIC) == -ENOMEM) {
+		rcu_read_lock();
+		if (!rds_destroy_pending(cp->cp_conn))
+			queue_delayed_work(rds_wq, &cp->cp_recv_w, 0);
+		rcu_read_unlock();
+	}
 out:
 	read_unlock_bh(&sk->sk_callback_lock);
 	ready(sk);

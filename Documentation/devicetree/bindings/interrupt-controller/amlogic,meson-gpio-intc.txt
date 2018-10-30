@@ -1,0 +1,34 @@
+Amlogic meson GPIO interrupt controller
+
+Meson SoCs contains an interrupt controller which is able to watch the SoC
+pads and generate an interrupt on edge or level. The controller is essentially
+a 256 pads to 8 GIC interrupt multiplexer, with a filter block to select edge
+or level and polarity. It does not expose all 256 mux inputs because the
+documentation shows that the upper part is not mapped to any pad. The actual
+number of interrupt exposed depends on the SoC.
+
+Required properties:
+
+- compatible : must have "amlogic,meson8-gpio-intc" and either
+    "amlogic,meson8-gpio-intc" for meson8 SoCs (S802) or
+    "amlogic,meson8b-gpio-intc" for meson8b SoCs (S805) or
+    "amlogic,meson-gxbb-gpio-intc" for GXBB SoCs (S905) or
+    "amlogic,meson-gxl-gpio-intc" for GXL SoCs (S905X, S912)
+    "amlogic,meson-axg-gpio-intc" for AXG SoCs (A113D, A113X)
+- reg : Specifies base physical address and size of the registers.
+- interrupt-controller : Identifies the node as an interrupt controller.
+- #interrupt-cells : Specifies the number of cells needed to encode an
+   interrupt source. The value must be 2.
+- meson,channel-interrupts: Array with the 8 upstream hwirq numbers. These
+   are the hwirqs used on the parent interrupt controller.
+
+Example:
+
+gpio_interrupt: interrupt-controller@9880 {
+	compatible = "amlogic,meson-gxbb-gpio-intc",
+		     "amlogic,meson-gpio-intc";
+	reg = <0x0 0x9880 0x0 0x10>;
+	interrupt-controller;
+	#interrupt-cells = <2>;
+	meson,channel-interrupts = <64 65 66 67 68 69 70 71>;
+};

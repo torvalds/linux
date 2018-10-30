@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <asm/mach/arch.h>
 
 #include "core.h"

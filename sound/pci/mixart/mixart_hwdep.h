@@ -26,19 +26,19 @@
 #include <sound/hwdep.h>
 
 #ifndef readl_be
-#define readl_be(x) be32_to_cpu(__raw_readl(x))
+#define readl_be(x) be32_to_cpu((__force __be32)__raw_readl(x))
 #endif
 
 #ifndef writel_be
-#define writel_be(data,addr) __raw_writel(cpu_to_be32(data),addr)
+#define writel_be(data,addr) __raw_writel((__force u32)cpu_to_be32(data),addr)
 #endif
 
 #ifndef readl_le
-#define readl_le(x) le32_to_cpu(__raw_readl(x))
+#define readl_le(x) le32_to_cpu((__force __le32)__raw_readl(x))
 #endif
 
 #ifndef writel_le
-#define writel_le(data,addr) __raw_writel(cpu_to_le32(data),addr)
+#define writel_le(data,addr) __raw_writel((__force u32)cpu_to_le32(data),addr)
 #endif
 
 #define MIXART_MEM(mgr,x)	((mgr)->mem[0].virt + (x))

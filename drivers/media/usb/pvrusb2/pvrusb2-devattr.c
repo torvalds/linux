@@ -182,7 +182,6 @@ static const struct pvr2_device_desc pvr2_device_av400 = {
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 static struct lgdt330x_config pvr2_lgdt3303_config = {
-	.demod_address       = 0x0e,
 	.demod_chip          = LGDT3303,
 	.clock_polarity_flip = 1,
 };
@@ -190,6 +189,7 @@ static struct lgdt330x_config pvr2_lgdt3303_config = {
 static int pvr2_lgdt3303_attach(struct pvr2_dvb_adapter *adap)
 {
 	adap->fe = dvb_attach(lgdt330x_attach, &pvr2_lgdt3303_config,
+			      0x0e,
 			      &adap->channel.hdw->i2c_adap);
 	if (adap->fe)
 		return 0;
@@ -243,13 +243,13 @@ static const struct pvr2_device_desc pvr2_device_onair_creator = {
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 static struct lgdt330x_config pvr2_lgdt3302_config = {
-	.demod_address       = 0x0e,
 	.demod_chip          = LGDT3302,
 };
 
 static int pvr2_lgdt3302_attach(struct pvr2_dvb_adapter *adap)
 {
 	adap->fe = dvb_attach(lgdt330x_attach, &pvr2_lgdt3302_config,
+			      0x0e,
 			      &adap->channel.hdw->i2c_adap);
 	if (adap->fe)
 		return 0;
@@ -319,12 +319,12 @@ static struct tda829x_config tda829x_no_probe = {
 };
 
 static struct tda18271_std_map hauppauge_tda18271_dvbt_std_map = {
-        .dvbt_6   = { .if_freq = 3300, .agc_mode = 3, .std = 4,
-                      .if_lvl = 1, .rfagc_top = 0x37, },
-        .dvbt_7   = { .if_freq = 3800, .agc_mode = 3, .std = 5,
-                      .if_lvl = 1, .rfagc_top = 0x37, },
-        .dvbt_8   = { .if_freq = 4300, .agc_mode = 3, .std = 6,
-                      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_6   = { .if_freq = 3300, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_7   = { .if_freq = 3800, .agc_mode = 3, .std = 5,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_8   = { .if_freq = 4300, .agc_mode = 3, .std = 6,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
 };
 
 static struct tda18271_config hauppauge_tda18271_dvb_config = {

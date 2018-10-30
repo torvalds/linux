@@ -1,16 +1,13 @@
-#ifndef __SOUND_FSI_H
-#define __SOUND_FSI_H
-
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * Fifo-attached Serial Interface (FSI) support for SH7724
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
+#ifndef __SOUND_FSI_H
+#define __SOUND_FSI_H
+
 #include <linux/clk.h>
 #include <sound/soc.h>
 

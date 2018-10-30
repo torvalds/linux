@@ -8,6 +8,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -330,6 +331,11 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 
 	spin_lock_bh(&sta->lock);
 
+	/* free struct pending for start, if present */
+	tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
+	kfree(tid_tx);
+	sta->ampdu_mlme.tid_start_tx[tid] = NULL;
+
 	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 	if (!tid_tx) {
 		spin_unlock_bh(&sta->lock);
@@ -387,7 +393,8 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	 * telling the driver. New packets will not go through since
 	 * the aggregation session is no longer OPERATIONAL.
 	 */
-	synchronize_net();
+	if (!local->in_reconfig)
+		synchronize_net();
 
 	tid_tx->stop_initiator = reason == AGG_STOP_PEER_REQUEST ?
 					WLAN_BACK_RECIPIENT :
@@ -422,23 +429,14 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
  * add Block Ack response will arrive from the recipient.
  * If this timer expires sta_addba_resp_timer_expired will be executed.
  */
-static void sta_addba_resp_timer_expired(unsigned long data)
+static void sta_addba_resp_timer_expired(struct timer_list *t)
 {
-	/* not an elegant detour, but there is no choice as the timer passes
-	 * only one argument, and both sta_info and TID are needed, so init
-	 * flow in sta_info_create gives the TID as data, while the timer_to_id
-	 * array gives the sta through container_of */
-	u16 tid = *(u8 *)data;
-	struct sta_info *sta = container_of((void *)data,
-		struct sta_info, timer_to_tid[tid]);
-	struct tid_ampdu_tx *tid_tx;
+	struct tid_ampdu_tx *tid_tx = from_timer(tid_tx, t, addba_resp_timer);
+	struct sta_info *sta = tid_tx->sta;
+	u8 tid = tid_tx->tid;
 
 	/* check if the TID waits for addBA response */
-	rcu_read_lock();
-	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
-	if (!tid_tx ||
-	    test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state)) {
-		rcu_read_unlock();
+	if (test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state)) {
 		ht_dbg(sta->sdata,
 		       "timer expired on %pM tid %d not expecting addBA response\n",
 		       sta->sta.addr, tid);
@@ -449,7 +447,6 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 	       sta->sta.addr, tid);
 
 	ieee80211_stop_tx_ba_session(&sta->sta, tid);
-	rcu_read_unlock();
 }
 
 void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
@@ -466,6 +463,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 		.timeout = 0,
 	};
 	int ret;
+	u16 buf_size;
 
 	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 
@@ -514,50 +512,49 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	sta->ampdu_mlme.addba_req_num[tid]++;
 	spin_unlock_bh(&sta->lock);
 
+	if (sta->sta.he_cap.has_he) {
+		buf_size = local->hw.max_tx_aggregation_subframes;
+	} else {
+		/*
+		 * We really should use what the driver told us it will
+		 * transmit as the maximum, but certain APs (e.g. the
+		 * LinkSys WRT120N with FW v1.0.07 build 002 Jun 18 2012)
+		 * will crash when we use a lower number.
+		 */
+		buf_size = IEEE80211_MAX_AMPDU_BUF_HT;
+	}
+
 	/* send AddBA request */
 	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
 				     tid_tx->dialog_token, params.ssn,
-				     IEEE80211_MAX_AMPDU_BUF,
-				     tid_tx->timeout);
+				     buf_size, tid_tx->timeout);
 }
 
 /*
  * After accepting the AddBA Response we activated a timer,
  * resetting it after each frame that we send.
  */
-static void sta_tx_agg_session_timer_expired(unsigned long data)
+static void sta_tx_agg_session_timer_expired(struct timer_list *t)
 {
-	/* not an elegant detour, but there is no choice as the timer passes
-	 * only one argument, and various sta_info are needed here, so init
-	 * flow in sta_info_create gives the TID as data, while the timer_to_id
-	 * array gives the sta through container_of */
-	u8 *ptid = (u8 *)data;
-	u8 *timer_to_id = ptid - *ptid;
-	struct sta_info *sta = container_of(timer_to_id, struct sta_info,
-					 timer_to_tid[0]);
-	struct tid_ampdu_tx *tid_tx;
+	struct tid_ampdu_tx *tid_tx = from_timer(tid_tx, t, session_timer);
+	struct sta_info *sta = tid_tx->sta;
+	u8 tid = tid_tx->tid;
 	unsigned long timeout;
 
-	rcu_read_lock();
-	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[*ptid]);
-	if (!tid_tx || test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
-		rcu_read_unlock();
+	if (test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
 		return;
 	}
 
 	timeout = tid_tx->last_tx + TU_TO_JIFFIES(tid_tx->timeout);
 	if (time_is_after_jiffies(timeout)) {
 		mod_timer(&tid_tx->session_timer, timeout);
-		rcu_read_unlock();
 		return;
 	}
 
-	rcu_read_unlock();
-
 	ht_dbg(sta->sdata, "tx session timer expired on %pM tid %d\n",
-	       sta->sta.addr, (u16)*ptid);
+	       sta->sta.addr, tid);
 
-	ieee80211_stop_tx_ba_session(&sta->sta, *ptid);
+	ieee80211_stop_tx_ba_session(&sta->sta, tid);
 }
 
 int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
@@ -670,16 +667,15 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	__set_bit(HT_AGG_STATE_WANT_START, &tid_tx->state);
 
 	tid_tx->timeout = timeout;
+	tid_tx->sta = sta;
+	tid_tx->tid = tid;
 
 	/* response timer */
-	setup_timer(&tid_tx->addba_resp_timer,
-		    sta_addba_resp_timer_expired,
-		    (unsigned long)&sta->timer_to_tid[tid]);
+	timer_setup(&tid_tx->addba_resp_timer, sta_addba_resp_timer_expired, 0);
 
 	/* tx timer */
-	setup_deferrable_timer(&tid_tx->session_timer,
-			       sta_tx_agg_session_timer_expired,
-			       (unsigned long)&sta->timer_to_tid[tid]);
+	timer_setup(&tid_tx->session_timer,
+		    sta_tx_agg_session_timer_expired, TIMER_DEFERRABLE);
 
 	/* assign a dialog token */
 	sta->ampdu_mlme.dialog_token_allocator++;
@@ -921,8 +917,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 {
 	struct tid_ampdu_tx *tid_tx;
 	struct ieee80211_txq *txq;
-	u16 capab, tid;
-	u8 buf_size;
+	u16 capab, tid, buf_size;
 	bool amsdu;
 
 	capab = le16_to_cpu(mgmt->u.action.u.addba_resp.capab);
@@ -986,6 +981,9 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 			ieee80211_agg_tx_operational(local, sta, tid);
 
 		sta->ampdu_mlme.addba_req_num[tid] = 0;
+
+		tid_tx->timeout =
+			le16_to_cpu(mgmt->u.action.u.addba_resp.timeout);
 
 		if (tid_tx->timeout) {
 			mod_timer(&tid_tx->session_timer,

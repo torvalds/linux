@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ethtool.h: Defines for Linux ethtool.
  *
@@ -163,6 +164,16 @@ extern int
 __ethtool_get_link_ksettings(struct net_device *dev,
 			     struct ethtool_link_ksettings *link_ksettings);
 
+/**
+ * ethtool_intersect_link_masks - Given two link masks, AND them together
+ * @dst: first mask and where result is stored
+ * @src: second mask to intersect with
+ *
+ * Given two link mode masks, AND them together and save the result in dst.
+ */
+void ethtool_intersect_link_masks(struct ethtool_link_ksettings *dst,
+				  struct ethtool_link_ksettings *src);
+
 void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
 					     u32 legacy_u32);
 
@@ -172,14 +183,6 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 
 /**
  * struct ethtool_ops - optional netdev operations
- * @get_settings: DEPRECATED, use %get_link_ksettings/%set_link_ksettings
- *	API. Get various device settings including Ethernet link
- *	settings. The @cmd parameter is expected to have been cleared
- *	before get_settings is called. Returns a negative error code
- *	or zero.
- * @set_settings: DEPRECATED, use %get_link_ksettings/%set_link_ksettings
- *	API. Set various device settings including Ethernet link
- *	settings.  Returns a negative error code or zero.
  * @get_drvinfo: Report driver/device information.  Should only set the
  *	@driver, @version, @fw_version and @bus_info fields.  If not
  *	implemented, the @driver and @bus_info fields will be filled in
@@ -286,19 +289,21 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  *	a TX queue has this number, return -EINVAL. If only a RX queue or a TX
  *	queue has this number, ignore the inapplicable fields.
  *	Returns a negative error code or zero.
- * @get_link_ksettings: When defined, takes precedence over the
- *	%get_settings method. Get various device settings
- *	including Ethernet link settings. The %cmd and
- *	%link_mode_masks_nwords fields should be ignored (use
- *	%__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter), any
- *	change to them will be overwritten by kernel. Returns a
- *	negative error code or zero.
- * @set_link_ksettings: When defined, takes precedence over the
- *	%set_settings method. Set various device settings including
- *	Ethernet link settings. The %cmd and %link_mode_masks_nwords
- *	fields should be ignored (use %__ETHTOOL_LINK_MODE_MASK_NBITS
- *	instead of the latter), any change to them will be overwritten
- *	by kernel. Returns a negative error code or zero.
+ * @get_link_ksettings: Get various device settings including Ethernet link
+ *	settings. The %cmd and %link_mode_masks_nwords fields should be
+ *	ignored (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
+ *	any change to them will be overwritten by kernel. Returns a negative
+ *	error code or zero.
+ * @set_link_ksettings: Set various device settings including Ethernet link
+ *	settings. The %cmd and %link_mode_masks_nwords fields should be
+ *	ignored (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
+ *	any change to them will be overwritten by kernel. Returns a negative
+ *	error code or zero.
+ * @get_fecparam: Get the network device Forward Error Correction parameters.
+ * @set_fecparam: Set the network device Forward Error Correction parameters.
+ * @get_ethtool_phy_stats: Return extended statistics about the PHY device.
+ *	This is only useful if the device maintains PHY statistics and
+ *	cannot use the standard PHY library helpers.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -313,8 +318,6 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  * of the generic netdev features interface.
  */
 struct ethtool_ops {
-	int	(*get_settings)(struct net_device *, struct ethtool_cmd *);
-	int	(*set_settings)(struct net_device *, struct ethtool_cmd *);
 	void	(*get_drvinfo)(struct net_device *, struct ethtool_drvinfo *);
 	int	(*get_regs_len)(struct net_device *);
 	void	(*get_regs)(struct net_device *, struct ethtool_regs *, void *);
@@ -360,6 +363,11 @@ struct ethtool_ops {
 			    u8 *hfunc);
 	int	(*set_rxfh)(struct net_device *, const u32 *indir,
 			    const u8 *key, const u8 hfunc);
+	int	(*get_rxfh_context)(struct net_device *, u32 *indir, u8 *key,
+				    u8 *hfunc, u32 rss_context);
+	int	(*set_rxfh_context)(struct net_device *, const u32 *indir,
+				    const u8 *key, const u8 hfunc,
+				    u32 *rss_context, bool delete);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*set_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*get_dump_flag)(struct net_device *, struct ethtool_dump *);
@@ -389,5 +397,7 @@ struct ethtool_ops {
 				      struct ethtool_fecparam *);
 	int	(*set_fecparam)(struct net_device *,
 				      struct ethtool_fecparam *);
+	void	(*get_ethtool_phy_stats)(struct net_device *,
+					 struct ethtool_stats *, u64 *);
 };
 #endif /* _LINUX_ETHTOOL_H */

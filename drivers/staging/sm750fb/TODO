@@ -6,11 +6,14 @@ TODO:
 - check on hardware effects of removal of USE_HW_I2C and USE_DVICHIP (these two
 	are supposed to be sample code which is given here if someone wants to
 	use those functionalities)
-- move it to drivers/video/fbdev
-- modify the code for drm framework
+- must be ported to the atomic kms framework in the drm subsystem (which will
+  give you a basic fbdev driver for free)
+
+Note:
+- This driver will be removed from staging after the drm driver is ready
+- The drm driver is getting ready at https://gitlab.com/sudipm/sm750/tree/sm750
 
 Please send any patches to
 	Greg Kroah-Hartman <greg@kroah.com>
 	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 	Teddy Wang <teddy.wang@siliconmotion.com>
-	Sudip Mukherjee <sudip@vectorindia.org>
