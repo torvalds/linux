@@ -28,6 +28,7 @@
 #include "amdgpu.h"
 #include "psp_gfx_if.h"
 #include "ta_xgmi_if.h"
+#include "ta_ras_if.h"
 
 #define PSP_FENCE_BUFFER_SIZE	0x1000
 #define PSP_CMD_BUFFER_SIZE	0x1000
@@ -88,6 +89,9 @@ struct psp_funcs
 	int (*xgmi_set_topology_info)(struct psp_context *psp, int number_devices,
 				      struct psp_xgmi_topology_info *topology);
 	bool (*support_vmr_ring)(struct psp_context *psp);
+	int (*ras_trigger_error)(struct psp_context *psp,
+			struct ta_ras_trigger_error_input *info);
+	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
 };
 
 struct psp_xgmi_context {
@@ -210,6 +214,13 @@ struct psp_xgmi_topology_info {
 		(psp)->funcs->xgmi_set_topology_info((psp), (num_device), (topology)) : -EINVAL)
 
 #define amdgpu_psp_check_fw_loading_status(adev, i) (adev)->firmware.funcs->check_fw_loading_status((adev), (i))
+
+#define psp_ras_trigger_error(psp, info) \
+	((psp)->funcs->ras_trigger_error ? \
+	(psp)->funcs->ras_trigger_error((psp), (info)) : -EINVAL)
+#define psp_ras_cure_posion(psp, addr) \
+	((psp)->funcs->ras_cure_posion ? \
+	(psp)->funcs->ras_cure_posion(psp, (addr)) : -EINVAL)
 
 extern const struct amd_ip_funcs psp_ip_funcs;
 
