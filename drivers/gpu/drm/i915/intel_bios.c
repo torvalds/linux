@@ -2039,17 +2039,17 @@ bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv,
 
 		dvo_port = child->dvo_port;
 
-		switch (dvo_port) {
-		case DVO_PORT_MIPIA:
-		case DVO_PORT_MIPIC:
+		if (dvo_port == DVO_PORT_MIPIA ||
+		    (dvo_port == DVO_PORT_MIPIB && IS_ICELAKE(dev_priv)) ||
+		    (dvo_port == DVO_PORT_MIPIC && !IS_ICELAKE(dev_priv))) {
 			if (port)
 				*port = dvo_port - DVO_PORT_MIPIA;
 			return true;
-		case DVO_PORT_MIPIB:
-		case DVO_PORT_MIPID:
+		} else if (dvo_port == DVO_PORT_MIPIB ||
+			   dvo_port == DVO_PORT_MIPIC ||
+			   dvo_port == DVO_PORT_MIPID) {
 			DRM_DEBUG_KMS("VBT has unsupported DSI port %c\n",
 				      port_name(dvo_port - DVO_PORT_MIPIA));
-			break;
 		}
 	}
 

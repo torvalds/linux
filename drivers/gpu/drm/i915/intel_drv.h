@@ -1860,6 +1860,9 @@ void intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port);
 /* vlv_dsi.c */
 void vlv_dsi_init(struct drm_i915_private *dev_priv);
 
+/* icl_dsi.c */
+void icl_dsi_init(struct drm_i915_private *dev_priv);
+
 /* intel_dsi_dcs_backlight.c */
 int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector);
 

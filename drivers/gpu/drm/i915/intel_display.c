@@ -14128,6 +14128,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_ddi_init(dev_priv, PORT_D);
 		intel_ddi_init(dev_priv, PORT_E);
 		intel_ddi_init(dev_priv, PORT_F);
+		icl_dsi_init(dev_priv);
 	} else if (IS_GEN9_LP(dev_priv)) {
 		/*
 		 * FIXME: Broxton doesn't support port detection via the

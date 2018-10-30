@@ -971,3 +971,11 @@ static void __attribute__((unused)) gen11_dsi_disable(
 	/* step4: disable IO power */
 	gen11_dsi_disable_io_power(encoder);
 }
+
+void icl_dsi_init(struct drm_i915_private *dev_priv)
+{
+	enum port port;
+
+	if (!intel_bios_is_dsi_present(dev_priv, &port))
+		return;
+}
