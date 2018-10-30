@@ -95,6 +95,7 @@ struct intel_dsi {
 	u16 lp_byte_clk;
 
 	/* timeouts in byte clocks */
+	u16 hs_tx_timeout;
 	u16 lp_rx_timeout;
 	u16 turn_arnd_val;
 	u16 rst_timer_val;

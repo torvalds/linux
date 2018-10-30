@@ -685,6 +685,55 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 	}
 }
 
+static void gen11_dsi_setup_timeouts(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	enum transcoder dsi_trans;
+	u32 tmp, hs_tx_timeout, lp_rx_timeout, ta_timeout, divisor, mul;
+
+	/*
+	 * escape clock count calculation:
+	 * BYTE_CLK_COUNT = TIME_NS/(8 * UI)
+	 * UI (nsec) = (10^6)/Bitrate
+	 * TIME_NS = (BYTE_CLK_COUNT * 8 * 10^6)/ Bitrate
+	 * ESCAPE_CLK_COUNT  = TIME_NS/ESC_CLK_NS
+	 */
+	divisor = intel_dsi_tlpx_ns(intel_dsi) * intel_dsi_bitrate(intel_dsi) * 1000;
+	mul = 8 * 1000000;
+	hs_tx_timeout = DIV_ROUND_UP(intel_dsi->hs_tx_timeout * mul,
+				     divisor);
+	lp_rx_timeout = DIV_ROUND_UP(intel_dsi->lp_rx_timeout * mul, divisor);
+	ta_timeout = DIV_ROUND_UP(intel_dsi->turn_arnd_val * mul, divisor);
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+
+		/* program hst_tx_timeout */
+		tmp = I915_READ(DSI_HSTX_TO(dsi_trans));
+		tmp &= ~HSTX_TIMEOUT_VALUE_MASK;
+		tmp |= HSTX_TIMEOUT_VALUE(hs_tx_timeout);
+		I915_WRITE(DSI_HSTX_TO(dsi_trans), tmp);
+
+		/* FIXME: DSI_CALIB_TO */
+
+		/* program lp_rx_host timeout */
+		tmp = I915_READ(DSI_LPRX_HOST_TO(dsi_trans));
+		tmp &= ~LPRX_TIMEOUT_VALUE_MASK;
+		tmp |= LPRX_TIMEOUT_VALUE(lp_rx_timeout);
+		I915_WRITE(DSI_LPRX_HOST_TO(dsi_trans), tmp);
+
+		/* FIXME: DSI_PWAIT_TO */
+
+		/* program turn around timeout */
+		tmp = I915_READ(DSI_TA_TO(dsi_trans));
+		tmp &= ~TA_TIMEOUT_VALUE_MASK;
+		tmp |= TA_TIMEOUT_VALUE(ta_timeout);
+		I915_WRITE(DSI_TA_TO(dsi_trans), tmp);
+	}
+}
+
 static void
 gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
@@ -703,6 +752,9 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 
 	/* setup D-PHY timings */
 	gen11_dsi_setup_dphy_timings(encoder);
+
+	/* step 4h: setup DSI protocol timeouts */
+	gen11_dsi_setup_timeouts(encoder);
 
 	/* Step (4h, 4i, 4j, 4k): Configure transcoder */
 	gen11_dsi_configure_transcoder(encoder, pipe_config);

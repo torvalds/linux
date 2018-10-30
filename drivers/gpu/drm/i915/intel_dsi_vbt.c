@@ -799,6 +799,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->video_mode_format = mipi_config->video_transfer_mode;
 	intel_dsi->escape_clk_div = mipi_config->byte_clk_sel;
 	intel_dsi->lp_rx_timeout = mipi_config->lp_rx_timeout;
+	intel_dsi->hs_tx_timeout = mipi_config->hs_tx_timeout;
 	intel_dsi->turn_arnd_val = mipi_config->turn_around_timeout;
 	intel_dsi->rst_timer_val = mipi_config->device_reset_timer;
 	intel_dsi->init_count = mipi_config->master_init_timer;
