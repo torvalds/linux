@@ -1170,6 +1170,8 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 	/* bring down the nic to stop any ongoing TX/RX */
 	hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
 
+	rtnl_unlock();
+
 	/* check if VF could successfully fetch the hardware reset completion
 	 * status from the hardware
 	 */
@@ -1181,11 +1183,14 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 			ret);
 
 		dev_warn(&hdev->pdev->dev, "VF reset failed, disabling VF!\n");
+		rtnl_lock();
 		hclgevf_notify_client(hdev, HNAE3_UNINIT_CLIENT);
 
 		rtnl_unlock();
 		return ret;
 	}
+
+	rtnl_lock();
 
 	/* now, re-initialize the nic client and ae device*/
 	ret = hclgevf_reset_stack(hdev);
