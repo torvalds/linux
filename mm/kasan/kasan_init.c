@@ -84,7 +84,7 @@ static inline bool kasan_zero_page_entry(pte_t pte)
 static __init void *early_alloc(size_t size, int node)
 {
 	return memblock_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
-					BOOTMEM_ALLOC_ACCESSIBLE, node);
+					MEMBLOCK_ALLOC_ACCESSIBLE, node);
 }
 
 static void __ref zero_pte_populate(pmd_t *pmd, unsigned long addr,

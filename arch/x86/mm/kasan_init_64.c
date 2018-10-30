@@ -29,10 +29,10 @@ static __init void *early_alloc(size_t size, int nid, bool panic)
 {
 	if (panic)
 		return memblock_alloc_try_nid(size, size,
-			__pa(MAX_DMA_ADDRESS), BOOTMEM_ALLOC_ACCESSIBLE, nid);
+			__pa(MAX_DMA_ADDRESS), MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 	else
 		return memblock_alloc_try_nid_nopanic(size, size,
-			__pa(MAX_DMA_ADDRESS), BOOTMEM_ALLOC_ACCESSIBLE, nid);
+			__pa(MAX_DMA_ADDRESS), MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 }
 
 static void __init kasan_populate_pmd(pmd_t *pmd, unsigned long addr,

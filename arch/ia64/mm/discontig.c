@@ -453,7 +453,7 @@ static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize)
 
 	ptr = memblock_alloc_try_nid(pernodesize, PERCPU_PAGE_SIZE,
 				     __pa(MAX_DMA_ADDRESS),
-				     BOOTMEM_ALLOC_ACCESSIBLE,
+				     MEMBLOCK_ALLOC_ACCESSIBLE,
 				     bestnode);
 
 	return ptr;

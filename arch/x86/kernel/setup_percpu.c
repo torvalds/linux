@@ -114,7 +114,7 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 			 cpu, size, __pa(ptr));
 	} else {
 		ptr = memblock_alloc_try_nid_nopanic(size, align, goal,
-						     BOOTMEM_ALLOC_ACCESSIBLE,
+						     MEMBLOCK_ALLOC_ACCESSIBLE,
 						     node);
 
 		pr_debug("per cpu data for cpu%d %lu bytes on node%d at %016lx\n",

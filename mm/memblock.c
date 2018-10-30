@@ -1342,7 +1342,7 @@ phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t ali
  * hold the requested memory.
  *
  * The allocation is performed from memory region limited by
- * memblock.current_limit if @max_addr == %BOOTMEM_ALLOC_ACCESSIBLE.
+ * memblock.current_limit if @max_addr == %MEMBLOCK_ALLOC_ACCESSIBLE.
  *
  * The memory block is aligned on %SMP_CACHE_BYTES if @align == 0.
  *
@@ -1429,7 +1429,7 @@ done:
  * @min_addr: the lower bound of the memory region from where the allocation
  *	  is preferred (phys address)
  * @max_addr: the upper bound of the memory region from where the allocation
- *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
+ *	      is preferred (phys address), or %MEMBLOCK_ALLOC_ACCESSIBLE to
  *	      allocate only from memory limited by memblock.current_limit value
  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
  *
@@ -1466,7 +1466,7 @@ void * __init memblock_alloc_try_nid_raw(
  * @min_addr: the lower bound of the memory region from where the allocation
  *	  is preferred (phys address)
  * @max_addr: the upper bound of the memory region from where the allocation
- *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
+ *	      is preferred (phys address), or %MEMBLOCK_ALLOC_ACCESSIBLE to
  *	      allocate only from memory limited by memblock.current_limit value
  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
  *
@@ -1501,7 +1501,7 @@ void * __init memblock_alloc_try_nid_nopanic(
  * @min_addr: the lower bound of the memory region from where the allocation
  *	  is preferred (phys address)
  * @max_addr: the upper bound of the memory region from where the allocation
- *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
+ *	      is preferred (phys address), or %MEMBLOCK_ALLOC_ACCESSIBLE to
  *	      allocate only from memory limited by memblock.current_limit value
  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
  *
