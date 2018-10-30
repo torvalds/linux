@@ -931,6 +931,56 @@ static void h5_btrtl_close(struct h5 *h5)
 	gpiod_set_value_cansleep(h5->enable_gpio, 0);
 }
 
+/* Suspend/resume support. On many devices the RTL BT device loses power during
+ * suspend/resume, causing it to lose its firmware and all state. So we simply
+ * turn it off on suspend and reprobe on resume.  This mirrors how RTL devices
+ * are handled in the USB driver, where the USB_QUIRK_RESET_RESUME is used which
+ * also causes a reprobe on resume.
+ */
+static int h5_btrtl_suspend(struct h5 *h5)
+{
+	serdev_device_set_flow_control(h5->hu->serdev, false);
+	gpiod_set_value_cansleep(h5->device_wake_gpio, 0);
+	gpiod_set_value_cansleep(h5->enable_gpio, 0);
+	return 0;
+}
+
+struct h5_btrtl_reprobe {
+	struct device *dev;
+	struct work_struct work;
+};
+
+static void h5_btrtl_reprobe_worker(struct work_struct *work)
+{
+	struct h5_btrtl_reprobe *reprobe =
+		container_of(work, struct h5_btrtl_reprobe, work);
+	int ret;
+
+	ret = device_reprobe(reprobe->dev);
+	if (ret && ret != -EPROBE_DEFER)
+		dev_err(reprobe->dev, "Reprobe error %d\n", ret);
+
+	put_device(reprobe->dev);
+	kfree(reprobe);
+	module_put(THIS_MODULE);
+}
+
+static int h5_btrtl_resume(struct h5 *h5)
+{
+	struct h5_btrtl_reprobe *reprobe;
+
+	reprobe = kzalloc(sizeof(*reprobe), GFP_KERNEL);
+	if (!reprobe)
+		return -ENOMEM;
+
+	__module_get(THIS_MODULE);
+
+	INIT_WORK(&reprobe->work, h5_btrtl_reprobe_worker);
+	reprobe->dev = get_device(&h5->hu->serdev->dev);
+	queue_work(system_long_wq, &reprobe->work);
+	return 0;
+}
+
 static const struct acpi_gpio_params btrtl_device_wake_gpios = { 0, 0, false };
 static const struct acpi_gpio_params btrtl_enable_gpios = { 1, 0, false };
 static const struct acpi_gpio_params btrtl_host_wake_gpios = { 2, 0, false };
@@ -945,6 +995,8 @@ static struct h5_vnd rtl_vnd = {
 	.setup		= h5_btrtl_setup,
 	.open		= h5_btrtl_open,
 	.close		= h5_btrtl_close,
+	.suspend	= h5_btrtl_suspend,
+	.resume		= h5_btrtl_resume,
 	.acpi_gpio_map	= acpi_btrtl_gpios,
 };
 #endif
