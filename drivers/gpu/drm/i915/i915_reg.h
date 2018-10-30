@@ -10533,6 +10533,49 @@ enum skl_power_gate {
 #define  LINK_ULPS_TYPE_LP11		(1 << 8)
 #define  LINK_ENTER_ULPS		(1 << 0)
 
+/* DSI timeout registers */
+#define _DSI_HSTX_TO_0			0x6b044
+#define _DSI_HSTX_TO_1			0x6b844
+#define DSI_HSTX_TO(tc)			_MMIO_DSI(tc,	\
+						  _DSI_HSTX_TO_0,\
+						  _DSI_HSTX_TO_1)
+#define  HSTX_TIMEOUT_VALUE_MASK	(0xffff << 16)
+#define  HSTX_TIMEOUT_VALUE_SHIFT	16
+#define  HSTX_TIMEOUT_VALUE(x)		((x) << 16)
+#define  HSTX_TIMED_OUT			(1 << 0)
+
+#define _DSI_LPRX_HOST_TO_0		0x6b048
+#define _DSI_LPRX_HOST_TO_1		0x6b848
+#define DSI_LPRX_HOST_TO(tc)		_MMIO_DSI(tc,	\
+						  _DSI_LPRX_HOST_TO_0,\
+						  _DSI_LPRX_HOST_TO_1)
+#define  LPRX_TIMED_OUT			(1 << 16)
+#define  LPRX_TIMEOUT_VALUE_MASK	(0xffff << 0)
+#define  LPRX_TIMEOUT_VALUE_SHIFT	0
+#define  LPRX_TIMEOUT_VALUE(x)		((x) << 0)
+
+#define _DSI_PWAIT_TO_0			0x6b040
+#define _DSI_PWAIT_TO_1			0x6b840
+#define DSI_PWAIT_TO(tc)		_MMIO_DSI(tc,	\
+						  _DSI_PWAIT_TO_0,\
+						  _DSI_PWAIT_TO_1)
+#define  PRESET_TIMEOUT_VALUE_MASK	(0xffff << 16)
+#define  PRESET_TIMEOUT_VALUE_SHIFT	16
+#define  PRESET_TIMEOUT_VALUE(x)	((x) << 16)
+#define  PRESPONSE_TIMEOUT_VALUE_MASK	(0xffff << 0)
+#define  PRESPONSE_TIMEOUT_VALUE_SHIFT	0
+#define  PRESPONSE_TIMEOUT_VALUE(x)	((x) << 0)
+
+#define _DSI_TA_TO_0			0x6b04c
+#define _DSI_TA_TO_1			0x6b84c
+#define DSI_TA_TO(tc)			_MMIO_DSI(tc,	\
+						  _DSI_TA_TO_0,\
+						  _DSI_TA_TO_1)
+#define  TA_TIMED_OUT			(1 << 16)
+#define  TA_TIMEOUT_VALUE_MASK		(0xffff << 0)
+#define  TA_TIMEOUT_VALUE_SHIFT		0
+#define  TA_TIMEOUT_VALUE(x)		((x) << 0)
+
 /* bits 31:0 */
 #define _MIPIA_DBI_BW_CTRL		(dev_priv->mipi_mmio_base + 0xb084)
 #define _MIPIC_DBI_BW_CTRL		(dev_priv->mipi_mmio_base + 0xb884)
