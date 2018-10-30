@@ -61,7 +61,7 @@ struct save_area * __init save_area_alloc(bool is_boot_cpu)
 {
 	struct save_area *sa;
 
-	sa = (void *) memblock_alloc(sizeof(*sa), 8);
+	sa = (void *) memblock_phys_alloc(sizeof(*sa), 8);
 	if (is_boot_cpu)
 		list_add(&sa->list, &dump_save_areas);
 	else

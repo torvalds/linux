@@ -170,7 +170,7 @@ static struct mdesc_handle * __init mdesc_memblock_alloc(unsigned int mdesc_size
 		       mdesc_size);
 	alloc_size = PAGE_ALIGN(handle_size);
 
-	paddr = memblock_alloc(alloc_size, PAGE_SIZE);
+	paddr = memblock_phys_alloc(alloc_size, PAGE_SIZE);
 
 	hp = NULL;
 	if (paddr) {

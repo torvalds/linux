@@ -1092,7 +1092,8 @@ static void __init allocate_node_data(int nid)
 #ifdef CONFIG_NEED_MULTIPLE_NODES
 	unsigned long paddr;
 
-	paddr = memblock_alloc_try_nid(sizeof(struct pglist_data), SMP_CACHE_BYTES, nid);
+	paddr = memblock_phys_alloc_try_nid(sizeof(struct pglist_data),
+					    SMP_CACHE_BYTES, nid);
 	if (!paddr) {
 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
 		prom_halt();
@@ -1266,8 +1267,8 @@ static int __init grab_mlgroups(struct mdesc_handle *md)
 	if (!count)
 		return -ENOENT;
 
-	paddr = memblock_alloc(count * sizeof(struct mdesc_mlgroup),
-			  SMP_CACHE_BYTES);
+	paddr = memblock_phys_alloc(count * sizeof(struct mdesc_mlgroup),
+				    SMP_CACHE_BYTES);
 	if (!paddr)
 		return -ENOMEM;
 
@@ -1307,8 +1308,8 @@ static int __init grab_mblocks(struct mdesc_handle *md)
 	if (!count)
 		return -ENOENT;
 
-	paddr = memblock_alloc(count * sizeof(struct mdesc_mblock),
-			  SMP_CACHE_BYTES);
+	paddr = memblock_phys_alloc(count * sizeof(struct mdesc_mblock),
+				    SMP_CACHE_BYTES);
 	if (!paddr)
 		return -ENOMEM;
 

@@ -144,7 +144,7 @@ static void __init build_mem_type_table(void)
 
 static void __init *early_alloc(unsigned long sz)
 {
-	void *ptr = __va(memblock_alloc(sz, sz));
+	void *ptr = __va(memblock_phys_alloc(sz, sz));
 	memset(ptr, 0, sz);
 	return ptr;
 }
