@@ -218,6 +218,18 @@ static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long si
 }
 
 /*
+ * ioremap_prot     -   map bus memory into CPU space
+ * @offset:    bus address of the memory
+ * @size:      size of the resource to map
+
+ * ioremap_prot gives the caller control over cache coherency attributes (CCA)
+ */
+static inline void __iomem *ioremap_prot(phys_addr_t offset,
+		unsigned long size, unsigned long prot_val) {
+	return __ioremap_mode(offset, size, prot_val & _CACHE_MASK);
+}
+
+/*
  * ioremap     -   map bus memory into CPU space
  * @offset:    bus address of the memory
  * @size:      size of the resource to map

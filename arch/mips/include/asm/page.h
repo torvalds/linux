@@ -154,6 +154,7 @@ typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 #define pgprot_val(x)	((x).pgprot)
 #define __pgprot(x)	((pgprot_t) { (x) } )
+#define pte_pgprot(x)	__pgprot(pte_val(x) & ~_PFN_MASK)
 
 /*
  * On R4000-style MMUs where a TLB entry is mapping a adjacent even / odd
