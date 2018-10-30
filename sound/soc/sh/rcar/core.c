@@ -144,6 +144,27 @@ u32 *rsnd_mod_get_status(struct rsnd_mod *mod,
 	return &mod->status;
 }
 
+int rsnd_mod_id_raw(struct rsnd_mod *mod)
+{
+	return mod->id;
+}
+
+int rsnd_mod_id(struct rsnd_mod *mod)
+{
+	if ((mod)->ops->id)
+		return (mod)->ops->id(mod);
+
+	return rsnd_mod_id_raw(mod);
+}
+
+int rsnd_mod_id_sub(struct rsnd_mod *mod)
+{
+	if ((mod)->ops->id_sub)
+		return (mod)->ops->id_sub(mod);
+
+	return 0;
+}
+
 int rsnd_mod_init(struct rsnd_priv *priv,
 		  struct rsnd_mod *mod,
 		  struct rsnd_mod_ops *ops,
