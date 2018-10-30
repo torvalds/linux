@@ -5102,21 +5102,24 @@ static void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
 				  struct intel_digital_port *dig_port)
 {
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
-	u32 val;
 
-	if (dig_port->tc_type != TC_PORT_LEGACY &&
-	    dig_port->tc_type != TC_PORT_TYPEC)
+	if (dig_port->tc_type == TC_PORT_UNKNOWN)
 		return;
 
 	/*
-	 * This function may be called many times in a row without an HPD event
-	 * in between, so try to avoid the write when we can.
+	 * TBT disconnection flow is read the live status, what was done in
+	 * caller.
 	 */
-	val = I915_READ(PORT_TX_DFLEXDPCSSS);
-	if (val & DP_PHY_MODE_STATUS_NOT_SAFE(tc_port)) {
+	if (dig_port->tc_type == TC_PORT_TYPEC ||
+	    dig_port->tc_type == TC_PORT_LEGACY) {
+		u32 val;
+
+		val = I915_READ(PORT_TX_DFLEXDPCSSS);
 		val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
 		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
 	}
+
+	dig_port->tc_type = TC_PORT_UNKNOWN;
 }
 
 /*
