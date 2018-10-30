@@ -74,6 +74,7 @@
  * list traversals just rcu-locked
  */
 struct list_head batadv_hardif_list;
+unsigned int batadv_hardif_generation;
 static int (*batadv_rx_handler[256])(struct sk_buff *skb,
 				     struct batadv_hard_iface *recv_if);
 

@@ -247,6 +247,7 @@ static inline int batadv_print_vid(unsigned short vid)
 }
 
 extern struct list_head batadv_hardif_list;
+extern unsigned int batadv_hardif_generation;
 
 extern unsigned char batadv_broadcast_addr[];
 extern struct workqueue_struct *batadv_event_workqueue;
