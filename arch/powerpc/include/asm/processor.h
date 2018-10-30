@@ -67,12 +67,6 @@ extern int _chrp_type;
 
 #endif /* defined(__KERNEL__) && defined(CONFIG_PPC32) */
 
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ __label__ _l; _l: &&_l;})
-
 /* Macros for adjusting thread priority (hardware multi-threading) */
 #define HMT_very_low()   asm volatile("or 31,31,31   # very low priority")
 #define HMT_low()	 asm volatile("or 1,1,1	     # low priority")

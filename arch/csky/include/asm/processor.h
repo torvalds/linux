@@ -4,12 +4,6 @@
 #ifndef __ASM_CSKY_PROCESSOR_H
 #define __ASM_CSKY_PROCESSOR_H
 
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ __label__ _l; _l: &&_l; })
-
 #include <linux/bitops.h>
 #include <asm/segment.h>
 #include <asm/ptrace.h>
