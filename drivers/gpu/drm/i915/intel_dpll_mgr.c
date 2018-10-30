@@ -2873,8 +2873,7 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	     struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_digital_port *intel_dig_port =
-			enc_to_dig_port(&encoder->base);
+	struct intel_digital_port *intel_dig_port;
 	struct intel_shared_dpll *pll;
 	struct intel_dpll_hw_state pll_state = {};
 	enum port port = encoder->port;
@@ -2888,6 +2887,15 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		ret = icl_calc_dpll_state(crtc_state, encoder, clock,
 					  &pll_state);
 	} else if (intel_port_is_tc(dev_priv, port)) {
+		if (encoder->type == INTEL_OUTPUT_DP_MST) {
+			struct intel_dp_mst_encoder *mst_encoder;
+
+			mst_encoder = enc_to_mst(&encoder->base);
+			intel_dig_port = mst_encoder->primary;
+		} else {
+			intel_dig_port = enc_to_dig_port(&encoder->base);
+		}
+
 		if (intel_dig_port->tc_type == TC_PORT_TBT) {
 			min = DPLL_ID_ICL_TBTPLL;
 			max = min;
