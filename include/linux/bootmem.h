@@ -122,6 +122,14 @@ static inline void * __init memblock_alloc_raw(
 					    NUMA_NO_NODE);
 }
 
+static inline void * __init memblock_alloc_from(
+		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
+{
+	return memblock_alloc_try_nid(size, align, min_addr,
+				      BOOTMEM_ALLOC_ACCESSIBLE,
+				      NUMA_NO_NODE);
+}
+
 static inline void * __init memblock_alloc_nopanic(
 					phys_addr_t size, phys_addr_t align)
 {

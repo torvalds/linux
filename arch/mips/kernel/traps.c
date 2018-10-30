@@ -2263,7 +2263,7 @@ void __init trap_init(void)
 
 		memblock_set_bottom_up(true);
 		ebase = (unsigned long)
-			__alloc_bootmem(size, 1 << fls(size), 0);
+			memblock_alloc_from(size, 1 << fls(size), 0);
 		memblock_set_bottom_up(false);
 
 		/*

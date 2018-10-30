@@ -32,7 +32,7 @@ void * __init prom_early_alloc(unsigned long size)
 {
 	void *ret;
 
-	ret = __alloc_bootmem(size, SMP_CACHE_BYTES, 0UL);
+	ret = memblock_alloc_from(size, SMP_CACHE_BYTES, 0UL);
 	if (ret != NULL)
 		memset(ret, 0, size);
 
