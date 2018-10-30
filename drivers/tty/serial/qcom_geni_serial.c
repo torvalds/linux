@@ -497,9 +497,7 @@ static int handle_rx_console(struct uart_port *uport, u32 bytes, bool drop)
 					continue;
 			}
 
-			spin_unlock(&uport->lock);
-			sysrq = uart_handle_sysrq_char(uport, buf[c]);
-			spin_lock(&uport->lock);
+			sysrq = uart_prepare_sysrq_char(uport, buf[c]);
 
 			if (!sysrq)
 				tty_insert_flip_char(tport, buf[c], TTY_NORMAL);
@@ -809,7 +807,8 @@ static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
 		qcom_geni_serial_handle_rx(uport, drop_rx);
 
 out_unlock:
-	spin_unlock_irqrestore(&uport->lock, flags);
+	uart_unlock_and_check_sysrq(uport, flags);
+
 	return IRQ_HANDLED;
 }
 
