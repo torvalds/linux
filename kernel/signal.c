@@ -892,7 +892,7 @@ static bool prepare_signal(int sig, struct task_struct *p, bool force)
 			/*
 			 * The first thread which returns from do_signal_stop()
 			 * will take ->siglock, notice SIGNAL_CLD_MASK, and
-			 * notify its parent. See get_signal_to_deliver().
+			 * notify its parent. See get_signal().
 			 */
 			signal_set_stop_flags(signal, why | SIGNAL_STOP_CONTINUED);
 			signal->group_stop_count = 0;
