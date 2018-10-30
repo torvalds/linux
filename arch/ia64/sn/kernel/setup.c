@@ -511,7 +511,8 @@ static void __init sn_init_pdas(char **cmdline_p)
 	 */
 	for_each_online_node(cnode) {
 		nodepdaindr[cnode] =
-		    memblock_alloc_node(sizeof(nodepda_t), 0, cnode);
+		    memblock_alloc_node(sizeof(nodepda_t), SMP_CACHE_BYTES,
+					cnode);
 		memset(nodepdaindr[cnode]->phys_cpuid, -1,
 		    sizeof(nodepdaindr[cnode]->phys_cpuid));
 		spin_lock_init(&nodepdaindr[cnode]->ptc_lock);
@@ -522,7 +523,7 @@ static void __init sn_init_pdas(char **cmdline_p)
 	 */
 	for (cnode = num_online_nodes(); cnode < num_cnodes; cnode++)
 		nodepdaindr[cnode] =
-		    memblock_alloc_node(sizeof(nodepda_t), 0, 0);
+		    memblock_alloc_node(sizeof(nodepda_t), SMP_CACHE_BYTES, 0);
 
 	/*
 	 * Now copy the array of nodepda pointers to each nodepda.

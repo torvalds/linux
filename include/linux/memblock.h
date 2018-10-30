@@ -406,7 +406,8 @@ static inline void * __init memblock_alloc_node(phys_addr_t size,
 static inline void * __init memblock_alloc_node_nopanic(phys_addr_t size,
 							int nid)
 {
-	return memblock_alloc_try_nid_nopanic(size, 0, MEMBLOCK_LOW_LIMIT,
+	return memblock_alloc_try_nid_nopanic(size, SMP_CACHE_BYTES,
+					      MEMBLOCK_LOW_LIMIT,
 					      MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 }
 

@@ -492,7 +492,7 @@ int __init smu_init (void)
 		goto fail_np;
 	}
 
-	smu = memblock_alloc(sizeof(struct smu_device), 0);
+	smu = memblock_alloc(sizeof(struct smu_device), SMP_CACHE_BYTES);
 
 	spin_lock_init(&smu->lock);
 	INIT_LIST_HEAD(&smu->cmd_list);

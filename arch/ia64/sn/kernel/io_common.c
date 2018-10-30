@@ -391,7 +391,9 @@ void __init hubdev_init_node(nodepda_t * npda, cnodeid_t node)
 	if (node >= num_online_nodes())	/* Headless/memless IO nodes */
 		node = 0;
 
-	hubdev_info = (struct hubdev_info *)memblock_alloc_node(size, 0, node);
+	hubdev_info = (struct hubdev_info *)memblock_alloc_node(size,
+								SMP_CACHE_BYTES,
+								node);
 
 	npda->pdinfo = (void *)hubdev_info;
 }

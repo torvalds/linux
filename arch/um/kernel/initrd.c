@@ -36,7 +36,7 @@ int __init read_initrd(void)
 		return 0;
 	}
 
-	area = memblock_alloc(size, 0);
+	area = memblock_alloc(size, SMP_CACHE_BYTES);
 
 	if (load_initrd(initrd, area, size) == -1)
 		return 0;

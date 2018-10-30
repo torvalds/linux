@@ -1580,7 +1580,7 @@ static int __init vector_setup(char *str)
 				 str, error);
 		return 1;
 	}
-	new = memblock_alloc(sizeof(*new), 0);
+	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
 	INIT_LIST_HEAD(&new->list);
 	new->unit = n;
 	new->arguments = str;

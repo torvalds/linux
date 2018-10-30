@@ -2578,7 +2578,7 @@ static struct resource * __init ioapic_setup_resources(void)
 	n = IOAPIC_RESOURCE_NAME_SIZE + sizeof(struct resource);
 	n *= nr_ioapics;
 
-	mem = memblock_alloc(n, 0);
+	mem = memblock_alloc(n, SMP_CACHE_BYTES);
 	res = (void *)mem;
 
 	mem += sizeof(struct resource) * nr_ioapics;

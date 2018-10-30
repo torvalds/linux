@@ -141,7 +141,7 @@ void * __init prom_early_alloc(unsigned long size)
 		 * fast enough on the platforms we care about while minimizing
 		 * wasted bootmem) and hand off chunks of it to callers.
 		 */
-		res = memblock_alloc(chunk_size, 0);
+		res = memblock_alloc(chunk_size, SMP_CACHE_BYTES);
 		BUG_ON(!res);
 		prom_early_allocated += chunk_size;
 		memset(res, 0, chunk_size);

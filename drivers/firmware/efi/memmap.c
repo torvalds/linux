@@ -15,7 +15,7 @@
 
 static phys_addr_t __init __efi_memmap_alloc_early(unsigned long size)
 {
-	return memblock_phys_alloc(size, 0);
+	return memblock_phys_alloc(size, SMP_CACHE_BYTES);
 }
 
 static phys_addr_t __init __efi_memmap_alloc_late(unsigned long size)

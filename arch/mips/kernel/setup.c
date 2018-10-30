@@ -916,7 +916,7 @@ static void __init resource_init(void)
 		if (end >= HIGHMEM_START)
 			end = HIGHMEM_START - 1;
 
-		res = memblock_alloc(sizeof(struct resource), 0);
+		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
 
 		res->start = start;
 		res->end = end;

@@ -319,12 +319,14 @@ tsunami_init_one_pchip(tsunami_pchip *pchip, int index)
 	 * NOTE: we need the align_entry settings for Acer devices on ES40,
 	 * specifically floppy and IDE when memory is larger than 2GB.
 	 */
-	hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000, 0);
+	hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000,
+				       SMP_CACHE_BYTES);
 	/* Initially set for 4 PTEs, but will be overridden to 64K for ISA. */
         hose->sg_isa->align_entry = 4;
 
 	hose->sg_pci = iommu_arena_new(hose, 0x40000000,
-				       size_for_memory(0x40000000), 0);
+				       size_for_memory(0x40000000),
+				       SMP_CACHE_BYTES);
         hose->sg_pci->align_entry = 4; /* Tsunami caches 4 PTEs at a time */
 
 	__direct_map_base = 0x80000000;

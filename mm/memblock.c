@@ -1247,9 +1247,6 @@ static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 {
 	phys_addr_t found;
 
-	if (!align)
-		align = SMP_CACHE_BYTES;
-
 	found = memblock_find_in_range_node(size, align, start, end, nid,
 					    flags);
 	if (found && !memblock_reserve(found, size)) {
@@ -1343,8 +1340,6 @@ phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t ali
  * The allocation is performed from memory region limited by
  * memblock.current_limit if @max_addr == %MEMBLOCK_ALLOC_ACCESSIBLE.
  *
- * The memory block is aligned on %SMP_CACHE_BYTES if @align == 0.
- *
  * The phys address of allocated boot memory block is converted to virtual and
  * allocated memory is reset to 0.
  *
@@ -1373,9 +1368,6 @@ static void * __init memblock_alloc_internal(
 	 */
 	if (WARN_ON_ONCE(slab_is_available()))
 		return kzalloc_node(size, GFP_NOWAIT, nid);
-
-	if (!align)
-		align = SMP_CACHE_BYTES;
 
 	if (max_addr > memblock.current_limit)
 		max_addr = memblock.current_limit;
