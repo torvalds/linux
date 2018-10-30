@@ -1209,6 +1209,7 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		break;
 	case INSN_CONFIG_PWM_OUTPUT:
 	case INSN_CONFIG_ANALOG_TRIG:
+	case INSN_CONFIG_TIMER_1:
 		if (insn->n == 5)
 			return 0;
 		break;
