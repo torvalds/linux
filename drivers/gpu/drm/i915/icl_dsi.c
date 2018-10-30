@@ -25,6 +25,7 @@
  *   Jani Nikula <jani.nikula@intel.com>
  */
 
+#include <drm/drm_mipi_dsi.h>
 #include "intel_dsi.h"
 
 static enum transcoder dsi_port_to_transcoder(enum port port)
@@ -636,6 +637,35 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 	gen11_dsi_configure_transcoder(encoder, pipe_config);
 }
 
+static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct mipi_dsi_device *dsi;
+	enum port port;
+	enum transcoder dsi_trans;
+	u32 tmp;
+	int ret;
+
+	/* set maximum return packet size */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+
+		/*
+		 * FIXME: This uses the number of DW's currently in the payload
+		 * receive queue. This is probably not what we want here.
+		 */
+		tmp = I915_READ(DSI_CMD_RXCTL(dsi_trans));
+		tmp &= NUMBER_RX_PLOAD_DW_MASK;
+		/* multiply "Number Rx Payload DW" by 4 to get max value */
+		tmp = tmp * 4;
+		dsi = intel_dsi->dsi_hosts[port]->device;
+		ret = mipi_dsi_set_maximum_return_packet_size(dsi, tmp);
+		if (ret < 0)
+			DRM_ERROR("error setting max return pkt size%d\n", tmp);
+	}
+}
+
 static void __attribute__((unused))
 gen11_dsi_pre_enable(struct intel_encoder *encoder,
 		     const struct intel_crtc_state *pipe_config,
@@ -649,6 +679,9 @@ gen11_dsi_pre_enable(struct intel_encoder *encoder,
 
 	/* step4: enable DSI port and DPHY */
 	gen11_dsi_enable_port_and_phy(encoder, pipe_config);
+
+	/* step5: program and powerup panel */
+	gen11_dsi_powerup_panel(encoder);
 
 	/* step6c: configure transcoder timings */
 	gen11_dsi_set_transcoder_timings(encoder, pipe_config);
