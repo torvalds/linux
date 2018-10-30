@@ -3097,8 +3097,10 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 	struct pcidas64_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	int range = CR_RANGE(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val = s->readback[chan];
+	unsigned int i;
 
 	/* do some initializing */
 	writew(0, devpriv->main_iobase + DAC_CONTROL0_REG);
@@ -3108,20 +3110,24 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	writew(devpriv->dac_control1_bits,
 	       devpriv->main_iobase + DAC_CONTROL1_REG);
 
-	/* write to channel */
-	if (board->layout == LAYOUT_4020) {
-		writew(data[0] & 0xff,
-		       devpriv->main_iobase + dac_lsb_4020_reg(chan));
-		writew((data[0] >> 8) & 0xf,
-		       devpriv->main_iobase + dac_msb_4020_reg(chan));
-	} else {
-		writew(data[0], devpriv->main_iobase + dac_convert_reg(chan));
+	for (i = 0; i < insn->n; i++) {
+		/* write to channel */
+		val = data[i];
+		if (board->layout == LAYOUT_4020) {
+			writew(val & 0xff,
+			       devpriv->main_iobase + dac_lsb_4020_reg(chan));
+			writew((val >> 8) & 0xf,
+			       devpriv->main_iobase + dac_msb_4020_reg(chan));
+		} else {
+			writew(val,
+			       devpriv->main_iobase + dac_convert_reg(chan));
+		}
 	}
 
-	/* remember output value */
-	s->readback[chan] = data[0];
+	/* remember last output value */
+	s->readback[chan] = val;
 
-	return 1;
+	return insn->n;
 }
 
 static void set_dac_control0_reg(struct comedi_device *dev,
