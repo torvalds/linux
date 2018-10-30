@@ -115,12 +115,12 @@ static bool fanotify_should_send_event(struct fsnotify_iter_info *iter_info,
 			continue;
 		mark = iter_info->marks[type];
 		/*
-		 * if the event is for a child and this inode doesn't care about
-		 * events on the child, don't send it!
+		 * If the event is for a child and this mark doesn't care about
+		 * events on a child, don't send it!
 		 */
-		if (type == FSNOTIFY_OBJ_TYPE_INODE &&
-		    (event_mask & FS_EVENT_ON_CHILD) &&
-		    !(mark->mask & FS_EVENT_ON_CHILD))
+		if (event_mask & FS_EVENT_ON_CHILD &&
+		    (type != FSNOTIFY_OBJ_TYPE_INODE ||
+		     !(mark->mask & FS_EVENT_ON_CHILD)))
 			continue;
 
 		marks_mask |= mark->mask;
