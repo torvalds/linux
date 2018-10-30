@@ -72,20 +72,37 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
  */
 extern int blk_mq_hw_queue_to_node(struct blk_mq_queue_map *qmap, unsigned int);
 
-static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
-						     unsigned int flags,
-						     unsigned int cpu)
-{
-	struct blk_mq_tag_set *set = q->tag_set;
-
-	return q->queue_hw_ctx[set->map[0].mq_map[cpu]];
-}
-
+/*
+ * blk_mq_map_queue_type() - map (hctx_type,cpu) to hardware queue
+ * @q: request queue
+ * @hctx_type: the hctx type index
+ * @cpu: CPU
+ */
 static inline struct blk_mq_hw_ctx *blk_mq_map_queue_type(struct request_queue *q,
 							  unsigned int hctx_type,
 							  unsigned int cpu)
 {
-	return blk_mq_map_queue(q, hctx_type, cpu);
+	struct blk_mq_tag_set *set = q->tag_set;
+
+	return q->queue_hw_ctx[set->map[hctx_type].mq_map[cpu]];
+}
+
+/*
+ * blk_mq_map_queue() - map (cmd_flags,type) to hardware queue
+ * @q: request queue
+ * @flags: request command flags
+ * @cpu: CPU
+ */
+static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
+						     unsigned int flags,
+						     unsigned int cpu)
+{
+	int hctx_type = 0;
+
+	if (q->mq_ops->rq_flags_to_type)
+		hctx_type = q->mq_ops->rq_flags_to_type(q, flags);
+
+	return blk_mq_map_queue_type(q, hctx_type, cpu);
 }
 
 /*
