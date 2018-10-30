@@ -24,15 +24,15 @@ static int hclge_ring_space(struct hclge_cmq_ring *ring)
 	return ring->desc_num - used - 1;
 }
 
-static int is_valid_csq_clean_head(struct hclge_cmq_ring *ring, int h)
+static int is_valid_csq_clean_head(struct hclge_cmq_ring *ring, int head)
 {
-	int u = ring->next_to_use;
-	int c = ring->next_to_clean;
+	int ntu = ring->next_to_use;
+	int ntc = ring->next_to_clean;
 
-	if (unlikely(h >= ring->desc_num))
-		return 0;
+	if (ntu > ntc)
+		return head >= ntc && head <= ntu;
 
-	return u > c ? (h > c && h <= u) : (h > c || h <= u);
+	return head >= ntc || head <= ntu;
 }
 
 static int hclge_alloc_cmd_desc(struct hclge_cmq_ring *ring)
