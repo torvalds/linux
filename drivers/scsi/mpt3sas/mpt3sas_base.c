@@ -5230,7 +5230,7 @@ mpt3sas_base_sas_iounit_control(struct MPT3SAS_ADAPTER *ioc,
 	wait_state_count = 0;
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
 	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
-		if (wait_state_count++ == 10) {
+		if (wait_state_count++ == IOC_OPERATIONAL_WAIT_COUNT) {
 			ioc_err(ioc, "%s: failed due to ioc not operational\n",
 				__func__);
 			rc = -EFAULT;
@@ -5325,7 +5325,7 @@ mpt3sas_base_scsi_enclosure_processor(struct MPT3SAS_ADAPTER *ioc,
 	wait_state_count = 0;
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
 	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
-		if (wait_state_count++ == 10) {
+		if (wait_state_count++ == IOC_OPERATIONAL_WAIT_COUNT) {
 			ioc_err(ioc, "%s: failed due to ioc not operational\n",
 				__func__);
 			rc = -EFAULT;
