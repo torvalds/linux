@@ -582,11 +582,13 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 };
 
 struct mlx5_ifc_flow_table_eswitch_cap_bits {
-	u8      reserved_at_0[0x1c];
-	u8      fdb_multi_path_to_table[0x1];
-	u8      reserved_at_1d[0x1];
+	u8      reserved_at_0[0x1a];
 	u8      multi_fdb_encap[0x1];
-	u8      reserved_at_1e[0x1e1];
+	u8      reserved_at_1b[0x1];
+	u8      fdb_multi_path_to_table[0x1];
+	u8      reserved_at_1d[0x3];
+
+	u8      reserved_at_20[0x1e0];
 
 	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_esw_fdb;
 
