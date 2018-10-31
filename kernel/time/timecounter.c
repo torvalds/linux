@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Based on clocksource code. See commit 74d23cc704d1
  *
