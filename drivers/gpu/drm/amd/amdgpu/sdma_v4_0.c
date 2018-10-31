@@ -372,16 +372,11 @@ static uint64_t sdma_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 		wptr = READ_ONCE(*((u64 *)&adev->wb.wb[ring->wptr_offs]));
 		DRM_DEBUG("wptr/doorbell before shift == 0x%016llx\n", wptr);
 	} else {
-		u32 lowbit, highbit;
-
-		lowbit = RREG32_SDMA(ring->me, mmSDMA0_GFX_RB_WPTR) >> 2;
-		highbit = RREG32_SDMA(ring->me, mmSDMA0_GFX_RB_WPTR_HI) >> 2;
-
-		DRM_DEBUG("wptr [%i]high== 0x%08x low==0x%08x\n",
-				ring->me, highbit, lowbit);
-		wptr = highbit;
+		wptr = RREG32_SDMA(ring->me, mmSDMA0_GFX_RB_WPTR_HI);
 		wptr = wptr << 32;
-		wptr |= lowbit;
+		wptr |= RREG32_SDMA(ring->me, mmSDMA0_GFX_RB_WPTR);
+		DRM_DEBUG("wptr before shift [%i] wptr == 0x%016llx\n",
+				ring->me, wptr);
 	}
 
 	return wptr >> 2;
