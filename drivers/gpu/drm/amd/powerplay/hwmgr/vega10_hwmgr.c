@@ -1333,7 +1333,6 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	if (hwmgr->platform_descriptor.overdriveLimit.memoryClock == 0)
 		hwmgr->platform_descriptor.overdriveLimit.memoryClock =
 					dpm_table->dpm_levels[dpm_table->count-1].value;
-
 	vega10_init_dpm_state(&(dpm_table->dpm_state));
 
 	data->dpm_table.eclk_table.count = 0;
@@ -4560,11 +4559,13 @@ static int vega10_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 
 	if (vega10_ps->performance_levels
 			[vega10_ps->performance_level_count - 1].gfx_clock >
-			hwmgr->platform_descriptor.overdriveLimit.engineClock)
+			hwmgr->platform_descriptor.overdriveLimit.engineClock) {
 		vega10_ps->performance_levels
 		[vega10_ps->performance_level_count - 1].gfx_clock =
 				hwmgr->platform_descriptor.overdriveLimit.engineClock;
-
+		pr_warn("max sclk supported by vbios is %d\n",
+				hwmgr->platform_descriptor.overdriveLimit.engineClock);
+	}
 	return 0;
 }
 
@@ -4612,10 +4613,13 @@ static int vega10_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 
 	if (vega10_ps->performance_levels
 			[vega10_ps->performance_level_count - 1].mem_clock >
-			hwmgr->platform_descriptor.overdriveLimit.memoryClock)
+			hwmgr->platform_descriptor.overdriveLimit.memoryClock) {
 		vega10_ps->performance_levels
 		[vega10_ps->performance_level_count - 1].mem_clock =
 				hwmgr->platform_descriptor.overdriveLimit.memoryClock;
+		pr_warn("max mclk supported by vbios is %d\n",
+				hwmgr->platform_descriptor.overdriveLimit.memoryClock);
+	}
 
 	return 0;
 }
