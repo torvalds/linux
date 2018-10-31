@@ -1719,8 +1719,6 @@ static void phydm_get_rx_phy_status_type2(struct phy_dm_struct *dm,
 					  ODM_RTL8710B)) { /* JJ ADD 20161014 */
 		if (rxsc == 3)
 			bw = ODM_BW40M;
-		else if ((rxsc == 1) || (rxsc == 2))
-			bw = ODM_BW20M;
 		else
 			bw = ODM_BW20M;
 	}
