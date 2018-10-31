@@ -110,6 +110,7 @@ struct psp_ras_context {
 	struct amdgpu_bo	*ras_shared_bo;
 	uint64_t		ras_shared_mc_addr;
 	void			*ras_shared_buf;
+	struct amdgpu_ras	*ras;
 };
 
 struct psp_context

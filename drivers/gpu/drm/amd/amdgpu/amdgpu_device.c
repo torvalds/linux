@@ -60,6 +60,7 @@
 #include "amdgpu_pm.h"
 
 #include "amdgpu_xgmi.h"
+#include "amdgpu_ras.h"
 
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vega12_gpu_info.bin");
@@ -1638,6 +1639,10 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	r = amdgpu_ras_init(adev);
+	if (r)
+		return r;
+
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
@@ -1876,6 +1881,8 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	amdgpu_ras_pre_fini(adev);
+
 	if (adev->gmc.xgmi.num_physical_nodes > 1)
 		amdgpu_xgmi_remove_device(adev);
 
@@ -1944,6 +1951,8 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			adev->ip_blocks[i].version->funcs->late_fini((void *)adev);
 		adev->ip_blocks[i].status.late_initialized = false;
 	}
+
+	amdgpu_ras_fini(adev);
 
 	if (amdgpu_sriov_vf(adev))
 		if (amdgpu_virt_release_full_gpu(adev, false))
