@@ -172,6 +172,7 @@ struct amdgpu_ring_funcs {
 			      enum drm_sched_priority priority);
 	/* Try to soft recover the ring to make the fence signal */
 	void (*soft_recovery)(struct amdgpu_ring *ring, unsigned vmid);
+	int (*preempt_ib)(struct amdgpu_ring *ring);
 };
 
 struct amdgpu_ring {
@@ -250,6 +251,7 @@ struct amdgpu_ring {
 #define amdgpu_ring_pad_ib(r, ib) ((r)->funcs->pad_ib((r), (ib)))
 #define amdgpu_ring_init_cond_exec(r) (r)->funcs->init_cond_exec((r))
 #define amdgpu_ring_patch_cond_exec(r,o) (r)->funcs->patch_cond_exec((r),(o))
+#define amdgpu_ring_preempt_ib(r) (r)->funcs->preempt_ib(r)
 
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw);
 void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
