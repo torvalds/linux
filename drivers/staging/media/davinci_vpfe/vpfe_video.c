@@ -1135,10 +1135,6 @@ static int vpfe_buffer_prepare(struct vb2_buffer *vb)
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_prepare\n");
 
-	if (vb->state != VB2_BUF_STATE_ACTIVE &&
-	    vb->state != VB2_BUF_STATE_PREPARED)
-		return 0;
-
 	/* Initialize buffer */
 	vb2_set_plane_payload(vb, 0, video->fmt.fmt.pix.sizeimage);
 	if (vb2_plane_vaddr(vb, 0) &&
@@ -1429,7 +1425,8 @@ static int vpfe_qbuf(struct file *file, void *priv,
 		return -EACCES;
 	}
 
-	return vb2_qbuf(&video->buffer_queue, p);
+	return vb2_qbuf(&video->buffer_queue,
+			video->video_dev.v4l2_dev->mdev, p);
 }
 
 /*

@@ -394,7 +394,7 @@ static int soc_camera_qbuf(struct file *file, void *priv,
 	if (icd->streamer != file)
 		return -EBUSY;
 
-	return vb2_qbuf(&icd->vb2_vidq, p);
+	return vb2_qbuf(&icd->vb2_vidq, NULL, p);
 }
 
 static int soc_camera_dqbuf(struct file *file, void *priv,
@@ -430,7 +430,7 @@ static int soc_camera_prepare_buf(struct file *file, void *priv,
 {
 	struct soc_camera_device *icd = file->private_data;
 
-	return vb2_prepare_buf(&icd->vb2_vidq, b);
+	return vb2_prepare_buf(&icd->vb2_vidq, NULL, b);
 }
 
 static int soc_camera_expbuf(struct file *file, void *priv,
@@ -1181,7 +1181,8 @@ static int soc_camera_probe_finish(struct soc_camera_device *icd)
 
 	v4l2_subdev_call(sd, video, g_tvnorms, &icd->vdev->tvnorms);
 
-	ret = v4l2_ctrl_add_handler(&icd->ctrl_handler, sd->ctrl_handler, NULL);
+	ret = v4l2_ctrl_add_handler(&icd->ctrl_handler, sd->ctrl_handler,
+				    NULL, true);
 	if (ret < 0)
 		return ret;
 

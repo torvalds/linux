@@ -949,7 +949,7 @@ static int cpia2_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	buf->m.offset = cam->buffers[buf->index].data - cam->frame_buffer;
 	buf->length = cam->frame_size;
 	buf->reserved2 = 0;
-	buf->reserved = 0;
+	buf->request_fd = 0;
 	memset(&buf->timecode, 0, sizeof(buf->timecode));
 
 	DBG("DQBUF #%d status:%d seq:%d length:%d\n", buf->index,
