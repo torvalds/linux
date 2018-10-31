@@ -160,7 +160,7 @@ static int wil_ring_alloc_skb_edma(struct wil6210_priv *wil,
 				   struct wil_ring *ring, u32 i)
 {
 	struct device *dev = wil_to_dev(wil);
-	unsigned int sz = ALIGN(wil->rx_buf_len, 4);
+	unsigned int sz = wil->rx_buf_len;
 	dma_addr_t pa;
 	u16 buff_id;
 	struct list_head *active = &wil->rx_buff_mgmt.active;
@@ -602,6 +602,7 @@ static bool wil_is_rx_idle_edma(struct wil6210_priv *wil)
 
 static void wil_rx_buf_len_init_edma(struct wil6210_priv *wil)
 {
+	/* RX buffer size must be aligned to 4 bytes */
 	wil->rx_buf_len = rx_large_buf ?
 		WIL_MAX_ETH_MTU : WIL_EDMA_RX_BUF_LEN_DEFAULT;
 }
@@ -615,7 +616,6 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, uint desc_ring_order)
 		sizeof(struct wil_rx_status_compressed) :
 		sizeof(struct wil_rx_status_extended);
 	int i;
-	u16 max_rx_pl_per_desc;
 
 	/* In SW reorder one must use extended status messages */
 	if (wil->use_compressed_rx_status && !wil->use_rx_hw_reordering) {
@@ -641,8 +641,6 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, uint desc_ring_order)
 
 	wil_rx_buf_len_init_edma(wil);
 
-	max_rx_pl_per_desc = ALIGN(wil->rx_buf_len, 4);
-
 	/* Use debugfs dbg_num_rx_srings if set, reserve one sring for TX */
 	if (wil->num_rx_status_rings > WIL6210_MAX_STATUS_RINGS - 1)
 		wil->num_rx_status_rings = WIL6210_MAX_STATUS_RINGS - 1;
@@ -650,7 +648,7 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, uint desc_ring_order)
 	wil_dbg_misc(wil, "rx_init: allocate %d status rings\n",
 		     wil->num_rx_status_rings);
 
-	rc = wil_wmi_cfg_def_rx_offload(wil, max_rx_pl_per_desc);
+	rc = wil_wmi_cfg_def_rx_offload(wil, wil->rx_buf_len);
 	if (rc)
 		return rc;
 
@@ -887,7 +885,7 @@ static struct sk_buff *wil_sring_reap_rx_edma(struct wil6210_priv *wil,
 	struct sk_buff *skb;
 	dma_addr_t pa;
 	struct wil_ring_rx_data *rxdata = &sring->rx_data;
-	unsigned int sz = ALIGN(wil->rx_buf_len, 4);
+	unsigned int sz = wil->rx_buf_len;
 	struct wil_net_stats *stats = NULL;
 	u16 dmalen;
 	int cid;
