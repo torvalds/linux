@@ -137,6 +137,7 @@ struct rkisp1_device {
 	unsigned int emd_dt;
 	int vs_irq;
 	struct gpio_desc *vs_irq_gpio;
+	struct v4l2_subdev *hdr_sensor;
 };
 
 #endif

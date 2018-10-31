@@ -39,6 +39,7 @@
 #include <linux/vmalloc.h>
 #include <linux/kfifo.h>
 #include <linux/interrupt.h>
+#include <linux/rk-preisp.h>
 #include <media/v4l2-event.h>
 #include <media/media-entity.h>
 
@@ -348,6 +349,7 @@ static int rkisp1_config_mipi(struct rkisp1_device *dev)
 
 	emd_vc = 0xFF;
 	emd_dt = 0;
+	dev->hdr_sensor = NULL;
 	get_remote_mipi_sensor(dev, &mipi_sensor);
 	if (mipi_sensor) {
 		ctrl = v4l2_ctrl_find(mipi_sensor->ctrl_handler,
@@ -359,6 +361,7 @@ static int rkisp1_config_mipi(struct rkisp1_device *dev)
 				      CIFISP_CID_EMB_DT);
 		if (ctrl)
 			emd_dt = v4l2_ctrl_g_ctrl(ctrl);
+		dev->hdr_sensor = mipi_sensor;
 	}
 
 	dev->emd_dt = emd_dt;
@@ -541,6 +544,9 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 			kfifo_free(&dev->emd_data_fifo[i].mipi_kfifo);
 		dev->emd_vc = 0xFF;
 	}
+
+	if (dev->hdr_sensor)
+		dev->hdr_sensor = NULL;
 
 	return 0;
 }
@@ -1335,6 +1341,7 @@ int rkisp1_register_isp_subdev(struct rkisp1_device *isp_dev,
 	}
 
 	rkisp1_isp_sd_init_default_fmt(isp_sdev);
+	isp_dev->hdr_sensor = NULL;
 
 	return 0;
 err_cleanup_media_entity:

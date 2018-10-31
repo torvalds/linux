@@ -36,6 +36,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>	/* for ISP params */
+#include <linux/rk-preisp.h>
 #include "dev.h"
 #include "regs.h"
 
@@ -1586,6 +1587,66 @@ void __isp_isr_meas_config(struct rkisp1_isp_params_vdev *params_vdev,
 	}
 }
 
+static __maybe_unused
+void __preisp_isr_update_hdrae_para(struct rkisp1_isp_params_vdev *params_vdev,
+				    struct rkisp1_isp_params_cfg *new_params)
+{
+	struct preisp_hdrae_para_s *hdrae;
+	struct cifisp_lsc_config *lsc;
+	struct cifisp_awb_gain_config *awb_gain;
+	unsigned int module_en_update, module_cfg_update, module_ens;
+	int i, ret;
+
+	hdrae = &params_vdev->hdrae_para;
+	module_en_update = new_params->module_en_update;
+	module_cfg_update = new_params->module_cfg_update;
+	module_ens = new_params->module_ens;
+	lsc = &new_params->others.lsc_config;
+	awb_gain = &new_params->others.awb_gain_config;
+
+	if (!params_vdev->dev->hdr_sensor)
+		return;
+
+	if ((module_en_update & CIFISP_MODULE_AWB_GAIN) ||
+	    (module_cfg_update & CIFISP_MODULE_AWB_GAIN)) {
+		/* update awb gains */
+		if ((module_cfg_update & CIFISP_MODULE_AWB_GAIN)) {
+			hdrae->r_gain = awb_gain->gain_red;
+			hdrae->b_gain = awb_gain->gain_blue;
+			hdrae->gr_gain = awb_gain->gain_green_r;
+			hdrae->gb_gain = awb_gain->gain_green_b;
+		}
+
+		if (module_en_update & CIFISP_MODULE_AWB_GAIN) {
+			if (!(module_ens & CIFISP_MODULE_AWB_GAIN)) {
+				hdrae->r_gain = 0x0100;
+				hdrae->b_gain = 0x0100;
+				hdrae->gr_gain = 0x0100;
+				hdrae->gb_gain = 0x0100;
+			}
+		}
+	}
+
+	if ((module_en_update & CIFISP_MODULE_LSC) ||
+	    (module_cfg_update & CIFISP_MODULE_LSC)) {
+		/* update lsc config */
+		if ((module_cfg_update & CIFISP_MODULE_LSC))
+			memcpy(hdrae->lsc_table, lsc->gr_data_tbl,
+				PREISP_LSCTBL_SIZE);
+
+		if (module_en_update & CIFISP_MODULE_LSC) {
+			if (!(module_ens & CIFISP_MODULE_LSC))
+				for (i = 0; i < PREISP_LSCTBL_SIZE; i++)
+					hdrae->lsc_table[i] = 0x0400;
+		}
+	}
+
+	ret = v4l2_subdev_call(params_vdev->dev->hdr_sensor, core, ioctl,
+			       PREISP_CMD_SAVE_HDRAE_PARAM, hdrae);
+	if (ret)
+		params_vdev->dev->hdr_sensor = NULL;
+}
+
 void rkisp1_params_isr(struct rkisp1_isp_params_vdev *params_vdev, u32 isp_mis)
 {
 	struct rkisp1_isp_params_cfg *new_params;
@@ -1622,6 +1683,8 @@ void rkisp1_params_isr(struct rkisp1_isp_params_vdev *params_vdev, u32 isp_mis)
 		isp_ctrl = rkisp1_ioread32(params_vdev, CIF_ISP_CTRL);
 		isp_ctrl |= CIF_ISP_CTRL_ISP_CFG_UPD;
 		rkisp1_iowrite32(params_vdev, isp_ctrl, CIF_ISP_CTRL);
+
+		__preisp_isr_update_hdrae_para(params_vdev, new_params);
 
 		cur_buf->vb.sequence = cur_frame_id;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
@@ -1673,6 +1736,7 @@ void rkisp1_params_config_parameter(struct rkisp1_isp_params_vdev *params_vdev)
 {
 	struct rkisp1_isp_params_ops *ops = params_vdev->ops;
 	struct cifisp_hst_config hst = hst_params_default_config;
+	int i;
 
 	spin_lock(&params_vdev->config_lock);
 
@@ -1717,9 +1781,17 @@ void rkisp1_params_config_parameter(struct rkisp1_isp_params_vdev *params_vdev)
 				     CIF_ISP_LSC_CTRL_ENA);
 	}
 
+	params_vdev->hdrae_para.r_gain = 0x0100;
+	params_vdev->hdrae_para.b_gain = 0x0100;
+	params_vdev->hdrae_para.gr_gain = 0x0100;
+	params_vdev->hdrae_para.gb_gain = 0x0100;
+	for (i = 0; i < PREISP_LSCTBL_SIZE; i++)
+		params_vdev->hdrae_para.lsc_table[i] = 0x0400;
+
 	/* override the default things */
 	__isp_isr_other_config(params_vdev, &params_vdev->cur_params);
 	__isp_isr_meas_config(params_vdev, &params_vdev->cur_params);
+	__preisp_isr_update_hdrae_para(params_vdev, &params_vdev->cur_params);
 
 	spin_unlock(&params_vdev->config_lock);
 }
