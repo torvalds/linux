@@ -1318,12 +1318,12 @@ static int pp_enable_mgpu_fan_boost(void *handle)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
-	if (!hwmgr || !hwmgr->pm_en)
+	if (!hwmgr)
 		return -EINVAL;
 
-	if (hwmgr->hwmgr_func->enable_mgpu_fan_boost == NULL) {
+	if (!hwmgr->pm_en ||
+	     hwmgr->hwmgr_func->enable_mgpu_fan_boost == NULL)
 		return 0;
-	}
 
 	mutex_lock(&hwmgr->smu_lock);
 	hwmgr->hwmgr_func->enable_mgpu_fan_boost(hwmgr);
