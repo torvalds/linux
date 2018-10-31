@@ -269,7 +269,8 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
 
-static int iwl_fw_dbg_start_stop_hcmd(struct iwl_fw_runtime *fwrt, bool start)
+static inline int
+iwl_fw_dbg_start_stop_hcmd(struct iwl_fw_runtime *fwrt, bool start)
 {
 	struct iwl_ldbg_config_cmd cmd = {
 		.type = start ? cpu_to_le32(START_DEBUG_RECORDING) :
