@@ -2718,7 +2718,7 @@
 		};
 
 		target-module@60000 {			/* 0x48460000, ap 9 0e.0 */
-			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			compatible = "ti,sysc-dra7-mcasp", "ti,sysc";
 			ti,hwmods = "mcasp1";
 			reg = <0x60000 0x4>,
 			      <0x60004 0x4>;
@@ -2752,7 +2752,7 @@
 		};
 
 		target-module@64000 {			/* 0x48464000, ap 11 1e.0 */
-			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			compatible = "ti,sysc-dra7-mcasp", "ti,sysc";
 			ti,hwmods = "mcasp2";
 			reg = <0x64000 0x4>,
 			      <0x64004 0x4>;
@@ -2786,7 +2786,7 @@
 		};
 
 		target-module@68000 {			/* 0x48468000, ap 13 26.0 */
-			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			compatible = "ti,sysc-dra7-mcasp", "ti,sysc";
 			ti,hwmods = "mcasp3";
 			reg = <0x68000 0x4>,
 			      <0x68004 0x4>;
@@ -2819,7 +2819,7 @@
 		};
 
 		target-module@6c000 {			/* 0x4846c000, ap 15 2e.0 */
-			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			compatible = "ti,sysc-dra7-mcasp", "ti,sysc";
 			ti,hwmods = "mcasp4";
 			reg = <0x6c000 0x4>,
 			      <0x6c004 0x4>;
@@ -2852,7 +2852,7 @@
 		};
 
 		target-module@70000 {			/* 0x48470000, ap 19 36.0 */
-			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			compatible = "ti,sysc-dra7-mcasp", "ti,sysc";
 			ti,hwmods = "mcasp5";
 			reg = <0x70000 0x4>,
 			      <0x70004 0x4>;
@@ -2885,7 +2885,7 @@
 		};
 
 		target-module@74000 {			/* 0x48474000, ap 35 14.0 */
-			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			compatible = "ti,sysc-dra7-mcasp", "ti,sysc";
 			ti,hwmods = "mcasp6";
 			reg = <0x74000 0x4>,
 			      <0x74004 0x4>;
@@ -2918,7 +2918,7 @@
 		};
 
 		target-module@78000 {			/* 0x48478000, ap 39 0c.0 */
-			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			compatible = "ti,sysc-dra7-mcasp", "ti,sysc";
 			ti,hwmods = "mcasp7";
 			reg = <0x78000 0x4>,
 			      <0x78004 0x4>;
@@ -2951,7 +2951,7 @@
 		};
 
 		target-module@7c000 {			/* 0x4847c000, ap 43 04.0 */
-			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			compatible = "ti,sysc-dra7-mcasp", "ti,sysc";
 			ti,hwmods = "mcasp8";
 			reg = <0x7c000 0x4>,
 			      <0x7c004 0x4>;
