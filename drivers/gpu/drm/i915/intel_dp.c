@@ -45,6 +45,17 @@
 
 #define DP_DPRX_ESI_LEN 14
 
+/* DP DSC small joiner has 2 FIFOs each of 640 x 6 bytes */
+#define DP_DSC_MAX_SMALL_JOINER_RAM_BUFFER	61440
+
+/* DP DSC throughput values used for slice count calculations KPixels/s */
+#define DP_DSC_PEAK_PIXEL_RATE			2720000
+#define DP_DSC_MAX_ENC_THROUGHPUT_0		340000
+#define DP_DSC_MAX_ENC_THROUGHPUT_1		400000
+
+/* DP DSC FEC Overhead factor = (100 - 2.4)/100 */
+#define DP_DSC_FEC_OVERHEAD_FACTOR		976
+
 /* Compliance test status bits  */
 #define INTEL_DP_RESOLUTION_SHIFT_MASK	0
 #define INTEL_DP_RESOLUTION_PREFERRED	(1 << INTEL_DP_RESOLUTION_SHIFT_MASK)
@@ -92,6 +103,14 @@ static const struct dp_link_dpll chv_dpll[] = {
 	{ 270000,	/* m2_int = 27, m2_fraction = 0 */
 		{ .p1 = 4, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 } },
 };
+
+/* Constants for DP DSC configurations */
+static const u8 valid_dsc_bpp[] = {6, 8, 10, 12, 15};
+
+/* With Single pipe configuration, HW is capable of supporting maximum
+ * of 4 slices per line.
+ */
+static const u8 valid_dsc_slicecount[] = {1, 2, 4};
 
 /**
  * intel_dp_is_edp - is the given port attached to an eDP panel (either CPU or PCH)
@@ -4160,6 +4179,91 @@ intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 	return drm_dp_dpcd_read(&intel_dp->aux, DP_SINK_COUNT_ESI,
 				sink_irq_vector, DP_DPRX_ESI_LEN) ==
 		DP_DPRX_ESI_LEN;
+}
+
+u16 intel_dp_dsc_get_output_bpp(int link_clock, uint8_t lane_count,
+				int mode_clock, int mode_hdisplay)
+{
+	u16 bits_per_pixel, max_bpp_small_joiner_ram;
+	int i;
+
+	/*
+	 * Available Link Bandwidth(Kbits/sec) = (NumberOfLanes)*
+	 * (LinkSymbolClock)* 8 * ((100-FECOverhead)/100)*(TimeSlotsPerMTP)
+	 * FECOverhead = 2.4%, for SST -> TimeSlotsPerMTP is 1,
+	 * for MST -> TimeSlotsPerMTP has to be calculated
+	 */
+	bits_per_pixel = (link_clock * lane_count * 8 *
+			  DP_DSC_FEC_OVERHEAD_FACTOR) /
+		mode_clock;
+
+	/* Small Joiner Check: output bpp <= joiner RAM (bits) / Horiz. width */
+	max_bpp_small_joiner_ram = DP_DSC_MAX_SMALL_JOINER_RAM_BUFFER /
+		mode_hdisplay;
+
+	/*
+	 * Greatest allowed DSC BPP = MIN (output BPP from avaialble Link BW
+	 * check, output bpp from small joiner RAM check)
+	 */
+	bits_per_pixel = min(bits_per_pixel, max_bpp_small_joiner_ram);
+
+	/* Error out if the max bpp is less than smallest allowed valid bpp */
+	if (bits_per_pixel < valid_dsc_bpp[0]) {
+		DRM_DEBUG_KMS("Unsupported BPP %d\n", bits_per_pixel);
+		return 0;
+	}
+
+	/* Find the nearest match in the array of known BPPs from VESA */
+	for (i = 0; i < ARRAY_SIZE(valid_dsc_bpp) - 1; i++) {
+		if (bits_per_pixel < valid_dsc_bpp[i + 1])
+			break;
+	}
+	bits_per_pixel = valid_dsc_bpp[i];
+
+	/*
+	 * Compressed BPP in U6.4 format so multiply by 16, for Gen 11,
+	 * fractional part is 0
+	 */
+	return bits_per_pixel << 4;
+}
+
+u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
+				int mode_clock,
+				int mode_hdisplay)
+{
+	u8 min_slice_count, i;
+	int max_slice_width;
+
+	if (mode_clock <= DP_DSC_PEAK_PIXEL_RATE)
+		min_slice_count = DIV_ROUND_UP(mode_clock,
+					       DP_DSC_MAX_ENC_THROUGHPUT_0);
+	else
+		min_slice_count = DIV_ROUND_UP(mode_clock,
+					       DP_DSC_MAX_ENC_THROUGHPUT_1);
+
+	max_slice_width = drm_dp_dsc_sink_max_slice_width(intel_dp->dsc_dpcd);
+	if (max_slice_width < DP_DSC_MIN_SLICE_WIDTH_VALUE) {
+		DRM_DEBUG_KMS("Unsupported slice width %d by DP DSC Sink device\n",
+			      max_slice_width);
+		return 0;
+	}
+	/* Also take into account max slice width */
+	min_slice_count = min_t(uint8_t, min_slice_count,
+				DIV_ROUND_UP(mode_hdisplay,
+					     max_slice_width));
+
+	/* Find the closest match to the valid slice count values */
+	for (i = 0; i < ARRAY_SIZE(valid_dsc_slicecount); i++) {
+		if (valid_dsc_slicecount[i] >
+		    drm_dp_dsc_sink_max_slice_count(intel_dp->dsc_dpcd,
+						    false))
+			break;
+		if (min_slice_count  <= valid_dsc_slicecount[i])
+			return valid_dsc_slicecount[i];
+	}
+
+	DRM_DEBUG_KMS("Unsupported Slice Count %d\n", min_slice_count);
+	return 0;
 }
 
 static uint8_t intel_dp_autotest_link_training(struct intel_dp *intel_dp)

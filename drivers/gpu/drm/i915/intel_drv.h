@@ -1836,6 +1836,10 @@ bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp);
 bool intel_dp_source_supports_hbr3(struct intel_dp *intel_dp);
 bool
 intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_STATUS_SIZE]);
+uint16_t intel_dp_dsc_get_output_bpp(int link_clock, uint8_t lane_count,
+				     int mode_clock, int mode_hdisplay);
+uint8_t intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp, int mode_clock,
+				     int mode_hdisplay);
 
 static inline unsigned int intel_dp_unused_lane_mask(int lane_count)
 {
