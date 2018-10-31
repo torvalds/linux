@@ -115,6 +115,7 @@ typedef void (busy_tag_iter_fn)(struct request *, void *, bool);
 typedef int (poll_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (map_queues_fn)(struct blk_mq_tag_set *set);
 typedef bool (busy_fn)(struct request_queue *);
+typedef void (complete_fn)(struct request *);
 
 
 struct blk_mq_ops {
@@ -142,7 +143,7 @@ struct blk_mq_ops {
 	 */
 	poll_fn			*poll;
 
-	softirq_done_fn		*complete;
+	complete_fn		*complete;
 
 	/*
 	 * Called when the block layer side of a hardware queue has been

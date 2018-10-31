@@ -34,7 +34,7 @@ static __latent_entropy void blk_done_softirq(struct softirq_action *h)
 
 		rq = list_entry(local_list.next, struct request, ipi_list);
 		list_del_init(&rq->ipi_list);
-		rq->q->softirq_done_fn(rq);
+		rq->q->mq_ops->complete(rq);
 	}
 }
 
@@ -102,7 +102,7 @@ void __blk_complete_request(struct request *req)
 	unsigned long flags;
 	bool shared = false;
 
-	BUG_ON(!q->softirq_done_fn);
+	BUG_ON(!q->mq_ops->complete);
 
 	local_irq_save(flags);
 	cpu = smp_processor_id();

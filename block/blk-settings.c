@@ -20,12 +20,6 @@ EXPORT_SYMBOL(blk_max_low_pfn);
 
 unsigned long blk_max_pfn;
 
-void blk_queue_softirq_done(struct request_queue *q, softirq_done_fn *fn)
-{
-	q->softirq_done_fn = fn;
-}
-EXPORT_SYMBOL(blk_queue_softirq_done);
-
 void blk_queue_rq_timeout(struct request_queue *q, unsigned int timeout)
 {
 	q->rq_timeout = timeout;
