@@ -507,6 +507,13 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	sdev->hda = hdev;
 	hdev->desc = chip;
 
+	hdev->dmic_dev = platform_device_register_data(&pci->dev, "dmic-codec",
+						       -1, NULL, 0);
+	if (IS_ERR(hdev->dmic_dev)) {
+		dev_err(&pci->dev, "Failed to create DMIC device\n");
+		return PTR_ERR(hdev->dmic_dev);
+	}
+
 	/*
 	 * use position update IPC if either it is forced
 	 * or we don't have other choice
@@ -680,6 +687,9 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct pci_dev *pci = sdev->pci;
 	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
+
+	if (sdev->hda && (!IS_ERR_OR_NULL(sdev->hda->dmic_dev)))
+		platform_device_unregister(sdev->hda->dmic_dev);
 
 	/* disable DSP IRQ */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
