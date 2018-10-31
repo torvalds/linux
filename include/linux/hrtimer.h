@@ -8,8 +8,6 @@
  *  data type definitions, declarations, prototypes
  *
  *  Started by: Thomas Gleixner and Ingo Molnar
- *
- *  For licencing details see kernel-base/COPYING
  */
 #ifndef _LINUX_HRTIMER_H
 #define _LINUX_HRTIMER_H

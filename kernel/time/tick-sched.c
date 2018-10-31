@@ -7,8 +7,6 @@
  *  No idle tick implementation for low and high resolution timers
  *
  *  Started by: Thomas Gleixner and Ingo Molnar
- *
- *  Distribute under GPLv2.
  */
 #include <linux/cpu.h>
 #include <linux/err.h>

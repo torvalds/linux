@@ -20,8 +20,6 @@
  *
  *	George Anzinger, Andrew Morton, Steven Rostedt, Roman Zippel
  *	et. al.
- *
- *  For licencing details see kernel-base/COPYING
  */
 
 #include <linux/cpu.h>
