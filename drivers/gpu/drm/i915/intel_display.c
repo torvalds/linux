@@ -5224,8 +5224,8 @@ static bool needs_nv12_wa(struct drm_i915_private *dev_priv,
 	if (!crtc_state->nv12_planes)
 		return false;
 
-	if ((IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv)) ||
-	    IS_CANNONLAKE(dev_priv))
+	/* WA Display #0827: Gen9:all */
+	if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv))
 		return true;
 
 	return false;
