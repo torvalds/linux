@@ -3444,11 +3444,13 @@ enum i915_power_well_id {
 /*
  * Palette regs
  */
-#define PALETTE_A_OFFSET 0xa000
-#define PALETTE_B_OFFSET 0xa800
-#define CHV_PALETTE_C_OFFSET 0xc000
-#define PALETTE(pipe, i) _MMIO(dev_priv->info.palette_offsets[pipe] +	\
-			      dev_priv->info.display_mmio_offset + (i) * 4)
+#define _PALETTE_A		0xa000
+#define _PALETTE_B		0xa800
+#define _CHV_PALETTE_C		0xc000
+#define PALETTE(pipe, i)	_MMIO(dev_priv->info.display_mmio_offset + \
+				      _PICK((pipe), _PALETTE_A,		\
+					    _PALETTE_B, _CHV_PALETTE_C) + \
+				      (i) * 4)
 
 /* MCH MMIO space */
 
@@ -10749,10 +10751,6 @@ enum skl_power_gate {
 #define _MIPIC_READ_DATA_VALID		(dev_priv->mipi_mmio_base + 0xb938)
 #define MIPI_READ_DATA_VALID(port)	_MMIO_MIPI(port, _MIPIA_READ_DATA_VALID, _MIPIC_READ_DATA_VALID)
 #define  READ_DATA_VALID(n)				(1 << (n))
-
-/* For UMS only (deprecated): */
-#define _PALETTE_A (dev_priv->info.display_mmio_offset + 0xa000)
-#define _PALETTE_B (dev_priv->info.display_mmio_offset + 0xa800)
 
 /* MOCS (Memory Object Control State) registers */
 #define GEN9_LNCFCMOCS(i)	_MMIO(0xb020 + (i) * 4)	/* L3 Cache Control */
