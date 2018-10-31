@@ -2068,6 +2068,10 @@ void update_dchubp_dpp(
 			&pipe_ctx->ttu_regs,
 			&pipe_ctx->rq_regs,
 			&pipe_ctx->pipe_dlg_param);
+		hubp->funcs->hubp_setup_interdependent(
+			hubp,
+			&pipe_ctx->dlg_regs,
+			&pipe_ctx->ttu_regs);
 	}
 
 	size.grph.surface_size = pipe_ctx->plane_res.scl_data.viewport;
@@ -2337,6 +2341,32 @@ static void dcn10_apply_ctx_for_surface(
 		program_all_pipe_in_tree(dc, top_pipe_to_program, context);
 
 	dcn10_pipe_control_lock(dc, top_pipe_to_program, false);
+
+	if (top_pipe_to_program->plane_state &&
+			top_pipe_to_program->plane_state->update_flags.bits.full_update)
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			/* Skip inactive pipes and ones already updated */
+			if (!pipe_ctx->stream || pipe_ctx->stream == stream)
+				continue;
+
+			pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
+
+			pipe_ctx->plane_res.hubp->funcs->hubp_setup_interdependent(
+				pipe_ctx->plane_res.hubp,
+				&pipe_ctx->dlg_regs,
+				&pipe_ctx->ttu_regs);
+		}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->stream || pipe_ctx->stream == stream)
+			continue;
+
+		dcn10_pipe_control_lock(dc, pipe_ctx, false);
+	}
 
 	if (num_planes == 0)
 		false_optc_underflow_wa(dc, stream, tg);

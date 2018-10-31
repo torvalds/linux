@@ -63,6 +63,11 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_rq_regs_st *rq_regs,
 			struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
+	void (*hubp_setup_interdependent)(
+			struct hubp *hubp,
+			struct _vcs_dpi_display_dlg_regs_st *dlg_regs,
+			struct _vcs_dpi_display_ttu_regs_st *ttu_regs);
+
 	void (*dcc_control)(struct hubp *hubp, bool enable,
 			bool independent_64b_blks);
 	void (*mem_program_viewport)(
