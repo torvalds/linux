@@ -357,8 +357,8 @@ static int wil_init_rx_sring(struct wil6210_priv *wil,
 	struct wil_status_ring *sring = &wil->srings[ring_id];
 	int rc;
 
-	wil_dbg_misc(wil, "init RX sring: size=%u, ring_id=%u\n", sring->size,
-		     ring_id);
+	wil_dbg_misc(wil, "init RX sring: size=%u, ring_id=%u\n",
+		     status_ring_size, ring_id);
 
 	memset(&sring->rx_data, 0, sizeof(sring->rx_data));
 
