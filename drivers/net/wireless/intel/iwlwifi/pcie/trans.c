@@ -3169,8 +3169,7 @@ static struct iwl_trans_dump_data
 	struct iwl_txq *cmdq = trans_pcie->txq[trans_pcie->cmd_queue];
 	struct iwl_fw_error_dump_txcmd *txcmd;
 	struct iwl_trans_dump_data *dump_data;
-	u32 len, num_rbs = 0;
-	u32 monitor_len;
+	u32 len, num_rbs = 0, monitor_len = 0;
 	int i, ptr;
 	bool dump_rbs = test_bit(STATUS_FW_ERROR, &trans->status) &&
 			!trans->cfg->mq_rx_supported &&
@@ -3187,19 +3186,8 @@ static struct iwl_trans_dump_data
 		cmdq->n_window * (sizeof(*txcmd) + TFD_MAX_PAYLOAD_SIZE);
 
 	/* FW monitor */
-	monitor_len = iwl_trans_get_fw_monitor_len(trans, &len);
-
-	if (dump_mask == BIT(IWL_FW_ERROR_DUMP_FW_MONITOR)) {
-		dump_data = vzalloc(len);
-		if (!dump_data)
-			return NULL;
-
-		data = (void *)dump_data->data;
-		len = iwl_trans_pcie_dump_monitor(trans, &data, monitor_len);
-		dump_data->len = len;
-
-		return dump_data;
-	}
+	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_FW_MONITOR))
+		monitor_len = iwl_trans_get_fw_monitor_len(trans, &len);
 
 	/* CSR registers */
 	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_CSR))
