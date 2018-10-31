@@ -231,6 +231,8 @@
 #define DP_DSC_MAX_BITS_PER_PIXEL_LOW       0x067   /* eDP 1.4 */
 
 #define DP_DSC_MAX_BITS_PER_PIXEL_HI        0x068   /* eDP 1.4 */
+# define DP_DSC_MAX_BITS_PER_PIXEL_HI_MASK  (0x3 << 0)
+# define DP_DSC_MAX_BITS_PER_PIXEL_HI_SHIFT 8
 
 #define DP_DSC_DEC_COLOR_FORMAT_CAP         0x069
 # define DP_DSC_RGB                         (1 << 0)
@@ -279,6 +281,8 @@
 # define DP_DSC_THROUGHPUT_MODE_1_1000      (14 << 4)
 
 #define DP_DSC_MAX_SLICE_WIDTH              0x06C
+#define DP_DSC_MIN_SLICE_WIDTH_VALUE        2560
+#define DP_DSC_SLICE_WIDTH_MULTIPLIER       320
 
 #define DP_DSC_SLICE_CAP_2                  0x06D
 # define DP_DSC_16_PER_DP_DSC_SINK          (1 << 0)
@@ -477,6 +481,7 @@
 # define DP_AUX_FRAME_SYNC_VALID	    (1 << 0)
 
 #define DP_DSC_ENABLE                       0x160   /* DP 1.4 */
+# define DP_DECOMPRESSION_EN                (1 << 0)
 
 #define DP_PSR_EN_CFG			    0x170   /* XXX 1.2? */
 # define DP_PSR_ENABLE			    (1 << 0)
@@ -1014,6 +1019,7 @@ u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SI
 
 #define DP_BRANCH_OUI_HEADER_SIZE	0xc
 #define DP_RECEIVER_CAP_SIZE		0xf
+#define DP_DSC_RECEIVER_CAP_SIZE        0xf
 #define EDP_PSR_RECEIVER_CAP_SIZE	2
 #define EDP_DISPLAY_CTL_CAP_SIZE	3
 
