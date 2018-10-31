@@ -79,6 +79,7 @@ bool dal_hw_factory_init(
 		dal_hw_factory_dce110_init(factory);
 		return true;
 	case DCE_VERSION_12_0:
+	case DCE_VERSION_12_1:
 		dal_hw_factory_dce120_init(factory);
 		return true;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)

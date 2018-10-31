@@ -83,7 +83,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			dc_version = DCE_VERSION_11_22;
 		break;
 	case FAMILY_AI:
-		dc_version = DCE_VERSION_12_0;
+		if (ASICREV_IS_VEGA20_P(asic_id.hw_internal_rev))
+			dc_version = DCE_VERSION_12_1;
+		else
+			dc_version = DCE_VERSION_12_0;
 		break;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case FAMILY_RV:
@@ -136,6 +139,7 @@ struct resource_pool *dc_create_resource_pool(
 			num_virtual_links, dc);
 		break;
 	case DCE_VERSION_12_0:
+	case DCE_VERSION_12_1:
 		res_pool = dce120_create_resource_pool(
 			num_virtual_links, dc);
 		break;
