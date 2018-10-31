@@ -2236,7 +2236,7 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 	}
 
 	/* clear the source of interrupt if it is not cause by reset */
-	if (event_cause != HCLGE_VECTOR0_EVENT_RST) {
+	if (event_cause == HCLGE_VECTOR0_EVENT_MBX) {
 		hclge_clear_event_cause(hdev, event_cause, clearval);
 		hclge_enable_vector(&hdev->misc_vector, true);
 	}
@@ -2470,14 +2470,17 @@ static void hclge_reset(struct hclge_dev *hdev)
 	handle = &hdev->vport[0].nic;
 	rtnl_lock();
 	hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	rtnl_unlock();
 
 	if (!hclge_reset_wait(hdev)) {
+		rtnl_lock();
 		hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
 		hclge_reset_ae_dev(hdev->ae_dev);
 		hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
 
 		hclge_clear_reset_cause(hdev);
 	} else {
+		rtnl_lock();
 		/* schedule again to check pending resets later */
 		set_bit(hdev->reset_type, &hdev->reset_pending);
 		hclge_reset_task_schedule(hdev);
@@ -3314,8 +3317,8 @@ void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
 	param->vf_id = vport_id;
 }
 
-static void hclge_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
-				   bool en_mc_pmc)
+static int hclge_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
+				  bool en_mc_pmc)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -3323,7 +3326,7 @@ static void hclge_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
 
 	hclge_promisc_param_init(&param, en_uc_pmc, en_mc_pmc, true,
 				 vport->vport_id);
-	hclge_cmd_set_promisc_mode(hdev, &param);
+	return hclge_cmd_set_promisc_mode(hdev, &param);
 }
 
 static int hclge_get_fd_mode(struct hclge_dev *hdev, u8 *fd_mode)
@@ -6107,31 +6110,28 @@ static u16 hclge_covert_handle_qid_global(struct hnae3_handle *handle,
 	return tqp->index;
 }
 
-void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
+int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 	int reset_try_times = 0;
 	int reset_status;
 	u16 queue_gid;
-	int ret;
-
-	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
-		return;
+	int ret = 0;
 
 	queue_gid = hclge_covert_handle_qid_global(handle, queue_id);
 
 	ret = hclge_tqp_enable(hdev, queue_id, 0, false);
 	if (ret) {
-		dev_warn(&hdev->pdev->dev, "Disable tqp fail, ret = %d\n", ret);
-		return;
+		dev_err(&hdev->pdev->dev, "Disable tqp fail, ret = %d\n", ret);
+		return ret;
 	}
 
 	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, true);
 	if (ret) {
-		dev_warn(&hdev->pdev->dev,
-			 "Send reset tqp cmd fail, ret = %d\n", ret);
-		return;
+		dev_err(&hdev->pdev->dev,
+			"Send reset tqp cmd fail, ret = %d\n", ret);
+		return ret;
 	}
 
 	reset_try_times = 0;
@@ -6144,16 +6144,16 @@ void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	}
 
 	if (reset_try_times >= HCLGE_TQP_RESET_TRY_TIMES) {
-		dev_warn(&hdev->pdev->dev, "Reset TQP fail\n");
-		return;
+		dev_err(&hdev->pdev->dev, "Reset TQP fail\n");
+		return ret;
 	}
 
 	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, false);
-	if (ret) {
-		dev_warn(&hdev->pdev->dev,
-			 "Deassert the soft reset fail, ret = %d\n", ret);
-		return;
-	}
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"Deassert the soft reset fail, ret = %d\n", ret);
+
+	return ret;
 }
 
 void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id)
