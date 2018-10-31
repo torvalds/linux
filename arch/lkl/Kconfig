@@ -15,11 +15,11 @@ config LKL
        select HAS_DMA
        select DMA_DIRECT_OPS
        select PHYS_ADDR_T_64BIT if 64BIT
-       select 64BIT if OUTPUT_FORMAT = "elf64-x86-64"
-	   select 64BIT if OUTPUT_FORMAT = "pe-x86-64"
-       select HAVE_UNDERSCORE_SYMBOL_PREFIX if OUTPUT_FORMAT = "pe-i386"
-       select 64BIT if OUTPUT_FORMAT = "elf64-x86-64-freebsd"
-       select 64BIT if OUTPUT_FORMAT = "elf64-littleaarch64"
+       select 64BIT if "$(OUTPUT_FORMAT)" = "elf64-x86-64"
+       select 64BIT if "$(OUTPUT_FORMAT)" = "pe-x86-64"
+       select HAVE_UNDERSCORE_SYMBOL_PREFIX if "$(OUTPUT_FORMAT)" = "pe-i386"
+       select 64BIT if "$(OUTPUT_FORMAT)" = "elf64-x86-64-freebsd"
+       select 64BIT if "$(OUTPUT_FORMAT)" = "elf64-littleaarch64"
        select NET
        select MULTIUSER
        select INET
@@ -41,13 +41,9 @@ config LKL
        select IPV6_ADVANCED_ROUTER
        select ARCH_NO_COHERENT_DMA_MMAP
 
-config OUTPUTFORMAT
-       string
-       option env="OUTPUT_FORMAT"
-
 config OUTPUT_FORMAT
        string "Output format"
-       default OUTPUTFORMAT
+       default "$(OUTPUT_FORMAT)"
 
 config ARCH_DMA_ADDR_T_64BIT
        def_bool 64BIT
@@ -70,6 +66,12 @@ config NO_IOPORT_MAP
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
+
+config HAVE_UNDERSCORE_SYMBOL_PREFIX
+       bool
+       help
+         Some architectures generate an _ in front of C symbols; things like
+         module loading and assembly files need to know about this.
 
 source init/Kconfig
 
