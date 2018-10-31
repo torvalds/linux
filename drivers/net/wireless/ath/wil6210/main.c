@@ -18,6 +18,7 @@
 #include <linux/moduleparam.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
+#include <linux/rtnetlink.h>
 
 #include "wil6210.h"
 #include "txrx.h"
@@ -485,10 +486,11 @@ static void wil_fw_error_worker(struct work_struct *work)
 	if (wil_wait_for_recovery(wil) != 0)
 		return;
 
+	rtnl_lock();
 	mutex_lock(&wil->mutex);
 	/* Needs adaptation for multiple VIFs
 	 * need to go over all VIFs and consider the appropriate
-	 * recovery.
+	 * recovery because each one can have different iftype.
 	 */
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
@@ -500,15 +502,24 @@ static void wil_fw_error_worker(struct work_struct *work)
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		wil_info(wil, "No recovery for AP-like interface\n");
-		/* recovery in these modes is done by upper layers */
+		if (no_fw_recovery) /* upper layers do recovery */
+			break;
+		/* silent recovery, upper layers will see disconnect */
+		__wil_down(wil);
+		__wil_up(wil);
+		mutex_unlock(&wil->mutex);
+		wil_cfg80211_ap_recovery(wil);
+		mutex_lock(&wil->mutex);
+		wil_info(wil, "... completed\n");
 		break;
 	default:
 		wil_err(wil, "No recovery - unknown interface type %d\n",
 			wdev->iftype);
 		break;
 	}
+
 	mutex_unlock(&wil->mutex);
+	rtnl_unlock();
 }
 
 static int wil_find_free_ring(struct wil6210_priv *wil)

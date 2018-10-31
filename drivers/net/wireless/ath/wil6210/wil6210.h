@@ -849,6 +849,14 @@ struct wil6210_vif {
 	u8 hidden_ssid; /* relevant in AP mode */
 	u32 ap_isolate; /* no intra-BSS communication */
 	bool pbss;
+	int bi;
+	u8 *proberesp, *proberesp_ies, *assocresp_ies;
+	size_t proberesp_len, proberesp_ies_len, assocresp_ies_len;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	size_t ssid_len;
+	u8 gtk_index;
+	u8 gtk[WMI_MAX_KEY_LEN];
+	size_t gtk_len;
 	int bcast_ring;
 	struct cfg80211_bss *bss; /* connected bss, relevant in STA mode */
 	int locally_generated_disc; /* relevant in STA mode */
@@ -1277,6 +1285,7 @@ int wmi_stop_discovery(struct wil6210_vif *vif);
 int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct cfg80211_mgmt_tx_params *params,
 			 u64 *cookie);
+void wil_cfg80211_ap_recovery(struct wil6210_priv *wil);
 int wil_cfg80211_iface_combinations_from_fw(
 	struct wil6210_priv *wil,
 	const struct wil_fw_record_concurrency *conc);
