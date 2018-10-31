@@ -157,11 +157,6 @@
 
 #define ROCKCHIP_SPI_MAX_CS_NUM			2
 
-struct rockchip_spi_dma_data {
-	struct dma_chan *ch;
-	dma_addr_t addr;
-};
-
 struct rockchip_spi {
 	struct device *dev;
 	struct spi_master *master;
@@ -170,6 +165,8 @@ struct rockchip_spi {
 	struct clk *apb_pclk;
 
 	void __iomem *regs;
+	dma_addr_t dma_addr_rx;
+	dma_addr_t dma_addr_tx;
 
 	atomic_t state;
 
@@ -190,8 +187,6 @@ struct rockchip_spi {
 	bool cs_asserted[ROCKCHIP_SPI_MAX_CS_NUM];
 
 	bool use_dma;
-	struct rockchip_spi_dma_data dma_rx;
-	struct rockchip_spi_dma_data dma_tx;
 };
 
 static inline void spi_enable_chip(struct rockchip_spi *rs, bool enable)
@@ -287,10 +282,10 @@ static void rockchip_spi_handle_err(struct spi_master *master,
 	spi_enable_chip(rs, false);
 
 	if (atomic_read(&rs->state) & TXDMA)
-		dmaengine_terminate_async(rs->dma_tx.ch);
+		dmaengine_terminate_async(master->dma_tx);
 
 	if (atomic_read(&rs->state) & RXDMA)
-		dmaengine_terminate_async(rs->dma_rx.ch);
+		dmaengine_terminate_async(master->dma_rx);
 }
 
 static void rockchip_spi_pio_writer(struct rockchip_spi *rs)
@@ -381,7 +376,7 @@ static void rockchip_spi_dma_txcb(void *data)
 }
 
 static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
-		struct spi_transfer *xfer)
+		struct spi_master *master, struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *rxdesc, *txdesc;
 
@@ -391,15 +386,15 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
 	if (xfer->rx_buf) {
 		struct dma_slave_config rxconf = {
 			.direction = DMA_DEV_TO_MEM,
-			.src_addr = rs->dma_rx.addr,
+			.src_addr = rs->dma_addr_rx,
 			.src_addr_width = rs->n_bytes,
 			.src_maxburst = 1,
 		};
 
-		dmaengine_slave_config(rs->dma_rx.ch, &rxconf);
+		dmaengine_slave_config(master->dma_rx, &rxconf);
 
 		rxdesc = dmaengine_prep_slave_sg(
-				rs->dma_rx.ch,
+				master->dma_rx,
 				xfer->rx_sg.sgl, xfer->rx_sg.nents,
 				DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
 		if (!rxdesc)
@@ -413,20 +408,20 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
 	if (xfer->tx_buf) {
 		struct dma_slave_config txconf = {
 			.direction = DMA_MEM_TO_DEV,
-			.dst_addr = rs->dma_tx.addr,
+			.dst_addr = rs->dma_addr_tx,
 			.dst_addr_width = rs->n_bytes,
 			.dst_maxburst = rs->fifo_len / 2,
 		};
 
-		dmaengine_slave_config(rs->dma_tx.ch, &txconf);
+		dmaengine_slave_config(master->dma_tx, &txconf);
 
 		txdesc = dmaengine_prep_slave_sg(
-				rs->dma_tx.ch,
+				master->dma_tx,
 				xfer->tx_sg.sgl, xfer->tx_sg.nents,
 				DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
 		if (!txdesc) {
 			if (rxdesc)
-				dmaengine_terminate_sync(rs->dma_rx.ch);
+				dmaengine_terminate_sync(master->dma_rx);
 			return -EINVAL;
 		}
 
@@ -438,7 +433,7 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
 	if (rxdesc) {
 		atomic_or(RXDMA, &rs->state);
 		dmaengine_submit(rxdesc);
-		dma_async_issue_pending(rs->dma_rx.ch);
+		dma_async_issue_pending(master->dma_rx);
 	}
 
 	spi_enable_chip(rs, true);
@@ -446,7 +441,7 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
 	if (txdesc) {
 		atomic_or(TXDMA, &rs->state);
 		dmaengine_submit(txdesc);
-		dma_async_issue_pending(rs->dma_tx.ch);
+		dma_async_issue_pending(master->dma_tx);
 	}
 
 	/* 1 means the transfer is in progress */
@@ -572,7 +567,7 @@ static int rockchip_spi_transfer_one(
 	rockchip_spi_config(rs, spi, xfer);
 
 	if (rs->use_dma)
-		return rockchip_spi_prepare_dma(rs, xfer);
+		return rockchip_spi_prepare_dma(rs, master, xfer);
 
 	return rockchip_spi_pio_transfer(rs);
 }
@@ -669,34 +664,31 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	master->handle_err = rockchip_spi_handle_err;
 	master->flags = SPI_MASTER_GPIO_SS;
 
-	rs->dma_tx.ch = dma_request_chan(rs->dev, "tx");
-	if (IS_ERR(rs->dma_tx.ch)) {
+	master->dma_tx = dma_request_chan(rs->dev, "tx");
+	if (IS_ERR(master->dma_tx)) {
 		/* Check tx to see if we need defer probing driver */
-		if (PTR_ERR(rs->dma_tx.ch) == -EPROBE_DEFER) {
+		if (PTR_ERR(master->dma_tx) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;
 			goto err_disable_pm_runtime;
 		}
 		dev_warn(rs->dev, "Failed to request TX DMA channel\n");
-		rs->dma_tx.ch = NULL;
+		master->dma_tx = NULL;
 	}
 
-	rs->dma_rx.ch = dma_request_chan(rs->dev, "rx");
-	if (IS_ERR(rs->dma_rx.ch)) {
-		if (PTR_ERR(rs->dma_rx.ch) == -EPROBE_DEFER) {
+	master->dma_rx = dma_request_chan(rs->dev, "rx");
+	if (IS_ERR(master->dma_rx)) {
+		if (PTR_ERR(master->dma_rx) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;
 			goto err_free_dma_tx;
 		}
 		dev_warn(rs->dev, "Failed to request RX DMA channel\n");
-		rs->dma_rx.ch = NULL;
+		master->dma_rx = NULL;
 	}
 
-	if (rs->dma_tx.ch && rs->dma_rx.ch) {
-		rs->dma_tx.addr = (dma_addr_t)(mem->start + ROCKCHIP_SPI_TXDR);
-		rs->dma_rx.addr = (dma_addr_t)(mem->start + ROCKCHIP_SPI_RXDR);
-
+	if (master->dma_tx && master->dma_rx) {
+		rs->dma_addr_tx = mem->start + ROCKCHIP_SPI_TXDR;
+		rs->dma_addr_rx = mem->start + ROCKCHIP_SPI_RXDR;
 		master->can_dma = rockchip_spi_can_dma;
-		master->dma_tx = rs->dma_tx.ch;
-		master->dma_rx = rs->dma_rx.ch;
 	}
 
 	ret = devm_spi_register_master(&pdev->dev, master);
@@ -708,11 +700,11 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_dma_rx:
-	if (rs->dma_rx.ch)
-		dma_release_channel(rs->dma_rx.ch);
+	if (master->dma_rx)
+		dma_release_channel(master->dma_rx);
 err_free_dma_tx:
-	if (rs->dma_tx.ch)
-		dma_release_channel(rs->dma_tx.ch);
+	if (master->dma_tx)
+		dma_release_channel(master->dma_tx);
 err_disable_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
 err_disable_spiclk:
@@ -739,10 +731,10 @@ static int rockchip_spi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
-	if (rs->dma_tx.ch)
-		dma_release_channel(rs->dma_tx.ch);
-	if (rs->dma_rx.ch)
-		dma_release_channel(rs->dma_rx.ch);
+	if (master->dma_tx)
+		dma_release_channel(master->dma_tx);
+	if (master->dma_rx)
+		dma_release_channel(master->dma_rx);
 
 	spi_master_put(master);
 
