@@ -734,8 +734,6 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		ret = mmc_send_tuning(mmc, opcode, NULL);
 		if (ret == 0)
 			set_bit(i, host->taps);
-
-		usleep_range(1000, 1200);
 	}
 
 	ret = host->select_tuning(host);
