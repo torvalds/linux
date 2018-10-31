@@ -943,24 +943,6 @@ static void iwl_mvm_mac_wake_tx_queue(struct ieee80211_hw *hw,
 	schedule_work(&mvm->add_stream_wk);
 }
 
-static inline bool iwl_enable_rx_ampdu(const struct iwl_cfg *cfg)
-{
-	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
-		return false;
-	return true;
-}
-
-static inline bool iwl_enable_tx_ampdu(const struct iwl_cfg *cfg)
-{
-	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
-		return false;
-	if (iwlwifi_mod_params.disable_11n & IWL_ENABLE_HT_TXAGG)
-		return true;
-
-	/* enabled by default */
-	return true;
-}
-
 #define CHECK_BA_TRIGGER(_mvm, _trig, _tid_bm, _tid, _fmt...)		\
 	do {								\
 		if (!(le16_to_cpu(_tid_bm) & BIT(_tid)))		\
@@ -1073,7 +1055,7 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 			mvmvif = iwl_mvm_vif_from_mac80211(vif);
 			cancel_delayed_work(&mvmvif->uapsd_nonagg_detected_wk);
 		}
-		if (!iwl_enable_rx_ampdu(mvm->cfg)) {
+		if (!iwl_enable_rx_ampdu()) {
 			ret = -EINVAL;
 			break;
 		}
@@ -1085,7 +1067,7 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 					 timeout);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!iwl_enable_tx_ampdu(mvm->cfg)) {
+		if (!iwl_enable_tx_ampdu()) {
 			ret = -EINVAL;
 			break;
 		}
