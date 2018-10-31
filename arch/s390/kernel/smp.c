@@ -20,7 +20,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/workqueue.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -35,7 +35,6 @@
 #include <linux/sched/hotplug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/crash_dump.h>
-#include <linux/memblock.h>
 #include <linux/kprobes.h>
 #include <asm/asm-offsets.h>
 #include <asm/diag.h>
@@ -761,7 +760,7 @@ void __init smp_detect_cpus(void)
 	u16 address;
 
 	/* Get CPU information */
-	info = memblock_virt_alloc(sizeof(*info), 8);
+	info = memblock_alloc(sizeof(*info), 8);
 	smp_get_core_info(info, 1);
 	/* Find boot CPU type */
 	if (sclp.has_core_type) {

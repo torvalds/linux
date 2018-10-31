@@ -19,7 +19,7 @@
  */
 
 #include <linux/dma-noncoherent.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/genalloc.h>
 #include <linux/module.h>
 #include <asm/page.h>

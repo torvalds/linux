@@ -18,7 +18,6 @@
 #include <linux/nodemask.h>
 #include <linux/swap.h>
 #include <linux/memblock.h>
-#include <linux/bootmem.h>
 #include <linux/pfn.h>
 #include <linux/highmem.h>
 #include <asm/page.h>
@@ -272,7 +271,7 @@ void __init paging_init(void)
 void __init mem_init(void)
 {
 	high_memory = (void *) __va(get_num_physpages() << PAGE_SHIFT);
-	free_all_bootmem();
+	memblock_free_all();
 	setup_zero_pages();	/* This comes from node 0 */
 	mem_init_print_info(NULL);
 }

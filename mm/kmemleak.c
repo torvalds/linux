@@ -92,7 +92,7 @@
 #include <linux/stacktrace.h>
 #include <linux/cache.h>
 #include <linux/percpu.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pfn.h>
 #include <linux/mmzone.h>
 #include <linux/slab.h>

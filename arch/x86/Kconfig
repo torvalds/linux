@@ -169,7 +169,6 @@ config X86
 	select HAVE_KRETPROBES
 	select HAVE_KVM
 	select HAVE_LIVEPATCH			if X86_64
-	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MIXED_BREAKPOINTS_REGS
 	select HAVE_MOD_ARCH_SPECIFIC
@@ -833,9 +832,6 @@ config JAILHOUSE_GUEST
 	  Jailhouse and run Linux afterwards in the root cell.
 
 endif #HYPERVISOR_GUEST
-
-config NO_BOOTMEM
-	def_bool y
 
 source "arch/x86/Kconfig.cpu"
 

@@ -18,7 +18,6 @@
 
 #include <linux/acpi.h>
 #include <linux/bitmap.h>
-#include <linux/bootmem.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>

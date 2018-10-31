@@ -24,11 +24,6 @@
 #include <asm/prefetch.h>
 
 /*
- * Return current * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ __label__ _l; _l: &&_l;})
-
-/*
  * System setup and hardware flags..
  */
 

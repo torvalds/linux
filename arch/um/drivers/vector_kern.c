@@ -9,7 +9,7 @@
  */
 
 #include <linux/version.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/inetdevice.h>
@@ -1580,7 +1580,7 @@ static int __init vector_setup(char *str)
 				 str, error);
 		return 1;
 	}
-	new = alloc_bootmem(sizeof(*new));
+	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
 	INIT_LIST_HEAD(&new->list);
 	new->unit = n;
 	new->arguments = str;

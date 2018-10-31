@@ -28,7 +28,6 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
@@ -2263,7 +2262,7 @@ void __init trap_init(void)
 
 		memblock_set_bottom_up(true);
 		ebase = (unsigned long)
-			__alloc_bootmem(size, 1 << fls(size), 0);
+			memblock_alloc_from(size, 1 << fls(size), 0);
 		memblock_set_bottom_up(false);
 
 		/*

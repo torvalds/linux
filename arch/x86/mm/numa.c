@@ -4,7 +4,6 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/ctype.h>
@@ -196,7 +195,7 @@ static void __init alloc_node_data(int nid)
 	 * Allocate node data.  Try node-local memory and then any node.
 	 * Never allocate in DMA zone.
 	 */
-	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
+	nd_pa = memblock_phys_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
 	if (!nd_pa) {
 		nd_pa = __memblock_alloc_base(nd_size, SMP_CACHE_BYTES,
 					      MEMBLOCK_ALLOC_ACCESSIBLE);
