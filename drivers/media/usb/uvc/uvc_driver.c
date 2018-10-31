@@ -214,6 +214,56 @@ static struct uvc_format_desc uvc_fmts[] = {
 		.guid		= UVC_GUID_FORMAT_INZI,
 		.fcc		= V4L2_PIX_FMT_INZI,
 	},
+	{
+		.name		= "Raw data 8-bit (RAW8)",
+		.guid		= UVC_GUID_FORMAT_RAW8,
+		.fcc		= V4L2_PIX_FMT_RAW8,
+	},
+	{
+		.name		= "Raw data 10-bit (RW16)",
+		.guid		= UVC_GUID_FORMAT_RW16,
+		.fcc		= V4L2_PIX_FMT_RW16,
+	},
+	{
+		.name		= "Depth 16-bit (INVZ)",
+		.guid		= UVC_GUID_FORMAT_INVZ,
+		.fcc		= V4L2_PIX_FMT_INVZ,
+	},
+	{
+		.name		= "Depth 16-bit (INVR)",
+		.guid		= UVC_GUID_FORMAT_INVR,
+		.fcc		= V4L2_PIX_FMT_INVR,
+	},
+	{
+		.name		= "Depth:IR 16:8 24-bit (INRI)",
+		.guid		= UVC_GUID_FORMAT_INRI,
+		.fcc		= V4L2_PIX_FMT_INRI,
+	},
+	{
+		.name		= "Infrared 8-bit (INVI)",
+		.guid		= UVC_GUID_FORMAT_INVI,
+		.fcc		= V4L2_PIX_FMT_INVI,
+	},
+	{
+		.name		= "FlickerIR 8-bit (RELI)",
+		.guid		= UVC_GUID_FORMAT_RELI,
+		.fcc		= V4L2_PIX_FMT_RELI,
+	},
+	{
+		.name		= "Luminosity data 8-bit (L8)",
+		.guid		= UVC_GUID_FORMAT_L8,
+		.fcc		= V4L2_PIX_FMT_Y8,
+	},
+	{
+		.name		= "Luminosity data 16-bit (L16)",
+		.guid		= UVC_GUID_FORMAT_L16,
+		.fcc		= V4L2_PIX_FMT_Y16,
+	},
+	{
+		.name		= "Depth data 16-bit (D16)",
+		.guid		= UVC_GUID_FORMAT_D16,
+		.fcc		= V4L2_PIX_FMT_Z16,
+	},
 };
 
 /* ------------------------------------------------------------------------
