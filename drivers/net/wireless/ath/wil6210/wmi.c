@@ -1113,6 +1113,23 @@ static void wmi_evt_disconnect(struct wil6210_vif *vif, int id,
 
 	mutex_lock(&wil->mutex);
 	wil6210_disconnect_complete(vif, evt->bssid, reason_code);
+	if (disable_ap_sme) {
+		struct wireless_dev *wdev = vif_to_wdev(vif);
+		struct net_device *ndev = vif_to_ndev(vif);
+
+		/* disconnect event in disable_ap_sme mode means link loss */
+		switch (wdev->iftype) {
+		/* AP-like interface */
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_P2P_GO:
+			/* notify hostapd about link loss */
+			cfg80211_cqm_pktloss_notify(ndev, evt->bssid, 0,
+						    GFP_KERNEL);
+			break;
+		default:
+			break;
+		}
+	}
 	mutex_unlock(&wil->mutex);
 }
 
