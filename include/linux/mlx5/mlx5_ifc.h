@@ -2473,14 +2473,15 @@ struct mlx5_ifc_xrc_srqc_bits {
 
 	u8         wq_signature[0x1];
 	u8         cont_srq[0x1];
-	u8         dbr_umem_valid[0x1];
+	u8         reserved_at_22[0x1];
 	u8         rlky[0x1];
 	u8         basic_cyclic_rcv_wqe[0x1];
 	u8         log_rq_stride[0x3];
 	u8         xrcd[0x18];
 
 	u8         page_offset[0x6];
-	u8         reserved_at_46[0x2];
+	u8         reserved_at_46[0x1];
+	u8         dbr_umem_valid[0x1];
 	u8         cqn[0x18];
 
 	u8         reserved_at_60[0x20];
@@ -6689,9 +6690,12 @@ struct mlx5_ifc_create_xrc_srq_in_bits {
 
 	struct mlx5_ifc_xrc_srqc_bits xrc_srq_context_entry;
 
-	u8         reserved_at_280[0x40];
+	u8         reserved_at_280[0x60];
+
 	u8         xrc_srq_umem_valid[0x1];
-	u8         reserved_at_2c1[0x5bf];
+	u8         reserved_at_2e1[0x1f];
+
+	u8         reserved_at_300[0x580];
 
 	u8         pas[0][0x40];
 };
