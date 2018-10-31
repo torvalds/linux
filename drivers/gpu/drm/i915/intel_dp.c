@@ -635,9 +635,12 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	int target_clock = mode->clock;
 	int max_rate, mode_rate, max_lanes, max_link_clock;
 	int max_dotclk;
+	u16 dsc_max_output_bpp = 0;
+	u8 dsc_slice_count = 0;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
@@ -660,7 +663,33 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
 	mode_rate = intel_dp_link_required(target_clock, 18);
 
-	if (mode_rate > max_rate || target_clock > max_dotclk)
+	/*
+	 * Output bpp is stored in 6.4 format so right shift by 4 to get the
+	 * integer value since we support only integer values of bpp.
+	 */
+	if ((INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) &&
+	    drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd)) {
+		if (intel_dp_is_edp(intel_dp)) {
+			dsc_max_output_bpp =
+				drm_edp_dsc_sink_output_bpp(intel_dp->dsc_dpcd) >> 4;
+			dsc_slice_count =
+				drm_dp_dsc_sink_max_slice_count(intel_dp->dsc_dpcd,
+								true);
+		} else {
+			dsc_max_output_bpp =
+				intel_dp_dsc_get_output_bpp(max_link_clock,
+							    max_lanes,
+							    target_clock,
+							    mode->hdisplay) >> 4;
+			dsc_slice_count =
+				intel_dp_dsc_get_slice_count(intel_dp,
+							     target_clock,
+							     mode->hdisplay);
+		}
+	}
+
+	if ((mode_rate > max_rate && !(dsc_max_output_bpp && dsc_slice_count)) ||
+	    target_clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
 	if (mode->clock < 10000)
