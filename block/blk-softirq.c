@@ -98,7 +98,7 @@ static int blk_softirq_cpu_dead(unsigned int cpu)
 void __blk_complete_request(struct request *req)
 {
 	struct request_queue *q = req->q;
-	int cpu, ccpu = q->mq_ops ? req->mq_ctx->cpu : req->cpu;
+	int cpu, ccpu = req->mq_ctx->cpu;
 	unsigned long flags;
 	bool shared = false;
 

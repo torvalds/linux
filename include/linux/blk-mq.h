@@ -300,6 +300,8 @@ void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
 
 void blk_mq_quiesce_queue_nowait(struct request_queue *q);
 
+unsigned int blk_mq_rq_cpu(struct request *rq);
+
 /**
  * blk_mq_mark_complete() - Set request state to complete
  * @rq: request to set to complete state

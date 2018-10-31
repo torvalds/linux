@@ -1780,16 +1780,10 @@ csio_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmnd)
 	int nsge = 0;
 	int rv = SCSI_MLQUEUE_HOST_BUSY, nr;
 	int retval;
-	int cpu;
 	struct csio_scsi_qset *sqset;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
 
-	if (!blk_rq_cpu_valid(cmnd->request))
-		cpu = smp_processor_id();
-	else
-		cpu = cmnd->request->cpu;
-
-	sqset = &hw->sqset[ln->portid][cpu];
+	sqset = &hw->sqset[ln->portid][blk_mq_rq_cpu(cmnd->request)];
 
 	nr = fc_remote_port_chkready(rport);
 	if (nr) {
