@@ -2916,15 +2916,15 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 	seq_printf(m, "version: %d.%d\n", CSR_VERSION_MAJOR(csr->version),
 		   CSR_VERSION_MINOR(csr->version));
 
-	if (IS_BROXTON(dev_priv)) {
-		seq_printf(m, "DC3 -> DC5 count: %d\n",
-			   I915_READ(BXT_CSR_DC3_DC5_COUNT));
-	} else if (IS_GEN(dev_priv, 9, 11)) {
-		seq_printf(m, "DC3 -> DC5 count: %d\n",
-			   I915_READ(SKL_CSR_DC3_DC5_COUNT));
+	if (WARN_ON(INTEL_GEN(dev_priv) > 11))
+		goto out;
+
+	seq_printf(m, "DC3 -> DC5 count: %d\n",
+		   I915_READ(IS_BROXTON(dev_priv) ? BXT_CSR_DC3_DC5_COUNT :
+						    SKL_CSR_DC3_DC5_COUNT));
+	if (!IS_GEN9_LP(dev_priv))
 		seq_printf(m, "DC5 -> DC6 count: %d\n",
 			   I915_READ(SKL_CSR_DC5_DC6_COUNT));
-	}
 
 out:
 	seq_printf(m, "program base: 0x%08x\n", I915_READ(CSR_PROGRAM(0)));
