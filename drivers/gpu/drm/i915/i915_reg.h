@@ -157,20 +157,23 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 /*
  * Named helper wrappers around _PICK_EVEN() and _PICK().
  */
-#define _PIPE(pipe, a, b) _PICK_EVEN(pipe, a, b)
-#define _MMIO_PIPE(pipe, a, b) _MMIO(_PIPE(pipe, a, b))
-#define _PLANE(plane, a, b) _PICK_EVEN(plane, a, b)
-#define _MMIO_PLANE(plane, a, b) _MMIO(_PLANE(plane, a, b))
-#define _TRANS(tran, a, b) _PICK_EVEN(tran, a, b)
-#define _MMIO_TRANS(tran, a, b) _MMIO(_TRANS(tran, a, b))
-#define _PORT(port, a, b) _PICK_EVEN(port, a, b)
-#define _MMIO_PORT(port, a, b) _MMIO(_PORT(port, a, b))
-#define _MMIO_PIPE3(pipe, a, b, c) _MMIO(_PICK(pipe, a, b, c))
-#define _MMIO_PORT3(pipe, a, b, c) _MMIO(_PICK(pipe, a, b, c))
-#define _PLL(pll, a, b) _PICK_EVEN(pll, a, b)
-#define _MMIO_PLL(pll, a, b) _MMIO(_PLL(pll, a, b))
-#define _PHY3(phy, ...) _PICK(phy, __VA_ARGS__)
-#define _MMIO_PHY3(phy, a, b, c) _MMIO(_PHY3(phy, a, b, c))
+#define _PIPE(pipe, a, b)		_PICK_EVEN(pipe, a, b)
+#define _PLANE(plane, a, b)		_PICK_EVEN(plane, a, b)
+#define _TRANS(tran, a, b)		_PICK_EVEN(tran, a, b)
+#define _PORT(port, a, b)		_PICK_EVEN(port, a, b)
+#define _PLL(pll, a, b)			_PICK_EVEN(pll, a, b)
+
+#define _MMIO_PIPE(pipe, a, b)		_MMIO(_PIPE(pipe, a, b))
+#define _MMIO_PLANE(plane, a, b)	_MMIO(_PLANE(plane, a, b))
+#define _MMIO_TRANS(tran, a, b)		_MMIO(_TRANS(tran, a, b))
+#define _MMIO_PORT(port, a, b)		_MMIO(_PORT(port, a, b))
+#define _MMIO_PLL(pll, a, b)		_MMIO(_PLL(pll, a, b))
+
+#define _PHY3(phy, ...)			_PICK(phy, __VA_ARGS__)
+
+#define _MMIO_PIPE3(pipe, a, b, c)	_MMIO(_PICK(pipe, a, b, c))
+#define _MMIO_PORT3(pipe, a, b, c)	_MMIO(_PICK(pipe, a, b, c))
+#define _MMIO_PHY3(phy, a, b, c)	_MMIO(_PHY3(phy, a, b, c))
 
 #define __MASKED_FIELD(mask, value) ((mask) << 16 | (value))
 #define _MASKED_FIELD(mask, value) ({					   \
