@@ -1050,6 +1050,7 @@ struct dp_sdp_header {
 
 #define EDP_SDP_HEADER_REVISION_MASK		0x1F
 #define EDP_SDP_HEADER_VALID_PAYLOAD_BYTES	0x1F
+#define DP_SDP_PPS_HEADER_PAYLOAD_BYTES_MINUS_1 0x7F
 
 struct edp_vsc_psr {
 	struct dp_sdp_header sdp_header;
