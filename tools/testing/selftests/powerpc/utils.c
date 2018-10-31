@@ -25,7 +25,6 @@
 #include "utils.h"
 
 static char auxv[4096];
-extern unsigned int dscr_insn[];
 
 int read_auxv(char *buf, ssize_t buf_size)
 {
@@ -247,7 +246,8 @@ static void sigill_handler(int signr, siginfo_t *info, void *unused)
 	ucontext_t *ctx = (ucontext_t *)unused;
 	unsigned long *pc = &UCONTEXT_NIA(ctx);
 
-	if (*pc == (unsigned long)&dscr_insn) {
+	/* mtspr 3,RS to check for move to DSCR below */
+	if ((*((unsigned int *)*pc) & 0xfc1fffff) == 0x7c0303a6) {
 		if (!warned++)
 			printf("WARNING: Skipping over dscr setup. Consider running 'ppc64_cpu --dscr=1' manually.\n");
 		*pc += 4;
@@ -271,5 +271,5 @@ void set_dscr(unsigned long val)
 		init = 1;
 	}
 
-	asm volatile("dscr_insn: mtspr %1,%0" : : "r" (val), "i" (SPRN_DSCR));
+	asm volatile("mtspr %1,%0" : : "r" (val), "i" (SPRN_DSCR));
 }
