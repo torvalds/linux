@@ -123,9 +123,9 @@ struct drm_syncobj *drm_syncobj_find(struct drm_file *file_private,
 }
 EXPORT_SYMBOL(drm_syncobj_find);
 
-static struct dma_fence
-*drm_syncobj_find_signal_pt_for_point(struct drm_syncobj *syncobj,
-				      uint64_t point)
+static struct dma_fence *
+drm_syncobj_find_signal_pt_for_point(struct drm_syncobj *syncobj,
+				     uint64_t point)
 {
 	struct drm_syncobj_signal_pt *signal_pt;
 
@@ -178,17 +178,8 @@ static void drm_syncobj_fence_get_or_add_callback(struct drm_syncobj *syncobj,
 	mutex_unlock(&syncobj->cb_mutex);
 }
 
-void drm_syncobj_add_callback(struct drm_syncobj *syncobj,
-			      struct drm_syncobj_cb *cb,
-			      drm_syncobj_func_t func)
-{
-	mutex_lock(&syncobj->cb_mutex);
-	drm_syncobj_add_callback_locked(syncobj, cb, func);
-	mutex_unlock(&syncobj->cb_mutex);
-}
-
-void drm_syncobj_remove_callback(struct drm_syncobj *syncobj,
-				 struct drm_syncobj_cb *cb)
+static void drm_syncobj_remove_callback(struct drm_syncobj *syncobj,
+					struct drm_syncobj_cb *cb)
 {
 	mutex_lock(&syncobj->cb_mutex);
 	list_del_init(&cb->node);
