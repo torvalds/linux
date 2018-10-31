@@ -40,3 +40,19 @@ struct amdgpu_sdma_instance *amdgpu_sdma_get_instance_from_ring(struct amdgpu_ri
 
 	return NULL;
 }
+
+int amdgpu_sdma_get_index_from_ring(struct amdgpu_ring *ring, uint32_t *index)
+{
+	struct amdgpu_device *adev = ring->adev;
+	int i;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		if (ring == &adev->sdma.instance[i].ring ||
+			ring == &adev->sdma.instance[i].page) {
+			*index = i;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}

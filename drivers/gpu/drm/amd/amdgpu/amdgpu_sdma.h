@@ -95,5 +95,6 @@ struct amdgpu_buffer_funcs {
 
 struct amdgpu_sdma_instance *
 amdgpu_sdma_get_instance_from_ring(struct amdgpu_ring *ring);
+int amdgpu_sdma_get_index_from_ring(struct amdgpu_ring *ring, uint32_t *index);
 
 #endif
