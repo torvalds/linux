@@ -386,12 +386,6 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	struct hdac_ext_link *hlink = NULL;
 	int ret = 0;
 
-	/* The initialization process of HDA in SOF is:
-	 * (1) init HDA to set up a context for i915 initialization
-	 *  then stop HDA bus.
-	 */
-	hda_dsp_ctrl_init_chip(sdev, true);
-
 	device_disable_async_suspend(bus->dev);
 
 	/* check if dsp is there */
@@ -401,25 +395,15 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	if (bus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(bus);
 
-	snd_hdac_bus_stop_chip(bus);
-
-	/* (2) probe i915 and HDA codecs, HDMI codecs */
+	/* init i915 and HDMI codecs */
 	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
 		ret = hda_codec_i915_init(sdev);
-		dev_dbg(&pci->dev, "no HDMI audio devices found\n");
+		if (ret < 0) {
+			dev_err(&pci->dev, "no HDMI audio devices found\n");
+			return ret;
+		}
 	}
 
-	/* only HDA analog codec is detected in step (1) and
-	 * codec_mask would be set. At step(3) HDMI codec can't
-	 * be detected because HDA framework only check codecs
-	 * when codec_mask is zero. So now set codec_mask to zero
-	 * to force HDA framework to check codecs again.
-	 */
-	bus->codec_mask = 0;
-
-	/* (3) init HDA again to make everything ready so that all
-	 * the codecs can be detected.
-	 */
 	ret = hda_dsp_ctrl_init_chip(sdev, true);
 	if (ret < 0) {
 		dev_err(bus->dev, "Init chip failed with ret: %d\n", ret);
