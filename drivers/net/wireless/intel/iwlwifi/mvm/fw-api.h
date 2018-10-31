@@ -91,6 +91,7 @@
 #include "fw/api/sf.h"
 #include "fw/api/sta.h"
 #include "fw/api/stats.h"
+#include "fw/api/location.h"
 #include "fw/api/tx.h"
 
 #endif /* __fw_api_h__ */
