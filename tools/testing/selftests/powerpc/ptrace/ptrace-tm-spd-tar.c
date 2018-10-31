@@ -72,7 +72,7 @@ trans:
 		"3: ;"
 
 		: [res] "=r" (result), [texasr] "=r" (texasr)
-		: [val] "r" (cptr[1]), [sprn_dscr]"i"(SPRN_DSCR),
+		: [sprn_dscr]"i"(SPRN_DSCR),
 		[sprn_tar]"i"(SPRN_TAR), [sprn_ppr]"i"(SPRN_PPR),
 		[sprn_texasr]"i"(SPRN_TEXASR), [tar_1]"i"(TAR_1),
 		[dscr_1]"i"(DSCR_1), [tar_2]"i"(TAR_2), [dscr_2]"i"(DSCR_2),

@@ -65,7 +65,7 @@ trans:
 		: [sprn_dscr]"i"(SPRN_DSCR), [sprn_tar]"i"(SPRN_TAR),
 		[sprn_ppr]"i"(SPRN_PPR), [sprn_texasr]"i"(SPRN_TEXASR),
 		[tar_1]"i"(TAR_1), [dscr_1]"i"(DSCR_1), [tar_2]"i"(TAR_2),
-		[dscr_2]"i"(DSCR_2), [cptr1] "r" (&cptr[1])
+		[dscr_2]"i"(DSCR_2), [cptr1] "b" (&cptr[1])
 		: "memory", "r0", "r1", "r3", "r4", "r5", "r6"
 		);
 
