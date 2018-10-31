@@ -5093,22 +5093,20 @@ mpt3sas_wait_for_ioc(struct MPT3SAS_ADAPTER *ioc, int timeout)
 	int wait_state_count = 0;
 	u32 ioc_state;
 
-	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
-	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
-
-		if (wait_state_count++ == timeout) {
-			ioc_err(ioc, "%s: failed due to ioc not operational\n",
-				__func__);
-			return -EFAULT;
-		}
-		ssleep(1);
+	do {
 		ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
+		if (ioc_state == MPI2_IOC_STATE_OPERATIONAL)
+			break;
+		ssleep(1);
 		ioc_info(ioc, "%s: waiting for operational state(count=%d)\n",
-			 __func__, wait_state_count);
+				__func__, ++wait_state_count);
+	} while (--timeout);
+	if (!timeout) {
+		ioc_err(ioc, "%s: failed due to ioc not operational\n", __func__);
+		return -EFAULT;
 	}
 	if (wait_state_count)
 		ioc_info(ioc, "ioc is operational\n");
-
 	return 0;
 }
 
