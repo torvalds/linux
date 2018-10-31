@@ -145,8 +145,9 @@
 #define RF_DMA_EN					(1 << 0)
 #define TF_DMA_EN					(1 << 1)
 
-#define RXBUSY						(1 << 0)
-#define TXBUSY						(1 << 1)
+/* Driver state flags */
+#define RXDMA					(1 << 0)
+#define TXDMA					(1 << 1)
 
 /* sclk_out: spi master internal logic in rk3x can support 50Mhz */
 #define MAX_SCLK_OUT		50000000
@@ -176,6 +177,9 @@ struct rockchip_spi {
 	struct clk *apb_pclk;
 
 	void __iomem *regs;
+
+	atomic_t state;
+
 	/*depth of the FIFO buffer */
 	u32 fifo_len;
 	/* max bus freq supported */
@@ -193,10 +197,6 @@ struct rockchip_spi {
 	const void *tx_end;
 	void *rx;
 	void *rx_end;
-
-	u32 state;
-	/* protect state */
-	spinlock_t lock;
 
 	bool cs_asserted[ROCKCHIP_SPI_MAX_CS_NUM];
 
@@ -310,10 +310,7 @@ static int rockchip_spi_prepare_message(struct spi_master *master,
 static void rockchip_spi_handle_err(struct spi_master *master,
 				    struct spi_message *msg)
 {
-	unsigned long flags;
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
-
-	spin_lock_irqsave(&rs->lock, flags);
 
 	/*
 	 * For DMA mode, we need terminate DMA channel and flush
@@ -321,17 +318,13 @@ static void rockchip_spi_handle_err(struct spi_master *master,
 	 * handle_err() was called by core if transfer failed.
 	 * Maybe it is reasonable for error handling here.
 	 */
-	if (rs->use_dma) {
-		if (rs->state & RXBUSY) {
-			dmaengine_terminate_async(rs->dma_rx.ch);
-			flush_fifo(rs);
-		}
+	if (atomic_read(&rs->state) & TXDMA)
+		dmaengine_terminate_async(rs->dma_tx.ch);
 
-		if (rs->state & TXBUSY)
-			dmaengine_terminate_async(rs->dma_tx.ch);
+	if (atomic_read(&rs->state) & RXDMA) {
+		dmaengine_terminate_async(rs->dma_rx.ch);
+		flush_fifo(rs);
 	}
-
-	spin_unlock_irqrestore(&rs->lock, flags);
 }
 
 static int rockchip_spi_unprepare_message(struct spi_master *master,
@@ -406,37 +399,29 @@ static int rockchip_spi_pio_transfer(struct rockchip_spi *rs)
 
 static void rockchip_spi_dma_rxcb(void *data)
 {
-	unsigned long flags;
 	struct rockchip_spi *rs = data;
+	int state = atomic_fetch_andnot(RXDMA, &rs->state);
 
-	spin_lock_irqsave(&rs->lock, flags);
+	if (state & TXDMA)
+		return;
 
-	rs->state &= ~RXBUSY;
-	if (!(rs->state & TXBUSY)) {
-		spi_enable_chip(rs, false);
-		spi_finalize_current_transfer(rs->master);
-	}
-
-	spin_unlock_irqrestore(&rs->lock, flags);
+	spi_enable_chip(rs, false);
+	spi_finalize_current_transfer(rs->master);
 }
 
 static void rockchip_spi_dma_txcb(void *data)
 {
-	unsigned long flags;
 	struct rockchip_spi *rs = data;
+	int state = atomic_fetch_andnot(TXDMA, &rs->state);
+
+	if (state & RXDMA)
+		return;
 
 	/* Wait until the FIFO data completely. */
 	wait_for_idle(rs);
 
-	spin_lock_irqsave(&rs->lock, flags);
-
-	rs->state &= ~TXBUSY;
-	if (!(rs->state & RXBUSY)) {
-		spi_enable_chip(rs, false);
-		spi_finalize_current_transfer(rs->master);
-	}
-
-	spin_unlock_irqrestore(&rs->lock, flags);
+	spi_enable_chip(rs, false);
+	spi_finalize_current_transfer(rs->master);
 }
 
 static u32 rockchip_spi_calc_burst_size(u32 data_len)
@@ -454,13 +439,9 @@ static u32 rockchip_spi_calc_burst_size(u32 data_len)
 
 static int rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 {
-	unsigned long flags;
 	struct dma_async_tx_descriptor *rxdesc, *txdesc;
 
-	spin_lock_irqsave(&rs->lock, flags);
-	rs->state &= ~RXBUSY;
-	rs->state &= ~TXBUSY;
-	spin_unlock_irqrestore(&rs->lock, flags);
+	atomic_set(&rs->state, 0);
 
 	rxdesc = NULL;
 	if (rs->rx) {
@@ -512,9 +493,7 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 
 	/* rx must be started before tx due to spi instinct */
 	if (rxdesc) {
-		spin_lock_irqsave(&rs->lock, flags);
-		rs->state |= RXBUSY;
-		spin_unlock_irqrestore(&rs->lock, flags);
+		atomic_or(RXDMA, &rs->state);
 		dmaengine_submit(rxdesc);
 		dma_async_issue_pending(rs->dma_rx.ch);
 	}
@@ -522,9 +501,7 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 	spi_enable_chip(rs, true);
 
 	if (txdesc) {
-		spin_lock_irqsave(&rs->lock, flags);
-		rs->state |= TXBUSY;
-		spin_unlock_irqrestore(&rs->lock, flags);
+		atomic_or(TXDMA, &rs->state);
 		dmaengine_submit(txdesc);
 		dma_async_issue_pending(rs->dma_tx.ch);
 	}
@@ -751,8 +728,6 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_disable_spiclk;
 	}
-
-	spin_lock_init(&rs->lock);
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
