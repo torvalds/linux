@@ -1,11 +1,8 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * Renesas Clock Pulse Generator / Module Standby and Software Reset
  *
  * Copyright (C) 2015 Glider bvba
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #ifndef __CLK_RENESAS_CPG_MSSR_H__
@@ -38,6 +35,7 @@ enum clk_types {
 	CLK_TYPE_FF,		/* Fixed Factor Clock */
 	CLK_TYPE_DIV6P1,	/* DIV6 Clock with 1 parent clock */
 	CLK_TYPE_DIV6_RO,	/* DIV6 Clock read only with extra divisor */
+	CLK_TYPE_FR,		/* Fixed Rate Clock */
 
 	/* Custom definitions start here */
 	CLK_TYPE_CUSTOM,
@@ -56,6 +54,8 @@ enum clk_types {
 	DEF_BASE(_name, _id, CLK_TYPE_DIV6P1, _parent, .offset = _offset)
 #define DEF_DIV6_RO(_name, _id, _parent, _offset, _div)	\
 	DEF_BASE(_name, _id, CLK_TYPE_DIV6_RO, _parent, .offset = _offset, .div = _div, .mult = 1)
+#define DEF_RATE(_name, _id, _rate)	\
+	DEF_TYPE(_name, _id, CLK_TYPE_FR, .mult = _rate)
 
     /*
      * Definitions of Module Clocks
@@ -75,11 +75,23 @@ struct mssr_mod_clk {
 #define DEF_MOD(_name, _mod, _parent...)	\
 	{ .name = _name, .id = MOD_CLK_ID(_mod), .parent = _parent }
 
+/* Convert from sparse base-10 to packed index space */
+#define MOD_CLK_PACK_10(x)	((x / 10) * 32 + (x % 10))
+
+#define MOD_CLK_ID_10(x)	(MOD_CLK_BASE + MOD_CLK_PACK_10(x))
+
+#define DEF_MOD_STB(_name, _mod, _parent...)	\
+	{ .name = _name, .id = MOD_CLK_ID_10(_mod), .parent = _parent }
 
 struct device_node;
 
     /**
      * SoC-specific CPG/MSSR Description
+     *
+     * @early_core_clks: Array of Early Core Clock definitions
+     * @num_early_core_clks: Number of entries in early_core_clks[]
+     * @early_mod_clks: Array of Early Module Clock definitions
+     * @num_early_mod_clks: Number of entries in early_mod_clks[]
      *
      * @core_clks: Array of Core Clock definitions
      * @num_core_clks: Number of entries in core_clks[]
@@ -100,14 +112,25 @@ struct device_node;
      *
      * @init: Optional callback to perform SoC-specific initialization
      * @cpg_clk_register: Optional callback to handle special Core Clock types
+     *
+     * @stbyctrl: This device has Standby Control Registers which are 8-bits
+     *            wide, no status registers (MSTPSR) and have different address
+     *            offsets.
      */
 
 struct cpg_mssr_info {
+	/* Early Clocks */
+	const struct cpg_core_clk *early_core_clks;
+	unsigned int num_early_core_clks;
+	const struct mssr_mod_clk *early_mod_clks;
+	unsigned int num_early_mod_clks;
+
 	/* Core Clocks */
 	const struct cpg_core_clk *core_clks;
 	unsigned int num_core_clks;
 	unsigned int last_dt_core_clk;
 	unsigned int num_total_core_clks;
+	bool stbyctrl;
 
 	/* Module Clocks */
 	const struct mssr_mod_clk *mod_clks;
@@ -131,9 +154,12 @@ struct cpg_mssr_info {
 					struct raw_notifier_head *notifiers);
 };
 
+extern const struct cpg_mssr_info r7s9210_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7743_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7745_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a77470_cpg_mssr_info;
+extern const struct cpg_mssr_info r8a774a1_cpg_mssr_info;
+extern const struct cpg_mssr_info r8a774c0_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7790_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7791_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a7792_cpg_mssr_info;
@@ -146,6 +172,8 @@ extern const struct cpg_mssr_info r8a77980_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a77990_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a77995_cpg_mssr_info;
 
+void __init cpg_mssr_early_init(struct device_node *np,
+				const struct cpg_mssr_info *info);
 
     /*
      * Helpers for fixing up clock tables depending on SoC revision
