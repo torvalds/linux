@@ -2015,7 +2015,7 @@ static int wil_cfg80211_del_station(struct wiphy *wiphy,
 		     params->mac, params->reason_code, vif->mid);
 
 	mutex_lock(&wil->mutex);
-	wil6210_disconnect(vif, params->mac, params->reason_code, false);
+	wil6210_disconnect(vif, params->mac, params->reason_code);
 	mutex_unlock(&wil->mutex);
 
 	return 0;

@@ -215,8 +215,21 @@ static void wil_ring_fini_tx(struct wil6210_priv *wil, int id)
 	wil->txrx_ops.ring_fini_tx(wil, ring);
 }
 
-static void wil_disconnect_cid(struct wil6210_vif *vif, int cid,
-			       u16 reason_code, bool from_event)
+static bool wil_vif_is_connected(struct wil6210_priv *wil, u8 mid)
+{
+	int i;
+
+	for (i = 0; i < WIL6210_MAX_CID; i++) {
+		if (wil->sta[i].mid == mid &&
+		    wil->sta[i].status == wil_sta_connected)
+			return true;
+	}
+
+	return false;
+}
+
+static void wil_disconnect_cid_complete(struct wil6210_vif *vif, int cid,
+					u16 reason_code)
 __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
 	uint i;
@@ -227,24 +240,14 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
 	might_sleep();
-	wil_dbg_misc(wil, "disconnect_cid: CID %d, MID %d, status %d\n",
+	wil_dbg_misc(wil,
+		     "disconnect_cid_complete: CID %d, MID %d, status %d\n",
 		     cid, sta->mid, sta->status);
-	/* inform upper/lower layers */
+	/* inform upper layers */
 	if (sta->status != wil_sta_unused) {
 		if (vif->mid != sta->mid) {
 			wil_err(wil, "STA MID mismatch with VIF MID(%d)\n",
 				vif->mid);
-			/* let FW override sta->mid but be more strict with
-			 * user space requests
-			 */
-			if (!from_event)
-				return;
-		}
-		if (!from_event) {
-			bool del_sta = (wdev->iftype == NL80211_IFTYPE_AP) ?
-						disable_ap_sme : false;
-			wmi_disconnect_sta(vif, sta->addr, reason_code,
-					   true, del_sta);
 		}
 
 		switch (wdev->iftype) {
@@ -284,36 +287,20 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	sta->stats.tx_latency_min_us = U32_MAX;
 }
 
-static bool wil_vif_is_connected(struct wil6210_priv *wil, u8 mid)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
-		if (wil->sta[i].mid == mid &&
-		    wil->sta[i].status == wil_sta_connected)
-			return true;
-	}
-
-	return false;
-}
-
-static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
-				u16 reason_code, bool from_event)
+static void _wil6210_disconnect_complete(struct wil6210_vif *vif,
+					 const u8 *bssid, u16 reason_code)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	int cid = -ENOENT;
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
 
-	if (unlikely(!vif))
-		return;
-
 	ndev = vif_to_ndev(vif);
 	wdev = vif_to_wdev(vif);
 
 	might_sleep();
-	wil_info(wil, "bssid=%pM, reason=%d, ev%s\n", bssid,
-		 reason_code, from_event ? "+" : "-");
+	wil_info(wil, "disconnect_complete: bssid=%pM, reason=%d\n",
+		 bssid, reason_code);
 
 	/* Cases are:
 	 * - disconnect single STA, still connected
@@ -328,14 +315,15 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 	if (bssid && !is_broadcast_ether_addr(bssid) &&
 	    !ether_addr_equal_unaligned(ndev->dev_addr, bssid)) {
 		cid = wil_find_cid(wil, vif->mid, bssid);
-		wil_dbg_misc(wil, "Disconnect %pM, CID=%d, reason=%d\n",
+		wil_dbg_misc(wil,
+			     "Disconnect complete %pM, CID=%d, reason=%d\n",
 			     bssid, cid, reason_code);
 		if (cid >= 0) /* disconnect 1 peer */
-			wil_disconnect_cid(vif, cid, reason_code, from_event);
+			wil_disconnect_cid_complete(vif, cid, reason_code);
 	} else { /* all */
-		wil_dbg_misc(wil, "Disconnect all\n");
+		wil_dbg_misc(wil, "Disconnect complete all\n");
 		for (cid = 0; cid < WIL6210_MAX_CID; cid++)
-			wil_disconnect_cid(vif, cid, reason_code, from_event);
+			wil_disconnect_cid_complete(vif, cid, reason_code);
 	}
 
 	/* link state */
@@ -379,6 +367,84 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 	default:
 		break;
 	}
+}
+
+static int wil_disconnect_cid(struct wil6210_vif *vif, int cid,
+			      u16 reason_code)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct wireless_dev *wdev = vif_to_wdev(vif);
+	struct wil_sta_info *sta = &wil->sta[cid];
+	bool del_sta = false;
+
+	might_sleep();
+	wil_dbg_misc(wil, "disconnect_cid: CID %d, MID %d, status %d\n",
+		     cid, sta->mid, sta->status);
+
+	if (sta->status == wil_sta_unused)
+		return 0;
+
+	if (vif->mid != sta->mid) {
+		wil_err(wil, "STA MID mismatch with VIF MID(%d)\n", vif->mid);
+		return -EINVAL;
+	}
+
+	/* inform lower layers */
+	if (wdev->iftype == NL80211_IFTYPE_AP && disable_ap_sme)
+		del_sta = true;
+
+	/* disconnect by sending command disconnect/del_sta and wait
+	 * synchronously for WMI_DISCONNECT_EVENTID event.
+	 */
+	return wmi_disconnect_sta(vif, sta->addr, reason_code, del_sta);
+}
+
+static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
+				u16 reason_code)
+{
+	struct wil6210_priv *wil;
+	struct net_device *ndev;
+	struct wireless_dev *wdev;
+	int cid = -ENOENT;
+
+	if (unlikely(!vif))
+		return;
+
+	wil = vif_to_wil(vif);
+	ndev = vif_to_ndev(vif);
+	wdev = vif_to_wdev(vif);
+
+	might_sleep();
+	wil_info(wil, "disconnect bssid=%pM, reason=%d\n", bssid, reason_code);
+
+	/* Cases are:
+	 * - disconnect single STA, still connected
+	 * - disconnect single STA, already disconnected
+	 * - disconnect all
+	 *
+	 * For "disconnect all", there are 3 options:
+	 * - bssid == NULL
+	 * - bssid is broadcast address (ff:ff:ff:ff:ff:ff)
+	 * - bssid is our MAC address
+	 */
+	if (bssid && !is_broadcast_ether_addr(bssid) &&
+	    !ether_addr_equal_unaligned(ndev->dev_addr, bssid)) {
+		cid = wil_find_cid(wil, vif->mid, bssid);
+		wil_dbg_misc(wil, "Disconnect %pM, CID=%d, reason=%d\n",
+			     bssid, cid, reason_code);
+		if (cid >= 0) /* disconnect 1 peer */
+			wil_disconnect_cid(vif, cid, reason_code);
+	} else { /* all */
+		wil_dbg_misc(wil, "Disconnect all\n");
+		for (cid = 0; cid < WIL6210_MAX_CID; cid++)
+			wil_disconnect_cid(vif, cid, reason_code);
+	}
+
+	/* call event handler manually after processing wmi_call,
+	 * to avoid deadlock - disconnect event handler acquires
+	 * wil->mutex while it is already held here
+	 */
+	_wil6210_disconnect_complete(vif, bssid, reason_code);
 }
 
 void wil_disconnect_worker(struct work_struct *work)
@@ -705,20 +771,41 @@ void wil6210_bus_request(struct wil6210_priv *wil, u32 kbps)
  * @vif: virtual interface context
  * @bssid: peer to disconnect, NULL to disconnect all
  * @reason_code: Reason code for the Disassociation frame
- * @from_event: whether is invoked from FW event handler
  *
- * Disconnect and release associated resources. If invoked not from the
- * FW event handler, issue WMI command(s) to trigger MAC disconnect.
+ * Disconnect and release associated resources. Issue WMI
+ * command(s) to trigger MAC disconnect. When command was issued
+ * successfully, call the wil6210_disconnect_complete function
+ * to handle the event synchronously
  */
 void wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
-			u16 reason_code, bool from_event)
+			u16 reason_code)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 
-	wil_dbg_misc(wil, "disconnect\n");
+	wil_dbg_misc(wil, "disconnecting\n");
 
 	del_timer_sync(&vif->connect_timer);
-	_wil6210_disconnect(vif, bssid, reason_code, from_event);
+	_wil6210_disconnect(vif, bssid, reason_code);
+}
+
+/**
+ * wil6210_disconnect_complete - handle disconnect event
+ * @vif: virtual interface context
+ * @bssid: peer to disconnect, NULL to disconnect all
+ * @reason_code: Reason code for the Disassociation frame
+ *
+ * Release associated resources and indicate upper layers the
+ * connection is terminated.
+ */
+void wil6210_disconnect_complete(struct wil6210_vif *vif, const u8 *bssid,
+				 u16 reason_code)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+
+	wil_dbg_misc(wil, "got disconnect\n");
+
+	del_timer_sync(&vif->connect_timer);
+	_wil6210_disconnect_complete(vif, bssid, reason_code);
 }
 
 void wil_priv_deinit(struct wil6210_priv *wil)
@@ -1525,7 +1612,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		if (vif) {
 			cancel_work_sync(&vif->disconnect_worker);
 			wil6210_disconnect(vif, NULL,
-					   WLAN_REASON_DEAUTH_LEAVING, false);
+					   WLAN_REASON_DEAUTH_LEAVING);
 		}
 	}
 	wil_bcast_fini_all(wil);

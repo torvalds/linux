@@ -1018,7 +1018,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 		wil_err(wil, "config tx vring failed for CID %d, rc (%d)\n",
 			evt->cid, rc);
 		wmi_disconnect_sta(vif, wil->sta[evt->cid].addr,
-				   WLAN_REASON_UNSPECIFIED, false, false);
+				   WLAN_REASON_UNSPECIFIED, false);
 	} else {
 		wil_info(wil, "successful connection to CID %d\n", evt->cid);
 	}
@@ -1112,7 +1112,7 @@ static void wmi_evt_disconnect(struct wil6210_vif *vif, int id,
 	}
 
 	mutex_lock(&wil->mutex);
-	wil6210_disconnect(vif, evt->bssid, reason_code, true);
+	wil6210_disconnect_complete(vif, evt->bssid, reason_code);
 	mutex_unlock(&wil->mutex);
 }
 
@@ -1637,7 +1637,7 @@ wmi_evt_auth_status(struct wil6210_vif *vif, int id, void *d, int len)
 	return;
 
 fail:
-	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID, false);
+	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID);
 }
 
 static void
@@ -1766,7 +1766,7 @@ wmi_evt_reassoc_status(struct wil6210_vif *vif, int id, void *d, int len)
 	return;
 
 fail:
-	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID, false);
+	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID);
 }
 
 /**
@@ -2560,12 +2560,11 @@ int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_bb, u32 *t_rf)
 	return 0;
 }
 
-int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
-		       u16 reason, bool full_disconnect, bool del_sta)
+int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac, u16 reason,
+		       bool del_sta)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	int rc;
-	u16 reason_code;
 	struct wmi_disconnect_sta_cmd disc_sta_cmd = {
 		.disconnect_reason = cpu_to_le16(reason),
 	};
@@ -2598,21 +2597,8 @@ int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
 		wil_fw_error_recovery(wil);
 		return rc;
 	}
+	wil->sinfo_gen++;
 
-	if (full_disconnect) {
-		/* call event handler manually after processing wmi_call,
-		 * to avoid deadlock - disconnect event handler acquires
-		 * wil->mutex while it is already held here
-		 */
-		reason_code = le16_to_cpu(reply.evt.protocol_reason_status);
-
-		wil_dbg_wmi(wil, "Disconnect %pM reason [proto %d wmi %d]\n",
-			    reply.evt.bssid, reason_code,
-			    reply.evt.disconnect_reason);
-
-		wil->sinfo_gen++;
-		wil6210_disconnect(vif, reply.evt.bssid, reason_code, true);
-	}
 	return 0;
 }
 
