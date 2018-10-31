@@ -1125,6 +1125,9 @@ struct cifs_fid {
 	__u8 create_guid[16];
 	struct cifs_pending_open *pending_open;
 	unsigned int epoch;
+#ifdef CONFIG_CIFS_DEBUG2
+	__u64 mid;
+#endif /* CIFS_DEBUG2 */
 	bool purge_cache;
 };
 
