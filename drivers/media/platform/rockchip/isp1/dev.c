@@ -37,6 +37,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
@@ -49,7 +50,6 @@
 #include "regs.h"
 #include "rkisp1.h"
 #include "common.h"
-#include "regs.h"
 
 struct isp_match_data {
 	const char * const *clks;
@@ -246,6 +246,8 @@ static int rkisp1_pipeline_set_stream(struct rkisp1_pipeline *p, bool on)
 		return 0;
 
 	if (on) {
+		if (dev->vs_irq >= 0)
+			enable_irq(dev->vs_irq);
 		rockchip_set_system_status(SYS_STATUS_ISP);
 		v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, true);
 	}
@@ -258,6 +260,8 @@ static int rkisp1_pipeline_set_stream(struct rkisp1_pipeline *p, bool on)
 	}
 
 	if (!on) {
+		if (dev->vs_irq >= 0)
+			disable_irq(dev->vs_irq);
 		v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, false);
 		rockchip_clear_system_status(SYS_STATUS_ISP);
 	}
@@ -750,6 +754,49 @@ static void rkisp1_iommu_cleanup(struct rkisp1_device *rkisp1_dev)
 	iommu_domain_free(rkisp1_dev->domain);
 }
 
+static int rkisp1_vs_irq_parse(struct platform_device *pdev)
+{
+	int ret;
+	int vs_irq;
+	unsigned long vs_irq_flags;
+	struct gpio_desc *vs_irq_gpio;
+	struct device *dev = &pdev->dev;
+	struct rkisp1_device *isp_dev = dev_get_drvdata(dev);
+
+	/* this irq recevice the message of sensor vs from preisp */
+	isp_dev->vs_irq = -1;
+	vs_irq_gpio = devm_gpiod_get(dev, "vsirq", GPIOD_IN);
+	if (!IS_ERR(vs_irq_gpio)) {
+		vs_irq_flags = IRQF_TRIGGER_RISING |
+			       IRQF_ONESHOT | IRQF_SHARED;
+
+		vs_irq = gpiod_to_irq(vs_irq_gpio);
+		if (vs_irq < 0) {
+			dev_err(dev, "GPIO to interrupt failed\n");
+			return vs_irq;
+		}
+
+		dev_info(dev, "register_irq: %d\n", vs_irq);
+		ret = devm_request_irq(dev,
+				       vs_irq,
+				       rkisp1_vs_isr_handler,
+				       vs_irq_flags,
+				       "vs_irq_gpio_int",
+				       dev);
+		if (ret) {
+			dev_err(dev, "devm_request_irq failed: %d\n", ret);
+			return ret;
+		} else {
+			disable_irq(vs_irq);
+			isp_dev->vs_irq = vs_irq;
+			isp_dev->vs_irq_gpio = vs_irq_gpio;
+			dev_info(dev, "vs_gpio_int interrupt is hooked\n");
+		}
+	}
+
+	return 0;
+}
+
 static int rkisp1_plat_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -825,8 +872,11 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	v4l2_dev->ctrl_handler = &isp_dev->ctrl_handler;
 
 	ret = v4l2_device_register(isp_dev->dev, &isp_dev->v4l2_dev);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Failed to register v4l2 device: %d\n",
+			 ret);
 		return ret;
+	}
 
 	ret = media_device_register(&isp_dev->media_dev);
 	if (ret < 0) {
@@ -843,12 +893,20 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	rkisp1_iommu_init(isp_dev);
 	pm_runtime_enable(&pdev->dev);
 
+	ret = rkisp1_vs_irq_parse(pdev);
+	if (ret)
+		goto err_runtime_disable;
+
 	return 0;
 
+err_runtime_disable:
+	pm_runtime_disable(&pdev->dev);
+	rkisp1_iommu_cleanup(isp_dev);
 err_unreg_media_dev:
 	media_device_unregister(&isp_dev->media_dev);
 err_unreg_v4l2_dev:
 	v4l2_device_unregister(&isp_dev->v4l2_dev);
+
 	return ret;
 }
 

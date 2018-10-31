@@ -38,6 +38,7 @@
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
 #include <linux/kfifo.h>
+#include <linux/interrupt.h>
 #include <media/v4l2-event.h>
 #include <media/media-entity.h>
 
@@ -1413,7 +1414,8 @@ void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev)
 
 	/* start edge of v_sync */
 	if (isp_mis & CIF_ISP_V_START) {
-		riksp1_isp_queue_event_sof(&dev->isp_sdev);
+		if (dev->vs_irq < 0)
+			riksp1_isp_queue_event_sof(&dev->isp_sdev);
 
 		writel(CIF_ISP_V_START, base + CIF_ISP_ICR);
 		isp_mis_tmp = readl(base + CIF_ISP_MIS);
@@ -1470,3 +1472,15 @@ void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev)
 	 */
 	rkisp1_params_isr(&dev->params_vdev, isp_mis);
 }
+
+irqreturn_t rkisp1_vs_isr_handler(int irq, void *ctx)
+{
+	struct device *dev = ctx;
+	struct rkisp1_device *rkisp1_dev = dev_get_drvdata(dev);
+
+	if (rkisp1_dev->vs_irq >= 0)
+		riksp1_isp_queue_event_sof(&rkisp1_dev->isp_sdev);
+
+	return IRQ_HANDLED;
+}
+

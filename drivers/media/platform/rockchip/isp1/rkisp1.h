@@ -37,6 +37,7 @@
 
 #include <linux/kfifo.h>
 #include <linux/platform_device.h>
+#include <linux/interrupt.h>
 #include <media/v4l2-fwnode.h>
 #include "common.h"
 
@@ -120,6 +121,8 @@ void rkisp1_mipi_v13_isr(unsigned int err1, unsigned int err2,
 			       unsigned int err3, struct rkisp1_device *dev);
 
 void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev);
+
+irqreturn_t rkisp1_vs_isr_handler(int irq, void *ctx);
 
 static inline
 struct ispsd_out_fmt *rkisp1_get_ispsd_out_fmt(struct rkisp1_isp_subdev *isp_sdev)
