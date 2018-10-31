@@ -221,9 +221,9 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 }
 
 #ifdef CONFIG_HUGETLB_PAGE
-extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
-				      unsigned long addr, pte_t *ptep,
-				      pte_t pte, int dirty)
+int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+			       unsigned long addr, pte_t *ptep,
+			       pte_t pte, int dirty)
 {
 #ifdef HUGETLB_NEED_PRELOAD
 	/*
