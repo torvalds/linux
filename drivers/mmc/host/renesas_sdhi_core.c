@@ -163,15 +163,6 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 	if (new_clock == 0)
 		goto out;
 
-	/*
-	 * Both HS400 and HS200/SD104 set 200MHz, but some devices need to
-	 * set 400MHz to distinguish the CPG settings in HS400.
-	 */
-	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400 &&
-	    host->pdata->flags & TMIO_MMC_HAVE_4TAP_HS400 &&
-	    new_clock == 200000000)
-		new_clock = 400000000;
-
 	clock = renesas_sdhi_clk_update(host, new_clock) / 512;
 
 	for (clk = 0x80000080; new_clock >= (clock << 1); clk >>= 1)
