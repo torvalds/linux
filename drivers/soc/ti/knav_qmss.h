@@ -329,8 +329,8 @@ struct knav_range_ops {
 };
 
 struct knav_irq_info {
-	int	irq;
-	u32	cpu_map;
+	int		irq;
+	struct cpumask	*cpu_mask;
 };
 
 struct knav_range_info {
