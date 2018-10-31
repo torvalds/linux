@@ -159,9 +159,7 @@ void phydm_init_debug_setting(struct phy_dm_struct *dm)
 	dm->debug_level = ODM_DBG_TRACE;
 
 	dm->fw_debug_components = 0;
-	dm->debug_components =
-
-		0;
+	dm->debug_components = 0;
 
 	dm->fw_buff_is_enpty = true;
 	dm->pre_c2h_seq = 0;

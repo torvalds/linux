@@ -45,8 +45,8 @@ static u32 phydm_process_rssi_pwdb(struct phy_dm_struct *dm,
 	u32 weighting = 0, undecorated_smoothed_pwdb;
 	/* 2011.07.28 LukeLee: modified to prevent unstable CCK RSSI */
 
-	if (entry->rssi_stat.ofdm_pkt ==
-	    64) { /* speed up when all packets are OFDM*/
+	if (entry->rssi_stat.ofdm_pkt == 64) {
+		/* speed up when all packets are OFDM */
 		undecorated_smoothed_pwdb = undecorated_smoothed_ofdm;
 		ODM_RT_TRACE(dm, ODM_COMP_RSSI_MONITOR,
 			     "PWDB_0[%d] = (( %d ))\n", pktinfo->station_id,
