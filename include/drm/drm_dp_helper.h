@@ -1116,6 +1116,36 @@ drm_dp_is_branch(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 	return dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT;
 }
 
+/* DP/eDP DSC support */
+u8 drm_dp_dsc_sink_max_slice_count(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
+				   bool is_edp);
+u8 drm_dp_dsc_sink_line_buf_depth(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE]);
+u8 drm_dp_dsc_sink_max_color_depth(const u8 dsc_dpc[DP_DSC_RECEIVER_CAP_SIZE]);
+
+static inline bool
+drm_dp_sink_supports_dsc(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+{
+	return dsc_dpcd[DP_DSC_SUPPORT - DP_DSC_SUPPORT] &
+		DP_DSC_DECOMPRESSION_IS_SUPPORTED;
+}
+
+static inline u16
+drm_edp_dsc_sink_output_bpp(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+{
+	return dsc_dpcd[DP_DSC_MAX_BITS_PER_PIXEL_LOW - DP_DSC_SUPPORT] |
+		(dsc_dpcd[DP_DSC_MAX_BITS_PER_PIXEL_HI - DP_DSC_SUPPORT] &
+		 DP_DSC_MAX_BITS_PER_PIXEL_HI_MASK <<
+		 DP_DSC_MAX_BITS_PER_PIXEL_HI_SHIFT);
+}
+
+static inline u32
+drm_dp_dsc_sink_max_slice_width(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+{
+	/* Max Slicewidth = Number of Pixels * 320 */
+	return dsc_dpcd[DP_DSC_MAX_SLICE_WIDTH - DP_DSC_SUPPORT] *
+		DP_DSC_SLICE_WIDTH_MULTIPLIER;
+}
+
 /*
  * DisplayPort AUX channel
  */
