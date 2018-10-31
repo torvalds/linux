@@ -122,10 +122,10 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 			struct vbva_cmd_hdr cmd_hdr;
 			unsigned int crtc_id = to_vbox_crtc(crtc)->crtc_id;
 
-			if ((rects[i].x1 > crtc_x + mode->hdisplay) ||
-			    (rects[i].y1 > crtc_y + mode->vdisplay) ||
-			    (rects[i].x2 < crtc_x) ||
-			    (rects[i].y2 < crtc_y))
+			if (rects[i].x1 > crtc_x + mode->hdisplay ||
+			    rects[i].y1 > crtc_y + mode->vdisplay ||
+			    rects[i].x2 < crtc_x ||
+			    rects[i].y2 < crtc_y)
 				continue;
 
 			cmd_hdr.x = (s16)rects[i].x1;
