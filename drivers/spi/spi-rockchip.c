@@ -159,7 +159,6 @@
 
 struct rockchip_spi {
 	struct device *dev;
-	struct spi_master *master;
 
 	struct clk *spiclk;
 	struct clk *apb_pclk;
@@ -350,19 +349,21 @@ static int rockchip_spi_pio_transfer(struct rockchip_spi *rs)
 
 static void rockchip_spi_dma_rxcb(void *data)
 {
-	struct rockchip_spi *rs = data;
+	struct spi_master *master = data;
+	struct rockchip_spi *rs = spi_master_get_devdata(master);
 	int state = atomic_fetch_andnot(RXDMA, &rs->state);
 
 	if (state & TXDMA)
 		return;
 
 	spi_enable_chip(rs, false);
-	spi_finalize_current_transfer(rs->master);
+	spi_finalize_current_transfer(master);
 }
 
 static void rockchip_spi_dma_txcb(void *data)
 {
-	struct rockchip_spi *rs = data;
+	struct spi_master *master = data;
+	struct rockchip_spi *rs = spi_master_get_devdata(master);
 	int state = atomic_fetch_andnot(TXDMA, &rs->state);
 
 	if (state & RXDMA)
@@ -372,7 +373,7 @@ static void rockchip_spi_dma_txcb(void *data)
 	wait_for_idle(rs);
 
 	spi_enable_chip(rs, false);
-	spi_finalize_current_transfer(rs->master);
+	spi_finalize_current_transfer(master);
 }
 
 static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
@@ -401,7 +402,7 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
 			return -EINVAL;
 
 		rxdesc->callback = rockchip_spi_dma_rxcb;
-		rxdesc->callback_param = rs;
+		rxdesc->callback_param = master;
 	}
 
 	txdesc = NULL;
@@ -426,7 +427,7 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
 		}
 
 		txdesc->callback = rockchip_spi_dma_txcb;
-		txdesc->callback_param = rs;
+		txdesc->callback_param = master;
 	}
 
 	/* rx must be started before tx due to spi instinct */
@@ -633,7 +634,6 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 	spi_enable_chip(rs, false);
 
-	rs->master = master;
 	rs->dev = &pdev->dev;
 	rs->max_freq = clk_get_rate(rs->spiclk);
 
@@ -746,9 +746,8 @@ static int rockchip_spi_suspend(struct device *dev)
 {
 	int ret;
 	struct spi_master *master = dev_get_drvdata(dev);
-	struct rockchip_spi *rs = spi_master_get_devdata(master);
 
-	ret = spi_master_suspend(rs->master);
+	ret = spi_master_suspend(master);
 	if (ret < 0)
 		return ret;
 
@@ -773,7 +772,7 @@ static int rockchip_spi_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	ret = spi_master_resume(rs->master);
+	ret = spi_master_resume(master);
 	if (ret < 0) {
 		clk_disable_unprepare(rs->spiclk);
 		clk_disable_unprepare(rs->apb_pclk);
