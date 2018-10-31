@@ -991,6 +991,8 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 	int rc;
 	void *frame;
 
+	memset(&params, 0, sizeof(params));
+
 	if (!len)
 		return -EINVAL;
 
