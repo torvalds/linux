@@ -98,6 +98,16 @@
 			reg = <0 0x96700000 0 0x100000>;
 			no-map;
 		};
+
+		mpss_region: memory@8e000000 {
+			reg = <0 0x8e000000 0 0x7800000>;
+			no-map;
+		};
+
+		mba_region: memory@96500000 {
+			reg = <0 0x96500000 0 0x200000>;
+			no-map;
+		};
 	};
 
 	cpus {
