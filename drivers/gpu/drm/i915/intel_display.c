@@ -458,9 +458,6 @@ static const struct intel_limit intel_limits_bxt = {
 static void
 skl_wa_clkgate(struct drm_i915_private *dev_priv, int pipe, bool enable)
 {
-	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
-		return;
-
 	if (enable)
 		I915_WRITE(CLKGATE_DIS_PSL(pipe),
 			   DUPS1_GATING_DIS | DUPS2_GATING_DIS);
@@ -5225,9 +5222,6 @@ static bool needs_nv12_wa(struct drm_i915_private *dev_priv,
 			  const struct intel_crtc_state *crtc_state)
 {
 	if (!crtc_state->nv12_planes)
-		return false;
-
-	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
 		return false;
 
 	if ((IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv)) ||

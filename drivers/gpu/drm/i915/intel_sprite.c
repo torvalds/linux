@@ -1868,6 +1868,7 @@ static bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) >= 11)
 		return plane_id <= PLANE_SPRITE3;
 
+	/* Display WA #0870: skl, bxt */
 	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
 		return false;
 
