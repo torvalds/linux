@@ -63,6 +63,14 @@ void dcn10_program_pte_vm(struct dce_hwseq *hws, struct hubp *hubp);
 
 void set_hdr_multiplier(struct pipe_ctx *pipe_ctx);
 
+void dcn10_get_surface_visual_confirm_color(
+		const struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
+
+void dcn10_get_hdr_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
+
 void update_dchubp_dpp(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,

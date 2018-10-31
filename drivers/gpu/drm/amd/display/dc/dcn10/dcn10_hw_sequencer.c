@@ -1771,7 +1771,7 @@ bool is_rgb_cspace(enum dc_color_space output_color_space)
 	}
 }
 
-static void dcn10_get_surface_visual_confirm_color(
+void dcn10_get_surface_visual_confirm_color(
 		const struct pipe_ctx *pipe_ctx,
 		struct tg_color *color)
 {
@@ -1807,7 +1807,7 @@ static void dcn10_get_surface_visual_confirm_color(
 	}
 }
 
-static void dcn10_get_hdr_visual_confirm_color(
+void dcn10_get_hdr_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color)
 {
