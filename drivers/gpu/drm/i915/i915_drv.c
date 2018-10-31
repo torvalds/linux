@@ -1962,7 +1962,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 				    get_suspend_mode(dev_priv, hibernation));
 
 	ret = 0;
-	if (IS_GEN9_LP(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 11 || IS_GEN9_LP(dev_priv))
 		bxt_enable_dc9(dev_priv);
 	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_enable_pc8(dev_priv);
