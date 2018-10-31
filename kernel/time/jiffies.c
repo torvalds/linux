@@ -1,6 +1,4 @@
 /***********************************************************************
-* linux/kernel/time/jiffies.c
-*
 * This file contains the jiffies based clocksource.
 *
 * Copyright (C) 2004, 2005 IBM, John Stultz (johnstul@us.ibm.com)

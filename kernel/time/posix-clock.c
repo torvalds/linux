@@ -1,5 +1,5 @@
 /*
- * posix-clock.c - support for dynamic clock devices
+ * Support for dynamic clock devices
  *
  * Copyright (C) 2010 OMICRON electronics GmbH
  *

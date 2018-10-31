@@ -1,6 +1,6 @@
 /*
- * sched_clock.c: Generic sched_clock() support, to extend low level
- *                hardware time counters to full 64-bit ns values.
+ * Generic sched_clock() support, to extend low level hardware time
+ * counters to full 64-bit ns values.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

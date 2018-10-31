@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/time/tick-broadcast-hrtimer.c
- * This file emulates a local clock event device
- * via a pseudo clock device.
+ * Emulate a local clock event device via a pseudo clock device.
  */
 #include <linux/cpu.h>
 #include <linux/err.h>

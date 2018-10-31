@@ -1,6 +1,4 @@
 /*
- * linux/kernel/time/tick-oneshot.c
- *
  * This file contains functions which manage high resolution tick
  * related events.
  *

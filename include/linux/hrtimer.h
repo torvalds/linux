@@ -1,6 +1,4 @@
 /*
- *  include/linux/hrtimer.h
- *
  *  hrtimers - High-resolution kernel timers
  *
  *   Copyright(C) 2005, Thomas Gleixner <tglx@linutronix.de>

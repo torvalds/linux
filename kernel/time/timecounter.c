@@ -1,8 +1,5 @@
 /*
- * linux/kernel/time/timecounter.c
- *
- * based on code that migrated away from
- * linux/kernel/time/clocksource.c
+ * Based on clocksource code. See commit 74d23cc704d1
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +11,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
 #include <linux/export.h>
 #include <linux/timecounter.h>
 
