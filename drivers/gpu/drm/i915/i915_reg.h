@@ -175,6 +175,20 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MMIO_PORT3(pipe, a, b, c)	_MMIO(_PICK(pipe, a, b, c))
 #define _MMIO_PHY3(phy, a, b, c)	_MMIO(_PHY3(phy, a, b, c))
 
+/*
+ * Device info offset array based helpers for groups of registers with unevenly
+ * spaced base offsets.
+ */
+#define _MMIO_PIPE2(pipe, reg)		_MMIO(dev_priv->info.pipe_offsets[pipe] - \
+					      dev_priv->info.pipe_offsets[PIPE_A] + (reg) + \
+					      dev_priv->info.display_mmio_offset)
+#define _MMIO_TRANS2(pipe, reg)		_MMIO(dev_priv->info.trans_offsets[(pipe)] - \
+					      dev_priv->info.trans_offsets[TRANSCODER_A] + (reg) + \
+					      dev_priv->info.display_mmio_offset)
+#define _CURSOR2(pipe, reg)		_MMIO(dev_priv->info.cursor_offsets[(pipe)] - \
+					      dev_priv->info.cursor_offsets[PIPE_A] + (reg) + \
+					      dev_priv->info.display_mmio_offset)
+
 #define __MASKED_FIELD(mask, value) ((mask) << 16 | (value))
 #define _MASKED_FIELD(mask, value) ({					   \
 	if (__builtin_constant_p(mask))					   \
@@ -4057,10 +4071,6 @@ enum {
 #define TRANSCODER_DSI0_OFFSET	0x6b000
 #define TRANSCODER_DSI1_OFFSET	0x6b800
 
-#define _MMIO_TRANS2(pipe, reg) _MMIO(dev_priv->info.trans_offsets[(pipe)] - \
-	dev_priv->info.trans_offsets[TRANSCODER_A] + (reg) + \
-	dev_priv->info.display_mmio_offset)
-
 #define HTOTAL(trans)		_MMIO_TRANS2(trans, _HTOTAL_A)
 #define HBLANK(trans)		_MMIO_TRANS2(trans, _HBLANK_A)
 #define HSYNC(trans)		_MMIO_TRANS2(trans, _HSYNC_A)
@@ -5629,10 +5639,6 @@ enum {
 #define PIPE_DSI0_OFFSET	0x7b000
 #define PIPE_DSI1_OFFSET	0x7b800
 
-#define _MMIO_PIPE2(pipe, reg) _MMIO(dev_priv->info.pipe_offsets[pipe] - \
-	dev_priv->info.pipe_offsets[PIPE_A] + (reg) + \
-	dev_priv->info.display_mmio_offset)
-
 #define PIPECONF(pipe)		_MMIO_PIPE2(pipe, _PIPEACONF)
 #define PIPEDSL(pipe)		_MMIO_PIPE2(pipe, _PIPEADSL)
 #define PIPEFRAME(pipe)		_MMIO_PIPE2(pipe, _PIPEAFRAMEHIGH)
@@ -6079,10 +6085,6 @@ enum {
 #define _CURBCNTR_IVB		0x71080
 #define _CURBBASE_IVB		0x71084
 #define _CURBPOS_IVB		0x71088
-
-#define _CURSOR2(pipe, reg) _MMIO(dev_priv->info.cursor_offsets[(pipe)] - \
-	dev_priv->info.cursor_offsets[PIPE_A] + (reg) + \
-	dev_priv->info.display_mmio_offset)
 
 #define CURCNTR(pipe) _CURSOR2(pipe, _CURACNTR)
 #define CURBASE(pipe) _CURSOR2(pipe, _CURABASE)
