@@ -210,12 +210,6 @@ static inline void spi_set_clk(struct rockchip_spi *rs, u16 div)
 	writel_relaxed(div, rs->regs + ROCKCHIP_SPI_BAUDR);
 }
 
-static inline void flush_fifo(struct rockchip_spi *rs)
-{
-	while (readl_relaxed(rs->regs + ROCKCHIP_SPI_RXFLR))
-		readl_relaxed(rs->regs + ROCKCHIP_SPI_RXDR);
-}
-
 static inline void wait_for_idle(struct rockchip_spi *rs)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(5);
@@ -304,29 +298,16 @@ static void rockchip_spi_handle_err(struct spi_master *master,
 {
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
 
-	/*
-	 * For DMA mode, we need terminate DMA channel and flush
-	 * fifo for the next transfer if DMA thansfer timeout.
-	 * handle_err() was called by core if transfer failed.
-	 * Maybe it is reasonable for error handling here.
+	/* stop running spi transfer
+	 * this also flushes both rx and tx fifos
 	 */
+	spi_enable_chip(rs, false);
+
 	if (atomic_read(&rs->state) & TXDMA)
 		dmaengine_terminate_async(rs->dma_tx.ch);
 
-	if (atomic_read(&rs->state) & RXDMA) {
+	if (atomic_read(&rs->state) & RXDMA)
 		dmaengine_terminate_async(rs->dma_rx.ch);
-		flush_fifo(rs);
-	}
-}
-
-static int rockchip_spi_unprepare_message(struct spi_master *master,
-					  struct spi_message *msg)
-{
-	struct rockchip_spi *rs = spi_master_get_devdata(master);
-
-	spi_enable_chip(rs, false);
-
-	return 0;
 }
 
 static void rockchip_spi_pio_writer(struct rockchip_spi *rs)
@@ -705,7 +686,6 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 	master->set_cs = rockchip_spi_set_cs;
 	master->prepare_message = rockchip_spi_prepare_message;
-	master->unprepare_message = rockchip_spi_unprepare_message;
 	master->transfer_one = rockchip_spi_transfer_one;
 	master->max_transfer_size = rockchip_spi_max_transfer_size;
 	master->handle_err = rockchip_spi_handle_err;
