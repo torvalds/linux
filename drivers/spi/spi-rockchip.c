@@ -184,8 +184,6 @@ struct rockchip_spi {
 	void *rx_end;
 
 	bool cs_asserted[ROCKCHIP_SPI_MAX_CS_NUM];
-
-	bool use_dma;
 };
 
 static inline void spi_enable_chip(struct rockchip_spi *rs, bool enable)
@@ -450,7 +448,8 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
 }
 
 static void rockchip_spi_config(struct rockchip_spi *rs,
-		struct spi_device *spi, struct spi_transfer *xfer)
+		struct spi_device *spi, struct spi_transfer *xfer,
+		bool use_dma)
 {
 	u32 div = 0;
 	u32 dmacr = 0;
@@ -471,7 +470,7 @@ static void rockchip_spi_config(struct rockchip_spi *rs,
 	else
 		cr0 |= CR0_XFM_TO << CR0_XFM_OFFSET;
 
-	if (rs->use_dma) {
+	if (use_dma) {
 		if (xfer->tx_buf)
 			dmacr |= TF_DMA_EN;
 		if (xfer->rx_buf)
@@ -537,6 +536,7 @@ static int rockchip_spi_transfer_one(
 		struct spi_transfer *xfer)
 {
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
+	bool use_dma;
 
 	WARN_ON(readl_relaxed(rs->regs + ROCKCHIP_SPI_SSIENR) &&
 		(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY));
@@ -559,15 +559,11 @@ static int rockchip_spi_transfer_one(
 	rs->rx = xfer->rx_buf;
 	rs->rx_end = rs->rx + xfer->len;
 
-	/* we need prepare dma before spi was enabled */
-	if (master->can_dma && master->can_dma(master, spi, xfer))
-		rs->use_dma = true;
-	else
-		rs->use_dma = false;
+	use_dma = master->can_dma ? master->can_dma(master, spi, xfer) : false;
 
-	rockchip_spi_config(rs, spi, xfer);
+	rockchip_spi_config(rs, spi, xfer, use_dma);
 
-	if (rs->use_dma)
+	if (use_dma)
 		return rockchip_spi_prepare_dma(rs, master, xfer);
 
 	return rockchip_spi_pio_transfer(rs);
