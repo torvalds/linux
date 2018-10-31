@@ -1407,47 +1407,6 @@ void *__xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 EXPORT_SYMBOL(__xa_store);
 
 /**
- * xa_cmpxchg() - Conditionally replace an entry in the XArray.
- * @xa: XArray.
- * @index: Index into array.
- * @old: Old value to test against.
- * @entry: New value to place in array.
- * @gfp: Memory allocation flags.
- *
- * If the entry at @index is the same as @old, replace it with @entry.
- * If the return value is equal to @old, then the exchange was successful.
- *
- * Context: Process context.  Takes and releases the xa_lock.  May sleep
- * if the @gfp flags permit.
- * Return: The old value at this index or xa_err() if an error happened.
- */
-void *xa_cmpxchg(struct xarray *xa, unsigned long index,
-			void *old, void *entry, gfp_t gfp)
-{
-	XA_STATE(xas, xa, index);
-	void *curr;
-
-	if (WARN_ON_ONCE(xa_is_internal(entry)))
-		return XA_ERROR(-EINVAL);
-
-	do {
-		xas_lock(&xas);
-		curr = xas_load(&xas);
-		if (curr == XA_ZERO_ENTRY)
-			curr = NULL;
-		if (curr == old) {
-			xas_store(&xas, entry);
-			if (xa_track_free(xa) && entry)
-				xas_clear_mark(&xas, XA_FREE_MARK);
-		}
-		xas_unlock(&xas);
-	} while (xas_nomem(&xas, gfp));
-
-	return xas_result(&xas, curr);
-}
-EXPORT_SYMBOL(xa_cmpxchg);
-
-/**
  * __xa_cmpxchg() - Store this entry in the XArray.
  * @xa: XArray.
  * @index: Index into array.

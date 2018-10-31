@@ -289,8 +289,6 @@ struct xarray {
 void xa_init_flags(struct xarray *, gfp_t flags);
 void *xa_load(struct xarray *, unsigned long index);
 void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
-void *xa_cmpxchg(struct xarray *, unsigned long index,
-			void *old, void *entry, gfp_t);
 void *xa_store_range(struct xarray *, unsigned long first, unsigned long last,
 			void *entry, gfp_t);
 bool xa_get_mark(struct xarray *, unsigned long index, xa_mark_t);
@@ -357,48 +355,6 @@ static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
 static inline void *xa_erase(struct xarray *xa, unsigned long index)
 {
 	return xa_store(xa, index, NULL, 0);
-}
-
-/**
- * xa_insert() - Store this entry in the XArray unless another entry is
- *			already present.
- * @xa: XArray.
- * @index: Index into array.
- * @entry: New entry.
- * @gfp: Memory allocation flags.
- *
- * If you would rather see the existing entry in the array, use xa_cmpxchg().
- * This function is for users who don't care what the entry is, only that
- * one is present.
- *
- * Context: Process context.  Takes and releases the xa_lock.
- *	    May sleep if the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
- * -ENOMEM if memory could not be allocated.
- */
-static inline int xa_insert(struct xarray *xa, unsigned long index,
-		void *entry, gfp_t gfp)
-{
-	void *curr = xa_cmpxchg(xa, index, NULL, entry, gfp);
-	if (!curr)
-		return 0;
-	if (xa_is_err(curr))
-		return xa_err(curr);
-	return -EEXIST;
-}
-
-/**
- * xa_release() - Release a reserved entry.
- * @xa: XArray.
- * @index: Index of entry.
- *
- * After calling xa_reserve(), you can call this function to release the
- * reservation.  If the entry at @index has been stored to, this function
- * will do nothing.
- */
-static inline void xa_release(struct xarray *xa, unsigned long index)
-{
-	xa_cmpxchg(xa, index, NULL, NULL, 0);
 }
 
 /**
@@ -532,6 +488,61 @@ static inline void *xa_erase_irq(struct xarray *xa, unsigned long index)
 	xa_unlock_irq(xa);
 
 	return entry;
+}
+
+/**
+ * xa_cmpxchg() - Conditionally replace an entry in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @old: Old value to test against.
+ * @entry: New value to place in array.
+ * @gfp: Memory allocation flags.
+ *
+ * If the entry at @index is the same as @old, replace it with @entry.
+ * If the return value is equal to @old, then the exchange was successful.
+ *
+ * Context: Any context.  Takes and releases the xa_lock.  May sleep
+ * if the @gfp flags permit.
+ * Return: The old value at this index or xa_err() if an error happened.
+ */
+static inline void *xa_cmpxchg(struct xarray *xa, unsigned long index,
+			void *old, void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock(xa);
+	curr = __xa_cmpxchg(xa, index, old, entry, gfp);
+	xa_unlock(xa);
+
+	return curr;
+}
+
+/**
+ * xa_insert() - Store this entry in the XArray unless another entry is
+ *			already present.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * If you would rather see the existing entry in the array, use xa_cmpxchg().
+ * This function is for users who don't care what the entry is, only that
+ * one is present.
+ *
+ * Context: Process context.  Takes and releases the xa_lock.
+ *	    May sleep if the @gfp flags permit.
+ * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * -ENOMEM if memory could not be allocated.
+ */
+static inline int xa_insert(struct xarray *xa, unsigned long index,
+		void *entry, gfp_t gfp)
+{
+	void *curr = xa_cmpxchg(xa, index, NULL, entry, gfp);
+	if (!curr)
+		return 0;
+	if (xa_is_err(curr))
+		return xa_err(curr);
+	return -EEXIST;
 }
 
 /**
@@ -697,6 +708,20 @@ int xa_reserve_irq(struct xarray *xa, unsigned long index, gfp_t gfp)
 	xa_unlock_irq(xa);
 
 	return ret;
+}
+
+/**
+ * xa_release() - Release a reserved entry.
+ * @xa: XArray.
+ * @index: Index of entry.
+ *
+ * After calling xa_reserve(), you can call this function to release the
+ * reservation.  If the entry at @index has been stored to, this function
+ * will do nothing.
+ */
+static inline void xa_release(struct xarray *xa, unsigned long index)
+{
+	xa_cmpxchg(xa, index, NULL, NULL, 0);
 }
 
 /* Everything below here is the Advanced API.  Proceed with caution. */
