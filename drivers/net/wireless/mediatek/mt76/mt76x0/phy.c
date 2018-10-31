@@ -715,10 +715,8 @@ done:
 static void mt76x0_phy_set_gain_val(struct mt76x02_dev *dev)
 {
 	u8 gain = dev->cal.agc_gain_cur[0] - dev->cal.agc_gain_adjust;
-	u32 val = 0x122c << 16 | 0xf2;
 
-	mt76_wr(dev, MT_BBP(AGC, 8),
-		val | FIELD_PREP(MT_BBP_AGC_GAIN, gain));
+	mt76_rmw_field(dev, MT_BBP(AGC, 8), MT_BBP_AGC_GAIN, gain);
 
 	if ((dev->mt76.chandef.chan->flags & IEEE80211_CHAN_RADAR) &&
 	    !is_mt7630(dev))
