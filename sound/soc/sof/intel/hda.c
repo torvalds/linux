@@ -396,7 +396,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 
 	/* check if dsp is there */
 	if (bus->ppcap)
-		dev_dbg(&pci->dev, "PP capbility, will probe DSP later.\n");
+		dev_dbg(&pci->dev, "PP capability, will probe DSP later.\n");
 
 	if (bus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(bus);

@@ -293,7 +293,7 @@ static int hda_suspend(struct snd_sof_dev *sdev, int state)
 	snd_hdac_ext_bus_ppcap_int_enable(bus, false);
 	snd_hdac_ext_bus_ppcap_enable(bus, false);
 
-	/* disable hda bus irw and i/o */
+	/* disable hda bus irq and i/o */
 	snd_hdac_bus_stop_chip(bus);
 #endif
 
@@ -408,7 +408,7 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, int state)
 	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
 		ret = snd_hdac_display_power(bus, false);
 		if (ret < 0) {
-			dev_err(bus->dev, "Cannot turn on display power on i915 after resume\n");
+			dev_err(bus->dev, "Cannot turn OFF display power on i915 during suspend\n");
 			return ret;
 		}
 	}
