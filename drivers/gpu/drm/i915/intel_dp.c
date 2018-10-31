@@ -3956,6 +3956,29 @@ intel_dp_read_dpcd(struct intel_dp *intel_dp)
 	return intel_dp->dpcd[DP_DPCD_REV] != 0;
 }
 
+static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
+{
+	/*
+	 * Clear the cached register set to avoid using stale values
+	 * for the sinks that do not support DSC.
+	 */
+	memset(intel_dp->dsc_dpcd, 0, sizeof(intel_dp->dsc_dpcd));
+
+	/* Cache the DSC DPCD if eDP or DP rev >= 1.4 */
+	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x14 ||
+	    intel_dp->edp_dpcd[0] >= DP_EDP_14) {
+		if (drm_dp_dpcd_read(&intel_dp->aux, DP_DSC_SUPPORT,
+				     intel_dp->dsc_dpcd,
+				     sizeof(intel_dp->dsc_dpcd)) < 0)
+			DRM_ERROR("Failed to read DPCD register 0x%x\n",
+				  DP_DSC_SUPPORT);
+
+		DRM_DEBUG_KMS("DSC DPCD: %*ph\n",
+			      (int)sizeof(intel_dp->dsc_dpcd),
+			      intel_dp->dsc_dpcd);
+	}
+}
+
 static bool
 intel_edp_init_dpcd(struct intel_dp *intel_dp)
 {
@@ -4031,6 +4054,10 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 		intel_dp_set_sink_rates(intel_dp);
 
 	intel_dp_set_common_rates(intel_dp);
+
+	/* Read the eDP DSC DPCD registers */
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		intel_dp_get_dsc_sink_cap(intel_dp);
 
 	return true;
 }
@@ -5126,6 +5153,7 @@ intel_dp_detect(struct drm_connector *connector,
 
 	if (status == connector_status_disconnected) {
 		memset(&intel_dp->compliance, 0, sizeof(intel_dp->compliance));
+		memset(intel_dp->dsc_dpcd, 0, sizeof(intel_dp->dsc_dpcd));
 
 		if (intel_dp->is_mst) {
 			DRM_DEBUG_KMS("MST device may have disappeared %d vs %d\n",
@@ -5150,6 +5178,10 @@ intel_dp_detect(struct drm_connector *connector,
 	}
 
 	intel_dp_print_rates(intel_dp);
+
+	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
+	if (INTEL_GEN(dev_priv) >= 11)
+		intel_dp_get_dsc_sink_cap(intel_dp);
 
 	drm_dp_read_desc(&intel_dp->aux, &intel_dp->desc,
 			 drm_dp_is_branch(intel_dp->dpcd));
