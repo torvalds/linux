@@ -1521,6 +1521,7 @@ void icl_map_plls_to_ports(struct drm_crtc *crtc,
 void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
 			     struct intel_crtc_state *crtc_state,
 			     struct drm_atomic_state *old_state);
+void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
 
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
 				   int color_plane, unsigned int height);

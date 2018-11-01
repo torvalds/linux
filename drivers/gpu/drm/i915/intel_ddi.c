@@ -2822,6 +2822,29 @@ void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
 	}
 }
 
+void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	u32 val = I915_READ(DPCLKA_CFGCR0_ICL);
+	enum port port = encoder->port;
+	bool clk_enabled = !(val & icl_dpclka_cfgcr0_clk_off(dev_priv, port));
+
+	if (clk_enabled == !!encoder->base.crtc)
+		return;
+
+	/*
+	 * Punt on the case now where clock is disabled, but the encoder is
+	 * enabled, something else is really broken then.
+	 */
+	if (WARN_ON(!clk_enabled))
+		return;
+
+	DRM_NOTE("Port %c is disabled but it has a mapped PLL, unmap it\n",
+		 port_name(port));
+	val |= icl_dpclka_cfgcr0_clk_off(dev_priv, port);
+	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+}
+
 static void intel_ddi_clk_select(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state)
 {

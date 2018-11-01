@@ -15349,6 +15349,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 
 static void intel_sanitize_encoder(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_connector *connector;
 
 	/* We need to check both for a crtc link (meaning that the
@@ -15390,6 +15391,9 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 
 	/* notify opregion of the sanitized encoder state */
 	intel_opregion_notify_encoder(encoder, connector && has_active_crtc);
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		icl_sanitize_encoder_pll_mapping(encoder);
 }
 
 void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv)
