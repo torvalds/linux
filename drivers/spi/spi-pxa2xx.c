@@ -1811,10 +1811,6 @@ static int pxa2xx_spi_resume(struct device *dev)
 			return status;
 	}
 
-	/* Restore LPSS private register bits */
-	if (is_lpss_ssp(drv_data))
-		lpss_ssp_setup(drv_data);
-
 	/* Start the queue running */
 	return spi_controller_resume(drv_data->master);
 }
