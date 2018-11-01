@@ -204,6 +204,8 @@ void update_mmu_cache(struct vm_area_struct *vma,
 	struct page *page;
 	struct address_space *mapping;
 
+	flush_tlb_page(vma, address);
+
 	if (!pfn_valid(pfn))
 		return;
 
