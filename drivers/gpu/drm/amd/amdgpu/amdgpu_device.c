@@ -2550,6 +2550,17 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* detect if we are with an SRIOV vbios */
 	amdgpu_device_detect_sriov_bios(adev);
 
+	/* check if we need to reset the asic
+	 *  E.g., driver was not cleanly unloaded previously, etc.
+	 */
+	if (amdgpu_asic_need_reset_on_init(adev)) {
+		r = amdgpu_asic_reset(adev);
+		if (r) {
+			dev_err(adev->dev, "asic reset on init failed\n");
+			goto failed;
+		}
+	}
+
 	/* Post card if necessary */
 	if (amdgpu_device_need_post(adev)) {
 		if (!adev->bios) {
