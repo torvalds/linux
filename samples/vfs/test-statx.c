@@ -25,12 +25,20 @@
 #include <sys/types.h>
 #include <linux/stat.h>
 #include <linux/fcntl.h>
+#define statx foo
+#define statx_timestamp foo_timestamp
 #include <sys/stat.h>
+#undef statx
+#undef statx_timestamp
 
 #define AT_STATX_SYNC_TYPE	0x6000
 #define AT_STATX_SYNC_AS_STAT	0x0000
 #define AT_STATX_FORCE_SYNC	0x2000
 #define AT_STATX_DONT_SYNC	0x4000
+
+#ifndef __NR_statx
+#define __NR_statx -1
+#endif
 
 static __attribute__((unused))
 ssize_t statx(int dfd, const char *filename, unsigned flags,
@@ -157,7 +165,8 @@ static void dump_statx(struct statx *stx)
 			"?dai?c??"	/*  7- 0	0x00000000-000000ff */
 			;
 
-		printf("Attributes: %016llx (", stx->stx_attributes);
+		printf("Attributes: %016llx (",
+		       (unsigned long long)stx->stx_attributes);
 		for (byte = 64 - 8; byte >= 0; byte -= 8) {
 			bits = stx->stx_attributes >> byte;
 			mbits = stx->stx_attributes_mask >> byte;
