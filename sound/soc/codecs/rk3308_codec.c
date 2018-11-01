@@ -2046,8 +2046,8 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
 			   RK3308_DAC_L_HPMIX_UNMUTE |
 			   RK3308_DAC_R_HPMIX_UNMUTE,
-			   RK3308_DAC_L_HPMIX_MUTE |
-			   RK3308_DAC_R_HPMIX_MUTE);
+			   RK3308_DAC_L_HPMIX_UNMUTE |
+			   RK3308_DAC_R_HPMIX_UNMUTE);
 
 	/* Step 04 */
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON12,
@@ -2159,8 +2159,8 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
 			   RK3308_DAC_L_HPMIX_WORK |
 			   RK3308_DAC_R_HPMIX_WORK,
-			   RK3308_DAC_L_HPMIX_INIT |
-			   RK3308_DAC_R_HPMIX_INIT);
+			   RK3308_DAC_L_HPMIX_WORK |
+			   RK3308_DAC_R_HPMIX_WORK);
 
 	/* Step 20 skipped, may set the min gain for HPOUT. */
 
