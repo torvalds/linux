@@ -123,6 +123,7 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		else
 			ack_at = expiry;
 
+		ack_at += READ_ONCE(call->tx_backoff);
 		ack_at += now;
 		if (time_before(ack_at, call->ack_at)) {
 			WRITE_ONCE(call->ack_at, ack_at);
@@ -311,6 +312,7 @@ void rxrpc_process_call(struct work_struct *work)
 		container_of(work, struct rxrpc_call, processor);
 	rxrpc_serial_t *send_ack;
 	unsigned long now, next, t;
+	unsigned int iterations = 0;
 
 	rxrpc_see_call(call);
 
@@ -319,6 +321,11 @@ void rxrpc_process_call(struct work_struct *work)
 	       call->debug_id, rxrpc_call_states[call->state], call->events);
 
 recheck_state:
+	/* Limit the number of times we do this before returning to the manager */
+	iterations++;
+	if (iterations > 5)
+		goto requeue;
+
 	if (test_and_clear_bit(RXRPC_CALL_EV_ABORT, &call->events)) {
 		rxrpc_send_abort_packet(call);
 		goto recheck_state;
@@ -447,13 +454,16 @@ recheck_state:
 	rxrpc_reduce_call_timer(call, next, now, rxrpc_timer_restart);
 
 	/* other events may have been raised since we started checking */
-	if (call->events && call->state < RXRPC_CALL_COMPLETE) {
-		__rxrpc_queue_call(call);
-		goto out;
-	}
+	if (call->events && call->state < RXRPC_CALL_COMPLETE)
+		goto requeue;
 
 out_put:
 	rxrpc_put_call(call, rxrpc_call_put);
 out:
 	_leave("");
+	return;
+
+requeue:
+	__rxrpc_queue_call(call);
+	goto out;
 }
