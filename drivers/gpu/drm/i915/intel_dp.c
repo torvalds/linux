@@ -1551,54 +1551,6 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	return ret;
 }
 
-static enum aux_ch intel_aux_ch(struct intel_dp *intel_dp)
-{
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
-	const struct ddi_vbt_port_info *info =
-		&dev_priv->vbt.ddi_port_info[port];
-	enum aux_ch aux_ch;
-
-	if (!info->alternate_aux_channel) {
-		aux_ch = (enum aux_ch) port;
-
-		DRM_DEBUG_KMS("using AUX %c for port %c (platform default)\n",
-			      aux_ch_name(aux_ch), port_name(port));
-		return aux_ch;
-	}
-
-	switch (info->alternate_aux_channel) {
-	case DP_AUX_A:
-		aux_ch = AUX_CH_A;
-		break;
-	case DP_AUX_B:
-		aux_ch = AUX_CH_B;
-		break;
-	case DP_AUX_C:
-		aux_ch = AUX_CH_C;
-		break;
-	case DP_AUX_D:
-		aux_ch = AUX_CH_D;
-		break;
-	case DP_AUX_E:
-		aux_ch = AUX_CH_E;
-		break;
-	case DP_AUX_F:
-		aux_ch = AUX_CH_F;
-		break;
-	default:
-		MISSING_CASE(info->alternate_aux_channel);
-		aux_ch = AUX_CH_A;
-		break;
-	}
-
-	DRM_DEBUG_KMS("using AUX %c for port %c (VBT)\n",
-		      aux_ch_name(aux_ch), port_name(port));
-
-	return aux_ch;
-}
-
 static enum intel_display_power_domain
 intel_aux_power_domain(struct intel_dp *intel_dp)
 {
@@ -1739,7 +1691,7 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
-	intel_dp->aux_ch = intel_aux_ch(intel_dp);
+	intel_dp->aux_ch = intel_aux_ch(dev_priv, encoder->port);
 	intel_dp->aux_power_domain = intel_aux_power_domain(intel_dp);
 
 	if (INTEL_GEN(dev_priv) >= 9) {

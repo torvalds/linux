@@ -2159,3 +2159,48 @@ intel_bios_is_lspcon_present(struct drm_i915_private *dev_priv,
 
 	return false;
 }
+
+enum aux_ch intel_aux_ch(struct drm_i915_private *dev_priv, enum port port)
+{
+	const struct ddi_vbt_port_info *info =
+		&dev_priv->vbt.ddi_port_info[port];
+	enum aux_ch aux_ch;
+
+	if (!info->alternate_aux_channel) {
+		aux_ch = (enum aux_ch)port;
+
+		DRM_DEBUG_KMS("using AUX %c for port %c (platform default)\n",
+			      aux_ch_name(aux_ch), port_name(port));
+		return aux_ch;
+	}
+
+	switch (info->alternate_aux_channel) {
+	case DP_AUX_A:
+		aux_ch = AUX_CH_A;
+		break;
+	case DP_AUX_B:
+		aux_ch = AUX_CH_B;
+		break;
+	case DP_AUX_C:
+		aux_ch = AUX_CH_C;
+		break;
+	case DP_AUX_D:
+		aux_ch = AUX_CH_D;
+		break;
+	case DP_AUX_E:
+		aux_ch = AUX_CH_E;
+		break;
+	case DP_AUX_F:
+		aux_ch = AUX_CH_F;
+		break;
+	default:
+		MISSING_CASE(info->alternate_aux_channel);
+		aux_ch = AUX_CH_A;
+		break;
+	}
+
+	DRM_DEBUG_KMS("using AUX %c for port %c (VBT)\n",
+		      aux_ch_name(aux_ch), port_name(port));
+
+	return aux_ch;
+}
