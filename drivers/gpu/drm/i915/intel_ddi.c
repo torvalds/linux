@@ -2103,6 +2103,7 @@ intel_ddi_main_link_aux_domain(struct intel_digital_port *dig_port)
 static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder,
 				       struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port;
 	u64 domains;
 
@@ -2117,8 +2118,12 @@ static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	dig_port = enc_to_dig_port(&encoder->base);
 	domains = BIT_ULL(dig_port->ddi_io_power_domain);
 
-	/* AUX power is only needed for (e)DP mode, not for HDMI. */
-	if (intel_crtc_has_dp_encoder(crtc_state))
+	/*
+	 * AUX power is only needed for (e)DP mode, and for HDMI mode on TC
+	 * ports.
+	 */
+	if (intel_crtc_has_dp_encoder(crtc_state) ||
+	    intel_port_is_tc(dev_priv, encoder->port))
 		domains |= BIT_ULL(intel_ddi_main_link_aux_domain(dig_port));
 
 	return domains;
@@ -3331,7 +3336,8 @@ intel_ddi_pre_pll_enable(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	enum port port = encoder->port;
 
-	if (intel_crtc_has_dp_encoder(crtc_state))
+	if (intel_crtc_has_dp_encoder(crtc_state) ||
+	    intel_port_is_tc(dev_priv, encoder->port))
 		intel_display_power_get(dev_priv,
 					intel_ddi_main_link_aux_domain(dig_port));
 
