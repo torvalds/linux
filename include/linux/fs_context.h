@@ -81,4 +81,46 @@ extern struct fs_context *fs_context_for_submount(struct file_system_type *fs_ty
 extern int vfs_get_tree(struct fs_context *fc);
 extern void put_fs_context(struct fs_context *fc);
 
+#define logfc(FC, FMT, ...) pr_notice(FMT, ## __VA_ARGS__)
+
+/**
+ * infof - Store supplementary informational message
+ * @fc: The context in which to log the informational message
+ * @fmt: The format string
+ *
+ * Store the supplementary informational message for the process if the process
+ * has enabled the facility.
+ */
+#define infof(fc, fmt, ...) ({ logfc(fc, fmt, ## __VA_ARGS__); })
+
+/**
+ * warnf - Store supplementary warning message
+ * @fc: The context in which to log the error message
+ * @fmt: The format string
+ *
+ * Store the supplementary warning message for the process if the process has
+ * enabled the facility.
+ */
+#define warnf(fc, fmt, ...) ({ logfc(fc, fmt, ## __VA_ARGS__); })
+
+/**
+ * errorf - Store supplementary error message
+ * @fc: The context in which to log the error message
+ * @fmt: The format string
+ *
+ * Store the supplementary error message for the process if the process has
+ * enabled the facility.
+ */
+#define errorf(fc, fmt, ...) ({ logfc(fc, fmt, ## __VA_ARGS__); })
+
+/**
+ * invalf - Store supplementary invalid argument error message
+ * @fc: The context in which to log the error message
+ * @fmt: The format string
+ *
+ * Store the supplementary error message for the process if the process has
+ * enabled the facility and return -EINVAL.
+ */
+#define invalf(fc, fmt, ...) ({	errorf(fc, fmt, ## __VA_ARGS__); -EINVAL; })
+
 #endif /* _LINUX_FS_CONTEXT_H */
