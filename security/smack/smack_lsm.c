@@ -43,6 +43,8 @@
 #include <linux/shm.h>
 #include <linux/binfmts.h>
 #include <linux/parser.h>
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include "smack.h"
 
 #define TRANS_TRUE	"TRUE"
@@ -541,7 +543,6 @@ static int smack_syslog(int typefrom_file)
 	return rc;
 }
 
-
 /*
  * Superblock Hooks.
  */
@@ -644,6 +645,44 @@ static int smack_add_opt(int token, const char *s, void **mnt_opts)
 out_opt_err:
 	pr_warn("Smack: duplicate mount options\n");
 	return -EINVAL;
+}
+
+static const struct fs_parameter_spec smack_param_specs[] = {
+	fsparam_string("fsdefault",	Opt_fsdefault),
+	fsparam_string("fsfloor",	Opt_fsfloor),
+	fsparam_string("fshat",		Opt_fshat),
+	fsparam_string("fsroot",	Opt_fsroot),
+	fsparam_string("fstransmute",	Opt_fstransmute),
+	{}
+};
+
+static const struct fs_parameter_description smack_fs_parameters = {
+	.name		= "smack",
+	.specs		= smack_param_specs,
+};
+
+/**
+ * smack_fs_context_parse_param - Parse a single mount parameter
+ * @fc: The new filesystem context being constructed.
+ * @param: The parameter.
+ *
+ * Returns 0 on success, -ENOPARAM to pass the parameter on or anything else on
+ * error.
+ */
+static int smack_fs_context_parse_param(struct fs_context *fc,
+					struct fs_parameter *param)
+{
+	struct fs_parse_result result;
+	int opt, rc;
+
+	opt = fs_parse(fc, &smack_fs_parameters, param, &result);
+	if (opt < 0)
+		return opt;
+
+	rc = smack_add_opt(opt, param->string, &fc->security);
+	if (!rc)
+		param->string = NULL;
+	return rc;
 }
 
 static int smack_sb_eat_lsm_opts(char *options, void **mnt_opts)
@@ -4586,6 +4625,8 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(ptrace_access_check, smack_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, smack_ptrace_traceme),
 	LSM_HOOK_INIT(syslog, smack_syslog),
+
+	LSM_HOOK_INIT(fs_context_parse_param, smack_fs_context_parse_param),
 
 	LSM_HOOK_INIT(sb_alloc_security, smack_sb_alloc_security),
 	LSM_HOOK_INIT(sb_free_security, smack_sb_free_security),
