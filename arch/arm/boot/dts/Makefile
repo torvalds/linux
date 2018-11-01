@@ -573,7 +573,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3308-evb-dmic-pdm-v11-aarch32.dtb \
 	rk3308-voice-module-board-v10-aarch32.dtb \
 	rk3308-voice-module-amic-mainboard-v10-aarch32.dtb \
-	rk3308-voice-module-pdm-mainboard-v10-aarch32.dtb
+	rk3308-voice-module-pdm-mainboard-v10-aarch32.dtb \
+	rk3308b-evb-amic-v10-aarch32.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += \
 	s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += \
