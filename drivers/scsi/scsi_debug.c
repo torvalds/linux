@@ -5881,8 +5881,7 @@ static int sdebug_driver_probe(struct device *dev)
 	}
 	/* Decide whether to tell scsi subsystem that we want mq */
 	/* Following should give the same answer for each host */
-	if (shost_use_blk_mq(hpnt))
-		hpnt->nr_hw_queues = submit_queues;
+	hpnt->nr_hw_queues = submit_queues;
 
 	sdbg_host->shost = hpnt;
 	*((struct sdebug_host_info **)hpnt->hostdata) = sdbg_host;

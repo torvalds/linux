@@ -857,13 +857,9 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	}
 
 	if (ha->mqenable) {
-		if (shost_use_blk_mq(vha->host)) {
-			tag = blk_mq_unique_tag(cmd->request);
-			hwq = blk_mq_unique_tag_to_hwq(tag);
-			qpair = ha->queue_pair_map[hwq];
-		} else if (vha->vp_idx && vha->qpair) {
-			qpair = vha->qpair;
-		}
+		tag = blk_mq_unique_tag(cmd->request);
+		hwq = blk_mq_unique_tag_to_hwq(tag);
+		qpair = ha->queue_pair_map[hwq];
 
 		if (qpair)
 			return qla2xxx_mqueuecommand(host, cmd, qpair);
@@ -3153,7 +3149,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto probe_failed;
 	}
 
-	if (ha->mqenable && shost_use_blk_mq(host)) {
+	if (ha->mqenable) {
 		/* number of hardware queues supported by blk/scsi-mq*/
 		host->nr_hw_queues = ha->max_qpairs;
 
@@ -3265,25 +3261,17 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    base_vha->mgmt_svr_loop_id, host->sg_tablesize);
 
 	if (ha->mqenable) {
-		bool mq = false;
 		bool startit = false;
 
-		if (QLA_TGT_MODE_ENABLED()) {
-			mq = true;
+		if (QLA_TGT_MODE_ENABLED())
 			startit = false;
-		}
 
-		if ((ql2x_ini_mode == QLA2XXX_INI_MODE_ENABLED) &&
-		    shost_use_blk_mq(host)) {
-			mq = true;
+		if (ql2x_ini_mode == QLA2XXX_INI_MODE_ENABLED)
 			startit = true;
-		}
 
-		if (mq) {
-			/* Create start of day qpairs for Block MQ */
-			for (i = 0; i < ha->max_qpairs; i++)
-				qla2xxx_create_qpair(base_vha, 5, 0, startit);
-		}
+		/* Create start of day qpairs for Block MQ */
+		for (i = 0; i < ha->max_qpairs; i++)
+			qla2xxx_create_qpair(base_vha, 5, 0, startit);
 	}
 
 	if (ha->flags.running_gold_fw)

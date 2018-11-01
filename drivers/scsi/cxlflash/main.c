@@ -3088,12 +3088,6 @@ static ssize_t hwq_mode_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	if ((mode == HWQ_MODE_TAG) && !shost_use_blk_mq(shost)) {
-		dev_info(cfgdev, "SCSI-MQ is not enabled, use a different "
-			 "HWQ steering mode.\n");
-		return -EINVAL;
-	}
-
 	afu->hwq_mode = mode;
 
 	return count;
