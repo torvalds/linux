@@ -338,7 +338,7 @@ bool phydm_check_nhm_ready(void *dm_void)
 			ODM_delay_ms(1);
 			if (odm_get_bb_reg(dm, ODM_REG_NHM_DUR_READY_11AC,
 					   BIT(17))) {
-				ret = 1;
+				ret = true;
 				break;
 			}
 		}
@@ -351,7 +351,7 @@ bool phydm_check_nhm_ready(void *dm_void)
 			ODM_delay_ms(1);
 			if (odm_get_bb_reg(dm, ODM_REG_NHM_DUR_READY_11AC,
 					   BIT(17))) {
-				ret = 1;
+				ret = true;
 				break;
 			}
 		}
