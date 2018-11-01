@@ -1004,4 +1004,16 @@ void mlx5e_build_rss_params(struct mlx5e_rss_params *rss_params,
 u8 mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev);
 void mlx5e_rx_dim_work(struct work_struct *work);
 void mlx5e_tx_dim_work(struct work_struct *work);
+
+void mlx5e_add_vxlan_port(struct net_device *netdev, struct udp_tunnel_info *ti);
+void mlx5e_del_vxlan_port(struct net_device *netdev, struct udp_tunnel_info *ti);
+netdev_features_t mlx5e_features_check(struct sk_buff *skb,
+				       struct net_device *netdev,
+				       netdev_features_t features);
+#ifdef CONFIG_MLX5_ESWITCH
+int mlx5e_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
+int mlx5e_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate, int max_tx_rate);
+int mlx5e_get_vf_config(struct net_device *dev, int vf, struct ifla_vf_info *ivi);
+int mlx5e_get_vf_stats(struct net_device *dev, int vf, struct ifla_vf_stats *vf_stats);
+#endif
 #endif /* __MLX5_EN_H__ */
