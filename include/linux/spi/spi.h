@@ -155,6 +155,7 @@ struct spi_device {
 #define	SPI_RX_DUAL	0x400			/* receive with 2 wires */
 #define	SPI_RX_QUAD	0x800			/* receive with 4 wires */
 #define SPI_CS_WORD	0x1000			/* toggle cs after each word */
+#define	SPI_3WIRE_HIZ	0x2000			/* high impedance turnaround */
 	int			irq;
 	void			*controller_state;
 	void			*controller_data;
