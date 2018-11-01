@@ -133,7 +133,17 @@ extern int vfs_get_super(struct fs_context *fc,
 			 int (*fill_super)(struct super_block *sb,
 					   struct fs_context *fc));
 
-#define logfc(FC, FMT, ...) pr_notice(FMT, ## __VA_ARGS__)
+extern const struct file_operations fscontext_fops;
+
+#ifdef CONFIG_PRINTK
+extern __attribute__((format(printf, 2, 3)))
+void logfc(struct fs_context *fc, const char *fmt, ...);
+#else
+static inline __attribute__((format(printf, 2, 3)))
+void logfc(struct fs_context *fc, const char *fmt, ...)
+{
+}
+#endif
 
 /**
  * infof - Store supplementary informational message
@@ -143,7 +153,7 @@ extern int vfs_get_super(struct fs_context *fc,
  * Store the supplementary informational message for the process if the process
  * has enabled the facility.
  */
-#define infof(fc, fmt, ...) ({ logfc(fc, fmt, ## __VA_ARGS__); })
+#define infof(fc, fmt, ...) ({ logfc(fc, "i "fmt, ## __VA_ARGS__); })
 
 /**
  * warnf - Store supplementary warning message
@@ -153,7 +163,7 @@ extern int vfs_get_super(struct fs_context *fc,
  * Store the supplementary warning message for the process if the process has
  * enabled the facility.
  */
-#define warnf(fc, fmt, ...) ({ logfc(fc, fmt, ## __VA_ARGS__); })
+#define warnf(fc, fmt, ...) ({ logfc(fc, "w "fmt, ## __VA_ARGS__); })
 
 /**
  * errorf - Store supplementary error message
@@ -163,7 +173,7 @@ extern int vfs_get_super(struct fs_context *fc,
  * Store the supplementary error message for the process if the process has
  * enabled the facility.
  */
-#define errorf(fc, fmt, ...) ({ logfc(fc, fmt, ## __VA_ARGS__); })
+#define errorf(fc, fmt, ...) ({ logfc(fc, "e "fmt, ## __VA_ARGS__); })
 
 /**
  * invalf - Store supplementary invalid argument error message

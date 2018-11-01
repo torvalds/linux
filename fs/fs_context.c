@@ -378,6 +378,36 @@ err_fc:
 }
 EXPORT_SYMBOL(vfs_dup_fs_context);
 
+#ifdef CONFIG_PRINTK
+/**
+ * logfc - Log a message to a filesystem context
+ * @fc: The filesystem context to log to.
+ * @fmt: The format of the buffer.
+ */
+void logfc(struct fs_context *fc, const char *fmt, ...)
+{
+	va_list va;
+
+	va_start(va, fmt);
+
+	switch (fmt[0]) {
+	case 'w':
+		vprintk_emit(0, LOGLEVEL_WARNING, NULL, 0, fmt, va);
+		break;
+	case 'e':
+		vprintk_emit(0, LOGLEVEL_ERR, NULL, 0, fmt, va);
+		break;
+	default:
+		vprintk_emit(0, LOGLEVEL_NOTICE, NULL, 0, fmt, va);
+		break;
+	}
+
+	pr_cont("\n");
+	va_end(va);
+}
+EXPORT_SYMBOL(logfc);
+#endif
+
 /**
  * put_fs_context - Dispose of a superblock configuration context.
  * @fc: The context to dispose of.
