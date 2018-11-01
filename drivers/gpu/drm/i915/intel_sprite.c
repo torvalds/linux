@@ -347,7 +347,6 @@ skl_program_scaler(struct intel_plane *plane,
 
 	I915_WRITE_FW(SKL_PS_CTRL(pipe, scaler_id),
 		      PS_SCALER_EN | PS_PLANE_SEL(plane->id) | scaler->mode);
-	I915_WRITE_FW(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
 	I915_WRITE_FW(SKL_PS_VPHASE(pipe, scaler_id),
 		      PS_Y_PHASE(y_vphase) | PS_UV_RGB_PHASE(uv_rgb_vphase));
 	I915_WRITE_FW(SKL_PS_HPHASE(pipe, scaler_id),
