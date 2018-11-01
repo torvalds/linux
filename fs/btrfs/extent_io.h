@@ -106,8 +106,6 @@ struct extent_io_ops {
 	/*
 	 * Optional hooks, called if the pointer is not NULL
 	 */
-	void (*set_bit_hook)(void *private_data, struct extent_state *state,
-			     unsigned *bits);
 	void (*clear_bit_hook)(void *private_data,
 			struct extent_state *state,
 			unsigned *bits);
