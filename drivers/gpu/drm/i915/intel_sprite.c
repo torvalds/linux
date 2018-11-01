@@ -311,12 +311,11 @@ skl_plane_max_stride(struct intel_plane *plane,
 }
 
 static void
-skl_program_scaler(struct drm_i915_private *dev_priv,
-		   struct intel_plane *plane,
+skl_program_scaler(struct intel_plane *plane,
 		   const struct intel_crtc_state *crtc_state,
 		   const struct intel_plane_state *plane_state)
 {
-	enum plane_id plane_id = plane->id;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 	int scaler_id = plane_state->scaler_id;
 	const struct intel_scaler *scaler =
@@ -327,10 +326,6 @@ skl_program_scaler(struct drm_i915_private *dev_priv,
 	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
 	u16 y_hphase, uv_rgb_hphase;
 	u16 y_vphase, uv_rgb_vphase;
-
-	/* Sizes are 0 based */
-	crtc_w--;
-	crtc_h--;
 
 	/* TODO: handle sub-pixel coordinates */
 	if (plane_state->base.fb->format->format == DRM_FORMAT_NV12 &&
@@ -351,15 +346,14 @@ skl_program_scaler(struct drm_i915_private *dev_priv,
 	}
 
 	I915_WRITE_FW(SKL_PS_CTRL(pipe, scaler_id),
-		      PS_SCALER_EN | PS_PLANE_SEL(plane_id) | scaler->mode);
+		      PS_SCALER_EN | PS_PLANE_SEL(plane->id) | scaler->mode);
 	I915_WRITE_FW(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
 	I915_WRITE_FW(SKL_PS_VPHASE(pipe, scaler_id),
 		      PS_Y_PHASE(y_vphase) | PS_UV_RGB_PHASE(uv_rgb_vphase));
 	I915_WRITE_FW(SKL_PS_HPHASE(pipe, scaler_id),
 		      PS_Y_PHASE(y_hphase) | PS_UV_RGB_PHASE(uv_rgb_hphase));
 	I915_WRITE_FW(SKL_PS_WIN_POS(pipe, scaler_id), (crtc_x << 16) | crtc_y);
-	I915_WRITE_FW(SKL_PS_WIN_SZ(pipe, scaler_id),
-		      ((crtc_w + 1) << 16)|(crtc_h + 1));
+	I915_WRITE_FW(SKL_PS_WIN_SZ(pipe, scaler_id), (crtc_w << 16) | crtc_h);
 }
 
 /* Preoffset values for YUV to RGB Conversion */
@@ -548,11 +542,9 @@ skl_program_plane(struct intel_plane *plane,
 		I915_WRITE_FW(PLANE_CUS_CTL(pipe, plane_id), cus_ctl);
 	}
 
-	/* program plane scaler */
 	if (plane_state->scaler_id >= 0) {
 		if (!slave)
-			skl_program_scaler(dev_priv, plane,
-					   crtc_state, plane_state);
+			skl_program_scaler(plane, crtc_state, plane_state);
 
 		I915_WRITE_FW(PLANE_POS(pipe, plane_id), 0);
 	} else {
