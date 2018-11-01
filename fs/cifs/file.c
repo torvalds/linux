@@ -2625,18 +2625,21 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 			break;
 
 		if (ctx->direct_io) {
-			cur_len = iov_iter_get_pages_alloc(
+			ssize_t result;
+
+			result = iov_iter_get_pages_alloc(
 				from, &pagevec, wsize, &start);
-			if (cur_len < 0) {
+			if (result < 0) {
 				cifs_dbg(VFS,
 					"direct_writev couldn't get user pages "
 					"(rc=%zd) iter type %d iov_offset %zd "
 					"count %zd\n",
-					cur_len, from->type,
+					result, from->type,
 					from->iov_offset, from->count);
 				dump_stack();
 				break;
 			}
+			cur_len = (size_t)result;
 			iov_iter_advance(from, cur_len);
 
 			nr_pages =
@@ -3322,21 +3325,23 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		cur_len = min_t(const size_t, len, rsize);
 
 		if (ctx->direct_io) {
+			ssize_t result;
 
-			cur_len = iov_iter_get_pages_alloc(
+			result = iov_iter_get_pages_alloc(
 					&direct_iov, &pagevec,
 					cur_len, &start);
-			if (cur_len < 0) {
+			if (result < 0) {
 				cifs_dbg(VFS,
 					"couldn't get user pages (cur_len=%zd)"
 					" iter type %d"
 					" iov_offset %zd count %zd\n",
-					cur_len, direct_iov.type,
+					result, direct_iov.type,
 					direct_iov.iov_offset,
 					direct_iov.count);
 				dump_stack();
 				break;
 			}
+			cur_len = (size_t)result;
 			iov_iter_advance(&direct_iov, cur_len);
 
 			rdata = cifs_readdata_direct_alloc(
