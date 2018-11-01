@@ -2762,7 +2762,7 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 			dst_reg->umax_value = umax_ptr;
 			dst_reg->var_off = ptr_reg->var_off;
 			dst_reg->off = ptr_reg->off + smin_val;
-			dst_reg->range = ptr_reg->range;
+			dst_reg->raw = ptr_reg->raw;
 			break;
 		}
 		/* A new variable offset is created.  Note that off_reg->off
@@ -2792,10 +2792,11 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		}
 		dst_reg->var_off = tnum_add(ptr_reg->var_off, off_reg->var_off);
 		dst_reg->off = ptr_reg->off;
+		dst_reg->raw = ptr_reg->raw;
 		if (reg_is_pkt_pointer(ptr_reg)) {
 			dst_reg->id = ++env->id_gen;
 			/* something was added to pkt_ptr, set range to zero */
-			dst_reg->range = 0;
+			dst_reg->raw = 0;
 		}
 		break;
 	case BPF_SUB:
@@ -2824,7 +2825,7 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 			dst_reg->var_off = ptr_reg->var_off;
 			dst_reg->id = ptr_reg->id;
 			dst_reg->off = ptr_reg->off - smin_val;
-			dst_reg->range = ptr_reg->range;
+			dst_reg->raw = ptr_reg->raw;
 			break;
 		}
 		/* A new variable offset is created.  If the subtrahend is known
@@ -2850,11 +2851,12 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		}
 		dst_reg->var_off = tnum_sub(ptr_reg->var_off, off_reg->var_off);
 		dst_reg->off = ptr_reg->off;
+		dst_reg->raw = ptr_reg->raw;
 		if (reg_is_pkt_pointer(ptr_reg)) {
 			dst_reg->id = ++env->id_gen;
 			/* something was added to pkt_ptr, set range to zero */
 			if (smin_val < 0)
-				dst_reg->range = 0;
+				dst_reg->raw = 0;
 		}
 		break;
 	case BPF_AND:
