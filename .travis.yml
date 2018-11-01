@@ -1,0 +1,29 @@
+language: c
+
+git:
+  depth: false
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install python-ply python-git libelf-dev codespell
+  - git clone https://github.com/thesofproject/kconfig.git
+
+jobs:
+  include:
+    - if: type = pull_request
+      name: checkpatch
+      script: scripts/checkpatch.pl --strict --codespell -g $TRAVIS_COMMIT_RANGE
+    - name: "BUILD SOF Kernel x86_64"
+      script:
+        - export ARCH=x86_64
+        - make defconfig
+        - scripts/kconfig/merge_config.sh .config kconfig/base-defconfig kconfig/sof-defconfig
+        - echo `getconf _NPROCESSORS_ONLN`
+        - make -j`getconf _NPROCESSORS_ONLN`
+    - name: "BUILD SST Kernel x86_64"
+      script:
+        - export ARCH=x86_64
+        - make defconfig
+        - scripts/kconfig/merge_config.sh .config kconfig/base-defconfig kconfig/sst-defconfig
+        - echo `getconf _NPROCESSORS_ONLN`
+        - make -j`getconf _NPROCESSORS_ONLN`
