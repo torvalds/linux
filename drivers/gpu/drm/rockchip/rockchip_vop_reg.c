@@ -1702,10 +1702,10 @@ static const struct vop_ctrl rk1808_vop_raw_ctrl_data = {
 	.mipi_dclk_pol = VOP_REG(RK1808_DSP_CTRL0, 0x1, 1),
 	.mipi_pin_pol = VOP_REG(RK1808_DSP_CTRL0, 0x7, 2),
 
-	.htotal_pw = VOP_REG(RK1808_DSP_HTOTAL_HS_END, 0x0fff0fff, 0),
-	.hact_st_end = VOP_REG(RK1808_DSP_HACT_ST_END, 0x0fff0fff, 0),
-	.vtotal_pw = VOP_REG(RK1808_DSP_VTOTAL_VS_END, 0x0fff0fff, 0),
-	.vact_st_end = VOP_REG(RK1808_DSP_VACT_ST_END, 0x0fff0fff, 0),
+	.htotal_pw = VOP_REG(RK1808_DSP_HTOTAL_HS_END, 0x3fff3fff, 0),
+	.hact_st_end = VOP_REG(RK1808_DSP_HACT_ST_END, 0x3fff3fff, 0),
+	.vtotal_pw = VOP_REG(RK1808_DSP_VTOTAL_VS_END, 0x3fff3fff, 0),
+	.vact_st_end = VOP_REG(RK1808_DSP_VACT_ST_END, 0x3fff3fff, 0),
 
 	.pdaf_en = VOP_REG(RK1808_PDAF_CTRL, 0x1, 0),
 	.pdaf_type = VOP_REG(RK1808_PDAF_CTRL, 0x7, 1),
