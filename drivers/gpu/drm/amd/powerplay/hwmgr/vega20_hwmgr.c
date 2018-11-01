@@ -2742,7 +2742,7 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz == now) ? "*" : "");
+				(clocks.data[i].clocks_in_khz == now * 10) ? "*" : "");
 		break;
 
 	case PP_MCLK:
@@ -2759,7 +2759,7 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz == now) ? "*" : "");
+				(clocks.data[i].clocks_in_khz == now * 10) ? "*" : "");
 		break;
 
 	case PP_PCIE:
