@@ -177,6 +177,9 @@
 #define T_TA_WAIT_CNT_MASK		GENMASK(5, 0)
 #define T_TA_WAIT_CNT(x)		UPDATE(x, 5, 0)
 
+#define PSEC_PER_NSEC	1000L
+#define PSECS_PER_SEC	1000000000000LL
+
 enum inno_video_phy_functions {
 	INNO_PHY_PADCTL_FUNC_MIPI,
 	INNO_PHY_PADCTL_FUNC_LVDS,
@@ -541,8 +544,8 @@ static void mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
 {
 	/* Global Operation Timing Parameters */
 	timing->clkmiss = 0;
-	timing->clkpost = 70 + 52 * period;
-	timing->clkpre = 8 * period;
+	timing->clkpost = 70 + 52 * period / PSEC_PER_NSEC;
+	timing->clkpre = 8 * period / PSEC_PER_NSEC;
 	timing->clkprepare = 65;
 	timing->clksettle = 95;
 	timing->clktermen = 0;
@@ -551,11 +554,12 @@ static void mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
 	timing->dtermen = 0;
 	timing->eot = 0;
 	timing->hsexit = 120;
-	timing->hsprepare = 65 + 4 * period;
-	timing->hszero = 145 + 6 * period;
-	timing->hssettle = 85 + 6 * period;
+	timing->hsprepare = 65 + 4 * period / PSEC_PER_NSEC;
+	timing->hszero = 145 + 6 * period / PSEC_PER_NSEC;
+	timing->hssettle = 85 + 6 * period / PSEC_PER_NSEC;
 	timing->hsskip = 40;
-	timing->hstrail = max(8 * period, 60 + 4 * period);
+	timing->hstrail = max(8 * period / PSEC_PER_NSEC,
+			      60 + 4 * period / PSEC_PER_NSEC);
 	timing->init = 100000;
 	timing->lpx = 60;
 	timing->taget = 5 * timing->lpx;
@@ -596,7 +600,7 @@ static void inno_mipi_dphy_timing_init(struct inno_mipi_dphy *inno)
 	sys_clk = clk_get_rate(inno->pclk);
 	esc_clk_div = DIV_ROUND_UP(txbyteclk, 20000000);
 	txclkesc = txbyteclk / esc_clk_div;
-	ui = DIV_ROUND_CLOSEST_ULL(NSEC_PER_SEC, inno->lane_rate);
+	ui = DIV_ROUND_CLOSEST_ULL(PSECS_PER_SEC, inno->lane_rate);
 
 	dev_dbg(inno->dev, "txbyteclk=%ld, ui=%ld, sys_clk=%ld\n",
 		txbyteclk, ui, sys_clk);
