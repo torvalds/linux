@@ -554,6 +554,9 @@ void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
 	clear_bit(MT76_SCANNING, &dev->mt76.state);
 	if (mt76_is_mmio(dev))
 		tasklet_enable(&dev->pre_tbtt_tasklet);
+
+	if (dev->cal.gain_init_done)
+		ieee80211_queue_delayed_work(hw, &dev->cal_work, 0);
 }
 EXPORT_SYMBOL_GPL(mt76x02_sw_scan_complete);
 
