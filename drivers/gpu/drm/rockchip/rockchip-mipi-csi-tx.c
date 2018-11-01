@@ -316,28 +316,8 @@ static void rockchip_mipi_csi_irq_disable(struct rockchip_mipi_csi *csi)
 
 static int rockchip_mipi_dphy_power_on(struct rockchip_mipi_csi *csi)
 {
-	int ret;
-	unsigned int val, mask;
-
 	if (csi->dphy.phy)
 		phy_power_on(csi->dphy.phy);
-
-	ret = readl_poll_timeout(csi->regs + CSITX_STATUS1,
-				 val, (val & m_DPHY_PLL_LOCK),
-				 1000, PHY_STATUS_TIMEOUT_US);
-	if (ret < 0) {
-		dev_err(csi->dev, "PHY is not locked\n");
-		return ret;
-	}
-
-	mask = PHY_STOPSTATELANE;
-	ret = readl_poll_timeout(csi->regs + CSITX_STATUS1,
-				 val, (val & mask) == mask,
-				 1000, PHY_STATUS_TIMEOUT_US);
-	if (ret < 0) {
-		dev_err(csi->dev, "lane module is not in stop state\n");
-		return ret;
-	}
 
 	udelay(10);
 
@@ -381,7 +361,7 @@ static void rockchip_mipi_csi_host_power_off(struct rockchip_mipi_csi *csi)
 	/* disable csi tx, dphy and config lane num */
 	mask = m_CSITX_EN | m_DPHY_EN;
 	val = v_CSITX_EN(0) | v_DPHY_EN(0);
-	csi_mask_write(csi, CSITX_CONFIG_DONE, mask, val, true);
+	csi_mask_write(csi, CSITX_ENABLE, mask, val, true);
 	csi_mask_write(csi, CSITX_CONFIG_DONE, m_CONFIG_DONE,
 		       v_CONFIG_DONE(1), false);
 }
@@ -509,11 +489,10 @@ rockchip_mipi_csi_calc_bandwidth(struct rockchip_mipi_csi *csi)
 	mpclk = DIV_ROUND_UP(csi->mode.clock, MSEC_PER_SEC);
 	if (mpclk) {
 		/*
-		 * take 1 / 0.9, since mbps must big than bandwidth of RGB,
-		 * and vop raw 1 cycle pclk can process 4 pixel, so multiply 4.
+		 * vop raw 1 cycle pclk can process 4 pixel, so multiply 4.
 		 */
-		tmp = mpclk * (bpp / lanes) * 10 / 9 * 4;
-		if (tmp < max_mbps)
+		tmp = mpclk * (bpp / lanes) * 4;
+		if (tmp <= max_mbps)
 			target_mbps = tmp;
 		else
 			dev_err(csi->dev, "DPHY clock freq is out of range\n");
@@ -674,7 +653,7 @@ static void rockchip_mipi_csi_path_config(struct rockchip_mipi_csi *csi)
 
 		/* enable idi_48bit path */
 		mask = m_IDI_48BIT_EN;
-		val = v_IDI_48BIT_EN(1);
+		val = v_IDI_48BIT_EN(0);
 		csi_mask_write(csi, CSITX_ENABLE, mask, val, true);
 	}
 }
@@ -832,6 +811,37 @@ static void rockchip_mipi_csi_host_init(struct rockchip_mipi_csi *csi)
 	/* timging config */
 }
 
+static int rockchip_mipi_csi_calibration(struct rockchip_mipi_csi *csi)
+{
+	int ret = 0;
+	unsigned int val, mask;
+
+	/* calibration */
+	grf_field_write(csi, TXSKEWCALHS, 0x1f);
+	udelay(17);
+	grf_field_write(csi, TXSKEWCALHS, 0x0);
+
+	ret = readl_poll_timeout(csi->regs + CSITX_STATUS1,
+				 val, (val & m_DPHY_PLL_LOCK),
+				 1000, PHY_STATUS_TIMEOUT_US);
+	if (ret < 0) {
+		dev_err(csi->dev, "PHY is not locked\n");
+		return ret;
+	}
+
+	mask = PHY_STOPSTATELANE;
+	ret = readl_poll_timeout(csi->regs + CSITX_STATUS1,
+				 val, (val & mask) == mask,
+				 1000, PHY_STATUS_TIMEOUT_US);
+	if (ret < 0) {
+		dev_err(csi->dev, "lane module is not in stop state\n");
+		return ret;
+	}
+	udelay(10);
+
+	return 0;
+}
+
 static int rockchip_mipi_csi_pre_enable(struct rockchip_mipi_csi *csi)
 {
 	rockchip_mipi_csi_pre_init(csi);
@@ -861,6 +871,7 @@ static int rockchip_mipi_csi_pre_enable(struct rockchip_mipi_csi *csi)
 	rockchip_mipi_csi_host_init(csi);
 	rockchip_mipi_dphy_init(csi);
 	rockchip_mipi_dphy_power_on(csi);
+	rockchip_mipi_csi_calibration(csi);
 	rockchip_mipi_csi_host_power_on(csi);
 
 	return 0;
