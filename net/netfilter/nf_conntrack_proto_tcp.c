@@ -272,11 +272,6 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 	}
 };
 
-static inline struct nf_tcp_net *tcp_pernet(struct net *net)
-{
-	return &net->ct.nf_ct_proto.tcp;
-}
-
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 /* Print out the private part of the conntrack. */
 static void tcp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
@@ -475,7 +470,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			  const struct tcphdr *tcph)
 {
 	struct net *net = nf_ct_net(ct);
-	struct nf_tcp_net *tn = tcp_pernet(net);
+	struct nf_tcp_net *tn = nf_tcp_pernet(net);
 	struct ip_ct_tcp_state *sender = &state->seen[dir];
 	struct ip_ct_tcp_state *receiver = &state->seen[!dir];
 	const struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
@@ -767,7 +762,7 @@ static noinline bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 {
 	enum tcp_conntrack new_state;
 	struct net *net = nf_ct_net(ct);
-	const struct nf_tcp_net *tn = tcp_pernet(net);
+	const struct nf_tcp_net *tn = nf_tcp_pernet(net);
 	const struct ip_ct_tcp_state *sender = &ct->proto.tcp.seen[0];
 	const struct ip_ct_tcp_state *receiver = &ct->proto.tcp.seen[1];
 
@@ -841,7 +836,7 @@ static int tcp_packet(struct nf_conn *ct,
 		      const struct nf_hook_state *state)
 {
 	struct net *net = nf_ct_net(ct);
-	struct nf_tcp_net *tn = tcp_pernet(net);
+	struct nf_tcp_net *tn = nf_tcp_pernet(net);
 	struct nf_conntrack_tuple *tuple;
 	enum tcp_conntrack new_state, old_state;
 	unsigned int index, *timeouts;
@@ -1283,7 +1278,7 @@ static unsigned int tcp_nlattr_tuple_size(void)
 static int tcp_timeout_nlattr_to_obj(struct nlattr *tb[],
 				     struct net *net, void *data)
 {
-	struct nf_tcp_net *tn = tcp_pernet(net);
+	struct nf_tcp_net *tn = nf_tcp_pernet(net);
 	unsigned int *timeouts = data;
 	int i;
 
@@ -1508,7 +1503,7 @@ static int tcp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 
 static int tcp_init_net(struct net *net)
 {
-	struct nf_tcp_net *tn = tcp_pernet(net);
+	struct nf_tcp_net *tn = nf_tcp_pernet(net);
 	struct nf_proto_net *pn = &tn->pn;
 
 	if (!pn->users) {
