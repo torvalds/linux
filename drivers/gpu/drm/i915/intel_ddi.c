@@ -2082,10 +2082,8 @@ out:
 }
 
 static inline enum intel_display_power_domain
-intel_ddi_main_link_aux_domain(struct intel_dp *intel_dp)
+intel_ddi_main_link_aux_domain(struct intel_digital_port *dig_port)
 {
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-
 	/* CNL+ HW requires corresponding AUX IOs to be powered up for PSR with
 	 * DC states enabled at the same time, while for driver initiated AUX
 	 * transfers we need the same AUX IOs to be powered but with DC states
@@ -2120,11 +2118,8 @@ static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	domains = BIT_ULL(dig_port->ddi_io_power_domain);
 
 	/* AUX power is only needed for (e)DP mode, not for HDMI. */
-	if (intel_crtc_has_dp_encoder(crtc_state)) {
-		struct intel_dp *intel_dp = &dig_port->dp;
-
-		domains |= BIT_ULL(intel_ddi_main_link_aux_domain(intel_dp));
-	}
+	if (intel_crtc_has_dp_encoder(crtc_state))
+		domains |= BIT_ULL(intel_ddi_main_link_aux_domain(dig_port));
 
 	return domains;
 }
@@ -2904,9 +2899,6 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	WARN_ON(is_mst && (port == PORT_A || port == PORT_E));
 
-	intel_display_power_get(dev_priv,
-				intel_ddi_main_link_aux_domain(intel_dp));
-
 	intel_dp_set_link_params(intel_dp, crtc_state->port_clock,
 				 crtc_state->lane_count, is_mst);
 
@@ -3071,9 +3063,6 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 	intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
 
 	intel_ddi_clk_disable(encoder);
-
-	intel_display_power_put(dev_priv,
-				intel_ddi_main_link_aux_domain(intel_dp));
 }
 
 static void intel_ddi_post_disable_hdmi(struct intel_encoder *encoder,
@@ -3304,15 +3293,6 @@ static void intel_disable_ddi(struct intel_encoder *encoder,
 		intel_disable_ddi_dp(encoder, old_crtc_state, old_conn_state);
 }
 
-static void bxt_ddi_pre_pll_enable(struct intel_encoder *encoder,
-				   const struct intel_crtc_state *pipe_config,
-				   const struct drm_connector_state *conn_state)
-{
-	uint8_t mask = pipe_config->lane_lat_optim_mask;
-
-	bxt_ddi_phy_set_lane_optim_mask(encoder, mask);
-}
-
 static void intel_ddi_set_fia_lane_count(struct intel_encoder *encoder,
 					 const struct intel_crtc_state *pipe_config,
 					 enum port port)
@@ -3342,12 +3322,22 @@ static void intel_ddi_set_fia_lane_count(struct intel_encoder *encoder,
 	I915_WRITE(PORT_TX_DFLEXDPMLE1, val);
 }
 
-static void icl_ddi_pre_pll_enable(struct intel_encoder *encoder,
-				   const struct intel_crtc_state *pipe_config,
-				   const struct drm_connector_state *conn_state)
+static void
+intel_ddi_pre_pll_enable(struct intel_encoder *encoder,
+			 const struct intel_crtc_state *crtc_state,
+			 const struct drm_connector_state *conn_state)
 {
-	enum port port = encoder->port;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	enum port port = encoder->port;
+
+	if (intel_crtc_has_dp_encoder(crtc_state))
+		intel_display_power_get(dev_priv,
+					intel_ddi_main_link_aux_domain(dig_port));
+
+	if (IS_GEN9_LP(dev_priv))
+		bxt_ddi_phy_set_lane_optim_mask(encoder,
+						crtc_state->lane_lat_optim_mask);
 
 	/*
 	 * Program the lane count for static/dynamic connections on Type-C ports.
@@ -3357,7 +3347,21 @@ static void icl_ddi_pre_pll_enable(struct intel_encoder *encoder,
 	    dig_port->tc_type == TC_PORT_TBT)
 		return;
 
-	intel_ddi_set_fia_lane_count(encoder, pipe_config, port);
+	intel_ddi_set_fia_lane_count(encoder, crtc_state, port);
+}
+
+static void
+intel_ddi_post_pll_disable(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *crtc_state,
+			   const struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+
+	if (intel_crtc_has_dp_encoder(crtc_state) ||
+	    intel_port_is_tc(dev_priv, encoder->port))
+		intel_display_power_put(dev_priv,
+					intel_ddi_main_link_aux_domain(dig_port));
 }
 
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
@@ -3875,10 +3879,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_encoder->compute_output_type = intel_ddi_compute_output_type;
 	intel_encoder->compute_config = intel_ddi_compute_config;
 	intel_encoder->enable = intel_enable_ddi;
-	if (IS_GEN9_LP(dev_priv))
-		intel_encoder->pre_pll_enable = bxt_ddi_pre_pll_enable;
-	if (IS_ICELAKE(dev_priv))
-		intel_encoder->pre_pll_enable = icl_ddi_pre_pll_enable;
+	intel_encoder->pre_pll_enable = intel_ddi_pre_pll_enable;
+	intel_encoder->post_pll_disable = intel_ddi_post_pll_disable;
 	intel_encoder->pre_enable = intel_ddi_pre_enable;
 	intel_encoder->disable = intel_disable_ddi;
 	intel_encoder->post_disable = intel_ddi_post_disable;

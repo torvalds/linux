@@ -5856,6 +5856,8 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_unmap_plls_to_ports(crtc, old_crtc_state, old_state);
+
+	intel_encoders_post_pll_disable(crtc, old_crtc_state, old_state);
 }
 
 static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
