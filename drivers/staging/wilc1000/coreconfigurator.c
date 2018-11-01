@@ -8,99 +8,6 @@
 
 #include "coreconfigurator.h"
 
-#define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
-				 BEACON_INTERVAL_LEN + CAP_INFO_LEN)
-
-enum sub_frame_type {
-	ASSOC_REQ             = 0x00,
-	ASSOC_RSP             = 0x10,
-	REASSOC_REQ           = 0x20,
-	REASSOC_RSP           = 0x30,
-	PROBE_REQ             = 0x40,
-	PROBE_RSP             = 0x50,
-	BEACON                = 0x80,
-	ATIM                  = 0x90,
-	DISASOC               = 0xA0,
-	AUTH                  = 0xB0,
-	DEAUTH                = 0xC0,
-	ACTION                = 0xD0,
-	PS_POLL               = 0xA4,
-	RTS                   = 0xB4,
-	CTS                   = 0xC4,
-	ACK                   = 0xD4,
-	CFEND                 = 0xE4,
-	CFEND_ACK             = 0xF4,
-	DATA                  = 0x08,
-	DATA_ACK              = 0x18,
-	DATA_POLL             = 0x28,
-	DATA_POLL_ACK         = 0x38,
-	NULL_FRAME            = 0x48,
-	CFACK                 = 0x58,
-	CFPOLL                = 0x68,
-	CFPOLL_ACK            = 0x78,
-	QOS_DATA              = 0x88,
-	QOS_DATA_ACK          = 0x98,
-	QOS_DATA_POLL         = 0xA8,
-	QOS_DATA_POLL_ACK     = 0xB8,
-	QOS_NULL_FRAME        = 0xC8,
-	QOS_CFPOLL            = 0xE8,
-	QOS_CFPOLL_ACK        = 0xF8,
-	BLOCKACK_REQ          = 0x84,
-	BLOCKACK              = 0x94,
-	FRAME_SUBTYPE_FORCE_32BIT  = 0xFFFFFFFF
-};
-
-static inline u16 get_beacon_period(u8 *data)
-{
-	u16 bcn_per;
-
-	bcn_per  = data[0];
-	bcn_per |= (data[1] << 8);
-
-	return bcn_per;
-}
-
-static inline u32 get_beacon_timestamp_lo(u8 *data)
-{
-	u32 time_stamp = 0;
-	u32 index    = MAC_HDR_LEN;
-
-	time_stamp |= data[index++];
-	time_stamp |= (data[index++] << 8);
-	time_stamp |= (data[index++] << 16);
-	time_stamp |= (data[index]   << 24);
-
-	return time_stamp;
-}
-
-static inline u32 get_beacon_timestamp_hi(u8 *data)
-{
-	u32 time_stamp = 0;
-	u32 index    = (MAC_HDR_LEN + 4);
-
-	time_stamp |= data[index++];
-	time_stamp |= (data[index++] << 8);
-	time_stamp |= (data[index++] << 16);
-	time_stamp |= (data[index]   << 24);
-
-	return time_stamp;
-}
-
-static inline enum sub_frame_type get_sub_type(u8 *header)
-{
-	return ((enum sub_frame_type)(header[0] & 0xFC));
-}
-
-static inline u8 get_to_ds(u8 *header)
-{
-	return (header[1] & 0x01);
-}
-
-static inline u8 get_from_ds(u8 *header)
-{
-	return ((header[1] & 0x02) >> 1);
-}
-
 static inline void get_address1(u8 *msa, u8 *addr)
 {
 	memcpy(addr, msa + 4, 6);
@@ -126,76 +33,12 @@ static inline void get_bssid(__le16 fc, u8 *data, u8 *bssid)
 		get_address3(data, bssid);
 }
 
-static inline void get_ssid(u8 *data, u8 *ssid, u8 *p_ssid_len)
-{
-	u8 i, j, len;
-
-	len = data[TAG_PARAM_OFFSET + 1];
-	j   = TAG_PARAM_OFFSET + 2;
-
-	if (len >= MAX_SSID_LEN)
-		len = 0;
-
-	for (i = 0; i < len; i++, j++)
-		ssid[i] = data[j];
-
-	ssid[len] = '\0';
-
-	*p_ssid_len = len;
-}
-
-static inline u16 get_cap_info(u8 *data)
-{
-	u16 cap_info = 0;
-	u16 index    = MAC_HDR_LEN;
-	enum sub_frame_type st;
-
-	st = get_sub_type(data);
-
-	if (st == BEACON || st == PROBE_RSP)
-		index += TIME_STAMP_LEN + BEACON_INTERVAL_LEN;
-
-	cap_info  = data[index];
-	cap_info |= (data[index + 1] << 8);
-
-	return cap_info;
-}
-
 static inline u16 get_asoc_status(u8 *data)
 {
 	u16 asoc_status;
 
 	asoc_status = data[3];
 	return (asoc_status << 8) | data[2];
-}
-
-static u8 *get_tim_elm(u8 *msa, u16 rx_len, u16 tag_param_offset)
-{
-	u16 index;
-
-	index = tag_param_offset;
-
-	while (index < (rx_len - FCS_LEN)) {
-		if (msa[index] == WLAN_EID_TIM)
-			return &msa[index];
-		index += (IE_HDR_LEN + msa[index + 1]);
-	}
-
-	return NULL;
-}
-
-static u8 get_current_channel_802_11n(u8 *msa, u16 rx_len)
-{
-	u16 index;
-
-	index = TAG_PARAM_OFFSET;
-	while (index < (rx_len - FCS_LEN)) {
-		if (msa[index] == WLAN_EID_DS_PARAMS)
-			return msa[index + 2];
-		index += msa[index + 1] + IE_HDR_LEN;
-	}
-
-	return 0;
 }
 
 s32 wilc_parse_network_info(u8 *msg_buffer,

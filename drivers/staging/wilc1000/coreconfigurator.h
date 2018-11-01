@@ -11,23 +11,15 @@
 
 #define NUM_RSSI                5
 
-#define MAC_HDR_LEN             24
-#define FCS_LEN                 4
-#define TIME_STAMP_LEN          8
-#define BEACON_INTERVAL_LEN     2
 #define CAP_INFO_LEN            2
 #define STATUS_CODE_LEN         2
 #define AID_LEN                 2
-#define IE_HDR_LEN              2
 
 #define SET_CFG              0
 #define GET_CFG              1
 
 #define MAX_STRING_LEN               256
 #define MAX_ASSOC_RESP_FRAME_SIZE    MAX_STRING_LEN
-
-#define MAKE_WORD16(lsb, msb) ((((u16)(msb) << 8) & 0xFF00) | (lsb))
-#define MAKE_WORD32(lsw, msw) ((((u32)(msw) << 16) & 0xFFFF0000) | (lsw))
 
 struct rssi_history_buffer {
 	bool full;
