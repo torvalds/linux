@@ -73,63 +73,56 @@ void bch2_cpu_replicas_to_text(struct printbuf *out,
 static void extent_to_replicas(struct bkey_s_c k,
 			       struct bch_replicas_entry *r)
 {
-	if (bkey_extent_is_data(k.k)) {
-		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-		const union bch_extent_entry *entry;
-		struct extent_ptr_decoded p;
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 
-		r->nr_required	= 1;
+	r->nr_required	= 1;
 
-		extent_for_each_ptr_decode(e, p, entry) {
-			if (p.ptr.cached)
-				continue;
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		if (p.ptr.cached)
+			continue;
 
-			if (p.ec_nr) {
-				r->nr_devs = 0;
-				break;
-			}
-
-			r->devs[r->nr_devs++] = p.ptr.dev;
+		if (p.ec_nr) {
+			r->nr_devs = 0;
+			break;
 		}
+
+		r->devs[r->nr_devs++] = p.ptr.dev;
 	}
 }
 
 static void stripe_to_replicas(struct bkey_s_c k,
 			       struct bch_replicas_entry *r)
 {
-	if (k.k->type == BCH_STRIPE) {
-		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
-		const struct bch_extent_ptr *ptr;
+	struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
+	const struct bch_extent_ptr *ptr;
 
-		r->nr_required	= s.v->nr_blocks - s.v->nr_redundant;
+	r->nr_required	= s.v->nr_blocks - s.v->nr_redundant;
 
-		for (ptr = s.v->ptrs;
-		     ptr < s.v->ptrs + s.v->nr_blocks;
-		     ptr++)
-			r->devs[r->nr_devs++] = ptr->dev;
-	}
+	for (ptr = s.v->ptrs;
+	     ptr < s.v->ptrs + s.v->nr_blocks;
+	     ptr++)
+		r->devs[r->nr_devs++] = ptr->dev;
 }
 
-static void bkey_to_replicas(enum bkey_type type,
-			     struct bkey_s_c k,
+static void bkey_to_replicas(struct bkey_s_c k,
 			     struct bch_replicas_entry *e)
 {
 	e->nr_devs = 0;
 
-	switch (type) {
-	case BKEY_TYPE_BTREE:
+	switch (k.k->type) {
+	case KEY_TYPE_btree_ptr:
 		e->data_type = BCH_DATA_BTREE;
 		extent_to_replicas(k, e);
 		break;
-	case BKEY_TYPE_EXTENTS:
+	case KEY_TYPE_extent:
 		e->data_type = BCH_DATA_USER;
 		extent_to_replicas(k, e);
 		break;
-	case BKEY_TYPE_EC:
+	case KEY_TYPE_stripe:
 		e->data_type = BCH_DATA_USER;
 		stripe_to_replicas(k, e);
-		break;
-	default:
 		break;
 	}
 
@@ -296,26 +289,21 @@ int bch2_mark_replicas(struct bch_fs *c,
 	return __bch2_mark_replicas(c, &search.e);
 }
 
-int bch2_mark_bkey_replicas(struct bch_fs *c,
-			    enum bkey_type type,
-			    struct bkey_s_c k)
+int bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bch_replicas_entry_padded search;
+	struct bch_devs_list cached = bch2_bkey_cached_devs(k);
+	unsigned i;
 	int ret;
 
 	memset(&search, 0, sizeof(search));
 
-	if (type == BKEY_TYPE_EXTENTS) {
-		struct bch_devs_list cached = bch2_bkey_cached_devs(k);
-		unsigned i;
+	for (i = 0; i < cached.nr; i++)
+		if ((ret = bch2_mark_replicas(c, BCH_DATA_CACHED,
+					      bch2_dev_list_single(cached.devs[i]))))
+			return ret;
 
-		for (i = 0; i < cached.nr; i++)
-			if ((ret = bch2_mark_replicas(c, BCH_DATA_CACHED,
-						bch2_dev_list_single(cached.devs[i]))))
-				return ret;
-	}
-
-	bkey_to_replicas(type, k, &search.e);
+	bkey_to_replicas(k, &search.e);
 
 	return search.e.nr_devs
 		? __bch2_mark_replicas(c, &search.e)
@@ -719,26 +707,22 @@ bool bch2_replicas_marked(struct bch_fs *c,
 }
 
 bool bch2_bkey_replicas_marked(struct bch_fs *c,
-			       enum bkey_type type,
 			       struct bkey_s_c k,
 			       bool check_gc_replicas)
 {
 	struct bch_replicas_entry_padded search;
+	struct bch_devs_list cached = bch2_bkey_cached_devs(k);
+	unsigned i;
 
 	memset(&search, 0, sizeof(search));
 
-	if (type == BKEY_TYPE_EXTENTS) {
-		struct bch_devs_list cached = bch2_bkey_cached_devs(k);
-		unsigned i;
+	for (i = 0; i < cached.nr; i++)
+		if (!bch2_replicas_marked(c, BCH_DATA_CACHED,
+					  bch2_dev_list_single(cached.devs[i]),
+					  check_gc_replicas))
+			return false;
 
-		for (i = 0; i < cached.nr; i++)
-			if (!bch2_replicas_marked(c, BCH_DATA_CACHED,
-					bch2_dev_list_single(cached.devs[i]),
-					check_gc_replicas))
-				return false;
-	}
-
-	bkey_to_replicas(type, k, &search.e);
+	bkey_to_replicas(k, &search.e);
 
 	return search.e.nr_devs
 		? replicas_has_entry(c, &search.e, check_gc_replicas)

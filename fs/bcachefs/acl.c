@@ -24,9 +24,9 @@ static inline int acl_to_xattr_type(int type)
 {
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		return BCH_XATTR_INDEX_POSIX_ACL_ACCESS;
+		return KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS;
 	case ACL_TYPE_DEFAULT:
-		return BCH_XATTR_INDEX_POSIX_ACL_DEFAULT;
+		return KEY_TYPE_XATTR_INDEX_POSIX_ACL_DEFAULT;
 	default:
 		BUG();
 	}
@@ -355,7 +355,7 @@ int bch2_acl_chmod(struct btree_trans *trans,
 
 	iter = bch2_hash_lookup(trans, bch2_xattr_hash_desc,
 			&inode->ei_str_hash, inode->v.i_ino,
-			&X_SEARCH(BCH_XATTR_INDEX_POSIX_ACL_ACCESS, "", 0),
+			&X_SEARCH(KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS, "", 0),
 			BTREE_ITER_INTENT);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter) != -ENOENT ? PTR_ERR(iter) : 0;

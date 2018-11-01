@@ -178,76 +178,69 @@ int bch2_inode_unpack(struct bkey_s_c_inode inode,
 
 const char *bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
-	if (k.k->p.offset)
-		return "nonzero offset";
-
-	switch (k.k->type) {
-	case BCH_INODE_FS: {
 		struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
 		struct bch_inode_unpacked unpacked;
 
-		if (bkey_val_bytes(k.k) < sizeof(struct bch_inode))
-			return "incorrect value size";
+	if (k.k->p.offset)
+		return "nonzero offset";
 
-		if (k.k->p.inode < BLOCKDEV_INODE_MAX)
-			return "fs inode in blockdev range";
+	if (bkey_val_bytes(k.k) < sizeof(struct bch_inode))
+		return "incorrect value size";
 
-		if (INODE_STR_HASH(inode.v) >= BCH_STR_HASH_NR)
-			return "invalid str hash type";
+	if (k.k->p.inode < BLOCKDEV_INODE_MAX)
+		return "fs inode in blockdev range";
 
-		if (bch2_inode_unpack(inode, &unpacked))
-			return "invalid variable length fields";
+	if (INODE_STR_HASH(inode.v) >= BCH_STR_HASH_NR)
+		return "invalid str hash type";
 
-		if (unpacked.bi_data_checksum >= BCH_CSUM_OPT_NR + 1)
-			return "invalid data checksum type";
+	if (bch2_inode_unpack(inode, &unpacked))
+		return "invalid variable length fields";
 
-		if (unpacked.bi_compression >= BCH_COMPRESSION_OPT_NR + 1)
-			return "invalid data checksum type";
+	if (unpacked.bi_data_checksum >= BCH_CSUM_OPT_NR + 1)
+		return "invalid data checksum type";
 
-		if ((unpacked.bi_flags & BCH_INODE_UNLINKED) &&
-		    unpacked.bi_nlink != 0)
-			return "flagged as unlinked but bi_nlink != 0";
+	if (unpacked.bi_compression >= BCH_COMPRESSION_OPT_NR + 1)
+		return "invalid data checksum type";
 
-		return NULL;
-	}
-	case BCH_INODE_BLOCKDEV:
-		if (bkey_val_bytes(k.k) != sizeof(struct bch_inode_blockdev))
-			return "incorrect value size";
+	if ((unpacked.bi_flags & BCH_INODE_UNLINKED) &&
+	    unpacked.bi_nlink != 0)
+		return "flagged as unlinked but bi_nlink != 0";
 
-		if (k.k->p.inode >= BLOCKDEV_INODE_MAX)
-			return "blockdev inode in fs range";
-
-		return NULL;
-	case BCH_INODE_GENERATION:
-		if (bkey_val_bytes(k.k) != sizeof(struct bch_inode_generation))
-			return "incorrect value size";
-
-		return NULL;
-	default:
-		return "invalid type";
-	}
+	return NULL;
 }
 
 void bch2_inode_to_text(struct printbuf *out, struct bch_fs *c,
 		       struct bkey_s_c k)
 {
-	struct bkey_s_c_inode inode;
+	struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
 	struct bch_inode_unpacked unpacked;
 
-	switch (k.k->type) {
-	case BCH_INODE_FS:
-		inode = bkey_s_c_to_inode(k);
-		if (bch2_inode_unpack(inode, &unpacked)) {
-			pr_buf(out, "(unpack error)");
-			break;
-		}
+	if (bch2_inode_unpack(inode, &unpacked)) {
+		pr_buf(out, "(unpack error)");
+		return;
+	}
 
 #define BCH_INODE_FIELD(_name, _bits)						\
-		pr_buf(out, #_name ": %llu ", (u64) unpacked._name);
-		BCH_INODE_FIELDS()
+	pr_buf(out, #_name ": %llu ", (u64) unpacked._name);
+	BCH_INODE_FIELDS()
 #undef  BCH_INODE_FIELD
-		break;
-	}
+}
+
+const char *bch2_inode_generation_invalid(const struct bch_fs *c,
+					  struct bkey_s_c k)
+{
+	if (k.k->p.offset)
+		return "nonzero offset";
+
+	if (bkey_val_bytes(k.k) != sizeof(struct bch_inode_generation))
+		return "incorrect value size";
+
+	return NULL;
+}
+
+void bch2_inode_generation_to_text(struct printbuf *out, struct bch_fs *c,
+				   struct bkey_s_c k)
+{
 }
 
 void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
@@ -281,10 +274,9 @@ void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 static inline u32 bkey_generation(struct bkey_s_c k)
 {
 	switch (k.k->type) {
-	case BCH_INODE_BLOCKDEV:
-	case BCH_INODE_FS:
+	case KEY_TYPE_inode:
 		BUG();
-	case BCH_INODE_GENERATION:
+	case KEY_TYPE_inode_generation:
 		return le32_to_cpu(bkey_s_c_to_inode_generation(k).v->bi_generation);
 	default:
 		return 0;
@@ -330,8 +322,7 @@ again:
 			return ret;
 
 		switch (k.k->type) {
-		case BCH_INODE_BLOCKDEV:
-		case BCH_INODE_FS:
+		case KEY_TYPE_inode:
 			/* slot used */
 			if (iter->pos.inode >= max)
 				goto out;
@@ -405,19 +396,19 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
 			return ret;
 		}
 
-		bch2_fs_inconsistent_on(k.k->type != BCH_INODE_FS, c,
+		bch2_fs_inconsistent_on(k.k->type != KEY_TYPE_inode, c,
 					"inode %llu not found when deleting",
 					inode_nr);
 
 		switch (k.k->type) {
-		case BCH_INODE_FS: {
+		case KEY_TYPE_inode: {
 			struct bch_inode_unpacked inode_u;
 
 			if (!bch2_inode_unpack(bkey_s_c_to_inode(k), &inode_u))
 				bi_generation = inode_u.bi_generation + 1;
 			break;
 		}
-		case BCH_INODE_GENERATION: {
+		case KEY_TYPE_inode_generation: {
 			struct bkey_s_c_inode_generation g =
 				bkey_s_c_to_inode_generation(k);
 			bi_generation = le32_to_cpu(g.v->bi_generation);
@@ -455,7 +446,7 @@ int bch2_inode_find_by_inum(struct bch_fs *c, u64 inode_nr,
 			   POS(inode_nr, 0),
 			   BTREE_ITER_SLOTS, k) {
 		switch (k.k->type) {
-		case BCH_INODE_FS:
+		case KEY_TYPE_inode:
 			ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode);
 			break;
 		default:
@@ -464,7 +455,6 @@ int bch2_inode_find_by_inum(struct bch_fs *c, u64 inode_nr,
 		}
 
 		break;
-
 	}
 
 	return bch2_btree_iter_unlock(&iter) ?: ret;

@@ -147,6 +147,10 @@ int bch2_fs_recovery(struct bch_fs *c)
 			mutex_unlock(&c->sb_lock);
 			goto err;
 		}
+
+		if (le16_to_cpu(c->disk_sb.sb->version) <
+		    bcachefs_metadata_version_bkey_renumber)
+			bch2_sb_clean_renumber(clean, READ);
 	}
 	mutex_unlock(&c->sb_lock);
 
@@ -265,11 +269,17 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (ret)
 		goto err;
 
-	if (!test_bit(BCH_FS_FSCK_UNFIXED_ERRORS, &c->flags)) {
-		mutex_lock(&c->sb_lock);
-		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_ATOMIC_NLINK;
-		mutex_unlock(&c->sb_lock);
+	mutex_lock(&c->sb_lock);
+	if (c->opts.version_upgrade) {
+		if (c->sb.version < bcachefs_metadata_version_new_versioning)
+			c->disk_sb.sb->version_min =
+				le16_to_cpu(bcachefs_metadata_version_min);
+		c->disk_sb.sb->version = le16_to_cpu(bcachefs_metadata_version_current);
 	}
+
+	if (!test_bit(BCH_FS_FSCK_UNFIXED_ERRORS, &c->flags))
+		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_ATOMIC_NLINK;
+	mutex_unlock(&c->sb_lock);
 
 	if (enabled_qtypes(c)) {
 		bch_verbose(c, "reading quotas:");
@@ -379,9 +389,12 @@ int bch2_fs_initialize(struct bch_fs *c)
 		goto err;
 
 	mutex_lock(&c->sb_lock);
+	c->disk_sb.sb->version = c->disk_sb.sb->version_min =
+		le16_to_cpu(bcachefs_metadata_version_current);
+	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_ATOMIC_NLINK;
+
 	SET_BCH_SB_INITIALIZED(c->disk_sb.sb, true);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
-	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_ATOMIC_NLINK;
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);

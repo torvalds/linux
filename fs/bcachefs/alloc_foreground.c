@@ -923,7 +923,8 @@ err:
  * as allocated out of @ob
  */
 void bch2_alloc_sectors_append_ptrs(struct bch_fs *c, struct write_point *wp,
-				    struct bkey_i_extent *e, unsigned sectors)
+				    struct bkey_i *k, unsigned sectors)
+
 {
 	struct open_bucket *ob;
 	unsigned i;
@@ -935,13 +936,11 @@ void bch2_alloc_sectors_append_ptrs(struct bch_fs *c, struct write_point *wp,
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->ptr.dev);
 		struct bch_extent_ptr tmp = ob->ptr;
 
-		EBUG_ON(bch2_extent_has_device(extent_i_to_s_c(e), ob->ptr.dev));
-
-		tmp.cached = bkey_extent_is_cached(&e->k) ||
-			(!ca->mi.durability && wp->type == BCH_DATA_USER);
+		tmp.cached = !ca->mi.durability &&
+			wp->type == BCH_DATA_USER;
 
 		tmp.offset += ca->mi.bucket_size - ob->sectors_free;
-		extent_ptr_append(e, tmp);
+		bch2_bkey_append_ptr(k, tmp);
 
 		BUG_ON(sectors > ob->sectors_free);
 		ob->sectors_free -= sectors;

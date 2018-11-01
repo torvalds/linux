@@ -235,7 +235,6 @@ static int hash_check_duplicates(const struct bch_hash_desc desc,
 				!desc.cmp_bkey(k, k2), c,
 				"duplicate hash table keys:\n%s",
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       bkey_type(0, desc.btree_id),
 						       k), buf))) {
 			ret = fsck_hash_delete_at(desc, &h->info, k_iter);
 			if (ret)
@@ -255,7 +254,7 @@ static bool key_has_correct_hash(const struct bch_hash_desc desc,
 {
 	u64 hash;
 
-	if (k.k->type != desc.whiteout_type &&
+	if (k.k->type != KEY_TYPE_whiteout &&
 	    k.k->type != desc.key_type)
 		return true;
 
@@ -280,7 +279,7 @@ static int hash_check_key(const struct bch_hash_desc desc,
 	u64 hashed;
 	int ret = 0;
 
-	if (k.k->type != desc.whiteout_type &&
+	if (k.k->type != KEY_TYPE_whiteout &&
 	    k.k->type != desc.key_type)
 		return 0;
 
@@ -300,7 +299,6 @@ static int hash_check_key(const struct bch_hash_desc desc,
 			desc.btree_id, k.k->p.offset,
 			hashed, h->chain->pos.offset,
 			(bch2_bkey_val_to_text(&PBUF(buf), c,
-					       bkey_type(0, desc.btree_id),
 					       k), buf))) {
 		ret = hash_redo_key(desc, h, c, k_iter, k, hashed);
 		if (ret) {
@@ -370,7 +368,7 @@ static int check_dirent_hash(struct hash_check *h, struct bch_fs *c,
 
 		*k = bch2_btree_iter_peek(iter);
 
-		BUG_ON(k->k->type != BCH_DIRENT);
+		BUG_ON(k->k->type != KEY_TYPE_dirent);
 	}
 err:
 fsck_err:
@@ -385,7 +383,6 @@ err_redo:
 		     buf, strlen(buf), BTREE_ID_DIRENTS,
 		     k->k->p.offset, hash, h->chain->pos.offset,
 		     (bch2_bkey_val_to_text(&PBUF(buf), c,
-					    bkey_type(0, BTREE_ID_DIRENTS),
 					    *k), buf))) {
 		ret = hash_redo_key(bch2_dirent_hash_desc,
 				    h, c, iter, *k, hash);
@@ -471,7 +468,7 @@ static int check_extents(struct bch_fs *c)
 
 		if (fsck_err_on(w.have_inode &&
 			!(w.inode.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
-			k.k->type != BCH_RESERVATION &&
+			k.k->type != KEY_TYPE_reservation &&
 			k.k->p.offset > round_up(w.inode.bi_size, PAGE_SIZE) >> 9, c,
 			"extent type %u offset %llu past end of inode %llu, i_size %llu",
 			k.k->type, k.k->p.offset, k.k->p.inode, w.inode.bi_size)) {
@@ -529,13 +526,11 @@ static int check_dirents(struct bch_fs *c)
 		if (fsck_err_on(!w.have_inode, c,
 				"dirent in nonexisting directory:\n%s",
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       (enum bkey_type) BTREE_ID_DIRENTS,
 						       k), buf)) ||
 		    fsck_err_on(!S_ISDIR(w.inode.bi_mode), c,
 				"dirent in non directory inode type %u:\n%s",
 				mode_to_type(w.inode.bi_mode),
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       (enum bkey_type) BTREE_ID_DIRENTS,
 						       k), buf))) {
 			ret = bch2_btree_delete_at(iter, 0);
 			if (ret)
@@ -557,7 +552,7 @@ static int check_dirents(struct bch_fs *c)
 		if (ret)
 			goto fsck_err;
 
-		if (k.k->type != BCH_DIRENT)
+		if (k.k->type != KEY_TYPE_dirent)
 			continue;
 
 		d = bkey_s_c_to_dirent(k);
@@ -586,7 +581,6 @@ static int check_dirents(struct bch_fs *c)
 		if (fsck_err_on(d_inum == d.k->p.inode, c,
 				"dirent points to own directory:\n%s",
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       (enum bkey_type) BTREE_ID_DIRENTS,
 						       k), buf))) {
 			ret = remove_dirent(c, iter, d);
 			if (ret)
@@ -604,7 +598,6 @@ static int check_dirents(struct bch_fs *c)
 		if (fsck_err_on(!have_target, c,
 				"dirent points to missing inode:\n%s",
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       (enum bkey_type) BTREE_ID_DIRENTS,
 						       k), buf))) {
 			ret = remove_dirent(c, iter, d);
 			if (ret)
@@ -618,7 +611,6 @@ static int check_dirents(struct bch_fs *c)
 				"incorrect d_type: should be %u:\n%s",
 				mode_to_type(target.bi_mode),
 				(bch2_bkey_val_to_text(&PBUF(buf), c,
-						       (enum bkey_type) BTREE_ID_DIRENTS,
 						       k), buf))) {
 			struct bkey_i_dirent *n;
 
@@ -899,7 +891,7 @@ next:
 
 			e->offset = k.k->p.offset;
 
-			if (k.k->type != BCH_DIRENT)
+			if (k.k->type != KEY_TYPE_dirent)
 				continue;
 
 			dirent = bkey_s_c_to_dirent(k);
@@ -942,7 +934,7 @@ up:
 	}
 
 	for_each_btree_key(&iter, c, BTREE_ID_INODES, POS_MIN, 0, k) {
-		if (k.k->type != BCH_INODE_FS)
+		if (k.k->type != KEY_TYPE_inode)
 			continue;
 
 		if (!S_ISDIR(le16_to_cpu(bkey_s_c_to_inode(k).v->bi_mode)))
@@ -1030,7 +1022,7 @@ static int bch2_gc_walk_dirents(struct bch_fs *c, nlink_table *links,
 
 	for_each_btree_key(&iter, c, BTREE_ID_DIRENTS, POS_MIN, 0, k) {
 		switch (k.k->type) {
-		case BCH_DIRENT:
+		case KEY_TYPE_dirent:
 			d = bkey_s_c_to_dirent(k);
 			d_inum = le64_to_cpu(d.v->d_inum);
 
@@ -1310,7 +1302,7 @@ peek_nlinks:	link = genradix_iter_peek(&nlinks_iter, links);
 		if (iter.pos.inode < nlinks_pos || !link)
 			link = &zero_links;
 
-		if (k.k && k.k->type == BCH_INODE_FS) {
+		if (k.k && k.k->type == KEY_TYPE_inode) {
 			/*
 			 * Avoid potential deadlocks with iter for
 			 * truncate/rm/etc.:
@@ -1392,7 +1384,7 @@ static int check_inodes_fast(struct bch_fs *c)
 	int ret = 0;
 
 	for_each_btree_key(&iter, c, BTREE_ID_INODES, POS_MIN, 0, k) {
-		if (k.k->type != BCH_INODE_FS)
+		if (k.k->type != KEY_TYPE_inode)
 			continue;
 
 		inode = bkey_s_c_to_inode(k);

@@ -71,7 +71,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 			goto overwrite;
 		}
 
-		k->type = KEY_TYPE_DELETED;
+		k->type = KEY_TYPE_deleted;
 		bch2_btree_node_iter_fix(iter, b, node_iter, k,
 					 k->u64s, k->u64s);
 		bch2_btree_iter_verify(iter, b);
@@ -312,7 +312,6 @@ btree_key_can_insert(struct btree_insert *trans,
 		return BTREE_INSERT_BTREE_NODE_FULL;
 
 	if (!bch2_bkey_replicas_marked(c,
-			insert->iter->btree_id,
 			bkey_i_to_s_c(insert->k),
 			true))
 		return BTREE_INSERT_NEED_MARK_REPLICAS;
@@ -449,8 +448,8 @@ static inline void btree_insert_entry_checks(struct bch_fs *c,
 	BUG_ON(bkey_cmp(bkey_start_pos(&i->k->k), i->iter->pos));
 	BUG_ON(debug_check_bkeys(c) &&
 	       !bkey_deleted(&i->k->k) &&
-	       bch2_bkey_invalid(c, (enum bkey_type) i->iter->btree_id,
-				 bkey_i_to_s_c(i->k)));
+	       bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
+				 i->iter->btree_id));
 }
 
 /**
@@ -585,8 +584,7 @@ err:
 		}
 
 		bch2_btree_iter_unlock(trans->entries[0].iter);
-		ret = bch2_mark_bkey_replicas(c, i->iter->btree_id,
-					      bkey_i_to_s_c(i->k))
+		ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(i->k))
 			?: -EINTR;
 		break;
 	default:

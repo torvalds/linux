@@ -4,24 +4,12 @@
 
 #include "bkey.h"
 
-#define DEF_BTREE_ID(kwd, val, name) BKEY_TYPE_##kwd = val,
-
-enum bkey_type {
-	DEFINE_BCH_BTREE_IDS()
-	BKEY_TYPE_BTREE,
-};
-
-#undef DEF_BTREE_ID
-
-/* Type of a key in btree @id at level @level: */
-static inline enum bkey_type bkey_type(unsigned level, enum btree_id id)
-{
-	return level ? BKEY_TYPE_BTREE : (enum bkey_type) id;
-}
-
 struct bch_fs;
 struct btree;
 struct bkey;
+enum btree_node_type;
+
+extern const char * const bch_bkey_types[];
 
 enum merge_result {
 	BCH_MERGE_NOMERGE,
@@ -34,12 +22,6 @@ enum merge_result {
 	BCH_MERGE_MERGE,
 };
 
-typedef bool (*key_filter_fn)(struct bch_fs *, struct btree *,
-			      struct bkey_s);
-typedef enum merge_result (*key_merge_fn)(struct bch_fs *,
-					  struct btree *,
-					  struct bkey_i *, struct bkey_i *);
-
 struct bkey_ops {
 	/* Returns reason for being invalid if invalid, else NULL: */
 	const char *	(*key_invalid)(const struct bch_fs *,
@@ -49,41 +31,34 @@ struct bkey_ops {
 	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
 				       struct bkey_s_c);
 	void		(*swab)(const struct bkey_format *, struct bkey_packed *);
-	key_filter_fn	key_normalize;
-	key_merge_fn	key_merge;
-	bool		is_extents;
+	bool		(*key_normalize)(struct bch_fs *, struct bkey_s);
+	enum merge_result (*key_merge)(struct bch_fs *,
+				       struct bkey_i *, struct bkey_i *);
 };
 
-static inline bool bkey_type_needs_gc(enum bkey_type type)
-{
-	switch (type) {
-	case BKEY_TYPE_BTREE:
-	case BKEY_TYPE_EXTENTS:
-	case BKEY_TYPE_EC:
-		return true;
-	default:
-		return false;
-	}
-}
-
-const char *bch2_bkey_val_invalid(struct bch_fs *, enum bkey_type,
-				  struct bkey_s_c);
-const char *__bch2_bkey_invalid(struct bch_fs *, enum bkey_type, struct bkey_s_c);
-const char *bch2_bkey_invalid(struct bch_fs *, enum bkey_type, struct bkey_s_c);
+const char *bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c);
+const char *__bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c,
+				enum btree_node_type);
+const char *bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c,
+			      enum btree_node_type);
 const char *bch2_bkey_in_btree_node(struct btree *, struct bkey_s_c);
 
 void bch2_bkey_debugcheck(struct bch_fs *, struct btree *, struct bkey_s_c);
 
 void bch2_bpos_to_text(struct printbuf *, struct bpos);
 void bch2_bkey_to_text(struct printbuf *, const struct bkey *);
-void bch2_val_to_text(struct printbuf *, struct bch_fs *, enum bkey_type,
+void bch2_val_to_text(struct printbuf *, struct bch_fs *,
 		      struct bkey_s_c);
 void bch2_bkey_val_to_text(struct printbuf *, struct bch_fs *,
-			   enum bkey_type, struct bkey_s_c);
+			   struct bkey_s_c);
 
-void bch2_bkey_swab(enum bkey_type, const struct bkey_format *,
-		    struct bkey_packed *);
+void bch2_bkey_swab(const struct bkey_format *, struct bkey_packed *);
 
-extern const struct bkey_ops bch2_bkey_ops[];
+bool bch2_bkey_normalize(struct bch_fs *, struct bkey_s);
+
+enum merge_result bch2_bkey_merge(struct bch_fs *,
+				  struct bkey_i *, struct bkey_i *);
+
+void bch2_bkey_renumber(enum btree_node_type, struct bkey_packed *, int);
 
 #endif /* _BCACHEFS_BKEY_METHODS_H */

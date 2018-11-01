@@ -213,20 +213,20 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 			       enum bch_data_type type,
 			       const struct bkey_i *k)
 {
-	struct bkey_s_c_extent e = bkey_i_to_s_c_extent(k);
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(k));
 	const struct bch_extent_ptr *ptr;
 	struct bch_write_bio *n;
 	struct bch_dev *ca;
 
 	BUG_ON(c->opts.nochanges);
 
-	extent_for_each_ptr(e, ptr) {
+	bkey_for_each_ptr(ptrs, ptr) {
 		BUG_ON(ptr->dev >= BCH_SB_MEMBERS_MAX ||
 		       !c->devs[ptr->dev]);
 
 		ca = bch_dev_bkey_exists(c, ptr->dev);
 
-		if (ptr + 1 < &extent_entry_last(e)->ptr) {
+		if (to_entry(ptr + 1) < ptrs.end) {
 			n = to_wbio(bio_alloc_clone(NULL, &wbio->bio,
 						GFP_NOIO, &ca->replica_set));
 
@@ -317,7 +317,6 @@ static void __bch2_write_index(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
 	struct keylist *keys = &op->insert_keys;
-	struct bkey_s_extent e;
 	struct bch_extent_ptr *ptr;
 	struct bkey_i *src, *dst = keys->keys, *n, *k;
 	unsigned dev;
@@ -327,12 +326,10 @@ static void __bch2_write_index(struct bch_write_op *op)
 		n = bkey_next(src);
 		bkey_copy(dst, src);
 
-		e = bkey_i_to_s_extent(dst);
-
-		bch2_extent_drop_ptrs(e, ptr,
+		bch2_bkey_drop_ptrs(bkey_i_to_s(dst), ptr,
 			test_bit(ptr->dev, op->failed.d));
 
-		if (!bch2_extent_nr_ptrs(e.c)) {
+		if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(dst))) {
 			ret = -EIO;
 			goto err;
 		}
@@ -433,14 +430,13 @@ static void init_append_extent(struct bch_write_op *op,
 	e->k.p		= op->pos;
 	e->k.size	= crc.uncompressed_size;
 	e->k.version	= version;
-	bkey_extent_set_cached(&e->k, op->flags & BCH_WRITE_CACHED);
 
 	if (crc.csum_type ||
 	    crc.compression_type ||
 	    crc.nonce)
 		bch2_extent_crc_append(e, crc);
 
-	bch2_alloc_sectors_append_ptrs(op->c, wp, e, crc.compressed_size);
+	bch2_alloc_sectors_append_ptrs(op->c, wp, &e->k_i, crc.compressed_size);
 
 	bch2_keylist_push(&op->insert_keys);
 }
@@ -1608,7 +1604,7 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 	struct bpos pos = bkey_start_pos(k.k);
 	int pick_ret;
 
-	pick_ret = bch2_extent_pick_ptr(c, k, failed, &pick);
+	pick_ret = bch2_bkey_pick_read_device(c, k, failed, &pick);
 
 	/* hole or reservation - just zero fill: */
 	if (!pick_ret)

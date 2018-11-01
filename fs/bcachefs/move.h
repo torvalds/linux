@@ -47,7 +47,7 @@ int bch2_migrate_write_init(struct bch_fs *, struct migrate_write *,
 			    struct bkey_s_c);
 
 typedef enum data_cmd (*move_pred_fn)(struct bch_fs *, void *,
-				enum bkey_type, struct bkey_s_c_extent,
+				struct bkey_s_c,
 				struct bch_io_opts *, struct data_opts *);
 
 int bch2_move_data(struct bch_fs *, struct bch_ratelimit *,

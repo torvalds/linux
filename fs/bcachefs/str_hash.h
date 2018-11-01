@@ -118,7 +118,6 @@ static inline u64 bch2_str_hash_end(struct bch_str_hash_ctx *ctx,
 struct bch_hash_desc {
 	enum btree_id	btree_id;
 	u8		key_type;
-	u8		whiteout_type;
 
 	u64		(*hash_key)(const struct bch_hash_info *, const void *);
 	u64		(*hash_bkey)(const struct bch_hash_info *, struct bkey_s_c);
@@ -149,7 +148,7 @@ bch2_hash_lookup(struct btree_trans *trans,
 		if (k.k->type == desc.key_type) {
 			if (!desc.cmp_key(k, key))
 				return iter;
-		} else if (k.k->type == desc.whiteout_type) {
+		} else if (k.k->type == KEY_TYPE_whiteout) {
 			;
 		} else {
 			/* hole, not found */
@@ -202,7 +201,7 @@ static inline int bch2_hash_needs_whiteout(struct btree_trans *trans,
 
 	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k) {
 		if (k.k->type != desc.key_type &&
-		    k.k->type != desc.whiteout_type)
+		    k.k->type != KEY_TYPE_whiteout)
 			return false;
 
 		if (k.k->type == desc.key_type &&
@@ -245,7 +244,7 @@ static inline int __bch2_hash_set(struct btree_trans *trans,
 				return PTR_ERR(slot);
 		}
 
-		if (k.k->type != desc.whiteout_type)
+		if (k.k->type != KEY_TYPE_whiteout)
 			goto not_found;
 	}
 
@@ -295,7 +294,7 @@ static inline int bch2_hash_delete_at(struct btree_trans *trans,
 
 	bkey_init(&delete->k);
 	delete->k.p = iter->pos;
-	delete->k.type = ret ? desc.whiteout_type : KEY_TYPE_DELETED;
+	delete->k.type = ret ? KEY_TYPE_whiteout : KEY_TYPE_deleted;
 
 	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, delete));
 	return 0;

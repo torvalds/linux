@@ -5,13 +5,13 @@
 #include "ec_types.h"
 #include "keylist_types.h"
 
-const char *bch2_ec_key_invalid(const struct bch_fs *, struct bkey_s_c);
-void bch2_ec_key_to_text(struct printbuf *, struct bch_fs *,
+const char *bch2_stripe_invalid(const struct bch_fs *, struct bkey_s_c);
+void bch2_stripe_to_text(struct printbuf *, struct bch_fs *,
 			 struct bkey_s_c);
 
-#define bch2_bkey_ec_ops (struct bkey_ops) {		\
-	.key_invalid	= bch2_ec_key_invalid,		\
-	.val_to_text	= bch2_ec_key_to_text,		\
+#define bch2_bkey_ops_stripe (struct bkey_ops) {	\
+	.key_invalid	= bch2_stripe_invalid,		\
+	.val_to_text	= bch2_stripe_to_text,		\
 }
 
 struct bch_read_bio;

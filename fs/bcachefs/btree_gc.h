@@ -4,8 +4,6 @@
 
 #include "btree_types.h"
 
-enum bkey_type;
-
 void bch2_coalesce(struct bch_fs *);
 int bch2_gc(struct bch_fs *, struct list_head *, bool);
 void bch2_gc_thread_stop(struct bch_fs *);
@@ -58,9 +56,9 @@ static inline int gc_pos_cmp(struct gc_pos l, struct gc_pos r)
 static inline enum gc_phase btree_id_to_gc_phase(enum btree_id id)
 {
 	switch (id) {
-#define DEF_BTREE_ID(n, v, s) case BTREE_ID_##n: return GC_PHASE_BTREE_##n;
-	DEFINE_BCH_BTREE_IDS()
-#undef DEF_BTREE_ID
+#define x(n, v, s) case BTREE_ID_##n: return GC_PHASE_BTREE_##n;
+	BCH_BTREE_IDS()
+#undef x
 	default:
 		BUG();
 	}

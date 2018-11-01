@@ -15,7 +15,7 @@
 #include "replicas.h"
 #include "super-io.h"
 
-static int drop_dev_ptrs(struct bch_fs *c, struct bkey_s_extent e,
+static int drop_dev_ptrs(struct bch_fs *c, struct bkey_s k,
 			 unsigned dev_idx, int flags, bool metadata)
 {
 	unsigned replicas = metadata ? c->opts.metadata_replicas : c->opts.data_replicas;
@@ -23,9 +23,9 @@ static int drop_dev_ptrs(struct bch_fs *c, struct bkey_s_extent e,
 	unsigned degraded = metadata ? BCH_FORCE_IF_METADATA_DEGRADED : BCH_FORCE_IF_DATA_DEGRADED;
 	unsigned nr_good;
 
-	bch2_extent_drop_device(e, dev_idx);
+	bch2_bkey_drop_device(k, dev_idx);
 
-	nr_good = bch2_extent_durability(c, e.c);
+	nr_good = bch2_bkey_durability(c, k.s_c);
 	if ((!nr_good && !(flags & lost)) ||
 	    (nr_good < replicas && !(flags & degraded)))
 		return -EINVAL;
@@ -36,7 +36,6 @@ static int drop_dev_ptrs(struct bch_fs *c, struct bkey_s_extent e,
 static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
 	struct bkey_s_c k;
-	struct bkey_s_extent e;
 	BKEY_PADDED(key) tmp;
 	struct btree_iter iter;
 	int ret = 0;
@@ -51,7 +50,7 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	       !(ret = btree_iter_err(k))) {
 		if (!bkey_extent_is_data(k.k) ||
 		    !bch2_extent_has_device(bkey_s_c_to_extent(k), dev_idx)) {
-			ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_EXTENTS, k);
+			ret = bch2_mark_bkey_replicas(c, k);
 			if (ret)
 				break;
 			bch2_btree_iter_next(&iter);
@@ -59,18 +58,18 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 		}
 
 		bkey_reassemble(&tmp.key, k);
-		e = bkey_i_to_s_extent(&tmp.key);
 
-		ret = drop_dev_ptrs(c, e, dev_idx, flags, false);
+		ret = drop_dev_ptrs(c, bkey_i_to_s(&tmp.key),
+				    dev_idx, flags, false);
 		if (ret)
 			break;
 
 		/*
 		 * If the new extent no longer has any pointers, bch2_extent_normalize()
 		 * will do the appropriate thing with it (turning it into a
-		 * KEY_TYPE_ERROR key, or just a discard if it was a cached extent)
+		 * KEY_TYPE_error key, or just a discard if it was a cached extent)
 		 */
-		bch2_extent_normalize(c, e.s);
+		bch2_extent_normalize(c, bkey_i_to_s(&tmp.key));
 
 		iter.pos = bkey_start_pos(&tmp.key.k);
 
@@ -118,10 +117,10 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	for (id = 0; id < BTREE_ID_NR; id++) {
 		for_each_btree_node(&iter, c, id, POS_MIN, BTREE_ITER_PREFETCH, b) {
 			__BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX) tmp;
-			struct bkey_i_extent *new_key;
+			struct bkey_i_btree_ptr *new_key;
 retry:
-			if (!bch2_extent_has_device(bkey_i_to_s_c_extent(&b->key),
-						    dev_idx)) {
+			if (!bch2_bkey_has_device(bkey_i_to_s_c(&b->key),
+						  dev_idx)) {
 				/*
 				 * we might have found a btree node key we
 				 * needed to update, and then tried to update it
@@ -130,15 +129,14 @@ retry:
 				 */
 				bch2_btree_iter_downgrade(&iter);
 
-				ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_BTREE,
-							      bkey_i_to_s_c(&b->key));
+				ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(&b->key));
 				if (ret)
 					goto err;
 			} else {
 				bkey_copy(&tmp.k, &b->key);
-				new_key = bkey_i_to_extent(&tmp.k);
+				new_key = bkey_i_to_btree_ptr(&tmp.k);
 
-				ret = drop_dev_ptrs(c, extent_i_to_s(new_key),
+				ret = drop_dev_ptrs(c, bkey_i_to_s(&new_key->k_i),
 						    dev_idx, flags, true);
 				if (ret)
 					goto err;

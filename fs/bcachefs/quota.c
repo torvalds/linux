@@ -22,23 +22,13 @@ const struct bch_sb_field_ops bch_sb_field_ops_quota = {
 
 const char *bch2_quota_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
-	struct bkey_s_c_quota dq;
-
 	if (k.k->p.inode >= QTYP_NR)
 		return "invalid quota type";
 
-	switch (k.k->type) {
-	case BCH_QUOTA: {
-		dq = bkey_s_c_to_quota(k);
+	if (bkey_val_bytes(k.k) != sizeof(struct bch_quota))
+		return "incorrect value size";
 
-		if (bkey_val_bytes(k.k) != sizeof(struct bch_quota))
-			return "incorrect value size";
-
-		return NULL;
-	}
-	default:
-		return "invalid type";
-	}
+	return NULL;
 }
 
 static const char * const bch2_quota_counters[] = {
@@ -49,20 +39,14 @@ static const char * const bch2_quota_counters[] = {
 void bch2_quota_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bkey_s_c k)
 {
-	struct bkey_s_c_quota dq;
+	struct bkey_s_c_quota dq = bkey_s_c_to_quota(k);
 	unsigned i;
 
-	switch (k.k->type) {
-	case BCH_QUOTA:
-		dq = bkey_s_c_to_quota(k);
-
-		for (i = 0; i < Q_COUNTERS; i++)
-			pr_buf(out, "%s hardlimit %llu softlimit %llu",
-			       bch2_quota_counters[i],
-			       le64_to_cpu(dq.v->c[i].hardlimit),
-			       le64_to_cpu(dq.v->c[i].softlimit));
-		break;
-	}
+	for (i = 0; i < Q_COUNTERS; i++)
+		pr_buf(out, "%s hardlimit %llu softlimit %llu",
+		       bch2_quota_counters[i],
+		       le64_to_cpu(dq.v->c[i].hardlimit),
+		       le64_to_cpu(dq.v->c[i].softlimit));
 }
 
 #ifdef CONFIG_BCACHEFS_QUOTA
@@ -178,7 +162,7 @@ static int bch2_quota_check_limit(struct bch_fs *c,
 
 	BUG_ON((s64) n < 0);
 
-	if (mode == BCH_QUOTA_NOCHECK)
+	if (mode == KEY_TYPE_QUOTA_NOCHECK)
 		return 0;
 
 	if (v <= 0) {
@@ -201,7 +185,7 @@ static int bch2_quota_check_limit(struct bch_fs *c,
 	if (qc->hardlimit &&
 	    qc->hardlimit < n &&
 	    !ignore_hardlimit(q)) {
-		if (mode == BCH_QUOTA_PREALLOC)
+		if (mode == KEY_TYPE_QUOTA_PREALLOC)
 			return -EDQUOT;
 
 		prepare_warning(qc, qtype, counter, msgs, HARDWARN);
@@ -212,7 +196,7 @@ static int bch2_quota_check_limit(struct bch_fs *c,
 	    qc->timer &&
 	    ktime_get_real_seconds() >= qc->timer &&
 	    !ignore_hardlimit(q)) {
-		if (mode == BCH_QUOTA_PREALLOC)
+		if (mode == KEY_TYPE_QUOTA_PREALLOC)
 			return -EDQUOT;
 
 		prepare_warning(qc, qtype, counter, msgs, SOFTLONGWARN);
@@ -221,7 +205,7 @@ static int bch2_quota_check_limit(struct bch_fs *c,
 	if (qc->softlimit &&
 	    qc->softlimit < n &&
 	    qc->timer == 0) {
-		if (mode == BCH_QUOTA_PREALLOC)
+		if (mode == KEY_TYPE_QUOTA_PREALLOC)
 			return -EDQUOT;
 
 		prepare_warning(qc, qtype, counter, msgs, SOFTWARN);
@@ -312,13 +296,13 @@ int bch2_quota_transfer(struct bch_fs *c, unsigned qtypes,
 
 		ret = bch2_quota_check_limit(c, i, dst_q[i], &msgs, Q_SPC,
 					     dst_q[i]->c[Q_SPC].v + space,
-					     BCH_QUOTA_PREALLOC);
+					     KEY_TYPE_QUOTA_PREALLOC);
 		if (ret)
 			goto err;
 
 		ret = bch2_quota_check_limit(c, i, dst_q[i], &msgs, Q_INO,
 					     dst_q[i]->c[Q_INO].v + 1,
-					     BCH_QUOTA_PREALLOC);
+					     KEY_TYPE_QUOTA_PREALLOC);
 		if (ret)
 			goto err;
 	}
@@ -347,7 +331,7 @@ static int __bch2_quota_set(struct bch_fs *c, struct bkey_s_c k)
 	BUG_ON(k.k->p.inode >= QTYP_NR);
 
 	switch (k.k->type) {
-	case BCH_QUOTA:
+	case KEY_TYPE_quota:
 		dq = bkey_s_c_to_quota(k);
 		q = &c->quotas[k.k->p.inode];
 
@@ -447,15 +431,15 @@ int bch2_fs_quota_read(struct bch_fs *c)
 	for_each_btree_key(&iter, c, BTREE_ID_INODES, POS_MIN,
 			   BTREE_ITER_PREFETCH, k) {
 		switch (k.k->type) {
-		case BCH_INODE_FS:
+		case KEY_TYPE_inode:
 			ret = bch2_inode_unpack(bkey_s_c_to_inode(k), &u);
 			if (ret)
 				return ret;
 
 			bch2_quota_acct(c, bch_qid(&u), Q_SPC, u.bi_sectors,
-					BCH_QUOTA_NOCHECK);
+					KEY_TYPE_QUOTA_NOCHECK);
 			bch2_quota_acct(c, bch_qid(&u), Q_INO, 1,
-					BCH_QUOTA_NOCHECK);
+					KEY_TYPE_QUOTA_NOCHECK);
 		}
 	}
 	return bch2_btree_iter_unlock(&iter) ?: ret;
@@ -743,7 +727,7 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 		return ret;
 
 	switch (k.k->type) {
-	case BCH_QUOTA:
+	case KEY_TYPE_quota:
 		new_quota.v = *bkey_s_c_to_quota(k).v;
 		break;
 	}

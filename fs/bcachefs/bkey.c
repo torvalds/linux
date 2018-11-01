@@ -488,7 +488,7 @@ enum bkey_pack_pos_ret bch2_bkey_pack_pos_lossy(struct bkey_packed *out,
 	pack_state_finish(&state, out);
 	out->u64s	= f->key_u64s;
 	out->format	= KEY_FORMAT_LOCAL_BTREE;
-	out->type	= KEY_TYPE_DELETED;
+	out->type	= KEY_TYPE_deleted;
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 	if (exact) {

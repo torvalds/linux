@@ -1799,7 +1799,7 @@ err:
 BCH_DEBUG_PARAMS()
 #undef BCH_DEBUG_PARAM
 
-unsigned bch2_metadata_version = BCH_SB_VERSION_MAX;
+unsigned bch2_metadata_version = bcachefs_metadata_version_current;
 module_param_named(version, bch2_metadata_version, uint, 0400);
 
 module_exit(bcachefs_exit);

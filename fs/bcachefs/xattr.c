@@ -62,8 +62,7 @@ static bool xattr_cmp_bkey(struct bkey_s_c _l, struct bkey_s_c _r)
 
 const struct bch_hash_desc bch2_xattr_hash_desc = {
 	.btree_id	= BTREE_ID_XATTRS,
-	.key_type	= BCH_XATTR,
-	.whiteout_type	= BCH_XATTR_WHITEOUT,
+	.key_type	= KEY_TYPE_xattr,
 	.hash_key	= xattr_hash_key,
 	.hash_bkey	= xattr_hash_bkey,
 	.cmp_key	= xattr_cmp_key,
@@ -73,71 +72,50 @@ const struct bch_hash_desc bch2_xattr_hash_desc = {
 const char *bch2_xattr_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
 	const struct xattr_handler *handler;
-	struct bkey_s_c_xattr xattr;
+	struct bkey_s_c_xattr xattr = bkey_s_c_to_xattr(k);
 
-	switch (k.k->type) {
-	case BCH_XATTR:
-		if (bkey_val_bytes(k.k) < sizeof(struct bch_xattr))
-			return "value too small";
+	if (bkey_val_bytes(k.k) < sizeof(struct bch_xattr))
+		return "value too small";
 
-		xattr = bkey_s_c_to_xattr(k);
+	if (bkey_val_u64s(k.k) <
+	    xattr_val_u64s(xattr.v->x_name_len,
+			   le16_to_cpu(xattr.v->x_val_len)))
+		return "value too small";
 
-		if (bkey_val_u64s(k.k) <
-			xattr_val_u64s(xattr.v->x_name_len,
-				       le16_to_cpu(xattr.v->x_val_len)))
-			return "value too small";
+	if (bkey_val_u64s(k.k) >
+	    xattr_val_u64s(xattr.v->x_name_len,
+			   le16_to_cpu(xattr.v->x_val_len) + 4))
+		return "value too big";
 
-		if (bkey_val_u64s(k.k) >
-			xattr_val_u64s(xattr.v->x_name_len,
-				       le16_to_cpu(xattr.v->x_val_len) + 4))
-			return "value too big";
-
-		handler = bch2_xattr_type_to_handler(xattr.v->x_type);
-		if (!handler)
-			return "invalid type";
-
-		if (memchr(xattr.v->x_name, '\0', xattr.v->x_name_len))
-			return "xattr name has invalid characters";
-
-		return NULL;
-	case BCH_XATTR_WHITEOUT:
-		return bkey_val_bytes(k.k) != 0
-			? "value size should be zero"
-			: NULL;
-
-	default:
+	handler = bch2_xattr_type_to_handler(xattr.v->x_type);
+	if (!handler)
 		return "invalid type";
-	}
+
+	if (memchr(xattr.v->x_name, '\0', xattr.v->x_name_len))
+		return "xattr name has invalid characters";
+
+	return NULL;
 }
 
 void bch2_xattr_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bkey_s_c k)
 {
 	const struct xattr_handler *handler;
-	struct bkey_s_c_xattr xattr;
+	struct bkey_s_c_xattr xattr = bkey_s_c_to_xattr(k);
 
-	switch (k.k->type) {
-	case BCH_XATTR:
-		xattr = bkey_s_c_to_xattr(k);
+	handler = bch2_xattr_type_to_handler(xattr.v->x_type);
+	if (handler && handler->prefix)
+		pr_buf(out, "%s", handler->prefix);
+	else if (handler)
+		pr_buf(out, "(type %u)", xattr.v->x_type);
+	else
+		pr_buf(out, "(unknown type %u)", xattr.v->x_type);
 
-		handler = bch2_xattr_type_to_handler(xattr.v->x_type);
-		if (handler && handler->prefix)
-			pr_buf(out, "%s", handler->prefix);
-		else if (handler)
-			pr_buf(out, "(type %u)", xattr.v->x_type);
-		else
-			pr_buf(out, "(unknown type %u)", xattr.v->x_type);
-
-		bch_scnmemcpy(out, xattr.v->x_name,
-			      xattr.v->x_name_len);
-		pr_buf(out, ":");
-		bch_scnmemcpy(out, xattr_val(xattr.v),
-			      le16_to_cpu(xattr.v->x_val_len));
-		break;
-	case BCH_XATTR_WHITEOUT:
-		pr_buf(out, "whiteout");
-		break;
-	}
+	bch_scnmemcpy(out, xattr.v->x_name,
+		      xattr.v->x_name_len);
+	pr_buf(out, ":");
+	bch_scnmemcpy(out, xattr_val(xattr.v),
+		      le16_to_cpu(xattr.v->x_val_len));
 }
 
 int bch2_xattr_get(struct bch_fs *c, struct bch_inode_info *inode,
@@ -261,7 +239,7 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 		if (k.k->p.inode > inum)
 			break;
 
-		if (k.k->type != BCH_XATTR)
+		if (k.k->type != KEY_TYPE_xattr)
 			continue;
 
 		xattr = bkey_s_c_to_xattr(k).v;
@@ -315,7 +293,7 @@ static const struct xattr_handler bch_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
 	.get	= bch2_xattr_get_handler,
 	.set	= bch2_xattr_set_handler,
-	.flags	= BCH_XATTR_INDEX_USER,
+	.flags	= KEY_TYPE_XATTR_INDEX_USER,
 };
 
 static bool bch2_xattr_trusted_list(struct dentry *dentry)
@@ -328,14 +306,14 @@ static const struct xattr_handler bch_xattr_trusted_handler = {
 	.list	= bch2_xattr_trusted_list,
 	.get	= bch2_xattr_get_handler,
 	.set	= bch2_xattr_set_handler,
-	.flags	= BCH_XATTR_INDEX_TRUSTED,
+	.flags	= KEY_TYPE_XATTR_INDEX_TRUSTED,
 };
 
 static const struct xattr_handler bch_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.get	= bch2_xattr_get_handler,
 	.set	= bch2_xattr_set_handler,
-	.flags	= BCH_XATTR_INDEX_SECURITY,
+	.flags	= KEY_TYPE_XATTR_INDEX_SECURITY,
 };
 
 #ifndef NO_BCACHEFS_FS
@@ -474,13 +452,13 @@ const struct xattr_handler *bch2_xattr_handlers[] = {
 };
 
 static const struct xattr_handler *bch_xattr_handler_map[] = {
-	[BCH_XATTR_INDEX_USER]			= &bch_xattr_user_handler,
-	[BCH_XATTR_INDEX_POSIX_ACL_ACCESS]	=
+	[KEY_TYPE_XATTR_INDEX_USER]			= &bch_xattr_user_handler,
+	[KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS]	=
 		&nop_posix_acl_access,
-	[BCH_XATTR_INDEX_POSIX_ACL_DEFAULT]	=
+	[KEY_TYPE_XATTR_INDEX_POSIX_ACL_DEFAULT]	=
 		&nop_posix_acl_default,
-	[BCH_XATTR_INDEX_TRUSTED]		= &bch_xattr_trusted_handler,
-	[BCH_XATTR_INDEX_SECURITY]		= &bch_xattr_security_handler,
+	[KEY_TYPE_XATTR_INDEX_TRUSTED]		= &bch_xattr_trusted_handler,
+	[KEY_TYPE_XATTR_INDEX_SECURITY]		= &bch_xattr_security_handler,
 };
 
 static const struct xattr_handler *bch2_xattr_type_to_handler(unsigned type)

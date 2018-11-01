@@ -307,15 +307,6 @@ static inline void bkey_init(struct bkey *k)
 #define __BKEY_PADDED(key, pad)					\
 	struct { struct bkey_i key; __u64 key ## _pad[pad]; }
 
-#define BKEY_VAL_TYPE(name, nr)						\
-struct bkey_i_##name {							\
-	union {								\
-		struct bkey		k;				\
-		struct bkey_i		k_i;				\
-	};								\
-	struct bch_##name		v;				\
-}
-
 /*
  * - DELETED keys are used internally to mark keys that should be ignored but
  *   override keys in composition order.  Their version number is ignored.
@@ -330,19 +321,37 @@ struct bkey_i_##name {							\
  *   by new writes or cluster-wide GC. Node repair can also overwrite them with
  *   the same or a more recent version number, but not with an older version
  *   number.
+ *
+ * - WHITEOUT: for hash table btrees
 */
-#define KEY_TYPE_DELETED		0
-#define KEY_TYPE_DISCARD		1
-#define KEY_TYPE_ERROR			2
-#define KEY_TYPE_COOKIE			3
-#define KEY_TYPE_PERSISTENT_DISCARD	4
-#define KEY_TYPE_GENERIC_NR		128
+#define BCH_BKEY_TYPES()				\
+	x(deleted,		0)			\
+	x(discard,		1)			\
+	x(error,		2)			\
+	x(cookie,		3)			\
+	x(whiteout,		4)			\
+	x(btree_ptr,		5)			\
+	x(extent,		6)			\
+	x(reservation,		7)			\
+	x(inode,		8)			\
+	x(inode_generation,	9)			\
+	x(dirent,		10)			\
+	x(xattr,		11)			\
+	x(alloc,		12)			\
+	x(quota,		13)			\
+	x(stripe,		14)
+
+enum bch_bkey_type {
+#define x(name, nr) KEY_TYPE_##name	= nr,
+	BCH_BKEY_TYPES()
+#undef x
+	KEY_TYPE_MAX,
+};
 
 struct bch_cookie {
 	struct bch_val		v;
 	__le64			cookie;
 };
-BKEY_VAL_TYPE(cookie,		KEY_TYPE_COOKIE);
 
 /* Extents */
 
@@ -620,21 +629,12 @@ union bch_extent_entry {
 #undef x
 };
 
-enum {
-	BCH_EXTENT		= 128,
+struct bch_btree_ptr {
+	struct bch_val		v;
 
-	/*
-	 * This is kind of a hack, we're overloading the type for a boolean that
-	 * really should be part of the value - BCH_EXTENT and BCH_EXTENT_CACHED
-	 * have the same value type:
-	 */
-	BCH_EXTENT_CACHED	= 129,
-
-	/*
-	 * Persistent reservation:
-	 */
-	BCH_RESERVATION		= 130,
-};
+	__u64			_data[0];
+	struct bch_extent_ptr	start[];
+} __attribute__((packed, aligned(8)));
 
 struct bch_extent {
 	struct bch_val		v;
@@ -642,7 +642,6 @@ struct bch_extent {
 	__u64			_data[0];
 	union bch_extent_entry	start[];
 } __attribute__((packed, aligned(8)));
-BKEY_VAL_TYPE(extent,		BCH_EXTENT);
 
 struct bch_reservation {
 	struct bch_val		v;
@@ -651,7 +650,6 @@ struct bch_reservation {
 	__u8			nr_replicas;
 	__u8			pad[3];
 } __attribute__((packed, aligned(8)));
-BKEY_VAL_TYPE(reservation,	BCH_RESERVATION);
 
 /* Maximum size (in u64s) a single pointer could be: */
 #define BKEY_EXTENT_PTR_U64s_MAX\
@@ -679,12 +677,6 @@ BKEY_VAL_TYPE(reservation,	BCH_RESERVATION);
 
 #define BCACHEFS_ROOT_INO	4096
 
-enum bch_inode_types {
-	BCH_INODE_FS		= 128,
-	BCH_INODE_BLOCKDEV	= 129,
-	BCH_INODE_GENERATION	= 130,
-};
-
 struct bch_inode {
 	struct bch_val		v;
 
@@ -693,7 +685,6 @@ struct bch_inode {
 	__le16			bi_mode;
 	__u8			fields[0];
 } __attribute__((packed, aligned(8)));
-BKEY_VAL_TYPE(inode,		BCH_INODE_FS);
 
 struct bch_inode_generation {
 	struct bch_val		v;
@@ -701,7 +692,6 @@ struct bch_inode_generation {
 	__le32			bi_generation;
 	__le32			pad;
 } __attribute__((packed, aligned(8)));
-BKEY_VAL_TYPE(inode_generation,	BCH_INODE_GENERATION);
 
 #define BCH_INODE_FIELDS()					\
 	BCH_INODE_FIELD(bi_atime,			64)	\
@@ -766,24 +756,6 @@ enum {
 LE32_BITMASK(INODE_STR_HASH,	struct bch_inode, bi_flags, 20, 24);
 LE32_BITMASK(INODE_NR_FIELDS,	struct bch_inode, bi_flags, 24, 32);
 
-struct bch_inode_blockdev {
-	struct bch_val		v;
-
-	__le64			i_size;
-	__le64			i_flags;
-
-	/* Seconds: */
-	__le64			i_ctime;
-	__le64			i_mtime;
-
-	__uuid_t		i_uuid;
-	__u8			i_label[32];
-} __attribute__((packed, aligned(8)));
-BKEY_VAL_TYPE(inode_blockdev,	BCH_INODE_BLOCKDEV);
-
-/* Thin provisioned volume, or cache for another block device? */
-LE64_BITMASK(CACHED_DEV,	struct bch_inode_blockdev, i_flags, 0,  1)
-
 /* Dirents */
 
 /*
@@ -796,11 +768,6 @@ LE64_BITMASK(CACHED_DEV,	struct bch_inode_blockdev, i_flags, 0,  1)
  * Linear probing requires us to use whiteouts for deletions, in the event of a
  * collision:
  */
-
-enum {
-	BCH_DIRENT		= 128,
-	BCH_DIRENT_WHITEOUT	= 129,
-};
 
 struct bch_dirent {
 	struct bch_val		v;
@@ -816,7 +783,6 @@ struct bch_dirent {
 
 	__u8			d_name[];
 } __attribute__((packed, aligned(8)));
-BKEY_VAL_TYPE(dirent,		BCH_DIRENT);
 
 #define BCH_NAME_MAX	(U8_MAX * sizeof(u64) -				\
 			 sizeof(struct bkey) -				\
@@ -825,16 +791,11 @@ BKEY_VAL_TYPE(dirent,		BCH_DIRENT);
 
 /* Xattrs */
 
-enum {
-	BCH_XATTR		= 128,
-	BCH_XATTR_WHITEOUT	= 129,
-};
-
-#define BCH_XATTR_INDEX_USER			0
-#define BCH_XATTR_INDEX_POSIX_ACL_ACCESS	1
-#define BCH_XATTR_INDEX_POSIX_ACL_DEFAULT	2
-#define BCH_XATTR_INDEX_TRUSTED			3
-#define BCH_XATTR_INDEX_SECURITY	        4
+#define KEY_TYPE_XATTR_INDEX_USER			0
+#define KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS	1
+#define KEY_TYPE_XATTR_INDEX_POSIX_ACL_DEFAULT	2
+#define KEY_TYPE_XATTR_INDEX_TRUSTED			3
+#define KEY_TYPE_XATTR_INDEX_SECURITY	        4
 
 struct bch_xattr {
 	struct bch_val		v;
@@ -843,13 +804,8 @@ struct bch_xattr {
 	__le16			x_val_len;
 	__u8			x_name[];
 } __attribute__((packed, aligned(8)));
-BKEY_VAL_TYPE(xattr,		BCH_XATTR);
 
 /* Bucket/allocation information: */
-
-enum {
-	BCH_ALLOC		= 128,
-};
 
 enum {
 	BCH_ALLOC_FIELD_READ_TIME	= 0,
@@ -862,13 +818,8 @@ struct bch_alloc {
 	__u8			gen;
 	__u8			data[];
 } __attribute__((packed, aligned(8)));
-BKEY_VAL_TYPE(alloc,	BCH_ALLOC);
 
 /* Quotas: */
-
-enum {
-	BCH_QUOTA		= 128,
-};
 
 enum quota_types {
 	QTYP_USR		= 0,
@@ -892,13 +843,8 @@ struct bch_quota {
 	struct bch_val		v;
 	struct bch_quota_counter c[Q_COUNTERS];
 } __attribute__((packed, aligned(8)));
-BKEY_VAL_TYPE(quota,	BCH_QUOTA);
 
 /* Erasure coding */
-
-enum {
-	BCH_STRIPE		= 128,
-};
 
 struct bch_stripe {
 	struct bch_val		v;
@@ -913,7 +859,6 @@ struct bch_stripe {
 
 	struct bch_extent_ptr	ptrs[0];
 } __attribute__((packed, aligned(8)));
-BKEY_VAL_TYPE(stripe,	BCH_STRIPE);
 
 /* Optional/variable size superblock sections: */
 
@@ -1149,15 +1094,21 @@ struct bch_sb_field_clean {
 /* Superblock: */
 
 /*
- * Version 8:	BCH_SB_ENCODED_EXTENT_MAX_BITS
- *		BCH_MEMBER_DATA_ALLOWED
- * Version 9:	incompatible extent nonce change
+ * New versioning scheme:
+ * One common version number for all on disk data structures - superblock, btree
+ * nodes, journal entries
  */
+#define BCH_JSET_VERSION_OLD			2
+#define BCH_BSET_VERSION_OLD			3
 
-#define BCH_SB_VERSION_MIN		7
-#define BCH_SB_VERSION_EXTENT_MAX	8
-#define BCH_SB_VERSION_EXTENT_NONCE_V1	9
-#define BCH_SB_VERSION_MAX		9
+enum bcachefs_metadata_version {
+	bcachefs_metadata_version_min			= 9,
+	bcachefs_metadata_version_new_versioning	= 10,
+	bcachefs_metadata_version_bkey_renumber		= 10,
+	bcachefs_metadata_version_max			= 11,
+};
+
+#define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)
 
 #define BCH_SB_SECTOR			8
 #define BCH_SB_MEMBERS_MAX		64 /* XXX kill */
@@ -1176,6 +1127,9 @@ struct bch_sb_layout {
 /*
  * @offset	- sector where this sb was written
  * @version	- on disk format version
+ * @version_min	- Oldest metadata version this filesystem contains; so we can
+ *		  safely drop compatibility code and refuse to mount filesystems
+ *		  we'd need it for
  * @magic	- identifies as a bcachefs superblock (BCACHE_MAGIC)
  * @seq		- incremented each time superblock is written
  * @uuid	- used for generating various magic numbers and identifying
@@ -1369,11 +1323,6 @@ static inline __u64 __bset_magic(struct bch_sb *sb)
 
 /* Journal */
 
-#define BCACHE_JSET_VERSION_UUIDv1	1
-#define BCACHE_JSET_VERSION_UUID	1	/* Always latest UUID format */
-#define BCACHE_JSET_VERSION_JKEYS	2
-#define BCACHE_JSET_VERSION		2
-
 #define JSET_KEYS_U64s	(sizeof(struct jset_entry) / sizeof(__u64))
 
 #define BCH_JSET_ENTRY_TYPES()			\
@@ -1453,34 +1402,25 @@ LE32_BITMASK(JSET_BIG_ENDIAN,	struct jset, flags, 4, 5);
 
 /* Btree: */
 
-#define DEFINE_BCH_BTREE_IDS()					\
-	DEF_BTREE_ID(EXTENTS,	0, "extents")			\
-	DEF_BTREE_ID(INODES,	1, "inodes")			\
-	DEF_BTREE_ID(DIRENTS,	2, "dirents")			\
-	DEF_BTREE_ID(XATTRS,	3, "xattrs")			\
-	DEF_BTREE_ID(ALLOC,	4, "alloc")			\
-	DEF_BTREE_ID(QUOTAS,	5, "quotas")			\
-	DEF_BTREE_ID(EC,	6, "erasure_coding")
-
-#define DEF_BTREE_ID(kwd, val, name) BTREE_ID_##kwd = val,
+#define BCH_BTREE_IDS()				\
+	x(EXTENTS,	0, "extents")			\
+	x(INODES,	1, "inodes")			\
+	x(DIRENTS,	2, "dirents")			\
+	x(XATTRS,	3, "xattrs")			\
+	x(ALLOC,	4, "alloc")			\
+	x(QUOTAS,	5, "quotas")			\
+	x(EC,		6, "erasure_coding")
 
 enum btree_id {
-	DEFINE_BCH_BTREE_IDS()
+#define x(kwd, val, name) BTREE_ID_##kwd = val,
+	BCH_BTREE_IDS()
+#undef x
 	BTREE_ID_NR
 };
-
-#undef DEF_BTREE_ID
 
 #define BTREE_MAX_DEPTH		4U
 
 /* Btree nodes */
-
-/* Version 1: Seed pointer into btree node checksum
- */
-#define BCACHE_BSET_CSUM		1
-#define BCACHE_BSET_KEY_v1		2
-#define BCACHE_BSET_JOURNAL_SEQ		3
-#define BCACHE_BSET_VERSION		3
 
 /*
  * Btree nodes

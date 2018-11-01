@@ -10,15 +10,15 @@ extern const struct bch_sb_field_ops bch_sb_field_ops_quota;
 const char *bch2_quota_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_quota_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
-#define bch2_bkey_quota_ops (struct bkey_ops) {		\
+#define bch2_bkey_ops_quota (struct bkey_ops) {		\
 	.key_invalid	= bch2_quota_invalid,		\
 	.val_to_text	= bch2_quota_to_text,		\
 }
 
 enum quota_acct_mode {
-	BCH_QUOTA_PREALLOC,
-	BCH_QUOTA_WARN,
-	BCH_QUOTA_NOCHECK,
+	KEY_TYPE_QUOTA_PREALLOC,
+	KEY_TYPE_QUOTA_WARN,
+	KEY_TYPE_QUOTA_NOCHECK,
 };
 
 static inline struct bch_qid bch_qid(struct bch_inode_unpacked *u)

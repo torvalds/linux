@@ -220,10 +220,10 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 #define BCH_BUCKET_MARK_NOATOMIC		(1 << 0)
 #define BCH_BUCKET_MARK_GC			(1 << 1)
 
-int bch2_mark_key_locked(struct bch_fs *, enum bkey_type, struct bkey_s_c,
+int bch2_mark_key_locked(struct bch_fs *, struct bkey_s_c,
 		  bool, s64, struct gc_pos,
 		  struct bch_fs_usage *, u64, unsigned);
-int bch2_mark_key(struct bch_fs *, enum bkey_type, struct bkey_s_c,
+int bch2_mark_key(struct bch_fs *, struct bkey_s_c,
 		  bool, s64, struct gc_pos,
 		  struct bch_fs_usage *, u64, unsigned);
 void bch2_mark_update(struct btree_insert *, struct btree_insert_entry *);

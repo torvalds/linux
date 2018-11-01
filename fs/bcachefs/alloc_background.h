@@ -11,7 +11,7 @@
 const char *bch2_alloc_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
-#define bch2_bkey_alloc_ops (struct bkey_ops) {		\
+#define bch2_bkey_ops_alloc (struct bkey_ops) {		\
 	.key_invalid	= bch2_alloc_invalid,		\
 	.val_to_text	= bch2_alloc_to_text,		\
 }

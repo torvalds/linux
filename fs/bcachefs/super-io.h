@@ -135,6 +135,8 @@ static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
 
 /* BCH_SB_FIELD_clean: */
 
+void bch2_sb_clean_renumber(struct bch_sb_field_clean *, int);
+
 void bch2_fs_mark_clean(struct bch_fs *, bool);
 
 void bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,

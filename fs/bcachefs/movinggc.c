@@ -66,36 +66,42 @@ static int bucket_offset_cmp(const void *_l, const void *_r, size_t size)
 }
 
 static bool __copygc_pred(struct bch_dev *ca,
-			  struct bkey_s_c_extent e)
+			  struct bkey_s_c k)
 {
 	copygc_heap *h = &ca->copygc_heap;
-	const struct bch_extent_ptr *ptr =
-		bch2_extent_has_device(e, ca->dev_idx);
 
-	if (ptr) {
-		struct copygc_heap_entry search = { .offset = ptr->offset };
+	switch (k.k->type) {
+	case KEY_TYPE_extent: {
+		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+		const struct bch_extent_ptr *ptr =
+			bch2_extent_has_device(e, ca->dev_idx);
 
-		ssize_t i = eytzinger0_find_le(h->data, h->used,
-					       sizeof(h->data[0]),
-					       bucket_offset_cmp, &search);
+		if (ptr) {
+			struct copygc_heap_entry search = { .offset = ptr->offset };
 
-		return (i >= 0 &&
-			ptr->offset < h->data[i].offset + ca->mi.bucket_size &&
-			ptr->gen == h->data[i].gen);
+			ssize_t i = eytzinger0_find_le(h->data, h->used,
+						       sizeof(h->data[0]),
+						       bucket_offset_cmp, &search);
+
+			return (i >= 0 &&
+				ptr->offset < h->data[i].offset + ca->mi.bucket_size &&
+				ptr->gen == h->data[i].gen);
+		}
+		break;
+	}
 	}
 
 	return false;
 }
 
 static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
-				 enum bkey_type type,
-				 struct bkey_s_c_extent e,
+				 struct bkey_s_c k,
 				 struct bch_io_opts *io_opts,
 				 struct data_opts *data_opts)
 {
 	struct bch_dev *ca = arg;
 
-	if (!__copygc_pred(ca, e))
+	if (!__copygc_pred(ca, k))
 		return DATA_SKIP;
 
 	data_opts->target		= dev_to_target(ca->dev_idx);

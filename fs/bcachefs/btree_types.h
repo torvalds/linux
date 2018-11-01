@@ -405,20 +405,45 @@ static inline unsigned bset_byte_offset(struct btree *b, void *i)
 	return i - (void *) b->data;
 }
 
-/* Type of keys @b contains: */
-static inline enum bkey_type btree_node_type(struct btree *b)
+enum btree_node_type {
+#define x(kwd, val, name) BKEY_TYPE_##kwd = val,
+	BCH_BTREE_IDS()
+#undef x
+	BKEY_TYPE_BTREE,
+};
+
+/* Type of a key in btree @id at level @level: */
+static inline enum btree_node_type __btree_node_type(unsigned level, enum btree_id id)
 {
-	return b->level ? BKEY_TYPE_BTREE : b->btree_id;
+	return level ? BKEY_TYPE_BTREE : (enum btree_node_type) id;
 }
 
-static inline const struct bkey_ops *btree_node_ops(struct btree *b)
+/* Type of keys @b contains: */
+static inline enum btree_node_type btree_node_type(struct btree *b)
 {
-	return &bch2_bkey_ops[btree_node_type(b)];
+	return __btree_node_type(b->level, b->btree_id);
+}
+
+static inline bool btree_node_type_is_extents(enum btree_node_type type)
+{
+	return type == BKEY_TYPE_EXTENTS;
 }
 
 static inline bool btree_node_is_extents(struct btree *b)
 {
-	return btree_node_type(b) == BKEY_TYPE_EXTENTS;
+	return btree_node_type_is_extents(btree_node_type(b));
+}
+
+static inline bool btree_node_type_needs_gc(enum btree_node_type type)
+{
+	switch (type) {
+	case BKEY_TYPE_BTREE:
+	case BKEY_TYPE_EXTENTS:
+	case BKEY_TYPE_EC:
+		return true;
+	default:
+		return false;
+	}
 }
 
 struct btree_root {

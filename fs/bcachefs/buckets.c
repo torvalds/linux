@@ -567,7 +567,7 @@ static int __disk_sectors(struct bch_extent_crc_unpacked crc, unsigned sectors)
 				    crc.uncompressed_size));
 }
 
-static s64 ptr_disk_sectors(struct bkey_s_c_extent e,
+static s64 ptr_disk_sectors(const struct bkey *k,
 			    struct extent_ptr_decoded p,
 			    s64 sectors)
 {
@@ -579,8 +579,8 @@ static s64 ptr_disk_sectors(struct bkey_s_c_extent e,
 			old_sectors = 0;
 			new_sectors = sectors;
 		} else {
-			old_sectors = e.k->size;
-			new_sectors = e.k->size + sectors;
+			old_sectors = k->size;
+			new_sectors = k->size + sectors;
 		}
 
 		sectors = -__disk_sectors(p.crc, old_sectors)
@@ -596,7 +596,6 @@ static s64 ptr_disk_sectors(struct bkey_s_c_extent e,
  * that with the gc pos seqlock held.
  */
 static void bch2_mark_pointer(struct bch_fs *c,
-			      struct bkey_s_c_extent e,
 			      struct extent_ptr_decoded p,
 			      s64 sectors, enum bch_data_type data_type,
 			      struct bch_fs_usage *fs_usage,
@@ -709,70 +708,54 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 			    u64 journal_seq, unsigned flags,
 			    bool gc)
 {
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	s64 cached_sectors	= 0;
+	s64 dirty_sectors	= 0;
+	s64 ec_sectors		= 0;
+	unsigned replicas	= 0;
+	unsigned ec_redundancy	= 0;
+	unsigned i;
+	int ret;
+
 	BUG_ON(!sectors);
 
-	switch (k.k->type) {
-	case BCH_EXTENT:
-	case BCH_EXTENT_CACHED: {
-		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-		const union bch_extent_entry *entry;
-		struct extent_ptr_decoded p;
-		s64 cached_sectors	= 0;
-		s64 dirty_sectors	= 0;
-		s64 ec_sectors		= 0;
-		unsigned replicas	= 0;
-		unsigned ec_redundancy	= 0;
-		unsigned i;
-		int ret;
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		s64 disk_sectors = ptr_disk_sectors(k.k, p, sectors);
+		s64 adjusted_disk_sectors = disk_sectors;
 
-		extent_for_each_ptr_decode(e, p, entry) {
-			s64 disk_sectors = ptr_disk_sectors(e, p, sectors);
-			s64 adjusted_disk_sectors = disk_sectors;
+		bch2_mark_pointer(c, p, disk_sectors, data_type,
+				  stats, journal_seq, flags, gc);
 
-			bch2_mark_pointer(c, e, p, disk_sectors, data_type,
-					  stats, journal_seq, flags, gc);
+		if (!p.ptr.cached)
+			for (i = 0; i < p.ec_nr; i++) {
+				ret = bch2_mark_stripe_ptr(c, p.ec[i],
+						disk_sectors, flags,
+						&adjusted_disk_sectors,
+						&ec_redundancy, gc);
+				if (ret)
+					return ret;
+			}
+		if (!p.ptr.cached)
+			replicas++;
 
-			if (!p.ptr.cached)
-				for (i = 0; i < p.ec_nr; i++) {
-					ret = bch2_mark_stripe_ptr(c, p.ec[i],
-							disk_sectors, flags,
-							&adjusted_disk_sectors,
-							&ec_redundancy, gc);
-					if (ret)
-						return ret;
-				}
-			if (!p.ptr.cached)
-				replicas++;
-
-			if (p.ptr.cached)
-				cached_sectors	+= adjusted_disk_sectors;
-			else if (!p.ec_nr)
-				dirty_sectors	+= adjusted_disk_sectors;
-			else
-				ec_sectors	+= adjusted_disk_sectors;
-		}
-
-		replicas	= clamp_t(unsigned,	replicas,
-					  1, ARRAY_SIZE(stats->replicas));
-		ec_redundancy	= clamp_t(unsigned,	ec_redundancy,
-					  1, ARRAY_SIZE(stats->replicas));
-
-		stats->replicas[0].data[BCH_DATA_CACHED]	+= cached_sectors;
-		stats->replicas[replicas - 1].data[data_type]	+= dirty_sectors;
-		stats->replicas[ec_redundancy - 1].ec_data	+= ec_sectors;
-		break;
+		if (p.ptr.cached)
+			cached_sectors	+= adjusted_disk_sectors;
+		else if (!p.ec_nr)
+			dirty_sectors	+= adjusted_disk_sectors;
+		else
+			ec_sectors	+= adjusted_disk_sectors;
 	}
-	case BCH_RESERVATION: {
-		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 
-		sectors *= replicas;
-		replicas = clamp_t(unsigned, replicas,
-				   1, ARRAY_SIZE(stats->replicas));
+	replicas	= clamp_t(unsigned,	replicas,
+				  1, ARRAY_SIZE(stats->replicas));
+	ec_redundancy	= clamp_t(unsigned,	ec_redundancy,
+				  1, ARRAY_SIZE(stats->replicas));
 
-		stats->replicas[replicas - 1].persistent_reserved += sectors;
-		break;
-	}
-	}
+	stats->replicas[0].data[BCH_DATA_CACHED]	+= cached_sectors;
+	stats->replicas[replicas - 1].data[data_type]	+= dirty_sectors;
+	stats->replicas[ec_redundancy - 1].ec_data	+= ec_sectors;
 
 	return 0;
 }
@@ -813,56 +796,49 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 			    u64 journal_seq, unsigned flags,
 			    bool gc)
 {
-	switch (k.k->type) {
-	case BCH_STRIPE: {
-		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
-		size_t idx = s.k->p.offset;
-		struct stripe *m = genradix_ptr(&c->stripes[gc], idx);
-		unsigned i;
+	struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
+	size_t idx = s.k->p.offset;
+	struct stripe *m = genradix_ptr(&c->stripes[gc], idx);
+	unsigned i;
 
-		if (!m || (!inserting && !m->alive)) {
-			bch_err_ratelimited(c, "error marking nonexistent stripe %zu",
-					    idx);
-			return -1;
-		}
-
-		if (inserting && m->alive) {
-			bch_err_ratelimited(c, "error marking stripe %zu: already exists",
-					    idx);
-			return -1;
-		}
-
-		BUG_ON(atomic_read(&m->blocks_nonempty));
-
-		for (i = 0; i < EC_STRIPE_MAX; i++)
-			BUG_ON(atomic_read(&m->block_sectors[i]));
-
-		if (inserting) {
-			m->sectors	= le16_to_cpu(s.v->sectors);
-			m->algorithm	= s.v->algorithm;
-			m->nr_blocks	= s.v->nr_blocks;
-			m->nr_redundant	= s.v->nr_redundant;
-		}
-
-		if (!gc) {
-			if (inserting)
-				bch2_stripes_heap_insert(c, m, idx);
-			else
-				bch2_stripes_heap_del(c, m, idx);
-		} else {
-			m->alive = inserting;
-		}
-
-		bucket_set_stripe(c, s.v, inserting, fs_usage, 0, gc);
-		break;
-	}
+	if (!m || (!inserting && !m->alive)) {
+		bch_err_ratelimited(c, "error marking nonexistent stripe %zu",
+				    idx);
+		return -1;
 	}
 
+	if (inserting && m->alive) {
+		bch_err_ratelimited(c, "error marking stripe %zu: already exists",
+				    idx);
+		return -1;
+	}
+
+	BUG_ON(atomic_read(&m->blocks_nonempty));
+
+	for (i = 0; i < EC_STRIPE_MAX; i++)
+		BUG_ON(atomic_read(&m->block_sectors[i]));
+
+	if (inserting) {
+		m->sectors	= le16_to_cpu(s.v->sectors);
+		m->algorithm	= s.v->algorithm;
+		m->nr_blocks	= s.v->nr_blocks;
+		m->nr_redundant	= s.v->nr_redundant;
+	}
+
+	if (!gc) {
+		if (inserting)
+			bch2_stripes_heap_insert(c, m, idx);
+		else
+			bch2_stripes_heap_del(c, m, idx);
+	} else {
+		m->alive = inserting;
+	}
+
+	bucket_set_stripe(c, s.v, inserting, fs_usage, 0, gc);
 	return 0;
 }
 
-static int __bch2_mark_key(struct bch_fs *c,
-			   enum bkey_type type, struct bkey_s_c k,
+static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 			   bool inserting, s64 sectors,
 			   struct bch_fs_usage *stats,
 			   u64 journal_seq, unsigned flags,
@@ -870,22 +846,32 @@ static int __bch2_mark_key(struct bch_fs *c,
 {
 	int ret = 0;
 
-	switch (type) {
-	case BKEY_TYPE_BTREE:
+	switch (k.k->type) {
+	case KEY_TYPE_btree_ptr:
 		ret = bch2_mark_extent(c, k, inserting
 				       ?  c->opts.btree_node_size
 				       : -c->opts.btree_node_size,
 				       BCH_DATA_BTREE,
 				       stats, journal_seq, flags, gc);
 		break;
-	case BKEY_TYPE_EXTENTS:
+	case KEY_TYPE_extent:
 		ret = bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
 				       stats, journal_seq, flags, gc);
 		break;
-	case BKEY_TYPE_EC:
+	case KEY_TYPE_stripe:
 		ret = bch2_mark_stripe(c, k, inserting,
 				       stats, journal_seq, flags, gc);
 		break;
+	case KEY_TYPE_reservation: {
+		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
+
+		sectors *= replicas;
+		replicas = clamp_t(unsigned, replicas,
+				   1, ARRAY_SIZE(stats->replicas));
+
+		stats->replicas[replicas - 1].persistent_reserved += sectors;
+		break;
+	}
 	default:
 		break;
 	}
@@ -894,7 +880,7 @@ static int __bch2_mark_key(struct bch_fs *c,
 }
 
 int bch2_mark_key_locked(struct bch_fs *c,
-		   enum bkey_type type, struct bkey_s_c k,
+		   struct bkey_s_c k,
 		   bool inserting, s64 sectors,
 		   struct gc_pos pos,
 		   struct bch_fs_usage *stats,
@@ -906,7 +892,7 @@ int bch2_mark_key_locked(struct bch_fs *c,
 		if (!stats)
 			stats = this_cpu_ptr(c->usage[0]);
 
-		ret = __bch2_mark_key(c, type, k, inserting, sectors,
+		ret = __bch2_mark_key(c, k, inserting, sectors,
 				      stats, journal_seq, flags, false);
 		if (ret)
 			return ret;
@@ -914,7 +900,7 @@ int bch2_mark_key_locked(struct bch_fs *c,
 
 	if ((flags & BCH_BUCKET_MARK_GC) ||
 	    gc_visited(c, pos)) {
-		ret = __bch2_mark_key(c, type, k, inserting, sectors,
+		ret = __bch2_mark_key(c, k, inserting, sectors,
 				      this_cpu_ptr(c->usage[1]),
 				      journal_seq, flags, true);
 		if (ret)
@@ -924,8 +910,7 @@ int bch2_mark_key_locked(struct bch_fs *c,
 	return 0;
 }
 
-int bch2_mark_key(struct bch_fs *c,
-		  enum bkey_type type, struct bkey_s_c k,
+int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		  bool inserting, s64 sectors,
 		  struct gc_pos pos,
 		  struct bch_fs_usage *stats,
@@ -934,7 +919,7 @@ int bch2_mark_key(struct bch_fs *c,
 	int ret;
 
 	percpu_down_read(&c->usage_lock);
-	ret = bch2_mark_key_locked(c, type, k, inserting, sectors,
+	ret = bch2_mark_key_locked(c, k, inserting, sectors,
 				   pos, stats, journal_seq, flags);
 	percpu_up_read(&c->usage_lock);
 
@@ -952,20 +937,19 @@ void bch2_mark_update(struct btree_insert *trans,
 	struct gc_pos		pos = gc_pos_btree_node(b);
 	struct bkey_packed	*_k;
 
-	if (!bkey_type_needs_gc(iter->btree_id))
+	if (!btree_node_type_needs_gc(iter->btree_id))
 		return;
 
 	percpu_down_read(&c->usage_lock);
 
 	if (!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))
-		bch2_mark_key_locked(c, btree_node_type(b),
-			bkey_i_to_s_c(insert->k), true,
+		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k), true,
 			bpos_min(insert->k->k.p, b->key.k.p).offset -
 			bkey_start_offset(&insert->k->k),
 			pos, &stats, trans->journal_res.seq, 0);
 
 	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
-						      KEY_TYPE_DISCARD))) {
+						      KEY_TYPE_discard))) {
 		struct bkey		unpacked;
 		struct bkey_s_c		k;
 		s64			sectors = 0;
@@ -994,9 +978,8 @@ void bch2_mark_update(struct btree_insert *trans,
 				sectors = k.k->p.offset - insert->k->k.p.offset;
 				BUG_ON(sectors <= 0);
 
-				bch2_mark_key_locked(c, btree_node_type(b),
-					k, true, sectors, pos, &stats,
-					trans->journal_res.seq, 0);
+				bch2_mark_key_locked(c, k, true, sectors,
+					pos, &stats, trans->journal_res.seq, 0);
 
 				sectors = bkey_start_offset(&insert->k->k) -
 					k.k->p.offset;
@@ -1006,9 +989,8 @@ void bch2_mark_update(struct btree_insert *trans,
 			BUG_ON(sectors >= 0);
 		}
 
-		bch2_mark_key_locked(c, btree_node_type(b),
-			k, false, sectors, pos, &stats,
-			trans->journal_res.seq, 0);
+		bch2_mark_key_locked(c, k, false, sectors,
+			pos, &stats, trans->journal_res.seq, 0);
 
 		bch2_btree_node_iter_advance(&node_iter, b);
 	}

@@ -65,8 +65,7 @@ static bool dirent_cmp_bkey(struct bkey_s_c _l, struct bkey_s_c _r)
 
 const struct bch_hash_desc bch2_dirent_hash_desc = {
 	.btree_id	= BTREE_ID_DIRENTS,
-	.key_type	= BCH_DIRENT,
-	.whiteout_type	= BCH_DIRENT_WHITEOUT,
+	.key_type	= KEY_TYPE_dirent,
 	.hash_key	= dirent_hash_key,
 	.hash_bkey	= dirent_hash_bkey,
 	.cmp_key	= dirent_cmp_key,
@@ -75,58 +74,37 @@ const struct bch_hash_desc bch2_dirent_hash_desc = {
 
 const char *bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
-	struct bkey_s_c_dirent d;
+	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 	unsigned len;
 
-	switch (k.k->type) {
-	case BCH_DIRENT:
-		if (bkey_val_bytes(k.k) < sizeof(struct bch_dirent))
-			return "value too small";
+	if (bkey_val_bytes(k.k) < sizeof(struct bch_dirent))
+		return "value too small";
 
-		d = bkey_s_c_to_dirent(k);
-		len = bch2_dirent_name_bytes(d);
+	len = bch2_dirent_name_bytes(d);
+	if (!len)
+		return "empty name";
 
-		if (!len)
-			return "empty name";
+	/*
+	 * older versions of bcachefs were buggy and creating dirent
+	 * keys that were bigger than necessary:
+	 */
+	if (bkey_val_u64s(k.k) > dirent_val_u64s(len + 7))
+		return "value too big";
 
-		/*
-		 * older versions of bcachefs were buggy and creating dirent
-		 * keys that were bigger than necessary:
-		 */
-		if (bkey_val_u64s(k.k) > dirent_val_u64s(len + 7))
-			return "value too big";
+	if (len > BCH_NAME_MAX)
+		return "dirent name too big";
 
-		if (len > BCH_NAME_MAX)
-			return "dirent name too big";
-
-		return NULL;
-	case BCH_DIRENT_WHITEOUT:
-		return bkey_val_bytes(k.k) != 0
-			? "value size should be zero"
-			: NULL;
-
-	default:
-		return "invalid type";
-	}
+	return NULL;
 }
 
 void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,
 			 struct bkey_s_c k)
 {
-	struct bkey_s_c_dirent d;
+	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 
-	switch (k.k->type) {
-	case BCH_DIRENT:
-		d = bkey_s_c_to_dirent(k);
-
-		bch_scnmemcpy(out, d.v->d_name,
-			      bch2_dirent_name_bytes(d));
-		pr_buf(out, " -> %llu", d.v->d_inum);
-		break;
-	case BCH_DIRENT_WHITEOUT:
-		pr_buf(out, "whiteout");
-		break;
-	}
+	bch_scnmemcpy(out, d.v->d_name,
+		      bch2_dirent_name_bytes(d));
+	pr_buf(out, " -> %llu", d.v->d_inum);
 }
 
 static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
@@ -287,7 +265,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 				 * overwrite old_dst - just make sure to use a
 				 * whiteout when deleting src:
 				 */
-				new_src->k.type = BCH_DIRENT_WHITEOUT;
+				new_src->k.type = KEY_TYPE_whiteout;
 			}
 		} else {
 			/* Check if we need a whiteout to delete src: */
@@ -298,7 +276,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 				return ret;
 
 			if (ret)
-				new_src->k.type = BCH_DIRENT_WHITEOUT;
+				new_src->k.type = KEY_TYPE_whiteout;
 		}
 	}
 
@@ -361,7 +339,7 @@ int bch2_empty_dir(struct bch_fs *c, u64 dir_inum)
 		if (k.k->p.inode > dir_inum)
 			break;
 
-		if (k.k->type == BCH_DIRENT) {
+		if (k.k->type == KEY_TYPE_dirent) {
 			ret = -ENOTEMPTY;
 			break;
 		}
@@ -385,7 +363,7 @@ int bch2_readdir(struct bch_fs *c, struct file *file,
 
 	for_each_btree_key(&iter, c, BTREE_ID_DIRENTS,
 			   POS(inode->v.i_ino, ctx->pos), 0, k) {
-		if (k.k->type != BCH_DIRENT)
+		if (k.k->type != KEY_TYPE_dirent)
 			continue;
 
 		dirent = bkey_s_c_to_dirent(k);

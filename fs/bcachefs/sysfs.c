@@ -277,7 +277,7 @@ static ssize_t bch2_compression_stats(struct bch_fs *c, char *buf)
 		return -EPERM;
 
 	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS, POS_MIN, 0, k)
-		if (k.k->type == BCH_EXTENT) {
+		if (k.k->type == KEY_TYPE_extent) {
 			struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
 			const union bch_extent_entry *entry;
 			struct extent_ptr_decoded p;

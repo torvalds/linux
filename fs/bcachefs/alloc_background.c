@@ -76,22 +76,15 @@ static unsigned bch_alloc_val_u64s(const struct bch_alloc *a)
 
 const char *bch2_alloc_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
+	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
+
 	if (k.k->p.inode >= c->sb.nr_devices ||
 	    !c->devs[k.k->p.inode])
 		return "invalid device";
 
-	switch (k.k->type) {
-	case BCH_ALLOC: {
-		struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
-
-		/* allow for unknown fields */
-		if (bkey_val_u64s(a.k) < bch_alloc_val_u64s(a.v))
-			return "incorrect value size";
-		break;
-	}
-	default:
-		return "invalid type";
-	}
+	/* allow for unknown fields */
+	if (bkey_val_u64s(a.k) < bch_alloc_val_u64s(a.v))
+		return "incorrect value size";
 
 	return NULL;
 }
@@ -99,14 +92,9 @@ const char *bch2_alloc_invalid(const struct bch_fs *c, struct bkey_s_c k)
 void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bkey_s_c k)
 {
-	switch (k.k->type) {
-	case BCH_ALLOC: {
-		struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
+	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
 
-		pr_buf(out, "gen %u", a.v->gen);
-		break;
-	}
-	}
+	pr_buf(out, "gen %u", a.v->gen);
 }
 
 static inline unsigned get_alloc_field(const u8 **p, unsigned bytes)
@@ -158,7 +146,7 @@ static void bch2_alloc_read_key(struct bch_fs *c, struct bkey_s_c k)
 	struct bucket *g;
 	const u8 *d;
 
-	if (k.k->type != BCH_ALLOC)
+	if (k.k->type != KEY_TYPE_alloc)
 		return;
 
 	a = bkey_s_c_to_alloc(k);

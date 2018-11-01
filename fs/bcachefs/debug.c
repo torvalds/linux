@@ -56,7 +56,8 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 	v->btree_id	= b->btree_id;
 	bch2_btree_keys_init(v, &c->expensive_debug_checks);
 
-	if (bch2_btree_pick_ptr(c, b, NULL, &pick) <= 0)
+	if (bch2_bkey_pick_read_device(c, bkey_i_to_s_c(&b->key),
+				       NULL, &pick) <= 0)
 		return;
 
 	ca = bch_dev_bkey_exists(c, pick.ptr.dev);
@@ -223,8 +224,7 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 	k = bch2_btree_iter_peek(&iter);
 
 	while (k.k && !(err = btree_iter_err(k))) {
-		bch2_bkey_val_to_text(&PBUF(i->buf), i->c,
-				      bkey_type(0, i->id), k);
+		bch2_bkey_val_to_text(&PBUF(i->buf), i->c, k);
 		i->bytes = strlen(i->buf);
 		BUG_ON(i->bytes >= PAGE_SIZE);
 		i->buf[i->bytes] = '\n';

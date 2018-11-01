@@ -340,7 +340,7 @@ __bch2_create(struct mnt_idmap *idmap,
 	if (tmpfile)
 		inode_u.bi_flags |= BCH_INODE_UNLINKED;
 
-	ret = bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, 1, BCH_QUOTA_PREALLOC);
+	ret = bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, 1, KEY_TYPE_QUOTA_PREALLOC);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -457,7 +457,7 @@ err_trans:
 	make_bad_inode(&inode->v);
 	iput(&inode->v);
 err:
-	bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, -1, BCH_QUOTA_WARN);
+	bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, -1, KEY_TYPE_QUOTA_WARN);
 	inode = ERR_PTR(ret);
 	goto out;
 }
@@ -1079,7 +1079,7 @@ static int bch2_fill_extent(struct fiemap_extent_info *info,
 		}
 
 		return 0;
-	} else if (k->k.type == BCH_RESERVATION) {
+	} else if (k->k.type == KEY_TYPE_reservation) {
 		return fiemap_fill_next_extent(info,
 					       bkey_start_offset(&k->k) << 9,
 					       0, k->k.size << 9,
@@ -1112,7 +1112,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS,
 			   POS(ei->v.i_ino, start >> 9), 0, k)
 		if (bkey_extent_is_data(k.k) ||
-		    k.k->type == BCH_RESERVATION) {
+		    k.k->type == KEY_TYPE_reservation) {
 			if (bkey_cmp(bkey_start_pos(k.k),
 				     POS(ei->v.i_ino, (start + len) >> 9)) >= 0)
 				break;
@@ -1414,9 +1414,9 @@ static void bch2_evict_inode(struct inode *vinode)
 
 	if (!inode->v.i_nlink && !is_bad_inode(&inode->v)) {
 		bch2_quota_acct(c, inode->ei_qid, Q_SPC, -((s64) inode->v.i_blocks),
-				BCH_QUOTA_WARN);
+				KEY_TYPE_QUOTA_WARN);
 		bch2_quota_acct(c, inode->ei_qid, Q_INO, -1,
-				BCH_QUOTA_WARN);
+				KEY_TYPE_QUOTA_WARN);
 		bch2_inode_rm(c, inode->v.i_ino);
 
 		WARN_ONCE(atomic_long_dec_return(&c->nr_inodes) < 0,

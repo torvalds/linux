@@ -397,7 +397,7 @@ bch2_bkey_prev_all(struct btree *b, struct bset_tree *t, struct bkey_packed *k)
 static inline struct bkey_packed *
 bch2_bkey_prev(struct btree *b, struct bset_tree *t, struct bkey_packed *k)
 {
-	return bch2_bkey_prev_filter(b, t, k, KEY_TYPE_DISCARD + 1);
+	return bch2_bkey_prev_filter(b, t, k, KEY_TYPE_discard + 1);
 }
 
 enum bch_extent_overlap {
@@ -529,7 +529,7 @@ bch2_btree_node_iter_peek_all(struct btree_node_iter *iter,
 static inline struct bkey_packed *
 bch2_btree_node_iter_peek(struct btree_node_iter *iter, struct btree *b)
 {
-	return bch2_btree_node_iter_peek_filter(iter, b, KEY_TYPE_DISCARD + 1);
+	return bch2_btree_node_iter_peek_filter(iter, b, KEY_TYPE_discard + 1);
 }
 
 static inline struct bkey_packed *
@@ -555,7 +555,7 @@ bch2_btree_node_iter_prev_all(struct btree_node_iter *iter, struct btree *b)
 static inline struct bkey_packed *
 bch2_btree_node_iter_prev(struct btree_node_iter *iter, struct btree *b)
 {
-	return bch2_btree_node_iter_prev_filter(iter, b, KEY_TYPE_DISCARD + 1);
+	return bch2_btree_node_iter_prev_filter(iter, b, KEY_TYPE_discard + 1);
 }
 
 struct bkey_s_c bch2_btree_node_iter_peek_unpack(struct btree_node_iter *,

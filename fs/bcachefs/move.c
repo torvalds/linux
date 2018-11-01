@@ -100,8 +100,8 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		bch2_cut_back(insert->k.p, &new->k);
 
 		if (m->data_cmd == DATA_REWRITE)
-			bch2_extent_drop_device(extent_i_to_s(insert),
-						m->data_opts.rewrite_dev);
+			bch2_bkey_drop_device(extent_i_to_s(insert).s,
+					      m->data_opts.rewrite_dev);
 
 		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry) {
 			if (bch2_extent_has_device(extent_i_to_s_c(insert), p.ptr.dev)) {
@@ -132,8 +132,8 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		 * has fewer replicas than when we last looked at it - meaning
 		 * we need to get a disk reservation here:
 		 */
-		nr = bch2_extent_nr_dirty_ptrs(bkey_i_to_s_c(&insert->k_i)) -
-			(bch2_extent_nr_dirty_ptrs(k) + m->nr_ptrs_reserved);
+		nr = bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(&insert->k_i)) -
+			(bch2_bkey_nr_dirty_ptrs(k) + m->nr_ptrs_reserved);
 		if (nr > 0) {
 			/*
 			 * can't call bch2_disk_reservation_add() with btree
@@ -243,7 +243,7 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 	switch (data_cmd) {
 	case DATA_ADD_REPLICAS: {
 		int nr = (int) io_opts.data_replicas -
-			bch2_extent_nr_dirty_ptrs(k);
+			bch2_bkey_nr_dirty_ptrs(k);
 
 		if (nr > 0) {
 			m->op.nr_replicas = m->nr_ptrs_reserved = nr;
@@ -477,7 +477,6 @@ int bch2_move_data(struct bch_fs *c,
 	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
 	BKEY_PADDED(k) tmp;
 	struct bkey_s_c k;
-	struct bkey_s_c_extent e;
 	struct data_opts data_opts;
 	enum data_cmd data_cmd;
 	u64 delay, cur_inum = U64_MAX;
@@ -530,8 +529,6 @@ peek:
 		if (!bkey_extent_is_data(k.k))
 			goto next_nondata;
 
-		e = bkey_s_c_to_extent(k);
-
 		if (cur_inum != k.k->p.inode) {
 			struct bch_inode_unpacked inode;
 
@@ -545,8 +542,7 @@ peek:
 			goto peek;
 		}
 
-		switch ((data_cmd = pred(c, arg, BKEY_TYPE_EXTENTS, e,
-					 &io_opts, &data_opts))) {
+		switch ((data_cmd = pred(c, arg, k, &io_opts, &data_opts))) {
 		case DATA_SKIP:
 			goto next;
 		case DATA_SCRUB:
@@ -581,7 +577,7 @@ peek:
 		if (rate)
 			bch2_ratelimit_increment(rate, k.k->size);
 next:
-		atomic64_add(k.k->size * bch2_extent_nr_dirty_ptrs(k),
+		atomic64_add(k.k->size * bch2_bkey_nr_dirty_ptrs(k),
 			     &stats->sectors_seen);
 next_nondata:
 		bch2_btree_iter_next(&stats->iter);
@@ -613,7 +609,7 @@ static int bch2_gc_data_replicas(struct bch_fs *c)
 
 	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS, POS_MIN,
 			   BTREE_ITER_PREFETCH, k) {
-		ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_EXTENTS, k);
+		ret = bch2_mark_bkey_replicas(c, k);
 		if (ret)
 			break;
 	}
@@ -637,8 +633,7 @@ static int bch2_gc_btree_replicas(struct bch_fs *c)
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
 		for_each_btree_node(&iter, c, id, POS_MIN, BTREE_ITER_PREFETCH, b) {
-			ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_BTREE,
-						      bkey_i_to_s_c(&b->key));
+			ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(&b->key));
 
 			bch2_btree_iter_cond_resched(&iter);
 		}
@@ -668,10 +663,9 @@ static int bch2_move_btree(struct bch_fs *c,
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
 		for_each_btree_node(&stats->iter, c, id, POS_MIN, BTREE_ITER_PREFETCH, b) {
-			switch ((cmd = pred(c, arg, BKEY_TYPE_BTREE,
-					    bkey_i_to_s_c_extent(&b->key),
-					    &io_opts,
-					    &data_opts))) {
+			switch ((cmd = pred(c, arg,
+					    bkey_i_to_s_c(&b->key),
+					    &io_opts, &data_opts))) {
 			case DATA_SKIP:
 				goto next;
 			case DATA_SCRUB:
@@ -697,8 +691,7 @@ next:
 
 #if 0
 static enum data_cmd scrub_pred(struct bch_fs *c, void *arg,
-				enum bkey_type type,
-				struct bkey_s_c_extent e,
+				struct bkey_s_c k,
 				struct bch_io_opts *io_opts,
 				struct data_opts *data_opts)
 {
@@ -707,33 +700,38 @@ static enum data_cmd scrub_pred(struct bch_fs *c, void *arg,
 #endif
 
 static enum data_cmd rereplicate_pred(struct bch_fs *c, void *arg,
-				      enum bkey_type type,
-				      struct bkey_s_c_extent e,
+				      struct bkey_s_c k,
 				      struct bch_io_opts *io_opts,
 				      struct data_opts *data_opts)
 {
-	unsigned nr_good = bch2_extent_durability(c, e);
-	unsigned replicas = type == BKEY_TYPE_BTREE
-		? c->opts.metadata_replicas
-		: io_opts->data_replicas;
+	unsigned nr_good = bch2_bkey_durability(c, k);
+	unsigned replicas = 0;
+
+	switch (k.k->type) {
+	case KEY_TYPE_btree_ptr:
+		replicas = c->opts.metadata_replicas;
+		break;
+	case KEY_TYPE_extent:
+		replicas = io_opts->data_replicas;
+		break;
+	}
 
 	if (!nr_good || nr_good >= replicas)
 		return DATA_SKIP;
 
 	data_opts->target		= 0;
-	data_opts->btree_insert_flags = 0;
+	data_opts->btree_insert_flags	= 0;
 	return DATA_ADD_REPLICAS;
 }
 
 static enum data_cmd migrate_pred(struct bch_fs *c, void *arg,
-				  enum bkey_type type,
-				  struct bkey_s_c_extent e,
+				  struct bkey_s_c k,
 				  struct bch_io_opts *io_opts,
 				  struct data_opts *data_opts)
 {
 	struct bch_ioctl_data *op = arg;
 
-	if (!bch2_extent_has_device(e, op->migrate.dev))
+	if (!bch2_bkey_has_device(k, op->migrate.dev))
 		return DATA_SKIP;
 
 	data_opts->target		= 0;

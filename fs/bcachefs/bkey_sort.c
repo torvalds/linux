@@ -257,7 +257,7 @@ static void extent_sort_append(struct bch_fs *c,
 	bch2_bkey_unpack(b, &tmp.k, k);
 
 	if (*prev &&
-	    bch2_extent_merge(c, b, (void *) *prev, &tmp.k))
+	    bch2_bkey_merge(c, (void *) *prev, &tmp.k))
 		return;
 
 	if (*prev) {
@@ -375,7 +375,7 @@ struct btree_nr_keys bch2_extent_sort_fix_overlapping(struct bch_fs *c,
 }
 
 /* Sort + repack in a new format: */
-static struct btree_nr_keys
+struct btree_nr_keys
 bch2_sort_repack(struct bset *dst, struct btree *src,
 		 struct btree_node_iter *src_iter,
 		 struct bkey_format *out_f,
@@ -411,17 +411,11 @@ bch2_sort_repack_merge(struct bch_fs *c,
 		       struct bset *dst, struct btree *src,
 		       struct btree_node_iter *iter,
 		       struct bkey_format *out_f,
-		       bool filter_whiteouts,
-		       key_filter_fn filter,
-		       key_merge_fn merge)
+		       bool filter_whiteouts)
 {
 	struct bkey_packed *k, *prev = NULL, *out;
 	struct btree_nr_keys nr;
 	BKEY_PADDED(k) tmp;
-
-	if (!filter && !merge)
-		return bch2_sort_repack(dst, src, iter, out_f,
-					filter_whiteouts);
 
 	memset(&nr, 0, sizeof(nr));
 
@@ -435,14 +429,15 @@ bch2_sort_repack_merge(struct bch_fs *c,
 		 */
 		bch2_bkey_unpack(src, &tmp.k, k);
 
-		if (filter && filter(c, src, bkey_i_to_s(&tmp.k)))
+		if (filter_whiteouts &&
+		    bch2_bkey_normalize(c, bkey_i_to_s(&tmp.k)))
 			continue;
 
 		/* prev is always unpacked, for key merging: */
 
 		if (prev &&
-		    merge &&
-		    merge(c, src, (void *) prev, &tmp.k) == BCH_MERGE_MERGE)
+		    bch2_bkey_merge(c, (void *) prev, &tmp.k) ==
+		    BCH_MERGE_MERGE)
 			continue;
 
 		/*
@@ -606,7 +601,7 @@ unsigned bch2_sort_extent_whiteouts(struct bkey_packed *dst,
 			continue;
 
 		EBUG_ON(bkeyp_val_u64s(f, in));
-		EBUG_ON(in->type != KEY_TYPE_DISCARD);
+		EBUG_ON(in->type != KEY_TYPE_discard);
 
 		r.k = bkey_unpack_key(iter->b, in);
 

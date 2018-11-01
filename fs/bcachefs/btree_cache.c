@@ -6,19 +6,16 @@
 #include "btree_iter.h"
 #include "btree_locking.h"
 #include "debug.h"
-#include "extents.h"
 #include "trace.h"
 
 #include <linux/prefetch.h>
 
-#define DEF_BTREE_ID(kwd, val, name) name,
-
 const char * const bch2_btree_ids[] = {
-	DEFINE_BCH_BTREE_IDS()
+#define x(kwd, val, name) name,
+	BCH_BTREE_IDS()
+#undef x
 	NULL
 };
-
-#undef DEF_BTREE_ID
 
 void bch2_recalc_btree_reserve(struct bch_fs *c)
 {
@@ -100,7 +97,7 @@ static struct btree *btree_node_mem_alloc(struct bch_fs *c, gfp_t gfp)
 	if (!b)
 		return NULL;
 
-	bkey_extent_init(&b->key);
+	bkey_btree_ptr_init(&b->key);
 	six_lock_init(&b->lock);
 	lockdep_set_novalidate_class(&b->lock);
 	INIT_LIST_HEAD(&b->list);
@@ -117,7 +114,7 @@ void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
 	rhashtable_remove_fast(&bc->table, &b->hash, bch_btree_cache_params);
 
 	/* Cause future lookups for this node to fail: */
-	bkey_i_to_extent(&b->key)->v._data[0] = 0;
+	PTR_HASH(&b->key) = 0;
 }
 
 int __bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b)
@@ -604,7 +601,7 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 		/* raced with another fill: */
 
 		/* mark as unhashed... */
-		bkey_i_to_extent(&b->key)->v._data[0] = 0;
+		PTR_HASH(&b->key) = 0;
 
 		mutex_lock(&bc->lock);
 		list_add(&b->list, &bc->freeable);
@@ -906,8 +903,7 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 	       b->data->min_key.offset,
 	       b->data->max_key.inode,
 	       b->data->max_key.offset);
-	bch2_val_to_text(out, c, BKEY_TYPE_BTREE,
-			 bkey_i_to_s_c(&b->key));
+	bch2_val_to_text(out, c, bkey_i_to_s_c(&b->key));
 	pr_buf(out, "\n"
 	       "    format: u64s %u fields %u %u %u %u %u\n"
 	       "    unpack fn len: %u\n"

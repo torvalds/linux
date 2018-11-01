@@ -141,11 +141,12 @@ static void journal_entry_null_range(void *start, void *end)
 
 static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 				struct jset_entry *entry,
-				struct bkey_i *k, enum bkey_type key_type,
+				struct bkey_i *k, enum btree_node_type key_type,
 				const char *type, int write)
 {
 	void *next = vstruct_next(entry);
 	const char *invalid;
+	unsigned version = le32_to_cpu(jset->version);
 	int ret = 0;
 
 	if (journal_entry_err_on(!k->k.u64s, c,
@@ -174,14 +175,17 @@ static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 	}
 
 	if (JSET_BIG_ENDIAN(jset) != CPU_BIG_ENDIAN)
-		bch2_bkey_swab(key_type, NULL, bkey_to_packed(k));
+		bch2_bkey_swab(NULL, bkey_to_packed(k));
 
-	invalid = bch2_bkey_invalid(c, key_type, bkey_i_to_s_c(k));
+	if (!write &&
+	    version < bcachefs_metadata_version_bkey_renumber)
+		bch2_bkey_renumber(key_type, bkey_to_packed(k), write);
+
+	invalid = bch2_bkey_invalid(c, bkey_i_to_s_c(k), key_type);
 	if (invalid) {
 		char buf[160];
 
-		bch2_bkey_val_to_text(&PBUF(buf), c, key_type,
-				      bkey_i_to_s_c(k));
+		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(k));
 		mustfix_fsck_err(c, "invalid %s in journal: %s\n%s",
 				 type, invalid, buf);
 
@@ -190,6 +194,10 @@ static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 		journal_entry_null_range(vstruct_next(entry), next);
 		return 0;
 	}
+
+	if (write &&
+	    version < bcachefs_metadata_version_bkey_renumber)
+		bch2_bkey_renumber(key_type, bkey_to_packed(k), write);
 fsck_err:
 	return ret;
 }
@@ -203,8 +211,8 @@ static int journal_entry_validate_btree_keys(struct bch_fs *c,
 
 	vstruct_for_each(entry, k) {
 		int ret = journal_validate_key(c, jset, entry, k,
-				bkey_type(entry->level,
-					  entry->btree_id),
+				__btree_node_type(entry->level,
+						  entry->btree_id),
 				"key", write);
 		if (ret)
 			return ret;
@@ -351,14 +359,17 @@ static int jset_validate(struct bch_fs *c,
 {
 	size_t bytes = vstruct_bytes(jset);
 	struct bch_csum csum;
+	unsigned version;
 	int ret = 0;
 
 	if (le64_to_cpu(jset->magic) != jset_magic(c))
 		return JOURNAL_ENTRY_NONE;
 
-	if (le32_to_cpu(jset->version) != BCACHE_JSET_VERSION) {
-		bch_err(c, "unknown journal entry version %u",
-			le32_to_cpu(jset->version));
+	version = le32_to_cpu(jset->version);
+	if ((version != BCH_JSET_VERSION_OLD &&
+	     version < bcachefs_metadata_version_min) ||
+	    version >= bcachefs_metadata_version_max) {
+		bch_err(c, "unknown journal entry version %u", jset->version);
 		return BCH_FSCK_UNKNOWN_VERSION;
 	}
 
@@ -929,7 +940,6 @@ static void __journal_write_alloc(struct journal *j,
 				  unsigned replicas_want)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct bkey_i_extent *e = bkey_i_to_extent(&w->key);
 	struct journal_device *ja;
 	struct bch_dev *ca;
 	unsigned i;
@@ -951,13 +961,14 @@ static void __journal_write_alloc(struct journal *j,
 		if (!ca->mi.durability ||
 		    ca->mi.state != BCH_MEMBER_STATE_RW ||
 		    !ja->nr ||
-		    bch2_extent_has_device(extent_i_to_s_c(e), ca->dev_idx) ||
+		    bch2_bkey_has_device(bkey_i_to_s_c(&w->key),
+					 ca->dev_idx) ||
 		    sectors > ja->sectors_free)
 			continue;
 
 		bch2_dev_stripe_increment(c, ca, &j->wp.stripe);
 
-		extent_ptr_append(e,
+		bch2_bkey_append_ptr(&w->key,
 			(struct bch_extent_ptr) {
 				  .offset = bucket_to_sector(ca,
 					ja->buckets[ja->cur_idx]) +
@@ -1096,7 +1107,7 @@ static void journal_write_done(struct closure *cl)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *w = journal_prev_buf(j);
 	struct bch_devs_list devs =
-		bch2_extent_devs(bkey_i_to_s_c_extent(&w->key));
+		bch2_bkey_devs(bkey_i_to_s_c(&w->key));
 	u64 seq = le64_to_cpu(w->data->seq);
 	u64 last_seq = le64_to_cpu(w->data->last_seq);
 
@@ -1158,7 +1169,7 @@ static void journal_write_endio(struct bio *bio)
 		unsigned long flags;
 
 		spin_lock_irqsave(&j->err_lock, flags);
-		bch2_extent_drop_device(bkey_i_to_s_extent(&w->key), ca->dev_idx);
+		bch2_bkey_drop_device(bkey_i_to_s(&w->key), ca->dev_idx);
 		spin_unlock_irqrestore(&j->err_lock, flags);
 	}
 
@@ -1175,6 +1186,7 @@ void bch2_journal_write(struct closure *cl)
 	struct jset *jset;
 	struct bio *bio;
 	struct bch_extent_ptr *ptr;
+	bool validate_before_checksum = false;
 	unsigned i, sectors, bytes;
 
 	journal_buf_realloc(j, w);
@@ -1196,12 +1208,22 @@ void bch2_journal_write(struct closure *cl)
 	jset->read_clock	= cpu_to_le16(c->bucket_clock[READ].hand);
 	jset->write_clock	= cpu_to_le16(c->bucket_clock[WRITE].hand);
 	jset->magic		= cpu_to_le64(jset_magic(c));
-	jset->version		= cpu_to_le32(BCACHE_JSET_VERSION);
+
+	jset->version		= c->sb.version < bcachefs_metadata_version_new_versioning
+		? cpu_to_le32(BCH_JSET_VERSION_OLD)
+		: cpu_to_le32(c->sb.version);
 
 	SET_JSET_BIG_ENDIAN(jset, CPU_BIG_ENDIAN);
 	SET_JSET_CSUM_TYPE(jset, bch2_meta_checksum_type(c));
 
-	if (bch2_csum_type_is_encryption(JSET_CSUM_TYPE(jset)) &&
+	if (bch2_csum_type_is_encryption(JSET_CSUM_TYPE(jset)))
+		validate_before_checksum = true;
+
+	if (le32_to_cpu(jset->version) <
+	    bcachefs_metadata_version_bkey_renumber)
+		validate_before_checksum = true;
+
+	if (validate_before_checksum &&
 	    jset_validate_entries(c, jset, WRITE))
 		goto err;
 
@@ -1212,7 +1234,7 @@ void bch2_journal_write(struct closure *cl)
 	jset->csum = csum_vstruct(c, JSET_CSUM_TYPE(jset),
 				  journal_nonce(jset), jset);
 
-	if (!bch2_csum_type_is_encryption(JSET_CSUM_TYPE(jset)) &&
+	if (!validate_before_checksum &&
 	    jset_validate_entries(c, jset, WRITE))
 		goto err;
 

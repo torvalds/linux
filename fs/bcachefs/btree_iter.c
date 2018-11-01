@@ -433,7 +433,7 @@ static void __bch2_btree_iter_verify(struct btree_iter *iter,
 	 * whiteouts)
 	 */
 	k = b->level || iter->flags & BTREE_ITER_IS_EXTENTS
-		? bch2_btree_node_iter_prev_filter(&tmp, b, KEY_TYPE_DISCARD)
+		? bch2_btree_node_iter_prev_filter(&tmp, b, KEY_TYPE_discard)
 		: bch2_btree_node_iter_prev_all(&tmp, b);
 	if (k && btree_iter_pos_cmp(iter, b, k) > 0) {
 		char buf[100];
@@ -622,7 +622,7 @@ static inline struct bkey_s_c __btree_iter_unpack(struct btree_iter *iter,
 		 * signal to bch2_btree_iter_peek_slot() that we're currently at
 		 * a hole
 		 */
-		u->type = KEY_TYPE_DELETED;
+		u->type = KEY_TYPE_deleted;
 		return bkey_s_c_null;
 	}
 
