@@ -10,6 +10,7 @@
  */
 
 #include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
@@ -18,6 +19,7 @@
 #include <linux/namei.h>
 #include <linux/file.h>
 #include <uapi/linux/mount.h>
+#include "internal.h"
 #include "mount.h"
 
 /*
@@ -151,5 +153,268 @@ SYSCALL_DEFINE2(fsopen, const char __user *, _fs_name, unsigned int, flags)
 
 err_fc:
 	put_fs_context(fc);
+	return ret;
+}
+
+/*
+ * Check the state and apply the configuration.  Note that this function is
+ * allowed to 'steal' the value by setting param->xxx to NULL before returning.
+ */
+static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
+			       struct fs_parameter *param)
+{
+	struct super_block *sb;
+	int ret;
+
+	ret = finish_clean_context(fc);
+	if (ret)
+		return ret;
+	switch (cmd) {
+	case FSCONFIG_CMD_CREATE:
+		if (fc->phase != FS_CONTEXT_CREATE_PARAMS)
+			return -EBUSY;
+		fc->phase = FS_CONTEXT_CREATING;
+		ret = vfs_get_tree(fc);
+		if (ret)
+			break;
+		sb = fc->root->d_sb;
+		ret = security_sb_kern_mount(sb);
+		if (unlikely(ret)) {
+			fc_drop_locked(fc);
+			break;
+		}
+		up_write(&sb->s_umount);
+		fc->phase = FS_CONTEXT_AWAITING_MOUNT;
+		return 0;
+	case FSCONFIG_CMD_RECONFIGURE:
+		if (fc->phase != FS_CONTEXT_RECONF_PARAMS)
+			return -EBUSY;
+		fc->phase = FS_CONTEXT_RECONFIGURING;
+		sb = fc->root->d_sb;
+		if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
+			ret = -EPERM;
+			break;
+		}
+		down_write(&sb->s_umount);
+		ret = reconfigure_super(fc);
+		up_write(&sb->s_umount);
+		if (ret)
+			break;
+		vfs_clean_context(fc);
+		return 0;
+	default:
+		if (fc->phase != FS_CONTEXT_CREATE_PARAMS &&
+		    fc->phase != FS_CONTEXT_RECONF_PARAMS)
+			return -EBUSY;
+
+		return vfs_parse_fs_param(fc, param);
+	}
+	fc->phase = FS_CONTEXT_FAILED;
+	return ret;
+}
+
+/**
+ * sys_fsconfig - Set parameters and trigger actions on a context
+ * @fd: The filesystem context to act upon
+ * @cmd: The action to take
+ * @_key: Where appropriate, the parameter key to set
+ * @_value: Where appropriate, the parameter value to set
+ * @aux: Additional information for the value
+ *
+ * This system call is used to set parameters on a context, including
+ * superblock settings, data source and security labelling.
+ *
+ * Actions include triggering the creation of a superblock and the
+ * reconfiguration of the superblock attached to the specified context.
+ *
+ * When setting a parameter, @cmd indicates the type of value being proposed
+ * and @_key indicates the parameter to be altered.
+ *
+ * @_value and @aux are used to specify the value, should a value be required:
+ *
+ * (*) fsconfig_set_flag: No value is specified.  The parameter must be boolean
+ *     in nature.  The key may be prefixed with "no" to invert the
+ *     setting. @_value must be NULL and @aux must be 0.
+ *
+ * (*) fsconfig_set_string: A string value is specified.  The parameter can be
+ *     expecting boolean, integer, string or take a path.  A conversion to an
+ *     appropriate type will be attempted (which may include looking up as a
+ *     path).  @_value points to a NUL-terminated string and @aux must be 0.
+ *
+ * (*) fsconfig_set_binary: A binary blob is specified.  @_value points to the
+ *     blob and @aux indicates its size.  The parameter must be expecting a
+ *     blob.
+ *
+ * (*) fsconfig_set_path: A non-empty path is specified.  The parameter must be
+ *     expecting a path object.  @_value points to a NUL-terminated string that
+ *     is the path and @aux is a file descriptor at which to start a relative
+ *     lookup or AT_FDCWD.
+ *
+ * (*) fsconfig_set_path_empty: As fsconfig_set_path, but with AT_EMPTY_PATH
+ *     implied.
+ *
+ * (*) fsconfig_set_fd: An open file descriptor is specified.  @_value must be
+ *     NULL and @aux indicates the file descriptor.
+ */
+SYSCALL_DEFINE5(fsconfig,
+		int, fd,
+		unsigned int, cmd,
+		const char __user *, _key,
+		const void __user *, _value,
+		int, aux)
+{
+	struct fs_context *fc;
+	struct fd f;
+	int ret;
+
+	struct fs_parameter param = {
+		.type	= fs_value_is_undefined,
+	};
+
+	if (fd < 0)
+		return -EINVAL;
+
+	switch (cmd) {
+	case FSCONFIG_SET_FLAG:
+		if (!_key || _value || aux)
+			return -EINVAL;
+		break;
+	case FSCONFIG_SET_STRING:
+		if (!_key || !_value || aux)
+			return -EINVAL;
+		break;
+	case FSCONFIG_SET_BINARY:
+		if (!_key || !_value || aux <= 0 || aux > 1024 * 1024)
+			return -EINVAL;
+		break;
+	case FSCONFIG_SET_PATH:
+	case FSCONFIG_SET_PATH_EMPTY:
+		if (!_key || !_value || (aux != AT_FDCWD && aux < 0))
+			return -EINVAL;
+		break;
+	case FSCONFIG_SET_FD:
+		if (!_key || _value || aux < 0)
+			return -EINVAL;
+		break;
+	case FSCONFIG_CMD_CREATE:
+	case FSCONFIG_CMD_RECONFIGURE:
+		if (_key || _value || aux)
+			return -EINVAL;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	f = fdget(fd);
+	if (!f.file)
+		return -EBADF;
+	ret = -EINVAL;
+	if (f.file->f_op != &fscontext_fops)
+		goto out_f;
+
+	fc = f.file->private_data;
+	if (fc->ops == &legacy_fs_context_ops) {
+		switch (cmd) {
+		case FSCONFIG_SET_BINARY:
+		case FSCONFIG_SET_PATH:
+		case FSCONFIG_SET_PATH_EMPTY:
+		case FSCONFIG_SET_FD:
+			ret = -EOPNOTSUPP;
+			goto out_f;
+		}
+	}
+
+	if (_key) {
+		param.key = strndup_user(_key, 256);
+		if (IS_ERR(param.key)) {
+			ret = PTR_ERR(param.key);
+			goto out_f;
+		}
+	}
+
+	switch (cmd) {
+	case FSCONFIG_SET_FLAG:
+		param.type = fs_value_is_flag;
+		break;
+	case FSCONFIG_SET_STRING:
+		param.type = fs_value_is_string;
+		param.string = strndup_user(_value, 256);
+		if (IS_ERR(param.string)) {
+			ret = PTR_ERR(param.string);
+			goto out_key;
+		}
+		param.size = strlen(param.string);
+		break;
+	case FSCONFIG_SET_BINARY:
+		param.type = fs_value_is_blob;
+		param.size = aux;
+		param.blob = memdup_user_nul(_value, aux);
+		if (IS_ERR(param.blob)) {
+			ret = PTR_ERR(param.blob);
+			goto out_key;
+		}
+		break;
+	case FSCONFIG_SET_PATH:
+		param.type = fs_value_is_filename;
+		param.name = getname_flags(_value, 0, NULL);
+		if (IS_ERR(param.name)) {
+			ret = PTR_ERR(param.name);
+			goto out_key;
+		}
+		param.dirfd = aux;
+		param.size = strlen(param.name->name);
+		break;
+	case FSCONFIG_SET_PATH_EMPTY:
+		param.type = fs_value_is_filename_empty;
+		param.name = getname_flags(_value, LOOKUP_EMPTY, NULL);
+		if (IS_ERR(param.name)) {
+			ret = PTR_ERR(param.name);
+			goto out_key;
+		}
+		param.dirfd = aux;
+		param.size = strlen(param.name->name);
+		break;
+	case FSCONFIG_SET_FD:
+		param.type = fs_value_is_file;
+		ret = -EBADF;
+		param.file = fget(aux);
+		if (!param.file)
+			goto out_key;
+		break;
+	default:
+		break;
+	}
+
+	ret = mutex_lock_interruptible(&fc->uapi_mutex);
+	if (ret == 0) {
+		ret = vfs_fsconfig_locked(fc, cmd, &param);
+		mutex_unlock(&fc->uapi_mutex);
+	}
+
+	/* Clean up the our record of any value that we obtained from
+	 * userspace.  Note that the value may have been stolen by the LSM or
+	 * filesystem, in which case the value pointer will have been cleared.
+	 */
+	switch (cmd) {
+	case FSCONFIG_SET_STRING:
+	case FSCONFIG_SET_BINARY:
+		kfree(param.string);
+		break;
+	case FSCONFIG_SET_PATH:
+	case FSCONFIG_SET_PATH_EMPTY:
+		if (param.name)
+			putname(param.name);
+		break;
+	case FSCONFIG_SET_FD:
+		if (param.file)
+			fput(param.file);
+		break;
+	default:
+		break;
+	}
+out_key:
+	kfree(param.key);
+out_f:
+	fdput(f);
 	return ret;
 }

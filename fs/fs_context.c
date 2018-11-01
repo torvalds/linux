@@ -721,3 +721,54 @@ int parse_monolithic_mount_data(struct fs_context *fc, void *data)
 
 	return monolithic_mount_data(fc, data);
 }
+
+/*
+ * Clean up a context after performing an action on it and put it into a state
+ * from where it can be used to reconfigure a superblock.
+ *
+ * Note that here we do only the parts that can't fail; the rest is in
+ * finish_clean_context() below and in between those fs_context is marked
+ * FS_CONTEXT_AWAITING_RECONF.  The reason for splitup is that after
+ * successful mount or remount we need to report success to userland.
+ * Trying to do full reinit (for the sake of possible subsequent remount)
+ * and failing to allocate memory would've put us into a nasty situation.
+ * So here we only discard the old state and reinitialization is left
+ * until we actually try to reconfigure.
+ */
+void vfs_clean_context(struct fs_context *fc)
+{
+	if (fc->need_free && fc->ops && fc->ops->free)
+		fc->ops->free(fc);
+	fc->need_free = false;
+	fc->fs_private = NULL;
+	fc->s_fs_info = NULL;
+	fc->sb_flags = 0;
+	security_free_mnt_opts(&fc->security);
+	kfree(fc->subtype);
+	fc->subtype = NULL;
+	kfree(fc->source);
+	fc->source = NULL;
+
+	fc->purpose = FS_CONTEXT_FOR_RECONFIGURE;
+	fc->phase = FS_CONTEXT_AWAITING_RECONF;
+}
+
+int finish_clean_context(struct fs_context *fc)
+{
+	int error;
+
+	if (fc->phase != FS_CONTEXT_AWAITING_RECONF)
+		return 0;
+
+	if (fc->fs_type->init_fs_context)
+		error = fc->fs_type->init_fs_context(fc);
+	else
+		error = legacy_init_fs_context(fc);
+	if (unlikely(error)) {
+		fc->phase = FS_CONTEXT_FAILED;
+		return error;
+	}
+	fc->need_free = true;
+	fc->phase = FS_CONTEXT_RECONF_PARAMS;
+	return 0;
+}
