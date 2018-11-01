@@ -13,6 +13,7 @@
 #define _LINUX_FS_CONTEXT_H
 
 #include <linux/kernel.h>
+#include <linux/refcount.h>
 #include <linux/errno.h>
 #include <linux/security.h>
 #include <linux/mutex.h>
@@ -95,6 +96,7 @@ struct fs_context {
 	struct user_namespace	*user_ns;	/* The user namespace for this mount */
 	struct net		*net_ns;	/* The network namespace for this mount */
 	const struct cred	*cred;		/* The mounter's credentials */
+	struct fc_log		*log;		/* Logging buffer */
 	const char		*source;	/* The source name (eg. dev path) */
 	const char		*subtype;	/* The subtype to set on the superblock */
 	void			*security;	/* Linux S&M options */
@@ -151,15 +153,21 @@ extern int vfs_get_super(struct fs_context *fc,
 
 extern const struct file_operations fscontext_fops;
 
-#ifdef CONFIG_PRINTK
+/*
+ * Mount error, warning and informational message logging.  This structure is
+ * shareable between a mount and a subordinate mount.
+ */
+struct fc_log {
+	refcount_t	usage;
+	u8		head;		/* Insertion index in buffer[] */
+	u8		tail;		/* Removal index in buffer[] */
+	u8		need_free;	/* Mask of kfree'able items in buffer[] */
+	struct module	*owner;		/* Owner module for strings that don't then need freeing */
+	char		*buffer[8];
+};
+
 extern __attribute__((format(printf, 2, 3)))
 void logfc(struct fs_context *fc, const char *fmt, ...);
-#else
-static inline __attribute__((format(printf, 2, 3)))
-void logfc(struct fs_context *fc, const char *fmt, ...)
-{
-}
-#endif
 
 /**
  * infof - Store supplementary informational message
