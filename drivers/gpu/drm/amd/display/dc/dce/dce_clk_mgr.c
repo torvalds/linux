@@ -450,6 +450,42 @@ void dce_clock_read_ss_info(struct dce_clk_mgr *clk_mgr_dce)
 	}
 }
 
+/**
+ * dce121_clock_patch_xgmi_ss_info() - Save XGMI spread spectrum info
+ * @clk_mgr: clock manager base structure
+ *
+ * Reads from VBIOS the XGMI spread spectrum info and saves it within
+ * the dce clock manager. This operation will overwrite the existing dprefclk
+ * SS values if the vBIOS query succeeds. Otherwise, it does nothing. It also
+ * sets the ->xgmi_enabled flag.
+ */
+void dce121_clock_patch_xgmi_ss_info(struct clk_mgr *clk_mgr)
+{
+	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
+	enum bp_result result;
+	struct spread_spectrum_info info = { { 0 } };
+	struct dc_bios *bp = clk_mgr_dce->base.ctx->dc_bios;
+
+	clk_mgr_dce->xgmi_enabled = false;
+
+	result = bp->funcs->get_spread_spectrum_info(bp, AS_SIGNAL_TYPE_XGMI,
+						     0, &info);
+	if (result == BP_RESULT_OK && info.spread_spectrum_percentage != 0) {
+		clk_mgr_dce->xgmi_enabled = true;
+		clk_mgr_dce->ss_on_dprefclk = true;
+		clk_mgr_dce->dprefclk_ss_divider =
+				info.spread_percentage_divider;
+
+		if (info.type.CENTER_MODE == 0) {
+			/* Currently for DP Reference clock we
+			 * need only SS percentage for
+			 * downspread */
+			clk_mgr_dce->dprefclk_ss_percentage =
+					info.spread_spectrum_percentage;
+		}
+	}
+}
+
 void dce110_fill_display_configs(
 	const struct dc_state *context,
 	struct dm_pp_display_configuration *pp_display_cfg)
@@ -710,6 +746,13 @@ static void dce12_update_clocks(struct clk_mgr *clk_mgr,
 
 	if (should_set_clock(safe_to_lower, patched_disp_clk, clk_mgr->clks.dispclk_khz)) {
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAY_CLK;
+		/*
+		 * When xGMI is enabled, the display clk needs to be adjusted
+		 * with the WAFL link's SS percentage.
+		 */
+		if (clk_mgr_dce->xgmi_enabled)
+			patched_disp_clk = clk_mgr_adjust_dp_ref_freq_for_ss(
+					clk_mgr_dce, patched_disp_clk);
 		clock_voltage_req.clocks_in_khz = patched_disp_clk;
 		clk_mgr->clks.dispclk_khz = dce112_set_clock(clk_mgr, patched_disp_clk);
 
@@ -870,6 +913,27 @@ struct clk_mgr *dce120_clk_mgr_create(struct dc_context *ctx)
 		clk_mgr_dce, ctx, NULL, NULL, NULL);
 
 	clk_mgr_dce->dprefclk_khz = 600000;
+	clk_mgr_dce->base.funcs = &dce120_funcs;
+
+	return &clk_mgr_dce->base;
+}
+
+struct clk_mgr *dce121_clk_mgr_create(struct dc_context *ctx)
+{
+	struct dce_clk_mgr *clk_mgr_dce = kzalloc(sizeof(*clk_mgr_dce),
+						  GFP_KERNEL);
+
+	if (clk_mgr_dce == NULL) {
+		BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+
+	memcpy(clk_mgr_dce->max_clks_by_state, dce120_max_clks_by_state,
+	       sizeof(dce120_max_clks_by_state));
+
+	dce_clk_mgr_construct(clk_mgr_dce, ctx, NULL, NULL, NULL);
+
+	clk_mgr_dce->dprefclk_khz = 625000;
 	clk_mgr_dce->base.funcs = &dce120_funcs;
 
 	return &clk_mgr_dce->base;
