@@ -41,6 +41,7 @@ extern void __init enable_debug_cgroup(void);
  * The cgroup filesystem superblock creation/mount context.
  */
 struct cgroup_fs_context {
+	struct kernfs_fs_context kfc;
 	struct cgroup_root	*root;
 	struct cgroup_namespace	*ns;
 	unsigned int	flags;			/* CGRP_ROOT_* flags */
@@ -56,7 +57,9 @@ struct cgroup_fs_context {
 
 static inline struct cgroup_fs_context *cgroup_fc2context(struct fs_context *fc)
 {
-	return fc->fs_private;
+	struct kernfs_fs_context *kfc = fc->fs_private;
+
+	return container_of(kfc, struct cgroup_fs_context, kfc);
 }
 
 /*

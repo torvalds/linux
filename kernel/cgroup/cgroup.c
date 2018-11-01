@@ -2039,18 +2039,14 @@ out:
 int cgroup_do_get_tree(struct fs_context *fc)
 {
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
-	bool new_sb = false;
-	unsigned long magic;
-	int ret = 0;
+	int ret;
 
+	ctx->kfc.root = ctx->root->kf_root;
 	if (fc->fs_type == &cgroup2_fs_type)
-		magic = CGROUP2_SUPER_MAGIC;
+		ctx->kfc.magic = CGROUP2_SUPER_MAGIC;
 	else
-		magic = CGROUP_SUPER_MAGIC;
-	fc->root = kernfs_mount(fc->fs_type, fc->sb_flags, ctx->root->kf_root,
-				magic, &new_sb);
-	if (IS_ERR(fc->root))
-		ret = PTR_ERR(fc->root);
+		ctx->kfc.magic = CGROUP_SUPER_MAGIC;
+	ret = kernfs_get_tree(fc);
 
 	/*
 	 * In non-init cgroup namespace, instead of root cgroup's dentry,
@@ -2078,7 +2074,7 @@ int cgroup_do_get_tree(struct fs_context *fc)
 		}
 	}
 
-	if (!new_sb)
+	if (!ctx->kfc.new_sb_created)
 		cgroup_put(&ctx->root->cgrp);
 
 	return ret;
@@ -2094,18 +2090,14 @@ static void cgroup_fs_context_free(struct fs_context *fc)
 	kfree(ctx->name);
 	kfree(ctx->release_agent);
 	put_cgroup_ns(ctx->ns);
+	kernfs_free_fs_context(fc);
 	kfree(ctx);
 }
 
 static int cgroup_get_tree(struct fs_context *fc)
 {
-	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
 	int ret;
-
-	/* Check if the caller has permission to mount. */
-	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
-		return -EPERM;
 
 	cgrp_dfl_visible = true;
 	cgroup_get_live(&cgrp_dfl_root.cgrp);
@@ -2132,7 +2124,8 @@ static const struct fs_context_operations cgroup1_fs_context_ops = {
 };
 
 /*
- * Initialise the cgroup filesystem creation/reconfiguration context.
+ * Initialise the cgroup filesystem creation/reconfiguration context.  Notably,
+ * we select the namespace we're going to use.
  */
 static int cgroup_init_fs_context(struct fs_context *fc)
 {
@@ -2151,11 +2144,15 @@ static int cgroup_init_fs_context(struct fs_context *fc)
 
 	ctx->ns = current->nsproxy->cgroup_ns;
 	get_cgroup_ns(ctx->ns);
-	fc->fs_private = ctx;
+	fc->fs_private = &ctx->kfc;
 	if (fc->fs_type == &cgroup2_fs_type)
 		fc->ops = &cgroup_fs_context_ops;
 	else
 		fc->ops = &cgroup1_fs_context_ops;
+	if (fc->user_ns)
+		put_user_ns(fc->user_ns);
+	fc->user_ns = get_user_ns(ctx->ns->user_ns);
+	fc->global = true;
 	return 0;
 }
 
