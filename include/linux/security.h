@@ -61,7 +61,7 @@ enum fs_value_type;
 #define SECURITY_CAP_NOAUDIT 0
 #define SECURITY_CAP_AUDIT 1
 
-/* LSM Agnostic defines for sb_set_mnt_opts */
+/* LSM Agnostic defines for fs_context::lsm_flags */
 #define SECURITY_LSM_NATIVE_LABELS	1
 
 struct ctl_table;
