@@ -1702,7 +1702,6 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 
-	dig_port->aux_ch = intel_aux_ch(dev_priv, encoder->port);
 	intel_dp->aux_power_domain = intel_aux_power_domain(intel_dp);
 
 	if (INTEL_GEN(dev_priv) >= 9) {
@@ -6874,6 +6873,7 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 	if (port != PORT_A)
 		intel_infoframe_init(intel_dig_port);
 
+	intel_dig_port->aux_ch = intel_aux_ch(dev_priv, port);
 	if (!intel_dp_init_connector(intel_dig_port, intel_connector))
 		goto err_init_connector;
 
