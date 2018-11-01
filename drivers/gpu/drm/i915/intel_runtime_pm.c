@@ -465,6 +465,25 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
 
+#define ICL_AUX_PW_TO_CH(pw_idx)	\
+	((pw_idx) - ICL_PW_CTL_IDX_AUX_A + AUX_CH_A)
+
+static void
+icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
+				 struct i915_power_well *power_well)
+{
+	enum aux_ch aux_ch = ICL_AUX_PW_TO_CH(power_well->desc->hsw.idx);
+	u32 val;
+
+	val = I915_READ(DP_AUX_CH_CTL(aux_ch));
+	val &= ~DP_AUX_CH_CTL_TBT_IO;
+	if (power_well->desc->hsw.is_tc_tbt)
+		val |= DP_AUX_CH_CTL_TBT_IO;
+	I915_WRITE(DP_AUX_CH_CTL(aux_ch), val);
+
+	hsw_power_well_enable(dev_priv, power_well);
+}
+
 /*
  * We should only use the power well if we explicitly asked the hardware to
  * enable it, so check if it's enabled and also check if we've requested it to
@@ -2732,6 +2751,13 @@ static const struct i915_power_well_ops icl_combo_phy_aux_power_well_ops = {
 	.is_enabled = hsw_power_well_enabled,
 };
 
+static const struct i915_power_well_ops icl_tc_phy_aux_power_well_ops = {
+	.sync_hw = hsw_power_well_sync_hw,
+	.enable = icl_tc_phy_aux_power_well_enable,
+	.disable = hsw_power_well_disable,
+	.is_enabled = hsw_power_well_enabled,
+};
+
 static const struct i915_power_well_regs icl_aux_power_well_regs = {
 	.bios	= ICL_PWR_WELL_CTL_AUX1,
 	.driver	= ICL_PWR_WELL_CTL_AUX2,
@@ -2877,81 +2903,89 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 	{
 		.name = "AUX C",
 		.domains = ICL_AUX_C_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_C,
+			.hsw.is_tc_tbt = false,
 		},
 	},
 	{
 		.name = "AUX D",
 		.domains = ICL_AUX_D_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_D,
+			.hsw.is_tc_tbt = false,
 		},
 	},
 	{
 		.name = "AUX E",
 		.domains = ICL_AUX_E_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_E,
+			.hsw.is_tc_tbt = false,
 		},
 	},
 	{
 		.name = "AUX F",
 		.domains = ICL_AUX_F_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_F,
+			.hsw.is_tc_tbt = false,
 		},
 	},
 	{
 		.name = "AUX TBT1",
 		.domains = ICL_AUX_TBT1_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT1,
+			.hsw.is_tc_tbt = true,
 		},
 	},
 	{
 		.name = "AUX TBT2",
 		.domains = ICL_AUX_TBT2_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT2,
+			.hsw.is_tc_tbt = true,
 		},
 	},
 	{
 		.name = "AUX TBT3",
 		.domains = ICL_AUX_TBT3_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT3,
+			.hsw.is_tc_tbt = true,
 		},
 	},
 	{
 		.name = "AUX TBT4",
 		.domains = ICL_AUX_TBT4_IO_POWER_DOMAINS,
-		.ops = &hsw_power_well_ops,
+		.ops = &icl_tc_phy_aux_power_well_ops,
 		.id = DISP_PW_ID_NONE,
 		{
 			.hsw.regs = &icl_aux_power_well_regs,
 			.hsw.idx = ICL_PW_CTL_IDX_AUX_TBT4,
+			.hsw.is_tc_tbt = true,
 		},
 	},
 	{
