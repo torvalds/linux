@@ -1625,7 +1625,7 @@ static void btrfs_split_extent_hook(void *private_data,
 		u64 new_size;
 
 		/*
-		 * See the explanation in btrfs_merge_extent_hook, the same
+		 * See the explanation in btrfs_merge_delalloc_extent, the same
 		 * applies here, just in reverse.
 		 */
 		new_size = orig->end - split + 1;
@@ -1642,16 +1642,13 @@ static void btrfs_split_extent_hook(void *private_data,
 }
 
 /*
- * extent_io.c merge_extent_hook, used to track merged delayed allocation
- * extents so we can keep track of new extents that are just merged onto old
- * extents, such as when we are doing sequential writes, so we can properly
- * account for the metadata space we'll need.
+ * Handle merged delayed allocation extents so we can keep track of new extents
+ * that are just merged onto old extents, such as when we are doing sequential
+ * writes, so we can properly account for the metadata space we'll need.
  */
-static void btrfs_merge_extent_hook(void *private_data,
-				    struct extent_state *new,
-				    struct extent_state *other)
+void btrfs_merge_delalloc_extent(struct inode *inode, struct extent_state *new,
+				 struct extent_state *other)
 {
-	struct inode *inode = private_data;
 	u64 new_size, old_size;
 	u32 num_extents;
 
@@ -10509,7 +10506,6 @@ static const struct extent_io_ops btrfs_extent_io_ops = {
 	.readpage_io_failed_hook = btrfs_readpage_io_failed_hook,
 
 	/* optional callbacks */
-	.merge_extent_hook = btrfs_merge_extent_hook,
 	.split_extent_hook = btrfs_split_extent_hook,
 };
 
