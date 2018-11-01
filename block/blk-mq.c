@@ -363,9 +363,9 @@ static struct request *blk_mq_get_request(struct request_queue *q,
 		 * dispatch list. Don't include reserved tags in the
 		 * limiting, as it isn't useful.
 		 */
-		if (!op_is_flush(op) && e->type->ops.mq.limit_depth &&
+		if (!op_is_flush(op) && e->type->ops.limit_depth &&
 		    !(data->flags & BLK_MQ_REQ_RESERVED))
-			e->type->ops.mq.limit_depth(op, data);
+			e->type->ops.limit_depth(op, data);
 	} else {
 		blk_mq_tag_busy(data->hctx);
 	}
@@ -383,11 +383,11 @@ static struct request *blk_mq_get_request(struct request_queue *q,
 	rq = blk_mq_rq_ctx_init(data, tag, op);
 	if (!op_is_flush(op)) {
 		rq->elv.icq = NULL;
-		if (e && e->type->ops.mq.prepare_request) {
+		if (e && e->type->ops.prepare_request) {
 			if (e->type->icq_cache && rq_ioc(bio))
 				blk_mq_sched_assign_ioc(rq, bio);
 
-			e->type->ops.mq.prepare_request(rq, bio);
+			e->type->ops.prepare_request(rq, bio);
 			rq->rq_flags |= RQF_ELVPRIV;
 		}
 	}
@@ -491,8 +491,8 @@ void blk_mq_free_request(struct request *rq)
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
 
 	if (rq->rq_flags & RQF_ELVPRIV) {
-		if (e && e->type->ops.mq.finish_request)
-			e->type->ops.mq.finish_request(rq);
+		if (e && e->type->ops.finish_request)
+			e->type->ops.finish_request(rq);
 		if (rq->elv.icq) {
 			put_io_context(rq->elv.icq->ioc);
 			rq->elv.icq = NULL;

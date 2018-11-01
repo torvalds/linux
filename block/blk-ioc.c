@@ -48,8 +48,8 @@ static void ioc_exit_icq(struct io_cq *icq)
 	if (icq->flags & ICQ_EXITED)
 		return;
 
-	if (et->ops.mq.exit_icq)
-		et->ops.mq.exit_icq(icq);
+	if (et->ops.exit_icq)
+		et->ops.exit_icq(icq);
 
 	icq->flags |= ICQ_EXITED;
 }
@@ -396,8 +396,8 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
 	if (likely(!radix_tree_insert(&ioc->icq_tree, q->id, icq))) {
 		hlist_add_head(&icq->ioc_node, &ioc->icq_list);
 		list_add(&icq->q_node, &q->icq_list);
-		if (et->ops.mq.init_icq)
-			et->ops.mq.init_icq(icq);
+		if (et->ops.init_icq)
+			et->ops.init_icq(icq);
 	} else {
 		kmem_cache_free(et->icq_cache, icq);
 		icq = ioc_lookup_icq(ioc, q);

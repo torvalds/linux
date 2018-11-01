@@ -61,8 +61,8 @@ static int elv_iosched_allow_bio_merge(struct request *rq, struct bio *bio)
 	struct request_queue *q = rq->q;
 	struct elevator_queue *e = q->elevator;
 
-	if (e->type->ops.mq.allow_merge)
-		return e->type->ops.mq.allow_merge(q, rq, bio);
+	if (e->type->ops.allow_merge)
+		return e->type->ops.allow_merge(q, rq, bio);
 
 	return 1;
 }
@@ -180,7 +180,7 @@ static void elevator_release(struct kobject *kobj)
 void elevator_exit(struct request_queue *q, struct elevator_queue *e)
 {
 	mutex_lock(&e->sysfs_lock);
-	if (e->type->ops.mq.exit_sched)
+	if (e->type->ops.exit_sched)
 		blk_mq_exit_sched(q, e);
 	mutex_unlock(&e->sysfs_lock);
 
@@ -329,8 +329,8 @@ enum elv_merge elv_merge(struct request_queue *q, struct request **req,
 		return ELEVATOR_BACK_MERGE;
 	}
 
-	if (e->type->ops.mq.request_merge)
-		return e->type->ops.mq.request_merge(q, req, bio);
+	if (e->type->ops.request_merge)
+		return e->type->ops.request_merge(q, req, bio);
 
 	return ELEVATOR_NO_MERGE;
 }
@@ -381,8 +381,8 @@ void elv_merged_request(struct request_queue *q, struct request *rq,
 {
 	struct elevator_queue *e = q->elevator;
 
-	if (e->type->ops.mq.request_merged)
-		e->type->ops.mq.request_merged(q, rq, type);
+	if (e->type->ops.request_merged)
+		e->type->ops.request_merged(q, rq, type);
 
 	if (type == ELEVATOR_BACK_MERGE)
 		elv_rqhash_reposition(q, rq);
@@ -396,8 +396,8 @@ void elv_merge_requests(struct request_queue *q, struct request *rq,
 	struct elevator_queue *e = q->elevator;
 	bool next_sorted = false;
 
-	if (e->type->ops.mq.requests_merged)
-		e->type->ops.mq.requests_merged(q, rq, next);
+	if (e->type->ops.requests_merged)
+		e->type->ops.requests_merged(q, rq, next);
 
 	elv_rqhash_reposition(q, rq);
 
@@ -413,8 +413,8 @@ struct request *elv_latter_request(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
 
-	if (e->type->ops.mq.next_request)
-		return e->type->ops.mq.next_request(q, rq);
+	if (e->type->ops.next_request)
+		return e->type->ops.next_request(q, rq);
 
 	return NULL;
 }
@@ -423,8 +423,8 @@ struct request *elv_former_request(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
 
-	if (e->type->ops.mq.former_request)
-		return e->type->ops.mq.former_request(q, rq);
+	if (e->type->ops.former_request)
+		return e->type->ops.former_request(q, rq);
 
 	return NULL;
 }

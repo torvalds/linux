@@ -1017,7 +1017,7 @@ static const struct blk_mq_debugfs_attr kyber_hctx_debugfs_attrs[] = {
 #endif
 
 static struct elevator_type kyber_sched = {
-	.ops.mq = {
+	.ops = {
 		.init_sched = kyber_init_sched,
 		.exit_sched = kyber_exit_sched,
 		.init_hctx = kyber_init_hctx,
