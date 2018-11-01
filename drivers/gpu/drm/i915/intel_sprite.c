@@ -40,6 +40,7 @@
 #include "intel_frontbuffer.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include <drm/drm_color_mgmt.h>
 
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs)
@@ -361,6 +362,108 @@ skl_program_scaler(struct drm_i915_private *dev_priv,
 		      ((crtc_w + 1) << 16)|(crtc_h + 1));
 }
 
+/* Preoffset values for YUV to RGB Conversion */
+#define PREOFF_YUV_TO_RGB_HI		0x1800
+#define PREOFF_YUV_TO_RGB_ME		0x1F00
+#define PREOFF_YUV_TO_RGB_LO		0x1800
+
+#define  ROFF(x)          (((x) & 0xffff) << 16)
+#define  GOFF(x)          (((x) & 0xffff) << 0)
+#define  BOFF(x)          (((x) & 0xffff) << 16)
+
+static void
+icl_program_input_csc_coeff(const struct intel_crtc_state *crtc_state,
+			    const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	enum pipe pipe = crtc->pipe;
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	enum plane_id plane_id = plane->id;
+
+	static const u16 input_csc_matrix[][9] = {
+		/*
+		 * BT.601 full range YCbCr -> full range RGB
+		 * The matrix required is :
+		 * [1.000, 0.000, 1.371,
+		 *  1.000, -0.336, -0.698,
+		 *  1.000, 1.732, 0.0000]
+		 */
+		[DRM_COLOR_YCBCR_BT601] = {
+			0x7AF8, 0x7800, 0x0,
+			0x8B28, 0x7800, 0x9AC0,
+			0x0, 0x7800, 0x7DD8,
+		},
+		/*
+		 * BT.709 full range YCbCr -> full range RGB
+		 * The matrix required is :
+		 * [1.000, 0.000, 1.574,
+		 *  1.000, -0.187, -0.468,
+		 *  1.000, 1.855, 0.0000]
+		 */
+		[DRM_COLOR_YCBCR_BT709] = {
+			0x7C98, 0x7800, 0x0,
+			0x9EF8, 0x7800, 0xABF8,
+			0x0, 0x7800,  0x7ED8,
+		},
+	};
+
+	/* Matrix for Limited Range to Full Range Conversion */
+	static const u16 input_csc_matrix_lr[][9] = {
+		/*
+		 * BT.601 Limted range YCbCr -> full range RGB
+		 * The matrix required is :
+		 * [1.164384, 0.000, 1.596370,
+		 *  1.138393, -0.382500, -0.794598,
+		 *  1.138393, 1.971696, 0.0000]
+		 */
+		[DRM_COLOR_YCBCR_BT601] = {
+			0x7CC8, 0x7950, 0x0,
+			0x8CB8, 0x7918, 0x9C40,
+			0x0, 0x7918, 0x7FC8,
+		},
+		/*
+		 * BT.709 Limited range YCbCr -> full range RGB
+		 * The matrix required is :
+		 * [1.164, 0.000, 1.833671,
+		 *  1.138393, -0.213249, -0.532909,
+		 *  1.138393, 2.112402, 0.0000]
+		 */
+		[DRM_COLOR_YCBCR_BT709] = {
+			0x7EA8, 0x7950, 0x0,
+			0x8888, 0x7918, 0xADA8,
+			0x0, 0x7918,  0x6870,
+		},
+	};
+	const u16 *csc;
+
+	if (plane_state->base.color_range == DRM_COLOR_YCBCR_FULL_RANGE)
+		csc = input_csc_matrix[plane_state->base.color_encoding];
+	else
+		csc = input_csc_matrix_lr[plane_state->base.color_encoding];
+
+	I915_WRITE_FW(PLANE_INPUT_CSC_COEFF(pipe, plane_id, 0), ROFF(csc[0]) |
+		      GOFF(csc[1]));
+	I915_WRITE_FW(PLANE_INPUT_CSC_COEFF(pipe, plane_id, 1), BOFF(csc[2]));
+	I915_WRITE_FW(PLANE_INPUT_CSC_COEFF(pipe, plane_id, 2), ROFF(csc[3]) |
+		      GOFF(csc[4]));
+	I915_WRITE_FW(PLANE_INPUT_CSC_COEFF(pipe, plane_id, 3), BOFF(csc[5]));
+	I915_WRITE_FW(PLANE_INPUT_CSC_COEFF(pipe, plane_id, 4), ROFF(csc[6]) |
+		      GOFF(csc[7]));
+	I915_WRITE_FW(PLANE_INPUT_CSC_COEFF(pipe, plane_id, 5), BOFF(csc[8]));
+
+	I915_WRITE_FW(PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 0),
+		      PREOFF_YUV_TO_RGB_HI);
+	I915_WRITE_FW(PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 1),
+		      PREOFF_YUV_TO_RGB_ME);
+	I915_WRITE_FW(PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 2),
+		      PREOFF_YUV_TO_RGB_LO);
+	I915_WRITE_FW(PLANE_INPUT_CSC_POSTOFF(pipe, plane_id, 0), 0x0);
+	I915_WRITE_FW(PLANE_INPUT_CSC_POSTOFF(pipe, plane_id, 1), 0x0);
+	I915_WRITE_FW(PLANE_INPUT_CSC_POSTOFF(pipe, plane_id, 2), 0x0);
+}
+
 static void
 skl_program_plane(struct intel_plane *plane,
 		  const struct intel_crtc_state *crtc_state,
@@ -381,6 +484,7 @@ skl_program_plane(struct intel_plane *plane,
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	struct intel_plane *linked = plane_state->linked_plane;
+	const struct drm_framebuffer *fb = plane_state->base.fb;
 	unsigned long irqflags;
 	u32 keymsk = 0, keymax = 0;
 
@@ -393,6 +497,9 @@ skl_program_plane(struct intel_plane *plane,
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
 			      plane_state->color_ctl);
+
+	if (fb->format->is_yuv && icl_is_hdr_plane(plane))
+		icl_program_input_csc_coeff(crtc_state, plane_state);
 
 	if (key->flags) {
 		I915_WRITE_FW(PLANE_KEYVAL(pipe, plane_id), key->min_value);
