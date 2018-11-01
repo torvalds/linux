@@ -1131,7 +1131,6 @@ struct intel_dp {
 	/* sink or branch descriptor */
 	struct drm_dp_desc desc;
 	struct drm_dp_aux aux;
-	enum intel_display_power_domain aux_power_domain;
 	uint8_t train_set[4];
 	int panel_power_up_delay;
 	int panel_power_down_delay;
@@ -1712,6 +1711,8 @@ bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state);
 void hsw_enable_ips(const struct intel_crtc_state *crtc_state);
 void hsw_disable_ips(const struct intel_crtc_state *crtc_state);
 enum intel_display_power_domain intel_port_to_power_domain(enum port port);
+enum intel_display_power_domain
+intel_aux_power_domain(struct intel_digital_port *dig_port);
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_state *pipe_config);
 void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,

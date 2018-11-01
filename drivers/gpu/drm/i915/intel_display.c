@@ -5929,6 +5929,28 @@ enum intel_display_power_domain intel_port_to_power_domain(enum port port)
 	}
 }
 
+enum intel_display_power_domain
+intel_aux_power_domain(struct intel_digital_port *dig_port)
+{
+	switch (dig_port->aux_ch) {
+	case AUX_CH_A:
+		return POWER_DOMAIN_AUX_A;
+	case AUX_CH_B:
+		return POWER_DOMAIN_AUX_B;
+	case AUX_CH_C:
+		return POWER_DOMAIN_AUX_C;
+	case AUX_CH_D:
+		return POWER_DOMAIN_AUX_D;
+	case AUX_CH_E:
+		return POWER_DOMAIN_AUX_E;
+	case AUX_CH_F:
+		return POWER_DOMAIN_AUX_F;
+	default:
+		MISSING_CASE(dig_port->aux_ch);
+		return POWER_DOMAIN_AUX_A;
+	}
+}
+
 static u64 get_crtc_power_domains(struct drm_crtc *crtc,
 				  struct intel_crtc_state *crtc_state)
 {

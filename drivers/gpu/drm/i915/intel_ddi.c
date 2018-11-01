@@ -2099,7 +2099,7 @@ intel_ddi_main_link_aux_domain(struct intel_dp *intel_dp)
 	 * returns the correct domain for other ports too.
 	 */
 	return dig_port->aux_ch == AUX_CH_A ? POWER_DOMAIN_AUX_IO_A :
-					      intel_dp->aux_power_domain;
+					      intel_aux_power_domain(dig_port);
 }
 
 static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder,
