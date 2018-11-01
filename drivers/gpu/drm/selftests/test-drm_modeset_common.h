@@ -17,5 +17,6 @@ int igt_check_plane_state(void *ignored);
 int igt_check_drm_format_block_width(void *ignored);
 int igt_check_drm_format_block_height(void *ignored);
 int igt_check_drm_format_min_pitch(void *ignored);
+int igt_check_drm_framebuffer_create(void *ignored);
 
 #endif
