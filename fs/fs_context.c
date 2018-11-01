@@ -271,6 +271,8 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 	fc->cred	= get_current_cred();
 	fc->net_ns	= get_net(current->nsproxy->net_ns);
 
+	mutex_init(&fc->uapi_mutex);
+
 	switch (purpose) {
 	case FS_CONTEXT_FOR_MOUNT:
 		fc->user_ns = get_user_ns(fc->cred->user_ns);
@@ -352,6 +354,8 @@ struct fs_context *vfs_dup_fs_context(struct fs_context *src_fc)
 	fc = kmemdup(src_fc, sizeof(struct fs_context), GFP_KERNEL);
 	if (!fc)
 		return ERR_PTR(-ENOMEM);
+
+	mutex_init(&fc->uapi_mutex);
 
 	fc->fs_private	= NULL;
 	fc->s_fs_info	= NULL;

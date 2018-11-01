@@ -72,4 +72,9 @@
 #define MOVE_MOUNT_T_EMPTY_PATH		0x00000040 /* Empty to path permitted */
 #define MOVE_MOUNT__MASK		0x00000077
 
+/*
+ * fsopen() flags.
+ */
+#define FSOPEN_CLOEXEC		0x00000001
+
 #endif /* _UAPI_LINUX_MOUNT_H */

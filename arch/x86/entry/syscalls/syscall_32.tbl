@@ -400,7 +400,8 @@
 386	i386	rseq			sys_rseq			__ia32_sys_rseq
 387	i386	open_tree		sys_open_tree			__ia32_sys_open_tree
 388	i386	move_mount		sys_move_mount			__ia32_sys_move_mount
-# don't use numbers 389 through 392, add new calls at the end
+389	i386	fsopen			sys_fsopen			__ia32_sys_fsopen
+# don't use numbers 390 through 392, add new calls at the end
 393	i386	semget			sys_semget    			__ia32_sys_semget
 394	i386	semctl			sys_semctl    			__ia32_compat_sys_semctl
 395	i386	shmget			sys_shmget    			__ia32_sys_shmget
