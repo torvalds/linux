@@ -21,7 +21,6 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
-#include <linux/adc.h>
 #include <linux/slab.h>
 #include <linux/wakelock.h>
 
