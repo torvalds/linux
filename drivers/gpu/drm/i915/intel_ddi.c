@@ -2084,6 +2084,8 @@ out:
 static inline enum intel_display_power_domain
 intel_ddi_main_link_aux_domain(struct intel_dp *intel_dp)
 {
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+
 	/* CNL+ HW requires corresponding AUX IOs to be powered up for PSR with
 	 * DC states enabled at the same time, while for driver initiated AUX
 	 * transfers we need the same AUX IOs to be powered but with DC states
@@ -2096,7 +2098,7 @@ intel_ddi_main_link_aux_domain(struct intel_dp *intel_dp)
 	 * Note that PSR is enabled only on Port A even though this function
 	 * returns the correct domain for other ports too.
 	 */
-	return intel_dp->aux_ch == AUX_CH_A ? POWER_DOMAIN_AUX_IO_A :
+	return dig_port->aux_ch == AUX_CH_A ? POWER_DOMAIN_AUX_IO_A :
 					      intel_dp->aux_power_domain;
 }
 

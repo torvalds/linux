@@ -1204,6 +1204,7 @@ static uint32_t g4x_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 
 	if (index)
 		return 0;
@@ -1213,7 +1214,7 @@ static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	 * like to run at 2MHz.  So, take the cdclk or PCH rawclk value and
 	 * divide by 2000 and use that
 	 */
-	if (intel_dp->aux_ch == AUX_CH_A)
+	if (dig_port->aux_ch == AUX_CH_A)
 		return DIV_ROUND_CLOSEST(dev_priv->cdclk.hw.cdclk, 2000);
 	else
 		return DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 2000);
@@ -1222,8 +1223,9 @@ static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 static uint32_t hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 
-	if (intel_dp->aux_ch != AUX_CH_A && HAS_PCH_LPT_H(dev_priv)) {
+	if (dig_port->aux_ch != AUX_CH_A && HAS_PCH_LPT_H(dev_priv)) {
 		/* Workaround for non-ULT HSW */
 		switch (index) {
 		case 0: return 63;
@@ -1554,7 +1556,9 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 static enum intel_display_power_domain
 intel_aux_power_domain(struct intel_dp *intel_dp)
 {
-	switch (intel_dp->aux_ch) {
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+
+	switch (dig_port->aux_ch) {
 	case AUX_CH_A:
 		return POWER_DOMAIN_AUX_A;
 	case AUX_CH_B:
@@ -1568,7 +1572,7 @@ intel_aux_power_domain(struct intel_dp *intel_dp)
 	case AUX_CH_F:
 		return POWER_DOMAIN_AUX_F;
 	default:
-		MISSING_CASE(intel_dp->aux_ch);
+		MISSING_CASE(dig_port->aux_ch);
 		return POWER_DOMAIN_AUX_A;
 	}
 }
@@ -1576,7 +1580,8 @@ intel_aux_power_domain(struct intel_dp *intel_dp)
 static i915_reg_t g4x_aux_ctl_reg(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	enum aux_ch aux_ch = intel_dp->aux_ch;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
 
 	switch (aux_ch) {
 	case AUX_CH_B:
@@ -1592,7 +1597,8 @@ static i915_reg_t g4x_aux_ctl_reg(struct intel_dp *intel_dp)
 static i915_reg_t g4x_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	enum aux_ch aux_ch = intel_dp->aux_ch;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
 
 	switch (aux_ch) {
 	case AUX_CH_B:
@@ -1608,7 +1614,8 @@ static i915_reg_t g4x_aux_data_reg(struct intel_dp *intel_dp, int index)
 static i915_reg_t ilk_aux_ctl_reg(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	enum aux_ch aux_ch = intel_dp->aux_ch;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
 
 	switch (aux_ch) {
 	case AUX_CH_A:
@@ -1626,7 +1633,8 @@ static i915_reg_t ilk_aux_ctl_reg(struct intel_dp *intel_dp)
 static i915_reg_t ilk_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	enum aux_ch aux_ch = intel_dp->aux_ch;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
 
 	switch (aux_ch) {
 	case AUX_CH_A:
@@ -1644,7 +1652,8 @@ static i915_reg_t ilk_aux_data_reg(struct intel_dp *intel_dp, int index)
 static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	enum aux_ch aux_ch = intel_dp->aux_ch;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
 
 	switch (aux_ch) {
 	case AUX_CH_A:
@@ -1663,7 +1672,8 @@ static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	enum aux_ch aux_ch = intel_dp->aux_ch;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
 
 	switch (aux_ch) {
 	case AUX_CH_A:
@@ -1689,9 +1699,10 @@ static void
 intel_dp_aux_init(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *encoder = &dig_port->base;
 
-	intel_dp->aux_ch = intel_aux_ch(dev_priv, encoder->port);
+	dig_port->aux_ch = intel_aux_ch(dev_priv, encoder->port);
 	intel_dp->aux_power_domain = intel_aux_power_domain(intel_dp);
 
 	if (INTEL_GEN(dev_priv) >= 9) {
