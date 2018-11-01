@@ -14,8 +14,7 @@
 #define SET_CFG              0
 #define GET_CFG              1
 
-#define MAX_STRING_LEN               256
-#define MAX_ASSOC_RESP_FRAME_SIZE    MAX_STRING_LEN
+#define MAX_ASSOC_RESP_FRAME_SIZE   256
 
 struct rssi_history_buffer {
 	bool full;
