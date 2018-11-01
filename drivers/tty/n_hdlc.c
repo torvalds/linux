@@ -613,7 +613,7 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 		}
 			
 		/* no data */
-		if (file->f_flags & O_NONBLOCK) {
+		if (tty_io_nonblock(tty, file)) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -680,7 +680,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 		if (tbuf)
 			break;
 
-		if (file->f_flags & O_NONBLOCK) {
+		if (tty_io_nonblock(tty, file)) {
 			error = -EAGAIN;
 			break;
 		}
