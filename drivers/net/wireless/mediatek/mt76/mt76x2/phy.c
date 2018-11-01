@@ -289,7 +289,8 @@ void mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)
 	low_gain = (dev->cal.avg_rssi_all > mt76x02_get_rssi_gain_thresh(dev)) +
 		   (dev->cal.avg_rssi_all > mt76x02_get_low_rssi_gain_thresh(dev));
 
-	gain_change = (dev->cal.low_gain & 2) ^ (low_gain & 2);
+	gain_change = dev->cal.low_gain < 0 ||
+		      (dev->cal.low_gain & 2) ^ (low_gain & 2);
 	dev->cal.low_gain = low_gain;
 
 	if (!gain_change) {
