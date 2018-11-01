@@ -2,12 +2,13 @@ Rockchip SoC Camera Interface
 ----------------------------------------------
 
 Rockchip CIF is a camera interface for the Rockchip series of SoCs
-like px30, rk3288, rk312x, RV1108 to receive frame data from camera or CCIR656 encoder,
+like px30, rk3288, rk312x, rk1808, RV1108 to receive frame data from camera or CCIR656 encoder,
 and transfer the data into system main memory by AXI bus.
 
 Required properties:
 - compatible: value should be one of the following
 	"rockchip,px30-cif";
+	"rockchip,rk1808-cif";
 	"rockchip,rk3128-cif";
 	"rockchip,rk3288-cif";
 - reg : offset and length of the register set for the device.
@@ -27,8 +28,10 @@ nodes, according to the bindings defined in Documentation/devicetree/bindings/
 media/video-interfaces.txt.
 
 - endpoint(parallel):
-	- remote-endpoint: Connecting to a sensor with a parallel video bus.
+	- remote-endpoint: Connecting to a sensor with a parallel video bus or a mipi csi2 bus.
 	- parallel_bus properties: Refer to Documentation/devicetree/bindings/
+		media/video-interfaces.txt.
+	- mipi csi2 bus properties: Refer to Documentation/devicetree/bindings/
 		media/video-interfaces.txt.
 
 The port node must contain at least one endpoint.
@@ -54,6 +57,34 @@ Device node example
 				remote-endpoint = <&gc2155_out>;
 				vsync-active = <0>;
 				hsync-active = <1>;
+			};
+		};
+	};
+
+	cif: cif@ffae0000 {
+		compatible = "rockchip,rk1808-cif";
+		reg = <0x0 0xffae0000 0x0 0x200>, <0x0 0xffb10000 0x0 0x100>;
+		reg-names = "cif_regs", "csihost_regs";
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_CIF>, <&cru DCLK_CIF>,
+			 <&cru HCLK_CIF>, <&cru SCLK_CIF_OUT>,
+			 <&cru PCLK_CSI2HOST>;
+		clock-names = "aclk_cif", "dclk_cif",
+			"hclk_cif", "sclk_cif_out",
+			"pclk_csi2host";
+		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>,
+			 <&cru SRST_CIF_I>, <&cru SRST_CIF_D>,
+			<&cru SRST_CIF_PCLKIN>;
+		reset-names = "rst_cif_a", "rst_cif_h",
+			"rst_cif_i", "rst_cif_d",
+			"rst_cif_pclkin";
+		power-domains = <&power RK1808_PD_VIO>;
+		iommus = <&cif_mmu>;
+		status = "okay";
+		port {
+			cif_in: endpoint@0 {
+				remote-endpoint = <&dphy_rx_out>;
+				data-lanes = <1 2 3 4>;
 			};
 		};
 	};
