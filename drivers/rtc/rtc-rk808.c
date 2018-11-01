@@ -400,7 +400,7 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Failed to write RTC status: %d\n", ret);
-			return ret;
+		return ret;
 	}
 
 	device_init_wakeup(&pdev->dev, 1);
