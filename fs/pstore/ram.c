@@ -853,9 +853,9 @@ static int ramoops_probe(struct platform_device *pdev)
 	ramoops_pmsg_size = pdata->pmsg_size;
 	ramoops_ftrace_size = pdata->ftrace_size;
 
-	pr_info("attached 0x%lx@0x%llx, ecc: %d/%d\n",
+	pr_info("using 0x%lx@0x%llx, ecc: %d\n",
 		cxt->size, (unsigned long long)cxt->phys_addr,
-		cxt->ecc_info.ecc_size, cxt->ecc_info.block_size);
+		cxt->ecc_info.ecc_size);
 
 	return 0;
 
