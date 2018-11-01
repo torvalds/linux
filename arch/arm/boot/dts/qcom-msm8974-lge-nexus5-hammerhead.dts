@@ -270,6 +270,16 @@
 			};
 		};
 
+		i2c1_pins: i2c1 {
+			mux {
+				pins = "gpio2", "gpio3";
+				function = "blsp_i2c1";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
 		i2c3_pins: i2c3 {
 			mux {
 				pins = "gpio10", "gpio11";
@@ -396,6 +406,24 @@
 		};
 	};
 
+	i2c@f9923000 {
+		status = "ok";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c1_pins>;
+		clock-frequency = <100000>;
+		qcom,src-freq = <50000000>;
+
+		charger: bq24192@6b {
+			compatible = "ti,bq24192";
+			reg = <0x6b>;
+			interrupts-extended = <&spmi_bus 0 0xd5 0 IRQ_TYPE_EDGE_FALLING>;
+
+			omit-battery-class;
+
+			usb_otg_vbus: usb-otg-vbus { };
+		};
+	};
+
 	i2c@f9925000 {
 		status = "ok";
 		pinctrl-names = "default";
@@ -411,6 +439,31 @@
 			vddio-supply = <&pm8941_lvs1>;
 			led-max-microamp = <100000>;
 			amstaos,proximity-diodes = <0>;
+		};
+	};
+
+	usb@f9a55000 {
+		status = "ok";
+
+		phys = <&usb_hs1_phy>;
+		phy-select = <&tcsr 0xb000 0>;
+
+		extcon = <&charger>, <&usb_id>;
+		vbus-supply = <&usb_otg_vbus>;
+
+		hnp-disable;
+		srp-disable;
+		adp-disable;
+
+		ulpi {
+			phy@a {
+				status = "ok";
+
+				v1p8-supply = <&pm8941_l6>;
+				v3p3-supply = <&pm8941_l24>;
+
+				qcom,init-seq = /bits/ 8 <0x1 0x64>;
+			};
 		};
 	};
 };
@@ -440,6 +493,13 @@
 
 				bias-disable;
 				power-source = <PM8941_GPIO_S3>;
+			};
+
+			otg {
+				gpio-hog;
+				gpios = <35 GPIO_ACTIVE_HIGH>;
+				output-high;
+				line-name = "otg-gpio";
 			};
 		};
 	};
