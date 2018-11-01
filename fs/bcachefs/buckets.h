@@ -185,6 +185,7 @@ static inline bool is_available_bucket(struct bucket_mark mark)
 {
 	return (!mark.owned_by_allocator &&
 		!mark.dirty_sectors &&
+		!mark.stripe &&
 		!mark.nouse);
 }
 

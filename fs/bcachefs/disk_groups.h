@@ -55,6 +55,19 @@ static inline struct target target_decode(unsigned target)
 }
 
 const struct bch_devs_mask *bch2_target_to_mask(struct bch_fs *, unsigned);
+
+static inline struct bch_devs_mask target_rw_devs(struct bch_fs *c,
+						  enum bch_data_type data_type,
+						  u16 target)
+{
+	struct bch_devs_mask devs = c->rw_devs[data_type];
+	const struct bch_devs_mask *t = bch2_target_to_mask(c, target);
+
+	if (t)
+		bitmap_and(devs.d, devs.d, t->d, BCH_SB_MEMBERS_MAX);
+	return devs;
+}
+
 bool bch2_dev_in_target(struct bch_fs *, unsigned, unsigned);
 
 int bch2_disk_path_find(struct bch_sb_handle *, const char *);

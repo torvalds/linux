@@ -19,7 +19,8 @@ struct bucket_mark {
 				gen_valid:1,
 				owned_by_allocator:1,
 				nouse:1,
-				journal_seq_valid:1;
+				journal_seq_valid:1,
+				stripe:1;
 		u16		dirty_sectors;
 		u16		cached_sectors;
 
@@ -53,6 +54,7 @@ struct bucket_array {
 struct bch_dev_usage {
 	u64			buckets[BCH_DATA_NR];
 	u64			buckets_alloc;
+	u64			buckets_ec;
 	u64			buckets_unavailable;
 
 	/* _compressed_ sectors: */
@@ -67,6 +69,7 @@ struct bch_fs_usage {
 
 	struct {
 		u64		data[BCH_DATA_NR];
+		u64		ec_data;
 		u64		persistent_reserved;
 	}			replicas[BCH_REPLICAS_MAX];
 

@@ -279,9 +279,35 @@ int bch2_opt_check_may_set(struct bch_fs *c, int id, u64 v)
 	case Opt_background_compression:
 		ret = bch2_check_set_has_compressed_data(c, v);
 		break;
+	case Opt_erasure_code:
+		if (v &&
+		    !(c->sb.features & (1ULL << BCH_FEATURE_EC))) {
+			mutex_lock(&c->sb_lock);
+			c->disk_sb.sb->features[0] |=
+				cpu_to_le64(1ULL << BCH_FEATURE_EC);
+
+			bch2_write_super(c);
+			mutex_unlock(&c->sb_lock);
+		}
+		break;
 	}
 
 	return ret;
+}
+
+int bch2_opts_check_may_set(struct bch_fs *c)
+{
+	unsigned i;
+	int ret;
+
+	for (i = 0; i < bch2_opts_nr; i++) {
+		ret = bch2_opt_check_may_set(c, i,
+				bch2_opt_get_by_id(&c->opts, i));
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 int bch2_parse_mount_opts(struct bch_opts *opts, char *options)

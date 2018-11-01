@@ -17,11 +17,11 @@ struct dev_alloc_list {
 	u8		devs[BCH_SB_MEMBERS_MAX];
 };
 
-struct dev_alloc_list bch2_wp_alloc_list(struct bch_fs *,
-					 struct write_point *,
-					 struct bch_devs_mask *);
-void bch2_wp_rescale(struct bch_fs *, struct bch_dev *,
-		     struct write_point *);
+struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,
+					  struct dev_stripe_state *,
+					  struct bch_devs_mask *);
+void bch2_dev_stripe_increment(struct bch_fs *, struct bch_dev *,
+			       struct dev_stripe_state *);
 
 long bch2_bucket_alloc_new_fs(struct bch_dev *);
 
@@ -42,6 +42,22 @@ static inline void ob_push(struct bch_fs *c, struct open_buckets *obs,
 	     (_i) < (_obs)->nr &&					\
 	     ((_ob) = (_c)->open_buckets + (_obs)->v[_i], true);	\
 	     (_i)++)
+
+static inline struct open_bucket *ec_open_bucket(struct bch_fs *c,
+						 struct open_buckets *obs)
+{
+	struct open_bucket *ob;
+	unsigned i;
+
+	open_bucket_for_each(c, obs, ob, i)
+		if (ob->ec)
+			return ob;
+
+	return NULL;
+}
+
+void bch2_open_bucket_write_error(struct bch_fs *,
+			struct open_buckets *, unsigned);
 
 void __bch2_open_bucket_put(struct bch_fs *, struct open_bucket *);
 
@@ -76,7 +92,7 @@ static inline void bch2_open_bucket_get(struct bch_fs *c,
 }
 
 struct write_point *bch2_alloc_sectors_start(struct bch_fs *,
-					     unsigned,
+					     unsigned, unsigned,
 					     struct write_point_specifier,
 					     struct bch_devs_list *,
 					     unsigned, unsigned,
@@ -87,6 +103,9 @@ struct write_point *bch2_alloc_sectors_start(struct bch_fs *,
 void bch2_alloc_sectors_append_ptrs(struct bch_fs *, struct write_point *,
 				    struct bkey_i_extent *, unsigned);
 void bch2_alloc_sectors_done(struct bch_fs *, struct write_point *);
+
+void bch2_open_buckets_stop_dev(struct bch_fs *, struct bch_dev *,
+				struct open_buckets *, enum bch_data_type);
 
 void bch2_writepoint_stop(struct bch_fs *, struct bch_dev *,
 			  struct write_point *);

@@ -3,6 +3,7 @@
 #include "bcachefs.h"
 #include "checksum.h"
 #include "disk_groups.h"
+#include "ec.h"
 #include "error.h"
 #include "io.h"
 #include "journal.h"

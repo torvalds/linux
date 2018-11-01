@@ -5,6 +5,7 @@
 #include "btree_types.h"
 #include "alloc_background.h"
 #include "dirent.h"
+#include "ec.h"
 #include "error.h"
 #include "extents.h"
 #include "inode.h"
@@ -18,6 +19,7 @@ const struct bkey_ops bch2_bkey_ops[] = {
 	[BKEY_TYPE_XATTRS]	= bch2_bkey_xattr_ops,
 	[BKEY_TYPE_ALLOC]	= bch2_bkey_alloc_ops,
 	[BKEY_TYPE_QUOTAS]	= bch2_bkey_quota_ops,
+	[BKEY_TYPE_EC]		= bch2_bkey_ec_ops,
 	[BKEY_TYPE_BTREE]	= bch2_bkey_btree_ops,
 };
 

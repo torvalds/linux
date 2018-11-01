@@ -111,6 +111,9 @@ enum opt_type {
 	BCH_OPT(promote_target,		u16,	OPT_RUNTIME,		\
 		OPT_FN(bch2_opt_target),				\
 		BCH_SB_PROMOTE_TARGET,	0)				\
+	BCH_OPT(erasure_code,		u16,	OPT_RUNTIME,		\
+		OPT_BOOL(),						\
+		BCH_SB_ERASURE_CODE,		false)			\
 	BCH_OPT(inodes_32bit,		u8,	OPT_RUNTIME,		\
 		OPT_BOOL(),						\
 		BCH_SB_INODE_32BIT,		false)			\
@@ -270,6 +273,7 @@ void bch2_opt_to_text(struct printbuf *, struct bch_fs *,
 		      const struct bch_option *, u64, unsigned);
 
 int bch2_opt_check_may_set(struct bch_fs *, int, u64);
+int bch2_opts_check_may_set(struct bch_fs *);
 int bch2_parse_mount_opts(struct bch_opts *, char *);
 
 /* inode opts: */
@@ -281,7 +285,8 @@ int bch2_parse_mount_opts(struct bch_opts *, char *);
 	BCH_INODE_OPT(data_replicas,			8)	\
 	BCH_INODE_OPT(promote_target,			16)	\
 	BCH_INODE_OPT(foreground_target,		16)	\
-	BCH_INODE_OPT(background_target,		16)
+	BCH_INODE_OPT(background_target,		16)	\
+	BCH_INODE_OPT(erasure_code,			16)
 
 struct bch_io_opts {
 #define BCH_INODE_OPT(_name, _bits)	unsigned _name##_defined:1;

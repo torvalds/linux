@@ -80,9 +80,33 @@ static void extent_to_replicas(struct bkey_s_c k,
 
 		r->nr_required	= 1;
 
-		extent_for_each_ptr_decode(e, p, entry)
-			if (!p.ptr.cached)
-				r->devs[r->nr_devs++] = p.ptr.dev;
+		extent_for_each_ptr_decode(e, p, entry) {
+			if (p.ptr.cached)
+				continue;
+
+			if (p.ec_nr) {
+				r->nr_devs = 0;
+				break;
+			}
+
+			r->devs[r->nr_devs++] = p.ptr.dev;
+		}
+	}
+}
+
+static void stripe_to_replicas(struct bkey_s_c k,
+			       struct bch_replicas_entry *r)
+{
+	if (k.k->type == BCH_STRIPE) {
+		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
+		const struct bch_extent_ptr *ptr;
+
+		r->nr_required	= s.v->nr_blocks - s.v->nr_redundant;
+
+		for (ptr = s.v->ptrs;
+		     ptr < s.v->ptrs + s.v->nr_blocks;
+		     ptr++)
+			r->devs[r->nr_devs++] = ptr->dev;
 	}
 }
 
@@ -100,6 +124,10 @@ static void bkey_to_replicas(enum bkey_type type,
 	case BKEY_TYPE_EXTENTS:
 		e->data_type = BCH_DATA_USER;
 		extent_to_replicas(k, e);
+		break;
+	case BKEY_TYPE_EC:
+		e->data_type = BCH_DATA_USER;
+		stripe_to_replicas(k, e);
 		break;
 	default:
 		break;

@@ -10,6 +10,7 @@
 #include "buckets.h"
 #include "clock.h"
 #include "debug.h"
+#include "ec.h"
 #include "error.h"
 #include "journal_io.h"
 #include "trace.h"
@@ -1112,6 +1113,24 @@ void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 		bch2_open_buckets_put(c, &a->ob);
 	}
 	mutex_unlock(&c->btree_reserve_cache_lock);
+
+	while (1) {
+		struct open_bucket *ob;
+
+		spin_lock(&c->freelist_lock);
+		if (!ca->open_buckets_partial_nr) {
+			spin_unlock(&c->freelist_lock);
+			break;
+		}
+		ob = c->open_buckets +
+			ca->open_buckets_partial[--ca->open_buckets_partial_nr];
+		ob->on_partial_list = false;
+		spin_unlock(&c->freelist_lock);
+
+		bch2_open_bucket_put(c, ob);
+	}
+
+	bch2_ec_stop_dev(c, ca);
 
 	/*
 	 * Wake up threads that were blocked on allocation, so they can notice

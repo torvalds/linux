@@ -8,6 +8,8 @@
 #include "clock_types.h"
 #include "fifo.h"
 
+struct ec_bucket_buf;
+
 /* There's two of these clocks, one for reads and one for writes: */
 struct bucket_clock {
 	/*
@@ -56,8 +58,10 @@ struct open_bucket {
 	u8			freelist;
 	bool			valid;
 	bool			on_partial_list;
+	u8			ec_idx;
 	unsigned		sectors_free;
 	struct bch_extent_ptr	ptr;
+	struct ec_stripe_new	*ec;
 };
 
 #define OPEN_BUCKET_LIST_MAX	15
@@ -67,18 +71,23 @@ struct open_buckets {
 	u8			v[OPEN_BUCKET_LIST_MAX];
 };
 
+struct dev_stripe_state {
+	u64			next_alloc[BCH_SB_MEMBERS_MAX];
+};
+
 struct write_point {
 	struct hlist_node	node;
 	struct mutex		lock;
 	u64			last_used;
 	unsigned long		write_point;
 	enum bch_data_type	type;
+	bool			is_ec;
 
 	/* calculated based on how many pointers we're actually going to use: */
 	unsigned		sectors_free;
 
 	struct open_buckets	ptrs;
-	u64			next_alloc[BCH_SB_MEMBERS_MAX];
+	struct dev_stripe_state	stripe;
 };
 
 struct write_point_specifier {

@@ -55,11 +55,22 @@ static inline int gc_pos_cmp(struct gc_pos l, struct gc_pos r)
 	return 0;
 }
 
+static inline enum gc_phase btree_id_to_gc_phase(enum btree_id id)
+{
+	switch (id) {
+#define DEF_BTREE_ID(n, v, s) case BTREE_ID_##n: return GC_PHASE_BTREE_##n;
+	DEFINE_BCH_BTREE_IDS()
+#undef DEF_BTREE_ID
+	default:
+		BUG();
+	}
+}
+
 static inline struct gc_pos gc_pos_btree(enum btree_id id,
 					 struct bpos pos, unsigned level)
 {
 	return (struct gc_pos) {
-		.phase	= GC_PHASE_BTREE_EXTENTS + id,
+		.phase	= btree_id_to_gc_phase(id),
 		.pos	= pos,
 		.level	= level,
 	};

@@ -19,6 +19,7 @@
 #include "btree_gc.h"
 #include "buckets.h"
 #include "disk_groups.h"
+#include "ec.h"
 #include "inode.h"
 #include "journal.h"
 #include "keylist.h"
@@ -188,6 +189,8 @@ sysfs_pd_controller_attribute(rebalance);
 read_attribute(rebalance_work);
 rw_attribute(promote_whole_extents);
 
+read_attribute(new_stripes);
+
 rw_attribute(pd_controllers_update_seconds);
 
 read_attribute(meta_replicas_have);
@@ -242,6 +245,8 @@ static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
 			pr_buf(&out, "\t%s:\t\t%llu\n",
 			       bch2_data_types[type],
 			       stats.replicas[replicas].data[type]);
+		pr_buf(&out, "\terasure coded:\t%llu\n",
+		       stats.replicas[replicas].ec_data);
 		pr_buf(&out, "\treserved:\t%llu\n",
 		       stats.replicas[replicas].persistent_reserved);
 	}
@@ -310,6 +315,41 @@ static ssize_t bch2_compression_stats(struct bch_fs *c, char *buf)
 			compressed_sectors_uncompressed << 9);
 }
 
+static ssize_t bch2_new_stripes(struct bch_fs *c, char *buf)
+{
+	char *out = buf, *end = buf + PAGE_SIZE;
+	struct ec_stripe_head *h;
+	struct ec_stripe_new *s;
+
+	mutex_lock(&c->ec_new_stripe_lock);
+	list_for_each_entry(h, &c->ec_new_stripe_list, list) {
+		out += scnprintf(out, end - out,
+				 "target %u algo %u redundancy %u:\n",
+				 h->target, h->algo, h->redundancy);
+
+		if (h->s)
+			out += scnprintf(out, end - out,
+					 "\tpending: blocks %u allocated %u\n",
+					 h->s->blocks.nr,
+					 bitmap_weight(h->s->blocks_allocated,
+						       h->s->blocks.nr));
+
+		mutex_lock(&h->lock);
+		list_for_each_entry(s, &h->stripes, list)
+			out += scnprintf(out, end - out,
+					 "\tin flight: blocks %u allocated %u pin %u\n",
+					 s->blocks.nr,
+					 bitmap_weight(s->blocks_allocated,
+						       s->blocks.nr),
+					 atomic_read(&s->pin));
+		mutex_unlock(&h->lock);
+
+	}
+	mutex_unlock(&c->ec_new_stripe_lock);
+
+	return out - buf;
+}
+
 SHOW(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
@@ -368,6 +408,9 @@ SHOW(bch2_fs)
 
 	if (attr == &sysfs_compression_stats)
 		return bch2_compression_stats(c, buf);
+
+	if (attr == &sysfs_new_stripes)
+		return bch2_new_stripes(c, buf);
 
 #define BCH_DEBUG_PARAM(name, description) sysfs_print(name, c->name);
 	BCH_DEBUG_PARAMS()
@@ -536,6 +579,8 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_rebalance_enabled,
 	&sysfs_rebalance_work,
 	sysfs_pd_controller_files(rebalance),
+
+	&sysfs_new_stripes,
 
 	&sysfs_internal_uuid,
 
@@ -765,6 +810,7 @@ static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
 		"    meta:               %llu\n"
 		"    user:               %llu\n"
 		"    cached:             %llu\n"
+		"    erasure coded:      %llu\n"
 		"    available:          %lli\n"
 		"sectors:\n"
 		"    sb:                 %llu\n"
@@ -788,6 +834,7 @@ static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
 		stats.buckets[BCH_DATA_BTREE],
 		stats.buckets[BCH_DATA_USER],
 		stats.buckets[BCH_DATA_CACHED],
+		stats.buckets_ec,
 		ca->mi.nbuckets - ca->mi.first_bucket - stats.buckets_unavailable,
 		stats.sectors[BCH_DATA_SB],
 		stats.sectors[BCH_DATA_JOURNAL],

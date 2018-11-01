@@ -69,6 +69,7 @@
 #include "btree_gc.h"
 #include "btree_update.h"
 #include "buckets.h"
+#include "ec.h"
 #include "error.h"
 #include "movinggc.h"
 #include "trace.h"
@@ -270,6 +271,7 @@ static inline struct fs_usage_sum __fs_usage_sum(struct bch_fs_usage stats)
 	for (i = 0; i < ARRAY_SIZE(stats.replicas); i++) {
 		sum.data	+= stats.replicas[i].data[BCH_DATA_BTREE];
 		sum.data	+= stats.replicas[i].data[BCH_DATA_USER];
+		sum.data	+= stats.replicas[i].ec_data;
 		sum.cached	+= stats.replicas[i].data[BCH_DATA_CACHED];
 		sum.reserved	+= stats.replicas[i].persistent_reserved;
 	}
@@ -400,6 +402,8 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 
 	dev_usage->buckets_alloc +=
 		(int) new.owned_by_allocator - (int) old.owned_by_allocator;
+	dev_usage->buckets_ec +=
+		(int) new.stripe - (int) old.stripe;
 	dev_usage->buckets_unavailable +=
 		is_unavailable_bucket(new) - is_unavailable_bucket(old);
 
@@ -639,6 +643,49 @@ static void bch2_mark_pointer(struct bch_fs *c,
 	       bucket_became_unavailable(c, old, new));
 }
 
+static void bch2_mark_stripe_ptr(struct bch_fs *c,
+				 struct bch_extent_stripe_ptr p,
+				 s64 sectors, unsigned flags,
+				 s64 *adjusted_disk_sectors,
+				 unsigned *redundancy)
+{
+	struct ec_stripe *m;
+	unsigned old, new, nr_data;
+	int blocks_nonempty_delta;
+	s64 parity_sectors;
+
+	m = genradix_ptr(&c->ec_stripes, p.idx);
+	if (WARN_ON(!m))
+		return;
+
+	if (WARN_ON(!m->alive))
+		return;
+
+	nr_data = m->nr_blocks - m->nr_redundant;
+
+	parity_sectors = DIV_ROUND_UP(abs(sectors) * m->nr_redundant, nr_data);
+
+	if (sectors < 0)
+		parity_sectors = -parity_sectors;
+
+	*adjusted_disk_sectors += parity_sectors;
+
+	*redundancy = max_t(unsigned, *redundancy, m->nr_redundant + 1);
+
+	new = atomic_add_return(sectors, &m->block_sectors[p.block]);
+	old = new - sectors;
+
+	blocks_nonempty_delta = (int) !!new - (int) !!old;
+	if (!blocks_nonempty_delta)
+		return;
+
+	atomic_add(blocks_nonempty_delta, &m->blocks_nonempty);
+
+	BUG_ON(atomic_read(&m->blocks_nonempty) < 0);
+
+	bch2_stripes_heap_update(c, m, p.idx);
+}
+
 static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 			     s64 sectors, enum bch_data_type data_type,
 			     struct gc_pos pos,
@@ -655,28 +702,43 @@ static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 		struct extent_ptr_decoded p;
 		s64 cached_sectors	= 0;
 		s64 dirty_sectors	= 0;
+		s64 ec_sectors		= 0;
 		unsigned replicas	= 0;
+		unsigned ec_redundancy	= 0;
+		unsigned i;
 
 		extent_for_each_ptr_decode(e, p, entry) {
 			s64 disk_sectors = ptr_disk_sectors(e, p, sectors);
+			s64 adjusted_disk_sectors = disk_sectors;
 
 			bch2_mark_pointer(c, e, p, disk_sectors, data_type,
 					  stats, journal_seq, flags);
 
 			if (!p.ptr.cached)
+				for (i = 0; i < p.ec_nr; i++)
+					bch2_mark_stripe_ptr(c, p.ec[i],
+							disk_sectors, flags,
+							&adjusted_disk_sectors,
+							&ec_redundancy);
+			if (!p.ptr.cached)
 				replicas++;
 
 			if (p.ptr.cached)
-				cached_sectors	+= disk_sectors;
+				cached_sectors	+= adjusted_disk_sectors;
+			else if (!p.ec_nr)
+				dirty_sectors	+= adjusted_disk_sectors;
 			else
-				dirty_sectors	+= disk_sectors;
+				ec_sectors	+= adjusted_disk_sectors;
 		}
 
 		replicas	= clamp_t(unsigned,	replicas,
 					  1, ARRAY_SIZE(stats->replicas));
+		ec_redundancy	= clamp_t(unsigned,	ec_redundancy,
+					  1, ARRAY_SIZE(stats->replicas));
 
 		stats->replicas[0].data[BCH_DATA_CACHED]	+= cached_sectors;
 		stats->replicas[replicas - 1].data[data_type]	+= dirty_sectors;
+		stats->replicas[ec_redundancy - 1].ec_data	+= ec_sectors;
 		break;
 	}
 	case BCH_RESERVATION: {
@@ -687,6 +749,78 @@ static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 				   1, ARRAY_SIZE(stats->replicas));
 
 		stats->replicas[replicas - 1].persistent_reserved += sectors;
+		break;
+	}
+	}
+}
+
+static void bucket_set_stripe(struct bch_fs *c,
+			      const struct bch_stripe *v,
+			      bool enabled,
+			      struct bch_fs_usage *fs_usage,
+			      u64 journal_seq)
+{
+	unsigned i;
+
+	for (i = 0; i < v->nr_blocks; i++) {
+		const struct bch_extent_ptr *ptr = v->ptrs + i;
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct bucket *g;
+		struct bucket_mark new, old;
+
+		BUG_ON(ptr_stale(ca, ptr));
+
+		rcu_read_lock();
+		g = PTR_BUCKET(ca, ptr);
+
+		old = bucket_cmpxchg(g, new, ({
+			new.stripe			= enabled;
+			if (journal_seq) {
+				new.journal_seq_valid	= 1;
+				new.journal_seq		= journal_seq;
+			}
+		}));
+		rcu_read_unlock();
+
+		BUG_ON(old.stripe == enabled);
+
+		bch2_dev_usage_update(c, ca, fs_usage, old, new);
+	}
+}
+
+static void bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
+			     bool inserting, struct gc_pos pos,
+			     struct bch_fs_usage *fs_usage,
+			     u64 journal_seq, unsigned flags)
+{
+	switch (k.k->type) {
+	case BCH_STRIPE: {
+		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
+		size_t idx = s.k->p.offset;
+		struct ec_stripe *m = genradix_ptr(&c->ec_stripes, idx);
+		unsigned i;
+
+		BUG_ON(!m);
+		BUG_ON(m->alive == inserting);
+
+		BUG_ON(atomic_read(&m->blocks_nonempty));
+
+		for (i = 0; i < EC_STRIPE_MAX; i++)
+			BUG_ON(atomic_read(&m->block_sectors[i]));
+
+		if (inserting) {
+			m->sectors	= le16_to_cpu(s.v->sectors);
+			m->algorithm	= s.v->algorithm;
+			m->nr_blocks	= s.v->nr_blocks;
+			m->nr_redundant	= s.v->nr_redundant;
+		}
+
+		if (inserting)
+			bch2_stripes_heap_insert(c, m, idx);
+		else
+			bch2_stripes_heap_del(c, m, idx);
+
+		bucket_set_stripe(c, s.v, inserting, fs_usage, 0);
 		break;
 	}
 	}
@@ -745,6 +879,10 @@ void bch2_mark_key(struct bch_fs *c,
 		break;
 	case BKEY_TYPE_EXTENTS:
 		bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
+				 pos, stats, journal_seq, flags);
+		break;
+	case BKEY_TYPE_EC:
+		bch2_mark_stripe(c, k, inserting,
 				 pos, stats, journal_seq, flags);
 		break;
 	default:

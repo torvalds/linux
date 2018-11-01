@@ -204,7 +204,7 @@
 #define dynamic_fault(...)		0
 #define race_fault(...)			0
 
-#define bch2_fs_init_fault(name)						\
+#define bch2_fs_init_fault(name)					\
 	dynamic_fault("bcachefs:bch_fs_init:" name)
 #define bch2_meta_read_fault(name)					\
 	 dynamic_fault("bcachefs:meta:read:" name)
@@ -273,7 +273,10 @@ do {									\
 	BCH_DEBUG_PARAM(test_alloc_startup,				\
 		"Force allocator startup to use the slowpath where it"	\
 		"can't find enough free buckets without invalidating"	\
-		"cached data")
+		"cached data")						\
+	BCH_DEBUG_PARAM(force_reconstruct_read,				\
+		"Force reads to use the reconstruct path, when reading"	\
+		"from erasure coded extents")
 
 #define BCH_DEBUG_PARAMS_ALL() BCH_DEBUG_PARAMS_ALWAYS() BCH_DEBUG_PARAMS_DEBUG()
 
@@ -311,6 +314,7 @@ enum bch_time_stats {
 #include "btree_types.h"
 #include "buckets_types.h"
 #include "clock_types.h"
+#include "ec_types.h"
 #include "journal_types.h"
 #include "keylist_types.h"
 #include "quota_types.h"
@@ -333,9 +337,13 @@ enum gc_phase {
 	GC_PHASE_START,
 	GC_PHASE_SB,
 
-#define DEF_BTREE_ID(kwd, val, name) GC_PHASE_BTREE_##kwd,
-	DEFINE_BCH_BTREE_IDS()
-#undef DEF_BTREE_ID
+	GC_PHASE_BTREE_EC,
+	GC_PHASE_BTREE_EXTENTS,
+	GC_PHASE_BTREE_INODES,
+	GC_PHASE_BTREE_DIRENTS,
+	GC_PHASE_BTREE_XATTRS,
+	GC_PHASE_BTREE_ALLOC,
+	GC_PHASE_BTREE_QUOTAS,
 
 	GC_PHASE_PENDING_DELETE,
 	GC_PHASE_ALLOC,
@@ -683,6 +691,21 @@ struct bch_fs {
 
 	/* REBALANCE */
 	struct bch_fs_rebalance	rebalance;
+
+	/* ERASURE CODING */
+	struct list_head	ec_new_stripe_list;
+	struct mutex		ec_new_stripe_lock;
+
+	GENRADIX(struct ec_stripe) ec_stripes;
+	struct mutex		ec_stripes_lock;
+
+	ec_stripes_heap		ec_stripes_heap;
+	spinlock_t		ec_stripes_heap_lock;
+
+	struct bio_set		ec_bioset;
+
+	struct work_struct	ec_stripe_delete_work;
+	struct llist_head	ec_stripe_delete_list;
 
 	/* VFS IO PATH - fs-io.c */
 	struct bio_set		writepage_bioset;

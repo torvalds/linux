@@ -588,6 +588,8 @@ BKEY_VAL_ACCESSORS(alloc,		BCH_ALLOC);
 
 BKEY_VAL_ACCESSORS(quota,		BCH_QUOTA);
 
+BKEY_VAL_ACCESSORS(stripe,		BCH_STRIPE);
+
 /* byte order helpers */
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__

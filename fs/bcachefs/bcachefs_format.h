@@ -238,6 +238,9 @@ struct bkey_packed {
 } __attribute__((packed, aligned(8)));
 
 #define BKEY_U64s			(sizeof(struct bkey) / sizeof(__u64))
+#define BKEY_U64s_MAX			U8_MAX
+#define BKEY_VAL_U64s_MAX		(BKEY_U64s_MAX - BKEY_U64s)
+
 #define KEY_PACKED_BITS_START		24
 
 #define KEY_FORMAT_LOCAL_BTREE		0
@@ -465,8 +468,9 @@ enum bch_compression_type {
 	x(ptr,			0)		\
 	x(crc32,		1)		\
 	x(crc64,		2)		\
-	x(crc128,		3)
-#define BCH_EXTENT_ENTRY_MAX	4
+	x(crc128,		3)		\
+	x(stripe_ptr,		4)
+#define BCH_EXTENT_ENTRY_MAX	5
 
 enum bch_extent_entry_type {
 #define x(f, n) BCH_EXTENT_ENTRY_##f = n,
@@ -557,7 +561,7 @@ struct bch_extent_ptr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u64			type:1,
 				cached:1,
-				erasure_coded:1,
+				unused:1,
 				reservation:1,
 				offset:44, /* 8 petabytes */
 				dev:8,
@@ -567,23 +571,35 @@ struct bch_extent_ptr {
 				dev:8,
 				offset:44,
 				reservation:1,
-				erasure_coded:1,
+				unused:1,
 				cached:1,
 				type:1;
 #endif
 } __attribute__((packed, aligned(8)));
 
-struct bch_extent_reservation {
+struct bch_extent_stripe_ptr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u64			type:5,
-				unused:23,
+				block:8,
+				idx:51;
+#elif defined (__BIG_ENDIAN_BITFIELD)
+	__u64			idx:51,
+				block:8,
+				type:5;
+#endif
+};
+
+struct bch_extent_reservation {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u64			type:6,
+				unused:22,
 				replicas:4,
 				generation:32;
 #elif defined (__BIG_ENDIAN_BITFIELD)
 	__u64			generation:32,
 				replicas:4,
-				unused:23,
-				type:5;
+				unused:22,
+				type:6;
 #endif
 };
 
@@ -706,7 +722,8 @@ BKEY_VAL_TYPE(inode_generation,	BCH_INODE_GENERATION);
 	BCH_INODE_FIELD(bi_data_replicas,		8)	\
 	BCH_INODE_FIELD(bi_promote_target,		16)	\
 	BCH_INODE_FIELD(bi_foreground_target,		16)	\
-	BCH_INODE_FIELD(bi_background_target,		16)
+	BCH_INODE_FIELD(bi_background_target,		16)	\
+	BCH_INODE_FIELD(bi_erasure_code,		16)
 
 #define BCH_INODE_FIELDS_INHERIT()				\
 	BCH_INODE_FIELD(bi_data_checksum)			\
@@ -716,7 +733,8 @@ BKEY_VAL_TYPE(inode_generation,	BCH_INODE_GENERATION);
 	BCH_INODE_FIELD(bi_data_replicas)			\
 	BCH_INODE_FIELD(bi_promote_target)			\
 	BCH_INODE_FIELD(bi_foreground_target)			\
-	BCH_INODE_FIELD(bi_background_target)
+	BCH_INODE_FIELD(bi_background_target)			\
+	BCH_INODE_FIELD(bi_erasure_code)
 
 enum {
 	/*
@@ -875,6 +893,27 @@ struct bch_quota {
 	struct bch_quota_counter c[Q_COUNTERS];
 } __attribute__((packed, aligned(8)));
 BKEY_VAL_TYPE(quota,	BCH_QUOTA);
+
+/* Erasure coding */
+
+enum {
+	BCH_STRIPE		= 128,
+};
+
+struct bch_stripe {
+	struct bch_val		v;
+	__le16			sectors;
+	__u8			algorithm;
+	__u8			nr_blocks;
+	__u8			nr_redundant;
+
+	__u8			csum_granularity_bits;
+	__u8			csum_type;
+	__u8			pad;
+
+	struct bch_extent_ptr	ptrs[0];
+} __attribute__((packed, aligned(8)));
+BKEY_VAL_TYPE(stripe,	BCH_STRIPE);
 
 /* Optional/variable size superblock sections: */
 
@@ -1065,7 +1104,7 @@ struct bch_sb_field_quota {
 struct bch_disk_group {
 	__u8			label[BCH_SB_LABEL_SIZE];
 	__le64			flags[2];
-};
+} __attribute__((packed, aligned(8)));
 
 LE64_BITMASK(BCH_GROUP_DELETED,		struct bch_disk_group, flags[0], 0,  1)
 LE64_BITMASK(BCH_GROUP_DATA_ALLOWED,	struct bch_disk_group, flags[0], 1,  6)
@@ -1074,7 +1113,7 @@ LE64_BITMASK(BCH_GROUP_PARENT,		struct bch_disk_group, flags[0], 6, 24)
 struct bch_sb_field_disk_groups {
 	struct bch_sb_field	field;
 	struct bch_disk_group	entries[0];
-};
+} __attribute__((packed, aligned(8)));
 
 /*
  * On clean shutdown, store btree roots and current journal sequence number in
@@ -1242,12 +1281,15 @@ LE64_BITMASK(BCH_SB_BACKGROUND_COMPRESSION_TYPE,
 					struct bch_sb, flags[2],  0,  4);
 LE64_BITMASK(BCH_SB_GC_RESERVE_BYTES,	struct bch_sb, flags[2],  4, 64);
 
+LE64_BITMASK(BCH_SB_ERASURE_CODE,	struct bch_sb, flags[3],  0, 16);
+
 /* Features: */
 enum bch_sb_features {
 	BCH_FEATURE_LZ4			= 0,
 	BCH_FEATURE_GZIP		= 1,
 	BCH_FEATURE_ZSTD		= 2,
 	BCH_FEATURE_ATOMIC_NLINK	= 3, /* should have gone under compat */
+	BCH_FEATURE_EC			= 4,
 	BCH_FEATURE_NR,
 };
 
@@ -1417,7 +1459,8 @@ LE32_BITMASK(JSET_BIG_ENDIAN,	struct jset, flags, 4, 5);
 	DEF_BTREE_ID(DIRENTS,	2, "dirents")			\
 	DEF_BTREE_ID(XATTRS,	3, "xattrs")			\
 	DEF_BTREE_ID(ALLOC,	4, "alloc")			\
-	DEF_BTREE_ID(QUOTAS,	5, "quotas")
+	DEF_BTREE_ID(QUOTAS,	5, "quotas")			\
+	DEF_BTREE_ID(EC,	6, "erasure_coding")
 
 #define DEF_BTREE_ID(kwd, val, name) BTREE_ID_##kwd = val,
 

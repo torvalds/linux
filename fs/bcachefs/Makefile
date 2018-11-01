@@ -22,6 +22,7 @@ bcachefs-y		:=	\
 	debug.o			\
 	dirent.o		\
 	disk_groups.o		\
+	ec.o			\
 	error.o			\
 	extents.o		\
 	fs.o			\

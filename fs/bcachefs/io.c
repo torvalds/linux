@@ -16,6 +16,7 @@
 #include "clock.h"
 #include "debug.h"
 #include "disk_groups.h"
+#include "ec.h"
 #include "error.h"
 #include "extents.h"
 #include "io.h"
@@ -319,6 +320,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 	struct bkey_s_extent e;
 	struct bch_extent_ptr *ptr;
 	struct bkey_i *src, *dst = keys->keys, *n, *k;
+	unsigned dev;
 	int ret;
 
 	for (src = keys->keys; src != keys->top; src = n) {
@@ -362,6 +364,10 @@ static void __bch2_write_index(struct bch_write_op *op)
 		}
 	}
 out:
+	/* If some a bucket wasn't written, we can't erasure code it: */
+	for_each_set_bit(dev, op->failed.d, BCH_SB_MEMBERS_MAX)
+		bch2_open_bucket_write_error(c, &op->open_buckets, dev);
+
 	bch2_open_buckets_put(c, &op->open_buckets);
 	return;
 err:
@@ -442,7 +448,8 @@ static void init_append_extent(struct bch_write_op *op,
 static struct bio *bch2_write_bio_alloc(struct bch_fs *c,
 					struct write_point *wp,
 					struct bio *src,
-					bool *page_alloc_failed)
+					bool *page_alloc_failed,
+					void *buf)
 {
 	struct bch_write_bio *wbio;
 	struct bio *bio;
@@ -453,10 +460,17 @@ static struct bio *bch2_write_bio_alloc(struct bch_fs *c,
 	bio = bio_alloc_bioset(NULL, pages, 0,
 			       GFP_NOIO, &c->bio_write);
 	wbio			= wbio_init(bio);
-	wbio->bounce		= true;
 	wbio->put_bio		= true;
 	/* copy WRITE_SYNC flag */
 	wbio->bio.bi_opf	= src->bi_opf;
+
+	if (buf) {
+		bio->bi_iter.bi_size = output_available;
+		bch2_bio_map(bio, buf);
+		return bio;
+	}
+
+	wbio->bounce		= true;
 
 	/*
 	 * We can't use mempool for more than c->sb.encoded_extent_max
@@ -622,13 +636,17 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp)
 	struct bio *src = &op->wbio.bio, *dst = src;
 	struct bvec_iter saved_iter;
 	struct bkey_i *key_to_write;
+	void *ec_buf;
 	unsigned key_to_write_offset = op->insert_keys.top_p -
 		op->insert_keys.keys_p;
-	unsigned total_output = 0;
-	bool bounce = false, page_alloc_failed = false;
+	unsigned total_output = 0, total_input = 0;
+	bool bounce = false;
+	bool page_alloc_failed = false;
 	int ret, more = 0;
 
 	BUG_ON(!bio_sectors(src));
+
+	ec_buf = bch2_writepoint_ec_buf(c, wp);
 
 	switch (bch2_write_prep_encoded_data(op, wp)) {
 	case PREP_ENCODED_OK:
@@ -639,16 +657,26 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp)
 	case PREP_ENCODED_CHECKSUM_ERR:
 		goto csum_err;
 	case PREP_ENCODED_DO_WRITE:
+		if (ec_buf) {
+			dst = bch2_write_bio_alloc(c, wp, src,
+						   &page_alloc_failed,
+						   ec_buf);
+			bio_copy_data(dst, src);
+			bounce = true;
+		}
 		init_append_extent(op, wp, op->version, op->crc);
 		goto do_write;
 	}
 
-	if (op->compression_type ||
+	if (ec_buf ||
+	    op->compression_type ||
 	    (op->csum_type &&
 	     !(op->flags & BCH_WRITE_PAGES_STABLE)) ||
 	    (bch2_csum_type_is_encryption(op->csum_type) &&
 	     !(op->flags & BCH_WRITE_PAGES_OWNED))) {
-		dst = bch2_write_bio_alloc(c, wp, src, &page_alloc_failed);
+		dst = bch2_write_bio_alloc(c, wp, src,
+					   &page_alloc_failed,
+					   ec_buf);
 		bounce = true;
 	}
 
@@ -751,7 +779,8 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp)
 		if (dst != src)
 			bio_advance(dst, dst_len);
 		bio_advance(src, src_len);
-		total_output += dst_len;
+		total_output	+= dst_len;
+		total_input	+= src_len;
 	} while (dst->bi_iter.bi_size &&
 		 src->bi_iter.bi_size &&
 		 wp->sectors_free &&
@@ -764,16 +793,20 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp)
 
 	dst->bi_iter = saved_iter;
 
-	if (!bounce && more) {
-		dst = bio_split(src, total_output >> 9,
+	if (dst == src && more) {
+		BUG_ON(total_output != total_input);
+
+		dst = bio_split(src, total_input >> 9,
 				GFP_NOIO, &c->bio_write);
-		wbio_init(dst)->put_bio = true;
+		wbio_init(dst)->put_bio	= true;
+		/* copy WRITE_SYNC flag */
+		dst->bi_opf		= src->bi_opf;
 	}
 
 	dst->bi_iter.bi_size = total_output;
 
 	/* Free unneeded pages after compressing: */
-	if (bounce)
+	if (to_wbio(dst)->bounce)
 		while (dst->bi_vcnt > DIV_ROUND_UP(dst->bi_iter.bi_size, PAGE_SIZE))
 			mempool_free(dst->bi_io_vec[--dst->bi_vcnt].bv_page,
 				     &c->bio_bounce_pages);
@@ -781,6 +814,10 @@ do_write:
 	/* might have done a realloc... */
 
 	key_to_write = (void *) (op->insert_keys.keys_p + key_to_write_offset);
+
+	bch2_ec_add_backpointer(c, wp,
+				bkey_start_pos(&key_to_write->k),
+				total_input >> 9);
 
 	dst->bi_end_io	= bch2_write_endio;
 	dst->bi_private	= &op->cl;
@@ -796,10 +833,10 @@ csum_err:
 		"rewriting existing data (memory corruption?)");
 	ret = -EIO;
 err:
-	if (bounce) {
+	if (to_wbio(dst)->bounce)
 		bch2_bio_free_pages_pool(c, dst);
+	if (to_wbio(dst)->put_bio)
 		bio_put(dst);
-	}
 
 	return ret;
 }
@@ -811,6 +848,8 @@ static void __bch2_write(struct closure *cl)
 	struct write_point *wp;
 	int ret;
 again:
+	memset(&op->failed, 0, sizeof(op->failed));
+
 	do {
 		/* +1 for possible cache device: */
 		if (op->open_buckets.nr + op->nr_replicas + 1 >
@@ -825,6 +864,7 @@ again:
 
 		wp = bch2_alloc_sectors_start(c,
 			op->target,
+			op->opts.erasure_code,
 			op->write_point,
 			&op->devs_have,
 			op->nr_replicas,
@@ -903,8 +943,6 @@ void bch2_write(struct closure *cl)
 	BUG_ON(bio_sectors(&op->wbio.bio) > U16_MAX);
 
 	op->start_time = local_clock();
-
-	memset(&op->failed, 0, sizeof(op->failed));
 
 	bch2_keylist_init(&op->insert_keys, op->inline_keys);
 	wbio_init(&op->wbio.bio)->put_bio = false;
@@ -1576,8 +1614,10 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 	if (!pick_ret)
 		goto hole;
 
-	if (pick_ret < 0)
-		goto no_device;
+	if (pick_ret < 0) {
+		__bcache_io_error(c, "no device to read from");
+		goto err;
+	}
 
 	if (pick_ret > 0)
 		ca = bch_dev_bkey_exists(c, pick.ptr.dev);
@@ -1704,35 +1744,50 @@ noclone:
 
 	bch2_increment_clock(c, bio_sectors(&rbio->bio), READ);
 
-	if (!rbio->have_ioref)
-		goto no_device_postclone;
-
 	percpu_down_read(&c->usage_lock);
 	bucket_io_clock_reset(c, ca, PTR_BUCKET_NR(ca, &pick.ptr), READ);
 	percpu_up_read(&c->usage_lock);
 
-	this_cpu_add(ca->io_done->sectors[READ][BCH_DATA_USER],
-		     bio_sectors(&rbio->bio));
+	if (likely(!(flags & (BCH_READ_IN_RETRY|BCH_READ_LAST_FRAGMENT)))) {
+		bio_inc_remaining(&orig->bio);
+		trace_read_split(&orig->bio);
+	}
 
-	bio_set_dev(&rbio->bio, ca->disk_sb.bdev);
-
-	if (likely(!(flags & BCH_READ_IN_RETRY))) {
-		if (!(flags & BCH_READ_LAST_FRAGMENT)) {
-			bio_inc_remaining(&orig->bio);
-			trace_read_split(&orig->bio);
+	if (!rbio->pick.idx) {
+		if (!rbio->have_ioref) {
+			__bcache_io_error(c, "no device to read from");
+			bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
+			goto out;
 		}
+
+		this_cpu_add(ca->io_done->sectors[READ][BCH_DATA_USER],
+			     bio_sectors(&rbio->bio));
+		bio_set_dev(&rbio->bio, ca->disk_sb.bdev);
 
 		if (unlikely(c->opts.no_data_io)) {
-			bio_endio(&rbio->bio);
-			return 0;
+			if (likely(!(flags & BCH_READ_IN_RETRY)))
+				bio_endio(&rbio->bio);
+		} else {
+			if (likely(!(flags & BCH_READ_IN_RETRY)))
+				submit_bio(&rbio->bio);
+			else
+				submit_bio_wait(&rbio->bio);
+		}
+	} else {
+		/* Attempting reconstruct read: */
+		if (bch2_ec_read_extent(c, rbio)) {
+			bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
+			goto out;
 		}
 
-		submit_bio(&rbio->bio);
+		if (likely(!(flags & BCH_READ_IN_RETRY)))
+			bio_endio(&rbio->bio);
+	}
+out:
+	if (likely(!(flags & BCH_READ_IN_RETRY))) {
 		return 0;
 	} else {
 		int ret;
-
-		submit_bio_wait(&rbio->bio);
 
 		rbio->context = RBIO_CONTEXT_UNBOUND;
 		bch2_read_endio(&rbio->bio);
@@ -1748,22 +1803,12 @@ noclone:
 		return ret;
 	}
 
-no_device_postclone:
-	if (!rbio->split)
-		rbio->bio.bi_end_io = rbio->end_io;
-	bch2_rbio_free(rbio);
-no_device:
-	__bcache_io_error(c, "no device to read from");
-
-	if (likely(!(flags & BCH_READ_IN_RETRY))) {
-		orig->bio.bi_status = BLK_STS_IOERR;
-
-		if (flags & BCH_READ_LAST_FRAGMENT)
-			bch2_rbio_done(orig);
-		return 0;
-	} else {
+err:
+	if (flags & BCH_READ_IN_RETRY)
 		return READ_ERR;
-	}
+
+	orig->bio.bi_status = BLK_STS_IOERR;
+	goto out_read_done;
 
 hole:
 	/*
@@ -1775,7 +1820,7 @@ hole:
 		orig->hole = true;
 
 	zero_fill_bio_iter(&orig->bio, iter);
-
+out_read_done:
 	if (flags & BCH_READ_LAST_FRAGMENT)
 		bch2_rbio_done(orig);
 	return 0;

@@ -1071,7 +1071,7 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 	replicas = bch2_extent_nr_ptrs(e.c);
 
 	rcu_read_lock();
-	devs_sorted = bch2_wp_alloc_list(c, &j->wp,
+	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe,
 					 &c->rw_devs[BCH_DATA_JOURNAL]);
 
 	for (i = 0; i < devs_sorted.nr; i++) {
@@ -1098,8 +1098,7 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 		    sectors > ca->mi.bucket_size)
 			continue;
 
-		j->wp.next_alloc[ca->dev_idx] += U32_MAX;
-		bch2_wp_rescale(c, ca, &j->wp);
+		bch2_dev_stripe_increment(c, ca, &j->wp.stripe);
 
 		ja->sectors_free = ca->mi.bucket_size - sectors;
 		ja->cur_idx = (ja->cur_idx + 1) % ja->nr;

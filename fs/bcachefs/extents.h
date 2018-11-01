@@ -96,8 +96,6 @@ unsigned bch2_extent_nr_ptrs(struct bkey_s_c_extent);
 unsigned bch2_extent_nr_dirty_ptrs(struct bkey_s_c);
 unsigned bch2_extent_is_compressed(struct bkey_s_c);
 
-unsigned bch2_extent_ptr_durability(struct bch_fs *,
-				    const struct bch_extent_ptr *);
 unsigned bch2_extent_durability(struct bch_fs *, struct bkey_s_c_extent);
 
 bool bch2_extent_matches_ptr(struct bch_fs *, struct bkey_s_c_extent,
@@ -362,19 +360,12 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 
 /* Iterate over pointers, with crcs: */
 
-static inline struct extent_ptr_decoded
-__extent_ptr_decoded_init(const struct bkey *k)
-{
-	return (struct extent_ptr_decoded) {
-		.crc		= bch2_extent_crc_unpack(k, NULL),
-	};
-}
-
-#define EXTENT_ITERATE_EC		(1 << 0)
-
 #define __extent_ptr_next_decode(_e, _ptr, _entry)			\
 ({									\
 	__label__ out;							\
+									\
+	(_ptr).idx	= 0;						\
+	(_ptr).ec_nr	= 0;						\
 									\
 	extent_for_each_entry_from(_e, _entry, _entry)			\
 		switch (extent_entry_type(_entry)) {			\
@@ -387,14 +378,16 @@ __extent_ptr_decoded_init(const struct bkey *k)
 			(_ptr).crc = bch2_extent_crc_unpack((_e).k,	\
 					entry_to_crc(_entry));		\
 			break;						\
+		case BCH_EXTENT_ENTRY_stripe_ptr:			\
+			(_ptr).ec[(_ptr).ec_nr++] = _entry->stripe_ptr;	\
+			break;						\
 		}							\
-									\
 out:									\
 	_entry < extent_entry_last(_e);					\
 })
 
 #define extent_for_each_ptr_decode(_e, _ptr, _entry)			\
-	for ((_ptr) = __extent_ptr_decoded_init((_e).k),		\
+	for ((_ptr).crc = bch2_extent_crc_unpack((_e).k, NULL),		\
 	     (_entry) = (_e).v->start;					\
 	     __extent_ptr_next_decode(_e, _ptr, _entry);		\
 	     (_entry) = extent_entry_next(_entry))

@@ -7,6 +7,7 @@
 #include "btree_update_interior.h"
 #include "btree_io.h"
 #include "dirent.h"
+#include "ec.h"
 #include "error.h"
 #include "fsck.h"
 #include "journal_io.h"
@@ -212,6 +213,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
+
+	err = "cannot allocate memory";
+	ret = bch2_fs_ec_start(c);
+	if (ret)
+		goto err;
 
 	bch_verbose(c, "starting mark and sweep:");
 	err = "error in recovery";
