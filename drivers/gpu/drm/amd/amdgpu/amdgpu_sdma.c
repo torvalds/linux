@@ -28,7 +28,7 @@
  * GPU SDMA IP block helpers function.
  */
 
-struct amdgpu_sdma_instance * amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
+struct amdgpu_sdma_instance *amdgpu_sdma_get_instance_from_ring(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	int i;

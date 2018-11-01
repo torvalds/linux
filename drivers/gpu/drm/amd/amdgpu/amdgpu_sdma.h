@@ -94,6 +94,6 @@ struct amdgpu_buffer_funcs {
 #define amdgpu_emit_fill_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_fill_buffer((ib), (s), (d), (b))
 
 struct amdgpu_sdma_instance *
-amdgpu_get_sdma_instance(struct amdgpu_ring *ring);
+amdgpu_sdma_get_instance_from_ring(struct amdgpu_ring *ring);
 
 #endif
