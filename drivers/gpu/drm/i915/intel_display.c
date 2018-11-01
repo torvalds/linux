@@ -12651,13 +12651,12 @@ static void skl_update_crtcs(struct drm_atomic_state *state)
 	int i;
 	u8 hw_enabled_slices = dev_priv->wm.skl_hw.ddb.enabled_slices;
 	u8 required_slices = intel_state->wm_results.ddb.enabled_slices;
-
-	const struct skl_ddb_entry *entries[I915_MAX_PIPES] = {};
+	struct skl_ddb_entry entries[I915_MAX_PIPES] = {};
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i)
 		/* ignore allocations for crtc's that have been turned off. */
 		if (new_crtc_state->active)
-			entries[i] = &to_intel_crtc_state(old_crtc_state)->wm.skl.ddb;
+			entries[i] = to_intel_crtc_state(old_crtc_state)->wm.skl.ddb;
 
 	/* If 2nd DBuf slice required, enable it here */
 	if (INTEL_GEN(dev_priv) >= 11 && required_slices > hw_enabled_slices)
@@ -12683,14 +12682,13 @@ static void skl_update_crtcs(struct drm_atomic_state *state)
 			if (updated & cmask || !cstate->base.active)
 				continue;
 
-			if (skl_ddb_allocation_overlaps(dev_priv,
+			if (skl_ddb_allocation_overlaps(&cstate->wm.skl.ddb,
 							entries,
-							&cstate->wm.skl.ddb,
-							i))
+							INTEL_INFO(dev_priv)->num_pipes, i))
 				continue;
 
 			updated |= cmask;
-			entries[i] = &cstate->wm.skl.ddb;
+			entries[i] = cstate->wm.skl.ddb;
 
 			/*
 			 * If this is an already active pipe, it's DDB changed,
