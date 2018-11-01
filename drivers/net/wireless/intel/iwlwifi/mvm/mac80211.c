@@ -3091,6 +3091,16 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			iwl_mvm_tdls_check_trigger(mvm, vif, sta->addr,
 						   NL80211_TDLS_DISABLE_LINK);
 		}
+
+		/* Remove STA key if this is an AP using WEP */
+		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key) {
+			int rm_ret = iwl_mvm_remove_sta_key(mvm, vif, sta,
+							    mvmvif->ap_wep_key);
+
+			if (!ret)
+				ret = rm_ret;
+		}
+
 	} else {
 		ret = -EIO;
 	}
