@@ -29,7 +29,7 @@ static inline u16 get_asoc_status(u8 *data)
 s32 wilc_parse_network_info(u8 *msg_buffer,
 			    struct network_info **ret_network_info)
 {
-	struct network_info *network_info;
+	struct network_info *info;
 	struct ieee80211_mgmt *mgt;
 	u8 *wid_val, *msa, *ies;
 	u16 wid_len, rx_len, ies_len;
@@ -44,70 +44,69 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 	wid_len = get_unaligned_le16(&msg_buffer[6]);
 	wid_val = &msg_buffer[8];
 
-	network_info = kzalloc(sizeof(*network_info), GFP_KERNEL);
-	if (!network_info)
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
 		return -ENOMEM;
 
-	network_info->rssi = wid_val[0];
+	info->rssi = wid_val[0];
 
 	msa = &wid_val[1];
 	mgt = (struct ieee80211_mgmt *)&wid_val[1];
 	rx_len = wid_len - 1;
 
 	if (ieee80211_is_probe_resp(mgt->frame_control)) {
-		network_info->cap_info = le16_to_cpu(mgt->u.probe_resp.capab_info);
-		network_info->beacon_period = le16_to_cpu(mgt->u.probe_resp.beacon_int);
-		network_info->tsf_hi = le64_to_cpu(mgt->u.probe_resp.timestamp);
-		network_info->tsf_lo = (u32)network_info->tsf_hi;
+		info->cap_info = le16_to_cpu(mgt->u.probe_resp.capab_info);
+		info->beacon_period = le16_to_cpu(mgt->u.probe_resp.beacon_int);
+		info->tsf_hi = le64_to_cpu(mgt->u.probe_resp.timestamp);
+		info->tsf_lo = (u32)info->tsf_hi;
 		offset = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
 	} else if (ieee80211_is_beacon(mgt->frame_control)) {
-		network_info->cap_info = le16_to_cpu(mgt->u.beacon.capab_info);
-		network_info->beacon_period = le16_to_cpu(mgt->u.beacon.beacon_int);
-		network_info->tsf_hi = le64_to_cpu(mgt->u.beacon.timestamp);
-		network_info->tsf_lo = (u32)network_info->tsf_hi;
+		info->cap_info = le16_to_cpu(mgt->u.beacon.capab_info);
+		info->beacon_period = le16_to_cpu(mgt->u.beacon.beacon_int);
+		info->tsf_hi = le64_to_cpu(mgt->u.beacon.timestamp);
+		info->tsf_lo = (u32)info->tsf_hi;
 		offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 	} else {
 		/* only process probe response and beacon frame */
-		kfree(network_info);
+		kfree(info);
 		return -EIO;
 	}
 
-	ether_addr_copy(network_info->bssid, get_bssid(mgt));
+	ether_addr_copy(info->bssid, get_bssid(mgt));
 
 	ies = mgt->u.beacon.variable;
 	ies_len = rx_len - offset;
 	if (ies_len <= 0) {
-		kfree(network_info);
+		kfree(info);
 		return -EIO;
 	}
 
-	network_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
-	if (!network_info->ies) {
-		kfree(network_info);
+	info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
+	if (!info->ies) {
+		kfree(info);
 		return -ENOMEM;
 	}
 
-	network_info->ies_len = ies_len;
+	info->ies_len = ies_len;
 
 	ssid_elm = cfg80211_find_ie(WLAN_EID_SSID, ies, ies_len);
 	if (ssid_elm) {
-		network_info->ssid_len = ssid_elm[1];
-		if (network_info->ssid_len <= IEEE80211_MAX_SSID_LEN)
-			memcpy(network_info->ssid, ssid_elm + 2,
-			       network_info->ssid_len);
+		info->ssid_len = ssid_elm[1];
+		if (info->ssid_len <= IEEE80211_MAX_SSID_LEN)
+			memcpy(info->ssid, ssid_elm + 2, info->ssid_len);
 		else
-			network_info->ssid_len = 0;
+			info->ssid_len = 0;
 	}
 
 	ch_elm = cfg80211_find_ie(WLAN_EID_DS_PARAMS, ies, ies_len);
 	if (ch_elm && ch_elm[1] > 0)
-		network_info->ch = ch_elm[2];
+		info->ch = ch_elm[2];
 
 	tim_elm = cfg80211_find_ie(WLAN_EID_TIM, ies, ies_len);
 	if (tim_elm && tim_elm[1] >= 2)
-		network_info->dtim_period = tim_elm[3];
+		info->dtim_period = tim_elm[3];
 
-	*ret_network_info = network_info;
+	*ret_network_info = info;
 
 	return 0;
 }
