@@ -1345,10 +1345,8 @@ static void btree_node_read_work(struct work_struct *work)
 	struct bch_dev *ca	= bch_dev_bkey_exists(c, rb->pick.ptr.dev);
 	struct btree *b		= rb->bio.bi_private;
 	struct bio *bio		= &rb->bio;
-	struct bch_devs_mask avoid;
+	struct bch_io_failures failed = { .nr = 0 };
 	bool can_retry;
-
-	memset(&avoid, 0, sizeof(avoid));
 
 	goto start;
 	while (1) {
@@ -1371,8 +1369,9 @@ start:
 			percpu_ref_put(&ca->io_ref);
 		rb->have_ioref = false;
 
-		__set_bit(rb->pick.ptr.dev, avoid.d);
-		can_retry = bch2_btree_pick_ptr(c, b, &avoid, &rb->pick) > 0;
+		bch2_mark_io_failure(&failed, &rb->pick);
+
+		can_retry = bch2_btree_pick_ptr(c, b, &failed, &rb->pick) > 0;
 
 		if (!bio->bi_status &&
 		    !bch2_btree_node_read_done(c, b, can_retry))

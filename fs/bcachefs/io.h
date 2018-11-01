@@ -102,7 +102,7 @@ struct cache_promote_op;
 struct extent_ptr_decoded;
 
 int __bch2_read_extent(struct bch_fs *, struct bch_read_bio *, struct bvec_iter,
-		       struct bkey_s_c, struct bch_devs_mask *, unsigned);
+		       struct bkey_s_c, struct bch_io_failures *, unsigned);
 void bch2_read(struct bch_fs *, struct bch_read_bio *, u64);
 
 enum bch_read_flags {

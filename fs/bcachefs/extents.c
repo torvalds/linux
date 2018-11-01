@@ -519,12 +519,45 @@ out:
 	return out - buf;
 }
 
-static inline bool dev_latency_better(struct bch_fs *c,
-			      const struct bch_extent_ptr *ptr1,
-			      const struct bch_extent_ptr *ptr2)
+static struct bch_dev_io_failures *dev_io_failures(struct bch_io_failures *f,
+						   unsigned dev)
 {
-	struct bch_dev *dev1 = bch_dev_bkey_exists(c, ptr1->dev);
-	struct bch_dev *dev2 = bch_dev_bkey_exists(c, ptr2->dev);
+	struct bch_dev_io_failures *i;
+
+	for (i = f->devs; i < f->devs + f->nr; i++)
+		if (i->dev == dev)
+			return i;
+
+	return NULL;
+}
+
+void bch2_mark_io_failure(struct bch_io_failures *failed,
+			  struct extent_ptr_decoded *p)
+{
+	struct bch_dev_io_failures *f = dev_io_failures(failed, p->ptr.dev);
+
+	if (!f) {
+		BUG_ON(failed->nr >= ARRAY_SIZE(failed->devs));
+
+		f = &failed->devs[failed->nr++];
+		f->dev		= p->ptr.dev;
+		f->nr_failed	= 1;
+		f->nr_retries	= 0;
+	} else {
+		f->nr_failed++;
+	}
+}
+
+/*
+ * returns true if p1 is better than p2:
+ */
+static inline bool ptr_better(struct bch_fs *c,
+			      const struct extent_ptr_decoded p1,
+			      const struct extent_ptr_decoded p2)
+{
+	struct bch_dev *dev1 = bch_dev_bkey_exists(c, p1.ptr.dev);
+	struct bch_dev *dev2 = bch_dev_bkey_exists(c, p2.ptr.dev);
+
 	u64 l1 = atomic64_read(&dev1->cur_latency[READ]);
 	u64 l2 = atomic64_read(&dev2->cur_latency[READ]);
 
@@ -535,11 +568,12 @@ static inline bool dev_latency_better(struct bch_fs *c,
 
 static int extent_pick_read_device(struct bch_fs *c,
 				   struct bkey_s_c_extent e,
-				   struct bch_devs_mask *avoid,
+				   struct bch_io_failures *failed,
 				   struct extent_ptr_decoded *pick)
 {
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
+	struct bch_dev_io_failures *f;
 	struct bch_dev *ca;
 	int ret = 0;
 
@@ -549,14 +583,11 @@ static int extent_pick_read_device(struct bch_fs *c,
 		if (p.ptr.cached && ptr_stale(ca, &p.ptr))
 			continue;
 
-		/*
-		 * XXX: need to make avoid work correctly for stripe ptrs
-		 */
-
-		if (avoid && test_bit(p.ptr.dev, avoid->d))
+		f = failed ? dev_io_failures(failed, p.ptr.dev) : NULL;
+		if (f && f->nr_failed >= f->nr_retries)
 			continue;
 
-		if (ret && !dev_latency_better(c, &p.ptr, &pick->ptr))
+		if (ret && !ptr_better(c, p, *pick))
 			continue;
 
 		*pick = p;
@@ -685,11 +716,11 @@ int bch2_btree_ptr_to_text(struct bch_fs *c, char *buf,
 }
 
 int bch2_btree_pick_ptr(struct bch_fs *c, const struct btree *b,
-			struct bch_devs_mask *avoid,
+			struct bch_io_failures *failed,
 			struct extent_ptr_decoded *pick)
 {
 	return extent_pick_read_device(c, bkey_i_to_s_c_extent(&b->key),
-				       avoid, pick);
+				       failed, pick);
 }
 
 /* Extents */
@@ -1909,7 +1940,7 @@ void bch2_extent_mark_replicas_cached(struct bch_fs *c,
  * other devices, it will still pick a pointer from avoid.
  */
 int bch2_extent_pick_ptr(struct bch_fs *c, struct bkey_s_c k,
-			 struct bch_devs_mask *avoid,
+			 struct bch_io_failures *failed,
 			 struct extent_ptr_decoded *pick)
 {
 	int ret;
@@ -1921,7 +1952,7 @@ int bch2_extent_pick_ptr(struct bch_fs *c, struct bkey_s_c k,
 	case BCH_EXTENT:
 	case BCH_EXTENT_CACHED:
 		ret = extent_pick_read_device(c, bkey_s_c_to_extent(k),
-					      avoid, pick);
+					      failed, pick);
 
 		if (!ret && !bkey_extent_is_cached(k.k))
 			ret = -EIO;

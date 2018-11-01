@@ -1203,7 +1203,8 @@ static void bch2_rbio_done(struct bch_read_bio *rbio)
 
 static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio,
 				     struct bvec_iter bvec_iter, u64 inode,
-				     struct bch_devs_mask *avoid, unsigned flags)
+				     struct bch_io_failures *failed,
+				     unsigned flags)
 {
 	struct btree_iter iter;
 	BKEY_PADDED(k) tmp;
@@ -1237,7 +1238,7 @@ retry:
 		goto out;
 	}
 
-	ret = __bch2_read_extent(c, rbio, bvec_iter, k, avoid, flags);
+	ret = __bch2_read_extent(c, rbio, bvec_iter, k, failed, flags);
 	if (ret == READ_RETRY)
 		goto retry;
 	if (ret)
@@ -1251,7 +1252,7 @@ out:
 
 static void bch2_read_retry(struct bch_fs *c, struct bch_read_bio *rbio,
 			    struct bvec_iter bvec_iter, u64 inode,
-			    struct bch_devs_mask *avoid, unsigned flags)
+			    struct bch_io_failures *failed, unsigned flags)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -1274,7 +1275,7 @@ retry:
 			      (k.k->p.offset - bvec_iter.bi_sector) << 9);
 		swap(bvec_iter.bi_size, bytes);
 
-		ret = __bch2_read_extent(c, rbio, bvec_iter, k, avoid, flags);
+		ret = __bch2_read_extent(c, rbio, bvec_iter, k, failed, flags);
 		switch (ret) {
 		case READ_RETRY:
 			goto retry;
@@ -1310,14 +1311,12 @@ static void bch2_rbio_retry(struct work_struct *work)
 	struct bvec_iter iter	= rbio->bvec_iter;
 	unsigned flags		= rbio->flags;
 	u64 inode		= rbio->pos.inode;
-	struct bch_devs_mask avoid;
+	struct bch_io_failures failed = { .nr = 0 };
 
 	trace_read_retry(&rbio->bio);
 
-	memset(&avoid, 0, sizeof(avoid));
-
 	if (rbio->retry == READ_RETRY_AVOID)
-		__set_bit(rbio->pick.ptr.dev, avoid.d);
+		bch2_mark_io_failure(&failed, &rbio->pick);
 
 	rbio->bio.bi_status = 0;
 
@@ -1327,9 +1326,9 @@ static void bch2_rbio_retry(struct work_struct *work)
 	flags &= ~BCH_READ_MAY_PROMOTE;
 
 	if (flags & BCH_READ_NODECODE)
-		bch2_read_retry_nodecode(c, rbio, iter, inode, &avoid, flags);
+		bch2_read_retry_nodecode(c, rbio, iter, inode, &failed, flags);
 	else
-		bch2_read_retry(c, rbio, iter, inode, &avoid, flags);
+		bch2_read_retry(c, rbio, iter, inode, &failed, flags);
 }
 
 static void bch2_rbio_error(struct bch_read_bio *rbio, int retry,
@@ -1569,7 +1568,7 @@ static void bch2_read_endio(struct bio *bio)
 
 int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 		       struct bvec_iter iter, struct bkey_s_c k,
-		       struct bch_devs_mask *avoid, unsigned flags)
+		       struct bch_io_failures *failed, unsigned flags)
 {
 	struct extent_ptr_decoded pick;
 	struct bch_read_bio *rbio = NULL;
@@ -1579,7 +1578,7 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 	struct bpos pos = bkey_start_pos(k.k);
 	int pick_ret;
 
-	pick_ret = bch2_extent_pick_ptr(c, k, avoid, &pick);
+	pick_ret = bch2_extent_pick_ptr(c, k, failed, &pick);
 
 	/* hole or reservation - just zero fill: */
 	if (!pick_ret)
@@ -1750,7 +1749,7 @@ noclone:
 		rbio = bch2_rbio_free(rbio);
 
 		if (ret == READ_RETRY_AVOID) {
-			__set_bit(pick.ptr.dev, avoid->d);
+			bch2_mark_io_failure(failed, &pick);
 			ret = READ_RETRY;
 		}
 

@@ -24,4 +24,13 @@ struct extent_ptr_decoded {
 	struct bch_extent_ptr		ptr;
 };
 
+struct bch_io_failures {
+	u8			nr;
+	struct bch_dev_io_failures {
+		u8		dev;
+		u8		nr_failed;
+		u8		nr_retries;
+	}			devs[BCH_REPLICAS_MAX];
+};
+
 #endif /* _BCACHEFS_EXTENTS_TYPES_H */
