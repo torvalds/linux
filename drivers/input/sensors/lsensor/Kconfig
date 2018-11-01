@@ -36,10 +36,6 @@ config LS_AP321XX
   bool "light sensor ap321xx"
 	default n
 
-config LS_PHOTORESISTOR	
-  bool "light sensor photoresistor"
-	default n
-
 config LS_US5152
   bool "light sensor us5152"
         default n
