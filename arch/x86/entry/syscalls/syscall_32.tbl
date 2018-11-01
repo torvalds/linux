@@ -403,7 +403,7 @@
 389	i386	fsopen			sys_fsopen			__ia32_sys_fsopen
 390	i386	fsconfig		sys_fsconfig			__ia32_sys_fsconfig
 391	i386	fsmount			sys_fsmount			__ia32_sys_fsmount
-# don't use number 392, add new calls at the end
+392	i386	fspick			sys_fspick			__ia32_sys_fspick
 393	i386	semget			sys_semget    			__ia32_sys_semget
 394	i386	semctl			sys_semctl    			__ia32_compat_sys_semctl
 395	i386	shmget			sys_shmget    			__ia32_sys_shmget
