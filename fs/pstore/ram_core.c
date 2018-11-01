@@ -503,8 +503,10 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 	bool zap = !!(prz->flags & PRZ_FLAG_ZAP_OLD);
 
 	ret = persistent_ram_init_ecc(prz, ecc_info);
-	if (ret)
+	if (ret) {
+		pr_warn("ECC failed %s\n", prz->label);
 		return ret;
+	}
 
 	sig ^= PERSISTENT_RAM_SIG;
 
