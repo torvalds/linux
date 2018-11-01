@@ -188,7 +188,7 @@ struct device_queue_manager {
 	unsigned int		total_queue_count;
 	unsigned int		next_pipe_to_allocate;
 	unsigned int		*allocated_queues;
-	unsigned int		sdma_bitmap;
+	uint64_t		sdma_bitmap;
 	unsigned int		vmid_bitmap;
 	uint64_t		pipelines_addr;
 	struct kfd_mem_obj	*pipeline_mem;
