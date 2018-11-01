@@ -517,7 +517,6 @@ static int skl_machine_device_register(struct skl *skl)
 {
 	struct snd_soc_acpi_mach *mach = skl->mach;
 	struct hdac_bus *bus = skl_to_bus(skl);
-	struct skl_machine_pdata *pdata;
 	struct platform_device *pdev;
 	int ret;
 
@@ -534,12 +533,9 @@ static int skl_machine_device_register(struct skl *skl)
 		return -EIO;
 	}
 
-	if (mach->pdata) {
-		pdata = (struct skl_machine_pdata *)mach->pdata;
-		pdata->platform = dev_name(bus->dev);
-		pdata->codec_mask = bus->codec_mask;
-		dev_set_drvdata(&pdev->dev, mach->pdata);
-	}
+	mach->mach_params.platform = dev_name(bus->dev);
+	mach->mach_params.codec_mask = bus->codec_mask;
+	dev_set_drvdata(&pdev->dev, mach);
 
 	skl->i2s_dev = pdev;
 
