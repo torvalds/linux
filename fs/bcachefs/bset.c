@@ -1774,7 +1774,7 @@ int bch2_bkey_print_bfloat(struct btree *b, struct bkey_packed *k,
 	struct bkey_packed *l, *r, *p;
 	struct bkey uk, up;
 	char buf1[200], buf2[200];
-	unsigned j;
+	unsigned j, inorder;
 
 	if (!size)
 		return 0;
@@ -1782,53 +1782,57 @@ int bch2_bkey_print_bfloat(struct btree *b, struct bkey_packed *k,
 	if (!bset_has_ro_aux_tree(t))
 		goto out;
 
-	j = __inorder_to_eytzinger1(bkey_to_cacheline(b, t, k), t->size, t->extra);
-	if (j &&
-	    j < t->size &&
-	    k == tree_to_bkey(b, t, j))
-		switch (bkey_float(b, t, j)->exponent) {
-		case BFLOAT_FAILED_UNPACKED:
-			uk = bkey_unpack_key(b, k);
-			return scnprintf(buf, size,
-					 "    failed unpacked at depth %u\n"
-					 "\t%llu:%llu\n",
-					 ilog2(j),
-					 uk.p.inode, uk.p.offset);
-		case BFLOAT_FAILED_PREV:
-			p = tree_to_prev_bkey(b, t, j);
-			l = is_power_of_2(j)
-				? btree_bkey_first(b, t)
-				: tree_to_prev_bkey(b, t, j >> ffs(j));
-			r = is_power_of_2(j + 1)
-				? bch2_bkey_prev_all(b, t, btree_bkey_last(b, t))
-				: tree_to_bkey(b, t, j >> (ffz(j) + 1));
+	inorder = bkey_to_cacheline(b, t, k);
+	if (!inorder || inorder >= t->size)
+		goto out;
 
-			up = bkey_unpack_key(b, p);
-			uk = bkey_unpack_key(b, k);
-			bch2_to_binary(buf1, high_word(&b->format, p), b->nr_key_bits);
-			bch2_to_binary(buf2, high_word(&b->format, k), b->nr_key_bits);
+	j = __inorder_to_eytzinger1(inorder, t->size, t->extra);
+	if (k != tree_to_bkey(b, t, j))
+		goto out;
 
-			return scnprintf(buf, size,
-					 "    failed prev at depth %u\n"
-					 "\tkey starts at bit %u but first differing bit at %u\n"
-					 "\t%llu:%llu\n"
-					 "\t%llu:%llu\n"
-					 "\t%s\n"
-					 "\t%s\n",
-					 ilog2(j),
-					 bch2_bkey_greatest_differing_bit(b, l, r),
-					 bch2_bkey_greatest_differing_bit(b, p, k),
-					 uk.p.inode, uk.p.offset,
-					 up.p.inode, up.p.offset,
-					 buf1, buf2);
-		case BFLOAT_FAILED_OVERFLOW:
-			uk = bkey_unpack_key(b, k);
-			return scnprintf(buf, size,
-					 "    failed overflow at depth %u\n"
-					 "\t%llu:%llu\n",
-					 ilog2(j),
-					 uk.p.inode, uk.p.offset);
-		}
+	switch (bkey_float(b, t, j)->exponent) {
+	case BFLOAT_FAILED_UNPACKED:
+		uk = bkey_unpack_key(b, k);
+		return scnprintf(buf, size,
+				 "    failed unpacked at depth %u\n"
+				 "\t%llu:%llu\n",
+				 ilog2(j),
+				 uk.p.inode, uk.p.offset);
+	case BFLOAT_FAILED_PREV:
+		p = tree_to_prev_bkey(b, t, j);
+		l = is_power_of_2(j)
+			? btree_bkey_first(b, t)
+			: tree_to_prev_bkey(b, t, j >> ffs(j));
+		r = is_power_of_2(j + 1)
+			? bch2_bkey_prev_all(b, t, btree_bkey_last(b, t))
+			: tree_to_bkey(b, t, j >> (ffz(j) + 1));
+
+		up = bkey_unpack_key(b, p);
+		uk = bkey_unpack_key(b, k);
+		bch2_to_binary(buf1, high_word(&b->format, p), b->nr_key_bits);
+		bch2_to_binary(buf2, high_word(&b->format, k), b->nr_key_bits);
+
+		return scnprintf(buf, size,
+				 "    failed prev at depth %u\n"
+				 "\tkey starts at bit %u but first differing bit at %u\n"
+				 "\t%llu:%llu\n"
+				 "\t%llu:%llu\n"
+				 "\t%s\n"
+				 "\t%s\n",
+				 ilog2(j),
+				 bch2_bkey_greatest_differing_bit(b, l, r),
+				 bch2_bkey_greatest_differing_bit(b, p, k),
+				 uk.p.inode, uk.p.offset,
+				 up.p.inode, up.p.offset,
+				 buf1, buf2);
+	case BFLOAT_FAILED_OVERFLOW:
+		uk = bkey_unpack_key(b, k);
+		return scnprintf(buf, size,
+				 "    failed overflow at depth %u\n"
+				 "\t%llu:%llu\n",
+				 ilog2(j),
+				 uk.p.inode, uk.p.offset);
+	}
 out:
 	*buf = '\0';
 	return 0;
