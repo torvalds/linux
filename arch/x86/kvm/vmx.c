@@ -9378,7 +9378,30 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 
 		vmx->nested.hv_evmcs = kmap(vmx->nested.hv_evmcs_page);
 
-		if (vmx->nested.hv_evmcs->revision_id != VMCS12_REVISION) {
+		/*
+		 * Currently, KVM only supports eVMCS version 1
+		 * (== KVM_EVMCS_VERSION) and thus we expect guest to set this
+		 * value to first u32 field of eVMCS which should specify eVMCS
+		 * VersionNumber.
+		 *
+		 * Guest should be aware of supported eVMCS versions by host by
+		 * examining CPUID.0x4000000A.EAX[0:15]. Host userspace VMM is
+		 * expected to set this CPUID leaf according to the value
+		 * returned in vmcs_version from nested_enable_evmcs().
+		 *
+		 * However, it turns out that Microsoft Hyper-V fails to comply
+		 * to their own invented interface: When Hyper-V use eVMCS, it
+		 * just sets first u32 field of eVMCS to revision_id specified
+		 * in MSR_IA32_VMX_BASIC. Instead of used eVMCS version number
+		 * which is one of the supported versions specified in
+		 * CPUID.0x4000000A.EAX[0:15].
+		 *
+		 * To overcome Hyper-V bug, we accept here either a supported
+		 * eVMCS version or VMCS12 revision_id as valid values for first
+		 * u32 field of eVMCS.
+		 */
+		if ((vmx->nested.hv_evmcs->revision_id != KVM_EVMCS_VERSION) &&
+		    (vmx->nested.hv_evmcs->revision_id != VMCS12_REVISION)) {
 			nested_release_evmcs(vcpu);
 			return 0;
 		}
