@@ -17,6 +17,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/gfp.h>
+#include <linux/fs_context.h>
 #include "internal.h"
 
 
