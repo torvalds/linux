@@ -63,12 +63,11 @@
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/random.h>
 #include <linux/crypto.h>
+#include <linux/atomic.h>
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
-
-DEFINE_SPINLOCK(krb5_seq_lock);
 
 static void *
 setup_token(struct krb5_ctx *ctx, struct xdr_netobj *token)
@@ -124,6 +123,30 @@ setup_token_v2(struct krb5_ctx *ctx, struct xdr_netobj *token)
 	return krb5_hdr;
 }
 
+u32
+gss_seq_send_fetch_and_inc(struct krb5_ctx *ctx)
+{
+	u32 old, seq_send = READ_ONCE(ctx->seq_send);
+
+	do {
+		old = seq_send;
+		seq_send = cmpxchg(&ctx->seq_send, old, old + 1);
+	} while (old != seq_send);
+	return seq_send;
+}
+
+u64
+gss_seq_send64_fetch_and_inc(struct krb5_ctx *ctx)
+{
+	u64 old, seq_send = READ_ONCE(ctx->seq_send);
+
+	do {
+		old = seq_send;
+		seq_send = cmpxchg64(&ctx->seq_send64, old, old + 1);
+	} while (old != seq_send);
+	return seq_send;
+}
+
 static u32
 gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 		struct xdr_netobj *token)
@@ -154,9 +177,7 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 
 	memcpy(ptr + GSS_KRB5_TOK_HDR_LEN, md5cksum.data, md5cksum.len);
 
-	spin_lock(&krb5_seq_lock);
-	seq_send = ctx->seq_send++;
-	spin_unlock(&krb5_seq_lock);
+	seq_send = gss_seq_send_fetch_and_inc(ctx);
 
 	if (krb5_make_seq_num(ctx, ctx->seq, ctx->initiate ? 0 : 0xff,
 			      seq_send, ptr + GSS_KRB5_TOK_HDR_LEN, ptr + 8))
@@ -174,7 +195,6 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 				       .data = cksumdata};
 	void *krb5_hdr;
 	s32 now;
-	u64 seq_send;
 	u8 *cksumkey;
 	unsigned int cksum_usage;
 	__be64 seq_send_be64;
@@ -185,11 +205,7 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 
 	/* Set up the sequence number. Now 64-bits in clear
 	 * text and w/o direction indicator */
-	spin_lock(&krb5_seq_lock);
-	seq_send = ctx->seq_send64++;
-	spin_unlock(&krb5_seq_lock);
-
-	seq_send_be64 = cpu_to_be64(seq_send);
+	seq_send_be64 = cpu_to_be64(gss_seq_send64_fetch_and_inc(ctx));
 	memcpy(krb5_hdr + 8, (char *) &seq_send_be64, 8);
 
 	if (ctx->initiate) {
