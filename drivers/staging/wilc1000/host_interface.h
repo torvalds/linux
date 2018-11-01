@@ -7,7 +7,7 @@
 #ifndef HOST_INT_H
 #define HOST_INT_H
 #include <linux/ieee80211.h>
-#include "coreconfigurator.h"
+#include "wilc_wlan_if.h"
 
 #define IDLE_MODE	0x00
 #define AP_MODE		0x01
@@ -55,6 +55,61 @@
 #define NUM_CONCURRENT_IFC			2
 #define DRV_HANDLER_SIZE			5
 #define DRV_HANDLER_MASK			0x000000FF
+
+#define NUM_RSSI                5
+
+#define SET_CFG              0
+#define GET_CFG              1
+
+#define MAX_ASSOC_RESP_FRAME_SIZE   256
+
+struct rssi_history_buffer {
+	bool full;
+	u8 index;
+	s8 samples[NUM_RSSI];
+};
+
+struct network_info {
+	s8 rssi;
+	u16 cap_info;
+	u8 ssid[MAX_SSID_LEN];
+	u8 ssid_len;
+	u8 bssid[6];
+	u16 beacon_period;
+	u8 dtim_period;
+	u8 ch;
+	unsigned long time_scan_cached;
+	unsigned long time_scan;
+	bool new_network;
+	u8 found;
+	u32 tsf_lo;
+	u8 *ies;
+	u16 ies_len;
+	void *join_params;
+	struct rssi_history_buffer rssi_history;
+	u64 tsf_hi;
+};
+
+struct connect_info {
+	u8 bssid[6];
+	u8 *req_ies;
+	size_t req_ies_len;
+	u8 *resp_ies;
+	u16 resp_ies_len;
+	u16 status;
+};
+
+struct disconnect_info {
+	u16 reason;
+	u8 *ie;
+	size_t ie_len;
+};
+
+struct assoc_resp {
+	__le16 capab_info;
+	__le16 status_code;
+	__le16 aid;
+} __packed;
 
 struct rf_info {
 	u8 link_speed;
@@ -358,5 +413,7 @@ void wilc_resolve_disconnect_aberration(struct wilc_vif *vif);
 int wilc_get_vif_idx(struct wilc_vif *vif);
 int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power);
 int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power);
-
+void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length);
+void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length);
+void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length);
 #endif
