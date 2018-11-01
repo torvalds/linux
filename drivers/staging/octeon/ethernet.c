@@ -141,8 +141,8 @@ static void cvm_oct_periodic_worker(struct work_struct *work)
 	if (priv->poll)
 		priv->poll(cvm_oct_device[priv->port]);
 
-	cvm_oct_device[priv->port]->netdev_ops->ndo_get_stats(
-						cvm_oct_device[priv->port]);
+	cvm_oct_device[priv->port]->netdev_ops->ndo_get_stats
+						(cvm_oct_device[priv->port]);
 
 	if (!atomic_read(&cvm_oct_poll_queue_stopping))
 		schedule_delayed_work(&priv->port_periodic_work, HZ);
@@ -621,8 +621,8 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 #endif
 };
 
-static struct device_node *cvm_oct_of_get_child(
-				const struct device_node *parent, int reg_val)
+static struct device_node *cvm_oct_of_get_child
+				(const struct device_node *parent, int reg_val)
 {
 	struct device_node *node = NULL;
 	int size;
@@ -818,7 +818,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			priv = netdev_priv(dev);
 			priv->netdev = dev;
 			priv->of_node = cvm_oct_node_for_port(pip, interface,
-								port_index);
+							      port_index);
 
 			INIT_DELAYED_WORK(&priv->port_periodic_work,
 					  cvm_oct_periodic_worker);
