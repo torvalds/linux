@@ -323,6 +323,7 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 
 	return fb;
 }
+EXPORT_SYMBOL_FOR_TESTS_ONLY(drm_internal_framebuffer_create);
 
 /**
  * drm_mode_addfb2 - add an FB to the graphics configuration
