@@ -8,29 +8,14 @@
 
 #include "coreconfigurator.h"
 
-static inline void get_address1(u8 *msa, u8 *addr)
+static inline u8 *get_bssid(struct ieee80211_mgmt *mgmt)
 {
-	memcpy(addr, msa + 4, 6);
-}
-
-static inline void get_address2(u8 *msa, u8 *addr)
-{
-	memcpy(addr, msa + 10, 6);
-}
-
-static inline void get_address3(u8 *msa, u8 *addr)
-{
-	memcpy(addr, msa + 16, 6);
-}
-
-static inline void get_bssid(__le16 fc, u8 *data, u8 *bssid)
-{
-	if (ieee80211_has_fromds(fc))
-		get_address2(data, bssid);
-	else if (ieee80211_has_tods(fc))
-		get_address1(data, bssid);
+	if (ieee80211_has_fromds(mgmt->frame_control))
+		return mgmt->sa;
+	else if (ieee80211_has_tods(mgmt->frame_control))
+		return mgmt->da;
 	else
-		get_address3(data, bssid);
+		return mgmt->bssid;
 }
 
 static inline u16 get_asoc_status(u8 *data)
@@ -87,7 +72,7 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 		return -EIO;
 	}
 
-	get_bssid(mgt->frame_control, msa, network_info->bssid);
+	ether_addr_copy(network_info->bssid, get_bssid(mgt));
 
 	ies = mgt->u.beacon.variable;
 	ies_len = rx_len - offset;
