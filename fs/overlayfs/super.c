@@ -472,6 +472,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 {
 	char *p;
 	int err;
+	bool metacopy_opt = false, redirect_opt = false;
 
 	config->redirect_mode = kstrdup(ovl_redirect_mode_def(), GFP_KERNEL);
 	if (!config->redirect_mode)
@@ -516,6 +517,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			config->redirect_mode = match_strdup(&args[0]);
 			if (!config->redirect_mode)
 				return -ENOMEM;
+			redirect_opt = true;
 			break;
 
 		case OPT_INDEX_ON:
@@ -548,6 +550,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 		case OPT_METACOPY_ON:
 			config->metacopy = true;
+			metacopy_opt = true;
 			break;
 
 		case OPT_METACOPY_OFF:
@@ -572,13 +575,32 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 	if (err)
 		return err;
 
-	/* metacopy feature with upper requires redirect_dir=on */
-	if (config->upperdir && config->metacopy && !config->redirect_dir) {
-		pr_warn("overlayfs: metadata only copy up requires \"redirect_dir=on\", falling back to metacopy=off.\n");
-		config->metacopy = false;
-	} else if (config->metacopy && !config->redirect_follow) {
-		pr_warn("overlayfs: metadata only copy up requires \"redirect_dir=follow\" on non-upper mount, falling back to metacopy=off.\n");
-		config->metacopy = false;
+	/*
+	 * This is to make the logic below simpler.  It doesn't make any other
+	 * difference, since config->redirect_dir is only used for upper.
+	 */
+	if (!config->upperdir && config->redirect_follow)
+		config->redirect_dir = true;
+
+	/* Resolve metacopy -> redirect_dir dependency */
+	if (config->metacopy && !config->redirect_dir) {
+		if (metacopy_opt && redirect_opt) {
+			pr_err("overlayfs: conflicting options: metacopy=on,redirect_dir=%s\n",
+			       config->redirect_mode);
+			return -EINVAL;
+		}
+		if (redirect_opt) {
+			/*
+			 * There was an explicit redirect_dir=... that resulted
+			 * in this conflict.
+			 */
+			pr_info("overlayfs: disabling metacopy due to redirect_dir=%s\n",
+				config->redirect_mode);
+			config->metacopy = false;
+		} else {
+			/* Automatically enable redirect otherwise. */
+			config->redirect_follow = config->redirect_dir = true;
+		}
 	}
 
 	return 0;
