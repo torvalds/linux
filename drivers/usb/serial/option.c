@@ -564,6 +564,9 @@ static void option_instat_callback(struct urb *urb);
 /* Interface is reserved */
 #define RSVD(ifnum)	((BIT(ifnum) & 0xff) << 0)
 
+/* Interface must have two endpoints */
+#define NUMEP2		BIT(16)
+
 
 static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
@@ -1085,7 +1088,7 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_BG96),
 	  .driver_info = RSVD(4) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EP06, 0xff, 0xff, 0xff),
-	  .driver_info = RSVD(1) | RSVD(2) | RSVD(3) | RSVD(4) },
+	  .driver_info = RSVD(1) | RSVD(2) | RSVD(3) | RSVD(4) | NUMEP2 },
 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EP06, 0xff, 0, 0) },
 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6001) },
 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_CMU_300) },
@@ -2012,16 +2015,11 @@ static int option_probe(struct usb_serial *serial,
 		return -ENODEV;
 
 	/*
-	 * Don't bind to the QMI device of the Quectel EP06/EG06/EM06. Class,
-	 * subclass and protocol is 0xff for both the diagnostic port and the
-	 * QMI interface, but the diagnostic port only has two endpoints (QMI
-	 * has three).
+	 * Allow matching on bNumEndpoints for devices whose interface numbers
+	 * can change (e.g. Quectel EP06).
 	 */
-	if (dev_desc->idVendor == cpu_to_le16(QUECTEL_VENDOR_ID) &&
-	    dev_desc->idProduct == cpu_to_le16(QUECTEL_PRODUCT_EP06) &&
-	    iface_desc->bInterfaceSubClass && iface_desc->bNumEndpoints == 3) {
+	if (device_flags & NUMEP2 && iface_desc->bNumEndpoints != 2)
 		return -ENODEV;
-	}
 
 	/* Store the device flags so we can use them during attach. */
 	usb_set_serial_data(serial, (void *)device_flags);
