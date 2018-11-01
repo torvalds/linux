@@ -88,6 +88,7 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/bpf.h>
+#include <uapi/linux/mount.h>
 
 #include "avc.h"
 #include "objsec.h"

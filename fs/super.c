@@ -35,6 +35,7 @@
 #include <linux/fsnotify.h>
 #include <linux/lockdep.h>
 #include <linux/user_namespace.h>
+#include <uapi/linux/mount.h>
 #include "internal.h"
 
 static int thaw_super_locked(struct super_block *sb);
