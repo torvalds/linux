@@ -562,7 +562,6 @@ skl_program_plane(struct intel_plane *plane,
 	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), plane_ctl);
 	I915_WRITE_FW(PLANE_SURF(pipe, plane_id),
 		      intel_plane_ggtt_offset(plane_state) + surf_addr);
-	POSTING_READ_FW(PLANE_SURF(pipe, plane_id));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -603,9 +602,7 @@ skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), 0);
-
 	I915_WRITE_FW(PLANE_SURF(pipe, plane_id), 0);
-	POSTING_READ_FW(PLANE_SURF(pipe, plane_id));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -851,7 +848,6 @@ vlv_update_plane(struct intel_plane *plane,
 	I915_WRITE_FW(SPCNTR(pipe, plane_id), sprctl);
 	I915_WRITE_FW(SPSURF(pipe, plane_id),
 		      intel_plane_ggtt_offset(plane_state) + sprsurf_offset);
-	POSTING_READ_FW(SPSURF(pipe, plane_id));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -867,9 +863,7 @@ vlv_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	I915_WRITE_FW(SPCNTR(pipe, plane_id), 0);
-
 	I915_WRITE_FW(SPSURF(pipe, plane_id), 0);
-	POSTING_READ_FW(SPSURF(pipe, plane_id));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -1017,7 +1011,6 @@ ivb_update_plane(struct intel_plane *plane,
 	I915_WRITE_FW(SPRCTL(pipe), sprctl);
 	I915_WRITE_FW(SPRSURF(pipe),
 		      intel_plane_ggtt_offset(plane_state) + sprsurf_offset);
-	POSTING_READ_FW(SPRSURF(pipe));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -1035,9 +1028,7 @@ ivb_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	/* Can't leave the scaler enabled... */
 	if (IS_IVYBRIDGE(dev_priv))
 		I915_WRITE_FW(SPRSCALE(pipe), 0);
-
 	I915_WRITE_FW(SPRSURF(pipe), 0);
-	POSTING_READ_FW(SPRSURF(pipe));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -1184,7 +1175,6 @@ g4x_update_plane(struct intel_plane *plane,
 	I915_WRITE_FW(DVSCNTR(pipe), dvscntr);
 	I915_WRITE_FW(DVSSURF(pipe),
 		      intel_plane_ggtt_offset(plane_state) + dvssurf_offset);
-	POSTING_READ_FW(DVSSURF(pipe));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -1201,9 +1191,7 @@ g4x_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	I915_WRITE_FW(DVSCNTR(pipe), 0);
 	/* Disable the scaler */
 	I915_WRITE_FW(DVSSCALE(pipe), 0);
-
 	I915_WRITE_FW(DVSSURF(pipe), 0);
-	POSTING_READ_FW(DVSSURF(pipe));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }

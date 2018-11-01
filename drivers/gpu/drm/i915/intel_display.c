@@ -3363,7 +3363,6 @@ static void i9xx_update_plane(struct intel_plane *plane,
 			      intel_plane_ggtt_offset(plane_state) +
 			      dspaddr_offset);
 	}
-	POSTING_READ_FW(reg);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -3382,7 +3381,6 @@ static void i9xx_disable_plane(struct intel_plane *plane,
 		I915_WRITE_FW(DSPSURF(i9xx_plane), 0);
 	else
 		I915_WRITE_FW(DSPADDR(i9xx_plane), 0);
-	POSTING_READ_FW(DSPCNTR(i9xx_plane));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -9818,8 +9816,6 @@ static void i845_update_cursor(struct intel_plane *plane,
 		I915_WRITE_FW(CURPOS(PIPE_A), pos);
 	}
 
-	POSTING_READ_FW(CURCNTR(PIPE_A));
-
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
@@ -10047,8 +10043,6 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 		I915_WRITE_FW(CURPOS(pipe), pos);
 		I915_WRITE_FW(CURBASE(pipe), base);
 	}
-
-	POSTING_READ_FW(CURBASE(pipe));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
