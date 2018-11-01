@@ -37,7 +37,6 @@ struct pagevec;
 struct afs_call;
 
 struct afs_fs_context {
-	bool			rwpath;		/* T if the parent should be considered R/W */
 	bool			force;		/* T to force cell type */
 	bool			autocell;	/* T if set auto mount operation */
 	bool			dyn_root;	/* T if dynamic root */
