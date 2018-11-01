@@ -2722,25 +2722,6 @@ static int i40iw_query_pkey(struct ib_device *ibdev,
 }
 
 /**
- * i40iw_get_vector_affinity - report IRQ affinity mask
- * @ibdev: IB device
- * @comp_vector: completion vector index
- */
-static const struct cpumask *i40iw_get_vector_affinity(struct ib_device *ibdev,
-						       int comp_vector)
-{
-	struct i40iw_device *iwdev = to_iwdev(ibdev);
-	struct i40iw_msix_vector *msix_vec;
-
-	if (iwdev->msix_shared)
-		msix_vec = &iwdev->iw_msixtbl[comp_vector];
-	else
-		msix_vec = &iwdev->iw_msixtbl[comp_vector + 1];
-
-	return irq_get_affinity_mask(msix_vec->irq);
-}
-
-/**
  * i40iw_init_rdma_device - initialization of iwarp device
  * @iwdev: iwarp device
  */
@@ -2832,7 +2813,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.req_notify_cq = i40iw_req_notify_cq;
 	iwibdev->ibdev.post_send = i40iw_post_send;
 	iwibdev->ibdev.post_recv = i40iw_post_recv;
-	iwibdev->ibdev.get_vector_affinity = i40iw_get_vector_affinity;
 
 	return iwibdev;
 }
