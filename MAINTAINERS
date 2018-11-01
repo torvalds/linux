@@ -376,7 +376,7 @@ F:	drivers/platform/x86/i2c-multi-instantiate.c
 ACPI PMIC DRIVERS
 M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Len Brown <lenb@kernel.org>
-R:	Andy Shevchenko <andy@infradead.org>
+R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 R:	Mika Westerberg <mika.westerberg@linux.intel.com>
 L:	linux-acpi@vger.kernel.org
 Q:	https://patchwork.kernel.org/project/linux-acpi/list/
@@ -4207,6 +4207,12 @@ M:	Pali Rohár <pali.rohar@gmail.com>
 S:	Maintained
 F:	drivers/platform/x86/dell-rbtn.*
 
+DELL REMOTE BIOS UPDATE DRIVER
+M:	Stuart Hayes <stuart.w.hayes@gmail.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/dell_rbu.c
+
 DELL LAPTOP SMM DRIVER
 M:	Pali Rohár <pali.rohar@gmail.com>
 S:	Maintained
@@ -4214,10 +4220,11 @@ F:	drivers/hwmon/dell-smm-hwmon.c
 F:	include/uapi/linux/i8k.h
 
 DELL SYSTEMS MANAGEMENT BASE DRIVER (dcdbas)
-M:	Doug Warzecha <Douglas_Warzecha@dell.com>
+M:	Stuart Hayes <stuart.w.hayes@gmail.com>
+L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	Documentation/dcdbas.txt
-F:	drivers/firmware/dcdbas.*
+F:	drivers/platform/x86/dcdbas.*
 
 DELL WMI NOTIFICATIONS DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
@@ -7347,6 +7354,12 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/intel/
 
+INTEL ATOMISP2 DUMMY / POWER-MANAGEMENT DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/intel_atomisp2_pm.c
+
 INTEL C600 SERIES SAS CONTROLLER DRIVER
 M:	Intel SCU Linux support <intel-linux-scu@intel.com>
 M:	Artur Paszkiewicz <artur.paszkiewicz@intel.com>
@@ -7533,7 +7546,6 @@ M:	Rajneesh Bhardwaj <rajneesh.bhardwaj@intel.com>
 M:	Vishwanath Somayaji <vishwanath.somayaji@intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-F:	arch/x86/include/asm/pmc_core.h
 F:	drivers/platform/x86/intel_pmc_core*
 
 INTEL PMC/P-Unit IPC DRIVER
@@ -7577,7 +7589,8 @@ F:	drivers/infiniband/hw/i40iw/
 F:	include/uapi/rdma/i40iw-abi.h
 
 INTEL TELEMETRY DRIVER
-M:	Souvik Kumar Chakravarty <souvik.k.chakravarty@intel.com>
+M:	Rajneesh Bhardwaj <rajneesh.bhardwaj@linux.intel.com>
+M:	"David E. Box" <david.e.box@linux.intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	arch/x86/include/asm/intel_telemetry.h
@@ -8309,6 +8322,14 @@ L:	legousb-devel@lists.sourceforge.net
 W:	http://legousb.sourceforge.net/
 S:	Maintained
 F:	drivers/usb/misc/legousbtower.c
+
+LG LAPTOP EXTRAS
+M:	Matan Ziv-Av <matan@svgalib.org>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-platform-lg-laptop
+F:	Documentation/laptops/lg-laptop.rst
+F:	drivers/platform/x86/lg-laptop.c
 
 LG2160 MEDIA DRIVER
 M:	Michael Krufky <mkrufky@linuxtv.org>

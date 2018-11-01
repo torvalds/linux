@@ -1,25 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *  intel_menlow.c - Intel menlow Driver for thermal management extension
+ *  Intel menlow Driver for thermal management extension
  *
  *  Copyright (C) 2008 Intel Corp
  *  Copyright (C) 2008 Sujith Thomas <sujith.thomas@intel.com>
  *  Copyright (C) 2008 Zhang Rui <rui.zhang@intel.com>
- *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  *  This driver creates the sys I/F for programming the sensors.
  *  It also implements the driver for intel menlow memory controller (hardware
@@ -29,20 +14,19 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
+#include <linux/slab.h>
 #include <linux/thermal.h>
-#include <linux/acpi.h>
+#include <linux/types.h>
 
 MODULE_AUTHOR("Thomas Sujith");
 MODULE_AUTHOR("Zhang Rui");
 MODULE_DESCRIPTION("Intel Menlow platform specific driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 /*
  * Memory controller device control
