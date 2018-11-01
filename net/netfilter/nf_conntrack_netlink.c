@@ -1688,6 +1688,22 @@ static int ctnetlink_change_timeout(struct nf_conn *ct,
 	return 0;
 }
 
+#if defined(CONFIG_NF_CONNTRACK_MARK)
+static void ctnetlink_change_mark(struct nf_conn *ct,
+				    const struct nlattr * const cda[])
+{
+	u32 mark, newmark, mask = 0;
+
+	if (cda[CTA_MARK_MASK])
+		mask = ~ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
+
+	mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+	newmark = (ct->mark & mask) ^ mark;
+	if (newmark != ct->mark)
+		ct->mark = newmark;
+}
+#endif
+
 static const struct nla_policy protoinfo_policy[CTA_PROTOINFO_MAX+1] = {
 	[CTA_PROTOINFO_TCP]	= { .type = NLA_NESTED },
 	[CTA_PROTOINFO_DCCP]	= { .type = NLA_NESTED },
@@ -1883,7 +1899,7 @@ ctnetlink_change_conntrack(struct nf_conn *ct,
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])
-		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+		ctnetlink_change_mark(ct, cda);
 #endif
 
 	if (cda[CTA_SEQ_ADJ_ORIG] || cda[CTA_SEQ_ADJ_REPLY]) {
@@ -2027,7 +2043,7 @@ ctnetlink_create_conntrack(struct net *net,
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])
-		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+		ctnetlink_change_mark(ct, cda);
 #endif
 
 	/* setup master conntrack: this is a confirmed expectation */
@@ -2524,14 +2540,7 @@ ctnetlink_glue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 	}
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK]) {
-		u32 mask = 0, mark, newmark;
-		if (cda[CTA_MARK_MASK])
-			mask = ~ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
-
-		mark = ntohl(nla_get_be32(cda[CTA_MARK]));
-		newmark = (ct->mark & mask) ^ mark;
-		if (newmark != ct->mark)
-			ct->mark = newmark;
+		ctnetlink_change_mark(ct, cda);
 	}
 #endif
 	return 0;
