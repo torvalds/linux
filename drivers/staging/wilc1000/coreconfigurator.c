@@ -18,14 +18,6 @@ static inline u8 *get_bssid(struct ieee80211_mgmt *mgmt)
 		return mgmt->bssid;
 }
 
-static inline u16 get_asoc_status(u8 *data)
-{
-	u16 asoc_status;
-
-	asoc_status = data[3];
-	return (asoc_status << 8) | data[2];
-}
-
 s32 wilc_parse_network_info(u8 *msg_buffer,
 			    struct network_info **ret_network_info)
 {
@@ -116,12 +108,12 @@ s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 {
 	u8 *ies;
 	u16 ies_len;
+	struct assoc_resp *res = (struct assoc_resp *)buffer;
 
-	ret_conn_info->status = get_asoc_status(buffer);
+	ret_conn_info->status = le16_to_cpu(res->status_code);
 	if (ret_conn_info->status == WLAN_STATUS_SUCCESS) {
-		ies = &buffer[CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN];
-		ies_len = buffer_len - (CAP_INFO_LEN + STATUS_CODE_LEN +
-					AID_LEN);
+		ies = &buffer[sizeof(*res)];
+		ies_len = buffer_len - sizeof(*res);
 
 		ret_conn_info->resp_ies = kmemdup(ies, ies_len, GFP_KERNEL);
 		if (!ret_conn_info->resp_ies)

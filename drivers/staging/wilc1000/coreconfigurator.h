@@ -11,10 +11,6 @@
 
 #define NUM_RSSI                5
 
-#define CAP_INFO_LEN            2
-#define STATUS_CODE_LEN         2
-#define AID_LEN                 2
-
 #define SET_CFG              0
 #define GET_CFG              1
 
@@ -62,6 +58,12 @@ struct disconnect_info {
 	u8 *ie;
 	size_t ie_len;
 };
+
+struct assoc_resp {
+	__le16 capab_info;
+	__le16 status_code;
+	__le16 aid;
+} __packed;
 
 s32 wilc_parse_network_info(u8 *msg_buffer,
 			    struct network_info **ret_network_info);
