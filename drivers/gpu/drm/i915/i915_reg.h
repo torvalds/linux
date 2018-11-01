@@ -6582,6 +6582,7 @@ enum {
 #define _PLANE_COLOR_CTL_3_A			0x703CC /* GLK+ */
 #define   PLANE_COLOR_PIPE_GAMMA_ENABLE		(1 << 30) /* Pre-ICL */
 #define   PLANE_COLOR_YUV_RANGE_CORRECTION_DISABLE	(1 << 28)
+#define   PLANE_COLOR_INPUT_CSC_ENABLE		(1 << 20) /* ICL+ */
 #define   PLANE_COLOR_PIPE_CSC_ENABLE		(1 << 23) /* Pre-ICL */
 #define   PLANE_COLOR_CSC_MODE_BYPASS			(0 << 17)
 #define   PLANE_COLOR_CSC_MODE_YUV601_TO_RGB709		(1 << 17)
@@ -6598,6 +6599,55 @@ enum {
 #define _PLANE_NV12_BUF_CFG_1_A		0x70278
 #define _PLANE_NV12_BUF_CFG_2_A		0x70378
 
+/* Input CSC Register Definitions */
+#define _PLANE_INPUT_CSC_RY_GY_1_A	0x701E0
+#define _PLANE_INPUT_CSC_RY_GY_2_A	0x702E0
+
+#define _PLANE_INPUT_CSC_RY_GY_1_B	0x711E0
+#define _PLANE_INPUT_CSC_RY_GY_2_B	0x712E0
+
+#define _PLANE_INPUT_CSC_RY_GY_1(pipe)	\
+	_PIPE(pipe, _PLANE_INPUT_CSC_RY_GY_1_A, \
+	     _PLANE_INPUT_CSC_RY_GY_1_B)
+#define _PLANE_INPUT_CSC_RY_GY_2(pipe)	\
+	_PIPE(pipe, _PLANE_INPUT_CSC_RY_GY_2_A, \
+	     _PLANE_INPUT_CSC_RY_GY_2_B)
+
+#define PLANE_INPUT_CSC_COEFF(pipe, plane, index)	\
+	_MMIO_PLANE(plane, _PLANE_INPUT_CSC_RY_GY_1(pipe) +  (index) * 4, \
+		    _PLANE_INPUT_CSC_RY_GY_2(pipe) + (index) * 4)
+
+#define _PLANE_INPUT_CSC_PREOFF_HI_1_A		0x701F8
+#define _PLANE_INPUT_CSC_PREOFF_HI_2_A		0x702F8
+
+#define _PLANE_INPUT_CSC_PREOFF_HI_1_B		0x711F8
+#define _PLANE_INPUT_CSC_PREOFF_HI_2_B		0x712F8
+
+#define _PLANE_INPUT_CSC_PREOFF_HI_1(pipe)	\
+	_PIPE(pipe, _PLANE_INPUT_CSC_PREOFF_HI_1_A, \
+	     _PLANE_INPUT_CSC_PREOFF_HI_1_B)
+#define _PLANE_INPUT_CSC_PREOFF_HI_2(pipe)	\
+	_PIPE(pipe, _PLANE_INPUT_CSC_PREOFF_HI_2_A, \
+	     _PLANE_INPUT_CSC_PREOFF_HI_2_B)
+#define PLANE_INPUT_CSC_PREOFF(pipe, plane, index)	\
+	_MMIO_PLANE(plane, _PLANE_INPUT_CSC_PREOFF_HI_1(pipe) + (index) * 4, \
+		    _PLANE_INPUT_CSC_PREOFF_HI_2(pipe) + (index) * 4)
+
+#define _PLANE_INPUT_CSC_POSTOFF_HI_1_A		0x70204
+#define _PLANE_INPUT_CSC_POSTOFF_HI_2_A		0x70304
+
+#define _PLANE_INPUT_CSC_POSTOFF_HI_1_B		0x71204
+#define _PLANE_INPUT_CSC_POSTOFF_HI_2_B		0x71304
+
+#define _PLANE_INPUT_CSC_POSTOFF_HI_1(pipe)	\
+	_PIPE(pipe, _PLANE_INPUT_CSC_POSTOFF_HI_1_A, \
+	     _PLANE_INPUT_CSC_POSTOFF_HI_1_B)
+#define _PLANE_INPUT_CSC_POSTOFF_HI_2(pipe)	\
+	_PIPE(pipe, _PLANE_INPUT_CSC_POSTOFF_HI_2_A, \
+	     _PLANE_INPUT_CSC_POSTOFF_HI_2_B)
+#define PLANE_INPUT_CSC_POSTOFF(pipe, plane, index)	\
+	_MMIO_PLANE(plane, _PLANE_INPUT_CSC_POSTOFF_HI_1(pipe) + (index) * 4, \
+		    _PLANE_INPUT_CSC_POSTOFF_HI_2(pipe) + (index) * 4)
 
 #define _PLANE_CTL_1_B				0x71180
 #define _PLANE_CTL_2_B				0x71280
