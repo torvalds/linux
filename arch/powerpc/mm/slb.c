@@ -708,7 +708,7 @@ static long slb_allocate_kernel(unsigned long ea, unsigned long id)
 			return -EFAULT;
 
 		if (ea < H_VMALLOC_END)
-			flags = get_paca()->vmalloc_sllp;
+			flags = local_paca->vmalloc_sllp;
 		else
 			flags = SLB_VSID_KERNEL | mmu_psize_defs[mmu_io_psize].sllp;
 	} else {
