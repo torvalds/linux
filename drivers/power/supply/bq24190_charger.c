@@ -1637,8 +1637,12 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
 	if (ret < 0)
 		return ret;
 
-	if (v != BQ24190_REG_VPRS_PN_24190 &&
-	    v != BQ24190_REG_VPRS_PN_24192I) {
+	switch (v) {
+	case BQ24190_REG_VPRS_PN_24190:
+	case BQ24190_REG_VPRS_PN_24192:
+	case BQ24190_REG_VPRS_PN_24192I:
+		break;
+	default:
 		dev_err(bdi->dev, "Error unknown model: 0x%02x\n", v);
 		return -ENODEV;
 	}
@@ -1931,6 +1935,7 @@ static const struct dev_pm_ops bq24190_pm_ops = {
 
 static const struct i2c_device_id bq24190_i2c_ids[] = {
 	{ "bq24190" },
+	{ "bq24192" },
 	{ "bq24192i" },
 	{ },
 };
@@ -1939,6 +1944,7 @@ MODULE_DEVICE_TABLE(i2c, bq24190_i2c_ids);
 #ifdef CONFIG_OF
 static const struct of_device_id bq24190_of_match[] = {
 	{ .compatible = "ti,bq24190", },
+	{ .compatible = "ti,bq24192", },
 	{ .compatible = "ti,bq24192i", },
 	{ },
 };
