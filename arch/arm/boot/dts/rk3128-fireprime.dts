@@ -114,6 +114,10 @@
 	};
 };
 
+&cma_region {
+	/delete-property/ reg;
+};
+
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
 };
