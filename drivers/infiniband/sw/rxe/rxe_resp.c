@@ -835,6 +835,7 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 	struct ib_wc *wc = &cqe.ibwc;
 	struct ib_uverbs_wc *uwc = &cqe.uibwc;
 	struct rxe_recv_wqe *wqe = qp->resp.wqe;
+	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 
 	if (unlikely(!wqe))
 		return RESPST_CLEANUP;
@@ -852,6 +853,7 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 	}
 
 	if (wc->status == IB_WC_SUCCESS) {
+		rxe_counter_inc(rxe, RXE_CNT_RDMA_RECV);
 		wc->opcode = (pkt->mask & RXE_IMMDT_MASK &&
 				pkt->mask & RXE_WRITE_MASK) ?
 					IB_WC_RECV_RDMA_WITH_IMM : IB_WC_RECV;
@@ -900,7 +902,6 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 			}
 
 			if (pkt->mask & RXE_IETH_MASK) {
-				struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 				struct rxe_mem *rmr;
 
 				wc->wc_flags |= IB_WC_WITH_INVALIDATE;

@@ -621,6 +621,7 @@ void rxe_port_down(struct rxe_dev *rxe)
 	port->attr.state = IB_PORT_DOWN;
 
 	rxe_port_event(rxe, IB_EVENT_PORT_ERR);
+	rxe_counter_inc(rxe, RXE_CNT_LINK_DOWNED);
 	dev_info(&rxe->ib_dev.dev, "set down\n");
 }
 
