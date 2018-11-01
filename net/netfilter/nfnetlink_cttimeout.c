@@ -382,7 +382,8 @@ err:
 static int
 cttimeout_default_fill_info(struct net *net, struct sk_buff *skb, u32 portid,
 			    u32 seq, u32 type, int event, u16 l3num,
-			    const struct nf_conntrack_l4proto *l4proto)
+			    const struct nf_conntrack_l4proto *l4proto,
+			    const unsigned int *timeouts)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
@@ -408,7 +409,7 @@ cttimeout_default_fill_info(struct net *net, struct sk_buff *skb, u32 portid,
 	if (!nest_parms)
 		goto nla_put_failure;
 
-	ret = l4proto->ctnl_timeout.obj_to_nlattr(skb, NULL);
+	ret = l4proto->ctnl_timeout.obj_to_nlattr(skb, timeouts);
 	if (ret < 0)
 		goto nla_put_failure;
 
@@ -430,6 +431,7 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 				 struct netlink_ext_ack *extack)
 {
 	const struct nf_conntrack_l4proto *l4proto;
+	unsigned int *timeouts = NULL;
 	struct sk_buff *skb2;
 	int ret, err;
 	__u16 l3num;
@@ -442,11 +444,43 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
 	l4proto = nf_ct_l4proto_find_get(l4num);
 
-	/* This protocol is not supported, skip. */
-	if (l4proto->l4proto != l4num) {
-		err = -EOPNOTSUPP;
+	err = -EOPNOTSUPP;
+	if (l4proto->l4proto != l4num)
 		goto err;
+
+	switch (l4proto->l4proto) {
+	case IPPROTO_ICMP:
+		timeouts = &nf_icmp_pernet(net)->timeout;
+		break;
+	case IPPROTO_TCP:
+		timeouts = nf_tcp_pernet(net)->timeouts;
+		break;
+	case IPPROTO_UDP:
+		timeouts = nf_udp_pernet(net)->timeouts;
+		break;
+	case IPPROTO_DCCP:
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+		timeouts = nf_dccp_pernet(net)->dccp_timeout;
+#endif
+		break;
+	case IPPROTO_ICMPV6:
+		timeouts = &nf_icmpv6_pernet(net)->timeout;
+		break;
+	case IPPROTO_SCTP:
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+		timeouts = nf_sctp_pernet(net)->timeouts;
+#endif
+		break;
+	case 255:
+		timeouts = &nf_generic_pernet(net)->timeout;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
 	}
+
+	if (!timeouts)
+		goto err;
 
 	skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (skb2 == NULL) {
@@ -458,8 +492,7 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 					  nlh->nlmsg_seq,
 					  NFNL_MSG_TYPE(nlh->nlmsg_type),
 					  IPCTNL_MSG_TIMEOUT_DEFAULT_SET,
-					  l3num,
-					  l4proto);
+					  l3num, l4proto, timeouts);
 	if (ret <= 0) {
 		kfree_skb(skb2);
 		err = -ENOMEM;
