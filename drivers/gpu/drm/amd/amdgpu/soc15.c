@@ -46,6 +46,7 @@
 #include "nbio/nbio_7_0_default.h"
 #include "nbio/nbio_7_0_sh_mask.h"
 #include "nbio/nbio_7_0_smn.h"
+#include "mp/mp_9_0_offset.h"
 
 #include "soc15.h"
 #include "soc15_common.h"
@@ -650,6 +651,23 @@ static void soc15_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	*count1 = RREG32_PCIE(smnPCIE_PERF_COUNT1_TXCLK) | (cnt1_of << 32);
 }
 
+static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
+{
+	u32 sol_reg;
+
+	if (adev->flags & AMD_IS_APU)
+		return false;
+
+	/* Check sOS sign of life register to confirm sys driver and sOS
+	 * are already been loaded.
+	 */
+	sol_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81);
+	if (sol_reg)
+		return true;
+
+	return false;
+}
+
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
@@ -666,6 +684,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.need_full_reset = &soc15_need_full_reset,
 	.init_doorbell_index = &vega10_doorbell_index_init,
 	.get_pcie_usage = &soc15_get_pcie_usage,
+	.need_reset_on_init = &soc15_need_reset_on_init,
 };
 
 static const struct amdgpu_asic_funcs vega20_asic_funcs =
@@ -684,6 +703,7 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.need_full_reset = &soc15_need_full_reset,
 	.init_doorbell_index = &vega20_doorbell_index_init,
 	.get_pcie_usage = &soc15_get_pcie_usage,
+	.need_reset_on_init = &soc15_need_reset_on_init,
 };
 
 static int soc15_common_early_init(void *handle)
