@@ -1259,6 +1259,11 @@ static bool si_need_full_reset(struct amdgpu_device *adev)
 	return true;
 }
 
+static bool si_need_reset_on_init(struct amdgpu_device *adev)
+{
+	return false;
+}
+
 static int si_get_pcie_lanes(struct amdgpu_device *adev)
 {
 	u32 link_width_cntl;
@@ -1387,6 +1392,7 @@ static const struct amdgpu_asic_funcs si_asic_funcs =
 	.invalidate_hdp = &si_invalidate_hdp,
 	.need_full_reset = &si_need_full_reset,
 	.get_pcie_usage = &si_get_pcie_usage,
+	.need_reset_on_init = &si_need_reset_on_init,
 };
 
 static uint32_t si_get_rev_id(struct amdgpu_device *adev)
