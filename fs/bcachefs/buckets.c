@@ -539,24 +539,10 @@ static int __disk_sectors(struct bch_extent_crc_unpacked crc, unsigned sectors)
 				    crc.uncompressed_size));
 }
 
-/*
- * Checking against gc's position has to be done here, inside the cmpxchg()
- * loop, to avoid racing with the start of gc clearing all the marks - GC does
- * that with the gc pos seqlock held.
- */
-static void bch2_mark_pointer(struct bch_fs *c,
-			      struct bkey_s_c_extent e,
-			      struct extent_ptr_decoded p,
-			      s64 sectors, enum bch_data_type data_type,
-			      unsigned replicas,
-			      struct bch_fs_usage *fs_usage,
-			      u64 journal_seq, unsigned flags)
+static s64 ptr_disk_sectors(struct bkey_s_c_extent e,
+			    struct extent_ptr_decoded p,
+			    s64 sectors)
 {
-	struct bucket_mark old, new;
-	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
-	struct bucket *g = PTR_BUCKET(ca, &p.ptr);
-	s64 uncompressed_sectors = sectors;
-	u64 v;
 
 	if (p.crc.compression_type) {
 		unsigned old_sectors, new_sectors;
@@ -573,19 +559,25 @@ static void bch2_mark_pointer(struct bch_fs *c,
 			  +__disk_sectors(p.crc, new_sectors);
 	}
 
-	/*
-	 * fs level usage (which determines free space) is in uncompressed
-	 * sectors, until copygc + compression is sorted out:
-	 *
-	 * note also that we always update @fs_usage, even when we otherwise
-	 * wouldn't do anything because gc is running - this is because the
-	 * caller still needs to account w.r.t. its disk reservation. It is
-	 * caller's responsibility to not apply @fs_usage if gc is in progress.
-	 */
-	fs_usage->replicas
-		[!p.ptr.cached && replicas ? replicas - 1 : 0].data
-		[!p.ptr.cached ? data_type : BCH_DATA_CACHED] +=
-			uncompressed_sectors;
+	return sectors;
+}
+
+/*
+ * Checking against gc's position has to be done here, inside the cmpxchg()
+ * loop, to avoid racing with the start of gc clearing all the marks - GC does
+ * that with the gc pos seqlock held.
+ */
+static void bch2_mark_pointer(struct bch_fs *c,
+			      struct bkey_s_c_extent e,
+			      struct extent_ptr_decoded p,
+			      s64 sectors, enum bch_data_type data_type,
+			      struct bch_fs_usage *fs_usage,
+			      u64 journal_seq, unsigned flags)
+{
+	struct bucket_mark old, new;
+	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
+	struct bucket *g = PTR_BUCKET(ca, &p.ptr);
+	u64 v;
 
 	if (flags & BCH_BUCKET_MARK_GC_WILL_VISIT) {
 		if (journal_seq)
@@ -644,16 +636,64 @@ static void bch2_mark_pointer(struct bch_fs *c,
 	       bucket_became_unavailable(c, old, new));
 }
 
-void bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
-		   s64 sectors, enum bch_data_type data_type,
-		   struct gc_pos pos,
-		   struct bch_fs_usage *stats,
-		   u64 journal_seq, unsigned flags)
+static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
+			     s64 sectors, enum bch_data_type data_type,
+			     struct gc_pos pos,
+			     struct bch_fs_usage *stats,
+			     u64 journal_seq, unsigned flags)
 {
 	unsigned replicas = bch2_extent_nr_dirty_ptrs(k);
 
 	BUG_ON(replicas && replicas - 1 > ARRAY_SIZE(stats->replicas));
+	BUG_ON(!sectors);
 
+	switch (k.k->type) {
+	case BCH_EXTENT:
+	case BCH_EXTENT_CACHED: {
+		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
+
+		extent_for_each_ptr_decode(e, p, entry) {
+			s64 disk_sectors = ptr_disk_sectors(e, p, sectors);
+
+			/*
+			 * fs level usage (which determines free space) is in
+			 * uncompressed sectors, until copygc + compression is
+			 * sorted out:
+			 *
+			 * note also that we always update @fs_usage, even when
+			 * we otherwise wouldn't do anything because gc is
+			 * running - this is because the caller still needs to
+			 * account w.r.t. its disk reservation. It is caller's
+			 * responsibility to not apply @fs_usage if gc is in
+			 * progress.
+			 */
+			stats->replicas
+				[!p.ptr.cached && replicas ? replicas - 1 : 0].data
+				[!p.ptr.cached ? data_type : BCH_DATA_CACHED] +=
+					sectors;
+
+			bch2_mark_pointer(c, e, p, disk_sectors, data_type,
+					  stats, journal_seq, flags);
+		}
+		break;
+	}
+	case BCH_RESERVATION:
+		if (replicas)
+			stats->replicas[replicas - 1].persistent_reserved +=
+				sectors * replicas;
+		break;
+	}
+}
+
+void bch2_mark_key(struct bch_fs *c,
+		   enum bkey_type type, struct bkey_s_c k,
+		   bool inserting, s64 sectors,
+		   struct gc_pos pos,
+		   struct bch_fs_usage *stats,
+		   u64 journal_seq, unsigned flags)
+{
 	/*
 	 * synchronization w.r.t. GC:
 	 *
@@ -690,24 +730,19 @@ void bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 	if (!stats)
 		stats = this_cpu_ptr(c->usage_percpu);
 
-	switch (k.k->type) {
-	case BCH_EXTENT:
-	case BCH_EXTENT_CACHED: {
-		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-		const union bch_extent_entry *entry;
-		struct extent_ptr_decoded p;
-
-		BUG_ON(!sectors);
-
-		extent_for_each_ptr_decode(e, p, entry)
-			bch2_mark_pointer(c, e, p, sectors, data_type,
-					  replicas, stats, journal_seq, flags);
+	switch (type) {
+	case BKEY_TYPE_BTREE:
+		bch2_mark_extent(c, k, inserting
+				 ?  c->opts.btree_node_size
+				 : -c->opts.btree_node_size,
+				 BCH_DATA_BTREE,
+				 pos, stats, journal_seq, flags);
 		break;
-	}
-	case BCH_RESERVATION:
-		if (replicas)
-			stats->replicas[replicas - 1].persistent_reserved +=
-				sectors * replicas;
+	case BKEY_TYPE_EXTENTS:
+		bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
+				 pos, stats, journal_seq, flags);
+		break;
+	default:
 		break;
 	}
 	percpu_up_read(&c->usage_lock);

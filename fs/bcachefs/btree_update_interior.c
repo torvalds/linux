@@ -211,11 +211,12 @@ found:
 	if (gc_pos_cmp(c->gc_pos, gc_phase(GC_PHASE_PENDING_DELETE)) < 0) {
 		struct bch_fs_usage tmp = { 0 };
 
-		bch2_mark_key(c, bkey_i_to_s_c(&d->key),
-			     -c->opts.btree_node_size, BCH_DATA_BTREE, b
-			     ? gc_pos_btree_node(b)
-			     : gc_pos_btree_root(as->btree_id),
-			     &tmp, 0, 0);
+		bch2_mark_key(c, BKEY_TYPE_BTREE,
+			      bkey_i_to_s_c(&d->key),
+			      false, 0, b
+			      ? gc_pos_btree_node(b)
+			      : gc_pos_btree_root(as->btree_id),
+			      &tmp, 0, 0);
 		/*
 		 * Don't apply tmp - pending deletes aren't tracked in
 		 * bch_alloc_stats:
@@ -290,10 +291,11 @@ static void bch2_btree_node_free_ondisk(struct bch_fs *c,
 
 	BUG_ON(!pending->index_update_done);
 
-	bch2_mark_key(c, bkey_i_to_s_c(&pending->key),
-		     -c->opts.btree_node_size, BCH_DATA_BTREE,
-		     gc_phase(GC_PHASE_PENDING_DELETE),
-		     &stats, 0, 0);
+	bch2_mark_key(c, BKEY_TYPE_BTREE,
+		      bkey_i_to_s_c(&pending->key),
+		      false, 0,
+		      gc_phase(GC_PHASE_PENDING_DELETE),
+		      &stats, 0, 0);
 	/*
 	 * Don't apply stats - pending deletes aren't tracked in
 	 * bch_alloc_stats:
@@ -1092,8 +1094,9 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 
 	__bch2_btree_set_root_inmem(c, b);
 
-	bch2_mark_key(c, bkey_i_to_s_c(&b->key),
-		      c->opts.btree_node_size, BCH_DATA_BTREE,
+	bch2_mark_key(c, BKEY_TYPE_BTREE,
+		      bkey_i_to_s_c(&b->key),
+		      true, 0,
 		      gc_pos_btree_root(b->btree_id),
 		      &stats, 0, 0);
 
@@ -1180,9 +1183,10 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 	BUG_ON(insert->k.u64s > bch_btree_keys_u64s_remaining(c, b));
 
 	if (bkey_extent_is_data(&insert->k))
-		bch2_mark_key(c, bkey_i_to_s_c(insert),
-			     c->opts.btree_node_size, BCH_DATA_BTREE,
-			     gc_pos_btree_node(b), &stats, 0, 0);
+		bch2_mark_key(c, BKEY_TYPE_BTREE,
+			      bkey_i_to_s_c(insert),
+			      true, 0,
+			      gc_pos_btree_node(b), &stats, 0, 0);
 
 	while ((k = bch2_btree_node_iter_peek_all(node_iter, b)) &&
 	       bkey_iter_pos_cmp(b, &insert->k.p, k) > 0)
@@ -1967,8 +1971,9 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 
 		bch2_btree_node_lock_write(b, iter);
 
-		bch2_mark_key(c, bkey_i_to_s_c(&new_key->k_i),
-			      c->opts.btree_node_size, BCH_DATA_BTREE,
+		bch2_mark_key(c, BKEY_TYPE_BTREE,
+			      bkey_i_to_s_c(&new_key->k_i),
+			      true, 0,
 			      gc_pos_btree_root(b->btree_id),
 			      &stats, 0, 0);
 		bch2_btree_node_free_index(as, NULL,

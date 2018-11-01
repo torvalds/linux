@@ -212,34 +212,31 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum bkey_type type,
 			    struct bkey_s_c k, bool initial)
 {
 	struct gc_pos pos = { 0 };
-	unsigned flags = initial ? BCH_BUCKET_MARK_NOATOMIC : 0;
+	unsigned flags =
+		BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
+		BCH_BUCKET_MARK_GC_LOCK_HELD|
+		(initial ? BCH_BUCKET_MARK_NOATOMIC : 0);
 	int ret = 0;
 
 	switch (type) {
 	case BKEY_TYPE_BTREE:
-		if (initial) {
-			ret = bch2_btree_mark_ptrs_initial(c, type, k);
-			if (ret < 0)
-				return ret;
-		}
-
-		bch2_mark_key(c, k, c->opts.btree_node_size,
-			      BCH_DATA_BTREE, pos, NULL,
-			      0, flags|
-			      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-			      BCH_BUCKET_MARK_GC_LOCK_HELD);
-		break;
 	case BKEY_TYPE_EXTENTS:
 		if (initial) {
 			ret = bch2_btree_mark_ptrs_initial(c, type, k);
 			if (ret < 0)
 				return ret;
 		}
+		break;
+	default:
+		break;
+	}
 
-		bch2_mark_key(c, k, k.k->size, BCH_DATA_USER, pos, NULL,
-			      0, flags|
-			      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-			      BCH_BUCKET_MARK_GC_LOCK_HELD);
+	bch2_mark_key(c, type, k, true, k.k->size,
+		      pos, NULL, 0, flags);
+
+	switch (type) {
+	case BKEY_TYPE_BTREE:
+	case BKEY_TYPE_EXTENTS:
 		ret = bch2_btree_key_recalc_oldest_gen(c, k);
 		break;
 	default:
@@ -473,10 +470,10 @@ static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 
 	for_each_pending_btree_node_free(c, as, d)
 		if (d->index_update_done)
-			bch2_mark_key(c, bkey_i_to_s_c(&d->key),
-				      c->opts.btree_node_size,
-				      BCH_DATA_BTREE, pos,
-				      &stats, 0,
+			bch2_mark_key(c, BKEY_TYPE_BTREE,
+				      bkey_i_to_s_c(&d->key),
+				      true, 0,
+				      pos, &stats, 0,
 				      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
 				      BCH_BUCKET_MARK_GC_LOCK_HELD);
 	/*
