@@ -702,7 +702,7 @@ static noinline void check_multi_find_2(struct xarray *xa)
 	}
 }
 
-static noinline void check_find(struct xarray *xa)
+static noinline void check_find_1(struct xarray *xa)
 {
 	unsigned long i, j, k;
 
@@ -748,6 +748,34 @@ static noinline void check_find(struct xarray *xa)
 		XA_BUG_ON(xa, xa_get_mark(xa, i, XA_MARK_0));
 	}
 	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
+static noinline void check_find_2(struct xarray *xa)
+{
+	void *entry;
+	unsigned long i, j, index = 0;
+
+	xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+		XA_BUG_ON(xa, true);
+	}
+
+	for (i = 0; i < 1024; i++) {
+		xa_store_index(xa, index, GFP_KERNEL);
+		j = 0;
+		index = 0;
+		xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+			XA_BUG_ON(xa, xa_mk_value(index) != entry);
+			XA_BUG_ON(xa, index != j++);
+		}
+	}
+
+	xa_destroy(xa);
+}
+
+static noinline void check_find(struct xarray *xa)
+{
+	check_find_1(xa);
+	check_find_2(xa);
 	check_multi_find(xa);
 	check_multi_find_2(xa);
 }

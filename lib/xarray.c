@@ -1829,6 +1829,8 @@ void *xa_find_after(struct xarray *xa, unsigned long *indexp,
 			entry = xas_find_marked(&xas, max, filter);
 		else
 			entry = xas_find(&xas, max);
+		if (xas.xa_node == XAS_BOUNDS)
+			break;
 		if (xas.xa_shift) {
 			if (xas.xa_index & ((1UL << xas.xa_shift) - 1))
 				continue;
