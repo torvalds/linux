@@ -192,10 +192,10 @@ struct pstore_info {
 };
 
 /* Supported frontends */
-#define PSTORE_FLAGS_DMESG	(1 << 0)
-#define PSTORE_FLAGS_CONSOLE	(1 << 1)
-#define PSTORE_FLAGS_FTRACE	(1 << 2)
-#define PSTORE_FLAGS_PMSG	(1 << 3)
+#define PSTORE_FLAGS_DMESG	BIT(0)
+#define PSTORE_FLAGS_CONSOLE	BIT(1)
+#define PSTORE_FLAGS_FTRACE	BIT(2)
+#define PSTORE_FLAGS_PMSG	BIT(3)
 
 extern int pstore_register(struct pstore_info *);
 extern void pstore_unregister(struct pstore_info *);
