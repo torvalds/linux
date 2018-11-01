@@ -1806,14 +1806,14 @@ void btrfs_set_delalloc_extent(struct inode *inode, struct extent_state *state,
 }
 
 /*
- * extent_io.c clear_bit_hook, see set_bit_hook for why
+ * Once a range is no longer delalloc this function ensures that proper
+ * accounting happens.
  */
-static void btrfs_clear_bit_hook(void *private_data,
-				 struct extent_state *state,
-				 unsigned *bits)
+void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
+				 struct extent_state *state, unsigned *bits)
 {
-	struct btrfs_inode *inode = BTRFS_I((struct inode *)private_data);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_inode *inode = BTRFS_I(vfs_inode);
+	struct btrfs_fs_info *fs_info = btrfs_sb(vfs_inode->i_sb);
 	u64 len = state->end + 1 - state->start;
 	u32 num_extents = count_max_extents(len);
 
@@ -10509,7 +10509,6 @@ static const struct extent_io_ops btrfs_extent_io_ops = {
 	.readpage_io_failed_hook = btrfs_readpage_io_failed_hook,
 
 	/* optional callbacks */
-	.clear_bit_hook = btrfs_clear_bit_hook,
 	.merge_extent_hook = btrfs_merge_extent_hook,
 	.split_extent_hook = btrfs_split_extent_hook,
 };
