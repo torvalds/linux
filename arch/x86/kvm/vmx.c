@@ -2084,6 +2084,12 @@ static inline bool nested_cpu_has_shadow_vmcs(struct vmcs12 *vmcs12)
 	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_SHADOW_VMCS);
 }
 
+static inline bool nested_cpu_has_save_preemption_timer(struct vmcs12 *vmcs12)
+{
+	return vmcs12->vm_exit_controls &
+	    VM_EXIT_SAVE_VMX_PREEMPTION_TIMER;
+}
+
 static inline bool is_nmi(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
@@ -13049,6 +13055,10 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (nested_vmx_check_msr_switch_controls(vcpu, vmcs12))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (!nested_cpu_has_preemption_timer(vmcs12) &&
+	    nested_cpu_has_save_preemption_timer(vmcs12))
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (nested_vmx_check_pml_controls(vcpu, vmcs12))
