@@ -82,7 +82,6 @@ static int __init arm_idle_init_cpu(int cpu)
 {
 	int ret;
 	struct cpuidle_driver *drv;
-	struct cpuidle_device *dev;
 
 	drv = kmemdup(&arm_idle_driver, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
@@ -119,33 +118,12 @@ static int __init arm_idle_init_cpu(int cpu)
 		goto out_kfree_drv;
 	}
 
-	ret = cpuidle_register_driver(drv);
-	if (ret) {
-		if (ret != -EBUSY)
-			pr_err("Failed to register cpuidle driver\n");
+	ret = cpuidle_register(drv, NULL);
+	if (ret)
 		goto out_kfree_drv;
-	}
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		ret = -ENOMEM;
-		goto out_unregister_drv;
-	}
-	dev->cpu = cpu;
-
-	ret = cpuidle_register_device(dev);
-	if (ret) {
-		pr_err("Failed to register cpuidle device for CPU %d\n",
-		       cpu);
-		goto out_kfree_dev;
-	}
 
 	return 0;
 
-out_kfree_dev:
-	kfree(dev);
-out_unregister_drv:
-	cpuidle_unregister_driver(drv);
 out_kfree_drv:
 	kfree(drv);
 	return ret;
@@ -176,9 +154,7 @@ out_fail:
 	while (--cpu >= 0) {
 		dev = per_cpu(cpuidle_devices, cpu);
 		drv = cpuidle_get_cpu_driver(dev);
-		cpuidle_unregister_device(dev);
-		cpuidle_unregister_driver(drv);
-		kfree(dev);
+		cpuidle_unregister(drv);
 		kfree(drv);
 	}
 
