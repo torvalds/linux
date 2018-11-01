@@ -997,17 +997,15 @@ struct vfsmount *vfs_kern_mount(struct file_system_type *type,
 	int ret = 0;
 
 	if (!type)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EINVAL);
 
 	fc = fs_context_for_mount(type, flags);
 	if (IS_ERR(fc))
 		return ERR_CAST(fc);
 
-	if (name) {
-		fc->source = kstrdup(name, GFP_KERNEL);
-		if (!fc->source)
-			ret = -ENOMEM;
-	}
+	if (name)
+		ret = vfs_parse_fs_string(fc, "source",
+					  name, strlen(name));
 	if (!ret)
 		ret = parse_monolithic_mount_data(fc, data);
 	if (!ret)
@@ -2611,16 +2609,11 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 	if (IS_ERR(fc))
 		return PTR_ERR(fc);
 
-	if (subtype) {
-		fc->subtype = kstrdup(subtype, GFP_KERNEL);
-		if (!fc->subtype)
-			err = -ENOMEM;
-	}
-	if (!err && name) {
-		fc->source = kstrdup(name, GFP_KERNEL);
-		if (!fc->source)
-			err = -ENOMEM;
-	}
+	if (subtype)
+		err = vfs_parse_fs_string(fc, "subtype",
+					  subtype, strlen(subtype));
+	if (!err && name)
+		err = vfs_parse_fs_string(fc, "source", name, strlen(name));
 	if (!err)
 		err = parse_monolithic_mount_data(fc, data);
 	if (!err)
