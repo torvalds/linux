@@ -922,6 +922,8 @@ int
 drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc)
 {
+	const struct drm_crtc_state *old_crtc_state =
+		drm_atomic_get_old_crtc_state(state, crtc);
 	struct drm_plane *plane;
 
 	WARN_ON(!drm_atomic_get_new_crtc_state(state, crtc));
@@ -929,7 +931,7 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 	DRM_DEBUG_ATOMIC("Adding all current planes for [CRTC:%d:%s] to %p\n",
 			 crtc->base.id, crtc->name, state);
 
-	drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
+	drm_for_each_plane_mask(plane, state->dev, old_crtc_state->plane_mask) {
 		struct drm_plane_state *plane_state =
 			drm_atomic_get_plane_state(state, plane);
 
