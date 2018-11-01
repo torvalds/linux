@@ -2412,14 +2412,9 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 {
 	int uptodate = (err == 0);
-	struct extent_io_tree *tree;
 	int ret = 0;
 
-	tree = &BTRFS_I(page->mapping->host)->io_tree;
-
-	if (tree->ops && tree->ops->writepage_end_io_hook)
-		tree->ops->writepage_end_io_hook(page, start, end, NULL,
-				uptodate);
+	btrfs_writepage_endio_finish_ordered(page, start, end, NULL, uptodate);
 
 	if (!uptodate) {
 		ClearPageUptodate(page);
@@ -3342,9 +3337,8 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 	end = page_end;
 	if (i_size <= start) {
-		if (tree->ops && tree->ops->writepage_end_io_hook)
-			tree->ops->writepage_end_io_hook(page, start,
-							 page_end, NULL, 1);
+		btrfs_writepage_endio_finish_ordered(page, start, page_end,
+						     NULL, 1);
 		goto done;
 	}
 
@@ -3355,9 +3349,8 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 		u64 offset;
 
 		if (cur >= i_size) {
-			if (tree->ops && tree->ops->writepage_end_io_hook)
-				tree->ops->writepage_end_io_hook(page, cur,
-							 page_end, NULL, 1);
+			btrfs_writepage_endio_finish_ordered(page, cur,
+							     page_end, NULL, 1);
 			break;
 		}
 		em = btrfs_get_extent(BTRFS_I(inode), page, pg_offset, cur,
@@ -3391,11 +3384,10 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 			 * end_io notification does not happen here for
 			 * compressed extents
 			 */
-			if (!compressed && tree->ops &&
-			    tree->ops->writepage_end_io_hook)
-				tree->ops->writepage_end_io_hook(page, cur,
-							 cur + iosize - 1,
-							 NULL, 1);
+			if (!compressed)
+				btrfs_writepage_endio_finish_ordered(page, cur,
+							    cur + iosize - 1,
+							    NULL, 1);
 			else if (compressed) {
 				/* we don't want to end_page_writeback on
 				 * a compressed extent.  this happens
@@ -4079,10 +4071,9 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 		if (clear_page_dirty_for_io(page))
 			ret = __extent_writepage(page, &wbc_writepages, &epd);
 		else {
-			if (tree->ops && tree->ops->writepage_end_io_hook)
-				tree->ops->writepage_end_io_hook(page, start,
-						 start + PAGE_SIZE - 1,
-						 NULL, 1);
+			btrfs_writepage_endio_finish_ordered(page, start,
+						    start + PAGE_SIZE - 1,
+						    NULL, 1);
 			unlock_page(page);
 		}
 		put_page(page);

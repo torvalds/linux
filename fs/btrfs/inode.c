@@ -847,14 +847,14 @@ retry:
 				    ins.offset, async_extent->pages,
 				    async_extent->nr_pages,
 				    async_cow->write_flags)) {
-			struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 			struct page *p = async_extent->pages[0];
 			const u64 start = async_extent->start;
 			const u64 end = start + async_extent->ram_size - 1;
 
 			p->mapping = inode->i_mapping;
-			tree->ops->writepage_end_io_hook(p, start, end,
-							 NULL, 0);
+			btrfs_writepage_endio_finish_ordered(p, start, end,
+							     NULL, 0);
+
 			p->mapping = NULL;
 			extent_clear_unlock_delalloc(inode, start, end, end,
 						     NULL, 0,
@@ -3159,7 +3159,7 @@ static void finish_ordered_fn(struct btrfs_work *work)
 	btrfs_finish_ordered_io(ordered_extent);
 }
 
-static void btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
+void btrfs_writepage_endio_finish_ordered(struct page *page, u64 start, u64 end,
 				struct extent_state *state, int uptodate)
 {
 	struct inode *inode = page->mapping->host;
@@ -10526,7 +10526,6 @@ static const struct extent_io_ops btrfs_extent_io_ops = {
 	.readpage_io_failed_hook = btrfs_readpage_io_failed_hook,
 
 	/* optional callbacks */
-	.writepage_end_io_hook = btrfs_writepage_end_io_hook,
 	.set_bit_hook = btrfs_set_bit_hook,
 	.clear_bit_hook = btrfs_clear_bit_hook,
 	.merge_extent_hook = btrfs_merge_extent_hook,
