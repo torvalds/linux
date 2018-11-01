@@ -29,7 +29,6 @@
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <asm/cpu_device_id.h>
-#include <asm/platform_sst_audio.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -1152,10 +1151,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	 * (will be overridden if DMI quirk is detected)
 	 */
 	if (is_valleyview()) {
-		struct sst_platform_info *p_info = mach->pdata;
-		const struct sst_res_info *res_info = p_info->res_info;
-
-		if (res_info->acpi_ipc_irq_index == 0)
+		if (mach->mach_params.acpi_ipc_irq_index == 0)
 			is_bytcr = true;
 	}
 
