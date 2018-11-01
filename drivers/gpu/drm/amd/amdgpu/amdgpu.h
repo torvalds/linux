@@ -545,6 +545,8 @@ struct amdgpu_asic_funcs {
 	/* PCIe bandwidth usage */
 	void (*get_pcie_usage)(struct amdgpu_device *adev, uint64_t *count0,
 			       uint64_t *count1);
+	/* do we need to reset the asic at init time (e.g., kexec) */
+	bool (*need_reset_on_init)(struct amdgpu_device *adev);
 };
 
 /*
@@ -1046,6 +1048,7 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define amdgpu_asic_need_full_reset(adev) (adev)->asic_funcs->need_full_reset((adev))
 #define amdgpu_asic_init_doorbell_index(adev) (adev)->asic_funcs->init_doorbell_index((adev))
 #define amdgpu_asic_get_pcie_usage(adev, cnt0, cnt1) ((adev)->asic_funcs->get_pcie_usage((adev), (cnt0), (cnt1)))
+#define amdgpu_asic_need_reset_on_init(adev) (adev)->asic_funcs->need_reset_on_init((adev))
 
 /* Common functions */
 bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev);
