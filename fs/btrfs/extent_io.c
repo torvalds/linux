@@ -3321,20 +3321,17 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	int nr = 0;
 	bool compressed;
 
-	if (tree->ops && tree->ops->writepage_start_hook) {
-		ret = tree->ops->writepage_start_hook(page, start,
-						      page_end);
-		if (ret) {
-			/* Fixup worker will requeue */
-			if (ret == -EBUSY)
-				wbc->pages_skipped++;
-			else
-				redirty_page_for_writepage(wbc, page);
+	ret = btrfs_writepage_cow_fixup(page, start, page_end);
+	if (ret) {
+		/* Fixup worker will requeue */
+		if (ret == -EBUSY)
+			wbc->pages_skipped++;
+		else
+			redirty_page_for_writepage(wbc, page);
 
-			update_nr_written(wbc, nr_written);
-			unlock_page(page);
-			return 1;
-		}
+		update_nr_written(wbc, nr_written);
+		unlock_page(page);
+		return 1;
 	}
 
 	/*

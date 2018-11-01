@@ -3192,6 +3192,7 @@ int btrfs_prealloc_file_range_trans(struct inode *inode,
 int btrfs_run_delalloc_range(void *private_data, struct page *locked_page,
 		u64 start, u64 end, int *page_started, unsigned long *nr_written,
 		struct writeback_control *wbc);
+int btrfs_writepage_cow_fixup(struct page *page, u64 start, u64 end);
 extern const struct dentry_operations btrfs_dentry_operations;
 
 /* ioctl.c */

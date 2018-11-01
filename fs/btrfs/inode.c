@@ -2152,7 +2152,7 @@ out_page:
  * to fix it up.  The async helper will wait for ordered extents, set
  * the delalloc bit and make it safe to write the page.
  */
-static int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
+int btrfs_writepage_cow_fixup(struct page *page, u64 start, u64 end)
 {
 	struct inode *inode = page->mapping->host;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -10527,7 +10527,6 @@ static const struct extent_io_ops btrfs_extent_io_ops = {
 
 	/* optional callbacks */
 	.writepage_end_io_hook = btrfs_writepage_end_io_hook,
-	.writepage_start_hook = btrfs_writepage_start_hook,
 	.set_bit_hook = btrfs_set_bit_hook,
 	.clear_bit_hook = btrfs_clear_bit_hook,
 	.merge_extent_hook = btrfs_merge_extent_hook,
