@@ -310,9 +310,11 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 }
 EXPORT_SYMBOL(drm_atomic_get_crtc_state);
 
-static int drm_atomic_crtc_check(struct drm_crtc *crtc,
-		struct drm_crtc_state *state)
+static int drm_atomic_crtc_check(const struct drm_crtc_state *old_crtc_state,
+				 const struct drm_crtc_state *new_crtc_state)
 {
+	struct drm_crtc *crtc = new_crtc_state->crtc;
+
 	/* NOTE: we explicitly don't enforce constraints such as primary
 	 * layer covering entire screen, since that is something we want
 	 * to allow (on hw that supports it).  For hw that does not, it
@@ -321,7 +323,7 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 * TODO: Add generic modeset state checks once we support those.
 	 */
 
-	if (state->active && !state->enable) {
+	if (new_crtc_state->active && !new_crtc_state->enable) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] active without enabled\n",
 				 crtc->base.id, crtc->name);
 		return -EINVAL;
@@ -331,14 +333,14 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 * as this is a kernel-internal detail that userspace should never
 	 * be able to trigger. */
 	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
-	    WARN_ON(state->enable && !state->mode_blob)) {
+	    WARN_ON(new_crtc_state->enable && !new_crtc_state->mode_blob)) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] enabled without mode blob\n",
 				 crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 
 	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
-	    WARN_ON(!state->enable && state->mode_blob)) {
+	    WARN_ON(!new_crtc_state->enable && new_crtc_state->mode_blob)) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] disabled with mode blob\n",
 				 crtc->base.id, crtc->name);
 		return -EINVAL;
@@ -354,7 +356,8 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 * and legacy page_flip IOCTL which also reject service on a disabled
 	 * pipe.
 	 */
-	if (state->event && !state->active && !crtc->state->active) {
+	if (new_crtc_state->event &&
+	    !new_crtc_state->active && !old_crtc_state->active) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] requesting event but off\n",
 				 crtc->base.id, crtc->name);
 		return -EINVAL;
@@ -960,7 +963,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc_state *new_crtc_state;
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
 	int i, ret = 0;
@@ -976,8 +980,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		}
 	}
 
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		ret = drm_atomic_crtc_check(crtc, crtc_state);
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		ret = drm_atomic_crtc_check(old_crtc_state, new_crtc_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic core check failed\n",
 					 crtc->base.id, crtc->name);
@@ -1005,8 +1009,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	}
 
 	if (!state->allow_modeset) {
-		for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-			if (drm_atomic_crtc_needs_modeset(crtc_state)) {
+		for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+			if (drm_atomic_crtc_needs_modeset(new_crtc_state)) {
 				DRM_DEBUG_ATOMIC("[CRTC:%d:%s] requires full modeset\n",
 						 crtc->base.id, crtc->name);
 				return -EINVAL;
