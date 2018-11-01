@@ -3501,7 +3501,8 @@ int cmd_trace(int argc, const char **argv)
 		evsel->handler = trace__sys_enter;
 
 		evlist__for_each_entry(trace.evlist, evsel) {
-			if (strstarts(perf_evsel__name(evsel), "syscalls:sys_exit_")) {
+			if (strstarts(perf_evsel__name(evsel), "syscalls:sys_exit_") ||
+			    strcmp(perf_evsel__name(evsel), "raw_syscalls:sys_exit") == 0) {
 				perf_evsel__init_augmented_syscall_tp(evsel);
 				perf_evsel__init_augmented_syscall_tp_ret(evsel);
 				evsel->handler = trace__sys_exit;
