@@ -400,3 +400,65 @@ int drm_format_plane_height(int height, uint32_t format, int plane)
 	return height / info->vsub;
 }
 EXPORT_SYMBOL(drm_format_plane_height);
+
+/**
+ * drm_format_info_block_width - width in pixels of block.
+ * @info: pixel format info
+ * @plane: plane index
+ *
+ * Returns:
+ * The width in pixels of a block, depending on the plane index.
+ */
+unsigned int drm_format_info_block_width(const struct drm_format_info *info,
+					 int plane)
+{
+	if (!info || plane < 0 || plane >= info->num_planes)
+		return 0;
+
+	if (!info->block_w[plane])
+		return 1;
+	return info->block_w[plane];
+}
+EXPORT_SYMBOL(drm_format_info_block_width);
+
+/**
+ * drm_format_info_block_height - height in pixels of a block
+ * @info: pixel format info
+ * @plane: plane index
+ *
+ * Returns:
+ * The height in pixels of a block, depending on the plane index.
+ */
+unsigned int drm_format_info_block_height(const struct drm_format_info *info,
+					  int plane)
+{
+	if (!info || plane < 0 || plane >= info->num_planes)
+		return 0;
+
+	if (!info->block_h[plane])
+		return 1;
+	return info->block_h[plane];
+}
+EXPORT_SYMBOL(drm_format_info_block_height);
+
+/**
+ * drm_format_info_min_pitch - computes the minimum required pitch in bytes
+ * @info: pixel format info
+ * @plane: plane index
+ * @buffer_width: buffer width in pixels
+ *
+ * Returns:
+ * The minimum required pitch in bytes for a buffer by taking into consideration
+ * the pixel format information and the buffer width.
+ */
+uint64_t drm_format_info_min_pitch(const struct drm_format_info *info,
+				   int plane, unsigned int buffer_width)
+{
+	if (!info || plane < 0 || plane >= info->num_planes)
+		return 0;
+
+	return DIV_ROUND_UP_ULL((u64)buffer_width * info->char_per_block[plane],
+			    drm_format_info_block_width(info, plane) *
+			    drm_format_info_block_height(info, plane));
+}
+EXPORT_SYMBOL(drm_format_info_min_pitch);

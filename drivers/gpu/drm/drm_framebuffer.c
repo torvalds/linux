@@ -195,20 +195,20 @@ static int framebuffer_check(struct drm_device *dev,
 	for (i = 0; i < info->num_planes; i++) {
 		unsigned int width = fb_plane_width(r->width, info, i);
 		unsigned int height = fb_plane_height(r->height, info, i);
-		unsigned int cpp = info->cpp[i];
+		u64 min_pitch = drm_format_info_min_pitch(info, i, width);
 
 		if (!r->handles[i]) {
 			DRM_DEBUG_KMS("no buffer object handle for plane %d\n", i);
 			return -EINVAL;
 		}
 
-		if ((uint64_t) width * cpp > UINT_MAX)
+		if (min_pitch > UINT_MAX)
 			return -ERANGE;
 
 		if ((uint64_t) height * r->pitches[i] + r->offsets[i] > UINT_MAX)
 			return -ERANGE;
 
-		if (r->pitches[i] < width * cpp) {
+		if (r->pitches[i] < min_pitch) {
 			DRM_DEBUG_KMS("bad pitch %u for plane %d\n", r->pitches[i], i);
 			return -EINVAL;
 		}
