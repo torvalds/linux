@@ -30,7 +30,6 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/dax.h>
 #include <linux/sched/signal.h>
-#include <linux/swap.h>
 
 #include "internal.h"
 
