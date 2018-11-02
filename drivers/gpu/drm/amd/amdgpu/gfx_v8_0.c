@@ -4815,8 +4815,10 @@ static int gfx_v8_0_kcq_resume(struct amdgpu_device *adev)
 	if (r)
 		goto done;
 
-	/* Test KCQs */
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+	/* Test KCQs - reversing the order of rings seems to fix ring test failure
+	 * after GPU reset
+	 */
+	for (i = adev->gfx.num_compute_rings - 1; i >= 0; i--) {
 		ring = &adev->gfx.compute_ring[i];
 		ring->ready = true;
 		r = amdgpu_ring_test_ring(ring);
