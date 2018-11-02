@@ -252,7 +252,7 @@ static void __init spec2_print_if_secure(const char *reason)
 
 static inline bool retp_compiler(void)
 {
-	return __is_defined(RETPOLINE);
+	return __is_defined(CONFIG_RETPOLINE);
 }
 
 static inline bool match_option(const char *arg, int arglen, const char *opt)
