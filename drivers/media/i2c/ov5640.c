@@ -115,6 +115,15 @@ enum ov5640_frame_rate {
 	OV5640_NUM_FRAMERATES,
 };
 
+enum ov5640_format_mux {
+	OV5640_FMT_MUX_YUV422 = 0,
+	OV5640_FMT_MUX_RGB,
+	OV5640_FMT_MUX_DITHER,
+	OV5640_FMT_MUX_RAW_DPC,
+	OV5640_FMT_MUX_SNR_RAW,
+	OV5640_FMT_MUX_RAW_CIP,
+};
+
 struct ov5640_pixfmt {
 	u32 code;
 	u32 colorspace;
@@ -126,6 +135,10 @@ static const struct ov5640_pixfmt ov5640_formats[] = {
 	{ MEDIA_BUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_SRGB, },
 	{ MEDIA_BUS_FMT_RGB565_2X8_LE, V4L2_COLORSPACE_SRGB, },
 	{ MEDIA_BUS_FMT_RGB565_2X8_BE, V4L2_COLORSPACE_SRGB, },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB, },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, V4L2_COLORSPACE_SRGB, },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, V4L2_COLORSPACE_SRGB, },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, V4L2_COLORSPACE_SRGB, },
 };
 
 /*
@@ -2200,46 +2213,67 @@ static int ov5640_set_framefmt(struct ov5640_dev *sensor,
 			       struct v4l2_mbus_framefmt *format)
 {
 	int ret = 0;
-	bool is_rgb = false;
 	bool is_jpeg = false;
-	u8 val;
+	u8 fmt, mux;
 
 	switch (format->code) {
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		/* YUV422, UYVY */
-		val = 0x3f;
+		fmt = 0x3f;
+		mux = OV5640_FMT_MUX_YUV422;
 		break;
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 		/* YUV422, YUYV */
-		val = 0x30;
+		fmt = 0x30;
+		mux = OV5640_FMT_MUX_YUV422;
 		break;
 	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		/* RGB565 {g[2:0],b[4:0]},{r[4:0],g[5:3]} */
-		val = 0x6F;
-		is_rgb = true;
+		fmt = 0x6F;
+		mux = OV5640_FMT_MUX_RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		/* RGB565 {r[4:0],g[5:3]},{g[2:0],b[4:0]} */
-		val = 0x61;
-		is_rgb = true;
+		fmt = 0x61;
+		mux = OV5640_FMT_MUX_RGB;
 		break;
 	case MEDIA_BUS_FMT_JPEG_1X8:
 		/* YUV422, YUYV */
-		val = 0x30;
+		fmt = 0x30;
+		mux = OV5640_FMT_MUX_YUV422;
 		is_jpeg = true;
+		break;
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+		/* Raw, BGBG... / GRGR... */
+		fmt = 0x00;
+		mux = OV5640_FMT_MUX_RAW_DPC;
+		break;
+	case MEDIA_BUS_FMT_SGBRG8_1X8:
+		/* Raw bayer, GBGB... / RGRG... */
+		fmt = 0x01;
+		mux = OV5640_FMT_MUX_RAW_DPC;
+		break;
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
+		/* Raw bayer, GRGR... / BGBG... */
+		fmt = 0x02;
+		mux = OV5640_FMT_MUX_RAW_DPC;
+		break;
+	case MEDIA_BUS_FMT_SRGGB8_1X8:
+		/* Raw bayer, RGRG... / GBGB... */
+		fmt = 0x03;
+		mux = OV5640_FMT_MUX_RAW_DPC;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	/* FORMAT CONTROL00: YUV and RGB formatting */
-	ret = ov5640_write_reg(sensor, OV5640_REG_FORMAT_CONTROL00, val);
+	ret = ov5640_write_reg(sensor, OV5640_REG_FORMAT_CONTROL00, fmt);
 	if (ret)
 		return ret;
 
 	/* FORMAT MUX CONTROL: ISP YUV or RGB */
-	ret = ov5640_write_reg(sensor, OV5640_REG_ISP_FORMAT_MUX_CTRL,
-			       is_rgb ? 0x01 : 0x00);
+	ret = ov5640_write_reg(sensor, OV5640_REG_ISP_FORMAT_MUX_CTRL, mux);
 	if (ret)
 		return ret;
 
