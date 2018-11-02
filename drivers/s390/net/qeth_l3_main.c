@@ -2351,7 +2351,7 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_neigh_setup	= qeth_l3_neigh_setup,
 };
 
-static int qeth_l3_setup_netdev(struct qeth_card *card)
+static int qeth_l3_setup_netdev(struct qeth_card *card, bool carrier_ok)
 {
 	unsigned int headroom;
 	int rc;
@@ -2425,6 +2425,9 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 
 	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
 	rc = register_netdev(card->dev);
+	if (!rc && carrier_ok)
+		netif_carrier_on(card->dev);
+
 out:
 	if (rc)
 		card->dev->netdev_ops = NULL;
@@ -2476,6 +2479,7 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 	int rc = 0;
 	enum qeth_card_states recover_flag;
+	bool carrier_ok;
 
 	mutex_lock(&card->discipline_mutex);
 	mutex_lock(&card->conf_mutex);
@@ -2483,14 +2487,14 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	QETH_DBF_HEX(SETUP, 2, &card, sizeof(void *));
 
 	recover_flag = card->state;
-	rc = qeth_core_hardsetup_card(card);
+	rc = qeth_core_hardsetup_card(card, &carrier_ok);
 	if (rc) {
 		QETH_DBF_TEXT_(SETUP, 2, "2err%04x", rc);
 		rc = -ENODEV;
 		goto out_remove;
 	}
 
-	rc = qeth_l3_setup_netdev(card);
+	rc = qeth_l3_setup_netdev(card, carrier_ok);
 	if (rc)
 		goto out_remove;
 

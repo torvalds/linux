@@ -991,7 +991,7 @@ int qeth_wait_for_threads(struct qeth_card *, unsigned long);
 int qeth_do_run_thread(struct qeth_card *, unsigned long);
 void qeth_clear_thread_start_bit(struct qeth_card *, unsigned long);
 void qeth_clear_thread_running_bit(struct qeth_card *, unsigned long);
-int qeth_core_hardsetup_card(struct qeth_card *);
+int qeth_core_hardsetup_card(struct qeth_card *card, bool *carrier_ok);
 void qeth_print_status_message(struct qeth_card *);
 int qeth_init_qdio_queues(struct qeth_card *);
 int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,

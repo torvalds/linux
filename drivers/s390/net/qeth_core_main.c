@@ -5075,7 +5075,7 @@ static struct ccw_driver qeth_ccw_driver = {
 	.remove = ccwgroup_remove_ccwdev,
 };
 
-int qeth_core_hardsetup_card(struct qeth_card *card)
+int qeth_core_hardsetup_card(struct qeth_card *card, bool *carrier_ok)
 {
 	int retries = 3;
 	int rc;
@@ -5150,13 +5150,20 @@ retriable:
 		if (rc == IPA_RC_LAN_OFFLINE) {
 			dev_warn(&card->gdev->dev,
 				"The LAN is offline\n");
-			netif_carrier_off(card->dev);
+			*carrier_ok = false;
 		} else {
 			rc = -ENODEV;
 			goto out;
 		}
 	} else {
-		netif_carrier_on(card->dev);
+		*carrier_ok = true;
+	}
+
+	if (qeth_netdev_is_registered(card->dev)) {
+		if (*carrier_ok)
+			netif_carrier_on(card->dev);
+		else
+			netif_carrier_off(card->dev);
 	}
 
 	card->options.ipa4.supported_funcs = 0;
