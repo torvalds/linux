@@ -279,7 +279,7 @@
 		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
 		clock-names = "tsadc", "apb_pclk";
 		assigned-clocks = <&cru SCLK_TSADC>;
-		assigned-clock-rates = <50000>;
+		assigned-clock-rates = <650000>;
 		resets = <&cru SRST_TSADC>;
 		reset-names = "tsadc-apb";
 		#thermal-sensor-cells = <1>;
