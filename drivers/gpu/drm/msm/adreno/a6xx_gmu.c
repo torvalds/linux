@@ -51,10 +51,31 @@ static irqreturn_t a6xx_hfi_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* Check to see if the GX rail is still powered */
-static bool a6xx_gmu_gx_is_on(struct a6xx_gmu *gmu)
+bool a6xx_gmu_sptprac_is_on(struct a6xx_gmu *gmu)
 {
-	u32 val = gmu_read(gmu, REG_A6XX_GMU_SPTPRAC_PWR_CLK_STATUS);
+	u32 val;
+
+	/* This can be called from gpu state code so make sure GMU is valid */
+	if (IS_ERR_OR_NULL(gmu->mmio))
+		return false;
+
+	val = gmu_read(gmu, REG_A6XX_GMU_SPTPRAC_PWR_CLK_STATUS);
+
+	return !(val &
+		(A6XX_GMU_SPTPRAC_PWR_CLK_STATUS_SPTPRAC_GDSC_POWER_OFF |
+		A6XX_GMU_SPTPRAC_PWR_CLK_STATUS_SP_CLOCK_OFF));
+}
+
+/* Check to see if the GX rail is still powered */
+bool a6xx_gmu_gx_is_on(struct a6xx_gmu *gmu)
+{
+	u32 val;
+
+	/* This can be called from gpu state code so make sure GMU is valid */
+	if (IS_ERR_OR_NULL(gmu->mmio))
+		return false;
+
+	val = gmu_read(gmu, REG_A6XX_GMU_SPTPRAC_PWR_CLK_STATUS);
 
 	return !(val &
 		(A6XX_GMU_SPTPRAC_PWR_CLK_STATUS_GX_HM_GDSC_POWER_OFF |
