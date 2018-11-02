@@ -307,25 +307,27 @@ static struct drm_framebuffer *fb_create_mock(struct drm_device *dev,
 	return ERR_PTR(-EINVAL);
 }
 
+static struct drm_mode_config_funcs mock_config_funcs = {
+	.fb_create = fb_create_mock,
+};
+
+static struct drm_device mock_drm_device = {
+	.mode_config = {
+		.min_width = MIN_WIDTH,
+		.max_width = MAX_WIDTH,
+		.min_height = MIN_HEIGHT,
+		.max_height = MAX_HEIGHT,
+		.allow_fb_modifiers = true,
+		.funcs = &mock_config_funcs,
+	},
+};
+
 static int execute_drm_mode_fb_cmd2(struct drm_mode_fb_cmd2 *r)
 {
 	int buffer_created = 0;
 	struct drm_framebuffer *fb;
-	struct drm_mode_config_funcs mock_config_funcs = {
-		.fb_create = fb_create_mock,
-	};
-	struct drm_device mock_drm_device = {
-		.mode_config = {
-			.min_width = MIN_WIDTH,
-			.max_width = MAX_WIDTH,
-			.min_height = MIN_HEIGHT,
-			.max_height = MAX_HEIGHT,
-			.allow_fb_modifiers = true,
-			.funcs = &mock_config_funcs,
-		},
-		.dev_private = &buffer_created
-	};
 
+	mock_drm_device.dev_private = &buffer_created;
 	fb = drm_internal_framebuffer_create(&mock_drm_device, r, NULL);
 	return buffer_created;
 }
