@@ -2749,6 +2749,12 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		},
 	},
 	{
+		.name = "DC off",
+		.domains = ICL_DISPLAY_DC_OFF_POWER_DOMAINS,
+		.ops = &gen9_dc_off_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+	},
+	{
 		.name = "power well 2",
 		.domains = ICL_PW_2_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
@@ -2758,12 +2764,6 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 			.hsw.idx = ICL_PW_CTL_IDX_PW_2,
 			.hsw.has_fuses = true,
 		},
-	},
-	{
-		.name = "DC off",
-		.domains = ICL_DISPLAY_DC_OFF_POWER_DOMAINS,
-		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
 	},
 	{
 		.name = "power well 3",
