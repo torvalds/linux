@@ -67,12 +67,33 @@ static void a6xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 	gpu_write(gpu, REG_A6XX_CP_RB_WPTR, wptr);
 }
 
+static void get_stats_counter(struct msm_ringbuffer *ring, u32 counter,
+		u64 iova)
+{
+	OUT_PKT7(ring, CP_REG_TO_MEM, 3);
+	OUT_RING(ring, counter | (1 << 30) | (2 << 18));
+	OUT_RING(ring, lower_32_bits(iova));
+	OUT_RING(ring, upper_32_bits(iova));
+}
+
 static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_file_private *ctx)
 {
+	unsigned int index = submit->seqno % MSM_GPU_SUBMIT_STATS_COUNT;
 	struct msm_drm_private *priv = gpu->dev->dev_private;
 	struct msm_ringbuffer *ring = submit->ring;
 	unsigned int i;
+
+	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP_0_LO,
+		rbmemptr_stats(ring, index, cpcycles_start));
+
+	/*
+	 * For PM4 the GMU register offsets are calculated from the base of the
+	 * GPU registers so we need to add 0x1a800 to the register value on A630
+	 * to get the right value from PM4.
+	 */
+	get_stats_counter(ring, REG_A6XX_GMU_ALWAYS_ON_COUNTER_L + 0x1a800,
+		rbmemptr_stats(ring, index, alwayson_start));
 
 	/* Invalidate CCU depth and color */
 	OUT_PKT7(ring, CP_EVENT_WRITE, 1);
@@ -97,6 +118,11 @@ static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 			break;
 		}
 	}
+
+	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP_0_LO,
+		rbmemptr_stats(ring, index, cpcycles_end));
+	get_stats_counter(ring, REG_A6XX_GMU_ALWAYS_ON_COUNTER_L + 0x1a800,
+		rbmemptr_stats(ring, index, alwayson_end));
 
 	/* Write the fence to the scratch register */
 	OUT_PKT4(ring, REG_A6XX_CP_SCRATCH_REG(2), 1);
@@ -386,14 +412,6 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 
 	/* Select CP0 to always count cycles */
 	gpu_write(gpu, REG_A6XX_CP_PERFCTR_CP_SEL_0, PERF_CP_ALWAYS_COUNT);
-
-	/* FIXME: not sure if this should live here or in a6xx_gmu.c */
-	gmu_write(&a6xx_gpu->gmu,  REG_A6XX_GPU_GMU_AO_GPU_CX_BUSY_MASK,
-		0xff000000);
-	gmu_rmw(&a6xx_gpu->gmu, REG_A6XX_GMU_CX_GMU_POWER_COUNTER_SELECT_0,
-		0xff, 0x20);
-	gmu_write(&a6xx_gpu->gmu, REG_A6XX_GMU_CX_GMU_POWER_COUNTER_ENABLE,
-		0x01);
 
 	gpu_write(gpu, REG_A6XX_RB_NC_MODE_CNTL, 2 << 1);
 	gpu_write(gpu, REG_A6XX_TPL1_NC_MODE_CNTL, 2 << 1);
