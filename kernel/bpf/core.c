@@ -553,7 +553,6 @@ bool is_bpf_text_address(unsigned long addr)
 int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		    char *sym)
 {
-	unsigned long symbol_start, symbol_end;
 	struct bpf_prog_aux *aux;
 	unsigned int it = 0;
 	int ret = -ERANGE;
@@ -566,10 +565,9 @@ int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		if (it++ != symnum)
 			continue;
 
-		bpf_get_prog_addr_region(aux->prog, &symbol_start, &symbol_end);
 		bpf_get_prog_name(aux->prog, sym);
 
-		*value = symbol_start;
+		*value = (unsigned long)aux->prog->bpf_func;
 		*type  = BPF_SYM_ELF_TYPE;
 
 		ret = 0;
