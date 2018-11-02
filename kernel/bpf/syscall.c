@@ -2172,7 +2172,6 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 			user_ksyms = u64_to_user_ptr(info.jited_ksyms);
 			for (i = 0; i < ulen; i++) {
 				ksym_addr = (ulong) prog->aux->func[i]->bpf_func;
-				ksym_addr &= PAGE_MASK;
 				if (put_user((u64) ksym_addr, &user_ksyms[i]))
 					return -EFAULT;
 			}
