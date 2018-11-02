@@ -279,6 +279,10 @@ static int byt_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 		 " Firmware info: version %d:%d-%s build %d on %s:%s\n",
 		 v->major, v->minor, v->tag, v->build, v->date, v->time);
 
+	/* only copy the fw_version into debugfs at first boot */
+	if (sdev->first_boot)
+		memcpy(&sdev->fw_version, v, sizeof(*v));
+
 	/* now check for extended data */
 	snd_sof_fw_parse_ext_data(sdev, MBOX_OFFSET +
 				  sizeof(struct sof_ipc_fw_ready));
