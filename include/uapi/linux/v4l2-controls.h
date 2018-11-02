@@ -47,6 +47,8 @@
  *  videodev2.h.
  */
 
+#include <linux/types.h>
+
 #ifndef __LINUX_V4L2_CONTROLS_H
 #define __LINUX_V4L2_CONTROLS_H
 
