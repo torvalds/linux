@@ -163,6 +163,8 @@ struct nvmet_ctrl {
 	struct nvmet_cq		**cqs;
 	struct nvmet_sq		**sqs;
 
+	bool			cmd_seen;
+
 	struct mutex		lock;
 	u64			cap;
 	u32			cc;

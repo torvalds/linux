@@ -299,6 +299,15 @@ static void nvmet_keep_alive_timer(struct work_struct *work)
 {
 	struct nvmet_ctrl *ctrl = container_of(to_delayed_work(work),
 			struct nvmet_ctrl, ka_work);
+	bool cmd_seen = ctrl->cmd_seen;
+
+	ctrl->cmd_seen = false;
+	if (cmd_seen) {
+		pr_debug("ctrl %d reschedule traffic based keep-alive timer\n",
+			ctrl->cntlid);
+		schedule_delayed_work(&ctrl->ka_work, ctrl->kato * HZ);
+		return;
+	}
 
 	pr_err("ctrl %d keep-alive timer (%d seconds) expired!\n",
 		ctrl->cntlid, ctrl->kato);
@@ -800,6 +809,9 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		goto fail;
 	}
+
+	if (sq->ctrl)
+		sq->ctrl->cmd_seen = true;
 
 	return true;
 

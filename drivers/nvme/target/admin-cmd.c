@@ -304,7 +304,8 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 
 	/* XXX: figure out what to do about RTD3R/RTD3 */
 	id->oaes = cpu_to_le32(NVMET_AEN_CFG_OPTIONAL);
-	id->ctratt = cpu_to_le32(NVME_CTRL_ATTR_HID_128_BIT);
+	id->ctratt = cpu_to_le32(NVME_CTRL_ATTR_HID_128_BIT |
+		NVME_CTRL_ATTR_TBKAS);
 
 	id->oacs = 0;
 
