@@ -94,7 +94,7 @@ static int get_nodes_in_cpumask(cpumask_var_t *node_to_cpumask,
 	return nodes;
 }
 
-static int irq_build_affinity_masks(const struct irq_affinity *affd,
+static int __irq_build_affinity_masks(const struct irq_affinity *affd,
 				    int startvec, int numvecs,
 				    cpumask_var_t *node_to_cpumask,
 				    const struct cpumask *cpu_mask,
@@ -165,6 +165,58 @@ out:
 	return done;
 }
 
+/*
+ * build affinity in two stages:
+ *	1) spread present CPU on these vectors
+ *	2) spread other possible CPUs on these vectors
+ */
+static int irq_build_affinity_masks(const struct irq_affinity *affd,
+				    int startvec, int numvecs,
+				    cpumask_var_t *node_to_cpumask,
+				    struct cpumask *masks)
+{
+	int curvec = startvec, usedvecs = -1;
+	cpumask_var_t nmsk, npresmsk;
+
+	if (!zalloc_cpumask_var(&nmsk, GFP_KERNEL))
+			return usedvecs;
+
+	if (!zalloc_cpumask_var(&npresmsk, GFP_KERNEL))
+			goto fail;
+
+	/* Stabilize the cpumasks */
+	get_online_cpus();
+	build_node_to_cpumask(node_to_cpumask);
+
+	/* Spread on present CPUs starting from affd->pre_vectors */
+	usedvecs = __irq_build_affinity_masks(affd, curvec, numvecs,
+					    node_to_cpumask, cpu_present_mask,
+					    nmsk, masks);
+
+	/*
+	 * Spread on non present CPUs starting from the next vector to be
+	 * handled. If the spreading of present CPUs already exhausted the
+	 * vector space, assign the non present CPUs to the already spread
+	 * out vectors.
+	 */
+	if (usedvecs >= numvecs)
+		curvec = affd->pre_vectors;
+	else
+		curvec = affd->pre_vectors + usedvecs;
+	cpumask_andnot(npresmsk, cpu_possible_mask, cpu_present_mask);
+	usedvecs += __irq_build_affinity_masks(affd, curvec, numvecs,
+					     node_to_cpumask, npresmsk,
+					     nmsk, masks);
+	put_online_cpus();
+
+	free_cpumask_var(npresmsk);
+
+ fail:
+	free_cpumask_var(nmsk);
+
+	return usedvecs;
+}
+
 /**
  * irq_create_affinity_masks - Create affinity masks for multiqueue spreading
  * @nvecs:	The total number of vectors
@@ -177,7 +229,7 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 {
 	int affvecs = nvecs - affd->pre_vectors - affd->post_vectors;
 	int curvec, usedvecs;
-	cpumask_var_t nmsk, npresmsk, *node_to_cpumask;
+	cpumask_var_t *node_to_cpumask;
 	struct cpumask *masks = NULL;
 
 	/*
@@ -187,15 +239,9 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	if (nvecs == affd->pre_vectors + affd->post_vectors)
 		return NULL;
 
-	if (!zalloc_cpumask_var(&nmsk, GFP_KERNEL))
-		return NULL;
-
-	if (!zalloc_cpumask_var(&npresmsk, GFP_KERNEL))
-		goto outcpumsk;
-
 	node_to_cpumask = alloc_node_to_cpumask();
 	if (!node_to_cpumask)
-		goto outnpresmsk;
+		return NULL;
 
 	masks = kcalloc(nvecs, sizeof(*masks), GFP_KERNEL);
 	if (!masks)
@@ -205,30 +251,8 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	for (curvec = 0; curvec < affd->pre_vectors; curvec++)
 		cpumask_copy(masks + curvec, irq_default_affinity);
 
-	/* Stabilize the cpumasks */
-	get_online_cpus();
-	build_node_to_cpumask(node_to_cpumask);
-
-	/* Spread on present CPUs starting from affd->pre_vectors */
 	usedvecs = irq_build_affinity_masks(affd, curvec, affvecs,
-					    node_to_cpumask, cpu_present_mask,
-					    nmsk, masks);
-
-	/*
-	 * Spread on non present CPUs starting from the next vector to be
-	 * handled. If the spreading of present CPUs already exhausted the
-	 * vector space, assign the non present CPUs to the already spread
-	 * out vectors.
-	 */
-	if (usedvecs >= affvecs)
-		curvec = affd->pre_vectors;
-	else
-		curvec = affd->pre_vectors + usedvecs;
-	cpumask_andnot(npresmsk, cpu_possible_mask, cpu_present_mask);
-	usedvecs += irq_build_affinity_masks(affd, curvec, affvecs,
-					     node_to_cpumask, npresmsk,
-					     nmsk, masks);
-	put_online_cpus();
+					    node_to_cpumask, masks);
 
 	/* Fill out vectors at the end that don't need affinity */
 	if (usedvecs >= affvecs)
@@ -240,10 +264,6 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 
 outnodemsk:
 	free_node_to_cpumask(node_to_cpumask);
-outnpresmsk:
-	free_cpumask_var(npresmsk);
-outcpumsk:
-	free_cpumask_var(nmsk);
 	return masks;
 }
 
