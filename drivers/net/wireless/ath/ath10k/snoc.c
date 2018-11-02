@@ -1695,12 +1695,12 @@ static int ath10k_snoc_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ath10k_snoc_driver = {
-		.probe  = ath10k_snoc_probe,
-		.remove = ath10k_snoc_remove,
-		.driver = {
-			.name   = "ath10k_snoc",
-			.of_match_table = ath10k_snoc_dt_match,
-		},
+	.probe  = ath10k_snoc_probe,
+	.remove = ath10k_snoc_remove,
+	.driver = {
+		.name   = "ath10k_snoc",
+		.of_match_table = ath10k_snoc_dt_match,
+	},
 };
 module_platform_driver(ath10k_snoc_driver);
 
