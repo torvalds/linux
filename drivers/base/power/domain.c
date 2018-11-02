@@ -244,6 +244,7 @@ static int _genpd_reeval_performance_state(struct generic_pm_domain *genpd,
 {
 	struct generic_pm_domain_data *pd_data;
 	struct pm_domain_data *pdd;
+	struct gpd_link *link;
 
 	/* New requested state is same as Max requested state */
 	if (state == genpd->performance_state)
@@ -262,31 +263,101 @@ static int _genpd_reeval_performance_state(struct generic_pm_domain *genpd,
 	}
 
 	/*
-	 * We aren't propagating performance state changes of a subdomain to its
-	 * masters as we don't have hardware that needs it. Over that, the
-	 * performance states of subdomain and its masters may not have
-	 * one-to-one mapping and would require additional information. We can
-	 * get back to this once we have hardware that needs it. For that
-	 * reason, we don't have to consider performance state of the subdomains
-	 * of genpd here.
+	 * Traverse all sub-domains within the domain. This can be
+	 * done without any additional locking as the link->performance_state
+	 * field is protected by the master genpd->lock, which is already taken.
+	 *
+	 * Also note that link->performance_state (subdomain's performance state
+	 * requirement to master domain) is different from
+	 * link->slave->performance_state (current performance state requirement
+	 * of the devices/sub-domains of the subdomain) and so can have a
+	 * different value.
+	 *
+	 * Note that we also take vote from powered-off sub-domains into account
+	 * as the same is done for devices right now.
 	 */
+	list_for_each_entry(link, &genpd->master_links, master_node) {
+		if (link->performance_state > state)
+			state = link->performance_state;
+	}
+
 	return state;
 }
 
 static int _genpd_set_performance_state(struct generic_pm_domain *genpd,
-					unsigned int state)
+					unsigned int state, int depth)
 {
-	int ret;
+	struct generic_pm_domain *master;
+	struct gpd_link *link;
+	int master_state, ret;
 
 	if (state == genpd->performance_state)
 		return 0;
 
+	/* Propagate to masters of genpd */
+	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+		master = link->master;
+
+		if (!master->set_performance_state)
+			continue;
+
+		/* Find master's performance state */
+		ret = dev_pm_opp_xlate_performance_state(genpd->opp_table,
+							 master->opp_table,
+							 state);
+		if (unlikely(ret < 0))
+			goto err;
+
+		master_state = ret;
+
+		genpd_lock_nested(master, depth + 1);
+
+		link->prev_performance_state = link->performance_state;
+		link->performance_state = master_state;
+		master_state = _genpd_reeval_performance_state(master,
+						master_state);
+		ret = _genpd_set_performance_state(master, master_state, depth + 1);
+		if (ret)
+			link->performance_state = link->prev_performance_state;
+
+		genpd_unlock(master);
+
+		if (ret)
+			goto err;
+	}
+
 	ret = genpd->set_performance_state(genpd, state);
 	if (ret)
-		return ret;
+		goto err;
 
 	genpd->performance_state = state;
 	return 0;
+
+err:
+	/* Encountered an error, lets rollback */
+	list_for_each_entry_continue_reverse(link, &genpd->slave_links,
+					     slave_node) {
+		master = link->master;
+
+		if (!master->set_performance_state)
+			continue;
+
+		genpd_lock_nested(master, depth + 1);
+
+		master_state = link->prev_performance_state;
+		link->performance_state = master_state;
+
+		master_state = _genpd_reeval_performance_state(master,
+						master_state);
+		if (_genpd_set_performance_state(master, master_state, depth + 1)) {
+			pr_err("%s: Failed to roll back to %d performance state\n",
+			       master->name, master_state);
+		}
+
+		genpd_unlock(master);
+	}
+
+	return ret;
 }
 
 /**
@@ -331,7 +402,7 @@ int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state)
 	gpd_data->performance_state = state;
 
 	state = _genpd_reeval_performance_state(genpd, state);
-	ret = _genpd_set_performance_state(genpd, state);
+	ret = _genpd_set_performance_state(genpd, state, 0);
 	if (ret)
 		gpd_data->performance_state = prev;
 
