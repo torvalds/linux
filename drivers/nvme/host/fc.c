@@ -1704,7 +1704,6 @@ __nvme_fc_init_request(struct nvme_fc_ctrl *ctrl,
 	op->fcp_req.rspaddr = &op->rsp_iu;
 	op->fcp_req.rsplen = sizeof(op->rsp_iu);
 	op->fcp_req.done = nvme_fc_fcpio_done;
-	op->fcp_req.private = &op->fcp_req.first_sgl[SG_CHUNK_SIZE];
 	op->ctrl = ctrl;
 	op->queue = queue;
 	op->rq = rq;
@@ -1752,6 +1751,7 @@ nvme_fc_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	if (res)
 		return res;
 	op->op.fcp_req.first_sgl = &op->sgl[0];
+	op->op.fcp_req.private = &op->priv[0];
 	return res;
 }
 
