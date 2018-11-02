@@ -198,6 +198,10 @@ enum {
 	NVME_PS_FLAGS_NON_OP_STATE	= 1 << 1,
 };
 
+enum nvme_ctrl_attr {
+	NVME_CTRL_ATTR_HID_128_BIT	= (1 << 0),
+};
+
 struct nvme_id_ctrl {
 	__le16			vid;
 	__le16			ssvid;
