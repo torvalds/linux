@@ -25,6 +25,7 @@ Below are the essential guides that every developer should read.
    code-of-conduct-interpretation
    development-process
    submitting-patches
+   programming-language
    coding-style
    maintainer-pgp-guide
    email-clients
