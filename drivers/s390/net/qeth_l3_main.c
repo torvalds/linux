@@ -2514,7 +2514,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 {
 	int rc;
 
-	if (card->dev->netdev_ops)
+	if (qeth_netdev_is_registered(card->dev))
 		return 0;
 
 	if (card->info.type == QETH_CARD_TYPE_OSD ||
@@ -2611,7 +2611,8 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 	if (cgdev->state == CCWGROUP_ONLINE)
 		qeth_l3_set_offline(cgdev);
 
-	unregister_netdev(card->dev);
+	if (qeth_netdev_is_registered(card->dev))
+		unregister_netdev(card->dev);
 	qeth_l3_clear_ip_htable(card, 0);
 	qeth_l3_clear_ipato_list(card);
 }

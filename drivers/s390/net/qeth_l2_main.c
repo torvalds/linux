@@ -854,7 +854,8 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 
 	if (cgdev->state == CCWGROUP_ONLINE)
 		qeth_l2_set_offline(cgdev);
-	unregister_netdev(card->dev);
+	if (qeth_netdev_is_registered(card->dev))
+		unregister_netdev(card->dev);
 }
 
 static const struct ethtool_ops qeth_l2_ethtool_ops = {
@@ -894,7 +895,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 {
 	int rc;
 
-	if (card->dev->netdev_ops)
+	if (qeth_netdev_is_registered(card->dev))
 		return 0;
 
 	card->dev->priv_flags |= IFF_UNICAST_FLT;
