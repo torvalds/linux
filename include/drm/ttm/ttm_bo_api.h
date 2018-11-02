@@ -313,6 +313,24 @@ ttm_bo_reference(struct ttm_buffer_object *bo)
 }
 
 /**
+ * ttm_bo_get_unless_zero - reference a struct ttm_buffer_object unless
+ * its refcount has already reached zero.
+ * @bo: The buffer object.
+ *
+ * Used to reference a TTM buffer object in lookups where the object is removed
+ * from the lookup structure during the destructor and for RCU lookups.
+ *
+ * Returns: @bo if the referencing was successful, NULL otherwise.
+ */
+static inline __must_check struct ttm_buffer_object *
+ttm_bo_get_unless_zero(struct ttm_buffer_object *bo)
+{
+	if (!kref_get_unless_zero(&bo->kref))
+		return NULL;
+	return bo;
+}
+
+/**
  * ttm_bo_wait - wait for buffer idle.
  *
  * @bo:  The buffer object.

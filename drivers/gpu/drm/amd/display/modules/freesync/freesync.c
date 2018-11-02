@@ -480,22 +480,11 @@ bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 	return false;
 }
 
-void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
-		const struct dc_stream_state *stream,
-		const struct mod_vrr_params *vrr,
-		struct dc_info_packet *infopacket)
+static void build_vrr_infopacket_header_v1(enum signal_type signal,
+		struct dc_info_packet *infopacket,
+		unsigned int *payload_size)
 {
-	/* SPD info packet for FreeSync */
-	unsigned char checksum = 0;
-	unsigned int idx, payload_size = 0;
-
-	/* Check if Freesync is supported. Return if false. If true,
-	 * set the corresponding bit in the info packet
-	 */
-	if (!vrr->supported || !vrr->send_vsif)
-		return;
-
-	if (dc_is_hdmi_signal(stream->signal)) {
+	if (dc_is_hdmi_signal(signal)) {
 
 		/* HEADER */
 
@@ -510,9 +499,9 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		/* HB2  = [Bits 7:5 = 0] [Bits 4:0 = Length = 0x08] */
 		infopacket->hb2 = 0x08;
 
-		payload_size = 0x08;
+		*payload_size = 0x08;
 
-	} else if (dc_is_dp_signal(stream->signal)) {
+	} else if (dc_is_dp_signal(signal)) {
 
 		/* HEADER */
 
@@ -536,9 +525,62 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		 */
 		infopacket->hb3 = 0x04;
 
-		payload_size = 0x1B;
+		*payload_size = 0x1B;
 	}
+}
 
+static void build_vrr_infopacket_header_v2(enum signal_type signal,
+		struct dc_info_packet *infopacket,
+		unsigned int *payload_size)
+{
+	if (dc_is_hdmi_signal(signal)) {
+
+		/* HEADER */
+
+		/* HB0  = Packet Type = 0x83 (Source Product
+		 *	  Descriptor InfoFrame)
+		 */
+		infopacket->hb0 = DC_HDMI_INFOFRAME_TYPE_SPD;
+
+		/* HB1  = Version = 0x02 */
+		infopacket->hb1 = 0x02;
+
+		/* HB2  = [Bits 7:5 = 0] [Bits 4:0 = Length = 0x09] */
+		infopacket->hb2 = 0x09;
+
+		*payload_size = 0x0A;
+
+	} else if (dc_is_dp_signal(signal)) {
+
+		/* HEADER */
+
+		/* HB0  = Secondary-data Packet ID = 0 - Only non-zero
+		 *	  when used to associate audio related info packets
+		 */
+		infopacket->hb0 = 0x00;
+
+		/* HB1  = Packet Type = 0x83 (Source Product
+		 *	  Descriptor InfoFrame)
+		 */
+		infopacket->hb1 = DC_HDMI_INFOFRAME_TYPE_SPD;
+
+		/* HB2  = [Bits 7:0 = Least significant eight bits -
+		 *	  For INFOFRAME, the value must be 1Bh]
+		 */
+		infopacket->hb2 = 0x1B;
+
+		/* HB3  = [Bits 7:2 = INFOFRAME SDP Version Number = 0x2]
+		 *	  [Bits 1:0 = Most significant two bits = 0x00]
+		 */
+		infopacket->hb3 = 0x08;
+
+		*payload_size = 0x1B;
+	}
+}
+
+static void build_vrr_infopacket_data(const struct mod_vrr_params *vrr,
+		struct dc_info_packet *infopacket)
+{
 	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
 	infopacket->sb[1] = 0x1A;
 
@@ -576,21 +618,103 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	 */
 	infopacket->sb[8] = (unsigned char)(vrr->max_refresh_in_uhz / 1000000);
 
-	/* PB9 - PB27  = Reserved */
 
+	//FreeSync HDR
+	infopacket->sb[9] = 0;
+	infopacket->sb[10] = 0;
+}
+
+static void build_vrr_infopacket_fs2_data(enum color_transfer_func app_tf,
+		struct dc_info_packet *infopacket)
+{
+	if (app_tf != transfer_func_unknown) {
+		infopacket->valid = true;
+
+		infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
+
+		if (app_tf == transfer_func_gamma_22) {
+			infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
+		}
+	}
+}
+
+static void build_vrr_infopacket_checksum(unsigned int *payload_size,
+		struct dc_info_packet *infopacket)
+{
 	/* Calculate checksum */
+	unsigned int idx = 0;
+	unsigned char checksum = 0;
+
 	checksum += infopacket->hb0;
 	checksum += infopacket->hb1;
 	checksum += infopacket->hb2;
 	checksum += infopacket->hb3;
 
-	for (idx = 1; idx <= payload_size; idx++)
+	for (idx = 1; idx <= *payload_size; idx++)
 		checksum += infopacket->sb[idx];
 
 	/* PB0 = Checksum (one byte complement) */
 	infopacket->sb[0] = (unsigned char)(0x100 - checksum);
 
 	infopacket->valid = true;
+}
+
+static void build_vrr_infopacket_v1(enum signal_type signal,
+		const struct mod_vrr_params *vrr,
+		struct dc_info_packet *infopacket)
+{
+	/* SPD info packet for FreeSync */
+	unsigned int payload_size = 0;
+
+	build_vrr_infopacket_header_v1(signal, infopacket, &payload_size);
+	build_vrr_infopacket_data(vrr, infopacket);
+	build_vrr_infopacket_checksum(&payload_size, infopacket);
+
+	infopacket->valid = true;
+}
+
+static void build_vrr_infopacket_v2(enum signal_type signal,
+		const struct mod_vrr_params *vrr,
+		const enum color_transfer_func *app_tf,
+		struct dc_info_packet *infopacket)
+{
+	unsigned int payload_size = 0;
+
+	build_vrr_infopacket_header_v2(signal, infopacket, &payload_size);
+	build_vrr_infopacket_data(vrr, infopacket);
+
+	if (app_tf != NULL)
+		build_vrr_infopacket_fs2_data(*app_tf, infopacket);
+
+	build_vrr_infopacket_checksum(&payload_size, infopacket);
+
+	infopacket->valid = true;
+}
+
+void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
+		const struct dc_stream_state *stream,
+		const struct mod_vrr_params *vrr,
+		enum vrr_packet_type packet_type,
+		const enum color_transfer_func *app_tf,
+		struct dc_info_packet *infopacket)
+{
+	/* SPD info packet for FreeSync */
+
+	/* Check if Freesync is supported. Return if false. If true,
+	 * set the corresponding bit in the info packet
+	 */
+	if (!vrr->supported || !vrr->send_vsif)
+		return;
+
+	switch (packet_type) {
+	case packet_type_fs2:
+		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket);
+		break;
+	case packet_type_vrr:
+	case packet_type_fs1:
+	default:
+		build_vrr_infopacket_v1(stream->signal, vrr, infopacket);
+	}
 }
 
 void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,

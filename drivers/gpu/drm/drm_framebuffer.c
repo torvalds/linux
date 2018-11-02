@@ -116,7 +116,7 @@ int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
 
-	r.pixel_format = drm_mode_legacy_fb_format(or->bpp, or->depth);
+	r.pixel_format = drm_driver_legacy_fb_format(dev, or->bpp, or->depth);
 	if (r.pixel_format == DRM_FORMAT_INVALID) {
 		DRM_DEBUG("bad {bpp:%d, depth:%d}\n", or->bpp, or->depth);
 		return -EINVAL;
@@ -128,21 +128,6 @@ int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
 	r.height = or->height;
 	r.pitches[0] = or->pitch;
 	r.handles[0] = or->handle;
-
-	if (dev->mode_config.quirk_addfb_prefer_xbgr_30bpp &&
-	    r.pixel_format == DRM_FORMAT_XRGB2101010)
-		r.pixel_format = DRM_FORMAT_XBGR2101010;
-
-	if (dev->mode_config.quirk_addfb_prefer_host_byte_order) {
-		if (r.pixel_format == DRM_FORMAT_XRGB8888)
-			r.pixel_format = DRM_FORMAT_HOST_XRGB8888;
-		if (r.pixel_format == DRM_FORMAT_ARGB8888)
-			r.pixel_format = DRM_FORMAT_HOST_ARGB8888;
-		if (r.pixel_format == DRM_FORMAT_RGB565)
-			r.pixel_format = DRM_FORMAT_HOST_RGB565;
-		if (r.pixel_format == DRM_FORMAT_XRGB1555)
-			r.pixel_format = DRM_FORMAT_HOST_XRGB1555;
-	}
 
 	ret = drm_mode_addfb2(dev, &r, file_priv);
 	if (ret)

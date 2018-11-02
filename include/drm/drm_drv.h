@@ -674,7 +674,7 @@ static inline bool drm_core_check_feature(struct drm_device *dev, u32 feature)
 static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 {
 	return drm_core_check_feature(dev, DRIVER_ATOMIC) ||
-		dev->mode_config.funcs->atomic_commit != NULL;
+		(dev->mode_config.funcs && dev->mode_config.funcs->atomic_commit != NULL);
 }
 
 

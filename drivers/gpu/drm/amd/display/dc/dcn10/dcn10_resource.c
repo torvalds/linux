@@ -507,6 +507,18 @@ static const struct resource_caps res_cap = {
 		.num_ddc = 4,
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+static const struct resource_caps rv2_res_cap = {
+		.num_timing_generator = 3,
+		.num_opp = 3,
+		.num_video_plane = 3,
+		.num_audio = 3,
+		.num_stream_encoder = 3,
+		.num_pll = 3,
+		.num_ddc = 3,
+};
+#endif
+
 static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = true,
 		.disable_dmcu = true,
@@ -711,8 +723,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.flags.bits.IS_HBR2_CAPABLE = true,
 		.flags.bits.IS_HBR3_CAPABLE = true,
 		.flags.bits.IS_TPS3_CAPABLE = true,
-		.flags.bits.IS_TPS4_CAPABLE = true,
-		.flags.bits.IS_YCBCR_CAPABLE = true
+		.flags.bits.IS_TPS4_CAPABLE = true
 };
 
 struct link_encoder *dcn10_link_encoder_create(
@@ -897,7 +908,9 @@ static void destruct(struct dcn10_resource_pool *pool)
 			kfree(DCN10TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
 		}
+	}
 
+	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		if (pool->base.engines[i] != NULL)
 			pool->base.engines[i]->funcs->destroy_engine(&pool->base.engines[i]);
 		if (pool->base.hw_i2cs[i] != NULL) {
@@ -1119,6 +1132,24 @@ static enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_st
 	return DC_OK;
 }
 
+static enum dc_status dcn10_get_default_swizzle_mode(struct dc_plane_state *plane_state)
+{
+	enum dc_status result = DC_OK;
+
+	enum surface_pixel_format surf_pix_format = plane_state->format;
+	unsigned int bpp = resource_pixel_format_to_bpp(surf_pix_format);
+
+	enum swizzle_mode_values swizzle = DC_SW_LINEAR;
+
+	if (bpp == 64)
+		swizzle = DC_SW_64KB_D;
+	else
+		swizzle = DC_SW_64KB_S;
+
+	plane_state->tiling_info.gfx9.swizzle = swizzle;
+	return result;
+}
+
 static const struct dc_cap_funcs cap_funcs = {
 	.get_dcc_compression_cap = dcn10_get_dcc_compression_cap
 };
@@ -1129,7 +1160,8 @@ static const struct resource_funcs dcn10_res_pool_funcs = {
 	.validate_bandwidth = dcn_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn10_acquire_idle_pipe_for_layer,
 	.validate_plane = dcn10_validate_plane,
-	.add_stream_to_ctx = dcn10_add_stream_to_ctx
+	.add_stream_to_ctx = dcn10_add_stream_to_ctx,
+	.get_default_swizzle_mode = dcn10_get_default_swizzle_mode
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)
@@ -1152,7 +1184,12 @@ static bool construct(
 
 	ctx->dc_bios->regs = &bios_regs;
 
-	pool->base.res_cap = &res_cap;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	if (ctx->dce_version == DCN_VERSION_1_01)
+		pool->base.res_cap = &rv2_res_cap;
+	else
+#endif
+		pool->base.res_cap = &res_cap;
 	pool->base.funcs = &dcn10_res_pool_funcs;
 
 	/*

@@ -89,7 +89,6 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	hwmgr_init_default_caps(hwmgr);
 	hwmgr_set_user_specify_caps(hwmgr);
 	hwmgr->fan_ctrl_is_in_default_mode = true;
-	hwmgr->reload_fw = 1;
 	hwmgr_init_workload_prority(hwmgr);
 
 	switch (hwmgr->chip_family) {
@@ -209,17 +208,6 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	if (!hwmgr || !hwmgr->smumgr_funcs)
-		return -EINVAL;
-
-	if (hwmgr->smumgr_funcs->start_smu) {
-		ret = hwmgr->smumgr_funcs->start_smu(hwmgr);
-		if (ret) {
-			pr_err("smc start failed\n");
-			return -EINVAL;
-		}
-	}
-
 	if (!hwmgr->pm_en)
 		return 0;
 
@@ -319,13 +307,6 @@ int hwmgr_resume(struct pp_hwmgr *hwmgr)
 
 	if (!hwmgr)
 		return -EINVAL;
-
-	if (hwmgr->smumgr_funcs && hwmgr->smumgr_funcs->start_smu) {
-		if (hwmgr->smumgr_funcs->start_smu(hwmgr)) {
-			pr_err("smc start failed\n");
-			return -EINVAL;
-		}
-	}
 
 	if (!hwmgr->pm_en)
 		return 0;

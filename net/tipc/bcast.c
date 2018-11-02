@@ -51,12 +51,12 @@ const char tipc_bclink_name[] = "broadcast-link";
  * struct tipc_bc_base - base structure for keeping broadcast send state
  * @link: broadcast send link structure
  * @inputq: data input queue; will only carry SOCK_WAKEUP messages
- * @dest: array keeping number of reachable destinations per bearer
+ * @dests: array keeping number of reachable destinations per bearer
  * @primary_bearer: a bearer having links to all broadcast destinations, if any
  * @bcast_support: indicates if primary bearer, if any, supports broadcast
  * @rcast_support: indicates if all peer nodes support replicast
  * @rc_ratio: dest count as percentage of cluster size where send method changes
- * @bc_threshold: calculated drom rc_ratio; if dests > threshold use broadcast
+ * @bc_threshold: calculated from rc_ratio; if dests > threshold use broadcast
  */
 struct tipc_bc_base {
 	struct tipc_link *link;

@@ -880,7 +880,7 @@ static int smu8_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 	smu8_update_low_mem_pstate(hwmgr, input);
 
 	return 0;
-};
+}
 
 
 static int smu8_setup_asic_task(struct pp_hwmgr *hwmgr)
@@ -933,14 +933,6 @@ static void smu8_reset_cc6_data(struct pp_hwmgr *hwmgr)
 	hw_data->cc6_settings.cpu_cc6_disable = false;
 	hw_data->cc6_settings.cpu_pstate_disable = false;
 }
-
-static int smu8_power_off_asic(struct pp_hwmgr *hwmgr)
-{
-	smu8_power_up_display_clock_sys_pll(hwmgr);
-	smu8_clear_nb_dpm_flag(hwmgr);
-	smu8_reset_cc6_data(hwmgr);
-	return 0;
-};
 
 static void smu8_program_voting_clients(struct pp_hwmgr *hwmgr)
 {
@@ -1011,17 +1003,6 @@ static void smu8_reset_acp_boot_level(struct pp_hwmgr *hwmgr)
 	data->acp_boot_level = 0xff;
 }
 
-static int smu8_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
-{
-	smu8_disable_nb_dpm(hwmgr);
-
-	smu8_clear_voting_clients(hwmgr);
-	if (smu8_stop_dpm(hwmgr))
-		return -EINVAL;
-
-	return 0;
-};
-
 static int smu8_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	smu8_program_voting_clients(hwmgr);
@@ -1031,7 +1012,27 @@ static int smu8_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	smu8_reset_acp_boot_level(hwmgr);
 
 	return 0;
-};
+}
+
+static int smu8_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
+{
+	smu8_disable_nb_dpm(hwmgr);
+
+	smu8_clear_voting_clients(hwmgr);
+	if (smu8_stop_dpm(hwmgr))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int smu8_power_off_asic(struct pp_hwmgr *hwmgr)
+{
+	smu8_disable_dpm_tasks(hwmgr);
+	smu8_power_up_display_clock_sys_pll(hwmgr);
+	smu8_clear_nb_dpm_flag(hwmgr);
+	smu8_reset_cc6_data(hwmgr);
+	return 0;
+}
 
 static int smu8_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state  *prequest_ps,
@@ -1227,14 +1228,17 @@ static int smu8_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 static int smu8_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
-	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating))
+	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating)) {
+		smu8_nbdpm_pstate_enable_disable(hwmgr, true, true);
 		return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UVDPowerOFF);
+	}
 	return 0;
 }
 
 static int smu8_dpm_powerup_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating)) {
+		smu8_nbdpm_pstate_enable_disable(hwmgr, false, true);
 		return smum_send_msg_to_smc_with_parameter(
 			hwmgr,
 			PPSMC_MSG_UVDPowerON,

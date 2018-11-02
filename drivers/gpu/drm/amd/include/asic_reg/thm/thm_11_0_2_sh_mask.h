@@ -28,6 +28,16 @@
 #define CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT                                                               0x9
 #define CG_MULT_THERMAL_STATUS__ASIC_MAX_TEMP_MASK                                                            0x000001FFL
 #define CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK                                                                 0x0003FE00L
+#define CG_FDO_CTRL2__TMIN__SHIFT                                                                             0x0
+#define CG_FDO_CTRL2__TMIN_MASK                                                                               0x000000FFL
+#define CG_FDO_CTRL2__FDO_PWM_MODE__SHIFT                                                                     0xb
+#define CG_FDO_CTRL2__FDO_PWM_MODE_MASK                                                                       0x00003800L
+#define CG_FDO_CTRL1__FMAX_DUTY100__SHIFT                                                                     0x0
+#define CG_FDO_CTRL1__FMAX_DUTY100_MASK                                                                       0x000000FFL
+#define CG_FDO_CTRL0__FDO_STATIC_DUTY__SHIFT                                                                  0x0
+#define CG_FDO_CTRL0__FDO_STATIC_DUTY_MASK                                                                    0x000000FFL
+#define CG_TACH_CTRL__TARGET_PERIOD__SHIFT                                                                    0x3
+#define CG_TACH_CTRL__TARGET_PERIOD_MASK                                                                      0xFFFFFFF8L
 
 //THM_THERMAL_INT_ENA
 #define THM_THERMAL_INT_ENA__THERM_INTH_SET__SHIFT                                                            0x0

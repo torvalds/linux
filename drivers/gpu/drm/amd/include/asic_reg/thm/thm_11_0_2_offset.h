@@ -26,6 +26,18 @@
 #define mmCG_MULT_THERMAL_STATUS                                                                       0x005f
 #define mmCG_MULT_THERMAL_STATUS_BASE_IDX                                                              0
 
+#define mmCG_FDO_CTRL0                                                                                 0x0067
+#define mmCG_FDO_CTRL0_BASE_IDX                                                                        0
+
+#define mmCG_FDO_CTRL1                                                                                 0x0068
+#define mmCG_FDO_CTRL1_BASE_IDX                                                                        0
+
+#define mmCG_FDO_CTRL2                                                                                 0x0069
+#define mmCG_FDO_CTRL2_BASE_IDX                                                                        0
+
+#define mmCG_TACH_CTRL                                                                                 0x006a
+#define mmCG_TACH_CTRL_BASE_IDX                                                                        0
+
 #define mmTHM_THERMAL_INT_ENA                                                                          0x000a
 #define mmTHM_THERMAL_INT_ENA_BASE_IDX                                                                 0
 #define mmTHM_THERMAL_INT_CTRL                                                                         0x000b

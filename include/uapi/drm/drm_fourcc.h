@@ -339,6 +339,15 @@ extern "C" {
 #define DRM_FORMAT_MOD_SAMSUNG_64_32_TILE	fourcc_mod_code(SAMSUNG, 1)
 
 /*
+ * Tiled, 16 (pixels) x 16 (lines) - sized macroblocks
+ *
+ * This is a simple tiled layout using tiles of 16x16 pixels in a row-major
+ * layout. For YCbCr formats Cb/Cr components are taken in such a way that
+ * they correspond to their 16x16 luma block.
+ */
+#define DRM_FORMAT_MOD_SAMSUNG_16_16_TILE	fourcc_mod_code(SAMSUNG, 2)
+
+/*
  * Qualcomm Compressed Format
  *
  * Refers to a compressed variant of the base format that is compressed.

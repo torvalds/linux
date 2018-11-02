@@ -36,6 +36,7 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_scdc_helper.h>
 #include <drm/drm_edid.h>
 
 #include <nvif/class.h>
@@ -531,6 +532,7 @@ nv50_hdmi_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 static void
 nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 {
+	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
@@ -548,9 +550,12 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 		.pwr.rekey = 56, /* binary driver, and tegra, constant */
 	};
 	struct nouveau_connector *nv_connector;
+	struct drm_hdmi_info *hdmi;
 	u32 max_ac_packet;
 	union hdmi_infoframe avi_frame;
 	union hdmi_infoframe vendor_frame;
+	bool scdc_supported, high_tmds_clock_ratio = false, scrambling = false;
+	u8 config;
 	int ret;
 	int size;
 
@@ -558,8 +563,11 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	if (!drm_detect_hdmi_monitor(nv_connector->edid))
 		return;
 
+	hdmi = &nv_connector->base.display_info.hdmi;
+	scdc_supported = hdmi->scdc.supported;
+
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&avi_frame.avi, mode,
-						       false);
+						       scdc_supported);
 	if (!ret) {
 		/* We have an AVI InfoFrame, populate it to the display */
 		args.pwr.avi_infoframe_length
@@ -582,12 +590,42 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	max_ac_packet -= 18; /* constant from tegra */
 	args.pwr.max_ac_packet = max_ac_packet / 32;
 
+	if (hdmi->scdc.scrambling.supported) {
+		high_tmds_clock_ratio = mode->clock > 340000;
+		scrambling = high_tmds_clock_ratio ||
+			hdmi->scdc.scrambling.low_rates;
+	}
+
+	args.pwr.scdc =
+		NV50_DISP_SOR_HDMI_PWR_V0_SCDC_SCRAMBLE * scrambling |
+		NV50_DISP_SOR_HDMI_PWR_V0_SCDC_DIV_BY_4 * high_tmds_clock_ratio;
+
 	size = sizeof(args.base)
 		+ sizeof(args.pwr)
 		+ args.pwr.avi_infoframe_length
 		+ args.pwr.vendor_infoframe_length;
 	nvif_mthd(&disp->disp->object, 0, &args, size);
+
 	nv50_audio_enable(encoder, mode);
+
+	/* If SCDC is supported by the downstream monitor, update
+	 * divider / scrambling settings to what we programmed above.
+	 */
+	if (!hdmi->scdc.scrambling.supported)
+		return;
+
+	ret = drm_scdc_readb(nv_encoder->i2c, SCDC_TMDS_CONFIG, &config);
+	if (ret < 0) {
+		NV_ERROR(drm, "Failure to read SCDC_TMDS_CONFIG: %d\n", ret);
+		return;
+	}
+	config &= ~(SCDC_TMDS_BIT_CLOCK_RATIO_BY_40 | SCDC_SCRAMBLING_ENABLE);
+	config |= SCDC_TMDS_BIT_CLOCK_RATIO_BY_40 * high_tmds_clock_ratio;
+	config |= SCDC_SCRAMBLING_ENABLE * scrambling;
+	ret = drm_scdc_writeb(nv_encoder->i2c, SCDC_TMDS_CONFIG, config);
+	if (ret < 0)
+		NV_ERROR(drm, "Failure to write SCDC_TMDS_CONFIG = 0x%02x: %d\n",
+			 config, ret);
 }
 
 /******************************************************************************
@@ -1117,17 +1155,21 @@ nv50_mstm_enable(struct nv50_mstm *mstm, u8 dpcd, int state)
 	int ret;
 
 	if (dpcd >= 0x12) {
-		ret = drm_dp_dpcd_readb(mstm->mgr.aux, DP_MSTM_CTRL, &dpcd);
+		/* Even if we're enabling MST, start with disabling the
+		 * branching unit to clear any sink-side MST topology state
+		 * that wasn't set by us
+		 */
+		ret = drm_dp_dpcd_writeb(mstm->mgr.aux, DP_MSTM_CTRL, 0);
 		if (ret < 0)
 			return ret;
 
-		dpcd &= ~DP_MST_EN;
-		if (state)
-			dpcd |= DP_MST_EN;
-
-		ret = drm_dp_dpcd_writeb(mstm->mgr.aux, DP_MSTM_CTRL, dpcd);
-		if (ret < 0)
-			return ret;
+		if (state) {
+			/* Now, start initializing */
+			ret = drm_dp_dpcd_writeb(mstm->mgr.aux, DP_MSTM_CTRL,
+						 DP_MST_EN);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	return nvif_mthd(disp, 0, &args, sizeof(args));
@@ -1136,31 +1178,58 @@ nv50_mstm_enable(struct nv50_mstm *mstm, u8 dpcd, int state)
 int
 nv50_mstm_detect(struct nv50_mstm *mstm, u8 dpcd[8], int allow)
 {
-	int ret, state = 0;
+	struct drm_dp_aux *aux;
+	int ret;
+	bool old_state, new_state;
+	u8 mstm_ctrl;
 
 	if (!mstm)
 		return 0;
 
-	if (dpcd[0] >= 0x12) {
-		ret = drm_dp_dpcd_readb(mstm->mgr.aux, DP_MSTM_CAP, &dpcd[1]);
+	mutex_lock(&mstm->mgr.lock);
+
+	old_state = mstm->mgr.mst_state;
+	new_state = old_state;
+	aux = mstm->mgr.aux;
+
+	if (old_state) {
+		/* Just check that the MST hub is still as we expect it */
+		ret = drm_dp_dpcd_readb(aux, DP_MSTM_CTRL, &mstm_ctrl);
+		if (ret < 0 || !(mstm_ctrl & DP_MST_EN)) {
+			DRM_DEBUG_KMS("Hub gone, disabling MST topology\n");
+			new_state = false;
+		}
+	} else if (dpcd[0] >= 0x12) {
+		ret = drm_dp_dpcd_readb(aux, DP_MSTM_CAP, &dpcd[1]);
 		if (ret < 0)
-			return ret;
+			goto probe_error;
 
 		if (!(dpcd[1] & DP_MST_CAP))
 			dpcd[0] = 0x11;
 		else
-			state = allow;
+			new_state = allow;
 	}
 
-	ret = nv50_mstm_enable(mstm, dpcd[0], state);
-	if (ret)
-		return ret;
+	if (new_state == old_state) {
+		mutex_unlock(&mstm->mgr.lock);
+		return new_state;
+	}
 
-	ret = drm_dp_mst_topology_mgr_set_mst(&mstm->mgr, state);
+	ret = nv50_mstm_enable(mstm, dpcd[0], new_state);
+	if (ret)
+		goto probe_error;
+
+	mutex_unlock(&mstm->mgr.lock);
+
+	ret = drm_dp_mst_topology_mgr_set_mst(&mstm->mgr, new_state);
 	if (ret)
 		return nv50_mstm_enable(mstm, dpcd[0], 0);
 
-	return mstm->mgr.mst_state;
+	return new_state;
+
+probe_error:
+	mutex_unlock(&mstm->mgr.lock);
+	return ret;
 }
 
 static void
@@ -2068,7 +2137,7 @@ nv50_disp_atomic_state_alloc(struct drm_device *dev)
 static const struct drm_mode_config_funcs
 nv50_disp_func = {
 	.fb_create = nouveau_user_framebuffer_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
+	.output_poll_changed = nouveau_fbcon_output_poll_changed,
 	.atomic_check = nv50_disp_atomic_check,
 	.atomic_commit = nv50_disp_atomic_commit,
 	.atomic_state_alloc = nv50_disp_atomic_state_alloc,

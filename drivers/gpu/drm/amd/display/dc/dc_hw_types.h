@@ -289,7 +289,8 @@ enum swizzle_mode_values {
 	DC_SW_VAR_S_X = 29,
 	DC_SW_VAR_D_X = 30,
 	DC_SW_VAR_R_X = 31,
-	DC_SW_MAX
+	DC_SW_MAX = 32,
+	DC_SW_UNKNOWN = DC_SW_MAX
 };
 
 union dc_tiling_info {

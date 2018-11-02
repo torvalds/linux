@@ -96,6 +96,41 @@ uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
 EXPORT_SYMBOL(drm_mode_legacy_fb_format);
 
 /**
+ * drm_driver_legacy_fb_format - compute drm fourcc code from legacy description
+ * @bpp: bits per pixels
+ * @depth: bit depth per pixel
+ * @native: use host native byte order
+ *
+ * Computes a drm fourcc pixel format code for the given @bpp/@depth values.
+ * Unlike drm_mode_legacy_fb_format() this looks at the drivers mode_config,
+ * and depending on the quirk_addfb_prefer_host_byte_order flag it returns
+ * little endian byte order or host byte order framebuffer formats.
+ */
+uint32_t drm_driver_legacy_fb_format(struct drm_device *dev,
+				     uint32_t bpp, uint32_t depth)
+{
+	uint32_t fmt = drm_mode_legacy_fb_format(bpp, depth);
+
+	if (dev->mode_config.quirk_addfb_prefer_host_byte_order) {
+		if (fmt == DRM_FORMAT_XRGB8888)
+			fmt = DRM_FORMAT_HOST_XRGB8888;
+		if (fmt == DRM_FORMAT_ARGB8888)
+			fmt = DRM_FORMAT_HOST_ARGB8888;
+		if (fmt == DRM_FORMAT_RGB565)
+			fmt = DRM_FORMAT_HOST_RGB565;
+		if (fmt == DRM_FORMAT_XRGB1555)
+			fmt = DRM_FORMAT_HOST_XRGB1555;
+	}
+
+	if (dev->mode_config.quirk_addfb_prefer_xbgr_30bpp &&
+	    fmt == DRM_FORMAT_XRGB2101010)
+		fmt = DRM_FORMAT_XBGR2101010;
+
+	return fmt;
+}
+EXPORT_SYMBOL(drm_driver_legacy_fb_format);
+
+/**
  * drm_get_format_name - fill a string with a drm fourcc format's name
  * @format: format to compute name of
  * @buf: caller-supplied buffer

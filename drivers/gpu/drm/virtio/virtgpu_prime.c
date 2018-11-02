@@ -55,13 +55,18 @@ struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
 
 void *virtgpu_gem_prime_vmap(struct drm_gem_object *obj)
 {
-	WARN_ONCE(1, "not implemented");
-	return ERR_PTR(-ENODEV);
+	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
+	int ret;
+
+	ret = virtio_gpu_object_kmap(bo);
+	if (ret)
+		return NULL;
+	return bo->vmap;
 }
 
 void virtgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
-	WARN_ONCE(1, "not implemented");
+	virtio_gpu_object_kunmap(gem_to_virtio_gpu_obj(obj));
 }
 
 int virtgpu_gem_prime_mmap(struct drm_gem_object *obj,

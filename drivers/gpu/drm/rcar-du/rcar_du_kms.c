@@ -544,6 +544,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	struct drm_device *dev = rcdu->ddev;
 	struct drm_encoder *encoder;
 	struct drm_fbdev_cma *fbdev;
+	unsigned int dpad0_sources;
 	unsigned int num_encoders;
 	unsigned int num_groups;
 	unsigned int swindex;
@@ -665,6 +666,17 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		encoder->possible_crtcs = route->possible_crtcs;
 		encoder->possible_clones = (1 << num_encoders) - 1;
 	}
+
+	/*
+	 * Initialize the default DPAD0 source to the index of the first DU
+	 * channel that can be connected to DPAD0. The exact value doesn't
+	 * matter as it should be overwritten by mode setting for the RGB
+	 * output, but it is nonetheless required to ensure a valid initial
+	 * hardware configuration on Gen3 where DU0 can't always be connected to
+	 * DPAD0.
+	 */
+	dpad0_sources = rcdu->info->routes[RCAR_DU_OUTPUT_DPAD0].possible_crtcs;
+	rcdu->dpad0_source = ffs(dpad0_sources) - 1;
 
 	drm_mode_config_reset(dev);
 

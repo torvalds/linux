@@ -136,7 +136,7 @@ void amdgpu_amdkfd_gpu_reset(struct kgd_dev *kgd);
 /* Shared API */
 int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 			void **mem_obj, uint64_t *gpu_addr,
-			void **cpu_ptr);
+			void **cpu_ptr, bool mqd_gfx9);
 void free_gtt_mem(struct kgd_dev *kgd, void *mem_obj);
 void get_local_mem_info(struct kgd_dev *kgd,
 			struct kfd_local_mem_info *mem_info);
@@ -174,7 +174,7 @@ void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
 				struct amdgpu_vm *vm);
 void amdgpu_amdkfd_gpuvm_destroy_process_vm(struct kgd_dev *kgd, void *vm);
 void amdgpu_amdkfd_gpuvm_release_process_vm(struct kgd_dev *kgd, void *vm);
-uint32_t amdgpu_amdkfd_gpuvm_get_process_page_dir(void *vm);
+uint64_t amdgpu_amdkfd_gpuvm_get_process_page_dir(void *vm);
 int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		struct kgd_dev *kgd, uint64_t va, uint64_t size,
 		void *vm, struct kgd_mem **mem,

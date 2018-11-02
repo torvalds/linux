@@ -233,6 +233,7 @@ static void nfqnl_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	int err;
 
 	if (verdict == NF_ACCEPT ||
+	    verdict == NF_REPEAT ||
 	    verdict == NF_STOP) {
 		rcu_read_lock();
 		ct_hook = rcu_dereference(nf_ct_hook);

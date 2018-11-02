@@ -615,7 +615,7 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 	vcotbl->type = type;
 	vcotbl->ctx = ctx;
 
-	vmw_resource_activate(&vcotbl->res, vmw_hw_cotable_destroy);
+	vcotbl->res.hw_destroy = vmw_hw_cotable_destroy;
 
 	return &vcotbl->res;
 

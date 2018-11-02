@@ -46,10 +46,6 @@ struct amdgpu_sdma_instance {
 
 struct amdgpu_sdma {
 	struct amdgpu_sdma_instance instance[AMDGPU_MAX_SDMA_INSTANCES];
-#ifdef CONFIG_DRM_AMDGPU_SI
-	//SI DMA has a difference trap irq number for the second engine
-	struct amdgpu_irq_src	trap_irq_1;
-#endif
 	struct amdgpu_irq_src	trap_irq;
 	struct amdgpu_irq_src	illegal_inst_irq;
 	int			num_instances;

@@ -60,6 +60,7 @@
 #define DC_LOGGER \
 	dc->ctx->logger
 
+const static char DC_BUILD_ID[] = "production-build";
 
 /*******************************************************************************
  * Private functions
@@ -460,9 +461,25 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 					 struct dc_link_settings *link_setting,
 					 struct dc_link *link)
 {
+	int i;
+	struct pipe_ctx *pipe;
+	struct dc_stream_state *link_stream;
 	struct dc_link_settings store_settings = *link_setting;
-	struct dc_stream_state *link_stream =
-		link->dc->current_state->res_ctx.pipe_ctx[0].stream;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream && pipe->stream->sink
+			&& pipe->stream->sink->link) {
+			if (pipe->stream->sink->link == link)
+				break;
+		}
+	}
+
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return;
+
+	link_stream = link->dc->current_state->res_ctx.pipe_ctx[i].stream;
 
 	link->preferred_link_setting = store_settings;
 	if (link_stream)
@@ -741,6 +758,8 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 		dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
 
 	dc->config = init_params->flags;
+
+	dc->build_id = DC_BUILD_ID;
 
 	DC_LOG_DC("Display Core initialized\n");
 
@@ -1094,32 +1113,6 @@ static bool is_surface_in_context(
 	return false;
 }
 
-static unsigned int pixel_format_to_bpp(enum surface_pixel_format format)
-{
-	switch (format) {
-	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
-	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
-		return 12;
-	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
-	case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
-	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
-	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
-		return 16;
-	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
-	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
-	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
-	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
-		return 32;
-	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
-	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
-	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
-		return 64;
-	default:
-		ASSERT_CRITICAL(false);
-		return -1;
-	}
-}
-
 static enum surface_update_type get_plane_info_update_type(const struct dc_surface_update *u)
 {
 	union surface_update_flags *update_flags = &u->surface->update_flags;
@@ -1153,15 +1146,12 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 			|| u->plane_info->dcc.grph.meta_pitch != u->surface->dcc.grph.meta_pitch)
 		update_flags->bits.dcc_change = 1;
 
-	if (pixel_format_to_bpp(u->plane_info->format) !=
-			pixel_format_to_bpp(u->surface->format))
+	if (resource_pixel_format_to_bpp(u->plane_info->format) !=
+			resource_pixel_format_to_bpp(u->surface->format))
 		/* different bytes per element will require full bandwidth
 		 * and DML calculation
 		 */
 		update_flags->bits.bpp_change = 1;
-
-	if (u->gamma && dce_use_lut(u->plane_info->format))
-		update_flags->bits.gamma_change = 1;
 
 	if (memcmp(&u->plane_info->tiling_info, &u->surface->tiling_info,
 			sizeof(union dc_tiling_info)) != 0) {
@@ -1179,7 +1169,6 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	if (update_flags->bits.rotation_change
 			|| update_flags->bits.stereo_format_change
 			|| update_flags->bits.pixel_format_change
-			|| update_flags->bits.gamma_change
 			|| update_flags->bits.bpp_change
 			|| update_flags->bits.bandwidth_change
 			|| update_flags->bits.output_tf_change)
@@ -1269,13 +1258,26 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	if (u->coeff_reduction_factor)
 		update_flags->bits.coeff_reduction_change = 1;
 
+	if (u->gamma) {
+		enum surface_pixel_format format = SURFACE_PIXEL_FORMAT_GRPH_BEGIN;
+
+		if (u->plane_info)
+			format = u->plane_info->format;
+		else if (u->surface)
+			format = u->surface->format;
+
+		if (dce_use_lut(format))
+			update_flags->bits.gamma_change = 1;
+	}
+
 	if (update_flags->bits.in_transfer_func_change) {
 		type = UPDATE_TYPE_MED;
 		elevate_update_type(&overall_type, type);
 	}
 
 	if (update_flags->bits.input_csc_change
-			|| update_flags->bits.coeff_reduction_change) {
+			|| update_flags->bits.coeff_reduction_change
+			|| update_flags->bits.gamma_change) {
 		type = UPDATE_TYPE_FULL;
 		elevate_update_type(&overall_type, type);
 	}
@@ -1379,7 +1381,7 @@ static void notify_display_count_to_smu(
 	 * sent as part of pplib_apply_display_requirements.
 	 * So just return.
 	 */
-	if (!pp_smu->set_display_count)
+	if (!pp_smu || !pp_smu->set_display_count)
 		return;
 
 	display_count = 0;
@@ -1833,4 +1835,17 @@ void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
 			return;
 		}
 	}
+}
+
+void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info)
+{
+	info->displayClock				= (unsigned int)state->bw.dcn.clk.dispclk_khz;
+	info->engineClock				= (unsigned int)state->bw.dcn.clk.dcfclk_khz;
+	info->memoryClock				= (unsigned int)state->bw.dcn.clk.dramclk_khz;
+	info->maxSupportedDppClock		= (unsigned int)state->bw.dcn.clk.max_supported_dppclk_khz;
+	info->dppClock					= (unsigned int)state->bw.dcn.clk.dppclk_khz;
+	info->socClock					= (unsigned int)state->bw.dcn.clk.socclk_khz;
+	info->dcfClockDeepSleep			= (unsigned int)state->bw.dcn.clk.dcfclk_deep_sleep_khz;
+	info->fClock					= (unsigned int)state->bw.dcn.clk.fclk_khz;
+	info->phyClock					= (unsigned int)state->bw.dcn.clk.phyclk_khz;
 }

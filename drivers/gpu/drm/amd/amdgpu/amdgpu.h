@@ -81,6 +81,23 @@
 #include "amdgpu_bo_list.h"
 #include "amdgpu_gem.h"
 
+#define MAX_GPU_INSTANCE		16
+
+struct amdgpu_gpu_instance
+{
+	struct amdgpu_device		*adev;
+	int				mgpu_fan_enabled;
+};
+
+struct amdgpu_mgpu_info
+{
+	struct amdgpu_gpu_instance	gpu_ins[MAX_GPU_INSTANCE];
+	struct mutex			mutex;
+	uint32_t			num_gpu;
+	uint32_t			num_dgpu;
+	uint32_t			num_apu;
+};
+
 /*
  * Modules parameters.
  */
@@ -134,6 +151,7 @@ extern int amdgpu_compute_multipipe;
 extern int amdgpu_gpu_recovery;
 extern int amdgpu_emu_mode;
 extern uint amdgpu_smu_memory_pool_size;
+extern struct amdgpu_mgpu_info mgpu_info;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;
@@ -146,6 +164,7 @@ extern int amdgpu_cik_support;
 #define AMDGPU_DEFAULT_GTT_SIZE_MB		3072ULL /* 3GB by default */
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
+#define AMDGPU_FENCE_JIFFIES_TIMEOUT		(HZ / 2)
 /* AMDGPU_IB_POOL_SIZE must be a power of 2 */
 #define AMDGPU_IB_POOL_SIZE			16
 #define AMDGPU_DEBUGFS_MAX_COMPONENTS		32
@@ -408,16 +427,25 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	AMDGPU_DOORBELL64_GFX_RING0               = 0x8b,
 
 	/*
-	 * Other graphics doorbells can be allocated here: from 0x8c to 0xef
+	 * Other graphics doorbells can be allocated here: from 0x8c to 0xdf
 	 * Graphics voltage island aperture 1
-	 * default non-graphics QWORD index is 0xF0 - 0xFF inclusive
+	 * default non-graphics QWORD index is 0xe0 - 0xFF inclusive
 	 */
 
-	/* sDMA engines */
-	AMDGPU_DOORBELL64_sDMA_ENGINE0            = 0xF0,
-	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xF1,
-	AMDGPU_DOORBELL64_sDMA_ENGINE1            = 0xF2,
-	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xF3,
+	/* sDMA engines  reserved from 0xe0 -oxef  */
+	AMDGPU_DOORBELL64_sDMA_ENGINE0            = 0xE0,
+	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xE1,
+	AMDGPU_DOORBELL64_sDMA_ENGINE1            = 0xE8,
+	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xE9,
+
+	/* For vega10 sriov, the sdma doorbell must be fixed as follow
+	 * to keep the same setting with host driver, or it will
+	 * happen conflicts
+	 */
+	AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0            = 0xF0,
+	AMDGPU_VEGA10_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xF1,
+	AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1            = 0xF2,
+	AMDGPU_VEGA10_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xF3,
 
 	/* Interrupt handler */
 	AMDGPU_DOORBELL64_IH                      = 0xF4,  /* For legacy interrupt ring buffer */
@@ -587,31 +615,6 @@ void amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
  * Testing
  */
 void amdgpu_test_moves(struct amdgpu_device *adev);
-
-
-/*
- * amdgpu smumgr functions
- */
-struct amdgpu_smumgr_funcs {
-	int (*check_fw_load_finish)(struct amdgpu_device *adev, uint32_t fwtype);
-	int (*request_smu_load_fw)(struct amdgpu_device *adev);
-	int (*request_smu_specific_fw)(struct amdgpu_device *adev, uint32_t fwtype);
-};
-
-/*
- * amdgpu smumgr
- */
-struct amdgpu_smumgr {
-	struct amdgpu_bo *toc_buf;
-	struct amdgpu_bo *smu_buf;
-	/* asic priv smu data */
-	void *priv;
-	spinlock_t smu_lock;
-	/* smumgr functions */
-	const struct amdgpu_smumgr_funcs *smumgr_funcs;
-	/* ucode loading complete flag */
-	uint32_t fw_flags;
-};
 
 /*
  * ASIC specific register table accessible by UMD
@@ -948,9 +951,6 @@ struct amdgpu_device {
 	u32				cg_flags;
 	u32				pg_flags;
 
-	/* amdgpu smumgr */
-	struct amdgpu_smumgr smu;
-
 	/* gfx */
 	struct amdgpu_gfx		gfx;
 
@@ -1014,6 +1014,9 @@ struct amdgpu_device {
 	/* record hw reset is performed */
 	bool has_hw_reset;
 	u8				reset_magic[AMDGPU_RESET_MAGIC_NUM];
+
+	/* s3/s4 mask */
+	bool                            in_suspend;
 
 	/* record last mm index being written through WREG32*/
 	unsigned long last_mm_index;

@@ -164,10 +164,11 @@ static void omap_connector_destroy(struct drm_connector *connector)
 
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(omap_connector);
 
 	omapdss_device_put(omap_connector->output);
 	omapdss_device_put(omap_connector->display);
+
+	kfree(omap_connector);
 }
 
 #define MAX_EDID  512

@@ -24,12 +24,8 @@
 #ifndef __AMDGPU_IH_H__
 #define __AMDGPU_IH_H__
 
-#include "soc15_ih_clientid.h"
-
 struct amdgpu_device;
-
-#define AMDGPU_IH_CLIENTID_LEGACY 0
-#define AMDGPU_IH_CLIENTID_MAX SOC15_IH_CLIENTID_MAX
+struct amdgpu_iv_entry;
 
 /*
  * R6xx+ IH ring
@@ -51,22 +47,6 @@ struct amdgpu_ih_ring {
 	dma_addr_t		rb_dma_addr; /* only used when use_bus_addr = true */
 };
 
-#define AMDGPU_IH_SRC_DATA_MAX_SIZE_DW 4
-
-struct amdgpu_iv_entry {
-	unsigned client_id;
-	unsigned src_id;
-	unsigned ring_id;
-	unsigned vmid;
-	unsigned vmid_src;
-	uint64_t timestamp;
-	unsigned timestamp_src;
-	unsigned pasid;
-	unsigned pasid_src;
-	unsigned src_data[AMDGPU_IH_SRC_DATA_MAX_SIZE_DW];
-	const uint32_t *iv_entry;
-};
-
 /* provided by the ih block */
 struct amdgpu_ih_funcs {
 	/* ring read/write ptr handling, called from interrupt context */
@@ -82,9 +62,11 @@ struct amdgpu_ih_funcs {
 #define amdgpu_ih_decode_iv(adev, iv) (adev)->irq.ih_funcs->decode_iv((adev), (iv))
 #define amdgpu_ih_set_rptr(adev) (adev)->irq.ih_funcs->set_rptr((adev))
 
-int amdgpu_ih_ring_init(struct amdgpu_device *adev, unsigned ring_size,
-			bool use_bus_addr);
-void amdgpu_ih_ring_fini(struct amdgpu_device *adev);
-int amdgpu_ih_process(struct amdgpu_device *adev);
+int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
+			unsigned ring_size, bool use_bus_addr);
+void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
+int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
+		      void (*callback)(struct amdgpu_device *adev,
+				       struct amdgpu_ih_ring *ih));
 
 #endif

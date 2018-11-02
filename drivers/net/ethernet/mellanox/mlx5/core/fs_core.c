@@ -1578,6 +1578,33 @@ static u64 matched_fgs_get_version(struct list_head *match_head)
 	return version;
 }
 
+static struct fs_fte *
+lookup_fte_locked(struct mlx5_flow_group *g,
+		  u32 *match_value,
+		  bool take_write)
+{
+	struct fs_fte *fte_tmp;
+
+	if (take_write)
+		nested_down_write_ref_node(&g->node, FS_LOCK_PARENT);
+	else
+		nested_down_read_ref_node(&g->node, FS_LOCK_PARENT);
+	fte_tmp = rhashtable_lookup_fast(&g->ftes_hash, match_value,
+					 rhash_fte);
+	if (!fte_tmp || !tree_get_node(&fte_tmp->node)) {
+		fte_tmp = NULL;
+		goto out;
+	}
+
+	nested_down_write_ref_node(&fte_tmp->node, FS_LOCK_CHILD);
+out:
+	if (take_write)
+		up_write_ref_node(&g->node);
+	else
+		up_read_ref_node(&g->node);
+	return fte_tmp;
+}
+
 static struct mlx5_flow_handle *
 try_add_to_existing_fg(struct mlx5_flow_table *ft,
 		       struct list_head *match_head,
@@ -1600,10 +1627,6 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 	if (IS_ERR(fte))
 		return  ERR_PTR(-ENOMEM);
 
-	list_for_each_entry(iter, match_head, list) {
-		nested_down_read_ref_node(&iter->g->node, FS_LOCK_PARENT);
-	}
-
 search_again_locked:
 	version = matched_fgs_get_version(match_head);
 	/* Try to find a fg that already contains a matching fte */
@@ -1611,39 +1634,15 @@ search_again_locked:
 		struct fs_fte *fte_tmp;
 
 		g = iter->g;
-		fte_tmp = rhashtable_lookup_fast(&g->ftes_hash, spec->match_value,
-						 rhash_fte);
-		if (!fte_tmp || !tree_get_node(&fte_tmp->node))
+		fte_tmp = lookup_fte_locked(g, spec->match_value, take_write);
+		if (!fte_tmp)
 			continue;
-
-		nested_down_write_ref_node(&fte_tmp->node, FS_LOCK_CHILD);
-		if (!take_write) {
-			list_for_each_entry(iter, match_head, list)
-				up_read_ref_node(&iter->g->node);
-		} else {
-			list_for_each_entry(iter, match_head, list)
-				up_write_ref_node(&iter->g->node);
-		}
-
 		rule = add_rule_fg(g, spec->match_value,
 				   flow_act, dest, dest_num, fte_tmp);
 		up_write_ref_node(&fte_tmp->node);
 		tree_put_node(&fte_tmp->node);
 		kmem_cache_free(steering->ftes_cache, fte);
 		return rule;
-	}
-
-	/* No group with matching fte found. Try to add a new fte to any
-	 * matching fg.
-	 */
-
-	if (!take_write) {
-		list_for_each_entry(iter, match_head, list)
-			up_read_ref_node(&iter->g->node);
-		list_for_each_entry(iter, match_head, list)
-			nested_down_write_ref_node(&iter->g->node,
-						   FS_LOCK_PARENT);
-		take_write = true;
 	}
 
 	/* Check the ft version, for case that new flow group
@@ -1657,27 +1656,30 @@ search_again_locked:
 	/* Check the fgs version, for case the new FTE with the
 	 * same values was added while the fgs weren't locked
 	 */
-	if (version != matched_fgs_get_version(match_head))
+	if (version != matched_fgs_get_version(match_head)) {
+		take_write = true;
 		goto search_again_locked;
+	}
 
 	list_for_each_entry(iter, match_head, list) {
 		g = iter->g;
 
 		if (!g->node.active)
 			continue;
+
+		nested_down_write_ref_node(&g->node, FS_LOCK_PARENT);
+
 		err = insert_fte(g, fte);
 		if (err) {
+			up_write_ref_node(&g->node);
 			if (err == -ENOSPC)
 				continue;
-			list_for_each_entry(iter, match_head, list)
-				up_write_ref_node(&iter->g->node);
 			kmem_cache_free(steering->ftes_cache, fte);
 			return ERR_PTR(err);
 		}
 
 		nested_down_write_ref_node(&fte->node, FS_LOCK_CHILD);
-		list_for_each_entry(iter, match_head, list)
-			up_write_ref_node(&iter->g->node);
+		up_write_ref_node(&g->node);
 		rule = add_rule_fg(g, spec->match_value,
 				   flow_act, dest, dest_num, fte);
 		up_write_ref_node(&fte->node);
@@ -1686,8 +1688,6 @@ search_again_locked:
 	}
 	rule = ERR_PTR(-ENOENT);
 out:
-	list_for_each_entry(iter, match_head, list)
-		up_write_ref_node(&iter->g->node);
 	kmem_cache_free(steering->ftes_cache, fte);
 	return rule;
 }
@@ -1726,6 +1726,8 @@ search_again_locked:
 	if (err) {
 		if (take_write)
 			up_write_ref_node(&ft->node);
+		else
+			up_read_ref_node(&ft->node);
 		return ERR_PTR(err);
 	}
 

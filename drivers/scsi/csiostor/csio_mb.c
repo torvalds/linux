@@ -368,7 +368,7 @@ csio_mb_port(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 			FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 	if (fw_caps == FW_CAPS16)
-		cmdp->u.l1cfg.rcap = cpu_to_be32(fc);
+		cmdp->u.l1cfg.rcap = cpu_to_be32(fwcaps32_to_caps16(fc));
 	else
 		cmdp->u.l1cfg32.rcap32 = cpu_to_be32(fc);
 }
@@ -395,8 +395,8 @@ csio_mb_process_read_port_rsp(struct csio_hw *hw, struct csio_mb *mbp,
 			*pcaps = fwcaps16_to_caps32(ntohs(rsp->u.info.pcap));
 			*acaps = fwcaps16_to_caps32(ntohs(rsp->u.info.acap));
 		} else {
-			*pcaps = ntohs(rsp->u.info32.pcaps32);
-			*acaps = ntohs(rsp->u.info32.acaps32);
+			*pcaps = be32_to_cpu(rsp->u.info32.pcaps32);
+			*acaps = be32_to_cpu(rsp->u.info32.acaps32);
 		}
 	}
 }

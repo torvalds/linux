@@ -1157,16 +1157,33 @@ static void null_restart_queue_async(struct nullb *nullb)
 	}
 }
 
+static bool cmd_report_zone(struct nullb *nullb, struct nullb_cmd *cmd)
+{
+	struct nullb_device *dev = cmd->nq->dev;
+
+	if (dev->queue_mode == NULL_Q_BIO) {
+		if (bio_op(cmd->bio) == REQ_OP_ZONE_REPORT) {
+			cmd->error = null_zone_report(nullb, cmd->bio);
+			return true;
+		}
+	} else {
+		if (req_op(cmd->rq) == REQ_OP_ZONE_REPORT) {
+			cmd->error = null_zone_report(nullb, cmd->rq->bio);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static blk_status_t null_handle_cmd(struct nullb_cmd *cmd)
 {
 	struct nullb_device *dev = cmd->nq->dev;
 	struct nullb *nullb = dev->nullb;
 	int err = 0;
 
-	if (req_op(cmd->rq) == REQ_OP_ZONE_REPORT) {
-		cmd->error = null_zone_report(nullb, cmd);
+	if (cmd_report_zone(nullb, cmd))
 		goto out;
-	}
 
 	if (test_bit(NULLB_DEV_FL_THROTTLED, &dev->flags)) {
 		struct request *rq = cmd->rq;
@@ -1234,10 +1251,24 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd)
 	cmd->error = errno_to_blk_status(err);
 
 	if (!cmd->error && dev->zoned) {
-		if (req_op(cmd->rq) == REQ_OP_WRITE)
-			null_zone_write(cmd);
-		else if (req_op(cmd->rq) == REQ_OP_ZONE_RESET)
-			null_zone_reset(cmd);
+		sector_t sector;
+		unsigned int nr_sectors;
+		int op;
+
+		if (dev->queue_mode == NULL_Q_BIO) {
+			op = bio_op(cmd->bio);
+			sector = cmd->bio->bi_iter.bi_sector;
+			nr_sectors = cmd->bio->bi_iter.bi_size >> 9;
+		} else {
+			op = req_op(cmd->rq);
+			sector = blk_rq_pos(cmd->rq);
+			nr_sectors = blk_rq_sectors(cmd->rq);
+		}
+
+		if (op == REQ_OP_WRITE)
+			null_zone_write(cmd, sector, nr_sectors);
+		else if (op == REQ_OP_ZONE_RESET)
+			null_zone_reset(cmd, sector);
 	}
 out:
 	/* Complete IO by inline, softirq or timer */
