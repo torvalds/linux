@@ -53,6 +53,11 @@ int snand_gc(void)
 	return sftl_gc();
 }
 
+int snand_discard(u32 sec, u32 n_sec)
+{
+	return sftl_discard(sec, n_sec);
+}
+
 void snand_deinit(void)
 {
 	sftl_deinit();

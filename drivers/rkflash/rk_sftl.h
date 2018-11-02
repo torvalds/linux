@@ -12,6 +12,7 @@ int sftl_read(u32 index, u32 count, u8 *buf);
 int sftl_write(u32 index, u32 count, u8 *buf);
 u32 sftl_get_density(void);
 s32 sftl_gc(void);
+int sftl_discard(u32 sec, u32 n_sec);
 int sftl_vendor_read(u32 index, u32 count, u8 *buf);
 int sftl_vendor_write(u32 index, u32 count, u8 *buf);
 

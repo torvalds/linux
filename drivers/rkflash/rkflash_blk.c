@@ -54,8 +54,9 @@ static struct flash_boot_ops nandc_nand_ops = {
 	sftl_flash_vendor_read,
 	sftl_flash_vendor_write,
 	sftl_flash_gc,
+	sftl_flash_discard,
 #else
-	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 #endif
 };
 
@@ -71,8 +72,9 @@ static struct flash_boot_ops sfc_nor_ops = {
 	snor_vendor_read,
 	snor_vendor_write,
 	snor_gc,
+	NULL,
 #else
-	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 #endif
 };
 
@@ -88,8 +90,9 @@ static struct flash_boot_ops sfc_nand_ops = {
 	snand_vendor_read,
 	snand_vendor_write,
 	snand_gc,
+	snand_discard,
 #else
-	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 #endif
 };
 
@@ -166,6 +169,21 @@ static int rkflash_flash_gc(void)
 
 	return ret;
 }
+
+static int rkflash_blk_discard(u32 sec, u32 n_sec)
+{
+	int ret;
+
+	if (g_boot_ops[g_flash_type]->discard) {
+		mutex_lock(&g_flash_ops_mutex);
+		ret = g_boot_ops[g_flash_type]->discard(sec, n_sec);
+		mutex_unlock(&g_flash_ops_mutex);
+	} else {
+		ret = -EPERM;
+	}
+
+	return ret;
+};
 
 static unsigned int rk_partition_init(struct flash_part *part)
 {
@@ -368,6 +386,11 @@ static int rkflash_blktrans_thread(void *arg)
 		res = 0;
 
 		if (req->cmd_flags & REQ_DISCARD) {
+			spin_unlock_irq(rq->queue_lock);
+			if (rkflash_blk_discard(blk_rq_pos(req) +
+						dev->off_size, totle_nsect))
+				res = -EIO;
+			spin_lock_irq(rq->queue_lock);
 			if (!__blk_end_request_cur(req, res))
 				req = NULL;
 			continue;

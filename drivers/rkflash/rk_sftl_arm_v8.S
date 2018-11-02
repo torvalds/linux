@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2018 Rockchip Electronics Co. Ltd.
- * date: 2018-10-29
+ * date: 2018-11-02
  */
 	.arch armv8-a
 	.file	"rk_sftl.c"
@@ -9144,9 +9144,9 @@ sftl_deinit:
 	ret
 	.size	sftl_deinit, .-sftl_deinit
 	.align	2
-	.global	FtlDiscard
-	.type	FtlDiscard, %function
-FtlDiscard:
+	.global	sftl_discard
+	.type	sftl_discard, %function
+sftl_discard:
 	stp	x29, x30, [sp, -64]!
 	add	w3, w0, w1
 	add	x29, sp, 0
@@ -9223,7 +9223,7 @@ FtlDiscard:
 .L1344:
 	mov	w0, -1
 	b	.L1336
-	.size	FtlDiscard, .-FtlDiscard
+	.size	sftl_discard, .-sftl_discard
 	.align	2
 	.global	FtlVpcCheckAndModify
 	.type	FtlVpcCheckAndModify, %function
@@ -9470,7 +9470,7 @@ FtlProgPages:
 	cmp	w1, w0
 	bcc	.L1383
 	adrp	x0, .LC1
-	mov	w2, 955
+	mov	w2, 958
 	add	x1, x25, 648
 	add	x0, x0, :lo12:.LC1
 	bl	sftl_printk
@@ -9512,7 +9512,7 @@ FtlProgPages:
 	adrp	x1, .LANCHOR1
 	add	x1, x1, :lo12:.LANCHOR1
 	adrp	x0, .LC1
-	mov	w2, 970
+	mov	w2, 973
 	add	x1, x1, 648
 	add	x0, x0, :lo12:.LC1
 	bl	sftl_printk
@@ -11114,7 +11114,7 @@ FtlWrite:
 	bcc	.L1614
 	ldr	x1, [x29, 160]
 	adrp	x0, .LC1
-	mov	w2, 1011
+	mov	w2, 1014
 	add	x0, x0, :lo12:.LC1
 	bl	sftl_printk
 .L1614:
@@ -11163,7 +11163,7 @@ FtlWrite:
 	bcc	.L1619
 	ldr	x1, [x29, 160]
 	adrp	x0, .LC1
-	mov	w2, 1044
+	mov	w2, 1047
 	add	x0, x0, :lo12:.LC1
 	bl	sftl_printk
 .L1619:
@@ -11185,7 +11185,7 @@ FtlWrite:
 	bcs	.L1640
 	ldr	x1, [x29, 160]
 	adrp	x0, .LC1
-	mov	w2, 1121
+	mov	w2, 1124
 	add	x0, x0, :lo12:.LC1
 	bl	sftl_printk
 .L1640:
@@ -11268,7 +11268,7 @@ FtlWrite:
 	bcc	.L1636
 	ldr	x1, [x29, 160]
 	adrp	x0, .LC1
-	mov	w2, 1112
+	mov	w2, 1115
 	add	x0, x0, :lo12:.LC1
 	bl	sftl_printk
 .L1636:
@@ -11372,7 +11372,7 @@ FtlWrite:
 	cmp	w21, w0
 	beq	.L1634
 	ldr	x1, [x29, 160]
-	mov	w2, 1097
+	mov	w2, 1100
 	adrp	x0, .LC1
 	add	x0, x0, :lo12:.LC1
 	bl	sftl_printk

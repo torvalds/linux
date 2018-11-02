@@ -57,6 +57,11 @@ int sftl_flash_gc(void)
 	return sftl_gc();
 }
 
+int sftl_flash_discard(u32 sec, u32 n_sec)
+{
+	return sftl_discard(sec, n_sec);
+}
+
 void sftl_flash_deinit(void)
 {
 	u8 chip_sel = 0;

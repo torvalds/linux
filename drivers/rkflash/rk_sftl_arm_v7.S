@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2018 Rockchip Electronics Co. Ltd.
- * date: 2018-10-29
+ * date: 2018-11-02
  */
 	.file	"rk_sftl.c"
 	.global	__udivsi3
@@ -9910,12 +9910,12 @@ sftl_deinit:
 	.word	.LANCHOR2
 	.size	sftl_deinit, .-sftl_deinit
 	.align	2
-	.global	FtlDiscard
+	.global	sftl_discard
 	.syntax unified
 	.arm
 	.fpu softvfp
-	.type	FtlDiscard, %function
-FtlDiscard:
+	.type	sftl_discard, %function
+sftl_discard:
 	@ args = 0, pretend = 0, frame = 8
 	@ frame_needed = 1, uses_anonymous_args = 0
 	mov	ip, sp
@@ -9999,7 +9999,7 @@ FtlDiscard:
 	.align	2
 .L1439:
 	.word	.LANCHOR0
-	.size	FtlDiscard, .-FtlDiscard
+	.size	sftl_discard, .-sftl_discard
 	.align	2
 	.global	FtlVpcCheckAndModify
 	.syntax unified
@@ -10251,7 +10251,7 @@ FtlProgPages:
 	ldrh	r3, [r6, #32]
 	cmp	r2, r3
 	bcc	.L1473
-	movw	r2, #955
+	movw	r2, #958
 	mov	r1, r10
 	ldr	r0, .L1482+8
 	bl	sftl_printk
@@ -10291,7 +10291,7 @@ FtlProgPages:
 	ldrh	r3, [r6, #32]
 	cmp	r2, r3
 	bcc	.L1468
-	movw	r2, #970
+	movw	r2, #973
 	ldr	r1, .L1482+4
 	ldr	r0, .L1482+8
 	bl	sftl_printk
@@ -12075,7 +12075,7 @@ FtlWrite:
 	ldrh	r3, [r10, #32]
 	cmp	r2, r3
 	bcc	.L1723
-	movw	r2, #1011
+	movw	r2, #1014
 	ldr	r1, .L1770+12
 	ldr	r0, .L1770+16
 	bl	sftl_printk
@@ -12121,7 +12121,7 @@ FtlWrite:
 	ldrh	r3, [r10, #32]
 	cmp	r2, r3
 	bcc	.L1728
-	movw	r2, #1044
+	movw	r2, #1047
 	ldr	r1, .L1770+12
 	ldr	r0, .L1770+16
 	bl	sftl_printk
@@ -12143,7 +12143,7 @@ FtlWrite:
 	ldr	r2, [fp, #-72]
 	cmp	r3, r2
 	bls	.L1749
-	movw	r2, #1121
+	movw	r2, #1124
 	ldr	r1, .L1770+12
 	ldr	r0, .L1770+16
 	bl	sftl_printk
@@ -12277,7 +12277,7 @@ FtlWrite:
 	ldr	r3, [r8, #8]
 	cmp	r5, r3
 	beq	.L1743
-	movw	r2, #1097
+	movw	r2, #1100
 	ldr	r1, .L1770+12
 	ldr	r0, .L1770+16
 	bl	sftl_printk
@@ -12299,7 +12299,7 @@ FtlWrite:
 	ldrh	r3, [r10, #32]
 	cmp	r2, r3
 	bcc	.L1745
-	movw	r2, #1112
+	movw	r2, #1115
 	ldr	r1, .L1770+12
 	ldr	r0, .L1770+16
 	bl	sftl_printk
