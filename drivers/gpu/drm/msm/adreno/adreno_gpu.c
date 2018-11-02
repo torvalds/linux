@@ -414,6 +414,10 @@ int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state)
 		}
 	}
 
+	/* Some targets prefer to collect their own registers */
+	if (!adreno_gpu->registers)
+		return 0;
+
 	/* Count the number of registers */
 	for (i = 0; adreno_gpu->registers[i] != ~0; i += 2)
 		count += adreno_gpu->registers[i + 1] -
@@ -551,12 +555,14 @@ void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 		}
 	}
 
-	drm_puts(p, "registers:\n");
+	if (state->nr_registers) {
+		drm_puts(p, "registers:\n");
 
-	for (i = 0; i < state->nr_registers; i++) {
-		drm_printf(p, "  - { offset: 0x%04x, value: 0x%08x }\n",
-			state->registers[i * 2] << 2,
-			state->registers[(i * 2) + 1]);
+		for (i = 0; i < state->nr_registers; i++) {
+			drm_printf(p, "  - { offset: 0x%04x, value: 0x%08x }\n",
+				state->registers[i * 2] << 2,
+				state->registers[(i * 2) + 1]);
+		}
 	}
 }
 #endif
@@ -594,6 +600,9 @@ void adreno_dump(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int i;
+
+	if (!adreno_gpu->registers)
+		return;
 
 	/* dump these out in a form that can be parsed by demsm: */
 	printk("IO:region %s 00000000 00020000\n", gpu->name);
