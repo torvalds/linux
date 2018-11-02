@@ -20,7 +20,6 @@
 #include <linux/soc/qcom/mdt_loader.h>
 #include <linux/pm_opp.h>
 #include <linux/nvmem-consumer.h>
-#include <linux/iopoll.h>
 #include <linux/slab.h>
 #include "msm_gem.h"
 #include "msm_mmu.h"
@@ -1210,10 +1209,6 @@ struct a5xx_gpu_state {
 	struct msm_gpu_state base;
 	u32 *hlsqregs;
 };
-
-#define gpu_poll_timeout(gpu, addr, val, cond, interval, timeout) \
-	readl_poll_timeout((gpu)->mmio + ((addr) << 2), val, cond, \
-		interval, timeout)
 
 static int a5xx_crashdumper_init(struct msm_gpu *gpu,
 		struct a5xx_crashdumper *dumper)
