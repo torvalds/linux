@@ -1041,23 +1041,29 @@ static void *_msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
 
 	if (iova) {
 		ret = msm_gem_get_iova(obj, aspace, iova);
-		if (ret) {
-			drm_gem_object_put(obj);
-			return ERR_PTR(ret);
-		}
+		if (ret)
+			goto err;
 	}
 
 	vaddr = msm_gem_get_vaddr(obj);
 	if (IS_ERR(vaddr)) {
 		msm_gem_put_iova(obj, aspace);
-		drm_gem_object_put(obj);
-		return ERR_CAST(vaddr);
+		ret = PTR_ERR(vaddr);
+		goto err;
 	}
 
 	if (bo)
 		*bo = obj;
 
 	return vaddr;
+err:
+	if (locked)
+		drm_gem_object_put(obj);
+	else
+		drm_gem_object_put_unlocked(obj);
+
+	return ERR_PTR(ret);
+
 }
 
 void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
