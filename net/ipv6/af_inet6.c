@@ -1001,6 +1001,9 @@ static int __init inet6_init(void)
 	err = ip6_flowlabel_init();
 	if (err)
 		goto ip6_flowlabel_fail;
+	err = ipv6_anycast_init();
+	if (err)
+		goto ipv6_anycast_fail;
 	err = addrconf_init();
 	if (err)
 		goto addrconf_fail;
@@ -1091,6 +1094,8 @@ ipv6_frag_fail:
 ipv6_exthdrs_fail:
 	addrconf_cleanup();
 addrconf_fail:
+	ipv6_anycast_cleanup();
+ipv6_anycast_fail:
 	ip6_flowlabel_cleanup();
 ip6_flowlabel_fail:
 	ndisc_late_cleanup();
