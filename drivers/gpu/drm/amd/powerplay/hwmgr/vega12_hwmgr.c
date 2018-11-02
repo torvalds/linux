@@ -2356,6 +2356,13 @@ static int vega12_gfx_off_control(struct pp_hwmgr *hwmgr, bool enable)
 		return vega12_disable_gfx_off(hwmgr);
 }
 
+static int vega12_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
+				PHM_PerformanceLevelDesignation designation, uint32_t index,
+				PHM_PerformanceLevel *level)
+{
+	return 0;
+}
+
 static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.backend_init = vega12_hwmgr_backend_init,
 	.backend_fini = vega12_hwmgr_backend_fini,
@@ -2406,6 +2413,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.register_irq_handlers = smu9_register_irq_handlers,
 	.start_thermal_controller = vega12_start_thermal_controller,
 	.powergate_gfx = vega12_gfx_off_control,
+	.get_performance_level = vega12_get_performance_level,
 };
 
 int vega12_hwmgr_init(struct pp_hwmgr *hwmgr)
