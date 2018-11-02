@@ -2343,7 +2343,7 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 
 	written = __generic_file_write_iter(iocb, from);
 	/* buffered aio wouldn't have proper lock coverage today */
-	BUG_ON(written == -EIOCBQUEUED && !(iocb->ki_flags & IOCB_DIRECT));
+	BUG_ON(written == -EIOCBQUEUED && !direct_io);
 
 	/*
 	 * deep in g_f_a_w_n()->ocfs2_direct_IO we pass in a ocfs2_dio_end_io
@@ -2463,7 +2463,7 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 	trace_generic_file_read_iter_ret(ret);
 
 	/* buffered aio wouldn't have proper lock coverage today */
-	BUG_ON(ret == -EIOCBQUEUED && !(iocb->ki_flags & IOCB_DIRECT));
+	BUG_ON(ret == -EIOCBQUEUED && !direct_io);
 
 	/* see ocfs2_file_write_iter */
 	if (ret == -EIOCBQUEUED || !ocfs2_iocb_is_rw_locked(iocb)) {
