@@ -2748,7 +2748,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"S             Zoom into current Processor Socket\n"		\
 
 	/* help messages are sorted by lexical order of the hotkey */
-	const char report_help[] = HIST_BROWSER_HELP_COMMON
+	static const char report_help[] = HIST_BROWSER_HELP_COMMON
 	"i             Show header information\n"
 	"P             Print histograms to perf.hist.N\n"
 	"r             Run available scripts\n"
@@ -2756,7 +2756,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"t             Zoom into current Thread\n"
 	"V             Verbose (DSO names in callchains, etc)\n"
 	"/             Filter symbol by name";
-	const char top_help[] = HIST_BROWSER_HELP_COMMON
+	static const char top_help[] = HIST_BROWSER_HELP_COMMON
 	"P             Print histograms to perf.hist.N\n"
 	"t             Zoom into current Thread\n"
 	"V             Verbose (DSO names in callchains, etc)\n"
