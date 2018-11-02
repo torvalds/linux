@@ -178,7 +178,7 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 	u32 dur = ts->duration;
 	u8 ridx;
 
-	if ((info->flags & IEEE80211_TX_CTL_NO_ACK) || !da->enabled)
+	if (!da->enabled || (info->flags & IEEE80211_TX_CTL_NO_ACK))
 		return;
 
 	spin_lock_bh(&da->qlock);
@@ -251,7 +251,7 @@ void ath_dynack_sample_ack_ts(struct ath_hw *ah, struct sk_buff *skb,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
-	if (!ath_dynack_bssidmask(ah, hdr->addr1) || !da->enabled)
+	if (!da->enabled || !ath_dynack_bssidmask(ah, hdr->addr1))
 		return;
 
 	spin_lock_bh(&da->qlock);
