@@ -3030,7 +3030,7 @@ ssize_t vmci_qpair_enqueue(struct vmci_qp *qpair,
 	if (!qpair || !buf)
 		return VMCI_ERROR_INVALID_ARGS;
 
-	iov_iter_kvec(&from, WRITE | ITER_KVEC, &v, 1, buf_size);
+	iov_iter_kvec(&from, WRITE, &v, 1, buf_size);
 
 	qp_lock(qpair);
 
@@ -3074,7 +3074,7 @@ ssize_t vmci_qpair_dequeue(struct vmci_qp *qpair,
 	if (!qpair || !buf)
 		return VMCI_ERROR_INVALID_ARGS;
 
-	iov_iter_kvec(&to, READ | ITER_KVEC, &v, 1, buf_size);
+	iov_iter_kvec(&to, READ, &v, 1, buf_size);
 
 	qp_lock(qpair);
 
@@ -3119,7 +3119,7 @@ ssize_t vmci_qpair_peek(struct vmci_qp *qpair,
 	if (!qpair || !buf)
 		return VMCI_ERROR_INVALID_ARGS;
 
-	iov_iter_kvec(&to, READ | ITER_KVEC, &v, 1, buf_size);
+	iov_iter_kvec(&to, READ, &v, 1, buf_size);
 
 	qp_lock(qpair);
 

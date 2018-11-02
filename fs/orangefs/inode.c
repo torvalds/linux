@@ -25,7 +25,7 @@ static int read_one_page(struct page *page)
 	struct iov_iter to;
 	struct bio_vec bv = {.bv_page = page, .bv_len = PAGE_SIZE};
 
-	iov_iter_bvec(&to, ITER_BVEC | READ, &bv, 1, PAGE_SIZE);
+	iov_iter_bvec(&to, READ, &bv, 1, PAGE_SIZE);
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		    "orangefs_readpage called with page %p\n",

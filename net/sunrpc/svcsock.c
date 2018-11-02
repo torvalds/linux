@@ -336,7 +336,7 @@ static ssize_t svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov,
 	rqstp->rq_xprt_hlen = 0;
 
 	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
-	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, iov, nr, buflen);
+	iov_iter_kvec(&msg.msg_iter, READ, iov, nr, buflen);
 	if (base != 0) {
 		iov_iter_advance(&msg.msg_iter, base);
 		buflen -= base;
