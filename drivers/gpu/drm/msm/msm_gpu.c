@@ -316,28 +316,28 @@ static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
 	struct msm_gpu_state_bo *state_bo = &state->bos[state->nr_bos];
 
 	/* Don't record write only objects */
-
 	state_bo->size = obj->base.size;
 	state_bo->iova = iova;
 
-	/* Only store the data for buffer objects marked for read */
-	if ((flags & MSM_SUBMIT_BO_READ)) {
+	/* Only store data for non imported buffer objects marked for read */
+	if ((flags & MSM_SUBMIT_BO_READ) && !obj->base.import_attach) {
 		void *ptr;
 
 		state_bo->data = kvmalloc(obj->base.size, GFP_KERNEL);
 		if (!state_bo->data)
-			return;
+			goto out;
 
 		ptr = msm_gem_get_vaddr_active(&obj->base);
 		if (IS_ERR(ptr)) {
 			kvfree(state_bo->data);
-			return;
+			state_bo->data = NULL;
+			goto out;
 		}
 
 		memcpy(state_bo->data, ptr, obj->base.size);
 		msm_gem_put_vaddr(&obj->base);
 	}
-
+out:
 	state->nr_bos++;
 }
 
@@ -361,12 +361,15 @@ static void msm_gpu_crashstate_capture(struct msm_gpu *gpu,
 	if (submit) {
 		int i;
 
-		state->bos = kcalloc(submit->nr_bos,
+		state->bos = kcalloc(submit->nr_cmds,
 			sizeof(struct msm_gpu_state_bo), GFP_KERNEL);
 
-		for (i = 0; state->bos && i < submit->nr_bos; i++)
-			msm_gpu_crashstate_get_bo(state, submit->bos[i].obj,
-				submit->bos[i].iova, submit->bos[i].flags);
+		for (i = 0; state->bos && i < submit->nr_cmds; i++) {
+			int idx = submit->cmd[i].idx;
+
+			msm_gpu_crashstate_get_bo(state, submit->bos[idx].obj,
+				submit->bos[idx].iova, submit->bos[idx].flags);
+		}
 	}
 
 	/* Set the active crash state to be dumped on failure */
