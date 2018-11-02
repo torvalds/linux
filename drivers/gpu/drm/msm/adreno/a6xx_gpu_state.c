@@ -41,6 +41,8 @@ struct a6xx_gpu_state {
 
 	struct a6xx_gpu_state_obj *cx_debugbus;
 	int nr_cx_debugbus;
+
+	struct list_head objs;
 };
 
 static inline int CRASHDUMP_WRITE(u64 *in, u32 reg, u32 val)
@@ -72,6 +74,33 @@ struct a6xx_crashdumper {
 	struct drm_gem_object *bo;
 	u64 iova;
 };
+
+struct a6xx_state_memobj {
+	struct list_head node;
+	unsigned long long data[];
+};
+
+void *state_kcalloc(struct a6xx_gpu_state *a6xx_state, int nr, size_t objsize)
+{
+	struct a6xx_state_memobj *obj =
+		kzalloc((nr * objsize) + sizeof(*obj), GFP_KERNEL);
+
+	if (!obj)
+		return NULL;
+
+	list_add_tail(&obj->node, &a6xx_state->objs);
+	return &obj->data;
+}
+
+void *state_kmemdup(struct a6xx_gpu_state *a6xx_state, void *src,
+		size_t size)
+{
+	void *dst = state_kcalloc(a6xx_state, 1, size);
+
+	if (dst)
+		memcpy(dst, src, size);
+	return dst;
+}
 
 /*
  * Allocate 1MB for the crashdumper scratch region - 8k for the script and
@@ -203,12 +232,17 @@ static int vbif_debugbus_read(struct msm_gpu *gpu, u32 ctrl0, u32 ctrl1,
 	 (12 * XIN_CORE_BLOCKS))
 
 static void a6xx_get_vbif_debugbus_block(struct msm_gpu *gpu,
+		struct a6xx_gpu_state *a6xx_state,
 		struct a6xx_gpu_state_obj *obj)
 {
 	u32 clk, *ptr;
 	int i;
 
-	obj->data = kcalloc(VBIF_DEBUGBUS_BLOCK_SIZE, sizeof(u32), GFP_KERNEL);
+	obj->data = state_kcalloc(a6xx_state, VBIF_DEBUGBUS_BLOCK_SIZE,
+		sizeof(u32));
+	if (!obj->data)
+		return;
+
 	obj->handle = NULL;
 
 	/* Get the current clock setting */
@@ -252,13 +286,14 @@ static void a6xx_get_vbif_debugbus_block(struct msm_gpu *gpu,
 }
 
 static void a6xx_get_debugbus_block(struct msm_gpu *gpu,
+		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_debugbus_block *block,
 		struct a6xx_gpu_state_obj *obj)
 {
 	int i;
 	u32 *ptr;
 
-	obj->data = kcalloc(block->count, sizeof(u64), GFP_KERNEL);
+	obj->data = state_kcalloc(a6xx_state, block->count, sizeof(u64));
 	if (!obj->data)
 		return;
 
@@ -269,13 +304,14 @@ static void a6xx_get_debugbus_block(struct msm_gpu *gpu,
 }
 
 static void a6xx_get_cx_debugbus_block(void __iomem *cxdbg,
+		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_debugbus_block *block,
 		struct a6xx_gpu_state_obj *obj)
 {
 	int i;
 	u32 *ptr;
 
-	obj->data = kcalloc(block->count, sizeof(u64), GFP_KERNEL);
+	obj->data = state_kcalloc(a6xx_state, block->count, sizeof(u64));
 	if (!obj->data)
 		return;
 
@@ -344,36 +380,42 @@ static void a6xx_get_debugbus(struct msm_gpu *gpu,
 		cxdbg_write(cxdbg, REG_A6XX_DBGC_CFG_DBGBUS_MASKL_3, 0);
 	}
 
-	a6xx_state->debugbus = kcalloc(ARRAY_SIZE(a6xx_debugbus_blocks),
-		sizeof(*a6xx_state->debugbus), GFP_KERNEL);
+	a6xx_state->debugbus = state_kcalloc(a6xx_state,
+		ARRAY_SIZE(a6xx_debugbus_blocks),
+		sizeof(*a6xx_state->debugbus));
 
 	if (a6xx_state->debugbus) {
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(a6xx_debugbus_blocks); i++)
 			a6xx_get_debugbus_block(gpu,
+				a6xx_state,
 				&a6xx_debugbus_blocks[i],
 				&a6xx_state->debugbus[i]);
 
 		a6xx_state->nr_debugbus = ARRAY_SIZE(a6xx_debugbus_blocks);
 	}
 
-	a6xx_state->vbif_debugbus = kzalloc(sizeof(*a6xx_state->vbif_debugbus),
-		GFP_KERNEL);
+	a6xx_state->vbif_debugbus =
+		state_kcalloc(a6xx_state, 1,
+			sizeof(*a6xx_state->vbif_debugbus));
 
 	if (a6xx_state->vbif_debugbus)
-		a6xx_get_vbif_debugbus_block(gpu, a6xx_state->vbif_debugbus);
+		a6xx_get_vbif_debugbus_block(gpu, a6xx_state,
+			a6xx_state->vbif_debugbus);
 
 	if (cxdbg) {
 		a6xx_state->cx_debugbus =
-			kcalloc(ARRAY_SIZE(a6xx_cx_debugbus_blocks),
-			sizeof(*a6xx_state->cx_debugbus), GFP_KERNEL);
+			state_kcalloc(a6xx_state,
+			ARRAY_SIZE(a6xx_cx_debugbus_blocks),
+			sizeof(*a6xx_state->cx_debugbus));
 
 		if (a6xx_state->cx_debugbus) {
 			int i;
 
 			for (i = 0; i < ARRAY_SIZE(a6xx_cx_debugbus_blocks); i++)
 				a6xx_get_cx_debugbus_block(cxdbg,
+					a6xx_state,
 					&a6xx_cx_debugbus_blocks[i],
 					&a6xx_state->cx_debugbus[i]);
 
@@ -389,6 +431,7 @@ static void a6xx_get_debugbus(struct msm_gpu *gpu,
 
 /* Read a data cluster from behind the AHB aperture */
 static void a6xx_get_dbgahb_cluster(struct msm_gpu *gpu,
+		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_dbgahb_cluster *dbgahb,
 		struct a6xx_gpu_state_obj *obj,
 		struct a6xx_crashdumper *dumper)
@@ -429,8 +472,8 @@ static void a6xx_get_dbgahb_cluster(struct msm_gpu *gpu,
 		return;
 
 	obj->handle = dbgahb;
-	obj->data = kmemdup(dumper->ptr + A6XX_CD_DATA_OFFSET,
-		datasize, GFP_KERNEL);
+	obj->data = state_kmemdup(a6xx_state, dumper->ptr + A6XX_CD_DATA_OFFSET,
+		datasize);
 }
 
 static void a6xx_get_dbgahb_clusters(struct msm_gpu *gpu,
@@ -439,8 +482,9 @@ static void a6xx_get_dbgahb_clusters(struct msm_gpu *gpu,
 {
 	int i;
 
-	a6xx_state->dbgahb_clusters = kcalloc(ARRAY_SIZE(a6xx_dbgahb_clusters),
-		sizeof(*a6xx_state->dbgahb_clusters), GFP_KERNEL);
+	a6xx_state->dbgahb_clusters = state_kcalloc(a6xx_state,
+		ARRAY_SIZE(a6xx_dbgahb_clusters),
+		sizeof(*a6xx_state->dbgahb_clusters));
 
 	if (!a6xx_state->dbgahb_clusters)
 		return;
@@ -448,12 +492,14 @@ static void a6xx_get_dbgahb_clusters(struct msm_gpu *gpu,
 	a6xx_state->nr_dbgahb_clusters = ARRAY_SIZE(a6xx_dbgahb_clusters);
 
 	for (i = 0; i < ARRAY_SIZE(a6xx_dbgahb_clusters); i++)
-		a6xx_get_dbgahb_cluster(gpu, &a6xx_dbgahb_clusters[i],
+		a6xx_get_dbgahb_cluster(gpu, a6xx_state,
+			&a6xx_dbgahb_clusters[i],
 			&a6xx_state->dbgahb_clusters[i], dumper);
 }
 
 /* Read a data cluster from the CP aperture with the crashdumper */
 static void a6xx_get_cluster(struct msm_gpu *gpu,
+		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_cluster *cluster,
 		struct a6xx_gpu_state_obj *obj,
 		struct a6xx_crashdumper *dumper)
@@ -497,8 +543,8 @@ static void a6xx_get_cluster(struct msm_gpu *gpu,
 		return;
 
 	obj->handle = cluster;
-	obj->data = kmemdup(dumper->ptr + A6XX_CD_DATA_OFFSET,
-		datasize, GFP_KERNEL);
+	obj->data = state_kmemdup(a6xx_state, dumper->ptr + A6XX_CD_DATA_OFFSET,
+		datasize);
 }
 
 static void a6xx_get_clusters(struct msm_gpu *gpu,
@@ -507,8 +553,8 @@ static void a6xx_get_clusters(struct msm_gpu *gpu,
 {
 	int i;
 
-	a6xx_state->clusters = kcalloc(ARRAY_SIZE(a6xx_clusters),
-		sizeof(*a6xx_state->clusters), GFP_KERNEL);
+	a6xx_state->clusters = state_kcalloc(a6xx_state,
+		ARRAY_SIZE(a6xx_clusters), sizeof(*a6xx_state->clusters));
 
 	if (!a6xx_state->clusters)
 		return;
@@ -516,12 +562,13 @@ static void a6xx_get_clusters(struct msm_gpu *gpu,
 	a6xx_state->nr_clusters = ARRAY_SIZE(a6xx_clusters);
 
 	for (i = 0; i < ARRAY_SIZE(a6xx_clusters); i++)
-		a6xx_get_cluster(gpu, &a6xx_clusters[i],
+		a6xx_get_cluster(gpu, a6xx_state, &a6xx_clusters[i],
 			&a6xx_state->clusters[i], dumper);
 }
 
 /* Read a shader / debug block from the HLSQ aperture with the crashdumper */
 static void a6xx_get_shader_block(struct msm_gpu *gpu,
+		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_shader_block *block,
 		struct a6xx_gpu_state_obj *obj,
 		struct a6xx_crashdumper *dumper)
@@ -547,8 +594,8 @@ static void a6xx_get_shader_block(struct msm_gpu *gpu,
 		return;
 
 	obj->handle = block;
-	obj->data = kmemdup(dumper->ptr + A6XX_CD_DATA_OFFSET,
-		datasize, GFP_KERNEL);
+	obj->data = state_kmemdup(a6xx_state, dumper->ptr + A6XX_CD_DATA_OFFSET,
+		datasize);
 }
 
 static void a6xx_get_shaders(struct msm_gpu *gpu,
@@ -557,8 +604,8 @@ static void a6xx_get_shaders(struct msm_gpu *gpu,
 {
 	int i;
 
-	a6xx_state->shaders = kcalloc(ARRAY_SIZE(a6xx_shader_blocks),
-		sizeof(*a6xx_state->shaders), GFP_KERNEL);
+	a6xx_state->shaders = state_kcalloc(a6xx_state,
+		ARRAY_SIZE(a6xx_shader_blocks), sizeof(*a6xx_state->shaders));
 
 	if (!a6xx_state->shaders)
 		return;
@@ -566,12 +613,13 @@ static void a6xx_get_shaders(struct msm_gpu *gpu,
 	a6xx_state->nr_shaders = ARRAY_SIZE(a6xx_shader_blocks);
 
 	for (i = 0; i < ARRAY_SIZE(a6xx_shader_blocks); i++)
-		a6xx_get_shader_block(gpu, &a6xx_shader_blocks[i],
+		a6xx_get_shader_block(gpu, a6xx_state, &a6xx_shader_blocks[i],
 			&a6xx_state->shaders[i], dumper);
 }
 
 /* Read registers from behind the HLSQ aperture with the crashdumper */
 static void a6xx_get_crashdumper_hlsq_registers(struct msm_gpu *gpu,
+		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_registers *regs,
 		struct a6xx_gpu_state_obj *obj,
 		struct a6xx_crashdumper *dumper)
@@ -603,12 +651,13 @@ static void a6xx_get_crashdumper_hlsq_registers(struct msm_gpu *gpu,
 		return;
 
 	obj->handle = regs;
-	obj->data = kmemdup(dumper->ptr + A6XX_CD_DATA_OFFSET,
-		regcount * sizeof(u32), GFP_KERNEL);
+	obj->data = state_kmemdup(a6xx_state, dumper->ptr + A6XX_CD_DATA_OFFSET,
+		regcount * sizeof(u32));
 }
 
 /* Read a block of registers using the crashdumper */
 static void a6xx_get_crashdumper_registers(struct msm_gpu *gpu,
+		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_registers *regs,
 		struct a6xx_gpu_state_obj *obj,
 		struct a6xx_crashdumper *dumper)
@@ -640,12 +689,13 @@ static void a6xx_get_crashdumper_registers(struct msm_gpu *gpu,
 		return;
 
 	obj->handle = regs;
-	obj->data = kmemdup(dumper->ptr + A6XX_CD_DATA_OFFSET,
-		regcount * sizeof(u32), GFP_KERNEL);
+	obj->data = state_kmemdup(a6xx_state, dumper->ptr + A6XX_CD_DATA_OFFSET,
+		regcount * sizeof(u32));
 }
 
 /* Read a block of registers via AHB */
 static void a6xx_get_ahb_gpu_registers(struct msm_gpu *gpu,
+		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_registers *regs,
 		struct a6xx_gpu_state_obj *obj)
 {
@@ -655,7 +705,7 @@ static void a6xx_get_ahb_gpu_registers(struct msm_gpu *gpu,
 		regcount += RANGE(regs->registers, i);
 
 	obj->handle = (const void *) regs;
-	obj->data = kcalloc(regcount, sizeof(u32), GFP_KERNEL);
+	obj->data = state_kcalloc(a6xx_state, regcount, sizeof(u32));
 	if (!obj->data)
 		return;
 
@@ -671,6 +721,7 @@ static void a6xx_get_ahb_gpu_registers(struct msm_gpu *gpu,
 
 /* Read a block of GMU registers */
 static void _a6xx_get_gmu_registers(struct msm_gpu *gpu,
+		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_registers *regs,
 		struct a6xx_gpu_state_obj *obj)
 {
@@ -683,7 +734,7 @@ static void _a6xx_get_gmu_registers(struct msm_gpu *gpu,
 		regcount += RANGE(regs->registers, i);
 
 	obj->handle = (const void *) regs;
-	obj->data = kcalloc(regcount, sizeof(u32), GFP_KERNEL);
+	obj->data = state_kcalloc(a6xx_state, regcount, sizeof(u32));
 	if (!obj->data)
 		return;
 
@@ -703,8 +754,8 @@ static void a6xx_get_gmu_registers(struct msm_gpu *gpu,
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 
-	a6xx_state->gmu_registers = kcalloc(2,
-		sizeof(*a6xx_state->gmu_registers), GFP_KERNEL);
+	a6xx_state->gmu_registers = state_kcalloc(a6xx_state,
+		2, sizeof(*a6xx_state->gmu_registers));
 
 	if (!a6xx_state->gmu_registers)
 		return;
@@ -712,7 +763,7 @@ static void a6xx_get_gmu_registers(struct msm_gpu *gpu,
 	a6xx_state->nr_gmu_registers = 2;
 
 	/* Get the CX GMU registers from AHB */
-	_a6xx_get_gmu_registers(gpu, &a6xx_gmu_reglist[0],
+	_a6xx_get_gmu_registers(gpu, a6xx_state, &a6xx_gmu_reglist[0],
 		&a6xx_state->gmu_registers[0]);
 
 	if (!a6xx_gmu_gx_is_on(&a6xx_gpu->gmu))
@@ -721,7 +772,7 @@ static void a6xx_get_gmu_registers(struct msm_gpu *gpu,
 	/* Set the fence to ALLOW mode so we can access the registers */
 	gpu_write(gpu, REG_A6XX_GMU_AO_AHB_FENCE_CTRL, 0);
 
-	_a6xx_get_gmu_registers(gpu, &a6xx_gmu_reglist[1],
+	_a6xx_get_gmu_registers(gpu, a6xx_state, &a6xx_gmu_reglist[1],
 		&a6xx_state->gmu_registers[1]);
 }
 
@@ -734,8 +785,8 @@ static void a6xx_get_registers(struct msm_gpu *gpu,
 		ARRAY_SIZE(a6xx_hlsq_reglist);
 	int index = 0;
 
-	a6xx_state->registers = kcalloc(count, sizeof(*a6xx_state->registers),
-		GFP_KERNEL);
+	a6xx_state->registers = state_kcalloc(a6xx_state,
+		count, sizeof(*a6xx_state->registers));
 
 	if (!a6xx_state->registers)
 		return;
@@ -744,31 +795,32 @@ static void a6xx_get_registers(struct msm_gpu *gpu,
 
 	for (i = 0; i < ARRAY_SIZE(a6xx_ahb_reglist); i++)
 		a6xx_get_ahb_gpu_registers(gpu,
-			&a6xx_ahb_reglist[i],
+			a6xx_state, &a6xx_ahb_reglist[i],
 			&a6xx_state->registers[index++]);
 
 	for (i = 0; i < ARRAY_SIZE(a6xx_reglist); i++)
 		a6xx_get_crashdumper_registers(gpu,
-			&a6xx_reglist[i],
+			a6xx_state, &a6xx_reglist[i],
 			&a6xx_state->registers[index++],
 			dumper);
 
 	for (i = 0; i < ARRAY_SIZE(a6xx_hlsq_reglist); i++)
 		a6xx_get_crashdumper_hlsq_registers(gpu,
-			&a6xx_hlsq_reglist[i],
+			a6xx_state, &a6xx_hlsq_reglist[i],
 			&a6xx_state->registers[index++],
 			dumper);
 }
 
 /* Read a block of data from an indexed register pair */
 static void a6xx_get_indexed_regs(struct msm_gpu *gpu,
+		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_indexed_registers *indexed,
 		struct a6xx_gpu_state_obj *obj)
 {
 	int i;
 
 	obj->handle = (const void *) indexed;
-	obj->data = kcalloc(indexed->count, sizeof(u32), GFP_KERNEL);
+	obj->data = state_kcalloc(a6xx_state, indexed->count, sizeof(u32));
 	if (!obj->data)
 		return;
 
@@ -787,13 +839,13 @@ static void a6xx_get_indexed_registers(struct msm_gpu *gpu,
 	int count = ARRAY_SIZE(a6xx_indexed_reglist) + 1;
 	int i;
 
-	a6xx_state->indexed_regs = kcalloc(count,
-		sizeof(a6xx_state->indexed_regs), GFP_KERNEL);
+	a6xx_state->indexed_regs = state_kcalloc(a6xx_state, count,
+		sizeof(a6xx_state->indexed_regs));
 	if (!a6xx_state->indexed_regs)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(a6xx_indexed_reglist); i++)
-		a6xx_get_indexed_regs(gpu, &a6xx_indexed_reglist[i],
+		a6xx_get_indexed_regs(gpu, a6xx_state, &a6xx_indexed_reglist[i],
 			&a6xx_state->indexed_regs[i]);
 
 	/* Set the CP mempool size to 0 to stabilize it while dumping */
@@ -801,7 +853,7 @@ static void a6xx_get_indexed_registers(struct msm_gpu *gpu,
 	gpu_write(gpu, REG_A6XX_CP_MEM_POOL_SIZE, 0);
 
 	/* Get the contents of the CP mempool */
-	a6xx_get_indexed_regs(gpu, &a6xx_cp_mempool_indexed,
+	a6xx_get_indexed_regs(gpu, a6xx_state, &a6xx_cp_mempool_indexed,
 		&a6xx_state->indexed_regs[i]);
 
 	/*
@@ -826,6 +878,8 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 
 	if (!a6xx_state)
 		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&a6xx_state->objs);
 
 	/* Get the generic state from the adreno core */
 	adreno_gpu_state_get(gpu, &a6xx_state->base);
@@ -856,56 +910,14 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 
 void a6xx_gpu_state_destroy(struct kref *kref)
 {
+	struct a6xx_state_memobj *obj, *tmp;
 	struct msm_gpu_state *state = container_of(kref,
 			struct msm_gpu_state, ref);
 	struct a6xx_gpu_state *a6xx_state = container_of(state,
 			struct a6xx_gpu_state, base);
-	int i;
 
-	for (i = 0; i < a6xx_state->nr_gmu_registers; i++)
-		kfree(a6xx_state->gmu_registers[i].data);
-
-	kfree(a6xx_state->gmu_registers);
-
-	for (i = 0; i < a6xx_state->nr_registers; i++)
-		kfree(a6xx_state->registers[i].data);
-
-	kfree(a6xx_state->registers);
-
-	for (i = 0; i < a6xx_state->nr_shaders; i++)
-		kfree(a6xx_state->shaders[i].data);
-
-	kfree(a6xx_state->shaders);
-
-	for (i = 0; i < a6xx_state->nr_clusters; i++)
-		kfree(a6xx_state->clusters[i].data);
-
-	kfree(a6xx_state->clusters);
-
-	for (i = 0; i < a6xx_state->nr_dbgahb_clusters; i++)
-		kfree(a6xx_state->dbgahb_clusters[i].data);
-
-	kfree(a6xx_state->dbgahb_clusters);
-
-	for (i = 0; i < a6xx_state->nr_indexed_regs; i++)
-		kfree(a6xx_state->indexed_regs[i].data);
-
-	kfree(a6xx_state->indexed_regs);
-
-	for (i = 0; i < a6xx_state->nr_debugbus; i++)
-		kfree(a6xx_state->debugbus[i].data);
-
-	kfree(a6xx_state->debugbus);
-
-	if (a6xx_state->vbif_debugbus)
-		kfree(a6xx_state->vbif_debugbus->data);
-
-	kfree(a6xx_state->vbif_debugbus);
-
-	for (i = 0; i < a6xx_state->nr_cx_debugbus; i++)
-		kfree(a6xx_state->cx_debugbus[i].data);
-
-	kfree(a6xx_state->cx_debugbus);
+	list_for_each_entry_safe(obj, tmp, &a6xx_state->objs, node)
+		kfree(obj);
 
 	adreno_gpu_state_destroy(state);
 	kfree(a6xx_state);
