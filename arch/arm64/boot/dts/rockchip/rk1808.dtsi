@@ -1330,6 +1330,14 @@
 		power-domains = <&power RK1808_VD_NPU>;
 		operating-points-v2 = <&npu_opp_table>;
 		status = "disabled";
+
+		npu_power_model: power-model {
+			compatible = "simple-power-model";
+			static-coefficient = <342478>;
+			dynamic-coefficient = <3080>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "soc-thermal";
+		};
 	};
 
 	npu_opp_table: npu-opp-table {
