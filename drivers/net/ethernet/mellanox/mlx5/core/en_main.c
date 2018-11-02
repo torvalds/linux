@@ -128,6 +128,8 @@ static bool mlx5e_rx_is_linear_skb(struct mlx5_core_dev *mdev,
 	return !params->lro_en && frag_sz <= PAGE_SIZE;
 }
 
+#define MLX5_MAX_MPWQE_LOG_WQE_STRIDE_SZ ((BIT(__mlx5_bit_sz(wq, log_wqe_stride_size)) - 1) + \
+					  MLX5_MPWQE_LOG_STRIDE_SZ_BASE)
 static bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 					 struct mlx5e_params *params)
 {
@@ -136,6 +138,9 @@ static bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 	u8 log_num_strides;
 
 	if (!mlx5e_rx_is_linear_skb(mdev, params))
+		return false;
+
+	if (order_base_2(frag_sz) > MLX5_MAX_MPWQE_LOG_WQE_STRIDE_SZ)
 		return false;
 
 	if (MLX5_CAP_GEN(mdev, ext_stride_num_range))
