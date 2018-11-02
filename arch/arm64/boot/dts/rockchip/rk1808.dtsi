@@ -1309,6 +1309,7 @@
 			"clk_isp", "pclk_isp";
 		power-domains = <&power RK1808_PD_VIO>;
 		iommus = <&isp_mmu>;
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
@@ -1655,6 +1656,41 @@
 			cif_clkout_m0: cif-clkout-m0 {
 				rockchip,pins =
 					<2 RK_PB7 1 &pcfg_pull_none>;
+			};
+
+			cif_d12d15_m0: cif-d12d15-m0 {
+				rockchip,pins =
+					<2 RK_PA0 1 &pcfg_pull_none>,/* cif_d12 */
+					<2 RK_PA1 1 &pcfg_pull_none>,/* cif_d13 */
+					<2 RK_PA2 1 &pcfg_pull_none>,/* cif_d14 */
+					<2 RK_PA3 1 &pcfg_pull_none>;/* cif_d15 */
+			};
+
+			cif_d10d11_m0: cif-d10d11-m0 {
+				rockchip,pins =
+					<2 RK_PC2 1 &pcfg_pull_none>,/* cif_d10 */
+					<2 RK_PC3 1 &pcfg_pull_none>;/* cif_d11 */
+			};
+
+			cif_d2d9_m0: cif-d2d9-m0 {
+				rockchip,pins =
+					<2 RK_PA4 1 &pcfg_pull_none>,/* cif_d2 */
+					<2 RK_PA5 1 &pcfg_pull_none>,/* cif_d3 */
+					<2 RK_PA6 1 &pcfg_pull_none>,/* cif_d4 */
+					<2 RK_PA7 1 &pcfg_pull_none>,/* cif_d5 */
+					<2 RK_PB0 1 &pcfg_pull_none>,/* cif_d6 */
+					<2 RK_PB1 1 &pcfg_pull_none>,/* cif_d7 */
+					<2 RK_PB2 1 &pcfg_pull_none>,/* cif_d8 */
+					<2 RK_PB3 1 &pcfg_pull_none>,/* cif_d9 */
+					<2 RK_PB4 1 &pcfg_pull_none>,/* cif_vsync */
+					<2 RK_PB5 1 &pcfg_pull_none>,/* cif_href */
+					<2 RK_PB6 1 &pcfg_pull_none>;/* cif_clkin */
+			};
+
+			cif_d0d1_m0: cif-d0d1-m0 {
+				rockchip,pins =
+					<2 RK_PC0 1 &pcfg_pull_none>,/* cif_d0 */
+					<2 RK_PC1 1 &pcfg_pull_none>;/* cif_d1 */
 			};
 		};
 
