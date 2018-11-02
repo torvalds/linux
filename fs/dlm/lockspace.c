@@ -431,7 +431,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	int do_unreg = 0;
 	int namelen = strlen(name);
 
-	if (namelen > DLM_LOCKSPACE_LEN)
+	if (namelen > DLM_LOCKSPACE_LEN || namelen == 0)
 		return -EINVAL;
 
 	if (!lvblen || (lvblen % 8))
