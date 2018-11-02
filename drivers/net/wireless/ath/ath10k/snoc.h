@@ -98,8 +98,6 @@ static inline struct ath10k_snoc *ath10k_snoc_priv(struct ath10k *ar)
 	return (struct ath10k_snoc *)ar->drv_priv;
 }
 
-void ath10k_snoc_write32(struct ath10k *ar, u32 offset, u32 value);
-u32 ath10k_snoc_read32(struct ath10k *ar, u32 offset);
 int ath10k_snoc_fw_indication(struct ath10k *ar, u64 type);
 
 #endif /* _SNOC_H_ */

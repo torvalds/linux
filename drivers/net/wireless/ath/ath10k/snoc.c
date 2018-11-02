@@ -474,14 +474,14 @@ static struct service_to_pipe target_service_to_ce_map_wlan[] = {
 	},
 };
 
-void ath10k_snoc_write32(struct ath10k *ar, u32 offset, u32 value)
+static void ath10k_snoc_write32(struct ath10k *ar, u32 offset, u32 value)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 
 	iowrite32(value, ar_snoc->mem + offset);
 }
 
-u32 ath10k_snoc_read32(struct ath10k *ar, u32 offset)
+static u32 ath10k_snoc_read32(struct ath10k *ar, u32 offset)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	u32 val;
