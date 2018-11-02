@@ -206,7 +206,7 @@ static int hi3660_mbox_send_data(struct mbox_chan *chan, void *msg)
 	return 0;
 }
 
-static struct mbox_chan_ops hi3660_mbox_ops = {
+static const struct mbox_chan_ops hi3660_mbox_ops = {
 	.startup	= hi3660_mbox_startup,
 	.send_data	= hi3660_mbox_send_data,
 };
