@@ -1334,7 +1334,7 @@ void *__xa_erase(struct xarray *xa, unsigned long index)
 	XA_STATE(xas, xa, index);
 	return xas_result(&xas, xas_store(&xas, NULL));
 }
-EXPORT_SYMBOL_GPL(__xa_erase);
+EXPORT_SYMBOL(__xa_erase);
 
 /**
  * xa_store() - Store this entry in the XArray.
@@ -1674,7 +1674,7 @@ void __xa_set_mark(struct xarray *xa, unsigned long index, xa_mark_t mark)
 	if (entry)
 		xas_set_mark(&xas, mark);
 }
-EXPORT_SYMBOL_GPL(__xa_set_mark);
+EXPORT_SYMBOL(__xa_set_mark);
 
 /**
  * __xa_clear_mark() - Clear this mark on this entry while locked.
@@ -1692,7 +1692,7 @@ void __xa_clear_mark(struct xarray *xa, unsigned long index, xa_mark_t mark)
 	if (entry)
 		xas_clear_mark(&xas, mark);
 }
-EXPORT_SYMBOL_GPL(__xa_clear_mark);
+EXPORT_SYMBOL(__xa_clear_mark);
 
 /**
  * xa_get_mark() - Inquire whether this mark is set on this entry.
