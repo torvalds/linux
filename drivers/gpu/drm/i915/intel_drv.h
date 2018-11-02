@@ -1114,6 +1114,7 @@ struct intel_dp {
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	uint8_t edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
 	u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE];
+	u8 fec_capable;
 	/* source rates */
 	int num_source_rates;
 	const int *source_rates;
