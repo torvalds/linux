@@ -8317,7 +8317,6 @@ static u32 ath10k_mac_wrdd_get_mcc(struct ath10k *ar, union acpi_object *wrdd)
 
 static int ath10k_mac_get_wrdd_regulatory(struct ath10k *ar, u16 *rd)
 {
-	struct pci_dev __maybe_unused *pdev = to_pci_dev(ar->dev);
 	acpi_handle root_handle;
 	acpi_handle handle;
 	struct acpi_buffer wrdd = {ACPI_ALLOCATE_BUFFER, NULL};
@@ -8325,7 +8324,7 @@ static int ath10k_mac_get_wrdd_regulatory(struct ath10k *ar, u16 *rd)
 	u32 alpha2_code;
 	char alpha2[3];
 
-	root_handle = ACPI_HANDLE(&pdev->dev);
+	root_handle = ACPI_HANDLE(ar->dev);
 	if (!root_handle)
 		return -EOPNOTSUPP;
 
