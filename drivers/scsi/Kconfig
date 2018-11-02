@@ -578,6 +578,7 @@ config SCSI_MYRB
 config SCSI_MYRS
 	tristate "Mylex DAC960/DAC1100 PCI RAID Controller (SCSI Interface)"
 	depends on PCI
+	depends on !CPU_BIG_ENDIAN || COMPILE_TEST
 	select RAID_ATTRS
 	help
 	  This driver adds support for the Mylex DAC960, AcceleRAID, and
