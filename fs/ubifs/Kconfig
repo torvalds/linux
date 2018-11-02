@@ -86,6 +86,7 @@ config UBIFS_FS_SECURITY
 
 config UBIFS_FS_AUTHENTICATION
 	bool "UBIFS authentication support"
+	depends on KEYS
 	select CRYPTO_HMAC
 	help
 	  Enable authentication support for UBIFS. This feature offers protection
