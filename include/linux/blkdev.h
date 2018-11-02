@@ -58,22 +58,6 @@ struct blk_stat_callback;
 
 typedef void (rq_end_io_fn)(struct request *, blk_status_t);
 
-struct request_list {
-	struct request_queue	*q;	/* the queue this rl belongs to */
-#ifdef CONFIG_BLK_CGROUP
-	struct blkcg_gq		*blkg;	/* blkg this request pool belongs to */
-#endif
-	/*
-	 * count[], starved[], and wait[] are indexed by
-	 * BLK_RW_SYNC/BLK_RW_ASYNC
-	 */
-	int			count[2];
-	int			starved[2];
-	mempool_t		*rq_pool;
-	wait_queue_head_t	wait[2];
-	unsigned int		flags;
-};
-
 /*
  * request flags */
 typedef __u32 __bitwise req_flags_t;
@@ -259,10 +243,6 @@ struct request {
 
 	/* for bidi */
 	struct request *next_rq;
-
-#ifdef CONFIG_BLK_CGROUP
-	struct request_list *rl;		/* rl this rq is alloced from */
-#endif
 };
 
 static inline bool blk_op_is_scsi(unsigned int op)
@@ -312,8 +292,6 @@ typedef bool (poll_q_fn) (struct request_queue *q, blk_qc_t);
 struct bio_vec;
 typedef void (softirq_done_fn)(struct request *);
 typedef int (dma_drain_needed_fn)(struct request *);
-typedef int (init_rq_fn)(struct request_queue *, struct request *, gfp_t);
-typedef void (exit_rq_fn)(struct request_queue *, struct request *);
 
 enum blk_eh_timer_return {
 	BLK_EH_DONE,		/* drivers has completed the command */
@@ -427,22 +405,10 @@ struct request_queue {
 	struct blk_queue_stats	*stats;
 	struct rq_qos		*rq_qos;
 
-	/*
-	 * If blkcg is not used, @q->root_rl serves all requests.  If blkcg
-	 * is used, root blkg allocates from @q->root_rl and all other
-	 * blkgs from their own blkg->rl.  Which one to use should be
-	 * determined using bio_request_list().
-	 */
-	struct request_list	root_rl;
-
 	make_request_fn		*make_request_fn;
 	poll_q_fn		*poll_fn;
 	softirq_done_fn		*softirq_done_fn;
 	dma_drain_needed_fn	*dma_drain_needed;
-	/* Called just after a request is allocated */
-	init_rq_fn		*init_rq_fn;
-	/* Called just before a request is freed */
-	exit_rq_fn		*exit_rq_fn;
 
 	const struct blk_mq_ops	*mq_ops;
 

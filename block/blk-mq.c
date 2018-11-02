@@ -326,10 +326,6 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	rq->end_io_data = NULL;
 	rq->next_rq = NULL;
 
-#ifdef CONFIG_BLK_CGROUP
-	rq->rl = NULL;
-#endif
-
 	data->ctx->rq_dispatched[op_is_sync(op)]++;
 	refcount_set(&rq->ref, 1);
 	return rq;
