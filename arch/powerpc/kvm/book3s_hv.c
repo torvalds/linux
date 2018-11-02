@@ -2337,8 +2337,7 @@ static void kvmppc_set_timer(struct kvm_vcpu *vcpu)
 		kvmppc_core_prepare_to_enter(vcpu);
 		return;
 	}
-	dec_nsec = (vcpu->arch.dec_expires - now) * NSEC_PER_SEC
-		   / tb_ticks_per_sec;
+	dec_nsec = tb_to_ns(vcpu->arch.dec_expires - now);
 	hrtimer_start(&vcpu->arch.dec_timer, dec_nsec, HRTIMER_MODE_REL);
 	vcpu->arch.timer_running = 1;
 }
