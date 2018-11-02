@@ -1147,6 +1147,13 @@ drm_dp_dsc_sink_max_slice_width(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
 		DP_DSC_SLICE_WIDTH_MULTIPLIER;
 }
 
+/* Forward Error Correction Support on DP 1.4 */
+static inline bool
+drm_dp_sink_supports_fec(const u8 fec_capable)
+{
+	return fec_capable & DP_FEC_CAPABLE;
+}
+
 /*
  * DisplayPort AUX channel
  */
