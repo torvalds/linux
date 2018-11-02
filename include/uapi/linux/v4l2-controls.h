@@ -47,10 +47,10 @@
  *  videodev2.h.
  */
 
-#include <linux/types.h>
-
 #ifndef __LINUX_V4L2_CONTROLS_H
 #define __LINUX_V4L2_CONTROLS_H
+
+#include <linux/types.h>
 
 /* Control classes */
 #define V4L2_CTRL_CLASS_USER		0x00980000	/* Old-style 'user' controls */
@@ -1112,6 +1112,7 @@ struct v4l2_mpeg2_sequence {
 	__u8	profile_and_level_indication;
 	__u8	progressive_sequence;
 	__u8	chroma_format;
+	__u8	pad;
 };
 
 struct v4l2_mpeg2_picture {
@@ -1130,6 +1131,7 @@ struct v4l2_mpeg2_picture {
 	__u8	alternate_scan;
 	__u8	repeat_first_field;
 	__u8	progressive_frame;
+	__u8	pad;
 };
 
 struct v4l2_ctrl_mpeg2_slice_params {
@@ -1144,6 +1146,7 @@ struct v4l2_ctrl_mpeg2_slice_params {
 
 	__u8	backward_ref_index;
 	__u8	forward_ref_index;
+	__u8	pad;
 };
 
 struct v4l2_ctrl_mpeg2_quantization {

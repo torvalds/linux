@@ -1664,6 +1664,11 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 		    p_mpeg2_slice_params->forward_ref_index >= VIDEO_MAX_FRAME)
 			return -EINVAL;
 
+		if (p_mpeg2_slice_params->pad ||
+		    p_mpeg2_slice_params->picture.pad ||
+		    p_mpeg2_slice_params->sequence.pad)
+			return -EINVAL;
+
 		return 0;
 
 	case V4L2_CTRL_TYPE_MPEG2_QUANTIZATION:
