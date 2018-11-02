@@ -87,6 +87,18 @@ struct qeth_dbf_info {
 #define SENSE_RESETTING_EVENT_BYTE 1
 #define SENSE_RESETTING_EVENT_FLAG 0x80
 
+static inline u32 qeth_get_device_id(struct ccw_device *cdev)
+{
+	struct ccw_dev_id dev_id;
+	u32 id;
+
+	ccw_device_get_id(cdev, &dev_id);
+	id = dev_id.devno;
+	id |= (u32) (dev_id.ssid << 16);
+
+	return id;
+}
+
 /*
  * Common IO related definitions
  */
@@ -97,7 +109,8 @@ struct qeth_dbf_info {
 #define CARD_RDEV_ID(card) dev_name(&card->read.ccwdev->dev)
 #define CARD_WDEV_ID(card) dev_name(&card->write.ccwdev->dev)
 #define CARD_DDEV_ID(card) dev_name(&card->data.ccwdev->dev)
-#define CHANNEL_ID(channel) dev_name(&channel->ccwdev->dev)
+#define CCW_DEVID(cdev)		(qeth_get_device_id(cdev))
+#define CARD_DEVID(card)	(CCW_DEVID(CARD_RDEV(card)))
 
 /**
  * card stuff
