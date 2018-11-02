@@ -1974,6 +1974,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 		info.jited_prog_len = 0;
 		info.xlated_prog_len = 0;
 		info.nr_jited_ksyms = 0;
+		info.nr_jited_func_lens = 0;
 		goto done;
 	}
 
