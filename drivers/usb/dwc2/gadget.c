@@ -5026,6 +5026,7 @@ void dwc2_gadget_init_lpm(struct dwc2_hsotg *hsotg)
 	val |= hsotg->params.lpm_clock_gating ? GLPMCFG_ENBLSLPM : 0;
 	val |= hsotg->params.hird_threshold << GLPMCFG_HIRD_THRES_SHIFT;
 	val |= hsotg->params.besl ? GLPMCFG_ENBESL : 0;
+	val |= GLPMCFG_LPM_ACCEPT_CTRL_ISOC;
 	dwc2_writel(hsotg, val, GLPMCFG);
 	dev_dbg(hsotg->dev, "GLPMCFG=0x%08x\n", dwc2_readl(hsotg, GLPMCFG));
 
