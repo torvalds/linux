@@ -1253,7 +1253,8 @@
 		compatible = "rockchip,rk3308-codec";
 		reg = <0x0 0xff560000 0x0 0x10000>;
 		rockchip,grf = <&grf>;
-		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_ACODEC>,
 			 <&cru SCLK_I2S2_8CH_TX_OUT>,
 			 <&cru SCLK_I2S2_8CH_RX_OUT>;
