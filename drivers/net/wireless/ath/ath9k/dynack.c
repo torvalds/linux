@@ -29,9 +29,13 @@
  * ath_dynack_ewma - EWMA (Exponentially Weighted Moving Average) calculation
  *
  */
-static inline u32 ath_dynack_ewma(u32 old, u32 new)
+static inline int ath_dynack_ewma(int old, int new)
 {
-	return (new * (EWMA_DIV - EWMA_LEVEL) + old * EWMA_LEVEL) / EWMA_DIV;
+	if (old > 0)
+		return (new * (EWMA_DIV - EWMA_LEVEL) +
+			old * EWMA_LEVEL) / EWMA_DIV;
+	else
+		return new;
 }
 
 /**
@@ -82,10 +86,10 @@ static inline bool ath_dynack_bssidmask(struct ath_hw *ah, const u8 *mac)
  */
 static void ath_dynack_compute_ackto(struct ath_hw *ah)
 {
-	struct ath_node *an;
-	u32 to = 0;
-	struct ath_dynack *da = &ah->dynack;
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_dynack *da = &ah->dynack;
+	struct ath_node *an;
+	int to = 0;
 
 	list_for_each_entry(an, &da->nodes, list)
 		if (an->ackto > to)
@@ -144,7 +148,8 @@ static void ath_dynack_compute_to(struct ath_hw *ah)
 					an->ackto = ath_dynack_ewma(an->ackto,
 								    ackto);
 					ath_dbg(ath9k_hw_common(ah), DYNACK,
-						"%pM to %u\n", dst, an->ackto);
+						"%pM to %d [%u]\n", dst,
+						an->ackto, ackto);
 					if (time_is_before_jiffies(da->lto)) {
 						ath_dynack_compute_ackto(ah);
 						da->lto = jiffies + COMPUTE_TO;
@@ -166,10 +171,12 @@ static void ath_dynack_compute_to(struct ath_hw *ah)
  * @ah: ath hw
  * @skb: socket buffer
  * @ts: tx status info
+ * @sta: station pointer
  *
  */
 void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
-			     struct ath_tx_status *ts)
+			     struct ath_tx_status *ts,
+			     struct ieee80211_sta *sta)
 {
 	u8 ridx;
 	struct ieee80211_hdr *hdr;
@@ -190,9 +197,16 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 		    ieee80211_is_assoc_resp(hdr->frame_control) ||
 		    ieee80211_is_auth(hdr->frame_control)) {
 			ath_dbg(common, DYNACK, "late ack\n");
+
 			ath9k_hw_setslottime(ah, (LATEACK_TO - 3) / 2);
 			ath9k_hw_set_ack_timeout(ah, LATEACK_TO);
 			ath9k_hw_set_cts_timeout(ah, LATEACK_TO);
+			if (sta) {
+				struct ath_node *an;
+
+				an = (struct ath_node *)sta->drv_priv;
+				an->ackto = -1;
+			}
 			da->lto = jiffies + LATEACK_DELAY;
 		}
 
