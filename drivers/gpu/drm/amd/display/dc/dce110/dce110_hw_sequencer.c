@@ -1750,7 +1750,12 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 	if (events->force_trigger)
 		value |= 0x1;
 
-	value |= 0x84;
+	if (num_pipes) {
+		struct dc *dc = pipe_ctx[0]->stream->ctx->dc;
+
+		if (dc->fbc_compressor)
+			value |= 0x84;
+	}
 
 	for (i = 0; i < num_pipes; i++)
 		pipe_ctx[i]->stream_res.tg->funcs->
