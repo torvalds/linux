@@ -39,7 +39,6 @@ struct drm_master *drm_lease_owner(struct drm_master *master)
 		master = master->lessor;
 	return master;
 }
-EXPORT_SYMBOL(drm_lease_owner);
 
 /**
  * _drm_find_lessee - find lessee by id (idr_mutex held)
@@ -117,7 +116,6 @@ bool _drm_lease_held(struct drm_file *file_priv, int id)
 
 	return _drm_lease_held_master(file_priv->master, id);
 }
-EXPORT_SYMBOL(_drm_lease_held);
 
 /**
  * drm_lease_held - check drm_mode_object lease status (idr_mutex not held)
@@ -144,7 +142,6 @@ bool drm_lease_held(struct drm_file *file_priv, int id)
 	mutex_unlock(&master->dev->mode_config.idr_mutex);
 	return ret;
 }
-EXPORT_SYMBOL(drm_lease_held);
 
 /**
  * drm_lease_filter_crtcs - restricted crtc set to leased values (idr_mutex not held)
@@ -184,7 +181,6 @@ uint32_t drm_lease_filter_crtcs(struct drm_file *file_priv, uint32_t crtcs_in)
 	mutex_unlock(&master->dev->mode_config.idr_mutex);
 	return crtcs_out;
 }
-EXPORT_SYMBOL(drm_lease_filter_crtcs);
 
 /*
  * drm_lease_create - create a new drm_master with leased objects (idr_mutex not held)
