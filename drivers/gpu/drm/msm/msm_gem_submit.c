@@ -20,6 +20,7 @@
 #include "msm_drv.h"
 #include "msm_gpu.h"
 #include "msm_gem.h"
+#include "msm_gpu_trace.h"
 
 /*
  * Cmdstream submission:
@@ -48,7 +49,6 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	submit->dev = dev;
 	submit->gpu = gpu;
 	submit->fence = NULL;
-	submit->pid = get_pid(task_pid(current));
 	submit->cmd = (void *)&submit->bos[nr_bos];
 	submit->queue = queue;
 	submit->ring = gpu->rb[queue->prio];
@@ -406,6 +406,7 @@ static void submit_cleanup(struct msm_gem_submit *submit)
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
+	static atomic_t ident = ATOMIC_INIT(0);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_msm_gem_submit *args = data;
 	struct msm_file_private *ctx = file->driver_priv;
@@ -416,9 +417,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct msm_gpu_submitqueue *queue;
 	struct msm_ringbuffer *ring;
 	int out_fence_fd = -1;
+	struct pid *pid = get_pid(task_pid(current));
 	unsigned i;
-	int ret;
-
+	int ret, submitid;
 	if (!gpu)
 		return -ENXIO;
 
@@ -441,7 +442,12 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (!queue)
 		return -ENOENT;
 
+	/* Get a unique identifier for the submission for logging purposes */
+	submitid = atomic_inc_return(&ident) - 1;
+
 	ring = gpu->rb[queue->prio];
+	trace_msm_gpu_submit(pid_nr(pid), ring->id, submitid,
+		args->nr_bos, args->nr_cmds);
 
 	if (args->flags & MSM_SUBMIT_FENCE_FD_IN) {
 		in_fence = sync_file_get_fence(args->fence_fd);
@@ -477,6 +483,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
+
+	submit->pid = pid;
+	submit->ident = submitid;
 
 	if (args->flags & MSM_SUBMIT_SUDO)
 		submit->in_rb = true;

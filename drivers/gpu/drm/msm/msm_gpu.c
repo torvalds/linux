@@ -19,6 +19,7 @@
 #include "msm_gem.h"
 #include "msm_mmu.h"
 #include "msm_fence.h"
+#include "msm_gpu_trace.h"
 
 #include <generated/utsrelease.h>
 #include <linux/string_helpers.h>
@@ -659,9 +660,27 @@ out:
  * Cmdstream submission/retirement:
  */
 
-static void retire_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
+static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
+		struct msm_gem_submit *submit)
 {
+	int index = submit->seqno % MSM_GPU_SUBMIT_STATS_COUNT;
+	volatile struct msm_gpu_submit_stats *stats;
+	u64 elapsed, clock = 0;
 	int i;
+
+	stats = &ring->memptrs->stats[index];
+	/* Convert 19.2Mhz alwayson ticks to nanoseconds for elapsed time */
+	elapsed = (stats->alwayson_end - stats->alwayson_start) * 10000;
+	do_div(elapsed, 192);
+
+	/* Calculate the clock frequency from the number of CP cycles */
+	if (elapsed) {
+		clock = (stats->cpcycles_end - stats->cpcycles_start) * 1000;
+		do_div(clock, elapsed);
+	}
+
+	trace_msm_gpu_submit_retired(submit, elapsed, clock,
+		stats->alwayson_start, stats->alwayson_end);
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
@@ -690,7 +709,7 @@ static void retire_submits(struct msm_gpu *gpu)
 
 		list_for_each_entry_safe(submit, tmp, &ring->submits, node) {
 			if (dma_fence_is_signaled(submit->fence))
-				retire_submit(gpu, submit);
+				retire_submit(gpu, ring, submit);
 		}
 	}
 }

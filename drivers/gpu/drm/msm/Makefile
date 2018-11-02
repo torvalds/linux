@@ -90,7 +90,8 @@ msm-y := \
 	msm_perf.o \
 	msm_rd.o \
 	msm_ringbuffer.o \
-	msm_submitqueue.o
+	msm_submitqueue.o \
+	msm_gpu_tracepoints.o
 
 msm-$(CONFIG_DEBUG_FS) += adreno/a5xx_debugfs.o \
 			  disp/dpu1/dpu_dbg.o

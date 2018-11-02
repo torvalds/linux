@@ -150,6 +150,7 @@ struct msm_gem_submit {
 	struct msm_ringbuffer *ring;
 	unsigned int nr_cmds;
 	unsigned int nr_bos;
+	u32 ident;	   /* A "identifier" for the submit for logging */
 	struct {
 		uint32_t type;
 		uint32_t size;  /* in dwords */
