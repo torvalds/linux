@@ -194,6 +194,7 @@ struct nvme_ctrl {
 	u8 apsta;
 	u32 oaes;
 	u32 aen_result;
+	u32 ctratt;
 	unsigned int shutdown_timeout;
 	unsigned int kato;
 	bool subsystem;
