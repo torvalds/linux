@@ -200,6 +200,7 @@ enum {
 
 enum nvme_ctrl_attr {
 	NVME_CTRL_ATTR_HID_128_BIT	= (1 << 0),
+	NVME_CTRL_ATTR_TBKAS		= (1 << 6),
 };
 
 struct nvme_id_ctrl {

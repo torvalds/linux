@@ -145,6 +145,7 @@ enum nvme_ctrl_state {
 };
 
 struct nvme_ctrl {
+	bool comp_seen;
 	enum nvme_ctrl_state state;
 	bool identified;
 	spinlock_t lock;
