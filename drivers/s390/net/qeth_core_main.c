@@ -5477,11 +5477,12 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
 }
 EXPORT_SYMBOL_GPL(qeth_get_setassparms_cmd);
 
-int qeth_send_setassparms(struct qeth_card *card,
-			  struct qeth_cmd_buffer *iob, __u16 len, long data,
-			  int (*reply_cb)(struct qeth_card *,
-					  struct qeth_reply *, unsigned long),
-			  void *reply_param)
+static int qeth_send_setassparms(struct qeth_card *card,
+				 struct qeth_cmd_buffer *iob, u16 len,
+				 long data, int (*reply_cb)(struct qeth_card *,
+							    struct qeth_reply *,
+							    unsigned long),
+				 void *reply_param)
 {
 	int rc;
 	struct qeth_ipa_cmd *cmd;
@@ -5497,7 +5498,6 @@ int qeth_send_setassparms(struct qeth_card *card,
 	rc = qeth_send_ipa_cmd(card, iob, reply_cb, reply_param);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(qeth_send_setassparms);
 
 int qeth_send_simple_setassparms_prot(struct qeth_card *card,
 				      enum qeth_ipa_funcs ipa_func,

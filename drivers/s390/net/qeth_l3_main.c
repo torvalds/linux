@@ -1777,13 +1777,18 @@ out:
 	return rc;
 }
 
-static int qeth_l3_arp_add_entry(struct qeth_card *card,
-				struct qeth_arp_cache_entry *entry)
+static int qeth_l3_arp_modify_entry(struct qeth_card *card,
+				    struct qeth_arp_cache_entry *entry,
+				    enum qeth_arp_process_subcmds arp_cmd)
 {
+	struct qeth_arp_cache_entry *cmd_entry;
 	struct qeth_cmd_buffer *iob;
 	int rc;
 
-	QETH_CARD_TEXT(card, 3, "arpadent");
+	if (arp_cmd == IPA_CMD_ASS_ARP_ADD_ENTRY)
+		QETH_CARD_TEXT(card, 3, "arpadd");
+	else
+		QETH_CARD_TEXT(card, 3, "arpdel");
 
 	/*
 	 * currently GuestLAN only supports the ARP assist function
@@ -1796,54 +1801,19 @@ static int qeth_l3_arp_add_entry(struct qeth_card *card,
 		return -EOPNOTSUPP;
 	}
 
-	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
-				       IPA_CMD_ASS_ARP_ADD_ENTRY,
-				       sizeof(struct qeth_arp_cache_entry),
-				       QETH_PROT_IPV4);
+	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING, arp_cmd,
+				       sizeof(*cmd_entry), QETH_PROT_IPV4);
 	if (!iob)
 		return -ENOMEM;
-	rc = qeth_send_setassparms(card, iob,
-				   sizeof(struct qeth_arp_cache_entry),
-				   (unsigned long) entry,
-				   qeth_setassparms_cb, NULL);
+
+	cmd_entry = &__ipa_cmd(iob)->data.setassparms.data.arp_entry;
+	ether_addr_copy(cmd_entry->macaddr, entry->macaddr);
+	memcpy(cmd_entry->ipaddr, entry->ipaddr, 4);
+	rc = qeth_send_ipa_cmd(card, iob, qeth_setassparms_cb, NULL);
 	if (rc)
-		QETH_DBF_MESSAGE(2, "Could not add ARP entry on device %x: %#x\n",
-				 CARD_DEVID(card), rc);
-	return qeth_l3_arp_makerc(rc);
-}
+		QETH_DBF_MESSAGE(2, "Could not modify (cmd: %#x) ARP entry on device %x: %#x\n",
+				 arp_cmd, CARD_DEVID(card), rc);
 
-static int qeth_l3_arp_remove_entry(struct qeth_card *card,
-				struct qeth_arp_cache_entry *entry)
-{
-	struct qeth_cmd_buffer *iob;
-	char buf[16] = {0, };
-	int rc;
-
-	QETH_CARD_TEXT(card, 3, "arprment");
-
-	/*
-	 * currently GuestLAN only supports the ARP assist function
-	 * IPA_CMD_ASS_ARP_QUERY_INFO, but not IPA_CMD_ASS_ARP_REMOVE_ENTRY;
-	 * thus we say EOPNOTSUPP for this ARP function
-	 */
-	if (card->info.guestlan)
-		return -EOPNOTSUPP;
-	if (!qeth_is_supported(card, IPA_ARP_PROCESSING)) {
-		return -EOPNOTSUPP;
-	}
-	memcpy(buf, entry, 12);
-	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
-				       IPA_CMD_ASS_ARP_REMOVE_ENTRY,
-				       12,
-				       QETH_PROT_IPV4);
-	if (!iob)
-		return -ENOMEM;
-	rc = qeth_send_setassparms(card, iob,
-				   12, (unsigned long)buf,
-				   qeth_setassparms_cb, NULL);
-	if (rc)
-		QETH_DBF_MESSAGE(2, "Could not delete ARP entry on device %x: %#x\n",
-				 CARD_DEVID(card), rc);
 	return qeth_l3_arp_makerc(rc);
 }
 
@@ -1875,6 +1845,7 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct qeth_card *card = dev->ml_priv;
 	struct qeth_arp_cache_entry arp_entry;
+	enum qeth_arp_process_subcmds arp_cmd;
 	int rc = 0;
 
 	switch (cmd) {
@@ -1893,27 +1864,16 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		rc = qeth_l3_arp_query(card, rq->ifr_ifru.ifru_data);
 		break;
 	case SIOC_QETH_ARP_ADD_ENTRY:
-		if (!capable(CAP_NET_ADMIN)) {
-			rc = -EPERM;
-			break;
-		}
-		if (copy_from_user(&arp_entry, rq->ifr_ifru.ifru_data,
-				   sizeof(struct qeth_arp_cache_entry)))
-			rc = -EFAULT;
-		else
-			rc = qeth_l3_arp_add_entry(card, &arp_entry);
-		break;
 	case SIOC_QETH_ARP_REMOVE_ENTRY:
-		if (!capable(CAP_NET_ADMIN)) {
-			rc = -EPERM;
-			break;
-		}
-		if (copy_from_user(&arp_entry, rq->ifr_ifru.ifru_data,
-				   sizeof(struct qeth_arp_cache_entry)))
-			rc = -EFAULT;
-		else
-			rc = qeth_l3_arp_remove_entry(card, &arp_entry);
-		break;
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+		if (copy_from_user(&arp_entry, rq->ifr_data, sizeof(arp_entry)))
+			return -EFAULT;
+
+		arp_cmd = (cmd == SIOC_QETH_ARP_ADD_ENTRY) ?
+				IPA_CMD_ASS_ARP_ADD_ENTRY :
+				IPA_CMD_ASS_ARP_REMOVE_ENTRY;
+		return qeth_l3_arp_modify_entry(card, &arp_entry, arp_cmd);
 	case SIOC_QETH_ARP_FLUSH_CACHE:
 		if (!capable(CAP_NET_ADMIN)) {
 			rc = -EPERM;

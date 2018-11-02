@@ -436,7 +436,7 @@ struct qeth_ipacmd_setassparms {
 		__u32 flags_32bit;
 		struct qeth_ipa_caps caps;
 		struct qeth_checksum_cmd chksum;
-		struct qeth_arp_cache_entry add_arp_entry;
+		struct qeth_arp_cache_entry arp_entry;
 		struct qeth_arp_query_data query_arp;
 		struct qeth_tso_start_data tso;
 		__u8 ip[16];
