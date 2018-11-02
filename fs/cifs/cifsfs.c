@@ -992,8 +992,9 @@ const struct inode_operations cifs_symlink_inode_ops = {
 	.listxattr = cifs_listxattr,
 };
 
-static int cifs_clone_file_range(struct file *src_file, loff_t off,
-		struct file *dst_file, loff_t destoff, u64 len)
+static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
+		struct file *dst_file, loff_t destoff, loff_t len,
+		unsigned int remap_flags)
 {
 	struct inode *src_inode = file_inode(src_file);
 	struct inode *target_inode = file_inode(dst_file);
@@ -1002,6 +1003,9 @@ static int cifs_clone_file_range(struct file *src_file, loff_t off,
 	struct cifs_tcon *target_tcon = tlink_tcon(smb_file_target->tlink);
 	unsigned int xid;
 	int rc;
+
+	if (remap_flags & ~REMAP_FILE_ADVISORY)
+		return -EINVAL;
 
 	cifs_dbg(FYI, "clone range\n");
 
@@ -1042,7 +1046,7 @@ static int cifs_clone_file_range(struct file *src_file, loff_t off,
 	unlock_two_nondirectories(src_inode, target_inode);
 out:
 	free_xid(xid);
-	return rc;
+	return rc < 0 ? rc : len;
 }
 
 ssize_t cifs_file_copychunk_range(unsigned int xid,
@@ -1151,7 +1155,7 @@ const struct file_operations cifs_file_ops = {
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
 	.copy_file_range = cifs_copy_file_range,
-	.clone_file_range = cifs_clone_file_range,
+	.remap_file_range = cifs_remap_file_range,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
 };
@@ -1170,7 +1174,7 @@ const struct file_operations cifs_file_strict_ops = {
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
 	.copy_file_range = cifs_copy_file_range,
-	.clone_file_range = cifs_clone_file_range,
+	.remap_file_range = cifs_remap_file_range,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
 };
@@ -1189,7 +1193,7 @@ const struct file_operations cifs_file_direct_ops = {
 	.splice_write = iter_file_splice_write,
 	.unlocked_ioctl  = cifs_ioctl,
 	.copy_file_range = cifs_copy_file_range,
-	.clone_file_range = cifs_clone_file_range,
+	.remap_file_range = cifs_remap_file_range,
 	.llseek = cifs_llseek,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
@@ -1208,7 +1212,7 @@ const struct file_operations cifs_file_nobrl_ops = {
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
 	.copy_file_range = cifs_copy_file_range,
-	.clone_file_range = cifs_clone_file_range,
+	.remap_file_range = cifs_remap_file_range,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
 };
@@ -1226,7 +1230,7 @@ const struct file_operations cifs_file_strict_nobrl_ops = {
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
 	.copy_file_range = cifs_copy_file_range,
-	.clone_file_range = cifs_clone_file_range,
+	.remap_file_range = cifs_remap_file_range,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
 };
@@ -1244,7 +1248,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.splice_write = iter_file_splice_write,
 	.unlocked_ioctl  = cifs_ioctl,
 	.copy_file_range = cifs_copy_file_range,
-	.clone_file_range = cifs_clone_file_range,
+	.remap_file_range = cifs_remap_file_range,
 	.llseek = cifs_llseek,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
@@ -1256,7 +1260,7 @@ const struct file_operations cifs_dir_ops = {
 	.read    = generic_read_dir,
 	.unlocked_ioctl  = cifs_ioctl,
 	.copy_file_range = cifs_copy_file_range,
-	.clone_file_range = cifs_clone_file_range,
+	.remap_file_range = cifs_remap_file_range,
 	.llseek = generic_file_llseek,
 	.fsync = cifs_dir_fsync,
 };

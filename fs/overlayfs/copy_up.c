@@ -125,6 +125,7 @@ static int ovl_copy_up_data(struct path *old, struct path *new, loff_t len)
 	struct file *new_file;
 	loff_t old_pos = 0;
 	loff_t new_pos = 0;
+	loff_t cloned;
 	int error = 0;
 
 	if (len == 0)
@@ -141,11 +142,10 @@ static int ovl_copy_up_data(struct path *old, struct path *new, loff_t len)
 	}
 
 	/* Try to use clone_file_range to clone up within the same fs */
-	error = do_clone_file_range(old_file, 0, new_file, 0, len);
-	if (!error)
+	cloned = do_clone_file_range(old_file, 0, new_file, 0, len, 0);
+	if (cloned == len)
 		goto out;
 	/* Couldn't clone, so now we try to copy the data */
-	error = 0;
 
 	/* FIXME: copy up sparse files efficiently */
 	while (len) {
