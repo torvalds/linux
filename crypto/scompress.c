@@ -40,15 +40,12 @@ static int crypto_scomp_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_comp rscomp;
 
-	strncpy(rscomp.type, "scomp", sizeof(rscomp.type));
+	memset(&rscomp, 0, sizeof(rscomp));
 
-	if (nla_put(skb, CRYPTOCFGA_REPORT_COMPRESS,
-		    sizeof(struct crypto_report_comp), &rscomp))
-		goto nla_put_failure;
-	return 0;
+	strscpy(rscomp.type, "scomp", sizeof(rscomp.type));
 
-nla_put_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, CRYPTOCFGA_REPORT_COMPRESS,
+		       sizeof(rscomp), &rscomp);
 }
 #else
 static int crypto_scomp_report(struct sk_buff *skb, struct crypto_alg *alg)
