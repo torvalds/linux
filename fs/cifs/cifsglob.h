@@ -1125,6 +1125,9 @@ struct cifs_fid {
 	__u8 create_guid[16];
 	struct cifs_pending_open *pending_open;
 	unsigned int epoch;
+#ifdef CONFIG_CIFS_DEBUG2
+	__u64 mid;
+#endif /* CIFS_DEBUG2 */
 	bool purge_cache;
 };
 
@@ -1183,6 +1186,11 @@ struct cifs_aio_ctx {
 	unsigned int		len;
 	unsigned int		total_len;
 	bool			should_dirty;
+	/*
+	 * Indicates if this aio_ctx is for direct_io,
+	 * If yes, iter is a copy of the user passed iov_iter
+	 */
+	bool			direct_io;
 };
 
 struct cifs_readdata;
