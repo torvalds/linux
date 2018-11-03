@@ -1287,11 +1287,9 @@ err1:
 	return err;
 }
 
-int rxe_unregister_device(struct rxe_dev *rxe)
+void rxe_unregister_device(struct rxe_dev *rxe)
 {
 	struct ib_device *dev = &rxe->ib_dev;
 
 	ib_unregister_device(dev);
-
-	return 0;
 }
