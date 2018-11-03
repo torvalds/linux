@@ -169,6 +169,7 @@ struct rkcif_stream {
 	const struct cif_input_fmt	*cif_fmt_in;
 	struct v4l2_pix_format_mplane	pixm;
 	struct v4l2_rect		crop;
+	int				crop_enable;
 };
 
 static inline struct rkcif_stream *to_rkcif_stream(struct video_device *vdev)

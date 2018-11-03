@@ -300,6 +300,22 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en)
 	}
 }
 
+static int get_csi_crop_align(const struct cif_input_fmt *fmt_in)
+{
+	switch (fmt_in->fmt_val) {
+	case CSI_WRDDR_TYPE_RGB888:
+		return 24;
+	case CSI_WRDDR_TYPE_RAW10:
+	case CSI_WRDDR_TYPE_RAW12:
+		return 4;
+	case CSI_WRDDR_TYPE_RAW8:
+	case CSI_WRDDR_TYPE_YUV422:
+		return 8;
+	default:
+		return -1;
+	}
+}
+
 static const struct
 cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect)
 {
@@ -517,48 +533,6 @@ static void rkcif_csihost_enable(struct rkcif_device *dev,
 	v4l2_info(&dev->v4l2_dev, "mipi csi host enable\n");
 }
 
-static int rkcif_csi_crop_check(struct rkcif_device *dev,
-				struct csi_channel_info *channel)
-{
-	switch (channel->fmt_val) {
-	case CSI_WRDDR_TYPE_RGB888:
-		if (channel->crop_st_x % 24 != 0) {
-			channel->crop_st_x = ALIGN(channel->crop_st_x, 24);
-			v4l2_info(&dev->v4l2_dev,
-				  "align 24 pixel: crop_st_x change to %d",
-				  channel->crop_st_x);
-		}
-		channel->width -= channel->crop_st_x / 3;
-		break;
-	case CSI_WRDDR_TYPE_RAW10:
-	case CSI_WRDDR_TYPE_RAW12:
-		if (channel->crop_st_x % 4 != 0) {
-			channel->crop_st_x = ALIGN(channel->crop_st_x, 4);
-			v4l2_info(&dev->v4l2_dev,
-				  "align 4 pixel: crop_st_x change to %d",
-				  channel->crop_st_x);
-		}
-		channel->width -= channel->crop_st_x;
-		break;
-	case CSI_WRDDR_TYPE_RAW8:
-	case CSI_WRDDR_TYPE_YUV422:
-		if (channel->crop_st_x % 8 != 0) {
-			channel->crop_st_x = ALIGN(channel->crop_st_x, 8);
-			v4l2_info(&dev->v4l2_dev,
-				  "align 8 pixel: crop_st_x change to %d",
-				  channel->crop_st_x);
-		}
-		channel->width -= channel->crop_st_x;
-		break;
-	default:
-		break;
-	}
-
-	channel->height -= channel->crop_st_y;
-
-	return 0;
-}
-
 static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 				  struct csi_channel_info *channel)
 {
@@ -572,11 +546,19 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	channel->height = stream->pixm.height;
 	channel->fmt_val = stream->cif_fmt_in->fmt_val;
 	channel->cmd_mode_en = 0; /* default use DSI Video Mode */
-	channel->crop_en = 1; /* Force crop enable to avoid write overflow */
-	channel->crop_st_x = stream->crop.left;
-	channel->crop_st_y = stream->crop.top;
-	if (channel->crop_en)
-		rkcif_csi_crop_check(dev, channel);
+
+	if (stream->crop_enable) {
+		channel->crop_en = 1;
+
+		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
+			channel->crop_st_x = 3 * stream->crop.left;
+		else
+			channel->crop_st_x = stream->crop.left;
+
+		channel->crop_st_y = stream->crop.top;
+		channel->width = stream->crop.width;
+		channel->height = stream->crop.height;
+	}
 
 	fmt = find_output_fmt(stream, stream->pixm.pixelformat);
 	if (!fmt) {
@@ -586,6 +568,8 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	}
 
 	channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
+	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
+		channel->width = channel->width * fmt->bpp[0] / 8;
 
 	/* TODO Modify data type !!!!!!!!!!!!!!! */
 	channel->data_type =
@@ -992,7 +976,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	return 0;
 }
 
-static int rkcif_sanity_check_fmt(struct rkcif_stream *stream)
+static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
+				  const struct v4l2_rect *s_crop)
 {
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
@@ -1004,11 +989,28 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream)
 		return -EINVAL;
 	}
 
-	crop = &stream->crop;
+	if (s_crop)
+		crop = (struct v4l2_rect *)s_crop;
+	else
+		crop = &stream->crop;
+
 	if (crop->width + crop->left > input.width ||
 	    crop->height + crop->top > input.height) {
 		v4l2_err(v4l2_dev, "crop size is bigger than input\n");
 		return -EINVAL;
+	}
+
+	if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
+		if (crop->left > 0) {
+			int align_x = get_csi_crop_align(stream->cif_fmt_in);
+
+			if (align_x > 0 && crop->left % align_x != 0) {
+				v4l2_err(v4l2_dev,
+					 "ERROR: crop left must align %d\n",
+					 align_x);
+				return -EINVAL;
+			}
+		}
 	}
 
 	return 0;
@@ -1028,7 +1030,7 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto destroy_buf;
 	}
 
-	ret = rkcif_sanity_check_fmt(stream);
+	ret = rkcif_sanity_check_fmt(stream, NULL);
 	if (ret < 0)
 		goto destroy_buf;
 
@@ -1324,6 +1326,35 @@ static int rkcif_querycap(struct file *file, void *priv,
 	return 0;
 }
 
+static int rkcif_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
+{
+	struct rkcif_stream *stream = video_drvdata(file);
+	struct rkcif_device *dev = stream->cifdev;
+	const struct v4l2_rect *rect = &a->c;
+	int ret;
+
+	v4l2_info(&dev->v4l2_dev, "S_CROP(%ux%u@%u:%u) type: %d\n",
+		  rect->width, rect->height, rect->left, rect->top, a->type);
+
+	ret = rkcif_sanity_check_fmt(stream, rect);
+	if (ret)
+		return ret;
+
+	stream->crop = *rect;
+	stream->crop_enable = 1;
+
+	return 0;
+}
+
+static int rkcif_g_crop(struct file *file, void *fh, struct v4l2_crop *a)
+{
+	struct rkcif_stream *stream = video_drvdata(file);
+
+	a->c = stream->crop;
+
+	return 0;
+}
+
 static const struct v4l2_ioctl_ops rkcif_v4l2_ioctl_ops = {
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
 	.vidioc_querybuf = vb2_ioctl_querybuf,
@@ -1340,6 +1371,8 @@ static const struct v4l2_ioctl_ops rkcif_v4l2_ioctl_ops = {
 	.vidioc_s_fmt_vid_cap_mplane = rkcif_s_fmt_vid_cap_mplane,
 	.vidioc_g_fmt_vid_cap_mplane = rkcif_g_fmt_vid_cap_mplane,
 	.vidioc_querycap = rkcif_querycap,
+	.vidioc_s_crop = rkcif_s_crop,
+	.vidioc_g_crop = rkcif_g_crop,
 };
 
 void rkcif_unregister_stream_vdev(struct rkcif_device *dev)
