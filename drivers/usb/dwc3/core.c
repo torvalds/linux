@@ -80,11 +80,12 @@ static int dwc3_get_dr_mode(struct dwc3 *dwc)
 			mode = USB_DR_MODE_PERIPHERAL;
 
 		/*
-		 * dwc_usb31 does not support OTG mode. If the controller
-		 * supports DRD but the dr_mode is not specified or set to OTG,
-		 * then set the mode to peripheral.
+		 * DWC_usb31 and DWC_usb3 v3.30a and higher do not support OTG
+		 * mode. If the controller supports DRD but the dr_mode is not
+		 * specified or set to OTG, then set the mode to peripheral.
 		 */
-		if (mode == USB_DR_MODE_OTG && dwc3_is_usb31(dwc))
+		if (mode == USB_DR_MODE_OTG &&
+		    dwc->revision >= DWC3_REVISION_330A)
 			mode = USB_DR_MODE_PERIPHERAL;
 	}
 
