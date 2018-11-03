@@ -1107,6 +1107,7 @@ struct dwc3 {
 #define DWC3_REVISION_290A	0x5533290a
 #define DWC3_REVISION_300A	0x5533300a
 #define DWC3_REVISION_310A	0x5533310a
+#define DWC3_REVISION_330A	0x5533330a
 
 /*
  * NOTICE: we're using bit 31 as a "is usb 3.1" flag. This is really
