@@ -212,7 +212,7 @@ void sctp_outq_init(struct sctp_association *asoc, struct sctp_outq *q)
 	INIT_LIST_HEAD(&q->retransmit);
 	INIT_LIST_HEAD(&q->sacked);
 	INIT_LIST_HEAD(&q->abandoned);
-	sctp_sched_set_sched(asoc, SCTP_SS_FCFS);
+	sctp_sched_set_sched(asoc, SCTP_SS_DEFAULT);
 }
 
 /* Free the outqueue structure and any related pending chunks.
