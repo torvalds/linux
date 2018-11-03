@@ -120,8 +120,8 @@ static int tpm_go_idle(struct tpm_chip *chip, unsigned int flags)
 	return chip->ops->go_idle(chip);
 }
 
-static ssize_t tpm_try_transmit(struct tpm_chip *chip, struct tpm_space *space,
-				void *buf, size_t bufsiz, unsigned int flags)
+static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz,
+				unsigned int flags)
 {
 	struct tpm_header *header = buf;
 	int rc;
@@ -199,7 +199,6 @@ out_recv:
 /**
  * tpm_transmit - Internal kernel interface to transmit TPM commands.
  * @chip:	a TPM chip to use
- * @space:	a TPM space
  * @buf:	a TPM command buffer
  * @bufsiz:	length of the TPM command buffer
  * @flags:	TPM transmit flags
@@ -215,8 +214,8 @@ out_recv:
  * * The response length	- OK
  * * -errno			- A system error
  */
-ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
-		     u8 *buf, size_t bufsiz, unsigned int flags)
+ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz,
+		     unsigned int flags)
 {
 	struct tpm_header *header = (struct tpm_header *)buf;
 	/* space for header and handles */
@@ -225,8 +224,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 	bool has_locality = false;
 	u32 rc = 0;
 	ssize_t ret;
-	const size_t save_size = min(space ? sizeof(save) : TPM_HEADER_SIZE,
-				     bufsiz);
+	const size_t save_size = min(sizeof(save), bufsiz);
 	/* the command code is where the return code will be */
 	u32 cc = be32_to_cpu(header->return_code);
 
@@ -256,7 +254,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 		if (ret)
 			goto out_locality;
 
-		ret = tpm_try_transmit(chip, space, buf, bufsiz, flags);
+		ret = tpm_try_transmit(chip, buf, bufsiz, flags);
 
 		/* This may fail but do not override ret. */
 		tpm_go_idle(chip, flags);
@@ -302,7 +300,6 @@ out_locality:
 /**
  * tpm_transmit_cmd - send a tpm command to the device
  * @chip:			a TPM chip to use
- * @space:			a TPM space
  * @buf:			a TPM command buffer
  * @min_rsp_body_length:	minimum expected length of response body
  * @flags:			TPM transmit flags
@@ -313,15 +310,15 @@ out_locality:
  * * -errno	- A system error
  * * TPM_RC	- A TPM error
  */
-ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_space *space,
-			 struct tpm_buf *buf, size_t min_rsp_body_length,
-			 unsigned int flags, const char *desc)
+ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_buf *buf,
+			 size_t min_rsp_body_length, unsigned int flags,
+			 const char *desc)
 {
 	const struct tpm_header *header = (struct tpm_header *)buf->data;
 	int err;
 	ssize_t len;
 
-	len = tpm_transmit(chip, space, buf->data, PAGE_SIZE, flags);
+	len = tpm_transmit(chip, buf->data, PAGE_SIZE, flags);
 	if (len <  0)
 		return len;
 
@@ -470,7 +467,7 @@ int tpm_send(struct tpm_chip *chip, void *cmd, size_t buflen)
 		goto out;
 
 	memcpy(buf.data, cmd, buflen);
-	rc = tpm_transmit_cmd(chip, NULL, &buf, 0, 0,
+	rc = tpm_transmit_cmd(chip, &buf, 0, 0,
 			      "attempting to a send a command");
 	tpm_buf_destroy(&buf);
 out:

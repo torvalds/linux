@@ -48,7 +48,7 @@ static ssize_t tpm_dev_transmit(struct tpm_chip *chip, struct tpm_space *space,
 	if (ret)
 		goto out_lock;
 
-	len = tpm_transmit(chip, space, buf, bufsiz, TPM_TRANSMIT_UNLOCKED);
+	len = tpm_transmit(chip, buf, bufsiz, TPM_TRANSMIT_UNLOCKED);
 	if (len < 0)
 		ret = len;
 
