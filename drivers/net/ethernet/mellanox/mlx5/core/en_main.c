@@ -3521,11 +3521,32 @@ static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	}
 }
 
+static void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
+{
+	int i;
+
+	for (i = 0; i < mlx5e_get_netdev_max_channels(priv->netdev); i++) {
+		struct mlx5e_channel_stats *channel_stats = &priv->channel_stats[i];
+		struct mlx5e_rq_stats *rq_stats = &channel_stats->rq;
+		int j;
+
+		s->rx_packets   += rq_stats->packets;
+		s->rx_bytes     += rq_stats->bytes;
+
+		for (j = 0; j < priv->max_opened_tc; j++) {
+			struct mlx5e_sq_stats *sq_stats = &channel_stats->sq[j];
+
+			s->tx_packets    += sq_stats->packets;
+			s->tx_bytes      += sq_stats->bytes;
+			s->tx_dropped    += sq_stats->dropped;
+		}
+	}
+}
+
 void
 mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5e_sw_stats *sstats = &priv->stats.sw;
 	struct mlx5e_vport_stats *vstats = &priv->stats.vport;
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
 
@@ -3540,12 +3561,7 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_packets = PPORT_802_3_GET(pstats, a_frames_transmitted_ok);
 		stats->tx_bytes   = PPORT_802_3_GET(pstats, a_octets_transmitted_ok);
 	} else {
-		mlx5e_grp_sw_update_stats(priv);
-		stats->rx_packets = sstats->rx_packets;
-		stats->rx_bytes   = sstats->rx_bytes;
-		stats->tx_packets = sstats->tx_packets;
-		stats->tx_bytes   = sstats->tx_bytes;
-		stats->tx_dropped = sstats->tx_queue_dropped;
+		mlx5e_fold_sw_stats64(priv, stats);
 	}
 
 	stats->rx_dropped = priv->stats.qcnt.rx_out_of_buffer;
