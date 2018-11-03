@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/pstore.h>
 #include <linux/types.h>
 
 /*
@@ -54,6 +55,7 @@ struct persistent_ram_ecc_info {
  * @paddr:	physical address of the mapped RAM area
  * @size:	size of mapping
  * @label:	unique name of this PRZ
+ * @type:	frontend type for this PRZ
  * @flags:	holds PRZ_FLAGS_* bits
  *
  * @buffer_lock:
@@ -88,6 +90,7 @@ struct persistent_ram_zone {
 	size_t size;
 	void *vaddr;
 	char *label;
+	enum pstore_type_id type;
 	u32 flags;
 
 	raw_spinlock_t buffer_lock;
