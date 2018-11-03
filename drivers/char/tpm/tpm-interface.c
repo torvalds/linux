@@ -286,8 +286,6 @@ out_recv:
 	}
 
 	rc = tpm2_commit_space(chip, space, ordinal, buf, &len);
-	if (rc)
-		dev_err(&chip->dev, "tpm2_commit_space: error %d\n", rc);
 
 out:
 	/* may fail but do not override previous error value in rc */
