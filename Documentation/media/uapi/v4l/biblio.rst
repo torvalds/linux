@@ -226,16 +226,6 @@ xvYCC
 
 :author:    International Electrotechnical Commission (http://www.iec.ch)
 
-.. _adobergb:
-
-AdobeRGB
-========
-
-
-:title:     Adobe© RGB (1998) Color Image Encoding Version 2005-05
-
-:author:    Adobe Systems Incorporated (http://www.adobe.com)
-
 .. _oprgb:
 
 opRGB

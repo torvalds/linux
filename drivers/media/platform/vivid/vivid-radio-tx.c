@@ -103,7 +103,7 @@ int vidioc_g_modulator(struct file *file, void *fh, struct v4l2_modulator *a)
 	if (a->index > 0)
 		return -EINVAL;
 
-	strlcpy(a->name, "AM/FM/SW Transmitter", sizeof(a->name));
+	strscpy(a->name, "AM/FM/SW Transmitter", sizeof(a->name));
 	a->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			V4L2_TUNER_CAP_FREQ_BANDS | V4L2_TUNER_CAP_RDS |
 			(dev->radio_tx_rds_controls ?

@@ -193,7 +193,7 @@ static int kirin_drm_bind(struct device *dev)
 
 	ret = kirin_drm_kms_init(drm_dev);
 	if (ret)
-		goto err_drm_dev_unref;
+		goto err_drm_dev_put;
 
 	ret = drm_dev_register(drm_dev, 0);
 	if (ret)
@@ -203,8 +203,8 @@ static int kirin_drm_bind(struct device *dev)
 
 err_kms_cleanup:
 	kirin_drm_kms_cleanup(drm_dev);
-err_drm_dev_unref:
-	drm_dev_unref(drm_dev);
+err_drm_dev_put:
+	drm_dev_put(drm_dev);
 
 	return ret;
 }
@@ -215,7 +215,7 @@ static void kirin_drm_unbind(struct device *dev)
 
 	drm_dev_unregister(drm_dev);
 	kirin_drm_kms_cleanup(drm_dev);
-	drm_dev_unref(drm_dev);
+	drm_dev_put(drm_dev);
 }
 
 static const struct component_master_ops kirin_drm_ops = {

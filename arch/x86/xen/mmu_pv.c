@@ -864,7 +864,7 @@ static int __init xen_mark_pinned(struct mm_struct *mm, struct page *page,
  * The init_mm pagetable is really pinned as soon as its created, but
  * that's before we have page structures to store the bits.  So do all
  * the book-keeping now once struct pages for allocated pages are
- * initialized. This happens only after free_all_bootmem() is called.
+ * initialized. This happens only after memblock_free_all() is called.
  */
 static void __init xen_after_bootmem(void)
 {

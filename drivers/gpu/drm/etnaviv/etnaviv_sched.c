@@ -105,7 +105,7 @@ static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 	change = dma_addr - gpu->hangcheck_dma_addr;
 	if (change < 0 || change > 16) {
 		gpu->hangcheck_dma_addr = dma_addr;
-		schedule_delayed_work(&sched_job->work_tdr,
+		schedule_delayed_work(&sched_job->sched->work_tdr,
 				      sched_job->sched->timeout);
 		return;
 	}

@@ -9,11 +9,10 @@
  * allocation code routines via a platform independent interface (memblock, etc.).
  */
 #include <linux/crash_dump.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/suspend.h>
 #include <linux/acpi.h>
 #include <linux/firmware-map.h>
-#include <linux/memblock.h>
 #include <linux/sort.h>
 
 #include <asm/e820/api.h>
@@ -1094,7 +1093,8 @@ void __init e820__reserve_resources(void)
 	struct resource *res;
 	u64 end;
 
-	res = alloc_bootmem(sizeof(*res) * e820_table->nr_entries);
+	res = memblock_alloc(sizeof(*res) * e820_table->nr_entries,
+			     SMP_CACHE_BYTES);
 	e820_res = res;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {

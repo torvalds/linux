@@ -13,7 +13,7 @@ static void dm_rx_hw_antena_div_init(struct odm_dm_struct *dm_odm)
 	struct adapter *adapter = dm_odm->Adapter;
 	u32 value32;
 
-	if (*(dm_odm->mp_mode) == 1) {
+	if (*dm_odm->mp_mode == 1) {
 		dm_odm->AntDivType = CGCS_RX_SW_ANTDIV;
 		phy_set_bb_reg(adapter, ODM_REG_IGI_A_11N, BIT(7), 0);
 		phy_set_bb_reg(adapter, ODM_REG_LNA_SWITCH_11N, BIT(31), 1);
@@ -23,7 +23,7 @@ static void dm_rx_hw_antena_div_init(struct odm_dm_struct *dm_odm)
 	/* MAC Setting */
 	value32 = phy_query_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
 	phy_set_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord,
-		       value32|(BIT(23) | BIT(25)));
+		       value32 | (BIT(23) | BIT(25)));
 	/* Pin Settings */
 	phy_set_bb_reg(adapter, ODM_REG_PIN_CTRL_11N, BIT(9) | BIT(8), 0);
 	phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT(10), 0);
@@ -44,7 +44,7 @@ static void dm_trx_hw_antenna_div_init(struct odm_dm_struct *dm_odm)
 	struct adapter *adapter = dm_odm->Adapter;
 	u32	value32;
 
-	if (*(dm_odm->mp_mode) == 1) {
+	if (*dm_odm->mp_mode == 1) {
 		dm_odm->AntDivType = CGCS_RX_SW_ANTDIV;
 		phy_set_bb_reg(adapter, ODM_REG_IGI_A_11N, BIT(7), 0);
 		phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N,
@@ -55,7 +55,7 @@ static void dm_trx_hw_antenna_div_init(struct odm_dm_struct *dm_odm)
 	/* MAC Setting */
 	value32 = phy_query_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
 	phy_set_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord,
-		       value32|(BIT(23) | BIT(25)));
+		       value32 | (BIT(23) | BIT(25)));
 	/* Pin Settings */
 	phy_set_bb_reg(adapter, ODM_REG_PIN_CTRL_11N, BIT(9) | BIT(8), 0);
 	phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT(10), 0);
@@ -88,11 +88,9 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 	struct adapter *adapter = dm_odm->Adapter;
 	u32 value32, i;
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
-	u32 AntCombination = 2;
 
-	if (*(dm_odm->mp_mode) == 1) {
+	if (*dm_odm->mp_mode == 1)
 		return;
-	}
 
 	for (i = 0; i < 6; i++) {
 		dm_fat_tbl->Bssid[i] = 0;
@@ -105,9 +103,11 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 
 	/* MAC Setting */
 	value32 = phy_query_bb_reg(adapter, 0x4c, bMaskDWord);
-	phy_set_bb_reg(adapter, 0x4c, bMaskDWord, value32|(BIT(23) | BIT(25)));
+	phy_set_bb_reg(adapter, 0x4c, bMaskDWord,
+		       value32 | (BIT(23) | BIT(25)));
 	value32 = phy_query_bb_reg(adapter,  0x7B4, bMaskDWord);
-	phy_set_bb_reg(adapter, 0x7b4, bMaskDWord, value32|(BIT(16) | BIT(17)));
+	phy_set_bb_reg(adapter, 0x7b4, bMaskDWord,
+		       value32 | (BIT(16) | BIT(17)));
 
 	/* Match MAC ADDR */
 	phy_set_bb_reg(adapter, 0x7b4, 0xFFFF, 0);
@@ -120,35 +120,12 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 	phy_set_bb_reg(adapter, 0xca4, bMaskDWord, 0x000000a0);
 
 	/* antenna mapping table */
-	if (AntCombination == 2) {
-		if (!dm_odm->bIsMPChip) { /* testchip */
-			phy_set_bb_reg(adapter, 0x858, BIT(10) | BIT(9) | BIT(8), 1);
-			phy_set_bb_reg(adapter, 0x858, BIT(13) | BIT(12) | BIT(11), 2);
-		} else { /* MPchip */
-			phy_set_bb_reg(adapter, 0x914, bMaskByte0, 1);
-			phy_set_bb_reg(adapter, 0x914, bMaskByte1, 2);
-		}
-	} else if (AntCombination == 7) {
-		if (!dm_odm->bIsMPChip) { /* testchip */
-			phy_set_bb_reg(adapter, 0x858, BIT(10) | BIT(9) | BIT(8), 0);
-			phy_set_bb_reg(adapter, 0x858, BIT(13) | BIT(12) | BIT(11), 1);
-			phy_set_bb_reg(adapter, 0x878, BIT(16), 0);
-			phy_set_bb_reg(adapter, 0x858, BIT(15) | BIT(14), 2);
-			phy_set_bb_reg(adapter, 0x878, BIT(19) | BIT(18) | BIT(17), 3);
-			phy_set_bb_reg(adapter, 0x878, BIT(22) | BIT(21) | BIT(20), 4);
-			phy_set_bb_reg(adapter, 0x878, BIT(25) | BIT(24) | BIT(23), 5);
-			phy_set_bb_reg(adapter, 0x878, BIT(28) | BIT(27) | BIT(26), 6);
-			phy_set_bb_reg(adapter, 0x878, BIT(31) | BIT(30) | BIT(29), 7);
-		} else { /* MPchip */
-			phy_set_bb_reg(adapter, 0x914, bMaskByte0, 0);
-			phy_set_bb_reg(adapter, 0x914, bMaskByte1, 1);
-			phy_set_bb_reg(adapter, 0x914, bMaskByte2, 2);
-			phy_set_bb_reg(adapter, 0x914, bMaskByte3, 3);
-			phy_set_bb_reg(adapter, 0x918, bMaskByte0, 4);
-			phy_set_bb_reg(adapter, 0x918, bMaskByte1, 5);
-			phy_set_bb_reg(adapter, 0x918, bMaskByte2, 6);
-			phy_set_bb_reg(adapter, 0x918, bMaskByte3, 7);
-		}
+	if (!dm_odm->bIsMPChip) { /* testchip */
+		phy_set_bb_reg(adapter, 0x858, BIT(10) | BIT(9) | BIT(8), 1);
+		phy_set_bb_reg(adapter, 0x858, BIT(13) | BIT(12) | BIT(11), 2);
+	} else { /* MPchip */
+		phy_set_bb_reg(adapter, 0x914, bMaskByte0, 1);
+		phy_set_bb_reg(adapter, 0x914, bMaskByte1, 2);
 	}
 
 	/* Default Ant Setting when no fast training */
@@ -157,7 +134,7 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 	phy_set_bb_reg(adapter, 0x864, BIT(8) | BIT(7) | BIT(6), 1);
 
 	/* Enter Traing state */
-	phy_set_bb_reg(adapter, 0x864, BIT(2) | BIT(1) | BIT(0), (AntCombination-1));
+	phy_set_bb_reg(adapter, 0x864, BIT(2) | BIT(1) | BIT(0), 1);
 	phy_set_bb_reg(adapter, 0xc50, BIT(7), 1);
 }
 
@@ -219,8 +196,8 @@ static void update_tx_ant_88eu(struct odm_dm_struct *dm_odm, u8 ant, u32 mac_id)
 	else
 		target_ant = AUX_ANT_CG_TRX;
 	dm_fat_tbl->antsel_a[mac_id] = target_ant & BIT(0);
-	dm_fat_tbl->antsel_b[mac_id] = (target_ant & BIT(1))>>1;
-	dm_fat_tbl->antsel_c[mac_id] = (target_ant & BIT(2))>>2;
+	dm_fat_tbl->antsel_b[mac_id] = (target_ant & BIT(1)) >> 1;
+	dm_fat_tbl->antsel_c[mac_id] = (target_ant & BIT(2)) >> 2;
 }
 
 void rtl88eu_dm_set_tx_ant_by_tx_info(struct odm_dm_struct *dm_odm,
@@ -273,11 +250,13 @@ static void rtl88eu_dm_hw_ant_div(struct odm_dm_struct *dm_odm)
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		entry = dm_odm->pODM_StaInfo[i];
 		if (IS_STA_VALID(entry)) {
-			/* 2 Caculate RSSI per Antenna */
+			/* 2 Calculate RSSI per Antenna */
 			main_rssi = (dm_fat_tbl->MainAnt_Cnt[i] != 0) ?
-				     (dm_fat_tbl->MainAnt_Sum[i]/dm_fat_tbl->MainAnt_Cnt[i]) : 0;
+				     (dm_fat_tbl->MainAnt_Sum[i] /
+				      dm_fat_tbl->MainAnt_Cnt[i]) : 0;
 			aux_rssi = (dm_fat_tbl->AuxAnt_Cnt[i] != 0) ?
-				    (dm_fat_tbl->AuxAnt_Sum[i]/dm_fat_tbl->AuxAnt_Cnt[i]) : 0;
+				    (dm_fat_tbl->AuxAnt_Sum[i] /
+				     dm_fat_tbl->AuxAnt_Cnt[i]) : 0;
 			target_ant = (main_rssi >= aux_rssi) ? MAIN_ANT : AUX_ANT;
 			/* 2 Select max_rssi for DIG */
 			local_max_rssi = max(main_rssi, aux_rssi);

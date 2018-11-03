@@ -175,6 +175,9 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	const struct i915_ggtt_view view = {
+		.type = I915_GGTT_VIEW_NORMAL,
+	};
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct i915_vma *vma;
@@ -214,8 +217,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * BIOS is suitable for own access.
 	 */
 	vma = intel_pin_and_fence_fb_obj(&ifbdev->fb->base,
-					 DRM_MODE_ROTATE_0,
-					 false, &flags);
+					 &view, false, &flags);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_unlock;

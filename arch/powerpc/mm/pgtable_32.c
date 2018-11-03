@@ -50,7 +50,7 @@ __ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 	if (slab_is_available()) {
 		pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
 	} else {
-		pte = __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
+		pte = __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
 		if (pte)
 			clear_page(pte);
 	}

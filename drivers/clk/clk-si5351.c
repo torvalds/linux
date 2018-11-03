@@ -1215,8 +1215,8 @@ static int si5351_dt_parse(struct i2c_client *client,
 	/* per clkout properties */
 	for_each_child_of_node(np, child) {
 		if (of_property_read_u32(child, "reg", &num)) {
-			dev_err(&client->dev, "missing reg property of %s\n",
-				child->name);
+			dev_err(&client->dev, "missing reg property of %pOFn\n",
+				child);
 			goto put_child;
 		}
 

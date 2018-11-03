@@ -2,40 +2,34 @@
 #ifndef _RTL819XU_HTTYPE_H_
 #define _RTL819XU_HTTYPE_H_
 
-//------------------------------------------------------------
-// The HT Capability element is present in beacons, association request,
-//	reassociation request and probe response frames
-//------------------------------------------------------------
+/*
+ * The HT Capability element is present in beacons, association request,
+ * reassociation request and probe response frames
+ */
 
-//
-// MIMO Power Save Settings
-//
+/*
+ * MIMO Power Save Settings
+ */
 #define MIMO_PS_STATIC				0
 
-//
-//	There should be 128 bits to cover all of the MCS rates. However, since
-//	8190 does not support too much rates, one integer is quite enough.
-//
+/*
+ * There should be 128 bits to cover all of the MCS rates. However, since
+ * 8190 does not support too much rates, one integer is quite enough.
+ */
+#define HTCLNG	4
 
-#define sHTCLng	4
-
-
-#define HT_SUPPORTED_MCS_1SS_BITMAP					0x000000ff
-#define HT_SUPPORTED_MCS_2SS_BITMAP					0x0000ff00
-#define HT_SUPPORTED_MCS_1SS_2SS_BITMAP			HT_MCS_1SS_BITMAP|HT_MCS_1SS_2SS_BITMAP
-
-//
-// Represent Channel Width in HT Capabilities
-//
+/*
+ * Represent Channel Width in HT Capabilities
+ */
 enum ht_channel_width {
 	HT_CHANNEL_WIDTH_20 = 0,
 	HT_CHANNEL_WIDTH_20_40 = 1,
 };
 
-//
-// Represent Extension Channel Offset in HT Capabilities
-// This is available only in 40Mhz mode.
-//
+/*
+ * Represent Extension Channel Offset in HT Capabilities
+ * This is available only in 40Mhz mode.
+ */
 enum ht_extension_chan_offset {
 	HT_EXTCHNL_OFFSET_NO_EXT = 0,
 	HT_EXTCHNL_OFFSET_UPPER = 1,
@@ -43,53 +37,7 @@ enum ht_extension_chan_offset {
 	HT_EXTCHNL_OFFSET_LOWER = 3,
 };
 
-typedef enum _CHNLOP {
-	CHNLOP_NONE = 0, // No Action now
-	CHNLOP_SCAN = 1, // Scan in progress
-	CHNLOP_SWBW = 2, // Bandwidth switching in progress
-	CHNLOP_SWCHNL = 3, // Software Channel switching in progress
-} CHNLOP, *PCHNLOP;
-
-// Determine if the Channel Operation is in progress
-#define CHHLOP_IN_PROGRESS(_pHTInfo)	\
-		((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? TRUE : FALSE
-
-/*
-typedef	union _HT_CAPABILITY{
-	u16	ShortData;
-	u8	CharData[2];
-	struct
-	{
-		u16	AdvCoding:1;
-		u16	ChlWidth:1;
-		u16	MimoPwrSave:2;
-		u16	GreenField:1;
-		u16	ShortGI20Mhz:1;
-		u16	ShortGI40Mhz:1;
-		u16	STBC:1;
-		u16	BeamForm:1;
-		u16	DelayBA:1;
-		u16	MaxAMSDUSize:1;
-		u16	DssCCk:1;
-		u16	PSMP:1;
-		u16	Rsvd:3;
-	}Field;
-}HT_CAPABILITY, *PHT_CAPABILITY;
-
-typedef	union _HT_CAPABILITY_MACPARA{
-	u8	ShortData;
-	u8	CharData[1];
-	struct
-	{
-		u8	MaxRxAMPDU:2;
-		u8	MPDUDensity:2;
-		u8	Rsvd:4;
-	}Field;
-}HT_CAPABILITY_MACPARA, *PHT_CAPABILITY_MACPARA;
-*/
-
-typedef	struct _HT_CAPABILITY_ELE {
-
+struct ht_capability_ele {
 	//HT capability info
 	u8	AdvCoding:1;
 	u8	ChlWidth:1;
@@ -114,7 +62,6 @@ typedef	struct _HT_CAPABILITY_ELE {
 	//Supported MCS set
 	u8	MCS[16];
 
-
 	//Extended HT Capability Info
 	u16	ExtHTCapInfo;
 
@@ -124,13 +71,12 @@ typedef	struct _HT_CAPABILITY_ELE {
 	//Antenna Selection Capabilities
 	u8	ASCap;
 
-} __attribute__ ((packed)) HT_CAPABILITY_ELE, *PHT_CAPABILITY_ELE;
+} __packed;
 
-//------------------------------------------------------------
-// The HT Information element is present in beacons
-// Only AP is required to include this element
-//------------------------------------------------------------
-
+/*
+ * The HT Information element is present in beacons
+ * Only AP is required to include this element
+ */
 typedef struct _HT_INFORMATION_ELE {
 	u8	ControlChl;
 
@@ -169,12 +115,11 @@ typedef enum _HT_AGGRE_MODE_E {
 	HT_AGG_FORCE_DISABLE = 2,
 }HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
 
-//------------------------------------------------------------
-//  The Data structure is used to keep HT related variables when card is
-//  configured as non-AP STA mode.  **Note**  Current_xxx should be set
-//	to default value in HTInitializeHTInfo()
-//------------------------------------------------------------
-
+/*
+ *  The Data structure is used to keep HT related variables when card is
+ *  configured as non-AP STA mode.  **Note**  Current_xxx should be set
+ *  to default value in HTInitializeHTInfo()
+ */
 typedef struct _RT_HIGH_THROUGHPUT {
 	u8				bEnableHT;
 	u8				bCurrentHTSupport;
@@ -194,22 +139,19 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	// 802.11n spec version for "peer"
 	HT_SPEC_VER			ePeerHTSpecVer;
 
-
 	// HT related information for "Self"
-	HT_CAPABILITY_ELE	SelfHTCap;		// This is HT cap element sent to peer STA, which also indicate HT Rx capabilities.
+	struct ht_capability_ele	SelfHTCap;		// This is HT cap element sent to peer STA, which also indicate HT Rx capabilities.
 	HT_INFORMATION_ELE	SelfHTInfo;		// This is HT info element sent to peer STA, which also indicate HT Rx capabilities.
 
 	// HT related information for "Peer"
 	u8				PeerHTCapBuf[32];
 	u8				PeerHTInfoBuf[32];
 
-
 	// A-MSDU related
 	u8				bAMSDU_Support;			// This indicates Tx A-MSDU capability
 	u16				nAMSDU_MaxSize;			// This indicates Tx A-MSDU capability
 	u8				bCurrent_AMSDU_Support;	// This indicates Tx A-MSDU capability
 	u16				nCurrent_AMSDU_MaxSize;	// This indicates Tx A-MSDU capability
-
 
 	// AMPDU  related <2006.08.10 Emily>
 	u8				bAMPDUEnable;				// This indicate Tx A-MPDU capability
@@ -243,7 +185,6 @@ typedef struct _RT_HIGH_THROUGHPUT {
 
 	// For Bandwidth Switching
 	u8				bSwBwInProgress;
-	CHNLOP				ChnlOp; // software switching channel in progress. By Bruce, 2008-02-15.
 	u8				SwBwStep;
 	//struct timer_list		SwBwTimer;  //moved to ieee80211_device. as timer_list need include some header file here.
 
@@ -278,13 +219,11 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	u32				IOTAction;
 } __attribute__ ((packed)) RT_HIGH_THROUGHPUT, *PRT_HIGH_THROUGHPUT;
 
-//------------------------------------------------------------
-// The Data structure is used to keep HT related variable for "each AP"
-// when card is configured as "STA mode"
-//------------------------------------------------------------
-
+/*
+ * The Data structure is used to keep HT related variable for "each AP"
+ * when card is configured as "STA mode"
+ */
 typedef struct _BSS_HT {
-
 	u8				bdSupportHT;
 
 	// HT related elements
@@ -294,7 +233,7 @@ typedef struct _BSS_HT {
 	u16					bdHTInfoLen;
 
 	HT_SPEC_VER				bdHTSpecVer;
-	//HT_CAPABILITY_ELE			bdHTCapEle;
+	//struct ht_capability_ele              bdHTCapEle;
 	//HT_INFORMATION_ELE		bdHTInfoEle;
 
 	u8					bdRT2RTAggregation;
@@ -304,27 +243,27 @@ typedef struct _BSS_HT {
 extern u8 MCS_FILTER_ALL[16];
 extern u8 MCS_FILTER_1SS[16];
 
-/* 2007/07/11 MH Modify the macro. Becaus STA may link with a N-AP. If we set
-   STA in A/B/G mode and AP is still in N mode. The macro will be wrong. We have
-   to add a macro to judge wireless mode. */
+/*
+ * 2007/07/11 MH Modify the macro. Becaus STA may link with a N-AP. If we set
+ * STA in A/B/G mode and AP is still in N mode. The macro will be wrong. We have
+ * to add a macro to judge wireless mode.
+ */
 #define PICK_RATE(_nLegacyRate, _nMcsRate)	\
-		(_nMcsRate==0)?(_nLegacyRate&0x7f):(_nMcsRate)
+		(_nMcsRate == 0) ? (_nLegacyRate & 0x7f) : (_nMcsRate)
 /* 2007/07/12 MH We only define legacy and HT wireless mode now. */
 #define	LEGACY_WIRELESS_MODE	IEEE_MODE_MASK
 
 #define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)	\
-					((WirelessMode & (LEGACY_WIRELESS_MODE))!=0)?\
-						(LegacyRate):\
+					((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ?\
+						(LegacyRate) :\
 						(PICK_RATE(LegacyRate, HTRate))
-
-
 
 // MCS Bw 40 {1~7, 12~15,32}
 #define	RATE_ADPT_1SS_MASK		0xFF
 #define	RATE_ADPT_2SS_MASK		0xF0 //Skip MCS8~11 because mcs7 > mcs6, 9, 10, 11. 2007.01.16 by Emily
 #define	RATE_ADPT_MCS32_MASK		0x01
 
-#define		IS_11N_MCS_RATE(rate)		(rate&0x80)
+#define		IS_11N_MCS_RATE(rate)		(rate & 0x80)
 
 typedef enum _HT_AGGRE_SIZE {
 	HT_AGG_SIZE_8K = 0,
@@ -341,13 +280,13 @@ typedef enum _HT_IOT_PEER
 	HT_IOT_PEER_BROADCOM = 2,
 	HT_IOT_PEER_RALINK = 3,
 	HT_IOT_PEER_ATHEROS = 4,
-	HT_IOT_PEER_CISCO= 5,
+	HT_IOT_PEER_CISCO = 5,
 	HT_IOT_PEER_MAX = 6
 }HT_IOT_PEER_E, *PHTIOT_PEER_E;
 
-//
-// IOT Action for different AP
-//
+/*
+ * IOT Action for different AP
+ */
 typedef enum _HT_IOT_ACTION {
 	HT_IOT_ACT_TX_USE_AMSDU_4K = 0x00000001,
 	HT_IOT_ACT_TX_USE_AMSDU_8K = 0x00000002,

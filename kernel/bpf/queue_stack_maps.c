@@ -122,6 +122,7 @@ static int __queue_map_get(struct bpf_map *map, void *value, bool delete)
 	raw_spin_lock_irqsave(&qs->lock, flags);
 
 	if (queue_stack_map_is_empty(qs)) {
+		memset(value, 0, qs->map.value_size);
 		err = -ENOENT;
 		goto out;
 	}
@@ -151,6 +152,7 @@ static int __stack_map_get(struct bpf_map *map, void *value, bool delete)
 	raw_spin_lock_irqsave(&qs->lock, flags);
 
 	if (queue_stack_map_is_empty(qs)) {
+		memset(value, 0, qs->map.value_size);
 		err = -ENOENT;
 		goto out;
 	}

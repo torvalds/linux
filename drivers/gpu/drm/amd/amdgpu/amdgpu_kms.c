@@ -37,6 +37,32 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_gem.h"
+#include "amdgpu_display.h"
+
+static void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
+{
+	struct amdgpu_gpu_instance *gpu_instance;
+	int i;
+
+	mutex_lock(&mgpu_info.mutex);
+
+	for (i = 0; i < mgpu_info.num_gpu; i++) {
+		gpu_instance = &(mgpu_info.gpu_ins[i]);
+		if (gpu_instance->adev == adev) {
+			mgpu_info.gpu_ins[i] =
+				mgpu_info.gpu_ins[mgpu_info.num_gpu - 1];
+			mgpu_info.num_gpu--;
+			if (adev->flags & AMD_IS_APU)
+				mgpu_info.num_apu--;
+			else
+				mgpu_info.num_dgpu--;
+			break;
+		}
+	}
+
+	mutex_unlock(&mgpu_info.mutex);
+}
 
 /**
  * amdgpu_driver_unload_kms - Main unload function for KMS.
@@ -52,6 +78,8 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 
 	if (adev == NULL)
 		return;
+
+	amdgpu_unregister_gpu_instance(adev);
 
 	if (adev->rmmio == NULL)
 		goto done_free;
@@ -71,6 +99,31 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 done_free:
 	kfree(adev);
 	dev->dev_private = NULL;
+}
+
+static void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
+{
+	struct amdgpu_gpu_instance *gpu_instance;
+
+	mutex_lock(&mgpu_info.mutex);
+
+	if (mgpu_info.num_gpu >= MAX_GPU_INSTANCE) {
+		DRM_ERROR("Cannot register more gpu instance\n");
+		mutex_unlock(&mgpu_info.mutex);
+		return;
+	}
+
+	gpu_instance = &(mgpu_info.gpu_ins[mgpu_info.num_gpu]);
+	gpu_instance->adev = adev;
+	gpu_instance->mgpu_fan_enabled = 0;
+
+	mgpu_info.num_gpu++;
+	if (adev->flags & AMD_IS_APU)
+		mgpu_info.num_apu++;
+	else
+		mgpu_info.num_dgpu++;
+
+	mutex_unlock(&mgpu_info.mutex);
 }
 
 /**
@@ -167,6 +220,7 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		pm_runtime_put_autosuspend(dev->dev);
 	}
 
+	amdgpu_register_gpu_instance(adev);
 out:
 	if (r) {
 		/* balance pm_runtime_get_sync in amdgpu_driver_unload_kms */
@@ -255,9 +309,130 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->ver = adev->psp.asd_fw_version;
 		fw_info->feature = adev->psp.asd_feature_version;
 		break;
+	case AMDGPU_INFO_FW_DMCU:
+		fw_info->ver = adev->dm.dmcu_fw_version;
+		fw_info->feature = 0;
+		break;
 	default:
 		return -EINVAL;
 	}
+	return 0;
+}
+
+static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
+			     struct drm_amdgpu_info *info,
+			     struct drm_amdgpu_info_hw_ip *result)
+{
+	uint32_t ib_start_alignment = 0;
+	uint32_t ib_size_alignment = 0;
+	enum amd_ip_block_type type;
+	unsigned int num_rings = 0;
+	unsigned int i, j;
+
+	if (info->query_hw_ip.ip_instance >= AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
+		return -EINVAL;
+
+	switch (info->query_hw_ip.type) {
+	case AMDGPU_HW_IP_GFX:
+		type = AMD_IP_BLOCK_TYPE_GFX;
+		for (i = 0; i < adev->gfx.num_gfx_rings; i++)
+			if (adev->gfx.gfx_ring[i].ready)
+				++num_rings;
+		ib_start_alignment = 32;
+		ib_size_alignment = 32;
+		break;
+	case AMDGPU_HW_IP_COMPUTE:
+		type = AMD_IP_BLOCK_TYPE_GFX;
+		for (i = 0; i < adev->gfx.num_compute_rings; i++)
+			if (adev->gfx.compute_ring[i].ready)
+				++num_rings;
+		ib_start_alignment = 32;
+		ib_size_alignment = 32;
+		break;
+	case AMDGPU_HW_IP_DMA:
+		type = AMD_IP_BLOCK_TYPE_SDMA;
+		for (i = 0; i < adev->sdma.num_instances; i++)
+			if (adev->sdma.instance[i].ring.ready)
+				++num_rings;
+		ib_start_alignment = 256;
+		ib_size_alignment = 4;
+		break;
+	case AMDGPU_HW_IP_UVD:
+		type = AMD_IP_BLOCK_TYPE_UVD;
+		for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+			if (adev->uvd.harvest_config & (1 << i))
+				continue;
+
+			if (adev->uvd.inst[i].ring.ready)
+				++num_rings;
+		}
+		ib_start_alignment = 64;
+		ib_size_alignment = 64;
+		break;
+	case AMDGPU_HW_IP_VCE:
+		type = AMD_IP_BLOCK_TYPE_VCE;
+		for (i = 0; i < adev->vce.num_rings; i++)
+			if (adev->vce.ring[i].ready)
+				++num_rings;
+		ib_start_alignment = 4;
+		ib_size_alignment = 1;
+		break;
+	case AMDGPU_HW_IP_UVD_ENC:
+		type = AMD_IP_BLOCK_TYPE_UVD;
+		for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
+			if (adev->uvd.harvest_config & (1 << i))
+				continue;
+
+			for (j = 0; j < adev->uvd.num_enc_rings; j++)
+				if (adev->uvd.inst[i].ring_enc[j].ready)
+					++num_rings;
+		}
+		ib_start_alignment = 64;
+		ib_size_alignment = 64;
+		break;
+	case AMDGPU_HW_IP_VCN_DEC:
+		type = AMD_IP_BLOCK_TYPE_VCN;
+		if (adev->vcn.ring_dec.ready)
+			++num_rings;
+		ib_start_alignment = 16;
+		ib_size_alignment = 16;
+		break;
+	case AMDGPU_HW_IP_VCN_ENC:
+		type = AMD_IP_BLOCK_TYPE_VCN;
+		for (i = 0; i < adev->vcn.num_enc_rings; i++)
+			if (adev->vcn.ring_enc[i].ready)
+				++num_rings;
+		ib_start_alignment = 64;
+		ib_size_alignment = 1;
+		break;
+	case AMDGPU_HW_IP_VCN_JPEG:
+		type = AMD_IP_BLOCK_TYPE_VCN;
+		if (adev->vcn.ring_jpeg.ready)
+			++num_rings;
+		ib_start_alignment = 16;
+		ib_size_alignment = 16;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < adev->num_ip_blocks; i++)
+		if (adev->ip_blocks[i].version->type == type &&
+		    adev->ip_blocks[i].status.valid)
+			break;
+
+	if (i == adev->num_ip_blocks)
+		return 0;
+
+	num_rings = min(amdgpu_ctx_num_entities[info->query_hw_ip.type],
+			num_rings);
+
+	result->hw_ip_version_major = adev->ip_blocks[i].version->major;
+	result->hw_ip_version_minor = adev->ip_blocks[i].version->minor;
+	result->capabilities_flags = 0;
+	result->available_rings = (1 << num_rings) - 1;
+	result->ib_start_alignment = ib_start_alignment;
+	result->ib_size_alignment = ib_size_alignment;
 	return 0;
 }
 
@@ -286,7 +461,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	struct drm_crtc *crtc;
 	uint32_t ui32 = 0;
 	uint64_t ui64 = 0;
-	int i, j, found;
+	int i, found;
 	int ui32_size = sizeof(ui32);
 
 	if (!info->return_size || !info->return_pointer)
@@ -316,101 +491,14 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_HW_IP_INFO: {
 		struct drm_amdgpu_info_hw_ip ip = {};
-		enum amd_ip_block_type type;
-		uint32_t ring_mask = 0;
-		uint32_t ib_start_alignment = 0;
-		uint32_t ib_size_alignment = 0;
+		int ret;
 
-		if (info->query_hw_ip.ip_instance >= AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
-			return -EINVAL;
+		ret = amdgpu_hw_ip_info(adev, info, &ip);
+		if (ret)
+			return ret;
 
-		switch (info->query_hw_ip.type) {
-		case AMDGPU_HW_IP_GFX:
-			type = AMD_IP_BLOCK_TYPE_GFX;
-			for (i = 0; i < adev->gfx.num_gfx_rings; i++)
-				ring_mask |= adev->gfx.gfx_ring[i].ready << i;
-			ib_start_alignment = 32;
-			ib_size_alignment = 32;
-			break;
-		case AMDGPU_HW_IP_COMPUTE:
-			type = AMD_IP_BLOCK_TYPE_GFX;
-			for (i = 0; i < adev->gfx.num_compute_rings; i++)
-				ring_mask |= adev->gfx.compute_ring[i].ready << i;
-			ib_start_alignment = 32;
-			ib_size_alignment = 32;
-			break;
-		case AMDGPU_HW_IP_DMA:
-			type = AMD_IP_BLOCK_TYPE_SDMA;
-			for (i = 0; i < adev->sdma.num_instances; i++)
-				ring_mask |= adev->sdma.instance[i].ring.ready << i;
-			ib_start_alignment = 256;
-			ib_size_alignment = 4;
-			break;
-		case AMDGPU_HW_IP_UVD:
-			type = AMD_IP_BLOCK_TYPE_UVD;
-			for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
-				if (adev->uvd.harvest_config & (1 << i))
-					continue;
-				ring_mask |= adev->uvd.inst[i].ring.ready;
-			}
-			ib_start_alignment = 64;
-			ib_size_alignment = 64;
-			break;
-		case AMDGPU_HW_IP_VCE:
-			type = AMD_IP_BLOCK_TYPE_VCE;
-			for (i = 0; i < adev->vce.num_rings; i++)
-				ring_mask |= adev->vce.ring[i].ready << i;
-			ib_start_alignment = 4;
-			ib_size_alignment = 1;
-			break;
-		case AMDGPU_HW_IP_UVD_ENC:
-			type = AMD_IP_BLOCK_TYPE_UVD;
-			for (i = 0; i < adev->uvd.num_uvd_inst; i++) {
-				if (adev->uvd.harvest_config & (1 << i))
-					continue;
-				for (j = 0; j < adev->uvd.num_enc_rings; j++)
-					ring_mask |= adev->uvd.inst[i].ring_enc[j].ready << j;
-			}
-			ib_start_alignment = 64;
-			ib_size_alignment = 64;
-			break;
-		case AMDGPU_HW_IP_VCN_DEC:
-			type = AMD_IP_BLOCK_TYPE_VCN;
-			ring_mask = adev->vcn.ring_dec.ready;
-			ib_start_alignment = 16;
-			ib_size_alignment = 16;
-			break;
-		case AMDGPU_HW_IP_VCN_ENC:
-			type = AMD_IP_BLOCK_TYPE_VCN;
-			for (i = 0; i < adev->vcn.num_enc_rings; i++)
-				ring_mask |= adev->vcn.ring_enc[i].ready << i;
-			ib_start_alignment = 64;
-			ib_size_alignment = 1;
-			break;
-		case AMDGPU_HW_IP_VCN_JPEG:
-			type = AMD_IP_BLOCK_TYPE_VCN;
-			ring_mask = adev->vcn.ring_jpeg.ready;
-			ib_start_alignment = 16;
-			ib_size_alignment = 16;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		for (i = 0; i < adev->num_ip_blocks; i++) {
-			if (adev->ip_blocks[i].version->type == type &&
-			    adev->ip_blocks[i].status.valid) {
-				ip.hw_ip_version_major = adev->ip_blocks[i].version->major;
-				ip.hw_ip_version_minor = adev->ip_blocks[i].version->minor;
-				ip.capabilities_flags = 0;
-				ip.available_rings = ring_mask;
-				ip.ib_start_alignment = ib_start_alignment;
-				ip.ib_size_alignment = ib_size_alignment;
-				break;
-			}
-		}
-		return copy_to_user(out, &ip,
-				    min((size_t)size, sizeof(ip))) ? -EFAULT : 0;
+		ret = copy_to_user(out, &ip, min((size_t)size, sizeof(ip)));
+		return ret ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_HW_IP_COUNT: {
 		enum amd_ip_block_type type;
@@ -492,13 +580,13 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_gds gds_info;
 
 		memset(&gds_info, 0, sizeof(gds_info));
-		gds_info.gds_gfx_partition_size = adev->gds.mem.gfx_partition_size >> AMDGPU_GDS_SHIFT;
-		gds_info.compute_partition_size = adev->gds.mem.cs_partition_size >> AMDGPU_GDS_SHIFT;
-		gds_info.gds_total_size = adev->gds.mem.total_size >> AMDGPU_GDS_SHIFT;
-		gds_info.gws_per_gfx_partition = adev->gds.gws.gfx_partition_size >> AMDGPU_GWS_SHIFT;
-		gds_info.gws_per_compute_partition = adev->gds.gws.cs_partition_size >> AMDGPU_GWS_SHIFT;
-		gds_info.oa_per_gfx_partition = adev->gds.oa.gfx_partition_size >> AMDGPU_OA_SHIFT;
-		gds_info.oa_per_compute_partition = adev->gds.oa.cs_partition_size >> AMDGPU_OA_SHIFT;
+		gds_info.gds_gfx_partition_size = adev->gds.mem.gfx_partition_size;
+		gds_info.compute_partition_size = adev->gds.mem.cs_partition_size;
+		gds_info.gds_total_size = adev->gds.mem.total_size;
+		gds_info.gws_per_gfx_partition = adev->gds.gws.gfx_partition_size;
+		gds_info.gws_per_compute_partition = adev->gds.gws.cs_partition_size;
+		gds_info.oa_per_gfx_partition = adev->gds.oa.gfx_partition_size;
+		gds_info.oa_per_compute_partition = adev->gds.oa.cs_partition_size;
 		return copy_to_user(out, &gds_info,
 				    min((size_t)size, sizeof(gds_info))) ? -EFAULT : 0;
 	}
@@ -617,16 +705,17 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		vm_size -= AMDGPU_VA_RESERVED_SIZE;
 
 		/* Older VCE FW versions are buggy and can handle only 40bits */
-		if (adev->vce.fw_version < AMDGPU_VCE_FW_53_45)
+		if (adev->vce.fw_version &&
+		    adev->vce.fw_version < AMDGPU_VCE_FW_53_45)
 			vm_size = min(vm_size, 1ULL << 40);
 
 		dev_info.virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
 		dev_info.virtual_address_max =
-			min(vm_size, AMDGPU_VA_HOLE_START);
+			min(vm_size, AMDGPU_GMC_HOLE_START);
 
-		if (vm_size > AMDGPU_VA_HOLE_START) {
-			dev_info.high_va_offset = AMDGPU_VA_HOLE_END;
-			dev_info.high_va_max = AMDGPU_VA_HOLE_END | vm_size;
+		if (vm_size > AMDGPU_GMC_HOLE_START) {
+			dev_info.high_va_offset = AMDGPU_GMC_HOLE_END;
+			dev_info.high_va_max = AMDGPU_GMC_HOLE_END | vm_size;
 		}
 		dev_info.virtual_address_alignment = max((int)PAGE_SIZE, AMDGPU_GPU_PAGE_SIZE);
 		dev_info.pte_fragment_size = (1 << adev->vm_manager.fragment_size) * AMDGPU_GPU_PAGE_SIZE;
@@ -941,10 +1030,10 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	pm_runtime_get_sync(dev->dev);
 
-	if (adev->asic_type != CHIP_RAVEN) {
+	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_UVD) != NULL)
 		amdgpu_uvd_free_handles(adev, file_priv);
+	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_VCE) != NULL)
 		amdgpu_vce_free_handles(adev, file_priv);
-	}
 
 	amdgpu_vm_bo_rmv(adev, fpriv->prt_va);
 
@@ -1260,6 +1349,14 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 	seq_printf(m, "VCN feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* DMCU */
+	query_fw.fw_type = AMDGPU_INFO_FW_DMCU;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "DMCU feature version: %u, firmware version: 0x%08x\n",
 		   fw_info.feature, fw_info.ver);
 
 

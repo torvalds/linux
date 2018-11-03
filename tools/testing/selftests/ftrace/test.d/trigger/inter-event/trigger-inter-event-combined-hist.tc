@@ -1,14 +1,7 @@
 #!/bin/sh
 # description: event trigger - test inter-event combined histogram trigger
 
-do_reset() {
-    reset_trigger
-    echo > set_event
-    clear_trace
-}
-
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -22,10 +15,6 @@ if [ ! -f synthetic_events ]; then
     echo "synthetic event is not supported"
     exit_unsupported
 fi
-
-reset_tracer
-do_reset
-clear_synthetic_events
 
 echo "Test create synthetic event"
 
@@ -48,11 +37,9 @@ echo 'waking+wakeup_latency u64 lat; pid_t pid' >> synthetic_events
 echo 'hist:keys=pid,lat:sort=pid,lat:ww_lat=$waking_lat+$wakeup_lat:onmatch(synthetic.wakeup_latency).waking+wakeup_latency($ww_lat,pid)' >> events/synthetic/wakeup_latency/trigger
 echo 'hist:keys=pid,lat:sort=pid,lat' >> events/synthetic/waking+wakeup_latency/trigger
 
-ping localhost -c 3
+ping $LOCALHOST -c 3
 if ! grep -q "pid:" events/synthetic/waking+wakeup_latency/hist; then
     fail "Failed to create combined histogram"
 fi
-
-do_reset
 
 exit 0

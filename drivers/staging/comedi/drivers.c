@@ -211,6 +211,19 @@ static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s)
 	return -EINVAL;
 }
 
+static int insn_device_inval(struct comedi_device *dev,
+			     struct comedi_insn *insn, unsigned int *data)
+{
+	return -EINVAL;
+}
+
+static unsigned int get_zero_valid_routes(struct comedi_device *dev,
+					  unsigned int n_pairs,
+					  unsigned int *pair_data)
+{
+	return 0;
+}
+
 int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
 	       struct comedi_insn *insn, unsigned int *data)
 {
@@ -651,6 +664,12 @@ static int __comedi_device_postconfig(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
+
+	if (!dev->insn_device_config)
+		dev->insn_device_config = insn_device_inval;
+
+	if (!dev->get_valid_routes)
+		dev->get_valid_routes = get_zero_valid_routes;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];

@@ -227,9 +227,9 @@ static int spk_ttyio_out_unicode(struct spk_synth *in_synth, u16 ch)
 {
 	int ret;
 
-	if (ch < 0x80)
+	if (ch < 0x80) {
 		ret = spk_ttyio_out(in_synth, ch);
-	else if (ch < 0x800) {
+	} else if (ch < 0x800) {
 		ret  = spk_ttyio_out(in_synth, 0xc0 | (ch >> 6));
 		ret &= spk_ttyio_out(in_synth, 0x80 | (ch & 0x3f));
 	} else {

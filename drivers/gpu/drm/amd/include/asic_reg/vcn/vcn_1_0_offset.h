@@ -33,6 +33,14 @@
 #define mmUVD_POWER_STATUS_BASE_IDX                                                                    1
 #define mmCC_UVD_HARVESTING                                                                            0x00c7
 #define mmCC_UVD_HARVESTING_BASE_IDX                                                                   1
+#define mmUVD_DPG_LMA_CTL                                                                              0x00d1
+#define mmUVD_DPG_LMA_CTL_BASE_IDX                                                                     1
+#define mmUVD_DPG_LMA_DATA                                                                             0x00d2
+#define mmUVD_DPG_LMA_DATA_BASE_IDX                                                                    1
+#define mmUVD_DPG_LMA_MASK                                                                             0x00d3
+#define mmUVD_DPG_LMA_MASK_BASE_IDX                                                                    1
+#define mmUVD_DPG_PAUSE                                                                                0x00d4
+#define mmUVD_DPG_PAUSE_BASE_IDX                                                                       1
 #define mmUVD_SCRATCH1                                                                                 0x00d5
 #define mmUVD_SCRATCH1_BASE_IDX                                                                        1
 #define mmUVD_SCRATCH2                                                                                 0x00d6
@@ -74,6 +82,18 @@
 #define mmUVD_LCM_CGC_CNTRL                                                                            0x0123
 #define mmUVD_LCM_CGC_CNTRL_BASE_IDX                                                                   1
 
+#define mmUVD_MIF_CURR_UV_ADDR_CONFIG                                                                  0x0184
+#define mmUVD_MIF_CURR_UV_ADDR_CONFIG_BASE_IDX                                                         1
+#define mmUVD_MIF_REF_UV_ADDR_CONFIG                                                                   0x0185
+#define mmUVD_MIF_REF_UV_ADDR_CONFIG_BASE_IDX                                                          1
+#define mmUVD_MIF_RECON1_UV_ADDR_CONFIG                                                                0x0186
+#define mmUVD_MIF_RECON1_UV_ADDR_CONFIG_BASE_IDX                                                       1
+#define mmUVD_MIF_CURR_ADDR_CONFIG                                                                     0x0192
+#define mmUVD_MIF_CURR_ADDR_CONFIG_BASE_IDX                                                            1
+#define mmUVD_MIF_REF_ADDR_CONFIG                                                                      0x0193
+#define mmUVD_MIF_REF_ADDR_CONFIG_BASE_IDX                                                             1
+#define mmUVD_MIF_RECON1_ADDR_CONFIG                                                                   0x01c5
+#define mmUVD_MIF_RECON1_ADDR_CONFIG_BASE_IDX                                                          1
 
 // addressBlock: uvd_uvdnpdec
 // base address: 0x20000
@@ -307,6 +327,8 @@
 #define mmUVD_LMI_CTRL2_BASE_IDX                                                                       1
 #define mmUVD_MASTINT_EN                                                                               0x0540
 #define mmUVD_MASTINT_EN_BASE_IDX                                                                      1
+#define mmUVD_SYS_INT_EN                                                                               0x0541
+#define mmUVD_SYS_INT_EN_BASE_IDX                                                                      1
 #define mmJPEG_CGC_CTRL                                                                                0x0565
 #define mmJPEG_CGC_CTRL_BASE_IDX                                                                       1
 #define mmUVD_LMI_CTRL                                                                                 0x0566
@@ -317,6 +339,8 @@
 #define mmUVD_LMI_VM_CTRL_BASE_IDX                                                                     1
 #define mmUVD_LMI_SWAP_CNTL                                                                            0x056d
 #define mmUVD_LMI_SWAP_CNTL_BASE_IDX                                                                   1
+#define mmUVD_MPC_CNTL                                                                                 0x0577
+#define mmUVD_MPC_CNTL_BASE_IDX                                                                        1
 #define mmUVD_MPC_SET_MUXA0                                                                            0x0579
 #define mmUVD_MPC_SET_MUXA0_BASE_IDX                                                                   1
 #define mmUVD_MPC_SET_MUXA1                                                                            0x057a

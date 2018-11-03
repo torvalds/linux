@@ -15,7 +15,6 @@
 #include <linux/export.h>
 #include <linux/of_fdt.h>
 #include <linux/memblock.h>
-#include <linux/bootmem.h>
 #include <linux/moduleparam.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>

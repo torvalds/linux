@@ -319,5 +319,7 @@
 #define CE3_SRC					303
 #define CE3_CORE_CLK				304
 #define CE3_H_CLK				305
+#define PLL16					306
+#define PLL17					307
 
 #endif

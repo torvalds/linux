@@ -674,7 +674,7 @@ static int snd_cx25821_pcm(struct cx25821_audio_dev *chip, int device,
 	}
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_cx25821_pcm_ops);
 
 	return 0;
@@ -725,7 +725,7 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 		return err;
 	}
 
-	strcpy(card->driver, "cx25821");
+	strscpy(card->driver, "cx25821", sizeof(card->driver));
 
 	/* Card "creation" */
 	chip = card->private_data;
@@ -754,10 +754,10 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 		goto error;
 	}
 
-	strcpy(card->shortname, "cx25821");
+	strscpy(card->shortname, "cx25821", sizeof(card->shortname));
 	sprintf(card->longname, "%s at 0x%lx irq %d", chip->dev->name,
 		chip->iobase, chip->irq);
-	strcpy(card->mixername, "CX25821");
+	strscpy(card->mixername, "CX25821", sizeof(card->mixername));
 
 	pr_info("%s/%i: ALSA support for cx25821 boards\n", card->driver,
 		devno);

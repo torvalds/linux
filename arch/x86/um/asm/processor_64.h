@@ -31,9 +31,6 @@ static inline void arch_copy_thread(struct arch_thread *from,
 	to->fs = from->fs;
 }
 
-#define current_text_addr() \
-	({ void *pc; __asm__("movq $1f,%0\n1:":"=g" (pc)); pc; })
-
 #define current_sp() ({ void *sp; __asm__("movq %%rsp, %0" : "=r" (sp) : ); sp; })
 #define current_bp() ({ unsigned long bp; __asm__("movq %%rbp, %0" : "=r" (bp) : ); bp; })
 

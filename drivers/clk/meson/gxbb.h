@@ -159,8 +159,14 @@
 #define CLKID_VDEC_HEVC_DIV	  155
 #define CLKID_GEN_CLK_SEL	  157
 #define CLKID_GEN_CLK_DIV	  158
+#define CLKID_FIXED_PLL_DCO	  160
+#define CLKID_HDMI_PLL_DCO	  161
+#define CLKID_HDMI_PLL_OD	  162
+#define CLKID_HDMI_PLL_OD2	  163
+#define CLKID_SYS_PLL_DCO	  164
+#define CLKID_GP0_PLL_DCO	  165
 
-#define NR_CLKS			  160
+#define NR_CLKS			  166
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>

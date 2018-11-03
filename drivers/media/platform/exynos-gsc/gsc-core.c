@@ -339,7 +339,7 @@ int gsc_enum_fmt_mplane(struct v4l2_fmtdesc *f)
 	if (!fmt)
 		return -EINVAL;
 
-	strlcpy(f->description, fmt->name, sizeof(f->description));
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->pixelformat;
 
 	return 0;

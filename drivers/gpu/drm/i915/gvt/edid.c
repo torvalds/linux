@@ -340,6 +340,9 @@ static int gmbus2_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 /**
  * intel_gvt_i2c_handle_gmbus_read - emulate gmbus register mmio read
  * @vgpu: a vGPU
+ * @offset: reg offset
+ * @p_data: data return buffer
+ * @bytes: access data length
  *
  * This function is used to emulate gmbus register mmio read
  *
@@ -365,6 +368,9 @@ int intel_gvt_i2c_handle_gmbus_read(struct intel_vgpu *vgpu,
 /**
  * intel_gvt_i2c_handle_gmbus_write - emulate gmbus register mmio write
  * @vgpu: a vGPU
+ * @offset: reg offset
+ * @p_data: data return buffer
+ * @bytes: access data length
  *
  * This function is used to emulate gmbus register mmio write
  *
@@ -437,6 +443,9 @@ static inline int get_aux_ch_reg(unsigned int offset)
 /**
  * intel_gvt_i2c_handle_aux_ch_write - emulate AUX channel register write
  * @vgpu: a vGPU
+ * @port_idx: port index
+ * @offset: reg offset
+ * @p_data: write ptr
  *
  * This function is used to emulate AUX channel register write
  *

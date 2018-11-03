@@ -450,7 +450,7 @@ static void _dpu_kms_initialize_dsi(struct drm_device *dev,
 	int i, rc;
 
 	/*TODO: Support two independent DSI connectors */
-	encoder = dpu_encoder_init(dev, DRM_MODE_CONNECTOR_DSI);
+	encoder = dpu_encoder_init(dev, DRM_MODE_ENCODER_DSI);
 	if (IS_ERR_OR_NULL(encoder)) {
 		DPU_ERROR("encoder init failed for dsi display\n");
 		return;
@@ -531,12 +531,13 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 {
 	struct drm_device *dev;
 	struct drm_plane *primary_planes[MAX_PLANES], *plane;
+	struct drm_plane *cursor_planes[MAX_PLANES] = { NULL };
 	struct drm_crtc *crtc;
 
 	struct msm_drm_private *priv;
 	struct dpu_mdss_cfg *catalog;
 
-	int primary_planes_idx = 0, i, ret;
+	int primary_planes_idx = 0, cursor_planes_idx = 0, i, ret;
 	int max_crtc_count;
 
 	if (!dpu_kms || !dpu_kms->dev || !dpu_kms->dev->dev) {
@@ -556,16 +557,24 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 
 	max_crtc_count = min(catalog->mixer_count, priv->num_encoders);
 
-	/* Create the planes */
+	/* Create the planes, keeping track of one primary/cursor per crtc */
 	for (i = 0; i < catalog->sspp_count; i++) {
-		bool primary = true;
+		enum drm_plane_type type;
 
-		if (catalog->sspp[i].features & BIT(DPU_SSPP_CURSOR)
-			|| primary_planes_idx >= max_crtc_count)
-			primary = false;
+		if ((catalog->sspp[i].features & BIT(DPU_SSPP_CURSOR))
+			&& cursor_planes_idx < max_crtc_count)
+			type = DRM_PLANE_TYPE_CURSOR;
+		else if (primary_planes_idx < max_crtc_count)
+			type = DRM_PLANE_TYPE_PRIMARY;
+		else
+			type = DRM_PLANE_TYPE_OVERLAY;
 
-		plane = dpu_plane_init(dev, catalog->sspp[i].id, primary,
-				(1UL << max_crtc_count) - 1, 0);
+		DPU_DEBUG("Create plane type %d with features %lx (cur %lx)\n",
+			  type, catalog->sspp[i].features,
+			  catalog->sspp[i].features & BIT(DPU_SSPP_CURSOR));
+
+		plane = dpu_plane_init(dev, catalog->sspp[i].id, type,
+				       (1UL << max_crtc_count) - 1, 0);
 		if (IS_ERR(plane)) {
 			DPU_ERROR("dpu_plane_init failed\n");
 			ret = PTR_ERR(plane);
@@ -573,7 +582,9 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 		}
 		priv->planes[priv->num_planes++] = plane;
 
-		if (primary)
+		if (type == DRM_PLANE_TYPE_CURSOR)
+			cursor_planes[cursor_planes_idx++] = plane;
+		else if (type == DRM_PLANE_TYPE_PRIMARY)
 			primary_planes[primary_planes_idx++] = plane;
 	}
 
@@ -581,7 +592,7 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 
 	/* Create one CRTC per encoder */
 	for (i = 0; i < max_crtc_count; i++) {
-		crtc = dpu_crtc_init(dev, primary_planes[i]);
+		crtc = dpu_crtc_init(dev, primary_planes[i], cursor_planes[i]);
 		if (IS_ERR(crtc)) {
 			ret = PTR_ERR(crtc);
 			goto fail;
@@ -956,8 +967,7 @@ static void dpu_kms_handle_power_event(u32 event_type, void *usr)
 	if (!dpu_kms)
 		return;
 
-	if (event_type == DPU_POWER_EVENT_POST_ENABLE)
-		dpu_vbif_init_memtypes(dpu_kms);
+	dpu_vbif_init_memtypes(dpu_kms);
 }
 
 static int dpu_kms_hw_init(struct msm_kms *kms)
@@ -1144,10 +1154,9 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	/*
 	 * Handle (re)initializations during power enable
 	 */
-	dpu_kms_handle_power_event(DPU_POWER_EVENT_POST_ENABLE, dpu_kms);
+	dpu_kms_handle_power_event(DPU_POWER_EVENT_ENABLE, dpu_kms);
 	dpu_kms->power_event = dpu_power_handle_register_event(
-			&dpu_kms->phandle,
-			DPU_POWER_EVENT_POST_ENABLE,
+			&dpu_kms->phandle, DPU_POWER_EVENT_ENABLE,
 			dpu_kms_handle_power_event, dpu_kms, "kms");
 
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);

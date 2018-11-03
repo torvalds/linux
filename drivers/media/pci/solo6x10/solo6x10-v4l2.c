@@ -383,8 +383,8 @@ static int solo_querycap(struct file *file, void  *priv,
 {
 	struct solo_dev *solo_dev = video_drvdata(file);
 
-	strcpy(cap->driver, SOLO6X10_NAME);
-	strcpy(cap->card, "Softlogic 6x10");
+	strscpy(cap->driver, SOLO6X10_NAME, sizeof(cap->driver));
+	strscpy(cap->card, "Softlogic 6x10", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(solo_dev->pdev));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
@@ -470,7 +470,7 @@ static int solo_enum_fmt_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	f->pixelformat = V4L2_PIX_FMT_UYVY;
-	strlcpy(f->description, "UYUV 4:2:2 Packed", sizeof(f->description));
+	strscpy(f->description, "UYUV 4:2:2 Packed", sizeof(f->description));
 
 	return 0;
 }

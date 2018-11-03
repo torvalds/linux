@@ -6,7 +6,7 @@
  * Licensed under the GPL.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/inetdevice.h>
@@ -650,7 +650,7 @@ static int __init eth_setup(char *str)
 		return 1;
 	}
 
-	new = alloc_bootmem(sizeof(*new));
+	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
 
 	INIT_LIST_HEAD(&new->list);
 	new->index = n;

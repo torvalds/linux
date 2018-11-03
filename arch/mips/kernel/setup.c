@@ -15,7 +15,6 @@
 #include <linux/export.h>
 #include <linux/screen_info.h>
 #include <linux/memblock.h>
-#include <linux/bootmem.h>
 #include <linux/initrd.h>
 #include <linux/root_dev.h>
 #include <linux/highmem.h>
@@ -561,7 +560,7 @@ static void __init bootmem_init(void)
 		extern void show_kernel_relocation(const char *level);
 
 		offset = __pa_symbol(_text) - __pa_symbol(VMLINUX_LOAD_ADDRESS);
-		free_bootmem(__pa_symbol(VMLINUX_LOAD_ADDRESS), offset);
+		memblock_free(__pa_symbol(VMLINUX_LOAD_ADDRESS), offset);
 
 #if defined(CONFIG_DEBUG_KERNEL) && defined(CONFIG_DEBUG_INFO)
 		/*
@@ -859,7 +858,7 @@ static void __init arch_mem_init(char **cmdline_p)
 	 * Prevent memblock from allocating high memory.
 	 * This cannot be done before max_low_pfn is detected, so up
 	 * to this point is possible to only reserve physical memory
-	 * with memblock_reserve; memblock_virt_alloc* can be used
+	 * with memblock_reserve; memblock_alloc* can be used
 	 * only after this point
 	 */
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
@@ -917,7 +916,7 @@ static void __init resource_init(void)
 		if (end >= HIGHMEM_START)
 			end = HIGHMEM_START - 1;
 
-		res = alloc_bootmem(sizeof(struct resource));
+		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
 
 		res->start = start;
 		res->end = end;

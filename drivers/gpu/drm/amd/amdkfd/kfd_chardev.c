@@ -447,6 +447,24 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 	return retval;
 }
 
+static int kfd_ioctl_get_queue_wave_state(struct file *filep,
+					  struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_get_queue_wave_state_args *args = data;
+	int r;
+
+	mutex_lock(&p->mutex);
+
+	r = pqm_get_wave_state(&p->pqm, args->queue_id,
+			       (void __user *)args->ctl_stack_address,
+			       &args->ctl_stack_used_size,
+			       &args->save_area_used_size);
+
+	mutex_unlock(&p->mutex);
+
+	return r;
+}
+
 static int kfd_ioctl_set_memory_policy(struct file *filep,
 					struct kfd_process *p, void *data)
 {
@@ -1210,7 +1228,7 @@ err_unlock:
 	return ret;
 }
 
-static bool kfd_dev_is_large_bar(struct kfd_dev *dev)
+bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 {
 	struct kfd_local_mem_info mem_info;
 
@@ -1614,6 +1632,9 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_CU_MASK,
 			kfd_ioctl_set_cu_mask, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_QUEUE_WAVE_STATE,
+			kfd_ioctl_get_queue_wave_state, 0)
 
 };
 

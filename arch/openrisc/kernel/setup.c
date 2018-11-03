@@ -30,13 +30,12 @@
 #include <linux/delay.h>
 #include <linux/console.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/serial.h>
 #include <linux/initrd.h>
 #include <linux/of_fdt.h>
 #include <linux/of.h>
-#include <linux/memblock.h>
 #include <linux/device.h>
 
 #include <asm/sections.h>

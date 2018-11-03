@@ -8,7 +8,7 @@
  * Copyright (C) 2002 Hiroshi Aono (h-aono@ap.jp.nec.com)
  * Copyright (C) 2002,2003 Takayoshi Kochi (t-kochi@bq.jp.nec.com)
  * Copyright (C) 2002,2003 NEC Corporation
- * Copyright (C) 2003-2005 Matthew Wilcox (matthew.wilcox@hp.com)
+ * Copyright (C) 2003-2005 Matthew Wilcox (willy@infradead.org)
  * Copyright (C) 2003-2005 Hewlett Packard
  *
  * All rights reserved.

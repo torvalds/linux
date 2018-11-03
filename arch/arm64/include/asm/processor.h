@@ -25,13 +25,6 @@
 #define USER_DS		(TASK_SIZE_64 - 1)
 
 #ifndef __ASSEMBLY__
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ __label__ _l; _l: &&_l;})
-
 #ifdef __KERNEL__
 
 #include <linux/build_bug.h>

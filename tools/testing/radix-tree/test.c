@@ -25,11 +25,6 @@ int item_tag_get(struct radix_tree_root *root, unsigned long index, int tag)
 	return radix_tree_tag_get(root, index, tag);
 }
 
-int __item_insert(struct radix_tree_root *root, struct item *item)
-{
-	return __radix_tree_insert(root, item->index, item->order, item);
-}
-
 struct item *item_create(unsigned long index, unsigned int order)
 {
 	struct item *ret = malloc(sizeof(*ret));
@@ -39,19 +34,13 @@ struct item *item_create(unsigned long index, unsigned int order)
 	return ret;
 }
 
-int item_insert_order(struct radix_tree_root *root, unsigned long index,
-			unsigned order)
+int item_insert(struct radix_tree_root *root, unsigned long index)
 {
-	struct item *item = item_create(index, order);
-	int err = __item_insert(root, item);
+	struct item *item = item_create(index, 0);
+	int err = radix_tree_insert(root, item->index, item);
 	if (err)
 		free(item);
 	return err;
-}
-
-int item_insert(struct radix_tree_root *root, unsigned long index)
-{
-	return item_insert_order(root, index, 0);
 }
 
 void item_sanity(struct item *item, unsigned long index)
@@ -63,16 +52,21 @@ void item_sanity(struct item *item, unsigned long index)
 	assert((item->index | mask) == (index | mask));
 }
 
+void item_free(struct item *item, unsigned long index)
+{
+	item_sanity(item, index);
+	free(item);
+}
+
 int item_delete(struct radix_tree_root *root, unsigned long index)
 {
 	struct item *item = radix_tree_delete(root, index);
 
-	if (item) {
-		item_sanity(item, index);
-		free(item);
-		return 1;
-	}
-	return 0;
+	if (!item)
+		return 0;
+
+	item_free(item, index);
+	return 1;
 }
 
 static void item_free_rcu(struct rcu_head *head)
@@ -82,9 +76,9 @@ static void item_free_rcu(struct rcu_head *head)
 	free(item);
 }
 
-int item_delete_rcu(struct radix_tree_root *root, unsigned long index)
+int item_delete_rcu(struct xarray *xa, unsigned long index)
 {
-	struct item *item = radix_tree_delete(root, index);
+	struct item *item = xa_erase(xa, index);
 
 	if (item) {
 		item_sanity(item, index);
@@ -176,59 +170,30 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
 }
 
 /* Use the same pattern as tag_pages_for_writeback() in mm/page-writeback.c */
-int tag_tagged_items(struct radix_tree_root *root, pthread_mutex_t *lock,
-			unsigned long start, unsigned long end, unsigned batch,
-			unsigned iftag, unsigned thentag)
+int tag_tagged_items(struct xarray *xa, unsigned long start, unsigned long end,
+		unsigned batch, xa_mark_t iftag, xa_mark_t thentag)
 {
-	unsigned long tagged = 0;
-	struct radix_tree_iter iter;
-	void **slot;
+	XA_STATE(xas, xa, start);
+	unsigned int tagged = 0;
+	struct item *item;
 
 	if (batch == 0)
 		batch = 1;
 
-	if (lock)
-		pthread_mutex_lock(lock);
-	radix_tree_for_each_tagged(slot, root, &iter, start, iftag) {
-		if (iter.index > end)
-			break;
-		radix_tree_iter_tag_set(root, &iter, thentag);
-		tagged++;
-		if ((tagged % batch) != 0)
+	xas_lock_irq(&xas);
+	xas_for_each_marked(&xas, item, end, iftag) {
+		xas_set_mark(&xas, thentag);
+		if (++tagged % batch)
 			continue;
-		slot = radix_tree_iter_resume(slot, &iter);
-		if (lock) {
-			pthread_mutex_unlock(lock);
-			rcu_barrier();
-			pthread_mutex_lock(lock);
-		}
+
+		xas_pause(&xas);
+		xas_unlock_irq(&xas);
+		rcu_barrier();
+		xas_lock_irq(&xas);
 	}
-	if (lock)
-		pthread_mutex_unlock(lock);
+	xas_unlock_irq(&xas);
 
 	return tagged;
-}
-
-/* Use the same pattern as find_swap_entry() in mm/shmem.c */
-unsigned long find_item(struct radix_tree_root *root, void *item)
-{
-	struct radix_tree_iter iter;
-	void **slot;
-	unsigned long found = -1;
-	unsigned long checked = 0;
-
-	radix_tree_for_each_slot(slot, root, &iter, 0) {
-		if (*slot == item) {
-			found = iter.index;
-			break;
-		}
-		checked++;
-		if ((checked % 4) != 0)
-			continue;
-		slot = radix_tree_iter_resume(slot, &iter);
-	}
-
-	return found;
 }
 
 static int verify_node(struct radix_tree_node *slot, unsigned int tag,
@@ -281,43 +246,31 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 
 void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
 {
-	struct radix_tree_node *node = root->rnode;
+	struct radix_tree_node *node = root->xa_head;
 	if (!radix_tree_is_internal_node(node))
 		return;
 	verify_node(node, tag, !!root_tag_get(root, tag));
 }
 
-void item_kill_tree(struct radix_tree_root *root)
+void item_kill_tree(struct xarray *xa)
 {
-	struct radix_tree_iter iter;
-	void **slot;
-	struct item *items[32];
-	int nfound;
+	XA_STATE(xas, xa, 0);
+	void *entry;
 
-	radix_tree_for_each_slot(slot, root, &iter, 0) {
-		if (radix_tree_exceptional_entry(*slot))
-			radix_tree_delete(root, iter.index);
-	}
-
-	while ((nfound = radix_tree_gang_lookup(root, (void **)items, 0, 32))) {
-		int i;
-
-		for (i = 0; i < nfound; i++) {
-			void *ret;
-
-			ret = radix_tree_delete(root, items[i]->index);
-			assert(ret == items[i]);
-			free(items[i]);
+	xas_for_each(&xas, entry, ULONG_MAX) {
+		if (!xa_is_value(entry)) {
+			item_free(entry, xas.xa_index);
 		}
+		xas_store(&xas, NULL);
 	}
-	assert(radix_tree_gang_lookup(root, (void **)items, 0, 32) == 0);
-	assert(root->rnode == NULL);
+
+	assert(xa_empty(xa));
 }
 
 void tree_verify_min_height(struct radix_tree_root *root, int maxindex)
 {
 	unsigned shift;
-	struct radix_tree_node *node = root->rnode;
+	struct radix_tree_node *node = root->xa_head;
 	if (!radix_tree_is_internal_node(node)) {
 		assert(maxindex == 0);
 		return;

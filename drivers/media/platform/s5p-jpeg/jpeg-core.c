@@ -1276,14 +1276,14 @@ static int s5p_jpeg_querycap(struct file *file, void *priv,
 	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
 
 	if (ctx->mode == S5P_JPEG_ENCODE) {
-		strlcpy(cap->driver, S5P_JPEG_M2M_NAME,
+		strscpy(cap->driver, S5P_JPEG_M2M_NAME,
 			sizeof(cap->driver));
-		strlcpy(cap->card, S5P_JPEG_M2M_NAME " encoder",
+		strscpy(cap->card, S5P_JPEG_M2M_NAME " encoder",
 			sizeof(cap->card));
 	} else {
-		strlcpy(cap->driver, S5P_JPEG_M2M_NAME,
+		strscpy(cap->driver, S5P_JPEG_M2M_NAME,
 			sizeof(cap->driver));
-		strlcpy(cap->card, S5P_JPEG_M2M_NAME " decoder",
+		strscpy(cap->card, S5P_JPEG_M2M_NAME " decoder",
 			sizeof(cap->card));
 	}
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
@@ -1314,7 +1314,7 @@ static int enum_fmt(struct s5p_jpeg_fmt *sjpeg_formats, int n,
 	if (i >= n)
 		return -EINVAL;
 
-	strlcpy(f->description, sjpeg_formats[i].name, sizeof(f->description));
+	strscpy(f->description, sjpeg_formats[i].name, sizeof(f->description));
 	f->pixelformat = sjpeg_formats[i].fourcc;
 
 	return 0;

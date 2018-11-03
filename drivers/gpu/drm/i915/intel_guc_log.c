@@ -498,7 +498,7 @@ err:
 
 void intel_guc_log_destroy(struct intel_guc_log *log)
 {
-	i915_vma_unpin_and_release(&log->vma);
+	i915_vma_unpin_and_release(&log->vma, 0);
 }
 
 int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)

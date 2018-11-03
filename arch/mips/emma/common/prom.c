@@ -22,7 +22,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>

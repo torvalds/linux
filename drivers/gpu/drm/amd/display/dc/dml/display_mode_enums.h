@@ -40,8 +40,8 @@ enum source_format_class {
 	dm_422_8 = 5,
 	dm_422_10 = 6,
 	dm_444_8 = 7,
-	dm_mono_8,
-	dm_mono_16
+	dm_mono_8 = dm_444_8,
+	dm_mono_16 = dm_444_16
 };
 enum output_bpc_class {
 	dm_out_6 = 0, dm_out_8 = 1, dm_out_10 = 2, dm_out_12 = 3, dm_out_16 = 4

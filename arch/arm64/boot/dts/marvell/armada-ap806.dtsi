@@ -6,6 +6,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/thermal/thermal.h>
 
 /dts-v1/;
 
@@ -25,6 +26,33 @@
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		idle_states {
+			entry_method = "arm,pcsi";
+
+			CPU_SLEEP_0: cpu-sleep-0 {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <80>;
+				exit-latency-us  = <160>;
+				min-residency-us = <320>;
+			};
+
+			CLUSTER_SLEEP_0: cluster-sleep-0 {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x1010000>;
+				entry-latency-us = <500>;
+				exit-latency-us = <1000>;
+				min-residency-us = <2500>;
+			};
+		};
 	};
 
 	ap806 {
@@ -122,6 +150,15 @@
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sei: interrupt-controller@3f0200 {
+				compatible = "marvell,ap806-sei";
+				reg = <0x3f0200 0x40>;
+				interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				msi-controller;
 			};
 
 			xor@400000 {
@@ -247,11 +284,76 @@
 				};
 			};
 
-			ap_thermal: thermal@6f808c {
-				compatible = "marvell,armada-ap806-thermal";
-				reg = <0x6f808c 0x4>,
-				      <0x6f8084 0x8>;
+			ap_syscon1: system-controller@6f8000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x6f8000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				ap_thermal: thermal-sensor@80 {
+					compatible = "marvell,armada-ap806-thermal";
+					reg = <0x80 0x10>;
+					#thermal-sensor-cells = <1>;
+				};
 			};
+		};
+	};
+
+	/*
+	 * The thermal IP features one internal sensor plus, if applicable, one
+	 * remote channel wired to one sensor per CPU.
+	 *
+	 * The cooling maps are always empty as there are no cooling devices.
+	 */
+	thermal-zones {
+		ap_thermal_ic: ap-thermal-ic {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&ap_thermal 0>;
+
+			trips {	};
+			cooling-maps { };
+		};
+
+		ap_thermal_cpu1: ap-thermal-cpu1 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&ap_thermal 1>;
+
+			trips { };
+			cooling-maps { };
+		};
+
+		ap_thermal_cpu2: ap-thermal-cpu2 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&ap_thermal 2>;
+
+			trips { };
+			cooling-maps { };
+		};
+
+		ap_thermal_cpu3: ap-thermal-cpu3 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&ap_thermal 3>;
+
+			trips { };
+			cooling-maps { };
+		};
+
+		ap_thermal_cpu4: ap-thermal-cpu4 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&ap_thermal 4>;
+
+			trips { };
+			cooling-maps { };
 		};
 	};
 };

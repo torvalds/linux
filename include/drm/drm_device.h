@@ -46,6 +46,16 @@ struct drm_device {
 	struct drm_master *master;
 
 	/**
+	 * @driver_features: per-device driver features
+	 *
+	 * Drivers can clear specific flags here to disallow
+	 * certain features on a per-device basis while still
+	 * sharing a single &struct drm_driver instance across
+	 * all devices.
+	 */
+	u32 driver_features;
+
+	/**
 	 * @unplugged:
 	 *
 	 * Flag to tell if the device has been unplugged.

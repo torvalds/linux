@@ -245,7 +245,8 @@ void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf)
 	if (!efuse_word)
 		goto out;
 	for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++) {
-		efuse_word[i] = kcalloc(efuse_max_section, sizeof(u16), GFP_ATOMIC);
+		efuse_word[i] = kcalloc(efuse_max_section, sizeof(u16),
+					GFP_ATOMIC);
 		if (!efuse_word[i])
 			goto done;
 	}

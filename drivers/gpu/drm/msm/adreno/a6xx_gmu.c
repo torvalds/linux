@@ -2,7 +2,6 @@
 /* Copyright (c) 2017-2018 The Linux Foundation. All rights reserved. */
 
 #include <linux/clk.h>
-#include <linux/iopoll.h>
 #include <linux/pm_opp.h>
 #include <soc/qcom/cmd-db.h>
 
@@ -42,9 +41,6 @@ static irqreturn_t a6xx_hfi_irq(int irq, void *data)
 	status = gmu_read(gmu, REG_A6XX_GMU_GMU2HOST_INTR_INFO);
 	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_CLR, status);
 
-	if (status & A6XX_GMU_GMU2HOST_INTR_INFO_MSGQ)
-		tasklet_schedule(&gmu->hfi_tasklet);
-
 	if (status & A6XX_GMU_GMU2HOST_INTR_INFO_CM3_FAULT) {
 		dev_err_ratelimited(gmu->dev, "GMU firmware fault\n");
 
@@ -65,12 +61,14 @@ static bool a6xx_gmu_gx_is_on(struct a6xx_gmu *gmu)
 		A6XX_GMU_SPTPRAC_PWR_CLK_STATUS_GX_HM_CLK_OFF));
 }
 
-static int a6xx_gmu_set_freq(struct a6xx_gmu *gmu, int index)
+static void __a6xx_gmu_set_freq(struct a6xx_gmu *gmu, int index)
 {
+	int ret;
+
 	gmu_write(gmu, REG_A6XX_GMU_DCVS_ACK_OPTION, 0);
 
 	gmu_write(gmu, REG_A6XX_GMU_DCVS_PERF_SETTING,
-		((index << 24) & 0xff) | (3 & 0xf));
+		((3 & 0xf) << 28) | index);
 
 	/*
 	 * Send an invalid index as a vote for the bus bandwidth and let the
@@ -82,7 +80,37 @@ static int a6xx_gmu_set_freq(struct a6xx_gmu *gmu, int index)
 	a6xx_gmu_set_oob(gmu, GMU_OOB_DCVS_SET);
 	a6xx_gmu_clear_oob(gmu, GMU_OOB_DCVS_SET);
 
-	return gmu_read(gmu, REG_A6XX_GMU_DCVS_RETURN);
+	ret = gmu_read(gmu, REG_A6XX_GMU_DCVS_RETURN);
+	if (ret)
+		dev_err(gmu->dev, "GMU set GPU frequency error: %d\n", ret);
+
+	gmu->freq = gmu->gpu_freqs[index];
+}
+
+void a6xx_gmu_set_freq(struct msm_gpu *gpu, unsigned long freq)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
+	u32 perf_index = 0;
+
+	if (freq == gmu->freq)
+		return;
+
+	for (perf_index = 0; perf_index < gmu->nr_gpu_freqs - 1; perf_index++)
+		if (freq == gmu->gpu_freqs[perf_index])
+			break;
+
+	__a6xx_gmu_set_freq(gmu, perf_index);
+}
+
+unsigned long a6xx_gmu_get_freq(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
+
+	return  gmu->freq;
 }
 
 static bool a6xx_gmu_check_idle_level(struct a6xx_gmu *gmu)
@@ -134,9 +162,6 @@ static int a6xx_gmu_hfi_start(struct a6xx_gmu *gmu)
 {
 	u32 val;
 	int ret;
-
-	gmu_rmw(gmu, REG_A6XX_GMU_GMU2HOST_INTR_MASK,
-		A6XX_GMU_GMU2HOST_INTR_INFO_MSGQ, 0);
 
 	gmu_write(gmu, REG_A6XX_GMU_HFI_CTRL_INIT, 1);
 
@@ -348,8 +373,23 @@ static void a6xx_rpmh_stop(struct a6xx_gmu *gmu)
 	gmu_write(gmu, REG_A6XX_GMU_RSCC_CONTROL_REQ, 0);
 }
 
+static inline void pdc_write(void __iomem *ptr, u32 offset, u32 value)
+{
+	return msm_writel(value, ptr + (offset << 2));
+}
+
+static void __iomem *a6xx_gmu_get_mmio(struct platform_device *pdev,
+		const char *name);
+
 static void a6xx_gmu_rpmh_init(struct a6xx_gmu *gmu)
 {
+	struct platform_device *pdev = to_platform_device(gmu->dev);
+	void __iomem *pdcptr = a6xx_gmu_get_mmio(pdev, "gmu_pdc");
+	void __iomem *seqptr = a6xx_gmu_get_mmio(pdev, "gmu_pdc_seq");
+
+	if (!pdcptr || !seqptr)
+		goto err;
+
 	/* Disable SDE clock gating */
 	gmu_write(gmu, REG_A6XX_GPU_RSCC_RSC_STATUS0_DRV0, BIT(24));
 
@@ -374,44 +414,48 @@ static void a6xx_gmu_rpmh_init(struct a6xx_gmu *gmu)
 	gmu_write(gmu, REG_A6XX_RSCC_SEQ_MEM_0_DRV0 + 4, 0x0020e8a8);
 
 	/* Load PDC sequencer uCode for power up and power down sequence */
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_MEM_0, 0xfebea1e1);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 1, 0xa5a4a3a2);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 2, 0x8382a6e0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 3, 0xbce3e284);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 4, 0x002081fc);
+	pdc_write(seqptr, REG_A6XX_PDC_GPU_SEQ_MEM_0, 0xfebea1e1);
+	pdc_write(seqptr, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 1, 0xa5a4a3a2);
+	pdc_write(seqptr, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 2, 0x8382a6e0);
+	pdc_write(seqptr, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 3, 0xbce3e284);
+	pdc_write(seqptr, REG_A6XX_PDC_GPU_SEQ_MEM_0 + 4, 0x002081fc);
 
 	/* Set TCS commands used by PDC sequence for low power modes */
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD_ENABLE_BANK, 7);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD_WAIT_FOR_CMPL_BANK, 0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CONTROL, 0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR, 0x30010);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA, 1);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID + 4, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR + 4, 0x30000);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA + 4, 0x0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID + 8, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR + 8, 0x30080);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA + 8, 0x0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD_ENABLE_BANK, 7);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD_WAIT_FOR_CMPL_BANK, 0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CONTROL, 0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR, 0x30010);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA, 2);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID + 4, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR + 4, 0x30000);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA + 4, 0x3);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID + 8, 0x10108);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR + 8, 0x30080);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA + 8, 0x3);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD_ENABLE_BANK, 7);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD_WAIT_FOR_CMPL_BANK, 0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CONTROL, 0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR, 0x30010);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA, 1);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID + 4, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR + 4, 0x30000);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA + 4, 0x0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID + 8, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR + 8, 0x30080);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS1_CMD0_DATA + 8, 0x0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD_ENABLE_BANK, 7);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD_WAIT_FOR_CMPL_BANK, 0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CONTROL, 0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR, 0x30010);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA, 2);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID + 4, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR + 4, 0x30000);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA + 4, 0x3);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID + 8, 0x10108);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR + 8, 0x30080);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_TCS3_CMD0_DATA + 8, 0x3);
 
 	/* Setup GPU PDC */
-	pdc_write(gmu, REG_A6XX_PDC_GPU_SEQ_START_ADDR, 0);
-	pdc_write(gmu, REG_A6XX_PDC_GPU_ENABLE_PDC, 0x80000001);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_SEQ_START_ADDR, 0);
+	pdc_write(pdcptr, REG_A6XX_PDC_GPU_ENABLE_PDC, 0x80000001);
 
 	/* ensure no writes happen before the uCode is fully written */
 	wmb();
+
+err:
+	devm_iounmap(gmu->dev, pdcptr);
+	devm_iounmap(gmu->dev, seqptr);
 }
 
 /*
@@ -547,8 +591,7 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 }
 
 #define A6XX_HFI_IRQ_MASK \
-	(A6XX_GMU_GMU2HOST_INTR_INFO_MSGQ | \
-	 A6XX_GMU_GMU2HOST_INTR_INFO_CM3_FAULT)
+	(A6XX_GMU_GMU2HOST_INTR_INFO_CM3_FAULT)
 
 #define A6XX_GMU_IRQ_MASK \
 	(A6XX_GMU_AO_HOST_INTERRUPT_STATUS_WDOG_BITE | \
@@ -626,7 +669,7 @@ int a6xx_gmu_reset(struct a6xx_gpu *a6xx_gpu)
 		ret = a6xx_hfi_start(gmu, GMU_COLD_BOOT);
 
 	/* Set the GPU back to the highest power frequency */
-	a6xx_gmu_set_freq(gmu, gmu->nr_gpu_freqs - 1);
+	__a6xx_gmu_set_freq(gmu, gmu->nr_gpu_freqs - 1);
 
 out:
 	if (ret)
@@ -665,7 +708,7 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 	ret = a6xx_hfi_start(gmu, status);
 
 	/* Set the GPU to the highest power frequency */
-	a6xx_gmu_set_freq(gmu, gmu->nr_gpu_freqs - 1);
+	__a6xx_gmu_set_freq(gmu, gmu->nr_gpu_freqs - 1);
 
 out:
 	/* Make sure to turn off the boot OOB request on error */
@@ -1140,7 +1183,7 @@ int a6xx_gmu_probe(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 
 	gmu->dev = &pdev->dev;
 
-	of_dma_configure(gmu->dev, node, false);
+	of_dma_configure(gmu->dev, node, true);
 
 	/* Fow now, don't do anything fancy until we get our feet under us */
 	gmu->idle_level = GMU_IDLE_STATE_ACTIVE;
@@ -1170,11 +1213,7 @@ int a6xx_gmu_probe(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 
 	/* Map the GMU registers */
 	gmu->mmio = a6xx_gmu_get_mmio(pdev, "gmu");
-
-	/* Map the GPU power domain controller registers */
-	gmu->pdc_mmio = a6xx_gmu_get_mmio(pdev, "gmu_pdc");
-
-	if (IS_ERR(gmu->mmio) || IS_ERR(gmu->pdc_mmio))
+	if (IS_ERR(gmu->mmio))
 		goto err;
 
 	/* Get the HFI and GMU interrupts */
@@ -1183,9 +1222,6 @@ int a6xx_gmu_probe(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 
 	if (gmu->hfi_irq < 0 || gmu->gmu_irq < 0)
 		goto err;
-
-	/* Set up a tasklet to handle GMU HFI responses */
-	tasklet_init(&gmu->hfi_tasklet, a6xx_hfi_task, (unsigned long) gmu);
 
 	/* Get the power levels for the GMU and GPU */
 	a6xx_gmu_pwrlevels_probe(gmu);

@@ -1243,9 +1243,9 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 	u8 vi_status3 =  i2c_rd8(sd, VI_STATUS3);
 	const int deep_color_mode[4] = { 8, 10, 12, 16 };
 	static const char * const input_color_space[] = {
-		"RGB", "YCbCr 601", "Adobe RGB", "YCbCr 709", "NA (4)",
+		"RGB", "YCbCr 601", "opRGB", "YCbCr 709", "NA (4)",
 		"xvYCC 601", "NA(6)", "xvYCC 709", "NA(8)", "sYCC601",
-		"NA(10)", "NA(11)", "NA(12)", "Adobe YCC 601"};
+		"NA(10)", "NA(11)", "NA(12)", "opYCC 601"};
 
 	v4l2_info(sd, "-----Chip status-----\n");
 	v4l2_info(sd, "Chip ID: 0x%02x\n",
@@ -1607,7 +1607,7 @@ static int tc358743_g_mbus_config(struct v4l2_subdev *sd,
 {
 	struct tc358743_state *state = to_state(sd);
 
-	cfg->type = V4L2_MBUS_CSI2;
+	cfg->type = V4L2_MBUS_CSI2_DPHY;
 
 	/* Support for non-continuous CSI-2 clock is missing in the driver */
 	cfg->flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
@@ -1789,7 +1789,7 @@ static int tc358743_s_edid(struct v4l2_subdev *sd,
 		return -E2BIG;
 	}
 	pa = cec_get_edid_phys_addr(edid->edid, edid->blocks * 128, NULL);
-	err = cec_phys_addr_validate(pa, &pa, NULL);
+	err = v4l2_phys_addr_validate(pa, &pa, NULL);
 	if (err)
 		return err;
 
@@ -1895,11 +1895,11 @@ static void tc358743_gpio_reset(struct tc358743_state *state)
 static int tc358743_probe_of(struct tc358743_state *state)
 {
 	struct device *dev = &state->i2c_client->dev;
-	struct v4l2_fwnode_endpoint *endpoint;
+	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
 	struct device_node *ep;
 	struct clk *refclk;
 	u32 bps_pr_lane;
-	int ret = -EINVAL;
+	int ret;
 
 	refclk = devm_clk_get(dev, "refclk");
 	if (IS_ERR(refclk)) {
@@ -1915,26 +1915,28 @@ static int tc358743_probe_of(struct tc358743_state *state)
 		return -EINVAL;
 	}
 
-	endpoint = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep));
-	if (IS_ERR(endpoint)) {
+	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep), &endpoint);
+	if (ret) {
 		dev_err(dev, "failed to parse endpoint\n");
-		ret = PTR_ERR(endpoint);
+		ret = ret;
 		goto put_node;
 	}
 
-	if (endpoint->bus_type != V4L2_MBUS_CSI2 ||
-	    endpoint->bus.mipi_csi2.num_data_lanes == 0 ||
-	    endpoint->nr_of_link_frequencies == 0) {
+	if (endpoint.bus_type != V4L2_MBUS_CSI2_DPHY ||
+	    endpoint.bus.mipi_csi2.num_data_lanes == 0 ||
+	    endpoint.nr_of_link_frequencies == 0) {
 		dev_err(dev, "missing CSI-2 properties in endpoint\n");
+		ret = -EINVAL;
 		goto free_endpoint;
 	}
 
-	if (endpoint->bus.mipi_csi2.num_data_lanes > 4) {
+	if (endpoint.bus.mipi_csi2.num_data_lanes > 4) {
 		dev_err(dev, "invalid number of lanes\n");
+		ret = -EINVAL;
 		goto free_endpoint;
 	}
 
-	state->bus = endpoint->bus.mipi_csi2;
+	state->bus = endpoint.bus.mipi_csi2;
 
 	ret = clk_prepare_enable(refclk);
 	if (ret) {
@@ -1967,7 +1969,7 @@ static int tc358743_probe_of(struct tc358743_state *state)
 	 * The CSI bps per lane must be between 62.5 Mbps and 1 Gbps.
 	 * The default is 594 Mbps for 4-lane 1080p60 or 2-lane 720p60.
 	 */
-	bps_pr_lane = 2 * endpoint->link_frequencies[0];
+	bps_pr_lane = 2 * endpoint.link_frequencies[0];
 	if (bps_pr_lane < 62500000U || bps_pr_lane > 1000000000U) {
 		dev_err(dev, "unsupported bps per lane: %u bps\n", bps_pr_lane);
 		goto disable_clk;
@@ -2013,7 +2015,7 @@ static int tc358743_probe_of(struct tc358743_state *state)
 disable_clk:
 	clk_disable_unprepare(refclk);
 free_endpoint:
-	v4l2_fwnode_endpoint_free(endpoint);
+	v4l2_fwnode_endpoint_free(&endpoint);
 put_node:
 	of_node_put(ep);
 	return ret;

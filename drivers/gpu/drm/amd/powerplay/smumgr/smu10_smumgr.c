@@ -177,38 +177,13 @@ static int smu10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 			PPSMC_MSG_GetDriverIfVersion);
 	smc_driver_if_version = smu10_read_arg_from_smc(hwmgr);
 
-	if (smc_driver_if_version != SMU10_DRIVER_IF_VERSION) {
+	if ((smc_driver_if_version != SMU10_DRIVER_IF_VERSION) &&
+	    (smc_driver_if_version != SMU10_DRIVER_IF_VERSION + 1)) {
 		pr_err("Attempt to read SMC IF Version Number Failed!\n");
 		return -EINVAL;
 	}
 
 	return 0;
-}
-
-/* sdma is disabled by default in vbios, need to re-enable in driver */
-static void smu10_smc_enable_sdma(struct pp_hwmgr *hwmgr)
-{
-	smu10_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_PowerUpSdma);
-}
-
-static void smu10_smc_disable_sdma(struct pp_hwmgr *hwmgr)
-{
-	smu10_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_PowerDownSdma);
-}
-
-/* vcn is disabled by default in vbios, need to re-enable in driver */
-static void smu10_smc_enable_vcn(struct pp_hwmgr *hwmgr)
-{
-	smu10_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_PowerUpVcn, 0);
-}
-
-static void smu10_smc_disable_vcn(struct pp_hwmgr *hwmgr)
-{
-	smu10_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_PowerDownVcn, 0);
 }
 
 static int smu10_smu_fini(struct pp_hwmgr *hwmgr)
@@ -217,8 +192,6 @@ static int smu10_smu_fini(struct pp_hwmgr *hwmgr)
 			(struct smu10_smumgr *)(hwmgr->smu_backend);
 
 	if (priv) {
-		smu10_smc_disable_sdma(hwmgr);
-		smu10_smc_disable_vcn(hwmgr);
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[SMU10_WMTABLE].handle,
 					&priv->smu_tables.entry[SMU10_WMTABLE].mc_addr,
 					&priv->smu_tables.entry[SMU10_WMTABLE].table);
@@ -242,8 +215,7 @@ static int smu10_start_smu(struct pp_hwmgr *hwmgr)
 
 	if (smu10_verify_smc_interface(hwmgr))
 		return -EINVAL;
-	smu10_smc_enable_sdma(hwmgr);
-	smu10_smc_enable_vcn(hwmgr);
+
 	return 0;
 }
 

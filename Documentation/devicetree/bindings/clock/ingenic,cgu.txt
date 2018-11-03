@@ -6,8 +6,11 @@ to provide many different clock signals derived from only 2 external source
 clocks.
 
 Required properties:
-- compatible : Should be "ingenic,<soctype>-cgu".
-  For example "ingenic,jz4740-cgu" or "ingenic,jz4780-cgu".
+- compatible : Should be one of:
+  * ingenic,jz4740-cgu
+  * ingenic,jz4725b-cgu
+  * ingenic,jz4770-cgu
+  * ingenic,jz4780-cgu
 - reg : The address & length of the CGU registers.
 - clocks : List of phandle & clock specifiers for clocks external to the CGU.
   Two such external clocks should be specified - first the external crystal

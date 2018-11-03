@@ -374,6 +374,23 @@ config QCOM_PDC
 	  Power Domain Controller driver to manage and configure wakeup
 	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
 
+config CSKY_MPINTC
+	bool "C-SKY Multi Processor Interrupt Controller"
+	depends on CSKY
+	help
+	  Say yes here to enable C-SKY SMP interrupt controller driver used
+	  for C-SKY SMP system.
+	  In fact it's not mmio map in hw and it use ld/st to visit the
+	  controller's register inside CPU.
+
+config CSKY_APB_INTC
+	bool "C-SKY APB Interrupt Controller"
+	depends on CSKY
+	help
+	  Say yes here to enable C-SKY APB interrupt controller driver used
+	  by C-SKY single core SOC system. It use mmio map apb-bus to visit
+	  the controller's register.
+
 endmenu
 
 config SIFIVE_PLIC

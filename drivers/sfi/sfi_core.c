@@ -59,7 +59,7 @@
 #define KMSG_COMPONENT "SFI"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>

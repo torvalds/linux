@@ -582,7 +582,6 @@ nouveau_display_create(struct drm_device *dev)
 			goto vblank_err;
 	}
 
-	nouveau_backlight_init(dev);
 	INIT_WORK(&drm->hpd_work, nouveau_display_hpd_work);
 #ifdef CONFIG_ACPI
 	drm->acpi_nb.notifier_call = nouveau_display_acpi_ntfy;
@@ -607,7 +606,6 @@ nouveau_display_destroy(struct drm_device *dev)
 #ifdef CONFIG_ACPI
 	unregister_acpi_notifier(&nouveau_drm(dev)->acpi_nb);
 #endif
-	nouveau_backlight_exit(dev);
 	nouveau_display_vblank_fini(dev);
 
 	drm_kms_helper_poll_fini(dev);

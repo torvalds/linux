@@ -3,7 +3,6 @@
 #include <linux/ioport.h>
 #include <linux/swap.h>
 #include <linux/memblock.h>
-#include <linux/bootmem.h>	/* for max_low_pfn */
 #include <linux/swapfile.h>
 #include <linux/swapops.h>
 

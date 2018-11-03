@@ -173,19 +173,11 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	/* Early VLV doesn't have this */
-	if (IS_VALLEYVIEW(dev_priv) && dev_priv->drm.pdev->revision < 0xb) {
-		DRM_DEBUG_DRIVER("disabling PPGTT on pre-B3 step VLV\n");
-		return 0;
-	}
+	if (has_full_48bit_ppgtt)
+		return 3;
 
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
-		if (has_full_48bit_ppgtt)
-			return 3;
-
-		if (has_full_ppgtt)
-			return 2;
-	}
+	if (has_full_ppgtt)
+		return 2;
 
 	return 1;
 }
@@ -1058,7 +1050,7 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 	do {
 		vaddr[idx->pte] = pte_encode | iter->dma;
 
-		iter->dma += PAGE_SIZE;
+		iter->dma += I915_GTT_PAGE_SIZE;
 		if (iter->dma >= iter->max) {
 			iter->sg = __sg_next(iter->sg);
 			if (!iter->sg) {
@@ -1152,7 +1144,7 @@ static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
 			    vma->page_sizes.sg & I915_GTT_PAGE_SIZE_64K &&
 			    IS_ALIGNED(iter->dma, I915_GTT_PAGE_SIZE_64K) &&
 			    (IS_ALIGNED(rem, I915_GTT_PAGE_SIZE_64K) ||
-			     rem >= (max - index) << PAGE_SHIFT))
+			     rem >= (max - index) * I915_GTT_PAGE_SIZE))
 				maybe_64K = true;
 
 			vaddr = kmap_atomic_px(pt);
@@ -1177,7 +1169,7 @@ static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
 				if (maybe_64K && index < max &&
 				    !(IS_ALIGNED(iter->dma, I915_GTT_PAGE_SIZE_64K) &&
 				      (IS_ALIGNED(rem, I915_GTT_PAGE_SIZE_64K) ||
-				       rem >= (max - index) << PAGE_SHIFT)))
+				       rem >= (max - index) * I915_GTT_PAGE_SIZE)))
 					maybe_64K = false;
 
 				if (unlikely(!IS_ALIGNED(iter->dma, page_size)))
@@ -1258,9 +1250,6 @@ static void gen8_free_page_tables(struct i915_address_space *vm,
 				  struct i915_page_directory *pd)
 {
 	int i;
-
-	if (!px_page(pd))
-		return;
 
 	for (i = 0; i < I915_PDES; i++) {
 		if (pd->page_table[i] != vm->scratch_pt)
@@ -1770,7 +1759,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *base, struct seq_file *m)
 
 			seq_printf(m, "\t\t(%03d, %04d) %08lx: ",
 				   pde, pte,
-				   (pde * GEN6_PTES + pte) * PAGE_SIZE);
+				   (pde * GEN6_PTES + pte) * I915_GTT_PAGE_SIZE);
 			for (i = 0; i < 4; i++) {
 				if (vaddr[pte + i] != scratch_pte)
 					seq_printf(m, " %08x", vaddr[pte + i]);
@@ -1853,10 +1842,10 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 				   u64 start, u64 length)
 {
 	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
-	unsigned int first_entry = start >> PAGE_SHIFT;
+	unsigned int first_entry = start / I915_GTT_PAGE_SIZE;
 	unsigned int pde = first_entry / GEN6_PTES;
 	unsigned int pte = first_entry % GEN6_PTES;
-	unsigned int num_entries = length >> PAGE_SHIFT;
+	unsigned int num_entries = length / I915_GTT_PAGE_SIZE;
 	const gen6_pte_t scratch_pte = ppgtt->scratch_pte;
 
 	while (num_entries) {
@@ -1897,7 +1886,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 				      u32 flags)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-	unsigned first_entry = vma->node.start >> PAGE_SHIFT;
+	unsigned first_entry = vma->node.start / I915_GTT_PAGE_SIZE;
 	unsigned act_pt = first_entry / GEN6_PTES;
 	unsigned act_pte = first_entry % GEN6_PTES;
 	const u32 pte_encode = vm->pte_encode(0, cache_level, flags);
@@ -1910,7 +1899,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	do {
 		vaddr[act_pte] = pte_encode | GEN6_PTE_ADDR_ENCODE(iter.dma);
 
-		iter.dma += PAGE_SIZE;
+		iter.dma += I915_GTT_PAGE_SIZE;
 		if (iter.dma == iter.max) {
 			iter.sg = __sg_next(iter.sg);
 			if (!iter.sg)
@@ -2048,7 +2037,7 @@ static int pd_vma_bind(struct i915_vma *vma,
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vma->vm);
 	struct gen6_hw_ppgtt *ppgtt = vma->private;
-	u32 ggtt_offset = i915_ggtt_offset(vma) / PAGE_SIZE;
+	u32 ggtt_offset = i915_ggtt_offset(vma) / I915_GTT_PAGE_SIZE;
 	struct i915_page_table *pt;
 	unsigned int pde;
 
@@ -2174,7 +2163,7 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->base.vm.i915 = i915;
 	ppgtt->base.vm.dma = &i915->drm.pdev->dev;
 
-	ppgtt->base.vm.total = I915_PDES * GEN6_PTES * PAGE_SIZE;
+	ppgtt->base.vm.total = I915_PDES * GEN6_PTES * I915_GTT_PAGE_SIZE;
 
 	i915_address_space_init(&ppgtt->base.vm, i915);
 
@@ -2348,7 +2337,7 @@ static bool needs_idle_maps(struct drm_i915_private *dev_priv)
 	return IS_GEN5(dev_priv) && IS_MOBILE(dev_priv) && intel_vtd_active();
 }
 
-static void gen6_check_and_clear_faults(struct drm_i915_private *dev_priv)
+static void gen6_check_faults(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -2366,15 +2355,11 @@ static void gen6_check_and_clear_faults(struct drm_i915_private *dev_priv)
 					 fault & RING_FAULT_GTTSEL_MASK ? "GGTT" : "PPGTT",
 					 RING_FAULT_SRCID(fault),
 					 RING_FAULT_FAULT_TYPE(fault));
-			I915_WRITE(RING_FAULT_REG(engine),
-				   fault & ~RING_FAULT_VALID);
 		}
 	}
-
-	POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS]));
 }
 
-static void gen8_check_and_clear_faults(struct drm_i915_private *dev_priv)
+static void gen8_check_faults(struct drm_i915_private *dev_priv)
 {
 	u32 fault = I915_READ(GEN8_RING_FAULT_REG);
 
@@ -2399,22 +2384,20 @@ static void gen8_check_and_clear_faults(struct drm_i915_private *dev_priv)
 				 GEN8_RING_FAULT_ENGINE_ID(fault),
 				 RING_FAULT_SRCID(fault),
 				 RING_FAULT_FAULT_TYPE(fault));
-		I915_WRITE(GEN8_RING_FAULT_REG,
-			   fault & ~RING_FAULT_VALID);
 	}
-
-	POSTING_READ(GEN8_RING_FAULT_REG);
 }
 
 void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
 {
 	/* From GEN8 onwards we only have one 'All Engine Fault Register' */
 	if (INTEL_GEN(dev_priv) >= 8)
-		gen8_check_and_clear_faults(dev_priv);
+		gen8_check_faults(dev_priv);
 	else if (INTEL_GEN(dev_priv) >= 6)
-		gen6_check_and_clear_faults(dev_priv);
+		gen6_check_faults(dev_priv);
 	else
 		return;
+
+	i915_clear_error_registers(dev_priv);
 }
 
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
@@ -2473,7 +2456,7 @@ static void gen8_ggtt_insert_page(struct i915_address_space *vm,
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	gen8_pte_t __iomem *pte =
-		(gen8_pte_t __iomem *)ggtt->gsm + (offset >> PAGE_SHIFT);
+		(gen8_pte_t __iomem *)ggtt->gsm + offset / I915_GTT_PAGE_SIZE;
 
 	gen8_set_pte(pte, gen8_pte_encode(addr, level, 0));
 
@@ -2497,7 +2480,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	 */
 
 	gtt_entries = (gen8_pte_t __iomem *)ggtt->gsm;
-	gtt_entries += vma->node.start >> PAGE_SHIFT;
+	gtt_entries += vma->node.start / I915_GTT_PAGE_SIZE;
 	for_each_sgt_dma(addr, sgt_iter, vma->pages)
 		gen8_set_pte(gtt_entries++, pte_encode | addr);
 
@@ -2516,7 +2499,7 @@ static void gen6_ggtt_insert_page(struct i915_address_space *vm,
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	gen6_pte_t __iomem *pte =
-		(gen6_pte_t __iomem *)ggtt->gsm + (offset >> PAGE_SHIFT);
+		(gen6_pte_t __iomem *)ggtt->gsm + offset / I915_GTT_PAGE_SIZE;
 
 	iowrite32(vm->pte_encode(addr, level, flags), pte);
 
@@ -2536,7 +2519,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	gen6_pte_t __iomem *entries = (gen6_pte_t __iomem *)ggtt->gsm;
-	unsigned int i = vma->node.start >> PAGE_SHIFT;
+	unsigned int i = vma->node.start / I915_GTT_PAGE_SIZE;
 	struct sgt_iter iter;
 	dma_addr_t addr;
 	for_each_sgt_dma(addr, iter, vma->pages)
@@ -2558,8 +2541,8 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 				  u64 start, u64 length)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
-	unsigned first_entry = start >> PAGE_SHIFT;
-	unsigned num_entries = length >> PAGE_SHIFT;
+	unsigned first_entry = start / I915_GTT_PAGE_SIZE;
+	unsigned num_entries = length / I915_GTT_PAGE_SIZE;
 	const gen8_pte_t scratch_pte =
 		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC, 0);
 	gen8_pte_t __iomem *gtt_base =
@@ -2674,8 +2657,8 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 				  u64 start, u64 length)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
-	unsigned first_entry = start >> PAGE_SHIFT;
-	unsigned num_entries = length >> PAGE_SHIFT;
+	unsigned first_entry = start / I915_GTT_PAGE_SIZE;
+	unsigned num_entries = length / I915_GTT_PAGE_SIZE;
 	gen6_pte_t scratch_pte, __iomem *gtt_base =
 		(gen6_pte_t __iomem *)ggtt->gsm + first_entry;
 	const int max_entries = ggtt_total_entries(ggtt) - first_entry;
@@ -2937,6 +2920,15 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	struct drm_mm_node *entry;
 	int ret;
 
+	/*
+	 * GuC requires all resources that we're sharing with it to be placed in
+	 * non-WOPCM memory. If GuC is not present or not in use we still need a
+	 * small bias as ring wraparound at offset 0 sometimes hangs. No idea
+	 * why.
+	 */
+	ggtt->pin_bias = max_t(u32, I915_GTT_PAGE_SIZE,
+			       intel_guc_reserved_gtt_size(&dev_priv->guc));
+
 	ret = intel_vgt_balloon(dev_priv);
 	if (ret)
 		return ret;
@@ -3013,7 +3005,7 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	arch_phys_wc_del(ggtt->mtrr);
 	io_mapping_fini(&ggtt->iomap);
 
-	i915_gem_cleanup_stolen(&dev_priv->drm);
+	i915_gem_cleanup_stolen(dev_priv);
 }
 
 static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
@@ -3031,7 +3023,7 @@ static unsigned int gen8_get_total_gtt_size(u16 bdw_gmch_ctl)
 		bdw_gmch_ctl = 1 << bdw_gmch_ctl;
 
 #ifdef CONFIG_X86_32
-	/* Limit 32b platforms to a 2GB GGTT: 4 << 20 / pte size * PAGE_SIZE */
+	/* Limit 32b platforms to a 2GB GGTT: 4 << 20 / pte size * I915_GTT_PAGE_SIZE */
 	if (bdw_gmch_ctl > 4)
 		bdw_gmch_ctl = 4;
 #endif
@@ -3406,7 +3398,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	else
 		size = gen8_get_total_gtt_size(snb_gmch_ctl);
 
-	ggtt->vm.total = (size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
+	ggtt->vm.total = (size / sizeof(gen8_pte_t)) * I915_GTT_PAGE_SIZE;
 	ggtt->vm.cleanup = gen6_gmch_remove;
 	ggtt->vm.insert_page = gen8_ggtt_insert_page;
 	ggtt->vm.clear_range = nop_clear_range;
@@ -3464,7 +3456,7 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
 	size = gen6_get_total_gtt_size(snb_gmch_ctl);
-	ggtt->vm.total = (size / sizeof(gen6_pte_t)) << PAGE_SHIFT;
+	ggtt->vm.total = (size / sizeof(gen6_pte_t)) * I915_GTT_PAGE_SIZE;
 
 	ggtt->vm.clear_range = gen6_ggtt_clear_range;
 	ggtt->vm.insert_page = gen6_ggtt_insert_page;
@@ -3612,6 +3604,8 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	i915_address_space_init(&ggtt->vm, dev_priv);
 
+	ggtt->vm.is_ggtt = true;
+
 	/* Only VLV supports read-only GGTT mappings */
 	ggtt->vm.has_read_only = IS_VALLEYVIEW(dev_priv);
 
@@ -3662,6 +3656,10 @@ void i915_ggtt_enable_guc(struct drm_i915_private *i915)
 
 void i915_ggtt_disable_guc(struct drm_i915_private *i915)
 {
+	/* XXX Temporary pardon for error unload */
+	if (i915->ggtt.invalidate == gen6_ggtt_invalidate)
+		return;
+
 	/* We should only be called after i915_ggtt_enable_guc() */
 	GEM_BUG_ON(i915->ggtt.invalidate != guc_ggtt_invalidate);
 
@@ -3729,9 +3727,9 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 			 * the entries so the sg list can be happily traversed.
 			 * The only thing we need are DMA addresses.
 			 */
-			sg_set_page(sg, NULL, PAGE_SIZE, 0);
+			sg_set_page(sg, NULL, I915_GTT_PAGE_SIZE, 0);
 			sg_dma_address(sg) = in[offset + src_idx];
-			sg_dma_len(sg) = PAGE_SIZE;
+			sg_dma_len(sg) = I915_GTT_PAGE_SIZE;
 			sg = sg_next(sg);
 			src_idx -= stride;
 		}
@@ -3744,7 +3742,7 @@ static noinline struct sg_table *
 intel_rotate_pages(struct intel_rotation_info *rot_info,
 		   struct drm_i915_gem_object *obj)
 {
-	const unsigned long n_pages = obj->base.size / PAGE_SIZE;
+	const unsigned long n_pages = obj->base.size / I915_GTT_PAGE_SIZE;
 	unsigned int size = intel_rotation_info_size(rot_info);
 	struct sgt_iter sgt_iter;
 	dma_addr_t dma_addr;

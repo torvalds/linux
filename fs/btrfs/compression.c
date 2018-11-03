@@ -437,10 +437,8 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		if (pg_index > end_index)
 			break;
 
-		rcu_read_lock();
-		page = radix_tree_lookup(&mapping->i_pages, pg_index);
-		rcu_read_unlock();
-		if (page && !radix_tree_exceptional_entry(page)) {
+		page = xa_load(&mapping->i_pages, pg_index);
+		if (page && !xa_is_value(page)) {
 			misses++;
 			if (misses > 4)
 				break;

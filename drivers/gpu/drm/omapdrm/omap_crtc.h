@@ -27,15 +27,17 @@ enum omap_channel;
 struct drm_crtc;
 struct drm_device;
 struct drm_plane;
+struct omap_drm_pipeline;
 struct omap_dss_device;
 struct videomode;
 
 struct videomode *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
 void omap_crtc_pre_init(struct omap_drm_private *priv);
-void omap_crtc_pre_uninit(void);
+void omap_crtc_pre_uninit(struct omap_drm_private *priv);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, struct omap_dss_device *dssdev);
+				struct omap_drm_pipeline *pipe,
+				struct drm_plane *plane);
 int omap_crtc_wait_pending(struct drm_crtc *crtc);
 void omap_crtc_error_irq(struct drm_crtc *crtc, u32 irqstatus);
 void omap_crtc_vblank_irq(struct drm_crtc *crtc);

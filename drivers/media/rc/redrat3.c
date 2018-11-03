@@ -348,7 +348,7 @@ static u32 redrat3_us_to_len(u32 microsec)
 
 static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 {
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	struct device *dev;
 	unsigned int i, sig_size, single_len, offset, val;
 	u32 mod_freq;
@@ -358,10 +358,10 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	mod_freq = redrat3_val_to_mod_freq(&rr3->irdata);
 	dev_dbg(dev, "Got mod_freq of %u\n", mod_freq);
 	if (mod_freq && rr3->wideband) {
-		DEFINE_IR_RAW_EVENT(ev);
-
-		ev.carrier_report = 1;
-		ev.carrier = mod_freq;
+		struct ir_raw_event ev = {
+			.carrier_report = 1,
+			.carrier = mod_freq
+		};
 
 		ir_raw_event_store(rr3->rc, &ev);
 	}

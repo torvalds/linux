@@ -266,7 +266,7 @@ static void tonga_ih_decode_iv(struct amdgpu_device *adev,
 	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
 	dw[3] = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
 
-	entry->client_id = AMDGPU_IH_CLIENTID_LEGACY;
+	entry->client_id = AMDGPU_IRQ_CLIENTID_LEGACY;
 	entry->src_id = dw[0] & 0xff;
 	entry->src_data[0] = dw[1] & 0xfffffff;
 	entry->ring_id = dw[2] & 0xff;
@@ -317,7 +317,7 @@ static int tonga_ih_sw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_ih_ring_init(adev, 64 * 1024, true);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 64 * 1024, true);
 	if (r)
 		return r;
 
@@ -334,7 +334,7 @@ static int tonga_ih_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	amdgpu_irq_fini(adev);
-	amdgpu_ih_ring_fini(adev);
+	amdgpu_ih_ring_fini(adev, &adev->irq.ih);
 	amdgpu_irq_remove_domain(adev);
 
 	return 0;
@@ -513,8 +513,7 @@ static const struct amdgpu_ih_funcs tonga_ih_funcs = {
 
 static void tonga_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 {
-	if (adev->irq.ih_funcs == NULL)
-		adev->irq.ih_funcs = &tonga_ih_funcs;
+	adev->irq.ih_funcs = &tonga_ih_funcs;
 }
 
 const struct amdgpu_ip_block_version tonga_ih_ip_block =

@@ -130,15 +130,15 @@ void HTUpdateDefaultSetting(struct ieee80211_device *ieee)
  */
 void HTDebugHTCapability(u8 *CapIE, u8 *TitleString)
 {
-	static u8	EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};	// For 11n EWC definition, 2007.07.17, by Emily
-	PHT_CAPABILITY_ELE		pCapELE;
+	static u8	          EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};	// For 11n EWC definition, 2007.07.17, by Emily
+	struct ht_capability_ele *pCapELE;
 
 	if (!memcmp(CapIE, EWC11NHTCap, sizeof(EWC11NHTCap))) {
 		//EWC IE
 		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __func__);
-		pCapELE = (PHT_CAPABILITY_ELE)(&CapIE[4]);
+		pCapELE = (struct ht_capability_ele *)(&CapIE[4]);
 	} else {
-		pCapELE = (PHT_CAPABILITY_ELE)(&CapIE[0]);
+		pCapELE = (struct ht_capability_ele *)(&CapIE[0]);
 	}
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "<Log HT Capability>. Called by %s\n", TitleString);
 
@@ -216,64 +216,7 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 				pHTInfoEle->BasicMSC[1], pHTInfoEle->BasicMSC[2], pHTInfoEle->BasicMSC[3], pHTInfoEle->BasicMSC[4]);
 }
 
-/*
- *	Return:		true if station in half n mode and AP supports 40 bw
- */
-static bool IsHTHalfNmode40Bandwidth(struct ieee80211_device *ieee)
-{
-	bool			retValue = false;
-	PRT_HIGH_THROUGHPUT	 pHTInfo = ieee->pHTInfo;
-
-	if (!pHTInfo->bCurrentHTSupport)		// wireless is n mode
-		retValue = false;
-	else if (!pHTInfo->bRegBW40MHz)		// station supports 40 bw
-		retValue = false;
-	else if (!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))	// station in half n mode
-		retValue = false;
-	else if (((PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf))->ChlWidth) // ap support 40 bw
-		retValue = true;
-	else
-		retValue = false;
-
-	return retValue;
-}
-
-static bool IsHTHalfNmodeSGI(struct ieee80211_device *ieee, bool is40MHz)
-{
-	bool			retValue = false;
-	PRT_HIGH_THROUGHPUT	 pHTInfo = ieee->pHTInfo;
-
-	if (!pHTInfo->bCurrentHTSupport)		// wireless is n mode
-		retValue = false;
-	else if (!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))	// station in half n mode
-		retValue = false;
-	else if (is40MHz) { // ap support 40 bw
-		if (((PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf))->ShortGI40Mhz) // ap support 40 bw short GI
-			retValue = true;
-		else
-			retValue = false;
-	} else {
-		if (((PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf))->ShortGI20Mhz) // ap support 40 bw short GI
-			retValue = true;
-		else
-			retValue = false;
-	}
-
-	return retValue;
-}
-
-u16 HTHalfMcsToDataRate(struct ieee80211_device *ieee,	u8	nMcsRate)
-{
-	u8	is40MHz;
-	u8	isShortGI;
-
-	is40MHz = (IsHTHalfNmode40Bandwidth(ieee)) ? 1 : 0;
-	isShortGI = (IsHTHalfNmodeSGI(ieee, is40MHz)) ? 1 : 0;
-
-	return MCS_DATA_RATE[is40MHz][isShortGI][(nMcsRate & 0x7f)];
-}
-
-u16 HTMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate)
+static u16 HTMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 
@@ -530,7 +473,7 @@ void HTResetIOTSetting(PRT_HIGH_THROUGHPUT pHTInfo)
 void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u8 *len, u8 IsEncrypt)
 {
 	PRT_HIGH_THROUGHPUT	pHT = ieee->pHTInfo;
-	PHT_CAPABILITY_ELE	pCapELE = NULL;
+	struct ht_capability_ele   *pCapELE = NULL;
 	//u8 bIsDeclareMCS13;
 
 	if (!posHTCap || !pHT) {
@@ -544,9 +487,9 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 		u8	EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};	// For 11n EWC definition, 2007.07.17, by Emily
 
 		memcpy(posHTCap, EWC11NHTCap, sizeof(EWC11NHTCap));
-		pCapELE = (PHT_CAPABILITY_ELE)&posHTCap[4];
+		pCapELE = (struct ht_capability_ele *)&posHTCap[4];
 	} else {
-		pCapELE = (PHT_CAPABILITY_ELE)posHTCap;
+		pCapELE = (struct ht_capability_ele *)posHTCap;
 	}
 
 	//HT capability info
@@ -894,11 +837,10 @@ static u8 HTFilterMCSRate(struct ieee80211_device *ieee, u8 *pSupportMCS,
 	return true;
 }
 
-void HTSetConnectBwMode(struct ieee80211_device *ieee, enum ht_channel_width Bandwidth, enum ht_extension_chan_offset	Offset);
 void HTOnAssocRsp(struct ieee80211_device *ieee)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	PHT_CAPABILITY_ELE		pPeerHTCap = NULL;
+	struct ht_capability_ele       *pPeerHTCap = NULL;
 	PHT_INFORMATION_ELE		pPeerHTInfo = NULL;
 	u16	nMaxAMSDUSize = 0;
 	u8	*pMcsFilter = NULL;
@@ -913,16 +855,16 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 		return;
 	}
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "===> HTOnAssocRsp_wq(): HT_ENABLE\n");
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, pHTInfo->PeerHTCapBuf, sizeof(HT_CAPABILITY_ELE));
+//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, pHTInfo->PeerHTCapBuf, sizeof(struct ht_capability_ele));
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, pHTInfo->PeerHTInfoBuf, sizeof(HT_INFORMATION_ELE));
 
 //	HTDebugHTCapability(pHTInfo->PeerHTCapBuf,"HTOnAssocRsp_wq");
 //	HTDebugHTInfo(pHTInfo->PeerHTInfoBuf,"HTOnAssocRsp_wq");
 	//
 	if (!memcmp(pHTInfo->PeerHTCapBuf, EWC11NHTCap, sizeof(EWC11NHTCap)))
-		pPeerHTCap = (PHT_CAPABILITY_ELE)(&pHTInfo->PeerHTCapBuf[4]);
+		pPeerHTCap = (struct ht_capability_ele *)(&pHTInfo->PeerHTCapBuf[4]);
 	else
-		pPeerHTCap = (PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf);
+		pPeerHTCap = (struct ht_capability_ele *)(pHTInfo->PeerHTCapBuf);
 
 	if (!memcmp(pHTInfo->PeerHTInfoBuf, EWC11NHTInfo, sizeof(EWC11NHTInfo)))
 		pPeerHTInfo = (PHT_INFORMATION_ELE)(&pHTInfo->PeerHTInfoBuf[4]);
@@ -932,7 +874,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	////////////////////////////////////////////////////////
 	// Configurations:
 	////////////////////////////////////////////////////////
-	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, pPeerHTCap, sizeof(HT_CAPABILITY_ELE));
+	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, pPeerHTCap, sizeof(struct ht_capability_ele));
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_HT, pPeerHTInfo, sizeof(HT_INFORMATION_ELE));
 	// Config Supported Channel Width setting
 	//
@@ -1069,7 +1011,6 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	pHTInfo->CurrentOpMode = pPeerHTInfo->OptMode;
 }
 
-void HTSetConnectBwModeCallback(struct ieee80211_device *ieee);
 /*
  *function:  initialize HT info(struct PRT_HIGH_THROUGHPUT)
  *   input:  struct ieee80211_device*	ieee
@@ -1122,7 +1063,6 @@ void HTInitializeHTInfo(struct ieee80211_device *ieee)
 	memset(&pHTInfo->PeerHTInfoBuf, 0, sizeof(pHTInfo->PeerHTInfoBuf));
 
 	pHTInfo->bSwBwInProgress = false;
-	pHTInfo->ChnlOp = CHNLOP_NONE;
 
 	// Set default IEEE spec for Draft N
 	pHTInfo->ePeerHTSpecVer = HT_SPEC_VER_IEEE;
@@ -1177,7 +1117,7 @@ void HTResetSelfAndSavePeerSetting(struct ieee80211_device *ieee,	struct ieee802
 {
 	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
 //	u16						nMaxAMSDUSize;
-//	PHT_CAPABILITY_ELE		pPeerHTCap = (PHT_CAPABILITY_ELE)pNetwork->bssht.bdHTCapBuf;
+//	struct ht_capability_ele       *pPeerHTCap = (struct ht_capability_ele *)pNetwork->bssht.bdHTCapBuf;
 //	PHT_INFORMATION_ELE		pPeerHTInfo = (PHT_INFORMATION_ELE)pNetwork->bssht.bdHTInfoBuf;
 //	u8*	pMcsFilter;
 	u8	bIOTAction = 0;
@@ -1250,8 +1190,8 @@ void HTResetSelfAndSavePeerSetting(struct ieee80211_device *ieee,	struct ieee802
 
 void HTUpdateSelfAndPeerSetting(struct ieee80211_device *ieee,	struct ieee80211_network *pNetwork)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-//	PHT_CAPABILITY_ELE		pPeerHTCap = (PHT_CAPABILITY_ELE)pNetwork->bssht.bdHTCapBuf;
+	PRT_HIGH_THROUGHPUT	        pHTInfo = ieee->pHTInfo;
+//	struct ht_capability_ele       *pPeerHTCap = (struct ht_capability_ele *)pNetwork->bssht.bdHTCapBuf;
 	PHT_INFORMATION_ELE		pPeerHTInfo = (PHT_INFORMATION_ELE)pNetwork->bssht.bdHTInfoBuf;
 
 	if (pHTInfo->bCurrentHTSupport) {
@@ -1285,6 +1225,29 @@ u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame)
 		}
 	}
 	return false;
+}
+
+static void HTSetConnectBwModeCallback(struct ieee80211_device *ieee)
+{
+	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
+
+	IEEE80211_DEBUG(IEEE80211_DL_HT, "======>%s()\n", __func__);
+
+	if (pHTInfo->bCurBW40MHz) {
+		if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_UPPER)
+			ieee->set_chan(ieee->dev, ieee->current_network.channel + 2);
+		else if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_LOWER)
+			ieee->set_chan(ieee->dev, ieee->current_network.channel - 2);
+		else
+			ieee->set_chan(ieee->dev, ieee->current_network.channel);
+
+		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20_40, pHTInfo->CurSTAExtChnlOffset);
+	} else {
+		ieee->set_chan(ieee->dev, ieee->current_network.channel);
+		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
+	}
+
+	pHTInfo->bSwBwInProgress = false;
 }
 
 /*
@@ -1336,27 +1299,4 @@ void HTSetConnectBwMode(struct ieee80211_device *ieee, enum ht_channel_width Ban
 	HTSetConnectBwModeCallback(ieee);
 
 //	spin_unlock_irqrestore(&(ieee->bw_spinlock), flags);
-}
-
-void HTSetConnectBwModeCallback(struct ieee80211_device *ieee)
-{
-	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
-
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "======>%s()\n", __func__);
-
-	if (pHTInfo->bCurBW40MHz) {
-		if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_UPPER)
-			ieee->set_chan(ieee->dev, ieee->current_network.channel + 2);
-		else if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_LOWER)
-			ieee->set_chan(ieee->dev, ieee->current_network.channel - 2);
-		else
-			ieee->set_chan(ieee->dev, ieee->current_network.channel);
-
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20_40, pHTInfo->CurSTAExtChnlOffset);
-	} else {
-		ieee->set_chan(ieee->dev, ieee->current_network.channel);
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
-	}
-
-	pHTInfo->bSwBwInProgress = false;
 }

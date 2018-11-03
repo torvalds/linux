@@ -103,9 +103,9 @@ enum intel_platform {
 	func(has_psr); \
 	func(has_rc6); \
 	func(has_rc6p); \
-	func(has_resource_streamer); \
 	func(has_runtime_pm); \
 	func(has_snoop); \
+	func(has_coherent_ggtt); \
 	func(unfenced_needs_alignment); \
 	func(cursor_needs_physical); \
 	func(hws_needs_physical); \

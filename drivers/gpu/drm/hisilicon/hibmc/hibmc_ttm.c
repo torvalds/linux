@@ -283,7 +283,7 @@ static void hibmc_bo_unref(struct hibmc_bo **bo)
 		return;
 
 	tbo = &((*bo)->bo);
-	ttm_bo_unref(&tbo);
+	ttm_bo_put(tbo);
 	*bo = NULL;
 }
 

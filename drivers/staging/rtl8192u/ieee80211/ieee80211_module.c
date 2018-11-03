@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*******************************************************************************
  *
  *  Copyright(c) 2004 Intel Corporation. All rights reserved.
@@ -28,10 +29,9 @@
  *  James P. Ketrenos <ipw2100-admin@linux.intel.com>
  *  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
- *******************************************************************************/
+ ******************************************************************************/
 
 #include <linux/compiler.h>
-/* #include <linux/config.h> */
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -64,9 +64,9 @@ static inline int ieee80211_networks_allocate(struct ieee80211_device *ieee)
 	if (ieee->networks)
 		return 0;
 
-	ieee->networks = kcalloc(
-		MAX_NETWORK_COUNT, sizeof(struct ieee80211_network),
-		GFP_KERNEL);
+	ieee->networks = kcalloc(MAX_NETWORK_COUNT,
+				 sizeof(struct ieee80211_network),
+				 GFP_KERNEL);
 	if (!ieee->networks) {
 		printk(KERN_WARNING "%s: Out of memory allocating beacons\n",
 		       ieee->dev->name);
@@ -94,7 +94,6 @@ static inline void ieee80211_networks_initialize(struct ieee80211_device *ieee)
 		list_add_tail(&ieee->networks[i].list, &ieee->network_free_list);
 }
 
-
 struct net_device *alloc_ieee80211(int sizeof_priv)
 {
 	struct ieee80211_device *ieee;
@@ -110,7 +109,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	}
 
 	ieee = netdev_priv(dev);
-	memset(ieee, 0, sizeof(struct ieee80211_device)+sizeof_priv);
+	memset(ieee, 0, sizeof(struct ieee80211_device) + sizeof_priv);
 	ieee->dev = dev;
 
 	err = ieee80211_networks_allocate(ieee);
@@ -120,7 +119,6 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 		goto failed;
 	}
 	ieee80211_networks_initialize(ieee);
-
 
 	/* Default fragmentation threshold is maximum payload size */
 	ieee->fts = DEFAULT_FTS;
@@ -159,6 +157,11 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee->pHTInfo = kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
 	if (ieee->pHTInfo == NULL) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for HTInfo\n");
+
+		/* By this point in code ieee80211_networks_allocate() has been
+		 * successfully called so the memory allocated should be freed
+		 */
+		ieee80211_networks_free(ieee);
 		goto failed;
 	}
 	HTUpdateDefaultSetting(ieee);
@@ -169,9 +172,9 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 		INIT_LIST_HEAD(&ieee->ibss_mac_hash[i]);
 
 	for (i = 0; i < 17; i++) {
-	  ieee->last_rxseq_num[i] = -1;
-	  ieee->last_rxfrag_num[i] = -1;
-	  ieee->last_packet_time[i] = 0;
+		ieee->last_rxseq_num[i] = -1;
+		ieee->last_rxfrag_num[i] = -1;
+		ieee->last_packet_time[i] = 0;
 	}
 
 /* These function were added to load crypte module autoly */
@@ -185,7 +188,6 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	return NULL;
 }
-
 
 void free_ieee80211(struct net_device *dev)
 {
@@ -202,6 +204,7 @@ void free_ieee80211(struct net_device *dev)
 
 	for (i = 0; i < WEP_KEYS; i++) {
 		struct ieee80211_crypt_data *crypt = ieee->crypt[i];
+
 		if (crypt) {
 			if (crypt->ops)
 				crypt->ops->deinit(crypt->priv);
@@ -217,8 +220,7 @@ void free_ieee80211(struct net_device *dev)
 #ifdef CONFIG_IEEE80211_DEBUG
 
 u32 ieee80211_debug_level;
-static int debug = \
-	//		    IEEE80211_DL_INFO	|
+static int debug = //	    IEEE80211_DL_INFO	|
 	//		    IEEE80211_DL_WX	|
 	//		    IEEE80211_DL_SCAN	|
 	//		    IEEE80211_DL_STATE	|
@@ -247,10 +249,11 @@ static int show_debug_level(struct seq_file *m, void *v)
 }
 
 static ssize_t write_debug_level(struct file *file, const char __user *buffer,
-			     size_t count, loff_t *ppos)
+				 size_t count, loff_t *ppos)
 {
 	unsigned long val;
 	int err = kstrtoul_from_user(buffer, count, 0, &val);
+
 	if (err)
 		return err;
 	ieee80211_debug_level = val;
@@ -277,7 +280,7 @@ int __init ieee80211_debug_init(void)
 	ieee80211_debug_level = debug;
 
 	ieee80211_proc = proc_mkdir(DRV_NAME, init_net.proc_net);
-	if (ieee80211_proc == NULL) {
+	if (!ieee80211_proc) {
 		IEEE80211_ERROR("Unable to create " DRV_NAME
 				" proc directory\n");
 		return -EIO;

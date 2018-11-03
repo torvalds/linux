@@ -24,6 +24,7 @@
  */
 
 #include "dm_services.h"
+#include "dm_event_log.h"
 
 /*
  * Pre-requisites: headers required by header of this unit
@@ -120,6 +121,8 @@ bool dal_i2c_hw_engine_submit_request(
 
 	hw_engine->base.funcs->submit_channel_request(
 		&hw_engine->base, &request);
+	/* EVENT_LOG_AUX_REQ(engine->ddc->pin_data->en, EVENT_LOG_AUX_ORIGIN_I2C, */
+	/* request.action, request.address, request.length, request.data); */
 
 	if ((request.status == I2C_CHANNEL_OPERATION_FAILED) ||
 		(request.status == I2C_CHANNEL_OPERATION_ENGINE_BUSY)) {
@@ -168,7 +171,11 @@ bool dal_i2c_hw_engine_submit_request(
 
 		hw_engine->base.funcs->
 			process_channel_reply(&hw_engine->base, &reply);
+		/* EVENT_LOG_AUX_REP(engine->ddc->pin_data->en, EVENT_LOG_AUX_ORIGIN_I2C, */
+		/* AUX_TRANSACTION_REPLY_I2C_ACK, reply.length, reply.data); */
 	}
+
+
 
 	return result;
 }

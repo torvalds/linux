@@ -410,6 +410,14 @@ enum {
 enum {
 	CEPH_OSD_OP_FLAG_EXCL = 1,      /* EXCL object create */
 	CEPH_OSD_OP_FLAG_FAILOK = 2,    /* continue despite failure */
+	CEPH_OSD_OP_FLAG_FADVISE_RANDOM	    = 0x4, /* the op is random */
+	CEPH_OSD_OP_FLAG_FADVISE_SEQUENTIAL = 0x8, /* the op is sequential */
+	CEPH_OSD_OP_FLAG_FADVISE_WILLNEED   = 0x10,/* data will be accessed in
+						      the near future */
+	CEPH_OSD_OP_FLAG_FADVISE_DONTNEED   = 0x20,/* data will not be accessed
+						      in the near future */
+	CEPH_OSD_OP_FLAG_FADVISE_NOCACHE    = 0x40,/* data will be accessed only
+						      once by this client */
 };
 
 #define EOLDSNAPC    ERESTART  /* ORDERSNAP flag set; writer has old snapc*/
@@ -429,6 +437,15 @@ enum {
 enum {
 	CEPH_OSD_CMPXATTR_MODE_STRING = 1,
 	CEPH_OSD_CMPXATTR_MODE_U64    = 2
+};
+
+enum {
+	CEPH_OSD_COPY_FROM_FLAG_FLUSH = 1,       /* part of a flush operation */
+	CEPH_OSD_COPY_FROM_FLAG_IGNORE_OVERLAY = 2, /* ignore pool overlay */
+	CEPH_OSD_COPY_FROM_FLAG_IGNORE_CACHE = 4,   /* ignore osd cache logic */
+	CEPH_OSD_COPY_FROM_FLAG_MAP_SNAP_CLONE = 8, /* map snap direct to
+						     * cloneid */
+	CEPH_OSD_COPY_FROM_FLAG_RWORDERED = 16,     /* order with write */
 };
 
 enum {
@@ -497,6 +514,17 @@ struct ceph_osd_op {
 			__le64 expected_object_size;
 			__le64 expected_write_size;
 		} __attribute__ ((packed)) alloc_hint;
+		struct {
+			__le64 snapid;
+			__le64 src_version;
+			__u8 flags; /* CEPH_OSD_COPY_FROM_FLAG_* */
+			/*
+			 * CEPH_OSD_OP_FLAG_FADVISE_*: fadvise flags
+			 * for src object, flags for dest object are in
+			 * ceph_osd_op::flags.
+			 */
+			__le32 src_fadvise_flags;
+		} __attribute__ ((packed)) copy_from;
 	};
 	__le32 payload_len;
 } __attribute__ ((packed));

@@ -108,7 +108,7 @@ static int uvd_v4_2_sw_init(void *handle)
 	int r;
 
 	/* UVD TRAP */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 124, &adev->uvd.inst->irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 124, &adev->uvd.inst->irq);
 	if (r)
 		return r;
 

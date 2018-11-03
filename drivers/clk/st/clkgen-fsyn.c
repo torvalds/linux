@@ -936,7 +936,7 @@ static void __init st_of_quadfs_setup(struct device_node *np,
 	if (!clk_parent_name)
 		return;
 
-	pll_name = kasprintf(GFP_KERNEL, "%s.pll", np->name);
+	pll_name = kasprintf(GFP_KERNEL, "%pOFn.pll", np);
 	if (!pll_name)
 		return;
 

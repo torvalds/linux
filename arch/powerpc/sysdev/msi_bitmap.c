@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/kmemleak.h>
 #include <linux/bitmap.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/msi_bitmap.h>
 #include <asm/setup.h>
 
@@ -128,7 +128,7 @@ int __ref msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
 	if (bmp->bitmap_from_slab)
 		bmp->bitmap = kzalloc(size, GFP_KERNEL);
 	else {
-		bmp->bitmap = memblock_virt_alloc(size, 0);
+		bmp->bitmap = memblock_alloc(size, SMP_CACHE_BYTES);
 		/* the bitmap won't be freed from memblock allocator */
 		kmemleak_not_leak(bmp->bitmap);
 	}
