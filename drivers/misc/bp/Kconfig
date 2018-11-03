@@ -1,9 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-#
-# all auto modem control drivers configuration
-#
-
-config BP_AUTO
-	bool "voice modem support"
-	default n	
-
