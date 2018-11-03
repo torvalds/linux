@@ -124,19 +124,17 @@ static int ramoops_pstore_open(struct pstore_info *psi)
 }
 
 static struct persistent_ram_zone *
-ramoops_get_next_prz(struct persistent_ram_zone *przs[], uint *c, uint max,
-		     u64 *id,
-		     enum pstore_type_id *typep, enum pstore_type_id type,
-		     bool update)
+ramoops_get_next_prz(struct persistent_ram_zone *przs[], int id,
+		     struct pstore_record *record)
 {
 	struct persistent_ram_zone *prz;
-	int i = (*c)++;
+	bool update = (record->type == PSTORE_TYPE_DMESG);
 
 	/* Give up if we never existed or have hit the end. */
-	if (!przs || i >= max)
+	if (!przs)
 		return NULL;
 
-	prz = przs[i];
+	prz = przs[id];
 	if (!prz)
 		return NULL;
 
@@ -147,8 +145,8 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], uint *c, uint max,
 	if (!persistent_ram_old_size(prz))
 		return NULL;
 
-	*typep = type;
-	*id = i;
+	record->type = prz->type;
+	record->id = id;
 
 	return prz;
 }
@@ -255,10 +253,8 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 
 	/* Find the next valid persistent_ram_zone for DMESG */
 	while (cxt->dump_read_cnt < cxt->max_dump_cnt && !prz) {
-		prz = ramoops_get_next_prz(cxt->dprzs, &cxt->dump_read_cnt,
-					   cxt->max_dump_cnt, &record->id,
-					   &record->type,
-					   PSTORE_TYPE_DMESG, 1);
+		prz = ramoops_get_next_prz(cxt->dprzs, cxt->dump_read_cnt++,
+					   record);
 		if (!prz_ok(prz))
 			continue;
 		header_length = ramoops_read_kmsg_hdr(persistent_ram_old(prz),
@@ -272,22 +268,18 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 		}
 	}
 
-	if (!prz_ok(prz))
-		prz = ramoops_get_next_prz(&cxt->cprz, &cxt->console_read_cnt,
-					   1, &record->id, &record->type,
-					   PSTORE_TYPE_CONSOLE, 0);
+	if (!prz_ok(prz) && !cxt->console_read_cnt++)
+		prz = ramoops_get_next_prz(&cxt->cprz, 0 /* single */, record);
 
-	if (!prz_ok(prz))
-		prz = ramoops_get_next_prz(&cxt->mprz, &cxt->pmsg_read_cnt,
-					   1, &record->id, &record->type,
-					   PSTORE_TYPE_PMSG, 0);
+	if (!prz_ok(prz) && !cxt->pmsg_read_cnt++)
+		prz = ramoops_get_next_prz(&cxt->mprz, 0 /* single */, record);
 
 	/* ftrace is last since it may want to dynamically allocate memory. */
 	if (!prz_ok(prz)) {
-		if (!(cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)) {
-			prz = ramoops_get_next_prz(cxt->fprzs,
-					&cxt->ftrace_read_cnt, 1, &record->id,
-					&record->type, PSTORE_TYPE_FTRACE, 0);
+		if (!(cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU) &&
+		    !cxt->ftrace_read_cnt++) {
+			prz = ramoops_get_next_prz(cxt->fprzs, 0 /* single */,
+						   record);
 		} else {
 			/*
 			 * Build a new dummy record which combines all the
@@ -303,11 +295,7 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 
 			while (cxt->ftrace_read_cnt < cxt->max_ftrace_cnt) {
 				prz_next = ramoops_get_next_prz(cxt->fprzs,
-						&cxt->ftrace_read_cnt,
-						cxt->max_ftrace_cnt,
-						&record->id,
-						&record->type,
-						PSTORE_TYPE_FTRACE, 0);
+						cxt->ftrace_read_cnt++, record);
 
 				if (!prz_ok(prz_next))
 					continue;
