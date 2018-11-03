@@ -264,6 +264,7 @@ struct tpm_chip {
 #endif /* CONFIG_ACPI */
 
 	struct tpm_space work_space;
+	u32 last_cc;
 	u32 nr_commands;
 	u32 *cc_attrs_tbl;
 
@@ -577,10 +578,10 @@ int tpm2_find_cc(struct tpm_chip *chip, u32 cc);
 int tpm2_init_space(struct tpm_space *space);
 void tpm2_del_space(struct tpm_chip *chip, struct tpm_space *space);
 void tpm2_flush_space(struct tpm_chip *chip);
-int tpm2_prepare_space(struct tpm_chip *chip, struct tpm_space *space, u32 cc,
-		       u8 *cmd);
-int tpm2_commit_space(struct tpm_chip *chip, struct tpm_space *space,
-		      u32 cc, void *buf, size_t *bufsiz);
+int tpm2_prepare_space(struct tpm_chip *chip, struct tpm_space *space, u8 *cmd,
+		       size_t cmdsiz);
+int tpm2_commit_space(struct tpm_chip *chip, struct tpm_space *space, void *buf,
+		      size_t *bufsiz);
 
 int tpm_bios_log_setup(struct tpm_chip *chip);
 void tpm_bios_log_teardown(struct tpm_chip *chip);
