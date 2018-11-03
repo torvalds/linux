@@ -4540,7 +4540,7 @@ static int qlt_issue_task_mgmt(struct fc_port *sess, u64 lun,
 	case QLA_TGT_CLEAR_TS:
 	case QLA_TGT_ABORT_TS:
 		abort_cmds_for_lun(vha, lun, a->u.isp24.fcp_hdr.s_id);
-		/* drop through */
+		/* fall through */
 	case QLA_TGT_CLEAR_ACA:
 		h = qlt_find_qphint(vha, mcmd->unpacked_lun);
 		mcmd->qpair = h->qpair;
@@ -6598,9 +6598,9 @@ static void qlt_lport_dump(struct scsi_qla_host *vha, u64 wwpn,
  * qla_tgt_lport_register - register lport with external module
  *
  * @target_lport_ptr: pointer for tcm_qla2xxx specific lport data
- * @phys_wwpn:
- * @npiv_wwpn:
- * @npiv_wwnn:
+ * @phys_wwpn: physical port WWPN
+ * @npiv_wwpn: NPIV WWPN
+ * @npiv_wwnn: NPIV WWNN
  * @callback:  lport initialization callback for tcm_qla2xxx code
  */
 int qlt_lport_register(void *target_lport_ptr, u64 phys_wwpn,
