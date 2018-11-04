@@ -101,8 +101,8 @@
 #define SUN8I_MIXER_FBFMT_YUV411	14
 
 /*
- * These sub-engines are still unknown now, the EN registers are here only to
- * be used to disable these sub-engines.
+ * Sub-engines listed bellow are unused for now. The EN registers are here only
+ * to be used to disable these sub-engines.
  */
 #define SUN8I_MIXER_FCE_EN			0xa0000
 #define SUN8I_MIXER_BWS_EN			0xa2000

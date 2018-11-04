@@ -463,6 +463,15 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 	for (i = 0; i < DE2_MIXER_UNIT_SIZE; i += 4)
 		regmap_write(mixer->engine.regs, i, 0);
 
+	/* Disable unused sub-engines */
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_FCE_EN, 0);
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_BWS_EN, 0);
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_LTI_EN, 0);
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_PEAK_EN, 0);
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_ASE_EN, 0);
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_FCC_EN, 0);
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_DCSC_EN, 0);
+
 	/* Enable the mixer */
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_GLOBAL_CTL,
 		     SUN8I_MIXER_GLOBAL_CTL_RT_EN);
