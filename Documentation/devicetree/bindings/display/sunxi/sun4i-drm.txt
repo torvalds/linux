@@ -158,6 +158,7 @@ Required properties:
    * allwinner,sun9i-a80-tcon-tv
    * "allwinner,sun50i-a64-tcon-lcd", "allwinner,sun8i-a83t-tcon-lcd"
    * "allwinner,sun50i-a64-tcon-tv", "allwinner,sun8i-a83t-tcon-tv"
+   * allwinner,sun50i-h6-tcon-tv, allwinner,sun8i-r40-tcon-tv
  - reg: base address and size of memory-mapped region
  - interrupts: interrupt associated to this IP
  - clocks: phandles to the clocks feeding the TCON.
@@ -381,6 +382,7 @@ Required properties:
     * allwinner,sun8i-v3s-de2-mixer
     * allwinner,sun50i-a64-de2-mixer-0
     * allwinner,sun50i-a64-de2-mixer-1
+    * allwinner,sun50i-h6-de3-mixer-0
   - reg: base address and size of the memory-mapped region.
   - clocks: phandles to the clocks feeding the mixer
     * bus: the mixer interface clock
@@ -415,9 +417,10 @@ Required properties:
     * allwinner,sun8i-v3s-display-engine
     * allwinner,sun9i-a80-display-engine
     * allwinner,sun50i-a64-display-engine
+    * allwinner,sun50i-h6-display-engine
 
   - allwinner,pipelines: list of phandle to the display engine
-    frontends (DE 1.0) or mixers (DE 2.0) available.
+    frontends (DE 1.0) or mixers (DE 2.0/3.0) available.
 
 Example:
 
