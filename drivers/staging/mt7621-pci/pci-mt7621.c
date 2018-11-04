@@ -39,24 +39,27 @@
 
 /* sysctl */
 #define MT7621_CHIP_REV_ID		0x0c
+#define RALINK_CLKCFG1			0x30
+#define RALINK_RSTCTRL			0x34
 #define MT7621_GPIO_MODE		0x60
 #define CHIP_REV_MT7621_E2		0x0101
-
-/* pcie */
-#define RALINK_PCI_CONFIG_ADDR		0x20
-#define RALINK_PCI_CONFIG_DATA		0x24
-#define RALINK_PCI_MEMBASE		0x28
-#define RALINK_PCI_IOBASE		0x2C
 
 /* RALINK_RSTCTRL bits */
 #define RALINK_PCIE_RST			BIT(23)
 
+/* rt_sysc_membase relative registers */
+#define RALINK_PCIE_CLK_GEN		0x7c
+#define RALINK_PCIE_CLK_GEN1		0x80
+
+/* Host-PCI bridge registers */
 #define RALINK_PCI_PCICFG_ADDR		0x0000
 #define RALINK_PCI_PCIMSK_ADDR		0x000C
+#define RALINK_PCI_CONFIG_ADDR		0x0020
+#define RALINK_PCI_CONFIG_DATA		0x0024
+#define RALINK_PCI_MEMBASE		0x0028
+#define RALINK_PCI_IOBASE		0x002C
 
-#define MT7621_PCIE_OFFSET		0x2000
-#define MT7621_NEXT_PORT		0x1000
-
+/* PCICFG virtual bridges */
 #define MT7621_BR0_MASK			GENMASK(19, 16)
 #define MT7621_BR1_MASK			GENMASK(23, 20)
 #define MT7621_BR2_MASK			GENMASK(27, 24)
@@ -65,6 +68,10 @@
 #define MT7621_BR1_SHIFT		20
 #define MT7621_BR2_SHIFT		24
 
+/* PCIe RC control registers */
+#define MT7621_PCIE_OFFSET		0x2000
+#define MT7621_NEXT_PORT		0x1000
+
 #define RALINK_PCI_BAR0SETUP_ADDR	0x0010
 #define RALINK_PCI_IMBASEBAR0_ADDR	0x0018
 #define RALINK_PCI_ID			0x0030
@@ -72,14 +79,9 @@
 #define RALINK_PCI_SUBID		0x0038
 #define RALINK_PCI_STATUS		0x0050
 
+/* Some definition values */
 #define RALINK_PCI_IO_MAP_BASE		0x1e160000
-
-#define RALINK_CLKCFG1			0x30
-#define RALINK_RSTCTRL			0x34
-#define RALINK_PCIE_CLK_GEN		0x7c
-#define RALINK_PCIE_CLK_GEN1		0x80
-
-#define MEMORY_BASE 0x0
+#define MEMORY_BASE			0x0
 
 /* pcie phy related macros */
 #define RALINK_PCIEPHY_P0P1_CTL_OFFSET	0x9000
