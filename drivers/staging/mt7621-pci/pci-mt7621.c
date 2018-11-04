@@ -594,7 +594,7 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	reset_control_assert(port->pcie_rst);
 	reset_control_deassert(port->pcie_rst);
 
-	if ((pcie_port_read(port, RALINK_PCI_STATUS) & 0x1) == 0) {
+	if ((pcie_port_read(port, RALINK_PCI_STATUS) & PCIE_PORT_LINKUP) == 0) {
 		dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n", slot);
 		reset_control_assert(port->pcie_rst);
 		rt_sysc_m32(PCIE_PORT_CLK_EN(slot), 0, RALINK_CLKCFG1);
