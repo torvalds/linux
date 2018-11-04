@@ -543,7 +543,7 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 	return 0;
 }
 
-static int mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
+static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 {
 	struct mt7621_pcie *pcie = port->pcie;
 	struct device *dev = pcie->dev;
@@ -660,7 +660,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
 		u32 slot = port->slot;
 
-		err = mt7621_pcie_enable_port(port);
+		err = mt7621_pcie_init_port(port);
 		if (err) {
 			dev_err(dev, "enabling port %d failed\n", slot);
 			list_del(&port->list);
