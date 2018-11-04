@@ -3788,7 +3788,7 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	}
 
 	/*
-	 * -EACCESS could mean that the user doesn't have correct permissions
+	 * -EACCES could mean that the user doesn't have correct permissions
 	 * to access the mount.  It could also mean that we tried to mount
 	 * with a gss auth flavor, but rpc.gssd isn't running.  Either way,
 	 * existing mount programs don't handle -EACCES very well so it should
