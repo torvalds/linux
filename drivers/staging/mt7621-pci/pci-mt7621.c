@@ -64,6 +64,14 @@
 #define MT7621_PCIE_OFFSET		0x2000
 #define MT7621_NEXT_PORT		0x1000
 
+#define MT7621_BR0_MASK			GENMASK(19, 16)
+#define MT7621_BR1_MASK			GENMASK(23, 20)
+#define MT7621_BR2_MASK			GENMASK(27, 24)
+#define MT7621_BR_ALL_MASK		GENMASK(27, 16)
+#define MT7621_BR0_SHIFT		16
+#define MT7621_BR1_SHIFT		20
+#define MT7621_BR2_SHIFT		24
+
 #define RALINK_PCI_BAR0SETUP_ADDR	0x0010
 #define RALINK_PCI_IMBASEBAR0_ADDR	0x0018
 #define RALINK_PCI_ID			0x0030
@@ -81,8 +89,6 @@
 #define RALINK_PCIE_CLK_GEN1		0x80
 
 #define MEMORY_BASE 0x0
-
-static int pcie_link_status;
 
 /* pcie phy related macros */
 #define RALINK_PCIEPHY_P0P1_CTL_OFFSET	0x9000
@@ -589,10 +595,8 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 		dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n", slot);
 		reset_control_assert(port->pcie_rst);
 		rt_sysc_m32(BIT(24 + slot), 0, RALINK_CLKCFG1);
-		pcie_link_status &= ~(1 << slot);
 		port->enabled = false;
 	} else {
-		pcie_link_status |= BIT(slot);
 		port->enabled = true;
 		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
 		/* enable pcie interrupt */
@@ -641,6 +645,70 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 		val |= 0x50 << 8;
 		write_config(pcie, slot, 0x70c, val);
 	}
+}
+
+static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
+{
+	u32 pcie_link_status = 0;
+	u32 val= 0;
+	struct mt7621_pcie_port *port;
+
+	list_for_each_entry(port, &pcie->ports, list) {
+		u32 slot = port->slot;
+
+		if (port->enabled)
+			pcie_link_status |= BIT(slot);
+	}
+
+	if (pcie_link_status == 0)
+		return -1;
+
+	/*
+	 * pcie(2/1/0) link status pcie2_num	pcie1_num	pcie0_num
+	 * 3'b000		   x	        x		x
+	 * 3'b001		   x	        x		0
+	 * 3'b010		   x	        0		x
+	 * 3'b011		   x	        1		0
+	 * 3'b100		   0	        x		x
+	 * 3'b101	           1 	        x		0
+	 * 3'b110	           1	        0		x
+	 * 3'b111		   2	        1		0
+	 */
+	switch (pcie_link_status) {
+	case 2:
+		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+		val &= ~(MT7621_BR0_MASK | MT7621_BR1_MASK);
+		val |= 0x1 << MT7621_BR0_SHIFT;
+		val |= 0x0 << MT7621_BR1_SHIFT;
+		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
+		break;
+	case 4:
+		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+		val &= ~MT7621_BR_ALL_MASK;
+		val |= 0x1 << MT7621_BR0_SHIFT;
+		val |= 0x2 << MT7621_BR1_SHIFT;
+		val |= 0x0 << MT7621_BR2_SHIFT;
+		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
+		break;
+	case 5:
+		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+		val &= ~MT7621_BR_ALL_MASK;
+		val |= 0x0 << MT7621_BR0_SHIFT;
+		val |= 0x2 << MT7621_BR1_SHIFT;
+		val |= 0x1 << MT7621_BR2_SHIFT;
+		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
+		break;
+	case 6:
+		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+		val &= ~MT7621_BR_ALL_MASK;
+		val |= 0x2 << MT7621_BR0_SHIFT;
+		val |= 0x0 << MT7621_BR1_SHIFT;
+		val |= 0x1 << MT7621_BR2_SHIFT;
+		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
+		break;
+	}
+
+	return 0;
 }
 
 static int mt7621_pcie_request_resources(struct mt7621_pcie *pcie,
@@ -693,7 +761,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	struct pci_host_bridge *bridge;
 	struct mt7621_pcie_port *port, *tmp;
 	int err;
-	u32 val = 0;
 	LIST_HEAD(res);
 
 	if (!dev->of_node)
@@ -751,52 +818,10 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	*(unsigned int *)(0xbe000620) |= BIT(19) | BIT(8) | BIT(7);		// set DATA
 	mdelay(1000);
 
-	if (pcie_link_status == 0)
+	err = mt7621_pcie_init_virtual_bridges(pcie);
+	if (err) {
+		dev_err(dev, "Nothing is connected in virtual bridges. Exiting...");
 		return 0;
-
-/*
-pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
-3'b000			x		x		x
-3'b001			x		x		0
-3'b010			x		0		x
-3'b011			x		1		0
-3'b100			0		x		x
-3'b101			1		x		0
-3'b110			1		0		x
-3'b111			2		1		0
-*/
-	switch (pcie_link_status) {
-	case 2:
-		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-		val &= ~0x00ff0000;
-		val |= 0x1 << 16;	// port 0
-		val |= 0x0 << 20;	// port 1
-		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-		break;
-	case 4:
-		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-		val &= ~0x0fff0000;
-		val |= 0x1 << 16;	//port0
-		val |= 0x2 << 20;	//port1
-		val |= 0x0 << 24;	//port2
-		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-		break;
-	case 5:
-		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-		val &= ~0x0fff0000;
-		val |= 0x0 << 16;	//port0
-		val |= 0x2 << 20;	//port1
-		val |= 0x1 << 24;	//port2
-		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-		break;
-	case 6:
-		val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-		val &= ~0x0fff0000;
-		val |= 0x2 << 16;	//port0
-		val |= 0x0 << 20;	//port1
-		val |= 0x1 << 24;	//port2
-		pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-		break;
 	}
 
 	pcie_write(pcie, 0xffffffff, RALINK_PCI_MEMBASE);
