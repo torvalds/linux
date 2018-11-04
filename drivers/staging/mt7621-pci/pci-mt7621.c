@@ -612,6 +612,23 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	return 0;
 }
 
+static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
+{
+	struct device *dev = pcie->dev;
+	struct mt7621_pcie_port *port, *tmp;
+	int err;
+
+	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
+		u32 slot = port->slot;
+
+		err = mt7621_pcie_init_port(port);
+		if (err) {
+			dev_err(dev, "Initiating port %d failed\n", slot);
+			list_del(&port->list);
+		}
+	}
+}
+
 static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
@@ -759,7 +776,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mt7621_pcie *pcie;
 	struct pci_host_bridge *bridge;
-	struct mt7621_pcie_port *port, *tmp;
 	int err;
 	LIST_HEAD(res);
 
@@ -794,15 +810,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	mdelay(100);
 
-	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
-		u32 slot = port->slot;
-
-		err = mt7621_pcie_init_port(port);
-		if (err) {
-			dev_err(dev, "enabling port %d failed\n", slot);
-			list_del(&port->list);
-		}
-	}
+	mt7621_pcie_init_ports(pcie);
 
 	rt_sysc_m32(0, RALINK_PCIE_RST, RALINK_RSTCTRL);
 	rt_sysc_m32(0x30, 2 << 4, SYSC_REG_SYSTEM_CONFIG1);
