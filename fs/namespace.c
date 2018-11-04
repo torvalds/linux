@@ -27,6 +27,7 @@
 #include <linux/task_work.h>
 #include <linux/sched/task.h>
 #include <uapi/linux/mount.h>
+#include <linux/fs_context.h>
 
 #include "pnode.h"
 #include "internal.h"
@@ -940,36 +941,53 @@ static struct mount *skip_mnt_tree(struct mount *p)
 	return p;
 }
 
-struct vfsmount *
-vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void *data)
+struct vfsmount *vfs_kern_mount(struct file_system_type *type,
+				int flags, const char *name,
+				void *data)
 {
+	struct fs_context *fc;
 	struct mount *mnt;
-	struct dentry *root;
+	int ret = 0;
 
 	if (!type)
 		return ERR_PTR(-ENODEV);
 
+	fc = fs_context_for_mount(type, flags);
+	if (IS_ERR(fc))
+		return ERR_CAST(fc);
+
+	if (name) {
+		fc->source = kstrdup(name, GFP_KERNEL);
+		if (!fc->source)
+			ret = -ENOMEM;
+	}
+	if (!ret)
+		ret = parse_monolithic_mount_data(fc, data);
+	if (!ret)
+		ret = vfs_get_tree(fc);
+	if (ret) {
+		put_fs_context(fc);
+		return ERR_PTR(ret);
+	}
+	up_write(&fc->root->d_sb->s_umount);
 	mnt = alloc_vfsmnt(name);
-	if (!mnt)
+	if (!mnt) {
+		put_fs_context(fc);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	if (flags & SB_KERNMOUNT)
 		mnt->mnt.mnt_flags = MNT_INTERNAL;
 
-	root = mount_fs(type, flags, name, data);
-	if (IS_ERR(root)) {
-		mnt_free_id(mnt);
-		free_vfsmnt(mnt);
-		return ERR_CAST(root);
-	}
-
-	mnt->mnt.mnt_root = root;
-	mnt->mnt.mnt_sb = root->d_sb;
+	atomic_inc(&fc->root->d_sb->s_active);
+	mnt->mnt.mnt_root = dget(fc->root);
+	mnt->mnt.mnt_sb = fc->root->d_sb;
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 	mnt->mnt_parent = mnt;
 	lock_mount_hash();
-	list_add_tail(&mnt->mnt_instance, &root->d_sb->s_mounts);
+	list_add_tail(&mnt->mnt_instance, &fc->root->d_sb->s_mounts);
 	unlock_mount_hash();
+	put_fs_context(fc);
 	return &mnt->mnt;
 }
 EXPORT_SYMBOL_GPL(vfs_kern_mount);
