@@ -2523,7 +2523,37 @@ unlock:
 	return err;
 }
 
-static bool mount_too_revealing(struct vfsmount *mnt, int *new_mnt_flags);
+static bool mount_too_revealing(const struct super_block *sb, int *new_mnt_flags);
+
+/*
+ * Create a new mount using a superblock configuration and request it
+ * be added to the namespace tree.
+ */
+static int do_new_mount_fc(struct fs_context *fc, struct path *mountpoint,
+			   unsigned int mnt_flags)
+{
+	struct vfsmount *mnt;
+	struct super_block *sb = fc->root->d_sb;
+	int error;
+
+	if (mount_too_revealing(sb, &mnt_flags)) {
+		dput(fc->root);
+		fc->root = NULL;
+		deactivate_locked_super(sb);
+		return -EPERM;
+	}
+
+	up_write(&sb->s_umount);
+
+	mnt = vfs_create_mount(fc);
+	if (IS_ERR(mnt))
+		return PTR_ERR(mnt);
+
+	error = do_add_mount(real_mount(mnt), mountpoint, mnt_flags);
+	if (error < 0)
+		mntput(mnt);
+	return error;
+}
 
 /*
  * create a new mount for userspace and request it to be added into the
@@ -2533,7 +2563,6 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 			int mnt_flags, const char *name, void *data)
 {
 	struct file_system_type *type;
-	struct vfsmount *mnt;
 	struct fs_context *fc;
 	const char *subtype = NULL;
 	int err = 0;
@@ -2577,26 +2606,9 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 		err = parse_monolithic_mount_data(fc, data);
 	if (!err)
 		err = vfs_get_tree(fc);
-	if (err)
-		goto out;
+	if (!err)
+		err = do_new_mount_fc(fc, path, mnt_flags);
 
-	up_write(&fc->root->d_sb->s_umount);
-	mnt = vfs_create_mount(fc);
-	if (IS_ERR(mnt)) {
-		err = PTR_ERR(mnt);
-		goto out;
-	}
-
-	if (mount_too_revealing(mnt, &mnt_flags)) {
-		mntput(mnt);
-		err = -EPERM;
-		goto out;
-	}
-
-	err = do_add_mount(real_mount(mnt), path, mnt_flags);
-	if (err)
-		mntput(mnt);
-out:
 	put_fs_context(fc);
 	return err;
 }
@@ -3421,7 +3433,8 @@ bool current_chrooted(void)
 	return chrooted;
 }
 
-static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
+static bool mnt_already_visible(struct mnt_namespace *ns,
+				const struct super_block *sb,
 				int *new_mnt_flags)
 {
 	int new_flags = *new_mnt_flags;
@@ -3433,7 +3446,7 @@ static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
 		struct mount *child;
 		int mnt_flags;
 
-		if (mnt->mnt.mnt_sb->s_type != new->mnt_sb->s_type)
+		if (mnt->mnt.mnt_sb->s_type != sb->s_type)
 			continue;
 
 		/* This mount is not fully visible if it's root directory
@@ -3484,7 +3497,7 @@ found:
 	return visible;
 }
 
-static bool mount_too_revealing(struct vfsmount *mnt, int *new_mnt_flags)
+static bool mount_too_revealing(const struct super_block *sb, int *new_mnt_flags)
 {
 	const unsigned long required_iflags = SB_I_NOEXEC | SB_I_NODEV;
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
@@ -3494,7 +3507,7 @@ static bool mount_too_revealing(struct vfsmount *mnt, int *new_mnt_flags)
 		return false;
 
 	/* Can this filesystem be too revealing? */
-	s_iflags = mnt->mnt_sb->s_iflags;
+	s_iflags = sb->s_iflags;
 	if (!(s_iflags & SB_I_USERNS_VISIBLE))
 		return false;
 
@@ -3504,7 +3517,7 @@ static bool mount_too_revealing(struct vfsmount *mnt, int *new_mnt_flags)
 		return true;
 	}
 
-	return !mnt_already_visible(ns, mnt, new_mnt_flags);
+	return !mnt_already_visible(ns, sb, new_mnt_flags);
 }
 
 bool mnt_may_suid(struct vfsmount *mnt)
