@@ -61,9 +61,8 @@
 #define RALINK_PCI_PCICFG_ADDR		0x0000
 #define RALINK_PCI_PCIMSK_ADDR		0x000C
 
-#define RT6855_PCIE0_OFFSET		0x2000
-#define RT6855_PCIE1_OFFSET		0x3000
-#define RT6855_PCIE2_OFFSET		0x4000
+#define MT7621_PCIE_OFFSET		0x2000
+#define MT7621_NEXT_PORT		0x1000
 
 #define RALINK_PCI_BAR0SETUP_ADDR	0x0010
 #define RALINK_PCI_IMBASEBAR0_ADDR	0x0018
@@ -158,6 +157,7 @@ static int pcie_link_status;
  * @pcie_rst: pointer to port reset control
  * @pcie_clk: PCIe clock
  * @slot: port slot
+ * @enabled: indicates if port is enabled
  */
 struct mt7621_pcie_port {
 	void __iomem *base;
@@ -167,6 +167,7 @@ struct mt7621_pcie_port {
 	struct reset_control *pcie_rst;
 	struct clk *pcie_clk;
 	u32 slot;
+	bool enabled;
 };
 
 /**
@@ -589,8 +590,10 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 		reset_control_assert(port->pcie_rst);
 		rt_sysc_m32(BIT(24 + slot), 0, RALINK_CLKCFG1);
 		pcie_link_status &= ~(1 << slot);
+		port->enabled = false;
 	} else {
 		pcie_link_status |= BIT(slot);
+		port->enabled = true;
 		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
 		/* enable pcie interrupt */
 		val |= BIT(20 + slot);
@@ -603,6 +606,41 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
 
 	return 0;
+}
+
+static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
+{
+	struct device *dev = pcie->dev;
+	struct mt7621_pcie_port *port;
+	u8 num_slots_enabled = 0;
+	u32 offset;
+	u32 slot;
+	u32 val;
+
+	list_for_each_entry(port, &pcie->ports, list) {
+		slot = port->slot;
+		offset = MT7621_PCIE_OFFSET + (slot * MT7621_NEXT_PORT);
+
+		if (port->enabled) {
+			/* open 7FFF:2G; ENABLE */
+			pcie_write(pcie, 0x7FFF0001,
+				   offset + RALINK_PCI_BAR0SETUP_ADDR);
+			pcie_write(pcie, MEMORY_BASE,
+				   offset + RALINK_PCI_IMBASEBAR0_ADDR);
+			pcie_write(pcie, 0x06040001, offset + RALINK_PCI_CLASS);
+			dev_info(dev, "PCIE%d enabled\n", slot);
+			num_slots_enabled++;
+		}
+	}
+
+	for (slot = 0; slot < num_slots_enabled; slot++) {
+		val = read_config(pcie, slot, 0x4);
+		write_config(pcie, slot, 0x4, val | 0x4);
+		val = read_config(pcie, slot, 0x70c);
+		val &= ~(0xff) << 8;
+		val |= 0x50 << 8;
+		write_config(pcie, slot, 0x70c, val);
+	}
 }
 
 static int mt7621_pcie_request_resources(struct mt7621_pcie *pcie,
@@ -764,67 +802,7 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 	pcie_write(pcie, 0xffffffff, RALINK_PCI_MEMBASE);
 	pcie_write(pcie, RALINK_PCI_IO_MAP_BASE, RALINK_PCI_IOBASE);
 
-	//PCIe0
-	if ((pcie_link_status & 0x1) != 0) {
-		/* open 7FFF:2G; ENABLE */
-		pcie_write(pcie, 0x7FFF0001,
-			   RT6855_PCIE0_OFFSET + RALINK_PCI_BAR0SETUP_ADDR);
-		pcie_write(pcie, MEMORY_BASE,
-			   RT6855_PCIE0_OFFSET + RALINK_PCI_IMBASEBAR0_ADDR);
-		pcie_write(pcie, 0x06040001,
-			   RT6855_PCIE0_OFFSET + RALINK_PCI_CLASS);
-		dev_info(dev, "PCIE0 enabled\n");
-	}
-
-	//PCIe1
-	if ((pcie_link_status & 0x2) != 0) {
-		/* open 7FFF:2G; ENABLE */
-		pcie_write(pcie, 0x7FFF0001,
-			   RT6855_PCIE1_OFFSET + RALINK_PCI_BAR0SETUP_ADDR);
-		pcie_write(pcie, MEMORY_BASE,
-			   RT6855_PCIE1_OFFSET + RALINK_PCI_IMBASEBAR0_ADDR);
-		pcie_write(pcie, 0x06040001,
-			   RT6855_PCIE1_OFFSET + RALINK_PCI_CLASS);
-		dev_info(dev, "PCIE1 enabled\n");
-	}
-
-	//PCIe2
-	if ((pcie_link_status & 0x4) != 0) {
-		/* open 7FFF:2G; ENABLE */
-		pcie_write(pcie, 0x7FFF0001,
-			   RT6855_PCIE2_OFFSET + RALINK_PCI_BAR0SETUP_ADDR);
-		pcie_write(pcie, MEMORY_BASE,
-			   RT6855_PCIE2_OFFSET + RALINK_PCI_IMBASEBAR0_ADDR);
-		pcie_write(pcie, 0x06040001,
-			   RT6855_PCIE2_OFFSET + RALINK_PCI_CLASS);
-		dev_info(dev, "PCIE2 enabled\n");
-	}
-
-	switch (pcie_link_status) {
-	case 7:
-		val = read_config(pcie, 2, 0x4);
-		write_config(pcie, 2, 0x4, val | 0x4);
-		val = read_config(pcie, 2, 0x70c);
-		val &= ~(0xff) << 8;
-		val |= 0x50 << 8;
-		write_config(pcie, 2, 0x70c, val);
-	case 3:
-	case 5:
-	case 6:
-		val = read_config(pcie, 1, 0x4);
-		write_config(pcie, 1, 0x4, val | 0x4);
-		val = read_config(pcie, 1, 0x70c);
-		val &= ~(0xff) << 8;
-		val |= 0x50 << 8;
-		write_config(pcie, 1, 0x70c, val);
-	default:
-		val = read_config(pcie, 0, 0x4);
-		write_config(pcie, 0, 0x4, val | 0x4); //bus master enable
-		val = read_config(pcie, 0, 0x70c);
-		val &= ~(0xff) << 8;
-		val |= 0x50 << 8;
-		write_config(pcie, 0, 0x70c, val);
-	}
+	mt7621_pcie_enable_ports(pcie);
 
 	err = mt7621_pci_parse_request_of_pci_ranges(pcie);
 	if (err) {
