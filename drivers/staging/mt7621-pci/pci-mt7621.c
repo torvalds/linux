@@ -18,6 +18,7 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -36,7 +37,6 @@
 #define MT7621_CHIP_REV_ID		0x0c
 #define RALINK_CLKCFG1			0x30
 #define RALINK_RSTCTRL			0x34
-#define MT7621_GPIO_MODE		0x60
 #define CHIP_REV_MT7621_E2		0x0101
 
 /* RALINK_RSTCTRL bits */
@@ -86,6 +86,8 @@
 #define PCIE_BAR_ENABLE			BIT(0)
 #define PCIE_PORT_INT_EN(x)		BIT(20 + (x))
 #define PCIE_PORT_CLK_EN(x)		BIT(24 + (x))
+#define PCIE_PORT_PERST(x)		BIT(1 + (x))
+#define PCIE_PORT_LINKUP		BIT(0)
 
 #define PCIE_CLK_GEN_EN			BIT(31)
 #define PCIE_CLK_GEN_DIS		0
@@ -638,12 +640,33 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 	u32 offset;
 	u32 slot;
 	u32 val;
+	int err;
 
 	list_for_each_entry(port, &pcie->ports, list) {
 		slot = port->slot;
 		offset = MT7621_PCIE_OFFSET + (slot * MT7621_NEXT_PORT);
 
 		if (port->enabled) {
+			/* assert port PERST_N */
+			val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+			val |= PCIE_PORT_PERST(slot);
+			pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
+
+			/* de-assert port PERST_N */
+			val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+			val &= ~PCIE_PORT_PERST(slot);
+			pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
+
+			/* 100ms timeout value should be enough for Gen1 training */
+			err = readl_poll_timeout(port->base + RALINK_PCI_STATUS,
+						 val,!!(val & PCIE_PORT_LINKUP),
+						 20, 100 * USEC_PER_MSEC);
+			if (err) {
+				dev_err(dev, "de-assert port %d PERST_N\n",
+					slot);
+				continue;
+			}
+
 			/* map 2G DDR region */
 			pcie_write(pcie, PCIE_BAR_MAP_MAX | PCIE_BAR_ENABLE,
 				   offset + RALINK_PCI_BAR0SETUP_ADDR);
@@ -765,16 +788,6 @@ static int mt7621_pcie_register_host(struct pci_host_bridge *host,
 	return pci_host_probe(host);
 }
 
-static void mt7621_set_gpio_mode(struct mt7621_pcie *pcie)
-{
-	u32 reg = ioread32(pcie->sysctl + MT7621_GPIO_MODE);
-
-	reg &= ~(0x3 << 10 | 0x3 << 3);
-	reg |= (BIT(10) | BIT(3));
-	iowrite32(reg, pcie->sysctl + MT7621_GPIO_MODE);
-	mdelay(100);
-}
-
 static int mt7621_pci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -807,13 +820,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	ioport_resource.start = 0;
 	ioport_resource.end = ~0UL; /* no limit */
 
-	mt7621_set_gpio_mode(pcie);
-	*(unsigned int *)(0xbe000600) |= BIT(19) | BIT(8) | BIT(7); // use GPIO19/GPIO8/GPIO7 (PERST_N/UART_RXD3/UART_TXD3)
-	mdelay(100);
-	*(unsigned int *)(0xbe000620) &= ~(BIT(19) | BIT(8) | BIT(7));		// clear DATA
-
-	mdelay(100);
-
 	mt7621_pcie_init_ports(pcie);
 
 	rt_sysc_m32(0, RALINK_PCIE_RST, RALINK_RSTCTRL);
@@ -825,10 +831,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	mdelay(50);
 	rt_sysc_m32(RALINK_PCIE_RST, 0, RALINK_RSTCTRL);
-
-	/* Use GPIO control instead of PERST_N */
-	*(unsigned int *)(0xbe000620) |= BIT(19) | BIT(8) | BIT(7);		// set DATA
-	mdelay(1000);
 
 	err = mt7621_pcie_init_virtual_bridges(pcie);
 	if (err) {
