@@ -37,6 +37,12 @@
  * devices.
  */
 
+/* sysctl */
+#define MT7621_CHIP_REV_ID		0x0c
+#define MT7621_GPIO_MODE		0x60
+#define CHIP_REV_MT7621_E2		0x0101
+
+/* pcie */
 #define RALINK_PCIE0_CLK_EN		BIT(24)
 #define RALINK_PCIE1_CLK_EN		BIT(25)
 #define RALINK_PCIE2_CLK_EN		BIT(26)
@@ -166,6 +172,7 @@ struct mt7621_pcie_port {
 /**
  * struct mt7621_pcie - PCIe host information
  * @base: IO Mapped Register Base
+ * @sysctl: system control mapped register base
  * @io: IO resource
  * @mem: non-prefetchable memory resource
  * @busn: bus range
@@ -175,6 +182,7 @@ struct mt7621_pcie_port {
  */
 struct mt7621_pcie {
 	void __iomem *base;
+	void __iomem *sysctl;
 	struct device *dev;
 	struct resource io;
 	struct resource mem;
@@ -389,8 +397,10 @@ set_phy_for_ssc(struct mt7621_pcie_port *port)
 
 static void mt7621_enable_phy(struct mt7621_pcie_port *port)
 {
-	/* MT7621 E2 */
-	if ((*(unsigned int *)(0xbe00000c) & 0xFFFF) == 0x0101)
+	struct mt7621_pcie *pcie = port->pcie;
+	u32 chip_rev_id = ioread32(pcie->sysctl + MT7621_CHIP_REV_ID);
+
+	if ((chip_rev_id & 0xFFFF) == CHIP_REV_MT7621_E2)
 		bypass_pipe_rst(port);
 	set_phy_for_ssc(port);
 }
@@ -524,6 +534,16 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
 
+	err = of_address_to_resource(node, 4, &regs);
+	if (err) {
+		dev_err(dev, "missing \"reg\" property\n");
+		return err;
+	}
+
+	pcie->sysctl = devm_ioremap_resource(dev, &regs);
+	if (IS_ERR(pcie->sysctl))
+		return PTR_ERR(pcie->sysctl);
+
 	for_each_available_child_of_node(node, child) {
 		int slot;
 
@@ -614,6 +634,16 @@ static int mt7621_pcie_register_host(struct pci_host_bridge *host,
 	return pci_host_probe(host);
 }
 
+static void mt7621_set_gpio_mode(struct mt7621_pcie *pcie)
+{
+	u32 reg = ioread32(pcie->sysctl + MT7621_GPIO_MODE);
+
+	reg &= ~(0x3 << 10 | 0x3 << 3);
+	reg |= (BIT(10) | BIT(3));
+	iowrite32(reg, pcie->sysctl + MT7621_GPIO_MODE);
+	mdelay(100);
+}
+
 static int mt7621_pci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -648,9 +678,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	ioport_resource.start = 0;
 	ioport_resource.end = ~0UL; /* no limit */
 
-	*(unsigned int *)(0xbe000060) &= ~(0x3 << 10 | 0x3 << 3);
-	*(unsigned int *)(0xbe000060) |=  BIT(10) | BIT(3);
-	mdelay(100);
+	mt7621_set_gpio_mode(pcie);
 	*(unsigned int *)(0xbe000600) |= BIT(19) | BIT(8) | BIT(7); // use GPIO19/GPIO8/GPIO7 (PERST_N/UART_RXD3/UART_TXD3)
 	mdelay(100);
 	*(unsigned int *)(0xbe000620) &= ~(BIT(19) | BIT(8) | BIT(7));		// clear DATA
