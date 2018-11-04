@@ -14,6 +14,122 @@
  */
 #define I2C_ADDR	0x69
 
+static const struct dw_hdmi_mpll_config sun50i_h6_mpll_cfg[] = {
+	{
+		30666000, {
+			{ 0x00b3, 0x0000 },
+			{ 0x2153, 0x0000 },
+			{ 0x40f3, 0x0000 },
+		},
+	},  {
+		36800000, {
+			{ 0x00b3, 0x0000 },
+			{ 0x2153, 0x0000 },
+			{ 0x40a2, 0x0001 },
+		},
+	},  {
+		46000000, {
+			{ 0x00b3, 0x0000 },
+			{ 0x2142, 0x0001 },
+			{ 0x40a2, 0x0001 },
+		},
+	},  {
+		61333000, {
+			{ 0x0072, 0x0001 },
+			{ 0x2142, 0x0001 },
+			{ 0x40a2, 0x0001 },
+		},
+	},  {
+		73600000, {
+			{ 0x0072, 0x0001 },
+			{ 0x2142, 0x0001 },
+			{ 0x4061, 0x0002 },
+		},
+	},  {
+		92000000, {
+			{ 0x0072, 0x0001 },
+			{ 0x2145, 0x0002 },
+			{ 0x4061, 0x0002 },
+		},
+	},  {
+		122666000, {
+			{ 0x0051, 0x0002 },
+			{ 0x2145, 0x0002 },
+			{ 0x4061, 0x0002 },
+		},
+	},  {
+		147200000, {
+			{ 0x0051, 0x0002 },
+			{ 0x2145, 0x0002 },
+			{ 0x4064, 0x0003 },
+		},
+	},  {
+		184000000, {
+			{ 0x0051, 0x0002 },
+			{ 0x214c, 0x0003 },
+			{ 0x4064, 0x0003 },
+		},
+	},  {
+		226666000, {
+			{ 0x0040, 0x0003 },
+			{ 0x214c, 0x0003 },
+			{ 0x4064, 0x0003 },
+		},
+	},  {
+		272000000, {
+			{ 0x0040, 0x0003 },
+			{ 0x214c, 0x0003 },
+			{ 0x5a64, 0x0003 },
+		},
+	},  {
+		340000000, {
+			{ 0x0040, 0x0003 },
+			{ 0x3b4c, 0x0003 },
+			{ 0x5a64, 0x0003 },
+		},
+	},  {
+		594000000, {
+			{ 0x1a40, 0x0003 },
+			{ 0x3b4c, 0x0003 },
+			{ 0x5a64, 0x0003 },
+		},
+	}, {
+		~0UL, {
+			{ 0x0000, 0x0000 },
+			{ 0x0000, 0x0000 },
+			{ 0x0000, 0x0000 },
+		},
+	}
+};
+
+static const struct dw_hdmi_curr_ctrl sun50i_h6_cur_ctr[] = {
+	/* pixelclk    bpp8    bpp10   bpp12 */
+	{ 25175000,  { 0x0000, 0x0000, 0x0000 }, },
+	{ 27000000,  { 0x0012, 0x0000, 0x0000 }, },
+	{ 59400000,  { 0x0008, 0x0008, 0x0008 }, },
+	{ 72000000,  { 0x0008, 0x0008, 0x001b }, },
+	{ 74250000,  { 0x0013, 0x0013, 0x0013 }, },
+	{ 90000000,  { 0x0008, 0x001a, 0x001b }, },
+	{ 118800000, { 0x001b, 0x001a, 0x001b }, },
+	{ 144000000, { 0x001b, 0x001a, 0x0034 }, },
+	{ 180000000, { 0x001b, 0x0033, 0x0034 }, },
+	{ 216000000, { 0x0036, 0x0033, 0x0034 }, },
+	{ 237600000, { 0x0036, 0x0033, 0x001b }, },
+	{ 288000000, { 0x0036, 0x001b, 0x001b }, },
+	{ 297000000, { 0x0019, 0x001b, 0x0019 }, },
+	{ 330000000, { 0x0036, 0x001b, 0x001b }, },
+	{ 594000000, { 0x003f, 0x001b, 0x001b }, },
+	{ ~0UL,      { 0x0000, 0x0000, 0x0000 }, }
+};
+
+static const struct dw_hdmi_phy_config sun50i_h6_phy_config[] = {
+	/*pixelclk   symbol   term   vlev*/
+	{ 74250000,  0x8009, 0x0004, 0x0232},
+	{ 148500000, 0x8029, 0x0004, 0x0273},
+	{ 594000000, 0x8039, 0x0004, 0x014a},
+	{ ~0UL,	     0x0000, 0x0000, 0x0000}
+};
+
 static int sun8i_hdmi_phy_config_a83t(struct dw_hdmi *hdmi,
 				      struct sun8i_hdmi_phy *phy,
 				      unsigned int clk_rate)
@@ -290,6 +406,16 @@ static void sun8i_hdmi_phy_unlock(struct sun8i_hdmi_phy *phy)
 		     SUN8I_HDMI_PHY_UNSCRAMBLE_MAGIC);
 }
 
+static void sun50i_hdmi_phy_init_h6(struct sun8i_hdmi_phy *phy)
+{
+	regmap_update_bits(phy->regs, SUN8I_HDMI_PHY_REXT_CTRL_REG,
+			   SUN8I_HDMI_PHY_REXT_CTRL_REXT_EN,
+			   SUN8I_HDMI_PHY_REXT_CTRL_REXT_EN);
+
+	regmap_update_bits(phy->regs, SUN8I_HDMI_PHY_REXT_CTRL_REG,
+			   0xffff0000, 0x80c00000);
+}
+
 static void sun8i_hdmi_phy_init_a83t(struct sun8i_hdmi_phy *phy)
 {
 	sun8i_hdmi_phy_unlock(phy);
@@ -446,6 +572,13 @@ static const struct sun8i_hdmi_phy_variant sun50i_a64_hdmi_phy = {
 	.phy_config = &sun8i_hdmi_phy_config_h3,
 };
 
+static const struct sun8i_hdmi_phy_variant sun50i_h6_hdmi_phy = {
+	.cur_ctr  = sun50i_h6_cur_ctr,
+	.mpll_cfg = sun50i_h6_mpll_cfg,
+	.phy_cfg  = sun50i_h6_phy_config,
+	.phy_init = &sun50i_hdmi_phy_init_h6,
+};
+
 static const struct of_device_id sun8i_hdmi_phy_of_table[] = {
 	{
 		.compatible = "allwinner,sun8i-a83t-hdmi-phy",
@@ -462,6 +595,10 @@ static const struct of_device_id sun8i_hdmi_phy_of_table[] = {
 	{
 		.compatible = "allwinner,sun50i-a64-hdmi-phy",
 		.data = &sun50i_a64_hdmi_phy,
+	},
+	{
+		.compatible = "allwinner,sun50i-h6-hdmi-phy",
+		.data = &sun50i_h6_hdmi_phy,
 	},
 	{ /* sentinel */ }
 };
