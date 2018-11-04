@@ -42,6 +42,11 @@
 /* RALINK_RSTCTRL bits */
 #define RALINK_PCIE_RST			BIT(23)
 
+/* MediaTek specific configuration registers */
+#define PCIE_FTS_NUM			0x70c
+#define PCIE_FTS_NUM_MASK		GENMASK(15, 8)
+#define PCIE_FTS_NUM_L0(x)		((x) & 0xff << 8)
+
 /* rt_sysc_membase relative registers */
 #define RALINK_PCIE_CLK_GEN		0x7c
 #define RALINK_PCIE_CLK_GEN1		0x80
@@ -591,7 +596,7 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 
 	mt7621_enable_phy(port);
 
-	val = read_config(pcie, slot, 0x70c);
+	val = read_config(pcie, slot, PCIE_FTS_NUM);
 	dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
 
 	return 0;
@@ -642,10 +647,11 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 	for (slot = 0; slot < num_slots_enabled; slot++) {
 		val = read_config(pcie, slot, 0x4);
 		write_config(pcie, slot, 0x4, val | 0x4);
-		val = read_config(pcie, slot, 0x70c);
-		val &= ~(0xff) << 8;
-		val |= 0x50 << 8;
-		write_config(pcie, slot, 0x70c, val);
+		/* configure RC FTS number to 250 when it leaves L0s */
+		val = read_config(pcie, slot, PCIE_FTS_NUM);
+		val &= ~PCIE_FTS_NUM_MASK;
+		val |= PCIE_FTS_NUM_L0(0x50);
+		write_config(pcie, slot, PCIE_FTS_NUM, val);
 	}
 }
 
