@@ -56,17 +56,6 @@ asm (".pushsection .entry.text, \"ax\"\n"
      ".type _paravirt_nop, @function\n\t"
      ".popsection");
 
-/* identity function, which can be inlined */
-u32 notrace _paravirt_ident_32(u32 x)
-{
-	return x;
-}
-
-u64 notrace _paravirt_ident_64(u64 x)
-{
-	return x;
-}
-
 void __init default_banner(void)
 {
 	printk(KERN_INFO "Booting paravirtualized kernel on %s\n",
@@ -102,6 +91,12 @@ static unsigned paravirt_patch_call(void *insnbuf, const void *target,
 }
 
 #ifdef CONFIG_PARAVIRT_XXL
+/* identity function, which can be inlined */
+u64 notrace _paravirt_ident_64(u64 x)
+{
+	return x;
+}
+
 static unsigned paravirt_patch_jmp(void *insnbuf, const void *target,
 				   unsigned long addr, unsigned len)
 {
@@ -146,13 +141,11 @@ unsigned paravirt_patch_default(u8 type, void *insnbuf,
 	else if (opfunc == _paravirt_nop)
 		ret = 0;
 
+#ifdef CONFIG_PARAVIRT_XXL
 	/* identity functions just return their single argument */
-	else if (opfunc == _paravirt_ident_32)
-		ret = paravirt_patch_ident_32(insnbuf, len);
 	else if (opfunc == _paravirt_ident_64)
 		ret = paravirt_patch_ident_64(insnbuf, len);
 
-#ifdef CONFIG_PARAVIRT_XXL
 	else if (type == PARAVIRT_PATCH(cpu.iret) ||
 		 type == PARAVIRT_PATCH(cpu.usergs_sysret64))
 		/* If operation requires a jmp, then jmp */
@@ -309,13 +302,8 @@ struct pv_info pv_info = {
 #endif
 };
 
-#if defined(CONFIG_X86_32) && !defined(CONFIG_X86_PAE)
-/* 32-bit pagetable entries */
-#define PTE_IDENT	__PV_IS_CALLEE_SAVE(_paravirt_ident_32)
-#else
 /* 64-bit pagetable entries */
 #define PTE_IDENT	__PV_IS_CALLEE_SAVE(_paravirt_ident_64)
-#endif
 
 struct paravirt_patch_template pv_ops = {
 	/* Init ops. */
@@ -483,5 +471,5 @@ NOKPROBE_SYMBOL(native_set_debugreg);
 NOKPROBE_SYMBOL(native_load_idt);
 #endif
 
-EXPORT_SYMBOL_GPL(pv_ops);
+EXPORT_SYMBOL(pv_ops);
 EXPORT_SYMBOL_GPL(pv_info);
