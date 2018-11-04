@@ -19,6 +19,7 @@
  * @oobsize: OOB area size
  * @pages_per_eraseblock: number of pages per eraseblock
  * @eraseblocks_per_lun: number of eraseblocks per LUN (Logical Unit Number)
+ * @max_bad_eraseblocks_per_lun: maximum number of eraseblocks per LUN
  * @planes_per_lun: number of planes per LUN
  * @luns_per_target: number of LUN per target (target is a synonym for die)
  * @ntargets: total number of targets exposed by the NAND device
@@ -29,18 +30,20 @@ struct nand_memory_organization {
 	unsigned int oobsize;
 	unsigned int pages_per_eraseblock;
 	unsigned int eraseblocks_per_lun;
+	unsigned int max_bad_eraseblocks_per_lun;
 	unsigned int planes_per_lun;
 	unsigned int luns_per_target;
 	unsigned int ntargets;
 };
 
-#define NAND_MEMORG(bpc, ps, os, ppe, epl, ppl, lpt, nt)	\
+#define NAND_MEMORG(bpc, ps, os, ppe, epl, mbb, ppl, lpt, nt)	\
 	{							\
 		.bits_per_cell = (bpc),				\
 		.pagesize = (ps),				\
 		.oobsize = (os),				\
 		.pages_per_eraseblock = (ppe),			\
 		.eraseblocks_per_lun = (epl),			\
+		.max_bad_eraseblocks_per_lun = (mbb),		\
 		.planes_per_lun = (ppl),			\
 		.luns_per_target = (lpt),			\
 		.ntargets = (nt),				\
@@ -729,5 +732,6 @@ static inline bool nanddev_bbt_is_initialized(struct nand_device *nand)
 
 /* MTD -> NAND helper functions. */
 int nanddev_mtd_erase(struct mtd_info *mtd, struct erase_info *einfo);
+int nanddev_mtd_max_bad_blocks(struct mtd_info *mtd, loff_t offs, size_t len);
 
 #endif /* __LINUX_MTD_NAND_H */
