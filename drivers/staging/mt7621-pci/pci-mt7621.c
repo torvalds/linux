@@ -94,21 +94,6 @@
 #define RALINK_PCI_MM_MAP_BASE		0x60000000
 #define RALINK_PCI_IO_MAP_BASE		0x1e160000
 
-#define ASSERT_SYSRST_PCIE(val)		\
-	do {								\
-		if (rt_sysc_r32(SYSC_REG_CHIP_REV) == 0x00030101)	\
-			rt_sysc_m32(0, val, RALINK_RSTCTRL);		\
-		else							\
-			rt_sysc_m32(val, 0, RALINK_RSTCTRL);		\
-	} while (0)
-#define DEASSERT_SYSRST_PCIE(val)	\
-	do {								\
-		if (rt_sysc_r32(SYSC_REG_CHIP_REV) == 0x00030101)	\
-			rt_sysc_m32(val, 0, RALINK_RSTCTRL);		\
-		else							\
-			rt_sysc_m32(0, val, RALINK_RSTCTRL);		\
-	} while (0)
-
 #define RALINK_CLKCFG1			0x30
 #define RALINK_RSTCTRL			0x34
 #define RALINK_GPIOMODE			0x60
