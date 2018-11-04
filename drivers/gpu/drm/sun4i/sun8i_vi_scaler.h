@@ -15,6 +15,9 @@
 #define DE2_VI_SCALER_UNIT_BASE 0x20000
 #define DE2_VI_SCALER_UNIT_SIZE 0x20000
 
+#define DE3_VI_SCALER_UNIT_BASE 0x20000
+#define DE3_VI_SCALER_UNIT_SIZE 0x08000
+
 /* this two macros assumes 16 fractional bits which is standard in DRM */
 #define SUN8I_VI_SCALER_SCALE_MIN		1
 #define SUN8I_VI_SCALER_SCALE_MAX		((1UL << 20) - 1)
@@ -25,6 +28,11 @@
 #define SUN8I_VI_SCALER_SIZE(w, h)		(((h) - 1) << 16 | ((w) - 1))
 
 #define SUN8I_SCALER_VSU_CTRL(base)		((base) + 0x0)
+#define SUN50I_SCALER_VSU_SCALE_MODE(base)		((base) + 0x10)
+#define SUN50I_SCALER_VSU_DIR_THR(base)		((base) + 0x20)
+#define SUN50I_SCALER_VSU_EDGE_THR(base)		((base) + 0x24)
+#define SUN50I_SCALER_VSU_EDSCL_CTRL(base)		((base) + 0x28)
+#define SUN50I_SCALER_VSU_ANGLE_THR(base)		((base) + 0x2c)
 #define SUN8I_SCALER_VSU_OUTSIZE(base)		((base) + 0x40)
 #define SUN8I_SCALER_VSU_YINSIZE(base)		((base) + 0x80)
 #define SUN8I_SCALER_VSU_YHSTEP(base)		((base) + 0x88)
@@ -45,6 +53,21 @@
 
 #define SUN8I_SCALER_VSU_CTRL_EN		BIT(0)
 #define SUN8I_SCALER_VSU_CTRL_COEFF_RDY		BIT(4)
+
+#define SUN50I_SCALER_VSU_SUB_ZERO_DIR_THR(x)	(((x) << 24) & 0xFF)
+#define SUN50I_SCALER_VSU_ZERO_DIR_THR(x)		(((x) << 16) & 0xFF)
+#define SUN50I_SCALER_VSU_HORZ_DIR_THR(x)		(((x) << 8) & 0xFF)
+#define SUN50I_SCALER_VSU_VERT_DIR_THR(x)		((x) & 0xFF)
+
+#define SUN50I_SCALER_VSU_SCALE_MODE_UI		0
+#define SUN50I_SCALER_VSU_SCALE_MODE_NORMAL	1
+#define SUN50I_SCALER_VSU_SCALE_MODE_ED_SCALE	2
+
+#define SUN50I_SCALER_VSU_EDGE_SHIFT(x)		(((x) << 16) & 0xF)
+#define SUN50I_SCALER_VSU_EDGE_OFFSET(x)		((x) & 0xFF)
+
+#define SUN50I_SCALER_VSU_ANGLE_SHIFT(x)		(((x) << 16) & 0xF)
+#define SUN50I_SCALER_VSU_ANGLE_OFFSET(x)		((x) & 0xFF)
 
 void sun8i_vi_scaler_enable(struct sun8i_mixer *mixer, int layer, bool enable);
 void sun8i_vi_scaler_setup(struct sun8i_mixer *mixer, int layer,

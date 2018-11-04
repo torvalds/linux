@@ -30,10 +30,15 @@
 #define SUN8I_MIXER_GLOBAL_DBUFF_ENABLE		BIT(0)
 
 #define DE2_MIXER_UNIT_SIZE			0x6000
+#define DE3_MIXER_UNIT_SIZE			0x3000
 
 #define DE2_BLD_BASE				0x1000
 #define DE2_CH_BASE				0x2000
 #define DE2_CH_SIZE				0x1000
+
+#define DE3_BLD_BASE				0x0800
+#define DE3_CH_BASE				0x1000
+#define DE3_CH_SIZE				0x0800
 
 #define SUN8I_MIXER_BLEND_PIPE_CTL(base)	((base) + 0)
 #define SUN8I_MIXER_BLEND_ATTR_FCOLOR(base, x)	((base) + 0x4 + 0x10 * (x))
@@ -49,10 +54,16 @@
 #define SUN8I_MIXER_BLEND_CK_MAX(base, x)	((base) + 0xc0 + 0x04 * (x))
 #define SUN8I_MIXER_BLEND_CK_MIN(base, x)	((base) + 0xe0 + 0x04 * (x))
 #define SUN8I_MIXER_BLEND_OUTCTL(base)		((base) + 0xfc)
+#define SUN50I_MIXER_BLEND_CSC_CTL(base)	((base) + 0x100)
+#define SUN50I_MIXER_BLEND_CSC_COEFF(base, layer, x, y) \
+	((base) + 0x110 + (layer) * 0x30 +  (x) * 0x10 + 4 * (y))
+#define SUN50I_MIXER_BLEND_CSC_CONST(base, layer, i) \
+	((base) + 0x110 + (layer) * 0x30 +  (i) * 0x10 + 0x0c)
 
 #define SUN8I_MIXER_BLEND_PIPE_CTL_EN_MSK	GENMASK(12, 8)
 #define SUN8I_MIXER_BLEND_PIPE_CTL_EN(pipe)	BIT(8 + pipe)
 #define SUN8I_MIXER_BLEND_PIPE_CTL_FC_EN(pipe)	BIT(pipe)
+
 /* colors are always in AARRGGBB format */
 #define SUN8I_MIXER_BLEND_COLOR_BLACK		0xff000000
 /* The following numbers are some still unknown magic numbers */
@@ -62,6 +73,9 @@
 #define SUN8I_MIXER_BLEND_ROUTE_PIPE_SHIFT(n)	((n) << 2)
 
 #define SUN8I_MIXER_BLEND_OUTCTL_INTERLACED	BIT(1)
+
+#define SUN50I_MIXER_BLEND_CSC_CTL_EN(ch)	BIT(ch)
+#define SUN50I_MIXER_BLEND_CSC_CONST_VAL(d, c)	(((d) << 16) | ((c) & 0xffff))
 
 #define SUN8I_MIXER_FBFMT_ARGB8888	0
 #define SUN8I_MIXER_FBFMT_ABGR8888	1
@@ -112,6 +126,17 @@
 #define SUN8I_MIXER_FCC_EN			0xaa000
 #define SUN8I_MIXER_DCSC_EN			0xb0000
 
+#define SUN50I_MIXER_FCE_EN			0x70000
+#define SUN50I_MIXER_PEAK_EN			0x70800
+#define SUN50I_MIXER_LCTI_EN			0x71000
+#define SUN50I_MIXER_BLS_EN			0x71800
+#define SUN50I_MIXER_FCC_EN			0x72000
+#define SUN50I_MIXER_DNS_EN			0x80000
+#define SUN50I_MIXER_DRC_EN			0xa0000
+#define SUN50I_MIXER_FMT_EN			0xa8000
+#define SUN50I_MIXER_CDC0_EN			0xd0000
+#define SUN50I_MIXER_CDC1_EN			0xd8000
+
 struct de2_fmt_info {
 	u32			drm_fmt;
 	u32			de2_fmt;
@@ -133,6 +158,7 @@ struct de2_fmt_info {
  *	are invalid.
  * @mod_rate: module clock rate that needs to be set in order to have
  *	a functional block.
+ * @is_de3: true, if this is next gen display engine 3.0, false otherwise.
  */
 struct sun8i_mixer_cfg {
 	int		vi_num;
@@ -140,6 +166,7 @@ struct sun8i_mixer_cfg {
 	int		scaler_mask;
 	int		ccsc;
 	unsigned long	mod_rate;
+	unsigned int	is_de3 : 1;
 };
 
 struct sun8i_mixer {
@@ -162,13 +189,16 @@ engine_to_sun8i_mixer(struct sunxi_engine *engine)
 static inline u32
 sun8i_blender_base(struct sun8i_mixer *mixer)
 {
-	return DE2_BLD_BASE;
+	return mixer->cfg->is_de3 ? DE3_BLD_BASE : DE2_BLD_BASE;
 }
 
 static inline u32
 sun8i_channel_base(struct sun8i_mixer *mixer, int channel)
 {
-	return DE2_CH_BASE + channel * DE2_CH_SIZE;
+	if (mixer->cfg->is_de3)
+		return DE3_CH_BASE + channel * DE3_CH_SIZE;
+	else
+		return DE2_CH_BASE + channel * DE2_CH_SIZE;
 }
 
 const struct de2_fmt_info *sun8i_mixer_format_info(u32 format);

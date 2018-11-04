@@ -12,6 +12,7 @@
 #include "sun8i_mixer.h"
 
 #define DE2_UI_SCALER_UNIT_SIZE 0x10000
+#define DE3_UI_SCALER_UNIT_SIZE 0x08000
 
 /* this two macros assumes 16 fractional bits which is standard in DRM */
 #define SUN8I_UI_SCALER_SCALE_MIN		1

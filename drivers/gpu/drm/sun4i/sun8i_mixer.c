@@ -459,18 +459,33 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 
 	base = sun8i_blender_base(mixer);
 
-	/* Reset the registers */
-	for (i = 0; i < DE2_MIXER_UNIT_SIZE; i += 4)
-		regmap_write(mixer->engine.regs, i, 0);
+	/* Reset registers and disable unused sub-engines */
+	if (mixer->cfg->is_de3) {
+		for (i = 0; i < DE3_MIXER_UNIT_SIZE; i += 4)
+			regmap_write(mixer->engine.regs, i, 0);
 
-	/* Disable unused sub-engines */
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_FCE_EN, 0);
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_BWS_EN, 0);
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_LTI_EN, 0);
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_PEAK_EN, 0);
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_ASE_EN, 0);
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_FCC_EN, 0);
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_DCSC_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_FCE_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_PEAK_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_LCTI_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_BLS_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_FCC_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_DNS_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_DRC_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_FMT_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_CDC0_EN, 0);
+		regmap_write(mixer->engine.regs, SUN50I_MIXER_CDC1_EN, 0);
+	} else {
+		for (i = 0; i < DE2_MIXER_UNIT_SIZE; i += 4)
+			regmap_write(mixer->engine.regs, i, 0);
+
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_FCE_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_BWS_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_LTI_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_PEAK_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_ASE_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_FCC_EN, 0);
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_DCSC_EN, 0);
+	}
 
 	/* Enable the mixer */
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_GLOBAL_CTL,

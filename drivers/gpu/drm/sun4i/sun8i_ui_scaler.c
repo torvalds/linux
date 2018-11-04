@@ -93,8 +93,14 @@ static u32 sun8i_ui_scaler_base(struct sun8i_mixer *mixer, int channel)
 {
 	int vi_num = mixer->cfg->vi_num;
 
-	return DE2_VI_SCALER_UNIT_BASE + DE2_VI_SCALER_UNIT_SIZE * vi_num +
-	       DE2_UI_SCALER_UNIT_SIZE * (channel - vi_num);
+	if (mixer->cfg->is_de3)
+		return DE3_VI_SCALER_UNIT_BASE +
+		       DE3_VI_SCALER_UNIT_SIZE * vi_num +
+		       DE3_UI_SCALER_UNIT_SIZE * (channel - vi_num);
+	else
+		return DE2_VI_SCALER_UNIT_BASE +
+		       DE2_VI_SCALER_UNIT_SIZE * vi_num +
+		       DE2_UI_SCALER_UNIT_SIZE * (channel - vi_num);
 }
 
 static int sun8i_ui_scaler_coef_index(unsigned int step)

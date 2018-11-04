@@ -202,6 +202,14 @@ static int sun8i_vi_layer_update_formats(struct sun8i_mixer *mixer, int channel,
 			   SUN8I_MIXER_CHAN_VI_LAYER_ATTR(ch_base, overlay),
 			   SUN8I_MIXER_CHAN_VI_LAYER_ATTR_RGB_MODE, val);
 
+	/* It seems that YUV formats use global alpha setting. */
+	if (mixer->cfg->is_de3)
+		regmap_update_bits(mixer->engine.regs,
+				   SUN8I_MIXER_CHAN_VI_LAYER_ATTR(ch_base,
+								  overlay),
+				   SUN50I_MIXER_CHAN_VI_LAYER_ATTR_ALPHA_MASK,
+				   SUN50I_MIXER_CHAN_VI_LAYER_ATTR_ALPHA(0xff));
+
 	return 0;
 }
 

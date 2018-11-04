@@ -835,7 +835,12 @@ static const u32 bicubic4coefftab32[480] = {
 
 static u32 sun8i_vi_scaler_base(struct sun8i_mixer *mixer, int channel)
 {
-	return DE2_VI_SCALER_UNIT_BASE + DE2_VI_SCALER_UNIT_SIZE * channel;
+	if (mixer->cfg->is_de3)
+		return DE3_VI_SCALER_UNIT_BASE +
+		       DE3_VI_SCALER_UNIT_SIZE * channel;
+	else
+		return DE2_VI_SCALER_UNIT_BASE +
+		       DE2_VI_SCALER_UNIT_SIZE * channel;
 }
 
 static int sun8i_vi_scaler_coef_index(unsigned int step)
@@ -949,6 +954,18 @@ void sun8i_vi_scaler_setup(struct sun8i_mixer *mixer, int layer,
 	} else {
 		chphase = hphase;
 		cvphase = vphase;
+	}
+
+	if (mixer->cfg->is_de3) {
+		u32 val;
+
+		if (format->hsub == 1 && format->vsub == 1)
+			val = SUN50I_SCALER_VSU_SCALE_MODE_UI;
+		else
+			val = SUN50I_SCALER_VSU_SCALE_MODE_NORMAL;
+
+		regmap_write(mixer->engine.regs,
+			     SUN50I_SCALER_VSU_SCALE_MODE(base), val);
 	}
 
 	regmap_write(mixer->engine.regs,
