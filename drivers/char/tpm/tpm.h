@@ -523,6 +523,8 @@ static inline void tpm_msleep(unsigned int delay_msec)
 		     delay_msec * 1000);
 };
 
+int tpm_chip_start(struct tpm_chip *chip, unsigned int flags);
+void tpm_chip_stop(struct tpm_chip *chip, unsigned int flags);
 struct tpm_chip *tpm_find_get_ops(struct tpm_chip *chip);
 __must_check int tpm_try_get_ops(struct tpm_chip *chip);
 void tpm_put_ops(struct tpm_chip *chip);

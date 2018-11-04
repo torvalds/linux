@@ -37,6 +37,117 @@ struct class *tpm_class;
 struct class *tpmrm_class;
 dev_t tpm_devt;
 
+static int tpm_request_locality(struct tpm_chip *chip, unsigned int flags)
+{
+	int rc;
+
+	if (flags & TPM_TRANSMIT_NESTED)
+		return 0;
+
+	if (!chip->ops->request_locality)
+		return 0;
+
+	rc = chip->ops->request_locality(chip, 0);
+	if (rc < 0)
+		return rc;
+
+	chip->locality = rc;
+	return 0;
+}
+
+static void tpm_relinquish_locality(struct tpm_chip *chip, unsigned int flags)
+{
+	int rc;
+
+	if (flags & TPM_TRANSMIT_NESTED)
+		return;
+
+	if (!chip->ops->relinquish_locality)
+		return;
+
+	rc = chip->ops->relinquish_locality(chip, chip->locality);
+	if (rc)
+		dev_err(&chip->dev, "%s: : error %d\n", __func__, rc);
+
+	chip->locality = -1;
+}
+
+static int tpm_cmd_ready(struct tpm_chip *chip, unsigned int flags)
+{
+	if (flags & TPM_TRANSMIT_NESTED)
+		return 0;
+
+	if (!chip->ops->cmd_ready)
+		return 0;
+
+	return chip->ops->cmd_ready(chip);
+}
+
+static int tpm_go_idle(struct tpm_chip *chip, unsigned int flags)
+{
+	if (flags & TPM_TRANSMIT_NESTED)
+		return 0;
+
+	if (!chip->ops->go_idle)
+		return 0;
+
+	return chip->ops->go_idle(chip);
+}
+
+/**
+ * tpm_chip_start() - power on the TPM
+ * @chip:	a TPM chip to use
+ * @flags:	TPM transmit flags
+ *
+ * Return:
+ * * The response length	- OK
+ * * -errno			- A system error
+ */
+int tpm_chip_start(struct tpm_chip *chip, unsigned int flags)
+{
+	int ret;
+
+	if (chip->ops->clk_enable)
+		chip->ops->clk_enable(chip, true);
+
+	if (chip->locality == -1) {
+		ret = tpm_request_locality(chip, flags);
+		if (ret) {
+			chip->ops->clk_enable(chip, false);
+			return ret;
+		}
+	}
+
+	ret = tpm_cmd_ready(chip, flags);
+	if (ret) {
+		tpm_relinquish_locality(chip, flags);
+		if (chip->ops->clk_enable)
+			chip->ops->clk_enable(chip, false);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tpm_chip_start);
+
+/**
+ * tpm_chip_stop() - power off the TPM
+ * @chip:	a TPM chip to use
+ * @flags:	TPM transmit flags
+ *
+ * Return:
+ * * The response length	- OK
+ * * -errno			- A system error
+ */
+void tpm_chip_stop(struct tpm_chip *chip, unsigned int flags)
+{
+	tpm_go_idle(chip, flags);
+	tpm_relinquish_locality(chip, flags);
+	if (chip->ops->clk_enable)
+		chip->ops->clk_enable(chip, false);
+}
+EXPORT_SYMBOL_GPL(tpm_chip_stop);
+
 /**
  * tpm_try_get_ops() - Get a ref to the tpm_chip
  * @chip: Chip to ref

@@ -62,64 +62,6 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
 }
 EXPORT_SYMBOL_GPL(tpm_calc_ordinal_duration);
 
-static int tpm_request_locality(struct tpm_chip *chip, unsigned int flags)
-{
-	int rc;
-
-	if (flags & TPM_TRANSMIT_NESTED)
-		return 0;
-
-	if (!chip->ops->request_locality)
-		return 0;
-
-	rc = chip->ops->request_locality(chip, 0);
-	if (rc < 0)
-		return rc;
-
-	chip->locality = rc;
-
-	return 0;
-}
-
-static void tpm_relinquish_locality(struct tpm_chip *chip, unsigned int flags)
-{
-	int rc;
-
-	if (flags & TPM_TRANSMIT_NESTED)
-		return;
-
-	if (!chip->ops->relinquish_locality)
-		return;
-
-	rc = chip->ops->relinquish_locality(chip, chip->locality);
-	if (rc)
-		dev_err(&chip->dev, "%s: : error %d\n", __func__, rc);
-
-	chip->locality = -1;
-}
-
-static int tpm_cmd_ready(struct tpm_chip *chip, unsigned int flags)
-{
-	if (flags & TPM_TRANSMIT_NESTED)
-		return 0;
-
-	if (!chip->ops->cmd_ready)
-		return 0;
-
-	return chip->ops->cmd_ready(chip);
-}
-
-static int tpm_go_idle(struct tpm_chip *chip, unsigned int flags)
-{
-	if (flags & TPM_TRANSMIT_NESTED)
-		return 0;
-
-	if (!chip->ops->go_idle)
-		return 0;
-
-	return chip->ops->go_idle(chip);
-}
-
 static ssize_t tpm_try_transmit(struct tpm_chip *chip, void *buf, size_t bufsiz,
 				unsigned int flags)
 {
@@ -221,7 +163,6 @@ ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz,
 	/* space for header and handles */
 	u8 save[TPM_HEADER_SIZE + 3*sizeof(u32)];
 	unsigned int delay_msec = TPM2_DURATION_SHORT;
-	bool has_locality = false;
 	u32 rc = 0;
 	ssize_t ret;
 	const size_t save_size = min(sizeof(save), bufsiz);
@@ -236,32 +177,13 @@ ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz,
 	memcpy(save, buf, save_size);
 
 	for (;;) {
-		if (chip->ops->clk_enable != NULL)
-			chip->ops->clk_enable(chip, true);
-
-		if (chip->locality == -1) {
-			ret = tpm_request_locality(chip, flags);
-			if (ret)
-				goto out_locality;
-			has_locality = true;
-		}
-
-		ret = tpm_cmd_ready(chip, flags);
+		ret = tpm_chip_start(chip, flags);
 		if (ret)
-			goto out_locality;
+			return ret;
 
 		ret = tpm_try_transmit(chip, buf, bufsiz, flags);
 
-		/* This may fail but do not override ret. */
-		tpm_go_idle(chip, flags);
-
-out_locality:
-		if (has_locality)
-			tpm_relinquish_locality(chip, flags);
-
-		if (chip->ops->clk_enable != NULL)
-			chip->ops->clk_enable(chip, false);
-
+		tpm_chip_stop(chip, flags);
 		if (ret < 0)
 			break;
 		rc = be32_to_cpu(header->return_code);
