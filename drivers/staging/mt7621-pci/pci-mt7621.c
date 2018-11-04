@@ -629,11 +629,6 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 		break;
 	}
 
-/*
-	ioport_resource.start = mt7621_res_pci_io1.start;
-	ioport_resource.end = mt7621_res_pci_io1.end;
-*/
-
 	pcie_write(pcie, 0xffffffff, RALINK_PCI_MEMBASE);
 	pcie_write(pcie, RALINK_PCI_IO_MAP_BASE, RALINK_PCI_IOBASE);
 
