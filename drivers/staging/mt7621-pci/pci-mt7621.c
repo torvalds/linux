@@ -32,11 +32,6 @@
 
 #include "../../pci/pci.h"
 
-/*
- * These functions and structures provide the BIOS scan and mapping of the PCI
- * devices.
- */
-
 /* sysctl */
 #define MT7621_CHIP_REV_ID		0x0c
 #define RALINK_CLKCFG1			0x30
