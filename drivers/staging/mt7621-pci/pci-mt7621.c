@@ -387,6 +387,14 @@ set_phy_for_ssc(struct mt7621_pcie_port *port)
 	pcie_write(pcie, val, offset);
 }
 
+static void mt7621_enable_phy(struct mt7621_pcie_port *port)
+{
+	/* MT7621 E2 */
+	if ((*(unsigned int *)(0xbe00000c) & 0xFFFF) == 0x0101)
+		bypass_pipe_rst(port);
+	set_phy_for_ssc(port);
+}
+
 static void setup_cm_memory_region(struct resource *mem_resource)
 {
 	resource_size_t mask;
@@ -565,6 +573,8 @@ static int mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
 		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 	}
 
+	mt7621_enable_phy(port);
+
 	return 0;
 }
 
@@ -652,9 +662,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 			dev_err(dev, "enabling port %d failed\n", slot);
 			list_del(&port->list);
 		} else {
-			if ((*(unsigned int *)(0xbe00000c) & 0xFFFF) == 0x0101) // MT7621 E2
-				bypass_pipe_rst(port);
-			set_phy_for_ssc(port);
 			val = read_config(pcie, slot, 0x70c);
 			dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
 		}
