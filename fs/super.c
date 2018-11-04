@@ -836,28 +836,35 @@ rescan:
 }
 
 /**
- *	do_remount_sb - asks filesystem to change mount options.
- *	@sb:	superblock in question
- *	@sb_flags: revised superblock flags
- *	@data:	the rest of options
- *      @force: whether or not to force the change
+ * reconfigure_super - asks filesystem to change superblock parameters
+ * @fc: The superblock and configuration
  *
- *	Alters the mount options of a mounted file system.
+ * Alters the configuration parameters of a live superblock.
  */
-int do_remount_sb(struct super_block *sb, int sb_flags, void *data, int force)
+int reconfigure_super(struct fs_context *fc)
 {
+	struct super_block *sb = fc->root->d_sb;
 	int retval;
-	int remount_ro;
+	bool remount_ro = false;
+	bool force = fc->sb_flags & SB_FORCE;
 
+	if (fc->sb_flags_mask & ~MS_RMT_MASK)
+		return -EINVAL;
 	if (sb->s_writers.frozen != SB_UNFROZEN)
 		return -EBUSY;
 
+	retval = security_sb_remount(sb, fc->security);
+	if (retval)
+		return retval;
+
+	if (fc->sb_flags_mask & SB_RDONLY) {
 #ifdef CONFIG_BLOCK
-	if (!(sb_flags & SB_RDONLY) && bdev_read_only(sb->s_bdev))
-		return -EACCES;
+		if (!(fc->sb_flags & SB_RDONLY) && bdev_read_only(sb->s_bdev))
+			return -EACCES;
 #endif
 
-	remount_ro = (sb_flags & SB_RDONLY) && !sb_rdonly(sb);
+		remount_ro = (fc->sb_flags & SB_RDONLY) && !sb_rdonly(sb);
+	}
 
 	if (remount_ro) {
 		if (!hlist_empty(&sb->s_pins)) {
@@ -868,13 +875,14 @@ int do_remount_sb(struct super_block *sb, int sb_flags, void *data, int force)
 				return 0;
 			if (sb->s_writers.frozen != SB_UNFROZEN)
 				return -EBUSY;
-			remount_ro = (sb_flags & SB_RDONLY) && !sb_rdonly(sb);
+			remount_ro = !sb_rdonly(sb);
 		}
 	}
 	shrink_dcache_sb(sb);
 
-	/* If we are remounting RDONLY and current sb is read/write,
-	   make sure there are no rw files opened */
+	/* If we are reconfiguring to RDONLY and current sb is read/write,
+	 * make sure there are no files open for writing.
+	 */
 	if (remount_ro) {
 		if (force) {
 			sb->s_readonly_remount = 1;
@@ -886,17 +894,17 @@ int do_remount_sb(struct super_block *sb, int sb_flags, void *data, int force)
 		}
 	}
 
-	if (sb->s_op->remount_fs) {
-		retval = sb->s_op->remount_fs(sb, &sb_flags, data);
-		if (retval) {
-			if (!force)
-				goto cancel_readonly;
-			/* If forced remount, go ahead despite any errors */
-			WARN(1, "forced remount of a %s fs returned %i\n",
-			     sb->s_type->name, retval);
-		}
+	retval = legacy_reconfigure(fc);
+	if (retval) {
+		if (!force)
+			goto cancel_readonly;
+		/* If forced remount, go ahead despite any errors */
+		WARN(1, "forced remount of a %s fs returned %i\n",
+		     sb->s_type->name, retval);
 	}
-	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (sb_flags & MS_RMT_MASK);
+
+	WRITE_ONCE(sb->s_flags, ((sb->s_flags & ~fc->sb_flags_mask) |
+				 (fc->sb_flags & fc->sb_flags_mask)));
 	/* Needs to be ordered wrt mnt_is_readonly() */
 	smp_wmb();
 	sb->s_readonly_remount = 0;
@@ -923,10 +931,15 @@ static void do_emergency_remount_callback(struct super_block *sb)
 	down_write(&sb->s_umount);
 	if (sb->s_root && sb->s_bdev && (sb->s_flags & SB_BORN) &&
 	    !sb_rdonly(sb)) {
-		/*
-		 * What lock protects sb->s_flags??
-		 */
-		do_remount_sb(sb, SB_RDONLY, NULL, 1);
+		struct fs_context *fc;
+
+		fc = fs_context_for_reconfigure(sb->s_root,
+					SB_RDONLY | SB_FORCE, SB_RDONLY);
+		if (!IS_ERR(fc)) {
+			if (parse_monolithic_mount_data(fc, NULL) == 0)
+				(void)reconfigure_super(fc);
+			put_fs_context(fc);
+		}
 	}
 	up_write(&sb->s_umount);
 }
@@ -1213,6 +1226,31 @@ struct dentry *mount_nodev(struct file_system_type *fs_type,
 }
 EXPORT_SYMBOL(mount_nodev);
 
+static int reconfigure_single(struct super_block *s,
+			      int flags, void *data)
+{
+	struct fs_context *fc;
+	int ret;
+
+	/* The caller really need to be passing fc down into mount_single(),
+	 * then a chunk of this can be removed.  [Bollocks -- AV]
+	 * Better yet, reconfiguration shouldn't happen, but rather the second
+	 * mount should be rejected if the parameters are not compatible.
+	 */
+	fc = fs_context_for_reconfigure(s->s_root, flags, MS_RMT_MASK);
+	if (IS_ERR(fc))
+		return PTR_ERR(fc);
+
+	ret = parse_monolithic_mount_data(fc, data);
+	if (ret < 0)
+		goto out;
+
+	ret = reconfigure_super(fc);
+out:
+	put_fs_context(fc);
+	return ret;
+}
+
 static int compare_single(struct super_block *s, void *p)
 {
 	return 1;
@@ -1230,13 +1268,14 @@ struct dentry *mount_single(struct file_system_type *fs_type,
 		return ERR_CAST(s);
 	if (!s->s_root) {
 		error = fill_super(s, data, flags & SB_SILENT ? 1 : 0);
-		if (error) {
-			deactivate_locked_super(s);
-			return ERR_PTR(error);
-		}
-		s->s_flags |= SB_ACTIVE;
+		if (!error)
+			s->s_flags |= SB_ACTIVE;
 	} else {
-		do_remount_sb(s, flags, data, 0);
+		error = reconfigure_single(s, flags, data);
+	}
+	if (unlikely(error)) {
+		deactivate_locked_super(s);
+		return ERR_PTR(error);
 	}
 	return dget(s->s_root);
 }

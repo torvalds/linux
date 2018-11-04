@@ -25,6 +25,7 @@ struct user_namespace;
 
 enum fs_context_purpose {
 	FS_CONTEXT_FOR_MOUNT,		/* New superblock for explicit mount */
+	FS_CONTEXT_FOR_RECONFIGURE,	/* Superblock reconfiguration (remount) */
 };
 
 /*
@@ -57,6 +58,9 @@ struct fs_context {
  */
 extern struct fs_context *fs_context_for_mount(struct file_system_type *fs_type,
 						unsigned int sb_flags);
+extern struct fs_context *fs_context_for_reconfigure(struct dentry *dentry,
+						unsigned int sb_flags,
+						unsigned int sb_flags_mask);
 
 extern int vfs_get_tree(struct fs_context *fc);
 extern void put_fs_context(struct fs_context *fc);

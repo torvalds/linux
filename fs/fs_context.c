@@ -69,6 +69,13 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 	case FS_CONTEXT_FOR_MOUNT:
 		fc->user_ns = get_user_ns(fc->cred->user_ns);
 		break;
+	case FS_CONTEXT_FOR_RECONFIGURE:
+		/* We don't pin any namespaces as the superblock's
+		 * subscriptions cannot be changed at this point.
+		 */
+		atomic_inc(&reference->d_sb->s_active);
+		fc->root = dget(reference);
+		break;
 	}
 
 	ret = legacy_init_fs_context(fc);
@@ -90,6 +97,15 @@ struct fs_context *fs_context_for_mount(struct file_system_type *fs_type,
 }
 EXPORT_SYMBOL(fs_context_for_mount);
 
+struct fs_context *fs_context_for_reconfigure(struct dentry *dentry,
+					unsigned int sb_flags,
+					unsigned int sb_flags_mask)
+{
+	return alloc_fs_context(dentry->d_sb->s_type, dentry, sb_flags,
+				sb_flags_mask, FS_CONTEXT_FOR_RECONFIGURE);
+}
+EXPORT_SYMBOL(fs_context_for_reconfigure);
+
 void fc_drop_locked(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
@@ -99,6 +115,7 @@ void fc_drop_locked(struct fs_context *fc)
 }
 
 static void legacy_fs_context_free(struct fs_context *fc);
+
 /**
  * put_fs_context - Dispose of a superblock configuration context.
  * @fc: The context to dispose of.
@@ -118,8 +135,7 @@ void put_fs_context(struct fs_context *fc)
 		legacy_fs_context_free(fc);
 
 	security_free_mnt_opts(&fc->security);
-	if (fc->net_ns)
-		put_net(fc->net_ns);
+	put_net(fc->net_ns);
 	put_user_ns(fc->user_ns);
 	put_cred(fc->cred);
 	kfree(fc->subtype);
@@ -170,6 +186,21 @@ int legacy_get_tree(struct fs_context *fc)
 
 	fc->root = root;
 	return 0;
+}
+
+/*
+ * Handle remount.
+ */
+int legacy_reconfigure(struct fs_context *fc)
+{
+	struct legacy_fs_context *ctx = fc->fs_private;
+	struct super_block *sb = fc->root->d_sb;
+
+	if (!sb->s_op->remount_fs)
+		return 0;
+
+	return sb->s_op->remount_fs(sb, &fc->sb_flags,
+				    ctx ? ctx->legacy_data : NULL);
 }
 
 /*

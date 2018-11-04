@@ -1489,6 +1489,29 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 
 static void shrink_submounts(struct mount *mnt);
 
+static int do_umount_root(struct super_block *sb)
+{
+	int ret = 0;
+
+	down_write(&sb->s_umount);
+	if (!sb_rdonly(sb)) {
+		struct fs_context *fc;
+
+		fc = fs_context_for_reconfigure(sb->s_root, SB_RDONLY,
+						SB_RDONLY);
+		if (IS_ERR(fc)) {
+			ret = PTR_ERR(fc);
+		} else {
+			ret = parse_monolithic_mount_data(fc, NULL);
+			if (!ret)
+				ret = reconfigure_super(fc);
+			put_fs_context(fc);
+		}
+	}
+	up_write(&sb->s_umount);
+	return ret;
+}
+
 static int do_umount(struct mount *mnt, int flags)
 {
 	struct super_block *sb = mnt->mnt.mnt_sb;
@@ -1554,11 +1577,7 @@ static int do_umount(struct mount *mnt, int flags)
 		 */
 		if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN))
 			return -EPERM;
-		down_write(&sb->s_umount);
-		if (!sb_rdonly(sb))
-			retval = do_remount_sb(sb, SB_RDONLY, NULL, 0);
-		up_write(&sb->s_umount);
-		return retval;
+		return do_umount_root(sb);
 	}
 
 	namespace_lock();
@@ -2367,7 +2386,7 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 	int err;
 	struct super_block *sb = path->mnt->mnt_sb;
 	struct mount *mnt = real_mount(path->mnt);
-	void *sec_opts = NULL;
+	struct fs_context *fc;
 
 	if (!check_mnt(mnt))
 		return -EINVAL;
@@ -2378,24 +2397,22 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 	if (!can_change_locked_flags(mnt, mnt_flags))
 		return -EPERM;
 
-	if (data && !(sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)) {
-		err = security_sb_eat_lsm_opts(data, &sec_opts);
-		if (err)
-			return err;
-	}
-	err = security_sb_remount(sb, sec_opts);
-	security_free_mnt_opts(&sec_opts);
-	if (err)
-		return err;
+	fc = fs_context_for_reconfigure(path->dentry, sb_flags, MS_RMT_MASK);
+	if (IS_ERR(fc))
+		return PTR_ERR(fc);
 
-	down_write(&sb->s_umount);
-	err = -EPERM;
-	if (ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
-		err = do_remount_sb(sb, sb_flags, data, 0);
-		if (!err)
-			set_mount_attributes(mnt, mnt_flags);
+	err = parse_monolithic_mount_data(fc, data);
+	if (!err) {
+		down_write(&sb->s_umount);
+		err = -EPERM;
+		if (ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
+			err = reconfigure_super(fc);
+			if (!err)
+				set_mount_attributes(mnt, mnt_flags);
+		}
+		up_write(&sb->s_umount);
 	}
-	up_write(&sb->s_umount);
+	put_fs_context(fc);
 	return err;
 }
 

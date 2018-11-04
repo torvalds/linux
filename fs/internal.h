@@ -56,6 +56,7 @@ extern void __init chrdev_init(void);
  * fs_context.c
  */
 extern int legacy_get_tree(struct fs_context *fc);
+extern int legacy_reconfigure(struct fs_context *fc);
 extern int parse_monolithic_mount_data(struct fs_context *, void *);
 extern void fc_drop_locked(struct fs_context *);
 
@@ -107,7 +108,7 @@ extern struct file *alloc_empty_file_noaccount(int, const struct cred *);
 /*
  * super.c
  */
-extern int do_remount_sb(struct super_block *, int, void *, int);
+extern int reconfigure_super(struct fs_context *);
 extern bool trylock_super(struct super_block *sb);
 extern struct super_block *user_get_super(dev_t);
 
