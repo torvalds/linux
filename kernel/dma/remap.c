@@ -200,7 +200,8 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 	size = PAGE_ALIGN(size);
 
-	if (!gfpflags_allow_blocking(flags)) {
+	if (!gfpflags_allow_blocking(flags) &&
+	    !(attrs & DMA_ATTR_NO_KERNEL_MAPPING)) {
 		ret = dma_alloc_from_pool(size, &page, flags);
 		if (!ret)
 			return NULL;
@@ -215,6 +216,9 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	/* remove any dirty cache lines on the kernel alias */
 	arch_dma_prep_coherent(page, size);
 
+	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING)
+		return page; /* opaque cookie */
+
 	/* create a coherent mapping */
 	ret = dma_common_contiguous_remap(page, size, VM_USERMAP,
 			arch_dma_mmap_pgprot(dev, PAGE_KERNEL, attrs),
@@ -227,7 +231,10 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 		dma_addr_t dma_handle, unsigned long attrs)
 {
-	if (!dma_free_from_pool(vaddr, PAGE_ALIGN(size))) {
+	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING) {
+		/* vaddr is a struct page cookie, not a kernel address */
+		__dma_direct_free_pages(dev, size, vaddr);
+	} else if (!dma_free_from_pool(vaddr, PAGE_ALIGN(size))) {
 		phys_addr_t phys = dma_to_phys(dev, dma_handle);
 		struct page *page = pfn_to_page(__phys_to_pfn(phys));
 
