@@ -1881,7 +1881,8 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 
 	trace_btree_write(b, bytes_to_write, sectors_to_write);
 
-	wbio = container_of(bio_alloc_bioset(NULL, 1 << order,
+	wbio = container_of(bio_alloc_bioset(NULL,
+				buf_pages(data, sectors_to_write << 9),
 				REQ_OP_WRITE|REQ_META|REQ_FUA,
 				GFP_NOIO,
 				&c->btree_bio),

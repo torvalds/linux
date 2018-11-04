@@ -429,7 +429,6 @@ static int journal_read_bucket(struct bch_dev *ca,
 {
 	struct bch_fs *c = ca->fs;
 	struct journal_device *ja = &ca->journal;
-	struct bio *bio = ja->bio;
 	struct jset *j = NULL;
 	unsigned sectors, sectors_read = 0;
 	u64 offset = bucket_to_sector(ca, ja->buckets[bucket]),
@@ -441,15 +440,22 @@ static int journal_read_bucket(struct bch_dev *ca,
 
 	while (offset < end) {
 		if (!sectors_read) {
-reread:			sectors_read = min_t(unsigned,
+			struct bio *bio;
+			unsigned nr_bvecs;
+reread:
+			sectors_read = min_t(unsigned,
 				end - offset, buf->size >> 9);
+			nr_bvecs = buf_pages(buf->data, sectors_read << 9);
 
-			bio_reset(bio, ca->disk_sb.bdev, REQ_OP_READ);
+			bio = bio_kmalloc(nr_bvecs, GFP_KERNEL);
+			bio_init(bio, ca->disk_sb.bdev, bio->bi_inline_vecs, nr_bvecs, REQ_OP_READ);
+
 			bio->bi_iter.bi_sector	= offset;
 			bio->bi_iter.bi_size	= sectors_read << 9;
 			bch2_bio_map(bio, buf->data);
 
 			ret = submit_bio_wait(bio);
+			kfree(bio);
 
 			if (bch2_dev_io_err_on(ret, ca,
 					       "journal read from sector %llu",

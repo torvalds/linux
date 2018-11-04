@@ -1672,7 +1672,7 @@ struct bkey_packed *bch2_btree_node_iter_prev_filter(struct btree_node_iter *ite
 	struct bkey_packed *orig_pos = bch2_btree_node_iter_peek_all(iter, b);
 	struct btree_node_iter_set *set;
 	struct bset_tree *t;
-	unsigned end;
+	unsigned end = 0;
 
 	bch2_btree_node_iter_verify(iter, b);
 
