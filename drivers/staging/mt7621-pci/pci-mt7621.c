@@ -628,54 +628,64 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 	}
 }
 
+static int mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
+{
+	struct mt7621_pcie *pcie = port->pcie;
+	u32 slot = port->slot;
+	u32 offset = MT7621_PCIE_OFFSET + (slot * MT7621_NEXT_PORT);
+	u32 val;
+	int err;
+
+	/* assert port PERST_N */
+	val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+	val |= PCIE_PORT_PERST(slot);
+	pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
+
+	/* de-assert port PERST_N */
+	val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
+	val &= ~PCIE_PORT_PERST(slot);
+	pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
+
+	/* 100ms timeout value should be enough for Gen1 training */
+	err = readl_poll_timeout(port->base + RALINK_PCI_STATUS,
+				 val, !!(val & PCIE_PORT_LINKUP),
+				 20, 100 * USEC_PER_MSEC);
+	if (err)
+		return -ETIMEDOUT;
+
+	/* enable pcie interrupt */
+	val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
+	val |= PCIE_PORT_INT_EN(slot);
+	pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
+
+	/* map 2G DDR region */
+	pcie_write(pcie, PCIE_BAR_MAP_MAX | PCIE_BAR_ENABLE,
+		   offset + RALINK_PCI_BAR0SETUP_ADDR);
+	pcie_write(pcie, MEMORY_BASE,
+		   offset + RALINK_PCI_IMBASEBAR0_ADDR);
+
+	/* configure class code and revision ID */
+	pcie_write(pcie, PCIE_CLASS_CODE | PCIE_REVISION_ID,
+		   offset + RALINK_PCI_CLASS);
+
+	return 0;
+}
+
 static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct mt7621_pcie_port *port;
 	u8 num_slots_enabled = 0;
-	u32 offset;
 	u32 slot;
 	u32 val;
-	int err;
 
 	list_for_each_entry(port, &pcie->ports, list) {
-		slot = port->slot;
-		offset = MT7621_PCIE_OFFSET + (slot * MT7621_NEXT_PORT);
-
 		if (port->enabled) {
-			/* assert port PERST_N */
-			val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-			val |= PCIE_PORT_PERST(slot);
-			pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-
-			/* de-assert port PERST_N */
-			val = pcie_read(pcie, RALINK_PCI_PCICFG_ADDR);
-			val &= ~PCIE_PORT_PERST(slot);
-			pcie_write(pcie, val, RALINK_PCI_PCICFG_ADDR);
-
-			/* 100ms timeout value should be enough for Gen1 training */
-			err = readl_poll_timeout(port->base + RALINK_PCI_STATUS,
-						 val,!!(val & PCIE_PORT_LINKUP),
-						 20, 100 * USEC_PER_MSEC);
-			if (err) {
+			if (!mt7621_pcie_enable_port(port)) {
 				dev_err(dev, "de-assert port %d PERST_N\n",
-					slot);
+					port->slot);
 				continue;
 			}
-
-			/* enable pcie interrupt */
-			val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
-			val |= PCIE_PORT_INT_EN(slot);
-			pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
-
-			/* map 2G DDR region */
-			pcie_write(pcie, PCIE_BAR_MAP_MAX | PCIE_BAR_ENABLE,
-				   offset + RALINK_PCI_BAR0SETUP_ADDR);
-			pcie_write(pcie, MEMORY_BASE,
-				   offset + RALINK_PCI_IMBASEBAR0_ADDR);
-			/* configure class code and revision ID */
-			pcie_write(pcie, PCIE_CLASS_CODE | PCIE_REVISION_ID,
-				   offset + RALINK_PCI_CLASS);
 			dev_info(dev, "PCIE%d enabled\n", slot);
 			num_slots_enabled++;
 		}
