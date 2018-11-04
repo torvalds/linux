@@ -126,16 +126,20 @@ static int pcie_link_status;
 
 /**
  * struct mt7621_pcie_port - PCIe port information
- * @base: IO mapped register base
+ * @base: I/O mapped register base
  * @list: port list
  * @pcie: pointer to PCIe host info
- * @reset: pointer to port reset control
+ * @pcie_rst: pointer to port reset control
+ * @pcie_clk: PCIe clock
+ * @slot: port slot
  */
 struct mt7621_pcie_port {
 	void __iomem *base;
 	struct list_head list;
 	struct mt7621_pcie *pcie;
-	struct reset_control *reset;
+	struct reset_control *pcie_rst;
+	struct clk *pcie_clk;
+	u32 slot;
 };
 
 /**
@@ -382,10 +386,57 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 	return 0;
 }
 
+static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
+				  struct device_node *node,
+				  int slot)
+{
+	struct mt7621_pcie_port *port;
+	struct device *dev = pcie->dev;
+	struct device_node *pnode = dev->of_node;
+	struct resource regs;
+	char name[6];
+	int err;
+
+	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	if (!port)
+		return -ENOMEM;
+
+	err = of_address_to_resource(pnode, slot + 1, &regs);
+	if (err) {
+		dev_err(dev, "missing \"reg\" property\n");
+		return err;
+	}
+
+	port->base = devm_ioremap_resource(dev, &regs);
+	if (IS_ERR(port->base))
+		return PTR_ERR(port->base);
+
+	snprintf(name, sizeof(name), "pcie%d", slot);
+	port->pcie_clk = devm_clk_get(dev, name);
+	if (IS_ERR(port->pcie_clk)) {
+		dev_err(dev, "failed to get pcie%d clock\n", slot);
+		return PTR_ERR(port->pcie_clk);
+	}
+
+	port->pcie_rst = devm_reset_control_get_exclusive(dev, name);
+	if (PTR_ERR(port->pcie_rst) == -EPROBE_DEFER) {
+		dev_err(dev, "failed to get pcie%d reset control\n", slot);
+		return PTR_ERR(port->pcie_rst);
+	}
+
+	port->slot = slot;
+	port->pcie = pcie;
+
+	INIT_LIST_HEAD(&port->list);
+	list_add_tail(&port->list, &pcie->ports);
+
+	return 0;
+}
+
 static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node;
+	struct device_node *node = dev->of_node, *child;
 	struct resource regs;
 	int err;
 
@@ -398,6 +449,22 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 	pcie->base = devm_ioremap_resource(dev, &regs);
 	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
+
+	for_each_available_child_of_node(node, child) {
+		int slot;
+
+		err = of_pci_get_devfn(child);
+		if (err < 0) {
+			dev_err(dev, "failed to parse devfn: %d\n", err);
+			return err;
+		}
+
+		slot = PCI_SLOT(err);
+
+		err = mt7621_pcie_parse_port(pcie, child, slot);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
