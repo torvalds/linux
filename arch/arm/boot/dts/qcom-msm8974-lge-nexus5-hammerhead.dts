@@ -220,6 +220,20 @@
 			};
 		};
 	};
+
+	vreg_wlan: wlan-regulator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "wl-reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&msmgpio 26 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_regulator_pin>;
+	};
 };
 
 &soc {
@@ -238,6 +252,20 @@
 			cmd-data {
 				pins = "sdc1_cmd", "sdc1_data";
 				drive-strength = <10>;
+				bias-pull-up;
+			};
+		};
+
+		sdhc2_pin_a: sdhc2-pin-active {
+			clk {
+				pins = "sdc2_clk";
+				drive-strength = <6>;
+				bias-disable;
+			};
+
+			cmd-data {
+				pins = "sdc2_cmd", "sdc2_data";
+				drive-strength = <6>;
 				bias-pull-up;
 			};
 		};
@@ -281,6 +309,32 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdhc1_pin_a>;
+	};
+
+	sdhci@f98a4900 {
+		status = "ok";
+
+		max-frequency = <100000000>;
+		bus-width = <4>;
+		non-removable;
+		vmmc-supply = <&vreg_wlan>;
+		vqmmc-supply = <&pm8941_s3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdhc2_pin_a>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		bcrmf@1 {
+			compatible = "brcm,bcm4339-fmac", "brcm,bcm4329-fmac";
+			reg = <1>;
+
+			brcm,drive-strength = <10>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&wlan_sleep_clk_pin>;
+		};
 	};
 
 	gpio-keys {
@@ -369,6 +423,22 @@
 				function = "normal";
 
 				bias-pull-up;
+				power-source = <PM8941_GPIO_S3>;
+			};
+
+			wlan_sleep_clk_pin: wl-sleep-clk {
+				pins = "gpio16";
+				function = "func2";
+
+				output-high;
+				power-source = <PM8941_GPIO_S3>;
+			};
+
+			wlan_regulator_pin: wl-reg-active {
+				pins = "gpio17";
+				function = "normal";
+
+				bias-disable;
 				power-source = <PM8941_GPIO_S3>;
 			};
 		};
