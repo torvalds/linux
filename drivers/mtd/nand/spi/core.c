@@ -1037,6 +1037,7 @@ static int spinand_init(struct spinand_device *spinand)
 	mtd->_block_markbad = spinand_mtd_block_markbad;
 	mtd->_block_isreserved = spinand_mtd_block_isreserved;
 	mtd->_erase = spinand_mtd_erase;
+	mtd->_max_bad_blocks = nanddev_mtd_max_bad_blocks;
 
 	if (spinand->eccinfo.ooblayout)
 		mtd_set_ooblayout(mtd, spinand->eccinfo.ooblayout);
