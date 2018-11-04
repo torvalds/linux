@@ -632,7 +632,7 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 	rt_sysc_m32(PCIE_CLK_GEN_EN, PCIE_CLK_GEN_DIS, RALINK_PCIE_CLK_GEN);
 	rt_sysc_m32(PCIE_CLK_GEN1_DIS, PCIE_CLK_GEN1_EN, RALINK_PCIE_CLK_GEN1);
 	rt_sysc_m32(PCIE_CLK_GEN_DIS, PCIE_CLK_GEN_EN, RALINK_PCIE_CLK_GEN);
-	mdelay(50);
+	msleep(50);
 	rt_sysc_m32(RALINK_PCIE_RST, 0, RALINK_RSTCTRL);
 }
 
