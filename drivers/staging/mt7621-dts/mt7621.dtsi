@@ -397,8 +397,8 @@
 		reg = <0x1e140000 0x100     /* host-pci bridge registers */
 			0x1e142000 0x100    /* pcie port 0 RC control registers */
 			0x1e143000 0x100    /* pcie port 1 RC control registers */
-			0x1e144000 0x100>;  /* pcie port 2 RC control registers */
-
+			0x1e144000 0x100    /* pcie port 2 RC control registers */
+			0x1e000000 0x100>;  /* sysctl */
 		#address-cells = <3>;
 		#size-cells = <2>;
 
