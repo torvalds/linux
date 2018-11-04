@@ -746,7 +746,8 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 	jlist.ret = 0;
 
 	for_each_member_device(ca, c, iter) {
-		if (!(bch2_dev_has_data(c, ca) & (1 << BCH_DATA_JOURNAL)))
+		if (!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
+		    !(bch2_dev_has_data(c, ca) & (1 << BCH_DATA_JOURNAL)))
 			continue;
 
 		if ((ca->mi.state == BCH_MEMBER_STATE_RW ||
