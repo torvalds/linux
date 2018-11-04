@@ -8,7 +8,6 @@ config CSKY
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	select DMA_DIRECT_OPS
-	select DMA_NONCOHERENT_OPS
 	select DMA_REMAP
 	select IRQ_DOMAIN
 	select HANDLE_DOMAIN_IRQ
