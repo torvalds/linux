@@ -516,7 +516,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
 	if (!bridge)
-		return -ENODEV;
+		return -ENOMEM;
 
 	pcie = pci_host_bridge_priv(bridge);
 	pcie->dev = dev;
