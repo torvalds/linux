@@ -24,6 +24,7 @@ struct strarray {
 }
 
 size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, int val);
+size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, unsigned long flags);
 
 struct trace;
 struct thread;
@@ -121,6 +122,12 @@ size_t syscall_arg__scnprintf_kcmp_type(char *bf, size_t size, struct syscall_ar
 
 size_t syscall_arg__scnprintf_kcmp_idx(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_KCMP_IDX syscall_arg__scnprintf_kcmp_idx
+
+unsigned long syscall_arg__mask_val_mount_flags(struct syscall_arg *arg, unsigned long flags);
+#define SCAMV_MOUNT_FLAGS syscall_arg__mask_val_mount_flags
+
+size_t syscall_arg__scnprintf_mount_flags(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_MOUNT_FLAGS syscall_arg__scnprintf_mount_flags
 
 size_t syscall_arg__scnprintf_pkey_alloc_access_rights(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_PKEY_ALLOC_ACCESS_RIGHTS syscall_arg__scnprintf_pkey_alloc_access_rights
