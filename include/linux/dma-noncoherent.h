@@ -69,4 +69,6 @@ static inline void arch_sync_dma_for_cpu_all(struct device *dev)
 }
 #endif /* CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL */
 
+void arch_dma_prep_coherent(struct page *page, size_t size);
+
 #endif /* _LINUX_DMA_NONCOHERENT_H */

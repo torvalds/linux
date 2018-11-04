@@ -55,3 +55,8 @@ config SWIOTLB
 config DMA_REMAP
 	depends on MMU
 	bool
+
+config DMA_DIRECT_REMAP
+	bool
+	depends on DMA_DIRECT_OPS
+	select DMA_REMAP
