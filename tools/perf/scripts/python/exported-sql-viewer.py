@@ -1975,7 +1975,7 @@ class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 	def FindDone(self, row):
 		self.find_bar.Idle()
 		if row >= 0:
-			self.view.setCurrentIndex(self.model.index(row, 0, QModelIndex()))
+			self.view.setCurrentIndex(self.model.mapFromSource(self.data_model.index(row, 0, QModelIndex())))
 		else:
 			self.find_bar.NotFound()
 
@@ -2188,6 +2188,8 @@ For PostgreSQL databases, information_schema.tables/views/columns are included.
 Ctrl-F displays a Find bar which finds substrings by either an exact match or a regular expression match.
 Refer to Python documentation for the regular expression syntax.
 All columns are searched, but only currently fetched rows are searched.
+<p>N.B. Results are found in id order, so if the table is re-ordered, find-next and find-previous
+will go to the next/previous result in id order, instead of display order.
 """
 
 # Help window
