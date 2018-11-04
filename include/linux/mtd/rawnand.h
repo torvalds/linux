@@ -1015,9 +1015,6 @@ struct nand_legacy {
  * @id:			[INTERN] holds NAND ID
  * @parameters:		[INTERN] holds generic parameters under an easily
  *			readable form.
- * @max_bb_per_die:	[INTERN] the max number of bad blocks each die of a
- *			this nand device will encounter their life times.
- * @blocks_per_die:	[INTERN] The number of PEBs in a die
  * @data_interface:	[INTERN] NAND interface timing information
  * @cur_cs:		currently selected target. -1 means no target selected,
  *			otherwise we should always have cur_cs >= 0 &&
@@ -1076,8 +1073,6 @@ struct nand_chip {
 
 	struct nand_id id;
 	struct nand_parameters parameters;
-	u16 max_bb_per_die;
-	u32 blocks_per_die;
 
 	struct nand_data_interface data_interface;
 

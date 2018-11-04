@@ -251,9 +251,6 @@ int nand_onfi_detect(struct nand_chip *chip)
 	memorg->bits_per_cell = p->bits_per_cell;
 	chip->bits_per_cell = p->bits_per_cell;
 
-	chip->max_bb_per_die = le16_to_cpu(p->bb_per_lun);
-	chip->blocks_per_die = le32_to_cpu(p->blocks_per_lun);
-
 	if (le16_to_cpu(p->features) & ONFI_FEATURE_16_BIT_BUS)
 		chip->options |= NAND_BUSWIDTH_16;
 
