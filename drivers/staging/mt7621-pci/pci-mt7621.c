@@ -45,6 +45,9 @@
 #define RALINK_PCI_CONFIG_DATA		0x24
 #define RALINK_PCI_MEMBASE		0x28
 #define RALINK_PCI_IOBASE		0x2C
+
+/* RALINK_RSTCTRL bits */
+#define RALINK_PCIE_RST			BIT(23)
 #define RALINK_PCIE0_RST		BIT(24)
 #define RALINK_PCIE1_RST		BIT(25)
 #define RALINK_PCIE2_RST		BIT(26)
@@ -74,8 +77,6 @@
 #define RALINK_GPIOMODE			0x60
 #define RALINK_PCIE_CLK_GEN		0x7c
 #define RALINK_PCIE_CLK_GEN1		0x80
-//RALINK_RSTCTRL bit
-#define RALINK_PCIE_RST			BIT(23)
 
 #define MEMORY_BASE 0x0
 static int pcie_link_status;
