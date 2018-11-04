@@ -235,8 +235,7 @@ struct pci_ops mt7621_pci_ops = {
 	.write		= pci_generic_config_write,
 };
 
-static u32
-read_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg)
+static u32 read_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg)
 {
 	u32 address = mt7621_pci_get_cfgaddr(0, dev, 0, reg);
 
@@ -244,8 +243,8 @@ read_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg)
 	return pcie_read(pcie, RALINK_PCI_CONFIG_DATA);
 }
 
-static void
-write_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg, u32 val)
+static void write_config(struct mt7621_pcie *pcie, unsigned int dev,
+			 u32 reg, u32 val)
 {
 	u32 address = mt7621_pci_get_cfgaddr(0, dev, 0, reg);
 
@@ -253,8 +252,7 @@ write_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg, u32 val)
 	pcie_write(pcie, val, RALINK_PCI_CONFIG_DATA);
 }
 
-static void
-bypass_pipe_rst(struct mt7621_pcie_port *port)
+static void bypass_pipe_rst(struct mt7621_pcie_port *port)
 {
 	struct mt7621_pcie *pcie = port->pcie;
 	u32 phy_offset = port->phy_reg_offset;
@@ -268,8 +266,7 @@ bypass_pipe_rst(struct mt7621_pcie_port *port)
 	pcie_write(pcie, reg, offset);
 }
 
-static void
-set_phy_for_ssc(struct mt7621_pcie_port *port)
+static void set_phy_for_ssc(struct mt7621_pcie_port *port)
 {
 	struct mt7621_pcie *pcie = port->pcie;
 	struct device *dev = pcie->dev;
