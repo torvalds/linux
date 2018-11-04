@@ -601,10 +601,6 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 		port->enabled = false;
 	} else {
 		port->enabled = true;
-		/* enable pcie interrupt */
-		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
-		val |= PCIE_PORT_INT_EN(slot);
-		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 	}
 
 	mt7621_enable_phy(port);
@@ -666,6 +662,11 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 					slot);
 				continue;
 			}
+
+			/* enable pcie interrupt */
+			val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
+			val |= PCIE_PORT_INT_EN(slot);
+			pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 
 			/* map 2G DDR region */
 			pcie_write(pcie, PCIE_BAR_MAP_MAX | PCIE_BAR_ENABLE,
