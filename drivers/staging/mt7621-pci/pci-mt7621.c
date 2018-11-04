@@ -175,6 +175,17 @@ static inline void pcie_write(struct mt7621_pcie *pcie, u32 val, u32 reg)
 	writel(val, pcie->base + reg);
 }
 
+static inline u32 pcie_port_read(struct mt7621_pcie_port *port, u32 reg)
+{
+	return readl(port->base + reg);
+}
+
+static inline void pcie_port_write(struct mt7621_pcie_port *port,
+				   u32 val, u32 reg)
+{
+	writel(val, port->base + reg);
+}
+
 static inline u32 mt7621_pci_get_cfgaddr(unsigned int bus, unsigned int slot,
 					 unsigned int func, unsigned int where)
 {
