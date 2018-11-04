@@ -9,10 +9,16 @@
 #include <linux/component.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 
 #include "sun8i_tcon_top.h"
+
+struct sun8i_tcon_top_quirks {
+	bool has_tcon_tv1;
+	bool has_dsi;
+};
 
 static bool sun8i_tcon_top_node_is_tcon_top(struct device_node *node)
 {
@@ -121,9 +127,12 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct clk_hw_onecell_data *clk_data;
 	struct sun8i_tcon_top *tcon_top;
+	const struct sun8i_tcon_top_quirks *quirks;
 	struct resource *res;
 	void __iomem *regs;
 	int ret, i;
+
+	quirks = of_device_get_match_data(&pdev->dev);
 
 	tcon_top = devm_kzalloc(dev, sizeof(*tcon_top), GFP_KERNEL);
 	if (!tcon_top)
@@ -187,15 +196,17 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 					     &tcon_top->reg_lock,
 					     TCON_TOP_TCON_TV0_GATE, 0);
 
-	clk_data->hws[CLK_TCON_TOP_TV1] =
-		sun8i_tcon_top_register_gate(dev, "tcon-tv1", regs,
-					     &tcon_top->reg_lock,
-					     TCON_TOP_TCON_TV1_GATE, 1);
+	if (quirks->has_tcon_tv1)
+		clk_data->hws[CLK_TCON_TOP_TV1] =
+			sun8i_tcon_top_register_gate(dev, "tcon-tv1", regs,
+						     &tcon_top->reg_lock,
+						     TCON_TOP_TCON_TV1_GATE, 1);
 
-	clk_data->hws[CLK_TCON_TOP_DSI] =
-		sun8i_tcon_top_register_gate(dev, "dsi", regs,
-					     &tcon_top->reg_lock,
-					     TCON_TOP_TCON_DSI_GATE, 2);
+	if (quirks->has_dsi)
+		clk_data->hws[CLK_TCON_TOP_DSI] =
+			sun8i_tcon_top_register_gate(dev, "dsi", regs,
+						     &tcon_top->reg_lock,
+						     TCON_TOP_TCON_DSI_GATE, 2);
 
 	for (i = 0; i < CLK_NUM; i++)
 		if (IS_ERR(clk_data->hws[i])) {
@@ -257,9 +268,17 @@ static int sun8i_tcon_top_remove(struct platform_device *pdev)
 	return 0;
 }
 
+const struct sun8i_tcon_top_quirks sun8i_r40_tcon_top_quirks = {
+	.has_tcon_tv1	= true,
+	.has_dsi	= true,
+};
+
 /* sun4i_drv uses this list to check if a device node is a TCON TOP */
 const struct of_device_id sun8i_tcon_top_of_table[] = {
-	{ .compatible = "allwinner,sun8i-r40-tcon-top" },
+	{
+		.compatible = "allwinner,sun8i-r40-tcon-top",
+		.data = &sun8i_r40_tcon_top_quirks
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sun8i_tcon_top_of_table);
