@@ -94,8 +94,8 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 		goto ext_out;
 	}
 
-	chip->ecc_strength_ds = ecc->ecc_bits;
-	chip->ecc_step_ds = 1 << ecc->codeword_size;
+	chip->base.eccreq.strength = ecc->ecc_bits;
+	chip->base.eccreq.step_size = 1 << ecc->codeword_size;
 	ret = 0;
 
 ext_out:
@@ -252,8 +252,8 @@ int nand_onfi_detect(struct nand_chip *chip)
 		chip->options |= NAND_BUSWIDTH_16;
 
 	if (p->ecc_bits != 0xff) {
-		chip->ecc_strength_ds = p->ecc_bits;
-		chip->ecc_step_ds = 512;
+		chip->base.eccreq.strength = p->ecc_bits;
+		chip->base.eccreq.step_size = 512;
 	} else if (onfi_version >= 21 &&
 		(le16_to_cpu(p->features) & ONFI_FEATURE_EXT_PARAM_PAGE)) {
 

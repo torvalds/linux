@@ -80,23 +80,23 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 		/* Extract ECC requirements from 5th id byte*/
 		extid = (chip->id.data[4] >> 4) & 0x07;
 		if (extid < 5) {
-			chip->ecc_step_ds = 512;
-			chip->ecc_strength_ds = 1 << extid;
+			chip->base.eccreq.step_size = 512;
+			chip->base.eccreq.strength = 1 << extid;
 		} else {
-			chip->ecc_step_ds = 1024;
+			chip->base.eccreq.step_size = 1024;
 			switch (extid) {
 			case 5:
-				chip->ecc_strength_ds = 24;
+				chip->base.eccreq.strength = 24;
 				break;
 			case 6:
-				chip->ecc_strength_ds = 40;
+				chip->base.eccreq.strength = 40;
 				break;
 			case 7:
-				chip->ecc_strength_ds = 60;
+				chip->base.eccreq.strength = 60;
 				break;
 			default:
 				WARN(1, "Could not decode ECC info");
-				chip->ecc_step_ds = 0;
+				chip->base.eccreq.step_size = 0;
 			}
 		}
 	} else {
@@ -106,8 +106,8 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 			switch (chip->id.data[1]) {
 			/* K9F4G08U0D-S[I|C]B0(T00) */
 			case 0xDC:
-				chip->ecc_step_ds = 512;
-				chip->ecc_strength_ds = 1;
+				chip->base.eccreq.step_size = 512;
+				chip->base.eccreq.strength = 1;
 				break;
 
 			/* K9F1G08U0E 21nm chips do not support subpage write */

@@ -110,8 +110,8 @@ int nand_jedec_detect(struct nand_chip *chip)
 	ecc = &p->ecc_info[0];
 
 	if (ecc->codeword_size >= 9) {
-		chip->ecc_strength_ds = ecc->ecc_bits;
-		chip->ecc_step_ds = 1 << ecc->codeword_size;
+		chip->base.eccreq.strength = ecc->ecc_bits;
+		chip->base.eccreq.step_size = 1 << ecc->codeword_size;
 	} else {
 		pr_warn("Invalid codeword size\n");
 	}

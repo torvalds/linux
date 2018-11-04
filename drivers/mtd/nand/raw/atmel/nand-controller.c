@@ -1072,15 +1072,15 @@ static int atmel_nand_pmecc_init(struct nand_chip *chip)
 		req.ecc.strength = ATMEL_PMECC_MAXIMIZE_ECC_STRENGTH;
 	else if (chip->ecc.strength)
 		req.ecc.strength = chip->ecc.strength;
-	else if (chip->ecc_strength_ds)
-		req.ecc.strength = chip->ecc_strength_ds;
+	else if (chip->base.eccreq.strength)
+		req.ecc.strength = chip->base.eccreq.strength;
 	else
 		req.ecc.strength = ATMEL_PMECC_MAXIMIZE_ECC_STRENGTH;
 
 	if (chip->ecc.size)
 		req.ecc.sectorsize = chip->ecc.size;
-	else if (chip->ecc_step_ds)
-		req.ecc.sectorsize = chip->ecc_step_ds;
+	else if (chip->base.eccreq.step_size)
+		req.ecc.sectorsize = chip->base.eccreq.step_size;
 	else
 		req.ecc.sectorsize = ATMEL_PMECC_SECTOR_SIZE_AUTO;
 

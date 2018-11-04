@@ -2248,9 +2248,9 @@ static int marvell_nand_ecc_init(struct mtd_info *mtd,
 	int ret;
 
 	if (ecc->mode != NAND_ECC_NONE && (!ecc->size || !ecc->strength)) {
-		if (chip->ecc_step_ds && chip->ecc_strength_ds) {
-			ecc->size = chip->ecc_step_ds;
-			ecc->strength = chip->ecc_strength_ds;
+		if (chip->base.eccreq.step_size && chip->base.eccreq.strength) {
+			ecc->size = chip->base.eccreq.step_size;
+			ecc->strength = chip->base.eccreq.strength;
 		} else {
 			dev_info(nfc->dev,
 				 "No minimum ECC strength, using 1b/512B\n");

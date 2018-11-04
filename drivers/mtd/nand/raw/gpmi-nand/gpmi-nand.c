@@ -204,7 +204,8 @@ static int set_geometry_by_ecc_info(struct gpmi_nand_data *this,
 	default:
 		dev_err(this->dev,
 			"unsupported nand chip. ecc bits : %d, ecc size : %d\n",
-			chip->ecc_strength_ds, chip->ecc_step_ds);
+			chip->base.eccreq.strength,
+			chip->base.eccreq.step_size);
 		return -EINVAL;
 	}
 	geo->ecc_chunk_size = ecc_step;
@@ -417,11 +418,13 @@ int common_nfc_set_geometry(struct gpmi_nand_data *this)
 
 	if ((of_property_read_bool(this->dev->of_node, "fsl,use-minimum-ecc"))
 				|| legacy_set_geometry(this)) {
-		if (!(chip->ecc_strength_ds > 0 && chip->ecc_step_ds > 0))
+		if (!(chip->base.eccreq.strength > 0 &&
+		      chip->base.eccreq.step_size > 0))
 			return -EINVAL;
 
-		return set_geometry_by_ecc_info(this, chip->ecc_strength_ds,
-						chip->ecc_step_ds);
+		return set_geometry_by_ecc_info(this,
+						chip->base.eccreq.strength,
+						chip->base.eccreq.step_size);
 	}
 
 	return 0;

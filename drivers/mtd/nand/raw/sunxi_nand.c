@@ -1723,8 +1723,8 @@ static int sunxi_nand_attach_chip(struct nand_chip *nand)
 	nand->options |= NAND_SUBPAGE_READ;
 
 	if (!ecc->size) {
-		ecc->size = nand->ecc_step_ds;
-		ecc->strength = nand->ecc_strength_ds;
+		ecc->size = nand->base.eccreq.step_size;
+		ecc->strength = nand->base.eccreq.strength;
 	}
 
 	if (!ecc->size || !ecc->strength)

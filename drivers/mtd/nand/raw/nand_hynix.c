@@ -508,30 +508,30 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 
 	if (valid_jedecid) {
 		/* Reference: H27UCG8T2E datasheet */
-		chip->ecc_step_ds = 1024;
+		chip->base.eccreq.step_size = 1024;
 
 		switch (ecc_level) {
 		case 0:
-			chip->ecc_step_ds = 0;
-			chip->ecc_strength_ds = 0;
+			chip->base.eccreq.step_size = 0;
+			chip->base.eccreq.strength = 0;
 			break;
 		case 1:
-			chip->ecc_strength_ds = 4;
+			chip->base.eccreq.strength = 4;
 			break;
 		case 2:
-			chip->ecc_strength_ds = 24;
+			chip->base.eccreq.strength = 24;
 			break;
 		case 3:
-			chip->ecc_strength_ds = 32;
+			chip->base.eccreq.strength = 32;
 			break;
 		case 4:
-			chip->ecc_strength_ds = 40;
+			chip->base.eccreq.strength = 40;
 			break;
 		case 5:
-			chip->ecc_strength_ds = 50;
+			chip->base.eccreq.strength = 50;
 			break;
 		case 6:
-			chip->ecc_strength_ds = 60;
+			chip->base.eccreq.strength = 60;
 			break;
 		default:
 			/*
@@ -552,14 +552,14 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 		if (nand_tech < 3) {
 			/* > 26nm, reference: H27UBG8T2A datasheet */
 			if (ecc_level < 5) {
-				chip->ecc_step_ds = 512;
-				chip->ecc_strength_ds = 1 << ecc_level;
+				chip->base.eccreq.step_size = 512;
+				chip->base.eccreq.strength = 1 << ecc_level;
 			} else if (ecc_level < 7) {
 				if (ecc_level == 5)
-					chip->ecc_step_ds = 2048;
+					chip->base.eccreq.step_size = 2048;
 				else
-					chip->ecc_step_ds = 1024;
-				chip->ecc_strength_ds = 24;
+					chip->base.eccreq.step_size = 1024;
+				chip->base.eccreq.strength = 24;
 			} else {
 				/*
 				 * We should never reach this case, but if that
@@ -572,14 +572,14 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 		} else {
 			/* <= 26nm, reference: H27UBG8T2B datasheet */
 			if (!ecc_level) {
-				chip->ecc_step_ds = 0;
-				chip->ecc_strength_ds = 0;
+				chip->base.eccreq.step_size = 0;
+				chip->base.eccreq.strength = 0;
 			} else if (ecc_level < 5) {
-				chip->ecc_step_ds = 512;
-				chip->ecc_strength_ds = 1 << (ecc_level - 1);
+				chip->base.eccreq.step_size = 512;
+				chip->base.eccreq.strength = 1 << (ecc_level - 1);
 			} else {
-				chip->ecc_step_ds = 1024;
-				chip->ecc_strength_ds = 24 +
+				chip->base.eccreq.step_size = 1024;
+				chip->base.eccreq.strength = 24 +
 							(8 * (ecc_level - 5));
 			}
 		}

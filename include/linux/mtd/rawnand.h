@@ -992,12 +992,6 @@ struct nand_legacy {
  * @badblockbits:	[INTERN] minimum number of set bits in a good block's
  *			bad block marker position; i.e., BBM == 11110111b is
  *			not bad when badblockbits == 7
- * @ecc_strength_ds:	[INTERN] ECC correctability from the datasheet.
- *			Minimum amount of bit errors per @ecc_step_ds guaranteed
- *			to be correctable. If unknown, set to zero.
- * @ecc_step_ds:	[INTERN] ECC step required by the @ecc_strength_ds,
- *			also from the datasheet. It is the recommended ECC step
- *			size, if known; if unknown, set to zero.
  * @onfi_timing_mode_default: [INTERN] default ONFI timing mode. This field is
  *			      set to the actually used ONFI mode if the chip is
  *			      ONFI compliant or deduced from the datasheet if
@@ -1060,8 +1054,6 @@ struct nand_chip {
 	} pagecache;
 
 	int subpagesize;
-	uint16_t ecc_strength_ds;
-	uint16_t ecc_step_ds;
 	int onfi_timing_mode_default;
 	int badblockpos;
 	int badblockbits;
