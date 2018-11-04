@@ -575,6 +575,9 @@ static int mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
 
 	mt7621_enable_phy(port);
 
+	val = read_config(pcie, slot, 0x70c);
+	dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
+
 	return 0;
 }
 
@@ -661,9 +664,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		if (err) {
 			dev_err(dev, "enabling port %d failed\n", slot);
 			list_del(&port->list);
-		} else {
-			val = read_config(pcie, slot, 0x70c);
-			dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
 		}
 	}
 
