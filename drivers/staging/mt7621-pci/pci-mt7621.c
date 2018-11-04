@@ -80,6 +80,13 @@
 #define RALINK_PCI_STATUS		0x0050
 
 /* Some definition values */
+#define PCIE_REVISION_ID		BIT(0)
+#define PCIE_CLASS_CODE			(0x60400 << 8)
+#define PCIE_BAR_MAP_MAX		GENMASK(30, 16)
+#define PCIE_BAR_ENABLE			BIT(0)
+#define PCIE_PORT_INT_EN(x)		BIT(20 + (x))
+#define PCIE_PORT_CLK_EN(x)		BIT(24 + (x))
+
 #define RALINK_PCI_IO_MAP_BASE		0x1e160000
 #define MEMORY_BASE			0x0
 
@@ -584,13 +591,13 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	if ((pcie_port_read(port, RALINK_PCI_STATUS) & 0x1) == 0) {
 		dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n", slot);
 		reset_control_assert(port->pcie_rst);
-		rt_sysc_m32(BIT(24 + slot), 0, RALINK_CLKCFG1);
+		rt_sysc_m32(PCIE_PORT_CLK_EN(slot), 0, RALINK_CLKCFG1);
 		port->enabled = false;
 	} else {
 		port->enabled = true;
-		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
 		/* enable pcie interrupt */
-		val |= BIT(20 + slot);
+		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
+		val |= PCIE_PORT_INT_EN(slot);
 		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 	}
 
@@ -633,12 +640,14 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 		offset = MT7621_PCIE_OFFSET + (slot * MT7621_NEXT_PORT);
 
 		if (port->enabled) {
-			/* open 7FFF:2G; ENABLE */
-			pcie_write(pcie, 0x7FFF0001,
+			/* map 2G DDR region */
+			pcie_write(pcie, PCIE_BAR_MAP_MAX | PCIE_BAR_ENABLE,
 				   offset + RALINK_PCI_BAR0SETUP_ADDR);
 			pcie_write(pcie, MEMORY_BASE,
 				   offset + RALINK_PCI_IMBASEBAR0_ADDR);
-			pcie_write(pcie, 0x06040001, offset + RALINK_PCI_CLASS);
+			/* configure class code and revision ID */
+			pcie_write(pcie, PCIE_CLASS_CODE | PCIE_REVISION_ID,
+				   offset + RALINK_PCI_CLASS);
 			dev_info(dev, "PCIE%d enabled\n", slot);
 			num_slots_enabled++;
 		}
