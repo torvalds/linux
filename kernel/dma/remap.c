@@ -196,7 +196,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t flags, unsigned long attrs)
 {
 	struct page *page = NULL;
-	void *ret, *kaddr;
+	void *ret;
 
 	size = PAGE_ALIGN(size);
 
@@ -208,10 +208,9 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		return ret;
 	}
 
-	kaddr = dma_direct_alloc_pages(dev, size, dma_handle, flags, attrs);
-	if (!kaddr)
+	page = __dma_direct_alloc_pages(dev, size, dma_handle, flags, attrs);
+	if (!page)
 		return NULL;
-	page = virt_to_page(kaddr);
 
 	/* remove any dirty cache lines on the kernel alias */
 	arch_dma_prep_coherent(page, size);
@@ -221,7 +220,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 			arch_dma_mmap_pgprot(dev, PAGE_KERNEL, attrs),
 			__builtin_return_address(0));
 	if (!ret)
-		dma_direct_free_pages(dev, size, kaddr, *dma_handle, attrs);
+		__dma_direct_free_pages(dev, size, page);
 	return ret;
 }
 
@@ -229,10 +228,11 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 		dma_addr_t dma_handle, unsigned long attrs)
 {
 	if (!dma_free_from_pool(vaddr, PAGE_ALIGN(size))) {
-		void *kaddr = phys_to_virt(dma_to_phys(dev, dma_handle));
+		phys_addr_t phys = dma_to_phys(dev, dma_handle);
+		struct page *page = pfn_to_page(__phys_to_pfn(phys));
 
 		vunmap(vaddr);
-		dma_direct_free_pages(dev, size, kaddr, dma_handle, attrs);
+		__dma_direct_free_pages(dev, size, page);
 	}
 }
 
