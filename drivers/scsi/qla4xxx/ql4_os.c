@@ -4160,9 +4160,7 @@ static void qla4xxx_mem_free(struct scsi_qla_host *ha)
 	ha->fw_dump_size = 0;
 
 	/* Free srb pool. */
-	if (ha->srb_mempool)
-		mempool_destroy(ha->srb_mempool);
-
+	mempool_destroy(ha->srb_mempool);
 	ha->srb_mempool = NULL;
 
 	dma_pool_destroy(ha->chap_dma_pool);
