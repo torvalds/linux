@@ -106,15 +106,15 @@ nf_conncount_add(struct nf_conncount_list *list,
 	conn->zone = *zone;
 	conn->cpu = raw_smp_processor_id();
 	conn->jiffies32 = (u32)jiffies;
-	spin_lock(&list->list_lock);
+	spin_lock_bh(&list->list_lock);
 	if (list->dead == true) {
 		kmem_cache_free(conncount_conn_cachep, conn);
-		spin_unlock(&list->list_lock);
+		spin_unlock_bh(&list->list_lock);
 		return NF_CONNCOUNT_SKIP;
 	}
 	list_add_tail(&conn->node, &list->head);
 	list->count++;
-	spin_unlock(&list->list_lock);
+	spin_unlock_bh(&list->list_lock);
 	return NF_CONNCOUNT_ADDED;
 }
 EXPORT_SYMBOL_GPL(nf_conncount_add);
@@ -132,10 +132,10 @@ static bool conn_free(struct nf_conncount_list *list,
 {
 	bool free_entry = false;
 
-	spin_lock(&list->list_lock);
+	spin_lock_bh(&list->list_lock);
 
 	if (list->count == 0) {
-		spin_unlock(&list->list_lock);
+		spin_unlock_bh(&list->list_lock);
                 return free_entry;
 	}
 
@@ -144,7 +144,7 @@ static bool conn_free(struct nf_conncount_list *list,
 	if (list->count == 0)
 		free_entry = true;
 
-	spin_unlock(&list->list_lock);
+	spin_unlock_bh(&list->list_lock);
 	call_rcu(&conn->rcu_head, __conn_free);
 	return free_entry;
 }
