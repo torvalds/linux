@@ -2812,6 +2812,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "cts(cbc(aes))",
 		.test = alg_test_skcipher,
+		.fips_allowed = 1,
 		.suite = {
 			.cipher = __VECS(cts_mode_tv_template)
 		}
