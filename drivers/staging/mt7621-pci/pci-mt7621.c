@@ -76,10 +76,6 @@
 #define RALINK_PCIE_CLK_GEN1		0x80
 //RALINK_RSTCTRL bit
 #define RALINK_PCIE_RST			BIT(23)
-#define RALINK_PCI_RST			BIT(24)
-//RALINK_CLKCFG1 bit
-#define RALINK_PCI_CLK_EN		BIT(19)
-#define RALINK_PCIE_CLK_EN		BIT(21)
 
 #define MEMORY_BASE 0x0
 static int pcie_link_status;
