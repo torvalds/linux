@@ -480,6 +480,39 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 	return 0;
 }
 
+static int mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
+{
+	struct mt7621_pcie *pcie = port->pcie;
+	struct device *dev = pcie->dev;
+	u32 slot = port->slot;
+	u32 val = 0;
+	int err;
+
+	err = clk_prepare_enable(port->pcie_clk);
+	if (err) {
+		dev_err(dev, "failed to enable pcie%d clock\n", slot);
+		return err;
+	}
+
+	reset_control_assert(port->pcie_rst);
+	reset_control_deassert(port->pcie_rst);
+
+	if ((pcie_port_read(port, RALINK_PCI_STATUS) & 0x1) == 0) {
+		dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n", slot);
+		reset_control_assert(port->pcie_rst);
+		rt_sysc_m32(BIT(24 + slot), 0, RALINK_CLKCFG1);
+		pcie_link_status &= ~(1 << slot);
+	} else {
+		pcie_link_status |= BIT(slot);
+		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
+		/* enable pcie interrupt */
+		val |= BIT(20 + slot);
+		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
+	}
+
+	return 0;
+}
+
 static int mt7621_pcie_request_resources(struct mt7621_pcie *pcie,
 					 struct list_head *res)
 {
@@ -518,6 +551,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mt7621_pcie *pcie;
 	struct pci_host_bridge *bridge;
+	struct mt7621_pcie_port *port, *tmp;
 	int err;
 	u32 val = 0;
 	LIST_HEAD(res);
@@ -546,12 +580,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	ioport_resource.start = 0;
 	ioport_resource.end = ~0UL; /* no limit */
 
-	val = RALINK_PCIE0_RST;
-	val |= RALINK_PCIE1_RST;
-	val |= RALINK_PCIE2_RST;
-
-	ASSERT_SYSRST_PCIE(RALINK_PCIE0_RST | RALINK_PCIE1_RST | RALINK_PCIE2_RST);
-
 	*(unsigned int *)(0xbe000060) &= ~(0x3 << 10 | 0x3 << 3);
 	*(unsigned int *)(0xbe000060) |=  BIT(10) | BIT(3);
 	mdelay(100);
@@ -561,11 +589,13 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	mdelay(100);
 
-	val = RALINK_PCIE0_RST;
-	val |= RALINK_PCIE1_RST;
-	val |= RALINK_PCIE2_RST;
-
-	DEASSERT_SYSRST_PCIE(val);
+	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
+		err = mt7621_pcie_enable_port(port);
+		if (err) {
+			dev_err(dev, "enabling port %d failed\n", port->slot);
+			list_del(&port->list);
+		}
+	}
 
 	if ((*(unsigned int *)(0xbe00000c) & 0xFFFF) == 0x0101) // MT7621 E2
 		bypass_pipe_rst(pcie);
@@ -590,42 +620,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	/* Use GPIO control instead of PERST_N */
 	*(unsigned int *)(0xbe000620) |= BIT(19) | BIT(8) | BIT(7);		// set DATA
 	mdelay(1000);
-
-	if ((pcie_read(pcie, RT6855_PCIE0_OFFSET + RALINK_PCI_STATUS) & 0x1) == 0) {
-		printk("PCIE0 no card, disable it(RST&CLK)\n");
-		ASSERT_SYSRST_PCIE(RALINK_PCIE0_RST);
-		rt_sysc_m32(RALINK_PCIE0_CLK_EN, 0, RALINK_CLKCFG1);
-		pcie_link_status &= ~(BIT(0));
-	} else {
-		pcie_link_status |=  BIT(0);
-		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
-		val |= BIT(20); // enable pcie1 interrupt
-		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
-	}
-
-	if ((pcie_read(pcie, RT6855_PCIE1_OFFSET + RALINK_PCI_STATUS) & 0x1) == 0) {
-		printk("PCIE1 no card, disable it(RST&CLK)\n");
-		ASSERT_SYSRST_PCIE(RALINK_PCIE1_RST);
-		rt_sysc_m32(RALINK_PCIE1_CLK_EN, 0, RALINK_CLKCFG1);
-		pcie_link_status &= ~(BIT(1));
-	} else {
-		pcie_link_status |= BIT(1);
-		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
-		val |= BIT(21); // enable pcie1 interrupt
-		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
-	}
-
-	if ((pcie_read(pcie, RT6855_PCIE2_OFFSET + RALINK_PCI_STATUS) & 0x1) == 0) {
-		printk("PCIE2 no card, disable it(RST&CLK)\n");
-		ASSERT_SYSRST_PCIE(RALINK_PCIE2_RST);
-		rt_sysc_m32(RALINK_PCIE2_CLK_EN, 0, RALINK_CLKCFG1);
-		pcie_link_status &= ~(BIT(2));
-	} else {
-		pcie_link_status |=  BIT(2);
-		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
-		val |= BIT(22); // enable pcie2 interrupt
-		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
-	}
 
 	if (pcie_link_status == 0)
 		return 0;
