@@ -679,7 +679,8 @@ void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct btree *b,
 			goto err;
 	}
 
-	if (!bch2_bkey_replicas_marked(c, btree_node_type(b), e.s_c)) {
+	if (!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
+	    !bch2_bkey_replicas_marked(c, btree_node_type(b), e.s_c)) {
 		bch2_bkey_val_to_text(c, btree_node_type(b),
 				     buf, sizeof(buf), k);
 		bch2_fs_bug(c,
@@ -1713,7 +1714,8 @@ static void bch2_extent_debugcheck_extent(struct bch_fs *c, struct btree *b,
 		return;
 	}
 
-	if (!bch2_bkey_replicas_marked(c, btree_node_type(b), e.s_c)) {
+	if (!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
+	    !bch2_bkey_replicas_marked(c, btree_node_type(b), e.s_c)) {
 		bch2_bkey_val_to_text(c, btree_node_type(b),
 				     buf, sizeof(buf), e.s_c);
 		bch2_fs_bug(c,

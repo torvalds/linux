@@ -219,6 +219,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	bch_verbose(c, "mark and sweep done");
 
+	clear_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
+
 	if (c->opts.noreplay)
 		goto out;
 
