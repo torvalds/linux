@@ -49,6 +49,7 @@ struct nf_conncount_tuple {
 	struct nf_conntrack_zone	zone;
 	int				cpu;
 	u32				jiffies32;
+	bool				dead;
 	struct rcu_head			rcu_head;
 };
 
@@ -106,6 +107,7 @@ nf_conncount_add(struct nf_conncount_list *list,
 	conn->zone = *zone;
 	conn->cpu = raw_smp_processor_id();
 	conn->jiffies32 = (u32)jiffies;
+	conn->dead = false;
 	spin_lock_bh(&list->list_lock);
 	if (list->dead == true) {
 		kmem_cache_free(conncount_conn_cachep, conn);
@@ -134,12 +136,13 @@ static bool conn_free(struct nf_conncount_list *list,
 
 	spin_lock_bh(&list->list_lock);
 
-	if (list->count == 0) {
+	if (conn->dead) {
 		spin_unlock_bh(&list->list_lock);
-                return free_entry;
+		return free_entry;
 	}
 
 	list->count--;
+	conn->dead = true;
 	list_del_rcu(&conn->node);
 	if (list->count == 0)
 		free_entry = true;
