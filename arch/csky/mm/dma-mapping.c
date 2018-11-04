@@ -35,7 +35,7 @@ static int __init atomic_pool_init(void)
 	if (!atomic_pool)
 		BUG();
 
-	page = alloc_pages(GFP_KERNEL | GFP_DMA, get_order(size));
+	page = alloc_pages(GFP_KERNEL, get_order(size));
 	if (!page)
 		BUG();
 
