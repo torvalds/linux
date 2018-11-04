@@ -5,6 +5,7 @@
 
 #include <linux/component.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include <drm/drm_of.h>
@@ -33,8 +34,8 @@ static const struct drm_encoder_funcs sun8i_dw_hdmi_encoder_funcs = {
 };
 
 static enum drm_mode_status
-sun8i_dw_hdmi_mode_valid(struct drm_connector *connector,
-			 const struct drm_display_mode *mode)
+sun8i_dw_hdmi_mode_valid_a83t(struct drm_connector *connector,
+			      const struct drm_display_mode *mode)
 {
 	if (mode->clock > 297000)
 		return MODE_CLOCK_HIGH;
@@ -102,6 +103,8 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->dev = &pdev->dev;
 	encoder = &hdmi->encoder;
 
+	hdmi->quirks = of_device_get_match_data(dev);
+
 	encoder->possible_crtcs =
 		sun8i_dw_hdmi_find_possible_crtcs(drm, dev->of_node);
 	/*
@@ -168,7 +171,7 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 
 	sun8i_hdmi_phy_init(hdmi->phy);
 
-	plat_data->mode_valid = &sun8i_dw_hdmi_mode_valid;
+	plat_data->mode_valid = hdmi->quirks->mode_valid;
 	plat_data->phy_ops = sun8i_hdmi_phy_get_ops();
 	plat_data->phy_name = "sun8i_dw_hdmi_phy";
 	plat_data->phy_data = hdmi->phy;
@@ -230,8 +233,15 @@ static int sun8i_dw_hdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct sun8i_dw_hdmi_quirks sun8i_a83t_quirks = {
+	.mode_valid = sun8i_dw_hdmi_mode_valid_a83t,
+};
+
 static const struct of_device_id sun8i_dw_hdmi_dt_ids[] = {
-	{ .compatible = "allwinner,sun8i-a83t-dw-hdmi" },
+	{
+		.compatible = "allwinner,sun8i-a83t-dw-hdmi",
+		.data = &sun8i_a83t_quirks,
+	},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, sun8i_dw_hdmi_dt_ids);
