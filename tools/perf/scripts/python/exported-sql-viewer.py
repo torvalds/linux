@@ -1929,7 +1929,12 @@ class XEDInstruction():
 class LibXED():
 
 	def __init__(self):
-		self.libxed = CDLL("libxed.so")
+		try:
+			self.libxed = CDLL("libxed.so")
+		except:
+			self.libxed = None
+		if not self.libxed:
+			self.libxed = CDLL("/usr/local/lib/libxed.so")
 
 		self.xed_tables_init = self.libxed.xed_tables_init
 		self.xed_tables_init.restype = None
