@@ -152,7 +152,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		bch_info(c, "recovering from clean shutdown, journal seq %llu",
 			 le64_to_cpu(clean->journal_seq));
 
-	if (!clean || !c->opts.nofsck) {
+	if (!clean || c->opts.fsck) {
 		ret = bch2_journal_read(c, &journal);
 		if (ret)
 			goto err;

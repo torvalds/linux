@@ -153,9 +153,9 @@ enum opt_type {
 	BCH_OPT(journal_flush_disabled, u8,	OPT_RUNTIME,		\
 		OPT_BOOL(),						\
 		NO_SB_OPT,			false)			\
-	BCH_OPT(nofsck,			u8,	OPT_MOUNT,		\
+	BCH_OPT(fsck,			u8,	OPT_MOUNT,		\
 		OPT_BOOL(),						\
-		NO_SB_OPT,			false)			\
+		NO_SB_OPT,			true)			\
 	BCH_OPT(fix_errors,		u8,	OPT_MOUNT,		\
 		OPT_BOOL(),						\
 		NO_SB_OPT,			false)			\

@@ -1465,7 +1465,7 @@ static int bch2_fsck_walk_inodes_only(struct bch_fs *c)
 
 int bch2_fsck(struct bch_fs *c)
 {
-	if (!c->opts.nofsck)
+	if (c->opts.fsck)
 		return bch2_fsck_full(c);
 
 	if (!c->sb.clean &&
