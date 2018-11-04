@@ -87,6 +87,10 @@
 #define PCIE_PORT_INT_EN(x)		BIT(20 + (x))
 #define PCIE_PORT_CLK_EN(x)		BIT(24 + (x))
 
+#define PCIE_CLK_GEN_EN			BIT(31)
+#define PCIE_CLK_GEN_DIS		0
+#define PCIE_CLK_GEN1_DIS		GENMASK(30,24)
+#define PCIE_CLK_GEN1_EN		(BIT(27) | BIT(25))
 #define RALINK_PCI_IO_MAP_BASE		0x1e160000
 #define MEMORY_BASE			0x0
 
@@ -815,9 +819,9 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	rt_sysc_m32(0, RALINK_PCIE_RST, RALINK_RSTCTRL);
 	rt_sysc_m32(0x30, 2 << 4, SYSC_REG_SYSTEM_CONFIG1);
 
-	rt_sysc_m32(0x80000000, 0, RALINK_PCIE_CLK_GEN);
-	rt_sysc_m32(0x7f000000, 0xa << 24, RALINK_PCIE_CLK_GEN1);
-	rt_sysc_m32(0, 0x80000000, RALINK_PCIE_CLK_GEN);
+	rt_sysc_m32(PCIE_CLK_GEN_EN, PCIE_CLK_GEN_DIS, RALINK_PCIE_CLK_GEN);
+	rt_sysc_m32(PCIE_CLK_GEN1_DIS, PCIE_CLK_GEN1_EN, RALINK_PCIE_CLK_GEN1);
+	rt_sysc_m32(PCIE_CLK_GEN_DIS, PCIE_CLK_GEN_EN, RALINK_PCIE_CLK_GEN);
 
 	mdelay(50);
 	rt_sysc_m32(RALINK_PCIE_RST, 0, RALINK_RSTCTRL);
