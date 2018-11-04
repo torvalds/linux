@@ -626,6 +626,14 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 			list_del(&port->list);
 		}
 	}
+
+	rt_sysc_m32(0, RALINK_PCIE_RST, RALINK_RSTCTRL);
+	rt_sysc_m32(0x30, 2 << 4, SYSC_REG_SYSTEM_CONFIG1);
+	rt_sysc_m32(PCIE_CLK_GEN_EN, PCIE_CLK_GEN_DIS, RALINK_PCIE_CLK_GEN);
+	rt_sysc_m32(PCIE_CLK_GEN1_DIS, PCIE_CLK_GEN1_EN, RALINK_PCIE_CLK_GEN1);
+	rt_sysc_m32(PCIE_CLK_GEN_DIS, PCIE_CLK_GEN_EN, RALINK_PCIE_CLK_GEN);
+	mdelay(50);
+	rt_sysc_m32(RALINK_PCIE_RST, 0, RALINK_RSTCTRL);
 }
 
 static int mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
@@ -832,16 +840,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	ioport_resource.end = ~0UL; /* no limit */
 
 	mt7621_pcie_init_ports(pcie);
-
-	rt_sysc_m32(0, RALINK_PCIE_RST, RALINK_RSTCTRL);
-	rt_sysc_m32(0x30, 2 << 4, SYSC_REG_SYSTEM_CONFIG1);
-
-	rt_sysc_m32(PCIE_CLK_GEN_EN, PCIE_CLK_GEN_DIS, RALINK_PCIE_CLK_GEN);
-	rt_sysc_m32(PCIE_CLK_GEN1_DIS, PCIE_CLK_GEN1_EN, RALINK_PCIE_CLK_GEN1);
-	rt_sysc_m32(PCIE_CLK_GEN_DIS, PCIE_CLK_GEN_EN, RALINK_PCIE_CLK_GEN);
-
-	mdelay(50);
-	rt_sysc_m32(RALINK_PCIE_RST, 0, RALINK_RSTCTRL);
 
 	err = mt7621_pcie_init_virtual_bridges(pcie);
 	if (err) {
