@@ -488,14 +488,10 @@ extern struct idr dev_nums_idr;
 /**
  * enum tpm_transmit_flags - flags for tpm_transmit()
  *
- * @TPM_TRANSMIT_UNLOCKED:	do not lock the chip
- * @TPM_TRANSMIT_NESTED:	discard setup steps (power management,
- *				locality) including locking (i.e. implicit
- *				UNLOCKED)
+ * %TPM_TRANSMIT_NESTED:	discard setup steps (power management, locality)
  */
 enum tpm_transmit_flags {
-	TPM_TRANSMIT_UNLOCKED	= BIT(0),
-	TPM_TRANSMIT_NESTED      = BIT(1),
+	TPM_TRANSMIT_NESTED      = BIT(0),
 };
 
 ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz,

@@ -236,10 +236,6 @@ ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz,
 	memcpy(save, buf, save_size);
 
 	for (;;) {
-		if (!(flags & TPM_TRANSMIT_UNLOCKED) &&
-		    !(flags & TPM_TRANSMIT_NESTED))
-			mutex_lock(&chip->tpm_mutex);
-
 		if (chip->ops->clk_enable != NULL)
 			chip->ops->clk_enable(chip, true);
 
@@ -265,10 +261,6 @@ out_locality:
 
 		if (chip->ops->clk_enable != NULL)
 			chip->ops->clk_enable(chip, false);
-
-		if (!(flags & TPM_TRANSMIT_UNLOCKED) &&
-		    !(flags & TPM_TRANSMIT_NESTED))
-			mutex_unlock(&chip->tpm_mutex);
 
 		if (ret < 0)
 			break;

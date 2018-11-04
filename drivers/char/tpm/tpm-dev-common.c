@@ -33,7 +33,6 @@ static ssize_t tpm_dev_transmit(struct tpm_chip *chip, struct tpm_space *space,
 	struct tpm_header *header = (void *)buf;
 	ssize_t ret, len;
 
-	mutex_lock(&chip->tpm_mutex);
 	ret = tpm2_prepare_space(chip, space, buf, bufsiz);
 	/* If the command is not implemented by the TPM, synthesize a
 	 * response with a TPM2_RC_COMMAND_CODE return for user-space.
@@ -46,18 +45,16 @@ static ssize_t tpm_dev_transmit(struct tpm_chip *chip, struct tpm_space *space,
 		ret = sizeof(*header);
 	}
 	if (ret)
-		goto out_lock;
+		goto out_rc;
 
-	len = tpm_transmit(chip, buf, bufsiz, TPM_TRANSMIT_UNLOCKED);
+	len = tpm_transmit(chip, buf, bufsiz, 0);
 	if (len < 0)
 		ret = len;
 
 	if (!ret)
 		ret = tpm2_commit_space(chip, space, buf, &len);
 
-out_lock:
-	mutex_unlock(&chip->tpm_mutex);
-
+out_rc:
 	return ret ? ret : len;
 }
 

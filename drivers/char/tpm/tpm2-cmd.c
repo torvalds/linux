@@ -652,17 +652,12 @@ int tpm2_unseal_trusted(struct tpm_chip *chip,
 	u32 blob_handle;
 	int rc;
 
-	mutex_lock(&chip->tpm_mutex);
-	rc = tpm2_load_cmd(chip, payload, options, &blob_handle,
-			   TPM_TRANSMIT_UNLOCKED);
+	rc = tpm2_load_cmd(chip, payload, options, &blob_handle, 0);
 	if (rc)
-		goto out;
+		return rc;
 
-	rc = tpm2_unseal_cmd(chip, payload, options, blob_handle,
-			     TPM_TRANSMIT_UNLOCKED);
-	tpm2_flush_context_cmd(chip, blob_handle, TPM_TRANSMIT_UNLOCKED);
-out:
-	mutex_unlock(&chip->tpm_mutex);
+	rc = tpm2_unseal_cmd(chip, payload, options, blob_handle, 0);
+	tpm2_flush_context_cmd(chip, blob_handle, 0);
 	return rc;
 }
 
