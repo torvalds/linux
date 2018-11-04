@@ -529,15 +529,17 @@ void bch2_bio_map(struct bio *bio, void *base)
 
 	BUG_ON(!bio->bi_iter.bi_size);
 	BUG_ON(bio->bi_vcnt);
+	BUG_ON(!bio->bi_max_vecs);
 
 	bv->bv_offset = base ? offset_in_page(base) : 0;
 	goto start;
 
 	for (; size; bio->bi_vcnt++, bv++) {
+		BUG_ON(bio->bi_vcnt >= bio->bi_max_vecs);
+
 		bv->bv_offset	= 0;
 start:		bv->bv_len	= min_t(size_t, PAGE_SIZE - bv->bv_offset,
 					size);
-		BUG_ON(bio->bi_vcnt >= bio->bi_max_vecs);
 		if (base) {
 			bv->bv_page = is_vmalloc_addr(base)
 				? vmalloc_to_page(base)
