@@ -410,9 +410,11 @@ static void setup_cm_memory_region(struct resource *mem_resource)
 	resource_size_t mask;
 
 	if (mips_cps_numiocu(0)) {
-		/* FIXME: hardware doesn't accept mask values with 1s after
+		/*
+		 * FIXME: hardware doesn't accept mask values with 1s after
 		 * 0s (e.g. 0xffef), so it would be great to warn if that's
-		 * about to happen */
+		 * about to happen
+		 */
 		mask = ~(mem_resource->end - mem_resource->start);
 
 		write_gcr_reg1_base(mem_resource->start);
