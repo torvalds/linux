@@ -193,10 +193,16 @@ void meson_crtc_irq(struct meson_drm *priv)
 		} else
 			meson_vpp_disable_interlace_vscaler_osd1(priv);
 
-		meson_canvas_setup(priv, MESON_CANVAS_ID_OSD1,
-			   priv->viu.osd1_addr, priv->viu.osd1_stride,
-			   priv->viu.osd1_height, MESON_CANVAS_WRAP_NONE,
-			   MESON_CANVAS_BLKMODE_LINEAR);
+		if (priv->canvas)
+			meson_canvas_config(priv->canvas, priv->canvas_id_osd1,
+				priv->viu.osd1_addr, priv->viu.osd1_stride,
+				priv->viu.osd1_height, MESON_CANVAS_WRAP_NONE,
+				MESON_CANVAS_BLKMODE_LINEAR, 0);
+		else
+			meson_canvas_setup(priv, MESON_CANVAS_ID_OSD1,
+				priv->viu.osd1_addr, priv->viu.osd1_stride,
+				priv->viu.osd1_height, MESON_CANVAS_WRAP_NONE,
+				MESON_CANVAS_BLKMODE_LINEAR);
 
 		/* Enable OSD1 */
 		writel_bits_relaxed(VPP_OSD1_POSTBLEND, VPP_OSD1_POSTBLEND,

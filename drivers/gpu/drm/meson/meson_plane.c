@@ -90,6 +90,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 		.y2 = state->crtc_y + state->crtc_h,
 	};
 	unsigned long flags;
+	u8 canvas_id_osd1;
 
 	/*
 	 * Update Coordinates
@@ -104,8 +105,13 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 				   (0xFF << OSD_GLOBAL_ALPHA_SHIFT) |
 				   OSD_BLK0_ENABLE;
 
+	if (priv->canvas)
+		canvas_id_osd1 = priv->canvas_id_osd1;
+	else
+		canvas_id_osd1 = MESON_CANVAS_ID_OSD1;
+
 	/* Set up BLK0 to point to the right canvas */
-	priv->viu.osd1_blk0_cfg[0] = ((MESON_CANVAS_ID_OSD1 << OSD_CANVAS_SEL) |
+	priv->viu.osd1_blk0_cfg[0] = ((canvas_id_osd1 << OSD_CANVAS_SEL) |
 				      OSD_ENDIANNESS_LE);
 
 	/* On GXBB, Use the old non-HDR RGB2YUV converter */
