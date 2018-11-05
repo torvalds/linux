@@ -590,6 +590,7 @@ void ac6_proc_exit(struct net *net)
 {
 	remove_proc_entry("anycast6", net->proc_net);
 }
+#endif
 
 /*	Init / cleanup code
  */
@@ -611,4 +612,3 @@ void ipv6_anycast_cleanup(void)
 		WARN_ON(!hlist_empty(&inet6_acaddr_lst[i]));
 	spin_unlock(&acaddr_hash_lock);
 }
-#endif
