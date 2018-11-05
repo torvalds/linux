@@ -269,6 +269,23 @@ void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 		    ctx->num_metas > 1)
 			break;
 
+		if (ctx->num_internal_frames &&
+		    ctx->num_metas >= ctx->num_internal_frames) {
+			meta = list_first_entry(&ctx->buffer_meta_list,
+						struct coda_buffer_meta, list);
+
+			/*
+			 * If we managed to fill in at least a full reorder
+			 * window of buffers (num_internal_frames is a
+			 * conservative estimate for this) and the bitstream
+			 * prefetcher has at least 2 256 bytes periods beyond
+			 * the first buffer to fetch, we can safely stop queuing
+			 * in order to limit the decoder drain latency.
+			 */
+			if (coda_bitstream_can_fetch_past(ctx, meta->end))
+				break;
+		}
+
 		src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 
 		/* Drop frames that do not start/end with a SOI/EOI markers */
@@ -2252,6 +2269,17 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 
 	/* The rotator will copy the current display frame next time */
 	ctx->display_idx = display_idx;
+
+	/*
+	 * The current decode run might have brought the bitstream fill level
+	 * below the size where we can start the next decode run. As userspace
+	 * might have filled the output queue completely and might thus be
+	 * blocked, we can't rely on the next qbuf to trigger the bitstream
+	 * refill. Check if we have data to refill the bitstream now.
+	 */
+	mutex_lock(&ctx->bitstream_mutex);
+	coda_fill_bitstream(ctx, NULL);
+	mutex_unlock(&ctx->bitstream_mutex);
 }
 
 static void coda_decode_timeout(struct coda_ctx *ctx)
