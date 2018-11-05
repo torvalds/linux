@@ -95,7 +95,6 @@ struct coda_dev {
 	struct mutex		coda_mutex;
 	struct workqueue_struct	*workqueue;
 	struct v4l2_m2m_dev	*m2m_dev;
-	struct list_head	instances;
 	struct ida		ida;
 	struct dentry		*debugfs_root;
 };
@@ -193,7 +192,6 @@ struct coda_context_ops {
 struct coda_ctx {
 	struct coda_dev			*dev;
 	struct mutex			buffer_mutex;
-	struct list_head		list;
 	struct work_struct		pic_run_work;
 	struct work_struct		seq_end_work;
 	struct completion		completion;

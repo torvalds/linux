@@ -2215,10 +2215,6 @@ static int coda_open(struct file *file)
 	INIT_LIST_HEAD(&ctx->buffer_meta_list);
 	spin_lock_init(&ctx->buffer_meta_lock);
 
-	mutex_lock(&dev->dev_mutex);
-	list_add(&ctx->list, &dev->instances);
-	mutex_unlock(&dev->dev_mutex);
-
 	v4l2_dbg(1, coda_debug, &dev->v4l2_dev, "Created instance %d (%p)\n",
 		 ctx->idx, ctx);
 
@@ -2264,10 +2260,6 @@ static int coda_release(struct file *file)
 		queue_work(dev->workqueue, &ctx->seq_end_work);
 		flush_work(&ctx->seq_end_work);
 	}
-
-	mutex_lock(&dev->dev_mutex);
-	list_del(&ctx->list);
-	mutex_unlock(&dev->dev_mutex);
 
 	if (ctx->dev->devtype->product == CODA_DX6)
 		coda_free_aux_buf(dev, &ctx->workbuf);
@@ -2673,7 +2665,6 @@ static int coda_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	spin_lock_init(&dev->irqlock);
-	INIT_LIST_HEAD(&dev->instances);
 
 	dev->plat_dev = pdev;
 	dev->clk_per = devm_clk_get(&pdev->dev, "per");
