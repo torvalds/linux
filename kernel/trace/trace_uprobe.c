@@ -587,12 +587,19 @@ static int cleanup_all_probes(void)
 	int ret = 0;
 
 	mutex_lock(&uprobe_lock);
+	/* Ensure no probe is in use. */
+	list_for_each_entry(tu, &uprobe_list, list)
+		if (trace_probe_is_enabled(&tu->tp)) {
+			ret = -EBUSY;
+			goto end;
+		}
 	while (!list_empty(&uprobe_list)) {
 		tu = list_entry(uprobe_list.next, struct trace_uprobe, list);
 		ret = unregister_trace_uprobe(tu);
 		if (ret)
 			break;
 	}
+end:
 	mutex_unlock(&uprobe_lock);
 	return ret;
 }
