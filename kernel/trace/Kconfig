@@ -501,6 +501,7 @@ config UPROBE_EVENTS
 	depends on PERF_EVENTS
 	select UPROBES
 	select PROBE_EVENTS
+	select DYNAMIC_EVENTS
 	select TRACING
 	default y
 	help
