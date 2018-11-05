@@ -121,7 +121,6 @@ struct etnaviv_gpu {
 	struct mutex fence_lock;
 	struct idr fence_idr;
 	u32 next_fence;
-	u32 active_fence;
 	u32 completed_fence;
 	wait_queue_head_t fence_event;
 	u64 fence_context;
