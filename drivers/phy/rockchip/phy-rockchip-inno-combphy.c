@@ -611,7 +611,15 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 			writel(reg, priv->mmio + 0x2000);
 		}
 
-		/* Tuning Tx */
+		/*
+		 * Tuning Tx:
+		 * offset 0x21b8 bit[7:4]: lane 0 TX driver swing
+		 * tuning bits with weight, "1111" represents the
+		 * largest swing and "0000" the smallest.
+		 */
+		reg = readl(priv->mmio + 0x21b8);
+		reg = (reg & ~0xf0) | 0xa0;
+		writel(reg, priv->mmio + 0x21b8);
 
 		/*
 		 * Tuning Rx for RJTL:
