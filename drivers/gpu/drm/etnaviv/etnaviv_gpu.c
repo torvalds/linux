@@ -1031,7 +1031,7 @@ static bool etnaviv_fence_signaled(struct dma_fence *fence)
 {
 	struct etnaviv_fence *f = to_etnaviv_fence(fence);
 
-	return fence_completed(f->gpu, f->base.seqno);
+	return (s32)(f->gpu->completed_fence - f->base.seqno) >= 0;
 }
 
 static void etnaviv_fence_release(struct dma_fence *fence)
@@ -1068,6 +1068,12 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 		       gpu->fence_context, ++gpu->next_fence);
 
 	return &f->base;
+}
+
+/* returns true if fence a comes after fence b */
+static inline bool fence_after(u32 a, u32 b)
+{
+	return (s32)(a - b) > 0;
 }
 
 /*
