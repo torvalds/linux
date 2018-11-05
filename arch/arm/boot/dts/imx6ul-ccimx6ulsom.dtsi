@@ -198,15 +198,15 @@
 			MX6UL_PAD_NAND_DATA06__RAWNAND_DATA06	0xb0b1
 			MX6UL_PAD_NAND_DATA07__RAWNAND_DATA07	0xb0b1
 			MX6UL_PAD_NAND_READY_B__RAWNAND_READY_B	0xb0b1
-			>;
-		};
+		>;
+	};
 
 	pinctrl_i2c1: i2c1grp {
 		fsl,pins = <
 			MX6UL_PAD_UART4_TX_DATA__I2C1_SCL 0x4001b8b0
 			MX6UL_PAD_UART4_RX_DATA__I2C1_SDA 0x4001b8b0
-			>;
-		};
+		>;
+	};
 
 	pinctrl_uart1: uart1grp {
 		fsl,pins = <
