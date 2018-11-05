@@ -318,14 +318,14 @@ int release_resource(struct resource *old)
 
 EXPORT_SYMBOL(release_resource);
 
-/**
+/*
  * Finds the lowest iomem resource that covers part of [start..end].  The
  * caller must specify start, end, flags, and desc (which may be
  * IORES_DESC_NONE).
  *
  * If a resource is found, returns 0 and *res is overwritten with the part
  * of the resource that's within [start..end]; if none is found, returns
- * -1.
+ * -1. Returns -EINVAL for other invalid parameters.
  *
  * This function walks the whole tree and not just first level children
  * unless @first_lvl is true.
@@ -390,7 +390,9 @@ static int __walk_iomem_res_desc(resource_size_t start, resource_size_t end,
 }
 
 /**
- * Walks through iomem resources and calls func() with matching resource
+ * walk_iomem_res_desc - walk through iomem resources
+ *
+ * Walks through iomem resources and calls @func() with matching resource
  * ranges. This walks through whole tree and not just first level children.
  * All the memory ranges which overlap start,end and also match flags and
  * desc are valid candidates.
@@ -399,6 +401,8 @@ static int __walk_iomem_res_desc(resource_size_t start, resource_size_t end,
  * @flags: I/O resource flags
  * @start: start addr
  * @end: end addr
+ * @arg: function argument for the callback @func
+ * @func: callback function that is called for each qualifying resource area
  *
  * NOTE: For a new descriptor search, define a new IORES_DESC in
  * <linux/ioport.h> and set it in 'desc' of a target resource entry.
