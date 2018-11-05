@@ -2076,37 +2076,9 @@ int uvc_video_init(struct uvc_streaming *stream)
 	return 0;
 }
 
-/*
- * Enable or disable the video stream.
- */
-int uvc_video_enable(struct uvc_streaming *stream, int enable)
+int uvc_video_start_streaming(struct uvc_streaming *stream)
 {
 	int ret;
-
-	if (!enable) {
-		uvc_uninit_video(stream, 1);
-		if (stream->intf->num_altsetting > 1) {
-			usb_set_interface(stream->dev->udev,
-					  stream->intfnum, 0);
-		} else {
-			/* UVC doesn't specify how to inform a bulk-based device
-			 * when the video stream is stopped. Windows sends a
-			 * CLEAR_FEATURE(HALT) request to the video streaming
-			 * bulk endpoint, mimic the same behaviour.
-			 */
-			unsigned int epnum = stream->header.bEndpointAddress
-					   & USB_ENDPOINT_NUMBER_MASK;
-			unsigned int dir = stream->header.bEndpointAddress
-					 & USB_ENDPOINT_DIR_MASK;
-			unsigned int pipe;
-
-			pipe = usb_sndbulkpipe(stream->dev->udev, epnum) | dir;
-			usb_clear_halt(stream->dev->udev, pipe);
-		}
-
-		uvc_video_clock_cleanup(stream);
-		return 0;
-	}
 
 	ret = uvc_video_clock_init(stream);
 	if (ret < 0)
@@ -2129,4 +2101,29 @@ error_commit:
 	uvc_video_clock_cleanup(stream);
 
 	return ret;
+}
+
+void uvc_video_stop_streaming(struct uvc_streaming *stream)
+{
+	uvc_uninit_video(stream, 1);
+
+	if (stream->intf->num_altsetting > 1) {
+		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
+	} else {
+		/* UVC doesn't specify how to inform a bulk-based device
+		 * when the video stream is stopped. Windows sends a
+		 * CLEAR_FEATURE(HALT) request to the video streaming
+		 * bulk endpoint, mimic the same behaviour.
+		 */
+		unsigned int epnum = stream->header.bEndpointAddress
+				   & USB_ENDPOINT_NUMBER_MASK;
+		unsigned int dir = stream->header.bEndpointAddress
+				 & USB_ENDPOINT_DIR_MASK;
+		unsigned int pipe;
+
+		pipe = usb_sndbulkpipe(stream->dev->udev, epnum) | dir;
+		usb_clear_halt(stream->dev->udev, pipe);
+	}
+
+	uvc_video_clock_cleanup(stream);
 }

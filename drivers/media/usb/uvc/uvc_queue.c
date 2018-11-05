@@ -176,7 +176,7 @@ static int uvc_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	queue->buf_used = 0;
 
-	ret = uvc_video_enable(stream, 1);
+	ret = uvc_video_start_streaming(stream);
 	if (ret == 0)
 		return 0;
 
@@ -194,7 +194,7 @@ static void uvc_stop_streaming(struct vb2_queue *vq)
 	lockdep_assert_irqs_enabled();
 
 	if (vq->type != V4L2_BUF_TYPE_META_CAPTURE)
-		uvc_video_enable(uvc_queue_to_stream(queue), 0);
+		uvc_video_stop_streaming(uvc_queue_to_stream(queue));
 
 	spin_lock_irq(&queue->irqlock);
 	uvc_queue_return_buffers(queue, UVC_BUF_STATE_ERROR);

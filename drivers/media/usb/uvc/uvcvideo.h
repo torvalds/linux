@@ -787,7 +787,8 @@ void uvc_mc_cleanup_entity(struct uvc_entity *entity);
 int uvc_video_init(struct uvc_streaming *stream);
 int uvc_video_suspend(struct uvc_streaming *stream);
 int uvc_video_resume(struct uvc_streaming *stream, int reset);
-int uvc_video_enable(struct uvc_streaming *stream, int enable);
+int uvc_video_start_streaming(struct uvc_streaming *stream);
+void uvc_video_stop_streaming(struct uvc_streaming *stream);
 int uvc_probe_video(struct uvc_streaming *stream,
 		    struct uvc_streaming_control *probe);
 int uvc_query_ctrl(struct uvc_device *dev, u8 query, u8 unit,
