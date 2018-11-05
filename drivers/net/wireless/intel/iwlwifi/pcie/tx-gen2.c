@@ -838,14 +838,14 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 
 	/* start the TFD with the minimum copy bytes */
 	tb0_size = min_t(int, copy_size, IWL_FIRST_TB_SIZE);
-	memcpy(&txq->first_tb_bufs[idx], &out_cmd->hdr, tb0_size);
+	memcpy(&txq->first_tb_bufs[idx], out_cmd, tb0_size);
 	iwl_pcie_gen2_set_tb(trans, tfd, iwl_pcie_get_first_tb_dma(txq, idx),
 			     tb0_size);
 
 	/* map first command fragment, if any remains */
 	if (copy_size > tb0_size) {
 		phys_addr = dma_map_single(trans->dev,
-					   ((u8 *)&out_cmd->hdr) + tb0_size,
+					   (u8 *)out_cmd + tb0_size,
 					   copy_size - tb0_size,
 					   DMA_TO_DEVICE);
 		if (dma_mapping_error(trans->dev, phys_addr)) {
