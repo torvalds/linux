@@ -56,7 +56,7 @@ struct clusterip_config {
 #endif
 	enum clusterip_hashmode hash_mode;	/* which hashing mode */
 	u_int32_t hash_initval;			/* hash initialization */
-	struct rcu_head rcu;
+	struct rcu_head rcu;			/* for call_rcu_bh */
 	struct net *net;			/* netns for pernet list */
 	char ifname[IFNAMSIZ];			/* device ifname */
 };
@@ -72,6 +72,8 @@ struct clusterip_net {
 
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *procdir;
+	/* mutex protects the config->pde*/
+	struct mutex mutex;
 #endif
 };
 
@@ -118,17 +120,18 @@ clusterip_config_entry_put(struct clusterip_config *c)
 
 	local_bh_disable();
 	if (refcount_dec_and_lock(&c->entries, &cn->lock)) {
+		list_del_rcu(&c->list);
+		spin_unlock(&cn->lock);
+		local_bh_enable();
 		/* In case anyone still accesses the file, the open/close
 		 * functions are also incrementing the refcount on their own,
 		 * so it's safe to remove the entry even if it's in use. */
 #ifdef CONFIG_PROC_FS
+		mutex_lock(&cn->mutex);
 		if (cn->procdir)
 			proc_remove(c->pde);
+		mutex_unlock(&cn->mutex);
 #endif
-		list_del_rcu(&c->list);
-		spin_unlock(&cn->lock);
-		local_bh_enable();
-
 		return;
 	}
 	local_bh_enable();
@@ -278,9 +281,11 @@ clusterip_config_init(struct net *net, const struct ipt_clusterip_tgt_info *i,
 
 		/* create proc dir entry */
 		sprintf(buffer, "%pI4", &ip);
+		mutex_lock(&cn->mutex);
 		c->pde = proc_create_data(buffer, 0600,
 					  cn->procdir,
 					  &clusterip_proc_fops, c);
+		mutex_unlock(&cn->mutex);
 		if (!c->pde) {
 			err = -ENOMEM;
 			goto err;
@@ -833,6 +838,7 @@ static int clusterip_net_init(struct net *net)
 		pr_err("Unable to proc dir entry\n");
 		return -ENOMEM;
 	}
+	mutex_init(&cn->mutex);
 #endif /* CONFIG_PROC_FS */
 
 	return 0;
@@ -841,9 +847,12 @@ static int clusterip_net_init(struct net *net)
 static void clusterip_net_exit(struct net *net)
 {
 	struct clusterip_net *cn = clusterip_pernet(net);
+
 #ifdef CONFIG_PROC_FS
+	mutex_lock(&cn->mutex);
 	proc_remove(cn->procdir);
 	cn->procdir = NULL;
+	mutex_unlock(&cn->mutex);
 #endif
 	nf_unregister_net_hook(net, &cip_arp_ops);
 }
