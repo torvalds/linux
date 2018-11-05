@@ -3516,7 +3516,7 @@ static bool modify_dci_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state new
 		return is_valid_mask(attr_mask, req, opt);
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR) {
 		req |= IB_QP_PATH_MTU;
-		opt = IB_QP_PKEY_INDEX;
+		opt = IB_QP_PKEY_INDEX | IB_QP_AV;
 		return is_valid_mask(attr_mask, req, opt);
 	} else if (cur_state == IB_QPS_RTR && new_state == IB_QPS_RTS) {
 		req |= IB_QP_TIMEOUT | IB_QP_RETRY_CNT | IB_QP_RNR_RETRY |
