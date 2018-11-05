@@ -82,7 +82,7 @@ struct blk_mq_queue_map {
 };
 
 enum {
-	HCTX_MAX_TYPES = 2,
+	HCTX_MAX_TYPES = 3,
 };
 
 struct blk_mq_tag_set {
