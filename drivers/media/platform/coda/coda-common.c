@@ -1136,6 +1136,7 @@ static int coda_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 	if (a->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 
+	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	tpf = &a->parm.output.timeperframe;
 	coda_approximate_timeperframe(tpf);
 	ctx->params.framerate = coda_timeperframe_to_frate(tpf);
