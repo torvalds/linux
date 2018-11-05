@@ -444,8 +444,6 @@ static bool have_hist_err(void)
 	return false;
 }
 
-static DEFINE_MUTEX(synth_event_mutex);
-
 struct synth_trace_event {
 	struct trace_entry	ent;
 	u64			fields[];
@@ -1077,7 +1075,6 @@ static int __create_synth_event(int argc, const char *name, const char **argv)
 		return -EINVAL;
 
 	mutex_lock(&event_mutex);
-	mutex_lock(&synth_event_mutex);
 
 	event = find_synth_event(name);
 	if (event) {
@@ -1119,7 +1116,6 @@ static int __create_synth_event(int argc, const char *name, const char **argv)
 	else
 		free_synth_event(event);
  out:
-	mutex_unlock(&synth_event_mutex);
 	mutex_unlock(&event_mutex);
 
 	return ret;
@@ -1139,7 +1135,6 @@ static int create_or_delete_synth_event(int argc, char **argv)
 	/* trace_run_command() ensures argc != 0 */
 	if (name[0] == '!') {
 		mutex_lock(&event_mutex);
-		mutex_lock(&synth_event_mutex);
 		event = find_synth_event(name + 1);
 		if (event) {
 			if (event->ref)
@@ -1153,7 +1148,6 @@ static int create_or_delete_synth_event(int argc, char **argv)
 			}
 		} else
 			ret = -ENOENT;
-		mutex_unlock(&synth_event_mutex);
 		mutex_unlock(&event_mutex);
 		return ret;
 	}
@@ -3535,7 +3529,7 @@ static void onmatch_destroy(struct action_data *data)
 {
 	unsigned int i;
 
-	mutex_lock(&synth_event_mutex);
+	lockdep_assert_held(&event_mutex);
 
 	kfree(data->onmatch.match_event);
 	kfree(data->onmatch.match_event_system);
@@ -3548,8 +3542,6 @@ static void onmatch_destroy(struct action_data *data)
 		data->onmatch.synth_event->ref--;
 
 	kfree(data);
-
-	mutex_unlock(&synth_event_mutex);
 }
 
 static void destroy_field_var(struct field_var *field_var)
@@ -3700,15 +3692,14 @@ static int onmatch_create(struct hist_trigger_data *hist_data,
 	struct synth_event *event;
 	int ret = 0;
 
-	mutex_lock(&synth_event_mutex);
+	lockdep_assert_held(&event_mutex);
+
 	event = find_synth_event(data->onmatch.synth_event_name);
 	if (!event) {
 		hist_err("onmatch: Couldn't find synthetic event: ", data->onmatch.synth_event_name);
-		mutex_unlock(&synth_event_mutex);
 		return -EINVAL;
 	}
 	event->ref++;
-	mutex_unlock(&synth_event_mutex);
 
 	var_ref_idx = hist_data->n_var_refs;
 
@@ -3782,9 +3773,7 @@ static int onmatch_create(struct hist_trigger_data *hist_data,
  out:
 	return ret;
  err:
-	mutex_lock(&synth_event_mutex);
 	event->ref--;
-	mutex_unlock(&synth_event_mutex);
 
 	goto out;
 }
@@ -5492,6 +5481,8 @@ static void hist_unreg_all(struct trace_event_file *file)
 	struct synth_event *se;
 	const char *se_name;
 
+	lockdep_assert_held(&event_mutex);
+
 	if (hist_file_check_refs(file))
 		return;
 
@@ -5501,12 +5492,10 @@ static void hist_unreg_all(struct trace_event_file *file)
 			list_del_rcu(&test->list);
 			trace_event_trigger_enable_disable(file, 0);
 
-			mutex_lock(&synth_event_mutex);
 			se_name = trace_event_name(file->event_call);
 			se = find_synth_event(se_name);
 			if (se)
 				se->ref--;
-			mutex_unlock(&synth_event_mutex);
 
 			update_cond_flag(file);
 			if (hist_data->enable_timestamps)
@@ -5531,6 +5520,8 @@ static int event_hist_trigger_func(struct event_command *cmd_ops,
 	bool remove = false;
 	char *trigger, *p;
 	int ret = 0;
+
+	lockdep_assert_held(&event_mutex);
 
 	if (glob && strlen(glob)) {
 		last_cmd_set(param);
@@ -5622,14 +5613,10 @@ static int event_hist_trigger_func(struct event_command *cmd_ops,
 		}
 
 		cmd_ops->unreg(glob+1, trigger_ops, trigger_data, file);
-
-		mutex_lock(&synth_event_mutex);
 		se_name = trace_event_name(file->event_call);
 		se = find_synth_event(se_name);
 		if (se)
 			se->ref--;
-		mutex_unlock(&synth_event_mutex);
-
 		ret = 0;
 		goto out_free;
 	}
@@ -5665,13 +5652,10 @@ enable:
 	if (ret)
 		goto out_unreg;
 
-	mutex_lock(&synth_event_mutex);
 	se_name = trace_event_name(file->event_call);
 	se = find_synth_event(se_name);
 	if (se)
 		se->ref++;
-	mutex_unlock(&synth_event_mutex);
-
 	/* Just return zero, not the number of registered triggers */
 	ret = 0;
  out:
