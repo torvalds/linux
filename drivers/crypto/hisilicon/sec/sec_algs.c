@@ -808,13 +808,6 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	 * more refined but this is unlikely to happen so no need.
 	 */
 
-	/* Cleanup - all elements in pointer arrays have been coppied */
-	kfree(splits_in_nents);
-	kfree(splits_in);
-	kfree(splits_out_nents);
-	kfree(splits_out);
-	kfree(split_sizes);
-
 	/* Grab a big lock for a long time to avoid concurrency issues */
 	mutex_lock(&queue->queuelock);
 
@@ -829,13 +822,13 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	     (!queue->havesoftqueue ||
 	      kfifo_avail(&queue->softqueue) > steps)) ||
 	    !list_empty(&ctx->backlog)) {
+		ret = -EBUSY;
 		if ((skreq->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG)) {
 			list_add_tail(&sec_req->backlog_head, &ctx->backlog);
 			mutex_unlock(&queue->queuelock);
-			return -EBUSY;
+			goto out;
 		}
 
-		ret = -EBUSY;
 		mutex_unlock(&queue->queuelock);
 		goto err_free_elements;
 	}
@@ -844,7 +837,15 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	if (ret)
 		goto err_free_elements;
 
-	return -EINPROGRESS;
+	ret = -EINPROGRESS;
+out:
+	/* Cleanup - all elements in pointer arrays have been copied */
+	kfree(splits_in_nents);
+	kfree(splits_in);
+	kfree(splits_out_nents);
+	kfree(splits_out);
+	kfree(split_sizes);
+	return ret;
 
 err_free_elements:
 	list_for_each_entry_safe(el, temp, &sec_req->elements, head) {
