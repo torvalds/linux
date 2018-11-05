@@ -590,7 +590,6 @@ retry:
 
 /**
  * panic_nand_wait - [GENERIC] wait until the command is done
- * @mtd: MTD device structure
  * @chip: NAND chip structure
  * @timeo: timeout
  *
