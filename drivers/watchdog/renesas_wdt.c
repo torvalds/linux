@@ -220,8 +220,8 @@ static int rwdt_probe(struct platform_device *pdev)
 		goto out_pm_disable;
 	}
 
-	priv->wdev.info = &rwdt_ident,
-	priv->wdev.ops = &rwdt_ops,
+	priv->wdev.info = &rwdt_ident;
+	priv->wdev.ops = &rwdt_ops;
 	priv->wdev.parent = &pdev->dev;
 	priv->wdev.min_timeout = 1;
 	priv->wdev.max_timeout = DIV_BY_CLKS_PER_SEC(priv, 65536);
