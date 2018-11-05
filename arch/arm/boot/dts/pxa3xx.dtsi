@@ -300,4 +300,12 @@
 		clocks = <&clks CLK_OSTIMER>;
 		status = "okay";
 	};
+
+	gcu: display-controller@54000000 {
+		compatible = "marvell,pxa300-gcu";
+		reg = <0x54000000 0x1000>;
+		interrupts = <39>;
+		clocks = <&clks CLK_PXA300_GCU>;
+		status = "disabled";
+	};
 };
