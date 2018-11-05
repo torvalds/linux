@@ -252,6 +252,13 @@ struct coda_ctx {
 
 extern int coda_debug;
 
+#define coda_dbg(level, ctx, fmt, arg...)				\
+	do {								\
+		if (coda_debug >= (level))				\
+			v4l2_dbg((level), coda_debug, &(ctx)->dev->v4l2_dev, \
+			 "%u: " fmt, (ctx)->idx, ##arg);		\
+	} while (0)
+
 void coda_write(struct coda_dev *dev, u32 data, u32 reg);
 unsigned int coda_read(struct coda_dev *dev, u32 reg);
 void coda_write_base(struct coda_ctx *ctx, struct coda_q_data *q_data,

@@ -725,8 +725,7 @@ static void coda_setup_iram(struct coda_ctx *ctx)
 
 out:
 	if (!(iram_info->axi_sram_use & CODA7_USE_HOST_IP_ENABLE))
-		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
-			 "IRAM smaller than needed\n");
+		coda_dbg(1, ctx, "IRAM smaller than needed\n");
 
 	if (dev->devtype->product == CODA_HX4 ||
 	    dev->devtype->product == CODA_7541) {
@@ -1213,6 +1212,12 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		goto out;
 	}
 
+	coda_dbg(1, ctx, "start encoding %dx%d %4.4s->%4.4s @ %d/%d Hz\n",
+		 q_data_src->rect.width, q_data_src->rect.height,
+		 (char *)&ctx->codec->src_fourcc, (char *)&dst_fourcc,
+		 ctx->params.framerate & 0xffff,
+		 (ctx->params.framerate >> 16) + 1);
+
 	/* Save stream headers */
 	buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 	switch (dst_fourcc) {
@@ -1474,8 +1479,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, wr_ptr - start_ptr);
 	}
 
-	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev, "frame size = %u\n",
-		 wr_ptr - start_ptr);
+	coda_dbg(1, ctx, "frame size = %u\n", wr_ptr - start_ptr);
 
 	coda_read(dev, CODA_RET_ENC_PIC_SLICE_NUM);
 	coda_read(dev, CODA_RET_ENC_PIC_FLAG);
@@ -1504,11 +1508,9 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	if (ctx->gopcounter < 0)
 		ctx->gopcounter = ctx->params.gop_size - 1;
 
-	v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
-		"job finished: encoding frame (%d) (%s)\n",
-		dst_buf->sequence,
-		(dst_buf->flags & V4L2_BUF_FLAG_KEYFRAME) ?
-		"KEYFRAME" : "PFRAME");
+	coda_dbg(1, ctx, "job finished: encoded %c frame (%d)\n",
+		 (dst_buf->flags & V4L2_BUF_FLAG_KEYFRAME) ? 'I' : 'P',
+		 dst_buf->sequence);
 }
 
 static void coda_seq_end_work(struct work_struct *work)
@@ -1522,9 +1524,7 @@ static void coda_seq_end_work(struct work_struct *work)
 	if (ctx->initialized == 0)
 		goto out;
 
-	v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
-		 "%d: %s: sent command 'SEQ_END' to coda\n", ctx->idx,
-		 __func__);
+	coda_dbg(1, ctx, "%s: sent command 'SEQ_END' to coda\n", __func__);
 	if (coda_command_sync(ctx, CODA_COMMAND_SEQ_END)) {
 		v4l2_err(&dev->v4l2_dev,
 			 "CODA_COMMAND_SEQ_END failed\n");
@@ -1667,8 +1667,7 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	u32 val;
 	int ret;
 
-	v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
-		 "Video Data Order Adapter: %s\n",
+	coda_dbg(1, ctx, "Video Data Order Adapter: %s\n",
 		 ctx->use_vdoa ? "Enabled" : "Disabled");
 
 	/* Start decoding */
@@ -1772,8 +1771,7 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	width = round_up(width, 16);
 	height = round_up(height, 16);
 
-	v4l2_dbg(1, coda_debug, &dev->v4l2_dev, "%s instance %d now: %dx%d\n",
-		 __func__, ctx->idx, width, height);
+	coda_dbg(1, ctx, "start decoding: %dx%d\n", width, height);
 
 	ctx->num_internal_frames = coda_read(dev, CODA_RET_DEC_SEQ_FRAME_NEED);
 	/*
@@ -1904,8 +1902,7 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 
 	if (coda_get_bitstream_payload(ctx) < 512 &&
 	    (!(ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG))) {
-		v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
-			 "bitstream payload: %d, skipping\n",
+		coda_dbg(1, ctx, "bitstream payload: %d, skipping\n",
 			 coda_get_bitstream_payload(ctx));
 		v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
 		return -EAGAIN;
@@ -2109,8 +2106,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		val = coda_read(dev, CODA_RET_DEC_PIC_OPTION);
 		if (val == 0) {
 			/* not enough bitstream data */
-			v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
-				 "prescan failed: %d\n", val);
+			coda_dbg(1, ctx, "prescan failed: %d\n", val);
 			ctx->hold = true;
 			return;
 		}
@@ -2252,14 +2248,13 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		else
 			coda_m2m_buf_done(ctx, dst_buf, VB2_BUF_STATE_DONE);
 
-		v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
-			"job finished: decoding frame (%d) (%s)\n",
-			dst_buf->sequence,
-			(dst_buf->flags & V4L2_BUF_FLAG_KEYFRAME) ?
-			"KEYFRAME" : "PFRAME");
+		coda_dbg(1, ctx, "job finished: decoded %c frame (%u/%u)\n",
+			 (dst_buf->flags & V4L2_BUF_FLAG_KEYFRAME) ? 'I' :
+			 ((dst_buf->flags & V4L2_BUF_FLAG_PFRAME) ? 'P' : 'B'),
+			 dst_buf->sequence, ctx->qsequence);
 	} else {
-		v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
-			"job finished: no frame decoded\n");
+		coda_dbg(1, ctx, "job finished: no frame decoded (%u/%u)\n",
+			 ctx->osequence, ctx->qsequence);
 	}
 
 	/* The rotator will copy the current display frame next time */
@@ -2328,13 +2323,11 @@ irqreturn_t coda_irq_handler(int irq, void *data)
 	trace_coda_bit_done(ctx);
 
 	if (ctx->aborting) {
-		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
-			 "task has been aborted\n");
+		coda_dbg(1, ctx, "task has been aborted\n");
 	}
 
 	if (coda_isbusy(ctx->dev)) {
-		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
-			 "coda is still busy!!!!\n");
+		coda_dbg(1, ctx, "coda is still busy!!!!\n");
 		return IRQ_NONE;
 	}
 
