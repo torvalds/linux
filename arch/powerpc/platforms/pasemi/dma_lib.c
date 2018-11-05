@@ -255,14 +255,12 @@ int pasemi_dma_alloc_ring(struct pasemi_dmachan *chan, int ring_size)
 
 	chan->ring_size = ring_size;
 
-	chan->ring_virt = dma_alloc_coherent(&dma_pdev->dev,
+	chan->ring_virt = dma_zalloc_coherent(&dma_pdev->dev,
 					     ring_size * sizeof(u64),
 					     &chan->ring_dma, GFP_KERNEL);
 
 	if (!chan->ring_virt)
 		return -ENOMEM;
-
-	memset(chan->ring_virt, 0, ring_size * sizeof(u64));
 
 	return 0;
 }
