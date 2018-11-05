@@ -296,6 +296,18 @@ static inline unsigned int coda_get_bitstream_payload(struct coda_ctx *ctx)
 	return kfifo_len(&ctx->bitstream_fifo);
 }
 
+/*
+ * The bitstream prefetcher needs to read at least 2 256 byte periods past
+ * the desired bitstream position for all data to reach the decoder.
+ */
+static inline bool coda_bitstream_can_fetch_past(struct coda_ctx *ctx,
+						 unsigned int pos)
+{
+	return (int)(ctx->bitstream_fifo.kfifo.in - ALIGN(pos, 256)) > 512;
+}
+
+bool coda_bitstream_can_fetch_past(struct coda_ctx *ctx, unsigned int pos);
+
 void coda_bit_stream_end_flag(struct coda_ctx *ctx);
 
 void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,

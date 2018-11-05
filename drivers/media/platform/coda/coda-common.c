@@ -1273,6 +1273,7 @@ static int coda_job_ready(void *m2m_priv)
 		bool stream_end = ctx->bit_stream_param &
 				  CODA_BIT_STREAM_END_FLAG;
 		int num_metas = ctx->num_metas;
+		struct coda_buffer_meta *meta;
 		unsigned int count;
 
 		count = hweight32(ctx->frm_dis_flg);
@@ -1293,16 +1294,18 @@ static int coda_job_ready(void *m2m_priv)
 
 		if (!stream_end && (num_metas + src_bufs) < 2) {
 			v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
-				 "%d: not ready: need 2 buffers available (%d, %d)\n",
+				 "%d: not ready: need 2 buffers available (queue:%d + bitstream:%d)\n",
 				 ctx->idx, num_metas, src_bufs);
 			return 0;
 		}
 
-		if (!src_bufs && !stream_end &&
-		    (coda_get_bitstream_payload(ctx) < 512)) {
+		meta = list_first_entry(&ctx->buffer_meta_list,
+					struct coda_buffer_meta, list);
+		if (!coda_bitstream_can_fetch_past(ctx, meta->end) &&
+		    !stream_end) {
 			v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
-				 "%d: not ready: not enough bitstream data (%d).\n",
-				 ctx->idx, coda_get_bitstream_payload(ctx));
+				 "not ready: not enough bitstream data to read past %u (%u)\n",
+				 meta->end, ctx->bitstream_fifo.kfifo.in);
 			return 0;
 		}
 	}
