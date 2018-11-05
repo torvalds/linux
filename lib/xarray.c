@@ -1565,8 +1565,9 @@ void *xa_store_range(struct xarray *xa, unsigned long first,
 	do {
 		xas_lock(&xas);
 		if (entry) {
-			unsigned int order = (last == ~0UL) ? 64 :
-						ilog2(last + 1);
+			unsigned int order = BITS_PER_LONG;
+			if (last + 1)
+				order = __ffs(last + 1);
 			xas_set_order(&xas, last, order);
 			xas_create(&xas);
 			if (xas_error(&xas))
