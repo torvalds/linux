@@ -648,28 +648,22 @@ void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tid);
 
 void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			 struct ieee80211_key_conf *key);
+
+void mt76_tx_status_lock(struct mt76_dev *dev, struct sk_buff_head *list)
+			 __acquires(&dev->status_list.lock);
+void mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)
+			   __releases(&dev->status_list.lock);
+
 int mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			   struct sk_buff *skb);
 struct sk_buff *mt76_tx_status_skb_get(struct mt76_dev *dev,
-				       struct mt76_wcid *wcid, int pktid);
-void mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb);
+				       struct mt76_wcid *wcid, int pktid,
+				       struct sk_buff_head *list);
+void mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb,
+			     struct sk_buff_head *list);
 void mt76_tx_complete_skb(struct mt76_dev *dev, struct sk_buff *skb);
-
-static inline void
-mt76_tx_status_check(struct mt76_dev *dev)
-{
-	spin_lock_bh(&dev->status_list.lock);
-	mt76_tx_status_skb_get(dev, NULL, 0);
-	spin_unlock_bh(&dev->status_list.lock);
-}
-
-static inline void
-mt76_tx_status_flush(struct mt76_dev *dev, struct mt76_wcid *wcid)
-{
-	spin_lock_bh(&dev->status_list.lock);
-	mt76_tx_status_skb_get(dev, wcid, -1);
-	spin_unlock_bh(&dev->status_list.lock);
-}
+void mt76_tx_status_check(struct mt76_dev *dev, struct mt76_wcid *wcid,
+			  bool flush);
 
 struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb);
 

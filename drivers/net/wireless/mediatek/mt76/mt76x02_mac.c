@@ -438,12 +438,13 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 	struct mt76_wcid *wcid = NULL;
 	struct mt76x02_sta *msta = NULL;
 	struct mt76_dev *mdev = &dev->mt76;
+	struct sk_buff_head list;
 
 	if (stat->pktid == MT_PACKET_ID_NO_ACK)
 		return;
 
 	rcu_read_lock();
-	spin_lock_bh(&mdev->status_list.lock);
+	mt76_tx_status_lock(mdev, &list);
 
 	if (stat->wcid < ARRAY_SIZE(dev->mt76.wcid))
 		wcid = rcu_dereference(dev->mt76.wcid[stat->wcid]);
@@ -459,7 +460,7 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 	if (wcid) {
 		if (stat->pktid)
 			status.skb = mt76_tx_status_skb_get(mdev, wcid,
-							    stat->pktid);
+							    stat->pktid, &list);
 		if (status.skb)
 			status.info = IEEE80211_SKB_CB(status.skb);
 	}
@@ -490,12 +491,12 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 	}
 
 	if (status.skb)
-		mt76_tx_status_skb_done(mdev, status.skb);
+		mt76_tx_status_skb_done(mdev, status.skb, &list);
 	else
 		ieee80211_tx_status_ext(mt76_hw(dev), &status);
 
 out:
-	spin_unlock_bh(&mdev->status_list.lock);
+	mt76_tx_status_unlock(mdev, &list);
 	rcu_read_unlock();
 }
 
@@ -818,7 +819,7 @@ void mt76x02_mac_work(struct work_struct *work)
 	if (!dev->beacon_mask)
 		mt76x02_check_mac_err(dev);
 
-	mt76_tx_status_check(&dev->mt76);
+	mt76_tx_status_check(&dev->mt76, NULL, false);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);

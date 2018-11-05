@@ -103,8 +103,33 @@ mt76_check_agg_ssn(struct mt76_txq *mtxq, struct sk_buff *skb)
 	mtxq->agg_ssn = le16_to_cpu(hdr->seq_ctrl) + 0x10;
 }
 
+void
+mt76_tx_status_lock(struct mt76_dev *dev, struct sk_buff_head *list)
+		   __acquires(&dev->status_list.lock)
+{
+	__skb_queue_head_init(list);
+	spin_lock_bh(&dev->status_list.lock);
+	__acquire(&dev->status_list.lock);
+}
+EXPORT_SYMBOL_GPL(mt76_tx_status_lock);
+
+void
+mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)
+		      __releases(&dev->status_list.unlock)
+{
+	struct sk_buff *skb;
+
+	spin_unlock_bh(&dev->status_list.lock);
+	__release(&dev->status_list.unlock);
+
+	while ((skb = __skb_dequeue(list)) != NULL)
+		ieee80211_tx_status(dev->hw, skb);
+}
+EXPORT_SYMBOL_GPL(mt76_tx_status_unlock);
+
 static void
-__mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb, u8 flags)
+__mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb, u8 flags,
+			  struct sk_buff_head *list)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct mt76_tx_cb *cb = mt76_tx_skb_cb(skb);
@@ -125,13 +150,14 @@ __mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb, u8 flags)
 		info->flags |= IEEE80211_TX_STAT_ACK;
 	}
 
-	ieee80211_tx_status(dev->hw, skb);
+	__skb_queue_tail(list, skb);
 }
 
 void
-mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb)
+mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb,
+			struct sk_buff_head *list)
 {
-	__mt76_tx_status_skb_done(dev, skb, MT_TX_CB_TXS_DONE);
+	__mt76_tx_status_skb_done(dev, skb, MT_TX_CB_TXS_DONE, list);
 }
 EXPORT_SYMBOL_GPL(mt76_tx_status_skb_done);
 
@@ -173,7 +199,8 @@ mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
 EXPORT_SYMBOL_GPL(mt76_tx_status_skb_add);
 
 struct sk_buff *
-mt76_tx_status_skb_get(struct mt76_dev *dev, struct mt76_wcid *wcid, int pktid)
+mt76_tx_status_skb_get(struct mt76_dev *dev, struct mt76_wcid *wcid, int pktid,
+		       struct sk_buff_head *list)
 {
 	struct sk_buff *skb, *tmp;
 
@@ -194,23 +221,36 @@ mt76_tx_status_skb_get(struct mt76_dev *dev, struct mt76_wcid *wcid, int pktid)
 			continue;
 
 		__mt76_tx_status_skb_done(dev, skb, MT_TX_CB_TXS_FAILED |
-						    MT_TX_CB_TXS_DONE);
+						    MT_TX_CB_TXS_DONE, list);
 	}
 
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(mt76_tx_status_skb_get);
 
+void
+mt76_tx_status_check(struct mt76_dev *dev, struct mt76_wcid *wcid, bool flush)
+{
+	struct sk_buff_head list;
+
+	mt76_tx_status_lock(dev, &list);
+	mt76_tx_status_skb_get(dev, wcid, flush ? -1 : 0, &list);
+	mt76_tx_status_unlock(dev, &list);
+}
+EXPORT_SYMBOL_GPL(mt76_tx_status_check);
+
 void mt76_tx_complete_skb(struct mt76_dev *dev, struct sk_buff *skb)
 {
+	struct sk_buff_head list;
+
 	if (!skb->prev) {
 		ieee80211_free_txskb(dev->hw, skb);
 		return;
 	}
 
-	spin_lock_bh(&dev->status_list.lock);
-	__mt76_tx_status_skb_done(dev, skb, MT_TX_CB_DMA_DONE);
-	spin_unlock_bh(&dev->status_list.lock);
+	mt76_tx_status_lock(dev, &list);
+	__mt76_tx_status_skb_done(dev, skb, MT_TX_CB_DMA_DONE, &list);
+	mt76_tx_status_unlock(dev, &list);
 }
 EXPORT_SYMBOL_GPL(mt76_tx_complete_skb);
 
