@@ -771,6 +771,10 @@ int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 void dma_release_declared_memory(struct device *dev);
 void *dma_mark_declared_memory_occupied(struct device *dev,
 					dma_addr_t device_addr, size_t size);
+dma_addr_t dma_get_device_base(struct device *dev,
+			       struct dma_coherent_mem *mem);
+unsigned long dma_get_size(struct dma_coherent_mem *mem);
+
 #else
 static inline int
 dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
@@ -790,6 +794,17 @@ dma_mark_declared_memory_occupied(struct device *dev,
 {
 	return ERR_PTR(-EBUSY);
 }
+static inline dma_addr_t
+dma_get_device_base(struct device *dev, struct dma_coherent_mem *mem)
+{
+	return 0;
+}
+
+static inline unsigned long dma_get_size(struct dma_coherent_mem *mem)
+{
+	return 0;
+}
+
 #endif /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
 
 #ifdef CONFIG_HAS_DMA
