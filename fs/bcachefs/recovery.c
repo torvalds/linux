@@ -278,7 +278,7 @@ out:
 	return ret;
 err:
 fsck_err:
-	BUG_ON(!ret);
+	pr_err("Error in recovery: %s (%i)", err, ret);
 	goto out;
 }
 
@@ -381,6 +381,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	return 0;
 err:
-	BUG_ON(!ret);
+	pr_err("Error initializing new filesystem: %s (%i)", err, ret);
 	return ret;
 }

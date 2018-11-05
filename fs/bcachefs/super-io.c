@@ -811,7 +811,7 @@ static const char *bch2_sb_validate_members(struct bch_sb *sb,
 			return "Too many buckets";
 
 		if (le64_to_cpu(m->nbuckets) -
-		    le16_to_cpu(m->first_bucket) < 1 << 10)
+		    le16_to_cpu(m->first_bucket) < BCH_MIN_NR_NBUCKETS)
 			return "Not enough buckets";
 
 		if (le16_to_cpu(m->bucket_size) <

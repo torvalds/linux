@@ -374,6 +374,11 @@ static void bch2_rescale_bucket_io_times(struct bch_fs *c, int rw)
 	}
 }
 
+static inline u64 bucket_clock_freq(u64 capacity)
+{
+	return max(capacity >> 10, 2028ULL);
+}
+
 static void bch2_inc_clock_hand(struct io_timer *timer)
 {
 	struct bucket_clock *clock = container_of(timer,
@@ -412,7 +417,7 @@ static void bch2_inc_clock_hand(struct io_timer *timer)
 	 * RW mode (that will be 0 when we're RO, yet we can still service
 	 * reads)
 	 */
-	timer->expire += capacity >> 10;
+	timer->expire += bucket_clock_freq(capacity);
 
 	bch2_io_timer_add(&c->io_clock[clock->rw], timer);
 }
@@ -424,7 +429,7 @@ static void bch2_bucket_clock_init(struct bch_fs *c, int rw)
 	clock->hand		= 1;
 	clock->rw		= rw;
 	clock->rescale.fn	= bch2_inc_clock_hand;
-	clock->rescale.expire	= c->capacity >> 10;
+	clock->rescale.expire	= bucket_clock_freq(c->capacity);
 	mutex_init(&clock->lock);
 }
 
@@ -1010,8 +1015,6 @@ void bch2_recalc_capacity(struct bch_fs *c)
 		 */
 		for (j = 0; j < RESERVE_NONE; j++)
 			dev_reserve += ca->free[j].size;
-
-		dev_reserve += ca->free_inc.size;
 
 		dev_reserve += 1;	/* btree write point */
 		dev_reserve += 1;	/* copygc write point */

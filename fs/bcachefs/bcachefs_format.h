@@ -909,6 +909,8 @@ struct bch_sb_field_journal {
 
 /* BCH_SB_FIELD_members: */
 
+#define BCH_MIN_NR_NBUCKETS	(1 << 6)
+
 struct bch_member {
 	__uuid_t		uuid;
 	__le64			nbuckets;	/* device size */
@@ -1391,7 +1393,7 @@ struct jset {
 LE32_BITMASK(JSET_CSUM_TYPE,	struct jset, flags, 0, 4);
 LE32_BITMASK(JSET_BIG_ENDIAN,	struct jset, flags, 4, 5);
 
-#define BCH_JOURNAL_BUCKETS_MIN		20
+#define BCH_JOURNAL_BUCKETS_MIN		8
 
 /* Btree: */
 
