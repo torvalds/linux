@@ -40,18 +40,6 @@ static unsigned long pteaddr_invalid(unsigned long addr)
 }
 
 /*
- * All entries common to a mm share an asid.  To effectively flush these
- * entries, we just bump the asid.
- */
-void flush_tlb_mm(struct mm_struct *mm)
-{
-	if (current->mm == mm)
-		flush_tlb_all();
-	else
-		memset(&mm->context, 0, sizeof(mm_context_t));
-}
-
-/*
  * This one is only used for pages with the global bit set so we don't care
  * much about the ASID.
  */
@@ -231,6 +219,20 @@ void flush_tlb_pid(unsigned long pid)
 	}
 
 	WRCTL(CTL_TLBMISC, org_misc);
+}
+
+/*
+ * All entries common to a mm share an asid.  To effectively flush these
+ * entries, we just bump the asid.
+ */
+void flush_tlb_mm(struct mm_struct *mm)
+{
+	if (current->mm == mm) {
+		unsigned long mmu_pid = get_pid_from_context(&mm->context);
+		flush_tlb_pid(mmu_pid);
+	} else {
+		memset(&mm->context, 0, sizeof(mm_context_t));
+	}
 }
 
 void flush_tlb_all(void)
