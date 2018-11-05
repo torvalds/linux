@@ -1045,6 +1045,38 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 	return 0;
 }
 
+static int coda_enum_frameintervals(struct file *file, void *fh,
+				    struct v4l2_frmivalenum *f)
+{
+	struct coda_ctx *ctx = fh_to_ctx(fh);
+	int i;
+
+	if (f->index)
+		return -EINVAL;
+
+	/* Disallow YUYV if the vdoa is not available */
+	if (!ctx->vdoa && f->pixel_format == V4L2_PIX_FMT_YUYV)
+		return -EINVAL;
+
+	for (i = 0; i < CODA_MAX_FORMATS; i++) {
+		if (f->pixel_format == ctx->cvd->src_formats[i] ||
+		    f->pixel_format == ctx->cvd->dst_formats[i])
+			break;
+	}
+	if (i == CODA_MAX_FORMATS)
+		return -EINVAL;
+
+	f->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
+	f->stepwise.min.numerator = 1;
+	f->stepwise.min.denominator = 65535;
+	f->stepwise.max.numerator = 65536;
+	f->stepwise.max.denominator = 1;
+	f->stepwise.step.numerator = 1;
+	f->stepwise.step.denominator = 1;
+
+	return 0;
+}
+
 static int coda_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct coda_ctx *ctx = fh_to_ctx(fh);
@@ -1190,6 +1222,8 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 
 	.vidioc_g_parm		= coda_g_parm,
 	.vidioc_s_parm		= coda_s_parm,
+
+	.vidioc_enum_frameintervals = coda_enum_frameintervals,
 
 	.vidioc_subscribe_event = coda_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
