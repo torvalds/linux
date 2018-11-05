@@ -430,10 +430,13 @@ config CRYPTO_CTS
 	help
 	  CTS: Cipher Text Stealing
 	  This is the Cipher Text Stealing mode as described by
-	  Section 8 of rfc2040 and referenced by rfc3962.
-	  (rfc3962 includes errata information in its Appendix A)
+	  Section 8 of rfc2040 and referenced by rfc3962
+	  (rfc3962 includes errata information in its Appendix A) or
+	  CBC-CS3 as defined by NIST in Sp800-38A addendum from Oct 2010.
 	  This mode is required for Kerberos gss mechanism support
 	  for AES encryption.
+
+	  See: https://csrc.nist.gov/publications/detail/sp/800-38a/addendum/final
 
 config CRYPTO_ECB
 	tristate "ECB support"
