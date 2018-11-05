@@ -444,18 +444,7 @@ static int stat_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int stat_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, stat_show, inode->i_private);
-}
-
-static const struct file_operations stat_fops = {
-	.owner = THIS_MODULE,
-	.open = stat_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(stat);
 
 int f2fs_build_stats(struct f2fs_sb_info *sbi)
 {
