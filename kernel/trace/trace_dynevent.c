@@ -37,10 +37,17 @@ int dyn_event_release(int argc, char **argv, struct dyn_event_operations *type)
 	char *system = NULL, *event, *p;
 	int ret = -ENOENT;
 
-	if (argv[0][1] != ':')
-		return -EINVAL;
+	if (argv[0][0] == '-') {
+		if (argv[0][1] != ':')
+			return -EINVAL;
+		event = &argv[0][2];
+	} else {
+		event = strchr(argv[0], ':');
+		if (!event)
+			return -EINVAL;
+		event++;
+	}
 
-	event = &argv[0][2];
 	p = strchr(event, '/');
 	if (p) {
 		system = event;
@@ -69,7 +76,7 @@ static int create_dyn_event(int argc, char **argv)
 	struct dyn_event_operations *ops;
 	int ret;
 
-	if (argv[0][0] == '-')
+	if (argv[0][0] == '-' || argv[0][0] == '!')
 		return dyn_event_release(argc, argv, NULL);
 
 	mutex_lock(&dyn_event_ops_mutex);
