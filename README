@@ -1,13 +1,15 @@
-Kernel 4.14 for BananaPi R2
+#Kernel 4.14 for BananaPi R2
+
+##HowTo compile kernel:
 
  - checkout main branch
  - run "./build.sh importconfig" to import my config for bpi-r2
  - run "./build.sh config" to configure the kernel (menuconfig)
  - run "./build.sh" to start building kernel
 
-internal Wifi-driver (MT6625L) included
+Internal Wifi-driver (MT6625L) included
 
-to use it:
+To use it:
 
   copy firmware and tools to SD-Card from https://github.com/BPI-SINOVOIP/BPI-R2-bsp/tree/master/vendor/mediatek/connectivity or folder "utils"
 
@@ -29,22 +31,3 @@ to use it:
   - internal wifi has a bug when hostapd is killed see issue #4
 
 Master-Branch
-
-Linux kernel
-============
-
-This file was moved to Documentation/admin-guide/README.rst
-
-Please notice that there are several guides for kernel developers and users.
-These guides can be rendered in a number of formats, like HTML and PDF.
-
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.
-
-There are various text files in the Documentation/ subdirectory,
-several of them using the Restructured Text markup notation.
-See Documentation/00-INDEX for a list of what is contained in each file.
-
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.

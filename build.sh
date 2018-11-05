@@ -1,8 +1,10 @@
 #!/bin/bash
-if [[ $UID -eq 0 ]];
+if [ $UID -eq 0 ];
 then
-  echo "do not run as root!"
-  exit 1;
+  echo "This should not be run as root."
+  echo "Hit enter key to force or press CTRL+C to abort."
+  read -s
+  echo "[ OK ] Proceeding now."
 fi
 
 clr_red=$'\e[1;31m'
@@ -94,10 +96,11 @@ function install {
 			cp ./uImage $kernelfile
 			sudo make modules_install
 		else
-			echo "actual Kernel not found...is /boot mounted?"
+			echo "Actual kernel not found..."
+			echo "is /boot mounted?"
 		fi
 	else
-		echo "by default this kernel-file will be loaded (uEnv.txt):"
+		echo "By default this kernel-file will be loaded (uEnv.txt):"
 		grep '^kernel=' /media/${USER}/BPI-BOOT/bananapi/bpi-r2/linux/uEnv.txt|tail -1
 		read -p "Press [enter] to copy data to SD-Card..."
 		if  [[ -d /media/$USER/BPI-BOOT ]]; then
@@ -263,7 +266,7 @@ function build {
 			mkimage -A arm -O linux -T kernel -C none -a 80008000 -e 80008000 -n "Linux Kernel $kernver-$gitbranch" -d arch/arm/boot/zImage-dtb ./uImage
 		fi
 	else
-		echo "No Configfile found, Please Configure Kernel"
+		echo "No configfile found, please configure kernel first."
 	fi
 }
 
@@ -272,7 +275,7 @@ function prepare_SD {
 	cd $(dirname $0)
 	mkdir -p ../SD >/dev/null 2>/dev/null
 
-	echo "cleanup..."
+	echo "Cleaning up..."
 	for toDel in "$SD/BPI-BOOT/" "$SD/BPI-ROOT/"; do
 		rm -r ${toDel} 2>/dev/null
 	done
@@ -280,7 +283,7 @@ function prepare_SD {
 		mkdir -p ${createDir} >/dev/null 2>/dev/null
 	done
 
-	echo "copy..."
+	echo "Copying..."
 	export INSTALL_MOD_PATH=$SD/BPI-ROOT/;
 	echo "INSTALL_MOD_PATH: $INSTALL_MOD_PATH"
 	cp ./uImage $SD/BPI-BOOT/bananapi/bpi-r2/linux/uImage
@@ -332,7 +335,7 @@ function release
 	git tag $reltag
 	git push origin $reltag
 	else
-		echo "Tag already used, please use another"
+		echo "Tag already used, please use another tag."
 	fi
 }
 

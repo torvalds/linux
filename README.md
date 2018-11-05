@@ -1,19 +1,19 @@
-# Kernel 4.14 for BPI-R2
+# Kernel 4.14 for BananaPi R2
 
 <a href="https://travis-ci.com/frank-w/BPI-R2-4.14" target="_blank"><img src="https://travis-ci.com/frank-w/BPI-R2-4.14.svg?branch=4.14-main" alt="Build status 4.14-main"></a>
 
 ## Requirements
 
-On x86/x64-host you need cross compile tools for the armhf architecture (bison and flex-package are needed for kernels >=4.16):
+On a x86/x64-host you need cross compile tools for the armhf architecture (bison and flex-package are needed for kernels >=4.16):
 ```sh
-sudo apt-get install gcc-arm-linux-gnueabihf libc6-armhf-cross u-boot-tools bc make gcc libc6-dev libncurses5-dev libssl-dev bison flex
+sudo apt install gcc-arm-linux-gnueabihf libc6-armhf-cross u-boot-tools bc make gcc libc6-dev libncurses5-dev libssl-dev bison flex
 ```
-if you build directly on r2 (not recommended) you do not need the crosscompile-packages gcc-arm-linux-gnueabihf and libc6-armhf-cross
+If you build it directly on the BananaPi-R2 (not recommended) you do not need the crosscompile-packages gcc-arm-linux-gnueabihf and libc6-armhf-cross
 
 ## Issues
-currently gcc7 is not supported (https://bugs.linaro.org/show_bug.cgi?id=3823)
+Currently gcc7 is not supported (https://bugs.linaro.org/show_bug.cgi?id=3823)
 ```sh
-sudo apt-get install gcc-5-arm-linux-gnueabihf
+sudo apt install gcc-5-arm-linux-gnueabihf
 sudo update-alternatives --install /usr/bin/arm-linux-gnueabihf-gcc arm-linux-gnueabihf-gcc /usr/bin/arm-linux-gnueabihf-gcc-7  50
 update-alternatives: using /usr/bin/arm-linux-gnueabihf-gcc-7 to provide /usr/bin/arm-linux-gnueabihf-gcc (arm-linux-gnueabihf-gcc) in auto mode
 sudo update-alternatives --install /usr/bin/arm-linux-gnueabihf-gcc arm-linux-gnueabihf-gcc /usr/bin/arm-linux-gnueabihf-gcc-5  100
@@ -26,7 +26,7 @@ sudo update-alternatives --config arm-linux-gnueabihf-gcc
 
 ```sh
   ./build.sh importconfig
-  ./build.sh config
+  ./build.sh config (To configure manually with menuconfig)
   ./build.sh
 ```
 
@@ -41,11 +41,11 @@ Kernel upstream + BPI-R2
 * <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.19-rc">4.19-rc</a> (next LTS)
 * <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.19-main">4.19-main</a> (LTS, currently not all features merged)
 
-## Kernel version
+## Kernel versions
 
-Kernel breakdown features by version
+Kernel features by version
 
-|          | 4.4 | 4.9 | 4.14 | 4.16 | 4.17 | 4.18 | 4.19 (rc) |
+| Feature  | 4.4 | 4.9 | 4.14 | 4.16 | 4.17 | 4.18 | 4.19 (rc) |
 |----------| --- | --- | --- | --- | --- | --- | --- |
 | PCIe     |  Y  |  Y  |  Y  |  Y  |     |   ?  |    |
 | SATA     |  Y  |  Y  |  Y  |  Y?  |     |  Y   |    |
@@ -60,16 +60,21 @@ Kernel breakdown features by version
 | BT       |     |     |     |     |     |     |    |
 | VIDEO    |  Y  |  N  |  Y  |  Y  |     |     |  Y  |
 | ACPI |  ?  |  N  |  Y  |  N  |     |     |  Y  |
-||| other Options ||||     |    |
+| Other options |--|--|--|--|--|--|--|
 | OpenVPN  |  ?  |  Y  |  Y  |  ?  |     |   ?  |    |
 | iptables |  ?  |  Y  |  Y  |  ?  |     |   ?  |  Y  |
 | LXC / Docker |  ?  |  ?  |  Y  |  ?  |     |  ?   |    |
 
-? = unsure
+Symbols:
 
-() = testing (separate Branch wlan/hdmi/hwnat/hwqos)
+|Symbol|Meaning|
+|------|-------|
+|  ?   |Unsure |
+|  ()  |Testing|
 
-* HW-NAT only works between LAN and WAN (bridge unclear, wifi not working)
+(Testing in seperate branch wlan/hdmi/hwnat/hwqos)
+
+* HW-NAT only works between LAN and WAN (bridge unclear, wifi not supported)
 * HW-QoS is merged into 4.14-main, but we do not know how to test it
 * ACPI-feature means System is powered off, not only halted (power-consumption ~0.2W, no reboot on reset), reboot-problem with soldered power-switch (see https://github.com/frank-w/BPI-R2-4.14/issues/35). Power-off is also initiated by pressing the power-switch
 * VIDEO is hdmi-output (X-server/framebuffer-console)...here some resolutions are not supported by vendor-driver
@@ -87,7 +92,6 @@ kernel 4.4 / uboot: https://github.com/frank-w/BPI-R2-4.4
 
 License
 ----
-
 GPL-2.0
 
-**Free Software, Hell Yeah!**
+*Free Software, Hell Yeah!*
