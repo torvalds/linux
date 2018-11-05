@@ -53,7 +53,7 @@ struct ath10k_snoc_ce_irq {
 	u32 irq_line;
 };
 
-struct ath10k_wcn3990_vreg_info {
+struct ath10k_vreg_info {
 	struct regulator *reg;
 	const char *name;
 	u32 min_v;
@@ -63,7 +63,7 @@ struct ath10k_wcn3990_vreg_info {
 	bool required;
 };
 
-struct ath10k_wcn3990_clk_info {
+struct ath10k_clk_info {
 	struct clk *handle;
 	const char *name;
 	u32 freq;
@@ -87,8 +87,8 @@ struct ath10k_snoc {
 	struct ath10k_snoc_ce_irq ce_irqs[CE_COUNT_MAX];
 	struct ath10k_ce ce;
 	struct timer_list rx_post_retry;
-	struct ath10k_wcn3990_vreg_info *vreg;
-	struct ath10k_wcn3990_clk_info *clk;
+	struct ath10k_vreg_info *vreg;
+	struct ath10k_clk_info *clk;
 	struct ath10k_qmi *qmi;
 	unsigned long int flags;
 };

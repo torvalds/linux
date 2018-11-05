@@ -46,14 +46,14 @@ static char *const ce_name[] = {
 	"WLAN_CE_11",
 };
 
-static struct ath10k_wcn3990_vreg_info vreg_cfg[] = {
+static struct ath10k_vreg_info vreg_cfg[] = {
 	{NULL, "vdd-0.8-cx-mx", 800000, 800000, 0, 0, false},
 	{NULL, "vdd-1.8-xo", 1800000, 1800000, 0, 0, false},
 	{NULL, "vdd-1.3-rfa", 1304000, 1304000, 0, 0, false},
 	{NULL, "vdd-3.3-ch0", 3312000, 3312000, 0, 0, false},
 };
 
-static struct ath10k_wcn3990_clk_info clk_cfg[] = {
+static struct ath10k_clk_info clk_cfg[] = {
 	{NULL, "cxo_ref_clk_pin", 0, false},
 };
 
@@ -1270,7 +1270,7 @@ static void ath10k_snoc_release_resource(struct ath10k *ar)
 }
 
 static int ath10k_get_vreg_info(struct ath10k *ar, struct device *dev,
-				struct ath10k_wcn3990_vreg_info *vreg_info)
+				struct ath10k_vreg_info *vreg_info)
 {
 	struct regulator *reg;
 	int ret = 0;
@@ -1308,7 +1308,7 @@ done:
 }
 
 static int ath10k_get_clk_info(struct ath10k *ar, struct device *dev,
-			       struct ath10k_wcn3990_clk_info *clk_info)
+			       struct ath10k_clk_info *clk_info)
 {
 	struct clk *handle;
 	int ret = 0;
@@ -1335,10 +1335,10 @@ static int ath10k_get_clk_info(struct ath10k *ar, struct device *dev,
 	return ret;
 }
 
-static int ath10k_wcn3990_vreg_on(struct ath10k *ar)
+static int ath10k_snoc_vreg_on(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_wcn3990_vreg_info *vreg_info;
+	struct ath10k_vreg_info *vreg_info;
 	int ret = 0;
 	int i;
 
@@ -1400,10 +1400,10 @@ err_reg_config:
 	return ret;
 }
 
-static int ath10k_wcn3990_vreg_off(struct ath10k *ar)
+static int ath10k_snoc_vreg_off(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_wcn3990_vreg_info *vreg_info;
+	struct ath10k_vreg_info *vreg_info;
 	int ret = 0;
 	int i;
 
@@ -1436,10 +1436,10 @@ static int ath10k_wcn3990_vreg_off(struct ath10k *ar)
 	return ret;
 }
 
-static int ath10k_wcn3990_clk_init(struct ath10k *ar)
+static int ath10k_snoc_clk_init(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_wcn3990_clk_info *clk_info;
+	struct ath10k_clk_info *clk_info;
 	int ret = 0;
 	int i;
 
@@ -1485,10 +1485,10 @@ err_clock_config:
 	return ret;
 }
 
-static int ath10k_wcn3990_clk_deinit(struct ath10k *ar)
+static int ath10k_snoc_clk_deinit(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_wcn3990_clk_info *clk_info;
+	struct ath10k_clk_info *clk_info;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(clk_cfg); i++) {
@@ -1512,18 +1512,18 @@ static int ath10k_hw_power_on(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power on\n");
 
-	ret = ath10k_wcn3990_vreg_on(ar);
+	ret = ath10k_snoc_vreg_on(ar);
 	if (ret)
 		return ret;
 
-	ret = ath10k_wcn3990_clk_init(ar);
+	ret = ath10k_snoc_clk_init(ar);
 	if (ret)
 		goto vreg_off;
 
 	return ret;
 
 vreg_off:
-	ath10k_wcn3990_vreg_off(ar);
+	ath10k_snoc_vreg_off(ar);
 	return ret;
 }
 
@@ -1533,9 +1533,9 @@ static int ath10k_hw_power_off(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power off\n");
 
-	ath10k_wcn3990_clk_deinit(ar);
+	ath10k_snoc_clk_deinit(ar);
 
-	ret = ath10k_wcn3990_vreg_off(ar);
+	ret = ath10k_snoc_vreg_off(ar);
 
 	return ret;
 }
