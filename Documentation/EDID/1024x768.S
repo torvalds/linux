@@ -39,6 +39,5 @@
 #define ESTABLISHED_TIMING2_BITS 0x08 /* Bit 3 -> 1024x768 @60 Hz */
 #define HSYNC_POL 0
 #define VSYNC_POL 0
-#define CRC 0x55
 
 #include "edid.S"

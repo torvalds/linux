@@ -39,6 +39,5 @@
 /* No ESTABLISHED_TIMINGx_BITS */
 #define HSYNC_POL 1
 #define VSYNC_POL 1
-#define CRC 0x05
 
 #include "edid.S"
