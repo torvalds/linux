@@ -177,13 +177,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz,
 	memcpy(save, buf, save_size);
 
 	for (;;) {
-		ret = tpm_chip_start(chip, flags);
-		if (ret)
-			return ret;
-
 		ret = tpm_try_transmit(chip, buf, bufsiz, flags);
-
-		tpm_chip_stop(chip, flags);
 		if (ret < 0)
 			break;
 		rc = be32_to_cpu(header->return_code);
@@ -420,10 +414,16 @@ int tpm_pm_suspend(struct device *dev)
 	if (chip->flags & TPM_CHIP_FLAG_ALWAYS_POWERED)
 		return 0;
 
-	if (chip->flags & TPM_CHIP_FLAG_TPM2)
-		tpm2_shutdown(chip, TPM2_SU_STATE);
-	else
+	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+		mutex_lock(&chip->tpm_mutex);
+		if (!tpm_chip_start(chip, 0)) {
+			tpm2_shutdown(chip, TPM2_SU_STATE);
+			tpm_chip_stop(chip, 0);
+		}
+		mutex_unlock(&chip->tpm_mutex);
+	} else {
 		rc = tpm1_pm_suspend(chip, tpm_suspend_pcr);
+	}
 
 	return rc;
 }

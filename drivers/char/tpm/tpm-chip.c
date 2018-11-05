@@ -41,9 +41,6 @@ static int tpm_request_locality(struct tpm_chip *chip, unsigned int flags)
 {
 	int rc;
 
-	if (flags & TPM_TRANSMIT_NESTED)
-		return 0;
-
 	if (!chip->ops->request_locality)
 		return 0;
 
@@ -59,9 +56,6 @@ static void tpm_relinquish_locality(struct tpm_chip *chip, unsigned int flags)
 {
 	int rc;
 
-	if (flags & TPM_TRANSMIT_NESTED)
-		return;
-
 	if (!chip->ops->relinquish_locality)
 		return;
 
@@ -74,9 +68,6 @@ static void tpm_relinquish_locality(struct tpm_chip *chip, unsigned int flags)
 
 static int tpm_cmd_ready(struct tpm_chip *chip, unsigned int flags)
 {
-	if (flags & TPM_TRANSMIT_NESTED)
-		return 0;
-
 	if (!chip->ops->cmd_ready)
 		return 0;
 
@@ -85,9 +76,6 @@ static int tpm_cmd_ready(struct tpm_chip *chip, unsigned int flags)
 
 static int tpm_go_idle(struct tpm_chip *chip, unsigned int flags)
 {
-	if (flags & TPM_TRANSMIT_NESTED)
-		return 0;
-
 	if (!chip->ops->go_idle)
 		return 0;
 
@@ -167,11 +155,17 @@ int tpm_try_get_ops(struct tpm_chip *chip)
 
 	down_read(&chip->ops_sem);
 	if (!chip->ops)
-		goto out_lock;
+		goto out_ops;
 
 	mutex_lock(&chip->tpm_mutex);
+	rc = tpm_chip_start(chip, 0);
+	if (rc)
+		goto out_lock;
+
 	return 0;
 out_lock:
+	mutex_unlock(&chip->tpm_mutex);
+out_ops:
 	up_read(&chip->ops_sem);
 	put_device(&chip->dev);
 	return rc;
@@ -187,6 +181,7 @@ EXPORT_SYMBOL_GPL(tpm_try_get_ops);
  */
 void tpm_put_ops(struct tpm_chip *chip)
 {
+	tpm_chip_stop(chip, 0);
 	mutex_unlock(&chip->tpm_mutex);
 	up_read(&chip->ops_sem);
 	put_device(&chip->dev);
@@ -302,7 +297,10 @@ static int tpm_class_shutdown(struct device *dev)
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
 		down_write(&chip->ops_sem);
-		tpm2_shutdown(chip, TPM2_SU_CLEAR);
+		if (!tpm_chip_start(chip, 0)) {
+			tpm2_shutdown(chip, TPM2_SU_CLEAR);
+			tpm_chip_stop(chip, 0);
+		}
 		chip->ops = NULL;
 		up_write(&chip->ops_sem);
 	}
@@ -481,8 +479,12 @@ static void tpm_del_char_device(struct tpm_chip *chip)
 
 	/* Make the driver uncallable. */
 	down_write(&chip->ops_sem);
-	if (chip->flags & TPM_CHIP_FLAG_TPM2)
-		tpm2_shutdown(chip, TPM2_SU_CLEAR);
+	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+		if (!tpm_chip_start(chip, 0)) {
+			tpm2_shutdown(chip, TPM2_SU_CLEAR);
+			tpm_chip_stop(chip, 0);
+		}
+	}
 	chip->ops = NULL;
 	up_write(&chip->ops_sem);
 }
@@ -564,7 +566,11 @@ int tpm_chip_register(struct tpm_chip *chip)
 {
 	int rc;
 
+	rc = tpm_chip_start(chip, 0);
+	if (rc)
+		return rc;
 	rc = tpm_auto_startup(chip);
+	tpm_chip_stop(chip, 0);
 	if (rc)
 		return rc;
 

@@ -485,15 +485,6 @@ extern const struct file_operations tpm_fops;
 extern const struct file_operations tpmrm_fops;
 extern struct idr dev_nums_idr;
 
-/**
- * enum tpm_transmit_flags - flags for tpm_transmit()
- *
- * %TPM_TRANSMIT_NESTED:	discard setup steps (power management, locality)
- */
-enum tpm_transmit_flags {
-	TPM_TRANSMIT_NESTED      = BIT(0),
-};
-
 ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz,
 		     unsigned int flags);
 ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_buf *buf,
