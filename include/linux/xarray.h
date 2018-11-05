@@ -487,7 +487,7 @@ static inline void *xa_store_irq(struct xarray *xa, unsigned long index,
  * the third argument.  The XArray does not need to allocate memory, so
  * the user does not need to provide GFP flags.
  *
- * Context: Process context.  Takes and releases the xa_lock while
+ * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.
  * Return: The entry which used to be at this index.
  */
@@ -622,7 +622,7 @@ static inline int xa_alloc(struct xarray *xa, u32 *id, u32 max, void *entry,
  * Updates the @id pointer with the index, then stores the entry at that
  * index.  A concurrent lookup will not see an uninitialised @id.
  *
- * Context: Process context.  Takes and releases the xa_lock while
+ * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.  May sleep if the @gfp flags permit.
  * Return: 0 on success, -ENOMEM if memory allocation fails or -ENOSPC if
  * there is no more space in the XArray.

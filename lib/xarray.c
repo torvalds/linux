@@ -610,8 +610,8 @@ static int xas_expand(struct xa_state *xas, void *head)
  * (see the xa_cmpxchg() implementation for an example).
  *
  * Return: If the slot already existed, returns the contents of this slot.
- * If the slot was newly created, returns NULL.  If it failed to create the
- * slot, returns NULL and indicates the error in @xas.
+ * If the slot was newly created, returns %NULL.  If it failed to create the
+ * slot, returns %NULL and indicates the error in @xas.
  */
 static void *xas_create(struct xa_state *xas)
 {
@@ -1640,7 +1640,7 @@ EXPORT_SYMBOL(__xa_alloc);
  * @index: Index of entry.
  * @mark: Mark number.
  *
- * Attempting to set a mark on a NULL entry does not succeed.
+ * Attempting to set a mark on a %NULL entry does not succeed.
  *
  * Context: Any context.  Expects xa_lock to be held on entry.
  */
@@ -1710,7 +1710,7 @@ EXPORT_SYMBOL(xa_get_mark);
  * @index: Index of entry.
  * @mark: Mark number.
  *
- * Attempting to set a mark on a NULL entry does not succeed.
+ * Attempting to set a mark on a %NULL entry does not succeed.
  *
  * Context: Process context.  Takes and releases the xa_lock.
  */
@@ -1879,7 +1879,7 @@ static unsigned int xas_extract_marked(struct xa_state *xas, void **dst,
  *
  * The @filter may be an XArray mark value, in which case entries which are
  * marked with that mark will be copied.  It may also be %XA_PRESENT, in
- * which case all entries which are not NULL will be copied.
+ * which case all entries which are not %NULL will be copied.
  *
  * The entries returned may not represent a snapshot of the XArray at a
  * moment in time.  For example, if another thread stores to index 5, then

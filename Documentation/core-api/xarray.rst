@@ -74,7 +74,8 @@ using :c:func:`xa_load`.  xa_store will overwrite any entry with the
 new entry and return the previous entry stored at that index.  You can
 use :c:func:`xa_erase` instead of calling :c:func:`xa_store` with a
 ``NULL`` entry.  There is no difference between an entry that has never
-been stored to and one that has most recently had ``NULL`` stored to it.
+been stored to, one that has been erased and one that has most recently
+had ``NULL`` stored to it.
 
 You can conditionally replace an entry at an index by using
 :c:func:`xa_cmpxchg`.  Like :c:func:`cmpxchg`, it will only succeed if
@@ -113,6 +114,9 @@ use the reserved entry, you can call :c:func:`xa_release` to remove the
 unused entry.  If another user has stored to the entry in the meantime,
 :c:func:`xa_release` will do nothing; if instead you want the entry to
 become ``NULL``, you should use :c:func:`xa_erase`.
+
+If all entries in the array are ``NULL``, the :c:func:`xa_empty` function
+will return ``true``.
 
 Finally, you can remove all entries from an XArray by calling
 :c:func:`xa_destroy`.  If the XArray entries are pointers, you may wish
