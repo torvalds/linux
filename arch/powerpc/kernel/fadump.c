@@ -1531,17 +1531,7 @@ static struct kobj_attribute fadump_register_attr = __ATTR(fadump_registered,
 						0644, fadump_register_show,
 						fadump_register_store);
 
-static int fadump_region_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fadump_region_show, inode->i_private);
-}
-
-static const struct file_operations fadump_region_fops = {
-	.open    = fadump_region_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(fadump_region);
 
 static void fadump_init_files(void)
 {
