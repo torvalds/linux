@@ -939,32 +939,39 @@ static int coda_s_selection(struct file *file, void *fh,
 	struct coda_ctx *ctx = fh_to_ctx(fh);
 	struct coda_q_data *q_data;
 
-	if (ctx->inst_type == CODA_INST_ENCODER &&
-	    s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT &&
-	    s->target == V4L2_SEL_TGT_CROP) {
-		q_data = get_q_data(ctx, s->type);
-		if (!q_data)
-			return -EINVAL;
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP:
+		if (ctx->inst_type == CODA_INST_ENCODER &&
+		    s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+			q_data = get_q_data(ctx, s->type);
+			if (!q_data)
+				return -EINVAL;
 
-		s->r.left = 0;
-		s->r.top = 0;
-		s->r.width = clamp(s->r.width, 2U, q_data->width);
-		s->r.height = clamp(s->r.height, 2U, q_data->height);
+			s->r.left = 0;
+			s->r.top = 0;
+			s->r.width = clamp(s->r.width, 2U, q_data->width);
+			s->r.height = clamp(s->r.height, 2U, q_data->height);
 
-		if (s->flags & V4L2_SEL_FLAG_LE) {
-			s->r.width = round_up(s->r.width, 2);
-			s->r.height = round_up(s->r.height, 2);
-		} else {
-			s->r.width = round_down(s->r.width, 2);
-			s->r.height = round_down(s->r.height, 2);
+			if (s->flags & V4L2_SEL_FLAG_LE) {
+				s->r.width = round_up(s->r.width, 2);
+				s->r.height = round_up(s->r.height, 2);
+			} else {
+				s->r.width = round_down(s->r.width, 2);
+				s->r.height = round_down(s->r.height, 2);
+			}
+
+			q_data->rect = s->r;
+
+			return 0;
 		}
-
-		q_data->rect = s->r;
-
-		return 0;
+		/* else fall through */
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+	case V4L2_SEL_TGT_COMPOSE:
+		return coda_g_selection(file, fh, s);
+	default:
+		/* v4l2-compliance expects this to fail for read-only targets */
+		return -EINVAL;
 	}
-
-	return coda_g_selection(file, fh, s);
 }
 
 static int coda_try_encoder_cmd(struct file *file, void *fh,
