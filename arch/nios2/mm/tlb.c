@@ -228,9 +228,9 @@ void flush_tlb_pid(unsigned long pid)
 		}
 
 		addr += PAGE_SIZE;
-
-		WRCTL(CTL_TLBMISC, org_misc);
 	}
+
+	WRCTL(CTL_TLBMISC, org_misc);
 }
 
 void flush_tlb_all(void)
