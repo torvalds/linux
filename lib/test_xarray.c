@@ -504,7 +504,7 @@ static noinline void check_multi_store(struct xarray *xa)
 	rcu_read_unlock();
 
 	/* We can erase multiple values with a single store */
-	xa_store_order(xa, 0, 63, NULL, GFP_KERNEL);
+	xa_store_order(xa, 0, BITS_PER_LONG - 1, NULL, GFP_KERNEL);
 	XA_BUG_ON(xa, !xa_empty(xa));
 
 	/* Even when the first slot is empty but the others aren't */
@@ -1101,7 +1101,7 @@ static noinline void check_store_range(struct xarray *xa)
 			__check_store_range(xa, 4095 + i, 4095 + j);
 			__check_store_range(xa, 4096 + i, 4096 + j);
 			__check_store_range(xa, 123456 + i, 123456 + j);
-			__check_store_range(xa, UINT_MAX + i, UINT_MAX + j);
+			__check_store_range(xa, (1 << 24) + i, (1 << 24) + j);
 		}
 	}
 }
