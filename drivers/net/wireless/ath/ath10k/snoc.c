@@ -1335,6 +1335,76 @@ static int ath10k_get_clk_info(struct ath10k *ar, struct device *dev,
 	return ret;
 }
 
+static int __ath10k_snoc_vreg_on(struct ath10k *ar,
+				 struct ath10k_vreg_info *vreg_info)
+{
+	int ret;
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being enabled\n",
+		   vreg_info->name);
+
+	ret = regulator_set_voltage(vreg_info->reg, vreg_info->min_v,
+				    vreg_info->max_v);
+	if (ret) {
+		ath10k_err(ar,
+			   "failed to set regulator %s voltage-min: %d voltage-max: %d\n",
+			   vreg_info->name, vreg_info->min_v, vreg_info->max_v);
+		return ret;
+	}
+
+	if (vreg_info->load_ua) {
+		ret = regulator_set_load(vreg_info->reg, vreg_info->load_ua);
+		if (ret < 0) {
+			ath10k_err(ar, "failed to set regulator %s load: %d\n",
+				   vreg_info->name, vreg_info->load_ua);
+			goto err_set_load;
+		}
+	}
+
+	ret = regulator_enable(vreg_info->reg);
+	if (ret) {
+		ath10k_err(ar, "failed to enable regulator %s\n",
+			   vreg_info->name);
+		goto err_enable;
+	}
+
+	if (vreg_info->settle_delay)
+		udelay(vreg_info->settle_delay);
+
+	return 0;
+
+err_enable:
+	regulator_set_load(vreg_info->reg, 0);
+err_set_load:
+	regulator_set_voltage(vreg_info->reg, 0, vreg_info->max_v);
+
+	return ret;
+}
+
+static int __ath10k_snoc_vreg_off(struct ath10k *ar,
+				  struct ath10k_vreg_info *vreg_info)
+{
+	int ret;
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being disabled\n",
+		   vreg_info->name);
+
+	ret = regulator_disable(vreg_info->reg);
+	if (ret)
+		ath10k_err(ar, "failed to disable regulator %s\n",
+			   vreg_info->name);
+
+	ret = regulator_set_load(vreg_info->reg, 0);
+	if (ret < 0)
+		ath10k_err(ar, "failed to set load %s\n", vreg_info->name);
+
+	ret = regulator_set_voltage(vreg_info->reg, 0, vreg_info->max_v);
+	if (ret)
+		ath10k_err(ar, "failed to set voltage %s\n", vreg_info->name);
+
+	return ret;
+}
+
 static int ath10k_snoc_vreg_on(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
@@ -1348,53 +1418,21 @@ static int ath10k_snoc_vreg_on(struct ath10k *ar)
 		if (!vreg_info->reg)
 			continue;
 
-		ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being enabled\n",
-			   vreg_info->name);
-
-		ret = regulator_set_voltage(vreg_info->reg, vreg_info->min_v,
-					    vreg_info->max_v);
-		if (ret) {
-			ath10k_err(ar,
-				   "failed to set regulator %s voltage-min: %d voltage-max: %d\n",
-				   vreg_info->name, vreg_info->min_v, vreg_info->max_v);
+		ret = __ath10k_snoc_vreg_on(ar, vreg_info);
+		if (ret)
 			goto err_reg_config;
-		}
-
-		if (vreg_info->load_ua) {
-			ret = regulator_set_load(vreg_info->reg,
-						 vreg_info->load_ua);
-			if (ret < 0) {
-				ath10k_err(ar,
-					   "failed to set regulator %s load: %d\n",
-					   vreg_info->name,
-					   vreg_info->load_ua);
-				goto err_reg_config;
-			}
-		}
-
-		ret = regulator_enable(vreg_info->reg);
-		if (ret) {
-			ath10k_err(ar, "failed to enable regulator %s\n",
-				   vreg_info->name);
-			goto err_reg_config;
-		}
-
-		if (vreg_info->settle_delay)
-			udelay(vreg_info->settle_delay);
 	}
 
 	return 0;
 
 err_reg_config:
-	for (; i >= 0; i--) {
+	for (i = i - 1; i >= 0; i--) {
 		vreg_info = &ar_snoc->vreg[i];
 
 		if (!vreg_info->reg)
 			continue;
 
-		regulator_disable(vreg_info->reg);
-		regulator_set_load(vreg_info->reg, 0);
-		regulator_set_voltage(vreg_info->reg, 0, vreg_info->max_v);
+		__ath10k_snoc_vreg_off(ar, vreg_info);
 	}
 
 	return ret;
@@ -1413,24 +1451,7 @@ static int ath10k_snoc_vreg_off(struct ath10k *ar)
 		if (!vreg_info->reg)
 			continue;
 
-		ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being disabled\n",
-			   vreg_info->name);
-
-		ret = regulator_disable(vreg_info->reg);
-		if (ret)
-			ath10k_err(ar, "failed to disable regulator %s\n",
-				   vreg_info->name);
-
-		ret = regulator_set_load(vreg_info->reg, 0);
-		if (ret < 0)
-			ath10k_err(ar, "failed to set load %s\n",
-				   vreg_info->name);
-
-		ret = regulator_set_voltage(vreg_info->reg, 0,
-					    vreg_info->max_v);
-		if (ret)
-			ath10k_err(ar, "failed to set voltage %s\n",
-				   vreg_info->name);
+		ret = __ath10k_snoc_vreg_off(ar, vreg_info);
 	}
 
 	return ret;
