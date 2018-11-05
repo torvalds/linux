@@ -3488,6 +3488,8 @@ static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 olen,
 			const u64 sz = BTRFS_I(src)->root->fs_info->sectorsize;
 
 			len = round_down(i_size_read(src), sz) - loff;
+			if (len == 0)
+				return 0;
 			olen = len;
 		}
 	}
