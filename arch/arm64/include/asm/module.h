@@ -22,7 +22,7 @@
 
 #ifdef CONFIG_ARM64_MODULE_PLTS
 struct mod_plt_sec {
-	struct elf64_shdr	*plt;
+	int			plt_shndx;
 	int			plt_num_entries;
 	int			plt_max_entries;
 };
@@ -36,10 +36,12 @@ struct mod_arch_specific {
 };
 #endif
 
-u64 module_emit_plt_entry(struct module *mod, void *loc, const Elf64_Rela *rela,
+u64 module_emit_plt_entry(struct module *mod, Elf64_Shdr *sechdrs,
+			  void *loc, const Elf64_Rela *rela,
 			  Elf64_Sym *sym);
 
-u64 module_emit_veneer_for_adrp(struct module *mod, void *loc, u64 val);
+u64 module_emit_veneer_for_adrp(struct module *mod, Elf64_Shdr *sechdrs,
+				void *loc, u64 val);
 
 #ifdef CONFIG_RANDOMIZE_BASE
 extern u64 module_alloc_base;
