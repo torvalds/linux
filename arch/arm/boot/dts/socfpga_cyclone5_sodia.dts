@@ -111,9 +111,9 @@
 };
 
 &qspi {
-        status = "okay";
+	status = "okay";
 
-        flash0: n25q512a@0 {
+	flash0: n25q512a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "n25q512a";
