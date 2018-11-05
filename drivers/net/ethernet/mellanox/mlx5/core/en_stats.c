@@ -936,7 +936,7 @@ static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
 };
 
 static const struct counter_desc pport_pfc_stall_stats_desc[] = {
-	{ "tx_pause_storm_warning_events ", PPORT_PER_PRIO_OFF(device_stall_minor_watermark_cnt) },
+	{ "tx_pause_storm_warning_events", PPORT_PER_PRIO_OFF(device_stall_minor_watermark_cnt) },
 	{ "tx_pause_storm_error_events", PPORT_PER_PRIO_OFF(device_stall_critical_watermark_cnt) },
 };
 
