@@ -511,6 +511,7 @@ struct brcmf_fws_info {
 	struct work_struct fws_dequeue_work;
 	u32 fifo_enqpkt[BRCMF_FWS_FIFO_COUNT];
 	int fifo_credit[BRCMF_FWS_FIFO_COUNT];
+	int init_fifo_credit[BRCMF_FWS_FIFO_COUNT];
 	int credits_borrowed[BRCMF_FWS_FIFO_AC_VO + 1];
 	int deq_node_pos[BRCMF_FWS_FIFO_COUNT];
 	u32 fifo_credit_map;
@@ -1237,6 +1238,9 @@ static void brcmf_fws_return_credits(struct brcmf_fws_info *fws,
 	}
 
 	fws->fifo_credit[fifo] += credits;
+	if (fws->fifo_credit[fifo] > fws->init_fifo_credit[fifo])
+		fws->fifo_credit[fifo] = fws->init_fifo_credit[fifo];
+
 }
 
 static void brcmf_fws_schedule_deq(struct brcmf_fws_info *fws)
@@ -1595,19 +1599,21 @@ static int brcmf_fws_notify_credit_map(struct brcmf_if *ifp,
 		brcmf_err("event payload too small (%d)\n", e->datalen);
 		return -EINVAL;
 	}
-	if (fws->creditmap_received)
-		return 0;
 
 	fws->creditmap_received = true;
 
 	brcmf_dbg(TRACE, "enter: credits %pM\n", credits);
 	brcmf_fws_lock(fws);
 	for (i = 0; i < ARRAY_SIZE(fws->fifo_credit); i++) {
-		if (*credits)
+		fws->fifo_credit[i] += credits[i] - fws->init_fifo_credit[i];
+		fws->init_fifo_credit[i] = credits[i];
+		if (fws->fifo_credit[i] > 0)
 			fws->fifo_credit_map |= 1 << i;
 		else
 			fws->fifo_credit_map &= ~(1 << i);
-		fws->fifo_credit[i] = *credits++;
+		WARN_ONCE(fws->fifo_credit[i] < 0,
+			  "fifo_credit[%d] is negative(%d)\n", i,
+			  fws->fifo_credit[i]);
 	}
 	brcmf_fws_schedule_deq(fws);
 	brcmf_fws_unlock(fws);
@@ -2013,7 +2019,7 @@ static int brcmf_fws_borrow_credit(struct brcmf_fws_info *fws)
 	}
 
 	for (lender_ac = 0; lender_ac <= BRCMF_FWS_FIFO_AC_VO; lender_ac++) {
-		if (fws->fifo_credit[lender_ac]) {
+		if (fws->fifo_credit[lender_ac] > 0) {
 			fws->credits_borrowed[lender_ac]++;
 			fws->fifo_credit[lender_ac]--;
 			if (fws->fifo_credit[lender_ac] == 0)
@@ -2210,8 +2216,9 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 			}
 			continue;
 		}
-		while ((fws->fifo_credit[fifo]) || ((!fws->bcmc_credit_check) &&
-		       (fifo == BRCMF_FWS_FIFO_BCMC))) {
+		while ((fws->fifo_credit[fifo] > 0) ||
+		       ((!fws->bcmc_credit_check) &&
+			(fifo == BRCMF_FWS_FIFO_BCMC))) {
 			skb = brcmf_fws_deq(fws, fifo);
 			if (!skb)
 				break;
@@ -2222,7 +2229,7 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 				break;
 		}
 		if ((fifo == BRCMF_FWS_FIFO_AC_BE) &&
-		    (fws->fifo_credit[fifo] == 0) &&
+		    (fws->fifo_credit[fifo] <= 0) &&
 		    (!fws->bus_flow_blocked)) {
 			while (brcmf_fws_borrow_credit(fws) == 0) {
 				skb = brcmf_fws_deq(fws, fifo);
