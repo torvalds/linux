@@ -326,6 +326,7 @@ static int util_probe(struct hv_device *dev,
 	srv->recv_buffer = kmalloc(PAGE_SIZE * 4, GFP_KERNEL);
 	if (!srv->recv_buffer)
 		return -ENOMEM;
+	srv->channel = dev->channel;
 	if (srv->util_init) {
 		ret = srv->util_init(srv);
 		if (ret) {

@@ -439,7 +439,6 @@ struct kvm_vcpu_arch {
 	struct kvm_mmu_memory_cache mmu_page_header_cache;
 
 	struct fpu guest_fpu;
-	bool eager_fpu;
 	u64 xcr0;
 	u64 guest_supported_xcr0;
 	u32 guest_xstate_size;

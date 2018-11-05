@@ -3786,7 +3786,6 @@ static struct inet6_ifaddr *if6_get_first(struct seq_file *seq, loff_t pos)
 				p++;
 				continue;
 			}
-			state->offset++;
 			return ifa;
 		}
 
@@ -3810,13 +3809,12 @@ static struct inet6_ifaddr *if6_get_next(struct seq_file *seq,
 		return ifa;
 	}
 
+	state->offset = 0;
 	while (++state->bucket < IN6_ADDR_HSIZE) {
-		state->offset = 0;
 		hlist_for_each_entry_rcu_bh(ifa,
 				     &inet6_addr_lst[state->bucket], addr_lst) {
 			if (!net_eq(dev_net(ifa->idev->dev), net))
 				continue;
-			state->offset++;
 			return ifa;
 		}
 	}
