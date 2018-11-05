@@ -207,6 +207,11 @@
 	cpu-supply = <&vdd_arm>;
 };
 
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &display_subsystem {
 	status = "okay";
 };
