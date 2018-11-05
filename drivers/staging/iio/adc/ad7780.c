@@ -51,7 +51,6 @@ struct ad7780_state {
 	struct regulator		*reg;
 	struct gpio_desc		*powerdown_gpio;
 	unsigned int	gain;
-	u16				int_vref_mv;
 
 	struct ad_sigma_delta sd;
 };
@@ -180,7 +179,7 @@ static int ad7780_probe(struct spi_device *spi)
 {
 	struct ad7780_state *st;
 	struct iio_dev *indio_dev;
-	int ret, voltage_uv = 0;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
@@ -200,15 +199,9 @@ static int ad7780_probe(struct spi_device *spi)
 		dev_err(&spi->dev, "Failed to enable specified AVdd supply\n");
 		return ret;
 	}
-	voltage_uv = regulator_get_voltage(st->reg);
 
 	st->chip_info =
 		&ad7780_chip_info_tbl[spi_get_device_id(spi)->driver_data];
-
-	if (voltage_uv)
-		st->int_vref_mv = voltage_uv / 1000;
-	else
-		dev_warn(&spi->dev, "Reference voltage unspecified\n");
 
 	spi_set_drvdata(spi, indio_dev);
 
