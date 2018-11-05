@@ -235,7 +235,7 @@ unsigned bch2_extent_is_compressed(struct bkey_s_c k)
 			if (!p.ptr.cached &&
 			    p.crc.compression_type != BCH_COMPRESSION_NONE &&
 			    p.crc.compressed_size < p.crc.live_size)
-				ret = max_t(unsigned, ret, p.crc.compressed_size);
+				ret += p.crc.compressed_size;
 	}
 	}
 
@@ -1275,8 +1275,7 @@ bch2_extent_can_insert(struct btree_insert *trans,
 
 		switch (bch2_disk_reservation_add(trans->c,
 				trans->disk_res,
-				sectors * bch2_extent_nr_dirty_ptrs(k),
-				flags)) {
+				sectors, flags)) {
 		case 0:
 			break;
 		case -ENOSPC:

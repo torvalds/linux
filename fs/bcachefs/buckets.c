@@ -339,12 +339,17 @@ void bch2_fs_usage_apply(struct bch_fs *c,
 {
 	struct fs_usage_sum sum = __fs_usage_sum(*stats);
 	s64 added = sum.data + sum.reserved;
+	s64 should_not_have_added;
 
 	/*
 	 * Not allowed to reduce sectors_available except by getting a
 	 * reservation:
 	 */
-	BUG_ON(added > (s64) (disk_res ? disk_res->sectors : 0));
+	should_not_have_added = added - (s64) (disk_res ? disk_res->sectors : 0);
+	if (WARN_ON(should_not_have_added > 0)) {
+		atomic64_sub(should_not_have_added, &c->sectors_available);
+		added -= should_not_have_added;
+	}
 
 	if (added > 0) {
 		disk_res->sectors	-= added;
@@ -667,7 +672,7 @@ static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 			stats->replicas
 				[!p.ptr.cached && replicas ? replicas - 1 : 0].data
 				[!p.ptr.cached ? data_type : BCH_DATA_CACHED] +=
-					sectors;
+					disk_sectors;
 
 			bch2_mark_pointer(c, e, p, disk_sectors, data_type,
 					  stats, journal_seq, flags);

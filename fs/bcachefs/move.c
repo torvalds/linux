@@ -5,6 +5,7 @@
 #include "btree_gc.h"
 #include "btree_update.h"
 #include "buckets.h"
+#include "disk_groups.h"
 #include "inode.h"
 #include "io.h"
 #include "journal_reclaim.h"
@@ -260,8 +261,26 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 		}
 		break;
 	}
-	case DATA_REWRITE:
+	case DATA_REWRITE: {
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
+		unsigned compressed_sectors = 0;
+
+		extent_for_each_ptr_decode(bkey_s_c_to_extent(k), p, entry)
+			if (!p.ptr.cached &&
+			    p.crc.compression_type != BCH_COMPRESSION_NONE &&
+			    bch2_dev_in_target(c, p.ptr.dev, data_opts.target))
+				compressed_sectors += p.crc.compressed_size;
+
+		if (compressed_sectors) {
+			ret = bch2_disk_reservation_add(c, &m->op.res,
+					compressed_sectors,
+					BCH_DISK_RESERVATION_NOFAIL);
+			if (ret)
+				return ret;
+		}
 		break;
+	}
 	case DATA_PROMOTE:
 		m->op.flags	|= BCH_WRITE_ALLOC_NOWAIT;
 		m->op.flags	|= BCH_WRITE_CACHED;
