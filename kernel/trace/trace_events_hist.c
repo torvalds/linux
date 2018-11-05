@@ -1008,18 +1008,6 @@ struct hist_var_data {
 	struct hist_trigger_data *hist_data;
 };
 
-static void add_or_delete_synth_event(struct synth_event *event, int delete)
-{
-	if (delete)
-		free_synth_event(event);
-	else {
-		if (!find_synth_event(event->name))
-			list_add(&event->list, &synth_event_list);
-		else
-			free_synth_event(event);
-	}
-}
-
 static int create_synth_event(int argc, char **argv)
 {
 	struct synth_field *field, *fields[SYNTH_FIELDS_MAX];
@@ -1052,15 +1040,16 @@ static int create_synth_event(int argc, char **argv)
 	if (event) {
 		if (delete_event) {
 			if (event->ref) {
-				event = NULL;
 				ret = -EBUSY;
 				goto out;
 			}
-			list_del(&event->list);
-			goto out;
-		}
-		event = NULL;
-		ret = -EEXIST;
+			ret = unregister_synth_event(event);
+			if (!ret) {
+				list_del(&event->list);
+				free_synth_event(event);
+			}
+		} else
+			ret = -EEXIST;
 		goto out;
 	} else if (delete_event) {
 		ret = -ENOENT;
@@ -1100,29 +1089,21 @@ static int create_synth_event(int argc, char **argv)
 		event = NULL;
 		goto err;
 	}
+	ret = register_synth_event(event);
+	if (!ret)
+		list_add(&event->list, &synth_event_list);
+	else
+		free_synth_event(event);
  out:
-	if (event) {
-		if (delete_event) {
-			ret = unregister_synth_event(event);
-			add_or_delete_synth_event(event, !ret);
-		} else {
-			ret = register_synth_event(event);
-			add_or_delete_synth_event(event, ret);
-		}
-	}
 	mutex_unlock(&synth_event_mutex);
 	mutex_unlock(&event_mutex);
 
 	return ret;
  err:
-	mutex_unlock(&synth_event_mutex);
-	mutex_unlock(&event_mutex);
-
 	for (i = 0; i < n_fields; i++)
 		free_synth_field(fields[i]);
-	free_synth_event(event);
 
-	return ret;
+	goto out;
 }
 
 static int release_all_synth_events(void)
@@ -1141,10 +1122,12 @@ static int release_all_synth_events(void)
 	}
 
 	list_for_each_entry_safe(event, e, &synth_event_list, list) {
-		list_del(&event->list);
-
 		ret = unregister_synth_event(event);
-		add_or_delete_synth_event(event, !ret);
+		if (!ret) {
+			list_del(&event->list);
+			free_synth_event(event);
+		} else
+			break;
 	}
 	mutex_unlock(&synth_event_mutex);
 	mutex_unlock(&event_mutex);
