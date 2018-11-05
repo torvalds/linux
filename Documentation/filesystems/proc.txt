@@ -125,6 +125,13 @@ process running on the system, which is named after the process ID (PID).
 The link  self  points  to  the  process reading the file system. Each process
 subdirectory has the entries listed in Table 1-1.
 
+Note that an open a file descriptor to /proc/<pid> or to any of its
+contained files or subdirectories does not prevent <pid> being reused
+for some other process in the event that <pid> exits. Operations on
+open /proc/<pid> file descriptors corresponding to dead processes
+never act on any new process that the kernel may, through chance, have
+also assigned the process ID <pid>. Instead, operations on these FDs
+usually fail with ESRCH.
 
 Table 1-1: Process specific entries in /proc
 ..............................................................................
