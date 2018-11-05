@@ -253,7 +253,6 @@ void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 {
 	struct vb2_v4l2_buffer *src_buf;
 	struct coda_buffer_meta *meta;
-	unsigned long flags;
 	u32 start;
 
 	if (ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG)
@@ -332,13 +331,11 @@ void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 				meta->timestamp = src_buf->vb2_buf.timestamp;
 				meta->start = start;
 				meta->end = ctx->bitstream_fifo.kfifo.in;
-				spin_lock_irqsave(&ctx->buffer_meta_lock,
-						  flags);
+				spin_lock(&ctx->buffer_meta_lock);
 				list_add_tail(&meta->list,
 					      &ctx->buffer_meta_list);
 				ctx->num_metas++;
-				spin_unlock_irqrestore(&ctx->buffer_meta_lock,
-						       flags);
+				spin_unlock(&ctx->buffer_meta_lock);
 
 				trace_coda_bit_queue(ctx, src_buf, meta);
 			}
@@ -1894,7 +1891,6 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	struct coda_dev *dev = ctx->dev;
 	struct coda_q_data *q_data_dst;
 	struct coda_buffer_meta *meta;
-	unsigned long flags;
 	u32 rot_mode = 0;
 	u32 reg_addr, reg_stride;
 
@@ -1988,7 +1984,7 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 		coda_write(dev, ctx->iram_info.axi_sram_use,
 				CODA7_REG_BIT_AXI_SRAM_USE);
 
-	spin_lock_irqsave(&ctx->buffer_meta_lock, flags);
+	spin_lock(&ctx->buffer_meta_lock);
 	meta = list_first_entry_or_null(&ctx->buffer_meta_list,
 					struct coda_buffer_meta, list);
 
@@ -2007,7 +2003,7 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 			kfifo_in(&ctx->bitstream_fifo, buf, pad);
 		}
 	}
-	spin_unlock_irqrestore(&ctx->buffer_meta_lock, flags);
+	spin_unlock(&ctx->buffer_meta_lock);
 
 	coda_kfifo_sync_to_device_full(ctx);
 
@@ -2029,7 +2025,6 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	struct vb2_v4l2_buffer *dst_buf;
 	struct coda_buffer_meta *meta;
 	unsigned long payload;
-	unsigned long flags;
 	int width, height;
 	int decoded_idx;
 	int display_idx;
@@ -2161,13 +2156,13 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	} else {
 		val = coda_read(dev, CODA_RET_DEC_PIC_FRAME_NUM) - 1;
 		val -= ctx->sequence_offset;
-		spin_lock_irqsave(&ctx->buffer_meta_lock, flags);
+		spin_lock(&ctx->buffer_meta_lock);
 		if (!list_empty(&ctx->buffer_meta_list)) {
 			meta = list_first_entry(&ctx->buffer_meta_list,
 					      struct coda_buffer_meta, list);
 			list_del(&meta->list);
 			ctx->num_metas--;
-			spin_unlock_irqrestore(&ctx->buffer_meta_lock, flags);
+			spin_unlock(&ctx->buffer_meta_lock);
 			/*
 			 * Clamp counters to 16 bits for comparison, as the HW
 			 * counter rolls over at this point for h.264. This
@@ -2184,7 +2179,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 			ctx->frame_metas[decoded_idx] = *meta;
 			kfree(meta);
 		} else {
-			spin_unlock_irqrestore(&ctx->buffer_meta_lock, flags);
+			spin_unlock(&ctx->buffer_meta_lock);
 			v4l2_err(&dev->v4l2_dev, "empty timestamp list!\n");
 			memset(&ctx->frame_metas[decoded_idx], 0,
 			       sizeof(struct coda_buffer_meta));

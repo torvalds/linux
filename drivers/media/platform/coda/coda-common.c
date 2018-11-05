@@ -1690,7 +1690,6 @@ static void coda_stop_streaming(struct vb2_queue *q)
 	struct coda_ctx *ctx = vb2_get_drv_priv(q);
 	struct coda_dev *dev = ctx->dev;
 	struct vb2_v4l2_buffer *buf;
-	unsigned long flags;
 	bool stop;
 
 	stop = ctx->streamon_out && ctx->streamon_cap;
@@ -1725,7 +1724,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 			queue_work(dev->workqueue, &ctx->seq_end_work);
 			flush_work(&ctx->seq_end_work);
 		}
-		spin_lock_irqsave(&ctx->buffer_meta_lock, flags);
+		spin_lock(&ctx->buffer_meta_lock);
 		while (!list_empty(&ctx->buffer_meta_list)) {
 			meta = list_first_entry(&ctx->buffer_meta_list,
 						struct coda_buffer_meta, list);
@@ -1733,7 +1732,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 			kfree(meta);
 		}
 		ctx->num_metas = 0;
-		spin_unlock_irqrestore(&ctx->buffer_meta_lock, flags);
+		spin_unlock(&ctx->buffer_meta_lock);
 		kfifo_init(&ctx->bitstream_fifo,
 			ctx->bitstream.vaddr, ctx->bitstream.size);
 		ctx->runcounter = 0;
