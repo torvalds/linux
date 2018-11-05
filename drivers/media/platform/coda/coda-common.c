@@ -51,8 +51,8 @@
 
 #define CODA_ISRAM_SIZE	(2048 * 2)
 
-#define MIN_W 176
-#define MIN_H 144
+#define MIN_W 48
+#define MIN_H 16
 
 #define S_ALIGN		1 /* multiple of 2 */
 #define W_ALIGN		1 /* multiple of 2 */
