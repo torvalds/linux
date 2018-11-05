@@ -492,13 +492,22 @@ void bch2_writepoint_stop(struct bch_fs *c, struct bch_dev *ca,
 
 	mutex_lock(&wp->lock);
 	open_bucket_for_each(c, &wp->ptrs, ob, i)
-		if (ob->ptr.dev == ca->dev_idx)
+		if (!ca || ob->ptr.dev == ca->dev_idx)
 			open_bucket_free_unused(c, wp, ob);
 		else
 			ob_push(c, &ptrs, ob);
 
 	wp->ptrs = ptrs;
 	mutex_unlock(&wp->lock);
+}
+
+static inline struct hlist_head *writepoint_hash(struct bch_fs *c,
+						 unsigned long write_point)
+{
+	unsigned hash =
+		hash_long(write_point, ilog2(ARRAY_SIZE(c->write_points_hash)));
+
+	return &c->write_points_hash[hash];
 }
 
 static struct write_point *__writepoint_find(struct hlist_head *head,
@@ -511,6 +520,53 @@ static struct write_point *__writepoint_find(struct hlist_head *head,
 			return wp;
 
 	return NULL;
+}
+
+static inline bool too_many_writepoints(struct bch_fs *c, unsigned factor)
+{
+	u64 stranded	= c->write_points_nr * c->bucket_size_max;
+	u64 free	= bch2_fs_sectors_free(c, bch2_fs_usage_read(c));
+
+	return stranded * factor > free;
+}
+
+static bool try_increase_writepoints(struct bch_fs *c)
+{
+	struct write_point *wp;
+
+	if (c->write_points_nr == ARRAY_SIZE(c->write_points) ||
+	    too_many_writepoints(c, 32))
+		return false;
+
+	wp = c->write_points + c->write_points_nr++;
+	hlist_add_head_rcu(&wp->node, writepoint_hash(c, wp->write_point));
+	return true;
+}
+
+static bool try_decrease_writepoints(struct bch_fs *c,
+				     unsigned old_nr)
+{
+	struct write_point *wp;
+
+	mutex_lock(&c->write_points_hash_lock);
+	if (c->write_points_nr < old_nr) {
+		mutex_unlock(&c->write_points_hash_lock);
+		return true;
+	}
+
+	if (c->write_points_nr == 1 ||
+	    !too_many_writepoints(c, 8)) {
+		mutex_unlock(&c->write_points_hash_lock);
+		return false;
+	}
+
+	wp = c->write_points + --c->write_points_nr;
+
+	hlist_del_rcu(&wp->node);
+	mutex_unlock(&c->write_points_hash_lock);
+
+	bch2_writepoint_stop(c, NULL, wp);
+	return true;
 }
 
 static struct write_point *writepoint_find(struct bch_fs *c,
@@ -536,16 +592,22 @@ lock_wp:
 		mutex_unlock(&wp->lock);
 		goto restart_find;
 	}
-
+restart_find_oldest:
 	oldest = NULL;
 	for (wp = c->write_points;
-	     wp < c->write_points + ARRAY_SIZE(c->write_points);
-	     wp++)
+	     wp < c->write_points + c->write_points_nr; wp++)
 		if (!oldest || time_before64(wp->last_used, oldest->last_used))
 			oldest = wp;
 
 	mutex_lock(&oldest->lock);
 	mutex_lock(&c->write_points_hash_lock);
+	if (oldest >= c->write_points + c->write_points_nr ||
+	    try_increase_writepoints(c)) {
+		mutex_unlock(&c->write_points_hash_lock);
+		mutex_unlock(&oldest->lock);
+		goto restart_find_oldest;
+	}
+
 	wp = __writepoint_find(head, write_point);
 	if (wp && wp != oldest) {
 		mutex_unlock(&c->write_points_hash_lock);
@@ -581,10 +643,12 @@ struct write_point *bch2_alloc_sectors_start(struct bch_fs *c,
 	unsigned nr_effective = 0;
 	struct open_buckets ptrs = { .nr = 0 };
 	bool have_cache = false;
+	unsigned write_points_nr;
 	int ret = 0, i;
 
 	BUG_ON(!nr_replicas || !nr_replicas_required);
-
+retry:
+	write_points_nr = c->write_points_nr;
 	wp = writepoint_find(c, write_point.v);
 
 	if (!target || (flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)) {
@@ -637,6 +701,11 @@ err:
 	wp->ptrs = ptrs;
 
 	mutex_unlock(&wp->lock);
+
+	if (ret == -ENOSPC &&
+	    try_decrease_writepoints(c, write_points_nr))
+		goto retry;
+
 	return ERR_PTR(ret);
 }
 
@@ -687,4 +756,38 @@ void bch2_alloc_sectors_done(struct bch_fs *c, struct write_point *wp)
 	mutex_unlock(&wp->lock);
 
 	bch2_open_buckets_put(c, &ptrs);
+}
+
+void bch2_fs_allocator_foreground_init(struct bch_fs *c)
+{
+	struct open_bucket *ob;
+	struct write_point *wp;
+
+	mutex_init(&c->write_points_hash_lock);
+	c->write_points_nr = ARRAY_SIZE(c->write_points);
+
+	/* open bucket 0 is a sentinal NULL: */
+	spin_lock_init(&c->open_buckets[0].lock);
+
+	for (ob = c->open_buckets + 1;
+	     ob < c->open_buckets + ARRAY_SIZE(c->open_buckets); ob++) {
+		spin_lock_init(&ob->lock);
+		c->open_buckets_nr_free++;
+
+		ob->freelist = c->open_buckets_freelist;
+		c->open_buckets_freelist = ob - c->open_buckets;
+	}
+
+	writepoint_init(&c->btree_write_point, BCH_DATA_BTREE);
+	writepoint_init(&c->rebalance_write_point, BCH_DATA_USER);
+
+	for (wp = c->write_points;
+	     wp < c->write_points + c->write_points_nr; wp++) {
+		writepoint_init(wp, BCH_DATA_USER);
+
+		wp->last_used	= sched_clock();
+		wp->write_point	= (unsigned long) wp;
+		hlist_add_head_rcu(&wp->node,
+				   writepoint_hash(c, wp->write_point));
+	}
 }

@@ -300,11 +300,6 @@ u64 bch2_fs_sectors_used(struct bch_fs *c, struct bch_fs_usage stats)
 	return min(c->capacity, __bch2_fs_sectors_used(c, stats));
 }
 
-static u64 bch2_fs_sectors_free(struct bch_fs *c, struct bch_fs_usage stats)
-{
-	return c->capacity - bch2_fs_sectors_used(c, stats);
-}
-
 static inline int is_unavailable_bucket(struct bucket_mark m)
 {
 	return !is_available_bucket(m);

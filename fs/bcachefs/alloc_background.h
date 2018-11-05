@@ -57,6 +57,6 @@ int bch2_dev_allocator_start(struct bch_dev *);
 
 int bch2_alloc_write(struct bch_fs *);
 int bch2_fs_allocator_start(struct bch_fs *);
-void bch2_fs_allocator_init(struct bch_fs *);
+void bch2_fs_allocator_background_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_BACKGROUND_H */

@@ -524,7 +524,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_init(&c->times[i]);
 
-	bch2_fs_allocator_init(c);
+	bch2_fs_allocator_background_init(c);
+	bch2_fs_allocator_foreground_init(c);
 	bch2_fs_rebalance_init(c);
 	bch2_fs_quota_init(c);
 

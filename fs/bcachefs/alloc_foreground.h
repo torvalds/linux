@@ -91,15 +91,6 @@ void bch2_alloc_sectors_done(struct bch_fs *, struct write_point *);
 void bch2_writepoint_stop(struct bch_fs *, struct bch_dev *,
 			  struct write_point *);
 
-static inline struct hlist_head *writepoint_hash(struct bch_fs *c,
-						 unsigned long write_point)
-{
-	unsigned hash =
-		hash_long(write_point, ilog2(ARRAY_SIZE(c->write_points_hash)));
-
-	return &c->write_points_hash[hash];
-}
-
 static inline struct write_point_specifier writepoint_hashed(unsigned long v)
 {
 	return (struct write_point_specifier) { .v = v | 1 };
@@ -116,5 +107,7 @@ static inline void writepoint_init(struct write_point *wp,
 	mutex_init(&wp->lock);
 	wp->type = type;
 }
+
+void bch2_fs_allocator_foreground_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_FOREGROUND_H */

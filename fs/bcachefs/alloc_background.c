@@ -975,6 +975,7 @@ void bch2_recalc_capacity(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	u64 capacity = 0, reserved_sectors = 0, gc_reserve;
+	unsigned bucket_size_max = 0;
 	unsigned long ra_pages = 0;
 	unsigned i, j;
 
@@ -1012,12 +1013,9 @@ void bch2_recalc_capacity(struct bch_fs *c)
 
 		dev_reserve += ca->free_inc.size;
 
-		dev_reserve += ARRAY_SIZE(c->write_points);
-
 		dev_reserve += 1;	/* btree write point */
 		dev_reserve += 1;	/* copygc write point */
 		dev_reserve += 1;	/* rebalance write point */
-		dev_reserve += WRITE_POINT_COUNT;
 
 		dev_reserve *= ca->mi.bucket_size;
 
@@ -1027,6 +1025,9 @@ void bch2_recalc_capacity(struct bch_fs *c)
 					     ca->mi.first_bucket);
 
 		reserved_sectors += dev_reserve * 2;
+
+		bucket_size_max = max_t(unsigned, bucket_size_max,
+					ca->mi.bucket_size);
 	}
 
 	gc_reserve = c->opts.gc_reserve_bytes
@@ -1038,6 +1039,8 @@ void bch2_recalc_capacity(struct bch_fs *c)
 	reserved_sectors = min(reserved_sectors, capacity);
 
 	c->capacity = capacity - reserved_sectors;
+
+	c->bucket_size_max = bucket_size_max;
 
 	if (c->capacity) {
 		bch2_io_timer_add(&c->io_clock[READ],
@@ -1330,8 +1333,6 @@ not_enough:
 	 * invalidated on disk:
 	 */
 	if (invalidating_data) {
-		BUG();
-		pr_info("holding writes");
 		pr_debug("invalidating existing data");
 		set_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags);
 	} else {
@@ -1391,39 +1392,11 @@ int bch2_fs_allocator_start(struct bch_fs *c)
 	return bch2_alloc_write(c);
 }
 
-void bch2_fs_allocator_init(struct bch_fs *c)
+void bch2_fs_allocator_background_init(struct bch_fs *c)
 {
-	struct open_bucket *ob;
-	struct write_point *wp;
-
-	mutex_init(&c->write_points_hash_lock);
 	spin_lock_init(&c->freelist_lock);
 	bch2_bucket_clock_init(c, READ);
 	bch2_bucket_clock_init(c, WRITE);
-
-	/* open bucket 0 is a sentinal NULL: */
-	spin_lock_init(&c->open_buckets[0].lock);
-
-	for (ob = c->open_buckets + 1;
-	     ob < c->open_buckets + ARRAY_SIZE(c->open_buckets); ob++) {
-		spin_lock_init(&ob->lock);
-		c->open_buckets_nr_free++;
-
-		ob->freelist = c->open_buckets_freelist;
-		c->open_buckets_freelist = ob - c->open_buckets;
-	}
-
-	writepoint_init(&c->btree_write_point, BCH_DATA_BTREE);
-	writepoint_init(&c->rebalance_write_point, BCH_DATA_USER);
-
-	for (wp = c->write_points;
-	     wp < c->write_points + ARRAY_SIZE(c->write_points); wp++) {
-		writepoint_init(wp, BCH_DATA_USER);
-
-		wp->last_used	= sched_clock();
-		wp->write_point	= (unsigned long) wp;
-		hlist_add_head_rcu(&wp->node, writepoint_hash(c, wp->write_point));
-	}
 
 	c->pd_controllers_update_seconds = 5;
 	INIT_DELAYED_WORK(&c->pd_controllers_update, pd_controllers_update);

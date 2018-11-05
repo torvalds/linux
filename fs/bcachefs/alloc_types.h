@@ -46,7 +46,9 @@ typedef FIFO(long)	alloc_fifo;
 
 /* Enough for 16 cache devices, 2 tiers and some left over for pipelining */
 #define OPEN_BUCKETS_COUNT	256
-#define WRITE_POINT_COUNT	32
+
+#define WRITE_POINT_HASH_NR	32
+#define WRITE_POINT_MAX		32
 
 struct open_bucket {
 	spinlock_t		lock;

@@ -601,6 +601,7 @@ struct bch_fs {
 	 * and forces them to be revalidated
 	 */
 	u32			capacity_gen;
+	unsigned		bucket_size_max;
 
 	atomic64_t		sectors_available;
 
@@ -630,9 +631,10 @@ struct bch_fs {
 	struct write_point	btree_write_point;
 	struct write_point	rebalance_write_point;
 
-	struct write_point	write_points[WRITE_POINT_COUNT];
-	struct hlist_head	write_points_hash[WRITE_POINT_COUNT];
+	struct write_point	write_points[WRITE_POINT_MAX];
+	struct hlist_head	write_points_hash[WRITE_POINT_HASH_NR];
 	struct mutex		write_points_hash_lock;
+	unsigned		write_points_nr;
 
 	/* GARBAGE COLLECTION */
 	struct task_struct	*gc_thread;
