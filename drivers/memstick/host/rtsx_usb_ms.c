@@ -770,6 +770,7 @@ static int rtsx_usb_ms_drv_probe(struct platform_device *pdev)
 	return 0;
 err_out:
 	memstick_free_host(msh);
+	pm_runtime_disable(ms_dev(host));
 	return err;
 }
 
