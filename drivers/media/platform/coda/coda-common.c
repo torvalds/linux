@@ -962,6 +962,9 @@ static int coda_s_selection(struct file *file, void *fh,
 
 			q_data->rect = s->r;
 
+			coda_dbg(1, ctx, "Setting crop rectangle: %dx%d\n",
+				 s->r.width, s->r.height);
+
 			return 0;
 		}
 		/* else fall through */
