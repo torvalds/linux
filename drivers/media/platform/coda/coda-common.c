@@ -1113,10 +1113,10 @@ static void coda_approximate_timeperframe(struct v4l2_fract *timeperframe)
 		return;
 	}
 
-	/* Upper bound is 65536/1, map everything above to infinity */
+	/* Upper bound is 65536/1 */
 	if (s.denominator == 0 || s.numerator / s.denominator > 65536) {
-		timeperframe->numerator = 1;
-		timeperframe->denominator = 0;
+		timeperframe->numerator = 65536;
+		timeperframe->denominator = 1;
 		return;
 	}
 
