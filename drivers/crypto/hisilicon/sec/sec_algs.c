@@ -732,6 +732,7 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	int *splits_in_nents;
 	int *splits_out_nents = NULL;
 	struct sec_request_el *el, *temp;
+	bool split = skreq->src != skreq->dst;
 
 	mutex_init(&sec_req->lock);
 	sec_req->req_base = &skreq->base;
@@ -750,7 +751,7 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	if (ret)
 		goto err_free_split_sizes;
 
-	if (skreq->src != skreq->dst) {
+	if (split) {
 		sec_req->len_out = sg_nents(skreq->dst);
 		ret = sec_map_and_split_sg(skreq->dst, split_sizes, steps,
 					   &splits_out, &splits_out_nents,
@@ -785,8 +786,9 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 					       split_sizes[i],
 					       skreq->src != skreq->dst,
 					       splits_in[i], splits_in_nents[i],
-					       splits_out[i],
-					       splits_out_nents[i], info);
+					       split ? splits_out[i] : NULL,
+					       split ? splits_out_nents[i] : 0,
+					       info);
 		if (IS_ERR(el)) {
 			ret = PTR_ERR(el);
 			goto err_free_elements;
@@ -854,7 +856,7 @@ err_free_elements:
 				 crypto_skcipher_ivsize(atfm),
 				 DMA_BIDIRECTIONAL);
 err_unmap_out_sg:
-	if (skreq->src != skreq->dst)
+	if (split)
 		sec_unmap_sg_on_err(skreq->dst, steps, splits_out,
 				    splits_out_nents, sec_req->len_out,
 				    info->dev);
