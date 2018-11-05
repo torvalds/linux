@@ -517,51 +517,11 @@ static int create_trace_uprobe(int argc, char **argv)
 	}
 
 	/* parse arguments */
-	ret = 0;
 	for (i = 0; i < argc && i < MAX_TRACE_ARGS; i++) {
-		struct probe_arg *parg = &tu->tp.args[i];
-
-		/* Increment count for freeing args in error case */
-		tu->tp.nr_args++;
-
-		/* Parse argument name */
-		arg = strchr(argv[i], '=');
-		if (arg) {
-			*arg++ = '\0';
-			parg->name = kstrdup(argv[i], GFP_KERNEL);
-		} else {
-			arg = argv[i];
-			/* If argument name is omitted, set "argN" */
-			snprintf(buf, MAX_EVENT_NAME_LEN, "arg%d", i + 1);
-			parg->name = kstrdup(buf, GFP_KERNEL);
-		}
-
-		if (!parg->name) {
-			pr_info("Failed to allocate argument[%d] name.\n", i);
-			ret = -ENOMEM;
-			goto error;
-		}
-
-		if (!is_good_name(parg->name)) {
-			pr_info("Invalid argument[%d] name: %s\n", i, parg->name);
-			ret = -EINVAL;
-			goto error;
-		}
-
-		if (traceprobe_conflict_field_name(parg->name, tu->tp.args, i)) {
-			pr_info("Argument[%d] name '%s' conflicts with "
-				"another field.\n", i, argv[i]);
-			ret = -EINVAL;
-			goto error;
-		}
-
-		/* Parse fetch argument */
-		ret = traceprobe_parse_probe_arg(arg, &tu->tp.size, parg,
+		ret = traceprobe_parse_probe_arg(&tu->tp, i, argv[i],
 					is_return ? TPARG_FL_RETURN : 0);
-		if (ret) {
-			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
+		if (ret)
 			goto error;
-		}
 	}
 
 	ret = register_trace_uprobe(tu);

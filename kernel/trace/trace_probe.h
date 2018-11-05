@@ -272,11 +272,8 @@ find_event_file_link(struct trace_probe *tp, struct trace_event_file *file)
 #define TPARG_FL_FENTRY BIT(2)
 #define TPARG_FL_MASK	GENMASK(2, 0)
 
-extern int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
-		   struct probe_arg *parg, unsigned int flags);
-
-extern int traceprobe_conflict_field_name(const char *name,
-			       struct probe_arg *args, int narg);
+extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
+				char *arg, unsigned int flags);
 
 extern int traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
