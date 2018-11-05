@@ -180,8 +180,8 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 		   session->lns_mode ? "LNS" : "LAC",
 		   session->debug,
 		   jiffies_to_msecs(session->reorder_timeout));
-	seq_printf(m, "   offset %hu l2specific %hu/%hu\n",
-		   session->offset, session->l2specific_type, session->l2specific_len);
+	seq_printf(m, "   offset 0 l2specific %hu/%hu\n",
+		   session->l2specific_type, session->l2specific_len);
 	if (session->cookie_len) {
 		seq_printf(m, "   cookie %02x%02x%02x%02x",
 			   session->cookie[0], session->cookie[1],

@@ -3911,7 +3911,7 @@ mlx5_ib_get_vector_affinity(struct ib_device *ibdev, int comp_vector)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 
-	return mlx5_get_vector_affinity(dev->mdev, comp_vector);
+	return mlx5_get_vector_affinity_hint(dev->mdev, comp_vector);
 }
 
 static void *mlx5_ib_add(struct mlx5_core_dev *mdev)

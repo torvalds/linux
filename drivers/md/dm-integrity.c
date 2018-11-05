@@ -2547,6 +2547,9 @@ static int get_mac(struct crypto_shash **hash, struct alg_spec *a, char **error,
 				*error = error_key;
 				return r;
 			}
+		} else if (crypto_shash_get_flags(*hash) & CRYPTO_TFM_NEED_KEY) {
+			*error = error_key;
+			return -ENOKEY;
 		}
 	}
 

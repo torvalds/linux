@@ -467,7 +467,7 @@ static u32 prog_fd_array_sys_lookup_elem(void *ptr)
 }
 
 /* decrement refcnt of all bpf_progs that are stored in this map */
-void bpf_fd_array_map_clear(struct bpf_map *map)
+static void bpf_fd_array_map_clear(struct bpf_map *map)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	int i;
@@ -485,6 +485,7 @@ const struct bpf_map_ops prog_array_map_ops = {
 	.map_fd_get_ptr = prog_fd_array_get_ptr,
 	.map_fd_put_ptr = prog_fd_array_put_ptr,
 	.map_fd_sys_lookup_elem = prog_fd_array_sys_lookup_elem,
+	.map_release_uref = bpf_fd_array_map_clear,
 };
 
 static struct bpf_event_entry *bpf_event_entry_gen(struct file *perf_file,

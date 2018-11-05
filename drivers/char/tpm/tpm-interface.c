@@ -611,12 +611,13 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 		rc = be32_to_cpu(header->return_code);
 		if (rc != TPM2_RC_RETRY)
 			break;
-		delay_msec *= 2;
+
 		if (delay_msec > TPM2_DURATION_LONG) {
 			dev_err(&chip->dev, "TPM is in retry loop\n");
 			break;
 		}
 		tpm_msleep(delay_msec);
+		delay_msec *= 2;
 		memcpy(buf, save, save_size);
 	}
 	return ret;

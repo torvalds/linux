@@ -520,8 +520,10 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 
 	priv->regs_t = crb_map_res(dev, priv, &io_res, buf->control_address,
 				   sizeof(struct crb_regs_tail));
-	if (IS_ERR(priv->regs_t))
-		return PTR_ERR(priv->regs_t);
+	if (IS_ERR(priv->regs_t)) {
+		ret = PTR_ERR(priv->regs_t);
+		goto out_relinquish_locality;
+	}
 
 	/*
 	 * PTT HW bug w/a: wake up the device to access
@@ -529,7 +531,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	 */
 	ret = __crb_cmd_ready(dev, priv);
 	if (ret)
-		return ret;
+		goto out_relinquish_locality;
 
 	pa_high = ioread32(&priv->regs_t->ctrl_cmd_pa_high);
 	pa_low  = ioread32(&priv->regs_t->ctrl_cmd_pa_low);
@@ -573,6 +575,8 @@ out:
 		priv->cmd_size = cmd_size;
 
 	__crb_go_idle(dev, priv);
+
+out_relinquish_locality:
 
 	__crb_relinquish_locality(dev, priv, 0);
 

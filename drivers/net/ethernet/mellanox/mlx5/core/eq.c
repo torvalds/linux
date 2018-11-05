@@ -262,7 +262,7 @@ static void eq_pf_process(struct mlx5_eq *eq)
 		case MLX5_PFAULT_SUBTYPE_WQE:
 			/* WQE based event */
 			pfault->type =
-				be32_to_cpu(pf_eqe->wqe.pftype_wq) >> 24;
+				(be32_to_cpu(pf_eqe->wqe.pftype_wq) >> 24) & 0x7;
 			pfault->token =
 				be32_to_cpu(pf_eqe->wqe.token);
 			pfault->wqe.wq_num =

@@ -549,9 +549,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 	}
 
 	if (tunnel->version > 2) {
-		if (info->attrs[L2TP_ATTR_OFFSET])
-			cfg.offset = nla_get_u16(info->attrs[L2TP_ATTR_OFFSET]);
-
 		if (info->attrs[L2TP_ATTR_DATA_SEQ])
 			cfg.data_seq = nla_get_u8(info->attrs[L2TP_ATTR_DATA_SEQ]);
 

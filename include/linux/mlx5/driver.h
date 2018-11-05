@@ -1193,25 +1193,9 @@ enum {
 };
 
 static inline const struct cpumask *
-mlx5_get_vector_affinity(struct mlx5_core_dev *dev, int vector)
+mlx5_get_vector_affinity_hint(struct mlx5_core_dev *dev, int vector)
 {
-	const struct cpumask *mask;
-	struct irq_desc *desc;
-	unsigned int irq;
-	int eqn;
-	int err;
-
-	err = mlx5_vector2eqn(dev, MLX5_EQ_VEC_COMP_BASE + vector, &eqn, &irq);
-	if (err)
-		return NULL;
-
-	desc = irq_to_desc(irq);
-#ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
-	mask = irq_data_get_effective_affinity_mask(&desc->irq_data);
-#else
-	mask = desc->irq_common_data.affinity;
-#endif
-	return mask;
+	return dev->priv.irq_info[vector].mask;
 }
 
 #endif /* MLX5_DRIVER_H */

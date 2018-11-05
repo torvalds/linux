@@ -794,11 +794,9 @@ static int udp6_unicast_rcv_skb(struct sock *sk, struct sk_buff *skb,
 
 	ret = udpv6_queue_rcv_skb(sk, skb);
 
-	/* a return value > 0 means to resubmit the input, but
-	 * it wants the return to be -protocol, or 0
-	 */
+	/* a return value > 0 means to resubmit the input */
 	if (ret > 0)
-		return -ret;
+		return ret;
 	return 0;
 }
 

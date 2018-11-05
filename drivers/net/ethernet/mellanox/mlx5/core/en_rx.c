@@ -635,43 +635,15 @@ static inline bool is_first_ethertype_ip(struct sk_buff *skb)
 	return (ethertype == htons(ETH_P_IP) || ethertype == htons(ETH_P_IPV6));
 }
 
-static __be32 mlx5e_get_fcs(struct sk_buff *skb)
+static u32 mlx5e_get_fcs(const struct sk_buff *skb)
 {
-	int last_frag_sz, bytes_in_prev, nr_frags;
-	u8 *fcs_p1, *fcs_p2;
-	skb_frag_t *last_frag;
-	__be32 fcs_bytes;
+	const void *fcs_bytes;
+	u32 _fcs_bytes;
 
-	if (!skb_is_nonlinear(skb))
-		return *(__be32 *)(skb->data + skb->len - ETH_FCS_LEN);
+	fcs_bytes = skb_header_pointer(skb, skb->len - ETH_FCS_LEN,
+				       ETH_FCS_LEN, &_fcs_bytes);
 
-	nr_frags = skb_shinfo(skb)->nr_frags;
-	last_frag = &skb_shinfo(skb)->frags[nr_frags - 1];
-	last_frag_sz = skb_frag_size(last_frag);
-
-	/* If all FCS data is in last frag */
-	if (last_frag_sz >= ETH_FCS_LEN)
-		return *(__be32 *)(skb_frag_address(last_frag) +
-				   last_frag_sz - ETH_FCS_LEN);
-
-	fcs_p2 = (u8 *)skb_frag_address(last_frag);
-	bytes_in_prev = ETH_FCS_LEN - last_frag_sz;
-
-	/* Find where the other part of the FCS is - Linear or another frag */
-	if (nr_frags == 1) {
-		fcs_p1 = skb_tail_pointer(skb);
-	} else {
-		skb_frag_t *prev_frag = &skb_shinfo(skb)->frags[nr_frags - 2];
-
-		fcs_p1 = skb_frag_address(prev_frag) +
-			    skb_frag_size(prev_frag);
-	}
-	fcs_p1 -= bytes_in_prev;
-
-	memcpy(&fcs_bytes, fcs_p1, bytes_in_prev);
-	memcpy(((u8 *)&fcs_bytes) + bytes_in_prev, fcs_p2, last_frag_sz);
-
-	return fcs_bytes;
+	return __get_unaligned_cpu32(fcs_bytes);
 }
 
 static inline void mlx5e_handle_csum(struct net_device *netdev,
@@ -693,8 +665,9 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 		if (unlikely(netdev->features & NETIF_F_RXFCS))
-			skb->csum = csum_add(skb->csum,
-					     (__force __wsum)mlx5e_get_fcs(skb));
+			skb->csum = csum_block_add(skb->csum,
+						   (__force __wsum)mlx5e_get_fcs(skb),
+						   skb->len - ETH_FCS_LEN);
 		rq->stats.csum_complete++;
 		return;
 	}

@@ -1589,6 +1589,7 @@ static int nfit_ctl_test(struct device *dev)
 	unsigned long mask, cmd_size, offset;
 	union {
 		struct nd_cmd_get_config_size cfg_size;
+		struct nd_cmd_clear_error clear_err;
 		struct nd_cmd_ars_status ars_stat;
 		struct nd_cmd_ars_cap ars_cap;
 		char buf[sizeof(struct nd_cmd_ars_status)
@@ -1762,6 +1763,23 @@ static int nfit_ctl_test(struct device *dev)
 			cmds.buf, cmd_size, &cmd_rc);
 
 	if (rc < 0 || cmd_rc >= 0) {
+		dev_dbg(dev, "%s: failed at: %d rc: %d cmd_rc: %d\n",
+				__func__, __LINE__, rc, cmd_rc);
+		return -EIO;
+	}
+
+	/* test clear error */
+	cmd_size = sizeof(cmds.clear_err);
+	cmds.clear_err = (struct nd_cmd_clear_error) {
+		.length = 512,
+		.cleared = 512,
+	};
+	rc = setup_result(cmds.buf, cmd_size);
+	if (rc)
+		return rc;
+	rc = acpi_nfit_ctl(&acpi_desc->nd_desc, NULL, ND_CMD_CLEAR_ERROR,
+			cmds.buf, cmd_size, &cmd_rc);
+	if (rc < 0 || cmd_rc) {
 		dev_dbg(dev, "%s: failed at: %d rc: %d cmd_rc: %d\n",
 				__func__, __LINE__, rc, cmd_rc);
 		return -EIO;

@@ -81,6 +81,9 @@ static inline int numa_update_cpu_topology(bool cpus_locked)
 {
 	return 0;
 }
+
+static inline void update_numa_cpu_lookup_table(unsigned int cpu, int node) {}
+
 #endif /* CONFIG_NUMA */
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
