@@ -443,7 +443,8 @@ int drm_syncobj_find_fence(struct drm_file *file_private,
 	int ret;
 
 	ret = drm_syncobj_search_fence(syncobj, point, flags, fence);
-	drm_syncobj_put(syncobj);
+	if (syncobj)
+		drm_syncobj_put(syncobj);
 	return ret;
 }
 EXPORT_SYMBOL(drm_syncobj_find_fence);
