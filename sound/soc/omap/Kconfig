@@ -78,15 +78,6 @@ config SND_OMAP_SOC_OSK5912
 	help
 	  Say Y if you want to add support for SoC audio on osk5912.
 
-config SND_OMAP_SOC_AM3517EVM
-	tristate "SoC Audio support for OMAP3517 / AM3517 EVM"
-	depends on SND_SDMA_SOC && MACH_OMAP3517EVM && I2C
-	select SND_OMAP_SOC_MCBSP
-	select SND_SOC_TLV320AIC23_I2C
-	help
-	  Say Y if you want to add support for SoC audio on the OMAP3517 / AM3517
-	  EVM.
-
 config SND_OMAP_SOC_OMAP_TWL4030
 	tristate "SoC Audio support for TI SoC based boards with twl4030 codec"
 	depends on TWL4030_CORE && SND_SDMA_SOC
