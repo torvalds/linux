@@ -215,11 +215,6 @@ static int __exit at91_poweroff_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id at91_ramc_of_match[] = {
-	{ .compatible = "atmel,sama5d3-ddramc", },
-	{ /* sentinel */ }
-};
-
 static const struct of_device_id at91_poweroff_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-shdwc", },
 	{ .compatible = "atmel,at91sam9rl-shdwc", },
