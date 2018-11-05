@@ -293,7 +293,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 					 enum iwl_ucode_type ucode_type)
 {
 	struct iwl_notification_wait alive_wait;
-	struct iwl_mvm_alive_data alive_data;
+	struct iwl_mvm_alive_data alive_data = {};
 	const struct fw_img *fw;
 	int ret;
 	enum iwl_ucode_type old_type = mvm->fwrt.cur_fw_img;
