@@ -271,7 +271,7 @@ vmalloc_fault:
 		if (!pte_present(*pte_k))
 			goto no_context;
 
-		flush_tlb_one(address);
+		flush_tlb_kernel_page(address);
 		return;
 	}
 }

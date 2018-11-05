@@ -102,19 +102,11 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	}
 }
 
-void flush_tlb_kernel_range(unsigned long start, unsigned long end)
-{
-	while (start < end) {
-		flush_tlb_one(start);
-		start += PAGE_SIZE;
-	}
-}
-
 /*
  * This one is only used for pages with the global bit set so we don't care
  * much about the ASID.
  */
-void flush_tlb_one(unsigned long addr)
+static void flush_tlb_one(unsigned long addr)
 {
 	unsigned int way;
 	unsigned long org_misc, pid_misc;
@@ -152,6 +144,14 @@ void flush_tlb_one(unsigned long addr)
 	}
 
 	WRCTL(CTL_TLBMISC, org_misc);
+}
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	while (start < end) {
+		flush_tlb_one(start);
+		start += PAGE_SIZE;
+	}
 }
 
 void dump_tlb_line(unsigned long line)
