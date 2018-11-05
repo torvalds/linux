@@ -45,8 +45,8 @@ EDID:
 
 #define YPIX vdisp
 #define YBLANK vtotal-vdisp
-#define YOFFSET (63+(vsyncstart-vdisp))
-#define YPULSE (63+(vsyncend-vsyncstart))
+#define YOFFSET vsyncstart-vdisp
+#define YPULSE vsyncend-vsyncstart
 
 The CRC value in the last line
   #define CRC 0x55
