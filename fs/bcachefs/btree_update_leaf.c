@@ -6,6 +6,7 @@
 #include "btree_io.h"
 #include "btree_iter.h"
 #include "btree_locking.h"
+#include "buckets.h"
 #include "debug.h"
 #include "extents.h"
 #include "journal.h"
@@ -203,6 +204,8 @@ btree_insert_key_leaf(struct btree_insert *trans,
 	int old_u64s = le16_to_cpu(btree_bset_last(b)->u64s);
 	int old_live_u64s = b->nr.live_u64s;
 	int live_u64s_added, u64s_added;
+
+	bch2_mark_update(trans, insert);
 
 	ret = !btree_node_is_extents(b)
 		? bch2_insert_fixup_key(trans, insert)

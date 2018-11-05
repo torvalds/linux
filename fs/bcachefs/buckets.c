@@ -65,7 +65,9 @@
 
 #include "bcachefs.h"
 #include "alloc_background.h"
+#include "bset.h"
 #include "btree_gc.h"
+#include "btree_update.h"
 #include "buckets.h"
 #include "error.h"
 #include "movinggc.h"
@@ -346,7 +348,8 @@ void bch2_fs_usage_apply(struct bch_fs *c,
 	 * reservation:
 	 */
 	should_not_have_added = added - (s64) (disk_res ? disk_res->sectors : 0);
-	if (WARN_ON(should_not_have_added > 0)) {
+	if (WARN_ONCE(should_not_have_added > 0,
+		      "disk usage increased without a reservation")) {
 		atomic64_sub(should_not_have_added, &c->sectors_available);
 		added -= should_not_have_added;
 	}
@@ -642,9 +645,6 @@ static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 			     struct bch_fs_usage *stats,
 			     u64 journal_seq, unsigned flags)
 {
-	unsigned replicas = bch2_extent_nr_dirty_ptrs(k);
-
-	BUG_ON(replicas && replicas - 1 > ARRAY_SIZE(stats->replicas));
 	BUG_ON(!sectors);
 
 	switch (k.k->type) {
@@ -653,37 +653,42 @@ static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
 		const union bch_extent_entry *entry;
 		struct extent_ptr_decoded p;
+		s64 cached_sectors	= 0;
+		s64 dirty_sectors	= 0;
+		unsigned replicas	= 0;
 
 		extent_for_each_ptr_decode(e, p, entry) {
 			s64 disk_sectors = ptr_disk_sectors(e, p, sectors);
 
-			/*
-			 * fs level usage (which determines free space) is in
-			 * uncompressed sectors, until copygc + compression is
-			 * sorted out:
-			 *
-			 * note also that we always update @fs_usage, even when
-			 * we otherwise wouldn't do anything because gc is
-			 * running - this is because the caller still needs to
-			 * account w.r.t. its disk reservation. It is caller's
-			 * responsibility to not apply @fs_usage if gc is in
-			 * progress.
-			 */
-			stats->replicas
-				[!p.ptr.cached && replicas ? replicas - 1 : 0].data
-				[!p.ptr.cached ? data_type : BCH_DATA_CACHED] +=
-					disk_sectors;
-
 			bch2_mark_pointer(c, e, p, disk_sectors, data_type,
 					  stats, journal_seq, flags);
+
+			if (!p.ptr.cached)
+				replicas++;
+
+			if (p.ptr.cached)
+				cached_sectors	+= disk_sectors;
+			else
+				dirty_sectors	+= disk_sectors;
 		}
+
+		replicas	= clamp_t(unsigned,	replicas,
+					  1, ARRAY_SIZE(stats->replicas));
+
+		stats->replicas[0].data[BCH_DATA_CACHED]	+= cached_sectors;
+		stats->replicas[replicas - 1].data[data_type]	+= dirty_sectors;
 		break;
 	}
-	case BCH_RESERVATION:
-		if (replicas)
-			stats->replicas[replicas - 1].persistent_reserved +=
-				sectors * replicas;
+	case BCH_RESERVATION: {
+		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
+
+		sectors *= replicas;
+		replicas = clamp_t(unsigned, replicas,
+				   1, ARRAY_SIZE(stats->replicas));
+
+		stats->replicas[replicas - 1].persistent_reserved += sectors;
 		break;
+	}
 	}
 }
 
@@ -746,6 +751,76 @@ void bch2_mark_key(struct bch_fs *c,
 		break;
 	}
 	percpu_up_read(&c->usage_lock);
+}
+
+void bch2_mark_update(struct btree_insert *trans,
+		      struct btree_insert_entry *insert)
+{
+	struct bch_fs		*c = trans->c;
+	struct btree_iter	*iter = insert->iter;
+	struct btree		*b = iter->l[0].b;
+	struct btree_node_iter	node_iter = iter->l[0].iter;
+	struct bch_fs_usage	stats = { 0 };
+	struct gc_pos		pos = gc_pos_btree_node(b);
+	struct bkey_packed	*_k;
+
+	if (!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))
+		bch2_mark_key(c, btree_node_type(b), bkey_i_to_s_c(insert->k),
+			      true,
+			      bpos_min(insert->k->k.p, b->key.k.p).offset -
+			      bkey_start_offset(&insert->k->k),
+			      pos, &stats, trans->journal_res.seq, 0);
+
+	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
+						      KEY_TYPE_DISCARD))) {
+		struct bkey		unpacked;
+		struct bkey_s_c		k;
+		s64			sectors = 0;
+
+		k = bkey_disassemble(b, _k, &unpacked);
+
+		if (btree_node_is_extents(b)
+		    ? bkey_cmp(insert->k->k.p, bkey_start_pos(k.k)) <= 0
+		    : bkey_cmp(insert->k->k.p, k.k->p))
+			break;
+
+		if (btree_node_is_extents(b)) {
+			switch (bch2_extent_overlap(&insert->k->k, k.k)) {
+			case BCH_EXTENT_OVERLAP_ALL:
+				sectors = -((s64) k.k->size);
+				break;
+			case BCH_EXTENT_OVERLAP_BACK:
+				sectors = bkey_start_offset(&insert->k->k) -
+					k.k->p.offset;
+				break;
+			case BCH_EXTENT_OVERLAP_FRONT:
+				sectors = bkey_start_offset(k.k) -
+					insert->k->k.p.offset;
+				break;
+			case BCH_EXTENT_OVERLAP_MIDDLE:
+				sectors = k.k->p.offset - insert->k->k.p.offset;
+				BUG_ON(sectors <= 0);
+
+				bch2_mark_key(c, btree_node_type(b), k,
+					      true, sectors,
+					      pos, &stats, trans->journal_res.seq, 0);
+
+				sectors = bkey_start_offset(&insert->k->k) -
+					k.k->p.offset;
+				break;
+			}
+
+			BUG_ON(sectors >= 0);
+		}
+
+		bch2_mark_key(c, btree_node_type(b), k,
+			      false, sectors,
+			      pos, &stats, trans->journal_res.seq, 0);
+
+		bch2_btree_node_iter_advance(&node_iter, b);
+	}
+
+	bch2_fs_usage_apply(c, &stats, trans->disk_res, pos);
 }
 
 /* Disk reservations: */

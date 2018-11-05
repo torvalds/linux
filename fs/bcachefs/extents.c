@@ -1009,7 +1009,6 @@ struct extent_insert_state {
 	struct btree_insert		*trans;
 	struct btree_insert_entry	*insert;
 	struct bpos			committed;
-	struct bch_fs_usage		stats;
 
 	/* for deleting: */
 	struct bkey_i			whiteout;
@@ -1017,54 +1016,6 @@ struct extent_insert_state {
 	bool				update_btree;
 	bool				deleting;
 };
-
-static void bch2_add_sectors(struct extent_insert_state *s,
-			     struct bkey_s_c k, u64 offset, s64 sectors)
-{
-	struct bch_fs *c = s->trans->c;
-	struct btree *b = s->insert->iter->l[0].b;
-
-	EBUG_ON(bkey_cmp(bkey_start_pos(k.k), b->data->min_key) < 0);
-
-	if (!sectors)
-		return;
-
-	bch2_mark_key(c, BKEY_TYPE_EXTENTS, k, sectors > 0, sectors,
-		      gc_pos_btree_node(b), &s->stats,
-		      s->trans->journal_res.seq, 0);
-}
-
-static void bch2_subtract_sectors(struct extent_insert_state *s,
-				 struct bkey_s_c k, u64 offset, s64 sectors)
-{
-	bch2_add_sectors(s, k, offset, -sectors);
-}
-
-/* These wrappers subtract exactly the sectors that we're removing from @k */
-static void bch2_cut_subtract_back(struct extent_insert_state *s,
-				  struct bpos where, struct bkey_s k)
-{
-	bch2_subtract_sectors(s, k.s_c, where.offset,
-			     k.k->p.offset - where.offset);
-	bch2_cut_back(where, k.k);
-}
-
-static void bch2_cut_subtract_front(struct extent_insert_state *s,
-				   struct bpos where, struct bkey_s k)
-{
-	bch2_subtract_sectors(s, k.s_c, bkey_start_offset(k.k),
-			     where.offset - bkey_start_offset(k.k));
-	__bch2_cut_front(where, k);
-}
-
-static void bch2_drop_subtract(struct extent_insert_state *s, struct bkey_s k)
-{
-	if (k.k->size)
-		bch2_subtract_sectors(s, k.s_c,
-				     bkey_start_offset(k.k), k.k->size);
-	k.k->size = 0;
-	k.k->type = KEY_TYPE_DELETED;
-}
 
 static bool bch2_extent_merge_inline(struct bch_fs *,
 				     struct btree_iter *,
@@ -1166,11 +1117,7 @@ static void extent_insert_committed(struct extent_insert_state *s)
 	if (s->deleting)
 		split.k.k.type = KEY_TYPE_DISCARD;
 
-	if (!(s->trans->flags & BTREE_INSERT_JOURNAL_REPLAY))
-		bch2_cut_subtract_back(s, s->committed,
-				       bkey_i_to_s(&split.k));
-	else
-		bch2_cut_back(s->committed, &split.k.k);
+	bch2_cut_back(s->committed, &split.k.k);
 
 	if (!bkey_cmp(s->committed, iter->pos))
 		return;
@@ -1290,7 +1237,7 @@ extent_squash(struct extent_insert_state *s, struct bkey_i *insert,
 	switch (overlap) {
 	case BCH_EXTENT_OVERLAP_FRONT:
 		/* insert overlaps with start of k: */
-		bch2_cut_subtract_front(s, insert->k.p, k);
+		__bch2_cut_front(insert->k.p, k);
 		BUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
 		verify_modified_extent(iter, _k);
@@ -1298,7 +1245,7 @@ extent_squash(struct extent_insert_state *s, struct bkey_i *insert,
 
 	case BCH_EXTENT_OVERLAP_BACK:
 		/* insert overlaps with end of k: */
-		bch2_cut_subtract_back(s, bkey_start_pos(&insert->k), k);
+		bch2_cut_back(bkey_start_pos(&insert->k), k.k);
 		BUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
 
@@ -1318,7 +1265,8 @@ extent_squash(struct extent_insert_state *s, struct bkey_i *insert,
 		if (!bkey_whiteout(k.k))
 			btree_account_key_drop(l->b, _k);
 
-		bch2_drop_subtract(s, k);
+		k.k->size = 0;
+		k.k->type = KEY_TYPE_DELETED;
 
 		if (_k >= btree_bset_last(l->b)->start) {
 			unsigned u64s = _k->u64s;
@@ -1358,14 +1306,11 @@ extent_squash(struct extent_insert_state *s, struct bkey_i *insert,
 		bch2_cut_back(bkey_start_pos(&insert->k), &split.k.k);
 		BUG_ON(bkey_deleted(&split.k.k));
 
-		bch2_cut_subtract_front(s, insert->k.p, k);
+		__bch2_cut_front(insert->k.p, k);
 		BUG_ON(bkey_deleted(k.k));
 		extent_save(l->b, _k, k.k);
 		verify_modified_extent(iter, _k);
 
-		bch2_add_sectors(s, bkey_i_to_s_c(&split.k),
-				bkey_start_offset(&split.k.k),
-				split.k.k.size);
 		extent_bset_insert(c, iter, &split.k);
 		break;
 	}
@@ -1414,8 +1359,6 @@ static void __bch2_insert_fixup_extent(struct extent_insert_state *s)
 		    !bkey_cmp(bkey_start_pos(&insert->k), bkey_start_pos(k.k))) {
 			if (!bkey_whiteout(k.k)) {
 				btree_account_key_drop(l->b, _k);
-				bch2_subtract_sectors(s, k.s_c,
-						      bkey_start_offset(k.k), k.k->size);
 				_k->type = KEY_TYPE_DISCARD;
 				reserve_whiteout(l->b, _k);
 			}
@@ -1505,7 +1448,6 @@ enum btree_insert_ret
 bch2_insert_fixup_extent(struct btree_insert *trans,
 			 struct btree_insert_entry *insert)
 {
-	struct bch_fs *c	= trans->c;
 	struct btree_iter *iter	= insert->iter;
 	struct btree *b		= iter->l[0].b;
 	struct extent_insert_state s = {
@@ -1530,18 +1472,9 @@ bch2_insert_fixup_extent(struct btree_insert *trans,
 	 */
 	EBUG_ON(bkey_cmp(iter->pos, bkey_start_pos(&insert->k->k)));
 
-	if (!s.deleting &&
-	    !(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))
-		bch2_add_sectors(&s, bkey_i_to_s_c(insert->k),
-				bkey_start_offset(&insert->k->k),
-				insert->k->k.size);
-
 	__bch2_insert_fixup_extent(&s);
 
 	extent_insert_committed(&s);
-
-	bch2_fs_usage_apply(c, &s.stats, trans->disk_res,
-			   gc_pos_btree_node(b));
 
 	EBUG_ON(bkey_cmp(iter->pos, bkey_start_pos(&insert->k->k)));
 	EBUG_ON(bkey_cmp(iter->pos, s.committed));

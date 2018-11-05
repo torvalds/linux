@@ -213,6 +213,7 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 void bch2_mark_key(struct bch_fs *, enum bkey_type, struct bkey_s_c,
 		   bool, s64, struct gc_pos,
 		   struct bch_fs_usage *, u64, unsigned);
+void bch2_mark_update(struct btree_insert *, struct btree_insert_entry *);
 
 void bch2_recalc_sectors_available(struct bch_fs *);
 
