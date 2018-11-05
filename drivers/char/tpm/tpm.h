@@ -485,11 +485,9 @@ extern const struct file_operations tpm_fops;
 extern const struct file_operations tpmrm_fops;
 extern struct idr dev_nums_idr;
 
-ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz,
-		     unsigned int flags);
+ssize_t tpm_transmit(struct tpm_chip *chip, u8 *buf, size_t bufsiz);
 ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_buf *buf,
-			 size_t min_rsp_body_length, unsigned int flags,
-			 const char *desc);
+			 size_t min_rsp_body_length, const char *desc);
 int tpm_get_timeouts(struct tpm_chip *);
 int tpm_auto_startup(struct tpm_chip *chip);
 
@@ -514,8 +512,8 @@ static inline void tpm_msleep(unsigned int delay_msec)
 		     delay_msec * 1000);
 };
 
-int tpm_chip_start(struct tpm_chip *chip, unsigned int flags);
-void tpm_chip_stop(struct tpm_chip *chip, unsigned int flags);
+int tpm_chip_start(struct tpm_chip *chip);
+void tpm_chip_stop(struct tpm_chip *chip);
 struct tpm_chip *tpm_find_get_ops(struct tpm_chip *chip);
 __must_check int tpm_try_get_ops(struct tpm_chip *chip);
 void tpm_put_ops(struct tpm_chip *chip);
@@ -548,8 +546,7 @@ int tpm2_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf);
 int tpm2_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, u32 count,
 		    struct tpm2_digest *digests);
 int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max);
-void tpm2_flush_context_cmd(struct tpm_chip *chip, u32 handle,
-			    unsigned int flags);
+void tpm2_flush_context(struct tpm_chip *chip, u32 handle);
 int tpm2_seal_trusted(struct tpm_chip *chip,
 		      struct trusted_key_payload *payload,
 		      struct trusted_key_options *options);
