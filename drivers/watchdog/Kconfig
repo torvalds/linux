@@ -538,7 +538,7 @@ config COH901327_WATCHDOG
 config NPCM7XX_WATCHDOG
 	bool "Nuvoton NPCM750 watchdog"
 	depends on ARCH_NPCM || COMPILE_TEST
-	default y if ARCH_NPCM750
+	default y if ARCH_NPCM7XX
 	select WATCHDOG_CORE
 	help
 	  Say Y here to include Watchdog timer support for the
