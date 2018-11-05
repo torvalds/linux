@@ -72,6 +72,7 @@
 
 #include "modules/inc/mod_freesync.h"
 #include "modules/power/power_helpers.h"
+#include "modules/inc/mod_info_packet.h"
 
 #define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
@@ -2930,6 +2931,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 	if (dm_state && dm_state->freesync_capable)
 		stream->ignore_msa_timing_param = true;
+
 finish:
 	if (sink && sink->sink_signal == SIGNAL_TYPE_VIRTUAL && aconnector->base.force != DRM_FORCE_ON)
 		dc_sink_release(sink);
@@ -4423,8 +4425,8 @@ static void update_freesync_state_on_stream(
 		dm->freesync_module,
 		new_stream,
 		&vrr,
-		packet_type_vrr,
-		transfer_func_unknown,
+		PACKET_TYPE_VRR,
+		TRANSFER_FUNC_UNKNOWN,
 		&vrr_infopacket);
 
 	new_crtc_state->freesync_timing_changed =
