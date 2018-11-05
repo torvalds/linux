@@ -31,6 +31,10 @@
 #define STREAM_PAD_SINK				0
 #define STREAM_PAD_SOURCE			1
 
+#define CIF_FETCH_Y_LAST_LINE(VAL) ((VAL) & 0x1fff)
+/* Check if swap y and c in bt1120 mode */
+#define CIF_FETCH_IS_Y_FIRST(VAL) ((VAL) & 0xf)
+
 /* TODO: pingpong mode is not yet supported */
 
 /* Get xsubs and ysubs for fourcc formats
@@ -168,18 +172,42 @@ static const struct cif_input_fmt in_fmts[] = {
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YUYV,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
+		.field		= V4L2_FIELD_NONE,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
+		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YUYV,
+		.fmt_type	= CIF_FMT_TYPE_YUV,
+		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
 		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YVYU,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
+		.field		= V4L2_FIELD_NONE,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
+		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YVYU,
+		.fmt_type	= CIF_FMT_TYPE_YUV,
+		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
 		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_UYVY,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
+		.field		= V4L2_FIELD_NONE,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
+		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_UYVY,
+		.fmt_type	= CIF_FMT_TYPE_YUV,
+		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
 		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_VYUY,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
+		.field		= V4L2_FIELD_NONE,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
+		.fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_VYUY,
+		.fmt_type	= CIF_FMT_TYPE_YUV,
+		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW8,
@@ -296,7 +324,8 @@ cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect)
 	rect->height = fmt.format.height;
 
 	for (i = 0; i < ARRAY_SIZE(in_fmts); i++)
-		if (fmt.format.code == in_fmts[i].mbus_code)
+		if (fmt.format.code == in_fmts[i].mbus_code &&
+		    fmt.format.field == in_fmts[i].field)
 			return &in_fmts[i];
 
 	v4l2_err(sd->v4l2_dev, "remote sensor mbus code not supported\n");
@@ -870,6 +899,9 @@ static u32 rkcif_determine_input_mode(struct rkcif_device *dev)
 		case V4L2_STD_PAL:
 			mode = INPUT_MODE_PAL;
 			break;
+		case V4L2_STD_ATSC:
+			mode = INPUT_MODE_BT1120;
+			break;
 		default:
 			v4l2_err(&dev->v4l2_dev,
 				 "std: %lld is not supported", std);
@@ -899,7 +931,8 @@ static inline u32 rkcif_scl_ctl(struct rkcif_stream *stream)
 
 static int rkcif_stream_start(struct rkcif_stream *stream)
 {
-	u32 val, mbus_flags, href_pol, vsync_pol, skip_top = 0;
+	u32 val, mbus_flags, href_pol, vsync_pol,
+	    xfer_mode = 0, yc_swap = 0, skip_top = 0;
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_sensor_info *sensor_info;
 	void __iomem *base = dev->base_addr;
@@ -913,8 +946,18 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	vsync_pol = (mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH) ?
 			VSY_HIGH_ACTIVE : VSY_LOW_ACTIVE;
 
+	if (rkcif_determine_input_mode(dev) == INPUT_MODE_BT1120) {
+		if (stream->cif_fmt_in->field == V4L2_FIELD_NONE)
+			xfer_mode = BT1120_TRANSMIT_PROGRESS;
+		else
+			xfer_mode = BT1120_TRANSMIT_INTERFACE;
+		if (!CIF_FETCH_IS_Y_FIRST(stream->cif_fmt_in->fmt_val))
+			yc_swap = BT1120_YC_SWAP;
+	}
+
 	val = vsync_pol | href_pol | rkcif_determine_input_mode(dev) |
-	      stream->cif_fmt_out->fmt_val | stream->cif_fmt_in->fmt_val;
+	      stream->cif_fmt_out->fmt_val | stream->cif_fmt_in->fmt_val |
+	      xfer_mode | yc_swap;
 	write_cif_reg(base, CIF_FOR, val);
 	write_cif_reg(base, CIF_VIR_LINE_WIDTH, stream->pixm.width);
 	write_cif_reg(base, CIF_SET_SIZE,
@@ -928,12 +971,21 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	write_cif_reg(base, CIF_INTSTAT, INTSTAT_CLS);
 	write_cif_reg(base, CIF_SCL_CTRL, rkcif_scl_ctl(stream));
 
-	/* Set up an buffer for the next frame */
-	rkcif_assign_new_buffer_oneframe(stream);
+	if (dev->chip_id == CHIP_RK1808_CIF &&
+	    rkcif_determine_input_mode(dev) == INPUT_MODE_BT1120)
+		rkcif_assign_new_buffer_pingpong(stream, 1, 0);
+	else
+		/* Set up an buffer for the next frame */
+		rkcif_assign_new_buffer_oneframe(stream);
 
 	write_cif_reg(base, CIF_INTEN, FRAME_END_EN | PST_INF_FRAME_END);
-	write_cif_reg(base, CIF_CTRL,
-		      AXI_BURST_16 | MODE_ONEFRAME | ENABLE_CAPTURE);
+	if (dev->chip_id == CHIP_RK1808_CIF &&
+	    rkcif_determine_input_mode(dev) == INPUT_MODE_BT1120)
+		write_cif_reg(base, CIF_CTRL,
+			      AXI_BURST_16 | MODE_PINGPONG | ENABLE_CAPTURE);
+	else
+		write_cif_reg(base, CIF_CTRL,
+			      AXI_BURST_16 | MODE_ONEFRAME | ENABLE_CAPTURE);
 
 	stream->state = RKCIF_STATE_STREAMING;
 
@@ -1503,6 +1555,68 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			stream->frame_idx++;
 		}
 	} else {
-		/* TODO */
+		u32 lastline, lastpix, ctl, cif_frmst;
+		void __iomem *base = cif_dev->base_addr;
+
+		intstat = read_cif_reg(base, CIF_INTSTAT);
+		cif_frmst = read_cif_reg(base, CIF_FRAME_STATUS);
+		lastline = CIF_FETCH_Y_LAST_LINE(read_cif_reg(base, CIF_LAST_LINE));
+		lastpix = read_cif_reg(base, CIF_LAST_PIX);
+		ctl = read_cif_reg(base, CIF_CTRL);
+
+		/* There are two irqs enabled:
+		 *  - PST_INF_FRAME_END: cif FIFO is ready,
+		 *    this is prior to FRAME_END
+		 *  - FRAME_END: cif has saved frame to memory,
+		 *    a frame ready
+		 */
+
+		if ((intstat & PST_INF_FRAME_END)) {
+			write_cif_reg(base, CIF_INTSTAT, PST_INF_FRAME_END_CLR);
+
+			if (stream->stopping)
+				/* To stop CIF ASAP, before FRAME_END irq */
+				write_cif_reg(base, CIF_CTRL,
+					      ctl & (~ENABLE_CAPTURE));
+		}
+
+		if ((intstat & FRAME_END)) {
+			struct vb2_v4l2_buffer *vb_done = NULL;
+
+			write_cif_reg(base, CIF_INTSTAT, FRAME_END_CLR);
+
+			if (stream->stopping) {
+				rkcif_stream_stop(stream);
+				stream->stopping = false;
+				wake_up(&stream->wq_stopped);
+				return;
+			}
+
+			if (lastline != stream->pixm.height ||
+			    (!(cif_frmst & CIF_F0_READY) &&
+			     !(cif_frmst & CIF_F1_READY))) {
+				v4l2_err(&cif_dev->v4l2_dev,
+					 "Bad frame, irq:0x%x frmst:0x%x size:%dx%d\n",
+					 intstat, cif_frmst, lastline, lastpix);
+				return;
+			}
+
+			if (cif_frmst & CIF_F0_READY) {
+				if (stream->curr_buf)
+					vb_done = &stream->curr_buf->vb;
+				stream->frame_phase = 0;
+			} else if (cif_frmst & CIF_F1_READY) {
+				if (stream->next_buf)
+					vb_done = &stream->next_buf->vb;
+				stream->frame_phase = 1;
+			}
+
+			rkcif_assign_new_buffer_pingpong(stream, 0, 0);
+
+			if (vb_done)
+				rkcif_vb_done_oneframe(stream, vb_done);
+
+			stream->frame_idx++;
+		}
 	}
 }

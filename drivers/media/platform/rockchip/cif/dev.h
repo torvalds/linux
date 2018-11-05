@@ -108,11 +108,13 @@ enum cif_fmt_type {
  *
  * @mbus_code: mbus format
  * @fmt_val: the fmt val corresponding to CIF_FOR register
+ * @field: the field type of the input from sensor
  */
 struct cif_input_fmt {
 	u32 mbus_code;
 	u32 fmt_val;
 	enum cif_fmt_type fmt_type;
+	enum v4l2_field field;
 };
 
 struct csi_channel_info {

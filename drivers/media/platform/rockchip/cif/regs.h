@@ -127,6 +127,7 @@
 #define INPUT_MODE_YUV			(0x00 << 2)
 #define INPUT_MODE_PAL			(0x02 << 2)
 #define INPUT_MODE_NTSC			(0x03 << 2)
+#define INPUT_MODE_BT1120		(0x07 << 2)
 #define INPUT_MODE_RAW			(0x04 << 2)
 #define INPUT_MODE_JPEG			(0x05 << 2)
 #define INPUT_MODE_MIPI			(0x06 << 2)
@@ -151,6 +152,11 @@
 #define RAWD_DATA_BIG_ENDIAN		(0x01 << 18)
 #define UV_STORAGE_ORDER_UVUV		(0x00 << 19)
 #define UV_STORAGE_ORDER_VUVU		(0x01 << 19)
+#define BT1120_CLOCK_SINGLE_EDGES	(0x00 << 24)
+#define BT1120_CLOCK_DOUBLE_EDGES	(0x01 << 24)
+#define BT1120_TRANSMIT_INTERFACE	(0x00 << 25)
+#define BT1120_TRANSMIT_PROGRESS	(0x01 << 25)
+#define BT1120_YC_SWAP			(0x01 << 26)
 
 /* CIF_SCL_CTRL */
 #define ENABLE_SCL_DOWN			(0x01 << 0)
