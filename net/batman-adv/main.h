@@ -25,7 +25,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2018.4"
+#define BATADV_SOURCE_VERSION "2019.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
