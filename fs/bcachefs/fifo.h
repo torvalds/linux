@@ -13,7 +13,9 @@ struct {								\
 #define DECLARE_FIFO(type, name)	FIFO(type) name
 
 #define fifo_buf_size(fifo)						\
-	(roundup_pow_of_two((fifo)->size) * sizeof((fifo)->data[0]))
+	((fifo)->size							\
+	 ? roundup_pow_of_two((fifo)->size) * sizeof((fifo)->data[0])	\
+	 : 0)
 
 #define init_fifo(fifo, _size, _gfp)					\
 ({									\

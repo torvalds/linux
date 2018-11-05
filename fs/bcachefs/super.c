@@ -654,7 +654,7 @@ const char *bch2_fs_start(struct bch_fs *c)
 	const char *err = "cannot allocate memory";
 	struct bch_sb_field_members *mi;
 	struct bch_dev *ca;
-	time64_t now = ktime_get_seconds();
+	time64_t now = ktime_get_real_seconds();
 	unsigned i;
 	int ret = -EINVAL;
 
@@ -1418,7 +1418,7 @@ have_slot:
 	/* success: */
 
 	mi->members[dev_idx] = dev_mi;
-	mi->members[dev_idx].last_mount = cpu_to_le64(ktime_get_seconds());
+	mi->members[dev_idx].last_mount = cpu_to_le64(ktime_get_real_seconds());
 	c->disk_sb.sb->nr_devices	= nr_devices;
 
 	ca->disk_sb.sb->dev_idx	= dev_idx;
@@ -1494,7 +1494,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 	mi = bch2_sb_get_members(c->disk_sb.sb);
 
 	mi->members[ca->dev_idx].last_mount =
-		cpu_to_le64(ktime_get_seconds());
+		cpu_to_le64(ktime_get_real_seconds());
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
