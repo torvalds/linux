@@ -597,7 +597,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
  */
 static bool rcu_preempt_need_deferred_qs(struct task_struct *t)
 {
-	return (this_cpu_ptr(&rcu_data)->deferred_qs ||
+	return (__this_cpu_read(rcu_data.deferred_qs) ||
 		READ_ONCE(t->rcu_read_unlock_special.s)) &&
 	       t->rcu_read_lock_nesting <= 0;
 }
