@@ -183,21 +183,6 @@
 #define KASAN_ABI_VERSION 3
 #endif
 
-#if GCC_VERSION >= 40902
-/*
- * Tell the compiler that address safety instrumentation (KASAN)
- * should not be applied to that function.
- * Conflicts with inlining: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67368
- */
-#define __no_sanitize_address __attribute__((no_sanitize_address))
-#ifdef CONFIG_KASAN
-#define __no_sanitize_address_or_inline					\
-	__no_sanitize_address __maybe_unused notrace
-#else
-#define __no_sanitize_address_or_inline inline
-#endif
-#endif
-
 #if GCC_VERSION >= 50100
 /*
  * Mark structures as requiring designated initializers.
@@ -217,7 +202,6 @@
 
 #if !defined(__no_sanitize_address)
 #define __no_sanitize_address
-#define __no_sanitize_address_or_inline inline
 #endif
 
 /*
