@@ -421,6 +421,11 @@
 		function = "audio_clk";
 	};
 
+	scif2_pins: scif2 {
+		groups = "scif2_data_a";
+		function = "scif2";
+	};
+
 	usb0_pins: usb {
 		groups = "usb0_b", "usb0_id";
 		function = "usb0";
@@ -493,6 +498,9 @@
 };
 
 &scif2 {
+	pinctrl-0 = <&scif2_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
 
