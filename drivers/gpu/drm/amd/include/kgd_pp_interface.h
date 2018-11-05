@@ -281,6 +281,9 @@ struct amd_pm_funcs {
 	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);
 	int (*set_hard_min_fclk_by_freq)(void *handle, uint32_t clock);
 	int (*set_min_deep_sleep_dcefclk)(void *handle, uint32_t clock);
+	int (*get_asic_baco_capability)(void *handle, bool *cap);
+	int (*get_asic_baco_state)(void *handle, int *state);
+	int (*set_asic_baco_state)(void *handle, int state);
 };
 
 #endif

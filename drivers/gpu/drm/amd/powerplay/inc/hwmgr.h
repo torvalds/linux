@@ -47,6 +47,11 @@ enum DISPLAY_GAP {
 };
 typedef enum DISPLAY_GAP DISPLAY_GAP;
 
+enum BACO_STATE {
+	BACO_STATE_OUT = 0,
+	BACO_STATE_IN,
+};
+
 struct vi_dpm_level {
 	bool enabled;
 	uint32_t value;
@@ -333,6 +338,9 @@ struct pp_hwmgr_func {
 	int (*enable_mgpu_fan_boost)(struct pp_hwmgr *hwmgr);
 	int (*set_hard_min_dcefclk_by_freq)(struct pp_hwmgr *hwmgr, uint32_t clock);
 	int (*set_hard_min_fclk_by_freq)(struct pp_hwmgr *hwmgr, uint32_t clock);
+	int (*get_asic_baco_capability)(struct pp_hwmgr *hwmgr, bool *cap);
+	int (*get_asic_baco_state)(struct pp_hwmgr *hwmgr, enum BACO_STATE *state);
+	int (*set_asic_baco_state)(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
 };
 
 struct pp_table_func {
