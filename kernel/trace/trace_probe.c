@@ -154,6 +154,33 @@ int traceprobe_split_symbol_offset(char *symbol, long *offset)
 	return 0;
 }
 
+/* @buf must has MAX_EVENT_NAME_LEN size */
+int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
+				char *buf)
+{
+	const char *slash, *event = *pevent;
+
+	slash = strchr(event, '/');
+	if (slash) {
+		if (slash == event) {
+			pr_info("Group name is not specified\n");
+			return -EINVAL;
+		}
+		if (slash - event + 1 > MAX_EVENT_NAME_LEN) {
+			pr_info("Group name is too long\n");
+			return -E2BIG;
+		}
+		strlcpy(buf, event, slash - event + 1);
+		*pgroup = buf;
+		*pevent = slash + 1;
+	}
+	if (strlen(event) == 0) {
+		pr_info("Event name is not specified\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 #define PARAM_MAX_STACK (THREAD_SIZE / sizeof(unsigned long))
 
 static int parse_probe_vars(char *arg, const struct fetch_type *t,

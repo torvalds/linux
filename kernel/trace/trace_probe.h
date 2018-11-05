@@ -279,6 +279,8 @@ extern int traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
 
 extern int traceprobe_split_symbol_offset(char *symbol, long *offset);
+extern int traceprobe_parse_event_name(const char **pevent,
+				       const char **pgroup, char *buf);
 
 extern int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return);
 

@@ -461,6 +461,7 @@ config KPROBE_EVENTS
 	bool "Enable kprobes-based dynamic events"
 	select TRACING
 	select PROBE_EVENTS
+	select DYNAMIC_EVENTS
 	default y
 	help
 	  This allows the user to add tracing events (similar to tracepoints)
