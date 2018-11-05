@@ -40,6 +40,12 @@ struct perf_top {
 	const char	   *sym_filter;
 	float		   min_percent;
 	unsigned int	   nr_threads_synthesize;
+
+	struct {
+		struct ordered_events	*in;
+		struct ordered_events	 data[2];
+		pthread_mutex_t		 lock;
+	} qe;
 };
 
 #define CONSOLE_CLEAR "[H[2J"

@@ -18,6 +18,7 @@ enum oe_flush {
 	OE_FLUSH__FINAL,
 	OE_FLUSH__ROUND,
 	OE_FLUSH__HALF,
+	OE_FLUSH__TOP,
 };
 
 struct ordered_events;
