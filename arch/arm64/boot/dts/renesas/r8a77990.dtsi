@@ -1011,9 +1011,13 @@
 				#size-cells = <0>;
 
 				port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
 					reg = <1>;
 
-					vin4csi40: endpoint {
+					vin4csi40: endpoint@2 {
+						reg = <2>;
 						remote-endpoint= <&csi40vin4>;
 					};
 				};
@@ -1035,9 +1039,13 @@
 				#size-cells = <0>;
 
 				port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
 					reg = <1>;
 
-					vin5csi40: endpoint {
+					vin5csi40: endpoint@2 {
+						reg = <2>;
 						remote-endpoint= <&csi40vin5>;
 					};
 				};
