@@ -2404,6 +2404,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 			mark_page_accessed(page);
 
 		put_page(page);
+		cond_resched();
 	}
 	obj->mm.dirty = false;
 
@@ -2574,6 +2575,7 @@ rebuild_st:
 		gfp_t gfp = noreclaim;
 
 		do {
+			cond_resched();
 			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
 			if (likely(!IS_ERR(page)))
 				break;
@@ -2584,7 +2586,6 @@ rebuild_st:
 			}
 
 			i915_gem_shrink(dev_priv, 2 * page_count, NULL, *s++);
-			cond_resched();
 
 			/*
 			 * We've tried hard to allocate the memory by reaping
