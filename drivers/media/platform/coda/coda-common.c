@@ -704,7 +704,8 @@ static int coda_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f,
 		return -EINVAL;
 
 	if (vb2_is_busy(vq)) {
-		v4l2_err(&ctx->dev->v4l2_dev, "%s queue busy\n", __func__);
+		v4l2_err(&ctx->dev->v4l2_dev, "%s: %s queue busy: %d\n",
+			 __func__, v4l2_type_names[f->type], vq->num_buffers);
 		return -EBUSY;
 	}
 
