@@ -1173,17 +1173,7 @@ static int sco_debugfs_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int sco_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sco_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations sco_debugfs_fops = {
-	.open		= sco_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(sco_debugfs);
 
 static struct dentry *sco_debugfs;
 
