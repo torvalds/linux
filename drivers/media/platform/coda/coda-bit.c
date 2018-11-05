@@ -1748,7 +1748,7 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 
 	if (coda_read(dev, CODA_RET_DEC_SEQ_SUCCESS) == 0) {
 		v4l2_err(&dev->v4l2_dev,
-			"CODA_COMMAND_SEQ_INIT failed, error code = %d\n",
+			"CODA_COMMAND_SEQ_INIT failed, error code = 0x%x\n",
 			coda_read(dev, CODA_RET_DEC_SEQ_ERR_REASON));
 		return -EAGAIN;
 	}
