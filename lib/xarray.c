@@ -1361,43 +1361,6 @@ void *xa_erase(struct xarray *xa, unsigned long index)
 EXPORT_SYMBOL(xa_erase);
 
 /**
- * xa_store() - Store this entry in the XArray.
- * @xa: XArray.
- * @index: Index into array.
- * @entry: New entry.
- * @gfp: Memory allocation flags.
- *
- * After this function returns, loads from this index will return @entry.
- * Storing into an existing multislot entry updates the entry of every index.
- * The marks associated with @index are unaffected unless @entry is %NULL.
- *
- * Context: Process context.  Takes and releases the xa_lock.  May sleep
- * if the @gfp flags permit.
- * Return: The old entry at this index on success, xa_err(-EINVAL) if @entry
- * cannot be stored in an XArray, or xa_err(-ENOMEM) if memory allocation
- * failed.
- */
-void *xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
-{
-	XA_STATE(xas, xa, index);
-	void *curr;
-
-	if (WARN_ON_ONCE(xa_is_internal(entry)))
-		return XA_ERROR(-EINVAL);
-
-	do {
-		xas_lock(&xas);
-		curr = xas_store(&xas, entry);
-		if (xa_track_free(xa) && entry)
-			xas_clear_mark(&xas, XA_FREE_MARK);
-		xas_unlock(&xas);
-	} while (xas_nomem(&xas, gfp));
-
-	return xas_result(&xas, curr);
-}
-EXPORT_SYMBOL(xa_store);
-
-/**
  * __xa_store() - Store this entry in the XArray.
  * @xa: XArray.
  * @index: Index into array.
@@ -1429,6 +1392,35 @@ void *__xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 	return xas_result(&xas, curr);
 }
 EXPORT_SYMBOL(__xa_store);
+
+/**
+ * xa_store() - Store this entry in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * After this function returns, loads from this index will return @entry.
+ * Storing into an existing multislot entry updates the entry of every index.
+ * The marks associated with @index are unaffected unless @entry is %NULL.
+ *
+ * Context: Any context.  Takes and releases the xa_lock.
+ * May sleep if the @gfp flags permit.
+ * Return: The old entry at this index on success, xa_err(-EINVAL) if @entry
+ * cannot be stored in an XArray, or xa_err(-ENOMEM) if memory allocation
+ * failed.
+ */
+void *xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock(xa);
+	curr = __xa_store(xa, index, entry, gfp);
+	xa_unlock(xa);
+
+	return curr;
+}
+EXPORT_SYMBOL(xa_store);
 
 /**
  * __xa_cmpxchg() - Store this entry in the XArray.
