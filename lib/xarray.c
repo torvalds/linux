@@ -1337,6 +1337,30 @@ void *__xa_erase(struct xarray *xa, unsigned long index)
 EXPORT_SYMBOL(__xa_erase);
 
 /**
+ * xa_erase() - Erase this entry from the XArray.
+ * @xa: XArray.
+ * @index: Index of entry.
+ *
+ * This function is the equivalent of calling xa_store() with %NULL as
+ * the third argument.  The XArray does not need to allocate memory, so
+ * the user does not need to provide GFP flags.
+ *
+ * Context: Any context.  Takes and releases the xa_lock.
+ * Return: The entry which used to be at this index.
+ */
+void *xa_erase(struct xarray *xa, unsigned long index)
+{
+	void *entry;
+
+	xa_lock(xa);
+	entry = __xa_erase(xa, index);
+	xa_unlock(xa);
+
+	return entry;
+}
+EXPORT_SYMBOL(xa_erase);
+
+/**
  * xa_store() - Store this entry in the XArray.
  * @xa: XArray.
  * @index: Index into array.

@@ -289,6 +289,7 @@ struct xarray {
 void xa_init_flags(struct xarray *, gfp_t flags);
 void *xa_load(struct xarray *, unsigned long index);
 void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
+void *xa_erase(struct xarray *, unsigned long index);
 void *xa_store_range(struct xarray *, unsigned long first, unsigned long last,
 			void *entry, gfp_t);
 bool xa_get_mark(struct xarray *, unsigned long index, xa_mark_t);
@@ -338,23 +339,6 @@ static inline bool xa_empty(const struct xarray *xa)
 static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
 {
 	return xa->xa_flags & XA_FLAGS_MARK(mark);
-}
-
-/**
- * xa_erase() - Erase this entry from the XArray.
- * @xa: XArray.
- * @index: Index of entry.
- *
- * This function is the equivalent of calling xa_store() with %NULL as
- * the third argument.  The XArray does not need to allocate memory, so
- * the user does not need to provide GFP flags.
- *
- * Context: Process context.  Takes and releases the xa_lock.
- * Return: The entry which used to be at this index.
- */
-static inline void *xa_erase(struct xarray *xa, unsigned long index)
-{
-	return xa_store(xa, index, NULL, 0);
 }
 
 /**
