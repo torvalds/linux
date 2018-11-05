@@ -76,11 +76,6 @@ static void __init at91_wakeup_status(struct platform_device *pdev)
 
 static void at91_poweroff(void)
 {
-	writel(AT91_SHDW_KEY | AT91_SHDW_SHDW, at91_shdwc_base + AT91_SHDW_CR);
-}
-
-static void at91_lpddr_poweroff(void)
-{
 	asm volatile(
 		/* Align to cache lines */
 		".balign 32\n\t"
@@ -89,9 +84,11 @@ static void at91_lpddr_poweroff(void)
 		"	ldr	r6, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
 
 		/* Power down SDRAM0 */
+		"	tst	%0, #0\n\t"
+		"	beq	1f\n\t"
 		"	str	%1, [%0, #" __stringify(AT91_DDRSDRC_LPR) "]\n\t"
 		/* Shutdown CPU */
-		"	str	%3, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
+		"1:	str	%3, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
 
 		"	b	.\n\t"
 		:
@@ -177,33 +174,41 @@ static int __init at91_poweroff_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node)
 		at91_poweroff_dt_set_wakeup_mode(pdev);
 
+	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d3-ddramc");
+	if (np) {
+		mpddrc_base = of_iomap(np, 0);
+		of_node_put(np);
+
+		if (!mpddrc_base) {
+			ret = -ENOMEM;
+			goto clk_disable;
+		}
+
+		ddr_type = readl(mpddrc_base + AT91_DDRSDRC_MDR) &
+				 AT91_DDRSDRC_MD;
+		if (ddr_type != AT91_DDRSDRC_MD_LPDDR2 &&
+		    ddr_type != AT91_DDRSDRC_MD_LPDDR3) {
+			iounmap(mpddrc_base);
+			mpddrc_base = NULL;
+		}
+	}
+
 	pm_power_off = at91_poweroff;
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d3-ddramc");
-	if (!np)
-		return 0;
-
-	mpddrc_base = of_iomap(np, 0);
-	of_node_put(np);
-
-	if (!mpddrc_base)
-		return 0;
-
-	ddr_type = readl(mpddrc_base + AT91_DDRSDRC_MDR) & AT91_DDRSDRC_MD;
-	if ((ddr_type == AT91_DDRSDRC_MD_LPDDR2) ||
-	    (ddr_type == AT91_DDRSDRC_MD_LPDDR3))
-		pm_power_off = at91_lpddr_poweroff;
-	else
-		iounmap(mpddrc_base);
-
 	return 0;
+
+clk_disable:
+	clk_disable_unprepare(sclk);
+	return ret;
 }
 
 static int __exit at91_poweroff_remove(struct platform_device *pdev)
 {
-	if (pm_power_off == at91_poweroff ||
-	    pm_power_off == at91_lpddr_poweroff)
+	if (pm_power_off == at91_poweroff)
 		pm_power_off = NULL;
+
+	if (mpddrc_base)
+		iounmap(mpddrc_base);
 
 	clk_disable_unprepare(sclk);
 
