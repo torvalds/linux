@@ -299,8 +299,7 @@ void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 		}
 
 		/* Buffer start position */
-		start = ctx->bitstream_fifo.kfifo.in &
-			ctx->bitstream_fifo.kfifo.mask;
+		start = ctx->bitstream_fifo.kfifo.in;
 
 		if (coda_bitstream_try_queue(ctx, src_buf)) {
 			/*
@@ -315,8 +314,7 @@ void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 				meta->timecode = src_buf->timecode;
 				meta->timestamp = src_buf->vb2_buf.timestamp;
 				meta->start = start;
-				meta->end = ctx->bitstream_fifo.kfifo.in &
-					    ctx->bitstream_fifo.kfifo.mask;
+				meta->end = ctx->bitstream_fifo.kfifo.in;
 				spin_lock_irqsave(&ctx->buffer_meta_lock,
 						  flags);
 				list_add_tail(&meta->list,
@@ -1980,8 +1978,7 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	if (meta && ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG) {
 
 		/* If this is the last buffer in the bitstream, add padding */
-		if (meta->end == (ctx->bitstream_fifo.kfifo.in &
-				  ctx->bitstream_fifo.kfifo.mask)) {
+		if (meta->end == ctx->bitstream_fifo.kfifo.in) {
 			static unsigned char buf[512];
 			unsigned int pad;
 

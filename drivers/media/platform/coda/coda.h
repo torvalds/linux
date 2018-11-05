@@ -145,8 +145,8 @@ struct coda_buffer_meta {
 	u32			sequence;
 	struct v4l2_timecode	timecode;
 	u64			timestamp;
-	u32			start;
-	u32			end;
+	unsigned int		start;
+	unsigned int		end;
 };
 
 /* Per-queue, driver-specific private data */
