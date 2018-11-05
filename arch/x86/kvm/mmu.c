@@ -5638,7 +5638,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 	 * spte from present to present (changing the spte from present
 	 * to nonpresent will flush all the TLBs immediately), in other
 	 * words, the only case we care is mmu_spte_update() where we
-	 * haved checked SPTE_HOST_WRITEABLE | SPTE_MMU_WRITEABLE
+	 * have checked SPTE_HOST_WRITEABLE | SPTE_MMU_WRITEABLE
 	 * instead of PT_WRITABLE_MASK, that means it does not depend
 	 * on PT_WRITABLE_MASK anymore.
 	 */
