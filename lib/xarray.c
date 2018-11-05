@@ -1382,10 +1382,12 @@ void *__xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 
 	if (WARN_ON_ONCE(xa_is_internal(entry)))
 		return XA_ERROR(-EINVAL);
+	if (xa_track_free(xa) && !entry)
+		entry = XA_ZERO_ENTRY;
 
 	do {
 		curr = xas_store(&xas, entry);
-		if (xa_track_free(xa) && entry)
+		if (xa_track_free(xa))
 			xas_clear_mark(&xas, XA_FREE_MARK);
 	} while (__xas_nomem(&xas, gfp));
 
@@ -1446,6 +1448,8 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 
 	if (WARN_ON_ONCE(xa_is_internal(entry)))
 		return XA_ERROR(-EINVAL);
+	if (xa_track_free(xa) && !entry)
+		entry = XA_ZERO_ENTRY;
 
 	do {
 		curr = xas_load(&xas);
@@ -1453,7 +1457,7 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 			curr = NULL;
 		if (curr == old) {
 			xas_store(&xas, entry);
-			if (xa_track_free(xa) && entry)
+			if (xa_track_free(xa))
 				xas_clear_mark(&xas, XA_FREE_MARK);
 		}
 	} while (__xas_nomem(&xas, gfp));
@@ -1487,8 +1491,11 @@ int __xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
 
 	do {
 		curr = xas_load(&xas);
-		if (!curr)
+		if (!curr) {
 			xas_store(&xas, XA_ZERO_ENTRY);
+			if (xa_track_free(xa))
+				xas_clear_mark(&xas, XA_FREE_MARK);
+		}
 	} while (__xas_nomem(&xas, gfp));
 
 	return xas_error(&xas);

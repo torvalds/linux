@@ -119,18 +119,27 @@ Finally, you can remove all entries from an XArray by calling
 to free the entries first.  You can do this by iterating over all present
 entries in the XArray using the :c:func:`xa_for_each` iterator.
 
-ID assignment
--------------
+Allocating XArrays
+------------------
+
+If you use :c:func:`DEFINE_XARRAY_ALLOC` to define the XArray, or
+initialise it by passing ``XA_FLAGS_ALLOC`` to :c:func:`xa_init_flags`,
+the XArray changes to track whether entries are in use or not.
 
 You can call :c:func:`xa_alloc` to store the entry at any unused index
 in the XArray.  If you need to modify the array from interrupt context,
 you can use :c:func:`xa_alloc_bh` or :c:func:`xa_alloc_irq` to disable
-interrupts while allocating the ID.  Unlike :c:func:`xa_store`, allocating
-a ``NULL`` pointer does not delete an entry.  Instead it reserves an
-entry like :c:func:`xa_reserve` and you can release it using either
-:c:func:`xa_erase` or :c:func:`xa_release`.  To use ID assignment, the
-XArray must be defined with :c:func:`DEFINE_XARRAY_ALLOC`, or initialised
-by passing ``XA_FLAGS_ALLOC`` to :c:func:`xa_init_flags`,
+interrupts while allocating the ID.
+
+Using :c:func:`xa_store`, :c:func:`xa_cmpxchg` or :c:func:`xa_insert`
+will mark the entry as being allocated.  Unlike a normal XArray, storing
+``NULL`` will mark the entry as being in use, like :c:func:`xa_reserve`.
+To free an entry, use :c:func:`xa_erase` (or :c:func:`xa_release` if
+you only want to free the entry if it's ``NULL``).
+
+You cannot use ``XA_MARK_0`` with an allocating XArray as this mark
+is used to track whether an entry is free or not.  The other marks are
+available for your use.
 
 Memory allocation
 -----------------
@@ -338,7 +347,8 @@ to :c:func:`xas_retry`, and retry the operation if it returns ``true``.
      - :c:func:`xa_is_zero`
      - Zero entries appear as ``NULL`` through the Normal API, but occupy
        an entry in the XArray which can be used to reserve the index for
-       future use.
+       future use.  This is used by allocating XArrays for allocated entries
+       which are ``NULL``.
 
 Other internal entries may be added in the future.  As far as possible, they
 will be handled by :c:func:`xas_retry`.
