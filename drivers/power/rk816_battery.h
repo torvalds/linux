@@ -60,6 +60,9 @@
 #define INPUT_CUR_MSK		(0x0f)
 #define FINISH_CUR_MSK		0xc0
 
+/* BAT_CTRL_REG */
+#define USB_SYS_EN		BIT(6)
+
 /* THERMAL_REG */
 #define FB_TEMP_MSK		0x0c
 #define HOTDIE_STS		BIT(1)
