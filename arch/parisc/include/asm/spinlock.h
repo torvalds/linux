@@ -37,8 +37,8 @@ static inline void arch_spin_unlock(arch_spinlock_t *x)
 	volatile unsigned int *a;
 
 	a = __ldcw_align(x);
-	/* Release with ordered store. */
-	__asm__ __volatile__("stw,ma %0,0(%1)" : : "r"(1), "r"(a) : "memory");
+	mb();
+	*a = 1;
 }
 
 static inline int arch_spin_trylock(arch_spinlock_t *x)
