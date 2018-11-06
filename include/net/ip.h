@@ -421,7 +421,8 @@ static inline unsigned int ip_skb_dst_mtu(struct sock *sk,
 }
 
 struct dst_metrics *ip_fib_metrics_init(struct net *net, struct nlattr *fc_mx,
-					int fc_mx_len);
+					int fc_mx_len,
+					struct netlink_ext_ack *extack);
 static inline void ip_fib_metrics_put(struct dst_metrics *fib_metrics)
 {
 	if (fib_metrics != &dst_default_metrics &&

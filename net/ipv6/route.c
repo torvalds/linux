@@ -2975,7 +2975,8 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 	if (!rt)
 		goto out;
 
-	rt->fib6_metrics = ip_fib_metrics_init(net, cfg->fc_mx, cfg->fc_mx_len);
+	rt->fib6_metrics = ip_fib_metrics_init(net, cfg->fc_mx, cfg->fc_mx_len,
+					       extack);
 	if (IS_ERR(rt->fib6_metrics)) {
 		err = PTR_ERR(rt->fib6_metrics);
 		/* Do not leave garbage there. */
@@ -3708,7 +3709,7 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 	if (!f6i)
 		return ERR_PTR(-ENOMEM);
 
-	f6i->fib6_metrics = ip_fib_metrics_init(net, NULL, 0);
+	f6i->fib6_metrics = ip_fib_metrics_init(net, NULL, 0, NULL);
 	f6i->dst_nocount = true;
 	f6i->dst_host = true;
 	f6i->fib6_protocol = RTPROT_KERNEL;

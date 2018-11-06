@@ -1076,7 +1076,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	if (!fi)
 		goto failure;
 	fi->fib_metrics = ip_fib_metrics_init(fi->fib_net, cfg->fc_mx,
-					      cfg->fc_mx_len);
+					      cfg->fc_mx_len, extack);
 	if (unlikely(IS_ERR(fi->fib_metrics))) {
 		err = PTR_ERR(fi->fib_metrics);
 		kfree(fi);
