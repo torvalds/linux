@@ -1666,7 +1666,10 @@ static int pxp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_prepare_enable(dev->clk);
+	ret = clk_prepare_enable(dev->clk);
+	if (ret < 0)
+		return ret;
+
 	pxp_soft_reset(dev);
 
 	spin_lock_init(&dev->irqlock);
