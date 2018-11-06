@@ -697,7 +697,8 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 		hw->cfg |= SPRD_DMA_LINKLIST_EN;
 
 		/* link-list index */
-		temp = (sg_index + 1) % sglen;
+		temp = sglen ? (sg_index + 1) % sglen : 0;
+
 		/* Next link-list configuration's physical address offset */
 		temp = temp * sizeof(*hw) + SPRD_DMA_CHN_SRC_ADDR;
 		/*
