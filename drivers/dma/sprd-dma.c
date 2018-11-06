@@ -159,6 +159,7 @@ struct sprd_dma_chn_hw {
 struct sprd_dma_desc {
 	struct virt_dma_desc	vd;
 	struct sprd_dma_chn_hw	chn_hw;
+	enum dma_transfer_direction dir;
 };
 
 /* dma channel description */
@@ -329,6 +330,17 @@ static void sprd_dma_stop_and_disable(struct sprd_dma_chn *schan)
 
 	sprd_dma_pause_resume(schan, true);
 	sprd_dma_disable_chn(schan);
+}
+
+static unsigned long sprd_dma_get_src_addr(struct sprd_dma_chn *schan)
+{
+	unsigned long addr, addr_high;
+
+	addr = readl(schan->chn_base + SPRD_DMA_CHN_SRC_ADDR);
+	addr_high = readl(schan->chn_base + SPRD_DMA_CHN_WARP_PTR) &
+		    SPRD_DMA_HIGH_ADDR_MASK;
+
+	return addr | (addr_high << SPRD_DMA_HIGH_ADDR_OFFSET);
 }
 
 static unsigned long sprd_dma_get_dst_addr(struct sprd_dma_chn *schan)
@@ -534,7 +546,12 @@ static enum dma_status sprd_dma_tx_status(struct dma_chan *chan,
 		else
 			pos = 0;
 	} else if (schan->cur_desc && schan->cur_desc->vd.tx.cookie == cookie) {
-		pos = sprd_dma_get_dst_addr(schan);
+		struct sprd_dma_desc *sdesc = to_sprd_dma_desc(vd);
+
+		if (sdesc->dir == DMA_DEV_TO_MEM)
+			pos = sprd_dma_get_dst_addr(schan);
+		else
+			pos = sprd_dma_get_src_addr(schan);
 	} else {
 		pos = 0;
 	}
@@ -803,6 +820,8 @@ sprd_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	sdesc = kzalloc(sizeof(*sdesc), GFP_NOWAIT);
 	if (!sdesc)
 		return NULL;
+
+	sdesc->dir = dir;
 
 	for_each_sg(sgl, sg, sglen, i) {
 		len = sg_dma_len(sg);
