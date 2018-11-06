@@ -62,12 +62,10 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
 }
 EXPORT_SYMBOL_GPL(tpm_calc_ordinal_duration);
 
-static int tpm_validate_command(struct tpm_chip *chip,
-				 struct tpm_space *space,
-				 const u8 *cmd,
-				 size_t len)
+static int tpm_validate_command(struct tpm_chip *chip, struct tpm_space *space,
+				const void *cmd, size_t len)
 {
-	const struct tpm_input_header *header = (const void *)cmd;
+	const struct tpm_header *header = cmd;
 	int i;
 	u32 cc;
 	u32 attrs;
@@ -161,12 +159,10 @@ static int tpm_go_idle(struct tpm_chip *chip, unsigned int flags)
 	return chip->ops->go_idle(chip);
 }
 
-static ssize_t tpm_try_transmit(struct tpm_chip *chip,
-				struct tpm_space *space,
-				u8 *buf, size_t bufsiz,
-				unsigned int flags)
+static ssize_t tpm_try_transmit(struct tpm_chip *chip, struct tpm_space *space,
+				void *buf, size_t bufsiz, unsigned int flags)
 {
-	struct tpm_output_header *header = (void *)buf;
+	struct tpm_header *header = buf;
 	int rc;
 	ssize_t len = 0;
 	u32 count, ordinal;
@@ -325,7 +321,7 @@ out_locality:
 ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 		     u8 *buf, size_t bufsiz, unsigned int flags)
 {
-	struct tpm_output_header *header = (struct tpm_output_header *)buf;
+	struct tpm_header *header = (struct tpm_header *)buf;
 	/* space for header and handles */
 	u8 save[TPM_HEADER_SIZE + 3*sizeof(u32)];
 	unsigned int delay_msec = TPM2_DURATION_SHORT;
@@ -390,8 +386,7 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_space *space,
 			 struct tpm_buf *buf, size_t min_rsp_body_length,
 			 unsigned int flags, const char *desc)
 {
-	const struct tpm_output_header *header =
-		(struct tpm_output_header *)buf->data;
+	const struct tpm_header *header = (struct tpm_header *)buf->data;
 	int err;
 	ssize_t len;
 

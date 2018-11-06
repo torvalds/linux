@@ -784,7 +784,7 @@ static int tpm2_do_selftest(struct tpm_chip *chip)
  */
 int tpm2_probe(struct tpm_chip *chip)
 {
-	struct tpm_output_header *out;
+	struct tpm_header *out;
 	struct tpm_buf buf;
 	int rc;
 
@@ -797,7 +797,7 @@ int tpm2_probe(struct tpm_chip *chip)
 	rc = tpm_transmit_cmd(chip, NULL, &buf, 0, 0, NULL);
 	/* We ignore TPM return codes on purpose. */
 	if (rc >=  0) {
-		out = (struct tpm_output_header *)buf.data;
+		out = (struct tpm_header *)buf.data;
 		if (be16_to_cpu(out->tag) == TPM2_ST_NO_SESSIONS)
 			chip->flags |= TPM_CHIP_FLAG_TPM2;
 	}

@@ -334,7 +334,7 @@ static int tpm2_map_response_header(struct tpm_chip *chip, u32 cc, u8 *rsp,
 				    size_t len)
 {
 	struct tpm_space *space = &chip->work_space;
-	struct tpm_output_header *header = (void *)rsp;
+	struct tpm_header *header = (struct tpm_header *)rsp;
 	u32 phandle;
 	u32 phandle_type;
 	u32 vhandle;
@@ -394,7 +394,7 @@ static int tpm2_map_response_body(struct tpm_chip *chip, u32 cc, u8 *rsp,
 				  size_t len)
 {
 	struct tpm_space *space = &chip->work_space;
-	struct tpm_output_header *header = (void *)rsp;
+	struct tpm_header *header = (struct tpm_header *)rsp;
 	struct tpm2_cap_handles *data;
 	u32 phandle;
 	u32 phandle_type;
@@ -490,9 +490,9 @@ static int tpm2_save_space(struct tpm_chip *chip)
 }
 
 int tpm2_commit_space(struct tpm_chip *chip, struct tpm_space *space,
-		      u32 cc, u8 *buf, size_t *bufsiz)
+		      u32 cc, void *buf, size_t *bufsiz)
 {
-	struct tpm_output_header *header = (void *)buf;
+	struct tpm_header *header = buf;
 	int rc;
 
 	if (!space)

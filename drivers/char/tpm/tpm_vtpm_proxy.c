@@ -303,9 +303,9 @@ out:
 static int vtpm_proxy_is_driver_command(struct tpm_chip *chip,
 					u8 *buf, size_t count)
 {
-	struct tpm_input_header *hdr = (struct tpm_input_header *)buf;
+	struct tpm_header *hdr = (struct tpm_header *)buf;
 
-	if (count < sizeof(struct tpm_input_header))
+	if (count < sizeof(struct tpm_header))
 		return 0;
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
@@ -401,7 +401,7 @@ static int vtpm_proxy_request_locality(struct tpm_chip *chip, int locality)
 {
 	struct tpm_buf buf;
 	int rc;
-	const struct tpm_output_header *header;
+	const struct tpm_header *header;
 	struct proxy_dev *proxy_dev = dev_get_drvdata(&chip->dev);
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
@@ -426,7 +426,7 @@ static int vtpm_proxy_request_locality(struct tpm_chip *chip, int locality)
 		goto out;
 	}
 
-	header = (const struct tpm_output_header *)buf.data;
+	header = (const struct tpm_header *)buf.data;
 	rc = be32_to_cpu(header->return_code);
 	if (rc)
 		locality = -1;

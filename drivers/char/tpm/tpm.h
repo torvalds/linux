@@ -273,16 +273,13 @@ struct tpm_chip {
 
 #define to_tpm_chip(d) container_of(d, struct tpm_chip, dev)
 
-struct tpm_input_header {
-	__be16	tag;
-	__be32	length;
-	__be32	ordinal;
-} __packed;
-
-struct tpm_output_header {
-	__be16	tag;
-	__be32	length;
-	__be32	return_code;
+struct tpm_header {
+	__be16 tag;
+	__be32 length;
+	union {
+		__be32 ordinal;
+		__be32 return_code;
+	};
 } __packed;
 
 #define TPM_TAG_RQU_COMMAND 193
@@ -401,8 +398,8 @@ struct tpm_buf {
 
 static inline void tpm_buf_reset(struct tpm_buf *buf, u16 tag, u32 ordinal)
 {
-	struct tpm_input_header *head;
-	head = (struct tpm_input_header *)buf->data;
+	struct tpm_header *head = (struct tpm_header *)buf->data;
+
 	head->tag = cpu_to_be16(tag);
 	head->length = cpu_to_be32(sizeof(*head));
 	head->ordinal = cpu_to_be32(ordinal);
@@ -428,14 +425,14 @@ static inline void tpm_buf_destroy(struct tpm_buf *buf)
 
 static inline u32 tpm_buf_length(struct tpm_buf *buf)
 {
-	struct tpm_input_header *head = (struct tpm_input_header *) buf->data;
+	struct tpm_header *head = (struct tpm_header *)buf->data;
 
 	return be32_to_cpu(head->length);
 }
 
 static inline u16 tpm_buf_tag(struct tpm_buf *buf)
 {
-	struct tpm_input_header *head = (struct tpm_input_header *) buf->data;
+	struct tpm_header *head = (struct tpm_header *)buf->data;
 
 	return be16_to_cpu(head->tag);
 }
@@ -444,7 +441,7 @@ static inline void tpm_buf_append(struct tpm_buf *buf,
 				  const unsigned char *new_data,
 				  unsigned int new_len)
 {
-	struct tpm_input_header *head = (struct tpm_input_header *) buf->data;
+	struct tpm_header *head = (struct tpm_header *)buf->data;
 	u32 len = tpm_buf_length(buf);
 
 	/* Return silently if overflow has already happened. */
@@ -582,7 +579,7 @@ void tpm2_del_space(struct tpm_chip *chip, struct tpm_space *space);
 int tpm2_prepare_space(struct tpm_chip *chip, struct tpm_space *space, u32 cc,
 		       u8 *cmd);
 int tpm2_commit_space(struct tpm_chip *chip, struct tpm_space *space,
-		      u32 cc, u8 *buf, size_t *bufsiz);
+		      u32 cc, void *buf, size_t *bufsiz);
 
 int tpm_bios_log_setup(struct tpm_chip *chip);
 void tpm_bios_log_teardown(struct tpm_chip *chip);
