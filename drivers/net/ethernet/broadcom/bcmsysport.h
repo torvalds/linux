@@ -786,6 +786,7 @@ struct bcm_sysport_priv {
 	/* Ethtool */
 	u32			msg_enable;
 	DECLARE_BITMAP(filters, RXCHK_BRCM_TAG_MAX);
+	u32			filters_loc[RXCHK_BRCM_TAG_MAX];
 
 	struct bcm_sysport_stats64	stats64;
 
