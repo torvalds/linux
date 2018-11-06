@@ -35,6 +35,7 @@ void mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev)
 	mt76x02_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz, false);
 	mt76x02_mcu_calibrate(dev, MCU_CAL_RXIQC_FI, is_5ghz, false);
 	mt76x02_mcu_calibrate(dev, MCU_CAL_TEMP_SENSOR, 0, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_SHAPING, 0, false);
 
 	mt76x2u_mac_resume(dev);
 }
