@@ -228,7 +228,9 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 		drm_for_each_connector_iter(connector, &conn_iter) {
 			struct intel_connector *intel_connector = to_intel_connector(connector);
 
-			if (intel_connector->encoder->hpd_pin == pin) {
+			/* Don't check MST ports, they don't have pins */
+			if (!intel_connector->mst_port &&
+			    intel_connector->encoder->hpd_pin == pin) {
 				if (connector->polled != intel_connector->polled)
 					DRM_DEBUG_DRIVER("Reenabling HPD on connector %s\n",
 							 connector->name);
