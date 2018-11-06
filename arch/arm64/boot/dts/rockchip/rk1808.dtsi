@@ -1329,6 +1329,7 @@
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&power RK1808_VD_NPU>;
 		operating-points-v2 = <&npu_opp_table>;
+		#cooling-cells = <2>;
 		status = "disabled";
 
 		npu_power_model: power-model {
