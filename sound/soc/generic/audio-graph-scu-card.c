@@ -186,7 +186,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	struct device_node *cpu_port;
 	struct device_node *cpu_ep;
 	struct device_node *codec_ep;
-	struct device_node *rcpu_ep;
 	struct device_node *codec_port;
 	struct device_node *codec_port_old;
 	unsigned int daifmt = 0;
@@ -217,21 +216,12 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 		cpu_port = it.node;
 		cpu_ep   = of_get_next_child(cpu_port, NULL);
 		codec_ep = of_graph_get_remote_endpoint(cpu_ep);
-		rcpu_ep  = of_graph_get_remote_endpoint(codec_ep);
 
 		of_node_put(cpu_ep);
 		of_node_put(codec_ep);
-		of_node_put(rcpu_ep);
 
 		if (!codec_ep)
 			continue;
-
-		if (rcpu_ep != cpu_ep) {
-			dev_err(dev, "remote-endpoint missmatch (%s/%s/%s)\n",
-				cpu_ep->name, codec_ep->name, rcpu_ep->name);
-			ret = -EINVAL;
-			goto parse_of_err;
-		}
 
 		ret = asoc_simple_card_parse_daifmt(dev, cpu_ep, codec_ep,
 							    NULL, &daifmt);
