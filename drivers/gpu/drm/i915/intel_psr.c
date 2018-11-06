@@ -657,6 +657,25 @@ unlock:
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
+static void intel_psr_exit(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	if (!dev_priv->psr.active)
+		return;
+
+	if (dev_priv->psr.psr2_enabled) {
+		val = I915_READ(EDP_PSR2_CTL);
+		WARN_ON(!(val & EDP_PSR2_ENABLE));
+		I915_WRITE(EDP_PSR2_CTL, val & ~EDP_PSR2_ENABLE);
+	} else {
+		val = I915_READ(EDP_PSR_CTL);
+		WARN_ON(!(val & EDP_PSR_ENABLE));
+		I915_WRITE(EDP_PSR_CTL, val & ~EDP_PSR_ENABLE);
+	}
+	dev_priv->psr.active = false;
+}
+
 static void
 intel_psr_disable_source(struct intel_dp *intel_dp)
 {
@@ -666,20 +685,14 @@ intel_psr_disable_source(struct intel_dp *intel_dp)
 		i915_reg_t psr_status;
 		u32 psr_status_mask;
 
+		intel_psr_exit(dev_priv);
+
 		if (dev_priv->psr.psr2_enabled) {
 			psr_status = EDP_PSR2_STATUS;
 			psr_status_mask = EDP_PSR2_STATUS_STATE_MASK;
-
-			I915_WRITE(EDP_PSR2_CTL,
-				   I915_READ(EDP_PSR2_CTL) &
-				   ~(EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE));
-
 		} else {
 			psr_status = EDP_PSR_STATUS;
 			psr_status_mask = EDP_PSR_STATUS_STATE_MASK;
-
-			I915_WRITE(EDP_PSR_CTL,
-				   I915_READ(EDP_PSR_CTL) & ~EDP_PSR_ENABLE);
 		}
 
 		/* Wait till PSR is idle */
@@ -687,8 +700,6 @@ intel_psr_disable_source(struct intel_dp *intel_dp)
 					    psr_status, psr_status_mask, 0,
 					    2000))
 			DRM_ERROR("Timed out waiting for PSR Idle State\n");
-
-		dev_priv->psr.active = false;
 	} else {
 		if (dev_priv->psr.psr2_enabled)
 			WARN_ON(I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE);
@@ -924,25 +935,6 @@ static void intel_psr_work(struct work_struct *work)
 	intel_psr_activate(dev_priv->psr.dp);
 unlock:
 	mutex_unlock(&dev_priv->psr.lock);
-}
-
-static void intel_psr_exit(struct drm_i915_private *dev_priv)
-{
-	u32 val;
-
-	if (!dev_priv->psr.active)
-		return;
-
-	if (dev_priv->psr.psr2_enabled) {
-		val = I915_READ(EDP_PSR2_CTL);
-		WARN_ON(!(val & EDP_PSR2_ENABLE));
-		I915_WRITE(EDP_PSR2_CTL, val & ~EDP_PSR2_ENABLE);
-	} else {
-		val = I915_READ(EDP_PSR_CTL);
-		WARN_ON(!(val & EDP_PSR_ENABLE));
-		I915_WRITE(EDP_PSR_CTL, val & ~EDP_PSR_ENABLE);
-	}
-	dev_priv->psr.active = false;
 }
 
 /**
