@@ -48,6 +48,7 @@
 			clocks = <&cru ARMCLK>;
 			operating-points-v2 = <&cpu0_opp_table>;
 			dynamic-power-coefficient = <74>;
+			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
