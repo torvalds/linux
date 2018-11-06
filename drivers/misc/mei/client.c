@@ -1357,7 +1357,9 @@ int mei_cl_notify_request(struct mei_cl *cl,
 
 	mutex_unlock(&dev->device_lock);
 	wait_event_timeout(cl->wait,
-			   cl->notify_en == request || !mei_cl_is_connected(cl),
+			   cl->notify_en == request ||
+			   cl->status ||
+			   !mei_cl_is_connected(cl),
 			   mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
