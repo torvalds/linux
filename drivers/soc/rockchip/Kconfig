@@ -30,6 +30,17 @@ config ROCKCHIP_DEVICEINFO
 	help
 	  Say y here if you have a deviceinfo partition.
 
+config ROCKCHIP_IPA
+	bool "Rockchip IPA support"
+	depends on THERMAL && OF
+	default y
+	help
+	  Say y here to enable rockchip IPA.
+	  Add a simple power model for ipa to calculate static power and
+	  dynamic power.
+
+	  If unsure, say N.
+
 config ROCKCHIP_OPP
 	bool "Rockchip OPP select support"
 	depends on PM_DEVFREQ
