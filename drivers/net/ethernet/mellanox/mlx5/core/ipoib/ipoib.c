@@ -87,7 +87,7 @@ int mlx5i_init(struct mlx5_core_dev *mdev,
 	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 	netdev->mtu = max_mtu;
 
-	mlx5e_build_nic_params(mdev, &priv->channels.params,
+	mlx5e_build_nic_params(mdev, &priv->rss_params, &priv->channels.params,
 			       mlx5e_get_netdev_max_channels(netdev),
 			       netdev->mtu);
 	mlx5i_build_nic_params(mdev, &priv->channels.params);
