@@ -199,6 +199,52 @@ static struct clk_regmap gxbb_hdmi_pll_dco = {
 	},
 };
 
+static struct clk_regmap gxl_hdmi_pll_dco = {
+	.data = &(struct meson_clk_pll_data){
+		.en = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 30,
+			.width   = 1,
+		},
+		.m = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.frac = {
+			.reg_off = HHI_HDMI_PLL_CNTL2,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.l = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 28,
+			.width   = 1,
+		},
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmi_pll_dco",
+		.ops = &meson_clk_pll_ro_ops,
+		.parent_names = (const char *[]){ "xtal" },
+		.num_parents = 1,
+		/*
+		 * Display directly handle hdmi pll registers ATM, we need
+		 * NOCACHE to keep our view of the clock as accurate as possible
+		 */
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
 static struct clk_regmap gxbb_hdmi_pll_od = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = HHI_HDMI_PLL_CNTL2,
@@ -2089,7 +2135,7 @@ static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 		[CLKID_GEN_CLK_DIV]	    = &gxbb_gen_clk_div.hw,
 		[CLKID_GEN_CLK]		    = &gxbb_gen_clk.hw,
 		[CLKID_FIXED_PLL_DCO]	    = &gxbb_fixed_pll_dco.hw,
-		[CLKID_HDMI_PLL_DCO]	    = &gxbb_hdmi_pll_dco.hw,
+		[CLKID_HDMI_PLL_DCO]	    = &gxl_hdmi_pll_dco.hw,
 		[CLKID_HDMI_PLL_OD]	    = &gxl_hdmi_pll_od.hw,
 		[CLKID_HDMI_PLL_OD2]	    = &gxl_hdmi_pll_od2.hw,
 		[CLKID_SYS_PLL_DCO]	    = &gxbb_sys_pll_dco.hw,
@@ -2104,6 +2150,7 @@ static struct clk_regmap *const gxbb_clk_regmaps[] = {
 	&gxbb_hdmi_pll,
 	&gxbb_hdmi_pll_od,
 	&gxbb_hdmi_pll_od2,
+	&gxbb_hdmi_pll_dco,
 };
 
 static struct clk_regmap *const gxl_clk_regmaps[] = {
@@ -2111,6 +2158,7 @@ static struct clk_regmap *const gxl_clk_regmaps[] = {
 	&gxl_hdmi_pll,
 	&gxl_hdmi_pll_od,
 	&gxl_hdmi_pll_od2,
+	&gxl_hdmi_pll_dco,
 };
 
 static struct clk_regmap *const gx_clk_regmaps[] = {
@@ -2266,7 +2314,6 @@ static struct clk_regmap *const gx_clk_regmaps[] = {
 	&gxbb_gen_clk_div,
 	&gxbb_gen_clk,
 	&gxbb_fixed_pll_dco,
-	&gxbb_hdmi_pll_dco,
 	&gxbb_sys_pll_dco,
 	&gxbb_gp0_pll,
 };
