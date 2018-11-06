@@ -213,6 +213,44 @@ bool spi_mem_supports_op(struct spi_mem *mem, const struct spi_mem_op *op)
 }
 EXPORT_SYMBOL_GPL(spi_mem_supports_op);
 
+static int spi_mem_access_start(struct spi_mem *mem)
+{
+	struct spi_controller *ctlr = mem->spi->controller;
+
+	/*
+	 * Flush the message queue before executing our SPI memory
+	 * operation to prevent preemption of regular SPI transfers.
+	 */
+	spi_flush_queue(ctlr);
+
+	if (ctlr->auto_runtime_pm) {
+		int ret;
+
+		ret = pm_runtime_get_sync(ctlr->dev.parent);
+		if (ret < 0) {
+			dev_err(&ctlr->dev, "Failed to power device: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	mutex_lock(&ctlr->bus_lock_mutex);
+	mutex_lock(&ctlr->io_mutex);
+
+	return 0;
+}
+
+static void spi_mem_access_end(struct spi_mem *mem)
+{
+	struct spi_controller *ctlr = mem->spi->controller;
+
+	mutex_unlock(&ctlr->io_mutex);
+	mutex_unlock(&ctlr->bus_lock_mutex);
+
+	if (ctlr->auto_runtime_pm)
+		pm_runtime_put(ctlr->dev.parent);
+}
+
 /**
  * spi_mem_exec_op() - Execute a memory operation
  * @mem: the SPI memory
@@ -242,30 +280,13 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		return -ENOTSUPP;
 
 	if (ctlr->mem_ops) {
-		/*
-		 * Flush the message queue before executing our SPI memory
-		 * operation to prevent preemption of regular SPI transfers.
-		 */
-		spi_flush_queue(ctlr);
+		ret = spi_mem_access_start(mem);
+		if (ret)
+			return ret;
 
-		if (ctlr->auto_runtime_pm) {
-			ret = pm_runtime_get_sync(ctlr->dev.parent);
-			if (ret < 0) {
-				dev_err(&ctlr->dev,
-					"Failed to power device: %d\n",
-					ret);
-				return ret;
-			}
-		}
-
-		mutex_lock(&ctlr->bus_lock_mutex);
-		mutex_lock(&ctlr->io_mutex);
 		ret = ctlr->mem_ops->exec_op(mem, op);
-		mutex_unlock(&ctlr->io_mutex);
-		mutex_unlock(&ctlr->bus_lock_mutex);
 
-		if (ctlr->auto_runtime_pm)
-			pm_runtime_put(ctlr->dev.parent);
+		spi_mem_access_end(mem);
 
 		/*
 		 * Some controllers only optimize specific paths (typically the
