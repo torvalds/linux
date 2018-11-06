@@ -211,42 +211,55 @@ static const struct cif_input_fmt in_fmts[] = {
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGBRG8_1X8,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGRBG8_1X8,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SRGGB8_1X8,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR10_1X10,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGBRG10_1X10,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SRGGB10_1X10,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW10,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR12_1X12,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGBRG12_1X12,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGRBG12_1X12,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SRGGB12_1X12,
 		.fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_RGB888_1X24,
 		.fmt_val	= CSI_WRDDR_TYPE_RGB888,
+		.field		= V4L2_FIELD_NONE,
 	},
 };
 
