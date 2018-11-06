@@ -169,7 +169,10 @@ populate_shared_memory:
 			 * trigger the write.
 			 */
 			case OP_VFS_STATE_INPROGR:
-				ret = total_size;
+				if (type == ORANGEFS_IO_READ)
+					ret = -EINTR;
+				else
+					ret = total_size;
 				break;
 			default:
 				gossip_err("%s: unexpected op state :%d:.\n",
