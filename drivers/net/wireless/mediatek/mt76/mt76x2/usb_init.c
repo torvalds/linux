@@ -156,14 +156,6 @@ struct mt76x02_dev *mt76x2u_alloc_device(struct device *pdev)
 	return dev;
 }
 
-static void mt76x2u_init_beacon_offsets(struct mt76x02_dev *dev)
-{
-	mt76_wr(dev, MT_BCN_OFFSET(0), 0x18100800);
-	mt76_wr(dev, MT_BCN_OFFSET(1), 0x38302820);
-	mt76_wr(dev, MT_BCN_OFFSET(2), 0x58504840);
-	mt76_wr(dev, MT_BCN_OFFSET(3), 0x78706860);
-}
-
 int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 {
 	int i, k, err;
@@ -199,8 +191,6 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 
 	mt76x02_mac_setaddr(dev, dev->mt76.eeprom.data + MT_EE_MAC_ADDR);
 	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
-
-	mt76x2u_init_beacon_offsets(dev);
 
 	if (!mt76x02_wait_for_txrx_idle(&dev->mt76))
 		return -ETIMEDOUT;
