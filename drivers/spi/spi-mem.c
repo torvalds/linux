@@ -142,7 +142,7 @@ static bool spi_mem_default_supports_op(struct spi_mem *mem,
 	    spi_check_buswidth_req(mem, op->dummy.buswidth, true))
 		return false;
 
-	if (op->data.nbytes &&
+	if (op->data.dir != SPI_MEM_NO_DATA &&
 	    spi_check_buswidth_req(mem, op->data.buswidth,
 				   op->data.dir == SPI_MEM_DATA_OUT))
 		return false;
