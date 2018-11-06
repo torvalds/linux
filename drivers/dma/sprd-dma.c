@@ -439,6 +439,7 @@ static void sprd_dma_stop(struct sprd_dma_chn *schan)
 	sprd_dma_stop_and_disable(schan);
 	sprd_dma_unset_uid(schan);
 	sprd_dma_clear_int(schan);
+	schan->cur_desc = NULL;
 }
 
 static bool sprd_dma_check_trans_done(struct sprd_dma_desc *sdesc,
