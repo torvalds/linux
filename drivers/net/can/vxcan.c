@@ -207,7 +207,7 @@ static int vxcan_newlink(struct net *net, struct net_device *dev,
 		return PTR_ERR(peer_net);
 
 	peer = rtnl_create_link(peer_net, ifname, name_assign_type,
-				&vxcan_link_ops, tbp);
+				&vxcan_link_ops, tbp, extack);
 	if (IS_ERR(peer)) {
 		put_net(peer_net);
 		return PTR_ERR(peer);

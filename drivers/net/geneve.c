@@ -1666,7 +1666,7 @@ struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
 
 	memset(tb, 0, sizeof(tb));
 	dev = rtnl_create_link(net, name, name_assign_type,
-			       &geneve_link_ops, tb);
+			       &geneve_link_ops, tb, NULL);
 	if (IS_ERR(dev))
 		return dev;
 
