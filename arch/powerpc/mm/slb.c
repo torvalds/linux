@@ -66,6 +66,9 @@ static void assert_slb_presence(bool present, unsigned long ea)
 
 	WARN_ON_ONCE(mfmsr() & MSR_EE);
 
+	if (!cpu_has_feature(CPU_FTR_ARCH_206))
+		return;
+
 	asm volatile(__PPC_SLBFEE_DOT(%0, %1) : "=r"(tmp) : "r"(ea) : "cr0");
 
 	WARN_ON(present == (tmp == 0));
