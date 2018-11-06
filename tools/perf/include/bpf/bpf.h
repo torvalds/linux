@@ -18,6 +18,17 @@ struct bpf_map {
         unsigned int numa_node;
 };
 
+#define pid_map(name, value_type)		\
+struct bpf_map SEC("maps") name = {		\
+	.type	     = BPF_MAP_TYPE_HASH,	\
+	.key_size    = sizeof(pid_t),		\
+	.value_size  = sizeof(value_type),	\
+	.max_entries = 512,			\
+}
+
+static int (*bpf_map_update_elem)(struct bpf_map *map, void *key, void *value, u64 flags) = (void *)BPF_FUNC_map_update_elem;
+static void *(*bpf_map_lookup_elem)(struct bpf_map *map, void *key) = (void *)BPF_FUNC_map_lookup_elem;
+
 #define SEC(NAME) __attribute__((section(NAME),  used))
 
 #define probe(function, vars) \
