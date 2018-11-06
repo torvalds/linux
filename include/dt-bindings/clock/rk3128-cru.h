@@ -129,6 +129,7 @@
 #define PCLK_MIPIPHY		370
 
 /* hclk gates */
+#define HCLK_SFC		439
 #define HCLK_SPDIF		440
 #define HCLK_GPS		441
 #define HCLK_USBHOST		442
