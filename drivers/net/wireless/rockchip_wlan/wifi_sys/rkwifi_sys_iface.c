@@ -169,8 +169,6 @@ extern int rockchip_wifi_init_module_rkwifi(void);
 extern void rockchip_wifi_exit_module_rkwifi(void);
 extern int rockchip_wifi_init_module_rtkwifi(void);
 extern void rockchip_wifi_exit_module_rtkwifi(void);
-extern int rockchip_wifi_init_module_esp8089(void);
-extern void rockchip_wifi_exit_module_esp8089(void);
 #endif
 static struct semaphore driver_sem;
 #ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
