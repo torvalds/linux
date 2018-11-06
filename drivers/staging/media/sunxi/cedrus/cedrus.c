@@ -418,7 +418,6 @@ static struct platform_driver cedrus_driver = {
 	.remove		= cedrus_remove,
 	.driver		= {
 		.name		= CEDRUS_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(cedrus_dt_match),
 	},
 };
