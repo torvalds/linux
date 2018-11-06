@@ -135,6 +135,53 @@
 		pinctrl-0 = <&clkin_32k>;
 	};
 
+	pcie0: pcie@fc400000 {
+		compatible = "rockchip,rk1808-pcie-ep", "snps,dw-pcie";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		bus-range = <0x0 0x1f>;
+		clocks = <&cru HSCLK_PCIE>, <&cru LSCLK_PCIE>,
+			 <&cru ACLK_PCIE>, <&cru PCLK_PCIE>,
+			 <&cru SCLK_PCIE_AUX>;
+		clock-names = "hsclk", "lsclk",
+			      "aclk", "pclk",
+			      "sclk-aux";
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "sys", "legacy", "msg", "err";
+		linux,pci-domain = <0>;
+		msi-map = <0x0 &its 0x0 0x1000>;
+		phys = <&combphy PHY_TYPE_PCIE>;
+		phy-names = "pcie-phy";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie_clkreq>;
+		ranges = <0x00000800 0x0 0xf8000000 0x0 0xf8000000 0x0 0x800000
+			  0x83000000 0x0 0xf8800000 0x0 0xf8800000 0x0 0x3700000
+			  0x81000000 0x0 0xfbf00000 0x0 0xfbf00000 0x0 0x100000>;
+		reg = <0x0 0xfc000000 0x0 0x400000>,
+		      <0x0 0xfc400000 0x0 0x10000>;
+		reg-names = "pcie-dbi", "pcie-apb";
+		resets = <&cru SRST_PCIE_NIU_H>, <&cru SRST_PCIE_NIU_L>,
+			 <&cru SRST_PCIEGRF_P>, <&cru SRST_PCIECTL_P>,
+			 <&cru SRST_PCIECTL_POWERUP>, <&cru SRST_PCIECTL_MST_A>,
+			 <&cru SRST_PCIECTL_SLV_A>, <&cru SRST_PCIECTL_DBI_A>,
+			 <&cru SRST_PCIECTL_BUTTON>, <&cru SRST_PCIECTL_PE>,
+			 <&cru SRST_PCIECTL_CORE>, <&cru SRST_PCIECTL_NSTICKY>,
+			 <&cru SRST_PCIECTL_STICKY>, <&cru SRST_PCIECTL_PWR>,
+			 <&cru SRST_PCIE_NIU_A>, <&cru SRST_PCIE_NIU_P>,
+			 <&cru SRST_PCIEPHY_POR>, <&cru SRST_PCIEPHY_P>,
+			 <&cru SRST_PCIEPHY_PIPE>;
+		reset-names = "niu-h", "niu-l", "grf-p", "ctl-p",
+			      "ctl-powerup", "ctl-mst-a", "ctl-slv-a",
+			      "ctl-dbi-a", "ctl-button", "ctl-pe",
+			      "ctl-core", "ctl-nsticky", "ctl-sticky",
+			      "ctl-pwr", "ctl-niu-a", "ctl-niu-p",
+			      "phy-por", "phy-p", "phy-pipe";
+		status = "disabled";
+	};
+
 	usbdrd3: usb {
 		compatible = "rockchip,rk1808-dwc3";
 		clocks = <&cru SCLK_USB3_OTG0_REF>, <&cru ACLK_USB3OTG>,
@@ -1917,6 +1964,12 @@
 					<4 RK_PC2 3 &pcfg_pull_none>,
 					/* pciusb_debug7 */
 					<4 RK_PC3 3 &pcfg_pull_none>;
+			};
+
+			pcie_clkreq: pcie-clkreq {
+				rockchip,pins =
+					/* pcie_clkreqn_m1 */
+					<0 RK_PC6 1 &pcfg_pull_none >;
 			};
 		};
 
