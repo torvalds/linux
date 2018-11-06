@@ -19,6 +19,7 @@
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/paca.h>
+#include <asm/ppc-opcode.h>
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
 #include <asm/smp.h>
@@ -65,7 +66,7 @@ static void assert_slb_presence(bool present, unsigned long ea)
 
 	WARN_ON_ONCE(mfmsr() & MSR_EE);
 
-	asm volatile("slbfee. %0, %1" : "=r"(tmp) : "r"(ea) : "cr0");
+	asm volatile(__PPC_SLBFEE_DOT(%0, %1) : "=r"(tmp) : "r"(ea) : "cr0");
 
 	WARN_ON(present == (tmp == 0));
 #endif
