@@ -1144,6 +1144,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 			break;
 
 		rsnd_parse_connect_ssi(rdai, playback, capture);
+		rsnd_parse_connect_ssiu(rdai, playback, capture);
 		rsnd_parse_connect_src(rdai, playback, capture);
 		rsnd_parse_connect_ctu(rdai, playback, capture);
 		rsnd_parse_connect_mix(rdai, playback, capture);

@@ -441,6 +441,7 @@ int rsnd_runtime_is_tdm(struct rsnd_dai_stream *io);
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, node)
 #define RSND_NODE_DAI	"rcar_sound,dai"
 #define RSND_NODE_SSI	"rcar_sound,ssi"
+#define RSND_NODE_SSIU	"rcar_sound,ssiu"
 #define RSND_NODE_SRC	"rcar_sound,src"
 #define RSND_NODE_CTU	"rcar_sound,ctu"
 #define RSND_NODE_MIX	"rcar_sound,mix"
@@ -725,7 +726,6 @@ void rsnd_ssi_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io);
-int rsnd_ssi_get_busif(struct rsnd_dai_stream *io);
 u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io);
 
 #define rsnd_ssi_is_pin_sharing(io)	\
@@ -746,6 +746,10 @@ int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
 		     struct rsnd_mod *mod);
 int rsnd_ssiu_probe(struct rsnd_priv *priv);
 void rsnd_ssiu_remove(struct rsnd_priv *priv);
+void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
+			     struct device_node *playback,
+			     struct device_node *capture);
+#define rsnd_ssiu_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SSIU)
 
 /*
  *	R-Car SRC

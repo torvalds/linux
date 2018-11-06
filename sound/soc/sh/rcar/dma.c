@@ -218,7 +218,7 @@ struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
 	int i = 0;
 
 	for_each_child_of_node(of_node, np) {
-		if (i == rsnd_mod_id(mod) && (!chan))
+		if (i == rsnd_mod_id_raw(mod) && (!chan))
 			chan = of_dma_request_slave_channel(np, name);
 		i++;
 	}
@@ -344,14 +344,16 @@ static u32 rsnd_dmapp_get_id(struct rsnd_dai_stream *io,
 			     struct rsnd_mod *mod)
 {
 	struct rsnd_mod *ssi = rsnd_io_to_mod_ssi(io);
+	struct rsnd_mod *ssiu = rsnd_io_to_mod_ssiu(io);
 	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
 	const u8 *entry = NULL;
 	int id = 255;
 	int size = 0;
 
-	if (mod == ssi) {
-		int busif = rsnd_ssi_get_busif(io);
+	if ((mod == ssi) ||
+	    (mod == ssiu)) {
+		int busif = rsnd_mod_id_sub(ssiu);
 
 		entry = gen2_id_table_ssiu;
 		size = ARRAY_SIZE(gen2_id_table_ssiu);
@@ -530,13 +532,14 @@ rsnd_gen2_dma_addr(struct rsnd_dai_stream *io,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	phys_addr_t ssi_reg = rsnd_gen_get_phy_addr(priv, RSND_GEN2_SSI);
 	phys_addr_t src_reg = rsnd_gen_get_phy_addr(priv, RSND_GEN2_SCU);
-	int is_ssi = !!(rsnd_io_to_mod_ssi(io) == mod);
+	int is_ssi = !!(rsnd_io_to_mod_ssi(io) == mod) ||
+		     !!(rsnd_io_to_mod_ssiu(io) == mod);
 	int use_src = !!rsnd_io_to_mod_src(io);
 	int use_cmd = !!rsnd_io_to_mod_dvc(io) ||
 		      !!rsnd_io_to_mod_mix(io) ||
 		      !!rsnd_io_to_mod_ctu(io);
 	int id = rsnd_mod_id(mod);
-	int busif = rsnd_ssi_get_busif(io);
+	int busif = rsnd_mod_id_sub(rsnd_io_to_mod_ssiu(io));
 	struct dma_addr {
 		dma_addr_t out_addr;
 		dma_addr_t in_addr;
@@ -620,7 +623,7 @@ static void rsnd_dma_of_path(struct rsnd_mod *this,
 			     struct rsnd_mod **mod_from,
 			     struct rsnd_mod **mod_to)
 {
-	struct rsnd_mod *ssi = rsnd_io_to_mod_ssi(io);
+	struct rsnd_mod *ssi;
 	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 	struct rsnd_mod *ctu = rsnd_io_to_mod_ctu(io);
 	struct rsnd_mod *mix = rsnd_io_to_mod_mix(io);
@@ -630,6 +633,28 @@ static void rsnd_dma_of_path(struct rsnd_mod *this,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(this);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int nr, i, idx;
+
+	/*
+	 * It should use "rcar_sound,ssiu" on DT.
+	 * But, we need to keep compatibility for old version.
+	 *
+	 * If it has "rcar_sound.ssiu", it will be used.
+	 * If not, "rcar_sound.ssi" will be used.
+	 * see
+	 *	rsnd_ssiu_dma_req()
+	 *	rsnd_ssi_dma_req()
+	 */
+	if (rsnd_ssiu_of_node(priv)) {
+		struct rsnd_mod *ssiu = rsnd_io_to_mod_ssiu(io);
+
+		/* use SSIU */
+		ssi = ssiu;
+		if (this == rsnd_io_to_mod_ssi(io))
+			this = ssiu;
+	} else {
+		/* keep compatible, use SSI */
+		ssi = rsnd_io_to_mod_ssi(io);
+	}
 
 	if (!ssi)
 		return;
