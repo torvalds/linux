@@ -1271,8 +1271,8 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		break;
 
 	default:
-		BUG();
-		break;
+		WARN(1, "hbm: wrong command %d\n", mei_msg->hbm_cmd);
+		return -EPROTO;
 
 	}
 	return 0;
