@@ -38,7 +38,7 @@
 #include "blk-mq-sched.h"
 #include "blk-rq-qos.h"
 
-static bool blk_mq_poll(struct request_queue *q, blk_qc_t cookie);
+static int blk_mq_poll(struct request_queue *q, blk_qc_t cookie);
 static void blk_mq_poll_stats_start(struct request_queue *q);
 static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb);
 
@@ -3305,7 +3305,7 @@ static bool blk_mq_poll_hybrid_sleep(struct request_queue *q,
 	return true;
 }
 
-static bool __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
+static int __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
 {
 	struct request_queue *q = hctx->queue;
 	long state;
@@ -3318,7 +3318,7 @@ static bool __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
 	 * straight to the busy poll loop.
 	 */
 	if (blk_mq_poll_hybrid_sleep(q, hctx, rq))
-		return true;
+		return 1;
 
 	hctx->poll_considered++;
 
@@ -3332,30 +3332,30 @@ static bool __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
 		if (ret > 0) {
 			hctx->poll_success++;
 			__set_current_state(TASK_RUNNING);
-			return true;
+			return ret;
 		}
 
 		if (signal_pending_state(state, current))
 			__set_current_state(TASK_RUNNING);
 
 		if (current->state == TASK_RUNNING)
-			return true;
+			return 1;
 		if (ret < 0)
 			break;
 		cpu_relax();
 	}
 
 	__set_current_state(TASK_RUNNING);
-	return false;
+	return 0;
 }
 
-static bool blk_mq_poll(struct request_queue *q, blk_qc_t cookie)
+static int blk_mq_poll(struct request_queue *q, blk_qc_t cookie)
 {
 	struct blk_mq_hw_ctx *hctx;
 	struct request *rq;
 
 	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
-		return false;
+		return 0;
 
 	hctx = q->queue_hw_ctx[blk_qc_t_to_queue_num(cookie)];
 	if (!blk_qc_t_is_internal(cookie))
@@ -3369,7 +3369,7 @@ static bool blk_mq_poll(struct request_queue *q, blk_qc_t cookie)
 		 * so we should be safe with just the NULL check.
 		 */
 		if (!rq)
-			return false;
+			return 0;
 	}
 
 	return __blk_mq_poll(hctx, rq);
