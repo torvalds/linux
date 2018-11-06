@@ -135,24 +135,27 @@ enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
 static bool intel_hpd_irq_storm_detect(struct drm_i915_private *dev_priv,
 				       enum hpd_pin pin)
 {
-	unsigned long start = dev_priv->hotplug.stats[pin].last_jiffies;
+	struct i915_hotplug *hpd = &dev_priv->hotplug;
+	unsigned long start = hpd->stats[pin].last_jiffies;
 	unsigned long end = start + msecs_to_jiffies(HPD_STORM_DETECT_PERIOD);
-	const int threshold = dev_priv->hotplug.hpd_storm_threshold;
+	const int threshold = hpd->hpd_storm_threshold;
 	bool storm = false;
 
+	if (!threshold)
+		return false;
+
 	if (!time_in_range(jiffies, start, end)) {
-		dev_priv->hotplug.stats[pin].last_jiffies = jiffies;
-		dev_priv->hotplug.stats[pin].count = 0;
-		DRM_DEBUG_KMS("Received HPD interrupt on PIN %d - cnt: 0\n", pin);
-	} else if (dev_priv->hotplug.stats[pin].count > threshold &&
-		   threshold) {
-		dev_priv->hotplug.stats[pin].state = HPD_MARK_DISABLED;
+		hpd->stats[pin].last_jiffies = jiffies;
+		hpd->stats[pin].count = 0;
+	}
+
+	if (++hpd->stats[pin].count > threshold) {
+		hpd->stats[pin].state = HPD_MARK_DISABLED;
 		DRM_DEBUG_KMS("HPD interrupt storm detected on PIN %d\n", pin);
 		storm = true;
 	} else {
-		dev_priv->hotplug.stats[pin].count++;
 		DRM_DEBUG_KMS("Received HPD interrupt on PIN %d - cnt: %d\n", pin,
-			      dev_priv->hotplug.stats[pin].count);
+			      hpd->stats[pin].count);
 	}
 
 	return storm;
