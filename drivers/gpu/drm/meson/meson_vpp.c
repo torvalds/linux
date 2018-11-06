@@ -122,6 +122,31 @@ static void meson_vpp_write_scaling_filter_coefs(struct meson_drm *priv,
 				priv->io_base + _REG(VPP_OSD_SCALE_COEF));
 }
 
+static const uint32_t vpp_filter_coefs_bicubic[] = {
+	0x00800000, 0x007f0100, 0xff7f0200, 0xfe7f0300,
+	0xfd7e0500, 0xfc7e0600, 0xfb7d0800, 0xfb7c0900,
+	0xfa7b0b00, 0xfa7a0dff, 0xf9790fff, 0xf97711ff,
+	0xf87613ff, 0xf87416fe, 0xf87218fe, 0xf8701afe,
+	0xf76f1dfd, 0xf76d1ffd, 0xf76b21fd, 0xf76824fd,
+	0xf76627fc, 0xf76429fc, 0xf7612cfc, 0xf75f2ffb,
+	0xf75d31fb, 0xf75a34fb, 0xf75837fa, 0xf7553afa,
+	0xf8523cfa, 0xf8503ff9, 0xf84d42f9, 0xf84a45f9,
+	0xf84848f8
+};
+
+static void meson_vpp_write_vd_scaling_filter_coefs(struct meson_drm *priv,
+						    const unsigned int *coefs,
+						    bool is_horizontal)
+{
+	int i;
+
+	writel_relaxed(is_horizontal ? BIT(8) : 0,
+			priv->io_base + _REG(VPP_SCALE_COEF_IDX));
+	for (i = 0; i < 33; i++)
+		writel_relaxed(coefs[i],
+				priv->io_base + _REG(VPP_SCALE_COEF));
+}
+
 void meson_vpp_init(struct meson_drm *priv)
 {
 	/* set dummy data default YUV black */
@@ -150,17 +175,34 @@ void meson_vpp_init(struct meson_drm *priv)
 
 	/* Force all planes off */
 	writel_bits_relaxed(VPP_OSD1_POSTBLEND | VPP_OSD2_POSTBLEND |
-			    VPP_VD1_POSTBLEND | VPP_VD2_POSTBLEND, 0,
+			    VPP_VD1_POSTBLEND | VPP_VD2_POSTBLEND |
+			    VPP_VD1_PREBLEND | VPP_VD2_PREBLEND, 0,
 			    priv->io_base + _REG(VPP_MISC));
+
+	/* Setup default VD settings */
+	writel_relaxed(4096,
+			priv->io_base + _REG(VPP_PREBLEND_VD1_H_START_END));
+	writel_relaxed(4096,
+			priv->io_base + _REG(VPP_BLEND_VD2_H_START_END));
 
 	/* Disable Scalers */
 	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_SC_CTRL0));
 	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_VSC_CTRL0));
 	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_HSC_CTRL0));
+	writel_relaxed(4 | (4 << 8) | BIT(15),
+		       priv->io_base + _REG(VPP_SC_MISC));
+
+	writel_relaxed(1, priv->io_base + _REG(VPP_VADJ_CTRL));
 
 	/* Write in the proper filter coefficients. */
 	meson_vpp_write_scaling_filter_coefs(priv,
 				vpp_filter_coefs_4point_bspline, false);
 	meson_vpp_write_scaling_filter_coefs(priv,
 				vpp_filter_coefs_4point_bspline, true);
+
+	/* Write the VD proper filter coefficients. */
+	meson_vpp_write_vd_scaling_filter_coefs(priv, vpp_filter_coefs_bicubic,
+						false);
+	meson_vpp_write_vd_scaling_filter_coefs(priv, vpp_filter_coefs_bicubic,
+						true);
 }

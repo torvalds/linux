@@ -41,6 +41,7 @@
 
 #include "meson_drv.h"
 #include "meson_plane.h"
+#include "meson_overlay.h"
 #include "meson_crtc.h"
 #include "meson_venc_cvbs.h"
 
@@ -213,6 +214,24 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_osd1);
 		if (ret)
 			goto free_drm;
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_0);
+		if (ret) {
+			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+			goto free_drm;
+		}
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_1);
+		if (ret) {
+			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+			goto free_drm;
+		}
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_2);
+		if (ret) {
+			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
+			goto free_drm;
+		}
 	} else {
 		priv->canvas = NULL;
 
@@ -273,6 +292,10 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	if (ret)
 		goto free_drm;
 
+	ret = meson_overlay_create(priv);
+	if (ret)
+		goto free_drm;
+
 	ret = meson_crtc_create(priv);
 	if (ret)
 		goto free_drm;
@@ -311,8 +334,12 @@ static void meson_drv_unbind(struct device *dev)
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct meson_drm *priv = drm->dev_private;
 
-	if (priv->canvas)
+	if (priv->canvas) {
 		meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_2);
+	}
 
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);
