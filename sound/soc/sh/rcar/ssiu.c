@@ -145,7 +145,7 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 
 	ssiu->usrcnt++;
 
-	if (rsnd_runtime_is_ssi_tdm(io)) {
+	if (rsnd_runtime_is_tdm(io)) {
 		/*
 		 * TDM Extend Mode
 		 * see

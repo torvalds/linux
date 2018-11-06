@@ -223,7 +223,7 @@ static u32 rsnd_ssi_run_mods(struct rsnd_dai_stream *io)
 
 u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io)
 {
-	if (rsnd_runtime_is_ssi_multi(io))
+	if (rsnd_runtime_is_multi_ssi(io))
 		return rsnd_ssi_multi_slaves(io);
 
 	return 0;
@@ -383,7 +383,7 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	u32 wsr		= ssi->wsr;
 	int is_tdm;
 
-	is_tdm = rsnd_runtime_is_ssi_tdm(io);
+	is_tdm = rsnd_runtime_is_tdm(io);
 
 	cr_own |= FORCE | rsnd_rdai_width_to_swl(rdai);
 

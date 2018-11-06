@@ -287,7 +287,7 @@ int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
 		rsnd_runtime_channel_original_with_params(io, params);
 
 	/* Use Multi SSI */
-	if (rsnd_runtime_is_ssi_multi(io))
+	if (rsnd_runtime_is_multi_ssi(io))
 		chan /= rsnd_rdai_ssi_lane_get(rdai);
 
 	/* TDM Extend Mode needs 8ch */
@@ -297,7 +297,7 @@ int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
 	return chan;
 }
 
-int rsnd_runtime_is_ssi_multi(struct rsnd_dai_stream *io)
+int rsnd_runtime_is_multi_ssi(struct rsnd_dai_stream *io)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	int lane = rsnd_rdai_ssi_lane_get(rdai);
@@ -308,7 +308,7 @@ int rsnd_runtime_is_ssi_multi(struct rsnd_dai_stream *io)
 	return (chan > 2) && (lane > 1);
 }
 
-int rsnd_runtime_is_ssi_tdm(struct rsnd_dai_stream *io)
+int rsnd_runtime_is_tdm(struct rsnd_dai_stream *io)
 {
 	return rsnd_runtime_channel_for_ssi(io) >= 6;
 }
