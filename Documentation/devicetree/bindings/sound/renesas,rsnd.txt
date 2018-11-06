@@ -188,6 +188,25 @@ In DMA mode, you can select not to use SSIU by using "no-busif" via SSI.
 SSIU handles BUSIF which will be used for TDM Split mode.
 This driver is assuming that audio-graph card will be used.
 
+TDM Split mode merges 4 sounds. You can see 4 sound interface on system,
+and these sounds will be merged SSIU/SSI.
+
+	aplay -D plughw:0,0 xxxx.wav &
+	aplay -D plughw:0,1 xxxx.wav &
+	aplay -D plughw:0,2 xxxx.wav &
+	aplay -D plughw:0,3 xxxx.wav
+
+	          2ch                     8ch
+	[MEM] -> [SSIU 30] -+-> [SSIU 3] --> [Codec]
+	          2ch       |
+	[MEM] -> [SSIU 31] -+
+	          2ch       |
+	[MEM] -> [SSIU 32] -+
+	          2ch       |
+	[MEM] -> [SSIU 33] -+
+
+see "Example: simple sound card for TDM Split"
+
 =============================================
 * SSI (Serial Sound Interface)
 =============================================
@@ -645,6 +664,78 @@ rsnd_tdm: sound {
 
 	sndcodec: simple-audio-card,codec {
 		sound-dai = <&xxx>;
+	};
+};
+
+=============================================
+Example: simple sound card for TDM Split
+=============================================
+
+sound_card: sound {
+	compatible = "audio-graph-scu-card";
+	prefix = "xxxx";
+	routing = "xxxx Playback", "DAI0 Playback",
+		  "xxxx Playback", "DAI1 Playback",
+		  "xxxx Playback", "DAI2 Playback",
+		  "xxxx Playback", "DAI3 Playback";
+	convert-channels = <8>; /* TDM Split */
+
+	dais = <&rsnd_port0     /* playback ch1/ch2 */
+		&rsnd_port1     /* playback ch3/ch4 */
+		&rsnd_port2     /* playback ch5/ch6 */
+		&rsnd_port3     /* playback ch7/ch8 */
+		>;
+};
+
+audio-codec {
+	...
+	port {
+		codec_0: endpoint@1 {
+			remote-endpoint = <&rsnd_ep0>;
+		};
+		codec_1: endpoint@2 {
+			remote-endpoint = <&rsnd_ep1>;
+		};
+		codec_2: endpoint@3 {
+			remote-endpoint = <&rsnd_ep2>;
+		};
+		codec_3: endpoint@4 {
+			remote-endpoint = <&rsnd_ep3>;
+		};
+	};
+};
+
+&rcar_sound {
+	...
+	ports {
+		rsnd_port0: port@0 {
+			rsnd_ep0: endpoint {
+				remote-endpoint = <&codec_0>;
+				...
+				playback = <&ssiu30 &ssi3>;
+			};
+		};
+		rsnd_port1: port@1 {
+			rsnd_ep1: endpoint {
+				remote-endpoint = <&codec_1>;
+				...
+				playback = <&ssiu31 &ssi3>;
+			};
+		};
+		rsnd_port2: port@2 {
+			rsnd_ep2: endpoint {
+				remote-endpoint = <&codec_2>;
+				...
+				playback = <&ssiu32 &ssi3>;
+			};
+		};
+		rsnd_port3: port@3 {
+			rsnd_ep3: endpoint {
+				remote-endpoint = <&codec_3>;
+				...
+				playback = <&ssiu33 &ssi3>;
+			};
+		};
 	};
 };
 
