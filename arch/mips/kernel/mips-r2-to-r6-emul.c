@@ -2242,7 +2242,7 @@ fpu_emul:
 
 #ifdef CONFIG_DEBUG_FS
 
-static int mipsr2_stats_show(struct seq_file *s, void *unused)
+static int mipsr2_emul_show(struct seq_file *s, void *unused)
 {
 
 	seq_printf(s, "Instruction\tTotal\tBDslot\n------------------------------\n");
@@ -2308,9 +2308,9 @@ static int mipsr2_stats_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int mipsr2_stats_clear_show(struct seq_file *s, void *unused)
+static int mipsr2_clear_show(struct seq_file *s, void *unused)
 {
-	mipsr2_stats_show(s, unused);
+	mipsr2_emul_show(s, unused);
 
 	__this_cpu_write((mipsr2emustats).movs, 0);
 	__this_cpu_write((mipsr2bdemustats).movs, 0);
@@ -2353,30 +2353,8 @@ static int mipsr2_stats_clear_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int mipsr2_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mipsr2_stats_show, inode->i_private);
-}
-
-static int mipsr2_stats_clear_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mipsr2_stats_clear_show, inode->i_private);
-}
-
-static const struct file_operations mipsr2_emul_fops = {
-	.open                   = mipsr2_stats_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
-
-static const struct file_operations mipsr2_clear_fops = {
-	.open                   = mipsr2_stats_clear_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
-
+DEFINE_SHOW_ATTRIBUTE(mipsr2_emul);
+DEFINE_SHOW_ATTRIBUTE(mipsr2_clear);
 
 static int __init mipsr2_init_debugfs(void)
 {
