@@ -289,7 +289,7 @@ static inline bool pfn_valid(unsigned long pfn)
  * page tables at arbitrary addresses, this breaks and will have to change.
  */
 #ifdef CONFIG_PPC64
-#define PD_HUGE 0x8000000000000000
+#define PD_HUGE 0x8000000000000000UL
 #else
 #define PD_HUGE 0x80000000
 #endif
