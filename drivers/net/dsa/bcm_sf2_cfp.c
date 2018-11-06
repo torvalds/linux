@@ -789,32 +789,14 @@ out_err:
 	return ret;
 }
 
-static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
-				struct ethtool_rx_flow_spec *fs)
+static int bcm_sf2_cfp_rule_insert(struct dsa_switch *ds, int port,
+				   struct ethtool_rx_flow_spec *fs)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	s8 cpu_port = ds->ports[port].cpu_dp->index;
 	__u64 ring_cookie = fs->ring_cookie;
 	unsigned int queue_num, port_num;
-	struct cfp_rule *rule = NULL;
-	int ret = -EINVAL;
-
-	/* Check for unsupported extensions */
-	if ((fs->flow_type & FLOW_EXT) && (fs->m_ext.vlan_etype ||
-	     fs->m_ext.data[1]))
-		return -EINVAL;
-
-	if (fs->location != RX_CLS_LOC_ANY &&
-	    test_bit(fs->location, priv->cfp.used))
-		return -EBUSY;
-
-	if (fs->location != RX_CLS_LOC_ANY &&
-	    fs->location > bcm_sf2_cfp_rule_size(priv))
-		return -EINVAL;
-
-	ret = bcm_sf2_cfp_rule_cmp(priv, port, fs);
-	if (ret == 0)
-		return -EEXIST;
+	int ret;
 
 	/* This rule is a Wake-on-LAN filter and we must specifically
 	 * target the CPU port in order for it to be working.
@@ -841,10 +823,6 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 	if (port_num >= 7)
 		port_num -= 1;
 
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
-	if (!rule)
-		return -ENOMEM;
-
 	switch (fs->flow_type & ~FLOW_EXT) {
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
@@ -861,6 +839,38 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 		break;
 	}
 
+	return ret;
+}
+
+static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
+				struct ethtool_rx_flow_spec *fs)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	struct cfp_rule *rule = NULL;
+	int ret = -EINVAL;
+
+	/* Check for unsupported extensions */
+	if ((fs->flow_type & FLOW_EXT) && (fs->m_ext.vlan_etype ||
+	     fs->m_ext.data[1]))
+		return -EINVAL;
+
+	if (fs->location != RX_CLS_LOC_ANY &&
+	    test_bit(fs->location, priv->cfp.used))
+		return -EBUSY;
+
+	if (fs->location != RX_CLS_LOC_ANY &&
+	    fs->location > bcm_sf2_cfp_rule_size(priv))
+		return -EINVAL;
+
+	ret = bcm_sf2_cfp_rule_cmp(priv, port, fs);
+	if (ret == 0)
+		return -EEXIST;
+
+	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	if (!rule)
+		return -ENOMEM;
+
+	ret = bcm_sf2_cfp_rule_insert(ds, port, fs);
 	if (ret) {
 		kfree(rule);
 		return ret;
@@ -910,11 +920,26 @@ static int bcm_sf2_cfp_rule_del_one(struct bcm_sf2_priv *priv, int port,
 	return 0;
 }
 
-static int bcm_sf2_cfp_rule_del(struct bcm_sf2_priv *priv, int port,
-				u32 loc)
+static int bcm_sf2_cfp_rule_remove(struct bcm_sf2_priv *priv, int port,
+				   u32 loc)
+{
+	u32 next_loc = 0;
+	int ret;
+
+	ret = bcm_sf2_cfp_rule_del_one(priv, port, loc, &next_loc);
+	if (ret)
+		return ret;
+
+	/* If this was an IPv6 rule, delete is companion rule too */
+	if (next_loc)
+		ret = bcm_sf2_cfp_rule_del_one(priv, port, next_loc, NULL);
+
+	return ret;
+}
+
+static int bcm_sf2_cfp_rule_del(struct bcm_sf2_priv *priv, int port, u32 loc)
 {
 	struct cfp_rule *rule;
-	u32 next_loc = 0;
 	int ret;
 
 	/* Refuse deleting unused rules, and those that are not unique since
@@ -928,13 +953,7 @@ static int bcm_sf2_cfp_rule_del(struct bcm_sf2_priv *priv, int port,
 	if (!rule)
 		return -EINVAL;
 
-	ret = bcm_sf2_cfp_rule_del_one(priv, port, loc, &next_loc);
-	if (ret)
-		return ret;
-
-	/* If this was an IPv6 rule, delete is companion rule too */
-	if (next_loc)
-		ret = bcm_sf2_cfp_rule_del_one(priv, port, next_loc, NULL);
+	ret = bcm_sf2_cfp_rule_remove(priv, port, loc);
 
 	list_del(&rule->next);
 	kfree(rule);
