@@ -434,6 +434,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	    adev->asic_type < CHIP_RAVEN)
 		init_data.flags.gpu_vm_support = true;
 
+	if (amdgpu_dc_feature_mask & DC_FBC_MASK)
+		init_data.flags.fbc_support = true;
+
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
 
