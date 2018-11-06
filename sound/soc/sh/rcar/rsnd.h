@@ -433,6 +433,7 @@ int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
 				 struct snd_pcm_hw_params *params);
 int rsnd_runtime_is_multi_ssi(struct rsnd_dai_stream *io);
 int rsnd_runtime_is_tdm(struct rsnd_dai_stream *io);
+int rsnd_runtime_is_tdm_split(struct rsnd_dai_stream *io);
 
 /*
  * DT
@@ -467,6 +468,7 @@ struct rsnd_dai_stream {
 /* flags */
 #define RSND_STREAM_HDMI0	(1 << 0) /* for HDMI0 */
 #define RSND_STREAM_HDMI1	(1 << 1) /* for HDMI1 */
+#define RSND_STREAM_TDM_SPLIT	(1 << 2) /* for TDM split mode */
 
 #define rsnd_io_to_mod(io, i)	((i) < RSND_MOD_MAX ? (io)->mod[(i)] : NULL)
 #define rsnd_io_to_mod_ssi(io)	rsnd_io_to_mod((io), RSND_MOD_SSI)

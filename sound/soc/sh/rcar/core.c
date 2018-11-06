@@ -271,6 +271,19 @@ int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
 	if (ctu_mod) {
 		u32 converted_chan = rsnd_io_converted_chan(io);
 
+		/*
+		 * !! Note !!
+		 *
+		 * converted_chan will be used for CTU,
+		 * or TDM Split mode.
+		 * User shouldn't use CTU with TDM Split mode.
+		 */
+		if (rsnd_runtime_is_tdm_split(io)) {
+			struct device *dev = rsnd_priv_to_dev(rsnd_io_to_priv(io));
+
+			dev_err(dev, "CTU and TDM Split should be used\n");
+		}
+
 		if (converted_chan)
 			return converted_chan;
 	}
@@ -311,6 +324,11 @@ int rsnd_runtime_is_multi_ssi(struct rsnd_dai_stream *io)
 int rsnd_runtime_is_tdm(struct rsnd_dai_stream *io)
 {
 	return rsnd_runtime_channel_for_ssi(io) >= 6;
+}
+
+int rsnd_runtime_is_tdm_split(struct rsnd_dai_stream *io)
+{
+	return !!rsnd_flags_has(io, RSND_STREAM_TDM_SPLIT);
 }
 
 /*
@@ -790,6 +808,7 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 
 	switch (slots) {
 	case 2:
+		/* TDM Split Mode */
 	case 6:
 	case 8:
 		/* TDM Extend Mode */
@@ -1010,6 +1029,7 @@ static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 				     struct device_node *endpoint)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *remote_port = of_graph_get_remote_port(endpoint);
 	struct device_node *remote_node = of_graph_get_remote_port_parent(endpoint);
 
 	if (!rsnd_io_to_mod_ssi(io))
@@ -1025,6 +1045,15 @@ static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 	if (strstr(remote_node->full_name, "hdmi@feae0000")) {
 		rsnd_flags_set(io, RSND_STREAM_HDMI1);
 		dev_dbg(dev, "%s connected to HDMI1\n", io->name);
+	}
+
+	/*
+	 * This driver assumes that it is TDM Split mode
+	 * if remote node has multi endpoint
+	 */
+	if (of_get_child_count(remote_port) > 1) {
+		rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
+		dev_dbg(dev, "%s is part of TDM Split\n", io->name);
 	}
 }
 

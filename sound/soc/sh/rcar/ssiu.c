@@ -16,6 +16,10 @@ struct rsnd_ssiu {
 	int id_sub;
 };
 
+/* SSI_MODE */
+#define TDM_EXT		(1 << 0)
+#define TDM_SPLIT	(1 << 8)
+
 #define rsnd_ssiu_nr(priv) ((priv)->ssiu_nr)
 #define rsnd_mod_to_ssiu(_mod) container_of((_mod), struct rsnd_ssiu, mod)
 #define for_each_rsnd_ssiu(pos, priv, i)				\
@@ -165,14 +169,15 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 
 	ssiu->usrcnt++;
 
-	if (rsnd_runtime_is_tdm(io)) {
-		/*
-		 * TDM Extend Mode
-		 * see
-		 *	rsnd_ssi_config_init()
-		 */
-		mode = 0x1;
-	}
+	/*
+	 * TDM Extend/Split Mode
+	 * see
+	 *	rsnd_ssi_config_init()
+	 */
+	if (rsnd_runtime_is_tdm(io))
+		mode = TDM_EXT;
+	else if (rsnd_runtime_is_tdm_split(io))
+		mode = TDM_SPLIT;
 
 	rsnd_mod_write(mod, SSI_MODE, mode);
 

@@ -298,6 +298,9 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 		return 0;
 	}
 
+	if (rsnd_runtime_is_tdm_split(io))
+		chan = rsnd_io_converted_chan(io);
+
 	main_rate = rsnd_ssi_clk_query(rdai, rate, chan, &idx);
 	if (!main_rate) {
 		dev_err(dev, "unsupported clock rate\n");
@@ -360,9 +363,11 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	u32 cr_own	= ssi->cr_own;
 	u32 cr_mode	= ssi->cr_mode;
 	u32 wsr		= ssi->wsr;
-	int is_tdm;
+	int width;
+	int is_tdm, is_tdm_split;
 
-	is_tdm = rsnd_runtime_is_tdm(io);
+	is_tdm		= rsnd_runtime_is_tdm(io);
+	is_tdm_split	= rsnd_runtime_is_tdm_split(io);
 
 	cr_own |= FORCE | rsnd_rdai_width_to_swl(rdai);
 
@@ -381,7 +386,7 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	 *	rsnd_ssiu_init_gen2()
 	 */
 	wsr = ssi->wsr;
-	if (is_tdm) {
+	if (is_tdm || is_tdm_split) {
 		wsr	|= WS_MODE;
 		cr_own	|= CHNL_8;
 	}
@@ -397,7 +402,18 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 		cr_own |= TRMD;
 
 	cr_own &= ~DWL_MASK;
-	switch (snd_pcm_format_width(runtime->format)) {
+	width = snd_pcm_format_width(runtime->format);
+	if (is_tdm_split) {
+		/*
+		 * The SWL and DWL bits in SSICR should be fixed at 32-bit
+		 * setting when TDM split mode.
+		 * see datasheet
+		 *	Operation :: TDM Format Split Function (TDM Split Mode)
+		 */
+		width = 32;
+	}
+
+	switch (width) {
 	case 8:
 		cr_own |= DWL_8;
 		break;
@@ -406,6 +422,9 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 		break;
 	case 24:
 		cr_own |= DWL_24;
+		break;
+	case 32:
+		cr_own |= DWL_32;
 		break;
 	}
 
