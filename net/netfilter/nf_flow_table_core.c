@@ -247,9 +247,10 @@ flow_offload_lookup(struct nf_flowtable *flow_table,
 }
 EXPORT_SYMBOL_GPL(flow_offload_lookup);
 
-int nf_flow_table_iterate(struct nf_flowtable *flow_table,
-			  void (*iter)(struct flow_offload *flow, void *data),
-			  void *data)
+static int
+nf_flow_table_iterate(struct nf_flowtable *flow_table,
+		      void (*iter)(struct flow_offload *flow, void *data),
+		      void *data)
 {
 	struct flow_offload_tuple_rhash *tuplehash;
 	struct rhashtable_iter hti;
@@ -279,7 +280,6 @@ int nf_flow_table_iterate(struct nf_flowtable *flow_table,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(nf_flow_table_iterate);
 
 static inline bool nf_flow_has_expired(const struct flow_offload *flow)
 {
