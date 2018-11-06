@@ -229,13 +229,20 @@ static struct sk_buff *ipv6_gro_receive(struct list_head *head,
 		 * XXX skbs on the gro_list have all been parsed and pulled
 		 * already so we don't need to compare nlen
 		 * (nlen != (sizeof(*iph2) + ipv6_exthdrs_len(iph2, &ops)))
-		 * memcmp() alone below is suffcient, right?
+		 * memcmp() alone below is sufficient, right?
 		 */
 		 if ((first_word & htonl(0xF00FFFFF)) ||
-		    memcmp(&iph->nexthdr, &iph2->nexthdr,
-			   nlen - offsetof(struct ipv6hdr, nexthdr))) {
+		    !ipv6_addr_equal(&iph->saddr, &iph2->saddr) ||
+		    !ipv6_addr_equal(&iph->daddr, &iph2->daddr) ||
+		    *(u16 *)&iph->nexthdr != *(u16 *)&iph2->nexthdr) {
+not_same_flow:
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
+		}
+		if (unlikely(nlen > sizeof(struct ipv6hdr))) {
+			if (memcmp(iph + 1, iph2 + 1,
+				   nlen - sizeof(struct ipv6hdr)))
+				goto not_same_flow;
 		}
 		/* flush if Traffic Class fields are different */
 		NAPI_GRO_CB(p)->flush |= !!(first_word & htonl(0x0FF00000));
