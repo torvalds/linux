@@ -3574,6 +3574,12 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 			 const struct intel_crtc_state *old_crtc_state);
 
+/* intel_combo_phy.c */
+void icl_combo_phys_init(struct drm_i915_private *dev_priv);
+void icl_combo_phys_uninit(struct drm_i915_private *dev_priv);
+void cnl_combo_phys_init(struct drm_i915_private *dev_priv);
+void cnl_combo_phys_uninit(struct drm_i915_private *dev_priv);
+
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
 u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
