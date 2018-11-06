@@ -105,6 +105,8 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 			BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
 			BIT(NL80211_IFTYPE_ADHOC);
+
+		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
 	}
 
 	hw->sta_data_size = sizeof(struct mt76x02_sta);

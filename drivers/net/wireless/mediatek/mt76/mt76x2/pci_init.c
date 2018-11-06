@@ -388,8 +388,6 @@ static void mt76x2_led_set_brightness(struct led_classdev *led_cdev,
 
 int mt76x2_register_device(struct mt76x02_dev *dev)
 {
-	struct ieee80211_hw *hw = mt76_hw(dev);
-	struct wiphy *wiphy = hw->wiphy;
 	int ret;
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2_phy_calibrate);
@@ -401,7 +399,6 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 		return ret;
 
 	mt76x02_config_mac_addr_list(dev);
-	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
 
 	/* init led callbacks */
 	dev->mt76.led_cdev.brightness_set = mt76x2_led_set_brightness;
