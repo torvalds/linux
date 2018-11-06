@@ -383,11 +383,8 @@ bool dax_lock_mapping_entry(struct page *page)
 		entry = xas_load(&xas);
 		if (dax_is_locked(entry)) {
 			entry = get_unlocked_entry(&xas);
-			/* Did the page move while we slept? */
-			if (dax_to_pfn(entry) != page_to_pfn(page)) {
-				xas_unlock_irq(&xas);
-				continue;
-			}
+			xas_unlock_irq(&xas);
+			continue;
 		}
 		dax_lock_entry(&xas, entry);
 		xas_unlock_irq(&xas);
