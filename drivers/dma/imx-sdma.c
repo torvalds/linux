@@ -1194,8 +1194,8 @@ static int sdma_alloc_bd(struct sdma_desc *desc)
 {
 	int ret = 0;
 
-	desc->bd = dma_pool_alloc(desc->sdmac->bd_pool, GFP_NOWAIT,
-				  &desc->bd_phys);
+	desc->bd = dma_pool_alloc(desc->sdmac->bd_pool, GFP_ATOMIC,
+					&desc->bd_phys);
 	if (!desc->bd) {
 		ret = -ENOMEM;
 		goto out;
