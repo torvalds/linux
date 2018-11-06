@@ -383,6 +383,9 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 
 		nr_pages = iov_iter_npages(iter, BIO_MAX_PAGES);
 		if (!nr_pages) {
+			if (iocb->ki_flags & IOCB_HIPRI)
+				bio->bi_opf |= REQ_HIPRI;
+
 			qc = submit_bio(bio);
 			break;
 		}
