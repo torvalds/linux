@@ -843,6 +843,14 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 
 	if (IS_GEN9_LP(dev_priv))
 		bxt_verify_ddi_phy_power_wells(dev_priv);
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		/*
+		 * DMC retains HW context only for port A, the other combo
+		 * PHY's HW context for port B is lost after DC transitions,
+		 * so we need to restore it manually.
+		 */
+		icl_combo_phys_init(dev_priv);
 }
 
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
