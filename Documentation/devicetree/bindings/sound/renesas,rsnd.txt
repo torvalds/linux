@@ -39,15 +39,7 @@ This is example of
 Playback: [MEM] -> [SRC2] -> [DVC0] -> [SSIU0/SSI0] -> [codec]
 Capture:  [MEM] <- [DVC1] <- [SRC3] <- [SSIU1/SSI1] <- [codec]
 
-	&rcar_sound {
-		...
-		rcar_sound,dai {
-			dai0 {
-				playback = <&ssi0 &src2 &dvc0>;
-				capture  = <&ssi1 &src3 &dvc1>;
-			};
-		};
-	};
+see "Example: simple sound card"
 
 You can use below.
 ${LINUX}/arch/arm/boot/dts/r8a7790.dts can be good example.
@@ -83,29 +75,8 @@ SRC can convert [xx]Hz to [yy]Hz. Then, it has below 2 modes
 **     Asynchronous mode
 ------------------
 
-You need to use "simple-scu-audio-card" sound card for it.
-example)
-
-	sound {
-		compatible = "simple-scu-audio-card";
-		...
-		/*
-		 * SRC Asynchronous mode setting
-		 * Playback:
-		 * All input data will be converted to 48kHz
-		 * Capture:
-		 * Inputed 48kHz data will be converted to
-		 * system specified Hz
-		 */
-		simple-audio-card,convert-rate = <48000>;
-		...
-		simple-audio-card,cpu {
-			sound-dai = <&rcar_sound>;
-		};
-		simple-audio-card,codec {
-			...
-		};
-	};
+You need to use "simple-scu-audio-card" or "audio-graph-scu-card" for it.
+see "Example: simple sound card for Asynchronous mode"
 
 ------------------
 **     Synchronous mode
@@ -141,26 +112,8 @@ For more detail information, see below
 	${LINUX}/sound/soc/sh/rcar/ctu.c
 	 - comment of header
 
-You need to use "simple-scu-audio-card" sound card for it.
-example)
-
-	sound {
-		compatible = "simple-scu-audio-card";
-		...
-		/*
-		 * CTU setting
-		 * All input data will be converted to 2ch
-		 * as output data
-		 */
-		simple-audio-card,convert-channels = <2>;
-		...
-		simple-audio-card,cpu {
-			sound-dai = <&rcar_sound>;
-		};
-		simple-audio-card,codec {
-			...
-		};
-	};
+You need to use "simple-scu-audio-card" or "audio-graph-scu-card" for it.
+see "Example: simple sound card for channel convert"
 
 Ex) Exchange output channel
  Input -> Output
@@ -190,42 +143,13 @@ and these sounds will be merged by MIX.
 	aplay -D plughw:0,0 xxxx.wav &
 	aplay -D plughw:0,1 yyyy.wav
 
-You need to use "simple-scu-audio-card" sound card for it.
+You need to use "simple-scu-audio-card" or "audio-graph-scu-card" for it.
 Ex)
 	[MEM] -> [SRC1] -> [CTU02] -+-> [MIX0] -> [DVC0] -> [SSI0]
 	                            |
 	[MEM] -> [SRC2] -> [CTU03] -+
 
-	sound {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		compatible = "simple-scu-audio-card";
-		...
-		simple-audio-card,cpu@0 {
-			reg = <0>;
-			sound-dai = <&rcar_sound 0>;
-		};
-		simple-audio-card,cpu@1 {
-			reg = <1>;
-			sound-dai = <&rcar_sound 1>;
-		};
-		simple-audio-card,codec {
-			...
-		};
-	};
-
-	&rcar_sound {
-		...
-		rcar_sound,dai {
-			dai0 {
-				playback = <&src1 &ctu02 &mix0 &dvc0 &ssi0>;
-			};
-			dai1 {
-				playback = <&src2 &ctu03 &mix0 &dvc0 &ssi0>;
-			};
-		};
-	};
+see "Example: simple sound card for MIXer"
 
 =============================================
 * DVC (Digital Volume and Mute Function)
@@ -304,14 +228,7 @@ This is example if SSI1 want to share WS pin with SSI0
 You can use Multi-SSI.
 This is example of SSI0/SSI1/SSI2 (= for 6ch)
 
-	&rcar_sound {
-		...
-		rcar_sound,dai {
-			dai0 {
-				playback = <&ssi0 &ssi1 &ssi2 &src0 &dvc0>;
-			};
-		};
-	};
+see "Example: simple sound card for Multi channel"
 
 ** TDM-SSI
 
@@ -319,19 +236,7 @@ You can use TDM with SSI.
 This is example of TDM 6ch.
 Driver can automatically switches TDM <-> stereo mode in this case.
 
-	rsnd_tdm: sound {
-		compatible = "simple-audio-card";
-		...
-		simple-audio-card,cpu {
-			/* system can use TDM 6ch */
-			dai-tdm-slot-num = <6>;
-			sound-dai = <&rcar_sound>;
-		};
-		simple-audio-card,codec {
-			...
-		};
-	};
-
+see "Example: simple sound card for TDM"
 
 =============================================
 Required properties:
@@ -647,25 +552,102 @@ Example: simple sound card
 };
 
 =============================================
+Example: simple sound card for Asynchronous mode
+=============================================
+
+sound {
+	compatible = "simple-scu-audio-card";
+	...
+	/*
+	 * SRC Asynchronous mode setting
+	 * Playback:
+	 * All input data will be converted to 48kHz
+	 * Capture:
+	 * Inputed 48kHz data will be converted to
+	 * system specified Hz
+	 */
+	simple-audio-card,convert-rate = <48000>;
+	...
+	simple-audio-card,cpu {
+		sound-dai = <&rcar_sound>;
+	};
+	simple-audio-card,codec {
+		...
+	};
+};
+
+=============================================
+Example: simple sound card for channel convert
+=============================================
+
+sound {
+	compatible = "simple-scu-audio-card";
+	...
+	/*
+	 * CTU setting
+	 * All input data will be converted to 2ch
+	 * as output data
+	 */
+	simple-audio-card,convert-channels = <2>;
+	...
+	simple-audio-card,cpu {
+		sound-dai = <&rcar_sound>;
+	};
+	simple-audio-card,codec {
+		...
+	};
+};
+
+=============================================
+Example: simple sound card for MIXer
+=============================================
+
+sound {
+	compatible = "simple-scu-audio-card";
+	...
+	simple-audio-card,cpu@0 {
+		sound-dai = <&rcar_sound 0>;
+	};
+	simple-audio-card,cpu@1 {
+		sound-dai = <&rcar_sound 1>;
+	};
+	simple-audio-card,codec {
+		...
+	};
+};
+
+&rcar_sound {
+	...
+	rcar_sound,dai {
+		dai0 {
+			playback = <&src1 &ctu02 &mix0 &dvc0 &ssi0>;
+		};
+		dai1 {
+			playback = <&src2 &ctu03 &mix0 &dvc0 &ssi0>;
+		};
+	};
+};
+
+=============================================
 Example: simple sound card for TDM
 =============================================
 
-	rsnd_tdm: sound {
-		compatible = "simple-audio-card";
+rsnd_tdm: sound {
+	compatible = "simple-audio-card";
 
-		simple-audio-card,format = "left_j";
-		simple-audio-card,bitclock-master = <&sndcodec>;
-		simple-audio-card,frame-master = <&sndcodec>;
+	simple-audio-card,format = "left_j";
+	simple-audio-card,bitclock-master = <&sndcodec>;
+	simple-audio-card,frame-master = <&sndcodec>;
 
-		sndcpu: simple-audio-card,cpu {
-			sound-dai = <&rcar_sound>;
-			dai-tdm-slot-num = <6>;
-		};
-
-		sndcodec: simple-audio-card,codec {
-			sound-dai = <&xxx>;
-		};
+	sndcpu: simple-audio-card,cpu {
+		sound-dai = <&rcar_sound>;
+		dai-tdm-slot-num = <6>;
 	};
+
+	sndcodec: simple-audio-card,codec {
+		sound-dai = <&xxx>;
+	};
+};
 
 =============================================
 Example: simple sound card for Multi channel
