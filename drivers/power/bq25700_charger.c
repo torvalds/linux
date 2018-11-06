@@ -1531,7 +1531,7 @@ static void bq25700_host_evt_worker(struct work_struct *work)
 	/* Determine cable/charger type */
 	if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) > 0) {
 		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
-			gpiod_direction_output(charger->otg_mode_en_io, 0);
+			gpiod_direction_output(charger->otg_mode_en_io, 1);
 		bq25700_field_write(charger, EN_OTG, 1);
 		DBG("OTG enable\n");
 	} else if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) == 0) {
