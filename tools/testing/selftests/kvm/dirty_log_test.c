@@ -216,12 +216,14 @@ static void vm_dirty_log_verify(unsigned long *bmap)
 }
 
 static struct kvm_vm *create_vm(enum vm_guest_mode mode, uint32_t vcpuid,
-				uint64_t extra_mem_pages, void *guest_code)
+				uint64_t extra_mem_pages, void *guest_code,
+				unsigned long type)
 {
 	struct kvm_vm *vm;
 	uint64_t extra_pg_pages = extra_mem_pages / 512 * 2;
 
-	vm = vm_create(mode, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
+	vm = _vm_create(mode, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages,
+			O_RDWR, type);
 	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
 #ifdef __x86_64__
 	vm_create_irqchip(vm);
@@ -238,6 +240,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	struct kvm_vm *vm;
 	uint64_t max_gfn;
 	unsigned long *bmap;
+	unsigned long type = 0;
 
 	switch (mode) {
 	case VM_MODE_P52V48_4K:
@@ -246,6 +249,14 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		break;
 	case VM_MODE_P52V48_64K:
 		guest_pa_bits = 52;
+		guest_page_shift = 16;
+		break;
+	case VM_MODE_P48V48_4K:
+		guest_pa_bits = 48;
+		guest_page_shift = 12;
+		break;
+	case VM_MODE_P48V48_64K:
+		guest_pa_bits = 48;
 		guest_page_shift = 16;
 		break;
 	case VM_MODE_P40V48_4K:
@@ -271,6 +282,10 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	 */
 	guest_pa_bits = 39;
 #endif
+#ifdef __aarch64__
+	if (guest_pa_bits != 40)
+		type = KVM_VM_TYPE_ARM_IPA_SIZE(guest_pa_bits);
+#endif
 	max_gfn = (1ul << (guest_pa_bits - guest_page_shift)) - 1;
 	guest_page_size = (1ul << guest_page_shift);
 	/* 1G of guest page sized pages */
@@ -291,7 +306,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	bmap = bitmap_alloc(host_num_pages);
 	host_bmap_track = bitmap_alloc(host_num_pages);
 
-	vm = create_vm(mode, VCPU_ID, guest_num_pages, guest_code);
+	vm = create_vm(mode, VCPU_ID, guest_num_pages, guest_code, type);
 
 #ifdef USE_CLEAR_DIRTY_LOG
 	struct kvm_enable_cap cap = {};
@@ -408,7 +423,7 @@ int main(int argc, char *argv[])
 	unsigned long interval = TEST_HOST_LOOP_INTERVAL;
 	bool mode_selected = false;
 	uint64_t phys_offset = 0;
-	unsigned int mode;
+	unsigned int mode, host_ipa_limit;
 	int opt, i;
 
 #ifdef USE_CLEAR_DIRTY_LOG
@@ -424,6 +439,14 @@ int main(int argc, char *argv[])
 #ifdef __aarch64__
 	vm_guest_mode_params_init(VM_MODE_P40V48_4K, true, true);
 	vm_guest_mode_params_init(VM_MODE_P40V48_64K, true, true);
+
+	host_ipa_limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
+	if (host_ipa_limit >= 52)
+		vm_guest_mode_params_init(VM_MODE_P52V48_64K, true, true);
+	if (host_ipa_limit >= 48) {
+		vm_guest_mode_params_init(VM_MODE_P48V48_4K, true, true);
+		vm_guest_mode_params_init(VM_MODE_P48V48_64K, true, true);
+	}
 #endif
 
 	while ((opt = getopt(argc, argv, "hi:I:p:m:")) != -1) {

@@ -85,13 +85,13 @@ int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
 	return ret;
 }
 
-static void vm_open(struct kvm_vm *vm, int perm)
+static void vm_open(struct kvm_vm *vm, int perm, unsigned long type)
 {
 	vm->kvm_fd = open(KVM_DEV_PATH, perm);
 	if (vm->kvm_fd < 0)
 		exit(KSFT_SKIP);
 
-	vm->fd = ioctl(vm->kvm_fd, KVM_CREATE_VM, NULL);
+	vm->fd = ioctl(vm->kvm_fd, KVM_CREATE_VM, type);
 	TEST_ASSERT(vm->fd >= 0, "KVM_CREATE_VM ioctl failed, "
 		"rc: %i errno: %i", vm->fd, errno);
 }
@@ -126,7 +126,8 @@ _Static_assert(sizeof(vm_guest_mode_string)/sizeof(char *) == NUM_VM_MODES,
  * descriptor to control the created VM is created with the permissions
  * given by perm (e.g. O_RDWR).
  */
-struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
+struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages,
+			  int perm, unsigned long type)
 {
 	struct kvm_vm *vm;
 	int kvm_fd;
@@ -135,7 +136,8 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	TEST_ASSERT(vm != NULL, "Insufficient Memory");
 
 	vm->mode = mode;
-	vm_open(vm, perm);
+	vm->type = type;
+	vm_open(vm, perm, type);
 
 	/* Setup mode specific traits. */
 	switch (vm->mode) {
@@ -205,6 +207,11 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	return vm;
 }
 
+struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
+{
+	return _vm_create(mode, phy_pages, perm, 0);
+}
+
 /*
  * VM Restart
  *
@@ -222,7 +229,7 @@ void kvm_vm_restart(struct kvm_vm *vmp, int perm)
 {
 	struct userspace_mem_region *region;
 
-	vm_open(vmp, perm);
+	vm_open(vmp, perm, vmp->type);
 	if (vmp->has_irqchip)
 		vm_create_irqchip(vmp);
 
