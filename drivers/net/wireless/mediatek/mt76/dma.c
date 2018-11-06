@@ -430,6 +430,14 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 		if (!data)
 			break;
 
+		if (q->buf_size < len + q->buf_offset) {
+			dev_kfree_skb(q->rx_head);
+			q->rx_head = NULL;
+
+			skb_free_frag(data);
+			continue;
+		}
+
 		if (q->rx_head) {
 			mt76_add_fragment(dev, q, data, len, more);
 			continue;
