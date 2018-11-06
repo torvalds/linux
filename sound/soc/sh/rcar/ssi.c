@@ -1095,11 +1095,7 @@ void rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
 				    int dai_i)
 {
 	struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
-	struct device_node *remote_ep;
-
-	remote_ep = of_graph_get_remote_endpoint(endpoint);
-	if (!remote_ep)
-		return;
+	struct device_node *remote_ep = of_graph_get_remote_endpoint(endpoint);
 
 	__rsnd_ssi_parse_hdmi_connection(priv, &rdai->playback, remote_ep);
 	__rsnd_ssi_parse_hdmi_connection(priv, &rdai->capture,  remote_ep);
