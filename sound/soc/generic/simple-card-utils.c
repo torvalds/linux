@@ -32,10 +32,11 @@ void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_convert_fixup);
 
-void asoc_simple_card_parse_convert(struct device *dev, char *prefix,
+void asoc_simple_card_parse_convert(struct device *dev,
+				    struct device_node *np,
+				    char *prefix,
 				    struct asoc_simple_card_data *data)
 {
-	struct device_node *np = dev->of_node;
 	char prop[128];
 
 	if (!prefix)
@@ -151,21 +152,19 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);
 
-static void asoc_simple_card_clk_register(struct asoc_simple_dai *dai,
-					  struct clk *clk)
-{
-	dai->clk = clk;
-}
-
 int asoc_simple_card_clk_enable(struct asoc_simple_dai *dai)
 {
-	return clk_prepare_enable(dai->clk);
+	if (dai)
+		return clk_prepare_enable(dai->clk);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_clk_enable);
 
 void asoc_simple_card_clk_disable(struct asoc_simple_dai *dai)
 {
-	clk_disable_unprepare(dai->clk);
+	if (dai)
+		clk_disable_unprepare(dai->clk);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_clk_disable);
 
@@ -200,7 +199,7 @@ int asoc_simple_card_parse_clk(struct device *dev,
 	if (!IS_ERR(clk)) {
 		simple_dai->sysclk = clk_get_rate(clk);
 
-		asoc_simple_card_clk_register(simple_dai, clk);
+		simple_dai->clk = clk;
 	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
 		simple_dai->sysclk = val;
 	} else {
@@ -272,13 +271,32 @@ static int asoc_simple_card_get_dai_id(struct device_node *ep)
 {
 	struct device_node *node;
 	struct device_node *endpoint;
+	struct of_endpoint info;
 	int i, id;
 	int ret;
 
+	/* use driver specified DAI ID if exist */
 	ret = snd_soc_get_dai_id(ep);
 	if (ret != -ENOTSUPP)
 		return ret;
 
+	/* use endpoint/port reg if exist */
+	ret = of_graph_parse_endpoint(ep, &info);
+	if (ret == 0) {
+		/*
+		 * Because it will count port/endpoint if it doesn't have "reg".
+		 * But, we can't judge whether it has "no reg", or "reg = <0>"
+		 * only of_graph_parse_endpoint().
+		 * We need to check "reg" property
+		 */
+		if (of_get_property(ep,   "reg", NULL))
+			return info.id;
+
+		node = of_get_parent(ep);
+		of_node_put(node);
+		if (of_get_property(node, "reg", NULL))
+			return info.port;
+	}
 	node = of_graph_get_port_parent(ep);
 
 	/*
@@ -348,6 +366,9 @@ int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 {
 	int ret;
 
+	if (!simple_dai)
+		return 0;
+
 	if (simple_dai->sysclk) {
 		ret = snd_soc_dai_set_sysclk(dai, 0, simple_dai->sysclk,
 					     simple_dai->clk_direction);
@@ -415,8 +436,7 @@ int asoc_simple_card_clean_reference(struct snd_soc_card *card)
 EXPORT_SYMBOL_GPL(asoc_simple_card_clean_reference);
 
 int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
-				      char *prefix,
-				      int optional)
+				      char *prefix)
 {
 	struct device_node *node = card->dev->of_node;
 	char prop[128];
@@ -426,11 +446,8 @@ int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "routing");
 
-	if (!of_property_read_bool(node, prop)) {
-		if (optional)
-			return 0;
-		return -EINVAL;
-	}
+	if (!of_property_read_bool(node, prop))
+		return 0;
 
 	return snd_soc_of_parse_audio_routing(card, prop);
 }
