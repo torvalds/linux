@@ -1801,12 +1801,12 @@ static inline void add_nr_running(struct rq *rq, unsigned count)
 
 	rq->nr_running = prev_nr + count;
 
-	if (prev_nr < 2 && rq->nr_running >= 2) {
 #ifdef CONFIG_SMP
+	if (prev_nr < 2 && rq->nr_running >= 2) {
 		if (!READ_ONCE(rq->rd->overload))
 			WRITE_ONCE(rq->rd->overload, 1);
-#endif
 	}
+#endif
 
 	sched_update_tick_dependency(rq);
 }
