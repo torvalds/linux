@@ -2324,7 +2324,7 @@ static int bcm_sysport_map_queues(struct notifier_block *nb,
 	struct bcm_sysport_priv *priv;
 	struct net_device *slave_dev;
 	unsigned int num_tx_queues;
-	unsigned int q, start, port;
+	unsigned int q, qp, port;
 	struct net_device *dev;
 
 	priv = container_of(nb, struct bcm_sysport_priv, dsa_notifier);
@@ -2363,20 +2363,21 @@ static int bcm_sysport_map_queues(struct notifier_block *nb,
 
 	priv->per_port_num_tx_queues = num_tx_queues;
 
-	start = find_first_zero_bit(&priv->queue_bitmap, dev->num_tx_queues);
-	for (q = 0; q < num_tx_queues; q++) {
-		ring = &priv->tx_rings[q + start];
+	for (q = 0, qp = 0; q < dev->num_tx_queues && qp < num_tx_queues;
+	     q++) {
+		ring = &priv->tx_rings[q];
+
+		if (ring->inspect)
+			continue;
 
 		/* Just remember the mapping actual programming done
 		 * during bcm_sysport_init_tx_ring
 		 */
-		ring->switch_queue = q;
+		ring->switch_queue = qp;
 		ring->switch_port = port;
 		ring->inspect = true;
 		priv->ring_map[q + port * num_tx_queues] = ring;
-
-		/* Set all queues as being used now */
-		set_bit(q + start, &priv->queue_bitmap);
+		qp++;
 	}
 
 	return 0;

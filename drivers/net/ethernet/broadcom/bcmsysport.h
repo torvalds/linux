@@ -796,7 +796,6 @@ struct bcm_sysport_priv {
 	/* map information between switch port queues and local queues */
 	struct notifier_block	dsa_notifier;
 	unsigned int		per_port_num_tx_queues;
-	unsigned long		queue_bitmap;
 	struct bcm_sysport_tx_ring *ring_map[DSA_MAX_PORTS * 8];
 
 };
