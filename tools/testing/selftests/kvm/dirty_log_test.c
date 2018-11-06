@@ -52,9 +52,10 @@ static uint64_t iteration;
 
 /*
  * GPA offset of the testing memory slot. Must be bigger than
- * DEFAULT_GUEST_PHY_PAGES.
+ * DEFAULT_GUEST_PHY_PAGES * PAGE_SIZE.
  */
-static uint64_t guest_test_mem = DEFAULT_GUEST_TEST_MEM;
+static uint64_t guest_test_phys_mem = DEFAULT_GUEST_TEST_MEM;
+static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 
 /*
  * Continuously write to the first 8 bytes of a random pages within
@@ -66,7 +67,7 @@ static void guest_code(void)
 
 	while (true) {
 		for (i = 0; i < TEST_PAGES_PER_LOOP; i++) {
-			uint64_t addr = guest_test_mem;
+			uint64_t addr = guest_test_virt_mem;
 			addr += (READ_ONCE(random_array[i]) % guest_num_pages)
 				* guest_page_size;
 			addr &= ~(host_page_size - 1);
@@ -273,11 +274,11 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 			 !!((guest_num_pages * guest_page_size) % host_page_size);
 
 	if (top_offset) {
-		guest_test_mem = (max_gfn - guest_num_pages) * guest_page_size;
-		guest_test_mem &= ~(host_page_size - 1);
+		guest_test_phys_mem = (max_gfn - guest_num_pages) * guest_page_size;
+		guest_test_phys_mem &= ~(host_page_size - 1);
 	}
 
-	DEBUG("guest test mem offset: 0x%lx\n", guest_test_mem);
+	DEBUG("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
 	bmap = bitmap_alloc(host_num_pages);
 	host_bmap_track = bitmap_alloc(host_num_pages);
@@ -294,17 +295,17 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 
 	/* Add an extra memory slot for testing dirty logging */
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
-				    guest_test_mem,
+				    guest_test_phys_mem,
 				    TEST_MEM_SLOT_INDEX,
 				    guest_num_pages,
 				    KVM_MEM_LOG_DIRTY_PAGES);
 
-	/* Do 1:1 mapping for the dirty track memory slot */
-	virt_map(vm, guest_test_mem, guest_test_mem,
+	/* Do mapping for the dirty track memory slot */
+	virt_map(vm, guest_test_virt_mem, guest_test_phys_mem,
 		 guest_num_pages * guest_page_size, 0);
 
 	/* Cache the HVA pointer of the region */
-	host_test_mem = addr_gpa2hva(vm, (vm_paddr_t)guest_test_mem);
+	host_test_mem = addr_gpa2hva(vm, (vm_paddr_t)guest_test_phys_mem);
 
 #ifdef __x86_64__
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
@@ -316,7 +317,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	/* Export the shared variables to the guest */
 	sync_global_to_guest(vm, host_page_size);
 	sync_global_to_guest(vm, guest_page_size);
-	sync_global_to_guest(vm, guest_test_mem);
+	sync_global_to_guest(vm, guest_test_virt_mem);
 	sync_global_to_guest(vm, guest_num_pages);
 
 	/* Start the iterations */
@@ -429,7 +430,7 @@ int main(int argc, char *argv[])
 			interval = strtol(optarg, NULL, 10);
 			break;
 		case 'o':
-			guest_test_mem = strtoull(optarg, NULL, 0);
+			guest_test_phys_mem = strtoull(optarg, NULL, 0);
 			break;
 		case 't':
 			top_offset = true;
@@ -454,7 +455,7 @@ int main(int argc, char *argv[])
 
 	TEST_ASSERT(iterations > 2, "Iterations must be greater than two");
 	TEST_ASSERT(interval > 0, "Interval must be greater than zero");
-	TEST_ASSERT(!top_offset || guest_test_mem == DEFAULT_GUEST_TEST_MEM,
+	TEST_ASSERT(!top_offset || guest_test_phys_mem == DEFAULT_GUEST_TEST_MEM,
 		    "Cannot use both -o [offset] and -t at the same time");
 
 	DEBUG("Test iterations: %"PRIu64", interval: %"PRIu64" (ms)\n",
