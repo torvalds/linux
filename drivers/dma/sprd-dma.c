@@ -36,6 +36,8 @@
 #define SPRD_DMA_GLB_CHN_EN_STS		0x1c
 #define SPRD_DMA_GLB_DEBUG_STS		0x20
 #define SPRD_DMA_GLB_ARB_SEL_STS	0x24
+#define SPRD_DMA_GLB_2STAGE_GRP1	0x28
+#define SPRD_DMA_GLB_2STAGE_GRP2	0x2c
 #define SPRD_DMA_GLB_REQ_UID(uid)	(0x4 * ((uid) - 1))
 #define SPRD_DMA_GLB_REQ_UID_OFFSET	0x2000
 
@@ -56,6 +58,18 @@
 #define SPRD_DMA_CHN_FRAG_STEP		0x34
 #define SPRD_DMA_CHN_SRC_BLK_STEP	0x38
 #define SPRD_DMA_CHN_DES_BLK_STEP	0x3c
+
+/* SPRD_DMA_GLB_2STAGE_GRP register definition */
+#define SPRD_DMA_GLB_2STAGE_EN		BIT(24)
+#define SPRD_DMA_GLB_CHN_INT_MASK	GENMASK(23, 20)
+#define SPRD_DMA_GLB_LIST_DONE_TRG	BIT(19)
+#define SPRD_DMA_GLB_TRANS_DONE_TRG	BIT(18)
+#define SPRD_DMA_GLB_BLOCK_DONE_TRG	BIT(17)
+#define SPRD_DMA_GLB_FRAG_DONE_TRG	BIT(16)
+#define SPRD_DMA_GLB_TRG_OFFSET		16
+#define SPRD_DMA_GLB_DEST_CHN_MASK	GENMASK(13, 8)
+#define SPRD_DMA_GLB_DEST_CHN_OFFSET	8
+#define SPRD_DMA_GLB_SRC_CHN_MASK	GENMASK(5, 0)
 
 /* SPRD_DMA_CHN_INTC register definition */
 #define SPRD_DMA_INT_MASK		GENMASK(4, 0)
@@ -118,6 +132,10 @@
 #define SPRD_DMA_SRC_TRSF_STEP_OFFSET	0
 #define SPRD_DMA_TRSF_STEP_MASK		GENMASK(15, 0)
 
+/* define DMA channel mode & trigger mode mask */
+#define SPRD_DMA_CHN_MODE_MASK		GENMASK(7, 0)
+#define SPRD_DMA_TRG_MODE_MASK		GENMASK(7, 0)
+
 /* define the DMA transfer step type */
 #define SPRD_DMA_NONE_STEP		0
 #define SPRD_DMA_BYTE_STEP		1
@@ -170,6 +188,8 @@ struct sprd_dma_chn {
 	struct dma_slave_config	slave_cfg;
 	u32			chn_num;
 	u32			dev_id;
+	enum sprd_dma_chn_mode	chn_mode;
+	enum sprd_dma_trg_mode	trg_mode;
 	struct sprd_dma_desc	*cur_desc;
 };
 
@@ -204,6 +224,16 @@ static inline struct sprd_dma_dev *to_sprd_dma_dev(struct dma_chan *c)
 static inline struct sprd_dma_desc *to_sprd_dma_desc(struct virt_dma_desc *vd)
 {
 	return container_of(vd, struct sprd_dma_desc, vd);
+}
+
+static void sprd_dma_glb_update(struct sprd_dma_dev *sdev, u32 reg,
+				u32 mask, u32 val)
+{
+	u32 orig = readl(sdev->glb_base + reg);
+	u32 tmp;
+
+	tmp = (orig & ~mask) | val;
+	writel(tmp, sdev->glb_base + reg);
 }
 
 static void sprd_dma_chn_update(struct sprd_dma_chn *schan, u32 reg,
@@ -389,6 +419,49 @@ static enum sprd_dma_req_mode sprd_dma_get_req_type(struct sprd_dma_chn *schan)
 	return (frag_reg >> SPRD_DMA_REQ_MODE_OFFSET) & SPRD_DMA_REQ_MODE_MASK;
 }
 
+static int sprd_dma_set_2stage_config(struct sprd_dma_chn *schan)
+{
+	struct sprd_dma_dev *sdev = to_sprd_dma_dev(&schan->vc.chan);
+	u32 val, chn = schan->chn_num + 1;
+
+	switch (schan->chn_mode) {
+	case SPRD_DMA_SRC_CHN0:
+		val = chn & SPRD_DMA_GLB_SRC_CHN_MASK;
+		val |= BIT(schan->trg_mode - 1) << SPRD_DMA_GLB_TRG_OFFSET;
+		val |= SPRD_DMA_GLB_2STAGE_EN;
+		sprd_dma_glb_update(sdev, SPRD_DMA_GLB_2STAGE_GRP1, val, val);
+		break;
+
+	case SPRD_DMA_SRC_CHN1:
+		val = chn & SPRD_DMA_GLB_SRC_CHN_MASK;
+		val |= BIT(schan->trg_mode - 1) << SPRD_DMA_GLB_TRG_OFFSET;
+		val |= SPRD_DMA_GLB_2STAGE_EN;
+		sprd_dma_glb_update(sdev, SPRD_DMA_GLB_2STAGE_GRP2, val, val);
+		break;
+
+	case SPRD_DMA_DST_CHN0:
+		val = (chn << SPRD_DMA_GLB_DEST_CHN_OFFSET) &
+			SPRD_DMA_GLB_DEST_CHN_MASK;
+		val |= SPRD_DMA_GLB_2STAGE_EN;
+		sprd_dma_glb_update(sdev, SPRD_DMA_GLB_2STAGE_GRP1, val, val);
+		break;
+
+	case SPRD_DMA_DST_CHN1:
+		val = (chn << SPRD_DMA_GLB_DEST_CHN_OFFSET) &
+			SPRD_DMA_GLB_DEST_CHN_MASK;
+		val |= SPRD_DMA_GLB_2STAGE_EN;
+		sprd_dma_glb_update(sdev, SPRD_DMA_GLB_2STAGE_GRP2, val, val);
+		break;
+
+	default:
+		dev_err(sdev->dma_dev.dev, "invalid channel mode setting %d\n",
+			schan->chn_mode);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void sprd_dma_set_chn_config(struct sprd_dma_chn *schan,
 				    struct sprd_dma_desc *sdesc)
 {
@@ -421,6 +494,13 @@ static void sprd_dma_start(struct sprd_dma_chn *schan)
 
 	list_del(&vd->node);
 	schan->cur_desc = to_sprd_dma_desc(vd);
+
+	/*
+	 * Set 2-stage configuration if the channel starts one 2-stage
+	 * transfer.
+	 */
+	if (schan->chn_mode && sprd_dma_set_2stage_config(schan))
+		return;
 
 	/*
 	 * Copy the DMA configuration from DMA descriptor to this hardware
@@ -617,6 +697,7 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 {
 	struct sprd_dma_dev *sdev = to_sprd_dma_dev(chan);
 	struct sprd_dma_chn *schan = to_sprd_dma_chan(chan);
+	enum sprd_dma_chn_mode chn_mode = schan->chn_mode;
 	u32 req_mode = (flags >> SPRD_DMA_REQ_SHIFT) & SPRD_DMA_REQ_MODE_MASK;
 	u32 int_mode = flags & SPRD_DMA_INT_MASK;
 	int src_datawidth, dst_datawidth, src_step, dst_step;
@@ -628,7 +709,16 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 			dev_err(sdev->dma_dev.dev, "invalid source step\n");
 			return src_step;
 		}
-		dst_step = SPRD_DMA_NONE_STEP;
+
+		/*
+		 * For 2-stage transfer, destination channel step can not be 0,
+		 * since destination device is AON IRAM.
+		 */
+		if (chn_mode == SPRD_DMA_DST_CHN0 ||
+		    chn_mode == SPRD_DMA_DST_CHN1)
+			dst_step = src_step;
+		else
+			dst_step = SPRD_DMA_NONE_STEP;
 	} else {
 		dst_step = sprd_dma_get_step(slave_cfg->dst_addr_width);
 		if (dst_step < 0) {
@@ -854,6 +944,12 @@ sprd_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			return NULL;
 		}
 	}
+
+	/* Set channel mode and trigger mode for 2-stage transfer */
+	schan->chn_mode =
+		(flags >> SPRD_DMA_CHN_MODE_SHIFT) & SPRD_DMA_CHN_MODE_MASK;
+	schan->trg_mode =
+		(flags >> SPRD_DMA_TRG_MODE_SHIFT) & SPRD_DMA_TRG_MODE_MASK;
 
 	ret = sprd_dma_fill_desc(chan, &sdesc->chn_hw, 0, 0, src, dst, len,
 				 dir, flags, slave_cfg);
