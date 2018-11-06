@@ -16,7 +16,6 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <linux/socket.h>
 
 /* bpf-output associated map */
 struct bpf_map SEC("maps") __augmented_syscalls__ = {
