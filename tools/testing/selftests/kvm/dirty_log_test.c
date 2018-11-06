@@ -231,7 +231,7 @@ static struct kvm_vm *create_vm(enum vm_guest_mode mode, uint32_t vcpuid,
 }
 
 static void run_test(enum vm_guest_mode mode, unsigned long iterations,
-		     unsigned long interval)
+		     unsigned long interval, uint64_t phys_offset)
 {
 	unsigned int guest_pa_bits, guest_page_shift;
 	pthread_t vcpu_thread;
@@ -279,9 +279,11 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	host_num_pages = (guest_num_pages * guest_page_size) / host_page_size +
 			 !!((guest_num_pages * guest_page_size) % host_page_size);
 
-	if (!guest_test_phys_mem) {
+	if (!phys_offset) {
 		guest_test_phys_mem = (max_gfn - guest_num_pages) * guest_page_size;
 		guest_test_phys_mem &= ~(host_page_size - 1);
+	} else {
+		guest_test_phys_mem = phys_offset;
 	}
 
 	DEBUG("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
@@ -414,6 +416,7 @@ int main(int argc, char *argv[])
 	unsigned long iterations = TEST_HOST_LOOP_N;
 	unsigned long interval = TEST_HOST_LOOP_INTERVAL;
 	bool mode_selected = false;
+	uint64_t phys_offset = 0;
 	unsigned int mode;
 	int opt, i;
 
@@ -433,7 +436,7 @@ int main(int argc, char *argv[])
 			interval = strtol(optarg, NULL, 10);
 			break;
 		case 'p':
-			guest_test_phys_mem = strtoull(optarg, NULL, 0);
+			phys_offset = strtoull(optarg, NULL, 0);
 			break;
 		case 'm':
 			if (!mode_selected) {
@@ -468,7 +471,7 @@ int main(int argc, char *argv[])
 			    "Guest mode ID %d (%s) not supported.",
 			    vm_guest_modes[i].mode,
 			    vm_guest_mode_string(vm_guest_modes[i].mode));
-		run_test(vm_guest_modes[i].mode, iterations, interval);
+		run_test(vm_guest_modes[i].mode, iterations, interval, phys_offset);
 	}
 
 	return 0;
