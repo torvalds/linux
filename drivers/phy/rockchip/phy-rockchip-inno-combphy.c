@@ -575,6 +575,33 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 		writel(0x8b, priv->mmio + 0x21b8);
 		writel(0x8b, priv->mmio + 0x31b8);
 	} else if (priv->phy_type == PHY_TYPE_USB3) {
+		/*
+		 * Disable PHY Lane 1 which isn't needed
+		 * for USB3 to reduce power consumption.
+		 */
+		/* Lane 1 cdr power down */
+		writel(0x09, priv->mmio + 0x3148);
+
+		/* Lane 1 rx bias disable */
+		writel(0x01, priv->mmio + 0x21cc);
+
+		/* Lane 1 cdr disable */
+		writel(0x08, priv->mmio + 0x30c4);
+		writel(0x08, priv->mmio + 0x20f4);
+
+		/* Lane 1 rx lock disable and tx bias disable */
+		writel(0x12, priv->mmio + 0x3150);
+
+		/* Lane 1 rx termination disable */
+		writel(0x00, priv->mmio + 0x3080);
+
+		/* Lane 1 tx termination disable */
+		writel(0x1d, priv->mmio + 0x3090);
+
+		/* Lane 1 tx driver disable */
+		writel(0x50, priv->mmio + 0x21c4);
+		writel(0x10, priv->mmio + 0x2050);
+
 		/* Adjust Lane 0 Rx interface timing */
 		writel(0x20, priv->mmio + 0x20ac);
 
