@@ -1696,10 +1696,7 @@ out:
 	return ret;
 }
 
-typedef blk_qc_t (process_bio_fn)(struct mapped_device *, struct dm_table *, struct bio *);
-
-static blk_qc_t __dm_make_request(struct request_queue *q, struct bio *bio,
-				  process_bio_fn process_bio)
+static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct mapped_device *md = q->queuedata;
 	blk_qc_t ret = BLK_QC_T_NONE;
@@ -1719,24 +1716,13 @@ static blk_qc_t __dm_make_request(struct request_queue *q, struct bio *bio,
 		return ret;
 	}
 
-	ret = process_bio(md, map, bio);
+	if (dm_get_md_type(md) == DM_TYPE_NVME_BIO_BASED)
+		ret = __process_bio(md, map, bio);
+	else
+		ret = __split_and_process_bio(md, map, bio);
 
 	dm_put_live_table(md, srcu_idx);
 	return ret;
-}
-
-/*
- * The request function that remaps the bio to one target and
- * splits off any remainder.
- */
-static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
-{
-	return __dm_make_request(q, bio, __split_and_process_bio);
-}
-
-static blk_qc_t dm_make_request_nvme(struct request_queue *q, struct bio *bio)
-{
-	return __dm_make_request(q, bio, __process_bio);
 }
 
 static int dm_any_congested(void *congested_data, int bdi_bits)
@@ -2229,12 +2215,9 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 		break;
 	case DM_TYPE_BIO_BASED:
 	case DM_TYPE_DAX_BIO_BASED:
-		dm_init_normal_md_queue(md);
-		blk_queue_make_request(md->queue, dm_make_request);
-		break;
 	case DM_TYPE_NVME_BIO_BASED:
 		dm_init_normal_md_queue(md);
-		blk_queue_make_request(md->queue, dm_make_request_nvme);
+		blk_queue_make_request(md->queue, dm_make_request);
 		break;
 	case DM_TYPE_NONE:
 		WARN_ON_ONCE(true);
