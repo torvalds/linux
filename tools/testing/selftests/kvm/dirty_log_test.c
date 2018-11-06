@@ -51,10 +51,16 @@ static uint64_t random_array[TEST_PAGES_PER_LOOP];
 static uint64_t iteration;
 
 /*
- * GPA offset of the testing memory slot. Must be bigger than
- * DEFAULT_GUEST_PHY_PAGES * PAGE_SIZE.
+ * Guest physical memory offset of the testing memory slot.
+ * This will be set to the topmost valid physical address minus
+ * the test memory size.
  */
-static uint64_t guest_test_phys_mem = DEFAULT_GUEST_TEST_MEM;
+static uint64_t guest_test_phys_mem;
+
+/*
+ * Guest virtual memory offset of the testing memory slot.
+ * Must not conflict with identity mapped test code.
+ */
 static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 
 /*
@@ -225,7 +231,7 @@ static struct kvm_vm *create_vm(enum vm_guest_mode mode, uint32_t vcpuid,
 }
 
 static void run_test(enum vm_guest_mode mode, unsigned long iterations,
-		     unsigned long interval, bool top_offset)
+		     unsigned long interval)
 {
 	unsigned int guest_pa_bits, guest_page_shift;
 	pthread_t vcpu_thread;
@@ -273,7 +279,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	host_num_pages = (guest_num_pages * guest_page_size) / host_page_size +
 			 !!((guest_num_pages * guest_page_size) % host_page_size);
 
-	if (top_offset) {
+	if (!guest_test_phys_mem) {
 		guest_test_phys_mem = (max_gfn - guest_num_pages) * guest_page_size;
 		guest_test_phys_mem &= ~(host_page_size - 1);
 	}
@@ -381,16 +387,14 @@ static void help(char *name)
 
 	puts("");
 	printf("usage: %s [-h] [-i iterations] [-I interval] "
-	       "[-o offset] [-t] [-m mode]\n", name);
+	       "[-p offset] [-m mode]\n", name);
 	puts("");
 	printf(" -i: specify iteration counts (default: %"PRIu64")\n",
 	       TEST_HOST_LOOP_N);
 	printf(" -I: specify interval in ms (default: %"PRIu64" ms)\n",
 	       TEST_HOST_LOOP_INTERVAL);
-	printf(" -o: guest test memory offset (default: 0x%lx)\n",
-	       DEFAULT_GUEST_TEST_MEM);
-	printf(" -t: map guest test memory at the top of the allowed "
-	       "physical address range\n");
+	printf(" -p: specify guest physical test memory offset\n"
+	       "     Warning: a low offset can conflict with the loaded test code.\n");
 	printf(" -m: specify the guest mode ID to test "
 	       "(default: test all supported modes)\n"
 	       "     This option may be used multiple times.\n"
@@ -410,7 +414,6 @@ int main(int argc, char *argv[])
 	unsigned long iterations = TEST_HOST_LOOP_N;
 	unsigned long interval = TEST_HOST_LOOP_INTERVAL;
 	bool mode_selected = false;
-	bool top_offset = false;
 	unsigned int mode;
 	int opt, i;
 
@@ -421,7 +424,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	while ((opt = getopt(argc, argv, "hi:I:o:tm:")) != -1) {
+	while ((opt = getopt(argc, argv, "hi:I:p:m:")) != -1) {
 		switch (opt) {
 		case 'i':
 			iterations = strtol(optarg, NULL, 10);
@@ -429,11 +432,8 @@ int main(int argc, char *argv[])
 		case 'I':
 			interval = strtol(optarg, NULL, 10);
 			break;
-		case 'o':
+		case 'p':
 			guest_test_phys_mem = strtoull(optarg, NULL, 0);
-			break;
-		case 't':
-			top_offset = true;
 			break;
 		case 'm':
 			if (!mode_selected) {
@@ -455,8 +455,6 @@ int main(int argc, char *argv[])
 
 	TEST_ASSERT(iterations > 2, "Iterations must be greater than two");
 	TEST_ASSERT(interval > 0, "Interval must be greater than zero");
-	TEST_ASSERT(!top_offset || guest_test_phys_mem == DEFAULT_GUEST_TEST_MEM,
-		    "Cannot use both -o [offset] and -t at the same time");
 
 	DEBUG("Test iterations: %"PRIu64", interval: %"PRIu64" (ms)\n",
 	      iterations, interval);
@@ -470,7 +468,7 @@ int main(int argc, char *argv[])
 			    "Guest mode ID %d (%s) not supported.",
 			    vm_guest_modes[i].mode,
 			    vm_guest_mode_string(vm_guest_modes[i].mode));
-		run_test(vm_guest_modes[i].mode, iterations, interval, top_offset);
+		run_test(vm_guest_modes[i].mode, iterations, interval);
 	}
 
 	return 0;
