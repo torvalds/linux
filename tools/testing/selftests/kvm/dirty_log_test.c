@@ -365,23 +365,16 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	kvm_vm_free(vm);
 }
 
-static struct vm_guest_modes {
-	enum vm_guest_mode mode;
+struct vm_guest_mode_params {
 	bool supported;
 	bool enabled;
-} vm_guest_modes[NUM_VM_MODES] = {
-#if defined(__x86_64__)
-	{ VM_MODE_P52V48_4K,	1, 1, },
-	{ VM_MODE_P52V48_64K,	0, 0, },
-	{ VM_MODE_P40V48_4K,	0, 0, },
-	{ VM_MODE_P40V48_64K,	0, 0, },
-#elif defined(__aarch64__)
-	{ VM_MODE_P52V48_4K,	0, 0, },
-	{ VM_MODE_P52V48_64K,	0, 0, },
-	{ VM_MODE_P40V48_4K,	1, 1, },
-	{ VM_MODE_P40V48_64K,	1, 1, },
-#endif
 };
+struct vm_guest_mode_params vm_guest_mode_params[NUM_VM_MODES];
+
+#define vm_guest_mode_params_init(mode, supported, enabled)					\
+({												\
+	vm_guest_mode_params[mode] = (struct vm_guest_mode_params){ supported, enabled };	\
+})
 
 static void help(char *name)
 {
@@ -402,10 +395,8 @@ static void help(char *name)
 	       "     This option may be used multiple times.\n"
 	       "     Guest mode IDs:\n");
 	for (i = 0; i < NUM_VM_MODES; ++i) {
-		printf("         %d:    %s%s\n",
-		       vm_guest_modes[i].mode,
-		       vm_guest_mode_string(vm_guest_modes[i].mode),
-		       vm_guest_modes[i].supported ? " (supported)" : "");
+		printf("         %d:    %s%s\n", i, vm_guest_mode_string(i),
+		       vm_guest_mode_params[i].supported ? " (supported)" : "");
 	}
 	puts("");
 	exit(0);
@@ -427,6 +418,14 @@ int main(int argc, char *argv[])
 	}
 #endif
 
+#ifdef __x86_64__
+	vm_guest_mode_params_init(VM_MODE_P52V48_4K, true, true);
+#endif
+#ifdef __aarch64__
+	vm_guest_mode_params_init(VM_MODE_P40V48_4K, true, true);
+	vm_guest_mode_params_init(VM_MODE_P40V48_64K, true, true);
+#endif
+
 	while ((opt = getopt(argc, argv, "hi:I:p:m:")) != -1) {
 		switch (opt) {
 		case 'i':
@@ -441,13 +440,13 @@ int main(int argc, char *argv[])
 		case 'm':
 			if (!mode_selected) {
 				for (i = 0; i < NUM_VM_MODES; ++i)
-					vm_guest_modes[i].enabled = 0;
+					vm_guest_mode_params[i].enabled = false;
 				mode_selected = true;
 			}
 			mode = strtoul(optarg, NULL, 10);
 			TEST_ASSERT(mode < NUM_VM_MODES,
 				    "Guest mode ID %d too big", mode);
-			vm_guest_modes[mode].enabled = 1;
+			vm_guest_mode_params[mode].enabled = true;
 			break;
 		case 'h':
 		default:
@@ -465,13 +464,12 @@ int main(int argc, char *argv[])
 	srandom(time(0));
 
 	for (i = 0; i < NUM_VM_MODES; ++i) {
-		if (!vm_guest_modes[i].enabled)
+		if (!vm_guest_mode_params[i].enabled)
 			continue;
-		TEST_ASSERT(vm_guest_modes[i].supported,
+		TEST_ASSERT(vm_guest_mode_params[i].supported,
 			    "Guest mode ID %d (%s) not supported.",
-			    vm_guest_modes[i].mode,
-			    vm_guest_mode_string(vm_guest_modes[i].mode));
-		run_test(vm_guest_modes[i].mode, iterations, interval, phys_offset);
+			    i, vm_guest_mode_string(i));
+		run_test(i, iterations, interval, phys_offset);
 	}
 
 	return 0;
