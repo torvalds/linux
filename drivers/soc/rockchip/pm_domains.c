@@ -532,7 +532,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	struct rockchip_pm_domain *pd;
 	struct device_node *qos_node;
 	struct clk *clk;
-	int clk_cnt;
+	int clk_cnt, num_qos = 0, num_qos_reg = 0;
 	int i, j;
 	u32 id;
 	int error;
@@ -595,8 +595,14 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 			clk, node->name);
 	}
 
-	pd->num_qos = of_count_phandle_with_args(node, "pm_qos",
-						 NULL);
+	num_qos = of_count_phandle_with_args(node, "pm_qos", NULL);
+
+	for (j = 0; j < num_qos; j++) {
+		qos_node = of_parse_phandle(node, "pm_qos", j);
+		if (qos_node && of_device_is_available(qos_node))
+			pd->num_qos++;
+		of_node_put(qos_node);
+	}
 
 	if (pd->num_qos > 0) {
 		pd->qos_regmap = devm_kcalloc(pmu->dev, pd->num_qos,
@@ -618,19 +624,25 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 			}
 		}
 
-		for (j = 0; j < pd->num_qos; j++) {
+		for (j = 0; j < num_qos; j++) {
 			qos_node = of_parse_phandle(node, "pm_qos", j);
 			if (!qos_node) {
 				error = -ENODEV;
 				goto err_out;
 			}
-			pd->qos_regmap[j] = syscon_node_to_regmap(qos_node);
-			if (IS_ERR(pd->qos_regmap[j])) {
-				error = -ENODEV;
-				of_node_put(qos_node);
-				goto err_out;
+			if (of_device_is_available(qos_node)) {
+				pd->qos_regmap[num_qos_reg] =
+					syscon_node_to_regmap(qos_node);
+				if (IS_ERR(pd->qos_regmap[num_qos_reg])) {
+					error = -ENODEV;
+					of_node_put(qos_node);
+					goto err_out;
+				}
+				num_qos_reg++;
 			}
 			of_node_put(qos_node);
+			if (num_qos_reg > pd->num_qos)
+				goto err_out;
 		}
 	}
 
@@ -910,7 +922,7 @@ static const struct rockchip_domain_info px30_pm_domains[] = {
 
 static const struct rockchip_domain_info rk1808_pm_domains[] = {
 	[RK1808_VD_NPU]		= DOMAIN_PX30(15, 15, 2, false),
-	[RK1808_PD_PCIE]	= DOMAIN_PX30(9, 9, 4, false),
+	[RK1808_PD_PCIE]	= DOMAIN_PX30(9, 9, 4, true),
 	[RK1808_PD_VPU]		= DOMAIN_PX30(13, 13, 7, false),
 	[RK1808_PD_VIO]		= DOMAIN_PX30(14, 14, 8, false),
 };
