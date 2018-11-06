@@ -787,10 +787,9 @@ static void get_lp_advertising(u32 eth_proto_lp,
 	ptys2ethtool_adver_link(lp_advertising, eth_proto_lp);
 }
 
-static int mlx5e_get_link_ksettings(struct net_device *netdev,
-				    struct ethtool_link_ksettings *link_ksettings)
+int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
+				     struct ethtool_link_ksettings *link_ksettings)
 {
-	struct mlx5e_priv *priv    = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {0};
 	u32 rx_pause = 0;
@@ -806,7 +805,7 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 
 	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
 	if (err) {
-		netdev_err(netdev, "%s: query port ptys failed: %d\n",
+		netdev_err(priv->netdev, "%s: query port ptys failed: %d\n",
 			   __func__, err);
 		goto err_query_regs;
 	}
@@ -826,7 +825,7 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 
 	get_supported(eth_proto_cap, link_ksettings);
 	get_advertising(eth_proto_admin, tx_pause, rx_pause, link_ksettings);
-	get_speed_duplex(netdev, eth_proto_oper, link_ksettings);
+	get_speed_duplex(priv->netdev, eth_proto_oper, link_ksettings);
 
 	eth_proto_oper = eth_proto_oper ? eth_proto_oper : eth_proto_cap;
 
@@ -846,7 +845,7 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 					     Autoneg);
 
 	if (get_fec_supported_advertised(mdev, link_ksettings))
-		netdev_dbg(netdev, "%s: FEC caps query failed: %d\n",
+		netdev_dbg(priv->netdev, "%s: FEC caps query failed: %d\n",
 			   __func__, err);
 
 	if (!an_disable_admin)
@@ -855,6 +854,14 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 
 err_query_regs:
 	return err;
+}
+
+static int mlx5e_get_link_ksettings(struct net_device *netdev,
+				    struct ethtool_link_ksettings *link_ksettings)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_get_link_ksettings(priv, link_ksettings);
 }
 
 static u32 mlx5e_ethtool2ptys_adver_link(const unsigned long *link_modes)
@@ -871,10 +878,9 @@ static u32 mlx5e_ethtool2ptys_adver_link(const unsigned long *link_modes)
 	return ptys_modes;
 }
 
-static int mlx5e_set_link_ksettings(struct net_device *netdev,
-				    const struct ethtool_link_ksettings *link_ksettings)
+int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
+				     const struct ethtool_link_ksettings *link_ksettings)
 {
-	struct mlx5e_priv *priv    = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 eth_proto_cap, eth_proto_admin;
 	bool an_changes = false;
@@ -894,14 +900,14 @@ static int mlx5e_set_link_ksettings(struct net_device *netdev,
 
 	err = mlx5_query_port_proto_cap(mdev, &eth_proto_cap, MLX5_PTYS_EN);
 	if (err) {
-		netdev_err(netdev, "%s: query port eth proto cap failed: %d\n",
+		netdev_err(priv->netdev, "%s: query port eth proto cap failed: %d\n",
 			   __func__, err);
 		goto out;
 	}
 
 	link_modes = link_modes & eth_proto_cap;
 	if (!link_modes) {
-		netdev_err(netdev, "%s: Not supported link mode(s) requested",
+		netdev_err(priv->netdev, "%s: Not supported link mode(s) requested",
 			   __func__);
 		err = -EINVAL;
 		goto out;
@@ -909,7 +915,7 @@ static int mlx5e_set_link_ksettings(struct net_device *netdev,
 
 	err = mlx5_query_port_proto_admin(mdev, &eth_proto_admin, MLX5_PTYS_EN);
 	if (err) {
-		netdev_err(netdev, "%s: query port eth proto admin failed: %d\n",
+		netdev_err(priv->netdev, "%s: query port eth proto admin failed: %d\n",
 			   __func__, err);
 		goto out;
 	}
@@ -929,6 +935,14 @@ static int mlx5e_set_link_ksettings(struct net_device *netdev,
 
 out:
 	return err;
+}
+
+static int mlx5e_set_link_ksettings(struct net_device *netdev,
+				    const struct ethtool_link_ksettings *link_ksettings)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_set_link_ksettings(priv, link_ksettings);
 }
 
 u32 mlx5e_ethtool_get_rxfh_key_size(struct mlx5e_priv *priv)
@@ -1127,25 +1141,31 @@ static int mlx5e_set_tunable(struct net_device *dev,
 	return err;
 }
 
-static void mlx5e_get_pauseparam(struct net_device *netdev,
-				 struct ethtool_pauseparam *pauseparam)
+void mlx5e_ethtool_get_pauseparam(struct mlx5e_priv *priv,
+				  struct ethtool_pauseparam *pauseparam)
 {
-	struct mlx5e_priv *priv    = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
 
 	err = mlx5_query_port_pause(mdev, &pauseparam->rx_pause,
 				    &pauseparam->tx_pause);
 	if (err) {
-		netdev_err(netdev, "%s: mlx5_query_port_pause failed:0x%x\n",
+		netdev_err(priv->netdev, "%s: mlx5_query_port_pause failed:0x%x\n",
 			   __func__, err);
 	}
 }
 
-static int mlx5e_set_pauseparam(struct net_device *netdev,
-				struct ethtool_pauseparam *pauseparam)
+static void mlx5e_get_pauseparam(struct net_device *netdev,
+				 struct ethtool_pauseparam *pauseparam)
 {
-	struct mlx5e_priv *priv    = netdev_priv(netdev);
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	mlx5e_ethtool_get_pauseparam(priv, pauseparam);
+}
+
+int mlx5e_ethtool_set_pauseparam(struct mlx5e_priv *priv,
+				 struct ethtool_pauseparam *pauseparam)
+{
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
 
@@ -1156,11 +1176,19 @@ static int mlx5e_set_pauseparam(struct net_device *netdev,
 				  pauseparam->rx_pause ? 1 : 0,
 				  pauseparam->tx_pause ? 1 : 0);
 	if (err) {
-		netdev_err(netdev, "%s: mlx5_set_port_pause failed:0x%x\n",
+		netdev_err(priv->netdev, "%s: mlx5_set_port_pause failed:0x%x\n",
 			   __func__, err);
 	}
 
 	return err;
+}
+
+static int mlx5e_set_pauseparam(struct net_device *netdev,
+				struct ethtool_pauseparam *pauseparam)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_set_pauseparam(priv, pauseparam);
 }
 
 int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
