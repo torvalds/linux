@@ -847,9 +847,6 @@ static int sprd_dma_slave_config(struct dma_chan *chan,
 	struct sprd_dma_chn *schan = to_sprd_dma_chan(chan);
 	struct dma_slave_config *slave_cfg = &schan->slave_cfg;
 
-	if (!is_slave_direction(config->direction))
-		return -EINVAL;
-
 	memcpy(slave_cfg, config, sizeof(*config));
 	return 0;
 }
