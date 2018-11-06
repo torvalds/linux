@@ -211,6 +211,9 @@ SUITES FOR 'epoll'
 *wait*::
 Suite for evaluating concurrent epoll_wait calls.
 
+*ctl*::
+Suite for evaluating multiple epoll_ctl calls.
+
 SEE ALSO
 --------
 linkperf:perf[1]
