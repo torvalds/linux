@@ -863,8 +863,7 @@ nfsd4_rename(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfsd4_rename *rename = &u->rename;
 	__be32 status;
 
-	if (opens_in_grace(SVC_NET(rqstp)) &&
-		!(cstate->save_fh.fh_export->ex_flags & NFSEXP_NOSUBTREECHECK))
+	if (opens_in_grace(SVC_NET(rqstp)))
 		return nfserr_grace;
 	status = nfsd_rename(rqstp, &cstate->save_fh, rename->rn_sname,
 			     rename->rn_snamelen, &cstate->current_fh,
