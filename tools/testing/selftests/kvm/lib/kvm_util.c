@@ -99,9 +99,13 @@ static void vm_open(struct kvm_vm *vm, int perm)
 const char * const vm_guest_mode_string[] = {
 	"PA-bits:52, VA-bits:48, 4K pages",
 	"PA-bits:52, VA-bits:48, 64K pages",
+	"PA-bits:48, VA-bits:48, 4K pages",
+	"PA-bits:48, VA-bits:48, 64K pages",
 	"PA-bits:40, VA-bits:48, 4K pages",
 	"PA-bits:40, VA-bits:48, 64K pages",
 };
+_Static_assert(sizeof(vm_guest_mode_string)/sizeof(char *) == NUM_VM_MODES,
+	       "Missing new mode strings?");
 
 /*
  * VM Create
@@ -137,16 +141,31 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
 		vm->pgtable_levels = 4;
+		vm->pa_bits = 52;
+		vm->va_bits = 48;
 		vm->page_size = 0x1000;
 		vm->page_shift = 12;
-		vm->va_bits = 48;
 		break;
 	case VM_MODE_P52V48_64K:
 		vm->pgtable_levels = 3;
 		vm->pa_bits = 52;
+		vm->va_bits = 48;
 		vm->page_size = 0x10000;
 		vm->page_shift = 16;
+		break;
+	case VM_MODE_P48V48_4K:
+		vm->pgtable_levels = 4;
+		vm->pa_bits = 48;
 		vm->va_bits = 48;
+		vm->page_size = 0x1000;
+		vm->page_shift = 12;
+		break;
+	case VM_MODE_P48V48_64K:
+		vm->pgtable_levels = 3;
+		vm->pa_bits = 48;
+		vm->va_bits = 48;
+		vm->page_size = 0x10000;
+		vm->page_shift = 16;
 		break;
 	case VM_MODE_P40V48_4K:
 		vm->pgtable_levels = 4;
@@ -1445,7 +1464,7 @@ const char *exit_reason_str(unsigned int exit_reason)
  *
  * Within the VM specified by vm, locates a range of available physical
  * pages at or above paddr_min. If found, the pages are marked as in use
- * and thier base address is returned. A TEST_ASSERT failure occurs if
+ * and their base address is returned. A TEST_ASSERT failure occurs if
  * not enough pages are available at or above paddr_min.
  */
 vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
