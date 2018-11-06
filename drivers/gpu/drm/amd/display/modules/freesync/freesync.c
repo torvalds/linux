@@ -108,8 +108,8 @@ static unsigned int calc_duration_in_us_from_v_total(
 {
 	unsigned int duration_in_us =
 			(unsigned int)(div64_u64(((unsigned long long)(v_total)
-				* 1000) * stream->timing.h_total,
-					stream->timing.pix_clk_khz));
+				* 10000) * stream->timing.h_total,
+					stream->timing.pix_clk_100hz));
 
 	return duration_in_us;
 }
@@ -126,7 +126,7 @@ static unsigned int calc_v_total_from_refresh(
 					refresh_in_uhz)));
 
 	v_total = div64_u64(div64_u64(((unsigned long long)(
-			frame_duration_in_ns) * stream->timing.pix_clk_khz),
+			frame_duration_in_ns) * (stream->timing.pix_clk_100hz / 10)),
 			stream->timing.h_total), 1000000);
 
 	/* v_total cannot be less than nominal */
@@ -152,7 +152,7 @@ static unsigned int calc_v_total_from_duration(
 		duration_in_us = vrr->max_duration_in_us;
 
 	v_total = div64_u64(div64_u64(((unsigned long long)(
-				duration_in_us) * stream->timing.pix_clk_khz),
+				duration_in_us) * (stream->timing.pix_clk_100hz / 10)),
 				stream->timing.h_total), 1000);
 
 	/* v_total cannot be less than nominal */
@@ -227,7 +227,7 @@ static void update_v_total_for_static_ramp(
 	}
 
 	v_total = div64_u64(div64_u64(((unsigned long long)(
-			current_duration_in_us) * stream->timing.pix_clk_khz),
+			current_duration_in_us) * (stream->timing.pix_clk_100hz / 10)),
 				stream->timing.h_total), 1000);
 
 	in_out_vrr->adjust.v_total_min = v_total;
@@ -972,7 +972,7 @@ unsigned long long mod_freesync_calc_nominal_field_rate(
 	unsigned long long nominal_field_rate_in_uhz = 0;
 
 	/* Calculate nominal field rate for stream */
-	nominal_field_rate_in_uhz = stream->timing.pix_clk_khz;
+	nominal_field_rate_in_uhz = stream->timing.pix_clk_100hz / 10;
 	nominal_field_rate_in_uhz *= 1000ULL * 1000ULL * 1000ULL;
 	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz,
 						stream->timing.h_total);

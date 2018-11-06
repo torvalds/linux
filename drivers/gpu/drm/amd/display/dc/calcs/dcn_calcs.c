@@ -416,7 +416,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 			- pipe->stream->timing.v_addressable
 			- pipe->stream->timing.v_border_bottom
 			- pipe->stream->timing.v_border_top;
-	input->dest.pixel_rate_mhz = pipe->stream->timing.pix_clk_khz/1000.0;
+	input->dest.pixel_rate_mhz = pipe->stream->timing.pix_clk_100hz/10000.0;
 	input->dest.vstartup_start = pipe->pipe_dlg_param.vstartup_start;
 	input->dest.vupdate_offset = pipe->pipe_dlg_param.vupdate_offset;
 	input->dest.vupdate_offset = pipe->pipe_dlg_param.vupdate_offset;
@@ -663,9 +663,9 @@ static void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
 }
 
 static void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
-		unsigned int pixel_rate_khz)
+		unsigned int pixel_rate_100hz)
 {
-	float pixel_rate_mhz = pixel_rate_khz / 1000;
+	float pixel_rate_mhz = pixel_rate_100hz / 10000;
 
 	/*
 	 * force enabling pipe split by lower dpp clock for DPM0 to just
@@ -688,7 +688,7 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 
 	if (context->stream_count == 1 &&
 			dbg->force_single_disp_pipe_split)
-		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_khz);
+		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_100hz);
 }
 
 bool dcn_validate_bandwidth(
@@ -845,7 +845,7 @@ bool dcn_validate_bandwidth(
 		v->v_sync_plus_back_porch[input_idx] = pipe->stream->timing.v_total
 				- v->vactive[input_idx]
 				- pipe->stream->timing.v_front_porch;
-		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_khz/1000.0;
+		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_100hz/10000.0;
 		if (pipe->stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 			v->pixel_clock[input_idx] *= 2;
 		if (!pipe->plane_state) {

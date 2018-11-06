@@ -730,7 +730,7 @@ struct dc_crtc_timing {
 	uint32_t v_front_porch;
 	uint32_t v_sync_width;
 
-	uint32_t pix_clk_khz;
+	uint32_t pix_clk_100hz;
 
 	uint32_t vic;
 	uint32_t hdmi_vic;

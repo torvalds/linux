@@ -2580,7 +2580,7 @@ get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing)
 		 * according to HDMI spec, we use YCbCr709 and YCbCr601
 		 * respectively
 		 */
-		if (dc_crtc_timing->pix_clk_khz > 27030) {
+		if (dc_crtc_timing->pix_clk_100hz > 270300) {
 			if (dc_crtc_timing->flags.Y_ONLY)
 				color_space =
 					COLOR_SPACE_YCBCR709_LIMITED;
@@ -2623,7 +2623,7 @@ static void adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_
 	if (timing_out->display_color_depth <= COLOR_DEPTH_888)
 		return;
 	do {
-		normalized_clk = timing_out->pix_clk_khz;
+		normalized_clk = timing_out->pix_clk_100hz / 10;
 		/* YCbCr 4:2:0 requires additional adjustment of 1/2 */
 		if (timing_out->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 			normalized_clk /= 2;
@@ -2704,7 +2704,7 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 		mode_in->crtc_vsync_start - mode_in->crtc_vdisplay;
 	timing_out->v_sync_width =
 		mode_in->crtc_vsync_end - mode_in->crtc_vsync_start;
-	timing_out->pix_clk_khz = mode_in->crtc_clock;
+	timing_out->pix_clk_100hz = mode_in->crtc_clock * 10;
 	timing_out->aspect_ratio = get_aspect_ratio(mode_in);
 
 	stream->output_color_space = get_output_color_space(timing_out);
@@ -2832,7 +2832,7 @@ static void set_master_stream(struct dc_stream_state *stream_set[],
 		if (stream_set[j] && stream_set[j]->triggered_crtc_reset.enabled) {
 			int refresh_rate = 0;
 
-			refresh_rate = (stream_set[j]->timing.pix_clk_khz*1000)/
+			refresh_rate = (stream_set[j]->timing.pix_clk_100hz*100)/
 				(stream_set[j]->timing.h_total*stream_set[j]->timing.v_total);
 			if (refresh_rate > highest_rfr) {
 				highest_rfr = refresh_rate;

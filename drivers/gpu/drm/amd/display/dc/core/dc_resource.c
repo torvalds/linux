@@ -355,8 +355,8 @@ bool resource_are_streams_timing_synchronizable(
 				!= stream2->timing.v_addressable)
 		return false;
 
-	if (stream1->timing.pix_clk_khz
-				!= stream2->timing.pix_clk_khz)
+	if (stream1->timing.pix_clk_100hz
+				!= stream2->timing.pix_clk_100hz)
 		return false;
 
 	if (stream1->clamping.c_depth != stream2->clamping.c_depth)
@@ -1759,7 +1759,7 @@ static struct dc_stream_state *find_pll_sharable_stream(
 
 static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
 {
-	uint32_t pix_clk = timing->pix_clk_khz;
+	uint32_t pix_clk = timing->pix_clk_100hz;
 	uint32_t normalized_pix_clk = pix_clk;
 
 	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
@@ -1791,10 +1791,10 @@ static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 	/* update actual pixel clock on all streams */
 	if (dc_is_hdmi_signal(stream->signal))
 		stream->phy_pix_clk = get_norm_pix_clk(
-			&stream->timing);
+			&stream->timing) / 10;
 	else
 		stream->phy_pix_clk =
-			stream->timing.pix_clk_khz;
+			stream->timing.pix_clk_100hz / 10;
 
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 		stream->phy_pix_clk *= 2;

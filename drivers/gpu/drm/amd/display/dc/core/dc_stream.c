@@ -44,7 +44,7 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 
 	if (dc_is_dvi_signal(stream->signal)) {
 		if (stream->ctx->dc->caps.dual_link_dvi &&
-		    stream->timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK &&
+		    (stream->timing.pix_clk_100hz / 10) > TMDS_MAX_PIXEL_CLOCK &&
 		    sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
 			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		else
@@ -339,7 +339,7 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 			stream->output_color_space);
 	DC_LOG_DC(
 			"\tpix_clk_khz: %d, h_total: %d, v_total: %d, pixelencoder:%d, displaycolorDepth:%d\n",
-			stream->timing.pix_clk_khz,
+			stream->timing.pix_clk_100hz / 10,
 			stream->timing.h_total,
 			stream->timing.v_total,
 			stream->timing.pixel_encoding,

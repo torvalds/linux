@@ -1542,7 +1542,7 @@ static uint32_t bandwidth_in_kbps_from_timing(
 
 	ASSERT(bits_per_channel != 0);
 
-	kbps = timing->pix_clk_khz;
+	kbps = timing->pix_clk_100hz / 10;
 	kbps *= bits_per_channel;
 
 	if (timing->flags.Y_ONLY != 1) {
@@ -1584,7 +1584,7 @@ bool dp_validate_mode_timing(
 	const struct dc_link_settings *link_setting;
 
 	/*always DP fail safe mode*/
-	if (timing->pix_clk_khz == (uint32_t) 25175 &&
+	if ((timing->pix_clk_100hz / 10) == (uint32_t) 25175 &&
 		timing->h_addressable == (uint32_t) 640 &&
 		timing->v_addressable == (uint32_t) 480)
 		return true;

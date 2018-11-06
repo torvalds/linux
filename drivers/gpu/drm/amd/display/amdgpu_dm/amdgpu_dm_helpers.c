@@ -205,7 +205,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	mst_port = aconnector->port;
 
 	if (enable) {
-		clock = stream->timing.pix_clk_khz;
+		clock = stream->timing.pix_clk_100hz / 10;
 
 		switch (stream->timing.display_color_depth) {
 

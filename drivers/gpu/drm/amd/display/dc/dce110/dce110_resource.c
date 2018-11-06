@@ -779,7 +779,7 @@ static void get_pixel_clock_parameters(
 	 * the pixel clock normalization for hdmi up to here instead of doing it
 	 * in pll_adjust_pix_clk
 	 */
-	pixel_clk_params->requested_pix_clk = stream->timing.pix_clk_khz;
+	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
 	pixel_clk_params->encoder_object_id = stream->link->link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
@@ -797,10 +797,10 @@ static void get_pixel_clock_parameters(
 		pixel_clk_params->color_depth = COLOR_DEPTH_888;
 	}
 	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
-		pixel_clk_params->requested_pix_clk  = pixel_clk_params->requested_pix_clk / 2;
+		pixel_clk_params->requested_pix_clk_100hz  = pixel_clk_params->requested_pix_clk_100hz / 2;
 	}
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
-		pixel_clk_params->requested_pix_clk *= 2;
+		pixel_clk_params->requested_pix_clk_100hz *= 2;
 
 }
 
@@ -874,7 +874,7 @@ static bool dce110_validate_bandwidth(
 			__func__,
 			context->streams[0]->timing.h_addressable,
 			context->streams[0]->timing.v_addressable,
-			context->streams[0]->timing.pix_clk_khz);
+			context->streams[0]->timing.pix_clk_100hz / 10);
 
 	if (memcmp(&dc->current_state->bw.dce,
 			&context->bw.dce, sizeof(context->bw.dce))) {
@@ -1055,7 +1055,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 		pipe_ctx->plane_res.mi->funcs->allocate_mem_input(pipe_ctx->plane_res.mi,
 				stream->timing.h_total,
 				stream->timing.v_total,
-				stream->timing.pix_clk_khz,
+				stream->timing.pix_clk_100hz / 10,
 				context->stream_count);
 
 		color_space_to_black_color(dc,

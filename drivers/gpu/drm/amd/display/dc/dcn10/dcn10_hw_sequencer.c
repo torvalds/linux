@@ -2655,7 +2655,7 @@ static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_cursor_mi_param param = {
-		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_khz,
+		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10,
 		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clock_inKhz,
 		.viewport = pipe_ctx->plane_res.scl_data.viewport,
 		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz,

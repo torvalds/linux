@@ -964,9 +964,9 @@ static enum bp_result set_pixel_clock_v3(
 	allocation.sPCLKInput.ucPostDiv =
 			(uint8_t)bp_params->pixel_clock_post_divider;
 
-	/* We need to convert from KHz units into 10KHz units */
+	/* We need to convert from 100Hz units into 10KHz units */
 	allocation.sPCLKInput.usPixelClock =
-			cpu_to_le16((uint16_t)(bp_params->target_pixel_clock / 10));
+			cpu_to_le16((uint16_t)(bp_params->target_pixel_clock_100hz / 100));
 
 	params = (PIXEL_CLOCK_PARAMETERS_V3 *)&allocation.sPCLKInput;
 	params->ucTransmitterId =
@@ -1042,9 +1042,9 @@ static enum bp_result set_pixel_clock_v5(
 				(uint8_t)bp->cmd_helper->encoder_mode_bp_to_atom(
 						bp_params->signal_type, false);
 
-		/* We need to convert from KHz units into 10KHz units */
+		/* We need to convert from 100Hz units into 10KHz units */
 		clk.sPCLKInput.usPixelClock =
-				cpu_to_le16((uint16_t)(bp_params->target_pixel_clock / 10));
+				cpu_to_le16((uint16_t)(bp_params->target_pixel_clock_100hz / 100));
 
 		if (bp_params->flags.FORCE_PROGRAMMING_OF_PLL)
 			clk.sPCLKInput.ucMiscInfo |=
@@ -1118,9 +1118,9 @@ static enum bp_result set_pixel_clock_v6(
 				(uint8_t) bp->cmd_helper->encoder_mode_bp_to_atom(
 						bp_params->signal_type, false);
 
-		/* We need to convert from KHz units into 10KHz units */
+		/* We need to convert from 100 Hz units into 10KHz units */
 		clk.sPCLKInput.ulCrtcPclkFreq.ulPixelClock =
-				cpu_to_le32(bp_params->target_pixel_clock / 10);
+				cpu_to_le32(bp_params->target_pixel_clock_100hz / 100);
 
 		if (bp_params->flags.FORCE_PROGRAMMING_OF_PLL) {
 			clk.sPCLKInput.ucMiscInfo |=
@@ -1182,8 +1182,7 @@ static enum bp_result set_pixel_clock_v7(
 		clk.ucTransmitterID = bp->cmd_helper->encoder_id_to_atom(dal_graphics_object_id_get_encoder_id(bp_params->encoder_object_id));
 		clk.ucEncoderMode = (uint8_t) bp->cmd_helper->encoder_mode_bp_to_atom(bp_params->signal_type, false);
 
-		/* We need to convert from KHz units into 10KHz units */
-		clk.ulPixelClock = cpu_to_le32(bp_params->target_pixel_clock * 10);
+		clk.ulPixelClock = cpu_to_le32(bp_params->target_pixel_clock_100hz);
 
 		clk.ucDeepColorRatio = (uint8_t) bp->cmd_helper->transmitter_color_depth_to_atom(bp_params->color_depth);
 
@@ -2164,7 +2163,7 @@ static enum bp_result program_clock_v5(
 	/* We need to convert from KHz units into 10KHz units */
 	params.sPCLKInput.ucPpll = (uint8_t) atom_pll_id;
 	params.sPCLKInput.usPixelClock =
-			cpu_to_le16((uint16_t) (bp_params->target_pixel_clock / 10));
+			cpu_to_le16((uint16_t) (bp_params->target_pixel_clock_100hz / 100));
 	params.sPCLKInput.ucCRTC = (uint8_t) ATOM_CRTC_INVALID;
 
 	if (bp_params->flags.SET_EXTERNAL_REF_DIV_SRC)
@@ -2196,7 +2195,7 @@ static enum bp_result program_clock_v6(
 	/* We need to convert from KHz units into 10KHz units */
 	params.sPCLKInput.ucPpll = (uint8_t)atom_pll_id;
 	params.sPCLKInput.ulDispEngClkFreq =
-			cpu_to_le32(bp_params->target_pixel_clock / 10);
+			cpu_to_le32(bp_params->target_pixel_clock_100hz / 100);
 
 	if (bp_params->flags.SET_EXTERNAL_REF_DIV_SRC)
 		params.sPCLKInput.ucMiscInfo |= PIXEL_CLOCK_MISC_REF_DIV_SRC;

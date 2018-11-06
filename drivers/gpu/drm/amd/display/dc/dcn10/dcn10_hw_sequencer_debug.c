@@ -429,7 +429,7 @@ static unsigned int dcn10_get_otg_states(struct dc *dc, char *pBuf, unsigned int
 		int pix_clk = 0;
 
 		optc1_read_otg_state(DCN10TG_FROM_TG(tg), &s);
-		pix_clk = dc->current_state->res_ctx.pipe_ctx[i].stream_res.pix_clk_params.requested_pix_clk;
+		pix_clk = dc->current_state->res_ctx.pipe_ctx[i].stream_res.pix_clk_params.requested_pix_clk_100hz / 10;
 
 		//only print if OTG master is enabled
 		if (s.otg_enabled & 1) {

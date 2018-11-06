@@ -974,7 +974,7 @@ static void get_pixel_clock_parameters(
 	struct pixel_clk_params *pixel_clk_params)
 {
 	const struct dc_stream_state *stream = pipe_ctx->stream;
-	pixel_clk_params->requested_pix_clk = stream->timing.pix_clk_khz;
+	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
 	pixel_clk_params->encoder_object_id = stream->link->link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
@@ -991,9 +991,9 @@ static void get_pixel_clock_parameters(
 		pixel_clk_params->color_depth = COLOR_DEPTH_888;
 
 	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		pixel_clk_params->requested_pix_clk  /= 2;
+		pixel_clk_params->requested_pix_clk_100hz  /= 2;
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
-		pixel_clk_params->requested_pix_clk *= 2;
+		pixel_clk_params->requested_pix_clk_100hz *= 2;
 
 }
 

@@ -1079,7 +1079,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 				context->streams[i]->timing.v_addressable,
 				context->streams[i]->timing.h_total,
 				context->streams[i]->timing.v_total,
-				context->streams[i]->timing.pix_clk_khz);
+				context->streams[i]->timing.pix_clk_100hz / 10);
 	}
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);

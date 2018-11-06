@@ -301,9 +301,7 @@ static enum bp_result set_pixel_clock_v7(
 			cmd_helper->encoder_mode_bp_to_atom(
 				bp_params->signal_type, false);
 
-		/* We need to convert from KHz units into 10KHz units */
-		clk.pixclk_100hz = cpu_to_le32(bp_params->target_pixel_clock *
-				10);
+		clk.pixclk_100hz = cpu_to_le32(bp_params->target_pixel_clock_100hz);
 
 		clk.deep_color_ratio =
 			(uint8_t) bp->cmd_helper->
@@ -311,7 +309,7 @@ static enum bp_result set_pixel_clock_v7(
 					bp_params->color_depth);
 		DC_LOG_BIOS("%s:program display clock = %d"\
 				"colorDepth = %d\n", __func__,\
-				bp_params->target_pixel_clock, bp_params->color_depth);
+				bp_params->target_pixel_clock_100hz, bp_params->color_depth);
 
 		if (bp_params->flags.FORCE_PROGRAMMING_OF_PLL)
 			clk.miscinfo |= PIXEL_CLOCK_V7_MISC_FORCE_PROG_PPLL;

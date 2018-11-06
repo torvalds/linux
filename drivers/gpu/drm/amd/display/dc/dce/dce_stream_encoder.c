@@ -662,7 +662,7 @@ static void dce110_stream_encoder_dvi_set_stream_attribute(
 	cntl.signal = is_dual_link ?
 			SIGNAL_TYPE_DVI_DUAL_LINK : SIGNAL_TYPE_DVI_SINGLE_LINK;
 	cntl.enable_dp_audio = false;
-	cntl.pixel_clock = crtc_timing->pix_clk_khz;
+	cntl.pixel_clock = crtc_timing->pix_clk_100hz / 10;
 	cntl.lanes_number = (is_dual_link) ? LANE_COUNT_EIGHT : LANE_COUNT_FOUR;
 
 	if (enc110->base.bp->funcs->encoder_control(
@@ -686,7 +686,7 @@ static void dce110_stream_encoder_lvds_set_stream_attribute(
 	cntl.engine_id = enc110->base.id;
 	cntl.signal = SIGNAL_TYPE_LVDS;
 	cntl.enable_dp_audio = false;
-	cntl.pixel_clock = crtc_timing->pix_clk_khz;
+	cntl.pixel_clock = crtc_timing->pix_clk_100hz / 10;
 	cntl.lanes_number = LANE_COUNT_FOUR;
 
 	if (enc110->base.bp->funcs->encoder_control(

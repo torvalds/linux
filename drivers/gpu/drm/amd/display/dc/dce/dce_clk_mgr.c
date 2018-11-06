@@ -194,8 +194,8 @@ static uint32_t get_max_pixel_clock_for_all_paths(struct dc_state *context)
 		if (pipe_ctx->top_pipe)
 			continue;
 
-		if (pipe_ctx->stream_res.pix_clk_params.requested_pix_clk > max_pix_clk)
-			max_pix_clk = pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
+		if (pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz / 10 > max_pix_clk)
+			max_pix_clk = pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz / 10;
 
 		/* raise clock state for HBR3/2 if required. Confirmed with HW DCE/DPCS
 		 * logic for HBR3 still needs Nominal (0.8V) on VDDC rail
@@ -257,7 +257,7 @@ static int dce_set_clock(
 				clk_mgr_dce->dentist_vco_freq_khz / 64);
 
 	/* Prepare to program display clock*/
-	pxl_clk_params.target_pixel_clock = requested_clk_khz;
+	pxl_clk_params.target_pixel_clock_100hz = requested_clk_khz * 10;
 	pxl_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
 
 	if (clk_mgr_dce->dfs_bypass_active)
@@ -494,7 +494,7 @@ void dce110_fill_display_configs(
 			stream->link->cur_link_settings.link_spread;
 		cfg->sym_clock = stream->phy_pix_clk;
 		/* Round v_refresh*/
-		cfg->v_refresh = stream->timing.pix_clk_khz * 1000;
+		cfg->v_refresh = stream->timing.pix_clk_100hz * 100;
 		cfg->v_refresh /= stream->timing.h_total;
 		cfg->v_refresh = (cfg->v_refresh + stream->timing.v_total / 2)
 							/ stream->timing.v_total;
@@ -518,7 +518,7 @@ static uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context)
 			 - stream->timing.v_addressable);
 
 		vertical_blank_time = vertical_blank_in_pixels
-			* 1000 / stream->timing.pix_clk_khz;
+			* 10000 / stream->timing.pix_clk_100hz;
 
 		if (min_vertical_blank_time > vertical_blank_time)
 			min_vertical_blank_time = vertical_blank_time;
@@ -612,7 +612,7 @@ static void dce11_pplib_apply_display_requirements(
 
 		pp_display_cfg->crtc_index =
 			pp_display_cfg->disp_configs[0].pipe_idx;
-		pp_display_cfg->line_time_in_us = timing->h_total * 1000 / timing->pix_clk_khz;
+		pp_display_cfg->line_time_in_us = timing->h_total * 10000 / timing->pix_clk_100hz;
 	}
 
 	if (memcmp(&dc->current_state->pp_display_cfg, pp_display_cfg, sizeof(*pp_display_cfg)) !=  0)

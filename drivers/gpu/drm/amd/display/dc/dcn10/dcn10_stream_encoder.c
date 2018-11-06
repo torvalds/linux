@@ -594,7 +594,7 @@ void enc1_stream_encoder_dvi_set_stream_attribute(
 	cntl.signal = is_dual_link ?
 			SIGNAL_TYPE_DVI_DUAL_LINK : SIGNAL_TYPE_DVI_SINGLE_LINK;
 	cntl.enable_dp_audio = false;
-	cntl.pixel_clock = crtc_timing->pix_clk_khz;
+	cntl.pixel_clock = crtc_timing->pix_clk_100hz / 10;
 	cntl.lanes_number = (is_dual_link) ? LANE_COUNT_EIGHT : LANE_COUNT_FOUR;
 
 	if (enc1->base.bp->funcs->encoder_control(

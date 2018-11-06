@@ -126,7 +126,7 @@ void optc1_program_vline_interrupt(
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
 	unsigned long long req_delta_tens_of_usec = div64_u64((vsync_delta + 9999), 10000);
-	unsigned long long pix_clk_hundreds_khz = div64_u64((dc_crtc_timing->pix_clk_khz + 99), 100);
+	unsigned long long pix_clk_hundreds_khz = div64_u64((dc_crtc_timing->pix_clk_100hz + 999), 1000);
 	uint32_t req_delta_lines = (uint32_t) div64_u64(
 			(req_delta_tens_of_usec * pix_clk_hundreds_khz + dc_crtc_timing->h_total - 1),
 								dc_crtc_timing->h_total);

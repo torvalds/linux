@@ -1074,7 +1074,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 	/* only 3 items below are used by unblank */
 	params.pixel_clk_khz =
-		pipe_ctx->stream->timing.pix_clk_khz;
+		pipe_ctx->stream->timing.pix_clk_100hz / 10;
 	params.link_settings.link_rate = link_settings->link_rate;
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -1160,27 +1160,27 @@ static void build_audio_output(
 			stream->timing.flags.INTERLACE;
 
 	audio_output->crtc_info.refresh_rate =
-		(stream->timing.pix_clk_khz*1000)/
+		(stream->timing.pix_clk_100hz*10000)/
 		(stream->timing.h_total*stream->timing.v_total);
 
 	audio_output->crtc_info.color_depth =
 		stream->timing.display_color_depth;
 
 	audio_output->crtc_info.requested_pixel_clock =
-			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz / 10;
 
 	audio_output->crtc_info.calculated_pixel_clock =
-			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz / 10;
 
 /*for HDMI, audio ACR is with deep color ratio factor*/
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal) &&
 		audio_output->crtc_info.requested_pixel_clock ==
-				stream->timing.pix_clk_khz) {
+				(stream->timing.pix_clk_100hz / 10)) {
 		if (pipe_ctx->stream_res.pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
 			audio_output->crtc_info.requested_pixel_clock =
 					audio_output->crtc_info.requested_pixel_clock/2;
 			audio_output->crtc_info.calculated_pixel_clock =
-					pipe_ctx->stream_res.pix_clk_params.requested_pix_clk/2;
+					pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz/20;
 
 		}
 	}
@@ -1621,8 +1621,8 @@ static uint32_t compute_pstate_blackout_duration(
 	pstate_blackout_duration_ns = 1000 * blackout_duration.value >> 24;
 
 	total_dest_line_time_ns = 1000000UL *
-		stream->timing.h_total /
-		stream->timing.pix_clk_khz +
+		(stream->timing.h_total * 10) /
+		stream->timing.pix_clk_100hz +
 		pstate_blackout_duration_ns;
 
 	return total_dest_line_time_ns;
@@ -2567,7 +2567,7 @@ static void dce110_apply_ctx_for_surface(
 				pipe_ctx->plane_res.mi,
 				pipe_ctx->stream->timing.h_total,
 				pipe_ctx->stream->timing.v_total,
-				pipe_ctx->stream->timing.pix_clk_khz,
+				pipe_ctx->stream->timing.pix_clk_100hz / 10,
 				context->stream_count);
 
 		dce110_program_front_end_for_pipe(dc, pipe_ctx);
@@ -2622,7 +2622,7 @@ void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
 	struct mem_input *mi = pipe_ctx->plane_res.mi;
 	struct dc_cursor_mi_param param = {
-		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_khz,
+		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10,
 		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clock_inKhz,
 		.viewport = pipe_ctx->plane_res.scl_data.viewport,
 		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz,
