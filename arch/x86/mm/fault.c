@@ -1380,18 +1380,6 @@ retry:
 		bad_area(regs, sw_error_code, address);
 		return;
 	}
-	if (sw_error_code & X86_PF_USER) {
-		/*
-		 * Accessing the stack below %sp is always a bug.
-		 * The large cushion allows instructions like enter
-		 * and pusha to work. ("enter $65535, $31" pushes
-		 * 32 pointers and then decrements %sp by 65535.)
-		 */
-		if (unlikely(address + 65536 + 32 * sizeof(unsigned long) < regs->sp)) {
-			bad_area(regs, sw_error_code, address);
-			return;
-		}
-	}
 	if (unlikely(expand_stack(vma, address))) {
 		bad_area(regs, sw_error_code, address);
 		return;
