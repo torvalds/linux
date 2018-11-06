@@ -1061,6 +1061,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->indir_lock);
 	mutex_init(&priv->stats_mutex);
 	mutex_init(&priv->cfp.lock);
+	INIT_LIST_HEAD(&priv->cfp.rules_list);
 
 	/* CFP rule #0 cannot be used for specific classifications, flag it as
 	 * permanently used
@@ -1166,6 +1167,7 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 
 	priv->wol_ports_mask = 0;
 	dsa_unregister_switch(priv->dev->ds);
+	bcm_sf2_cfp_exit(priv->dev->ds);
 	/* Disable all ports and interrupts */
 	bcm_sf2_sw_suspend(priv->dev->ds);
 	bcm_sf2_mdio_unregister(priv);
