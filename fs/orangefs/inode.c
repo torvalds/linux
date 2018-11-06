@@ -128,10 +128,118 @@ static int orangefs_releasepage(struct page *page, gfp_t foo)
 static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 				  struct iov_iter *iter)
 {
+	/*
+	 * Comment from original do_readv_writev:
+	 * Common entry point for read/write/readv/writev
+	 * This function will dispatch it to either the direct I/O
+	 * or buffered I/O path depending on the mount options and/or
+	 * augmented/extended metadata attached to the file.
+	 * Note: File extended attributes override any mount options.
+	 */
 	struct file *file = iocb->ki_filp;
-	loff_t pos = *(&iocb->ki_pos);
-	return do_readv_writev(iov_iter_rw(iter) == WRITE ?
-	    ORANGEFS_IO_WRITE : ORANGEFS_IO_READ, file, &pos, iter);
+	loff_t pos = iocb->ki_pos;
+	enum ORANGEFS_io_type type = iov_iter_rw(iter) == WRITE ?
+            ORANGEFS_IO_WRITE : ORANGEFS_IO_READ;
+	loff_t *offset = &pos;
+	struct inode *inode = file->f_mapping->host;
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
+	size_t count = iov_iter_count(iter);
+	size_t ORIGINALcount = iov_iter_count(iter);
+	ssize_t total_count = 0;
+	ssize_t ret = -EINVAL;
+	int i = 0;
+
+	gossip_debug(GOSSIP_FILE_DEBUG,
+		"%s-BEGIN(%pU): count(%d) after estimate_max_iovecs.\n",
+		__func__,
+		handle,
+		(int)count);
+
+	if (type == ORANGEFS_IO_WRITE) {
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s(%pU): proceeding with offset : %llu, "
+			     "size %d\n",
+			     __func__,
+			     handle,
+			     llu(*offset),
+			     (int)count);
+	}
+
+	if (count == 0) {
+		ret = 0;
+		goto out;
+	}
+
+	while (iov_iter_count(iter)) {
+		size_t each_count = iov_iter_count(iter);
+		size_t amt_complete;
+		i++;
+
+		/* how much to transfer in this loop iteration */
+		if (each_count > orangefs_bufmap_size_query())
+			each_count = orangefs_bufmap_size_query();
+
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s(%pU): size of each_count(%d)\n",
+			     __func__,
+			     handle,
+			     (int)each_count);
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s(%pU): BEFORE wait_for_io: offset is %d\n",
+			     __func__,
+			     handle,
+			     (int)*offset);
+
+		ret = wait_for_direct_io(type, inode, offset, iter,
+				each_count, 0);
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s(%pU): return from wait_for_io:%d\n",
+			     __func__,
+			     handle,
+			     (int)ret);
+
+		if (ret < 0)
+			goto out;
+
+		*offset += ret;
+		total_count += ret;
+		amt_complete = ret;
+
+		gossip_debug(GOSSIP_FILE_DEBUG,
+			     "%s(%pU): AFTER wait_for_io: offset is %d\n",
+			     __func__,
+			     handle,
+			     (int)*offset);
+
+		/*
+		 * if we got a short I/O operations,
+		 * fall out and return what we got so far
+		 */
+		if (amt_complete < each_count)
+			break;
+	} /*end while */
+
+out:
+	if (total_count > 0)
+		ret = total_count;
+	if (ret > 0) {
+		if (type == ORANGEFS_IO_READ) {
+			file_accessed(file);
+		} else {
+			file_update_time(file);
+			if (*offset > i_size_read(inode))
+				i_size_write(inode, *offset);
+		}
+	}
+
+	gossip_debug(GOSSIP_FILE_DEBUG,
+		     "%s(%pU): Value(%d) returned.\n",
+		     __func__,
+		     handle,
+		     (int)ret);
+
+	return ret;
 }
 
 /** ORANGEFS2 implementation of address space operations */
