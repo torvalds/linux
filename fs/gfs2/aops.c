@@ -820,10 +820,10 @@ out:
  * @page: the page that's being released
  * @gfp_mask: passed from Linux VFS, ignored by us
  *
- * Call try_to_free_buffers() if the buffers in this page can be
- * released.
+ * Calls try_to_free_buffers() to free the buffers and put the page if the
+ * buffers can be released.
  *
- * Returns: 0
+ * Returns: 1 if the page was put or else 0
  */
 
 int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
