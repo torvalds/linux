@@ -80,18 +80,15 @@ static int sdv_gpio_pub_set_type(struct irq_data *d, unsigned int type)
 static irqreturn_t sdv_gpio_pub_irq_handler(int irq, void *data)
 {
 	struct sdv_gpio_chip_data *sd = data;
-	u32 irq_stat = readl(sd->gpio_pub_base + GPSTR);
+	unsigned long irq_stat = readl(sd->gpio_pub_base + GPSTR);
+	int irq_bit;
 
 	irq_stat &= readl(sd->gpio_pub_base + GPIO_INT);
 	if (!irq_stat)
 		return IRQ_NONE;
 
-	while (irq_stat) {
-		u32 irq_bit = __fls(irq_stat);
-
-		irq_stat &= ~BIT(irq_bit);
+	for_each_set_bit(irq_bit, &irq_stat, 32)
 		generic_handle_irq(irq_find_mapping(sd->id, irq_bit));
-	}
 
 	return IRQ_HANDLED;
 }
