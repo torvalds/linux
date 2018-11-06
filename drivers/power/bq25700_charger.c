@@ -31,7 +31,6 @@
 #include <linux/power_supply.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
-#include <linux/rk_keys.h>
 
 static int dbg_enable;
 module_param_named(dbg_level, dbg_enable, int, 0644);
@@ -1261,7 +1260,6 @@ static irqreturn_t bq25700_irq_handler_thread(int irq, void *private)
 		charger->typec1_status = USB_STATUS_NONE;
 	}
 	irq_set_irq_type(irq, irq_flag | IRQF_ONESHOT);
-	rk_send_wakeup_key();
 
 	return IRQ_HANDLED;
 }
