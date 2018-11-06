@@ -39,6 +39,16 @@ config ROCKCHIP_IODOMAIN
 	  necessary for the io domain setting of the SoC to match the
 	  voltage supplied by the regulators.
 
+config ROCKCHIP_IPA
+	tristate "Rockchip IPA support"
+	depends on THERMAL && OF
+	help
+	  Say y here to enable rockchip IPA.
+	  Add a simple power model for ipa to calculate static power and
+	  dynamic power.
+
+	  If unsure, say N.
+
 config ROCKCHIP_PM_DOMAINS
         tristate "Rockchip generic power domain"
         depends on PM
