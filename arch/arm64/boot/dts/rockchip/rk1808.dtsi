@@ -342,6 +342,19 @@
 	qos_pcie: qos@fe880000 {
 		compatible = "syscon";
 		reg = <0x0 0xfe880000 0x0 0x20>;
+		status = "disabled";
+	};
+
+	qos_usb2: qos@fe890000 {
+		compatible = "syscon";
+		reg = <0x0 0xfe890000 0x0 0x20>;
+		status = "disabled";
+	};
+
+	qos_usb3: qos@fe890080 {
+		compatible = "syscon";
+		reg = <0x0 0xfe890080 0x0 0x20>;
+		status = "disabled";
 	};
 
 	qos_isp: qos@fe8a0000 {
@@ -636,7 +649,9 @@
 					 <&cru HCLK_HOST_ARB>,
 					 <&cru SCLK_USB3_OTG0_REF>,
 					 <&cru SCLK_USB3_OTG0_SUSPEND>;
-				pm_qos = <&qos_pcie>;
+				pm_qos = <&qos_pcie>,
+					 <&qos_usb2>,
+					 <&qos_usb3>;
 			};
 			pd_vpu@RK1808_PD_VPU {
 				reg = <RK1808_PD_VPU>;
