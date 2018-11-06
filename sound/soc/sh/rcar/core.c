@@ -1005,6 +1005,29 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.prepare	= rsnd_soc_dai_prepare,
 };
 
+static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
+				     struct rsnd_dai_stream *io,
+				     struct device_node *endpoint)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *remote_node = of_graph_get_remote_port_parent(endpoint);
+
+	if (!rsnd_io_to_mod_ssi(io))
+		return;
+
+	/* HDMI0 */
+	if (strstr(remote_node->full_name, "hdmi@fead0000")) {
+		rsnd_flags_set(io, RSND_STREAM_HDMI0);
+		dev_dbg(dev, "%s connected to HDMI0\n", io->name);
+	}
+
+	/* HDMI1 */
+	if (strstr(remote_node->full_name, "hdmi@feae0000")) {
+		rsnd_flags_set(io, RSND_STREAM_HDMI1);
+		dev_dbg(dev, "%s connected to HDMI1\n", io->name);
+	}
+}
+
 void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
 		struct device_node *node,
@@ -1177,7 +1200,12 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	if (is_graph) {
 		for_each_endpoint_of_node(dai_node, dai_np) {
 			__rsnd_dai_probe(priv, dai_np, dai_i);
-			rsnd_ssi_parse_hdmi_connection(priv, dai_np, dai_i);
+			if (rsnd_is_gen3(priv)) {
+				struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+
+				rsnd_parse_connect_graph(priv, &rdai->playback, dai_np);
+				rsnd_parse_connect_graph(priv, &rdai->capture,  dai_np);
+			}
 			dai_i++;
 		}
 	} else {

@@ -135,7 +135,8 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			       struct rsnd_priv *priv)
 {
 	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
-	int hdmi = rsnd_ssi_hdmi_port(io);
+	u32 has_hdmi0 = rsnd_flags_has(io, RSND_STREAM_HDMI0);
+	u32 has_hdmi1 = rsnd_flags_has(io, RSND_STREAM_HDMI1);
 	int ret;
 	u32 mode = 0;
 
@@ -212,7 +213,7 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 		}
 	}
 
-	if (hdmi) {
+	if (has_hdmi0 || has_hdmi1) {
 		enum rsnd_mod_type rsnd_ssi_array[] = {
 			RSND_MOD_SSIM1,
 			RSND_MOD_SSIM2,
@@ -238,14 +239,10 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 				rsnd_mod_id(pos) << shift;
 		}
 
-		switch (hdmi) {
-		case RSND_SSI_HDMI_PORT0:
+		if (has_hdmi0)
 			rsnd_mod_write(mod, HDMI0_SEL, val);
-			break;
-		case RSND_SSI_HDMI_PORT1:
+		if (has_hdmi1)
 			rsnd_mod_write(mod, HDMI1_SEL, val);
-			break;
-		}
 	}
 
 	return 0;

@@ -458,7 +458,13 @@ struct rsnd_dai_stream {
 	struct rsnd_dai *rdai;
 	struct device *dmac_dev; /* for IPMMU */
 	u32 parent_ssi_status;
+	u32 flags;
 };
+
+/* flags */
+#define RSND_STREAM_HDMI0	(1 << 0) /* for HDMI0 */
+#define RSND_STREAM_HDMI1	(1 << 1) /* for HDMI1 */
+
 #define rsnd_io_to_mod(io, i)	((i) < RSND_MOD_MAX ? (io)->mod[(i)] : NULL)
 #define rsnd_io_to_mod_ssi(io)	rsnd_io_to_mod((io), RSND_MOD_SSI)
 #define rsnd_io_to_mod_ssiu(io)	rsnd_io_to_mod((io), RSND_MOD_SSIU)
@@ -717,13 +723,6 @@ int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io);
 int rsnd_ssi_get_busif(struct rsnd_dai_stream *io);
 u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io);
-
-#define RSND_SSI_HDMI_PORT0	0xf0
-#define RSND_SSI_HDMI_PORT1	0xf1
-int rsnd_ssi_hdmi_port(struct rsnd_dai_stream *io);
-void rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
-				    struct device_node *endpoint,
-				    int dai_i);
 
 #define rsnd_ssi_is_pin_sharing(io)	\
 	__rsnd_ssi_is_pin_sharing(rsnd_io_to_mod_ssi(io))

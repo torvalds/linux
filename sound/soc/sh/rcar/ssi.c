@@ -99,9 +99,7 @@ struct rsnd_ssi {
 /* flags */
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 0)
 #define RSND_SSI_NO_BUSIF		(1 << 1) /* SSI+DMA without BUSIF */
-#define RSND_SSI_HDMI0			(1 << 2) /* for HDMI0 */
-#define RSND_SSI_HDMI1			(1 << 3) /* for HDMI1 */
-#define RSND_SSI_PROBED			(1 << 4)
+#define RSND_SSI_PROBED			(1 << 2)
 
 #define for_each_rsnd_ssi(pos, priv, i)					\
 	for (i = 0;							\
@@ -118,20 +116,6 @@ struct rsnd_ssi {
 #define rsnd_ssi_is_run_mods(mod, io) \
 	(rsnd_ssi_run_mods(io) & (1 << rsnd_mod_id(mod)))
 #define rsnd_ssi_can_output_clk(mod) (!__rsnd_ssi_is_pin_sharing(mod))
-
-int rsnd_ssi_hdmi_port(struct rsnd_dai_stream *io)
-{
-	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-
-	if (rsnd_flags_has(ssi, RSND_SSI_HDMI0))
-		return RSND_SSI_HDMI_PORT0;
-
-	if (rsnd_flags_has(ssi, RSND_SSI_HDMI1))
-		return RSND_SSI_HDMI_PORT1;
-
-	return 0;
-}
 
 int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 {
@@ -1057,48 +1041,6 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 	}
 
 	of_node_put(node);
-}
-
-static void __rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
-					     struct rsnd_dai_stream *io,
-					     struct device_node *remote_ep)
-{
-	struct device *dev = rsnd_priv_to_dev(priv);
-	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
-	struct rsnd_ssi *ssi;
-	struct device_node *remote_node = of_graph_get_port_parent(remote_ep);
-
-	/* support Gen3 only */
-	if (!rsnd_is_gen3(priv))
-		return;
-
-	if (!mod)
-		return;
-
-	ssi  = rsnd_mod_to_ssi(mod);
-
-	/* HDMI0 */
-	if (strstr(remote_node->full_name, "hdmi@fead0000")) {
-		rsnd_flags_set(ssi, RSND_SSI_HDMI0);
-		dev_dbg(dev, "%s connected to HDMI0\n", rsnd_mod_name(mod));
-	}
-
-	/* HDMI1 */
-	if (strstr(remote_node->full_name, "hdmi@feae0000")) {
-		rsnd_flags_set(ssi, RSND_SSI_HDMI1);
-		dev_dbg(dev, "%s connected to HDMI1\n", rsnd_mod_name(mod));
-	}
-}
-
-void rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
-				    struct device_node *endpoint,
-				    int dai_i)
-{
-	struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
-	struct device_node *remote_ep = of_graph_get_remote_endpoint(endpoint);
-
-	__rsnd_ssi_parse_hdmi_connection(priv, &rdai->playback, remote_ep);
-	__rsnd_ssi_parse_hdmi_connection(priv, &rdai->capture,  remote_ep);
 }
 
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
