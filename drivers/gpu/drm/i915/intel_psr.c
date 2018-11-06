@@ -680,12 +680,19 @@ static void intel_psr_exit(struct drm_i915_private *dev_priv)
 	dev_priv->psr.active = false;
 }
 
-static void
-intel_psr_disable_source(struct intel_dp *intel_dp)
+static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	i915_reg_t psr_status;
 	u32 psr_status_mask;
+
+	lockdep_assert_held(&dev_priv->psr.lock);
+
+	if (!dev_priv->psr.enabled)
+		return;
+
+	DRM_DEBUG_KMS("Disabling PSR%s\n",
+		      dev_priv->psr.psr2_enabled ? "2" : "1");
 
 	intel_psr_exit(dev_priv);
 
@@ -701,20 +708,6 @@ intel_psr_disable_source(struct intel_dp *intel_dp)
 	if (intel_wait_for_register(dev_priv, psr_status, psr_status_mask, 0,
 				    2000))
 		DRM_ERROR("Timed out waiting PSR idle state\n");
-}
-
-static void intel_psr_disable_locked(struct intel_dp *intel_dp)
-{
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-
-	lockdep_assert_held(&dev_priv->psr.lock);
-
-	if (!dev_priv->psr.enabled)
-		return;
-
-	DRM_DEBUG_KMS("Disabling PSR%s\n",
-		      dev_priv->psr.psr2_enabled ? "2" : "1");
-	intel_psr_disable_source(intel_dp);
 
 	/* Disable PSR on Sink */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
