@@ -34,6 +34,17 @@ config ROCKCHIP_GRF
 	  In a lot of cases there also need to be default settings initialized
 	  to make some of them conform to expectations of the kernel.
 
+config ROCKCHIP_IPA
+	bool "Rockchip IPA support"
+	depends on THERMAL && OF
+	default y
+	help
+	  Say y here to enable rockchip IPA.
+	  Add a simple power model for ipa to calculate static power and
+	  dynamic power.
+
+	  If unsure, say N.
+
 config ROCKCHIP_PM_DOMAINS
         bool "Rockchip generic power domain"
         depends on PM
