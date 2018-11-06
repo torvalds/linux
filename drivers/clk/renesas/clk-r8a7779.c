@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r8a7779 Core CPG Clocks
  *
  * Copyright (C) 2013, 2014 Horms Solutions Ltd.
  *
  * Contact: Simon Horman <horms@verge.net.au>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/clk-provider.h>
@@ -164,8 +161,8 @@ static void __init r8a7779_cpg_clocks_init(struct device_node *np)
 		clk = r8a7779_cpg_register_clock(np, cpg, config,
 						 plla_mult, name);
 		if (IS_ERR(clk))
-			pr_err("%s: failed to register %s %s clock (%ld)\n",
-			       __func__, np->name, name, PTR_ERR(clk));
+			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
+			       __func__, np, name, PTR_ERR(clk));
 		else
 			cpg->data.clks[i] = clk;
 	}

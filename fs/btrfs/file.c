@@ -3298,8 +3298,7 @@ const struct file_operations btrfs_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= btrfs_compat_ioctl,
 #endif
-	.clone_file_range = btrfs_clone_file_range,
-	.dedupe_file_range = btrfs_dedupe_file_range,
+	.remap_file_range = btrfs_remap_file_range,
 };
 
 void __cold btrfs_auto_defrag_exit(void)

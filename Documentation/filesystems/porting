@@ -623,6 +623,11 @@ in your dentry operations instead.
 	On success you get a new struct file sharing the mount/dentry with the
 	original, on failure - ERR_PTR().
 --
+[mandatory]
+	->clone_file_range() and ->dedupe_file_range have been replaced with
+	->remap_file_range().  See Documentation/filesystems/vfs.txt for more
+	information.
+--
 [recommended]
 	->lookup() instances doing an equivalent of
 		if (IS_ERR(inode))

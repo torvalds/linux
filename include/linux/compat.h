@@ -1032,9 +1032,9 @@ int kcompat_sys_fstatfs64(unsigned int fd, compat_size_t sz,
 #else /* !CONFIG_COMPAT */
 
 #define is_compat_task() (0)
-#ifndef in_compat_syscall
+/* Ensure no one redefines in_compat_syscall() under !CONFIG_COMPAT */
+#define in_compat_syscall in_compat_syscall
 static inline bool in_compat_syscall(void) { return false; }
-#endif
 
 #endif /* CONFIG_COMPAT */
 

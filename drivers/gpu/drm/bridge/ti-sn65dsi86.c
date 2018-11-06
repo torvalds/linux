@@ -458,18 +458,6 @@ static void ti_sn_bridge_enable(struct drm_bridge *bridge)
 	unsigned int val;
 	int ret;
 
-	/*
-	 * FIXME:
-	 * This 70ms was found necessary by experimentation. If it's not
-	 * present, link training fails. It seems like it can go anywhere from
-	 * pre_enable() up to semi-auto link training initiation below.
-	 *
-	 * Neither the datasheet for the bridge nor the panel tested mention a
-	 * delay of this magnitude in the timing requirements. So for now, add
-	 * the mystery delay until someone figures out a better fix.
-	 */
-	msleep(70);
-
 	/* DSI_A lane config */
 	val = CHA_DSI_LANES(4 - pdata->dsi->lanes);
 	regmap_update_bits(pdata->regmap, SN_DSI_LANES_REG,
@@ -536,7 +524,22 @@ static void ti_sn_bridge_pre_enable(struct drm_bridge *bridge)
 	/* configure bridge ref_clk */
 	ti_sn_bridge_set_refclk_freq(pdata);
 
-	/* in case drm_panel is connected then HPD is not supported */
+	/*
+	 * HPD on this bridge chip is a bit useless.  This is an eDP bridge
+	 * so the HPD is an internal signal that's only there to signal that
+	 * the panel is done powering up.  ...but the bridge chip debounces
+	 * this signal by between 100 ms and 400 ms (depending on process,
+	 * voltage, and temperate--I measured it at about 200 ms).  One
+	 * particular panel asserted HPD 84 ms after it was powered on meaning
+	 * that we saw HPD 284 ms after power on.  ...but the same panel said
+	 * that instead of looking at HPD you could just hardcode a delay of
+	 * 200 ms.  We'll assume that the panel driver will have the hardcoded
+	 * delay in its prepare and always disable HPD.
+	 *
+	 * If HPD somehow makes sense on some future panel we'll have to
+	 * change this to be conditional on someone specifying that HPD should
+	 * be used.
+	 */
 	regmap_update_bits(pdata->regmap, SN_HPD_DISABLE_REG, HPD_DISABLE,
 			   HPD_DISABLE);
 

@@ -2115,11 +2115,21 @@ static inline void throtl_update_latency_buckets(struct throtl_data *td)
 }
 #endif
 
+static void blk_throtl_assoc_bio(struct throtl_grp *tg, struct bio *bio)
+{
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+	/* fallback to root_blkg if we fail to get a blkg ref */
+	if (bio->bi_css && (bio_associate_blkg(bio, tg_to_blkg(tg)) == -ENODEV))
+		bio_associate_blkg(bio, bio->bi_disk->queue->root_blkg);
+	bio_issue_init(&bio->bi_issue, bio_sectors(bio));
+#endif
+}
+
 bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 		    struct bio *bio)
 {
 	struct throtl_qnode *qn = NULL;
-	struct throtl_grp *tg = blkg_to_tg(blkg);
+	struct throtl_grp *tg = blkg_to_tg(blkg ?: q->root_blkg);
 	struct throtl_service_queue *sq;
 	bool rw = bio_data_dir(bio);
 	bool throttled = false;
@@ -2138,6 +2148,7 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 	if (unlikely(blk_queue_bypass(q)))
 		goto out_unlock;
 
+	blk_throtl_assoc_bio(tg, bio);
 	blk_throtl_update_idletime(tg);
 
 	sq = &tg->service_queue;

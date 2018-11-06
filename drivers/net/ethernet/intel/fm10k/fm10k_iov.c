@@ -244,7 +244,8 @@ process_mbx:
 		}
 
 		/* guarantee we have free space in the SM mailbox */
-		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU)) {
+		if (hw->mbx.state == FM10K_STATE_OPEN &&
+		    !hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU)) {
 			/* keep track of how many times this occurs */
 			interface->hw_sm_mbx_full++;
 
@@ -302,6 +303,28 @@ void fm10k_iov_suspend(struct pci_dev *pdev)
 	}
 }
 
+static void fm10k_mask_aer_comp_abort(struct pci_dev *pdev)
+{
+	u32 err_mask;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
+	if (!pos)
+		return;
+
+	/* Mask the completion abort bit in the ERR_UNCOR_MASK register,
+	 * preventing the device from reporting these errors to the upstream
+	 * PCIe root device. This avoids bringing down platforms which upgrade
+	 * non-fatal completer aborts into machine check exceptions. Completer
+	 * aborts can occur whenever a VF reads a queue it doesn't own.
+	 */
+	pci_read_config_dword(pdev, pos + PCI_ERR_UNCOR_MASK, &err_mask);
+	err_mask |= PCI_ERR_UNC_COMP_ABORT;
+	pci_write_config_dword(pdev, pos + PCI_ERR_UNCOR_MASK, err_mask);
+
+	mmiowb();
+}
+
 int fm10k_iov_resume(struct pci_dev *pdev)
 {
 	struct fm10k_intfc *interface = pci_get_drvdata(pdev);
@@ -316,6 +339,12 @@ int fm10k_iov_resume(struct pci_dev *pdev)
 	/* return error if iov_data is not already populated */
 	if (!iov_data)
 		return -ENOMEM;
+
+	/* Lower severity of completer abort error reporting as
+	 * the VFs can trigger this any time they read a queue
+	 * that they don't own.
+	 */
+	fm10k_mask_aer_comp_abort(pdev);
 
 	/* allocate hardware resources for the VFs */
 	hw->iov.ops.assign_resources(hw, num_vfs, num_vfs);
@@ -460,20 +489,6 @@ void fm10k_iov_disable(struct pci_dev *pdev)
 	fm10k_iov_free_data(pdev);
 }
 
-static void fm10k_disable_aer_comp_abort(struct pci_dev *pdev)
-{
-	u32 err_sev;
-	int pos;
-
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
-	if (!pos)
-		return;
-
-	pci_read_config_dword(pdev, pos + PCI_ERR_UNCOR_SEVER, &err_sev);
-	err_sev &= ~PCI_ERR_UNC_COMP_ABORT;
-	pci_write_config_dword(pdev, pos + PCI_ERR_UNCOR_SEVER, err_sev);
-}
-
 int fm10k_iov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	int current_vfs = pci_num_vf(pdev);
@@ -495,12 +510,6 @@ int fm10k_iov_configure(struct pci_dev *pdev, int num_vfs)
 
 	/* allocate VFs if not already allocated */
 	if (num_vfs && num_vfs != current_vfs) {
-		/* Disable completer abort error reporting as
-		 * the VFs can trigger this any time they read a queue
-		 * that they don't own.
-		 */
-		fm10k_disable_aer_comp_abort(pdev);
-
 		err = pci_enable_sriov(pdev, num_vfs);
 		if (err) {
 			dev_err(&pdev->dev,

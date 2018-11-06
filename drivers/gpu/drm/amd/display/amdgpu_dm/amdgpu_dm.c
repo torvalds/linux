@@ -1524,6 +1524,13 @@ static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 {
 	struct amdgpu_display_manager *dm = bl_get_data(bd);
 
+	/*
+	 * PWM interperts 0 as 100% rather than 0% because of HW
+	 * limitation for level 0.So limiting minimum brightness level
+	 * to 1.
+	 */
+	if (bd->props.brightness < 1)
+		return 1;
 	if (dc_link_set_backlight_level(dm->backlight_link,
 			bd->props.brightness, 0, 0))
 		return 0;

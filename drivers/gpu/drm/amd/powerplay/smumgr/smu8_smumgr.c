@@ -71,7 +71,11 @@ static int smu8_send_msg_to_smc_async(struct pp_hwmgr *hwmgr, uint16_t msg)
 	result = PHM_WAIT_FIELD_UNEQUAL(hwmgr,
 					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
 	if (result != 0) {
+		/* Read the last message to SMU, to report actual cause */
+		uint32_t val = cgs_read_register(hwmgr->device,
+						 mmSMU_MP1_SRBM2P_MSG_0);
 		pr_err("smu8_send_msg_to_smc_async (0x%04x) failed\n", msg);
+		pr_err("SMU still servicing msg (0x%04x)\n", val);
 		return result;
 	}
 

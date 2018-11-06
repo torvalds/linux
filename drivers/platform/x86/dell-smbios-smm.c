@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-#include "../../firmware/dcdbas.h"
+#include "dcdbas.h"
 #include "dell-smbios.h"
 
 static int da_command_address;

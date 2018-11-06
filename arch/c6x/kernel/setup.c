@@ -290,7 +290,6 @@ notrace void __init machine_init(unsigned long dt_ptr)
 
 void __init setup_arch(char **cmdline_p)
 {
-	int bootmap_size;
 	struct memblock_region *reg;
 
 	printk(KERN_INFO "Initializing kernel\n");
@@ -347,16 +346,6 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data   = memory_start;
 	init_mm.brk        = memory_start;
 
-	/*
-	 * Give all the memory to the bootmap allocator,  tell it to put the
-	 * boot mem_map at the start of memory
-	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0),
-					 memory_start >> PAGE_SHIFT,
-					 PAGE_OFFSET >> PAGE_SHIFT,
-					 memory_end >> PAGE_SHIFT);
-	memblock_reserve(memory_start, bootmap_size);
-
 	unflatten_and_copy_device_tree();
 
 	c6x_cache_init();
@@ -391,22 +380,9 @@ void __init setup_arch(char **cmdline_p)
 	/* Initialize the coherent memory allocator */
 	coherent_mem_init(dma_start, dma_size);
 
-	/*
-	 * Free all memory as a starting point.
-	 */
-	free_bootmem(PAGE_OFFSET, memory_end - PAGE_OFFSET);
-
-	/*
-	 * Then reserve memory which is already being used.
-	 */
-	for_each_memblock(reserved, reg) {
-		pr_debug("reserved - 0x%08x-0x%08x\n",
-			 (u32) reg->base, (u32) reg->size);
-		reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
-	}
-
 	max_low_pfn = PFN_DOWN(memory_end);
 	min_low_pfn = PFN_UP(memory_start);
+	max_pfn = max_low_pfn;
 	max_mapnr = max_low_pfn - min_low_pfn;
 
 	/* Get kmalloc into gear */

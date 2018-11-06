@@ -4535,7 +4535,7 @@ __init int intel_pmu_init(void)
 		}
 	}
 
-	snprintf(pmu_name_str, sizeof pmu_name_str, "%s", name);
+	snprintf(pmu_name_str, sizeof(pmu_name_str), "%s", name);
 
 	if (version >= 2 && extra_attr) {
 		x86_pmu.format_attrs = merge_attr(intel_arch3_formats_attr,

@@ -701,10 +701,10 @@ static void __set_personality_x32(void)
 		current->mm->context.ia32_compat = TIF_X32;
 	current->personality &= ~READ_IMPLIES_EXEC;
 	/*
-	 * in_compat_syscall() uses the presence of the x32 syscall bit
+	 * in_32bit_syscall() uses the presence of the x32 syscall bit
 	 * flag to determine compat status.  The x86 mmap() code relies on
 	 * the syscall bitness so set x32 syscall bit right here to make
-	 * in_compat_syscall() work during exec().
+	 * in_32bit_syscall() work during exec().
 	 *
 	 * Pretend to come from a x32 execve.
 	 */

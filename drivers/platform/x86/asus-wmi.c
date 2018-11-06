@@ -43,6 +43,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/platform_data/x86/asus-wmi.h>
 #include <linux/platform_device.h>
 #include <linux/thermal.h>
 #include <linux/acpi.h>
@@ -68,89 +69,6 @@ MODULE_LICENSE("GPL");
 #define NOTIFY_KBD_BRTUP		0xc4
 #define NOTIFY_KBD_BRTDWN		0xc5
 #define NOTIFY_KBD_BRTTOGGLE		0xc7
-
-/* WMI Methods */
-#define ASUS_WMI_METHODID_SPEC	        0x43455053 /* BIOS SPECification */
-#define ASUS_WMI_METHODID_SFBD		0x44424653 /* Set First Boot Device */
-#define ASUS_WMI_METHODID_GLCD		0x44434C47 /* Get LCD status */
-#define ASUS_WMI_METHODID_GPID		0x44495047 /* Get Panel ID?? (Resol) */
-#define ASUS_WMI_METHODID_QMOD		0x444F4D51 /* Quiet MODe */
-#define ASUS_WMI_METHODID_SPLV		0x4C425053 /* Set Panel Light Value */
-#define ASUS_WMI_METHODID_AGFN		0x4E464741 /* FaN? */
-#define ASUS_WMI_METHODID_SFUN		0x4E554653 /* FUNCtionalities */
-#define ASUS_WMI_METHODID_SDSP		0x50534453 /* Set DiSPlay output */
-#define ASUS_WMI_METHODID_GDSP		0x50534447 /* Get DiSPlay output */
-#define ASUS_WMI_METHODID_DEVP		0x50564544 /* DEVice Policy */
-#define ASUS_WMI_METHODID_OSVR		0x5256534F /* OS VeRsion */
-#define ASUS_WMI_METHODID_DSTS		0x53544344 /* Device STatuS */
-#define ASUS_WMI_METHODID_DSTS2		0x53545344 /* Device STatuS #2*/
-#define ASUS_WMI_METHODID_BSTS		0x53545342 /* Bios STatuS ? */
-#define ASUS_WMI_METHODID_DEVS		0x53564544 /* DEVice Set */
-#define ASUS_WMI_METHODID_CFVS		0x53564643 /* CPU Frequency Volt Set */
-#define ASUS_WMI_METHODID_KBFT		0x5446424B /* KeyBoard FilTer */
-#define ASUS_WMI_METHODID_INIT		0x54494E49 /* INITialize */
-#define ASUS_WMI_METHODID_HKEY		0x59454B48 /* Hot KEY ?? */
-
-#define ASUS_WMI_UNSUPPORTED_METHOD	0xFFFFFFFE
-
-/* Wireless */
-#define ASUS_WMI_DEVID_HW_SWITCH	0x00010001
-#define ASUS_WMI_DEVID_WIRELESS_LED	0x00010002
-#define ASUS_WMI_DEVID_CWAP		0x00010003
-#define ASUS_WMI_DEVID_WLAN		0x00010011
-#define ASUS_WMI_DEVID_WLAN_LED		0x00010012
-#define ASUS_WMI_DEVID_BLUETOOTH	0x00010013
-#define ASUS_WMI_DEVID_GPS		0x00010015
-#define ASUS_WMI_DEVID_WIMAX		0x00010017
-#define ASUS_WMI_DEVID_WWAN3G		0x00010019
-#define ASUS_WMI_DEVID_UWB		0x00010021
-
-/* Leds */
-/* 0x000200XX and 0x000400XX */
-#define ASUS_WMI_DEVID_LED1		0x00020011
-#define ASUS_WMI_DEVID_LED2		0x00020012
-#define ASUS_WMI_DEVID_LED3		0x00020013
-#define ASUS_WMI_DEVID_LED4		0x00020014
-#define ASUS_WMI_DEVID_LED5		0x00020015
-#define ASUS_WMI_DEVID_LED6		0x00020016
-
-/* Backlight and Brightness */
-#define ASUS_WMI_DEVID_ALS_ENABLE	0x00050001 /* Ambient Light Sensor */
-#define ASUS_WMI_DEVID_BACKLIGHT	0x00050011
-#define ASUS_WMI_DEVID_BRIGHTNESS	0x00050012
-#define ASUS_WMI_DEVID_KBD_BACKLIGHT	0x00050021
-#define ASUS_WMI_DEVID_LIGHT_SENSOR	0x00050022 /* ?? */
-#define ASUS_WMI_DEVID_LIGHTBAR		0x00050025
-
-/* Misc */
-#define ASUS_WMI_DEVID_CAMERA		0x00060013
-
-/* Storage */
-#define ASUS_WMI_DEVID_CARDREADER	0x00080013
-
-/* Input */
-#define ASUS_WMI_DEVID_TOUCHPAD		0x00100011
-#define ASUS_WMI_DEVID_TOUCHPAD_LED	0x00100012
-
-/* Fan, Thermal */
-#define ASUS_WMI_DEVID_THERMAL_CTRL	0x00110011
-#define ASUS_WMI_DEVID_FAN_CTRL		0x00110012
-
-/* Power */
-#define ASUS_WMI_DEVID_PROCESSOR_STATE	0x00120012
-
-/* Deep S3 / Resume on LID open */
-#define ASUS_WMI_DEVID_LID_RESUME	0x00120031
-
-/* DSTS masks */
-#define ASUS_WMI_DSTS_STATUS_BIT	0x00000001
-#define ASUS_WMI_DSTS_UNKNOWN_BIT	0x00000002
-#define ASUS_WMI_DSTS_PRESENCE_BIT	0x00010000
-#define ASUS_WMI_DSTS_USER_BIT		0x00020000
-#define ASUS_WMI_DSTS_BIOS_BIT		0x00040000
-#define ASUS_WMI_DSTS_BRIGHTNESS_MASK	0x000000FF
-#define ASUS_WMI_DSTS_MAX_BRIGTH_MASK	0x0000FF00
-#define ASUS_WMI_DSTS_LIGHTBAR_MASK	0x0000000F
 
 #define ASUS_FAN_DESC			"cpu_fan"
 #define ASUS_FAN_MFUN			0x13
@@ -239,7 +157,6 @@ struct asus_wmi {
 	int lightbar_led_wk;
 	struct workqueue_struct *led_workqueue;
 	struct work_struct tpd_led_work;
-	struct work_struct kbd_led_work;
 	struct work_struct wlan_led_work;
 	struct work_struct lightbar_led_work;
 
@@ -302,8 +219,7 @@ static void asus_wmi_input_exit(struct asus_wmi *asus)
 	asus->inputdev = NULL;
 }
 
-static int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
-				    u32 *retval)
+int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1, u32 *retval)
 {
 	struct bios_args args = {
 		.arg0 = arg0,
@@ -339,6 +255,7 @@ exit:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(asus_wmi_evaluate_method);
 
 static int asus_wmi_evaluate_method_agfn(const struct acpi_buffer args)
 {
@@ -456,12 +373,9 @@ static enum led_brightness tpd_led_get(struct led_classdev *led_cdev)
 	return read_tpd_led_state(asus);
 }
 
-static void kbd_led_update(struct work_struct *work)
+static void kbd_led_update(struct asus_wmi *asus)
 {
 	int ctrl_param = 0;
-	struct asus_wmi *asus;
-
-	asus = container_of(work, struct asus_wmi, kbd_led_work);
 
 	/*
 	 * bits 0-2: level
@@ -471,7 +385,6 @@ static void kbd_led_update(struct work_struct *work)
 		ctrl_param = 0x80 | (asus->kbd_led_wk & 0x7F);
 
 	asus_wmi_set_devstate(ASUS_WMI_DEVID_KBD_BACKLIGHT, ctrl_param, NULL);
-	led_classdev_notify_brightness_hw_changed(&asus->kbd_led, asus->kbd_led_wk);
 }
 
 static int kbd_led_read(struct asus_wmi *asus, int *level, int *env)
@@ -516,13 +429,21 @@ static void do_kbd_led_set(struct led_classdev *led_cdev, int value)
 		value = 0;
 
 	asus->kbd_led_wk = value;
-	queue_work(asus->led_workqueue, &asus->kbd_led_work);
+	kbd_led_update(asus);
 }
 
 static void kbd_led_set(struct led_classdev *led_cdev,
 			enum led_brightness value)
 {
 	do_kbd_led_set(led_cdev, value);
+}
+
+static void kbd_led_set_by_kbd(struct asus_wmi *asus, enum led_brightness value)
+{
+	struct led_classdev *led_cdev = &asus->kbd_led;
+
+	do_kbd_led_set(led_cdev, value);
+	led_classdev_notify_brightness_hw_changed(led_cdev, asus->kbd_led_wk);
 }
 
 static enum led_brightness kbd_led_get(struct led_classdev *led_cdev)
@@ -671,8 +592,6 @@ static int asus_wmi_led_init(struct asus_wmi *asus)
 
 	led_val = kbd_led_read(asus, NULL, NULL);
 	if (led_val >= 0) {
-		INIT_WORK(&asus->kbd_led_work, kbd_led_update);
-
 		asus->kbd_led_wk = led_val;
 		asus->kbd_led.name = "asus::kbd_backlight";
 		asus->kbd_led.flags = LED_BRIGHT_HW_CHANGED;
@@ -1746,18 +1665,18 @@ static void asus_wmi_notify(u32 value, void *context)
 	}
 
 	if (code == NOTIFY_KBD_BRTUP) {
-		do_kbd_led_set(&asus->kbd_led, asus->kbd_led_wk + 1);
+		kbd_led_set_by_kbd(asus, asus->kbd_led_wk + 1);
 		goto exit;
 	}
 	if (code == NOTIFY_KBD_BRTDWN) {
-		do_kbd_led_set(&asus->kbd_led, asus->kbd_led_wk - 1);
+		kbd_led_set_by_kbd(asus, asus->kbd_led_wk - 1);
 		goto exit;
 	}
 	if (code == NOTIFY_KBD_BRTTOGGLE) {
 		if (asus->kbd_led_wk == asus->kbd_led.max_brightness)
-			do_kbd_led_set(&asus->kbd_led, 0);
+			kbd_led_set_by_kbd(asus, 0);
 		else
-			do_kbd_led_set(&asus->kbd_led, asus->kbd_led_wk + 1);
+			kbd_led_set_by_kbd(asus, asus->kbd_led_wk + 1);
 		goto exit;
 	}
 
@@ -2291,7 +2210,7 @@ static int asus_hotk_resume(struct device *device)
 	struct asus_wmi *asus = dev_get_drvdata(device);
 
 	if (!IS_ERR_OR_NULL(asus->kbd_led.dev))
-		queue_work(asus->led_workqueue, &asus->kbd_led_work);
+		kbd_led_update(asus);
 
 	return 0;
 }
@@ -2327,7 +2246,7 @@ static int asus_hotk_restore(struct device *device)
 		rfkill_set_sw_state(asus->uwb.rfkill, bl);
 	}
 	if (!IS_ERR_OR_NULL(asus->kbd_led.dev))
-		queue_work(asus->led_workqueue, &asus->kbd_led_work);
+		kbd_led_update(asus);
 
 	return 0;
 }

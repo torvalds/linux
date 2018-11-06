@@ -943,8 +943,8 @@ static int mlxsw_devlink_core_bus_device_reload(struct devlink *devlink,
 					     mlxsw_core->bus,
 					     mlxsw_core->bus_priv, true,
 					     devlink);
-	if (err)
-		mlxsw_core->reload_fail = true;
+	mlxsw_core->reload_fail = !!err;
+
 	return err;
 }
 
@@ -1083,8 +1083,15 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 
-	if (mlxsw_core->reload_fail)
-		goto reload_fail;
+	if (mlxsw_core->reload_fail) {
+		if (!reload)
+			/* Only the parts that were not de-initialized in the
+			 * failed reload attempt need to be de-initialized.
+			 */
+			goto reload_fail_deinit;
+		else
+			return;
+	}
 
 	if (mlxsw_core->driver->fini)
 		mlxsw_core->driver->fini(mlxsw_core);
@@ -1098,9 +1105,12 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 	if (!reload)
 		devlink_resources_unregister(devlink, NULL);
 	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
-	if (reload)
-		return;
-reload_fail:
+
+	return;
+
+reload_fail_deinit:
+	devlink_unregister(devlink);
+	devlink_resources_unregister(devlink, NULL);
 	devlink_free(devlink);
 }
 EXPORT_SYMBOL(mlxsw_core_bus_device_unregister);

@@ -788,7 +788,7 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 	struct page **pages = NULL;
 	struct bio_vec *bv = NULL;
 
-	if (iter->type & ITER_KVEC) {
+	if (iov_iter_is_kvec(iter)) {
 		memcpy(&ctx->iter, iter, sizeof(struct iov_iter));
 		ctx->len = count;
 		iov_iter_advance(iter, count);
@@ -859,7 +859,7 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 	ctx->bv = bv;
 	ctx->len = saved_len - count;
 	ctx->npages = npages;
-	iov_iter_bvec(&ctx->iter, ITER_BVEC | rw, ctx->bv, npages, ctx->len);
+	iov_iter_bvec(&ctx->iter, rw, ctx->bv, npages, ctx->len);
 	return 0;
 }
 

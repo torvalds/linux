@@ -2409,7 +2409,7 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 	r = kvm_apic_state_fixup(vcpu, s, true);
 	if (r)
 		return r;
-	memcpy(vcpu->arch.apic->regs, s->regs, sizeof *s);
+	memcpy(vcpu->arch.apic->regs, s->regs, sizeof(*s));
 
 	recalculate_apic_map(vcpu->kvm);
 	kvm_apic_set_version(vcpu);

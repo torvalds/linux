@@ -799,7 +799,7 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	struct crypto_tfm *tfm = crypto_aead_tfm(ctx->aead_send);
 	bool async_capable = tfm->__crt_alg->cra_flags & CRYPTO_ALG_ASYNC;
 	unsigned char record_type = TLS_RECORD_TYPE_DATA;
-	bool is_kvec = msg->msg_iter.type & ITER_KVEC;
+	bool is_kvec = iov_iter_is_kvec(&msg->msg_iter);
 	bool eor = !(msg->msg_flags & MSG_MORE);
 	size_t try_to_copy, copied = 0;
 	struct sk_msg *msg_pl, *msg_en;
@@ -1457,7 +1457,7 @@ int tls_sw_recvmsg(struct sock *sk,
 	bool cmsg = false;
 	int target, err = 0;
 	long timeo;
-	bool is_kvec = msg->msg_iter.type & ITER_KVEC;
+	bool is_kvec = iov_iter_is_kvec(&msg->msg_iter);
 	int num_async = 0;
 
 	flags |= nonblock;

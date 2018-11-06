@@ -107,8 +107,8 @@ struct krb5_ctx {
 	u8			Ksess[GSS_KRB5_MAX_KEYLEN]; /* session key */
 	u8			cksum[GSS_KRB5_MAX_KEYLEN];
 	s32			endtime;
-	u32			seq_send;
-	u64			seq_send64;
+	atomic_t		seq_send;
+	atomic64_t		seq_send64;
 	struct xdr_netobj	mech_used;
 	u8			initiator_sign[GSS_KRB5_MAX_KEYLEN];
 	u8			acceptor_sign[GSS_KRB5_MAX_KEYLEN];
@@ -117,9 +117,6 @@ struct krb5_ctx {
 	u8			initiator_integ[GSS_KRB5_MAX_KEYLEN];
 	u8			acceptor_integ[GSS_KRB5_MAX_KEYLEN];
 };
-
-extern u32 gss_seq_send_fetch_and_inc(struct krb5_ctx *ctx);
-extern u64 gss_seq_send64_fetch_and_inc(struct krb5_ctx *ctx);
 
 /* The length of the Kerberos GSS token header */
 #define GSS_KRB5_TOK_HDR_LEN	(16)

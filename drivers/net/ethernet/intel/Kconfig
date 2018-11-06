@@ -200,6 +200,15 @@ config IXGBE_DCB
 
 	  If unsure, say N.
 
+config IXGBE_IPSEC
+	bool "IPSec XFRM cryptography-offload acceleration"
+	depends on IXGBE
+	depends on XFRM_OFFLOAD
+	default y
+	select XFRM_ALGO
+	---help---
+	  Enable support for IPSec offload in ixgbe.ko
+
 config IXGBEVF
 	tristate "Intel(R) 10GbE PCI Express Virtual Function Ethernet support"
 	depends on PCI_MSI
@@ -216,6 +225,15 @@ config IXGBEVF
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbevf.  MSI-X interrupt support is required
 	  for this driver to work correctly.
+
+config IXGBEVF_IPSEC
+	bool "IPSec XFRM cryptography-offload acceleration"
+	depends on IXGBEVF
+	depends on XFRM_OFFLOAD
+	default y
+	select XFRM_ALGO
+	---help---
+	  Enable support for IPSec offload in ixgbevf.ko
 
 config I40E
 	tristate "Intel(R) Ethernet Controller XL710 Family support"

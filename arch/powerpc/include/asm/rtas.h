@@ -5,6 +5,7 @@
 #include <linux/spinlock.h>
 #include <asm/page.h>
 #include <linux/time.h>
+#include <linux/cpumask.h>
 
 /*
  * Definitions for talking to the RTAS on CHRP machines.

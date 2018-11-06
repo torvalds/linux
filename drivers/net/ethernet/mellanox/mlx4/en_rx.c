@@ -43,6 +43,7 @@
 #include <linux/vmalloc.h>
 #include <linux/irq.h>
 
+#include <net/ip.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ip6_checksum.h>
 #endif

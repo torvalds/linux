@@ -773,7 +773,7 @@ static struct plat_serial8250_port ams_delta_modem_ports[] = {
 	{
 		.membase	= IOMEM(MODEM_VIRT),
 		.mapbase	= MODEM_PHYS,
-		.irq		= -EINVAL, /* changed later */
+		.irq		= IRQ_NOTCONNECTED, /* changed later */
 		.flags		= UPF_BOOT_AUTOCONF,
 		.irqflags	= IRQF_TRIGGER_RISING,
 		.iotype		= UPIO_MEM,
@@ -864,8 +864,7 @@ static int __init modem_nreset_init(void)
 
 
 /*
- * This function expects MODEM IRQ number already assigned to the port
- * and fails if it's not.
+ * This function expects MODEM IRQ number already assigned to the port.
  * The MODEM device requires its RESET# pin kept high during probe.
  * That requirement can be fulfilled in several ways:
  * - with a descriptor of already functional modem_nreset regulator
@@ -887,9 +886,6 @@ static int __init ams_delta_modem_init(void)
 
 	if (!machine_is_ams_delta())
 		return -ENODEV;
-
-	if (ams_delta_modem_ports[0].irq < 0)
-		return ams_delta_modem_ports[0].irq;
 
 	omap_cfg_reg(M14_1510_GPIO2);
 
