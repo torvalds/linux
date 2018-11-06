@@ -2,7 +2,6 @@
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include <linux/prefetch.h>
-#include <net/busy_poll.h>
 #include <linux/bpf_trace.h>
 #include <net/xdp.h>
 #include "i40e.h"

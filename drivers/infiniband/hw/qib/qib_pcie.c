@@ -597,7 +597,6 @@ qib_pci_resume(struct pci_dev *pdev)
 	struct qib_devdata *dd = pci_get_drvdata(pdev);
 
 	qib_devinfo(pdev, "QIB resume function called\n");
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	/*
 	 * Running jobs will fail, since it's asynchronous
 	 * unlike sysfs-requested reset.   Better than

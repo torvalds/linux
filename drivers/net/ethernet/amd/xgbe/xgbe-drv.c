@@ -119,7 +119,6 @@
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
 #include <linux/interrupt.h>
-#include <net/busy_poll.h>
 #include <linux/clk.h>
 #include <linux/if_ether.h>
 #include <linux/net_tstamp.h>

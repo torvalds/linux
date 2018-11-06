@@ -1317,8 +1317,8 @@ int ivtv_get_input(struct ivtv *itv, u16 index, struct v4l2_input *input)
 	if (index >= itv->nof_inputs)
 		return -EINVAL;
 	input->index = index;
-	strlcpy(input->name, input_strs[card_input->video_type - 1],
-			sizeof(input->name));
+	strscpy(input->name, input_strs[card_input->video_type - 1],
+		sizeof(input->name));
 	input->type = (card_input->video_type == IVTV_CARD_INPUT_VID_TUNER ?
 			V4L2_INPUT_TYPE_TUNER : V4L2_INPUT_TYPE_CAMERA);
 	input->audioset = (1 << itv->nof_audio_inputs) - 1;
@@ -1334,7 +1334,7 @@ int ivtv_get_output(struct ivtv *itv, u16 index, struct v4l2_output *output)
 	if (index >= itv->card->nof_outputs)
 		return -EINVAL;
 	output->index = index;
-	strlcpy(output->name, card_output->name, sizeof(output->name));
+	strscpy(output->name, card_output->name, sizeof(output->name));
 	output->type = V4L2_OUTPUT_TYPE_ANALOG;
 	output->audioset = 1;
 	output->std = V4L2_STD_ALL;
@@ -1353,8 +1353,8 @@ int ivtv_get_audio_input(struct ivtv *itv, u16 index, struct v4l2_audio *audio)
 	memset(audio, 0, sizeof(*audio));
 	if (index >= itv->nof_audio_inputs)
 		return -EINVAL;
-	strlcpy(audio->name, input_strs[aud_input->audio_type - 1],
-			sizeof(audio->name));
+	strscpy(audio->name, input_strs[aud_input->audio_type - 1],
+		sizeof(audio->name));
 	audio->index = index;
 	audio->capability = V4L2_AUDCAP_STEREO;
 	return 0;
@@ -1365,6 +1365,6 @@ int ivtv_get_audio_output(struct ivtv *itv, u16 index, struct v4l2_audioout *aud
 	memset(aud_output, 0, sizeof(*aud_output));
 	if (itv->card->video_outputs == NULL || index != 0)
 		return -EINVAL;
-	strlcpy(aud_output->name, "A/V Audio Out", sizeof(aud_output->name));
+	strscpy(aud_output->name, "A/V Audio Out", sizeof(aud_output->name));
 	return 0;
 }

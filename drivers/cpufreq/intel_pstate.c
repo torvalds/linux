@@ -386,16 +386,11 @@ static int intel_pstate_get_cppc_guranteed(int cpu)
 	return cppc_perf.guaranteed_perf;
 }
 
-#else
+#else /* CONFIG_ACPI_CPPC_LIB */
 static void intel_pstate_set_itmt_prio(int cpu)
 {
 }
-
-static int intel_pstate_get_cppc_guranteed(int cpu)
-{
-	return -ENOTSUPP;
-}
-#endif
+#endif /* CONFIG_ACPI_CPPC_LIB */
 
 static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 {
@@ -477,7 +472,7 @@ static void intel_pstate_exit_perf_limits(struct cpufreq_policy *policy)
 
 	acpi_processor_unregister_performance(policy->cpu);
 }
-#else
+#else /* CONFIG_ACPI */
 static inline void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 {
 }
@@ -490,7 +485,14 @@ static inline bool intel_pstate_acpi_pm_profile_server(void)
 {
 	return false;
 }
-#endif
+#endif /* CONFIG_ACPI */
+
+#ifndef CONFIG_ACPI_CPPC_LIB
+static int intel_pstate_get_cppc_guranteed(int cpu)
+{
+	return -ENOTSUPP;
+}
+#endif /* CONFIG_ACPI_CPPC_LIB */
 
 static inline void update_turbo_state(void)
 {

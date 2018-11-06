@@ -492,6 +492,9 @@ config ACPI_EXTLOG
 	  driver adds support for that functionality with corresponding
 	  tracepoint which carries that information to userspace.
 
+config ACPI_ADXL
+	bool
+
 menuconfig PMIC_OPREGION
 	bool "PMIC (Power Management Integrated Circuit) operation region support"
 	help
@@ -509,7 +512,7 @@ config CRC_PMIC_OPREGION
 
 config XPOWER_PMIC_OPREGION
 	bool "ACPI operation region support for XPower AXP288 PMIC"
-	depends on MFD_AXP20X_I2C
+	depends on MFD_AXP20X_I2C && IOSF_MBI
 	help
 	  This config adds ACPI operation region support for XPower AXP288 PMIC.
 

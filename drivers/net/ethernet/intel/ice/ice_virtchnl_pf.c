@@ -173,6 +173,7 @@ static void ice_dis_vf_mappings(struct ice_vf *vf)
 	vsi = pf->vsi[vf->lan_vsi_idx];
 
 	wr32(hw, VPINT_ALLOC(vf->vf_id), 0);
+	wr32(hw, VPINT_ALLOC_PCI(vf->vf_id), 0);
 
 	first = vf->first_vector_idx;
 	last = first + pf->num_vf_msix - 1;
@@ -519,6 +520,10 @@ static void ice_ena_vf_mappings(struct ice_vf *vf)
 	       VPINT_ALLOC_VALID_M);
 	wr32(hw, VPINT_ALLOC(vf->vf_id), reg);
 
+	reg = (((first << VPINT_ALLOC_PCI_FIRST_S) & VPINT_ALLOC_PCI_FIRST_M) |
+	       ((last << VPINT_ALLOC_PCI_LAST_S) & VPINT_ALLOC_PCI_LAST_M) |
+	       VPINT_ALLOC_PCI_VALID_M);
+	wr32(hw, VPINT_ALLOC_PCI(vf->vf_id), reg);
 	/* map the interrupts to its functions */
 	for (v = first; v <= last; v++) {
 		reg = (((abs_vf_id << GLINT_VECT2FUNC_VF_NUM_S) &
@@ -528,10 +533,11 @@ static void ice_ena_vf_mappings(struct ice_vf *vf)
 		wr32(hw, GLINT_VECT2FUNC(v), reg);
 	}
 
+	/* set regardless of mapping mode */
+	wr32(hw, VPLAN_TXQ_MAPENA(vf->vf_id), VPLAN_TXQ_MAPENA_TX_ENA_M);
+
 	/* VF Tx queues allocation */
 	if (vsi->tx_mapping_mode == ICE_VSI_MAP_CONTIG) {
-		wr32(hw, VPLAN_TXQ_MAPENA(vf->vf_id),
-		     VPLAN_TXQ_MAPENA_TX_ENA_M);
 		/* set the VF PF Tx queue range
 		 * VFNUMQ value should be set to (number of queues - 1). A value
 		 * of 0 means 1 queue and a value of 255 means 256 queues
@@ -546,10 +552,11 @@ static void ice_ena_vf_mappings(struct ice_vf *vf)
 			"Scattered mode for VF Tx queues is not yet implemented\n");
 	}
 
+	/* set regardless of mapping mode */
+	wr32(hw, VPLAN_RXQ_MAPENA(vf->vf_id), VPLAN_RXQ_MAPENA_RX_ENA_M);
+
 	/* VF Rx queues allocation */
 	if (vsi->rx_mapping_mode == ICE_VSI_MAP_CONTIG) {
-		wr32(hw, VPLAN_RXQ_MAPENA(vf->vf_id),
-		     VPLAN_RXQ_MAPENA_RX_ENA_M);
 		/* set the VF PF Rx queue range
 		 * VFNUMQ value should be set to (number of queues - 1). A value
 		 * of 0 means 1 queue and a value of 255 means 256 queues

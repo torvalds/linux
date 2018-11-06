@@ -15,3 +15,7 @@ obj-$(CONFIG_ZCRYPT) += zcrypt_cex2c.o zcrypt_cex2a.o zcrypt_cex4.o
 # pkey kernel module
 pkey-objs := pkey_api.o
 obj-$(CONFIG_PKEY) += pkey.o
+
+# adjunct processor matrix
+vfio_ap-objs := vfio_ap_drv.o vfio_ap_ops.o
+obj-$(CONFIG_VFIO_AP) += vfio_ap.o

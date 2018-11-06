@@ -2,7 +2,6 @@
 config ACADIA
 	bool "Acadia"
 	depends on 40x
-	default n
 	select PPC40x_SIMPLE
 	select 405EZ
 	help
@@ -11,7 +10,6 @@ config ACADIA
 config EP405
 	bool "EP405/EP405PC"
 	depends on 40x
-	default n
 	select 405GP
 	select PCI
 	help
@@ -20,7 +18,6 @@ config EP405
 config HOTFOOT
         bool "Hotfoot"
 	depends on 40x
-	default n
 	select PPC40x_SIMPLE
 	select PCI
         help
@@ -29,7 +26,6 @@ config HOTFOOT
 config KILAUEA
 	bool "Kilauea"
 	depends on 40x
-	default n
 	select 405EX
 	select PPC40x_SIMPLE
 	select PPC4xx_PCI_EXPRESS
@@ -41,7 +37,6 @@ config KILAUEA
 config MAKALU
 	bool "Makalu"
 	depends on 40x
-	default n
 	select 405EX
 	select PCI
 	select PPC4xx_PCI_EXPRESS
@@ -62,7 +57,6 @@ config WALNUT
 config XILINX_VIRTEX_GENERIC_BOARD
 	bool "Generic Xilinx Virtex board"
 	depends on 40x
-	default n
 	select XILINX_VIRTEX_II_PRO
 	select XILINX_VIRTEX_4_FX
 	select XILINX_INTC
@@ -80,7 +74,6 @@ config XILINX_VIRTEX_GENERIC_BOARD
 config OBS600
 	bool "OpenBlockS 600"
 	depends on 40x
-	default n
 	select 405EX
 	select PPC40x_SIMPLE
 	help
@@ -90,7 +83,6 @@ config OBS600
 config PPC40x_SIMPLE
 	bool "Simple PowerPC 40x board support"
 	depends on 40x
-	default n
 	help
 	  This option enables the simple PowerPC 40x platform support.
 
@@ -156,7 +148,6 @@ config IBM405_ERR51
 config APM8018X
 	bool "APM8018X"
 	depends on 40x
-	default n
 	select PPC40x_SIMPLE
 	help
 	  This option enables support for the AppliedMicro APM8018X evaluation

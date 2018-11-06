@@ -103,7 +103,7 @@ static void rxe_init_device_param(struct rxe_dev *rxe)
 	rxe->attr.max_res_rd_atom		= RXE_MAX_RES_RD_ATOM;
 	rxe->attr.max_qp_init_rd_atom		= RXE_MAX_QP_INIT_RD_ATOM;
 	rxe->attr.max_ee_init_rd_atom		= RXE_MAX_EE_INIT_RD_ATOM;
-	rxe->attr.atomic_cap			= RXE_ATOMIC_CAP;
+	rxe->attr.atomic_cap			= IB_ATOMIC_HCA;
 	rxe->attr.max_ee			= RXE_MAX_EE;
 	rxe->attr.max_rdd			= RXE_MAX_RDD;
 	rxe->attr.max_mw			= RXE_MAX_MW;
@@ -128,9 +128,9 @@ static void rxe_init_device_param(struct rxe_dev *rxe)
 /* initialize port attributes */
 static int rxe_init_port_param(struct rxe_port *port)
 {
-	port->attr.state		= RXE_PORT_STATE;
-	port->attr.max_mtu		= RXE_PORT_MAX_MTU;
-	port->attr.active_mtu		= RXE_PORT_ACTIVE_MTU;
+	port->attr.state		= IB_PORT_DOWN;
+	port->attr.max_mtu		= IB_MTU_4096;
+	port->attr.active_mtu		= IB_MTU_256;
 	port->attr.gid_tbl_len		= RXE_PORT_GID_TBL_LEN;
 	port->attr.port_cap_flags	= RXE_PORT_PORT_CAP_FLAGS;
 	port->attr.max_msg_sz		= RXE_PORT_MAX_MSG_SZ;
@@ -147,8 +147,7 @@ static int rxe_init_port_param(struct rxe_port *port)
 	port->attr.active_width		= RXE_PORT_ACTIVE_WIDTH;
 	port->attr.active_speed		= RXE_PORT_ACTIVE_SPEED;
 	port->attr.phys_state		= RXE_PORT_PHYS_STATE;
-	port->mtu_cap			=
-				ib_mtu_enum_to_int(RXE_PORT_ACTIVE_MTU);
+	port->mtu_cap			= ib_mtu_enum_to_int(IB_MTU_256);
 	port->subnet_prefix		= cpu_to_be64(RXE_PORT_SUBNET_PREFIX);
 
 	return 0;
@@ -300,7 +299,7 @@ void rxe_set_mtu(struct rxe_dev *rxe, unsigned int ndev_mtu)
 	mtu = eth_mtu_int_to_enum(ndev_mtu);
 
 	/* Make sure that new MTU in range */
-	mtu = mtu ? min_t(enum ib_mtu, mtu, RXE_PORT_MAX_MTU) : IB_MTU_256;
+	mtu = mtu ? min_t(enum ib_mtu, mtu, IB_MTU_4096) : IB_MTU_256;
 
 	port->attr.active_mtu = mtu;
 	port->mtu_cap = ib_mtu_enum_to_int(mtu);

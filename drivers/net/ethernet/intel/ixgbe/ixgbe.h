@@ -30,7 +30,6 @@
 #include "ixgbe_ipsec.h"
 
 #include <net/xdp.h>
-#include <net/busy_poll.h>
 
 /* common prefix used by pr_<> macros */
 #undef pr_fmt

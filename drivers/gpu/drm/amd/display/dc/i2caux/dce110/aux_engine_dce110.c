@@ -24,6 +24,7 @@
  */
 
 #include "dm_services.h"
+#include "dm_event_log.h"
 
 /*
  * Pre-requisites: headers required by header of this unit
@@ -273,6 +274,8 @@ static void submit_channel_request(
 	REG_WAIT(AUX_SW_STATUS, AUX_SW_DONE, 0,
 				10, aux110->timeout_period/10);
 	REG_UPDATE(AUX_SW_CONTROL, AUX_SW_GO, 1);
+	EVENT_LOG_AUX_REQ(engine->base.ddc->pin_data->en, EVENT_LOG_AUX_ORIGIN_NATIVE,
+					request->action, request->address, request->length, request->data);
 }
 
 static int read_channel_reply(struct aux_engine *engine, uint32_t size,
@@ -336,11 +339,14 @@ static void process_channel_reply(
 	uint32_t sw_status;
 
 	bytes_replied = read_channel_reply(engine, reply->length, reply->data,
-					   &reply_result, &sw_status);
+						&reply_result, &sw_status);
+	EVENT_LOG_AUX_REP(engine->base.ddc->pin_data->en,
+					EVENT_LOG_AUX_ORIGIN_NATIVE, reply_result,
+					bytes_replied, reply->data);
 
 	/* in case HPD is LOW, exit AUX transaction */
 	if ((sw_status & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK)) {
-		reply->status = AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON;
+		reply->status = AUX_TRANSACTION_REPLY_HPD_DISCON;
 		return;
 	}
 

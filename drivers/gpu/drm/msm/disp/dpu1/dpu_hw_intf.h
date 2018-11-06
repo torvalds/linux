@@ -59,8 +59,6 @@ struct intf_status {
  * @ setup_prog_fetch : enables/disables the programmable fetch logic
  * @ enable_timing: enable/disable timing engine
  * @ get_status: returns if timing engine is enabled or not
- * @ setup_misr: enables/disables MISR in HW register
- * @ collect_misr: reads and stores MISR data from HW register
  * @ get_line_count: reads current vertical line counter
  */
 struct dpu_hw_intf_ops {
@@ -76,11 +74,6 @@ struct dpu_hw_intf_ops {
 
 	void (*get_status)(struct dpu_hw_intf *intf,
 			struct intf_status *status);
-
-	void (*setup_misr)(struct dpu_hw_intf *intf,
-			bool enable, u32 frame_count);
-
-	u32 (*collect_misr)(struct dpu_hw_intf *intf);
 
 	u32 (*get_line_count)(struct dpu_hw_intf *intf);
 };

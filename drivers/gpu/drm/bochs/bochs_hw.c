@@ -47,11 +47,33 @@ static void bochs_dispi_write(struct bochs_device *bochs, u16 reg, u16 val)
 	}
 }
 
-int bochs_hw_init(struct drm_device *dev, uint32_t flags)
+static void bochs_hw_set_big_endian(struct bochs_device *bochs)
+{
+	if (bochs->qext_size < 8)
+		return;
+
+	writel(0xbebebebe, bochs->mmio + 0x604);
+}
+
+static void bochs_hw_set_little_endian(struct bochs_device *bochs)
+{
+	if (bochs->qext_size < 8)
+		return;
+
+	writel(0x1e1e1e1e, bochs->mmio + 0x604);
+}
+
+#ifdef __BIG_ENDIAN
+#define bochs_hw_set_native_endian(_b) bochs_hw_set_big_endian(_b)
+#else
+#define bochs_hw_set_native_endian(_b) bochs_hw_set_little_endian(_b)
+#endif
+
+int bochs_hw_init(struct drm_device *dev)
 {
 	struct bochs_device *bochs = dev->dev_private;
 	struct pci_dev *pdev = dev->pdev;
-	unsigned long addr, size, mem, ioaddr, iosize, qext_size;
+	unsigned long addr, size, mem, ioaddr, iosize;
 	u16 id;
 
 	if (pdev->resource[2].flags & IORESOURCE_MEM) {
@@ -117,19 +139,14 @@ int bochs_hw_init(struct drm_device *dev, uint32_t flags)
 		 ioaddr);
 
 	if (bochs->mmio && pdev->revision >= 2) {
-		qext_size = readl(bochs->mmio + 0x600);
-		if (qext_size < 4 || qext_size > iosize)
+		bochs->qext_size = readl(bochs->mmio + 0x600);
+		if (bochs->qext_size < 4 || bochs->qext_size > iosize) {
+			bochs->qext_size = 0;
 			goto noext;
-		DRM_DEBUG("Found qemu ext regs, size %ld\n", qext_size);
-		if (qext_size >= 8) {
-#ifdef __BIG_ENDIAN
-			writel(0xbebebebe, bochs->mmio + 0x604);
-#else
-			writel(0x1e1e1e1e, bochs->mmio + 0x604);
-#endif
-			DRM_DEBUG("  qext endian: 0x%x\n",
-				  readl(bochs->mmio + 0x604));
 		}
+		DRM_DEBUG("Found qemu ext regs, size %ld\n",
+			  bochs->qext_size);
+		bochs_hw_set_native_endian(bochs);
 	}
 
 noext:
@@ -150,7 +167,8 @@ void bochs_hw_fini(struct drm_device *dev)
 }
 
 void bochs_hw_setmode(struct bochs_device *bochs,
-		      struct drm_display_mode *mode)
+		      struct drm_display_mode *mode,
+		      const struct drm_format_info *format)
 {
 	bochs->xres = mode->hdisplay;
 	bochs->yres = mode->vdisplay;
@@ -158,8 +176,12 @@ void bochs_hw_setmode(struct bochs_device *bochs,
 	bochs->stride = mode->hdisplay * (bochs->bpp / 8);
 	bochs->yres_virtual = bochs->fb_size / bochs->stride;
 
-	DRM_DEBUG_DRIVER("%dx%d @ %d bpp, vy %d\n",
+	DRM_DEBUG_DRIVER("%dx%d @ %d bpp, format %c%c%c%c, vy %d\n",
 			 bochs->xres, bochs->yres, bochs->bpp,
+			 (format->format >>  0) & 0xff,
+			 (format->format >>  8) & 0xff,
+			 (format->format >> 16) & 0xff,
+			 (format->format >> 24) & 0xff,
 			 bochs->yres_virtual);
 
 	bochs_vga_writeb(bochs, 0x3c0, 0x20); /* unblank */
@@ -177,6 +199,20 @@ void bochs_hw_setmode(struct bochs_device *bochs,
 
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_ENABLE,
 			  VBE_DISPI_ENABLED | VBE_DISPI_LFB_ENABLED);
+
+	switch (format->format) {
+	case DRM_FORMAT_XRGB8888:
+		bochs_hw_set_little_endian(bochs);
+		break;
+	case DRM_FORMAT_BGRX8888:
+		bochs_hw_set_big_endian(bochs);
+		break;
+	default:
+		/* should not happen */
+		DRM_ERROR("%s: Huh? Got framebuffer format 0x%x",
+			  __func__, format->format);
+		break;
+	};
 }
 
 void bochs_hw_setbase(struct bochs_device *bochs,

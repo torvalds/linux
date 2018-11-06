@@ -25,14 +25,30 @@
 
 #define VADC_DECIMATION_MIN			512
 #define VADC_DECIMATION_MAX			4096
+#define ADC5_DEF_VBAT_PRESCALING		1 /* 1:3 */
+#define ADC5_DECIMATION_SHORT			250
+#define ADC5_DECIMATION_MEDIUM			420
+#define ADC5_DECIMATION_LONG			840
+/* Default decimation - 1024 for rev2, 840 for pmic5 */
+#define ADC5_DECIMATION_DEFAULT			2
+#define ADC5_DECIMATION_SAMPLES_MAX		3
 
 #define VADC_HW_SETTLE_DELAY_MAX		10000
+#define VADC_HW_SETTLE_SAMPLES_MAX		16
 #define VADC_AVG_SAMPLES_MAX			512
+#define ADC5_AVG_SAMPLES_MAX			16
 
 #define KELVINMIL_CELSIUSMIL			273150
+#define PMIC5_CHG_TEMP_SCALE_FACTOR		377500
+#define PMIC5_SMB_TEMP_CONSTANT			419400
+#define PMIC5_SMB_TEMP_SCALE_FACTOR		356
 
 #define PMI_CHG_SCALE_1				-138890
 #define PMI_CHG_SCALE_2				391750000000LL
+
+#define VADC5_MAX_CODE				0x7fff
+#define ADC5_FULL_SCALE_CODE			0x70e4
+#define ADC5_USR_DATA_CHECK			0x8000
 
 /**
  * struct vadc_map_pt - Map the graph representation for ADC channel
@@ -89,6 +105,18 @@ struct vadc_prescale_ratio {
  * SCALE_PMIC_THERM: Returns result in milli degree's Centigrade.
  * SCALE_XOTHERM: Returns XO thermistor voltage in millidegC.
  * SCALE_PMI_CHG_TEMP: Conversion for PMI CHG temp
+ * SCALE_HW_CALIB_DEFAULT: Default scaling to convert raw adc code to
+ *	voltage (uV) with hardware applied offset/slope values to adc code.
+ * SCALE_HW_CALIB_THERM_100K_PULLUP: Returns temperature in millidegC using
+ *	lookup table. The hardware applies offset/slope to adc code.
+ * SCALE_HW_CALIB_XOTHERM: Returns XO thermistor voltage in millidegC using
+ *	100k pullup. The hardware applies offset/slope to adc code.
+ * SCALE_HW_CALIB_PMIC_THERM: Returns result in milli degree's Centigrade.
+ *	The hardware applies offset/slope to adc code.
+ * SCALE_HW_CALIB_PM5_CHG_TEMP: Returns result in millidegrees for PMIC5
+ *	charger temperature.
+ * SCALE_HW_CALIB_PM5_SMB_TEMP: Returns result in millidegrees for PMIC5
+ *	SMB1390 temperature.
  */
 enum vadc_scale_fn_type {
 	SCALE_DEFAULT = 0,
@@ -96,12 +124,38 @@ enum vadc_scale_fn_type {
 	SCALE_PMIC_THERM,
 	SCALE_XOTHERM,
 	SCALE_PMI_CHG_TEMP,
+	SCALE_HW_CALIB_DEFAULT,
+	SCALE_HW_CALIB_THERM_100K_PULLUP,
+	SCALE_HW_CALIB_XOTHERM,
+	SCALE_HW_CALIB_PMIC_THERM,
+	SCALE_HW_CALIB_PM5_CHG_TEMP,
+	SCALE_HW_CALIB_PM5_SMB_TEMP,
+	SCALE_HW_CALIB_INVALID,
+};
+
+struct adc5_data {
+	const u32	full_scale_code_volt;
+	const u32	full_scale_code_cur;
+	const struct adc5_channels *adc_chans;
+	unsigned int	*decimation;
+	unsigned int	*hw_settle_1;
+	unsigned int	*hw_settle_2;
 };
 
 int qcom_vadc_scale(enum vadc_scale_fn_type scaletype,
 		    const struct vadc_linear_graph *calib_graph,
 		    const struct vadc_prescale_ratio *prescale,
 		    bool absolute,
+		    u16 adc_code, int *result_mdec);
+
+struct qcom_adc5_scale_type {
+	int (*scale_fn)(const struct vadc_prescale_ratio *prescale,
+		const struct adc5_data *data, u16 adc_code, int *result);
+};
+
+int qcom_adc5_hw_scale(enum vadc_scale_fn_type scaletype,
+		    const struct vadc_prescale_ratio *prescale,
+		    const struct adc5_data *data,
 		    u16 adc_code, int *result_mdec);
 
 int qcom_vadc_decimation_from_dt(u32 value);

@@ -651,7 +651,7 @@ unmap:
 		if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK)
 			rvt_error_qp(qp, IB_WC_GENERAL_ERR);
 	} else if (qp->s_wqe)
-		qib_send_complete(qp, qp->s_wqe, IB_WC_GENERAL_ERR);
+		rvt_send_complete(qp, qp->s_wqe, IB_WC_GENERAL_ERR);
 	spin_unlock(&qp->s_lock);
 	spin_unlock(&qp->r_lock);
 	/* return zero to process the next send work request */

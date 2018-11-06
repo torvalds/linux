@@ -12,6 +12,9 @@
 #include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
+
+#include "blk.h"
 
 static inline sector_t blk_zone_start(struct request_queue *q,
 				      sector_t sector)
@@ -63,14 +66,38 @@ void __blk_req_zone_write_unlock(struct request *rq)
 }
 EXPORT_SYMBOL_GPL(__blk_req_zone_write_unlock);
 
-/*
- * Check that a zone report belongs to the partition.
- * If yes, fix its start sector and write pointer, copy it in the
- * zone information array and return true. Return false otherwise.
+static inline unsigned int __blkdev_nr_zones(struct request_queue *q,
+					     sector_t nr_sectors)
+{
+	unsigned long zone_sectors = blk_queue_zone_sectors(q);
+
+	return (nr_sectors + zone_sectors - 1) >> ilog2(zone_sectors);
+}
+
+/**
+ * blkdev_nr_zones - Get number of zones
+ * @bdev:	Target block device
+ *
+ * Description:
+ *    Return the total number of zones of a zoned block device.
+ *    For a regular block device, the number of zones is always 0.
  */
-static bool blkdev_report_zone(struct block_device *bdev,
-			       struct blk_zone *rep,
-			       struct blk_zone *zone)
+unsigned int blkdev_nr_zones(struct block_device *bdev)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (!blk_queue_is_zoned(q))
+		return 0;
+
+	return __blkdev_nr_zones(q, bdev->bd_part->nr_sects);
+}
+EXPORT_SYMBOL_GPL(blkdev_nr_zones);
+
+/*
+ * Check that a zone report belongs to this partition, and if yes, fix its start
+ * sector and write pointer and return true. Return false otherwise.
+ */
+static bool blkdev_report_zone(struct block_device *bdev, struct blk_zone *rep)
 {
 	sector_t offset = get_start_sect(bdev);
 
@@ -85,9 +112,34 @@ static bool blkdev_report_zone(struct block_device *bdev,
 		rep->wp = rep->start + rep->len;
 	else
 		rep->wp -= offset;
-	memcpy(zone, rep, sizeof(struct blk_zone));
-
 	return true;
+}
+
+static int blk_report_zones(struct gendisk *disk, sector_t sector,
+			    struct blk_zone *zones, unsigned int *nr_zones,
+			    gfp_t gfp_mask)
+{
+	struct request_queue *q = disk->queue;
+	unsigned int z = 0, n, nrz = *nr_zones;
+	sector_t capacity = get_capacity(disk);
+	int ret;
+
+	while (z < nrz && sector < capacity) {
+		n = nrz - z;
+		ret = disk->fops->report_zones(disk, sector, &zones[z], &n,
+					       gfp_mask);
+		if (ret)
+			return ret;
+		if (!n)
+			break;
+		sector += blk_queue_zone_sectors(q) * n;
+		z += n;
+	}
+
+	WARN_ON(z > *nr_zones);
+	*nr_zones = z;
+
+	return 0;
 }
 
 /**
@@ -104,130 +156,46 @@ static bool blkdev_report_zone(struct block_device *bdev,
  *    requested by @nr_zones. The number of zones actually reported is
  *    returned in @nr_zones.
  */
-int blkdev_report_zones(struct block_device *bdev,
-			sector_t sector,
-			struct blk_zone *zones,
-			unsigned int *nr_zones,
+int blkdev_report_zones(struct block_device *bdev, sector_t sector,
+			struct blk_zone *zones, unsigned int *nr_zones,
 			gfp_t gfp_mask)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
-	struct blk_zone_report_hdr *hdr;
-	unsigned int nrz = *nr_zones;
-	struct page *page;
-	unsigned int nr_rep;
-	size_t rep_bytes;
-	unsigned int nr_pages;
-	struct bio *bio;
-	struct bio_vec *bv;
-	unsigned int i, n, nz;
-	unsigned int ofst;
-	void *addr;
+	unsigned int i, nrz;
 	int ret;
-
-	if (!q)
-		return -ENXIO;
 
 	if (!blk_queue_is_zoned(q))
 		return -EOPNOTSUPP;
 
-	if (!nrz)
-		return 0;
+	/*
+	 * A block device that advertized itself as zoned must have a
+	 * report_zones method. If it does not have one defined, the device
+	 * driver has a bug. So warn about that.
+	 */
+	if (WARN_ON_ONCE(!bdev->bd_disk->fops->report_zones))
+		return -EOPNOTSUPP;
 
-	if (sector > bdev->bd_part->nr_sects) {
+	if (!*nr_zones || sector >= bdev->bd_part->nr_sects) {
 		*nr_zones = 0;
 		return 0;
 	}
 
-	/*
-	 * The zone report has a header. So make room for it in the
-	 * payload. Also make sure that the report fits in a single BIO
-	 * that will not be split down the stack.
-	 */
-	rep_bytes = sizeof(struct blk_zone_report_hdr) +
-		sizeof(struct blk_zone) * nrz;
-	rep_bytes = (rep_bytes + PAGE_SIZE - 1) & PAGE_MASK;
-	if (rep_bytes > (queue_max_sectors(q) << 9))
-		rep_bytes = queue_max_sectors(q) << 9;
-
-	nr_pages = min_t(unsigned int, BIO_MAX_PAGES,
-			 rep_bytes >> PAGE_SHIFT);
-	nr_pages = min_t(unsigned int, nr_pages,
-			 queue_max_segments(q));
-
-	bio = bio_alloc(gfp_mask, nr_pages);
-	if (!bio)
-		return -ENOMEM;
-
-	bio_set_dev(bio, bdev);
-	bio->bi_iter.bi_sector = blk_zone_start(q, sector);
-	bio_set_op_attrs(bio, REQ_OP_ZONE_REPORT, 0);
-
-	for (i = 0; i < nr_pages; i++) {
-		page = alloc_page(gfp_mask);
-		if (!page) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		if (!bio_add_page(bio, page, PAGE_SIZE, 0)) {
-			__free_page(page);
-			break;
-		}
-	}
-
-	if (i == 0)
-		ret = -ENOMEM;
-	else
-		ret = submit_bio_wait(bio);
+	nrz = min(*nr_zones,
+		  __blkdev_nr_zones(q, bdev->bd_part->nr_sects - sector));
+	ret = blk_report_zones(bdev->bd_disk, get_start_sect(bdev) + sector,
+			       zones, &nrz, gfp_mask);
 	if (ret)
-		goto out;
+		return ret;
 
-	/*
-	 * Process the report result: skip the header and go through the
-	 * reported zones to fixup and fixup the zone information for
-	 * partitions. At the same time, return the zone information into
-	 * the zone array.
-	 */
-	n = 0;
-	nz = 0;
-	nr_rep = 0;
-	bio_for_each_segment_all(bv, bio, i) {
-
-		if (!bv->bv_page)
+	for (i = 0; i < nrz; i++) {
+		if (!blkdev_report_zone(bdev, zones))
 			break;
-
-		addr = kmap_atomic(bv->bv_page);
-
-		/* Get header in the first page */
-		ofst = 0;
-		if (!nr_rep) {
-			hdr = addr;
-			nr_rep = hdr->nr_zones;
-			ofst = sizeof(struct blk_zone_report_hdr);
-		}
-
-		/* Fixup and report zones */
-		while (ofst < bv->bv_len &&
-		       n < nr_rep && nz < nrz) {
-			if (blkdev_report_zone(bdev, addr + ofst, &zones[nz]))
-				nz++;
-			ofst += sizeof(struct blk_zone);
-			n++;
-		}
-
-		kunmap_atomic(addr);
-
-		if (n >= nr_rep || nz >= nrz)
-			break;
-
+		zones++;
 	}
 
-	*nr_zones = nz;
-out:
-	bio_for_each_segment_all(bv, bio, i)
-		__free_page(bv->bv_page);
-	bio_put(bio);
+	*nr_zones = i;
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(blkdev_report_zones);
 
@@ -250,16 +218,17 @@ int blkdev_reset_zones(struct block_device *bdev,
 	struct request_queue *q = bdev_get_queue(bdev);
 	sector_t zone_sectors;
 	sector_t end_sector = sector + nr_sectors;
-	struct bio *bio;
+	struct bio *bio = NULL;
+	struct blk_plug plug;
 	int ret;
-
-	if (!q)
-		return -ENXIO;
 
 	if (!blk_queue_is_zoned(q))
 		return -EOPNOTSUPP;
 
-	if (end_sector > bdev->bd_part->nr_sects)
+	if (bdev_read_only(bdev))
+		return -EPERM;
+
+	if (!nr_sectors || end_sector > bdev->bd_part->nr_sects)
 		/* Out of range */
 		return -EINVAL;
 
@@ -272,18 +241,13 @@ int blkdev_reset_zones(struct block_device *bdev,
 	    end_sector != bdev->bd_part->nr_sects)
 		return -EINVAL;
 
+	blk_start_plug(&plug);
 	while (sector < end_sector) {
 
-		bio = bio_alloc(gfp_mask, 0);
+		bio = blk_next_bio(bio, 0, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio_set_dev(bio, bdev);
 		bio_set_op_attrs(bio, REQ_OP_ZONE_RESET, 0);
-
-		ret = submit_bio_wait(bio);
-		bio_put(bio);
-
-		if (ret)
-			return ret;
 
 		sector += zone_sectors;
 
@@ -292,7 +256,12 @@ int blkdev_reset_zones(struct block_device *bdev,
 
 	}
 
-	return 0;
+	ret = submit_bio_wait(bio);
+	bio_put(bio);
+
+	blk_finish_plug(&plug);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(blkdev_reset_zones);
 
@@ -328,8 +297,7 @@ int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
 	if (!rep.nr_zones)
 		return -EINVAL;
 
-	if (rep.nr_zones > INT_MAX / sizeof(struct blk_zone))
-		return -ERANGE;
+	rep.nr_zones = min(blkdev_nr_zones(bdev), rep.nr_zones);
 
 	zones = kvmalloc_array(rep.nr_zones, sizeof(struct blk_zone),
 			       GFP_KERNEL | __GFP_ZERO);
@@ -392,3 +360,138 @@ int blkdev_reset_zones_ioctl(struct block_device *bdev, fmode_t mode,
 	return blkdev_reset_zones(bdev, zrange.sector, zrange.nr_sectors,
 				  GFP_KERNEL);
 }
+
+static inline unsigned long *blk_alloc_zone_bitmap(int node,
+						   unsigned int nr_zones)
+{
+	return kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(unsigned long),
+			    GFP_NOIO, node);
+}
+
+/*
+ * Allocate an array of struct blk_zone to get nr_zones zone information.
+ * The allocated array may be smaller than nr_zones.
+ */
+static struct blk_zone *blk_alloc_zones(int node, unsigned int *nr_zones)
+{
+	size_t size = *nr_zones * sizeof(struct blk_zone);
+	struct page *page;
+	int order;
+
+	for (order = get_order(size); order > 0; order--) {
+		page = alloc_pages_node(node, GFP_NOIO | __GFP_ZERO, order);
+		if (page) {
+			*nr_zones = min_t(unsigned int, *nr_zones,
+				(PAGE_SIZE << order) / sizeof(struct blk_zone));
+			return page_address(page);
+		}
+	}
+
+	return NULL;
+}
+
+void blk_queue_free_zone_bitmaps(struct request_queue *q)
+{
+	kfree(q->seq_zones_bitmap);
+	q->seq_zones_bitmap = NULL;
+	kfree(q->seq_zones_wlock);
+	q->seq_zones_wlock = NULL;
+}
+
+/**
+ * blk_revalidate_disk_zones - (re)allocate and initialize zone bitmaps
+ * @disk:	Target disk
+ *
+ * Helper function for low-level device drivers to (re) allocate and initialize
+ * a disk request queue zone bitmaps. This functions should normally be called
+ * within the disk ->revalidate method. For BIO based queues, no zone bitmap
+ * is allocated.
+ */
+int blk_revalidate_disk_zones(struct gendisk *disk)
+{
+	struct request_queue *q = disk->queue;
+	unsigned int nr_zones = __blkdev_nr_zones(q, get_capacity(disk));
+	unsigned long *seq_zones_wlock = NULL, *seq_zones_bitmap = NULL;
+	unsigned int i, rep_nr_zones = 0, z = 0, nrz;
+	struct blk_zone *zones = NULL;
+	sector_t sector = 0;
+	int ret = 0;
+
+	/*
+	 * BIO based queues do not use a scheduler so only q->nr_zones
+	 * needs to be updated so that the sysfs exposed value is correct.
+	 */
+	if (!queue_is_rq_based(q)) {
+		q->nr_zones = nr_zones;
+		return 0;
+	}
+
+	if (!blk_queue_is_zoned(q) || !nr_zones) {
+		nr_zones = 0;
+		goto update;
+	}
+
+	/* Allocate bitmaps */
+	ret = -ENOMEM;
+	seq_zones_wlock = blk_alloc_zone_bitmap(q->node, nr_zones);
+	if (!seq_zones_wlock)
+		goto out;
+	seq_zones_bitmap = blk_alloc_zone_bitmap(q->node, nr_zones);
+	if (!seq_zones_bitmap)
+		goto out;
+
+	/* Get zone information and initialize seq_zones_bitmap */
+	rep_nr_zones = nr_zones;
+	zones = blk_alloc_zones(q->node, &rep_nr_zones);
+	if (!zones)
+		goto out;
+
+	while (z < nr_zones) {
+		nrz = min(nr_zones - z, rep_nr_zones);
+		ret = blk_report_zones(disk, sector, zones, &nrz, GFP_NOIO);
+		if (ret)
+			goto out;
+		if (!nrz)
+			break;
+		for (i = 0; i < nrz; i++) {
+			if (zones[i].type != BLK_ZONE_TYPE_CONVENTIONAL)
+				set_bit(z, seq_zones_bitmap);
+			z++;
+		}
+		sector += nrz * blk_queue_zone_sectors(q);
+	}
+
+	if (WARN_ON(z != nr_zones)) {
+		ret = -EIO;
+		goto out;
+	}
+
+update:
+	/*
+	 * Install the new bitmaps, making sure the queue is stopped and
+	 * all I/Os are completed (i.e. a scheduler is not referencing the
+	 * bitmaps).
+	 */
+	blk_mq_freeze_queue(q);
+	q->nr_zones = nr_zones;
+	swap(q->seq_zones_wlock, seq_zones_wlock);
+	swap(q->seq_zones_bitmap, seq_zones_bitmap);
+	blk_mq_unfreeze_queue(q);
+
+out:
+	free_pages((unsigned long)zones,
+		   get_order(rep_nr_zones * sizeof(struct blk_zone)));
+	kfree(seq_zones_wlock);
+	kfree(seq_zones_bitmap);
+
+	if (ret) {
+		pr_warn("%s: failed to revalidate zones\n", disk->disk_name);
+		blk_mq_freeze_queue(q);
+		blk_queue_free_zone_bitmaps(q);
+		blk_mq_unfreeze_queue(q);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(blk_revalidate_disk_zones);
+

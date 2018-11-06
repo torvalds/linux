@@ -7,6 +7,8 @@
 #include "a6xx_gpu.h"
 #include "a6xx_gmu.xml.h"
 
+#include <linux/devfreq.h>
+
 static inline bool _a6xx_check_idle(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -438,10 +440,8 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A6XX_CP_PROTECT(22), A6XX_PROTECT_RW(0x900, 0x4d));
 	gpu_write(gpu, REG_A6XX_CP_PROTECT(23), A6XX_PROTECT_RW(0x98d, 0x76));
 	gpu_write(gpu, REG_A6XX_CP_PROTECT(24),
-			A6XX_PROTECT_RDONLY(0x8d0, 0x23));
-	gpu_write(gpu, REG_A6XX_CP_PROTECT(25),
 			A6XX_PROTECT_RDONLY(0x980, 0x4));
-	gpu_write(gpu, REG_A6XX_CP_PROTECT(26), A6XX_PROTECT_RW(0xa630, 0x0));
+	gpu_write(gpu, REG_A6XX_CP_PROTECT(25), A6XX_PROTECT_RW(0xa630, 0x0));
 
 	/* Enable interrupts */
 	gpu_write(gpu, REG_A6XX_RBBM_INT_0_MASK, A6XX_INT_MASK);
@@ -682,6 +682,8 @@ static int a6xx_pm_resume(struct msm_gpu *gpu)
 
 	gpu->needs_hw_init = true;
 
+	msm_gpu_resume_devfreq(gpu);
+
 	return ret;
 }
 
@@ -689,6 +691,8 @@ static int a6xx_pm_suspend(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+
+	devfreq_suspend_device(gpu->devfreq.devfreq);
 
 	/*
 	 * Make sure the GMU is idle before continuing (because some transitions
@@ -744,13 +748,34 @@ static void a6xx_destroy(struct msm_gpu *gpu)
 	if (a6xx_gpu->sqe_bo) {
 		if (a6xx_gpu->sqe_iova)
 			msm_gem_put_iova(a6xx_gpu->sqe_bo, gpu->aspace);
-		drm_gem_object_unreference_unlocked(a6xx_gpu->sqe_bo);
+		drm_gem_object_put_unlocked(a6xx_gpu->sqe_bo);
 	}
 
 	a6xx_gmu_remove(a6xx_gpu);
 
 	adreno_gpu_cleanup(adreno_gpu);
 	kfree(a6xx_gpu);
+}
+
+static unsigned long a6xx_gpu_busy(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	u64 busy_cycles, busy_time;
+
+	busy_cycles = gmu_read64(&a6xx_gpu->gmu,
+			REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_L,
+			REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_H);
+
+	busy_time = (busy_cycles - gpu->devfreq.busy_cycles) * 10;
+	do_div(busy_time, 192);
+
+	gpu->devfreq.busy_cycles = busy_cycles;
+
+	if (WARN_ON(busy_time > ~0LU))
+		return ~0LU;
+
+	return (unsigned long)busy_time;
 }
 
 static const struct adreno_gpu_funcs funcs = {
@@ -768,6 +793,9 @@ static const struct adreno_gpu_funcs funcs = {
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
 		.show = a6xx_show,
 #endif
+		.gpu_busy = a6xx_gpu_busy,
+		.gpu_get_freq = a6xx_gmu_get_freq,
+		.gpu_set_freq = a6xx_gmu_set_freq,
 	},
 	.get_timestamp = a6xx_get_timestamp,
 };
@@ -799,7 +827,7 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	}
 
 	/* Check if there is a GMU phandle and set it up */
-	node = of_parse_phandle(pdev->dev.of_node, "gmu", 0);
+	node = of_parse_phandle(pdev->dev.of_node, "qcom,gmu", 0);
 
 	/* FIXME: How do we gracefully handle this? */
 	BUG_ON(!node);

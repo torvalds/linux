@@ -13,7 +13,7 @@
 #include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
 #include <linux/dma-direct.h>

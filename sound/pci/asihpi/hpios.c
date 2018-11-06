@@ -49,7 +49,7 @@ u16 hpios_locked_mem_alloc(struct consistent_dma_area *p_mem_area, u32 size,
 	/*?? any benefit in using managed dmam_alloc_coherent? */
 	p_mem_area->vaddr =
 		dma_alloc_coherent(&pdev->dev, size, &p_mem_area->dma_handle,
-		GFP_DMA32 | GFP_KERNEL);
+		GFP_KERNEL);
 
 	if (p_mem_area->vaddr) {
 		HPI_DEBUG_LOG(DEBUG, "allocated %d bytes, dma 0x%x vma %p\n",

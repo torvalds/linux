@@ -3956,7 +3956,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		shost->dma_boundary =
 			phba->sli4_hba.pc_sli4_params.sge_supp_len-1;
-		shost->sg_tablesize = phba->cfg_sg_seg_cnt;
+		shost->sg_tablesize = phba->cfg_scsi_seg_cnt;
 	}
 
 	/*
@@ -3988,9 +3988,9 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	if (error)
 		goto out_put_shost;
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_add_tail(&vport->listentry, &phba->port_list);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 	return vport;
 
 out_put_shost:
@@ -4016,9 +4016,9 @@ destroy_port(struct lpfc_vport *vport)
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_del_init(&vport->listentry);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 
 	lpfc_cleanup(vport);
 	return;
@@ -5621,7 +5621,10 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	/* Initialize ndlp management spinlock */
 	spin_lock_init(&phba->ndlp_lock);
 
+	/* Initialize port_list spinlock */
+	spin_lock_init(&phba->port_list_lock);
 	INIT_LIST_HEAD(&phba->port_list);
+
 	INIT_LIST_HEAD(&phba->work_list);
 	init_waitqueue_head(&phba->wait_4_mlo_m_q);
 
@@ -5919,8 +5922,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * There are going to be 2 reserved SGEs: 1 FCP cmnd + 1 FCP rsp
 	 */
 	max_buf_size = (2 * SLI4_PAGE_SIZE);
-	if (phba->cfg_sg_seg_cnt > LPFC_MAX_SGL_SEG_CNT - extra)
-		phba->cfg_sg_seg_cnt = LPFC_MAX_SGL_SEG_CNT - extra;
 
 	/*
 	 * Since lpfc_sg_seg_cnt is module param, the sg_dma_buf_size
@@ -5942,9 +5943,16 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		/* Total SGEs for scsi_sg_list and scsi_sg_prot_list */
 		phba->cfg_total_seg_cnt = LPFC_MAX_SGL_SEG_CNT;
 
-		if (phba->cfg_sg_seg_cnt > LPFC_MAX_SG_SLI4_SEG_CNT_DIF)
-			phba->cfg_sg_seg_cnt =
-				LPFC_MAX_SG_SLI4_SEG_CNT_DIF;
+		/*
+		 * If supporting DIF, reduce the seg count for scsi to
+		 * allow room for the DIF sges.
+		 */
+		if (phba->cfg_enable_bg &&
+		    phba->cfg_sg_seg_cnt > LPFC_MAX_BG_SLI4_SEG_CNT_DIF)
+			phba->cfg_scsi_seg_cnt = LPFC_MAX_BG_SLI4_SEG_CNT_DIF;
+		else
+			phba->cfg_scsi_seg_cnt = phba->cfg_sg_seg_cnt;
+
 	} else {
 		/*
 		 * The scsi_buf for a regular I/O holds the FCP cmnd,
@@ -5958,6 +5966,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 		/* Total SGEs for scsi_sg_list */
 		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + extra;
+		phba->cfg_scsi_seg_cnt = phba->cfg_sg_seg_cnt;
 
 		/*
 		 * NOTE: if (phba->cfg_sg_seg_cnt + extra) <= 256 we only
@@ -5965,10 +5974,22 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		 */
 	}
 
+	/* Limit to LPFC_MAX_NVME_SEG_CNT for NVME. */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		if (phba->cfg_sg_seg_cnt > LPFC_MAX_NVME_SEG_CNT) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
+					"6300 Reducing NVME sg segment "
+					"cnt to %d\n",
+					LPFC_MAX_NVME_SEG_CNT);
+			phba->cfg_nvme_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
+		} else
+			phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
+	}
+
 	/* Initialize the host templates with the updated values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template_no_hr.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_vport_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
+	lpfc_template_no_hr.sg_tablesize = phba->cfg_scsi_seg_cnt;
 
 	if (phba->cfg_sg_dma_buf_size  <= LPFC_MIN_SG_SLI4_BUF_SZ)
 		phba->cfg_sg_dma_buf_size = LPFC_MIN_SG_SLI4_BUF_SZ;
@@ -5977,9 +5998,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 			SLI4_PAGE_ALIGN(phba->cfg_sg_dma_buf_size);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
-			"9087 sg_tablesize:%d dmabuf_size:%d total_sge:%d\n",
+			"9087 sg_seg_cnt:%d dmabuf_size:%d "
+			"total:%d scsi:%d nvme:%d\n",
 			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
-			phba->cfg_total_seg_cnt);
+			phba->cfg_total_seg_cnt,  phba->cfg_scsi_seg_cnt,
+			phba->cfg_nvme_seg_cnt);
 
 	/* Initialize buffer queue management fields */
 	INIT_LIST_HEAD(&phba->hbqs[LPFC_ELS_HBQ].hbq_buffer_list);
@@ -6204,6 +6227,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	lpfc_sli4_oas_verify(phba);
 	if (phba->cfg_fof)
 		fof_vectors = 1;
+
+	/* Verify RAS support on adapter */
+	lpfc_sli4_ras_init(phba);
 
 	/* Verify all the SLI4 queues */
 	rc = lpfc_sli4_queue_verify(phba);
@@ -7967,7 +7993,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	else
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"3028 GET_FUNCTION_CONFIG: failed to find "
-				"Resrouce Descriptor:x%x\n",
+				"Resource Descriptor:x%x\n",
 				LPFC_RSRC_DESC_TYPE_FCFCOE);
 
 read_cfg_out:
@@ -10492,6 +10518,14 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	/* Stop kthread signal shall trigger work_done one more time */
 	kthread_stop(phba->worker_thread);
 
+	/* Disable FW logging to host memory */
+	writel(LPFC_CTL_PDEV_CTL_DDL_RAS,
+	       phba->sli4_hba.conf_regs_memmap_p + LPFC_CTL_PDEV_CTL_OFFSET);
+
+	/* Free RAS DMA memory */
+	if (phba->ras_fwlog.ras_enabled == true)
+		lpfc_sli4_ras_dma_free(phba);
+
 	/* Unset the queues shared with the hardware then release all
 	 * allocated resources.
 	 */
@@ -10737,6 +10771,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->mds_diags_support = 1;
 	else
 		phba->mds_diags_support = 0;
+
 	return 0;
 }
 
@@ -10965,9 +11000,9 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	kfree(phba->vpi_ids);
 
 	lpfc_stop_hba_timers(phba);
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_del_init(&vport->listentry);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 
 	lpfc_debugfs_terminate(vport);
 
@@ -11329,10 +11364,6 @@ lpfc_io_resume_s3(struct pci_dev *pdev)
 
 	/* Bring device online, it will be no-op for non-fatal error resume */
 	lpfc_online(phba);
-
-	/* Clean up Advanced Error Reporting (AER) if needed */
-	if (phba->hba_flag & HBA_AER_ENABLED)
-		pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 
 /**
@@ -11698,6 +11729,10 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	/* Check if there are static vports to be created. */
 	lpfc_create_static_vport(phba);
+
+	/* Enable RAS FW log support */
+	lpfc_sli4_ras_setup(phba);
+
 	return 0;
 
 out_disable_intr:
@@ -11777,9 +11812,9 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	lpfc_sli4_hba_unset(phba);
 
 	lpfc_stop_hba_timers(phba);
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_del_init(&vport->listentry);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 
 	/* Perform scsi free before driver resource_unset since scsi
 	 * buffers are released to their corresponding pools here.
@@ -12144,10 +12179,6 @@ lpfc_io_resume_s4(struct pci_dev *pdev)
 		/* Bring the device back online */
 		lpfc_online(phba);
 	}
-
-	/* Clean up Advanced Error Reporting (AER) if needed */
-	if (phba->hba_flag & HBA_AER_ENABLED)
-		pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 
 /**
@@ -12425,6 +12456,30 @@ lpfc_sli4_oas_verify(struct lpfc_hba *phba)
 	}
 
 	return;
+}
+
+/**
+ * lpfc_sli4_ras_init - Verify RAS-FW log is supported by this adapter
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine checks to see if RAS is supported by the adapter. Check the
+ * function through which RAS support enablement is to be done.
+ **/
+void
+lpfc_sli4_ras_init(struct lpfc_hba *phba)
+{
+	switch (phba->pcidev->device) {
+	case PCI_DEVICE_ID_LANCER_G6_FC:
+	case PCI_DEVICE_ID_LANCER_G7_FC:
+		phba->ras_fwlog.ras_hwsupport = true;
+		if (phba->cfg_ras_fwlog_func == PCI_FUNC(phba->pcidev->devfn))
+			phba->ras_fwlog.ras_enabled = true;
+		else
+			phba->ras_fwlog.ras_enabled = false;
+		break;
+	default:
+		phba->ras_fwlog.ras_hwsupport = false;
+	}
 }
 
 /**

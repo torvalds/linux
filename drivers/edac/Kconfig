@@ -460,4 +460,18 @@ config EDAC_TI
 	  Support for error detection and correction on the
           TI SoCs.
 
+config EDAC_QCOM
+	tristate "QCOM EDAC Controller"
+	depends on ARCH_QCOM && QCOM_LLCC
+	help
+	  Support for error detection and correction on the
+	  Qualcomm Technologies, Inc. SoCs.
+
+	  This driver reports Single Bit Errors (SBEs) and Double Bit Errors (DBEs).
+	  As of now, it supports error reporting for Last Level Cache Controller (LLCC)
+	  of Tag RAM and Data RAM.
+
+	  For debugging issues having to do with stability and overall system
+	  health, you should probably say 'Y' here.
+
 endif # EDAC

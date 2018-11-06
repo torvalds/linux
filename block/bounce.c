@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/hash.h>
 #include <linux/highmem.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/printk.h>
 #include <asm/tlbflush.h>
 

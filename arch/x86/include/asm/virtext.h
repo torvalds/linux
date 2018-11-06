@@ -40,7 +40,7 @@ static inline int cpu_has_vmx(void)
  */
 static inline void cpu_vmxoff(void)
 {
-	asm volatile (ASM_VMX_VMXOFF : : : "cc");
+	asm volatile ("vmxoff");
 	cr4_clear_bits(X86_CR4_VMXE);
 }
 

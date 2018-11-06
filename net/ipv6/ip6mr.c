@@ -2473,6 +2473,9 @@ static int ip6mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 
 		mrt = ip6mr_get_table(sock_net(skb->sk), filter.table_id);
 		if (!mrt) {
+			if (filter.dump_all_families)
+				return skb->len;
+
 			NL_SET_ERR_MSG_MOD(cb->extack, "MR table does not exist");
 			return -ENOENT;
 		}

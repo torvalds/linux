@@ -3,7 +3,7 @@
  * Thanks to Ben LaHaise for precious feedback.
  */
 #include <linux/highmem.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>

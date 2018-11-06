@@ -1704,6 +1704,7 @@ static int inet_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 
 			net = rtnl_get_net_ns_capable(sk, fillargs->netnsid);
 			if (IS_ERR(net)) {
+				fillargs->netnsid = -1;
 				NL_SET_ERR_MSG(extack, "ipv4: Invalid target network namespace id");
 				return PTR_ERR(net);
 			}
@@ -1761,7 +1762,7 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net_device *dev;
 	struct in_device *in_dev;
 	struct hlist_head *head;
-	int err;
+	int err = 0;
 
 	s_h = cb->args[0];
 	s_idx = idx = cb->args[1];
@@ -1771,12 +1772,15 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 		err = inet_valid_dump_ifaddr_req(nlh, &fillargs, &tgt_net,
 						 skb->sk, cb);
 		if (err < 0)
-			return err;
+			goto put_tgt_net;
 
+		err = 0;
 		if (fillargs.ifindex) {
 			dev = __dev_get_by_index(tgt_net, fillargs.ifindex);
-			if (!dev)
-				return -ENODEV;
+			if (!dev) {
+				err = -ENODEV;
+				goto put_tgt_net;
+			}
 
 			in_dev = __in_dev_get_rtnl(dev);
 			if (in_dev) {
@@ -1821,7 +1825,7 @@ put_tgt_net:
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
-	return skb->len;
+	return err < 0 ? err : skb->len;
 }
 
 static void rtmsg_ifa(int event, struct in_ifaddr *ifa, struct nlmsghdr *nlh,

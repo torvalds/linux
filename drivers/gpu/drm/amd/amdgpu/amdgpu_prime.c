@@ -35,6 +35,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_display.h"
+#include "amdgpu_gem.h"
 #include <drm/amdgpu_drm.h>
 #include <linux/dma-buf.h>
 
@@ -43,10 +44,10 @@ static const struct dma_buf_ops amdgpu_dmabuf_ops;
 /**
  * amdgpu_gem_prime_get_sg_table - &drm_driver.gem_prime_get_sg_table
  * implementation
- * @obj: GEM buffer object
+ * @obj: GEM buffer object (BO)
  *
  * Returns:
- * A scatter/gather table for the pinned pages of the buffer object's memory.
+ * A scatter/gather table for the pinned pages of the BO's memory.
  */
 struct sg_table *amdgpu_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
@@ -58,9 +59,9 @@ struct sg_table *amdgpu_gem_prime_get_sg_table(struct drm_gem_object *obj)
 
 /**
  * amdgpu_gem_prime_vmap - &dma_buf_ops.vmap implementation
- * @obj: GEM buffer object
+ * @obj: GEM BO
  *
- * Sets up an in-kernel virtual mapping of the buffer object's memory.
+ * Sets up an in-kernel virtual mapping of the BO's memory.
  *
  * Returns:
  * The virtual address of the mapping or an error pointer.
@@ -80,10 +81,10 @@ void *amdgpu_gem_prime_vmap(struct drm_gem_object *obj)
 
 /**
  * amdgpu_gem_prime_vunmap - &dma_buf_ops.vunmap implementation
- * @obj: GEM buffer object
- * @vaddr: virtual address (unused)
+ * @obj: GEM BO
+ * @vaddr: Virtual address (unused)
  *
- * Tears down the in-kernel virtual mapping of the buffer object's memory.
+ * Tears down the in-kernel virtual mapping of the BO's memory.
  */
 void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
@@ -94,14 +95,14 @@ void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 
 /**
  * amdgpu_gem_prime_mmap - &drm_driver.gem_prime_mmap implementation
- * @obj: GEM buffer object
- * @vma: virtual memory area
+ * @obj: GEM BO
+ * @vma: Virtual memory area
  *
- * Sets up a userspace mapping of the buffer object's memory in the given
+ * Sets up a userspace mapping of the BO's memory in the given
  * virtual memory area.
  *
  * Returns:
- * 0 on success or negative error code.
+ * 0 on success or a negative error code on failure.
  */
 int amdgpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
@@ -144,10 +145,10 @@ int amdgpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma
  * @attach: DMA-buf attachment
  * @sg: Scatter/gather table
  *
- * Import shared DMA buffer memory exported by another device.
+ * Imports shared DMA buffer memory exported by another device.
  *
  * Returns:
- * A new GEM buffer object of the given DRM device, representing the memory
+ * A new GEM BO of the given DRM device, representing the memory
  * described by the given DMA-buf attachment and scatter/gather table.
  */
 struct drm_gem_object *
@@ -190,7 +191,7 @@ error:
 
 /**
  * amdgpu_gem_map_attach - &dma_buf_ops.attach implementation
- * @dma_buf: shared DMA buffer
+ * @dma_buf: Shared DMA buffer
  * @attach: DMA-buf attachment
  *
  * Makes sure that the shared DMA buffer can be accessed by the target device.
@@ -198,7 +199,7 @@ error:
  * all DMA devices.
  *
  * Returns:
- * 0 on success or negative error code.
+ * 0 on success or a negative error code on failure.
  */
 static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 				 struct dma_buf_attachment *attach)
@@ -250,11 +251,11 @@ error_detach:
 
 /**
  * amdgpu_gem_map_detach - &dma_buf_ops.detach implementation
- * @dma_buf: shared DMA buffer
+ * @dma_buf: Shared DMA buffer
  * @attach: DMA-buf attachment
  *
  * This is called when a shared DMA buffer no longer needs to be accessible by
- * the other device. For now, simply unpins the buffer from GTT.
+ * another device. For now, simply unpins the buffer from GTT.
  */
 static void amdgpu_gem_map_detach(struct dma_buf *dma_buf,
 				  struct dma_buf_attachment *attach)
@@ -279,10 +280,10 @@ error:
 
 /**
  * amdgpu_gem_prime_res_obj - &drm_driver.gem_prime_res_obj implementation
- * @obj: GEM buffer object
+ * @obj: GEM BO
  *
  * Returns:
- * The buffer object's reservation object.
+ * The BO's reservation object.
  */
 struct reservation_object *amdgpu_gem_prime_res_obj(struct drm_gem_object *obj)
 {
@@ -293,15 +294,15 @@ struct reservation_object *amdgpu_gem_prime_res_obj(struct drm_gem_object *obj)
 
 /**
  * amdgpu_gem_begin_cpu_access - &dma_buf_ops.begin_cpu_access implementation
- * @dma_buf: shared DMA buffer
- * @direction: direction of DMA transfer
+ * @dma_buf: Shared DMA buffer
+ * @direction: Direction of DMA transfer
  *
  * This is called before CPU access to the shared DMA buffer's memory. If it's
  * a read access, the buffer is moved to the GTT domain if possible, for optimal
  * CPU read performance.
  *
  * Returns:
- * 0 on success or negative error code.
+ * 0 on success or a negative error code on failure.
  */
 static int amdgpu_gem_begin_cpu_access(struct dma_buf *dma_buf,
 				       enum dma_data_direction direction)
@@ -348,14 +349,14 @@ static const struct dma_buf_ops amdgpu_dmabuf_ops = {
 /**
  * amdgpu_gem_prime_export - &drm_driver.gem_prime_export implementation
  * @dev: DRM device
- * @gobj: GEM buffer object
- * @flags: flags like DRM_CLOEXEC and DRM_RDWR
+ * @gobj: GEM BO
+ * @flags: Flags such as DRM_CLOEXEC and DRM_RDWR.
  *
  * The main work is done by the &drm_gem_prime_export helper, which in turn
  * uses &amdgpu_gem_prime_res_obj.
  *
  * Returns:
- * Shared DMA buffer representing the GEM buffer object from the given device.
+ * Shared DMA buffer representing the GEM BO from the given device.
  */
 struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 					struct drm_gem_object *gobj,
@@ -386,7 +387,7 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
  * uses &amdgpu_gem_prime_import_sg_table.
  *
  * Returns:
- * GEM buffer object representing the shared DMA buffer for the given device.
+ * GEM BO representing the shared DMA buffer for the given device.
  */
 struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
 					    struct dma_buf *dma_buf)

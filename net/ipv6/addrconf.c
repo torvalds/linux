@@ -5058,6 +5058,7 @@ static int inet6_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 			fillargs->netnsid = nla_get_s32(tb[i]);
 			net = rtnl_get_net_ns_capable(sk, fillargs->netnsid);
 			if (IS_ERR(net)) {
+				fillargs->netnsid = -1;
 				NL_SET_ERR_MSG_MOD(extack, "Invalid target network namespace id");
 				return PTR_ERR(net);
 			}
@@ -5089,23 +5090,25 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 	struct net_device *dev;
 	struct inet6_dev *idev;
 	struct hlist_head *head;
+	int err = 0;
 
 	s_h = cb->args[0];
 	s_idx = idx = cb->args[1];
 	s_ip_idx = cb->args[2];
 
 	if (cb->strict_check) {
-		int err;
-
 		err = inet6_valid_dump_ifaddr_req(nlh, &fillargs, &tgt_net,
 						  skb->sk, cb);
 		if (err < 0)
-			return err;
+			goto put_tgt_net;
 
+		err = 0;
 		if (fillargs.ifindex) {
 			dev = __dev_get_by_index(tgt_net, fillargs.ifindex);
-			if (!dev)
-				return -ENODEV;
+			if (!dev) {
+				err = -ENODEV;
+				goto put_tgt_net;
+			}
 			idev = __in6_dev_get(dev);
 			if (idev) {
 				err = in6_dump_addrs(idev, skb, cb, s_ip_idx,
@@ -5144,7 +5147,7 @@ put_tgt_net:
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
-	return skb->len;
+	return err < 0 ? err : skb->len;
 }
 
 static int inet6_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)

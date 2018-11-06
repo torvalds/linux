@@ -280,7 +280,9 @@ int ocxl_config_check_afu_index(struct pci_dev *dev,
 	u32 val;
 	int rc, templ_major, templ_minor, len;
 
-	pci_write_config_word(dev, fn->dvsec_afu_info_pos, afu_idx);
+	pci_write_config_byte(dev,
+			fn->dvsec_afu_info_pos + OCXL_DVSEC_AFU_INFO_AFU_IDX,
+			afu_idx);
 	rc = read_afu_info(dev, fn, OCXL_DVSEC_TEMPL_VERSION, &val);
 	if (rc)
 		return rc;

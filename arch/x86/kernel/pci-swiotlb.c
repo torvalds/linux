@@ -5,7 +5,7 @@
 #include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/swiotlb.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/dma-direct.h>
 #include <linux/mem_encrypt.h>
 

@@ -27,6 +27,7 @@
 #include "amdgpu_drv.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_dpm.h"
+#include "amdgpu_display.h"
 #include "atom.h"
 #include <linux/power_supply.h>
 #include <linux/hwmon.h>
@@ -473,6 +474,8 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * in each power level within a power state.  The pp_od_clk_voltage is used for
  * this.
  *
+ * < For Vega10 and previous ASICs >
+ *
  * Reading the file will display:
  *
  * - a list of engine clock levels and voltages labeled OD_SCLK
@@ -489,6 +492,44 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * 810 mV.  When you have edited all of the states as needed, write
  * "c" (commit) to the file to commit your changes.  If you want to reset to the
  * default power levels, write "r" (reset) to the file to reset them.
+ *
+ *
+ * < For Vega20 >
+ *
+ * Reading the file will display:
+ *
+ * - minimum and maximum engine clock labeled OD_SCLK
+ *
+ * - maximum memory clock labeled OD_MCLK
+ *
+ * - three <frequency, voltage> points labeled OD_VDDC_CURVE.
+ *   They can be used to calibrate the sclk voltage curve.
+ *
+ * - a list of valid ranges for sclk, mclk, and voltage curve points
+ *   labeled OD_RANGE
+ *
+ * To manually adjust these settings:
+ *
+ * - First select manual using power_dpm_force_performance_level
+ *
+ * - For clock frequency setting, enter a new value by writing a
+ *   string that contains "s/m index clock" to the file. The index
+ *   should be 0 if to set minimum clock. And 1 if to set maximum
+ *   clock. E.g., "s 0 500" will update minimum sclk to be 500 MHz.
+ *   "m 1 800" will update maximum mclk to be 800Mhz.
+ *
+ *   For sclk voltage curve, enter the new values by writing a
+ *   string that contains "vc point clock voltage" to the file. The
+ *   points are indexed by 0, 1 and 2. E.g., "vc 0 300 600" will
+ *   update point1 with clock set as 300Mhz and voltage as
+ *   600mV. "vc 2 1000 1000" will update point3 with clock set
+ *   as 1000Mhz and voltage 1000mV.
+ *
+ * - When you have edited all of the states as needed, write "c" (commit)
+ *   to the file to commit your changes
+ *
+ * - If you want to reset to the default power levels, write "r" (reset)
+ *   to the file to reset them
  *
  */
 
@@ -519,6 +560,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		type = PP_OD_RESTORE_DEFAULT_TABLE;
 	else if (*buf == 'c')
 		type = PP_OD_COMMIT_DPM_TABLE;
+	else if (!strncmp(buf, "vc", 2))
+		type = PP_OD_EDIT_VDDC_CURVE;
 	else
 		return -EINVAL;
 
@@ -526,6 +569,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 
 	tmp_str = buf_cpy;
 
+	if (type == PP_OD_EDIT_VDDC_CURVE)
+		tmp_str++;
 	while (isspace(*++tmp_str));
 
 	while (tmp_str[0]) {
@@ -569,6 +614,7 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	if (adev->powerplay.pp_funcs->print_clock_levels) {
 		size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf+size);
+		size += amdgpu_dpm_print_clock_levels(adev, OD_VDDC_CURVE, buf+size);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_RANGE, buf+size);
 		return size;
 	} else {
@@ -1074,11 +1120,18 @@ static ssize_t amdgpu_hwmon_set_pwm1(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	int err;
 	u32 value;
+	u32 pwm_mode;
 
 	/* Can't adjust fan when the card is off */
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
+
+	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
+	if (pwm_mode != AMD_FAN_CTRL_MANUAL) {
+		pr_info("manual fan speed control should be enabled first\n");
+		return -EINVAL;
+	}
 
 	err = kstrtou32(buf, 10, &value);
 	if (err)
@@ -1139,6 +1192,148 @@ static ssize_t amdgpu_hwmon_get_fan1_input(struct device *dev,
 	}
 
 	return sprintf(buf, "%i\n", speed);
+}
+
+static ssize_t amdgpu_hwmon_get_fan1_min(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	u32 min_rpm = 0;
+	u32 size = sizeof(min_rpm);
+	int r;
+
+	if (!adev->powerplay.pp_funcs->read_sensor)
+		return -EINVAL;
+
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MIN_FAN_RPM,
+				   (void *)&min_rpm, &size);
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", min_rpm);
+}
+
+static ssize_t amdgpu_hwmon_get_fan1_max(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	u32 max_rpm = 0;
+	u32 size = sizeof(max_rpm);
+	int r;
+
+	if (!adev->powerplay.pp_funcs->read_sensor)
+		return -EINVAL;
+
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MAX_FAN_RPM,
+				   (void *)&max_rpm, &size);
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", max_rpm);
+}
+
+static ssize_t amdgpu_hwmon_get_fan1_target(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	int err;
+	u32 rpm = 0;
+
+	/* Can't adjust fan when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
+	if (adev->powerplay.pp_funcs->get_fan_speed_rpm) {
+		err = amdgpu_dpm_get_fan_speed_rpm(adev, &rpm);
+		if (err)
+			return err;
+	}
+
+	return sprintf(buf, "%i\n", rpm);
+}
+
+static ssize_t amdgpu_hwmon_set_fan1_target(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	int err;
+	u32 value;
+	u32 pwm_mode;
+
+	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
+	if (pwm_mode != AMD_FAN_CTRL_MANUAL)
+		return -ENODATA;
+
+	/* Can't adjust fan when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
+	err = kstrtou32(buf, 10, &value);
+	if (err)
+		return err;
+
+	if (adev->powerplay.pp_funcs->set_fan_speed_rpm) {
+		err = amdgpu_dpm_set_fan_speed_rpm(adev, value);
+		if (err)
+			return err;
+	}
+
+	return count;
+}
+
+static ssize_t amdgpu_hwmon_get_fan1_enable(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	u32 pwm_mode = 0;
+
+	if (!adev->powerplay.pp_funcs->get_fan_control_mode)
+		return -EINVAL;
+
+	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
+
+	return sprintf(buf, "%i\n", pwm_mode == AMD_FAN_CTRL_AUTO ? 0 : 1);
+}
+
+static ssize_t amdgpu_hwmon_set_fan1_enable(struct device *dev,
+					    struct device_attribute *attr,
+					    const char *buf,
+					    size_t count)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	int err;
+	int value;
+	u32 pwm_mode;
+
+	/* Can't adjust fan when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
+	if (!adev->powerplay.pp_funcs->set_fan_control_mode)
+		return -EINVAL;
+
+	err = kstrtoint(buf, 10, &value);
+	if (err)
+		return err;
+
+	if (value == 0)
+		pwm_mode = AMD_FAN_CTRL_AUTO;
+	else if (value == 1)
+		pwm_mode = AMD_FAN_CTRL_MANUAL;
+	else
+		return -EINVAL;
+
+	amdgpu_dpm_set_fan_control_mode(adev, pwm_mode);
+
+	return count;
 }
 
 static ssize_t amdgpu_hwmon_show_vddgfx(struct device *dev,
@@ -1360,7 +1555,15 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
  *
  * - pwm1_max: pulse width modulation fan control maximum level (255)
  *
+ * - fan1_min: an minimum value Unit: revolution/min (RPM)
+ *
+ * - fan1_max: an maxmum value Unit: revolution/max (RPM)
+ *
  * - fan1_input: fan speed in RPM
+ *
+ * - fan[1-*]_target: Desired fan speed Unit: revolution/min (RPM)
+ *
+ * - fan[1-*]_enable: Enable or disable the sensors.1: Enable 0: Disable
  *
  * You can use hwmon tools like sensors to view this information on your system.
  *
@@ -1374,6 +1577,10 @@ static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO | S_IWUSR, amdgpu_hwmon_get_pwm1_
 static SENSOR_DEVICE_ATTR(pwm1_min, S_IRUGO, amdgpu_hwmon_get_pwm1_min, NULL, 0);
 static SENSOR_DEVICE_ATTR(pwm1_max, S_IRUGO, amdgpu_hwmon_get_pwm1_max, NULL, 0);
 static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, amdgpu_hwmon_get_fan1_input, NULL, 0);
+static SENSOR_DEVICE_ATTR(fan1_min, S_IRUGO, amdgpu_hwmon_get_fan1_min, NULL, 0);
+static SENSOR_DEVICE_ATTR(fan1_max, S_IRUGO, amdgpu_hwmon_get_fan1_max, NULL, 0);
+static SENSOR_DEVICE_ATTR(fan1_target, S_IRUGO | S_IWUSR, amdgpu_hwmon_get_fan1_target, amdgpu_hwmon_set_fan1_target, 0);
+static SENSOR_DEVICE_ATTR(fan1_enable, S_IRUGO | S_IWUSR, amdgpu_hwmon_get_fan1_enable, amdgpu_hwmon_set_fan1_enable, 0);
 static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, amdgpu_hwmon_show_vddgfx, NULL, 0);
 static SENSOR_DEVICE_ATTR(in0_label, S_IRUGO, amdgpu_hwmon_show_vddgfx_label, NULL, 0);
 static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, amdgpu_hwmon_show_vddnb, NULL, 0);
@@ -1392,6 +1599,10 @@ static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_pwm1_min.dev_attr.attr,
 	&sensor_dev_attr_pwm1_max.dev_attr.attr,
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
+	&sensor_dev_attr_fan1_min.dev_attr.attr,
+	&sensor_dev_attr_fan1_max.dev_attr.attr,
+	&sensor_dev_attr_fan1_target.dev_attr.attr,
+	&sensor_dev_attr_fan1_enable.dev_attr.attr,
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in0_label.dev_attr.attr,
 	&sensor_dev_attr_in1_input.dev_attr.attr,
@@ -1410,13 +1621,16 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
 
-
 	/* Skip fan attributes if fan is not present */
 	if (adev->pm.no_fan && (attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
 	    attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr ||
 	    attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
 	    attr == &sensor_dev_attr_pwm1_min.dev_attr.attr ||
-	    attr == &sensor_dev_attr_fan1_input.dev_attr.attr))
+	    attr == &sensor_dev_attr_fan1_input.dev_attr.attr ||
+	    attr == &sensor_dev_attr_fan1_min.dev_attr.attr ||
+	    attr == &sensor_dev_attr_fan1_max.dev_attr.attr ||
+	    attr == &sensor_dev_attr_fan1_target.dev_attr.attr ||
+	    attr == &sensor_dev_attr_fan1_enable.dev_attr.attr))
 		return 0;
 
 	/* Skip limit attributes if DPM is not enabled */
@@ -1426,7 +1640,12 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
 	     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr ||
 	     attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
-	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr))
+	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_min.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_max.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_target.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_enable.dev_attr.attr))
 		return 0;
 
 	/* mask fan attributes if we have no bindings for this asic to expose */
@@ -1451,8 +1670,16 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	/* hide max/min values if we can't both query and manage the fan */
 	if ((!adev->powerplay.pp_funcs->set_fan_speed_percent &&
 	     !adev->powerplay.pp_funcs->get_fan_speed_percent) &&
+	     (!adev->powerplay.pp_funcs->set_fan_speed_rpm &&
+	     !adev->powerplay.pp_funcs->get_fan_speed_rpm) &&
 	    (attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr))
+		return 0;
+
+	if ((!adev->powerplay.pp_funcs->set_fan_speed_rpm &&
+	     !adev->powerplay.pp_funcs->get_fan_speed_rpm) &&
+	    (attr == &sensor_dev_attr_fan1_max.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_min.dev_attr.attr))
 		return 0;
 
 	/* only APUs have vddnb */
@@ -1719,18 +1946,6 @@ void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 		mutex_lock(&adev->pm.mutex);
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_UVD, !enable);
 		mutex_unlock(&adev->pm.mutex);
-	} else {
-		if (enable) {
-			mutex_lock(&adev->pm.mutex);
-			adev->pm.dpm.uvd_active = true;
-			adev->pm.dpm.state = POWER_STATE_TYPE_INTERNAL_UVD;
-			mutex_unlock(&adev->pm.mutex);
-		} else {
-			mutex_lock(&adev->pm.mutex);
-			adev->pm.dpm.uvd_active = false;
-			mutex_unlock(&adev->pm.mutex);
-		}
-		amdgpu_pm_compute_clocks(adev);
 	}
 }
 
@@ -1741,29 +1956,6 @@ void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
 		mutex_lock(&adev->pm.mutex);
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_VCE, !enable);
 		mutex_unlock(&adev->pm.mutex);
-	} else {
-		if (enable) {
-			mutex_lock(&adev->pm.mutex);
-			adev->pm.dpm.vce_active = true;
-			/* XXX select vce level based on ring/task */
-			adev->pm.dpm.vce_level = AMD_VCE_LEVEL_AC_ALL;
-			mutex_unlock(&adev->pm.mutex);
-			amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							       AMD_CG_STATE_UNGATE);
-			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							       AMD_PG_STATE_UNGATE);
-			amdgpu_pm_compute_clocks(adev);
-		} else {
-			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							       AMD_PG_STATE_GATE);
-			amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							       AMD_CG_STATE_GATE);
-			mutex_lock(&adev->pm.mutex);
-			adev->pm.dpm.vce_active = false;
-			mutex_unlock(&adev->pm.mutex);
-			amdgpu_pm_compute_clocks(adev);
-		}
-
 	}
 }
 
@@ -1965,6 +2157,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
 	uint32_t value;
+	uint64_t value64;
 	uint32_t query = 0;
 	int size;
 
@@ -2002,6 +2195,10 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_LOAD, (void *)&value, &size))
 		seq_printf(m, "GPU Load: %u %%\n", value);
 	seq_printf(m, "\n");
+
+	/* SMC feature mask */
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK, (void *)&value64, &size))
+		seq_printf(m, "SMC Feature Mask: 0x%016llx\n", value64);
 
 	/* UVD clocks */
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_POWER, (void *)&value, &size)) {

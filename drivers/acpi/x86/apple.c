@@ -132,8 +132,8 @@ void acpi_extract_apple_properties(struct acpi_device *adev)
 	}
 	WARN_ON(free_space != (void *)newprops + newsize);
 
-	adev->data.properties = newprops;
 	adev->data.pointer = newprops;
+	acpi_data_add_props(&adev->data, &apple_prp_guid, newprops);
 
 out_free:
 	ACPI_FREE(props);

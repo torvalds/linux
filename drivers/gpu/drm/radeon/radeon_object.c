@@ -421,11 +421,13 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 int radeon_bo_evict_vram(struct radeon_device *rdev)
 {
 	/* late 2.6.33 fix IGP hibernate - we need pm ops to do this correct */
-	if (0 && (rdev->flags & RADEON_IS_IGP)) {
+#ifndef CONFIG_HIBERNATION
+	if (rdev->flags & RADEON_IS_IGP) {
 		if (rdev->mc.igp_sideport_enabled == false)
 			/* Useless to evict on IGP chips */
 			return 0;
 	}
+#endif
 	return ttm_bo_evict_mm(&rdev->mman.bdev, TTM_PL_VRAM);
 }
 

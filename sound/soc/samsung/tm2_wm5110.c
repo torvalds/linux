@@ -491,6 +491,7 @@ static int tm2_probe(struct platform_device *pdev)
 	struct snd_soc_card *card = &tm2_card;
 	struct tm2_machine_priv *priv;
 	struct of_phandle_args args;
+	struct snd_soc_dai_link *dai_link;
 	int num_codecs, ret, i;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -558,18 +559,18 @@ static int tm2_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize WM5110 - I2S and HDMI - I2S1 DAI links */
-	for (i = 0; i < card->num_links; i++) {
+	for_each_card_prelinks(card, i, dai_link) {
 		unsigned int dai_index = 0; /* WM5110 */
 
-		card->dai_link[i].cpu_name = NULL;
-		card->dai_link[i].platform_name = NULL;
+		dai_link->cpu_name = NULL;
+		dai_link->platform_name = NULL;
 
 		if (num_codecs > 1 && i == card->num_links - 1)
 			dai_index = 1; /* HDMI */
 
-		card->dai_link[i].codec_of_node = codec_dai_node[dai_index];
-		card->dai_link[i].cpu_of_node = cpu_dai_node[dai_index];
-		card->dai_link[i].platform_of_node = cpu_dai_node[dai_index];
+		dai_link->codec_of_node = codec_dai_node[dai_index];
+		dai_link->cpu_of_node = cpu_dai_node[dai_index];
+		dai_link->platform_of_node = cpu_dai_node[dai_index];
 	}
 
 	if (num_codecs > 1) {

@@ -99,7 +99,6 @@ static const int max44000_alspga_shift[] = {0, 2, 4, 7};
  * Handling this internally is also required for buffer support because the
  * channel's scan_type can't be modified dynamically.
  */
-static const int max44000_alstim_shift[] = {0, 2, 4, 6};
 #define MAX44000_ALSTIM_SHIFT(alstim) (2 * (alstim))
 
 /* Available integration times with pretty manual alignment: */

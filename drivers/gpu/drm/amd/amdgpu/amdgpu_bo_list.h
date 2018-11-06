@@ -32,7 +32,6 @@ struct amdgpu_bo_va;
 struct amdgpu_fpriv;
 
 struct amdgpu_bo_list_entry {
-	struct amdgpu_bo		*robj;
 	struct ttm_validate_buffer	tv;
 	struct amdgpu_bo_va		*bo_va;
 	uint32_t			priority;

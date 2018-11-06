@@ -25,6 +25,7 @@
 #include <asm/cacheflush.h>
 #include <acpi/nfit.h>
 #include "nfit.h"
+#include "intel.h"
 
 /*
  * For readq() and writeq() on 32-bit builds, the hi-lo, lo-hi order is
@@ -191,18 +192,20 @@ static int xlat_nvdimm_status(struct nvdimm *nvdimm, void *buf, unsigned int cmd
 		 * In the _LSI, _LSR, _LSW case the locked status is
 		 * communicated via the read/write commands
 		 */
-		if (nfit_mem->has_lsr)
+		if (test_bit(NFIT_MEM_LSR, &nfit_mem->flags))
 			break;
 
 		if (status >> 16 & ND_CONFIG_LOCKED)
 			return -EACCES;
 		break;
 	case ND_CMD_GET_CONFIG_DATA:
-		if (nfit_mem->has_lsr && status == ACPI_LABELS_LOCKED)
+		if (test_bit(NFIT_MEM_LSR, &nfit_mem->flags)
+				&& status == ACPI_LABELS_LOCKED)
 			return -EACCES;
 		break;
 	case ND_CMD_SET_CONFIG_DATA:
-		if (nfit_mem->has_lsw && status == ACPI_LABELS_LOCKED)
+		if (test_bit(NFIT_MEM_LSW, &nfit_mem->flags)
+				&& status == ACPI_LABELS_LOCKED)
 			return -EACCES;
 		break;
 	default:
@@ -480,14 +483,16 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 			min_t(u32, 256, in_buf.buffer.length), true);
 
 	/* call the BIOS, prefer the named methods over _DSM if available */
-	if (nvdimm && cmd == ND_CMD_GET_CONFIG_SIZE && nfit_mem->has_lsr)
+	if (nvdimm && cmd == ND_CMD_GET_CONFIG_SIZE
+			&& test_bit(NFIT_MEM_LSR, &nfit_mem->flags))
 		out_obj = acpi_label_info(handle);
-	else if (nvdimm && cmd == ND_CMD_GET_CONFIG_DATA && nfit_mem->has_lsr) {
+	else if (nvdimm && cmd == ND_CMD_GET_CONFIG_DATA
+			&& test_bit(NFIT_MEM_LSR, &nfit_mem->flags)) {
 		struct nd_cmd_get_config_data_hdr *p = buf;
 
 		out_obj = acpi_label_read(handle, p->in_offset, p->in_length);
 	} else if (nvdimm && cmd == ND_CMD_SET_CONFIG_DATA
-			&& nfit_mem->has_lsw) {
+			&& test_bit(NFIT_MEM_LSW, &nfit_mem->flags)) {
 		struct nd_cmd_set_config_hdr *p = buf;
 
 		out_obj = acpi_label_write(handle, p->in_offset, p->in_length,
@@ -1547,7 +1552,12 @@ static DEVICE_ATTR_RO(dsm_mask);
 static ssize_t flags_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	u16 flags = to_nfit_memdev(dev)->flags;
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+	u16 flags = __to_nfit_memdev(nfit_mem)->flags;
+
+	if (test_bit(NFIT_MEM_DIRTY, &nfit_mem->flags))
+		flags |= ACPI_NFIT_MEM_FLUSH_FAILED;
 
 	return sprintf(buf, "%s%s%s%s%s%s%s\n",
 		flags & ACPI_NFIT_MEM_SAVE_FAILED ? "save_fail " : "",
@@ -1578,6 +1588,16 @@ static ssize_t id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(id);
 
+static ssize_t dirty_shutdown_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+
+	return sprintf(buf, "%d\n", nfit_mem->dirty_shutdown);
+}
+static DEVICE_ATTR_RO(dirty_shutdown);
+
 static struct attribute *acpi_nfit_dimm_attributes[] = {
 	&dev_attr_handle.attr,
 	&dev_attr_phys_id.attr,
@@ -1595,6 +1615,7 @@ static struct attribute *acpi_nfit_dimm_attributes[] = {
 	&dev_attr_id.attr,
 	&dev_attr_family.attr,
 	&dev_attr_dsm_mask.attr,
+	&dev_attr_dirty_shutdown.attr,
 	NULL,
 };
 
@@ -1603,6 +1624,7 @@ static umode_t acpi_nfit_dimm_attr_visible(struct kobject *kobj,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 
 	if (!to_nfit_dcr(dev)) {
 		/* Without a dcr only the memdev attributes can be surfaced */
@@ -1616,6 +1638,11 @@ static umode_t acpi_nfit_dimm_attr_visible(struct kobject *kobj,
 
 	if (a == &dev_attr_format1.attr && num_nvdimm_formats(nvdimm) <= 1)
 		return 0;
+
+	if (!test_bit(NFIT_MEM_DIRTY_COUNT, &nfit_mem->flags)
+			&& a == &dev_attr_dirty_shutdown.attr)
+		return 0;
+
 	return a->mode;
 }
 
@@ -1694,6 +1721,56 @@ static bool acpi_nvdimm_has_method(struct acpi_device *adev, char *method)
 	return false;
 }
 
+__weak void nfit_intel_shutdown_status(struct nfit_mem *nfit_mem)
+{
+	struct nd_intel_smart smart = { 0 };
+	union acpi_object in_buf = {
+		.type = ACPI_TYPE_BUFFER,
+		.buffer.pointer = (char *) &smart,
+		.buffer.length = sizeof(smart),
+	};
+	union acpi_object in_obj = {
+		.type = ACPI_TYPE_PACKAGE,
+		.package.count = 1,
+		.package.elements = &in_buf,
+	};
+	const u8 func = ND_INTEL_SMART;
+	const guid_t *guid = to_nfit_uuid(nfit_mem->family);
+	u8 revid = nfit_dsm_revid(nfit_mem->family, func);
+	struct acpi_device *adev = nfit_mem->adev;
+	acpi_handle handle = adev->handle;
+	union acpi_object *out_obj;
+
+	if ((nfit_mem->dsm_mask & (1 << func)) == 0)
+		return;
+
+	out_obj = acpi_evaluate_dsm(handle, guid, revid, func, &in_obj);
+	if (!out_obj)
+		return;
+
+	if (smart.flags & ND_INTEL_SMART_SHUTDOWN_VALID) {
+		if (smart.shutdown_state)
+			set_bit(NFIT_MEM_DIRTY, &nfit_mem->flags);
+	}
+
+	if (smart.flags & ND_INTEL_SMART_SHUTDOWN_COUNT_VALID) {
+		set_bit(NFIT_MEM_DIRTY_COUNT, &nfit_mem->flags);
+		nfit_mem->dirty_shutdown = smart.shutdown_count;
+	}
+	ACPI_FREE(out_obj);
+}
+
+static void populate_shutdown_status(struct nfit_mem *nfit_mem)
+{
+	/*
+	 * For DIMMs that provide a dynamic facility to retrieve a
+	 * dirty-shutdown status and/or a dirty-shutdown count, cache
+	 * these values in nfit_mem.
+	 */
+	if (nfit_mem->family == NVDIMM_FAMILY_INTEL)
+		nfit_intel_shutdown_status(nfit_mem);
+}
+
 static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_mem *nfit_mem, u32 device_handle)
 {
@@ -1708,8 +1785,11 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	nfit_mem->dsm_mask = acpi_desc->dimm_cmd_force_en;
 	nfit_mem->family = NVDIMM_FAMILY_INTEL;
 	adev = to_acpi_dev(acpi_desc);
-	if (!adev)
+	if (!adev) {
+		/* unit test case */
+		populate_shutdown_status(nfit_mem);
 		return 0;
+	}
 
 	adev_dimm = acpi_find_child_device(adev, device_handle, false);
 	nfit_mem->adev = adev_dimm;
@@ -1784,13 +1864,16 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	if (acpi_nvdimm_has_method(adev_dimm, "_LSI")
 			&& acpi_nvdimm_has_method(adev_dimm, "_LSR")) {
 		dev_dbg(dev, "%s: has _LSR\n", dev_name(&adev_dimm->dev));
-		nfit_mem->has_lsr = true;
+		set_bit(NFIT_MEM_LSR, &nfit_mem->flags);
 	}
 
-	if (nfit_mem->has_lsr && acpi_nvdimm_has_method(adev_dimm, "_LSW")) {
+	if (test_bit(NFIT_MEM_LSR, &nfit_mem->flags)
+			&& acpi_nvdimm_has_method(adev_dimm, "_LSW")) {
 		dev_dbg(dev, "%s: has _LSW\n", dev_name(&adev_dimm->dev));
-		nfit_mem->has_lsw = true;
+		set_bit(NFIT_MEM_LSW, &nfit_mem->flags);
 	}
+
+	populate_shutdown_status(nfit_mem);
 
 	return 0;
 }
@@ -1878,11 +1961,11 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 			cmd_mask |= nfit_mem->dsm_mask & NVDIMM_STANDARD_CMDMASK;
 		}
 
-		if (nfit_mem->has_lsr) {
+		if (test_bit(NFIT_MEM_LSR, &nfit_mem->flags)) {
 			set_bit(ND_CMD_GET_CONFIG_SIZE, &cmd_mask);
 			set_bit(ND_CMD_GET_CONFIG_DATA, &cmd_mask);
 		}
-		if (nfit_mem->has_lsw)
+		if (test_bit(NFIT_MEM_LSW, &nfit_mem->flags))
 			set_bit(ND_CMD_SET_CONFIG_DATA, &cmd_mask);
 
 		flush = nfit_mem->nfit_flush ? nfit_mem->nfit_flush->flush
@@ -2466,7 +2549,8 @@ static int ars_get_cap(struct acpi_nfit_desc *acpi_desc,
 	return cmd_rc;
 }
 
-static int ars_start(struct acpi_nfit_desc *acpi_desc, struct nfit_spa *nfit_spa)
+static int ars_start(struct acpi_nfit_desc *acpi_desc,
+		struct nfit_spa *nfit_spa, enum nfit_ars_state req_type)
 {
 	int rc;
 	int cmd_rc;
@@ -2477,7 +2561,7 @@ static int ars_start(struct acpi_nfit_desc *acpi_desc, struct nfit_spa *nfit_spa
 	memset(&ars_start, 0, sizeof(ars_start));
 	ars_start.address = spa->address;
 	ars_start.length = spa->length;
-	if (test_bit(ARS_SHORT, &nfit_spa->ars_state))
+	if (req_type == ARS_REQ_SHORT)
 		ars_start.flags = ND_ARS_RETURN_PREV_DATA;
 	if (nfit_spa_type(spa) == NFIT_SPA_PM)
 		ars_start.type = ND_ARS_PERSISTENT;
@@ -2534,6 +2618,15 @@ static void ars_complete(struct acpi_nfit_desc *acpi_desc,
 	struct nd_region *nd_region = nfit_spa->nd_region;
 	struct device *dev;
 
+	lockdep_assert_held(&acpi_desc->init_mutex);
+	/*
+	 * Only advance the ARS state for ARS runs initiated by the
+	 * kernel, ignore ARS results from BIOS initiated runs for scrub
+	 * completion tracking.
+	 */
+	if (acpi_desc->scrub_spa != nfit_spa)
+		return;
+
 	if ((ars_status->address >= spa->address && ars_status->address
 				< spa->address + spa->length)
 			|| (ars_status->address < spa->address)) {
@@ -2553,28 +2646,13 @@ static void ars_complete(struct acpi_nfit_desc *acpi_desc,
 	} else
 		return;
 
-	if (test_bit(ARS_DONE, &nfit_spa->ars_state))
-		return;
-
-	if (!test_and_clear_bit(ARS_REQ, &nfit_spa->ars_state))
-		return;
-
+	acpi_desc->scrub_spa = NULL;
 	if (nd_region) {
 		dev = nd_region_dev(nd_region);
 		nvdimm_region_notify(nd_region, NVDIMM_REVALIDATE_POISON);
 	} else
 		dev = acpi_desc->dev;
-
-	dev_dbg(dev, "ARS: range %d %s complete\n", spa->range_index,
-			test_bit(ARS_SHORT, &nfit_spa->ars_state)
-			? "short" : "long");
-	clear_bit(ARS_SHORT, &nfit_spa->ars_state);
-	if (test_and_clear_bit(ARS_REQ_REDO, &nfit_spa->ars_state)) {
-		set_bit(ARS_SHORT, &nfit_spa->ars_state);
-		set_bit(ARS_REQ, &nfit_spa->ars_state);
-		dev_dbg(dev, "ARS: processing scrub request received while in progress\n");
-	} else
-		set_bit(ARS_DONE, &nfit_spa->ars_state);
+	dev_dbg(dev, "ARS: range %d complete\n", spa->range_index);
 }
 
 static int ars_status_process_records(struct acpi_nfit_desc *acpi_desc)
@@ -2855,45 +2933,54 @@ static int acpi_nfit_query_poison(struct acpi_nfit_desc *acpi_desc)
 	return 0;
 }
 
-static int ars_register(struct acpi_nfit_desc *acpi_desc, struct nfit_spa *nfit_spa,
-		int *query_rc)
+static int ars_register(struct acpi_nfit_desc *acpi_desc,
+		struct nfit_spa *nfit_spa)
 {
-	int rc = *query_rc;
+	int rc;
 
-	if (no_init_ars)
+	if (no_init_ars || test_bit(ARS_FAILED, &nfit_spa->ars_state))
 		return acpi_nfit_register_region(acpi_desc, nfit_spa);
 
-	set_bit(ARS_REQ, &nfit_spa->ars_state);
-	set_bit(ARS_SHORT, &nfit_spa->ars_state);
+	set_bit(ARS_REQ_SHORT, &nfit_spa->ars_state);
+	set_bit(ARS_REQ_LONG, &nfit_spa->ars_state);
 
-	switch (rc) {
+	switch (acpi_nfit_query_poison(acpi_desc)) {
 	case 0:
 	case -EAGAIN:
-		rc = ars_start(acpi_desc, nfit_spa);
-		if (rc == -EBUSY) {
-			*query_rc = rc;
+		rc = ars_start(acpi_desc, nfit_spa, ARS_REQ_SHORT);
+		/* shouldn't happen, try again later */
+		if (rc == -EBUSY)
 			break;
-		} else if (rc == 0) {
-			rc = acpi_nfit_query_poison(acpi_desc);
-		} else {
+		if (rc) {
 			set_bit(ARS_FAILED, &nfit_spa->ars_state);
 			break;
 		}
-		if (rc == -EAGAIN)
-			clear_bit(ARS_SHORT, &nfit_spa->ars_state);
-		else if (rc == 0)
-			ars_complete(acpi_desc, nfit_spa);
+		clear_bit(ARS_REQ_SHORT, &nfit_spa->ars_state);
+		rc = acpi_nfit_query_poison(acpi_desc);
+		if (rc)
+			break;
+		acpi_desc->scrub_spa = nfit_spa;
+		ars_complete(acpi_desc, nfit_spa);
+		/*
+		 * If ars_complete() says we didn't complete the
+		 * short scrub, we'll try again with a long
+		 * request.
+		 */
+		acpi_desc->scrub_spa = NULL;
 		break;
 	case -EBUSY:
+	case -ENOMEM:
 	case -ENOSPC:
+		/*
+		 * BIOS was using ARS, wait for it to complete (or
+		 * resources to become available) and then perform our
+		 * own scrubs.
+		 */
 		break;
 	default:
 		set_bit(ARS_FAILED, &nfit_spa->ars_state);
 		break;
 	}
-
-	if (test_and_clear_bit(ARS_DONE, &nfit_spa->ars_state))
-		set_bit(ARS_REQ, &nfit_spa->ars_state);
 
 	return acpi_nfit_register_region(acpi_desc, nfit_spa);
 }
@@ -2915,6 +3002,8 @@ static unsigned int __acpi_nfit_scrub(struct acpi_nfit_desc *acpi_desc,
 	unsigned int tmo = acpi_desc->scrub_tmo;
 	struct device *dev = acpi_desc->dev;
 	struct nfit_spa *nfit_spa;
+
+	lockdep_assert_held(&acpi_desc->init_mutex);
 
 	if (acpi_desc->cancel)
 		return 0;
@@ -2939,21 +3028,49 @@ static unsigned int __acpi_nfit_scrub(struct acpi_nfit_desc *acpi_desc,
 
 	ars_complete_all(acpi_desc);
 	list_for_each_entry(nfit_spa, &acpi_desc->spas, list) {
+		enum nfit_ars_state req_type;
+		int rc;
+
 		if (test_bit(ARS_FAILED, &nfit_spa->ars_state))
 			continue;
-		if (test_bit(ARS_REQ, &nfit_spa->ars_state)) {
-			int rc = ars_start(acpi_desc, nfit_spa);
 
-			clear_bit(ARS_DONE, &nfit_spa->ars_state);
-			dev = nd_region_dev(nfit_spa->nd_region);
-			dev_dbg(dev, "ARS: range %d ARS start (%d)\n",
-					nfit_spa->spa->range_index, rc);
-			if (rc == 0 || rc == -EBUSY)
-				return 1;
-			dev_err(dev, "ARS: range %d ARS failed (%d)\n",
-					nfit_spa->spa->range_index, rc);
-			set_bit(ARS_FAILED, &nfit_spa->ars_state);
+		/* prefer short ARS requests first */
+		if (test_bit(ARS_REQ_SHORT, &nfit_spa->ars_state))
+			req_type = ARS_REQ_SHORT;
+		else if (test_bit(ARS_REQ_LONG, &nfit_spa->ars_state))
+			req_type = ARS_REQ_LONG;
+		else
+			continue;
+		rc = ars_start(acpi_desc, nfit_spa, req_type);
+
+		dev = nd_region_dev(nfit_spa->nd_region);
+		dev_dbg(dev, "ARS: range %d ARS start %s (%d)\n",
+				nfit_spa->spa->range_index,
+				req_type == ARS_REQ_SHORT ? "short" : "long",
+				rc);
+		/*
+		 * Hmm, we raced someone else starting ARS? Try again in
+		 * a bit.
+		 */
+		if (rc == -EBUSY)
+			return 1;
+		if (rc == 0) {
+			dev_WARN_ONCE(dev, acpi_desc->scrub_spa,
+					"scrub start while range %d active\n",
+					acpi_desc->scrub_spa->spa->range_index);
+			clear_bit(req_type, &nfit_spa->ars_state);
+			acpi_desc->scrub_spa = nfit_spa;
+			/*
+			 * Consider this spa last for future scrub
+			 * requests
+			 */
+			list_move_tail(&nfit_spa->list, &acpi_desc->spas);
+			return 1;
 		}
+
+		dev_err(dev, "ARS: range %d ARS failed (%d)\n",
+				nfit_spa->spa->range_index, rc);
+		set_bit(ARS_FAILED, &nfit_spa->ars_state);
 	}
 	return 0;
 }
@@ -3009,6 +3126,7 @@ static void acpi_nfit_init_ars(struct acpi_nfit_desc *acpi_desc,
 	struct nd_cmd_ars_cap ars_cap;
 	int rc;
 
+	set_bit(ARS_FAILED, &nfit_spa->ars_state);
 	memset(&ars_cap, 0, sizeof(ars_cap));
 	rc = ars_get_cap(acpi_desc, &ars_cap, nfit_spa);
 	if (rc < 0)
@@ -3025,16 +3143,14 @@ static void acpi_nfit_init_ars(struct acpi_nfit_desc *acpi_desc,
 	nfit_spa->clear_err_unit = ars_cap.clear_err_unit;
 	acpi_desc->max_ars = max(nfit_spa->max_ars, acpi_desc->max_ars);
 	clear_bit(ARS_FAILED, &nfit_spa->ars_state);
-	set_bit(ARS_REQ, &nfit_spa->ars_state);
 }
 
 static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 {
 	struct nfit_spa *nfit_spa;
-	int rc, query_rc;
+	int rc;
 
 	list_for_each_entry(nfit_spa, &acpi_desc->spas, list) {
-		set_bit(ARS_FAILED, &nfit_spa->ars_state);
 		switch (nfit_spa_type(nfit_spa->spa)) {
 		case NFIT_SPA_VOLATILE:
 		case NFIT_SPA_PM:
@@ -3043,20 +3159,12 @@ static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 		}
 	}
 
-	/*
-	 * Reap any results that might be pending before starting new
-	 * short requests.
-	 */
-	query_rc = acpi_nfit_query_poison(acpi_desc);
-	if (query_rc == 0)
-		ars_complete_all(acpi_desc);
-
 	list_for_each_entry(nfit_spa, &acpi_desc->spas, list)
 		switch (nfit_spa_type(nfit_spa->spa)) {
 		case NFIT_SPA_VOLATILE:
 		case NFIT_SPA_PM:
 			/* register regions and kick off initial ARS run */
-			rc = ars_register(acpi_desc, nfit_spa, &query_rc);
+			rc = ars_register(acpi_desc, nfit_spa);
 			if (rc)
 				return rc;
 			break;
@@ -3233,6 +3341,8 @@ static int acpi_nfit_clear_to_send(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd)
 {
 	struct acpi_nfit_desc *acpi_desc = to_acpi_nfit_desc(nd_desc);
+	struct nfit_spa *nfit_spa;
+	int rc = 0;
 
 	if (nvdimm)
 		return 0;
@@ -3242,16 +3352,24 @@ static int acpi_nfit_clear_to_send(struct nvdimm_bus_descriptor *nd_desc,
 	/*
 	 * The kernel and userspace may race to initiate a scrub, but
 	 * the scrub thread is prepared to lose that initial race.  It
-	 * just needs guarantees that any ars it initiates are not
-	 * interrupted by any intervening start reqeusts from userspace.
+	 * just needs guarantees that any ARS it initiates are not
+	 * interrupted by any intervening start requests from userspace.
 	 */
-	if (work_busy(&acpi_desc->dwork.work))
-		return -EBUSY;
+	mutex_lock(&acpi_desc->init_mutex);
+	list_for_each_entry(nfit_spa, &acpi_desc->spas, list)
+		if (acpi_desc->scrub_spa
+				|| test_bit(ARS_REQ_SHORT, &nfit_spa->ars_state)
+				|| test_bit(ARS_REQ_LONG, &nfit_spa->ars_state)) {
+			rc = -EBUSY;
+			break;
+		}
+	mutex_unlock(&acpi_desc->init_mutex);
 
-	return 0;
+	return rc;
 }
 
-int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, unsigned long flags)
+int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc,
+		enum nfit_ars_state req_type)
 {
 	struct device *dev = acpi_desc->dev;
 	int scheduled = 0, busy = 0;
@@ -3271,14 +3389,10 @@ int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, unsigned long flags)
 		if (test_bit(ARS_FAILED, &nfit_spa->ars_state))
 			continue;
 
-		if (test_and_set_bit(ARS_REQ, &nfit_spa->ars_state)) {
+		if (test_and_set_bit(req_type, &nfit_spa->ars_state))
 			busy++;
-			set_bit(ARS_REQ_REDO, &nfit_spa->ars_state);
-		} else {
-			if (test_bit(ARS_SHORT, &flags))
-				set_bit(ARS_SHORT, &nfit_spa->ars_state);
+		else
 			scheduled++;
-		}
 	}
 	if (scheduled) {
 		sched_ars(acpi_desc);
@@ -3464,10 +3578,11 @@ static void acpi_nfit_update_notify(struct device *dev, acpi_handle handle)
 static void acpi_nfit_uc_error_notify(struct device *dev, acpi_handle handle)
 {
 	struct acpi_nfit_desc *acpi_desc = dev_get_drvdata(dev);
-	unsigned long flags = (acpi_desc->scrub_mode == HW_ERROR_SCRUB_ON) ?
-			0 : 1 << ARS_SHORT;
 
-	acpi_nfit_ars_rescan(acpi_desc, flags);
+	if (acpi_desc->scrub_mode == HW_ERROR_SCRUB_ON)
+		acpi_nfit_ars_rescan(acpi_desc, ARS_REQ_LONG);
+	else
+		acpi_nfit_ars_rescan(acpi_desc, ARS_REQ_SHORT);
 }
 
 void __acpi_nfit_notify(struct device *dev, acpi_handle handle, u32 event)

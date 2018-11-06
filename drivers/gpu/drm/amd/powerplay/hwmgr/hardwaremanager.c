@@ -359,7 +359,7 @@ int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *s
 			PHM_PerformanceLevelDesignation designation)
 {
 	int result;
-	PHM_PerformanceLevel performance_level;
+	PHM_PerformanceLevel performance_level = {0};
 
 	PHM_FUNC_CHECK(hwmgr);
 

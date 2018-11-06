@@ -71,14 +71,6 @@ void __cm_reset(struct hfi1_devdata *dd, u64 sendctrl)
 	}
 }
 
-/* defined in header release 48 and higher */
-#ifndef SEND_CTRL_UNSUPPORTED_VL_SHIFT
-#define SEND_CTRL_UNSUPPORTED_VL_SHIFT 3
-#define SEND_CTRL_UNSUPPORTED_VL_MASK 0xffull
-#define SEND_CTRL_UNSUPPORTED_VL_SMASK (SEND_CTRL_UNSUPPORTED_VL_MASK \
-		<< SEND_CTRL_UNSUPPORTED_VL_SHIFT)
-#endif
-
 /* global control of PIO send */
 void pio_send_control(struct hfi1_devdata *dd, int op)
 {

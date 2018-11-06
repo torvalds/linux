@@ -261,8 +261,9 @@ snd_bebob_maudio_special_discover(struct snd_bebob *bebob, bool is1814)
 	struct special_params *params;
 	int err;
 
-	params = kzalloc(sizeof(struct special_params), GFP_KERNEL);
-	if (params == NULL)
+	params = devm_kzalloc(&bebob->card->card_dev,
+			      sizeof(struct special_params), GFP_KERNEL);
+	if (!params)
 		return -ENOMEM;
 
 	mutex_lock(&bebob->mutex);

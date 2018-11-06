@@ -520,10 +520,20 @@ setup_sge_txq_uld(struct adapter *adap, unsigned int uld_type,
 	txq_info = kzalloc(sizeof(*txq_info), GFP_KERNEL);
 	if (!txq_info)
 		return -ENOMEM;
+	if (uld_type == CXGB4_ULD_CRYPTO) {
+		i = min_t(int, adap->vres.ncrypto_fc,
+			  num_online_cpus());
+		txq_info->ntxq = rounddown(i, adap->params.nports);
+		if (txq_info->ntxq <= 0) {
+			dev_warn(adap->pdev_dev, "Crypto Tx Queues can't be zero\n");
+			kfree(txq_info);
+			return -EINVAL;
+		}
 
-	i = min_t(int, uld_info->ntxq, num_online_cpus());
-	txq_info->ntxq = roundup(i, adap->params.nports);
-
+	} else {
+		i = min_t(int, uld_info->ntxq, num_online_cpus());
+		txq_info->ntxq = roundup(i, adap->params.nports);
+	}
 	txq_info->uldtxq = kcalloc(txq_info->ntxq, sizeof(struct sge_uld_txq),
 				   GFP_KERNEL);
 	if (!txq_info->uldtxq) {
@@ -546,11 +556,14 @@ static void uld_queue_init(struct adapter *adap, unsigned int uld_type,
 			   struct cxgb4_lld_info *lli)
 {
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
+	int tx_uld_type = TX_ULD(uld_type);
+	struct sge_uld_txq_info *txq_info = adap->sge.uld_txq_info[tx_uld_type];
 
 	lli->rxq_ids = rxq_info->rspq_id;
 	lli->nrxq = rxq_info->nrxq;
 	lli->ciq_ids = rxq_info->rspq_id + rxq_info->nrxq;
 	lli->nciq = rxq_info->nciq;
+	lli->ntxq = txq_info->ntxq;
 }
 
 int t4_uld_mem_alloc(struct adapter *adap)
@@ -634,7 +647,6 @@ static void uld_init(struct adapter *adap, struct cxgb4_lld_info *lld)
 	lld->ports = adap->port;
 	lld->vr = &adap->vres;
 	lld->mtus = adap->params.mtus;
-	lld->ntxq = adap->sge.ofldqsets;
 	lld->nchan = adap->params.nports;
 	lld->nports = adap->params.nports;
 	lld->wr_cred = adap->params.ofldq_wr_cred;

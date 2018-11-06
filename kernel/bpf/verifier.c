@@ -1387,21 +1387,24 @@ static bool may_access_direct_pkt_data(struct bpf_verifier_env *env,
 				       enum bpf_access_type t)
 {
 	switch (env->prog->type) {
+	/* Program types only with direct read access go here! */
 	case BPF_PROG_TYPE_LWT_IN:
 	case BPF_PROG_TYPE_LWT_OUT:
 	case BPF_PROG_TYPE_LWT_SEG6LOCAL:
 	case BPF_PROG_TYPE_SK_REUSEPORT:
-		/* dst_input() and dst_output() can't write for now */
+	case BPF_PROG_TYPE_FLOW_DISSECTOR:
+	case BPF_PROG_TYPE_CGROUP_SKB:
 		if (t == BPF_WRITE)
 			return false;
 		/* fallthrough */
+
+	/* Program types with direct read + write access go here! */
 	case BPF_PROG_TYPE_SCHED_CLS:
 	case BPF_PROG_TYPE_SCHED_ACT:
 	case BPF_PROG_TYPE_XDP:
 	case BPF_PROG_TYPE_LWT_XMIT:
 	case BPF_PROG_TYPE_SK_SKB:
 	case BPF_PROG_TYPE_SK_MSG:
-	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 		if (meta)
 			return meta->pkt_access;
 
@@ -5706,7 +5709,11 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 	bool is_narrower_load;
 	u32 target_size;
 
-	if (ops->gen_prologue) {
+	if (ops->gen_prologue || env->seen_direct_write) {
+		if (!ops->gen_prologue) {
+			verbose(env, "bpf verifier is misconfigured\n");
+			return -EINVAL;
+		}
 		cnt = ops->gen_prologue(insn_buf, env->seen_direct_write,
 					env->prog);
 		if (cnt >= ARRAY_SIZE(insn_buf)) {

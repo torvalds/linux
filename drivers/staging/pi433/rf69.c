@@ -853,7 +853,6 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 #ifdef DEBUG_FIFO_ACCESS
 	int i;
 #endif
-	char spi_address = REG_FIFO | WRITE_BIT;
 	u8 local_buffer[FIFO_SIZE + 1];
 
 	if (size > FIFO_SIZE) {
@@ -862,7 +861,7 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 		return -EMSGSIZE;
 	}
 
-	local_buffer[0] = spi_address;
+	local_buffer[0] = REG_FIFO | WRITE_BIT;
 	memcpy(&local_buffer[1], buffer, size);
 
 #ifdef DEBUG_FIFO_ACCESS

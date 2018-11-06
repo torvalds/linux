@@ -739,8 +739,9 @@ struct vmbus_channel {
 	u32 ringbuffer_gpadlhandle;
 
 	/* Allocated memory for ring buffer */
-	void *ringbuffer_pages;
+	struct page *ringbuffer_page;
 	u32 ringbuffer_pagecount;
+	u32 ringbuffer_send_offset;
 	struct hv_ring_buffer_info outbound;	/* send to parent */
 	struct hv_ring_buffer_info inbound;	/* receive from parent */
 
@@ -1021,6 +1022,14 @@ struct vmbus_packet_mpb_array {
 	struct hv_mpb_array range;
 } __packed;
 
+int vmbus_alloc_ring(struct vmbus_channel *channel,
+		     u32 send_size, u32 recv_size);
+void vmbus_free_ring(struct vmbus_channel *channel);
+
+int vmbus_connect_ring(struct vmbus_channel *channel,
+		       void (*onchannel_callback)(void *context),
+		       void *context);
+int vmbus_disconnect_ring(struct vmbus_channel *channel);
 
 extern int vmbus_open(struct vmbus_channel *channel,
 			    u32 send_ringbuffersize,
@@ -1125,6 +1134,7 @@ struct hv_device {
 	u16 device_id;
 
 	struct device device;
+	char *driver_override; /* Driver name to force a match */
 
 	struct vmbus_channel *channel;
 	struct kset	     *channels_kset;
@@ -1442,7 +1452,7 @@ extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf,
 				const int *srv_version, int srv_vercnt,
 				int *nego_fw_version, int *nego_srv_version);
 
-void hv_process_channel_removal(u32 relid);
+void hv_process_channel_removal(struct vmbus_channel *channel);
 
 void vmbus_setevent(struct vmbus_channel *channel);
 /*

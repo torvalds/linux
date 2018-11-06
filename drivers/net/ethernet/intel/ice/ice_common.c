@@ -43,6 +43,23 @@ static enum ice_status ice_set_mac_type(struct ice_hw *hw)
 }
 
 /**
+ * ice_dev_onetime_setup - Temporary HW/FW workarounds
+ * @hw: pointer to the HW structure
+ *
+ * This function provides temporary workarounds for certain issues
+ * that are expected to be fixed in the HW/FW.
+ */
+void ice_dev_onetime_setup(struct ice_hw *hw)
+{
+	/* configure Rx - set non pxe mode */
+	wr32(hw, GLLAN_RCTL_0, 0x1);
+
+#define MBX_PF_VT_PFALLOC	0x00231E80
+	/* set VFs per PF */
+	wr32(hw, MBX_PF_VT_PFALLOC, rd32(hw, PF_VT_PFALLOC_HIF));
+}
+
+/**
  * ice_clear_pf_cfg - Clear PF configuration
  * @hw: pointer to the hardware structure
  *
@@ -218,7 +235,7 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
  *
  * Get Link Status (0x607). Returns the link status of the adapter.
  */
-enum ice_status
+static enum ice_status
 ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 		     struct ice_link_status *link, struct ice_sq_cd *cd)
 {
@@ -739,6 +756,8 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	status = ice_init_fltr_mgmt_struct(hw);
 	if (status)
 		goto err_unroll_sched;
+
+	ice_dev_onetime_setup(hw);
 
 	/* Get MAC information */
 	/* A single port can report up to two (LAN and WoL) addresses */
@@ -1531,9 +1550,7 @@ ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
 	if (!status)
 		ice_parse_caps(hw, buf, le32_to_cpu(cmd->count), opc);
 	else if (hw->adminq.sq_last_status == ICE_AQ_RC_ENOMEM)
-		*cap_count =
-			DIV_ROUND_UP(le16_to_cpu(desc.datalen),
-				     sizeof(struct ice_aqc_list_caps_elem));
+		*cap_count = le32_to_cpu(cmd->count);
 	return status;
 }
 
@@ -1985,33 +2002,6 @@ ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
 		cmd->cmd_flags &= ~ICE_AQC_RESTART_AN_LINK_ENABLE;
 
 	return ice_aq_send_cmd(pi->hw, &desc, NULL, 0, cd);
-}
-
-/**
- * ice_aq_set_event_mask
- * @hw: pointer to the hw struct
- * @port_num: port number of the physical function
- * @mask: event mask to be set
- * @cd: pointer to command details structure or NULL
- *
- * Set event mask (0x0613)
- */
-enum ice_status
-ice_aq_set_event_mask(struct ice_hw *hw, u8 port_num, u16 mask,
-		      struct ice_sq_cd *cd)
-{
-	struct ice_aqc_set_event_mask *cmd;
-	struct ice_aq_desc desc;
-
-	cmd = &desc.params.set_event_mask;
-
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_event_mask);
-
-	cmd->lport_num = port_num;
-
-	cmd->event_mask = cpu_to_le16(mask);
-
-	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
 
 /**

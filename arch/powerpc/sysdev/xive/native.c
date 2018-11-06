@@ -238,20 +238,11 @@ static bool xive_native_match(struct device_node *node)
 #ifdef CONFIG_SMP
 static int xive_native_get_ipi(unsigned int cpu, struct xive_cpu *xc)
 {
-	struct device_node *np;
-	unsigned int chip_id;
 	s64 irq;
-
-	/* Find the chip ID */
-	np = of_get_cpu_node(cpu, NULL);
-	if (np) {
-		if (of_property_read_u32(np, "ibm,chip-id", &chip_id) < 0)
-			chip_id = 0;
-	}
 
 	/* Allocate an IPI and populate info about it */
 	for (;;) {
-		irq = opal_xive_allocate_irq(chip_id);
+		irq = opal_xive_allocate_irq(xc->chip_id);
 		if (irq == OPAL_BUSY) {
 			msleep(OPAL_BUSY_DELAY_MS);
 			continue;

@@ -270,20 +270,3 @@ void exynos_drm_fbdev_fini(struct drm_device *dev)
 	private->fb_helper = NULL;
 }
 
-void exynos_drm_fbdev_suspend(struct drm_device *dev)
-{
-	struct exynos_drm_private *private = dev->dev_private;
-
-	console_lock();
-	drm_fb_helper_set_suspend(private->fb_helper, 1);
-	console_unlock();
-}
-
-void exynos_drm_fbdev_resume(struct drm_device *dev)
-{
-	struct exynos_drm_private *private = dev->dev_private;
-
-	console_lock();
-	drm_fb_helper_set_suspend(private->fb_helper, 0);
-	console_unlock();
-}

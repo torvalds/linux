@@ -660,7 +660,7 @@ static void __vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man)
 {
 	struct vmw_cmdbuf_header *cur = man->cur;
 
-	WARN_ON(!mutex_is_locked(&man->cur_mutex));
+	lockdep_assert_held_once(&man->cur_mutex);
 
 	if (!cur)
 		return;
@@ -1045,7 +1045,7 @@ static void vmw_cmdbuf_commit_cur(struct vmw_cmdbuf_man *man,
 {
 	struct vmw_cmdbuf_header *cur = man->cur;
 
-	WARN_ON(!mutex_is_locked(&man->cur_mutex));
+	lockdep_assert_held_once(&man->cur_mutex);
 
 	WARN_ON(size > cur->reserved);
 	man->cur_pos += size;

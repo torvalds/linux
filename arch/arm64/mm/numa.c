@@ -20,7 +20,6 @@
 #define pr_fmt(fmt) "NUMA: " fmt
 
 #include <linux/acpi.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -168,7 +167,7 @@ static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
 {
 	int nid = early_cpu_to_node(cpu);
 
-	return  memblock_virt_alloc_try_nid(size, align,
+	return  memblock_alloc_try_nid(size, align,
 			__pa(MAX_DMA_ADDRESS), MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 }
 
@@ -237,7 +236,7 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	if (start_pfn >= end_pfn)
 		pr_info("Initmem setup node %d [<memory-less node>]\n", nid);
 
-	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 	nd = __va(nd_pa);
 
 	/* report and initialize */

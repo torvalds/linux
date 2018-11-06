@@ -322,8 +322,10 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 		pr_debug("Releasing pdd (topology id %d) for process (pasid %d)\n",
 				pdd->dev->id, p->pasid);
 
-		if (pdd->drm_file)
+		if (pdd->drm_file) {
+			pdd->dev->kfd2kgd->release_process_vm(pdd->dev->kgd, pdd->vm);
 			fput(pdd->drm_file);
+		}
 		else if (pdd->vm)
 			pdd->dev->kfd2kgd->destroy_process_vm(
 				pdd->dev->kgd, pdd->vm);
@@ -687,11 +689,11 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 
 	if (drm_file)
 		ret = dev->kfd2kgd->acquire_process_vm(
-			dev->kgd, drm_file,
+			dev->kgd, drm_file, p->pasid,
 			&pdd->vm, &p->kgd_process_info, &p->ef);
 	else
 		ret = dev->kfd2kgd->create_process_vm(
-			dev->kgd, &pdd->vm, &p->kgd_process_info, &p->ef);
+			dev->kgd, p->pasid, &pdd->vm, &p->kgd_process_info, &p->ef);
 	if (ret) {
 		pr_err("Failed to create process VM object\n");
 		return ret;

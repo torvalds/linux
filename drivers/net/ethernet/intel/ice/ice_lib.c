@@ -433,7 +433,7 @@ int ice_vsi_clear(struct ice_vsi *vsi)
  * @irq: interrupt number
  * @data: pointer to a q_vector
  */
-irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
+static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
 {
 	struct ice_q_vector *q_vector = (struct ice_q_vector *)data;
 
@@ -2529,6 +2529,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	vsi->hw_base_vector = 0;
 	ice_vsi_clear_rings(vsi);
 	ice_vsi_free_arrays(vsi, false);
+	ice_dev_onetime_setup(&vsi->back->hw);
 	ice_vsi_set_num_qs(vsi);
 
 	/* Initialize VSI struct elements and create VSI in FW */

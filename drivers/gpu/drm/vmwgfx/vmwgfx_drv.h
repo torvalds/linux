@@ -28,6 +28,7 @@
 #ifndef _VMWGFX_DRV_H_
 #define _VMWGFX_DRV_H_
 
+#include "vmwgfx_validation.h"
 #include "vmwgfx_reg.h"
 #include <drm/drmP.h>
 #include <drm/vmwgfx_drm.h>
@@ -35,11 +36,11 @@
 #include <drm/drm_auth.h>
 #include <linux/suspend.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_object.h>
-#include <drm/ttm/ttm_lock.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
+#include "ttm_object.h"
+#include "ttm_lock.h"
 #include <linux/sync_file.h>
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
@@ -112,21 +113,49 @@ struct vmw_validate_buffer {
 };
 
 struct vmw_res_func;
+
+
+/**
+ * struct vmw-resource - base class for hardware resources
+ *
+ * @kref: For refcounting.
+ * @dev_priv: Pointer to the device private for this resource. Immutable.
+ * @id: Device id. Protected by @dev_priv::resource_lock.
+ * @backup_size: Backup buffer size. Immutable.
+ * @res_dirty: Resource contains data not yet in the backup buffer. Protected
+ * by resource reserved.
+ * @backup_dirty: Backup buffer contains data not yet in the HW resource.
+ * Protecte by resource reserved.
+ * @backup: The backup buffer if any. Protected by resource reserved.
+ * @backup_offset: Offset into the backup buffer if any. Protected by resource
+ * reserved. Note that only a few resource types can have a @backup_offset
+ * different from zero.
+ * @pin_count: The pin count for this resource. A pinned resource has a
+ * pin-count greater than zero. It is not on the resource LRU lists and its
+ * backup buffer is pinned. Hence it can't be evicted.
+ * @func: Method vtable for this resource. Immutable.
+ * @lru_head: List head for the LRU list. Protected by @dev_priv::resource_lock.
+ * @mob_head: List head for the MOB backup list. Protected by @backup reserved.
+ * @binding_head: List head for the context binding list. Protected by
+ * the @dev_priv::binding_mutex
+ * @res_free: The resource destructor.
+ * @hw_destroy: Callback to destroy the resource on the device, as part of
+ * resource destruction.
+ */
 struct vmw_resource {
 	struct kref kref;
 	struct vmw_private *dev_priv;
 	int id;
-	bool avail;
 	unsigned long backup_size;
-	bool res_dirty; /* Protected by backup buffer reserved */
-	bool backup_dirty; /* Protected by backup buffer reserved */
+	bool res_dirty;
+	bool backup_dirty;
 	struct vmw_buffer_object *backup;
 	unsigned long backup_offset;
-	unsigned long pin_count; /* Protected by resource reserved */
+	unsigned long pin_count;
 	const struct vmw_res_func *func;
-	struct list_head lru_head; /* Protected by the resource lock */
-	struct list_head mob_head; /* Protected by @backup reserved */
-	struct list_head binding_head; /* Protected by binding_mutex */
+	struct list_head lru_head;
+	struct list_head mob_head;
+	struct list_head binding_head;
 	void (*res_free) (struct vmw_resource *res);
 	void (*hw_destroy) (struct vmw_resource *res);
 };
@@ -204,29 +233,24 @@ struct vmw_fifo_state {
 	bool dx;
 };
 
-struct vmw_relocation {
-	SVGAMobId *mob_loc;
-	SVGAGuestPtr *location;
-	uint32_t index;
-};
-
 /**
  * struct vmw_res_cache_entry - resource information cache entry
- *
+ * @handle: User-space handle of a resource.
+ * @res: Non-ref-counted pointer to the resource.
+ * @valid_handle: Whether the @handle member is valid.
  * @valid: Whether the entry is valid, which also implies that the execbuf
  * code holds a reference to the resource, and it's placed on the
  * validation list.
- * @handle: User-space handle of a resource.
- * @res: Non-ref-counted pointer to the resource.
  *
  * Used to avoid frequent repeated user-space handle lookups of the
  * same resource.
  */
 struct vmw_res_cache_entry {
-	bool valid;
 	uint32_t handle;
 	struct vmw_resource *res;
-	struct vmw_resource_val_node *node;
+	void *private;
+	unsigned short valid_handle;
+	unsigned short valid;
 };
 
 /**
@@ -291,35 +315,63 @@ enum vmw_display_unit_type {
 	vmw_du_screen_target
 };
 
+struct vmw_validation_context;
+struct vmw_ctx_validation_info;
 
+/**
+ * struct vmw_sw_context - Command submission context
+ * @res_ht: Pointer hash table used to find validation duplicates
+ * @kernel: Whether the command buffer originates from kernel code rather
+ * than from user-space
+ * @fp: If @kernel is false, points to the file of the client. Otherwise
+ * NULL
+ * @cmd_bounce: Command bounce buffer used for command validation before
+ * copying to fifo space
+ * @cmd_bounce_size: Current command bounce buffer size
+ * @cur_query_bo: Current buffer object used as query result buffer
+ * @bo_relocations: List of buffer object relocations
+ * @res_relocations: List of resource relocations
+ * @buf_start: Pointer to start of memory where command validation takes
+ * place
+ * @res_cache: Cache of recently looked up resources
+ * @last_query_ctx: Last context that submitted a query
+ * @needs_post_query_barrier: Whether a query barrier is needed after
+ * command submission
+ * @staged_bindings: Cached per-context binding tracker
+ * @staged_bindings_inuse: Whether the cached per-context binding tracker
+ * is in use
+ * @staged_cmd_res: List of staged command buffer managed resources in this
+ * command buffer
+ * @ctx_list: List of context resources referenced in this command buffer
+ * @dx_ctx_node: Validation metadata of the current DX context
+ * @dx_query_mob: The MOB used for DX queries
+ * @dx_query_ctx: The DX context used for the last DX query
+ * @man: Pointer to the command buffer managed resource manager
+ * @ctx: The validation context
+ */
 struct vmw_sw_context{
 	struct drm_open_hash res_ht;
 	bool res_ht_initialized;
-	bool kernel; /**< is the called made from the kernel */
+	bool kernel;
 	struct vmw_fpriv *fp;
-	struct list_head validate_nodes;
-	struct vmw_relocation relocs[VMWGFX_MAX_RELOCATIONS];
-	uint32_t cur_reloc;
-	struct vmw_validate_buffer val_bufs[VMWGFX_MAX_VALIDATIONS];
-	uint32_t cur_val_buf;
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
-	struct list_head resource_list;
-	struct list_head ctx_resource_list; /* For contexts and cotables */
 	struct vmw_buffer_object *cur_query_bo;
+	struct list_head bo_relocations;
 	struct list_head res_relocations;
 	uint32_t *buf_start;
 	struct vmw_res_cache_entry res_cache[vmw_res_max];
 	struct vmw_resource *last_query_ctx;
 	bool needs_post_query_barrier;
-	struct vmw_resource *error_resource;
 	struct vmw_ctx_binding_state *staged_bindings;
 	bool staged_bindings_inuse;
 	struct list_head staged_cmd_res;
-	struct vmw_resource_val_node *dx_ctx_node;
+	struct list_head ctx_list;
+	struct vmw_ctx_validation_info *dx_ctx_node;
 	struct vmw_buffer_object *dx_query_mob;
 	struct vmw_resource *dx_query_ctx;
 	struct vmw_cmdbuf_res_manager *man;
+	struct vmw_validation_context *ctx;
 };
 
 struct vmw_legacy_display;
@@ -444,7 +496,7 @@ struct vmw_private {
 	 * Context and surface management.
 	 */
 
-	rwlock_t resource_lock;
+	spinlock_t resource_lock;
 	struct idr res_idr[vmw_res_max];
 	/*
 	 * Block lastclose from racing with firstopen.
@@ -628,7 +680,7 @@ extern void vmw_resource_unreference(struct vmw_resource **p_res);
 extern struct vmw_resource *vmw_resource_reference(struct vmw_resource *res);
 extern struct vmw_resource *
 vmw_resource_reference_unless_doomed(struct vmw_resource *res);
-extern int vmw_resource_validate(struct vmw_resource *res);
+extern int vmw_resource_validate(struct vmw_resource *res, bool intr);
 extern int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
 				bool no_backup);
 extern bool vmw_resource_needs_backup(const struct vmw_resource *res);
@@ -643,6 +695,12 @@ extern int vmw_user_resource_lookup_handle(
 	uint32_t handle,
 	const struct vmw_user_resource_conv *converter,
 	struct vmw_resource **p_res);
+extern struct vmw_resource *
+vmw_user_resource_noref_lookup_handle(struct vmw_private *dev_priv,
+				      struct ttm_object_file *tfile,
+				      uint32_t handle,
+				      const struct vmw_user_resource_conv *
+				      converter);
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
@@ -660,6 +718,15 @@ extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
 extern int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
 extern void vmw_resource_unbind_list(struct vmw_buffer_object *vbo);
+
+/**
+ * vmw_user_resource_noref_release - release a user resource pointer looked up
+ * without reference
+ */
+static inline void vmw_user_resource_noref_release(void)
+{
+	ttm_base_object_noref_release();
+}
 
 /**
  * Buffer object helper functions - vmwgfx_bo.c
@@ -717,6 +784,18 @@ extern void vmw_bo_unmap(struct vmw_buffer_object *vbo);
 extern void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 			       struct ttm_mem_reg *mem);
 extern void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
+extern struct vmw_buffer_object *
+vmw_user_bo_noref_lookup(struct ttm_object_file *tfile, u32 handle);
+
+/**
+ * vmw_user_bo_noref_release - release a buffer object pointer looked up
+ * without reference
+ */
+static inline void vmw_user_bo_noref_release(void)
+{
+	ttm_base_object_noref_release();
+}
+
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
@@ -864,10 +943,6 @@ extern void vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 					uint32_t fence_handle,
 					int32_t out_fence_fd,
 					struct sync_file *sync_file);
-extern int vmw_validate_single_buffer(struct vmw_private *dev_priv,
-				      struct ttm_buffer_object *bo,
-				      bool interruptible,
-				      bool validate_as_mob);
 bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd);
 
 /**

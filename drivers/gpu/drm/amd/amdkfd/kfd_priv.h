@@ -103,7 +103,6 @@
  */
 extern int max_num_of_queues_per_device;
 
-#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE_DEFAULT 4096
 #define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
 	(KFD_MAX_NUM_OF_PROCESSES *			\
 			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
@@ -149,33 +148,6 @@ extern int noretry;
  */
 extern int halt_if_hws_hang;
 
-/**
- * enum kfd_sched_policy
- *
- * @KFD_SCHED_POLICY_HWS: H/W scheduling policy known as command processor (cp)
- * scheduling. In this scheduling mode we're using the firmware code to
- * schedule the user mode queues and kernel queues such as HIQ and DIQ.
- * the HIQ queue is used as a special queue that dispatches the configuration
- * to the cp and the user mode queues list that are currently running.
- * the DIQ queue is a debugging queue that dispatches debugging commands to the
- * firmware.
- * in this scheduling mode user mode queues over subscription feature is
- * enabled.
- *
- * @KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION: The same as above but the over
- * subscription feature disabled.
- *
- * @KFD_SCHED_POLICY_NO_HWS: no H/W scheduling policy is a mode which directly
- * set the command processor registers and sets the queues "manually". This
- * mode is used *ONLY* for debugging proposes.
- *
- */
-enum kfd_sched_policy {
-	KFD_SCHED_POLICY_HWS = 0,
-	KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION,
-	KFD_SCHED_POLICY_NO_HWS
-};
-
 enum cache_policy {
 	cache_policy_coherent,
 	cache_policy_noncoherent
@@ -204,6 +176,7 @@ struct kfd_device_info {
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
 	unsigned int num_sdma_engines;
+	unsigned int num_sdma_queues_per_engine;
 };
 
 struct kfd_mem_obj {
@@ -275,6 +248,10 @@ struct kfd_dev {
 	/* Debug manager */
 	struct kfd_dbgmgr           *dbgmgr;
 
+	/* Firmware versions */
+	uint16_t mec_fw_version;
+	uint16_t sdma_fw_version;
+
 	/* Maximum process number mapped to HW scheduler */
 	unsigned int max_proc_per_quantum;
 
@@ -282,6 +259,11 @@ struct kfd_dev {
 	bool cwsr_enabled;
 	const void *cwsr_isa;
 	unsigned int cwsr_isa_size;
+
+	/* xGMI */
+	uint64_t hive_id;
+
+	bool pci_atomic_requested;
 };
 
 /* KGD2KFD callbacks */
@@ -525,11 +507,11 @@ struct qcm_process_device {
 	 * All the memory management data should be here too
 	 */
 	uint64_t gds_context_area;
+	uint64_t page_table_base;
 	uint32_t sh_mem_config;
 	uint32_t sh_mem_bases;
 	uint32_t sh_mem_ape1_base;
 	uint32_t sh_mem_ape1_limit;
-	uint32_t page_table_base;
 	uint32_t gds_size;
 	uint32_t num_gws;
 	uint32_t num_oac;
@@ -721,6 +703,7 @@ struct amdkfd_ioctl_desc {
 	unsigned int cmd_drv;
 	const char *name;
 };
+bool kfd_dev_is_large_bar(struct kfd_dev *dev);
 
 int kfd_process_create_wq(void);
 void kfd_process_destroy_wq(void);
@@ -880,6 +863,11 @@ int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
+int pqm_get_wave_state(struct process_queue_manager *pqm,
+		       unsigned int qid,
+		       void __user *ctl_stack,
+		       u32 *ctl_stack_used_size,
+		       u32 *save_area_used_size);
 
 int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 				unsigned int fence_value,

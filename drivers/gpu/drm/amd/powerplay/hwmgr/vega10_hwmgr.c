@@ -39,6 +39,7 @@
 #include "soc15_common.h"
 #include "pppcielanes.h"
 #include "vega10_hwmgr.h"
+#include "vega10_smumgr.h"
 #include "vega10_processpptables.h"
 #include "vega10_pptable.h"
 #include "vega10_thermal.h"
@@ -129,7 +130,8 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.thermal_support = 1;
 	data->registry_data.fw_ctf_enabled = 1;
 
-	data->registry_data.avfs_support = 1;
+	data->registry_data.avfs_support =
+		hwmgr->feature_mask & PP_AVFS_MASK ? true : false;
 	data->registry_data.led_dpm_enabled = 1;
 
 	data->registry_data.vr0hot_enabled = 1;
@@ -3712,6 +3714,11 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID__SHIFT;
 		*((uint32_t *)value) = (uint32_t)convert_to_vddc((uint8_t)val_vid);
 		return 0;
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = vega10_get_enabled_smc_features(hwmgr, (uint64_t *)value);
+		if (!ret)
+			*size = 8;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -4854,6 +4861,29 @@ static int vega10_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega10_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
+				PHM_PerformanceLevelDesignation designation, uint32_t index,
+				PHM_PerformanceLevel *level)
+{
+	const struct vega10_power_state *ps;
+	struct vega10_hwmgr *data;
+	uint32_t i;
+
+	if (level == NULL || hwmgr == NULL || state == NULL)
+		return -EINVAL;
+
+	data = hwmgr->backend;
+	ps = cast_const_phw_vega10_power_state(state);
+
+	i = index > ps->performance_level_count - 1 ?
+			ps->performance_level_count - 1 : index;
+
+	level->coreClock = ps->performance_levels[i].gfx_clock;
+	level->memory_clock = ps->performance_levels[i].mem_clock;
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.backend_init = vega10_hwmgr_backend_init,
 	.backend_fini = vega10_hwmgr_backend_fini,
@@ -4913,17 +4943,8 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.set_power_profile_mode = vega10_set_power_profile_mode,
 	.set_power_limit = vega10_set_power_limit,
 	.odn_edit_dpm_table = vega10_odn_edit_dpm_table,
+	.get_performance_level = vega10_get_performance_level,
 };
-
-int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
-		bool enable, uint32_t feature_mask)
-{
-	int msg = enable ? PPSMC_MSG_EnableSmuFeatures :
-			PPSMC_MSG_DisableSmuFeatures;
-
-	return smum_send_msg_to_smc_with_parameter(hwmgr,
-			msg, feature_mask);
-}
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
 {

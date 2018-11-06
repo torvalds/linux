@@ -73,12 +73,6 @@ static inline int test_cpu_flag_of(int flag, int cpu)
 
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
 
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ void *pc; asm("basr %0,0" : "=a" (pc)); pc; })
-
 static inline void get_cpu_id(struct cpuid *ptr)
 {
 	asm volatile("stidp %0" : "=Q" (*ptr));

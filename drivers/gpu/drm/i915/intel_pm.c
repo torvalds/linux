@@ -26,6 +26,7 @@
  */
 
 #include <linux/cpufreq.h>
+#include <linux/pm_runtime.h>
 #include <drm/drm_plane_helper.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
@@ -2874,6 +2875,16 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 			}
 		}
 
+		/*
+		 * WA Level-0 adjustment for 16GB DIMMs: SKL+
+		 * If we could not get dimm info enable this WA to prevent from
+		 * any underrun. If not able to get Dimm info assume 16GB dimm
+		 * to avoid any underrun.
+		 */
+		if (!dev_priv->dram_info.valid_dimm ||
+		    dev_priv->dram_info.is_16gb_dimm)
+			wm[0] += 1;
+
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		uint64_t sskpd = I915_READ64(MCH_SSKPD);
 
@@ -2942,8 +2953,8 @@ static void intel_print_wm_latency(struct drm_i915_private *dev_priv,
 		unsigned int latency = wm[level];
 
 		if (latency == 0) {
-			DRM_ERROR("%s WM%d latency not provided\n",
-				  name, level);
+			DRM_DEBUG_KMS("%s WM%d latency not provided\n",
+				      name, level);
 			continue;
 		}
 
@@ -3771,11 +3782,11 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	return true;
 }
 
-static unsigned int intel_get_ddb_size(struct drm_i915_private *dev_priv,
-				       const struct intel_crtc_state *cstate,
-				       const unsigned int total_data_rate,
-				       const int num_active,
-				       struct skl_ddb_allocation *ddb)
+static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
+			      const struct intel_crtc_state *cstate,
+			      const unsigned int total_data_rate,
+			      const int num_active,
+			      struct skl_ddb_allocation *ddb)
 {
 	const struct drm_display_mode *adjusted_mode;
 	u64 total_data_bw;
@@ -3814,8 +3825,12 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *for_crtc = cstate->base.crtc;
-	unsigned int pipe_size, ddb_size;
-	int nth_active_pipe;
+	const struct drm_crtc_state *crtc_state;
+	const struct drm_crtc *crtc;
+	u32 pipe_width = 0, total_width = 0, width_before_pipe = 0;
+	enum pipe for_pipe = to_intel_crtc(for_crtc)->pipe;
+	u16 ddb_size;
+	u32 i;
 
 	if (WARN_ON(!state) || !cstate->base.active) {
 		alloc->start = 0;
@@ -3833,14 +3848,14 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 				      *num_active, ddb);
 
 	/*
-	 * If the state doesn't change the active CRTC's, then there's
-	 * no need to recalculate; the existing pipe allocation limits
-	 * should remain unchanged.  Note that we're safe from racing
-	 * commits since any racing commit that changes the active CRTC
-	 * list would need to grab _all_ crtc locks, including the one
-	 * we currently hold.
+	 * If the state doesn't change the active CRTC's or there is no
+	 * modeset request, then there's no need to recalculate;
+	 * the existing pipe allocation limits should remain unchanged.
+	 * Note that we're safe from racing commits since any racing commit
+	 * that changes the active CRTC list or do modeset would need to
+	 * grab _all_ crtc locks, including the one we currently hold.
 	 */
-	if (!intel_state->active_pipe_changes) {
+	if (!intel_state->active_pipe_changes && !intel_state->modeset) {
 		/*
 		 * alloc may be cleared by clear_intel_crtc_state,
 		 * copy from old state to be sure
@@ -3849,11 +3864,32 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 		return;
 	}
 
-	nth_active_pipe = hweight32(intel_state->active_crtcs &
-				    (drm_crtc_mask(for_crtc) - 1));
-	pipe_size = ddb_size / hweight32(intel_state->active_crtcs);
-	alloc->start = nth_active_pipe * ddb_size / *num_active;
-	alloc->end = alloc->start + pipe_size;
+	/*
+	 * Watermark/ddb requirement highly depends upon width of the
+	 * framebuffer, So instead of allocating DDB equally among pipes
+	 * distribute DDB based on resolution/width of the display.
+	 */
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		const struct drm_display_mode *adjusted_mode;
+		int hdisplay, vdisplay;
+		enum pipe pipe;
+
+		if (!crtc_state->enable)
+			continue;
+
+		pipe = to_intel_crtc(crtc)->pipe;
+		adjusted_mode = &crtc_state->adjusted_mode;
+		drm_mode_get_hv_timing(adjusted_mode, &hdisplay, &vdisplay);
+		total_width += hdisplay;
+
+		if (pipe < for_pipe)
+			width_before_pipe += hdisplay;
+		else if (pipe == for_pipe)
+			pipe_width = hdisplay;
+	}
+
+	alloc->start = ddb_size * width_before_pipe / total_width;
+	alloc->end = ddb_size * (width_before_pipe + pipe_width) / total_width;
 }
 
 static unsigned int skl_cursor_allocation(int num_active)
@@ -3909,7 +3945,12 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 				      val & PLANE_CTL_ALPHA_MASK);
 
 	val = I915_READ(PLANE_BUF_CFG(pipe, plane_id));
-	val2 = I915_READ(PLANE_NV12_BUF_CFG(pipe, plane_id));
+	/*
+	 * FIXME: add proper NV12 support for ICL. Avoid reading unclaimed
+	 * registers for now.
+	 */
+	if (INTEL_GEN(dev_priv) < 11)
+		val2 = I915_READ(PLANE_NV12_BUF_CFG(pipe, plane_id));
 
 	if (fourcc == DRM_FORMAT_NV12) {
 		skl_ddb_entry_init_from_hw(dev_priv,
@@ -4977,6 +5018,7 @@ static void skl_write_plane_wm(struct intel_crtc *intel_crtc,
 
 	skl_ddb_entry_write(dev_priv, PLANE_BUF_CFG(pipe, plane_id),
 			    &ddb->plane[pipe][plane_id]);
+	/* FIXME: add proper NV12 support for ICL. */
 	if (INTEL_GEN(dev_priv) >= 11)
 		return skl_ddb_entry_write(dev_priv,
 					   PLANE_BUF_CFG(pipe, plane_id),
@@ -5142,17 +5184,6 @@ skl_compute_ddb(struct drm_atomic_state *state)
 }
 
 static void
-skl_copy_ddb_for_pipe(struct skl_ddb_values *dst,
-		      struct skl_ddb_values *src,
-		      enum pipe pipe)
-{
-	memcpy(dst->ddb.uv_plane[pipe], src->ddb.uv_plane[pipe],
-	       sizeof(dst->ddb.uv_plane[pipe]));
-	memcpy(dst->ddb.plane[pipe], src->ddb.plane[pipe],
-	       sizeof(dst->ddb.plane[pipe]));
-}
-
-static void
 skl_print_wm_changes(const struct drm_atomic_state *state)
 {
 	const struct drm_device *dev = state->dev;
@@ -5259,7 +5290,7 @@ skl_ddb_add_affected_pipes(struct drm_atomic_state *state, bool *changed)
 	 * any other display updates race with this transaction, so we need
 	 * to grab the lock on *all* CRTC's.
 	 */
-	if (intel_state->active_pipe_changes) {
+	if (intel_state->active_pipe_changes || intel_state->modeset) {
 		realloc_pipes = ~0;
 		intel_state->wm_results.dirty_pipes = ~0;
 	}
@@ -5381,7 +5412,10 @@ static void skl_initial_wm(struct intel_atomic_state *state,
 	if (cstate->base.active_changed)
 		skl_atomic_update_crtc_wm(state, cstate);
 
-	skl_copy_ddb_for_pipe(hw_vals, results, pipe);
+	memcpy(hw_vals->ddb.uv_plane[pipe], results->ddb.uv_plane[pipe],
+	       sizeof(hw_vals->ddb.uv_plane[pipe]));
+	memcpy(hw_vals->ddb.plane[pipe], results->ddb.plane[pipe],
+	       sizeof(hw_vals->ddb.plane[pipe]));
 
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
@@ -6084,10 +6118,13 @@ void intel_enable_ipc(struct drm_i915_private *dev_priv)
 	u32 val;
 
 	/* Display WA #0477 WaDisableIPC: skl */
-	if (IS_SKYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv))
 		dev_priv->ipc_enabled = false;
-		return;
-	}
+
+	/* Display WA #1141: SKL:all KBL:all CFL */
+	if ((IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) &&
+	    !dev_priv->dram_info.symmetric_memory)
+		dev_priv->ipc_enabled = false;
 
 	val = I915_READ(DISP_ARB_CTL2);
 
@@ -6379,7 +6416,6 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		new_power = HIGH_POWER;
 	rps_set_power(dev_priv, new_power);
 	mutex_unlock(&rps->power.mutex);
-	rps->last_adj = 0;
 }
 
 void intel_rps_mark_interactive(struct drm_i915_private *i915, bool interactive)
@@ -8159,7 +8195,7 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	 */
 	if (!sanitize_rc6(dev_priv)) {
 		DRM_INFO("RC6 disabled, disabling runtime PM support\n");
-		intel_runtime_pm_get(dev_priv);
+		pm_runtime_get(&dev_priv->drm.pdev->dev);
 	}
 
 	mutex_lock(&dev_priv->pcu_lock);
@@ -8211,7 +8247,7 @@ void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 		valleyview_cleanup_gt_powersave(dev_priv);
 
 	if (!HAS_RC6(dev_priv))
-		intel_runtime_pm_put(dev_priv);
+		pm_runtime_put(&dev_priv->drm.pdev->dev);
 }
 
 /**
@@ -8238,7 +8274,7 @@ void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		gen11_reset_rps_interrupts(dev_priv);
-	else
+	else if (INTEL_GEN(dev_priv) >= 6)
 		gen6_reset_rps_interrupts(dev_priv);
 }
 

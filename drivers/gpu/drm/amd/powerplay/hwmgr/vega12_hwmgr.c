@@ -745,8 +745,8 @@ static int vega12_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	memcpy(pp_table, pptable_information->smc_pptable, sizeof(PPTable_t));
 
-	result = vega12_copy_table_to_smc(hwmgr,
-			(uint8_t *)pp_table, TABLE_PPTABLE);
+	result = smum_smc_table_manager(hwmgr,
+					(uint8_t *)pp_table, TABLE_PPTABLE, false);
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
 
@@ -1317,7 +1317,11 @@ static int vega12_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		ret = vega12_get_gpu_power(hwmgr, (uint32_t *)value);
-
+		break;
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = vega12_get_enabled_smc_features(hwmgr, (uint64_t *)value);
+		if (!ret)
+			*size = 8;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2103,8 +2107,8 @@ static int vega12_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 			!(data->water_marks_bitmap & WaterMarksLoaded)) {
-		result = vega12_copy_table_to_smc(hwmgr,
-			(uint8_t *)wm_table, TABLE_WATERMARKS);
+		result = smum_smc_table_manager(hwmgr,
+						(uint8_t *)wm_table, TABLE_WATERMARKS, false);
 		PP_ASSERT_WITH_CODE(result, "Failed to update WMTABLE!", return EINVAL);
 		data->water_marks_bitmap |= WaterMarksLoaded;
 	}

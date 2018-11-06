@@ -1855,31 +1855,30 @@ EXPORT_SYMBOL_GPL(hidinput_disconnect);
 void hid_scroll_counter_handle_scroll(struct hid_scroll_counter *counter,
 				      int hi_res_value)
 {
-	int low_res_scroll_amount;
-	/* Some wheels will rest 7/8ths of a notch from the previous notch
-	 * after slow movement, so we want the threshold for low-res events to
-	 * be in the middle of the notches (e.g. after 4/8ths) as opposed to on
-	 * the notches themselves (8/8ths).
-	 */
-	int threshold = counter->resolution_multiplier / 2;
+	int low_res_value, remainder, multiplier;
 
 	input_report_rel(counter->dev, REL_WHEEL_HI_RES,
 			 hi_res_value * counter->microns_per_hi_res_unit);
 
-	counter->remainder += hi_res_value;
-	if (abs(counter->remainder) >= threshold) {
-		/* Add (or subtract) 1 because we want to trigger when the wheel
-		 * is half-way to the next notch (i.e. scroll 1 notch after a
-		 * 1/2 notch movement, 2 notches after a 1 1/2 notch movement,
-		 * etc.).
-		 */
-		low_res_scroll_amount =
-			counter->remainder / counter->resolution_multiplier
-			+ (hi_res_value > 0 ? 1 : -1);
-		input_report_rel(counter->dev, REL_WHEEL,
-				 low_res_scroll_amount);
-		counter->remainder -=
-			low_res_scroll_amount * counter->resolution_multiplier;
-	}
+	/*
+	 * Update the low-res remainder with the high-res value,
+	 * but reset if the direction has changed.
+	 */
+	remainder = counter->remainder;
+	if ((remainder ^ hi_res_value) < 0)
+		remainder = 0;
+	remainder += hi_res_value;
+
+	/*
+	 * Then just use the resolution multiplier to see if
+	 * we should send a low-res (aka regular wheel) event.
+	 */
+	multiplier = counter->resolution_multiplier;
+	low_res_value = remainder / multiplier;
+	remainder -= low_res_value * multiplier;
+	counter->remainder = remainder;
+
+	if (low_res_value)
+		input_report_rel(counter->dev, REL_WHEEL, low_res_value);
 }
 EXPORT_SYMBOL_GPL(hid_scroll_counter_handle_scroll);

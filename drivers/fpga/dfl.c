@@ -899,7 +899,7 @@ dfl_fpga_feature_devs_enumerate(struct dfl_fpga_enum_info *info)
 	if (!cdev)
 		return ERR_PTR(-ENOMEM);
 
-	cdev->region = fpga_region_create(info->dev, NULL, NULL);
+	cdev->region = devm_fpga_region_create(info->dev, NULL, NULL);
 	if (!cdev->region) {
 		ret = -ENOMEM;
 		goto free_cdev_exit;
@@ -911,7 +911,7 @@ dfl_fpga_feature_devs_enumerate(struct dfl_fpga_enum_info *info)
 
 	ret = fpga_region_register(cdev->region);
 	if (ret)
-		goto free_region_exit;
+		goto free_cdev_exit;
 
 	/* create and init build info for enumeration */
 	binfo = devm_kzalloc(info->dev, sizeof(*binfo), GFP_KERNEL);
@@ -942,8 +942,6 @@ dfl_fpga_feature_devs_enumerate(struct dfl_fpga_enum_info *info)
 
 unregister_region_exit:
 	fpga_region_unregister(cdev->region);
-free_region_exit:
-	fpga_region_free(cdev->region);
 free_cdev_exit:
 	devm_kfree(info->dev, cdev);
 	return ERR_PTR(ret);

@@ -22,37 +22,21 @@
 #include <linux/smp.h>
 #include <linux/ioctl.h>
 #include <linux/if.h>
-#include <linux/if_bridge.h>
 #include <linux/raid/md_u.h>
-#include <linux/kd.h>
-#include <linux/route.h>
-#include <linux/in6.h>
-#include <linux/ipv6_route.h>
-#include <linux/skbuff.h>
-#include <linux/netlink.h>
-#include <linux/vt.h>
 #include <linux/falloc.h>
-#include <linux/fs.h>
 #include <linux/file.h>
-#include <linux/ppp_defs.h>
 #include <linux/ppp-ioctl.h>
 #include <linux/if_pppox.h>
 #include <linux/mtio.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
-#include <linux/fb.h>
-#include <linux/videodev2.h>
-#include <linux/netdevice.h>
 #include <linux/raw.h>
 #include <linux/blkdev.h>
-#include <linux/elevator.h>
 #include <linux/rtc.h>
 #include <linux/pci.h>
 #include <linux/serial.h>
-#include <linux/if_tun.h>
 #include <linux/ctype.h>
 #include <linux/syscalls.h>
-#include <linux/atalk.h>
 #include <linux/gfp.h>
 #include <linux/cec.h>
 
@@ -74,44 +58,17 @@
 #endif
 
 #include <linux/uaccess.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-#include <linux/if_bonding.h>
 #include <linux/watchdog.h>
 
 #include <linux/soundcard.h>
-#include <linux/lp.h>
-#include <linux/ppdev.h>
-
-#include <linux/atm.h>
-#include <linux/atmarp.h>
-#include <linux/atmclip.h>
-#include <linux/atmdev.h>
-#include <linux/atmioc.h>
-#include <linux/atmlec.h>
-#include <linux/atmmpc.h>
-#include <linux/atmsvc.h>
-#include <linux/atm_tcp.h>
-#include <linux/sonet.h>
-#include <linux/atm_suni.h>
-
-#include <linux/usb.h>
-#include <linux/usbdevice_fs.h>
-#include <linux/nbd.h>
-#include <linux/random.h>
-#include <linux/filter.h>
 
 #include <linux/hiddev.h>
 
-#define __DVB_CORE__
-#include <linux/dvb/audio.h>
-#include <linux/dvb/dmx.h>
-#include <linux/dvb/frontend.h>
-#include <linux/dvb/video.h>
 
 #include <linux/sort.h>
 
 #ifdef CONFIG_SPARC
+#include <linux/fb.h>
 #include <asm/fbio.h>
 #endif
 
@@ -131,71 +88,6 @@ static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return err;
 
 	return vfs_ioctl(file, cmd, arg);
-}
-
-struct compat_video_event {
-	int32_t		type;
-	compat_time_t	timestamp;
-	union {
-	        video_size_t size;
-		unsigned int frame_rate;
-	} u;
-};
-
-static int do_video_get_event(struct file *file,
-		unsigned int cmd, struct compat_video_event __user *up)
-{
-	struct video_event __user *kevent =
-		compat_alloc_user_space(sizeof(*kevent));
-	int err;
-
-	if (kevent == NULL)
-		return -EFAULT;
-
-	err = do_ioctl(file, cmd, (unsigned long)kevent);
-	if (!err) {
-		err  = convert_in_user(&kevent->type, &up->type);
-		err |= convert_in_user(&kevent->timestamp, &up->timestamp);
-		err |= convert_in_user(&kevent->u.size.w, &up->u.size.w);
-		err |= convert_in_user(&kevent->u.size.h, &up->u.size.h);
-		err |= convert_in_user(&kevent->u.size.aspect_ratio,
-				&up->u.size.aspect_ratio);
-		if (err)
-			err = -EFAULT;
-	}
-
-	return err;
-}
-
-struct compat_video_still_picture {
-        compat_uptr_t iFrame;
-        int32_t size;
-};
-
-static int do_video_stillpicture(struct file *file,
-		unsigned int cmd, struct compat_video_still_picture __user *up)
-{
-	struct video_still_picture __user *up_native;
-	compat_uptr_t fp;
-	int32_t size;
-	int err;
-
-	err  = get_user(fp, &up->iFrame);
-	err |= get_user(size, &up->size);
-	if (err)
-		return -EFAULT;
-
-	up_native =
-		compat_alloc_user_space(sizeof(struct video_still_picture));
-
-	err =  put_user(compat_ptr(fp), &up_native->iFrame);
-	err |= put_user(size, &up_native->size);
-	if (err)
-		return -EFAULT;
-
-	err = do_ioctl(file, cmd, (unsigned long) up_native);
-
-	return err;
 }
 
 #ifdef CONFIG_BLOCK
@@ -543,22 +435,6 @@ static int mt_ioctl_trans(struct file *file,
 #define HCIUARTGETDEVICE	_IOR('U', 202, int)
 #define HCIUARTSETFLAGS		_IOW('U', 203, int)
 #define HCIUARTGETFLAGS		_IOR('U', 204, int)
-
-#define BNEPCONNADD	_IOW('B', 200, int)
-#define BNEPCONNDEL	_IOW('B', 201, int)
-#define BNEPGETCONNLIST	_IOR('B', 210, int)
-#define BNEPGETCONNINFO	_IOR('B', 211, int)
-#define BNEPGETSUPPFEAT	_IOR('B', 212, int)
-
-#define CMTPCONNADD	_IOW('C', 200, int)
-#define CMTPCONNDEL	_IOW('C', 201, int)
-#define CMTPGETCONNLIST	_IOR('C', 210, int)
-#define CMTPGETCONNINFO	_IOR('C', 211, int)
-
-#define HIDPCONNADD	_IOW('H', 200, int)
-#define HIDPCONNDEL	_IOW('H', 201, int)
-#define HIDPGETCONNLIST	_IOR('H', 210, int)
-#define HIDPGETCONNINFO	_IOR('H', 211, int)
 
 #define RTC_IRQP_READ32		_IOR('p', 0x0b, compat_ulong_t)
 #define RTC_IRQP_SET32		_IOW('p', 0x0c, compat_ulong_t)
@@ -974,19 +850,6 @@ COMPATIBLE_IOCTL(RFCOMMRELEASEDEV)
 COMPATIBLE_IOCTL(RFCOMMGETDEVLIST)
 COMPATIBLE_IOCTL(RFCOMMGETDEVINFO)
 COMPATIBLE_IOCTL(RFCOMMSTEALDLC)
-COMPATIBLE_IOCTL(BNEPCONNADD)
-COMPATIBLE_IOCTL(BNEPCONNDEL)
-COMPATIBLE_IOCTL(BNEPGETCONNLIST)
-COMPATIBLE_IOCTL(BNEPGETCONNINFO)
-COMPATIBLE_IOCTL(BNEPGETSUPPFEAT)
-COMPATIBLE_IOCTL(CMTPCONNADD)
-COMPATIBLE_IOCTL(CMTPCONNDEL)
-COMPATIBLE_IOCTL(CMTPGETCONNLIST)
-COMPATIBLE_IOCTL(CMTPGETCONNINFO)
-COMPATIBLE_IOCTL(HIDPCONNADD)
-COMPATIBLE_IOCTL(HIDPCONNDEL)
-COMPATIBLE_IOCTL(HIDPGETCONNLIST)
-COMPATIBLE_IOCTL(HIDPGETCONNINFO)
 /* CAPI */
 COMPATIBLE_IOCTL(CAPI_REGISTER)
 COMPATIBLE_IOCTL(CAPI_GET_MANUFACTURER)
@@ -1025,61 +888,6 @@ COMPATIBLE_IOCTL(HIDIOCGFLAG)
 COMPATIBLE_IOCTL(HIDIOCSFLAG)
 COMPATIBLE_IOCTL(HIDIOCGCOLLECTIONINDEX)
 COMPATIBLE_IOCTL(HIDIOCGCOLLECTIONINFO)
-/* dvb */
-COMPATIBLE_IOCTL(AUDIO_STOP)
-COMPATIBLE_IOCTL(AUDIO_PLAY)
-COMPATIBLE_IOCTL(AUDIO_PAUSE)
-COMPATIBLE_IOCTL(AUDIO_CONTINUE)
-COMPATIBLE_IOCTL(AUDIO_SELECT_SOURCE)
-COMPATIBLE_IOCTL(AUDIO_SET_MUTE)
-COMPATIBLE_IOCTL(AUDIO_SET_AV_SYNC)
-COMPATIBLE_IOCTL(AUDIO_SET_BYPASS_MODE)
-COMPATIBLE_IOCTL(AUDIO_CHANNEL_SELECT)
-COMPATIBLE_IOCTL(AUDIO_GET_STATUS)
-COMPATIBLE_IOCTL(AUDIO_GET_CAPABILITIES)
-COMPATIBLE_IOCTL(AUDIO_CLEAR_BUFFER)
-COMPATIBLE_IOCTL(AUDIO_SET_ID)
-COMPATIBLE_IOCTL(AUDIO_SET_MIXER)
-COMPATIBLE_IOCTL(AUDIO_SET_STREAMTYPE)
-COMPATIBLE_IOCTL(DMX_START)
-COMPATIBLE_IOCTL(DMX_STOP)
-COMPATIBLE_IOCTL(DMX_SET_FILTER)
-COMPATIBLE_IOCTL(DMX_SET_PES_FILTER)
-COMPATIBLE_IOCTL(DMX_SET_BUFFER_SIZE)
-COMPATIBLE_IOCTL(DMX_GET_PES_PIDS)
-COMPATIBLE_IOCTL(DMX_GET_STC)
-COMPATIBLE_IOCTL(DMX_REQBUFS)
-COMPATIBLE_IOCTL(DMX_QUERYBUF)
-COMPATIBLE_IOCTL(DMX_EXPBUF)
-COMPATIBLE_IOCTL(DMX_QBUF)
-COMPATIBLE_IOCTL(DMX_DQBUF)
-COMPATIBLE_IOCTL(VIDEO_STOP)
-COMPATIBLE_IOCTL(VIDEO_PLAY)
-COMPATIBLE_IOCTL(VIDEO_FREEZE)
-COMPATIBLE_IOCTL(VIDEO_CONTINUE)
-COMPATIBLE_IOCTL(VIDEO_SELECT_SOURCE)
-COMPATIBLE_IOCTL(VIDEO_SET_BLANK)
-COMPATIBLE_IOCTL(VIDEO_GET_STATUS)
-COMPATIBLE_IOCTL(VIDEO_SET_DISPLAY_FORMAT)
-COMPATIBLE_IOCTL(VIDEO_FAST_FORWARD)
-COMPATIBLE_IOCTL(VIDEO_SLOWMOTION)
-COMPATIBLE_IOCTL(VIDEO_GET_CAPABILITIES)
-COMPATIBLE_IOCTL(VIDEO_CLEAR_BUFFER)
-COMPATIBLE_IOCTL(VIDEO_SET_STREAMTYPE)
-COMPATIBLE_IOCTL(VIDEO_SET_FORMAT)
-COMPATIBLE_IOCTL(VIDEO_GET_SIZE)
-/* cec */
-COMPATIBLE_IOCTL(CEC_ADAP_G_CAPS)
-COMPATIBLE_IOCTL(CEC_ADAP_G_LOG_ADDRS)
-COMPATIBLE_IOCTL(CEC_ADAP_S_LOG_ADDRS)
-COMPATIBLE_IOCTL(CEC_ADAP_G_PHYS_ADDR)
-COMPATIBLE_IOCTL(CEC_ADAP_S_PHYS_ADDR)
-COMPATIBLE_IOCTL(CEC_G_MODE)
-COMPATIBLE_IOCTL(CEC_S_MODE)
-COMPATIBLE_IOCTL(CEC_TRANSMIT)
-COMPATIBLE_IOCTL(CEC_RECEIVE)
-COMPATIBLE_IOCTL(CEC_DQEVENT)
-
 /* joystick */
 COMPATIBLE_IOCTL(JSIOCGVERSION)
 COMPATIBLE_IOCTL(JSIOCGAXES)
@@ -1147,12 +955,6 @@ static long do_ioctl_trans(unsigned int cmd,
 	case RTC_EPOCH_READ32:
 	case RTC_EPOCH_SET32:
 		return rtc_ioctl(file, cmd, argp);
-
-	/* dvb */
-	case VIDEO_GET_EVENT:
-		return do_video_get_event(file, cmd, argp);
-	case VIDEO_STILLPICTURE:
-		return do_video_stillpicture(file, cmd, argp);
 	}
 
 	/*

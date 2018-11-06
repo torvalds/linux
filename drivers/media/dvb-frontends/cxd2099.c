@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cxd2099.c: Driver for the Sony CXD2099AR Common Interface Controller
  *
@@ -701,4 +702,4 @@ module_i2c_driver(cxd2099_driver);
 
 MODULE_DESCRIPTION("Sony CXD2099AR Common Interface controller driver");
 MODULE_AUTHOR("Ralph Metzler");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

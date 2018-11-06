@@ -4,7 +4,7 @@
  *
  * DMA operations that map physical memory directly without using an IOMMU.
  */
-#include <linux/bootmem.h> /* for max_pfn */
+#include <linux/memblock.h> /* for max_pfn */
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/dma-direct.h>
@@ -13,8 +13,6 @@
 #include <linux/dma-noncoherent.h>
 #include <linux/pfn.h>
 #include <linux/set_memory.h>
-
-#define DIRECT_MAPPING_ERROR		0
 
 /*
  * Most architectures use ZONE_DMA for the first 16 Megabytes, but

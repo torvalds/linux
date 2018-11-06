@@ -1,46 +1,20 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright(c) 2015 Intel Corporation. All rights reserved. */
-#include <linux/radix-tree.h>
 #include <linux/device.h>
-#include <linux/types.h>
-#include <linux/pfn_t.h>
 #include <linux/io.h>
 #include <linux/kasan.h>
-#include <linux/mm.h>
 #include <linux/memory_hotplug.h>
+#include <linux/mm.h>
+#include <linux/pfn_t.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
+#include <linux/types.h>
 #include <linux/wait_bit.h>
+#include <linux/xarray.h>
 
-static DEFINE_MUTEX(pgmap_lock);
-static RADIX_TREE(pgmap_radix, GFP_KERNEL);
+static DEFINE_XARRAY(pgmap_array);
 #define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
 #define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
-
-static unsigned long order_at(struct resource *res, unsigned long pgoff)
-{
-	unsigned long phys_pgoff = PHYS_PFN(res->start) + pgoff;
-	unsigned long nr_pages, mask;
-
-	nr_pages = PHYS_PFN(resource_size(res));
-	if (nr_pages == pgoff)
-		return ULONG_MAX;
-
-	/*
-	 * What is the largest aligned power-of-2 range available from
-	 * this resource pgoff to the end of the resource range,
-	 * considering the alignment of the current pgoff?
-	 */
-	mask = phys_pgoff | rounddown_pow_of_two(nr_pages - pgoff);
-	if (!mask)
-		return ULONG_MAX;
-
-	return find_first_bit(&mask, BITS_PER_LONG);
-}
-
-#define foreach_order_pgoff(res, order, pgoff) \
-	for (pgoff = 0, order = order_at((res), pgoff); order < ULONG_MAX; \
-			pgoff += 1UL << order, order = order_at((res), pgoff))
 
 #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
 vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
@@ -70,18 +44,10 @@ vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
 EXPORT_SYMBOL(device_private_entry_fault);
 #endif /* CONFIG_DEVICE_PRIVATE */
 
-static void pgmap_radix_release(struct resource *res, unsigned long end_pgoff)
+static void pgmap_array_delete(struct resource *res)
 {
-	unsigned long pgoff, order;
-
-	mutex_lock(&pgmap_lock);
-	foreach_order_pgoff(res, order, pgoff) {
-		if (pgoff >= end_pgoff)
-			break;
-		radix_tree_delete(&pgmap_radix, PHYS_PFN(res->start) + pgoff);
-	}
-	mutex_unlock(&pgmap_lock);
-
+	xa_store_range(&pgmap_array, PHYS_PFN(res->start), PHYS_PFN(res->end),
+			NULL, GFP_KERNEL);
 	synchronize_rcu();
 }
 
@@ -142,7 +108,7 @@ static void devm_memremap_pages_release(void *data)
 	mem_hotplug_done();
 
 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
-	pgmap_radix_release(res, -1);
+	pgmap_array_delete(res);
 	dev_WARN_ONCE(dev, pgmap->altmap.alloc,
 		      "%s: failed to free all reserved pages\n", __func__);
 }
@@ -175,10 +141,9 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 	struct vmem_altmap *altmap = pgmap->altmap_valid ?
 			&pgmap->altmap : NULL;
 	struct resource *res = &pgmap->res;
-	unsigned long pfn, pgoff, order;
+	struct dev_pagemap *conflict_pgmap;
 	pgprot_t pgprot = PAGE_KERNEL;
 	int error, nid, is_ram;
-	struct dev_pagemap *conflict_pgmap;
 
 	align_start = res->start & ~(SECTION_SIZE - 1);
 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
@@ -216,20 +181,10 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 
 	pgmap->dev = dev;
 
-	mutex_lock(&pgmap_lock);
-	error = 0;
-
-	foreach_order_pgoff(res, order, pgoff) {
-		error = __radix_tree_insert(&pgmap_radix,
-				PHYS_PFN(res->start) + pgoff, order, pgmap);
-		if (error) {
-			dev_err(dev, "%s: failed: %d\n", __func__, error);
-			break;
-		}
-	}
-	mutex_unlock(&pgmap_lock);
+	error = xa_err(xa_store_range(&pgmap_array, PHYS_PFN(res->start),
+				PHYS_PFN(res->end), pgmap, GFP_KERNEL));
 	if (error)
-		goto err_radix;
+		goto err_array;
 
 	nid = dev_to_node(dev);
 	if (nid < 0)
@@ -256,19 +211,14 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 	if (error)
 		goto err_add_memory;
 
-	for_each_device_pfn(pfn, pgmap) {
-		struct page *page = pfn_to_page(pfn);
-
-		/*
-		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
-		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
-		 * freed or placed on a driver-private list.  Seed the
-		 * storage with LIST_POISON* values.
-		 */
-		list_del(&page->lru);
-		page->pgmap = pgmap;
-		percpu_ref_get(pgmap->ref);
-	}
+	/*
+	 * Initialization of the pages has been deferred until now in order
+	 * to allow us to do the work while not holding the hotplug lock.
+	 */
+	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+				align_start >> PAGE_SHIFT,
+				align_size >> PAGE_SHIFT, pgmap);
+	percpu_ref_get_many(pgmap->ref, pfn_end(pgmap) - pfn_first(pgmap));
 
 	devm_add_action(dev, devm_memremap_pages_release, pgmap);
 
@@ -279,8 +229,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
  err_kasan:
 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
  err_pfn_remap:
- err_radix:
-	pgmap_radix_release(res, pgoff);
+	pgmap_array_delete(res);
+ err_array:
 	return ERR_PTR(error);
 }
 EXPORT_SYMBOL(devm_memremap_pages);
@@ -320,7 +270,7 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 
 	/* fall back to slow path lookup */
 	rcu_read_lock();
-	pgmap = radix_tree_lookup(&pgmap_radix, PHYS_PFN(phys));
+	pgmap = xa_load(&pgmap_array, PHYS_PFN(phys));
 	if (pgmap && !percpu_ref_tryget_live(pgmap->ref))
 		pgmap = NULL;
 	rcu_read_unlock();

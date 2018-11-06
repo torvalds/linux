@@ -191,20 +191,10 @@ Currently, the following pairs of encryption modes are supported:
 
 - AES-256-XTS for contents and AES-256-CTS-CBC for filenames
 - AES-128-CBC for contents and AES-128-CTS-CBC for filenames
-- Speck128/256-XTS for contents and Speck128/256-CTS-CBC for filenames
 
 It is strongly recommended to use AES-256-XTS for contents encryption.
 AES-128-CBC was added only for low-powered embedded devices with
 crypto accelerators such as CAAM or CESA that do not support XTS.
-
-Similarly, Speck128/256 support was only added for older or low-end
-CPUs which cannot do AES fast enough -- especially ARM CPUs which have
-NEON instructions but not the Cryptography Extensions -- and for which
-it would not otherwise be feasible to use encryption at all.  It is
-not recommended to use Speck on CPUs that have AES instructions.
-Speck support is only available if it has been enabled in the crypto
-API via CONFIG_CRYPTO_SPECK.  Also, on ARM platforms, to get
-acceptable performance CONFIG_CRYPTO_SPECK_NEON must be enabled.
 
 New encryption modes can be added relatively easily, without changes
 to individual filesystems.  However, authenticated encryption (AE)

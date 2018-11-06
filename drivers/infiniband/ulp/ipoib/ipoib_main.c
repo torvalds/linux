@@ -243,7 +243,8 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 		return 0;
 	}
 
-	if (new_mtu > IPOIB_UD_MTU(priv->max_ib_mtu))
+	if (new_mtu < (ETH_MIN_MTU + IPOIB_ENCAP_LEN) ||
+	    new_mtu > IPOIB_UD_MTU(priv->max_ib_mtu))
 		return -EINVAL;
 
 	priv->admin_mtu = new_mtu;
@@ -1880,6 +1881,8 @@ static int ipoib_parent_init(struct net_device *ndev)
 	       sizeof(union ib_gid));
 
 	SET_NETDEV_DEV(priv->dev, priv->ca->dev.parent);
+	priv->dev->dev_port = priv->port - 1;
+	/* Let's set this one too for backwards compatibility. */
 	priv->dev->dev_id = priv->port - 1;
 
 	return 0;
@@ -2385,6 +2388,35 @@ int ipoib_add_pkey_attr(struct net_device *dev)
 	return device_create_file(&dev->dev, &dev_attr_pkey);
 }
 
+/*
+ * We erroneously exposed the iface's port number in the dev_id
+ * sysfs field long after dev_port was introduced for that purpose[1],
+ * and we need to stop everyone from relying on that.
+ * Let's overload the shower routine for the dev_id file here
+ * to gently bring the issue up.
+ *
+ * [1] https://www.spinics.net/lists/netdev/msg272123.html
+ */
+static ssize_t dev_id_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct net_device *ndev = to_net_dev(dev);
+
+	if (ndev->dev_id == ndev->dev_port)
+		netdev_info_once(ndev,
+			"\"%s\" wants to know my dev_id. Should it look at dev_port instead? See Documentation/ABI/testing/sysfs-class-net for more info.\n",
+			current->comm);
+
+	return sprintf(buf, "%#x\n", ndev->dev_id);
+}
+static DEVICE_ATTR_RO(dev_id);
+
+int ipoib_intercept_dev_id_attr(struct net_device *dev)
+{
+	device_remove_file(&dev->dev, &dev_attr_dev_id);
+	return device_create_file(&dev->dev, &dev_attr_dev_id);
+}
+
 static struct net_device *ipoib_add_port(const char *format,
 					 struct ib_device *hca, u8 port)
 {
@@ -2437,6 +2469,8 @@ static struct net_device *ipoib_add_port(const char *format,
 	 */
 	ndev->priv_destructor = ipoib_intf_free;
 
+	if (ipoib_intercept_dev_id_attr(ndev))
+		goto sysfs_failed;
 	if (ipoib_cm_add_mode_attr(ndev))
 		goto sysfs_failed;
 	if (ipoib_add_pkey_attr(ndev))
