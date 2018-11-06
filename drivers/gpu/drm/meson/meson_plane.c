@@ -143,13 +143,50 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 		break;
 	};
 
+	/*
+	 * When the output is interlaced, the OSD must switch between
+	 * each field using the INTERLACE_SEL_ODD (0) of VIU_OSD1_BLK0_CFG_W0
+	 * at each vsync.
+	 * But the vertical scaler can provide such funtionnality if
+	 * is configured for 2:1 scaling with interlace options enabled.
+	 */
 	if (state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		priv->viu.osd1_interlace = true;
 
 		dest.y1 /= 2;
 		dest.y2 /= 2;
-	} else
+
+		priv->viu.osd_sc_ctrl0 = BIT(3) | /* Enable scaler */
+					 BIT(2); /* Select OSD1 */
+
+		/* 2:1 scaling */
+		priv->viu.osd_sc_i_wh_m1 = ((drm_rect_width(&dest) - 1) << 16) |
+					   (drm_rect_height(&dest) - 1);
+		priv->viu.osd_sc_o_h_start_end = (dest.x1 << 16) | dest.x2;
+		priv->viu.osd_sc_o_v_start_end = (dest.y1 << 16) | dest.y2;
+
+		/* 2:1 vertical scaling values */
+		priv->viu.osd_sc_v_ini_phase = BIT(16);
+		priv->viu.osd_sc_v_phase_step = BIT(25);
+		priv->viu.osd_sc_v_ctrl0 =
+			(4 << 0) | /* osd_vsc_bank_length */
+			(4 << 3) | /* osd_vsc_top_ini_rcv_num0 */
+			(1 << 8) | /* osd_vsc_top_rpt_p0_num0 */
+			(6 << 11) | /* osd_vsc_bot_ini_rcv_num0 */
+			(2 << 16) | /* osd_vsc_bot_rpt_p0_num0 */
+			BIT(23)	| /* osd_prog_interlace */
+			BIT(24); /* Enable vertical scaler */
+
+		/* No horizontal scaling */
+		priv->viu.osd_sc_h_ini_phase = 0;
+		priv->viu.osd_sc_h_phase_step = 0;
+		priv->viu.osd_sc_h_ctrl0 = 0;
+	} else {
 		priv->viu.osd1_interlace = false;
+		priv->viu.osd_sc_ctrl0 = 0;
+		priv->viu.osd_sc_h_ctrl0 = 0;
+		priv->viu.osd_sc_v_ctrl0 = 0;
+	}
 
 	/*
 	 * The format of these registers is (x2 << 16 | x1),

@@ -189,21 +189,26 @@ void meson_crtc_irq(struct meson_drm *priv)
 				priv->io_base + _REG(VIU_OSD1_BLK0_CFG_W3));
 		writel_relaxed(priv->viu.osd1_blk0_cfg[4],
 				priv->io_base + _REG(VIU_OSD1_BLK0_CFG_W4));
-
-		/* If output is interlace, make use of the Scaler */
-		if (priv->viu.osd1_interlace) {
-			struct drm_plane *plane = priv->primary_plane;
-			struct drm_plane_state *state = plane->state;
-			struct drm_rect dest = {
-				.x1 = state->crtc_x,
-				.y1 = state->crtc_y,
-				.x2 = state->crtc_x + state->crtc_w,
-				.y2 = state->crtc_y + state->crtc_h,
-			};
-
-			meson_vpp_setup_interlace_vscaler_osd1(priv, &dest);
-		} else
-			meson_vpp_disable_interlace_vscaler_osd1(priv);
+		writel_relaxed(priv->viu.osd_sc_ctrl0,
+				priv->io_base + _REG(VPP_OSD_SC_CTRL0));
+		writel_relaxed(priv->viu.osd_sc_i_wh_m1,
+				priv->io_base + _REG(VPP_OSD_SCI_WH_M1));
+		writel_relaxed(priv->viu.osd_sc_o_h_start_end,
+				priv->io_base + _REG(VPP_OSD_SCO_H_START_END));
+		writel_relaxed(priv->viu.osd_sc_o_v_start_end,
+				priv->io_base + _REG(VPP_OSD_SCO_V_START_END));
+		writel_relaxed(priv->viu.osd_sc_v_ini_phase,
+				priv->io_base + _REG(VPP_OSD_VSC_INI_PHASE));
+		writel_relaxed(priv->viu.osd_sc_v_phase_step,
+				priv->io_base + _REG(VPP_OSD_VSC_PHASE_STEP));
+		writel_relaxed(priv->viu.osd_sc_h_ini_phase,
+				priv->io_base + _REG(VPP_OSD_HSC_INI_PHASE));
+		writel_relaxed(priv->viu.osd_sc_h_phase_step,
+				priv->io_base + _REG(VPP_OSD_HSC_PHASE_STEP));
+		writel_relaxed(priv->viu.osd_sc_h_ctrl0,
+				priv->io_base + _REG(VPP_OSD_HSC_CTRL0));
+		writel_relaxed(priv->viu.osd_sc_v_ctrl0,
+				priv->io_base + _REG(VPP_OSD_VSC_CTRL0));
 
 		if (priv->canvas)
 			meson_canvas_config(priv->canvas, priv->canvas_id_osd1,

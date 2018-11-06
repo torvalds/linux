@@ -51,52 +51,6 @@ void meson_vpp_setup_mux(struct meson_drm *priv, unsigned int mux)
 	writel(mux, priv->io_base + _REG(VPU_VIU_VENC_MUX_CTRL));
 }
 
-/*
- * When the output is interlaced, the OSD must switch between
- * each field using the INTERLACE_SEL_ODD (0) of VIU_OSD1_BLK0_CFG_W0
- * at each vsync.
- * But the vertical scaler can provide such funtionnality if
- * is configured for 2:1 scaling with interlace options enabled.
- */
-void meson_vpp_setup_interlace_vscaler_osd1(struct meson_drm *priv,
-					    struct drm_rect *input)
-{
-	writel_relaxed(BIT(3) /* Enable scaler */ |
-		       BIT(2), /* Select OSD1 */
-			priv->io_base + _REG(VPP_OSD_SC_CTRL0));
-
-	writel_relaxed(((drm_rect_width(input) - 1) << 16) |
-		       (drm_rect_height(input) - 1),
-			priv->io_base + _REG(VPP_OSD_SCI_WH_M1));
-	/* 2:1 scaling */
-	writel_relaxed(((input->x1) << 16) | (input->x2),
-			priv->io_base + _REG(VPP_OSD_SCO_H_START_END));
-	writel_relaxed(((input->y1 >> 1) << 16) | (input->y2 >> 1),
-			priv->io_base + _REG(VPP_OSD_SCO_V_START_END));
-
-	/* 2:1 scaling values */
-	writel_relaxed(BIT(16), priv->io_base + _REG(VPP_OSD_VSC_INI_PHASE));
-	writel_relaxed(BIT(25), priv->io_base + _REG(VPP_OSD_VSC_PHASE_STEP));
-
-	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_HSC_CTRL0));
-
-	writel_relaxed((4 << 0) /* osd_vsc_bank_length */ |
-		       (4 << 3) /* osd_vsc_top_ini_rcv_num0 */ |
-		       (1 << 8) /* osd_vsc_top_rpt_p0_num0 */ |
-		       (6 << 11) /* osd_vsc_bot_ini_rcv_num0 */ |
-		       (2 << 16) /* osd_vsc_bot_rpt_p0_num0 */ |
-		       BIT(23)	/* osd_prog_interlace */ |
-		       BIT(24), /* Enable vertical scaler */
-			priv->io_base + _REG(VPP_OSD_VSC_CTRL0));
-}
-
-void meson_vpp_disable_interlace_vscaler_osd1(struct meson_drm *priv)
-{
-	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_SC_CTRL0));
-	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_VSC_CTRL0));
-	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_HSC_CTRL0));
-}
-
 static unsigned int vpp_filter_coefs_4point_bspline[] = {
 	0x15561500, 0x14561600, 0x13561700, 0x12561800,
 	0x11551a00, 0x11541b00, 0x10541c00, 0x0f541d00,
