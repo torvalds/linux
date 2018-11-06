@@ -213,7 +213,10 @@ int amd_cache_northbridges(void)
 	const struct pci_device_id *root_ids = amd_root_ids;
 	struct pci_dev *root, *misc, *link;
 	struct amd_northbridge *nb;
-	u16 i = 0;
+	u16 roots_per_misc = 0;
+	u16 misc_count = 0;
+	u16 root_count = 0;
+	u16 i, j;
 
 	if (amd_northbridges.num)
 		return 0;
@@ -226,26 +229,55 @@ int amd_cache_northbridges(void)
 
 	misc = NULL;
 	while ((misc = next_northbridge(misc, misc_ids)) != NULL)
-		i++;
+		misc_count++;
 
-	if (!i)
+	if (!misc_count)
 		return -ENODEV;
 
-	nb = kcalloc(i, sizeof(struct amd_northbridge), GFP_KERNEL);
+	root = NULL;
+	while ((root = next_northbridge(root, root_ids)) != NULL)
+		root_count++;
+
+	if (root_count) {
+		roots_per_misc = root_count / misc_count;
+
+		/*
+		 * There should be _exactly_ N roots for each DF/SMN
+		 * interface.
+		 */
+		if (!roots_per_misc || (root_count % roots_per_misc)) {
+			pr_info("Unsupported AMD DF/PCI configuration found\n");
+			return -ENODEV;
+		}
+	}
+
+	nb = kcalloc(misc_count, sizeof(struct amd_northbridge), GFP_KERNEL);
 	if (!nb)
 		return -ENOMEM;
 
 	amd_northbridges.nb = nb;
-	amd_northbridges.num = i;
+	amd_northbridges.num = misc_count;
 
 	link = misc = root = NULL;
-	for (i = 0; i != amd_northbridges.num; i++) {
+	for (i = 0; i < amd_northbridges.num; i++) {
 		node_to_amd_nb(i)->root = root =
 			next_northbridge(root, root_ids);
 		node_to_amd_nb(i)->misc = misc =
 			next_northbridge(misc, misc_ids);
 		node_to_amd_nb(i)->link = link =
 			next_northbridge(link, link_ids);
+
+		/*
+		 * If there are more PCI root devices than data fabric/
+		 * system management network interfaces, then the (N)
+		 * PCI roots per DF/SMN interface are functionally the
+		 * same (for DF/SMN access) and N-1 are redundant.  N-1
+		 * PCI roots should be skipped per DF/SMN interface so
+		 * the following DF/SMN interfaces get mapped to
+		 * correct PCI roots.
+		 */
+		for (j = 1; j < roots_per_misc; j++)
+			root = next_northbridge(root, root_ids);
 	}
 
 	if (amd_gart_present())
