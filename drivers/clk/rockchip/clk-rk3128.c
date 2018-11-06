@@ -503,6 +503,7 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 	GATE(0, "hclk_emmc_peri", "hclk_peri", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(3), 6, GFLAGS),
 	GATE(HCLK_NANDC, "hclk_nandc", "hclk_peri", 0, RK2928_CLKGATE_CON(5), 9, GFLAGS),
 	GATE(HCLK_USBHOST, "hclk_usbhost", "hclk_peri", 0, RK2928_CLKGATE_CON(10), 14, GFLAGS),
+	GATE(HCLK_SFC, "hclk_sfc", "hclk_peri", 0, RK2928_CLKGATE_CON(7), 1, GFLAGS),
 
 	GATE(PCLK_SIM_CARD, "pclk_sim_card", "pclk_peri", 0, RK2928_CLKGATE_CON(9), 12, GFLAGS),
 	GATE(PCLK_GMAC, "pclk_gmac", "pclk_peri", 0, RK2928_CLKGATE_CON(10), 11, GFLAGS),
