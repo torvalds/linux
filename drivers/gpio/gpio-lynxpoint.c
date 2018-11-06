@@ -240,21 +240,23 @@ static void lp_gpio_irq_handler(struct irq_desc *desc)
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct lp_gpio *lg = gpiochip_get_data(gc);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
-	u32 base, pin, mask;
 	unsigned long reg, ena, pending;
+	u32 base, pin;
 
 	/* check from GPIO controller which pin triggered the interrupt */
 	for (base = 0; base < lg->chip.ngpio; base += 32) {
 		reg = lp_gpio_reg(&lg->chip, base, LP_INT_STAT);
 		ena = lp_gpio_reg(&lg->chip, base, LP_INT_ENABLE);
 
-		while ((pending = (inl(reg) & inl(ena)))) {
+		/* Only interrupts that are enabled */
+		pending = inl(reg) & inl(ena);
+
+		for_each_set_bit(pin, &pending, 32) {
 			unsigned irq;
 
-			pin = __ffs(pending);
-			mask = BIT(pin);
 			/* Clear before handling so we don't lose an edge */
-			outl(mask, reg);
+			outl(BIT(pin), reg);
+
 			irq = irq_find_mapping(lg->chip.irq.domain, base + pin);
 			generic_handle_irq(irq);
 		}
