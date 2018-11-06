@@ -50,11 +50,12 @@ static int mt76x2u_add_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif)
 {
 	struct mt76x02_dev *dev = hw->priv;
+	unsigned int idx = 8;
 
 	if (!ether_addr_equal(dev->mt76.macaddr, vif->addr))
 		mt76x02_mac_setaddr(dev, vif->addr);
 
-	mt76x02_vif_init(dev, vif, 0);
+	mt76x02_vif_init(dev, vif, idx);
 	return 0;
 }
 
@@ -81,24 +82,6 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	mt76_txq_schedule_all(&dev->mt76);
 
 	return err;
-}
-
-static void
-mt76x2u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			 struct ieee80211_bss_conf *info, u32 changed)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	mutex_lock(&dev->mt76.mutex);
-
-	if (changed & BSS_CHANGED_BSSID) {
-		mt76_wr(dev, MT_MAC_BSSID_DW0,
-			get_unaligned_le32(info->bssid));
-		mt76_wr(dev, MT_MAC_BSSID_DW1,
-			get_unaligned_le16(info->bssid + 4));
-	}
-
-	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
@@ -150,7 +133,7 @@ const struct ieee80211_ops mt76x2u_ops = {
 	.ampdu_action = mt76x02_ampdu_action,
 	.config = mt76x2u_config,
 	.wake_tx_queue = mt76_wake_tx_queue,
-	.bss_info_changed = mt76x2u_bss_info_changed,
+	.bss_info_changed = mt76x02_bss_info_changed,
 	.configure_filter = mt76x02_configure_filter,
 	.conf_tx = mt76x02_conf_tx,
 	.sw_scan_start = mt76x02_sw_scan,
