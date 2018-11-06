@@ -5429,15 +5429,19 @@ static int dsi_probe(struct platform_device *pdev)
 	}
 
 	r = of_platform_populate(dev->of_node, NULL, NULL, dev);
-	if (r)
+	if (r) {
 		DSSERR("Failed to populate DSI child devices: %d\n", r);
+		goto err_uninit_output;
+	}
 
 	r = component_add(&pdev->dev, &dsi_component_ops);
 	if (r)
-		goto err_uninit_output;
+		goto err_of_depopulate;
 
 	return 0;
 
+err_of_depopulate:
+	of_platform_depopulate(dev);
 err_uninit_output:
 	dsi_uninit_output(dsi);
 err_pm_disable:
