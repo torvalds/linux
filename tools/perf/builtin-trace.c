@@ -2586,7 +2586,7 @@ static int trace__set_filter_loop_pids(struct trace *trace)
 		thread = parent;
 	}
 
-	return perf_evlist__set_filter_pids(trace->evlist, nr, pids);
+	return perf_evlist__set_tp_filter_pids(trace->evlist, nr, pids);
 }
 
 static int trace__run(struct trace *trace, int argc, const char **argv)
@@ -2702,7 +2702,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	 * we fork the workload in perf_evlist__prepare_workload.
 	 */
 	if (trace->filter_pids.nr > 0)
-		err = perf_evlist__set_filter_pids(evlist, trace->filter_pids.nr, trace->filter_pids.entries);
+		err = perf_evlist__set_tp_filter_pids(evlist, trace->filter_pids.nr, trace->filter_pids.entries);
 	else if (thread_map__pid(evlist->threads, 0) == -1)
 		err = trace__set_filter_loop_pids(trace);
 
