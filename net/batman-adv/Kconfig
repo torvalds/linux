@@ -82,6 +82,7 @@ config BATMAN_ADV_NC
 config BATMAN_ADV_MCAST
 	bool "Multicast optimisation"
 	depends on BATMAN_ADV && INET && !(BRIDGE=m && BATMAN_ADV=y)
+	default y
 	help
 	  This option enables the multicast optimisation which aims to
 	  reduce the air overhead while improving the reliability of
