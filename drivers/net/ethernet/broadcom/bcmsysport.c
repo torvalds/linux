@@ -1068,6 +1068,7 @@ static void mpd_enable_set(struct bcm_sysport_priv *priv, bool enable)
 
 static void bcm_sysport_resume_from_wol(struct bcm_sysport_priv *priv)
 {
+	unsigned int index;
 	u32 reg;
 
 	/* Disable RXCHK, active filters and Broadcom tag matching */
@@ -1075,6 +1076,15 @@ static void bcm_sysport_resume_from_wol(struct bcm_sysport_priv *priv)
 	reg &= ~(RXCHK_BRCM_TAG_MATCH_MASK <<
 		 RXCHK_BRCM_TAG_MATCH_SHIFT | RXCHK_EN | RXCHK_BRCM_TAG_EN);
 	rxchk_writel(priv, reg, RXCHK_CONTROL);
+
+	/* Make sure we restore correct CID index in case HW lost
+	 * its context during deep idle state
+	 */
+	for_each_set_bit(index, priv->filters, RXCHK_BRCM_TAG_MAX) {
+		rxchk_writel(priv, priv->filters_loc[index] <<
+			     RXCHK_BRCM_TAG_CID_SHIFT, RXCHK_BRCM_TAG(index));
+		rxchk_writel(priv, 0xff00ffff, RXCHK_BRCM_TAG_MASK(index));
+	}
 
 	/* Clear the MagicPacket detection logic */
 	mpd_enable_set(priv, false);
@@ -2189,6 +2199,7 @@ static int bcm_sysport_rule_set(struct bcm_sysport_priv *priv,
 	rxchk_writel(priv, reg, RXCHK_BRCM_TAG(index));
 	rxchk_writel(priv, 0xff00ffff, RXCHK_BRCM_TAG_MASK(index));
 
+	priv->filters_loc[index] = nfc->fs.location;
 	set_bit(index, priv->filters);
 
 	return 0;
@@ -2208,6 +2219,7 @@ static int bcm_sysport_rule_del(struct bcm_sysport_priv *priv,
 	 * be taken care of during suspend time by bcm_sysport_suspend_to_wol
 	 */
 	clear_bit(index, priv->filters);
+	priv->filters_loc[index] = 0;
 
 	return 0;
 }
