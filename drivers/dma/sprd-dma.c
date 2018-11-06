@@ -463,7 +463,7 @@ static irqreturn_t dma_irq_handle(int irq, void *dev_id)
 	struct sprd_dma_desc *sdesc;
 	enum sprd_dma_req_mode req_type;
 	enum sprd_dma_int_type int_type;
-	bool trans_done = false;
+	bool trans_done = false, cyclic = false;
 	u32 i;
 
 	while (irq_status) {
@@ -478,13 +478,19 @@ static irqreturn_t dma_irq_handle(int irq, void *dev_id)
 
 		sdesc = schan->cur_desc;
 
-		/* Check if the dma request descriptor is done. */
-		trans_done = sprd_dma_check_trans_done(sdesc, int_type,
-						       req_type);
-		if (trans_done == true) {
-			vchan_cookie_complete(&sdesc->vd);
-			schan->cur_desc = NULL;
-			sprd_dma_start(schan);
+		/* cyclic mode schedule callback */
+		cyclic = schan->linklist.phy_addr ? true : false;
+		if (cyclic == true) {
+			vchan_cyclic_callback(&sdesc->vd);
+		} else {
+			/* Check if the dma request descriptor is done. */
+			trans_done = sprd_dma_check_trans_done(sdesc, int_type,
+							       req_type);
+			if (trans_done == true) {
+				vchan_cookie_complete(&sdesc->vd);
+				schan->cur_desc = NULL;
+				sprd_dma_start(schan);
+			}
 		}
 		spin_unlock(&schan->vc.lock);
 	}
@@ -692,9 +698,6 @@ static int sprd_dma_fill_desc(struct dma_chan *chan,
 
 	/* link-list configuration */
 	if (schan->linklist.phy_addr) {
-		if (sg_index == sglen - 1)
-			hw->frg_len |= SPRD_DMA_LLIST_END;
-
 		hw->cfg |= SPRD_DMA_LINKLIST_EN;
 
 		/* link-list index */
