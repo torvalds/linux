@@ -457,6 +457,8 @@ struct rsnd_dai_stream {
 	struct rsnd_mod *dma;
 	struct rsnd_dai *rdai;
 	struct device *dmac_dev; /* for IPMMU */
+	u32 converted_rate;      /* converted sampling rate */
+	int converted_chan;      /* converted channels */
 	u32 parent_ssi_status;
 	u32 flags;
 };
@@ -479,6 +481,8 @@ struct rsnd_dai_stream {
 #define rsnd_io_is_play(io)	(&rsnd_io_to_rdai(io)->playback == io)
 #define rsnd_io_to_runtime(io) ((io)->substream ? \
 				(io)->substream->runtime : NULL)
+#define rsnd_io_converted_rate(io)	((io)->converted_rate)
+#define rsnd_io_converted_chan(io)	((io)->converted_chan)
 int rsnd_io_is_working(struct rsnd_dai_stream *io);
 
 struct rsnd_dai {
@@ -767,7 +771,6 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
  */
 int rsnd_ctu_probe(struct rsnd_priv *priv);
 void rsnd_ctu_remove(struct rsnd_priv *priv);
-int rsnd_ctu_converted_channel(struct rsnd_mod *mod);
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
 #define rsnd_ctu_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_CTU)
 #define rsnd_parse_connect_ctu(rdai, playback, capture)			\

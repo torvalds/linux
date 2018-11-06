@@ -25,7 +25,6 @@ struct rsnd_src {
 	struct rsnd_mod *dma;
 	struct rsnd_kctrl_cfg_s sen;  /* sync convert enable */
 	struct rsnd_kctrl_cfg_s sync; /* sync convert */
-	u32 convert_rate; /* sampling rate convert */
 	int irq;
 };
 
@@ -89,12 +88,12 @@ static u32 rsnd_src_convert_rate(struct rsnd_dai_stream *io,
 		return 0;
 
 	if (!rsnd_src_sync_is_enabled(mod))
-		return src->convert_rate;
+		return rsnd_io_converted_rate(io);
 
 	convert_rate = src->sync.val;
 
 	if (!convert_rate)
-		convert_rate = src->convert_rate;
+		convert_rate = rsnd_io_converted_rate(io);
 
 	if (!convert_rate)
 		convert_rate = runtime->rate;
@@ -133,40 +132,6 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 		rate = runtime->rate;
 
 	return rate;
-}
-
-static int rsnd_src_hw_params(struct rsnd_mod *mod,
-			      struct rsnd_dai_stream *io,
-			      struct snd_pcm_substream *substream,
-			      struct snd_pcm_hw_params *fe_params)
-{
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	struct snd_soc_pcm_runtime *fe = substream->private_data;
-
-	/*
-	 * SRC assumes that it is used under DPCM if user want to use
-	 * sampling rate convert. Then, SRC should be FE.
-	 * And then, this function will be called *after* BE settings.
-	 * this means, each BE already has fixuped hw_params.
-	 * see
-	 *	dpcm_fe_dai_hw_params()
-	 *	dpcm_be_dai_hw_params()
-	 */
-	src->convert_rate = 0;
-	if (fe->dai_link->dynamic) {
-		int stream = substream->stream;
-		struct snd_soc_dpcm *dpcm;
-		struct snd_pcm_hw_params *be_params;
-
-		for_each_dpcm_be(fe, stream, dpcm) {
-			be_params = &dpcm->hw_params;
-
-			if (params_rate(fe_params) != params_rate(be_params))
-				src->convert_rate = params_rate(be_params);
-		}
-	}
-
-	return 0;
 }
 
 static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
@@ -534,7 +499,6 @@ static struct rsnd_mod_ops rsnd_src_ops = {
 	.start		= rsnd_src_start,
 	.stop		= rsnd_src_stop,
 	.irq		= rsnd_src_irq,
-	.hw_params	= rsnd_src_hw_params,
 	.pcm_new	= rsnd_src_pcm_new,
 	.get_status	= rsnd_mod_get_status,
 };

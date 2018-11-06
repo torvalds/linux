@@ -269,7 +269,7 @@ int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
 	struct rsnd_mod *ctu_mod = rsnd_io_to_mod_ctu(io);
 
 	if (ctu_mod) {
-		u32 converted_chan = rsnd_ctu_converted_channel(ctu_mod);
+		u32 converted_chan = rsnd_io_converted_chan(io);
 
 		if (converted_chan)
 			return converted_chan;
@@ -1225,7 +1225,39 @@ static int rsnd_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
+	struct snd_soc_pcm_runtime *fe = substream->private_data;
 	int ret;
+
+	/*
+	 * rsnd assumes that it might be used under DPCM if user want to use
+	 * channel / rate convert. Then, rsnd should be FE.
+	 * And then, this function will be called *after* BE settings.
+	 * this means, each BE already has fixuped hw_params.
+	 * see
+	 *	dpcm_fe_dai_hw_params()
+	 *	dpcm_be_dai_hw_params()
+	 */
+	io->converted_rate = 0;
+	io->converted_chan = 0;
+	if (fe->dai_link->dynamic) {
+		struct rsnd_priv *priv = rsnd_io_to_priv(io);
+		struct device *dev = rsnd_priv_to_dev(priv);
+		struct snd_soc_dpcm *dpcm;
+		struct snd_pcm_hw_params *be_params;
+		int stream = substream->stream;
+
+		for_each_dpcm_be(fe, stream, dpcm) {
+			be_params = &dpcm->hw_params;
+			if (params_channels(hw_params) != params_channels(be_params))
+				io->converted_chan = params_channels(be_params);
+			if (params_rate(hw_params) != params_rate(be_params))
+				io->converted_rate = params_rate(be_params);
+		}
+		if (io->converted_chan)
+			dev_dbg(dev, "convert channels = %d\n", io->converted_chan);
+		if (io->converted_rate)
+			dev_dbg(dev, "convert rate     = %d\n", io->converted_rate);
+	}
 
 	ret = rsnd_dai_call(hw_params, io, substream, hw_params);
 	if (ret)
