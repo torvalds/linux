@@ -34,8 +34,8 @@ static const struct cnl_procmon {
  * registers, that's why we call the ICL macros even though the function has CNL
  * on its name.
  */
-static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv,
-				       enum port port)
+static const struct cnl_procmon *
+cnl_get_procmon_ref_values(struct drm_i915_private *dev_priv, enum port port)
 {
 	const struct cnl_procmon *procmon;
 	u32 val;
@@ -62,6 +62,17 @@ static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv,
 		break;
 	}
 
+	return procmon;
+}
+
+static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv,
+				       enum port port)
+{
+	const struct cnl_procmon *procmon;
+	u32 val;
+
+	procmon = cnl_get_procmon_ref_values(dev_priv, port);
+
 	val = I915_READ(ICL_PORT_COMP_DW1(port));
 	val &= ~((0xff << 16) | 0xff);
 	val |= procmon->dw1;
@@ -69,6 +80,63 @@ static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv,
 
 	I915_WRITE(ICL_PORT_COMP_DW9(port), procmon->dw9);
 	I915_WRITE(ICL_PORT_COMP_DW10(port), procmon->dw10);
+}
+
+static bool check_phy_reg(struct drm_i915_private *dev_priv,
+			  enum port port, i915_reg_t reg, u32 mask,
+			  u32 expected_val)
+{
+	u32 val = I915_READ(reg);
+
+	if ((val & mask) != expected_val) {
+		DRM_DEBUG_DRIVER("Port %c combo PHY reg %08x state mismatch: "
+				 "current %08x mask %08x expected %08x\n",
+				 port_name(port),
+				 reg.reg, val, mask, expected_val);
+		return false;
+	}
+
+	return true;
+}
+
+static bool cnl_verify_procmon_ref_values(struct drm_i915_private *dev_priv,
+					  enum port port)
+{
+	const struct cnl_procmon *procmon;
+	bool ret;
+
+	procmon = cnl_get_procmon_ref_values(dev_priv, port);
+
+	ret = check_phy_reg(dev_priv, port, ICL_PORT_COMP_DW1(port),
+			    (0xff << 16) | 0xff, procmon->dw1);
+	ret &= check_phy_reg(dev_priv, port, ICL_PORT_COMP_DW9(port),
+			     -1U, procmon->dw9);
+	ret &= check_phy_reg(dev_priv, port, ICL_PORT_COMP_DW10(port),
+			     -1U, procmon->dw10);
+
+	return ret;
+}
+
+static bool cnl_combo_phy_enabled(struct drm_i915_private *dev_priv)
+{
+	return !(I915_READ(CHICKEN_MISC_2) & CNL_COMP_PWR_DOWN) &&
+		(I915_READ(CNL_PORT_COMP_DW0) & COMP_INIT);
+}
+
+static bool cnl_combo_phy_verify_state(struct drm_i915_private *dev_priv)
+{
+	enum port port = PORT_A;
+	bool ret;
+
+	if (!cnl_combo_phy_enabled(dev_priv))
+		return false;
+
+	ret = cnl_verify_procmon_ref_values(dev_priv, port);
+
+	ret &= check_phy_reg(dev_priv, port, CNL_PORT_CL1CM_DW5,
+			     CL_POWER_DOWN_ENABLE, CL_POWER_DOWN_ENABLE);
+
+	return ret;
 }
 
 void cnl_combo_phys_init(struct drm_i915_private *dev_priv)
@@ -95,9 +163,36 @@ void cnl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
+	if (!cnl_combo_phy_verify_state(dev_priv))
+		DRM_WARN("Combo PHY HW state changed unexpectedly.\n");
+
 	val = I915_READ(CHICKEN_MISC_2);
 	val |= CNL_COMP_PWR_DOWN;
 	I915_WRITE(CHICKEN_MISC_2, val);
+}
+
+static bool icl_combo_phy_enabled(struct drm_i915_private *dev_priv,
+				  enum port port)
+{
+	return !(I915_READ(ICL_PHY_MISC(port)) &
+		 ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN) &&
+		(I915_READ(ICL_PORT_COMP_DW0(port)) & COMP_INIT);
+}
+
+static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
+				       enum port port)
+{
+	bool ret;
+
+	if (!icl_combo_phy_enabled(dev_priv, port))
+		return false;
+
+	ret = cnl_verify_procmon_ref_values(dev_priv, port);
+
+	ret &= check_phy_reg(dev_priv, port, ICL_PORT_CL_DW5(port),
+			     CL_POWER_DOWN_ENABLE, CL_POWER_DOWN_ENABLE);
+
+	return ret;
 }
 
 void icl_combo_phys_init(struct drm_i915_private *dev_priv)
@@ -129,6 +224,10 @@ void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 
 	for (port = PORT_A; port <= PORT_B; port++) {
 		u32 val;
+
+		if (!icl_combo_phy_verify_state(dev_priv, port))
+			DRM_WARN("Port %c combo PHY HW state changed unexpectedly\n",
+				 port_name(port));
 
 		val = I915_READ(ICL_PHY_MISC(port));
 		val |= ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
