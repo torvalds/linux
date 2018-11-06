@@ -133,13 +133,13 @@ static int __init msp_usb_setup(void)
 	 * "D" for device-mode.	 If it works for Ethernet, why not USB...
 	 *  -- hammtrev, 2007/03/22
 	 */
-	snprintf((char *)&envstr[0], sizeof(envstr), "usbmode");
+	snprintf(&envstr[0], sizeof(envstr), "usbmode");
 
 	/* set default host mode */
 	val = 1;
 
 	/* get environment string */
-	strp = prom_getenv((char *)&envstr[0]);
+	strp = prom_getenv(&envstr[0]);
 	if (strp) {
 		/* compare string */
 		if (!strcmp(strp, "device"))

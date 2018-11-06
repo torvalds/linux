@@ -46,7 +46,7 @@ static int afs_probe_cell_name(struct dentry *dentry)
 		return 0;
 	}
 
-	ret = dns_query("afsdb", name, len, "", NULL, NULL);
+	ret = dns_query("afsdb", name, len, "srv=1", NULL, NULL);
 	if (ret == -ENODATA)
 		ret = -EDESTADDRREQ;
 	return ret;
@@ -62,7 +62,7 @@ struct inode *afs_try_auto_mntpt(struct dentry *dentry, struct inode *dir)
 	struct inode *inode;
 	int ret = -ENOENT;
 
-	_enter("%p{%pd}, {%x:%u}",
+	_enter("%p{%pd}, {%llx:%llu}",
 	       dentry, dentry, vnode->fid.vid, vnode->fid.vnode);
 
 	if (!test_bit(AFS_VNODE_AUTOCELL, &vnode->flags))

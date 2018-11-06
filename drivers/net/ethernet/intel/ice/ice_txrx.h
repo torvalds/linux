@@ -71,6 +71,7 @@ struct ice_txq_stats {
 	u64 restart_q;
 	u64 tx_busy;
 	u64 tx_linearize;
+	int prev_pkt; /* negative if no pending Tx descriptors */
 };
 
 struct ice_rxq_stats {
@@ -103,10 +104,17 @@ enum ice_rx_dtype {
 #define ICE_RX_ITR	ICE_IDX_ITR0
 #define ICE_TX_ITR	ICE_IDX_ITR1
 #define ICE_ITR_DYNAMIC	0x8000  /* use top bit as a flag */
-#define ICE_ITR_8K	0x003E
+#define ICE_ITR_8K	125
+#define ICE_ITR_20K	50
+#define ICE_DFLT_TX_ITR	ICE_ITR_20K
+#define ICE_DFLT_RX_ITR	ICE_ITR_20K
+/* apply ITR granularity translation to program the register. itr_gran is either
+ * 2 or 4 usecs so we need to divide by 2 first then shift by that value
+ */
+#define ITR_TO_REG(val, itr_gran) (((val) & ~ICE_ITR_DYNAMIC) >> \
+				   ((itr_gran) / 2))
 
-/* apply ITR HW granularity translation to program the HW registers */
-#define ITR_TO_REG(val, itr_gran) (((val) & ~ICE_ITR_DYNAMIC) >> (itr_gran))
+#define ICE_DFLT_INTRL	0
 
 /* Legacy or Advanced Mode Queue */
 #define ICE_TX_ADVANCED	0
@@ -127,14 +135,6 @@ struct ice_ring {
 	};
 	u16 q_index;			/* Queue number of ring */
 	u32 txq_teid;			/* Added Tx queue TEID */
-
-	/* high bit set means dynamic, use accessor routines to read/write.
-	 * hardware supports 2us/1us resolution for the ITR registers.
-	 * these values always store the USER setting, and must be converted
-	 * before programming to a register.
-	 */
-	u16 rx_itr_setting;
-	u16 tx_itr_setting;
 
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
@@ -172,6 +172,7 @@ struct ice_ring_container {
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_pkts;	/* total packets processed this int */
 	enum ice_latency_range latency_range;
+	int itr_idx;	/* index in the interrupt vector */
 	u16 itr;
 };
 

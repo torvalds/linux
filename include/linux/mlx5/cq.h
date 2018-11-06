@@ -61,6 +61,7 @@ struct mlx5_core_cq {
 	int			reset_notify_added;
 	struct list_head	reset_notify;
 	struct mlx5_eq		*eq;
+	u16 uid;
 };
 
 

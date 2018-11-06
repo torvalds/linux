@@ -62,6 +62,21 @@ xfs_bmbt_to_iomap(
 	iomap->dax_dev = xfs_find_daxdev_for_inode(VFS_I(ip));
 }
 
+static void
+xfs_hole_to_iomap(
+	struct xfs_inode	*ip,
+	struct iomap		*iomap,
+	xfs_fileoff_t		offset_fsb,
+	xfs_fileoff_t		end_fsb)
+{
+	iomap->addr = IOMAP_NULL_ADDR;
+	iomap->type = IOMAP_HOLE;
+	iomap->offset = XFS_FSB_TO_B(ip->i_mount, offset_fsb);
+	iomap->length = XFS_FSB_TO_B(ip->i_mount, end_fsb - offset_fsb);
+	iomap->bdev = xfs_find_bdev_for_inode(VFS_I(ip));
+	iomap->dax_dev = xfs_find_daxdev_for_inode(VFS_I(ip));
+}
+
 xfs_extlen_t
 xfs_eof_alignment(
 	struct xfs_inode	*ip,
@@ -502,6 +517,7 @@ xfs_file_iomap_begin_delay(
 	struct inode		*inode,
 	loff_t			offset,
 	loff_t			count,
+	unsigned		flags,
 	struct iomap		*iomap)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
@@ -538,21 +554,34 @@ xfs_file_iomap_begin_delay(
 			goto out_unlock;
 	}
 
-	eof = !xfs_iext_lookup_extent(ip, ifp, offset_fsb, &icur, &got);
-	if (!eof && got.br_startoff <= offset_fsb) {
-		if (xfs_is_reflink_inode(ip)) {
-			bool		shared;
+	end_fsb = min(XFS_B_TO_FSB(mp, offset + count), maxbytes_fsb);
 
-			end_fsb = min(XFS_B_TO_FSB(mp, offset + count),
-					maxbytes_fsb);
+	eof = !xfs_iext_lookup_extent(ip, ifp, offset_fsb, &icur, &got);
+	if (eof)
+		got.br_startoff = end_fsb; /* fake hole until the end */
+
+	if (got.br_startoff <= offset_fsb) {
+		/*
+		 * For reflink files we may need a delalloc reservation when
+		 * overwriting shared extents.   This includes zeroing of
+		 * existing extents that contain data.
+		 */
+		if (xfs_is_reflink_inode(ip) &&
+		    ((flags & IOMAP_WRITE) ||
+		     got.br_state != XFS_EXT_UNWRITTEN)) {
 			xfs_trim_extent(&got, offset_fsb, end_fsb - offset_fsb);
-			error = xfs_reflink_reserve_cow(ip, &got, &shared);
+			error = xfs_reflink_reserve_cow(ip, &got);
 			if (error)
 				goto out_unlock;
 		}
 
 		trace_xfs_iomap_found(ip, offset, count, 0, &got);
 		goto done;
+	}
+
+	if (flags & IOMAP_ZERO) {
+		xfs_hole_to_iomap(ip, iomap, offset_fsb, got.br_startoff);
+		goto out_unlock;
 	}
 
 	error = xfs_qm_dqattach_locked(ip, false);
@@ -1003,16 +1032,17 @@ xfs_file_iomap_begin(
 	struct xfs_bmbt_irec	imap;
 	xfs_fileoff_t		offset_fsb, end_fsb;
 	int			nimaps = 1, error = 0;
-	bool			shared = false, trimmed = false;
+	bool			shared = false;
 	unsigned		lockmode;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if (((flags & (IOMAP_WRITE | IOMAP_DIRECT)) == IOMAP_WRITE) &&
+	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && !(flags & IOMAP_DIRECT) &&
 			!IS_DAX(inode) && !xfs_get_extsz_hint(ip)) {
 		/* Reserve delalloc blocks for regular writeback. */
-		return xfs_file_iomap_begin_delay(inode, offset, length, iomap);
+		return xfs_file_iomap_begin_delay(inode, offset, length, flags,
+				iomap);
 	}
 
 	/*
@@ -1038,8 +1068,7 @@ xfs_file_iomap_begin(
 
 	if (flags & IOMAP_REPORT) {
 		/* Trim the mapping to the nearest shared extent boundary. */
-		error = xfs_reflink_trim_around_shared(ip, &imap, &shared,
-				&trimmed);
+		error = xfs_reflink_trim_around_shared(ip, &imap, &shared);
 		if (error)
 			goto out_unlock;
 	}
@@ -1065,7 +1094,7 @@ xfs_file_iomap_begin(
 			if (error)
 				goto out_unlock;
 		} else {
-			error = xfs_reflink_reserve_cow(ip, &imap, &shared);
+			error = xfs_reflink_reserve_cow(ip, &imap);
 			if (error)
 				goto out_unlock;
 		}

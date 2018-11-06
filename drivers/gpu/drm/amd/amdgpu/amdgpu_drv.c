@@ -36,6 +36,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_irq.h"
+#include "amdgpu_gem.h"
 
 #include "amdgpu_amdkfd.h"
 
@@ -126,6 +127,9 @@ int amdgpu_compute_multipipe = -1;
 int amdgpu_gpu_recovery = -1; /* auto */
 int amdgpu_emu_mode = 0;
 uint amdgpu_smu_memory_pool_size = 0;
+struct amdgpu_mgpu_info mgpu_info = {
+	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
+};
 
 /**
  * DOC: vramlimit (int)
@@ -531,6 +535,102 @@ MODULE_PARM_DESC(smu_memory_pool_size,
 		"0x1 = 256Mbyte, 0x2 = 512Mbyte, 0x4 = 1 Gbyte, 0x8 = 2GByte");
 module_param_named(smu_memory_pool_size, amdgpu_smu_memory_pool_size, uint, 0444);
 
+#ifdef CONFIG_HSA_AMD
+/**
+ * DOC: sched_policy (int)
+ * Set scheduling policy. Default is HWS(hardware scheduling) with over-subscription.
+ * Setting 1 disables over-subscription. Setting 2 disables HWS and statically
+ * assigns queues to HQDs.
+ */
+int sched_policy = KFD_SCHED_POLICY_HWS;
+module_param(sched_policy, int, 0444);
+MODULE_PARM_DESC(sched_policy,
+	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Non-HWS (Used for debugging only)");
+
+/**
+ * DOC: hws_max_conc_proc (int)
+ * Maximum number of processes that HWS can schedule concurrently. The maximum is the
+ * number of VMIDs assigned to the HWS, which is also the default.
+ */
+int hws_max_conc_proc = 8;
+module_param(hws_max_conc_proc, int, 0444);
+MODULE_PARM_DESC(hws_max_conc_proc,
+	"Max # processes HWS can execute concurrently when sched_policy=0 (0 = no concurrency, #VMIDs for KFD = Maximum(default))");
+
+/**
+ * DOC: cwsr_enable (int)
+ * CWSR(compute wave store and resume) allows the GPU to preempt shader execution in
+ * the middle of a compute wave. Default is 1 to enable this feature. Setting 0
+ * disables it.
+ */
+int cwsr_enable = 1;
+module_param(cwsr_enable, int, 0444);
+MODULE_PARM_DESC(cwsr_enable, "CWSR enable (0 = Off, 1 = On (Default))");
+
+/**
+ * DOC: max_num_of_queues_per_device (int)
+ * Maximum number of queues per device. Valid setting is between 1 and 4096. Default
+ * is 4096.
+ */
+int max_num_of_queues_per_device = KFD_MAX_NUM_OF_QUEUES_PER_DEVICE_DEFAULT;
+module_param(max_num_of_queues_per_device, int, 0444);
+MODULE_PARM_DESC(max_num_of_queues_per_device,
+	"Maximum number of supported queues per device (1 = Minimum, 4096 = default)");
+
+/**
+ * DOC: send_sigterm (int)
+ * Send sigterm to HSA process on unhandled exceptions. Default is not to send sigterm
+ * but just print errors on dmesg. Setting 1 enables sending sigterm.
+ */
+int send_sigterm;
+module_param(send_sigterm, int, 0444);
+MODULE_PARM_DESC(send_sigterm,
+	"Send sigterm to HSA process on unhandled exception (0 = disable, 1 = enable)");
+
+/**
+ * DOC: debug_largebar (int)
+ * Set debug_largebar as 1 to enable simulating large-bar capability on non-large bar
+ * system. This limits the VRAM size reported to ROCm applications to the visible
+ * size, usually 256MB.
+ * Default value is 0, diabled.
+ */
+int debug_largebar;
+module_param(debug_largebar, int, 0444);
+MODULE_PARM_DESC(debug_largebar,
+	"Debug large-bar flag used to simulate large-bar capability on non-large bar machine (0 = disable, 1 = enable)");
+
+/**
+ * DOC: ignore_crat (int)
+ * Ignore CRAT table during KFD initialization. By default, KFD uses the ACPI CRAT
+ * table to get information about AMD APUs. This option can serve as a workaround on
+ * systems with a broken CRAT table.
+ */
+int ignore_crat;
+module_param(ignore_crat, int, 0444);
+MODULE_PARM_DESC(ignore_crat,
+	"Ignore CRAT table during KFD initialization (0 = use CRAT (default), 1 = ignore CRAT)");
+
+/**
+ * DOC: noretry (int)
+ * This parameter sets sh_mem_config.retry_disable. Default value, 0, enables retry.
+ * Setting 1 disables retry.
+ * Retry is needed for recoverable page faults.
+ */
+int noretry;
+module_param(noretry, int, 0644);
+MODULE_PARM_DESC(noretry,
+	"Set sh_mem_config.retry_disable on Vega10 (0 = retry enabled (default), 1 = retry disabled)");
+
+/**
+ * DOC: halt_if_hws_hang (int)
+ * Halt if HWS hang is detected. Default value, 0, disables the halt on hang.
+ * Setting 1 enables halt on hang.
+ */
+int halt_if_hws_hang;
+module_param(halt_if_hws_hang, int, 0644);
+MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (default), 1 = on)");
+#endif
+
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI
 	{0x1002, 0x6780, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TAHITI},
@@ -770,14 +870,15 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x69A3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA12},
 	{0x1002, 0x69AF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA12},
 	/* Vega 20 */
-	{0x1002, 0x66A0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x66A1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x66A2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x66A3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x66A7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x66AF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x66A0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20},
+	{0x1002, 0x66A1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20},
+	{0x1002, 0x66A2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20},
+	{0x1002, 0x66A3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20},
+	{0x1002, 0x66A7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20},
+	{0x1002, 0x66AF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA20},
 	/* Raven */
 	{0x1002, 0x15dd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU},
+	{0x1002, 0x15d8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU},
 
 	{0, 0, 0}
 };
@@ -785,28 +886,6 @@ static const struct pci_device_id pciidlist[] = {
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static struct drm_driver kms_driver;
-
-static int amdgpu_kick_out_firmware_fb(struct pci_dev *pdev)
-{
-	struct apertures_struct *ap;
-	bool primary = false;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return -ENOMEM;
-
-	ap->ranges[0].base = pci_resource_start(pdev, 0);
-	ap->ranges[0].size = pci_resource_len(pdev, 0);
-
-#ifdef CONFIG_X86
-	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
-#endif
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "amdgpudrmfb", primary);
-	kfree(ap);
-
-	return 0;
-}
-
 
 static int amdgpu_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
@@ -826,29 +905,17 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	/*
-	 * Initialize amdkfd before starting radeon. If it was not loaded yet,
-	 * defer radeon probing
-	 */
-	ret = amdgpu_amdkfd_init();
-	if (ret == -EPROBE_DEFER)
-		return ret;
-
 	/* Get rid of things like offb */
-	ret = amdgpu_kick_out_firmware_fb(pdev);
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, 0, "amdgpudrmfb");
 	if (ret)
 		return ret;
-
-	/* warn the user if they mix atomic and non-atomic capable GPUs */
-	if ((kms_driver.driver_features & DRIVER_ATOMIC) && !supports_atomic)
-		DRM_ERROR("Mixing atomic and non-atomic capable GPUs!\n");
-	/* support atomic early so the atomic debugfs stuff gets created */
-	if (supports_atomic)
-		kms_driver.driver_features |= DRIVER_ATOMIC;
 
 	dev = drm_dev_alloc(&kms_driver, &pdev->dev);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
+
+	if (!supports_atomic)
+		dev->driver_features &= ~DRIVER_ATOMIC;
 
 	ret = pci_enable_device(pdev);
 	if (ret)
@@ -882,8 +949,8 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	drm_dev_unregister(dev);
-	drm_dev_put(dev);
+	DRM_ERROR("Device removal is currently not supported outside of fbcon\n");
+	drm_dev_unplug(dev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
@@ -1101,7 +1168,7 @@ amdgpu_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
 
 static struct drm_driver kms_driver = {
 	.driver_features =
-	    DRIVER_USE_AGP |
+	    DRIVER_USE_AGP | DRIVER_ATOMIC |
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
 	    DRIVER_PRIME | DRIVER_RENDER | DRIVER_MODESET | DRIVER_SYNCOBJ,
 	.load = amdgpu_driver_load_kms,
@@ -1178,6 +1245,10 @@ static int __init amdgpu_init(void)
 	pdriver = &amdgpu_kms_pci_driver;
 	driver->num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
+
+	/* Ignore KFD init failures. Normal when CONFIG_HSA_AMD is not set. */
+	amdgpu_amdkfd_init();
+
 	/* let modprobe override vga console setting */
 	return pci_register_driver(pdriver);
 

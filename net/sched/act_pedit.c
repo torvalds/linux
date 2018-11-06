@@ -460,8 +460,7 @@ static int tcf_pedit_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_pedit_search(struct net *net, struct tc_action **a, u32 index,
-			    struct netlink_ext_ack *extack)
+static int tcf_pedit_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, pedit_net_id);
 

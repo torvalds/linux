@@ -90,12 +90,12 @@ pci proc               |    --    |    --      |       WC         |
 Advanced APIs for drivers
 -------------------------
 A. Exporting pages to users with remap_pfn_range, io_remap_pfn_range,
-vm_insert_pfn
+vmf_insert_pfn
 
 Drivers wanting to export some pages to userspace do it by using mmap
 interface and a combination of
 1) pgprot_noncached()
-2) io_remap_pfn_range() or remap_pfn_range() or vm_insert_pfn()
+2) io_remap_pfn_range() or remap_pfn_range() or vmf_insert_pfn()
 
 With PAT support, a new API pgprot_writecombine is being added. So, drivers can
 continue to use the above sequence, with either pgprot_noncached() or

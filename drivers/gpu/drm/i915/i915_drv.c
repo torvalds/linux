@@ -373,7 +373,7 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			value = 2;
 		break;
 	case I915_PARAM_HAS_RESOURCE_STREAMER:
-		value = HAS_RESOURCE_STREAMER(dev_priv);
+		value = 0;
 		break;
 	case I915_PARAM_HAS_POOLED_EU:
 		value = HAS_POOLED_EU(dev_priv);
@@ -440,6 +440,9 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_CS_TIMESTAMP_FREQUENCY:
 		value = 1000 * INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz;
+		break;
+	case I915_PARAM_MMAP_GTT_COHERENT:
+		value = INTEL_INFO(dev_priv)->has_coherent_ggtt;
 		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
@@ -709,7 +712,7 @@ cleanup_irq:
 	intel_teardown_gmbus(dev_priv);
 cleanup_csr:
 	intel_csr_ucode_fini(dev_priv);
-	intel_power_domains_fini(dev_priv);
+	intel_power_domains_fini_hw(dev_priv);
 	vga_switcheroo_unregister_client(pdev);
 cleanup_vga_client:
 	vga_client_register(pdev, NULL, NULL, NULL);
@@ -867,7 +870,6 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 /**
  * i915_driver_init_early - setup state not requiring device access
  * @dev_priv: device private
- * @ent: the matching pci_device_id
  *
  * Initialize everything that is a "SW-only" state, that is state not
  * requiring accessing the device or exposing the driver via kernel internal
@@ -875,25 +877,13 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
  * system memory allocation, setting up device specific attributes and
  * function hooks not requiring accessing the device.
  */
-static int i915_driver_init_early(struct drm_i915_private *dev_priv,
-				  const struct pci_device_id *ent)
+static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 {
-	const struct intel_device_info *match_info =
-		(struct intel_device_info *)ent->driver_data;
-	struct intel_device_info *device_info;
 	int ret = 0;
 
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	/* Setup the write-once "constant" device info */
-	device_info = mkwrite_device_info(dev_priv);
-	memcpy(device_info, match_info, sizeof(*device_info));
-	device_info->device_id = dev_priv->drm.pdev->device;
-
-	BUILD_BUG_ON(INTEL_MAX_PLATFORMS >
-		     sizeof(device_info->platform_mask) * BITS_PER_BYTE);
-	BUG_ON(device_info->gen > sizeof(device_info->gen_mask) * BITS_PER_BYTE);
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
 	mutex_init(&dev_priv->backlight_lock);
@@ -921,7 +911,9 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	intel_uc_init_early(dev_priv);
 	intel_pm_setup(dev_priv);
 	intel_init_dpio(dev_priv);
-	intel_power_domains_init(dev_priv);
+	ret = intel_power_domains_init(dev_priv);
+	if (ret < 0)
+		goto err_uc;
 	intel_irq_init(dev_priv);
 	intel_hangcheck_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
@@ -933,6 +925,9 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	return 0;
 
+err_uc:
+	intel_uc_cleanup_early(dev_priv);
+	i915_gem_cleanup_early(dev_priv);
 err_workqueues:
 	i915_workqueues_cleanup(dev_priv);
 err_engines:
@@ -947,6 +942,7 @@ err_engines:
 static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 {
 	intel_irq_fini(dev_priv);
+	intel_power_domains_cleanup(dev_priv);
 	intel_uc_cleanup_early(dev_priv);
 	i915_gem_cleanup_early(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
@@ -1067,6 +1063,300 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	intel_gvt_sanitize_options(dev_priv);
 }
 
+static enum dram_rank skl_get_dimm_rank(u8 size, u32 rank)
+{
+	if (size == 0)
+		return I915_DRAM_RANK_INVALID;
+	if (rank == SKL_DRAM_RANK_SINGLE)
+		return I915_DRAM_RANK_SINGLE;
+	else if (rank == SKL_DRAM_RANK_DUAL)
+		return I915_DRAM_RANK_DUAL;
+
+	return I915_DRAM_RANK_INVALID;
+}
+
+static bool
+skl_is_16gb_dimm(enum dram_rank rank, u8 size, u8 width)
+{
+	if (rank == I915_DRAM_RANK_SINGLE && width == 8 && size == 16)
+		return true;
+	else if (rank == I915_DRAM_RANK_DUAL && width == 8 && size == 32)
+		return true;
+	else if (rank == SKL_DRAM_RANK_SINGLE && width == 16 && size == 8)
+		return true;
+	else if (rank == SKL_DRAM_RANK_DUAL && width == 16 && size == 16)
+		return true;
+
+	return false;
+}
+
+static int
+skl_dram_get_channel_info(struct dram_channel_info *ch, u32 val)
+{
+	u32 tmp_l, tmp_s;
+	u32 s_val = val >> SKL_DRAM_S_SHIFT;
+
+	if (!val)
+		return -EINVAL;
+
+	tmp_l = val & SKL_DRAM_SIZE_MASK;
+	tmp_s = s_val & SKL_DRAM_SIZE_MASK;
+
+	if (tmp_l == 0 && tmp_s == 0)
+		return -EINVAL;
+
+	ch->l_info.size = tmp_l;
+	ch->s_info.size = tmp_s;
+
+	tmp_l = (val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
+	tmp_s = (s_val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
+	ch->l_info.width = (1 << tmp_l) * 8;
+	ch->s_info.width = (1 << tmp_s) * 8;
+
+	tmp_l = val & SKL_DRAM_RANK_MASK;
+	tmp_s = s_val & SKL_DRAM_RANK_MASK;
+	ch->l_info.rank = skl_get_dimm_rank(ch->l_info.size, tmp_l);
+	ch->s_info.rank = skl_get_dimm_rank(ch->s_info.size, tmp_s);
+
+	if (ch->l_info.rank == I915_DRAM_RANK_DUAL ||
+	    ch->s_info.rank == I915_DRAM_RANK_DUAL)
+		ch->rank = I915_DRAM_RANK_DUAL;
+	else if (ch->l_info.rank == I915_DRAM_RANK_SINGLE &&
+		 ch->s_info.rank == I915_DRAM_RANK_SINGLE)
+		ch->rank = I915_DRAM_RANK_DUAL;
+	else
+		ch->rank = I915_DRAM_RANK_SINGLE;
+
+	ch->is_16gb_dimm = skl_is_16gb_dimm(ch->l_info.rank, ch->l_info.size,
+					    ch->l_info.width) ||
+			   skl_is_16gb_dimm(ch->s_info.rank, ch->s_info.size,
+					    ch->s_info.width);
+
+	DRM_DEBUG_KMS("(size:width:rank) L(%dGB:X%d:%s) S(%dGB:X%d:%s)\n",
+		      ch->l_info.size, ch->l_info.width,
+		      ch->l_info.rank ? "dual" : "single",
+		      ch->s_info.size, ch->s_info.width,
+		      ch->s_info.rank ? "dual" : "single");
+
+	return 0;
+}
+
+static bool
+intel_is_dram_symmetric(u32 val_ch0, u32 val_ch1,
+			struct dram_channel_info *ch0)
+{
+	return (val_ch0 == val_ch1 &&
+		(ch0->s_info.size == 0 ||
+		 (ch0->l_info.size == ch0->s_info.size &&
+		  ch0->l_info.width == ch0->s_info.width &&
+		  ch0->l_info.rank == ch0->s_info.rank)));
+}
+
+static int
+skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	struct dram_channel_info ch0, ch1;
+	u32 val_ch0, val_ch1;
+	int ret;
+
+	val_ch0 = I915_READ(SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
+	ret = skl_dram_get_channel_info(&ch0, val_ch0);
+	if (ret == 0)
+		dram_info->num_channels++;
+
+	val_ch1 = I915_READ(SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN);
+	ret = skl_dram_get_channel_info(&ch1, val_ch1);
+	if (ret == 0)
+		dram_info->num_channels++;
+
+	if (dram_info->num_channels == 0) {
+		DRM_INFO("Number of memory channels is zero\n");
+		return -EINVAL;
+	}
+
+	dram_info->valid_dimm = true;
+
+	/*
+	 * If any of the channel is single rank channel, worst case output
+	 * will be same as if single rank memory, so consider single rank
+	 * memory.
+	 */
+	if (ch0.rank == I915_DRAM_RANK_SINGLE ||
+	    ch1.rank == I915_DRAM_RANK_SINGLE)
+		dram_info->rank = I915_DRAM_RANK_SINGLE;
+	else
+		dram_info->rank = max(ch0.rank, ch1.rank);
+
+	if (dram_info->rank == I915_DRAM_RANK_INVALID) {
+		DRM_INFO("couldn't get memory rank information\n");
+		return -EINVAL;
+	}
+
+	if (ch0.is_16gb_dimm || ch1.is_16gb_dimm)
+		dram_info->is_16gb_dimm = true;
+
+	dev_priv->dram_info.symmetric_memory = intel_is_dram_symmetric(val_ch0,
+								       val_ch1,
+								       &ch0);
+
+	DRM_DEBUG_KMS("memory configuration is %sSymmetric memory\n",
+		      dev_priv->dram_info.symmetric_memory ? "" : "not ");
+	return 0;
+}
+
+static int
+skl_get_dram_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	u32 mem_freq_khz, val;
+	int ret;
+
+	ret = skl_dram_get_channels_info(dev_priv);
+	if (ret)
+		return ret;
+
+	val = I915_READ(SKL_MC_BIOS_DATA_0_0_0_MCHBAR_PCU);
+	mem_freq_khz = DIV_ROUND_UP((val & SKL_REQ_DATA_MASK) *
+				    SKL_MEMORY_FREQ_MULTIPLIER_HZ, 1000);
+
+	dram_info->bandwidth_kbps = dram_info->num_channels *
+							mem_freq_khz * 8;
+
+	if (dram_info->bandwidth_kbps == 0) {
+		DRM_INFO("Couldn't get system memory bandwidth\n");
+		return -EINVAL;
+	}
+
+	dram_info->valid = true;
+	return 0;
+}
+
+static int
+bxt_get_dram_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	u32 dram_channels;
+	u32 mem_freq_khz, val;
+	u8 num_active_channels;
+	int i;
+
+	val = I915_READ(BXT_P_CR_MC_BIOS_REQ_0_0_0);
+	mem_freq_khz = DIV_ROUND_UP((val & BXT_REQ_DATA_MASK) *
+				    BXT_MEMORY_FREQ_MULTIPLIER_HZ, 1000);
+
+	dram_channels = val & BXT_DRAM_CHANNEL_ACTIVE_MASK;
+	num_active_channels = hweight32(dram_channels);
+
+	/* Each active bit represents 4-byte channel */
+	dram_info->bandwidth_kbps = (mem_freq_khz * num_active_channels * 4);
+
+	if (dram_info->bandwidth_kbps == 0) {
+		DRM_INFO("Couldn't get system memory bandwidth\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Now read each DUNIT8/9/10/11 to check the rank of each dimms.
+	 */
+	for (i = BXT_D_CR_DRP0_DUNIT_START; i <= BXT_D_CR_DRP0_DUNIT_END; i++) {
+		u8 size, width;
+		enum dram_rank rank;
+		u32 tmp;
+
+		val = I915_READ(BXT_D_CR_DRP0_DUNIT(i));
+		if (val == 0xFFFFFFFF)
+			continue;
+
+		dram_info->num_channels++;
+		tmp = val & BXT_DRAM_RANK_MASK;
+
+		if (tmp == BXT_DRAM_RANK_SINGLE)
+			rank = I915_DRAM_RANK_SINGLE;
+		else if (tmp == BXT_DRAM_RANK_DUAL)
+			rank = I915_DRAM_RANK_DUAL;
+		else
+			rank = I915_DRAM_RANK_INVALID;
+
+		tmp = val & BXT_DRAM_SIZE_MASK;
+		if (tmp == BXT_DRAM_SIZE_4GB)
+			size = 4;
+		else if (tmp == BXT_DRAM_SIZE_6GB)
+			size = 6;
+		else if (tmp == BXT_DRAM_SIZE_8GB)
+			size = 8;
+		else if (tmp == BXT_DRAM_SIZE_12GB)
+			size = 12;
+		else if (tmp == BXT_DRAM_SIZE_16GB)
+			size = 16;
+		else
+			size = 0;
+
+		tmp = (val & BXT_DRAM_WIDTH_MASK) >> BXT_DRAM_WIDTH_SHIFT;
+		width = (1 << tmp) * 8;
+		DRM_DEBUG_KMS("dram size:%dGB width:X%d rank:%s\n", size,
+			      width, rank == I915_DRAM_RANK_SINGLE ? "single" :
+			      rank == I915_DRAM_RANK_DUAL ? "dual" : "unknown");
+
+		/*
+		 * If any of the channel is single rank channel,
+		 * worst case output will be same as if single rank
+		 * memory, so consider single rank memory.
+		 */
+		if (dram_info->rank == I915_DRAM_RANK_INVALID)
+			dram_info->rank = rank;
+		else if (rank == I915_DRAM_RANK_SINGLE)
+			dram_info->rank = I915_DRAM_RANK_SINGLE;
+	}
+
+	if (dram_info->rank == I915_DRAM_RANK_INVALID) {
+		DRM_INFO("couldn't get memory rank information\n");
+		return -EINVAL;
+	}
+
+	dram_info->valid_dimm = true;
+	dram_info->valid = true;
+	return 0;
+}
+
+static void
+intel_get_dram_info(struct drm_i915_private *dev_priv)
+{
+	struct dram_info *dram_info = &dev_priv->dram_info;
+	char bandwidth_str[32];
+	int ret;
+
+	dram_info->valid = false;
+	dram_info->valid_dimm = false;
+	dram_info->is_16gb_dimm = false;
+	dram_info->rank = I915_DRAM_RANK_INVALID;
+	dram_info->bandwidth_kbps = 0;
+	dram_info->num_channels = 0;
+
+	if (INTEL_GEN(dev_priv) < 9 || IS_GEMINILAKE(dev_priv))
+		return;
+
+	/* Need to calculate bandwidth only for Gen9 */
+	if (IS_BROXTON(dev_priv))
+		ret = bxt_get_dram_info(dev_priv);
+	else if (INTEL_GEN(dev_priv) == 9)
+		ret = skl_get_dram_info(dev_priv);
+	else
+		ret = skl_dram_get_channels_info(dev_priv);
+	if (ret)
+		return;
+
+	if (dram_info->bandwidth_kbps)
+		sprintf(bandwidth_str, "%d KBps", dram_info->bandwidth_kbps);
+	else
+		sprintf(bandwidth_str, "unknown");
+	DRM_DEBUG_KMS("DRAM bandwidth:%s, total-channels: %u\n",
+		      bandwidth_str, dram_info->num_channels);
+	DRM_DEBUG_KMS("DRAM rank: %s rank 16GB-dimm:%s\n",
+		      (dram_info->rank == I915_DRAM_RANK_DUAL) ?
+		      "dual" : "single", yesno(dram_info->is_16gb_dimm));
+}
+
 /**
  * i915_driver_init_hw - setup state requiring device access
  * @dev_priv: device private
@@ -1184,6 +1474,12 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		goto err_msi;
 
 	intel_opregion_setup(dev_priv);
+	/*
+	 * Fill the dram structure to get the system raw bandwidth and
+	 * dram info. This will be used for memory latency calculation.
+	 */
+	intel_get_dram_info(dev_priv);
+
 
 	return 0;
 
@@ -1272,6 +1568,9 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	 */
 	if (INTEL_INFO(dev_priv)->num_pipes)
 		drm_kms_helper_poll_init(dev);
+
+	intel_power_domains_enable(dev_priv);
+	intel_runtime_pm_enable(dev_priv);
 }
 
 /**
@@ -1280,6 +1579,9 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
  */
 static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 {
+	intel_runtime_pm_disable(dev_priv);
+	intel_power_domains_disable(dev_priv);
+
 	intel_fbdev_unregister(dev_priv);
 	intel_audio_deinit(dev_priv);
 
@@ -1316,6 +1618,52 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 		DRM_INFO("DRM_I915_DEBUG enabled\n");
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		DRM_INFO("DRM_I915_DEBUG_GEM enabled\n");
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM))
+		DRM_INFO("DRM_I915_DEBUG_RUNTIME_PM enabled\n");
+}
+
+static struct drm_i915_private *
+i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
+	const struct intel_device_info *match_info =
+		(struct intel_device_info *)ent->driver_data;
+	struct intel_device_info *device_info;
+	struct drm_i915_private *i915;
+
+	i915 = kzalloc(sizeof(*i915), GFP_KERNEL);
+	if (!i915)
+		return NULL;
+
+	if (drm_dev_init(&i915->drm, &driver, &pdev->dev)) {
+		kfree(i915);
+		return NULL;
+	}
+
+	i915->drm.pdev = pdev;
+	i915->drm.dev_private = i915;
+	pci_set_drvdata(pdev, &i915->drm);
+
+	/* Setup the write-once "constant" device info */
+	device_info = mkwrite_device_info(i915);
+	memcpy(device_info, match_info, sizeof(*device_info));
+	device_info->device_id = pdev->device;
+
+	BUILD_BUG_ON(INTEL_MAX_PLATFORMS >
+		     sizeof(device_info->platform_mask) * BITS_PER_BYTE);
+	BUG_ON(device_info->gen > sizeof(device_info->gen_mask) * BITS_PER_BYTE);
+
+	return i915;
+}
+
+static void i915_driver_destroy(struct drm_i915_private *i915)
+{
+	struct pci_dev *pdev = i915->drm.pdev;
+
+	drm_dev_fini(&i915->drm);
+	kfree(i915);
+
+	/* And make sure we never chase our dangling pointer from pci_dev */
+	pci_set_drvdata(pdev, NULL);
 }
 
 /**
@@ -1336,42 +1684,23 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_i915_private *dev_priv;
 	int ret;
 
-	/* Enable nuclear pageflip on ILK+ */
+	dev_priv = i915_driver_create(pdev, ent);
+	if (!dev_priv)
+		return -ENOMEM;
+
+	/* Disable nuclear pageflip by default on pre-ILK */
 	if (!i915_modparams.nuclear_pageflip && match_info->gen < 5)
-		driver.driver_features &= ~DRIVER_ATOMIC;
-
-	ret = -ENOMEM;
-	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
-	if (dev_priv)
-		ret = drm_dev_init(&dev_priv->drm, &driver, &pdev->dev);
-	if (ret) {
-		DRM_DEV_ERROR(&pdev->dev, "allocation failed\n");
-		goto out_free;
-	}
-
-	dev_priv->drm.pdev = pdev;
-	dev_priv->drm.dev_private = dev_priv;
+		dev_priv->drm.driver_features &= ~DRIVER_ATOMIC;
 
 	ret = pci_enable_device(pdev);
 	if (ret)
 		goto out_fini;
 
-	pci_set_drvdata(pdev, &dev_priv->drm);
-	/*
-	 * Disable the system suspend direct complete optimization, which can
-	 * leave the device suspended skipping the driver's suspend handlers
-	 * if the device was already runtime suspended. This is needed due to
-	 * the difference in our runtime and system suspend sequence and
-	 * becaue the HDA driver may require us to enable the audio power
-	 * domain during system suspend.
-	 */
-	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NEVER_SKIP);
-
-	ret = i915_driver_init_early(dev_priv, ent);
+	ret = i915_driver_init_early(dev_priv);
 	if (ret < 0)
 		goto out_pci_disable;
 
-	intel_runtime_pm_get(dev_priv);
+	disable_rpm_wakeref_asserts(dev_priv);
 
 	ret = i915_driver_init_mmio(dev_priv);
 	if (ret < 0)
@@ -1399,11 +1728,9 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i915_driver_register(dev_priv);
 
-	intel_runtime_pm_enable(dev_priv);
-
 	intel_init_ipc(dev_priv);
 
-	intel_runtime_pm_put(dev_priv);
+	enable_rpm_wakeref_asserts(dev_priv);
 
 	i915_welcome_messages(dev_priv);
 
@@ -1414,16 +1741,13 @@ out_cleanup_hw:
 out_cleanup_mmio:
 	i915_driver_cleanup_mmio(dev_priv);
 out_runtime_pm_put:
-	intel_runtime_pm_put(dev_priv);
+	enable_rpm_wakeref_asserts(dev_priv);
 	i915_driver_cleanup_early(dev_priv);
 out_pci_disable:
 	pci_disable_device(pdev);
 out_fini:
 	i915_load_error(dev_priv, "Device initialization failed (%d)\n", ret);
-	drm_dev_fini(&dev_priv->drm);
-out_free:
-	kfree(dev_priv);
-	pci_set_drvdata(pdev, NULL);
+	i915_driver_destroy(dev_priv);
 	return ret;
 }
 
@@ -1432,12 +1756,12 @@ void i915_driver_unload(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
+	disable_rpm_wakeref_asserts(dev_priv);
+
 	i915_driver_unregister(dev_priv);
 
 	if (i915_gem_suspend(dev_priv))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
-
-	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
 	drm_atomic_helper_shutdown(dev);
 
@@ -1459,12 +1783,14 @@ void i915_driver_unload(struct drm_device *dev)
 	i915_gem_fini(dev_priv);
 	intel_fbc_cleanup_cfb(dev_priv);
 
-	intel_power_domains_fini(dev_priv);
+	intel_power_domains_fini_hw(dev_priv);
 
 	i915_driver_cleanup_hw(dev_priv);
 	i915_driver_cleanup_mmio(dev_priv);
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+	enable_rpm_wakeref_asserts(dev_priv);
+
+	WARN_ON(atomic_read(&dev_priv->runtime_pm.wakeref_count));
 }
 
 static void i915_driver_release(struct drm_device *dev)
@@ -1472,9 +1798,7 @@ static void i915_driver_release(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	i915_driver_cleanup_early(dev_priv);
-	drm_dev_fini(&dev_priv->drm);
-
-	kfree(dev_priv);
+	i915_driver_destroy(dev_priv);
 }
 
 static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
@@ -1573,7 +1897,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
-	intel_display_set_init_power(dev_priv, true);
+	intel_power_domains_disable(dev_priv);
 
 	drm_kms_helper_poll_disable(dev);
 
@@ -1610,6 +1934,18 @@ static int i915_drm_suspend(struct drm_device *dev)
 	return 0;
 }
 
+static enum i915_drm_suspend_mode
+get_suspend_mode(struct drm_i915_private *dev_priv, bool hibernate)
+{
+	if (hibernate)
+		return I915_DRM_SUSPEND_HIBERNATE;
+
+	if (suspend_to_idle(dev_priv))
+		return I915_DRM_SUSPEND_IDLE;
+
+	return I915_DRM_SUSPEND_MEM;
+}
+
 static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -1620,21 +1956,10 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	i915_gem_suspend_late(dev_priv);
 
-	intel_display_set_init_power(dev_priv, false);
 	intel_uncore_suspend(dev_priv);
 
-	/*
-	 * In case of firmware assisted context save/restore don't manually
-	 * deinit the power domains. This also means the CSR/DMC firmware will
-	 * stay active, it will power down any HW resources as required and
-	 * also enable deeper system power states that would be blocked if the
-	 * firmware was inactive.
-	 */
-	if (IS_GEN9_LP(dev_priv) || hibernation || !suspend_to_idle(dev_priv) ||
-	    dev_priv->csr.dmc_payload == NULL) {
-		intel_power_domains_suspend(dev_priv);
-		dev_priv->power_domains_suspended = true;
-	}
+	intel_power_domains_suspend(dev_priv,
+				    get_suspend_mode(dev_priv, hibernation));
 
 	ret = 0;
 	if (IS_GEN9_LP(dev_priv))
@@ -1646,10 +1971,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	if (ret) {
 		DRM_ERROR("Suspend complete failed: %d\n", ret);
-		if (dev_priv->power_domains_suspended) {
-			intel_power_domains_init_hw(dev_priv, true);
-			dev_priv->power_domains_suspended = false;
-		}
+		intel_power_domains_resume(dev_priv);
 
 		goto out;
 	}
@@ -1755,7 +2077,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	/*
 	 * ... but also need to make sure that hotplug processing
 	 * doesn't cause havoc. Like in the driver load code we don't
-	 * bother with the tiny race here where we might loose hotplug
+	 * bother with the tiny race here where we might lose hotplug
 	 * notifications.
 	 * */
 	intel_hpd_init(dev_priv);
@@ -1765,6 +2087,8 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING, false);
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
+
+	intel_power_domains_enable(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
@@ -1800,7 +2124,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	ret = pci_set_power_state(pdev, PCI_D0);
 	if (ret) {
 		DRM_ERROR("failed to set PCI D0 power state (%d)\n", ret);
-		goto out;
+		return ret;
 	}
 
 	/*
@@ -1816,10 +2140,8 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	 * depend on the device enable refcount we can't anyway depend on them
 	 * disabling/enabling the device.
 	 */
-	if (pci_enable_device(pdev)) {
-		ret = -EIO;
-		goto out;
-	}
+	if (pci_enable_device(pdev))
+		return -EIO;
 
 	pci_set_master(pdev);
 
@@ -1842,17 +2164,11 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_uncore_sanitize(dev_priv);
 
-	if (dev_priv->power_domains_suspended)
-		intel_power_domains_init_hw(dev_priv, true);
-	else
-		intel_display_set_init_power(dev_priv, true);
+	intel_power_domains_resume(dev_priv);
 
 	intel_engines_sanitize(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
-
-out:
-	dev_priv->power_domains_suspended = false;
 
 	return ret;
 }
@@ -1915,7 +2231,6 @@ void i915_reset(struct drm_i915_private *i915,
 		dev_notice(i915->drm.dev, "Resetting chip for %s\n", reason);
 	error->reset_count++;
 
-	disable_irq(i915->drm.irq);
 	ret = i915_gem_reset_prepare(i915);
 	if (ret) {
 		dev_err(i915->drm.dev, "GPU recovery failed\n");
@@ -1977,8 +2292,6 @@ void i915_reset(struct drm_i915_private *i915,
 
 finish:
 	i915_gem_reset_finish(i915);
-	enable_irq(i915->drm.irq);
-
 wakeup:
 	clear_bit(I915_RESET_HANDOFF, &error->flags);
 	wake_up_bit(&error->flags, I915_RESET_HANDOFF);
@@ -2073,6 +2386,7 @@ int i915_reset_engine(struct intel_engine_cs *engine, const char *msg)
 		goto out;
 
 out:
+	intel_engine_cancel_stop_cs(engine);
 	i915_gem_reset_finish_engine(engine);
 	return ret;
 }

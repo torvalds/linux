@@ -715,5 +715,29 @@
         "teardown": [
             "$TC actions flush action police"
         ]
+    },
+    {
+        "id": "b48b",
+        "name": "Add police action with exceed goto chain control action",
+        "category": [
+            "actions",
+            "police"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action police",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action police rate 1mbit burst 1k conform-exceed pass / goto chain 42",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action police",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 1Mbit burst 1Kb mtu 2Kb action pass/goto chain 42",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action police"
+        ]
     }
 ]

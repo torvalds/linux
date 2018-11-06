@@ -29,8 +29,8 @@ static struct aq_ring_s *aq_ring_alloc(struct aq_ring_s *self,
 		goto err_exit;
 	}
 	self->dx_ring = dma_alloc_coherent(aq_nic_get_dev(aq_nic),
-						self->size * self->dx_size,
-						&self->dx_ring_pa, GFP_KERNEL);
+					   self->size * self->dx_size,
+					   &self->dx_ring_pa, GFP_KERNEL);
 	if (!self->dx_ring) {
 		err = -ENOMEM;
 		goto err_exit;

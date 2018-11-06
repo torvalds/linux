@@ -1403,15 +1403,20 @@ static void request_record_user_bo(struct i915_request *request,
 {
 	struct i915_capture_list *c;
 	struct drm_i915_error_object **bo;
-	long count;
+	long count, max;
 
-	count = 0;
+	max = 0;
 	for (c = request->capture_list; c; c = c->next)
-		count++;
+		max++;
+	if (!max)
+		return;
 
-	bo = NULL;
-	if (count)
-		bo = kcalloc(count, sizeof(*bo), GFP_ATOMIC);
+	bo = kmalloc_array(max, sizeof(*bo), GFP_ATOMIC);
+	if (!bo) {
+		/* If we can't capture everything, try to capture something. */
+		max = min_t(long, max, PAGE_SIZE / sizeof(*bo));
+		bo = kmalloc_array(max, sizeof(*bo), GFP_ATOMIC);
+	}
 	if (!bo)
 		return;
 
@@ -1420,7 +1425,8 @@ static void request_record_user_bo(struct i915_request *request,
 		bo[count] = i915_error_object_create(request->i915, c->vma);
 		if (!bo[count])
 			break;
-		count++;
+		if (++count == max)
+			break;
 	}
 
 	ee->user_bo = bo;

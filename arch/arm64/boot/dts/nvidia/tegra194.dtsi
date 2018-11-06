@@ -118,7 +118,7 @@
 		};
 
 		gen1_i2c: i2c@3160000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x03160000 0x10000>;
 			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -143,7 +143,7 @@
 		};
 
 		cam_i2c: i2c@3180000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x03180000 0x10000>;
 			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -157,7 +157,7 @@
 
 		/* shares pads with dpaux1 */
 		dp_aux_ch1_i2c: i2c@3190000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x03190000 0x10000>;
 			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -171,7 +171,7 @@
 
 		/* shares pads with dpaux0 */
 		dp_aux_ch0_i2c: i2c@31b0000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x031b0000 0x10000>;
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -184,7 +184,7 @@
 		};
 
 		gen7_i2c: i2c@31c0000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x031c0000 0x10000>;
 			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -197,7 +197,7 @@
 		};
 
 		gen9_i2c: i2c@31e0000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x031e0000 0x10000>;
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -264,7 +264,7 @@
 		};
 
 		gen2_i2c: i2c@c240000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0c240000 0x10000>;
 			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -277,7 +277,7 @@
 		};
 
 		gen8_i2c: i2c@c250000 {
-			compatible = "nvidia,tegra194-i2c", "nvidia,tegra114-i2c";
+			compatible = "nvidia,tegra194-i2c";
 			reg = <0x0c250000 0x10000>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;

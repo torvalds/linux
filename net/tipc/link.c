@@ -1041,6 +1041,7 @@ static int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
 	if (r->last_retransm != buf_seqno(skb)) {
 		r->last_retransm = buf_seqno(skb);
 		r->stale_limit = jiffies + msecs_to_jiffies(r->tolerance);
+		r->stale_cnt = 0;
 	} else if (++r->stale_cnt > 99 && time_after(jiffies, r->stale_limit)) {
 		link_retransmit_failure(l, skb);
 		if (link_is_bc_sndlink(l))

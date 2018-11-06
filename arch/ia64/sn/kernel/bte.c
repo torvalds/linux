@@ -16,7 +16,7 @@
 #include <asm/nodedata.h>
 #include <asm/delay.h>
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/slab.h>

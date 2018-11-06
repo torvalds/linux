@@ -963,7 +963,8 @@ static inline void slave_disable_netpoll(struct slave *slave)
 		return;
 
 	slave->np = NULL;
-	__netpoll_free_async(np);
+
+	__netpoll_free(np);
 }
 
 static void bond_poll_controller(struct net_device *bond_dev)

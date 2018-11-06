@@ -1,0 +1,52 @@
+PDC Global
+======================================
+
+This binding describes a reset-controller found on PDC-Global (Power Domain
+Controller) block for Qualcomm Technologies Inc SDM845 SoCs.
+
+Required properties:
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be:
+		    "qcom,sdm845-pdc-global"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: must specify the base address and size of the register
+	            space.
+
+- #reset-cells:
+	Usage: required
+	Value type: <uint>
+	Definition: must be 1; cell entry represents the reset index.
+
+Example:
+
+pdc_reset: reset-controller@b2e0000 {
+	compatible = "qcom,sdm845-pdc-global";
+	reg = <0xb2e0000 0x20000>;
+	#reset-cells = <1>;
+};
+
+PDC reset clients
+======================================
+
+Device nodes that need access to reset lines should
+specify them as a reset phandle in their corresponding node as
+specified in reset.txt.
+
+For a list of all valid reset indices see
+<dt-bindings/reset/qcom,sdm845-pdc.h>
+
+Example:
+
+modem-pil@4080000 {
+	...
+
+	resets = <&pdc_reset PDC_MODEM_SYNC_RESET>;
+	reset-names = "pdc_reset";
+
+	...
+};

@@ -313,8 +313,6 @@ static int ti_chars_in_buffer(struct tty_struct *tty);
 static bool ti_tx_empty(struct usb_serial_port *port);
 static void ti_throttle(struct tty_struct *tty);
 static void ti_unthrottle(struct tty_struct *tty);
-static int ti_ioctl(struct tty_struct *tty,
-		unsigned int cmd, unsigned long arg);
 static void ti_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios);
 static int ti_tiocmget(struct tty_struct *tty);
@@ -330,10 +328,10 @@ static void ti_recv(struct usb_serial_port *port, unsigned char *data,
 static void ti_send(struct ti_port *tport);
 static int ti_set_mcr(struct ti_port *tport, unsigned int mcr);
 static int ti_get_lsr(struct ti_port *tport, u8 *lsr);
-static int ti_get_serial_info(struct ti_port *tport,
-	struct serial_struct __user *ret_arg);
-static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
-	struct serial_struct __user *new_arg);
+static int ti_get_serial_info(struct tty_struct *tty,
+	struct serial_struct *ss);
+static int ti_set_serial_info(struct tty_struct *tty,
+	struct serial_struct *ss);
 static void ti_handle_new_msr(struct ti_port *tport, u8 msr);
 
 static void ti_stop_read(struct ti_port *tport, struct tty_struct *tty);
@@ -436,7 +434,8 @@ static struct usb_serial_driver ti_1port_device = {
 	.tx_empty		= ti_tx_empty,
 	.throttle		= ti_throttle,
 	.unthrottle		= ti_unthrottle,
-	.ioctl			= ti_ioctl,
+	.get_serial		= ti_get_serial_info,
+	.set_serial		= ti_set_serial_info,
 	.set_termios		= ti_set_termios,
 	.tiocmget		= ti_tiocmget,
 	.tiocmset		= ti_tiocmset,
@@ -469,7 +468,8 @@ static struct usb_serial_driver ti_2port_device = {
 	.tx_empty		= ti_tx_empty,
 	.throttle		= ti_throttle,
 	.unthrottle		= ti_unthrottle,
-	.ioctl			= ti_ioctl,
+	.get_serial		= ti_get_serial_info,
+	.set_serial		= ti_set_serial_info,
 	.set_termios		= ti_set_termios,
 	.tiocmget		= ti_tiocmget,
 	.tiocmset		= ti_tiocmset,
@@ -901,24 +901,6 @@ static void ti_unthrottle(struct tty_struct *tty)
 							__func__, status);
 	}
 }
-
-static int ti_ioctl(struct tty_struct *tty,
-	unsigned int cmd, unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct ti_port *tport = usb_get_serial_port_data(port);
-
-	switch (cmd) {
-	case TIOCGSERIAL:
-		return ti_get_serial_info(tport,
-				(struct serial_struct __user *)arg);
-	case TIOCSSERIAL:
-		return ti_set_serial_info(tty, tport,
-				(struct serial_struct __user *)arg);
-	}
-	return -ENOIOCTLCMD;
-}
-
 
 static void ti_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
@@ -1417,45 +1399,37 @@ free_data:
 }
 
 
-static int ti_get_serial_info(struct ti_port *tport,
-	struct serial_struct __user *ret_arg)
+static int ti_get_serial_info(struct tty_struct *tty,
+	struct serial_struct *ss)
 {
-	struct usb_serial_port *port = tport->tp_port;
-	struct serial_struct ret_serial;
+	struct usb_serial_port *port = tty->driver_data;
+	struct ti_port *tport = usb_get_serial_port_data(port);
 	unsigned cwait;
 
 	cwait = port->port.closing_wait;
 	if (cwait != ASYNC_CLOSING_WAIT_NONE)
 		cwait = jiffies_to_msecs(cwait) / 10;
 
-	memset(&ret_serial, 0, sizeof(ret_serial));
-
-	ret_serial.type = PORT_16550A;
-	ret_serial.line = port->minor;
-	ret_serial.port = port->port_number;
-	ret_serial.xmit_fifo_size = kfifo_size(&port->write_fifo);
-	ret_serial.baud_base = tport->tp_tdev->td_is_3410 ? 921600 : 460800;
-	ret_serial.closing_wait = cwait;
-
-	if (copy_to_user(ret_arg, &ret_serial, sizeof(*ret_arg)))
-		return -EFAULT;
-
+	ss->type = PORT_16550A;
+	ss->line = port->minor;
+	ss->port = port->port_number;
+	ss->xmit_fifo_size = kfifo_size(&port->write_fifo);
+	ss->baud_base = tport->tp_tdev->td_is_3410 ? 921600 : 460800;
+	ss->closing_wait = cwait;
 	return 0;
 }
 
 
-static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
-	struct serial_struct __user *new_arg)
+static int ti_set_serial_info(struct tty_struct *tty,
+	struct serial_struct *ss)
 {
-	struct serial_struct new_serial;
+	struct usb_serial_port *port = tty->driver_data;
+	struct ti_port *tport = usb_get_serial_port_data(port);
 	unsigned cwait;
 
-	if (copy_from_user(&new_serial, new_arg, sizeof(new_serial)))
-		return -EFAULT;
-
-	cwait = new_serial.closing_wait;
+	cwait = ss->closing_wait;
 	if (cwait != ASYNC_CLOSING_WAIT_NONE)
-		cwait = msecs_to_jiffies(10 * new_serial.closing_wait);
+		cwait = msecs_to_jiffies(10 * ss->closing_wait);
 
 	tport->tp_port->port.closing_wait = cwait;
 

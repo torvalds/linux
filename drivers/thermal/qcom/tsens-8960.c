@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/platform_device.h>
@@ -69,7 +60,7 @@ static int suspend_8960(struct tsens_device *tmdev)
 {
 	int ret;
 	unsigned int mask;
-	struct regmap *map = tmdev->map;
+	struct regmap *map = tmdev->tm_map;
 
 	ret = regmap_read(map, THRESHOLD_ADDR, &tmdev->ctx.threshold);
 	if (ret)
@@ -94,7 +85,7 @@ static int suspend_8960(struct tsens_device *tmdev)
 static int resume_8960(struct tsens_device *tmdev)
 {
 	int ret;
-	struct regmap *map = tmdev->map;
+	struct regmap *map = tmdev->tm_map;
 
 	ret = regmap_update_bits(map, CNTL_ADDR, SW_RST, SW_RST);
 	if (ret)
@@ -126,12 +117,12 @@ static int enable_8960(struct tsens_device *tmdev, int id)
 	int ret;
 	u32 reg, mask;
 
-	ret = regmap_read(tmdev->map, CNTL_ADDR, &reg);
+	ret = regmap_read(tmdev->tm_map, CNTL_ADDR, &reg);
 	if (ret)
 		return ret;
 
 	mask = BIT(id + SENSOR0_SHIFT);
-	ret = regmap_write(tmdev->map, CNTL_ADDR, reg | SW_RST);
+	ret = regmap_write(tmdev->tm_map, CNTL_ADDR, reg | SW_RST);
 	if (ret)
 		return ret;
 
@@ -140,7 +131,7 @@ static int enable_8960(struct tsens_device *tmdev, int id)
 	else
 		reg |= mask | SLP_CLK_ENA_8660 | EN;
 
-	ret = regmap_write(tmdev->map, CNTL_ADDR, reg);
+	ret = regmap_write(tmdev->tm_map, CNTL_ADDR, reg);
 	if (ret)
 		return ret;
 
@@ -157,7 +148,7 @@ static void disable_8960(struct tsens_device *tmdev)
 	mask <<= SENSOR0_SHIFT;
 	mask |= EN;
 
-	ret = regmap_read(tmdev->map, CNTL_ADDR, &reg_cntl);
+	ret = regmap_read(tmdev->tm_map, CNTL_ADDR, &reg_cntl);
 	if (ret)
 		return;
 
@@ -168,7 +159,7 @@ static void disable_8960(struct tsens_device *tmdev)
 	else
 		reg_cntl &= ~SLP_CLK_ENA_8660;
 
-	regmap_write(tmdev->map, CNTL_ADDR, reg_cntl);
+	regmap_write(tmdev->tm_map, CNTL_ADDR, reg_cntl);
 }
 
 static int init_8960(struct tsens_device *tmdev)
@@ -176,8 +167,8 @@ static int init_8960(struct tsens_device *tmdev)
 	int ret, i;
 	u32 reg_cntl;
 
-	tmdev->map = dev_get_regmap(tmdev->dev, NULL);
-	if (!tmdev->map)
+	tmdev->tm_map = dev_get_regmap(tmdev->dev, NULL);
+	if (!tmdev->tm_map)
 		return -ENODEV;
 
 	/*
@@ -193,14 +184,14 @@ static int init_8960(struct tsens_device *tmdev)
 	}
 
 	reg_cntl = SW_RST;
-	ret = regmap_update_bits(tmdev->map, CNTL_ADDR, SW_RST, reg_cntl);
+	ret = regmap_update_bits(tmdev->tm_map, CNTL_ADDR, SW_RST, reg_cntl);
 	if (ret)
 		return ret;
 
 	if (tmdev->num_sensors > 1) {
 		reg_cntl |= SLP_CLK_ENA | (MEASURE_PERIOD << 18);
 		reg_cntl &= ~SW_RST;
-		ret = regmap_update_bits(tmdev->map, CONFIG_ADDR,
+		ret = regmap_update_bits(tmdev->tm_map, CONFIG_ADDR,
 					 CONFIG_MASK, CONFIG);
 	} else {
 		reg_cntl |= SLP_CLK_ENA_8660 | (MEASURE_PERIOD << 16);
@@ -209,12 +200,12 @@ static int init_8960(struct tsens_device *tmdev)
 	}
 
 	reg_cntl |= GENMASK(tmdev->num_sensors - 1, 0) << SENSOR0_SHIFT;
-	ret = regmap_write(tmdev->map, CNTL_ADDR, reg_cntl);
+	ret = regmap_write(tmdev->tm_map, CNTL_ADDR, reg_cntl);
 	if (ret)
 		return ret;
 
 	reg_cntl |= EN;
-	ret = regmap_write(tmdev->map, CNTL_ADDR, reg_cntl);
+	ret = regmap_write(tmdev->tm_map, CNTL_ADDR, reg_cntl);
 	if (ret)
 		return ret;
 
@@ -261,12 +252,12 @@ static int get_temp_8960(struct tsens_device *tmdev, int id, int *temp)
 
 	timeout = jiffies + usecs_to_jiffies(TIMEOUT_US);
 	do {
-		ret = regmap_read(tmdev->map, INT_STATUS_ADDR, &trdy);
+		ret = regmap_read(tmdev->tm_map, INT_STATUS_ADDR, &trdy);
 		if (ret)
 			return ret;
 		if (!(trdy & TRDY_MASK))
 			continue;
-		ret = regmap_read(tmdev->map, s->status, &code);
+		ret = regmap_read(tmdev->tm_map, s->status, &code);
 		if (ret)
 			return ret;
 		*temp = code_to_mdegC(code, s);

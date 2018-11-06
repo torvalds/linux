@@ -77,6 +77,13 @@ void nvme_failover_req(struct request *req)
 			queue_work(nvme_wq, &ns->ctrl->ana_work);
 		}
 		break;
+	case NVME_SC_HOST_PATH_ERROR:
+		/*
+		 * Temporary transport disruption in talking to the controller.
+		 * Try to send on a new path.
+		 */
+		nvme_mpath_clear_current_path(ns);
+		break;
 	default:
 		/*
 		 * Reset the controller for any non-ANA error as we don't know
@@ -110,29 +117,55 @@ static const char *nvme_ana_state_names[] = {
 	[NVME_ANA_CHANGE]		= "change",
 };
 
-static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head)
+void nvme_mpath_clear_current_path(struct nvme_ns *ns)
 {
-	struct nvme_ns *ns, *fallback = NULL;
+	struct nvme_ns_head *head = ns->head;
+	int node;
+
+	if (!head)
+		return;
+
+	for_each_node(node) {
+		if (ns == rcu_access_pointer(head->current_path[node]))
+			rcu_assign_pointer(head->current_path[node], NULL);
+	}
+}
+
+static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int node)
+{
+	int found_distance = INT_MAX, fallback_distance = INT_MAX, distance;
+	struct nvme_ns *found = NULL, *fallback = NULL, *ns;
 
 	list_for_each_entry_rcu(ns, &head->list, siblings) {
 		if (ns->ctrl->state != NVME_CTRL_LIVE ||
 		    test_bit(NVME_NS_ANA_PENDING, &ns->flags))
 			continue;
+
+		distance = node_distance(node, dev_to_node(ns->ctrl->dev));
+
 		switch (ns->ana_state) {
 		case NVME_ANA_OPTIMIZED:
-			rcu_assign_pointer(head->current_path, ns);
-			return ns;
+			if (distance < found_distance) {
+				found_distance = distance;
+				found = ns;
+			}
+			break;
 		case NVME_ANA_NONOPTIMIZED:
-			fallback = ns;
+			if (distance < fallback_distance) {
+				fallback_distance = distance;
+				fallback = ns;
+			}
 			break;
 		default:
 			break;
 		}
 	}
 
-	if (fallback)
-		rcu_assign_pointer(head->current_path, fallback);
-	return fallback;
+	if (!found)
+		found = fallback;
+	if (found)
+		rcu_assign_pointer(head->current_path[node], found);
+	return found;
 }
 
 static inline bool nvme_path_is_optimized(struct nvme_ns *ns)
@@ -143,10 +176,12 @@ static inline bool nvme_path_is_optimized(struct nvme_ns *ns)
 
 inline struct nvme_ns *nvme_find_path(struct nvme_ns_head *head)
 {
-	struct nvme_ns *ns = srcu_dereference(head->current_path, &head->srcu);
+	int node = numa_node_id();
+	struct nvme_ns *ns;
 
+	ns = srcu_dereference(head->current_path[node], &head->srcu);
 	if (unlikely(!ns || !nvme_path_is_optimized(ns)))
-		ns = __nvme_find_path(head);
+		ns = __nvme_find_path(head, node);
 	return ns;
 }
 
@@ -193,7 +228,7 @@ static bool nvme_ns_head_poll(struct request_queue *q, blk_qc_t qc)
 	int srcu_idx;
 
 	srcu_idx = srcu_read_lock(&head->srcu);
-	ns = srcu_dereference(head->current_path, &head->srcu);
+	ns = srcu_dereference(head->current_path[numa_node_id()], &head->srcu);
 	if (likely(ns && nvme_path_is_optimized(ns)))
 		found = ns->queue->poll_fn(q, qc);
 	srcu_read_unlock(&head->srcu, srcu_idx);
@@ -282,12 +317,17 @@ static void nvme_mpath_set_live(struct nvme_ns *ns)
 	if (!head->disk)
 		return;
 
-	if (!(head->disk->flags & GENHD_FL_UP)) {
-		device_add_disk(&head->subsys->dev, head->disk);
-		if (sysfs_create_group(&disk_to_dev(head->disk)->kobj,
-				&nvme_ns_id_attr_group))
-			dev_warn(&head->subsys->dev,
-				 "failed to create id group.\n");
+	if (!(head->disk->flags & GENHD_FL_UP))
+		device_add_disk(&head->subsys->dev, head->disk,
+				nvme_ns_id_attr_groups);
+
+	if (nvme_path_is_optimized(ns)) {
+		int node, srcu_idx;
+
+		srcu_idx = srcu_read_lock(&head->srcu);
+		for_each_node(node)
+			__nvme_find_path(head, node);
+		srcu_read_unlock(&head->srcu, srcu_idx);
 	}
 
 	kblockd_schedule_work(&ns->head->requeue_work);
@@ -494,11 +534,8 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 {
 	if (!head->disk)
 		return;
-	if (head->disk->flags & GENHD_FL_UP) {
-		sysfs_remove_group(&disk_to_dev(head->disk)->kobj,
-				   &nvme_ns_id_attr_group);
+	if (head->disk->flags & GENHD_FL_UP)
 		del_gendisk(head->disk);
-	}
 	blk_set_queue_dying(head->disk->queue);
 	/* make sure all pending bios are cleaned up */
 	kblockd_schedule_work(&head->requeue_work);

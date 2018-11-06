@@ -355,9 +355,7 @@ static int cg14_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 static void cg14_init_fix(struct fb_info *info, int linebytes,
 			  struct device_node *dp)
 {
-	const char *name = dp->name;
-
-	strlcpy(info->fix.id, name, sizeof(info->fix.id));
+	snprintf(info->fix.id, sizeof(info->fix.id), "%pOFn", dp);
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_PSEUDOCOLOR;

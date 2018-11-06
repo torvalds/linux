@@ -28,7 +28,7 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
 #include <linux/kgdb.h>
@@ -348,7 +348,7 @@ static void __show_regs(const struct pt_regs *regs)
  */
 void show_regs(struct pt_regs *regs)
 {
-	__show_regs((struct pt_regs *)regs);
+	__show_regs(regs);
 	dump_stack();
 }
 
@@ -2260,8 +2260,10 @@ void __init trap_init(void)
 		unsigned long size = 0x200 + VECTORSPACING*64;
 		phys_addr_t ebase_pa;
 
+		memblock_set_bottom_up(true);
 		ebase = (unsigned long)
-			__alloc_bootmem(size, 1 << fls(size), 0);
+			memblock_alloc_from(size, 1 << fls(size), 0);
+		memblock_set_bottom_up(false);
 
 		/*
 		 * Try to ensure ebase resides in KSeg0 if possible.

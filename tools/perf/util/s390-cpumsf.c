@@ -147,6 +147,9 @@
 #include <linux/bitops.h>
 #include <linux/log2.h>
 
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "cpumap.h"
 #include "color.h"
 #include "evsel.h"
@@ -159,6 +162,7 @@
 #include "auxtrace.h"
 #include "s390-cpumsf.h"
 #include "s390-cpumsf-kernel.h"
+#include "config.h"
 
 struct s390_cpumsf {
 	struct auxtrace		auxtrace;
@@ -170,6 +174,8 @@ struct s390_cpumsf {
 	u32			pmu_type;
 	u16			machine_type;
 	bool			data_queued;
+	bool			use_logfile;
+	char			*logdir;
 };
 
 struct s390_cpumsf_queue {
@@ -177,6 +183,7 @@ struct s390_cpumsf_queue {
 	unsigned int		queue_nr;
 	struct auxtrace_buffer	*buffer;
 	int			cpu;
+	FILE			*logfile;
 };
 
 /* Display s390 CPU measurement facility basic-sampling data entry */
@@ -595,6 +602,12 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 			buffer->use_size = buffer->size;
 			buffer->use_data = buffer->data;
 		}
+		if (sfq->logfile) {	/* Write into log file */
+			size_t rc = fwrite(buffer->data, buffer->size, 1,
+					   sfq->logfile);
+			if (rc != 1)
+				pr_err("Failed to write auxiliary data\n");
+		}
 	} else
 		buffer = sfq->buffer;
 
@@ -606,6 +619,13 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 			return -ENOMEM;
 		buffer->use_size = buffer->size;
 		buffer->use_data = buffer->data;
+
+		if (sfq->logfile) {	/* Write into log file */
+			size_t rc = fwrite(buffer->data, buffer->size, 1,
+					   sfq->logfile);
+			if (rc != 1)
+				pr_err("Failed to write auxiliary data\n");
+		}
 	}
 	pr_debug4("%s queue_nr:%d buffer:%" PRId64 " offset:%#" PRIx64 " size:%#zx rest:%#zx\n",
 		  __func__, sfq->queue_nr, buffer->buffer_nr, buffer->offset,
@@ -640,6 +660,23 @@ s390_cpumsf_alloc_queue(struct s390_cpumsf *sf, unsigned int queue_nr)
 	sfq->sf = sf;
 	sfq->queue_nr = queue_nr;
 	sfq->cpu = -1;
+	if (sf->use_logfile) {
+		char *name;
+		int rc;
+
+		rc = (sf->logdir)
+			? asprintf(&name, "%s/aux.smp.%02x",
+				 sf->logdir, queue_nr)
+			: asprintf(&name, "aux.smp.%02x", queue_nr);
+		if (rc > 0)
+			sfq->logfile = fopen(name, "w");
+		if (sfq->logfile == NULL) {
+			pr_err("Failed to open auxiliary log file %s,"
+			       "continue...\n", name);
+			sf->use_logfile = false;
+		}
+		free(name);
+	}
 	return sfq;
 }
 
@@ -850,8 +887,16 @@ static void s390_cpumsf_free_queues(struct perf_session *session)
 	struct auxtrace_queues *queues = &sf->queues;
 	unsigned int i;
 
-	for (i = 0; i < queues->nr_queues; i++)
+	for (i = 0; i < queues->nr_queues; i++) {
+		struct s390_cpumsf_queue *sfq = (struct s390_cpumsf_queue *)
+						queues->queue_array[i].priv;
+
+		if (sfq != NULL && sfq->logfile) {
+			fclose(sfq->logfile);
+			sfq->logfile = NULL;
+		}
 		zfree(&queues->queue_array[i].priv);
+	}
 	auxtrace_queues__free(queues);
 }
 
@@ -864,6 +909,7 @@ static void s390_cpumsf_free(struct perf_session *session)
 	auxtrace_heap__free(&sf->heap);
 	s390_cpumsf_free_queues(session);
 	session->auxtrace = NULL;
+	free(sf->logdir);
 	free(sf);
 }
 
@@ -877,15 +923,53 @@ static int s390_cpumsf_get_type(const char *cpuid)
 
 /* Check itrace options set on perf report command.
  * Return true, if none are set or all options specified can be
- * handled on s390.
+ * handled on s390 (currently only option 'd' for logging.
  * Return false otherwise.
  */
 static bool check_auxtrace_itrace(struct itrace_synth_opts *itops)
 {
+	bool ison = false;
+
 	if (!itops || !itops->set)
 		return true;
-	pr_err("No --itrace options supported\n");
+	ison = itops->inject || itops->instructions || itops->branches ||
+		itops->transactions || itops->ptwrites ||
+		itops->pwr_events || itops->errors ||
+		itops->dont_decode || itops->calls || itops->returns ||
+		itops->callchain || itops->thread_stack ||
+		itops->last_branch;
+	if (!ison)
+		return true;
+	pr_err("Unsupported --itrace options specified\n");
 	return false;
+}
+
+/* Check for AUXTRACE dump directory if it is needed.
+ * On failure print an error message but continue.
+ * Return 0 on wrong keyword in config file and 1 otherwise.
+ */
+static int s390_cpumsf__config(const char *var, const char *value, void *cb)
+{
+	struct s390_cpumsf *sf = cb;
+	struct stat stbuf;
+	int rc;
+
+	if (strcmp(var, "auxtrace.dumpdir"))
+		return 0;
+	sf->logdir = strdup(value);
+	if (sf->logdir == NULL) {
+		pr_err("Failed to find auxtrace log directory %s,"
+		       " continue with current directory...\n", value);
+		return 1;
+	}
+	rc = stat(sf->logdir, &stbuf);
+	if (rc == -1 || !S_ISDIR(stbuf.st_mode)) {
+		pr_err("Missing auxtrace log directory %s,"
+		       " continue with current directory...\n", value);
+		free(sf->logdir);
+		sf->logdir = NULL;
+	}
+	return 1;
 }
 
 int s390_cpumsf_process_auxtrace_info(union perf_event *event,
@@ -906,6 +990,9 @@ int s390_cpumsf_process_auxtrace_info(union perf_event *event,
 		err = -EINVAL;
 		goto err_free;
 	}
+	sf->use_logfile = session->itrace_synth_opts->log;
+	if (sf->use_logfile)
+		perf_config(s390_cpumsf__config, sf);
 
 	err = auxtrace_queues__init(&sf->queues);
 	if (err)
@@ -940,6 +1027,7 @@ err_free_queues:
 	auxtrace_queues__free(&sf->queues);
 	session->auxtrace = NULL;
 err_free:
+	free(sf->logdir);
 	free(sf);
 	return err;
 }

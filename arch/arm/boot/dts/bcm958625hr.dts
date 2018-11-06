@@ -58,6 +58,24 @@
 		open-source;
 		priority = <200>;
 	};
+
+	/* Hardware I2C block cannot do more than 63 bytes per transfer,
+	 * which would prevent reading from a SFP's EEPROM (256 byte).
+	 */
+	i2c1: i2c {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpioa 5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpioa 4 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	};
+
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c1>;
+		mod-def0-gpios = <&gpioa 28 GPIO_ACTIVE_LOW>;
+		los-gpios = <&gpioa 24 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&gpioa 30 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&gpioa 26 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &amac0 {
@@ -208,6 +226,14 @@
 		port@4 {
 			label = "port4";
 			reg = <4>;
+		};
+
+		port@5 {
+			label = "sfp";
+			phy-mode = "sgmii";
+			reg = <5>;
+			sfp = <&sfp>;
+			managed = "in-band-status";
 		};
 
 		port@8 {

@@ -250,6 +250,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_ignore, "dev" },
 	{ Opt_ignore, "mand" },
 	{ Opt_ignore, "nomand" },
+	{ Opt_ignore, "relatime" },
 	{ Opt_ignore, "_netdev" },
 
 	{ Opt_err, NULL }
@@ -347,7 +348,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	server->maxBuf = 0;
 	server->max_read = 0;
 
-	cifs_dbg(FYI, "Reconnecting tcp session\n");
+	cifs_dbg(FYI, "Mark tcp session as need reconnect\n");
 	trace_smb3_reconnect(server->CurrentMid, server->hostname);
 
 	/* before reconnecting the tcp session, mark the smb session (uid)
@@ -588,7 +589,7 @@ cifs_read_from_socket(struct TCP_Server_Info *server, char *buf,
 {
 	struct msghdr smb_msg;
 	struct kvec iov = {.iov_base = buf, .iov_len = to_read};
-	iov_iter_kvec(&smb_msg.msg_iter, READ | ITER_KVEC, &iov, 1, to_read);
+	iov_iter_kvec(&smb_msg.msg_iter, READ, &iov, 1, to_read);
 
 	return cifs_readv_from_socket(server, &smb_msg);
 }
@@ -600,7 +601,7 @@ cifs_read_page_from_socket(struct TCP_Server_Info *server, struct page *page,
 	struct msghdr smb_msg;
 	struct bio_vec bv = {
 		.bv_page = page, .bv_len = to_read, .bv_offset = page_offset};
-	iov_iter_bvec(&smb_msg.msg_iter, READ | ITER_BVEC, &bv, 1, to_read);
+	iov_iter_bvec(&smb_msg.msg_iter, READ, &bv, 1, to_read);
 	return cifs_readv_from_socket(server, &smb_msg);
 }
 
@@ -2396,6 +2397,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		volume_info->target_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
 	tcp_ses->session_estab = false;
 	tcp_ses->sequence_number = 0;
+	tcp_ses->reconnect_instance = 0;
 	tcp_ses->lstrp = jiffies;
 	spin_lock_init(&tcp_ses->req_lock);
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
@@ -3085,10 +3087,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	if (rc)
 		goto out_fail;
 
-	if (volume_info->nodfs) {
-		tcon->Flags &= ~SMB_SHARE_IS_IN_DFS;
-		cifs_dbg(FYI, "DFS disabled (%d)\n", tcon->Flags);
-	}
 	tcon->use_persistent = false;
 	/* check if SMB2 or later, CIFS does not support persistent handles */
 	if (volume_info->persistent) {
@@ -3663,6 +3661,8 @@ int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 	cifs_sb->actimeo = pvolume_info->actimeo;
 	cifs_sb->local_nls = pvolume_info->local_nls;
 
+	if (pvolume_info->nodfs)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_DFS;
 	if (pvolume_info->noperm)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
 	if (pvolume_info->setuids)
@@ -3818,6 +3818,9 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 	unsigned int num_referrals = 0;
 	struct dfs_info3_param *referrals = NULL;
 	char *full_path = NULL, *ref_path = NULL, *mdata = NULL;
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS)
+		return -EREMOTE;
 
 	full_path = build_unc_path_to_root(volume_info, cifs_sb);
 	if (IS_ERR(full_path))

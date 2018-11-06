@@ -230,6 +230,7 @@ static int max8952_pmic_probe(struct i2c_client *client,
 		gflags = GPIOD_OUT_HIGH;
 	else
 		gflags = GPIOD_OUT_LOW;
+	gflags |= GPIOD_FLAGS_BIT_NONEXCLUSIVE;
 	gpiod = devm_gpiod_get_optional(&client->dev,
 					"max8952,en",
 					gflags);

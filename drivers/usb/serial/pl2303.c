@@ -808,29 +808,16 @@ static int pl2303_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int pl2303_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg)
+static int pl2303_get_serial(struct tty_struct *tty,
+			struct serial_struct *ss)
 {
-	struct serial_struct ser;
 	struct usb_serial_port *port = tty->driver_data;
 
-	switch (cmd) {
-	case TIOCGSERIAL:
-		memset(&ser, 0, sizeof ser);
-		ser.type = PORT_16654;
-		ser.line = port->minor;
-		ser.port = port->port_number;
-		ser.baud_base = 460800;
-
-		if (copy_to_user((void __user *)arg, &ser, sizeof ser))
-			return -EFAULT;
-
-		return 0;
-	default:
-		break;
-	}
-
-	return -ENOIOCTLCMD;
+	ss->type = PORT_16654;
+	ss->line = port->minor;
+	ss->port = port->port_number;
+	ss->baud_base = 460800;
+	return 0;
 }
 
 static void pl2303_set_break(struct usb_serial_port *port, bool enable)
@@ -1016,7 +1003,7 @@ static struct usb_serial_driver pl2303_device = {
 	.close =		pl2303_close,
 	.dtr_rts =		pl2303_dtr_rts,
 	.carrier_raised =	pl2303_carrier_raised,
-	.ioctl =		pl2303_ioctl,
+	.get_serial =		pl2303_get_serial,
 	.break_ctl =		pl2303_break_ctl,
 	.set_termios =		pl2303_set_termios,
 	.tiocmget =		pl2303_tiocmget,

@@ -1238,8 +1238,8 @@ static int isc_querycap(struct file *file, void *priv,
 {
 	struct isc_device *isc = video_drvdata(file);
 
-	strcpy(cap->driver, ATMEL_ISC_NAME);
-	strcpy(cap->card, "Atmel Image Sensor Controller");
+	strscpy(cap->driver, ATMEL_ISC_NAME, sizeof(cap->driver));
+	strscpy(cap->card, "Atmel Image Sensor Controller", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", isc->v4l2_dev.name);
 
@@ -1393,7 +1393,7 @@ static int isc_enum_input(struct file *file, void *priv,
 
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = 0;
-	strcpy(inp->name, "Camera");
+	strscpy(inp->name, "Camera", sizeof(inp->name));
 
 	return 0;
 }
@@ -1951,7 +1951,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	INIT_WORK(&isc->awb_work, isc_awb_work);
 
 	/* Register video device */
-	strlcpy(vdev->name, ATMEL_ISC_NAME, sizeof(vdev->name));
+	strscpy(vdev->name, ATMEL_ISC_NAME, sizeof(vdev->name));
 	vdev->release		= video_device_release_empty;
 	vdev->fops		= &isc_fops;
 	vdev->ioctl_ops		= &isc_ioctl_ops;
@@ -1983,8 +1983,10 @@ static void isc_subdev_cleanup(struct isc_device *isc)
 {
 	struct isc_subdev_entity *subdev_entity;
 
-	list_for_each_entry(subdev_entity, &isc->subdev_entities, list)
+	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
 		v4l2_async_notifier_unregister(&subdev_entity->notifier);
+		v4l2_async_notifier_cleanup(&subdev_entity->notifier);
+	}
 
 	INIT_LIST_HEAD(&isc->subdev_entities);
 }
@@ -2026,7 +2028,6 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 {
 	struct device_node *np = dev->of_node;
 	struct device_node *epn = NULL, *rem;
-	struct v4l2_fwnode_endpoint v4l2_epn;
 	struct isc_subdev_entity *subdev_entity;
 	unsigned int flags;
 	int ret;
@@ -2034,6 +2035,8 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 	INIT_LIST_HEAD(&isc->subdev_entities);
 
 	while (1) {
+		struct v4l2_fwnode_endpoint v4l2_epn = { .bus_type = 0 };
+
 		epn = of_graph_get_next_endpoint(np, epn);
 		if (!epn)
 			return 0;
@@ -2201,8 +2204,15 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	}
 
 	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
-		subdev_entity->notifier.subdevs = &subdev_entity->asd;
-		subdev_entity->notifier.num_subdevs = 1;
+		v4l2_async_notifier_init(&subdev_entity->notifier);
+
+		ret = v4l2_async_notifier_add_subdev(&subdev_entity->notifier,
+						     subdev_entity->asd);
+		if (ret) {
+			fwnode_handle_put(subdev_entity->asd->match.fwnode);
+			goto cleanup_subdev;
+		}
+
 		subdev_entity->notifier.ops = &isc_async_ops;
 
 		ret = v4l2_async_notifier_register(&isc->v4l2_dev,

@@ -143,8 +143,10 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 			return -EEXIST;
 		}
 		/* replacing action and zone */
+		spin_lock_bh(&ci->tcf_lock);
 		ci->tcf_action = parm->action;
 		ci->zone = parm->zone;
+		spin_unlock_bh(&ci->tcf_lock);
 		ret = 0;
 	}
 
@@ -156,16 +158,16 @@ static inline int tcf_connmark_dump(struct sk_buff *skb, struct tc_action *a,
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_connmark_info *ci = to_connmark(a);
-
 	struct tc_connmark opt = {
 		.index   = ci->tcf_index,
 		.refcnt  = refcount_read(&ci->tcf_refcnt) - ref,
 		.bindcnt = atomic_read(&ci->tcf_bindcnt) - bind,
-		.action  = ci->tcf_action,
-		.zone   = ci->zone,
 	};
 	struct tcf_t t;
 
+	spin_lock_bh(&ci->tcf_lock);
+	opt.action = ci->tcf_action;
+	opt.zone = ci->zone;
 	if (nla_put(skb, TCA_CONNMARK_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 
@@ -173,9 +175,12 @@ static inline int tcf_connmark_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put_64bit(skb, TCA_CONNMARK_TM, sizeof(t), &t,
 			  TCA_CONNMARK_PAD))
 		goto nla_put_failure;
+	spin_unlock_bh(&ci->tcf_lock);
 
 	return skb->len;
+
 nla_put_failure:
+	spin_unlock_bh(&ci->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -190,8 +195,7 @@ static int tcf_connmark_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_connmark_search(struct net *net, struct tc_action **a, u32 index,
-			       struct netlink_ext_ack *extack)
+static int tcf_connmark_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, connmark_net_id);
 

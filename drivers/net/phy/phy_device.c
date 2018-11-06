@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
+#include <linux/bitmap.h>
 #include <linux/phy.h>
 #include <linux/phy_led_triggers.h>
 #include <linux/mdio.h>
@@ -41,6 +42,149 @@
 MODULE_DESCRIPTION("PHY library");
 MODULE_AUTHOR("Andy Fleming");
 MODULE_LICENSE("GPL");
+
+__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_basic_features) __ro_after_init;
+EXPORT_SYMBOL_GPL(phy_basic_features);
+
+__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_basic_t1_features) __ro_after_init;
+EXPORT_SYMBOL_GPL(phy_basic_t1_features);
+
+__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_features) __ro_after_init;
+EXPORT_SYMBOL_GPL(phy_gbit_features);
+
+__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_fibre_features) __ro_after_init;
+EXPORT_SYMBOL_GPL(phy_gbit_fibre_features);
+
+__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_all_ports_features) __ro_after_init;
+EXPORT_SYMBOL_GPL(phy_gbit_all_ports_features);
+
+__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_features) __ro_after_init;
+EXPORT_SYMBOL_GPL(phy_10gbit_features);
+
+static const int phy_basic_ports_array[] = {
+	ETHTOOL_LINK_MODE_Autoneg_BIT,
+	ETHTOOL_LINK_MODE_TP_BIT,
+	ETHTOOL_LINK_MODE_MII_BIT,
+};
+
+static const int phy_fibre_port_array[] = {
+	ETHTOOL_LINK_MODE_FIBRE_BIT,
+};
+
+static const int phy_all_ports_features_array[] = {
+	ETHTOOL_LINK_MODE_Autoneg_BIT,
+	ETHTOOL_LINK_MODE_TP_BIT,
+	ETHTOOL_LINK_MODE_MII_BIT,
+	ETHTOOL_LINK_MODE_FIBRE_BIT,
+	ETHTOOL_LINK_MODE_AUI_BIT,
+	ETHTOOL_LINK_MODE_BNC_BIT,
+	ETHTOOL_LINK_MODE_Backplane_BIT,
+};
+
+static const int phy_10_100_features_array[] = {
+	ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+	ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+	ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+};
+
+static const int phy_basic_t1_features_array[] = {
+	ETHTOOL_LINK_MODE_TP_BIT,
+	ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+};
+
+static const int phy_gbit_features_array[] = {
+	ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+};
+
+static const int phy_10gbit_features_array[] = {
+	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+};
+
+__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_init;
+EXPORT_SYMBOL_GPL(phy_10gbit_full_features);
+
+static const int phy_10gbit_full_features_array[] = {
+	ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+};
+
+static void features_init(void)
+{
+	/* 10/100 half/full*/
+	linkmode_set_bit_array(phy_basic_ports_array,
+			       ARRAY_SIZE(phy_basic_ports_array),
+			       phy_basic_features);
+	linkmode_set_bit_array(phy_10_100_features_array,
+			       ARRAY_SIZE(phy_10_100_features_array),
+			       phy_basic_features);
+
+	/* 100 full, TP */
+	linkmode_set_bit_array(phy_basic_t1_features_array,
+			       ARRAY_SIZE(phy_basic_t1_features_array),
+			       phy_basic_t1_features);
+
+	/* 10/100 half/full + 1000 half/full */
+	linkmode_set_bit_array(phy_basic_ports_array,
+			       ARRAY_SIZE(phy_basic_ports_array),
+			       phy_gbit_features);
+	linkmode_set_bit_array(phy_10_100_features_array,
+			       ARRAY_SIZE(phy_10_100_features_array),
+			       phy_gbit_features);
+	linkmode_set_bit_array(phy_gbit_features_array,
+			       ARRAY_SIZE(phy_gbit_features_array),
+			       phy_gbit_features);
+
+	/* 10/100 half/full + 1000 half/full + fibre*/
+	linkmode_set_bit_array(phy_basic_ports_array,
+			       ARRAY_SIZE(phy_basic_ports_array),
+			       phy_gbit_fibre_features);
+	linkmode_set_bit_array(phy_10_100_features_array,
+			       ARRAY_SIZE(phy_10_100_features_array),
+			       phy_gbit_fibre_features);
+	linkmode_set_bit_array(phy_gbit_features_array,
+			       ARRAY_SIZE(phy_gbit_features_array),
+			       phy_gbit_fibre_features);
+	linkmode_set_bit_array(phy_fibre_port_array,
+			       ARRAY_SIZE(phy_fibre_port_array),
+			       phy_gbit_fibre_features);
+
+	/* 10/100 half/full + 1000 half/full + TP/MII/FIBRE/AUI/BNC/Backplane*/
+	linkmode_set_bit_array(phy_all_ports_features_array,
+			       ARRAY_SIZE(phy_all_ports_features_array),
+			       phy_gbit_all_ports_features);
+	linkmode_set_bit_array(phy_10_100_features_array,
+			       ARRAY_SIZE(phy_10_100_features_array),
+			       phy_gbit_all_ports_features);
+	linkmode_set_bit_array(phy_gbit_features_array,
+			       ARRAY_SIZE(phy_gbit_features_array),
+			       phy_gbit_all_ports_features);
+
+	/* 10/100 half/full + 1000 half/full + 10G full*/
+	linkmode_set_bit_array(phy_all_ports_features_array,
+			       ARRAY_SIZE(phy_all_ports_features_array),
+			       phy_10gbit_features);
+	linkmode_set_bit_array(phy_10_100_features_array,
+			       ARRAY_SIZE(phy_10_100_features_array),
+			       phy_10gbit_features);
+	linkmode_set_bit_array(phy_gbit_features_array,
+			       ARRAY_SIZE(phy_gbit_features_array),
+			       phy_10gbit_features);
+	linkmode_set_bit_array(phy_10gbit_features_array,
+			       ARRAY_SIZE(phy_10gbit_features_array),
+			       phy_10gbit_features);
+
+	/* 10/100/1000/10G full */
+	linkmode_set_bit_array(phy_all_ports_features_array,
+			       ARRAY_SIZE(phy_all_ports_features_array),
+			       phy_10gbit_full_features);
+	linkmode_set_bit_array(phy_10gbit_full_features_array,
+			       ARRAY_SIZE(phy_10gbit_full_features_array),
+			       phy_10gbit_full_features);
+}
 
 void phy_device_free(struct phy_device *phydev)
 {
@@ -885,8 +1029,6 @@ int phy_init_hw(struct phy_device *phydev)
 
 	if (phydev->drv->soft_reset)
 		ret = phydev->drv->soft_reset(phydev);
-	else
-		ret = genphy_soft_reset(phydev);
 
 	if (ret < 0)
 		return ret;
@@ -927,13 +1069,13 @@ void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 
 
 	if (!fmt) {
-		dev_info(&phydev->mdio.dev, ATTACHED_FMT "\n",
+		phydev_info(phydev, ATTACHED_FMT "\n",
 			 drv_name, phydev_name(phydev),
 			 irq_str);
 	} else {
 		va_list ap;
 
-		dev_info(&phydev->mdio.dev, ATTACHED_FMT,
+		phydev_info(phydev, ATTACHED_FMT,
 			 drv_name, phydev_name(phydev),
 			 irq_str);
 
@@ -1771,6 +1913,125 @@ int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
 }
 EXPORT_SYMBOL(phy_set_max_speed);
 
+/**
+ * phy_remove_link_mode - Remove a supported link mode
+ * @phydev: phy_device structure to remove link mode from
+ * @link_mode: Link mode to be removed
+ *
+ * Description: Some MACs don't support all link modes which the PHY
+ * does.  e.g. a 1G MAC often does not support 1000Half. Add a helper
+ * to remove a link mode.
+ */
+void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode)
+{
+	WARN_ON(link_mode > 31);
+
+	phydev->supported &= ~BIT(link_mode);
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_remove_link_mode);
+
+/**
+ * phy_support_sym_pause - Enable support of symmetrical pause
+ * @phydev: target phy_device struct
+ *
+ * Description: Called by the MAC to indicate is supports symmetrical
+ * Pause, but not asym pause.
+ */
+void phy_support_sym_pause(struct phy_device *phydev)
+{
+	phydev->supported &= ~SUPPORTED_Asym_Pause;
+	phydev->supported |= SUPPORTED_Pause;
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_support_sym_pause);
+
+/**
+ * phy_support_asym_pause - Enable support of asym pause
+ * @phydev: target phy_device struct
+ *
+ * Description: Called by the MAC to indicate is supports Asym Pause.
+ */
+void phy_support_asym_pause(struct phy_device *phydev)
+{
+	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_support_asym_pause);
+
+/**
+ * phy_set_sym_pause - Configure symmetric Pause
+ * @phydev: target phy_device struct
+ * @rx: Receiver Pause is supported
+ * @tx: Transmit Pause is supported
+ * @autoneg: Auto neg should be used
+ *
+ * Description: Configure advertised Pause support depending on if
+ * receiver pause and pause auto neg is supported. Generally called
+ * from the set_pauseparam .ndo.
+ */
+void phy_set_sym_pause(struct phy_device *phydev, bool rx, bool tx,
+		       bool autoneg)
+{
+	phydev->supported &= ~SUPPORTED_Pause;
+
+	if (rx && tx && autoneg)
+		phydev->supported |= SUPPORTED_Pause;
+
+	phydev->advertising = phydev->supported;
+}
+EXPORT_SYMBOL(phy_set_sym_pause);
+
+/**
+ * phy_set_asym_pause - Configure Pause and Asym Pause
+ * @phydev: target phy_device struct
+ * @rx: Receiver Pause is supported
+ * @tx: Transmit Pause is supported
+ *
+ * Description: Configure advertised Pause support depending on if
+ * transmit and receiver pause is supported. If there has been a
+ * change in adverting, trigger a new autoneg. Generally called from
+ * the set_pauseparam .ndo.
+ */
+void phy_set_asym_pause(struct phy_device *phydev, bool rx, bool tx)
+{
+	u16 oldadv = phydev->advertising;
+	u16 newadv = oldadv &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+
+	if (rx)
+		newadv |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	if (tx)
+		newadv ^= SUPPORTED_Asym_Pause;
+
+	if (oldadv != newadv) {
+		phydev->advertising = newadv;
+
+		if (phydev->autoneg)
+			phy_start_aneg(phydev);
+	}
+}
+EXPORT_SYMBOL(phy_set_asym_pause);
+
+/**
+ * phy_validate_pause - Test if the PHY/MAC support the pause configuration
+ * @phydev: phy_device struct
+ * @pp: requested pause configuration
+ *
+ * Description: Test if the PHY/MAC combination supports the Pause
+ * configuration the user is requesting. Returns True if it is
+ * supported, false otherwise.
+ */
+bool phy_validate_pause(struct phy_device *phydev,
+			struct ethtool_pauseparam *pp)
+{
+	if (!(phydev->supported & SUPPORTED_Pause) ||
+	    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
+	     pp->rx_pause != pp->tx_pause))
+		return false;
+	return true;
+}
+EXPORT_SYMBOL(phy_validate_pause);
+
 static void of_set_phy_supported(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;
@@ -1826,6 +2087,7 @@ static int phy_probe(struct device *dev)
 	struct phy_device *phydev = to_phy_device(dev);
 	struct device_driver *drv = phydev->mdio.dev.driver;
 	struct phy_driver *phydrv = to_phy_driver(drv);
+	u32 features;
 	int err = 0;
 
 	phydev->drv = phydrv;
@@ -1846,7 +2108,8 @@ static int phy_probe(struct device *dev)
 	 * a controller will attach, and may modify one
 	 * or both of these values
 	 */
-	phydev->supported = phydrv->features;
+	ethtool_convert_link_mode_to_legacy_u32(&features, phydrv->features);
+	phydev->supported = features;
 	of_set_phy_supported(phydev);
 	phydev->advertising = phydev->supported;
 
@@ -1866,10 +2129,14 @@ static int phy_probe(struct device *dev)
 	 * (e.g. hardware erratum) where the driver wants to set only one
 	 * of these bits.
 	 */
-	if (phydrv->features & (SUPPORTED_Pause | SUPPORTED_Asym_Pause)) {
+	if (test_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydrv->features) ||
+	    test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydrv->features)) {
 		phydev->supported &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
-		phydev->supported |= phydrv->features &
-				     (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+		if (test_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydrv->features))
+			phydev->supported |= SUPPORTED_Pause;
+		if (test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			     phydrv->features))
+			phydev->supported |= SUPPORTED_Asym_Pause;
 	} else {
 		phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 	}
@@ -1982,9 +2249,7 @@ static struct phy_driver genphy_driver = {
 	.name		= "Generic PHY",
 	.soft_reset	= genphy_no_soft_reset,
 	.config_init	= genphy_config_init,
-	.features	= PHY_GBIT_FEATURES | SUPPORTED_MII |
-			  SUPPORTED_AUI | SUPPORTED_FIBRE |
-			  SUPPORTED_BNC,
+	.features	= PHY_GBIT_ALL_PORTS_FEATURES,
 	.aneg_done	= genphy_aneg_done,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
@@ -1998,6 +2263,8 @@ static int __init phy_init(void)
 	rc = mdio_bus_init();
 	if (rc)
 		return rc;
+
+	features_init();
 
 	rc = phy_driver_register(&genphy_10g_driver, THIS_MODULE);
 	if (rc)

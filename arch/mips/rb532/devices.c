@@ -20,9 +20,8 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/mtd/platnand.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
@@ -141,14 +140,13 @@ static struct platform_device cf_slot0 = {
 };
 
 /* Resources and device for NAND */
-static int rb532_dev_ready(struct mtd_info *mtd)
+static int rb532_dev_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(GPIO_RDY);
 }
 
-static void rb532_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void rb532_cmd_ctrl(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	unsigned char orbits, nandbits;
 
 	if (ctrl & NAND_CTRL_CHANGE) {
@@ -161,7 +159,7 @@ static void rb532_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 		set_latch_u5(orbits, nandbits);
 	}
 	if (cmd != NAND_CMD_NONE)
-		writeb(cmd, chip->IO_ADDR_W);
+		writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
 static struct resource nand_slot0_res[] = {

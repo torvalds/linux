@@ -243,11 +243,7 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 		if (dev->phydev->asym_pause)
 			rmt_adv |= LPA_PAUSE_ASYM;
 
-		if (dev->phydev->advertising & ADVERTISED_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_CAP;
-		if (dev->phydev->advertising & ADVERTISED_Asym_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_ASYM;
-
+		lcl_adv = ethtool_adv_to_lcl_adv_t(dev->phydev->advertising);
 		flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
 
 		if (flowctrl & FLOW_CTRL_TX)
@@ -355,12 +351,8 @@ static int mtk_phy_connect(struct net_device *dev)
 	dev->phydev->speed = 0;
 	dev->phydev->duplex = 0;
 
-	if (of_phy_is_fixed_link(mac->of_node))
-		dev->phydev->supported |=
-		SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-
-	dev->phydev->supported &= PHY_GBIT_FEATURES | SUPPORTED_Pause |
-				   SUPPORTED_Asym_Pause;
+	phy_set_max_speed(dev->phydev, SPEED_1000);
+	phy_support_asym_pause(dev->phydev);
 	dev->phydev->advertising = dev->phydev->supported |
 				    ADVERTISED_Autoneg;
 	phy_start_aneg(dev->phydev);
@@ -405,7 +397,7 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 	eth->mii_bus->priv = eth;
 	eth->mii_bus->parent = eth->dev;
 
-	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%s", mii_np->name);
+	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%pOFn", mii_np);
 	ret = of_mdiobus_register(eth->mii_bus, mii_np);
 
 err_put_node:

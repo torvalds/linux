@@ -249,11 +249,7 @@
 #define SYNC_DEFP_FAST            0x19   /* 10mb/s */
 
 struct esp_cmd_priv {
-	union {
-		dma_addr_t	dma_addr;
-		int		num_sg;
-	} u;
-
+	int			num_sg;
 	int			cur_residue;
 	struct scatterlist	*cur_sg;
 	int			tot_residue;
@@ -363,19 +359,6 @@ struct esp_driver_ops {
 	void (*esp_write8)(struct esp *esp, u8 val, unsigned long reg);
 	u8 (*esp_read8)(struct esp *esp, unsigned long reg);
 
-	/* Map and unmap DMA memory.  Eventually the driver will be
-	 * converted to the generic DMA API as soon as SBUS is able to
-	 * cope with that.  At such time we can remove this.
-	 */
-	dma_addr_t (*map_single)(struct esp *esp, void *buf,
-				 size_t sz, int dir);
-	int (*map_sg)(struct esp *esp, struct scatterlist *sg,
-		      int num_sg, int dir);
-	void (*unmap_single)(struct esp *esp, dma_addr_t addr,
-			     size_t sz, int dir);
-	void (*unmap_sg)(struct esp *esp, struct scatterlist *sg,
-			 int num_sg, int dir);
-
 	/* Return non-zero if there is an IRQ pending.  Usually this
 	 * status bit lives in the DMA controller sitting in front of
 	 * the ESP.  This has to be accurate or else the ESP interrupt
@@ -435,7 +418,7 @@ struct esp {
 	const struct esp_driver_ops *ops;
 
 	struct Scsi_Host	*host;
-	void			*dev;
+	struct device		*dev;
 
 	struct esp_cmd_entry	*active_cmd;
 
@@ -490,11 +473,11 @@ struct esp {
 	u32			flags;
 #define ESP_FLAG_DIFFERENTIAL	0x00000001
 #define ESP_FLAG_RESETTING	0x00000002
-#define ESP_FLAG_DOING_SLOWCMD	0x00000004
 #define ESP_FLAG_WIDE_CAPABLE	0x00000008
 #define ESP_FLAG_QUICKIRQ_CHECK	0x00000010
 #define ESP_FLAG_DISABLE_SYNC	0x00000020
 #define ESP_FLAG_USE_FIFO	0x00000040
+#define ESP_FLAG_NO_DMA_MAP	0x00000080
 
 	u8			select_state;
 #define ESP_SELECT_NONE		0x00 /* Not selecting */
@@ -532,7 +515,7 @@ struct esp {
 	u32			min_period;
 	u32			radelay;
 
-	/* Slow command state.  */
+	/* ESP_CMD_SELAS command state */
 	u8			*cmd_bytes_ptr;
 	int			cmd_bytes_left;
 
@@ -540,6 +523,11 @@ struct esp {
 
 	void			*dma;
 	int			dmarev;
+
+	/* These are used by esp_send_pio_cmd() */
+	u8 __iomem		*fifo_reg;
+	int			send_cmd_error;
+	u32			send_cmd_residual;
 };
 
 /* A front-end driver for the ESP chip should do the following in
@@ -568,16 +556,18 @@ struct esp {
  *     example, the DMA engine has to be reset before ESP can
  *     be programmed.
  * 11) If necessary, call dev_set_drvdata() as needed.
- * 12) Call scsi_esp_register() with prepared 'esp' structure
- *     and a device pointer if possible.
+ * 12) Call scsi_esp_register() with prepared 'esp' structure.
  * 13) Check scsi_esp_register() return value, release all resources
  *     if an error was returned.
  */
 extern struct scsi_host_template scsi_esp_template;
-extern int scsi_esp_register(struct esp *, struct device *);
+extern int scsi_esp_register(struct esp *);
 
 extern void scsi_esp_unregister(struct esp *);
 extern irqreturn_t scsi_esp_intr(int, void *);
 extern void scsi_esp_cmd(struct esp *, u8);
+
+extern void esp_send_pio_cmd(struct esp *esp, u32 dma_addr, u32 esp_count,
+			     u32 dma_count, int write, u8 cmd);
 
 #endif /* !(_ESP_SCSI_H) */

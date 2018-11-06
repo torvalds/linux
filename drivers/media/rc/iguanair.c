@@ -129,11 +129,9 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 			break;
 		}
 	} else if (len >= 7) {
-		DEFINE_IR_RAW_EVENT(rawir);
+		struct ir_raw_event rawir = {};
 		unsigned i;
 		bool event = false;
-
-		init_ir_raw_event(&rawir);
 
 		for (i = 0; i < 7; i++) {
 			if (ir->buf_in[i] == 0x80) {

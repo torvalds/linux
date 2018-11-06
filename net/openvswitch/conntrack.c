@@ -933,6 +933,11 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 	struct nf_conn *ct;
 
 	if (!cached) {
+		struct nf_hook_state state = {
+			.hook = NF_INET_PRE_ROUTING,
+			.pf = info->family,
+			.net = net,
+		};
 		struct nf_conn *tmpl = info->ct;
 		int err;
 
@@ -944,8 +949,7 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 			nf_ct_set(skb, tmpl, IP_CT_NEW);
 		}
 
-		err = nf_conntrack_in(net, info->family,
-				      NF_INET_PRE_ROUTING, skb);
+		err = nf_conntrack_in(skb, &state);
 		if (err != NF_ACCEPT)
 			return -ENOENT;
 

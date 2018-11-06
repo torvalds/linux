@@ -453,39 +453,19 @@ static void qt2_disconnect(struct usb_serial *serial)
 	usb_kill_urb(serial_priv->read_urb);
 }
 
-static int get_serial_info(struct usb_serial_port *port,
-			   struct serial_struct __user *retinfo)
-{
-	struct serial_struct tmp;
-
-	memset(&tmp, 0, sizeof(tmp));
-	tmp.line		= port->minor;
-	tmp.port		= 0;
-	tmp.irq			= 0;
-	tmp.xmit_fifo_size	= port->bulk_out_size;
-	tmp.baud_base		= 9600;
-	tmp.close_delay		= 5*HZ;
-	tmp.closing_wait	= 30*HZ;
-
-	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return -EFAULT;
-	return 0;
-}
-
-static int qt2_ioctl(struct tty_struct *tty,
-		     unsigned int cmd, unsigned long arg)
+static int get_serial_info(struct tty_struct *tty,
+			   struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	switch (cmd) {
-	case TIOCGSERIAL:
-		return get_serial_info(port,
-				       (struct serial_struct __user *)arg);
-	default:
-		break;
-	}
-
-	return -ENOIOCTLCMD;
+	ss->line		= port->minor;
+	ss->port		= 0;
+	ss->irq			= 0;
+	ss->xmit_fifo_size	= port->bulk_out_size;
+	ss->baud_base		= 9600;
+	ss->close_delay		= 5*HZ;
+	ss->closing_wait	= 30*HZ;
+	return 0;
 }
 
 static void qt2_process_status(struct usb_serial_port *port, unsigned char *ch)
@@ -1013,7 +993,7 @@ static struct usb_serial_driver qt2_device = {
 	.tiocmset            = qt2_tiocmset,
 	.tiocmiwait          = usb_serial_generic_tiocmiwait,
 	.get_icount	     = usb_serial_generic_get_icount,
-	.ioctl               = qt2_ioctl,
+	.get_serial          = get_serial_info,
 	.set_termios         = qt2_set_termios,
 };
 

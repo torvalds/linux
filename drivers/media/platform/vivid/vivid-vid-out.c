@@ -162,6 +162,8 @@ static int vid_out_start_streaming(struct vb2_queue *vq, unsigned count)
 
 		list_for_each_entry_safe(buf, tmp, &dev->vid_out_active, list) {
 			list_del(&buf->list);
+			v4l2_ctrl_request_complete(buf->vb.vb2_buf.req_obj.req,
+						   &dev->ctrl_hdl_vid_out);
 			vb2_buffer_done(&buf->vb.vb2_buf,
 					VB2_BUF_STATE_QUEUED);
 		}
@@ -179,12 +181,20 @@ static void vid_out_stop_streaming(struct vb2_queue *vq)
 	dev->can_loop_video = false;
 }
 
+static void vid_out_buf_request_complete(struct vb2_buffer *vb)
+{
+	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
+
+	v4l2_ctrl_request_complete(vb->req_obj.req, &dev->ctrl_hdl_vid_out);
+}
+
 const struct vb2_ops vivid_vid_out_qops = {
 	.queue_setup		= vid_out_queue_setup,
 	.buf_prepare		= vid_out_buf_prepare,
 	.buf_queue		= vid_out_buf_queue,
 	.start_streaming	= vid_out_start_streaming,
 	.stop_streaming		= vid_out_stop_streaming,
+	.buf_request_complete	= vid_out_buf_request_complete,
 	.wait_prepare		= vb2_ops_wait_prepare,
 	.wait_finish		= vb2_ops_wait_finish,
 };
@@ -413,7 +423,7 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 		mp->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	} else if (mp->colorspace != V4L2_COLORSPACE_SMPTE170M &&
 		   mp->colorspace != V4L2_COLORSPACE_REC709 &&
-		   mp->colorspace != V4L2_COLORSPACE_ADOBERGB &&
+		   mp->colorspace != V4L2_COLORSPACE_OPRGB &&
 		   mp->colorspace != V4L2_COLORSPACE_BT2020 &&
 		   mp->colorspace != V4L2_COLORSPACE_SRGB) {
 		mp->colorspace = V4L2_COLORSPACE_REC709;

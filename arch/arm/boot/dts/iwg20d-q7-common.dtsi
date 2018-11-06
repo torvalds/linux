@@ -160,10 +160,6 @@
 	clock-frequency = <100000000>;
 };
 
-&pciec {
-	status = "okay";
-};
-
 &pfc {
 	can0_pins: can0 {
 		groups = "can0_data_d";

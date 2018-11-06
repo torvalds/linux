@@ -732,7 +732,7 @@ int btrfs_ref_tree_mod(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 
 	INIT_LIST_HEAD(&ra->list);
 	ra->action = action;
-	ra->root = root->objectid;
+	ra->root = root->root_key.objectid;
 
 	/*
 	 * This is an allocation, preallocate the block_entry in case we haven't
@@ -787,8 +787,8 @@ int btrfs_ref_tree_mod(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 			 * one we want to lookup below when we modify the
 			 * re->num_refs.
 			 */
-			ref_root = root->objectid;
-			re->root_objectid = root->objectid;
+			ref_root = root->root_key.objectid;
+			re->root_objectid = root->root_key.objectid;
 			re->num_refs = 0;
 		}
 
@@ -862,7 +862,7 @@ int btrfs_ref_tree_mod(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 			 * didn't thik of some other corner case.
 			 */
 			btrfs_err(fs_info, "failed to find root %llu for %llu",
-				  root->objectid, be->bytenr);
+				  root->root_key.objectid, be->bytenr);
 			dump_block_entry(fs_info, be);
 			dump_ref_action(fs_info, ra);
 			kfree(ra);

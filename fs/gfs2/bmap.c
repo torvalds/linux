@@ -1566,7 +1566,7 @@ more_rgrps:
 			continue;
 		}
 		if (bstart) {
-			__gfs2_free_blocks(ip, bstart, (u32)blen, meta);
+			__gfs2_free_blocks(ip, rgd, bstart, (u32)blen, meta);
 			(*btotal) += blen;
 			gfs2_add_inode_blocks(&ip->i_inode, -blen);
 		}
@@ -1574,7 +1574,7 @@ more_rgrps:
 		blen = 1;
 	}
 	if (bstart) {
-		__gfs2_free_blocks(ip, bstart, (u32)blen, meta);
+		__gfs2_free_blocks(ip, rgd, bstart, (u32)blen, meta);
 		(*btotal) += blen;
 		gfs2_add_inode_blocks(&ip->i_inode, -blen);
 	}

@@ -15,7 +15,6 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/syscore_ops.h>
 
 #include "clk.h"
 #include "clk-cpu.h"
@@ -156,10 +155,6 @@ enum exynos5x_plls {
 static void __iomem *reg_base;
 static enum exynos5x_soc exynos5x_soc;
 
-#ifdef CONFIG_PM_SLEEP
-static struct samsung_clk_reg_dump *exynos5x_save;
-static struct samsung_clk_reg_dump *exynos5800_save;
-
 /*
  * list of controller registers to be saved and restored during a
  * suspend/resume cycle.
@@ -281,67 +276,8 @@ static const struct samsung_clk_reg_dump exynos5420_set_clksrc[] = {
 	{ .offset = GATE_BUS_TOP,		.value = 0xffffffff, },
 	{ .offset = GATE_BUS_DISP1,		.value = 0xffffffff, },
 	{ .offset = GATE_IP_PERIC,		.value = 0xffffffff, },
+	{ .offset = GATE_IP_PERIS,		.value = 0xffffffff, },
 };
-
-static int exynos5420_clk_suspend(void)
-{
-	samsung_clk_save(reg_base, exynos5x_save,
-				ARRAY_SIZE(exynos5x_clk_regs));
-
-	if (exynos5x_soc == EXYNOS5800)
-		samsung_clk_save(reg_base, exynos5800_save,
-				ARRAY_SIZE(exynos5800_clk_regs));
-
-	samsung_clk_restore(reg_base, exynos5420_set_clksrc,
-				ARRAY_SIZE(exynos5420_set_clksrc));
-
-	return 0;
-}
-
-static void exynos5420_clk_resume(void)
-{
-	samsung_clk_restore(reg_base, exynos5x_save,
-				ARRAY_SIZE(exynos5x_clk_regs));
-
-	if (exynos5x_soc == EXYNOS5800)
-		samsung_clk_restore(reg_base, exynos5800_save,
-				ARRAY_SIZE(exynos5800_clk_regs));
-}
-
-static struct syscore_ops exynos5420_clk_syscore_ops = {
-	.suspend = exynos5420_clk_suspend,
-	.resume = exynos5420_clk_resume,
-};
-
-static void __init exynos5420_clk_sleep_init(void)
-{
-	exynos5x_save = samsung_clk_alloc_reg_dump(exynos5x_clk_regs,
-					ARRAY_SIZE(exynos5x_clk_regs));
-	if (!exynos5x_save) {
-		pr_warn("%s: failed to allocate sleep save data, no sleep support!\n",
-			__func__);
-		return;
-	}
-
-	if (exynos5x_soc == EXYNOS5800) {
-		exynos5800_save =
-			samsung_clk_alloc_reg_dump(exynos5800_clk_regs,
-					ARRAY_SIZE(exynos5800_clk_regs));
-		if (!exynos5800_save)
-			goto err_soc;
-	}
-
-	register_syscore_ops(&exynos5420_clk_syscore_ops);
-	return;
-err_soc:
-	kfree(exynos5x_save);
-	pr_warn("%s: failed to allocate sleep save data, no sleep support!\n",
-		__func__);
-	return;
-}
-#else
-static void __init exynos5420_clk_sleep_init(void) {}
-#endif
 
 /* list of all parent clocks */
 PNAME(mout_mspll_cpu_p) = {"mout_sclk_cpll", "mout_sclk_dpll",
@@ -633,6 +569,7 @@ static const struct samsung_div_clock exynos5420_div_clks[] __initconst = {
 };
 
 static const struct samsung_gate_clock exynos5420_gate_clks[] __initconst = {
+	GATE(CLK_SECKEY, "seckey", "aclk66_psgen", GATE_BUS_PERIS1, 1, 0, 0),
 	GATE(CLK_MAU_EPLL, "mau_epll", "mout_mau_epll_clk",
 			SRC_MASK_TOP7, 20, CLK_SET_RATE_PARENT, 0),
 };
@@ -1162,8 +1099,6 @@ static const struct samsung_gate_clock exynos5x_gate_clks[] __initconst = {
 	GATE(CLK_TMU, "tmu", "aclk66_psgen", GATE_IP_PERIS, 21, 0, 0),
 	GATE(CLK_TMU_GPU, "tmu_gpu", "aclk66_psgen", GATE_IP_PERIS, 22, 0, 0),
 
-	GATE(CLK_SECKEY, "seckey", "aclk66_psgen", GATE_BUS_PERIS1, 1, 0, 0),
-
 	/* GEN Block */
 	GATE(CLK_ROTATOR, "rotator", "mout_user_aclk266", GATE_IP_GEN, 1, 0, 0),
 	GATE(CLK_JPEG, "jpeg", "aclk300_jpeg", GATE_IP_GEN, 2, 0, 0),
@@ -1540,7 +1475,12 @@ static void __init exynos5x_clk_init(struct device_node *np,
 		mout_kfc_p[0], mout_kfc_p[1], 0x28200,
 		exynos5420_kfcclk_d, ARRAY_SIZE(exynos5420_kfcclk_d), 0);
 
-	exynos5420_clk_sleep_init();
+	samsung_clk_extended_sleep_init(reg_base,
+		exynos5x_clk_regs, ARRAY_SIZE(exynos5x_clk_regs),
+		exynos5420_set_clksrc, ARRAY_SIZE(exynos5420_set_clksrc));
+	if (soc == EXYNOS5800)
+		samsung_clk_sleep_init(reg_base, exynos5800_clk_regs,
+				       ARRAY_SIZE(exynos5800_clk_regs));
 	exynos5_subcmus_init(ctx, ARRAY_SIZE(exynos5x_subcmus),
 			     exynos5x_subcmus);
 

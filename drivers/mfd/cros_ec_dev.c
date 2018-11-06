@@ -546,6 +546,7 @@ static struct platform_driver cros_ec_dev_driver = {
 		.name = DRV_NAME,
 		.pm = &cros_ec_dev_pm_ops,
 	},
+	.id_table = cros_ec_id,
 	.probe = ec_device_probe,
 	.remove = ec_device_remove,
 	.shutdown = ec_device_shutdown,
