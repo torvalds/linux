@@ -279,8 +279,8 @@ static struct irq_chip crystalcove_irqchip = {
 static irqreturn_t crystalcove_gpio_irq_handler(int irq, void *data)
 {
 	struct crystalcove_gpio *cg = data;
+	unsigned long pending;
 	unsigned int p0, p1;
-	int pending;
 	int gpio;
 	unsigned int virq;
 
@@ -293,11 +293,9 @@ static irqreturn_t crystalcove_gpio_irq_handler(int irq, void *data)
 
 	pending = p0 | p1 << 8;
 
-	for (gpio = 0; gpio < CRYSTALCOVE_GPIO_NUM; gpio++) {
-		if (pending & BIT(gpio)) {
-			virq = irq_find_mapping(cg->chip.irq.domain, gpio);
-			handle_nested_irq(virq);
-		}
+	for_each_set_bit(gpio, &pending, CRYSTALCOVE_GPIO_NUM) {
+		virq = irq_find_mapping(cg->chip.irq.domain, gpio);
+		handle_nested_irq(virq);
 	}
 
 	return IRQ_HANDLED;
