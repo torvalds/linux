@@ -32,6 +32,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
+#include <linux/workqueue.h>
 
 #include <asm/irq.h>
 #include <linux/platform_data/dma-imx-sdma.h>
@@ -375,6 +376,7 @@ struct sdma_channel {
 	u32				shp_addr, per_addr;
 	enum dma_status			status;
 	struct imx_dma_data		data;
+	struct work_struct		terminate_worker;
 };
 
 #define IMX_DMA_SG_LOOP		BIT(0)
@@ -1025,19 +1027,12 @@ static int sdma_disable_channel(struct dma_chan *chan)
 
 	return 0;
 }
-
-static int sdma_disable_channel_with_delay(struct dma_chan *chan)
+static void sdma_channel_terminate_work(struct work_struct *work)
 {
-	struct sdma_channel *sdmac = to_sdma_chan(chan);
+	struct sdma_channel *sdmac = container_of(work, struct sdma_channel,
+						  terminate_worker);
 	unsigned long flags;
 	LIST_HEAD(head);
-
-	sdma_disable_channel(chan);
-	spin_lock_irqsave(&sdmac->vc.lock, flags);
-	vchan_get_all_descriptors(&sdmac->vc, &head);
-	sdmac->desc = NULL;
-	spin_unlock_irqrestore(&sdmac->vc.lock, flags);
-	vchan_dma_desc_free_list(&sdmac->vc, &head);
 
 	/*
 	 * According to NXP R&D team a delay of one BD SDMA cost time
@@ -1045,9 +1040,34 @@ static int sdma_disable_channel_with_delay(struct dma_chan *chan)
 	 * bit, to ensure SDMA core has really been stopped after SDMA
 	 * clients call .device_terminate_all.
 	 */
-	mdelay(1);
+	usleep_range(1000, 2000);
+
+	spin_lock_irqsave(&sdmac->vc.lock, flags);
+	vchan_get_all_descriptors(&sdmac->vc, &head);
+	sdmac->desc = NULL;
+	spin_unlock_irqrestore(&sdmac->vc.lock, flags);
+	vchan_dma_desc_free_list(&sdmac->vc, &head);
+}
+
+static int sdma_disable_channel_async(struct dma_chan *chan)
+{
+	struct sdma_channel *sdmac = to_sdma_chan(chan);
+
+	sdma_disable_channel(chan);
+
+	if (sdmac->desc)
+		schedule_work(&sdmac->terminate_worker);
 
 	return 0;
+}
+
+static void sdma_channel_synchronize(struct dma_chan *chan)
+{
+	struct sdma_channel *sdmac = to_sdma_chan(chan);
+
+	vchan_synchronize(&sdmac->vc);
+
+	flush_work(&sdmac->terminate_worker);
 }
 
 static void sdma_set_watermarklevel_for_p2p(struct sdma_channel *sdmac)
@@ -1287,7 +1307,9 @@ static void sdma_free_chan_resources(struct dma_chan *chan)
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
 
-	sdma_disable_channel_with_delay(chan);
+	sdma_disable_channel_async(chan);
+
+	sdma_channel_synchronize(chan);
 
 	if (sdmac->event_id0)
 		sdma_event_disable(sdmac, sdmac->event_id0);
@@ -1993,6 +2015,8 @@ static int sdma_probe(struct platform_device *pdev)
 
 		sdmac->channel = i;
 		sdmac->vc.desc_free = sdma_desc_free;
+		INIT_WORK(&sdmac->terminate_worker,
+				sdma_channel_terminate_work);
 		/*
 		 * Add the channel to the DMAC list. Do not add channel 0 though
 		 * because we need it internally in the SDMA driver. This also means
@@ -2044,7 +2068,8 @@ static int sdma_probe(struct platform_device *pdev)
 	sdma->dma_device.device_prep_slave_sg = sdma_prep_slave_sg;
 	sdma->dma_device.device_prep_dma_cyclic = sdma_prep_dma_cyclic;
 	sdma->dma_device.device_config = sdma_config;
-	sdma->dma_device.device_terminate_all = sdma_disable_channel_with_delay;
+	sdma->dma_device.device_terminate_all = sdma_disable_channel_async;
+	sdma->dma_device.device_synchronize = sdma_channel_synchronize;
 	sdma->dma_device.src_addr_widths = SDMA_DMA_BUSWIDTHS;
 	sdma->dma_device.dst_addr_widths = SDMA_DMA_BUSWIDTHS;
 	sdma->dma_device.directions = SDMA_DMA_DIRECTIONS;
