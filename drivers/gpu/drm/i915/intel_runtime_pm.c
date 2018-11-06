@@ -3668,6 +3668,10 @@ void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 		val = I915_READ(ICL_PHY_MISC(port));
 		val |= ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
 		I915_WRITE(ICL_PHY_MISC(port), val);
+
+		val = I915_READ(ICL_PORT_COMP_DW0(port));
+		val &= ~COMP_INIT;
+		I915_WRITE(ICL_PORT_COMP_DW0(port), val);
 	}
 }
 
