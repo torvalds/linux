@@ -598,6 +598,12 @@
 	status = "okay";
 };
 
+&pcie0 {
+	reset-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
+	/* Disable usbdrd_dwc3 simultaneouslly if using pcie0 */
+	status = "disabled";
+};
+
 &power {
 	pd_npu-supply = <&vdd_npu>;
 };
