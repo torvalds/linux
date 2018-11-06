@@ -2383,17 +2383,61 @@ static int bcm_sysport_map_queues(struct notifier_block *nb,
 	return 0;
 }
 
+static int bcm_sysport_unmap_queues(struct notifier_block *nb,
+				    struct dsa_notifier_register_info *info)
+{
+	struct bcm_sysport_tx_ring *ring;
+	struct bcm_sysport_priv *priv;
+	struct net_device *slave_dev;
+	unsigned int num_tx_queues;
+	struct net_device *dev;
+	unsigned int q, port;
+
+	priv = container_of(nb, struct bcm_sysport_priv, dsa_notifier);
+	if (priv->netdev != info->master)
+		return 0;
+
+	dev = info->master;
+
+	if (dev->netdev_ops != &bcm_sysport_netdev_ops)
+		return 0;
+
+	port = info->port_number;
+	slave_dev = info->info.dev;
+
+	num_tx_queues = slave_dev->real_num_tx_queues;
+
+	for (q = 0; q < dev->num_tx_queues; q++) {
+		ring = &priv->tx_rings[q];
+
+		if (ring->switch_port != port)
+			continue;
+
+		if (!ring->inspect)
+			continue;
+
+		ring->inspect = false;
+		priv->ring_map[q + port * num_tx_queues] = NULL;
+	}
+
+	return 0;
+}
+
 static int bcm_sysport_dsa_notifier(struct notifier_block *nb,
 				    unsigned long event, void *ptr)
 {
-	struct dsa_notifier_register_info *info;
+	int ret = NOTIFY_DONE;
 
-	if (event != DSA_PORT_REGISTER)
-		return NOTIFY_DONE;
+	switch (event) {
+	case DSA_PORT_REGISTER:
+		ret = bcm_sysport_map_queues(nb, ptr);
+		break;
+	case DSA_PORT_UNREGISTER:
+		ret = bcm_sysport_unmap_queues(nb, ptr);
+		break;
+	}
 
-	info = ptr;
-
-	return notifier_from_errno(bcm_sysport_map_queues(nb, info));
+	return notifier_from_errno(ret);
 }
 
 #define REV_FMT	"v%2x.%02x"
