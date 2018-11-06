@@ -250,9 +250,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 			of_node_put(codec_port);
 
 			if (codec) {
-				if (!codec_port)
-					continue;
-
 				if (codec_port_old == codec_port)
 					continue;
 
@@ -308,11 +305,7 @@ static int asoc_graph_get_dais_count(struct device *dev)
 		of_node_put(codec_ep);
 		of_node_put(codec_port);
 
-		if (cpu_ep)
-			count++;
-
-		if (!codec_port)
-			continue;
+		count++;
 
 		if (codec_port_old == codec_port)
 			continue;
