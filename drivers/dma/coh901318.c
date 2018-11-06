@@ -1802,8 +1802,6 @@ static int coh901318_config(struct coh901318_chan *cohc,
 	int channel = cohc->id;
 	void __iomem *virtbase = cohc->base->virtbase;
 
-	spin_lock_irqsave(&cohc->lock, flags);
-
 	if (param)
 		p = param;
 	else
@@ -1822,8 +1820,6 @@ static int coh901318_config(struct coh901318_chan *cohc,
 
 	coh901318_set_conf(cohc, p->config);
 	coh901318_set_ctrl(cohc, p->ctrl_lli_last);
-
-	spin_unlock_irqrestore(&cohc->lock, flags);
 
 	return 0;
 }
