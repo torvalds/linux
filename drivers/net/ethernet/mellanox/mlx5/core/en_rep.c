@@ -292,6 +292,22 @@ static int mlx5e_rep_set_channels(struct net_device *dev,
 	return 0;
 }
 
+static int mlx5e_rep_get_coalesce(struct net_device *netdev,
+				  struct ethtool_coalesce *coal)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_get_coalesce(priv, coal);
+}
+
+static int mlx5e_rep_set_coalesce(struct net_device *netdev,
+				  struct ethtool_coalesce *coal)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_set_coalesce(priv, coal);
+}
+
 static u32 mlx5e_rep_get_rxfh_key_size(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -306,7 +322,39 @@ static u32 mlx5e_rep_get_rxfh_indir_size(struct net_device *netdev)
 	return mlx5e_ethtool_get_rxfh_indir_size(priv);
 }
 
-static const struct ethtool_ops mlx5e_rep_ethtool_ops = {
+static void mlx5e_uplink_rep_get_pauseparam(struct net_device *netdev,
+					    struct ethtool_pauseparam *pauseparam)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	mlx5e_ethtool_get_pauseparam(priv, pauseparam);
+}
+
+static int mlx5e_uplink_rep_set_pauseparam(struct net_device *netdev,
+					   struct ethtool_pauseparam *pauseparam)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_set_pauseparam(priv, pauseparam);
+}
+
+static int mlx5e_uplink_rep_get_link_ksettings(struct net_device *netdev,
+					       struct ethtool_link_ksettings *link_ksettings)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_get_link_ksettings(priv, link_ksettings);
+}
+
+static int mlx5e_uplink_rep_set_link_ksettings(struct net_device *netdev,
+					       const struct ethtool_link_ksettings *link_ksettings)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return mlx5e_ethtool_set_link_ksettings(priv, link_ksettings);
+}
+
+static const struct ethtool_ops mlx5e_vf_rep_ethtool_ops = {
 	.get_drvinfo	   = mlx5e_rep_get_drvinfo,
 	.get_link	   = ethtool_op_get_link,
 	.get_strings       = mlx5e_rep_get_strings,
@@ -316,8 +364,30 @@ static const struct ethtool_ops mlx5e_rep_ethtool_ops = {
 	.set_ringparam     = mlx5e_rep_set_ringparam,
 	.get_channels      = mlx5e_rep_get_channels,
 	.set_channels      = mlx5e_rep_set_channels,
+	.get_coalesce      = mlx5e_rep_get_coalesce,
+	.set_coalesce      = mlx5e_rep_set_coalesce,
 	.get_rxfh_key_size   = mlx5e_rep_get_rxfh_key_size,
 	.get_rxfh_indir_size = mlx5e_rep_get_rxfh_indir_size,
+};
+
+static const struct ethtool_ops mlx5e_uplink_rep_ethtool_ops = {
+	.get_drvinfo	   = mlx5e_rep_get_drvinfo,
+	.get_link	   = ethtool_op_get_link,
+	.get_strings       = mlx5e_rep_get_strings,
+	.get_sset_count    = mlx5e_rep_get_sset_count,
+	.get_ethtool_stats = mlx5e_rep_get_ethtool_stats,
+	.get_ringparam     = mlx5e_rep_get_ringparam,
+	.set_ringparam     = mlx5e_rep_set_ringparam,
+	.get_channels      = mlx5e_rep_get_channels,
+	.set_channels      = mlx5e_rep_set_channels,
+	.get_coalesce      = mlx5e_rep_get_coalesce,
+	.set_coalesce      = mlx5e_rep_set_coalesce,
+	.get_link_ksettings = mlx5e_uplink_rep_get_link_ksettings,
+	.set_link_ksettings = mlx5e_uplink_rep_set_link_ksettings,
+	.get_rxfh_key_size   = mlx5e_rep_get_rxfh_key_size,
+	.get_rxfh_indir_size = mlx5e_rep_get_rxfh_indir_size,
+	.get_pauseparam    = mlx5e_uplink_rep_get_pauseparam,
+	.set_pauseparam    = mlx5e_uplink_rep_set_pauseparam,
 };
 
 static int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr)
@@ -1295,6 +1365,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 		netdev->netdev_ops = &mlx5e_netdev_ops_uplink_rep;
 		/* we want a persistent mac for the uplink rep */
 		mlx5_query_nic_vport_mac_address(mdev, 0, netdev->dev_addr);
+		netdev->ethtool_ops = &mlx5e_uplink_rep_ethtool_ops;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 		if (MLX5_CAP_GEN(mdev, qos))
 			netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
@@ -1302,11 +1373,11 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	} else {
 		netdev->netdev_ops = &mlx5e_netdev_ops_vf_rep;
 		eth_hw_addr_random(netdev);
+		netdev->ethtool_ops = &mlx5e_vf_rep_ethtool_ops;
 	}
 
 	netdev->watchdog_timeo    = 15 * HZ;
 
-	netdev->ethtool_ops	  = &mlx5e_rep_ethtool_ops;
 
 	netdev->switchdev_ops = &mlx5e_rep_switchdev_ops;
 
