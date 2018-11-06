@@ -255,6 +255,15 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 
 	DEBUG("Testing guest mode: %s\n", vm_guest_mode_string(mode));
 
+#ifdef __x86_64__
+	/*
+	 * FIXME
+	 * The x86_64 kvm selftests framework currently only supports a
+	 * single PML4 which restricts the number of physical address
+	 * bits we can change to 39.
+	 */
+	guest_pa_bits = 39;
+#endif
 	max_gfn = (1ul << (guest_pa_bits - guest_page_shift)) - 1;
 	guest_page_size = (1ul << guest_page_shift);
 	/* 1G of guest page sized pages */
