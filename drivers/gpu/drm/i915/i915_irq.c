@@ -3679,6 +3679,9 @@ static void gen11_irq_reset(struct drm_device *dev)
 
 	I915_WRITE(GEN11_DISPLAY_INT_CTL, 0);
 
+	I915_WRITE(EDP_PSR_IMR, 0xffffffff);
+	I915_WRITE(EDP_PSR_IIR, 0xffffffff);
+
 	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
 						   POWER_DOMAIN_PIPE(pipe)))
