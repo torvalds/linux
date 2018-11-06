@@ -194,35 +194,5 @@ static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
 #endif
 }
 
-#ifdef CONFIG_NET_CLS_ACT
-int tc_setup_cb_egdev_register(const struct net_device *dev,
-			       tc_setup_cb_t *cb, void *cb_priv);
-void tc_setup_cb_egdev_unregister(const struct net_device *dev,
-				  tc_setup_cb_t *cb, void *cb_priv);
-int tc_setup_cb_egdev_call(const struct net_device *dev,
-			   enum tc_setup_type type, void *type_data,
-			   bool err_stop);
-#else
-static inline
-int tc_setup_cb_egdev_register(const struct net_device *dev,
-			       tc_setup_cb_t *cb, void *cb_priv)
-{
-	return 0;
-}
-
-static inline
-void tc_setup_cb_egdev_unregister(const struct net_device *dev,
-				  tc_setup_cb_t *cb, void *cb_priv)
-{
-}
-
-static inline
-int tc_setup_cb_egdev_call(const struct net_device *dev,
-			   enum tc_setup_type type, void *type_data,
-			   bool err_stop)
-{
-	return 0;
-}
-#endif
 
 #endif
