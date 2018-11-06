@@ -124,7 +124,7 @@ enum intel_ppgtt {
 
 struct sseu_dev_info {
 	u8 slice_mask;
-	u8 subslice_mask[GEN_MAX_SUBSLICES];
+	u8 subslice_mask[GEN_MAX_SLICES];
 	u16 eu_total;
 	u8 eu_per_subslice;
 	u8 min_eu_in_pool;
