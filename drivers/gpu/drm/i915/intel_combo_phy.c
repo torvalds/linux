@@ -202,6 +202,12 @@ void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 	for (port = PORT_A; port <= PORT_B; port++) {
 		u32 val;
 
+		if (icl_combo_phy_verify_state(dev_priv, port)) {
+			DRM_DEBUG_DRIVER("Port %c combo PHY already enabled, won't reprogram it.\n",
+					 port_name(port));
+			continue;
+		}
+
 		val = I915_READ(ICL_PHY_MISC(port));
 		val &= ~ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
 		I915_WRITE(ICL_PHY_MISC(port), val);
