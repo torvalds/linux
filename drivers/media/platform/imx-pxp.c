@@ -1619,10 +1619,8 @@ static int pxp_soft_reset(struct pxp_dev *dev)
 
 	ret = readl_poll_timeout(dev->mmio + HW_PXP_CTRL, val,
 				 val & BM_PXP_CTRL_CLKGATE, 0, 100);
-	if (ret < 0) {
-		pr_err("PXP reset timeout\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	writel(BM_PXP_CTRL_SFTRST, dev->mmio + HW_PXP_CTRL_CLR);
 	writel(BM_PXP_CTRL_CLKGATE, dev->mmio + HW_PXP_CTRL_CLR);
@@ -1675,8 +1673,10 @@ static int pxp_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = pxp_soft_reset(dev);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(&pdev->dev, "PXP reset timeout: %d\n", ret);
 		goto err_clk;
+	}
 
 	spin_lock_init(&dev->irqlock);
 
