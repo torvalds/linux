@@ -96,7 +96,7 @@ static int s6d16d0_prepare(struct drm_panel *panel)
 	ret = mipi_dsi_dcs_set_tear_on(dsi,
 				       MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	if (ret) {
-		DRM_DEV_ERROR(s6->dev, "failed to enble vblank TE (%d)\n",
+		DRM_DEV_ERROR(s6->dev, "failed to enable vblank TE (%d)\n",
 			      ret);
 		return ret;
 	}
