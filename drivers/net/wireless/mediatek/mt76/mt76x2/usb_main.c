@@ -91,11 +91,6 @@ mt76x2u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	if (changed & BSS_CHANGED_ASSOC) {
-		mt76x2u_phy_channel_calibrate(dev);
-		mt76x2_apply_gain_adj(dev);
-	}
-
 	if (changed & BSS_CHANGED_BSSID) {
 		mt76_wr(dev, MT_MAC_BSSID_DW0,
 			get_unaligned_le32(info->bssid));

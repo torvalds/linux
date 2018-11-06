@@ -18,15 +18,20 @@
 #include "eeprom.h"
 #include "../mt76x02_phy.h"
 
-void mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev)
+static void
+mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	bool is_5ghz = chan->band == NL80211_BAND_5GHZ;
 
+	if (dev->cal.channel_cal_done)
+		return;
+
 	if (mt76x2_channel_silent(dev))
 		return;
 
-	mt76x2u_mac_stop(dev);
+	if (!mac_stopped)
+		mt76x2u_mac_stop(dev);
 
 	if (is_5ghz)
 		mt76x02_mcu_calibrate(dev, MCU_CAL_LC, 0, false);
@@ -37,7 +42,11 @@ void mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev)
 	mt76x02_mcu_calibrate(dev, MCU_CAL_TEMP_SENSOR, 0, false);
 	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_SHAPING, 0, false);
 
-	mt76x2u_mac_resume(dev);
+	if (!mac_stopped)
+		mt76x2u_mac_resume(dev);
+	mt76x2_apply_gain_adj(dev);
+
+	dev->cal.channel_cal_done = true;
 }
 
 void mt76x2u_phy_calibrate(struct work_struct *work)
@@ -45,6 +54,7 @@ void mt76x2u_phy_calibrate(struct work_struct *work)
 	struct mt76x02_dev *dev;
 
 	dev = container_of(work, struct mt76x02_dev, cal_work.work);
+	mt76x2u_phy_channel_calibrate(dev, false);
 	mt76x2_phy_tssi_compensate(dev, false);
 	mt76x2_phy_update_channel_gain(dev);
 
@@ -165,7 +175,9 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 	if (scan)
 		return 0;
 
+	mt76x2u_phy_channel_calibrate(dev, true);
 	mt76x02_init_agc_gain(dev);
+
 	if (mt76x2_tssi_enabled(dev)) {
 		/* init default values for temp compensation */
 		mt76_rmw_field(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,
