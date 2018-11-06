@@ -641,7 +641,7 @@
 		ti,otg-current = <500000>;
 		ti,input-current = <500000>;
 		pd-charge-only = <0>;
-		status = "disabled";
+		status = "okay";
 	};
 };
 
