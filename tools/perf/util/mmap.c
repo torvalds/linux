@@ -156,28 +156,50 @@ void __weak auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp __mayb
 #ifdef HAVE_AIO_SUPPORT
 static int perf_mmap__aio_mmap(struct perf_mmap *map, struct mmap_params *mp)
 {
-	int delta_max;
+	int delta_max, i, prio;
 
 	map->aio.nr_cblocks = mp->nr_cblocks;
 	if (map->aio.nr_cblocks) {
-		map->aio.data = malloc(perf_mmap__mmap_len(map));
+		map->aio.aiocb = calloc(map->aio.nr_cblocks, sizeof(struct aiocb *));
+		if (!map->aio.aiocb) {
+			pr_debug2("failed to allocate aiocb for data buffer, error %m\n");
+			return -1;
+		}
+		map->aio.cblocks = calloc(map->aio.nr_cblocks, sizeof(struct aiocb));
+		if (!map->aio.cblocks) {
+			pr_debug2("failed to allocate cblocks for data buffer, error %m\n");
+			return -1;
+		}
+		map->aio.data = calloc(map->aio.nr_cblocks, sizeof(void *));
 		if (!map->aio.data) {
 			pr_debug2("failed to allocate data buffer, error %m\n");
 			return -1;
 		}
-		/*
-		 * Use cblock.aio_fildes value different from -1
-		 * to denote started aio write operation on the
-		 * cblock so it requires explicit record__aio_sync()
-		 * call prior the cblock may be reused again.
-		 */
-		map->aio.cblock.aio_fildes = -1;
-		/*
-		 * Allocate cblock with max priority delta to
-		 * have faster aio write system calls.
-		 */
 		delta_max = sysconf(_SC_AIO_PRIO_DELTA_MAX);
-		map->aio.cblock.aio_reqprio = delta_max;
+		for (i = 0; i < map->aio.nr_cblocks; ++i) {
+			map->aio.data[i] = malloc(perf_mmap__mmap_len(map));
+			if (!map->aio.data[i]) {
+				pr_debug2("failed to allocate data buffer area, error %m");
+				return -1;
+			}
+			/*
+			 * Use cblock.aio_fildes value different from -1
+			 * to denote started aio write operation on the
+			 * cblock so it requires explicit record__aio_sync()
+			 * call prior the cblock may be reused again.
+			 */
+			map->aio.cblocks[i].aio_fildes = -1;
+			/*
+			 * Allocate cblocks with priority delta to have
+			 * faster aio write system calls because queued requests
+			 * are kept in separate per-prio queues and adding
+			 * a new request will iterate thru shorter per-prio
+			 * list. Blocks with numbers higher than
+			 *  _SC_AIO_PRIO_DELTA_MAX go with priority 0.
+			 */
+			prio = delta_max - i;
+			map->aio.cblocks[i].aio_reqprio = prio >= 0 ? prio : 0;
+		}
 	}
 
 	return 0;
@@ -189,7 +211,7 @@ static void perf_mmap__aio_munmap(struct perf_mmap *map)
 		zfree(&map->aio.data);
 }
 
-int perf_mmap__aio_push(struct perf_mmap *md, void *to,
+int perf_mmap__aio_push(struct perf_mmap *md, void *to, int idx,
 			int push(void *to, struct aiocb *cblock, void *buf, size_t size, off_t off),
 			off_t *off)
 {
@@ -204,7 +226,7 @@ int perf_mmap__aio_push(struct perf_mmap *md, void *to,
 		return (rc == -EAGAIN) ? 0 : -1;
 
 	/*
-	 * md->base data is copied into md->data buffer to
+	 * md->base data is copied into md->data[idx] buffer to
 	 * release space in the kernel buffer as fast as possible,
 	 * thru perf_mmap__consume() below.
 	 *
@@ -226,20 +248,20 @@ int perf_mmap__aio_push(struct perf_mmap *md, void *to,
 		buf = &data[md->start & md->mask];
 		size = md->mask + 1 - (md->start & md->mask);
 		md->start += size;
-		memcpy(md->aio.data, buf, size);
+		memcpy(md->aio.data[idx], buf, size);
 		size0 = size;
 	}
 
 	buf = &data[md->start & md->mask];
 	size = md->end - md->start;
 	md->start += size;
-	memcpy(md->aio.data + size0, buf, size);
+	memcpy(md->aio.data[idx] + size0, buf, size);
 
 	/*
-	 * Increment md->refcount to guard md->data buffer
+	 * Increment md->refcount to guard md->data[idx] buffer
 	 * from premature deallocation because md object can be
 	 * released earlier than aio write request started
-	 * on mmap->data is complete.
+	 * on mmap->data[idx] is complete.
 	 *
 	 * perf_mmap__put() is done at record__aio_complete()
 	 * after started request completion.
@@ -249,7 +271,7 @@ int perf_mmap__aio_push(struct perf_mmap *md, void *to,
 	md->prev = head;
 	perf_mmap__consume(md);
 
-	rc = push(to, &md->aio.cblock, md->aio.data, size0 + size, *off);
+	rc = push(to, &md->aio.cblocks[idx], md->aio.data[idx], size0 + size, *off);
 	if (!rc) {
 		*off += size0 + size;
 	} else {

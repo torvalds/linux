@@ -196,16 +196,35 @@ static int record__aio_complete(struct perf_mmap *md, struct aiocb *cblock)
 	return rc;
 }
 
-static void record__aio_sync(struct perf_mmap *md)
+static int record__aio_sync(struct perf_mmap *md, bool sync_all)
 {
-	struct aiocb *cblock = &md->aio.cblock;
+	struct aiocb **aiocb = md->aio.aiocb;
+	struct aiocb *cblocks = md->aio.cblocks;
 	struct timespec timeout = { 0, 1000 * 1000  * 1 }; /* 1ms */
+	int i, do_suspend;
 
 	do {
-		if (cblock->aio_fildes == -1 || record__aio_complete(md, cblock))
-			return;
+		do_suspend = 0;
+		for (i = 0; i < md->aio.nr_cblocks; ++i) {
+			if (cblocks[i].aio_fildes == -1 || record__aio_complete(md, &cblocks[i])) {
+				if (sync_all)
+					aiocb[i] = NULL;
+				else
+					return i;
+			} else {
+				/*
+				 * Started aio write is not complete yet
+				 * so it has to be waited before the
+				 * next allocation.
+				 */
+				aiocb[i] = &cblocks[i];
+				do_suspend = 1;
+			}
+		}
+		if (!do_suspend)
+			return -1;
 
-		while (aio_suspend((const struct aiocb**)&cblock, 1, &timeout)) {
+		while (aio_suspend((const struct aiocb **)aiocb, md->aio.nr_cblocks, &timeout)) {
 			if (!(errno == EAGAIN || errno == EINTR))
 				pr_err("failed to sync perf data, error: %m\n");
 		}
@@ -252,28 +271,36 @@ static void record__aio_mmap_read_sync(struct record *rec)
 		struct perf_mmap *map = &maps[i];
 
 		if (map->base)
-			record__aio_sync(map);
+			record__aio_sync(map, true);
 	}
 }
 
 static int nr_cblocks_default = 1;
+static int nr_cblocks_max = 4;
 
 static int record__aio_parse(const struct option *opt,
-			     const char *str __maybe_unused,
+			     const char *str,
 			     int unset)
 {
 	struct record_opts *opts = (struct record_opts *)opt->value;
 
-	if (unset)
+	if (unset) {
 		opts->nr_cblocks = 0;
-	else
-		opts->nr_cblocks = nr_cblocks_default;
+	} else {
+		if (str)
+			opts->nr_cblocks = strtol(str, NULL, 0);
+		if (!opts->nr_cblocks)
+			opts->nr_cblocks = nr_cblocks_default;
+	}
 
 	return 0;
 }
 #else /* HAVE_AIO_SUPPORT */
-static void record__aio_sync(struct perf_mmap *md __maybe_unused)
+static int nr_cblocks_max = 0;
+
+static int record__aio_sync(struct perf_mmap *md __maybe_unused, bool sync_all __maybe_unused)
 {
+	return -1;
 }
 
 static int record__aio_pushfn(void *to __maybe_unused, struct aiocb *cblock __maybe_unused,
@@ -728,12 +755,13 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 					goto out;
 				}
 			} else {
+				int idx;
 				/*
 				 * Call record__aio_sync() to wait till map->data buffer
 				 * becomes available after previous aio write request.
 				 */
-				record__aio_sync(map);
-				if (perf_mmap__aio_push(map, rec, record__aio_pushfn, &off) != 0) {
+				idx = record__aio_sync(map, false);
+				if (perf_mmap__aio_push(map, rec, idx, record__aio_pushfn, &off) != 0) {
 					record__aio_set_pos(trace_fd, off);
 					rc = -1;
 					goto out;
@@ -1503,6 +1531,13 @@ static int perf_record_config(const char *var, const char *value, void *cb)
 		var = "call-graph.record-mode";
 		return perf_default_config(var, value, cb);
 	}
+#ifdef HAVE_AIO_SUPPORT
+	if (!strcmp(var, "record.aio")) {
+		rec->opts.nr_cblocks = strtol(value, NULL, 0);
+		if (!rec->opts.nr_cblocks)
+			rec->opts.nr_cblocks = nr_cblocks_default;
+	}
+#endif
 
 	return 0;
 }
@@ -1909,8 +1944,8 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN(0, "dry-run", &dry_run,
 		    "Parse options then exit"),
 #ifdef HAVE_AIO_SUPPORT
-	OPT_CALLBACK_NOOPT(0, "aio", &record.opts,
-		     NULL, "Enable asynchronous trace writing mode",
+	OPT_CALLBACK_OPTARG(0, "aio", &record.opts,
+		     &nr_cblocks_default, "n", "Use <n> control blocks in asynchronous trace writing mode (default: 1, max: 4)",
 		     record__aio_parse),
 #endif
 	OPT_END()
@@ -2105,6 +2140,8 @@ int cmd_record(int argc, const char **argv)
 		goto out;
 	}
 
+	if (rec->opts.nr_cblocks > nr_cblocks_max)
+		rec->opts.nr_cblocks = nr_cblocks_max;
 	if (verbose > 0)
 		pr_info("nr_cblocks: %d\n", rec->opts.nr_cblocks);
 
