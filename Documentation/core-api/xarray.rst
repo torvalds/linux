@@ -144,7 +144,9 @@ you only want to free the entry if it's ``NULL``).
 
 By default, the lowest free entry is allocated starting from 0.  If you
 want to allocate entries starting at 1, it is more efficient to use
-:c:func:`DEFINE_XARRAY_ALLOC1` or ``XA_FLAGS_ALLOC1``.
+:c:func:`DEFINE_XARRAY_ALLOC1` or ``XA_FLAGS_ALLOC1``.  If you want to
+allocate IDs up to a maximum, then wrap back around to the lowest free
+ID, you can use :c:func:`xa_alloc_cyclic`.
 
 You cannot use ``XA_MARK_0`` with an allocating XArray as this mark
 is used to track whether an entry is free or not.  The other marks are

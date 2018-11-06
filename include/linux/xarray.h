@@ -242,6 +242,7 @@ enum xa_lock_type {
 #define XA_FLAGS_LOCK_BH	((__force gfp_t)XA_LOCK_BH)
 #define XA_FLAGS_TRACK_FREE	((__force gfp_t)4U)
 #define XA_FLAGS_ZERO_BUSY	((__force gfp_t)8U)
+#define XA_FLAGS_ALLOC_WRAPPED	((__force gfp_t)16U)
 #define XA_FLAGS_MARK(mark)	((__force gfp_t)((1U << __GFP_BITS_SHIFT) << \
 						(__force unsigned)(mark)))
 
@@ -499,6 +500,8 @@ void *__xa_cmpxchg(struct xarray *, unsigned long index, void *old,
 int __xa_insert(struct xarray *, unsigned long index, void *entry, gfp_t);
 int __must_check __xa_alloc(struct xarray *, u32 *id, void *entry,
 		struct xa_limit, gfp_t);
+int __must_check __xa_alloc_cyclic(struct xarray *, u32 *id, void *entry,
+		struct xa_limit, u32 *next, gfp_t);
 int __xa_reserve(struct xarray *, unsigned long index, gfp_t);
 void __xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
 void __xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
@@ -853,6 +856,105 @@ static inline int __must_check xa_alloc_irq(struct xarray *xa, u32 *id,
 
 	xa_lock_irq(xa);
 	err = __xa_alloc(xa, id, entry, limit, gfp);
+	xa_unlock_irq(xa);
+
+	return err;
+}
+
+/**
+ * xa_alloc_cyclic() - Find somewhere to store this entry in the XArray.
+ * @xa: XArray.
+ * @id: Pointer to ID.
+ * @entry: New entry.
+ * @limit: Range of allocated ID.
+ * @next: Pointer to next ID to allocate.
+ * @gfp: Memory allocation flags.
+ *
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
+ * The search for an empty entry will start at @next and will wrap
+ * around if necessary.
+ *
+ * Context: Any context.  Takes and releases the xa_lock.  May sleep if
+ * the @gfp flags permit.
+ * Return: 0 if the allocation succeeded without wrapping.  1 if the
+ * allocation succeeded after wrapping, -ENOMEM if memory could not be
+ * allocated or -EBUSY if there are no free entries in @limit.
+ */
+static inline int xa_alloc_cyclic(struct xarray *xa, u32 *id, void *entry,
+		struct xa_limit limit, u32 *next, gfp_t gfp)
+{
+	int err;
+
+	xa_lock(xa);
+	err = __xa_alloc_cyclic(xa, id, entry, limit, next, gfp);
+	xa_unlock(xa);
+
+	return err;
+}
+
+/**
+ * xa_alloc_cyclic_bh() - Find somewhere to store this entry in the XArray.
+ * @xa: XArray.
+ * @id: Pointer to ID.
+ * @entry: New entry.
+ * @limit: Range of allocated ID.
+ * @next: Pointer to next ID to allocate.
+ * @gfp: Memory allocation flags.
+ *
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
+ * The search for an empty entry will start at @next and will wrap
+ * around if necessary.
+ *
+ * Context: Any context.  Takes and releases the xa_lock while
+ * disabling softirqs.  May sleep if the @gfp flags permit.
+ * Return: 0 if the allocation succeeded without wrapping.  1 if the
+ * allocation succeeded after wrapping, -ENOMEM if memory could not be
+ * allocated or -EBUSY if there are no free entries in @limit.
+ */
+static inline int xa_alloc_cyclic_bh(struct xarray *xa, u32 *id, void *entry,
+		struct xa_limit limit, u32 *next, gfp_t gfp)
+{
+	int err;
+
+	xa_lock_bh(xa);
+	err = __xa_alloc_cyclic(xa, id, entry, limit, next, gfp);
+	xa_unlock_bh(xa);
+
+	return err;
+}
+
+/**
+ * xa_alloc_cyclic_irq() - Find somewhere to store this entry in the XArray.
+ * @xa: XArray.
+ * @id: Pointer to ID.
+ * @entry: New entry.
+ * @limit: Range of allocated ID.
+ * @next: Pointer to next ID to allocate.
+ * @gfp: Memory allocation flags.
+ *
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
+ * The search for an empty entry will start at @next and will wrap
+ * around if necessary.
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.  May sleep if the @gfp flags permit.
+ * Return: 0 if the allocation succeeded without wrapping.  1 if the
+ * allocation succeeded after wrapping, -ENOMEM if memory could not be
+ * allocated or -EBUSY if there are no free entries in @limit.
+ */
+static inline int xa_alloc_cyclic_irq(struct xarray *xa, u32 *id, void *entry,
+		struct xa_limit limit, u32 *next, gfp_t gfp)
+{
+	int err;
+
+	xa_lock_irq(xa);
+	err = __xa_alloc_cyclic(xa, id, entry, limit, next, gfp);
 	xa_unlock_irq(xa);
 
 	return err;

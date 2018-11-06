@@ -1657,6 +1657,56 @@ int __xa_alloc(struct xarray *xa, u32 *id, void *entry,
 EXPORT_SYMBOL(__xa_alloc);
 
 /**
+ * __xa_alloc_cyclic() - Find somewhere to store this entry in the XArray.
+ * @xa: XArray.
+ * @id: Pointer to ID.
+ * @entry: New entry.
+ * @limit: Range of allocated ID.
+ * @next: Pointer to next ID to allocate.
+ * @gfp: Memory allocation flags.
+ *
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
+ * The search for an empty entry will start at @next and will wrap
+ * around if necessary.
+ *
+ * Context: Any context.  Expects xa_lock to be held on entry.  May
+ * release and reacquire xa_lock if @gfp flags permit.
+ * Return: 0 if the allocation succeeded without wrapping.  1 if the
+ * allocation succeeded after wrapping, -ENOMEM if memory could not be
+ * allocated or -EBUSY if there are no free entries in @limit.
+ */
+int __xa_alloc_cyclic(struct xarray *xa, u32 *id, void *entry,
+		struct xa_limit limit, u32 *next, gfp_t gfp)
+{
+	u32 min = limit.min;
+	int ret;
+
+	limit.min = max(min, *next);
+	ret = __xa_alloc(xa, id, entry, limit, gfp);
+	if ((xa->xa_flags & XA_FLAGS_ALLOC_WRAPPED) && ret == 0) {
+		xa->xa_flags &= ~XA_FLAGS_ALLOC_WRAPPED;
+		ret = 1;
+	}
+
+	if (ret < 0 && limit.min > min) {
+		limit.min = min;
+		ret = __xa_alloc(xa, id, entry, limit, gfp);
+		if (ret == 0)
+			ret = 1;
+	}
+
+	if (ret >= 0) {
+		*next = *id + 1;
+		if (*next == 0)
+			xa->xa_flags |= XA_FLAGS_ALLOC_WRAPPED;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(__xa_alloc_cyclic);
+
+/**
  * __xa_set_mark() - Set this mark on this entry while locked.
  * @xa: XArray.
  * @index: Index of entry.
