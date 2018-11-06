@@ -390,7 +390,7 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct wiphy *wiphy = hw->wiphy;
-	int i, ret;
+	int ret;
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2_phy_calibrate);
 
@@ -400,20 +400,7 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(dev->macaddr_list); i++) {
-		u8 *addr = dev->macaddr_list[i].addr;
-
-		memcpy(addr, dev->mt76.macaddr, ETH_ALEN);
-
-		if (!i)
-			continue;
-
-		addr[0] |= BIT(1);
-		addr[0] ^= ((i - 1) << 2);
-	}
-	wiphy->addresses = dev->macaddr_list;
-	wiphy->n_addresses = ARRAY_SIZE(dev->macaddr_list);
-
+	mt76x02_config_mac_addr_list(dev);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
 
 	/* init led callbacks */
