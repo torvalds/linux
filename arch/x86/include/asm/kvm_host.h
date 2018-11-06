@@ -610,7 +610,7 @@ struct kvm_vcpu_arch {
 	 * "guest_fpu" state here contains the guest FPU context, with the
 	 * host PRKU bits.
 	 */
-	struct fpu guest_fpu;
+	struct fpu *guest_fpu;
 
 	u64 xcr0;
 	u64 guest_supported_xcr0;
@@ -1196,6 +1196,7 @@ struct kvm_arch_async_pf {
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;
+extern struct kmem_cache *x86_fpu_cache;
 
 #define __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)

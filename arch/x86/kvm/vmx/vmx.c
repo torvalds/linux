@@ -6349,6 +6349,7 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 	free_loaded_vmcs(vmx->loaded_vmcs);
 	kfree(vmx->guest_msrs);
 	kvm_vcpu_uninit(vcpu);
+	kmem_cache_free(x86_fpu_cache, vmx->vcpu.arch.guest_fpu);
 	kmem_cache_free(kvm_vcpu_cache, vmx);
 }
 
@@ -6361,6 +6362,13 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	if (!vmx)
 		return ERR_PTR(-ENOMEM);
+
+	vmx->vcpu.arch.guest_fpu = kmem_cache_zalloc(x86_fpu_cache, GFP_KERNEL);
+	if (!vmx->vcpu.arch.guest_fpu) {
+		printk(KERN_ERR "kvm: failed to allocate vcpu's fpu\n");
+		err = -ENOMEM;
+		goto free_partial_vcpu;
+	}
 
 	vmx->vpid = allocate_vpid();
 
@@ -6454,6 +6462,8 @@ uninit_vcpu:
 	kvm_vcpu_uninit(&vmx->vcpu);
 free_vcpu:
 	free_vpid(vmx->vpid);
+	kmem_cache_free(x86_fpu_cache, vmx->vcpu.arch.guest_fpu);
+free_partial_vcpu:
 	kmem_cache_free(kvm_vcpu_cache, vmx);
 	return ERR_PTR(err);
 }
