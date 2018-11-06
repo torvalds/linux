@@ -1356,7 +1356,7 @@ static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)
 	struct page *page = pfn_to_page(pfn);
 
 	/*
-	 * PageTransCompoungMap() returns true for THP and
+	 * PageTransCompoundMap() returns true for THP and
 	 * hugetlbfs. Make sure the adjustment is done only for THP
 	 * pages.
 	 */

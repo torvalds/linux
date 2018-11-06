@@ -30,16 +30,14 @@
 #define pt_levels_pgdir_shift(lvls)	ARM64_HW_PGTABLE_LEVEL_SHIFT(4 - (lvls))
 
 /*
- * The hardware supports concatenation of up to 16 tables at stage2 entry level
- * and we use the feature whenever possible.
+ * The hardware supports concatenation of up to 16 tables at stage2 entry
+ * level and we use the feature whenever possible, which means we resolve 4
+ * additional bits of address at the entry level.
  *
- * Now, the minimum number of bits resolved at any level is (PAGE_SHIFT - 3).
- * On arm64, the smallest PAGE_SIZE supported is 4k, which means
- *             (PAGE_SHIFT - 3) > 4 holds for all page sizes.
- * This implies, the total number of page table levels at stage2 expected
- * by the hardware is actually the number of levels required for (IPA_SHIFT - 4)
- * in normal translations(e.g, stage1), since we cannot have another level in
- * the range (IPA_SHIFT, IPA_SHIFT - 4).
+ * This implies, the total number of page table levels required for
+ * IPA_SHIFT at stage2 expected by the hardware can be calculated using
+ * the same logic used for the (non-collapsable) stage1 page tables but for
+ * (IPA_SHIFT - 4).
  */
 #define stage2_pgtable_levels(ipa)	ARM64_HW_PGTABLE_LEVELS((ipa) - 4)
 #define kvm_stage2_levels(kvm)		VTCR_EL2_LVLS(kvm->arch.vtcr)
