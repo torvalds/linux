@@ -26,7 +26,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
 
