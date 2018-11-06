@@ -179,7 +179,7 @@ static void driver_deferred_probe_trigger(void)
 }
 
 /**
- * device_block_probing() - Block/defere device's probes
+ * device_block_probing() - Block/defer device's probes
  *
  *	It will disable probing of devices and defer their probes instead.
  */
@@ -456,7 +456,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	if (defer_all_probes) {
 		/*
 		 * Value of defer_all_probes can be set only by
-		 * device_defer_all_probes_enable() which, in turn, will call
+		 * device_block_probing() which, in turn, will call
 		 * wait_for_device_probe() right after that to avoid any races.
 		 */
 		dev_dbg(dev, "Driver %s force probe deferral\n", drv->name);
