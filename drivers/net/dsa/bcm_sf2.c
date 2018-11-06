@@ -710,6 +710,10 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 		return ret;
 	}
 
+	ret = bcm_sf2_cfp_resume(ds);
+	if (ret)
+		return ret;
+
 	if (priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(ds, true);
 

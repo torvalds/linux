@@ -215,5 +215,6 @@ int bcm_sf2_set_rxnfc(struct dsa_switch *ds, int port,
 		      struct ethtool_rxnfc *nfc);
 int bcm_sf2_cfp_rst(struct bcm_sf2_priv *priv);
 void bcm_sf2_cfp_exit(struct dsa_switch *ds);
+int bcm_sf2_cfp_resume(struct dsa_switch *ds);
 
 #endif /* __BCM_SF2_H */

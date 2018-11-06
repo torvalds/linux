@@ -1443,3 +1443,39 @@ void bcm_sf2_cfp_exit(struct dsa_switch *ds)
 	list_for_each_entry_safe_reverse(rule, n, &priv->cfp.rules_list, next)
 		bcm_sf2_cfp_rule_del(priv, rule->port, rule->fs.location);
 }
+
+int bcm_sf2_cfp_resume(struct dsa_switch *ds)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	struct cfp_rule *rule;
+	int ret = 0;
+	u32 reg;
+
+	if (list_empty(&priv->cfp.rules_list))
+		return ret;
+
+	reg = core_readl(priv, CORE_CFP_CTL_REG);
+	reg &= ~CFP_EN_MAP_MASK;
+	core_writel(priv, reg, CORE_CFP_CTL_REG);
+
+	ret = bcm_sf2_cfp_rst(priv);
+	if (ret)
+		return ret;
+
+	list_for_each_entry(rule, &priv->cfp.rules_list, next) {
+		ret = bcm_sf2_cfp_rule_remove(priv, rule->port,
+					      rule->fs.location);
+		if (ret) {
+			dev_err(ds->dev, "failed to remove rule\n");
+			return ret;
+		}
+
+		ret = bcm_sf2_cfp_rule_insert(ds, rule->port, &rule->fs);
+		if (ret) {
+			dev_err(ds->dev, "failed to restore rule\n");
+			return ret;
+		}
+	};
+
+	return ret;
+}
