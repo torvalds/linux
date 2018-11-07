@@ -408,9 +408,8 @@ static int msm_gem_pin_iova(struct drm_gem_object *obj,
 			obj->size >> PAGE_SHIFT);
 }
 
-
-/* get iova, taking a reference.  Should have a matching put */
-int msm_gem_get_iova(struct drm_gem_object *obj,
+/* get iova and pin it. Should have a matching put */
+int msm_gem_get_and_pin_iova(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace, uint64_t *iova)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
@@ -431,8 +430,23 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 	return ret;
 }
 
+/* Get an iova but don't pin the memory behind it */
+int msm_gem_get_iova(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace, uint64_t *iova)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	int ret;
+
+	mutex_lock(&msm_obj->lock);
+	ret = msm_gem_get_iova_locked(obj, aspace, iova);
+	mutex_unlock(&msm_obj->lock);
+
+	return ret;
+}
+
+
 /* get iova without taking a reference, used in places where you have
- * already done a 'msm_gem_get_iova()'.
+ * already done a 'msm_gem_get_and_pin_iova' or 'msm_gem_get_iova'
  */
 uint64_t msm_gem_iova(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace)
@@ -1072,7 +1086,7 @@ static void *_msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
 		return ERR_CAST(obj);
 
 	if (iova) {
-		ret = msm_gem_get_iova(obj, aspace, iova);
+		ret = msm_gem_get_and_pin_iova(obj, aspace, iova);
 		if (ret)
 			goto err;
 	}

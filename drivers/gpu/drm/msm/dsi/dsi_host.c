@@ -1248,7 +1248,7 @@ int dsi_dma_base_get_6g(struct msm_dsi_host *msm_host, uint64_t *dma_base)
 	if (!dma_base)
 		return -EINVAL;
 
-	return msm_gem_get_iova(msm_host->tx_gem_obj,
+	return msm_gem_get_and_pin_iova(msm_host->tx_gem_obj,
 				priv->kms->aspace, dma_base);
 }
 

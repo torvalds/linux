@@ -209,7 +209,8 @@ int adreno_hw_init(struct msm_gpu *gpu)
 		if (!ring)
 			continue;
 
-		ret = msm_gem_get_iova(ring->bo, gpu->aspace, &ring->iova);
+		ret = msm_gem_get_and_pin_iova(ring->bo, gpu->aspace,
+			&ring->iova);
 		if (ret) {
 			ring->iova = 0;
 			DRM_DEV_ERROR(gpu->dev->dev,

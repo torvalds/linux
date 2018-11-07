@@ -270,7 +270,7 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 		uint64_t iova;
 
 		/* if locking succeeded, pin bo: */
-		ret = msm_gem_get_iova(&msm_obj->base,
+		ret = msm_gem_get_and_pin_iova(&msm_obj->base,
 				submit->gpu->aspace, &iova);
 
 		if (ret)

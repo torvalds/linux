@@ -66,7 +66,7 @@ int msm_framebuffer_prepare(struct drm_framebuffer *fb,
 	uint64_t iova;
 
 	for (i = 0; i < n; i++) {
-		ret = msm_gem_get_iova(fb->obj[i], aspace, &iova);
+		ret = msm_gem_get_and_pin_iova(fb->obj[i], aspace, &iova);
 		DBG("FB[%u]: iova[%d]: %08llx (%d)", fb->base.id, i, iova, ret);
 		if (ret)
 			return ret;

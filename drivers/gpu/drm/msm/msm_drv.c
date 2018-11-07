@@ -868,6 +868,10 @@ static int msm_ioctl_gem_info_iova(struct drm_device *dev,
 	if (!priv->gpu)
 		return -EINVAL;
 
+	/*
+	 * Don't pin the memory here - just get an address so that userspace can
+	 * be productive
+	 */
 	return msm_gem_get_iova(obj, priv->gpu->aspace, iova);
 }
 
