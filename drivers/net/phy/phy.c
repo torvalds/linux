@@ -467,6 +467,18 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 }
 EXPORT_SYMBOL(phy_mii_ioctl);
 
+static void phy_queue_state_machine(struct phy_device *phydev,
+				    unsigned int secs)
+{
+	mod_delayed_work(system_power_efficient_wq, &phydev->state_queue,
+			 secs * HZ);
+}
+
+static void phy_trigger_machine(struct phy_device *phydev)
+{
+	phy_queue_state_machine(phydev, 0);
+}
+
 static int phy_config_aneg(struct phy_device *phydev)
 {
 	if (phydev->drv->config_aneg)
@@ -620,13 +632,6 @@ int phy_speed_up(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(phy_speed_up);
 
-static void phy_queue_state_machine(struct phy_device *phydev,
-				    unsigned int secs)
-{
-	mod_delayed_work(system_power_efficient_wq, &phydev->state_queue,
-			 secs * HZ);
-}
-
 /**
  * phy_start_machine - start PHY state machine tracking
  * @phydev: the phy_device struct
@@ -642,20 +647,6 @@ void phy_start_machine(struct phy_device *phydev)
 	phy_trigger_machine(phydev);
 }
 EXPORT_SYMBOL_GPL(phy_start_machine);
-
-/**
- * phy_trigger_machine - trigger the state machine to run
- *
- * @phydev: the phy_device struct
- *
- * Description: There has been a change in state which requires that the
- *   state machine runs.
- */
-
-void phy_trigger_machine(struct phy_device *phydev)
-{
-	phy_queue_state_machine(phydev, 0);
-}
 
 /**
  * phy_stop_machine - stop the PHY state machine tracking
