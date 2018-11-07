@@ -2396,7 +2396,6 @@ static void hclge_do_reset(struct hclge_dev *hdev)
 		break;
 	case HNAE3_FUNC_RESET:
 		dev_info(&pdev->dev, "PF Reset requested\n");
-		hclge_func_reset_cmd(hdev, 0);
 		/* schedule again to check later */
 		set_bit(HNAE3_FUNC_RESET, &hdev->reset_pending);
 		hclge_reset_task_schedule(hdev);
@@ -2462,6 +2461,35 @@ static void hclge_clear_reset_cause(struct hclge_dev *hdev)
 	hclge_enable_vector(&hdev->misc_vector, true);
 }
 
+static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
+{
+	int ret = 0;
+
+	switch (hdev->reset_type) {
+	case HNAE3_FUNC_RESET:
+		ret = hclge_func_reset_cmd(hdev, 0);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"assertting function reset fail %d!\n", ret);
+			return ret;
+		}
+
+		/* After performaning pf reset, it is not necessary to do the
+		 * mailbox handling or send any command to firmware, because
+		 * any mailbox handling or command to firmware is only valid
+		 * after hclge_cmd_init is called.
+		 */
+		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+		break;
+	default:
+		break;
+	}
+
+	dev_info(&hdev->pdev->dev, "prepare wait ok\n");
+
+	return ret;
+}
+
 static void hclge_reset(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
@@ -2476,6 +2504,8 @@ static void hclge_reset(struct hclge_dev *hdev)
 	rtnl_lock();
 	hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
 	rtnl_unlock();
+
+	hclge_reset_prepare_wait(hdev);
 
 	if (!hclge_reset_wait(hdev)) {
 		rtnl_lock();
@@ -4873,7 +4903,11 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 	cancel_work_sync(&hdev->service_task);
 	clear_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state);
 
-	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state)) {
+	/* If it is not PF reset, the firmware will disable the MAC,
+	 * so it only need to stop phy here.
+	 */
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) &&
+	    hdev->reset_type != HNAE3_FUNC_RESET) {
 		hclge_mac_stop_phy(hdev);
 		return;
 	}
