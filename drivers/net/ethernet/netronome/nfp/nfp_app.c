@@ -136,6 +136,53 @@ nfp_app_reprs_set(struct nfp_app *app, enum nfp_repr_type type,
 	return old;
 }
 
+static int
+nfp_app_netdev_event(struct notifier_block *nb, unsigned long event, void *ptr)
+{
+	struct net_device *netdev;
+	struct nfp_app *app;
+
+	netdev = netdev_notifier_info_to_dev(ptr);
+	app = container_of(nb, struct nfp_app, netdev_nb);
+
+	if (app->type->netdev_event)
+		return app->type->netdev_event(app, netdev, event, ptr);
+	return NOTIFY_DONE;
+}
+
+int nfp_app_start(struct nfp_app *app, struct nfp_net *ctrl)
+{
+	int err;
+
+	app->ctrl = ctrl;
+
+	if (app->type->start) {
+		err = app->type->start(app);
+		if (err)
+			return err;
+	}
+
+	app->netdev_nb.notifier_call = nfp_app_netdev_event;
+	err = register_netdevice_notifier(&app->netdev_nb);
+	if (err)
+		goto err_app_stop;
+
+	return 0;
+
+err_app_stop:
+	if (app->type->stop)
+		app->type->stop(app);
+	return err;
+}
+
+void nfp_app_stop(struct nfp_app *app)
+{
+	unregister_netdevice_notifier(&app->netdev_nb);
+
+	if (app->type->stop)
+		app->type->stop(app);
+}
+
 struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id)
 {
 	struct nfp_app *app;
