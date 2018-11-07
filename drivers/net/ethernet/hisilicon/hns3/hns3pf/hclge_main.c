@@ -2517,6 +2517,10 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 
 	if (time_before(jiffies, (handle->last_reset_time + 3 * HZ)))
 		return;
+	else if (hdev->default_reset_request)
+		handle->reset_level =
+			hclge_get_reset_level(hdev,
+					      &hdev->default_reset_request);
 	else if (time_after(jiffies, (handle->last_reset_time + 4 * 5 * HZ)))
 		handle->reset_level = HNAE3_FUNC_RESET;
 
@@ -2529,6 +2533,14 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 
 	if (handle->reset_level < HNAE3_GLOBAL_RESET)
 		handle->reset_level++;
+}
+
+static void hclge_set_def_reset_request(struct hnae3_ae_dev *ae_dev,
+					enum hnae3_reset_type rst_type)
+{
+	struct hclge_dev *hdev = ae_dev->priv;
+
+	set_bit(rst_type, &hdev->default_reset_request);
 }
 
 static void hclge_reset_subtask(struct hclge_dev *hdev)
@@ -7321,6 +7333,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_vf_vlan_filter = hclge_set_vf_vlan_filter,
 	.enable_hw_strip_rxvtag = hclge_en_hw_strip_rxvtag,
 	.reset_event = hclge_reset_event,
+	.set_default_reset_request = hclge_set_def_reset_request,
 	.get_tqps_and_rss_info = hclge_get_tqps_and_rss_info,
 	.set_channels = hclge_set_channels,
 	.get_channels = hclge_get_channels,

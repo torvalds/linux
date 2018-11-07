@@ -145,6 +145,7 @@ struct hclgevf_dev {
 	struct hclgevf_misc_vector misc_vector;
 	struct hclgevf_rss_cfg rss_cfg;
 	unsigned long state;
+	unsigned long default_reset_request;
 
 #define HCLGEVF_RESET_REQUESTED		0
 #define HCLGEVF_RESET_PENDING		1

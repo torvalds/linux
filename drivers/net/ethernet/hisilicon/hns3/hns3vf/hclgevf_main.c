@@ -1219,6 +1219,19 @@ static int hclgevf_do_reset(struct hclgevf_dev *hdev)
 	return status;
 }
 
+static enum hnae3_reset_type hclgevf_get_reset_level(struct hclgevf_dev *hdev,
+						     unsigned long *addr)
+{
+	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
+
+	if (test_bit(HNAE3_VF_RESET, addr)) {
+		rst_level = HNAE3_VF_RESET;
+		clear_bit(HNAE3_VF_RESET, addr);
+	}
+
+	return rst_level;
+}
+
 static void hclgevf_reset_event(struct pci_dev *pdev,
 				struct hnae3_handle *handle)
 {
@@ -1226,13 +1239,26 @@ static void hclgevf_reset_event(struct pci_dev *pdev,
 
 	dev_info(&hdev->pdev->dev, "received reset request from VF enet\n");
 
-	handle->reset_level = HNAE3_VF_RESET;
+	if (!hdev->default_reset_request)
+		handle->reset_level =
+			hclgevf_get_reset_level(hdev,
+						&hdev->default_reset_request);
+	else
+		handle->reset_level = HNAE3_VF_RESET;
 
 	/* reset of this VF requested */
 	set_bit(HCLGEVF_RESET_REQUESTED, &hdev->reset_state);
 	hclgevf_reset_task_schedule(hdev);
 
 	handle->last_reset_time = jiffies;
+}
+
+static void hclgevf_set_def_reset_request(struct hnae3_ae_dev *ae_dev,
+					  enum hnae3_reset_type rst_type)
+{
+	struct hclgevf_dev *hdev = ae_dev->priv;
+
+	set_bit(rst_type, &hdev->default_reset_request);
 }
 
 static u32 hclgevf_get_fw_version(struct hnae3_handle *handle)
@@ -2193,6 +2219,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.set_vlan_filter = hclgevf_set_vlan_filter,
 	.enable_hw_strip_rxvtag = hclgevf_en_hw_strip_rxvtag,
 	.reset_event = hclgevf_reset_event,
+	.set_default_reset_request = hclgevf_set_def_reset_request,
 	.get_channels = hclgevf_get_channels,
 	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,
 	.get_status = hclgevf_get_status,
