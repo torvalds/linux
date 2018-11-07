@@ -217,7 +217,7 @@ static int m41t80_rtc_read_time(struct device *dev, struct rtc_time *tm)
 					    sizeof(buf), buf);
 	if (err < 0) {
 		dev_err(&client->dev, "Unable to read date\n");
-		return -EIO;
+		return err;
 	}
 
 	tm->tm_sec = bcd2bin(buf[M41T80_REG_SEC] & 0x7f);
@@ -274,10 +274,11 @@ static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	if (flags < 0)
 		return flags;
 
-	if (i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS,
-				      flags & ~M41T80_FLAGS_OF)) {
+	err = i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS,
+					flags & ~M41T80_FLAGS_OF);
+	if (err < 0) {
 		dev_err(&client->dev, "Unable to write flags register\n");
-		return -EIO;
+		return err;
 	}
 
 	return err;
@@ -287,10 +288,12 @@ static int m41t80_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
-	u8 reg;
+	int reg;
 
 	if (clientdata->features & M41T80_FEATURE_BL) {
 		reg = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+		if (reg < 0)
+			return reg;
 		seq_printf(seq, "battery\t\t: %s\n",
 			   (reg & M41T80_FLAGS_BATT_LOW) ? "exhausted" : "ok");
 	}
