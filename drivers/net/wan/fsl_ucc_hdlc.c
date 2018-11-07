@@ -391,6 +391,7 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
+	netdev_sent_queue(dev, skb->len);
 	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Start from the next BD that should be filled */
@@ -447,6 +448,8 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 {
 	/* Start from the next BD that should be filled */
 	struct net_device *dev = priv->ndev;
+	unsigned int bytes_sent = 0;
+	int howmany = 0;
 	struct qe_bd *bd;		/* BD pointer */
 	u16 bd_status;
 	int tx_restart = 0;
@@ -474,6 +477,8 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 		skb = priv->tx_skbuff[priv->skb_dirtytx];
 		if (!skb)
 			break;
+		howmany++;
+		bytes_sent += skb->len;
 		dev->stats.tx_packets++;
 		memset(priv->tx_buffer +
 		       (be32_to_cpu(bd->buf) - priv->dma_tx_addr),
@@ -501,6 +506,7 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 	if (tx_restart)
 		hdlc_tx_restart(priv);
 
+	netdev_completed_queue(dev, howmany, bytes_sent);
 	return 0;
 }
 
@@ -721,6 +727,7 @@ static int uhdlc_open(struct net_device *dev)
 		priv->hdlc_busy = 1;
 		netif_device_attach(priv->ndev);
 		napi_enable(&priv->napi);
+		netdev_reset_queue(dev);
 		netif_start_queue(dev);
 		hdlc_open(dev);
 	}
@@ -812,6 +819,7 @@ static int uhdlc_close(struct net_device *dev)
 
 	free_irq(priv->ut_info->uf_info.irq, priv);
 	netif_stop_queue(dev);
+	netdev_reset_queue(dev);
 	priv->hdlc_busy = 0;
 
 	return 0;
