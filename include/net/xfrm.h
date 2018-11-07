@@ -577,6 +577,7 @@ struct xfrm_policy {
 	/* This lock only affects elements except for entry. */
 	rwlock_t		lock;
 	refcount_t		refcnt;
+	u32			pos;
 	struct timer_list	timer;
 
 	atomic_t		genid;
