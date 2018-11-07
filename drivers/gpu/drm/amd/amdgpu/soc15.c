@@ -389,14 +389,13 @@ void soc15_program_register_sequence(struct amdgpu_device *adev,
 
 }
 
-
-static int soc15_asic_reset(struct amdgpu_device *adev)
+static int soc15_asic_mode1_reset(struct amdgpu_device *adev)
 {
 	u32 i;
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
-	dev_info(adev->dev, "GPU reset\n");
+	dev_info(adev->dev, "GPU mode1 reset\n");
 
 	/* disable BM */
 	pci_clear_master(adev->pdev);
@@ -419,6 +418,62 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
 	return 0;
+}
+
+static int soc15_asic_get_baco_capability(struct amdgpu_device *adev, bool *cap)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs || !pp_funcs->get_asic_baco_capability) {
+		*cap = false;
+		return -1;
+	}
+
+	return pp_funcs->get_asic_baco_capability(pp_handle, cap);
+}
+
+static int soc15_asic_baco_reset(struct amdgpu_device *adev)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs ||!pp_funcs->get_asic_baco_state ||!pp_funcs->set_asic_baco_state)
+		return -1;
+
+	/* enter BACO state */
+	if (pp_funcs->set_asic_baco_state(pp_handle, 1))
+		return -1;
+
+	/* exit BACO state */
+	if (pp_funcs->set_asic_baco_state(pp_handle, 0))
+		return -1;
+
+	dev_info(adev->dev, "GPU BACO reset\n");
+
+	return 0;
+}
+
+static int soc15_asic_reset(struct amdgpu_device *adev)
+{
+	int ret;
+	bool baco_reset;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		soc15_asic_get_baco_capability(adev, &baco_reset);
+		break;
+	default:
+		baco_reset = false;
+		break;
+	}
+
+	if (baco_reset)
+		ret = soc15_asic_baco_reset(adev);
+	else
+		ret = soc15_asic_mode1_reset(adev);
+
+	return ret;
 }
 
 /*static int soc15_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
