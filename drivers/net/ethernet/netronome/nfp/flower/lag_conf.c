@@ -582,7 +582,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	return 0;
 }
 
-static int
+static void
 nfp_fl_lag_changels_event(struct nfp_fl_lag *lag, struct net_device *netdev,
 			  struct netdev_notifier_changelowerstate_info *info)
 {
@@ -593,18 +593,18 @@ nfp_fl_lag_changels_event(struct nfp_fl_lag *lag, struct net_device *netdev,
 	unsigned long *flags;
 
 	if (!netif_is_lag_port(netdev) || !nfp_netdev_is_nfp_repr(netdev))
-		return 0;
+		return;
 
 	lag_lower_info = info->lower_state_info;
 	if (!lag_lower_info)
-		return 0;
+		return;
 
 	priv = container_of(lag, struct nfp_flower_priv, nfp_lag);
 	repr = netdev_priv(netdev);
 
 	/* Verify that the repr is associated with this app. */
 	if (repr->app != priv->app)
-		return 0;
+		return;
 
 	repr_priv = repr->app_priv;
 	flags = &repr_priv->lag_port_flags;
@@ -624,7 +624,6 @@ nfp_fl_lag_changels_event(struct nfp_fl_lag *lag, struct net_device *netdev,
 	mutex_unlock(&lag->lock);
 
 	schedule_delayed_work(&lag->work, NFP_FL_LAG_DELAY);
-	return 0;
 }
 
 static int
@@ -645,9 +644,7 @@ nfp_fl_lag_netdev_event(struct notifier_block *nb, unsigned long event,
 			return NOTIFY_BAD;
 		return NOTIFY_OK;
 	case NETDEV_CHANGELOWERSTATE:
-		err = nfp_fl_lag_changels_event(lag, netdev, ptr);
-		if (err)
-			return NOTIFY_BAD;
+		nfp_fl_lag_changels_event(lag, netdev, ptr);
 		return NOTIFY_OK;
 	case NETDEV_UNREGISTER:
 		nfp_fl_lag_schedule_group_delete(lag, netdev);
