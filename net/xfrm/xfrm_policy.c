@@ -48,6 +48,7 @@ struct xfrm_flo {
 
 struct xfrm_pol_inexact_key {
 	possible_net_t net;
+	u32 if_id;
 	u16 family;
 	u8 dir, type;
 };
@@ -85,11 +86,12 @@ static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 						int dir);
 
 static struct xfrm_pol_inexact_bin *
-xfrm_policy_inexact_lookup(struct net *net, u8 type, u16 family, u8 dir);
+xfrm_policy_inexact_lookup(struct net *net, u8 type, u16 family, u8 dir,
+			   u32 if_id);
 
 static struct xfrm_pol_inexact_bin *
 xfrm_policy_inexact_lookup_rcu(struct net *net,
-			       u8 type, u16 family, u8 dir);
+			       u8 type, u16 family, u8 dir, u32 if_id);
 static struct xfrm_policy *
 xfrm_policy_insert_list(struct hlist_head *chain, struct xfrm_policy *policy,
 			bool excl);
@@ -618,6 +620,7 @@ xfrm_policy_inexact_alloc_bin(const struct xfrm_policy *pol, u8 dir)
 		.family = pol->family,
 		.type = pol->type,
 		.dir = dir,
+		.if_id = pol->if_id,
 	};
 	struct net *net = xp_net(pol);
 
@@ -925,7 +928,8 @@ static u32 xfrm_pol_bin_key(const void *data, u32 len, u32 seed)
 	const struct xfrm_pol_inexact_key *k = data;
 	u32 a = k->type << 24 | k->dir << 16 | k->family;
 
-	return jhash_2words(a, net_hash_mix(read_pnet(&k->net)), seed);
+	return jhash_3words(a, k->if_id, net_hash_mix(read_pnet(&k->net)),
+			    seed);
 }
 
 static u32 xfrm_pol_bin_obj(const void *data, u32 len, u32 seed)
@@ -957,7 +961,7 @@ static int xfrm_pol_bin_cmp(struct rhashtable_compare_arg *arg,
 	if (ret)
 		return ret;
 
-	return 0;
+	return b->k.if_id ^ key->if_id;
 }
 
 static const struct rhashtable_params xfrm_pol_inexact_params = {
@@ -1094,7 +1098,7 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u32 mark, u32 if_id,
 	chain = policy_hash_bysel(net, sel, sel->family, dir);
 	if (!chain) {
 		bin = xfrm_policy_inexact_lookup(net, type,
-						 sel->family, dir);
+						 sel->family, dir, if_id);
 		if (!bin) {
 			spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
 			return NULL;
@@ -1335,12 +1339,14 @@ static int xfrm_policy_match(const struct xfrm_policy *pol,
 }
 
 static struct xfrm_pol_inexact_bin *
-xfrm_policy_inexact_lookup_rcu(struct net *net, u8 type, u16 family, u8 dir)
+xfrm_policy_inexact_lookup_rcu(struct net *net, u8 type, u16 family,
+			       u8 dir, u32 if_id)
 {
 	struct xfrm_pol_inexact_key k = {
 		.family = family,
 		.type = type,
 		.dir = dir,
+		.if_id = if_id,
 	};
 
 	write_pnet(&k.net, net);
@@ -1350,14 +1356,15 @@ xfrm_policy_inexact_lookup_rcu(struct net *net, u8 type, u16 family, u8 dir)
 }
 
 static struct xfrm_pol_inexact_bin *
-xfrm_policy_inexact_lookup(struct net *net, u8 type, u16 family, u8 dir)
+xfrm_policy_inexact_lookup(struct net *net, u8 type, u16 family,
+			   u8 dir, u32 if_id)
 {
 	struct xfrm_pol_inexact_bin *bin;
 
 	lockdep_assert_held(&net->xfrm.xfrm_policy_lock);
 
 	rcu_read_lock();
-	bin = xfrm_policy_inexact_lookup_rcu(net, type, family, dir);
+	bin = xfrm_policy_inexact_lookup_rcu(net, type, family, dir, if_id);
 	rcu_read_unlock();
 
 	return bin;
@@ -1405,7 +1412,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 			break;
 		}
 	}
-	bin = xfrm_policy_inexact_lookup_rcu(net, type, family, dir);
+	bin = xfrm_policy_inexact_lookup_rcu(net, type, family, dir, if_id);
 	if (!bin)
 		goto skip_inexact;
 	chain = &bin->hhead;
