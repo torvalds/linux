@@ -68,6 +68,7 @@
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TTL_TOS	10
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_SRC	11
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_DST	12
+#define NFP_FL_ACTION_OPCODE_SET_IPV6_TC_HL_FL	13
 #define NFP_FL_ACTION_OPCODE_SET_UDP		14
 #define NFP_FL_ACTION_OPCODE_SET_TCP		15
 #define NFP_FL_ACTION_OPCODE_PRE_LAG		16
@@ -82,6 +83,8 @@
 #define NFP_FL_PUSH_VLAN_PRIO		GENMASK(15, 13)
 #define NFP_FL_PUSH_VLAN_CFI		BIT(12)
 #define NFP_FL_PUSH_VLAN_VID		GENMASK(11, 0)
+
+#define IPV6_FLOW_LABEL_MASK		cpu_to_be32(0x000fffff)
 
 /* LAG ports */
 #define NFP_FL_LAG_OUT			0xC0DE0000
@@ -133,6 +136,17 @@ struct nfp_fl_set_ip4_ttl_tos {
 	u8 ipv4_ttl;
 	u8 ipv4_tos;
 	__be16 reserved;
+};
+
+struct nfp_fl_set_ipv6_tc_hl_fl {
+	struct nfp_fl_act_head head;
+	u8 ipv6_tc_mask;
+	u8 ipv6_hop_limit_mask;
+	__be16 reserved;
+	u8 ipv6_tc;
+	u8 ipv6_hop_limit;
+	__be32 ipv6_label_mask;
+	__be32 ipv6_label;
 };
 
 struct nfp_fl_set_ipv6_addr {
