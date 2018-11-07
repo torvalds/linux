@@ -757,6 +757,10 @@
 	status = "okay";
 };
 
+&rk_key {
+	status = "disabled";
+};
+
 &rockchip_suspend {
 	status = "okay";
 	rockchip,sleep-debug-en = <1>;
