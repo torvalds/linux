@@ -675,7 +675,8 @@ void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct btree *b,
 	}
 
 	if (!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
-	    !bch2_bkey_replicas_marked(c, btree_node_type(b), e.s_c)) {
+	    !bch2_bkey_replicas_marked(c, btree_node_type(b),
+				       e.s_c, false)) {
 		bch2_bkey_val_to_text(&PBUF(buf), c, btree_node_type(b), k);
 		bch2_fs_bug(c,
 			"btree key bad (replicas not marked in superblock):\n%s",
@@ -1635,7 +1636,8 @@ static void bch2_extent_debugcheck_extent(struct bch_fs *c, struct btree *b,
 	}
 
 	if (!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
-	    !bch2_bkey_replicas_marked(c, btree_node_type(b), e.s_c)) {
+	    !bch2_bkey_replicas_marked(c, btree_node_type(b),
+				       e.s_c, false)) {
 		bch2_bkey_val_to_text(&PBUF(buf), c, btree_node_type(b),
 				      e.s_c);
 		bch2_fs_bug(c,

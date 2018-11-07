@@ -150,11 +150,6 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 			goto next;
 		}
 
-		ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_EXTENTS,
-					      extent_i_to_s_c(insert).s_c);
-		if (ret)
-			break;
-
 		ret = bch2_btree_insert_at(c, &op->res,
 				op_journal_seq(op),
 				BTREE_INSERT_ATOMIC|
@@ -239,8 +234,7 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 	m->op.flags |= BCH_WRITE_ONLY_SPECIFIED_DEVS|
 		BCH_WRITE_PAGES_STABLE|
 		BCH_WRITE_PAGES_OWNED|
-		BCH_WRITE_DATA_ENCODED|
-		BCH_WRITE_NOMARK_REPLICAS;
+		BCH_WRITE_DATA_ENCODED;
 
 	m->op.nr_replicas	= 1;
 	m->op.nr_replicas_required = 1;

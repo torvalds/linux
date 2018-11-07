@@ -160,13 +160,31 @@ cpu_replicas_add_entry(struct bch_replicas_cpu *old,
 	return new;
 }
 
-static bool replicas_has_entry(struct bch_replicas_cpu *r,
-			       struct bch_replicas_entry *search)
+static bool __replicas_has_entry(struct bch_replicas_cpu *r,
+				 struct bch_replicas_entry *search)
 {
 	return replicas_entry_bytes(search) <= r->entry_size &&
 		eytzinger0_find(r->entries, r->nr,
 				r->entry_size,
 				memcmp, search) < r->nr;
+}
+
+static bool replicas_has_entry(struct bch_fs *c,
+			       struct bch_replicas_entry *search,
+			       bool check_gc_replicas)
+{
+	struct bch_replicas_cpu *r, *gc_r;
+	bool marked;
+
+	rcu_read_lock();
+	r = rcu_dereference(c->replicas);
+	marked = __replicas_has_entry(r, search) &&
+		(!check_gc_replicas ||
+		 likely(!(gc_r = rcu_dereference(c->replicas_gc))) ||
+		 __replicas_has_entry(gc_r, search));
+	rcu_read_unlock();
+
+	return marked;
 }
 
 noinline
@@ -180,7 +198,7 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 
 	old_gc = rcu_dereference_protected(c->replicas_gc,
 					   lockdep_is_held(&c->sb_lock));
-	if (old_gc && !replicas_has_entry(old_gc, new_entry)) {
+	if (old_gc && !__replicas_has_entry(old_gc, new_entry)) {
 		new_gc = cpu_replicas_add_entry(old_gc, new_entry);
 		if (!new_gc)
 			goto err;
@@ -188,7 +206,7 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 
 	old_r = rcu_dereference_protected(c->replicas,
 					  lockdep_is_held(&c->sb_lock));
-	if (!replicas_has_entry(old_r, new_entry)) {
+	if (!__replicas_has_entry(old_r, new_entry)) {
 		new_r = cpu_replicas_add_entry(old_r, new_entry);
 		if (!new_r)
 			goto err;
@@ -227,17 +245,8 @@ err:
 static int __bch2_mark_replicas(struct bch_fs *c,
 				struct bch_replicas_entry *devs)
 {
-	struct bch_replicas_cpu *r, *gc_r;
-	bool marked;
-
-	rcu_read_lock();
-	r = rcu_dereference(c->replicas);
-	gc_r = rcu_dereference(c->replicas_gc);
-	marked = replicas_has_entry(r, devs) &&
-		(!likely(gc_r) || replicas_has_entry(gc_r, devs));
-	rcu_read_unlock();
-
-	return likely(marked) ? 0
+	return likely(replicas_has_entry(c, devs, true))
+		? 0
 		: bch2_mark_replicas_slowpath(c, devs);
 }
 
@@ -666,10 +675,10 @@ const struct bch_sb_field_ops bch_sb_field_ops_replicas_v0 = {
 
 bool bch2_replicas_marked(struct bch_fs *c,
 			  enum bch_data_type data_type,
-			  struct bch_devs_list devs)
+			  struct bch_devs_list devs,
+			  bool check_gc_replicas)
 {
 	struct bch_replicas_entry_padded search;
-	bool ret;
 
 	if (!devs.nr)
 		return true;
@@ -678,19 +687,15 @@ bool bch2_replicas_marked(struct bch_fs *c,
 
 	devlist_to_replicas(devs, data_type, &search.e);
 
-	rcu_read_lock();
-	ret = replicas_has_entry(rcu_dereference(c->replicas), &search.e);
-	rcu_read_unlock();
-
-	return ret;
+	return replicas_has_entry(c, &search.e, check_gc_replicas);
 }
 
 bool bch2_bkey_replicas_marked(struct bch_fs *c,
 			       enum bkey_type type,
-			       struct bkey_s_c k)
+			       struct bkey_s_c k,
+			       bool check_gc_replicas)
 {
 	struct bch_replicas_entry_padded search;
-	bool ret;
 
 	memset(&search, 0, sizeof(search));
 
@@ -700,20 +705,16 @@ bool bch2_bkey_replicas_marked(struct bch_fs *c,
 
 		for (i = 0; i < cached.nr; i++)
 			if (!bch2_replicas_marked(c, BCH_DATA_CACHED,
-					bch2_dev_list_single(cached.devs[i])))
+					bch2_dev_list_single(cached.devs[i]),
+					check_gc_replicas))
 				return false;
 	}
 
 	bkey_to_replicas(type, k, &search.e);
 
-	if (!search.e.nr_devs)
-		return true;
-
-	rcu_read_lock();
-	ret = replicas_has_entry(rcu_dereference(c->replicas), &search.e);
-	rcu_read_unlock();
-
-	return ret;
+	return search.e.nr_devs
+		? replicas_has_entry(c, &search.e, check_gc_replicas)
+		: true;
 }
 
 struct replicas_status __bch2_replicas_status(struct bch_fs *c,

@@ -23,7 +23,6 @@
 #include "keylist.h"
 #include "move.h"
 #include "rebalance.h"
-#include "replicas.h"
 #include "super.h"
 #include "super-io.h"
 #include "trace.h"
@@ -334,13 +333,6 @@ static void __bch2_write_index(struct bch_write_op *op)
 		if (!bch2_extent_nr_ptrs(e.c)) {
 			ret = -EIO;
 			goto err;
-		}
-
-		if (!(op->flags & BCH_WRITE_NOMARK_REPLICAS)) {
-			ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_EXTENTS,
-						      e.s_c);
-			if (ret)
-				goto err;
 		}
 
 		dst = bkey_next(dst);

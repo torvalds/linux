@@ -785,7 +785,7 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 		if (!degraded &&
 		    (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
 		     fsck_err_on(!bch2_replicas_marked(c, BCH_DATA_JOURNAL,
-						       i->devs), c,
+						       i->devs, false), c,
 				 "superblock not marked as containing replicas (type %u)",
 				 BCH_DATA_JOURNAL))) {
 			ret = bch2_mark_replicas(c, BCH_DATA_JOURNAL, i->devs);

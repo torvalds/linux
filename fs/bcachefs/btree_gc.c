@@ -155,7 +155,7 @@ static int bch2_btree_mark_ptrs_initial(struct bch_fs *c, enum bkey_type type,
 	       k.k->version.lo > journal_cur_seq(&c->journal));
 
 	if (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
-	    fsck_err_on(!bch2_bkey_replicas_marked(c, type, k), c,
+	    fsck_err_on(!bch2_bkey_replicas_marked(c, type, k, false), c,
 			"superblock not marked as containing replicas (type %u)",
 			data_type)) {
 		ret = bch2_mark_bkey_replicas(c, type, k);
