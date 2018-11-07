@@ -763,16 +763,23 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 		break;
 	}
 
-	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p\t",
+	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
 			obj->name, kref_read(&obj->refcount),
 			off, msm_obj->vaddr);
 
-	/* FIXME: we need to print the address space here too */
-	list_for_each_entry(vma, &msm_obj->vmas, list)
-		seq_printf(m, " %08llx", vma->iova);
+	seq_printf(m, " %08zu%9s\n", obj->size, madv);
 
-	seq_printf(m, " %zu%s\n", obj->size, madv);
+	if (!list_empty(&msm_obj->vmas)) {
+
+		seq_puts(m, "   vmas:");
+
+		list_for_each_entry(vma, &msm_obj->vmas, list)
+			seq_printf(m, " [%s: %08llx,%s]", vma->aspace->name,
+				vma->iova, vma->mapped ? "mapped" : "unmapped");
+
+		seq_puts(m, "\n");
+	}
 
 	rcu_read_lock();
 	fobj = rcu_dereference(robj->fence);
@@ -799,9 +806,10 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 	int count = 0;
 	size_t size = 0;
 
+	seq_puts(m, "   flags       id ref  offset   kaddr            size     madv\n");
 	list_for_each_entry(msm_obj, list, mm_list) {
 		struct drm_gem_object *obj = &msm_obj->base;
-		seq_printf(m, "   ");
+		seq_puts(m, "   ");
 		msm_gem_describe(obj, m);
 		count++;
 		size += obj->size;
