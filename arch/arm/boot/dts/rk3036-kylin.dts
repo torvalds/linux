@@ -51,6 +51,20 @@
 		reg = <0x60000000 0x20000000>;
 	};
 
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_LOW>;
+		rockchip,serial-id = <2>;
+		rockchip,wake-irq = <0>;
+		/* If enable uart uses irq instead of fiq */
+		rockchip,irq-mode-enable = <0>;
+		/* Only 115200 and 1500000 */
+		rockchip,baudrate = <115200>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2_xfer>;
+		status = "okay";
+	};
+
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 
