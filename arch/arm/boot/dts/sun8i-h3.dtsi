@@ -124,7 +124,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		cma_pool: cma@4a000000 {
+		cma_pool: default-pool {
 			compatible = "shared-dma-pool";
 			size = <0x6000000>;
 			alloc-ranges = <0x4a000000 0x6000000>;
