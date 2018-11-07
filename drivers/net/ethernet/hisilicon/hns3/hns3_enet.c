@@ -384,6 +384,9 @@ static int hns3_nic_net_open(struct net_device *netdev)
 	struct hnae3_knic_private_info *kinfo;
 	int i, ret;
 
+	if (hns3_nic_resetting(netdev))
+		return -EBUSY;
+
 	netif_carrier_off(netdev);
 
 	ret = hns3_nic_set_real_num_queue(netdev);
@@ -3749,6 +3752,10 @@ static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct net_device *ndev = kinfo->netdev;
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+
+	if (test_and_set_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
+		return 0;
 
 	/* it is cumbersome for hardware to pick-and-choose entries for deletion
 	 * from table space. Hence, for function reset software intervention is
@@ -3768,6 +3775,7 @@ static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
+	struct hns3_nic_priv *priv = netdev_priv(kinfo->netdev);
 	int ret = 0;
 
 	if (netif_running(kinfo->netdev)) {
@@ -3779,6 +3787,8 @@ static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 		}
 		handle->last_reset_time = jiffies;
 	}
+
+	clear_bit(HNS3_NIC_STATE_RESETTING, &priv->state);
 
 	return ret;
 }

@@ -599,6 +599,13 @@ static inline bool hns3_dev_ongoing_func_reset(struct hnae3_ae_dev *ae_dev)
 #define hns3_read_dev(a, reg) \
 	hns3_read_reg((a)->io_base, (reg))
 
+static inline bool hns3_nic_resetting(struct net_device *netdev)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+
+	return test_bit(HNS3_NIC_STATE_RESETTING, &priv->state);
+}
+
 #define hns3_write_dev(a, reg, value) \
 	hns3_write_reg((a)->io_base, (reg), (value))
 
