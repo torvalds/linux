@@ -558,7 +558,7 @@
 				compatible = "fsl,imx6sx-kpp", "fsl,imx21-kpp";
 				reg = <0x020b8000 0x4000>;
 				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SX_CLK_DUMMY>;
+				clocks = <&clks IMX6SX_CLK_IPG>;
 				status = "disabled";
 			};
 
@@ -566,14 +566,14 @@
 				compatible = "fsl,imx6sx-wdt", "fsl,imx21-wdt";
 				reg = <0x020bc000 0x4000>;
 				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SX_CLK_DUMMY>;
+				clocks = <&clks IMX6SX_CLK_IPG>;
 			};
 
 			wdog2: wdog@20c0000 {
 				compatible = "fsl,imx6sx-wdt", "fsl,imx21-wdt";
 				reg = <0x020c0000 0x4000>;
 				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SX_CLK_DUMMY>;
+				clocks = <&clks IMX6SX_CLK_IPG>;
 				status = "disabled";
 			};
 
@@ -1270,7 +1270,7 @@
 				compatible = "fsl,imx6sx-wdt", "fsl,imx21-wdt";
 				reg = <0x02288000 0x4000>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SX_CLK_DUMMY>;
+				clocks = <&clks IMX6SX_CLK_IPG>;
 				status = "disabled";
 			};
 
