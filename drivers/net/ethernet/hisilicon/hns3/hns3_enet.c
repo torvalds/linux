@@ -3716,8 +3716,18 @@ static void hns3_restore_coal(struct hns3_nic_priv *priv)
 
 static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct net_device *ndev = kinfo->netdev;
+
+	/* it is cumbersome for hardware to pick-and-choose entries for deletion
+	 * from table space. Hence, for function reset software intervention is
+	 * required to delete the entries
+	 */
+	if (hns3_dev_ongoing_func_reset(ae_dev)) {
+		hns3_remove_hw_addr(ndev);
+		hns3_del_all_fd_rules(ndev, false);
+	}
 
 	if (!netif_running(ndev))
 		return 0;
@@ -3797,7 +3807,6 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 
 static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
@@ -3820,15 +3829,6 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	ret = hns3_uninit_all_ring(priv);
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
-
-	/* it is cumbersome for hardware to pick-and-choose entries for deletion
-	 * from table space. Hence, for function reset software intervention is
-	 * required to delete the entries
-	 */
-	if (hns3_dev_ongoing_func_reset(ae_dev)) {
-		hns3_remove_hw_addr(netdev);
-		hns3_del_all_fd_rules(netdev, false);
-	}
 
 	clear_bit(HNS3_NIC_STATE_INITED, &priv->state);
 
