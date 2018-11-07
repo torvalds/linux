@@ -686,7 +686,6 @@ static int nfp_tun_mac_event_handler(struct notifier_block *nb,
 int nfp_tunnel_config_start(struct nfp_app *app)
 {
 	struct nfp_flower_priv *priv = app->priv;
-	struct net_device *netdev;
 	int err;
 
 	/* Initialise priv data for MAC offloading. */
@@ -714,12 +713,6 @@ int nfp_tunnel_config_start(struct nfp_app *app)
 	err = register_netevent_notifier(&priv->nfp_tun_neigh_nb);
 	if (err)
 		goto err_unreg_mac_nb;
-
-	/* Parse netdevs already registered for MACs that need offloaded. */
-	rtnl_lock();
-	for_each_netdev(&init_net, netdev)
-		nfp_tun_add_to_mac_offload_list(netdev, app);
-	rtnl_unlock();
 
 	return 0;
 
