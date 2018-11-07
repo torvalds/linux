@@ -190,6 +190,8 @@ static bool nfp_tun_is_netdev_to_offload(struct net_device *netdev)
 		return true;
 	if (netif_is_vxlan(netdev))
 		return true;
+	if (netif_is_geneve(netdev))
+		return true;
 
 	return false;
 }
