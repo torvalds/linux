@@ -58,9 +58,6 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		       unsigned long *contpc)
 {
 	union mips_instruction insn = (union mips_instruction)dec_insn.insn;
-	int bc_false = 0;
-	unsigned int fcr31;
-	unsigned int bit;
 
 	if (!cpu_has_mmips)
 		return 0;
@@ -139,8 +136,13 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 					dec_insn.pc_inc +
 					dec_insn.next_pc_inc;
 			return 1;
+#ifdef CONFIG_MIPS_FP_SUPPORT
 		case mm_bc2f_op:
-		case mm_bc1f_op:
+		case mm_bc1f_op: {
+			int bc_false = 0;
+			unsigned int fcr31;
+			unsigned int bit;
+
 			bc_false = 1;
 			/* Fall through */
 		case mm_bc2t_op:
@@ -166,6 +168,8 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 				*contpc = regs->cp0_epc +
 					dec_insn.pc_inc + dec_insn.next_pc_inc;
 			return 1;
+		}
+#endif /* CONFIG_MIPS_FP_SUPPORT */
 		}
 		break;
 	case mm_pool16c_op:
@@ -416,8 +420,8 @@ int __MIPS16e_compute_return_epc(struct pt_regs *regs)
 int __compute_return_epc_for_insn(struct pt_regs *regs,
 				   union mips_instruction insn)
 {
-	unsigned int bit, fcr31, dspcontrol, reg;
 	long epc = regs->cp0_epc;
+	unsigned int dspcontrol;
 	int ret = 0;
 
 	switch (insn.i_format.opcode) {
@@ -667,10 +671,13 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		regs->cp0_epc = epc;
 		break;
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
 	/*
 	 * And now the FPA/cp1 branch instructions.
 	 */
-	case cop1_op:
+	case cop1_op: {
+		unsigned int bit, fcr31, reg;
+
 		if (cpu_has_mips_r6 &&
 		    ((insn.i_format.rs == bc1eqz_op) ||
 		     (insn.i_format.rs == bc1nez_op))) {
@@ -728,6 +735,9 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			}
 			break;
 		}
+	}
+#endif /* CONFIG_MIPS_FP_SUPPORT */
+
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	case lwc2_op: /* This is bbit0 on Octeon */
 		if ((regs->regs[insn.i_format.rs] & (1ull<<insn.i_format.rt))
