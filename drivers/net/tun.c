@@ -2448,7 +2448,8 @@ build:
 			goto out;
 	}
 
-	if (!rcu_dereference(tun->steering_prog))
+	if (!rcu_dereference(tun->steering_prog) && tun->numqueues > 1 &&
+	    !tfile->detached)
 		rxhash = __skb_get_hash_symmetric(skb);
 
 	netif_receive_skb(skb);
