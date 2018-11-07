@@ -44,9 +44,7 @@ struct augmented_filename {
 	char		value[256];
 };
 
-#define SYS_WRITE 1
 #define SYS_OPEN 2
-#define SYS_POLL 7
 #define SYS_OPENAT 257
 
 pid_filter(pids_filtered);
@@ -106,8 +104,6 @@ int sys_enter(struct syscall_enter_args *args)
 	 * 	 after the ctx memory access to prevent their down stream merging.
 	 */
 	switch (augmented_args.args.syscall_nr) {
-	case SYS_WRITE:
-	case SYS_POLL:	 return 0;
 	case SYS_OPEN:	 filename_arg = (const void *)args->args[0];
 			__asm__ __volatile__("": : :"memory");
 			 break;
