@@ -1218,20 +1218,20 @@ static int default_cu2_call(struct notifier_block *nfb, unsigned long action,
 static int enable_restore_fp_context(int msa)
 {
 	int err, was_fpu_owner, prior_msa;
+	bool first_fp;
 
-	if (!used_math()) {
-		/* First time FP context user. */
+	/* Initialize context if it hasn't been used already */
+	first_fp = init_fp_ctx(current);
+
+	if (first_fp) {
 		preempt_disable();
-		err = init_fpu();
+		err = own_fpu_inatomic(1);
 		if (msa && !err) {
 			enable_msa();
-			init_msa_upper();
 			set_thread_flag(TIF_USEDMSA);
 			set_thread_flag(TIF_MSA_CTX_LIVE);
 		}
 		preempt_enable();
-		if (!err)
-			set_used_math();
 		return err;
 	}
 

@@ -33,7 +33,6 @@
 struct sigcontext;
 struct sigcontext32;
 
-extern void _init_fpu(unsigned int);
 extern void _save_fp(struct task_struct *);
 extern void _restore_fp(struct task_struct *);
 
@@ -198,42 +197,36 @@ static inline void lose_fpu(int save)
 	preempt_enable();
 }
 
-static inline int init_fpu(void)
+/**
+ * init_fp_ctx() - Initialize task FP context
+ * @target: The task whose FP context should be initialized.
+ *
+ * Initializes the FP context of the target task to sane default values if that
+ * target task does not already have valid FP context. Once the context has
+ * been initialized, the task will be marked as having used FP & thus having
+ * valid FP context.
+ *
+ * Returns: true if context is initialized, else false.
+ */
+static inline bool init_fp_ctx(struct task_struct *target)
 {
-	unsigned int fcr31 = current->thread.fpu.fcr31;
-	int ret = 0;
+	/* If FP has been used then the target already has context */
+	if (tsk_used_math(target))
+		return false;
 
-	if (cpu_has_fpu) {
-		unsigned int config5;
+	/* Begin with data registers set to all 1s... */
+	memset(&target->thread.fpu.fpr, ~0, sizeof(target->thread.fpu.fpr));
 
-		ret = __own_fpu();
-		if (ret)
-			return ret;
+	/* FCSR has been preset by `mips_set_personality_nan'.  */
 
-		if (!cpu_has_fre) {
-			_init_fpu(fcr31);
+	/*
+	 * Record that the target has "used" math, such that the context
+	 * just initialised, and any modifications made by the caller,
+	 * aren't discarded.
+	 */
+	set_stopped_child_used_math(target);
 
-			return 0;
-		}
-
-		/*
-		 * Ensure FRE is clear whilst running _init_fpu, since
-		 * single precision FP instructions are used. If FRE
-		 * was set then we'll just end up initialising all 32
-		 * 64b registers.
-		 */
-		config5 = clear_c0_config5(MIPS_CONF5_FRE);
-		enable_fpu_hazard();
-
-		_init_fpu(fcr31);
-
-		/* Restore FRE */
-		write_c0_config5(config5);
-		enable_fpu_hazard();
-	} else
-		fpu_emulator_init_fpu();
-
-	return ret;
+	return true;
 }
 
 static inline void save_fp(struct task_struct *tsk)

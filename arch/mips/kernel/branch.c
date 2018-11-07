@@ -674,16 +674,8 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		if (cpu_has_mips_r6 &&
 		    ((insn.i_format.rs == bc1eqz_op) ||
 		     (insn.i_format.rs == bc1nez_op))) {
-			if (!used_math()) { /* First time FPU user */
-				ret = init_fpu();
-				if (ret && NO_R6EMU) {
-					ret = -ret;
-					break;
-				}
-				ret = 0;
-				set_used_math();
-			}
-			lose_fpu(1);    /* Save FPU state for the emulator. */
+			if (!init_fp_ctx(current))
+				lose_fpu(1);
 			reg = insn.i_format.rt;
 			bit = get_fpr32(&current->thread.fpu.fpr[reg], 0) & 0x1;
 			if (insn.i_format.rs == bc1eqz_op)

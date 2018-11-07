@@ -50,25 +50,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
-static void init_fp_ctx(struct task_struct *target)
-{
-	/* If FP has been used then the target already has context */
-	if (tsk_used_math(target))
-		return;
-
-	/* Begin with data registers set to all 1s... */
-	memset(&target->thread.fpu.fpr, ~0, sizeof(target->thread.fpu.fpr));
-
-	/* FCSR has been preset by `mips_set_personality_nan'.  */
-
-	/*
-	 * Record that the target has "used" math, such that the context
-	 * just initialised, and any modifications made by the caller,
-	 * aren't discarded.
-	 */
-	set_stopped_child_used_math(target);
-}
-
 /*
  * Called by kernel/ptrace.c when detaching..
  *
