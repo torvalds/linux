@@ -215,6 +215,20 @@ static void intel_mst_pre_pll_enable_dp(struct intel_encoder *encoder,
 						    pipe_config, NULL);
 }
 
+static void intel_mst_post_pll_disable_dp(struct intel_encoder *encoder,
+					  const struct intel_crtc_state *old_crtc_state,
+					  const struct drm_connector_state *old_conn_state)
+{
+	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
+	struct intel_digital_port *intel_dig_port = intel_mst->primary;
+	struct intel_dp *intel_dp = &intel_dig_port->dp;
+
+	if (intel_dp->active_mst_links == 0)
+		intel_dig_port->base.post_pll_disable(&intel_dig_port->base,
+						      old_crtc_state,
+						      old_conn_state);
+}
+
 static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *pipe_config,
 				    const struct drm_connector_state *conn_state)
@@ -549,6 +563,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	intel_encoder->disable = intel_mst_disable_dp;
 	intel_encoder->post_disable = intel_mst_post_disable_dp;
 	intel_encoder->pre_pll_enable = intel_mst_pre_pll_enable_dp;
+	intel_encoder->post_pll_disable = intel_mst_post_pll_disable_dp;
 	intel_encoder->pre_enable = intel_mst_pre_enable_dp;
 	intel_encoder->enable = intel_mst_enable_dp;
 	intel_encoder->get_hw_state = intel_dp_mst_enc_get_hw_state;
