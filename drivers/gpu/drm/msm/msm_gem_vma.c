@@ -40,14 +40,14 @@ void msm_gem_address_space_put(struct msm_gem_address_space *aspace)
 
 void
 msm_gem_unmap_vma(struct msm_gem_address_space *aspace,
-		struct msm_gem_vma *vma, struct sg_table *sgt)
+		struct msm_gem_vma *vma)
 {
 	if (!aspace || !vma->iova)
 		return;
 
 	if (aspace->mmu) {
 		unsigned size = vma->node.size << PAGE_SHIFT;
-		aspace->mmu->funcs->unmap(aspace->mmu, vma->iova, sgt, size);
+		aspace->mmu->funcs->unmap(aspace->mmu, vma->iova, size);
 	}
 
 	spin_lock(&aspace->lock);
