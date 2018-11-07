@@ -72,7 +72,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
+	pinctrl-0 = <&mmc1_pg_pins>;
 	vmmc-supply = <&reg_dldo1>;
 	bus-width = <4>;
 	non-removable;
@@ -97,7 +97,7 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins_a>,
-		    <&uart1_pins_cts_rts_a>;
+	pinctrl-0 = <&uart1_pg_pins>,
+		    <&uart1_cts_rts_pg_pins>;
 	status = "okay";
 };

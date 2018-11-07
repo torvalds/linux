@@ -79,7 +79,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
+	pinctrl-0 = <&mmc1_pg_pins>;
 	vmmc-supply = <&reg_dldo1>;
 	bus-width = <4>;
 	non-removable;

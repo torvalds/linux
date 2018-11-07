@@ -298,22 +298,22 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			i2c0_pins_a: i2c0@0 {
+			i2c0_pins: i2c0-pins {
 				pins = "PH2", "PH3";
 				function = "i2c0";
 			};
 
-			i2c1_pins_a: i2c1@0 {
+			i2c1_pins: i2c1-pins {
 				pins = "PH4", "PH5";
 				function = "i2c1";
 			};
 
-			i2c2_pins_a: i2c2@0 {
+			i2c2_pins: i2c2-pins {
 				pins = "PE12", "PE13";
 				function = "i2c2";
 			};
 
-			lcd_rgb666_pins: lcd-rgb666@0 {
+			lcd_rgb666_pins: lcd-rgb666-pins {
 				pins = "PD2", "PD3", "PD4", "PD5", "PD6", "PD7",
 				       "PD10", "PD11", "PD12", "PD13", "PD14", "PD15",
 				       "PD18", "PD19", "PD20", "PD21", "PD22", "PD23",
@@ -321,7 +321,7 @@
 				function = "lcd0";
 			};
 
-			mmc0_pins_a: mmc0@0 {
+			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2",
 				       "PF3", "PF4", "PF5";
 				function = "mmc0";
@@ -329,7 +329,7 @@
 				bias-pull-up;
 			};
 
-			mmc1_pins_a: mmc1@0 {
+			mmc1_pg_pins: mmc1-pg-pins {
 				pins = "PG0", "PG1", "PG2",
 				       "PG3", "PG4", "PG5";
 				function = "mmc1";
@@ -337,7 +337,7 @@
 				bias-pull-up;
 			};
 
-			mmc2_8bit_pins: mmc2_8bit {
+			mmc2_8bit_pins: mmc2-8bit-pins {
 				pins = "PC5", "PC6", "PC8",
 				       "PC9", "PC10", "PC11",
 				       "PC12", "PC13", "PC14",
@@ -378,22 +378,22 @@
 				bias-pull-up;
 			};
 
-			pwm0_pins: pwm0 {
+			pwm0_pin: pwm0-pin {
 				pins = "PH0";
 				function = "pwm0";
 			};
 
-			uart0_pins_a: uart0@0 {
+			uart0_pf_pins: uart0-pf-pins {
 				pins = "PF2", "PF4";
 				function = "uart0";
 			};
 
-			uart1_pins_a: uart1@0 {
+			uart1_pg_pins: uart1-pg-pins {
 				pins = "PG6", "PG7";
 				function = "uart1";
 			};
 
-			uart1_pins_cts_rts_a: uart1-cts-rts@0 {
+			uart1_cts_rts_pg_pins: uart1-cts-rts-pg-pins {
 				pins = "PG8", "PG9";
 				function = "uart1";
 			};
@@ -658,14 +658,14 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			r_rsb_pins: r_rsb {
+			r_rsb_pins: r-rsb-pins {
 				pins = "PL0", "PL1";
 				function = "s_rsb";
 				drive-strength = <20>;
 				bias-pull-up;
 			};
 
-			r_uart_pins_a: r_uart@0 {
+			r_uart_pins_a: r-uart-pins {
 				pins = "PL2", "PL3";
 				function = "s_uart";
 			};

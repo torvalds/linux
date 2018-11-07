@@ -552,7 +552,7 @@
 	interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 
-	uart0_pins_b: uart0@1 {
+	uart0_pb_pins: uart0-pb-pins {
 		pins = "PB0", "PB1";
 		function = "uart0";
 	};
