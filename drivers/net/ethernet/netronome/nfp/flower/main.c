@@ -661,10 +661,6 @@ static int nfp_flower_start(struct nfp_app *app)
 		err = nfp_flower_lag_reset(&app_priv->nfp_lag);
 		if (err)
 			return err;
-
-		err = register_netdevice_notifier(&app_priv->nfp_lag.lag_nb);
-		if (err)
-			return err;
 	}
 
 	return nfp_tunnel_config_start(app);
@@ -672,12 +668,23 @@ static int nfp_flower_start(struct nfp_app *app)
 
 static void nfp_flower_stop(struct nfp_app *app)
 {
-	struct nfp_flower_priv *app_priv = app->priv;
-
-	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
-		unregister_netdevice_notifier(&app_priv->nfp_lag.lag_nb);
-
 	nfp_tunnel_config_stop(app);
+}
+
+static int
+nfp_flower_netdev_event(struct nfp_app *app, struct net_device *netdev,
+			unsigned long event, void *ptr)
+{
+	struct nfp_flower_priv *app_priv = app->priv;
+	int ret;
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+		ret = nfp_flower_lag_netdev_event(app_priv, netdev, event, ptr);
+		if (ret & NOTIFY_STOP_MASK)
+			return ret;
+	}
+
+	return nfp_tunnel_mac_event_handler(app, netdev, event, ptr);
 }
 
 const struct nfp_app_type app_flower = {
@@ -707,6 +714,8 @@ const struct nfp_app_type app_flower = {
 
 	.start		= nfp_flower_start,
 	.stop		= nfp_flower_stop,
+
+	.netdev_event	= nfp_flower_netdev_event,
 
 	.ctrl_msg_rx	= nfp_flower_cmsg_rx,
 

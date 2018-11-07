@@ -626,16 +626,12 @@ nfp_fl_lag_changels_event(struct nfp_fl_lag *lag, struct net_device *netdev,
 	schedule_delayed_work(&lag->work, NFP_FL_LAG_DELAY);
 }
 
-static int
-nfp_fl_lag_netdev_event(struct notifier_block *nb, unsigned long event,
-			void *ptr)
+int nfp_flower_lag_netdev_event(struct nfp_flower_priv *priv,
+				struct net_device *netdev,
+				unsigned long event, void *ptr)
 {
-	struct net_device *netdev;
-	struct nfp_fl_lag *lag;
+	struct nfp_fl_lag *lag = &priv->nfp_lag;
 	int err;
-
-	netdev = netdev_notifier_info_to_dev(ptr);
-	lag = container_of(nb, struct nfp_fl_lag, lag_nb);
 
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
@@ -673,8 +669,6 @@ void nfp_flower_lag_init(struct nfp_fl_lag *lag)
 
 	/* 0 is a reserved batch version so increment to first valid value. */
 	nfp_fl_increment_version(lag);
-
-	lag->lag_nb.notifier_call = nfp_fl_lag_netdev_event;
 }
 
 void nfp_flower_lag_cleanup(struct nfp_fl_lag *lag)
