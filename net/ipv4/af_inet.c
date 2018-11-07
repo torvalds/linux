@@ -1964,6 +1964,8 @@ static int __init inet_init(void)
 	/* Add UDP-Lite (RFC 3828) */
 	udplite4_register();
 
+	raw_init();
+
 	ping_init();
 
 	/*

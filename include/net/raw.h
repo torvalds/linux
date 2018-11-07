@@ -61,6 +61,7 @@ void raw_seq_stop(struct seq_file *seq, void *v);
 
 int raw_hash_sk(struct sock *sk);
 void raw_unhash_sk(struct sock *sk);
+void raw_init(void);
 
 struct raw_sock {
 	/* inet_sock has to be the first member */
