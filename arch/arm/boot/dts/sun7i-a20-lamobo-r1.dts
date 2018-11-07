@@ -74,8 +74,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_lamobo_r1>;
 
 		green {
 			label = "lamobo_r1:green:usr";
@@ -85,8 +83,6 @@
 
 	reg_gmac_3v3: gmac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_power_pin_lamobo_r1>;
 		regulator-name = "gmac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -250,16 +246,6 @@
 		pins = "PH10";
 		function = "gpio_in";
 		bias-pull-up;
-	};
-
-	gmac_power_pin_lamobo_r1: gmac_power_pin@0 {
-		pins = "PH23";
-		function = "gpio_out";
-	};
-
-	led_pins_lamobo_r1: led_pins@0 {
-		pins = "PH24";
-		function = "gpio_out";
 	};
 };
 

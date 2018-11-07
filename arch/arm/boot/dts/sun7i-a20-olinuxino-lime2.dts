@@ -180,11 +180,6 @@
 };
 
 &pio {
-	ahci_pwr_pin_olinuxinolime: ahci_pwr_pin@1 {
-		pins = "PC3";
-		function = "gpio_out";
-	};
-
 	led_pins_olinuxinolime: led_pins@0 {
 		pins = "PH2";
 		function = "gpio_out";
@@ -202,15 +197,9 @@
 		function = "gpio_in";
 		bias-pull-down;
 	};
-
-	usb0_vbus_pin_lime2: usb0_vbus_pin@0 {
-		pins = "PC17";
-		function = "gpio_out";
-	};
 };
 
 &reg_ahci_5v {
-	pinctrl-0 = <&ahci_pwr_pin_olinuxinolime>;
 	gpio = <&pio 2 3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
@@ -258,7 +247,6 @@
 };
 
 &reg_usb0_vbus {
-	pinctrl-0 = <&usb0_vbus_pin_lime2>;
 	gpio = <&pio 2 17 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };

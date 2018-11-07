@@ -76,8 +76,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_bananapi>;
 
 		green {
 			label = "bananapi:green:usr";
@@ -87,8 +85,6 @@
 
 	reg_gmac_3v3: gmac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_power_pin_bananapi>;
 		regulator-name = "gmac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -262,16 +258,6 @@
 		pins = "PH10";
 		function = "gpio_in";
 		bias-pull-up;
-	};
-
-	gmac_power_pin_bananapi: gmac_power_pin@0 {
-		pins = "PH23";
-		function = "gpio_out";
-	};
-
-	led_pins_bananapi: led_pins@0 {
-		pins = "PH24";
-		function = "gpio_out";
 	};
 };
 

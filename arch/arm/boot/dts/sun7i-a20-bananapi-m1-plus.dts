@@ -73,8 +73,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_bpi_m1p>;
 
 		green {
 			label = "bananapi-m1-plus:green:usr";
@@ -90,15 +88,11 @@
 
 	mmc3_pwrseq: mmc3_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mmc3_pwrseq_pin_bpi_m1p>;
 		reset-gpios = <&pio 7 22 GPIO_ACTIVE_LOW>; /* PH22 WL-PMU-EN */
 	};
 
 	reg_gmac_3v3: gmac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_power_pin_bpi_m1p>;
 		regulator-name = "gmac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -227,25 +221,10 @@
 };
 
 &pio {
-	gmac_power_pin_bpi_m1p: gmac_power_pin@0 {
-		pins = "PH23";
-		function = "gpio_out";
-	};
-
-	led_pins_bpi_m1p: led_pins@0 {
-		pins = "PH24", "PH25";
-		function = "gpio_out";
-	};
-
 	mmc0_cd_pin_bpi_m1p: mmc0_cd_pin@0 {
 		pins = "PH10";
 		function = "gpio_in";
 		bias-pull-up;
-	};
-
-	mmc3_pwrseq_pin_bpi_m1p: mmc3_pwrseq_pin@0 {
-		pins = "PH22";
-		function = "gpio_out";
 	};
 };
 
