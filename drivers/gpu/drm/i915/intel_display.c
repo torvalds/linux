@@ -6448,6 +6448,9 @@ retry:
 			       link_bw, &pipe_config->fdi_m_n, false);
 
 	ret = ironlake_check_fdi_lanes(dev, intel_crtc->pipe, pipe_config);
+	if (ret == -EDEADLK)
+		return ret;
+
 	if (ret == -EINVAL && pipe_config->pipe_bpp > 6*3) {
 		pipe_config->pipe_bpp -= 2*3;
 		DRM_DEBUG_KMS("fdi link bw constraint, reducing pipe bpp to %i\n",
@@ -11389,6 +11392,8 @@ encoder_retry:
 			* pipe_config->pixel_multiplier;
 
 	ret = intel_crtc_compute_config(to_intel_crtc(crtc), pipe_config);
+	if (ret == -EDEADLK)
+		goto fail;
 	if (ret < 0) {
 		DRM_DEBUG_KMS("CRTC fixup failed\n");
 		goto fail;
@@ -12526,6 +12531,8 @@ static int intel_atomic_check(struct drm_device *dev,
 		}
 
 		ret = intel_modeset_pipe_config(crtc, pipe_config);
+		if (ret == -EDEADLK)
+			return ret;
 		if (ret) {
 			intel_dump_pipe_config(to_intel_crtc(crtc),
 					       pipe_config, "[failed]");
