@@ -131,8 +131,7 @@ struct sock *__raw_v4_lookup(struct net *net, struct sock *sk,
 		if (net_eq(sock_net(sk), net) && inet->inet_num == num	&&
 		    !(inet->inet_daddr && inet->inet_daddr != raddr) 	&&
 		    !(inet->inet_rcv_saddr && inet->inet_rcv_saddr != laddr) &&
-		    !(sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif &&
-		      sk->sk_bound_dev_if != sdif))
+		    raw_sk_bound_dev_eq(net, sk->sk_bound_dev_if, dif, sdif))
 			goto found; /* gotcha */
 	}
 	sk = NULL;
