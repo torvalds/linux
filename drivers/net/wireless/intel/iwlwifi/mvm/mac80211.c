@@ -2252,6 +2252,12 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
 	}
 
+	/* Update MU EDCA params */
+	if (changes & BSS_CHANGED_QOS && mvmvif->associated &&
+	    bss_conf->assoc && vif->bss_conf.he_support &&
+	    !iwlwifi_mod_params.disable_11ax)
+		iwl_mvm_cfg_he_sta(mvm, vif, mvmvif->ap_sta_id);
+
 	/*
 	 * If we're not associated yet, take the (new) BSSID before associating
 	 * so the firmware knows. If we're already associated, then use the old
