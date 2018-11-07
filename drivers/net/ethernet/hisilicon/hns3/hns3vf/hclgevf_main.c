@@ -1165,6 +1165,7 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 {
 	int ret;
 
+	hdev->reset_count++;
 	rtnl_lock();
 
 	/* bring down the nic to stop any ongoing TX/RX */
@@ -2185,6 +2186,27 @@ static void hclgevf_get_media_type(struct hnae3_handle *handle,
 		*media_type = hdev->hw.mac.media_type;
 }
 
+static bool hclgevf_get_hw_reset_stat(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return !!hclgevf_read_dev(&hdev->hw, HCLGEVF_FUN_RST_ING);
+}
+
+static bool hclgevf_ae_dev_resetting(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
+}
+
+static unsigned long hclgevf_ae_dev_reset_cnt(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return hdev->reset_count;
+}
+
 static const struct hnae3_ae_ops hclgevf_ops = {
 	.init_ae_dev = hclgevf_init_ae_dev,
 	.uninit_ae_dev = hclgevf_uninit_ae_dev,
@@ -2225,6 +2247,9 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_status = hclgevf_get_status,
 	.get_ksettings_an_result = hclgevf_get_ksettings_an_result,
 	.get_media_type = hclgevf_get_media_type,
+	.get_hw_reset_stat = hclgevf_get_hw_reset_stat,
+	.ae_dev_resetting = hclgevf_ae_dev_resetting,
+	.ae_dev_reset_cnt = hclgevf_ae_dev_reset_cnt,
 };
 
 static struct hnae3_ae_algo ae_algovf = {

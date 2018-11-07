@@ -162,6 +162,7 @@ struct hnae3_client_ops {
 	int (*setup_tc)(struct hnae3_handle *handle, u8 tc);
 	int (*reset_notify)(struct hnae3_handle *handle,
 			    enum hnae3_reset_notify_type type);
+	enum hnae3_reset_type (*process_hw_error)(struct hnae3_handle *handle);
 };
 
 #define HNAE3_CLIENT_NAME_LENGTH 16
@@ -432,6 +433,9 @@ struct hnae3_ae_ops {
 	int (*restore_fd_rules)(struct hnae3_handle *handle);
 	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
 	pci_ers_result_t (*process_hw_error)(struct hnae3_ae_dev *ae_dev);
+	bool (*get_hw_reset_stat)(struct hnae3_handle *handle);
+	bool (*ae_dev_resetting)(struct hnae3_handle *handle);
+	unsigned long (*ae_dev_reset_cnt)(struct hnae3_handle *handle);
 };
 
 struct hnae3_dcb_ops {
@@ -490,6 +494,14 @@ struct hnae3_roce_private_info {
 	void __iomem *roce_io_base;
 	int base_vector;
 	int num_vectors;
+
+	/* The below attributes defined for RoCE client, hnae3 gives
+	 * initial values to them, and RoCE client can modify and use
+	 * them.
+	 */
+	unsigned long reset_state;
+	unsigned long instance_state;
+	unsigned long state;
 };
 
 struct hnae3_unic_private_info {

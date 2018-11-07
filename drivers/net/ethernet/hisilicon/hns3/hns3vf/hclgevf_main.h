@@ -150,6 +150,7 @@ struct hclgevf_dev {
 #define HCLGEVF_RESET_REQUESTED		0
 #define HCLGEVF_RESET_PENDING		1
 	unsigned long reset_state;	/* requested, pending */
+	unsigned long reset_count;	/* the number of reset has been done */
 	u32 reset_attempts;
 
 	u32 fw_version;

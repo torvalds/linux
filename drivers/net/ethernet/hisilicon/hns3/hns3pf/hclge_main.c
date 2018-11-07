@@ -2466,6 +2466,7 @@ static void hclge_reset(struct hclge_dev *hdev)
 	 * know if device is undergoing reset
 	 */
 	ae_dev->reset_type = hdev->reset_type;
+	hdev->reset_count++;
 	/* perform reset of the stack & ae device for a client */
 	handle = &hdev->vport[0].nic;
 	rtnl_lock();
@@ -4602,6 +4603,31 @@ static int hclge_get_all_rules(struct hnae3_handle *handle,
 	cmd->rule_cnt = cnt;
 
 	return 0;
+}
+
+static bool hclge_get_hw_reset_stat(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	return hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG) ||
+	       hclge_read_dev(&hdev->hw, HCLGE_FUN_RST_ING);
+}
+
+static bool hclge_ae_dev_resetting(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	return test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state);
+}
+
+static unsigned long hclge_ae_dev_reset_cnt(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	return hdev->reset_count;
 }
 
 static void hclge_enable_fd(struct hnae3_handle *handle, bool enable)
@@ -7350,6 +7376,9 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.restore_fd_rules = hclge_restore_fd_entries,
 	.enable_fd = hclge_enable_fd,
 	.process_hw_error = hclge_process_ras_hw_error,
+	.get_hw_reset_stat = hclge_get_hw_reset_stat,
+	.ae_dev_resetting = hclge_ae_dev_resetting,
+	.ae_dev_reset_cnt = hclge_ae_dev_reset_cnt,
 };
 
 static struct hnae3_ae_algo ae_algo = {
