@@ -358,14 +358,6 @@ static int dual_channel_active(void __iomem *mch_window)
 	return dualch;
 }
 
-static enum dev_type i82975x_dram_type(void __iomem *mch_window, int rank)
-{
-	/*
-	 * ECC is possible on i92975x ONLY with DEV_X8
-	 */
-	return DEV_X8;
-}
-
 static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		struct pci_dev *pdev, void __iomem *mch_window)
 {
@@ -375,7 +367,6 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 	u32 cumul_size, nr_pages;
 	int index, chan;
 	struct dimm_info *dimm;
-	enum dev_type dtype;
 
 	last_cumul_size = 0;
 
@@ -413,7 +404,6 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		 *   [0-7] for single-channel; i.e. csrow->nr_channels = 1
 		 *   [0-3] for dual-channel; i.e. csrow->nr_channels = 2
 		 */
-		dtype = i82975x_dram_type(mch_window, index);
 		for (chan = 0; chan < csrow->nr_channels; chan++) {
 			dimm = mci->csrows[index]->channels[chan]->dimm;
 
@@ -423,7 +413,10 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 				 (chan == 0) ? 'A' : 'B',
 				 index);
 			dimm->grain = 1 << 7;	/* 128Byte cache-line resolution */
-			dimm->dtype = i82975x_dram_type(mch_window, index);
+
+			/* ECC is possible on i92975x ONLY with DEV_X8.  */
+			dimm->dtype = DEV_X8;
+
 			dimm->mtype = MEM_DDR2; /* I82975x supports only DDR2 */
 			dimm->edac_mode = EDAC_SECDED; /* only supported */
 		}
