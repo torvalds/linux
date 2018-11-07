@@ -121,7 +121,6 @@ static int ichx_write_bit(int reg, unsigned nr, int val, int verify)
 	u32 data, tmp;
 	int reg_nr = nr / 32;
 	int bit = nr & 0x1f;
-	int ret = 0;
 
 	spin_lock_irqsave(&ichx_priv.lock, flags);
 
@@ -142,12 +141,10 @@ static int ichx_write_bit(int reg, unsigned nr, int val, int verify)
 
 	tmp = ICHX_READ(ichx_priv.desc->regs[reg][reg_nr],
 			ichx_priv.gpio_base);
-	if (verify && data != tmp)
-		ret = -EPERM;
 
 	spin_unlock_irqrestore(&ichx_priv.lock, flags);
 
-	return ret;
+	return (verify && data != tmp) ? -EPERM : 0;
 }
 
 static int ichx_read_bit(int reg, unsigned nr)
@@ -186,10 +183,7 @@ static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 	 * Try setting pin as an input and verify it worked since many pins
 	 * are output-only.
 	 */
-	if (ichx_write_bit(GPIO_IO_SEL, nr, 1, 1))
-		return -EINVAL;
-
-	return 0;
+	return ichx_write_bit(GPIO_IO_SEL, nr, 1, 1);
 }
 
 static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
@@ -206,10 +200,7 @@ static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 	 * Try setting pin as an output and verify it worked since many pins
 	 * are input-only.
 	 */
-	if (ichx_write_bit(GPIO_IO_SEL, nr, 0, 1))
-		return -EINVAL;
-
-	return 0;
+	return ichx_write_bit(GPIO_IO_SEL, nr, 0, 1);
 }
 
 static int ichx_gpio_get(struct gpio_chip *chip, unsigned nr)
