@@ -162,8 +162,14 @@
 
 &am43xx_pinmux {
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&wlan_pins_default>;
+	pinctrl-0 = <&wlan_pins_default &ddr3_vtt_toggle_default>;
 	pinctrl-1 = <&wlan_pins_sleep>;
+
+	ddr3_vtt_toggle_default: ddr_vtt_toggle_default {
+		pinctrl-single,pins = <
+			0x25C (DS0_PULL_UP_DOWN_EN | PIN_OUTPUT_PULLUP | DS0_FORCE_OFF_MODE | MUX_MODE7) /* spi0_cs0.gpio5_7 */
+		>;
+	};
 
 	i2c0_pins: i2c0_pins {
 		pinctrl-single,pins = <
