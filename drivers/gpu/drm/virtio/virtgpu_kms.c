@@ -267,8 +267,10 @@ int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file)
 
 	get_task_comm(dbgname, current);
 	id = virtio_gpu_context_create(vgdev, strlen(dbgname), dbgname);
-	if (id < 0)
+	if (id < 0) {
+		kfree(vfpriv);
 		return id;
+	}
 
 	vfpriv->ctx_id = id;
 	file->driver_priv = vfpriv;
