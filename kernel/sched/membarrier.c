@@ -210,7 +210,7 @@ static int membarrier_register_global_expedited(void)
 		 * future scheduler executions will observe the new
 		 * thread flag state for this mm.
 		 */
-		synchronize_sched();
+		synchronize_rcu();
 	}
 	atomic_or(MEMBARRIER_STATE_GLOBAL_EXPEDITED_READY,
 		  &mm->membarrier_state);
@@ -246,7 +246,7 @@ static int membarrier_register_private_expedited(int flags)
 		 * Ensure all future scheduler executions will observe the
 		 * new thread flag state for this process.
 		 */
-		synchronize_sched();
+		synchronize_rcu();
 	}
 	atomic_or(state, &mm->membarrier_state);
 
