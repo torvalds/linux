@@ -555,8 +555,6 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
 	}
 }
 
-#define HAVE_VLAN_GET_TAG
-
 /**
  * vlan_get_tag - get the VLAN ID from the skb
  * @skb: skbuff to query
