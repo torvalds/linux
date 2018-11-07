@@ -41,7 +41,7 @@ static inline void percpu_down_read_preempt_disable(struct percpu_rw_semaphore *
 	 * cannot both change sem->state from readers_fast and start checking
 	 * counters while we are here. So if we see !sem->state, we know that
 	 * the writer won't be checking until we're past the preempt_enable()
-	 * and that one the synchronize_sched() is done, the writer will see
+	 * and that once the synchronize_rcu() is done, the writer will see
 	 * anything we did within this RCU-sched read-size critical section.
 	 */
 	__this_cpu_inc(*sem->read_count);
