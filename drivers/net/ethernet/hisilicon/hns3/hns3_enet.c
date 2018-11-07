@@ -3397,6 +3397,8 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	/* MTU range: (ETH_MIN_MTU(kernel default) - 9706) */
 	netdev->max_mtu = HNS3_MAX_MTU - (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 
+	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
+
 	return ret;
 
 out_reg_netdev_fail:
@@ -3423,6 +3425,11 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
 
+	if (!test_and_clear_bit(HNS3_NIC_STATE_INITED, &priv->state)) {
+		netdev_warn(netdev, "already uninitialized\n");
+		goto out_netdev_free;
+	}
+
 	hns3_del_all_fd_rules(netdev, true);
 
 	hns3_force_clear_all_rx_ring(handle);
@@ -3443,6 +3450,7 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	priv->ring_data = NULL;
 
+out_netdev_free:
 	free_netdev(netdev);
 }
 
@@ -3782,6 +3790,8 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 		priv->ring_data = NULL;
 	}
 
+	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
+
 	return ret;
 }
 
@@ -3791,6 +3801,11 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
+
+	if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state)) {
+		netdev_warn(netdev, "already uninitialized\n");
+		return 0;
+	}
 
 	hns3_force_clear_all_rx_ring(handle);
 
@@ -3814,6 +3829,8 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 		hns3_remove_hw_addr(netdev);
 		hns3_del_all_fd_rules(netdev, false);
 	}
+
+	clear_bit(HNS3_NIC_STATE_INITED, &priv->state);
 
 	return ret;
 }
