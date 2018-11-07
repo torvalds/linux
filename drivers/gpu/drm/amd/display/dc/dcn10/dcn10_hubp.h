@@ -745,5 +745,7 @@ void hubp1_clear_underflow(struct hubp *hubp);
 
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
 
+void hubp1_vready_workaround(struct hubp *hubp,
+		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
 #endif

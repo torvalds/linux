@@ -115,7 +115,7 @@ static void hubp1_set_hubp_blank_en(struct hubp *hubp, bool blank)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_BLANK_EN, blank_en);
 }
 
-static void hubp1_vready_workaround(struct hubp *hubp,
+void hubp1_vready_workaround(struct hubp *hubp,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	uint32_t value = 0;
