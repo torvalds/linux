@@ -2831,6 +2831,13 @@ int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	u16 *instr_ptr;
 	int sig = 0;
 
+	/*
+	 * Initialize context if it hasn't been used already, otherwise ensure
+	 * it has been saved to struct thread_struct.
+	 */
+	if (!init_fp_ctx(current))
+		lose_fpu(1);
+
 	oldepc = xcp->cp0_epc;
 	do {
 		prevepc = xcp->cp0_epc;

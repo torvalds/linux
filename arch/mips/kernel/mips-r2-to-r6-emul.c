@@ -1175,9 +1175,6 @@ fpu_emul:
 		regs->regs[31] = r31;
 		regs->cp0_epc = epc;
 
-		if (!init_fp_ctx(current))
-			lose_fpu(1);
-
 		err = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 0,
 					       &fault_addr);
 

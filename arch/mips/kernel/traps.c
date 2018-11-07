@@ -794,9 +794,6 @@ static int simulate_fp(struct pt_regs *regs, unsigned int opcode,
 	regs->cp0_epc = old_epc;
 	regs->regs[31] = old_ra;
 
-	/* Save the FP context to struct thread_struct */
-	lose_fpu(1);
-
 	/* Run the emulator */
 	sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 				       &fault_addr);
@@ -848,8 +845,6 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		 * register operands before invoking the emulator, which seems
 		 * a bit extreme for what should be an infrequent event.
 		 */
-		/* Ensure 'resume' not overwrite saved fp context again. */
-		lose_fpu(1);
 
 		/* Run the emulator */
 		sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
