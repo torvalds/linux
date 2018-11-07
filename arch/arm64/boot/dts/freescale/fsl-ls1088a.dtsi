@@ -512,7 +512,7 @@
 		};
 
 		pcie@3400000 {
-			compatible = "fsl,ls1088a-pcie", "snps,dw-pcie";
+			compatible = "fsl,ls1088a-pcie";
 			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
 			       0x20 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
@@ -537,7 +537,7 @@
 		};
 
 		pcie@3500000 {
-			compatible = "fsl,ls1088a-pcie", "snps,dw-pcie";
+			compatible = "fsl,ls1088a-pcie";
 			reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
 			       0x28 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
@@ -562,7 +562,7 @@
 		};
 
 		pcie@3600000 {
-			compatible = "fsl,ls1088a-pcie", "snps,dw-pcie";
+			compatible = "fsl,ls1088a-pcie";
 			reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
 			       0x30 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
