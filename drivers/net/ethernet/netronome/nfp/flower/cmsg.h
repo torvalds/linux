@@ -65,6 +65,7 @@
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
 #define NFP_FL_ACTION_OPCODE_SET_ETHERNET	7
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS	9
+#define NFP_FL_ACTION_OPCODE_SET_IPV4_TTL_TOS	10
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_SRC	11
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_DST	12
 #define NFP_FL_ACTION_OPCODE_SET_UDP		14
@@ -123,6 +124,15 @@ struct nfp_fl_set_ip4_addrs {
 	__be32 ipv4_src;
 	__be32 ipv4_dst_mask;
 	__be32 ipv4_dst;
+};
+
+struct nfp_fl_set_ip4_ttl_tos {
+	struct nfp_fl_act_head head;
+	u8 ipv4_ttl_mask;
+	u8 ipv4_tos_mask;
+	u8 ipv4_ttl;
+	u8 ipv4_tos;
+	__be16 reserved;
 };
 
 struct nfp_fl_set_ipv6_addr {
