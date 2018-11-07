@@ -379,6 +379,10 @@ dbg_err:
 static int sof_remove(struct platform_device *pdev)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(&pdev->dev);
+	struct snd_sof_pdata *pdata = sdev->pdata;
+
+	if (pdata && !IS_ERR(pdata->pdev_mach))
+		platform_device_unregister(pdata->pdev_mach);
 
 	snd_soc_unregister_component(&pdev->dev);
 	snd_sof_fw_unload(sdev);
