@@ -101,8 +101,6 @@
 	status = "okay";
 
 	ctp@5d {
-		pinctrl-names = "default";
-		pinctrl-0 = <&gt911_int_primo81>;
 		compatible = "goodix,gt911";
 		reg = <0x5d>;
 		interrupt-parent = <&pio>;
@@ -156,11 +154,6 @@
 };
 
 &pio {
-	gt911_int_primo81: gt911_int_pin@0 {
-		pins = "PA3";
-		function = "gpio_in";
-	};
-
 	mma8452_int_primo81: mma8452_int_pin@0 {
 		pins = "PA9";
 		function = "gpio_in";

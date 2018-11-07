@@ -132,11 +132,6 @@
 		bias-pull-up;
 	};
 
-	usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
-		pins = "PH24";
-		function = "gpio_out";
-	};
-
 	i2c_lcd_pins: i2c_lcd_pin@0 {
 		pins = "PA23", "PA24";
 		function = "gpio_out";
@@ -145,8 +140,6 @@
 };
 
 &reg_usb2_vbus {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb2_vbus_pin_colombus>;
 	gpio = <&pio 7 24 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };

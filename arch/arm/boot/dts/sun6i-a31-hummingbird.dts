@@ -160,7 +160,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>, <&gmac_phy_reset_pin_hummingbird>;
+	pinctrl-0 = <&gmac_pins_rgmii_a>;
 	phy = <&phy1>;
 	phy-mode = "rgmii";
 	snps,reset-gpio = <&pio 0 21 GPIO_ACTIVE_HIGH>;
@@ -229,7 +229,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>, <&wifi_reset_pin_hummingbird>;
+	pinctrl-0 = <&mmc1_pins_a>;
 	vmmc-supply = <&reg_aldo1>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
@@ -242,21 +242,12 @@
 };
 
 &pio {
-	gmac_phy_reset_pin_hummingbird: gmac_phy_reset_pin@0 {
-		pins = "PA21";
-		function = "gpio_out";
-	};
-
 	mmc0_cd_pin_hummingbird: mmc0_cd_pin@0 {
 		pins = "PA8";
 		function = "gpio_in";
 		bias-pull-up;
 	};
 
-	wifi_reset_pin_hummingbird: wifi_reset_pin@0 {
-		pins = "PG10";
-		function = "gpio_out";
-	};
 };
 
 &p2wi {

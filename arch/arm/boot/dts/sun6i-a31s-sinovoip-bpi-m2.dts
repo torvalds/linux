@@ -58,8 +58,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_bpi_m2>;
 
 		blue {
 			label = "bpi-m2:blue:usr";
@@ -79,8 +77,6 @@
 
 	mmc2_pwrseq: mmc2_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mmc2_pwrseq_pin_bpi_m2>;
 		reset-gpios = <&r_pio 0 8 GPIO_ACTIVE_LOW>; /* PL8 WIFI_EN */
 	};
 };
@@ -95,7 +91,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>, <&gmac_phy_reset_pin_bpi_m2>;
+	pinctrl-0 = <&gmac_pins_rgmii_a>;
 	phy = <&phy1>;
 	phy-mode = "rgmii";
 	phy-supply = <&reg_dldo1>;
@@ -168,27 +164,10 @@
 };
 
 &pio {
-	gmac_phy_reset_pin_bpi_m2: gmac_phy_reset_pin@0 {
-		pins = "PA21";
-		function = "gpio_out";
-	};
-
-	led_pins_bpi_m2: led_pins@0 {
-		pins = "PG5", "PG10", "PG11";
-		function = "gpio_out";
-	};
-
 	mmc0_cd_pin_bpi_m2: mmc0_cd_pin@0 {
 		pins = "PA4";
 		function = "gpio_in";
 		bias-pull-up;
-	};
-};
-
-&r_pio {
-	mmc2_pwrseq_pin_bpi_m2: mmc2_pwrseq_pin@0 {
-		pins = "PL8";
-		function = "gpio_out";
 	};
 };
 
