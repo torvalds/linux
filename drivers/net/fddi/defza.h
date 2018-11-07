@@ -235,6 +235,7 @@ struct fza_ring_cmd {
 #define FZA_RING_CMD		0x200400	/* command ring address */
 #define FZA_RING_CMD_SIZE	0x40		/* command descriptor ring
 						 * size
+						 */
 /* Command constants. */
 #define FZA_RING_CMD_MASK	0x7fffffff
 #define FZA_RING_CMD_NOP	0x00000000	/* nop */
