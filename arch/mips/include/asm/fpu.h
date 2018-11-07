@@ -30,9 +30,6 @@
 #include <asm/mips_mt.h>
 #endif
 
-struct sigcontext;
-struct sigcontext32;
-
 extern void _save_fp(struct task_struct *);
 extern void _restore_fp(struct task_struct *);
 
