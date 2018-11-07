@@ -67,7 +67,13 @@
 		debounce-delay-ms = <5>;
 		col-scan-delay-us = <2>;
 
-		row-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH /* Bank3, pin21 */
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&matrix_keypad_default>;
+		pinctrl-1 = <&matrix_keypad_sleep>;
+
+		linux,wakeup;
+
+		row-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH /* Bank0, pin3 */
 				&gpio4 3 GPIO_ACTIVE_HIGH /* Bank4, pin3 */
 				&gpio4 2 GPIO_ACTIVE_HIGH>; /* Bank4, pin2 */
 
@@ -599,6 +605,24 @@
 			AM4372_IOPAD(0x96C, DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7) /* uart0_rtsn.uart0_rtsn */
 			AM4372_IOPAD(0x970, PIN_INPUT_PULLUP | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0) /* uart0_rxd.uart0_rxd */
 			AM4372_IOPAD(0x974, PIN_INPUT_PULLDOWN | SLEWCTRL_FAST | DS0_PULL_UP_DOWN_EN | MUX_MODE0) /* uart0_txd.uart0_txd */
+		>;
+	};
+
+	matrix_keypad_default: matrix_keypad_default {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x9a4, PIN_OUTPUT | MUX_MODE7)
+			AM4372_IOPAD(0x9a8, PIN_OUTPUT | MUX_MODE7)
+			AM4372_IOPAD(0x9ac, PIN_INPUT | PULL_DISABLE | MUX_MODE9)
+			AM4372_IOPAD(0x954, PIN_INPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
+
+	matrix_keypad_sleep: matrix_keypad_sleep {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x9a4, PULL_UP | MUX_MODE7)
+			AM4372_IOPAD(0x9a8, PULL_UP | MUX_MODE7)
+			AM4372_IOPAD(0x9ac, PIN_INPUT | PULL_DISABLE | MUX_MODE9)
+			AM4372_IOPAD(0x954, PIN_INPUT_PULLDOWN | MUX_MODE0)
 		>;
 	};
 };
