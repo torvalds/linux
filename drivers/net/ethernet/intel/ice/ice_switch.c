@@ -1247,6 +1247,9 @@ ice_add_update_vsi_list(struct ice_hw *hw,
 		u16 vsi_handle = new_fltr->vsi_handle;
 		enum ice_adminq_opc opcode;
 
+		if (!m_entry->vsi_list_info)
+			return ICE_ERR_CFG;
+
 		/* A rule already exists with the new VSI being added */
 		if (test_bit(vsi_handle, m_entry->vsi_list_info->vsi_map))
 			return 0;
