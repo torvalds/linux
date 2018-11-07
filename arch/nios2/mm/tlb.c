@@ -43,12 +43,10 @@ static unsigned long pteaddr_invalid(unsigned long addr)
  * This one is only used for pages with the global bit set so we don't care
  * much about the ASID.
  */
-void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
+static void replace_tlb_one_pid(unsigned long addr, unsigned long mmu_pid, unsigned long tlbacc)
 {
 	unsigned int way;
 	unsigned long org_misc, pid_misc;
-
-	pr_debug("Flush tlb-entry for vaddr=%#lx\n", addr);
 
 	/* remember pid/way until we return. */
 	get_misc_and_pid(&org_misc, &pid_misc);
@@ -72,10 +70,11 @@ void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
 		if (pid != mmu_pid)
 			continue;
 
-		tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
+		tlbmisc = mmu_pid | TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
 		WRCTL(CTL_TLBMISC, tlbmisc);
-		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
-		WRCTL(CTL_TLBACC, 0);
+		if (tlbacc == 0)
+			WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
+		WRCTL(CTL_TLBACC, tlbacc);
 		/*
 		 * There should be only a single entry that maps a
 		 * particular {address,pid} so break after a match.
@@ -84,6 +83,20 @@ void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
 	}
 
 	WRCTL(CTL_TLBMISC, org_misc);
+}
+
+static void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
+{
+	pr_debug("Flush tlb-entry for vaddr=%#lx\n", addr);
+
+	replace_tlb_one_pid(addr, mmu_pid, 0);
+}
+
+static void reload_tlb_one_pid(unsigned long addr, unsigned long mmu_pid, pte_t pte)
+{
+	pr_debug("Reload tlb-entry for vaddr=%#lx\n", addr);
+
+	replace_tlb_one_pid(addr, mmu_pid, pte_val(pte));
 }
 
 void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
@@ -95,6 +108,13 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		flush_tlb_one_pid(start, mmu_pid);
 		start += PAGE_SIZE;
 	}
+}
+
+void reload_tlb_page(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+{
+	unsigned long mmu_pid = get_pid_from_context(&vma->vm_mm->context);
+
+	reload_tlb_one_pid(addr, mmu_pid, pte);
 }
 
 /*

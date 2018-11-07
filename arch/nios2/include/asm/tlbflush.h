@@ -30,6 +30,9 @@ struct mm_struct;
  *  - flush_tlb_page(vma, address) flushes a page
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
  *  - flush_tlb_kernel_page(address) flushes a kernel page
+ *
+ *  - reload_tlb_page(vma, address, pte) flushes the TLB for address like
+ *    flush_tlb_page, then replaces it with a TLB for pte.
  */
 extern void flush_tlb_all(void);
 extern void flush_tlb_mm(struct mm_struct *mm);
@@ -47,5 +50,8 @@ static inline void flush_tlb_kernel_page(unsigned long address)
 {
 	flush_tlb_kernel_range(address, address + PAGE_SIZE);
 }
+
+extern void reload_tlb_page(struct vm_area_struct *vma, unsigned long addr,
+			    pte_t pte);
 
 #endif /* _ASM_NIOS2_TLBFLUSH_H */
