@@ -43,14 +43,6 @@
 #undef barrier_before_unreachable
 #define barrier_before_unreachable() asm volatile(".insn")
 
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
-#define GCC_IMM_ASM() "n"
-#define GCC_REG_ACCUM "$0"
-#else
-#define GCC_IMM_ASM() "rn"
-#define GCC_REG_ACCUM "accum"
-#endif
-
 #ifdef CONFIG_CPU_MIPSR6
 /* All MIPS R6 toolchains support the ZC constrain */
 #define GCC_OFF_SMALL_ASM() "ZC"
