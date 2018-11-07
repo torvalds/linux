@@ -204,11 +204,13 @@ static struct platform_device latch1_gpio_device = {
 #define LATCH1_PIN_DOCKIT1		6
 #define LATCH1_PIN_DOCKIT2		7
 
+#define LATCH2_NGPIO			16
+
 static struct resource latch2_resources[] = {
 	[0] = {
 		.name	= "dat",
 		.start	= LATCH2_PHYS,
-		.end	= LATCH2_PHYS + (AMS_DELTA_LATCH2_NGPIO - 1) / 8,
+		.end	= LATCH2_PHYS + (LATCH2_NGPIO - 1) / 8,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -217,7 +219,7 @@ static struct resource latch2_resources[] = {
 
 static struct bgpio_pdata latch2_pdata = {
 	.label	= LATCH2_LABEL,
-	.ngpio	= AMS_DELTA_LATCH2_NGPIO,
+	.ngpio	= LATCH2_NGPIO,
 };
 
 static struct platform_device latch2_gpio_device = {
