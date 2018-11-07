@@ -76,6 +76,11 @@ void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
 		WRCTL(CTL_TLBMISC, tlbmisc);
 		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
 		WRCTL(CTL_TLBACC, 0);
+		/*
+		 * There should be only a single entry that maps a
+		 * particular {address,pid} so break after a match.
+		 */
+		break;
 	}
 
 	WRCTL(CTL_TLBMISC, org_misc);
