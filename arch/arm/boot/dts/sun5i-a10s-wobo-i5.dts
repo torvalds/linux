@@ -61,8 +61,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_wobo_i5>;
 
 		blue {
 			label = "a10s-wobo-i5:blue:usr";
@@ -73,8 +71,6 @@
 
 	reg_emac_3v3: emac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&emac_power_pin_wobo>;
 		regulator-name = "emac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -143,20 +139,10 @@
 };
 
 &pio {
-	led_pins_wobo_i5: led_pins@0 {
-		pins = "PB2";
-		function = "gpio_out";
-	};
-
 	mmc0_cd_pin_wobo_i5: mmc0_cd_pin@0 {
 		pins = "PB3";
 		function = "gpio_in";
 		bias-pull-up;
-	};
-
-	emac_power_pin_wobo: emac_power_pin@0 {
-		pins = "PA02";
-		function = "gpio_out";
 	};
 };
 

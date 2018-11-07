@@ -79,10 +79,6 @@
 	allwinner,pa-gpios = <&pio 6 3 GPIO_ACTIVE_HIGH>; /* PG3 */
 };
 
-&codec_pa_pin {
-	pins = "PG3";
-};
-
 &mmc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins_a>;
@@ -127,8 +123,4 @@
 &uart1 {
 	/* The P66 uses the uart pins as gpios */
 	status = "disabled";
-};
-
-&usb0_vbus_pin_a {
-	pins = "PB4";
 };

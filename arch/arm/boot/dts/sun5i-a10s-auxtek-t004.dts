@@ -71,8 +71,6 @@
 
 	reg_vmmc1: vmmc1 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mmc1_vcc_en_pin_t004>;
 		regulator-name = "vmmc1";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -137,11 +135,6 @@
 		pins = "PG1";
 		function = "gpio_in";
 		bias-pull-up;
-	};
-
-	mmc1_vcc_en_pin_t004: mmc1_vcc_en_pin@0 {
-		pins = "PB18";
-		function = "gpio_out";
 	};
 
 	led_pins_t004: led_pins@0 {

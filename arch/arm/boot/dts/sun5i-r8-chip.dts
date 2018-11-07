@@ -79,8 +79,6 @@
 
 	mmc0_pwrseq: mmc0_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&chip_wifi_reg_on_pin>;
 		reset-gpios = <&pio 2 19 GPIO_ACTIVE_LOW>; /* PC19 */
 	};
 
@@ -184,20 +182,6 @@
 };
 
 &pio {
-	chip_vbus_pin: chip_vbus_pin@0 {
-		pins = "PB10";
-		function = "gpio_out";
-	};
-
-	chip_wifi_reg_on_pin: chip_wifi_reg_on_pin@0 {
-	        pins = "PC19";
-	        function = "gpio_out";
-	};
-
-	chip_id_det_pin: chip_id_det_pin@0 {
-		pins = "PG2";
-		function = "gpio_in";
-	};
 
 	chip_w1_pin: chip_w1_pin@0 {
 		pins = "PD2";
@@ -260,7 +244,6 @@
 };
 
 &reg_usb0_vbus {
-	pinctrl-0 = <&chip_vbus_pin>;
 	vin-supply = <&reg_vcc5v0>;
 	gpio = <&pio 1 10 GPIO_ACTIVE_HIGH>; /* PB10 */
 	status = "okay";
@@ -303,8 +286,6 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&chip_id_det_pin>;
 	status = "okay";
 
 	usb0_id_det-gpio = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */

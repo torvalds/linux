@@ -109,15 +109,9 @@
 		function = "gpio_out";
 		drive-strength = <20>;
 	};
-
-	usb1_vbus_pin_r7: usb1_vbus_pin@0 {
-		pins = "PG13";
-		function = "gpio_out";
-	};
 };
 
 &reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_r7>;
 	gpio = <&pio 6 13 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
