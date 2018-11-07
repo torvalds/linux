@@ -72,7 +72,6 @@ struct nfp_mtu_conf {
 
 /**
  * struct nfp_fl_lag - Flower APP priv data for link aggregation
- * @lag_nb:		Notifier to track master/slave events
  * @work:		Work queue for writing configs to the HW
  * @lock:		Lock to protect lag_group_list
  * @group_list:		List of all master/slave groups offloaded
@@ -85,7 +84,6 @@ struct nfp_mtu_conf {
  *			retransmission
  */
 struct nfp_fl_lag {
-	struct notifier_block lag_nb;
 	struct delayed_work work;
 	struct mutex lock;
 	struct list_head group_list;
@@ -126,7 +124,6 @@ struct nfp_fl_lag {
  * @nfp_neigh_off_lock:	Lock for the neighbour address list
  * @nfp_mac_off_ids:	IDA to manage id assignment for offloaded macs
  * @nfp_mac_off_count:	Number of MACs in address list
- * @nfp_tun_mac_nb:	Notifier to monitor link state
  * @nfp_tun_neigh_nb:	Notifier to monitor neighbour state
  * @reify_replies:	atomically stores the number of replies received
  *			from firmware for repr reify
@@ -160,7 +157,6 @@ struct nfp_flower_priv {
 	spinlock_t nfp_neigh_off_lock;
 	struct ida nfp_mac_off_ids;
 	int nfp_mac_off_count;
-	struct notifier_block nfp_tun_mac_nb;
 	struct notifier_block nfp_tun_neigh_nb;
 	atomic_t reify_replies;
 	wait_queue_head_t reify_wait_queue;
@@ -252,6 +248,9 @@ void nfp_flower_rx_flow_stats(struct nfp_app *app, struct sk_buff *skb);
 
 int nfp_tunnel_config_start(struct nfp_app *app);
 void nfp_tunnel_config_stop(struct nfp_app *app);
+int nfp_tunnel_mac_event_handler(struct nfp_app *app,
+				 struct net_device *netdev,
+				 unsigned long event, void *ptr);
 void nfp_tunnel_write_macs(struct nfp_app *app);
 void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4);
@@ -262,6 +261,9 @@ int nfp_flower_setup_tc_egress_cb(enum tc_setup_type type, void *type_data,
 void nfp_flower_lag_init(struct nfp_fl_lag *lag);
 void nfp_flower_lag_cleanup(struct nfp_fl_lag *lag);
 int nfp_flower_lag_reset(struct nfp_fl_lag *lag);
+int nfp_flower_lag_netdev_event(struct nfp_flower_priv *priv,
+				struct net_device *netdev,
+				unsigned long event, void *ptr);
 bool nfp_flower_lag_unprocessed_msg(struct nfp_app *app, struct sk_buff *skb);
 int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 				       struct net_device *master,
