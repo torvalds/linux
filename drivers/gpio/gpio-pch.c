@@ -171,11 +171,10 @@ static int pch_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 /*
  * Save register configuration and disable interrupts.
  */
-static void pch_gpio_save_reg_conf(struct pch_gpio *chip)
+static void __maybe_unused pch_gpio_save_reg_conf(struct pch_gpio *chip)
 {
 	chip->pch_gpio_reg.ien_reg = ioread32(&chip->reg->ien);
 	chip->pch_gpio_reg.imask_reg = ioread32(&chip->reg->imask);
@@ -185,14 +184,13 @@ static void pch_gpio_save_reg_conf(struct pch_gpio *chip)
 	if (chip->ioh == INTEL_EG20T_PCH)
 		chip->pch_gpio_reg.im1_reg = ioread32(&chip->reg->im1);
 	if (chip->ioh == OKISEMI_ML7223n_IOH)
-		chip->pch_gpio_reg.gpio_use_sel_reg =\
-					    ioread32(&chip->reg->gpio_use_sel);
+		chip->pch_gpio_reg.gpio_use_sel_reg = ioread32(&chip->reg->gpio_use_sel);
 }
 
 /*
  * This function restores the register configuration of the GPIO device.
  */
-static void pch_gpio_restore_reg_conf(struct pch_gpio *chip)
+static void __maybe_unused pch_gpio_restore_reg_conf(struct pch_gpio *chip)
 {
 	iowrite32(chip->pch_gpio_reg.ien_reg, &chip->reg->ien);
 	iowrite32(chip->pch_gpio_reg.imask_reg, &chip->reg->imask);
@@ -204,10 +202,8 @@ static void pch_gpio_restore_reg_conf(struct pch_gpio *chip)
 	if (chip->ioh == INTEL_EG20T_PCH)
 		iowrite32(chip->pch_gpio_reg.im1_reg, &chip->reg->im1);
 	if (chip->ioh == OKISEMI_ML7223n_IOH)
-		iowrite32(chip->pch_gpio_reg.gpio_use_sel_reg,
-			  &chip->reg->gpio_use_sel);
+		iowrite32(chip->pch_gpio_reg.gpio_use_sel_reg, &chip->reg->gpio_use_sel);
 }
-#endif
 
 static int pch_gpio_to_irq(struct gpio_chip *gpio, unsigned offset)
 {
@@ -431,10 +427,9 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	return pch_gpio_alloc_generic_chip(chip, irq_base, gpio_pins[chip->ioh]);
 }
 
-#ifdef CONFIG_PM
-static int pch_gpio_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused pch_gpio_suspend(struct device *dev)
 {
-	s32 ret;
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct pch_gpio *chip = pci_get_drvdata(pdev);
 	unsigned long flags;
 
@@ -442,35 +437,14 @@ static int pch_gpio_suspend(struct pci_dev *pdev, pm_message_t state)
 	pch_gpio_save_reg_conf(chip);
 	spin_unlock_irqrestore(&chip->spinlock, flags);
 
-	ret = pci_save_state(pdev);
-	if (ret) {
-		dev_err(&pdev->dev, "pci_save_state Failed-%d\n", ret);
-		return ret;
-	}
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D0);
-	ret = pci_enable_wake(pdev, PCI_D0, 1);
-	if (ret)
-		dev_err(&pdev->dev, "pci_enable_wake Failed -%d\n", ret);
-
 	return 0;
 }
 
-static int pch_gpio_resume(struct pci_dev *pdev)
+static int __maybe_unused pch_gpio_resume(struct device *dev)
 {
-	s32 ret;
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct pch_gpio *chip = pci_get_drvdata(pdev);
 	unsigned long flags;
-
-	ret = pci_enable_wake(pdev, PCI_D0, 0);
-
-	pci_set_power_state(pdev, PCI_D0);
-	ret = pci_enable_device(pdev);
-	if (ret) {
-		dev_err(&pdev->dev, "pci_enable_device Failed-%d ", ret);
-		return ret;
-	}
-	pci_restore_state(pdev);
 
 	spin_lock_irqsave(&chip->spinlock, flags);
 	iowrite32(0x01, &chip->reg->reset);
@@ -480,10 +454,8 @@ static int pch_gpio_resume(struct pci_dev *pdev)
 
 	return 0;
 }
-#else
-#define pch_gpio_suspend NULL
-#define pch_gpio_resume NULL
-#endif
+
+static SIMPLE_DEV_PM_OPS(pch_gpio_pm_ops, pch_gpio_suspend, pch_gpio_resume);
 
 #define PCI_VENDOR_ID_ROHM             0x10DB
 static const struct pci_device_id pch_gpio_pcidev_id[] = {
@@ -499,8 +471,9 @@ static struct pci_driver pch_gpio_driver = {
 	.name = "pch_gpio",
 	.id_table = pch_gpio_pcidev_id,
 	.probe = pch_gpio_probe,
-	.suspend = pch_gpio_suspend,
-	.resume = pch_gpio_resume
+	.driver = {
+		.pm = &pch_gpio_pm_ops,
+	},
 };
 
 module_pci_driver(pch_gpio_driver);
