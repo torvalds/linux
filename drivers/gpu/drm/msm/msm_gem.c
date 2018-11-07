@@ -357,52 +357,76 @@ put_iova(struct drm_gem_object *obj)
 	}
 }
 
-/* get iova, taking a reference.  Should have a matching put */
-int msm_gem_get_iova(struct drm_gem_object *obj,
+static int msm_gem_get_iova_locked(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace, uint64_t *iova)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct msm_gem_vma *vma;
 	int ret = 0;
 
-	mutex_lock(&msm_obj->lock);
-
-	if (WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED)) {
-		mutex_unlock(&msm_obj->lock);
-		return -EBUSY;
-	}
+	WARN_ON(!mutex_is_locked(&msm_obj->lock));
 
 	vma = lookup_vma(obj, aspace);
 
 	if (!vma) {
-		struct page **pages;
-
 		vma = add_vma(obj, aspace);
-		if (IS_ERR(vma)) {
-			ret = PTR_ERR(vma);
-			goto unlock;
-		}
+		if (IS_ERR(vma))
+			return PTR_ERR(vma);
 
-		pages = get_pages(obj);
-		if (IS_ERR(pages)) {
-			ret = PTR_ERR(pages);
-			goto fail;
+		ret = msm_gem_init_vma(aspace, vma, obj->size >> PAGE_SHIFT);
+		if (ret) {
+			del_vma(vma);
+			return ret;
 		}
-
-		ret = msm_gem_map_vma(aspace, vma, msm_obj->sgt,
-				obj->size >> PAGE_SHIFT);
-		if (ret)
-			goto fail;
 	}
 
 	*iova = vma->iova;
-
-	mutex_unlock(&msm_obj->lock);
 	return 0;
+}
 
-fail:
-	del_vma(vma);
-unlock:
+static int msm_gem_pin_iova(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct msm_gem_vma *vma;
+	struct page **pages;
+
+	WARN_ON(!mutex_is_locked(&msm_obj->lock));
+
+	if (WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED))
+		return -EBUSY;
+
+	vma = lookup_vma(obj, aspace);
+	if (WARN_ON(!vma))
+		return -EINVAL;
+
+	pages = get_pages(obj);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	return msm_gem_map_vma(aspace, vma, msm_obj->sgt,
+			obj->size >> PAGE_SHIFT);
+}
+
+
+/* get iova, taking a reference.  Should have a matching put */
+int msm_gem_get_iova(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace, uint64_t *iova)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	u64 local;
+	int ret;
+
+	mutex_lock(&msm_obj->lock);
+
+	ret = msm_gem_get_iova_locked(obj, aspace, &local);
+
+	if (!ret)
+		ret = msm_gem_pin_iova(obj, aspace);
+
+	if (!ret)
+		*iova = local;
+
 	mutex_unlock(&msm_obj->lock);
 	return ret;
 }
