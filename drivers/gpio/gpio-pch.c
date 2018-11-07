@@ -222,7 +222,6 @@ static void pch_gpio_setup(struct pch_gpio *chip)
 	gpio->get = pch_gpio_get;
 	gpio->direction_output = pch_gpio_direction_output;
 	gpio->set = pch_gpio_set;
-	gpio->dbg_show = NULL;
 	gpio->base = -1;
 	gpio->ngpio = gpio_pins[chip->ioh];
 	gpio->can_sleep = false;
@@ -389,9 +388,7 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, chip);
 	spin_lock_init(&chip->spinlock);
 	pch_gpio_setup(chip);
-#ifdef CONFIG_OF_GPIO
-	chip->gpio.of_node = pdev->dev.of_node;
-#endif
+
 	ret = devm_gpiochip_add_data(&pdev->dev, &chip->gpio, chip);
 	if (ret) {
 		dev_err(&pdev->dev, "PCH gpio: Failed to register GPIO\n");
