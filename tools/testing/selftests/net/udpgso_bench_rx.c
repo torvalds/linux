@@ -31,9 +31,15 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#ifndef UDP_GRO
+#define UDP_GRO		104
+#endif
+
 static int  cfg_port		= 8000;
 static bool cfg_tcp;
 static bool cfg_verify;
+static bool cfg_read_all;
+static bool cfg_gro_segment;
 
 static bool interrupted;
 static unsigned long packets, bytes;
@@ -63,6 +69,8 @@ static void do_poll(int fd)
 
 	do {
 		ret = poll(&pfd, 1, 10);
+		if (interrupted)
+			break;
 		if (ret == -1)
 			error(1, errno, "poll");
 		if (ret == 0)
@@ -70,7 +78,7 @@ static void do_poll(int fd)
 		if (pfd.revents != POLLIN)
 			error(1, errno, "poll: 0x%x expected 0x%x\n",
 					pfd.revents, POLLIN);
-	} while (!ret && !interrupted);
+	} while (!ret);
 }
 
 static int do_socket(bool do_tcp)
@@ -102,6 +110,8 @@ static int do_socket(bool do_tcp)
 			error(1, errno, "listen");
 
 		do_poll(accept_fd);
+		if (interrupted)
+			exit(0);
 
 		fd = accept(accept_fd, NULL, NULL);
 		if (fd == -1)
@@ -167,10 +177,10 @@ static void do_verify_udp(const char *data, int len)
 /* Flush all outstanding datagrams. Verify first few bytes of each. */
 static void do_flush_udp(int fd)
 {
-	static char rbuf[ETH_DATA_LEN];
+	static char rbuf[ETH_MAX_MTU];
 	int ret, len, budget = 256;
 
-	len = cfg_verify ? sizeof(rbuf) : 0;
+	len = cfg_read_all ? sizeof(rbuf) : 0;
 	while (budget--) {
 		/* MSG_TRUNC will make return value full datagram length */
 		ret = recv(fd, rbuf, len, MSG_TRUNC | MSG_DONTWAIT);
@@ -178,7 +188,7 @@ static void do_flush_udp(int fd)
 			return;
 		if (ret == -1)
 			error(1, errno, "recv");
-		if (len) {
+		if (len && cfg_verify) {
 			if (ret == 0)
 				error(1, errno, "recv: 0 byte datagram\n");
 
@@ -192,23 +202,30 @@ static void do_flush_udp(int fd)
 
 static void usage(const char *filepath)
 {
-	error(1, 0, "Usage: %s [-tv] [-p port]", filepath);
+	error(1, 0, "Usage: %s [-Grtv] [-p port]", filepath);
 }
 
 static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "ptv")) != -1) {
+	while ((c = getopt(argc, argv, "Gp:rtv")) != -1) {
 		switch (c) {
+		case 'G':
+			cfg_gro_segment = true;
+			break;
 		case 'p':
-			cfg_port = htons(strtoul(optarg, NULL, 0));
+			cfg_port = strtoul(optarg, NULL, 0);
+			break;
+		case 'r':
+			cfg_read_all = true;
 			break;
 		case 't':
 			cfg_tcp = true;
 			break;
 		case 'v':
 			cfg_verify = true;
+			cfg_read_all = true;
 			break;
 		}
 	}
@@ -226,6 +243,12 @@ static void do_recv(void)
 	int fd;
 
 	fd = do_socket(cfg_tcp);
+
+	if (cfg_gro_segment && !cfg_tcp) {
+		int val = 1;
+		if (setsockopt(fd, IPPROTO_UDP, UDP_GRO, &val, sizeof(val)))
+			error(1, errno, "setsockopt UDP_GRO");
+	}
 
 	treport = gettimeofday_ms() + 1000;
 	do {
