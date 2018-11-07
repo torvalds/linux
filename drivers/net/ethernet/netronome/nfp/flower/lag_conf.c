@@ -472,17 +472,25 @@ nfp_fl_lag_schedule_group_remove(struct nfp_fl_lag *lag,
 	schedule_delayed_work(&lag->work, NFP_FL_LAG_DELAY);
 }
 
-static int
+static void
 nfp_fl_lag_schedule_group_delete(struct nfp_fl_lag *lag,
 				 struct net_device *master)
 {
 	struct nfp_fl_lag_group *group;
+	struct nfp_flower_priv *priv;
+
+	priv = container_of(lag, struct nfp_flower_priv, nfp_lag);
+
+	if (!netif_is_bond_master(master))
+		return;
 
 	mutex_lock(&lag->lock);
 	group = nfp_fl_lag_find_group_for_master_with_lag(lag, master);
 	if (!group) {
 		mutex_unlock(&lag->lock);
-		return -ENOENT;
+		nfp_warn(priv->app->cpp, "untracked bond got unregistered %s\n",
+			 netdev_name(master));
+		return;
 	}
 
 	group->to_remove = true;
@@ -490,7 +498,6 @@ nfp_fl_lag_schedule_group_delete(struct nfp_fl_lag *lag,
 	mutex_unlock(&lag->lock);
 
 	schedule_delayed_work(&lag->work, NFP_FL_LAG_DELAY);
-	return 0;
 }
 
 static int
@@ -643,12 +650,8 @@ nfp_fl_lag_netdev_event(struct notifier_block *nb, unsigned long event,
 			return NOTIFY_BAD;
 		return NOTIFY_OK;
 	case NETDEV_UNREGISTER:
-		if (netif_is_bond_master(netdev)) {
-			err = nfp_fl_lag_schedule_group_delete(lag, netdev);
-			if (err)
-				return NOTIFY_BAD;
-			return NOTIFY_OK;
-		}
+		nfp_fl_lag_schedule_group_delete(lag, netdev);
+		return NOTIFY_OK;
 	}
 
 	return NOTIFY_DONE;
