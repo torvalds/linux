@@ -2567,9 +2567,27 @@ out_enomem:
 	goto out;
 }
 
+static int bpf_map__set_filter_pids(struct bpf_map *map __maybe_unused,
+				    size_t npids __maybe_unused, pid_t *pids __maybe_unused)
+{
+	int err = 0;
+#ifdef HAVE_LIBBPF_SUPPORT
+	bool value = true;
+	int map_fd = bpf_map__fd(map);
+	size_t i;
+
+	for (i = 0; i < npids; ++i) {
+		err = bpf_map_update_elem(map_fd, &pids[i], &value, BPF_ANY);
+		if (err)
+			break;
+	}
+#endif
+	return err;
+}
+
 static int trace__set_filter_loop_pids(struct trace *trace)
 {
-	unsigned int nr = 1;
+	unsigned int nr = 1, err;
 	pid_t pids[32] = {
 		getpid(),
 	};
@@ -2588,7 +2606,34 @@ static int trace__set_filter_loop_pids(struct trace *trace)
 		thread = parent;
 	}
 
-	return perf_evlist__set_tp_filter_pids(trace->evlist, nr, pids);
+	err = perf_evlist__set_tp_filter_pids(trace->evlist, nr, pids);
+	if (!err && trace->filter_pids.map)
+		err = bpf_map__set_filter_pids(trace->filter_pids.map, nr, pids);
+
+	return err;
+}
+
+static int trace__set_filter_pids(struct trace *trace)
+{
+	int err = 0;
+	/*
+	 * Better not use !target__has_task() here because we need to cover the
+	 * case where no threads were specified in the command line, but a
+	 * workload was, and in that case we will fill in the thread_map when
+	 * we fork the workload in perf_evlist__prepare_workload.
+	 */
+	if (trace->filter_pids.nr > 0) {
+		err = perf_evlist__set_tp_filter_pids(trace->evlist, trace->filter_pids.nr,
+						      trace->filter_pids.entries);
+		if (!err && trace->filter_pids.map) {
+			err = bpf_map__set_filter_pids(trace->filter_pids.map, trace->filter_pids.nr,
+						       trace->filter_pids.entries);
+		}
+	} else if (thread_map__pid(trace->evlist->threads, 0) == -1) {
+		err = trace__set_filter_loop_pids(trace);
+	}
+
+	return err;
 }
 
 static int trace__run(struct trace *trace, int argc, const char **argv)
@@ -2697,17 +2742,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_error_open;
 	}
 
-	/*
-	 * Better not use !target__has_task() here because we need to cover the
-	 * case where no threads were specified in the command line, but a
-	 * workload was, and in that case we will fill in the thread_map when
-	 * we fork the workload in perf_evlist__prepare_workload.
-	 */
-	if (trace->filter_pids.nr > 0)
-		err = perf_evlist__set_tp_filter_pids(evlist, trace->filter_pids.nr, trace->filter_pids.entries);
-	else if (thread_map__pid(evlist->threads, 0) == -1)
-		err = trace__set_filter_loop_pids(trace);
-
+	err = trace__set_filter_pids(trace);
 	if (err < 0)
 		goto out_error_mem;
 
