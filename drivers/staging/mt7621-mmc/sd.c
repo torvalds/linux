@@ -1797,6 +1797,7 @@ static void msdc_drv_pm(struct platform_device *pdev, pm_message_t state)
 
 	if (mmc) {
 		struct msdc_host *host = mmc_priv(mmc);
+
 		msdc_pm(state, (void *)host);
 	}
 }
