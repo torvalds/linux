@@ -145,10 +145,14 @@ struct hclgevf_dev {
 	struct hclgevf_misc_vector misc_vector;
 	struct hclgevf_rss_cfg rss_cfg;
 	unsigned long state;
+	unsigned long default_reset_request;
+	unsigned long last_reset_time;
+	enum hnae3_reset_type reset_level;
 
 #define HCLGEVF_RESET_REQUESTED		0
 #define HCLGEVF_RESET_PENDING		1
 	unsigned long reset_state;	/* requested, pending */
+	unsigned long reset_count;	/* the number of reset has been done */
 	u32 reset_attempts;
 
 	u32 fw_version;
@@ -196,14 +200,14 @@ static inline bool hclgevf_dev_ongoing_reset(struct hclgevf_dev *hdev)
 {
 	return (hdev &&
 		(test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) &&
-		(hdev->nic.reset_level == HNAE3_VF_RESET));
+		(hdev->reset_level == HNAE3_VF_RESET));
 }
 
 static inline bool hclgevf_dev_ongoing_full_reset(struct hclgevf_dev *hdev)
 {
 	return (hdev &&
 		(test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) &&
-		(hdev->nic.reset_level == HNAE3_VF_FULL_RESET));
+		(hdev->reset_level == HNAE3_VF_FULL_RESET));
 }
 
 int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,

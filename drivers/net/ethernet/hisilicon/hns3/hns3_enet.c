@@ -312,6 +312,24 @@ static u16 hns3_get_max_available_channels(struct hnae3_handle *h)
 	return min_t(u16, rss_size, max_rss_size);
 }
 
+static void hns3_tqp_enable(struct hnae3_queue *tqp)
+{
+	u32 rcb_reg;
+
+	rcb_reg = hns3_read_dev(tqp, HNS3_RING_EN_REG);
+	rcb_reg |= BIT(HNS3_RING_EN_B);
+	hns3_write_dev(tqp, HNS3_RING_EN_REG, rcb_reg);
+}
+
+static void hns3_tqp_disable(struct hnae3_queue *tqp)
+{
+	u32 rcb_reg;
+
+	rcb_reg = hns3_read_dev(tqp, HNS3_RING_EN_REG);
+	rcb_reg &= ~BIT(HNS3_RING_EN_B);
+	hns3_write_dev(tqp, HNS3_RING_EN_REG, rcb_reg);
+}
+
 static int hns3_nic_net_up(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -334,6 +352,10 @@ static int hns3_nic_net_up(struct net_device *netdev)
 	for (i = 0; i < priv->vector_num; i++)
 		hns3_vector_enable(&priv->tqp_vector[i]);
 
+	/* enable rcb */
+	for (j = 0; j < h->kinfo.num_tqps; j++)
+		hns3_tqp_enable(h->kinfo.tqp[j]);
+
 	/* start the ae_dev */
 	ret = h->ae_algo->ops->start ? h->ae_algo->ops->start(h) : 0;
 	if (ret)
@@ -344,6 +366,9 @@ static int hns3_nic_net_up(struct net_device *netdev)
 	return 0;
 
 out_start_err:
+	while (j--)
+		hns3_tqp_disable(h->kinfo.tqp[j]);
+
 	for (j = i - 1; j >= 0; j--)
 		hns3_vector_disable(&priv->tqp_vector[j]);
 
@@ -354,10 +379,12 @@ out_start_err:
 
 static int hns3_nic_net_open(struct net_device *netdev)
 {
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo;
 	int i, ret;
+
+	if (hns3_nic_resetting(netdev))
+		return -EBUSY;
 
 	netif_carrier_off(netdev);
 
@@ -378,13 +405,13 @@ static int hns3_nic_net_open(struct net_device *netdev)
 				       kinfo->prio_tc[i]);
 	}
 
-	priv->ae_handle->last_reset_time = jiffies;
 	return 0;
 }
 
 static void hns3_nic_net_down(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops;
 	int i;
 
@@ -394,6 +421,10 @@ static void hns3_nic_net_down(struct net_device *netdev)
 	/* disable vectors */
 	for (i = 0; i < priv->vector_num; i++)
 		hns3_vector_disable(&priv->tqp_vector[i]);
+
+	/* disable rcb */
+	for (i = 0; i < h->kinfo.num_tqps; i++)
+		hns3_tqp_disable(h->kinfo.tqp[i]);
 
 	/* stop ae_dev */
 	ops = priv->ae_handle->ae_algo->ops;
@@ -1615,10 +1646,9 @@ static void hns3_nic_net_timeout(struct net_device *ndev)
 
 	priv->tx_timeout_count++;
 
-	if (time_before(jiffies, (h->last_reset_time + ndev->watchdog_timeo)))
-		return;
-
-	/* request the reset */
+	/* request the reset, and let the hclge to determine
+	 * which reset level should be done
+	 */
 	if (h->ae_algo->ops->reset_event)
 		h->ae_algo->ops->reset_event(h->pdev, h);
 }
@@ -3337,7 +3367,6 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->dev = &pdev->dev;
 	priv->netdev = netdev;
 	priv->ae_handle = handle;
-	priv->ae_handle->last_reset_time = jiffies;
 	priv->tx_timeout_count = 0;
 
 	handle->kinfo.netdev = netdev;
@@ -3356,11 +3385,6 @@ static int hns3_client_init(struct hnae3_handle *handle)
 
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
-
-	if (handle->flags & HNAE3_SUPPORT_VF)
-		handle->reset_level = HNAE3_VF_RESET;
-	else
-		handle->reset_level = HNAE3_FUNC_RESET;
 
 	ret = hns3_get_ring_config(priv);
 	if (ret) {
@@ -3397,6 +3421,8 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	/* MTU range: (ETH_MIN_MTU(kernel default) - 9706) */
 	netdev->max_mtu = HNS3_MAX_MTU - (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 
+	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
+
 	return ret;
 
 out_reg_netdev_fail:
@@ -3423,6 +3449,11 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
 
+	if (!test_and_clear_bit(HNS3_NIC_STATE_INITED, &priv->state)) {
+		netdev_warn(netdev, "already uninitialized\n");
+		goto out_netdev_free;
+	}
+
 	hns3_del_all_fd_rules(netdev, true);
 
 	hns3_force_clear_all_rx_ring(handle);
@@ -3443,6 +3474,7 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	priv->ring_data = NULL;
 
+out_netdev_free:
 	free_netdev(netdev);
 }
 
@@ -3708,8 +3740,22 @@ static void hns3_restore_coal(struct hns3_nic_priv *priv)
 
 static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct net_device *ndev = kinfo->netdev;
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+
+	if (test_and_set_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
+		return 0;
+
+	/* it is cumbersome for hardware to pick-and-choose entries for deletion
+	 * from table space. Hence, for function reset software intervention is
+	 * required to delete the entries
+	 */
+	if (hns3_dev_ongoing_func_reset(ae_dev)) {
+		hns3_remove_hw_addr(ndev);
+		hns3_del_all_fd_rules(ndev, false);
+	}
 
 	if (!netif_running(ndev))
 		return 0;
@@ -3720,6 +3766,7 @@ static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
+	struct hns3_nic_priv *priv = netdev_priv(kinfo->netdev);
 	int ret = 0;
 
 	if (netif_running(kinfo->netdev)) {
@@ -3729,8 +3776,9 @@ static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 				   "hns net up fail, ret=%d!\n", ret);
 			return ret;
 		}
-		handle->last_reset_time = jiffies;
 	}
+
+	clear_bit(HNS3_NIC_STATE_RESETTING, &priv->state);
 
 	return ret;
 }
@@ -3782,15 +3830,21 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 		priv->ring_data = NULL;
 	}
 
+	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
+
 	return ret;
 }
 
 static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
+
+	if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state)) {
+		netdev_warn(netdev, "already uninitialized\n");
+		return 0;
+	}
 
 	hns3_force_clear_all_rx_ring(handle);
 
@@ -3806,14 +3860,7 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
 
-	/* it is cumbersome for hardware to pick-and-choose entries for deletion
-	 * from table space. Hence, for function reset software intervention is
-	 * required to delete the entries
-	 */
-	if (hns3_dev_ongoing_func_reset(ae_dev)) {
-		hns3_remove_hw_addr(netdev);
-		hns3_del_all_fd_rules(netdev, false);
-	}
+	clear_bit(HNS3_NIC_STATE_INITED, &priv->state);
 
 	return ret;
 }

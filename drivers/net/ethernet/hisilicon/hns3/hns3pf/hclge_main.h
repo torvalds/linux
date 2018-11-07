@@ -102,6 +102,7 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_GLOBAL_RESET_REG		0x20A00
 #define HCLGE_GLOBAL_RESET_BIT		0
 #define HCLGE_CORE_RESET_BIT		1
+#define HCLGE_IMP_RESET_BIT		2
 #define HCLGE_FUN_RST_ING		0x20C00
 #define HCLGE_FUN_RST_ING_B		0
 
@@ -593,10 +594,15 @@ struct hclge_dev {
 	struct hclge_misc_vector misc_vector;
 	struct hclge_hw_stats hw_stats;
 	unsigned long state;
+	unsigned long last_reset_time;
 
 	enum hnae3_reset_type reset_type;
+	enum hnae3_reset_type reset_level;
+	unsigned long default_reset_request;
 	unsigned long reset_request;	/* reset has been requested */
 	unsigned long reset_pending;	/* client rst is pending to be served */
+	unsigned long reset_count;	/* the number of reset has been done */
+	u32 reset_fail_cnt;
 	u32 fw_version;
 	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
 	u16 num_tqps;			/* Num task queue pairs of this PF */
@@ -644,6 +650,7 @@ struct hclge_dev {
 	unsigned long service_timer_period;
 	unsigned long service_timer_previous;
 	struct timer_list service_timer;
+	struct timer_list reset_timer;
 	struct work_struct service_task;
 	struct work_struct rst_service_task;
 	struct work_struct mbx_service_task;

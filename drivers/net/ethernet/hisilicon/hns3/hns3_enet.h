@@ -15,7 +15,7 @@ extern const char hns3_driver_version[];
 enum hns3_nic_state {
 	HNS3_NIC_STATE_TESTING,
 	HNS3_NIC_STATE_RESETTING,
-	HNS3_NIC_STATE_REINITING,
+	HNS3_NIC_STATE_INITED,
 	HNS3_NIC_STATE_DOWN,
 	HNS3_NIC_STATE_DISABLED,
 	HNS3_NIC_STATE_REMOVING,
@@ -47,7 +47,7 @@ enum hns3_nic_state {
 #define HNS3_RING_PREFETCH_EN_REG		0x0007C
 #define HNS3_RING_CFG_VF_NUM_REG		0x00080
 #define HNS3_RING_ASID_REG			0x0008C
-#define HNS3_RING_RX_VM_REG			0x00090
+#define HNS3_RING_EN_REG			0x00090
 #define HNS3_RING_T0_BE_RST			0x00094
 #define HNS3_RING_COULD_BE_RST			0x00098
 #define HNS3_RING_WRR_WEIGHT_REG		0x0009c
@@ -193,6 +193,8 @@ enum hns3_nic_state {
 #define HNS3_VECTOR_GL2_OFFSET			0x300
 #define HNS3_VECTOR_RL_OFFSET			0x900
 #define HNS3_VECTOR_RL_EN_B			6
+
+#define HNS3_RING_EN_B				0
 
 enum hns3_pkt_l3t_type {
 	HNS3_L3T_NONE,
@@ -577,6 +579,11 @@ static inline int is_ring_empty(struct hns3_enet_ring *ring)
 	return ring->next_to_use == ring->next_to_clean;
 }
 
+static inline u32 hns3_read_reg(void __iomem *base, u32 reg)
+{
+	return readl(base + reg);
+}
+
 static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 {
 	u8 __iomem *reg_addr = READ_ONCE(base);
@@ -587,6 +594,16 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 static inline bool hns3_dev_ongoing_func_reset(struct hnae3_ae_dev *ae_dev)
 {
 	return (ae_dev && (ae_dev->reset_type == HNAE3_FUNC_RESET));
+}
+
+#define hns3_read_dev(a, reg) \
+	hns3_read_reg((a)->io_base, (reg))
+
+static inline bool hns3_nic_resetting(struct net_device *netdev)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+
+	return test_bit(HNS3_NIC_STATE_RESETTING, &priv->state);
 }
 
 #define hns3_write_dev(a, reg, value) \

@@ -256,6 +256,7 @@ static inline u32 hclgevf_read_reg(u8 __iomem *base, u32 reg)
 
 int hclgevf_cmd_init(struct hclgevf_dev *hdev);
 void hclgevf_cmd_uninit(struct hclgevf_dev *hdev);
+int hclgevf_cmd_queue_init(struct hclgevf_dev *hdev);
 
 int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num);
 void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,

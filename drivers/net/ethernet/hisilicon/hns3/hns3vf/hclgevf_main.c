@@ -956,13 +956,6 @@ static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,
 	return status;
 }
 
-static int hclgevf_get_queue_id(struct hnae3_queue *queue)
-{
-	struct hclgevf_tqp *tqp = container_of(queue, struct hclgevf_tqp, q);
-
-	return tqp->index;
-}
-
 static void hclgevf_reset_tqp_stats(struct hnae3_handle *handle)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
@@ -1165,6 +1158,7 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 {
 	int ret;
 
+	hdev->reset_count++;
 	rtnl_lock();
 
 	/* bring down the nic to stop any ongoing TX/RX */
@@ -1219,6 +1213,19 @@ static int hclgevf_do_reset(struct hclgevf_dev *hdev)
 	return status;
 }
 
+static enum hnae3_reset_type hclgevf_get_reset_level(struct hclgevf_dev *hdev,
+						     unsigned long *addr)
+{
+	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
+
+	if (test_bit(HNAE3_VF_RESET, addr)) {
+		rst_level = HNAE3_VF_RESET;
+		clear_bit(HNAE3_VF_RESET, addr);
+	}
+
+	return rst_level;
+}
+
 static void hclgevf_reset_event(struct pci_dev *pdev,
 				struct hnae3_handle *handle)
 {
@@ -1226,13 +1233,26 @@ static void hclgevf_reset_event(struct pci_dev *pdev,
 
 	dev_info(&hdev->pdev->dev, "received reset request from VF enet\n");
 
-	handle->reset_level = HNAE3_VF_RESET;
+	if (!hdev->default_reset_request)
+		hdev->reset_level =
+			hclgevf_get_reset_level(hdev,
+						&hdev->default_reset_request);
+	else
+		hdev->reset_level = HNAE3_VF_RESET;
 
 	/* reset of this VF requested */
 	set_bit(HCLGEVF_RESET_REQUESTED, &hdev->reset_state);
 	hclgevf_reset_task_schedule(hdev);
 
-	handle->last_reset_time = jiffies;
+	hdev->last_reset_time = jiffies;
+}
+
+static void hclgevf_set_def_reset_request(struct hnae3_ae_dev *ae_dev,
+					  enum hnae3_reset_type rst_type)
+{
+	struct hclgevf_dev *hdev = ae_dev->priv;
+
+	set_bit(rst_type, &hdev->default_reset_request);
 }
 
 static u32 hclgevf_get_fw_version(struct hnae3_handle *handle)
@@ -1352,7 +1372,7 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 		 */
 		if (hdev->reset_attempts > 3) {
 			/* prepare for full reset of stack + pcie interface */
-			hdev->nic.reset_level = HNAE3_VF_FULL_RESET;
+			hdev->reset_level = HNAE3_VF_FULL_RESET;
 
 			/* "defer" schedule the reset task again */
 			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
@@ -1566,21 +1586,7 @@ static int hclgevf_init_vlan_config(struct hclgevf_dev *hdev)
 
 static int hclgevf_ae_start(struct hnae3_handle *handle)
 {
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	int i, queue_id;
-
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		/* ring enable */
-		queue_id = hclgevf_get_queue_id(kinfo->tqp[i]);
-		if (queue_id < 0) {
-			dev_warn(&hdev->pdev->dev,
-				 "Get invalid queue id, ignore it\n");
-			continue;
-		}
-
-		hclgevf_tqp_enable(hdev, queue_id, 0, true);
-	}
 
 	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);
@@ -1595,23 +1601,9 @@ static int hclgevf_ae_start(struct hnae3_handle *handle)
 
 static void hclgevf_ae_stop(struct hnae3_handle *handle)
 {
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	int i, queue_id;
 
 	set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
-
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		/* Ring disable */
-		queue_id = hclgevf_get_queue_id(kinfo->tqp[i]);
-		if (queue_id < 0) {
-			dev_warn(&hdev->pdev->dev,
-				 "Get invalid queue id, ignore it\n");
-			continue;
-		}
-
-		hclgevf_tqp_enable(hdev, queue_id, 0, false);
-	}
 
 	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);
@@ -1974,6 +1966,12 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		return ret;
 	}
 
+	ret = hclgevf_cmd_queue_init(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Cmd queue init failed: %d\n", ret);
+		goto err_cmd_queue_init;
+	}
+
 	ret = hclgevf_cmd_init(hdev);
 	if (ret)
 		goto err_cmd_init;
@@ -1983,16 +1981,17 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Query vf status error, ret = %d.\n", ret);
-		goto err_query_vf;
+		goto err_cmd_init;
 	}
 
 	ret = hclgevf_init_msi(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed(%d) to init MSI/MSI-X\n", ret);
-		goto err_query_vf;
+		goto err_cmd_init;
 	}
 
 	hclgevf_state_init(hdev);
+	hdev->reset_level = HNAE3_VF_RESET;
 
 	ret = hclgevf_misc_irq_init(hdev);
 	if (ret) {
@@ -2034,6 +2033,7 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		goto err_config;
 	}
 
+	hdev->last_reset_time = jiffies;
 	pr_info("finished initializing %s driver\n", HCLGEVF_DRIVER_NAME);
 
 	return 0;
@@ -2043,9 +2043,9 @@ err_config:
 err_misc_irq_init:
 	hclgevf_state_uninit(hdev);
 	hclgevf_uninit_msi(hdev);
-err_query_vf:
-	hclgevf_cmd_uninit(hdev);
 err_cmd_init:
+	hclgevf_cmd_uninit(hdev);
+err_cmd_queue_init:
 	hclgevf_pci_uninit(hdev);
 	return ret;
 }
@@ -2159,6 +2159,27 @@ static void hclgevf_get_media_type(struct hnae3_handle *handle,
 		*media_type = hdev->hw.mac.media_type;
 }
 
+static bool hclgevf_get_hw_reset_stat(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return !!hclgevf_read_dev(&hdev->hw, HCLGEVF_FUN_RST_ING);
+}
+
+static bool hclgevf_ae_dev_resetting(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
+}
+
+static unsigned long hclgevf_ae_dev_reset_cnt(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return hdev->reset_count;
+}
+
 static const struct hnae3_ae_ops hclgevf_ops = {
 	.init_ae_dev = hclgevf_init_ae_dev,
 	.uninit_ae_dev = hclgevf_uninit_ae_dev,
@@ -2193,11 +2214,15 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.set_vlan_filter = hclgevf_set_vlan_filter,
 	.enable_hw_strip_rxvtag = hclgevf_en_hw_strip_rxvtag,
 	.reset_event = hclgevf_reset_event,
+	.set_default_reset_request = hclgevf_set_def_reset_request,
 	.get_channels = hclgevf_get_channels,
 	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,
 	.get_status = hclgevf_get_status,
 	.get_ksettings_an_result = hclgevf_get_ksettings_an_result,
 	.get_media_type = hclgevf_get_media_type,
+	.get_hw_reset_stat = hclgevf_get_hw_reset_stat,
+	.ae_dev_resetting = hclgevf_ae_dev_resetting,
+	.ae_dev_reset_cnt = hclgevf_ae_dev_reset_cnt,
 };
 
 static struct hnae3_ae_algo ae_algovf = {
