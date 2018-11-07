@@ -165,6 +165,12 @@ static inline int udp_tunnel_handle_offloads(struct sk_buff *skb, bool udp_csum)
 
 static inline void udp_tunnel_encap_enable(struct socket *sock)
 {
+	struct udp_sock *up = udp_sk(sock->sk);
+
+	if (up->encap_enabled)
+		return;
+
+	up->encap_enabled = 1;
 #if IS_ENABLED(CONFIG_IPV6)
 	if (sock->sk->sk_family == PF_INET6)
 		ipv6_stub->udpv6_encap_enable();
