@@ -892,36 +892,19 @@ EXPORT_SYMBOL(xfrm_policy_byid);
 static inline int
 xfrm_policy_flush_secctx_check(struct net *net, u8 type, bool task_valid)
 {
-	int dir, err = 0;
+	struct xfrm_policy *pol;
+	int err = 0;
 
-	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
-		struct xfrm_policy *pol;
-		int i;
+	list_for_each_entry(pol, &net->xfrm.policy_all, walk.all) {
+		if (pol->walk.dead ||
+		    xfrm_policy_id2dir(pol->index) >= XFRM_POLICY_MAX ||
+		    pol->type != type)
+			continue;
 
-		hlist_for_each_entry(pol,
-				     &net->xfrm.policy_inexact[dir], bydst) {
-			if (pol->type != type)
-				continue;
-			err = security_xfrm_policy_delete(pol->security);
-			if (err) {
-				xfrm_audit_policy_delete(pol, 0, task_valid);
-				return err;
-			}
-		}
-		for (i = net->xfrm.policy_bydst[dir].hmask; i >= 0; i--) {
-			hlist_for_each_entry(pol,
-					     net->xfrm.policy_bydst[dir].table + i,
-					     bydst) {
-				if (pol->type != type)
-					continue;
-				err = security_xfrm_policy_delete(
-								pol->security);
-				if (err) {
-					xfrm_audit_policy_delete(pol, 0,
-								 task_valid);
-					return err;
-				}
-			}
+		err = security_xfrm_policy_delete(pol->security);
+		if (err) {
+			xfrm_audit_policy_delete(pol, 0, task_valid);
+			return err;
 		}
 	}
 	return err;
@@ -937,6 +920,7 @@ xfrm_policy_flush_secctx_check(struct net *net, u8 type, bool task_valid)
 int xfrm_policy_flush(struct net *net, u8 type, bool task_valid)
 {
 	int dir, err = 0, cnt = 0;
+	struct xfrm_policy *pol;
 
 	spin_lock_bh(&net->xfrm.xfrm_policy_lock);
 
@@ -944,46 +928,21 @@ int xfrm_policy_flush(struct net *net, u8 type, bool task_valid)
 	if (err)
 		goto out;
 
-	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
-		struct xfrm_policy *pol;
-		int i;
+again:
+	list_for_each_entry(pol, &net->xfrm.policy_all, walk.all) {
+		dir = xfrm_policy_id2dir(pol->index);
+		if (pol->walk.dead ||
+		    dir >= XFRM_POLICY_MAX ||
+		    pol->type != type)
+			continue;
 
-	again1:
-		hlist_for_each_entry(pol,
-				     &net->xfrm.policy_inexact[dir], bydst) {
-			if (pol->type != type)
-				continue;
-			__xfrm_policy_unlink(pol, dir);
-			spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
-			cnt++;
-
-			xfrm_audit_policy_delete(pol, 1, task_valid);
-
-			xfrm_policy_kill(pol);
-
-			spin_lock_bh(&net->xfrm.xfrm_policy_lock);
-			goto again1;
-		}
-
-		for (i = net->xfrm.policy_bydst[dir].hmask; i >= 0; i--) {
-	again2:
-			hlist_for_each_entry(pol,
-					     net->xfrm.policy_bydst[dir].table + i,
-					     bydst) {
-				if (pol->type != type)
-					continue;
-				__xfrm_policy_unlink(pol, dir);
-				spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
-				cnt++;
-
-				xfrm_audit_policy_delete(pol, 1, task_valid);
-				xfrm_policy_kill(pol);
-
-				spin_lock_bh(&net->xfrm.xfrm_policy_lock);
-				goto again2;
-			}
-		}
-
+		__xfrm_policy_unlink(pol, dir);
+		spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
+		cnt++;
+		xfrm_audit_policy_delete(pol, 1, task_valid);
+		xfrm_policy_kill(pol);
+		spin_lock_bh(&net->xfrm.xfrm_policy_lock);
+		goto again;
 	}
 	if (!cnt)
 		err = -ESRCH;
