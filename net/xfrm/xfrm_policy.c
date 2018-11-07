@@ -740,18 +740,12 @@ static bool xfrm_policy_mark_match(struct xfrm_policy *policy,
 	return false;
 }
 
-int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
+static struct xfrm_policy *xfrm_policy_insert_list(struct hlist_head *chain,
+						   struct xfrm_policy *policy,
+						   bool excl)
 {
-	struct net *net = xp_net(policy);
-	struct xfrm_policy *pol;
-	struct xfrm_policy *delpol;
-	struct hlist_head *chain;
-	struct hlist_node *newpos;
+	struct xfrm_policy *pol, *newpos = NULL, *delpol = NULL;
 
-	spin_lock_bh(&net->xfrm.xfrm_policy_lock);
-	chain = policy_hash_bysel(net, &policy->selector, policy->family, dir);
-	delpol = NULL;
-	newpos = NULL;
 	hlist_for_each_entry(pol, chain, bydst) {
 		if (pol->type == policy->type &&
 		    pol->if_id == policy->if_id &&
@@ -759,24 +753,41 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 		    xfrm_policy_mark_match(policy, pol) &&
 		    xfrm_sec_ctx_match(pol->security, policy->security) &&
 		    !WARN_ON(delpol)) {
-			if (excl) {
-				spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
-				return -EEXIST;
-			}
+			if (excl)
+				return ERR_PTR(-EEXIST);
 			delpol = pol;
 			if (policy->priority > pol->priority)
 				continue;
 		} else if (policy->priority >= pol->priority) {
-			newpos = &pol->bydst;
+			newpos = pol;
 			continue;
 		}
 		if (delpol)
 			break;
 	}
 	if (newpos)
-		hlist_add_behind_rcu(&policy->bydst, newpos);
+		hlist_add_behind_rcu(&policy->bydst, &newpos->bydst);
 	else
 		hlist_add_head_rcu(&policy->bydst, chain);
+
+	return delpol;
+}
+
+int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
+{
+	struct net *net = xp_net(policy);
+	struct xfrm_policy *delpol;
+	struct hlist_head *chain;
+
+	spin_lock_bh(&net->xfrm.xfrm_policy_lock);
+	chain = policy_hash_bysel(net, &policy->selector, policy->family, dir);
+	delpol = xfrm_policy_insert_list(chain, policy, excl);
+
+	if (IS_ERR(delpol)) {
+		spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
+		return PTR_ERR(delpol);
+	}
+
 	__xfrm_policy_link(policy, dir);
 
 	/* After previous checking, family can either be AF_INET or AF_INET6 */
