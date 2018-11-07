@@ -529,7 +529,7 @@ static struct cfp_rule *bcm_sf2_cfp_rule_find(struct bcm_sf2_priv *priv,
 	list_for_each_entry(rule, &priv->cfp.rules_list, next) {
 		if (rule->port == port && rule->fs.location == location)
 			break;
-	};
+	}
 
 	return rule;
 }
@@ -1165,7 +1165,7 @@ int bcm_sf2_cfp_resume(struct dsa_switch *ds)
 			dev_err(ds->dev, "failed to restore rule\n");
 			return ret;
 		}
-	};
+	}
 
 	return ret;
 }
