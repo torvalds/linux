@@ -1511,20 +1511,6 @@ static void devm_gpio_chip_release(struct device *dev, void *res)
 	gpiochip_remove(chip);
 }
 
-static int devm_gpio_chip_match(struct device *dev, void *res, void *data)
-
-{
-	struct gpio_chip **r = res;
-
-	if (!r || !*r) {
-		WARN_ON(!r || !*r);
-		return 0;
-	}
-
-	return *r == data;
-}
-
-
 /**
  * devm_gpiochip_add_data() - Resource manager gpiochip_add_data()
  * @dev: pointer to the device that gpio_chip belongs to.
