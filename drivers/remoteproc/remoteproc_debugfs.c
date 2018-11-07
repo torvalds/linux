@@ -155,6 +155,30 @@ static const struct file_operations rproc_recovery_ops = {
 	.llseek = generic_file_llseek,
 };
 
+/* expose the crash trigger via debugfs */
+static ssize_t
+rproc_crash_write(struct file *filp, const char __user *user_buf,
+		  size_t count, loff_t *ppos)
+{
+	struct rproc *rproc = filp->private_data;
+	unsigned int type;
+	int ret;
+
+	ret = kstrtouint_from_user(user_buf, count, 0, &type);
+	if (ret < 0)
+		return ret;
+
+	rproc_report_crash(rproc, type);
+
+	return count;
+}
+
+static const struct file_operations rproc_crash_ops = {
+	.write = rproc_crash_write,
+	.open = simple_open,
+	.llseek = generic_file_llseek,
+};
+
 /* Expose resource table content via debugfs */
 static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 {
@@ -325,6 +349,8 @@ void rproc_create_debug_dir(struct rproc *rproc)
 			    rproc, &rproc_name_ops);
 	debugfs_create_file("recovery", 0400, rproc->dbg_dir,
 			    rproc, &rproc_recovery_ops);
+	debugfs_create_file("crash", 0200, rproc->dbg_dir,
+			    rproc, &rproc_crash_ops);
 	debugfs_create_file("resource_table", 0400, rproc->dbg_dir,
 			    rproc, &rproc_rsc_table_ops);
 	debugfs_create_file("carveout_memories", 0400, rproc->dbg_dir,
