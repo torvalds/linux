@@ -178,7 +178,6 @@ static inline const char *phy_modes(phy_interface_t interface)
 #define PHY_INIT_TIMEOUT	100000
 #define PHY_STATE_TIME		1
 #define PHY_FORCE_TIMEOUT	10
-#define PHY_AN_TIMEOUT		10
 
 #define PHY_MAX_ADDR	32
 
@@ -297,24 +296,10 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  *
  * UP: The PHY and attached device are ready to do work.
  * Interrupts should be started here.
- * - timer moves to AN
- *
- * AN: The PHY is currently negotiating the link state.  Link is
- * therefore down for now.  phy_timer will set this state when it
- * detects the state is UP.  config_aneg will set this state
- * whenever called with phydev->autoneg set to AUTONEG_ENABLE.
- * - If autonegotiation finishes, but there's no link, it sets
- *   the state to NOLINK.
- * - If aneg finishes with link, it sets the state to RUNNING,
- *   and calls adjust_link
- * - If autonegotiation did not finish after an arbitrary amount
- *   of time, autonegotiation should be tried again if the PHY
- *   supports "magic" autonegotiation (back to AN)
- * - If it didn't finish, and no magic_aneg, move to FORCING.
+ * - timer moves to NOLINK or RUNNING
  *
  * NOLINK: PHY is up, but not currently plugged in.
  * - If the timer notes that the link comes back, we move to RUNNING
- * - config_aneg moves to AN
  * - phy_stop moves to HALTED
  *
  * FORCING: PHY is being configured with forced settings
@@ -329,7 +314,6 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  *   link state is polled every other cycle of this state machine,
  *   which makes it every other second)
  * - irq will set CHANGELINK
- * - config_aneg will set AN
  * - phy_stop moves to HALTED
  *
  * CHANGELINK: PHY experienced a change in link state
@@ -353,7 +337,6 @@ enum phy_state {
 	PHY_READY,
 	PHY_PENDING,
 	PHY_UP,
-	PHY_AN,
 	PHY_RUNNING,
 	PHY_NOLINK,
 	PHY_FORCING,

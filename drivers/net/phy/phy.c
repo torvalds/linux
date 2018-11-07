@@ -50,7 +50,6 @@ static const char *phy_state_to_str(enum phy_state st)
 	PHY_STATE_STR(READY)
 	PHY_STATE_STR(PENDING)
 	PHY_STATE_STR(UP)
-	PHY_STATE_STR(AN)
 	PHY_STATE_STR(RUNNING)
 	PHY_STATE_STR(NOLINK)
 	PHY_STATE_STR(FORCING)
@@ -944,32 +943,6 @@ void phy_state_machine(struct work_struct *work)
 	case PHY_UP:
 		needs_aneg = true;
 
-		phydev->link_timeout = PHY_AN_TIMEOUT;
-
-		break;
-	case PHY_AN:
-		err = phy_read_status(phydev);
-		if (err < 0)
-			break;
-
-		/* If the link is down, give up on negotiation for now */
-		if (!phydev->link) {
-			phydev->state = PHY_NOLINK;
-			phy_link_down(phydev, true);
-			break;
-		}
-
-		/* Check if negotiation is done.  Break if there's an error */
-		err = phy_aneg_done(phydev);
-		if (err < 0)
-			break;
-
-		/* If AN is done, we're running */
-		if (err > 0) {
-			phydev->state = PHY_RUNNING;
-			phy_link_up(phydev);
-		} else if (0 == phydev->link_timeout--)
-			needs_aneg = true;
 		break;
 	case PHY_NOLINK:
 		if (!phy_polling_mode(phydev))
