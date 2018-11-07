@@ -956,13 +956,6 @@ static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,
 	return status;
 }
 
-static int hclgevf_get_queue_id(struct hnae3_queue *queue)
-{
-	struct hclgevf_tqp *tqp = container_of(queue, struct hclgevf_tqp, q);
-
-	return tqp->index;
-}
-
 static void hclgevf_reset_tqp_stats(struct hnae3_handle *handle)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
@@ -1593,21 +1586,7 @@ static int hclgevf_init_vlan_config(struct hclgevf_dev *hdev)
 
 static int hclgevf_ae_start(struct hnae3_handle *handle)
 {
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	int i, queue_id;
-
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		/* ring enable */
-		queue_id = hclgevf_get_queue_id(kinfo->tqp[i]);
-		if (queue_id < 0) {
-			dev_warn(&hdev->pdev->dev,
-				 "Get invalid queue id, ignore it\n");
-			continue;
-		}
-
-		hclgevf_tqp_enable(hdev, queue_id, 0, true);
-	}
 
 	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);
@@ -1622,23 +1601,9 @@ static int hclgevf_ae_start(struct hnae3_handle *handle)
 
 static void hclgevf_ae_stop(struct hnae3_handle *handle)
 {
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	int i, queue_id;
 
 	set_bit(HCLGEVF_STATE_DOWN, &hdev->state);
-
-	for (i = 0; i < kinfo->num_tqps; i++) {
-		/* Ring disable */
-		queue_id = hclgevf_get_queue_id(kinfo->tqp[i]);
-		if (queue_id < 0) {
-			dev_warn(&hdev->pdev->dev,
-				 "Get invalid queue id, ignore it\n");
-			continue;
-		}
-
-		hclgevf_tqp_enable(hdev, queue_id, 0, false);
-	}
 
 	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);

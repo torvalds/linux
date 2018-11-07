@@ -312,6 +312,24 @@ static u16 hns3_get_max_available_channels(struct hnae3_handle *h)
 	return min_t(u16, rss_size, max_rss_size);
 }
 
+static void hns3_tqp_enable(struct hnae3_queue *tqp)
+{
+	u32 rcb_reg;
+
+	rcb_reg = hns3_read_dev(tqp, HNS3_RING_EN_REG);
+	rcb_reg |= BIT(HNS3_RING_EN_B);
+	hns3_write_dev(tqp, HNS3_RING_EN_REG, rcb_reg);
+}
+
+static void hns3_tqp_disable(struct hnae3_queue *tqp)
+{
+	u32 rcb_reg;
+
+	rcb_reg = hns3_read_dev(tqp, HNS3_RING_EN_REG);
+	rcb_reg &= ~BIT(HNS3_RING_EN_B);
+	hns3_write_dev(tqp, HNS3_RING_EN_REG, rcb_reg);
+}
+
 static int hns3_nic_net_up(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -334,6 +352,10 @@ static int hns3_nic_net_up(struct net_device *netdev)
 	for (i = 0; i < priv->vector_num; i++)
 		hns3_vector_enable(&priv->tqp_vector[i]);
 
+	/* enable rcb */
+	for (j = 0; j < h->kinfo.num_tqps; j++)
+		hns3_tqp_enable(h->kinfo.tqp[j]);
+
 	/* start the ae_dev */
 	ret = h->ae_algo->ops->start ? h->ae_algo->ops->start(h) : 0;
 	if (ret)
@@ -344,6 +366,9 @@ static int hns3_nic_net_up(struct net_device *netdev)
 	return 0;
 
 out_start_err:
+	while (j--)
+		hns3_tqp_disable(h->kinfo.tqp[j]);
+
 	for (j = i - 1; j >= 0; j--)
 		hns3_vector_disable(&priv->tqp_vector[j]);
 
@@ -385,6 +410,7 @@ static int hns3_nic_net_open(struct net_device *netdev)
 static void hns3_nic_net_down(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops;
 	int i;
 
@@ -394,6 +420,10 @@ static void hns3_nic_net_down(struct net_device *netdev)
 	/* disable vectors */
 	for (i = 0; i < priv->vector_num; i++)
 		hns3_vector_disable(&priv->tqp_vector[i]);
+
+	/* disable rcb */
+	for (i = 0; i < h->kinfo.num_tqps; i++)
+		hns3_tqp_disable(h->kinfo.tqp[i]);
 
 	/* stop ae_dev */
 	ops = priv->ae_handle->ae_algo->ops;

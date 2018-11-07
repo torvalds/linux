@@ -4843,10 +4843,6 @@ static int hclge_ae_start(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	int i;
-
-	for (i = 0; i < vport->alloc_tqps; i++)
-		hclge_tqp_enable(hdev, i, 0, true);
 
 	/* mac enable */
 	hclge_cfg_mac_mode(hdev, true);
@@ -4866,7 +4862,6 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	int i;
 
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
 
@@ -4878,9 +4873,6 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 		hclge_mac_stop_phy(hdev);
 		return;
 	}
-
-	for (i = 0; i < vport->alloc_tqps; i++)
-		hclge_tqp_enable(hdev, i, 0, false);
 
 	/* Mac disable */
 	hclge_cfg_mac_mode(hdev, false);
