@@ -451,11 +451,6 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, cif_dev);
 	cif_dev->dev = dev;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cif_regs");
-	cif_dev->base_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(cif_dev->base_addr))
-		return PTR_ERR(cif_dev->base_addr);
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -472,12 +467,23 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	cif_dev->chip_id = data->chip_id;
 	if (data->chip_id == CHIP_RK1808_CIF) {
 		using_pingpong = 1;
+
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cif_regs");
+		cif_dev->base_addr = devm_ioremap_resource(dev, res);
+		if (IS_ERR(cif_dev->base_addr))
+			return PTR_ERR(cif_dev->base_addr);
+
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csihost_regs");
 		cif_dev->csi_base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(cif_dev->csi_base))
 			return PTR_ERR(cif_dev->csi_base);
 	} else {
 		using_pingpong = 0;
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		cif_dev->base_addr = devm_ioremap_resource(dev, res);
+		if (IS_ERR(cif_dev->base_addr))
+			return PTR_ERR(cif_dev->base_addr);
 	}
 
 	if (data->clks_num > RKCIF_MAX_BUS_CLK ||
