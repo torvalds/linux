@@ -126,7 +126,8 @@ struct perf_session *perf_session__new(struct perf_data *data,
 	session->tool   = tool;
 	INIT_LIST_HEAD(&session->auxtrace_index);
 	machines__init(&session->machines);
-	ordered_events__init(&session->ordered_events, ordered_events__deliver_event);
+	ordered_events__init(&session->ordered_events,
+			     ordered_events__deliver_event, NULL);
 
 	if (data) {
 		if (perf_data__open(data))
