@@ -981,11 +981,7 @@ fail:
 		gpu->rb[i] = NULL;
 	}
 
-	if (gpu->memptrs_bo) {
-		msm_gem_put_vaddr(gpu->memptrs_bo);
-		msm_gem_put_iova(gpu->memptrs_bo, gpu->aspace);
-		drm_gem_object_put_unlocked(gpu->memptrs_bo);
-	}
+	msm_gem_kernel_put(gpu->memptrs_bo, gpu->aspace, false);
 
 	platform_set_drvdata(pdev, NULL);
 	return ret;
@@ -1004,11 +1000,7 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 		gpu->rb[i] = NULL;
 	}
 
-	if (gpu->memptrs_bo) {
-		msm_gem_put_vaddr(gpu->memptrs_bo);
-		msm_gem_put_iova(gpu->memptrs_bo, gpu->aspace);
-		drm_gem_object_put_unlocked(gpu->memptrs_bo);
-	}
+	msm_gem_kernel_put(gpu->memptrs_bo, gpu->aspace, false);
 
 	if (!IS_ERR_OR_NULL(gpu->aspace)) {
 		gpu->aspace->mmu->funcs->detach(gpu->aspace->mmu,

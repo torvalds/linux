@@ -1220,15 +1220,6 @@ static int a5xx_crashdumper_init(struct msm_gpu *gpu,
 	return PTR_ERR_OR_ZERO(dumper->ptr);
 }
 
-static void a5xx_crashdumper_free(struct msm_gpu *gpu,
-		struct a5xx_crashdumper *dumper)
-{
-	msm_gem_put_iova(dumper->bo, gpu->aspace);
-	msm_gem_put_vaddr(dumper->bo);
-
-	drm_gem_object_put(dumper->bo);
-}
-
 static int a5xx_crashdumper_run(struct msm_gpu *gpu,
 		struct a5xx_crashdumper *dumper)
 {
@@ -1321,7 +1312,7 @@ static void a5xx_gpu_state_get_hlsq_regs(struct msm_gpu *gpu,
 
 	if (a5xx_crashdumper_run(gpu, &dumper)) {
 		kfree(a5xx_state->hlsqregs);
-		a5xx_crashdumper_free(gpu, &dumper);
+		msm_gem_kernel_put(dumper.bo, gpu->aspace, true);
 		return;
 	}
 
@@ -1329,7 +1320,7 @@ static void a5xx_gpu_state_get_hlsq_regs(struct msm_gpu *gpu,
 	memcpy(a5xx_state->hlsqregs, dumper.ptr + (256 * SZ_1K),
 		count * sizeof(u32));
 
-	a5xx_crashdumper_free(gpu, &dumper);
+	msm_gem_kernel_put(dumper.bo, gpu->aspace, true);
 }
 
 static struct msm_gpu_state *a5xx_gpu_state_get(struct msm_gpu *gpu)

@@ -267,18 +267,8 @@ void a5xx_preempt_fini(struct msm_gpu *gpu)
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 	int i;
 
-	for (i = 0; i < gpu->nr_rings; i++) {
-		if (!a5xx_gpu->preempt_bo[i])
-			continue;
-
-		msm_gem_put_vaddr(a5xx_gpu->preempt_bo[i]);
-
-		if (a5xx_gpu->preempt_iova[i])
-			msm_gem_put_iova(a5xx_gpu->preempt_bo[i], gpu->aspace);
-
-		drm_gem_object_put(a5xx_gpu->preempt_bo[i]);
-		a5xx_gpu->preempt_bo[i] = NULL;
-	}
+	for (i = 0; i < gpu->nr_rings; i++)
+		msm_gem_kernel_put(a5xx_gpu->preempt_bo[i], gpu->aspace, true);
 }
 
 void a5xx_preempt_init(struct msm_gpu *gpu)

@@ -1079,3 +1079,18 @@ void *msm_gem_kernel_new_locked(struct drm_device *dev, uint32_t size,
 {
 	return _msm_gem_kernel_new(dev, size, flags, aspace, bo, iova, true);
 }
+
+void msm_gem_kernel_put(struct drm_gem_object *bo,
+		struct msm_gem_address_space *aspace, bool locked)
+{
+	if (IS_ERR_OR_NULL(bo))
+		return;
+
+	msm_gem_put_vaddr(bo);
+	msm_gem_put_iova(bo, aspace);
+
+	if (locked)
+		drm_gem_object_put(bo);
+	else
+		drm_gem_object_put_unlocked(bo);
+}
