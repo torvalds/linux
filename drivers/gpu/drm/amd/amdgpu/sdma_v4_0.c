@@ -662,6 +662,10 @@ static void sdma_v4_0_page_stop(struct amdgpu_device *adev)
 	u32 rb_cntl, ib_cntl;
 	int i;
 
+	if ((adev->mman.buffer_funcs_ring == sdma0) ||
+	    (adev->mman.buffer_funcs_ring == sdma1))
+		amdgpu_ttm_set_buffer_funcs_status(adev, false);
+
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32_SDMA(i, mmSDMA0_PAGE_RB_CNTL);
 		rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_PAGE_RB_CNTL,
@@ -1152,6 +1156,9 @@ static int sdma_v4_0_start(struct amdgpu_device *adev)
 			r = amdgpu_ring_test_helper(page);
 			if (r)
 				return r;
+
+			if (adev->mman.buffer_funcs_ring == page)
+				amdgpu_ttm_set_buffer_funcs_status(adev, true);
 		}
 
 		if (adev->mman.buffer_funcs_ring == ring)
@@ -2057,7 +2064,10 @@ static const struct amdgpu_buffer_funcs sdma_v4_0_buffer_funcs = {
 static void sdma_v4_0_set_buffer_funcs(struct amdgpu_device *adev)
 {
 	adev->mman.buffer_funcs = &sdma_v4_0_buffer_funcs;
-	adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].ring;
+	if (adev->sdma.has_page_queue)
+		adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].page;
+	else
+		adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].ring;
 }
 
 static const struct amdgpu_vm_pte_funcs sdma_v4_0_vm_pte_funcs = {
