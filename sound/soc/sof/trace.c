@@ -160,7 +160,6 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 	params.buffer.offset = 0;
 	params.buffer.pages = sdev->dma_trace_pages;
 
-	init_waitqueue_head(&sdev->trace_sleep);
 	sdev->host_offset = 0;
 
 	ret = snd_sof_dma_trace_init(sdev, &params.stream_tag);
@@ -232,6 +231,8 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 		if (ret < 0)
 			goto table_err;
 	}
+
+	init_waitqueue_head(&sdev->trace_sleep);
 
 	ret = snd_sof_init_trace_ipc(sdev);
 	if (ret < 0)
