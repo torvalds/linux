@@ -1371,6 +1371,13 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	struct dma_fence *f;
 	int i;
 
+	/* Don't evict VM page tables while they are busy, otherwise we can't
+	 * cleanly handle page faults.
+	 */
+	if (bo->type == ttm_bo_type_kernel &&
+	    !reservation_object_test_signaled_rcu(bo->resv, true))
+		return false;
+
 	/* If bo is a KFD BO, check if the bo belongs to the current process.
 	 * If true, then return false as any KFD process needs all its BOs to
 	 * be resident to run successfully
