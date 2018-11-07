@@ -103,6 +103,11 @@ VRF device:
 
 or to specify the output device using cmsg and IP_PKTINFO.
 
+By default the scope of the port bindings for unbound sockets is
+limited to the default VRF. That is, it will not be matched by packets
+arriving on interfaces enslaved to an l3mdev and processes may bind to
+the same port if they bind to an l3mdev.
+
 TCP & UDP services running in the default VRF context (ie., not bound
 to any VRF device) can work across all VRF domains by enabling the
 tcp_l3mdev_accept and udp_l3mdev_accept sysctl options:
@@ -111,10 +116,6 @@ tcp_l3mdev_accept and udp_l3mdev_accept sysctl options:
 
 netfilter rules on the VRF device can be used to limit access to services
 running in the default VRF context as well.
-
-The default VRF does not have limited scope with respect to port bindings.
-That is, if a process does a wildcard bind to a port in the default VRF it
-owns the port across all VRF domains within the network namespace.
 
 ################################################################################
 
