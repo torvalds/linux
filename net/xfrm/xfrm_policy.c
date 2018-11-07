@@ -365,7 +365,7 @@ static struct hlist_head *policy_hash_bysel(struct net *net,
 	hash = __sel_hash(sel, family, hmask, dbits, sbits);
 
 	if (hash == hmask + 1)
-		return &net->xfrm.policy_inexact[dir];
+		return NULL;
 
 	return rcu_dereference_check(net->xfrm.policy_bydst[dir].table,
 		     lockdep_is_held(&net->xfrm.xfrm_policy_lock)) + hash;
@@ -625,6 +625,8 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 		chain = policy_hash_bysel(net, &policy->selector,
 					  policy->family,
 					  xfrm_policy_id2dir(policy->index));
+		if (!chain)
+			chain = &net->xfrm.policy_inexact[dir];
 		hlist_for_each_entry(pol, chain, bydst) {
 			if (policy->priority >= pol->priority)
 				newpos = &pol->bydst;
@@ -781,7 +783,12 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 
 	spin_lock_bh(&net->xfrm.xfrm_policy_lock);
 	chain = policy_hash_bysel(net, &policy->selector, policy->family, dir);
-	delpol = xfrm_policy_insert_list(chain, policy, excl);
+	if (chain) {
+		delpol = xfrm_policy_insert_list(chain, policy, excl);
+	} else {
+		chain = &net->xfrm.policy_inexact[dir];
+		delpol = xfrm_policy_insert_list(chain, policy, excl);
+	}
 
 	if (IS_ERR(delpol)) {
 		spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
@@ -829,6 +836,8 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u32 mark, u32 if_id,
 	*err = 0;
 	spin_lock_bh(&net->xfrm.xfrm_policy_lock);
 	chain = policy_hash_bysel(net, sel, sel->family, dir);
+	if (!chain)
+		chain = &net->xfrm.policy_inexact[dir];
 	ret = NULL;
 	hlist_for_each_entry(pol, chain, bydst) {
 		if (pol->type == type &&
