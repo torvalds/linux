@@ -1022,17 +1022,6 @@ void phy_state_machine(struct work_struct *work)
 		}
 		break;
 	case PHY_RESUMING:
-		if (AUTONEG_ENABLE == phydev->autoneg) {
-			err = phy_aneg_done(phydev);
-			if (err < 0) {
-				break;
-			} else if (!err) {
-				phydev->state = PHY_AN;
-				phydev->link_timeout = PHY_AN_TIMEOUT;
-				break;
-			}
-		}
-
 		err = phy_read_status(phydev);
 		if (err)
 			break;
@@ -1042,7 +1031,7 @@ void phy_state_machine(struct work_struct *work)
 			phy_link_up(phydev);
 		} else	{
 			phydev->state = PHY_NOLINK;
-			phy_link_down(phydev, false);
+			phy_link_down(phydev, true);
 		}
 		break;
 	}
