@@ -87,6 +87,8 @@ static const struct mssr_mod_clk r7s9210_mod_clks[] __initconst = {
 	DEF_MOD_STB("scif1",	 46,	R7S9210_CLK_P1C),
 	DEF_MOD_STB("scif0",	 47,	R7S9210_CLK_P1C),
 
+	DEF_MOD_STB("usb1",	 60,	R7S9210_CLK_B),
+	DEF_MOD_STB("usb0",	 61,	R7S9210_CLK_B),
 	DEF_MOD_STB("ether1",	 64,	R7S9210_CLK_B),
 	DEF_MOD_STB("ether0",	 65,	R7S9210_CLK_B),
 
