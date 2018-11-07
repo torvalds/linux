@@ -235,6 +235,7 @@ static inline int compute_score(struct sock *sk, struct net *net,
 {
 	int score = -1;
 	struct inet_sock *inet = inet_sk(sk);
+	bool dev_match;
 
 	if (net_eq(sock_net(sk), net) && inet->inet_num == hnum &&
 			!ipv6_only_sock(sk)) {
@@ -245,15 +246,12 @@ static inline int compute_score(struct sock *sk, struct net *net,
 				return -1;
 			score += 4;
 		}
-		if (sk->sk_bound_dev_if || exact_dif) {
-			bool dev_match = (sk->sk_bound_dev_if == dif ||
-					  sk->sk_bound_dev_if == sdif);
+		dev_match = inet_sk_bound_dev_eq(net, sk->sk_bound_dev_if,
+						 dif, sdif);
+		if (!dev_match)
+			return -1;
+		score += 4;
 
-			if (!dev_match)
-				return -1;
-			if (sk->sk_bound_dev_if)
-				score += 4;
-		}
 		if (sk->sk_incoming_cpu == raw_smp_processor_id())
 			score++;
 	}
