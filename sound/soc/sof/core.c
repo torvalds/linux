@@ -355,10 +355,6 @@ static int sof_probe(struct platform_device *pdev)
 	pm_runtime_mark_last_busy(sdev->dev);
 	pm_runtime_put_autosuspend(sdev->dev);
 
-	/* autosuspend pci/acpi/spi device */
-	pm_runtime_mark_last_busy(plat_data->dev);
-	pm_runtime_put_autosuspend(plat_data->dev);
-
 	return 0;
 
 comp_err:
