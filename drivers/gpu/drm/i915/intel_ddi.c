@@ -2005,24 +2005,24 @@ out:
 	return ret;
 }
 
-bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
-			    enum pipe *pipe)
+static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
+					u8 *pipe_mask, bool *is_dp_mst)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = encoder->port;
 	enum pipe p;
 	u32 tmp;
-	bool ret;
+	u8 mst_pipe_mask;
+
+	*pipe_mask = 0;
+	*is_dp_mst = false;
 
 	if (!intel_display_power_get_if_enabled(dev_priv,
 						encoder->power_domain))
-		return false;
-
-	ret = false;
+		return;
 
 	tmp = I915_READ(DDI_BUF_CTL(port));
-
 	if (!(tmp & DDI_BUF_CTL_ENABLE))
 		goto out;
 
@@ -2030,44 +2030,58 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 		tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
 
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
+		default:
+			MISSING_CASE(tmp & TRANS_DDI_EDP_INPUT_MASK);
+			/* fallthrough */
 		case TRANS_DDI_EDP_INPUT_A_ON:
 		case TRANS_DDI_EDP_INPUT_A_ONOFF:
-			*pipe = PIPE_A;
+			*pipe_mask = BIT(PIPE_A);
 			break;
 		case TRANS_DDI_EDP_INPUT_B_ONOFF:
-			*pipe = PIPE_B;
+			*pipe_mask = BIT(PIPE_B);
 			break;
 		case TRANS_DDI_EDP_INPUT_C_ONOFF:
-			*pipe = PIPE_C;
+			*pipe_mask = BIT(PIPE_C);
 			break;
 		}
-
-		ret = true;
 
 		goto out;
 	}
 
+	mst_pipe_mask = 0;
 	for_each_pipe(dev_priv, p) {
-		enum transcoder cpu_transcoder = (enum transcoder) p;
+		enum transcoder cpu_transcoder = (enum transcoder)p;
 
 		tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 
-		if ((tmp & TRANS_DDI_PORT_MASK) == TRANS_DDI_SELECT_PORT(port)) {
-			if ((tmp & TRANS_DDI_MODE_SELECT_MASK) ==
-			    TRANS_DDI_MODE_SELECT_DP_MST)
-				goto out;
+		if ((tmp & TRANS_DDI_PORT_MASK) != TRANS_DDI_SELECT_PORT(port))
+			continue;
 
-			*pipe = p;
-			ret = true;
+		if ((tmp & TRANS_DDI_MODE_SELECT_MASK) ==
+		    TRANS_DDI_MODE_SELECT_DP_MST)
+			mst_pipe_mask |= BIT(p);
 
-			goto out;
-		}
+		*pipe_mask |= BIT(p);
 	}
 
-	DRM_DEBUG_KMS("No pipe for ddi port %c found\n", port_name(port));
+	if (!*pipe_mask)
+		DRM_DEBUG_KMS("No pipe for ddi port %c found\n",
+			      port_name(port));
+
+	if (!mst_pipe_mask && hweight8(*pipe_mask) > 1) {
+		DRM_DEBUG_KMS("Multiple pipes for non DP-MST port %c (pipe_mask %02x)\n",
+			      port_name(port), *pipe_mask);
+		*pipe_mask = BIT(ffs(*pipe_mask) - 1);
+	}
+
+	if (mst_pipe_mask && mst_pipe_mask != *pipe_mask)
+		DRM_DEBUG_KMS("Conflicting MST and non-MST encoders for port %c (pipe_mask %02x mst_pipe_mask %02x)\n",
+			      port_name(port), *pipe_mask, mst_pipe_mask);
+	else
+		*is_dp_mst = mst_pipe_mask;
 
 out:
-	if (ret && IS_GEN9_LP(dev_priv)) {
+	if (*pipe_mask && IS_GEN9_LP(dev_priv)) {
 		tmp = I915_READ(BXT_PHY_CTL(port));
 		if ((tmp & (BXT_PHY_CMNLANE_POWERDOWN_ACK |
 			    BXT_PHY_LANE_POWERDOWN_ACK |
@@ -2077,8 +2091,22 @@ out:
 	}
 
 	intel_display_power_put(dev_priv, encoder->power_domain);
+}
 
-	return ret;
+bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
+			    enum pipe *pipe)
+{
+	u8 pipe_mask;
+	bool is_mst;
+
+	intel_ddi_get_encoder_pipes(encoder, &pipe_mask, &is_mst);
+
+	if (is_mst || !pipe_mask)
+		return false;
+
+	*pipe = ffs(pipe_mask) - 1;
+
+	return true;
 }
 
 static inline enum intel_display_power_domain
