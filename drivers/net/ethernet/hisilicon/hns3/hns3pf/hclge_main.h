@@ -593,8 +593,10 @@ struct hclge_dev {
 	struct hclge_misc_vector misc_vector;
 	struct hclge_hw_stats hw_stats;
 	unsigned long state;
+	unsigned long last_reset_time;
 
 	enum hnae3_reset_type reset_type;
+	enum hnae3_reset_type reset_level;
 	unsigned long default_reset_request;
 	unsigned long reset_request;	/* reset has been requested */
 	unsigned long reset_pending;	/* client rst is pending to be served */

@@ -534,9 +534,6 @@ struct hnae3_handle {
 	struct hnae3_ae_algo *ae_algo;  /* the class who provides this handle */
 	u64 flags; /* Indicate the capabilities for this handle*/
 
-	unsigned long last_reset_time;
-	enum hnae3_reset_type reset_level;
-
 	union {
 		struct net_device *netdev; /* first member */
 		struct hnae3_knic_private_info kinfo;

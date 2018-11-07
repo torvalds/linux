@@ -1234,17 +1234,17 @@ static void hclgevf_reset_event(struct pci_dev *pdev,
 	dev_info(&hdev->pdev->dev, "received reset request from VF enet\n");
 
 	if (!hdev->default_reset_request)
-		handle->reset_level =
+		hdev->reset_level =
 			hclgevf_get_reset_level(hdev,
 						&hdev->default_reset_request);
 	else
-		handle->reset_level = HNAE3_VF_RESET;
+		hdev->reset_level = HNAE3_VF_RESET;
 
 	/* reset of this VF requested */
 	set_bit(HCLGEVF_RESET_REQUESTED, &hdev->reset_state);
 	hclgevf_reset_task_schedule(hdev);
 
-	handle->last_reset_time = jiffies;
+	hdev->last_reset_time = jiffies;
 }
 
 static void hclgevf_set_def_reset_request(struct hnae3_ae_dev *ae_dev,
@@ -1372,7 +1372,7 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 		 */
 		if (hdev->reset_attempts > 3) {
 			/* prepare for full reset of stack + pcie interface */
-			hdev->nic.reset_level = HNAE3_VF_FULL_RESET;
+			hdev->reset_level = HNAE3_VF_FULL_RESET;
 
 			/* "defer" schedule the reset task again */
 			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
@@ -1985,6 +1985,7 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	}
 
 	hclgevf_state_init(hdev);
+	hdev->reset_level = HNAE3_VF_RESET;
 
 	ret = hclgevf_misc_irq_init(hdev);
 	if (ret) {
@@ -2026,6 +2027,7 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		goto err_config;
 	}
 
+	hdev->last_reset_time = jiffies;
 	pr_info("finished initializing %s driver\n", HCLGEVF_DRIVER_NAME);
 
 	return 0;

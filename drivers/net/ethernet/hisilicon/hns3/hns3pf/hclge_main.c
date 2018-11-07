@@ -2465,15 +2465,14 @@ static void hclge_clear_reset_cause(struct hclge_dev *hdev)
 static void hclge_reset(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
-	struct hnae3_handle *handle;
 
 	/* Initialize ae_dev reset status as well, in case enet layer wants to
 	 * know if device is undergoing reset
 	 */
 	ae_dev->reset_type = hdev->reset_type;
 	hdev->reset_count++;
+	hdev->last_reset_time = jiffies;
 	/* perform reset of the stack & ae device for a client */
-	handle = &hdev->vport[0].nic;
 	rtnl_lock();
 	hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
 	rtnl_unlock();
@@ -2493,7 +2492,6 @@ static void hclge_reset(struct hclge_dev *hdev)
 	}
 
 	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
-	handle->last_reset_time = jiffies;
 	rtnl_unlock();
 	ae_dev->reset_type = HNAE3_NONE_RESET;
 }
@@ -2521,24 +2519,24 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 	if (!handle)
 		handle = &hdev->vport[0].nic;
 
-	if (time_before(jiffies, (handle->last_reset_time + 3 * HZ)))
+	if (time_before(jiffies, (hdev->last_reset_time + 3 * HZ)))
 		return;
 	else if (hdev->default_reset_request)
-		handle->reset_level =
+		hdev->reset_level =
 			hclge_get_reset_level(hdev,
 					      &hdev->default_reset_request);
-	else if (time_after(jiffies, (handle->last_reset_time + 4 * 5 * HZ)))
-		handle->reset_level = HNAE3_FUNC_RESET;
+	else if (time_after(jiffies, (hdev->last_reset_time + 4 * 5 * HZ)))
+		hdev->reset_level = HNAE3_FUNC_RESET;
 
 	dev_info(&hdev->pdev->dev, "received reset event , reset type is %d",
-		 handle->reset_level);
+		 hdev->reset_level);
 
 	/* request reset & schedule reset task */
-	set_bit(handle->reset_level, &hdev->reset_request);
+	set_bit(hdev->reset_level, &hdev->reset_request);
 	hclge_reset_task_schedule(hdev);
 
-	if (handle->reset_level < HNAE3_GLOBAL_RESET)
-		handle->reset_level++;
+	if (hdev->reset_level < HNAE3_GLOBAL_RESET)
+		hdev->reset_level++;
 }
 
 static void hclge_set_def_reset_request(struct hnae3_ae_dev *ae_dev,
@@ -2560,6 +2558,7 @@ static void hclge_reset_subtask(struct hclge_dev *hdev)
 	 *    b. else, we can come back later to check this status so re-sched
 	 *       now.
 	 */
+	hdev->last_reset_time = jiffies;
 	hdev->reset_type = hclge_get_reset_level(hdev, &hdev->reset_pending);
 	if (hdev->reset_type != HNAE3_NONE_RESET)
 		hclge_reset(hdev);
@@ -6670,6 +6669,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hdev->pdev = pdev;
 	hdev->ae_dev = ae_dev;
 	hdev->reset_type = HNAE3_NONE_RESET;
+	hdev->reset_level = HNAE3_FUNC_RESET;
 	ae_dev->priv = hdev;
 
 	ret = hclge_pci_init(hdev);
@@ -6814,6 +6814,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_enable_vector(&hdev->misc_vector, true);
 
 	hclge_state_init(hdev);
+	hdev->last_reset_time = jiffies;
 
 	pr_info("%s driver initialization finished.\n", HCLGE_DRIVER_NAME);
 	return 0;
