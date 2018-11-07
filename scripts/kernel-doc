@@ -361,7 +361,7 @@ my $doc_com = '\s*\*\s*';
 my $doc_com_body = '\s*\* ?';
 my $doc_decl = $doc_com . '(\w+)';
 # @params and a strictly limited set of supported section names
-my $doc_sect = $doc_com . 
+my $doc_sect = $doc_com .
     '\s*(\@[.\w]+|\@\.\.\.|description|context|returns?|notes?|examples?)\s*:(.*)';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
@@ -751,7 +751,7 @@ sub output_blockhead_rst(%) {
 
 #
 # Apply the RST highlights to a sub-block of text.
-#   
+#
 sub highlight_block($) {
     # The dohighlight kludge requires the text be called $contents
     my $contents = shift;
