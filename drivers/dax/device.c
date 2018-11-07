@@ -504,9 +504,12 @@ static int dev_dax_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver device_dax_driver = {
-	.probe = dev_dax_probe,
-	.remove = dev_dax_remove,
+static struct dax_device_driver device_dax_driver = {
+	.drv = {
+		.probe = dev_dax_probe,
+		.remove = dev_dax_remove,
+	},
+	.match_always = 1,
 };
 
 static int __init dax_init(void)
@@ -516,7 +519,7 @@ static int __init dax_init(void)
 
 static void __exit dax_exit(void)
 {
-	driver_unregister(&device_dax_driver);
+	dax_driver_unregister(&device_dax_driver);
 }
 
 MODULE_AUTHOR("Intel Corporation");
