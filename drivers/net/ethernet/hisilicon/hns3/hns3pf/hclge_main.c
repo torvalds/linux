@@ -2414,20 +2414,25 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hclge_dev *hdev,
 	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
 
 	/* return the highest priority reset level amongst all */
-	if (test_bit(HNAE3_GLOBAL_RESET, addr))
-		rst_level = HNAE3_GLOBAL_RESET;
-	else if (test_bit(HNAE3_CORE_RESET, addr))
-		rst_level = HNAE3_CORE_RESET;
-	else if (test_bit(HNAE3_IMP_RESET, addr))
+	if (test_bit(HNAE3_IMP_RESET, addr)) {
 		rst_level = HNAE3_IMP_RESET;
-	else if (test_bit(HNAE3_FUNC_RESET, addr))
+		clear_bit(HNAE3_IMP_RESET, addr);
+		clear_bit(HNAE3_GLOBAL_RESET, addr);
+		clear_bit(HNAE3_CORE_RESET, addr);
+		clear_bit(HNAE3_FUNC_RESET, addr);
+	} else if (test_bit(HNAE3_GLOBAL_RESET, addr)) {
+		rst_level = HNAE3_GLOBAL_RESET;
+		clear_bit(HNAE3_GLOBAL_RESET, addr);
+		clear_bit(HNAE3_CORE_RESET, addr);
+		clear_bit(HNAE3_FUNC_RESET, addr);
+	} else if (test_bit(HNAE3_CORE_RESET, addr)) {
+		rst_level = HNAE3_CORE_RESET;
+		clear_bit(HNAE3_CORE_RESET, addr);
+		clear_bit(HNAE3_FUNC_RESET, addr);
+	} else if (test_bit(HNAE3_FUNC_RESET, addr)) {
 		rst_level = HNAE3_FUNC_RESET;
-
-	/* now, clear all other resets */
-	clear_bit(HNAE3_GLOBAL_RESET, addr);
-	clear_bit(HNAE3_CORE_RESET, addr);
-	clear_bit(HNAE3_IMP_RESET, addr);
-	clear_bit(HNAE3_FUNC_RESET, addr);
+		clear_bit(HNAE3_FUNC_RESET, addr);
+	}
 
 	return rst_level;
 }
