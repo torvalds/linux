@@ -945,17 +945,13 @@ void phy_state_machine(struct work_struct *work)
 
 		break;
 	case PHY_NOLINK:
+	case PHY_RUNNING:
 		if (!phy_polling_mode(phydev))
 			break;
-
-		err = phy_read_status(phydev);
-		if (err)
-			break;
-
-		if (phydev->link) {
-			phydev->state = PHY_RUNNING;
-			phy_link_up(phydev);
-		}
+		/* fall through */
+	case PHY_CHANGELINK:
+	case PHY_RESUMING:
+		err = phy_check_link_status(phydev);
 		break;
 	case PHY_FORCING:
 		err = genphy_update_link(phydev);
@@ -971,50 +967,11 @@ void phy_state_machine(struct work_struct *work)
 			phy_link_down(phydev, false);
 		}
 		break;
-	case PHY_RUNNING:
-		if (!phy_polling_mode(phydev))
-			break;
-
-		err = phy_read_status(phydev);
-		if (err)
-			break;
-
-		if (!phydev->link) {
-			phydev->state = PHY_NOLINK;
-			phy_link_down(phydev, true);
-		}
-		break;
-	case PHY_CHANGELINK:
-		err = phy_read_status(phydev);
-		if (err)
-			break;
-
-		if (phydev->link) {
-			phydev->state = PHY_RUNNING;
-			phy_link_up(phydev);
-		} else {
-			phydev->state = PHY_NOLINK;
-			phy_link_down(phydev, true);
-		}
-		break;
 	case PHY_HALTED:
 		if (phydev->link) {
 			phydev->link = 0;
 			phy_link_down(phydev, true);
 			do_suspend = true;
-		}
-		break;
-	case PHY_RESUMING:
-		err = phy_read_status(phydev);
-		if (err)
-			break;
-
-		if (phydev->link) {
-			phydev->state = PHY_RUNNING;
-			phy_link_up(phydev);
-		} else	{
-			phydev->state = PHY_NOLINK;
-			phy_link_down(phydev, true);
 		}
 		break;
 	}
