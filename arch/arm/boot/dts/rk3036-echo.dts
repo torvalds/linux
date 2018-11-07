@@ -50,7 +50,6 @@
 		compatible = "rockchip,fiq-debugger";
 		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_LOW>;
 		rockchip,serial-id = <2>;
-		rockchip,signal-irq = <106>;
 		rockchip,wake-irq = <0>;
 		/* If enable uart uses irq instead of fiq */
 		rockchip,irq-mode-enable = <0>;
