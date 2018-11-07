@@ -2256,7 +2256,19 @@ config CPU_GENERIC_DUMP_TLB
 	default y if !(CPU_R3000 || CPU_R8000 || CPU_TX39XX)
 
 config MIPS_FP_SUPPORT
-	def_bool y
+	bool "Floating Point support" if EXPERT
+	default y
+	help
+	  Select y to include support for floating point in the kernel
+	  including initialization of FPU hardware, FP context save & restore
+	  and emulation of an FPU where necessary. Without this support any
+	  userland program attempting to use floating point instructions will
+	  receive a SIGILL.
+
+	  If you know that your userland will not attempt to use floating point
+	  instructions then you can say n here to shrink the kernel a little.
+
+	  If unsure, say y.
 
 config CPU_R2300_FPU
 	bool
