@@ -46,7 +46,7 @@ static inline bool bio_will_gap(struct request_queue *q,
 		bio_get_first_bvec(prev_rq->bio, &pb);
 	else
 		bio_get_first_bvec(prev, &pb);
-	if (pb.bv_offset)
+	if (pb.bv_offset & queue_virt_boundary(q))
 		return true;
 
 	/*
