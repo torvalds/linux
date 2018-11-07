@@ -2145,6 +2145,7 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 
 	/* check for vector0 reset event sources */
 	if (BIT(HCLGE_VECTOR0_GLOBALRESET_INT_B) & rst_src_reg) {
+		dev_info(&hdev->pdev->dev, "global reset interrupt\n");
 		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
 		set_bit(HNAE3_GLOBAL_RESET, &hdev->reset_pending);
 		*clearval = BIT(HCLGE_VECTOR0_GLOBALRESET_INT_B);
@@ -2152,6 +2153,7 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 	}
 
 	if (BIT(HCLGE_VECTOR0_CORERESET_INT_B) & rst_src_reg) {
+		dev_info(&hdev->pdev->dev, "core reset interrupt\n");
 		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
 		set_bit(HNAE3_CORE_RESET, &hdev->reset_pending);
 		*clearval = BIT(HCLGE_VECTOR0_CORERESET_INT_B);
@@ -2159,6 +2161,7 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 	}
 
 	if (BIT(HCLGE_VECTOR0_IMPRESET_INT_B) & rst_src_reg) {
+		dev_info(&hdev->pdev->dev, "IMP reset interrupt\n");
 		set_bit(HNAE3_IMP_RESET, &hdev->reset_pending);
 		*clearval = BIT(HCLGE_VECTOR0_IMPRESET_INT_B);
 		return HCLGE_VECTOR0_EVENT_RST;
@@ -2308,8 +2311,11 @@ static int hclge_notify_client(struct hclge_dev *hdev,
 		int ret;
 
 		ret = client->ops->reset_notify(handle, type);
-		if (ret)
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"notify nic client failed %d(%d)\n", type, ret);
 			return ret;
+		}
 	}
 
 	return 0;
@@ -2518,9 +2524,49 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 	return ret;
 }
 
+static bool hclge_reset_err_handle(struct hclge_dev *hdev, bool is_timeout)
+{
+#define MAX_RESET_FAIL_CNT 5
+#define RESET_UPGRADE_DELAY_SEC 10
+
+	if (hdev->reset_pending) {
+		dev_info(&hdev->pdev->dev, "Reset pending %lu\n",
+			 hdev->reset_pending);
+		return true;
+	} else if ((hdev->reset_type != HNAE3_IMP_RESET) &&
+		   (hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG) &
+		    BIT(HCLGE_IMP_RESET_BIT))) {
+		dev_info(&hdev->pdev->dev,
+			 "reset failed because IMP Reset is pending\n");
+		hclge_clear_reset_cause(hdev);
+		return false;
+	} else if (hdev->reset_fail_cnt < MAX_RESET_FAIL_CNT) {
+		hdev->reset_fail_cnt++;
+		if (is_timeout) {
+			set_bit(hdev->reset_type, &hdev->reset_pending);
+			dev_info(&hdev->pdev->dev,
+				 "re-schedule to wait for hw reset done\n");
+			return true;
+		}
+
+		dev_info(&hdev->pdev->dev, "Upgrade reset level\n");
+		hclge_clear_reset_cause(hdev);
+		mod_timer(&hdev->reset_timer,
+			  jiffies + RESET_UPGRADE_DELAY_SEC * HZ);
+
+		return false;
+	}
+
+	hclge_clear_reset_cause(hdev);
+	dev_err(&hdev->pdev->dev, "Reset fail!\n");
+	return false;
+}
+
 static void hclge_reset(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	bool is_timeout = false;
+	int ret;
 
 	/* Initialize ae_dev reset status as well, in case enet layer wants to
 	 * know if device is undergoing reset
@@ -2529,34 +2575,66 @@ static void hclge_reset(struct hclge_dev *hdev)
 	hdev->reset_count++;
 	hdev->last_reset_time = jiffies;
 	/* perform reset of the stack & ae device for a client */
-	hclge_notify_roce_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclge_notify_roce_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret)
+		goto err_reset;
+
 	rtnl_lock();
-	hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret)
+		goto err_reset_lock;
+
 	rtnl_unlock();
 
-	hclge_reset_prepare_wait(hdev);
+	ret = hclge_reset_prepare_wait(hdev);
+	if (ret)
+		goto err_reset;
 
-	if (!hclge_reset_wait(hdev)) {
-		hclge_notify_roce_client(hdev, HNAE3_UNINIT_CLIENT);
-		rtnl_lock();
-		hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
-		hclge_reset_ae_dev(hdev->ae_dev);
-		hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
-
-		hclge_clear_reset_cause(hdev);
-	} else {
-		rtnl_lock();
-		/* schedule again to check pending resets later */
-		set_bit(hdev->reset_type, &hdev->reset_pending);
-		hclge_reset_task_schedule(hdev);
+	if (hclge_reset_wait(hdev)) {
+		is_timeout = true;
+		goto err_reset;
 	}
 
-	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
-	rtnl_unlock();
-	ae_dev->reset_type = HNAE3_NONE_RESET;
+	ret = hclge_notify_roce_client(hdev, HNAE3_UNINIT_CLIENT);
+	if (ret)
+		goto err_reset;
 
-	hclge_notify_roce_client(hdev, HNAE3_INIT_CLIENT);
-	hclge_notify_roce_client(hdev, HNAE3_UP_CLIENT);
+	rtnl_lock();
+	ret = hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	if (ret)
+		goto err_reset_lock;
+
+	ret = hclge_reset_ae_dev(hdev->ae_dev);
+	if (ret)
+		goto err_reset_lock;
+
+	ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+	if (ret)
+		goto err_reset_lock;
+
+	hclge_clear_reset_cause(hdev);
+
+	ret = hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	if (ret)
+		goto err_reset_lock;
+
+	rtnl_unlock();
+
+	ret = hclge_notify_roce_client(hdev, HNAE3_INIT_CLIENT);
+	if (ret)
+		goto err_reset;
+
+	ret = hclge_notify_roce_client(hdev, HNAE3_UP_CLIENT);
+	if (ret)
+		goto err_reset;
+
+	return;
+
+err_reset_lock:
+	rtnl_unlock();
+err_reset:
+	if (hclge_reset_err_handle(hdev, is_timeout))
+		hclge_reset_task_schedule(hdev);
 }
 
 static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
@@ -2608,6 +2686,16 @@ static void hclge_set_def_reset_request(struct hnae3_ae_dev *ae_dev,
 	struct hclge_dev *hdev = ae_dev->priv;
 
 	set_bit(rst_type, &hdev->default_reset_request);
+}
+
+static void hclge_reset_timer(struct timer_list *t)
+{
+	struct hclge_dev *hdev = from_timer(hdev, t, reset_timer);
+
+	dev_info(&hdev->pdev->dev,
+		 "triggering global reset in reset timer\n");
+	set_bit(HNAE3_GLOBAL_RESET, &hdev->default_reset_request);
+	hclge_reset_event(hdev->pdev, NULL);
 }
 
 static void hclge_reset_subtask(struct hclge_dev *hdev)
@@ -4416,8 +4504,12 @@ static int hclge_restore_fd_entries(struct hnae3_handle *handle)
 	struct hlist_node *node;
 	int ret;
 
+	/* Return ok here, because reset error handling will check this
+	 * return value. If error is returned here, the reset process will
+	 * fail.
+	 */
 	if (!hnae3_dev_fd_supported(hdev))
-		return -EOPNOTSUPP;
+		return 0;
 
 	hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list, rule_node) {
 		ret = hclge_config_action(hdev, HCLGE_FD_STAGE_1, rule);
@@ -6713,6 +6805,8 @@ static void hclge_state_uninit(struct hclge_dev *hdev)
 
 	if (hdev->service_timer.function)
 		del_timer_sync(&hdev->service_timer);
+	if (hdev->reset_timer.function)
+		del_timer_sync(&hdev->reset_timer);
 	if (hdev->service_task.func)
 		cancel_work_sync(&hdev->service_task);
 	if (hdev->rst_service_task.func)
@@ -6871,6 +6965,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_dcb_ops_set(hdev);
 
 	timer_setup(&hdev->service_timer, hclge_service_timer, 0);
+	timer_setup(&hdev->reset_timer, hclge_reset_timer, 0);
 	INIT_WORK(&hdev->service_task, hclge_service_task);
 	INIT_WORK(&hdev->rst_service_task, hclge_reset_service_task);
 	INIT_WORK(&hdev->mbx_service_task, hclge_mailbox_service_task);
