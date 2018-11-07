@@ -367,29 +367,24 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	int irq_base;
 	u32 msk;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 
 	chip->dev = &pdev->dev;
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "%s : pci_enable_device FAILED", __func__);
-		goto err_pci_enable;
+		return ret;
 	}
 
-	ret = pci_request_regions(pdev, KBUILD_MODNAME);
+	ret = pcim_iomap_regions(pdev, 1 << 1, KBUILD_MODNAME);
 	if (ret) {
 		dev_err(&pdev->dev, "pci_request_regions FAILED-%d", ret);
-		goto err_request_regions;
+		return ret;
 	}
 
-	chip->base = pci_iomap(pdev, 1, 0);
-	if (!chip->base) {
-		dev_err(&pdev->dev, "%s : pci_iomap FAILED", __func__);
-		ret = -ENOMEM;
-		goto err_iomap;
-	}
+	chip->base = pcim_iomap_table(pdev)[1];
 
 	if (pdev->device == 0x8803)
 		chip->ioh = INTEL_EG20T_PCH;
@@ -405,10 +400,10 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 #ifdef CONFIG_OF_GPIO
 	chip->gpio.of_node = pdev->dev.of_node;
 #endif
-	ret = gpiochip_add_data(&chip->gpio, chip);
+	ret = devm_gpiochip_add_data(&pdev->dev, &chip->gpio, chip);
 	if (ret) {
 		dev_err(&pdev->dev, "PCH gpio: Failed to register GPIO\n");
-		goto err_gpiochip_add;
+		return ret;
 	}
 
 	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0,
@@ -416,7 +411,7 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	if (irq_base < 0) {
 		dev_warn(&pdev->dev, "PCH gpio: Failed to get IRQ base num\n");
 		chip->irq_base = -1;
-		goto end;
+		return 0;
 	}
 	chip->irq_base = irq_base;
 
@@ -427,47 +422,13 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 
 	ret = devm_request_irq(&pdev->dev, pdev->irq, pch_gpio_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
-	if (ret != 0) {
+	if (ret) {
 		dev_err(&pdev->dev,
 			"%s request_irq failed\n", __func__);
-		goto err_request_irq;
+		return ret;
 	}
 
-	ret = pch_gpio_alloc_generic_chip(chip, irq_base,
-					  gpio_pins[chip->ioh]);
-	if (ret)
-		goto err_request_irq;
-
-end:
-	return 0;
-
-err_request_irq:
-	gpiochip_remove(&chip->gpio);
-
-err_gpiochip_add:
-	pci_iounmap(pdev, chip->base);
-
-err_iomap:
-	pci_release_regions(pdev);
-
-err_request_regions:
-	pci_disable_device(pdev);
-
-err_pci_enable:
-	kfree(chip);
-	dev_err(&pdev->dev, "%s Failed returns %d\n", __func__, ret);
-	return ret;
-}
-
-static void pch_gpio_remove(struct pci_dev *pdev)
-{
-	struct pch_gpio *chip = pci_get_drvdata(pdev);
-
-	gpiochip_remove(&chip->gpio);
-	pci_iounmap(pdev, chip->base);
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-	kfree(chip);
+	return pch_gpio_alloc_generic_chip(chip, irq_base, gpio_pins[chip->ioh]);
 }
 
 #ifdef CONFIG_PM
@@ -538,7 +499,6 @@ static struct pci_driver pch_gpio_driver = {
 	.name = "pch_gpio",
 	.id_table = pch_gpio_pcidev_id,
 	.probe = pch_gpio_probe,
-	.remove = pch_gpio_remove,
 	.suspend = pch_gpio_suspend,
 	.resume = pch_gpio_resume
 };
