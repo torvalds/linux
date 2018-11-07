@@ -30,9 +30,6 @@
 #include <asm/mips_mt.h>
 #endif
 
-extern void _save_fp(struct task_struct *);
-extern void _restore_fp(struct task_struct *);
-
 /*
  * This enum specifies a mode in which we want the FPU to operate, for cores
  * which implement the Status.FR bit. Note that the bottom bit of the value
@@ -46,6 +43,11 @@ enum fpu_mode {
 
 #define FPU_FR_MASK		0x1
 };
+
+#ifdef CONFIG_MIPS_FP_SUPPORT
+
+extern void _save_fp(struct task_struct *);
+extern void _restore_fp(struct task_struct *);
 
 #define __disable_fpu()							\
 do {									\
@@ -250,4 +252,81 @@ static inline union fpureg *get_fpu_regs(struct task_struct *tsk)
 	return tsk->thread.fpu.fpr;
 }
 
+#else /* !CONFIG_MIPS_FP_SUPPORT */
+
+/*
+ * When FP support is disabled we provide only a minimal set of stub functions
+ * to avoid callers needing to care too much about CONFIG_MIPS_FP_SUPPORT.
+ */
+
+static inline int __enable_fpu(enum fpu_mode mode)
+{
+	return SIGILL;
+}
+
+static inline void __disable_fpu(void)
+{
+	/* no-op */
+}
+
+
+static inline int is_fpu_owner(void)
+{
+	return 0;
+}
+
+static inline void clear_fpu_owner(void)
+{
+	/* no-op */
+}
+
+static inline int own_fpu_inatomic(int restore)
+{
+	return SIGILL;
+}
+
+static inline int own_fpu(int restore)
+{
+	return SIGILL;
+}
+
+static inline void lose_fpu_inatomic(int save, struct task_struct *tsk)
+{
+	/* no-op */
+}
+
+static inline void lose_fpu(int save)
+{
+	/* no-op */
+}
+
+static inline bool init_fp_ctx(struct task_struct *target)
+{
+	return false;
+}
+
+/*
+ * The following functions should only be called in paths where we know that FP
+ * support is enabled, typically a path where own_fpu() or __enable_fpu() have
+ * returned successfully. When CONFIG_MIPS_FP_SUPPORT=n it is known at compile
+ * time that this should never happen, so calls to these functions should be
+ * optimized away & never actually be emitted.
+ */
+
+extern void save_fp(struct task_struct *tsk)
+	__compiletime_error("save_fp() should not be called when CONFIG_MIPS_FP_SUPPORT=n");
+
+extern void _save_fp(struct task_struct *)
+	__compiletime_error("_save_fp() should not be called when CONFIG_MIPS_FP_SUPPORT=n");
+
+extern void restore_fp(struct task_struct *tsk)
+	__compiletime_error("restore_fp() should not be called when CONFIG_MIPS_FP_SUPPORT=n");
+
+extern void _restore_fp(struct task_struct *)
+	__compiletime_error("_restore_fp() should not be called when CONFIG_MIPS_FP_SUPPORT=n");
+
+extern union fpureg *get_fpu_regs(struct task_struct *tsk)
+	__compiletime_error("get_fpu_regs() should not be called when CONFIG_MIPS_FP_SUPPORT=n");
+
+#endif /* !CONFIG_MIPS_FP_SUPPORT */
 #endif /* _ASM_FPU_H */
