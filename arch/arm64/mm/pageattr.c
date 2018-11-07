@@ -93,6 +93,12 @@ static int change_memory_common(unsigned long addr, int numpages,
 	if (!numpages)
 		return 0;
 
+	/*
+	 * Get rid of potentially aliasing lazily unmapped vm areas that may
+	 * have permissions set that deviate from the ones we are setting here.
+	 */
+	vm_unmap_aliases();
+
 	return __change_memory_common(start, size, set_mask, clear_mask);
 }
 
