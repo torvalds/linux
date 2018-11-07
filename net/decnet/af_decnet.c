@@ -2405,7 +2405,7 @@ static void __exit decnet_exit(void)
 
 	proto_unregister(&dn_proto);
 
-	rcu_barrier_bh(); /* Wait for completion of call_rcu_bh()'s */
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 module_exit(decnet_exit);
 #endif
