@@ -18,7 +18,9 @@ run_one() {
 	# use 'rx' as separator between sender args and receiver args
 	local -r all="$@"
 	local -r tx_args=${all%rx*}
-	local -r rx_args=${all#*rx}
+	local rx_args=${all#*rx}
+
+	[[ "${tx_args}" == *"-4"* ]] && rx_args="${rx_args} -4"
 
 	ip netns add "${PEER_NS}"
 	ip -netns "${PEER_NS}" link set lo up
@@ -51,10 +53,10 @@ run_udp() {
 	local -r args=$@
 
 	echo "udp gso - over veth touching data"
-	run_in_netns ${args} -S rx
+	run_in_netns ${args} -S 0 rx
 
 	echo "udp gso and gro - over veth touching data"
-	run_in_netns ${args} -S rx -G
+	run_in_netns ${args} -S 0 rx -G
 }
 
 run_tcp() {
