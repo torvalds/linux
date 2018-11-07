@@ -692,7 +692,7 @@ static int imx214_write_table(struct imx214 *imx214,
 	int i;
 	int ret;
 
-	for (table = table; table->addr != IMX214_TABLE_END ; table++) {
+	for (; table->addr != IMX214_TABLE_END ; table++) {
 		if (table->addr == IMX214_TABLE_WAIT_MS) {
 			usleep_range(table->val * 1000,
 				     table->val * 1000 + 500);
