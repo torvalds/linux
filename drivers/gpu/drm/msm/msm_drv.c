@@ -810,7 +810,7 @@ static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
 	}
 
 	return msm_gem_new_handle(dev, file, args->size,
-			args->flags, &args->handle);
+			args->flags, &args->handle, NULL);
 }
 
 static inline ktime_t to_ktime(struct drm_msm_timespec timeout)

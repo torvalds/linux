@@ -1083,6 +1083,8 @@ int dsi_tx_buf_alloc_6g(struct msm_dsi_host *msm_host, int size)
 		return PTR_ERR(data);
 	}
 
+	msm_gem_object_set_name(msm_host->tx_gem_obj, "tx_gem");
+
 	msm_host->tx_size = msm_host->tx_gem_obj->size;
 
 	return 0;

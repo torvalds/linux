@@ -333,6 +333,8 @@ static int a6xx_ucode_init(struct msm_gpu *gpu)
 
 			return ret;
 		}
+
+		msm_gem_object_set_name(a6xx_gpu->sqe_bo, "sqefw");
 	}
 
 	gpu_write64(gpu, REG_A6XX_CP_SQE_INSTR_BASE_LO,

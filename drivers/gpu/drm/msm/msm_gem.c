@@ -491,7 +491,7 @@ int msm_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	args->pitch = align_pitch(args->width, args->bpp);
 	args->size  = PAGE_ALIGN(args->pitch * args->height);
 	return msm_gem_new_handle(dev, file, args->size,
-			MSM_BO_SCANOUT | MSM_BO_WC, &args->handle);
+			MSM_BO_SCANOUT | MSM_BO_WC, &args->handle, "dumb");
 }
 
 int msm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
@@ -794,7 +794,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 			obj->name, kref_read(&obj->refcount),
 			off, msm_obj->vaddr);
 
-	seq_printf(m, " %08zu%9s\n", obj->size, madv);
+	seq_printf(m, " %08zu %9s %-32s\n", obj->size, madv, msm_obj->name);
 
 	if (!list_empty(&msm_obj->vmas)) {
 
@@ -833,7 +833,7 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 	int count = 0;
 	size_t size = 0;
 
-	seq_puts(m, "   flags       id ref  offset   kaddr            size     madv\n");
+	seq_puts(m, "   flags       id ref  offset   kaddr            size     madv      name\n");
 	list_for_each_entry(msm_obj, list, mm_list) {
 		struct drm_gem_object *obj = &msm_obj->base;
 		seq_puts(m, "   ");
@@ -890,7 +890,8 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 
 /* convenience method to construct a GEM buffer object, and userspace handle */
 int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
-		uint32_t size, uint32_t flags, uint32_t *handle)
+		uint32_t size, uint32_t flags, uint32_t *handle,
+		char *name)
 {
 	struct drm_gem_object *obj;
 	int ret;
@@ -899,6 +900,9 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
+
+	if (name)
+		msm_gem_object_set_name(obj, "%s", name);
 
 	ret = drm_gem_handle_create(file, obj, handle);
 
@@ -1152,4 +1156,17 @@ void msm_gem_kernel_put(struct drm_gem_object *bo,
 		drm_gem_object_put(bo);
 	else
 		drm_gem_object_put_unlocked(bo);
+}
+
+void msm_gem_object_set_name(struct drm_gem_object *bo, const char *fmt, ...)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(bo);
+	va_list ap;
+
+	if (!fmt)
+		return;
+
+	va_start(ap, fmt);
+	vsnprintf(msm_obj->name, sizeof(msm_obj->name), fmt, ap);
+	va_end(ap);
 }

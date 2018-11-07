@@ -237,6 +237,8 @@ msm_alloc_stolen_fb(struct drm_device *dev, int w, int h, int p, uint32_t format
 		return ERR_CAST(bo);
 	}
 
+	msm_gem_object_set_name(bo, "stolenfb");
+
 	fb = msm_framebuffer_init(dev, &mode_cmd, &bo);
 	if (IS_ERR(fb)) {
 		DRM_DEV_ERROR(dev->dev, "failed to allocate fb\n");

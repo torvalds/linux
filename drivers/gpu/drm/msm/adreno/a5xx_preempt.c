@@ -245,6 +245,8 @@ static int preempt_init_ring(struct a5xx_gpu *a5xx_gpu,
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 
+	msm_gem_object_set_name(bo, "preempt");
+
 	a5xx_gpu->preempt_bo[ring->id] = bo;
 	a5xx_gpu->preempt_iova[ring->id] = iova;
 	a5xx_gpu->preempt[ring->id] = ptr;

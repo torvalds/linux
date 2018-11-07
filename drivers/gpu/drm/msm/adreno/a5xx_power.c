@@ -300,6 +300,8 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	if (IS_ERR(ptr))
 		return;
 
+	msm_gem_object_set_name(a5xx_gpu->gpmu_bo, "gpmufw");
+
 	while (cmds_size > 0) {
 		int i;
 		uint32_t _size = cmds_size > TYPE4_MAX_PAYLOAD ?
