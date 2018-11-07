@@ -706,6 +706,8 @@ asmlinkage void do_ov(struct pt_regs *regs)
 	exception_exit(prev_state);
 }
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
+
 /*
  * Send SIGFPE according to FCSR Cause bits, which must have already
  * been masked against Enable bits.  This is impotant as Inexact can
@@ -870,6 +872,45 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 out:
 	exception_exit(prev_state);
 }
+
+/*
+ * MIPS MT processors may have fewer FPU contexts than CPU threads. If we've
+ * emulated more than some threshold number of instructions, force migration to
+ * a "CPU" that has FP support.
+ */
+static void mt_ase_fp_affinity(void)
+{
+#ifdef CONFIG_MIPS_MT_FPAFF
+	if (mt_fpemul_threshold > 0 &&
+	     ((current->thread.emulated_fp++ > mt_fpemul_threshold))) {
+		/*
+		 * If there's no FPU present, or if the application has already
+		 * restricted the allowed set to exclude any CPUs with FPUs,
+		 * we'll skip the procedure.
+		 */
+		if (cpumask_intersects(&current->cpus_allowed, &mt_fpu_cpumask)) {
+			cpumask_t tmask;
+
+			current->thread.user_cpus_allowed
+				= current->cpus_allowed;
+			cpumask_and(&tmask, &current->cpus_allowed,
+				    &mt_fpu_cpumask);
+			set_cpus_allowed_ptr(current, &tmask);
+			set_thread_flag(TIF_FPUBOUND);
+		}
+	}
+#endif /* CONFIG_MIPS_MT_FPAFF */
+}
+
+#else /* !CONFIG_MIPS_FP_SUPPORT */
+
+static int simulate_fp(struct pt_regs *regs, unsigned int opcode,
+		       unsigned long old_epc, unsigned long old_ra)
+{
+	return -1;
+}
+
+#endif /* !CONFIG_MIPS_FP_SUPPORT */
 
 void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 	const char *str)
@@ -1155,35 +1196,6 @@ out:
 }
 
 /*
- * MIPS MT processors may have fewer FPU contexts than CPU threads. If we've
- * emulated more than some threshold number of instructions, force migration to
- * a "CPU" that has FP support.
- */
-static void mt_ase_fp_affinity(void)
-{
-#ifdef CONFIG_MIPS_MT_FPAFF
-	if (mt_fpemul_threshold > 0 &&
-	     ((current->thread.emulated_fp++ > mt_fpemul_threshold))) {
-		/*
-		 * If there's no FPU present, or if the application has already
-		 * restricted the allowed set to exclude any CPUs with FPUs,
-		 * we'll skip the procedure.
-		 */
-		if (cpumask_intersects(&current->cpus_allowed, &mt_fpu_cpumask)) {
-			cpumask_t tmask;
-
-			current->thread.user_cpus_allowed
-				= current->cpus_allowed;
-			cpumask_and(&tmask, &current->cpus_allowed,
-				    &mt_fpu_cpumask);
-			set_cpus_allowed_ptr(current, &tmask);
-			set_thread_flag(TIF_FPUBOUND);
-		}
-	}
-#endif /* CONFIG_MIPS_MT_FPAFF */
-}
-
-/*
  * No lock; only written during early bootup by CPU 0.
  */
 static RAW_NOTIFIER_HEAD(cu2_chain);
@@ -1209,6 +1221,8 @@ static int default_cu2_call(struct notifier_block *nfb, unsigned long action,
 
 	return NOTIFY_OK;
 }
+
+#ifdef CONFIG_MIPS_FP_SUPPORT
 
 static int enable_restore_fp_context(int msa)
 {
@@ -1317,17 +1331,23 @@ out:
 	return 0;
 }
 
+#else /* !CONFIG_MIPS_FP_SUPPORT */
+
+static int enable_restore_fp_context(int msa)
+{
+	return SIGILL;
+}
+
+#endif /* CONFIG_MIPS_FP_SUPPORT */
+
 asmlinkage void do_cpu(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
 	unsigned int __user *epc;
 	unsigned long old_epc, old31;
-	void __user *fault_addr;
 	unsigned int opcode;
-	unsigned long fcr31;
 	unsigned int cpid;
-	int status, err;
-	int sig;
+	int status;
 
 	prev_state = exception_enter();
 	cpid = (regs->cp0_cause >> CAUSEB_CE) & 3;
@@ -1365,6 +1385,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 		break;
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
 	case 3:
 		/*
 		 * The COP3 opcode space and consequently the CP0.Status.CU3
@@ -1384,7 +1405,11 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 		}
 		/* Fall through.  */
 
-	case 1:
+	case 1: {
+		void __user *fault_addr;
+		unsigned long fcr31;
+		int err, sig;
+
 		err = enable_restore_fp_context(0);
 
 		if (raw_cpu_has_fpu && !err)
@@ -1405,6 +1430,13 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 			mt_ase_fp_affinity();
 
 		break;
+	}
+#else /* CONFIG_MIPS_FP_SUPPORT */
+	case 1:
+	case 3:
+		force_sig(SIGILL, current);
+		break;
+#endif /* CONFIG_MIPS_FP_SUPPORT */
 
 	case 2:
 		raw_notifier_call_chain(&cu2_chain, CU2_EXCEPTION, regs);
