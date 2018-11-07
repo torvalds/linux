@@ -285,8 +285,8 @@ static int hda_suspend(struct snd_sof_dev *sdev, int state)
 #endif
 
 	/* disable LP retention mode */
-	snd_sof_pci_update_bits(sdev, PCI_TCSEL,
-				PCI_CGCTL_LSRMD_MASK, PCI_CGCTL_LSRMD_MASK);
+	snd_sof_pci_update_bits(sdev, PCI_PGCTL,
+				PCI_PGCTL_LSRMD_MASK, PCI_PGCTL_LSRMD_MASK);
 
 	return 0;
 }
