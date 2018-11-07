@@ -136,6 +136,7 @@ struct dc_stream_update {
 
 	struct colorspace_transform *gamut_remap;
 	enum dc_color_space *output_color_space;
+	enum dc_dither_option *dither_option;
 
 	struct dc_csc_transform *output_csc_transform;
 

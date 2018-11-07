@@ -1463,6 +1463,14 @@ static void commit_planes_do_stream_update(struct dc *dc,
 			if (stream_update->output_csc_transform)
 				dc_stream_program_csc_matrix(dc, stream);
 
+			if (stream_update->dither_option) {
+				resource_build_bit_depth_reduction_params(pipe_ctx->stream,
+									&pipe_ctx->stream->bit_depth_params);
+				pipe_ctx->stream_res.opp->funcs->opp_program_fmt(pipe_ctx->stream_res.opp,
+						&stream->bit_depth_params,
+						&stream->clamping);
+			}
+
 			/* Full fe update*/
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
