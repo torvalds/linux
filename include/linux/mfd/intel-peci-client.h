@@ -18,6 +18,7 @@
 #define INTEL_FAM6_BROADWELL_X		0x4F
 #define INTEL_FAM6_SKYLAKE_X		0x55
 #define INTEL_FAM6_SKYLAKE_XD		0x56
+#define INTEL_FAM6_ICELAKE_X		0x6A
 #endif
 
 #define INTEL_FAM6             6 /* P6 (Pentium Pro and later) */
@@ -38,7 +39,11 @@
 #define CHAN_RANK_MAX_ON_SKXD  2  /* Max number of channel ranks on Skylake D */
 #define DIMM_IDX_MAX_ON_SKXD   2  /* Max DIMM index per channel on Skylake D */
 
-#define CORE_MASK_BITS_MAX     CORE_MASK_BITS_ON_SKX
+#define CORE_MASK_BITS_ON_ICX  64
+#define CHAN_RANK_MAX_ON_ICX   8  /* Max number of channel ranks on Icelake */
+#define DIMM_IDX_MAX_ON_ICX    2  /* Max DIMM index per channel on Icelake */
+
+#define CORE_MASK_BITS_MAX     CORE_MASK_BITS_ON_ICX
 #define CHAN_RANK_MAX          CHAN_RANK_MAX_ON_HSX
 #define DIMM_IDX_MAX           DIMM_IDX_MAX_ON_HSX
 #define DIMM_NUMS_MAX          (CHAN_RANK_MAX * DIMM_IDX_MAX)

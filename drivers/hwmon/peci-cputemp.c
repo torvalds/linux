@@ -331,21 +331,58 @@ static int check_resolved_cores(struct peci_cputemp *priv)
 	int ret;
 
 	/* Get the RESOLVED_CORES register value */
-	msg.addr = priv->mgr->client->addr;
-	msg.device = 30;
-	msg.function = 3;
-	msg.rx_len = 4;
-	msg.bus = 1;
-	msg.reg = 0xb4;
+	switch (priv->gen_info->model) {
+	case INTEL_FAM6_ICELAKE_X:
+		msg.addr = priv->mgr->client->addr;
+		msg.device = 30;
+		msg.function = 3;
+		msg.bus = 14;
+		msg.reg = 0xd4;
+		msg.rx_len = 4;
 
-	ret = peci_command(priv->mgr->client->adapter,
-			   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
-	if (msg.cc != PECI_DEV_CC_SUCCESS)
-		ret = -EAGAIN;
-	if (ret)
-		return ret;
+		ret = peci_command(priv->mgr->client->adapter,
+				   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
+		if (msg.cc != PECI_DEV_CC_SUCCESS)
+			ret = -EAGAIN;
+		if (ret)
+			return ret;
 
-	priv->core_mask = le32_to_cpup((__le32 *)msg.pci_config);
+		priv->core_mask = le32_to_cpup((__le32 *)msg.pci_config);
+		priv->core_mask <<= 32;
+
+		msg.reg = 0xd0;
+
+		ret = peci_command(priv->mgr->client->adapter,
+				   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
+
+		if (msg.cc != PECI_DEV_CC_SUCCESS)
+			ret = -EAGAIN;
+		if (ret) {
+			priv->core_mask = 0;
+			return ret;
+		}
+
+		priv->core_mask |= le32_to_cpup((__le32 *)msg.pci_config);
+		break;
+	default:
+		msg.addr = priv->mgr->client->addr;
+		msg.device = 30;
+		msg.function = 3;
+		msg.bus = 1;
+		msg.reg = 0xb4;
+		msg.rx_len = 4;
+
+		ret = peci_command(priv->mgr->client->adapter,
+				   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
+		if (msg.cc != PECI_DEV_CC_SUCCESS)
+			ret = -EAGAIN;
+		if (ret)
+			return ret;
+
+		priv->core_mask = le32_to_cpup((__le32 *)msg.pci_config);
+		break;
+	}
+
 	if (!priv->core_mask)
 		return -EAGAIN;
 

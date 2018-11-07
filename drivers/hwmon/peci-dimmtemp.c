@@ -11,7 +11,8 @@
 #include "peci-hwmon.h"
 
 #define DIMM_MASK_CHECK_DELAY_JIFFIES	msecs_to_jiffies(5000)
-#define DIMM_MASK_CHECK_RETRY_MAX	60 /* 60 x 5 secs = 5 minutes */
+#define DIMM_MASK_CHECK_RETRY_MAX	-1 /* 60 x 5 secs = 5 minutes */
+					   /* -1 = no timeout */
 #define DIMM_TEMP_MAX_DEFAULT		90000
 #define DIMM_TEMP_CRIT_DEFAULT		100000
 
@@ -34,11 +35,12 @@ struct peci_dimmtemp {
 	char				**dimmtemp_label;
 };
 
-static const u8 support_model[4] = {
+static const u8 support_model[] = {
 	INTEL_FAM6_HASWELL_X,
 	INTEL_FAM6_BROADWELL_X,
 	INTEL_FAM6_SKYLAKE_X,
 	INTEL_FAM6_SKYLAKE_XD,
+	INTEL_FAM6_ICELAKE_X,
 };
 
 static inline int read_ddr_dimm_temp_config(struct peci_dimmtemp *priv,
@@ -55,7 +57,9 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 	int dimm_order = dimm_no % priv->gen_info->dimm_idx_max;
 	int chan_rank = dimm_no / priv->gen_info->dimm_idx_max;
 	struct peci_rd_pci_cfg_local_msg rp_msg;
+	struct peci_rd_end_pt_cfg_msg re_msg;
 	u8  cfg_data[4];
+	u8  cpu_seg, cpu_bus;
 	int ret;
 
 	if (!peci_sensor_need_update(&priv->temp[dimm_no]))
@@ -68,6 +72,73 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 	priv->temp[dimm_no].value = cfg_data[dimm_order] * 1000;
 
 	switch (priv->gen_info->model) {
+	case INTEL_FAM6_ICELAKE_X:
+		re_msg.addr = priv->mgr->client->addr;
+		re_msg.rx_len = 4;
+		re_msg.msg_type = PECI_ENDPTCFG_TYPE_LOCAL_PCI;
+		re_msg.params.pci_cfg.seg = 0;
+		re_msg.params.pci_cfg.bus = 13;
+		re_msg.params.pci_cfg.device = 0;
+		re_msg.params.pci_cfg.function = 2;
+		re_msg.params.pci_cfg.reg = 0xd4;
+
+		ret = peci_command(priv->mgr->client->adapter,
+				   PECI_CMD_RD_END_PT_CFG, &re_msg);
+		if (ret || re_msg.cc != PECI_DEV_CC_SUCCESS ||
+		    !(re_msg.data[3] & BIT(7))) {
+			/* Use default or previous value */
+			ret = 0;
+			break;
+		}
+
+		re_msg.msg_type = PECI_ENDPTCFG_TYPE_LOCAL_PCI;
+		re_msg.params.pci_cfg.reg = 0xd0;
+
+		ret = peci_command(priv->mgr->client->adapter,
+				   PECI_CMD_RD_END_PT_CFG, &re_msg);
+		if (ret || re_msg.cc != PECI_DEV_CC_SUCCESS) {
+			/* Use default or previous value */
+			ret = 0;
+			break;
+		}
+
+		cpu_seg = re_msg.data[2];
+		cpu_bus = re_msg.data[0];
+
+		re_msg.addr = priv->mgr->client->addr;
+		re_msg.msg_type = PECI_ENDPTCFG_TYPE_MMIO;
+		re_msg.params.mmio.seg = cpu_seg;
+		re_msg.params.mmio.bus = cpu_bus;
+		/*
+		 * Device 26, Offset 224e0: IMC 0 channel 0 -> rank 0
+		 * Device 26, Offset 264e0: IMC 0 channel 1 -> rank 1
+		 * Device 27, Offset 224e0: IMC 1 channel 0 -> rank 2
+		 * Device 27, Offset 264e0: IMC 1 channel 1 -> rank 3
+		 * Device 28, Offset 224e0: IMC 2 channel 0 -> rank 4
+		 * Device 28, Offset 264e0: IMC 2 channel 1 -> rank 5
+		 * Device 29, Offset 224e0: IMC 3 channel 0 -> rank 6
+		 * Device 29, Offset 264e0: IMC 3 channel 1 -> rank 7
+		 */
+		re_msg.params.mmio.device = 0x1a + chan_rank / 2;
+		re_msg.params.mmio.function = 0;
+		re_msg.params.mmio.bar = 0;
+		re_msg.params.mmio.addr_type = PECI_ENDPTCFG_ADDR_TYPE_MMIO_Q;
+		re_msg.params.mmio.offset = 0x224e0 + dimm_order * 4;
+		if (chan_rank % 2)
+			re_msg.params.mmio.offset += 0x4000;
+
+		ret = peci_command(priv->mgr->client->adapter,
+				   PECI_CMD_RD_END_PT_CFG, &re_msg);
+		if (ret || re_msg.cc != PECI_DEV_CC_SUCCESS ||
+		    re_msg.data[1] == 0 || re_msg.data[2] == 0) {
+			/* Use default or previous value */
+			ret = 0;
+			break;
+		}
+
+		priv->temp_max[dimm_no] = re_msg.data[1] * 1000;
+		priv->temp_crit[dimm_no] = re_msg.data[2] * 1000;
+		break;
 	case INTEL_FAM6_SKYLAKE_X:
 		rp_msg.addr = priv->mgr->client->addr;
 		rp_msg.bus = 2;
@@ -288,7 +359,8 @@ static int create_dimm_temp_info(struct peci_dimmtemp *priv)
 	ret = check_populated_dimms(priv);
 	if (ret) {
 		if (ret == -EAGAIN) {
-			if (priv->retry_count < DIMM_MASK_CHECK_RETRY_MAX) {
+			if (DIMM_MASK_CHECK_RETRY_MAX == -1 ||
+			    priv->retry_count < DIMM_MASK_CHECK_RETRY_MAX) {
 				queue_delayed_work(priv->work_queue,
 						   &priv->work_handler,
 						 DIMM_MASK_CHECK_DELAY_JIFFIES);
