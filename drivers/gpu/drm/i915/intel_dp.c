@@ -5169,8 +5169,7 @@ intel_dp_detect(struct drm_connector *connector,
 
 		ret = intel_dp_retrain_link(encoder, ctx);
 		if (ret) {
-			intel_display_power_put(dev_priv,
-						intel_aux_power_domain(dig_port));
+			intel_display_power_put(dev_priv, aux_domain);
 			return ret;
 		}
 	}
