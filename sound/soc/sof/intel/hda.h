@@ -496,7 +496,7 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev);
  * HDA Controller Operations.
  */
 int hda_dsp_ctrl_get_caps(struct snd_sof_dev *sdev);
-int hda_dsp_ctrl_link_reset(struct snd_sof_dev *sdev);
+int hda_dsp_ctrl_link_reset(struct snd_sof_dev *sdev, bool reset);
 void hda_dsp_ctrl_misc_clock_gating(struct snd_sof_dev *sdev, bool enable);
 int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable);
 int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset);

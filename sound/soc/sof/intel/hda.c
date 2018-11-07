@@ -651,9 +651,16 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 		goto free_ipc_irq;
 
 	/* reset HDA controller */
-	ret = hda_dsp_ctrl_link_reset(sdev);
+	ret = hda_dsp_ctrl_link_reset(sdev, true);
 	if (ret < 0) {
 		dev_err(&pci->dev, "error: failed to reset HDA controller\n");
+		goto free_ipc_irq;
+	}
+
+	/* exit HDA controller reset */
+	ret = hda_dsp_ctrl_link_reset(sdev, false);
+	if (ret < 0) {
+		dev_err(&pci->dev, "error: failed to exit HDA controller reset\n");
 		goto free_ipc_irq;
 	}
 
