@@ -333,7 +333,7 @@ disable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 		 * event_call related objects, which will be accessed in
 		 * the kprobe_trace_func/kretprobe_trace_func.
 		 */
-		synchronize_sched();
+		synchronize_rcu();
 		kfree(link);	/* Ignored if link == NULL */
 	}
 
