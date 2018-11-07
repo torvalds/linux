@@ -240,3 +240,58 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	dev_info(adev->dev, "AGP: %lluM 0x%016llX - 0x%016llX\n",
 			mc->agp_size >> 20, mc->agp_start, mc->agp_end);
 }
+
+/**
+ * amdgpu_gmc_filter_faults - filter VM faults
+ *
+ * @adev: amdgpu device structure
+ * @addr: address of the VM fault
+ * @pasid: PASID of the process causing the fault
+ * @timestamp: timestamp of the fault
+ *
+ * Returns:
+ * True if the fault was filtered and should not be processed further.
+ * False if the fault is a new one and needs to be handled.
+ */
+bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
+			      uint16_t pasid, uint64_t timestamp)
+{
+	struct amdgpu_gmc *gmc = &adev->gmc;
+
+	uint64_t stamp, key = addr << 4 | pasid;
+	struct amdgpu_gmc_fault *fault;
+	uint32_t hash;
+
+	/* If we don't have space left in the ring buffer return immediately */
+	stamp = max(timestamp, AMDGPU_GMC_FAULT_TIMEOUT + 1) -
+		AMDGPU_GMC_FAULT_TIMEOUT;
+	if (gmc->fault_ring[gmc->last_fault].timestamp >= stamp)
+		return true;
+
+	/* Try to find the fault in the hash */
+	hash = hash_64(key, AMDGPU_GMC_FAULT_HASH_ORDER);
+	fault = &gmc->fault_ring[gmc->fault_hash[hash].idx];
+	while (fault->timestamp >= stamp) {
+		uint64_t tmp;
+
+		if (fault->key == key)
+			return true;
+
+		tmp = fault->timestamp;
+		fault = &gmc->fault_ring[fault->next];
+
+		/* Check if the entry was reused */
+		if (fault->timestamp >= tmp)
+			break;
+	}
+
+	/* Add the fault to the ring */
+	fault = &gmc->fault_ring[gmc->last_fault];
+	fault->key = key;
+	fault->timestamp = timestamp;
+
+	/* And update the hash */
+	fault->next = gmc->fault_hash[hash].idx;
+	gmc->fault_hash[hash].idx = gmc->last_fault++;
+	return false;
+}

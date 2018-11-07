@@ -43,7 +43,33 @@
  */
 #define AMDGPU_GMC_HOLE_MASK	0x0000ffffffffffffULL
 
+/*
+ * Ring size as power of two for the log of recent faults.
+ */
+#define AMDGPU_GMC_FAULT_RING_ORDER	8
+#define AMDGPU_GMC_FAULT_RING_SIZE	(1 << AMDGPU_GMC_FAULT_RING_ORDER)
+
+/*
+ * Hash size as power of two for the log of recent faults
+ */
+#define AMDGPU_GMC_FAULT_HASH_ORDER	8
+#define AMDGPU_GMC_FAULT_HASH_SIZE	(1 << AMDGPU_GMC_FAULT_HASH_ORDER)
+
+/*
+ * Number of IH timestamp ticks until a fault is considered handled
+ */
+#define AMDGPU_GMC_FAULT_TIMEOUT	5000ULL
+
 struct firmware;
+
+/*
+ * GMC page fault information
+ */
+struct amdgpu_gmc_fault {
+	uint64_t	timestamp;
+	uint64_t	next:AMDGPU_GMC_FAULT_RING_ORDER;
+	uint64_t	key:52;
+};
 
 /*
  * VMHUB structures, functions & helpers
@@ -141,6 +167,12 @@ struct amdgpu_gmc {
 	struct kfd_vm_fault_info *vm_fault_info;
 	atomic_t		vm_fault_info_updated;
 
+	struct amdgpu_gmc_fault	fault_ring[AMDGPU_GMC_FAULT_RING_SIZE];
+	struct {
+		uint64_t	idx:AMDGPU_GMC_FAULT_RING_ORDER;
+	} fault_hash[AMDGPU_GMC_FAULT_HASH_SIZE];
+	uint64_t		last_fault:AMDGPU_GMC_FAULT_RING_ORDER;
+
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 
 	struct amdgpu_xgmi xgmi;
@@ -195,5 +227,7 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev,
 			      struct amdgpu_gmc *mc);
 void amdgpu_gmc_agp_location(struct amdgpu_device *adev,
 			     struct amdgpu_gmc *mc);
+bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
+			      uint16_t pasid, uint64_t timestamp);
 
 #endif
