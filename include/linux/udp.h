@@ -132,6 +132,12 @@ static inline void udp_cmsg_recv(struct msghdr *msg, struct sock *sk,
 	}
 }
 
+static inline bool udp_unexpected_gso(struct sock *sk, struct sk_buff *skb)
+{
+	return !udp_sk(sk)->gro_enabled && skb_is_gso(skb) &&
+	       skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4;
+}
+
 #define udp_portaddr_for_each_entry(__sk, list) \
 	hlist_for_each_entry(__sk, list, __sk_common.skc_portaddr_node)
 
