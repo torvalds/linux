@@ -1562,11 +1562,17 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	rep->rep_if[REP_ETH].priv = rpriv;
 	INIT_LIST_HEAD(&rpriv->vport_sqs_list);
 
+	if (rep->vport == FDB_UPLINK_VPORT) {
+		err = mlx5e_create_mdev_resources(dev);
+		if (err)
+			goto err_destroy_netdev;
+	}
+
 	err = mlx5e_attach_netdev(netdev_priv(netdev));
 	if (err) {
 		pr_warn("Failed to attach representor netdev for vport %d\n",
 			rep->vport);
-		goto err_destroy_netdev;
+		goto err_destroy_mdev_resources;
 	}
 
 	err = mlx5e_rep_neigh_init(rpriv);
@@ -1591,6 +1597,10 @@ err_neigh_cleanup:
 err_detach_netdev:
 	mlx5e_detach_netdev(netdev_priv(netdev));
 
+err_destroy_mdev_resources:
+	if (rep->vport == FDB_UPLINK_VPORT)
+		mlx5e_destroy_mdev_resources(dev);
+
 err_destroy_netdev:
 	mlx5e_destroy_netdev(netdev_priv(netdev));
 	kfree(rpriv);
@@ -1608,6 +1618,8 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	unregister_netdev(netdev);
 	mlx5e_rep_neigh_cleanup(rpriv);
 	mlx5e_detach_netdev(priv);
+	if (rep->vport == FDB_UPLINK_VPORT)
+		mlx5e_destroy_mdev_resources(priv->mdev);
 	mlx5e_destroy_netdev(priv);
 	kfree(ppriv); /* mlx5e_rep_priv */
 }
@@ -1621,10 +1633,9 @@ static void *mlx5e_vport_rep_get_proto_dev(struct mlx5_eswitch_rep *rep)
 	return rpriv->netdev;
 }
 
-void mlx5e_rep_register_vport_reps(struct mlx5e_priv *priv)
+void mlx5e_rep_register_vport_reps(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5_eswitch *esw   = mdev->priv.eswitch;
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
 	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
 	int vport;
 
@@ -1638,9 +1649,8 @@ void mlx5e_rep_register_vport_reps(struct mlx5e_priv *priv)
 	}
 }
 
-void mlx5e_rep_unregister_vport_reps(struct mlx5e_priv *priv)
+void mlx5e_rep_unregister_vport_reps(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
 	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
 	int vport;
