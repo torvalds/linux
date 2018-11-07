@@ -1517,18 +1517,11 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 		drm_connector_helper_add(connector,
 					 &dw_mipi_dsi_connector_helper_funcs);
 		drm_mode_connector_attach_encoder(connector, encoder);
-
-		ret = drm_panel_attach(dsi->panel, &dsi->connector);
-		if (ret) {
-			dev_err(dev, "Failed to attach panel: %d\n", ret);
-			goto connector_cleanup;
-		}
+		drm_panel_attach(dsi->panel, connector);
 	}
 
 	return 0;
 
-connector_cleanup:
-	drm_connector_cleanup(connector);
 encoder_cleanup:
 	drm_encoder_cleanup(encoder);
 	return ret;
