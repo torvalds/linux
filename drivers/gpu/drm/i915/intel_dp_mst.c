@@ -209,8 +209,7 @@ static void intel_mst_pre_pll_enable_dp(struct intel_encoder *encoder,
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 
-	if (intel_dp->active_mst_links == 0 &&
-	    intel_dig_port->base.pre_pll_enable)
+	if (intel_dp->active_mst_links == 0)
 		intel_dig_port->base.pre_pll_enable(&intel_dig_port->base,
 						    pipe_config, NULL);
 }
