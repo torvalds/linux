@@ -165,7 +165,7 @@ static void mdp4_destroy(struct msm_kms *kms)
 	struct msm_gem_address_space *aspace = kms->aspace;
 
 	if (mdp4_kms->blank_cursor_iova)
-		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, kms->aspace);
+		msm_gem_unpin_iova(mdp4_kms->blank_cursor_bo, kms->aspace);
 	drm_gem_object_put_unlocked(mdp4_kms->blank_cursor_bo);
 
 	if (aspace) {

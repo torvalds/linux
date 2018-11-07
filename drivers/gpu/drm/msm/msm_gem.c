@@ -352,7 +352,8 @@ put_iova(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&msm_obj->lock));
 
 	list_for_each_entry_safe(vma, tmp, &msm_obj->vmas, list) {
-		msm_gem_unmap_vma(vma->aspace, vma);
+		msm_gem_purge_vma(vma->aspace, vma);
+		msm_gem_close_vma(vma->aspace, vma);
 		del_vma(vma);
 	}
 }
@@ -430,7 +431,10 @@ int msm_gem_get_and_pin_iova(struct drm_gem_object *obj,
 	return ret;
 }
 
-/* Get an iova but don't pin the memory behind it */
+/*
+ * Get an iova but don't pin it. Doesn't need a put because iovas are currently
+ * valid for the life of the object
+ */
 int msm_gem_get_iova(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace, uint64_t *iova)
 {
@@ -443,7 +447,6 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 
 	return ret;
 }
-
 
 /* get iova without taking a reference, used in places where you have
  * already done a 'msm_gem_get_and_pin_iova' or 'msm_gem_get_iova'
@@ -462,15 +465,24 @@ uint64_t msm_gem_iova(struct drm_gem_object *obj,
 	return vma ? vma->iova : 0;
 }
 
-void msm_gem_put_iova(struct drm_gem_object *obj,
+/*
+ * Unpin a iova by updating the reference counts. The memory isn't actually
+ * purged until something else (shrinker, mm_notifier, destroy, etc) decides
+ * to get rid of it
+ */
+void msm_gem_unpin_iova(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace)
 {
-	// XXX TODO ..
-	// NOTE: probably don't need a _locked() version.. we wouldn't
-	// normally unmap here, but instead just mark that it could be
-	// unmapped (if the iova refcnt drops to zero), but then later
-	// if another _get_iova_locked() fails we can start unmapping
-	// things that are no longer needed..
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct msm_gem_vma *vma;
+
+	mutex_lock(&msm_obj->lock);
+	vma = lookup_vma(obj, aspace);
+
+	if (!WARN_ON(!vma))
+		msm_gem_unmap_vma(aspace, vma);
+
+	mutex_unlock(&msm_obj->lock);
 }
 
 int msm_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
@@ -786,11 +798,12 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 
 	if (!list_empty(&msm_obj->vmas)) {
 
-		seq_puts(m, "   vmas:");
+		seq_puts(m, "      vmas:");
 
 		list_for_each_entry(vma, &msm_obj->vmas, list)
-			seq_printf(m, " [%s: %08llx,%s]", vma->aspace->name,
-				vma->iova, vma->mapped ? "mapped" : "unmapped");
+			seq_printf(m, " [%s: %08llx,%s,inuse=%d]", vma->aspace->name,
+				vma->iova, vma->mapped ? "mapped" : "unmapped",
+				vma->inuse);
 
 		seq_puts(m, "\n");
 	}
@@ -1093,7 +1106,7 @@ static void *_msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
 
 	vaddr = msm_gem_get_vaddr(obj);
 	if (IS_ERR(vaddr)) {
-		msm_gem_put_iova(obj, aspace);
+		msm_gem_unpin_iova(obj, aspace);
 		ret = PTR_ERR(vaddr);
 		goto err;
 	}
@@ -1133,7 +1146,7 @@ void msm_gem_kernel_put(struct drm_gem_object *bo,
 		return;
 
 	msm_gem_put_vaddr(bo);
-	msm_gem_put_iova(bo, aspace);
+	msm_gem_unpin_iova(bo, aspace);
 
 	if (locked)
 		drm_gem_object_put(bo);

@@ -689,7 +689,7 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
 		/* move to inactive: */
 		msm_gem_move_to_inactive(&msm_obj->base);
-		msm_gem_put_iova(&msm_obj->base, gpu->aspace);
+		msm_gem_unpin_iova(&msm_obj->base, gpu->aspace);
 		drm_gem_object_put(&msm_obj->base);
 	}
 

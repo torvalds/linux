@@ -81,7 +81,7 @@ void msm_framebuffer_cleanup(struct drm_framebuffer *fb,
 	int i, n = fb->format->num_planes;
 
 	for (i = 0; i < n; i++)
-		msm_gem_put_iova(fb->obj[i], aspace);
+		msm_gem_unpin_iova(fb->obj[i], aspace);
 }
 
 uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb,

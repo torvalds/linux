@@ -152,7 +152,7 @@ static int a6xx_crashdumper_run(struct msm_gpu *gpu,
 static void a6xx_crashdumper_free(struct msm_gpu *gpu,
 		struct a6xx_crashdumper *dumper)
 {
-	msm_gem_put_iova(dumper->bo, gpu->aspace);
+	msm_gem_unpin_iova(dumper->bo, gpu->aspace);
 	msm_gem_put_vaddr(dumper->bo);
 
 	drm_gem_object_unreference(dumper->bo);

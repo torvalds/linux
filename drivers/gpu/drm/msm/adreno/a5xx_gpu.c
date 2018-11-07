@@ -840,20 +840,17 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 	a5xx_preempt_fini(gpu);
 
 	if (a5xx_gpu->pm4_bo) {
-		if (a5xx_gpu->pm4_iova)
-			msm_gem_put_iova(a5xx_gpu->pm4_bo, gpu->aspace);
+		msm_gem_unpin_iova(a5xx_gpu->pm4_bo, gpu->aspace);
 		drm_gem_object_put_unlocked(a5xx_gpu->pm4_bo);
 	}
 
 	if (a5xx_gpu->pfp_bo) {
-		if (a5xx_gpu->pfp_iova)
-			msm_gem_put_iova(a5xx_gpu->pfp_bo, gpu->aspace);
+		msm_gem_unpin_iova(a5xx_gpu->pfp_bo, gpu->aspace);
 		drm_gem_object_put_unlocked(a5xx_gpu->pfp_bo);
 	}
 
 	if (a5xx_gpu->gpmu_bo) {
-		if (a5xx_gpu->gpmu_iova)
-			msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
+		msm_gem_unpin_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
 		drm_gem_object_put_unlocked(a5xx_gpu->gpmu_bo);
 	}
 

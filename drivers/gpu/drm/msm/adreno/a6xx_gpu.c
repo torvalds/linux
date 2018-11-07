@@ -736,8 +736,7 @@ static void a6xx_destroy(struct msm_gpu *gpu)
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 
 	if (a6xx_gpu->sqe_bo) {
-		if (a6xx_gpu->sqe_iova)
-			msm_gem_put_iova(a6xx_gpu->sqe_bo, gpu->aspace);
+		msm_gem_unpin_iova(a6xx_gpu->sqe_bo, gpu->aspace);
 		drm_gem_object_put_unlocked(a6xx_gpu->sqe_bo);
 	}
 

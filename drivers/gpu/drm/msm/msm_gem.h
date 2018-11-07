@@ -42,6 +42,7 @@ struct msm_gem_vma {
 	struct msm_gem_address_space *aspace;
 	struct list_head list;    /* node in msm_gem_object::vmas */
 	bool mapped;
+	int inuse;
 };
 
 struct msm_gem_object {
