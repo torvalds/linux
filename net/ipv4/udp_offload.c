@@ -343,6 +343,54 @@ out:
 	return segs;
 }
 
+#define UDP_GRO_CNT_MAX 64
+static struct sk_buff *udp_gro_receive_segment(struct list_head *head,
+					       struct sk_buff *skb)
+{
+	struct udphdr *uh = udp_hdr(skb);
+	struct sk_buff *pp = NULL;
+	struct udphdr *uh2;
+	struct sk_buff *p;
+
+	/* requires non zero csum, for symmetry with GSO */
+	if (!uh->check) {
+		NAPI_GRO_CB(skb)->flush = 1;
+		return NULL;
+	}
+
+	/* pull encapsulating udp header */
+	skb_gro_pull(skb, sizeof(struct udphdr));
+	skb_gro_postpull_rcsum(skb, uh, sizeof(struct udphdr));
+
+	list_for_each_entry(p, head, list) {
+		if (!NAPI_GRO_CB(p)->same_flow)
+			continue;
+
+		uh2 = udp_hdr(p);
+
+		/* Match ports only, as csum is always non zero */
+		if ((*(u32 *)&uh->source != *(u32 *)&uh2->source)) {
+			NAPI_GRO_CB(p)->same_flow = 0;
+			continue;
+		}
+
+		/* Terminate the flow on len mismatch or if it grow "too much".
+		 * Under small packet flood GRO count could elsewhere grow a lot
+		 * leading to execessive truesize values
+		 */
+		if (!skb_gro_receive(p, skb) &&
+		    NAPI_GRO_CB(p)->count >= UDP_GRO_CNT_MAX)
+			pp = p;
+		else if (uh->len != uh2->len)
+			pp = p;
+
+		return pp;
+	}
+
+	/* mismatch, but we never need to flush */
+	return NULL;
+}
+
 struct sk_buff *udp_gro_receive(struct list_head *head, struct sk_buff *skb,
 				struct udphdr *uh, udp_lookup_t lookup)
 {
@@ -353,23 +401,27 @@ struct sk_buff *udp_gro_receive(struct list_head *head, struct sk_buff *skb,
 	int flush = 1;
 	struct sock *sk;
 
+	rcu_read_lock();
+	sk = (*lookup)(skb, uh->source, uh->dest);
+	if (!sk)
+		goto out_unlock;
+
+	if (udp_sk(sk)->gro_enabled) {
+		pp = call_gro_receive(udp_gro_receive_segment, head, skb);
+		rcu_read_unlock();
+		return pp;
+	}
+
 	if (NAPI_GRO_CB(skb)->encap_mark ||
 	    (skb->ip_summed != CHECKSUM_PARTIAL &&
 	     NAPI_GRO_CB(skb)->csum_cnt == 0 &&
-	     !NAPI_GRO_CB(skb)->csum_valid))
-		goto out;
+	     !NAPI_GRO_CB(skb)->csum_valid) ||
+	    !udp_sk(sk)->gro_receive)
+		goto out_unlock;
 
 	/* mark that this skb passed once through the tunnel gro layer */
 	NAPI_GRO_CB(skb)->encap_mark = 1;
 
-	rcu_read_lock();
-	sk = (*lookup)(skb, uh->source, uh->dest);
-
-	if (sk && udp_sk(sk)->gro_receive)
-		goto unflush;
-	goto out_unlock;
-
-unflush:
 	flush = 0;
 
 	list_for_each_entry(p, head, list) {
@@ -394,7 +446,6 @@ unflush:
 
 out_unlock:
 	rcu_read_unlock();
-out:
 	skb_gro_flush_final(skb, pp, flush);
 	return pp;
 }
@@ -427,6 +478,19 @@ flush:
 	return NULL;
 }
 
+static int udp_gro_complete_segment(struct sk_buff *skb)
+{
+	struct udphdr *uh = udp_hdr(skb);
+
+	skb->csum_start = (unsigned char *)uh - skb->head;
+	skb->csum_offset = offsetof(struct udphdr, check);
+	skb->ip_summed = CHECKSUM_PARTIAL;
+
+	skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
+	skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4;
+	return 0;
+}
+
 int udp_gro_complete(struct sk_buff *skb, int nhoff,
 		     udp_lookup_t lookup)
 {
@@ -437,16 +501,21 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff,
 
 	uh->len = newlen;
 
-	/* Set encapsulation before calling into inner gro_complete() functions
-	 * to make them set up the inner offsets.
-	 */
-	skb->encapsulation = 1;
-
 	rcu_read_lock();
 	sk = (*lookup)(skb, uh->source, uh->dest);
-	if (sk && udp_sk(sk)->gro_complete)
+	if (sk && udp_sk(sk)->gro_enabled) {
+		err = udp_gro_complete_segment(skb);
+	} else if (sk && udp_sk(sk)->gro_complete) {
+		skb_shinfo(skb)->gso_type = uh->check ? SKB_GSO_UDP_TUNNEL_CSUM
+					: SKB_GSO_UDP_TUNNEL;
+
+		/* Set encapsulation before calling into inner gro_complete()
+		 * functions to make them set up the inner offsets.
+		 */
+		skb->encapsulation = 1;
 		err = udp_sk(sk)->gro_complete(sk, skb,
 				nhoff + sizeof(struct udphdr));
+	}
 	rcu_read_unlock();
 
 	if (skb->remcsum_offload)
@@ -461,13 +530,9 @@ static int udp4_gro_complete(struct sk_buff *skb, int nhoff)
 	const struct iphdr *iph = ip_hdr(skb);
 	struct udphdr *uh = (struct udphdr *)(skb->data + nhoff);
 
-	if (uh->check) {
-		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL_CSUM;
+	if (uh->check)
 		uh->check = ~udp_v4_check(skb->len - nhoff, iph->saddr,
 					  iph->daddr, 0);
-	} else {
-		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
-	}
 
 	return udp_gro_complete(skb, nhoff, udp4_lib_lookup_skb);
 }
