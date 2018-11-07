@@ -3104,8 +3104,8 @@ static int trace__set_duration(const struct option *opt, const char *str,
 	return 0;
 }
 
-static int trace__set_filter_pids(const struct option *opt, const char *str,
-				  int unset __maybe_unused)
+static int trace__set_filter_pids_from_option(const struct option *opt, const char *str,
+					      int unset __maybe_unused)
 {
 	int ret = -1;
 	size_t i;
@@ -3363,7 +3363,7 @@ int cmd_trace(int argc, const char **argv)
 	OPT_STRING('t', "tid", &trace.opts.target.tid, "tid",
 		    "trace events on existing thread id"),
 	OPT_CALLBACK(0, "filter-pids", &trace, "CSV list of pids",
-		     "pids to filter (by the kernel)", trace__set_filter_pids),
+		     "pids to filter (by the kernel)", trace__set_filter_pids_from_option),
 	OPT_BOOLEAN('a', "all-cpus", &trace.opts.target.system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &trace.opts.target.cpu_list, "cpu",
