@@ -817,8 +817,28 @@ static void imx6_pcie_ltssm_disable(struct device *dev)
 
 static void imx6_pcie_pm_turnoff(struct imx6_pcie *imx6_pcie)
 {
-	reset_control_assert(imx6_pcie->turnoff_reset);
-	reset_control_deassert(imx6_pcie->turnoff_reset);
+	struct device *dev = imx6_pcie->pci->dev;
+
+	/* Some variants have a turnoff reset in DT */
+	if (imx6_pcie->turnoff_reset) {
+		reset_control_assert(imx6_pcie->turnoff_reset);
+		reset_control_deassert(imx6_pcie->turnoff_reset);
+		goto pm_turnoff_sleep;
+	}
+
+	/* Others poke directly at IOMUXC registers */
+	switch (imx6_pcie->variant) {
+	case IMX6SX:
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+				IMX6SX_GPR12_PCIE_PM_TURN_OFF,
+				IMX6SX_GPR12_PCIE_PM_TURN_OFF);
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+				IMX6SX_GPR12_PCIE_PM_TURN_OFF, 0);
+		break;
+	default:
+		dev_err(dev, "PME_Turn_Off not implemented\n");
+		return;
+	}
 
 	/*
 	 * Components with an upstream port must respond to
@@ -827,6 +847,7 @@ static void imx6_pcie_pm_turnoff(struct imx6_pcie *imx6_pcie)
 	 * The standard recommends a 1-10ms timeout after which to
 	 * proceed anyway as if acks were received.
 	 */
+pm_turnoff_sleep:
 	usleep_range(1000, 10000);
 }
 
@@ -836,18 +857,31 @@ static void imx6_pcie_clk_disable(struct imx6_pcie *imx6_pcie)
 	clk_disable_unprepare(imx6_pcie->pcie_phy);
 	clk_disable_unprepare(imx6_pcie->pcie_bus);
 
-	if (imx6_pcie->variant == IMX7D) {
+	switch (imx6_pcie->variant) {
+	case IMX6SX:
+		clk_disable_unprepare(imx6_pcie->pcie_inbound_axi);
+		break;
+	case IMX7D:
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 				   IMX7D_GPR12_PCIE_PHY_REFCLK_SEL,
 				   IMX7D_GPR12_PCIE_PHY_REFCLK_SEL);
+		break;
+	default:
+		break;
 	}
+}
+
+static inline bool imx6_pcie_supports_suspend(struct imx6_pcie *imx6_pcie)
+{
+	return (imx6_pcie->variant == IMX7D ||
+		imx6_pcie->variant == IMX6SX);
 }
 
 static int imx6_pcie_suspend_noirq(struct device *dev)
 {
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
 
-	if (imx6_pcie->variant != IMX7D)
+	if (!imx6_pcie_supports_suspend(imx6_pcie))
 		return 0;
 
 	imx6_pcie_pm_turnoff(imx6_pcie);
@@ -863,7 +897,7 @@ static int imx6_pcie_resume_noirq(struct device *dev)
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
 	struct pcie_port *pp = &imx6_pcie->pci->pp;
 
-	if (imx6_pcie->variant != IMX7D)
+	if (!imx6_pcie_supports_suspend(imx6_pcie))
 		return 0;
 
 	imx6_pcie_assert_core_reset(imx6_pcie);
