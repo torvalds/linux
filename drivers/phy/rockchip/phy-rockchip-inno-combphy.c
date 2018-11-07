@@ -62,6 +62,7 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg	pipe_l1rxterm_sel;
 	struct combphy_reg	pipe_l0rxterm_set;
 	struct combphy_reg	pipe_l1rxterm_set;
+	struct combphy_reg	pipe_l0rxelec_set;
 };
 
 struct rockchip_combphy_cfg {
@@ -71,6 +72,8 @@ struct rockchip_combphy_cfg {
 };
 
 struct rockchip_combphy_priv {
+	bool phy_initialized;
+	bool phy_suspended;
 	u8 phy_type;
 	void __iomem *mmio;
 	struct device *dev;
@@ -96,6 +99,22 @@ static const char *get_reset_name(enum rockchip_combphy_rst rst)
 	default:
 		return "invalid";
 	}
+}
+
+static inline bool param_read(struct regmap *base,
+			      const struct combphy_reg *reg, u32 val)
+{
+	int ret;
+	u32 mask, orig, tmp;
+
+	ret = regmap_read(base, reg->offset, &orig);
+	if (ret)
+		return false;
+
+	mask = GENMASK(reg->bitend, reg->bitstart);
+	tmp = (orig & mask) >> reg->bitstart;
+
+	return tmp == val;
 }
 
 static inline int param_write(struct regmap *base,
@@ -276,7 +295,10 @@ error:
 
 static int rockchip_combphy_set_phy_type(struct rockchip_combphy_priv *priv)
 {
-	int ret;
+	int ret = 0;
+
+	if (priv->phy_initialized)
+		return ret;
 
 	switch (priv->phy_type) {
 	case PHY_TYPE_PCIE:
@@ -310,6 +332,8 @@ static int rockchip_combphy_init(struct phy *phy)
 		return ret;
 	}
 
+	priv->phy_initialized = true;
+
 	return 0;
 }
 
@@ -317,12 +341,98 @@ static int rockchip_combphy_exit(struct phy *phy)
 {
 	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
 
-	reset_control_assert(priv->rsts[PHY_POR_RSTN]);
-	reset_control_assert(priv->rsts[PHY_APB_RSTN]);
-	reset_control_assert(priv->rsts[PHY_PIPE_RSTN]);
-
+	/*
+	 * Note: don't assert PHY reset here, because
+	 * we set many phy configurations during phy
+	 * init to reduce PHY power consumption, if we
+	 * assert PHY reset here, these configurations
+	 * will be lost, and increase power consumption.
+	 */
 	clk_disable_unprepare(priv->ref_clk);
 
+	return 0;
+}
+
+static int rockchip_combphy_power_on(struct phy *phy)
+{
+	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
+	const struct rockchip_combphy_grfcfg *grfcfg;
+
+	if (!priv->phy_suspended)
+		return 0;
+
+	grfcfg = &priv->cfg->grfcfg;
+
+	if (priv->phy_type == PHY_TYPE_USB3) {
+		/* Enable lane 0 squelch detection  */
+		param_write(priv->combphy_grf, &grfcfg->pipe_l0rxelec_set,
+			    false);
+
+		/*
+		 * Check if lane 0 powerdown is already
+		 * controlled by USB 3.0 controller.
+		 */
+		if (param_read(priv->combphy_grf,
+			       &grfcfg->pipe_l0pd_sel, 0))
+			goto done;
+
+		/* Exit to P0 from P3 */
+		param_write(priv->combphy_grf, &grfcfg->pipe_l0pd_p3, false);
+		usleep_range(250, 300);
+
+		/*
+		 * Set lane 0 powerdown to be controlled
+		 * by USB 3.0 controller.
+		 */
+		param_write(priv->combphy_grf, &grfcfg->pipe_l0pd_sel, false);
+	}
+
+done:
+	priv->phy_suspended = false;
+	return 0;
+}
+
+static int rockchip_combphy_power_off(struct phy *phy)
+{
+	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
+	const struct rockchip_combphy_grfcfg *grfcfg;
+
+	if (priv->phy_suspended)
+		return 0;
+
+	grfcfg = &priv->cfg->grfcfg;
+
+	if (priv->phy_type == PHY_TYPE_USB3) {
+		/*
+		 * Check if lane 0 powerdown is already
+		 * controlled by grf and in P3 state.
+		 */
+		if (param_read(priv->combphy_grf,
+			       &grfcfg->pipe_l0pd_sel, 1) &&
+		    param_read(priv->combphy_grf,
+			       &grfcfg->pipe_l0pd_p3, 3))
+			goto done;
+
+		/* Exit to P0 */
+		param_write(priv->combphy_grf, &grfcfg->pipe_l0pd_p3, false);
+		param_write(priv->combphy_grf, &grfcfg->pipe_l0pd_sel, true);
+		udelay(1);
+
+		/* Enter to P3 from P0 */
+		param_write(priv->combphy_grf, &grfcfg->pipe_l0pd_p3, true);
+		udelay(2);
+
+		/*
+		 * Disable lane 0 squelch detection.
+		 * Note: if squelch detection is disabled,
+		 * the PHY can't detect LFPS.
+		 */
+		param_write(priv->combphy_grf, &grfcfg->pipe_l0rxelec_set,
+			    true);
+	}
+
+done:
+	priv->phy_suspended = true;
 	return 0;
 }
 
@@ -372,6 +482,8 @@ static int rockchip_combphy_set_mode(struct phy *phy, enum phy_mode mode)
 static const struct phy_ops rockchip_combphy_ops = {
 	.init		= rockchip_combphy_init,
 	.exit		= rockchip_combphy_exit,
+	.power_on	= rockchip_combphy_power_on,
+	.power_off	= rockchip_combphy_power_off,
 	.set_mode       = rockchip_combphy_set_mode,
 	.cp_test	= rockchip_combphy_u3_cp_test,
 	.owner		= THIS_MODULE,
@@ -686,6 +798,7 @@ static const struct rockchip_combphy_cfg rk1808_combphy_cfgs = {
 		.pipe_txrx_set	= { 0x0008, 15, 14, 0x0, 0x3 },
 		.pipe_l1rxterm_set = { 0x0008, 10, 10, 0x0, 0x1 },
 		.pipe_l0rxterm_set = { 0x0008, 2, 2, 0x0, 0x1 },
+		.pipe_l0rxelec_set = { 0x0008, 6, 6, 0x0, 0x1 },
 		.pipe_width_sel	= { 0x0000, 0, 0, 0x0, 0x1 },
 		.pipe_width_set	= { 0x0004, 1, 0, 0x2, 0x0 },
 		.pipe_usb3_sel	= { 0x000c, 0, 0, 0x0, 0x1 },
