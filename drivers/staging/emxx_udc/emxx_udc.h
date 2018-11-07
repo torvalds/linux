@@ -582,7 +582,7 @@ struct nbu2ss_udc {
 
 	u32		curr_config;	/* Current Configuration Number */
 
-	struct fc_regs		*p_regs;
+	struct fc_regs __iomem *p_regs;
 };
 
 /* USB register access structure */
