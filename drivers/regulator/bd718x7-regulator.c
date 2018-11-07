@@ -1054,6 +1054,29 @@ static int bd718xx_probe(struct platform_device *pdev)
 			BD718XX_REG_REGLOCK);
 	}
 
+	/* At poweroff transition PMIC HW disables EN bit for regulators but
+	 * leaves SEL bit untouched. So if state transition from POWEROFF
+	 * is done to SNVS - then all power rails controlled by SW (having
+	 * SEL bit set) stay disabled as EN is cleared. This may result boot
+	 * failure if any crucial systems are powered by these rails.
+	 *
+	 * Change the next stage from poweroff to be READY instead of SNVS
+	 * for all reset types because OTP loading at READY will clear SEL
+	 * bit allowing HW defaults for power rails to be used
+	 */
+	err = regmap_update_bits(mfd->regmap, BD718XX_REG_TRANS_COND1,
+				 BD718XX_ON_REQ_POWEROFF_MASK |
+				 BD718XX_SWRESET_POWEROFF_MASK |
+				 BD718XX_WDOG_POWEROFF_MASK |
+				 BD718XX_KEY_L_POWEROFF_MASK,
+				 BD718XX_POWOFF_TO_RDY);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to change reset target\n");
+		goto err;
+	} else {
+		dev_dbg(&pdev->dev, "Changed all resets from SVNS to READY\n");
+	}
+
 	for (i = 0; i < pmic_regulators[mfd->chip_type].r_amount; i++) {
 
 		const struct regulator_desc *desc;
