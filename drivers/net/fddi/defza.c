@@ -56,7 +56,7 @@
 #define DRV_VERSION "v.1.1.4"
 #define DRV_RELDATE "Oct  6 2018"
 
-static char version[] =
+static const char version[] =
 	DRV_NAME ": " DRV_VERSION "  " DRV_RELDATE "  Maciej W. Rozycki\n";
 
 MODULE_AUTHOR("Maciej W. Rozycki <macro@linux-mips.org>");
