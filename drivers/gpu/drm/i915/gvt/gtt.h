@@ -132,6 +132,12 @@ enum intel_gvt_mm_type {
 
 #define GVT_RING_CTX_NR_PDPS	GEN8_3LVL_PDPES
 
+struct intel_gvt_partial_pte {
+	unsigned long offset;
+	u64 data;
+	struct list_head list;
+};
+
 struct intel_vgpu_mm {
 	enum intel_gvt_mm_type type;
 	struct intel_vgpu *vgpu;
@@ -156,8 +162,7 @@ struct intel_vgpu_mm {
 		} ppgtt_mm;
 		struct {
 			void *virtual_ggtt;
-			unsigned long last_partial_off;
-			u64 last_partial_data;
+			struct list_head partial_pte_list;
 		} ggtt_mm;
 	};
 };
