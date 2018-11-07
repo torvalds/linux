@@ -124,6 +124,16 @@ endif
 endif
 endif
 
+# Have one program compiled without "-target bpf" to test whether libbpf loads
+# it successfully
+$(OUTPUT)/test_xdp.o: test_xdp.c
+	$(CLANG) $(CLANG_FLAGS) \
+		-O2 -emit-llvm -c $< -o - | \
+	$(LLC) -march=bpf -mcpu=$(CPU) $(LLC_FLAGS) -filetype=obj -o $@
+ifeq ($(DWARF2BTF),y)
+	$(BTF_PAHOLE) -J $@
+endif
+
 $(OUTPUT)/%.o: %.c
 	$(CLANG) $(CLANG_FLAGS) \
 		 -O2 -target bpf -emit-llvm -c $< -o - |      \
