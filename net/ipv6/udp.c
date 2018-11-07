@@ -117,6 +117,7 @@ static int compute_score(struct sock *sk, struct net *net,
 {
 	int score;
 	struct inet_sock *inet;
+	bool dev_match;
 
 	if (!net_eq(sock_net(sk), net) ||
 	    udp_sk(sk)->udp_port_hash != hnum ||
@@ -144,15 +145,10 @@ static int compute_score(struct sock *sk, struct net *net,
 		score++;
 	}
 
-	if (sk->sk_bound_dev_if || exact_dif) {
-		bool dev_match = (sk->sk_bound_dev_if == dif ||
-				  sk->sk_bound_dev_if == sdif);
-
-		if (!dev_match)
-			return -1;
-		if (sk->sk_bound_dev_if)
-			score++;
-	}
+	dev_match = udp_sk_bound_dev_eq(net, sk->sk_bound_dev_if, dif, sdif);
+	if (!dev_match)
+		return -1;
+	score++;
 
 	if (sk->sk_incoming_cpu == raw_smp_processor_id())
 		score++;

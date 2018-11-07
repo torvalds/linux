@@ -252,6 +252,17 @@ static inline int udp_rqueue_get(struct sock *sk)
 	return sk_rmem_alloc_get(sk) - READ_ONCE(udp_sk(sk)->forward_deficit);
 }
 
+static inline bool udp_sk_bound_dev_eq(struct net *net, int bound_dev_if,
+				       int dif, int sdif)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	return inet_bound_dev_eq(!!net->ipv4.sysctl_udp_l3mdev_accept,
+				 bound_dev_if, dif, sdif);
+#else
+	return inet_bound_dev_eq(true, bound_dev_if, dif, sdif);
+#endif
+}
+
 /* net/ipv4/udp.c */
 void udp_destruct_sock(struct sock *sk);
 void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len);
