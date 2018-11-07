@@ -1140,6 +1140,8 @@ static int do_create(int argc, char **argv)
 		return -1;
 	}
 
+	set_max_rlimit();
+
 	fd = bpf_create_map_xattr(&attr);
 	if (fd < 0) {
 		p_err("map create failed: %s", strerror(errno));

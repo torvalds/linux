@@ -995,6 +995,8 @@ static int do_load(int argc, char **argv)
 		goto err_close_obj;
 	}
 
+	set_max_rlimit();
+
 	err = bpf_object__load(obj);
 	if (err) {
 		p_err("failed to load object file");

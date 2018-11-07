@@ -100,6 +100,8 @@ bool is_prefix(const char *pfx, const char *str);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
 void usage(void) __noreturn;
 
+void set_max_rlimit(void);
+
 struct pinned_obj_table {
 	DECLARE_HASHTABLE(table, 16);
 };

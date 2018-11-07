@@ -46,6 +46,7 @@
 #include <linux/magic.h>
 #include <net/if.h>
 #include <sys/mount.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
@@ -97,6 +98,13 @@ static bool is_bpffs(char *path)
 		return false;
 
 	return (unsigned long)st_fs.f_type == BPF_FS_MAGIC;
+}
+
+void set_max_rlimit(void)
+{
+	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
+
+	setrlimit(RLIMIT_MEMLOCK, &rinf);
 }
 
 static int mnt_bpffs(const char *target, char *buff, size_t bufflen)
