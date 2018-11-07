@@ -2282,8 +2282,10 @@ static struct buffer_head *ext4_xattr_get_block(struct inode *inode)
 	if (!bh)
 		return ERR_PTR(-EIO);
 	error = ext4_xattr_check_block(inode, bh);
-	if (error)
+	if (error) {
+		brelse(bh);
 		return ERR_PTR(error);
+	}
 	return bh;
 }
 
