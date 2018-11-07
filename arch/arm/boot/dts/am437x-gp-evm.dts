@@ -161,7 +161,8 @@
 	beeper: beeper {
 		compatible = "gpio-beeper";
 		pinctrl-names = "default";
-		pinctrl-0 = <&beeper_pins>;
+		pinctrl-0 = <&beeper_pins_default>;
+		pinctrl-1 = <&beeper_pins_sleep>;
 		gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
 	};
 };
@@ -523,9 +524,15 @@
 		>;
 	};
 
-	beeper_pins: beeper_pins {
+	beeper_pins_default: beeper_pins_default {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0x9e0, PIN_OUTPUT_PULLUP | MUX_MODE7)	/* cam1_field.gpio4_12 */
+		>;
+	};
+
+	beeper_pins_sleep: beeper_pins_sleep {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x9e0, PIN_INPUT_PULLDOWN | MUX_MODE7)	/* cam1_field.gpio4_12 */
 		>;
 	};
 
