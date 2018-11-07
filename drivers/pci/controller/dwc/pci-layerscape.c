@@ -88,7 +88,7 @@ static void ls_pcie_disable_outbound_atus(struct ls_pcie *pcie)
 	int i;
 
 	for (i = 0; i < PCIE_IATU_NUM; i++)
-		dw_pcie_disable_atu(pcie->pci, DW_PCIE_REGION_OUTBOUND, i);
+		dw_pcie_disable_atu(pcie->pci, i, DW_PCIE_REGION_OUTBOUND);
 }
 
 static int ls1021_pcie_link_up(struct dw_pcie *pci)
