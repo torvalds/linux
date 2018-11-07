@@ -1966,6 +1966,12 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		return ret;
 	}
 
+	ret = hclgevf_cmd_queue_init(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Cmd queue init failed: %d\n", ret);
+		goto err_cmd_queue_init;
+	}
+
 	ret = hclgevf_cmd_init(hdev);
 	if (ret)
 		goto err_cmd_init;
@@ -1975,13 +1981,13 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Query vf status error, ret = %d.\n", ret);
-		goto err_query_vf;
+		goto err_cmd_init;
 	}
 
 	ret = hclgevf_init_msi(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed(%d) to init MSI/MSI-X\n", ret);
-		goto err_query_vf;
+		goto err_cmd_init;
 	}
 
 	hclgevf_state_init(hdev);
@@ -2037,9 +2043,9 @@ err_config:
 err_misc_irq_init:
 	hclgevf_state_uninit(hdev);
 	hclgevf_uninit_msi(hdev);
-err_query_vf:
-	hclgevf_cmd_uninit(hdev);
 err_cmd_init:
+	hclgevf_cmd_uninit(hdev);
+err_cmd_queue_init:
 	hclgevf_pci_uninit(hdev);
 	return ret;
 }
