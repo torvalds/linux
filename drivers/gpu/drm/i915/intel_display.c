@@ -11298,7 +11298,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	struct intel_encoder *encoder;
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
-	int base_bpp, ret = -EINVAL;
+	int base_bpp, ret;
 	int i;
 	bool retry = true;
 
@@ -11323,7 +11323,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	base_bpp = compute_baseline_pipe_bpp(to_intel_crtc(crtc),
 					     pipe_config);
 	if (base_bpp < 0)
-		goto fail;
+		return -EINVAL;
 
 	/*
 	 * Determine the real pipe dimensions. Note that stereo modes can
@@ -11345,7 +11345,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 
 		if (!check_single_encoder_cloning(state, to_intel_crtc(crtc), encoder)) {
 			DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
-			goto fail;
+			return -EINVAL;
 		}
 
 		/*
@@ -11381,7 +11381,7 @@ encoder_retry:
 
 		if (!(encoder->compute_config(encoder, pipe_config, connector_state))) {
 			DRM_DEBUG_KMS("Encoder config failure\n");
-			goto fail;
+			return -EINVAL;
 		}
 	}
 
@@ -11393,17 +11393,15 @@ encoder_retry:
 
 	ret = intel_crtc_compute_config(to_intel_crtc(crtc), pipe_config);
 	if (ret == -EDEADLK)
-		goto fail;
+		return ret;
 	if (ret < 0) {
 		DRM_DEBUG_KMS("CRTC fixup failed\n");
-		goto fail;
+		return ret;
 	}
 
 	if (ret == RETRY) {
-		if (WARN(!retry, "loop in pipe configuration computation\n")) {
-			ret = -EINVAL;
-			goto fail;
-		}
+		if (WARN(!retry, "loop in pipe configuration computation\n"))
+			return -EINVAL;
 
 		DRM_DEBUG_KMS("CRTC bw constrained, retrying\n");
 		retry = false;
@@ -11419,8 +11417,7 @@ encoder_retry:
 	DRM_DEBUG_KMS("hw max bpp: %i, pipe bpp: %i, dithering: %i\n",
 		      base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
-fail:
-	return ret;
+	return 0;
 }
 
 static bool intel_fuzzy_clock_check(int clock1, int clock2)
