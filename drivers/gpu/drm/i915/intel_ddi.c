@@ -2853,9 +2853,32 @@ void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
 void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 val = I915_READ(DPCLKA_CFGCR0_ICL);
+	u32 val;
 	enum port port = encoder->port;
-	bool clk_enabled = !(val & icl_dpclka_cfgcr0_clk_off(dev_priv, port));
+	bool clk_enabled;
+
+	/*
+	 * In case of DP MST, we sanitize the primary encoder only, not the
+	 * virtual ones.
+	 */
+	if (encoder->type == INTEL_OUTPUT_DP_MST)
+		return;
+
+	val = I915_READ(DPCLKA_CFGCR0_ICL);
+	clk_enabled = !(val & icl_dpclka_cfgcr0_clk_off(dev_priv, port));
+
+	if (!encoder->base.crtc && intel_encoder_is_dp(encoder)) {
+		u8 pipe_mask;
+		bool is_mst;
+
+		intel_ddi_get_encoder_pipes(encoder, &pipe_mask, &is_mst);
+		/*
+		 * In the unlikely case that BIOS enables DP in MST mode, just
+		 * warn since our MST HW readout is incomplete.
+		 */
+		if (WARN_ON(is_mst))
+			return;
+	}
 
 	if (clk_enabled == !!encoder->base.crtc)
 		return;
