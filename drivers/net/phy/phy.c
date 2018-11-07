@@ -62,6 +62,17 @@ static const char *phy_state_to_str(enum phy_state st)
 	return NULL;
 }
 
+static void phy_link_up(struct phy_device *phydev)
+{
+	phydev->phy_link_change(phydev, true, true);
+	phy_led_trigger_change_speed(phydev);
+}
+
+static void phy_link_down(struct phy_device *phydev, bool do_carrier)
+{
+	phydev->phy_link_change(phydev, false, do_carrier);
+	phy_led_trigger_change_speed(phydev);
+}
 
 /**
  * phy_print_status - Convenience function to print out the current phy status
@@ -494,6 +505,34 @@ static int phy_config_aneg(struct phy_device *phydev)
 }
 
 /**
+ * phy_check_link_status - check link status and set state accordingly
+ * @phydev: the phy_device struct
+ *
+ * Description: Check for link and whether autoneg was triggered / is running
+ * and set state accordingly
+ */
+static int phy_check_link_status(struct phy_device *phydev)
+{
+	int err;
+
+	WARN_ON(!mutex_is_locked(&phydev->lock));
+
+	err = phy_read_status(phydev);
+	if (err)
+		return err;
+
+	if (phydev->link && phydev->state != PHY_RUNNING) {
+		phydev->state = PHY_RUNNING;
+		phy_link_up(phydev);
+	} else if (!phydev->link && phydev->state != PHY_NOLINK) {
+		phydev->state = PHY_NOLINK;
+		phy_link_down(phydev, true);
+	}
+
+	return 0;
+}
+
+/**
  * phy_start_aneg - start auto-negotiation for this PHY device
  * @phydev: the phy_device struct
  *
@@ -504,7 +543,6 @@ static int phy_config_aneg(struct phy_device *phydev)
  */
 int phy_start_aneg(struct phy_device *phydev)
 {
-	bool trigger = 0;
 	int err;
 
 	if (!phydev->drv)
@@ -524,31 +562,15 @@ int phy_start_aneg(struct phy_device *phydev)
 
 	if (phydev->state != PHY_HALTED) {
 		if (AUTONEG_ENABLE == phydev->autoneg) {
-			phydev->state = PHY_AN;
-			phydev->link_timeout = PHY_AN_TIMEOUT;
+			err = phy_check_link_status(phydev);
 		} else {
 			phydev->state = PHY_FORCING;
 			phydev->link_timeout = PHY_FORCE_TIMEOUT;
 		}
 	}
 
-	/* Re-schedule a PHY state machine to check PHY status because
-	 * negotiation may already be done and aneg interrupt may not be
-	 * generated.
-	 */
-	if (!phy_polling_mode(phydev) && phydev->state == PHY_AN) {
-		err = phy_aneg_done(phydev);
-		if (err > 0) {
-			trigger = true;
-			err = 0;
-		}
-	}
-
 out_unlock:
 	mutex_unlock(&phydev->lock);
-
-	if (trigger)
-		phy_trigger_machine(phydev);
 
 	return err;
 }
@@ -892,18 +914,6 @@ void phy_start(struct phy_device *phydev)
 	phy_trigger_machine(phydev);
 }
 EXPORT_SYMBOL(phy_start);
-
-static void phy_link_up(struct phy_device *phydev)
-{
-	phydev->phy_link_change(phydev, true, true);
-	phy_led_trigger_change_speed(phydev);
-}
-
-static void phy_link_down(struct phy_device *phydev, bool do_carrier)
-{
-	phydev->phy_link_change(phydev, false, do_carrier);
-	phy_led_trigger_change_speed(phydev);
-}
 
 /**
  * phy_state_machine - Handle the state machine
