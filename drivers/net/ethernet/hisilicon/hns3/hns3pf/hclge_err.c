@@ -818,7 +818,6 @@ static void hclge_process_igu_egu_error(struct hclge_dev *hdev,
 static int hclge_log_and_clear_ppp_error(struct hclge_dev *hdev, u32 cmd,
 					 enum hclge_err_int_type int_type)
 {
-	enum hnae3_reset_type reset_level = HNAE3_NONE_RESET;
 	struct device *dev = &hdev->pdev->dev;
 	const struct hclge_hw_error *hw_err_lst1, *hw_err_lst2, *hw_err_lst3;
 	struct hclge_desc desc[2];
@@ -848,23 +847,17 @@ static int hclge_log_and_clear_ppp_error(struct hclge_dev *hdev, u32 cmd,
 	}
 
 	err_sts = le32_to_cpu(desc[0].data[2]);
-	if (err_sts) {
+	if (err_sts)
 		hclge_log_error(dev, hw_err_lst1, err_sts);
-		reset_level = HNAE3_FUNC_RESET;
-	}
 
 	err_sts = le32_to_cpu(desc[0].data[3]);
-	if (err_sts) {
+	if (err_sts)
 		hclge_log_error(dev, hw_err_lst2, err_sts);
-		reset_level = HNAE3_FUNC_RESET;
-	}
 
 	if (cmd == HCLGE_PPP_CMD0_INT_CMD) {
 		err_sts = (le32_to_cpu(desc[0].data[4]) >> 8) & 0x3;
-		if (err_sts) {
+		if (err_sts)
 			hclge_log_error(dev, hw_err_lst3, err_sts);
-			reset_level = HNAE3_FUNC_RESET;
-		}
 	}
 
 	/* clear PPP INT */
