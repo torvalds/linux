@@ -23,7 +23,7 @@
 #include "sof-priv.h"
 
 static struct snd_soc_card sof_nocodec_card = {
-	.name = "sof-nocodec",
+	.name = "nocodec", /* the sof- prefix is added by the core */
 };
 
 int sof_nocodec_setup(struct device *dev,
