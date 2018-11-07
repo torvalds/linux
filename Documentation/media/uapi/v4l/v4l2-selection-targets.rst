@@ -42,12 +42,7 @@ of the two interfaces they are used.
     * - ``V4L2_SEL_TGT_NATIVE_SIZE``
       - 0x0003
       - The native size of the device, e.g. a sensor's pixel array.
-	``left`` and ``top`` fields are zero for this target. Setting the
-	native size will generally only make sense for memory to memory
-	devices where the software can create a canvas of a given size in
-	which for example a video frame can be composed. In that case
-	V4L2_SEL_TGT_NATIVE_SIZE can be used to configure the size of
-	that canvas.
+	``left`` and ``top`` fields are zero for this target.
       - Yes
       - Yes
     * - ``V4L2_SEL_TGT_COMPOSE``
