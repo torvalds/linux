@@ -51,27 +51,6 @@ struct augmented_filename {
 
 pid_filter(pids_filtered);
 
-static void pid_filter__init(void)
-{
-	/*
-	 * Filter a bunch of pids: gnome-shell, kvm, firefox threads,
-	 * avahi-daemon, etc, just for testing as we go along.
-	 *
-	 * These will come from 'perf trace --filter-pids' in a explicit way
-	 * and also it will filter out itself, to avoid the feedback loop:
-	 * syscalls 'perf trace' does gets caught, reported, causing new
-	 * syscalls to get emitted, rinse repeat forever.
-	 */
-	if (pid_filter__add(&pids_filtered, 2971))
-		return; /* pid_filter__init() was already called, bail out */
-	pid_filter__add(&pids_filtered, 20016);
-	pid_filter__add(&pids_filtered, 12018);
-	pid_filter__add(&pids_filtered, 2310);
-	pid_filter__add(&pids_filtered, 3759);
-	pid_filter__add(&pids_filtered, 25978);
-	pid_filter__add(&pids_filtered, 883);
-}
-
 SEC("raw_syscalls:sys_enter")
 int sys_enter(struct syscall_enter_args *args)
 {
@@ -81,12 +60,6 @@ int sys_enter(struct syscall_enter_args *args)
 	} augmented_args;
 	unsigned int len = sizeof(augmented_args);
 	const void *filename_arg = NULL;
-	/*
- 	 * We still don't have a "main()" called first and only once
- 	 * call it always, it will exit as soon as it realizes the
- 	 * first hard coded filtered pid was already added.
- 	 */
-	pid_filter__init();
 
 	if (pid_filter__has(&pids_filtered, getpid()))
 		return 0;
