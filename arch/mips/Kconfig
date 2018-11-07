@@ -2255,12 +2255,17 @@ config CPU_GENERIC_DUMP_TLB
 	bool
 	default y if !(CPU_R3000 || CPU_R8000 || CPU_TX39XX)
 
+config MIPS_FP_SUPPORT
+	def_bool y
+
 config CPU_R2300_FPU
 	bool
+	depends on MIPS_FP_SUPPORT
 	default y if CPU_R3000 || CPU_TX39XX
 
 config CPU_R4K_FPU
 	bool
+	depends on MIPS_FP_SUPPORT
 	default y if !CPU_R2300_FPU
 
 config CPU_R4K_CACHE_TLB
@@ -2313,6 +2318,7 @@ config MIPS_MT_FPAFF
 config MIPSR2_TO_R6_EMULATOR
 	bool "MIPS R2-to-R6 emulator"
 	depends on CPU_MIPSR6
+	depends on MIPS_FP_SUPPORT
 	default y
 	help
 	  Choose this option if you want to run non-R6 MIPS userland code.
@@ -2460,6 +2466,7 @@ endchoice
 config CPU_HAS_MSA
 	bool "Support for the MIPS SIMD Architecture"
 	depends on CPU_SUPPORTS_MSA
+	depends on MIPS_FP_SUPPORT
 	depends on 64BIT || MIPS_O32_FP64_SUPPORT
 	help
 	  MIPS SIMD Architecture (MSA) introduces 128 bit wide vector registers
