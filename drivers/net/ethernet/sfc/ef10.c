@@ -6041,6 +6041,10 @@ static const struct efx_ef10_nvram_type_info efx_ef10_nvram_types[] = {
 	{ NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT3, 0,   3, "sfc_exp_rom_cfg" },
 	{ NVRAM_PARTITION_TYPE_LICENSE,		   0,    0, "sfc_license" },
 	{ NVRAM_PARTITION_TYPE_PHY_MIN,		   0xff, 0, "sfc_phy_fw" },
+	/* MUM and SUC firmware share the same partition type */
+	{ NVRAM_PARTITION_TYPE_MUM_FIRMWARE,	   0,    0, "sfc_mumfw" },
+	{ NVRAM_PARTITION_TYPE_EXPANSION_UEFI,	   0,    0, "sfc_uefi" },
+	{ NVRAM_PARTITION_TYPE_STATUS,		   0,    0, "sfc_status" }
 };
 
 static int efx_ef10_mtd_probe_partition(struct efx_nic *efx,
@@ -6091,6 +6095,9 @@ static int efx_ef10_mtd_probe_partition(struct efx_nic *efx,
 	part->common.mtd.flags = MTD_CAP_NORFLASH;
 	part->common.mtd.size = size;
 	part->common.mtd.erasesize = erase_size;
+	/* sfc_status is read-only */
+	if (!erase_size)
+		part->common.mtd.flags |= MTD_NO_ERASE;
 
 	return 0;
 }
