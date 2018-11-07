@@ -230,7 +230,7 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 	 * In this way, it will work with both HDMI 1.4 sinks as well as HDMI
 	 * 2.0 sinks.
 	 */
-	if (lspcon->active && lspcon->mode != DRM_LSPCON_MODE_PCON) {
+	if (lspcon->mode != DRM_LSPCON_MODE_PCON) {
 		if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON) < 0) {
 			DRM_ERROR("LSPCON mode change to PCON failed\n");
 			return false;
