@@ -71,11 +71,20 @@ struct xfrm_pol_inexact_node {
  * |                 |
  * |                 +- coarse policies and all any:daddr policies
  * |
+ * +---- root_s: sorted by saddr:prefix
+ * |                 |
+ * |        xfrm_pol_inexact_node
+ * |                 |
+ * |                 + root: unused
+ * |                 |
+ * |                 + hhead: saddr:any policies
+ * |
  * +---- coarse policies and all any:any policies
  *
- * Lookups return two candidate lists:
+ * Lookups return three candidate lists:
  * 1. any:any list from top-level xfrm_pol_inexact_bin
  * 2. any:daddr list from daddr tree
+ * 2. saddr:any list from saddr tree
  *
  * This result set then needs to be searched for the policy with
  * the lowest priority.  If two results have same prio, youngest one wins.
@@ -98,12 +107,16 @@ struct xfrm_pol_inexact_bin {
 	/* tree sorted by daddr/prefix */
 	struct rb_root root_d;
 
+	/* tree sorted by saddr/prefix */
+	struct rb_root root_s;
+
 	/* slow path below */
 	struct list_head inexact_bins;
 	struct rcu_head rcu;
 };
 
 enum xfrm_pol_inexact_candidate_type {
+	XFRM_POL_CAND_SADDR,
 	XFRM_POL_CAND_DADDR,
 	XFRM_POL_CAND_ANY,
 
@@ -696,6 +709,7 @@ xfrm_policy_inexact_alloc_bin(const struct xfrm_policy *pol, u8 dir)
 	bin->k = k;
 	INIT_HLIST_HEAD(&bin->hhead);
 	bin->root_d = RB_ROOT;
+	bin->root_s = RB_ROOT;
 	seqcount_init(&bin->count);
 
 	prev = rhashtable_lookup_get_insert_key(&xfrm_policy_inexact_table,
@@ -980,9 +994,10 @@ static void __xfrm_policy_inexact_prune_bin(struct xfrm_pol_inexact_bin *b, bool
 {
 	write_seqcount_begin(&b->count);
 	xfrm_policy_inexact_gc_tree(&b->root_d, net_exit);
+	xfrm_policy_inexact_gc_tree(&b->root_s, net_exit);
 	write_seqcount_end(&b->count);
 
-	if (!RB_EMPTY_ROOT(&b->root_d) ||
+	if (!RB_EMPTY_ROOT(&b->root_d) || !RB_EMPTY_ROOT(&b->root_s) ||
 	    !hlist_empty(&b->hhead)) {
 		WARN_ON_ONCE(net_exit);
 		return;
@@ -1027,10 +1042,28 @@ xfrm_policy_inexact_alloc_chain(struct xfrm_pol_inexact_bin *bin,
 	if (xfrm_policy_inexact_insert_use_any_list(policy))
 		return &bin->hhead;
 
+	/* saddr is wildcard */
+	if (xfrm_pol_inexact_addr_use_any_list(&policy->selector.saddr,
+					       policy->family,
+					       policy->selector.prefixlen_s))
+		return &bin->hhead;
+
 	if (xfrm_pol_inexact_addr_use_any_list(&policy->selector.daddr,
 					       policy->family,
-					       policy->selector.prefixlen_d))
-		return &bin->hhead;
+					       policy->selector.prefixlen_d)) {
+		write_seqcount_begin(&bin->count);
+		n = xfrm_policy_inexact_insert_node(net,
+						    &bin->root_s,
+						    &policy->selector.saddr,
+						    policy->family,
+						    policy->selector.prefixlen_s,
+						    dir);
+		write_seqcount_end(&bin->count);
+		if (!n)
+			return NULL;
+
+		return &n->hhead;
+	}
 
 	/* daddr is fixed */
 	write_seqcount_begin(&bin->count);
@@ -1825,6 +1858,11 @@ xfrm_policy_find_inexact_candidates(struct xfrm_pol_inexact_candidates *cand,
 					    family);
 	if (n)
 		cand->res[XFRM_POL_CAND_DADDR] = &n->hhead;
+
+	n = xfrm_policy_lookup_inexact_addr(&b->root_s, &b->count, saddr,
+					    family);
+	if (n)
+		cand->res[XFRM_POL_CAND_SADDR] = &n->hhead;
 
 	return true;
 }
