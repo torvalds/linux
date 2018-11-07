@@ -1451,7 +1451,10 @@ static int sdma_v4_0_early_init(void *handle)
 		adev->sdma.has_page_queue = false;
 	} else {
 		adev->sdma.num_instances = 2;
-		if (adev->asic_type != CHIP_VEGA20 &&
+		/* TODO: Page queue breaks driver reload under SRIOV */
+		if ((adev->asic_type == CHIP_VEGA10) && amdgpu_sriov_vf((adev)))
+			adev->sdma.has_page_queue = false;
+		else if (adev->asic_type != CHIP_VEGA20 &&
 				adev->asic_type != CHIP_VEGA12)
 			adev->sdma.has_page_queue = true;
 	}
