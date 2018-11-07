@@ -8,6 +8,10 @@
 	model = "Rockchip RK3036 KylinBoard";
 	compatible = "rockchip,rk3036-kylin", "rockchip,rk3036";
 
+	chosen {
+		bootargs = "console=uart8250,mmio32,0x20068000 rw root=PARTUUID=7c0b0000-0000 rootfstype=ext4 rootwait";
+	};
+
 	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x20000000>;
