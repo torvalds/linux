@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0+
 /*	FDDI network adapter driver for DEC FDDIcontroller 700/700-C devices.
  *
  *	Copyright (c) 2018  Maciej W. Rozycki
