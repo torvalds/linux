@@ -242,21 +242,20 @@ void flush_tlb_all(void)
 	unsigned long addr = 0;
 	unsigned int line;
 	unsigned int way;
-	unsigned long org_misc, pid_misc, tlbmisc;
+	unsigned long org_misc, pid_misc;
 
 	/* remember pid/way until we return */
 	get_misc_and_pid(&org_misc, &pid_misc);
+
+	/* Start at way 0, way is auto-incremented after each TLBACC write */
+	WRCTL(CTL_TLBMISC, TLBMISC_WE);
 
 	/* Map each TLB entry to physcal address 0 with no-access and a
 	   bad ptbase */
 	for (line = 0; line < cpuinfo.tlb_num_lines; line++) {
 		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
-
-		for (way = 0; way < cpuinfo.tlb_num_ways; way++) {
-			tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
-			WRCTL(CTL_TLBMISC, tlbmisc);
+		for (way = 0; way < cpuinfo.tlb_num_ways; way++)
 			WRCTL(CTL_TLBACC, 0);
-		}
 
 		addr += PAGE_SIZE;
 	}
