@@ -11500,6 +11500,7 @@ F:	include/uapi/linux/pci*
 F:	lib/pci*
 F:	arch/x86/pci/
 F:	arch/x86/kernel/quirks.c
+F:	arch/x86/kernel/early-quirks.c
 
 PCI NATIVE HOST BRIDGE AND ENDPOINT DRIVERS
 M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
