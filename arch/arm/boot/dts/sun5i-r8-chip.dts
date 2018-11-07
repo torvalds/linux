@@ -108,7 +108,7 @@
 
 &i2c0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
+	pinctrl-0 = <&i2c0_pins>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -136,13 +136,13 @@
 
 &i2c1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
+	pinctrl-0 = <&i2c1_pins>;
 	status = "disabled";
 };
 
 &i2c2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
+	pinctrl-0 = <&i2c2_pins>;
 	status = "okay";
 
 	xio: gpio@38 {
@@ -159,13 +159,13 @@
 	};
 };
 
-&mmc0_pins_a {
+&mmc0_pins {
 	bias-pull-up;
 };
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
+	pinctrl-0 = <&mmc0_pins>;
 	vmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&mmc0_pwrseq>;
 	bus-width = <4>;
@@ -251,7 +251,7 @@
 
 &spi2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi2_pins_a>;
+	pinctrl-0 = <&spi2_pe_pins>;
 	status = "disabled";
 };
 
@@ -265,14 +265,14 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins_b>;
+	pinctrl-0 = <&uart1_pg_pins>;
 	status = "okay";
 };
 
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pins_a>,
-		    <&uart3_cts_rts_pins_a>;
+	pinctrl-0 = <&uart3_pg_pins>,
+		    <&uart3_cts_rts_pg_pins>;
 	status = "okay";
 };
 
