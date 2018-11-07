@@ -590,6 +590,7 @@ struct xfrm_policy {
 	struct xfrm_lifetime_cur curlft;
 	struct xfrm_policy_walk_entry walk;
 	struct xfrm_policy_queue polq;
+	bool                    bydst_reinsert;
 	u8			type;
 	u8			action;
 	u8			flags;
