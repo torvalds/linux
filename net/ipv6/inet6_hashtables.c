@@ -99,6 +99,7 @@ static inline int compute_score(struct sock *sk, struct net *net,
 				const int dif, const int sdif, bool exact_dif)
 {
 	int score = -1;
+	bool dev_match;
 
 	if (net_eq(sock_net(sk), net) && inet_sk(sk)->inet_num == hnum &&
 	    sk->sk_family == PF_INET6) {
@@ -109,15 +110,12 @@ static inline int compute_score(struct sock *sk, struct net *net,
 				return -1;
 			score++;
 		}
-		if (sk->sk_bound_dev_if || exact_dif) {
-			bool dev_match = (sk->sk_bound_dev_if == dif ||
-					  sk->sk_bound_dev_if == sdif);
+		dev_match = inet_sk_bound_dev_eq(net, sk->sk_bound_dev_if,
+						 dif, sdif);
+		if (!dev_match)
+			return -1;
+		score++;
 
-			if (!dev_match)
-				return -1;
-			if (sk->sk_bound_dev_if)
-				score++;
-		}
 		if (sk->sk_incoming_cpu == raw_smp_processor_id())
 			score++;
 	}

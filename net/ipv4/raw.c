@@ -131,8 +131,7 @@ struct sock *__raw_v4_lookup(struct net *net, struct sock *sk,
 		if (net_eq(sock_net(sk), net) && inet->inet_num == num	&&
 		    !(inet->inet_daddr && inet->inet_daddr != raddr) 	&&
 		    !(inet->inet_rcv_saddr && inet->inet_rcv_saddr != laddr) &&
-		    !(sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif &&
-		      sk->sk_bound_dev_if != sdif))
+		    raw_sk_bound_dev_eq(net, sk->sk_bound_dev_if, dif, sdif))
 			goto found; /* gotcha */
 	}
 	sk = NULL;
@@ -805,7 +804,7 @@ out:
 	return copied;
 }
 
-static int raw_init(struct sock *sk)
+static int raw_sk_init(struct sock *sk)
 {
 	struct raw_sock *rp = raw_sk(sk);
 
@@ -970,7 +969,7 @@ struct proto raw_prot = {
 	.connect	   = ip4_datagram_connect,
 	.disconnect	   = __udp_disconnect,
 	.ioctl		   = raw_ioctl,
-	.init		   = raw_init,
+	.init		   = raw_sk_init,
 	.setsockopt	   = raw_setsockopt,
 	.getsockopt	   = raw_getsockopt,
 	.sendmsg	   = raw_sendmsg,
@@ -1132,5 +1131,29 @@ int __init raw_proc_init(void)
 void __init raw_proc_exit(void)
 {
 	unregister_pernet_subsys(&raw_net_ops);
+}
+
+static void raw_sysctl_init_net(struct net *net)
+{
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	net->ipv4.sysctl_raw_l3mdev_accept = 1;
+#endif
+}
+
+static int __net_init raw_sysctl_init(struct net *net)
+{
+	raw_sysctl_init_net(net);
+	return 0;
+}
+
+static struct pernet_operations __net_initdata raw_sysctl_ops = {
+	.init	= raw_sysctl_init,
+};
+
+void __init raw_init(void)
+{
+	raw_sysctl_init_net(&init_net);
+	if (register_pernet_subsys(&raw_sysctl_ops))
+		panic("RAW: failed to init sysctl parameters.\n");
 }
 #endif /* CONFIG_PROC_FS */

@@ -79,6 +79,7 @@ struct inet_ehash_bucket {
 
 struct inet_bind_bucket {
 	possible_net_t		ib_net;
+	int			l3mdev;
 	unsigned short		port;
 	signed char		fastreuse;
 	signed char		fastreuseport;
@@ -188,10 +189,21 @@ static inline void inet_ehash_locks_free(struct inet_hashinfo *hashinfo)
 	hashinfo->ehash_locks = NULL;
 }
 
+static inline bool inet_sk_bound_dev_eq(struct net *net, int bound_dev_if,
+					int dif, int sdif)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	return inet_bound_dev_eq(!!net->ipv4.sysctl_tcp_l3mdev_accept,
+				 bound_dev_if, dif, sdif);
+#else
+	return inet_bound_dev_eq(true, bound_dev_if, dif, sdif);
+#endif
+}
+
 struct inet_bind_bucket *
 inet_bind_bucket_create(struct kmem_cache *cachep, struct net *net,
 			struct inet_bind_hashbucket *head,
-			const unsigned short snum);
+			const unsigned short snum, int l3mdev);
 void inet_bind_bucket_destroy(struct kmem_cache *cachep,
 			      struct inet_bind_bucket *tb);
 
@@ -282,9 +294,8 @@ static inline struct sock *inet_lookup_listener(struct net *net,
 #define INET_MATCH(__sk, __net, __cookie, __saddr, __daddr, __ports, __dif, __sdif) \
 	(((__sk)->sk_portpair == (__ports))			&&	\
 	 ((__sk)->sk_addrpair == (__cookie))			&&	\
-	 (!(__sk)->sk_bound_dev_if	||				\
-	   ((__sk)->sk_bound_dev_if == (__dif))			||	\
-	   ((__sk)->sk_bound_dev_if == (__sdif)))		&&	\
+	 (((__sk)->sk_bound_dev_if == (__dif))			||	\
+	  ((__sk)->sk_bound_dev_if == (__sdif)))		&&	\
 	 net_eq(sock_net(__sk), (__net)))
 #else /* 32-bit arch */
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr) \
@@ -294,9 +305,8 @@ static inline struct sock *inet_lookup_listener(struct net *net,
 	(((__sk)->sk_portpair == (__ports))		&&		\
 	 ((__sk)->sk_daddr	== (__saddr))		&&		\
 	 ((__sk)->sk_rcv_saddr	== (__daddr))		&&		\
-	 (!(__sk)->sk_bound_dev_if	||				\
-	   ((__sk)->sk_bound_dev_if == (__dif))		||		\
-	   ((__sk)->sk_bound_dev_if == (__sdif)))	&&		\
+	 (((__sk)->sk_bound_dev_if == (__dif))		||		\
+	  ((__sk)->sk_bound_dev_if == (__sdif)))	&&		\
 	 net_eq(sock_net(__sk), (__net)))
 #endif /* 64-bit arch */
 

@@ -359,6 +359,8 @@ resubmit_final:
 			}
 		} else if (ipprot->flags & INET6_PROTO_FINAL) {
 			const struct ipv6hdr *hdr;
+			int sdif = inet6_sdif(skb);
+			struct net_device *dev;
 
 			/* Only do this once for first final protocol */
 			have_final = true;
@@ -371,9 +373,19 @@ resubmit_final:
 			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb_network_header_len(skb));
 			hdr = ipv6_hdr(skb);
+
+			/* skb->dev passed may be master dev for vrfs. */
+			if (sdif) {
+				dev = dev_get_by_index_rcu(net, sdif);
+				if (!dev)
+					goto discard;
+			} else {
+				dev = skb->dev;
+			}
+
 			if (ipv6_addr_is_multicast(&hdr->daddr) &&
-			    !ipv6_chk_mcast_addr(skb->dev, &hdr->daddr,
-			    &hdr->saddr) &&
+			    !ipv6_chk_mcast_addr(dev, &hdr->daddr,
+						 &hdr->saddr) &&
 			    !ipv6_is_mld(skb, nexthdr, skb_network_header_len(skb)))
 				goto discard;
 		}
@@ -432,15 +444,32 @@ EXPORT_SYMBOL_GPL(ip6_input);
 
 int ip6_mc_input(struct sk_buff *skb)
 {
+	int sdif = inet6_sdif(skb);
 	const struct ipv6hdr *hdr;
+	struct net_device *dev;
 	bool deliver;
 
 	__IP6_UPD_PO_STATS(dev_net(skb_dst(skb)->dev),
 			 __in6_dev_get_safely(skb->dev), IPSTATS_MIB_INMCAST,
 			 skb->len);
 
+	/* skb->dev passed may be master dev for vrfs. */
+	if (sdif) {
+		rcu_read_lock();
+		dev = dev_get_by_index_rcu(dev_net(skb->dev), sdif);
+		if (!dev) {
+			rcu_read_unlock();
+			kfree_skb(skb);
+			return -ENODEV;
+		}
+	} else {
+		dev = skb->dev;
+	}
+
 	hdr = ipv6_hdr(skb);
-	deliver = ipv6_chk_mcast_addr(skb->dev, &hdr->daddr, NULL);
+	deliver = ipv6_chk_mcast_addr(dev, &hdr->daddr, NULL);
+	if (sdif)
+		rcu_read_unlock();
 
 #ifdef CONFIG_IPV6_MROUTE
 	/*

@@ -772,6 +772,7 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 		case IPV6_2292PKTINFO:
 		    {
 			struct net_device *dev = NULL;
+			int src_idx;
 
 			if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct in6_pktinfo))) {
 				err = -EINVAL;
@@ -779,12 +780,15 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 			}
 
 			src_info = (struct in6_pktinfo *)CMSG_DATA(cmsg);
+			src_idx = src_info->ipi6_ifindex;
 
-			if (src_info->ipi6_ifindex) {
+			if (src_idx) {
 				if (fl6->flowi6_oif &&
-				    src_info->ipi6_ifindex != fl6->flowi6_oif)
+				    src_idx != fl6->flowi6_oif &&
+				    (sk->sk_bound_dev_if != fl6->flowi6_oif ||
+				     !sk_dev_equal_l3scope(sk, src_idx)))
 					return -EINVAL;
-				fl6->flowi6_oif = src_info->ipi6_ifindex;
+				fl6->flowi6_oif = src_idx;
 			}
 
 			addr_type = __ipv6_addr_type(&src_info->ipi6_addr);

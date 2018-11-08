@@ -567,6 +567,8 @@ static int sock_setbindtodevice(struct sock *sk, char __user *optval,
 
 	lock_sock(sk);
 	sk->sk_bound_dev_if = index;
+	if (sk->sk_prot->rehash)
+		sk->sk_prot->rehash(sk);
 	sk_dst_reset(sk);
 	release_sock(sk);
 
