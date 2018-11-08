@@ -2504,7 +2504,7 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		ret = hclge_func_reset_cmd(hdev, 0);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
-				"assertting function reset fail %d!\n", ret);
+				"asserting function reset fail %d!\n", ret);
 			return ret;
 		}
 
