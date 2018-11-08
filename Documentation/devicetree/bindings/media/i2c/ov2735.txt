@@ -1,0 +1,42 @@
+* Omnivision OV2735 MIPI CSI-2 sensor
+
+Required Properties:
+- compatible: should be "ovti,ov2735"
+- clocks: reference to the 24M xvclk input clock.
+- clock-names: should be "xvclk".
+- dovdd-supply: Digital I/O voltage supply, 1.8 volts
+- avdd-supply: Analog voltage supply, 2.8 volts
+- dvdd-supply: Digital core voltage supply, 1.2 volts
+- reset-gpios: Low active reset gpio
+
+The device node must contain one 'port' child node for its digital output
+video port, in accordance with the video interface bindings defined in
+Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+
+	i2c0@1c22000 {
+		...
+		...
+		ov2735: ov2735@3c {
+			compatible = "ovti,ov2735";
+			reg = <0x3c>;
+
+			clocks = <&cru SCLK_CIF_OUT>;
+			clock-names = "xvclk";
+
+			avdd-supply = <&vcc2v8_dvp>;
+			dovdd-supply = <&vcc1v8_dvp>;
+			dvdd-supply = <&vcc1v8_dvp>;
+
+			pwdn-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;
+
+			port {
+				ucam_out: endpoint {
+					remote-endpoint = <&mipi_in_ucam>;
+					data-lanes = <1 2>;
+				};
+			};
+		};
+		...
+	};
