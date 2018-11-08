@@ -216,6 +216,7 @@ static int p8_i2c_occ_probe(struct i2c_client *client,
 	occ->bus_dev = &client->dev;
 	dev_set_drvdata(&client->dev, occ);
 
+	occ->powr_sample_time_us = 250;
 	occ->poll_cmd_data = 0x10;		/* P8 OCC poll data */
 	occ->send_cmd = p8_i2c_occ_send_cmd;
 

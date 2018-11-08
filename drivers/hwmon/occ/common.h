@@ -3,6 +3,8 @@
 #ifndef OCC_COMMON_H
 #define OCC_COMMON_H
 
+#include <linux/mutex.h>
+
 struct device;
 
 #define OCC_RESP_DATA_BYTES		4089
@@ -80,8 +82,12 @@ struct occ {
 	struct occ_response resp;
 	struct occ_sensors sensors;
 
+	int powr_sample_time_us;	/* average power sample time */
 	u8 poll_cmd_data;		/* to perform OCC poll command */
 	int (*send_cmd)(struct occ *occ, u8 *cmd);
+
+	unsigned long last_update;
+	struct mutex lock;		/* lock OCC access */
 };
 
 int occ_setup(struct occ *occ, const char *name);
