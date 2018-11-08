@@ -588,7 +588,6 @@ static void sof_pcm_free(struct snd_pcm *pcm)
 	if (spcm->pcm.capture)
 		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_CAPTURE].page_table);
 
-	snd_sof_free_topology(sdev);
 }
 
 /* fixup the BE DAI link to match any values from topology */
@@ -716,7 +715,12 @@ err:
 
 static void sof_pcm_remove(struct snd_soc_component *component)
 {
+	struct snd_sof_dev *sdev =
+		snd_soc_component_get_drvdata(component);
+
 	pm_runtime_disable(component->dev);
+	snd_sof_free_topology(sdev);
+
 }
 
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
