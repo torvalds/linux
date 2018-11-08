@@ -785,7 +785,6 @@ static void cleanup_queue(struct request_queue *q)
 static struct request_queue *init_queue(struct vdc_port *port)
 {
 	struct request_queue *q;
-	int ret;
 
 	q = blk_mq_init_sq_queue(&port->tag_set, &vdc_mq_ops, VDC_TX_RING_SIZE,
 					BLK_MQ_F_SHOULD_MERGE);
