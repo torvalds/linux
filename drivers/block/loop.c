@@ -918,13 +918,17 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	if (!file)
 		goto out;
 
+	error = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+	if (error)
+		goto out_putf;
+
 	error = -EBUSY;
 	if (lo->lo_state != Lo_unbound)
-		goto out_putf;
+		goto out_unlock;
 
 	error = loop_validate_file(file, bdev);
 	if (error)
-		goto out_putf;
+		goto out_unlock;
 
 	mapping = file->f_mapping;
 	inode = mapping->host;
@@ -936,10 +940,10 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	error = -EFBIG;
 	size = get_loop_size(lo, file);
 	if ((loff_t)(sector_t)size != size)
-		goto out_putf;
+		goto out_unlock;
 	error = loop_prepare_queue(lo);
 	if (error)
-		goto out_putf;
+		goto out_unlock;
 
 	error = 0;
 
@@ -978,11 +982,14 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	 * put /dev/loopXX inode. Later in __loop_clr_fd() we bdput(bdev).
 	 */
 	bdgrab(bdev);
+	mutex_unlock(&loop_ctl_mutex);
 	return 0;
 
- out_putf:
+out_unlock:
+	mutex_unlock(&loop_ctl_mutex);
+out_putf:
 	fput(file);
- out:
+out:
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
 	return error;
@@ -1460,12 +1467,7 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 
 	switch (cmd) {
 	case LOOP_SET_FD:
-		err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
-		if (err)
-			return err;
-		err = loop_set_fd(lo, mode, bdev, arg);
-		mutex_unlock(&loop_ctl_mutex);
-		break;
+		return loop_set_fd(lo, mode, bdev, arg);
 	case LOOP_CHANGE_FD:
 		err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
 		if (err)
