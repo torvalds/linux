@@ -152,7 +152,7 @@ static int sof_spi_remove(struct spi_device *spi)
 	struct sof_platform_priv *priv = spi_get_drvdata(spi);
 	struct snd_sof_pdata *sof_pdata = priv->sof_pdata;
 
-	if (!IS_ERR_OR_NULL(priv->pdev_pcm))
+	if (!IS_ERR(priv->pdev_pcm))
 		platform_device_unregister(priv->pdev_pcm);
 	release_firmware(sof_pdata->fw);
 
