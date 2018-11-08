@@ -11703,18 +11703,12 @@ F:	Documentation/driver-api/pinctl.rst
 F:	drivers/pinctrl/
 F:	include/linux/pinctrl/
 
-PIN CONTROLLER - ATMEL AT91
-M:	Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	drivers/pinctrl/pinctrl-at91.*
-
-PIN CONTROLLER - ATMEL AT91 PIO4
+PIN CONTROLLER - MICROCHIP AT91
 M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-gpio@vger.kernel.org
 S:	Supported
-F:	drivers/pinctrl/pinctrl-at91-pio4.*
+F:	drivers/pinctrl/pinctrl-at91*
 
 PIN CONTROLLER - FREESCALE
 M:	Dong Aisheng <aisheng.dong@nxp.com>
