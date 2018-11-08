@@ -4,7 +4,7 @@
  *
  * Setup and helper functions to access QDIO.
  *
- * Copyright IBM Corp. 2002, 2010
+ * Copyright IBM Corp. 2002, 2017
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -19,7 +19,7 @@ static bool enable_multibuffer = true;
 module_param_named(datarouter, enable_multibuffer, bool, 0400);
 MODULE_PARM_DESC(datarouter, "Enable hardware data router support (default on)");
 
-static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id,
+static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *dbftag,
 				    unsigned int qdio_err)
 {
 	struct zfcp_adapter *adapter = qdio->adapter;
@@ -28,12 +28,12 @@ static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id,
 
 	if (qdio_err & QDIO_ERROR_SLSB_STATE) {
 		zfcp_qdio_siosl(adapter);
-		zfcp_erp_adapter_shutdown(adapter, 0, id);
+		zfcp_erp_adapter_shutdown(adapter, 0, dbftag);
 		return;
 	}
 	zfcp_erp_adapter_reopen(adapter,
 				ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
-				ZFCP_STATUS_COMMON_ERP_FAILED, id);
+				ZFCP_STATUS_COMMON_ERP_FAILED, dbftag);
 }
 
 static void zfcp_qdio_zero_sbals(struct qdio_buffer *sbal[], int first, int cnt)

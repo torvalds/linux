@@ -297,7 +297,7 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need, u32 act_status,
 static void zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 				    struct zfcp_port *port,
 				    struct scsi_device *sdev,
-				    char *id, u32 act_status)
+				    char *dbftag, u32 act_status)
 {
 	int need;
 	struct zfcp_erp_action *act;
@@ -327,10 +327,11 @@ static void zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 	list_add_tail(&act->list, &adapter->erp_ready_head);
 	wake_up(&adapter->erp_ready_wq);
  out:
-	zfcp_dbf_rec_trig(id, adapter, port, sdev, want, need);
+	zfcp_dbf_rec_trig(dbftag, adapter, port, sdev, want, need);
 }
 
-void zfcp_erp_port_forced_no_port_dbf(char *id, struct zfcp_adapter *adapter,
+void zfcp_erp_port_forced_no_port_dbf(char *dbftag,
+				      struct zfcp_adapter *adapter,
 				      u64 port_name, u32 port_id)
 {
 	unsigned long flags;
@@ -344,29 +345,30 @@ void zfcp_erp_port_forced_no_port_dbf(char *id, struct zfcp_adapter *adapter,
 	atomic_set(&tmpport.status, -1); /* unknown */
 	tmpport.wwpn = port_name;
 	tmpport.d_id = port_id;
-	zfcp_dbf_rec_trig(id, adapter, &tmpport, NULL,
+	zfcp_dbf_rec_trig(dbftag, adapter, &tmpport, NULL,
 			  ZFCP_ERP_ACTION_REOPEN_PORT_FORCED,
 			  ZFCP_ERP_ACTION_NONE);
 	write_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
 static void _zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter,
-				    int clear_mask, char *id)
+				    int clear_mask, char *dbftag)
 {
 	zfcp_erp_adapter_block(adapter, clear_mask);
 	zfcp_scsi_schedule_rports_block(adapter);
 
 	zfcp_erp_action_enqueue(ZFCP_ERP_ACTION_REOPEN_ADAPTER,
-				adapter, NULL, NULL, id, 0);
+				adapter, NULL, NULL, dbftag, 0);
 }
 
 /**
  * zfcp_erp_adapter_reopen - Reopen adapter.
  * @adapter: Adapter to reopen.
  * @clear: Status flags to clear.
- * @id: Id for debug trace event.
+ * @dbftag: Tag for debug trace event.
  */
-void zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter, int clear, char *id)
+void zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter, int clear,
+			     char *dbftag)
 {
 	unsigned long flags;
 
@@ -375,7 +377,7 @@ void zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter, int clear, char *id)
 
 	write_lock_irqsave(&adapter->erp_lock, flags);
 	zfcp_erp_action_enqueue(ZFCP_ERP_ACTION_REOPEN_ADAPTER, adapter,
-				NULL, NULL, id, 0);
+				NULL, NULL, dbftag, 0);
 	write_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
@@ -383,25 +385,25 @@ void zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter, int clear, char *id)
  * zfcp_erp_adapter_shutdown - Shutdown adapter.
  * @adapter: Adapter to shut down.
  * @clear: Status flags to clear.
- * @id: Id for debug trace event.
+ * @dbftag: Tag for debug trace event.
  */
 void zfcp_erp_adapter_shutdown(struct zfcp_adapter *adapter, int clear,
-			       char *id)
+			       char *dbftag)
 {
 	int flags = ZFCP_STATUS_COMMON_RUNNING | ZFCP_STATUS_COMMON_ERP_FAILED;
-	zfcp_erp_adapter_reopen(adapter, clear | flags, id);
+	zfcp_erp_adapter_reopen(adapter, clear | flags, dbftag);
 }
 
 /**
  * zfcp_erp_port_shutdown - Shutdown port
  * @port: Port to shut down.
  * @clear: Status flags to clear.
- * @id: Id for debug trace event.
+ * @dbftag: Tag for debug trace event.
  */
-void zfcp_erp_port_shutdown(struct zfcp_port *port, int clear, char *id)
+void zfcp_erp_port_shutdown(struct zfcp_port *port, int clear, char *dbftag)
 {
 	int flags = ZFCP_STATUS_COMMON_RUNNING | ZFCP_STATUS_COMMON_ERP_FAILED;
-	zfcp_erp_port_reopen(port, clear | flags, id);
+	zfcp_erp_port_reopen(port, clear | flags, dbftag);
 }
 
 static void zfcp_erp_port_block(struct zfcp_port *port, int clear)
@@ -411,53 +413,55 @@ static void zfcp_erp_port_block(struct zfcp_port *port, int clear)
 }
 
 static void _zfcp_erp_port_forced_reopen(struct zfcp_port *port, int clear,
-					 char *id)
+					 char *dbftag)
 {
 	zfcp_erp_port_block(port, clear);
 	zfcp_scsi_schedule_rport_block(port);
 
 	zfcp_erp_action_enqueue(ZFCP_ERP_ACTION_REOPEN_PORT_FORCED,
-				port->adapter, port, NULL, id, 0);
+				port->adapter, port, NULL, dbftag, 0);
 }
 
 /**
  * zfcp_erp_port_forced_reopen - Forced close of port and open again
  * @port: Port to force close and to reopen.
  * @clear: Status flags to clear.
- * @id: Id for debug trace event.
+ * @dbftag: Tag for debug trace event.
  */
-void zfcp_erp_port_forced_reopen(struct zfcp_port *port, int clear, char *id)
+void zfcp_erp_port_forced_reopen(struct zfcp_port *port, int clear,
+				 char *dbftag)
 {
 	unsigned long flags;
 	struct zfcp_adapter *adapter = port->adapter;
 
 	write_lock_irqsave(&adapter->erp_lock, flags);
-	_zfcp_erp_port_forced_reopen(port, clear, id);
+	_zfcp_erp_port_forced_reopen(port, clear, dbftag);
 	write_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
-static void _zfcp_erp_port_reopen(struct zfcp_port *port, int clear, char *id)
+static void _zfcp_erp_port_reopen(struct zfcp_port *port, int clear,
+				  char *dbftag)
 {
 	zfcp_erp_port_block(port, clear);
 	zfcp_scsi_schedule_rport_block(port);
 
 	zfcp_erp_action_enqueue(ZFCP_ERP_ACTION_REOPEN_PORT,
-				port->adapter, port, NULL, id, 0);
+				port->adapter, port, NULL, dbftag, 0);
 }
 
 /**
  * zfcp_erp_port_reopen - trigger remote port recovery
  * @port: port to recover
  * @clear_mask: flags in port status to be cleared
- * @id: Id for debug trace event.
+ * @dbftag: Tag for debug trace event.
  */
-void zfcp_erp_port_reopen(struct zfcp_port *port, int clear, char *id)
+void zfcp_erp_port_reopen(struct zfcp_port *port, int clear, char *dbftag)
 {
 	unsigned long flags;
 	struct zfcp_adapter *adapter = port->adapter;
 
 	write_lock_irqsave(&adapter->erp_lock, flags);
-	_zfcp_erp_port_reopen(port, clear, id);
+	_zfcp_erp_port_reopen(port, clear, dbftag);
 	write_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
@@ -467,8 +471,8 @@ static void zfcp_erp_lun_block(struct scsi_device *sdev, int clear_mask)
 				  ZFCP_STATUS_COMMON_UNBLOCKED | clear_mask);
 }
 
-static void _zfcp_erp_lun_reopen(struct scsi_device *sdev, int clear, char *id,
-				 u32 act_status)
+static void _zfcp_erp_lun_reopen(struct scsi_device *sdev, int clear,
+				 char *dbftag, u32 act_status)
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 	struct zfcp_adapter *adapter = zfcp_sdev->port->adapter;
@@ -476,18 +480,18 @@ static void _zfcp_erp_lun_reopen(struct scsi_device *sdev, int clear, char *id,
 	zfcp_erp_lun_block(sdev, clear);
 
 	zfcp_erp_action_enqueue(ZFCP_ERP_ACTION_REOPEN_LUN, adapter,
-				zfcp_sdev->port, sdev, id, act_status);
+				zfcp_sdev->port, sdev, dbftag, act_status);
 }
 
 /**
  * zfcp_erp_lun_reopen - initiate reopen of a LUN
  * @sdev: SCSI device / LUN to be reopened
  * @clear_mask: specifies flags in LUN status to be cleared
- * @id: Id for debug trace event.
+ * @dbftag: Tag for debug trace event.
  *
  * Return: 0 on success, < 0 on error
  */
-void zfcp_erp_lun_reopen(struct scsi_device *sdev, int clear, char *id)
+void zfcp_erp_lun_reopen(struct scsi_device *sdev, int clear, char *dbftag)
 {
 	unsigned long flags;
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
@@ -495,7 +499,7 @@ void zfcp_erp_lun_reopen(struct scsi_device *sdev, int clear, char *id)
 	struct zfcp_adapter *adapter = port->adapter;
 
 	write_lock_irqsave(&adapter->erp_lock, flags);
-	_zfcp_erp_lun_reopen(sdev, clear, id, 0);
+	_zfcp_erp_lun_reopen(sdev, clear, dbftag, 0);
 	write_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
@@ -503,25 +507,25 @@ void zfcp_erp_lun_reopen(struct scsi_device *sdev, int clear, char *id)
  * zfcp_erp_lun_shutdown - Shutdown LUN
  * @sdev: SCSI device / LUN to shut down.
  * @clear: Status flags to clear.
- * @id: Id for debug trace event.
+ * @dbftag: Tag for debug trace event.
  */
-void zfcp_erp_lun_shutdown(struct scsi_device *sdev, int clear, char *id)
+void zfcp_erp_lun_shutdown(struct scsi_device *sdev, int clear, char *dbftag)
 {
 	int flags = ZFCP_STATUS_COMMON_RUNNING | ZFCP_STATUS_COMMON_ERP_FAILED;
-	zfcp_erp_lun_reopen(sdev, clear | flags, id);
+	zfcp_erp_lun_reopen(sdev, clear | flags, dbftag);
 }
 
 /**
  * zfcp_erp_lun_shutdown_wait - Shutdown LUN and wait for erp completion
  * @sdev: SCSI device / LUN to shut down.
- * @id: Id for debug trace event.
+ * @dbftag: Tag for debug trace event.
  *
  * Do not acquire a reference for the LUN when creating the ERP
  * action. It is safe, because this function waits for the ERP to
  * complete first. This allows to shutdown the LUN, even when the SCSI
  * device is in the state SDEV_DEL when scsi_device_get will fail.
  */
-void zfcp_erp_lun_shutdown_wait(struct scsi_device *sdev, char *id)
+void zfcp_erp_lun_shutdown_wait(struct scsi_device *sdev, char *dbftag)
 {
 	unsigned long flags;
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
@@ -530,7 +534,7 @@ void zfcp_erp_lun_shutdown_wait(struct scsi_device *sdev, char *id)
 	int clear = ZFCP_STATUS_COMMON_RUNNING | ZFCP_STATUS_COMMON_ERP_FAILED;
 
 	write_lock_irqsave(&adapter->erp_lock, flags);
-	_zfcp_erp_lun_reopen(sdev, clear, id, ZFCP_STATUS_ERP_NO_REF);
+	_zfcp_erp_lun_reopen(sdev, clear, dbftag, ZFCP_STATUS_ERP_NO_REF);
 	write_unlock_irqrestore(&adapter->erp_lock, flags);
 
 	zfcp_erp_wait(adapter);
@@ -644,25 +648,25 @@ static void zfcp_erp_strategy_memwait(struct zfcp_erp_action *erp_action)
 }
 
 static void _zfcp_erp_port_reopen_all(struct zfcp_adapter *adapter,
-				      int clear, char *id)
+				      int clear, char *dbftag)
 {
 	struct zfcp_port *port;
 
 	read_lock(&adapter->port_list_lock);
 	list_for_each_entry(port, &adapter->port_list, list)
-		_zfcp_erp_port_reopen(port, clear, id);
+		_zfcp_erp_port_reopen(port, clear, dbftag);
 	read_unlock(&adapter->port_list_lock);
 }
 
 static void _zfcp_erp_lun_reopen_all(struct zfcp_port *port, int clear,
-				     char *id)
+				     char *dbftag)
 {
 	struct scsi_device *sdev;
 
 	spin_lock(port->adapter->scsi_host->host_lock);
 	__shost_for_each_device(sdev, port->adapter->scsi_host)
 		if (sdev_to_zfcp(sdev)->port == port)
-			_zfcp_erp_lun_reopen(sdev, clear, id, 0);
+			_zfcp_erp_lun_reopen(sdev, clear, dbftag, 0);
 	spin_unlock(port->adapter->scsi_host->host_lock);
 }
 
@@ -1694,11 +1698,11 @@ void zfcp_erp_clear_lun_status(struct scsi_device *sdev, u32 mask)
 /**
  * zfcp_erp_adapter_reset_sync() - Really reopen adapter and wait.
  * @adapter: Pointer to zfcp_adapter to reopen.
- * @id: Trace tag string of length %ZFCP_DBF_TAG_LEN.
+ * @dbftag: Trace tag string of length %ZFCP_DBF_TAG_LEN.
  */
-void zfcp_erp_adapter_reset_sync(struct zfcp_adapter *adapter, char *id)
+void zfcp_erp_adapter_reset_sync(struct zfcp_adapter *adapter, char *dbftag)
 {
 	zfcp_erp_set_adapter_status(adapter, ZFCP_STATUS_COMMON_RUNNING);
-	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED, id);
+	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED, dbftag);
 	zfcp_erp_wait(adapter);
 }
