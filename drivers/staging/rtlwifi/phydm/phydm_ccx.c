@@ -317,7 +317,7 @@ void phydm_get_nhm_result(void *dm_void)
 		ccx_info->NHM_result[10] = (u8)((value32 & MASKBYTE2) >> 16);
 		ccx_info->NHM_result[11] = (u8)((value32 & MASKBYTE3) >> 24);
 
-		/*Get NHM duration*/
+		/* Get NHM duration */
 		value32 = odm_read_4byte(dm, ODM_REG_NHM_CNT10_TO_CNT11_11N);
 		ccx_info->NHM_duration = (u16)(value32 & MASKLWORD);
 	}

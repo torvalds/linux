@@ -574,7 +574,7 @@ void phydm_lamode_trigger_setting(void *dm_void, char input[][16], u32 *_used,
 			PHYDM_SSCANF(input[10], DCMD_DECIMAL, &var1[9]);
 
 			dma_data_sig_sel = (u8)var1[3];
-			trigger_time_mu_sec = var1[4]; /*unit: us*/
+			trigger_time_mu_sec = var1[4]; /* unit: us */
 
 			adc_smp->la_mac_ref_mask = var1[5];
 			adc_smp->la_dbg_port = var1[6];
