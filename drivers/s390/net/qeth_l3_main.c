@@ -2279,9 +2279,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card, bool carrier_ok)
 		rc = qeth_l3_iqd_read_initial_mac(card);
 		if (rc)
 			goto out;
-
-		if (card->options.hsuid[0])
-			memcpy(card->dev->perm_addr, card->options.hsuid, 9);
 	} else
 		return -ENODEV;
 
