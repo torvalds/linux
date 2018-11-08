@@ -1489,7 +1489,7 @@ static int zfcp_erp_thread(void *data)
  * zfcp_erp_thread_setup - Start ERP thread for adapter
  * @adapter: Adapter to start the ERP thread for
  *
- * Returns 0 on success or error code from kernel_thread()
+ * Return: 0 on success, or error code from kthread_run().
  */
 int zfcp_erp_thread_setup(struct zfcp_adapter *adapter)
 {
