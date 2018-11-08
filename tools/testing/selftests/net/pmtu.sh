@@ -59,6 +59,14 @@
 #	Same as pmtu_ipv6_vxlan6_exception, but using a GENEVE tunnel instead of
 #	VXLAN
 #
+# - pmtu_ipv{4,6}_fou{4,6}_exception
+#	Same as pmtu_ipv4_vxlan4, but using a direct IPv4/IPv6 encapsulation
+#	(FoU) over IPv4/IPv6, instead of VXLAN
+#
+# - pmtu_ipv{4,6}_fou{4,6}_exception
+#	Same as pmtu_ipv4_vxlan4, but using a generic UDP IPv4/IPv6
+#	encapsulation (GUE) over IPv4/IPv6, instead of VXLAN
+#
 # - pmtu_vti4_exception
 #	Set up vti tunnel on top of veth, with xfrm states and policies, in two
 #	namespaces with matching endpoints. Check that route exception is not
@@ -113,6 +121,14 @@ tests="
 	pmtu_ipv6_geneve4_exception	IPv6 over geneve4: PMTU exceptions
 	pmtu_ipv4_geneve6_exception	IPv4 over geneve6: PMTU exceptions
 	pmtu_ipv6_geneve6_exception	IPv6 over geneve6: PMTU exceptions
+	pmtu_ipv4_fou4_exception	IPv4 over fou4: PMTU exceptions
+	pmtu_ipv6_fou4_exception	IPv6 over fou4: PMTU exceptions
+	pmtu_ipv4_fou6_exception	IPv4 over fou6: PMTU exceptions
+	pmtu_ipv6_fou6_exception	IPv6 over fou6: PMTU exceptions
+	pmtu_ipv4_gue4_exception	IPv4 over gue4: PMTU exceptions
+	pmtu_ipv6_gue4_exception	IPv6 over gue4: PMTU exceptions
+	pmtu_ipv4_gue6_exception	IPv4 over gue6: PMTU exceptions
+	pmtu_ipv6_gue6_exception	IPv6 over gue6: PMTU exceptions
 	pmtu_vti6_exception		vti6: PMTU exceptions
 	pmtu_vti4_exception		vti4: PMTU exceptions
 	pmtu_vti4_default_mtu		vti4: default MTU assignment
@@ -198,6 +214,89 @@ err_flush() {
 # Find the auto-generated name for this namespace
 nsname() {
 	eval echo \$NS_$1
+}
+
+setup_fou_or_gue() {
+	outer="${1}"
+	inner="${2}"
+	encap="${3}"
+
+	if [ "${outer}" = "4" ]; then
+		modprobe fou || return 2
+		a_addr="${prefix4}.${a_r1}.1"
+		b_addr="${prefix4}.${b_r1}.1"
+		if [ "${inner}" = "4" ]; then
+			type="ipip"
+			ipproto="4"
+		else
+			type="sit"
+			ipproto="41"
+		fi
+	else
+		modprobe fou6 || return 2
+		a_addr="${prefix6}:${a_r1}::1"
+		b_addr="${prefix6}:${b_r1}::1"
+		if [ "${inner}" = "4" ]; then
+			type="ip6tnl"
+			mode="mode ipip6"
+			ipproto="4 -6"
+		else
+			type="ip6tnl"
+			mode="mode ip6ip6"
+			ipproto="41 -6"
+		fi
+	fi
+
+	${ns_a} ip fou add port 5555 ipproto ${ipproto} || return 2
+	${ns_a} ip link add ${encap}_a type ${type} ${mode} local ${a_addr} remote ${b_addr} encap ${encap} encap-sport auto encap-dport 5556 || return 2
+
+	${ns_b} ip fou add port 5556 ipproto ${ipproto}
+	${ns_b} ip link add ${encap}_b type ${type} ${mode} local ${b_addr} remote ${a_addr} encap ${encap} encap-sport auto encap-dport 5555
+
+	if [ "${inner}" = "4" ]; then
+		${ns_a} ip addr add ${tunnel4_a_addr}/${tunnel4_mask} dev ${encap}_a
+		${ns_b} ip addr add ${tunnel4_b_addr}/${tunnel4_mask} dev ${encap}_b
+	else
+		${ns_a} ip addr add ${tunnel6_a_addr}/${tunnel6_mask} dev ${encap}_a
+		${ns_b} ip addr add ${tunnel6_b_addr}/${tunnel6_mask} dev ${encap}_b
+	fi
+
+	${ns_a} ip link set ${encap}_a up
+	${ns_b} ip link set ${encap}_b up
+
+	sleep 1
+}
+
+setup_fou44() {
+	setup_fou_or_gue 4 4 fou
+}
+
+setup_fou46() {
+	setup_fou_or_gue 4 6 fou
+}
+
+setup_fou64() {
+	setup_fou_or_gue 6 4 fou
+}
+
+setup_fou66() {
+	setup_fou_or_gue 6 6 fou
+}
+
+setup_gue44() {
+	setup_fou_or_gue 4 4 gue
+}
+
+setup_gue46() {
+	setup_fou_or_gue 4 6 gue
+}
+
+setup_gue64() {
+	setup_fou_or_gue 6 4 gue
+}
+
+setup_gue66() {
+	setup_fou_or_gue 6 6 gue
 }
 
 setup_namespaces() {
@@ -625,6 +724,86 @@ test_pmtu_ipv4_geneve6_exception() {
 
 test_pmtu_ipv6_geneve6_exception() {
 	test_pmtu_ipvX_over_vxlanY_or_geneveY_exception geneve 6 6
+}
+
+test_pmtu_ipvX_over_fouY_or_gueY() {
+	inner_family=${1}
+	outer_family=${2}
+	encap=${3}
+	ll_mtu=4000
+
+	setup namespaces routing ${encap}${outer_family}${inner_family} || return 2
+	trace "${ns_a}" ${encap}_a   "${ns_b}"  ${encap}_b \
+	      "${ns_a}" veth_A-R1    "${ns_r1}" veth_R1-A \
+	      "${ns_b}" veth_B-R1    "${ns_r1}" veth_R1-B
+
+	if [ ${inner_family} -eq 4 ]; then
+		ping=ping
+		dst=${tunnel4_b_addr}
+	else
+		ping=${ping6}
+		dst=${tunnel6_b_addr}
+	fi
+
+	if [ "${encap}" = "gue" ]; then
+		encap_overhead=4
+	else
+		encap_overhead=0
+	fi
+
+	if [ ${outer_family} -eq 4 ]; then
+		#                      IPv4 header   UDP header
+		exp_mtu=$((${ll_mtu} - 20          - 8         - ${encap_overhead}))
+	else
+		#                      IPv6 header   Option 4   UDP header
+		exp_mtu=$((${ll_mtu} - 40          - 8        - 8       - ${encap_overhead}))
+	fi
+
+	# Create route exception by exceeding link layer MTU
+	mtu "${ns_a}"  veth_A-R1 $((${ll_mtu} + 1000))
+	mtu "${ns_r1}" veth_R1-A $((${ll_mtu} + 1000))
+	mtu "${ns_b}"  veth_B-R1 ${ll_mtu}
+	mtu "${ns_r1}" veth_R1-B ${ll_mtu}
+
+	mtu "${ns_a}" ${encap}_a $((${ll_mtu} + 1000))
+	mtu "${ns_b}" ${encap}_b $((${ll_mtu} + 1000))
+	${ns_a} ${ping} -q -M want -i 0.1 -w 2 -s $((${ll_mtu} + 500)) ${dst} > /dev/null
+
+	# Check that exception was created
+	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst})"
+	check_pmtu_value ${exp_mtu} "${pmtu}" "exceeding link layer MTU on ${encap} interface"
+}
+
+test_pmtu_ipv4_fou4_exception() {
+	test_pmtu_ipvX_over_fouY_or_gueY 4 4 fou
+}
+
+test_pmtu_ipv6_fou4_exception() {
+	test_pmtu_ipvX_over_fouY_or_gueY 6 4 fou
+}
+
+test_pmtu_ipv4_fou6_exception() {
+	test_pmtu_ipvX_over_fouY_or_gueY 4 6 fou
+}
+
+test_pmtu_ipv6_fou6_exception() {
+	test_pmtu_ipvX_over_fouY_or_gueY 6 6 fou
+}
+
+test_pmtu_ipv4_gue4_exception() {
+	test_pmtu_ipvX_over_fouY_or_gueY 4 4 gue
+}
+
+test_pmtu_ipv6_gue4_exception() {
+	test_pmtu_ipvX_over_fouY_or_gueY 6 4 gue
+}
+
+test_pmtu_ipv4_gue6_exception() {
+	test_pmtu_ipvX_over_fouY_or_gueY 4 6 gue
+}
+
+test_pmtu_ipv6_gue6_exception() {
+	test_pmtu_ipvX_over_fouY_or_gueY 6 6 gue
 }
 
 test_pmtu_vti4_exception() {
