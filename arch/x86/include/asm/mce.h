@@ -10,41 +10,44 @@
 
 /* MCG_CAP register defines */
 #define MCG_BANKCNT_MASK	0xff         /* Number of Banks */
-#define MCG_CTL_P		(1ULL<<8)    /* MCG_CTL register available */
-#define MCG_EXT_P		(1ULL<<9)    /* Extended registers available */
-#define MCG_CMCI_P		(1ULL<<10)   /* CMCI supported */
+#define MCG_CTL_P		BIT_ULL(8)   /* MCG_CTL register available */
+#define MCG_EXT_P		BIT_ULL(9)   /* Extended registers available */
+#define MCG_CMCI_P		BIT_ULL(10)  /* CMCI supported */
 #define MCG_EXT_CNT_MASK	0xff0000     /* Number of Extended registers */
 #define MCG_EXT_CNT_SHIFT	16
 #define MCG_EXT_CNT(c)		(((c) & MCG_EXT_CNT_MASK) >> MCG_EXT_CNT_SHIFT)
-#define MCG_SER_P		(1ULL<<24)   /* MCA recovery/new status bits */
-#define MCG_ELOG_P		(1ULL<<26)   /* Extended error log supported */
-#define MCG_LMCE_P		(1ULL<<27)   /* Local machine check supported */
+#define MCG_SER_P		BIT_ULL(24)  /* MCA recovery/new status bits */
+#define MCG_ELOG_P		BIT_ULL(26)  /* Extended error log supported */
+#define MCG_LMCE_P		BIT_ULL(27)  /* Local machine check supported */
 
 /* MCG_STATUS register defines */
-#define MCG_STATUS_RIPV  (1ULL<<0)   /* restart ip valid */
-#define MCG_STATUS_EIPV  (1ULL<<1)   /* ip points to correct instruction */
-#define MCG_STATUS_MCIP  (1ULL<<2)   /* machine check in progress */
-#define MCG_STATUS_LMCES (1ULL<<3)   /* LMCE signaled */
+#define MCG_STATUS_RIPV		BIT_ULL(0)   /* restart ip valid */
+#define MCG_STATUS_EIPV		BIT_ULL(1)   /* ip points to correct instruction */
+#define MCG_STATUS_MCIP		BIT_ULL(2)   /* machine check in progress */
+#define MCG_STATUS_LMCES	BIT_ULL(3)   /* LMCE signaled */
 
 /* MCG_EXT_CTL register defines */
-#define MCG_EXT_CTL_LMCE_EN (1ULL<<0) /* Enable LMCE */
+#define MCG_EXT_CTL_LMCE_EN	BIT_ULL(0) /* Enable LMCE */
 
 /* MCi_STATUS register defines */
-#define MCI_STATUS_VAL   (1ULL<<63)  /* valid error */
-#define MCI_STATUS_OVER  (1ULL<<62)  /* previous errors lost */
-#define MCI_STATUS_UC    (1ULL<<61)  /* uncorrected error */
-#define MCI_STATUS_EN    (1ULL<<60)  /* error enabled */
-#define MCI_STATUS_MISCV (1ULL<<59)  /* misc error reg. valid */
-#define MCI_STATUS_ADDRV (1ULL<<58)  /* addr reg. valid */
-#define MCI_STATUS_PCC   (1ULL<<57)  /* processor context corrupt */
-#define MCI_STATUS_S	 (1ULL<<56)  /* Signaled machine check */
-#define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
+#define MCI_STATUS_VAL		BIT_ULL(63)  /* valid error */
+#define MCI_STATUS_OVER		BIT_ULL(62)  /* previous errors lost */
+#define MCI_STATUS_UC		BIT_ULL(61)  /* uncorrected error */
+#define MCI_STATUS_EN		BIT_ULL(60)  /* error enabled */
+#define MCI_STATUS_MISCV	BIT_ULL(59)  /* misc error reg. valid */
+#define MCI_STATUS_ADDRV	BIT_ULL(58)  /* addr reg. valid */
+#define MCI_STATUS_PCC		BIT_ULL(57)  /* processor context corrupt */
+#define MCI_STATUS_S		BIT_ULL(56)  /* Signaled machine check */
+#define MCI_STATUS_AR		BIT_ULL(55)  /* Action required */
+#define MCI_STATUS_CEC_SHIFT	38           /* Corrected Error Count */
+#define MCI_STATUS_CEC_MASK	GENMASK_ULL(52,38)
+#define MCI_STATUS_CEC(c)	(((c) & MCI_STATUS_CEC_MASK) >> MCI_STATUS_CEC_SHIFT)
 
 /* AMD-specific bits */
-#define MCI_STATUS_TCC		(1ULL<<55)  /* Task context corrupt */
-#define MCI_STATUS_SYNDV	(1ULL<<53)  /* synd reg. valid */
-#define MCI_STATUS_DEFERRED	(1ULL<<44)  /* uncorrected error, deferred exception */
-#define MCI_STATUS_POISON	(1ULL<<43)  /* access poisonous data */
+#define MCI_STATUS_TCC		BIT_ULL(55)  /* Task context corrupt */
+#define MCI_STATUS_SYNDV	BIT_ULL(53)  /* synd reg. valid */
+#define MCI_STATUS_DEFERRED	BIT_ULL(44)  /* uncorrected error, deferred exception */
+#define MCI_STATUS_POISON	BIT_ULL(43)  /* access poisonous data */
 
 /*
  * McaX field if set indicates a given bank supports MCA extensions:
@@ -84,7 +87,7 @@
 #define  MCI_MISC_ADDR_GENERIC	7	/* generic */
 
 /* CTL2 register defines */
-#define MCI_CTL2_CMCI_EN		(1ULL << 30)
+#define MCI_CTL2_CMCI_EN		BIT_ULL(30)
 #define MCI_CTL2_CMCI_THRESHOLD_MASK	0x7fffULL
 
 #define MCJ_CTX_MASK		3
@@ -213,6 +216,8 @@ int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr);
 static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
 static inline int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr) { return -EINVAL; };
 #endif
+
+static inline void mce_hygon_feature_init(struct cpuinfo_x86 *c) { return mce_amd_feature_init(c); }
 
 int mce_available(struct cpuinfo_x86 *c);
 bool mce_is_memory_error(struct mce *m);

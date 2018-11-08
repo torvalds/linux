@@ -38,6 +38,7 @@ extern long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
 		unsigned long ua, unsigned int pageshift, unsigned long *hpa);
 extern long mm_iommu_ua_to_hpa_rm(struct mm_iommu_table_group_mem_t *mem,
 		unsigned long ua, unsigned int pageshift, unsigned long *hpa);
+extern void mm_iommu_ua_mark_dirty_rm(struct mm_struct *mm, unsigned long ua);
 extern long mm_iommu_mapped_inc(struct mm_iommu_table_group_mem_t *mem);
 extern void mm_iommu_mapped_dec(struct mm_iommu_table_group_mem_t *mem);
 #endif
@@ -81,7 +82,7 @@ static inline bool need_extra_context(struct mm_struct *mm, unsigned long ea)
 {
 	int context_id;
 
-	context_id = get_ea_context(&mm->context, ea);
+	context_id = get_user_context(&mm->context, ea);
 	if (!context_id)
 		return true;
 	return false;

@@ -873,8 +873,11 @@ static int mtd_part_of_parse(struct mtd_info *master,
 	int ret, err = 0;
 
 	np = mtd_get_of_node(master);
-	if (!mtd_is_partition(master))
+	if (mtd_is_partition(master))
+		of_node_get(np);
+	else
 		np = of_get_child_by_name(np, "partitions");
+
 	of_property_for_each_string(np, "compatible", prop, compat) {
 		parser = mtd_part_get_compatible_parser(compat);
 		if (!parser)

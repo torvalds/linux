@@ -232,25 +232,24 @@ static int iceland_request_smu_load_specific_fw(struct pp_hwmgr *hwmgr,
 
 static int iceland_start_smu(struct pp_hwmgr *hwmgr)
 {
+	struct iceland_smumgr *priv = hwmgr->smu_backend;
 	int result;
 
-	result = iceland_smu_upload_firmware_image(hwmgr);
-	if (result)
-		return result;
-	result = iceland_smu_start_smc(hwmgr);
-	if (result)
-		return result;
-
 	if (!smu7_is_smc_ram_running(hwmgr)) {
-		pr_info("smu not running, upload firmware again \n");
 		result = iceland_smu_upload_firmware_image(hwmgr);
 		if (result)
 			return result;
 
-		result = iceland_smu_start_smc(hwmgr);
-		if (result)
-			return result;
+		iceland_smu_start_smc(hwmgr);
 	}
+
+	/* Setup SoftRegsStart here to visit the register UcodeLoadStatus
+	 * to check fw loading state
+	 */
+	smu7_read_smc_sram_dword(hwmgr,
+			SMU71_FIRMWARE_HEADER_LOCATION +
+			offsetof(SMU71_Firmware_Header, SoftRegisters),
+			&(priv->smu7_data.soft_regs_start), 0x40000);
 
 	result = smu7_request_smu_load_fw(hwmgr);
 
@@ -1280,6 +1279,7 @@ static int iceland_populate_single_memory_level(
 	memory_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
 	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
+	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
 	/* stutter mode not support on iceland */
 
@@ -2236,11 +2236,13 @@ static uint32_t iceland_get_offsetof(uint32_t type, uint32_t member)
 		case DRAM_LOG_BUFF_SIZE:
 			return offsetof(SMU71_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
+		break;
 	case SMU_Discrete_DpmTable:
 		switch (member) {
 		case LowSclkInterruptThreshold:
 			return offsetof(SMU71_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
+		break;
 	}
 	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;
@@ -2661,7 +2663,7 @@ const struct pp_smumgr_func iceland_smu_funcs = {
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &iceland_start_smu,
 	.check_fw_load_finish = &smu7_check_fw_load_finish,
-	.request_smu_load_fw = &smu7_reload_firmware,
+	.request_smu_load_fw = &smu7_request_smu_load_fw,
 	.request_smu_load_specific_fw = &iceland_request_smu_load_specific_fw,
 	.send_msg_to_smc = &smu7_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = &smu7_send_msg_to_smc_with_parameter,

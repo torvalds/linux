@@ -15,7 +15,7 @@
 #include <linux/mm.h>
 #include <linux/node.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/module.h>
 #include <asm/mmzone.h>
 #include <asm/numa.h>

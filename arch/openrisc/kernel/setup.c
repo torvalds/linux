@@ -30,13 +30,12 @@
 #include <linux/delay.h>
 #include <linux/console.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/serial.h>
 #include <linux/initrd.h>
 #include <linux/of_fdt.h>
 #include <linux/of.h>
-#include <linux/memblock.h>
 #include <linux/device.h>
 
 #include <asm/sections.h>
@@ -158,9 +157,8 @@ static struct device_node *setup_find_cpu_node(int cpu)
 {
 	u32 hwid;
 	struct device_node *cpun;
-	struct device_node *cpus = of_find_node_by_path("/cpus");
 
-	for_each_available_child_of_node(cpus, cpun) {
+	for_each_of_cpu_node(cpun) {
 		if (of_property_read_u32(cpun, "reg", &hwid))
 			continue;
 		if (hwid == cpu)

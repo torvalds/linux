@@ -1038,8 +1038,11 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 		struct fc_els_ls_rjt *rjt;
 
 		rjt = fc_frame_payload_get(fp, sizeof(*rjt));
-		FC_RPORT_DBG(rdata, "PLOGI ELS rejected, reason %x expl %x\n",
-			     rjt->er_reason, rjt->er_explan);
+		if (!rjt)
+			FC_RPORT_DBG(rdata, "PLOGI bad response\n");
+		else
+			FC_RPORT_DBG(rdata, "PLOGI ELS rejected, reason %x expl %x\n",
+				     rjt->er_reason, rjt->er_explan);
 		fc_rport_error_retry(rdata, -FC_EX_ELS_RJT);
 	}
 out:
@@ -1158,8 +1161,10 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 	op = fc_frame_payload_op(fp);
 	if (op == ELS_LS_ACC) {
 		pp = fc_frame_payload_get(fp, sizeof(*pp));
-		if (!pp)
+		if (!pp) {
+			fc_rport_error_retry(rdata, -FC_EX_SEQ_ERR);
 			goto out;
+		}
 
 		resp_code = (pp->spp.spp_flags & FC_SPP_RESP_MASK);
 		FC_RPORT_DBG(rdata, "PRLI spp_flags = 0x%x spp_type 0x%x\n",
@@ -1172,8 +1177,10 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 				fc_rport_error_retry(rdata, -FC_EX_SEQ_ERR);
 			goto out;
 		}
-		if (pp->prli.prli_spp_len < sizeof(pp->spp))
+		if (pp->prli.prli_spp_len < sizeof(pp->spp)) {
+			fc_rport_error_retry(rdata, -FC_EX_SEQ_ERR);
 			goto out;
+		}
 
 		fcp_parm = ntohl(pp->spp.spp_params);
 		if (fcp_parm & FCP_SPPF_RETRY)
@@ -1211,8 +1218,11 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	} else {
 		rjt = fc_frame_payload_get(fp, sizeof(*rjt));
-		FC_RPORT_DBG(rdata, "PRLI ELS rejected, reason %x expl %x\n",
-			     rjt->er_reason, rjt->er_explan);
+		if (!rjt)
+			FC_RPORT_DBG(rdata, "PRLI bad response\n");
+		else
+			FC_RPORT_DBG(rdata, "PRLI ELS rejected, reason %x expl %x\n",
+				     rjt->er_reason, rjt->er_explan);
 		fc_rport_error_retry(rdata, FC_EX_ELS_RJT);
 	}
 

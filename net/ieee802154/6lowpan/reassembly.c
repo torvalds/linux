@@ -260,7 +260,7 @@ static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *prev,
 	}
 	sub_frag_mem_limit(fq->q.net, sum_truesize);
 
-	head->next = NULL;
+	skb_mark_not_on_list(head);
 	head->dev = ldev;
 	head->tstamp = fq->q.stamp;
 
@@ -463,7 +463,6 @@ static int __net_init lowpan_frags_ns_sysctl_register(struct net *net)
 
 		table[0].data = &ieee802154_lowpan->frags.high_thresh;
 		table[0].extra1 = &ieee802154_lowpan->frags.low_thresh;
-		table[0].extra2 = &init_net.ieee802154_lowpan.frags.high_thresh;
 		table[1].data = &ieee802154_lowpan->frags.low_thresh;
 		table[1].extra2 = &ieee802154_lowpan->frags.high_thresh;
 		table[2].data = &ieee802154_lowpan->frags.timeout;

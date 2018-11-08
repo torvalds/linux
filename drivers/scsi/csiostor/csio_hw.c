@@ -1602,6 +1602,46 @@ fw_port_cap32_t fwcaps16_to_caps32(fw_port_cap16_t caps16)
 }
 
 /**
+ *	fwcaps32_to_caps16 - convert 32-bit Port Capabilities to 16-bits
+ *	@caps32: a 32-bit Port Capabilities value
+ *
+ *	Returns the equivalent 16-bit Port Capabilities value.  Note that
+ *	not all 32-bit Port Capabilities can be represented in the 16-bit
+ *	Port Capabilities and some fields/values may not make it.
+ */
+fw_port_cap16_t fwcaps32_to_caps16(fw_port_cap32_t caps32)
+{
+	fw_port_cap16_t caps16 = 0;
+
+	#define CAP32_TO_CAP16(__cap) \
+		do { \
+			if (caps32 & FW_PORT_CAP32_##__cap) \
+				caps16 |= FW_PORT_CAP_##__cap; \
+		} while (0)
+
+	CAP32_TO_CAP16(SPEED_100M);
+	CAP32_TO_CAP16(SPEED_1G);
+	CAP32_TO_CAP16(SPEED_10G);
+	CAP32_TO_CAP16(SPEED_25G);
+	CAP32_TO_CAP16(SPEED_40G);
+	CAP32_TO_CAP16(SPEED_100G);
+	CAP32_TO_CAP16(FC_RX);
+	CAP32_TO_CAP16(FC_TX);
+	CAP32_TO_CAP16(802_3_PAUSE);
+	CAP32_TO_CAP16(802_3_ASM_DIR);
+	CAP32_TO_CAP16(ANEG);
+	CAP32_TO_CAP16(FORCE_PAUSE);
+	CAP32_TO_CAP16(MDIAUTO);
+	CAP32_TO_CAP16(MDISTRAIGHT);
+	CAP32_TO_CAP16(FEC_RS);
+	CAP32_TO_CAP16(FEC_BASER_RS);
+
+	#undef CAP32_TO_CAP16
+
+	return caps16;
+}
+
+/**
  *      lstatus_to_fwcap - translate old lstatus to 32-bit Port Capabilities
  *      @lstatus: old FW_PORT_ACTION_GET_PORT_INFO lstatus value
  *
@@ -1759,7 +1799,7 @@ csio_enable_ports(struct csio_hw *hw)
 			val = 1;
 
 			csio_mb_params(hw, mbp, CSIO_MB_DEFAULT_TMO,
-				       hw->pfn, 0, 1, &param, &val, false,
+				       hw->pfn, 0, 1, &param, &val, true,
 				       NULL);
 
 			if (csio_mb_issue(hw, mbp)) {
@@ -1769,16 +1809,9 @@ csio_enable_ports(struct csio_hw *hw)
 				return -EINVAL;
 			}
 
-			csio_mb_process_read_params_rsp(hw, mbp, &retval, 1,
-							&val);
-			if (retval != FW_SUCCESS) {
-				csio_err(hw, "FW_PARAMS_CMD(r) port:%d failed: 0x%x\n",
-					 portid, retval);
-				mempool_free(mbp, hw->mb_mempool);
-				return -EINVAL;
-			}
-
-			fw_caps = val;
+			csio_mb_process_read_params_rsp(hw, mbp, &retval,
+							0, NULL);
+			fw_caps = retval ? FW_CAPS16 : FW_CAPS32;
 		}
 
 		/* Read PORT information */
@@ -2364,8 +2397,8 @@ bye:
 }
 
 /*
- * Returns -EINVAL if attempts to flash the firmware failed
- * else returns 0,
+ * Returns -EINVAL if attempts to flash the firmware failed,
+ * -ENOMEM if memory allocation failed else returns 0,
  * if flashing was not attempted because the card had the
  * latest firmware ECANCELED is returned
  */
@@ -2393,6 +2426,13 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		return -EINVAL;
 	}
 
+	/* allocate memory to read the header of the firmware on the
+	 * card
+	 */
+	card_fw = kmalloc(sizeof(*card_fw), GFP_KERNEL);
+	if (!card_fw)
+		return -ENOMEM;
+
 	if (csio_is_t5(pci_dev->device & CSIO_HW_CHIP_MASK))
 		fw_bin_file = FW_FNAME_T5;
 	else
@@ -2405,11 +2445,6 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		fw_data = fw->data;
 		fw_size = fw->size;
 	}
-
-	/* allocate memory to read the header of the firmware on the
-	 * card
-	 */
-	card_fw = kmalloc(sizeof(*card_fw), GFP_KERNEL);
 
 	/* upgrade FW logic */
 	ret = csio_hw_prep_fw(hw, fw_info, fw_data, fw_size, card_fw,

@@ -129,15 +129,8 @@
 	.macro	debug value
 	.endm
 
-
-	/* Shift Left - note the r and t can NOT be the same! */
-	.macro shl r, sa, t
-	dep,z	\r, 31-(\sa), 32-(\sa), \t
-	.endm
-
-	/* The PA 2.0 shift left */
 	.macro shlw r, sa, t
-	depw,z	\r, 31-(\sa), 32-(\sa), \t
+	zdep	\r, 31-(\sa), 32-(\sa), \t
 	.endm
 
 	/* And the PA 2.0W shift left */

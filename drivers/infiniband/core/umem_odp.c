@@ -58,7 +58,7 @@ static u64 node_start(struct umem_odp_node *n)
 	struct ib_umem_odp *umem_odp =
 			container_of(n, struct ib_umem_odp, interval_tree);
 
-	return ib_umem_start(umem_odp->umem);
+	return ib_umem_start(&umem_odp->umem);
 }
 
 /* Note that the representation of the intervals in the interval tree
@@ -71,140 +71,86 @@ static u64 node_last(struct umem_odp_node *n)
 	struct ib_umem_odp *umem_odp =
 			container_of(n, struct ib_umem_odp, interval_tree);
 
-	return ib_umem_end(umem_odp->umem) - 1;
+	return ib_umem_end(&umem_odp->umem) - 1;
 }
 
 INTERVAL_TREE_DEFINE(struct umem_odp_node, rb, u64, __subtree_last,
 		     node_start, node_last, static, rbt_ib_umem)
 
-static void ib_umem_notifier_start_account(struct ib_umem *item)
+static void ib_umem_notifier_start_account(struct ib_umem_odp *umem_odp)
 {
-	mutex_lock(&item->odp_data->umem_mutex);
-
-	/* Only update private counters for this umem if it has them.
-	 * Otherwise skip it. All page faults will be delayed for this umem. */
-	if (item->odp_data->mn_counters_active) {
-		int notifiers_count = item->odp_data->notifiers_count++;
-
-		if (notifiers_count == 0)
-			/* Initialize the completion object for waiting on
-			 * notifiers. Since notifier_count is zero, no one
-			 * should be waiting right now. */
-			reinit_completion(&item->odp_data->notifier_completion);
-	}
-	mutex_unlock(&item->odp_data->umem_mutex);
-}
-
-static void ib_umem_notifier_end_account(struct ib_umem *item)
-{
-	mutex_lock(&item->odp_data->umem_mutex);
-
-	/* Only update private counters for this umem if it has them.
-	 * Otherwise skip it. All page faults will be delayed for this umem. */
-	if (item->odp_data->mn_counters_active) {
+	mutex_lock(&umem_odp->umem_mutex);
+	if (umem_odp->notifiers_count++ == 0)
 		/*
-		 * This sequence increase will notify the QP page fault that
-		 * the page that is going to be mapped in the spte could have
-		 * been freed.
+		 * Initialize the completion object for waiting on
+		 * notifiers. Since notifier_count is zero, no one should be
+		 * waiting right now.
 		 */
-		++item->odp_data->notifiers_seq;
-		if (--item->odp_data->notifiers_count == 0)
-			complete_all(&item->odp_data->notifier_completion);
-	}
-	mutex_unlock(&item->odp_data->umem_mutex);
+		reinit_completion(&umem_odp->notifier_completion);
+	mutex_unlock(&umem_odp->umem_mutex);
 }
 
-/* Account for a new mmu notifier in an ib_ucontext. */
-static void ib_ucontext_notifier_start_account(struct ib_ucontext *context)
+static void ib_umem_notifier_end_account(struct ib_umem_odp *umem_odp)
 {
-	atomic_inc(&context->notifier_count);
+	mutex_lock(&umem_odp->umem_mutex);
+	/*
+	 * This sequence increase will notify the QP page fault that the page
+	 * that is going to be mapped in the spte could have been freed.
+	 */
+	++umem_odp->notifiers_seq;
+	if (--umem_odp->notifiers_count == 0)
+		complete_all(&umem_odp->notifier_completion);
+	mutex_unlock(&umem_odp->umem_mutex);
 }
 
-/* Account for a terminating mmu notifier in an ib_ucontext.
- *
- * Must be called with the ib_ucontext->umem_rwsem semaphore unlocked, since
- * the function takes the semaphore itself. */
-static void ib_ucontext_notifier_end_account(struct ib_ucontext *context)
+static int ib_umem_notifier_release_trampoline(struct ib_umem_odp *umem_odp,
+					       u64 start, u64 end, void *cookie)
 {
-	int zero_notifiers = atomic_dec_and_test(&context->notifier_count);
+	struct ib_umem *umem = &umem_odp->umem;
 
-	if (zero_notifiers &&
-	    !list_empty(&context->no_private_counters)) {
-		/* No currently running mmu notifiers. Now is the chance to
-		 * add private accounting to all previously added umems. */
-		struct ib_umem_odp *odp_data, *next;
-
-		/* Prevent concurrent mmu notifiers from working on the
-		 * no_private_counters list. */
-		down_write(&context->umem_rwsem);
-
-		/* Read the notifier_count again, with the umem_rwsem
-		 * semaphore taken for write. */
-		if (!atomic_read(&context->notifier_count)) {
-			list_for_each_entry_safe(odp_data, next,
-						 &context->no_private_counters,
-						 no_private_counters) {
-				mutex_lock(&odp_data->umem_mutex);
-				odp_data->mn_counters_active = true;
-				list_del(&odp_data->no_private_counters);
-				complete_all(&odp_data->notifier_completion);
-				mutex_unlock(&odp_data->umem_mutex);
-			}
-		}
-
-		up_write(&context->umem_rwsem);
-	}
-}
-
-static int ib_umem_notifier_release_trampoline(struct ib_umem *item, u64 start,
-					       u64 end, void *cookie) {
 	/*
 	 * Increase the number of notifiers running, to
 	 * prevent any further fault handling on this MR.
 	 */
-	ib_umem_notifier_start_account(item);
-	item->odp_data->dying = 1;
+	ib_umem_notifier_start_account(umem_odp);
+	umem_odp->dying = 1;
 	/* Make sure that the fact the umem is dying is out before we release
 	 * all pending page faults. */
 	smp_wmb();
-	complete_all(&item->odp_data->notifier_completion);
-	item->context->invalidate_range(item, ib_umem_start(item),
-					ib_umem_end(item));
+	complete_all(&umem_odp->notifier_completion);
+	umem->context->invalidate_range(umem_odp, ib_umem_start(umem),
+					ib_umem_end(umem));
 	return 0;
 }
 
 static void ib_umem_notifier_release(struct mmu_notifier *mn,
 				     struct mm_struct *mm)
 {
-	struct ib_ucontext *context = container_of(mn, struct ib_ucontext, mn);
+	struct ib_ucontext_per_mm *per_mm =
+		container_of(mn, struct ib_ucontext_per_mm, mn);
 
-	if (!context->invalidate_range)
-		return;
-
-	ib_ucontext_notifier_start_account(context);
-	down_read(&context->umem_rwsem);
-	rbt_ib_umem_for_each_in_range(&context->umem_tree, 0,
-				      ULLONG_MAX,
-				      ib_umem_notifier_release_trampoline,
-				      true,
-				      NULL);
-	up_read(&context->umem_rwsem);
+	down_read(&per_mm->umem_rwsem);
+	if (per_mm->active)
+		rbt_ib_umem_for_each_in_range(
+			&per_mm->umem_tree, 0, ULLONG_MAX,
+			ib_umem_notifier_release_trampoline, true, NULL);
+	up_read(&per_mm->umem_rwsem);
 }
 
-static int invalidate_page_trampoline(struct ib_umem *item, u64 start,
+static int invalidate_page_trampoline(struct ib_umem_odp *item, u64 start,
 				      u64 end, void *cookie)
 {
 	ib_umem_notifier_start_account(item);
-	item->context->invalidate_range(item, start, start + PAGE_SIZE);
+	item->umem.context->invalidate_range(item, start, start + PAGE_SIZE);
 	ib_umem_notifier_end_account(item);
 	return 0;
 }
 
-static int invalidate_range_start_trampoline(struct ib_umem *item, u64 start,
-					     u64 end, void *cookie)
+static int invalidate_range_start_trampoline(struct ib_umem_odp *item,
+					     u64 start, u64 end, void *cookie)
 {
 	ib_umem_notifier_start_account(item);
-	item->context->invalidate_range(item, start, end);
+	item->umem.context->invalidate_range(item, start, end);
 	return 0;
 }
 
@@ -214,28 +160,30 @@ static int ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
 						    unsigned long end,
 						    bool blockable)
 {
-	struct ib_ucontext *context = container_of(mn, struct ib_ucontext, mn);
-	int ret;
-
-	if (!context->invalidate_range)
-		return 0;
+	struct ib_ucontext_per_mm *per_mm =
+		container_of(mn, struct ib_ucontext_per_mm, mn);
 
 	if (blockable)
-		down_read(&context->umem_rwsem);
-	else if (!down_read_trylock(&context->umem_rwsem))
+		down_read(&per_mm->umem_rwsem);
+	else if (!down_read_trylock(&per_mm->umem_rwsem))
 		return -EAGAIN;
 
-	ib_ucontext_notifier_start_account(context);
-	ret = rbt_ib_umem_for_each_in_range(&context->umem_tree, start,
-				      end,
-				      invalidate_range_start_trampoline,
-				      blockable, NULL);
-	up_read(&context->umem_rwsem);
+	if (!per_mm->active) {
+		up_read(&per_mm->umem_rwsem);
+		/*
+		 * At this point active is permanently set and visible to this
+		 * CPU without a lock, that fact is relied on to skip the unlock
+		 * in range_end.
+		 */
+		return 0;
+	}
 
-	return ret;
+	return rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start, end,
+					     invalidate_range_start_trampoline,
+					     blockable, NULL);
 }
 
-static int invalidate_range_end_trampoline(struct ib_umem *item, u64 start,
+static int invalidate_range_end_trampoline(struct ib_umem_odp *item, u64 start,
 					   u64 end, void *cookie)
 {
 	ib_umem_notifier_end_account(item);
@@ -247,22 +195,16 @@ static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
 						  unsigned long start,
 						  unsigned long end)
 {
-	struct ib_ucontext *context = container_of(mn, struct ib_ucontext, mn);
+	struct ib_ucontext_per_mm *per_mm =
+		container_of(mn, struct ib_ucontext_per_mm, mn);
 
-	if (!context->invalidate_range)
+	if (unlikely(!per_mm->active))
 		return;
 
-	/*
-	 * TODO: we currently bail out if there is any sleepable work to be done
-	 * in ib_umem_notifier_invalidate_range_start so we shouldn't really block
-	 * here. But this is ugly and fragile.
-	 */
-	down_read(&context->umem_rwsem);
-	rbt_ib_umem_for_each_in_range(&context->umem_tree, start,
+	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start,
 				      end,
 				      invalidate_range_end_trampoline, true, NULL);
-	up_read(&context->umem_rwsem);
-	ib_ucontext_notifier_end_account(context);
+	up_read(&per_mm->umem_rwsem);
 }
 
 static const struct mmu_notifier_ops ib_umem_notifiers = {
@@ -271,31 +213,158 @@ static const struct mmu_notifier_ops ib_umem_notifiers = {
 	.invalidate_range_end       = ib_umem_notifier_invalidate_range_end,
 };
 
-struct ib_umem *ib_alloc_odp_umem(struct ib_ucontext *context,
-				  unsigned long addr,
-				  size_t size)
+static void add_umem_to_per_mm(struct ib_umem_odp *umem_odp)
 {
-	struct ib_umem *umem;
+	struct ib_ucontext_per_mm *per_mm = umem_odp->per_mm;
+	struct ib_umem *umem = &umem_odp->umem;
+
+	down_write(&per_mm->umem_rwsem);
+	if (likely(ib_umem_start(umem) != ib_umem_end(umem)))
+		rbt_ib_umem_insert(&umem_odp->interval_tree,
+				   &per_mm->umem_tree);
+	up_write(&per_mm->umem_rwsem);
+}
+
+static void remove_umem_from_per_mm(struct ib_umem_odp *umem_odp)
+{
+	struct ib_ucontext_per_mm *per_mm = umem_odp->per_mm;
+	struct ib_umem *umem = &umem_odp->umem;
+
+	down_write(&per_mm->umem_rwsem);
+	if (likely(ib_umem_start(umem) != ib_umem_end(umem)))
+		rbt_ib_umem_remove(&umem_odp->interval_tree,
+				   &per_mm->umem_tree);
+	complete_all(&umem_odp->notifier_completion);
+
+	up_write(&per_mm->umem_rwsem);
+}
+
+static struct ib_ucontext_per_mm *alloc_per_mm(struct ib_ucontext *ctx,
+					       struct mm_struct *mm)
+{
+	struct ib_ucontext_per_mm *per_mm;
+	int ret;
+
+	per_mm = kzalloc(sizeof(*per_mm), GFP_KERNEL);
+	if (!per_mm)
+		return ERR_PTR(-ENOMEM);
+
+	per_mm->context = ctx;
+	per_mm->mm = mm;
+	per_mm->umem_tree = RB_ROOT_CACHED;
+	init_rwsem(&per_mm->umem_rwsem);
+	per_mm->active = ctx->invalidate_range;
+
+	rcu_read_lock();
+	per_mm->tgid = get_task_pid(current->group_leader, PIDTYPE_PID);
+	rcu_read_unlock();
+
+	WARN_ON(mm != current->mm);
+
+	per_mm->mn.ops = &ib_umem_notifiers;
+	ret = mmu_notifier_register(&per_mm->mn, per_mm->mm);
+	if (ret) {
+		dev_err(&ctx->device->dev,
+			"Failed to register mmu_notifier %d\n", ret);
+		goto out_pid;
+	}
+
+	list_add(&per_mm->ucontext_list, &ctx->per_mm_list);
+	return per_mm;
+
+out_pid:
+	put_pid(per_mm->tgid);
+	kfree(per_mm);
+	return ERR_PTR(ret);
+}
+
+static int get_per_mm(struct ib_umem_odp *umem_odp)
+{
+	struct ib_ucontext *ctx = umem_odp->umem.context;
+	struct ib_ucontext_per_mm *per_mm;
+
+	/*
+	 * Generally speaking we expect only one or two per_mm in this list,
+	 * so no reason to optimize this search today.
+	 */
+	mutex_lock(&ctx->per_mm_list_lock);
+	list_for_each_entry(per_mm, &ctx->per_mm_list, ucontext_list) {
+		if (per_mm->mm == umem_odp->umem.owning_mm)
+			goto found;
+	}
+
+	per_mm = alloc_per_mm(ctx, umem_odp->umem.owning_mm);
+	if (IS_ERR(per_mm)) {
+		mutex_unlock(&ctx->per_mm_list_lock);
+		return PTR_ERR(per_mm);
+	}
+
+found:
+	umem_odp->per_mm = per_mm;
+	per_mm->odp_mrs_count++;
+	mutex_unlock(&ctx->per_mm_list_lock);
+
+	return 0;
+}
+
+static void free_per_mm(struct rcu_head *rcu)
+{
+	kfree(container_of(rcu, struct ib_ucontext_per_mm, rcu));
+}
+
+void put_per_mm(struct ib_umem_odp *umem_odp)
+{
+	struct ib_ucontext_per_mm *per_mm = umem_odp->per_mm;
+	struct ib_ucontext *ctx = umem_odp->umem.context;
+	bool need_free;
+
+	mutex_lock(&ctx->per_mm_list_lock);
+	umem_odp->per_mm = NULL;
+	per_mm->odp_mrs_count--;
+	need_free = per_mm->odp_mrs_count == 0;
+	if (need_free)
+		list_del(&per_mm->ucontext_list);
+	mutex_unlock(&ctx->per_mm_list_lock);
+
+	if (!need_free)
+		return;
+
+	/*
+	 * NOTE! mmu_notifier_unregister() can happen between a start/end
+	 * callback, resulting in an start/end, and thus an unbalanced
+	 * lock. This doesn't really matter to us since we are about to kfree
+	 * the memory that holds the lock, however LOCKDEP doesn't like this.
+	 */
+	down_write(&per_mm->umem_rwsem);
+	per_mm->active = false;
+	up_write(&per_mm->umem_rwsem);
+
+	WARN_ON(!RB_EMPTY_ROOT(&per_mm->umem_tree.rb_root));
+	mmu_notifier_unregister_no_release(&per_mm->mn, per_mm->mm);
+	put_pid(per_mm->tgid);
+	mmu_notifier_call_srcu(&per_mm->rcu, free_per_mm);
+}
+
+struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext_per_mm *per_mm,
+				      unsigned long addr, size_t size)
+{
+	struct ib_ucontext *ctx = per_mm->context;
 	struct ib_umem_odp *odp_data;
+	struct ib_umem *umem;
 	int pages = size >> PAGE_SHIFT;
 	int ret;
 
-	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
-	if (!umem)
+	odp_data = kzalloc(sizeof(*odp_data), GFP_KERNEL);
+	if (!odp_data)
 		return ERR_PTR(-ENOMEM);
-
-	umem->context    = context;
+	umem = &odp_data->umem;
+	umem->context    = ctx;
 	umem->length     = size;
 	umem->address    = addr;
 	umem->page_shift = PAGE_SHIFT;
 	umem->writable   = 1;
-
-	odp_data = kzalloc(sizeof(*odp_data), GFP_KERNEL);
-	if (!odp_data) {
-		ret = -ENOMEM;
-		goto out_umem;
-	}
-	odp_data->umem = umem;
+	umem->is_odp = 1;
+	odp_data->per_mm = per_mm;
 
 	mutex_init(&odp_data->umem_mutex);
 	init_completion(&odp_data->notifier_completion);
@@ -314,39 +383,34 @@ struct ib_umem *ib_alloc_odp_umem(struct ib_ucontext *context,
 		goto out_page_list;
 	}
 
-	down_write(&context->umem_rwsem);
-	context->odp_mrs_count++;
-	rbt_ib_umem_insert(&odp_data->interval_tree, &context->umem_tree);
-	if (likely(!atomic_read(&context->notifier_count)))
-		odp_data->mn_counters_active = true;
-	else
-		list_add(&odp_data->no_private_counters,
-			 &context->no_private_counters);
-	up_write(&context->umem_rwsem);
+	/*
+	 * Caller must ensure that the umem_odp that the per_mm came from
+	 * cannot be freed during the call to ib_alloc_odp_umem.
+	 */
+	mutex_lock(&ctx->per_mm_list_lock);
+	per_mm->odp_mrs_count++;
+	mutex_unlock(&ctx->per_mm_list_lock);
+	add_umem_to_per_mm(odp_data);
 
-	umem->odp_data = odp_data;
-
-	return umem;
+	return odp_data;
 
 out_page_list:
 	vfree(odp_data->page_list);
 out_odp_data:
 	kfree(odp_data);
-out_umem:
-	kfree(umem);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(ib_alloc_odp_umem);
 
-int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem,
-		    int access)
+int ib_umem_odp_get(struct ib_umem_odp *umem_odp, int access)
 {
+	struct ib_umem *umem = &umem_odp->umem;
+	/*
+	 * NOTE: This must called in a process context where umem->owning_mm
+	 * == current->mm
+	 */
+	struct mm_struct *mm = umem->owning_mm;
 	int ret_val;
-	struct pid *our_pid;
-	struct mm_struct *mm = get_task_mm(current);
-
-	if (!mm)
-		return -EINVAL;
 
 	if (access & IB_ACCESS_HUGETLB) {
 		struct vm_area_struct *vma;
@@ -366,111 +430,43 @@ int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem,
 		umem->hugetlb = 0;
 	}
 
-	/* Prevent creating ODP MRs in child processes */
-	rcu_read_lock();
-	our_pid = get_task_pid(current->group_leader, PIDTYPE_PID);
-	rcu_read_unlock();
-	put_pid(our_pid);
-	if (context->tgid != our_pid) {
-		ret_val = -EINVAL;
-		goto out_mm;
-	}
+	mutex_init(&umem_odp->umem_mutex);
 
-	umem->odp_data = kzalloc(sizeof(*umem->odp_data), GFP_KERNEL);
-	if (!umem->odp_data) {
-		ret_val = -ENOMEM;
-		goto out_mm;
-	}
-	umem->odp_data->umem = umem;
-
-	mutex_init(&umem->odp_data->umem_mutex);
-
-	init_completion(&umem->odp_data->notifier_completion);
+	init_completion(&umem_odp->notifier_completion);
 
 	if (ib_umem_num_pages(umem)) {
-		umem->odp_data->page_list =
-			vzalloc(array_size(sizeof(*umem->odp_data->page_list),
+		umem_odp->page_list =
+			vzalloc(array_size(sizeof(*umem_odp->page_list),
 					   ib_umem_num_pages(umem)));
-		if (!umem->odp_data->page_list) {
-			ret_val = -ENOMEM;
-			goto out_odp_data;
-		}
+		if (!umem_odp->page_list)
+			return -ENOMEM;
 
-		umem->odp_data->dma_list =
-			vzalloc(array_size(sizeof(*umem->odp_data->dma_list),
+		umem_odp->dma_list =
+			vzalloc(array_size(sizeof(*umem_odp->dma_list),
 					   ib_umem_num_pages(umem)));
-		if (!umem->odp_data->dma_list) {
+		if (!umem_odp->dma_list) {
 			ret_val = -ENOMEM;
 			goto out_page_list;
 		}
 	}
 
-	/*
-	 * When using MMU notifiers, we will get a
-	 * notification before the "current" task (and MM) is
-	 * destroyed. We use the umem_rwsem semaphore to synchronize.
-	 */
-	down_write(&context->umem_rwsem);
-	context->odp_mrs_count++;
-	if (likely(ib_umem_start(umem) != ib_umem_end(umem)))
-		rbt_ib_umem_insert(&umem->odp_data->interval_tree,
-				   &context->umem_tree);
-	if (likely(!atomic_read(&context->notifier_count)) ||
-	    context->odp_mrs_count == 1)
-		umem->odp_data->mn_counters_active = true;
-	else
-		list_add(&umem->odp_data->no_private_counters,
-			 &context->no_private_counters);
-	downgrade_write(&context->umem_rwsem);
+	ret_val = get_per_mm(umem_odp);
+	if (ret_val)
+		goto out_dma_list;
+	add_umem_to_per_mm(umem_odp);
 
-	if (context->odp_mrs_count == 1) {
-		/*
-		 * Note that at this point, no MMU notifier is running
-		 * for this context!
-		 */
-		atomic_set(&context->notifier_count, 0);
-		INIT_HLIST_NODE(&context->mn.hlist);
-		context->mn.ops = &ib_umem_notifiers;
-		/*
-		 * Lock-dep detects a false positive for mmap_sem vs.
-		 * umem_rwsem, due to not grasping downgrade_write correctly.
-		 */
-		lockdep_off();
-		ret_val = mmu_notifier_register(&context->mn, mm);
-		lockdep_on();
-		if (ret_val) {
-			pr_err("Failed to register mmu_notifier %d\n", ret_val);
-			ret_val = -EBUSY;
-			goto out_mutex;
-		}
-	}
-
-	up_read(&context->umem_rwsem);
-
-	/*
-	 * Note that doing an mmput can cause a notifier for the relevant mm.
-	 * If the notifier is called while we hold the umem_rwsem, this will
-	 * cause a deadlock. Therefore, we release the reference only after we
-	 * released the semaphore.
-	 */
-	mmput(mm);
 	return 0;
 
-out_mutex:
-	up_read(&context->umem_rwsem);
-	vfree(umem->odp_data->dma_list);
+out_dma_list:
+	vfree(umem_odp->dma_list);
 out_page_list:
-	vfree(umem->odp_data->page_list);
-out_odp_data:
-	kfree(umem->odp_data);
-out_mm:
-	mmput(mm);
+	vfree(umem_odp->page_list);
 	return ret_val;
 }
 
-void ib_umem_odp_release(struct ib_umem *umem)
+void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
 {
-	struct ib_ucontext *context = umem->context;
+	struct ib_umem *umem = &umem_odp->umem;
 
 	/*
 	 * Ensure that no more pages are mapped in the umem.
@@ -478,61 +474,13 @@ void ib_umem_odp_release(struct ib_umem *umem)
 	 * It is the driver's responsibility to ensure, before calling us,
 	 * that the hardware will not attempt to access the MR any more.
 	 */
-	ib_umem_odp_unmap_dma_pages(umem, ib_umem_start(umem),
+	ib_umem_odp_unmap_dma_pages(umem_odp, ib_umem_start(umem),
 				    ib_umem_end(umem));
 
-	down_write(&context->umem_rwsem);
-	if (likely(ib_umem_start(umem) != ib_umem_end(umem)))
-		rbt_ib_umem_remove(&umem->odp_data->interval_tree,
-				   &context->umem_tree);
-	context->odp_mrs_count--;
-	if (!umem->odp_data->mn_counters_active) {
-		list_del(&umem->odp_data->no_private_counters);
-		complete_all(&umem->odp_data->notifier_completion);
-	}
-
-	/*
-	 * Downgrade the lock to a read lock. This ensures that the notifiers
-	 * (who lock the mutex for reading) will be able to finish, and we
-	 * will be able to enventually obtain the mmu notifiers SRCU. Note
-	 * that since we are doing it atomically, no other user could register
-	 * and unregister while we do the check.
-	 */
-	downgrade_write(&context->umem_rwsem);
-	if (!context->odp_mrs_count) {
-		struct task_struct *owning_process = NULL;
-		struct mm_struct *owning_mm        = NULL;
-
-		owning_process = get_pid_task(context->tgid,
-					      PIDTYPE_PID);
-		if (owning_process == NULL)
-			/*
-			 * The process is already dead, notifier were removed
-			 * already.
-			 */
-			goto out;
-
-		owning_mm = get_task_mm(owning_process);
-		if (owning_mm == NULL)
-			/*
-			 * The process' mm is already dead, notifier were
-			 * removed already.
-			 */
-			goto out_put_task;
-		mmu_notifier_unregister(&context->mn, owning_mm);
-
-		mmput(owning_mm);
-
-out_put_task:
-		put_task_struct(owning_process);
-	}
-out:
-	up_read(&context->umem_rwsem);
-
-	vfree(umem->odp_data->dma_list);
-	vfree(umem->odp_data->page_list);
-	kfree(umem->odp_data);
-	kfree(umem);
+	remove_umem_from_per_mm(umem_odp);
+	put_per_mm(umem_odp);
+	vfree(umem_odp->dma_list);
+	vfree(umem_odp->page_list);
 }
 
 /*
@@ -544,7 +492,7 @@ out:
  * @access_mask: access permissions needed for this page.
  * @current_seq: sequence number for synchronization with invalidations.
  *               the sequence number is taken from
- *               umem->odp_data->notifiers_seq.
+ *               umem_odp->notifiers_seq.
  *
  * The function returns -EFAULT if the DMA mapping operation fails. It returns
  * -EAGAIN if a concurrent invalidation prevents us from updating the page.
@@ -554,12 +502,13 @@ out:
  * umem.
  */
 static int ib_umem_odp_map_dma_single_page(
-		struct ib_umem *umem,
+		struct ib_umem_odp *umem_odp,
 		int page_index,
 		struct page *page,
 		u64 access_mask,
 		unsigned long current_seq)
 {
+	struct ib_umem *umem = &umem_odp->umem;
 	struct ib_device *dev = umem->context->device;
 	dma_addr_t dma_addr;
 	int stored_page = 0;
@@ -571,11 +520,11 @@ static int ib_umem_odp_map_dma_single_page(
 	 * handle case of a racing notifier. This check also allows us to bail
 	 * early if we have a notifier running in parallel with us.
 	 */
-	if (ib_umem_mmu_notifier_retry(umem, current_seq)) {
+	if (ib_umem_mmu_notifier_retry(umem_odp, current_seq)) {
 		ret = -EAGAIN;
 		goto out;
 	}
-	if (!(umem->odp_data->dma_list[page_index])) {
+	if (!(umem_odp->dma_list[page_index])) {
 		dma_addr = ib_dma_map_page(dev,
 					   page,
 					   0, BIT(umem->page_shift),
@@ -584,15 +533,15 @@ static int ib_umem_odp_map_dma_single_page(
 			ret = -EFAULT;
 			goto out;
 		}
-		umem->odp_data->dma_list[page_index] = dma_addr | access_mask;
-		umem->odp_data->page_list[page_index] = page;
+		umem_odp->dma_list[page_index] = dma_addr | access_mask;
+		umem_odp->page_list[page_index] = page;
 		umem->npages++;
 		stored_page = 1;
-	} else if (umem->odp_data->page_list[page_index] == page) {
-		umem->odp_data->dma_list[page_index] |= access_mask;
+	} else if (umem_odp->page_list[page_index] == page) {
+		umem_odp->dma_list[page_index] |= access_mask;
 	} else {
 		pr_err("error: got different pages in IB device and from get_user_pages. IB device page: %p, gup page: %p\n",
-		       umem->odp_data->page_list[page_index], page);
+		       umem_odp->page_list[page_index], page);
 		/* Better remove the mapping now, to prevent any further
 		 * damage. */
 		remove_existing_mapping = 1;
@@ -605,7 +554,7 @@ out:
 
 	if (remove_existing_mapping && umem->context->invalidate_range) {
 		invalidate_page_trampoline(
-			umem,
+			umem_odp,
 			ib_umem_start(umem) + (page_index >> umem->page_shift),
 			ib_umem_start(umem) + ((page_index + 1) >>
 					       umem->page_shift),
@@ -621,7 +570,7 @@ out:
  *
  * Pins the range of pages passed in the argument, and maps them to
  * DMA addresses. The DMA addresses of the mapped pages is updated in
- * umem->odp_data->dma_list.
+ * umem_odp->dma_list.
  *
  * Returns the number of pages mapped in success, negative error code
  * for failure.
@@ -629,7 +578,7 @@ out:
  * the function from completing its task.
  * An -ENOENT error code indicates that userspace process is being terminated
  * and mm was already destroyed.
- * @umem: the umem to map and pin
+ * @umem_odp: the umem to map and pin
  * @user_virt: the address from which we need to map.
  * @bcnt: the minimal number of bytes to pin and map. The mapping might be
  *        bigger due to alignment, and may also be smaller in case of an error
@@ -639,13 +588,15 @@ out:
  *               range.
  * @current_seq: the MMU notifiers sequance value for synchronization with
  *               invalidations. the sequance number is read from
- *               umem->odp_data->notifiers_seq before calling this function
+ *               umem_odp->notifiers_seq before calling this function
  */
-int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
-			      u64 access_mask, unsigned long current_seq)
+int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
+			      u64 bcnt, u64 access_mask,
+			      unsigned long current_seq)
 {
+	struct ib_umem *umem = &umem_odp->umem;
 	struct task_struct *owning_process  = NULL;
-	struct mm_struct   *owning_mm       = NULL;
+	struct mm_struct *owning_mm = umem_odp->umem.owning_mm;
 	struct page       **local_page_list = NULL;
 	u64 page_mask, off;
 	int j, k, ret = 0, start_idx, npages = 0, page_shift;
@@ -669,15 +620,14 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
 	user_virt = user_virt & page_mask;
 	bcnt += off; /* Charge for the first page offset as well. */
 
-	owning_process = get_pid_task(umem->context->tgid, PIDTYPE_PID);
-	if (owning_process == NULL) {
+	/*
+	 * owning_process is allowed to be NULL, this means somehow the mm is
+	 * existing beyond the lifetime of the originating process.. Presumably
+	 * mmget_not_zero will fail in this case.
+	 */
+	owning_process = get_pid_task(umem_odp->per_mm->tgid, PIDTYPE_PID);
+	if (WARN_ON(!mmget_not_zero(umem_odp->umem.owning_mm))) {
 		ret = -EINVAL;
-		goto out_no_task;
-	}
-
-	owning_mm = get_task_mm(owning_process);
-	if (owning_mm == NULL) {
-		ret = -ENOENT;
 		goto out_put_task;
 	}
 
@@ -709,7 +659,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
 			break;
 
 		bcnt -= min_t(size_t, npages << PAGE_SHIFT, bcnt);
-		mutex_lock(&umem->odp_data->umem_mutex);
+		mutex_lock(&umem_odp->umem_mutex);
 		for (j = 0; j < npages; j++, user_virt += PAGE_SIZE) {
 			if (user_virt & ~page_mask) {
 				p += PAGE_SIZE;
@@ -722,7 +672,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
 			}
 
 			ret = ib_umem_odp_map_dma_single_page(
-					umem, k, local_page_list[j],
+					umem_odp, k, local_page_list[j],
 					access_mask, current_seq);
 			if (ret < 0)
 				break;
@@ -730,7 +680,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
 			p = page_to_phys(local_page_list[j]);
 			k++;
 		}
-		mutex_unlock(&umem->odp_data->umem_mutex);
+		mutex_unlock(&umem_odp->umem_mutex);
 
 		if (ret < 0) {
 			/* Release left over pages when handling errors. */
@@ -749,16 +699,17 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
 
 	mmput(owning_mm);
 out_put_task:
-	put_task_struct(owning_process);
-out_no_task:
+	if (owning_process)
+		put_task_struct(owning_process);
 	free_page((unsigned long)local_page_list);
 	return ret;
 }
 EXPORT_SYMBOL(ib_umem_odp_map_dma_pages);
 
-void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
+void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 virt,
 				 u64 bound)
 {
+	struct ib_umem *umem = &umem_odp->umem;
 	int idx;
 	u64 addr;
 	struct ib_device *dev = umem->context->device;
@@ -770,12 +721,12 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
 	 * faults from completion. We might be racing with other
 	 * invalidations, so we must make sure we free each page only
 	 * once. */
-	mutex_lock(&umem->odp_data->umem_mutex);
+	mutex_lock(&umem_odp->umem_mutex);
 	for (addr = virt; addr < bound; addr += BIT(umem->page_shift)) {
 		idx = (addr - ib_umem_start(umem)) >> umem->page_shift;
-		if (umem->odp_data->page_list[idx]) {
-			struct page *page = umem->odp_data->page_list[idx];
-			dma_addr_t dma = umem->odp_data->dma_list[idx];
+		if (umem_odp->page_list[idx]) {
+			struct page *page = umem_odp->page_list[idx];
+			dma_addr_t dma = umem_odp->dma_list[idx];
 			dma_addr_t dma_addr = dma & ODP_DMA_ADDR_MASK;
 
 			WARN_ON(!dma_addr);
@@ -798,12 +749,12 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
 			/* on demand pinning support */
 			if (!umem->context->invalidate_range)
 				put_page(page);
-			umem->odp_data->page_list[idx] = NULL;
-			umem->odp_data->dma_list[idx] = 0;
+			umem_odp->page_list[idx] = NULL;
+			umem_odp->dma_list[idx] = 0;
 			umem->npages--;
 		}
 	}
-	mutex_unlock(&umem->odp_data->umem_mutex);
+	mutex_unlock(&umem_odp->umem_mutex);
 }
 EXPORT_SYMBOL(ib_umem_odp_unmap_dma_pages);
 
@@ -830,7 +781,7 @@ int rbt_ib_umem_for_each_in_range(struct rb_root_cached *root,
 			return -EAGAIN;
 		next = rbt_ib_umem_iter_next(node, start, last - 1);
 		umem = container_of(node, struct ib_umem_odp, interval_tree);
-		ret_val = cb(umem->umem, start, last, cookie) || ret_val;
+		ret_val = cb(umem, start, last, cookie) || ret_val;
 	}
 
 	return ret_val;

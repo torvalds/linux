@@ -14,5 +14,9 @@ DTC_SRCS = \
 	treesource.c \
 	util.c
 
+ifneq ($(NO_YAML),1)
+DTC_SRCS += yamltree.c
+endif
+
 DTC_GEN_SRCS = dtc-lexer.lex.c dtc-parser.tab.c
 DTC_OBJS = $(DTC_SRCS:%.c=%.o) $(DTC_GEN_SRCS:%.c=%.o)

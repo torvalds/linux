@@ -160,7 +160,7 @@
 					spi-max-frequency = <15000000>;
 				};
 
-				tsc2046@0 {
+				tsc2046@2 {
 					reg = <2>;
 					compatible = "ti,ads7843";
 					interrupts-extended = <&pioC 2 IRQ_TYPE_EDGE_BOTH>;

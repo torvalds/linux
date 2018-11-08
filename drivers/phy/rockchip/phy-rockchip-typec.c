@@ -1145,8 +1145,8 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 	}
 
 	if (!tcphy->port_cfgs) {
-		dev_err(dev, "no phy-config can be matched with %s node\n",
-			np->name);
+		dev_err(dev, "no phy-config can be matched with %pOFn node\n",
+			np);
 		return -EINVAL;
 	}
 
@@ -1186,8 +1186,8 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 			continue;
 
 		if (IS_ERR(phy)) {
-			dev_err(dev, "failed to create phy: %s\n",
-				child_np->name);
+			dev_err(dev, "failed to create phy: %pOFn\n",
+				child_np);
 			pm_runtime_disable(dev);
 			return PTR_ERR(phy);
 		}

@@ -348,3 +348,7 @@ Version History
 1.13.1  Fix deadlock caused by early md_stop_writes().  Also fix size an
 	state races.
 1.13.2  Fix raid redundancy validation and avoid keeping raid set frozen
+1.14.0  Fix reshape race on small devices.  Fix stripe adding reshape
+	deadlock/potential data corruption.  Update superblock when
+	specific devices are requested via rebuild.  Fix RAID leg
+	rebuild errors.

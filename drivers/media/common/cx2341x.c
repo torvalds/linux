@@ -569,7 +569,7 @@ static int cx2341x_ctrl_query_fill(struct v4l2_queryctrl *qctrl,
 		qctrl->step = step;
 		qctrl->default_value = def;
 		qctrl->reserved[0] = qctrl->reserved[1] = 0;
-		strlcpy(qctrl->name, name, sizeof(qctrl->name));
+		strscpy(qctrl->name, name, sizeof(qctrl->name));
 		return 0;
 
 	default:

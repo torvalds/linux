@@ -1069,6 +1069,31 @@ The kernel interface functions are as follows:
 
      This function may transmit a PING ACK.
 
+ (*) Get reply timestamp.
+
+	bool rxrpc_kernel_get_reply_time(struct socket *sock,
+					 struct rxrpc_call *call,
+					 ktime_t *_ts)
+
+     This allows the timestamp on the first DATA packet of the reply of a
+     client call to be queried, provided that it is still in the Rx ring.  If
+     successful, the timestamp will be stored into *_ts and true will be
+     returned; false will be returned otherwise.
+
+ (*) Get remote client epoch.
+
+	u32 rxrpc_kernel_get_epoch(struct socket *sock,
+				   struct rxrpc_call *call)
+
+     This allows the epoch that's contained in packets of an incoming client
+     call to be queried.  This value is returned.  The function always
+     successful if the call is still in progress.  It shouldn't be called once
+     the call has expired.  Note that calling this on a local client call only
+     returns the local epoch.
+
+     This value can be used to determine if the remote client has been
+     restarted as it shouldn't change otherwise.
+
 
 =======================
 CONFIGURABLE PARAMETERS

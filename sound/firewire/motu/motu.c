@@ -52,26 +52,12 @@ static void name_card(struct snd_motu *motu)
 		 dev_name(&motu->unit->device), 100 << fw_dev->max_speed);
 }
 
-static void motu_free(struct snd_motu *motu)
-{
-	snd_motu_transaction_unregister(motu);
-
-	snd_motu_stream_destroy_duplex(motu);
-	fw_unit_put(motu->unit);
-
-	mutex_destroy(&motu->mutex);
-	kfree(motu);
-}
-
-/*
- * This module releases the FireWire unit data after all ALSA character devices
- * are released by applications. This is for releasing stream data or finishing
- * transactions safely. Thus at returning from .remove(), this module still keep
- * references for the unit.
- */
 static void motu_card_free(struct snd_card *card)
 {
-	motu_free(card->private_data);
+	struct snd_motu *motu = card->private_data;
+
+	snd_motu_transaction_unregister(motu);
+	snd_motu_stream_destroy_duplex(motu);
 }
 
 static void do_registration(struct work_struct *work)
@@ -86,6 +72,8 @@ static void do_registration(struct work_struct *work)
 			   &motu->card);
 	if (err < 0)
 		return;
+	motu->card->private_free = motu_card_free;
+	motu->card->private_data = motu;
 
 	name_card(motu);
 
@@ -120,18 +108,10 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	/*
-	 * After registered, motu instance can be released corresponding to
-	 * releasing the sound card instance.
-	 */
-	motu->card->private_free = motu_card_free;
-	motu->card->private_data = motu;
 	motu->registered = true;
 
 	return;
 error:
-	snd_motu_transaction_unregister(motu);
-	snd_motu_stream_destroy_duplex(motu);
 	snd_card_free(motu->card);
 	dev_info(&motu->unit->device,
 		 "Sound card registration failed: %d\n", err);
@@ -143,14 +123,13 @@ static int motu_probe(struct fw_unit *unit,
 	struct snd_motu *motu;
 
 	/* Allocate this independently of sound card instance. */
-	motu = kzalloc(sizeof(struct snd_motu), GFP_KERNEL);
-	if (motu == NULL)
+	motu = devm_kzalloc(&unit->device, sizeof(struct snd_motu), GFP_KERNEL);
+	if (!motu)
 		return -ENOMEM;
-
-	motu->spec = (const struct snd_motu_spec *)entry->driver_data;
 	motu->unit = fw_unit_get(unit);
 	dev_set_drvdata(&unit->device, motu);
 
+	motu->spec = (const struct snd_motu_spec *)entry->driver_data;
 	mutex_init(&motu->mutex);
 	spin_lock_init(&motu->lock);
 	init_waitqueue_head(&motu->hwdep_wait);
@@ -174,12 +153,12 @@ static void motu_remove(struct fw_unit *unit)
 	cancel_delayed_work_sync(&motu->dwork);
 
 	if (motu->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(motu->card);
-	} else {
-		/* Don't forget this case. */
-		motu_free(motu);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(motu->card);
 	}
+
+	mutex_destroy(&motu->mutex);
+	fw_unit_put(motu->unit);
 }
 
 static void motu_bus_update(struct fw_unit *unit)

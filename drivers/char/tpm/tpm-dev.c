@@ -39,19 +39,13 @@ static int tpm_open(struct inode *inode, struct file *file)
 	if (priv == NULL)
 		goto out;
 
-	tpm_common_open(file, chip, priv);
+	tpm_common_open(file, chip, priv, NULL);
 
 	return 0;
 
  out:
 	clear_bit(0, &chip->is_open);
 	return -ENOMEM;
-}
-
-static ssize_t tpm_write(struct file *file, const char __user *buf,
-			 size_t size, loff_t *off)
-{
-	return tpm_common_write(file, buf, size, off, NULL);
 }
 
 /*
@@ -73,6 +67,7 @@ const struct file_operations tpm_fops = {
 	.llseek = no_llseek,
 	.open = tpm_open,
 	.read = tpm_common_read,
-	.write = tpm_write,
+	.write = tpm_common_write,
+	.poll = tpm_common_poll,
 	.release = tpm_release,
 };

@@ -141,7 +141,8 @@ static void rain_irq_work_handler(struct work_struct *work)
 			    !memcmp(rain->cmd, "STA", 3)) {
 				rain_process_msg(rain);
 			} else {
-				strcpy(rain->cmd_reply, rain->cmd);
+				strscpy(rain->cmd_reply, rain->cmd,
+					sizeof(rain->cmd_reply));
 				complete(&rain->cmd_done);
 			}
 			rain->cmd_idx = 0;

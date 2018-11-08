@@ -41,7 +41,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -451,7 +451,7 @@ static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
 
 	meson_regmap_config.max_register = resource_size(&res) - 4;
 	meson_regmap_config.name = devm_kasprintf(pc->dev, GFP_KERNEL,
-						  "%s-%s", node->name,
+						  "%pOFn-%s", node,
 						  name);
 	if (!meson_regmap_config.name)
 		return ERR_PTR(-ENOMEM);

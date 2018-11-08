@@ -49,6 +49,7 @@
 #define HSA_CAP_AQL_QUEUE_DOUBLE_MAP		0x00004000
 
 struct kfd_node_properties {
+	uint64_t hive_id;
 	uint32_t cpu_cores_count;
 	uint32_t simd_count;
 	uint32_t mem_banks_count;

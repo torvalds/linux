@@ -12,10 +12,9 @@ high efficiency and minimal disturbance, expedited grace periods accept
 lower efficiency and significant disturbance to attain shorter latencies.
 
 <p>
-There are three flavors of RCU (RCU-bh, RCU-preempt, and RCU-sched),
-but only two flavors of expedited grace periods because the RCU-bh
-expedited grace period maps onto the RCU-sched expedited grace period.
-Each of the remaining two implementations is covered in its own section.
+There are two flavors of RCU (RCU-preempt and RCU-sched), with an earlier
+third RCU-bh flavor having been implemented in terms of the other two.
+Each of the two implementations is covered in its own section.
 
 <ol>
 <li>	<a href="#Expedited Grace Period Design">
@@ -158,7 +157,7 @@ whether or not the current CPU is in an RCU read-side critical section.
 The best that <tt>sync_sched_exp_handler()</tt> can do is to check
 for idle, on the off-chance that the CPU went idle while the IPI
 was in flight.
-If the CPU is idle, then tt>sync_sched_exp_handler()</tt> reports
+If the CPU is idle, then <tt>sync_sched_exp_handler()</tt> reports
 the quiescent state.
 
 <p>

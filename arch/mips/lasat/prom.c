@@ -8,7 +8,7 @@
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/ioport.h>
 #include <asm/bootinfo.h>
 #include <asm/lasat/lasat.h>

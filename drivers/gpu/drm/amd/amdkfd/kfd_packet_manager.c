@@ -229,6 +229,7 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 		pm->pmf = &kfd_vi_pm_funcs;
 		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		pm->pmf = &kfd_v9_pm_funcs;
 		break;

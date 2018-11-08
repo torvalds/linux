@@ -281,16 +281,13 @@ static void ipu_plane_state_reset(struct drm_plane *plane)
 		ipu_state = to_ipu_plane_state(plane->state);
 		__drm_atomic_helper_plane_destroy_state(plane->state);
 		kfree(ipu_state);
+		plane->state = NULL;
 	}
 
 	ipu_state = kzalloc(sizeof(*ipu_state), GFP_KERNEL);
 
-	if (ipu_state) {
-		ipu_state->base.plane = plane;
-		ipu_state->base.rotation = DRM_MODE_ROTATE_0;
-	}
-
-	plane->state = &ipu_state->base;
+	if (ipu_state)
+		__drm_atomic_helper_plane_reset(plane, &ipu_state->base);
 }
 
 static struct drm_plane_state *

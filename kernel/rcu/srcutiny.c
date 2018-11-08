@@ -34,6 +34,8 @@
 #include "rcu.h"
 
 int rcu_scheduler_active __read_mostly;
+static LIST_HEAD(srcu_boot_list);
+static bool srcu_init_done;
 
 static int init_srcu_struct_fields(struct srcu_struct *sp)
 {
@@ -46,6 +48,7 @@ static int init_srcu_struct_fields(struct srcu_struct *sp)
 	sp->srcu_gp_waiting = false;
 	sp->srcu_idx = 0;
 	INIT_WORK(&sp->srcu_work, srcu_drive_gp);
+	INIT_LIST_HEAD(&sp->srcu_work.entry);
 	return 0;
 }
 
@@ -179,8 +182,12 @@ void call_srcu(struct srcu_struct *sp, struct rcu_head *rhp,
 	*sp->srcu_cb_tail = rhp;
 	sp->srcu_cb_tail = &rhp->next;
 	local_irq_restore(flags);
-	if (!READ_ONCE(sp->srcu_gp_running))
-		schedule_work(&sp->srcu_work);
+	if (!READ_ONCE(sp->srcu_gp_running)) {
+		if (likely(srcu_init_done))
+			schedule_work(&sp->srcu_work);
+		else if (list_empty(&sp->srcu_work.entry))
+			list_add(&sp->srcu_work.entry, &srcu_boot_list);
+	}
 }
 EXPORT_SYMBOL_GPL(call_srcu);
 
@@ -203,4 +210,22 @@ EXPORT_SYMBOL_GPL(synchronize_srcu);
 void __init rcu_scheduler_starting(void)
 {
 	rcu_scheduler_active = RCU_SCHEDULER_RUNNING;
+}
+
+/*
+ * Queue work for srcu_struct structures with early boot callbacks.
+ * The work won't actually execute until the workqueue initialization
+ * phase that takes place after the scheduler starts.
+ */
+void __init srcu_init(void)
+{
+	struct srcu_struct *sp;
+
+	srcu_init_done = true;
+	while (!list_empty(&srcu_boot_list)) {
+		sp = list_first_entry(&srcu_boot_list,
+				      struct srcu_struct, srcu_work.entry);
+		list_del_init(&sp->srcu_work.entry);
+		schedule_work(&sp->srcu_work);
+	}
 }

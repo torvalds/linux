@@ -42,25 +42,3 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 {
 	__dma_sync(dev, paddr, size, dir);
 }
-
-int arch_dma_mmap(struct device *dev, struct vm_area_struct *vma,
-		void *cpu_addr, dma_addr_t handle, size_t size,
-		unsigned long attrs)
-{
-#ifdef CONFIG_MMU
-	unsigned long user_count = vma_pages(vma);
-	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	unsigned long off = vma->vm_pgoff;
-	unsigned long pfn;
-
-	if (off >= count || user_count > (count - off))
-		return -ENXIO;
-
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	pfn = consistent_virt_to_pfn(cpu_addr);
-	return remap_pfn_range(vma, vma->vm_start, pfn + off,
-			       vma->vm_end - vma->vm_start, vma->vm_page_prot);
-#else
-	return -ENXIO;
-#endif
-}

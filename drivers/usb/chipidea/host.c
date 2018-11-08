@@ -13,6 +13,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/usb/chipidea.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "../host/ehci.h"
 
@@ -153,6 +154,10 @@ static int host_start(struct ci_hdrc *ci)
 		}
 	}
 
+	if (ci->platdata->pins_host)
+		pinctrl_select_state(ci->platdata->pctl,
+				     ci->platdata->pins_host);
+
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret) {
 		goto disable_reg;
@@ -197,6 +202,10 @@ static void host_stop(struct ci_hdrc *ci)
 	}
 	ci->hcd = NULL;
 	ci->otg.host = NULL;
+
+	if (ci->platdata->pins_host && ci->platdata->pins_default)
+		pinctrl_select_state(ci->platdata->pctl,
+				     ci->platdata->pins_default);
 }
 
 

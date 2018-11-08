@@ -16,6 +16,7 @@
 #define RO_AFTER_INIT_DATA
 
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/vmlinux.lds.h>
 
 OUTPUT_FORMAT("elf64-s390", "elf64-s390", "elf64-s390")
 OUTPUT_ARCH(s390:64-bit)
@@ -64,6 +65,7 @@ SECTIONS
 	__start_ro_after_init = .;
 	.data..ro_after_init : {
 		 *(.data..ro_after_init)
+		JUMP_TABLE_DATA
 	}
 	EXCEPTION_TABLE(16)
 	. = ALIGN(PAGE_SIZE);
@@ -134,6 +136,8 @@ SECTIONS
 		__nospec_return_end = . ;
 	}
 
+	BOOT_DATA
+
 	/* early.c uses stsi, which requires page aligned data. */
 	. = ALIGN(PAGE_SIZE);
 	INIT_DATA_SECTION(0x100)
@@ -145,6 +149,19 @@ SECTIONS
 	BSS_SECTION(PAGE_SIZE, 4 * PAGE_SIZE, PAGE_SIZE)
 
 	_end = . ;
+
+	/*
+	 * uncompressed image info used by the decompressor
+	 * it should match struct vmlinux_info
+	 */
+	.vmlinux.info 0 : {
+		QUAD(_stext)					/* default_lma */
+		QUAD(startup_continue)				/* entry */
+		QUAD(__bss_start - _stext)			/* image_size */
+		QUAD(__bss_stop - __bss_start)			/* bss_size */
+		QUAD(__boot_data_start)				/* bootdata_off */
+		QUAD(__boot_data_end - __boot_data_start)	/* bootdata_size */
+	}
 
 	/* Debugging sections.	*/
 	STABS_DEBUG

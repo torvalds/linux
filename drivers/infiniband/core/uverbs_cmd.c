@@ -117,18 +117,12 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	/* ufile is required when some objects are released */
 	ucontext->ufile = file;
 
-	rcu_read_lock();
-	ucontext->tgid = get_task_pid(current->group_leader, PIDTYPE_PID);
-	rcu_read_unlock();
-	ucontext->closing = 0;
+	ucontext->closing = false;
 	ucontext->cleanup_retryable = false;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	ucontext->umem_tree = RB_ROOT_CACHED;
-	init_rwsem(&ucontext->umem_rwsem);
-	ucontext->odp_mrs_count = 0;
-	INIT_LIST_HEAD(&ucontext->no_private_counters);
-
+	mutex_init(&ucontext->per_mm_list_lock);
+	INIT_LIST_HEAD(&ucontext->per_mm_list);
 	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
 		ucontext->invalidate_range = NULL;
 
@@ -172,7 +166,6 @@ err_fd:
 	put_unused_fd(resp.async_fd);
 
 err_free:
-	put_pid(ucontext->tgid);
 	ib_dev->dealloc_ucontext(ucontext);
 
 err_alloc:
@@ -2027,33 +2020,55 @@ static int modify_qp(struct ib_uverbs_file *file,
 
 	if ((cmd->base.attr_mask & IB_QP_CUR_STATE &&
 	    cmd->base.cur_qp_state > IB_QPS_ERR) ||
-	    cmd->base.qp_state > IB_QPS_ERR) {
+	    (cmd->base.attr_mask & IB_QP_STATE &&
+	    cmd->base.qp_state > IB_QPS_ERR)) {
 		ret = -EINVAL;
 		goto release_qp;
 	}
 
-	attr->qp_state		  = cmd->base.qp_state;
-	attr->cur_qp_state	  = cmd->base.cur_qp_state;
-	attr->path_mtu		  = cmd->base.path_mtu;
-	attr->path_mig_state	  = cmd->base.path_mig_state;
-	attr->qkey		  = cmd->base.qkey;
-	attr->rq_psn		  = cmd->base.rq_psn;
-	attr->sq_psn		  = cmd->base.sq_psn;
-	attr->dest_qp_num	  = cmd->base.dest_qp_num;
-	attr->qp_access_flags	  = cmd->base.qp_access_flags;
-	attr->pkey_index	  = cmd->base.pkey_index;
-	attr->alt_pkey_index	  = cmd->base.alt_pkey_index;
-	attr->en_sqd_async_notify = cmd->base.en_sqd_async_notify;
-	attr->max_rd_atomic	  = cmd->base.max_rd_atomic;
-	attr->max_dest_rd_atomic  = cmd->base.max_dest_rd_atomic;
-	attr->min_rnr_timer	  = cmd->base.min_rnr_timer;
-	attr->port_num		  = cmd->base.port_num;
-	attr->timeout		  = cmd->base.timeout;
-	attr->retry_cnt		  = cmd->base.retry_cnt;
-	attr->rnr_retry		  = cmd->base.rnr_retry;
-	attr->alt_port_num	  = cmd->base.alt_port_num;
-	attr->alt_timeout	  = cmd->base.alt_timeout;
-	attr->rate_limit	  = cmd->rate_limit;
+	if (cmd->base.attr_mask & IB_QP_STATE)
+		attr->qp_state = cmd->base.qp_state;
+	if (cmd->base.attr_mask & IB_QP_CUR_STATE)
+		attr->cur_qp_state = cmd->base.cur_qp_state;
+	if (cmd->base.attr_mask & IB_QP_PATH_MTU)
+		attr->path_mtu = cmd->base.path_mtu;
+	if (cmd->base.attr_mask & IB_QP_PATH_MIG_STATE)
+		attr->path_mig_state = cmd->base.path_mig_state;
+	if (cmd->base.attr_mask & IB_QP_QKEY)
+		attr->qkey = cmd->base.qkey;
+	if (cmd->base.attr_mask & IB_QP_RQ_PSN)
+		attr->rq_psn = cmd->base.rq_psn;
+	if (cmd->base.attr_mask & IB_QP_SQ_PSN)
+		attr->sq_psn = cmd->base.sq_psn;
+	if (cmd->base.attr_mask & IB_QP_DEST_QPN)
+		attr->dest_qp_num = cmd->base.dest_qp_num;
+	if (cmd->base.attr_mask & IB_QP_ACCESS_FLAGS)
+		attr->qp_access_flags = cmd->base.qp_access_flags;
+	if (cmd->base.attr_mask & IB_QP_PKEY_INDEX)
+		attr->pkey_index = cmd->base.pkey_index;
+	if (cmd->base.attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY)
+		attr->en_sqd_async_notify = cmd->base.en_sqd_async_notify;
+	if (cmd->base.attr_mask & IB_QP_MAX_QP_RD_ATOMIC)
+		attr->max_rd_atomic = cmd->base.max_rd_atomic;
+	if (cmd->base.attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
+		attr->max_dest_rd_atomic = cmd->base.max_dest_rd_atomic;
+	if (cmd->base.attr_mask & IB_QP_MIN_RNR_TIMER)
+		attr->min_rnr_timer = cmd->base.min_rnr_timer;
+	if (cmd->base.attr_mask & IB_QP_PORT)
+		attr->port_num = cmd->base.port_num;
+	if (cmd->base.attr_mask & IB_QP_TIMEOUT)
+		attr->timeout = cmd->base.timeout;
+	if (cmd->base.attr_mask & IB_QP_RETRY_CNT)
+		attr->retry_cnt = cmd->base.retry_cnt;
+	if (cmd->base.attr_mask & IB_QP_RNR_RETRY)
+		attr->rnr_retry = cmd->base.rnr_retry;
+	if (cmd->base.attr_mask & IB_QP_ALT_PATH) {
+		attr->alt_port_num = cmd->base.alt_port_num;
+		attr->alt_timeout = cmd->base.alt_timeout;
+		attr->alt_pkey_index = cmd->base.alt_pkey_index;
+	}
+	if (cmd->base.attr_mask & IB_QP_RATE_LIMIT)
+		attr->rate_limit = cmd->rate_limit;
 
 	if (cmd->base.attr_mask & IB_QP_AV)
 		copy_ah_attr_from_uverbs(qp->device, &attr->ah_attr,
@@ -2747,16 +2762,7 @@ out_put:
 	return ret ? ret : in_len;
 }
 
-struct ib_uflow_resources {
-	size_t			max;
-	size_t			num;
-	size_t			collection_num;
-	size_t			counters_num;
-	struct ib_counters	**counters;
-	struct ib_flow_action	**collection;
-};
-
-static struct ib_uflow_resources *flow_resources_alloc(size_t num_specs)
+struct ib_uflow_resources *flow_resources_alloc(size_t num_specs)
 {
 	struct ib_uflow_resources *resources;
 
@@ -2786,6 +2792,7 @@ err:
 
 	return NULL;
 }
+EXPORT_SYMBOL(flow_resources_alloc);
 
 void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res)
 {
@@ -2804,10 +2811,11 @@ void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res)
 	kfree(uflow_res->counters);
 	kfree(uflow_res);
 }
+EXPORT_SYMBOL(ib_uverbs_flow_resources_free);
 
-static void flow_resources_add(struct ib_uflow_resources *uflow_res,
-			       enum ib_flow_spec_type type,
-			       void *ibobj)
+void flow_resources_add(struct ib_uflow_resources *uflow_res,
+			enum ib_flow_spec_type type,
+			void *ibobj)
 {
 	WARN_ON(uflow_res->num >= uflow_res->max);
 
@@ -2828,6 +2836,7 @@ static void flow_resources_add(struct ib_uflow_resources *uflow_res,
 
 	uflow_res->num++;
 }
+EXPORT_SYMBOL(flow_resources_add);
 
 static int kern_spec_to_ib_spec_action(struct ib_uverbs_file *ufile,
 				       struct ib_uverbs_flow_spec *kern_spec,
@@ -3462,7 +3471,6 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	struct ib_uverbs_create_flow	  cmd;
 	struct ib_uverbs_create_flow_resp resp;
 	struct ib_uobject		  *uobj;
-	struct ib_uflow_object		  *uflow;
 	struct ib_flow			  *flow_id;
 	struct ib_uverbs_flow_attr	  *kern_flow_attr;
 	struct ib_flow_attr		  *flow_attr;
@@ -3601,13 +3609,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 		err = PTR_ERR(flow_id);
 		goto err_free;
 	}
-	atomic_inc(&qp->usecnt);
-	flow_id->qp = qp;
-	flow_id->device = qp->device;
-	flow_id->uobject = uobj;
-	uobj->object = flow_id;
-	uflow = container_of(uobj, typeof(*uflow), uobject);
-	uflow->resources = uflow_res;
+
+	ib_set_flow(uobj, flow_id, qp, qp->device, uflow_res);
 
 	memset(&resp, 0, sizeof(resp));
 	resp.flow_handle = uobj->id;

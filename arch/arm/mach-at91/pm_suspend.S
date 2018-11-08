@@ -149,6 +149,14 @@ exit_suspend:
 ENDPROC(at91_pm_suspend_in_sram)
 
 ENTRY(at91_backup_mode)
+	/* Switch the master clock source to slow clock. */
+	ldr	pmc, .pmc_base
+	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	bic	tmp1, tmp1, #AT91_PMC_CSS
+	str	tmp1, [pmc, #AT91_PMC_MCKR]
+
+	wait_mckrdy
+
 	/*BUMEN*/
 	ldr	r0, .sfr
 	mov	tmp1, #0x1

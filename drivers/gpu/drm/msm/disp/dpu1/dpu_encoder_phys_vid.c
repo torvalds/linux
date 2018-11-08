@@ -355,13 +355,14 @@ static void dpu_encoder_phys_vid_underrun_irq(void *arg, int irq_idx)
 
 static bool _dpu_encoder_phys_is_dual_ctl(struct dpu_encoder_phys *phys_enc)
 {
+	struct dpu_crtc_state *dpu_cstate;
+
 	if (!phys_enc)
 		return false;
 
-	if (phys_enc->topology_name == DPU_RM_TOPOLOGY_DUALPIPE)
-		return true;
+	dpu_cstate = to_dpu_crtc_state(phys_enc->parent->crtc->state);
 
-	return false;
+	return dpu_cstate->num_ctls > 1;
 }
 
 static bool dpu_encoder_phys_vid_needs_single_flush(
@@ -395,9 +396,6 @@ static void dpu_encoder_phys_vid_mode_set(
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adj_mode)
 {
-	struct dpu_rm *rm;
-	struct dpu_rm_hw_iter iter;
-	int i, instance;
 	struct dpu_encoder_phys_vid *vid_enc;
 
 	if (!phys_enc || !phys_enc->dpu_kms) {
@@ -405,28 +403,12 @@ static void dpu_encoder_phys_vid_mode_set(
 		return;
 	}
 
-	rm = &phys_enc->dpu_kms->rm;
 	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
 
 	if (adj_mode) {
 		phys_enc->cached_mode = *adj_mode;
 		drm_mode_debug_printmodeline(adj_mode);
 		DPU_DEBUG_VIDENC(vid_enc, "caching mode:\n");
-	}
-
-	instance = phys_enc->split_role == ENC_ROLE_SLAVE ? 1 : 0;
-
-	/* Retrieve previously allocated HW Resources. Shouldn't fail */
-	dpu_rm_init_hw_iter(&iter, phys_enc->parent->base.id, DPU_HW_BLK_CTL);
-	for (i = 0; i <= instance; i++) {
-		if (dpu_rm_get_hw(rm, &iter))
-			phys_enc->hw_ctl = (struct dpu_hw_ctl *)iter.hw;
-	}
-	if (IS_ERR_OR_NULL(phys_enc->hw_ctl)) {
-		DPU_ERROR_VIDENC(vid_enc, "failed to init ctl, %ld\n",
-				PTR_ERR(phys_enc->hw_ctl));
-		phys_enc->hw_ctl = NULL;
-		return;
 	}
 
 	_dpu_encoder_phys_vid_setup_irq_hw_idx(phys_enc);
@@ -481,7 +463,7 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 {
 	struct msm_drm_private *priv;
 	struct dpu_encoder_phys_vid *vid_enc;
-	struct dpu_hw_intf *intf;
+	struct dpu_rm_hw_iter iter;
 	struct dpu_hw_ctl *ctl;
 	u32 flush_mask = 0;
 
@@ -493,11 +475,20 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 	priv = phys_enc->parent->dev->dev_private;
 
 	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
-	intf = vid_enc->hw_intf;
 	ctl = phys_enc->hw_ctl;
-	if (!vid_enc->hw_intf || !phys_enc->hw_ctl) {
-		DPU_ERROR("invalid hw_intf %d hw_ctl %d\n",
-				vid_enc->hw_intf != 0, phys_enc->hw_ctl != 0);
+
+	dpu_rm_init_hw_iter(&iter, phys_enc->parent->base.id, DPU_HW_BLK_INTF);
+	while (dpu_rm_get_hw(&phys_enc->dpu_kms->rm, &iter)) {
+		struct dpu_hw_intf *hw_intf = (struct dpu_hw_intf *)iter.hw;
+
+		if (hw_intf->idx == phys_enc->intf_idx) {
+			vid_enc->hw_intf = hw_intf;
+			break;
+		}
+	}
+
+	if (!vid_enc->hw_intf) {
+		DPU_ERROR("hw_intf not assigned\n");
 		return;
 	}
 
@@ -519,7 +510,7 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 		!dpu_encoder_phys_vid_is_master(phys_enc))
 		goto skip_flush;
 
-	ctl->ops.get_bitmask_intf(ctl, &flush_mask, intf->idx);
+	ctl->ops.get_bitmask_intf(ctl, &flush_mask, vid_enc->hw_intf->idx);
 	ctl->ops.update_pending_flush(ctl, flush_mask);
 
 skip_flush:
@@ -547,25 +538,9 @@ static void dpu_encoder_phys_vid_destroy(struct dpu_encoder_phys *phys_enc)
 
 static void dpu_encoder_phys_vid_get_hw_resources(
 		struct dpu_encoder_phys *phys_enc,
-		struct dpu_encoder_hw_resources *hw_res,
-		struct drm_connector_state *conn_state)
+		struct dpu_encoder_hw_resources *hw_res)
 {
-	struct dpu_encoder_phys_vid *vid_enc;
-
-	if (!phys_enc || !hw_res) {
-		DPU_ERROR("invalid arg(s), enc %d hw_res %d conn_state %d\n",
-				phys_enc != 0, hw_res != 0, conn_state != 0);
-		return;
-	}
-
-	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
-	if (!vid_enc->hw_intf) {
-		DPU_ERROR("invalid arg(s), hw_intf\n");
-		return;
-	}
-
-	DPU_DEBUG_VIDENC(vid_enc, "\n");
-	hw_res->intfs[vid_enc->hw_intf->idx - INTF_0] = INTF_MODE_VIDEO;
+	hw_res->intfs[phys_enc->intf_idx - INTF_0] = INTF_MODE_VIDEO;
 }
 
 static int _dpu_encoder_phys_vid_wait_for_vblank(
@@ -756,32 +731,6 @@ static void dpu_encoder_phys_vid_irq_control(struct dpu_encoder_phys *phys_enc,
 	}
 }
 
-static void dpu_encoder_phys_vid_setup_misr(struct dpu_encoder_phys *phys_enc,
-						bool enable, u32 frame_count)
-{
-	struct dpu_encoder_phys_vid *vid_enc;
-
-	if (!phys_enc)
-		return;
-	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
-
-	if (vid_enc->hw_intf && vid_enc->hw_intf->ops.setup_misr)
-		vid_enc->hw_intf->ops.setup_misr(vid_enc->hw_intf,
-							enable, frame_count);
-}
-
-static u32 dpu_encoder_phys_vid_collect_misr(struct dpu_encoder_phys *phys_enc)
-{
-	struct dpu_encoder_phys_vid *vid_enc;
-
-	if (!phys_enc)
-		return 0;
-	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
-
-	return vid_enc->hw_intf && vid_enc->hw_intf->ops.collect_misr ?
-		vid_enc->hw_intf->ops.collect_misr(vid_enc->hw_intf) : 0;
-}
-
 static int dpu_encoder_phys_vid_get_line_count(
 		struct dpu_encoder_phys *phys_enc)
 {
@@ -817,8 +766,6 @@ static void dpu_encoder_phys_vid_init_ops(struct dpu_encoder_phys_ops *ops)
 	ops->prepare_for_kickoff = dpu_encoder_phys_vid_prepare_for_kickoff;
 	ops->handle_post_kickoff = dpu_encoder_phys_vid_handle_post_kickoff;
 	ops->needs_single_flush = dpu_encoder_phys_vid_needs_single_flush;
-	ops->setup_misr = dpu_encoder_phys_vid_setup_misr;
-	ops->collect_misr = dpu_encoder_phys_vid_collect_misr;
 	ops->hw_reset = dpu_encoder_helper_hw_reset;
 	ops->get_line_count = dpu_encoder_phys_vid_get_line_count;
 }
@@ -828,8 +775,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 {
 	struct dpu_encoder_phys *phys_enc = NULL;
 	struct dpu_encoder_phys_vid *vid_enc = NULL;
-	struct dpu_rm_hw_iter iter;
-	struct dpu_hw_mdp *hw_mdp;
 	struct dpu_encoder_irq *irq;
 	int i, ret = 0;
 
@@ -846,34 +791,8 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 
 	phys_enc = &vid_enc->base;
 
-	hw_mdp = dpu_rm_get_mdp(&p->dpu_kms->rm);
-	if (IS_ERR_OR_NULL(hw_mdp)) {
-		ret = PTR_ERR(hw_mdp);
-		DPU_ERROR("failed to get mdptop\n");
-		goto fail;
-	}
-	phys_enc->hw_mdptop = hw_mdp;
+	phys_enc->hw_mdptop = p->dpu_kms->hw_mdp;
 	phys_enc->intf_idx = p->intf_idx;
-
-	/**
-	 * hw_intf resource permanently assigned to this encoder
-	 * Other resources allocated at atomic commit time by use case
-	 */
-	dpu_rm_init_hw_iter(&iter, 0, DPU_HW_BLK_INTF);
-	while (dpu_rm_get_hw(&p->dpu_kms->rm, &iter)) {
-		struct dpu_hw_intf *hw_intf = (struct dpu_hw_intf *)iter.hw;
-
-		if (hw_intf->idx == p->intf_idx) {
-			vid_enc->hw_intf = hw_intf;
-			break;
-		}
-	}
-
-	if (!vid_enc->hw_intf) {
-		ret = -EINVAL;
-		DPU_ERROR("failed to get hw_intf\n");
-		goto fail;
-	}
 
 	DPU_DEBUG_VIDENC(vid_enc, "\n");
 

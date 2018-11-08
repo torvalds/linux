@@ -25,13 +25,6 @@
 #define USER_DS		(TASK_SIZE_64 - 1)
 
 #ifndef __ASSEMBLY__
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ __label__ _l; _l: &&_l;})
-
 #ifdef __KERNEL__
 
 #include <linux/build_bug.h>
@@ -174,6 +167,10 @@ static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 {
 	start_thread_common(regs, pc);
 	regs->pstate = PSR_MODE_EL0t;
+
+	if (arm64_get_ssbd_state() != ARM64_SSBD_FORCE_ENABLE)
+		regs->pstate |= PSR_SSBS_BIT;
+
 	regs->sp = sp;
 }
 
@@ -189,6 +186,9 @@ static inline void compat_start_thread(struct pt_regs *regs, unsigned long pc,
 #ifdef __AARCH64EB__
 	regs->pstate |= PSR_AA32_E_BIT;
 #endif
+
+	if (arm64_get_ssbd_state() != ARM64_SSBD_FORCE_ENABLE)
+		regs->pstate |= PSR_AA32_SSBS_BIT;
 
 	regs->compat_sp = sp;
 }
@@ -243,10 +243,6 @@ static inline void spin_lock_prefetch(const void *ptr)
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
 #endif
-
-void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused);
-void cpu_enable_cache_maint_trap(const struct arm64_cpu_capabilities *__unused);
-void cpu_clear_disr(const struct arm64_cpu_capabilities *__unused);
 
 extern unsigned long __ro_after_init signal_minsigstksz; /* sigframe size */
 extern void __init minsigstksz_setup(void);

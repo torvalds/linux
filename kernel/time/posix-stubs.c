@@ -162,20 +162,20 @@ COMPAT_SYS_NI(setitimer);
 
 #ifdef CONFIG_COMPAT_32BIT_TIME
 COMPAT_SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
-		       struct compat_timespec __user *, tp)
+		       struct old_timespec32 __user *, tp)
 {
 	struct timespec64 new_tp;
 
 	if (which_clock != CLOCK_REALTIME)
 		return -EINVAL;
-	if (compat_get_timespec64(&new_tp, tp))
+	if (get_old_timespec32(&new_tp, tp))
 		return -EFAULT;
 
 	return do_sys_settimeofday64(&new_tp, NULL);
 }
 
 COMPAT_SYSCALL_DEFINE2(clock_gettime, clockid_t, which_clock,
-		       struct compat_timespec __user *, tp)
+		       struct old_timespec32 __user *, tp)
 {
 	int ret;
 	struct timespec64 kernel_tp;
@@ -184,13 +184,13 @@ COMPAT_SYSCALL_DEFINE2(clock_gettime, clockid_t, which_clock,
 	if (ret)
 		return ret;
 
-	if (compat_put_timespec64(&kernel_tp, tp))
+	if (put_old_timespec32(&kernel_tp, tp))
 		return -EFAULT;
 	return 0;
 }
 
 COMPAT_SYSCALL_DEFINE2(clock_getres, clockid_t, which_clock,
-		       struct compat_timespec __user *, tp)
+		       struct old_timespec32 __user *, tp)
 {
 	struct timespec64 rtn_tp = {
 		.tv_sec = 0,
@@ -201,7 +201,7 @@ COMPAT_SYSCALL_DEFINE2(clock_getres, clockid_t, which_clock,
 	case CLOCK_REALTIME:
 	case CLOCK_MONOTONIC:
 	case CLOCK_BOOTTIME:
-		if (compat_put_timespec64(&rtn_tp, tp))
+		if (put_old_timespec32(&rtn_tp, tp))
 			return -EFAULT;
 		return 0;
 	default:
@@ -210,8 +210,8 @@ COMPAT_SYSCALL_DEFINE2(clock_getres, clockid_t, which_clock,
 }
 
 COMPAT_SYSCALL_DEFINE4(clock_nanosleep, clockid_t, which_clock, int, flags,
-		       struct compat_timespec __user *, rqtp,
-		       struct compat_timespec __user *, rmtp)
+		       struct old_timespec32 __user *, rqtp,
+		       struct old_timespec32 __user *, rmtp)
 {
 	struct timespec64 t;
 
@@ -224,7 +224,7 @@ COMPAT_SYSCALL_DEFINE4(clock_nanosleep, clockid_t, which_clock, int, flags,
 		return -EINVAL;
 	}
 
-	if (compat_get_timespec64(&t, rqtp))
+	if (get_old_timespec32(&t, rqtp))
 		return -EFAULT;
 	if (!timespec64_valid(&t))
 		return -EINVAL;

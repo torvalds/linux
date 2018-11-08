@@ -76,6 +76,7 @@ struct sdhci_acpi_slot {
 	size_t		priv_size;
 	int (*probe_slot)(struct platform_device *, const char *, const char *);
 	int (*remove_slot)(struct platform_device *);
+	int (*free_slot)(struct platform_device *pdev);
 	int (*setup_host)(struct platform_device *pdev);
 };
 
@@ -246,7 +247,7 @@ static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
 static bool sdhci_acpi_byt(void)
 {
 	static const struct x86_cpu_id byt[] = {
-		{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT1 },
+		{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT },
 		{}
 	};
 
@@ -470,10 +471,70 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
 	.priv_size	= sizeof(struct intel_host),
 };
 
+#define VENDOR_SPECIFIC_PWRCTL_CLEAR_REG	0x1a8
+#define VENDOR_SPECIFIC_PWRCTL_CTL_REG		0x1ac
+static irqreturn_t sdhci_acpi_qcom_handler(int irq, void *ptr)
+{
+	struct sdhci_host *host = ptr;
+
+	sdhci_writel(host, 0x3, VENDOR_SPECIFIC_PWRCTL_CLEAR_REG);
+	sdhci_writel(host, 0x1, VENDOR_SPECIFIC_PWRCTL_CTL_REG);
+
+	return IRQ_HANDLED;
+}
+
+static int qcom_probe_slot(struct platform_device *pdev, const char *hid,
+			   const char *uid)
+{
+	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
+	struct sdhci_host *host = c->host;
+	int *irq = sdhci_acpi_priv(c);
+
+	*irq = -EINVAL;
+
+	if (strcmp(hid, "QCOM8051"))
+		return 0;
+
+	*irq = platform_get_irq(pdev, 1);
+	if (*irq < 0)
+		return 0;
+
+	return request_threaded_irq(*irq, NULL, sdhci_acpi_qcom_handler,
+				    IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
+				    "sdhci_qcom", host);
+}
+
+static int qcom_free_slot(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
+	struct sdhci_host *host = c->host;
+	struct acpi_device *adev;
+	int *irq = sdhci_acpi_priv(c);
+	const char *hid;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return -ENODEV;
+
+	hid = acpi_device_hid(adev);
+	if (strcmp(hid, "QCOM8051"))
+		return 0;
+
+	if (*irq < 0)
+		return 0;
+
+	free_irq(*irq, host);
+	return 0;
+}
+
 static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd_3v = {
 	.quirks  = SDHCI_QUIRK_BROKEN_CARD_DETECTION,
 	.quirks2 = SDHCI_QUIRK2_NO_1_8_V,
 	.caps    = MMC_CAP_NONREMOVABLE,
+	.priv_size	= sizeof(int),
+	.probe_slot	= qcom_probe_slot,
+	.free_slot	= qcom_free_slot,
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd = {
@@ -756,6 +817,9 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 err_cleanup:
 	sdhci_cleanup_host(c->host);
 err_free:
+	if (c->slot && c->slot->free_slot)
+		c->slot->free_slot(pdev);
+
 	sdhci_free_host(c->host);
 	return err;
 }
@@ -777,6 +841,10 @@ static int sdhci_acpi_remove(struct platform_device *pdev)
 
 	dead = (sdhci_readl(c->host, SDHCI_INT_STATUS) == ~0);
 	sdhci_remove_host(c->host, dead);
+
+	if (c->slot && c->slot->free_slot)
+		c->slot->free_slot(pdev);
+
 	sdhci_free_host(c->host);
 
 	return 0;

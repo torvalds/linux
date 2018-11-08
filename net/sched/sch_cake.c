@@ -64,7 +64,6 @@
 #include <linux/vmalloc.h>
 #include <linux/reciprocal_div.h>
 #include <net/netlink.h>
-#include <linux/version.h>
 #include <linux/if_vlan.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
@@ -621,14 +620,19 @@ static bool cake_ddst(int flow_mode)
 }
 
 static u32 cake_hash(struct cake_tin_data *q, const struct sk_buff *skb,
-		     int flow_mode)
+		     int flow_mode, u16 flow_override, u16 host_override)
 {
-	u32 flow_hash = 0, srchost_hash, dsthost_hash;
+	u32 flow_hash = 0, srchost_hash = 0, dsthost_hash = 0;
 	u16 reduced_hash, srchost_idx, dsthost_idx;
 	struct flow_keys keys, host_keys;
 
 	if (unlikely(flow_mode == CAKE_FLOW_NONE))
 		return 0;
+
+	/* If both overrides are set we can skip packet dissection entirely */
+	if ((flow_override || !(flow_mode & CAKE_FLOW_FLOWS)) &&
+	    (host_override || !(flow_mode & CAKE_FLOW_HOSTS)))
+		goto skip_hash;
 
 	skb_flow_dissect_flow_keys(skb, &keys,
 				   FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL);
@@ -675,6 +679,14 @@ static u32 cake_hash(struct cake_tin_data *q, const struct sk_buff *skb,
 	 */
 	if (flow_mode & CAKE_FLOW_FLOWS)
 		flow_hash = flow_hash_from_keys(&keys);
+
+skip_hash:
+	if (flow_override)
+		flow_hash = flow_override - 1;
+	if (host_override) {
+		dsthost_hash = host_override - 1;
+		srchost_hash = host_override - 1;
+	}
 
 	if (!(flow_mode & CAKE_FLOW_FLOWS)) {
 		if (flow_mode & CAKE_FLOW_SRC_IP)
@@ -800,7 +812,7 @@ static struct sk_buff *dequeue_head(struct cake_flow *flow)
 
 	if (skb) {
 		flow->head = skb->next;
-		skb->next = NULL;
+		skb_mark_not_on_list(skb);
 	}
 
 	return skb;
@@ -1240,7 +1252,7 @@ found:
 	else
 		flow->head = elig_ack->next;
 
-	elig_ack->next = NULL;
+	skb_mark_not_on_list(elig_ack);
 
 	return elig_ack;
 }
@@ -1571,7 +1583,7 @@ static u32 cake_classify(struct Qdisc *sch, struct cake_tin_data **t,
 	struct cake_sched_data *q = qdisc_priv(sch);
 	struct tcf_proto *filter;
 	struct tcf_result res;
-	u32 flow = 0;
+	u16 flow = 0, host = 0;
 	int result;
 
 	filter = rcu_dereference_bh(q->filter_list);
@@ -1595,10 +1607,12 @@ static u32 cake_classify(struct Qdisc *sch, struct cake_tin_data **t,
 #endif
 		if (TC_H_MIN(res.classid) <= CAKE_QUEUES)
 			flow = TC_H_MIN(res.classid);
+		if (TC_H_MAJ(res.classid) <= (CAKE_QUEUES << 16))
+			host = TC_H_MAJ(res.classid) >> 16;
 	}
 hash:
 	*t = cake_select_tin(sch, skb);
-	return flow ?: cake_hash(*t, skb, flow_mode) + 1;
+	return cake_hash(*t, skb, flow_mode, flow, host) + 1;
 }
 
 static void cake_reconfigure(struct Qdisc *sch);
@@ -1661,7 +1675,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 		while (segs) {
 			nskb = segs->next;
-			segs->next = NULL;
+			skb_mark_not_on_list(segs);
 			qdisc_skb_cb(segs)->pkt_len = segs->len;
 			cobalt_set_enqueue_time(segs, now);
 			get_cobalt_cb(segs)->adjusted_len = cake_overhead(q,
@@ -2630,7 +2644,7 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	for (i = 1; i <= CAKE_QUEUES; i++)
 		quantum_div[i] = 65535 / i;
 
-	q->tins = kvzalloc(CAKE_MAX_TINS * sizeof(struct cake_tin_data),
+	q->tins = kvcalloc(CAKE_MAX_TINS, sizeof(struct cake_tin_data),
 			   GFP_KERNEL);
 	if (!q->tins)
 		goto nomem;

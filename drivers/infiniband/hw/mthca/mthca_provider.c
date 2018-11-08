@@ -1076,16 +1076,17 @@ static int mthca_unmap_fmr(struct list_head *fmr_list)
 	return err;
 }
 
-static ssize_t show_rev(struct device *device, struct device_attribute *attr,
-			char *buf)
+static ssize_t hw_rev_show(struct device *device,
+			   struct device_attribute *attr, char *buf)
 {
 	struct mthca_dev *dev =
 		container_of(device, struct mthca_dev, ib_dev.dev);
 	return sprintf(buf, "%x\n", dev->rev_id);
 }
+static DEVICE_ATTR_RO(hw_rev);
 
-static ssize_t show_hca(struct device *device, struct device_attribute *attr,
-			char *buf)
+static ssize_t hca_type_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
 {
 	struct mthca_dev *dev =
 		container_of(device, struct mthca_dev, ib_dev.dev);
@@ -1103,23 +1104,26 @@ static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 		return sprintf(buf, "unknown\n");
 	}
 }
+static DEVICE_ATTR_RO(hca_type);
 
-static ssize_t show_board(struct device *device, struct device_attribute *attr,
-			  char *buf)
+static ssize_t board_id_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
 {
 	struct mthca_dev *dev =
 		container_of(device, struct mthca_dev, ib_dev.dev);
 	return sprintf(buf, "%.*s\n", MTHCA_BOARD_ID_LEN, dev->board_id);
 }
+static DEVICE_ATTR_RO(board_id);
 
-static DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
+static struct attribute *mthca_dev_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL
+};
 
-static struct device_attribute *mthca_dev_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id
+static const struct attribute_group mthca_attr_group = {
+	.attrs = mthca_dev_attributes,
 };
 
 static int mthca_init_node_data(struct mthca_dev *dev)
@@ -1192,13 +1196,11 @@ static void get_dev_fw_str(struct ib_device *device, char *str)
 int mthca_register_device(struct mthca_dev *dev)
 {
 	int ret;
-	int i;
 
 	ret = mthca_init_node_data(dev);
 	if (ret)
 		return ret;
 
-	strlcpy(dev->ib_dev.name, "mthca%d", IB_DEVICE_NAME_MAX);
 	dev->ib_dev.owner                = THIS_MODULE;
 
 	dev->ib_dev.uverbs_abi_ver	 = MTHCA_UVERBS_ABI_VERSION;
@@ -1296,19 +1298,11 @@ int mthca_register_device(struct mthca_dev *dev)
 
 	mutex_init(&dev->cap_mask_mutex);
 
+	rdma_set_device_sysfs_group(&dev->ib_dev, &mthca_attr_group);
 	dev->ib_dev.driver_id = RDMA_DRIVER_MTHCA;
-	ret = ib_register_device(&dev->ib_dev, NULL);
+	ret = ib_register_device(&dev->ib_dev, "mthca%d", NULL);
 	if (ret)
 		return ret;
-
-	for (i = 0; i < ARRAY_SIZE(mthca_dev_attributes); ++i) {
-		ret = device_create_file(&dev->ib_dev.dev,
-					 mthca_dev_attributes[i]);
-		if (ret) {
-			ib_unregister_device(&dev->ib_dev);
-			return ret;
-		}
-	}
 
 	mthca_start_catas_poll(dev);
 

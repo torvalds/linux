@@ -2146,6 +2146,260 @@ struct wmi_tlv_tdls_peer_event {
 
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
+enum wmi_nlo_auth_algorithm {
+	WMI_NLO_AUTH_ALGO_80211_OPEN        = 1,
+	WMI_NLO_AUTH_ALGO_80211_SHARED_KEY  = 2,
+	WMI_NLO_AUTH_ALGO_WPA               = 3,
+	WMI_NLO_AUTH_ALGO_WPA_PSK           = 4,
+	WMI_NLO_AUTH_ALGO_WPA_NONE          = 5,
+	WMI_NLO_AUTH_ALGO_RSNA              = 6,
+	WMI_NLO_AUTH_ALGO_RSNA_PSK          = 7,
+};
+
+enum wmi_nlo_cipher_algorithm {
+	WMI_NLO_CIPHER_ALGO_NONE           = 0x00,
+	WMI_NLO_CIPHER_ALGO_WEP40          = 0x01,
+	WMI_NLO_CIPHER_ALGO_TKIP           = 0x02,
+	WMI_NLO_CIPHER_ALGO_CCMP           = 0x04,
+	WMI_NLO_CIPHER_ALGO_WEP104         = 0x05,
+	WMI_NLO_CIPHER_ALGO_BIP            = 0x06,
+	WMI_NLO_CIPHER_ALGO_RSN_USE_GROUP  = 0x100,
+	WMI_NLO_CIPHER_ALGO_WEP            = 0x101,
+};
+
+/* SSID broadcast  type passed in NLO params */
+enum wmi_nlo_ssid_bcastnwtype {
+	WMI_NLO_BCAST_UNKNOWN      = 0,
+	WMI_NLO_BCAST_NORMAL       = 1,
+	WMI_NLO_BCAST_HIDDEN       = 2,
+};
+
+#define WMI_NLO_MAX_SSIDS    16
+#define WMI_NLO_MAX_CHAN     48
+
+#define WMI_NLO_CONFIG_STOP                             (0x1 << 0)
+#define WMI_NLO_CONFIG_START                            (0x1 << 1)
+#define WMI_NLO_CONFIG_RESET                            (0x1 << 2)
+#define WMI_NLO_CONFIG_SLOW_SCAN                        (0x1 << 4)
+#define WMI_NLO_CONFIG_FAST_SCAN                        (0x1 << 5)
+#define WMI_NLO_CONFIG_SSID_HIDE_EN                     (0x1 << 6)
+
+/* This bit is used to indicate if EPNO or supplicant PNO is enabled.
+ * Only one of them can be enabled at a given time
+ */
+#define WMI_NLO_CONFIG_ENLO                             (0x1 << 7)
+#define WMI_NLO_CONFIG_SCAN_PASSIVE                     (0x1 << 8)
+#define WMI_NLO_CONFIG_ENLO_RESET                       (0x1 << 9)
+#define WMI_NLO_CONFIG_SPOOFED_MAC_IN_PROBE_REQ         (0x1 << 10)
+#define WMI_NLO_CONFIG_RANDOM_SEQ_NO_IN_PROBE_REQ       (0x1 << 11)
+#define WMI_NLO_CONFIG_ENABLE_IE_WHITELIST_IN_PROBE_REQ (0x1 << 12)
+#define WMI_NLO_CONFIG_ENABLE_CNLO_RSSI_CONFIG          (0x1 << 13)
+
+/* Whether directed scan needs to be performed (for hidden SSIDs) */
+#define WMI_ENLO_FLAG_DIRECTED_SCAN      1
+
+/* Whether PNO event shall be triggered if the network is found on A band */
+#define WMI_ENLO_FLAG_A_BAND             2
+
+/* Whether PNO event shall be triggered if the network is found on G band */
+#define WMI_ENLO_FLAG_G_BAND             4
+
+/* Whether strict matching is required (i.e. firmware shall not
+ * match on the entire SSID)
+ */
+#define WMI_ENLO_FLAG_STRICT_MATCH       8
+
+/* Code for matching the beacon AUTH IE - additional codes TBD */
+/* open */
+#define WMI_ENLO_AUTH_CODE_OPEN  1
+
+/* WPA_PSK or WPA2PSK */
+#define WMI_ENLO_AUTH_CODE_PSK   2
+
+/* any EAPOL */
+#define WMI_ENLO_AUTH_CODE_EAPOL 4
+
+struct wmi_nlo_ssid_param {
+	__le32 valid;
+	struct wmi_ssid ssid;
+} __packed;
+
+struct wmi_nlo_enc_param {
+	__le32 valid;
+	__le32 enc_type;
+} __packed;
+
+struct wmi_nlo_auth_param {
+	__le32 valid;
+	__le32 auth_type;
+} __packed;
+
+struct wmi_nlo_bcast_nw_param {
+	__le32 valid;
+
+	/* If WMI_NLO_CONFIG_EPNO is not set. Supplicant PNO is enabled.
+	 * The value should be true/false. Otherwise EPNO is enabled.
+	 * bcast_nw_type would be used as a bit flag contains WMI_ENLO_FLAG_XXX
+	 */
+	__le32 bcast_nw_type;
+} __packed;
+
+struct wmi_nlo_rssi_param {
+	__le32 valid;
+	__le32 rssi;
+} __packed;
+
+struct nlo_configured_parameters {
+	/* TLV tag and len;*/
+	__le32 tlv_header;
+	struct wmi_nlo_ssid_param ssid;
+	struct wmi_nlo_enc_param enc_type;
+	struct wmi_nlo_auth_param auth_type;
+	struct wmi_nlo_rssi_param rssi_cond;
+
+	/* indicates if the SSID is hidden or not */
+	struct wmi_nlo_bcast_nw_param bcast_nw_type;
+} __packed;
+
+/* Support channel prediction for PNO scan after scanning top_k_num channels
+ * if stationary_threshold is met.
+ */
+struct nlo_channel_prediction_cfg {
+	__le32 tlv_header;
+
+	/* Enable or disable this feature. */
+	__le32 enable;
+
+	/* Top K channels will be scanned before deciding whether to further scan
+	 * or stop. Minimum value is 3 and maximum is 5.
+	 */
+	__le32 top_k_num;
+
+	/* Preconfigured stationary threshold.
+	 * Lesser value means more conservative. Bigger value means more aggressive.
+	 * Maximum is 100 and mininum is 0.
+	 */
+	__le32 stationary_threshold;
+
+	/* Periodic full channel scan in milliseconds unit.
+	 * After full_scan_period_ms since last full scan, channel prediction
+	 * scan is suppressed and will do full scan.
+	 * This is to help detecting sudden AP power-on or -off. Value 0 means no
+	 * full scan at all (not recommended).
+	 */
+	__le32 full_scan_period_ms;
+} __packed;
+
+struct enlo_candidate_score_params_t {
+	__le32 tlv_header;   /* TLV tag and len; */
+
+	/* minimum 5GHz RSSI for a BSSID to be considered (units = dBm) */
+	__le32 min_5ghz_rssi;
+
+	/* minimum 2.4GHz RSSI for a BSSID to be considered (units = dBm) */
+	__le32 min_24ghz_rssi;
+
+	/* the maximum score that a network can have before bonuses */
+	__le32 initial_score_max;
+
+	/* current_connection_bonus:
+	 * only report when there is a network's score this much higher
+	 * than the current connection
+	 */
+	__le32 current_connection_bonus;
+
+	/* score bonus for all networks with the same network flag */
+	__le32 same_network_bonus;
+
+	/* score bonus for networks that are not open */
+	__le32 secure_bonus;
+
+	/* 5GHz RSSI score bonus (applied to all 5GHz networks) */
+	__le32 band_5ghz_bonus;
+} __packed;
+
+struct connected_nlo_bss_band_rssi_pref_t {
+	__le32 tlv_header; /* TLV tag and len;*/
+
+	/* band which needs to get preference over other band
+	 * - see wmi_set_vdev_ie_band enum
+	 */
+	__le32 band;
+
+	/* Amount of RSSI preference (in dB) that can be given to a band */
+	__le32 rssi_pref;
+} __packed;
+
+struct connected_nlo_rssi_params_t {
+	__le32 tlv_header; /* TLV tag and len;*/
+
+	/* Relative rssi threshold (in dB) by which new BSS should have
+	 * better rssi than the current connected BSS.
+	 */
+	__le32 relative_rssi;
+
+	/* The amount of rssi preference (in dB) that can be given
+	 * to a 5G BSS over 2.4G BSS.
+	 */
+	__le32 relative_rssi_5g_pref;
+} __packed;
+
+struct wmi_tlv_wow_nlo_config_cmd {
+	__le32 flags;
+	__le32 vdev_id;
+	__le32 fast_scan_max_cycles;
+	__le32 active_dwell_time;
+	__le32 passive_dwell_time; /* PDT in msecs */
+	__le32 probe_bundle_size;
+
+	/* ART = IRT */
+	__le32 rest_time;
+
+	/* Max value that can be reached after SBM */
+	__le32 max_rest_time;
+
+	/* SBM */
+	__le32 scan_backoff_multiplier;
+
+	/* SCBM */
+	__le32 fast_scan_period;
+
+	/* specific to windows */
+	__le32 slow_scan_period;
+
+	__le32 no_of_ssids;
+
+	__le32 num_of_channels;
+
+	/* NLO scan start delay time in milliseconds */
+	__le32 delay_start_time;
+
+	/** MAC Address to use in Probe Req as SA **/
+	struct wmi_mac_addr mac_addr;
+
+	/** Mask on which MAC has to be randomized **/
+	struct wmi_mac_addr mac_mask;
+
+	/** IE bitmap to use in Probe Req **/
+	__le32 ie_bitmap[8];
+
+	/** Number of vendor OUIs. In the TLV vendor_oui[] **/
+	__le32 num_vendor_oui;
+
+	/** Number of connected NLO band preferences **/
+	__le32 num_cnlo_band_pref;
+
+	/* The TLVs will follow.
+	 * nlo_configured_parameters nlo_list[];
+	 * A_UINT32 channel_list[num_of_channels];
+	 * nlo_channel_prediction_cfg ch_prediction_cfg;
+	 * enlo_candidate_score_params candidate_score_params;
+	 * wmi_vendor_oui vendor_oui[num_vendor_oui];
+	 * connected_nlo_rssi_params cnlo_rssi_params;
+	 * connected_nlo_bss_band_rssi_pref cnlo_bss_band_rssi_pref[num_cnlo_band_pref];
+	 */
+} __packed;
+
 struct wmi_tlv_mgmt_tx_cmd {
 	__le32 vdev_id;
 	__le32 desc_id;

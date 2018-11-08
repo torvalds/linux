@@ -46,69 +46,27 @@ struct rcu_ctrlblk {
 };
 
 /* Definition for rcupdate control block. */
-static struct rcu_ctrlblk rcu_sched_ctrlblk = {
-	.donetail	= &rcu_sched_ctrlblk.rcucblist,
-	.curtail	= &rcu_sched_ctrlblk.rcucblist,
+static struct rcu_ctrlblk rcu_ctrlblk = {
+	.donetail	= &rcu_ctrlblk.rcucblist,
+	.curtail	= &rcu_ctrlblk.rcucblist,
 };
 
-static struct rcu_ctrlblk rcu_bh_ctrlblk = {
-	.donetail	= &rcu_bh_ctrlblk.rcucblist,
-	.curtail	= &rcu_bh_ctrlblk.rcucblist,
-};
-
-void rcu_barrier_bh(void)
+void rcu_barrier(void)
 {
-	wait_rcu_gp(call_rcu_bh);
+	wait_rcu_gp(call_rcu);
 }
-EXPORT_SYMBOL(rcu_barrier_bh);
+EXPORT_SYMBOL(rcu_barrier);
 
-void rcu_barrier_sched(void)
+/* Record an rcu quiescent state.  */
+void rcu_qs(void)
 {
-	wait_rcu_gp(call_rcu_sched);
-}
-EXPORT_SYMBOL(rcu_barrier_sched);
+	unsigned long flags;
 
-/*
- * Helper function for rcu_sched_qs() and rcu_bh_qs().
- * Also irqs are disabled to avoid confusion due to interrupt handlers
- * invoking call_rcu().
- */
-static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
-{
-	if (rcp->donetail != rcp->curtail) {
-		rcp->donetail = rcp->curtail;
-		return 1;
+	local_irq_save(flags);
+	if (rcu_ctrlblk.donetail != rcu_ctrlblk.curtail) {
+		rcu_ctrlblk.donetail = rcu_ctrlblk.curtail;
+		raise_softirq(RCU_SOFTIRQ);
 	}
-
-	return 0;
-}
-
-/*
- * Record an rcu quiescent state.  And an rcu_bh quiescent state while we
- * are at it, given that any rcu quiescent state is also an rcu_bh
- * quiescent state.  Use "+" instead of "||" to defeat short circuiting.
- */
-void rcu_sched_qs(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	if (rcu_qsctr_help(&rcu_sched_ctrlblk) +
-	    rcu_qsctr_help(&rcu_bh_ctrlblk))
-		raise_softirq(RCU_SOFTIRQ);
-	local_irq_restore(flags);
-}
-
-/*
- * Record an rcu_bh quiescent state.
- */
-void rcu_bh_qs(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	if (rcu_qsctr_help(&rcu_bh_ctrlblk))
-		raise_softirq(RCU_SOFTIRQ);
 	local_irq_restore(flags);
 }
 
@@ -120,34 +78,33 @@ void rcu_bh_qs(void)
  */
 void rcu_check_callbacks(int user)
 {
-	if (user)
-		rcu_sched_qs();
-	if (user || !in_softirq())
-		rcu_bh_qs();
+	if (user) {
+		rcu_qs();
+	} else if (rcu_ctrlblk.donetail != rcu_ctrlblk.curtail) {
+		set_tsk_need_resched(current);
+		set_preempt_need_resched();
+	}
 }
 
-/*
- * Invoke the RCU callbacks on the specified rcu_ctrlkblk structure
- * whose grace period has elapsed.
- */
-static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
+/* Invoke the RCU callbacks whose grace period has elapsed.  */
+static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
 {
 	struct rcu_head *next, *list;
 	unsigned long flags;
 
 	/* Move the ready-to-invoke callbacks to a local list. */
 	local_irq_save(flags);
-	if (rcp->donetail == &rcp->rcucblist) {
+	if (rcu_ctrlblk.donetail == &rcu_ctrlblk.rcucblist) {
 		/* No callbacks ready, so just leave. */
 		local_irq_restore(flags);
 		return;
 	}
-	list = rcp->rcucblist;
-	rcp->rcucblist = *rcp->donetail;
-	*rcp->donetail = NULL;
-	if (rcp->curtail == rcp->donetail)
-		rcp->curtail = &rcp->rcucblist;
-	rcp->donetail = &rcp->rcucblist;
+	list = rcu_ctrlblk.rcucblist;
+	rcu_ctrlblk.rcucblist = *rcu_ctrlblk.donetail;
+	*rcu_ctrlblk.donetail = NULL;
+	if (rcu_ctrlblk.curtail == rcu_ctrlblk.donetail)
+		rcu_ctrlblk.curtail = &rcu_ctrlblk.rcucblist;
+	rcu_ctrlblk.donetail = &rcu_ctrlblk.rcucblist;
 	local_irq_restore(flags);
 
 	/* Invoke the callbacks on the local list. */
@@ -162,37 +119,31 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	}
 }
 
-static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
-{
-	__rcu_process_callbacks(&rcu_sched_ctrlblk);
-	__rcu_process_callbacks(&rcu_bh_ctrlblk);
-}
-
 /*
  * Wait for a grace period to elapse.  But it is illegal to invoke
- * synchronize_sched() from within an RCU read-side critical section.
- * Therefore, any legal call to synchronize_sched() is a quiescent
- * state, and so on a UP system, synchronize_sched() need do nothing.
- * Ditto for synchronize_rcu_bh().  (But Lai Jiangshan points out the
- * benefits of doing might_sleep() to reduce latency.)
+ * synchronize_rcu() from within an RCU read-side critical section.
+ * Therefore, any legal call to synchronize_rcu() is a quiescent
+ * state, and so on a UP system, synchronize_rcu() need do nothing.
+ * (But Lai Jiangshan points out the benefits of doing might_sleep()
+ * to reduce latency.)
  *
  * Cool, huh?  (Due to Josh Triplett.)
  */
-void synchronize_sched(void)
+void synchronize_rcu(void)
 {
 	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
-			 "Illegal synchronize_sched() in RCU read-side critical section");
+			 "Illegal synchronize_rcu() in RCU read-side critical section");
 }
-EXPORT_SYMBOL_GPL(synchronize_sched);
+EXPORT_SYMBOL_GPL(synchronize_rcu);
 
 /*
- * Helper function for call_rcu() and call_rcu_bh().
+ * Post an RCU callback to be invoked after the end of an RCU grace
+ * period.  But since we have but one CPU, that would be after any
+ * quiescent state.
  */
-static void __call_rcu(struct rcu_head *head,
-		       rcu_callback_t func,
-		       struct rcu_ctrlblk *rcp)
+void call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
 	unsigned long flags;
 
@@ -201,39 +152,20 @@ static void __call_rcu(struct rcu_head *head,
 	head->next = NULL;
 
 	local_irq_save(flags);
-	*rcp->curtail = head;
-	rcp->curtail = &head->next;
+	*rcu_ctrlblk.curtail = head;
+	rcu_ctrlblk.curtail = &head->next;
 	local_irq_restore(flags);
 
 	if (unlikely(is_idle_task(current))) {
-		/* force scheduling for rcu_sched_qs() */
+		/* force scheduling for rcu_qs() */
 		resched_cpu(0);
 	}
 }
-
-/*
- * Post an RCU callback to be invoked after the end of an RCU-sched grace
- * period.  But since we have but one CPU, that would be after any
- * quiescent state.
- */
-void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
-{
-	__call_rcu(head, func, &rcu_sched_ctrlblk);
-}
-EXPORT_SYMBOL_GPL(call_rcu_sched);
-
-/*
- * Post an RCU bottom-half callback to be invoked after any subsequent
- * quiescent state.
- */
-void call_rcu_bh(struct rcu_head *head, rcu_callback_t func)
-{
-	__call_rcu(head, func, &rcu_bh_ctrlblk);
-}
-EXPORT_SYMBOL_GPL(call_rcu_bh);
+EXPORT_SYMBOL_GPL(call_rcu);
 
 void __init rcu_init(void)
 {
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 	rcu_early_boot_tests();
+	srcu_init();
 }

@@ -380,6 +380,7 @@ our $Attribute	= qr{
 			__noclone|
 			__deprecated|
 			__read_mostly|
+			__ro_after_init|
 			__kprobes|
 			$InitAttribute|
 			____cacheline_aligned|
@@ -3311,7 +3312,7 @@ sub process {
 			# known declaration macros
 		      $sline =~ /^\+\s+$declaration_macros/ ||
 			# start of struct or union or enum
-		      $sline =~ /^\+\s+(?:union|struct|enum|typedef)\b/ ||
+		      $sline =~ /^\+\s+(?:static\s+)?(?:const\s+)?(?:union|struct|enum|typedef)\b/ ||
 			# start or end of block or continuation of declaration
 		      $sline =~ /^\+\s+(?:$|[\{\}\.\#\"\?\:\(\[])/ ||
 			# bitfield continuation
@@ -4932,17 +4933,6 @@ sub process {
 #Specific variable tests
 		while ($line =~ m{($Constant|$Lval)}g) {
 			my $var = $1;
-
-#gcc binary extension
-			if ($var =~ /^$Binary$/) {
-				if (WARN("GCC_BINARY_CONSTANT",
-					 "Avoid gcc v4.3+ binary constant extension: <$var>\n" . $herecurr) &&
-				    $fix) {
-					my $hexval = sprintf("0x%x", oct($var));
-					$fixed[$fixlinenr] =~
-					    s/\b$var\b/$hexval/;
-				}
-			}
 
 #CamelCase
 			if ($var !~ /^$Constant$/ &&

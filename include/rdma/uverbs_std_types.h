@@ -140,5 +140,56 @@ __uobj_alloc(const struct uverbs_api_object *obj, struct ib_uverbs_file *ufile,
 #define uobj_alloc(_type, _ufile, _ib_dev)                                     \
 	__uobj_alloc(uobj_get_type(_ufile, _type), _ufile, _ib_dev)
 
+static inline void uverbs_flow_action_fill_action(struct ib_flow_action *action,
+						  struct ib_uobject *uobj,
+						  struct ib_device *ib_dev,
+						  enum ib_flow_action_type type)
+{
+	atomic_set(&action->usecnt, 0);
+	action->device = ib_dev;
+	action->type = type;
+	action->uobject = uobj;
+	uobj->object = action;
+}
+
+struct ib_uflow_resources {
+	size_t			max;
+	size_t			num;
+	size_t			collection_num;
+	size_t			counters_num;
+	struct ib_counters	**counters;
+	struct ib_flow_action	**collection;
+};
+
+struct ib_uflow_object {
+	struct ib_uobject		uobject;
+	struct ib_uflow_resources	*resources;
+};
+
+struct ib_uflow_resources *flow_resources_alloc(size_t num_specs);
+void flow_resources_add(struct ib_uflow_resources *uflow_res,
+			enum ib_flow_spec_type type,
+			void *ibobj);
+void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res);
+
+static inline void ib_set_flow(struct ib_uobject *uobj, struct ib_flow *ibflow,
+			       struct ib_qp *qp, struct ib_device *device,
+			       struct ib_uflow_resources *uflow_res)
+{
+	struct ib_uflow_object *uflow;
+
+	uobj->object = ibflow;
+	ibflow->uobject = uobj;
+
+	if (qp) {
+		atomic_inc(&qp->usecnt);
+		ibflow->qp = qp;
+	}
+
+	ibflow->device = device;
+	uflow = container_of(uobj, typeof(*uflow), uobject);
+	uflow->resources = uflow_res;
+}
+
 #endif
 

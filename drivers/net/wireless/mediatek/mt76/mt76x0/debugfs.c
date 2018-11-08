@@ -19,29 +19,9 @@
 #include "eeprom.h"
 
 static int
-mt76_reg_set(void *data, u64 val)
-{
-	struct mt76x0_dev *dev = data;
-
-	mt76_wr(dev, dev->debugfs_reg, val);
-	return 0;
-}
-
-static int
-mt76_reg_get(void *data, u64 *val)
-{
-	struct mt76x0_dev *dev = data;
-
-	*val = mt76_rr(dev, dev->debugfs_reg);
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(fops_regval, mt76_reg_get, mt76_reg_set, "0x%08llx\n");
-
-static int
 mt76x0_ampdu_stat_read(struct seq_file *file, void *data)
 {
-	struct mt76x0_dev *dev = file->private;
+	struct mt76x02_dev *dev = file->private;
 	int i, j;
 
 #define stat_printf(grp, off, name)					\
@@ -95,72 +75,13 @@ static const struct file_operations fops_ampdu_stat = {
 	.release = single_release,
 };
 
-static int
-mt76x0_eeprom_param_read(struct seq_file *file, void *data)
-{
-	struct mt76x0_dev *dev = file->private;
-	int i;
-
-	seq_printf(file, "RF freq offset: %hhx\n", dev->ee->rf_freq_off);
-	seq_printf(file, "RSSI offset 2GHz: %hhx %hhx\n",
-		   dev->ee->rssi_offset_2ghz[0], dev->ee->rssi_offset_2ghz[1]);
-	seq_printf(file, "RSSI offset 5GHz: %hhx %hhx %hhx\n",
-		   dev->ee->rssi_offset_5ghz[0], dev->ee->rssi_offset_5ghz[1],
-		   dev->ee->rssi_offset_5ghz[2]);
-	seq_printf(file, "Temperature offset: %hhx\n", dev->ee->temp_off);
-	seq_printf(file, "LNA gain 2Ghz: %hhx\n", dev->ee->lna_gain_2ghz);
-	seq_printf(file, "LNA gain 5Ghz: %hhx %hhx %hhx\n",
-		   dev->ee->lna_gain_5ghz[0], dev->ee->lna_gain_5ghz[1],
-		   dev->ee->lna_gain_5ghz[2]);
-	seq_printf(file, "Power Amplifier type %hhx\n", dev->ee->pa_type);
-	seq_printf(file, "Reg channels: %hhu-%hhu\n", dev->ee->reg.start,
-		   dev->ee->reg.start + dev->ee->reg.num - 1);
-
-	seq_puts(file, "Per channel power:\n");
-	for (i = 0; i < 58; i++)
-		seq_printf(file, "\t%d chan:%d pwr:%d\n", i, i,
-			   dev->ee->tx_pwr_per_chan[i]);
-
-	seq_puts(file, "Per rate power 2GHz:\n");
-	for (i = 0; i < 5; i++)
-		seq_printf(file, "\t %d bw20:%d bw40:%d\n",
-			   i, dev->ee->tx_pwr_cfg_2g[i][0],
-			      dev->ee->tx_pwr_cfg_5g[i][1]);
-
-	seq_puts(file, "Per rate power 5GHz:\n");
-	for (i = 0; i < 5; i++)
-		seq_printf(file, "\t %d bw20:%d bw40:%d\n",
-			   i, dev->ee->tx_pwr_cfg_5g[i][0],
-			      dev->ee->tx_pwr_cfg_5g[i][1]);
-
-	return 0;
-}
-
-static int
-mt76x0_eeprom_param_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, mt76x0_eeprom_param_read, inode->i_private);
-}
-
-static const struct file_operations fops_eeprom_param = {
-	.open = mt76x0_eeprom_param_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-void mt76x0_init_debugfs(struct mt76x0_dev *dev)
+void mt76x0_init_debugfs(struct mt76x02_dev *dev)
 {
 	struct dentry *dir;
 
-	dir = debugfs_create_dir("mt76x0", dev->mt76.hw->wiphy->debugfsdir);
+	dir = mt76_register_debugfs(&dev->mt76);
 	if (!dir)
 		return;
 
-	debugfs_create_u32("regidx", S_IRUSR | S_IWUSR, dir, &dev->debugfs_reg);
-	debugfs_create_file("regval", S_IRUSR | S_IWUSR, dir, dev,
-			    &fops_regval);
 	debugfs_create_file("ampdu_stat", S_IRUSR, dir, dev, &fops_ampdu_stat);
-	debugfs_create_file("eeprom_param", S_IRUSR, dir, dev,
-			    &fops_eeprom_param);
 }

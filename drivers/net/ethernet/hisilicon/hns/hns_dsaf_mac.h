@@ -356,6 +356,9 @@ struct mac_driver {
 	/*adjust mac mode of port,include speed and duplex*/
 	int (*adjust_link)(void *mac_drv, enum mac_speed speed,
 			   u32 full_duplex);
+	/* need adjust link */
+	bool (*need_adjust_link)(void *mac_drv, enum mac_speed speed,
+				 int duplex);
 	/* config autoegotaite mode of port*/
 	void (*set_an_mode)(void *mac_drv, u8 enable);
 	/* config loopbank mode */
@@ -394,6 +397,7 @@ struct mac_driver {
 	void (*get_info)(void *mac_drv, struct mac_info *mac_info);
 
 	void (*update_stats)(void *mac_drv);
+	int (*wait_fifo_clean)(void *mac_drv);
 
 	enum mac_mode mac_mode;
 	u8 mac_id;
@@ -427,6 +431,7 @@ void *hns_xgmac_config(struct hns_mac_cb *mac_cb,
 
 int hns_mac_init(struct dsaf_device *dsaf_dev);
 void mac_adjust_link(struct net_device *net_dev);
+bool hns_mac_need_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex);
 void hns_mac_get_link_status(struct hns_mac_cb *mac_cb,	u32 *link_status);
 int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb, u32 vmid, char *addr);
 int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
@@ -463,5 +468,8 @@ int hns_mac_add_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
 int hns_mac_rm_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
 		       const unsigned char *addr);
 int hns_mac_clr_multicast(struct hns_mac_cb *mac_cb, int vfn);
+void hns_mac_enable(struct hns_mac_cb *mac_cb, enum mac_commom_mode mode);
+void hns_mac_disable(struct hns_mac_cb *mac_cb, enum mac_commom_mode mode);
+int hns_mac_wait_fifo_clean(struct hns_mac_cb *mac_cb);
 
 #endif /* _HNS_DSAF_MAC_H */

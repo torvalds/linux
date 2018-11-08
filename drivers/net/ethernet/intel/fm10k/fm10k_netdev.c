@@ -1648,9 +1648,6 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_udp_tunnel_del	= fm10k_udp_tunnel_del,
 	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,
 	.ndo_dfwd_del_station	= fm10k_dfwd_del_station,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= fm10k_netpoll,
-#endif
 	.ndo_features_check	= fm10k_features_check,
 };
 

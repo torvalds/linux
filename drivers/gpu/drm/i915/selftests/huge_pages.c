@@ -235,6 +235,8 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 		sg = sg_next(sg);
 	} while (1);
 
+	i915_sg_trim(st);
+
 	obj->mm.madv = I915_MADV_DONTNEED;
 
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
@@ -906,7 +908,11 @@ gpu_write_dw(struct i915_vma *vma, u64 offset, u32 val)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	cmd = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	err = i915_gem_object_set_to_wc_domain(obj, true);
+	if (err)
+		goto err;
+
+	cmd = i915_gem_object_pin_map(obj, I915_MAP_WC);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
 		goto err;
@@ -936,12 +942,9 @@ gpu_write_dw(struct i915_vma *vma, u64 offset, u32 val)
 	}
 
 	*cmd = MI_BATCH_BUFFER_END;
+	i915_gem_chipset_flush(i915);
 
 	i915_gem_object_unpin_map(obj);
-
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	if (err)
-		goto err;
 
 	batch = i915_vma_instance(obj, vma->vm, NULL);
 	if (IS_ERR(batch)) {

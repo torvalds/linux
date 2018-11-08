@@ -29,6 +29,7 @@
 #include "amdgpu_atombios.h"
 #include "amdgpu_atomfirmware.h"
 #include "amdgpu_i2c.h"
+#include "amdgpu_display.h"
 
 #include "atom.h"
 #include "atom-bits.h"

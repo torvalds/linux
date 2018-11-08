@@ -34,9 +34,9 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
-#include <net/busy_poll.h>
 #include <net/ip6_checksum.h>
 #include <net/page_pool.h>
+#include <net/inet_ecn.h>
 #include "en.h"
 #include "en_tc.h"
 #include "eswitch.h"
@@ -432,10 +432,9 @@ static inline u16 mlx5e_icosq_wrap_cnt(struct mlx5e_icosq *sq)
 
 static inline void mlx5e_fill_icosq_frag_edge(struct mlx5e_icosq *sq,
 					      struct mlx5_wq_cyc *wq,
-					      u16 pi, u16 frag_pi)
+					      u16 pi, u16 nnops)
 {
 	struct mlx5e_sq_wqe_info *edge_wi, *wi = &sq->db.ico_wqe[pi];
-	u8 nnops = mlx5_wq_cyc_get_frag_size(wq) - frag_pi;
 
 	edge_wi = wi + nnops;
 
@@ -454,15 +453,14 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5e_umr_wqe *umr_wqe;
 	u16 xlt_offset = ix << (MLX5E_LOG_ALIGNED_MPWQE_PPW - 1);
-	u16 pi, frag_pi;
+	u16 pi, contig_wqebbs_room;
 	int err;
 	int i;
 
 	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	frag_pi = mlx5_wq_cyc_ctr2fragix(wq, sq->pc);
-
-	if (unlikely(frag_pi + MLX5E_UMR_WQEBBS > mlx5_wq_cyc_get_frag_size(wq))) {
-		mlx5e_fill_icosq_frag_edge(sq, wq, pi, frag_pi);
+	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+	if (unlikely(contig_wqebbs_room < MLX5E_UMR_WQEBBS)) {
+		mlx5e_fill_icosq_frag_edge(sq, wq, pi, contig_wqebbs_room);
 		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	}
 
@@ -690,51 +688,48 @@ static inline void mlx5e_skb_set_hash(struct mlx5_cqe64 *cqe,
 	skb_set_hash(skb, be32_to_cpu(cqe->rss_hash_result), ht);
 }
 
-static inline bool is_last_ethertype_ip(struct sk_buff *skb, int *network_depth)
+static inline bool is_last_ethertype_ip(struct sk_buff *skb, int *network_depth,
+					__be16 *proto)
 {
-	__be16 ethertype = ((struct ethhdr *)skb->data)->h_proto;
-
-	ethertype = __vlan_get_protocol(skb, ethertype, network_depth);
-	return (ethertype == htons(ETH_P_IP) || ethertype == htons(ETH_P_IPV6));
+	*proto = ((struct ethhdr *)skb->data)->h_proto;
+	*proto = __vlan_get_protocol(skb, *proto, network_depth);
+	return (*proto == htons(ETH_P_IP) || *proto == htons(ETH_P_IPV6));
 }
 
-static __be32 mlx5e_get_fcs(struct sk_buff *skb)
+static inline void mlx5e_enable_ecn(struct mlx5e_rq *rq, struct sk_buff *skb)
 {
-	int last_frag_sz, bytes_in_prev, nr_frags;
-	u8 *fcs_p1, *fcs_p2;
-	skb_frag_t *last_frag;
-	__be32 fcs_bytes;
+	int network_depth = 0;
+	__be16 proto;
+	void *ip;
+	int rc;
 
-	if (!skb_is_nonlinear(skb))
-		return *(__be32 *)(skb->data + skb->len - ETH_FCS_LEN);
+	if (unlikely(!is_last_ethertype_ip(skb, &network_depth, &proto)))
+		return;
 
-	nr_frags = skb_shinfo(skb)->nr_frags;
-	last_frag = &skb_shinfo(skb)->frags[nr_frags - 1];
-	last_frag_sz = skb_frag_size(last_frag);
+	ip = skb->data + network_depth;
+	rc = ((proto == htons(ETH_P_IP)) ? IP_ECN_set_ce((struct iphdr *)ip) :
+					 IP6_ECN_set_ce(skb, (struct ipv6hdr *)ip));
 
-	/* If all FCS data is in last frag */
-	if (last_frag_sz >= ETH_FCS_LEN)
-		return *(__be32 *)(skb_frag_address(last_frag) +
-				   last_frag_sz - ETH_FCS_LEN);
+	rq->stats->ecn_mark += !!rc;
+}
 
-	fcs_p2 = (u8 *)skb_frag_address(last_frag);
-	bytes_in_prev = ETH_FCS_LEN - last_frag_sz;
+static u32 mlx5e_get_fcs(const struct sk_buff *skb)
+{
+	const void *fcs_bytes;
+	u32 _fcs_bytes;
 
-	/* Find where the other part of the FCS is - Linear or another frag */
-	if (nr_frags == 1) {
-		fcs_p1 = skb_tail_pointer(skb);
-	} else {
-		skb_frag_t *prev_frag = &skb_shinfo(skb)->frags[nr_frags - 2];
+	fcs_bytes = skb_header_pointer(skb, skb->len - ETH_FCS_LEN,
+				       ETH_FCS_LEN, &_fcs_bytes);
 
-		fcs_p1 = skb_frag_address(prev_frag) +
-			    skb_frag_size(prev_frag);
-	}
-	fcs_p1 -= bytes_in_prev;
+	return __get_unaligned_cpu32(fcs_bytes);
+}
 
-	memcpy(&fcs_bytes, fcs_p1, bytes_in_prev);
-	memcpy(((u8 *)&fcs_bytes) + bytes_in_prev, fcs_p2, last_frag_sz);
+static u8 get_ip_proto(struct sk_buff *skb, __be16 proto)
+{
+	void *ip_p = skb->data + sizeof(struct ethhdr);
 
-	return fcs_bytes;
+	return (proto == htons(ETH_P_IP)) ? ((struct iphdr *)ip_p)->protocol :
+					    ((struct ipv6hdr *)ip_p)->nexthdr;
 }
 
 static inline void mlx5e_handle_csum(struct net_device *netdev,
@@ -745,6 +740,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 {
 	struct mlx5e_rq_stats *stats = rq->stats;
 	int network_depth = 0;
+	__be16 proto;
 
 	if (unlikely(!(netdev->features & NETIF_F_RXCSUM)))
 		goto csum_none;
@@ -755,7 +751,13 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		return;
 	}
 
-	if (likely(is_last_ethertype_ip(skb, &network_depth))) {
+	if (unlikely(test_bit(MLX5E_RQ_STATE_NO_CSUM_COMPLETE, &rq->state)))
+		goto csum_unnecessary;
+
+	if (likely(is_last_ethertype_ip(skb, &network_depth, &proto))) {
+		if (unlikely(get_ip_proto(skb, proto) == IPPROTO_SCTP))
+			goto csum_unnecessary;
+
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 		if (network_depth > ETH_HLEN)
@@ -767,14 +769,17 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 						 network_depth - ETH_HLEN,
 						 skb->csum);
 		if (unlikely(netdev->features & NETIF_F_RXFCS))
-			skb->csum = csum_add(skb->csum,
-					     (__force __wsum)mlx5e_get_fcs(skb));
+			skb->csum = csum_block_add(skb->csum,
+						   (__force __wsum)mlx5e_get_fcs(skb),
+						   skb->len - ETH_FCS_LEN);
 		stats->csum_complete++;
 		return;
 	}
 
+csum_unnecessary:
 	if (likely((cqe->hds_ip_ext & CQE_L3_OK) &&
-		   (cqe->hds_ip_ext & CQE_L4_OK))) {
+		   ((cqe->hds_ip_ext & CQE_L4_OK) ||
+		    (get_cqe_l4_hdr_type(cqe) == CQE_L4_HDR_TYPE_NONE)))) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (cqe_is_tunneled(cqe)) {
 			skb->csum_level = 1;
@@ -789,6 +794,8 @@ csum_none:
 	skb->ip_summed = CHECKSUM_NONE;
 	stats->csum_none++;
 }
+
+#define MLX5E_CE_BIT_MASK 0x80
 
 static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 				      u32 cqe_bcnt,
@@ -834,6 +841,10 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	skb->mark = be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK;
 
 	mlx5e_handle_csum(netdev, cqe, rq, skb, !!lro_num_seg);
+	/* checking CE bit in cqe - MSB in ml_path field */
+	if (unlikely(cqe->ml_path & MLX5E_CE_BIT_MASK))
+		mlx5e_enable_ecn(rq, skb);
+
 	skb->protocol = eth_type_trans(skb, netdev);
 }
 
@@ -1230,8 +1241,8 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 					 u32 cqe_bcnt,
 					 struct sk_buff *skb)
 {
-	struct mlx5e_rq_stats *stats = rq->stats;
 	struct hwtstamp_config *tstamp;
+	struct mlx5e_rq_stats *stats;
 	struct net_device *netdev;
 	struct mlx5e_priv *priv;
 	char *pseudo_header;
@@ -1254,6 +1265,7 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 
 	priv = mlx5i_epriv(netdev);
 	tstamp = &priv->tstamp;
+	stats = &priv->channel_stats[rq->ix].rq;
 
 	g = (be32_to_cpu(cqe->flags_rqpn) >> 28) & 3;
 	dgid = skb->data + MLX5_IB_GRH_DGID_OFFSET;

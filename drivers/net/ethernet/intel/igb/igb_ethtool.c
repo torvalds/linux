@@ -1649,7 +1649,7 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 	if (hw->phy.type == e1000_phy_m88)
 		igb_phy_disable_receiver(adapter);
 
-	mdelay(500);
+	msleep(500);
 	return 0;
 }
 

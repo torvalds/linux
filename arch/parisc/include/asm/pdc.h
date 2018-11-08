@@ -11,6 +11,7 @@ extern int parisc_narrow_firmware;
 extern int pdc_type;
 extern unsigned long parisc_cell_num; /* cell number the CPU runs on (PAT) */
 extern unsigned long parisc_cell_loc; /* cell location of CPU (PAT)	   */
+extern unsigned long parisc_pat_pdc_cap; /* PDC capabilities (PAT) */
 
 /* Values for pdc_type */
 #define PDC_TYPE_ILLEGAL	-1

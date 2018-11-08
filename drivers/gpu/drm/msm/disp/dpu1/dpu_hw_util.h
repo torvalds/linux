@@ -148,16 +148,6 @@ struct dpu_hw_scaler3_cfg {
 	struct dpu_hw_scaler3_de_cfg de;
 };
 
-struct dpu_hw_scaler3_lut_cfg {
-	bool is_configured;
-	u32 *dir_lut;
-	size_t dir_len;
-	u32 *cir_lut;
-	size_t cir_len;
-	u32 *sep_lut;
-	size_t sep_len;
-};
-
 /**
  * struct dpu_drm_pix_ext_v1 - version 1 of pixel ext structure
  * @num_ext_pxls_lr: Number of total horizontal pixels
@@ -324,12 +314,6 @@ int dpu_reg_read(struct dpu_hw_blk_reg_map *c, u32 reg_off);
 
 #define DPU_REG_WRITE(c, off, val) dpu_reg_write(c, off, val, #off)
 #define DPU_REG_READ(c, off) dpu_reg_read(c, off)
-
-#define MISR_FRAME_COUNT_MASK		0xFF
-#define MISR_CTRL_ENABLE		BIT(8)
-#define MISR_CTRL_STATUS		BIT(9)
-#define MISR_CTRL_STATUS_CLEAR		BIT(10)
-#define INTF_MISR_CTRL_FREE_RUN_MASK	BIT(31)
 
 void *dpu_hw_util_get_dir(void);
 

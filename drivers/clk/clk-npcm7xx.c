@@ -549,7 +549,7 @@ static void __init npcm7xx_clk_init(struct device_node *clk_np)
 
 	ret = of_address_to_resource(clk_np, 0, &res);
 	if (ret) {
-		pr_err("%s: failed to get resource, ret %d\n", clk_np->name,
+		pr_err("%pOFn: failed to get resource, ret %d\n", clk_np,
 			ret);
 		return;
 	}
@@ -558,8 +558,8 @@ static void __init npcm7xx_clk_init(struct device_node *clk_np)
 	if (!clk_base)
 		goto npcm7xx_init_error;
 
-	npcm7xx_clk_data = kzalloc(sizeof(*npcm7xx_clk_data->hws) *
-		NPCM7XX_NUM_CLOCKS + sizeof(npcm7xx_clk_data), GFP_KERNEL);
+	npcm7xx_clk_data = kzalloc(struct_size(npcm7xx_clk_data, hws,
+				   NPCM7XX_NUM_CLOCKS), GFP_KERNEL);
 	if (!npcm7xx_clk_data)
 		goto npcm7xx_init_np_err;
 

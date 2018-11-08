@@ -263,8 +263,10 @@ static void mpc5121_nfc_addr_cycle(struct mtd_info *mtd, int column, int page)
 }
 
 /* Control chip select signals */
-static void mpc5121_nfc_select_chip(struct mtd_info *mtd, int chip)
+static void mpc5121_nfc_select_chip(struct nand_chip *nand, int chip)
 {
+	struct mtd_info *mtd = nand_to_mtd(nand);
+
 	if (chip < 0) {
 		nfc_clear(mtd, NFC_CONFIG1, NFC_CE);
 		return;
@@ -299,9 +301,9 @@ static int ads5121_chipselect_init(struct mtd_info *mtd)
 }
 
 /* Control chips select signal on ADS5121 board */
-static void ads5121_select_chip(struct mtd_info *mtd, int chip)
+static void ads5121_select_chip(struct nand_chip *nand, int chip)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct mpc5121_nfc_prv *prv = nand_get_controller_data(nand);
 	u8 v;
 
@@ -309,16 +311,16 @@ static void ads5121_select_chip(struct mtd_info *mtd, int chip)
 	v |= 0x0F;
 
 	if (chip >= 0) {
-		mpc5121_nfc_select_chip(mtd, 0);
+		mpc5121_nfc_select_chip(nand, 0);
 		v &= ~(1 << chip);
 	} else
-		mpc5121_nfc_select_chip(mtd, -1);
+		mpc5121_nfc_select_chip(nand, -1);
 
 	out_8(prv->csreg, v);
 }
 
 /* Read NAND Ready/Busy signal */
-static int mpc5121_nfc_dev_ready(struct mtd_info *mtd)
+static int mpc5121_nfc_dev_ready(struct nand_chip *nand)
 {
 	/*
 	 * NFC handles ready/busy signal internally. Therefore, this function
@@ -328,10 +330,10 @@ static int mpc5121_nfc_dev_ready(struct mtd_info *mtd)
 }
 
 /* Write command to NAND flash */
-static void mpc5121_nfc_command(struct mtd_info *mtd, unsigned command,
-							int column, int page)
+static void mpc5121_nfc_command(struct nand_chip *chip, unsigned command,
+				int column, int page)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct mpc5121_nfc_prv *prv = nand_get_controller_data(chip);
 
 	prv->column = (column >= 0) ? column : 0;
@@ -362,7 +364,7 @@ static void mpc5121_nfc_command(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_SEQIN:
-		mpc5121_nfc_command(mtd, NAND_CMD_READ0, column, page);
+		mpc5121_nfc_command(chip, NAND_CMD_READ0, column, page);
 		column = 0;
 		break;
 
@@ -493,34 +495,24 @@ static void mpc5121_nfc_buf_copy(struct mtd_info *mtd, u_char *buf, int len,
 }
 
 /* Read data from NFC buffers */
-static void mpc5121_nfc_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void mpc5121_nfc_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
-	mpc5121_nfc_buf_copy(mtd, buf, len, 0);
+	mpc5121_nfc_buf_copy(nand_to_mtd(chip), buf, len, 0);
 }
 
 /* Write data to NFC buffers */
-static void mpc5121_nfc_write_buf(struct mtd_info *mtd,
-						const u_char *buf, int len)
+static void mpc5121_nfc_write_buf(struct nand_chip *chip, const u_char *buf,
+				  int len)
 {
-	mpc5121_nfc_buf_copy(mtd, (u_char *)buf, len, 1);
+	mpc5121_nfc_buf_copy(nand_to_mtd(chip), (u_char *)buf, len, 1);
 }
 
 /* Read byte from NFC buffers */
-static u8 mpc5121_nfc_read_byte(struct mtd_info *mtd)
+static u8 mpc5121_nfc_read_byte(struct nand_chip *chip)
 {
 	u8 tmp;
 
-	mpc5121_nfc_read_buf(mtd, &tmp, sizeof(tmp));
-
-	return tmp;
-}
-
-/* Read word from NFC buffers */
-static u16 mpc5121_nfc_read_word(struct mtd_info *mtd)
-{
-	u16 tmp;
-
-	mpc5121_nfc_read_buf(mtd, (u_char *)&tmp, sizeof(tmp));
+	mpc5121_nfc_read_buf(chip, &tmp, sizeof(tmp));
 
 	return tmp;
 }
@@ -700,15 +692,14 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	}
 
 	mtd->name = "MPC5121 NAND";
-	chip->dev_ready = mpc5121_nfc_dev_ready;
-	chip->cmdfunc = mpc5121_nfc_command;
-	chip->read_byte = mpc5121_nfc_read_byte;
-	chip->read_word = mpc5121_nfc_read_word;
-	chip->read_buf = mpc5121_nfc_read_buf;
-	chip->write_buf = mpc5121_nfc_write_buf;
+	chip->legacy.dev_ready = mpc5121_nfc_dev_ready;
+	chip->legacy.cmdfunc = mpc5121_nfc_command;
+	chip->legacy.read_byte = mpc5121_nfc_read_byte;
+	chip->legacy.read_buf = mpc5121_nfc_read_buf;
+	chip->legacy.write_buf = mpc5121_nfc_write_buf;
 	chip->select_chip = mpc5121_nfc_select_chip;
-	chip->set_features	= nand_get_set_features_notsupp;
-	chip->get_features	= nand_get_set_features_notsupp;
+	chip->legacy.set_features = nand_get_set_features_notsupp;
+	chip->legacy.get_features = nand_get_set_features_notsupp;
 	chip->bbt_options = NAND_BBT_USE_FLASH;
 	chip->ecc.mode = NAND_ECC_SOFT;
 	chip->ecc.algo = NAND_ECC_HAMMING;
@@ -778,7 +769,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	}
 
 	/* Detect NAND chips */
-	retval = nand_scan(mtd, be32_to_cpup(chips_no));
+	retval = nand_scan(chip, be32_to_cpup(chips_no));
 	if (retval) {
 		dev_err(dev, "NAND Flash not found !\n");
 		goto error;
@@ -828,7 +819,7 @@ static int mpc5121_nfc_remove(struct platform_device *op)
 	struct device *dev = &op->dev;
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	nand_release(mtd);
+	nand_release(mtd_to_nand(mtd));
 	mpc5121_nfc_free(dev, mtd);
 
 	return 0;

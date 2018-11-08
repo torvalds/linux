@@ -41,6 +41,8 @@ struct intel_vgpu_page_track *intel_vgpu_find_page_track(
  * intel_vgpu_register_page_track - register a guest page to be tacked
  * @vgpu: a vGPU
  * @gfn: the gfn of guest page
+ * @handler: page track handler
+ * @priv: tracker private
  *
  * Returns:
  * zero on success, negative error code if failed.

@@ -428,7 +428,6 @@ struct dpu_clk_ctrl_reg {
  * @highest_bank_bit:  UBWC parameter
  * @ubwc_static:       ubwc static configuration
  * @ubwc_swizzle:      ubwc default swizzle setting
- * @has_dest_scaler:   indicates support of destination scaler
  * @clk_ctrls          clock control register definition
  */
 struct dpu_mdp_cfg {
@@ -436,7 +435,6 @@ struct dpu_mdp_cfg {
 	u32 highest_bank_bit;
 	u32 ubwc_static;
 	u32 ubwc_swizzle;
-	bool has_dest_scaler;
 	struct dpu_clk_ctrl_reg clk_ctrls[DPU_CLK_CTRL_MAX];
 };
 
@@ -474,47 +472,13 @@ struct dpu_sspp_cfg {
  * @features           bit mask identifying sub-blocks/features
  * @sblk:              LM Sub-blocks information
  * @pingpong:          ID of connected PingPong, PINGPONG_MAX if unsupported
- * @ds:                ID of connected DS, DS_MAX if unsupported
  * @lm_pair_mask:      Bitmask of LMs that can be controlled by same CTL
  */
 struct dpu_lm_cfg {
 	DPU_HW_BLK_INFO;
 	const struct dpu_lm_sub_blks *sblk;
 	u32 pingpong;
-	u32 ds;
 	unsigned long lm_pair_mask;
-};
-
-/**
- * struct dpu_ds_top_cfg - information of dest scaler top
- * @id               enum identifying this block
- * @base             register offset of this block
- * @features         bit mask identifying features
- * @version          hw version of dest scaler
- * @maxinputwidth    maximum input line width
- * @maxoutputwidth   maximum output line width
- * @maxupscale       maximum upscale ratio
- */
-struct dpu_ds_top_cfg {
-	DPU_HW_BLK_INFO;
-	u32 version;
-	u32 maxinputwidth;
-	u32 maxoutputwidth;
-	u32 maxupscale;
-};
-
-/**
- * struct dpu_ds_cfg - information of dest scaler blocks
- * @id          enum identifying this block
- * @base        register offset wrt DS top offset
- * @features    bit mask identifying features
- * @version     hw version of the qseed block
- * @top         DS top information
- */
-struct dpu_ds_cfg {
-	DPU_HW_BLK_INFO;
-	u32 version;
-	const struct dpu_ds_top_cfg *top;
 };
 
 /**
@@ -527,18 +491,6 @@ struct dpu_ds_cfg {
 struct dpu_pingpong_cfg  {
 	DPU_HW_BLK_INFO;
 	const struct dpu_pingpong_sub_blks *sblk;
-};
-
-/**
- * struct dpu_cdm_cfg - information of chroma down blocks
- * @id                 enum identifying this block
- * @base               register offset of this block
- * @features           bit mask identifying sub-blocks/features
- * @intf_connect       Bitmask of INTF IDs this CDM can connect to
- */
-struct dpu_cdm_cfg   {
-	DPU_HW_BLK_INFO;
-	unsigned long intf_connect;
 };
 
 /**
@@ -728,14 +680,8 @@ struct dpu_mdss_cfg {
 	u32 mixer_count;
 	struct dpu_lm_cfg *mixer;
 
-	u32 ds_count;
-	struct dpu_ds_cfg *ds;
-
 	u32 pingpong_count;
 	struct dpu_pingpong_cfg *pingpong;
-
-	u32 cdm_count;
-	struct dpu_cdm_cfg *cdm;
 
 	u32 intf_count;
 	struct dpu_intf_cfg *intf;
@@ -771,9 +717,7 @@ struct dpu_mdss_hw_cfg_handler {
 #define BLK_DMA(s) ((s)->dma)
 #define BLK_CURSOR(s) ((s)->cursor)
 #define BLK_MIXER(s) ((s)->mixer)
-#define BLK_DS(s) ((s)->ds)
 #define BLK_PINGPONG(s) ((s)->pingpong)
-#define BLK_CDM(s) ((s)->cdm)
 #define BLK_INTF(s) ((s)->intf)
 #define BLK_AD(s) ((s)->ad)
 

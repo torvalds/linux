@@ -215,6 +215,8 @@ static void vga_switcheroo_enable(void)
 			return;
 
 		client->id = ret | ID_BIT_AUDIO;
+		if (client->ops->gpu_bound)
+			client->ops->gpu_bound(client->pdev, ret);
 	}
 
 	vga_switcheroo_debugfs_init(&vgasr_priv);

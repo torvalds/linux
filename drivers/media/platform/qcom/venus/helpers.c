@@ -472,7 +472,7 @@ static bool is_dynamic_bufmode(struct venus_inst *inst)
 
 	caps = venus_caps_by_codec(core, inst->hfi_codec, inst->session_type);
 	if (!caps)
-		return 0;
+		return false;
 
 	return caps->cap_bufs_mode_dynamic;
 }

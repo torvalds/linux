@@ -151,7 +151,7 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		return ret;
 	}
 
-	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
+	if (drm_drv_uses_atomic_modeset(dev)) {
 		ret = drm_atomic_debugfs_init(minor);
 		if (ret) {
 			DRM_ERROR("Failed to create atomic debugfs files\n");

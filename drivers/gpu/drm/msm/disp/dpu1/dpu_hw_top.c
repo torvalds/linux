@@ -98,23 +98,6 @@ static void dpu_hw_setup_split_pipe(struct dpu_hw_mdp *mdp,
 	DPU_REG_WRITE(c, SPLIT_DISPLAY_EN, cfg->en & 0x1);
 }
 
-static void dpu_hw_setup_cdm_output(struct dpu_hw_mdp *mdp,
-		struct cdm_output_cfg *cfg)
-{
-	struct dpu_hw_blk_reg_map *c;
-	u32 out_ctl = 0;
-
-	if (!mdp || !cfg)
-		return;
-
-	c = &mdp->hw;
-
-	if (cfg->intf_en)
-		out_ctl |= BIT(19);
-
-	DPU_REG_WRITE(c, MDP_OUT_CTL_0, out_ctl);
-}
-
 static bool dpu_hw_setup_clk_force_ctrl(struct dpu_hw_mdp *mdp,
 		enum dpu_clk_ctrl_type clk_ctrl, bool enable)
 {
@@ -307,7 +290,6 @@ static void _setup_mdp_ops(struct dpu_hw_mdp_ops *ops,
 		unsigned long cap)
 {
 	ops->setup_split_pipe = dpu_hw_setup_split_pipe;
-	ops->setup_cdm_output = dpu_hw_setup_cdm_output;
 	ops->setup_clk_force_ctrl = dpu_hw_setup_clk_force_ctrl;
 	ops->get_danger_status = dpu_hw_get_danger_status;
 	ops->setup_vsync_source = dpu_hw_setup_vsync_source;

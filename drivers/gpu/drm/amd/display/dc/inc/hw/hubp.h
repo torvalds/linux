@@ -96,7 +96,8 @@ struct hubp_funcs {
 		union plane_size *plane_size,
 		enum dc_rotation_angle rotation,
 		struct dc_plane_dcc_param *dcc,
-		bool horizontal_mirror);
+		bool horizontal_mirror,
+		unsigned int compa_level);
 
 	bool (*hubp_is_flip_pending)(struct hubp *hubp);
 

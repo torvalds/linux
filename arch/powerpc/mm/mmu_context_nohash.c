@@ -44,7 +44,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
@@ -461,10 +461,11 @@ void __init mmu_context_init(void)
 	/*
 	 * Allocate the maps used by context management
 	 */
-	context_map = memblock_virt_alloc(CTX_MAP_SIZE, 0);
-	context_mm = memblock_virt_alloc(sizeof(void *) * (LAST_CONTEXT + 1), 0);
+	context_map = memblock_alloc(CTX_MAP_SIZE, SMP_CACHE_BYTES);
+	context_mm = memblock_alloc(sizeof(void *) * (LAST_CONTEXT + 1),
+				    SMP_CACHE_BYTES);
 #ifdef CONFIG_SMP
-	stale_map[boot_cpuid] = memblock_virt_alloc(CTX_MAP_SIZE, 0);
+	stale_map[boot_cpuid] = memblock_alloc(CTX_MAP_SIZE, SMP_CACHE_BYTES);
 
 	cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
 				  "powerpc/mmu/ctx:prepare",

@@ -19,6 +19,10 @@ Required properties:
 - slaves		: Specifies number for slaves
 - active_slave		: Specifies the slave to use for time stamping,
 			  ethtool and SIOCGMIIPHY
+- cpsw-phy-sel		: Specifies the phandle to the CPSW phy mode selection
+			  device. See also cpsw-phy-sel.txt for it's binding.
+			  Note that in legacy cases cpsw-phy-sel may be
+			  a child device instead of a phandle.
 
 Optional properties:
 - ti,hwmods		: Must be "cpgmac0"
@@ -75,6 +79,7 @@ Examples:
 		cpts_clock_mult = <0x80000000>;
 		cpts_clock_shift = <29>;
 		syscon = <&cm>;
+		cpsw-phy-sel = <&phy_sel>;
 		cpsw_emac0: slave@0 {
 			phy_id = <&davinci_mdio>, <0>;
 			phy-mode = "rgmii-txid";
@@ -103,6 +108,7 @@ Examples:
 		cpts_clock_mult = <0x80000000>;
 		cpts_clock_shift = <29>;
 		syscon = <&cm>;
+		cpsw-phy-sel = <&phy_sel>;
 		cpsw_emac0: slave@0 {
 			phy_id = <&davinci_mdio>, <0>;
 			phy-mode = "rgmii-txid";

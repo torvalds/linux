@@ -92,11 +92,31 @@ static unsigned int *icmpv6_get_timeouts(struct net *net)
 
 /* Returns verdict for packet, or -1 for invalid. */
 static int icmpv6_packet(struct nf_conn *ct,
-		       const struct sk_buff *skb,
-		       unsigned int dataoff,
-		       enum ip_conntrack_info ctinfo)
+		         struct sk_buff *skb,
+		         unsigned int dataoff,
+		         enum ip_conntrack_info ctinfo,
+		         const struct nf_hook_state *state)
 {
 	unsigned int *timeout = nf_ct_timeout_lookup(ct);
+	static const u8 valid_new[] = {
+		[ICMPV6_ECHO_REQUEST - 128] = 1,
+		[ICMPV6_NI_QUERY - 128] = 1
+	};
+
+	if (state->pf != NFPROTO_IPV6)
+		return -NF_ACCEPT;
+
+	if (!nf_ct_is_confirmed(ct)) {
+		int type = ct->tuplehash[0].tuple.dst.u.icmp.type - 128;
+
+		if (type < 0 || type >= sizeof(valid_new) || !valid_new[type]) {
+			/* Can't create a new ICMPv6 `conn' with this. */
+			pr_debug("icmpv6: can't create new conn with type %u\n",
+				 type + 128);
+			nf_ct_dump_tuple_ipv6(&ct->tuplehash[0].tuple);
+			return -NF_ACCEPT;
+		}
+	}
 
 	if (!timeout)
 		timeout = icmpv6_get_timeouts(nf_ct_net(ct));
@@ -107,26 +127,6 @@ static int icmpv6_packet(struct nf_conn *ct,
 	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
 
 	return NF_ACCEPT;
-}
-
-/* Called when a new connection for this protocol found. */
-static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
-		       unsigned int dataoff)
-{
-	static const u_int8_t valid_new[] = {
-		[ICMPV6_ECHO_REQUEST - 128] = 1,
-		[ICMPV6_NI_QUERY - 128] = 1
-	};
-	int type = ct->tuplehash[0].tuple.dst.u.icmp.type - 128;
-
-	if (type < 0 || type >= sizeof(valid_new) || !valid_new[type]) {
-		/* Can't create a new ICMPv6 `conn' with this. */
-		pr_debug("icmpv6: can't create new conn with type %u\n",
-			 type + 128);
-		nf_ct_dump_tuple_ipv6(&ct->tuplehash[0].tuple);
-		return false;
-	}
-	return true;
 }
 
 static int
@@ -153,7 +153,7 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	}
 
 	/* rcu_read_lock()ed by nf_hook_thresh */
-	inproto = __nf_ct_l4proto_find(PF_INET6, origtuple.dst.protonum);
+	inproto = __nf_ct_l4proto_find(origtuple.dst.protonum);
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
@@ -179,16 +179,18 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 }
 
-static void icmpv6_error_log(const struct sk_buff *skb, struct net *net,
-			     u8 pf, const char *msg)
+static void icmpv6_error_log(const struct sk_buff *skb,
+			     const struct nf_hook_state *state,
+			     const char *msg)
 {
-	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_ICMPV6, "%s", msg);
+	nf_l4proto_log_invalid(skb, state->net, state->pf,
+			       IPPROTO_ICMPV6, "%s", msg);
 }
 
-static int
-icmpv6_error(struct net *net, struct nf_conn *tmpl,
-	     struct sk_buff *skb, unsigned int dataoff,
-	     u8 pf, unsigned int hooknum)
+int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
+			      struct sk_buff *skb,
+			      unsigned int dataoff,
+			      const struct nf_hook_state *state)
 {
 	const struct icmp6hdr *icmp6h;
 	struct icmp6hdr _ih;
@@ -196,13 +198,14 @@ icmpv6_error(struct net *net, struct nf_conn *tmpl,
 
 	icmp6h = skb_header_pointer(skb, dataoff, sizeof(_ih), &_ih);
 	if (icmp6h == NULL) {
-		icmpv6_error_log(skb, net, pf, "short packet");
+		icmpv6_error_log(skb, state, "short packet");
 		return -NF_ACCEPT;
 	}
 
-	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
-	    nf_ip6_checksum(skb, hooknum, dataoff, IPPROTO_ICMPV6)) {
-		icmpv6_error_log(skb, net, pf, "ICMPv6 checksum failed");
+	if (state->hook == NF_INET_PRE_ROUTING &&
+	    state->net->ct.sysctl_checksum &&
+	    nf_ip6_checksum(skb, state->hook, dataoff, IPPROTO_ICMPV6)) {
+		icmpv6_error_log(skb, state, "ICMPv6 checksum failed");
 		return -NF_ACCEPT;
 	}
 
@@ -217,7 +220,7 @@ icmpv6_error(struct net *net, struct nf_conn *tmpl,
 	if (icmp6h->icmp6_type >= 128)
 		return NF_ACCEPT;
 
-	return icmpv6_error_message(net, tmpl, skb, dataoff);
+	return icmpv6_error_message(state->net, tmpl, skb, dataoff);
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -274,7 +277,7 @@ static unsigned int icmpv6_nlattr_tuple_size(void)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
@@ -314,7 +317,7 @@ static const struct nla_policy
 icmpv6_timeout_nla_policy[CTA_TIMEOUT_ICMPV6_MAX+1] = {
 	[CTA_TIMEOUT_ICMPV6_TIMEOUT]	= { .type = NLA_U32 },
 };
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table icmpv6_sysctl_table[] = {
@@ -343,7 +346,7 @@ static int icmpv6_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int icmpv6_init_net(struct net *net, u_int16_t proto)
+static int icmpv6_init_net(struct net *net)
 {
 	struct nf_icmp_net *in = icmpv6_pernet(net);
 	struct nf_proto_net *pn = &in->pn;
@@ -360,20 +363,17 @@ static struct nf_proto_net *icmpv6_get_net_proto(struct net *net)
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 {
-	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_ICMPV6,
 	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,
 	.packet			= icmpv6_packet,
-	.new			= icmpv6_new,
-	.error			= icmpv6_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= icmpv6_tuple_to_nlattr,
 	.nlattr_tuple_size	= icmpv6_nlattr_tuple_size,
 	.nlattr_to_tuple	= icmpv6_nlattr_to_tuple,
 	.nla_policy		= icmpv6_nla_policy,
 #endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= icmpv6_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= icmpv6_timeout_obj_to_nlattr,
@@ -381,7 +381,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 		.obj_size	= sizeof(unsigned int),
 		.nla_policy	= icmpv6_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.init_net		= icmpv6_init_net,
 	.get_net_proto		= icmpv6_get_net_proto,
 };

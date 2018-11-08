@@ -301,6 +301,7 @@ enum sctp_sinfo_flags {
 	SCTP_SACK_IMMEDIATELY	= (1 << 3), /* SACK should be sent without delay. */
 	/* 2 bits here have been used by SCTP_PR_SCTP_MASK */
 	SCTP_SENDALL		= (1 << 6),
+	SCTP_PR_SCTP_ALL	= (1 << 7),
 	SCTP_NOTIFICATION	= MSG_NOTIFICATION, /* Next message is not user msg but notification. */
 	SCTP_EOF		= MSG_FIN,  /* Initiate graceful shutdown process. */
 };

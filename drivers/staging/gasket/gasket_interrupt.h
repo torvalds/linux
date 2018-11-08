@@ -24,30 +24,8 @@ struct gasket_interrupt_data;
 /*
  * Initialize the interrupt module.
  * @gasket_dev: The Gasket device structure for the device to be initted.
- * @type: Type of the interrupt. (See gasket_interrupt_type).
- * @name: The name to associate with these interrupts.
- * @interrupts: An array of all interrupt descriptions for this device.
- * @num_interrupts: The length of the @interrupts array.
- * @pack_width: The width, in bits, of a single field in a packed interrupt reg.
- * @bar_index: The bar containing all interrupt registers.
- *
- * Allocates and initializes data to track interrupt state for a device.
- * After this call, no interrupts will be configured/delivered; call
- * gasket_interrupt_set_vector[_packed] to associate each interrupt with an
- * __iomem location, then gasket_interrupt_set_eventfd to associate an eventfd
- * with an interrupt.
- *
- * If num_interrupts interrupts are not available, this call will return a
- * negative error code. In that case, gasket_interrupt_cleanup should still be
- * called. Returns 0 on success (which can include a device where interrupts
- * are not possible to set up, but is otherwise OK; that device will report
- * status LAMED.)
  */
-int gasket_interrupt_init(struct gasket_dev *gasket_dev, const char *name,
-			  int type,
-			  const struct gasket_interrupt_desc *interrupts,
-			  int num_interrupts, int pack_width, int bar_index,
-			  const struct gasket_wire_interrupt_offsets *wire_int_offsets);
+int gasket_interrupt_init(struct gasket_dev *gasket_dev);
 
 /*
  * Clean up a device's interrupt structure.

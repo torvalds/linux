@@ -122,7 +122,7 @@ void dpu_plane_set_error(struct drm_plane *plane, bool error);
  * dpu_plane_init - create new dpu plane for the given pipe
  * @dev:   Pointer to DRM device
  * @pipe:  dpu hardware pipe identifier
- * @primary_plane: true if this pipe is primary plane for crtc
+ * @type:  Plane type - PRIMARY/OVERLAY/CURSOR
  * @possible_crtcs: bitmask of crtc that can be attached to the given pipe
  * @master_plane_id: primary plane id of a multirect pipe. 0 value passed for
  *                   a regular plane initialization. A non-zero primary plane
@@ -130,7 +130,7 @@ void dpu_plane_set_error(struct drm_plane *plane, bool error);
  *
  */
 struct drm_plane *dpu_plane_init(struct drm_device *dev,
-		uint32_t pipe, bool primary_plane,
+		uint32_t pipe, enum drm_plane_type type,
 		unsigned long possible_crtcs, u32 master_plane_id);
 
 /**

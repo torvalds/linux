@@ -42,8 +42,8 @@ static int radio_isa_querycap(struct file *file, void  *priv,
 {
 	struct radio_isa_card *isa = video_drvdata(file);
 
-	strlcpy(v->driver, isa->drv->driver.driver.name, sizeof(v->driver));
-	strlcpy(v->card, isa->drv->card, sizeof(v->card));
+	strscpy(v->driver, isa->drv->driver.driver.name, sizeof(v->driver));
+	strscpy(v->card, isa->drv->card, sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info), "ISA:%s", isa->v4l2_dev.name);
 
 	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
@@ -60,7 +60,7 @@ static int radio_isa_g_tuner(struct file *file, void *priv,
 	if (v->index > 0)
 		return -EINVAL;
 
-	strlcpy(v->name, "FM", sizeof(v->name));
+	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = FREQ_LOW;
 	v->rangehigh = FREQ_HIGH;
@@ -198,7 +198,7 @@ static struct radio_isa_card *radio_isa_alloc(struct radio_isa_driver *drv,
 	dev_set_drvdata(pdev, isa);
 	isa->drv = drv;
 	v4l2_dev = &isa->v4l2_dev;
-	strlcpy(v4l2_dev->name, dev_name(pdev), sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, dev_name(pdev), sizeof(v4l2_dev->name));
 
 	return isa;
 }
@@ -243,7 +243,7 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 
 	mutex_init(&isa->lock);
 	isa->vdev.lock = &isa->lock;
-	strlcpy(isa->vdev.name, v4l2_dev->name, sizeof(isa->vdev.name));
+	strscpy(isa->vdev.name, v4l2_dev->name, sizeof(isa->vdev.name));
 	isa->vdev.v4l2_dev = v4l2_dev;
 	isa->vdev.fops = &radio_isa_fops;
 	isa->vdev.ioctl_ops = &radio_isa_ioctl_ops;
