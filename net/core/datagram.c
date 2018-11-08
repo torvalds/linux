@@ -728,49 +728,6 @@ fault:
 	return -EFAULT;
 }
 
-__sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len)
-{
-	__sum16 sum;
-
-	sum = csum_fold(skb_checksum(skb, 0, len, skb->csum));
-	if (likely(!sum)) {
-		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE) &&
-		    !skb->csum_complete_sw)
-			netdev_rx_csum_fault(skb->dev);
-	}
-	if (!skb_shared(skb))
-		skb->csum_valid = !sum;
-	return sum;
-}
-EXPORT_SYMBOL(__skb_checksum_complete_head);
-
-__sum16 __skb_checksum_complete(struct sk_buff *skb)
-{
-	__wsum csum;
-	__sum16 sum;
-
-	csum = skb_checksum(skb, 0, skb->len, 0);
-
-	/* skb->csum holds pseudo checksum */
-	sum = csum_fold(csum_add(skb->csum, csum));
-	if (likely(!sum)) {
-		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE) &&
-		    !skb->csum_complete_sw)
-			netdev_rx_csum_fault(skb->dev);
-	}
-
-	if (!skb_shared(skb)) {
-		/* Save full packet checksum */
-		skb->csum = csum;
-		skb->ip_summed = CHECKSUM_COMPLETE;
-		skb->csum_complete_sw = 1;
-		skb->csum_valid = !sum;
-	}
-
-	return sum;
-}
-EXPORT_SYMBOL(__skb_checksum_complete);
-
 /**
  *	skb_copy_and_csum_datagram_msg - Copy and checksum skb to user iovec.
  *	@skb: skbuff
