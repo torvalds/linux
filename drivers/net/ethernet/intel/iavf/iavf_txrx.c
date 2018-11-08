@@ -2343,6 +2343,8 @@ static inline void iavf_tx_map(struct iavf_ring *tx_ring, struct sk_buff *skb,
 	tx_desc->cmd_type_offset_bsz =
 			build_ctob(td_cmd, td_offset, size, td_tag);
 
+	skb_tx_timestamp(skb);
+
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.
 	 *
@@ -2460,8 +2462,6 @@ static netdev_tx_t iavf_xmit_frame_ring(struct sk_buff *skb,
 				  tx_ring, &cd_tunneling);
 	if (tso < 0)
 		goto out_drop;
-
-	skb_tx_timestamp(skb);
 
 	/* always enable CRC insertion offload */
 	td_cmd |= IAVF_TX_DESC_CMD_ICRC;
