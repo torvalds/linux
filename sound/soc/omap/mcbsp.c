@@ -450,9 +450,6 @@ int omap_st_is_enabled(struct omap_mcbsp *mcbsp)
  */
 void omap_mcbsp_set_tx_threshold(struct omap_mcbsp *mcbsp, u16 threshold)
 {
-	if (mcbsp->pdata->buffer_size == 0)
-		return;
-
 	if (threshold && threshold <= mcbsp->max_tx_thres)
 		MCBSP_WRITE(mcbsp, THRSH2, threshold - 1);
 }
@@ -464,9 +461,6 @@ void omap_mcbsp_set_tx_threshold(struct omap_mcbsp *mcbsp, u16 threshold)
  */
 void omap_mcbsp_set_rx_threshold(struct omap_mcbsp *mcbsp, u16 threshold)
 {
-	if (mcbsp->pdata->buffer_size == 0)
-		return;
-
 	if (threshold && threshold <= mcbsp->max_rx_thres)
 		MCBSP_WRITE(mcbsp, THRSH1, threshold - 1);
 }
@@ -477,9 +471,6 @@ void omap_mcbsp_set_rx_threshold(struct omap_mcbsp *mcbsp, u16 threshold)
 u16 omap_mcbsp_get_tx_delay(struct omap_mcbsp *mcbsp)
 {
 	u16 buffstat;
-
-	if (mcbsp->pdata->buffer_size == 0)
-		return 0;
 
 	/* Returns the number of free locations in the buffer */
 	buffstat = MCBSP_READ(mcbsp, XBUFFSTAT);
@@ -495,9 +486,6 @@ u16 omap_mcbsp_get_tx_delay(struct omap_mcbsp *mcbsp)
 u16 omap_mcbsp_get_rx_delay(struct omap_mcbsp *mcbsp)
 {
 	u16 buffstat, threshold;
-
-	if (mcbsp->pdata->buffer_size == 0)
-		return 0;
 
 	/* Returns the number of used locations in the buffer */
 	buffstat = MCBSP_READ(mcbsp, RBUFFSTAT);

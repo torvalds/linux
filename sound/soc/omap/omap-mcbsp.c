@@ -71,6 +71,10 @@ static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream,
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 	int words;
 
+	/* No need to proceed further if McBSP does not have FIFO */
+	if (mcbsp->pdata->buffer_size == 0)
+		return;
+
 	/*
 	 * Configure McBSP threshold based on either:
 	 * packet_size, when the sDMA is in packet mode, or based on the
@@ -232,6 +236,10 @@ static snd_pcm_sframes_t omap_mcbsp_dai_delay(
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 	u16 fifo_use;
 	snd_pcm_sframes_t delay;
+
+	/* No need to proceed further if McBSP does not have FIFO */
+	if (mcbsp->pdata->buffer_size == 0)
+		return 0;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		fifo_use = omap_mcbsp_get_tx_delay(mcbsp);
