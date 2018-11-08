@@ -387,6 +387,57 @@ drop:
 	return 0;
 }
 
+/* Callback from net/ipv{4,6}/udp.c to check that we have a tunnel for errors */
+static int geneve_udp_encap_err_lookup(struct sock *sk, struct sk_buff *skb)
+{
+	struct genevehdr *geneveh;
+	struct geneve_sock *gs;
+	u8 zero_vni[3] = { 0 };
+	u8 *vni = zero_vni;
+
+	if (skb->len < GENEVE_BASE_HLEN)
+		return -EINVAL;
+
+	geneveh = geneve_hdr(skb);
+	if (geneveh->ver != GENEVE_VER)
+		return -EINVAL;
+
+	if (geneveh->proto_type != htons(ETH_P_TEB))
+		return -EINVAL;
+
+	gs = rcu_dereference_sk_user_data(sk);
+	if (!gs)
+		return -ENOENT;
+
+	if (geneve_get_sk_family(gs) == AF_INET) {
+		struct iphdr *iph = ip_hdr(skb);
+		__be32 addr4 = 0;
+
+		if (!gs->collect_md) {
+			vni = geneve_hdr(skb)->vni;
+			addr4 = iph->daddr;
+		}
+
+		return geneve_lookup(gs, addr4, vni) ? 0 : -ENOENT;
+	}
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (geneve_get_sk_family(gs) == AF_INET6) {
+		struct ipv6hdr *ip6h = ipv6_hdr(skb);
+		struct in6_addr addr6 = { 0 };
+
+		if (!gs->collect_md) {
+			vni = geneve_hdr(skb)->vni;
+			addr6 = ip6h->daddr;
+		}
+
+		return geneve6_lookup(gs, addr6, vni) ? 0 : -ENOENT;
+	}
+#endif
+
+	return -EPFNOSUPPORT;
+}
+
 static struct socket *geneve_create_sock(struct net *net, bool ipv6,
 					 __be16 port, bool ipv6_rx_csum)
 {
@@ -544,6 +595,7 @@ static struct geneve_sock *geneve_socket_create(struct net *net, __be16 port,
 	tunnel_cfg.gro_receive = geneve_gro_receive;
 	tunnel_cfg.gro_complete = geneve_gro_complete;
 	tunnel_cfg.encap_rcv = geneve_udp_encap_recv;
+	tunnel_cfg.encap_err_lookup = geneve_udp_encap_err_lookup;
 	tunnel_cfg.encap_destroy = NULL;
 	setup_udp_tunnel_sock(net, sock, &tunnel_cfg);
 	list_add(&gs->list, &gn->sock_list);
