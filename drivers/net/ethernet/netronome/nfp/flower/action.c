@@ -11,6 +11,7 @@
 #include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_tunnel_key.h>
+#include <net/vxlan.h>
 
 #include "cmsg.h"
 #include "main.h"
@@ -94,13 +95,10 @@ nfp_fl_pre_lag(struct nfp_app *app, const struct tc_action *action,
 static bool nfp_fl_netdev_is_tunnel_type(struct net_device *out_dev,
 					 enum nfp_flower_tun_type tun_type)
 {
-	if (!out_dev->rtnl_link_ops)
-		return false;
-
-	if (!strcmp(out_dev->rtnl_link_ops->kind, "vxlan"))
+	if (netif_is_vxlan(out_dev))
 		return tun_type == NFP_FL_TUNNEL_VXLAN;
 
-	if (!strcmp(out_dev->rtnl_link_ops->kind, "geneve"))
+	if (netif_is_geneve(out_dev))
 		return tun_type == NFP_FL_TUNNEL_GENEVE;
 
 	return false;
