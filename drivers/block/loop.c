@@ -1027,15 +1027,22 @@ loop_init_xfer(struct loop_device *lo, struct loop_func_table *xfer,
 
 static int __loop_clr_fd(struct loop_device *lo)
 {
-	struct file *filp = lo->lo_backing_file;
+	struct file *filp = NULL;
 	gfp_t gfp = lo->old_gfp_mask;
 	struct block_device *bdev = lo->lo_device;
+	int err = 0;
 
-	if (WARN_ON_ONCE(lo->lo_state != Lo_rundown))
-		return -ENXIO;
+	mutex_lock(&loop_ctl_mutex);
+	if (WARN_ON_ONCE(lo->lo_state != Lo_rundown)) {
+		err = -ENXIO;
+		goto out_unlock;
+	}
 
-	if (filp == NULL)
-		return -EINVAL;
+	filp = lo->lo_backing_file;
+	if (filp == NULL) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
 
 	/* freeze request queue during the transition */
 	blk_mq_freeze_queue(lo->lo_queue);
@@ -1082,6 +1089,7 @@ static int __loop_clr_fd(struct loop_device *lo)
 	if (!part_shift)
 		lo->lo_disk->flags |= GENHD_FL_NO_PART_SCAN;
 	loop_unprepare_queue(lo);
+out_unlock:
 	mutex_unlock(&loop_ctl_mutex);
 	/*
 	 * Need not hold loop_ctl_mutex to fput backing file.
@@ -1089,14 +1097,22 @@ static int __loop_clr_fd(struct loop_device *lo)
 	 * lock dependency possibility warning as fput can take
 	 * bd_mutex which is usually taken before loop_ctl_mutex.
 	 */
-	fput(filp);
-	return 0;
+	if (filp)
+		fput(filp);
+	return err;
 }
 
 static int loop_clr_fd(struct loop_device *lo)
 {
-	if (lo->lo_state != Lo_bound)
+	int err;
+
+	err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+	if (err)
+		return err;
+	if (lo->lo_state != Lo_bound) {
+		mutex_unlock(&loop_ctl_mutex);
 		return -ENXIO;
+	}
 	/*
 	 * If we've explicitly asked to tear down the loop device,
 	 * and it has an elevated reference count, set it for auto-teardown when
@@ -1113,6 +1129,7 @@ static int loop_clr_fd(struct loop_device *lo)
 		return 0;
 	}
 	lo->lo_state = Lo_rundown;
+	mutex_unlock(&loop_ctl_mutex);
 
 	return __loop_clr_fd(lo);
 }
@@ -1447,14 +1464,7 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 		mutex_unlock(&loop_ctl_mutex);
 		break;
 	case LOOP_CLR_FD:
-		err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
-		if (err)
-			return err;
-		/* loop_clr_fd would have unlocked loop_ctl_mutex on success */
-		err = loop_clr_fd(lo);
-		if (err)
-			mutex_unlock(&loop_ctl_mutex);
-		break;
+		return loop_clr_fd(lo);
 	case LOOP_SET_STATUS:
 		err = -EPERM;
 		if ((mode & FMODE_WRITE) || capable(CAP_SYS_ADMIN)) {
@@ -1690,7 +1700,6 @@ out:
 static void lo_release(struct gendisk *disk, fmode_t mode)
 {
 	struct loop_device *lo;
-	int err;
 
 	mutex_lock(&loop_ctl_mutex);
 	lo = disk->private_data;
@@ -1701,13 +1710,13 @@ static void lo_release(struct gendisk *disk, fmode_t mode)
 		if (lo->lo_state != Lo_bound)
 			goto out_unlock;
 		lo->lo_state = Lo_rundown;
+		mutex_unlock(&loop_ctl_mutex);
 		/*
 		 * In autoclear mode, stop the loop thread
 		 * and remove configuration after last close.
 		 */
-		err = __loop_clr_fd(lo);
-		if (!err)
-			return;
+		__loop_clr_fd(lo);
+		return;
 	} else if (lo->lo_state == Lo_bound) {
 		/*
 		 * Otherwise keep thread (if running) and config,
