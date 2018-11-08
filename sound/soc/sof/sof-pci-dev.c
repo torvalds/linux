@@ -282,7 +282,7 @@ static void sof_pci_remove(struct pci_dev *pci)
 	struct snd_sof_pdata *sof_pdata = priv->sof_pdata;
 
 	/* unregister sof-audio platform driver */
-	if (!IS_ERR_OR_NULL(priv->pdev_pcm))
+	if (!IS_ERR(priv->pdev_pcm))
 		platform_device_unregister(priv->pdev_pcm);
 
 	/* release firmware */
