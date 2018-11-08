@@ -420,7 +420,7 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 	}
 
 	if (v->flags & BRIDGE_VLAN_INFO_UNTAGGED)
-		skb->vlan_tci = 0;
+		__vlan_hwaccel_clear_tag(skb);
 
 	if (p && (p->flags & BR_VLAN_TUNNEL) &&
 	    br_handle_egress_vlan_tunnel(skb, v)) {
@@ -493,8 +493,8 @@ static bool __allowed_ingress(const struct net_bridge *br,
 			__vlan_hwaccel_put_tag(skb, br->vlan_proto, pvid);
 		else
 			/* Priority-tagged Frame.
-			 * At this point, We know that skb->vlan_tci had
-			 * VLAN_TAG_PRESENT bit and its VID field was 0x000.
+			 * At this point, we know that skb->vlan_tci VID
+			 * field was 0.
 			 * We update only VID field and preserve PCP field.
 			 */
 			skb->vlan_tci |= pvid;
