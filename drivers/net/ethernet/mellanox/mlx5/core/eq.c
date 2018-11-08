@@ -356,8 +356,9 @@ static int init_pf_ctx(struct mlx5_eq_pagefault *pf_ctx, const char *name)
 	spin_lock_init(&pf_ctx->lock);
 	INIT_WORK(&pf_ctx->work, eq_pf_action);
 
-	pf_ctx->wq = alloc_ordered_workqueue(name,
-					     WQ_MEM_RECLAIM);
+	pf_ctx->wq = alloc_workqueue(name,
+				     WQ_HIGHPRI | WQ_UNBOUND | WQ_MEM_RECLAIM,
+				     MLX5_NUM_CMD_EQE);
 	if (!pf_ctx->wq)
 		return -ENOMEM;
 
