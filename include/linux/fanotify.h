@@ -37,7 +37,7 @@
 
 /* Events that user can request to be notified on */
 #define FANOTIFY_EVENTS		(FAN_ACCESS | FAN_MODIFY | \
-				 FAN_CLOSE | FAN_OPEN)
+				 FAN_CLOSE | FAN_OPEN | FAN_OPEN_EXEC)
 
 /* Events that require a permission response from user */
 #define FANOTIFY_PERM_EVENTS	(FAN_OPEN_PERM | FAN_ACCESS_PERM)

@@ -215,6 +215,8 @@ static inline void fsnotify_open(struct file *file)
 
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_ISDIR;
+	if (file->f_flags & __FMODE_EXEC)
+		mask |= FS_OPEN_EXEC;
 
 	fsnotify_parent(path, NULL, mask);
 	fsnotify(inode, mask, path, FSNOTIFY_EVENT_PATH, NULL, 0);
