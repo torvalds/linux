@@ -1181,6 +1181,9 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 			q->sdma_id / get_num_sdma_engines(dqm);
 		q->properties.sdma_engine_id =
 			q->sdma_id % get_num_sdma_engines(dqm);
+		pr_debug("SDMA id is:    %d\n", q->sdma_id);
+		pr_debug("SDMA queue id: %d\n", q->properties.sdma_queue_id);
+		pr_debug("SDMA engine id: %d\n", q->properties.sdma_engine_id);
 	}
 
 	retval = allocate_doorbell(qpd, q);
