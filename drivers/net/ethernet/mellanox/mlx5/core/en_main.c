@@ -225,7 +225,7 @@ void mlx5e_set_rq_type(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 		MLX5_WQ_TYPE_CYCLIC;
 }
 
-static void mlx5e_update_carrier(struct mlx5e_priv *priv)
+void mlx5e_update_carrier(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u8 port_state;
