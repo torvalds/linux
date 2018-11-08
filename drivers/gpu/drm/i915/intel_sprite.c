@@ -789,7 +789,6 @@ vlv_update_plane(struct intel_plane *plane,
 		 const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum pipe pipe = plane->pipe;
 	enum plane_id plane_id = plane->id;
 	u32 sprctl = plane_state->ctl;
@@ -826,10 +825,8 @@ vlv_update_plane(struct intel_plane *plane,
 		      plane_state->color_plane[0].stride);
 	I915_WRITE_FW(SPPOS(pipe, plane_id), (crtc_y << 16) | crtc_x);
 
-	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
-		I915_WRITE_FW(SPTILEOFF(pipe, plane_id), (y << 16) | x);
-	else
-		I915_WRITE_FW(SPLINOFF(pipe, plane_id), linear_offset);
+	I915_WRITE_FW(SPTILEOFF(pipe, plane_id), (y << 16) | x);
+	I915_WRITE_FW(SPLINOFF(pipe, plane_id), linear_offset);
 
 	I915_WRITE_FW(SPCONSTALPHA(pipe, plane_id), 0);
 
@@ -947,7 +944,6 @@ ivb_update_plane(struct intel_plane *plane,
 		 const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum pipe pipe = plane->pipe;
 	u32 sprctl = plane_state->ctl, sprscale = 0;
 	u32 sprsurf_offset = plane_state->color_plane[0].offset;
@@ -987,12 +983,12 @@ ivb_update_plane(struct intel_plane *plane,
 
 	/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single SPROFFSET
 	 * register */
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		I915_WRITE_FW(SPROFFSET(pipe), (y << 16) | x);
-	else if (fb->modifier == I915_FORMAT_MOD_X_TILED)
+	} else {
 		I915_WRITE_FW(SPRTILEOFF(pipe), (y << 16) | x);
-	else
 		I915_WRITE_FW(SPRLINOFF(pipe), linear_offset);
+	}
 
 	I915_WRITE_FW(SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
 	if (IS_IVYBRIDGE(dev_priv))
@@ -1116,7 +1112,6 @@ g4x_update_plane(struct intel_plane *plane,
 		 const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum pipe pipe = plane->pipe;
 	u32 dvscntr = plane_state->ctl, dvsscale = 0;
 	u32 dvssurf_offset = plane_state->color_plane[0].offset;
@@ -1154,10 +1149,8 @@ g4x_update_plane(struct intel_plane *plane,
 	I915_WRITE_FW(DVSSTRIDE(pipe), plane_state->color_plane[0].stride);
 	I915_WRITE_FW(DVSPOS(pipe), (crtc_y << 16) | crtc_x);
 
-	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
-		I915_WRITE_FW(DVSTILEOFF(pipe), (y << 16) | x);
-	else
-		I915_WRITE_FW(DVSLINOFF(pipe), linear_offset);
+	I915_WRITE_FW(DVSTILEOFF(pipe), (y << 16) | x);
+	I915_WRITE_FW(DVSLINOFF(pipe), linear_offset);
 
 	I915_WRITE_FW(DVSSIZE(pipe), (crtc_h << 16) | crtc_w);
 	I915_WRITE_FW(DVSSCALE(pipe), dvsscale);
