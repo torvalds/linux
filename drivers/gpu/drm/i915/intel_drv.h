@@ -1962,8 +1962,8 @@ struct intel_encoder *intel_get_lvds_encoder(struct drm_device *dev);
 bool intel_is_dual_link_lvds(struct drm_device *dev);
 
 /* intel_overlay.c */
-void intel_setup_overlay(struct drm_i915_private *dev_priv);
-void intel_cleanup_overlay(struct drm_i915_private *dev_priv);
+void intel_overlay_setup(struct drm_i915_private *dev_priv);
+void intel_overlay_cleanup(struct drm_i915_private *dev_priv);
 int intel_overlay_switch_off(struct intel_overlay *overlay);
 int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);

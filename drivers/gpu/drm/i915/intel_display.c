@@ -15826,7 +15826,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	drm_mode_config_cleanup(dev);
 
-	intel_cleanup_overlay(dev_priv);
+	intel_overlay_cleanup(dev_priv);
 
 	intel_teardown_gmbus(dev_priv);
 

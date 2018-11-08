@@ -694,7 +694,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_modeset;
 
-	intel_setup_overlay(dev_priv);
+	intel_overlay_setup(dev_priv);
 
 	if (INTEL_INFO(dev_priv)->num_pipes == 0)
 		return 0;
