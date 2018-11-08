@@ -456,6 +456,65 @@ static int is_cpuset_subset(const struct cpuset *p, const struct cpuset *q)
 }
 
 /**
+ * alloc_cpumasks - allocate three cpumasks for cpuset
+ * @cs:  the cpuset that have cpumasks to be allocated.
+ * @tmp: the tmpmasks structure pointer
+ * Return: 0 if successful, -ENOMEM otherwise.
+ *
+ * Only one of the two input arguments should be non-NULL.
+ */
+static inline int alloc_cpumasks(struct cpuset *cs, struct tmpmasks *tmp)
+{
+	cpumask_var_t *pmask1, *pmask2, *pmask3;
+
+	if (cs) {
+		pmask1 = &cs->cpus_allowed;
+		pmask2 = &cs->effective_cpus;
+		pmask3 = &cs->subparts_cpus;
+	} else {
+		pmask1 = &tmp->new_cpus;
+		pmask2 = &tmp->addmask;
+		pmask3 = &tmp->delmask;
+	}
+
+	if (!zalloc_cpumask_var(pmask1, GFP_KERNEL))
+		return -ENOMEM;
+
+	if (!zalloc_cpumask_var(pmask2, GFP_KERNEL))
+		goto free_one;
+
+	if (!zalloc_cpumask_var(pmask3, GFP_KERNEL))
+		goto free_two;
+
+	return 0;
+
+free_two:
+	free_cpumask_var(*pmask2);
+free_one:
+	free_cpumask_var(*pmask1);
+	return -ENOMEM;
+}
+
+/**
+ * free_cpumasks - free cpumasks in a tmpmasks structure
+ * @cs:  the cpuset that have cpumasks to be free.
+ * @tmp: the tmpmasks structure pointer
+ */
+static inline void free_cpumasks(struct cpuset *cs, struct tmpmasks *tmp)
+{
+	if (cs) {
+		free_cpumask_var(cs->cpus_allowed);
+		free_cpumask_var(cs->effective_cpus);
+		free_cpumask_var(cs->subparts_cpus);
+	}
+	if (tmp) {
+		free_cpumask_var(tmp->new_cpus);
+		free_cpumask_var(tmp->addmask);
+		free_cpumask_var(tmp->delmask);
+	}
+}
+
+/**
  * alloc_trial_cpuset - allocate a trial cpuset
  * @cs: the cpuset that the trial cpuset duplicates
  */
@@ -467,31 +526,24 @@ static struct cpuset *alloc_trial_cpuset(struct cpuset *cs)
 	if (!trial)
 		return NULL;
 
-	if (!alloc_cpumask_var(&trial->cpus_allowed, GFP_KERNEL))
-		goto free_cs;
-	if (!alloc_cpumask_var(&trial->effective_cpus, GFP_KERNEL))
-		goto free_cpus;
+	if (alloc_cpumasks(trial, NULL)) {
+		kfree(trial);
+		return NULL;
+	}
 
 	cpumask_copy(trial->cpus_allowed, cs->cpus_allowed);
 	cpumask_copy(trial->effective_cpus, cs->effective_cpus);
 	return trial;
-
-free_cpus:
-	free_cpumask_var(trial->cpus_allowed);
-free_cs:
-	kfree(trial);
-	return NULL;
 }
 
 /**
- * free_trial_cpuset - free the trial cpuset
- * @trial: the trial cpuset to be freed
+ * free_cpuset - free the cpuset
+ * @cs: the cpuset to be freed
  */
-static void free_trial_cpuset(struct cpuset *trial)
+static inline void free_cpuset(struct cpuset *cs)
 {
-	free_cpumask_var(trial->effective_cpus);
-	free_cpumask_var(trial->cpus_allowed);
-	kfree(trial);
+	free_cpumasks(cs, NULL);
+	kfree(cs);
 }
 
 /*
@@ -1385,7 +1437,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 	if (spread_flag_changed)
 		update_tasks_flags(cs);
 out:
-	free_trial_cpuset(trialcs);
+	free_cpuset(trialcs);
 	return err;
 }
 
@@ -1769,7 +1821,7 @@ static ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 		break;
 	}
 
-	free_trial_cpuset(trialcs);
+	free_cpuset(trialcs);
 out_unlock:
 	mutex_unlock(&cpuset_mutex);
 	kernfs_unbreak_active_protection(of->kn);
@@ -2024,26 +2076,19 @@ cpuset_css_alloc(struct cgroup_subsys_state *parent_css)
 	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
-	if (!alloc_cpumask_var(&cs->cpus_allowed, GFP_KERNEL))
-		goto free_cs;
-	if (!alloc_cpumask_var(&cs->effective_cpus, GFP_KERNEL))
-		goto free_cpus;
+
+	if (alloc_cpumasks(cs, NULL)) {
+		kfree(cs);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	set_bit(CS_SCHED_LOAD_BALANCE, &cs->flags);
-	cpumask_clear(cs->cpus_allowed);
 	nodes_clear(cs->mems_allowed);
-	cpumask_clear(cs->effective_cpus);
 	nodes_clear(cs->effective_mems);
 	fmeter_init(&cs->fmeter);
 	cs->relax_domain_level = -1;
 
 	return &cs->css;
-
-free_cpus:
-	free_cpumask_var(cs->cpus_allowed);
-free_cs:
-	kfree(cs);
-	return ERR_PTR(-ENOMEM);
 }
 
 static int cpuset_css_online(struct cgroup_subsys_state *css)
@@ -2134,9 +2179,7 @@ static void cpuset_css_free(struct cgroup_subsys_state *css)
 {
 	struct cpuset *cs = css_cs(css);
 
-	free_cpumask_var(cs->effective_cpus);
-	free_cpumask_var(cs->cpus_allowed);
-	kfree(cs);
+	free_cpuset(cs);
 }
 
 static void cpuset_bind(struct cgroup_subsys_state *root_css)
@@ -2200,6 +2243,7 @@ int __init cpuset_init(void)
 
 	BUG_ON(!alloc_cpumask_var(&top_cpuset.cpus_allowed, GFP_KERNEL));
 	BUG_ON(!alloc_cpumask_var(&top_cpuset.effective_cpus, GFP_KERNEL));
+	BUG_ON(!zalloc_cpumask_var(&top_cpuset.subparts_cpus, GFP_KERNEL));
 
 	cpumask_setall(top_cpuset.cpus_allowed);
 	nodes_setall(top_cpuset.mems_allowed);
