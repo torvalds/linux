@@ -20,7 +20,7 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	tdmif_a: audio-controller@0 {
+	tdmif_a: audio-controller-0 {
 		compatible = "amlogic,axg-tdm-iface";
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "TDM_A";
@@ -31,7 +31,7 @@
 		status = "disabled";
 	};
 
-	tdmif_b: audio-controller@1 {
+	tdmif_b: audio-controller-1 {
 		compatible = "amlogic,axg-tdm-iface";
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "TDM_B";
@@ -42,7 +42,7 @@
 		status = "disabled";
 	};
 
-	tdmif_c: audio-controller@2 {
+	tdmif_c: audio-controller-2 {
 		compatible = "amlogic,axg-tdm-iface";
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "TDM_C";
