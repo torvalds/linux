@@ -80,6 +80,17 @@
 
 #define DRV_NAME	"spi-bcm2835"
 
+/**
+ * struct bcm2835_spi - BCM2835 SPI controller
+ * @regs: base address of register map
+ * @clk: core clock, divided to calculate serial clock
+ * @irq: interrupt, signals TX FIFO empty or RX FIFO ¾ full
+ * @tx_buf: pointer whence next transmitted byte is read
+ * @rx_buf: pointer where next received byte is written
+ * @tx_len: remaining bytes to transmit
+ * @rx_len: remaining bytes to receive
+ * @dma_pending: whether a DMA transfer is in progress
+ */
 struct bcm2835_spi {
 	void __iomem *regs;
 	struct clk *clk;
