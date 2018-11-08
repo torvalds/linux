@@ -949,9 +949,6 @@ static int qeth_l3_iqd_read_initial_mac_cb(struct qeth_card *card,
 	if (cmd->hdr.return_code == 0)
 		ether_addr_copy(card->dev->dev_addr,
 				cmd->data.create_destroy_addr.unique_id);
-	else
-		eth_random_addr(card->dev->dev_addr);
-
 	return 0;
 }
 
