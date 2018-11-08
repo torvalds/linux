@@ -1824,12 +1824,11 @@ static s64 cpuset_read_s64(struct cgroup_subsys_state *css, struct cftype *cft)
 	return 0;
 }
 
-
 /*
  * for the common functions, 'private' gives the type of file
  */
 
-static struct cftype files[] = {
+static struct cftype legacy_files[] = {
 	{
 		.name = "cpus",
 		.seq_show = cpuset_common_seq_show,
@@ -1930,6 +1929,47 @@ static struct cftype files[] = {
 
 	{ }	/* terminate */
 };
+
+/*
+ * This is currently a minimal set for the default hierarchy. It can be
+ * expanded later on by migrating more features and control files from v1.
+ */
+static struct cftype dfl_files[] = {
+	{
+		.name = "cpus",
+		.seq_show = cpuset_common_seq_show,
+		.write = cpuset_write_resmask,
+		.max_write_len = (100U + 6 * NR_CPUS),
+		.private = FILE_CPULIST,
+		.flags = CFTYPE_NOT_ON_ROOT,
+	},
+
+	{
+		.name = "mems",
+		.seq_show = cpuset_common_seq_show,
+		.write = cpuset_write_resmask,
+		.max_write_len = (100U + 6 * MAX_NUMNODES),
+		.private = FILE_MEMLIST,
+		.flags = CFTYPE_NOT_ON_ROOT,
+	},
+
+	{
+		.name = "cpus.effective",
+		.seq_show = cpuset_common_seq_show,
+		.private = FILE_EFFECTIVE_CPULIST,
+		.flags = CFTYPE_NOT_ON_ROOT,
+	},
+
+	{
+		.name = "mems.effective",
+		.seq_show = cpuset_common_seq_show,
+		.private = FILE_EFFECTIVE_MEMLIST,
+		.flags = CFTYPE_NOT_ON_ROOT,
+	},
+
+	{ }	/* terminate */
+};
+
 
 /*
  *	cpuset_css_alloc - allocate a cpuset css
@@ -2105,8 +2145,10 @@ struct cgroup_subsys cpuset_cgrp_subsys = {
 	.post_attach	= cpuset_post_attach,
 	.bind		= cpuset_bind,
 	.fork		= cpuset_fork,
-	.legacy_cftypes	= files,
+	.legacy_cftypes	= legacy_files,
+	.dfl_cftypes	= dfl_files,
 	.early_init	= true,
+	.threaded	= true,
 };
 
 /**

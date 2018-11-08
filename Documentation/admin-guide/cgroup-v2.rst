@@ -56,11 +56,13 @@ v1 is available under Documentation/cgroup-v1/.
          5-3-3-2. IO Latency Interface Files
      5-4. PID
        5-4-1. PID Interface Files
-     5-5. Device
-     5-6. RDMA
-       5-6-1. RDMA Interface Files
-     5-7. Misc
-       5-7-1. perf_event
+     5-5. Cpuset
+       5.5-1. Cpuset Interface Files
+     5-6. Device
+     5-7. RDMA
+       5-7-1. RDMA Interface Files
+     5-8. Misc
+       5-8-1. perf_event
      5-N. Non-normative information
        5-N-1. CPU controller root cgroup process behaviour
        5-N-2. IO controller root cgroup process behaviour
@@ -1608,6 +1610,103 @@ processes to the cgroup such that pids.current is larger than
 pids.max.  However, it is not possible to violate a cgroup PID policy
 through fork() or clone(). These will return -EAGAIN if the creation
 of a new process would cause a cgroup policy to be violated.
+
+
+Cpuset
+------
+
+The "cpuset" controller provides a mechanism for constraining
+the CPU and memory node placement of tasks to only the resources
+specified in the cpuset interface files in a task's current cgroup.
+This is especially valuable on large NUMA systems where placing jobs
+on properly sized subsets of the systems with careful processor and
+memory placement to reduce cross-node memory access and contention
+can improve overall system performance.
+
+The "cpuset" controller is hierarchical.  That means the controller
+cannot use CPUs or memory nodes not allowed in its parent.
+
+
+Cpuset Interface Files
+~~~~~~~~~~~~~~~~~~~~~~
+
+  cpuset.cpus
+	A read-write multiple values file which exists on non-root
+	cpuset-enabled cgroups.
+
+	It lists the requested CPUs to be used by tasks within this
+	cgroup.  The actual list of CPUs to be granted, however, is
+	subjected to constraints imposed by its parent and can differ
+	from the requested CPUs.
+
+	The CPU numbers are comma-separated numbers or ranges.
+	For example:
+
+	  # cat cpuset.cpus
+	  0-4,6,8-10
+
+	An empty value indicates that the cgroup is using the same
+	setting as the nearest cgroup ancestor with a non-empty
+	"cpuset.cpus" or all the available CPUs if none is found.
+
+	The value of "cpuset.cpus" stays constant until the next update
+	and won't be affected by any CPU hotplug events.
+
+  cpuset.cpus.effective
+	A read-only multiple values file which exists on non-root
+	cpuset-enabled cgroups.
+
+	It lists the onlined CPUs that are actually granted to this
+	cgroup by its parent.  These CPUs are allowed to be used by
+	tasks within the current cgroup.
+
+	If "cpuset.cpus" is empty, the "cpuset.cpus.effective" file shows
+	all the CPUs from the parent cgroup that can be available to
+	be used by this cgroup.  Otherwise, it should be a subset of
+	"cpuset.cpus" unless none of the CPUs listed in "cpuset.cpus"
+	can be granted.  In this case, it will be treated just like an
+	empty "cpuset.cpus".
+
+	Its value will be affected by CPU hotplug events.
+
+  cpuset.mems
+	A read-write multiple values file which exists on non-root
+	cpuset-enabled cgroups.
+
+	It lists the requested memory nodes to be used by tasks within
+	this cgroup.  The actual list of memory nodes granted, however,
+	is subjected to constraints imposed by its parent and can differ
+	from the requested memory nodes.
+
+	The memory node numbers are comma-separated numbers or ranges.
+	For example:
+
+	  # cat cpuset.mems
+	  0-1,3
+
+	An empty value indicates that the cgroup is using the same
+	setting as the nearest cgroup ancestor with a non-empty
+	"cpuset.mems" or all the available memory nodes if none
+	is found.
+
+	The value of "cpuset.mems" stays constant until the next update
+	and won't be affected by any memory nodes hotplug events.
+
+  cpuset.mems.effective
+	A read-only multiple values file which exists on non-root
+	cpuset-enabled cgroups.
+
+	It lists the onlined memory nodes that are actually granted to
+	this cgroup by its parent. These memory nodes are allowed to
+	be used by tasks within the current cgroup.
+
+	If "cpuset.mems" is empty, it shows all the memory nodes from the
+	parent cgroup that will be available to be used by this cgroup.
+	Otherwise, it should be a subset of "cpuset.mems" unless none of
+	the memory nodes listed in "cpuset.mems" can be granted.  In this
+	case, it will be treated just like an empty "cpuset.mems".
+
+	Its value will be affected by memory nodes hotplug events.
 
 
 Device controller
