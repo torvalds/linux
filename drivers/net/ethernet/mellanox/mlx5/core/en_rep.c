@@ -659,8 +659,8 @@ mlx5e_rep_indr_offload(struct net_device *netdev,
 		       struct flow_cls_offload *flower,
 		       struct mlx5e_rep_indr_block_priv *indr_priv)
 {
+	unsigned long flags = MLX5_TC_FLAG(EGRESS) | MLX5_TC_FLAG(ESW_OFFLOAD);
 	struct mlx5e_priv *priv = netdev_priv(indr_priv->rpriv->netdev);
-	int flags = MLX5E_TC_EGRESS | MLX5E_TC_ESW_OFFLOAD;
 	int err = 0;
 
 	switch (flower->command) {
@@ -1159,12 +1159,12 @@ mlx5e_rep_setup_tc_cls_flower(struct mlx5e_priv *priv,
 static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 				 void *cb_priv)
 {
+	unsigned long flags = MLX5_TC_FLAG(INGRESS) | MLX5_TC_FLAG(ESW_OFFLOAD);
 	struct mlx5e_priv *priv = cb_priv;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		return mlx5e_rep_setup_tc_cls_flower(priv, type_data, MLX5E_TC_INGRESS |
-						     MLX5E_TC_ESW_OFFLOAD);
+		return mlx5e_rep_setup_tc_cls_flower(priv, type_data, flags);
 	default:
 		return -EOPNOTSUPP;
 	}
