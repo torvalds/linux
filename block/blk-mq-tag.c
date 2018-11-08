@@ -248,7 +248,8 @@ static bool bt_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
  * @fn:		Pointer to the function that will be called for each request
  *		associated with @hctx that has been assigned a driver tag.
  *		@fn will be called as follows: @fn(@hctx, rq, @data, @reserved)
- *		where rq is a pointer to a request.
+ *		where rq is a pointer to a request. Return true to continue
+ *		iterating tags, false to stop.
  * @data:	Will be passed as third argument to @fn.
  * @reserved:	Indicates whether @bt is the breserved_tags member or the
  *		bitmap_tags member of struct blk_mq_tags.
@@ -301,7 +302,8 @@ static bool bt_tags_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
  *		or the bitmap_tags member of struct blk_mq_tags.
  * @fn:		Pointer to the function that will be called for each started
  *		request. @fn will be called as follows: @fn(rq, @data,
- *		@reserved) where rq is a pointer to a request.
+ *		@reserved) where rq is a pointer to a request. Return true
+ *		to continue iterating tags, false to stop.
  * @data:	Will be passed as second argument to @fn.
  * @reserved:	Indicates whether @bt is the breserved_tags member or the
  *		bitmap_tags member of struct blk_mq_tags.
@@ -326,7 +328,8 @@ static void bt_tags_for_each(struct blk_mq_tags *tags, struct sbitmap_queue *bt,
  * @fn:		Pointer to the function that will be called for each started
  *		request. @fn will be called as follows: @fn(rq, @priv,
  *		reserved) where rq is a pointer to a request. 'reserved'
- *		indicates whether or not @rq is a reserved request.
+ *		indicates whether or not @rq is a reserved request. Return
+ *		true to continue iterating tags, false to stop.
  * @priv:	Will be passed as second argument to @fn.
  */
 static void blk_mq_all_tag_busy_iter(struct blk_mq_tags *tags,
@@ -343,7 +346,8 @@ static void blk_mq_all_tag_busy_iter(struct blk_mq_tags *tags,
  * @fn:		Pointer to the function that will be called for each started
  *		request. @fn will be called as follows: @fn(rq, @priv,
  *		reserved) where rq is a pointer to a request. 'reserved'
- *		indicates whether or not @rq is a reserved request.
+ *		indicates whether or not @rq is a reserved request. Return
+ *		true to continue iterating tags, false to stop.
  * @priv:	Will be passed as second argument to @fn.
  */
 void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
