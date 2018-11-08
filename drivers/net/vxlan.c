@@ -1552,6 +1552,34 @@ drop:
 	return 0;
 }
 
+/* Callback from net/ipv{4,6}/udp.c to check that we have a VNI for errors */
+static int vxlan_err_lookup(struct sock *sk, struct sk_buff *skb)
+{
+	struct vxlan_dev *vxlan;
+	struct vxlan_sock *vs;
+	struct vxlanhdr *hdr;
+	__be32 vni;
+
+	if (skb->len < VXLAN_HLEN)
+		return -EINVAL;
+
+	hdr = vxlan_hdr(skb);
+
+	if (!(hdr->vx_flags & VXLAN_HF_VNI))
+		return -EINVAL;
+
+	vs = rcu_dereference_sk_user_data(sk);
+	if (!vs)
+		return -ENOENT;
+
+	vni = vxlan_vni(hdr->vx_vni);
+	vxlan = vxlan_vs_find_vni(vs, skb->dev->ifindex, vni);
+	if (!vxlan)
+		return -ENOENT;
+
+	return 0;
+}
+
 static int arp_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
@@ -2948,6 +2976,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 	tunnel_cfg.sk_user_data = vs;
 	tunnel_cfg.encap_type = 1;
 	tunnel_cfg.encap_rcv = vxlan_rcv;
+	tunnel_cfg.encap_err_lookup = vxlan_err_lookup;
 	tunnel_cfg.encap_destroy = NULL;
 	tunnel_cfg.gro_receive = vxlan_gro_receive;
 	tunnel_cfg.gro_complete = vxlan_gro_complete;
