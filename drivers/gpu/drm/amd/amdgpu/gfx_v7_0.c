@@ -3252,13 +3252,6 @@ static void gfx_v7_0_ring_emit_wreg(struct amdgpu_ring *ring,
  * The RLC is a multi-purpose microengine that handles a
  * variety of functions.
  */
-static void gfx_v7_0_rlc_fini(struct amdgpu_device *adev)
-{
-	amdgpu_bo_free_kernel(&adev->gfx.rlc.save_restore_obj, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->gfx.rlc.cp_table_obj, NULL, NULL);
-}
-
 static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 {
 	const u32 *src_ptr;
@@ -3298,7 +3291,7 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 					      (void **)&adev->gfx.rlc.sr_ptr);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create, pin or map of RLC sr bo failed\n", r);
-			adev->gfx.rlc.funcs->fini(adev);
+			amdgpu_gfx_rlc_fini(adev);
 			return r;
 		}
 
@@ -3321,7 +3314,7 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 					      (void **)&adev->gfx.rlc.cs_ptr);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
-			adev->gfx.rlc.funcs->fini(adev);
+			amdgpu_gfx_rlc_fini(adev);
 			return r;
 		}
 
@@ -3341,7 +3334,7 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 					      (void **)&adev->gfx.rlc.cp_table_ptr);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
-			adev->gfx.rlc.funcs->fini(adev);
+			amdgpu_gfx_rlc_fini(adev);
 			return r;
 		}
 
@@ -4275,7 +4268,6 @@ static const struct amdgpu_rlc_funcs gfx_v7_0_rlc_funcs = {
 	.enter_safe_mode = gfx_v7_0_enter_rlc_safe_mode,
 	.exit_safe_mode = gfx_v7_0_exit_rlc_safe_mode,
 	.init = gfx_v7_0_rlc_init,
-	.fini = gfx_v7_0_rlc_fini,
 	.resume = gfx_v7_0_rlc_resume,
 	.stop = gfx_v7_0_rlc_stop,
 	.reset = gfx_v7_0_rlc_reset,
@@ -4594,7 +4586,7 @@ static int gfx_v7_0_sw_fini(void *handle)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
 	gfx_v7_0_cp_compute_fini(adev);
-	adev->gfx.rlc.funcs->fini(adev);
+	amdgpu_gfx_rlc_fini(adev);
 	gfx_v7_0_mec_fini(adev);
 	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj,
 				&adev->gfx.rlc.clear_state_gpu_addr,

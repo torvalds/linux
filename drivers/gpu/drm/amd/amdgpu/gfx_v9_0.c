@@ -1112,19 +1112,6 @@ static void rv_init_cp_jump_table(struct amdgpu_device *adev)
 	}
 }
 
-static void gfx_v9_0_rlc_fini(struct amdgpu_device *adev)
-{
-	/* clear state block */
-	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj,
-			&adev->gfx.rlc.clear_state_gpu_addr,
-			(void **)&adev->gfx.rlc.cs_ptr);
-
-	/* jump table block */
-	amdgpu_bo_free_kernel(&adev->gfx.rlc.cp_table_obj,
-			&adev->gfx.rlc.cp_table_gpu_addr,
-			(void **)&adev->gfx.rlc.cp_table_ptr);
-}
-
 static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 {
 	volatile u32 *dst_ptr;
@@ -1147,7 +1134,7 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 		if (r) {
 			dev_err(adev->dev, "(%d) failed to create rlc csb bo\n",
 				r);
-			adev->gfx.rlc.funcs->fini(adev);
+			amdgpu_gfx_rlc_fini(adev);
 			return r;
 		}
 		/* set up the cs buffer */
@@ -1169,7 +1156,7 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 		if (r) {
 			dev_err(adev->dev,
 				"(%d) failed to create cp table bo\n", r);
-			adev->gfx.rlc.funcs->fini(adev);
+			amdgpu_gfx_rlc_fini(adev);
 			return r;
 		}
 
@@ -3884,7 +3871,6 @@ static const struct amdgpu_rlc_funcs gfx_v9_0_rlc_funcs = {
 	.enter_safe_mode = gfx_v9_0_enter_rlc_safe_mode,
 	.exit_safe_mode = gfx_v9_0_exit_rlc_safe_mode,
 	.init = gfx_v9_0_rlc_init,
-	.fini = gfx_v9_0_rlc_fini,
 	.resume = gfx_v9_0_rlc_resume,
 	.stop = gfx_v9_0_rlc_stop,
 	.reset = gfx_v9_0_rlc_reset,

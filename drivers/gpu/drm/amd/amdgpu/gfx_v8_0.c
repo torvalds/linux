@@ -1348,12 +1348,6 @@ static void cz_init_cp_jump_table(struct amdgpu_device *adev)
 	}
 }
 
-static void gfx_v8_0_rlc_fini(struct amdgpu_device *adev)
-{
-	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj, NULL, NULL);
-	amdgpu_bo_free_kernel(&adev->gfx.rlc.cp_table_obj, NULL, NULL);
-}
-
 static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 {
 	volatile u32 *dst_ptr;
@@ -1376,7 +1370,7 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 					      (void **)&adev->gfx.rlc.cs_ptr);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
-			adev->gfx.rlc.funcs->fini(adev);
+			amdgpu_gfx_rlc_fini(adev);
 			return r;
 		}
 
@@ -2166,7 +2160,7 @@ static int gfx_v8_0_sw_fini(void *handle)
 	amdgpu_gfx_kiq_fini(adev);
 
 	gfx_v8_0_mec_fini(adev);
-	adev->gfx.rlc.funcs->fini(adev);
+	amdgpu_gfx_rlc_fini(adev);
 	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj,
 				&adev->gfx.rlc.clear_state_gpu_addr,
 				(void **)&adev->gfx.rlc.cs_ptr);
@@ -5634,7 +5628,6 @@ static const struct amdgpu_rlc_funcs iceland_rlc_funcs = {
 	.enter_safe_mode = iceland_enter_rlc_safe_mode,
 	.exit_safe_mode = iceland_exit_rlc_safe_mode,
 	.init = gfx_v8_0_rlc_init,
-	.fini = gfx_v8_0_rlc_fini,
 	.resume = gfx_v8_0_rlc_resume,
 	.stop = gfx_v8_0_rlc_stop,
 	.reset = gfx_v8_0_rlc_reset,
