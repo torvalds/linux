@@ -1305,6 +1305,7 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 		io_req->fds[0] = dev->cow.fd;
 	else
 		io_req->fds[0] = dev->fd;
+	io_req->error = 0;
 
 	if (req_op(req) == REQ_OP_FLUSH) {
 		io_req->op = UBD_FLUSH;
@@ -1313,9 +1314,7 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 		io_req->cow_offset = -1;
 		io_req->offset = off;
 		io_req->length = bvec->bv_len;
-		io_req->error = 0;
 		io_req->sector_mask = 0;
-
 		io_req->op = rq_data_dir(req) == READ ? UBD_READ : UBD_WRITE;
 		io_req->offsets[0] = 0;
 		io_req->offsets[1] = dev->cow.data_offset;
