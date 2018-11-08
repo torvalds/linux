@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <sound/pcm.h>
-#include <uapi/sound/sof-ipc.h>
 #include "sof-priv.h"
 
 /* init */

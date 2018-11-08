@@ -30,7 +30,6 @@
 #include <linux/pm_runtime.h>
 #include <sound/asound.h>
 #include <sound/sof.h>
-#include <uapi/sound/sof-ipc.h>
 #include "sof-priv.h"
 #include "ops.h"
 

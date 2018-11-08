@@ -19,7 +19,6 @@
 #include <linux/pci.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
-#include <uapi/sound/sof-ipc.h>
 
 struct snd_sof_dsp_ops;
 

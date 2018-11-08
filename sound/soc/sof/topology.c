@@ -22,8 +22,7 @@
 #include <sound/soc.h>
 #include <uapi/sound/tlv.h>
 #include <sound/tlv.h>
-#include <uapi/sound/sof-ipc.h>
-#include <uapi/sound/sof-topology.h>
+#include <uapi/sound/sof/tokens.h>
 #include "sof-priv.h"
 
 #define COMP_ID_UNASSIGNED		0xffffffff
@@ -329,7 +328,6 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 		cdata->data->size = control->priv.size;
 		cdata->data->magic = SOF_ABI_MAGIC;
 		cdata->data->abi = SOF_ABI_VERSION;
-		cdata->data->comp_abi = SOF_ABI_VERSION;
 	}
 
 	return 0;
@@ -428,7 +426,7 @@ static const struct sof_topology_token sched_tokens[] = {
 	{SOF_TKN_SCHED_PRIORITY, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc_pipe_new, priority), 0},
 	{SOF_TKN_SCHED_MIPS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_pipe_new, mips), 0},
+		offsetof(struct sof_ipc_pipe_new, period_mips), 0},
 	{SOF_TKN_SCHED_CORE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc_pipe_new, core), 0},
 	{SOF_TKN_SCHED_FRAMES, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -1120,7 +1118,7 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp,
 
 	dev_dbg(sdev->dev, "pipeline %s: deadline %d pri %d mips %d core %d frames %d\n",
 		swidget->widget->name, pipeline->deadline, pipeline->priority,
-		pipeline->mips, pipeline->core, pipeline->frames_per_sched);
+		pipeline->period_mips, pipeline->core, pipeline->frames_per_sched);
 
 	swidget->private = (void *)pipeline;
 

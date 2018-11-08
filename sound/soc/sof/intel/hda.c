@@ -31,6 +31,7 @@
 #include <linux/pm_runtime.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_i915.h>
+#include <sound/sof/xtensa.h>
 
 #include "../sof-priv.h"
 #include "../ops.h"

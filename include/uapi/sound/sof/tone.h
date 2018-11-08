@@ -1,14 +1,13 @@
 /* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note)) OR BSD-3-Clause) */
 /*
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * Copyright(c) 2018 Intel Corporation. All rights reserved.
- * Author: Seppo Ingalsuo <seppo.ingalsuo@linux.intel.com>
- */
+* This file is provided under a dual BSD/GPLv2 license.  When using or
+* redistributing this file, you may do so under either license.
+*
+* Copyright(c) 2018 Intel Corporation. All rights reserved.
+*/
 
-#ifndef TONE_H
-#define TONE_H
+#ifndef __INCLUDE_UAPI_SOUND_SOF_USER_TONE_H__
+#define __INCLUDE_UAPI_SOUND_SOF_USER_TONE_H__
 
 /* Component will reject non-matching configuration. The version number need
  * to be incremented with any ABI changes in function fir_cmd().
@@ -24,4 +23,4 @@
 #define SOF_TONE_IDX_REPEATS		6
 #define SOF_TONE_IDX_LIN_RAMP_STEP	7
 
-#endif /* TONE_ABI_H */
+#endif

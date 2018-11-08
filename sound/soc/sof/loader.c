@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
 #include <sound/sof.h>
-#include <uapi/sound/sof-fw.h>
+#include <uapi/sound/sof/fw.h>
 #include "sof-priv.h"
 #include "ops.h"
 

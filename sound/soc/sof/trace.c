@@ -21,8 +21,6 @@
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
 #include <linux/debugfs.h>
-#include <uapi/sound/sof-ipc.h>
-#include <uapi/sound/sof-fw.h>
 #include "sof-priv.h"
 #include "ops.h"
 

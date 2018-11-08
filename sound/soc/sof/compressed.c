@@ -17,7 +17,6 @@
 #include <sound/pcm_params.h>
 #include <sound/sof.h>
 #include <sound/compress_driver.h>
-#include <uapi/sound/sof-ipc.h>
 #include "sof-priv.h"
 
 #define DRV_NAME	"sof-audio"

@@ -31,7 +31,7 @@
 #include <sound/sof.h>
 #include <sound/pcm_params.h>
 #include <linux/pm_runtime.h>
-#include <uapi/sound/sof-ipc.h>
+
 #include "../sof-priv.h"
 #include "../ops.h"
 #include "hda.h"

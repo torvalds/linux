@@ -25,6 +25,8 @@
 #include <trace/events/hswadsp.h>
 #include <sound/sof.h>
 
+#include <uapi/sound/sof/fw.h>
+#include <sound/sof/xtensa.h>
 #include "../sof-priv.h"
 #include "../ops.h"
 #include "shim.h"

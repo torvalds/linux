@@ -37,7 +37,7 @@ struct snd_sof_blk_hdr {
 	enum snd_sof_fw_blk_type type;
 	uint32_t size;		/* bytes minus this header */
 	uint32_t offset;	/* offset from base */
-} __attribute__((packed));
+} __packed;
 
 /*
  * Firmware file is made up of 1 .. N different modules types. The module
@@ -52,7 +52,7 @@ struct snd_sof_mod_hdr {
 	enum snd_sof_fw_mod_type type;
 	uint32_t size;		/* bytes minus this header */
 	uint32_t num_blocks;	/* number of blocks */
-} __attribute__((packed));
+} __packed;
 
 /*
  * Firmware file header.
@@ -62,6 +62,6 @@ struct snd_sof_fw_header {
 	uint32_t file_size;	/* size of file minus this header */
 	uint32_t num_modules;	/* number of modules */
 	uint32_t abi;		/* version of header format */
-} __attribute__((packed));
+} __packed;
 
 #endif

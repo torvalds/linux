@@ -22,7 +22,8 @@
 #include <linux/firmware.h>
 #include <linux/device.h>
 #include <sound/sof.h>
-#include <uapi/sound/sof-fw.h>
+#include <uapi/sound/sof/fw.h>
+#include <sound/sof/xtensa.h>
 
 #include "../sof-priv.h"
 #include "../ops.h"

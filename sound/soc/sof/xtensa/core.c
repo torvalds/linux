@@ -16,6 +16,7 @@
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <sound/sof.h>
+#include <sound/sof/xtensa.h>
 #include "../sof-priv.h"
 #include "../ops.h"
 

@@ -4,25 +4,20 @@
  * redistributing this file, you may do so under either license.
  *
  * Copyright(c) 2018 Intel Corporation. All rights reserved.
- *
- * Author: Seppo Ingalsuo <seppo.ingalsuo@linux.intel.com>
  */
 
-#ifndef EQ_H
-#define EQ_H
+#ifndef __INCLUDE_UAPI_SOUND_SOF_USER_EQ_H__
+#define __INCLUDE_UAPI_SOUND_SOF_USER_EQ_H__
 
 /* FIR EQ type */
-
-/* Component will reject non-matching configuration. The version number need
- * to be incremented with any ABI changes in function fir_cmd().
- */
-#define SOF_EQ_FIR_ABI_VERSION  1
 
 #define SOF_EQ_FIR_IDX_SWITCH	0
 
 #define SOF_EQ_FIR_MAX_SIZE 4096 /* Max size allowed for coef data in bytes */
 
 #define SOF_EQ_FIR_MAX_LENGTH 192 /* Max length for individual filter */
+
+#define SOF_EQ_FIR_MAX_RESPONSES 8 /* A blob can define max 8 FIR EQs */
 
 /*
  * eq_fir_configuration data structure contains this information
@@ -59,14 +54,22 @@ struct sof_eq_fir_config {
 	uint32_t size;
 	uint16_t channels_in_config;
 	uint16_t number_of_responses;
+
+	/* reserved */
+	uint32_t reserved[4];
+
 	int16_t data[];
-};
+} __packed;
 
 struct sof_eq_fir_coef_data {
 	int16_t length; /* Number of FIR taps */
 	int16_t out_shift; /* Amount of right shifts at output */
+
+	/* reserved */
+	uint32_t reserved[4];
+
 	int16_t coef[]; /* FIR coefficients */
-};
+} __packed;
 
 /* In the struct above there's two words (length, shift) before the actual
  * FIR coefficients. This information is used in parsing of the config blob.
@@ -74,11 +77,6 @@ struct sof_eq_fir_coef_data {
 #define SOF_EQ_FIR_COEF_NHEADER 2
 
 /* IIR EQ type */
-
-/* Component will reject non-matching configuration. The version number need
- * to be incremented with any ABI changes in function fir_cmd().
- */
-#define SOF_EQ_IIR_ABI_VERSION  1
 
 #define SOF_EQ_IIR_IDX_SWITCH   0
 
@@ -125,14 +123,22 @@ struct sof_eq_iir_config {
 	uint32_t size;
 	uint32_t channels_in_config;
 	uint32_t number_of_responses;
+
+	/* reserved */
+	uint32_t reserved[4];
+
 	int32_t data[]; /* eq_assign[channels], eq 0, eq 1, ... */
-};
+} __packed;
 
 struct sof_eq_iir_header_df2t {
 	uint32_t num_sections;
 	uint32_t num_sections_in_series;
+
+	/* reserved */
+	uint32_t reserved[4];
+
 	int32_t biquads[]; /* Repeated biquad coefficients */
-};
+} __packed;
 
 struct sof_eq_iir_biquad_df2t {
 	int32_t a2; /* Q2.30 */
@@ -142,7 +148,7 @@ struct sof_eq_iir_biquad_df2t {
 	int32_t b0; /* Q2.30 */
 	int32_t output_shift; /* Number of right shifts */
 	int32_t output_gain;  /* Q2.14 */
-};
+} __packed;
 
 /* A full 22th order equalizer with 11 biquads cover octave bands 1-11 in
  * in the 0 - 20 kHz bandwidth.
@@ -155,4 +161,4 @@ struct sof_eq_iir_biquad_df2t {
 /* The number of int32_t words in sof_eq_iir_biquad_df2t */
 #define SOF_EQ_IIR_NBIQUAD_DF2T 7
 
-#endif /* EQ_H */
+#endif
