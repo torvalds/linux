@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * iio/adc/max9611.c
  *
@@ -5,10 +6,6 @@
  * 12-bit ADC interface.
  *
  * Copyright (C) 2017 Jacopo Mondi
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
