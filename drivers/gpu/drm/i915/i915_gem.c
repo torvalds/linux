@@ -3557,6 +3557,8 @@ static void __sleep_rcu(struct rcu_head *rcu)
 	struct sleep_rcu_work *s = container_of(rcu, typeof(*s), rcu);
 	struct drm_i915_private *i915 = s->i915;
 
+	destroy_rcu_head(&s->rcu);
+
 	if (same_epoch(i915, s->epoch)) {
 		INIT_WORK(&s->work, __sleep_work);
 		queue_work(i915->wq, &s->work);
@@ -3673,6 +3675,7 @@ out_rearm:
 	if (same_epoch(dev_priv, epoch)) {
 		struct sleep_rcu_work *s = kmalloc(sizeof(*s), GFP_KERNEL);
 		if (s) {
+			init_rcu_head(&s->rcu);
 			s->i915 = dev_priv;
 			s->epoch = epoch;
 			call_rcu(&s->rcu, __sleep_rcu);
