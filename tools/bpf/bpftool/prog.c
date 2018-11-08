@@ -357,10 +357,9 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (!hash_empty(prog_table.table)) {
 		struct pinned_obj *obj;
 
-		printf("\n");
 		hash_for_each_possible(prog_table.table, obj, hash, info->id) {
 			if (obj->id == info->id)
-				printf("\tpinned %s\n", obj->path);
+				printf("\n\tpinned %s", obj->path);
 		}
 	}
 

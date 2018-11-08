@@ -124,7 +124,8 @@ OPTIONS
 		  Generate human-readable JSON output. Implies **-j**.
 
 	-f, --bpffs
-		  Show file names of pinned programs.
+		  When showing BPF programs, show file names of pinned
+		  programs.
 
 EXAMPLES
 ========
