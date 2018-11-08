@@ -33,9 +33,12 @@
 /* 40th root of 10 in Q1.16 fixed-point notation*/
 #define VOL_FORTIETH_ROOT_OF_TEN	69419
 /* Volume fractional word length */
+/* Define to 16 sets the volume linear gain value to use Qx.16 format */
 #define VOLUME_FWL	16
 /* 0.5 dB step value in topology TLV */
 #define VOL_HALF_DB_STEP	50
+/* Full volume for default values */
+#define VOL_ZERO_DB	BIT(VOLUME_FWL)
 
 /* TLV data items */
 #define TLV_ITEMS	3
@@ -1193,8 +1196,10 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 	const struct snd_kcontrol_new *kc = NULL;
 	struct soc_mixer_control *sm;
 	struct snd_sof_control *scontrol;
+	struct sof_ipc_ctrl_data *cdata;
 	const unsigned int *p;
 	int ret, tlv[TLV_ITEMS];
+	unsigned int i;
 
 	volume = kzalloc(sizeof(*volume), GFP_KERNEL);
 	if (!volume)
@@ -1256,6 +1261,13 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 		dev_err(sdev->dev, "error: parse volume.cfg tokens failed %d\n",
 			le32_to_cpu(private->size));
 		goto err;
+	}
+
+	/* set default volume values to 0dB in control */
+	cdata = scontrol->control_data;
+	for (i = 0; i < scontrol->num_channels; i++) {
+		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = VOL_ZERO_DB;
 	}
 
 	sof_dbg_comp_config(scomp, &volume->config);
