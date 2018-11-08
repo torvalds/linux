@@ -790,6 +790,32 @@ struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 }
 EXPORT_SYMBOL(blk_mq_tag_to_rq);
 
+static bool blk_mq_check_busy(struct blk_mq_hw_ctx *hctx, struct request *rq,
+			      void *priv, bool reserved)
+{
+	/*
+	 * If we find a request, we know the queue is busy. Return false
+	 * to stop the iteration.
+	 */
+	if (rq->q == hctx->queue) {
+		bool *busy = priv;
+
+		*busy = true;
+		return false;
+	}
+
+	return true;
+}
+
+bool blk_mq_queue_busy(struct request_queue *q)
+{
+	bool busy = false;
+
+	blk_mq_queue_tag_busy_iter(q, blk_mq_check_busy, &busy);
+	return busy;
+}
+EXPORT_SYMBOL_GPL(blk_mq_queue_busy);
+
 static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 {
 	req->rq_flags |= RQF_TIMED_OUT;
