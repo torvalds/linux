@@ -136,4 +136,10 @@ EXAMPLES
 
 SEE ALSO
 ========
-	**bpftool**\ (8), **bpftool-prog**\ (8), **bpftool-map**\ (8)
+	**bpf**\ (2),
+	**bpf-helpers**\ (7),
+	**bpftool**\ (8),
+	**bpftool-prog**\ (8),
+	**bpftool-map**\ (8),
+	**bpftool-cgroup**\ (8),
+	**bpftool-perf**\ (8)
