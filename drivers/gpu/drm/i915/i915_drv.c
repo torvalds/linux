@@ -706,6 +706,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	intel_hpd_init(dev_priv);
 
+	intel_init_ipc(dev_priv);
+
 	return 0;
 
 cleanup_gem:
@@ -1724,8 +1726,6 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_cleanup_hw;
 
 	i915_driver_register(dev_priv);
-
-	intel_init_ipc(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
