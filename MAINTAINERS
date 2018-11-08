@@ -11607,6 +11607,13 @@ M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 S:	Maintained
 F:	drivers/pnp/
 
+PNI RM3100 IIO DRIVER
+M:	Song Qiang <songqiang1304521@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/magnetometer/rm3100*
+F:	Documentation/devicetree/bindings/iio/magnetometer/pni,rm3100.txt
+
 POSIX CLOCKS and TIMERS
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
