@@ -258,7 +258,6 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	/* register sof-audio platform driver */
 	ret = sof_create_platform_device(priv);
 	if (ret) {
-		platform_device_unregister(sof_pdata->pdev_mach);
 		dev_err(dev, "error: failed to create platform device!\n");
 		return ret;
 	}
@@ -281,7 +280,6 @@ static int sof_acpi_remove(struct platform_device *pdev)
 	struct sof_platform_priv *priv = dev_get_drvdata(&pdev->dev);
 	struct snd_sof_pdata *sof_pdata = priv->sof_pdata;
 
-	platform_device_unregister(sof_pdata->pdev_mach);
 	if (!IS_ERR_OR_NULL(priv->pdev_pcm))
 		platform_device_unregister(priv->pdev_pcm);
 	release_firmware(sof_pdata->fw);
