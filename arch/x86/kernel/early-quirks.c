@@ -28,6 +28,37 @@
 #include <asm/irq_remapping.h>
 #include <asm/early_ioremap.h>
 
+static void __init early_pci_clear_msi(int bus, int slot, int func)
+{
+	int pos;
+	u16 ctrl;
+
+	if (likely(!pci_early_clear_msi))
+		return;
+
+	pr_info_once("Clearing MSI/MSI-X enable bits early in boot (quirk)\n");
+
+	pos = pci_early_find_cap(bus, slot, func, PCI_CAP_ID_MSI);
+	if (pos) {
+		ctrl = read_pci_config_16(bus, slot, func, pos + PCI_MSI_FLAGS);
+		ctrl &= ~PCI_MSI_FLAGS_ENABLE;
+		write_pci_config_16(bus, slot, func, pos + PCI_MSI_FLAGS, ctrl);
+
+		/* Read again to flush previous write */
+		ctrl = read_pci_config_16(bus, slot, func, pos + PCI_MSI_FLAGS);
+	}
+
+	pos = pci_early_find_cap(bus, slot, func, PCI_CAP_ID_MSIX);
+	if (pos) {
+		ctrl = read_pci_config_16(bus, slot, func, pos + PCI_MSIX_FLAGS);
+		ctrl &= ~PCI_MSIX_FLAGS_ENABLE;
+		write_pci_config_16(bus, slot, func, pos + PCI_MSIX_FLAGS, ctrl);
+
+		/* Read again to flush previous write */
+		ctrl = read_pci_config_16(bus, slot, func, pos + PCI_MSIX_FLAGS);
+	}
+}
+
 static void __init fix_hypertransport_config(int num, int slot, int func)
 {
 	u32 htcfg;
@@ -709,6 +740,7 @@ static struct chipset early_qrk[] __initdata = {
 		PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, force_disable_hpet},
 	{ PCI_VENDOR_ID_BROADCOM, 0x4331,
 	  PCI_CLASS_NETWORK_OTHER, PCI_ANY_ID, 0, apple_airport_reset},
+	{ PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, early_pci_clear_msi},
 	{}
 };
 
