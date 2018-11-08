@@ -162,6 +162,7 @@
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R8A7796_CLK_Z>;
 			operating-points-v2 = <&cluster0_opp>;
+			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
 		};
 
@@ -174,6 +175,7 @@
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R8A7796_CLK_Z>;
 			operating-points-v2 = <&cluster0_opp>;
+			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
 		};
 
@@ -186,6 +188,7 @@
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R8A7796_CLK_Z2>;
 			operating-points-v2 = <&cluster1_opp>;
+			capacity-dmips-mhz = <535>;
 		};
 
 		a53_1: cpu@101 {
@@ -197,6 +200,7 @@
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R8A7796_CLK_Z2>;
 			operating-points-v2 = <&cluster1_opp>;
+			capacity-dmips-mhz = <535>;
 		};
 
 		a53_2: cpu@102 {
@@ -208,6 +212,7 @@
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R8A7796_CLK_Z2>;
 			operating-points-v2 = <&cluster1_opp>;
+			capacity-dmips-mhz = <535>;
 		};
 
 		a53_3: cpu@103 {
@@ -219,6 +224,7 @@
 			enable-method = "psci";
 			clocks = <&cpg CPG_CORE R8A7796_CLK_Z2>;
 			operating-points-v2 = <&cluster1_opp>;
+			capacity-dmips-mhz = <535>;
 		};
 
 		L2_CA57: cache-controller-0 {
