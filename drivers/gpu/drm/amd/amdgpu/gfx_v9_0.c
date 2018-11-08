@@ -2400,26 +2400,21 @@ static int gfx_v9_0_rlc_resume(struct amdgpu_device *adev)
 			return r;
 	}
 
-	if (amdgpu_lbpw == -1) {
-		switch (adev->asic_type) {
-		case CHIP_RAVEN:
-			amdgpu_lbpw = 1;
-			break;
-		case CHIP_VEGA20:
-			amdgpu_lbpw = 0;
-			break;
-		default:
-			amdgpu_lbpw = 0;
-			break;
-		}
-	}
-
-	if (adev->asic_type == CHIP_RAVEN ||
-	    adev->asic_type == CHIP_VEGA20) {
-		if (amdgpu_lbpw != 0)
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+		if (amdgpu_lbpw == 0)
+			gfx_v9_0_enable_lbpw(adev, false);
+		else
+			gfx_v9_0_enable_lbpw(adev, true);
+		break;
+	case CHIP_VEGA20:
+		if (amdgpu_lbpw > 0)
 			gfx_v9_0_enable_lbpw(adev, true);
 		else
 			gfx_v9_0_enable_lbpw(adev, false);
+		break;
+	default:
+		break;
 	}
 
 	adev->gfx.rlc.funcs->start(adev);
