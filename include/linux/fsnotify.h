@@ -40,9 +40,10 @@ static inline int fsnotify_path(struct inode *inode, const struct path *path,
 	return fsnotify(inode, mask, path, FSNOTIFY_EVENT_PATH, NULL, 0);
 }
 
-/* simple call site for access decisions */
+/* Simple call site for access decisions */
 static inline int fsnotify_perm(struct file *file, int mask)
 {
+	int ret;
 	const struct path *path = &file->f_path;
 	struct inode *inode = file_inode(file);
 	__u32 fsnotify_mask = 0;
@@ -51,12 +52,18 @@ static inline int fsnotify_perm(struct file *file, int mask)
 		return 0;
 	if (!(mask & (MAY_READ | MAY_OPEN)))
 		return 0;
-	if (mask & MAY_OPEN)
+	if (mask & MAY_OPEN) {
 		fsnotify_mask = FS_OPEN_PERM;
-	else if (mask & MAY_READ)
+
+		if (file->f_flags & __FMODE_EXEC) {
+			ret = fsnotify_path(inode, path, FS_OPEN_EXEC_PERM);
+
+			if (ret)
+				return ret;
+		}
+	} else if (mask & MAY_READ) {
 		fsnotify_mask = FS_ACCESS_PERM;
-	else
-		BUG();
+	}
 
 	return fsnotify_path(inode, path, fsnotify_mask);
 }
