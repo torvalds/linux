@@ -2104,7 +2104,6 @@ static const struct blk_mq_ops msb_mq_ops = {
 static int msb_init_disk(struct memstick_dev *card)
 {
 	struct msb_data *msb = memstick_get_drvdata(card);
-	struct blk_mq_tag_set *set = NULL;
 	int rc;
 	unsigned long capacity;
 
