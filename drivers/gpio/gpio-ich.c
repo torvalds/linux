@@ -18,7 +18,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/ioport.h>
 #include <linux/module.h>
@@ -457,13 +456,13 @@ static int ichx_gpio_probe(struct platform_device *pdev)
 
 	res_pm = platform_get_resource(pdev, IORESOURCE_IO, ICH_RES_GPE0);
 	if (!res_pm) {
-		pr_warn("ACPI BAR is unavailable, GPI 0 - 15 unavailable\n");
+		dev_warn(dev, "ACPI BAR is unavailable, GPI 0 - 15 unavailable\n");
 		goto init;
 	}
 
 	if (!devm_request_region(dev, res_pm->start, resource_size(res_pm),
 				 pdev->name)) {
-		pr_warn("ACPI BAR is busy, GPI 0 - 15 unavailable\n");
+		dev_warn(dev, "ACPI BAR is busy, GPI 0 - 15 unavailable\n");
 		goto init;
 	}
 
@@ -473,12 +472,12 @@ init:
 	ichx_gpiolib_setup(&ichx_priv.chip);
 	err = gpiochip_add_data(&ichx_priv.chip, NULL);
 	if (err) {
-		pr_err("Failed to register GPIOs\n");
+		dev_err(dev, "Failed to register GPIOs\n");
 		return err;
 	}
 
-	pr_info("GPIO from %d to %d on %s\n", ichx_priv.chip.base,
-	       ichx_priv.chip.base + ichx_priv.chip.ngpio - 1, DRV_NAME);
+	dev_info(dev, "GPIO from %d to %d\n", ichx_priv.chip.base,
+		 ichx_priv.chip.base + ichx_priv.chip.ngpio - 1);
 
 	return 0;
 }
