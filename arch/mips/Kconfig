@@ -15,6 +15,7 @@ config MIPS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
+	select CPU_NO_EFFICIENT_FFS if (TARGET_ISA_REV < 1)
 	select CPU_PM if CPU_IDLE
 	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64 if !64BIT
@@ -2031,7 +2032,7 @@ config CPU_MIPS64
 	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2 || CPU_MIPS64_R6
 
 #
-# These two indicate the revision of the architecture, either Release 1 or Release 2
+# These indicate the revision of the architecture
 #
 config CPU_MIPSR1
 	bool
@@ -2051,6 +2052,16 @@ config CPU_MIPSR6
 	select MIPS_ASID_BITS_VARIABLE
 	select MIPS_CRC_SUPPORT
 	select MIPS_SPRAM
+
+config TARGET_ISA_REV
+	int
+	default 1 if CPU_MIPSR1
+	default 2 if CPU_MIPSR2
+	default 6 if CPU_MIPSR6
+	default 0
+	help
+	  Reflects the ISA revision being targeted by the kernel build. This
+	  is effectively the Kconfig equivalent of MIPS_ISA_REV.
 
 config EVA
 	bool
