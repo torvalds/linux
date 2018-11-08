@@ -607,8 +607,8 @@ out:
 			if (!wait_for_completion_timeout(
 					&odp->notifier_completion,
 					timeout)) {
-				mlx5_ib_warn(dev, "timeout waiting for mmu notifier. seq %d against %d\n",
-					     current_seq, odp->notifiers_seq);
+				mlx5_ib_warn(dev, "timeout waiting for mmu notifier. seq %d against %d. notifiers_count=%d\n",
+					     current_seq, odp->notifiers_seq, odp->notifiers_count);
 			}
 		} else {
 			/* The MR is being killed, kill the QP as well. */
