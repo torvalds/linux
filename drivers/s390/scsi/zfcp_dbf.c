@@ -63,7 +63,8 @@ void zfcp_dbf_pl_write(struct zfcp_dbf *dbf, void *data, u16 length, char *area,
 
 /**
  * zfcp_dbf_hba_fsf_res - trace event for fsf responses
- * @tag: tag indicating which kind of unsolicited status has been received
+ * @tag: tag indicating which kind of FSF response has been received
+ * @level: trace level to be used for event
  * @req: request for which a response was received
  */
 void zfcp_dbf_hba_fsf_res(char *tag, int level, struct zfcp_fsf_req *req)
@@ -153,7 +154,7 @@ log:
 
 /**
  * zfcp_dbf_hba_bit_err - trace event for bit error conditions
- * @tag: tag indicating which kind of unsolicited status has been received
+ * @tag: tag indicating which kind of bit error unsolicited status was received
  * @req: request which caused the bit_error condition
  */
 void zfcp_dbf_hba_bit_err(char *tag, struct zfcp_fsf_req *req)
@@ -224,6 +225,7 @@ void zfcp_dbf_hba_def_err(struct zfcp_adapter *adapter, u64 req_id, u16 scount,
 
 /**
  * zfcp_dbf_hba_basic - trace event for basic adapter events
+ * @tag: identifier for event
  * @adapter: pointer to struct zfcp_adapter
  */
 void zfcp_dbf_hba_basic(char *tag, struct zfcp_adapter *adapter)
@@ -478,7 +480,8 @@ out:
 /**
  * zfcp_dbf_san_req - trace event for issued SAN request
  * @tag: identifier for event
- * @fsf_req: request containing issued CT data
+ * @fsf: request containing issued CT or ELS data
+ * @d_id: N_Port_ID where SAN request is sent to
  * d_id: destination ID
  */
 void zfcp_dbf_san_req(char *tag, struct zfcp_fsf_req *fsf, u32 d_id)
@@ -560,7 +563,7 @@ static u16 zfcp_dbf_san_res_cap_len_if_gpn_ft(char *tag,
 /**
  * zfcp_dbf_san_res - trace event for received SAN request
  * @tag: identifier for event
- * @fsf_req: request containing issued CT data
+ * @fsf: request containing received CT or ELS data
  */
 void zfcp_dbf_san_res(char *tag, struct zfcp_fsf_req *fsf)
 {
@@ -580,7 +583,7 @@ void zfcp_dbf_san_res(char *tag, struct zfcp_fsf_req *fsf)
 /**
  * zfcp_dbf_san_in_els - trace event for incoming ELS
  * @tag: identifier for event
- * @fsf_req: request containing issued CT data
+ * @fsf: request containing received ELS data
  */
 void zfcp_dbf_san_in_els(char *tag, struct zfcp_fsf_req *fsf)
 {

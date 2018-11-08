@@ -79,7 +79,7 @@ static void zfcp_fsf_class_not_supp(struct zfcp_fsf_req *req)
 
 /**
  * zfcp_fsf_req_free - free memory used by fsf request
- * @fsf_req: pointer to struct zfcp_fsf_req
+ * @req: pointer to struct zfcp_fsf_req
  */
 void zfcp_fsf_req_free(struct zfcp_fsf_req *req)
 {
@@ -384,7 +384,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 
 /**
  * zfcp_fsf_req_complete - process completion of a FSF request
- * @fsf_req: The FSF request that has been completed.
+ * @req: The FSF request that has been completed.
  *
  * When a request has been completed either from the FCP adapter,
  * or it has been dismissed due to a queue shutdown, this function
@@ -767,8 +767,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 
 /**
  * zfcp_fsf_status_read - send status read request
- * @adapter: pointer to struct zfcp_adapter
- * @req_flags: request flags
+ * @qdio: pointer to struct zfcp_qdio
  * Returns: 0 on success, ERROR otherwise
  */
 int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
@@ -1059,8 +1058,10 @@ static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
 
 /**
  * zfcp_fsf_send_ct - initiate a Generic Service request (FC-GS)
+ * @wka_port: pointer to zfcp WKA port to send CT/GS to
  * @ct: pointer to struct zfcp_send_ct with data for request
  * @pool: if non-null this mempool is used to allocate struct zfcp_fsf_req
+ * @timeout: timeout that hardware should use, and a later software timeout
  */
 int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *wka_port,
 		     struct zfcp_fsf_ct_els *ct, mempool_t *pool,
@@ -1153,7 +1154,10 @@ skip_fsfstatus:
 
 /**
  * zfcp_fsf_send_els - initiate an ELS command (FC-FS)
+ * @adapter: pointer to zfcp adapter
+ * @d_id: N_Port_ID to send ELS to
  * @els: pointer to struct zfcp_send_els with data for the command
+ * @timeout: timeout that hardware should use, and a later software timeout
  */
 int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,
 		      struct zfcp_fsf_ct_els *els, unsigned int timeout)
@@ -2381,7 +2385,7 @@ out:
 
 /**
  * zfcp_fsf_reqid_check - validate req_id contained in SBAL returned by QDIO
- * @adapter: pointer to struct zfcp_adapter
+ * @qdio: pointer to struct zfcp_qdio
  * @sbal_idx: response queue index of SBAL to be processed
  */
 void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)

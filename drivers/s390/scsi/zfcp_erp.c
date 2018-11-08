@@ -435,7 +435,7 @@ static void _zfcp_erp_port_reopen(struct zfcp_port *port, int clear,
 /**
  * zfcp_erp_port_reopen - trigger remote port recovery
  * @port: port to recover
- * @clear_mask: flags in port status to be cleared
+ * @clear: flags in port status to be cleared
  * @dbftag: Tag for debug trace event.
  */
 void zfcp_erp_port_reopen(struct zfcp_port *port, int clear, char *dbftag)
@@ -469,7 +469,7 @@ static void _zfcp_erp_lun_reopen(struct scsi_device *sdev, int clear,
 /**
  * zfcp_erp_lun_reopen - initiate reopen of a LUN
  * @sdev: SCSI device / LUN to be reopened
- * @clear_mask: specifies flags in LUN status to be cleared
+ * @clear: specifies flags in LUN status to be cleared
  * @dbftag: Tag for debug trace event.
  *
  * Return: 0 on success, < 0 on error
@@ -606,7 +606,7 @@ void zfcp_erp_notify(struct zfcp_erp_action *erp_action, unsigned long set_mask)
 
 /**
  * zfcp_erp_timeout_handler - Trigger ERP action from timed out ERP request
- * @data: ERP action (from timer data)
+ * @t: timer list entry embedded in zfcp FSF request
  */
 void zfcp_erp_timeout_handler(struct timer_list *t)
 {

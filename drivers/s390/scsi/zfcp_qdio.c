@@ -180,7 +180,6 @@ zfcp_qdio_sbale_next(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
  * @qdio: pointer to struct zfcp_qdio
  * @q_req: pointer to struct zfcp_qdio_req
  * @sg: scatter-gather list
- * @max_sbals: upper bound for number of SBALs to be used
  * Returns: zero or -EINVAL on error
  */
 int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
@@ -303,7 +302,7 @@ static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
 
 /**
  * zfcp_qdio_allocate - allocate queue memory and initialize QDIO data
- * @adapter: pointer to struct zfcp_adapter
+ * @qdio: pointer to struct zfcp_qdio
  * Returns: -ENOMEM on memory allocation error or return value from
  *          qdio_allocate
  */

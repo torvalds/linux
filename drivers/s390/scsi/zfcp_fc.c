@@ -312,7 +312,7 @@ static void zfcp_fc_incoming_logo(struct zfcp_fsf_req *req)
 
 /**
  * zfcp_fc_incoming_els - handle incoming ELS
- * @fsf_req - request which contains incoming ELS
+ * @fsf_req: request which contains incoming ELS
  */
 void zfcp_fc_incoming_els(struct zfcp_fsf_req *fsf_req)
 {
