@@ -50,7 +50,6 @@ static const char *phy_state_to_str(enum phy_state st)
 	PHY_STATE_STR(READY)
 	PHY_STATE_STR(PENDING)
 	PHY_STATE_STR(UP)
-	PHY_STATE_STR(AN)
 	PHY_STATE_STR(RUNNING)
 	PHY_STATE_STR(NOLINK)
 	PHY_STATE_STR(FORCING)
@@ -62,6 +61,17 @@ static const char *phy_state_to_str(enum phy_state st)
 	return NULL;
 }
 
+static void phy_link_up(struct phy_device *phydev)
+{
+	phydev->phy_link_change(phydev, true, true);
+	phy_led_trigger_change_speed(phydev);
+}
+
+static void phy_link_down(struct phy_device *phydev, bool do_carrier)
+{
+	phydev->phy_link_change(phydev, false, do_carrier);
+	phy_led_trigger_change_speed(phydev);
+}
 
 /**
  * phy_print_status - Convenience function to print out the current phy status
@@ -494,6 +504,34 @@ static int phy_config_aneg(struct phy_device *phydev)
 }
 
 /**
+ * phy_check_link_status - check link status and set state accordingly
+ * @phydev: the phy_device struct
+ *
+ * Description: Check for link and whether autoneg was triggered / is running
+ * and set state accordingly
+ */
+static int phy_check_link_status(struct phy_device *phydev)
+{
+	int err;
+
+	WARN_ON(!mutex_is_locked(&phydev->lock));
+
+	err = phy_read_status(phydev);
+	if (err)
+		return err;
+
+	if (phydev->link && phydev->state != PHY_RUNNING) {
+		phydev->state = PHY_RUNNING;
+		phy_link_up(phydev);
+	} else if (!phydev->link && phydev->state != PHY_NOLINK) {
+		phydev->state = PHY_NOLINK;
+		phy_link_down(phydev, true);
+	}
+
+	return 0;
+}
+
+/**
  * phy_start_aneg - start auto-negotiation for this PHY device
  * @phydev: the phy_device struct
  *
@@ -504,7 +542,6 @@ static int phy_config_aneg(struct phy_device *phydev)
  */
 int phy_start_aneg(struct phy_device *phydev)
 {
-	bool trigger = 0;
 	int err;
 
 	if (!phydev->drv)
@@ -524,31 +561,15 @@ int phy_start_aneg(struct phy_device *phydev)
 
 	if (phydev->state != PHY_HALTED) {
 		if (AUTONEG_ENABLE == phydev->autoneg) {
-			phydev->state = PHY_AN;
-			phydev->link_timeout = PHY_AN_TIMEOUT;
+			err = phy_check_link_status(phydev);
 		} else {
 			phydev->state = PHY_FORCING;
 			phydev->link_timeout = PHY_FORCE_TIMEOUT;
 		}
 	}
 
-	/* Re-schedule a PHY state machine to check PHY status because
-	 * negotiation may already be done and aneg interrupt may not be
-	 * generated.
-	 */
-	if (!phy_polling_mode(phydev) && phydev->state == PHY_AN) {
-		err = phy_aneg_done(phydev);
-		if (err > 0) {
-			trigger = true;
-			err = 0;
-		}
-	}
-
 out_unlock:
 	mutex_unlock(&phydev->lock);
-
-	if (trigger)
-		phy_trigger_machine(phydev);
 
 	return err;
 }
@@ -893,18 +914,6 @@ void phy_start(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_start);
 
-static void phy_link_up(struct phy_device *phydev)
-{
-	phydev->phy_link_change(phydev, true, true);
-	phy_led_trigger_change_speed(phydev);
-}
-
-static void phy_link_down(struct phy_device *phydev, bool do_carrier)
-{
-	phydev->phy_link_change(phydev, false, do_carrier);
-	phy_led_trigger_change_speed(phydev);
-}
-
 /**
  * phy_state_machine - Handle the state machine
  * @work: work_struct that describes the work to be done
@@ -934,56 +943,15 @@ void phy_state_machine(struct work_struct *work)
 	case PHY_UP:
 		needs_aneg = true;
 
-		phydev->link_timeout = PHY_AN_TIMEOUT;
-
-		break;
-	case PHY_AN:
-		err = phy_read_status(phydev);
-		if (err < 0)
-			break;
-
-		/* If the link is down, give up on negotiation for now */
-		if (!phydev->link) {
-			phydev->state = PHY_NOLINK;
-			phy_link_down(phydev, true);
-			break;
-		}
-
-		/* Check if negotiation is done.  Break if there's an error */
-		err = phy_aneg_done(phydev);
-		if (err < 0)
-			break;
-
-		/* If AN is done, we're running */
-		if (err > 0) {
-			phydev->state = PHY_RUNNING;
-			phy_link_up(phydev);
-		} else if (0 == phydev->link_timeout--)
-			needs_aneg = true;
 		break;
 	case PHY_NOLINK:
+	case PHY_RUNNING:
 		if (!phy_polling_mode(phydev))
 			break;
-
-		err = phy_read_status(phydev);
-		if (err)
-			break;
-
-		if (phydev->link) {
-			if (AUTONEG_ENABLE == phydev->autoneg) {
-				err = phy_aneg_done(phydev);
-				if (err < 0)
-					break;
-
-				if (!err) {
-					phydev->state = PHY_AN;
-					phydev->link_timeout = PHY_AN_TIMEOUT;
-					break;
-				}
-			}
-			phydev->state = PHY_RUNNING;
-			phy_link_up(phydev);
-		}
+		/* fall through */
+	case PHY_CHANGELINK:
+	case PHY_RESUMING:
+		err = phy_check_link_status(phydev);
 		break;
 	case PHY_FORCING:
 		err = genphy_update_link(phydev);
@@ -999,61 +967,11 @@ void phy_state_machine(struct work_struct *work)
 			phy_link_down(phydev, false);
 		}
 		break;
-	case PHY_RUNNING:
-		if (!phy_polling_mode(phydev))
-			break;
-
-		err = phy_read_status(phydev);
-		if (err)
-			break;
-
-		if (!phydev->link) {
-			phydev->state = PHY_NOLINK;
-			phy_link_down(phydev, true);
-		}
-		break;
-	case PHY_CHANGELINK:
-		err = phy_read_status(phydev);
-		if (err)
-			break;
-
-		if (phydev->link) {
-			phydev->state = PHY_RUNNING;
-			phy_link_up(phydev);
-		} else {
-			phydev->state = PHY_NOLINK;
-			phy_link_down(phydev, true);
-		}
-		break;
 	case PHY_HALTED:
 		if (phydev->link) {
 			phydev->link = 0;
 			phy_link_down(phydev, true);
 			do_suspend = true;
-		}
-		break;
-	case PHY_RESUMING:
-		if (AUTONEG_ENABLE == phydev->autoneg) {
-			err = phy_aneg_done(phydev);
-			if (err < 0) {
-				break;
-			} else if (!err) {
-				phydev->state = PHY_AN;
-				phydev->link_timeout = PHY_AN_TIMEOUT;
-				break;
-			}
-		}
-
-		err = phy_read_status(phydev);
-		if (err)
-			break;
-
-		if (phydev->link) {
-			phydev->state = PHY_RUNNING;
-			phy_link_up(phydev);
-		} else	{
-			phydev->state = PHY_NOLINK;
-			phy_link_down(phydev, false);
 		}
 		break;
 	}
