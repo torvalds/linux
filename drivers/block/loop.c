@@ -691,19 +691,22 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
 	struct file	*file, *old_file;
 	int		error;
 
+	error = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+	if (error)
+		return error;
 	error = -ENXIO;
 	if (lo->lo_state != Lo_bound)
-		goto out;
+		goto out_unlock;
 
 	/* the loop device has to be read-only */
 	error = -EINVAL;
 	if (!(lo->lo_flags & LO_FLAGS_READ_ONLY))
-		goto out;
+		goto out_unlock;
 
 	error = -EBADF;
 	file = fget(arg);
 	if (!file)
-		goto out;
+		goto out_unlock;
 
 	error = loop_validate_file(file, bdev);
 	if (error)
@@ -730,11 +733,13 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
 	fput(old_file);
 	if (lo->lo_flags & LO_FLAGS_PARTSCAN)
 		loop_reread_partitions(lo, bdev);
+	mutex_unlock(&loop_ctl_mutex);
 	return 0;
 
- out_putf:
+out_putf:
 	fput(file);
- out:
+out_unlock:
+	mutex_unlock(&loop_ctl_mutex);
 	return error;
 }
 
@@ -1469,12 +1474,7 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	case LOOP_SET_FD:
 		return loop_set_fd(lo, mode, bdev, arg);
 	case LOOP_CHANGE_FD:
-		err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
-		if (err)
-			return err;
-		err = loop_change_fd(lo, bdev, arg);
-		mutex_unlock(&loop_ctl_mutex);
-		break;
+		return loop_change_fd(lo, bdev, arg);
 	case LOOP_CLR_FD:
 		return loop_clr_fd(lo);
 	case LOOP_SET_STATUS:
