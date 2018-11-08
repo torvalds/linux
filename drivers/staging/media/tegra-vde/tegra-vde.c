@@ -262,7 +262,7 @@ static void tegra_vde_setup_iram_tables(struct tegra_vde *vde,
 			value |= frame->frame_num;
 
 			dev_dbg(vde->miscdev.parent,
-				"\tFrame %d: frame_num = %d B_frame = %d\n",
+				"\tFrame %d: frame_num = %d B_frame = %lu\n",
 				i + 1, frame->frame_num,
 				(frame->flags & FLAG_B_FRAME));
 		} else {
