@@ -278,7 +278,6 @@ static inline u64 zfcp_scsi_dev_lun(struct scsi_device *sdev)
  * @completion: used to signal the completion of the request
  * @status: status of the request
  * @qtcb: associated QTCB
- * @seq_no: sequence number of this request
  * @data: private data
  * @timer: timer data of this request
  * @erp_action: reference to erp action if request issued on behalf of ERP
@@ -294,7 +293,6 @@ struct zfcp_fsf_req {
 	struct completion	completion;
 	u32			status;
 	struct fsf_qtcb		*qtcb;
-	u32			seq_no;
 	void			*data;
 	struct timer_list	timer;
 	struct zfcp_erp_action	*erp_action;

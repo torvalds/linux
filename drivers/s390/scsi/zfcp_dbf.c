@@ -82,7 +82,7 @@ void zfcp_dbf_hba_fsf_res(char *tag, int level, struct zfcp_fsf_req *req)
 	rec->fsf_req_id = req->req_id;
 	rec->fsf_req_status = req->status;
 	rec->fsf_cmd = q_head->fsf_command;
-	rec->fsf_seq_no = req->seq_no;
+	rec->fsf_seq_no = q_pref->req_seq_no;
 	rec->u.res.req_issued = req->issued;
 	rec->u.res.prot_status = q_pref->prot_status;
 	rec->u.res.fsf_status = q_head->fsf_status;
