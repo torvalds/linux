@@ -324,7 +324,7 @@ static int omap_mcbsp_request(struct omap_mcbsp *mcbsp)
 	mcbsp->reg_cache = reg_cache;
 	spin_unlock(&mcbsp->lock);
 
-	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->request)
+	if(mcbsp->pdata->ops && mcbsp->pdata->ops->request)
 		mcbsp->pdata->ops->request(mcbsp->id - 1);
 
 	/*
@@ -361,7 +361,7 @@ static int omap_mcbsp_request(struct omap_mcbsp *mcbsp)
 err_free_irq:
 	free_irq(mcbsp->tx_irq, (void *)mcbsp);
 err_clk_disable:
-	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->free)
+	if(mcbsp->pdata->ops && mcbsp->pdata->ops->free)
 		mcbsp->pdata->ops->free(mcbsp->id - 1);
 
 	/* Disable wakeup behavior */
@@ -382,7 +382,7 @@ static void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
 {
 	void *reg_cache;
 
-	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->free)
+	if(mcbsp->pdata->ops && mcbsp->pdata->ops->free)
 		mcbsp->pdata->ops->free(mcbsp->id - 1);
 
 	/* Disable wakeup behavior */
