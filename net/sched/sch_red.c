@@ -279,7 +279,7 @@ static int red_init(struct Qdisc *sch, struct nlattr *opt,
 	return red_change(sch, opt, extack);
 }
 
-static int red_dump_offload_stats(struct Qdisc *sch, struct tc_red_qopt *opt)
+static int red_dump_offload_stats(struct Qdisc *sch)
 {
 	struct tc_red_qopt_offload hw_stats = {
 		.command = TC_RED_STATS,
@@ -309,7 +309,7 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 	};
 	int err;
 
-	err = red_dump_offload_stats(sch, &opt);
+	err = red_dump_offload_stats(sch);
 	if (err)
 		goto nla_put_failure;
 
