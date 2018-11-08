@@ -49,8 +49,8 @@
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/
 
 /*
- * Note, the leftmost status byte is common among adapter, port
- * and unit
+ * Note, the leftmost 12 status bits (3 nibbles) are common among adapter, port
+ * and unit. This is a mask for bitwise 'and' with status values.
  */
 #define ZFCP_COMMON_FLAGS			0xfff00000
 
