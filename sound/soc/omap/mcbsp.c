@@ -110,9 +110,9 @@ static void omap_mcbsp_dump_reg(struct omap_mcbsp *mcbsp)
 	dev_dbg(mcbsp->dev, "***********************\n");
 }
 
-static irqreturn_t omap_mcbsp_irq_handler(int irq, void *dev_id)
+static irqreturn_t omap_mcbsp_irq_handler(int irq, void *data)
 {
-	struct omap_mcbsp *mcbsp = dev_id;
+	struct omap_mcbsp *mcbsp = data;
 	u16 irqst;
 
 	irqst = MCBSP_READ(mcbsp, IRQST);
@@ -151,37 +151,37 @@ static irqreturn_t omap_mcbsp_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id)
+static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *data)
 {
-	struct omap_mcbsp *mcbsp_tx = dev_id;
+	struct omap_mcbsp *mcbsp = data;
 	u16 irqst_spcr2;
 
-	irqst_spcr2 = MCBSP_READ(mcbsp_tx, SPCR2);
-	dev_dbg(mcbsp_tx->dev, "TX IRQ callback : 0x%x\n", irqst_spcr2);
+	irqst_spcr2 = MCBSP_READ(mcbsp, SPCR2);
+	dev_dbg(mcbsp->dev, "TX IRQ callback : 0x%x\n", irqst_spcr2);
 
 	if (irqst_spcr2 & XSYNC_ERR) {
-		dev_err(mcbsp_tx->dev, "TX Frame Sync Error! : 0x%x\n",
+		dev_err(mcbsp->dev, "TX Frame Sync Error! : 0x%x\n",
 			irqst_spcr2);
 		/* Writing zero to XSYNC_ERR clears the IRQ */
-		MCBSP_WRITE(mcbsp_tx, SPCR2, MCBSP_READ_CACHE(mcbsp_tx, SPCR2));
+		MCBSP_WRITE(mcbsp, SPCR2, MCBSP_READ_CACHE(mcbsp, SPCR2));
 	}
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *dev_id)
+static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *data)
 {
-	struct omap_mcbsp *mcbsp_rx = dev_id;
+	struct omap_mcbsp *mcbsp = data;
 	u16 irqst_spcr1;
 
-	irqst_spcr1 = MCBSP_READ(mcbsp_rx, SPCR1);
-	dev_dbg(mcbsp_rx->dev, "RX IRQ callback : 0x%x\n", irqst_spcr1);
+	irqst_spcr1 = MCBSP_READ(mcbsp, SPCR1);
+	dev_dbg(mcbsp->dev, "RX IRQ callback : 0x%x\n", irqst_spcr1);
 
 	if (irqst_spcr1 & RSYNC_ERR) {
-		dev_err(mcbsp_rx->dev, "RX Frame Sync Error! : 0x%x\n",
+		dev_err(mcbsp->dev, "RX Frame Sync Error! : 0x%x\n",
 			irqst_spcr1);
 		/* Writing zero to RSYNC_ERR clears the IRQ */
-		MCBSP_WRITE(mcbsp_rx, SPCR1, MCBSP_READ_CACHE(mcbsp_rx, SPCR1));
+		MCBSP_WRITE(mcbsp, SPCR1, MCBSP_READ_CACHE(mcbsp, SPCR1));
 	}
 
 	return IRQ_HANDLED;
