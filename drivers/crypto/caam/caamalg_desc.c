@@ -1228,7 +1228,8 @@ static inline void skcipher_append_src_dst(u32 *desc)
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
- *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128.
+ *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128
+ *                                - OP_ALG_ALGSEL_CHACHA20
  * @ivsize: initialization vector size
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @ctx1_iv_off: IV offset in CONTEXT1 register
@@ -1293,7 +1294,8 @@ EXPORT_SYMBOL(cnstr_shdsc_skcipher_encap);
  * @desc: pointer to buffer used for descriptor construction
  * @cdata: pointer to block cipher transform definitions
  *         Valid algorithm values - one of OP_ALG_ALGSEL_{AES, DES, 3DES} ANDed
- *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128.
+ *         with OP_ALG_AAI_CBC or OP_ALG_AAI_CTR_MOD128
+ *                                - OP_ALG_ALGSEL_CHACHA20
  * @ivsize: initialization vector size
  * @is_rfc3686: true when ctr(aes) is wrapped by rfc3686 template
  * @ctx1_iv_off: IV offset in CONTEXT1 register

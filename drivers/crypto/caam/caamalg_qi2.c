@@ -816,7 +816,9 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 	u32 *desc;
 	u32 ctx1_iv_off = 0;
 	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
-			       OP_ALG_AAI_CTR_MOD128);
+			       OP_ALG_AAI_CTR_MOD128) &&
+			       ((ctx->cdata.algtype & OP_ALG_ALGSEL_MASK) !=
+			       OP_ALG_ALGSEL_CHACHA20);
 	const bool is_rfc3686 = alg->caam.rfc3686;
 
 	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
@@ -1494,7 +1496,23 @@ static struct caam_skcipher_alg driver_algs[] = {
 			.ivsize = AES_BLOCK_SIZE,
 		},
 		.caam.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_XTS,
-	}
+	},
+	{
+		.skcipher = {
+			.base = {
+				.cra_name = "chacha20",
+				.cra_driver_name = "chacha20-caam-qi2",
+				.cra_blocksize = 1,
+			},
+			.setkey = skcipher_setkey,
+			.encrypt = skcipher_encrypt,
+			.decrypt = skcipher_decrypt,
+			.min_keysize = CHACHA20_KEY_SIZE,
+			.max_keysize = CHACHA20_KEY_SIZE,
+			.ivsize = CHACHA20_IV_SIZE,
+		},
+		.caam.class1_alg_type = OP_ALG_ALGSEL_CHACHA20,
+	},
 };
 
 static struct caam_aead_alg driver_aeads[] = {
@@ -4906,6 +4924,11 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 		/* Skip AES algorithms if not supported by device */
 		if (!priv->sec_attr.aes_acc_num &&
 		    alg_sel == OP_ALG_ALGSEL_AES)
+			continue;
+
+		/* Skip CHACHA20 algorithms if not supported by device */
+		if (alg_sel == OP_ALG_ALGSEL_CHACHA20 &&
+		    !priv->sec_attr.ccha_acc_num)
 			continue;
 
 		t_alg->caam.dev = dev;
