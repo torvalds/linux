@@ -1,64 +1,70 @@
-.. _magicnumbers:
+.. include:: ../disclaimer-ita.rst
 
-Linux magic numbers
-===================
+:Original: :ref:`Documentation/process/magic-numbers.rst <magicnumbers>`
+:Translator: Federico Vaga <federico.vaga@vaga.pv.it>
 
-This file is a registry of magic numbers which are in use.  When you
-add a magic number to a structure, you should also add it to this
-file, since it is best if the magic numbers used by various structures
-are unique.
+.. _it_magicnumbers:
 
-It is a **very** good idea to protect kernel data structures with magic
-numbers.  This allows you to check at run time whether (a) a structure
-has been clobbered, or (b) you've passed the wrong structure to a
-routine.  This last is especially useful --- particularly when you are
-passing pointers to structures via a void * pointer.  The tty code,
-for example, does this frequently to pass driver-specific and line
-discipline-specific structures back and forth.
+I numeri magici di Linux
+========================
 
-The way to use magic numbers is to declare them at the beginning of
-the structure, like so::
+Questo documento è un registro dei numeri magici in uso.  Quando
+aggiungete un numero magico ad una struttura, dovreste aggiungerlo anche
+a questo documento; la cosa migliore è che tutti i numeri magici usati
+dalle varie strutture siano unici.
+
+È **davvero** un'ottima idea proteggere le strutture dati del kernel con
+dei numeri magici.  Questo vi permette in fase d'esecuzione di (a) verificare
+se una struttura è stata malmenata, o (b) avete passato a una procedura la
+struttura errata.  Quest'ultimo è molto utile - particolarmente quando si passa
+una struttura dati tramite un puntatore void \*.  Il codice tty, per esempio,
+effettua questa operazione con regolarità passando avanti e indietro le
+strutture specifiche per driver e discipline.
+
+Per utilizzare un numero magico, dovete dichiararlo all'inizio della struttura
+dati, come di seguito::
 
 	struct tty_ldisc {
 		int	magic;
 		...
 	};
 
-Please follow this discipline when you are adding future enhancements
-to the kernel!  It has saved me countless hours of debugging,
-especially in the screwy cases where an array has been overrun and
-structures following the array have been overwritten.  Using this
-discipline, these cases get detected quickly and safely.
+Per favore, seguite questa direttiva quando aggiungerete migliorie al kernel!
+Mi ha risparmiato un numero illimitato di ore di debug, specialmente nei casi
+più ostici dove si è andati oltre la dimensione di un vettore e la struttura
+dati che lo seguiva in memoria è stata sovrascritta.  Seguendo questa
+direttiva, questi casi vengono identificati velocemente e in sicurezza.
 
-Changelog::
+Registro dei cambiamenti::
 
 					Theodore Ts'o
 					31 Mar 94
 
-  The magic table is current to Linux 2.1.55.
+  La tabella magica è aggiornata a Linux 2.1.55.
 
 					Michael Chastain
 					<mailto:mec@shout.net>
 					22 Sep 1997
 
-  Now it should be up to date with Linux 2.1.112. Because
-  we are in feature freeze time it is very unlikely that
-  something will change before 2.2.x. The entries are
-  sorted by number field.
+  Ora dovrebbe essere aggiornata a Linux 2.1.112. Dato che
+  siamo in un momento di congelamento delle funzionalità
+  (*feature freeze*) è improbabile che qualcosa cambi prima
+  della versione 2.2.x.  Le righe sono ordinate secondo il
+  campo numero.
 
 					Krzysztof G. Baranowski
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
-  Updated the magic table to Linux 2.5.45. Right over the feature freeze,
-  but it is possible that some new magic numbers will sneak into the
-  kernel before 2.6.x yet.
+  Aggiornamento della tabella a Linux 2.5.45. Giusti nel congelamento
+  delle funzionalità ma è comunque possibile che qualche nuovo
+  numero magico s'intrufoli prima del kernel 2.6.x.
 
 					Petr Baudis
 					<pasky@ucw.cz>
 					03 Nov 2002
 
-  Updated the magic table to Linux 2.5.74.
+  Aggiornamento della tabella magica a Linux 2.5.74.
 
 					Fabian Frederick
 					<ffrederick@users.sourceforge.net>
@@ -66,7 +72,7 @@ Changelog::
 
 
 ===================== ================ ======================== ==========================================
-Magic Name            Number           Structure                File
+Nome magico           Numero           Struttura                File
 ===================== ================ ======================== ==========================================
 PG_MAGIC              'P'              pg_{read,write}_hdr      ``include/linux/pg.h``
 CMAGIC                0x0111           user                     ``include/linux/a.out.h``
@@ -154,10 +160,11 @@ HTB_CMAGIC            0xFEFAFEF1       htb_class                ``net/sched/sch_
 NMI_MAGIC             0x48414d4d455201 nmi_s                    ``arch/mips/include/asm/sn/nmi.h``
 ===================== ================ ======================== ==========================================
 
-Note that there are also defined special per-driver magic numbers in sound
-memory management. See ``include/sound/sndmagic.h`` for complete list of them. Many
-OSS sound drivers have their magic numbers constructed from the soundcard PCI
-ID - these are not listed here as well.
+Da notare che ci sono anche dei numeri magici specifici per driver nel
+*sound memory management*. Consultate ``include/sound/sndmagic.h`` per una
+lista completa.  Molti driver audio OSS hanno i loro numeri magici costruiti a
+partire dall'identificativo PCI della scheda audio - nemmeno questi sono
+elencati in questo file.
 
-HFS is another larger user of magic numbers - you can find them in
-``fs/hfs/hfs.h``.
+Il file-system HFS è un altro grande utilizzatore di numeri magici - potete
+trovarli qui ``fs/hfs/hfs.h``.

@@ -1,0 +1,12 @@
+.. include:: ../disclaimer-ita.rst
+
+:Original: :ref:`Documentation/process/4.Coding.rst <development_coding>`
+
+.. _it_development_coding:
+
+Scrivere codice corretto
+========================
+
+.. warning::
+
+    TODO ancora da tradurre

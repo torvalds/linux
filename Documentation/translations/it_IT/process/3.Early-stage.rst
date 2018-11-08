@@ -1,0 +1,12 @@
+.. include:: ../disclaimer-ita.rst
+
+:Original: :ref:`Documentation/process/3.Early-stage.rst <development_early_stage>`
+
+.. _it_development_early_stage:
+
+Primi passi della pianificazione
+================================
+
+.. warning::
+
+    TODO ancora da tradurre

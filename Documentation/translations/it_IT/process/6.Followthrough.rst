@@ -1,0 +1,10 @@
+.. include:: ../disclaimer-ita.rst
+
+:Original: :ref:`Documentation/process/6.Followthrough.rst <development_followthrough>`
+
+Completamento
+=============
+
+.. warning::
+
+    TODO ancora da tradurre

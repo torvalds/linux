@@ -1,27 +1,35 @@
-.. _process_statement_driver:
+.. include:: ../disclaimer-ita.rst
 
-Kernel Driver Statement
------------------------
+:Original: :ref:`Documentation/process/kernel-driver-statement.rst <process_statement_driver>`
+:Translator: Federico Vaga <federico.vaga@vaga.pv.it>
 
-Position Statement on Linux Kernel Modules
-==========================================
+.. _it_process_statement_driver:
 
+Dichiarazioni sui driver per il kernel
+======================================
 
-We, the undersigned Linux kernel developers, consider any closed-source
-Linux kernel module or driver to be harmful and undesirable. We have
-repeatedly found them to be detrimental to Linux users, businesses, and
-the greater Linux ecosystem. Such modules negate the openness,
-stability, flexibility, and maintainability of the Linux development
-model and shut their users off from the expertise of the Linux
-community. Vendors that provide closed-source kernel modules force their
-customers to give up key Linux advantages or choose new vendors.
-Therefore, in order to take full advantage of the cost savings and
-shared support benefits open source has to offer, we urge vendors to
-adopt a policy of supporting their customers on Linux with open-source
-kernel code.
+Presa di posizione sui moduli per il kernel Linux
+-------------------------------------------------
 
-We speak only for ourselves, and not for any company we might work for
-today, have in the past, or will in the future.
+Noi, i sottoscritti sviluppatori del kernel, consideriamo pericoloso
+o indesiderato qualsiasi modulo o driver per il kernel Linux di tipo
+*a sorgenti chiusi* (*closed-source*). Ripetutamente, li abbiamo
+trovati deleteri per gli utenti Linux, le aziende, ed in generale
+l'ecosistema Linux. Questi moduli impediscono l'apertura, la stabilità,
+la flessibilità, e la manutenibilità del modello di sviluppo di Linux
+e impediscono ai loro utenti di beneficiare dell'esperienza dalla
+comunità Linux. I fornitori che distribuiscono codice a sorgenti chiusi
+obbligano i propri utenti a rinunciare ai principali vantaggi di Linux
+o a cercarsi nuovi fornitori.
+Perciò, al fine di sfruttare i vantaggi che codice aperto ha da offrire,
+come l'abbattimento dei costi e un supporto condiviso, spingiamo i
+fornitori ad adottare una politica di supporto ai loro clienti Linux
+che preveda il rilascio dei sorgenti per il kernel.
+
+Parliamo solo per noi stessi, e non per una qualsiasi azienda per la
+quale lavoriamo oggi, o abbiamo lavorato in passato, o lavoreremo in
+futuro.
+
 
  - Dave Airlie
  - Nick Andrew
@@ -200,3 +208,4 @@ today, have in the past, or will in the future.
  - Vlad Yasevich
  - Peter Zijlstra
  - Bartlomiej Zolnierkiewicz
+

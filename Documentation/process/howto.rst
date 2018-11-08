@@ -1,3 +1,5 @@
+.. _process_howto:
+
 HOWTO do Linux kernel development
 =================================
 

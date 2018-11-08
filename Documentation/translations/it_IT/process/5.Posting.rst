@@ -1,0 +1,12 @@
+.. include:: ../disclaimer-ita.rst
+
+:Original: :ref:`Documentation/process/4.Posting.rst <development_posting>`
+
+.. _it_development_posting:
+
+Pubblicare modifiche
+====================
+
+.. warning::
+
+    TODO ancora da tradurre
