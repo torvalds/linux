@@ -13,6 +13,7 @@
 #define CHACHA20_IV_SIZE	16
 #define CHACHA20_KEY_SIZE	32
 #define CHACHA20_BLOCK_SIZE	64
+#define CHACHAPOLY_IV_SIZE	12
 
 struct chacha20_ctx {
 	u32 key[8];

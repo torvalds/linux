@@ -22,8 +22,6 @@
 
 #include "internal.h"
 
-#define CHACHAPOLY_IV_SIZE	12
-
 struct chachapoly_instance_ctx {
 	struct crypto_skcipher_spawn chacha;
 	struct crypto_ahash_spawn poly;
