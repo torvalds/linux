@@ -479,9 +479,15 @@ put_request:
 	fuse_put_request(fc, req);
 }
 
-static void queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
+static int queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
 	spin_lock(&fiq->waitq.lock);
+	/* Check for we've sent request to interrupt this req */
+	if (unlikely(!test_bit(FR_INTERRUPTED, &req->flags))) {
+		spin_unlock(&fiq->waitq.lock);
+		return -EINVAL;
+	}
+
 	if (list_empty(&req->intr_entry)) {
 		list_add_tail(&req->intr_entry, &fiq->interrupts);
 		/*
@@ -492,12 +498,13 @@ static void queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
 		if (test_bit(FR_FINISHED, &req->flags)) {
 			list_del_init(&req->intr_entry);
 			spin_unlock(&fiq->waitq.lock);
-			return;
+			return 0;
 		}
 		wake_up_locked(&fiq->waitq);
 		kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 	}
 	spin_unlock(&fiq->waitq.lock);
+	return 0;
 }
 
 static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
@@ -1962,7 +1969,7 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 		else if (oh.error == -ENOSYS)
 			fc->no_interrupt = 1;
 		else if (oh.error == -EAGAIN)
-			queue_interrupt(&fc->iq, req);
+			err = queue_interrupt(&fc->iq, req);
 
 		fuse_put_request(fc, req);
 
