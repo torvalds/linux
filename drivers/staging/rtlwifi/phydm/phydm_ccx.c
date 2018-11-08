@@ -331,8 +331,9 @@ bool phydm_check_nhm_ready(void *dm_void)
 	bool ret = false;
 
 	if (dm->support_ic_type & ODM_IC_11AC_SERIES) {
-		value32 =
-			odm_get_bb_reg(dm, ODM_REG_CLM_RESULT_11AC, MASKDWORD);
+		value32 = odm_get_bb_reg(dm,
+					 ODM_REG_CLM_RESULT_11AC,
+					 MASKDWORD);
 
 		for (i = 0; i < 200; i++) {
 			ODM_delay_ms(1);
