@@ -220,7 +220,6 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
 
 		qdisc_tree_reduce_backlog(child, child->q.qlen,
 					  child->qstats.backlog);
-		qdisc_put(child);
 	}
 
 	for (i = oldbands; i < q->bands; i++) {
@@ -230,6 +229,9 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	sch_tree_unlock(sch);
+
+	for (i = q->bands; i < oldbands; i++)
+		qdisc_put(q->queues[i]);
 	return 0;
 }
 
