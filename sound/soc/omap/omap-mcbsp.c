@@ -727,9 +727,6 @@ static int omap_mcbsp_init(struct platform_device *pdev)
 				"Unable to create additional controls\n");
 			goto err_thres;
 		}
-	} else {
-		mcbsp->max_tx_thres = -EINVAL;
-		mcbsp->max_rx_thres = -EINVAL;
 	}
 
 	ret = omap_mcbsp_st_init(pdev);
