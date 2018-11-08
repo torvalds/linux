@@ -89,8 +89,6 @@
 
 /************************* STRUCTURE DEFINITIONS *****************************/
 
-struct zfcp_fsf_req;
-
 struct zfcp_erp_action {
 	struct list_head list;
 	int action;	              /* requested action code */
