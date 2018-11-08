@@ -1956,7 +1956,7 @@ static int gen8_emit_flush(struct i915_request *request, u32 mode)
 
 	if (mode & EMIT_INVALIDATE) {
 		cmd |= MI_INVALIDATE_TLB;
-		if (request->engine->id == VCS)
+		if (request->engine->class == VIDEO_DECODE_CLASS)
 			cmd |= MI_INVALIDATE_BSD;
 	}
 
