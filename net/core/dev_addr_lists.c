@@ -278,6 +278,103 @@ int __hw_addr_sync_dev(struct netdev_hw_addr_list *list,
 EXPORT_SYMBOL(__hw_addr_sync_dev);
 
 /**
+ *  __hw_addr_ref_sync_dev - Synchronize device's multicast address list taking
+ *  into account references
+ *  @list: address list to synchronize
+ *  @dev:  device to sync
+ *  @sync: function to call if address or reference on it should be added
+ *  @unsync: function to call if address or some reference on it should removed
+ *
+ *  This function is intended to be called from the ndo_set_rx_mode
+ *  function of devices that require explicit address or references on it
+ *  add/remove notifications. The unsync function may be NULL in which case
+ *  the addresses or references on it requiring removal will simply be
+ *  removed without any notification to the device. That is responsibility of
+ *  the driver to identify and distribute address or references on it between
+ *  internal address tables.
+ **/
+int __hw_addr_ref_sync_dev(struct netdev_hw_addr_list *list,
+			   struct net_device *dev,
+			   int (*sync)(struct net_device *,
+				       const unsigned char *, int),
+			   int (*unsync)(struct net_device *,
+					 const unsigned char *, int))
+{
+	struct netdev_hw_addr *ha, *tmp;
+	int err, ref_cnt;
+
+	/* first go through and flush out any unsynced/stale entries */
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		/* sync if address is not used */
+		if ((ha->sync_cnt << 1) <= ha->refcount)
+			continue;
+
+		/* if fails defer unsyncing address */
+		ref_cnt = ha->refcount - ha->sync_cnt;
+		if (unsync && unsync(dev, ha->addr, ref_cnt))
+			continue;
+
+		ha->refcount = (ref_cnt << 1) + 1;
+		ha->sync_cnt = ref_cnt;
+		__hw_addr_del_entry(list, ha, false, false);
+	}
+
+	/* go through and sync updated/new entries to the list */
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		/* sync if address added or reused */
+		if ((ha->sync_cnt << 1) >= ha->refcount)
+			continue;
+
+		ref_cnt = ha->refcount - ha->sync_cnt;
+		err = sync(dev, ha->addr, ref_cnt);
+		if (err)
+			return err;
+
+		ha->refcount = ref_cnt << 1;
+		ha->sync_cnt = ref_cnt;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(__hw_addr_ref_sync_dev);
+
+/**
+ *  __hw_addr_ref_unsync_dev - Remove synchronized addresses and references on
+ *  it from device
+ *  @list: address list to remove synchronized addresses (references on it) from
+ *  @dev:  device to sync
+ *  @unsync: function to call if address and references on it should be removed
+ *
+ *  Remove all addresses that were added to the device by
+ *  __hw_addr_ref_sync_dev(). This function is intended to be called from the
+ *  ndo_stop or ndo_open functions on devices that require explicit address (or
+ *  references on it) add/remove notifications. If the unsync function pointer
+ *  is NULL then this function can be used to just reset the sync_cnt for the
+ *  addresses in the list.
+ **/
+void __hw_addr_ref_unsync_dev(struct netdev_hw_addr_list *list,
+			      struct net_device *dev,
+			      int (*unsync)(struct net_device *,
+					    const unsigned char *, int))
+{
+	struct netdev_hw_addr *ha, *tmp;
+
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		if (!ha->sync_cnt)
+			continue;
+
+		/* if fails defer unsyncing address */
+		if (unsync && unsync(dev, ha->addr, ha->sync_cnt))
+			continue;
+
+		ha->refcount -= ha->sync_cnt - 1;
+		ha->sync_cnt = 0;
+		__hw_addr_del_entry(list, ha, false, false);
+	}
+}
+EXPORT_SYMBOL(__hw_addr_ref_unsync_dev);
+
+/**
  *  __hw_addr_unsync_dev - Remove synchronized addresses from device
  *  @list: address list to remove synchronized addresses from
  *  @dev:  device to sync
