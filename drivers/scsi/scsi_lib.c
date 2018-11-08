@@ -1566,10 +1566,7 @@ static blk_status_t scsi_mq_prep_fn(struct request *req)
 
 	scsi_init_command(sdev, cmd);
 
-	req->special = cmd;
-
 	cmd->request = req;
-
 	cmd->tag = req->tag;
 	cmd->prot_op = SCSI_PROT_NORMAL;
 
