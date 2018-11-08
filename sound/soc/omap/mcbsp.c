@@ -227,28 +227,27 @@ void omap_mcbsp_config(struct omap_mcbsp *mcbsp,
 
 /**
  * omap_mcbsp_dma_reg_params - returns the address of mcbsp data register
- * @id - mcbsp id
- * @stream - indicates the direction of data flow (rx or tx)
+ * @mcbsp: omap_mcbsp struct for the McBSP instance
+ * @stream: Stream direction (playback/capture)
  *
  * Returns the address of mcbsp data transmit register or data receive register
- * to be used by DMA for transferring/receiving data based on the value of
- * @stream for the requested mcbsp given by @id
+ * to be used by DMA for transferring/receiving data
  */
 static int omap_mcbsp_dma_reg_params(struct omap_mcbsp *mcbsp,
 				     unsigned int stream)
 {
 	int data_reg;
 
-	if (mcbsp->pdata->reg_size == 2) {
-		if (stream)
-			data_reg = OMAP_MCBSP_REG_DRR1;
-		else
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (mcbsp->pdata->reg_size == 2)
 			data_reg = OMAP_MCBSP_REG_DXR1;
-	} else {
-		if (stream)
-			data_reg = OMAP_MCBSP_REG_DRR;
 		else
 			data_reg = OMAP_MCBSP_REG_DXR;
+	} else {
+		if (mcbsp->pdata->reg_size == 2)
+			data_reg = OMAP_MCBSP_REG_DRR1;
+		else
+			data_reg = OMAP_MCBSP_REG_DRR;
 	}
 
 	return mcbsp->phys_dma_base + data_reg * mcbsp->pdata->reg_step;
@@ -1034,10 +1033,12 @@ int omap_mcbsp_init(struct platform_device *pdev)
 		mcbsp->dma_data[1].filter_data = "rx";
 	}
 
-	mcbsp->dma_data[0].addr = omap_mcbsp_dma_reg_params(mcbsp, 0);
+	mcbsp->dma_data[0].addr = omap_mcbsp_dma_reg_params(mcbsp,
+						SNDRV_PCM_STREAM_PLAYBACK);
 	mcbsp->dma_data[0].maxburst = 4;
 
-	mcbsp->dma_data[1].addr = omap_mcbsp_dma_reg_params(mcbsp, 1);
+	mcbsp->dma_data[1].addr = omap_mcbsp_dma_reg_params(mcbsp,
+						SNDRV_PCM_STREAM_CAPTURE);
 	mcbsp->dma_data[1].maxburst = 4;
 
 	mcbsp->fclk = clk_get(&pdev->dev, "fck");
