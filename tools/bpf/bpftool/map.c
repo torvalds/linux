@@ -383,7 +383,10 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 		printf(single_line ? "  " : "\n");
 
 		printf("value:%c", break_names ? '\n' : ' ');
-		fprint_hex(stdout, value, info->value_size, " ");
+		if (value)
+			fprint_hex(stdout, value, info->value_size, " ");
+		else
+			printf("<no entry>");
 
 		printf("\n");
 	} else {
@@ -398,8 +401,11 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 		for (i = 0; i < n; i++) {
 			printf("value (CPU %02d):%c",
 			       i, info->value_size > 16 ? '\n' : ' ');
-			fprint_hex(stdout, value + i * step,
-				   info->value_size, " ");
+			if (value)
+				fprint_hex(stdout, value + i * step,
+					   info->value_size, " ");
+			else
+				printf("<no entry>");
 			printf("\n");
 		}
 	}
@@ -731,7 +737,11 @@ static int dump_map_elem(int fd, void *key, void *value,
 		jsonw_string_field(json_wtr, "error", strerror(lookup_errno));
 		jsonw_end_object(json_wtr);
 	} else {
-		print_entry_error(map_info, key, strerror(lookup_errno));
+		if (errno == ENOENT)
+			print_entry_plain(map_info, key, NULL);
+		else
+			print_entry_error(map_info, key,
+					  strerror(lookup_errno));
 	}
 
 	return 0;
