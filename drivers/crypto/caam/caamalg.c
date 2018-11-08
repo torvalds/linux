@@ -72,6 +72,8 @@
 #define AUTHENC_DESC_JOB_IO_LEN		(AEAD_DESC_JOB_IO_LEN + \
 					 CAAM_CMD_SZ * 5)
 
+#define CHACHAPOLY_DESC_JOB_IO_LEN	(AEAD_DESC_JOB_IO_LEN + CAAM_CMD_SZ * 6)
+
 #define DESC_MAX_USED_BYTES		(CAAM_DESC_BYTES_MAX - DESC_JOB_IO_LEN)
 #define DESC_MAX_USED_LEN		(DESC_MAX_USED_BYTES / CAAM_CMD_SZ)
 
@@ -511,6 +513,61 @@ static int rfc4543_setauthsize(struct crypto_aead *authenc,
 	rfc4543_set_sh_desc(authenc);
 
 	return 0;
+}
+
+static int chachapoly_set_sh_desc(struct crypto_aead *aead)
+{
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+	struct device *jrdev = ctx->jrdev;
+	unsigned int ivsize = crypto_aead_ivsize(aead);
+	u32 *desc;
+
+	if (!ctx->cdata.keylen || !ctx->authsize)
+		return 0;
+
+	desc = ctx->sh_desc_enc;
+	cnstr_shdsc_chachapoly(desc, &ctx->cdata, &ctx->adata, ivsize,
+			       ctx->authsize, true);
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
+				   desc_bytes(desc), ctx->dir);
+
+	desc = ctx->sh_desc_dec;
+	cnstr_shdsc_chachapoly(desc, &ctx->cdata, &ctx->adata, ivsize,
+			       ctx->authsize, false);
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
+				   desc_bytes(desc), ctx->dir);
+
+	return 0;
+}
+
+static int chachapoly_setauthsize(struct crypto_aead *aead,
+				  unsigned int authsize)
+{
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+
+	if (authsize != POLY1305_DIGEST_SIZE)
+		return -EINVAL;
+
+	ctx->authsize = authsize;
+	return chachapoly_set_sh_desc(aead);
+}
+
+static int chachapoly_setkey(struct crypto_aead *aead, const u8 *key,
+			     unsigned int keylen)
+{
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+	unsigned int ivsize = crypto_aead_ivsize(aead);
+	unsigned int saltlen = CHACHAPOLY_IV_SIZE - ivsize;
+
+	if (keylen != CHACHA20_KEY_SIZE + saltlen) {
+		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
+	}
+
+	ctx->cdata.key_virt = key;
+	ctx->cdata.keylen = keylen - saltlen;
+
+	return chachapoly_set_sh_desc(aead);
 }
 
 static int aead_setkey(struct crypto_aead *aead,
@@ -1031,6 +1088,40 @@ static void init_gcm_job(struct aead_request *req,
 	/* End of blank commands */
 }
 
+static void init_chachapoly_job(struct aead_request *req,
+				struct aead_edesc *edesc, bool all_contig,
+				bool encrypt)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	unsigned int ivsize = crypto_aead_ivsize(aead);
+	unsigned int assoclen = req->assoclen;
+	u32 *desc = edesc->hw_desc;
+	u32 ctx_iv_off = 4;
+
+	init_aead_job(req, edesc, all_contig, encrypt);
+
+	if (ivsize != CHACHAPOLY_IV_SIZE) {
+		/* IPsec specific: CONTEXT1[223:128] = {NONCE, IV} */
+		ctx_iv_off += 4;
+
+		/*
+		 * The associated data comes already with the IV but we need
+		 * to skip it when we authenticate or encrypt...
+		 */
+		assoclen -= ivsize;
+	}
+
+	append_math_add_imm_u32(desc, REG3, ZERO, IMM, assoclen);
+
+	/*
+	 * For IPsec load the IV further in the same register.
+	 * For RFC7539 simply load the 12 bytes nonce in a single operation
+	 */
+	append_load_as_imm(desc, req->iv, ivsize, LDST_CLASS_1_CCB |
+			   LDST_SRCDST_BYTE_CONTEXT |
+			   ctx_iv_off << LDST_OFFSET_SHIFT);
+}
+
 static void init_authenc_job(struct aead_request *req,
 			     struct aead_edesc *edesc,
 			     bool all_contig, bool encrypt)
@@ -1279,6 +1370,72 @@ static int gcm_encrypt(struct aead_request *req)
 
 	desc = edesc->hw_desc;
 	ret = caam_jr_enqueue(jrdev, desc, aead_encrypt_done, req);
+	if (!ret) {
+		ret = -EINPROGRESS;
+	} else {
+		aead_unmap(jrdev, edesc, req);
+		kfree(edesc);
+	}
+
+	return ret;
+}
+
+static int chachapoly_encrypt(struct aead_request *req)
+{
+	struct aead_edesc *edesc;
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+	struct device *jrdev = ctx->jrdev;
+	bool all_contig;
+	u32 *desc;
+	int ret;
+
+	edesc = aead_edesc_alloc(req, CHACHAPOLY_DESC_JOB_IO_LEN, &all_contig,
+				 true);
+	if (IS_ERR(edesc))
+		return PTR_ERR(edesc);
+
+	desc = edesc->hw_desc;
+
+	init_chachapoly_job(req, edesc, all_contig, true);
+	print_hex_dump_debug("chachapoly jobdesc@" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
+
+	ret = caam_jr_enqueue(jrdev, desc, aead_encrypt_done, req);
+	if (!ret) {
+		ret = -EINPROGRESS;
+	} else {
+		aead_unmap(jrdev, edesc, req);
+		kfree(edesc);
+	}
+
+	return ret;
+}
+
+static int chachapoly_decrypt(struct aead_request *req)
+{
+	struct aead_edesc *edesc;
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+	struct device *jrdev = ctx->jrdev;
+	bool all_contig;
+	u32 *desc;
+	int ret;
+
+	edesc = aead_edesc_alloc(req, CHACHAPOLY_DESC_JOB_IO_LEN, &all_contig,
+				 false);
+	if (IS_ERR(edesc))
+		return PTR_ERR(edesc);
+
+	desc = edesc->hw_desc;
+
+	init_chachapoly_job(req, edesc, all_contig, false);
+	print_hex_dump_debug("chachapoly jobdesc@" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
+
+	ret = caam_jr_enqueue(jrdev, desc, aead_decrypt_done, req);
 	if (!ret) {
 		ret = -EINPROGRESS;
 	} else {
@@ -3002,6 +3159,50 @@ static struct caam_aead_alg driver_aeads[] = {
 			.geniv = true,
 		},
 	},
+	{
+		.aead = {
+			.base = {
+				.cra_name = "rfc7539(chacha20,poly1305)",
+				.cra_driver_name = "rfc7539-chacha20-poly1305-"
+						   "caam",
+				.cra_blocksize = 1,
+			},
+			.setkey = chachapoly_setkey,
+			.setauthsize = chachapoly_setauthsize,
+			.encrypt = chachapoly_encrypt,
+			.decrypt = chachapoly_decrypt,
+			.ivsize = CHACHAPOLY_IV_SIZE,
+			.maxauthsize = POLY1305_DIGEST_SIZE,
+		},
+		.caam = {
+			.class1_alg_type = OP_ALG_ALGSEL_CHACHA20 |
+					   OP_ALG_AAI_AEAD,
+			.class2_alg_type = OP_ALG_ALGSEL_POLY1305 |
+					   OP_ALG_AAI_AEAD,
+		},
+	},
+	{
+		.aead = {
+			.base = {
+				.cra_name = "rfc7539esp(chacha20,poly1305)",
+				.cra_driver_name = "rfc7539esp-chacha20-"
+						   "poly1305-caam",
+				.cra_blocksize = 1,
+			},
+			.setkey = chachapoly_setkey,
+			.setauthsize = chachapoly_setauthsize,
+			.encrypt = chachapoly_encrypt,
+			.decrypt = chachapoly_decrypt,
+			.ivsize = 8,
+			.maxauthsize = POLY1305_DIGEST_SIZE,
+		},
+		.caam = {
+			.class1_alg_type = OP_ALG_ALGSEL_CHACHA20 |
+					   OP_ALG_AAI_AEAD,
+			.class2_alg_type = OP_ALG_ALGSEL_POLY1305 |
+					   OP_ALG_AAI_AEAD,
+		},
+	},
 };
 
 static int caam_init_common(struct caam_ctx *ctx, struct caam_alg_entry *caam,
@@ -3135,7 +3336,7 @@ static int __init caam_algapi_init(void)
 	struct device *ctrldev;
 	struct caam_drv_private *priv;
 	int i = 0, err = 0;
-	u32 aes_vid, aes_inst, des_inst, md_vid, md_inst;
+	u32 aes_vid, aes_inst, des_inst, md_vid, md_inst, ccha_inst, ptha_inst;
 	unsigned int md_limit = SHA512_DIGEST_SIZE;
 	bool registered = false;
 
@@ -3180,6 +3381,8 @@ static int __init caam_algapi_init(void)
 			   CHA_ID_LS_DES_SHIFT;
 		aes_inst = cha_inst & CHA_ID_LS_AES_MASK;
 		md_inst = (cha_inst & CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT;
+		ccha_inst = 0;
+		ptha_inst = 0;
 	} else {
 		u32 aesa, mdha;
 
@@ -3192,6 +3395,8 @@ static int __init caam_algapi_init(void)
 		des_inst = rd_reg32(&priv->ctrl->vreg.desa) & CHA_VER_NUM_MASK;
 		aes_inst = aesa & CHA_VER_NUM_MASK;
 		md_inst = mdha & CHA_VER_NUM_MASK;
+		ccha_inst = rd_reg32(&priv->ctrl->vreg.ccha) & CHA_VER_NUM_MASK;
+		ptha_inst = rd_reg32(&priv->ctrl->vreg.ptha) & CHA_VER_NUM_MASK;
 	}
 
 	/* If MD is present, limit digest size based on LP256 */
@@ -3252,6 +3457,14 @@ static int __init caam_algapi_init(void)
 		if (!aes_inst && (c1_alg_sel == OP_ALG_ALGSEL_AES))
 				continue;
 
+		/* Skip CHACHA20 algorithms if not supported by device */
+		if (c1_alg_sel == OP_ALG_ALGSEL_CHACHA20 && !ccha_inst)
+			continue;
+
+		/* Skip POLY1305 algorithms if not supported by device */
+		if (c2_alg_sel == OP_ALG_ALGSEL_POLY1305 && !ptha_inst)
+			continue;
+
 		/*
 		 * Check support for AES algorithms not available
 		 * on LP devices.
@@ -3263,9 +3476,9 @@ static int __init caam_algapi_init(void)
 		 * Skip algorithms requiring message digests
 		 * if MD or MD size is not supported by device.
 		 */
-		if (c2_alg_sel &&
-		    (!md_inst || (t_alg->aead.maxauthsize > md_limit)))
-				continue;
+		if ((c2_alg_sel & ~OP_ALG_ALGSEL_SUBMASK) == 0x40 &&
+		    (!md_inst || t_alg->aead.maxauthsize > md_limit))
+			continue;
 
 		caam_aead_alg_init(t_alg);
 
