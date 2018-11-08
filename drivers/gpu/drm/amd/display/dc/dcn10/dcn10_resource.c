@@ -70,7 +70,7 @@
 const struct _vcs_dpi_ip_params_st dcn1_0_ip = {
 	.rob_buffer_size_kbytes = 64,
 	.det_buffer_size_kbytes = 164,
-	.dpte_buffer_size_in_pte_reqs = 42,
+	.dpte_buffer_size_in_pte_reqs_luma = 42,
 	.dpp_output_buffer_pixels = 2560,
 	.opp_output_buffer_lines = 1,
 	.pixel_chunk_size_kbytes = 8,

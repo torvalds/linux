@@ -290,41 +290,34 @@ static void pipe_ctx_to_e2e_pipe_params (
 	switch (pipe->plane_state->tiling_info.gfx9.swizzle) {
 	/* for 4/8/16 high tiles */
 	case DC_SW_LINEAR:
-		input->src.is_display_sw = 1;
 		input->src.macro_tile_size = dm_4k_tile;
 		break;
 	case DC_SW_4KB_S:
 	case DC_SW_4KB_S_X:
-		input->src.is_display_sw = 0;
 		input->src.macro_tile_size = dm_4k_tile;
 		break;
 	case DC_SW_64KB_S:
 	case DC_SW_64KB_S_X:
 	case DC_SW_64KB_S_T:
-		input->src.is_display_sw = 0;
 		input->src.macro_tile_size = dm_64k_tile;
 		break;
 	case DC_SW_VAR_S:
 	case DC_SW_VAR_S_X:
-		input->src.is_display_sw = 0;
 		input->src.macro_tile_size = dm_256k_tile;
 		break;
 
 	/* For 64bpp 2 high tiles */
 	case DC_SW_4KB_D:
 	case DC_SW_4KB_D_X:
-		input->src.is_display_sw = 1;
 		input->src.macro_tile_size = dm_4k_tile;
 		break;
 	case DC_SW_64KB_D:
 	case DC_SW_64KB_D_X:
 	case DC_SW_64KB_D_T:
-		input->src.is_display_sw = 1;
 		input->src.macro_tile_size = dm_64k_tile;
 		break;
 	case DC_SW_VAR_D:
 	case DC_SW_VAR_D_X:
-		input->src.is_display_sw = 1;
 		input->src.macro_tile_size = dm_256k_tile;
 		break;
 
