@@ -1393,70 +1393,108 @@ static int loop_set_block_size(struct loop_device *lo, unsigned long arg)
 	return 0;
 }
 
+static int lo_simple_ioctl(struct loop_device *lo, unsigned int cmd,
+			   unsigned long arg)
+{
+	int err;
+
+	err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+	if (err)
+		return err;
+	switch (cmd) {
+	case LOOP_SET_CAPACITY:
+		err = loop_set_capacity(lo);
+		break;
+	case LOOP_SET_DIRECT_IO:
+		err = loop_set_dio(lo, arg);
+		break;
+	case LOOP_SET_BLOCK_SIZE:
+		err = loop_set_block_size(lo, arg);
+		break;
+	default:
+		err = lo->ioctl ? lo->ioctl(lo, cmd, arg) : -EINVAL;
+	}
+	mutex_unlock(&loop_ctl_mutex);
+	return err;
+}
+
 static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
 {
 	struct loop_device *lo = bdev->bd_disk->private_data;
 	int err;
 
-	err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
-	if (err)
-		goto out_unlocked;
-
 	switch (cmd) {
 	case LOOP_SET_FD:
+		err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+		if (err)
+			return err;
 		err = loop_set_fd(lo, mode, bdev, arg);
+		mutex_unlock(&loop_ctl_mutex);
 		break;
 	case LOOP_CHANGE_FD:
+		err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+		if (err)
+			return err;
 		err = loop_change_fd(lo, bdev, arg);
+		mutex_unlock(&loop_ctl_mutex);
 		break;
 	case LOOP_CLR_FD:
+		err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+		if (err)
+			return err;
 		/* loop_clr_fd would have unlocked loop_ctl_mutex on success */
 		err = loop_clr_fd(lo);
-		if (!err)
-			goto out_unlocked;
+		if (err)
+			mutex_unlock(&loop_ctl_mutex);
 		break;
 	case LOOP_SET_STATUS:
 		err = -EPERM;
-		if ((mode & FMODE_WRITE) || capable(CAP_SYS_ADMIN))
+		if ((mode & FMODE_WRITE) || capable(CAP_SYS_ADMIN)) {
+			err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+			if (err)
+				return err;
 			err = loop_set_status_old(lo,
 					(struct loop_info __user *)arg);
+			mutex_unlock(&loop_ctl_mutex);
+		}
 		break;
 	case LOOP_GET_STATUS:
+		err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+		if (err)
+			return err;
 		err = loop_get_status_old(lo, (struct loop_info __user *) arg);
 		/* loop_get_status() unlocks loop_ctl_mutex */
-		goto out_unlocked;
+		break;
 	case LOOP_SET_STATUS64:
 		err = -EPERM;
-		if ((mode & FMODE_WRITE) || capable(CAP_SYS_ADMIN))
+		if ((mode & FMODE_WRITE) || capable(CAP_SYS_ADMIN)) {
+			err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+			if (err)
+				return err;
 			err = loop_set_status64(lo,
 					(struct loop_info64 __user *) arg);
+			mutex_unlock(&loop_ctl_mutex);
+		}
 		break;
 	case LOOP_GET_STATUS64:
+		err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
+		if (err)
+			return err;
 		err = loop_get_status64(lo, (struct loop_info64 __user *) arg);
 		/* loop_get_status() unlocks loop_ctl_mutex */
-		goto out_unlocked;
+		break;
 	case LOOP_SET_CAPACITY:
-		err = -EPERM;
-		if ((mode & FMODE_WRITE) || capable(CAP_SYS_ADMIN))
-			err = loop_set_capacity(lo);
-		break;
 	case LOOP_SET_DIRECT_IO:
-		err = -EPERM;
-		if ((mode & FMODE_WRITE) || capable(CAP_SYS_ADMIN))
-			err = loop_set_dio(lo, arg);
-		break;
 	case LOOP_SET_BLOCK_SIZE:
-		err = -EPERM;
-		if ((mode & FMODE_WRITE) || capable(CAP_SYS_ADMIN))
-			err = loop_set_block_size(lo, arg);
-		break;
+		if (!(mode & FMODE_WRITE) && !capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		/* Fall through */
 	default:
-		err = lo->ioctl ? lo->ioctl(lo, cmd, arg) : -EINVAL;
+		err = lo_simple_ioctl(lo, cmd, arg);
+		break;
 	}
-	mutex_unlock(&loop_ctl_mutex);
 
-out_unlocked:
 	return err;
 }
 
