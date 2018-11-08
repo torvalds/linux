@@ -4,6 +4,7 @@
  * Definitions to support CAAM descriptor instruction generation
  *
  * Copyright 2008-2011 Freescale Semiconductor, Inc.
+ * Copyright 2018 NXP
  */
 
 #ifndef DESC_H
@@ -1132,6 +1133,12 @@
 #define OP_ALG_TYPE_MASK	(0x7 << OP_ALG_TYPE_SHIFT)
 #define OP_ALG_TYPE_CLASS1	(2 << OP_ALG_TYPE_SHIFT)
 #define OP_ALG_TYPE_CLASS2	(4 << OP_ALG_TYPE_SHIFT)
+
+/* version register fields */
+#define OP_VER_CCHA_NUM  0x000000ff /* Number CCHAs instantiated */
+#define OP_VER_CCHA_MISC 0x0000ff00 /* CCHA Miscellaneous Information */
+#define OP_VER_CCHA_REV  0x00ff0000 /* CCHA Revision Number */
+#define OP_VER_CCHA_VID  0xff000000 /* CCHA Version ID */
 
 #define OP_ALG_ALGSEL_SHIFT	16
 #define OP_ALG_ALGSEL_MASK	(0xff << OP_ALG_ALGSEL_SHIFT)
