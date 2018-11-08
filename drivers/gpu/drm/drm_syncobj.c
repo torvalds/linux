@@ -483,6 +483,10 @@ int drm_syncobj_create(struct drm_syncobj **out_syncobj, uint32_t flags,
 	int ret;
 	struct drm_syncobj *syncobj;
 
+	/* Disabled for now */
+	if (flags & DRM_SYNCOBJ_CREATE_TYPE_TIMELINE)
+		return -EINVAL;
+
 	syncobj = kzalloc(sizeof(struct drm_syncobj), GFP_KERNEL);
 	if (!syncobj)
 		return -ENOMEM;

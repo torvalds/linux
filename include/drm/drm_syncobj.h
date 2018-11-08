@@ -30,6 +30,9 @@
 
 struct drm_syncobj_cb;
 
+/* Move the define here for the moment to avoid exposing the UAPI just yet */
+#define DRM_SYNCOBJ_CREATE_TYPE_TIMELINE (1 << 1)
+
 enum drm_syncobj_type {
 	DRM_SYNCOBJ_TYPE_BINARY,
 	DRM_SYNCOBJ_TYPE_TIMELINE
