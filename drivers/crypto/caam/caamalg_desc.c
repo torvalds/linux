@@ -1227,10 +1227,12 @@ EXPORT_SYMBOL(cnstr_shdsc_rfc4543_decap);
  * @ivsize: initialization vector size
  * @icvsize: integrity check value (ICV) size (truncated or full)
  * @encap: true if encapsulation, false if decapsulation
+ * @is_qi: true when called from caam/qi
  */
 void cnstr_shdsc_chachapoly(u32 * const desc, struct alginfo *cdata,
 			    struct alginfo *adata, unsigned int ivsize,
-			    unsigned int icvsize, const bool encap)
+			    unsigned int icvsize, const bool encap,
+			    const bool is_qi)
 {
 	u32 *key_jump_cmd, *wait_cmd;
 	u32 nfifo;
@@ -1265,6 +1267,26 @@ void cnstr_shdsc_chachapoly(u32 * const desc, struct alginfo *cdata,
 				 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
 		append_operation(desc, cdata->algtype | OP_ALG_AS_INITFINAL |
 				 OP_ALG_DECRYPT);
+	}
+
+	if (is_qi) {
+		u32 *wait_load_cmd;
+		u32 ctx1_iv_off = is_ipsec ? 8 : 4;
+
+		/* REG3 = assoclen */
+		append_seq_load(desc, 4, LDST_CLASS_DECO |
+				LDST_SRCDST_WORD_DECO_MATH3 |
+				4 << LDST_OFFSET_SHIFT);
+
+		wait_load_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+					    JUMP_COND_CALM | JUMP_COND_NCP |
+					    JUMP_COND_NOP | JUMP_COND_NIP |
+					    JUMP_COND_NIFP);
+		set_jump_tgt_here(desc, wait_load_cmd);
+
+		append_seq_load(desc, ivsize, LDST_CLASS_1_CCB |
+				LDST_SRCDST_BYTE_CONTEXT |
+				ctx1_iv_off << LDST_OFFSET_SHIFT);
 	}
 
 	/*

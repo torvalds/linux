@@ -527,13 +527,13 @@ static int chachapoly_set_sh_desc(struct crypto_aead *aead)
 
 	desc = ctx->sh_desc_enc;
 	cnstr_shdsc_chachapoly(desc, &ctx->cdata, &ctx->adata, ivsize,
-			       ctx->authsize, true);
+			       ctx->authsize, true, false);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
 				   desc_bytes(desc), ctx->dir);
 
 	desc = ctx->sh_desc_dec;
 	cnstr_shdsc_chachapoly(desc, &ctx->cdata, &ctx->adata, ivsize,
-			       ctx->authsize, false);
+			       ctx->authsize, false, false);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
 				   desc_bytes(desc), ctx->dir);
 
