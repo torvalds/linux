@@ -61,6 +61,23 @@ static inline int snd_sof_dsp_reset(struct snd_sof_dev *sdev)
 		return 0;
 }
 
+/* pre/post fw load */
+static inline int snd_sof_dsp_pre_fw_run(struct snd_sof_dev *sdev)
+{
+	if (sdev->ops->pre_fw_run)
+		return sdev->ops->pre_fw_run(sdev);
+	else
+		return 0;
+}
+
+static inline int snd_sof_dsp_post_fw_run(struct snd_sof_dev *sdev)
+{
+	if (sdev->ops->post_fw_run)
+		return sdev->ops->post_fw_run(sdev);
+	else
+		return 0;
+}
+
 /* power management */
 static inline int snd_sof_dsp_resume(struct snd_sof_dev *sdev)
 {

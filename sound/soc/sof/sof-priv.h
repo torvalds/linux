@@ -78,6 +78,10 @@ struct snd_sof_dsp_ops {
 	int (*stall)(struct snd_sof_dev *sof_dev);
 	int (*reset)(struct snd_sof_dev *sof_dev);
 
+	/* pre/post firmware run */
+	int (*pre_fw_run)(struct snd_sof_dev *sof_dev);
+	int (*post_fw_run)(struct snd_sof_dev *sof_dev);
+
 	/* DSP PM */
 	int (*suspend)(struct snd_sof_dev *sof_dev, int state);
 	int (*resume)(struct snd_sof_dev *sof_dev);

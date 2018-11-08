@@ -296,6 +296,13 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		}
 	}
 
+	/* perform pre fw run operations */
+	ret = snd_sof_dsp_pre_fw_run(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed pre fw run op\n");
+		return ret;
+	}
+
 	dev_dbg(sdev->dev, "booting DSP firmware\n");
 
 	/* boot the firmware on the DSP */
@@ -316,6 +323,13 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	}
 
 	dev_info(sdev->dev, "firmware boot complete\n");
+
+	/* perform post fw run operations */
+	ret = snd_sof_dsp_post_fw_run(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed post fw run op\n");
+		return ret;
+	}
 
 	return 0;
 }
