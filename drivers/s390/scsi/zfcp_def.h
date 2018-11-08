@@ -107,6 +107,20 @@ enum zfcp_erp_act_type {
 	ZFCP_ERP_ACTION_REOPEN_ADAPTER	   = 4,
 };
 
+/*
+ * Values must fit into u16 because of code dependencies:
+ * zfcp_dbf_rec_run_lvl(), zfcp_dbf_rec_run(), zfcp_dbf_rec_run_wka(),
+ * &zfcp_dbf_rec_running.rec_step.
+ */
+enum zfcp_erp_steps {
+	ZFCP_ERP_STEP_UNINITIALIZED	= 0x0000,
+	ZFCP_ERP_STEP_PHYS_PORT_CLOSING	= 0x0010,
+	ZFCP_ERP_STEP_PORT_CLOSING	= 0x0100,
+	ZFCP_ERP_STEP_PORT_OPENING	= 0x0800,
+	ZFCP_ERP_STEP_LUN_CLOSING	= 0x1000,
+	ZFCP_ERP_STEP_LUN_OPENING	= 0x2000,
+};
+
 struct zfcp_erp_action {
 	struct list_head list;
 	enum zfcp_erp_act_type type;  /* requested action code */
@@ -114,7 +128,7 @@ struct zfcp_erp_action {
 	struct zfcp_port *port;
 	struct scsi_device *sdev;
 	u32		status;	      /* recovery status */
-	u32 step;	              /* active step of this erp action */
+	enum zfcp_erp_steps	step;	/* active step of this erp action */
 	unsigned long		fsf_req_id;
 	struct timer_list timer;
 };

@@ -24,15 +24,6 @@ enum zfcp_erp_act_flags {
 	ZFCP_STATUS_ERP_NO_REF		= 0x00800000,
 };
 
-enum zfcp_erp_steps {
-	ZFCP_ERP_STEP_UNINITIALIZED	= 0x0000,
-	ZFCP_ERP_STEP_PHYS_PORT_CLOSING	= 0x0010,
-	ZFCP_ERP_STEP_PORT_CLOSING	= 0x0100,
-	ZFCP_ERP_STEP_PORT_OPENING	= 0x0800,
-	ZFCP_ERP_STEP_LUN_CLOSING	= 0x1000,
-	ZFCP_ERP_STEP_LUN_OPENING	= 0x2000,
-};
-
 /*
  * Eyecatcher pseudo flag to bitwise or-combine with enum zfcp_erp_act_type.
  * Used to indicate that an ERP action could not be set up despite a detected
@@ -900,6 +891,13 @@ static int zfcp_erp_port_forced_strategy(struct zfcp_erp_action *erp_action)
 	case ZFCP_ERP_STEP_PHYS_PORT_CLOSING:
 		if (!(status & ZFCP_STATUS_PORT_PHYS_OPEN))
 			return ZFCP_ERP_SUCCEEDED;
+		break;
+	case ZFCP_ERP_STEP_PORT_CLOSING:
+	case ZFCP_ERP_STEP_PORT_OPENING:
+	case ZFCP_ERP_STEP_LUN_CLOSING:
+	case ZFCP_ERP_STEP_LUN_OPENING:
+		/* NOP */
+		break;
 	}
 	return ZFCP_ERP_FAILED;
 }
@@ -974,7 +972,12 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 			port->d_id = 0;
 			return ZFCP_ERP_FAILED;
 		}
-		/* fall through otherwise */
+		/* no early return otherwise, continue after switch case */
+		break;
+	case ZFCP_ERP_STEP_LUN_CLOSING:
+	case ZFCP_ERP_STEP_LUN_OPENING:
+		/* NOP */
+		break;
 	}
 	return ZFCP_ERP_FAILED;
 }
@@ -997,6 +1000,12 @@ static int zfcp_erp_port_strategy(struct zfcp_erp_action *erp_action)
 	case ZFCP_ERP_STEP_PORT_CLOSING:
 		if (p_status & ZFCP_STATUS_COMMON_OPEN)
 			return ZFCP_ERP_FAILED;
+		break;
+	case ZFCP_ERP_STEP_PHYS_PORT_CLOSING:
+	case ZFCP_ERP_STEP_PORT_OPENING:
+	case ZFCP_ERP_STEP_LUN_CLOSING:
+	case ZFCP_ERP_STEP_LUN_OPENING:
+		/* NOP */
 		break;
 	}
 
@@ -1058,6 +1067,12 @@ static int zfcp_erp_lun_strategy(struct zfcp_erp_action *erp_action)
 	case ZFCP_ERP_STEP_LUN_OPENING:
 		if (atomic_read(&zfcp_sdev->status) & ZFCP_STATUS_COMMON_OPEN)
 			return ZFCP_ERP_SUCCEEDED;
+		break;
+	case ZFCP_ERP_STEP_PHYS_PORT_CLOSING:
+	case ZFCP_ERP_STEP_PORT_CLOSING:
+	case ZFCP_ERP_STEP_PORT_OPENING:
+		/* NOP */
+		break;
 	}
 	return ZFCP_ERP_FAILED;
 }
