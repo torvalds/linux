@@ -147,6 +147,14 @@ struct cpuset {
 
 	/* partition root state */
 	int partition_root_state;
+
+	/*
+	 * Default hierarchy only:
+	 * use_parent_ecpus - set if using parent's effective_cpus
+	 * child_ecpus_count - # of children with use_parent_ecpus set
+	 */
+	int use_parent_ecpus;
+	int child_ecpus_count;
 };
 
 /*
@@ -1227,8 +1235,17 @@ static void update_cpumasks_hier(struct cpuset *cs, struct tmpmasks *tmp)
 		 * If it becomes empty, inherit the effective mask of the
 		 * parent, which is guaranteed to have some CPUs.
 		 */
-		if (is_in_v2_mode() && cpumask_empty(tmp->new_cpus))
+		if (is_in_v2_mode() && cpumask_empty(tmp->new_cpus)) {
 			cpumask_copy(tmp->new_cpus, parent->effective_cpus);
+			if (!cp->use_parent_ecpus) {
+				cp->use_parent_ecpus = true;
+				parent->child_ecpus_count++;
+			}
+		} else if (cp->use_parent_ecpus) {
+			cp->use_parent_ecpus = false;
+			WARN_ON_ONCE(!parent->child_ecpus_count);
+			parent->child_ecpus_count--;
+		}
 
 		/*
 		 * Skip the whole subtree if the cpumask remains the same
@@ -1346,6 +1363,35 @@ static void update_cpumasks_hier(struct cpuset *cs, struct tmpmasks *tmp)
 }
 
 /**
+ * update_sibling_cpumasks - Update siblings cpumasks
+ * @parent:  Parent cpuset
+ * @cs:      Current cpuset
+ * @tmp:     Temp variables
+ */
+static void update_sibling_cpumasks(struct cpuset *parent, struct cpuset *cs,
+				    struct tmpmasks *tmp)
+{
+	struct cpuset *sibling;
+	struct cgroup_subsys_state *pos_css;
+
+	/*
+	 * Check all its siblings and call update_cpumasks_hier()
+	 * if their use_parent_ecpus flag is set in order for them
+	 * to use the right effective_cpus value.
+	 */
+	rcu_read_lock();
+	cpuset_for_each_child(sibling, pos_css, parent) {
+		if (sibling == cs)
+			continue;
+		if (!sibling->use_parent_ecpus)
+			continue;
+
+		update_cpumasks_hier(sibling, tmp);
+	}
+	rcu_read_unlock();
+}
+
+/**
  * update_cpumask - update the cpus_allowed mask of a cpuset and all tasks in it
  * @cs: the cpuset to consider
  * @trialcs: trial cpuset
@@ -1420,6 +1466,17 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	spin_unlock_irq(&callback_lock);
 
 	update_cpumasks_hier(cs, &tmp);
+
+	if (cs->partition_root_state) {
+		struct cpuset *parent = parent_cs(cs);
+
+		/*
+		 * For partition root, update the cpumasks of sibling
+		 * cpusets if they use parent's effective_cpus.
+		 */
+		if (parent->child_ecpus_count)
+			update_sibling_cpumasks(parent, cs, &tmp);
+	}
 	return 0;
 }
 
@@ -1855,6 +1912,9 @@ static int update_prstate(struct cpuset *cs, int val)
 	 */
 	if (parent != &top_cpuset)
 		update_tasks_cpumask(parent);
+
+	if (parent->child_ecpus_count)
+		update_sibling_cpumasks(parent, cs, &tmp);
 
 	rebuild_sched_domains_locked();
 out:
@@ -2550,6 +2610,8 @@ static int cpuset_css_online(struct cgroup_subsys_state *css)
 	if (is_in_v2_mode()) {
 		cpumask_copy(cs->effective_cpus, parent->effective_cpus);
 		cs->effective_mems = parent->effective_mems;
+		cs->use_parent_ecpus = true;
+		parent->child_ecpus_count++;
 	}
 	spin_unlock_irq(&callback_lock);
 
@@ -2612,6 +2674,13 @@ static void cpuset_css_offline(struct cgroup_subsys_state *css)
 	if (!cgroup_subsys_on_dfl(cpuset_cgrp_subsys) &&
 	    is_sched_load_balance(cs))
 		update_flag(CS_SCHED_LOAD_BALANCE, cs, 0);
+
+	if (cs->use_parent_ecpus) {
+		struct cpuset *parent = parent_cs(cs);
+
+		cs->use_parent_ecpus = false;
+		parent->child_ecpus_count--;
+	}
 
 	cpuset_dec();
 	clear_bit(CS_ONLINE, &cs->flags);
