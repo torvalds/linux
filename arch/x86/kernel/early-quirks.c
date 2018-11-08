@@ -793,6 +793,10 @@ static int __init check_dev_quirk(int num, int slot, int func)
 				    PCI_HEADER_TYPE);
 
 	if ((type & 0x7f) == PCI_HEADER_TYPE_BRIDGE) {
+		/* pci_early_clear_msi scans the buses differently. */
+		if (pci_early_clear_msi)
+			return -1;
+
 		sec = read_pci_config_byte(num, slot, func, PCI_SECONDARY_BUS);
 		if (sec > num)
 			early_pci_scan_bus(sec);
@@ -819,8 +823,13 @@ static void __init early_pci_scan_bus(int bus)
 
 void __init early_quirks(void)
 {
+	int bus;
+
 	if (!early_pci_allowed())
 		return;
 
 	early_pci_scan_bus(0);
+	/* pci_early_clear_msi scans more buses. */
+	for (bus = 1; pci_early_clear_msi && bus < 256; bus++)
+		early_pci_scan_bus(bus);
 }
