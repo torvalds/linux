@@ -15,8 +15,11 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sched/topology.h>
+#include <linux/cpuset.h>
 
 DEFINE_PER_CPU(unsigned long, freq_scale) = SCHED_CAPACITY_SCALE;
+DEFINE_PER_CPU(unsigned long, max_cpu_freq);
+DEFINE_PER_CPU(unsigned long, max_freq_scale) = SCHED_CAPACITY_SCALE;
 
 void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
 			 unsigned long max_freq)
@@ -26,8 +29,29 @@ void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
 
 	scale = (cur_freq << SCHED_CAPACITY_SHIFT) / max_freq;
 
-	for_each_cpu(i, cpus)
+	for_each_cpu(i, cpus) {
 		per_cpu(freq_scale, i) = scale;
+		per_cpu(max_cpu_freq, i) = max_freq;
+	}
+}
+
+void arch_set_max_freq_scale(struct cpumask *cpus,
+			     unsigned long policy_max_freq)
+{
+	unsigned long scale, max_freq;
+	int cpu = cpumask_first(cpus);
+
+	if (cpu > nr_cpu_ids)
+		return;
+
+	max_freq = per_cpu(max_cpu_freq, cpu);
+	if (!max_freq)
+		return;
+
+	scale = (policy_max_freq << SCHED_CAPACITY_SHIFT) / max_freq;
+
+	for_each_cpu(cpu, cpus)
+		per_cpu(max_freq_scale, cpu) = scale;
 }
 
 static DEFINE_MUTEX(cpu_scale_mutex);
@@ -46,6 +70,9 @@ static ssize_t cpu_capacity_show(struct device *dev,
 
 	return sprintf(buf, "%lu\n", topology_get_cpu_scale(NULL, cpu->dev.id));
 }
+
+static void update_topology_flags_workfn(struct work_struct *work);
+static DECLARE_WORK(update_topology_flags_work, update_topology_flags_workfn);
 
 static ssize_t cpu_capacity_store(struct device *dev,
 				  struct device_attribute *attr,
@@ -72,6 +99,8 @@ static ssize_t cpu_capacity_store(struct device *dev,
 		topology_set_cpu_scale(i, new_capacity);
 	mutex_unlock(&cpu_scale_mutex);
 
+	schedule_work(&update_topology_flags_work);
+
 	return count;
 }
 
@@ -95,6 +124,25 @@ static int register_cpu_capacity_sysctl(void)
 	return 0;
 }
 subsys_initcall(register_cpu_capacity_sysctl);
+
+static int update_topology;
+
+int topology_update_cpu_topology(void)
+{
+	return update_topology;
+}
+
+/*
+ * Updating the sched_domains can't be done directly from cpufreq callbacks
+ * due to locking, so queue the work for later.
+ */
+static void update_topology_flags_workfn(struct work_struct *work)
+{
+	update_topology = 1;
+	rebuild_sched_domains();
+	pr_debug("sched_domain hierarchy rebuilt, flags updated\n");
+	update_topology = 0;
+}
 
 static u32 capacity_scale;
 static u32 *raw_capacity;
@@ -201,6 +249,7 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 
 	if (cpumask_empty(cpus_to_visit)) {
 		topology_normalize_cpu_scale();
+		schedule_work(&update_topology_flags_work);
 		free_raw_capacity();
 		pr_debug("cpu_capacity: parsing done\n");
 		schedule_work(&parsing_done_work);

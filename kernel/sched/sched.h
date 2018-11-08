@@ -44,6 +44,7 @@
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/delayacct.h>
+#include <linux/energy_model.h>
 #include <linux/init_task.h>
 #include <linux/kprobes.h>
 #include <linux/kthread.h>
@@ -78,6 +79,8 @@
 #else
 # define SCHED_WARN_ON(x)	({ (void)(x), 0; })
 #endif
+
+#include "tune.h"
 
 struct rq;
 struct cpuidle_state;
@@ -702,6 +705,22 @@ static inline bool sched_asym_prefer(int a, int b)
 	return arch_asym_cpu_priority(a) > arch_asym_cpu_priority(b);
 }
 
+struct perf_domain {
+	struct em_perf_domain *em_pd;
+	struct perf_domain *next;
+	struct rcu_head rcu;
+};
+
+struct max_cpu_capacity {
+	raw_spinlock_t lock;
+	unsigned long val;
+	int cpu;
+};
+
+/* Scheduling group status flags */
+#define SG_OVERLOAD		0x1 /* More than one runnable task on a CPU. */
+#define SG_OVERUTILIZED		0x2 /* One or more CPUs are over-utilized. */
+
 /*
  * We add the notion of a root-domain which will be used to define per-domain
  * variables. Each exclusive cpuset essentially defines an island domain by
@@ -717,8 +736,15 @@ struct root_domain {
 	cpumask_var_t		span;
 	cpumask_var_t		online;
 
-	/* Indicate more than one runnable task for any CPU */
-	bool			overload;
+	/*
+	 * Indicate pullable load on at least one CPU, e.g:
+	 * - More than one runnable task
+	 * - Running task is misfit
+	 */
+	int			overload;
+
+	/* Indicate one or more cpus over-utilized (tipping point) */
+	int			overutilized;
 
 	/*
 	 * The bit corresponding to a CPU gets set here if such CPU has more
@@ -749,13 +775,21 @@ struct root_domain {
 	cpumask_var_t		rto_mask;
 	struct cpupri		cpupri;
 
-	unsigned long		max_cpu_capacity;
+	/* Maximum cpu capacity in the system. */
+	struct max_cpu_capacity max_cpu_capacity;
+
+	/*
+	 * NULL-terminated list of performance domains intersecting with the
+	 * CPUs of the rd. Protected by RCU.
+	 */
+	struct perf_domain	*pd;
 };
 
 extern struct root_domain def_root_domain;
 extern struct mutex sched_domains_mutex;
 
 extern void init_defrootdomain(void);
+extern void init_max_cpu_capacity(struct max_cpu_capacity *mcc);
 extern int sched_init_domains(const struct cpumask *cpu_map);
 extern void rq_attach_root(struct rq *rq, struct root_domain *rd);
 extern void sched_get_rd(struct root_domain *rd);
@@ -845,6 +879,8 @@ struct rq {
 
 	unsigned char		idle_balance;
 
+	unsigned long		misfit_task_load;
+
 	/* For active balancing */
 	int			active_balance;
 	int			push_cpu;
@@ -916,6 +952,7 @@ struct rq {
 #ifdef CONFIG_CPU_IDLE
 	/* Must be inspected within a rcu lock section */
 	struct cpuidle_state	*idle_state;
+	int			idle_state_idx;
 #endif
 };
 
@@ -1187,7 +1224,9 @@ DECLARE_PER_CPU(int, sd_llc_size);
 DECLARE_PER_CPU(int, sd_llc_id);
 DECLARE_PER_CPU(struct sched_domain_shared *, sd_llc_shared);
 DECLARE_PER_CPU(struct sched_domain *, sd_numa);
-DECLARE_PER_CPU(struct sched_domain *, sd_asym);
+DECLARE_PER_CPU(struct sched_domain *, sd_asym_packing);
+DECLARE_PER_CPU(struct sched_domain *, sd_asym_cpucapacity);
+extern struct static_key_false sched_asym_cpucapacity;
 
 struct sched_group_capacity {
 	atomic_t		ref;
@@ -1197,6 +1236,7 @@ struct sched_group_capacity {
 	 */
 	unsigned long		capacity;
 	unsigned long		min_capacity;		/* Min per-CPU capacity in group */
+	unsigned long		max_capacity;		/* Max per-CPU capacity in group */
 	unsigned long		next_update;
 	int			imbalance;		/* XXX unrelated to capacity but shared group state */
 
@@ -1525,7 +1565,8 @@ struct sched_class {
 	void (*put_prev_task)(struct rq *rq, struct task_struct *p);
 
 #ifdef CONFIG_SMP
-	int  (*select_task_rq)(struct task_struct *p, int task_cpu, int sd_flag, int flags);
+	int  (*select_task_rq)(struct task_struct *p, int task_cpu, int sd_flag, int flags,
+			       int subling_count_hint);
 	void (*migrate_task_rq)(struct task_struct *p, int new_cpu);
 
 	void (*task_woken)(struct rq *this_rq, struct task_struct *task);
@@ -1613,6 +1654,17 @@ static inline struct cpuidle_state *idle_get_state(struct rq *rq)
 
 	return rq->idle_state;
 }
+
+static inline void idle_set_state_idx(struct rq *rq, int idle_state_idx)
+{
+	rq->idle_state_idx = idle_state_idx;
+}
+
+static inline int idle_get_state_idx(struct rq *rq)
+{
+	WARN_ON(!rcu_read_lock_held());
+	return rq->idle_state_idx;
+}
 #else
 static inline void idle_set_state(struct rq *rq,
 				  struct cpuidle_state *idle_state)
@@ -1622,6 +1674,15 @@ static inline void idle_set_state(struct rq *rq,
 static inline struct cpuidle_state *idle_get_state(struct rq *rq)
 {
 	return NULL;
+}
+
+static inline void idle_set_state_idx(struct rq *rq, int idle_state_idx)
+{
+}
+
+static inline int idle_get_state_idx(struct rq *rq)
+{
+	return -1;
 }
 #endif
 
@@ -1696,8 +1757,8 @@ static inline void add_nr_running(struct rq *rq, unsigned count)
 
 	if (prev_nr < 2 && rq->nr_running >= 2) {
 #ifdef CONFIG_SMP
-		if (!rq->rd->overload)
-			rq->rd->overload = true;
+		if (!READ_ONCE(rq->rd->overload))
+			WRITE_ONCE(rq->rd->overload, 1);
 #endif
 	}
 
@@ -1756,25 +1817,13 @@ unsigned long arch_scale_freq_capacity(int cpu)
 }
 #endif
 
-#ifdef CONFIG_SMP
-#ifndef arch_scale_cpu_capacity
+#ifndef arch_scale_max_freq_capacity
+struct sched_domain;
 static __always_inline
-unsigned long arch_scale_cpu_capacity(struct sched_domain *sd, int cpu)
-{
-	if (sd && (sd->flags & SD_SHARE_CPUCAPACITY) && (sd->span_weight > 1))
-		return sd->smt_gain / sd->span_weight;
-
-	return SCHED_CAPACITY_SCALE;
-}
-#endif
-#else
-#ifndef arch_scale_cpu_capacity
-static __always_inline
-unsigned long arch_scale_cpu_capacity(void __always_unused *sd, int cpu)
+unsigned long arch_scale_max_freq_capacity(struct sched_domain *sd, int cpu)
 {
 	return SCHED_CAPACITY_SCALE;
 }
-#endif
 #endif
 
 struct rq *__task_rq_lock(struct task_struct *p, struct rq_flags *rf)
@@ -2189,6 +2238,38 @@ static inline void cpufreq_update_util(struct rq *rq, unsigned int flags) {}
 #endif
 
 #ifdef CONFIG_CPU_FREQ_GOV_SCHEDUTIL
+/**
+ * enum schedutil_type - CPU utilization type
+ * @FREQUENCY_UTIL:	Utilization used to select frequency
+ * @ENERGY_UTIL:	Utilization used during energy calculation
+ *
+ * The utilization signals of all scheduling classes (CFS/RT/DL) and IRQ time
+ * need to be aggregated differently depending on the usage made of them. This
+ * enum is used within schedutil_freq_util() to differentiate the types of
+ * utilization expected by the callers, and adjust the aggregation accordingly.
+ */
+enum schedutil_type {
+	FREQUENCY_UTIL,
+	ENERGY_UTIL,
+};
+
+unsigned long schedutil_freq_util(int cpu, unsigned long util,
+			          unsigned long max, enum schedutil_type type);
+
+static inline unsigned long schedutil_energy_util(int cpu, unsigned long util)
+{
+	unsigned long max = arch_scale_cpu_capacity(NULL, cpu);
+
+	return schedutil_freq_util(cpu, util, max, ENERGY_UTIL);
+}
+#else /* CONFIG_CPU_FREQ_GOV_SCHEDUTIL */
+static inline unsigned long schedutil_energy_util(int cpu, unsigned long util)
+{
+	return util;
+}
+#endif
+
+#ifdef CONFIG_SMP
 static inline unsigned long cpu_bw_dl(struct rq *rq)
 {
 	return (rq->dl.running_bw * SCHED_CAPACITY_SCALE) >> BW_SHIFT;
@@ -2243,4 +2324,14 @@ unsigned long scale_irq_capacity(unsigned long util, unsigned long irq, unsigned
 {
 	return util;
 }
+#endif
+
+#if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
+#define perf_domain_span(pd) (to_cpumask(((pd)->em_pd->cpus)))
+#else
+#define perf_domain_span(pd) NULL
+#endif
+
+#ifdef CONFIG_SMP
+extern struct static_key_false sched_energy_present;
 #endif

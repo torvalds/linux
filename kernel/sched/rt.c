@@ -1329,6 +1329,8 @@ enqueue_task_rt(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct sched_rt_entity *rt_se = &p->rt;
 
+	schedtune_enqueue_task(p, cpu_of(rq));
+
 	if (flags & ENQUEUE_WAKEUP)
 		rt_se->timeout = 0;
 
@@ -1341,6 +1343,8 @@ enqueue_task_rt(struct rq *rq, struct task_struct *p, int flags)
 static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct sched_rt_entity *rt_se = &p->rt;
+
+	schedtune_dequeue_task(p, cpu_of(rq));
 
 	update_curr_rt(rq);
 	dequeue_rt_entity(rt_se, flags);
@@ -1386,7 +1390,8 @@ static void yield_task_rt(struct rq *rq)
 static int find_lowest_rq(struct task_struct *task);
 
 static int
-select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
+select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags,
+		  int sibling_count_hint)
 {
 	struct task_struct *curr;
 	struct rq *rq;

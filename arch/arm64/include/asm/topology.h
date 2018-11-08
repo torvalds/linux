@@ -42,8 +42,14 @@ int pcibus_to_node(struct pci_bus *bus);
 /* Replace task scheduler's default frequency-invariant accounting */
 #define arch_scale_freq_capacity topology_get_freq_scale
 
+/* Replace task scheduler's default max-frequency-invariant accounting */
+#define arch_scale_max_freq_capacity topology_get_max_freq_scale
+
 /* Replace task scheduler's default cpu-invariant accounting */
 #define arch_scale_cpu_capacity topology_get_cpu_scale
+
+/* Enable topology flag updates */
+#define arch_update_cpu_topology topology_update_cpu_topology
 
 #include <asm-generic/topology.h>
 

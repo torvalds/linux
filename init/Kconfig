@@ -991,6 +991,29 @@ config SCHED_AUTOGROUP
 	  desktop applications.  Task group autogeneration is currently based
 	  upon task session.
 
+config SCHED_TUNE
+	bool "Boosting for CFS tasks (EXPERIMENTAL)"
+	depends on SMP
+	help
+	  This option enables support for task classification using a new
+	  cgroup controller, schedtune. Schedtune allows tasks to be given
+	  a boost value and marked as latency-sensitive or not. This option
+	  provides the "schedtune" controller.
+
+	  This new controller:
+	  1. allows only a two layers hierarchy, where the root defines the
+	     system-wide boost value and its direct childrens define each one a
+	     different "class of tasks" to be boosted with a different value
+	  2. supports up to 16 different task classes, each one which could be
+	     configured with a different boost value
+
+	  Latency-sensitive tasks are not subject to energy-aware wakeup
+	  task placement. The boost value assigned to tasks is used to
+	  influence task placement and CPU frequency selection (if
+	  utilization-driven frequency selection is in use).
+
+	  If unsure, say N.
+
 config SYSFS_DEPRECATED
 	bool "Enable deprecated sysfs features to support old userspace tools"
 	depends on SYSFS

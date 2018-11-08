@@ -29,6 +29,8 @@
 #include "sched-pelt.h"
 #include "pelt.h"
 
+#include <trace/events/sched.h>
+
 /*
  * Approximate:
  *   val * y^n,    where y^32 ~= 0.5 (~1 scheduling period)
@@ -274,6 +276,9 @@ int __update_load_avg_blocked_se(u64 now, int cpu, struct sched_entity *se)
 
 	if (___update_load_sum(now, cpu, &se->avg, 0, 0, 0)) {
 		___update_load_avg(&se->avg, se_weight(se), se_runnable(se));
+
+		trace_sched_load_se(se);
+
 		return 1;
 	}
 
@@ -290,6 +295,9 @@ int __update_load_avg_se(u64 now, int cpu, struct cfs_rq *cfs_rq, struct sched_e
 
 		___update_load_avg(&se->avg, se_weight(se), se_runnable(se));
 		cfs_se_util_change(&se->avg);
+
+		trace_sched_load_se(se);
+
 		return 1;
 	}
 
@@ -304,6 +312,9 @@ int __update_load_avg_cfs_rq(u64 now, int cpu, struct cfs_rq *cfs_rq)
 				cfs_rq->curr != NULL)) {
 
 		___update_load_avg(&cfs_rq->avg, 1, 1);
+
+		trace_sched_load_cfs_rq(cfs_rq);
+
 		return 1;
 	}
 
@@ -329,6 +340,9 @@ int update_rt_rq_load_avg(u64 now, struct rq *rq, int running)
 				running)) {
 
 		___update_load_avg(&rq->avg_rt, 1, 1);
+
+		trace_sched_load_rt_rq(rq);
+
 		return 1;
 	}
 
