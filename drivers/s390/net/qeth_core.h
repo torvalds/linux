@@ -314,7 +314,7 @@ struct qeth_hdr_layer3 {
 	__u16 frame_offset;
 	union {
 		/* TX: */
-		u8 ipv6_addr[16];
+		struct in6_addr ipv6_addr;
 		struct ipv4 {
 			u8 res[12];
 			u32 addr;
