@@ -110,6 +110,13 @@ struct cpuset {
 	nodemask_t effective_mems;
 
 	/*
+	 * CPUs allocated to child sub-partitions (default hierarchy only)
+	 * - CPUs granted by the parent = effective_cpus U subparts_cpus
+	 * - effective_cpus and subparts_cpus are mutually exclusive.
+	 */
+	cpumask_var_t subparts_cpus;
+
+	/*
 	 * This is old Memory Nodes tasks took on.
 	 *
 	 * - top_cpuset.old_mems_allowed is initialized to mems_allowed.
@@ -134,6 +141,30 @@ struct cpuset {
 
 	/* for custom sched domain */
 	int relax_domain_level;
+
+	/* number of CPUs in subparts_cpus */
+	int nr_subparts_cpus;
+
+	/* partition root state */
+	int partition_root_state;
+};
+
+/*
+ * Partition root states:
+ *
+ *   0 - not a partition root
+ *   1 - partition root
+ */
+#define PRS_DISABLED		0
+#define PRS_ENABLED		1
+
+/*
+ * Temporary cpumasks for working with partitions that are passed among
+ * functions to avoid memory allocation in inner functions.
+ */
+struct tmpmasks {
+	cpumask_var_t addmask, delmask;	/* For partition root */
+	cpumask_var_t new_cpus;		/* For update_cpumasks_hier() */
 };
 
 static inline struct cpuset *css_cs(struct cgroup_subsys_state *css)
@@ -218,9 +249,15 @@ static inline int is_spread_slab(const struct cpuset *cs)
 	return test_bit(CS_SPREAD_SLAB, &cs->flags);
 }
 
+static inline int is_partition_root(const struct cpuset *cs)
+{
+	return cs->partition_root_state;
+}
+
 static struct cpuset top_cpuset = {
 	.flags = ((1 << CS_ONLINE) | (1 << CS_CPU_EXCLUSIVE) |
 		  (1 << CS_MEM_EXCLUSIVE)),
+	.partition_root_state = PRS_ENABLED,
 };
 
 /**
