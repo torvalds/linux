@@ -151,9 +151,6 @@ static enum zfcp_erp_act_type zfcp_erp_handle_failed(
 				adapter, ZFCP_STATUS_COMMON_ERP_FAILED);
 		}
 		break;
-	default:
-		need = 0;
-		break;
 	}
 
 	return need;
