@@ -15016,6 +15016,8 @@ int intel_modeset_init(struct drm_device *dev)
 
 	intel_init_quirks(dev_priv);
 
+	intel_fbc_init(dev_priv);
+
 	intel_init_pm(dev_priv);
 
 	/*
@@ -15829,6 +15831,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	intel_teardown_gmbus(dev_priv);
 
 	destroy_workqueue(dev_priv->modeset_wq);
+
+	intel_fbc_cleanup_cfb(dev_priv);
 }
 
 /*

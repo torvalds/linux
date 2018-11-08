@@ -9435,8 +9435,6 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 /* Set up chip specific power management-related functions */
 void intel_init_pm(struct drm_i915_private *dev_priv)
 {
-	intel_fbc_init(dev_priv);
-
 	/* For cxsr */
 	if (IS_PINEVIEW(dev_priv))
 		i915_pineview_get_mem_freq(dev_priv);
