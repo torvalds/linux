@@ -2278,9 +2278,6 @@ static int cpuset_write_s64(struct cgroup_subsys_state *css, struct cftype *cft,
 	case FILE_SCHED_RELAX_DOMAIN_LEVEL:
 		retval = update_relax_domain_level(cs, val);
 		break;
-	case FILE_PARTITION_ROOT:
-		retval = update_prstate(cs, val);
-		break;
 	default:
 		retval = -EINVAL;
 		break;
@@ -2431,14 +2428,61 @@ static s64 cpuset_read_s64(struct cgroup_subsys_state *css, struct cftype *cft)
 	switch (type) {
 	case FILE_SCHED_RELAX_DOMAIN_LEVEL:
 		return cs->relax_domain_level;
-	case FILE_PARTITION_ROOT:
-		return cs->partition_root_state;
 	default:
 		BUG();
 	}
 
 	/* Unrechable but makes gcc happy */
 	return 0;
+}
+
+static int sched_partition_show(struct seq_file *seq, void *v)
+{
+	struct cpuset *cs = css_cs(seq_css(seq));
+
+	switch (cs->partition_root_state) {
+	case PRS_ENABLED:
+		seq_puts(seq, "root\n");
+		break;
+	case PRS_DISABLED:
+		seq_puts(seq, "member\n");
+		break;
+	case PRS_ERROR:
+		seq_puts(seq, "root invalid\n");
+		break;
+	}
+	return 0;
+}
+
+static ssize_t sched_partition_write(struct kernfs_open_file *of, char *buf,
+				     size_t nbytes, loff_t off)
+{
+	struct cpuset *cs = css_cs(of_css(of));
+	int val;
+	int retval = -ENODEV;
+
+	buf = strstrip(buf);
+
+	/*
+	 * Convert "root"/"1" to 1, and convert "member"/"0" to 0.
+	 */
+	if (!strcmp(buf, "root") || !strcmp(buf, "1"))
+		val = PRS_ENABLED;
+	else if (!strcmp(buf, "member") || !strcmp(buf, "0"))
+		val = PRS_DISABLED;
+	else
+		return -EINVAL;
+
+	css_get(&cs->css);
+	mutex_lock(&cpuset_mutex);
+	if (!is_cpuset_online(cs))
+		goto out_unlock;
+
+	retval = update_prstate(cs, val);
+out_unlock:
+	mutex_unlock(&cpuset_mutex);
+	css_put(&cs->css);
+	return retval ?: nbytes;
 }
 
 /*
@@ -2584,8 +2628,8 @@ static struct cftype dfl_files[] = {
 
 	{
 		.name = "sched.partition",
-		.read_s64 = cpuset_read_s64,
-		.write_s64 = cpuset_write_s64,
+		.seq_show = sched_partition_show,
+		.write = sched_partition_write,
 		.private = FILE_PARTITION_ROOT,
 		.flags = CFTYPE_NOT_ON_ROOT,
 	},
