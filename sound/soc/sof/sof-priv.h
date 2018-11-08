@@ -357,6 +357,7 @@ struct snd_sof_dev {
 	struct list_head dai_list;
 	struct list_head route_list;
 	struct snd_soc_component *component;
+	int tplg_loaded; /* keep track of topology load success */
 
 	/* FW configuration */
 	struct sof_ipc_dma_buffer_data *info_buffer;
