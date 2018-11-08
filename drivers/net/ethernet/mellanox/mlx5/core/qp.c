@@ -670,3 +670,19 @@ int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
 }
 EXPORT_SYMBOL_GPL(mlx5_core_query_q_counter);
+
+struct mlx5_core_rsc_common *mlx5_core_res_hold(struct mlx5_core_dev *dev,
+						int res_num,
+						enum mlx5_res_type res_type)
+{
+	u32 rsn = res_num | (res_type << MLX5_USER_INDEX_LEN);
+
+	return mlx5_get_rsc(dev, rsn);
+}
+EXPORT_SYMBOL_GPL(mlx5_core_res_hold);
+
+void mlx5_core_res_put(struct mlx5_core_rsc_common *res)
+{
+	mlx5_core_put_rsc(res);
+}
+EXPORT_SYMBOL_GPL(mlx5_core_res_put);
