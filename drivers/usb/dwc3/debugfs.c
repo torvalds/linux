@@ -505,6 +505,10 @@ static int dwc3_tx_fifo_size_show(struct seq_file *s, void *unused)
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	val = dwc3_core_fifo_space(dep, DWC3_TXFIFO);
+
+	/* Convert to bytes */
+	val *= DWC3_MDWIDTH(dwc->hwparams.hwparams0);
+	val >>= 3;
 	seq_printf(s, "%u\n", val);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
@@ -520,6 +524,10 @@ static int dwc3_rx_fifo_size_show(struct seq_file *s, void *unused)
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	val = dwc3_core_fifo_space(dep, DWC3_RXFIFO);
+
+	/* Convert to bytes */
+	val *= DWC3_MDWIDTH(dwc->hwparams.hwparams0);
+	val >>= 3;
 	seq_printf(s, "%u\n", val);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
