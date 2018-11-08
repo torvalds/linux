@@ -86,6 +86,7 @@ static int p9_sbe_occ_remove(struct platform_device *pdev)
 	struct p9_sbe_occ *ctx = to_p9_sbe_occ(occ);
 
 	ctx->sbe = NULL;
+	occ_shutdown(occ);
 
 	return 0;
 }

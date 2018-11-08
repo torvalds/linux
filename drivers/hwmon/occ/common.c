@@ -14,6 +14,11 @@
 
 #define EXTN_FLAG_SENSOR_ID		BIT(7)
 
+#define OCC_ERROR_COUNT_THRESHOLD	2	/* required by OCC spec */
+
+#define OCC_STATE_SAFE			4
+#define OCC_SAFE_TIMEOUT		msecs_to_jiffies(60000) /* 1 min */
+
 #define OCC_UPDATE_FREQUENCY		msecs_to_jiffies(1000)
 
 #define OCC_TEMP_SENSOR_FAULT		0xFF
@@ -115,8 +120,10 @@ struct extended_sensor {
 
 static int occ_poll(struct occ *occ)
 {
+	int rc;
 	u16 checksum = occ->poll_cmd_data + 1;
 	u8 cmd[8];
+	struct occ_poll_response_header *header;
 
 	/* big endian */
 	cmd[0] = 0;			/* sequence number */
@@ -129,7 +136,35 @@ static int occ_poll(struct occ *occ)
 	cmd[7] = 0;
 
 	/* mutex should already be locked if necessary */
-	return occ->send_cmd(occ, cmd);
+	rc = occ->send_cmd(occ, cmd);
+	if (rc) {
+		if (occ->error_count++ > OCC_ERROR_COUNT_THRESHOLD)
+			occ->error = rc;
+
+		goto done;
+	}
+
+	/* clear error since communication was successful */
+	occ->error_count = 0;
+	occ->error = 0;
+
+	/* check for safe state */
+	header = (struct occ_poll_response_header *)occ->resp.data;
+	if (header->occ_state == OCC_STATE_SAFE) {
+		if (occ->last_safe) {
+			if (time_after(jiffies,
+				       occ->last_safe + OCC_SAFE_TIMEOUT))
+				occ->error = -EHOSTDOWN;
+		} else {
+			occ->last_safe = jiffies;
+		}
+	} else {
+		occ->last_safe = 0;
+	}
+
+done:
+	occ_sysfs_poll_done(occ);
+	return rc;
 }
 
 static int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap)
@@ -161,7 +196,7 @@ static int occ_set_user_power_cap(struct occ *occ, u16 user_power_cap)
 	return rc;
 }
 
-static int occ_update_response(struct occ *occ)
+int occ_update_response(struct occ *occ)
 {
 	int rc = mutex_lock_interruptible(&occ->lock);
 
@@ -1055,5 +1090,9 @@ int occ_setup(struct occ *occ, const char *name)
 		return rc;
 	}
 
-	return 0;
+	rc = occ_setup_sysfs(occ);
+	if (rc)
+		dev_err(occ->bus_dev, "failed to setup sysfs: %d\n", rc);
+
+	return rc;
 }
