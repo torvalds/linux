@@ -1125,6 +1125,7 @@ compress_again:
 	}
 
 	if (unlikely(comp_len >= huge_class_size)) {
+		comp_len = PAGE_SIZE;
 		if (zram_wb_enabled(zram) && allow_wb) {
 			zcomp_stream_put(zram->comp);
 			ret = write_to_bdev(zram, bvec, index, bio, &element);
