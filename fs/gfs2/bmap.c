@@ -1908,10 +1908,16 @@ static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 			if (ret < 0)
 				goto out;
 
-			/* issue read-ahead on metadata */
-			if (mp.mp_aheight > 1) {
-				for (; ret > 1; ret--) {
-					metapointer_range(&mp, mp.mp_aheight - ret,
+			/* On the first pass, issue read-ahead on metadata. */
+			if (mp.mp_aheight > 1 && strip_h == ip->i_height - 1) {
+				unsigned int height = mp.mp_aheight - 1;
+
+				/* No read-ahead for data blocks. */
+				if (mp.mp_aheight - 1 == strip_h)
+					height--;
+
+				for (; height >= mp.mp_aheight - ret; height--) {
+					metapointer_range(&mp, height,
 							  start_list, start_aligned,
 							  end_list, end_aligned,
 							  &start, &end);
