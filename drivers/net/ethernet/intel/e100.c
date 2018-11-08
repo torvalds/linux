@@ -2225,11 +2225,13 @@ static int e100_poll(struct napi_struct *napi, int budget)
 	e100_rx_clean(nic, &work_done, budget);
 	e100_tx_clean(nic);
 
-	/* If budget not fully consumed, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete_done(napi, work_done);
+	/* If budget fully consumed, continue polling */
+	if (work_done == budget)
+		return budget;
+
+	/* only re-enable interrupt if stack agrees polling is really done */
+	if (likely(napi_complete_done(napi, work_done)))
 		e100_enable_irq(nic);
-	}
 
 	return work_done;
 }

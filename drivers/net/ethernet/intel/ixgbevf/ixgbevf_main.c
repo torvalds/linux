@@ -1293,16 +1293,20 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 	/* If all work not completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
-	/* all work done, exit the polling mode */
-	napi_complete_done(napi, work_done);
-	if (adapter->rx_itr_setting == 1)
-		ixgbevf_set_itr(q_vector);
-	if (!test_bit(__IXGBEVF_DOWN, &adapter->state) &&
-	    !test_bit(__IXGBEVF_REMOVING, &adapter->state))
-		ixgbevf_irq_enable_queues(adapter,
-					  BIT(q_vector->v_idx));
 
-	return 0;
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done))) {
+		if (adapter->rx_itr_setting == 1)
+			ixgbevf_set_itr(q_vector);
+		if (!test_bit(__IXGBEVF_DOWN, &adapter->state) &&
+		    !test_bit(__IXGBEVF_REMOVING, &adapter->state))
+			ixgbevf_irq_enable_queues(adapter,
+						  BIT(q_vector->v_idx));
+	}
+
+	return min(work_done, budget - 1);
 }
 
 /**
