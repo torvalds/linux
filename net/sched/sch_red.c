@@ -281,7 +281,6 @@ static int red_init(struct Qdisc *sch, struct nlattr *opt,
 
 static int red_dump_offload_stats(struct Qdisc *sch, struct tc_red_qopt *opt)
 {
-	struct net_device *dev = qdisc_dev(sch);
 	struct tc_red_qopt_offload hw_stats = {
 		.command = TC_RED_STATS,
 		.handle = sch->handle,
@@ -291,22 +290,8 @@ static int red_dump_offload_stats(struct Qdisc *sch, struct tc_red_qopt *opt)
 			.stats.qstats = &sch->qstats,
 		},
 	};
-	int err;
 
-	sch->flags &= ~TCQ_F_OFFLOADED;
-
-	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
-		return 0;
-
-	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_RED,
-					    &hw_stats);
-	if (err == -EOPNOTSUPP)
-		return 0;
-
-	if (!err)
-		sch->flags |= TCQ_F_OFFLOADED;
-
-	return err;
+	return qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_RED, &hw_stats);
 }
 
 static int red_dump(struct Qdisc *sch, struct sk_buff *skb)

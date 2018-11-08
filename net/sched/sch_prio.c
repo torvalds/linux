@@ -251,7 +251,6 @@ static int prio_init(struct Qdisc *sch, struct nlattr *opt,
 
 static int prio_dump_offload(struct Qdisc *sch)
 {
-	struct net_device *dev = qdisc_dev(sch);
 	struct tc_prio_qopt_offload hw_stats = {
 		.command = TC_PRIO_STATS,
 		.handle = sch->handle,
@@ -263,21 +262,8 @@ static int prio_dump_offload(struct Qdisc *sch)
 			},
 		},
 	};
-	int err;
 
-	sch->flags &= ~TCQ_F_OFFLOADED;
-	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
-		return 0;
-
-	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_PRIO,
-					    &hw_stats);
-	if (err == -EOPNOTSUPP)
-		return 0;
-
-	if (!err)
-		sch->flags |= TCQ_F_OFFLOADED;
-
-	return err;
+	return qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_PRIO, &hw_stats);
 }
 
 static int prio_dump(struct Qdisc *sch, struct sk_buff *skb)
