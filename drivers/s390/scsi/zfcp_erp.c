@@ -4,7 +4,7 @@
  *
  * Error Recovery Procedures (ERP).
  *
- * Copyright IBM Corp. 2002, 2016
+ * Copyright IBM Corp. 2002, 2017
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -33,29 +33,18 @@ enum zfcp_erp_steps {
 	ZFCP_ERP_STEP_LUN_OPENING	= 0x2000,
 };
 
-/**
- * enum zfcp_erp_act_type - Type of ERP action object.
- * @ZFCP_ERP_ACTION_REOPEN_LUN: LUN recovery.
- * @ZFCP_ERP_ACTION_REOPEN_PORT: Port recovery.
- * @ZFCP_ERP_ACTION_REOPEN_PORT_FORCED: Forced port recovery.
- * @ZFCP_ERP_ACTION_REOPEN_ADAPTER: Adapter recovery.
- * @ZFCP_ERP_ACTION_NONE: Eyecatcher pseudo flag to bitwise or-combine with
- *			  either of the first four enum values.
- *			  Used to indicate that an ERP action could not be
- *			  set up despite a detected need for some recovery.
- * @ZFCP_ERP_ACTION_FAILED: Eyecatcher pseudo flag to bitwise or-combine with
- *			    either of the first four enum values.
- *			    Used to indicate that ERP not needed because
- *			    the object has ZFCP_STATUS_COMMON_ERP_FAILED.
+/*
+ * Eyecatcher pseudo flag to bitwise or-combine with enum zfcp_erp_act_type.
+ * Used to indicate that an ERP action could not be set up despite a detected
+ * need for some recovery.
  */
-enum zfcp_erp_act_type {
-	ZFCP_ERP_ACTION_REOPEN_LUN         = 1,
-	ZFCP_ERP_ACTION_REOPEN_PORT	   = 2,
-	ZFCP_ERP_ACTION_REOPEN_PORT_FORCED = 3,
-	ZFCP_ERP_ACTION_REOPEN_ADAPTER     = 4,
-	ZFCP_ERP_ACTION_NONE		   = 0xc0,
-	ZFCP_ERP_ACTION_FAILED		   = 0xe0,
-};
+#define ZFCP_ERP_ACTION_NONE		0xc0
+/*
+ * Eyecatcher pseudo flag to bitwise or-combine with enum zfcp_erp_act_type.
+ * Used to indicate that ERP not needed because the object has
+ * ZFCP_STATUS_COMMON_ERP_FAILED.
+ */
+#define ZFCP_ERP_ACTION_FAILED		0xe0
 
 enum zfcp_erp_act_result {
 	ZFCP_ERP_SUCCEEDED = 0,
@@ -136,11 +125,11 @@ static void zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *adapter)
 	}
 }
 
-static int zfcp_erp_handle_failed(int want, struct zfcp_adapter *adapter,
-				  struct zfcp_port *port,
-				  struct scsi_device *sdev)
+static enum zfcp_erp_act_type zfcp_erp_handle_failed(
+	enum zfcp_erp_act_type want, struct zfcp_adapter *adapter,
+	struct zfcp_port *port,	struct scsi_device *sdev)
 {
-	int need = want;
+	enum zfcp_erp_act_type need = want;
 	struct zfcp_scsi_dev *zsdev;
 
 	switch (want) {
@@ -179,11 +168,12 @@ static int zfcp_erp_handle_failed(int want, struct zfcp_adapter *adapter,
 	return need;
 }
 
-static int zfcp_erp_required_act(int want, struct zfcp_adapter *adapter,
+static enum zfcp_erp_act_type zfcp_erp_required_act(enum zfcp_erp_act_type want,
+				 struct zfcp_adapter *adapter,
 				 struct zfcp_port *port,
 				 struct scsi_device *sdev)
 {
-	int need = want;
+	enum zfcp_erp_act_type need = want;
 	int l_status, p_status, a_status;
 	struct zfcp_scsi_dev *zfcp_sdev;
 
@@ -230,7 +220,8 @@ static int zfcp_erp_required_act(int want, struct zfcp_adapter *adapter,
 	return need;
 }
 
-static struct zfcp_erp_action *zfcp_erp_setup_act(int need, u32 act_status,
+static struct zfcp_erp_action *zfcp_erp_setup_act(enum zfcp_erp_act_type need,
+						  u32 act_status,
 						  struct zfcp_adapter *adapter,
 						  struct zfcp_port *port,
 						  struct scsi_device *sdev)
@@ -288,18 +279,19 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need, u32 act_status,
 	memset(&erp_action->timer, 0, sizeof(erp_action->timer));
 	erp_action->step = ZFCP_ERP_STEP_UNINITIALIZED;
 	erp_action->fsf_req_id = 0;
-	erp_action->action = need;
+	erp_action->type = need;
 	erp_action->status = act_status;
 
 	return erp_action;
 }
 
-static void zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
+static void zfcp_erp_action_enqueue(enum zfcp_erp_act_type want,
+				    struct zfcp_adapter *adapter,
 				    struct zfcp_port *port,
 				    struct scsi_device *sdev,
 				    char *dbftag, u32 act_status)
 {
-	int need;
+	enum zfcp_erp_act_type need;
 	struct zfcp_erp_action *act;
 
 	need = zfcp_erp_handle_failed(want, adapter, port, sdev);
@@ -672,7 +664,7 @@ static void _zfcp_erp_lun_reopen_all(struct zfcp_port *port, int clear,
 
 static void zfcp_erp_strategy_followup_failed(struct zfcp_erp_action *act)
 {
-	switch (act->action) {
+	switch (act->type) {
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		_zfcp_erp_adapter_reopen(act->adapter, 0, "ersff_1");
 		break;
@@ -690,7 +682,7 @@ static void zfcp_erp_strategy_followup_failed(struct zfcp_erp_action *act)
 
 static void zfcp_erp_strategy_followup_success(struct zfcp_erp_action *act)
 {
-	switch (act->action) {
+	switch (act->type) {
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		_zfcp_erp_port_reopen_all(act->adapter, 0, "ersfs_1");
 		break;
@@ -699,6 +691,9 @@ static void zfcp_erp_strategy_followup_success(struct zfcp_erp_action *act)
 		break;
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		_zfcp_erp_lun_reopen_all(act->port, 0, "ersfs_3");
+		break;
+	case ZFCP_ERP_ACTION_REOPEN_LUN:
+		/* NOP */
 		break;
 	}
 }
@@ -1163,7 +1158,7 @@ static int zfcp_erp_strategy_check_target(struct zfcp_erp_action *erp_action,
 	struct zfcp_port *port = erp_action->port;
 	struct scsi_device *sdev = erp_action->sdev;
 
-	switch (erp_action->action) {
+	switch (erp_action->type) {
 
 	case ZFCP_ERP_ACTION_REOPEN_LUN:
 		result = zfcp_erp_strategy_check_lun(sdev, result);
@@ -1198,14 +1193,14 @@ static int zfcp_erp_strat_change_det(atomic_t *target_status, u32 erp_status)
 
 static int zfcp_erp_strategy_statechange(struct zfcp_erp_action *act, int ret)
 {
-	int action = act->action;
+	enum zfcp_erp_act_type type = act->type;
 	struct zfcp_adapter *adapter = act->adapter;
 	struct zfcp_port *port = act->port;
 	struct scsi_device *sdev = act->sdev;
 	struct zfcp_scsi_dev *zfcp_sdev;
 	u32 erp_status = act->status;
 
-	switch (action) {
+	switch (type) {
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		if (zfcp_erp_strat_change_det(&adapter->status, erp_status)) {
 			_zfcp_erp_adapter_reopen(adapter,
@@ -1252,7 +1247,7 @@ static void zfcp_erp_action_dequeue(struct zfcp_erp_action *erp_action)
 	list_del(&erp_action->list);
 	zfcp_dbf_rec_run("eractd1", erp_action);
 
-	switch (erp_action->action) {
+	switch (erp_action->type) {
 	case ZFCP_ERP_ACTION_REOPEN_LUN:
 		zfcp_sdev = sdev_to_zfcp(erp_action->sdev);
 		atomic_andnot(ZFCP_STATUS_COMMON_ERP_INUSE,
@@ -1334,7 +1329,7 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 	struct zfcp_port *port = act->port;
 	struct scsi_device *sdev = act->sdev;
 
-	switch (act->action) {
+	switch (act->type) {
 	case ZFCP_ERP_ACTION_REOPEN_LUN:
 		if (!(act->status & ZFCP_STATUS_ERP_NO_REF))
 			scsi_device_put(sdev);
@@ -1370,7 +1365,7 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 
 static int zfcp_erp_strategy_do_action(struct zfcp_erp_action *erp_action)
 {
-	switch (erp_action->action) {
+	switch (erp_action->type) {
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		return zfcp_erp_adapter_strategy(erp_action);
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:

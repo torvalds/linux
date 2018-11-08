@@ -89,9 +89,27 @@
 
 /************************* STRUCTURE DEFINITIONS *****************************/
 
+/**
+ * enum zfcp_erp_act_type - Type of ERP action object.
+ * @ZFCP_ERP_ACTION_REOPEN_LUN: LUN recovery.
+ * @ZFCP_ERP_ACTION_REOPEN_PORT: Port recovery.
+ * @ZFCP_ERP_ACTION_REOPEN_PORT_FORCED: Forced port recovery.
+ * @ZFCP_ERP_ACTION_REOPEN_ADAPTER: Adapter recovery.
+ *
+ * Values must fit into u8 because of code dependencies:
+ * zfcp_dbf_rec_trig(), &zfcp_dbf_rec_trigger.want, &zfcp_dbf_rec_trigger.need;
+ * zfcp_dbf_rec_run_lvl(), zfcp_dbf_rec_run(), &zfcp_dbf_rec_running.rec_action.
+ */
+enum zfcp_erp_act_type {
+	ZFCP_ERP_ACTION_REOPEN_LUN	   = 1,
+	ZFCP_ERP_ACTION_REOPEN_PORT	   = 2,
+	ZFCP_ERP_ACTION_REOPEN_PORT_FORCED = 3,
+	ZFCP_ERP_ACTION_REOPEN_ADAPTER	   = 4,
+};
+
 struct zfcp_erp_action {
 	struct list_head list;
-	int action;	              /* requested action code */
+	enum zfcp_erp_act_type type;  /* requested action code */
 	struct zfcp_adapter *adapter; /* device which should be recovered */
 	struct zfcp_port *port;
 	struct scsi_device *sdev;

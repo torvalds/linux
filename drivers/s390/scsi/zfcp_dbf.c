@@ -357,7 +357,7 @@ void zfcp_dbf_rec_run_lvl(int level, char *tag, struct zfcp_erp_action *erp)
 	rec->u.run.fsf_req_id = erp->fsf_req_id;
 	rec->u.run.rec_status = erp->status;
 	rec->u.run.rec_step = erp->step;
-	rec->u.run.rec_action = erp->action;
+	rec->u.run.rec_action = erp->type;
 
 	if (erp->sdev)
 		rec->u.run.rec_count =
