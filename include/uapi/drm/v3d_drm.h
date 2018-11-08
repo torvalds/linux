@@ -66,7 +66,7 @@ struct drm_v3d_submit_cl {
 	 */
 	__u32 bcl_start;
 
-	 /** End address of the BCL (first byte after the BCL) */
+	/** End address of the BCL (first byte after the BCL) */
 	__u32 bcl_end;
 
 	/* Offset of the render command list.
@@ -82,7 +82,7 @@ struct drm_v3d_submit_cl {
 	 */
 	__u32 rcl_start;
 
-	 /** End address of the RCL (first byte after the RCL) */
+	/** End address of the RCL (first byte after the RCL) */
 	__u32 rcl_end;
 
 	/** An optional sync object to wait on before starting the BCL. */
