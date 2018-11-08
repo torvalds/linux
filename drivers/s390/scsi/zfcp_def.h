@@ -41,16 +41,10 @@
 #include "zfcp_fc.h"
 #include "zfcp_qdio.h"
 
-/********************* SCSI SPECIFIC DEFINES *********************************/
-#define ZFCP_SCSI_ER_TIMEOUT                    (10*HZ)
-
 /********************* FSF SPECIFIC DEFINES *********************************/
 
 /* ATTENTION: value must not be used by hardware */
 #define FSF_QTCB_UNSOLICITED_STATUS		0x6305
-
-/* timeout value for "default timer" for fsf requests */
-#define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ)
 
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/
 
