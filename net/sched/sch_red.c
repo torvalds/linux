@@ -193,10 +193,10 @@ static const struct nla_policy red_policy[TCA_RED_MAX + 1] = {
 static int red_change(struct Qdisc *sch, struct nlattr *opt,
 		      struct netlink_ext_ack *extack)
 {
+	struct Qdisc *old_child = NULL, *child = NULL;
 	struct red_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_RED_MAX + 1];
 	struct tc_red_qopt *ctl;
-	struct Qdisc *child = NULL;
 	int err;
 	u32 max_P;
 
@@ -233,7 +233,7 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 	if (child) {
 		qdisc_tree_reduce_backlog(q->qdisc, q->qdisc->q.qlen,
 					  q->qdisc->qstats.backlog);
-		qdisc_put(q->qdisc);
+		old_child = q->qdisc;
 		q->qdisc = child;
 	}
 
@@ -252,7 +252,11 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 		red_start_of_idle_period(&q->vars);
 
 	sch_tree_unlock(sch);
+
 	red_offload(sch, true);
+
+	if (old_child)
+		qdisc_put(old_child);
 	return 0;
 }
 
