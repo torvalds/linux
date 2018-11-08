@@ -110,6 +110,10 @@
 		};
 	};
 
+	sm: secure-monitor {
+		compatible = "amlogic,meson-gxbb-sm";
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
