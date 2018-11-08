@@ -10860,7 +10860,6 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc_state);
-	struct drm_atomic_state *state = crtc_state->state;
 	int ret;
 	bool mode_changed = needs_modeset(crtc_state);
 
@@ -10897,8 +10896,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 		}
 	}
 
-	if (dev_priv->display.compute_intermediate_wm &&
-	    !to_intel_atomic_state(state)->skip_intermediate_wm) {
+	if (dev_priv->display.compute_intermediate_wm) {
 		if (WARN_ON(!dev_priv->display.compute_pipe_wm))
 			return 0;
 
@@ -10914,9 +10912,6 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 			DRM_DEBUG_KMS("No valid intermediate pipe watermarks are possible\n");
 			return ret;
 		}
-	} else if (dev_priv->display.compute_intermediate_wm) {
-		if (HAS_PCH_SPLIT(dev_priv) && INTEL_GEN(dev_priv) < 9)
-			pipe_config->wm.ilk.intermediate = pipe_config->wm.ilk.optimal;
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9) {

@@ -3159,7 +3159,8 @@ static int ilk_compute_intermediate_wm(struct drm_device *dev,
 	 * and after the vblank.
 	 */
 	*a = newstate->wm.ilk.optimal;
-	if (!newstate->base.active || drm_atomic_crtc_needs_modeset(&newstate->base))
+	if (!newstate->base.active || drm_atomic_crtc_needs_modeset(&newstate->base) ||
+	    intel_state->skip_intermediate_wm)
 		return 0;
 
 	a->pipe_enabled |= b->pipe_enabled;
