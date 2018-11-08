@@ -712,7 +712,9 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 					 SND_SOF_SUSPEND_DELAY);
 	pm_runtime_use_autosuspend(component->dev);
 	pm_runtime_enable(component->dev);
-	err = pm_runtime_idle(component->dev);
+
+	pm_runtime_mark_last_busy(component->dev);
+	err = pm_runtime_put_autosuspend(component->dev);
 	if (err < 0)
 		dev_err(sdev->dev, "error: failed to enter PM idle %d\n", err);
 

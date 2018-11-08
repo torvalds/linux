@@ -351,10 +351,6 @@ static int sof_probe(struct platform_device *pdev)
 	dev_dbg(sdev->dev, "created machine %s\n",
 		dev_name(&plat_data->pdev_mach->dev));
 
-	/* autosuspend sof device */
-	pm_runtime_mark_last_busy(sdev->dev);
-	pm_runtime_put_autosuspend(sdev->dev);
-
 	return 0;
 
 comp_err:
