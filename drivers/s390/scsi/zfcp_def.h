@@ -91,18 +91,6 @@
 
 struct zfcp_fsf_req;
 
-/* holds various memory pools of an adapter */
-struct zfcp_adapter_mempool {
-	mempool_t *erp_req;
-	mempool_t *gid_pn_req;
-	mempool_t *scsi_req;
-	mempool_t *scsi_abort;
-	mempool_t *status_read_req;
-	mempool_t *sr_data;
-	mempool_t *gid_pn;
-	mempool_t *qtcb_pool;
-};
-
 struct zfcp_erp_action {
 	struct list_head list;
 	int action;	              /* requested action code */
@@ -115,23 +103,16 @@ struct zfcp_erp_action {
 	struct timer_list timer;
 };
 
-struct zfcp_latency_record {
-	u32 min;
-	u32 max;
-	u64 sum;
-};
-
-struct zfcp_latency_cont {
-	struct zfcp_latency_record channel;
-	struct zfcp_latency_record fabric;
-	u64 counter;
-};
-
-struct zfcp_latencies {
-	struct zfcp_latency_cont read;
-	struct zfcp_latency_cont write;
-	struct zfcp_latency_cont cmd;
-	spinlock_t lock;
+/* holds various memory pools of an adapter */
+struct zfcp_adapter_mempool {
+	mempool_t *erp_req;
+	mempool_t *gid_pn_req;
+	mempool_t *scsi_req;
+	mempool_t *scsi_abort;
+	mempool_t *status_read_req;
+	mempool_t *sr_data;
+	mempool_t *gid_pn;
+	mempool_t *qtcb_pool;
 };
 
 struct zfcp_adapter {
@@ -210,6 +191,25 @@ struct zfcp_port {
 	struct work_struct     rport_work;
 	enum { RPORT_NONE, RPORT_ADD, RPORT_DEL }  rport_task;
 	unsigned int		starget_id;
+};
+
+struct zfcp_latency_record {
+	u32 min;
+	u32 max;
+	u64 sum;
+};
+
+struct zfcp_latency_cont {
+	struct zfcp_latency_record channel;
+	struct zfcp_latency_record fabric;
+	u64 counter;
+};
+
+struct zfcp_latencies {
+	struct zfcp_latency_cont read;
+	struct zfcp_latency_cont write;
+	struct zfcp_latency_cont cmd;
+	spinlock_t lock;
 };
 
 /**
