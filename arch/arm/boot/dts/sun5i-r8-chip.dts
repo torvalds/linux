@@ -182,8 +182,7 @@
 };
 
 &pio {
-
-	chip_w1_pin: chip_w1_pin@0 {
+	chip_w1_pin: chip-w1-pin {
 		pins = "PD2";
 		function = "gpio_in";
 	        bias-pull-up;

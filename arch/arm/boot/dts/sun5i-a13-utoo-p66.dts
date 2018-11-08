@@ -58,7 +58,7 @@
 		/delete-property/stdout-path;
 	};
 
-	i2c_lcd: i2c@0 {
+	i2c_lcd: i2c-gpio {
 		/* The lcd panel i2c interface is hooked up via gpios */
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
@@ -95,7 +95,7 @@
 };
 
 &pio {
-	i2c_lcd_pins: i2c_lcd_pin@0 {
+	i2c_lcd_pins: i2c-lcd-pin {
 		pins = "PG10", "PG12";
 		function = "gpio_out";
 		bias-pull-up;

@@ -106,7 +106,7 @@
 };
 
 &pio {
-	led_pins_t003: led_pins@0 {
+	led_pins_t003: led-pin {
 		pins = "PB2";
 		function = "gpio_out";
 		drive-strength = <20>;
