@@ -1283,75 +1283,16 @@ static void gfx_v8_0_get_csb_buffer(struct amdgpu_device *adev,
 	buffer[count++] = cpu_to_le32(0);
 }
 
-static void cz_init_cp_jump_table(struct amdgpu_device *adev)
+static int gfx_v8_0_cp_jump_table_num(struct amdgpu_device *adev)
 {
-	const __le32 *fw_data;
-	volatile u32 *dst_ptr;
-	int me, i, max_me = 4;
-	u32 bo_offset = 0;
-	u32 table_offset, table_size;
-
 	if (adev->asic_type == CHIP_CARRIZO)
-		max_me = 5;
-
-	/* write the cp table buffer */
-	dst_ptr = adev->gfx.rlc.cp_table_ptr;
-	for (me = 0; me < max_me; me++) {
-		if (me == 0) {
-			const struct gfx_firmware_header_v1_0 *hdr =
-				(const struct gfx_firmware_header_v1_0 *)adev->gfx.ce_fw->data;
-			fw_data = (const __le32 *)
-				(adev->gfx.ce_fw->data +
-				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
-			table_offset = le32_to_cpu(hdr->jt_offset);
-			table_size = le32_to_cpu(hdr->jt_size);
-		} else if (me == 1) {
-			const struct gfx_firmware_header_v1_0 *hdr =
-				(const struct gfx_firmware_header_v1_0 *)adev->gfx.pfp_fw->data;
-			fw_data = (const __le32 *)
-				(adev->gfx.pfp_fw->data +
-				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
-			table_offset = le32_to_cpu(hdr->jt_offset);
-			table_size = le32_to_cpu(hdr->jt_size);
-		} else if (me == 2) {
-			const struct gfx_firmware_header_v1_0 *hdr =
-				(const struct gfx_firmware_header_v1_0 *)adev->gfx.me_fw->data;
-			fw_data = (const __le32 *)
-				(adev->gfx.me_fw->data +
-				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
-			table_offset = le32_to_cpu(hdr->jt_offset);
-			table_size = le32_to_cpu(hdr->jt_size);
-		} else if (me == 3) {
-			const struct gfx_firmware_header_v1_0 *hdr =
-				(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
-			fw_data = (const __le32 *)
-				(adev->gfx.mec_fw->data +
-				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
-			table_offset = le32_to_cpu(hdr->jt_offset);
-			table_size = le32_to_cpu(hdr->jt_size);
-		} else  if (me == 4) {
-			const struct gfx_firmware_header_v1_0 *hdr =
-				(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec2_fw->data;
-			fw_data = (const __le32 *)
-				(adev->gfx.mec2_fw->data +
-				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
-			table_offset = le32_to_cpu(hdr->jt_offset);
-			table_size = le32_to_cpu(hdr->jt_size);
-		}
-
-		for (i = 0; i < table_size; i ++) {
-			dst_ptr[bo_offset + i] =
-				cpu_to_le32(le32_to_cpu(fw_data[table_offset + i]));
-		}
-
-		bo_offset += table_size;
-	}
+		return 5;
+	else
+		return 4;
 }
 
 static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 {
-	volatile u32 *dst_ptr;
-	u32 dws;
 	const struct cs_section_def *cs_data;
 	int r;
 
@@ -1360,44 +1301,18 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 	cs_data = adev->gfx.rlc.cs_data;
 
 	if (cs_data) {
-		/* clear state block */
-		adev->gfx.rlc.clear_state_size = dws = gfx_v8_0_get_csb_size(adev);
-
-		r = amdgpu_bo_create_reserved(adev, dws * 4, PAGE_SIZE,
-					      AMDGPU_GEM_DOMAIN_VRAM,
-					      &adev->gfx.rlc.clear_state_obj,
-					      &adev->gfx.rlc.clear_state_gpu_addr,
-					      (void **)&adev->gfx.rlc.cs_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
-			amdgpu_gfx_rlc_fini(adev);
+		/* init clear state block */
+		r = amdgpu_gfx_rlc_init_csb(adev);
+		if (r)
 			return r;
-		}
-
-		/* set up the cs buffer */
-		dst_ptr = adev->gfx.rlc.cs_ptr;
-		gfx_v8_0_get_csb_buffer(adev, dst_ptr);
-		amdgpu_bo_kunmap(adev->gfx.rlc.clear_state_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
 	}
 
 	if ((adev->asic_type == CHIP_CARRIZO) ||
 	    (adev->asic_type == CHIP_STONEY)) {
 		adev->gfx.rlc.cp_table_size = ALIGN(96 * 5 * 4, 2048) + (64 * 1024); /* JT + GDS */
-		r = amdgpu_bo_create_reserved(adev, adev->gfx.rlc.cp_table_size,
-					      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
-					      &adev->gfx.rlc.cp_table_obj,
-					      &adev->gfx.rlc.cp_table_gpu_addr,
-					      (void **)&adev->gfx.rlc.cp_table_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
+		r = amdgpu_gfx_rlc_init_cpt(adev);
+		if (r)
 			return r;
-		}
-
-		cz_init_cp_jump_table(adev);
-
-		amdgpu_bo_kunmap(adev->gfx.rlc.cp_table_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
 	}
 
 	return 0;
@@ -4945,7 +4860,7 @@ static int gfx_v8_0_hw_fini(void *handle)
 		pr_debug("For SRIOV client, shouldn't do anything.\n");
 		return 0;
 	}
-	adev->gfx.rlc.funcs->enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev);
 	if (!gfx_v8_0_wait_for_idle(adev))
 		gfx_v8_0_cp_enable(adev, false);
 	else
@@ -4954,7 +4869,7 @@ static int gfx_v8_0_hw_fini(void *handle)
 		adev->gfx.rlc.funcs->stop(adev);
 	else
 		pr_err("rlc is busy, skip halt rlc\n");
-	adev->gfx.rlc.funcs->exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev);
 	return 0;
 }
 
@@ -5417,7 +5332,7 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 				AMD_PG_SUPPORT_RLC_SMU_HS |
 				AMD_PG_SUPPORT_CP |
 				AMD_PG_SUPPORT_GFX_DMG))
-		adev->gfx.rlc.funcs->enter_safe_mode(adev);
+		amdgpu_gfx_rlc_enter_safe_mode(adev);
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
@@ -5471,7 +5386,7 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 				AMD_PG_SUPPORT_RLC_SMU_HS |
 				AMD_PG_SUPPORT_CP |
 				AMD_PG_SUPPORT_GFX_DMG))
-		adev->gfx.rlc.funcs->exit_safe_mode(adev);
+		amdgpu_gfx_rlc_exit_safe_mode(adev);
 	return 0;
 }
 
@@ -5565,57 +5480,53 @@ static void gfx_v8_0_send_serdes_cmd(struct amdgpu_device *adev,
 #define RLC_GPR_REG2__MESSAGE__SHIFT 0x00000001
 #define RLC_GPR_REG2__MESSAGE_MASK 0x0000001e
 
-static void iceland_enter_rlc_safe_mode(struct amdgpu_device *adev)
+static bool gfx_v8_0_is_rlc_enabled(struct amdgpu_device *adev)
 {
-	u32 data;
+	uint32_t rlc_setting;
+
+	rlc_setting = RREG32(mmRLC_CNTL);
+	if (!(rlc_setting & RLC_CNTL__RLC_ENABLE_F32_MASK))
+		return false;
+
+	return true;
+}
+
+static void gfx_v8_0_set_safe_mode(struct amdgpu_device *adev)
+{
+	uint32_t data;
 	unsigned i;
-
 	data = RREG32(mmRLC_CNTL);
-	if (!(data & RLC_CNTL__RLC_ENABLE_F32_MASK))
-		return;
+	data |= RLC_SAFE_MODE__CMD_MASK;
+	data &= ~RLC_SAFE_MODE__MESSAGE_MASK;
+	data |= (1 << RLC_SAFE_MODE__MESSAGE__SHIFT);
+	WREG32(mmRLC_SAFE_MODE, data);
 
-	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_MGCG)) {
-		data |= RLC_SAFE_MODE__CMD_MASK;
-		data &= ~RLC_SAFE_MODE__MESSAGE_MASK;
-		data |= (1 << RLC_SAFE_MODE__MESSAGE__SHIFT);
-		WREG32(mmRLC_SAFE_MODE, data);
-
-		for (i = 0; i < adev->usec_timeout; i++) {
-			if ((RREG32(mmRLC_GPM_STAT) &
-			     (RLC_GPM_STAT__GFX_CLOCK_STATUS_MASK |
-			      RLC_GPM_STAT__GFX_POWER_STATUS_MASK)) ==
-			    (RLC_GPM_STAT__GFX_CLOCK_STATUS_MASK |
-			     RLC_GPM_STAT__GFX_POWER_STATUS_MASK))
-				break;
-			udelay(1);
-		}
-
-		for (i = 0; i < adev->usec_timeout; i++) {
-			if (!REG_GET_FIELD(RREG32(mmRLC_SAFE_MODE), RLC_SAFE_MODE, CMD))
-				break;
-			udelay(1);
-		}
-		adev->gfx.rlc.in_safe_mode = true;
+	/* wait for RLC_SAFE_MODE */
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if ((RREG32(mmRLC_GPM_STAT) &
+		     (RLC_GPM_STAT__GFX_CLOCK_STATUS_MASK |
+		      RLC_GPM_STAT__GFX_POWER_STATUS_MASK)) ==
+		    (RLC_GPM_STAT__GFX_CLOCK_STATUS_MASK |
+		     RLC_GPM_STAT__GFX_POWER_STATUS_MASK))
+			break;
+		udelay(1);
+	}
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (!REG_GET_FIELD(RREG32(mmRLC_SAFE_MODE), RLC_SAFE_MODE, CMD))
+			break;
+		udelay(1);
 	}
 }
 
-static void iceland_exit_rlc_safe_mode(struct amdgpu_device *adev)
+static void gfx_v8_0_unset_safe_mode(struct amdgpu_device *adev)
 {
-	u32 data = 0;
+	uint32_t data;
 	unsigned i;
 
 	data = RREG32(mmRLC_CNTL);
-	if (!(data & RLC_CNTL__RLC_ENABLE_F32_MASK))
-		return;
-
-	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_MGCG)) {
-		if (adev->gfx.rlc.in_safe_mode) {
-			data |= RLC_SAFE_MODE__CMD_MASK;
-			data &= ~RLC_SAFE_MODE__MESSAGE_MASK;
-			WREG32(mmRLC_SAFE_MODE, data);
-			adev->gfx.rlc.in_safe_mode = false;
-		}
-	}
+	data |= RLC_SAFE_MODE__CMD_MASK;
+	data &= ~RLC_SAFE_MODE__MESSAGE_MASK;
+	WREG32(mmRLC_SAFE_MODE, data);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (!REG_GET_FIELD(RREG32(mmRLC_SAFE_MODE), RLC_SAFE_MODE, CMD))
@@ -5625,9 +5536,13 @@ static void iceland_exit_rlc_safe_mode(struct amdgpu_device *adev)
 }
 
 static const struct amdgpu_rlc_funcs iceland_rlc_funcs = {
-	.enter_safe_mode = iceland_enter_rlc_safe_mode,
-	.exit_safe_mode = iceland_exit_rlc_safe_mode,
+	.is_rlc_enabled = gfx_v8_0_is_rlc_enabled,
+	.set_safe_mode = gfx_v8_0_set_safe_mode,
+	.unset_safe_mode = gfx_v8_0_unset_safe_mode,
 	.init = gfx_v8_0_rlc_init,
+	.get_csb_size = gfx_v8_0_get_csb_size,
+	.get_csb_buffer = gfx_v8_0_get_csb_buffer,
+	.get_cp_table_num = gfx_v8_0_cp_jump_table_num,
 	.resume = gfx_v8_0_rlc_resume,
 	.stop = gfx_v8_0_rlc_stop,
 	.reset = gfx_v8_0_rlc_reset,
@@ -5639,7 +5554,7 @@ static void gfx_v8_0_update_medium_grain_clock_gating(struct amdgpu_device *adev
 {
 	uint32_t temp, data;
 
-	adev->gfx.rlc.funcs->enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev);
 
 	/* It is disabled by HW by default */
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG)) {
@@ -5735,7 +5650,7 @@ static void gfx_v8_0_update_medium_grain_clock_gating(struct amdgpu_device *adev
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 	}
 
-	adev->gfx.rlc.funcs->exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev);
 }
 
 static void gfx_v8_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
@@ -5745,7 +5660,7 @@ static void gfx_v8_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev
 
 	temp = data = RREG32(mmRLC_CGCG_CGLS_CTRL);
 
-	adev->gfx.rlc.funcs->enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev);
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG)) {
 		temp1 = data1 =	RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
@@ -5828,7 +5743,7 @@ static void gfx_v8_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev
 
 	gfx_v8_0_wait_for_rlc_serdes(adev);
 
-	adev->gfx.rlc.funcs->exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev);
 }
 static int gfx_v8_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 					    bool enable)

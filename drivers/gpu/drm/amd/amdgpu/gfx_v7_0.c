@@ -882,7 +882,6 @@ static const u32 kalindi_rlc_save_restore_register_list[] =
 
 static u32 gfx_v7_0_get_csb_size(struct amdgpu_device *adev);
 static void gfx_v7_0_get_csb_buffer(struct amdgpu_device *adev, volatile u32 *buffer);
-static void gfx_v7_0_init_cp_pg_table(struct amdgpu_device *adev);
 static void gfx_v7_0_init_pg(struct amdgpu_device *adev);
 static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev);
 
@@ -3255,8 +3254,7 @@ static void gfx_v7_0_ring_emit_wreg(struct amdgpu_ring *ring,
 static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 {
 	const u32 *src_ptr;
-	volatile u32 *dst_ptr;
-	u32 dws, i;
+	u32 dws;
 	const struct cs_section_def *cs_data;
 	int r;
 
@@ -3283,66 +3281,23 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 	cs_data = adev->gfx.rlc.cs_data;
 
 	if (src_ptr) {
-		/* save restore block */
-		r = amdgpu_bo_create_reserved(adev, dws * 4, PAGE_SIZE,
-					      AMDGPU_GEM_DOMAIN_VRAM,
-					      &adev->gfx.rlc.save_restore_obj,
-					      &adev->gfx.rlc.save_restore_gpu_addr,
-					      (void **)&adev->gfx.rlc.sr_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) create, pin or map of RLC sr bo failed\n", r);
-			amdgpu_gfx_rlc_fini(adev);
+		/* init save restore block */
+		r = amdgpu_gfx_rlc_init_sr(adev, dws);
+		if (r)
 			return r;
-		}
-
-		/* write the sr buffer */
-		dst_ptr = adev->gfx.rlc.sr_ptr;
-		for (i = 0; i < adev->gfx.rlc.reg_list_size; i++)
-			dst_ptr[i] = cpu_to_le32(src_ptr[i]);
-		amdgpu_bo_kunmap(adev->gfx.rlc.save_restore_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.save_restore_obj);
 	}
 
 	if (cs_data) {
-		/* clear state block */
-		adev->gfx.rlc.clear_state_size = dws = gfx_v7_0_get_csb_size(adev);
-
-		r = amdgpu_bo_create_reserved(adev, dws * 4, PAGE_SIZE,
-					      AMDGPU_GEM_DOMAIN_VRAM,
-					      &adev->gfx.rlc.clear_state_obj,
-					      &adev->gfx.rlc.clear_state_gpu_addr,
-					      (void **)&adev->gfx.rlc.cs_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
-			amdgpu_gfx_rlc_fini(adev);
+		/* init clear state block */
+		r = amdgpu_gfx_rlc_init_csb(adev);
+		if (r)
 			return r;
-		}
-
-		/* set up the cs buffer */
-		dst_ptr = adev->gfx.rlc.cs_ptr;
-		gfx_v7_0_get_csb_buffer(adev, dst_ptr);
-		amdgpu_bo_kunmap(adev->gfx.rlc.clear_state_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
 	}
 
 	if (adev->gfx.rlc.cp_table_size) {
-
-		r = amdgpu_bo_create_reserved(adev, adev->gfx.rlc.cp_table_size,
-					      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
-					      &adev->gfx.rlc.cp_table_obj,
-					      &adev->gfx.rlc.cp_table_gpu_addr,
-					      (void **)&adev->gfx.rlc.cp_table_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
-			amdgpu_gfx_rlc_fini(adev);
+		r = amdgpu_gfx_rlc_init_cpt(adev);
+		if (r)
 			return r;
-		}
-
-		gfx_v7_0_init_cp_pg_table(adev);
-
-		amdgpu_bo_kunmap(adev->gfx.rlc.cp_table_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
-
 	}
 
 	return 0;
@@ -3423,7 +3378,12 @@ static u32 gfx_v7_0_halt_rlc(struct amdgpu_device *adev)
 	return orig;
 }
 
-static void gfx_v7_0_enter_rlc_safe_mode(struct amdgpu_device *adev)
+static bool gfx_v7_0_is_rlc_enabled(struct amdgpu_device *adev)
+{
+	return true;
+}
+
+static void gfx_v7_0_set_safe_mode(struct amdgpu_device *adev)
 {
 	u32 tmp, i, mask;
 
@@ -3445,7 +3405,7 @@ static void gfx_v7_0_enter_rlc_safe_mode(struct amdgpu_device *adev)
 	}
 }
 
-static void gfx_v7_0_exit_rlc_safe_mode(struct amdgpu_device *adev)
+static void gfx_v7_0_unset_safe_mode(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
@@ -3761,72 +3721,12 @@ static void gfx_v7_0_enable_gds_pg(struct amdgpu_device *adev, bool enable)
 		WREG32(mmRLC_PG_CNTL, data);
 }
 
-static void gfx_v7_0_init_cp_pg_table(struct amdgpu_device *adev)
+static int gfx_v7_0_cp_pg_table_num(struct amdgpu_device *adev)
 {
-	const __le32 *fw_data;
-	volatile u32 *dst_ptr;
-	int me, i, max_me = 4;
-	u32 bo_offset = 0;
-	u32 table_offset, table_size;
-
 	if (adev->asic_type == CHIP_KAVERI)
-		max_me = 5;
-
-	if (adev->gfx.rlc.cp_table_ptr == NULL)
-		return;
-
-	/* write the cp table buffer */
-	dst_ptr = adev->gfx.rlc.cp_table_ptr;
-	for (me = 0; me < max_me; me++) {
-		if (me == 0) {
-			const struct gfx_firmware_header_v1_0 *hdr =
-				(const struct gfx_firmware_header_v1_0 *)adev->gfx.ce_fw->data;
-			fw_data = (const __le32 *)
-				(adev->gfx.ce_fw->data +
-				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
-			table_offset = le32_to_cpu(hdr->jt_offset);
-			table_size = le32_to_cpu(hdr->jt_size);
-		} else if (me == 1) {
-			const struct gfx_firmware_header_v1_0 *hdr =
-				(const struct gfx_firmware_header_v1_0 *)adev->gfx.pfp_fw->data;
-			fw_data = (const __le32 *)
-				(adev->gfx.pfp_fw->data +
-				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
-			table_offset = le32_to_cpu(hdr->jt_offset);
-			table_size = le32_to_cpu(hdr->jt_size);
-		} else if (me == 2) {
-			const struct gfx_firmware_header_v1_0 *hdr =
-				(const struct gfx_firmware_header_v1_0 *)adev->gfx.me_fw->data;
-			fw_data = (const __le32 *)
-				(adev->gfx.me_fw->data +
-				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
-			table_offset = le32_to_cpu(hdr->jt_offset);
-			table_size = le32_to_cpu(hdr->jt_size);
-		} else if (me == 3) {
-			const struct gfx_firmware_header_v1_0 *hdr =
-				(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
-			fw_data = (const __le32 *)
-				(adev->gfx.mec_fw->data +
-				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
-			table_offset = le32_to_cpu(hdr->jt_offset);
-			table_size = le32_to_cpu(hdr->jt_size);
-		} else {
-			const struct gfx_firmware_header_v1_0 *hdr =
-				(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec2_fw->data;
-			fw_data = (const __le32 *)
-				(adev->gfx.mec2_fw->data +
-				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
-			table_offset = le32_to_cpu(hdr->jt_offset);
-			table_size = le32_to_cpu(hdr->jt_size);
-		}
-
-		for (i = 0; i < table_size; i ++) {
-			dst_ptr[bo_offset + i] =
-				cpu_to_le32(le32_to_cpu(fw_data[table_offset + i]));
-		}
-
-		bo_offset += table_size;
-	}
+		return 5;
+	else
+		return 4;
 }
 
 static void gfx_v7_0_enable_gfx_cgpg(struct amdgpu_device *adev,
@@ -4265,9 +4165,13 @@ static const struct amdgpu_gfx_funcs gfx_v7_0_gfx_funcs = {
 };
 
 static const struct amdgpu_rlc_funcs gfx_v7_0_rlc_funcs = {
-	.enter_safe_mode = gfx_v7_0_enter_rlc_safe_mode,
-	.exit_safe_mode = gfx_v7_0_exit_rlc_safe_mode,
+	.is_rlc_enabled = gfx_v7_0_is_rlc_enabled,
+	.set_safe_mode = gfx_v7_0_set_safe_mode,
+	.unset_safe_mode = gfx_v7_0_unset_safe_mode,
 	.init = gfx_v7_0_rlc_init,
+	.get_csb_size = gfx_v7_0_get_csb_size,
+	.get_csb_buffer = gfx_v7_0_get_csb_buffer,
+	.get_cp_table_num = gfx_v7_0_cp_pg_table_num,
 	.resume = gfx_v7_0_rlc_resume,
 	.stop = gfx_v7_0_rlc_stop,
 	.reset = gfx_v7_0_rlc_reset,

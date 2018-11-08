@@ -2355,7 +2355,7 @@ static int gfx_v6_0_rlc_init(struct amdgpu_device *adev)
 {
 	const u32 *src_ptr;
 	volatile u32 *dst_ptr;
-	u32 dws, i;
+	u32 dws;
 	u64 reg_list_mc_addr;
 	const struct cs_section_def *cs_data;
 	int r;
@@ -2370,26 +2370,10 @@ static int gfx_v6_0_rlc_init(struct amdgpu_device *adev)
 	cs_data = adev->gfx.rlc.cs_data;
 
 	if (src_ptr) {
-		/* save restore block */
-		r = amdgpu_bo_create_reserved(adev, dws * 4, PAGE_SIZE,
-					      AMDGPU_GEM_DOMAIN_VRAM,
-					      &adev->gfx.rlc.save_restore_obj,
-					      &adev->gfx.rlc.save_restore_gpu_addr,
-					      (void **)&adev->gfx.rlc.sr_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) create RLC sr bo failed\n",
-				 r);
-			amdgpu_gfx_rlc_fini(adev);
+		/* init save restore block */
+		r = amdgpu_gfx_rlc_init_sr(adev, dws);
+		if (r)
 			return r;
-		}
-
-		/* write the sr buffer */
-		dst_ptr = adev->gfx.rlc.sr_ptr;
-		for (i = 0; i < adev->gfx.rlc.reg_list_size; i++)
-			dst_ptr[i] = cpu_to_le32(src_ptr[i]);
-
-		amdgpu_bo_kunmap(adev->gfx.rlc.save_restore_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.save_restore_obj);
 	}
 
 	if (cs_data) {
