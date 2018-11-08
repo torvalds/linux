@@ -61,6 +61,7 @@ static const char qcaspi_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"Transmit ring full",
 	"SPI errors",
 	"Write verify errors",
+	"Buffer available errors",
 };
 
 #ifdef CONFIG_DEBUG_FS
