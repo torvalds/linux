@@ -831,6 +831,35 @@ int qdisc_offload_dump_helper(struct Qdisc *sch, enum tc_setup_type type,
 }
 EXPORT_SYMBOL(qdisc_offload_dump_helper);
 
+void qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
+				struct Qdisc *new, struct Qdisc *old,
+				enum tc_setup_type type, void *type_data,
+				struct netlink_ext_ack *extack)
+{
+	bool any_qdisc_is_offloaded;
+	int err;
+
+	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		return;
+
+	err = dev->netdev_ops->ndo_setup_tc(dev, type, type_data);
+
+	/* Don't report error if the graft is part of destroy operation. */
+	if (!err || !new || new == &noop_qdisc)
+		return;
+
+	/* Don't report error if the parent, the old child and the new
+	 * one are not offloaded.
+	 */
+	any_qdisc_is_offloaded = new->flags & TCQ_F_OFFLOADED;
+	any_qdisc_is_offloaded |= sch && sch->flags & TCQ_F_OFFLOADED;
+	any_qdisc_is_offloaded |= old && old->flags & TCQ_F_OFFLOADED;
+
+	if (any_qdisc_is_offloaded)
+		NL_SET_ERR_MSG(extack, "Offloading graft operation failed.");
+}
+EXPORT_SYMBOL(qdisc_offload_graft_helper);
+
 static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 			 u32 portid, u32 seq, u16 flags, int event)
 {

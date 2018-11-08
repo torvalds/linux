@@ -582,6 +582,10 @@ void qdisc_tree_reduce_backlog(struct Qdisc *qdisc, unsigned int n,
 #ifdef CONFIG_NET_SCHED
 int qdisc_offload_dump_helper(struct Qdisc *q, enum tc_setup_type type,
 			      void *type_data);
+void qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
+				struct Qdisc *new, struct Qdisc *old,
+				enum tc_setup_type type, void *type_data,
+				struct netlink_ext_ack *extack);
 #else
 static inline int
 qdisc_offload_dump_helper(struct Qdisc *q, enum tc_setup_type type,
@@ -589,6 +593,14 @@ qdisc_offload_dump_helper(struct Qdisc *q, enum tc_setup_type type,
 {
 	q->flags &= ~TCQ_F_OFFLOADED;
 	return 0;
+}
+
+static inline void
+qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
+			   struct Qdisc *new, struct Qdisc *old,
+			   enum tc_setup_type type, void *type_data,
+			   struct netlink_ext_ack *extack)
+{
 }
 #endif
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
