@@ -2835,6 +2835,17 @@ static void qeth_fill_ipacmd_header(struct qeth_card *card,
 	cmd->hdr.prot_version = prot;
 }
 
+void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob)
+{
+	u8 prot_type = qeth_mpc_select_prot_type(card);
+
+	memcpy(iob->data, IPA_PDU_HEADER, IPA_PDU_HEADER_SIZE);
+	memcpy(QETH_IPA_CMD_PROT_TYPE(iob->data), &prot_type, 1);
+	memcpy(QETH_IPA_CMD_DEST_ADDR(iob->data),
+	       &card->token.ulp_connection_r, QETH_MPC_TOKEN_LENGTH);
+}
+EXPORT_SYMBOL_GPL(qeth_prepare_ipa_cmd);
+
 struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *card,
 		enum qeth_ipa_cmds ipacmd, enum qeth_prot_versions prot)
 {
@@ -2842,6 +2853,7 @@ struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *card,
 
 	iob = qeth_get_buffer(&card->write);
 	if (iob) {
+		qeth_prepare_ipa_cmd(card, iob);
 		qeth_fill_ipacmd_header(card, __ipa_cmd(iob), ipacmd, prot);
 	} else {
 		dev_warn(&card->gdev->dev,
@@ -2853,17 +2865,6 @@ struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *card,
 	return iob;
 }
 EXPORT_SYMBOL_GPL(qeth_get_ipacmd_buffer);
-
-void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob)
-{
-	u8 prot_type = qeth_mpc_select_prot_type(card);
-
-	memcpy(iob->data, IPA_PDU_HEADER, IPA_PDU_HEADER_SIZE);
-	memcpy(QETH_IPA_CMD_PROT_TYPE(iob->data), &prot_type, 1);
-	memcpy(QETH_IPA_CMD_DEST_ADDR(iob->data),
-	       &card->token.ulp_connection_r, QETH_MPC_TOKEN_LENGTH);
-}
-EXPORT_SYMBOL_GPL(qeth_prepare_ipa_cmd);
 
 /**
  * qeth_send_ipa_cmd() - send an IPA command
@@ -2879,7 +2880,6 @@ int qeth_send_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 	int rc;
 
 	QETH_CARD_TEXT(card, 4, "sendipa");
-	qeth_prepare_ipa_cmd(card, iob);
 	rc = qeth_send_control_data(card, IPA_CMD_LENGTH,
 						iob, reply_cb, reply_param);
 	if (rc == -ETIME) {
@@ -4497,9 +4497,6 @@ static int qeth_send_ipa_snmp_cmd(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 4, "sendsnmp");
 
-	memcpy(iob->data, IPA_PDU_HEADER, IPA_PDU_HEADER_SIZE);
-	memcpy(QETH_IPA_CMD_DEST_ADDR(iob->data),
-	       &card->token.ulp_connection_r, QETH_MPC_TOKEN_LENGTH);
 	/* adjust PDU length fields in IPA_PDU_HEADER */
 	s1 = (u32) IPA_PDU_HEADER_SIZE + len;
 	s2 = (u32) len;
