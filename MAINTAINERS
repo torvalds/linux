@@ -11385,12 +11385,6 @@ W:	http://www.nongnu.org/orinoco/
 S:	Orphan
 F:	drivers/net/wireless/intersil/orinoco/
 
-OSD LIBRARY and FILESYSTEM
-M:	Boaz Harrosh <ooo@electrozaur.com>
-S:	Maintained
-F:	drivers/scsi/osd/
-F:	include/scsi/osd_*
-
 OV2659 OMNIVISION SENSOR DRIVER
 M:	"Lad, Prabhakar" <prabhakar.csengg@gmail.com>
 L:	linux-media@vger.kernel.org
