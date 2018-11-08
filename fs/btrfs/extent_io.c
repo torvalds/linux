@@ -3214,8 +3214,6 @@ static noinline_for_stack int writepage_delalloc(struct inode *inode,
 	int ret;
 	int page_started = 0;
 
-	if (epd->extent_locked)
-		return 0;
 
 	while (delalloc_end < page_end) {
 		nr_delalloc = find_lock_delalloc_range(inode, tree,
@@ -3471,11 +3469,14 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 
 	set_page_extent_mapped(page);
 
-	ret = writepage_delalloc(inode, page, wbc, epd, start, &nr_written);
-	if (ret == 1)
-		goto done_unlocked;
-	if (ret)
-		goto done;
+	if (!epd->extent_locked) {
+		ret = writepage_delalloc(inode, page, wbc, epd, start,
+					 &nr_written);
+		if (ret == 1)
+			goto done_unlocked;
+		if (ret)
+			goto done;
+	}
 
 	ret = __extent_writepage_io(inode, page, wbc, epd,
 				    i_size, nr_written, write_flags, &nr);
