@@ -2,6 +2,7 @@
 
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/fsi-occ.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -16,7 +17,42 @@ struct p9_sbe_occ {
 
 static int p9_sbe_occ_send_cmd(struct occ *occ, u8 *cmd)
 {
-	return -EOPNOTSUPP;
+	struct occ_response *resp = &occ->resp;
+	struct p9_sbe_occ *ctx = to_p9_sbe_occ(occ);
+	size_t resp_len = sizeof(*resp);
+	int rc;
+
+	rc = fsi_occ_submit(ctx->sbe, cmd, 8, resp, &resp_len);
+	if (rc < 0)
+		return rc;
+
+	switch (resp->return_status) {
+	case OCC_RESP_CMD_IN_PRG:
+		rc = -ETIMEDOUT;
+		break;
+	case OCC_RESP_SUCCESS:
+		rc = 0;
+		break;
+	case OCC_RESP_CMD_INVAL:
+	case OCC_RESP_CMD_LEN_INVAL:
+	case OCC_RESP_DATA_INVAL:
+	case OCC_RESP_CHKSUM_ERR:
+		rc = -EINVAL;
+		break;
+	case OCC_RESP_INT_ERR:
+	case OCC_RESP_BAD_STATE:
+	case OCC_RESP_CRIT_EXCEPT:
+	case OCC_RESP_CRIT_INIT:
+	case OCC_RESP_CRIT_WATCHDOG:
+	case OCC_RESP_CRIT_OCB:
+	case OCC_RESP_CRIT_HW:
+		rc = -EREMOTEIO;
+		break;
+	default:
+		rc = -EPROTO;
+	}
+
+	return rc;
 }
 
 static int p9_sbe_occ_probe(struct platform_device *pdev)
