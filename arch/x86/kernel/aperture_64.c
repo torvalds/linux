@@ -120,32 +120,6 @@ static u32 __init allocate_aperture(void)
 }
 
 
-/* Find a PCI capability */
-static u32 __init find_cap(int bus, int slot, int func, int cap)
-{
-	int bytes;
-	u8 pos;
-
-	if (!(read_pci_config_16(bus, slot, func, PCI_STATUS) &
-						PCI_STATUS_CAP_LIST))
-		return 0;
-
-	pos = read_pci_config_byte(bus, slot, func, PCI_CAPABILITY_LIST);
-	for (bytes = 0; bytes < 48 && pos >= 0x40; bytes++) {
-		u8 id;
-
-		pos &= ~3;
-		id = read_pci_config_byte(bus, slot, func, pos+PCI_CAP_LIST_ID);
-		if (id == 0xff)
-			break;
-		if (id == cap)
-			return pos;
-		pos = read_pci_config_byte(bus, slot, func,
-						pos+PCI_CAP_LIST_NEXT);
-	}
-	return 0;
-}
-
 /* Read a standard AGPv3 bridge header */
 static u32 __init read_agp(int bus, int slot, int func, int cap, u32 *order)
 {
@@ -234,8 +208,8 @@ static u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 				case PCI_CLASS_BRIDGE_HOST:
 				case PCI_CLASS_BRIDGE_OTHER: /* needed? */
 					/* AGP bridge? */
-					cap = find_cap(bus, slot, func,
-							PCI_CAP_ID_AGP);
+					cap = pci_early_find_cap(bus, slot,
+						 func, PCI_CAP_ID_AGP);
 					if (!cap)
 						break;
 					*valid_agp = 1;

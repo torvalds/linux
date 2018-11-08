@@ -51,6 +51,31 @@ void write_pci_config_16(u8 bus, u8 slot, u8 func, u8 offset, u16 val)
 	outw(val, 0xcfc + (offset&2));
 }
 
+u32 pci_early_find_cap(int bus, int slot, int func, int cap)
+{
+	int bytes;
+	u8 pos;
+
+	if (!(read_pci_config_16(bus, slot, func, PCI_STATUS) &
+						PCI_STATUS_CAP_LIST))
+		return 0;
+
+	pos = read_pci_config_byte(bus, slot, func, PCI_CAPABILITY_LIST);
+	for (bytes = 0; bytes < 48 && pos >= 0x40; bytes++) {
+		u8 id;
+
+		pos &= ~3;
+		id = read_pci_config_byte(bus, slot, func, pos+PCI_CAP_LIST_ID);
+		if (id == 0xff)
+			break;
+		if (id == cap)
+			return pos;
+		pos = read_pci_config_byte(bus, slot, func,
+						pos+PCI_CAP_LIST_NEXT);
+	}
+	return 0;
+}
+
 int early_pci_allowed(void)
 {
 	return (pci_probe & (PCI_PROBE_CONF1|PCI_PROBE_NOEARLY)) ==
