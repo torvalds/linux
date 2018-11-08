@@ -39,7 +39,7 @@ v3d_job_free(struct drm_sched_job *sched_job)
 }
 
 /**
- * Returns the fences that the bin job depends on, one by one.
+ * Returns the fences that the bin or render job depends on, one by one.
  * v3d_job_run() won't be called until all of them have been signaled.
  */
 static struct dma_fence *
