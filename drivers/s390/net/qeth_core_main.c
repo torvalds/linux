@@ -54,8 +54,6 @@ struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS] = {
 };
 EXPORT_SYMBOL_GPL(qeth_dbf);
 
-struct qeth_card_list_struct qeth_core_card_list;
-EXPORT_SYMBOL_GPL(qeth_core_card_list);
 struct kmem_cache *qeth_core_header_cache;
 EXPORT_SYMBOL_GPL(qeth_core_header_cache);
 static struct kmem_cache *qeth_qdio_outbuf_cache;
@@ -5806,9 +5804,6 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 		break;
 	}
 
-	write_lock_irq(&qeth_core_card_list.rwlock);
-	list_add_tail(&card->list, &qeth_core_card_list.list);
-	write_unlock_irq(&qeth_core_card_list.rwlock);
 	return 0;
 
 err_disc:
@@ -5833,9 +5828,6 @@ static void qeth_core_remove_device(struct ccwgroup_device *gdev)
 		qeth_core_free_discipline(card);
 	}
 
-	write_lock_irq(&qeth_core_card_list.rwlock);
-	list_del(&card->list);
-	write_unlock_irq(&qeth_core_card_list.rwlock);
 	free_netdev(card->dev);
 	qeth_core_free_card(card);
 	put_device(&gdev->dev);
@@ -5949,6 +5941,21 @@ static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
 	.thaw = qeth_core_thaw,
 	.restore = qeth_core_restore,
 };
+
+struct qeth_card *qeth_get_card_by_busid(char *bus_id)
+{
+	struct ccwgroup_device *gdev;
+	struct qeth_card *card;
+
+	gdev = get_ccwgroupdev_by_busid(&qeth_core_ccwgroup_driver, bus_id);
+	if (!gdev)
+		return NULL;
+
+	card = dev_get_drvdata(&gdev->dev);
+	put_device(&gdev->dev);
+	return card;
+}
+EXPORT_SYMBOL_GPL(qeth_get_card_by_busid);
 
 int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
@@ -6688,8 +6695,6 @@ static int __init qeth_core_init(void)
 	int rc;
 
 	pr_info("loading core functions\n");
-	INIT_LIST_HEAD(&qeth_core_card_list.list);
-	rwlock_init(&qeth_core_card_list.rwlock);
 
 	qeth_wq = create_singlethread_workqueue("qeth_wq");
 	if (!qeth_wq) {

@@ -774,7 +774,6 @@ struct qeth_switch_info {
 #define QETH_NAPI_WEIGHT NAPI_POLL_WEIGHT
 
 struct qeth_card {
-	struct list_head list;
 	enum qeth_card_states state;
 	spinlock_t lock;
 	struct ccwgroup_device *gdev;
@@ -824,11 +823,6 @@ struct qeth_card {
 	struct delayed_work buffer_reclaim_work;
 	int reclaim_index;
 	struct work_struct close_dev_work;
-};
-
-struct qeth_card_list_struct {
-	struct list_head list;
-	rwlock_t rwlock;
 };
 
 struct qeth_trap_id {
@@ -977,11 +971,11 @@ int qeth_core_load_discipline(struct qeth_card *, enum qeth_discipline_id);
 void qeth_core_free_discipline(struct qeth_card *);
 
 /* exports for qeth discipline device drivers */
-extern struct qeth_card_list_struct qeth_core_card_list;
 extern struct kmem_cache *qeth_core_header_cache;
 extern struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS];
 
 struct net_device *qeth_clone_netdev(struct net_device *orig);
+struct qeth_card *qeth_get_card_by_busid(char *bus_id);
 void qeth_set_recovery_task(struct qeth_card *);
 void qeth_clear_recovery_task(struct qeth_card *);
 void qeth_set_allowed_threads(struct qeth_card *, unsigned long , int);

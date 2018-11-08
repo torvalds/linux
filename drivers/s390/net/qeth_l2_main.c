@@ -36,28 +36,6 @@ static void qeth_l2_vnicc_init(struct qeth_card *card);
 static bool qeth_l2_vnicc_recover_timeout(struct qeth_card *card, u32 vnicc,
 					  u32 *timeout);
 
-static struct net_device *qeth_l2_netdev_by_devno(unsigned char *read_dev_no)
-{
-	struct qeth_card *card;
-	struct net_device *ndev;
-	__u16 temp_dev_no;
-	unsigned long flags;
-	struct ccw_dev_id read_devid;
-
-	ndev = NULL;
-	memcpy(&temp_dev_no, read_dev_no, 2);
-	read_lock_irqsave(&qeth_core_card_list.rwlock, flags);
-	list_for_each_entry(card, &qeth_core_card_list.list, list) {
-		ccw_device_get_id(CARD_RDEV(card), &read_devid);
-		if (read_devid.devno == temp_dev_no) {
-			ndev = card->dev;
-			break;
-		}
-	}
-	read_unlock_irqrestore(&qeth_core_card_list.rwlock, flags);
-	return ndev;
-}
-
 static int qeth_setdelmac_makerc(struct qeth_card *card, int retcode)
 {
 	int rc;
@@ -1286,13 +1264,16 @@ int qeth_osn_register(unsigned char *read_dev_no, struct net_device **dev,
 		  int (*data_cb)(struct sk_buff *))
 {
 	struct qeth_card *card;
+	char bus_id[16];
+	u16 devno;
 
-	*dev = qeth_l2_netdev_by_devno(read_dev_no);
-	if (*dev == NULL)
+	memcpy(&devno, read_dev_no, 2);
+	sprintf(bus_id, "0.0.%04x", devno);
+	card = qeth_get_card_by_busid(bus_id);
+	if (!card || !IS_OSN(card))
 		return -ENODEV;
-	card = (*dev)->ml_priv;
-	if (!card)
-		return -ENODEV;
+	*dev = card->dev;
+
 	QETH_CARD_TEXT(card, 2, "osnreg");
 	if ((assist_cb == NULL) || (data_cb == NULL))
 		return -EINVAL;
