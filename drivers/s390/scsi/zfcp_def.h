@@ -4,7 +4,7 @@
  *
  * Global definitions for the zfcp device driver.
  *
- * Copyright IBM Corp. 2002, 2010
+ * Copyright IBM Corp. 2002, 2017
  */
 
 #ifndef ZFCP_DEF_H
@@ -40,8 +40,6 @@
 #include "zfcp_fsf.h"
 #include "zfcp_fc.h"
 #include "zfcp_qdio.h"
-
-struct zfcp_reqlist;
 
 /********************* SCSI SPECIFIC DEFINES *********************************/
 #define ZFCP_SCSI_ER_TIMEOUT                    (10*HZ)
