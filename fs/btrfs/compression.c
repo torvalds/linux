@@ -249,7 +249,7 @@ static void end_compressed_bio_write(struct bio *bio)
 	inode = cb->inode;
 	cb->compressed_pages[0]->mapping = cb->inode->i_mapping;
 	btrfs_writepage_endio_finish_ordered(cb->compressed_pages[0],
-			cb->start, cb->start + cb->len - 1, NULL,
+			cb->start, cb->start + cb->len - 1,
 			bio->bi_status ? BLK_STS_OK : BLK_STS_NOTSUPP);
 	cb->compressed_pages[0]->mapping = NULL;
 

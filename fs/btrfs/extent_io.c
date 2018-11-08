@@ -2407,7 +2407,7 @@ void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 	int uptodate = (err == 0);
 	int ret = 0;
 
-	btrfs_writepage_endio_finish_ordered(page, start, end, NULL, uptodate);
+	btrfs_writepage_endio_finish_ordered(page, start, end, uptodate);
 
 	if (!uptodate) {
 		ClearPageUptodate(page);
@@ -3326,8 +3326,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 	end = page_end;
 	if (i_size <= start) {
-		btrfs_writepage_endio_finish_ordered(page, start, page_end,
-						     NULL, 1);
+		btrfs_writepage_endio_finish_ordered(page, start, page_end, 1);
 		goto done;
 	}
 
@@ -3339,7 +3338,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 		if (cur >= i_size) {
 			btrfs_writepage_endio_finish_ordered(page, cur,
-							     page_end, NULL, 1);
+							     page_end, 1);
 			break;
 		}
 		em = btrfs_get_extent(BTRFS_I(inode), page, pg_offset, cur,
@@ -3376,7 +3375,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 			if (!compressed)
 				btrfs_writepage_endio_finish_ordered(page, cur,
 							    cur + iosize - 1,
-							    NULL, 1);
+							    1);
 			else if (compressed) {
 				/* we don't want to end_page_writeback on
 				 * a compressed extent.  this happens
@@ -4063,8 +4062,7 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 			ret = __extent_writepage(page, &wbc_writepages, &epd);
 		else {
 			btrfs_writepage_endio_finish_ordered(page, start,
-						    start + PAGE_SIZE - 1,
-						    NULL, 1);
+						    start + PAGE_SIZE - 1, 1);
 			unlock_page(page);
 		}
 		put_page(page);

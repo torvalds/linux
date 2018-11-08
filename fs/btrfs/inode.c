@@ -853,8 +853,7 @@ retry:
 			const u64 end = start + async_extent->ram_size - 1;
 
 			p->mapping = inode->i_mapping;
-			btrfs_writepage_endio_finish_ordered(p, start, end,
-							     NULL, 0);
+			btrfs_writepage_endio_finish_ordered(p, start, end, 0);
 
 			p->mapping = NULL;
 			extent_clear_unlock_delalloc(inode, start, end, end,
@@ -3153,8 +3152,8 @@ static void finish_ordered_fn(struct btrfs_work *work)
 	btrfs_finish_ordered_io(ordered_extent);
 }
 
-void btrfs_writepage_endio_finish_ordered(struct page *page, u64 start, u64 end,
-				struct extent_state *state, int uptodate)
+void btrfs_writepage_endio_finish_ordered(struct page *page, u64 start,
+					  u64 end, int uptodate)
 {
 	struct inode *inode = page->mapping->host;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
