@@ -975,7 +975,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 		loop_reread_partitions(lo, bdev);
 
 	/* Grab the block_device to prevent its destruction after we
-	 * put /dev/loopXX inode. Later in loop_clr_fd() we bdput(bdev).
+	 * put /dev/loopXX inode. Later in __loop_clr_fd() we bdput(bdev).
 	 */
 	bdgrab(bdev);
 	return 0;
@@ -1025,30 +1025,14 @@ loop_init_xfer(struct loop_device *lo, struct loop_func_table *xfer,
 	return err;
 }
 
-static int loop_clr_fd(struct loop_device *lo)
+static int __loop_clr_fd(struct loop_device *lo)
 {
 	struct file *filp = lo->lo_backing_file;
 	gfp_t gfp = lo->old_gfp_mask;
 	struct block_device *bdev = lo->lo_device;
 
-	if (lo->lo_state != Lo_bound)
+	if (WARN_ON_ONCE(lo->lo_state != Lo_rundown))
 		return -ENXIO;
-
-	/*
-	 * If we've explicitly asked to tear down the loop device,
-	 * and it has an elevated reference count, set it for auto-teardown when
-	 * the last reference goes away. This stops $!~#$@ udev from
-	 * preventing teardown because it decided that it needs to run blkid on
-	 * the loopback device whenever they appear. xfstests is notorious for
-	 * failing tests because blkid via udev races with a losetup
-	 * <dev>/do something like mkfs/losetup -d <dev> causing the losetup -d
-	 * command to fail with EBUSY.
-	 */
-	if (atomic_read(&lo->lo_refcnt) > 1) {
-		lo->lo_flags |= LO_FLAGS_AUTOCLEAR;
-		mutex_unlock(&loop_ctl_mutex);
-		return 0;
-	}
 
 	if (filp == NULL)
 		return -EINVAL;
@@ -1057,7 +1041,6 @@ static int loop_clr_fd(struct loop_device *lo)
 	blk_mq_freeze_queue(lo->lo_queue);
 
 	spin_lock_irq(&lo->lo_lock);
-	lo->lo_state = Lo_rundown;
 	lo->lo_backing_file = NULL;
 	spin_unlock_irq(&lo->lo_lock);
 
@@ -1108,6 +1091,30 @@ static int loop_clr_fd(struct loop_device *lo)
 	 */
 	fput(filp);
 	return 0;
+}
+
+static int loop_clr_fd(struct loop_device *lo)
+{
+	if (lo->lo_state != Lo_bound)
+		return -ENXIO;
+	/*
+	 * If we've explicitly asked to tear down the loop device,
+	 * and it has an elevated reference count, set it for auto-teardown when
+	 * the last reference goes away. This stops $!~#$@ udev from
+	 * preventing teardown because it decided that it needs to run blkid on
+	 * the loopback device whenever they appear. xfstests is notorious for
+	 * failing tests because blkid via udev races with a losetup
+	 * <dev>/do something like mkfs/losetup -d <dev> causing the losetup -d
+	 * command to fail with EBUSY.
+	 */
+	if (atomic_read(&lo->lo_refcnt) > 1) {
+		lo->lo_flags |= LO_FLAGS_AUTOCLEAR;
+		mutex_unlock(&loop_ctl_mutex);
+		return 0;
+	}
+	lo->lo_state = Lo_rundown;
+
+	return __loop_clr_fd(lo);
 }
 
 static int
@@ -1691,11 +1698,14 @@ static void lo_release(struct gendisk *disk, fmode_t mode)
 		goto out_unlock;
 
 	if (lo->lo_flags & LO_FLAGS_AUTOCLEAR) {
+		if (lo->lo_state != Lo_bound)
+			goto out_unlock;
+		lo->lo_state = Lo_rundown;
 		/*
 		 * In autoclear mode, stop the loop thread
 		 * and remove configuration after last close.
 		 */
-		err = loop_clr_fd(lo);
+		err = __loop_clr_fd(lo);
 		if (!err)
 			return;
 	} else if (lo->lo_state == Lo_bound) {
