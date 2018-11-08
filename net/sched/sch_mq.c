@@ -38,9 +38,8 @@ static int mq_offload(struct Qdisc *sch, enum tc_mq_command cmd)
 	return dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_MQ, &opt);
 }
 
-static void mq_offload_stats(struct Qdisc *sch)
+static int mq_offload_stats(struct Qdisc *sch)
 {
-	struct net_device *dev = qdisc_dev(sch);
 	struct tc_mq_qopt_offload opt = {
 		.command = TC_MQ_STATS,
 		.handle = sch->handle,
@@ -50,8 +49,7 @@ static void mq_offload_stats(struct Qdisc *sch)
 		},
 	};
 
-	if (tc_can_offload(dev) && dev->netdev_ops->ndo_setup_tc)
-		dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_MQ, &opt);
+	return qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_MQ, &opt);
 }
 
 static void mq_destroy(struct Qdisc *sch)
@@ -171,9 +169,8 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 		spin_unlock_bh(qdisc_lock(qdisc));
 	}
-	mq_offload_stats(sch);
 
-	return 0;
+	return mq_offload_stats(sch);
 }
 
 static struct netdev_queue *mq_queue_get(struct Qdisc *sch, unsigned long cl)
