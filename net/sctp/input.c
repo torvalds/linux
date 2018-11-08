@@ -574,7 +574,7 @@ void sctp_err_finish(struct sock *sk, struct sctp_transport *t)
  * is probably better.
  *
  */
-void sctp_v4_err(struct sk_buff *skb, __u32 info)
+int sctp_v4_err(struct sk_buff *skb, __u32 info)
 {
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
 	const int ihlen = iph->ihl * 4;
@@ -599,7 +599,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	skb->transport_header = savesctp;
 	if (!sk) {
 		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
-		return;
+		return -ENOENT;
 	}
 	/* Warning:  The sock lock is held.  Remember to call
 	 * sctp_err_finish!
@@ -653,6 +653,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 
 out_unlock:
 	sctp_err_finish(sk, transport);
+	return 0;
 }
 
 /*
