@@ -679,6 +679,7 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
 {
 	struct file	*file, *old_file;
 	int		error;
+	bool		partscan;
 
 	error = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
 	if (error)
@@ -720,9 +721,10 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
 	blk_mq_unfreeze_queue(lo->lo_queue);
 
 	fput(old_file);
-	if (lo->lo_flags & LO_FLAGS_PARTSCAN)
-		loop_reread_partitions(lo, bdev);
+	partscan = lo->lo_flags & LO_FLAGS_PARTSCAN;
 	mutex_unlock(&loop_ctl_mutex);
+	if (partscan)
+		loop_reread_partitions(lo, bdev);
 	return 0;
 
 out_putf:
@@ -903,6 +905,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	int		lo_flags = 0;
 	int		error;
 	loff_t		size;
+	bool		partscan;
 
 	/* This is safe, since we have a reference from open(). */
 	__module_get(THIS_MODULE);
@@ -969,14 +972,15 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	lo->lo_state = Lo_bound;
 	if (part_shift)
 		lo->lo_flags |= LO_FLAGS_PARTSCAN;
-	if (lo->lo_flags & LO_FLAGS_PARTSCAN)
-		loop_reread_partitions(lo, bdev);
+	partscan = lo->lo_flags & LO_FLAGS_PARTSCAN;
 
 	/* Grab the block_device to prevent its destruction after we
 	 * put /dev/loopXX inode. Later in __loop_clr_fd() we bdput(bdev).
 	 */
 	bdgrab(bdev);
 	mutex_unlock(&loop_ctl_mutex);
+	if (partscan)
+		loop_reread_partitions(lo, bdev);
 	return 0;
 
 out_unlock:
@@ -1157,6 +1161,8 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 	int err;
 	struct loop_func_table *xfer;
 	kuid_t uid = current_uid();
+	struct block_device *bdev;
+	bool partscan = false;
 
 	err = mutex_lock_killable_nested(&loop_ctl_mutex, 1);
 	if (err)
@@ -1245,10 +1251,13 @@ out_unfreeze:
 	     !(lo->lo_flags & LO_FLAGS_PARTSCAN)) {
 		lo->lo_flags |= LO_FLAGS_PARTSCAN;
 		lo->lo_disk->flags &= ~GENHD_FL_NO_PART_SCAN;
-		loop_reread_partitions(lo, lo->lo_device);
+		bdev = lo->lo_device;
+		partscan = true;
 	}
 out_unlock:
 	mutex_unlock(&loop_ctl_mutex);
+	if (partscan)
+		loop_reread_partitions(lo, bdev);
 
 	return err;
 }
