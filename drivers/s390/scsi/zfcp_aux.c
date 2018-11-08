@@ -4,7 +4,7 @@
  *
  * Module interface and handling of zfcp data structures.
  *
- * Copyright IBM Corp. 2002, 2013
+ * Copyright IBM Corp. 2002, 2017
  */
 
 /*
@@ -534,46 +534,4 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 err_out:
 	zfcp_ccw_adapter_put(adapter);
 	return ERR_PTR(retval);
-}
-
-/**
- * zfcp_sg_free_table - free memory used by scatterlists
- * @sg: pointer to scatterlist
- * @count: number of scatterlist which are to be free'ed
- * the scatterlist are expected to reference pages always
- */
-void zfcp_sg_free_table(struct scatterlist *sg, int count)
-{
-	int i;
-
-	for (i = 0; i < count; i++, sg++)
-		if (sg)
-			free_page((unsigned long) sg_virt(sg));
-		else
-			break;
-}
-
-/**
- * zfcp_sg_setup_table - init scatterlist and allocate, assign buffers
- * @sg: pointer to struct scatterlist
- * @count: number of scatterlists which should be assigned with buffers
- * of size page
- *
- * Returns: 0 on success, -ENOMEM otherwise
- */
-int zfcp_sg_setup_table(struct scatterlist *sg, int count)
-{
-	void *addr;
-	int i;
-
-	sg_init_table(sg, count);
-	for (i = 0; i < count; i++, sg++) {
-		addr = (void *) get_zeroed_page(GFP_KERNEL);
-		if (!addr) {
-			zfcp_sg_free_table(sg, i);
-			return -ENOMEM;
-		}
-		sg_set_buf(sg, addr, PAGE_SIZE);
-	}
-	return 0;
 }
