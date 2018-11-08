@@ -1007,7 +1007,6 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 {
 	struct Qdisc *q = old;
 	struct net *net = dev_net(dev);
-	int err = 0;
 
 	if (parent == NULL) {
 		unsigned int i, num_q, ingress;
@@ -1062,28 +1061,29 @@ skip:
 			dev_activate(dev);
 	} else {
 		const struct Qdisc_class_ops *cops = parent->ops->cl_ops;
+		unsigned long cl;
+		int err;
 
 		/* Only support running class lockless if parent is lockless */
 		if (new && (new->flags & TCQ_F_NOLOCK) &&
 		    parent && !(parent->flags & TCQ_F_NOLOCK))
 			new->flags &= ~TCQ_F_NOLOCK;
 
-		err = -EOPNOTSUPP;
-		if (cops && cops->graft) {
-			unsigned long cl = cops->find(parent, classid);
+		if (!cops || !cops->graft)
+			return -EOPNOTSUPP;
 
-			if (cl) {
-				err = cops->graft(parent, cl, new, &old,
-						  extack);
-			} else {
-				NL_SET_ERR_MSG(extack, "Specified class not found");
-				err = -ENOENT;
-			}
+		cl = cops->find(parent, classid);
+		if (!cl) {
+			NL_SET_ERR_MSG(extack, "Specified class not found");
+			return -ENOENT;
 		}
-		if (!err)
-			notify_and_destroy(net, skb, n, classid, old, new);
+
+		err = cops->graft(parent, cl, new, &old, extack);
+		if (err)
+			return err;
+		notify_and_destroy(net, skb, n, classid, old, new);
 	}
-	return err;
+	return 0;
 }
 
 static int qdisc_block_indexes_set(struct Qdisc *sch, struct nlattr **tca,
