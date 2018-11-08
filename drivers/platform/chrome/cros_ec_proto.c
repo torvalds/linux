@@ -580,7 +580,7 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event)
 
 	if (!ec_dev->mkbp_event_supported) {
 		ret = get_keyboard_state_event(ec_dev);
-		if (ret < 0)
+		if (ret <= 0)
 			return ret;
 
 		if (wake_event)
@@ -590,7 +590,7 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event)
 	}
 
 	ret = get_next_event(ec_dev);
-	if (ret < 0)
+	if (ret <= 0)
 		return ret;
 
 	if (wake_event) {
