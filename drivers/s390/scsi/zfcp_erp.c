@@ -257,9 +257,6 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(enum zfcp_erp_act_type need,
 		      ZFCP_STATUS_COMMON_RUNNING))
 			act_status |= ZFCP_STATUS_ERP_CLOSE_ONLY;
 		break;
-
-	default:
-		return NULL;
 	}
 
 	WARN_ON_ONCE(erp_action->adapter != adapter);
