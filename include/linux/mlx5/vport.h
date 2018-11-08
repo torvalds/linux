@@ -52,6 +52,8 @@ enum {
 };
 
 enum {
+	MLX5_VPORT_PF			= 0x0,
+	MLX5_VPORT_ECPF			= 0xfffe,
 	MLX5_VPORT_UPLINK		= 0xffff
 };
 

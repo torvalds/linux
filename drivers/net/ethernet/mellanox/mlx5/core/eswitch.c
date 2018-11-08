@@ -378,16 +378,16 @@ static int esw_add_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	u16 vport = vaddr->vport;
 	int err;
 
-	/* Skip mlx5_mpfs_add_mac for PFs,
-	 * it is already done by the PF netdev in mlx5e_execute_l2_action
+	/* Skip mlx5_mpfs_add_mac for eswitch_managers,
+	 * it is already done by its netdev in mlx5e_execute_l2_action
 	 */
-	if (!vport)
+	if (esw->manager_vport == vport)
 		goto fdb_add;
 
 	err = mlx5_mpfs_add_mac(esw->dev, mac);
 	if (err) {
 		esw_warn(esw->dev,
-			 "Failed to add L2 table mac(%pM) for vport(%d), err(%d)\n",
+			 "Failed to add L2 table mac(%pM) for vport(0x%x), err(%d)\n",
 			 mac, vport, err);
 		return err;
 	}
@@ -410,10 +410,10 @@ static int esw_del_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	u16 vport = vaddr->vport;
 	int err = 0;
 
-	/* Skip mlx5_mpfs_del_mac for PFs,
-	 * it is already done by the PF netdev in mlx5e_execute_l2_action
+	/* Skip mlx5_mpfs_del_mac for eswitch managerss,
+	 * it is already done by its netdev in mlx5e_execute_l2_action
 	 */
-	if (!vport || !vaddr->mpfs)
+	if (!vaddr->mpfs || esw->manager_vport == vport)
 		goto fdb_del;
 
 	err = mlx5_mpfs_del_mac(esw->dev, mac);
@@ -1457,15 +1457,22 @@ static void esw_apply_vport_conf(struct mlx5_eswitch *esw,
 {
 	int vport_num = vport->vport;
 
-	if (!vport_num)
+	if (esw->manager_vport == vport_num)
 		return;
 
 	mlx5_modify_vport_admin_state(esw->dev,
 				      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
 				      vport_num,
 				      vport->info.link_state);
-	mlx5_modify_nic_vport_mac_address(esw->dev, vport_num, vport->info.mac);
-	mlx5_modify_nic_vport_node_guid(esw->dev, vport_num, vport->info.node_guid);
+
+	/* Host PF has its own mac/guid. */
+	if (vport_num) {
+		mlx5_modify_nic_vport_mac_address(esw->dev, vport_num,
+						  vport->info.mac);
+		mlx5_modify_nic_vport_node_guid(esw->dev, vport_num,
+						vport->info.node_guid);
+	}
+
 	modify_esw_vport_cvlan(esw->dev, vport_num, vport->info.vlan, vport->info.qos,
 			       (vport->info.vlan || vport->info.qos));
 
@@ -1537,8 +1544,11 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 	vport->enabled_events = enable_events;
 	vport->enabled = true;
 
-	/* only PF is trusted by default */
-	if (!vport_num)
+	/* Esw manager is trusted by default. Host PF (vport 0) is trusted as well
+	 * in smartNIC as it's a vport group manager.
+	 */
+	if (esw->manager_vport == vport_num ||
+	    (!vport_num && mlx5_core_is_ecpf(esw->dev)))
 		vport->info.trusted = true;
 
 	esw_vport_change_handle_locked(vport);
@@ -1733,6 +1743,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 
 	esw->dev = dev;
+	esw->manager_vport = mlx5_eswitch_manager_vport(dev);
 
 	esw->work_queue = create_singlethread_workqueue("mlx5_esw_wq");
 	if (!esw->work_queue) {
