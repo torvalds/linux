@@ -1811,7 +1811,7 @@ static void zfcp_fsf_open_lun_handler(struct zfcp_fsf_req *req)
 	case FSF_LUN_SHARING_VIOLATION:
 		if (qual->word[0])
 			dev_warn(&zfcp_sdev->port->adapter->ccw_device->dev,
-				 "LUN 0x%Lx on port 0x%Lx is already in "
+				 "LUN 0x%016Lx on port 0x%016Lx is already in "
 				 "use by CSS%d, MIF Image ID %x\n",
 				 zfcp_scsi_dev_lun(sdev),
 				 (unsigned long long)zfcp_sdev->port->wwpn,
