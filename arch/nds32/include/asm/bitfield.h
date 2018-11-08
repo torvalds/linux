@@ -740,14 +740,20 @@
 #define N13MISC_CTL_offRTP	1	/* Disable Return Target Predictor */
 #define N13MISC_CTL_offPTEPF	2	/* Disable HPTWK L2 PTE pefetch */
 #define N13MISC_CTL_offSP_SHADOW_EN	4	/* Enable shadow stack pointers */
+#define MISC_CTL_offHWPRE      11      /* Enable HardWare PREFETCH */
 /* bit 6, 9:31 reserved */
 
 #define N13MISC_CTL_makBTB	( 0x1  << N13MISC_CTL_offBTB )
 #define N13MISC_CTL_makRTP	( 0x1  << N13MISC_CTL_offRTP )
 #define N13MISC_CTL_makPTEPF	( 0x1  << N13MISC_CTL_offPTEPF )
 #define N13MISC_CTL_makSP_SHADOW_EN	( 0x1  << N13MISC_CTL_offSP_SHADOW_EN )
+#define MISC_CTL_makHWPRE_EN     ( 0x1  << MISC_CTL_offHWPRE )
 
+#ifdef CONFIG_HW_PRE
+#define MISC_init	(N13MISC_CTL_makBTB|N13MISC_CTL_makRTP|N13MISC_CTL_makSP_SHADOW_EN|MISC_CTL_makHWPRE_EN)
+#else
 #define MISC_init	(N13MISC_CTL_makBTB|N13MISC_CTL_makRTP|N13MISC_CTL_makSP_SHADOW_EN)
+#endif
 
 /******************************************************************************
  * PRUSR_ACC_CTL (Privileged Resource User Access Control Registers)

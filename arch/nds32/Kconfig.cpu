@@ -177,6 +177,13 @@ config CACHE_L2
 	  Say Y here to enable L2 cache if your SoC are integrated with L2CC.
 	  If unsure, say N.
 
+config HW_PRE
+	bool "Enable hardware prefetcher"
+	default y
+	help
+	  Say Y here to enable hardware prefetcher feature.
+	  Only when CPU_VER.REV >= 0x09 can support.
+
 menu "Memory configuration"
 
 choice

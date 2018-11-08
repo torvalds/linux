@@ -151,7 +151,7 @@ _tlb:
 #endif
 	mtsr    $r3, $TLB_MISC
 
-	mfsr    $r0, $MISC_CTL      ! Enable BTB and RTP and shadow sp
+	mfsr    $r0, $MISC_CTL      ! Enable BTB, RTP, shadow sp, and HW_PRE
 	ori     $r0, $r0, #MISC_init
 	mtsr    $r0, $MISC_CTL
 
