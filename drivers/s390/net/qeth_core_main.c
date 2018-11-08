@@ -5475,34 +5475,11 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
 }
 EXPORT_SYMBOL_GPL(qeth_get_setassparms_cmd);
 
-static int qeth_send_setassparms(struct qeth_card *card,
-				 struct qeth_cmd_buffer *iob, u16 len,
-				 long data, int (*reply_cb)(struct qeth_card *,
-							    struct qeth_reply *,
-							    unsigned long),
-				 void *reply_param)
-{
-	int rc;
-	struct qeth_ipa_cmd *cmd;
-
-	QETH_CARD_TEXT(card, 4, "sendassp");
-
-	cmd = __ipa_cmd(iob);
-	if (len <= sizeof(__u32))
-		cmd->data.setassparms.data.flags_32bit = (__u32) data;
-	else   /* (len > sizeof(__u32)) */
-		memcpy(&cmd->data.setassparms.data, (void *) data, len);
-
-	rc = qeth_send_ipa_cmd(card, iob, reply_cb, reply_param);
-	return rc;
-}
-
 int qeth_send_simple_setassparms_prot(struct qeth_card *card,
 				      enum qeth_ipa_funcs ipa_func,
 				      u16 cmd_code, long data,
 				      enum qeth_prot_versions prot)
 {
-	int rc;
 	int length = 0;
 	struct qeth_cmd_buffer *iob;
 
@@ -5512,9 +5489,9 @@ int qeth_send_simple_setassparms_prot(struct qeth_card *card,
 	iob = qeth_get_setassparms_cmd(card, ipa_func, cmd_code, length, prot);
 	if (!iob)
 		return -ENOMEM;
-	rc = qeth_send_setassparms(card, iob, length, data,
-				   qeth_setassparms_cb, NULL);
-	return rc;
+
+	__ipa_cmd(iob)->data.setassparms.data.flags_32bit = (__u32) data;
+	return qeth_send_ipa_cmd(card, iob, qeth_setassparms_cb, NULL);
 }
 EXPORT_SYMBOL_GPL(qeth_send_simple_setassparms_prot);
 
@@ -6385,16 +6362,16 @@ static int qeth_ipa_checksum_run_cmd(struct qeth_card *card,
 				     enum qeth_prot_versions prot)
 {
 	struct qeth_cmd_buffer *iob;
-	int rc = -ENOMEM;
 
 	QETH_CARD_TEXT(card, 4, "chkdocmd");
 	iob = qeth_get_setassparms_cmd(card, ipa_func, cmd_code,
 				       sizeof(__u32), prot);
-	if (iob)
-		rc = qeth_send_setassparms(card, iob, sizeof(__u32), data,
-					   qeth_ipa_checksum_run_cmd_cb,
-					   chksum_cb);
-	return rc;
+	if (!iob)
+		return -ENOMEM;
+
+	__ipa_cmd(iob)->data.setassparms.data.flags_32bit = (__u32) data;
+	return qeth_send_ipa_cmd(card, iob, qeth_ipa_checksum_run_cmd_cb,
+				 chksum_cb);
 }
 
 static int qeth_send_checksum_on(struct qeth_card *card, int cstype,
@@ -6492,8 +6469,7 @@ static int qeth_set_tso_on(struct qeth_card *card,
 	if (!iob)
 		return -ENOMEM;
 
-	rc = qeth_send_setassparms(card, iob, 0, 0 /* unused */,
-				   qeth_start_tso_cb, &tso_data);
+	rc = qeth_send_ipa_cmd(card, iob, qeth_start_tso_cb, &tso_data);
 	if (rc)
 		return rc;
 
@@ -6510,10 +6486,9 @@ static int qeth_set_tso_on(struct qeth_card *card,
 	}
 
 	/* enable TSO capability */
-	caps.supported = 0;
-	caps.enabled = QETH_IPA_LARGE_SEND_TCP;
-	rc = qeth_send_setassparms(card, iob, sizeof(caps), (long) &caps,
-				   qeth_setassparms_get_caps_cb, &caps);
+	__ipa_cmd(iob)->data.setassparms.data.caps.enabled =
+		QETH_IPA_LARGE_SEND_TCP;
+	rc = qeth_send_ipa_cmd(card, iob, qeth_setassparms_get_caps_cb, &caps);
 	if (rc) {
 		qeth_set_tso_off(card, prot);
 		return rc;

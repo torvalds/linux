@@ -1685,18 +1685,6 @@ out_error:
 	return 0;
 }
 
-static int qeth_l3_send_ipa_arp_cmd(struct qeth_card *card,
-		struct qeth_cmd_buffer *iob, int len,
-		int (*reply_cb)(struct qeth_card *, struct qeth_reply *,
-			unsigned long),
-		void *reply_param)
-{
-	QETH_CARD_TEXT(card, 4, "sendarp");
-
-	return qeth_send_control_data(card, IPA_PDU_HEADER_SIZE + len, iob,
-				      reply_cb, reply_param);
-}
-
 static int qeth_l3_query_arp_cache_info(struct qeth_card *card,
 	enum qeth_prot_versions prot,
 	struct qeth_arp_query_info *qinfo)
@@ -1716,11 +1704,9 @@ static int qeth_l3_query_arp_cache_info(struct qeth_card *card,
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
 	cmd->data.setassparms.data.query_arp.request_bits = 0x000F;
-	cmd->data.setassparms.data.query_arp.reply_bits = 0;
-	cmd->data.setassparms.data.query_arp.no_entries = 0;
-	rc = qeth_l3_send_ipa_arp_cmd(card, iob,
-			   QETH_SETASS_BASE_LEN+QETH_ARP_CMD_LEN,
-			   qeth_l3_arp_query_cb, (void *)qinfo);
+	rc = qeth_send_control_data(card,
+				    QETH_SETASS_BASE_LEN + QETH_ARP_CMD_LEN,
+				    iob, qeth_l3_arp_query_cb, qinfo);
 	if (rc)
 		QETH_DBF_MESSAGE(2, "Error while querying ARP cache on device %x: %#x\n",
 				 CARD_DEVID(card), rc);
