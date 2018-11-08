@@ -1915,16 +1915,17 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 	struct fuse_req *req;
 	struct fuse_out_header oh;
 
+	err = -EINVAL;
 	if (nbytes < sizeof(struct fuse_out_header))
-		return -EINVAL;
+		goto out;
 
 	err = fuse_copy_one(cs, &oh, sizeof(oh));
 	if (err)
-		goto err_finish;
+		goto copy_finish;
 
 	err = -EINVAL;
 	if (oh.len != nbytes)
-		goto err_finish;
+		goto copy_finish;
 
 	/*
 	 * Zero oh.unique indicates unsolicited notification message
@@ -1932,41 +1933,40 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 	 */
 	if (!oh.unique) {
 		err = fuse_notify(fc, oh.error, nbytes - sizeof(oh), cs);
-		return err ? err : nbytes;
+		goto out;
 	}
 
 	err = -EINVAL;
 	if (oh.error <= -1000 || oh.error > 0)
-		goto err_finish;
+		goto copy_finish;
 
 	spin_lock(&fpq->lock);
-	err = -ENOENT;
-	if (!fpq->connected)
-		goto err_unlock_pq;
+	req = NULL;
+	if (fpq->connected)
+		req = request_find(fpq, oh.unique & ~FUSE_INT_REQ_BIT);
 
-	req = request_find(fpq, oh.unique & ~FUSE_INT_REQ_BIT);
-	if (!req)
-		goto err_unlock_pq;
+	err = -ENOENT;
+	if (!req) {
+		spin_unlock(&fpq->lock);
+		goto copy_finish;
+	}
 
 	/* Is it an interrupt reply ID? */
 	if (oh.unique & FUSE_INT_REQ_BIT) {
 		__fuse_get_request(req);
 		spin_unlock(&fpq->lock);
 
-		err = -EINVAL;
-		if (nbytes != sizeof(struct fuse_out_header)) {
-			fuse_put_request(fc, req);
-			goto err_finish;
-		}
-
-		if (oh.error == -ENOSYS)
+		err = 0;
+		if (nbytes != sizeof(struct fuse_out_header))
+			err = -EINVAL;
+		else if (oh.error == -ENOSYS)
 			fc->no_interrupt = 1;
 		else if (oh.error == -EAGAIN)
 			queue_interrupt(&fc->iq, req);
+
 		fuse_put_request(fc, req);
 
-		fuse_copy_finish(cs);
-		return nbytes;
+		goto copy_finish;
 	}
 
 	clear_bit(FR_SENT, &req->flags);
@@ -1992,14 +1992,12 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 	spin_unlock(&fpq->lock);
 
 	request_end(fc, req);
-
+out:
 	return err ? err : nbytes;
 
- err_unlock_pq:
-	spin_unlock(&fpq->lock);
- err_finish:
+copy_finish:
 	fuse_copy_finish(cs);
-	return err;
+	goto out;
 }
 
 static ssize_t fuse_dev_write(struct kiocb *iocb, struct iov_iter *from)
