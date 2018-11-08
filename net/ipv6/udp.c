@@ -45,6 +45,7 @@
 #include <net/raw.h>
 #include <net/tcp_states.h>
 #include <net/ip6_checksum.h>
+#include <net/ip6_tunnel.h>
 #include <net/xfrm.h>
 #include <net/inet_hashtables.h>
 #include <net/inet6_hashtables.h>
@@ -469,6 +470,29 @@ void udpv6_encap_enable(void)
 }
 EXPORT_SYMBOL(udpv6_encap_enable);
 
+/* Handler for tunnels with arbitrary destination ports: no socket lookup, go
+ * through error handlers in encapsulations looking for a match.
+ */
+static int __udp6_lib_err_encap_no_sk(struct sk_buff *skb,
+				      struct inet6_skb_parm *opt,
+				      u8 type, u8 code, int offset, u32 info)
+{
+	int i;
+
+	for (i = 0; i < MAX_IPTUN_ENCAP_OPS; i++) {
+		int (*handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			       u8 type, u8 code, int offset, u32 info);
+
+		if (!ip6tun_encaps[i])
+			continue;
+		handler = rcu_dereference(ip6tun_encaps[i]->err_handler);
+		if (handler && !handler(skb, opt, type, code, offset, info))
+			return 0;
+	}
+
+	return -ENOENT;
+}
+
 /* Try to match ICMP errors to UDP tunnels by looking up a socket without
  * reversing source and destination port: this will match tunnels that force the
  * same destination port on both endpoints (e.g. VXLAN, GENEVE). Note that
@@ -476,27 +500,26 @@ EXPORT_SYMBOL(udpv6_encap_enable);
  * different destination ports on endpoints, in this case we won't be able to
  * trace ICMP messages back to them.
  *
+ * If this doesn't match any socket, probe tunnels with arbitrary destination
+ * ports (e.g. FoU, GUE): there, the receiving socket is useless, as the port
+ * we've sent packets to won't necessarily match the local destination port.
+ *
  * Then ask the tunnel implementation to match the error against a valid
  * association.
  *
- * Return the socket if we have a match.
+ * Return an error if we can't find a match, the socket if we need further
+ * processing, zero otherwise.
  */
 static struct sock *__udp6_lib_err_encap(struct net *net,
 					 const struct ipv6hdr *hdr, int offset,
 					 struct udphdr *uh,
 					 struct udp_table *udptable,
-					 struct sk_buff *skb)
+					 struct sk_buff *skb,
+					 struct inet6_skb_parm *opt,
+					 u8 type, u8 code, __be32 info)
 {
-	int (*lookup)(struct sock *sk, struct sk_buff *skb);
 	int network_offset, transport_offset;
-	struct udp_sock *up;
 	struct sock *sk;
-
-	sk = __udp6_lib_lookup(net, &hdr->daddr, uh->source,
-			       &hdr->saddr, uh->dest,
-			       inet6_iif(skb), 0, udptable, skb);
-	if (!sk)
-		return NULL;
 
 	network_offset = skb_network_offset(skb);
 	transport_offset = skb_transport_offset(skb);
@@ -507,13 +530,26 @@ static struct sock *__udp6_lib_err_encap(struct net *net,
 	/* Transport header needs to point to the UDP header */
 	skb_set_transport_header(skb, offset);
 
-	up = udp_sk(sk);
-	lookup = READ_ONCE(up->encap_err_lookup);
-	if (!lookup || lookup(sk, skb))
-		sk = NULL;
+	sk = __udp6_lib_lookup(net, &hdr->daddr, uh->source,
+			       &hdr->saddr, uh->dest,
+			       inet6_iif(skb), 0, udptable, skb);
+	if (sk) {
+		int (*lookup)(struct sock *sk, struct sk_buff *skb);
+		struct udp_sock *up = udp_sk(sk);
+
+		lookup = READ_ONCE(up->encap_err_lookup);
+		if (!lookup || lookup(sk, skb))
+			sk = NULL;
+	}
+
+	if (!sk) {
+		sk = ERR_PTR(__udp6_lib_err_encap_no_sk(skb, opt, type, code,
+							offset, info));
+	}
 
 	skb_set_transport_header(skb, transport_offset);
 	skb_set_network_header(skb, network_offset);
+
 	return sk;
 }
 
@@ -536,16 +572,21 @@ int __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			       inet6_iif(skb), inet6_sdif(skb), udptable, skb);
 	if (!sk) {
 		/* No socket for error: try tunnels before discarding */
+		sk = ERR_PTR(-ENOENT);
 		if (static_branch_unlikely(&udpv6_encap_needed_key)) {
 			sk = __udp6_lib_err_encap(net, hdr, offset, uh,
-						  udptable, skb);
+						  udptable, skb,
+						  opt, type, code, info);
+			if (!sk)
+				return 0;
 		}
 
-		if (!sk) {
+		if (IS_ERR(sk)) {
 			__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev),
 					  ICMP6_MIB_INERRORS);
-			return -ENOENT;
+			return PTR_ERR(sk);
 		}
+
 		tunnel = true;
 	}
 

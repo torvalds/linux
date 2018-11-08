@@ -311,6 +311,7 @@ struct ip_tunnel_encap_ops {
 	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
 	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
 			    u8 *protocol, struct flowi4 *fl4);
+	int (*err_handler)(struct sk_buff *skb, u32 info);
 };
 
 #define MAX_IPTUN_ENCAP_OPS 8
