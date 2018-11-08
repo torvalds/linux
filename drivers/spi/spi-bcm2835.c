@@ -341,6 +341,7 @@ static int bcm2835_spi_transfer_one_dma(struct spi_master *master,
 	if (ret) {
 		/* need to reset on errors */
 		dmaengine_terminate_all(master->dma_tx);
+		bs->dma_pending = false;
 		bcm2835_spi_reset_hw(master);
 		return ret;
 	}
