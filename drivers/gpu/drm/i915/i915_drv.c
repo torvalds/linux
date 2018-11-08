@@ -645,6 +645,13 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
+	if (INTEL_INFO(dev_priv)->num_pipes) {
+		ret = drm_vblank_init(&dev_priv->drm,
+				      INTEL_INFO(dev_priv)->num_pipes);
+		if (ret)
+			goto out;
+	}
+
 	intel_bios_init(dev_priv);
 
 	/* If we have > 1 VGA cards, then we need to arbitrate access
@@ -1711,18 +1718,6 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = i915_driver_init_hw(dev_priv);
 	if (ret < 0)
 		goto out_cleanup_mmio;
-
-	/*
-	 * TODO: move the vblank init and parts of modeset init steps into one
-	 * of the i915_driver_init_/i915_driver_register functions according
-	 * to the role/effect of the given init step.
-	 */
-	if (INTEL_INFO(dev_priv)->num_pipes) {
-		ret = drm_vblank_init(&dev_priv->drm,
-				      INTEL_INFO(dev_priv)->num_pipes);
-		if (ret)
-			goto out_cleanup_hw;
-	}
 
 	ret = i915_load_modeset_init(&dev_priv->drm);
 	if (ret < 0)
