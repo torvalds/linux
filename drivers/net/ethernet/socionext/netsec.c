@@ -996,26 +996,21 @@ static void netsec_free_dring(struct netsec_priv *priv, int id)
 static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[id];
-	int ret = 0;
 
 	dring->vaddr = dma_zalloc_coherent(priv->dev, DESC_SZ * DESC_NUM,
 					   &dring->desc_dma, GFP_KERNEL);
-	if (!dring->vaddr) {
-		ret = -ENOMEM;
+	if (!dring->vaddr)
 		goto err;
-	}
 
 	dring->desc = kcalloc(DESC_NUM, sizeof(*dring->desc), GFP_KERNEL);
-	if (!dring->desc) {
-		ret = -ENOMEM;
+	if (!dring->desc)
 		goto err;
-	}
 
 	return 0;
 err:
 	netsec_free_dring(priv, id);
 
-	return ret;
+	return -ENOMEM;
 }
 
 static int netsec_setup_rx_dring(struct netsec_priv *priv)
