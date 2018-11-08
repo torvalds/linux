@@ -3201,12 +3201,10 @@ static void update_nr_written(struct writeback_control *wbc,
  * This returns < 0 if there were errors (page still locked)
  */
 static noinline_for_stack int writepage_delalloc(struct inode *inode,
-			      struct page *page, struct writeback_control *wbc,
-			      struct extent_page_data *epd,
-			      u64 delalloc_start,
-			      unsigned long *nr_written)
+		struct page *page, struct writeback_control *wbc,
+		u64 delalloc_start, unsigned long *nr_written)
 {
-	struct extent_io_tree *tree = epd->tree;
+	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	u64 page_end = delalloc_start + PAGE_SIZE - 1;
 	u64 nr_delalloc;
 	u64 delalloc_to_write = 0;
@@ -3470,8 +3468,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	set_page_extent_mapped(page);
 
 	if (!epd->extent_locked) {
-		ret = writepage_delalloc(inode, page, wbc, epd, start,
-					 &nr_written);
+		ret = writepage_delalloc(inode, page, wbc, start, &nr_written);
 		if (ret == 1)
 			goto done_unlocked;
 		if (ret)
