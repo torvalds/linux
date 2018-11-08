@@ -172,28 +172,16 @@ static int bcm2835_spi_transfer_one_irq(struct spi_master *master,
 {
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
 
-	/* fill in fifo if we have gpio-cs
-	 * note that there have been rare events where the native-CS
-	 * flapped for <1us which may change the behaviour
-	 * with gpio-cs this does not happen, so it is implemented
-	 * only for this case
-	 */
-	if (gpio_is_valid(spi->cs_gpio)) {
-		/* enable HW block, but without interrupts enabled
-		 * this would triggern an immediate interrupt
-		 */
-		bcm2835_wr(bs, BCM2835_SPI_CS,
-			   cs | BCM2835_SPI_CS_TA);
-		/* fill in tx fifo as much as possible */
-		bcm2835_wr_fifo(bs);
-	}
-
 	/*
-	 * Enable the HW block. This will immediately trigger a DONE (TX
-	 * empty) interrupt, upon which we will fill the TX FIFO with the
-	 * first TX bytes. Pre-filling the TX FIFO here to avoid the
-	 * interrupt doesn't work:-(
+	 * Enable HW block, but with interrupts still disabled.
+	 * Otherwise the empty TX FIFO would immediately trigger an interrupt.
 	 */
+	bcm2835_wr(bs, BCM2835_SPI_CS, cs | BCM2835_SPI_CS_TA);
+
+	/* fill TX FIFO as much as possible */
+	bcm2835_wr_fifo(bs);
+
+	/* enable interrupts */
 	cs |= BCM2835_SPI_CS_INTR | BCM2835_SPI_CS_INTD | BCM2835_SPI_CS_TA;
 	bcm2835_wr(bs, BCM2835_SPI_CS, cs);
 
@@ -356,10 +344,6 @@ static bool bcm2835_spi_can_dma(struct spi_master *master,
 				struct spi_device *spi,
 				struct spi_transfer *tfr)
 {
-	/* only run for gpio_cs */
-	if (!gpio_is_valid(spi->cs_gpio))
-		return false;
-
 	/* we start DMA efforts only on bigger transfers */
 	if (tfr->len < BCM2835_SPI_DMA_MIN_LENGTH)
 		return false;
@@ -559,12 +543,12 @@ static int bcm2835_spi_transfer_one(struct spi_master *master,
 	else
 		cs &= ~BCM2835_SPI_CS_REN;
 
-	/* for gpio_cs set dummy CS so that no HW-CS get changed
-	 * we can not run this in bcm2835_spi_set_cs, as it does
-	 * not get called for cs_gpio cases, so we need to do it here
+	/*
+	 * The driver always uses software-controlled GPIO Chip Select.
+	 * Set the hardware-controlled native Chip Select to an invalid
+	 * value to prevent it from interfering.
 	 */
-	if (gpio_is_valid(spi->cs_gpio) || (spi->mode & SPI_NO_CS))
-		cs |= BCM2835_SPI_CS_CS_10 | BCM2835_SPI_CS_CS_01;
+	cs |= BCM2835_SPI_CS_CS_10 | BCM2835_SPI_CS_CS_01;
 
 	/* set transmit buffers and length */
 	bs->tx_buf = tfr->tx_buf;
@@ -622,59 +606,6 @@ static void bcm2835_spi_handle_err(struct spi_master *master,
 	}
 	/* and reset */
 	bcm2835_spi_reset_hw(master);
-}
-
-static void bcm2835_spi_set_cs(struct spi_device *spi, bool gpio_level)
-{
-	/*
-	 * we can assume that we are "native" as per spi_set_cs
-	 *   calling us ONLY when cs_gpio is not set
-	 * we can also assume that we are CS < 3 as per bcm2835_spi_setup
-	 *   we would not get called because of error handling there.
-	 * the level passed is the electrical level not enabled/disabled
-	 *   so it has to get translated back to enable/disable
-	 *   see spi_set_cs in spi.c for the implementation
-	 */
-
-	struct spi_master *master = spi->master;
-	struct bcm2835_spi *bs = spi_master_get_devdata(master);
-	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
-	bool enable;
-
-	/* calculate the enable flag from the passed gpio_level */
-	enable = (spi->mode & SPI_CS_HIGH) ? gpio_level : !gpio_level;
-
-	/* set flags for "reverse" polarity in the registers */
-	if (spi->mode & SPI_CS_HIGH) {
-		/* set the correct CS-bits */
-		cs |= BCM2835_SPI_CS_CSPOL;
-		cs |= BCM2835_SPI_CS_CSPOL0 << spi->chip_select;
-	} else {
-		/* clean the CS-bits */
-		cs &= ~BCM2835_SPI_CS_CSPOL;
-		cs &= ~(BCM2835_SPI_CS_CSPOL0 << spi->chip_select);
-	}
-
-	/* select the correct chip_select depending on disabled/enabled */
-	if (enable) {
-		/* set cs correctly */
-		if (spi->mode & SPI_NO_CS) {
-			/* use the "undefined" chip-select */
-			cs |= BCM2835_SPI_CS_CS_10 | BCM2835_SPI_CS_CS_01;
-		} else {
-			/* set the chip select */
-			cs &= ~(BCM2835_SPI_CS_CS_10 | BCM2835_SPI_CS_CS_01);
-			cs |= spi->chip_select;
-		}
-	} else {
-		/* disable CSPOL which puts HW-CS into deselected state */
-		cs &= ~BCM2835_SPI_CS_CSPOL;
-		/* use the "undefined" chip-select as precaution */
-		cs |= BCM2835_SPI_CS_CS_10 | BCM2835_SPI_CS_CS_01;
-	}
-
-	/* finally set the calculated flags in SPI_CS */
-	bcm2835_wr(bs, BCM2835_SPI_CS, cs);
 }
 
 static int chip_match_name(struct gpio_chip *chip, void *data)
@@ -748,7 +679,6 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->num_chipselect = 3;
 	master->setup = bcm2835_spi_setup;
-	master->set_cs = bcm2835_spi_set_cs;
 	master->transfer_one = bcm2835_spi_transfer_one;
 	master->handle_err = bcm2835_spi_handle_err;
 	master->prepare_message = bcm2835_spi_prepare_message;
