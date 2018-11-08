@@ -4235,16 +4235,18 @@ static int qeth_setadpparms_change_macaddr_cb(struct qeth_card *card,
 		struct qeth_reply *reply, unsigned long data)
 {
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+	struct qeth_ipacmd_setadpparms *adp_cmd;
 
 	QETH_CARD_TEXT(card, 4, "chgmaccb");
 	if (qeth_setadpparms_inspect_rc(cmd))
 		return 0;
 
-	if (IS_LAYER3(card) || !(card->info.mac_bits & QETH_LAYER2_MAC_READ)) {
-		ether_addr_copy(card->dev->dev_addr,
-				cmd->data.setadapterparms.data.change_addr.addr);
-		card->info.mac_bits |= QETH_LAYER2_MAC_READ;
-	}
+	adp_cmd = &cmd->data.setadapterparms;
+	if (IS_LAYER2(card) && IS_OSD(card) && !IS_VM_NIC(card) &&
+	    !(adp_cmd->hdr.flags & QETH_SETADP_FLAGS_VIRTUAL_MAC))
+		return 0;
+
+	ether_addr_copy(card->dev->dev_addr, adp_cmd->data.change_addr.addr);
 	return 0;
 }
 

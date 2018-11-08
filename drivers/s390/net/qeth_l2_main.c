@@ -461,12 +461,9 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 		/* fall back to alternative mechanism: */
 	}
 
-	if (card->info.type == QETH_CARD_TYPE_IQD ||
-	    card->info.type == QETH_CARD_TYPE_OSM ||
-	    card->info.type == QETH_CARD_TYPE_OSX ||
-	    card->info.guestlan) {
+	if (!IS_OSN(card)) {
 		rc = qeth_setadpparms_change_macaddr(card);
-		if (!rc)
+		if (!rc && is_valid_ether_addr(card->dev->dev_addr))
 			goto out;
 		QETH_DBF_MESSAGE(2, "READ_MAC Assist failed on device %x: %#x\n",
 				 CARD_DEVID(card), rc);
@@ -917,7 +914,8 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 				       PAGE_SIZE * (QDIO_MAX_ELEMENTS_PER_BUFFER - 1));
 	}
 
-	qeth_l2_request_initial_mac(card);
+	if (!is_valid_ether_addr(card->dev->dev_addr))
+		qeth_l2_request_initial_mac(card);
 	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
 	rc = register_netdev(card->dev);
 	if (!rc && carrier_ok)
