@@ -1583,7 +1583,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index != 0)
 		return -EINVAL;
 
-	strlcpy(f->description, "MPEG", sizeof(f->description));
+	strscpy(f->description, "MPEG", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
 
 	return 0;
@@ -1992,7 +1992,7 @@ int cx231xx_417_register(struct cx231xx *dev)
 	dev->mpeg_ctrl_handler.ops = &cx231xx_ops;
 	if (dev->sd_cx25840)
 		v4l2_ctrl_add_handler(&dev->mpeg_ctrl_handler.hdl,
-				dev->sd_cx25840->ctrl_handler, NULL);
+				dev->sd_cx25840->ctrl_handler, NULL, false);
 	if (dev->mpeg_ctrl_handler.hdl.error) {
 		err = dev->mpeg_ctrl_handler.hdl.error;
 		dprintk(3, "%s: can't add cx25840 controls\n", dev->name);

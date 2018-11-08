@@ -169,6 +169,11 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	int n = 0, l = 0;
 	char buffer[128];
 
+	if (!pdn) {
+		pr_warn("EEH: Note: No error log for absent device.\n");
+		return 0;
+	}
+
 	n += scnprintf(buf+n, len-n, "%04x:%02x:%02x.%01x\n",
 		       pdn->phb->global_number, pdn->busno,
 		       PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
@@ -399,7 +404,7 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	}
 
 	/* Isolate the PHB and send event */
-	eeh_pe_state_mark(phb_pe, EEH_PE_ISOLATED);
+	eeh_pe_mark_isolated(phb_pe);
 	eeh_serialize_unlock(flags);
 
 	pr_err("EEH: PHB#%x failure detected, location: %s\n",
@@ -558,7 +563,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * with other functions on this device, and functions under
 	 * bridges.
 	 */
-	eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+	eeh_pe_mark_isolated(pe);
 	eeh_serialize_unlock(flags);
 
 	/* Most EEH events are due to device driver bugs.  Having
@@ -676,7 +681,7 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 
 	/* Check if the request is finished successfully */
 	if (active_flag) {
-		rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
+		rc = eeh_wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
 		if (rc < 0)
 			return rc;
 
@@ -825,7 +830,8 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
 		break;
 	case pcie_hot_reset:
-		eeh_pe_state_mark_with_cfg(pe, EEH_PE_ISOLATED);
+		eeh_pe_mark_isolated(pe);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
 		eeh_pe_dev_traverse(pe, eeh_disable_and_save_dev_state, dev);
 		if (!(pe->type & EEH_PE_VF))
@@ -833,7 +839,8 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 		eeh_ops->reset(pe, EEH_RESET_HOT);
 		break;
 	case pcie_warm_reset:
-		eeh_pe_state_mark_with_cfg(pe, EEH_PE_ISOLATED);
+		eeh_pe_mark_isolated(pe);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
 		eeh_pe_dev_traverse(pe, eeh_disable_and_save_dev_state, dev);
 		if (!(pe->type & EEH_PE_VF))
@@ -913,16 +920,15 @@ int eeh_pe_reset_full(struct eeh_pe *pe)
 			break;
 
 		/* Wait until the PE is in a functioning state */
-		state = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-		if (eeh_state_active(state))
-			break;
-
+		state = eeh_wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
 		if (state < 0) {
 			pr_warn("%s: Unrecoverable slot failure on PHB#%x-PE#%x",
 				__func__, pe->phb->global_number, pe->addr);
 			ret = -ENOTRECOVERABLE;
 			break;
 		}
+		if (eeh_state_active(state))
+			break;
 
 		/* Set error in case this is our last attempt */
 		ret = -EIO;
@@ -1036,6 +1042,11 @@ void eeh_probe_devices(void)
 		pdn = hose->pci_data;
 		traverse_pci_dn(pdn, eeh_ops->probe, NULL);
 	}
+	if (eeh_enabled())
+		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
+	else
+		pr_info("EEH: No capable adapters found\n");
+
 }
 
 /**
@@ -1079,18 +1090,7 @@ static int eeh_init(void)
 		eeh_dev_phb_init_dynamic(hose);
 
 	/* Initialize EEH event */
-	ret = eeh_event_init();
-	if (ret)
-		return ret;
-
-	eeh_probe_devices();
-
-	if (eeh_enabled())
-		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
-	else if (!eeh_has_flag(EEH_POSTPONED_PROBE))
-		pr_info("EEH: No capable adapters found\n");
-
-	return ret;
+	return eeh_event_init();
 }
 
 core_initcall_sync(eeh_init);

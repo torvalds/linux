@@ -257,7 +257,7 @@ static const struct
 	[I2400M_MS_ACCESSIBILITY_ERROR] = { "accesibility error", -EIO },
 	[I2400M_MS_BUSY] = { "busy", -EBUSY },
 	[I2400M_MS_CORRUPTED_TLV] = { "corrupted TLV", -EILSEQ },
-	[I2400M_MS_UNINITIALIZED] = { "not unitialized", -EILSEQ },
+	[I2400M_MS_UNINITIALIZED] = { "uninitialized", -EILSEQ },
 	[I2400M_MS_UNKNOWN_ERROR] = { "unknown error", -EIO },
 	[I2400M_MS_PRODUCTION_ERROR] = { "production error", -EIO },
 	[I2400M_MS_NO_RF] = { "no RF", -EIO },

@@ -776,6 +776,9 @@ static int pxa_gpio_suspend(void)
 	struct pxa_gpio_bank *c;
 	int gpio;
 
+	if (!pchip)
+		return 0;
+
 	for_each_gpio_bank(gpio, c, pchip) {
 		c->saved_gplr = readl_relaxed(c->regbase + GPLR_OFFSET);
 		c->saved_gpdr = readl_relaxed(c->regbase + GPDR_OFFSET);
@@ -793,6 +796,9 @@ static void pxa_gpio_resume(void)
 	struct pxa_gpio_chip *pchip = pxa_gpio_chip;
 	struct pxa_gpio_bank *c;
 	int gpio;
+
+	if (!pchip)
+		return;
 
 	for_each_gpio_bank(gpio, c, pchip) {
 		/* restore level with set/clear */

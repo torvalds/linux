@@ -233,8 +233,15 @@ static void nvme_rdma_qp_event(struct ib_event *event, void *context)
 
 static int nvme_rdma_wait_for_cm(struct nvme_rdma_queue *queue)
 {
-	wait_for_completion_interruptible_timeout(&queue->cm_done,
+	int ret;
+
+	ret = wait_for_completion_interruptible_timeout(&queue->cm_done,
 			msecs_to_jiffies(NVME_RDMA_CONNECT_TIMEOUT_MS) + 1);
+	if (ret < 0)
+		return ret;
+	if (ret == 0)
+		return -ETIMEDOUT;
+	WARN_ON_ONCE(queue->cm_error > 0);
 	return queue->cm_error;
 }
 
@@ -1849,54 +1856,6 @@ static const struct nvme_ctrl_ops nvme_rdma_ctrl_ops = {
 	.stop_ctrl		= nvme_rdma_stop_ctrl,
 };
 
-static inline bool
-__nvme_rdma_options_match(struct nvme_rdma_ctrl *ctrl,
-	struct nvmf_ctrl_options *opts)
-{
-	char *stdport = __stringify(NVME_RDMA_IP_PORT);
-
-
-	if (!nvmf_ctlr_matches_baseopts(&ctrl->ctrl, opts) ||
-	    strcmp(opts->traddr, ctrl->ctrl.opts->traddr))
-		return false;
-
-	if (opts->mask & NVMF_OPT_TRSVCID &&
-	    ctrl->ctrl.opts->mask & NVMF_OPT_TRSVCID) {
-		if (strcmp(opts->trsvcid, ctrl->ctrl.opts->trsvcid))
-			return false;
-	} else if (opts->mask & NVMF_OPT_TRSVCID) {
-		if (strcmp(opts->trsvcid, stdport))
-			return false;
-	} else if (ctrl->ctrl.opts->mask & NVMF_OPT_TRSVCID) {
-		if (strcmp(stdport, ctrl->ctrl.opts->trsvcid))
-			return false;
-	}
-	/* else, it's a match as both have stdport. Fall to next checks */
-
-	/*
-	 * checking the local address is rough. In most cases, one
-	 * is not specified and the host port is selected by the stack.
-	 *
-	 * Assume no match if:
-	 *  local address is specified and address is not the same
-	 *  local address is not specified but remote is, or vice versa
-	 *    (admin using specific host_traddr when it matters).
-	 */
-	if (opts->mask & NVMF_OPT_HOST_TRADDR &&
-	    ctrl->ctrl.opts->mask & NVMF_OPT_HOST_TRADDR) {
-		if (strcmp(opts->host_traddr, ctrl->ctrl.opts->host_traddr))
-			return false;
-	} else if (opts->mask & NVMF_OPT_HOST_TRADDR ||
-		   ctrl->ctrl.opts->mask & NVMF_OPT_HOST_TRADDR)
-		return false;
-	/*
-	 * if neither controller had an host port specified, assume it's
-	 * a match as everything else matched.
-	 */
-
-	return true;
-}
-
 /*
  * Fails a connection request if it matches an existing controller
  * (association) with the same tuple:
@@ -1917,7 +1876,7 @@ nvme_rdma_existing_controller(struct nvmf_ctrl_options *opts)
 
 	mutex_lock(&nvme_rdma_ctrl_mutex);
 	list_for_each_entry(ctrl, &nvme_rdma_ctrl_list, list) {
-		found = __nvme_rdma_options_match(ctrl, opts);
+		found = nvmf_ip_options_match(&ctrl->ctrl, opts);
 		if (found)
 			break;
 	}
@@ -1932,7 +1891,6 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	struct nvme_rdma_ctrl *ctrl;
 	int ret;
 	bool changed;
-	char *port;
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
@@ -1940,15 +1898,21 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	ctrl->ctrl.opts = opts;
 	INIT_LIST_HEAD(&ctrl->list);
 
-	if (opts->mask & NVMF_OPT_TRSVCID)
-		port = opts->trsvcid;
-	else
-		port = __stringify(NVME_RDMA_IP_PORT);
+	if (!(opts->mask & NVMF_OPT_TRSVCID)) {
+		opts->trsvcid =
+			kstrdup(__stringify(NVME_RDMA_IP_PORT), GFP_KERNEL);
+		if (!opts->trsvcid) {
+			ret = -ENOMEM;
+			goto out_free_ctrl;
+		}
+		opts->mask |= NVMF_OPT_TRSVCID;
+	}
 
 	ret = inet_pton_with_scope(&init_net, AF_UNSPEC,
-			opts->traddr, port, &ctrl->addr);
+			opts->traddr, opts->trsvcid, &ctrl->addr);
 	if (ret) {
-		pr_err("malformed address passed: %s:%s\n", opts->traddr, port);
+		pr_err("malformed address passed: %s:%s\n",
+			opts->traddr, opts->trsvcid);
 		goto out_free_ctrl;
 	}
 

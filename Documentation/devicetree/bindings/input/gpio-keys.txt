@@ -1,4 +1,4 @@
-Device-Tree bindings for input/gpio_keys.c keyboard driver
+Device-Tree bindings for input/keyboard/gpio_keys.c keyboard driver
 
 Required properties:
 	- compatible = "gpio-keys";

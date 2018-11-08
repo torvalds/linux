@@ -175,22 +175,6 @@ ifdef CONFIG_FUNCTION_GRAPH_TRACER
   endif
 endif
 
-ifndef CC_HAVE_ASM_GOTO
-  $(error Compiler lacks asm-goto support.)
-endif
-
-#
-# Jump labels need '-maccumulate-outgoing-args' for gcc < 4.5.2 to prevent a
-# GCC bug (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=46226).  There's no way
-# to test for this bug at compile-time because the test case needs to execute,
-# which is a no-go for cross compilers.  So check the GCC version instead.
-#
-ifdef CONFIG_JUMP_LABEL
-  ifneq ($(ACCUMULATE_OUTGOING_ARGS), 1)
-	ACCUMULATE_OUTGOING_ARGS = $(call cc-if-fullversion, -lt, 040502, 1)
-  endif
-endif
-
 ifeq ($(ACCUMULATE_OUTGOING_ARGS), 1)
 	# This compiler flag is not supported by Clang:
 	KBUILD_CFLAGS += $(call cc-option,-maccumulate-outgoing-args,)
@@ -209,7 +193,6 @@ cfi-sections := $(call as-instr,.cfi_sections .debug_frame,-DCONFIG_AS_CFI_SECTI
 # does binutils support specific instructions?
 asinstr := $(call as-instr,fxsaveq (%rax),-DCONFIG_AS_FXSAVEQ=1)
 asinstr += $(call as-instr,pshufb %xmm0$(comma)%xmm0,-DCONFIG_AS_SSSE3=1)
-asinstr += $(call as-instr,crc32l %eax$(comma)%eax,-DCONFIG_AS_CRC32=1)
 avx_instr := $(call as-instr,vxorps %ymm0$(comma)%ymm1$(comma)%ymm2,-DCONFIG_AS_AVX=1)
 avx2_instr :=$(call as-instr,vpbroadcastb %xmm0$(comma)%ymm1,-DCONFIG_AS_AVX2=1)
 avx512_instr :=$(call as-instr,vpmovm2b %k1$(comma)%zmm5,-DCONFIG_AS_AVX512=1)
@@ -252,6 +235,13 @@ archscripts: scripts_basic
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/x86/entry/syscalls all
+
+archmacros:
+	$(Q)$(MAKE) $(build)=arch/x86/kernel arch/x86/kernel/macros.s
+
+ASM_MACRO_FLAGS = -Wa,arch/x86/kernel/macros.s -Wa,-
+export ASM_MACRO_FLAGS
+KBUILD_CFLAGS += $(ASM_MACRO_FLAGS)
 
 ###
 # Kernel objects
@@ -311,6 +301,13 @@ install:
 PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/x86/entry/vdso $@
+
+archprepare: checkbin
+checkbin:
+ifndef CC_HAVE_ASM_GOTO
+	@echo Compiler lacks asm-goto support.
+	@exit 1
+endif
 
 archclean:
 	$(Q)rm -rf $(objtree)/arch/i386

@@ -260,11 +260,11 @@ _ti_clkctrl_clk_register(struct omap_clkctrl_provider *provider,
 	int ret = 0;
 
 	if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
-		init.name = kasprintf(GFP_KERNEL, "%s:%s:%04x:%d",
-				      node->parent->name, node->name, offset,
+		init.name = kasprintf(GFP_KERNEL, "%pOFn:%pOFn:%04x:%d",
+				      node->parent, node, offset,
 				      bit);
 	else
-		init.name = kasprintf(GFP_KERNEL, "%s:%04x:%d", node->name,
+		init.name = kasprintf(GFP_KERNEL, "%pOFn:%04x:%d", node,
 				      offset, bit);
 	clkctrl_clk = kzalloc(sizeof(*clkctrl_clk), GFP_KERNEL);
 	if (!init.name || !clkctrl_clk) {
@@ -520,8 +520,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	provider->base = of_iomap(node, 0);
 
 	if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT) {
-		provider->clkdm_name = kmalloc(strlen(node->parent->name) + 3,
-					       GFP_KERNEL);
+		provider->clkdm_name = kasprintf(GFP_KERNEL, "%pOFnxxx", node->parent);
 		if (!provider->clkdm_name) {
 			kfree(provider);
 			return;
@@ -531,10 +530,9 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		 * Create default clkdm name, replace _cm from end of parent
 		 * node name with _clkdm
 		 */
-		strcpy(provider->clkdm_name, node->parent->name);
-		provider->clkdm_name[strlen(provider->clkdm_name) - 2] = 0;
+		provider->clkdm_name[strlen(provider->clkdm_name) - 5] = 0;
 	} else {
-		provider->clkdm_name = kmalloc(strlen(node->name), GFP_KERNEL);
+		provider->clkdm_name = kasprintf(GFP_KERNEL, "%pOFn", node);
 		if (!provider->clkdm_name) {
 			kfree(provider);
 			return;
@@ -544,7 +542,6 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		 * Create default clkdm name, replace _clkctrl from end of
 		 * node name with _clkdm
 		 */
-		strcpy(provider->clkdm_name, node->name);
 		provider->clkdm_name[strlen(provider->clkdm_name) - 7] = 0;
 	}
 
@@ -592,12 +589,12 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		if (reg_data->flags & CLKF_SET_RATE_PARENT)
 			init.flags |= CLK_SET_RATE_PARENT;
 		if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
-			init.name = kasprintf(GFP_KERNEL, "%s:%s:%04x:%d",
-					      node->parent->name, node->name,
+			init.name = kasprintf(GFP_KERNEL, "%pOFn:%pOFn:%04x:%d",
+					      node->parent, node,
 					      reg_data->offset, 0);
 		else
-			init.name = kasprintf(GFP_KERNEL, "%s:%04x:%d",
-					      node->name, reg_data->offset, 0);
+			init.name = kasprintf(GFP_KERNEL, "%pOFn:%04x:%d",
+					      node, reg_data->offset, 0);
 		clkctrl_clk = kzalloc(sizeof(*clkctrl_clk), GFP_KERNEL);
 		if (!init.name || !clkctrl_clk)
 			goto cleanup;

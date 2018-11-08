@@ -21,6 +21,8 @@ and power are calculated host-side from these.
 Sysfs entries
 -------------
 
+in[123]_label           Voltage channel labels
+in[123]_enable          Voltage channel enable controls
 in[123]_input           Bus voltage(mV) channels
 curr[123]_input         Current(mA) measurement channels
 shunt[123]_resistor     Shunt resistance(uOhm) channels

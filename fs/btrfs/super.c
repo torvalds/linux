@@ -2177,8 +2177,10 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_fsid.val[0] = be32_to_cpu(fsid[0]) ^ be32_to_cpu(fsid[2]);
 	buf->f_fsid.val[1] = be32_to_cpu(fsid[1]) ^ be32_to_cpu(fsid[3]);
 	/* Mask in the root object ID too, to disambiguate subvols */
-	buf->f_fsid.val[0] ^= BTRFS_I(d_inode(dentry))->root->objectid >> 32;
-	buf->f_fsid.val[1] ^= BTRFS_I(d_inode(dentry))->root->objectid;
+	buf->f_fsid.val[0] ^=
+		BTRFS_I(d_inode(dentry))->root->root_key.objectid >> 32;
+	buf->f_fsid.val[1] ^=
+		BTRFS_I(d_inode(dentry))->root->root_key.objectid;
 
 	return 0;
 }

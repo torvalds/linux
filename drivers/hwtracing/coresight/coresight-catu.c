@@ -406,6 +406,7 @@ static inline int catu_wait_for_ready(struct catu_drvdata *drvdata)
 
 static int catu_enable_hw(struct catu_drvdata *drvdata, void *data)
 {
+	int rc;
 	u32 control, mode;
 	struct etr_buf *etr_buf = data;
 
@@ -417,6 +418,10 @@ static int catu_enable_hw(struct catu_drvdata *drvdata, void *data)
 		dev_warn(drvdata->dev, "CATU is already enabled\n");
 		return -EBUSY;
 	}
+
+	rc = coresight_claim_device_unlocked(drvdata->base);
+	if (rc)
+		return rc;
 
 	control |= BIT(CATU_CONTROL_ENABLE);
 
@@ -459,6 +464,7 @@ static int catu_disable_hw(struct catu_drvdata *drvdata)
 	int rc = 0;
 
 	catu_write_control(drvdata, 0);
+	coresight_disclaim_device_unlocked(drvdata->base);
 	if (catu_wait_for_ready(drvdata)) {
 		dev_info(drvdata->dev, "Timeout while waiting for READY\n");
 		rc = -EAGAIN;

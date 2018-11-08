@@ -126,17 +126,17 @@ static void fnic_release_ioreq_buf(struct fnic *fnic,
 				   struct scsi_cmnd *sc)
 {
 	if (io_req->sgl_list_pa)
-		pci_unmap_single(fnic->pdev, io_req->sgl_list_pa,
+		dma_unmap_single(&fnic->pdev->dev, io_req->sgl_list_pa,
 				 sizeof(io_req->sgl_list[0]) * io_req->sgl_cnt,
-				 PCI_DMA_TODEVICE);
+				 DMA_TO_DEVICE);
 	scsi_dma_unmap(sc);
 
 	if (io_req->sgl_cnt)
 		mempool_free(io_req->sgl_list_alloc,
 			     fnic->io_sgl_pool[io_req->sgl_type]);
 	if (io_req->sense_buf_pa)
-		pci_unmap_single(fnic->pdev, io_req->sense_buf_pa,
-				 SCSI_SENSE_BUFFERSIZE, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&fnic->pdev->dev, io_req->sense_buf_pa,
+				 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 }
 
 /* Free up Copy Wq descriptors. Called with copy_wq lock held */
@@ -330,7 +330,6 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 	int flags;
 	u8 exch_flags;
 	struct scsi_lun fc_lun;
-	int r;
 
 	if (sg_count) {
 		/* For each SGE, create a device desc entry */
@@ -342,30 +341,25 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 			desc++;
 		}
 
-		io_req->sgl_list_pa = pci_map_single
-			(fnic->pdev,
-			 io_req->sgl_list,
-			 sizeof(io_req->sgl_list[0]) * sg_count,
-			 PCI_DMA_TODEVICE);
-
-		r = pci_dma_mapping_error(fnic->pdev, io_req->sgl_list_pa);
-		if (r) {
-			printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+		io_req->sgl_list_pa = dma_map_single(&fnic->pdev->dev,
+				io_req->sgl_list,
+				sizeof(io_req->sgl_list[0]) * sg_count,
+				DMA_TO_DEVICE);
+		if (dma_mapping_error(&fnic->pdev->dev, io_req->sgl_list_pa)) {
+			printk(KERN_ERR "DMA mapping failed\n");
 			return SCSI_MLQUEUE_HOST_BUSY;
 		}
 	}
 
-	io_req->sense_buf_pa = pci_map_single(fnic->pdev,
+	io_req->sense_buf_pa = dma_map_single(&fnic->pdev->dev,
 					      sc->sense_buffer,
 					      SCSI_SENSE_BUFFERSIZE,
-					      PCI_DMA_FROMDEVICE);
-
-	r = pci_dma_mapping_error(fnic->pdev, io_req->sense_buf_pa);
-	if (r) {
-		pci_unmap_single(fnic->pdev, io_req->sgl_list_pa,
+					      DMA_FROM_DEVICE);
+	if (dma_mapping_error(&fnic->pdev->dev, io_req->sense_buf_pa)) {
+		dma_unmap_single(&fnic->pdev->dev, io_req->sgl_list_pa,
 				sizeof(io_req->sgl_list[0]) * sg_count,
-				PCI_DMA_TODEVICE);
-		printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+				DMA_TO_DEVICE);
+		printk(KERN_ERR "DMA mapping failed\n");
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
@@ -2272,33 +2266,17 @@ clean_pending_aborts_end:
 static inline int
 fnic_scsi_host_start_tag(struct fnic *fnic, struct scsi_cmnd *sc)
 {
-	struct blk_queue_tag *bqt = fnic->lport->host->bqt;
-	int tag, ret = SCSI_NO_TAG;
+	struct request_queue *q = sc->request->q;
+	struct request *dummy;
 
-	BUG_ON(!bqt);
-	if (!bqt) {
-		pr_err("Tags are not supported\n");
-		goto end;
-	}
+	dummy = blk_mq_alloc_request(q, REQ_OP_WRITE, BLK_MQ_REQ_NOWAIT);
+	if (IS_ERR(dummy))
+		return SCSI_NO_TAG;
 
-	do {
-		tag = find_next_zero_bit(bqt->tag_map, bqt->max_depth, 1);
-		if (tag >= bqt->max_depth) {
-			pr_err("Tag allocation failure\n");
-			goto end;
-		}
-	} while (test_and_set_bit(tag, bqt->tag_map));
+	sc->tag = sc->request->tag = dummy->tag;
+	sc->request->special = sc;
 
-	bqt->tag_index[tag] = sc->request;
-	sc->request->tag = tag;
-	sc->tag = tag;
-	if (!sc->request->special)
-		sc->request->special = sc;
-
-	ret = tag;
-
-end:
-	return ret;
+	return dummy->tag;
 }
 
 /**
@@ -2308,20 +2286,9 @@ end:
 static inline void
 fnic_scsi_host_end_tag(struct fnic *fnic, struct scsi_cmnd *sc)
 {
-	struct blk_queue_tag *bqt = fnic->lport->host->bqt;
-	int tag = sc->request->tag;
+	struct request *dummy = sc->request->special;
 
-	if (tag == SCSI_NO_TAG)
-		return;
-
-	BUG_ON(!bqt || !bqt->tag_index[tag]);
-	if (!bqt)
-		return;
-
-	bqt->tag_index[tag] = NULL;
-	clear_bit(tag, bqt->tag_map);
-
-	return;
+	blk_mq_free_request(dummy);
 }
 
 /*
@@ -2380,19 +2347,9 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 	tag = sc->request->tag;
 	if (unlikely(tag < 0)) {
 		/*
-		 * XXX(hch): current the midlayer fakes up a struct
-		 * request for the explicit reset ioctls, and those
-		 * don't have a tag allocated to them.  The below
-		 * code pokes into midlayer structures to paper over
-		 * this design issue, but that won't work for blk-mq.
-		 *
-		 * Either someone who can actually test the hardware
-		 * will have to come up with a similar hack for the
-		 * blk-mq case, or we'll have to bite the bullet and
-		 * fix the way the EH ioctls work for real, but until
-		 * that happens we fail these explicit requests here.
+		 * Really should fix the midlayer to pass in a proper
+		 * request for ioctls...
 		 */
-
 		tag = fnic_scsi_host_start_tag(fnic, sc);
 		if (unlikely(tag == SCSI_NO_TAG))
 			goto fnic_device_reset_end;

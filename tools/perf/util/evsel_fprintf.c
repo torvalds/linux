@@ -73,7 +73,7 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 	}
 
 	if (details->trace_fields) {
-		struct format_field *field;
+		struct tep_format_field *field;
 
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT) {
 			printed += comma_fprintf(fp, &first, " (not a tracepoint)");

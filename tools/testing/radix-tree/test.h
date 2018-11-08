@@ -11,13 +11,11 @@ struct item {
 };
 
 struct item *item_create(unsigned long index, unsigned int order);
-int __item_insert(struct radix_tree_root *root, struct item *item);
 int item_insert(struct radix_tree_root *root, unsigned long index);
 void item_sanity(struct item *item, unsigned long index);
-int item_insert_order(struct radix_tree_root *root, unsigned long index,
-			unsigned order);
+void item_free(struct item *item, unsigned long index);
 int item_delete(struct radix_tree_root *root, unsigned long index);
-int item_delete_rcu(struct radix_tree_root *root, unsigned long index);
+int item_delete_rcu(struct xarray *xa, unsigned long index);
 struct item *item_lookup(struct radix_tree_root *root, unsigned long index);
 
 void item_check_present(struct radix_tree_root *root, unsigned long index);
@@ -29,11 +27,10 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
 			unsigned long nr, int chunk);
 void item_kill_tree(struct radix_tree_root *root);
 
-int tag_tagged_items(struct radix_tree_root *, pthread_mutex_t *,
-			unsigned long start, unsigned long end, unsigned batch,
-			unsigned iftag, unsigned thentag);
-unsigned long find_item(struct radix_tree_root *, void *item);
+int tag_tagged_items(struct xarray *, unsigned long start, unsigned long end,
+		unsigned batch, xa_mark_t iftag, xa_mark_t thentag);
 
+void xarray_tests(void);
 void tag_check(void);
 void multiorder_checks(void);
 void iteration_test(unsigned order, unsigned duration);

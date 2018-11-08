@@ -98,8 +98,10 @@ static void activate_traps_vhe(struct kvm_vcpu *vcpu)
 	val = read_sysreg(cpacr_el1);
 	val |= CPACR_EL1_TTA;
 	val &= ~CPACR_EL1_ZEN;
-	if (!update_fp_enabled(vcpu))
+	if (!update_fp_enabled(vcpu)) {
 		val &= ~CPACR_EL1_FPEN;
+		__activate_traps_fpsimd32(vcpu);
+	}
 
 	write_sysreg(val, cpacr_el1);
 
@@ -114,8 +116,10 @@ static void __hyp_text __activate_traps_nvhe(struct kvm_vcpu *vcpu)
 
 	val = CPTR_EL2_DEFAULT;
 	val |= CPTR_EL2_TTA | CPTR_EL2_TZ;
-	if (!update_fp_enabled(vcpu))
+	if (!update_fp_enabled(vcpu)) {
 		val |= CPTR_EL2_TFP;
+		__activate_traps_fpsimd32(vcpu);
+	}
 
 	write_sysreg(val, cptr_el2);
 }
@@ -129,7 +133,6 @@ static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu)
 	if (cpus_have_const_cap(ARM64_HAS_RAS_EXTN) && (hcr & HCR_VSE))
 		write_sysreg_s(vcpu->arch.vsesr_el2, SYS_VSESR_EL2);
 
-	__activate_traps_fpsimd32(vcpu);
 	if (has_vhe())
 		activate_traps_vhe(vcpu);
 	else
@@ -195,7 +198,7 @@ void deactivate_traps_vhe_put(void)
 
 static void __hyp_text __activate_vm(struct kvm *kvm)
 {
-	write_sysreg(kvm->arch.vttbr, vttbr_el2);
+	__load_guest_stage2(kvm);
 }
 
 static void __hyp_text __deactivate_vm(struct kvm_vcpu *vcpu)
@@ -260,7 +263,7 @@ static bool __hyp_text __translate_far_to_hpfar(u64 far, u64 *hpfar)
 		return false; /* Translation failed, back to guest */
 
 	/* Convert PAR to HPFAR format */
-	*hpfar = ((tmp >> 12) & ((1UL << 36) - 1)) << 4;
+	*hpfar = PAR_TO_HPFAR(tmp);
 	return true;
 }
 

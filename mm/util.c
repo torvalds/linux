@@ -15,16 +15,9 @@
 #include <linux/vmalloc.h>
 #include <linux/userfaultfd_k.h>
 
-#include <asm/sections.h>
 #include <linux/uaccess.h>
 
 #include "internal.h"
-
-static inline int is_kernel_rodata(unsigned long addr)
-{
-	return addr >= (unsigned long)__start_rodata &&
-		addr < (unsigned long)__end_rodata;
-}
 
 /**
  * kfree_const - conditionally free memory
@@ -435,11 +428,14 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 EXPORT_SYMBOL(kvmalloc_node);
 
 /**
- * kvfree - free memory allocated with kvmalloc
- * @addr: pointer returned by kvmalloc
+ * kvfree() - Free memory.
+ * @addr: Pointer to allocated memory.
  *
- * If the memory is allocated from vmalloc area it is freed with vfree().
- * Otherwise kfree() is used.
+ * kvfree frees memory allocated by any of vmalloc(), kmalloc() or kvmalloc().
+ * It is slightly more efficient to use kfree() or vfree() if you are certain
+ * that you know which one to use.
+ *
+ * Context: Either preemptible task context or not-NMI interrupt.
  */
 void kvfree(const void *addr)
 {
@@ -682,8 +678,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 		 * Part of the kernel memory, which can be released
 		 * under memory pressure.
 		 */
-		free += global_node_page_state(
-			NR_INDIRECTLY_RECLAIMABLE_BYTES) >> PAGE_SHIFT;
+		free += global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
 
 		/*
 		 * Leave reserved pages. The pages are not for anonymous pages.

@@ -2,6 +2,8 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+#include <drm/drm_util.h>
+
 #include <linux/hashtable.h>
 #include <linux/seqlock.h>
 
@@ -474,7 +476,6 @@ struct intel_engine_cs {
 					 unsigned int dispatch_flags);
 #define I915_DISPATCH_SECURE BIT(0)
 #define I915_DISPATCH_PINNED BIT(1)
-#define I915_DISPATCH_RS     BIT(2)
 	void		(*emit_breadcrumb)(struct i915_request *rq, u32 *cs);
 	int		emit_breadcrumb_sz;
 
@@ -797,9 +798,7 @@ struct intel_ring *
 intel_engine_create_ring(struct intel_engine_cs *engine,
 			 struct i915_timeline *timeline,
 			 int size);
-int intel_ring_pin(struct intel_ring *ring,
-		   struct drm_i915_private *i915,
-		   unsigned int offset_bias);
+int intel_ring_pin(struct intel_ring *ring);
 void intel_ring_reset(struct intel_ring *ring, u32 tail);
 unsigned int intel_ring_update_space(struct intel_ring *ring);
 void intel_ring_unpin(struct intel_ring *ring);
@@ -909,18 +908,15 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine);
 
 int intel_engine_stop_cs(struct intel_engine_cs *engine);
+void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine);
 
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine);
 u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine);
 
-static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
-{
-	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
-}
-
 static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 {
-	/* We are only peeking at the tail of the submit queue (and not the
+	/*
+	 * We are only peeking at the tail of the submit queue (and not the
 	 * queue itself) in order to gain a hint as to the current active
 	 * state of the engine. Callers are not expected to be taking
 	 * engine->timeline->lock, nor are they expected to be concerned
@@ -928,6 +924,31 @@ static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 	 * a hint and nothing more.
 	 */
 	return READ_ONCE(engine->timeline.seqno);
+}
+
+static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
+{
+	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
+}
+
+static inline bool intel_engine_signaled(struct intel_engine_cs *engine,
+					 u32 seqno)
+{
+	return i915_seqno_passed(intel_engine_get_seqno(engine), seqno);
+}
+
+static inline bool intel_engine_has_completed(struct intel_engine_cs *engine,
+					      u32 seqno)
+{
+	GEM_BUG_ON(!seqno);
+	return intel_engine_signaled(engine, seqno);
+}
+
+static inline bool intel_engine_has_started(struct intel_engine_cs *engine,
+					    u32 seqno)
+{
+	GEM_BUG_ON(!seqno);
+	return intel_engine_signaled(engine, seqno - 1);
 }
 
 void intel_engine_get_instdone(struct intel_engine_cs *engine,

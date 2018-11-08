@@ -759,16 +759,20 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 	struct vmw_stdu_dirty ddirty;
 	int ret;
 	bool cpu_blit = !(dev_priv->capabilities & SVGA_CAP_3D);
+	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
 
 	/*
 	 * VMs without 3D support don't have the surface DMA command and
 	 * we'll be using a CPU blit, and the framebuffer should be moved out
 	 * of VRAM.
 	 */
-	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, interruptible,
-					    false, cpu_blit);
+	ret = vmw_validation_add_bo(&val_ctx, buf, false, cpu_blit);
 	if (ret)
 		return ret;
+
+	ret = vmw_validation_prepare(&val_ctx, NULL, interruptible);
+	if (ret)
+		goto out_unref;
 
 	ddirty.transfer = (to_surface) ? SVGA3D_WRITE_HOST_VRAM :
 		SVGA3D_READ_HOST_VRAM;
@@ -796,9 +800,13 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 
 	ret = vmw_kms_helper_dirty(dev_priv, vfb, clips, vclips,
 				   0, 0, num_clips, increment, &ddirty.base);
-	vmw_kms_helper_buffer_finish(dev_priv, file_priv, buf, NULL,
-				     user_fence_rep);
 
+	vmw_kms_helper_validation_finish(dev_priv, file_priv, &val_ctx, NULL,
+					 user_fence_rep);
+	return ret;
+
+out_unref:
+	vmw_validation_unref_lists(&val_ctx);
 	return ret;
 }
 
@@ -924,15 +932,19 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 	struct vmw_framebuffer_surface *vfbs =
 		container_of(framebuffer, typeof(*vfbs), base);
 	struct vmw_stdu_dirty sdirty;
-	struct vmw_validation_ctx ctx;
+	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
 	int ret;
 
 	if (!srf)
 		srf = &vfbs->surface->res;
 
-	ret = vmw_kms_helper_resource_prepare(srf, true, &ctx);
+	ret = vmw_validation_add_resource(&val_ctx, srf, 0, NULL, NULL);
 	if (ret)
 		return ret;
+
+	ret = vmw_validation_prepare(&val_ctx, &dev_priv->cmdbuf_mutex, true);
+	if (ret)
+		goto out_unref;
 
 	if (vfbs->is_bo_proxy) {
 		ret = vmw_kms_update_proxy(srf, clips, num_clips, inc);
@@ -954,8 +966,13 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 				   dest_x, dest_y, num_clips, inc,
 				   &sdirty.base);
 out_finish:
-	vmw_kms_helper_resource_finish(&ctx, out_fence);
+	vmw_kms_helper_validation_finish(dev_priv, NULL, &val_ctx, out_fence,
+					 NULL);
 
+	return ret;
+
+out_unref:
+	vmw_validation_unref_lists(&val_ctx);
 	return ret;
 }
 
@@ -1599,31 +1616,6 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 		return ret;
 
 	dev_priv->active_display_unit = vmw_du_screen_target;
-
-	if (dev_priv->capabilities & SVGA_CAP_3D) {
-		/*
-		 * For 3D VMs, display (scanout) buffer size is the smaller of
-		 * max texture and max STDU
-		 */
-		uint32_t max_width, max_height;
-
-		max_width = min(dev_priv->texture_max_width,
-				dev_priv->stdu_max_width);
-		max_height = min(dev_priv->texture_max_height,
-				 dev_priv->stdu_max_height);
-
-		dev->mode_config.max_width = max_width;
-		dev->mode_config.max_height = max_height;
-	} else {
-		/*
-		 * Given various display aspect ratios, there's no way to
-		 * estimate these using prim_bb_mem.  So just set these to
-		 * something arbitrarily large and we will reject any layout
-		 * that doesn't fit prim_bb_mem later
-		 */
-		dev->mode_config.max_width = 8192;
-		dev->mode_config.max_height = 8192;
-	}
 
 	vmw_kms_create_implicit_placement_property(dev_priv, false);
 

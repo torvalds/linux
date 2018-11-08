@@ -75,8 +75,11 @@
 #define CLKID_FCLK_DIV7_DIV	109
 #define CLKID_NAND_SEL		110
 #define CLKID_NAND_DIV		111
+#define CLKID_PLL_FIXED_DCO	113
+#define CLKID_PLL_VID_DCO	114
+#define CLKID_PLL_SYS_DCO	115
 
-#define CLK_NR_CLKS		113
+#define CLK_NR_CLKS		116
 
 /*
  * include the CLKID and RESETID that have

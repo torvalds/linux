@@ -376,8 +376,7 @@ static struct vdoa_data *coda_get_vdoa_data(void)
 		vdoa_data = ERR_PTR(-EPROBE_DEFER);
 
 out:
-	if (vdoa_node)
-		of_node_put(vdoa_node);
+	of_node_put(vdoa_node);
 
 	return vdoa_data;
 }
@@ -390,10 +389,10 @@ static int coda_querycap(struct file *file, void *priv,
 {
 	struct coda_ctx *ctx = fh_to_ctx(priv);
 
-	strlcpy(cap->driver, CODA_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, coda_product_name(ctx->dev->devtype->product),
+	strscpy(cap->driver, CODA_NAME, sizeof(cap->driver));
+	strscpy(cap->card, coda_product_name(ctx->dev->devtype->product),
 		sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform:" CODA_NAME, sizeof(cap->bus_info));
+	strscpy(cap->bus_info, "platform:" CODA_NAME, sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
@@ -1804,7 +1803,8 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
 		/* TODO: switch between baseline and constrained baseline */
-		ctx->params.h264_profile_idc = 66;
+		if (ctx->inst_type == CODA_INST_ENCODER)
+			ctx->params.h264_profile_idc = 66;
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
 		/* nothing to do, this is set by the encoder */
@@ -2408,7 +2408,7 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	if (i >= dev->devtype->num_vdevs)
 		return -EINVAL;
 
-	strlcpy(vfd->name, dev->devtype->vdevs[i]->name, sizeof(vfd->name));
+	strscpy(vfd->name, dev->devtype->vdevs[i]->name, sizeof(vfd->name));
 	vfd->fops	= &coda_fops;
 	vfd->ioctl_ops	= &coda_ioctl_ops;
 	vfd->release	= video_device_release_empty,

@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/clk.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/pgalloc.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>

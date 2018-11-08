@@ -86,6 +86,7 @@ static unsigned int interval = 10;
 static unsigned int fanon = 60000;
 static unsigned int fanoff = 53000;
 static unsigned int verbose;
+static unsigned int list_supported;
 static unsigned int fanstate = ACERHDF_FAN_AUTO;
 static char force_bios[16];
 static char force_product[16];
@@ -104,10 +105,12 @@ module_param(fanoff, uint, 0600);
 MODULE_PARM_DESC(fanoff, "Turn the fan off below this temperature");
 module_param(verbose, uint, 0600);
 MODULE_PARM_DESC(verbose, "Enable verbose dmesg output");
+module_param(list_supported, uint, 0600);
+MODULE_PARM_DESC(list_supported, "List supported models and BIOS versions");
 module_param_string(force_bios, force_bios, 16, 0);
-MODULE_PARM_DESC(force_bios, "Force BIOS version and omit BIOS check");
+MODULE_PARM_DESC(force_bios, "Pretend system has this known supported BIOS version");
 module_param_string(force_product, force_product, 16, 0);
-MODULE_PARM_DESC(force_product, "Force BIOS product and omit BIOS check");
+MODULE_PARM_DESC(force_product, "Pretend system is this known supported model");
 
 /*
  * cmd_off: to switch the fan completely off and check if the fan is off
@@ -130,7 +133,7 @@ static const struct manualcmd mcmd = {
 	.moff = 0xff,
 };
 
-/* BIOS settings */
+/* BIOS settings - only used during probe */
 struct bios_settings {
 	const char *vendor;
 	const char *product;
@@ -141,8 +144,18 @@ struct bios_settings {
 	int mcmd_enable;
 };
 
+/* This could be a daughter struct in the above, but not worth the redirect */
+struct ctrl_settings {
+	u8 fanreg;
+	u8 tempreg;
+	struct fancmd cmd;
+	int mcmd_enable;
+};
+
+static struct ctrl_settings ctrl_cfg __read_mostly;
+
 /* Register addresses and values for different BIOS versions */
-static const struct bios_settings bios_tbl[] = {
+static const struct bios_settings bios_tbl[] __initconst = {
 	/* AOA110 */
 	{"Acer", "AOA110", "v0.3109", 0x55, 0x58, {0x1f, 0x00}, 0},
 	{"Acer", "AOA110", "v0.3114", 0x55, 0x58, {0x1f, 0x00}, 0},
@@ -233,6 +246,7 @@ static const struct bios_settings bios_tbl[] = {
 	{"Gateway", "LT31",   "v1.3201",  0x55, 0x58, {0x9e, 0x00}, 0},
 	{"Gateway", "LT31",   "v1.3302",  0x55, 0x58, {0x9e, 0x00}, 0},
 	{"Gateway", "LT31",   "v1.3303t", 0x55, 0x58, {0x9e, 0x00}, 0},
+	{"Gateway", "LT31",   "v1.3307",  0x55, 0x58, {0x9e, 0x00}, 0},
 	/* Packard Bell */
 	{"Packard Bell", "DOA150",  "v0.3104",  0x55, 0x58, {0x21, 0x00}, 0},
 	{"Packard Bell", "DOA150",  "v0.3105",  0x55, 0x58, {0x20, 0x00}, 0},
@@ -256,8 +270,6 @@ static const struct bios_settings bios_tbl[] = {
 	{"", "", "", 0, 0, {0, 0}, 0}
 };
 
-static const struct bios_settings *bios_cfg __read_mostly;
-
 /*
  * this struct is used to instruct thermal layer to use bang_bang instead of
  * default governor for acerhdf
@@ -270,7 +282,7 @@ static int acerhdf_get_temp(int *temp)
 {
 	u8 read_temp;
 
-	if (ec_read(bios_cfg->tempreg, &read_temp))
+	if (ec_read(ctrl_cfg.tempreg, &read_temp))
 		return -EINVAL;
 
 	*temp = read_temp * 1000;
@@ -282,10 +294,10 @@ static int acerhdf_get_fanstate(int *state)
 {
 	u8 fan;
 
-	if (ec_read(bios_cfg->fanreg, &fan))
+	if (ec_read(ctrl_cfg.fanreg, &fan))
 		return -EINVAL;
 
-	if (fan != bios_cfg->cmd.cmd_off)
+	if (fan != ctrl_cfg.cmd.cmd_off)
 		*state = ACERHDF_FAN_AUTO;
 	else
 		*state = ACERHDF_FAN_OFF;
@@ -306,13 +318,13 @@ static void acerhdf_change_fanstate(int state)
 		state = ACERHDF_FAN_AUTO;
 	}
 
-	cmd = (state == ACERHDF_FAN_OFF) ? bios_cfg->cmd.cmd_off
-					 : bios_cfg->cmd.cmd_auto;
+	cmd = (state == ACERHDF_FAN_OFF) ? ctrl_cfg.cmd.cmd_off
+					 : ctrl_cfg.cmd.cmd_auto;
 	fanstate = state;
 
-	ec_write(bios_cfg->fanreg, cmd);
+	ec_write(ctrl_cfg.fanreg, cmd);
 
-	if (bios_cfg->mcmd_enable && state == ACERHDF_FAN_OFF) {
+	if (ctrl_cfg.mcmd_enable && state == ACERHDF_FAN_OFF) {
 		if (verbose)
 			pr_notice("turning off fan manually\n");
 		ec_write(mcmd.mreg, mcmd.moff);
@@ -615,10 +627,11 @@ static int str_starts_with(const char *str, const char *start)
 }
 
 /* check hardware */
-static int acerhdf_check_hardware(void)
+static int __init acerhdf_check_hardware(void)
 {
 	char const *vendor, *version, *product;
 	const struct bios_settings *bt = NULL;
+	int found = 0;
 
 	/* get BIOS data */
 	vendor  = dmi_get_system_info(DMI_SYS_VENDOR);
@@ -631,6 +644,17 @@ static int acerhdf_check_hardware(void)
 	}
 
 	pr_info("Acer Aspire One Fan driver, v.%s\n", DRV_VER);
+
+	if (list_supported) {
+		pr_info("List of supported Manufacturer/Model/BIOS:\n");
+		pr_info("---------------------------------------------------\n");
+		for (bt = bios_tbl; bt->vendor[0]; bt++) {
+			pr_info("%-13s | %-17s | %-10s\n", bt->vendor,
+				bt->product, bt->version);
+		}
+		pr_info("---------------------------------------------------\n");
+		return -ECANCELED;
+	}
 
 	if (force_bios[0]) {
 		version = force_bios;
@@ -657,16 +681,22 @@ static int acerhdf_check_hardware(void)
 		if (str_starts_with(vendor, bt->vendor) &&
 				str_starts_with(product, bt->product) &&
 				str_starts_with(version, bt->version)) {
-			bios_cfg = bt;
+			found = 1;
 			break;
 		}
 	}
 
-	if (!bios_cfg) {
+	if (!found) {
 		pr_err("unknown (unsupported) BIOS version %s/%s/%s, please report, aborting!\n",
 		       vendor, product, version);
 		return -EINVAL;
 	}
+
+	/* Copy control settings from BIOS table before we free it. */
+	ctrl_cfg.fanreg = bt->fanreg;
+	ctrl_cfg.tempreg = bt->tempreg;
+	memcpy(&ctrl_cfg.cmd, &bt->cmd, sizeof(struct fancmd));
+	ctrl_cfg.mcmd_enable = bt->mcmd_enable;
 
 	/*
 	 * if started with kernel mode off, prevent the kernel from switching
@@ -674,13 +704,13 @@ static int acerhdf_check_hardware(void)
 	 */
 	if (!kernelmode) {
 		pr_notice("Fan control off, to enable do:\n");
-		pr_notice("echo -n \"enabled\" > /sys/class/thermal/thermal_zone0/mode\n");
+		pr_notice("echo -n \"enabled\" > /sys/class/thermal/thermal_zoneN/mode # N=0,1,2...\n");
 	}
 
 	return 0;
 }
 
-static int acerhdf_register_platform(void)
+static int __init acerhdf_register_platform(void)
 {
 	int err = 0;
 
@@ -712,7 +742,7 @@ static void acerhdf_unregister_platform(void)
 	platform_driver_unregister(&acerhdf_driver);
 }
 
-static int acerhdf_register_thermal(void)
+static int __init acerhdf_register_thermal(void)
 {
 	cl_dev = thermal_cooling_device_register("acerhdf-fan", NULL,
 						 &acerhdf_cooling_ops);

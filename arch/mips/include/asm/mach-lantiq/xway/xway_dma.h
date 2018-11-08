@@ -40,6 +40,7 @@ struct ltq_dma_channel {
 	int desc;			/* the current descriptor */
 	struct ltq_dma_desc *desc_base; /* the descriptor base */
 	int phys;			/* physical addr */
+	struct device *dev;
 };
 
 enum {

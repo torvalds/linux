@@ -65,11 +65,6 @@ static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 	return block->q;
 }
 
-static inline struct net_device *tcf_block_dev(struct tcf_block *block)
-{
-	return tcf_block_q(block)->dev_queue->dev;
-}
-
 void *tcf_block_cb_priv(struct tcf_block_cb *block_cb);
 struct tcf_block_cb *tcf_block_cb_lookup(struct tcf_block *block,
 					 tc_setup_cb_t *cb, void *cb_ident);
@@ -118,11 +113,6 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 }
 
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
-{
-	return NULL;
-}
-
-static inline struct net_device *tcf_block_dev(struct tcf_block *block)
 {
 	return NULL;
 }
@@ -298,19 +288,13 @@ static inline void tcf_exts_put_net(struct tcf_exts *exts)
 #endif
 }
 
-static inline void tcf_exts_to_list(const struct tcf_exts *exts,
-				    struct list_head *actions)
-{
 #ifdef CONFIG_NET_CLS_ACT
-	int i;
-
-	for (i = 0; i < exts->nr_actions; i++) {
-		struct tc_action *a = exts->actions[i];
-
-		list_add_tail(&a->list, actions);
-	}
+#define tcf_exts_for_each_action(i, a, exts) \
+	for (i = 0; i < TCA_ACT_MAX_PRIO && ((a) = (exts)->actions[i]); i++)
+#else
+#define tcf_exts_for_each_action(i, a, exts) \
+	for (; 0; (void)(i), (void)(a), (void)(exts))
 #endif
-}
 
 static inline void
 tcf_exts_stats_update(const struct tcf_exts *exts,
@@ -324,7 +308,7 @@ tcf_exts_stats_update(const struct tcf_exts *exts,
 	for (i = 0; i < exts->nr_actions; i++) {
 		struct tc_action *a = exts->actions[i];
 
-		tcf_action_stats_update(a, bytes, packets, lastuse);
+		tcf_action_stats_update(a, bytes, packets, lastuse, true);
 	}
 
 	preempt_enable();
@@ -358,6 +342,15 @@ static inline bool tcf_exts_has_one_action(struct tcf_exts *exts)
 	return exts->nr_actions == 1;
 #else
 	return false;
+#endif
+}
+
+static inline struct tc_action *tcf_exts_first_action(struct tcf_exts *exts)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	return exts->actions[0];
+#else
+	return NULL;
 #endif
 }
 

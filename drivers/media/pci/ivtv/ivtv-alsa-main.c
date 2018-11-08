@@ -109,7 +109,7 @@ static int snd_ivtv_card_set_names(struct snd_ivtv_card *itvsc)
 	struct snd_card *sc = itvsc->sc;
 
 	/* sc->driver is used by alsa-lib's configurator: simple, unique */
-	strlcpy(sc->driver, "CX2341[56]", sizeof(sc->driver));
+	strscpy(sc->driver, "CX2341[56]", sizeof(sc->driver));
 
 	/* sc->shortname is a symlink in /proc/asound: IVTV-M -> cardN */
 	snprintf(sc->shortname,  sizeof(sc->shortname), "IVTV-%d",

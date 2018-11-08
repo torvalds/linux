@@ -135,7 +135,7 @@ static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 	}
 
 	td = (struct xt_entry_target *)nla_data(tb[TCA_IPT_TARG]);
-	if (nla_len(tb[TCA_IPT_TARG]) < td->u.target_size) {
+	if (nla_len(tb[TCA_IPT_TARG]) != td->u.target_size) {
 		if (exists)
 			tcf_idr_release(*a, bind);
 		else
@@ -329,19 +329,11 @@ static int tcf_ipt_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_ipt_search(struct net *net, struct tc_action **a, u32 index,
-			  struct netlink_ext_ack *extack)
+static int tcf_ipt_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, ipt_net_id);
 
 	return tcf_idr_search(tn, a, index);
-}
-
-static int tcf_ipt_delete(struct net *net, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, ipt_net_id);
-
-	return tcf_idr_delete_index(tn, index);
 }
 
 static struct tc_action_ops act_ipt_ops = {
@@ -354,7 +346,6 @@ static struct tc_action_ops act_ipt_ops = {
 	.init		=	tcf_ipt_init,
 	.walk		=	tcf_ipt_walker,
 	.lookup		=	tcf_ipt_search,
-	.delete		=	tcf_ipt_delete,
 	.size		=	sizeof(struct tcf_ipt),
 };
 
@@ -387,19 +378,11 @@ static int tcf_xt_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_xt_search(struct net *net, struct tc_action **a, u32 index,
-			 struct netlink_ext_ack *extack)
+static int tcf_xt_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, xt_net_id);
 
 	return tcf_idr_search(tn, a, index);
-}
-
-static int tcf_xt_delete(struct net *net, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, xt_net_id);
-
-	return tcf_idr_delete_index(tn, index);
 }
 
 static struct tc_action_ops act_xt_ops = {
@@ -412,7 +395,6 @@ static struct tc_action_ops act_xt_ops = {
 	.init		=	tcf_xt_init,
 	.walk		=	tcf_xt_walker,
 	.lookup		=	tcf_xt_search,
-	.delete		=	tcf_xt_delete,
 	.size		=	sizeof(struct tcf_ipt),
 };
 

@@ -89,8 +89,7 @@ vmw_cmdbuf_res_lookup(struct vmw_cmdbuf_res_manager *man,
 	if (unlikely(ret != 0))
 		return ERR_PTR(ret);
 
-	return vmw_resource_reference
-		(drm_hash_entry(hash, struct vmw_cmdbuf_res, hash)->res);
+	return drm_hash_entry(hash, struct vmw_cmdbuf_res, hash)->res;
 }
 
 /**

@@ -178,6 +178,9 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 
 	if (tpi->proto == htons(ETH_P_TEB))
 		itn = net_generic(net, gre_tap_net_id);
+	else if (tpi->proto == htons(ETH_P_ERSPAN) ||
+		 tpi->proto == htons(ETH_P_ERSPAN2))
+		itn = net_generic(net, erspan_net_id);
 	else
 		itn = net_generic(net, ipgre_net_id);
 
@@ -229,22 +232,19 @@ static void gre_err(struct sk_buff *skb, u32 info)
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
 	struct tnl_ptk_info tpi;
-	bool csum_err = false;
 
-	if (gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP),
-			     iph->ihl * 4) < 0) {
-		if (!csum_err)		/* ignore csum errors. */
-			return;
-	}
+	if (gre_parse_header(skb, &tpi, NULL, htons(ETH_P_IP),
+			     iph->ihl * 4) < 0)
+		return;
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
-				 skb->dev->ifindex, 0, IPPROTO_GRE, 0);
+				 skb->dev->ifindex, IPPROTO_GRE);
 		return;
 	}
 	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, dev_net(skb->dev), skb->dev->ifindex, 0,
-			      IPPROTO_GRE, 0);
+		ipv4_redirect(skb, dev_net(skb->dev), skb->dev->ifindex,
+			      IPPROTO_GRE);
 		return;
 	}
 
@@ -328,6 +328,8 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 		ip_tunnel_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
 		return PACKET_RCVD;
 	}
+	return PACKET_REJECT;
+
 drop:
 	kfree_skb(skb);
 	return PACKET_RCVD;
@@ -1508,11 +1510,14 @@ nla_put_failure:
 
 static void erspan_setup(struct net_device *dev)
 {
+	struct ip_tunnel *t = netdev_priv(dev);
+
 	ether_setup(dev);
 	dev->netdev_ops = &erspan_netdev_ops;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	ip_tunnel_setup(dev, erspan_net_id);
+	t->erspan_ver = 1;
 }
 
 static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {

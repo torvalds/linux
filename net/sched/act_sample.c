@@ -69,7 +69,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
-				     &act_sample_ops, bind, false);
+				     &act_sample_ops, bind, true);
 		if (ret) {
 			tcf_idr_cleanup(tn, parm->index);
 			return ret;
@@ -224,19 +224,11 @@ static int tcf_sample_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_sample_search(struct net *net, struct tc_action **a, u32 index,
-			     struct netlink_ext_ack *extack)
+static int tcf_sample_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 
 	return tcf_idr_search(tn, a, index);
-}
-
-static int tcf_sample_delete(struct net *net, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, sample_net_id);
-
-	return tcf_idr_delete_index(tn, index);
 }
 
 static struct tc_action_ops act_sample_ops = {
@@ -249,7 +241,6 @@ static struct tc_action_ops act_sample_ops = {
 	.cleanup  = tcf_sample_cleanup,
 	.walk	  = tcf_sample_walker,
 	.lookup	  = tcf_sample_search,
-	.delete	  = tcf_sample_delete,
 	.size	  = sizeof(struct tcf_sample),
 };
 

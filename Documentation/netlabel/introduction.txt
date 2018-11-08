@@ -22,7 +22,7 @@ refrain from calling the protocol engines directly, instead they should use
 the NetLabel kernel security module API described below.
 
 Detailed information about each NetLabel protocol engine can be found in this
-directory, consult '00-INDEX' for filenames.
+directory.
 
  * Communication Layer
 

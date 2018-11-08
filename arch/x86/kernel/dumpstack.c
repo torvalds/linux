@@ -17,6 +17,7 @@
 #include <linux/bug.h>
 #include <linux/nmi.h>
 #include <linux/sysfs.h>
+#include <linux/kasan.h>
 
 #include <asm/cpu_entry_area.h>
 #include <asm/stacktrace.h>
@@ -89,14 +90,24 @@ static void printk_stack_address(unsigned long address, int reliable,
  * Thus, the 2/3rds prologue and 64 byte OPCODE_BUFSIZE is just a random
  * guesstimate in attempt to achieve all of the above.
  */
-void show_opcodes(u8 *rip, const char *loglvl)
+void show_opcodes(struct pt_regs *regs, const char *loglvl)
 {
 #define PROLOGUE_SIZE 42
 #define EPILOGUE_SIZE 21
 #define OPCODE_BUFSIZE (PROLOGUE_SIZE + 1 + EPILOGUE_SIZE)
 	u8 opcodes[OPCODE_BUFSIZE];
+	unsigned long prologue = regs->ip - PROLOGUE_SIZE;
+	bool bad_ip;
 
-	if (probe_kernel_read(opcodes, rip - PROLOGUE_SIZE, OPCODE_BUFSIZE)) {
+	/*
+	 * Make sure userspace isn't trying to trick us into dumping kernel
+	 * memory by pointing the userspace instruction pointer at it.
+	 */
+	bad_ip = user_mode(regs) &&
+		__chk_range_not_ok(prologue, OPCODE_BUFSIZE, TASK_SIZE_MAX);
+
+	if (bad_ip || probe_kernel_read(opcodes, (u8 *)prologue,
+					OPCODE_BUFSIZE)) {
 		printk("%sCode: Bad RIP value.\n", loglvl);
 	} else {
 		printk("%sCode: %" __stringify(PROLOGUE_SIZE) "ph <%02x> %"
@@ -112,7 +123,7 @@ void show_ip(struct pt_regs *regs, const char *loglvl)
 #else
 	printk("%sRIP: %04x:%pS\n", loglvl, (int)regs->cs, (void *)regs->ip);
 #endif
-	show_opcodes((u8 *)regs->ip, loglvl);
+	show_opcodes(regs, loglvl);
 }
 
 void show_iret_regs(struct pt_regs *regs)
@@ -135,7 +146,7 @@ static void show_regs_if_on_stack(struct stack_info *info, struct pt_regs *regs,
 	 * they can be printed in the right context.
 	 */
 	if (!partial && on_stack(info, regs, sizeof(*regs))) {
-		__show_regs(regs, 0);
+		__show_regs(regs, SHOW_REGS_SHORT);
 
 	} else if (partial && on_stack(info, (void *)regs + IRET_FRAME_OFFSET,
 				       IRET_FRAME_SIZE)) {
@@ -333,7 +344,7 @@ void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 	oops_exit();
 
 	/* Executive summary in case the oops scrolled away */
-	__show_regs(&exec_summary_regs, true);
+	__show_regs(&exec_summary_regs, SHOW_REGS_ALL);
 
 	if (!signr)
 		return;
@@ -346,7 +357,10 @@ void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 	 * We're not going to return, but we might be on an IST stack or
 	 * have very little stack space left.  Rewind the stack and kill
 	 * the task.
+	 * Before we rewind the stack, we have to tell KASAN that we're going to
+	 * reuse the task stack and that existing poisons are invalid.
 	 */
+	kasan_unpoison_task_stack(current);
 	rewind_stack_do_exit(signr);
 }
 NOKPROBE_SYMBOL(oops_end);
@@ -393,14 +407,9 @@ void die(const char *str, struct pt_regs *regs, long err)
 
 void show_regs(struct pt_regs *regs)
 {
-	bool all = true;
-
 	show_regs_print_info(KERN_DEFAULT);
 
-	if (IS_ENABLED(CONFIG_X86_32))
-		all = !user_mode(regs);
-
-	__show_regs(regs, all);
+	__show_regs(regs, user_mode(regs) ? SHOW_REGS_USER : SHOW_REGS_ALL);
 
 	/*
 	 * When in-kernel, we also print out the stack at the time of the fault..

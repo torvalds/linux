@@ -935,39 +935,41 @@ static int clk_core_enable_lock(struct clk_core *core)
  */
 void clk_gate_restore_context(struct clk_hw *hw)
 {
-	if (hw->clk->core->enable_count)
-		hw->clk->core->ops->enable(hw);
+	struct clk_core *core = hw->core;
+
+	if (core->enable_count)
+		core->ops->enable(hw);
 	else
-		hw->clk->core->ops->disable(hw);
+		core->ops->disable(hw);
 }
 EXPORT_SYMBOL_GPL(clk_gate_restore_context);
 
-static int _clk_save_context(struct clk_core *clk)
+static int clk_core_save_context(struct clk_core *core)
 {
 	struct clk_core *child;
 	int ret = 0;
 
-	hlist_for_each_entry(child, &clk->children, child_node) {
-		ret = _clk_save_context(child);
+	hlist_for_each_entry(child, &core->children, child_node) {
+		ret = clk_core_save_context(child);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (clk->ops && clk->ops->save_context)
-		ret = clk->ops->save_context(clk->hw);
+	if (core->ops && core->ops->save_context)
+		ret = core->ops->save_context(core->hw);
 
 	return ret;
 }
 
-static void _clk_restore_context(struct clk_core *clk)
+static void clk_core_restore_context(struct clk_core *core)
 {
 	struct clk_core *child;
 
-	if (clk->ops && clk->ops->restore_context)
-		clk->ops->restore_context(clk->hw);
+	if (core->ops && core->ops->restore_context)
+		core->ops->restore_context(core->hw);
 
-	hlist_for_each_entry(child, &clk->children, child_node)
-		_clk_restore_context(child);
+	hlist_for_each_entry(child, &core->children, child_node)
+		clk_core_restore_context(child);
 }
 
 /**
@@ -983,13 +985,13 @@ int clk_save_context(void)
 	int ret;
 
 	hlist_for_each_entry(clk, &clk_root_list, child_node) {
-		ret = _clk_save_context(clk);
+		ret = clk_core_save_context(clk);
 		if (ret < 0)
 			return ret;
 	}
 
 	hlist_for_each_entry(clk, &clk_orphan_list, child_node) {
-		ret = _clk_save_context(clk);
+		ret = clk_core_save_context(clk);
 		if (ret < 0)
 			return ret;
 	}
@@ -1006,13 +1008,13 @@ EXPORT_SYMBOL_GPL(clk_save_context);
  */
 void clk_restore_context(void)
 {
-	struct clk_core *clk;
+	struct clk_core *core;
 
-	hlist_for_each_entry(clk, &clk_root_list, child_node)
-		_clk_restore_context(clk);
+	hlist_for_each_entry(core, &clk_root_list, child_node)
+		clk_core_restore_context(core);
 
-	hlist_for_each_entry(clk, &clk_orphan_list, child_node)
-		_clk_restore_context(clk);
+	hlist_for_each_entry(core, &clk_orphan_list, child_node)
+		clk_core_restore_context(core);
 }
 EXPORT_SYMBOL_GPL(clk_restore_context);
 

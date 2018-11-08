@@ -812,12 +812,15 @@ static void usb3_irq_epc_int_1_speed(struct renesas_usb3 *usb3)
 	switch (speed) {
 	case USB_STA_SPEED_SS:
 		usb3->gadget.speed = USB_SPEED_SUPER;
+		usb3->gadget.ep0->maxpacket = USB3_EP0_SS_MAX_PACKET_SIZE;
 		break;
 	case USB_STA_SPEED_HS:
 		usb3->gadget.speed = USB_SPEED_HIGH;
+		usb3->gadget.ep0->maxpacket = USB3_EP0_HSFS_MAX_PACKET_SIZE;
 		break;
 	case USB_STA_SPEED_FS:
 		usb3->gadget.speed = USB_SPEED_FULL;
+		usb3->gadget.ep0->maxpacket = USB3_EP0_HSFS_MAX_PACKET_SIZE;
 		break;
 	default:
 		usb3->gadget.speed = USB_SPEED_UNKNOWN;
@@ -2434,6 +2437,9 @@ static ssize_t renesas_usb3_b_device_write(struct file *file,
 	else
 		usb3->forced_b_device = false;
 
+	if (usb3->workaround_for_vbus)
+		usb3_disconnect(usb3);
+
 	/* Let this driver call usb3_connect() anyway */
 	usb3_check_id(usb3);
 
@@ -2513,7 +2519,7 @@ static int renesas_usb3_init_ep(struct renesas_usb3 *usb3, struct device *dev,
 			/* for control pipe */
 			usb3->gadget.ep0 = &usb3_ep->ep;
 			usb_ep_set_maxpacket_limit(&usb3_ep->ep,
-						USB3_EP0_HSFS_MAX_PACKET_SIZE);
+						USB3_EP0_SS_MAX_PACKET_SIZE);
 			usb3_ep->ep.caps.type_control = true;
 			usb3_ep->ep.caps.dir_in = true;
 			usb3_ep->ep.caps.dir_out = true;
@@ -2597,6 +2603,13 @@ static const struct renesas_usb3_priv renesas_usb3_priv_gen3 = {
 	.ramsize_per_pipe = SZ_4K,
 };
 
+static const struct renesas_usb3_priv renesas_usb3_priv_r8a77990 = {
+	.ramsize_per_ramif = SZ_16K,
+	.num_ramif = 4,
+	.ramsize_per_pipe = SZ_4K,
+	.workaround_for_vbus = true,
+};
+
 static const struct of_device_id usb3_of_match[] = {
 	{
 		.compatible = "renesas,r8a7795-usb3-peri",
@@ -2614,6 +2627,10 @@ static const struct soc_device_attribute renesas_usb3_quirks_match[] = {
 	{
 		.soc_id = "r8a7795", .revision = "ES1.*",
 		.data = &renesas_usb3_priv_r8a7795_es1,
+	},
+	{
+		.soc_id = "r8a77990",
+		.data = &renesas_usb3_priv_r8a77990,
 	},
 	{ /* sentinel */ },
 };

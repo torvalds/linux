@@ -2855,12 +2855,12 @@ static int qedf_set_fcoe_pf_param(struct qedf_ctx *qedf)
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "Number of CQs is %d.\n",
 		   qedf->num_queues);
 
-	qedf->p_cpuq = pci_alloc_consistent(qedf->pdev,
+	qedf->p_cpuq = dma_alloc_coherent(&qedf->pdev->dev,
 	    qedf->num_queues * sizeof(struct qedf_glbl_q_params),
-	    &qedf->hw_p_cpuq);
+	    &qedf->hw_p_cpuq, GFP_KERNEL);
 
 	if (!qedf->p_cpuq) {
-		QEDF_ERR(&(qedf->dbg_ctx), "pci_alloc_consistent failed.\n");
+		QEDF_ERR(&(qedf->dbg_ctx), "dma_alloc_coherent failed.\n");
 		return 1;
 	}
 
@@ -2929,7 +2929,7 @@ static void qedf_free_fcoe_pf_param(struct qedf_ctx *qedf)
 
 	if (qedf->p_cpuq) {
 		size = qedf->num_queues * sizeof(struct qedf_glbl_q_params);
-		pci_free_consistent(qedf->pdev, size, qedf->p_cpuq,
+		dma_free_coherent(&qedf->pdev->dev, size, qedf->p_cpuq,
 		    qedf->hw_p_cpuq);
 	}
 

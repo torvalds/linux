@@ -745,8 +745,8 @@ static int vega12_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	memcpy(pp_table, pptable_information->smc_pptable, sizeof(PPTable_t));
 
-	result = vega12_copy_table_to_smc(hwmgr,
-			(uint8_t *)pp_table, TABLE_PPTABLE);
+	result = smum_smc_table_manager(hwmgr,
+					(uint8_t *)pp_table, TABLE_PPTABLE, false);
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
 
@@ -1317,7 +1317,11 @@ static int vega12_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		ret = vega12_get_gpu_power(hwmgr, (uint32_t *)value);
-
+		break;
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = vega12_get_enabled_smc_features(hwmgr, (uint64_t *)value);
+		if (!ret)
+			*size = 8;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2103,8 +2107,8 @@ static int vega12_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 			!(data->water_marks_bitmap & WaterMarksLoaded)) {
-		result = vega12_copy_table_to_smc(hwmgr,
-			(uint8_t *)wm_table, TABLE_WATERMARKS);
+		result = smum_smc_table_manager(hwmgr,
+						(uint8_t *)wm_table, TABLE_WATERMARKS, false);
 		PP_ASSERT_WITH_CODE(result, "Failed to update WMTABLE!", return EINVAL);
 		data->water_marks_bitmap |= WaterMarksLoaded;
 	}
@@ -2352,6 +2356,13 @@ static int vega12_gfx_off_control(struct pp_hwmgr *hwmgr, bool enable)
 		return vega12_disable_gfx_off(hwmgr);
 }
 
+static int vega12_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
+				PHM_PerformanceLevelDesignation designation, uint32_t index,
+				PHM_PerformanceLevel *level)
+{
+	return 0;
+}
+
 static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.backend_init = vega12_hwmgr_backend_init,
 	.backend_fini = vega12_hwmgr_backend_fini,
@@ -2402,6 +2413,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.register_irq_handlers = smu9_register_irq_handlers,
 	.start_thermal_controller = vega12_start_thermal_controller,
 	.powergate_gfx = vega12_gfx_off_control,
+	.get_performance_level = vega12_get_performance_level,
 };
 
 int vega12_hwmgr_init(struct pp_hwmgr *hwmgr)

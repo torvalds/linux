@@ -154,40 +154,6 @@ static int __init config7_set(char *str)
 }
 __setup("config7=", config7_set);
 
-/* Experimental cache flush control parameters that should go away some day */
-int mt_protiflush;
-int mt_protdflush;
-int mt_n_iflushes = 1;
-int mt_n_dflushes = 1;
-
-static int __init set_protiflush(char *s)
-{
-	mt_protiflush = 1;
-	return 1;
-}
-__setup("protiflush", set_protiflush);
-
-static int __init set_protdflush(char *s)
-{
-	mt_protdflush = 1;
-	return 1;
-}
-__setup("protdflush", set_protdflush);
-
-static int __init niflush(char *s)
-{
-	get_option(&s, &mt_n_iflushes);
-	return 1;
-}
-__setup("niflush=", niflush);
-
-static int __init ndflush(char *s)
-{
-	get_option(&s, &mt_n_dflushes);
-	return 1;
-}
-__setup("ndflush=", ndflush);
-
 static unsigned int itc_base;
 
 static int __init set_itc_base(char *str)
@@ -232,16 +198,6 @@ void mips_mt_set_cpuoptions(void)
 		printk("Config7: 0x%08x\n", read_c0_config7());
 	}
 
-	/* Report Cache management debug options */
-	if (mt_protiflush)
-		printk("I-cache flushes single-threaded\n");
-	if (mt_protdflush)
-		printk("D-cache flushes single-threaded\n");
-	if (mt_n_iflushes != 1)
-		printk("I-Cache Flushes Repeated %d times\n", mt_n_iflushes);
-	if (mt_n_dflushes != 1)
-		printk("D-Cache Flushes Repeated %d times\n", mt_n_dflushes);
-
 	if (itc_base != 0) {
 		/*
 		 * Configure ITC mapping.  This code is very
@@ -281,21 +237,6 @@ void mips_mt_set_cpuoptions(void)
 		printk("Mapped %ld ITC cells starting at 0x%08x\n",
 			((itcblkgrn & 0x7fe00000) >> 20), itc_base);
 	}
-}
-
-/*
- * Function to protect cache flushes from concurrent execution
- * depends on MP software model chosen.
- */
-
-void mt_cflush_lockdown(void)
-{
-	/* FILL IN VSMP and AP/SP VERSIONS HERE */
-}
-
-void mt_cflush_release(void)
-{
-	/* FILL IN VSMP and AP/SP VERSIONS HERE */
 }
 
 struct class *mt_class;

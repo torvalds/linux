@@ -1058,7 +1058,7 @@ gss_create_new(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 	auth->au_flavor = flavor;
 	if (gss_pseudoflavor_to_datatouch(gss_auth->mech, flavor))
 		auth->au_flags |= RPCAUTH_AUTH_DATATOUCH;
-	atomic_set(&auth->au_count, 1);
+	refcount_set(&auth->au_count, 1);
 	kref_init(&gss_auth->kref);
 
 	err = rpcauth_init_credcache(auth);
@@ -1187,7 +1187,7 @@ gss_auth_find_or_add_hashed(const struct rpc_auth_create_args *args,
 			if (strcmp(gss_auth->target_name, args->target_name))
 				continue;
 		}
-		if (!atomic_inc_not_zero(&gss_auth->rpc_auth.au_count))
+		if (!refcount_inc_not_zero(&gss_auth->rpc_auth.au_count))
 			continue;
 		goto out;
 	}
@@ -1984,6 +1984,46 @@ gss_unwrap_req_decode(kxdrdproc_t decode, struct rpc_rqst *rqstp,
 	return decode(rqstp, &xdr, obj);
 }
 
+static bool
+gss_seq_is_newer(u32 new, u32 old)
+{
+	return (s32)(new - old) > 0;
+}
+
+static bool
+gss_xmit_need_reencode(struct rpc_task *task)
+{
+	struct rpc_rqst *req = task->tk_rqstp;
+	struct rpc_cred *cred = req->rq_cred;
+	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
+	u32 win, seq_xmit;
+	bool ret = true;
+
+	if (!ctx)
+		return true;
+
+	if (gss_seq_is_newer(req->rq_seqno, READ_ONCE(ctx->gc_seq)))
+		goto out;
+
+	seq_xmit = READ_ONCE(ctx->gc_seq_xmit);
+	while (gss_seq_is_newer(req->rq_seqno, seq_xmit)) {
+		u32 tmp = seq_xmit;
+
+		seq_xmit = cmpxchg(&ctx->gc_seq_xmit, tmp, req->rq_seqno);
+		if (seq_xmit == tmp) {
+			ret = false;
+			goto out;
+		}
+	}
+
+	win = ctx->gc_win;
+	if (win > 0)
+		ret = !gss_seq_is_newer(req->rq_seqno, seq_xmit - win);
+out:
+	gss_put_ctx(ctx);
+	return ret;
+}
+
 static int
 gss_unwrap_resp(struct rpc_task *task,
 		kxdrdproc_t decode, void *rqstp, __be32 *p, void *obj)
@@ -2052,6 +2092,7 @@ static const struct rpc_credops gss_credops = {
 	.crunwrap_resp		= gss_unwrap_resp,
 	.crkey_timeout		= gss_key_timeout,
 	.crstringify_acceptor	= gss_stringify_acceptor,
+	.crneed_reencode	= gss_xmit_need_reencode,
 };
 
 static const struct rpc_credops gss_nullops = {

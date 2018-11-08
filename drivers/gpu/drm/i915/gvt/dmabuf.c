@@ -170,20 +170,22 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 		unsigned int tiling_mode = 0;
 		unsigned int stride = 0;
 
-		switch (info->drm_format_mod << 10) {
-		case PLANE_CTL_TILED_LINEAR:
+		switch (info->drm_format_mod) {
+		case DRM_FORMAT_MOD_LINEAR:
 			tiling_mode = I915_TILING_NONE;
 			break;
-		case PLANE_CTL_TILED_X:
+		case I915_FORMAT_MOD_X_TILED:
 			tiling_mode = I915_TILING_X;
 			stride = info->stride;
 			break;
-		case PLANE_CTL_TILED_Y:
+		case I915_FORMAT_MOD_Y_TILED:
+		case I915_FORMAT_MOD_Yf_TILED:
 			tiling_mode = I915_TILING_Y;
 			stride = info->stride;
 			break;
 		default:
-			gvt_dbg_core("not supported tiling mode\n");
+			gvt_dbg_core("invalid drm_format_mod %llx for tiling\n",
+				     info->drm_format_mod);
 		}
 		obj->tiling_and_stride = tiling_mode | stride;
 	} else {
@@ -222,9 +224,26 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 		info->height = p.height;
 		info->stride = p.stride;
 		info->drm_format = p.drm_format;
-		info->drm_format_mod = p.tiled;
+
+		switch (p.tiled) {
+		case PLANE_CTL_TILED_LINEAR:
+			info->drm_format_mod = DRM_FORMAT_MOD_LINEAR;
+			break;
+		case PLANE_CTL_TILED_X:
+			info->drm_format_mod = I915_FORMAT_MOD_X_TILED;
+			break;
+		case PLANE_CTL_TILED_Y:
+			info->drm_format_mod = I915_FORMAT_MOD_Y_TILED;
+			break;
+		case PLANE_CTL_TILED_YF:
+			info->drm_format_mod = I915_FORMAT_MOD_Yf_TILED;
+			break;
+		default:
+			gvt_vgpu_err("invalid tiling mode: %x\n", p.tiled);
+		}
+
 		info->size = (((p.stride * p.height * p.bpp) / 8) +
-				(PAGE_SIZE - 1)) >> PAGE_SHIFT;
+			      (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 	} else if (plane_id == DRM_PLANE_TYPE_CURSOR) {
 		ret = intel_vgpu_decode_cursor_plane(vgpu, &c);
 		if (ret)

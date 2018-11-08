@@ -294,11 +294,11 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 		pdata->init_data[n] = da9211_matches[i].init_data;
 		pdata->reg_node[n] = da9211_matches[i].of_node;
 		pdata->gpiod_ren[n] = devm_gpiod_get_from_of_node(dev,
-								  da9211_matches[i].of_node,
-								  "enable",
-								  0,
-								  GPIOD_OUT_HIGH,
-								  "da9211-enable");
+				  da9211_matches[i].of_node,
+				  "enable",
+				  0,
+				  GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+				  "da9211-enable");
 		n++;
 	}
 

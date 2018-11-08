@@ -684,8 +684,8 @@ megasas_alloc_rdpq_fusion(struct megasas_instance *instance)
 	array_size = sizeof(struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY) *
 		     MAX_MSIX_QUEUES_FUSION;
 
-	fusion->rdpq_virt = pci_zalloc_consistent(instance->pdev, array_size,
-						  &fusion->rdpq_phys);
+	fusion->rdpq_virt = dma_zalloc_coherent(&instance->pdev->dev,
+			array_size, &fusion->rdpq_phys, GFP_KERNEL);
 	if (!fusion->rdpq_virt) {
 		dev_err(&instance->pdev->dev,
 			"Failed from %s %d\n",  __func__, __LINE__);
@@ -813,7 +813,7 @@ megasas_free_rdpq_fusion(struct megasas_instance *instance) {
 		dma_pool_destroy(fusion->reply_frames_desc_pool_align);
 
 	if (fusion->rdpq_virt)
-		pci_free_consistent(instance->pdev,
+		dma_free_coherent(&instance->pdev->dev,
 			sizeof(struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY) * MAX_MSIX_QUEUES_FUSION,
 			fusion->rdpq_virt, fusion->rdpq_phys);
 }
@@ -2209,7 +2209,7 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 		cdb[0] =  MEGASAS_SCSI_VARIABLE_LENGTH_CMD;
 		cdb[7] =  MEGASAS_SCSI_ADDL_CDB_LEN;
 
-		if (scp->sc_data_direction == PCI_DMA_FROMDEVICE)
+		if (scp->sc_data_direction == DMA_FROM_DEVICE)
 			cdb[9] = MEGASAS_SCSI_SERVICE_ACTION_READ32;
 		else
 			cdb[9] = MEGASAS_SCSI_SERVICE_ACTION_WRITE32;
@@ -2238,7 +2238,7 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 		cdb[31] = (u8)(num_blocks & 0xff);
 
 		/* set SCSI IO EEDPFlags */
-		if (scp->sc_data_direction == PCI_DMA_FROMDEVICE) {
+		if (scp->sc_data_direction == DMA_FROM_DEVICE) {
 			io_request->EEDPFlags = cpu_to_le16(
 				MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG  |
 				MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG |
@@ -2621,7 +2621,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	scsi_buff_len = scsi_bufflen(scp);
 	io_request->DataLength = cpu_to_le32(scsi_buff_len);
 
-	if (scp->sc_data_direction == PCI_DMA_FROMDEVICE)
+	if (scp->sc_data_direction == DMA_FROM_DEVICE)
 		io_info.isRead = 1;
 
 	local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
@@ -3088,9 +3088,9 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 
 	io_request->SGLFlags = cpu_to_le16(MPI2_SGE_FLAGS_64_BIT_ADDRESSING);
 
-	if (scp->sc_data_direction == PCI_DMA_TODEVICE)
+	if (scp->sc_data_direction == DMA_TO_DEVICE)
 		io_request->Control |= cpu_to_le32(MPI2_SCSIIO_CONTROL_WRITE);
-	else if (scp->sc_data_direction == PCI_DMA_FROMDEVICE)
+	else if (scp->sc_data_direction == DMA_FROM_DEVICE)
 		io_request->Control |= cpu_to_le32(MPI2_SCSIIO_CONTROL_READ);
 
 	io_request->SGLOffset0 =

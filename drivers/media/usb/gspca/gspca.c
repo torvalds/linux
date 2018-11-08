@@ -1193,11 +1193,11 @@ static int vidioc_querycap(struct file *file, void  *priv,
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
-	strlcpy((char *) cap->driver, gspca_dev->sd_desc->name,
-			sizeof cap->driver);
+	strscpy((char *)cap->driver, gspca_dev->sd_desc->name,
+		sizeof(cap->driver));
 	if (gspca_dev->dev->product != NULL) {
-		strlcpy((char *) cap->card, gspca_dev->dev->product,
-			sizeof cap->card);
+		strscpy((char *)cap->card, gspca_dev->dev->product,
+			sizeof(cap->card));
 	} else {
 		snprintf((char *) cap->card, sizeof cap->card,
 			"USB Camera (%04x:%04x)",
@@ -1222,7 +1222,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	input->status = gspca_dev->cam.input_flags;
-	strlcpy(input->name, gspca_dev->sd_desc->name,
+	strscpy(input->name, gspca_dev->sd_desc->name,
 		sizeof input->name);
 	return 0;
 }

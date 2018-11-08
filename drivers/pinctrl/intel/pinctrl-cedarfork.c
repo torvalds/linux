@@ -9,7 +9,7 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
+
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-intel.h"
@@ -335,10 +335,7 @@ static int cdf_pinctrl_probe(struct platform_device *pdev)
 	return intel_pinctrl_probe(pdev, &cdf_soc_data);
 }
 
-static const struct dev_pm_ops cdf_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend,
-				     intel_pinctrl_resume)
-};
+static INTEL_PINCTRL_PM_OPS(cdf_pinctrl_pm_ops);
 
 static const struct acpi_device_id cdf_pinctrl_acpi_match[] = {
 	{ "INTC3001" },

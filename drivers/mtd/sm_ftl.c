@@ -221,14 +221,18 @@ static int sm_correct_sector(uint8_t *buffer, struct sm_oob *oob)
 {
 	uint8_t ecc[3];
 
-	__nand_calculate_ecc(buffer, SM_SMALL_PAGE, ecc);
-	if (__nand_correct_data(buffer, ecc, oob->ecc1, SM_SMALL_PAGE) < 0)
+	__nand_calculate_ecc(buffer, SM_SMALL_PAGE, ecc,
+			     IS_ENABLED(CONFIG_MTD_NAND_ECC_SMC));
+	if (__nand_correct_data(buffer, ecc, oob->ecc1, SM_SMALL_PAGE,
+				IS_ENABLED(CONFIG_MTD_NAND_ECC_SMC)) < 0)
 		return -EIO;
 
 	buffer += SM_SMALL_PAGE;
 
-	__nand_calculate_ecc(buffer, SM_SMALL_PAGE, ecc);
-	if (__nand_correct_data(buffer, ecc, oob->ecc2, SM_SMALL_PAGE) < 0)
+	__nand_calculate_ecc(buffer, SM_SMALL_PAGE, ecc,
+			     IS_ENABLED(CONFIG_MTD_NAND_ECC_SMC));
+	if (__nand_correct_data(buffer, ecc, oob->ecc2, SM_SMALL_PAGE,
+				IS_ENABLED(CONFIG_MTD_NAND_ECC_SMC)) < 0)
 		return -EIO;
 	return 0;
 }
@@ -393,11 +397,13 @@ restart:
 		}
 
 		if (ftl->smallpagenand) {
-			__nand_calculate_ecc(buf + boffset,
-						SM_SMALL_PAGE, oob.ecc1);
+			__nand_calculate_ecc(buf + boffset, SM_SMALL_PAGE,
+					oob.ecc1,
+					IS_ENABLED(CONFIG_MTD_NAND_ECC_SMC));
 
 			__nand_calculate_ecc(buf + boffset + SM_SMALL_PAGE,
-						SM_SMALL_PAGE, oob.ecc2);
+					SM_SMALL_PAGE, oob.ecc2,
+					IS_ENABLED(CONFIG_MTD_NAND_ECC_SMC));
 		}
 		if (!sm_write_sector(ftl, zone, block, boffset,
 							buf + boffset, &oob))

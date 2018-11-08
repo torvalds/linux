@@ -1563,7 +1563,7 @@ xfs_itruncate_extents_flags(
 		error = xfs_bunmapi(tp, ip, first_unmap_block, unmap_len, flags,
 				    XFS_ITRUNC_MAX_EXTENTS, &done);
 		if (error)
-			goto out_bmap_cancel;
+			goto out;
 
 		/*
 		 * Duplicate the transaction that has the permanent
@@ -1599,14 +1599,6 @@ xfs_itruncate_extents_flags(
 out:
 	*tpp = tp;
 	return error;
-out_bmap_cancel:
-	/*
-	 * If the bunmapi call encounters an error, return to the caller where
-	 * the transaction can be properly aborted.  We just need to make sure
-	 * we're not holding any resources that we were not when we came in.
-	 */
-	xfs_defer_cancel(tp);
-	goto out;
 }
 
 int

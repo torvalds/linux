@@ -1113,6 +1113,10 @@ static inline void ppgtt_generate_shadow_entry(struct intel_gvt_gtt_entry *se,
 }
 
 /**
+ * Check if can do 2M page
+ * @vgpu: target vgpu
+ * @entry: target pfn's gtt entry
+ *
  * Return 1 if 2MB huge gtt shadowing is possilbe, 0 if miscondition,
  * negtive if found err.
  */
@@ -1945,7 +1949,7 @@ void intel_vgpu_unpin_mm(struct intel_vgpu_mm *mm)
 
 /**
  * intel_vgpu_pin_mm - increase the pin count of a vGPU mm object
- * @vgpu: a vGPU
+ * @mm: target vgpu mm
  *
  * This function is called when user wants to use a vGPU mm object. If this
  * mm object hasn't been shadowed yet, the shadow will be populated at this
@@ -2521,8 +2525,7 @@ fail:
 /**
  * intel_vgpu_find_ppgtt_mm - find a PPGTT mm object
  * @vgpu: a vGPU
- * @page_table_level: PPGTT page table level
- * @root_entry: PPGTT page table root pointers
+ * @pdps: pdp root array
  *
  * This function is used to find a PPGTT mm object from mm object pool
  *

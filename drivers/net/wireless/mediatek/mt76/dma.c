@@ -322,19 +322,13 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q, bool napi)
 	int len = SKB_WITH_OVERHEAD(q->buf_size);
 	int offset = q->buf_offset;
 	int idx;
-	void *(*alloc)(unsigned int fragsz);
-
-	if (napi)
-		alloc = napi_alloc_frag;
-	else
-		alloc = netdev_alloc_frag;
 
 	spin_lock_bh(&q->lock);
 
 	while (q->queued < q->ndesc - 1) {
 		struct mt76_queue_buf qbuf;
 
-		buf = alloc(q->buf_size);
+		buf = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC);
 		if (!buf)
 			break;
 
@@ -361,6 +355,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q, bool napi)
 static void
 mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
 {
+	struct page *page;
 	void *buf;
 	bool more;
 
@@ -373,6 +368,13 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
 		skb_free_frag(buf);
 	} while (1);
 	spin_unlock_bh(&q->lock);
+
+	if (!q->rx_page.va)
+		return;
+
+	page = virt_to_page(q->rx_page.va);
+	__page_frag_cache_drain(page, q->rx_page.pagecnt_bias);
+	memset(&q->rx_page, 0, sizeof(q->rx_page));
 }
 
 static void

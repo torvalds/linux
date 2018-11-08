@@ -399,7 +399,7 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 			if (nr_pages == 0)
 				continue;
 
-			edac_dbg(0, "csrow %d, channel %d%s, size = %ld Mb\n", i, j,
+			edac_dbg(0, "csrow %d, channel %d%s, size = %ld MiB\n", i, j,
 				 stacked ? " (stacked)" : "", PAGES_TO_MiB(nr_pages));
 
 			dimm->nr_pages = nr_pages;

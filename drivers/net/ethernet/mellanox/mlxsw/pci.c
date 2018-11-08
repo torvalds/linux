@@ -718,14 +718,17 @@ static void mlxsw_pci_eq_tasklet(unsigned long data)
 	memset(&active_cqns, 0, sizeof(active_cqns));
 
 	while ((eqe = mlxsw_pci_eq_sw_eqe_get(q))) {
-		u8 event_type = mlxsw_pci_eqe_event_type_get(eqe);
 
-		switch (event_type) {
-		case MLXSW_PCI_EQE_EVENT_TYPE_CMD:
+		/* Command interface completion events are always received on
+		 * queue MLXSW_PCI_EQ_ASYNC_NUM (EQ0) and completion events
+		 * are mapped to queue MLXSW_PCI_EQ_COMP_NUM (EQ1).
+		 */
+		switch (q->num) {
+		case MLXSW_PCI_EQ_ASYNC_NUM:
 			mlxsw_pci_eq_cmd_event(mlxsw_pci, eqe);
 			q->u.eq.ev_cmd_count++;
 			break;
-		case MLXSW_PCI_EQE_EVENT_TYPE_COMP:
+		case MLXSW_PCI_EQ_COMP_NUM:
 			cqn = mlxsw_pci_eqe_cqn_get(eqe);
 			set_bit(cqn, active_cqns);
 			cq_handle = true;

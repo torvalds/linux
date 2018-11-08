@@ -876,6 +876,8 @@ struct sctp_transport {
 	unsigned long sackdelay;
 	__u32 sackfreq;
 
+	atomic_t mtu_info;
+
 	/* When was the last time that we heard from this transport? We use
 	 * this to pick new active and retran paths.
 	 */

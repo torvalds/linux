@@ -121,7 +121,6 @@ err:
 
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -206,7 +205,6 @@ static void sti_cleanup(struct drm_device *ddev)
 {
 	struct sti_private *private = ddev->dev_private;
 
-	drm_fb_cma_fbdev_fini(ddev);
 	drm_kms_helper_poll_fini(ddev);
 	component_unbind_all(ddev->dev, ddev);
 	kfree(private);
@@ -236,11 +234,7 @@ static int sti_bind(struct device *dev)
 
 	drm_mode_config_reset(ddev);
 
-	if (ddev->mode_config.num_connector) {
-		ret = drm_fb_cma_fbdev_init(ddev, 32, 0);
-		if (ret)
-			DRM_DEBUG_DRIVER("Warning: fails to create fbdev\n");
-	}
+	drm_fbdev_generic_setup(ddev, 32);
 
 	return 0;
 

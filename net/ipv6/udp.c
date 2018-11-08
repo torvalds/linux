@@ -478,7 +478,7 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct net *net = dev_net(skb->dev);
 
 	sk = __udp6_lib_lookup(net, daddr, uh->dest, saddr, uh->source,
-			       inet6_iif(skb), 0, udptable, skb);
+			       inet6_iif(skb), inet6_sdif(skb), udptable, skb);
 	if (!sk) {
 		__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev),
 				  ICMP6_MIB_INERRORS);
@@ -548,7 +548,7 @@ static __inline__ void udpv6_err(struct sk_buff *skb,
 	__udp6_lib_err(skb, opt, type, code, offset, info, &udp_table);
 }
 
-static DEFINE_STATIC_KEY_FALSE(udpv6_encap_needed_key);
+DEFINE_STATIC_KEY_FALSE(udpv6_encap_needed_key);
 void udpv6_encap_enable(void)
 {
 	static_branch_enable(&udpv6_encap_needed_key);
@@ -752,6 +752,26 @@ static void udp6_sk_rx_dst_set(struct sock *sk, struct dst_entry *dst)
 	}
 }
 
+/* wrapper for udp_queue_rcv_skb tacking care of csum conversion and
+ * return code conversion for ip layer consumption
+ */
+static int udp6_unicast_rcv_skb(struct sock *sk, struct sk_buff *skb,
+				struct udphdr *uh)
+{
+	int ret;
+
+	if (inet_get_convert_csum(sk) && uh->check && !IS_UDPLITE(sk))
+		skb_checksum_try_convert(skb, IPPROTO_UDP, uh->check,
+					 ip6_compute_pseudo);
+
+	ret = udpv6_queue_rcv_skb(sk, skb);
+
+	/* a return value > 0 means to resubmit the input */
+	if (ret > 0)
+		return ret;
+	return 0;
+}
+
 int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		   int proto)
 {
@@ -803,13 +823,14 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		if (unlikely(sk->sk_rx_dst != dst))
 			udp6_sk_rx_dst_set(sk, dst);
 
-		ret = udpv6_queue_rcv_skb(sk, skb);
-		sock_put(sk);
+		if (!uh->check && !udp_sk(sk)->no_check6_rx) {
+			sock_put(sk);
+			goto report_csum_error;
+		}
 
-		/* a return value > 0 means to resubmit the input */
-		if (ret > 0)
-			return ret;
-		return 0;
+		ret = udp6_unicast_rcv_skb(sk, skb, uh);
+		sock_put(sk);
+		return ret;
 	}
 
 	/*
@@ -822,30 +843,13 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	/* Unicast */
 	sk = __udp6_lib_lookup_skb(skb, uh->source, uh->dest, udptable);
 	if (sk) {
-		int ret;
-
-		if (!uh->check && !udp_sk(sk)->no_check6_rx) {
-			udp6_csum_zero_error(skb);
-			goto csum_error;
-		}
-
-		if (inet_get_convert_csum(sk) && uh->check && !IS_UDPLITE(sk))
-			skb_checksum_try_convert(skb, IPPROTO_UDP, uh->check,
-						 ip6_compute_pseudo);
-
-		ret = udpv6_queue_rcv_skb(sk, skb);
-
-		/* a return value > 0 means to resubmit the input */
-		if (ret > 0)
-			return ret;
-
-		return 0;
+		if (!uh->check && !udp_sk(sk)->no_check6_rx)
+			goto report_csum_error;
+		return udp6_unicast_rcv_skb(sk, skb, uh);
 	}
 
-	if (!uh->check) {
-		udp6_csum_zero_error(skb);
-		goto csum_error;
-	}
+	if (!uh->check)
+		goto report_csum_error;
 
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
 		goto discard;
@@ -866,6 +870,9 @@ short_packet:
 			    ulen, skb->len,
 			    daddr, ntohs(uh->dest));
 	goto discard;
+
+report_csum_error:
+	udp6_csum_zero_error(skb);
 csum_error:
 	__UDP6_INC_STATS(net, UDP_MIB_CSUMERRORS, proto == IPPROTO_UDPLITE);
 discard:

@@ -730,8 +730,7 @@ static int qed_spq_post_list(struct qed_hwfn *p_hwfn,
 	       !list_empty(head)) {
 		struct qed_spq_entry *p_ent =
 			list_first_entry(head, struct qed_spq_entry, list);
-		list_del(&p_ent->list);
-		list_add_tail(&p_ent->list, &p_spq->completion_pending);
+		list_move_tail(&p_ent->list, &p_spq->completion_pending);
 		p_spq->comp_sent_count++;
 
 		rc = qed_spq_hw_post(p_hwfn, p_spq, p_ent);

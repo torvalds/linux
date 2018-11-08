@@ -75,17 +75,23 @@ static int bnxt_tc_parse_redir(struct bnxt *bp,
 	return 0;
 }
 
-static void bnxt_tc_parse_vlan(struct bnxt *bp,
-			       struct bnxt_tc_actions *actions,
-			       const struct tc_action *tc_act)
+static int bnxt_tc_parse_vlan(struct bnxt *bp,
+			      struct bnxt_tc_actions *actions,
+			      const struct tc_action *tc_act)
 {
-	if (tcf_vlan_action(tc_act) == TCA_VLAN_ACT_POP) {
+	switch (tcf_vlan_action(tc_act)) {
+	case TCA_VLAN_ACT_POP:
 		actions->flags |= BNXT_TC_ACTION_FLAG_POP_VLAN;
-	} else if (tcf_vlan_action(tc_act) == TCA_VLAN_ACT_PUSH) {
+		break;
+	case TCA_VLAN_ACT_PUSH:
 		actions->flags |= BNXT_TC_ACTION_FLAG_PUSH_VLAN;
 		actions->push_vlan_tci = htons(tcf_vlan_push_vid(tc_act));
 		actions->push_vlan_tpid = tcf_vlan_push_proto(tc_act);
+		break;
+	default:
+		return -EOPNOTSUPP;
 	}
+	return 0;
 }
 
 static int bnxt_tc_parse_tunnel_set(struct bnxt *bp,
@@ -110,16 +116,14 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 				 struct tcf_exts *tc_exts)
 {
 	const struct tc_action *tc_act;
-	LIST_HEAD(tc_actions);
-	int rc;
+	int i, rc;
 
 	if (!tcf_exts_has_actions(tc_exts)) {
 		netdev_info(bp->dev, "no actions");
 		return -EINVAL;
 	}
 
-	tcf_exts_to_list(tc_exts, &tc_actions);
-	list_for_each_entry(tc_act, &tc_actions, list) {
+	tcf_exts_for_each_action(i, tc_act, tc_exts) {
 		/* Drop action */
 		if (is_tcf_gact_shot(tc_act)) {
 			actions->flags |= BNXT_TC_ACTION_FLAG_DROP;
@@ -136,7 +140,9 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 
 		/* Push/pop VLAN */
 		if (is_tcf_vlan(tc_act)) {
-			bnxt_tc_parse_vlan(bp, actions, tc_act);
+			rc = bnxt_tc_parse_vlan(bp, actions, tc_act);
+			if (rc)
+				return rc;
 			continue;
 		}
 
@@ -183,7 +189,6 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 			      struct bnxt_tc_flow *flow)
 {
 	struct flow_dissector *dissector = tc_flow_cmd->dissector;
-	u16 addr_type = 0;
 
 	/* KEY_CONTROL and KEY_BASIC are needed for forming a meaningful key */
 	if ((dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CONTROL)) == 0 ||
@@ -191,13 +196,6 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 		netdev_info(bp->dev, "cannot form TC key: used_keys = 0x%x",
 			    dissector->used_keys);
 		return -EOPNOTSUPP;
-	}
-
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
-		struct flow_dissector_key_control *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_CONTROL);
-
-		addr_type = key->addr_type;
 	}
 
 	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -293,13 +291,6 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 		flow->l4_key.icmp.code = key->code;
 		flow->l4_mask.icmp.type = mask->type;
 		flow->l4_mask.icmp.code = mask->code;
-	}
-
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
-		struct flow_dissector_key_control *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_ENC_CONTROL);
-
-		addr_type = key->addr_type;
 	}
 
 	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {

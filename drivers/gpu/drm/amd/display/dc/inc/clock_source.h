@@ -166,10 +166,6 @@ struct clock_source_funcs {
 			struct clock_source *,
 			struct pixel_clk_params *,
 			struct pll_settings *);
-	uint32_t (*get_pix_rate_in_hz)(
-			struct clock_source *,
-			struct pixel_clk_params *,
-			struct pll_settings *);
 };
 
 struct clock_source {

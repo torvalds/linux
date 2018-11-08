@@ -4,6 +4,13 @@
 PKG="Qt5Core Qt5Gui Qt5Widgets"
 PKG2="QtCore QtGui"
 
+if [ -z "$(command -v pkg-config)" ]; then
+	echo >&2 "*"
+	echo >&2 "* 'make xconfig' requires 'pkg-config'. Please install it."
+	echo >&2 "*"
+	exit 1
+fi
+
 if pkg-config --exists $PKG; then
 	echo cflags=\"-std=c++11 -fPIC $(pkg-config --cflags Qt5Core Qt5Gui Qt5Widgets)\"
 	echo libs=\"$(pkg-config --libs $PKG)\"

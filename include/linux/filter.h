@@ -520,24 +520,6 @@ struct bpf_skb_data_end {
 	void *data_end;
 };
 
-struct sk_msg_buff {
-	void *data;
-	void *data_end;
-	__u32 apply_bytes;
-	__u32 cork_bytes;
-	int sg_copybreak;
-	int sg_start;
-	int sg_curr;
-	int sg_end;
-	struct scatterlist sg_data[MAX_SKB_FRAGS];
-	bool sg_copy[MAX_SKB_FRAGS];
-	__u32 flags;
-	struct sock *sk_redir;
-	struct sock *sk;
-	struct sk_buff *skb;
-	struct list_head list;
-};
-
 struct bpf_redirect_info {
 	u32 ifindex;
 	u32 flags;
@@ -564,6 +546,27 @@ static inline void bpf_compute_data_pointers(struct sk_buff *skb)
 	BUILD_BUG_ON(sizeof(*cb) > FIELD_SIZEOF(struct sk_buff, cb));
 	cb->data_meta = skb->data - skb_metadata_len(skb);
 	cb->data_end  = skb->data + skb_headlen(skb);
+}
+
+/* Similar to bpf_compute_data_pointers(), except that save orginal
+ * data in cb->data and cb->meta_data for restore.
+ */
+static inline void bpf_compute_and_save_data_end(
+	struct sk_buff *skb, void **saved_data_end)
+{
+	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
+
+	*saved_data_end = cb->data_end;
+	cb->data_end  = skb->data + skb_headlen(skb);
+}
+
+/* Restore data saved by bpf_compute_data_pointers(). */
+static inline void bpf_restore_data_end(
+	struct sk_buff *skb, void *saved_data_end)
+{
+	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
+
+	cb->data_end = saved_data_end;
 }
 
 static inline u8 *bpf_skb_cb(struct sk_buff *skb)
@@ -833,9 +836,6 @@ void xdp_do_flush_map(void);
 
 void bpf_warn_invalid_xdp_action(u32 act);
 
-struct sock *do_sk_redirect_map(struct sk_buff *skb);
-struct sock *do_msg_redirect_map(struct sk_msg_buff *md);
-
 #ifdef CONFIG_INET
 struct sock *bpf_run_sk_reuseport(struct sock_reuseport *reuse, struct sock *sk,
 				  struct bpf_prog *prog, struct sk_buff *skb,
@@ -854,6 +854,7 @@ bpf_run_sk_reuseport(struct sock_reuseport *reuse, struct sock *sk,
 extern int bpf_jit_enable;
 extern int bpf_jit_harden;
 extern int bpf_jit_kallsyms;
+extern int bpf_jit_limit;
 
 typedef void (*bpf_jit_fill_hole_t)(void *area, unsigned int size);
 

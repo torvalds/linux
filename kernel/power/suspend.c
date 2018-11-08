@@ -63,6 +63,12 @@ static DECLARE_SWAIT_QUEUE_HEAD(s2idle_wait_head);
 enum s2idle_states __read_mostly s2idle_state;
 static DEFINE_RAW_SPINLOCK(s2idle_lock);
 
+bool pm_suspend_via_s2idle(void)
+{
+	return mem_sleep_current == PM_SUSPEND_TO_IDLE;
+}
+EXPORT_SYMBOL_GPL(pm_suspend_via_s2idle);
+
 void s2idle_set_ops(const struct platform_s2idle_ops *ops)
 {
 	lock_system_sleep();

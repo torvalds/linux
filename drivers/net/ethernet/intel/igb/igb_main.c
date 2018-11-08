@@ -205,10 +205,6 @@ static struct notifier_block dca_notifier = {
 	.priority	= 0
 };
 #endif
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/* for netdump / net console */
-static void igb_netpoll(struct net_device *);
-#endif
 #ifdef CONFIG_PCI_IOV
 static unsigned int max_vfs;
 module_param(max_vfs, uint, 0);
@@ -243,7 +239,7 @@ static struct pci_driver igb_driver = {
 
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Ethernet Network Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
@@ -2881,9 +2877,6 @@ static const struct net_device_ops igb_netdev_ops = {
 	.ndo_set_vf_spoofchk	= igb_ndo_set_vf_spoofchk,
 	.ndo_set_vf_trust	= igb_ndo_set_vf_trust,
 	.ndo_get_vf_config	= igb_ndo_get_vf_config,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= igb_netpoll,
-#endif
 	.ndo_fix_features	= igb_fix_features,
 	.ndo_set_features	= igb_set_features,
 	.ndo_fdb_add		= igb_ndo_fdb_add,
@@ -3873,7 +3866,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 
 	adapter->mac_table = kcalloc(hw->mac.rar_entry_count,
 				     sizeof(struct igb_mac_addr),
-				     GFP_ATOMIC);
+				     GFP_KERNEL);
 	if (!adapter->mac_table)
 		return -ENOMEM;
 
@@ -3883,7 +3876,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 
 	/* Setup and initialize a copy of the hw vlan table array */
 	adapter->shadow_vfta = kcalloc(E1000_VLAN_FILTER_TBL_SIZE, sizeof(u32),
-				       GFP_ATOMIC);
+				       GFP_KERNEL);
 	if (!adapter->shadow_vfta)
 		return -ENOMEM;
 
@@ -5816,7 +5809,8 @@ static void igb_tx_csum(struct igb_ring *tx_ring, struct igb_tx_buffer *first)
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 csum_failed:
-		if (!(first->tx_flags & IGB_TX_FLAGS_VLAN))
+		if (!(first->tx_flags & IGB_TX_FLAGS_VLAN) &&
+		    !tx_ring->launchtime_enable)
 			return;
 		goto no_csum;
 	}
@@ -9052,29 +9046,6 @@ static int igb_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
 	return 0;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/* Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
- * the interrupt routine is executing.
- */
-static void igb_netpoll(struct net_device *netdev)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
-	struct igb_q_vector *q_vector;
-	int i;
-
-	for (i = 0; i < adapter->num_q_vectors; i++) {
-		q_vector = adapter->q_vector[i];
-		if (adapter->flags & IGB_FLAG_HAS_MSIX)
-			wr32(E1000_EIMC, q_vector->eims_value);
-		else
-			igb_irq_disable(adapter);
-		napi_schedule(&q_vector->napi);
-	}
-}
-#endif /* CONFIG_NET_POLL_CONTROLLER */
-
 /**
  *  igb_io_error_detected - called when PCI error is detected
  *  @pdev: Pointer to PCI device
@@ -9115,7 +9086,6 @@ static pci_ers_result_t igb_io_slot_reset(struct pci_dev *pdev)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	pci_ers_result_t result;
-	int err;
 
 	if (pci_enable_device_mem(pdev)) {
 		dev_err(&pdev->dev,
@@ -9137,14 +9107,6 @@ static pci_ers_result_t igb_io_slot_reset(struct pci_dev *pdev)
 		igb_reset(adapter);
 		wr32(E1000_WUS, ~0);
 		result = PCI_ERS_RESULT_RECOVERED;
-	}
-
-	err = pci_cleanup_aer_uncorrect_error_status(pdev);
-	if (err) {
-		dev_err(&pdev->dev,
-			"pci_cleanup_aer_uncorrect_error_status failed 0x%0x\n",
-			err);
-		/* non-fatal, continue */
 	}
 
 	return result;

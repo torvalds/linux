@@ -54,7 +54,7 @@ static const struct always_present_id always_present_ids[] = {
 	 * Bay / Cherry Trail PWM directly poked by GPU driver in win10,
 	 * but Linux uses a separate PWM driver, harmless if not used.
 	 */
-	ENTRY("80860F09", "1", ICPU(INTEL_FAM6_ATOM_SILVERMONT1), {}),
+	ENTRY("80860F09", "1", ICPU(INTEL_FAM6_ATOM_SILVERMONT), {}),
 	ENTRY("80862288", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {}),
 	/*
 	 * The INT0002 device is necessary to clear wakeup interrupt sources

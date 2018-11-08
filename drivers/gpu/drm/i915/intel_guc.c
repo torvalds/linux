@@ -27,8 +27,6 @@
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
 
-static void guc_init_ggtt_pin_bias(struct intel_guc *guc);
-
 static void gen8_guc_raise_irq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -128,21 +126,21 @@ static int guc_init_wq(struct intel_guc *guc)
 
 static void guc_fini_wq(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct workqueue_struct *wq;
 
-	if (HAS_LOGICAL_RING_PREEMPTION(dev_priv) &&
-	    USES_GUC_SUBMISSION(dev_priv))
-		destroy_workqueue(guc->preempt_wq);
+	wq = fetch_and_zero(&guc->preempt_wq);
+	if (wq)
+		destroy_workqueue(wq);
 
-	destroy_workqueue(guc->log.relay.flush_wq);
+	wq = fetch_and_zero(&guc->log.relay.flush_wq);
+	if (wq)
+		destroy_workqueue(wq);
 }
 
 int intel_guc_init_misc(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_i915(guc);
 	int ret;
-
-	guc_init_ggtt_pin_bias(guc);
 
 	ret = guc_init_wq(guc);
 	if (ret)
@@ -170,7 +168,7 @@ static int guc_shared_data_create(struct intel_guc *guc)
 
 	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
-		i915_vma_unpin_and_release(&vma);
+		i915_vma_unpin_and_release(&vma, 0);
 		return PTR_ERR(vaddr);
 	}
 
@@ -182,8 +180,7 @@ static int guc_shared_data_create(struct intel_guc *guc)
 
 static void guc_shared_data_destroy(struct intel_guc *guc)
 {
-	i915_gem_object_unpin_map(guc->shared_data->obj);
-	i915_vma_unpin_and_release(&guc->shared_data);
+	i915_vma_unpin_and_release(&guc->shared_data, I915_VMA_RELEASE_MAP);
 }
 
 int intel_guc_init(struct intel_guc *guc)
@@ -584,51 +581,26 @@ int intel_guc_resume(struct intel_guc *guc)
  *
  * ::
  *
- *     +==============> +====================+ <== GUC_GGTT_TOP
- *     ^                |                    |
- *     |                |                    |
- *     |                |        DRAM        |
- *     |                |       Memory       |
- *     |                |                    |
- *    GuC               |                    |
- *  Address  +========> +====================+ <== WOPCM Top
- *   Space   ^          |   HW contexts RSVD |
- *     |     |          |        WOPCM       |
- *     |     |     +==> +--------------------+ <== GuC WOPCM Top
- *     |    GuC    ^    |                    |
- *     |    GGTT   |    |                    |
- *     |    Pin   GuC   |        GuC         |
- *     |    Bias WOPCM  |       WOPCM        |
- *     |     |    Size  |                    |
- *     |     |     |    |                    |
- *     v     v     v    |                    |
- *     +=====+=====+==> +====================+ <== GuC WOPCM Base
- *                      |   Non-GuC WOPCM    |
- *                      |   (HuC/Reserved)   |
- *                      +====================+ <== WOPCM Base
+ *     +===========> +====================+ <== FFFF_FFFF
+ *     ^             |      Reserved      |
+ *     |             +====================+ <== GUC_GGTT_TOP
+ *     |             |                    |
+ *     |             |        DRAM        |
+ *    GuC            |                    |
+ *  Address    +===> +====================+ <== GuC ggtt_pin_bias
+ *   Space     ^     |                    |
+ *     |       |     |                    |
+ *     |      GuC    |        GuC         |
+ *     |     WOPCM   |       WOPCM        |
+ *     |      Size   |                    |
+ *     |       |     |                    |
+ *     v       v     |                    |
+ *     +=======+===> +====================+ <== 0000_0000
  *
- * The lower part of GuC Address Space [0, ggtt_pin_bias) is mapped to WOPCM
+ * The lower part of GuC Address Space [0, ggtt_pin_bias) is mapped to GuC WOPCM
  * while upper part of GuC Address Space [ggtt_pin_bias, GUC_GGTT_TOP) is mapped
- * to DRAM. The value of the GuC ggtt_pin_bias is determined by WOPCM size and
- * actual GuC WOPCM size.
+ * to DRAM. The value of the GuC ggtt_pin_bias is the GuC WOPCM size.
  */
-
-/**
- * guc_init_ggtt_pin_bias() - Initialize the GuC ggtt_pin_bias value.
- * @guc: intel_guc structure.
- *
- * This function will calculate and initialize the ggtt_pin_bias value based on
- * overall WOPCM size and GuC WOPCM size.
- */
-static void guc_init_ggtt_pin_bias(struct intel_guc *guc)
-{
-	struct drm_i915_private *i915 = guc_to_i915(guc);
-
-	GEM_BUG_ON(!i915->wopcm.size);
-	GEM_BUG_ON(i915->wopcm.size < i915->wopcm.guc.base);
-
-	guc->ggtt_pin_bias = i915->wopcm.size - i915->wopcm.guc.base;
-}
 
 /**
  * intel_guc_allocate_vma() - Allocate a GGTT VMA for GuC usage
@@ -648,6 +620,7 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
+	u64 flags;
 	int ret;
 
 	obj = i915_gem_object_create(dev_priv, size);
@@ -658,8 +631,8 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 	if (IS_ERR(vma))
 		goto err;
 
-	ret = i915_vma_pin(vma, 0, PAGE_SIZE,
-			   PIN_GLOBAL | PIN_OFFSET_BIAS | guc->ggtt_pin_bias);
+	flags = PIN_GLOBAL | PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
+	ret = i915_vma_pin(vma, 0, 0, flags);
 	if (ret) {
 		vma = ERR_PTR(ret);
 		goto err;
@@ -670,4 +643,21 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 err:
 	i915_gem_object_put(obj);
 	return vma;
+}
+
+/**
+ * intel_guc_reserved_gtt_size()
+ * @guc:	intel_guc structure
+ *
+ * The GuC WOPCM mapping shadows the lower part of the GGTT, so if we are using
+ * GuC we can't have any objects pinned in that region. This function returns
+ * the size of the shadowed region.
+ *
+ * Returns:
+ * 0 if GuC is not present or not in use.
+ * Otherwise, the GuC WOPCM size.
+ */
+u32 intel_guc_reserved_gtt_size(struct intel_guc *guc)
+{
+	return guc_to_i915(guc)->wopcm.guc.size;
 }

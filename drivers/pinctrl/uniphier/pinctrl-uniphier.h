@@ -16,7 +16,7 @@
 #ifndef __PINCTRL_UNIPHIER_H__
 #define __PINCTRL_UNIPHIER_H__
 
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/build_bug.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

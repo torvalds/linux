@@ -80,7 +80,186 @@
 
 	vzr		.req	v13
 
-ENTRY(crc_t10dif_pmull)
+	ad		.req	v14
+	bd		.req	v10
+
+	k00_16		.req	v15
+	k32_48		.req	v16
+
+	t3		.req	v17
+	t4		.req	v18
+	t5		.req	v19
+	t6		.req	v20
+	t7		.req	v21
+	t8		.req	v22
+	t9		.req	v23
+
+	perm1		.req	v24
+	perm2		.req	v25
+	perm3		.req	v26
+	perm4		.req	v27
+
+	bd1		.req	v28
+	bd2		.req	v29
+	bd3		.req	v30
+	bd4		.req	v31
+
+	.macro		__pmull_init_p64
+	.endm
+
+	.macro		__pmull_pre_p64, bd
+	.endm
+
+	.macro		__pmull_init_p8
+	// k00_16 := 0x0000000000000000_000000000000ffff
+	// k32_48 := 0x00000000ffffffff_0000ffffffffffff
+	movi		k32_48.2d, #0xffffffff
+	mov		k32_48.h[2], k32_48.h[0]
+	ushr		k00_16.2d, k32_48.2d, #32
+
+	// prepare the permutation vectors
+	mov_q		x5, 0x080f0e0d0c0b0a09
+	movi		perm4.8b, #8
+	dup		perm1.2d, x5
+	eor		perm1.16b, perm1.16b, perm4.16b
+	ushr		perm2.2d, perm1.2d, #8
+	ushr		perm3.2d, perm1.2d, #16
+	ushr		perm4.2d, perm1.2d, #24
+	sli		perm2.2d, perm1.2d, #56
+	sli		perm3.2d, perm1.2d, #48
+	sli		perm4.2d, perm1.2d, #40
+	.endm
+
+	.macro		__pmull_pre_p8, bd
+	tbl		bd1.16b, {\bd\().16b}, perm1.16b
+	tbl		bd2.16b, {\bd\().16b}, perm2.16b
+	tbl		bd3.16b, {\bd\().16b}, perm3.16b
+	tbl		bd4.16b, {\bd\().16b}, perm4.16b
+	.endm
+
+__pmull_p8_core:
+.L__pmull_p8_core:
+	ext		t4.8b, ad.8b, ad.8b, #1			// A1
+	ext		t5.8b, ad.8b, ad.8b, #2			// A2
+	ext		t6.8b, ad.8b, ad.8b, #3			// A3
+
+	pmull		t4.8h, t4.8b, bd.8b			// F = A1*B
+	pmull		t8.8h, ad.8b, bd1.8b			// E = A*B1
+	pmull		t5.8h, t5.8b, bd.8b			// H = A2*B
+	pmull		t7.8h, ad.8b, bd2.8b			// G = A*B2
+	pmull		t6.8h, t6.8b, bd.8b			// J = A3*B
+	pmull		t9.8h, ad.8b, bd3.8b			// I = A*B3
+	pmull		t3.8h, ad.8b, bd4.8b			// K = A*B4
+	b		0f
+
+.L__pmull_p8_core2:
+	tbl		t4.16b, {ad.16b}, perm1.16b		// A1
+	tbl		t5.16b, {ad.16b}, perm2.16b		// A2
+	tbl		t6.16b, {ad.16b}, perm3.16b		// A3
+
+	pmull2		t4.8h, t4.16b, bd.16b			// F = A1*B
+	pmull2		t8.8h, ad.16b, bd1.16b			// E = A*B1
+	pmull2		t5.8h, t5.16b, bd.16b			// H = A2*B
+	pmull2		t7.8h, ad.16b, bd2.16b			// G = A*B2
+	pmull2		t6.8h, t6.16b, bd.16b			// J = A3*B
+	pmull2		t9.8h, ad.16b, bd3.16b			// I = A*B3
+	pmull2		t3.8h, ad.16b, bd4.16b			// K = A*B4
+
+0:	eor		t4.16b, t4.16b, t8.16b			// L = E + F
+	eor		t5.16b, t5.16b, t7.16b			// M = G + H
+	eor		t6.16b, t6.16b, t9.16b			// N = I + J
+
+	uzp1		t8.2d, t4.2d, t5.2d
+	uzp2		t4.2d, t4.2d, t5.2d
+	uzp1		t7.2d, t6.2d, t3.2d
+	uzp2		t6.2d, t6.2d, t3.2d
+
+	// t4 = (L) (P0 + P1) << 8
+	// t5 = (M) (P2 + P3) << 16
+	eor		t8.16b, t8.16b, t4.16b
+	and		t4.16b, t4.16b, k32_48.16b
+
+	// t6 = (N) (P4 + P5) << 24
+	// t7 = (K) (P6 + P7) << 32
+	eor		t7.16b, t7.16b, t6.16b
+	and		t6.16b, t6.16b, k00_16.16b
+
+	eor		t8.16b, t8.16b, t4.16b
+	eor		t7.16b, t7.16b, t6.16b
+
+	zip2		t5.2d, t8.2d, t4.2d
+	zip1		t4.2d, t8.2d, t4.2d
+	zip2		t3.2d, t7.2d, t6.2d
+	zip1		t6.2d, t7.2d, t6.2d
+
+	ext		t4.16b, t4.16b, t4.16b, #15
+	ext		t5.16b, t5.16b, t5.16b, #14
+	ext		t6.16b, t6.16b, t6.16b, #13
+	ext		t3.16b, t3.16b, t3.16b, #12
+
+	eor		t4.16b, t4.16b, t5.16b
+	eor		t6.16b, t6.16b, t3.16b
+	ret
+ENDPROC(__pmull_p8_core)
+
+	.macro		__pmull_p8, rq, ad, bd, i
+	.ifnc		\bd, v10
+	.err
+	.endif
+	mov		ad.16b, \ad\().16b
+	.ifb		\i
+	pmull		\rq\().8h, \ad\().8b, bd.8b		// D = A*B
+	.else
+	pmull2		\rq\().8h, \ad\().16b, bd.16b		// D = A*B
+	.endif
+
+	bl		.L__pmull_p8_core\i
+
+	eor		\rq\().16b, \rq\().16b, t4.16b
+	eor		\rq\().16b, \rq\().16b, t6.16b
+	.endm
+
+	.macro		fold64, p, reg1, reg2
+	ldp		q11, q12, [arg2], #0x20
+
+	__pmull_\p	v8, \reg1, v10, 2
+	__pmull_\p	\reg1, \reg1, v10
+
+CPU_LE(	rev64		v11.16b, v11.16b		)
+CPU_LE(	rev64		v12.16b, v12.16b		)
+
+	__pmull_\p	v9, \reg2, v10, 2
+	__pmull_\p	\reg2, \reg2, v10
+
+CPU_LE(	ext		v11.16b, v11.16b, v11.16b, #8	)
+CPU_LE(	ext		v12.16b, v12.16b, v12.16b, #8	)
+
+	eor		\reg1\().16b, \reg1\().16b, v8.16b
+	eor		\reg2\().16b, \reg2\().16b, v9.16b
+	eor		\reg1\().16b, \reg1\().16b, v11.16b
+	eor		\reg2\().16b, \reg2\().16b, v12.16b
+	.endm
+
+	.macro		fold16, p, reg, rk
+	__pmull_\p	v8, \reg, v10
+	__pmull_\p	\reg, \reg, v10, 2
+	.ifnb		\rk
+	ldr_l		q10, \rk, x8
+	__pmull_pre_\p	v10
+	.endif
+	eor		v7.16b, v7.16b, v8.16b
+	eor		v7.16b, v7.16b, \reg\().16b
+	.endm
+
+	.macro		__pmull_p64, rd, rn, rm, n
+	.ifb		\n
+	pmull		\rd\().1q, \rn\().1d, \rm\().1d
+	.else
+	pmull2		\rd\().1q, \rn\().2d, \rm\().2d
+	.endif
+	.endm
+
+	.macro		crc_t10dif_pmull, p
 	frame_push	3, 128
 
 	mov		arg1_low32, w0
@@ -89,6 +268,8 @@ ENTRY(crc_t10dif_pmull)
 
 	movi		vzr.16b, #0		// init zero register
 
+	__pmull_init_\p
+
 	// adjust the 16-bit initial_crc value, scale it to 32 bits
 	lsl		arg1_low32, arg1_low32, #16
 
@@ -96,7 +277,7 @@ ENTRY(crc_t10dif_pmull)
 	cmp		arg3, #256
 
 	// for sizes less than 128, we can't fold 64B at a time...
-	b.lt		_less_than_128
+	b.lt		.L_less_than_128_\@
 
 	// load the initial crc value
 	// crc value does not need to be byte-reflected, but it needs
@@ -137,6 +318,7 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 	ldr_l		q10, rk3, x8	// xmm10 has rk3 and rk4
 					// type of pmull instruction
 					// will determine which constant to use
+	__pmull_pre_\p	v10
 
 	//
 	// we subtract 256 instead of 128 to save one instruction from the loop
@@ -147,41 +329,19 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 	// buffer. The _fold_64_B_loop will fold 64B at a time
 	// until we have 64+y Bytes of buffer
 
-
 	// fold 64B at a time. This section of the code folds 4 vector
 	// registers in parallel
-_fold_64_B_loop:
+.L_fold_64_B_loop_\@:
 
-	.macro		fold64, reg1, reg2
-	ldp		q11, q12, [arg2], #0x20
-
-	pmull2		v8.1q, \reg1\().2d, v10.2d
-	pmull		\reg1\().1q, \reg1\().1d, v10.1d
-
-CPU_LE(	rev64		v11.16b, v11.16b		)
-CPU_LE(	rev64		v12.16b, v12.16b		)
-
-	pmull2		v9.1q, \reg2\().2d, v10.2d
-	pmull		\reg2\().1q, \reg2\().1d, v10.1d
-
-CPU_LE(	ext		v11.16b, v11.16b, v11.16b, #8	)
-CPU_LE(	ext		v12.16b, v12.16b, v12.16b, #8	)
-
-	eor		\reg1\().16b, \reg1\().16b, v8.16b
-	eor		\reg2\().16b, \reg2\().16b, v9.16b
-	eor		\reg1\().16b, \reg1\().16b, v11.16b
-	eor		\reg2\().16b, \reg2\().16b, v12.16b
-	.endm
-
-	fold64		v0, v1
-	fold64		v2, v3
-	fold64		v4, v5
-	fold64		v6, v7
+	fold64		\p, v0, v1
+	fold64		\p, v2, v3
+	fold64		\p, v4, v5
+	fold64		\p, v6, v7
 
 	subs		arg3, arg3, #128
 
 	// check if there is another 64B in the buffer to be able to fold
-	b.lt		_fold_64_B_end
+	b.lt		.L_fold_64_B_end_\@
 
 	if_will_cond_yield_neon
 	stp		q0, q1, [sp, #.Lframe_local_offset]
@@ -195,11 +355,13 @@ CPU_LE(	ext		v12.16b, v12.16b, v12.16b, #8	)
 	ldp		q6, q7, [sp, #.Lframe_local_offset + 96]
 	ldr_l		q10, rk3, x8
 	movi		vzr.16b, #0		// init zero register
+	__pmull_init_\p
+	__pmull_pre_\p	v10
 	endif_yield_neon
 
-	b		_fold_64_B_loop
+	b		.L_fold_64_B_loop_\@
 
-_fold_64_B_end:
+.L_fold_64_B_end_\@:
 	// at this point, the buffer pointer is pointing at the last y Bytes
 	// of the buffer the 64B of folded data is in 4 of the vector
 	// registers: v0, v1, v2, v3
@@ -208,38 +370,29 @@ _fold_64_B_end:
 	// constants
 
 	ldr_l		q10, rk9, x8
+	__pmull_pre_\p	v10
 
-	.macro		fold16, reg, rk
-	pmull		v8.1q, \reg\().1d, v10.1d
-	pmull2		\reg\().1q, \reg\().2d, v10.2d
-	.ifnb		\rk
-	ldr_l		q10, \rk, x8
-	.endif
-	eor		v7.16b, v7.16b, v8.16b
-	eor		v7.16b, v7.16b, \reg\().16b
-	.endm
-
-	fold16		v0, rk11
-	fold16		v1, rk13
-	fold16		v2, rk15
-	fold16		v3, rk17
-	fold16		v4, rk19
-	fold16		v5, rk1
-	fold16		v6
+	fold16		\p, v0, rk11
+	fold16		\p, v1, rk13
+	fold16		\p, v2, rk15
+	fold16		\p, v3, rk17
+	fold16		\p, v4, rk19
+	fold16		\p, v5, rk1
+	fold16		\p, v6
 
 	// instead of 64, we add 48 to the loop counter to save 1 instruction
 	// from the loop instead of a cmp instruction, we use the negative
 	// flag with the jl instruction
 	adds		arg3, arg3, #(128-16)
-	b.lt		_final_reduction_for_128
+	b.lt		.L_final_reduction_for_128_\@
 
 	// now we have 16+y bytes left to reduce. 16 Bytes is in register v7
 	// and the rest is in memory. We can fold 16 bytes at a time if y>=16
 	// continue folding 16B at a time
 
-_16B_reduction_loop:
-	pmull		v8.1q, v7.1d, v10.1d
-	pmull2		v7.1q, v7.2d, v10.2d
+.L_16B_reduction_loop_\@:
+	__pmull_\p	v8, v7, v10
+	__pmull_\p	v7, v7, v10, 2
 	eor		v7.16b, v7.16b, v8.16b
 
 	ldr		q0, [arg2], #16
@@ -251,22 +404,22 @@ CPU_LE(	ext		v0.16b, v0.16b, v0.16b, #8	)
 	// instead of a cmp instruction, we utilize the flags with the
 	// jge instruction equivalent of: cmp arg3, 16-16
 	// check if there is any more 16B in the buffer to be able to fold
-	b.ge		_16B_reduction_loop
+	b.ge		.L_16B_reduction_loop_\@
 
 	// now we have 16+z bytes left to reduce, where 0<= z < 16.
 	// first, we reduce the data in the xmm7 register
 
-_final_reduction_for_128:
+.L_final_reduction_for_128_\@:
 	// check if any more data to fold. If not, compute the CRC of
 	// the final 128 bits
 	adds		arg3, arg3, #16
-	b.eq		_128_done
+	b.eq		.L_128_done_\@
 
 	// here we are getting data that is less than 16 bytes.
 	// since we know that there was data before the pointer, we can
 	// offset the input pointer before the actual point, to receive
 	// exactly 16 bytes. after that the registers need to be adjusted.
-_get_last_two_regs:
+.L_get_last_two_regs_\@:
 	add		arg2, arg2, arg3
 	ldr		q1, [arg2, #-16]
 CPU_LE(	rev64		v1.16b, v1.16b			)
@@ -291,47 +444,48 @@ CPU_LE(	ext		v1.16b, v1.16b, v1.16b, #8	)
 	bsl		v0.16b, v2.16b, v1.16b
 
 	// fold 16 Bytes
-	pmull		v8.1q, v7.1d, v10.1d
-	pmull2		v7.1q, v7.2d, v10.2d
+	__pmull_\p	v8, v7, v10
+	__pmull_\p	v7, v7, v10, 2
 	eor		v7.16b, v7.16b, v8.16b
 	eor		v7.16b, v7.16b, v0.16b
 
-_128_done:
+.L_128_done_\@:
 	// compute crc of a 128-bit value
 	ldr_l		q10, rk5, x8		// rk5 and rk6 in xmm10
+	__pmull_pre_\p	v10
 
 	// 64b fold
 	ext		v0.16b, vzr.16b, v7.16b, #8
 	mov		v7.d[0], v7.d[1]
-	pmull		v7.1q, v7.1d, v10.1d
+	__pmull_\p	v7, v7, v10
 	eor		v7.16b, v7.16b, v0.16b
 
 	// 32b fold
 	ext		v0.16b, v7.16b, vzr.16b, #4
 	mov		v7.s[3], vzr.s[0]
-	pmull2		v0.1q, v0.2d, v10.2d
+	__pmull_\p	v0, v0, v10, 2
 	eor		v7.16b, v7.16b, v0.16b
 
 	// barrett reduction
-_barrett:
 	ldr_l		q10, rk7, x8
+	__pmull_pre_\p	v10
 	mov		v0.d[0], v7.d[1]
 
-	pmull		v0.1q, v0.1d, v10.1d
+	__pmull_\p	v0, v0, v10
 	ext		v0.16b, vzr.16b, v0.16b, #12
-	pmull2		v0.1q, v0.2d, v10.2d
+	__pmull_\p	v0, v0, v10, 2
 	ext		v0.16b, vzr.16b, v0.16b, #12
 	eor		v7.16b, v7.16b, v0.16b
 	mov		w0, v7.s[1]
 
-_cleanup:
+.L_cleanup_\@:
 	// scale the result back to 16 bits
 	lsr		x0, x0, #16
 	frame_pop
 	ret
 
-_less_than_128:
-	cbz		arg3, _cleanup
+.L_less_than_128_\@:
+	cbz		arg3, .L_cleanup_\@
 
 	movi		v0.16b, #0
 	mov		v0.s[3], arg1_low32	// get the initial crc value
@@ -342,20 +496,21 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 	eor		v7.16b, v7.16b, v0.16b	// xor the initial crc value
 
 	cmp		arg3, #16
-	b.eq		_128_done		// exactly 16 left
-	b.lt		_less_than_16_left
+	b.eq		.L_128_done_\@		// exactly 16 left
+	b.lt		.L_less_than_16_left_\@
 
 	ldr_l		q10, rk1, x8		// rk1 and rk2 in xmm10
+	__pmull_pre_\p	v10
 
 	// update the counter. subtract 32 instead of 16 to save one
 	// instruction from the loop
 	subs		arg3, arg3, #32
-	b.ge		_16B_reduction_loop
+	b.ge		.L_16B_reduction_loop_\@
 
 	add		arg3, arg3, #16
-	b		_get_last_two_regs
+	b		.L_get_last_two_regs_\@
 
-_less_than_16_left:
+.L_less_than_16_left_\@:
 	// shl r9, 4
 	adr_l		x0, tbl_shf_table + 16
 	sub		x0, x0, arg3
@@ -363,8 +518,17 @@ _less_than_16_left:
 	movi		v9.16b, #0x80
 	eor		v0.16b, v0.16b, v9.16b
 	tbl		v7.16b, {v7.16b}, v0.16b
-	b		_128_done
-ENDPROC(crc_t10dif_pmull)
+	b		.L_128_done_\@
+	.endm
+
+ENTRY(crc_t10dif_pmull_p8)
+	crc_t10dif_pmull	p8
+ENDPROC(crc_t10dif_pmull_p8)
+
+	.align		5
+ENTRY(crc_t10dif_pmull_p64)
+	crc_t10dif_pmull	p64
+ENDPROC(crc_t10dif_pmull_p64)
 
 // precomputed constants
 // these constants are precomputed from the poly:

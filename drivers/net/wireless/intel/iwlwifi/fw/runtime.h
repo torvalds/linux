@@ -71,6 +71,7 @@ struct iwl_fw_runtime_ops {
 	int (*dump_start)(void *ctx);
 	void (*dump_end)(void *ctx);
 	bool (*fw_running)(void *ctx);
+	int (*send_hcmd)(void *ctx, struct iwl_host_cmd *host_cmd);
 };
 
 #define MAX_NUM_LMAC 2
@@ -88,6 +89,7 @@ struct iwl_fwrt_shared_mem_cfg {
 
 enum iwl_fw_runtime_status {
 	IWL_FWRT_STATUS_DUMPING = 0,
+	IWL_FWRT_STATUS_WAIT_ALIVE,
 };
 
 /**
@@ -136,6 +138,7 @@ struct iwl_fw_runtime {
 
 		/* ts of the beginning of a non-collect fw dbg data period */
 		unsigned long non_collect_ts_start[FW_DBG_TRIGGER_MAX - 1];
+		u32 *d3_debug_data;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {

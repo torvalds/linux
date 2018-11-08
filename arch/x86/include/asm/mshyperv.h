@@ -351,6 +351,8 @@ int hyperv_flush_guest_mapping(u64 as);
 
 #ifdef CONFIG_X86_64
 void hv_apic_init(void);
+void __init hv_init_spinlocks(void);
+bool hv_vcpu_is_preempted(int vcpu);
 #else
 static inline void hv_apic_init(void) {}
 #endif

@@ -56,6 +56,10 @@ static const u8 pci_cfg_space_rw_bmp[PCI_INTERRUPT_LINE + 4] = {
 
 /**
  * vgpu_pci_cfg_mem_write - write virtual cfg space memory
+ * @vgpu: target vgpu
+ * @off: offset
+ * @src: src ptr to write
+ * @bytes: number of bytes
  *
  * Use this function to write virtual cfg space memory.
  * For standard cfg space, only RW bits can be changed,
@@ -91,6 +95,10 @@ static void vgpu_pci_cfg_mem_write(struct intel_vgpu *vgpu, unsigned int off,
 
 /**
  * intel_vgpu_emulate_cfg_read - emulate vGPU configuration space read
+ * @vgpu: target vgpu
+ * @offset: offset
+ * @p_data: return data ptr
+ * @bytes: number of bytes to read
  *
  * Returns:
  * Zero on success, negative error code if failed.
@@ -278,6 +286,10 @@ static int emulate_pci_bar_write(struct intel_vgpu *vgpu, unsigned int offset,
 
 /**
  * intel_vgpu_emulate_cfg_read - emulate vGPU configuration space write
+ * @vgpu: target vgpu
+ * @offset: offset
+ * @p_data: write data ptr
+ * @bytes: number of bytes to write
  *
  * Returns:
  * Zero on success, negative error code if failed.

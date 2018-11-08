@@ -889,7 +889,7 @@ static const struct v4l2_subdev_ops tvp7002_ops = {
 static struct tvp7002_config *
 tvp7002_get_pdata(struct i2c_client *client)
 {
-	struct v4l2_fwnode_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct tvp7002_config *pdata = NULL;
 	struct device_node *endpoint;
 	unsigned int flags;

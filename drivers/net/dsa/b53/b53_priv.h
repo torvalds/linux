@@ -29,6 +29,7 @@
 
 struct b53_device;
 struct net_device;
+struct phylink_link_state;
 
 struct b53_io_ops {
 	int (*read8)(struct b53_device *dev, u8 page, u8 reg, u8 *value);
@@ -43,7 +44,24 @@ struct b53_io_ops {
 	int (*write64)(struct b53_device *dev, u8 page, u8 reg, u64 value);
 	int (*phy_read16)(struct b53_device *dev, int addr, int reg, u16 *value);
 	int (*phy_write16)(struct b53_device *dev, int addr, int reg, u16 value);
+	int (*irq_enable)(struct b53_device *dev, int port);
+	void (*irq_disable)(struct b53_device *dev, int port);
+	u8 (*serdes_map_lane)(struct b53_device *dev, int port);
+	int (*serdes_link_state)(struct b53_device *dev, int port,
+				 struct phylink_link_state *state);
+	void (*serdes_config)(struct b53_device *dev, int port,
+			      unsigned int mode,
+			      const struct phylink_link_state *state);
+	void (*serdes_an_restart)(struct b53_device *dev, int port);
+	void (*serdes_link_set)(struct b53_device *dev, int port,
+				unsigned int mode, phy_interface_t interface,
+				bool link_up);
+	void (*serdes_phylink_validate)(struct b53_device *dev, int port,
+					unsigned long *supported,
+					struct phylink_link_state *state);
 };
+
+#define B53_INVALID_LANE	0xff
 
 enum {
 	BCM5325_DEVICE_ID = 0x25,
@@ -107,6 +125,7 @@ struct b53_device {
 	/* connect specific data */
 	u8 current_page;
 	struct device *dev;
+	u8 serdes_lane;
 
 	/* Master MDIO bus we got probed from */
 	struct mii_bus *bus;
@@ -298,6 +317,23 @@ int b53_br_join(struct dsa_switch *ds, int port, struct net_device *bridge);
 void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *bridge);
 void b53_br_set_stp_state(struct dsa_switch *ds, int port, u8 state);
 void b53_br_fast_age(struct dsa_switch *ds, int port);
+void b53_port_event(struct dsa_switch *ds, int port);
+void b53_phylink_validate(struct dsa_switch *ds, int port,
+			  unsigned long *supported,
+			  struct phylink_link_state *state);
+int b53_phylink_mac_link_state(struct dsa_switch *ds, int port,
+			       struct phylink_link_state *state);
+void b53_phylink_mac_config(struct dsa_switch *ds, int port,
+			    unsigned int mode,
+			    const struct phylink_link_state *state);
+void b53_phylink_mac_an_restart(struct dsa_switch *ds, int port);
+void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
+			       unsigned int mode,
+			       phy_interface_t interface);
+void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
+			     unsigned int mode,
+			     phy_interface_t interface,
+			     struct phy_device *phydev);
 int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering);
 int b53_vlan_prepare(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_vlan *vlan);

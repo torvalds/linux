@@ -465,8 +465,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 static void bcm_sf2_mdio_unregister(struct bcm_sf2_priv *priv)
 {
 	mdiobus_unregister(priv->slave_mii_bus);
-	if (priv->master_mii_dn)
-		of_node_put(priv->master_mii_dn);
+	of_node_put(priv->master_mii_dn);
 }
 
 static u32 bcm_sf2_sw_get_phy_flags(struct dsa_switch *ds, int port)
@@ -703,7 +702,6 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	unsigned int port;
 	int ret;
 
 	ret = bcm_sf2_sw_rst(priv);
@@ -715,14 +713,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 	if (priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(ds, true);
 
-	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if (dsa_is_user_port(ds, port))
-			bcm_sf2_port_setup(ds, port, NULL);
-		else if (dsa_is_cpu_port(ds, port))
-			bcm_sf2_imp_setup(ds, port);
-	}
-
-	bcm_sf2_enable_acb(ds);
+	ds->ops->setup(ds);
 
 	return 0;
 }
@@ -1173,10 +1164,10 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 {
 	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
 
-	/* Disable all ports and interrupts */
 	priv->wol_ports_mask = 0;
-	bcm_sf2_sw_suspend(priv->dev->ds);
 	dsa_unregister_switch(priv->dev->ds);
+	/* Disable all ports and interrupts */
+	bcm_sf2_sw_suspend(priv->dev->ds);
 	bcm_sf2_mdio_unregister(priv);
 
 	return 0;
@@ -1199,16 +1190,14 @@ static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int bcm_sf2_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
+	struct bcm_sf2_priv *priv = dev_get_drvdata(dev);
 
 	return dsa_switch_suspend(priv->dev->ds);
 }
 
 static int bcm_sf2_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
+	struct bcm_sf2_priv *priv = dev_get_drvdata(dev);
 
 	return dsa_switch_resume(priv->dev->ds);
 }

@@ -72,7 +72,7 @@
 #define MLX4_EN_PAGE_SIZE	(1 << MLX4_EN_PAGE_SHIFT)
 #define DEF_RX_RINGS		16
 #define MAX_RX_RINGS		128
-#define MIN_RX_RINGS		4
+#define MIN_RX_RINGS		1
 #define LOG_TXBB_SIZE		6
 #define TXBB_SIZE		BIT(LOG_TXBB_SIZE)
 #define HEADROOM		(2048 / TXBB_SIZE + 1)

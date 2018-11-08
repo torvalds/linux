@@ -85,8 +85,8 @@ static int dwc3_byt_enable_ulpi_refclock(struct pci_dev *pci)
 	u32		value;
 
 	reg = pcim_iomap(pci, GP_RWBAR, 0);
-	if (IS_ERR(reg))
-		return PTR_ERR(reg);
+	if (!reg)
+		return -ENOMEM;
 
 	value = readl(reg + GP_RWREG1);
 	if (!(value & GP_RWREG1_ULPI_REFCLK_DISABLE))

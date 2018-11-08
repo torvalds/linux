@@ -116,9 +116,9 @@ struct tango_chip {
 
 #define TIMING(t0, t1, t2, t3) ((t0) << 24 | (t1) << 16 | (t2) << 8 | (t3))
 
-static void tango_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
+static void tango_cmd_ctrl(struct nand_chip *chip, int dat, unsigned int ctrl)
 {
-	struct tango_chip *tchip = to_tango_chip(mtd_to_nand(mtd));
+	struct tango_chip *tchip = to_tango_chip(chip);
 
 	if (ctrl & NAND_CLE)
 		writeb_relaxed(dat, tchip->base + PBUS_CMD);
@@ -127,38 +127,36 @@ static void tango_cmd_ctrl(struct mtd_info *mtd, int dat, unsigned int ctrl)
 		writeb_relaxed(dat, tchip->base + PBUS_ADDR);
 }
 
-static int tango_dev_ready(struct mtd_info *mtd)
+static int tango_dev_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
 
 	return readl_relaxed(nfc->pbus_base + PBUS_CS_CTRL) & PBUS_IORDY;
 }
 
-static u8 tango_read_byte(struct mtd_info *mtd)
+static u8 tango_read_byte(struct nand_chip *chip)
 {
-	struct tango_chip *tchip = to_tango_chip(mtd_to_nand(mtd));
+	struct tango_chip *tchip = to_tango_chip(chip);
 
 	return readb_relaxed(tchip->base + PBUS_DATA);
 }
 
-static void tango_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void tango_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
-	struct tango_chip *tchip = to_tango_chip(mtd_to_nand(mtd));
+	struct tango_chip *tchip = to_tango_chip(chip);
 
 	ioread8_rep(tchip->base + PBUS_DATA, buf, len);
 }
 
-static void tango_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
+static void tango_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 {
-	struct tango_chip *tchip = to_tango_chip(mtd_to_nand(mtd));
+	struct tango_chip *tchip = to_tango_chip(chip);
 
 	iowrite8_rep(tchip->base + PBUS_DATA, buf, len);
 }
 
-static void tango_select_chip(struct mtd_info *mtd, int idx)
+static void tango_select_chip(struct nand_chip *chip, int idx)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
 	struct tango_chip *tchip = to_tango_chip(chip);
 
@@ -277,14 +275,15 @@ dma_unmap:
 	return err;
 }
 
-static int tango_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			   u8 *buf, int oob_required, int page)
+static int tango_read_page(struct nand_chip *chip, u8 *buf,
+			   int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
 	int err, res, len = mtd->writesize;
 
 	if (oob_required)
-		chip->ecc.read_oob(mtd, chip, page);
+		chip->ecc.read_oob(chip, page);
 
 	err = do_dma(nfc, DMA_FROM_DEVICE, NFC_READ, buf, len, page);
 	if (err)
@@ -292,16 +291,17 @@ static int tango_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	res = decode_error_report(chip);
 	if (res < 0) {
-		chip->ecc.read_oob_raw(mtd, chip, page);
+		chip->ecc.read_oob_raw(chip, page);
 		res = check_erased_page(chip, buf);
 	}
 
 	return res;
 }
 
-static int tango_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			    const u8 *buf, int oob_required, int page)
+static int tango_write_page(struct nand_chip *chip, const u8 *buf,
+			    int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
 	int err, status, len = mtd->writesize;
 
@@ -314,7 +314,7 @@ static int tango_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	if (err)
 		return err;
 
-	status = chip->waitfunc(mtd, chip);
+	status = chip->legacy.waitfunc(chip);
 	if (status & NAND_STATUS_FAIL)
 		return -EIO;
 
@@ -323,30 +323,26 @@ static int tango_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 static void aux_read(struct nand_chip *chip, u8 **buf, int len, int *pos)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	*pos += len;
 
 	if (!*buf) {
 		/* skip over "len" bytes */
 		nand_change_read_column_op(chip, *pos, NULL, 0, false);
 	} else {
-		tango_read_buf(mtd, *buf, len);
+		tango_read_buf(chip, *buf, len);
 		*buf += len;
 	}
 }
 
 static void aux_write(struct nand_chip *chip, const u8 **buf, int len, int *pos)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	*pos += len;
 
 	if (!*buf) {
 		/* skip over "len" bytes */
 		nand_change_write_column_op(chip, *pos, NULL, 0, false);
 	} else {
-		tango_write_buf(mtd, *buf, len);
+		tango_write_buf(chip, *buf, len);
 		*buf += len;
 	}
 }
@@ -424,32 +420,30 @@ static void raw_write(struct nand_chip *chip, const u8 *buf, const u8 *oob)
 	aux_write(chip, &oob, ecc_size, &pos);
 }
 
-static int tango_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-			       u8 *buf, int oob_required, int page)
+static int tango_read_page_raw(struct nand_chip *chip, u8 *buf,
+			       int oob_required, int page)
 {
 	nand_read_page_op(chip, page, 0, NULL, 0);
 	raw_read(chip, buf, chip->oob_poi);
 	return 0;
 }
 
-static int tango_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				const u8 *buf, int oob_required, int page)
+static int tango_write_page_raw(struct nand_chip *chip, const u8 *buf,
+				int oob_required, int page)
 {
 	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	raw_write(chip, buf, chip->oob_poi);
 	return nand_prog_page_end_op(chip);
 }
 
-static int tango_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			  int page)
+static int tango_read_oob(struct nand_chip *chip, int page)
 {
 	nand_read_page_op(chip, page, 0, NULL, 0);
 	raw_read(chip, NULL, chip->oob_poi);
 	return 0;
 }
 
-static int tango_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			   int page)
+static int tango_write_oob(struct nand_chip *chip, int page)
 {
 	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	raw_write(chip, NULL, chip->oob_poi);
@@ -485,11 +479,10 @@ static u32 to_ticks(int kHz, int ps)
 	return DIV_ROUND_UP_ULL((u64)kHz * ps, NSEC_PER_SEC);
 }
 
-static int tango_set_timings(struct mtd_info *mtd, int csline,
+static int tango_set_timings(struct nand_chip *chip, int csline,
 			     const struct nand_data_interface *conf)
 {
 	const struct nand_sdr_timings *sdr = nand_get_sdr_timings(conf);
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
 	struct tango_chip *tchip = to_tango_chip(chip);
 	u32 Trdy, Textw, Twc, Twpw, Tacc, Thold, Trpw, Textr;
@@ -571,12 +564,12 @@ static int chip_init(struct device *dev, struct device_node *np)
 	ecc = &chip->ecc;
 	mtd = nand_to_mtd(chip);
 
-	chip->read_byte = tango_read_byte;
-	chip->write_buf = tango_write_buf;
-	chip->read_buf = tango_read_buf;
+	chip->legacy.read_byte = tango_read_byte;
+	chip->legacy.write_buf = tango_write_buf;
+	chip->legacy.read_buf = tango_read_buf;
 	chip->select_chip = tango_select_chip;
-	chip->cmd_ctrl = tango_cmd_ctrl;
-	chip->dev_ready = tango_dev_ready;
+	chip->legacy.cmd_ctrl = tango_cmd_ctrl;
+	chip->legacy.dev_ready = tango_dev_ready;
 	chip->setup_data_interface = tango_set_timings;
 	chip->options = NAND_USE_BOUNCE_BUFFER |
 			NAND_NO_SUBPAGE_WRITE |
@@ -588,7 +581,7 @@ static int chip_init(struct device *dev, struct device_node *np)
 	mtd_set_ooblayout(mtd, &tango_nand_ooblayout_ops);
 	mtd->dev.parent = dev;
 
-	err = nand_scan(mtd, 1);
+	err = nand_scan(chip, 1);
 	if (err)
 		return err;
 
@@ -617,7 +610,7 @@ static int tango_nand_remove(struct platform_device *pdev)
 
 	for (cs = 0; cs < MAX_CS; ++cs) {
 		if (nfc->chips[cs])
-			nand_release(nand_to_mtd(&nfc->chips[cs]->nand_chip));
+			nand_release(&nfc->chips[cs]->nand_chip);
 	}
 
 	return 0;

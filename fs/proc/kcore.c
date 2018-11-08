@@ -22,7 +22,7 @@
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/printk.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -464,6 +464,7 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 				ret = -EFAULT;
 				goto out;
 			}
+			m = NULL;	/* skip the list anchor */
 		} else if (m->type == KCORE_VMALLOC) {
 			vread(buf, (char *)start, tsz);
 			/* we have to zero-fill user buffer even if no read */

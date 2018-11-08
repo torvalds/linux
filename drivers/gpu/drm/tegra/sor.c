@@ -282,6 +282,85 @@ static const struct tegra_sor_hdmi_settings tegra186_sor_hdmi_defaults[] = {
 	}
 };
 
+static const struct tegra_sor_hdmi_settings tegra194_sor_hdmi_defaults[] = {
+	{
+		.frequency = 54000000,
+		.vcocap = 0,
+		.filter = 5,
+		.ichpmp = 5,
+		.loadadj = 3,
+		.tmds_termadj = 0xf,
+		.tx_pu_value = 0,
+		.bg_temp_coef = 3,
+		.bg_vref_level = 8,
+		.avdd10_level = 4,
+		.avdd14_level = 4,
+		.sparepll = 0x54,
+		.drive_current = { 0x3a, 0x3a, 0x3a, 0x33 },
+		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+	}, {
+		.frequency = 75000000,
+		.vcocap = 1,
+		.filter = 5,
+		.ichpmp = 5,
+		.loadadj = 3,
+		.tmds_termadj = 0xf,
+		.tx_pu_value = 0,
+		.bg_temp_coef = 3,
+		.bg_vref_level = 8,
+		.avdd10_level = 4,
+		.avdd14_level = 4,
+		.sparepll = 0x44,
+		.drive_current = { 0x3a, 0x3a, 0x3a, 0x33 },
+		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+	}, {
+		.frequency = 150000000,
+		.vcocap = 3,
+		.filter = 5,
+		.ichpmp = 5,
+		.loadadj = 3,
+		.tmds_termadj = 15,
+		.tx_pu_value = 0x66 /* 0 */,
+		.bg_temp_coef = 3,
+		.bg_vref_level = 8,
+		.avdd10_level = 4,
+		.avdd14_level = 4,
+		.sparepll = 0x00, /* 0x34 */
+		.drive_current = { 0x3a, 0x3a, 0x3a, 0x37 },
+		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+	}, {
+		.frequency = 300000000,
+		.vcocap = 3,
+		.filter = 5,
+		.ichpmp = 5,
+		.loadadj = 3,
+		.tmds_termadj = 15,
+		.tx_pu_value = 64,
+		.bg_temp_coef = 3,
+		.bg_vref_level = 8,
+		.avdd10_level = 4,
+		.avdd14_level = 4,
+		.sparepll = 0x34,
+		.drive_current = { 0x3d, 0x3d, 0x3d, 0x33 },
+		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+	}, {
+		.frequency = 600000000,
+		.vcocap = 3,
+		.filter = 5,
+		.ichpmp = 5,
+		.loadadj = 3,
+		.tmds_termadj = 12,
+		.tx_pu_value = 96,
+		.bg_temp_coef = 3,
+		.bg_vref_level = 8,
+		.avdd10_level = 4,
+		.avdd14_level = 4,
+		.sparepll = 0x34,
+		.drive_current = { 0x3d, 0x3d, 0x3d, 0x33 },
+		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+	}
+};
+
 struct tegra_sor_regs {
 	unsigned int head_state0;
 	unsigned int head_state1;
@@ -2894,7 +2973,38 @@ static const struct tegra_sor_soc tegra186_sor1 = {
 	.xbar_cfg = tegra124_sor_xbar_cfg,
 };
 
+static const struct tegra_sor_regs tegra194_sor_regs = {
+	.head_state0 = 0x151,
+	.head_state1 = 0x155,
+	.head_state2 = 0x159,
+	.head_state3 = 0x15d,
+	.head_state4 = 0x161,
+	.head_state5 = 0x165,
+	.pll0 = 0x169,
+	.pll1 = 0x16a,
+	.pll2 = 0x16b,
+	.pll3 = 0x16c,
+	.dp_padctl0 = 0x16e,
+	.dp_padctl2 = 0x16f,
+};
+
+static const struct tegra_sor_soc tegra194_sor = {
+	.supports_edp = true,
+	.supports_lvds = false,
+	.supports_hdmi = true,
+	.supports_dp = true,
+
+	.regs = &tegra194_sor_regs,
+	.has_nvdisplay = true,
+
+	.num_settings = ARRAY_SIZE(tegra194_sor_hdmi_defaults),
+	.settings = tegra194_sor_hdmi_defaults,
+
+	.xbar_cfg = tegra210_sor_xbar_cfg,
+};
+
 static const struct of_device_id tegra_sor_of_match[] = {
+	{ .compatible = "nvidia,tegra194-sor", .data = &tegra194_sor },
 	{ .compatible = "nvidia,tegra186-sor1", .data = &tegra186_sor1 },
 	{ .compatible = "nvidia,tegra186-sor", .data = &tegra186_sor },
 	{ .compatible = "nvidia,tegra210-sor1", .data = &tegra210_sor1 },

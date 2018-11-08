@@ -366,7 +366,7 @@ void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 		va_list args;
 
 		va_start(args, fmt);
-		n = vsnprintf(msg, sizeof(msg), fmt, args);
+		n = vscnprintf(msg, sizeof(msg), fmt, args);
 		va_end(args);
 
 		rd_write_section(rd, RD_CMD, msg, ALIGN(n, 4));
@@ -375,11 +375,11 @@ void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 	rcu_read_lock();
 	task = pid_task(submit->pid, PIDTYPE_PID);
 	if (task) {
-		n = snprintf(msg, sizeof(msg), "%.*s/%d: fence=%u",
+		n = scnprintf(msg, sizeof(msg), "%.*s/%d: fence=%u",
 				TASK_COMM_LEN, task->comm,
 				pid_nr(submit->pid), submit->seqno);
 	} else {
-		n = snprintf(msg, sizeof(msg), "???/%d: fence=%u",
+		n = scnprintf(msg, sizeof(msg), "???/%d: fence=%u",
 				pid_nr(submit->pid), submit->seqno);
 	}
 	rcu_read_unlock();

@@ -148,10 +148,10 @@ EXPORT_SYMBOL_GPL(IPA_PDU_HEADER);
 
 struct ipa_rc_msg {
 	enum qeth_ipa_return_codes rc;
-	char *msg;
+	const char *msg;
 };
 
-static struct ipa_rc_msg qeth_ipa_rc_msg[] = {
+static const struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 	{IPA_RC_SUCCESS,		"success"},
 	{IPA_RC_NOTSUPP,		"Command not supported"},
 	{IPA_RC_IP_TABLE_FULL,		"Add Addr IP Table Full - ipv6"},
@@ -219,23 +219,23 @@ static struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 
 
 
-char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc)
+const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc)
 {
-	int x = 0;
-	qeth_ipa_rc_msg[sizeof(qeth_ipa_rc_msg) /
-			sizeof(struct ipa_rc_msg) - 1].rc = rc;
-	while (qeth_ipa_rc_msg[x].rc != rc)
-		x++;
+	int x;
+
+	for (x = 0; x < ARRAY_SIZE(qeth_ipa_rc_msg) - 1; x++)
+		if (qeth_ipa_rc_msg[x].rc == rc)
+			return qeth_ipa_rc_msg[x].msg;
 	return qeth_ipa_rc_msg[x].msg;
 }
 
 
 struct ipa_cmd_names {
 	enum qeth_ipa_cmds cmd;
-	char *name;
+	const char *name;
 };
 
-static struct ipa_cmd_names qeth_ipa_cmd_names[] = {
+static const struct ipa_cmd_names qeth_ipa_cmd_names[] = {
 	{IPA_CMD_STARTLAN,	"startlan"},
 	{IPA_CMD_STOPLAN,	"stoplan"},
 	{IPA_CMD_SETVMAC,	"setvmac"},
@@ -267,13 +267,12 @@ static struct ipa_cmd_names qeth_ipa_cmd_names[] = {
 	{IPA_CMD_UNKNOWN,	"unknown"},
 };
 
-char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd)
+const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd)
 {
-	int x = 0;
-	qeth_ipa_cmd_names[
-		sizeof(qeth_ipa_cmd_names) /
-			sizeof(struct ipa_cmd_names)-1].cmd = cmd;
-	while (qeth_ipa_cmd_names[x].cmd != cmd)
-		x++;
+	int x;
+
+	for (x = 0; x < ARRAY_SIZE(qeth_ipa_cmd_names) - 1; x++)
+		if (qeth_ipa_cmd_names[x].cmd == cmd)
+			return qeth_ipa_cmd_names[x].name;
 	return qeth_ipa_cmd_names[x].name;
 }

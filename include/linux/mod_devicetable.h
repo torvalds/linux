@@ -754,6 +754,7 @@ struct tb_service_id {
  * struct typec_device_id - USB Type-C alternate mode identifiers
  * @svid: Standard or Vendor ID
  * @mode: Mode index
+ * @driver_data: Driver specific data
  */
 struct typec_device_id {
 	__u16 svid;

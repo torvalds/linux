@@ -75,6 +75,11 @@ typedef uintptr_t uptrval;
 #define WILDCOPYLENGTH 8
 #define LASTLITERALS 5
 #define MFLIMIT (WILDCOPYLENGTH + MINMATCH)
+/*
+ * ensure it's possible to write 2 x wildcopyLength
+ * without overflowing output buffer
+ */
+#define MATCH_SAFEGUARD_DISTANCE  ((2 * WILDCOPYLENGTH) - MINMATCH)
 
 /* Increase this value ==> compression run slower on incompressible data */
 #define LZ4_SKIPTRIGGER 6
@@ -222,6 +227,8 @@ typedef enum { noDict = 0, withPrefix64k, usingExtDict } dict_directive;
 typedef enum { noDictIssue = 0, dictSmall } dictIssue_directive;
 
 typedef enum { endOnOutputSize = 0, endOnInputSize = 1 } endCondition_directive;
-typedef enum { full = 0, partial = 1 } earlyEnd_directive;
+typedef enum { decode_full_block = 0, partial_decode = 1 } earlyEnd_directive;
+
+#define LZ4_STATIC_ASSERT(c)	BUILD_BUG_ON(!(c))
 
 #endif

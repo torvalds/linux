@@ -14,7 +14,6 @@
 #define __ND_CORE_H__
 #include <linux/libnvdimm.h>
 #include <linux/device.h>
-#include <linux/libnvdimm.h>
 #include <linux/sizes.h>
 #include <linux/mutex.h>
 #include <linux/nd.h>

@@ -385,9 +385,7 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 			asoc->outqueue.outstanding_bytes -= sctp_data_size(chk);
 		}
 
-		msg_len -= SCTP_DATA_SNDSIZE(chk) +
-			   sizeof(struct sk_buff) +
-			   sizeof(struct sctp_chunk);
+		msg_len -= chk->skb->truesize + sizeof(struct sctp_chunk);
 		if (msg_len <= 0)
 			break;
 	}
@@ -421,9 +419,7 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 			streamout->ext->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
 		}
 
-		msg_len -= SCTP_DATA_SNDSIZE(chk) +
-			   sizeof(struct sk_buff) +
-			   sizeof(struct sctp_chunk);
+		msg_len -= chk->skb->truesize + sizeof(struct sctp_chunk);
 		sctp_chunk_free(chk);
 		if (msg_len <= 0)
 			break;
@@ -1048,7 +1044,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 		if (!ctx->packet || !ctx->packet->has_cookie_echo)
 			return;
 
-		/* fallthru */
+		/* fall through */
 	case SCTP_STATE_ESTABLISHED:
 	case SCTP_STATE_SHUTDOWN_PENDING:
 	case SCTP_STATE_SHUTDOWN_RECEIVED:

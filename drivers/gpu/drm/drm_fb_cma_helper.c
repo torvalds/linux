@@ -86,14 +86,21 @@ dma_addr_t drm_fb_cma_get_gem_addr(struct drm_framebuffer *fb,
 {
 	struct drm_gem_cma_object *obj;
 	dma_addr_t paddr;
+	u8 h_div = 1, v_div = 1;
 
 	obj = drm_fb_cma_get_gem_obj(fb, plane);
 	if (!obj)
 		return 0;
 
 	paddr = obj->paddr + fb->offsets[plane];
-	paddr += fb->format->cpp[plane] * (state->src_x >> 16);
-	paddr += fb->pitches[plane] * (state->src_y >> 16);
+
+	if (plane > 0) {
+		h_div = fb->format->hsub;
+		v_div = fb->format->vsub;
+	}
+
+	paddr += (fb->format->cpp[plane] * (state->src_x >> 16)) / h_div;
+	paddr += (fb->pitches[plane] * (state->src_y >> 16)) / v_div;
 
 	return paddr;
 }
@@ -160,7 +167,7 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 
 	fb_helper = &fbdev_cma->fb_helper;
 
-	ret = drm_client_new(dev, &fb_helper->client, "fbdev", NULL);
+	ret = drm_client_init(dev, &fb_helper->client, "fbdev", NULL);
 	if (ret)
 		goto err_free;
 
@@ -168,6 +175,8 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 					preferred_bpp, max_conn_count);
 	if (ret)
 		goto err_client_put;
+
+	drm_client_add(&fb_helper->client);
 
 	return fbdev_cma;
 
@@ -217,21 +226,6 @@ void drm_fbdev_cma_hotplug_event(struct drm_fbdev_cma *fbdev_cma)
 		drm_fb_helper_hotplug_event(&fbdev_cma->fb_helper);
 }
 EXPORT_SYMBOL_GPL(drm_fbdev_cma_hotplug_event);
-
-/**
- * drm_fbdev_cma_set_suspend - wrapper around drm_fb_helper_set_suspend
- * @fbdev_cma: The drm_fbdev_cma struct, may be NULL
- * @state: desired state, zero to resume, non-zero to suspend
- *
- * Calls drm_fb_helper_set_suspend, which is a wrapper around
- * fb_set_suspend implemented by fbdev core.
- */
-void drm_fbdev_cma_set_suspend(struct drm_fbdev_cma *fbdev_cma, bool state)
-{
-	if (fbdev_cma)
-		drm_fb_helper_set_suspend(&fbdev_cma->fb_helper, state);
-}
-EXPORT_SYMBOL(drm_fbdev_cma_set_suspend);
 
 /**
  * drm_fbdev_cma_set_suspend_unlocked - wrapper around

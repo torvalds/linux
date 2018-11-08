@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 /*
  * nfp_net_common.c
@@ -229,6 +199,45 @@ done:
 	spin_unlock_bh(&nn->reconfig_lock);
 }
 
+static void nfp_net_reconfig_sync_enter(struct nfp_net *nn)
+{
+	bool cancelled_timer = false;
+	u32 pre_posted_requests;
+
+	spin_lock_bh(&nn->reconfig_lock);
+
+	nn->reconfig_sync_present = true;
+
+	if (nn->reconfig_timer_active) {
+		nn->reconfig_timer_active = false;
+		cancelled_timer = true;
+	}
+	pre_posted_requests = nn->reconfig_posted;
+	nn->reconfig_posted = 0;
+
+	spin_unlock_bh(&nn->reconfig_lock);
+
+	if (cancelled_timer) {
+		del_timer_sync(&nn->reconfig_timer);
+		nfp_net_reconfig_wait(nn, nn->reconfig_timer.expires);
+	}
+
+	/* Run the posted reconfigs which were issued before we started */
+	if (pre_posted_requests) {
+		nfp_net_reconfig_start(nn, pre_posted_requests);
+		nfp_net_reconfig_wait(nn, jiffies + HZ * NFP_NET_POLL_TIMEOUT);
+	}
+}
+
+static void nfp_net_reconfig_wait_posted(struct nfp_net *nn)
+{
+	nfp_net_reconfig_sync_enter(nn);
+
+	spin_lock_bh(&nn->reconfig_lock);
+	nn->reconfig_sync_present = false;
+	spin_unlock_bh(&nn->reconfig_lock);
+}
+
 /**
  * nfp_net_reconfig() - Reconfigure the firmware
  * @nn:      NFP Net device to reconfigure
@@ -242,32 +251,9 @@ done:
  */
 int nfp_net_reconfig(struct nfp_net *nn, u32 update)
 {
-	bool cancelled_timer = false;
-	u32 pre_posted_requests;
 	int ret;
 
-	spin_lock_bh(&nn->reconfig_lock);
-
-	nn->reconfig_sync_present = true;
-
-	if (nn->reconfig_timer_active) {
-		del_timer(&nn->reconfig_timer);
-		nn->reconfig_timer_active = false;
-		cancelled_timer = true;
-	}
-	pre_posted_requests = nn->reconfig_posted;
-	nn->reconfig_posted = 0;
-
-	spin_unlock_bh(&nn->reconfig_lock);
-
-	if (cancelled_timer)
-		nfp_net_reconfig_wait(nn, nn->reconfig_timer.expires);
-
-	/* Run the posted reconfigs which were issued before we started */
-	if (pre_posted_requests) {
-		nfp_net_reconfig_start(nn, pre_posted_requests);
-		nfp_net_reconfig_wait(nn, jiffies + HZ * NFP_NET_POLL_TIMEOUT);
-	}
+	nfp_net_reconfig_sync_enter(nn);
 
 	nfp_net_reconfig_start(nn, update);
 	ret = nfp_net_reconfig_wait(nn, jiffies + HZ * NFP_NET_POLL_TIMEOUT);
@@ -2061,28 +2047,35 @@ nfp_ctrl_rx_one(struct nfp_net *nn, struct nfp_net_dp *dp,
 	return true;
 }
 
-static void nfp_ctrl_rx(struct nfp_net_r_vector *r_vec)
+static bool nfp_ctrl_rx(struct nfp_net_r_vector *r_vec)
 {
 	struct nfp_net_rx_ring *rx_ring = r_vec->rx_ring;
 	struct nfp_net *nn = r_vec->nfp_net;
 	struct nfp_net_dp *dp = &nn->dp;
+	unsigned int budget = 512;
 
-	while (nfp_ctrl_rx_one(nn, dp, r_vec, rx_ring))
+	while (nfp_ctrl_rx_one(nn, dp, r_vec, rx_ring) && budget--)
 		continue;
+
+	return budget;
 }
 
 static void nfp_ctrl_poll(unsigned long arg)
 {
 	struct nfp_net_r_vector *r_vec = (void *)arg;
 
-	spin_lock_bh(&r_vec->lock);
+	spin_lock(&r_vec->lock);
 	nfp_net_tx_complete(r_vec->tx_ring, 0);
 	__nfp_ctrl_tx_queued(r_vec);
-	spin_unlock_bh(&r_vec->lock);
+	spin_unlock(&r_vec->lock);
 
-	nfp_ctrl_rx(r_vec);
-
-	nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
+	if (nfp_ctrl_rx(r_vec)) {
+		nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
+	} else {
+		tasklet_schedule(&r_vec->tasklet);
+		nn_dp_warn(&r_vec->nfp_net->dp,
+			   "control message budget exceeded!\n");
+	}
 }
 
 /* Setup and Configuration
@@ -2164,9 +2157,13 @@ nfp_net_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 
 	tx_ring->size = array_size(tx_ring->cnt, sizeof(*tx_ring->txds));
 	tx_ring->txds = dma_zalloc_coherent(dp->dev, tx_ring->size,
-					    &tx_ring->dma, GFP_KERNEL);
-	if (!tx_ring->txds)
+					    &tx_ring->dma,
+					    GFP_KERNEL | __GFP_NOWARN);
+	if (!tx_ring->txds) {
+		netdev_warn(dp->netdev, "failed to allocate TX descriptor ring memory, requested descriptor count: %d, consider lowering descriptor count\n",
+			    tx_ring->cnt);
 		goto err_alloc;
+	}
 
 	tx_ring->txbufs = kvcalloc(tx_ring->cnt, sizeof(*tx_ring->txbufs),
 				   GFP_KERNEL);
@@ -2318,9 +2315,13 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 	rx_ring->cnt = dp->rxd_cnt;
 	rx_ring->size = array_size(rx_ring->cnt, sizeof(*rx_ring->rxds));
 	rx_ring->rxds = dma_zalloc_coherent(dp->dev, rx_ring->size,
-					    &rx_ring->dma, GFP_KERNEL);
-	if (!rx_ring->rxds)
+					    &rx_ring->dma,
+					    GFP_KERNEL | __GFP_NOWARN);
+	if (!rx_ring->rxds) {
+		netdev_warn(dp->netdev, "failed to allocate RX descriptor ring memory, requested descriptor count: %d, consider lowering descriptor count\n",
+			    rx_ring->cnt);
 		goto err_alloc;
+	}
 
 	rx_ring->rxbufs = kvcalloc(rx_ring->cnt, sizeof(*rx_ring->rxbufs),
 				   GFP_KERNEL);
@@ -3130,27 +3131,13 @@ nfp_net_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return nfp_net_reconfig_mbox(nn, NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL);
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void nfp_net_netpoll(struct net_device *netdev)
-{
-	struct nfp_net *nn = netdev_priv(netdev);
-	int i;
-
-	/* nfp_net's NAPIs are statically allocated so even if there is a race
-	 * with reconfig path this will simply try to schedule some disabled
-	 * NAPI instances.
-	 */
-	for (i = 0; i < nn->dp.num_stack_tx_rings; i++)
-		napi_schedule_irqoff(&nn->r_vecs[i].napi);
-}
-#endif
-
 static void nfp_net_stat64(struct net_device *netdev,
 			   struct rtnl_link_stats64 *stats)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	int r;
 
+	/* Collect software stats */
 	for (r = 0; r < nn->max_r_vecs; r++) {
 		struct nfp_net_r_vector *r_vec = &nn->r_vecs[r];
 		u64 data[3];
@@ -3176,6 +3163,14 @@ static void nfp_net_stat64(struct net_device *netdev,
 		stats->tx_bytes += data[1];
 		stats->tx_errors += data[2];
 	}
+
+	/* Add in device stats */
+	stats->multicast += nn_readq(nn, NFP_NET_CFG_STATS_RX_MC_FRAMES);
+	stats->rx_dropped += nn_readq(nn, NFP_NET_CFG_STATS_RX_DISCARDS);
+	stats->rx_errors += nn_readq(nn, NFP_NET_CFG_STATS_RX_ERRORS);
+
+	stats->tx_dropped += nn_readq(nn, NFP_NET_CFG_STATS_TX_DISCARDS);
+	stats->tx_errors += nn_readq(nn, NFP_NET_CFG_STATS_TX_ERRORS);
 }
 
 static int nfp_net_set_features(struct net_device *netdev,
@@ -3503,9 +3498,6 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_get_stats64	= nfp_net_stat64,
 	.ndo_vlan_rx_add_vid	= nfp_net_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= nfp_net_vlan_rx_kill_vid,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= nfp_net_netpoll,
-#endif
 	.ndo_set_vf_mac         = nfp_app_set_vf_mac,
 	.ndo_set_vf_vlan        = nfp_app_set_vf_vlan,
 	.ndo_set_vf_spoofchk    = nfp_app_set_vf_spoofchk,
@@ -3633,6 +3625,7 @@ struct nfp_net *nfp_net_alloc(struct pci_dev *pdev, bool needs_netdev,
  */
 void nfp_net_free(struct nfp_net *nn)
 {
+	WARN_ON(timer_pending(&nn->reconfig_timer) || nn->reconfig_posted);
 	if (nn->dp.netdev)
 		free_netdev(nn->dp.netdev);
 	else
@@ -3745,15 +3738,18 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	}
 	if (nn->cap & NFP_NET_CFG_CTRL_RSS_ANY)
 		netdev->hw_features |= NETIF_F_RXHASH;
-	if (nn->cap & NFP_NET_CFG_CTRL_VXLAN &&
-	    nn->cap & NFP_NET_CFG_CTRL_NVGRE) {
+	if (nn->cap & NFP_NET_CFG_CTRL_VXLAN) {
 		if (nn->cap & NFP_NET_CFG_CTRL_LSO)
-			netdev->hw_features |= NETIF_F_GSO_GRE |
-					       NETIF_F_GSO_UDP_TUNNEL;
-		nn->dp.ctrl |= NFP_NET_CFG_CTRL_VXLAN | NFP_NET_CFG_CTRL_NVGRE;
-
-		netdev->hw_enc_features = netdev->hw_features;
+			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+		nn->dp.ctrl |= NFP_NET_CFG_CTRL_VXLAN;
 	}
+	if (nn->cap & NFP_NET_CFG_CTRL_NVGRE) {
+		if (nn->cap & NFP_NET_CFG_CTRL_LSO)
+			netdev->hw_features |= NETIF_F_GSO_GRE;
+		nn->dp.ctrl |= NFP_NET_CFG_CTRL_NVGRE;
+	}
+	if (nn->cap & (NFP_NET_CFG_CTRL_VXLAN | NFP_NET_CFG_CTRL_NVGRE))
+		netdev->hw_enc_features = netdev->hw_features;
 
 	netdev->vlan_features = netdev->hw_features;
 
@@ -3858,10 +3854,20 @@ int nfp_net_init(struct nfp_net *nn)
 		return err;
 
 	/* Set default MTU and Freelist buffer size */
-	if (nn->max_mtu < NFP_NET_DEFAULT_MTU)
+	if (!nfp_net_is_data_vnic(nn) && nn->app->ctrl_mtu) {
+		if (nn->app->ctrl_mtu <= nn->max_mtu) {
+			nn->dp.mtu = nn->app->ctrl_mtu;
+		} else {
+			if (nn->app->ctrl_mtu != NFP_APP_CTRL_MTU_MAX)
+				nn_warn(nn, "app requested MTU above max supported %u > %u\n",
+					nn->app->ctrl_mtu, nn->max_mtu);
+			nn->dp.mtu = nn->max_mtu;
+		}
+	} else if (nn->max_mtu < NFP_NET_DEFAULT_MTU) {
 		nn->dp.mtu = nn->max_mtu;
-	else
+	} else {
 		nn->dp.mtu = NFP_NET_DEFAULT_MTU;
+	}
 	nn->dp.fl_bufsz = nfp_net_calc_fl_bufsz(&nn->dp);
 
 	if (nfp_app_ctrl_uses_data_vnics(nn->app))
@@ -3920,4 +3926,5 @@ void nfp_net_clean(struct nfp_net *nn)
 		return;
 
 	unregister_netdev(nn->dp.netdev);
+	nfp_net_reconfig_wait_posted(nn);
 }

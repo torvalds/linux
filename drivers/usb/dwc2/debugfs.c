@@ -701,6 +701,7 @@ static int params_show(struct seq_file *seq, void *v)
 	print_param(seq, p, besl);
 	print_param(seq, p, hird_threshold_en);
 	print_param(seq, p, hird_threshold);
+	print_param(seq, p, service_interval);
 	print_param(seq, p, host_dma);
 	print_param(seq, p, g_dma);
 	print_param(seq, p, g_dma_desc);

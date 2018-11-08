@@ -202,7 +202,8 @@ static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
 			continue;
 		blk_offset = (blocknr - buffer_blocknr[i]) << PAGE_SHIFT;
 		blk_offset += offset;
-		if (blk_offset + len > BUFFER_SIZE)
+		if (blk_offset > BUFFER_SIZE ||
+		    blk_offset + len > BUFFER_SIZE)
 			continue;
 		return read_buffers[i] + blk_offset;
 	}
@@ -418,9 +419,12 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 		int i;
 		vma->vm_flags |= VM_MIXEDMAP;
 		for (i = 0; i < pages && !ret; i++) {
+			vm_fault_t vmf;
 			unsigned long off = i * PAGE_SIZE;
 			pfn_t pfn = phys_to_pfn_t(address + off, PFN_DEV);
-			ret = vm_insert_mixed(vma, vma->vm_start + off, pfn);
+			vmf = vmf_insert_mixed(vma, vma->vm_start + off, pfn);
+			if (vmf & VM_FAULT_ERROR)
+				ret = vm_fault_to_errno(vmf, 0);
 		}
 	}
 
@@ -869,8 +873,8 @@ static int cramfs_readpage(struct file *file, struct page *page)
 			if (unlikely(block_start & CRAMFS_BLK_FLAG_DIRECT_PTR)) {
 				/* See comments on earlier code. */
 				u32 prev_start = block_start;
-			       block_start = prev_start & ~CRAMFS_BLK_FLAGS;
-			       block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
+				block_start = prev_start & ~CRAMFS_BLK_FLAGS;
+				block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
 				if (prev_start & CRAMFS_BLK_FLAG_UNCOMPRESSED) {
 					block_start += PAGE_SIZE;
 				} else {

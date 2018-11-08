@@ -45,6 +45,15 @@ Features
   like packets and significantly reduces CPU usage under heavy Rx
   load.
 
+  Large Receive Offload (LRO), or Receive Side Coalescing (RSC)
+  -------------------------------------------------------------
+  The driver supports LRO/RSC in the vSwitch feature. It reduces the per packet
+  processing overhead by coalescing multiple TCP segments when possible. The
+  feature is enabled by default on VMs running on Windows Server 2019 and
+  later. It may be changed by ethtool command:
+	ethtool -K eth0 lro on
+	ethtool -K eth0 lro off
+
   SR-IOV support
   --------------
   Hyper-V supports SR-IOV as a hardware acceleration option. If SR-IOV

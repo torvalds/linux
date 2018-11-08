@@ -444,7 +444,7 @@ static void tce_iommu_unuse_page_v2(struct tce_container *container,
 	struct mm_iommu_table_group_mem_t *mem = NULL;
 	int ret;
 	unsigned long hpa = 0;
-	__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY(tbl, entry);
+	__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY_RO(tbl, entry);
 
 	if (!pua)
 		return;
@@ -467,8 +467,27 @@ static int tce_iommu_clear(struct tce_container *container,
 	unsigned long oldhpa;
 	long ret;
 	enum dma_data_direction direction;
+	unsigned long lastentry = entry + pages;
 
-	for ( ; pages; --pages, ++entry) {
+	for ( ; entry < lastentry; ++entry) {
+		if (tbl->it_indirect_levels && tbl->it_userspace) {
+			/*
+			 * For multilevel tables, we can take a shortcut here
+			 * and skip some TCEs as we know that the userspace
+			 * addresses cache is a mirror of the real TCE table
+			 * and if it is missing some indirect levels, then
+			 * the hardware table does not have them allocated
+			 * either and therefore does not require updating.
+			 */
+			__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY_RO(tbl,
+					entry);
+			if (!pua) {
+				/* align to level_size which is power of two */
+				entry |= tbl->it_level_size - 1;
+				continue;
+			}
+		}
+
 		cond_resched();
 
 		direction = DMA_NONE;

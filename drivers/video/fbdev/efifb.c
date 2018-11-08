@@ -42,6 +42,7 @@ struct bmp_dib_header {
 	u32 colors_important;
 } __packed;
 
+static bool use_bgrt = true;
 static bool request_mem_succeeded = false;
 static u64 mem_flags = EFI_MEMORY_WC | EFI_MEMORY_UC;
 
@@ -159,6 +160,9 @@ static void efifb_show_boot_graphics(struct fb_info *info)
 	struct bmp_dib_header *dib_header;
 	void *bgrt_image = NULL;
 	u8 *dst = info->screen_base;
+
+	if (!use_bgrt)
+		return;
 
 	if (!bgrt_tab.image_address) {
 		pr_info("efifb: No BGRT, not showing boot graphics\n");
@@ -290,6 +294,8 @@ static int efifb_setup(char *options)
 				screen_info.lfb_width = simple_strtoul(this_opt+6, NULL, 0);
 			else if (!strcmp(this_opt, "nowc"))
 				mem_flags &= ~EFI_MEMORY_WC;
+			else if (!strcmp(this_opt, "nobgrt"))
+				use_bgrt = false;
 		}
 	}
 

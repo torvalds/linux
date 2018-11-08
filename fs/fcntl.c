@@ -735,7 +735,7 @@ static void send_sigio_to_task(struct task_struct *p,
 		return;
 
 	switch (signum) {
-		siginfo_t si;
+		kernel_siginfo_t si;
 		default:
 			/* Queue a rt signal with the appropriate fd as its
 			   value.  We use SI_SIGIO as the source, not 

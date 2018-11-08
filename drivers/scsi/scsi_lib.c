@@ -345,8 +345,7 @@ static void scsi_dec_host_busy(struct Scsi_Host *shost)
 	unsigned long flags;
 
 	rcu_read_lock();
-	if (!shost->use_blk_mq)
-		atomic_dec(&shost->host_busy);
+	atomic_dec(&shost->host_busy);
 	if (unlikely(scsi_host_in_recovery(shost))) {
 		spin_lock_irqsave(shost->host_lock, flags);
 		if (shost->host_failed || shost->host_eh_scheduled)
@@ -445,12 +444,7 @@ static inline bool scsi_target_is_busy(struct scsi_target *starget)
 
 static inline bool scsi_host_is_busy(struct Scsi_Host *shost)
 {
-	/*
-	 * blk-mq can handle host queue busy efficiently via host-wide driver
-	 * tag allocation
-	 */
-
-	if (!shost->use_blk_mq && shost->can_queue > 0 &&
+	if (shost->can_queue > 0 &&
 	    atomic_read(&shost->host_busy) >= shost->can_queue)
 		return true;
 	if (atomic_read(&shost->host_blocked) > 0)
@@ -1207,8 +1201,8 @@ int scsi_init_io(struct scsi_cmnd *cmd)
 
 		count = blk_rq_map_integrity_sg(rq->q, rq->bio,
 						prot_sdb->table.sgl);
-		BUG_ON(unlikely(count > ivecs));
-		BUG_ON(unlikely(count > queue_max_integrity_segments(rq->q)));
+		BUG_ON(count > ivecs);
+		BUG_ON(count > queue_max_integrity_segments(rq->q));
 
 		cmd->prot_sdb = prot_sdb;
 		cmd->prot_sdb->table.nents = count;
@@ -1606,10 +1600,7 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 	if (scsi_host_in_recovery(shost))
 		return 0;
 
-	if (!shost->use_blk_mq)
-		busy = atomic_inc_return(&shost->host_busy) - 1;
-	else
-		busy = 0;
+	busy = atomic_inc_return(&shost->host_busy) - 1;
 	if (atomic_read(&shost->host_blocked) > 0) {
 		if (busy)
 			goto starved;
@@ -1625,7 +1616,7 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 				     "unblocking host at zero depth\n"));
 	}
 
-	if (!shost->use_blk_mq && shost->can_queue > 0 && busy >= shost->can_queue)
+	if (shost->can_queue > 0 && busy >= shost->can_queue)
 		goto starved;
 	if (shost->host_self_blocked)
 		goto starved;
@@ -1711,9 +1702,7 @@ static void scsi_kill_request(struct request *req, struct request_queue *q)
 	 * with the locks as normal issue path does.
 	 */
 	atomic_inc(&sdev->device_busy);
-
-	if (!shost->use_blk_mq)
-		atomic_inc(&shost->host_busy);
+	atomic_inc(&shost->host_busy);
 	if (starget->can_queue > 0)
 		atomic_inc(&starget->target_busy);
 
@@ -2764,6 +2753,7 @@ scsi_device_set_state(struct scsi_device *sdev, enum scsi_device_state state)
 		switch (oldstate) {
 		case SDEV_RUNNING:
 		case SDEV_CREATED_BLOCK:
+		case SDEV_OFFLINE:
 			break;
 		default:
 			goto illegal;
@@ -3057,11 +3047,14 @@ scsi_device_quiesce(struct scsi_device *sdev)
 	 */
 	WARN_ON_ONCE(sdev->quiesced_by && sdev->quiesced_by != current);
 
-	blk_set_preempt_only(q);
+	if (sdev->quiesced_by == current)
+		return 0;
+
+	blk_set_pm_only(q);
 
 	blk_mq_freeze_queue(q);
 	/*
-	 * Ensure that the effect of blk_set_preempt_only() will be visible
+	 * Ensure that the effect of blk_set_pm_only() will be visible
 	 * for percpu_ref_tryget() callers that occur after the queue
 	 * unfreeze even if the queue was already frozen before this function
 	 * was called. See also https://lwn.net/Articles/573497/.
@@ -3074,7 +3067,7 @@ scsi_device_quiesce(struct scsi_device *sdev)
 	if (err == 0)
 		sdev->quiesced_by = current;
 	else
-		blk_clear_preempt_only(q);
+		blk_clear_pm_only(q);
 	mutex_unlock(&sdev->state_mutex);
 
 	return err;
@@ -3099,7 +3092,7 @@ void scsi_device_resume(struct scsi_device *sdev)
 	mutex_lock(&sdev->state_mutex);
 	WARN_ON_ONCE(!sdev->quiesced_by);
 	sdev->quiesced_by = NULL;
-	blk_clear_preempt_only(sdev->request_queue);
+	blk_clear_pm_only(sdev->request_queue);
 	if (sdev->sdev_state == SDEV_QUIESCE)
 		scsi_device_set_state(sdev, SDEV_RUNNING);
 	mutex_unlock(&sdev->state_mutex);

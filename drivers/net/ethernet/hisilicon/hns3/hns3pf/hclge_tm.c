@@ -172,7 +172,7 @@ static int hclge_pfc_pause_en_cfg(struct hclge_dev *hdev, u8 tx_rx_bitmap,
 				  u8 pfc_bitmap)
 {
 	struct hclge_desc desc;
-	struct hclge_pfc_en_cmd *pfc = (struct hclge_pfc_en_cmd *)&desc.data;
+	struct hclge_pfc_en_cmd *pfc = (struct hclge_pfc_en_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_PFC_PAUSE_EN, false);
 
@@ -188,11 +188,12 @@ static int hclge_pause_param_cfg(struct hclge_dev *hdev, const u8 *addr,
 	struct hclge_cfg_pause_param_cmd *pause_param;
 	struct hclge_desc desc;
 
-	pause_param = (struct hclge_cfg_pause_param_cmd *)&desc.data;
+	pause_param = (struct hclge_cfg_pause_param_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, false);
 
 	ether_addr_copy(pause_param->mac_addr, addr);
+	ether_addr_copy(pause_param->mac_addr_extra, addr);
 	pause_param->pause_trans_gap = pause_trans_gap;
 	pause_param->pause_trans_time = cpu_to_le16(pause_trans_time);
 
@@ -207,7 +208,7 @@ int hclge_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr)
 	u8 trans_gap;
 	int ret;
 
-	pause_param = (struct hclge_cfg_pause_param_cmd *)&desc.data;
+	pause_param = (struct hclge_cfg_pause_param_cmd *)desc.data;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, true);
 
@@ -297,7 +298,7 @@ static int hclge_tm_qs_to_pri_map_cfg(struct hclge_dev *hdev,
 }
 
 static int hclge_tm_q_to_qs_map_cfg(struct hclge_dev *hdev,
-				    u8 q_id, u16 qs_id)
+				    u16 q_id, u16 qs_id)
 {
 	struct hclge_nq_to_qs_link_cmd *map;
 	struct hclge_desc desc;
@@ -1279,9 +1280,14 @@ int hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc)
 	return 0;
 }
 
-void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
+int hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 {
 	u8 i, bit_map = 0;
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		if (num_tc > hdev->vport[i].alloc_tqps)
+			return -EINVAL;
+	}
 
 	hdev->tm_info.num_tc = num_tc;
 
@@ -1296,6 +1302,8 @@ void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 	hdev->hw_tc_map = bit_map;
 
 	hclge_tm_schd_info_init(hdev);
+
+	return 0;
 }
 
 int hclge_tm_init_hw(struct hclge_dev *hdev)

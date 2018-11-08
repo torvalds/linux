@@ -310,28 +310,11 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 	}
 }
 
-static void blkg_pd_offline(struct blkcg_gq *blkg)
-{
-	int i;
-
-	lockdep_assert_held(blkg->q->queue_lock);
-	lockdep_assert_held(&blkg->blkcg->lock);
-
-	for (i = 0; i < BLKCG_MAX_POLS; i++) {
-		struct blkcg_policy *pol = blkcg_policy[i];
-
-		if (blkg->pd[i] && !blkg->pd[i]->offline &&
-		    pol->pd_offline_fn) {
-			pol->pd_offline_fn(blkg->pd[i]);
-			blkg->pd[i]->offline = true;
-		}
-	}
-}
-
 static void blkg_destroy(struct blkcg_gq *blkg)
 {
 	struct blkcg *blkcg = blkg->blkcg;
 	struct blkcg_gq *parent = blkg->parent;
+	int i;
 
 	lockdep_assert_held(blkg->q->queue_lock);
 	lockdep_assert_held(&blkcg->lock);
@@ -339,6 +322,13 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	/* Something wrong if we are trying to remove same group twice */
 	WARN_ON_ONCE(list_empty(&blkg->q_node));
 	WARN_ON_ONCE(hlist_unhashed(&blkg->blkcg_node));
+
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+
+		if (blkg->pd[i] && pol->pd_offline_fn)
+			pol->pd_offline_fn(blkg->pd[i]);
+	}
 
 	if (parent) {
 		blkg_rwstat_add_aux(&parent->stat_bytes, &blkg->stat_bytes);
@@ -382,7 +372,6 @@ static void blkg_destroy_all(struct request_queue *q)
 		struct blkcg *blkcg = blkg->blkcg;
 
 		spin_lock(&blkcg->lock);
-		blkg_pd_offline(blkg);
 		blkg_destroy(blkg);
 		spin_unlock(&blkcg->lock);
 	}
@@ -1053,59 +1042,64 @@ static struct cftype blkcg_legacy_files[] = {
 	{ }	/* terminate */
 };
 
+/*
+ * blkcg destruction is a three-stage process.
+ *
+ * 1. Destruction starts.  The blkcg_css_offline() callback is invoked
+ *    which offlines writeback.  Here we tie the next stage of blkg destruction
+ *    to the completion of writeback associated with the blkcg.  This lets us
+ *    avoid punting potentially large amounts of outstanding writeback to root
+ *    while maintaining any ongoing policies.  The next stage is triggered when
+ *    the nr_cgwbs count goes to zero.
+ *
+ * 2. When the nr_cgwbs count goes to zero, blkcg_destroy_blkgs() is called
+ *    and handles the destruction of blkgs.  Here the css reference held by
+ *    the blkg is put back eventually allowing blkcg_css_free() to be called.
+ *    This work may occur in cgwb_release_workfn() on the cgwb_release
+ *    workqueue.  Any submitted ios that fail to get the blkg ref will be
+ *    punted to the root_blkg.
+ *
+ * 3. Once the blkcg ref count goes to zero, blkcg_css_free() is called.
+ *    This finally frees the blkcg.
+ */
+
 /**
  * blkcg_css_offline - cgroup css_offline callback
  * @css: css of interest
  *
- * This function is called when @css is about to go away and responsible
- * for offlining all blkgs pd and killing all wbs associated with @css.
- * blkgs pd offline should be done while holding both q and blkcg locks.
- * As blkcg lock is nested inside q lock, this function performs reverse
- * double lock dancing.
- *
- * This is the blkcg counterpart of ioc_release_fn().
+ * This function is called when @css is about to go away.  Here the cgwbs are
+ * offlined first and only once writeback associated with the blkcg has
+ * finished do we start step 2 (see above).
  */
 static void blkcg_css_offline(struct cgroup_subsys_state *css)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
-	struct blkcg_gq *blkg;
 
-	spin_lock_irq(&blkcg->lock);
-
-	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
-		struct request_queue *q = blkg->q;
-
-		if (spin_trylock(q->queue_lock)) {
-			blkg_pd_offline(blkg);
-			spin_unlock(q->queue_lock);
-		} else {
-			spin_unlock_irq(&blkcg->lock);
-			cpu_relax();
-			spin_lock_irq(&blkcg->lock);
-		}
-	}
-
-	spin_unlock_irq(&blkcg->lock);
-
+	/* this prevents anyone from attaching or migrating to this blkcg */
 	wb_blkcg_offline(blkcg);
+
+	/* put the base cgwb reference allowing step 2 to be triggered */
+	blkcg_cgwb_put(blkcg);
 }
 
 /**
- * blkcg_destroy_all_blkgs - destroy all blkgs associated with a blkcg
+ * blkcg_destroy_blkgs - responsible for shooting down blkgs
  * @blkcg: blkcg of interest
  *
- * This function is called when blkcg css is about to free and responsible for
- * destroying all blkgs associated with @blkcg.
- * blkgs should be removed while holding both q and blkcg locks. As blkcg lock
+ * blkgs should be removed while holding both q and blkcg locks.  As blkcg lock
  * is nested inside q lock, this function performs reverse double lock dancing.
+ * Destroying the blkgs releases the reference held on the blkcg's css allowing
+ * blkcg_css_free to eventually be called.
+ *
+ * This is the blkcg counterpart of ioc_release_fn().
  */
-static void blkcg_destroy_all_blkgs(struct blkcg *blkcg)
+void blkcg_destroy_blkgs(struct blkcg *blkcg)
 {
 	spin_lock_irq(&blkcg->lock);
+
 	while (!hlist_empty(&blkcg->blkg_list)) {
 		struct blkcg_gq *blkg = hlist_entry(blkcg->blkg_list.first,
-						    struct blkcg_gq,
-						    blkcg_node);
+						struct blkcg_gq, blkcg_node);
 		struct request_queue *q = blkg->q;
 
 		if (spin_trylock(q->queue_lock)) {
@@ -1117,6 +1111,7 @@ static void blkcg_destroy_all_blkgs(struct blkcg *blkcg)
 			spin_lock_irq(&blkcg->lock);
 		}
 	}
+
 	spin_unlock_irq(&blkcg->lock);
 }
 
@@ -1124,8 +1119,6 @@ static void blkcg_css_free(struct cgroup_subsys_state *css)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
 	int i;
-
-	blkcg_destroy_all_blkgs(blkcg);
 
 	mutex_lock(&blkcg_pol_mutex);
 
@@ -1189,6 +1182,7 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
 #ifdef CONFIG_CGROUP_WRITEBACK
 	INIT_LIST_HEAD(&blkcg->cgwb_list);
+	refcount_set(&blkcg->cgwb_refcnt, 1);
 #endif
 	list_add_tail(&blkcg->all_blkcgs_node, &all_blkcgs);
 
@@ -1480,11 +1474,8 @@ void blkcg_deactivate_policy(struct request_queue *q,
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node) {
 		if (blkg->pd[pol->plid]) {
-			if (!blkg->pd[pol->plid]->offline &&
-			    pol->pd_offline_fn) {
+			if (pol->pd_offline_fn)
 				pol->pd_offline_fn(blkg->pd[pol->plid]);
-				blkg->pd[pol->plid]->offline = true;
-			}
 			pol->pd_free_fn(blkg->pd[pol->plid]);
 			blkg->pd[pol->plid] = NULL;
 		}
@@ -1519,8 +1510,10 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	for (i = 0; i < BLKCG_MAX_POLS; i++)
 		if (!blkcg_policy[i])
 			break;
-	if (i >= BLKCG_MAX_POLS)
+	if (i >= BLKCG_MAX_POLS) {
+		pr_warn("blkcg_policy_register: BLKCG_MAX_POLS too small\n");
 		goto err_unlock;
+	}
 
 	/* Make sure cpd/pd_alloc_fn and cpd/pd_free_fn in pairs */
 	if ((!pol->cpd_alloc_fn ^ !pol->cpd_free_fn) ||

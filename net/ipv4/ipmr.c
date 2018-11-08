@@ -2527,8 +2527,34 @@ errout_free:
 
 static int ipmr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct fib_dump_filter filter = {};
+	int err;
+
+	if (cb->strict_check) {
+		err = ip_valid_fib_dump_req(sock_net(skb->sk), cb->nlh,
+					    &filter, cb);
+		if (err < 0)
+			return err;
+	}
+
+	if (filter.table_id) {
+		struct mr_table *mrt;
+
+		mrt = ipmr_get_table(sock_net(skb->sk), filter.table_id);
+		if (!mrt) {
+			if (filter.dump_all_families)
+				return skb->len;
+
+			NL_SET_ERR_MSG(cb->extack, "ipv4: MR table does not exist");
+			return -ENOENT;
+		}
+		err = mr_table_dump(mrt, skb, cb, _ipmr_fill_mroute,
+				    &mfc_unres_lock, &filter);
+		return skb->len ? : err;
+	}
+
 	return mr_rtm_dumproute(skb, cb, ipmr_mr_table_iter,
-				_ipmr_fill_mroute, &mfc_unres_lock);
+				_ipmr_fill_mroute, &mfc_unres_lock, &filter);
 }
 
 static const struct nla_policy rtm_ipmr_policy[RTA_MAX + 1] = {
@@ -2710,6 +2736,31 @@ static bool ipmr_fill_vif(struct mr_table *mrt, u32 vifid, struct sk_buff *skb)
 	return true;
 }
 
+static int ipmr_valid_dumplink(const struct nlmsghdr *nlh,
+			       struct netlink_ext_ack *extack)
+{
+	struct ifinfomsg *ifm;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		NL_SET_ERR_MSG(extack, "ipv4: Invalid header for ipmr link dump");
+		return -EINVAL;
+	}
+
+	if (nlmsg_attrlen(nlh, sizeof(*ifm))) {
+		NL_SET_ERR_MSG(extack, "Invalid data after header in ipmr link dump");
+		return -EINVAL;
+	}
+
+	ifm = nlmsg_data(nlh);
+	if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
+	    ifm->ifi_change || ifm->ifi_index) {
+		NL_SET_ERR_MSG(extack, "Invalid values in header for ipmr link dump request");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ipmr_rtm_dumplink(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
@@ -2717,6 +2768,13 @@ static int ipmr_rtm_dumplink(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned int t = 0, s_t;
 	unsigned int e = 0, s_e;
 	struct mr_table *mrt;
+
+	if (cb->strict_check) {
+		int err = ipmr_valid_dumplink(cb->nlh, cb->extack);
+
+		if (err < 0)
+			return err;
+	}
 
 	s_t = cb->args[0];
 	s_e = cb->args[1];

@@ -302,14 +302,18 @@ static inline u16 volt2reg(int channel, long volt, u8 bypass_attn)
 	return clamp_val(reg, 0, 1023) & (0xff << 2);
 }
 
-static u16 adt7475_read_word(struct i2c_client *client, int reg)
+static int adt7475_read_word(struct i2c_client *client, int reg)
 {
-	u16 val;
+	int val1, val2;
 
-	val = i2c_smbus_read_byte_data(client, reg);
-	val |= (i2c_smbus_read_byte_data(client, reg + 1) << 8);
+	val1 = i2c_smbus_read_byte_data(client, reg);
+	if (val1 < 0)
+		return val1;
+	val2 = i2c_smbus_read_byte_data(client, reg + 1);
+	if (val2 < 0)
+		return val2;
 
-	return val;
+	return val1 | (val2 << 8);
 }
 
 static void adt7475_write_word(struct i2c_client *client, int reg, u16 val)
@@ -962,13 +966,14 @@ static ssize_t show_pwmfreq(struct device *dev, struct device_attribute *attr,
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	int i = clamp_val(data->range[sattr->index] & 0xf, 0,
-			  ARRAY_SIZE(pwmfreq_table) - 1);
+	int idx;
 
 	if (IS_ERR(data))
 		return PTR_ERR(data);
+	idx = clamp_val(data->range[sattr->index] & 0xf, 0,
+			ARRAY_SIZE(pwmfreq_table) - 1);
 
-	return sprintf(buf, "%d\n", pwmfreq_table[i]);
+	return sprintf(buf, "%d\n", pwmfreq_table[idx]);
 }
 
 static ssize_t set_pwmfreq(struct device *dev, struct device_attribute *attr,
@@ -1004,6 +1009,10 @@ static ssize_t pwm_use_point2_pwm_at_crit_show(struct device *dev,
 					char *buf)
 {
 	struct adt7475_data *data = adt7475_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n", !!(data->config4 & CONFIG4_MAXDUTY));
 }
 
