@@ -496,7 +496,7 @@ struct dwc3_ep_file_map {
 	const struct file_operations *const fops;
 };
 
-static int dwc3_tx_fifo_queue_show(struct seq_file *s, void *unused)
+static int dwc3_tx_fifo_size_show(struct seq_file *s, void *unused)
 {
 	struct dwc3_ep		*dep = s->private;
 	struct dwc3		*dwc = dep->dwc;
@@ -504,14 +504,14 @@ static int dwc3_tx_fifo_queue_show(struct seq_file *s, void *unused)
 	u32			val;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	val = dwc3_core_fifo_space(dep, DWC3_TXFIFOQ);
+	val = dwc3_core_fifo_space(dep, DWC3_TXFIFO);
 	seq_printf(s, "%u\n", val);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return 0;
 }
 
-static int dwc3_rx_fifo_queue_show(struct seq_file *s, void *unused)
+static int dwc3_rx_fifo_size_show(struct seq_file *s, void *unused)
 {
 	struct dwc3_ep		*dep = s->private;
 	struct dwc3		*dwc = dep->dwc;
@@ -519,7 +519,7 @@ static int dwc3_rx_fifo_queue_show(struct seq_file *s, void *unused)
 	u32			val;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	val = dwc3_core_fifo_space(dep, DWC3_RXFIFOQ);
+	val = dwc3_core_fifo_space(dep, DWC3_RXFIFO);
 	seq_printf(s, "%u\n", val);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
@@ -675,8 +675,8 @@ out:
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(dwc3_tx_fifo_queue);
-DEFINE_SHOW_ATTRIBUTE(dwc3_rx_fifo_queue);
+DEFINE_SHOW_ATTRIBUTE(dwc3_tx_fifo_size);
+DEFINE_SHOW_ATTRIBUTE(dwc3_rx_fifo_size);
 DEFINE_SHOW_ATTRIBUTE(dwc3_tx_request_queue);
 DEFINE_SHOW_ATTRIBUTE(dwc3_rx_request_queue);
 DEFINE_SHOW_ATTRIBUTE(dwc3_rx_info_queue);
@@ -686,8 +686,8 @@ DEFINE_SHOW_ATTRIBUTE(dwc3_transfer_type);
 DEFINE_SHOW_ATTRIBUTE(dwc3_trb_ring);
 
 static const struct dwc3_ep_file_map dwc3_ep_file_map[] = {
-	{ "tx_fifo_queue", &dwc3_tx_fifo_queue_fops, },
-	{ "rx_fifo_queue", &dwc3_rx_fifo_queue_fops, },
+	{ "tx_fifo_size", &dwc3_tx_fifo_size_fops, },
+	{ "rx_fifo_size", &dwc3_rx_fifo_size_fops, },
 	{ "tx_request_queue", &dwc3_tx_request_queue_fops, },
 	{ "rx_request_queue", &dwc3_rx_request_queue_fops, },
 	{ "rx_info_queue", &dwc3_rx_info_queue_fops, },
