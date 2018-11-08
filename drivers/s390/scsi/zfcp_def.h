@@ -115,22 +115,22 @@ struct zfcp_erp_action {
 	struct timer_list timer;
 };
 
-struct fsf_latency_record {
+struct zfcp_latency_record {
 	u32 min;
 	u32 max;
 	u64 sum;
 };
 
-struct latency_cont {
-	struct fsf_latency_record channel;
-	struct fsf_latency_record fabric;
+struct zfcp_latency_cont {
+	struct zfcp_latency_record channel;
+	struct zfcp_latency_record fabric;
 	u64 counter;
 };
 
 struct zfcp_latencies {
-	struct latency_cont read;
-	struct latency_cont write;
-	struct latency_cont cmd;
+	struct zfcp_latency_cont read;
+	struct zfcp_latency_cont write;
+	struct zfcp_latency_cont cmd;
 	spinlock_t lock;
 };
 

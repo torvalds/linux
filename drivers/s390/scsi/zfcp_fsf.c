@@ -1991,7 +1991,7 @@ out:
 	return retval;
 }
 
-static void zfcp_fsf_update_lat(struct fsf_latency_record *lat_rec, u32 lat)
+static void zfcp_fsf_update_lat(struct zfcp_latency_record *lat_rec, u32 lat)
 {
 	lat_rec->sum += lat;
 	lat_rec->min = min(lat_rec->min, lat);
@@ -2001,7 +2001,7 @@ static void zfcp_fsf_update_lat(struct fsf_latency_record *lat_rec, u32 lat)
 static void zfcp_fsf_req_trace(struct zfcp_fsf_req *req, struct scsi_cmnd *scsi)
 {
 	struct fsf_qual_latency_info *lat_in;
-	struct latency_cont *lat = NULL;
+	struct zfcp_latency_cont *lat = NULL;
 	struct zfcp_scsi_dev *zfcp_sdev;
 	struct zfcp_blk_drv_data blktrc;
 	int ticks = req->adapter->timer_ticks;
