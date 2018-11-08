@@ -637,8 +637,10 @@ void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
  * If no transmitter or receiver is active prior calling, then sample-rate
  * generator and frame sync are started.
  */
-void omap_mcbsp_start(struct omap_mcbsp *mcbsp, int tx, int rx)
+void omap_mcbsp_start(struct omap_mcbsp *mcbsp, int stream)
 {
+	int tx = (stream == SNDRV_PCM_STREAM_PLAYBACK);
+	int rx = !tx;
 	int enable_srg = 0;
 	u16 w;
 
@@ -694,8 +696,10 @@ void omap_mcbsp_start(struct omap_mcbsp *mcbsp, int tx, int rx)
 	omap_mcbsp_dump_reg(mcbsp);
 }
 
-void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int tx, int rx)
+void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int stream)
 {
+	int tx = (stream == SNDRV_PCM_STREAM_PLAYBACK);
+	int rx = !tx;
 	int idle;
 	u16 w;
 

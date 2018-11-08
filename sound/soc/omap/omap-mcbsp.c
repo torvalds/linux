@@ -201,27 +201,26 @@ static int omap_mcbsp_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				  struct snd_soc_dai *cpu_dai)
 {
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
-	int err = 0, play = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		mcbsp->active++;
-		omap_mcbsp_start(mcbsp, play, !play);
+		omap_mcbsp_start(mcbsp, substream->stream);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		omap_mcbsp_stop(mcbsp, play, !play);
+		omap_mcbsp_stop(mcbsp, substream->stream);
 		mcbsp->active--;
 		break;
 	default:
-		err = -EINVAL;
+		return -EINVAL;
 	}
 
-	return err;
+	return 0;
 }
 
 static snd_pcm_sframes_t omap_mcbsp_dai_delay(

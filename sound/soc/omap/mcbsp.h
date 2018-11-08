@@ -339,8 +339,8 @@ u16 omap_mcbsp_get_rx_delay(struct omap_mcbsp *mcbsp);
 int omap_mcbsp_get_dma_op_mode(struct omap_mcbsp *mcbsp);
 int omap_mcbsp_request(struct omap_mcbsp *mcbsp);
 void omap_mcbsp_free(struct omap_mcbsp *mcbsp);
-void omap_mcbsp_start(struct omap_mcbsp *mcbsp, int tx, int rx);
-void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int tx, int rx);
+void omap_mcbsp_start(struct omap_mcbsp *mcbsp, int stream);
+void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int stream);
 
 /* McBSP functional clock source changing function */
 int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id);
