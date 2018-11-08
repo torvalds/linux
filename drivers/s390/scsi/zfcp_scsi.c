@@ -226,7 +226,9 @@ static void zfcp_scsi_forget_cmnd(struct zfcp_fsf_req *old_req, void *data)
 		(struct zfcp_scsi_req_filter *)data;
 
 	/* already aborted - prevent side-effects - or not a SCSI command */
-	if (old_req->data == NULL || old_req->fsf_command != FSF_QTCB_FCP_CMND)
+	if (old_req->data == NULL ||
+	    zfcp_fsf_req_is_status_read_buffer(old_req) ||
+	    old_req->qtcb->header.fsf_command != FSF_QTCB_FCP_CMND)
 		return;
 
 	/* (tmf_scope == FCP_TMF_TGT_RESET || tmf_scope == FCP_TMF_LUN_RESET) */

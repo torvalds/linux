@@ -81,7 +81,7 @@ void zfcp_dbf_hba_fsf_res(char *tag, int level, struct zfcp_fsf_req *req)
 	rec->id = ZFCP_DBF_HBA_RES;
 	rec->fsf_req_id = req->req_id;
 	rec->fsf_req_status = req->status;
-	rec->fsf_cmd = req->fsf_command;
+	rec->fsf_cmd = q_head->fsf_command;
 	rec->fsf_seq_no = req->seq_no;
 	rec->u.res.req_issued = req->issued;
 	rec->u.res.prot_status = q_pref->prot_status;
@@ -94,7 +94,7 @@ void zfcp_dbf_hba_fsf_res(char *tag, int level, struct zfcp_fsf_req *req)
 	memcpy(rec->u.res.fsf_status_qual, &q_head->fsf_status_qual,
 	       FSF_STATUS_QUALIFIER_SIZE);
 
-	if (req->fsf_command != FSF_QTCB_FCP_CMND) {
+	if (q_head->fsf_command != FSF_QTCB_FCP_CMND) {
 		rec->pl_len = q_head->log_length;
 		zfcp_dbf_pl_write(dbf, (char *)q_pref + q_head->log_start,
 				  rec->pl_len, "fsf_res", req->req_id);
@@ -127,7 +127,7 @@ void zfcp_dbf_hba_fsf_uss(char *tag, struct zfcp_fsf_req *req)
 	rec->id = ZFCP_DBF_HBA_USS;
 	rec->fsf_req_id = req->req_id;
 	rec->fsf_req_status = req->status;
-	rec->fsf_cmd = req->fsf_command;
+	rec->fsf_cmd = FSF_QTCB_UNSOLICITED_STATUS;
 
 	if (!srb)
 		goto log;
@@ -174,7 +174,7 @@ void zfcp_dbf_hba_bit_err(char *tag, struct zfcp_fsf_req *req)
 	rec->id = ZFCP_DBF_HBA_BIT;
 	rec->fsf_req_id = req->req_id;
 	rec->fsf_req_status = req->status;
-	rec->fsf_cmd = req->fsf_command;
+	rec->fsf_cmd = FSF_QTCB_UNSOLICITED_STATUS;
 	memcpy(&rec->u.be, &sr_buf->payload.bit_error,
 	       sizeof(struct fsf_bit_error_payload));
 

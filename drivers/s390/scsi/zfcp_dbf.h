@@ -339,8 +339,8 @@ void zfcp_dbf_hba_fsf_response(struct zfcp_fsf_req *req)
 				      zfcp_dbf_hba_fsf_resp_suppress(req)
 				      ? 5 : 1, req);
 
-	} else if ((req->fsf_command == FSF_QTCB_OPEN_PORT_WITH_DID) ||
-		   (req->fsf_command == FSF_QTCB_OPEN_LUN)) {
+	} else if ((qtcb->header.fsf_command == FSF_QTCB_OPEN_PORT_WITH_DID) ||
+		   (qtcb->header.fsf_command == FSF_QTCB_OPEN_LUN)) {
 		zfcp_dbf_hba_fsf_resp("fs_open", 4, req);
 
 	} else if (qtcb->header.log_length) {

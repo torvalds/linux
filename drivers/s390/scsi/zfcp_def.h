@@ -277,7 +277,6 @@ static inline u64 zfcp_scsi_dev_lun(struct scsi_device *sdev)
  * @qdio_req: qdio queue related values
  * @completion: used to signal the completion of the request
  * @status: status of the request
- * @fsf_command: FSF command issued
  * @qtcb: associated QTCB
  * @seq_no: sequence number of this request
  * @data: private data
@@ -294,7 +293,6 @@ struct zfcp_fsf_req {
 	struct zfcp_qdio_req	qdio_req;
 	struct completion	completion;
 	u32			status;
-	u32			fsf_command;
 	struct fsf_qtcb		*qtcb;
 	u32			seq_no;
 	void			*data;
@@ -309,6 +307,11 @@ static inline
 int zfcp_adapter_multi_buffer_active(struct zfcp_adapter *adapter)
 {
 	return atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_MB_ACT;
+}
+
+static inline bool zfcp_fsf_req_is_status_read_buffer(struct zfcp_fsf_req *req)
+{
+	return req->qtcb == NULL;
 }
 
 #endif /* ZFCP_DEF_H */

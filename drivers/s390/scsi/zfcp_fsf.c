@@ -84,13 +84,13 @@ static void zfcp_fsf_class_not_supp(struct zfcp_fsf_req *req)
 void zfcp_fsf_req_free(struct zfcp_fsf_req *req)
 {
 	if (likely(req->pool)) {
-		if (likely(req->qtcb))
+		if (likely(!zfcp_fsf_req_is_status_read_buffer(req)))
 			mempool_free(req->qtcb, req->adapter->pool.qtcb_pool);
 		mempool_free(req, req->pool);
 		return;
 	}
 
-	if (likely(req->qtcb))
+	if (likely(!zfcp_fsf_req_is_status_read_buffer(req)))
 		kmem_cache_free(zfcp_fsf_qtcb_cache, req->qtcb);
 	kfree(req);
 }
@@ -393,7 +393,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
  */
 static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 {
-	if (unlikely(req->fsf_command == FSF_QTCB_UNSOLICITED_STATUS)) {
+	if (unlikely(zfcp_fsf_req_is_status_read_buffer(req))) {
 		zfcp_fsf_status_read_handler(req);
 		return;
 	}
@@ -710,7 +710,6 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 	init_completion(&req->completion);
 
 	req->adapter = adapter;
-	req->fsf_command = fsf_cmd;
 	req->req_id = adapter->req_no;
 
 	if (likely(fsf_cmd != FSF_QTCB_UNSOLICITED_STATUS)) {
@@ -729,10 +728,10 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 		req->qtcb->prefix.req_seq_no = adapter->fsf_req_seq_no;
 		req->qtcb->prefix.req_id = req->req_id;
 		req->qtcb->prefix.ulp_info = 26;
-		req->qtcb->prefix.qtcb_type = fsf_qtcb_type[req->fsf_command];
+		req->qtcb->prefix.qtcb_type = fsf_qtcb_type[fsf_cmd];
 		req->qtcb->prefix.qtcb_version = FSF_QTCB_CURRENT_VERSION;
 		req->qtcb->header.req_handle = req->req_id;
-		req->qtcb->header.fsf_command = req->fsf_command;
+		req->qtcb->header.fsf_command = fsf_cmd;
 	}
 
 	zfcp_qdio_req_init(adapter->qdio, &req->qdio_req, req->req_id, sbtype,
@@ -745,7 +744,6 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
 	struct zfcp_qdio *qdio = adapter->qdio;
-	int with_qtcb = (req->qtcb != NULL);
 	int req_id = req->req_id;
 
 	zfcp_reqlist_add(adapter->req_list, req);
@@ -761,7 +759,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 	}
 
 	/* Don't increase for unsolicited status */
-	if (with_qtcb)
+	if (!zfcp_fsf_req_is_status_read_buffer(req))
 		adapter->fsf_req_seq_no++;
 	adapter->req_no++;
 
