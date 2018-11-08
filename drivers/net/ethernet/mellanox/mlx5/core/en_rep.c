@@ -162,21 +162,19 @@ static void mlx5e_rep_update_hw_counters(struct mlx5e_priv *priv)
 static void mlx5e_rep_update_sw_counters(struct mlx5e_priv *priv)
 {
 	struct mlx5e_sw_stats *s = &priv->stats.sw;
-	struct mlx5e_rq_stats *rq_stats;
-	struct mlx5e_sq_stats *sq_stats;
 	int i, j;
 
 	memset(s, 0, sizeof(*s));
-	for (i = 0; i < priv->channels.num; i++) {
-		struct mlx5e_channel *c = priv->channels.c[i];
-
-		rq_stats = c->rq.stats;
+	for (i = 0; i < mlx5e_get_netdev_max_channels(priv->netdev); i++) {
+		struct mlx5e_channel_stats *channel_stats =
+			&priv->channel_stats[i];
+		struct mlx5e_rq_stats *rq_stats = &channel_stats->rq;
 
 		s->rx_packets	+= rq_stats->packets;
 		s->rx_bytes	+= rq_stats->bytes;
 
-		for (j = 0; j < priv->channels.params.num_tc; j++) {
-			sq_stats = c->sq[j].stats;
+		for (j = 0; j < priv->max_opened_tc; j++) {
+			struct mlx5e_sq_stats *sq_stats = &channel_stats->sq[j];
 
 			s->tx_packets		+= sq_stats->packets;
 			s->tx_bytes		+= sq_stats->bytes;
@@ -195,8 +193,7 @@ static void mlx5e_rep_get_ethtool_stats(struct net_device *dev,
 		return;
 
 	mutex_lock(&priv->state_lock);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		mlx5e_rep_update_sw_counters(priv);
+	mlx5e_rep_update_sw_counters(priv);
 	mlx5e_rep_update_hw_counters(priv);
 	mutex_unlock(&priv->state_lock);
 
