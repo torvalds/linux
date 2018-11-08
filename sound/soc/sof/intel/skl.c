@@ -85,6 +85,10 @@ struct snd_sof_dsp_ops sof_skl_ops = {
 	/* firmware loading */
 	.load_firmware = hda_dsp_cl_load_fw,
 
+	/* pre/post fw run */
+	.pre_fw_run = hda_dsp_pre_fw_run,
+	.post_fw_run = hda_dsp_post_fw_run,
+
 	/* firmware run */
 	.run = hda_dsp_cl_boot_firmware_skl,
 

@@ -37,6 +37,7 @@
 #define SOF_HDA_WAKESTS			0x0E
 #define SOF_HDA_WAKESTS_INT_MASK	((1 << 8) - 1)
 #define SOF_HDA_RIRBSTS			0x5d
+#define SOF_HDA_VS_EM2_L1SEN            BIT(13)
 
 /* SOF_HDA_GCTL register bist */
 #define SOF_HDA_GCTL_RESET		BIT(0)
@@ -487,12 +488,17 @@ int hda_dsp_cl_load_fw(struct snd_sof_dev *sdev, bool first_boot);
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev);
 int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev);
 
+/* pre and post fw run ops */
+int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev);
+int hda_dsp_post_fw_run(struct snd_sof_dev *sdev);
+
 /*
  * HDA Controller Operations.
  */
 int hda_dsp_ctrl_get_caps(struct snd_sof_dev *sdev);
 int hda_dsp_ctrl_link_reset(struct snd_sof_dev *sdev);
 void hda_dsp_ctrl_misc_clock_gating(struct snd_sof_dev *sdev, bool enable);
+int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable);
 int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset);
 
 /*

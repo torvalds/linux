@@ -89,6 +89,10 @@ struct snd_sof_dsp_ops sof_apl_ops = {
 	/* firmware run */
 	.run = hda_dsp_cl_boot_firmware,
 
+	/* pre/post fw run */
+	.pre_fw_run = hda_dsp_pre_fw_run,
+	.post_fw_run = hda_dsp_post_fw_run,
+
 	/* trace callback */
 	.trace_init = hda_dsp_trace_init,
 	.trace_release = hda_dsp_trace_release,
