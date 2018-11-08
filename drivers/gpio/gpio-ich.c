@@ -100,7 +100,7 @@ struct ichx_desc {
 
 static struct {
 	spinlock_t lock;
-	struct platform_device *dev;
+	struct device *dev;
 	struct gpio_chip chip;
 	struct resource *gpio_base;	/* GPIO IO base */
 	struct resource *pm_base;	/* Power Mangagment IO base */
@@ -275,7 +275,7 @@ static void ichx_gpiolib_setup(struct gpio_chip *chip)
 {
 	chip->owner = THIS_MODULE;
 	chip->label = DRV_NAME;
-	chip->parent = &ichx_priv.dev->dev;
+	chip->parent = ichx_priv.dev;
 
 	/* Allow chip-specific overrides of request()/get() */
 	chip->request = ichx_priv.desc->request ?
@@ -398,14 +398,13 @@ static int ichx_gpio_request_regions(struct device *dev,
 
 static int ichx_gpio_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct lpc_ich_info *ich_info = dev_get_platdata(dev);
 	struct resource *res_base, *res_pm;
 	int err;
-	struct lpc_ich_info *ich_info = dev_get_platdata(&pdev->dev);
 
 	if (!ich_info)
 		return -ENODEV;
-
-	ichx_priv.dev = pdev;
 
 	switch (ich_info->gpio_version) {
 	case ICH_I3100_GPIO:
@@ -436,15 +435,17 @@ static int ichx_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	ichx_priv.dev = dev;
 	spin_lock_init(&ichx_priv.lock);
+
 	res_base = platform_get_resource(pdev, IORESOURCE_IO, ICH_RES_GPIO);
-	ichx_priv.use_gpio = ich_info->use_gpio;
-	err = ichx_gpio_request_regions(&pdev->dev, res_base, pdev->name,
-					ichx_priv.use_gpio);
+	err = ichx_gpio_request_regions(dev, res_base, pdev->name,
+					ich_info->use_gpio);
 	if (err)
 		return err;
 
 	ichx_priv.gpio_base = res_base;
+	ichx_priv.use_gpio = ich_info->use_gpio;
 
 	/*
 	 * If necessary, determine the I/O address of ACPI/power management
@@ -460,8 +461,8 @@ static int ichx_gpio_probe(struct platform_device *pdev)
 		goto init;
 	}
 
-	if (!devm_request_region(&pdev->dev, res_pm->start,
-			resource_size(res_pm), pdev->name)) {
+	if (!devm_request_region(dev, res_pm->start, resource_size(res_pm),
+				 pdev->name)) {
 		pr_warn("ACPI BAR is busy, GPI 0 - 15 unavailable\n");
 		goto init;
 	}
