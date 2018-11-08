@@ -12,6 +12,8 @@
 #ifndef PMC_CORE_H
 #define PMC_CORE_H
 
+#include <linux/bits.h>
+
 #define PMC_BASE_ADDR_DEFAULT			0xFE000000
 
 /* Sunrise Point Power Management Controller PCI Device ID */
@@ -168,6 +170,11 @@ enum ppfear_regs {
 #define CNP_PMC_LTR_CNV				0x1BF0
 #define CNP_PMC_LTR_EMMC			0x1BF4
 #define CNP_PMC_LTR_UFSX2			0x1BF8
+
+#define LTR_DECODED_VAL				GENMASK(9, 0)
+#define LTR_DECODED_SCALE			GENMASK(12, 10)
+#define LTR_REQ_SNOOP				BIT(15)
+#define LTR_REQ_NONSNOOP			BIT(31)
 
 struct pmc_bit_map {
 	const char *name;
