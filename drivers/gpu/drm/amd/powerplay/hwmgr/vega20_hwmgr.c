@@ -47,6 +47,7 @@
 #include "pp_overdriver.h"
 #include "pp_thermal.h"
 #include "soc15_common.h"
+#include "vega20_baco.h"
 #include "smuio/smuio_9_0_offset.h"
 #include "smuio/smuio_9_0_sh_mask.h"
 #include "nbio/nbio_7_4_sh_mask.h"
@@ -3591,6 +3592,10 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	/* smu memory related */
 	.notify_cac_buffer_info = vega20_notify_cac_buffer_info,
 	.enable_mgpu_fan_boost = vega20_enable_mgpu_fan_boost,
+	/* BACO related */
+	.get_asic_baco_capability = vega20_baco_get_capability,
+	.get_asic_baco_state = vega20_baco_get_state,
+	.set_asic_baco_state = vega20_baco_set_state,
 };
 
 int vega20_hwmgr_init(struct pp_hwmgr *hwmgr)
