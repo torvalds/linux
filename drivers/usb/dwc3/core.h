@@ -179,8 +179,8 @@
 #define DWC3_GDBGFIFOSPACE_TYPE(n)	(((n) << 5) & 0x1e0)
 #define DWC3_GDBGFIFOSPACE_SPACE_AVAILABLE(n) (((n) >> 16) & 0xffff)
 
-#define DWC3_TXFIFOQ		0
-#define DWC3_RXFIFOQ		1
+#define DWC3_TXFIFO		0
+#define DWC3_RXFIFO		1
 #define DWC3_TXREQQ		2
 #define DWC3_RXREQQ		3
 #define DWC3_RXINFOQ		4
