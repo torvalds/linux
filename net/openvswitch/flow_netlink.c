@@ -990,9 +990,9 @@ static int validate_vlan_from_nlattrs(const struct sw_flow_match *match,
 	if (a[OVS_KEY_ATTR_VLAN])
 		tci = nla_get_be16(a[OVS_KEY_ATTR_VLAN]);
 
-	if (!(tci & htons(VLAN_TAG_PRESENT))) {
+	if (!(tci & htons(VLAN_CFI_MASK))) {
 		if (tci) {
-			OVS_NLERR(log, "%s TCI does not have VLAN_TAG_PRESENT bit set.",
+			OVS_NLERR(log, "%s TCI does not have VLAN_CFI_MASK bit set.",
 				  (inner) ? "C-VLAN" : "VLAN");
 			return -EINVAL;
 		} else if (nla_len(a[OVS_KEY_ATTR_ENCAP])) {
@@ -1013,9 +1013,9 @@ static int validate_vlan_mask_from_nlattrs(const struct sw_flow_match *match,
 	__be16 tci = 0;
 	__be16 tpid = 0;
 	bool encap_valid = !!(match->key->eth.vlan.tci &
-			      htons(VLAN_TAG_PRESENT));
+			      htons(VLAN_CFI_MASK));
 	bool i_encap_valid = !!(match->key->eth.cvlan.tci &
-				htons(VLAN_TAG_PRESENT));
+				htons(VLAN_CFI_MASK));
 
 	if (!(key_attrs & (1 << OVS_KEY_ATTR_ENCAP))) {
 		/* Not a VLAN. */
@@ -1039,8 +1039,8 @@ static int validate_vlan_mask_from_nlattrs(const struct sw_flow_match *match,
 			  (inner) ? "C-VLAN" : "VLAN", ntohs(tpid));
 		return -EINVAL;
 	}
-	if (!(tci & htons(VLAN_TAG_PRESENT))) {
-		OVS_NLERR(log, "%s TCI mask does not have exact match for VLAN_TAG_PRESENT bit.",
+	if (!(tci & htons(VLAN_CFI_MASK))) {
+		OVS_NLERR(log, "%s TCI mask does not have exact match for VLAN_CFI_MASK bit.",
 			  (inner) ? "C-VLAN" : "VLAN");
 		return -EINVAL;
 	}
@@ -1095,7 +1095,7 @@ static int parse_vlan_from_nlattrs(struct sw_flow_match *match,
 	if (err)
 		return err;
 
-	encap_valid = !!(match->key->eth.vlan.tci & htons(VLAN_TAG_PRESENT));
+	encap_valid = !!(match->key->eth.vlan.tci & htons(VLAN_CFI_MASK));
 	if (encap_valid) {
 		err = __parse_vlan_from_nlattrs(match, key_attrs, true, a,
 						is_mask, log);
@@ -2943,7 +2943,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			vlan = nla_data(a);
 			if (!eth_type_vlan(vlan->vlan_tpid))
 				return -EINVAL;
-			if (!(vlan->vlan_tci & htons(VLAN_TAG_PRESENT)))
+			if (!(vlan->vlan_tci & htons(VLAN_CFI_MASK)))
 				return -EINVAL;
 			vlan_tci = vlan->vlan_tci;
 			break;
@@ -2959,7 +2959,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			/* Prohibit push MPLS other than to a white list
 			 * for packets that have a known tag order.
 			 */
-			if (vlan_tci & htons(VLAN_TAG_PRESENT) ||
+			if (vlan_tci & htons(VLAN_CFI_MASK) ||
 			    (eth_type != htons(ETH_P_IP) &&
 			     eth_type != htons(ETH_P_IPV6) &&
 			     eth_type != htons(ETH_P_ARP) &&
@@ -2971,7 +2971,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 		}
 
 		case OVS_ACTION_ATTR_POP_MPLS:
-			if (vlan_tci & htons(VLAN_TAG_PRESENT) ||
+			if (vlan_tci & htons(VLAN_CFI_MASK) ||
 			    !eth_p_mpls(eth_type))
 				return -EINVAL;
 
@@ -3036,7 +3036,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 		case OVS_ACTION_ATTR_POP_ETH:
 			if (mac_proto != MAC_PROTO_ETHERNET)
 				return -EINVAL;
-			if (vlan_tci & htons(VLAN_TAG_PRESENT))
+			if (vlan_tci & htons(VLAN_CFI_MASK))
 				return -EINVAL;
 			mac_proto = MAC_PROTO_NONE;
 			break;
