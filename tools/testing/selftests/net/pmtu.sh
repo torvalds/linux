@@ -43,6 +43,22 @@
 # - pmtu_ipv6_vxlan6_exception
 #	Same as pmtu_ipv4_vxlan6_exception, but send IPv6 packets from A to B
 #
+# - pmtu_ipv4_geneve4_exception
+#	Same as pmtu_ipv4_vxlan4_exception, but using a GENEVE tunnel instead of
+#	VXLAN
+#
+# - pmtu_ipv6_geneve4_exception
+#	Same as pmtu_ipv6_vxlan4_exception, but using a GENEVE tunnel instead of
+#	VXLAN
+#
+# - pmtu_ipv4_geneve6_exception
+#	Same as pmtu_ipv4_vxlan6_exception, but using a GENEVE tunnel instead of
+#	VXLAN
+#
+# - pmtu_ipv6_geneve6_exception
+#	Same as pmtu_ipv6_vxlan6_exception, but using a GENEVE tunnel instead of
+#	VXLAN
+#
 # - pmtu_vti4_exception
 #	Set up vti tunnel on top of veth, with xfrm states and policies, in two
 #	namespaces with matching endpoints. Check that route exception is not
@@ -93,6 +109,10 @@ tests="
 	pmtu_ipv6_vxlan4_exception	IPv6 over vxlan4: PMTU exceptions
 	pmtu_ipv4_vxlan6_exception	IPv4 over vxlan6: PMTU exceptions
 	pmtu_ipv6_vxlan6_exception	IPv6 over vxlan6: PMTU exceptions
+	pmtu_ipv4_geneve4_exception	IPv4 over geneve4: PMTU exceptions
+	pmtu_ipv6_geneve4_exception	IPv6 over geneve4: PMTU exceptions
+	pmtu_ipv4_geneve6_exception	IPv4 over geneve6: PMTU exceptions
+	pmtu_ipv6_geneve6_exception	IPv6 over geneve6: PMTU exceptions
 	pmtu_vti6_exception		vti6: PMTU exceptions
 	pmtu_vti4_exception		vti4: PMTU exceptions
 	pmtu_vti4_default_mtu		vti4: default MTU assignment
@@ -230,32 +250,50 @@ setup_vti6() {
 	setup_vti 6 ${veth6_a_addr} ${veth6_b_addr} ${tunnel6_a_addr} ${tunnel6_b_addr} ${tunnel6_mask}
 }
 
-setup_vxlan() {
-	a_addr="${1}"
-	b_addr="${2}"
-	opts="${3}"
+setup_vxlan_or_geneve() {
+	type="${1}"
+	a_addr="${2}"
+	b_addr="${3}"
+	opts="${4}"
 
-	${ns_a} ip link add vxlan_a type vxlan id 1 local ${a_addr} remote ${b_addr} ttl 64 dstport 4789 ${opts} || return 1
-	${ns_b} ip link add vxlan_b type vxlan id 1 local ${b_addr} remote ${a_addr} ttl 64 dstport 4789 ${opts}
+	if [ "${type}" = "vxlan" ]; then
+		opts="${opts} ttl 64 dstport 4789"
+		opts_a="local ${a_addr}"
+		opts_b="local ${b_addr}"
+	else
+		opts_a=""
+		opts_b=""
+	fi
 
-	${ns_a} ip addr add ${tunnel4_a_addr}/${tunnel4_mask}   dev vxlan_a
-	${ns_b} ip addr add ${tunnel4_b_addr}/${tunnel4_mask}   dev vxlan_b
+	${ns_a} ip link add ${type}_a type ${type} id 1 ${opts_a} remote ${b_addr} ${opts} || return 1
+	${ns_b} ip link add ${type}_b type ${type} id 1 ${opts_b} remote ${a_addr} ${opts}
 
-	${ns_a} ip addr add ${tunnel6_a_addr}/${tunnel6_mask}   dev vxlan_a
-	${ns_b} ip addr add ${tunnel6_b_addr}/${tunnel6_mask}   dev vxlan_b
+	${ns_a} ip addr add ${tunnel4_a_addr}/${tunnel4_mask} dev ${type}_a
+	${ns_b} ip addr add ${tunnel4_b_addr}/${tunnel4_mask} dev ${type}_b
 
-	${ns_a} ip link set vxlan_a up
-	${ns_b} ip link set vxlan_b up
+	${ns_a} ip addr add ${tunnel6_a_addr}/${tunnel6_mask} dev ${type}_a
+	${ns_b} ip addr add ${tunnel6_b_addr}/${tunnel6_mask} dev ${type}_b
+
+	${ns_a} ip link set ${type}_a up
+	${ns_b} ip link set ${type}_b up
 
 	sleep 1
 }
 
+setup_geneve4() {
+	setup_vxlan_or_geneve geneve ${prefix4}.${a_r1}.1  ${prefix4}.${b_r1}.1  "df set"
+}
+
 setup_vxlan4() {
-	setup_vxlan ${prefix4}.${a_r1}.1 ${prefix4}.${b_r1}.1 "df set"
+	setup_vxlan_or_geneve vxlan  ${prefix4}.${a_r1}.1  ${prefix4}.${b_r1}.1  "df set"
+}
+
+setup_geneve6() {
+	setup_vxlan_or_geneve geneve ${prefix6}:${a_r1}::1 ${prefix6}:${b_r1}::1
 }
 
 setup_vxlan6() {
-	setup_vxlan ${prefix6}:${a_r1}::1 ${prefix6}:${b_r1}::1 ""
+	setup_vxlan_or_geneve vxlan  ${prefix6}:${a_r1}::1 ${prefix6}:${b_r1}::1
 }
 
 setup_xfrm() {
@@ -514,22 +552,23 @@ test_pmtu_ipv6_exception() {
 	test_pmtu_ipvX 6
 }
 
-test_pmtu_ipvX_over_vxlanY_exception() {
-	family=${1}
-	outer_family=${2}
+test_pmtu_ipvX_over_vxlanY_or_geneveY_exception() {
+	type=${1}
+	family=${2}
+	outer_family=${3}
 	ll_mtu=4000
 
 	if [ ${outer_family} -eq 4 ]; then
-		setup namespaces routing vxlan4 || return 2
-		#                      IPv4 header   UDP header   VXLAN header   Ethernet header
-		exp_mtu=$((${ll_mtu} - 20          - 8          - 8            - 14))
+		setup namespaces routing ${type}4 || return 2
+		#                      IPv4 header   UDP header   VXLAN/GENEVE header   Ethernet header
+		exp_mtu=$((${ll_mtu} - 20          - 8          - 8                   - 14))
 	else
-		setup namespaces routing vxlan6 || return 2
-		#                      IPv6 header   UDP header   VXLAN header   Ethernet header
-		exp_mtu=$((${ll_mtu} - 40          - 8          - 8            - 14))
+		setup namespaces routing ${type}6 || return 2
+		#                      IPv6 header   UDP header   VXLAN/GENEVE header   Ethernet header
+		exp_mtu=$((${ll_mtu} - 40          - 8          - 8                   - 14))
 	fi
 
-	trace "${ns_a}" vxlan_a      "${ns_b}"  vxlan_b \
+	trace "${ns_a}" ${type}_a    "${ns_b}"  ${type}_b \
 	      "${ns_a}" veth_A-R1    "${ns_r1}" veth_R1-A \
 	      "${ns_b}" veth_B-R1    "${ns_r1}" veth_R1-B
 
@@ -547,29 +586,45 @@ test_pmtu_ipvX_over_vxlanY_exception() {
 	mtu "${ns_b}"  veth_B-R1 ${ll_mtu}
 	mtu "${ns_r1}" veth_R1-B ${ll_mtu}
 
-	mtu "${ns_a}" vxlan_a $((${ll_mtu} + 1000))
-	mtu "${ns_b}" vxlan_b $((${ll_mtu} + 1000))
+	mtu "${ns_a}" ${type}_a $((${ll_mtu} + 1000))
+	mtu "${ns_b}" ${type}_b $((${ll_mtu} + 1000))
 	${ns_a} ${ping} -q -M want -i 0.1 -w 2 -s $((${ll_mtu} + 500)) ${dst} > /dev/null
 
 	# Check that exception was created
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst})"
-	check_pmtu_value ${exp_mtu} "${pmtu}" "exceeding link layer MTU on VXLAN interface"
+	check_pmtu_value ${exp_mtu} "${pmtu}" "exceeding link layer MTU on ${type} interface"
 }
 
 test_pmtu_ipv4_vxlan4_exception() {
-	test_pmtu_ipvX_over_vxlanY_exception 4 4
+	test_pmtu_ipvX_over_vxlanY_or_geneveY_exception vxlan  4 4
 }
 
 test_pmtu_ipv6_vxlan4_exception() {
-	test_pmtu_ipvX_over_vxlanY_exception 6 4
+	test_pmtu_ipvX_over_vxlanY_or_geneveY_exception vxlan  6 4
+}
+
+test_pmtu_ipv4_geneve4_exception() {
+	test_pmtu_ipvX_over_vxlanY_or_geneveY_exception geneve 4 4
+}
+
+test_pmtu_ipv6_geneve4_exception() {
+	test_pmtu_ipvX_over_vxlanY_or_geneveY_exception geneve 6 4
 }
 
 test_pmtu_ipv4_vxlan6_exception() {
-	test_pmtu_ipvX_over_vxlanY_exception 4 6
+	test_pmtu_ipvX_over_vxlanY_or_geneveY_exception vxlan  4 6
 }
 
 test_pmtu_ipv6_vxlan6_exception() {
-	test_pmtu_ipvX_over_vxlanY_exception 6 6
+	test_pmtu_ipvX_over_vxlanY_or_geneveY_exception vxlan  6 6
+}
+
+test_pmtu_ipv4_geneve6_exception() {
+	test_pmtu_ipvX_over_vxlanY_or_geneveY_exception geneve 4 6
+}
+
+test_pmtu_ipv6_geneve6_exception() {
+	test_pmtu_ipvX_over_vxlanY_or_geneveY_exception geneve 6 6
 }
 
 test_pmtu_vti4_exception() {
