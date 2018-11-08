@@ -1035,11 +1035,8 @@ int omap_mcbsp_init(struct platform_device *pdev)
 
 	mcbsp->dma_data[0].addr = omap_mcbsp_dma_reg_params(mcbsp,
 						SNDRV_PCM_STREAM_PLAYBACK);
-	mcbsp->dma_data[0].maxburst = 4;
-
 	mcbsp->dma_data[1].addr = omap_mcbsp_dma_reg_params(mcbsp,
 						SNDRV_PCM_STREAM_CAPTURE);
-	mcbsp->dma_data[1].maxburst = 4;
 
 	mcbsp->fclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(mcbsp->fclk)) {
