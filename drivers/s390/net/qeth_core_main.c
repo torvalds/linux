@@ -3777,9 +3777,9 @@ EXPORT_SYMBOL_GPL(qeth_count_elements);
  * The number of needed buffer elements is returned in @elements.
  * Error to create the hdr is indicated by returning with < 0.
  */
-int qeth_add_hw_header(struct qeth_card *card, struct sk_buff *skb,
-		       struct qeth_hdr **hdr, unsigned int hdr_len,
-		       unsigned int proto_len, unsigned int *elements)
+static int qeth_add_hw_header(struct qeth_card *card, struct sk_buff *skb,
+			      struct qeth_hdr **hdr, unsigned int hdr_len,
+			      unsigned int proto_len, unsigned int *elements)
 {
 	const unsigned int max_elements = QETH_MAX_BUFFER_ELEMENTS(card);
 	const unsigned int contiguous = proto_len ? proto_len : 1;
@@ -3849,7 +3849,6 @@ check_layout:
 	skb_copy_from_linear_data(skb, ((char *)*hdr) + hdr_len, proto_len);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(qeth_add_hw_header);
 
 static void __qeth_fill_buffer(struct sk_buff *skb,
 			       struct qeth_qdio_out_buffer *buf,
@@ -3972,9 +3971,9 @@ static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 	return flush_cnt;
 }
 
-int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue, struct sk_buff *skb,
-			     struct qeth_hdr *hdr, unsigned int offset,
-			     unsigned int hd_len)
+static int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue,
+				    struct sk_buff *skb, struct qeth_hdr *hdr,
+				    unsigned int offset, unsigned int hd_len)
 {
 	int index = queue->next_buf_to_fill;
 	struct qeth_qdio_out_buffer *buffer = queue->bufs[index];
@@ -3990,7 +3989,6 @@ int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue, struct sk_buff *skb,
 	qeth_flush_buffers(queue, index, 1);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(qeth_do_send_packet_fast);
 
 int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			struct sk_buff *skb, struct qeth_hdr *hdr,
@@ -4082,8 +4080,9 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_do_send_packet);
 
-void qeth_fill_tso_ext(struct qeth_hdr_tso *hdr, unsigned int payload_len,
-		       struct sk_buff *skb, unsigned int proto_len)
+static void qeth_fill_tso_ext(struct qeth_hdr_tso *hdr,
+			      unsigned int payload_len, struct sk_buff *skb,
+			      unsigned int proto_len)
 {
 	struct qeth_hdr_ext_tso *ext = &hdr->ext;
 
@@ -4096,7 +4095,6 @@ void qeth_fill_tso_ext(struct qeth_hdr_tso *hdr, unsigned int payload_len,
 	ext->mss = skb_shinfo(skb)->gso_size;
 	ext->dg_hdr_len = proto_len;
 }
-EXPORT_SYMBOL_GPL(qeth_fill_tso_ext);
 
 int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 	      struct qeth_qdio_out_q *queue, int ipv, int cast_type,
@@ -4119,7 +4117,7 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 		proto_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	} else {
 		hw_hdr_len = sizeof(struct qeth_hdr);
-		proto_len = IS_IQD(card) ? ETH_HLEN : 0;
+		proto_len = (IS_IQD(card) && IS_LAYER2(card)) ? ETH_HLEN : 0;
 	}
 
 	rc = skb_cow_head(skb, hw_hdr_len);

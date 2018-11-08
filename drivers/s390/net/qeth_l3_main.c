@@ -2036,79 +2036,25 @@ static void qeth_l3_fixup_headers(struct sk_buff *skb)
 static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 			struct qeth_qdio_out_q *queue, int ipv, int cast_type)
 {
-	unsigned int hw_hdr_len, proto_len, frame_len, elements;
 	unsigned char eth_hdr[ETH_HLEN];
-	bool is_tso = skb_is_gso(skb);
-	unsigned int data_offset = 0;
-	struct qeth_hdr *hdr = NULL;
-	unsigned int hd_len = 0;
-	int push_len, rc;
-	bool is_sg;
-
-	if (is_tso) {
-		hw_hdr_len = sizeof(struct qeth_hdr_tso);
-		proto_len = skb_transport_offset(skb) + tcp_hdrlen(skb) -
-			    ETH_HLEN;
-	} else {
-		hw_hdr_len = sizeof(struct qeth_hdr);
-		proto_len = 0;
-	}
+	unsigned int hw_hdr_len;
+	int rc;
 
 	/* re-use the L2 header area for the HW header: */
+	hw_hdr_len = skb_is_gso(skb) ? sizeof(struct qeth_hdr_tso) :
+				       sizeof(struct qeth_hdr);
 	rc = skb_cow_head(skb, hw_hdr_len - ETH_HLEN);
 	if (rc)
 		return rc;
 	skb_copy_from_linear_data(skb, eth_hdr, ETH_HLEN);
 	skb_pull(skb, ETH_HLEN);
-	frame_len = skb->len;
 
 	qeth_l3_fixup_headers(skb);
-	push_len = qeth_add_hw_header(card, skb, &hdr, hw_hdr_len, proto_len,
-				      &elements);
-	if (push_len < 0)
-		return push_len;
-	if (is_tso || !push_len) {
-		/* HW header needs its own buffer element. */
-		hd_len = hw_hdr_len + proto_len;
-		data_offset = push_len + proto_len;
-	}
-	memset(hdr, 0, hw_hdr_len);
-
-	qeth_l3_fill_header(card, hdr, skb, ipv, cast_type, frame_len);
-	if (is_tso)
-		qeth_fill_tso_ext((struct qeth_hdr_tso *) hdr,
-				  frame_len - proto_len, skb, proto_len);
-
-	is_sg = skb_is_nonlinear(skb);
-	if (IS_IQD(card)) {
-		rc = qeth_do_send_packet_fast(queue, skb, hdr, data_offset,
-					      hd_len);
-	} else {
-		/* TODO: drop skb_orphan() once TX completion is fast enough */
-		skb_orphan(skb);
-		rc = qeth_do_send_packet(card, queue, skb, hdr, data_offset,
-					 hd_len, elements);
-	}
-
-	if (!rc) {
-		if (card->options.performance_stats) {
-			card->perf_stats.buf_elements_sent += elements;
-			if (is_sg)
-				card->perf_stats.sg_skbs_sent++;
-			if (is_tso) {
-				card->perf_stats.large_send_bytes += frame_len;
-				card->perf_stats.large_send_cnt++;
-			}
-		}
-	} else {
-		if (!push_len)
-			kmem_cache_free(qeth_core_header_cache, hdr);
-		if (rc == -EBUSY) {
-			/* roll back to ETH header */
-			skb_pull(skb, push_len);
-			skb_push(skb, ETH_HLEN);
-			skb_copy_to_linear_data(skb, eth_hdr, ETH_HLEN);
-		}
+	rc = qeth_xmit(card, skb, queue, ipv, cast_type, qeth_l3_fill_header);
+	if (rc == -EBUSY) {
+		/* roll back to ETH header */
+		skb_push(skb, ETH_HLEN);
+		skb_copy_to_linear_data(skb, eth_hdr, ETH_HLEN);
 	}
 	return rc;
 }
