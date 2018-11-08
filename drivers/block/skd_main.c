@@ -382,11 +382,12 @@ static void skd_log_skreq(struct skd_device *skdev,
  * READ/WRITE REQUESTS
  *****************************************************************************
  */
-static void skd_inc_in_flight(struct request *rq, void *data, bool reserved)
+static bool skd_inc_in_flight(struct request *rq, void *data, bool reserved)
 {
 	int *count = data;
 
 	count++;
+	return true;
 }
 
 static int skd_in_flight(struct skd_device *skdev)
@@ -1887,13 +1888,13 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 		skd_skdev_state_to_str(skdev->state), skdev->state);
 }
 
-static void skd_recover_request(struct request *req, void *data, bool reserved)
+static bool skd_recover_request(struct request *req, void *data, bool reserved)
 {
 	struct skd_device *const skdev = data;
 	struct skd_request_context *skreq = blk_mq_rq_to_pdu(req);
 
 	if (skreq->state != SKD_REQ_STATE_BUSY)
-		return;
+		return true;
 
 	skd_log_skreq(skdev, skreq, "recover");
 
@@ -1904,6 +1905,7 @@ static void skd_recover_request(struct request *req, void *data, bool reserved)
 	skreq->state = SKD_REQ_STATE_IDLE;
 	skreq->status = BLK_STS_IOERR;
 	blk_mq_complete_request(req);
+	return true;
 }
 
 static void skd_recover_requests(struct skd_device *skdev)

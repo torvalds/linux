@@ -94,7 +94,7 @@ struct mq_inflight {
 	unsigned int *inflight;
 };
 
-static void blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
+static bool blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
 				  struct request *rq, void *priv,
 				  bool reserved)
 {
@@ -109,6 +109,8 @@ static void blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
 		mi->inflight[0]++;
 	if (mi->part->partno)
 		mi->inflight[1]++;
+
+	return true;
 }
 
 void blk_mq_in_flight(struct request_queue *q, struct hd_struct *part,
@@ -120,7 +122,7 @@ void blk_mq_in_flight(struct request_queue *q, struct hd_struct *part,
 	blk_mq_queue_tag_busy_iter(q, blk_mq_check_inflight, &mi);
 }
 
-static void blk_mq_check_inflight_rw(struct blk_mq_hw_ctx *hctx,
+static bool blk_mq_check_inflight_rw(struct blk_mq_hw_ctx *hctx,
 				     struct request *rq, void *priv,
 				     bool reserved)
 {
@@ -128,6 +130,8 @@ static void blk_mq_check_inflight_rw(struct blk_mq_hw_ctx *hctx,
 
 	if (rq->part == mi->part)
 		mi->inflight[rq_data_dir(rq)]++;
+
+	return true;
 }
 
 void blk_mq_in_flight_rw(struct request_queue *q, struct hd_struct *part,
@@ -821,7 +825,7 @@ static bool blk_mq_req_expired(struct request *rq, unsigned long *next)
 	return false;
 }
 
-static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
+static bool blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 		struct request *rq, void *priv, bool reserved)
 {
 	unsigned long *next = priv;
@@ -831,7 +835,7 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 	 * so we're not unnecessarilly synchronizing across CPUs.
 	 */
 	if (!blk_mq_req_expired(rq, next))
-		return;
+		return true;
 
 	/*
 	 * We have reason to believe the request may be expired. Take a
@@ -843,7 +847,7 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 	 * timeout handler to posting a natural completion.
 	 */
 	if (!refcount_inc_not_zero(&rq->ref))
-		return;
+		return true;
 
 	/*
 	 * The request is now locked and cannot be reallocated underneath the
@@ -855,6 +859,8 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 		blk_mq_rq_timed_out(rq, reserved);
 	if (refcount_dec_and_test(&rq->ref))
 		__blk_mq_free_request(rq);
+
+	return true;
 }
 
 static void blk_mq_timeout_work(struct work_struct *work)

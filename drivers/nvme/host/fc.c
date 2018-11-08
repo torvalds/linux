@@ -2386,7 +2386,7 @@ nvme_fc_complete_rq(struct request *rq)
  * status. The done path will return the io request back to the block
  * layer with an error status.
  */
-static void
+static bool
 nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
 {
 	struct nvme_ctrl *nctrl = data;
@@ -2394,6 +2394,7 @@ nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(req);
 
 	__nvme_fc_abort_op(ctrl, op);
+	return true;
 }
 
 

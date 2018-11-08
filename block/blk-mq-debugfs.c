@@ -422,15 +422,18 @@ struct show_busy_params {
 
 /*
  * Note: the state of a request may change while this function is in progress,
- * e.g. due to a concurrent blk_mq_finish_request() call.
+ * e.g. due to a concurrent blk_mq_finish_request() call. Returns true to
+ * keep iterating requests.
  */
-static void hctx_show_busy_rq(struct request *rq, void *data, bool reserved)
+static bool hctx_show_busy_rq(struct request *rq, void *data, bool reserved)
 {
 	const struct show_busy_params *params = data;
 
 	if (rq->mq_hctx == params->hctx)
 		__blk_mq_debugfs_rq_show(params->m,
 					 list_entry_rq(&rq->queuelist));
+
+	return true;
 }
 
 static int hctx_busy_show(void *data, struct seq_file *m)
