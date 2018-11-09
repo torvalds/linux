@@ -303,6 +303,7 @@
 							 "emmc_cmd",
 							 "emmc_ds";
 						function = "emmc";
+						bias-disable;
 					};
 				};
 
@@ -533,6 +534,7 @@
 							 "sdio_cmd",
 							 "sdio_clk";
 						function = "sdio";
+						bias-disable;
 					};
 				};
 
