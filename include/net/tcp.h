@@ -313,7 +313,7 @@ extern struct proto tcp_prot;
 
 void tcp_tasklet_init(void);
 
-void tcp_v4_err(struct sk_buff *skb, u32);
+int tcp_v4_err(struct sk_buff *skb, u32);
 
 void tcp_shutdown(struct sock *sk, int how);
 

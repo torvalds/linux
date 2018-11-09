@@ -423,7 +423,7 @@ EXPORT_SYMBOL(tcp_req_err);
  *
  */
 
-void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
+int tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 {
 	const struct iphdr *iph = (const struct iphdr *)icmp_skb->data;
 	struct tcphdr *th = (struct tcphdr *)(icmp_skb->data + (iph->ihl << 2));
@@ -446,20 +446,21 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 				       inet_iif(icmp_skb), 0);
 	if (!sk) {
 		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
-		return;
+		return -ENOENT;
 	}
 	if (sk->sk_state == TCP_TIME_WAIT) {
 		inet_twsk_put(inet_twsk(sk));
-		return;
+		return 0;
 	}
 	seq = ntohl(th->seq);
-	if (sk->sk_state == TCP_NEW_SYN_RECV)
-		return tcp_req_err(sk, seq,
-				  type == ICMP_PARAMETERPROB ||
-				  type == ICMP_TIME_EXCEEDED ||
-				  (type == ICMP_DEST_UNREACH &&
-				   (code == ICMP_NET_UNREACH ||
-				    code == ICMP_HOST_UNREACH)));
+	if (sk->sk_state == TCP_NEW_SYN_RECV) {
+		tcp_req_err(sk, seq, type == ICMP_PARAMETERPROB ||
+				     type == ICMP_TIME_EXCEEDED ||
+				     (type == ICMP_DEST_UNREACH &&
+				      (code == ICMP_NET_UNREACH ||
+				       code == ICMP_HOST_UNREACH)));
+		return 0;
+	}
 
 	bh_lock_sock(sk);
 	/* If too many ICMPs get dropped on busy
@@ -613,6 +614,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
+	return 0;
 }
 
 void __tcp_v4_send_check(struct sk_buff *skb, __be32 saddr, __be32 daddr)
