@@ -115,9 +115,9 @@ static int phy_clear_interrupt(struct phy_device *phydev)
  *
  * Returns 0 on success or < 0 on error.
  */
-static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
+static int phy_config_interrupt(struct phy_device *phydev, bool interrupts)
 {
-	phydev->interrupts = interrupts;
+	phydev->interrupts = interrupts ? 1 : 0;
 	if (phydev->drv->config_intr)
 		return phydev->drv->config_intr(phydev);
 

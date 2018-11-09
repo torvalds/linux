@@ -263,8 +263,8 @@ static inline struct mii_bus *devm_mdiobus_alloc(struct device *dev)
 void devm_mdiobus_free(struct device *dev, struct mii_bus *bus);
 struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
 
-#define PHY_INTERRUPT_DISABLED	0x0
-#define PHY_INTERRUPT_ENABLED	0x80000000
+#define PHY_INTERRUPT_DISABLED	false
+#define PHY_INTERRUPT_ENABLED	true
 
 /* PHY state machine states:
  *
@@ -410,6 +410,9 @@ struct phy_device {
 	/* The most recently read link state */
 	unsigned link:1;
 
+	/* Interrupts are enabled */
+	unsigned interrupts:1;
+
 	enum phy_state state;
 
 	u32 dev_flags;
@@ -424,9 +427,6 @@ struct phy_device {
 	int duplex;
 	int pause;
 	int asym_pause;
-
-	/* Enabled Interrupts */
-	u32 interrupts;
 
 	/* Union of PHY and Attached devices' supported modes */
 	/* See mii.h for more info */
