@@ -68,6 +68,7 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 		memset(&ndr_desc, 0, sizeof(ndr_desc));
 		ndr_desc.attr_groups = region_attr_groups;
 		ndr_desc.numa_node = dev_to_node(&pdev->dev);
+		ndr_desc.target_node = ndr_desc.numa_node;
 		ndr_desc.res = &pdev->resource[i];
 		ndr_desc.of_node = np;
 		set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);

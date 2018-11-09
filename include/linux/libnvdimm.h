@@ -128,6 +128,7 @@ struct nd_region_desc {
 	void *provider_data;
 	int num_lanes;
 	int numa_node;
+	int target_node;
 	unsigned long flags;
 	struct device_node *of_node;
 };

@@ -26,6 +26,7 @@ void dax_bus_exit(void);
 /**
  * struct dax_region - mapping infrastructure for dax devices
  * @id: kernel-wide unique region for a memory range
+ * @target_node: effective numa node if this memory range is onlined
  * @kref: to pin while other agents have a need to do lookups
  * @dev: parent device backing this region
  * @align: allocation and mapping alignment for child dax devices
@@ -34,6 +35,7 @@ void dax_bus_exit(void);
  */
 struct dax_region {
 	int id;
+	int target_node;
 	struct kref kref;
 	struct device *dev;
 	unsigned int align;
@@ -46,6 +48,7 @@ struct dax_region {
  * data while the device is activated in the driver.
  * @region - parent region
  * @dax_dev - core dax functionality
+ * @target_node: effective numa node if dev_dax memory range is onlined
  * @dev - device core
  * @pgmap - pgmap for memmap setup / lifetime (driver owned)
  * @ref: pgmap reference count (driver owned)
@@ -54,6 +57,7 @@ struct dax_region {
 struct dev_dax {
 	struct dax_region *region;
 	struct dax_device *dax_dev;
+	int target_node;
 	struct device dev;
 	struct dev_pagemap pgmap;
 	struct percpu_ref ref;
