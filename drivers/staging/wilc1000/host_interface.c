@@ -375,43 +375,31 @@ static void handle_cfg_param(struct work_struct *work)
 	mutex_lock(&hif_drv->cfg_values_lock);
 
 	if (param->flag & RETRY_SHORT) {
-		u16 retry_limit = param->short_retry_limit;
-
 		wid_list[i].id = WID_SHORT_RETRY_LIMIT;
 		wid_list[i].val = (s8 *)&param->short_retry_limit;
 		wid_list[i].type = WID_SHORT;
 		wid_list[i].size = sizeof(u16);
-		hif_drv->cfg_values.short_retry_limit = retry_limit;
 		i++;
 	}
 	if (param->flag & RETRY_LONG) {
-		u16 limit = param->long_retry_limit;
-
 		wid_list[i].id = WID_LONG_RETRY_LIMIT;
 		wid_list[i].val = (s8 *)&param->long_retry_limit;
 		wid_list[i].type = WID_SHORT;
 		wid_list[i].size = sizeof(u16);
-		hif_drv->cfg_values.long_retry_limit = limit;
 		i++;
 	}
 	if (param->flag & FRAG_THRESHOLD) {
-		u16 frag_th = param->frag_threshold;
-
 		wid_list[i].id = WID_FRAG_THRESHOLD;
 		wid_list[i].val = (s8 *)&param->frag_threshold;
 		wid_list[i].type = WID_SHORT;
 		wid_list[i].size = sizeof(u16);
-		hif_drv->cfg_values.frag_threshold = frag_th;
 		i++;
 	}
 	if (param->flag & RTS_THRESHOLD) {
-		u16 rts_th = param->rts_threshold;
-
 		wid_list[i].id = WID_RTS_THRESHOLD;
 		wid_list[i].val = (s8 *)&param->rts_threshold;
 		wid_list[i].type = WID_SHORT;
 		wid_list[i].size = sizeof(u16);
-		hif_drv->cfg_values.rts_threshold = rts_th;
 		i++;
 	}
 
@@ -3256,7 +3244,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	mutex_lock(&hif_drv->cfg_values_lock);
 
 	hif_drv->hif_state = HOST_IF_IDLE;
-	hif_drv->cfg_values.scan_source = DEFAULT_SCAN;
 
 	hif_drv->p2p_timeout = 0;
 
