@@ -163,13 +163,14 @@ static void wd719x_destroy(struct wd719x *wd)
 	WARN_ON_ONCE(!list_empty(&wd->active_scbs));
 
 	/* free internal buffers */
-	pci_free_consistent(wd->pdev, wd->fw_size, wd->fw_virt, wd->fw_phys);
+	dma_free_coherent(&wd->pdev->dev, wd->fw_size, wd->fw_virt,
+			  wd->fw_phys);
 	wd->fw_virt = NULL;
-	pci_free_consistent(wd->pdev, WD719X_HASH_TABLE_SIZE, wd->hash_virt,
-			    wd->hash_phys);
+	dma_free_coherent(&wd->pdev->dev, WD719X_HASH_TABLE_SIZE, wd->hash_virt,
+			  wd->hash_phys);
 	wd->hash_virt = NULL;
-	pci_free_consistent(wd->pdev, sizeof(struct wd719x_host_param),
-			    wd->params, wd->params_phys);
+	dma_free_coherent(&wd->pdev->dev, sizeof(struct wd719x_host_param),
+			  wd->params, wd->params_phys);
 	wd->params = NULL;
 	free_irq(wd->pdev->irq, wd);
 }
@@ -316,8 +317,8 @@ static int wd719x_chip_init(struct wd719x *wd)
 	wd->fw_size = ALIGN(fw_wcs->size, 4) + fw_risc->size;
 
 	if (!wd->fw_virt)
-		wd->fw_virt = pci_alloc_consistent(wd->pdev, wd->fw_size,
-						   &wd->fw_phys);
+		wd->fw_virt = dma_alloc_coherent(&wd->pdev->dev, wd->fw_size,
+						 &wd->fw_phys, GFP_KERNEL);
 	if (!wd->fw_virt) {
 		ret = -ENOMEM;
 		goto wd719x_init_end;
@@ -804,17 +805,18 @@ static int wd719x_board_found(struct Scsi_Host *sh)
 	wd->fw_virt = NULL;
 
 	/* memory area for host (EEPROM) parameters */
-	wd->params = pci_alloc_consistent(wd->pdev,
-					  sizeof(struct wd719x_host_param),
-					  &wd->params_phys);
+	wd->params = dma_alloc_coherent(&wd->pdev->dev,
+					sizeof(struct wd719x_host_param),
+					&wd->params_phys, GFP_KERNEL);
 	if (!wd->params) {
 		dev_warn(&wd->pdev->dev, "unable to allocate parameter buffer\n");
 		return -ENOMEM;
 	}
 
 	/* memory area for the RISC for hash table of outstanding requests */
-	wd->hash_virt = pci_alloc_consistent(wd->pdev, WD719X_HASH_TABLE_SIZE,
-					     &wd->hash_phys);
+	wd->hash_virt = dma_alloc_coherent(&wd->pdev->dev,
+					   WD719X_HASH_TABLE_SIZE,
+					   &wd->hash_phys, GFP_KERNEL);
 	if (!wd->hash_virt) {
 		dev_warn(&wd->pdev->dev, "unable to allocate hash buffer\n");
 		ret = -ENOMEM;
@@ -846,10 +848,10 @@ static int wd719x_board_found(struct Scsi_Host *sh)
 fail_free_irq:
 	free_irq(wd->pdev->irq, wd);
 fail_free_hash:
-	pci_free_consistent(wd->pdev, WD719X_HASH_TABLE_SIZE, wd->hash_virt,
+	dma_free_coherent(&wd->pdev->dev, WD719X_HASH_TABLE_SIZE, wd->hash_virt,
 			    wd->hash_phys);
 fail_free_params:
-	pci_free_consistent(wd->pdev, sizeof(struct wd719x_host_param),
+	dma_free_coherent(&wd->pdev->dev, sizeof(struct wd719x_host_param),
 			    wd->params, wd->params_phys);
 
 	return ret;
@@ -882,7 +884,7 @@ static int wd719x_pci_probe(struct pci_dev *pdev, const struct pci_device_id *d)
 	if (err)
 		goto fail;
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		dev_warn(&pdev->dev, "Unable to set 32-bit DMA mask\n");
 		goto disable_device;
 	}
