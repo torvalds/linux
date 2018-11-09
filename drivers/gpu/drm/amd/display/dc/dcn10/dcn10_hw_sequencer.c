@@ -95,7 +95,7 @@ void dcn10_log_hubbub_state(struct dc *dc, struct dc_log_buffer_ctx *log_ctx)
 	struct dcn_hubbub_wm wm = {0};
 	int i;
 
-	hubbub1_wm_read_state(dc->res_pool->hubbub, &wm);
+	dc->res_pool->hubbub->funcs->wm_read_state(dc->res_pool->hubbub, &wm);
 
 	DTN_INFO("HUBBUB WM:      data_urgent  pte_meta_urgent"
 			"         sr_enter          sr_exit  dram_clk_change\n");

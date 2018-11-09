@@ -165,18 +165,6 @@ struct dcn_hubbub_mask {
 
 struct dc;
 
-struct dcn_hubbub_wm_set {
-	uint32_t wm_set;
-	uint32_t data_urgent;
-	uint32_t pte_meta_urgent;
-	uint32_t sr_enter;
-	uint32_t sr_exit;
-	uint32_t dram_clk_chanage;
-};
-
-struct dcn_hubbub_wm {
-	struct dcn_hubbub_wm_set sets[4];
-};
 
 struct hubbub {
 	const struct hubbub_funcs *funcs;

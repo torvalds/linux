@@ -299,16 +299,17 @@ void optc1_program_timing(
 	}
 
 	/* Interlace */
-	if (patched_crtc_timing.flags.INTERLACE == 1) {
-		REG_UPDATE(OTG_INTERLACE_CONTROL,
-				OTG_INTERLACE_ENABLE, 1);
-		v_init = v_init / 2;
-		if ((optc->dlg_otg_param.vstartup_start/2)*2 > asic_blank_end)
-			v_fp2 = v_fp2 / 2;
-	} else
-		REG_UPDATE(OTG_INTERLACE_CONTROL,
-				OTG_INTERLACE_ENABLE, 0);
-
+	if (REG(OTG_INTERLACE_CONTROL)) {
+		if (patched_crtc_timing.flags.INTERLACE == 1) {
+			REG_UPDATE(OTG_INTERLACE_CONTROL,
+					OTG_INTERLACE_ENABLE, 1);
+			v_init = v_init / 2;
+			if ((optc->dlg_otg_param.vstartup_start/2)*2 > asic_blank_end)
+				v_fp2 = v_fp2 / 2;
+		} else
+			REG_UPDATE(OTG_INTERLACE_CONTROL,
+					OTG_INTERLACE_ENABLE, 0);
+	}
 
 	/* VTG enable set to 0 first VInit */
 	REG_UPDATE(CONTROL,

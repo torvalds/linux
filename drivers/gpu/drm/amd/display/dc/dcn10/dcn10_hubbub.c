@@ -275,14 +275,16 @@ void hubbub1_program_watermarks(
 			watermarks->a.urgent_ns, prog_wm_value);
 	}
 
-	if (safe_to_lower || watermarks->a.pte_meta_urgent_ns > hubbub->watermarks.a.pte_meta_urgent_ns) {
-		hubbub->watermarks.a.pte_meta_urgent_ns = watermarks->a.pte_meta_urgent_ns;
-		prog_wm_value = convert_and_clamp(watermarks->a.pte_meta_urgent_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_A calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->a.pte_meta_urgent_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A)) {
+		if (safe_to_lower || watermarks->a.pte_meta_urgent_ns > hubbub->watermarks.a.pte_meta_urgent_ns) {
+			hubbub->watermarks.a.pte_meta_urgent_ns = watermarks->a.pte_meta_urgent_ns;
+			prog_wm_value = convert_and_clamp(watermarks->a.pte_meta_urgent_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_A calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->a.pte_meta_urgent_ns, prog_wm_value);
+		}
 	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A)) {
@@ -338,14 +340,16 @@ void hubbub1_program_watermarks(
 			watermarks->b.urgent_ns, prog_wm_value);
 	}
 
-	if (safe_to_lower || watermarks->b.pte_meta_urgent_ns > hubbub->watermarks.b.pte_meta_urgent_ns) {
-		hubbub->watermarks.b.pte_meta_urgent_ns = watermarks->b.pte_meta_urgent_ns;
-		prog_wm_value = convert_and_clamp(watermarks->b.pte_meta_urgent_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_B calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->b.pte_meta_urgent_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B)) {
+		if (safe_to_lower || watermarks->b.pte_meta_urgent_ns > hubbub->watermarks.b.pte_meta_urgent_ns) {
+			hubbub->watermarks.b.pte_meta_urgent_ns = watermarks->b.pte_meta_urgent_ns;
+			prog_wm_value = convert_and_clamp(watermarks->b.pte_meta_urgent_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_B calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->b.pte_meta_urgent_ns, prog_wm_value);
+		}
 	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B)) {
@@ -401,14 +405,16 @@ void hubbub1_program_watermarks(
 			watermarks->c.urgent_ns, prog_wm_value);
 	}
 
-	if (safe_to_lower || watermarks->c.pte_meta_urgent_ns > hubbub->watermarks.c.pte_meta_urgent_ns) {
-		hubbub->watermarks.c.pte_meta_urgent_ns = watermarks->c.pte_meta_urgent_ns;
-		prog_wm_value = convert_and_clamp(watermarks->c.pte_meta_urgent_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_C calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->c.pte_meta_urgent_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C)) {
+		if (safe_to_lower || watermarks->c.pte_meta_urgent_ns > hubbub->watermarks.c.pte_meta_urgent_ns) {
+			hubbub->watermarks.c.pte_meta_urgent_ns = watermarks->c.pte_meta_urgent_ns;
+			prog_wm_value = convert_and_clamp(watermarks->c.pte_meta_urgent_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_C calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->c.pte_meta_urgent_ns, prog_wm_value);
+		}
 	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C)) {
@@ -464,14 +470,16 @@ void hubbub1_program_watermarks(
 			watermarks->d.urgent_ns, prog_wm_value);
 	}
 
-	if (safe_to_lower || watermarks->d.pte_meta_urgent_ns > hubbub->watermarks.d.pte_meta_urgent_ns) {
-		hubbub->watermarks.d.pte_meta_urgent_ns = watermarks->d.pte_meta_urgent_ns;
-		prog_wm_value = convert_and_clamp(watermarks->d.pte_meta_urgent_ns,
-				refclk_mhz, 0x1fffff);
-		REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D, prog_wm_value);
-		DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_D calculated =%d\n"
-			"HW register value = 0x%x\n",
-			watermarks->d.pte_meta_urgent_ns, prog_wm_value);
+	if (REG(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D)) {
+		if (safe_to_lower || watermarks->d.pte_meta_urgent_ns > hubbub->watermarks.d.pte_meta_urgent_ns) {
+			hubbub->watermarks.d.pte_meta_urgent_ns = watermarks->d.pte_meta_urgent_ns;
+			prog_wm_value = convert_and_clamp(watermarks->d.pte_meta_urgent_ns,
+					refclk_mhz, 0x1fffff);
+			REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D, prog_wm_value);
+			DC_LOG_BANDWIDTH_CALCS("PTE_META_URGENCY_WATERMARK_D calculated =%d\n"
+				"HW register value = 0x%x\n",
+				watermarks->d.pte_meta_urgent_ns, prog_wm_value);
+		}
 	}
 
 	if (REG(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D)) {
@@ -837,6 +845,7 @@ static const struct hubbub_funcs hubbub1_funcs = {
 	.dcc_support_swizzle = hubbub1_dcc_support_swizzle,
 	.dcc_support_pixel_format = hubbub1_dcc_support_pixel_format,
 	.get_dcc_compression_cap = hubbub1_get_dcc_compression_cap,
+	.wm_read_state = hubbub1_wm_read_state,
 };
 
 void hubbub1_construct(struct hubbub *hubbub,
