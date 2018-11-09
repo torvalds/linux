@@ -1052,10 +1052,10 @@ TRACE_EVENT(drv_ampdu_action,
 );
 
 TRACE_EVENT(drv_get_survey,
-	TP_PROTO(struct ieee80211_local *local, int idx,
+	TP_PROTO(struct ieee80211_local *local, int _idx,
 		 struct survey_info *survey),
 
-	TP_ARGS(local, idx, survey),
+	TP_ARGS(local, _idx, survey),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -1064,7 +1064,7 @@ TRACE_EVENT(drv_get_survey,
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
-		__entry->idx = idx;
+		__entry->idx = _idx;
 	),
 
 	TP_printk(
