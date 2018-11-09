@@ -188,10 +188,11 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 }
 
 static int
-nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
-		      struct netdev_bpf *bpf)
+nfp_bpf_verifier_prep(struct net_device *netdev, struct bpf_verifier_env *env)
 {
-	struct bpf_prog *prog = bpf->verifier.prog;
+	struct nfp_net *nn = netdev_priv(netdev);
+	struct bpf_prog *prog = env->prog;
+	struct nfp_app *app = nn->app;
 	struct nfp_prog *nfp_prog;
 	int ret;
 
@@ -209,7 +210,6 @@ nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
 		goto err_free;
 
 	nfp_prog->verifier_meta = nfp_prog_first_meta(nfp_prog);
-	bpf->verifier.ops = &nfp_bpf_dev_ops;
 
 	return 0;
 
@@ -422,8 +422,6 @@ nfp_bpf_map_free(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 int nfp_ndo_bpf(struct nfp_app *app, struct nfp_net *nn, struct netdev_bpf *bpf)
 {
 	switch (bpf->command) {
-	case BPF_OFFLOAD_VERIFIER_PREP:
-		return nfp_bpf_verifier_prep(app, nn, bpf);
 	case BPF_OFFLOAD_TRANSLATE:
 		return nfp_bpf_translate(nn, bpf->offload.prog);
 	case BPF_OFFLOAD_DESTROY:
@@ -605,4 +603,5 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 const struct bpf_prog_offload_ops nfp_bpf_dev_ops = {
 	.insn_hook	= nfp_verify_insn,
 	.finalize	= nfp_bpf_finalize,
+	.prepare	= nfp_bpf_verifier_prep,
 };

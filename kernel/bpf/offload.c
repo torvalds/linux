@@ -142,21 +142,17 @@ static int __bpf_offload_ndo(struct bpf_prog *prog, enum bpf_netdev_command cmd,
 
 int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env)
 {
-	struct netdev_bpf data = {};
-	int err;
+	struct bpf_prog_offload *offload;
+	int ret = -ENODEV;
 
-	data.verifier.prog = env->prog;
+	down_read(&bpf_devs_lock);
+	offload = env->prog->aux->offload;
+	if (offload)
+		ret = offload->offdev->ops->prepare(offload->netdev, env);
+	offload->dev_state = !ret;
+	up_read(&bpf_devs_lock);
 
-	rtnl_lock();
-	err = __bpf_offload_ndo(env->prog, BPF_OFFLOAD_VERIFIER_PREP, &data);
-	if (err)
-		goto exit_unlock;
-
-	env->prog->aux->offload->dev_ops = data.verifier.ops;
-	env->prog->aux->offload->dev_state = true;
-exit_unlock:
-	rtnl_unlock();
-	return err;
+	return ret;
 }
 
 int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
