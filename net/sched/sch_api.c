@@ -810,6 +810,56 @@ void qdisc_tree_reduce_backlog(struct Qdisc *sch, unsigned int n,
 }
 EXPORT_SYMBOL(qdisc_tree_reduce_backlog);
 
+int qdisc_offload_dump_helper(struct Qdisc *sch, enum tc_setup_type type,
+			      void *type_data)
+{
+	struct net_device *dev = qdisc_dev(sch);
+	int err;
+
+	sch->flags &= ~TCQ_F_OFFLOADED;
+	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		return 0;
+
+	err = dev->netdev_ops->ndo_setup_tc(dev, type, type_data);
+	if (err == -EOPNOTSUPP)
+		return 0;
+
+	if (!err)
+		sch->flags |= TCQ_F_OFFLOADED;
+
+	return err;
+}
+EXPORT_SYMBOL(qdisc_offload_dump_helper);
+
+void qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
+				struct Qdisc *new, struct Qdisc *old,
+				enum tc_setup_type type, void *type_data,
+				struct netlink_ext_ack *extack)
+{
+	bool any_qdisc_is_offloaded;
+	int err;
+
+	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		return;
+
+	err = dev->netdev_ops->ndo_setup_tc(dev, type, type_data);
+
+	/* Don't report error if the graft is part of destroy operation. */
+	if (!err || !new || new == &noop_qdisc)
+		return;
+
+	/* Don't report error if the parent, the old child and the new
+	 * one are not offloaded.
+	 */
+	any_qdisc_is_offloaded = new->flags & TCQ_F_OFFLOADED;
+	any_qdisc_is_offloaded |= sch && sch->flags & TCQ_F_OFFLOADED;
+	any_qdisc_is_offloaded |= old && old->flags & TCQ_F_OFFLOADED;
+
+	if (any_qdisc_is_offloaded)
+		NL_SET_ERR_MSG(extack, "Offloading graft operation failed.");
+}
+EXPORT_SYMBOL(qdisc_offload_graft_helper);
+
 static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 			 u32 portid, u32 seq, u16 flags, int event)
 {
@@ -957,7 +1007,6 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 {
 	struct Qdisc *q = old;
 	struct net *net = dev_net(dev);
-	int err = 0;
 
 	if (parent == NULL) {
 		unsigned int i, num_q, ingress;
@@ -1012,28 +1061,29 @@ skip:
 			dev_activate(dev);
 	} else {
 		const struct Qdisc_class_ops *cops = parent->ops->cl_ops;
+		unsigned long cl;
+		int err;
 
 		/* Only support running class lockless if parent is lockless */
 		if (new && (new->flags & TCQ_F_NOLOCK) &&
 		    parent && !(parent->flags & TCQ_F_NOLOCK))
 			new->flags &= ~TCQ_F_NOLOCK;
 
-		err = -EOPNOTSUPP;
-		if (cops && cops->graft) {
-			unsigned long cl = cops->find(parent, classid);
+		if (!cops || !cops->graft)
+			return -EOPNOTSUPP;
 
-			if (cl) {
-				err = cops->graft(parent, cl, new, &old,
-						  extack);
-			} else {
-				NL_SET_ERR_MSG(extack, "Specified class not found");
-				err = -ENOENT;
-			}
+		cl = cops->find(parent, classid);
+		if (!cl) {
+			NL_SET_ERR_MSG(extack, "Specified class not found");
+			return -ENOENT;
 		}
-		if (!err)
-			notify_and_destroy(net, skb, n, classid, old, new);
+
+		err = cops->graft(parent, cl, new, &old, extack);
+		if (err)
+			return err;
+		notify_and_destroy(net, skb, n, classid, old, new);
 	}
-	return err;
+	return 0;
 }
 
 static int qdisc_block_indexes_set(struct Qdisc *sch, struct nlattr **tca,

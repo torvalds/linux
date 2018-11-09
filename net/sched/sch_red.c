@@ -193,10 +193,10 @@ static const struct nla_policy red_policy[TCA_RED_MAX + 1] = {
 static int red_change(struct Qdisc *sch, struct nlattr *opt,
 		      struct netlink_ext_ack *extack)
 {
+	struct Qdisc *old_child = NULL, *child = NULL;
 	struct red_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_RED_MAX + 1];
 	struct tc_red_qopt *ctl;
-	struct Qdisc *child = NULL;
 	int err;
 	u32 max_P;
 
@@ -233,7 +233,7 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 	if (child) {
 		qdisc_tree_reduce_backlog(q->qdisc, q->qdisc->q.qlen,
 					  q->qdisc->qstats.backlog);
-		qdisc_put(q->qdisc);
+		old_child = q->qdisc;
 		q->qdisc = child;
 	}
 
@@ -252,7 +252,11 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 		red_start_of_idle_period(&q->vars);
 
 	sch_tree_unlock(sch);
+
 	red_offload(sch, true);
+
+	if (old_child)
+		qdisc_put(old_child);
 	return 0;
 }
 
@@ -279,9 +283,8 @@ static int red_init(struct Qdisc *sch, struct nlattr *opt,
 	return red_change(sch, opt, extack);
 }
 
-static int red_dump_offload_stats(struct Qdisc *sch, struct tc_red_qopt *opt)
+static int red_dump_offload_stats(struct Qdisc *sch)
 {
-	struct net_device *dev = qdisc_dev(sch);
 	struct tc_red_qopt_offload hw_stats = {
 		.command = TC_RED_STATS,
 		.handle = sch->handle,
@@ -291,22 +294,8 @@ static int red_dump_offload_stats(struct Qdisc *sch, struct tc_red_qopt *opt)
 			.stats.qstats = &sch->qstats,
 		},
 	};
-	int err;
 
-	sch->flags &= ~TCQ_F_OFFLOADED;
-
-	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
-		return 0;
-
-	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_RED,
-					    &hw_stats);
-	if (err == -EOPNOTSUPP)
-		return 0;
-
-	if (!err)
-		sch->flags |= TCQ_F_OFFLOADED;
-
-	return err;
+	return qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_RED, &hw_stats);
 }
 
 static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
@@ -324,7 +313,7 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 	};
 	int err;
 
-	err = red_dump_offload_stats(sch, &opt);
+	err = red_dump_offload_stats(sch);
 	if (err)
 		goto nla_put_failure;
 
