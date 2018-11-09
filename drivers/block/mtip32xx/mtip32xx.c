@@ -2171,7 +2171,6 @@ static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
  * @dd       Pointer to the driver data structure.
  * @start    First sector to read.
  * @nsect    Number of sectors to read.
- * @nents    Number of entries in scatter list for the read command.
  * @tag      The tag of this read command.
  * @callback Pointer to the function that should be called
  *	     when the read completes.
@@ -2183,7 +2182,7 @@ static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
  *	None
  */
 static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
-			      struct mtip_cmd *command, int nents,
+			      struct mtip_cmd *command,
 			      struct blk_mq_hw_ctx *hctx)
 {
 	struct host_to_dev_fis	*fis;
@@ -2191,8 +2190,10 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 	int dma_dir = rq_data_dir(rq) == READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 	u64 start = blk_rq_pos(rq);
 	unsigned int nsect = blk_rq_sectors(rq);
+	unsigned int nents;
 
 	/* Map the scatter list for DMA access */
+	nents = blk_rq_map_sg(hctx->queue, rq, command->sg);
 	nents = dma_map_sg(&dd->pdev->dev, command->sg, nents, dma_dir);
 
 	prefetch(&port->flags);
@@ -3548,7 +3549,6 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
 {
 	struct driver_data *dd = hctx->queue->queuedata;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
-	unsigned int nents;
 
 	if (is_se_active(dd))
 		return -ENODATA;
@@ -3579,11 +3579,8 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
 		return 0;
 	}
 
-	/* Create the scatter list for this request. */
-	nents = blk_rq_map_sg(hctx->queue, rq, cmd->sg);
-
 	/* Issue the read/write. */
-	mtip_hw_submit_io(dd, rq, cmd, nents, hctx);
+	mtip_hw_submit_io(dd, rq, cmd, hctx);
 	return 0;
 }
 
