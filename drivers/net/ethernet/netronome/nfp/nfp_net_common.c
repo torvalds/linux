@@ -3576,6 +3576,7 @@ nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
 	      unsigned int max_tx_rings, unsigned int max_rx_rings)
 {
 	struct nfp_net *nn;
+	int err;
 
 	if (needs_netdev) {
 		struct net_device *netdev;
@@ -3618,7 +3619,19 @@ nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
 
 	timer_setup(&nn->reconfig_timer, nfp_net_reconfig_timer, 0);
 
+	err = nfp_net_tlv_caps_parse(&nn->pdev->dev, nn->dp.ctrl_bar,
+				     &nn->tlv_caps);
+	if (err)
+		goto err_free_nn;
+
 	return nn;
+
+err_free_nn:
+	if (nn->dp.netdev)
+		free_netdev(nn->dp.netdev);
+	else
+		vfree(nn);
+	return ERR_PTR(err);
 }
 
 /**
@@ -3890,11 +3903,6 @@ int nfp_net_init(struct nfp_net *nn)
 		nfp_net_irqmod_init(nn);
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_IRQMOD;
 	}
-
-	err = nfp_net_tlv_caps_parse(&nn->pdev->dev, nn->dp.ctrl_bar,
-				     &nn->tlv_caps);
-	if (err)
-		return err;
 
 	if (nn->dp.netdev)
 		nfp_net_netdev_init(nn);
