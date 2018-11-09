@@ -1372,6 +1372,7 @@ static struct page *free_sub_pt(unsigned long root, int mode,
 {
 	switch (mode) {
 	case PAGE_MODE_NONE:
+	case PAGE_MODE_7_LEVEL:
 		break;
 	case PAGE_MODE_1_LEVEL:
 		freelist = free_pt_page(root, freelist);
@@ -1402,6 +1403,9 @@ static void free_pagetable(struct protection_domain *domain)
 {
 	unsigned long root = (unsigned long)domain->pt_root;
 	struct page *freelist = NULL;
+
+	BUG_ON(domain->mode < PAGE_MODE_NONE ||
+	       domain->mode > PAGE_MODE_6_LEVEL);
 
 	free_sub_pt(root, domain->mode, freelist);
 
