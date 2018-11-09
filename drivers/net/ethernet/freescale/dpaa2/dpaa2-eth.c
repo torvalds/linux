@@ -1434,8 +1434,11 @@ static struct fsl_mc_device *setup_dpcon(struct dpaa2_eth_priv *priv)
 	err = fsl_mc_object_allocate(to_fsl_mc_device(dev),
 				     FSL_MC_POOL_DPCON, &dpcon);
 	if (err) {
-		dev_info(dev, "Not enough DPCONs, will go on as-is\n");
-		return NULL;
+		if (err == -ENXIO)
+			err = -EPROBE_DEFER;
+		else
+			dev_info(dev, "Not enough DPCONs, will go on as-is\n");
+		return ERR_PTR(err);
 	}
 
 	err = dpcon_open(priv->mc_io, 0, dpcon->obj_desc.id, &dpcon->mc_handle);
@@ -1493,8 +1496,10 @@ alloc_channel(struct dpaa2_eth_priv *priv)
 		return NULL;
 
 	channel->dpcon = setup_dpcon(priv);
-	if (!channel->dpcon)
+	if (IS_ERR_OR_NULL(channel->dpcon)) {
+		err = PTR_ERR(channel->dpcon);
 		goto err_setup;
+	}
 
 	err = dpcon_get_attributes(priv->mc_io, 0, channel->dpcon->mc_handle,
 				   &attr);
@@ -1513,7 +1518,7 @@ err_get_attr:
 	free_dpcon(priv, channel->dpcon);
 err_setup:
 	kfree(channel);
-	return NULL;
+	return ERR_PTR(err);
 }
 
 static void free_channel(struct dpaa2_eth_priv *priv,
@@ -1547,10 +1552,11 @@ static int setup_dpio(struct dpaa2_eth_priv *priv)
 	for_each_online_cpu(i) {
 		/* Try to allocate a channel */
 		channel = alloc_channel(priv);
-		if (!channel) {
-			dev_info(dev,
-				 "No affine channel for cpu %d and above\n", i);
-			err = -ENODEV;
+		if (IS_ERR_OR_NULL(channel)) {
+			err = PTR_ERR(channel);
+			if (err != -EPROBE_DEFER)
+				dev_info(dev,
+					 "No affine channel for cpu %d and above\n", i);
 			goto err_alloc_ch;
 		}
 
@@ -1608,9 +1614,12 @@ err_set_cdan:
 err_service_reg:
 	free_channel(priv, channel);
 err_alloc_ch:
+	if (err == -EPROBE_DEFER)
+		return err;
+
 	if (cpumask_empty(&priv->dpio_cpumask)) {
 		dev_err(dev, "No cpu with an affine DPIO/DPCON\n");
-		return err;
+		return -ENODEV;
 	}
 
 	dev_info(dev, "Cores %*pbl available for processing ingress traffic\n",
@@ -1732,7 +1741,10 @@ static int setup_dpbp(struct dpaa2_eth_priv *priv)
 	err = fsl_mc_object_allocate(to_fsl_mc_device(dev), FSL_MC_POOL_DPBP,
 				     &dpbp_dev);
 	if (err) {
-		dev_err(dev, "DPBP device allocation failed\n");
+		if (err == -ENXIO)
+			err = -EPROBE_DEFER;
+		else
+			dev_err(dev, "DPBP device allocation failed\n");
 		return err;
 	}
 
