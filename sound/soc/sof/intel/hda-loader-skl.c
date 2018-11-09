@@ -397,70 +397,23 @@ static void cl_skl_cldma_fill_buffer(struct snd_sof_dev *sdev,
 				     unsigned int bufsize,
 				     unsigned int copysize,
 				     const void *curr_pos,
-				     bool intr_enable)
+				     bool intr_enable, bool trigger)
 {
 	/* 1. copy the image into the buffer with the maximum buffer size. */
 	unsigned int size = (bufsize == copysize) ? bufsize : copysize;
 
 	memcpy(sdev->dmab.area, curr_pos, size);
 
-	/* 2. Setting the wait condition for every load. */
-	sdev->code_loading = 1;
-
-	/* 3. Set the interrupt. */
+	/* 2. Set the interrupt. */
 	if (intr_enable)
 		cl_skl_cldma_set_intr(sdev, true);
 
-	/* 4. Set the SPB. */
-	cl_skl_cldma_setup_spb(sdev, size, true);
+	/* 3. Set the SPB. */
+	cl_skl_cldma_setup_spb(sdev, size, trigger);
 
-	/* 5. Trigger the code loading stream. */
-	cl_skl_cldma_stream_run(sdev, true);
-}
-
-static int cl_skl_cldma_wait_interruptible(struct snd_sof_dev *sdev)
-{
-	int ret = 0;
-
-	if (!wait_event_timeout(sdev->waitq,
-				!sdev->code_loading,
-				msecs_to_jiffies(HDA_SKL_WAIT_TIMEOUT))) {
-		dev_err(sdev->dev, "cldma copy timeout\n");
-		dev_err(sdev->dev, "ROM code=0x%x: FW status=0x%x\n",
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_ADSP_ERROR_CODE_SKL),
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_ADSP_FW_STATUS_SKL));
-
-		/* TODO: temp debug to be removed */
-		dev_err(sdev->dev, "ADSPCS=0x%x: ADSPIC=0x%x: ADSPIS=0x%x INTCTL=0x%x INTSTS=0x%x PPCTL=0x%x PPSTS=0x%x\n",
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_DSP_REG_ADSPCS),
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_DSP_REG_ADSPIC),
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_DSP_REG_ADSPIS),
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 SOF_HDA_INTCTL),
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 SOF_HDA_INTSTS),
-			snd_sof_dsp_read(sdev, HDA_DSP_PP_BAR,
-					 SOF_HDA_REG_PP_PPCTL),
-			snd_sof_dsp_read(sdev, HDA_DSP_PP_BAR,
-					 SOF_HDA_REG_PP_PPSTS));
-		ret = -EIO;
-		goto cleanup;
-	}
-
-	dev_dbg(sdev->dev, "cldma buffer copy complete\n");
-	if (!sdev->code_loading) {
-		dev_err(sdev->dev, "error: cldma DMA copy failed\n");
-		ret = -EIO;
-	}
-
-cleanup:
-	sdev->code_loading = 0;
-	return ret;
+	/* 4. Trigger the code loading stream. */
+	if (trigger)
+		cl_skl_cldma_stream_run(sdev, true);
 }
 
 static int
@@ -482,9 +435,8 @@ cl_skl_cldma_copy_to_buf(struct snd_sof_dev *sdev, const void *bin,
 				bufsize);
 
 			cl_skl_cldma_fill_buffer(sdev, bufsize, bufsize,
-						 curr_pos, true);
+						 curr_pos, true, true);
 
-			ret = cl_skl_cldma_wait_interruptible(sdev);
 			if (ret < 0) {
 				dev_err(sdev->dev, "error: fw failed to load. 0x%x bytes remaining\n",
 					bytes_left);
@@ -501,7 +453,7 @@ cl_skl_cldma_copy_to_buf(struct snd_sof_dev *sdev, const void *bin,
 
 			cl_skl_cldma_set_intr(sdev, false);
 			cl_skl_cldma_fill_buffer(sdev, bufsize, bytes_left,
-						 curr_pos, false);
+						 curr_pos, false, false);
 			return 0;
 		}
 	}
