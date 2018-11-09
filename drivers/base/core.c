@@ -738,6 +738,10 @@ device_platform_notify(struct device *dev, enum kobject_action action)
 	if (ret)
 		return ret;
 
+	ret = software_node_notify(dev, action);
+	if (ret)
+		return ret;
+
 	if (platform_notify && action == KOBJ_ADD)
 		platform_notify(dev);
 	else if (platform_notify_remove && action == KOBJ_REMOVE)
