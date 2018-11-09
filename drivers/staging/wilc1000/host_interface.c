@@ -369,10 +369,7 @@ static void handle_cfg_param(struct work_struct *work)
 	struct cfg_param_attr *param = &msg->body.cfg_info;
 	int ret;
 	struct wid wid_list[32];
-	struct host_if_drv *hif_drv = vif->hif_drv;
 	int i = 0;
-
-	mutex_lock(&hif_drv->cfg_values_lock);
 
 	if (param->flag & RETRY_SHORT) {
 		wid_list[i].id = WID_SHORT_RETRY_LIMIT;
@@ -409,7 +406,6 @@ static void handle_cfg_param(struct work_struct *work)
 	if (ret)
 		netdev_err(vif->ndev, "Error in setting CFG params\n");
 
-	mutex_unlock(&hif_drv->cfg_values_lock);
 	kfree(msg);
 }
 
@@ -3240,14 +3236,9 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	timer_setup(&hif_drv->connect_timer, timer_connect_cb, 0);
 	timer_setup(&hif_drv->remain_on_ch_timer, listen_timer_cb, 0);
 
-	mutex_init(&hif_drv->cfg_values_lock);
-	mutex_lock(&hif_drv->cfg_values_lock);
-
 	hif_drv->hif_state = HOST_IF_IDLE;
 
 	hif_drv->p2p_timeout = 0;
-
-	mutex_unlock(&hif_drv->cfg_values_lock);
 
 	wilc->clients_count++;
 
