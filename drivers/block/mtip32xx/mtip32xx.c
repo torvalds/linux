@@ -1423,23 +1423,19 @@ static int mtip_get_smart_attr(struct mtip_port *port, unsigned int id,
  * @dd		pointer to driver_data structure
  * @lba		starting lba
  * @len		# of 512b sectors to trim
- *
- * return value
- *      -ENOMEM		Out of dma memory
- *      -EINVAL		Invalid parameters passed in, trim not supported
- *      -EIO		Error submitting trim request to hw
  */
-static int mtip_send_trim(struct driver_data *dd, unsigned int lba,
-				unsigned int len)
+static blk_status_t mtip_send_trim(struct driver_data *dd, unsigned int lba,
+		unsigned int len)
 {
-	int i, rv = 0;
 	u64 tlba, tlen, sect_left;
 	struct mtip_trim_entry *buf;
 	dma_addr_t dma_addr;
 	struct host_to_dev_fis fis;
+	blk_status_t ret = BLK_STS_OK;
+	int i;
 
 	if (!len || dd->trim_supp == false)
-		return -EINVAL;
+		return BLK_STS_IOERR;
 
 	/* Trim request too big */
 	WARN_ON(len > (MTIP_MAX_TRIM_ENTRY_LEN * MTIP_MAX_TRIM_ENTRIES));
@@ -1454,7 +1450,7 @@ static int mtip_send_trim(struct driver_data *dd, unsigned int lba,
 	buf = dmam_alloc_coherent(&dd->pdev->dev, ATA_SECT_SIZE, &dma_addr,
 								GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return BLK_STS_RESOURCE;
 	memset(buf, 0, ATA_SECT_SIZE);
 
 	for (i = 0, sect_left = len, tlba = lba;
@@ -1486,10 +1482,10 @@ static int mtip_send_trim(struct driver_data *dd, unsigned int lba,
 					ATA_SECT_SIZE,
 					0,
 					MTIP_TRIM_TIMEOUT_MS) < 0)
-		rv = -EIO;
+		ret = BLK_STS_IOERR;
 
 	dmam_free_coherent(&dd->pdev->dev, ATA_SECT_SIZE, buf, dma_addr);
-	return rv;
+	return ret;
 }
 
 /*
@@ -3634,13 +3630,9 @@ static blk_status_t mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(rq);
 
-	if (req_op(rq) == REQ_OP_DISCARD) {
-		if (mtip_send_trim(dd, blk_rq_pos(rq), blk_rq_sectors(rq)) < 0)
-			return BLK_STS_IOERR;
-	} else {
-		mtip_hw_submit_io(dd, rq, cmd, hctx);
-	}
-
+	if (req_op(rq) == REQ_OP_DISCARD)
+		return mtip_send_trim(dd, blk_rq_pos(rq), blk_rq_sectors(rq));
+	mtip_hw_submit_io(dd, rq, cmd, hctx);
 	return BLK_STS_OK;
 }
 
