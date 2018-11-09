@@ -1005,7 +1005,8 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		scsi_io_completion_action(cmd, result);
 }
 
-static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb)
+static blk_status_t scsi_init_sgtable(struct request *req,
+		struct scsi_data_buffer *sdb)
 {
 	int count;
 
@@ -1014,7 +1015,7 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb)
 	 */
 	if (unlikely(sg_alloc_table_chained(&sdb->table,
 			blk_rq_nr_phys_segments(req), sdb->table.sgl)))
-		return BLKPREP_DEFER;
+		return BLK_STS_RESOURCE;
 
 	/* 
 	 * Next, walk the list, and fill in the addresses and sizes of
@@ -1024,7 +1025,7 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb)
 	BUG_ON(count > sdb->table.nents);
 	sdb->table.nents = count;
 	sdb->length = blk_rq_payload_bytes(req);
-	return BLKPREP_OK;
+	return BLK_STS_OK;
 }
 
 /*
@@ -1034,25 +1035,25 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb)
  *
  * Arguments:   cmd   - Command descriptor we wish to initialize
  *
- * Returns:     0 on success
- *		BLKPREP_DEFER if the failure is retryable
- *		BLKPREP_KILL if the failure is fatal
+ * Returns:     BLK_STS_OK on success
+ *		BLK_STS_RESOURCE if the failure is retryable
+ *		BLK_STS_IOERR if the failure is fatal
  */
-int scsi_init_io(struct scsi_cmnd *cmd)
+blk_status_t scsi_init_io(struct scsi_cmnd *cmd)
 {
 	struct request *rq = cmd->request;
-	int error = BLKPREP_KILL;
+	blk_status_t ret;
 
 	if (WARN_ON_ONCE(!blk_rq_nr_phys_segments(rq)))
-		return BLKPREP_KILL;
+		return BLK_STS_IOERR;
 
-	error = scsi_init_sgtable(rq, &cmd->sdb);
-	if (error)
-		return error;
+	ret = scsi_init_sgtable(rq, &cmd->sdb);
+	if (ret)
+		return ret;
 
 	if (blk_bidi_rq(rq)) {
-		error = scsi_init_sgtable(rq->next_rq, rq->next_rq->special);
-		if (error)
+		ret = scsi_init_sgtable(rq->next_rq, rq->next_rq->special);
+		if (ret)
 			goto out_free_sgtables;
 	}
 
@@ -1066,7 +1067,7 @@ int scsi_init_io(struct scsi_cmnd *cmd)
 			 * queues a command to a device on an adapter
 			 * that does not support DIX.
 			 */
-			error = BLKPREP_KILL;
+			ret = BLK_STS_IOERR;
 			goto out_free_sgtables;
 		}
 
@@ -1074,7 +1075,7 @@ int scsi_init_io(struct scsi_cmnd *cmd)
 
 		if (sg_alloc_table_chained(&prot_sdb->table, ivecs,
 				prot_sdb->table.sgl)) {
-			error = BLKPREP_DEFER;
+			ret = BLK_STS_RESOURCE;
 			goto out_free_sgtables;
 		}
 
@@ -1087,10 +1088,10 @@ int scsi_init_io(struct scsi_cmnd *cmd)
 		cmd->prot_sdb->table.nents = count;
 	}
 
-	return BLKPREP_OK;
+	return BLK_STS_OK;
 out_free_sgtables:
 	scsi_mq_free_sgtables(cmd);
-	return error;
+	return ret;
 }
 EXPORT_SYMBOL(scsi_init_io);
 
@@ -1200,9 +1201,9 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 	 * submit a request without an attached bio.
 	 */
 	if (req->bio) {
-		int ret = scsi_init_io(cmd);
-		if (unlikely(ret))
-			return prep_to_mq(ret);
+		blk_status_t ret = scsi_init_io(cmd);
+		if (unlikely(ret != BLK_STS_OK))
+			return ret;
 	} else {
 		BUG_ON(blk_rq_bytes(req));
 
@@ -1233,7 +1234,7 @@ static blk_status_t scsi_setup_fs_cmnd(struct scsi_device *sdev,
 
 	cmd->cmnd = scsi_req(req)->cmd = scsi_req(req)->__cmd;
 	memset(cmd->cmnd, 0, BLK_MAX_CDB);
-	return prep_to_mq(scsi_cmd_to_driver(cmd)->init_command(cmd));
+	return scsi_cmd_to_driver(cmd)->init_command(cmd);
 }
 
 static blk_status_t scsi_setup_cmnd(struct scsi_device *sdev,
