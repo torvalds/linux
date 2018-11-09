@@ -527,8 +527,8 @@ static bool ide_cd_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 	return false;
 }
 
-/* standard prep_rq_fn that builds 10 byte cmds */
-static int ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
+/* standard prep_rq that builds 10 byte cmds */
+static bool ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
 {
 	int hard_sect = queue_logical_block_size(q);
 	long block = (long)blk_rq_pos(rq) / (hard_sect >> 9);
@@ -554,14 +554,14 @@ static int ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
 	req->cmd[7] = (blocks >> 8) & 0xff;
 	req->cmd[8] = blocks & 0xff;
 	req->cmd_len = 10;
-	return BLKPREP_OK;
+	return true;
 }
 
 /*
  * Most of the SCSI commands are supported directly by ATAPI devices.
  * This transform handles the few exceptions.
  */
-static int ide_cdrom_prep_pc(struct request *rq)
+static bool ide_cdrom_prep_pc(struct request *rq)
 {
 	u8 *c = scsi_req(rq)->cmd;
 
@@ -575,7 +575,7 @@ static int ide_cdrom_prep_pc(struct request *rq)
 		c[1] &= 0xe0;
 		c[0] += (READ_10 - READ_6);
 		scsi_req(rq)->cmd_len = 10;
-		return BLKPREP_OK;
+		return true;
 	}
 
 	/*
@@ -585,13 +585,13 @@ static int ide_cdrom_prep_pc(struct request *rq)
 	 */
 	if (c[0] == MODE_SENSE || c[0] == MODE_SELECT) {
 		scsi_req(rq)->result = ILLEGAL_REQUEST;
-		return BLKPREP_KILL;
+		return false;
 	}
 
-	return BLKPREP_OK;
+	return true;
 }
 
-static int ide_cdrom_prep_fn(ide_drive_t *drive, struct request *rq)
+static bool ide_cdrom_prep_rq(ide_drive_t *drive, struct request *rq)
 {
 	if (!blk_rq_is_passthrough(rq)) {
 		scsi_req_init(scsi_req(rq));
@@ -600,7 +600,7 @@ static int ide_cdrom_prep_fn(ide_drive_t *drive, struct request *rq)
 	} else if (blk_rq_is_scsi(rq))
 		return ide_cdrom_prep_pc(rq);
 
-	return 0;
+	return true;
 }
 
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
@@ -818,7 +818,7 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 		 * We may be retrying this request after an error.  Fix up any
 		 * weirdness which might be present in the request packet.
 		 */
-		ide_cdrom_prep_fn(drive, rq);
+		ide_cdrom_prep_rq(drive, rq);
 	}
 
 	/* fs requests *must* be hardware frame aligned */
@@ -1521,7 +1521,7 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 
 	ide_debug_log(IDE_DBG_PROBE, "enter");
 
-	drive->prep_rq = ide_cdrom_prep_fn;
+	drive->prep_rq = ide_cdrom_prep_rq;
 	blk_queue_dma_alignment(q, 31);
 	blk_queue_update_dma_pad(q, 15);
 

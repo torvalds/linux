@@ -326,7 +326,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		goto kill_rq;
 	}
 
-	if (drive->prep_rq && drive->prep_rq(drive, rq))
+	if (drive->prep_rq && !drive->prep_rq(drive, rq))
 		return ide_stopped;
 
 	if (ata_pm_request(rq))
@@ -508,7 +508,7 @@ repeat:
 
 		/*
 		 * we know that the queue isn't empty, but this can happen
-		 * if the q->prep_rq_fn() decides to kill a request
+		 * if ->prep_rq() decides to kill a request
 		 */
 		if (!rq) {
 			rq = bd->rq;

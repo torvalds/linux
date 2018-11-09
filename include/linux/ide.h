@@ -529,7 +529,7 @@ struct ide_drive_s {
 
 	struct request_queue	*queue;	/* request queue */
 
-	int (*prep_rq)(struct ide_drive_s *, struct request *);
+	bool (*prep_rq)(struct ide_drive_s *, struct request *);
 
 	struct blk_mq_tag_set	tag_set;
 

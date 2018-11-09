@@ -427,12 +427,12 @@ static void ide_disk_unlock_native_capacity(ide_drive_t *drive)
 		drive->dev_flags |= IDE_DFLAG_NOHPA; /* disable HPA on resume */
 }
 
-static int idedisk_prep_fn(ide_drive_t *drive, struct request *rq)
+static bool idedisk_prep_rq(ide_drive_t *drive, struct request *rq)
 {
 	struct ide_cmd *cmd;
 
 	if (req_op(rq) != REQ_OP_FLUSH)
-		return BLKPREP_OK;
+		return true;
 
 	if (rq->special) {
 		cmd = rq->special;
@@ -458,7 +458,7 @@ static int idedisk_prep_fn(ide_drive_t *drive, struct request *rq)
 	rq->special = cmd;
 	cmd->rq = rq;
 
-	return BLKPREP_OK;
+	return true;
 }
 
 ide_devset_get(multcount, mult_count);
@@ -547,7 +547,7 @@ static void update_flush(ide_drive_t *drive)
 
 		if (barrier) {
 			wc = true;
-			drive->prep_rq = idedisk_prep_fn;
+			drive->prep_rq = idedisk_prep_rq;
 		}
 	}
 
