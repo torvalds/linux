@@ -792,15 +792,16 @@ static int do_detach(int argc, char **argv)
 		jsonw_null(json_wtr);
 	return 0;
 }
-static int do_load(int argc, char **argv)
+
+static int load_with_options(int argc, char **argv, bool first_prog_only)
 {
 	enum bpf_attach_type expected_attach_type;
 	struct bpf_object_open_attr attr = {
 		.prog_type	= BPF_PROG_TYPE_UNSPEC,
 	};
 	struct map_replace *map_replace = NULL;
+	struct bpf_program *prog = NULL, *pos;
 	unsigned int old_map_fds = 0;
-	struct bpf_program *prog;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	const char *pinfile;
@@ -918,26 +919,25 @@ static int do_load(int argc, char **argv)
 		goto err_free_reuse_maps;
 	}
 
-	prog = bpf_program__next(NULL, obj);
-	if (!prog) {
-		p_err("object file doesn't contain any bpf program");
-		goto err_close_obj;
-	}
+	bpf_object__for_each_program(pos, obj) {
+		enum bpf_prog_type prog_type = attr.prog_type;
 
-	bpf_program__set_ifindex(prog, ifindex);
-	if (attr.prog_type == BPF_PROG_TYPE_UNSPEC) {
-		const char *sec_name = bpf_program__title(prog, false);
+		if (attr.prog_type == BPF_PROG_TYPE_UNSPEC) {
+			const char *sec_name = bpf_program__title(pos, false);
 
-		err = libbpf_prog_type_by_name(sec_name, &attr.prog_type,
-					       &expected_attach_type);
-		if (err < 0) {
-			p_err("failed to guess program type based on section name %s\n",
-			      sec_name);
-			goto err_close_obj;
+			err = libbpf_prog_type_by_name(sec_name, &prog_type,
+						       &expected_attach_type);
+			if (err < 0) {
+				p_err("failed to guess program type based on section name %s\n",
+				      sec_name);
+				goto err_close_obj;
+			}
 		}
+
+		bpf_program__set_ifindex(pos, ifindex);
+		bpf_program__set_type(pos, prog_type);
+		bpf_program__set_expected_attach_type(pos, expected_attach_type);
 	}
-	bpf_program__set_type(prog, attr.prog_type);
-	bpf_program__set_expected_attach_type(prog, expected_attach_type);
 
 	qsort(map_replace, old_map_fds, sizeof(*map_replace),
 	      map_replace_compar);
@@ -1003,8 +1003,30 @@ static int do_load(int argc, char **argv)
 		goto err_close_obj;
 	}
 
-	if (do_pin_fd(bpf_program__fd(prog), pinfile))
+	err = mount_bpffs_for_pin(pinfile);
+	if (err)
 		goto err_close_obj;
+
+	if (first_prog_only) {
+		prog = bpf_program__next(NULL, obj);
+		if (!prog) {
+			p_err("object file doesn't contain any bpf program");
+			goto err_close_obj;
+		}
+
+		err = bpf_obj_pin(bpf_program__fd(prog), pinfile);
+		if (err) {
+			p_err("failed to pin program %s",
+			      bpf_program__title(prog, false));
+			goto err_close_obj;
+		}
+	} else {
+		err = bpf_object__pin_programs(obj, pinfile);
+		if (err) {
+			p_err("failed to pin all programs");
+			goto err_close_obj;
+		}
+	}
 
 	if (json_output)
 		jsonw_null(json_wtr);
@@ -1025,6 +1047,16 @@ err_free_reuse_maps:
 	return -1;
 }
 
+static int do_load(int argc, char **argv)
+{
+	return load_with_options(argc, argv, true);
+}
+
+static int do_loadall(int argc, char **argv)
+{
+	return load_with_options(argc, argv, false);
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -1037,7 +1069,8 @@ static int do_help(int argc, char **argv)
 		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
-		"       %s %s load  OBJ  FILE [type TYPE] [dev NAME] \\\n"
+		"       %s %s { load | loadall } OBJ  PATH \\\n"
+		"                         [type TYPE] [dev NAME] \\\n"
 		"                         [map { idx IDX | name NAME } MAP]\n"
 		"       %s %s attach PROG ATTACH_TYPE MAP\n"
 		"       %s %s detach PROG ATTACH_TYPE MAP\n"
@@ -1069,6 +1102,7 @@ static const struct cmd cmds[] = {
 	{ "dump",	do_dump },
 	{ "pin",	do_pin },
 	{ "load",	do_load },
+	{ "loadall",	do_loadall },
 	{ "attach",	do_attach },
 	{ "detach",	do_detach },
 	{ 0 }

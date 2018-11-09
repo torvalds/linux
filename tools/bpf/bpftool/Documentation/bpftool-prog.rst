@@ -15,7 +15,8 @@ SYNOPSIS
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
 
 	*COMMANDS* :=
-	{ **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load** | **help** }
+	{ **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load**
+	| **loadall** | **help** }
 
 MAP COMMANDS
 =============
@@ -24,7 +25,7 @@ MAP COMMANDS
 |	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual**}]
 |	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
-|	**bpftool** **prog load** *OBJ* *FILE* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
+|	**bpftool** **prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
 |       **bpftool** **prog attach** *PROG* *ATTACH_TYPE* *MAP*
 |       **bpftool** **prog detach** *PROG* *ATTACH_TYPE* *MAP*
 |	**bpftool** **prog help**
@@ -79,8 +80,11 @@ DESCRIPTION
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
-	**bpftool prog load** *OBJ* *FILE* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
-		  Load bpf program from binary *OBJ* and pin as *FILE*.
+	**bpftool prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
+		  Load bpf program(s) from binary *OBJ* and pin as *PATH*.
+		  **bpftool prog load** pins only the first program from the
+		  *OBJ* as *PATH*. **bpftool prog loadall** pins all programs
+		  from the *OBJ* under *PATH* directory.
 		  **type** is optional, if not specified program type will be
 		  inferred from section names.
 		  By default bpftool will create new maps as declared in the ELF
@@ -93,7 +97,7 @@ DESCRIPTION
 		  If **dev** *NAME* is specified program will be loaded onto
 		  given networking device (offload).
 
-		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  Note: *PATH* must be located in *bpffs* mount. It must not
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 

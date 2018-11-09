@@ -243,7 +243,7 @@ _bpftool()
     # Completion depends on object and command in use
     case $object in
         prog)
-            if [[ $command != "load" ]]; then
+            if [[ $command != "load" && $command != "loadall" ]]; then
                 case $prev in
                     id)
                         _bpftool_get_prog_ids
@@ -309,7 +309,7 @@ _bpftool()
                     fi
                     return 0
                     ;;
-                load)
+                load|loadall)
                     local obj
 
                     if [[ ${#words[@]} -lt 6 ]]; then
