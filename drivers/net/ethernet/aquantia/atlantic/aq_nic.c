@@ -590,7 +590,7 @@ int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev)
 		}
 	}
 
-	if (i > 0 && i < AQ_HW_MULTICAST_ADDRESS_MAX) {
+	if (i > 0 && i <= AQ_HW_MULTICAST_ADDRESS_MAX) {
 		packet_filter |= IFF_MULTICAST;
 		self->mc_list.count = i;
 		self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
