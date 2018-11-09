@@ -692,7 +692,8 @@ int bpf_map_offload_get_next_key(struct bpf_map *map,
 
 bool bpf_offload_prog_map_match(struct bpf_prog *prog, struct bpf_map *map);
 
-struct bpf_offload_dev *bpf_offload_dev_create(void);
+struct bpf_offload_dev *
+bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops);
 void bpf_offload_dev_destroy(struct bpf_offload_dev *offdev);
 int bpf_offload_dev_netdev_register(struct bpf_offload_dev *offdev,
 				    struct net_device *netdev);

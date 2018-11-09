@@ -91,7 +91,7 @@ static int nsim_bpf_finalize(struct bpf_verifier_env *env)
 	return 0;
 }
 
-static const struct bpf_prog_offload_ops nsim_bpf_analyzer_ops = {
+static const struct bpf_prog_offload_ops nsim_bpf_dev_ops = {
 	.insn_hook	= nsim_bpf_verify_insn,
 	.finalize	= nsim_bpf_finalize,
 };
@@ -547,7 +547,7 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 		if (err)
 			return err;
 
-		bpf->verifier.ops = &nsim_bpf_analyzer_ops;
+		bpf->verifier.ops = &nsim_bpf_dev_ops;
 		return 0;
 	case BPF_OFFLOAD_TRANSLATE:
 		state = bpf->offload.prog->aux->offload->dev_priv;
@@ -599,7 +599,7 @@ int nsim_bpf_init(struct netdevsim *ns)
 		if (IS_ERR_OR_NULL(ns->sdev->ddir_bpf_bound_progs))
 			return -ENOMEM;
 
-		ns->sdev->bpf_dev = bpf_offload_dev_create();
+		ns->sdev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops);
 		err = PTR_ERR_OR_ZERO(ns->sdev->bpf_dev);
 		if (err)
 			return err;

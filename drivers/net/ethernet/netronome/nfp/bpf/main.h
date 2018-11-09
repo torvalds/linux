@@ -513,7 +513,7 @@ int nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx,
 		    int prev_insn_idx);
 int nfp_bpf_finalize(struct bpf_verifier_env *env);
 
-extern const struct bpf_prog_offload_ops nfp_bpf_analyzer_ops;
+extern const struct bpf_prog_offload_ops nfp_bpf_dev_ops;
 
 struct netdev_bpf;
 struct nfp_app;

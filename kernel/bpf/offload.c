@@ -33,6 +33,7 @@
 static DECLARE_RWSEM(bpf_devs_lock);
 
 struct bpf_offload_dev {
+	const struct bpf_prog_offload_ops *ops;
 	struct list_head netdevs;
 };
 
@@ -655,7 +656,8 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(bpf_offload_dev_netdev_unregister);
 
-struct bpf_offload_dev *bpf_offload_dev_create(void)
+struct bpf_offload_dev *
+bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops)
 {
 	struct bpf_offload_dev *offdev;
 	int err;
@@ -673,6 +675,7 @@ struct bpf_offload_dev *bpf_offload_dev_create(void)
 	if (!offdev)
 		return ERR_PTR(-ENOMEM);
 
+	offdev->ops = ops;
 	INIT_LIST_HEAD(&offdev->netdevs);
 
 	return offdev;
