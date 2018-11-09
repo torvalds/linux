@@ -184,20 +184,10 @@ void __init MMU_init_hw(void)
 
 	extern unsigned int hash_page_patch_A[];
 	extern unsigned int hash_page_patch_B[], hash_page_patch_C[];
-	extern unsigned int hash_page[];
 	extern unsigned int flush_hash_patch_A[], flush_hash_patch_B[];
 
-	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-		/*
-		 * Put a blr (procedure return) instruction at the
-		 * start of hash_page, since we can still get DSI
-		 * exceptions on a 603.
-		 */
-		hash_page[0] = 0x4e800020;
-		flush_icache_range((unsigned long) &hash_page[0],
-				   (unsigned long) &hash_page[1]);
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
 		return;
-	}
 
 	if ( ppc_md.progress ) ppc_md.progress("hash:enter", 0x105);
 
