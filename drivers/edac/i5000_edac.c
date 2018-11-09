@@ -1559,8 +1559,8 @@ static int __init i5000_init(void)
 
 	edac_dbg(2, "MC:\n");
 
-       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
-       opstate_init();
+	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
+	opstate_init();
 
 	pci_rc = pci_register_driver(&i5000_driver);
 

@@ -648,8 +648,8 @@ static int __init i82975x_init(void)
 
 	edac_dbg(3, "\n");
 
-       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
-       opstate_init();
+	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
+	opstate_init();
 
 	pci_rc = pci_register_driver(&i82975x_driver);
 	if (pci_rc < 0)
