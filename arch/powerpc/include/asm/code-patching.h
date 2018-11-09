@@ -33,12 +33,20 @@ unsigned int create_cond_branch(const unsigned int *addr,
 int patch_branch(unsigned int *addr, unsigned long target, int flags);
 int patch_instruction(unsigned int *addr, unsigned int instr);
 int raw_patch_instruction(unsigned int *addr, unsigned int instr);
-int patch_instruction_site(s32 *addr, unsigned int instr);
-int patch_branch_site(s32 *site, unsigned long target, int flags);
 
 static inline unsigned long patch_site_addr(s32 *site)
 {
 	return (unsigned long)site + *site;
+}
+
+static inline int patch_instruction_site(s32 *site, unsigned int instr)
+{
+	return patch_instruction((unsigned int *)patch_site_addr(site), instr);
+}
+
+static inline int patch_branch_site(s32 *site, unsigned long target, int flags)
+{
+	return patch_branch((unsigned int *)patch_site_addr(site), target, flags);
 }
 
 int instr_is_relative_branch(unsigned int instr);
