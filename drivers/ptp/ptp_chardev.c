@@ -122,10 +122,12 @@ int ptp_open(struct posix_clock *pc, fmode_t fmode)
 long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
+	struct ptp_sys_offset_extended *extoff = NULL;
 	struct ptp_sys_offset_precise precise_offset;
 	struct system_device_crosststamp xtstamp;
 	struct ptp_clock_info *ops = ptp->info;
 	struct ptp_sys_offset *sysoff = NULL;
+	struct ptp_system_timestamp sts;
 	struct ptp_clock_request req;
 	struct ptp_clock_caps caps;
 	struct ptp_clock_time *pct;
@@ -211,6 +213,36 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 			err = -EFAULT;
 		break;
 
+	case PTP_SYS_OFFSET_EXTENDED:
+		if (!ptp->info->gettimex64) {
+			err = -EOPNOTSUPP;
+			break;
+		}
+		extoff = memdup_user((void __user *)arg, sizeof(*extoff));
+		if (IS_ERR(extoff)) {
+			err = PTR_ERR(extoff);
+			extoff = NULL;
+			break;
+		}
+		if (extoff->n_samples > PTP_MAX_SAMPLES) {
+			err = -EINVAL;
+			break;
+		}
+		for (i = 0; i < extoff->n_samples; i++) {
+			err = ptp->info->gettimex64(ptp->info, &ts, &sts);
+			if (err)
+				goto out;
+			extoff->ts[i][0].sec = sts.pre_ts.tv_sec;
+			extoff->ts[i][0].nsec = sts.pre_ts.tv_nsec;
+			extoff->ts[i][1].sec = ts.tv_sec;
+			extoff->ts[i][1].nsec = ts.tv_nsec;
+			extoff->ts[i][2].sec = sts.post_ts.tv_sec;
+			extoff->ts[i][2].nsec = sts.post_ts.tv_nsec;
+		}
+		if (copy_to_user((void __user *)arg, extoff, sizeof(*extoff)))
+			err = -EFAULT;
+		break;
+
 	case PTP_SYS_OFFSET:
 		sysoff = memdup_user((void __user *)arg, sizeof(*sysoff));
 		if (IS_ERR(sysoff)) {
@@ -284,6 +316,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 	}
 
 out:
+	kfree(extoff);
 	kfree(sysoff);
 	return err;
 }
