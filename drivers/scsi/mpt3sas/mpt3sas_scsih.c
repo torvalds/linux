@@ -10366,6 +10366,10 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->id = mpt3_ids++;
 		sprintf(ioc->driver_name, "%s", MPT3SAS_DRIVER_NAME);
 		switch (pdev->device) {
+		case MPI26_MFGPAGE_DEVID_CFG_SEC_3816:
+		case MPI26_MFGPAGE_DEVID_CFG_SEC_3916:
+			dev_info(&pdev->dev,
+			    "HBA is in Configurable Secure mode\n");
 		case MPI26_MFGPAGE_DEVID_SAS3508:
 		case MPI26_MFGPAGE_DEVID_SAS3508_1:
 		case MPI26_MFGPAGE_DEVID_SAS3408:
@@ -10373,9 +10377,6 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		case MPI26_MFGPAGE_DEVID_SAS3516_1:
 		case MPI26_MFGPAGE_DEVID_SAS3416:
 		case MPI26_MFGPAGE_DEVID_SAS3616:
-		case MPI26_MFGPAGE_DEVID_CFG_SEC_3816:
-		case MPI26_MFGPAGE_DEVID_CFG_SEC_3916:
-			ioc_warn(ioc, "HBA is in Configurable Secure mode\n");
 		case MPI26_MFGPAGE_DEVID_HARD_SEC_3816:
 		case MPI26_MFGPAGE_DEVID_HARD_SEC_3916:
 			ioc->is_gen35_ioc = 1;
