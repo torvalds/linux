@@ -2,6 +2,7 @@
 // Copyright (c) 2018, Linaro Limited
 
 #include <dt-bindings/spmi/spmi.h>
+#include <dt-bindings/input/linux-event-codes.h>
 
 &spmi_bus {
 	pms405_0: pms405@0 {
@@ -27,6 +28,21 @@
 				<0 0xc9 0 IRQ_TYPE_NONE>,
 				<0 0xca 0 IRQ_TYPE_NONE>,
 				<0 0xcb 0 IRQ_TYPE_NONE>;
+		};
+
+		pon@800 {
+			compatible = "qcom,pms405-pon";
+			reg = <0x0800>;
+			mode-bootloader = <0x2>;
+			mode-recovery = <0x1>;
+
+			pwrkey {
+				compatible = "qcom,pm8941-pwrkey";
+				interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
+				debounce = <15625>;
+				bias-pull-up;
+				linux,code = <KEY_POWER>;
+			};
 		};
 
 		rtc@6000 {
