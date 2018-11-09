@@ -1367,12 +1367,10 @@ DEFINE_FREE_PT_FN(l4, free_pt_l3)
 DEFINE_FREE_PT_FN(l5, free_pt_l4)
 DEFINE_FREE_PT_FN(l6, free_pt_l5)
 
-static void free_pagetable(struct protection_domain *domain)
+static struct page *free_sub_pt(unsigned long root, int mode,
+				struct page *freelist)
 {
-	unsigned long root = (unsigned long)domain->pt_root;
-	struct page *freelist = NULL;
-
-	switch (domain->mode) {
+	switch (mode) {
 	case PAGE_MODE_NONE:
 		break;
 	case PAGE_MODE_1_LEVEL:
@@ -1396,6 +1394,16 @@ static void free_pagetable(struct protection_domain *domain)
 	default:
 		BUG();
 	}
+
+	return freelist;
+}
+
+static void free_pagetable(struct protection_domain *domain)
+{
+	unsigned long root = (unsigned long)domain->pt_root;
+	struct page *freelist = NULL;
+
+	free_sub_pt(root, domain->mode, freelist);
 
 	free_page_list(freelist);
 }
