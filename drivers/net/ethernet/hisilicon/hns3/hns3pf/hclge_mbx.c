@@ -81,13 +81,22 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 
 int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 {
+	struct hclge_dev *hdev = vport->back;
+	enum hnae3_reset_type reset_type;
 	u8 msg_data[2];
 	u8 dest_vfid;
 
 	dest_vfid = (u8)vport->vport_id;
 
+	if (hdev->reset_type == HNAE3_FUNC_RESET)
+		reset_type = HNAE3_VF_PF_FUNC_RESET;
+	else
+		return -EINVAL;
+
+	memcpy(&msg_data[0], &reset_type, sizeof(u16));
+
 	/* send this requested info to VF */
-	return hclge_send_mbx_msg(vport, msg_data, sizeof(u8),
+	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
 				  HCLGE_MBX_ASSERTING_RESET, dest_vfid);
 }
 

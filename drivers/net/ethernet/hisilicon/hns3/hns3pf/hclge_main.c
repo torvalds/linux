@@ -2392,6 +2392,55 @@ static int hclge_reset_wait(struct hclge_dev *hdev)
 	return 0;
 }
 
+static int hclge_set_vf_rst(struct hclge_dev *hdev, int func_id, bool reset)
+{
+	struct hclge_vf_rst_cmd *req;
+	struct hclge_desc desc;
+
+	req = (struct hclge_vf_rst_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_GBL_RST_STATUS, false);
+	req->dest_vfid = func_id;
+
+	if (reset)
+		req->vf_rst = 0x1;
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
+int hclge_set_all_vf_rst(struct hclge_dev *hdev, bool reset)
+{
+	int i;
+
+	for (i = hdev->num_vmdq_vport + 1; i < hdev->num_alloc_vport; i++) {
+		struct hclge_vport *vport = &hdev->vport[i];
+		int ret;
+
+		/* Send cmd to set/clear VF's FUNC_RST_ING */
+		ret = hclge_set_vf_rst(hdev, vport->vport_id, reset);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"set vf(%d) rst failded %d!\n",
+				vport->vport_id, ret);
+			return ret;
+		}
+
+		if (!reset)
+			continue;
+
+		/* Inform VF to process the reset.
+		 * hclge_inform_reset_assert_to_vf may fail if VF
+		 * driver is not loaded.
+		 */
+		ret = hclge_inform_reset_assert_to_vf(vport);
+		if (ret)
+			dev_warn(&hdev->pdev->dev,
+				 "inform reset to vf(%d) failded %d!\n",
+				 vport->vport_id, ret);
+	}
+
+	return 0;
+}
+
 int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id)
 {
 	struct hclge_desc desc;
@@ -2495,12 +2544,31 @@ static void hclge_clear_reset_cause(struct hclge_dev *hdev)
 	hclge_enable_vector(&hdev->misc_vector, true);
 }
 
+static int hclge_reset_prepare_down(struct hclge_dev *hdev)
+{
+	int ret = 0;
+
+	switch (hdev->reset_type) {
+	case HNAE3_FUNC_RESET:
+		ret = hclge_set_all_vf_rst(hdev, true);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 {
 	int ret = 0;
 
 	switch (hdev->reset_type) {
 	case HNAE3_FUNC_RESET:
+		/* There is no mechanism for PF to know if VF has stopped IO
+		 * for now, just wait 100 ms for VF to stop IO
+		 */
+		msleep(100);
 		ret = hclge_func_reset_cmd(hdev, 0);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
@@ -2562,6 +2630,21 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev, bool is_timeout)
 	return false;
 }
 
+static int hclge_reset_prepare_up(struct hclge_dev *hdev)
+{
+	int ret = 0;
+
+	switch (hdev->reset_type) {
+	case HNAE3_FUNC_RESET:
+		ret = hclge_set_all_vf_rst(hdev, false);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static void hclge_reset(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
@@ -2576,6 +2659,10 @@ static void hclge_reset(struct hclge_dev *hdev)
 	hdev->last_reset_time = jiffies;
 	/* perform reset of the stack & ae device for a client */
 	ret = hclge_notify_roce_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret)
+		goto err_reset;
+
+	ret = hclge_reset_prepare_down(hdev);
 	if (ret)
 		goto err_reset;
 
@@ -2613,6 +2700,10 @@ static void hclge_reset(struct hclge_dev *hdev)
 		goto err_reset_lock;
 
 	hclge_clear_reset_cause(hdev);
+
+	ret = hclge_reset_prepare_up(hdev);
+	if (ret)
+		goto err_reset_lock;
 
 	ret = hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 	if (ret)

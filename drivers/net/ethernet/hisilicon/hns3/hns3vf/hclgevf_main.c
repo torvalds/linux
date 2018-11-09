@@ -2,6 +2,7 @@
 // Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include <linux/etherdevice.h>
+#include <linux/iopoll.h>
 #include <net/rtnetlink.h>
 #include "hclgevf_cmd.h"
 #include "hclgevf_main.h"
@@ -1094,24 +1095,28 @@ static int hclgevf_notify_client(struct hclgevf_dev *hdev,
 
 static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 {
-#define HCLGEVF_RESET_WAIT_MS	500
-#define HCLGEVF_RESET_WAIT_CNT	20
-	u32 val, cnt = 0;
+#define HCLGEVF_RESET_WAIT_US	20000
+#define HCLGEVF_RESET_WAIT_CNT	2000
+#define HCLGEVF_RESET_WAIT_TIMEOUT_US	\
+	(HCLGEVF_RESET_WAIT_US * HCLGEVF_RESET_WAIT_CNT)
+
+	u32 val;
+	int ret;
 
 	/* wait to check the hardware reset completion status */
-	val = hclgevf_read_dev(&hdev->hw, HCLGEVF_FUN_RST_ING);
-	while (hnae3_get_bit(val, HCLGEVF_FUN_RST_ING_B) &&
-	       (cnt < HCLGEVF_RESET_WAIT_CNT)) {
-		msleep(HCLGEVF_RESET_WAIT_MS);
-		val = hclgevf_read_dev(&hdev->hw, HCLGEVF_FUN_RST_ING);
-		cnt++;
-	}
+	val = hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING);
+	dev_info(&hdev->pdev->dev, "checking vf resetting status: %x\n", val);
+
+	ret = readl_poll_timeout(hdev->hw.io_base + HCLGEVF_RST_ING, val,
+				 !(val & HCLGEVF_RST_ING_BITS),
+				 HCLGEVF_RESET_WAIT_US,
+				 HCLGEVF_RESET_WAIT_TIMEOUT_US);
 
 	/* hardware completion status should be available by this time */
-	if (cnt >= HCLGEVF_RESET_WAIT_CNT) {
-		dev_warn(&hdev->pdev->dev,
-			 "could'nt get reset done status from h/w, timeout!\n");
-		return -EBUSY;
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"could'nt get reset done status from h/w, timeout!\n");
+		return ret;
 	}
 
 	/* we will wait a bit more to let reset of the stack to complete. This
@@ -1224,6 +1229,10 @@ static enum hnae3_reset_type hclgevf_get_reset_level(struct hclgevf_dev *hdev,
 	if (test_bit(HNAE3_VF_FULL_RESET, addr)) {
 		rst_level = HNAE3_VF_FULL_RESET;
 		clear_bit(HNAE3_VF_FULL_RESET, addr);
+		clear_bit(HNAE3_VF_FUNC_RESET, addr);
+	} else if (test_bit(HNAE3_VF_PF_FUNC_RESET, addr)) {
+		rst_level = HNAE3_VF_PF_FUNC_RESET;
+		clear_bit(HNAE3_VF_PF_FUNC_RESET, addr);
 		clear_bit(HNAE3_VF_FUNC_RESET, addr);
 	} else if (test_bit(HNAE3_VF_FUNC_RESET, addr)) {
 		rst_level = HNAE3_VF_FUNC_RESET;
@@ -2178,7 +2187,7 @@ static bool hclgevf_get_hw_reset_stat(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
-	return !!hclgevf_read_dev(&hdev->hw, HCLGEVF_FUN_RST_ING);
+	return !!hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING);
 }
 
 static bool hclgevf_ae_dev_resetting(struct hnae3_handle *handle)

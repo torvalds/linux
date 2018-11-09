@@ -233,6 +233,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 
 void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 {
+	enum hnae3_reset_type reset_type;
 	u16 link_status;
 	u16 *msg_q;
 	u8 duplex;
@@ -267,7 +268,8 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			 * has been completely reset. After this stack should
 			 * eventually be re-initialized.
 			 */
-			set_bit(HNAE3_VF_FULL_RESET, &hdev->reset_pending);
+			reset_type = le16_to_cpu(msg_q[1]);
+			set_bit(reset_type, &hdev->reset_pending);
 			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 			hclgevf_reset_task_schedule(hdev);
 
