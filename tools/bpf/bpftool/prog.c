@@ -81,6 +81,7 @@ static const char * const attach_type_strings[] = {
 	[BPF_SK_SKB_STREAM_PARSER] = "stream_parser",
 	[BPF_SK_SKB_STREAM_VERDICT] = "stream_verdict",
 	[BPF_SK_MSG_VERDICT] = "msg_verdict",
+	[BPF_FLOW_DISSECTOR] = "flow_dissector",
 	[__MAX_BPF_ATTACH_TYPE] = NULL,
 };
 
@@ -721,30 +722,49 @@ int map_replace_compar(const void *p1, const void *p2)
 	return a->idx - b->idx;
 }
 
+static int parse_attach_detach_args(int argc, char **argv, int *progfd,
+				    enum bpf_attach_type *attach_type,
+				    int *mapfd)
+{
+	if (!REQ_ARGS(3))
+		return -EINVAL;
+
+	*progfd = prog_parse_fd(&argc, &argv);
+	if (*progfd < 0)
+		return *progfd;
+
+	*attach_type = parse_attach_type(*argv);
+	if (*attach_type == __MAX_BPF_ATTACH_TYPE) {
+		p_err("invalid attach/detach type");
+		return -EINVAL;
+	}
+
+	if (*attach_type == BPF_FLOW_DISSECTOR) {
+		*mapfd = -1;
+		return 0;
+	}
+
+	NEXT_ARG();
+	if (!REQ_ARGS(2))
+		return -EINVAL;
+
+	*mapfd = map_parse_fd(&argc, &argv);
+	if (*mapfd < 0)
+		return *mapfd;
+
+	return 0;
+}
+
 static int do_attach(int argc, char **argv)
 {
 	enum bpf_attach_type attach_type;
-	int err, mapfd, progfd;
+	int err, progfd;
+	int mapfd;
 
-	if (!REQ_ARGS(5)) {
-		p_err("too few parameters for map attach");
-		return -EINVAL;
-	}
-
-	progfd = prog_parse_fd(&argc, &argv);
-	if (progfd < 0)
-		return progfd;
-
-	attach_type = parse_attach_type(*argv);
-	if (attach_type == __MAX_BPF_ATTACH_TYPE) {
-		p_err("invalid attach type");
-		return -EINVAL;
-	}
-	NEXT_ARG();
-
-	mapfd = map_parse_fd(&argc, &argv);
-	if (mapfd < 0)
-		return mapfd;
+	err = parse_attach_detach_args(argc, argv,
+				       &progfd, &attach_type, &mapfd);
+	if (err)
+		return err;
 
 	err = bpf_prog_attach(progfd, mapfd, attach_type, 0);
 	if (err) {
@@ -760,27 +780,13 @@ static int do_attach(int argc, char **argv)
 static int do_detach(int argc, char **argv)
 {
 	enum bpf_attach_type attach_type;
-	int err, mapfd, progfd;
+	int err, progfd;
+	int mapfd;
 
-	if (!REQ_ARGS(5)) {
-		p_err("too few parameters for map detach");
-		return -EINVAL;
-	}
-
-	progfd = prog_parse_fd(&argc, &argv);
-	if (progfd < 0)
-		return progfd;
-
-	attach_type = parse_attach_type(*argv);
-	if (attach_type == __MAX_BPF_ATTACH_TYPE) {
-		p_err("invalid attach type");
-		return -EINVAL;
-	}
-	NEXT_ARG();
-
-	mapfd = map_parse_fd(&argc, &argv);
-	if (mapfd < 0)
-		return mapfd;
+	err = parse_attach_detach_args(argc, argv,
+				       &progfd, &attach_type, &mapfd);
+	if (err)
+		return err;
 
 	err = bpf_prog_detach2(progfd, mapfd, attach_type);
 	if (err) {
@@ -1094,8 +1100,8 @@ static int do_help(int argc, char **argv)
 		"                         [type TYPE] [dev NAME] \\\n"
 		"                         [map { idx IDX | name NAME } MAP]\\\n"
 		"                         [pinmaps MAP_DIR]\n"
-		"       %s %s attach PROG ATTACH_TYPE MAP\n"
-		"       %s %s detach PROG ATTACH_TYPE MAP\n"
+		"       %s %s attach PROG ATTACH_TYPE [MAP]\n"
+		"       %s %s detach PROG ATTACH_TYPE [MAP]\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
@@ -1107,7 +1113,8 @@ static int do_help(int argc, char **argv)
 		"                 cgroup/bind4 | cgroup/bind6 | cgroup/post_bind4 |\n"
 		"                 cgroup/post_bind6 | cgroup/connect4 | cgroup/connect6 |\n"
 		"                 cgroup/sendmsg4 | cgroup/sendmsg6 }\n"
-		"       ATTACH_TYPE := { msg_verdict | skb_verdict | skb_parse }\n"
+		"       ATTACH_TYPE := { msg_verdict | skb_verdict | skb_parse |\n"
+		"                        flow_dissector }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
