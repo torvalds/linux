@@ -100,11 +100,7 @@ static void __init mmu_mapin_immr(void)
 
 static void __init mmu_patch_cmp_limit(s32 *site, unsigned long mapped)
 {
-	unsigned int instr = *(unsigned int *)patch_site_addr(site);
-
-	instr &= 0xffff0000;
-	instr |= (unsigned long)__va(mapped) >> 16;
-	patch_instruction_site(site, instr);
+	modify_instruction_site(site, 0xffff, (unsigned long)__va(mapped) >> 16);
 }
 
 unsigned long __init mmu_mapin_ram(unsigned long top)
