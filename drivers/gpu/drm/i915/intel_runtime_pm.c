@@ -493,11 +493,25 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
 	const struct i915_power_well_regs *regs = power_well->desc->hsw.regs;
+	enum i915_power_well_id id = power_well->desc->id;
 	int pw_idx = power_well->desc->hsw.idx;
 	u32 mask = HSW_PWR_WELL_CTL_REQ(pw_idx) |
 		   HSW_PWR_WELL_CTL_STATE(pw_idx);
+	u32 val;
 
-	return (I915_READ(regs->driver) & mask) == mask;
+	val = I915_READ(regs->driver);
+
+	/*
+	 * On GEN9 big core due to a DMC bug the driver's request bits for PW1
+	 * and the MISC_IO PW will be not restored, so check instead for the
+	 * BIOS's own request bits, which are forced-on for these power wells
+	 * when exiting DC5/6.
+	 */
+	if (IS_GEN9(dev_priv) && !IS_GEN9_LP(dev_priv) &&
+	    (id == SKL_DISP_PW_1 || id == SKL_DISP_PW_MISC_IO))
+		val |= I915_READ(regs->bios);
+
+	return (val & mask) == mask;
 }
 
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
