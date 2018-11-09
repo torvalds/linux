@@ -50,6 +50,7 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/idle.h>
+#include <asm/isa-rev.h>
 #include <asm/mips-cps.h>
 #include <asm/mips-r2-to-r6-emul.h>
 #include <asm/mipsregs.h>
@@ -277,8 +278,10 @@ static void __show_regs(const struct pt_regs *regs)
 #ifdef CONFIG_CPU_HAS_SMARTMIPS
 	printk("Acx    : %0*lx\n", field, regs->acx);
 #endif
-	printk("Hi    : %0*lx\n", field, regs->hi);
-	printk("Lo    : %0*lx\n", field, regs->lo);
+	if (MIPS_ISA_REV < 6) {
+		printk("Hi    : %0*lx\n", field, regs->hi);
+		printk("Lo    : %0*lx\n", field, regs->lo);
+	}
 
 	/*
 	 * Saved cp0 registers
