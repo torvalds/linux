@@ -321,7 +321,12 @@
 #define SOF_SKL_NUM_DAIS		8
 #endif
 
-#define HDA_DSP_SRAM_REG_ROM_STATUS_SKL 0x8000
+/* Intel HD Audio SRAM Window 0*/
+#define HDA_ADSP_SRAM0_BASE_SKL		0x8000
+
+/* Firmware status window */
+#define HDA_ADSP_FW_STATUS_SKL		HDA_ADSP_SRAM0_BASE_SKL
+#define HDA_ADSP_ERROR_CODE_SKL		(HDA_ADSP_FW_STATUS_SKL + 0x4)
 
 struct sof_intel_dsp_bdl {
 	u32 addr_l;

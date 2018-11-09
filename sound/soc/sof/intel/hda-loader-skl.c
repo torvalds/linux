@@ -378,7 +378,7 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 
 	/* polling the ROM init status information. */
 	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
-					HDA_DSP_SRAM_REG_ROM_STATUS_SKL,
+					HDA_ADSP_FW_STATUS_SKL,
 					HDA_DSP_ROM_STS_MASK, HDA_DSP_ROM_INIT,
 					HDA_DSP_INIT_TIMEOUT);
 	if (ret < 0)
@@ -387,7 +387,7 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 	return ret;
 
 err:
-	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
+	hda_dsp_dump_skl(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
 	cl_cleanup_skl(sdev);
 	hda_dsp_core_reset_power_down(sdev, HDA_DSP_CORE_MASK(0));
 	return ret;
@@ -428,9 +428,9 @@ static int cl_skl_cldma_wait_interruptible(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "cldma copy timeout\n");
 		dev_err(sdev->dev, "ROM code=0x%x: FW status=0x%x\n",
 			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_DSP_SRAM_REG_ROM_ERROR),
+					 HDA_ADSP_ERROR_CODE_SKL),
 			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_DSP_SRAM_REG_ROM_STATUS));
+					 HDA_ADSP_FW_STATUS_SKL));
 
 		/* TODO: temp debug to be removed */
 		dev_err(sdev->dev, "ADSPCS=0x%x: ADSPIC=0x%x: ADSPIS=0x%x INTCTL=0x%x INTSTS=0x%x PPCTL=0x%x PPSTS=0x%x\n",
@@ -526,7 +526,7 @@ static int cl_copy_fw_skl(struct snd_sof_dev *sdev)
 	}
 
 	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
-					HDA_DSP_SRAM_REG_ROM_STATUS_SKL,
+					HDA_ADSP_FW_STATUS_SKL,
 					HDA_DSP_ROM_STS_MASK,
 					HDA_DSP_ROM_FW_FW_LOADED,
 					HDA_DSP_BASEFW_TIMEOUT);
@@ -551,9 +551,9 @@ int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev)
 		if (ret < 0) {
 			dev_err(sdev->dev, "Error code=0x%x: FW status=0x%x\n",
 				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 HDA_DSP_SRAM_REG_ROM_ERROR),
+						 HDA_ADSP_ERROR_CODE_SKL),
 				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 HDA_DSP_SRAM_REG_ROM_STATUS));
+						 HDA_ADSP_FW_STATUS_SKL));
 			dev_err(sdev->dev, "Core En/ROM load fail:%d\n", ret);
 			goto irq_err;
 		}
@@ -579,7 +579,7 @@ int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev)
 	return ret;
 
 irq_err:
-	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
+	hda_dsp_dump_skl(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
 
 	/* power down DSP */
 	hda_dsp_core_reset_power_down(sdev, HDA_DSP_CORE_MASK(0));

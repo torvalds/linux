@@ -74,7 +74,7 @@ struct snd_sof_dsp_ops sof_skl_ops = {
 	/* debug */
 	.debug_map	= skl_dsp_debugfs,
 	.debug_map_count	= ARRAY_SIZE(skl_dsp_debugfs),
-	.dbg_dump	= hda_dsp_dump,
+	.dbg_dump	= hda_dsp_dump_skl,
 
 	/* stream callbacks */
 	.pcm_open	= hda_dsp_pcm_open,
