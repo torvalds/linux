@@ -326,6 +326,7 @@ int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
 	bool checksum_valid = false;
+	struct udp_mib *mib;
 	int is_udp4;
 
 	if (flags & MSG_ERRQUEUE)
@@ -349,6 +350,7 @@ try_again:
 		msg->msg_flags |= MSG_TRUNC;
 
 	is_udp4 = (skb->protocol == htons(ETH_P_IP));
+	mib = __UDPX_MIB(sk, is_udp4);
 
 	/*
 	 * If checksum is needed at all, try to do it while copying the
@@ -377,24 +379,13 @@ try_again:
 	if (unlikely(err)) {
 		if (!peeked) {
 			atomic_inc(&sk->sk_drops);
-			if (is_udp4)
-				UDP_INC_STATS(sock_net(sk), UDP_MIB_INERRORS,
-					      is_udplite);
-			else
-				UDP6_INC_STATS(sock_net(sk), UDP_MIB_INERRORS,
-					       is_udplite);
+			SNMP_INC_STATS(mib, UDP_MIB_INERRORS);
 		}
 		kfree_skb(skb);
 		return err;
 	}
-	if (!peeked) {
-		if (is_udp4)
-			UDP_INC_STATS(sock_net(sk), UDP_MIB_INDATAGRAMS,
-				      is_udplite);
-		else
-			UDP6_INC_STATS(sock_net(sk), UDP_MIB_INDATAGRAMS,
-				       is_udplite);
-	}
+	if (!peeked)
+		SNMP_INC_STATS(mib, UDP_MIB_INDATAGRAMS);
 
 	sock_recv_ts_and_drops(msg, sk, skb);
 
@@ -443,17 +434,8 @@ try_again:
 csum_copy_err:
 	if (!__sk_queue_drop_skb(sk, &udp_sk(sk)->reader_queue, skb, flags,
 				 udp_skb_destructor)) {
-		if (is_udp4) {
-			UDP_INC_STATS(sock_net(sk),
-				      UDP_MIB_CSUMERRORS, is_udplite);
-			UDP_INC_STATS(sock_net(sk),
-				      UDP_MIB_INERRORS, is_udplite);
-		} else {
-			UDP6_INC_STATS(sock_net(sk),
-				       UDP_MIB_CSUMERRORS, is_udplite);
-			UDP6_INC_STATS(sock_net(sk),
-				       UDP_MIB_INERRORS, is_udplite);
-		}
+		SNMP_INC_STATS(mib, UDP_MIB_CSUMERRORS);
+		SNMP_INC_STATS(mib, UDP_MIB_INERRORS);
 	}
 	kfree_skb(skb);
 
