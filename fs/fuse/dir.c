@@ -400,6 +400,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	struct fuse_create_in inarg;
 	struct fuse_open_out outopen;
 	struct fuse_entry_out outentry;
+	struct fuse_inode *fi;
 	struct fuse_file *ff;
 
 	/* Userspace expects S_IFREG in create mode */
@@ -451,7 +452,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 			  &outentry.attr, entry_attr_timeout(&outentry), 0);
 	if (!inode) {
 		flags &= ~(O_CREAT | O_EXCL | O_TRUNC);
-		fuse_sync_release(ff, flags);
+		fuse_sync_release(NULL, ff, flags);
 		fuse_queue_forget(fc, forget, outentry.nodeid, 1);
 		err = -ENOMEM;
 		goto out_err;
@@ -462,7 +463,8 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	fuse_dir_changed(dir);
 	err = finish_open(file, entry, generic_file_open);
 	if (err) {
-		fuse_sync_release(ff, flags);
+		fi = get_fuse_inode(inode);
+		fuse_sync_release(fi, ff, flags);
 	} else {
 		file->private_data = ff;
 		fuse_finish_open(inode, file);

@@ -224,7 +224,8 @@ int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
 	return err;
 }
 
-static void fuse_prepare_release(struct fuse_file *ff, int flags, int opcode)
+static void fuse_prepare_release(struct fuse_inode *fi, struct fuse_file *ff,
+				 int flags, int opcode)
 {
 	struct fuse_conn *fc = ff->fc;
 	struct fuse_req *req = ff->reserved_req;
@@ -249,11 +250,12 @@ static void fuse_prepare_release(struct fuse_file *ff, int flags, int opcode)
 
 void fuse_release_common(struct file *file, bool isdir)
 {
+	struct fuse_inode *fi = get_fuse_inode(file_inode(file));
 	struct fuse_file *ff = file->private_data;
 	struct fuse_req *req = ff->reserved_req;
 	int opcode = isdir ? FUSE_RELEASEDIR : FUSE_RELEASE;
 
-	fuse_prepare_release(ff, file->f_flags, opcode);
+	fuse_prepare_release(fi, ff, file->f_flags, opcode);
 
 	if (ff->flock) {
 		struct fuse_release_in *inarg = &req->misc.release.in;
@@ -295,10 +297,10 @@ static int fuse_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-void fuse_sync_release(struct fuse_file *ff, int flags)
+void fuse_sync_release(struct fuse_inode *fi, struct fuse_file *ff, int flags)
 {
 	WARN_ON(refcount_read(&ff->count) > 1);
-	fuse_prepare_release(ff, flags, FUSE_RELEASE);
+	fuse_prepare_release(fi, ff, flags, FUSE_RELEASE);
 	/*
 	 * iput(NULL) is a no-op and since the refcount is 1 and everything's
 	 * synchronous, we are fine with not doing igrab() here"
