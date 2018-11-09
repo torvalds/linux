@@ -37,25 +37,25 @@ static void xsc3_mc_copy_user_page(void *kto, const void *kfrom)
 1:	pld	[%1, #64]			\n\
 	pld	[%1, #96]			\n\
 						\n\
-2:	ldrd	r2, [%1], #8			\n\
-	ldrd	r4, [%1], #8			\n\
+2:	ldrd	r2, r3, [%1], #8		\n\
+	ldrd	r4, r5, [%1], #8		\n\
 	mcr	p15, 0, %0, c7, c6, 1		@ invalidate\n\
-	strd	r2, [%0], #8			\n\
-	ldrd	r2, [%1], #8			\n\
-	strd	r4, [%0], #8			\n\
-	ldrd	r4, [%1], #8			\n\
-	strd	r2, [%0], #8			\n\
-	strd	r4, [%0], #8			\n\
-	ldrd	r2, [%1], #8			\n\
-	ldrd	r4, [%1], #8			\n\
+	strd	r2, r3, [%0], #8		\n\
+	ldrd	r2, r3, [%1], #8		\n\
+	strd	r4, r5, [%0], #8		\n\
+	ldrd	r4, r5, [%1], #8		\n\
+	strd	r2, r3, [%0], #8		\n\
+	strd	r4, r5, [%0], #8		\n\
+	ldrd	r2, r3, [%1], #8		\n\
+	ldrd	r4, r5, [%1], #8		\n\
 	mcr	p15, 0, %0, c7, c6, 1		@ invalidate\n\
-	strd	r2, [%0], #8			\n\
-	ldrd	r2, [%1], #8			\n\
+	strd	r2, r3, [%0], #8		\n\
+	ldrd	r2, r3, [%1], #8		\n\
 	subs	%2, %2, #1			\n\
-	strd	r4, [%0], #8			\n\
-	ldrd	r4, [%1], #8			\n\
-	strd	r2, [%0], #8			\n\
-	strd	r4, [%0], #8			\n\
+	strd	r4, r5, [%0], #8		\n\
+	ldrd	r4, r5, [%1], #8		\n\
+	strd	r2, r3, [%0], #8		\n\
+	strd	r4, r5, [%0], #8		\n\
 	bgt	1b				\n\
 	beq	2b				"
 	: "+&r" (kto), "+&r" (kfrom), "=&r" (tmp)
@@ -87,10 +87,10 @@ void xsc3_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 	mov	r2, #0				\n\
 	mov	r3, #0				\n\
 1:	mcr	p15, 0, %0, c7, c6, 1		@ invalidate line\n\
-	strd	r2, [%0], #8			\n\
-	strd	r2, [%0], #8			\n\
-	strd	r2, [%0], #8			\n\
-	strd	r2, [%0], #8			\n\
+	strd	r2, r3, [%0], #8		\n\
+	strd	r2, r3, [%0], #8		\n\
+	strd	r2, r3, [%0], #8		\n\
+	strd	r2, r3, [%0], #8		\n\
 	subs	r1, r1, #1			\n\
 	bne	1b"
 	: "=r" (ptr)

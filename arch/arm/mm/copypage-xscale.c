@@ -53,26 +53,26 @@ static void mc_copy_user_page(void *from, void *to)
 	pld	[%0, #96]			\n\
 	pld	[%1, #64]			\n\
 	pld	[%1, #96]			\n\
-2:	ldrd	r2, [%0], #8			\n\
-	ldrd	r4, [%0], #8			\n\
+2:	ldrd	r2, r3, [%0], #8		\n\
+	ldrd	r4, r5, [%0], #8		\n\
 	mov	ip, %1				\n\
-	strd	r2, [%1], #8			\n\
-	ldrd	r2, [%0], #8			\n\
-	strd	r4, [%1], #8			\n\
-	ldrd	r4, [%0], #8			\n\
-	strd	r2, [%1], #8			\n\
-	strd	r4, [%1], #8			\n\
+	strd	r2, r3, [%1], #8		\n\
+	ldrd	r2, r3, [%0], #8		\n\
+	strd	r4, r5, [%1], #8		\n\
+	ldrd	r4, r5, [%0], #8		\n\
+	strd	r2, r3, [%1], #8		\n\
+	strd	r4, r5, [%1], #8		\n\
 	mcr	p15, 0, ip, c7, c10, 1		@ clean D line\n\
-	ldrd	r2, [%0], #8			\n\
+	ldrd	r2, r3, [%0], #8		\n\
 	mcr	p15, 0, ip, c7, c6, 1		@ invalidate D line\n\
-	ldrd	r4, [%0], #8			\n\
+	ldrd	r4, r5, [%0], #8		\n\
 	mov	ip, %1				\n\
-	strd	r2, [%1], #8			\n\
-	ldrd	r2, [%0], #8			\n\
-	strd	r4, [%1], #8			\n\
-	ldrd	r4, [%0], #8			\n\
-	strd	r2, [%1], #8			\n\
-	strd	r4, [%1], #8			\n\
+	strd	r2, r3, [%1], #8		\n\
+	ldrd	r2, r3, [%0], #8		\n\
+	strd	r4, r5, [%1], #8		\n\
+	ldrd	r4, r5, [%0], #8		\n\
+	strd	r2, r3, [%1], #8		\n\
+	strd	r4, r5, [%1], #8		\n\
 	mcr	p15, 0, ip, c7, c10, 1		@ clean D line\n\
 	subs	%2, %2, #1			\n\
 	mcr	p15, 0, ip, c7, c6, 1		@ invalidate D line\n\
@@ -114,10 +114,10 @@ xscale_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 	mov	r2, #0				\n\
 	mov	r3, #0				\n\
 1:	mov	ip, %0				\n\
-	strd	r2, [%0], #8			\n\
-	strd	r2, [%0], #8			\n\
-	strd	r2, [%0], #8			\n\
-	strd	r2, [%0], #8			\n\
+	strd	r2, r3, [%0], #8		\n\
+	strd	r2, r3, [%0], #8		\n\
+	strd	r2, r3, [%0], #8		\n\
+	strd	r2, r3, [%0], #8		\n\
 	mcr	p15, 0, ip, c7, c10, 1		@ clean D line\n\
 	subs	r1, r1, #1			\n\
 	mcr	p15, 0, ip, c7, c6, 1		@ invalidate D line\n\
