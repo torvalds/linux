@@ -149,21 +149,6 @@ static void fuse_lookup_init(struct fuse_conn *fc, struct fuse_args *args,
 	args->out.args[0].value = outarg;
 }
 
-u64 fuse_get_attr_version(struct fuse_conn *fc)
-{
-	u64 curr_version;
-
-	/*
-	 * The spin lock isn't actually needed on 64bit archs, but we
-	 * don't yet care too much about such optimizations.
-	 */
-	spin_lock(&fc->lock);
-	curr_version = fc->attr_version;
-	spin_unlock(&fc->lock);
-
-	return curr_version;
-}
-
 /*
  * Check whether the dentry is still valid
  *
@@ -674,7 +659,7 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 		struct fuse_inode *fi = get_fuse_inode(inode);
 
 		spin_lock(&fc->lock);
-		fi->attr_version = ++fc->attr_version;
+		fi->attr_version = atomic64_inc_return(&fc->attr_version);
 		/*
 		 * If i_nlink == 0 then unlink doesn't make sense, yet this can
 		 * happen if userspace filesystem is careless.  It would be
@@ -828,7 +813,7 @@ static int fuse_link(struct dentry *entry, struct inode *newdir,
 		struct fuse_inode *fi = get_fuse_inode(inode);
 
 		spin_lock(&fc->lock);
-		fi->attr_version = ++fc->attr_version;
+		fi->attr_version = atomic64_inc_return(&fc->attr_version);
 		inc_nlink(inode);
 		spin_unlock(&fc->lock);
 		fuse_invalidate_attr(inode);

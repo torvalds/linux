@@ -730,7 +730,7 @@ struct fuse_conn {
 	struct fuse_req *destroy_req;
 
 	/** Version counter for attribute changes */
-	u64 attr_version;
+	atomic64_t attr_version;
 
 	/** Called on final put */
 	void (*release)(struct fuse_conn *);
@@ -768,6 +768,11 @@ static inline u64 get_node_id(struct inode *inode)
 static inline int invalid_nodeid(u64 nodeid)
 {
 	return !nodeid || nodeid == FUSE_ROOT_ID;
+}
+
+static inline u64 fuse_get_attr_version(struct fuse_conn *fc)
+{
+	return atomic64_read(&fc->attr_version);
 }
 
 /** Device operations */
@@ -999,8 +1004,6 @@ void fuse_flush_writepages(struct inode *inode);
 
 void fuse_set_nowrite(struct inode *inode);
 void fuse_release_nowrite(struct inode *inode);
-
-u64 fuse_get_attr_version(struct fuse_conn *fc);
 
 /**
  * File-system tells the kernel to invalidate cache for the given node id.

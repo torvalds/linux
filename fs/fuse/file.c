@@ -187,7 +187,7 @@ void fuse_finish_open(struct inode *inode, struct file *file)
 		struct fuse_inode *fi = get_fuse_inode(inode);
 
 		spin_lock(&fc->lock);
-		fi->attr_version = ++fc->attr_version;
+		fi->attr_version = atomic64_inc_return(&fc->attr_version);
 		i_size_write(inode, 0);
 		spin_unlock(&fc->lock);
 		fuse_invalidate_attr(inode);
@@ -608,7 +608,7 @@ static void fuse_aio_complete(struct fuse_io_priv *io, int err, ssize_t pos)
 			struct fuse_inode *fi = get_fuse_inode(inode);
 
 			spin_lock(&fc->lock);
-			fi->attr_version = ++fc->attr_version;
+			fi->attr_version = atomic64_inc_return(&fc->attr_version);
 			spin_unlock(&fc->lock);
 		}
 
@@ -687,7 +687,7 @@ static void fuse_read_update_size(struct inode *inode, loff_t size,
 	spin_lock(&fc->lock);
 	if (attr_ver == fi->attr_version && size < inode->i_size &&
 	    !test_bit(FUSE_I_SIZE_UNSTABLE, &fi->state)) {
-		fi->attr_version = ++fc->attr_version;
+		fi->attr_version = atomic64_inc_return(&fc->attr_version);
 		i_size_write(inode, size);
 	}
 	spin_unlock(&fc->lock);
@@ -1006,7 +1006,7 @@ bool fuse_write_update_size(struct inode *inode, loff_t pos)
 	bool ret = false;
 
 	spin_lock(&fc->lock);
-	fi->attr_version = ++fc->attr_version;
+	fi->attr_version = atomic64_inc_return(&fc->attr_version);
 	if (pos > inode->i_size) {
 		i_size_write(inode, pos);
 		ret = true;

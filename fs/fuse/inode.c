@@ -163,7 +163,7 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
-	fi->attr_version = ++fc->attr_version;
+	fi->attr_version = atomic64_inc_return(&fc->attr_version);
 	fi->i_time = attr_valid;
 	WRITE_ONCE(fi->inval_mask, 0);
 
@@ -624,7 +624,7 @@ void fuse_conn_init(struct fuse_conn *fc, struct user_namespace *user_ns)
 	fc->blocked = 0;
 	fc->initialized = 0;
 	fc->connected = 1;
-	fc->attr_version = 1;
+	atomic64_set(&fc->attr_version, 1);
 	get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 	fc->pid_ns = get_pid_ns(task_active_pid_ns(current));
 	fc->user_ns = get_user_ns(user_ns);
