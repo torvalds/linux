@@ -165,8 +165,7 @@ int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on)
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_set_radio_state);
 
-int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type,
-			  u32 param, bool wait)
+int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type, u32 param)
 {
 	struct {
 		__le32 id;
@@ -175,9 +174,10 @@ int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type,
 		.id = cpu_to_le32(type),
 		.value = cpu_to_le32(param),
 	};
+	bool is_mt76x2e = mt76_is_mmio(dev) && is_mt76x2(dev);
 	int ret;
 
-	if (wait)
+	if (is_mt76x2e)
 		mt76_rmw(dev, MT_MCU_COM_REG0, BIT(31), 0);
 
 	ret = mt76_mcu_send_msg(dev, CMD_CALIBRATION_OP, &msg, sizeof(msg),
@@ -185,7 +185,7 @@ int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type,
 	if (ret)
 		return ret;
 
-	if (wait &&
+	if (is_mt76x2e &&
 	    WARN_ON(!mt76_poll_msec(dev, MT_MCU_COM_REG0,
 				    BIT(31), BIT(31), 100)))
 		return -ETIMEDOUT;

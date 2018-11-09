@@ -868,9 +868,8 @@ void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 		return;
 
 	if (power_on) {
-		mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0, false);
-		mt76x02_mcu_calibrate(dev, MCU_CAL_VCO, chan->hw_value,
-				      false);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_VCO, chan->hw_value);
 		usleep_range(10, 20);
 
 		if (mt76x0_tssi_enabled(dev)) {
@@ -901,14 +900,14 @@ void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 		val = 0x600;
 	}
 
-	mt76x02_mcu_calibrate(dev, MCU_CAL_FULL, val, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_FULL, val);
 	msleep(350);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_LC, is_5ghz, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_LC, is_5ghz);
 	usleep_range(15000, 20000);
 
 	mt76_wr(dev, MT_BBP(IBI, 9), reg_val);
 	mt76_wr(dev, MT_TX_ALC_CFG_0, tx_alc);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1);
 }
 EXPORT_SYMBOL_GPL(mt76x0_phy_calibrate);
 
@@ -1044,8 +1043,7 @@ static void mt76x0_phy_temp_sensor(struct mt76x02_dev *dev)
 
 	if (abs(val - dev->cal.temp_vco) > 20) {
 		mt76x02_mcu_calibrate(dev, MCU_CAL_VCO,
-				      dev->mt76.chandef.chan->hw_value,
-				      false);
+				      dev->mt76.chandef.chan->hw_value);
 		dev->cal.temp_vco = val;
 	}
 	if (abs(val - dev->cal.temp) > 30) {

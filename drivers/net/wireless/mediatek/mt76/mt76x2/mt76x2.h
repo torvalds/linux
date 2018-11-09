@@ -78,7 +78,7 @@ void mt76x2_init_txpower(struct mt76x02_dev *dev,
 			 struct ieee80211_supported_band *sband);
 void mt76_write_mac_initvals(struct mt76x02_dev *dev);
 
-void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait);
+void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev);
 void mt76x2_phy_set_txpower_regs(struct mt76x02_dev *dev,
 				 enum nl80211_band band);
 void mt76x2_configure_tx_delay(struct mt76x02_dev *dev,

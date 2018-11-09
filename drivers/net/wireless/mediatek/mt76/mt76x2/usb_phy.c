@@ -34,13 +34,13 @@ mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 		mt76x2u_mac_stop(dev);
 
 	if (is_5ghz)
-		mt76x02_mcu_calibrate(dev, MCU_CAL_LC, 0, false);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_LC, 0);
 
-	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_LOFT, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_RXIQC_FI, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_TEMP_SENSOR, 0, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_SHAPING, 0, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_LOFT, is_5ghz);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXIQC_FI, is_5ghz);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TEMP_SENSOR, 0);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_SHAPING, 0);
 
 	if (!mac_stopped)
 		mt76x2u_mac_resume(dev);
@@ -55,7 +55,7 @@ void mt76x2u_phy_calibrate(struct work_struct *work)
 
 	dev = container_of(work, struct mt76x02_dev, cal_work.work);
 	mt76x2u_phy_channel_calibrate(dev, false);
-	mt76x2_phy_tssi_compensate(dev, false);
+	mt76x2_phy_tssi_compensate(dev);
 	mt76x2_phy_update_channel_gain(dev);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->cal_work,
@@ -153,14 +153,14 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 		u8 val = mt76x02_eeprom_get(dev, MT_EE_BT_RCAL_RESULT);
 
 		if (val != 0xff)
-			mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0, false);
+			mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0);
 	}
 
-	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, channel, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, channel);
 
 	/* Rx LPF calibration */
 	if (!dev->cal.init_cal_done)
-		mt76x02_mcu_calibrate(dev, MCU_CAL_RC, 0, false);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_RC, 0);
 	dev->cal.init_cal_done = true;
 
 	mt76_wr(dev, MT_BBP(AGC, 61), 0xff64a4e2);
@@ -195,7 +195,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 				flag |= BIT(0);
 			if (mt76x02_ext_pa_enabled(dev, chan->band))
 				flag |= BIT(8);
-			mt76x02_mcu_calibrate(dev, MCU_CAL_TSSI, flag, false);
+			mt76x02_mcu_calibrate(dev, MCU_CAL_TSSI, flag);
 			dev->cal.tssi_cal_done = true;
 		}
 	}

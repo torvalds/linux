@@ -97,8 +97,7 @@ struct mt76x02_patch_header {
 };
 
 int mt76x02_mcu_cleanup(struct mt76x02_dev *dev);
-int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type,
-			  u32 param, bool wait);
+int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type, u32 param);
 int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			 int len, bool wait_resp);
 int mt76x02_mcu_function_select(struct mt76x02_dev *dev, enum mcu_function func,
