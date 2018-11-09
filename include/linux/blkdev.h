@@ -776,16 +776,6 @@ static inline unsigned int blk_queue_depth(struct request_queue *q)
 	return q->nr_requests;
 }
 
-/*
- * q->prep_rq_fn return values
- */
-enum {
-	BLKPREP_OK,		/* serve it */
-	BLKPREP_KILL,		/* fatal error, kill, return -EIO */
-	BLKPREP_DEFER,		/* leave on queue */
-	BLKPREP_INVALID,	/* invalid command, kill, return -EREMOTEIO */
-};
-
 extern unsigned long blk_max_low_pfn, blk_max_pfn;
 
 /*
