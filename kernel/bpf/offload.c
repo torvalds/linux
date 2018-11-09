@@ -183,8 +183,8 @@ int bpf_prog_offload_finalize(struct bpf_verifier_env *env)
 	down_read(&bpf_devs_lock);
 	offload = env->prog->aux->offload;
 	if (offload) {
-		if (offload->dev_ops->finalize)
-			ret = offload->dev_ops->finalize(env);
+		if (offload->offdev->ops->finalize)
+			ret = offload->offdev->ops->finalize(env);
 		else
 			ret = 0;
 	}
