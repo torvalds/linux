@@ -133,6 +133,9 @@ Required properties:
     "socionext,uniphier-pxs2-usb3-reset" - for PXs2 SoC USB3
     "socionext,uniphier-ld20-usb3-reset" - for LD20 SoC USB3
     "socionext,uniphier-pxs3-usb3-reset" - for PXs3 SoC USB3
+    "socionext,uniphier-pro4-ahci-reset" - for Pro4 SoC AHCI
+    "socionext,uniphier-pxs2-ahci-reset" - for PXs2 SoC AHCI
+    "socionext,uniphier-pxs3-ahci-reset" - for PXs3 SoC AHCI
 - #reset-cells: Should be 1.
 - reg: Specifies offset and length of the register set for the device.
 - clocks: A list of phandles to the clock gate for the glue layer.
