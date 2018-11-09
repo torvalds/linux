@@ -298,7 +298,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  * - timer moves to NOLINK or RUNNING
  *
  * NOLINK: PHY is up, but not currently plugged in.
- * - If the timer notes that the link comes back, we move to RUNNING
+ * - irq or timer will set RUNNING if link comes back
  * - phy_stop moves to HALTED
  *
  * FORCING: PHY is being configured with forced settings
@@ -309,10 +309,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  *
  * RUNNING: PHY is currently up, running, and possibly sending
  * and/or receiving packets
- * - timer will set CHANGELINK if we're polling (this ensures the
- *   link state is polled every other cycle of this state machine,
- *   which makes it every other second)
- * - irq will set CHANGELINK
+ * - irq or timer will set NOLINK if link goes down
  * - phy_stop moves to HALTED
  *
  * CHANGELINK: PHY experienced a change in link state

@@ -738,11 +738,6 @@ static irqreturn_t phy_change(struct phy_device *phydev)
 				goto phy_err;
 	}
 
-	mutex_lock(&phydev->lock);
-	if ((PHY_RUNNING == phydev->state) || (PHY_NOLINK == phydev->state))
-		phydev->state = PHY_CHANGELINK;
-	mutex_unlock(&phydev->lock);
-
 	/* reschedule state queue work to run as soon as possible */
 	phy_trigger_machine(phydev);
 
@@ -946,9 +941,6 @@ void phy_state_machine(struct work_struct *work)
 		break;
 	case PHY_NOLINK:
 	case PHY_RUNNING:
-		if (!phy_polling_mode(phydev))
-			break;
-		/* fall through */
 	case PHY_CHANGELINK:
 	case PHY_RESUMING:
 		err = phy_check_link_status(phydev);
