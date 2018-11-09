@@ -253,6 +253,11 @@ static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
 	return false;
 }
 
+static inline bool is_data_inode(struct inode *inode)
+{
+	return btrfs_ino(BTRFS_I(inode)) != BTRFS_BTREE_INODE_OBJECTID;
+}
+
 static inline void btrfs_mod_outstanding_extents(struct btrfs_inode *inode,
 						 int mod)
 {
