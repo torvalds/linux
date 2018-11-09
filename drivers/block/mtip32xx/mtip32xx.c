@@ -1549,11 +1549,11 @@ static inline void fill_command_sg(struct driver_data *dd,
 	int n;
 	unsigned int dma_len;
 	struct mtip_cmd_sg *command_sg;
-	struct scatterlist *sg = command->sg;
+	struct scatterlist *sg;
 
 	command_sg = command->command + AHCI_CMD_TBL_HDR_SZ;
 
-	for (n = 0; n < nents; n++) {
+	for_each_sg(command->sg, sg, nents, n) {
 		dma_len = sg_dma_len(sg);
 		if (dma_len > 0x400000)
 			dev_err(&dd->pdev->dev,
@@ -1563,7 +1563,6 @@ static inline void fill_command_sg(struct driver_data *dd,
 		command_sg->dba_upper =
 			cpu_to_le32((sg_dma_address(sg) >> 16) >> 16);
 		command_sg++;
-		sg++;
 	}
 }
 
