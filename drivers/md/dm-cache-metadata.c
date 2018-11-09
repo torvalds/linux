@@ -930,6 +930,10 @@ static int blocks_are_clean_separate_dirty(struct dm_cache_metadata *cmd,
 	bool dirty_flag;
 	*result = true;
 
+	if (from_cblock(cmd->cache_blocks) == 0)
+		/* Nothing to do */
+		return 0;
+
 	r = dm_bitset_cursor_begin(&cmd->dirty_info, cmd->dirty_root,
 				   from_cblock(cmd->cache_blocks), &cmd->dirty_cursor);
 	if (r) {
