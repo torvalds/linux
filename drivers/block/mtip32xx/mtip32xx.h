@@ -172,10 +172,10 @@ enum {
 
 struct smart_attr {
 	u8 attr_id;
-	u16 flags;
+	__le16 flags;
 	u8 cur;
 	u8 worst;
-	u32 data;
+	__le32 data;
 	u8 res[3];
 } __packed;
 
