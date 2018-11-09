@@ -3289,6 +3289,7 @@ err_disable_device:
 static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
+	struct hash_mac_addr *entry, *tmp;
 
 	/*
 	 * Tear down driver state associated with device.
@@ -3339,6 +3340,11 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 		if (!is_t4(adapter->params.chip))
 			iounmap(adapter->bar2);
 		kfree(adapter->mbox_log);
+		list_for_each_entry_safe(entry, tmp, &adapter->mac_hlist,
+					 list) {
+			list_del(&entry->list);
+			kfree(entry);
+		}
 		kfree(adapter);
 	}
 
