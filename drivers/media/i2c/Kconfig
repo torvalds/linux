@@ -610,6 +610,17 @@ config VIDEO_OV7670
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
 
+config VIDEO_OV7725
+	tristate "OmniVision OV7725 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV7725 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov7725.
+
 config VIDEO_OV7750
 	tristate "OmniVision OV7750 sensor support"
 	depends on I2C && VIDEO_V4L2
