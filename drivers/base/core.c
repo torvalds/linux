@@ -728,6 +728,16 @@ static inline int device_is_not_partition(struct device *dev)
 }
 #endif
 
+static int
+device_platform_notify(struct device *dev, enum kobject_action action)
+{
+	if (platform_notify && action == KOBJ_ADD)
+		platform_notify(dev);
+	else if (platform_notify_remove && action == KOBJ_REMOVE)
+		platform_notify_remove(dev);
+	return 0;
+}
+
 /**
  * dev_driver_string - Return a device's driver name, if at all possible
  * @dev: struct device to get the name of
@@ -1883,8 +1893,9 @@ int device_add(struct device *dev)
 	}
 
 	/* notify platform of device entry */
-	if (platform_notify)
-		platform_notify(dev);
+	error = device_platform_notify(dev, KOBJ_ADD);
+	if (error)
+		goto platform_error;
 
 	error = device_create_file(dev, &dev_attr_uevent);
 	if (error)
@@ -1960,6 +1971,8 @@ done:
  SymlinkError:
 	device_remove_file(dev, &dev_attr_uevent);
  attrError:
+	device_platform_notify(dev, KOBJ_REMOVE);
+platform_error:
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	glue_dir = get_glue_dir(dev);
 	kobject_del(&dev->kobj);
@@ -2077,14 +2090,10 @@ void device_del(struct device *dev)
 	bus_remove_device(dev);
 	device_pm_remove(dev);
 	driver_deferred_probe_del(dev);
+	device_platform_notify(dev, KOBJ_REMOVE);
 	device_remove_properties(dev);
 	device_links_purge(dev);
 
-	/* Notify the platform of the removal, in case they
-	 * need to do anything...
-	 */
-	if (platform_notify_remove)
-		platform_notify_remove(dev);
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_REMOVED_DEVICE, dev);
