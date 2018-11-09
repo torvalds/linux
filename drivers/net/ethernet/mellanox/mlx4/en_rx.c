@@ -875,7 +875,7 @@ csum_none:
 			skb->data_len = length;
 			napi_gro_frags(&cq->napi);
 		} else {
-			skb->vlan_tci = 0;
+			__vlan_hwaccel_clear_tag(skb);
 			skb_clear_hash(skb);
 		}
 next:
