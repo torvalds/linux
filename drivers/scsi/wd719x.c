@@ -162,10 +162,9 @@ static void wd719x_destroy(struct wd719x *wd)
 	/* disable RISC */
 	wd719x_writeb(wd, WD719X_PCI_MODE_SELECT, 0);
 
+	WARN_ON_ONCE(!list_empty(&wd->active_scbs));
+
 	/* free all SCBs */
-	list_for_each_entry(scb, &wd->active_scbs, list)
-		pci_free_consistent(wd->pdev, sizeof(struct wd719x_scb), scb,
-				    scb->phys);
 	list_for_each_entry(scb, &wd->free_scbs, list)
 		pci_free_consistent(wd->pdev, sizeof(struct wd719x_scb), scb,
 				    scb->phys);
