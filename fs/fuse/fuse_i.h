@@ -96,7 +96,7 @@ struct fuse_inode {
 	union {
 		/* Write related fields (regular file only) */
 		struct {
-			/* Files usable in writepage.  Protected by fc->lock */
+			/* Files usable in writepage.  Protected by fi->lock */
 			struct list_head write_files;
 
 			/* Writepages pending on truncate or fsync */
@@ -144,6 +144,9 @@ struct fuse_inode {
 
 	/** Lock for serializing lookup and readdir for back compatibility*/
 	struct mutex mutex;
+
+	/** Lock to protect write related fields */
+	spinlock_t lock;
 };
 
 /** FUSE inode state bits */
