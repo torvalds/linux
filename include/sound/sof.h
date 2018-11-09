@@ -60,9 +60,6 @@ struct snd_sof_pdata {
 	unsigned int gpio;
 	unsigned int active;
 
-	/* hda codec */
-	unsigned long codec_mask;
-
 	/* machine */
 	struct platform_device *pdev_mach;
 	union {
