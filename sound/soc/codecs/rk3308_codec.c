@@ -1851,7 +1851,13 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 	/* Waiting the stable HPMIX */
 	udelay(50);
 
-	/* Step 06 */
+	/* Step 06. Reset HPMIX and recover HPMIX gains */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
+			   RK3308_DAC_L_HPMIX_WORK |
+			   RK3308_DAC_R_HPMIX_WORK,
+			   RK3308_DAC_L_HPMIX_INIT |
+			   RK3308_DAC_R_HPMIX_INIT);
+	udelay(50);
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON13,
 			   RK3308_DAC_L_HPMIX_WORK |
 			   RK3308_DAC_R_HPMIX_WORK,
