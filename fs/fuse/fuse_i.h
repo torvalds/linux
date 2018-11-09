@@ -166,7 +166,10 @@ struct fuse_file {
 	/** Fuse connection for this file */
 	struct fuse_conn *fc;
 
-	/** Request reserved for flush and release */
+	/*
+	 * Request reserved for flush and release.
+	 * Modified under relative fuse_inode::lock.
+	 */
 	struct fuse_req *reserved_req;
 
 	/** Kernel file handle guaranteed to be unique */
