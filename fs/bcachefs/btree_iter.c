@@ -427,7 +427,7 @@ static void __bch2_btree_iter_verify(struct btree_iter *iter,
 		char buf[100];
 		struct bkey uk = bkey_unpack_key(b, k);
 
-		bch2_bkey_to_text(buf, sizeof(buf), &uk);
+		bch2_bkey_to_text(&PBUF(buf), &uk);
 		panic("prev key should be before iter pos:\n%s\n%llu:%llu\n",
 		      buf, iter->pos.inode, iter->pos.offset);
 	}
@@ -437,7 +437,7 @@ static void __bch2_btree_iter_verify(struct btree_iter *iter,
 		char buf[100];
 		struct bkey uk = bkey_unpack_key(b, k);
 
-		bch2_bkey_to_text(buf, sizeof(buf), &uk);
+		bch2_bkey_to_text(&PBUF(buf), &uk);
 		panic("iter should be after current key:\n"
 		      "iter pos %llu:%llu\n"
 		      "cur key  %s\n",
@@ -687,7 +687,7 @@ static void btree_iter_verify_new_node(struct btree_iter *iter, struct btree *b)
 		char buf[100];
 		struct bkey uk = bkey_unpack_key(b, k);
 
-		bch2_bkey_to_text(buf, sizeof(buf), &uk);
+		bch2_bkey_to_text(&PBUF(buf), &uk);
 		panic("parent iter doesn't point to new node:\n%s\n%llu:%llu\n",
 		      buf, b->key.k.p.inode, b->key.k.p.offset);
 	}
@@ -1451,18 +1451,7 @@ recheck:
 			       : KEY_OFFSET_MAX) -
 			      n.p.offset));
 
-	//EBUG_ON(!n.size);
-	if (!n.size) {
-		char buf[100];
-		bch2_dump_btree_node(iter->l[0].b);
-
-		bch2_bkey_to_text(buf, sizeof(buf), k.k);
-		panic("iter at %llu:%llu\n"
-		      "next key %s\n",
-		      iter->pos.inode,
-		      iter->pos.offset,
-		      buf);
-	}
+	EBUG_ON(!n.size);
 
 	iter->k	= n;
 	iter->uptodate = BTREE_ITER_UPTODATE;

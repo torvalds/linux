@@ -56,7 +56,7 @@ void bch2_dump_bset(struct btree *b, struct bset *i, unsigned set)
 	     _k = _n, k = n) {
 		_n = bkey_next(_k);
 
-		bch2_bkey_to_text(buf, sizeof(buf), &k);
+		bch2_bkey_to_text(&PBUF(buf), &k);
 		printk(KERN_ERR "block %u key %5u: %s\n", set,
 		       __btree_node_key_to_offset(b, _k), buf);
 
@@ -106,7 +106,7 @@ void bch2_dump_btree_node_iter(struct btree *b,
 		struct bkey uk = bkey_unpack_key(b, k);
 		char buf[100];
 
-		bch2_bkey_to_text(buf, sizeof(buf), &uk);
+		bch2_bkey_to_text(&PBUF(buf), &uk);
 		printk(KERN_ERR "set %zu key %zi/%u: %s\n", t - b->set,
 		       k->_data - bset(b, t)->_data, bset(b, t)->u64s, buf);
 	}
@@ -150,8 +150,8 @@ static void bch2_btree_node_iter_next_check(struct btree_node_iter *_iter,
 		char buf1[80], buf2[80];
 
 		bch2_dump_btree_node(b);
-		bch2_bkey_to_text(buf1, sizeof(buf1), &ku);
-		bch2_bkey_to_text(buf2, sizeof(buf2), &nu);
+		bch2_bkey_to_text(&PBUF(buf1), &ku);
+		bch2_bkey_to_text(&PBUF(buf2), &nu);
 		printk(KERN_ERR "out of order/overlapping:\n%s\n%s\n",
 		       buf1, buf2);
 		printk(KERN_ERR "iter was:");
@@ -212,8 +212,8 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 		char buf2[100];
 
 		bch2_dump_btree_node(b);
-		bch2_bkey_to_text(buf1, sizeof(buf1), &k1);
-		bch2_bkey_to_text(buf2, sizeof(buf2), &k2);
+		bch2_bkey_to_text(&PBUF(buf1), &k1);
+		bch2_bkey_to_text(&PBUF(buf2), &k2);
 
 		panic("prev > insert:\n"
 		      "prev    key %5u %s\n"
@@ -234,8 +234,8 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 		char buf2[100];
 
 		bch2_dump_btree_node(b);
-		bch2_bkey_to_text(buf1, sizeof(buf1), &k1);
-		bch2_bkey_to_text(buf2, sizeof(buf2), &k2);
+		bch2_bkey_to_text(&PBUF(buf1), &k1);
+		bch2_bkey_to_text(&PBUF(buf2), &k2);
 
 		panic("insert > next:\n"
 		      "insert  key %5u %s\n"
@@ -1767,8 +1767,8 @@ void bch2_btree_keys_stats(struct btree *b, struct bset_stats *stats)
 	}
 }
 
-int bch2_bkey_print_bfloat(struct btree *b, struct bkey_packed *k,
-			   char *buf, size_t size)
+void bch2_bfloat_to_text(struct printbuf *out, struct btree *b,
+			 struct bkey_packed *k)
 {
 	struct bset_tree *t = bch2_bkey_to_bset(b, k);
 	struct bkey_packed *l, *r, *p;
@@ -1776,28 +1776,29 @@ int bch2_bkey_print_bfloat(struct btree *b, struct bkey_packed *k,
 	char buf1[200], buf2[200];
 	unsigned j, inorder;
 
-	if (!size)
-		return 0;
+	if (out->pos != out->end)
+		*out->pos = '\0';
 
 	if (!bset_has_ro_aux_tree(t))
-		goto out;
+		return;
 
 	inorder = bkey_to_cacheline(b, t, k);
 	if (!inorder || inorder >= t->size)
-		goto out;
+		return;
 
 	j = __inorder_to_eytzinger1(inorder, t->size, t->extra);
 	if (k != tree_to_bkey(b, t, j))
-		goto out;
+		return;
 
 	switch (bkey_float(b, t, j)->exponent) {
 	case BFLOAT_FAILED_UNPACKED:
 		uk = bkey_unpack_key(b, k);
-		return scnprintf(buf, size,
-				 "    failed unpacked at depth %u\n"
-				 "\t%llu:%llu\n",
-				 ilog2(j),
-				 uk.p.inode, uk.p.offset);
+		pr_buf(out,
+		       "    failed unpacked at depth %u\n"
+		       "\t%llu:%llu\n",
+		       ilog2(j),
+		       uk.p.inode, uk.p.offset);
+		break;
 	case BFLOAT_FAILED_PREV:
 		p = tree_to_prev_bkey(b, t, j);
 		l = is_power_of_2(j)
@@ -1812,28 +1813,27 @@ int bch2_bkey_print_bfloat(struct btree *b, struct bkey_packed *k,
 		bch2_to_binary(buf1, high_word(&b->format, p), b->nr_key_bits);
 		bch2_to_binary(buf2, high_word(&b->format, k), b->nr_key_bits);
 
-		return scnprintf(buf, size,
-				 "    failed prev at depth %u\n"
-				 "\tkey starts at bit %u but first differing bit at %u\n"
-				 "\t%llu:%llu\n"
-				 "\t%llu:%llu\n"
-				 "\t%s\n"
-				 "\t%s\n",
-				 ilog2(j),
-				 bch2_bkey_greatest_differing_bit(b, l, r),
-				 bch2_bkey_greatest_differing_bit(b, p, k),
-				 uk.p.inode, uk.p.offset,
-				 up.p.inode, up.p.offset,
-				 buf1, buf2);
+		pr_buf(out,
+		       "    failed prev at depth %u\n"
+		       "\tkey starts at bit %u but first differing bit at %u\n"
+		       "\t%llu:%llu\n"
+		       "\t%llu:%llu\n"
+		       "\t%s\n"
+		       "\t%s\n",
+		       ilog2(j),
+		       bch2_bkey_greatest_differing_bit(b, l, r),
+		       bch2_bkey_greatest_differing_bit(b, p, k),
+		       uk.p.inode, uk.p.offset,
+		       up.p.inode, up.p.offset,
+		       buf1, buf2);
+		break;
 	case BFLOAT_FAILED_OVERFLOW:
 		uk = bkey_unpack_key(b, k);
-		return scnprintf(buf, size,
-				 "    failed overflow at depth %u\n"
-				 "\t%llu:%llu\n",
-				 ilog2(j),
-				 uk.p.inode, uk.p.offset);
+		pr_buf(out,
+		       "    failed overflow at depth %u\n"
+		       "\t%llu:%llu\n",
+		       ilog2(j),
+		       uk.p.inode, uk.p.offset);
+		break;
 	}
-out:
-	*buf = '\0';
-	return 0;
 }

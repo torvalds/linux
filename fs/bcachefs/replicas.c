@@ -40,38 +40,31 @@ static void bch2_cpu_replicas_sort(struct bch_replicas_cpu *r)
 	eytzinger0_sort(r->entries, r->nr, r->entry_size, memcmp, NULL);
 }
 
-static int replicas_entry_to_text(struct bch_replicas_entry *e,
-				  char *buf, size_t size)
+static void replicas_entry_to_text(struct printbuf *out,
+				  struct bch_replicas_entry *e)
 {
-	char *out = buf, *end = out + size;
 	unsigned i;
 
-	out += scnprintf(out, end - out, "%u: [", e->data_type);
+	pr_buf(out, "%u: [", e->data_type);
 
 	for (i = 0; i < e->nr_devs; i++)
-		out += scnprintf(out, end - out,
-				 i ? " %u" : "%u", e->devs[i]);
-	out += scnprintf(out, end - out, "]");
-
-	return out - buf;
+		pr_buf(out, i ? " %u" : "%u", e->devs[i]);
+	pr_buf(out, "]");
 }
 
-int bch2_cpu_replicas_to_text(struct bch_replicas_cpu *r,
-			      char *buf, size_t size)
+void bch2_cpu_replicas_to_text(struct printbuf *out,
+			      struct bch_replicas_cpu *r)
 {
-	char *out = buf, *end = out + size;
 	struct bch_replicas_entry *e;
 	bool first = true;
 
 	for_each_cpu_replicas_entry(r, e) {
 		if (!first)
-			out += scnprintf(out, end - out, " ");
+			pr_buf(out, " ");
 		first = false;
 
-		out += replicas_entry_to_text(e, out, end - out);
+		replicas_entry_to_text(out, e);
 	}
-
-	return out - buf;
 }
 
 static void extent_to_replicas(struct bkey_s_c k,
@@ -510,31 +503,27 @@ err:
 	return err;
 }
 
-const struct bch_sb_field_ops bch_sb_field_ops_replicas = {
-	.validate	= bch2_sb_validate_replicas,
-};
-
-int bch2_sb_replicas_to_text(struct bch_sb_field_replicas *r, char *buf, size_t size)
+static void bch2_sb_replicas_to_text(struct printbuf *out,
+				     struct bch_sb *sb,
+				     struct bch_sb_field *f)
 {
-	char *out = buf, *end = out + size;
+	struct bch_sb_field_replicas *r = field_to_type(f, replicas);
 	struct bch_replicas_entry *e;
 	bool first = true;
 
-	if (!r) {
-		out += scnprintf(out, end - out, "(no replicas section found)");
-		return out - buf;
-	}
-
 	for_each_replicas_entry(r, e) {
 		if (!first)
-			out += scnprintf(out, end - out, " ");
+			pr_buf(out, " ");
 		first = false;
 
-		out += replicas_entry_to_text(e, out, end - out);
+		replicas_entry_to_text(out, e);
 	}
-
-	return out - buf;
 }
+
+const struct bch_sb_field_ops bch_sb_field_ops_replicas = {
+	.validate	= bch2_sb_validate_replicas,
+	.to_text	= bch2_sb_replicas_to_text,
+};
 
 /* Query replicas: */
 

@@ -228,10 +228,9 @@ const char *bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	}
 }
 
-int bch2_inode_to_text(struct bch_fs *c, char *buf,
-		       size_t size, struct bkey_s_c k)
+void bch2_inode_to_text(struct printbuf *out, struct bch_fs *c,
+		       struct bkey_s_c k)
 {
-	char *out = buf, *end = out + size;
 	struct bkey_s_c_inode inode;
 	struct bch_inode_unpacked unpacked;
 
@@ -239,18 +238,16 @@ int bch2_inode_to_text(struct bch_fs *c, char *buf,
 	case BCH_INODE_FS:
 		inode = bkey_s_c_to_inode(k);
 		if (bch2_inode_unpack(inode, &unpacked)) {
-			out += scnprintf(out, end - out, "(unpack error)");
+			pr_buf(out, "(unpack error)");
 			break;
 		}
 
 #define BCH_INODE_FIELD(_name, _bits)						\
-		out += scnprintf(out, end - out, #_name ": %llu ", (u64) unpacked._name);
+		pr_buf(out, #_name ": %llu ", (u64) unpacked._name);
 		BCH_INODE_FIELDS()
 #undef  BCH_INODE_FIELD
 		break;
 	}
-
-	return out - buf;
 }
 
 void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,

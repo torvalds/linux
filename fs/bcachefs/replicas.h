@@ -13,8 +13,7 @@ int bch2_mark_replicas(struct bch_fs *, enum bch_data_type,
 int bch2_mark_bkey_replicas(struct bch_fs *, enum bkey_type,
 			    struct bkey_s_c);
 
-int bch2_cpu_replicas_to_text(struct bch_replicas_cpu *, char *, size_t);
-int bch2_sb_replicas_to_text(struct bch_sb_field_replicas *, char *, size_t);
+void bch2_cpu_replicas_to_text(struct printbuf *, struct bch_replicas_cpu *);
 
 struct replicas_status {
 	struct {

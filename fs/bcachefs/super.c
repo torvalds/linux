@@ -1236,10 +1236,9 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	data = bch2_dev_has_data(c, ca);
 	if (data) {
 		char data_has_str[100];
-		bch2_scnprint_flag_list(data_has_str,
-					sizeof(data_has_str),
-					bch2_data_types,
-					data);
+
+		bch2_string_opt_to_text(&PBUF(data_has_str),
+					bch2_data_types, data);
 		bch_err(ca, "Remove failed, still has data (%s)", data_has_str);
 		ret = -EBUSY;
 		goto err;

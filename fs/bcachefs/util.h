@@ -235,6 +235,32 @@ do {									\
 #define ANYSINT_MAX(t)							\
 	((((t) 1 << (sizeof(t) * 8 - 2)) - (t) 1) * (t) 2 + (t) 1)
 
+struct printbuf {
+	char		*pos;
+	char		*end;
+};
+
+static inline size_t printbuf_remaining(struct printbuf *buf)
+{
+	return buf->end - buf->pos;
+}
+
+#define _PBUF(_buf, _len)						\
+	((struct printbuf) {						\
+		.pos	= _buf,						\
+		.end	= _buf + _len,					\
+	})
+
+#define PBUF(_buf) _PBUF(_buf, sizeof(_buf))
+
+#define pr_buf(_out, ...)						\
+do {									\
+	(_out)->pos += scnprintf((_out)->pos, printbuf_remaining(_out),	\
+				 __VA_ARGS__);				\
+} while (0)
+
+void bch_scnmemcpy(struct printbuf *, const char *, size_t);
+
 int bch2_strtoint_h(const char *, int *);
 int bch2_strtouint_h(const char *, unsigned int *);
 int bch2_strtoll_h(const char *, long long *);
@@ -311,9 +337,10 @@ ssize_t bch2_hprint(char *buf, s64 v);
 
 bool bch2_is_zero(const void *, size_t);
 
-ssize_t bch2_scnprint_string_list(char *, size_t, const char * const[], size_t);
+void bch2_string_opt_to_text(struct printbuf *,
+			     const char * const [], size_t);
 
-ssize_t bch2_scnprint_flag_list(char *, size_t, const char * const[], u64);
+void bch2_flags_to_text(struct printbuf *, const char * const[], u64);
 u64 bch2_read_flag_list(char *, const char * const[]);
 
 #define NR_QUANTILES	15
@@ -628,8 +655,6 @@ static inline struct bio_vec next_contig_bvec(struct bio *bio,
 
 #define bio_for_each_contig_segment(bv, bio, iter)			\
 	__bio_for_each_contig_segment(bv, bio, iter, (bio)->bi_iter)
-
-size_t bch_scnmemcpy(char *, size_t, const char *, size_t);
 
 void sort_cmp_size(void *base, size_t num, size_t size,
 	  int (*cmp_func)(const void *, const void *, size_t),

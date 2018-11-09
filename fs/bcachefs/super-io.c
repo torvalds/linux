@@ -951,21 +951,20 @@ static const char *bch2_sb_field_validate(struct bch_sb *sb,
 		: NULL;
 }
 
-size_t bch2_sb_field_to_text(char *buf, size_t size,
-			     struct bch_sb *sb, struct bch_sb_field *f)
+void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
+			   struct bch_sb_field *f)
 {
 	unsigned type = le32_to_cpu(f->type);
-	size_t (*to_text)(char *, size_t, struct bch_sb *,
-				   struct bch_sb_field *) =
-		type < BCH_SB_FIELD_NR
-		? bch2_sb_field_ops[type]->to_text
-		: NULL;
+	const struct bch_sb_field_ops *ops = type < BCH_SB_FIELD_NR
+		? bch2_sb_field_ops[type] : NULL;
 
-	if (!to_text) {
-		if (size)
-			buf[0] = '\0';
-		return 0;
-	}
+	if (ops)
+		pr_buf(out, "%s", bch2_sb_fields[type]);
+	else
+		pr_buf(out, "(unknown field %u)", type);
 
-	return to_text(buf, size, sb, f);
+	pr_buf(out, " (size %llu):", vstruct_bytes(f));
+
+	if (ops && ops->to_text)
+		bch2_sb_field_ops[type]->to_text(out, sb, f);
 }

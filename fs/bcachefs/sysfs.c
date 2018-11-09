@@ -230,42 +230,34 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 
 static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
 {
-	char *out = buf, *end = buf + PAGE_SIZE;
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	struct bch_fs_usage stats = bch2_fs_usage_read(c);
 	unsigned replicas, type;
 
-	out += scnprintf(out, end - out,
-			 "capacity:\t\t%llu\n",
-			 c->capacity);
+	pr_buf(&out, "capacity:\t\t%llu\n", c->capacity);
 
 	for (replicas = 0; replicas < ARRAY_SIZE(stats.replicas); replicas++) {
-		out += scnprintf(out, end - out,
-				 "%u replicas:\n",
-				 replicas + 1);
+		pr_buf(&out, "%u replicas:\n", replicas + 1);
 
 		for (type = BCH_DATA_SB; type < BCH_DATA_NR; type++)
-			out += scnprintf(out, end - out,
-					 "\t%s:\t\t%llu\n",
-					 bch2_data_types[type],
-					 stats.replicas[replicas].data[type]);
-		out += scnprintf(out, end - out,
-				 "\treserved:\t%llu\n",
-				 stats.replicas[replicas].persistent_reserved);
+			pr_buf(&out, "\t%s:\t\t%llu\n",
+			       bch2_data_types[type],
+			       stats.replicas[replicas].data[type]);
+		pr_buf(&out, "\treserved:\t%llu\n",
+		       stats.replicas[replicas].persistent_reserved);
 	}
 
-	out += scnprintf(out, end - out, "bucket usage\n");
+	pr_buf(&out, "bucket usage\n");
 
 	for (type = BCH_DATA_SB; type < BCH_DATA_NR; type++)
-		out += scnprintf(out, end - out,
-				 "\t%s:\t\t%llu\n",
-				 bch2_data_types[type],
-				 stats.buckets[type]);
+		pr_buf(&out, "\t%s:\t\t%llu\n",
+		       bch2_data_types[type],
+		       stats.buckets[type]);
 
-	out += scnprintf(out, end - out,
-			 "online reserved:\t%llu\n",
-			 stats.online_reserved);
+	pr_buf(&out, "online reserved:\t%llu\n",
+	       stats.online_reserved);
 
-	return out - buf;
+	return out.pos - buf;
 }
 
 static ssize_t bch2_compression_stats(struct bch_fs *c, char *buf)
@@ -559,16 +551,16 @@ struct attribute *bch2_fs_internal_files[] = {
 
 SHOW(bch2_fs_opts_dir)
 {
-	char *out = buf, *end = buf + PAGE_SIZE;
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	struct bch_fs *c = container_of(kobj, struct bch_fs, opts_dir);
 	const struct bch_option *opt = container_of(attr, struct bch_option, attr);
 	int id = opt - bch2_opt_table;
 	u64 v = bch2_opt_get_by_id(&c->opts, id);
 
-	out += bch2_opt_to_text(c, out, end - out, opt, v, OPT_SHOW_FULL_LIST);
-	out += scnprintf(out, end - out, "\n");
+	bch2_opt_to_text(&out, c, opt, v, OPT_SHOW_FULL_LIST);
+	pr_buf(&out, "\n");
 
-	return out - buf;
+	return out.pos - buf;
 }
 
 STORE(bch2_fs_opts_dir)
@@ -742,25 +734,23 @@ static ssize_t show_quantiles(struct bch_fs *c, struct bch_dev *ca,
 
 static ssize_t show_reserve_stats(struct bch_dev *ca, char *buf)
 {
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	enum alloc_reserve i;
-	ssize_t ret;
 
 	spin_lock(&ca->freelist_lock);
 
-	ret = scnprintf(buf, PAGE_SIZE,
-			"free_inc:\t%zu\t%zu\n",
-			fifo_used(&ca->free_inc),
-			ca->free_inc.size);
+	pr_buf(&out, "free_inc:\t%zu\t%zu\n",
+	       fifo_used(&ca->free_inc),
+	       ca->free_inc.size);
 
 	for (i = 0; i < RESERVE_NR; i++)
-		ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-				 "free[%u]:\t%zu\t%zu\n", i,
-				 fifo_used(&ca->free[i]),
-				 ca->free[i].size);
+		pr_buf(&out, "free[%u]:\t%zu\t%zu\n", i,
+		       fifo_used(&ca->free[i]),
+		       ca->free[i].size);
 
 	spin_unlock(&ca->freelist_lock);
 
-	return ret;
+	return out.pos - buf;
 }
 
 static ssize_t show_dev_alloc_debug(struct bch_dev *ca, char *buf)
@@ -825,11 +815,11 @@ static const char * const bch2_rw[] = {
 
 static ssize_t show_dev_iodone(struct bch_dev *ca, char *buf)
 {
-	char *out = buf, *end = buf + PAGE_SIZE;
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	int rw, i, cpu;
 
 	for (rw = 0; rw < 2; rw++) {
-		out += scnprintf(out, end - out, "%s:\n", bch2_rw[rw]);
+		pr_buf(&out, "%s:\n", bch2_rw[rw]);
 
 		for (i = 1; i < BCH_DATA_NR; i++) {
 			u64 n = 0;
@@ -837,19 +827,19 @@ static ssize_t show_dev_iodone(struct bch_dev *ca, char *buf)
 			for_each_possible_cpu(cpu)
 				n += per_cpu_ptr(ca->io_done, cpu)->sectors[rw][i];
 
-			out += scnprintf(out, end - out, "%-12s:%12llu\n",
-					 bch2_data_types[i], n << 9);
+			pr_buf(&out, "%-12s:%12llu\n",
+			       bch2_data_types[i], n << 9);
 		}
 	}
 
-	return out - buf;
+	return out.pos - buf;
 }
 
 SHOW(bch2_dev)
 {
 	struct bch_dev *ca = container_of(kobj, struct bch_dev, kobj);
 	struct bch_fs *c = ca->fs;
-	char *out = buf, *end = buf + PAGE_SIZE;
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 
 	sysfs_printf(uuid,		"%pU\n", ca->uuid.b);
 
@@ -863,41 +853,39 @@ SHOW(bch2_dev)
 	if (attr == &sysfs_label) {
 		if (ca->mi.group) {
 			mutex_lock(&c->sb_lock);
-			out += bch2_disk_path_print(&c->disk_sb, out, end - out,
-						    ca->mi.group - 1);
+			bch2_disk_path_to_text(&out, &c->disk_sb,
+					       ca->mi.group - 1);
 			mutex_unlock(&c->sb_lock);
 		} else {
-			out += scnprintf(out, end - out, "none");
+			pr_buf(&out, "none");
 		}
 
-		out += scnprintf(out, end - out, "\n");
-		return out - buf;
+		pr_buf(&out, "\n");
+		return out.pos - buf;
 	}
 
 	if (attr == &sysfs_has_data) {
-		out += bch2_scnprint_flag_list(out, end - out,
-					       bch2_data_types,
-					       bch2_dev_has_data(c, ca));
-		out += scnprintf(out, end - out, "\n");
-		return out - buf;
+		bch2_flags_to_text(&out, bch2_data_types,
+				   bch2_dev_has_data(c, ca));
+		pr_buf(&out, "\n");
+		return out.pos - buf;
 	}
 
 	sysfs_pd_controller_show(copy_gc, &ca->copygc_pd);
 
 	if (attr == &sysfs_cache_replacement_policy) {
-		out += bch2_scnprint_string_list(out, end - out,
-						 bch2_cache_replacement_policies,
-						 ca->mi.replacement);
-		out += scnprintf(out, end - out, "\n");
-		return out - buf;
+		bch2_string_opt_to_text(&out,
+					bch2_cache_replacement_policies,
+					ca->mi.replacement);
+		pr_buf(&out, "\n");
+		return out.pos - buf;
 	}
 
 	if (attr == &sysfs_state_rw) {
-		out += bch2_scnprint_string_list(out, end - out,
-						 bch2_dev_state,
-						 ca->mi.state);
-		out += scnprintf(out, end - out, "\n");
-		return out - buf;
+		bch2_string_opt_to_text(&out, bch2_dev_state,
+					ca->mi.state);
+		pr_buf(&out, "\n");
+		return out.pos - buf;
 	}
 
 	if (attr == &sysfs_iodone)

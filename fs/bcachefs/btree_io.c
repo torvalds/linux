@@ -913,26 +913,20 @@ static void bset_encrypt(struct bch_fs *c, struct bset *i, unsigned offset)
 		     vstruct_end(i) - (void *) i->_data);
 }
 
-static int btree_err_msg(struct bch_fs *c, struct btree *b, struct bset *i,
-			 unsigned offset, int write, char *buf, size_t len)
+static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
+			  struct btree *b, struct bset *i,
+			  unsigned offset, int write)
 {
-	char *out = buf, *end = buf + len;
-
-	out += scnprintf(out, end - out,
-			 "error validating btree node %s"
-			 "at btree %u level %u/%u\n"
-			 "pos %llu:%llu node offset %u",
-			 write ? "before write " : "",
-			 b->btree_id, b->level,
-			 c->btree_roots[b->btree_id].level,
-			 b->key.k.p.inode, b->key.k.p.offset,
-			 b->written);
+	pr_buf(out, "error validating btree node %s"
+	       "at btree %u level %u/%u\n"
+	       "pos %llu:%llu node offset %u",
+	       write ? "before write " : "",
+	       b->btree_id, b->level,
+	       c->btree_roots[b->btree_id].level,
+	       b->key.k.p.inode, b->key.k.p.offset,
+	       b->written);
 	if (i)
-		out += scnprintf(out, end - out,
-				 " bset u64s %u",
-				 le16_to_cpu(i->u64s));
-
-	return out - buf;
+		pr_buf(out, " bset u64s %u", le16_to_cpu(i->u64s));
 }
 
 enum btree_err_type {
@@ -949,10 +943,11 @@ enum btree_validate_ret {
 #define btree_err(type, c, b, i, msg, ...)				\
 ({									\
 	__label__ out;							\
-	char _buf[300], *out = _buf, *end = out + sizeof(_buf);		\
+	char _buf[300];							\
+	struct printbuf out = PBUF(_buf);				\
 									\
-	out += btree_err_msg(c, b, i, b->written, write, out, end - out);\
-	out += scnprintf(out, end - out, ": " msg, ##__VA_ARGS__);	\
+	btree_err_msg(&out, c, b, i, b->written, write);		\
+	pr_buf(&out, ": " msg, ##__VA_ARGS__);				\
 									\
 	if (type == BTREE_ERR_FIXABLE &&				\
 	    write == READ &&						\
@@ -1117,7 +1112,7 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 		if (invalid) {
 			char buf[160];
 
-			bch2_bkey_val_to_text(c, type, buf, sizeof(buf), u);
+			bch2_bkey_val_to_text(&PBUF(buf), c, type, u);
 			btree_err(BTREE_ERR_FIXABLE, c, b, i,
 				  "invalid bkey:\n%s\n%s", invalid, buf);
 
@@ -1302,7 +1297,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 		     !bversion_cmp(u.k->version, MAX_VERSION))) {
 			char buf[160];
 
-			bch2_bkey_val_to_text(c, type, buf, sizeof(buf), u);
+			bch2_bkey_val_to_text(&PBUF(buf), c, type, u);
 			btree_err(BTREE_ERR_FIXABLE, c, b, i,
 				  "invalid bkey %s: %s", buf, invalid);
 
@@ -2060,7 +2055,7 @@ void bch2_btree_verify_flushed(struct bch_fs *c)
 
 ssize_t bch2_dirty_btree_nodes_print(struct bch_fs *c, char *buf)
 {
-	char *out = buf, *end = buf + PAGE_SIZE;
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	struct bucket_table *tbl;
 	struct rhash_head *pos;
 	struct btree *b;
@@ -2077,18 +2072,18 @@ ssize_t bch2_dirty_btree_nodes_print(struct bch_fs *c, char *buf)
 		    !(b->will_make_reachable & 1))
 			continue;
 
-		out += scnprintf(out, end - out, "%p d %u l %u w %u b %u r %u:%lu c %u p %u\n",
-				 b,
-				 (flags & (1 << BTREE_NODE_dirty)) != 0,
-				 b->level,
-				 b->written,
-				 !list_empty_careful(&b->write_blocked),
-				 b->will_make_reachable != 0,
-				 b->will_make_reachable & 1,
-				 b->writes[ idx].wait.list.first != NULL,
-				 b->writes[!idx].wait.list.first != NULL);
+		pr_buf(&out, "%p d %u l %u w %u b %u r %u:%lu c %u p %u\n",
+		       b,
+		       (flags & (1 << BTREE_NODE_dirty)) != 0,
+		       b->level,
+		       b->written,
+		       !list_empty_careful(&b->write_blocked),
+		       b->will_make_reachable != 0,
+		       b->will_make_reachable & 1,
+		       b->writes[ idx].wait.list.first != NULL,
+		       b->writes[!idx].wait.list.first != NULL);
 	}
 	rcu_read_unlock();
 
-	return out - buf;
+	return out.pos - buf;
 }

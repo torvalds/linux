@@ -464,21 +464,18 @@ static const char *extent_ptr_invalid(const struct bch_fs *c,
 	return NULL;
 }
 
-static size_t extent_print_ptrs(struct bch_fs *c, char *buf,
-				size_t size, struct bkey_s_c_extent e)
+static void extent_print_ptrs(struct printbuf *out, struct bch_fs *c,
+			      struct bkey_s_c_extent e)
 {
-	char *out = buf, *end = buf + size;
 	const union bch_extent_entry *entry;
 	struct bch_extent_crc_unpacked crc;
 	const struct bch_extent_ptr *ptr;
 	struct bch_dev *ca;
 	bool first = true;
 
-#define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
-
 	extent_for_each_entry(e, entry) {
 		if (!first)
-			p(" ");
+			pr_buf(out, " ");
 
 		switch (__extent_entry_type(entry)) {
 		case BCH_EXTENT_ENTRY_crc32:
@@ -486,12 +483,12 @@ static size_t extent_print_ptrs(struct bch_fs *c, char *buf,
 		case BCH_EXTENT_ENTRY_crc128:
 			crc = bch2_extent_crc_unpack(e.k, entry_to_crc(entry));
 
-			p("crc: c_size %u size %u offset %u nonce %u csum %u compress %u",
-			  crc.compressed_size,
-			  crc.uncompressed_size,
-			  crc.offset, crc.nonce,
-			  crc.csum_type,
-			  crc.compression_type);
+			pr_buf(out, "crc: c_size %u size %u offset %u nonce %u csum %u compress %u",
+			       crc.compressed_size,
+			       crc.uncompressed_size,
+			       crc.offset, crc.nonce,
+			       crc.csum_type,
+			       crc.compression_type);
 			break;
 		case BCH_EXTENT_ENTRY_ptr:
 			ptr = entry_to_ptr(entry);
@@ -499,14 +496,14 @@ static size_t extent_print_ptrs(struct bch_fs *c, char *buf,
 				? bch_dev_bkey_exists(c, ptr->dev)
 				: NULL;
 
-			p("ptr: %u:%llu gen %u%s%s", ptr->dev,
-			  (u64) ptr->offset, ptr->gen,
-			  ptr->cached ? " cached" : "",
-			  ca && ptr_stale(ca, ptr)
-			  ? " stale" : "");
+			pr_buf(out, "ptr: %u:%llu gen %u%s%s", ptr->dev,
+			       (u64) ptr->offset, ptr->gen,
+			       ptr->cached ? " cached" : "",
+			       ca && ptr_stale(ca, ptr)
+			       ? " stale" : "");
 			break;
 		default:
-			p("(invalid extent entry %.16llx)", *((u64 *) entry));
+			pr_buf(out, "(invalid extent entry %.16llx)", *((u64 *) entry));
 			goto out;
 		}
 
@@ -514,9 +511,7 @@ static size_t extent_print_ptrs(struct bch_fs *c, char *buf,
 	}
 out:
 	if (bkey_extent_is_cached(e.k))
-		p(" cached");
-#undef p
-	return out - buf;
+		pr_buf(out, " cached");
 }
 
 static struct bch_dev_io_failures *dev_io_failures(struct bch_io_failures *f,
@@ -681,8 +676,7 @@ void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct btree *b,
 
 	if (!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
 	    !bch2_bkey_replicas_marked(c, btree_node_type(b), e.s_c)) {
-		bch2_bkey_val_to_text(c, btree_node_type(b),
-				     buf, sizeof(buf), k);
+		bch2_bkey_val_to_text(&PBUF(buf), c, btree_node_type(b), k);
 		bch2_fs_bug(c,
 			"btree key bad (replicas not marked in superblock):\n%s",
 			buf);
@@ -691,29 +685,23 @@ void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct btree *b,
 
 	return;
 err:
-	bch2_bkey_val_to_text(c, btree_node_type(b), buf, sizeof(buf), k);
-	bch2_fs_bug(c, "%s btree pointer %s: bucket %zi "
-		      "gen %i mark %08x",
-		      err, buf, PTR_BUCKET_NR(ca, ptr),
-		      mark.gen, (unsigned) mark.v.counter);
+	bch2_bkey_val_to_text(&PBUF(buf), c, btree_node_type(b), k);
+	bch2_fs_bug(c, "%s btree pointer %s: bucket %zi gen %i mark %08x",
+		    err, buf, PTR_BUCKET_NR(ca, ptr),
+		    mark.gen, (unsigned) mark.v.counter);
 }
 
-int bch2_btree_ptr_to_text(struct bch_fs *c, char *buf,
-			   size_t size, struct bkey_s_c k)
+void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
+			    struct bkey_s_c k)
 {
-	char *out = buf, *end = buf + size;
 	const char *invalid;
 
-#define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
-
 	if (bkey_extent_is_data(k.k))
-		out += extent_print_ptrs(c, buf, size, bkey_s_c_to_extent(k));
+		extent_print_ptrs(out, c, bkey_s_c_to_extent(k));
 
 	invalid = bch2_btree_ptr_invalid(c, k);
 	if (invalid)
-		p(" invalid: %s", invalid);
-#undef p
-	return out - buf;
+		pr_buf(out, " invalid: %s", invalid);
 }
 
 int bch2_btree_pick_ptr(struct bch_fs *c, const struct btree *b,
@@ -1112,8 +1100,8 @@ static void verify_extent_nonoverlapping(struct btree *b,
 		char buf1[100];
 		char buf2[100];
 
-		bch2_bkey_to_text(buf1, sizeof(buf1), &insert->k);
-		bch2_bkey_to_text(buf2, sizeof(buf2), &uk);
+		bch2_bkey_to_text(&PBUF(buf1), &insert->k);
+		bch2_bkey_to_text(&PBUF(buf2), &uk);
 
 		bch2_dump_btree_node(b);
 		panic("insert > next :\n"
@@ -1705,8 +1693,8 @@ static void bch2_extent_debugcheck_extent(struct bch_fs *c, struct btree *b,
 	}
 
 	if (replicas > BCH_REPLICAS_MAX) {
-		bch2_bkey_val_to_text(c, btree_node_type(b), buf,
-				     sizeof(buf), e.s_c);
+		bch2_bkey_val_to_text(&PBUF(buf), c, btree_node_type(b),
+				      e.s_c);
 		bch2_fs_bug(c,
 			"extent key bad (too many replicas: %u): %s",
 			replicas, buf);
@@ -1715,8 +1703,8 @@ static void bch2_extent_debugcheck_extent(struct bch_fs *c, struct btree *b,
 
 	if (!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
 	    !bch2_bkey_replicas_marked(c, btree_node_type(b), e.s_c)) {
-		bch2_bkey_val_to_text(c, btree_node_type(b),
-				     buf, sizeof(buf), e.s_c);
+		bch2_bkey_val_to_text(&PBUF(buf), c, btree_node_type(b),
+				      e.s_c);
 		bch2_fs_bug(c,
 			"extent key bad (replicas not marked in superblock):\n%s",
 			buf);
@@ -1726,12 +1714,11 @@ static void bch2_extent_debugcheck_extent(struct bch_fs *c, struct btree *b,
 	return;
 
 bad_ptr:
-	bch2_bkey_val_to_text(c, btree_node_type(b), buf,
-			     sizeof(buf), e.s_c);
+	bch2_bkey_val_to_text(&PBUF(buf), c, btree_node_type(b),
+			      e.s_c);
 	bch2_fs_bug(c, "extent pointer bad gc mark: %s:\nbucket %zu "
 		   "gen %i type %u", buf,
 		   PTR_BUCKET_NR(ca, ptr), mark.gen, mark.data_type);
-	return;
 }
 
 void bch2_extent_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k)
@@ -1748,22 +1735,17 @@ void bch2_extent_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k
 	}
 }
 
-int bch2_extent_to_text(struct bch_fs *c, char *buf,
-			size_t size, struct bkey_s_c k)
+void bch2_extent_to_text(struct printbuf *out, struct bch_fs *c,
+			 struct bkey_s_c k)
 {
-	char *out = buf, *end = buf + size;
 	const char *invalid;
 
-#define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
-
 	if (bkey_extent_is_data(k.k))
-		out += extent_print_ptrs(c, buf, size, bkey_s_c_to_extent(k));
+		extent_print_ptrs(out, c, bkey_s_c_to_extent(k));
 
 	invalid = bch2_extent_invalid(c, k);
 	if (invalid)
-		p(" invalid: %s", invalid);
-#undef p
-	return out - buf;
+		pr_buf(out, " invalid: %s", invalid);
 }
 
 static void bch2_extent_crc_init(union bch_extent_crc *crc,

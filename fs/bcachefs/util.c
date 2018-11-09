@@ -124,47 +124,31 @@ ssize_t bch2_hprint(char *buf, s64 v)
 	return sprintf(buf, "%lli%s%c", v, dec, si_units[u]);
 }
 
-ssize_t bch2_scnprint_string_list(char *buf, size_t size,
-				  const char * const list[],
-				  size_t selected)
+void bch2_string_opt_to_text(struct printbuf *out,
+			     const char * const list[],
+			     size_t selected)
 {
-	char *out = buf;
 	size_t i;
 
-	if (size)
-		*out = '\0';
-
 	for (i = 0; list[i]; i++)
-		out += scnprintf(out, buf + size - out,
-				 i == selected ? "[%s] " : "%s ", list[i]);
-
-	if (out != buf)
-		*--out = '\0';
-
-	return out - buf;
+		pr_buf(out, i == selected ? "[%s] " : "%s ", list[i]);
 }
 
-ssize_t bch2_scnprint_flag_list(char *buf, size_t size,
-				const char * const list[], u64 flags)
+void bch2_flags_to_text(struct printbuf *out,
+			const char * const list[], u64 flags)
 {
-	char *out = buf, *end = buf + size;
 	unsigned bit, nr = 0;
+
+	if (out->pos != out->end)
+		*out->pos = '\0';
 
 	while (list[nr])
 		nr++;
 
-	if (size)
-		*out = '\0';
-
 	while (flags && (bit = __ffs(flags)) < nr) {
-		out += scnprintf(out, end - out, "%s,", list[bit]);
+		pr_buf(out, "%s,", list[bit]);
 		flags ^= 1 << bit;
 	}
-
-	if (out != buf)
-		*--out = '\0';
-
-	return out - buf;
 }
 
 u64 bch2_read_flag_list(char *opt, const char * const list[])
@@ -329,50 +313,50 @@ static const struct time_unit *pick_time_units(u64 ns)
 	return u;
 }
 
-static size_t pr_time_units(char *buf, size_t len, u64 ns)
+static void pr_time_units(struct printbuf *out, u64 ns)
 {
 	const struct time_unit *u = pick_time_units(ns);
 
-	return scnprintf(buf, len, "%llu %s", div_u64(ns, u->nsecs), u->name);
+	pr_buf(out, "%llu %s", div_u64(ns, u->nsecs), u->name);
 }
 
 size_t bch2_time_stats_print(struct bch2_time_stats *stats, char *buf, size_t len)
 {
-	char *out = buf, *end = buf + len;
+	struct printbuf out = _PBUF(buf, len);
 	const struct time_unit *u;
 	u64 freq = READ_ONCE(stats->average_frequency);
 	u64 q, last_q = 0;
 	int i;
 
-	out += scnprintf(out, end - out, "count:\t\t%llu\n",
+	pr_buf(&out, "count:\t\t%llu\n",
 			 stats->count);
-	out += scnprintf(out, end - out, "rate:\t\t%llu/sec\n",
-			 freq ?  div64_u64(NSEC_PER_SEC, freq) : 0);
+	pr_buf(&out, "rate:\t\t%llu/sec\n",
+	       freq ?  div64_u64(NSEC_PER_SEC, freq) : 0);
 
-	out += scnprintf(out, end - out, "frequency:\t");
-	out += pr_time_units(out, end - out, freq);
+	pr_buf(&out, "frequency:\t");
+	pr_time_units(&out, freq);
 
-	out += scnprintf(out, end - out, "\navg duration:\t");
-	out += pr_time_units(out, end - out, stats->average_duration);
+	pr_buf(&out, "\navg duration:\t");
+	pr_time_units(&out, stats->average_duration);
 
-	out += scnprintf(out, end - out, "\nmax duration:\t");
-	out += pr_time_units(out, end - out, stats->max_duration);
+	pr_buf(&out, "\nmax duration:\t");
+	pr_time_units(&out, stats->max_duration);
 
 	i = eytzinger0_first(NR_QUANTILES);
 	u = pick_time_units(stats->quantiles.entries[i].m);
 
-	out += scnprintf(out, end - out, "\nquantiles (%s):\t", u->name);
+	pr_buf(&out, "\nquantiles (%s):\t", u->name);
 	eytzinger0_for_each(i, NR_QUANTILES) {
 		bool is_last = eytzinger0_next(i, NR_QUANTILES) == -1;
 
 		q = max(stats->quantiles.entries[i].m, last_q);
-		out += scnprintf(out, end - out, "%llu%s",
-				 div_u64(q, u->nsecs),
-				 is_last ? "\n" : " ");
+		pr_buf(&out, "%llu%s",
+		       div_u64(q, u->nsecs),
+		       is_last ? "\n" : " ");
 		last_q = q;
 	}
 
-	return out - buf;
+	return out.pos - buf;
 }
 
 void bch2_time_stats_exit(struct bch2_time_stats *stats)
@@ -615,18 +599,17 @@ void memcpy_from_bio(void *dst, struct bio *src, struct bvec_iter src_iter)
 	}
 }
 
-size_t bch_scnmemcpy(char *buf, size_t size, const char *src, size_t len)
+void bch_scnmemcpy(struct printbuf *out,
+		   const char *src, size_t len)
 {
-	size_t n;
+	size_t n = printbuf_remaining(out);
 
-	if (!size)
-		return 0;
-
-	n = min(size - 1, len);
-	memcpy(buf, src, n);
-	buf[n] = '\0';
-
-	return n;
+	if (n) {
+		n = min(n - 1, len);
+		memcpy(out->pos, src, n);
+		out->pos += n;
+		*out->pos = '\0';
+	}
 }
 
 #include "eytzinger.h"

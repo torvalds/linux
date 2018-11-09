@@ -9,7 +9,7 @@
 #define ALLOC_SCAN_BATCH(ca)		max_t(size_t, 1, (ca)->mi.nbuckets >> 9)
 
 const char *bch2_alloc_invalid(const struct bch_fs *, struct bkey_s_c);
-int bch2_alloc_to_text(struct bch_fs *, char *, size_t, struct bkey_s_c);
+void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_alloc_ops (struct bkey_ops) {		\
 	.key_invalid	= bch2_alloc_invalid,		\

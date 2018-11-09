@@ -111,10 +111,9 @@ const char *bch2_xattr_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	}
 }
 
-int bch2_xattr_to_text(struct bch_fs *c, char *buf,
-		       size_t size, struct bkey_s_c k)
+void bch2_xattr_to_text(struct printbuf *out, struct bch_fs *c,
+			struct bkey_s_c k)
 {
-	char *out = buf, *end = buf + size;
 	const struct xattr_handler *handler;
 	struct bkey_s_c_xattr xattr;
 
@@ -124,26 +123,22 @@ int bch2_xattr_to_text(struct bch_fs *c, char *buf,
 
 		handler = bch2_xattr_type_to_handler(xattr.v->x_type);
 		if (handler && handler->prefix)
-			out += scnprintf(out, end - out, "%s", handler->prefix);
+			pr_buf(out, "%s", handler->prefix);
 		else if (handler)
-			out += scnprintf(out, end - out, "(type %u)",
-					 xattr.v->x_type);
+			pr_buf(out, "(type %u)", xattr.v->x_type);
 		else
-			out += scnprintf(out, end - out, "(unknown type %u)",
-					 xattr.v->x_type);
+			pr_buf(out, "(unknown type %u)", xattr.v->x_type);
 
-		out += bch_scnmemcpy(out, end - out, xattr.v->x_name,
-				     xattr.v->x_name_len);
-		out += scnprintf(out, end - out, ":");
-		out += bch_scnmemcpy(out, end - out, xattr_val(xattr.v),
-				     le16_to_cpu(xattr.v->x_val_len));
+		bch_scnmemcpy(out, xattr.v->x_name,
+			      xattr.v->x_name_len);
+		pr_buf(out, ":");
+		bch_scnmemcpy(out, xattr_val(xattr.v),
+			      le16_to_cpu(xattr.v->x_val_len));
 		break;
 	case BCH_XATTR_WHITEOUT:
-		out += scnprintf(out, end - out, "whiteout");
+		pr_buf(out, "whiteout");
 		break;
 	}
-
-	return out - buf;
 }
 
 int bch2_xattr_get(struct bch_fs *c, struct bch_inode_info *inode,
@@ -355,7 +350,7 @@ static int bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
 	struct bch_opts opts =
 		bch2_inode_opts_to_opts(bch2_inode_opts_get(&inode->ei_inode));
 	const struct bch_option *opt;
-	int ret, id;
+	int id;
 	u64 v;
 
 	id = bch2_opt_lookup(name);
@@ -369,9 +364,22 @@ static int bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
 
 	v = bch2_opt_get_by_id(&opts, id);
 
-	ret = bch2_opt_to_text(c, buffer, size, opt, v, 0);
+	if (!buffer) {
+		char buf[512];
+		struct printbuf out = PBUF(buf);
 
-	return ret < size || !buffer ? ret : -ERANGE;
+		bch2_opt_to_text(&out, c, opt, v, 0);
+
+		return out.pos - buf;
+	} else {
+		struct printbuf out = _PBUF(buffer, size);
+
+		bch2_opt_to_text(&out, c, opt, v, 0);
+
+		return printbuf_remaining(&out)
+			? (void *) out.pos - buffer
+			: -ERANGE;
+	}
 }
 
 struct inode_opt_set {

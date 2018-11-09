@@ -229,6 +229,7 @@ enum bch_opt_id {
 };
 
 struct bch_fs;
+struct printbuf;
 
 struct bch_option {
 	struct attribute	attr;
@@ -245,7 +246,7 @@ struct bch_option {
 	};
 	struct {
 		int (*parse)(struct bch_fs *, const char *, u64 *);
-		int (*print)(struct bch_fs *, char *, size_t, u64);
+		void (*to_text)(struct printbuf *, struct bch_fs *, u64);
 	};
 	};
 
@@ -265,8 +266,8 @@ int bch2_opt_parse(struct bch_fs *, const struct bch_option *, const char *, u64
 #define OPT_SHOW_FULL_LIST	(1 << 0)
 #define OPT_SHOW_MOUNT_STYLE	(1 << 1)
 
-int bch2_opt_to_text(struct bch_fs *, char *, size_t,
-		     const struct bch_option *, u64, unsigned);
+void bch2_opt_to_text(struct printbuf *, struct bch_fs *,
+		      const struct bch_option *, u64, unsigned);
 
 int bch2_parse_mount_opts(struct bch_opts *, char *);
 

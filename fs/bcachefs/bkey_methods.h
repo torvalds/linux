@@ -46,8 +46,8 @@ struct bkey_ops {
 				       struct bkey_s_c);
 	void		(*key_debugcheck)(struct bch_fs *, struct btree *,
 					  struct bkey_s_c);
-	int		(*val_to_text)(struct bch_fs *, char *,
-				       size_t, struct bkey_s_c);
+	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
+				       struct bkey_s_c);
 	void		(*swab)(const struct bkey_format *, struct bkey_packed *);
 	key_filter_fn	key_normalize;
 	key_merge_fn	key_merge;
@@ -62,12 +62,12 @@ const char *bch2_bkey_in_btree_node(struct btree *, struct bkey_s_c);
 
 void bch2_bkey_debugcheck(struct bch_fs *, struct btree *, struct bkey_s_c);
 
-int bch2_bpos_to_text(char *, size_t, struct bpos);
-int bch2_bkey_to_text(char *, size_t, const struct bkey *);
-int bch2_val_to_text(struct bch_fs *, enum bkey_type,
-		     char *, size_t, struct bkey_s_c);
-int bch2_bkey_val_to_text(struct bch_fs *, enum bkey_type,
-			  char *, size_t, struct bkey_s_c);
+void bch2_bpos_to_text(struct printbuf *, struct bpos);
+void bch2_bkey_to_text(struct printbuf *, const struct bkey *);
+void bch2_val_to_text(struct printbuf *, struct bch_fs *, enum bkey_type,
+		      struct bkey_s_c);
+void bch2_bkey_val_to_text(struct printbuf *, struct bch_fs *,
+			   enum bkey_type, struct bkey_s_c);
 
 void bch2_bkey_swab(enum bkey_type, const struct bkey_format *,
 		    struct bkey_packed *);

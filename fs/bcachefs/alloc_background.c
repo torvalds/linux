@@ -94,17 +94,17 @@ const char *bch2_alloc_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	return NULL;
 }
 
-int bch2_alloc_to_text(struct bch_fs *c, char *buf,
-		       size_t size, struct bkey_s_c k)
+void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
+			struct bkey_s_c k)
 {
-	buf[0] = '\0';
-
 	switch (k.k->type) {
-	case BCH_ALLOC:
+	case BCH_ALLOC: {
+		struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
+
+		pr_buf(out, "gen %u", a.v->gen);
 		break;
 	}
-
-	return 0;
+	}
 }
 
 static inline unsigned get_alloc_field(const u8 **p, unsigned bytes)

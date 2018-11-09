@@ -252,49 +252,43 @@ static int bch2_rebalance_thread(void *arg)
 
 ssize_t bch2_rebalance_work_show(struct bch_fs *c, char *buf)
 {
-	char *out = buf, *end = out + PAGE_SIZE;
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	struct bch_fs_rebalance *r = &c->rebalance;
 	struct rebalance_work w = rebalance_work(c);
 	char h1[21], h2[21];
 
 	bch2_hprint(h1, w.dev_most_full_work << 9);
 	bch2_hprint(h2, w.dev_most_full_capacity << 9);
-	out += scnprintf(out, end - out,
-			 "fullest_dev (%i):\t%s/%s\n",
-			 w.dev_most_full_idx, h1, h2);
+	pr_buf(&out, "fullest_dev (%i):\t%s/%s\n",
+	       w.dev_most_full_idx, h1, h2);
 
 	bch2_hprint(h1, w.total_work << 9);
 	bch2_hprint(h2, c->capacity << 9);
-	out += scnprintf(out, end - out,
-			 "total work:\t\t%s/%s\n",
-			 h1, h2);
+	pr_buf(&out, "total work:\t\t%s/%s\n", h1, h2);
 
-	out += scnprintf(out, end - out,
-			 "rate:\t\t\t%u\n",
-			 r->pd.rate.rate);
+	pr_buf(&out, "rate:\t\t\t%u\n", r->pd.rate.rate);
 
 	switch (r->state) {
 	case REBALANCE_WAITING:
-		out += scnprintf(out, end - out, "waiting\n");
+		pr_buf(&out, "waiting\n");
 		break;
 	case REBALANCE_THROTTLED:
 		bch2_hprint(h1,
 			    (r->throttled_until_iotime -
 			     atomic_long_read(&c->io_clock[WRITE].now)) << 9);
-		out += scnprintf(out, end - out,
-				 "throttled for %lu sec or %s io\n",
-				 (r->throttled_until_cputime - jiffies) / HZ,
-				 h1);
+		pr_buf(&out, "throttled for %lu sec or %s io\n",
+		       (r->throttled_until_cputime - jiffies) / HZ,
+		       h1);
 		break;
 	case REBALANCE_RUNNING:
-		out += scnprintf(out, end - out, "running\n");
-		out += scnprintf(out, end - out, "pos %llu:%llu\n",
-				 r->move_stats.iter.pos.inode,
-				 r->move_stats.iter.pos.offset);
+		pr_buf(&out, "running\n");
+		pr_buf(&out, "pos %llu:%llu\n",
+		       r->move_stats.iter.pos.inode,
+		       r->move_stats.iter.pos.offset);
 		break;
 	}
 
-	return out - buf;
+	return out.pos - buf;
 }
 
 void bch2_rebalance_stop(struct bch_fs *c)

@@ -111,7 +111,7 @@ void bch2_bkey_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k)
 	if (invalid) {
 		char buf[160];
 
-		bch2_bkey_val_to_text(c, type, buf, sizeof(buf), k);
+		bch2_bkey_val_to_text(&PBUF(buf), c, type, k);
 		bch2_fs_bug(c, "invalid bkey %s: %s", buf, invalid);
 		return;
 	}
@@ -121,73 +121,57 @@ void bch2_bkey_debugcheck(struct bch_fs *c, struct btree *b, struct bkey_s_c k)
 		ops->key_debugcheck(c, b, k);
 }
 
-#define p(...)	(out += scnprintf(out, end - out, __VA_ARGS__))
-
-int bch2_bpos_to_text(char *buf, size_t size, struct bpos pos)
+void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
 {
-	char *out = buf, *end = buf + size;
-
 	if (!bkey_cmp(pos, POS_MIN))
-		p("POS_MIN");
+		pr_buf(out, "POS_MIN");
 	else if (!bkey_cmp(pos, POS_MAX))
-		p("POS_MAX");
+		pr_buf(out, "POS_MAX");
 	else
-		p("%llu:%llu", pos.inode, pos.offset);
-
-	return out - buf;
+		pr_buf(out, "%llu:%llu", pos.inode, pos.offset);
 }
 
-int bch2_bkey_to_text(char *buf, size_t size, const struct bkey *k)
+void bch2_bkey_to_text(struct printbuf *out, const struct bkey *k)
 {
-	char *out = buf, *end = buf + size;
+	pr_buf(out, "u64s %u type %u ", k->u64s, k->type);
 
-	p("u64s %u type %u ", k->u64s, k->type);
+	bch2_bpos_to_text(out, k->p);
 
-	out += bch2_bpos_to_text(out, end - out, k->p);
-
-	p(" snap %u len %u ver %llu", k->p.snapshot, k->size, k->version.lo);
-
-	return out - buf;
+	pr_buf(out, " snap %u len %u ver %llu",
+	       k->p.snapshot, k->size, k->version.lo);
 }
 
-int bch2_val_to_text(struct bch_fs *c, enum bkey_type type,
-		     char *buf, size_t size, struct bkey_s_c k)
+void bch2_val_to_text(struct printbuf *out, struct bch_fs *c,
+		      enum bkey_type type, struct bkey_s_c k)
 {
 	const struct bkey_ops *ops = &bch2_bkey_ops[type];
-	char *out = buf, *end = buf + size;
 
 	switch (k.k->type) {
 	case KEY_TYPE_DELETED:
-		p(" deleted");
+		pr_buf(out, " deleted");
 		break;
 	case KEY_TYPE_DISCARD:
-		p(" discard");
+		pr_buf(out, " discard");
 		break;
 	case KEY_TYPE_ERROR:
-		p(" error");
+		pr_buf(out, " error");
 		break;
 	case KEY_TYPE_COOKIE:
-		p(" cookie");
+		pr_buf(out, " cookie");
 		break;
 	default:
 		if (k.k->type >= KEY_TYPE_GENERIC_NR && ops->val_to_text)
-			out += ops->val_to_text(c, out, end - out, k);
+			ops->val_to_text(out, c, k);
 		break;
 	}
-
-	return out - buf;
 }
 
-int bch2_bkey_val_to_text(struct bch_fs *c, enum bkey_type type,
-			  char *buf, size_t size, struct bkey_s_c k)
+void bch2_bkey_val_to_text(struct printbuf *out, struct bch_fs *c,
+			   enum bkey_type type, struct bkey_s_c k)
 {
-	char *out = buf, *end = buf + size;
-
-	out += bch2_bkey_to_text(out, end - out, k.k);
-	out += scnprintf(out, end - out, ": ");
-	out += bch2_val_to_text(c, type, out, end - out, k);
-
-	return out - buf;
+	bch2_bkey_to_text(out, k.k);
+	pr_buf(out, ": ");
+	bch2_val_to_text(out, c, type, k);
 }
 
 void bch2_bkey_swab(enum bkey_type type,

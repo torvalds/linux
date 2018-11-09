@@ -60,8 +60,8 @@ static void bch2_bkey_pack_verify(const struct bkey_packed *packed,
 		char buf1[160], buf2[160];
 		char buf3[160], buf4[160];
 
-		bch2_bkey_to_text(buf1, sizeof(buf1), unpacked);
-		bch2_bkey_to_text(buf2, sizeof(buf2), &tmp);
+		bch2_bkey_to_text(&PBUF(buf1), unpacked);
+		bch2_bkey_to_text(&PBUF(buf2), &tmp);
 		bch2_to_binary(buf3, (void *) unpacked, 80);
 		bch2_to_binary(buf4, high_word(format, packed), 80);
 

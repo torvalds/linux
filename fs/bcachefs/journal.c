@@ -1027,38 +1027,38 @@ out:
 
 ssize_t bch2_journal_print_debug(struct journal *j, char *buf)
 {
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	union journal_res_state *s = &j->reservations;
 	struct bch_dev *ca;
 	unsigned iter;
-	ssize_t ret = 0;
 
 	rcu_read_lock();
 	spin_lock(&j->lock);
 
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-			 "active journal entries:\t%llu\n"
-			 "seq:\t\t\t%llu\n"
-			 "last_seq:\t\t%llu\n"
-			 "last_seq_ondisk:\t%llu\n"
-			 "reservation count:\t%u\n"
-			 "reservation offset:\t%u\n"
-			 "current entry u64s:\t%u\n"
-			 "io in flight:\t\t%i\n"
-			 "need write:\t\t%i\n"
-			 "dirty:\t\t\t%i\n"
-			 "replay done:\t\t%i\n",
-			 fifo_used(&j->pin),
-			 journal_cur_seq(j),
-			 journal_last_seq(j),
-			 j->last_seq_ondisk,
-			 journal_state_count(*s, s->idx),
-			 s->cur_entry_offset,
-			 j->cur_entry_u64s,
-			 s->prev_buf_unwritten,
-			 test_bit(JOURNAL_NEED_WRITE,	&j->flags),
-			 journal_entry_is_open(j),
-			 test_bit(JOURNAL_REPLAY_DONE,	&j->flags));
+	pr_buf(&out,
+	       "active journal entries:\t%llu\n"
+	       "seq:\t\t\t%llu\n"
+	       "last_seq:\t\t%llu\n"
+	       "last_seq_ondisk:\t%llu\n"
+	       "reservation count:\t%u\n"
+	       "reservation offset:\t%u\n"
+	       "current entry u64s:\t%u\n"
+	       "io in flight:\t\t%i\n"
+	       "need write:\t\t%i\n"
+	       "dirty:\t\t\t%i\n"
+	       "replay done:\t\t%i\n",
+	       fifo_used(&j->pin),
+	       journal_cur_seq(j),
+	       journal_last_seq(j),
+	       j->last_seq_ondisk,
+	       journal_state_count(*s, s->idx),
+	       s->cur_entry_offset,
+	       j->cur_entry_u64s,
+	       s->prev_buf_unwritten,
+	       test_bit(JOURNAL_NEED_WRITE,	&j->flags),
+	       journal_entry_is_open(j),
+	       test_bit(JOURNAL_REPLAY_DONE,	&j->flags));
 
 	for_each_member_device_rcu(ca, c, iter,
 				   &c->rw_devs[BCH_DATA_JOURNAL]) {
@@ -1067,50 +1067,46 @@ ssize_t bch2_journal_print_debug(struct journal *j, char *buf)
 		if (!ja->nr)
 			continue;
 
-		ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-				 "dev %u:\n"
-				 "\tnr\t\t%u\n"
-				 "\tcur_idx\t\t%u (seq %llu)\n"
-				 "\tlast_idx\t%u (seq %llu)\n",
-				 iter, ja->nr,
-				 ja->cur_idx,	ja->bucket_seq[ja->cur_idx],
-				 ja->last_idx,	ja->bucket_seq[ja->last_idx]);
+		pr_buf(&out,
+		       "dev %u:\n"
+		       "\tnr\t\t%u\n"
+		       "\tcur_idx\t\t%u (seq %llu)\n"
+		       "\tlast_idx\t%u (seq %llu)\n",
+		       iter, ja->nr,
+		       ja->cur_idx,	ja->bucket_seq[ja->cur_idx],
+		       ja->last_idx,	ja->bucket_seq[ja->last_idx]);
 	}
 
 	spin_unlock(&j->lock);
 	rcu_read_unlock();
 
-	return ret;
+	return out.pos - buf;
 }
 
 ssize_t bch2_journal_print_pins(struct journal *j, char *buf)
 {
+	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	struct journal_entry_pin_list *pin_list;
 	struct journal_entry_pin *pin;
-	ssize_t ret = 0;
 	u64 i;
 
 	spin_lock(&j->lock);
 	fifo_for_each_entry_ptr(pin_list, &j->pin, i) {
-		ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-				 "%llu: count %u\n",
-				 i, atomic_read(&pin_list->count));
+		pr_buf(&out, "%llu: count %u\n",
+		       i, atomic_read(&pin_list->count));
 
 		list_for_each_entry(pin, &pin_list->list, list)
-			ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-					 "\t%p %pf\n",
-					 pin, pin->flush);
+			pr_buf(&out, "\t%p %pf\n",
+			       pin, pin->flush);
 
 		if (!list_empty(&pin_list->flushed))
-			ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-					 "flushed:\n");
+			pr_buf(&out, "flushed:\n");
 
 		list_for_each_entry(pin, &pin_list->flushed, list)
-			ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-					 "\t%p %pf\n",
-					 pin, pin->flush);
+			pr_buf(&out, "\t%p %pf\n",
+			       pin, pin->flush);
 	}
 	spin_unlock(&j->lock);
 
-	return ret;
+	return out.pos - buf;
 }

@@ -110,26 +110,23 @@ const char *bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	}
 }
 
-int bch2_dirent_to_text(struct bch_fs *c, char *buf,
-			size_t size, struct bkey_s_c k)
+void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,
+			 struct bkey_s_c k)
 {
-	char *out = buf, *end = buf + size;
 	struct bkey_s_c_dirent d;
 
 	switch (k.k->type) {
 	case BCH_DIRENT:
 		d = bkey_s_c_to_dirent(k);
 
-		out += bch_scnmemcpy(out, end - out, d.v->d_name,
-				     bch2_dirent_name_bytes(d));
-		out += scnprintf(out, end - out, " -> %llu", d.v->d_inum);
+		bch_scnmemcpy(out, d.v->d_name,
+			      bch2_dirent_name_bytes(d));
+		pr_buf(out, " -> %llu", d.v->d_inum);
 		break;
 	case BCH_DIRENT_WHITEOUT:
-		out += scnprintf(out, end - out, "whiteout");
+		pr_buf(out, "whiteout");
 		break;
 	}
-
-	return out - buf;
 }
 
 static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,

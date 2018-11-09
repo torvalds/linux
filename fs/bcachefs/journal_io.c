@@ -146,7 +146,6 @@ static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 {
 	void *next = vstruct_next(entry);
 	const char *invalid;
-	char buf[160];
 	int ret = 0;
 
 	if (journal_entry_err_on(!k->k.u64s, c,
@@ -179,8 +178,10 @@ static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 
 	invalid = bch2_bkey_invalid(c, key_type, bkey_i_to_s_c(k));
 	if (invalid) {
-		bch2_bkey_val_to_text(c, key_type, buf, sizeof(buf),
-				     bkey_i_to_s_c(k));
+		char buf[160];
+
+		bch2_bkey_val_to_text(&PBUF(buf), c, key_type,
+				      bkey_i_to_s_c(k));
 		mustfix_fsck_err(c, "invalid %s in journal: %s\n%s",
 				 type, invalid, buf);
 

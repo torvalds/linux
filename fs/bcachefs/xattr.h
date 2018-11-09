@@ -7,7 +7,7 @@
 extern const struct bch_hash_desc bch2_xattr_hash_desc;
 
 const char *bch2_xattr_invalid(const struct bch_fs *, struct bkey_s_c);
-int bch2_xattr_to_text(struct bch_fs *, char *, size_t, struct bkey_s_c);
+void bch2_xattr_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_xattr_ops (struct bkey_ops) {		\
 	.key_invalid	= bch2_xattr_invalid,		\

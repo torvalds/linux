@@ -1619,7 +1619,7 @@ static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 		if (v == bch2_opt_get_by_id(&bch2_opts_default, i))
 			continue;
 
-		bch2_opt_to_text(c, buf, sizeof(buf), opt, v,
+		bch2_opt_to_text(&PBUF(buf), c, opt, v,
 				 OPT_SHOW_MOUNT_STYLE);
 		seq_putc(seq, ',');
 		seq_puts(seq, buf);

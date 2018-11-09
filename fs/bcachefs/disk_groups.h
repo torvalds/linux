@@ -59,10 +59,11 @@ bool bch2_dev_in_target(struct bch_fs *, unsigned, unsigned);
 
 int bch2_disk_path_find(struct bch_sb_handle *, const char *);
 int bch2_disk_path_find_or_create(struct bch_sb_handle *, const char *);
-int bch2_disk_path_print(struct bch_sb_handle *, char *, size_t, unsigned);
+void bch2_disk_path_to_text(struct printbuf *, struct bch_sb_handle *,
+			    unsigned);
 
 int bch2_opt_target_parse(struct bch_fs *, const char *, u64 *);
-int bch2_opt_target_print(struct bch_fs *, char *, size_t, u64);
+void bch2_opt_target_to_text(struct printbuf *, struct bch_fs *, u64);
 
 int bch2_sb_disk_groups_to_cpu(struct bch_fs *);
 

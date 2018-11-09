@@ -38,7 +38,7 @@ extern const char * const bch2_sb_fields[];
 
 struct bch_sb_field_ops {
 	const char *	(*validate)(struct bch_sb *, struct bch_sb_field *);
-	size_t		(*to_text)(char *, size_t, struct bch_sb *,
+	void		(*to_text)(struct printbuf *, struct bch_sb *,
 				   struct bch_sb_field *);
 };
 
@@ -136,7 +136,7 @@ static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
 
 void bch2_fs_mark_clean(struct bch_fs *, bool);
 
-size_t bch2_sb_field_to_text(char *, size_t, struct bch_sb *,
-			     struct bch_sb_field *);
+void bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,
+			   struct bch_sb_field *);
 
 #endif /* _BCACHEFS_SUPER_IO_H */
