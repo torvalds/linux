@@ -598,11 +598,12 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 	long err = 0;
 
 	/* addi r1, r1, __SIGNAL_FRAMESIZE  # Pop the dummy stackframe */
-	err |= __put_user(0x38210000UL | (__SIGNAL_FRAMESIZE & 0xffff), &tramp[0]);
+	err |= __put_user(PPC_INST_ADDI | __PPC_RT(R1) | __PPC_RA(R1) |
+			  (__SIGNAL_FRAMESIZE & 0xffff), &tramp[0]);
 	/* li r0, __NR_[rt_]sigreturn| */
-	err |= __put_user(0x38000000UL | (syscall & 0xffff), &tramp[1]);
+	err |= __put_user(PPC_INST_ADDI | (syscall & 0xffff), &tramp[1]);
 	/* sc */
-	err |= __put_user(0x44000002UL, &tramp[2]);
+	err |= __put_user(PPC_INST_SC, &tramp[2]);
 
 	/* Minimal traceback info */
 	for (i=TRAMP_TRACEBACK; i < TRAMP_SIZE ;i++)

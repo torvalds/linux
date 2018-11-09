@@ -470,9 +470,9 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 		return 1;
 
 	if (sigret) {
-		/* Set up the sigreturn trampoline: li r0,sigret; sc */
-		if (__put_user(0x38000000UL + sigret, &frame->tramp[0])
-		    || __put_user(0x44000002UL, &frame->tramp[1]))
+		/* Set up the sigreturn trampoline: li 0,sigret; sc */
+		if (__put_user(PPC_INST_ADDI + sigret, &frame->tramp[0])
+		    || __put_user(PPC_INST_SC, &frame->tramp[1]))
 			return 1;
 		flush_icache_range((unsigned long) &frame->tramp[0],
 				   (unsigned long) &frame->tramp[2]);
@@ -619,9 +619,9 @@ static int save_tm_user_regs(struct pt_regs *regs,
 	if (__put_user(msr, &frame->mc_gregs[PT_MSR]))
 		return 1;
 	if (sigret) {
-		/* Set up the sigreturn trampoline: li r0,sigret; sc */
-		if (__put_user(0x38000000UL + sigret, &frame->tramp[0])
-		    || __put_user(0x44000002UL, &frame->tramp[1]))
+		/* Set up the sigreturn trampoline: li 0,sigret; sc */
+		if (__put_user(PPC_INST_ADDI + sigret, &frame->tramp[0])
+		    || __put_user(PPC_INST_SC, &frame->tramp[1]))
 			return 1;
 		flush_icache_range((unsigned long) &frame->tramp[0],
 				   (unsigned long) &frame->tramp[2]);
