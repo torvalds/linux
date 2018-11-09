@@ -1556,6 +1556,13 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		goto cleanup;
 	}
 
+	/* We might get interrupts after shared_hcd is removed */
+	if (port->rhub == &xhci->usb3_rhub && xhci->shared_hcd == NULL) {
+		xhci_dbg(xhci, "ignore port event for removed USB3 hcd\n");
+		bogus_port_status = true;
+		goto cleanup;
+	}
+
 	hcd = port->rhub->hcd;
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 	hcd_portnum = port->hcd_portnum;
