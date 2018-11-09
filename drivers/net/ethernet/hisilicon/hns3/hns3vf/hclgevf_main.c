@@ -1226,7 +1226,12 @@ static enum hnae3_reset_type hclgevf_get_reset_level(struct hclgevf_dev *hdev,
 	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
 
 	/* return the highest priority reset level amongst all */
-	if (test_bit(HNAE3_VF_FULL_RESET, addr)) {
+	if (test_bit(HNAE3_VF_RESET, addr)) {
+		rst_level = HNAE3_VF_RESET;
+		clear_bit(HNAE3_VF_RESET, addr);
+		clear_bit(HNAE3_VF_PF_FUNC_RESET, addr);
+		clear_bit(HNAE3_VF_FUNC_RESET, addr);
+	} else if (test_bit(HNAE3_VF_FULL_RESET, addr)) {
 		rst_level = HNAE3_VF_FULL_RESET;
 		clear_bit(HNAE3_VF_FULL_RESET, addr);
 		clear_bit(HNAE3_VF_FUNC_RESET, addr);
@@ -1447,24 +1452,36 @@ static void hclgevf_clear_event_cause(struct hclgevf_dev *hdev, u32 regclr)
 	hclgevf_write_dev(&hdev->hw, HCLGEVF_VECTOR0_CMDQ_SRC_REG, regclr);
 }
 
-static bool hclgevf_check_event_cause(struct hclgevf_dev *hdev, u32 *clearval)
+static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
+						      u32 *clearval)
 {
-	u32 cmdq_src_reg;
+	u32 cmdq_src_reg, rst_ing_reg;
 
 	/* fetch the events from their corresponding regs */
 	cmdq_src_reg = hclgevf_read_dev(&hdev->hw,
 					HCLGEVF_VECTOR0_CMDQ_SRC_REG);
 
+	if (BIT(HCLGEVF_VECTOR0_RST_INT_B) & cmdq_src_reg) {
+		rst_ing_reg = hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING);
+		dev_info(&hdev->pdev->dev,
+			 "receive reset interrupt 0x%x!\n", rst_ing_reg);
+		set_bit(HNAE3_VF_RESET, &hdev->reset_pending);
+		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
+		cmdq_src_reg &= ~BIT(HCLGEVF_VECTOR0_RST_INT_B);
+		*clearval = cmdq_src_reg;
+		return HCLGEVF_VECTOR0_EVENT_RST;
+	}
+
 	/* check for vector0 mailbox(=CMDQ RX) event source */
 	if (BIT(HCLGEVF_VECTOR0_RX_CMDQ_INT_B) & cmdq_src_reg) {
 		cmdq_src_reg &= ~BIT(HCLGEVF_VECTOR0_RX_CMDQ_INT_B);
 		*clearval = cmdq_src_reg;
-		return true;
+		return HCLGEVF_VECTOR0_EVENT_MBX;
 	}
 
 	dev_dbg(&hdev->pdev->dev, "vector 0 interrupt from unknown source\n");
 
-	return false;
+	return HCLGEVF_VECTOR0_EVENT_OTHER;
 }
 
 static void hclgevf_enable_vector(struct hclgevf_misc_vector *vector, bool en)
@@ -1474,19 +1491,28 @@ static void hclgevf_enable_vector(struct hclgevf_misc_vector *vector, bool en)
 
 static irqreturn_t hclgevf_misc_irq_handle(int irq, void *data)
 {
+	enum hclgevf_evt_cause event_cause;
 	struct hclgevf_dev *hdev = data;
 	u32 clearval;
 
 	hclgevf_enable_vector(&hdev->misc_vector, false);
-	if (!hclgevf_check_event_cause(hdev, &clearval))
-		goto skip_sched;
+	event_cause = hclgevf_check_evt_cause(hdev, &clearval);
 
-	hclgevf_mbx_handler(hdev);
+	switch (event_cause) {
+	case HCLGEVF_VECTOR0_EVENT_RST:
+		hclgevf_reset_task_schedule(hdev);
+		break;
+	case HCLGEVF_VECTOR0_EVENT_MBX:
+		hclgevf_mbx_handler(hdev);
+		break;
+	default:
+		break;
+	}
 
-	hclgevf_clear_event_cause(hdev, clearval);
-
-skip_sched:
-	hclgevf_enable_vector(&hdev->misc_vector, true);
+	if (event_cause != HCLGEVF_VECTOR0_EVENT_OTHER) {
+		hclgevf_clear_event_cause(hdev, clearval);
+		hclgevf_enable_vector(&hdev->misc_vector, true);
+	}
 
 	return IRQ_HANDLED;
 }

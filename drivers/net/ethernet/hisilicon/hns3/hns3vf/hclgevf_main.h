@@ -31,6 +31,8 @@
 #define HCLGEVF_VECTOR0_CMDQ_SRC_REG	0x27100
 /* CMDQ register bits for RX event(=MBX event) */
 #define HCLGEVF_VECTOR0_RX_CMDQ_INT_B	1
+/* RST register bits for RESET event */
+#define HCLGEVF_VECTOR0_RST_INT_B	2
 
 #define HCLGEVF_TQP_RESET_TRY_TIMES	10
 /* Reset related Registers */
@@ -59,6 +61,12 @@
 #define HCLGEVF_D_IP_BIT		BIT(2)
 #define HCLGEVF_S_IP_BIT		BIT(3)
 #define HCLGEVF_V_TAG_BIT		BIT(4)
+
+enum hclgevf_evt_cause {
+	HCLGEVF_VECTOR0_EVENT_RST,
+	HCLGEVF_VECTOR0_EVENT_MBX,
+	HCLGEVF_VECTOR0_EVENT_OTHER,
+};
 
 /* states of hclgevf device & tasks */
 enum hclgevf_states {
