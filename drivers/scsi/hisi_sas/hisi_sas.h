@@ -322,6 +322,8 @@ struct hisi_hba {
 	unsigned long sata_dev_bitmap[BITS_TO_LONGS(HISI_SAS_MAX_DEVICES)];
 	struct work_struct rst_work;
 	u32 phy_state;
+	u32 intr_coal_ticks;	/* Time of interrupt coalesce in us */
+	u32 intr_coal_count;	/* Interrupt count to coalesce */
 };
 
 /* Generic HW DMA host memory structures */
