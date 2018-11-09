@@ -4,7 +4,11 @@
 #ifndef __NFP_ABM_H__
 #define __NFP_ABM_H__ 1
 
+#include <linux/bits.h>
 #include <net/devlink.h>
+#include <net/pkt_cls.h>
+
+#define NFP_ABM_LVL_INFINITY		S32_MAX
 
 struct nfp_app;
 struct nfp_net;
@@ -90,6 +94,11 @@ struct nfp_abm_link {
 	unsigned int num_qdiscs;
 	struct nfp_red_qdisc *qdiscs;
 };
+
+int nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,
+			 struct tc_red_qopt_offload *opt);
+int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
+			struct tc_mq_qopt_offload *opt);
 
 void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
