@@ -124,6 +124,10 @@ struct bpf_program {
 	char *name;
 	int prog_ifindex;
 	char *section_name;
+	/* section_name with / replaced by _; makes recursive pinning
+	 * in bpf_object__pin_programs easier
+	 */
+	char *pin_name;
 	struct bpf_insn *insns;
 	size_t insns_cnt, main_prog_cnt;
 	enum bpf_prog_type type;
@@ -253,12 +257,24 @@ static void bpf_program__exit(struct bpf_program *prog)
 	bpf_program__unload(prog);
 	zfree(&prog->name);
 	zfree(&prog->section_name);
+	zfree(&prog->pin_name);
 	zfree(&prog->insns);
 	zfree(&prog->reloc_desc);
 
 	prog->nr_reloc = 0;
 	prog->insns_cnt = 0;
 	prog->idx = -1;
+}
+
+static char *__bpf_program__pin_name(struct bpf_program *prog)
+{
+	char *name, *p;
+
+	name = p = strdup(prog->section_name);
+	while ((p = strchr(p, '/')))
+		*p = '_';
+
+	return name;
 }
 
 static int
@@ -275,6 +291,13 @@ bpf_program__init(void *data, size_t size, char *section_name, int idx,
 	prog->section_name = strdup(section_name);
 	if (!prog->section_name) {
 		pr_warning("failed to alloc name for prog under section(%d) %s\n",
+			   idx, section_name);
+		goto errout;
+	}
+
+	prog->pin_name = __bpf_program__pin_name(prog);
+	if (!prog->pin_name) {
+		pr_warning("failed to alloc pin name for prog under section(%d) %s\n",
 			   idx, section_name);
 		goto errout;
 	}
@@ -2006,7 +2029,7 @@ int bpf_object__pin_programs(struct bpf_object *obj, const char *path)
 		int len;
 
 		len = snprintf(buf, PATH_MAX, "%s/%s", path,
-			       prog->section_name);
+			       prog->pin_name);
 		if (len < 0) {
 			err = -EINVAL;
 			goto err_unpin_programs;
@@ -2028,7 +2051,7 @@ err_unpin_programs:
 		int len;
 
 		len = snprintf(buf, PATH_MAX, "%s/%s", path,
-			       prog->section_name);
+			       prog->pin_name);
 		if (len < 0)
 			continue;
 		else if (len >= PATH_MAX)
@@ -2053,7 +2076,7 @@ int bpf_object__unpin_programs(struct bpf_object *obj, const char *path)
 		int len;
 
 		len = snprintf(buf, PATH_MAX, "%s/%s", path,
-			       prog->section_name);
+			       prog->pin_name);
 		if (len < 0)
 			return -EINVAL;
 		else if (len >= PATH_MAX)
