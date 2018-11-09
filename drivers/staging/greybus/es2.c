@@ -316,8 +316,8 @@ static struct urb *next_free_urb(struct es2_ap_dev *es2, gfp_t gfp_mask)
 
 	/* Look in our pool of allocated urbs first, as that's the "fastest" */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		if (es2->cport_out_urb_busy[i] == false &&
-				es2->cport_out_urb_cancelled[i] == false) {
+		if (!es2->cport_out_urb_busy[i] &&
+		    !es2->cport_out_urb_cancelled[i]) {
 			es2->cport_out_urb_busy[i] = true;
 			urb = es2->cport_out_urb[i];
 			break;
