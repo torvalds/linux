@@ -3091,7 +3091,7 @@ static int spi_nor_parse_smpt(struct spi_nor *nor,
 
 	/* Read the Sector Map Parameter Table. */
 	len = smpt_header->length * sizeof(*smpt);
-	smpt = kzalloc(len, GFP_KERNEL);
+	smpt = kmalloc(len, GFP_KERNEL);
 	if (!smpt)
 		return -ENOMEM;
 
