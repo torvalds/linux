@@ -601,3 +601,8 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 
 	return 0;
 }
+
+const struct bpf_prog_offload_ops nfp_bpf_analyzer_ops = {
+	.insn_hook	= nfp_verify_insn,
+	.finalize	= nfp_bpf_finalize,
+};
