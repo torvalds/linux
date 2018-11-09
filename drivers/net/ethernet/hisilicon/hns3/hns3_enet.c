@@ -415,9 +415,6 @@ static void hns3_nic_net_down(struct net_device *netdev)
 	const struct hnae3_ae_ops *ops;
 	int i;
 
-	if (test_and_set_bit(HNS3_NIC_STATE_DOWN, &priv->state))
-		return;
-
 	/* disable vectors */
 	for (i = 0; i < priv->vector_num; i++)
 		hns3_vector_disable(&priv->tqp_vector[i]);
@@ -439,6 +436,11 @@ static void hns3_nic_net_down(struct net_device *netdev)
 
 static int hns3_nic_net_stop(struct net_device *netdev)
 {
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+
+	if (test_and_set_bit(HNS3_NIC_STATE_DOWN, &priv->state))
+		return 0;
+
 	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
 
@@ -2699,6 +2701,7 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 
 static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 {
+	struct hns3_nic_priv *priv = netdev_priv(napi->dev);
 	struct hns3_enet_ring *ring;
 	int rx_pkt_total = 0;
 
@@ -2706,6 +2709,11 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 		container_of(napi, struct hns3_enet_tqp_vector, napi);
 	bool clean_complete = true;
 	int rx_budget;
+
+	if (unlikely(test_bit(HNS3_NIC_STATE_DOWN, &priv->state))) {
+		napi_complete(napi);
+		return 0;
+	}
 
 	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
@@ -2731,9 +2739,11 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 
-	napi_complete(napi);
-	hns3_update_new_int_gl(tqp_vector);
-	hns3_mask_vector_irq(tqp_vector, 1);
+	if (likely(!test_bit(HNS3_NIC_STATE_DOWN, &priv->state)) &&
+	    napi_complete(napi)) {
+		hns3_update_new_int_gl(tqp_vector);
+		hns3_mask_vector_irq(tqp_vector, 1);
+	}
 
 	return rx_pkt_total;
 }
