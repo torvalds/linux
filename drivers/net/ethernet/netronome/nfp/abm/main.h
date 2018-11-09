@@ -4,8 +4,11 @@
 #ifndef __NFP_ABM_H__
 #define __NFP_ABM_H__ 1
 
+#include <linux/bits.h>
 #include <net/devlink.h>
 #include <net/pkt_cls.h>
+
+#define NFP_ABM_LVL_INFINITY		S32_MAX
 
 struct nfp_app;
 struct nfp_net;

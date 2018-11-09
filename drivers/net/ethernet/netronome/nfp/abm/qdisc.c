@@ -31,7 +31,7 @@ static void
 nfp_abm_reset_root(struct net_device *netdev, struct nfp_abm_link *alink,
 		   u32 handle, unsigned int qs)
 {
-	__nfp_abm_reset_root(netdev, alink, handle, qs, ~0);
+	__nfp_abm_reset_root(netdev, alink, handle, qs, NFP_ABM_LVL_INFINITY);
 }
 
 static int
@@ -67,7 +67,7 @@ nfp_abm_red_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
 	if (alink->parent == TC_H_ROOT) {
 		nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 0);
 	} else {
-		nfp_abm_ctrl_set_q_lvl(alink, i, ~0);
+		nfp_abm_ctrl_set_q_lvl(alink, i, NFP_ABM_LVL_INFINITY);
 		memset(&alink->qdiscs[i], 0, sizeof(*alink->qdiscs));
 	}
 }
@@ -86,6 +86,12 @@ nfp_abm_red_check_params(struct nfp_abm_link *alink,
 	if (opt->set.min != opt->set.max) {
 		nfp_warn(cpp, "RED offload failed - unsupported min/max parameters (p:%08x h:%08x)\n",
 			 opt->parent, opt->handle);
+		return false;
+	}
+	if (opt->set.min > NFP_ABM_LVL_INFINITY) {
+		nfp_warn(cpp, "RED offload failed - threshold too large %d > %d (p:%08x h:%08x)\n",
+			 opt->set.min, NFP_ABM_LVL_INFINITY, opt->parent,
+			 opt->handle);
 		return false;
 	}
 
