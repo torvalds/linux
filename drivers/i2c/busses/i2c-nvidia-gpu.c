@@ -218,6 +218,7 @@ stop:
 
 static const struct i2c_adapter_quirks gpu_i2c_quirks = {
 	.max_read_len = 4,
+	.max_comb_2nd_msg_len = 4,
 	.flags = I2C_AQ_COMB_WRITE_THEN_READ,
 };
 
