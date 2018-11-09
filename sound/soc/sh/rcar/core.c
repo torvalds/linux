@@ -137,10 +137,17 @@ struct dma_chan *rsnd_mod_dma_req(struct rsnd_dai_stream *io,
 	return mod->ops->dma_req(io, mod);
 }
 
+#define MOD_NAME_NUM   5
 #define MOD_NAME_SIZE 16
 char *rsnd_mod_name(struct rsnd_mod *mod)
 {
-	static char name[MOD_NAME_SIZE];
+	static char names[MOD_NAME_NUM][MOD_NAME_SIZE];
+	static int num;
+	char *name = names[num];
+
+	num++;
+	if (num >= MOD_NAME_NUM)
+		num = 0;
 
 	/*
 	 * Let's use same char to avoid pointlessness memory
