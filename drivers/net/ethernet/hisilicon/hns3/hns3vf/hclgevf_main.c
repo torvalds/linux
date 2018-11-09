@@ -1086,11 +1086,17 @@ static int hclgevf_notify_client(struct hclgevf_dev *hdev,
 {
 	struct hnae3_client *client = hdev->nic_client;
 	struct hnae3_handle *handle = &hdev->nic;
+	int ret;
 
 	if (!client->ops->reset_notify)
 		return -EOPNOTSUPP;
 
-	return client->ops->reset_notify(handle, type);
+	ret = client->ops->reset_notify(handle, type);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "notify nic client failed %d(%d)\n",
+			type, ret);
+
+	return ret;
 }
 
 static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
@@ -1133,7 +1139,9 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	int ret;
 
 	/* uninitialize the nic client */
-	hclgevf_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	ret = hclgevf_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	if (ret)
+		return ret;
 
 	/* re-initialize the hclge device */
 	ret = hclgevf_reset_hdev(hdev);
@@ -1144,7 +1152,9 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	}
 
 	/* bring up the nic client again */
-	hclgevf_notify_client(hdev, HNAE3_INIT_CLIENT);
+	ret = hclgevf_notify_client(hdev, HNAE3_INIT_CLIENT);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -1183,11 +1193,15 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 	rtnl_lock();
 
 	/* bring down the nic to stop any ongoing TX/RX */
-	hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret)
+		goto err_reset_lock;
 
 	rtnl_unlock();
 
-	hclgevf_reset_prepare_wait(hdev);
+	ret = hclgevf_reset_prepare_wait(hdev);
+	if (ret)
+		goto err_reset;
 
 	/* check if VF could successfully fetch the hardware reset completion
 	 * status from the hardware
@@ -1198,26 +1212,35 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 		dev_err(&hdev->pdev->dev,
 			"VF failed(=%d) to fetch H/W reset completion status\n",
 			ret);
-
-		dev_warn(&hdev->pdev->dev, "VF reset failed, disabling VF!\n");
-		rtnl_lock();
-		hclgevf_notify_client(hdev, HNAE3_UNINIT_CLIENT);
-
-		rtnl_unlock();
-		return ret;
+		goto err_reset;
 	}
 
 	rtnl_lock();
 
 	/* now, re-initialize the nic client and ae device*/
 	ret = hclgevf_reset_stack(hdev);
-	if (ret)
+	if (ret) {
 		dev_err(&hdev->pdev->dev, "failed to reset VF stack\n");
+		goto err_reset_lock;
+	}
 
 	/* bring up the nic to enable TX/RX again */
-	hclgevf_notify_client(hdev, HNAE3_UP_CLIENT);
+	ret = hclgevf_notify_client(hdev, HNAE3_UP_CLIENT);
+	if (ret)
+		goto err_reset_lock;
 
 	rtnl_unlock();
+
+	return ret;
+err_reset_lock:
+	rtnl_unlock();
+err_reset:
+	/* When VF reset failed, only the higher level reset asserted by PF
+	 * can restore it, so re-initialize the command queue to receive
+	 * this higher reset event.
+	 */
+	hclgevf_cmd_init(hdev);
+	dev_err(&hdev->pdev->dev, "failed to reset VF\n");
 
 	return ret;
 }
