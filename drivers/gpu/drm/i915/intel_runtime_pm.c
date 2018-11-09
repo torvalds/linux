@@ -2098,7 +2098,7 @@ static const struct i915_power_well_ops chv_dpio_cmn_power_well_ops = {
 static const struct i915_power_well_desc i9xx_always_on_power_well[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2115,7 +2115,7 @@ static const struct i915_power_well_ops i830_pipes_power_well_ops = {
 static const struct i915_power_well_desc i830_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2159,7 +2159,7 @@ static const struct i915_power_well_regs hsw_power_well_regs = {
 static const struct i915_power_well_desc hsw_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2180,7 +2180,7 @@ static const struct i915_power_well_desc hsw_power_wells[] = {
 static const struct i915_power_well_desc bdw_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2223,7 +2223,7 @@ static const struct i915_power_well_ops vlv_dpio_power_well_ops = {
 static const struct i915_power_well_desc vlv_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2299,7 +2299,7 @@ static const struct i915_power_well_desc vlv_power_wells[] = {
 static const struct i915_power_well_desc chv_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2350,7 +2350,7 @@ bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 static const struct i915_power_well_desc skl_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2442,7 +2442,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 static const struct i915_power_well_desc bxt_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2500,7 +2500,7 @@ static const struct i915_power_well_desc bxt_power_wells[] = {
 static const struct i915_power_well_desc glk_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2628,7 +2628,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 static const struct i915_power_well_desc cnl_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
@@ -2795,7 +2795,7 @@ static const struct i915_power_well_regs icl_ddi_power_well_regs = {
 static const struct i915_power_well_desc icl_power_wells[] = {
 	{
 		.name = "always-on",
-		.always_on = 1,
+		.always_on = true,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
 		.id = DISP_PW_ID_NONE,
