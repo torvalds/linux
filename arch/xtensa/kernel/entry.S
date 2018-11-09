@@ -364,7 +364,7 @@ common_exception:
 	s32i	a2, a1, PT_DEBUGCAUSE
 	s32i	a3, a1, PT_PC
 
-	movi	a2, -1
+	movi	a2, NO_SYSCALL
 	rsr	a3, excvaddr
 	s32i	a2, a1, PT_SYSCALL
 	movi	a2, 0

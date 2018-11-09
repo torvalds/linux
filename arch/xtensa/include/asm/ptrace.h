@@ -39,6 +39,8 @@
  *		+-----------------------+ --------
  */
 
+#define NO_SYSCALL (-1)
+
 #ifndef __ASSEMBLY__
 
 #include <asm/coprocessor.h>

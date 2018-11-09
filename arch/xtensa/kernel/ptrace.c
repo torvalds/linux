@@ -491,7 +491,7 @@ unsigned long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
-		return -1;
+		return NO_SYSCALL;
 
 	return regs->areg[2];
 }
