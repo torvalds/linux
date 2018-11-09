@@ -14,6 +14,7 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
 #include <linux/iomap.h>
+#include <linux/ktime.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -2248,7 +2249,9 @@ int gfs2_map_journal_extents(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd)
 	unsigned int shift = sdp->sd_sb.sb_bsize_shift;
 	u64 size;
 	int rc;
+	ktime_t start, end;
 
+	start = ktime_get();
 	lblock_stop = i_size_read(jd->jd_inode) >> shift;
 	size = (lblock_stop - lblock) << shift;
 	jd->nr_extents = 0;
@@ -2268,8 +2271,9 @@ int gfs2_map_journal_extents(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd)
 		lblock += (bh.b_size >> ip->i_inode.i_blkbits);
 	} while(size > 0);
 
-	fs_info(sdp, "journal %d mapped with %u extents\n", jd->jd_jid,
-		jd->nr_extents);
+	end = ktime_get();
+	fs_info(sdp, "journal %d mapped with %u extents in %lldms\n", jd->jd_jid,
+		jd->nr_extents, ktime_ms_delta(end, start));
 	return 0;
 
 fail:

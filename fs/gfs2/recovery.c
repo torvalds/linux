@@ -460,6 +460,8 @@ void gfs2_recover_func(struct work_struct *work)
 	if (error)
 		goto fail_gunlock_ji;
 	t_jhd = ktime_get();
+	fs_info(sdp, "jid=%u: Journal head lookup took %lldms\n", jd->jd_jid,
+		ktime_ms_delta(t_jhd, t_jlck));
 
 	if (!(head.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {
 		fs_info(sdp, "jid=%u: Acquiring the transaction lock...\n",
