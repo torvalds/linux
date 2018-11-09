@@ -72,6 +72,26 @@ nfp_abm_red_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
 	}
 }
 
+static bool
+nfp_abm_red_check_params(struct nfp_abm_link *alink,
+			 struct tc_red_qopt_offload *opt)
+{
+	struct nfp_cpp *cpp = alink->abm->app->cpp;
+
+	if (!opt->set.is_ecn) {
+		nfp_warn(cpp, "RED offload failed - drop is not supported (ECN option required) (p:%08x h:%08x)\n",
+			 opt->parent, opt->handle);
+		return false;
+	}
+	if (opt->set.min != opt->set.max) {
+		nfp_warn(cpp, "RED offload failed - unsupported min/max parameters (p:%08x h:%08x)\n",
+			 opt->parent, opt->handle);
+		return false;
+	}
+
+	return true;
+}
+
 static int
 nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 		    struct tc_red_qopt_offload *opt)
@@ -82,9 +102,7 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 	i = nfp_abm_red_find(alink, opt);
 	existing = i >= 0;
 
-	if (opt->set.min != opt->set.max || !opt->set.is_ecn) {
-		nfp_warn(alink->abm->app->cpp,
-			 "RED offload failed - unsupported parameters\n");
+	if (!nfp_abm_red_check_params(alink, opt)) {
 		err = -EINVAL;
 		goto err_destroy;
 	}
