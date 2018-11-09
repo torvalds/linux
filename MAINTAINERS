@@ -10784,6 +10784,14 @@ L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	arch/arm/mach-omap2/omap_hwmod.*
 
+OMAP I2C DRIVER
+M:	Vignesh R <vigneshr@ti.com>
+L:	linux-omap@vger.kernel.org
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/i2c/i2c-omap.txt
+F:	drivers/i2c/busses/i2c-omap.c
+
 OMAP IMAGING SUBSYSTEM (OMAP3 ISP and OMAP4 ISS)
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
