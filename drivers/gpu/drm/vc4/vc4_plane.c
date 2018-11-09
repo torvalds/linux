@@ -129,12 +129,12 @@ static const struct hvs_format *vc4_get_hvs_format(u32 drm_format)
 
 static enum vc4_scaling_mode vc4_get_scaling_mode(u32 src, u32 dst)
 {
-	if (dst > src)
-		return VC4_SCALING_PPF;
-	else if (dst < src)
-		return VC4_SCALING_TPZ;
-	else
+	if (dst == src)
 		return VC4_SCALING_NONE;
+	if (3 * dst >= 2 * src)
+		return VC4_SCALING_PPF;
+	else
+		return VC4_SCALING_TPZ;
 }
 
 static bool plane_enabled(struct drm_plane_state *state)
