@@ -2856,11 +2856,13 @@ static u8 spi_nor_smpt_read_dummy(const struct spi_nor *nor, const u32 settings)
  * @nor:	pointer to a 'struct spi_nor'
  * @smpt:	pointer to the sector map parameter table
  * @smpt_len:	sector map parameter table length
+ *
+ * Return: pointer to the map in use, ERR_PTR(-errno) otherwise.
  */
 static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt,
 					 u8 smpt_len)
 {
-	const u32 *ret = NULL;
+	const u32 *ret;
 	u32 addr;
 	int err;
 	u8 i;
@@ -2884,8 +2886,10 @@ static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt,
 		addr = smpt[i + 1];
 
 		err = spi_nor_read_raw(nor, addr, 1, &data_byte);
-		if (err)
+		if (err) {
+			ret = ERR_PTR(err);
 			goto out;
+		}
 
 		/*
 		 * Build an index value that is used to select the Sector Map
@@ -2901,6 +2905,7 @@ static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt,
 	 *
 	 * Find the matching configuration map.
 	 */
+	ret = ERR_PTR(-EINVAL);
 	while (i < smpt_len) {
 		if (SMPT_MAP_ID(smpt[i]) == map_id) {
 			ret = smpt + i;
@@ -3041,8 +3046,8 @@ static int spi_nor_parse_smpt(struct spi_nor *nor,
 		smpt[i] = le32_to_cpu(smpt[i]);
 
 	sector_map = spi_nor_get_map_in_use(nor, smpt, smpt_header->length);
-	if (!sector_map) {
-		ret = -EINVAL;
+	if (IS_ERR(sector_map)) {
+		ret = PTR_ERR(sector_map);
 		goto out;
 	}
 
