@@ -802,6 +802,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	struct map_replace *map_replace = NULL;
 	struct bpf_program *prog = NULL, *pos;
 	unsigned int old_map_fds = 0;
+	const char *pinmaps = NULL;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	const char *pinfile;
@@ -906,6 +907,13 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 				goto err_free_reuse_maps;
 			}
 			NEXT_ARG();
+		} else if (is_prefix(*argv, "pinmaps")) {
+			NEXT_ARG();
+
+			if (!REQ_ARGS(1))
+				goto err_free_reuse_maps;
+
+			pinmaps = GET_ARG();
 		} else {
 			p_err("expected no more arguments, 'type', 'map' or 'dev', got: '%s'?",
 			      *argv);
@@ -1028,6 +1036,14 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		}
 	}
 
+	if (pinmaps) {
+		err = bpf_object__pin_maps(obj, pinmaps);
+		if (err) {
+			p_err("failed to pin all maps");
+			goto err_unpin;
+		}
+	}
+
 	if (json_output)
 		jsonw_null(json_wtr);
 
@@ -1038,6 +1054,11 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 	return 0;
 
+err_unpin:
+	if (first_prog_only)
+		unlink(pinfile);
+	else
+		bpf_object__unpin_programs(obj, pinfile);
 err_close_obj:
 	bpf_object__close(obj);
 err_free_reuse_maps:
@@ -1071,7 +1092,8 @@ static int do_help(int argc, char **argv)
 		"       %s %s pin   PROG FILE\n"
 		"       %s %s { load | loadall } OBJ  PATH \\\n"
 		"                         [type TYPE] [dev NAME] \\\n"
-		"                         [map { idx IDX | name NAME } MAP]\n"
+		"                         [map { idx IDX | name NAME } MAP]\\\n"
+		"                         [pinmaps MAP_DIR]\n"
 		"       %s %s attach PROG ATTACH_TYPE MAP\n"
 		"       %s %s detach PROG ATTACH_TYPE MAP\n"
 		"       %s %s help\n"

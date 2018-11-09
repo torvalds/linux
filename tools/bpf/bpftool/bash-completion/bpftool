@@ -346,7 +346,7 @@ _bpftool()
                             _bpftool_get_map_ids
                             return 0
                             ;;
-                        pinned)
+                        pinned|pinmaps)
                             _filedir
                             return 0
                             ;;
@@ -358,6 +358,7 @@ _bpftool()
                             COMPREPLY=( $( compgen -W "map" -- "$cur" ) )
                             _bpftool_once_attr 'type'
                             _bpftool_once_attr 'dev'
+                            _bpftool_once_attr 'pinmaps'
                             return 0
                             ;;
                     esac
