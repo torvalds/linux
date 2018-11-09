@@ -35,20 +35,17 @@
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-void update_stream_signal(struct dc_stream_state *stream)
+void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 {
-
-	struct dc_sink *dc_sink = stream->sink;
-
-	if (dc_sink->sink_signal == SIGNAL_TYPE_NONE)
-		stream->signal = stream->sink->link->connector_signal;
+	if (sink->sink_signal == SIGNAL_TYPE_NONE)
+		stream->signal = stream->link->connector_signal;
 	else
-		stream->signal = dc_sink->sink_signal;
+		stream->signal = sink->sink_signal;
 
 	if (dc_is_dvi_signal(stream->signal)) {
 		if (stream->ctx->dc->caps.dual_link_dvi &&
 		    stream->timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK &&
-		    stream->sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
+		    sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
 			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		else
 			stream->signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
@@ -61,9 +58,14 @@ static void construct(struct dc_stream_state *stream,
 	uint32_t i = 0;
 
 	stream->sink = dc_sink_data;
-	stream->ctx = stream->sink->ctx;
-
 	dc_sink_retain(dc_sink_data);
+
+	stream->ctx = dc_sink_data->ctx;
+	stream->link = dc_sink_data->link;
+	stream->sink_patches = dc_sink_data->edid_caps.panel_patch;
+	stream->converter_disable_audio = dc_sink_data->converter_disable_audio;
+	stream->qs_bit = dc_sink_data->edid_caps.qs_bit;
+	stream->qy_bit = dc_sink_data->edid_caps.qy_bit;
 
 	/* Copy audio modes */
 	/* TODO - Remove this translation */
@@ -100,7 +102,7 @@ static void construct(struct dc_stream_state *stream,
 	/* EDID CAP translation for HDMI 2.0 */
 	stream->timing.flags.LTE_340MCSC_SCRAMBLE = dc_sink_data->edid_caps.lte_340mcsc_scramble;
 
-	update_stream_signal(stream);
+	update_stream_signal(stream, dc_sink_data);
 
 	stream->out_transfer_func = dc_create_transfer_func();
 	stream->out_transfer_func->type = TF_TYPE_BYPASS;
@@ -340,10 +342,6 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 			stream->timing.pixel_encoding,
 			stream->timing.display_color_depth);
 	DC_LOG_DC(
-			"\tsink name: %s, serial: %d\n",
-			stream->sink->edid_caps.display_name,
-			stream->sink->edid_caps.serial_number);
-	DC_LOG_DC(
 			"\tlink: %d\n",
-			stream->sink->link->link_index);
+			stream->link->link_index);
 }

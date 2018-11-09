@@ -789,7 +789,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			return false;
 		}
 
-		sink->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
+		sink->link->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
 		sink->converter_disable_audio = converter_disable_audio;
 
 		link->local_sink = sink;
@@ -1372,7 +1372,7 @@ static void dpcd_configure_panel_mode(
 static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 	union down_spread_ctrl old_downspread;
 	union down_spread_ctrl new_downspread;
 
@@ -1397,7 +1397,7 @@ static enum dc_status enable_link_dp(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_status status;
 	bool skip_video_pattern;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 	struct dc_link_settings link_settings = {0};
 	enum dp_panel_mode panel_mode;
 
@@ -1414,8 +1414,8 @@ static enum dc_status enable_link_dp(
 		pipe_ctx->clock_source->id,
 		&link_settings);
 
-	if (stream->sink->edid_caps.panel_patch.dppowerup_delay > 0) {
-		int delay_dp_power_up_in_ms = stream->sink->edid_caps.panel_patch.dppowerup_delay;
+	if (stream->sink_patches.dppowerup_delay > 0) {
+		int delay_dp_power_up_in_ms = stream->sink_patches.dppowerup_delay;
 
 		msleep(delay_dp_power_up_in_ms);
 	}
@@ -1448,7 +1448,7 @@ static enum dc_status enable_link_edp(
 {
 	enum dc_status status;
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 	/*in case it is not on*/
 	link->dc->hwss.edp_power_control(link, true);
 	link->dc->hwss.edp_wait_for_hpd_ready(link, true);
@@ -1463,7 +1463,7 @@ static enum dc_status enable_link_dp_mst(
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx)
 {
-	struct dc_link *link = pipe_ctx->stream->sink->link;
+	struct dc_link *link = pipe_ctx->stream->link;
 
 	/* sink signal type after MST branch is MST. Multiple MST sinks
 	 * share one link. Link DP PHY is enable or training only once.
@@ -1597,7 +1597,7 @@ static bool i2c_write(struct pipe_ctx *pipe_ctx,
 	cmd.payloads = &payload;
 
 	if (dm_helpers_submit_i2c(pipe_ctx->stream->ctx,
-			pipe_ctx->stream->sink->link, &cmd))
+			pipe_ctx->stream->link, &cmd))
 		return true;
 
 	return false;
@@ -1651,7 +1651,7 @@ static void write_i2c_retimer_setting(
 				else {
 					i2c_success =
 						dal_ddc_service_query_ddc_data(
-						pipe_ctx->stream->sink->link->ddc,
+						pipe_ctx->stream->link->ddc,
 						slave_address, &offset, 1, &value, 1);
 					if (!i2c_success)
 						/* Write failure */
@@ -1704,7 +1704,7 @@ static void write_i2c_retimer_setting(
 					else {
 						i2c_success =
 								dal_ddc_service_query_ddc_data(
-								pipe_ctx->stream->sink->link->ddc,
+								pipe_ctx->stream->link->ddc,
 								slave_address, &offset, 1, &value, 1);
 						if (!i2c_success)
 							/* Write failure */
@@ -1929,7 +1929,7 @@ static void write_i2c_redriver_setting(
 static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 	enum dc_color_depth display_color_depth;
 	enum engine_id eng_id;
 	struct ext_hdmi_settings settings = {0};
@@ -1943,7 +1943,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 		is_over_340mhz = true;
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
-		unsigned short masked_chip_caps = pipe_ctx->stream->sink->link->chip_caps &
+		unsigned short masked_chip_caps = pipe_ctx->stream->link->chip_caps &
 				EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK;
 		if (masked_chip_caps == EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT) {
 			/* DP159, Retimer settings */
@@ -1964,11 +1964,11 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
 		dal_ddc_service_write_scdc_data(
-			stream->sink->link->ddc,
+			stream->link->ddc,
 			stream->phy_pix_clk,
 			stream->timing.flags.LTE_340MCSC_SCRAMBLE);
 
-	memset(&stream->sink->link->cur_link_settings, 0,
+	memset(&stream->link->cur_link_settings, 0,
 			sizeof(struct dc_link_settings));
 
 	display_color_depth = stream->timing.display_color_depth;
@@ -1989,12 +1989,12 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 static void enable_link_lvds(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 
 	if (stream->phy_pix_clk == 0)
 		stream->phy_pix_clk = stream->timing.pix_clk_khz;
 
-	memset(&stream->sink->link->cur_link_settings, 0,
+	memset(&stream->link->cur_link_settings, 0,
 			sizeof(struct dc_link_settings));
 
 	link->link_enc->funcs->enable_lvds_output(
@@ -2145,7 +2145,7 @@ enum dc_status dc_link_validate_mode_timing(
 		struct dc_link *link,
 		const struct dc_crtc_timing *timing)
 {
-	uint32_t max_pix_clk = stream->sink->dongle_max_pix_clk;
+	uint32_t max_pix_clk = stream->link->dongle_max_pix_clk;
 	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
 
 	/* A hack to avoid failing any modes for EDID override feature on
@@ -2219,7 +2219,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 		for (i = 0; i < MAX_PIPES; i++) {
 			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream) {
 				if (core_dc->current_state->res_ctx.
-						pipe_ctx[i].stream->sink->link
+						pipe_ctx[i].stream->link
 						== link)
 					/* DMCU -1 for all controller id values,
 					 * therefore +1 here
@@ -2279,7 +2279,7 @@ void core_link_resume(struct dc_link *link)
 static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
 {
 	struct dc_link_settings *link_settings =
-			&stream->sink->link->cur_link_settings;
+			&stream->link->cur_link_settings;
 	uint32_t link_rate_in_mbps =
 			link_settings->link_rate * LINK_RATE_REF_FREQ_IN_MHZ;
 	struct fixed31_32 mbps = dc_fixpt_from_int(
@@ -2386,7 +2386,7 @@ static void update_mst_stream_alloc_table(
 static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 	struct link_encoder *link_encoder = link->link_enc;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
@@ -2466,7 +2466,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 	struct link_encoder *link_encoder = link->link_enc;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
@@ -2551,8 +2551,8 @@ void core_link_enable_stream(
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
 	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL) {
-		stream->sink->link->link_enc->funcs->setup(
-			stream->sink->link->link_enc,
+		stream->link->link_enc->funcs->setup(
+			stream->link->link_enc,
 			pipe_ctx->stream->signal);
 		pipe_ctx->stream_res.stream_enc->funcs->setup_stereo_sync(
 			pipe_ctx->stream_res.stream_enc,
@@ -2604,7 +2604,7 @@ void core_link_enable_stream(
 
 		if (status != DC_OK) {
 			DC_LOG_WARNING("enabling link %u failed: %d\n",
-			pipe_ctx->stream->sink->link->link_index,
+			pipe_ctx->stream->link->link_index,
 			status);
 
 			/* Abort stream enable *unless* the failure was due to
@@ -2633,12 +2633,12 @@ void core_link_enable_stream(
 			allocate_mst_payload(pipe_ctx);
 
 		core_dc->hwss.unblank_stream(pipe_ctx,
-			&pipe_ctx->stream->sink->link->cur_link_settings);
+			&pipe_ctx->stream->link->cur_link_settings);
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			enable_stream_features(pipe_ctx);
 
-		dc_link_set_backlight_level(pipe_ctx->stream->sink->link,
+		dc_link_set_backlight_level(pipe_ctx->stream->link,
 				pipe_ctx->stream->bl_pwm_level,
 				0,
 				pipe_ctx->stream);
@@ -2657,7 +2657,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 
-	disable_link(pipe_ctx->stream->sink->link, pipe_ctx->stream->signal);
+	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
 }
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)

@@ -2666,10 +2666,10 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 	timing_out->v_border_bottom = 0;
 	/* TODO: un-hardcode */
 	if (drm_mode_is_420_only(info, mode_in)
-			&& stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
+			&& stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
 	else if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB444)
-			&& stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
+			&& stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR444;
 	else
 		timing_out->pixel_encoding = PIXEL_ENCODING_RGB;
@@ -2711,7 +2711,7 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 
 	stream->out_transfer_func->type = TF_TYPE_PREDEFINED;
 	stream->out_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
-	if (stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
+	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		adjust_colour_depth_from_display_info(timing_out, info);
 }
 
@@ -2905,6 +2905,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		goto finish;
 	}
 
+	stream->dm_stream_context = aconnector;
+
 	list_for_each_entry(preferred_mode, &aconnector->base.modes, head) {
 		/* Search for preferred mode */
 		if (preferred_mode->type & DRM_MODE_TYPE_PREFERRED) {
@@ -2956,7 +2958,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		drm_connector,
 		sink);
 
-	update_stream_signal(stream);
+	update_stream_signal(stream, sink);
 
 	if (dm_state && dm_state->freesync_capable)
 		stream->ignore_msa_timing_param = true;

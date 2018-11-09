@@ -110,6 +110,7 @@ struct dc_link {
 	union ddi_channel_mapping ddi_channel_mapping;
 	struct connector_device_tag_info device_tag;
 	struct dpcd_caps dpcd_caps;
+	uint32_t dongle_max_pix_clk;
 	unsigned short chip_caps;
 	unsigned int dpcd_sink_count;
 	enum edp_revision edp_revision;

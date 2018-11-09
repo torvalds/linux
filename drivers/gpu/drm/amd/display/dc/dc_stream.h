@@ -51,7 +51,13 @@ struct freesync_context {
 };
 
 struct dc_stream_state {
+	// sink is deprecated, new code should not reference
+	// this pointer
 	struct dc_sink *sink;
+
+	struct dc_link *link;
+	struct dc_panel_patch sink_patches;
+	union display_content_support content_support;
 	struct dc_crtc_timing timing;
 	struct dc_crtc_timing_adjust adjust;
 	struct dc_info_packet vrr_infopacket;
@@ -80,6 +86,9 @@ struct dc_stream_state {
 	enum view_3d_format view_format;
 
 	bool ignore_msa_timing_param;
+	bool converter_disable_audio;
+	uint8_t qs_bit;
+	uint8_t qy_bit;
 
 	unsigned long long periodic_fn_vsync_delta;
 
@@ -104,6 +113,8 @@ struct dc_stream_state {
 	enum signal_type signal;
 	bool dpms_off;
 	bool apply_edp_fast_boot_optimization;
+
+	void *dm_stream_context;
 
 	struct dc_cursor_attributes cursor_attributes;
 	struct dc_cursor_position cursor_position;
@@ -256,7 +267,7 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
  */
 struct dc_stream_state *dc_create_stream_for_sink(struct dc_sink *dc_sink);
 
-void update_stream_signal(struct dc_stream_state *stream);
+void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink);
 
 void dc_stream_retain(struct dc_stream_state *dc_stream);
 void dc_stream_release(struct dc_stream_state *dc_stream);

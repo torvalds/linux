@@ -483,15 +483,15 @@ void dce110_fill_display_configs(
 		cfg->src_height = stream->src.height;
 		cfg->src_width = stream->src.width;
 		cfg->ddi_channel_mapping =
-			stream->sink->link->ddi_channel_mapping.raw;
+			stream->link->ddi_channel_mapping.raw;
 		cfg->transmitter =
-			stream->sink->link->link_enc->transmitter;
+			stream->link->link_enc->transmitter;
 		cfg->link_settings.lane_count =
-			stream->sink->link->cur_link_settings.lane_count;
+			stream->link->cur_link_settings.lane_count;
 		cfg->link_settings.link_rate =
-			stream->sink->link->cur_link_settings.link_rate;
+			stream->link->cur_link_settings.link_rate;
 		cfg->link_settings.link_spread =
-			stream->sink->link->cur_link_settings.link_spread;
+			stream->link->cur_link_settings.link_spread;
 		cfg->sym_clock = stream->phy_pix_clk;
 		/* Round v_refresh*/
 		cfg->v_refresh = stream->timing.pix_clk_khz * 1000;

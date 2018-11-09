@@ -975,7 +975,7 @@ static void get_pixel_clock_parameters(
 {
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 	pixel_clk_params->requested_pix_clk = stream->timing.pix_clk_khz;
-	pixel_clk_params->encoder_object_id = stream->sink->link->link_enc->id;
+	pixel_clk_params->encoder_object_id = stream->link->link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/* TODO: un-hardcode*/

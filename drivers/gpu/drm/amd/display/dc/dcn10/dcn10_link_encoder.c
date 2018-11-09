@@ -738,7 +738,7 @@ bool dcn10_link_encoder_validate_output_with_stream(
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 		is_valid = dcn10_link_encoder_validate_dvi_output(
 			enc10,
-			stream->sink->link->connector_signal,
+			stream->link->connector_signal,
 			stream->signal,
 			&stream->timing);
 	break;

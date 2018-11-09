@@ -763,7 +763,7 @@ static struct clock_source *find_matching_pll(
 		const struct resource_pool *pool,
 		const struct dc_stream_state *const stream)
 {
-	switch (stream->sink->link->link_enc->transmitter) {
+	switch (stream->link->link_enc->transmitter) {
 	case TRANSMITTER_UNIPHY_A:
 		return pool->clock_sources[DCE112_CLK_SRC_PLL0];
 	case TRANSMITTER_UNIPHY_B:

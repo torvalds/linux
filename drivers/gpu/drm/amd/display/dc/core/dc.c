@@ -384,7 +384,7 @@ void dc_stream_set_dither_option(struct dc_stream_state *stream,
 		enum dc_dither_option option)
 {
 	struct bit_depth_reduction_params params;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 	struct pipe_ctx *pipes = NULL;
 	int i;
 
@@ -526,9 +526,8 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe->stream && pipe->stream->sink
-			&& pipe->stream->sink->link) {
-			if (pipe->stream->sink->link == link)
+		if (pipe->stream && pipe->stream->link) {
+			if (pipe->stream->link == link)
 				break;
 		}
 	}
@@ -1045,7 +1044,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	/* Program all planes within new context*/
 	for (i = 0; i < context->stream_count; i++) {
-		const struct dc_sink *sink = context->streams[i]->sink;
+		const struct dc_link *link = context->streams[i]->link;
 
 		if (!context->streams[i]->mode_changed)
 			continue;
@@ -1070,7 +1069,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 			}
 		}
 
-		CONN_MSG_MODE(sink->link, "{%dx%d, %dx%d@%dKhz}",
+		CONN_MSG_MODE(link, "{%dx%d, %dx%d@%dKhz}",
 				context->streams[i]->timing.h_addressable,
 				context->streams[i]->timing.v_addressable,
 				context->streams[i]->timing.h_total,

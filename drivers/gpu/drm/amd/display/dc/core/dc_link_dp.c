@@ -1634,7 +1634,7 @@ void decide_link_settings(struct dc_stream_state *stream,
 
 	req_bw = bandwidth_in_kbps_from_timing(&stream->timing);
 
-	link = stream->sink->link;
+	link = stream->link;
 
 	/* if preferred is specified through AMDDP, use it, if it's enough
 	 * to drive the mode
@@ -1656,7 +1656,7 @@ void decide_link_settings(struct dc_stream_state *stream,
 	}
 
 	/* EDP use the link cap setting */
-	if (stream->sink->sink_signal == SIGNAL_TYPE_EDP) {
+	if (link->connector_signal == SIGNAL_TYPE_EDP) {
 		*link_setting = link->verified_link_cap;
 		return;
 	}
@@ -2621,7 +2621,7 @@ bool dc_link_dp_set_test_pattern(
 	memset(&training_pattern, 0, sizeof(training_pattern));
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (pipes[i].stream->sink->link == link) {
+		if (pipes[i].stream->link == link) {
 			pipe_ctx = &pipes[i];
 			break;
 		}

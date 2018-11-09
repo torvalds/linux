@@ -2524,7 +2524,7 @@ static void dcn10_config_stereo_parameters(
 			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
 			enum display_dongle_type dongle = \
-					stream->sink->link->ddc->dongle_type;
+					stream->link->ddc->dongle_type;
 			if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
 				dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
 				dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)

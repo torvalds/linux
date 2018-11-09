@@ -617,12 +617,11 @@ dce110_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 static enum dc_status bios_parser_crtc_source_select(
 		struct pipe_ctx *pipe_ctx)
 {
-	struct dc_bios *dcb;
+	struct dc_bios *dcb = pipe_ctx->stream->ctx->dc_bios;
 	/* call VBIOS table to set CRTC source for the HW
 	 * encoder block
 	 * note: video bios clears all FMT setting here. */
 	struct bp_crtc_source_select crtc_source_select = {0};
-	const struct dc_sink *sink = pipe_ctx->stream->sink;
 
 	crtc_source_select.engine_id = pipe_ctx->stream_res.stream_enc->id;
 	crtc_source_select.controller_id = pipe_ctx->stream_res.tg->inst + 1;
@@ -651,8 +650,6 @@ static enum dc_status bios_parser_crtc_source_select(
 		crtc_source_select.display_output_bit_depth = PANEL_8BIT_COLOR;
 		break;
 	}
-
-	dcb = sink->ctx->dc_bios;
 
 	if (BP_RESULT_OK != dcb->funcs->crtc_source_select(
 		dcb,
@@ -692,10 +689,10 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 {
 	enum dc_lane_count lane_count =
-		pipe_ctx->stream->sink->link->cur_link_settings.lane_count;
+		pipe_ctx->stream->link->cur_link_settings.lane_count;
 
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
-	struct dc_link *link = pipe_ctx->stream->sink->link;
+	struct dc_link *link = pipe_ctx->stream->link;
 
 
 	uint32_t active_total_with_borders;
@@ -1048,7 +1045,7 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
@@ -1073,7 +1070,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 {
 	struct encoder_unblank_param params = { { 0 } };
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 
 	/* only 3 items below are used by unblank */
 	params.pixel_clk_khz =
@@ -1090,7 +1087,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->sink->link;
+	struct dc_link *link = stream->link;
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
 		link->dc->hwss.edp_backlight_control(link, false);
@@ -1408,7 +1405,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 
-	pipe_ctx->stream->sink->link->psr_enabled = false;
+	pipe_ctx->stream->link->psr_enabled = false;
 
 	return DC_OK;
 }
@@ -1813,18 +1810,15 @@ static bool should_enable_fbc(struct dc *dc,
 	if (i == dc->res_pool->pipe_count)
 		return false;
 
-	if (!pipe_ctx->stream->sink)
-		return false;
-
-	if (!pipe_ctx->stream->sink->link)
+	if (!pipe_ctx->stream->link)
 		return false;
 
 	/* Only supports eDP */
-	if (pipe_ctx->stream->sink->link->connector_signal != SIGNAL_TYPE_EDP)
+	if (pipe_ctx->stream->link->connector_signal != SIGNAL_TYPE_EDP)
 		return false;
 
 	/* PSR should not be enabled */
-	if (pipe_ctx->stream->sink->link->psr_enabled)
+	if (pipe_ctx->stream->link->psr_enabled)
 		return false;
 
 	/* Nothing to compress */

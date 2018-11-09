@@ -961,7 +961,7 @@ bool dcn_validate_bandwidth(
 		v->dcc_rate[input_idx] = 1; /*TODO: Worst case? does this change?*/
 		v->output_format[input_idx] = pipe->stream->timing.pixel_encoding ==
 				PIXEL_ENCODING_YCBCR420 ? dcn_bw_420 : dcn_bw_444;
-		v->output[input_idx] = pipe->stream->sink->sink_signal ==
+		v->output[input_idx] = pipe->stream->signal ==
 				SIGNAL_TYPE_HDMI_TYPE_A ? dcn_bw_hdmi : dcn_bw_dp;
 		v->output_deep_color[input_idx] = dcn_bw_encoder_8bpc;
 		if (v->output[input_idx] == dcn_bw_hdmi) {
