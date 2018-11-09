@@ -660,9 +660,9 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 		struct hw_atl_rxd_wb_s *rxd_wb = (struct hw_atl_rxd_wb_s *)
 			&ring->dx_ring[ring->hw_head * HW_ATL_B0_RXD_SIZE];
 
-		unsigned int is_err = 1U;
 		unsigned int is_rx_check_sum_enabled = 0U;
 		unsigned int pkt_type = 0U;
+		u8 rx_stat = 0U;
 
 		if (!(rxd_wb->status & 0x1U)) { /* RxD is not done */
 			break;
@@ -670,35 +670,35 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 
 		buff = &ring->buff_ring[ring->hw_head];
 
-		is_err = (0x0000003CU & rxd_wb->status);
+		rx_stat = (0x0000003CU & rxd_wb->status) >> 2;
 
 		is_rx_check_sum_enabled = (rxd_wb->type) & (0x3U << 19);
-		is_err &= ~0x20U; /* exclude validity bit */
 
 		pkt_type = 0xFFU & (rxd_wb->type >> 4);
 
-		if (is_rx_check_sum_enabled) {
-			if (0x0U == (pkt_type & 0x3U))
-				buff->is_ip_cso = (is_err & 0x08U) ? 0U : 1U;
+		if (is_rx_check_sum_enabled & BIT(0) &&
+		    (0x0U == (pkt_type & 0x3U)))
+			buff->is_ip_cso = (rx_stat & BIT(1)) ? 0U : 1U;
 
+		if (is_rx_check_sum_enabled & BIT(1)) {
 			if (0x4U == (pkt_type & 0x1CU))
-				buff->is_udp_cso = buff->is_cso_err ? 0U : 1U;
+				buff->is_udp_cso = (rx_stat & BIT(2)) ? 0U :
+						   !!(rx_stat & BIT(3));
 			else if (0x0U == (pkt_type & 0x1CU))
-				buff->is_tcp_cso = buff->is_cso_err ? 0U : 1U;
-
-			/* Checksum offload workaround for small packets */
-			if (rxd_wb->pkt_len <= 60) {
-				buff->is_ip_cso = 0U;
-				buff->is_cso_err = 0U;
-			}
+				buff->is_tcp_cso = (rx_stat & BIT(2)) ? 0U :
+						   !!(rx_stat & BIT(3));
 		}
-
-		is_err &= ~0x18U;
+		buff->is_cso_err = !!(rx_stat & 0x6);
+		/* Checksum offload workaround for small packets */
+		if (unlikely(rxd_wb->pkt_len <= 60)) {
+			buff->is_ip_cso = 0U;
+			buff->is_cso_err = 0U;
+		}
 
 		dma_unmap_page(ndev, buff->pa, buff->len, DMA_FROM_DEVICE);
 
-		if (is_err || rxd_wb->type & 0x1000U) {
-			/* status error or DMA error */
+		if ((rx_stat & BIT(0)) || rxd_wb->type & 0x1000U) {
+			/* MAC error or DMA error */
 			buff->is_error = 1U;
 		} else {
 			if (self->aq_nic_cfg->is_rss) {
