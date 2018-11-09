@@ -107,6 +107,7 @@ int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr)
 		err = -EINVAL;
 		goto err_unlock;
 	}
+	offload->offdev = ondev->offdev;
 	prog->aux->offload = offload;
 	list_add_tail(&offload->offloads, &ondev->progs);
 	dev_put(offload->netdev);
@@ -167,7 +168,8 @@ int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 	down_read(&bpf_devs_lock);
 	offload = env->prog->aux->offload;
 	if (offload)
-		ret = offload->dev_ops->insn_hook(env, insn_idx, prev_insn_idx);
+		ret = offload->offdev->ops->insn_hook(env, insn_idx,
+						      prev_insn_idx);
 	up_read(&bpf_devs_lock);
 
 	return ret;

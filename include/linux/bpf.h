@@ -273,6 +273,7 @@ struct bpf_prog_offload_ops {
 struct bpf_prog_offload {
 	struct bpf_prog		*prog;
 	struct net_device	*netdev;
+	struct bpf_offload_dev	*offdev;
 	void			*dev_priv;
 	struct list_head	offloads;
 	bool			dev_state;
