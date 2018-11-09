@@ -36,7 +36,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 {
 	struct snd_sof_dfsentry_io *dfse = file->private_data;
 	struct snd_sof_dev *sdev = dfse->sdev;
-	int size, err;
+	int size;
 	u32 *buf;
 	loff_t pos = *ppos;
 	size_t ret;
@@ -58,20 +58,18 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		return -ENOMEM;
 
 	/* copy from DSP MMIO */
-	err = pm_runtime_get_sync(sdev->dev);
-	if (err < 0) {
-		dev_err(sdev->dev, "error: debugFS failed to resume %d\n",
-			err);
-		kfree(buf);
-		return err;
-	}
+	pm_runtime_get_noresume(sdev->dev);
 
 	memcpy_fromio(buf,  dfse->buf + pos, size);
 
-	ret = pm_runtime_put(sdev->dev);
+	/*
+	 * TODO: revisit to check if we need mark_last_busy, or if we
+	 * should change to use xxx_put_sync[_suspend]().
+	 */
+	ret = pm_runtime_put_sync_autosuspend(sdev->dev);
 	if (ret < 0)
-		dev_err(sdev->dev, "error: debugFS failed to idle %zd\n",
-			ret);
+		dev_warn(sdev->dev, "warn: debugFS failed to autosuspend %zd\n",
+			 ret);
 
 	/* copy to userspace */
 	ret = copy_to_user(buffer, buf, count);
