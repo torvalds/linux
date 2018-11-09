@@ -855,6 +855,9 @@ static int hclgevf_unmap_ring_from_vector(
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	int ret, vector_id;
 
+	if (test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state))
+		return 0;
+
 	vector_id = hclgevf_get_vector_index(hdev, vector);
 	if (vector_id < 0) {
 		dev_err(&handle->pdev->dev,
@@ -1141,10 +1144,34 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	return 0;
 }
 
+static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
+{
+	int ret = 0;
+
+	switch (hdev->reset_type) {
+	case HNAE3_VF_FUNC_RESET:
+		ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_RESET, 0, NULL,
+					   0, true, NULL, sizeof(u8));
+		break;
+	default:
+		break;
+	}
+
+	dev_info(&hdev->pdev->dev, "prepare reset(%d) wait done, ret:%d\n",
+		 hdev->reset_type, ret);
+
+	return ret;
+}
+
 static int hclgevf_reset(struct hclgevf_dev *hdev)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	int ret;
 
+	/* Initialize ae_dev reset status as well, in case enet layer wants to
+	 * know if device is undergoing reset
+	 */
+	ae_dev->reset_type = hdev->reset_type;
 	hdev->reset_count++;
 	rtnl_lock();
 
@@ -1152,6 +1179,8 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 	hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
 
 	rtnl_unlock();
+
+	hclgevf_reset_prepare_wait(hdev);
 
 	/* check if VF could successfully fetch the hardware reset completion
 	 * status from the hardware
@@ -1186,28 +1215,19 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 	return ret;
 }
 
-static int hclgevf_do_reset(struct hclgevf_dev *hdev)
-{
-	int status;
-	u8 respmsg;
-
-	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_RESET, 0, NULL,
-				      0, false, &respmsg, sizeof(u8));
-	if (status)
-		dev_err(&hdev->pdev->dev,
-			"VF reset request to PF failed(=%d)\n", status);
-
-	return status;
-}
-
 static enum hnae3_reset_type hclgevf_get_reset_level(struct hclgevf_dev *hdev,
 						     unsigned long *addr)
 {
 	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
 
-	if (test_bit(HNAE3_VF_RESET, addr)) {
-		rst_level = HNAE3_VF_RESET;
-		clear_bit(HNAE3_VF_RESET, addr);
+	/* return the highest priority reset level amongst all */
+	if (test_bit(HNAE3_VF_FULL_RESET, addr)) {
+		rst_level = HNAE3_VF_FULL_RESET;
+		clear_bit(HNAE3_VF_FULL_RESET, addr);
+		clear_bit(HNAE3_VF_FUNC_RESET, addr);
+	} else if (test_bit(HNAE3_VF_FUNC_RESET, addr)) {
+		rst_level = HNAE3_VF_FUNC_RESET;
+		clear_bit(HNAE3_VF_FUNC_RESET, addr);
 	}
 
 	return rst_level;
@@ -1225,7 +1245,7 @@ static void hclgevf_reset_event(struct pci_dev *pdev,
 			hclgevf_get_reset_level(hdev,
 						&hdev->default_reset_request);
 	else
-		hdev->reset_level = HNAE3_VF_RESET;
+		hdev->reset_level = HNAE3_VF_FUNC_RESET;
 
 	/* reset of this VF requested */
 	set_bit(HCLGEVF_RESET_REQUESTED, &hdev->reset_state);
@@ -1328,9 +1348,15 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 		 */
 		hdev->reset_attempts = 0;
 
-		ret = hclgevf_reset(hdev);
-		if (ret)
-			dev_err(&hdev->pdev->dev, "VF stack reset failed.\n");
+		hdev->last_reset_time = jiffies;
+		while ((hdev->reset_type =
+			hclgevf_get_reset_level(hdev, &hdev->reset_pending))
+		       != HNAE3_NONE_RESET) {
+			ret = hclgevf_reset(hdev);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"VF stack reset failed %d.\n", ret);
+		}
 	} else if (test_and_clear_bit(HCLGEVF_RESET_REQUESTED,
 				      &hdev->reset_state)) {
 		/* we could be here when either of below happens:
@@ -1359,19 +1385,17 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 		 */
 		if (hdev->reset_attempts > 3) {
 			/* prepare for full reset of stack + pcie interface */
-			hdev->reset_level = HNAE3_VF_FULL_RESET;
+			set_bit(HNAE3_VF_FULL_RESET, &hdev->reset_pending);
 
 			/* "defer" schedule the reset task again */
 			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 		} else {
 			hdev->reset_attempts++;
 
-			/* request PF for resetting this VF via mailbox */
-			ret = hclgevf_do_reset(hdev);
-			if (ret)
-				dev_warn(&hdev->pdev->dev,
-					 "VF rst fail, stack will call\n");
+			set_bit(hdev->reset_level, &hdev->reset_pending);
+			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 		}
+		hclgevf_reset_task_schedule(hdev);
 	}
 
 	clear_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
@@ -1982,7 +2006,7 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	}
 
 	hclgevf_state_init(hdev);
-	hdev->reset_level = HNAE3_VF_RESET;
+	hdev->reset_level = HNAE3_VF_FUNC_RESET;
 
 	ret = hclgevf_misc_irq_init(hdev);
 	if (ret) {

@@ -267,7 +267,7 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			 * has been completely reset. After this stack should
 			 * eventually be re-initialized.
 			 */
-			hdev->reset_level = HNAE3_VF_RESET;
+			set_bit(HNAE3_VF_FULL_RESET, &hdev->reset_pending);
 			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 			hclgevf_reset_task_schedule(hdev);
 

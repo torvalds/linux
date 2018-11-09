@@ -124,6 +124,7 @@ enum hnae3_reset_notify_type {
 
 enum hnae3_reset_type {
 	HNAE3_VF_RESET,
+	HNAE3_VF_FUNC_RESET,
 	HNAE3_VF_FULL_RESET,
 	HNAE3_FUNC_RESET,
 	HNAE3_CORE_RESET,
