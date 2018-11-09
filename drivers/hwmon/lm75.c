@@ -254,7 +254,8 @@ static const struct regmap_config lm75_regmap_config = {
 	.volatile_reg = lm75_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
 	.cache_type = REGCACHE_RBTREE,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static void lm75_remove(void *data)

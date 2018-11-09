@@ -166,11 +166,11 @@ int sst_create_ipc_msg(struct ipc_post **arg, bool large)
 {
 	struct ipc_post *msg;
 
-	msg = kzalloc(sizeof(struct ipc_post), GFP_ATOMIC);
+	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 	if (large) {
-		msg->mailbox_data = kzalloc(SST_MAILBOX_SIZE, GFP_ATOMIC);
+		msg->mailbox_data = kzalloc(SST_MAILBOX_SIZE, GFP_KERNEL);
 		if (!msg->mailbox_data) {
 			kfree(msg);
 			return -ENOMEM;
