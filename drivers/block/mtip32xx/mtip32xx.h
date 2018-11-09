@@ -323,11 +323,6 @@ struct mtip_port;
 
 /* Structure used to describe a command. */
 struct mtip_cmd {
-
-	struct mtip_cmd_hdr *command_header; /* ptr to command header entry */
-
-	dma_addr_t command_header_dma; /* corresponding physical address */
-
 	void *command; /* ptr to command table entry */
 
 	dma_addr_t command_dma; /* corresponding physical address */

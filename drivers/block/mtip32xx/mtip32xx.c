@@ -168,24 +168,6 @@ static bool mtip_check_surprise_removal(struct pci_dev *pdev)
 	return false; /* device present */
 }
 
-/* we have to use runtime tag to setup command header */
-static void mtip_init_cmd_header(struct request *rq)
-{
-	struct driver_data *dd = rq->q->queuedata;
-	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
-
-	/* Point the command headers at the command tables. */
-	cmd->command_header = dd->port->command_list +
-				(sizeof(struct mtip_cmd_hdr) * rq->tag);
-	cmd->command_header_dma = dd->port->command_list_dma +
-				(sizeof(struct mtip_cmd_hdr) * rq->tag);
-
-	if (test_bit(MTIP_PF_HOST_CAP_64, &dd->port->flags))
-		cmd->command_header->ctbau = cpu_to_le32((cmd->command_dma >> 16) >> 16);
-
-	cmd->command_header->ctba = cpu_to_le32(cmd->command_dma & 0xFFFFFFFF);
-}
-
 static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
 {
 	struct request *rq;
@@ -196,9 +178,6 @@ static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
 	rq = blk_mq_alloc_request(dd->queue, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq))
 		return NULL;
-
-	/* Internal cmd isn't submitted via .queue_rq */
-	mtip_init_cmd_header(rq);
 
 	return blk_mq_rq_to_pdu(rq);
 }
@@ -2179,6 +2158,8 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 			      struct mtip_cmd *command,
 			      struct blk_mq_hw_ctx *hctx)
 {
+	struct mtip_cmd_hdr *hdr =
+		dd->port->command_list + sizeof(struct mtip_cmd_hdr) * rq->tag;
 	struct host_to_dev_fis	*fis;
 	struct mtip_port *port = dd->port;
 	int dma_dir = rq_data_dir(rq) == READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
@@ -2228,9 +2209,11 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 		fis->device |= 1 << 7;
 
 	/* Populate the command header */
-	command->command_header->opts =
-			cpu_to_le32((nents << 16) | 5 | AHCI_CMD_PREFETCH);
-	command->command_header->byte_count = 0;
+	hdr->ctba = cpu_to_le32(command->command_dma & 0xFFFFFFFF);
+	if (test_bit(MTIP_PF_HOST_CAP_64, &dd->port->flags))
+		hdr->ctbau = cpu_to_le32((command->command_dma >> 16) >> 16);
+	hdr->opts = cpu_to_le32((nents << 16) | 5 | AHCI_CMD_PREFETCH);
+	hdr->byte_count = 0;
 
 	command->direction = dma_dir;
 
@@ -3577,13 +3560,18 @@ static blk_status_t mtip_issue_reserved_cmd(struct blk_mq_hw_ctx *hctx,
 	struct driver_data *dd = hctx->queue->queuedata;
 	struct mtip_int_cmd *icmd = rq->special;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
+	struct mtip_cmd_hdr *hdr =
+		dd->port->command_list + sizeof(struct mtip_cmd_hdr) * rq->tag;
 	struct mtip_cmd_sg *command_sg;
 
 	if (mtip_commands_active(dd->port))
 		return BLK_STS_RESOURCE;
 
+	hdr->ctba = cpu_to_le32(cmd->command_dma & 0xFFFFFFFF);
+	if (test_bit(MTIP_PF_HOST_CAP_64, &dd->port->flags))
+		hdr->ctbau = cpu_to_le32((cmd->command_dma >> 16) >> 16);
 	/* Populate the SG list */
-	cmd->command_header->opts = cpu_to_le32(icmd->opts | icmd->fis_len);
+	hdr->opts = cpu_to_le32(icmd->opts | icmd->fis_len);
 	if (icmd->buf_len) {
 		command_sg = cmd->command + AHCI_CMD_TBL_HDR_SZ;
 
@@ -3592,11 +3580,11 @@ static blk_status_t mtip_issue_reserved_cmd(struct blk_mq_hw_ctx *hctx,
 		command_sg->dba_upper =
 			cpu_to_le32((icmd->buffer >> 16) >> 16);
 
-		cmd->command_header->opts |= cpu_to_le32((1 << 16));
+		hdr->opts |= cpu_to_le32((1 << 16));
 	}
 
 	/* Populate the command header */
-	cmd->command_header->byte_count = 0;
+	hdr->byte_count = 0;
 
 	blk_mq_start_request(rq);
 	mtip_issue_non_ncq_command(dd->port, rq->tag);
@@ -3609,8 +3597,6 @@ static blk_status_t mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct driver_data *dd = hctx->queue->queuedata;
 	struct request *rq = bd->rq;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
-
-	mtip_init_cmd_header(rq);
 
 	if (blk_rq_is_passthrough(rq))
 		return mtip_issue_reserved_cmd(hctx, rq);
