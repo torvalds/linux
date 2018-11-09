@@ -269,6 +269,14 @@ nsim_bpf_verifier_prep(struct net_device *dev, struct bpf_verifier_env *env)
 	return nsim_bpf_create_prog(ns, env->prog);
 }
 
+static int nsim_bpf_translate(struct net_device *dev, struct bpf_prog *prog)
+{
+	struct nsim_bpf_bound_prog *state = prog->aux->offload->dev_priv;
+
+	state->state = "xlated";
+	return 0;
+}
+
 static void nsim_bpf_destroy_prog(struct bpf_prog *prog)
 {
 	struct nsim_bpf_bound_prog *state;
@@ -285,6 +293,7 @@ static const struct bpf_prog_offload_ops nsim_bpf_dev_ops = {
 	.insn_hook	= nsim_bpf_verify_insn,
 	.finalize	= nsim_bpf_finalize,
 	.prepare	= nsim_bpf_verifier_prep,
+	.translate	= nsim_bpf_translate,
 };
 
 static int nsim_setup_prog_checks(struct netdevsim *ns, struct netdev_bpf *bpf)
@@ -551,11 +560,6 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 	ASSERT_RTNL();
 
 	switch (bpf->command) {
-	case BPF_OFFLOAD_TRANSLATE:
-		state = bpf->offload.prog->aux->offload->dev_priv;
-
-		state->state = "xlated";
-		return 0;
 	case BPF_OFFLOAD_DESTROY:
 		nsim_bpf_destroy_prog(bpf->offload.prog);
 		return 0;

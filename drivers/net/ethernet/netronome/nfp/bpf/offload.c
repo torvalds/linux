@@ -33,9 +33,6 @@ nfp_map_ptr_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 	struct nfp_bpf_neutral_map *record;
 	int err;
 
-	/* Map record paths are entered via ndo, update side is protected. */
-	ASSERT_RTNL();
-
 	/* Reuse path - other offloaded program is already tracking this map. */
 	record = rhashtable_lookup_fast(&bpf->maps_neutral, &map->id,
 					nfp_bpf_maps_neutral_params);
@@ -83,8 +80,6 @@ nfp_map_ptrs_forget(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog)
 {
 	bool freed = false;
 	int i;
-
-	ASSERT_RTNL();
 
 	for (i = 0; i < nfp_prog->map_records_cnt; i++) {
 		if (--nfp_prog->map_records[i]->count) {
@@ -219,9 +214,10 @@ err_free:
 	return ret;
 }
 
-static int nfp_bpf_translate(struct nfp_net *nn, struct bpf_prog *prog)
+static int nfp_bpf_translate(struct net_device *netdev, struct bpf_prog *prog)
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
+	struct nfp_net *nn = netdev_priv(netdev);
 	unsigned int max_instr;
 	int err;
 
@@ -422,8 +418,6 @@ nfp_bpf_map_free(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 int nfp_ndo_bpf(struct nfp_app *app, struct nfp_net *nn, struct netdev_bpf *bpf)
 {
 	switch (bpf->command) {
-	case BPF_OFFLOAD_TRANSLATE:
-		return nfp_bpf_translate(nn, bpf->offload.prog);
 	case BPF_OFFLOAD_DESTROY:
 		return nfp_bpf_destroy(nn, bpf->offload.prog);
 	case BPF_OFFLOAD_MAP_ALLOC:
@@ -604,4 +598,5 @@ const struct bpf_prog_offload_ops nfp_bpf_dev_ops = {
 	.insn_hook	= nfp_verify_insn,
 	.finalize	= nfp_bpf_finalize,
 	.prepare	= nfp_bpf_verifier_prep,
+	.translate	= nfp_bpf_translate,
 };

@@ -219,14 +219,14 @@ void bpf_prog_offload_destroy(struct bpf_prog *prog)
 
 static int bpf_prog_offload_translate(struct bpf_prog *prog)
 {
-	struct netdev_bpf data = {};
-	int ret;
+	struct bpf_prog_offload *offload;
+	int ret = -ENODEV;
 
-	data.offload.prog = prog;
-
-	rtnl_lock();
-	ret = __bpf_offload_ndo(prog, BPF_OFFLOAD_TRANSLATE, &data);
-	rtnl_unlock();
+	down_read(&bpf_devs_lock);
+	offload = prog->aux->offload;
+	if (offload)
+		ret = offload->offdev->ops->translate(offload->netdev, prog);
+	up_read(&bpf_devs_lock);
 
 	return ret;
 }
