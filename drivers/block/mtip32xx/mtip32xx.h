@@ -321,6 +321,8 @@ struct mtip_cmd_sg {
 };
 struct mtip_port;
 
+struct mtip_int_cmd;
+
 /* Structure used to describe a command. */
 struct mtip_cmd {
 	void *command; /* ptr to command table entry */
@@ -331,7 +333,10 @@ struct mtip_cmd {
 
 	int unaligned; /* command is unaligned on 4k boundary */
 
-	struct scatterlist sg[MTIP_MAX_SG]; /* Scatter list entries */
+	union {
+		struct scatterlist sg[MTIP_MAX_SG]; /* Scatter list entries */
+		struct mtip_int_cmd *icmd;
+	};
 
 	int retries; /* The number of retries left for this command. */
 

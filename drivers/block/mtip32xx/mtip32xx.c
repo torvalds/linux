@@ -997,8 +997,6 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 		return -EFAULT;
 	}
 
-	rq->special = &icmd;
-
 	set_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
 
 	if (fis->command == ATA_CMD_SEC_ERASE_PREP)
@@ -1019,6 +1017,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 
 	/* Copy the command to the command table */
 	int_cmd = blk_mq_rq_to_pdu(rq);
+	int_cmd->icmd = &icmd;
 	memcpy(int_cmd->command, fis, fis_len*4);
 
 	rq->timeout = timeout;
@@ -3548,8 +3547,8 @@ static blk_status_t mtip_issue_reserved_cmd(struct blk_mq_hw_ctx *hctx,
 		struct request *rq)
 {
 	struct driver_data *dd = hctx->queue->queuedata;
-	struct mtip_int_cmd *icmd = rq->special;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
+	struct mtip_int_cmd *icmd = cmd->icmd;
 	struct mtip_cmd_hdr *hdr =
 		dd->port->command_list + sizeof(struct mtip_cmd_hdr) * rq->tag;
 	struct mtip_cmd_sg *command_sg;
