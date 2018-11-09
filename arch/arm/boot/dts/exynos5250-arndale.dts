@@ -10,6 +10,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/clock/samsung,s2mps11.h>
 #include "exynos5250.dtsi"
 
 / {
@@ -263,6 +264,12 @@
 		s5m8767,pmic-buck-ds-gpios = <&gpx2 3 GPIO_ACTIVE_HIGH>,
 		                             <&gpx2 4 GPIO_ACTIVE_HIGH>,
 		                             <&gpx2 5 GPIO_ACTIVE_HIGH>;
+
+		s5m8767_osc: clocks {
+			compatible = "samsung,s5m8767-clk";
+			#clock-cells = <1>;
+			clock-output-names = "s5m8767_ap", "unused1", "unused2";
+		};
 
 		regulators {
 			ldo1_reg: LDO1 {
@@ -601,6 +608,8 @@
 };
 
 &rtc {
+	clocks = <&clock CLK_RTC>, <&s5m8767_osc S2MPS11_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
 	status = "okay";
 };
 
