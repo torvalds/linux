@@ -2855,12 +2855,15 @@ static u8 spi_nor_smpt_read_dummy(const struct spi_nor *nor, const u32 settings)
  * spi_nor_get_map_in_use() - get the configuration map in use
  * @nor:	pointer to a 'struct spi_nor'
  * @smpt:	pointer to the sector map parameter table
+ * @smpt_len:	sector map parameter table length
  */
-static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt)
+static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt,
+					 u8 smpt_len)
 {
 	const u32 *ret = NULL;
-	u32 i, addr;
+	u32 addr;
 	int err;
+	u8 i;
 	u8 addr_width, read_opcode, read_dummy;
 	u8 read_data_mask, data_byte, map_id;
 
@@ -2869,9 +2872,11 @@ static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt)
 	read_opcode = nor->read_opcode;
 
 	map_id = 0;
-	i = 0;
 	/* Determine if there are any optional Detection Command Descriptors */
-	while (!(smpt[i] & SMPT_DESC_TYPE_MAP)) {
+	for (i = 0; i < smpt_len; i += 2) {
+		if (smpt[i] & SMPT_DESC_TYPE_MAP)
+			break;
+
 		read_data_mask = SMPT_CMD_READ_DATA(smpt[i]);
 		nor->addr_width = spi_nor_smpt_addr_width(nor, smpt[i]);
 		nor->read_dummy = spi_nor_smpt_read_dummy(nor, smpt[i]);
@@ -2887,18 +2892,33 @@ static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt)
 		 * Configuration that is currently in use.
 		 */
 		map_id = map_id << 1 | !!(data_byte & read_data_mask);
-		i = i + 2;
 	}
 
-	/* Find the matching configuration map */
-	while (SMPT_MAP_ID(smpt[i]) != map_id) {
+	/*
+	 * If command descriptors are provided, they always precede map
+	 * descriptors in the table. There is no need to start the iteration
+	 * over smpt array all over again.
+	 *
+	 * Find the matching configuration map.
+	 */
+	while (i < smpt_len) {
+		if (SMPT_MAP_ID(smpt[i]) == map_id) {
+			ret = smpt + i;
+			break;
+		}
+
+		/*
+		 * If there are no more configuration map descriptors and no
+		 * configuration ID matched the configuration identifier, the
+		 * sector address map is unknown.
+		 */
 		if (smpt[i] & SMPT_DESC_END)
-			goto out;
+			break;
+
 		/* increment the table index to the next map */
 		i += SMPT_MAP_REGION_COUNT(smpt[i]) + 1;
 	}
 
-	ret = smpt + i;
 	/* fall through */
 out:
 	nor->addr_width = addr_width;
@@ -3020,7 +3040,7 @@ static int spi_nor_parse_smpt(struct spi_nor *nor,
 	for (i = 0; i < smpt_header->length; i++)
 		smpt[i] = le32_to_cpu(smpt[i]);
 
-	sector_map = spi_nor_get_map_in_use(nor, smpt);
+	sector_map = spi_nor_get_map_in_use(nor, smpt, smpt_header->length);
 	if (!sector_map) {
 		ret = -EINVAL;
 		goto out;
