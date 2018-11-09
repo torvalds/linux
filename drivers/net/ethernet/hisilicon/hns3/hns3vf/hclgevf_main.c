@@ -1099,6 +1099,32 @@ static int hclgevf_notify_client(struct hclgevf_dev *hdev,
 	return ret;
 }
 
+static void hclgevf_flr_done(struct hnae3_ae_dev *ae_dev)
+{
+	struct hclgevf_dev *hdev = ae_dev->priv;
+
+	set_bit(HNAE3_FLR_DONE, &hdev->flr_state);
+}
+
+static int hclgevf_flr_poll_timeout(struct hclgevf_dev *hdev,
+				    unsigned long delay_us,
+				    unsigned long wait_cnt)
+{
+	unsigned long cnt = 0;
+
+	while (!test_bit(HNAE3_FLR_DONE, &hdev->flr_state) &&
+	       cnt++ < wait_cnt)
+		usleep_range(delay_us, delay_us * 2);
+
+	if (!test_bit(HNAE3_FLR_DONE, &hdev->flr_state)) {
+		dev_err(&hdev->pdev->dev,
+			"flr wait timeout\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 {
 #define HCLGEVF_RESET_WAIT_US	20000
@@ -1112,6 +1138,11 @@ static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 	/* wait to check the hardware reset completion status */
 	val = hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING);
 	dev_info(&hdev->pdev->dev, "checking vf resetting status: %x\n", val);
+
+	if (hdev->reset_type == HNAE3_FLR_RESET)
+		return hclgevf_flr_poll_timeout(hdev,
+						HCLGEVF_RESET_WAIT_US,
+						HCLGEVF_RESET_WAIT_CNT);
 
 	ret = readl_poll_timeout(hdev->hw.io_base + HCLGEVF_RST_ING, val,
 				 !(val & HCLGEVF_RST_ING_BITS),
@@ -1167,6 +1198,9 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 	case HNAE3_VF_FUNC_RESET:
 		ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_RESET, 0, NULL,
 					   0, true, NULL, sizeof(u8));
+		break;
+	case HNAE3_FLR_RESET:
+		set_bit(HNAE3_FLR_DOWN, &hdev->flr_state);
 		break;
 	default:
 		break;
@@ -1267,6 +1301,9 @@ static enum hnae3_reset_type hclgevf_get_reset_level(struct hclgevf_dev *hdev,
 	} else if (test_bit(HNAE3_VF_FUNC_RESET, addr)) {
 		rst_level = HNAE3_VF_FUNC_RESET;
 		clear_bit(HNAE3_VF_FUNC_RESET, addr);
+	} else if (test_bit(HNAE3_FLR_RESET, addr)) {
+		rst_level = HNAE3_FLR_RESET;
+		clear_bit(HNAE3_FLR_RESET, addr);
 	}
 
 	return rst_level;
@@ -1275,11 +1312,12 @@ static enum hnae3_reset_type hclgevf_get_reset_level(struct hclgevf_dev *hdev,
 static void hclgevf_reset_event(struct pci_dev *pdev,
 				struct hnae3_handle *handle)
 {
-	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+	struct hclgevf_dev *hdev = ae_dev->priv;
 
 	dev_info(&hdev->pdev->dev, "received reset request from VF enet\n");
 
-	if (!hdev->default_reset_request)
+	if (hdev->default_reset_request)
 		hdev->reset_level =
 			hclgevf_get_reset_level(hdev,
 						&hdev->default_reset_request);
@@ -1299,6 +1337,27 @@ static void hclgevf_set_def_reset_request(struct hnae3_ae_dev *ae_dev,
 	struct hclgevf_dev *hdev = ae_dev->priv;
 
 	set_bit(rst_type, &hdev->default_reset_request);
+}
+
+static void hclgevf_flr_prepare(struct hnae3_ae_dev *ae_dev)
+{
+#define HCLGEVF_FLR_WAIT_MS	100
+#define HCLGEVF_FLR_WAIT_CNT	50
+	struct hclgevf_dev *hdev = ae_dev->priv;
+	int cnt = 0;
+
+	clear_bit(HNAE3_FLR_DOWN, &hdev->flr_state);
+	clear_bit(HNAE3_FLR_DONE, &hdev->flr_state);
+	set_bit(HNAE3_FLR_RESET, &hdev->default_reset_request);
+	hclgevf_reset_event(hdev->pdev, NULL);
+
+	while (!test_bit(HNAE3_FLR_DOWN, &hdev->flr_state) &&
+	       cnt++ < HCLGEVF_FLR_WAIT_CNT)
+		msleep(HCLGEVF_FLR_WAIT_MS);
+
+	if (!test_bit(HNAE3_FLR_DOWN, &hdev->flr_state))
+		dev_err(&hdev->pdev->dev,
+			"flr wait down timeout: %d\n", cnt);
 }
 
 static u32 hclgevf_get_fw_version(struct hnae3_handle *handle)
@@ -2310,6 +2369,8 @@ static unsigned long hclgevf_ae_dev_reset_cnt(struct hnae3_handle *handle)
 static const struct hnae3_ae_ops hclgevf_ops = {
 	.init_ae_dev = hclgevf_init_ae_dev,
 	.uninit_ae_dev = hclgevf_uninit_ae_dev,
+	.flr_prepare = hclgevf_flr_prepare,
+	.flr_done = hclgevf_flr_done,
 	.init_client_instance = hclgevf_init_client_instance,
 	.uninit_client_instance = hclgevf_uninit_client_instance,
 	.start = hclgevf_ae_start,

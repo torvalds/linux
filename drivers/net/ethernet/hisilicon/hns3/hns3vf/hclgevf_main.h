@@ -161,6 +161,7 @@ struct hclgevf_dev {
 	struct hclgevf_misc_vector misc_vector;
 	struct hclgevf_rss_cfg rss_cfg;
 	unsigned long state;
+	unsigned long flr_state;
 	unsigned long default_reset_request;
 	unsigned long last_reset_time;
 	enum hnae3_reset_type reset_level;
