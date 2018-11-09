@@ -26,9 +26,9 @@ Example:
 	&i2c1 {
 		...
 
-		ov5645: ov5645@78 {
+		ov5645: ov5645@3c {
 			compatible = "ovti,ov5645";
-			reg = <0x78>;
+			reg = <0x3c>;
 
 			enable-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 			reset-gpios = <&gpio5 20 GPIO_ACTIVE_LOW>;
