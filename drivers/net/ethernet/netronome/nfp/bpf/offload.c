@@ -183,10 +183,9 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 }
 
 static int
-nfp_bpf_verifier_prep(struct net_device *netdev, struct bpf_verifier_env *env)
+nfp_bpf_verifier_prep(struct net_device *netdev, struct bpf_prog *prog)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
-	struct bpf_prog *prog = env->prog;
 	struct nfp_app *app = nn->app;
 	struct nfp_prog *nfp_prog;
 	int ret;

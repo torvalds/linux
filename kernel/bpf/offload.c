@@ -123,15 +123,15 @@ err_maybe_put:
 	return err;
 }
 
-int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env)
+int bpf_prog_offload_verifier_prep(struct bpf_prog *prog)
 {
 	struct bpf_prog_offload *offload;
 	int ret = -ENODEV;
 
 	down_read(&bpf_devs_lock);
-	offload = env->prog->aux->offload;
+	offload = prog->aux->offload;
 	if (offload)
-		ret = offload->offdev->ops->prepare(offload->netdev, env);
+		ret = offload->offdev->ops->prepare(offload->netdev, prog);
 	offload->dev_state = !ret;
 	up_read(&bpf_devs_lock);
 
