@@ -1012,8 +1012,10 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 
 	esr = kvm_vcpu_get_hsr(vcpu);
 	if (vcpu_mode_is_32bit(vcpu)) {
-		if (!kvm_condition_valid(vcpu))
+		if (!kvm_condition_valid(vcpu)) {
+			__kvm_skip_instr(vcpu);
 			return 1;
+		}
 
 		sysreg = esr_cp15_to_sysreg(esr);
 	} else {
@@ -1122,6 +1124,8 @@ int __hyp_text __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	vmcr = __vgic_v3_read_vmcr();
 	rt = kvm_vcpu_sys_get_rt(vcpu);
 	fn(vcpu, vmcr, rt);
+
+	__kvm_skip_instr(vcpu);
 
 	return 1;
 }
