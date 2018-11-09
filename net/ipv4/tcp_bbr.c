@@ -128,7 +128,12 @@ static const u32 bbr_probe_rtt_mode_ms = 200;
 /* Skip TSO below the following bandwidth (bits/sec): */
 static const int bbr_min_tso_rate = 1200000;
 
-/* Pace at ~1% below estimated bw, on average, to reduce queue at bottleneck. */
+/* Pace at ~1% below estimated bw, on average, to reduce queue at bottleneck.
+ * In order to help drive the network toward lower queues and low latency while
+ * maintaining high utilization, the average pacing rate aims to be slightly
+ * lower than the estimated bandwidth. This is an important aspect of the
+ * design.
+ */
 static const int bbr_pacing_margin_percent = 1;
 
 /* We use a high_gain value of 2/ln(2) because it's the smallest pacing gain
@@ -247,13 +252,7 @@ static void bbr_init_pacing_rate_from_rtt(struct sock *sk)
 	sk->sk_pacing_rate = bbr_bw_to_pacing_rate(sk, bw, bbr_high_gain);
 }
 
-/* Pace using current bw estimate and a gain factor. In order to help drive the
- * network toward lower queues while maintaining high utilization and low
- * latency, the average pacing rate aims to be slightly (~1%) lower than the
- * estimated bandwidth. This is an important aspect of the design. In this
- * implementation this slightly lower pacing rate is achieved implicitly by not
- * including link-layer headers in the packet size used for the pacing rate.
- */
+/* Pace using current bw estimate and a gain factor. */
 static void bbr_set_pacing_rate(struct sock *sk, u32 bw, int gain)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
