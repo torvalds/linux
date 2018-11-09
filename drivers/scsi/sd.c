@@ -1171,8 +1171,6 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *cmd)
 	if (ret != BLK_STS_OK)
 		return ret;
 
-	WARN_ON_ONCE(cmd != rq->special);
-
 	if (!scsi_device_online(sdp) || sdp->changed) {
 		scmd_printk(KERN_ERR, cmd, "device offline or changed\n");
 		return BLK_STS_IOERR;
