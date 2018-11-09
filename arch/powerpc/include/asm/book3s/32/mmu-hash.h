@@ -92,6 +92,12 @@ typedef struct {
 	unsigned long vdso_base;
 } mm_context_t;
 
+/* patch sites */
+extern s32 patch__hash_page_A0, patch__hash_page_A1, patch__hash_page_A2;
+extern s32 patch__hash_page_B, patch__hash_page_C;
+extern s32 patch__flush_hash_A0, patch__flush_hash_A1, patch__flush_hash_A2;
+extern s32 patch__flush_hash_B;
+
 #endif /* !__ASSEMBLY__ */
 
 /* We happily ignore the smaller BATs on 601, we don't actually use
