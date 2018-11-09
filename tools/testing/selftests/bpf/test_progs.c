@@ -1703,7 +1703,7 @@ static void test_reference_tracking()
 	const char *file = "./test_sk_lookup_kern.o";
 	struct bpf_object *obj;
 	struct bpf_program *prog;
-	__u32 duration;
+	__u32 duration = 0;
 	int err = 0;
 
 	obj = bpf_object__open(file);
