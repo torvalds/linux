@@ -1044,31 +1044,30 @@ int scsi_init_io(struct scsi_cmnd *cmd)
 	int error = BLKPREP_KILL;
 
 	if (WARN_ON_ONCE(!blk_rq_nr_phys_segments(rq)))
-		goto err_exit;
+		return BLKPREP_KILL;
 
 	error = scsi_init_sgtable(rq, &cmd->sdb);
 	if (error)
-		goto err_exit;
+		return error;
 
 	if (blk_bidi_rq(rq)) {
 		error = scsi_init_sgtable(rq->next_rq, rq->next_rq->special);
 		if (error)
-			goto err_exit;
+			goto out_free_sgtables;
 	}
 
 	if (blk_integrity_rq(rq)) {
 		struct scsi_data_buffer *prot_sdb = cmd->prot_sdb;
 		int ivecs, count;
 
-		if (prot_sdb == NULL) {
+		if (WARN_ON_ONCE(!prot_sdb)) {
 			/*
 			 * This can happen if someone (e.g. multipath)
 			 * queues a command to a device on an adapter
 			 * that does not support DIX.
 			 */
-			WARN_ON_ONCE(1);
 			error = BLKPREP_KILL;
-			goto err_exit;
+			goto out_free_sgtables;
 		}
 
 		ivecs = blk_rq_count_integrity_sg(rq->q, rq->bio);
@@ -1076,7 +1075,7 @@ int scsi_init_io(struct scsi_cmnd *cmd)
 		if (sg_alloc_table_chained(&prot_sdb->table, ivecs,
 				prot_sdb->table.sgl)) {
 			error = BLKPREP_DEFER;
-			goto err_exit;
+			goto out_free_sgtables;
 		}
 
 		count = blk_rq_map_integrity_sg(rq->q, rq->bio,
@@ -1089,7 +1088,7 @@ int scsi_init_io(struct scsi_cmnd *cmd)
 	}
 
 	return BLKPREP_OK;
-err_exit:
+out_free_sgtables:
 	scsi_mq_free_sgtables(cmd);
 	return error;
 }
