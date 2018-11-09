@@ -111,6 +111,9 @@ typedef struct {
 	unsigned long	vdso_base;
 } mm_context_t;
 
+/* patch sites */
+extern s32 patch__tlb_44x_hwater_D, patch__tlb_44x_hwater_I;
+
 #endif /* !__ASSEMBLY__ */
 
 #ifndef CONFIG_PPC_EARLY_DEBUG_44x
