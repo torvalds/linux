@@ -189,7 +189,8 @@ int hclgevf_cmd_send(struct hclgevf_hw *hw, struct hclgevf_desc *desc, int num)
 
 	spin_lock_bh(&hw->cmq.csq.lock);
 
-	if (num > hclgevf_ring_space(&hw->cmq.csq)) {
+	if (num > hclgevf_ring_space(&hw->cmq.csq) ||
+	    test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state)) {
 		spin_unlock_bh(&hw->cmq.csq.lock);
 		return -EBUSY;
 	}
@@ -337,6 +338,16 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 
 	spin_unlock_bh(&hdev->hw.cmq.crq.lock);
 	spin_unlock_bh(&hdev->hw.cmq.csq.lock);
+
+	clear_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+
+	/* Check if there is new reset pending, because the higher level
+	 * reset may happen when lower level reset is being processed.
+	 */
+	if (hclgevf_is_reset_pending(hdev)) {
+		set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+		return -EBUSY;
+	}
 
 	/* get firmware version */
 	ret = hclgevf_cmd_query_firmware_version(&hdev->hw, &version);

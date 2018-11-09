@@ -1162,6 +1162,8 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 		break;
 	}
 
+	set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+
 	dev_info(&hdev->pdev->dev, "prepare reset(%d) wait done, ret:%d\n",
 		 hdev->reset_type, ret);
 
@@ -1467,6 +1469,7 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 			 "receive reset interrupt 0x%x!\n", rst_ing_reg);
 		set_bit(HNAE3_VF_RESET, &hdev->reset_pending);
 		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
+		set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
 		cmdq_src_reg &= ~BIT(HCLGEVF_VECTOR0_RST_INT_B);
 		*clearval = cmdq_src_reg;
 		return HCLGEVF_VECTOR0_EVENT_RST;

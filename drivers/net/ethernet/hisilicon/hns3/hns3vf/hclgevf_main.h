@@ -79,6 +79,7 @@ enum hclgevf_states {
 	HCLGEVF_STATE_RST_HANDLING,
 	HCLGEVF_STATE_MBX_SERVICE_SCHED,
 	HCLGEVF_STATE_MBX_HANDLING,
+	HCLGEVF_STATE_CMD_DISABLE,
 };
 
 #define HCLGEVF_MPF_ENBALE 1
@@ -211,6 +212,11 @@ struct hclgevf_dev {
 	struct hnae3_client *roce_client;
 	u32 flag;
 };
+
+static inline bool hclgevf_is_reset_pending(struct hclgevf_dev *hdev)
+{
+	return !!hdev->reset_pending;
+}
 
 int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 			 const u8 *msg_data, u8 msg_len, bool need_resp,
