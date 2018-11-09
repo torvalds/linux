@@ -1177,18 +1177,6 @@ void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 	scsi_add_cmd_to_list(cmd);
 }
 
-static inline blk_status_t prep_to_mq(int ret)
-{
-	switch (ret) {
-	case BLKPREP_OK:
-		return BLK_STS_OK;
-	case BLKPREP_DEFER:
-		return BLK_STS_RESOURCE;
-	default:
-		return BLK_STS_IOERR;
-	}
-}
-
 static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 		struct request *req)
 {
@@ -1227,9 +1215,9 @@ static blk_status_t scsi_setup_fs_cmnd(struct scsi_device *sdev,
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 
 	if (unlikely(sdev->handler && sdev->handler->prep_fn)) {
-		int ret = sdev->handler->prep_fn(sdev, req);
-		if (ret != BLKPREP_OK)
-			return prep_to_mq(ret);
+		blk_status_t ret = sdev->handler->prep_fn(sdev, req);
+		if (ret != BLK_STS_OK)
+			return ret;
 	}
 
 	cmd->cmnd = scsi_req(req)->cmd = scsi_req(req)->__cmd;
