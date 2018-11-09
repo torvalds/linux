@@ -474,6 +474,7 @@ struct ath10k_htt_data_stats {
 	u64 bw[ATH10K_COUNTER_TYPE_MAX][ATH10K_BW_NUM];
 	u64 nss[ATH10K_COUNTER_TYPE_MAX][ATH10K_NSS_NUM];
 	u64 gi[ATH10K_COUNTER_TYPE_MAX][ATH10K_GI_NUM];
+	u64 rate_table[ATH10K_COUNTER_TYPE_MAX][ATH10K_RATE_TABLE_NUM];
 };
 
 struct ath10k_htt_tx_stats {
@@ -760,6 +761,9 @@ enum ath10k_fw_features {
 	/* Firmware load is done externally, not by bmi */
 	ATH10K_FW_FEATURE_NON_BMI = 19,
 
+	/* Firmware sends only one chan_info event per channel */
+	ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL = 20,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
@@ -960,6 +964,7 @@ struct ath10k {
 	} hif;
 
 	struct completion target_suspend;
+	struct completion driver_recovery;
 
 	const struct ath10k_hw_regs *regs;
 	const struct ath10k_hw_ce_regs *hw_ce_regs;

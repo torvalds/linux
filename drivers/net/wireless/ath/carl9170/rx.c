@@ -766,6 +766,7 @@ static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 
 			goto drop;
 		}
+		/* fall through */
 
 	case AR9170_RX_STATUS_MPDU_MIDDLE:
 		/*  These are just data + mac status */

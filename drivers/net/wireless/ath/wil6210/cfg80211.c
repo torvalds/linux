@@ -51,6 +51,19 @@ static struct ieee80211_channel wil_60ghz_channels[] = {
 	CHAN60G(4, 0),
 };
 
+static void
+wil_memdup_ie(u8 **pdst, size_t *pdst_len, const u8 *src, size_t src_len)
+{
+	kfree(*pdst);
+	*pdst = NULL;
+	*pdst_len = 0;
+	if (src_len > 0) {
+		*pdst = kmemdup(src, src_len, GFP_KERNEL);
+		if (*pdst)
+			*pdst_len = src_len;
+	}
+}
+
 static int wil_num_supported_channels(struct wil6210_priv *wil)
 {
 	int num_channels = ARRAY_SIZE(wil_60ghz_channels);
@@ -1441,11 +1454,19 @@ static int wil_cfg80211_add_key(struct wiphy *wiphy,
 
 	rc = wmi_add_cipher_key(vif, key_index, mac_addr, params->key_len,
 				params->key, key_usage);
-	if (!rc && !IS_ERR(cs))
+	if (!rc && !IS_ERR(cs)) {
+		/* update local storage used for AP recovery */
+		if (key_usage == WMI_KEY_USE_TX_GROUP && params->key &&
+		    params->key_len <= WMI_MAX_KEY_LEN) {
+			vif->gtk_index = key_index;
+			memcpy(vif->gtk, params->key, params->key_len);
+			vif->gtk_len = params->key_len;
+		}
 		/* in FT set crypto will take place upon receiving
 		 * WMI_RING_EN_EVENTID event
 		 */
 		wil_set_crypto_rx(key_index, key_usage, cs, params);
+	}
 
 	return rc;
 }
@@ -1634,6 +1655,14 @@ static int _wil_cfg80211_set_ies(struct wil6210_vif *vif,
 	u16 len = 0, proberesp_len = 0;
 	u8 *ies = NULL, *proberesp;
 
+	/* update local storage used for AP recovery */
+	wil_memdup_ie(&vif->proberesp, &vif->proberesp_len, bcon->probe_resp,
+		      bcon->probe_resp_len);
+	wil_memdup_ie(&vif->proberesp_ies, &vif->proberesp_ies_len,
+		      bcon->proberesp_ies, bcon->proberesp_ies_len);
+	wil_memdup_ie(&vif->assocresp_ies, &vif->assocresp_ies_len,
+		      bcon->assocresp_ies, bcon->assocresp_ies_len);
+
 	proberesp = _wil_cfg80211_get_proberesp_ies(bcon->probe_resp,
 						    bcon->probe_resp_len,
 						    &proberesp_len);
@@ -1735,6 +1764,9 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 	vif->channel = chan;
 	vif->hidden_ssid = hidden_ssid;
 	vif->pbss = pbss;
+	vif->bi = bi;
+	memcpy(vif->ssid, ssid, ssid_len);
+	vif->ssid_len = ssid_len;
 
 	netif_carrier_on(ndev);
 	if (!wil_has_other_active_ifaces(wil, ndev, false, true))
@@ -1761,11 +1793,64 @@ out:
 	return rc;
 }
 
+void wil_cfg80211_ap_recovery(struct wil6210_priv *wil)
+{
+	int rc, i;
+	struct wiphy *wiphy = wil_to_wiphy(wil);
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		struct wil6210_vif *vif = wil->vifs[i];
+		struct net_device *ndev;
+		struct cfg80211_beacon_data bcon = {};
+		struct key_params key_params = {};
+
+		if (!vif || vif->ssid_len == 0)
+			continue;
+
+		ndev = vif_to_ndev(vif);
+		bcon.proberesp_ies = vif->proberesp_ies;
+		bcon.assocresp_ies = vif->assocresp_ies;
+		bcon.probe_resp = vif->proberesp;
+		bcon.proberesp_ies_len = vif->proberesp_ies_len;
+		bcon.assocresp_ies_len = vif->assocresp_ies_len;
+		bcon.probe_resp_len = vif->proberesp_len;
+
+		wil_info(wil,
+			 "AP (vif %d) recovery: privacy %d, bi %d, channel %d, hidden %d, pbss %d\n",
+			 i, vif->privacy, vif->bi, vif->channel,
+			 vif->hidden_ssid, vif->pbss);
+		wil_hex_dump_misc("SSID ", DUMP_PREFIX_OFFSET, 16, 1,
+				  vif->ssid, vif->ssid_len, true);
+		rc = _wil_cfg80211_start_ap(wiphy, ndev,
+					    vif->ssid, vif->ssid_len,
+					    vif->privacy, vif->bi,
+					    vif->channel, &bcon,
+					    vif->hidden_ssid, vif->pbss);
+		if (rc) {
+			wil_err(wil, "vif %d recovery failed (%d)\n", i, rc);
+			continue;
+		}
+
+		if (!vif->privacy || vif->gtk_len == 0)
+			continue;
+
+		key_params.key = vif->gtk;
+		key_params.key_len = vif->gtk_len;
+		key_params.seq_len = IEEE80211_GCMP_PN_LEN;
+		rc = wil_cfg80211_add_key(wiphy, ndev, vif->gtk_index, false,
+					  NULL, &key_params);
+		if (rc)
+			wil_err(wil, "vif %d recovery add key failed (%d)\n",
+				i, rc);
+	}
+}
+
 static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 				      struct net_device *ndev,
 				      struct cfg80211_beacon_data *bcon)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	int rc;
 	u32 privacy = 0;
@@ -1778,15 +1863,16 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 			     bcon->tail_len))
 		privacy = 1;
 
+	memcpy(vif->ssid, wdev->ssid, wdev->ssid_len);
+	vif->ssid_len = wdev->ssid_len;
+
 	/* in case privacy has changed, need to restart the AP */
 	if (vif->privacy != privacy) {
-		struct wireless_dev *wdev = ndev->ieee80211_ptr;
-
 		wil_dbg_misc(wil, "privacy changed %d=>%d. Restarting AP\n",
 			     vif->privacy, privacy);
 
-		rc = _wil_cfg80211_start_ap(wiphy, ndev, wdev->ssid,
-					    wdev->ssid_len, privacy,
+		rc = _wil_cfg80211_start_ap(wiphy, ndev, vif->ssid,
+					    vif->ssid_len, privacy,
 					    wdev->beacon_interval,
 					    vif->channel, bcon,
 					    vif->hidden_ssid,
@@ -1876,6 +1962,12 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 
 	wmi_pcp_stop(vif);
 	clear_bit(wil_vif_ft_roam, vif->status);
+	vif->ssid_len = 0;
+	wil_memdup_ie(&vif->proberesp, &vif->proberesp_len, NULL, 0);
+	wil_memdup_ie(&vif->proberesp_ies, &vif->proberesp_ies_len, NULL, 0);
+	wil_memdup_ie(&vif->assocresp_ies, &vif->assocresp_ies_len, NULL, 0);
+	memset(vif->gtk, 0, WMI_MAX_KEY_LEN);
+	vif->gtk_len = 0;
 
 	if (last)
 		__wil_down(wil);
@@ -1923,7 +2015,7 @@ static int wil_cfg80211_del_station(struct wiphy *wiphy,
 		     params->mac, params->reason_code, vif->mid);
 
 	mutex_lock(&wil->mutex);
-	wil6210_disconnect(vif, params->mac, params->reason_code, false);
+	wil6210_disconnect(vif, params->mac, params->reason_code);
 	mutex_unlock(&wil->mutex);
 
 	return 0;
