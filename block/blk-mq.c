@@ -327,7 +327,6 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 	rq->extra_len = 0;
 	rq->__deadline = 0;
 
-	INIT_LIST_HEAD(&rq->timeout_list);
 	rq->timeout = 0;
 
 	rq->end_io = NULL;

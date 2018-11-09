@@ -68,16 +68,6 @@ ssize_t part_timeout_store(struct device *dev, struct device_attribute *attr,
 
 #endif /* CONFIG_FAIL_IO_TIMEOUT */
 
-/*
- * blk_delete_timer - Delete/cancel timer for a given function.
- * @req:	request that we are canceling timer for
- *
- */
-void blk_delete_timer(struct request *req)
-{
-	list_del_init(&req->timeout_list);
-}
-
 /**
  * blk_abort_request -- Request request recovery for the specified command
  * @req:	pointer to the request of interest
@@ -122,8 +112,6 @@ void blk_add_timer(struct request *req)
 {
 	struct request_queue *q = req->q;
 	unsigned long expiry;
-
-	BUG_ON(!list_empty(&req->timeout_list));
 
 	/*
 	 * Some LLDs, like scsi, peek at the timeout to prevent a

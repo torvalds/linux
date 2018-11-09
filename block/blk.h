@@ -222,8 +222,6 @@ static inline bool bio_integrity_endio(struct bio *bio)
 
 unsigned long blk_rq_timeout(unsigned long timeout);
 void blk_add_timer(struct request *req);
-void blk_delete_timer(struct request *);
-
 
 bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
 			     struct bio *bio);

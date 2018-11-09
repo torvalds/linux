@@ -228,8 +228,6 @@ struct request {
 	/* access through blk_rq_set_deadline, blk_rq_deadline */
 	unsigned long __deadline;
 
-	struct list_head timeout_list;
-
 	union {
 		struct __call_single_data csd;
 		u64 fifo_time;
