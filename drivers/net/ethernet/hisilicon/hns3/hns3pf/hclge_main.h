@@ -597,6 +597,7 @@ struct hclge_dev {
 	struct hclge_misc_vector misc_vector;
 	struct hclge_hw_stats hw_stats;
 	unsigned long state;
+	unsigned long flr_state;
 	unsigned long last_reset_time;
 
 	enum hnae3_reset_type reset_type;

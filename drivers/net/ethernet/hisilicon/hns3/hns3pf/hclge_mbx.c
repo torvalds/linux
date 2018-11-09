@@ -90,6 +90,8 @@ int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 
 	if (hdev->reset_type == HNAE3_FUNC_RESET)
 		reset_type = HNAE3_VF_PF_FUNC_RESET;
+	else if (hdev->reset_type == HNAE3_FLR_RESET)
+		reset_type = HNAE3_VF_FULL_RESET;
 	else
 		return -EINVAL;
 

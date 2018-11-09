@@ -2374,11 +2374,27 @@ static int hclge_reset_wait(struct hclge_dev *hdev)
 		reg = HCLGE_FUN_RST_ING;
 		reg_bit = HCLGE_FUN_RST_ING_B;
 		break;
+	case HNAE3_FLR_RESET:
+		break;
 	default:
 		dev_err(&hdev->pdev->dev,
 			"Wait for unsupported reset type: %d\n",
 			hdev->reset_type);
 		return -EINVAL;
+	}
+
+	if (hdev->reset_type == HNAE3_FLR_RESET) {
+		while (!test_bit(HNAE3_FLR_DONE, &hdev->flr_state) &&
+		       cnt++ < HCLGE_RESET_WAIT_CNT)
+			msleep(HCLGE_RESET_WATI_MS);
+
+		if (!test_bit(HNAE3_FLR_DONE, &hdev->flr_state)) {
+			dev_err(&hdev->pdev->dev,
+				"flr wait timeout: %d\n", cnt);
+			return -EBUSY;
+		}
+
+		return 0;
 	}
 
 	val = hclge_read_dev(&hdev->hw, reg);
@@ -2488,6 +2504,12 @@ static void hclge_do_reset(struct hclge_dev *hdev)
 		set_bit(HNAE3_FUNC_RESET, &hdev->reset_pending);
 		hclge_reset_task_schedule(hdev);
 		break;
+	case HNAE3_FLR_RESET:
+		dev_info(&pdev->dev, "FLR requested\n");
+		/* schedule again to check later */
+		set_bit(HNAE3_FLR_RESET, &hdev->reset_pending);
+		hclge_reset_task_schedule(hdev);
+		break;
 	default:
 		dev_warn(&pdev->dev,
 			 "Unsupported reset type: %d\n", hdev->reset_type);
@@ -2519,6 +2541,9 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hclge_dev *hdev,
 	} else if (test_bit(HNAE3_FUNC_RESET, addr)) {
 		rst_level = HNAE3_FUNC_RESET;
 		clear_bit(HNAE3_FUNC_RESET, addr);
+	} else if (test_bit(HNAE3_FLR_RESET, addr)) {
+		rst_level = HNAE3_FLR_RESET;
+		clear_bit(HNAE3_FLR_RESET, addr);
 	}
 
 	return rst_level;
@@ -2555,6 +2580,8 @@ static int hclge_reset_prepare_down(struct hclge_dev *hdev)
 
 	switch (hdev->reset_type) {
 	case HNAE3_FUNC_RESET:
+		/* fall through */
+	case HNAE3_FLR_RESET:
 		ret = hclge_set_all_vf_rst(hdev, true);
 		break;
 	default:
@@ -2588,6 +2615,14 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		 * after hclge_cmd_init is called.
 		 */
 		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+		break;
+	case HNAE3_FLR_RESET:
+		/* There is no mechanism for PF to know if VF has stopped IO
+		 * for now, just wait 100 ms for VF to stop IO
+		 */
+		msleep(100);
+		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+		set_bit(HNAE3_FLR_DOWN, &hdev->flr_state);
 		break;
 	case HNAE3_IMP_RESET:
 		reg_val = hclge_read_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG);
@@ -2647,6 +2682,8 @@ static int hclge_reset_prepare_up(struct hclge_dev *hdev)
 
 	switch (hdev->reset_type) {
 	case HNAE3_FUNC_RESET:
+		/* fall through */
+	case HNAE3_FLR_RESET:
 		ret = hclge_set_all_vf_rst(hdev, false);
 		break;
 	default:
@@ -6917,6 +6954,34 @@ static void hclge_state_uninit(struct hclge_dev *hdev)
 		cancel_work_sync(&hdev->mbx_service_task);
 }
 
+static void hclge_flr_prepare(struct hnae3_ae_dev *ae_dev)
+{
+#define HCLGE_FLR_WAIT_MS	100
+#define HCLGE_FLR_WAIT_CNT	50
+	struct hclge_dev *hdev = ae_dev->priv;
+	int cnt = 0;
+
+	clear_bit(HNAE3_FLR_DOWN, &hdev->flr_state);
+	clear_bit(HNAE3_FLR_DONE, &hdev->flr_state);
+	set_bit(HNAE3_FLR_RESET, &hdev->default_reset_request);
+	hclge_reset_event(hdev->pdev, NULL);
+
+	while (!test_bit(HNAE3_FLR_DOWN, &hdev->flr_state) &&
+	       cnt++ < HCLGE_FLR_WAIT_CNT)
+		msleep(HCLGE_FLR_WAIT_MS);
+
+	if (!test_bit(HNAE3_FLR_DOWN, &hdev->flr_state))
+		dev_err(&hdev->pdev->dev,
+			"flr wait down timeout: %d\n", cnt);
+}
+
+static void hclge_flr_done(struct hnae3_ae_dev *ae_dev)
+{
+	struct hclge_dev *hdev = ae_dev->priv;
+
+	set_bit(HNAE3_FLR_DONE, &hdev->flr_state);
+}
+
 static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	struct pci_dev *pdev = ae_dev->pdev;
@@ -7575,6 +7640,8 @@ static void hclge_get_link_mode(struct hnae3_handle *handle,
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
+	.flr_prepare = hclge_flr_prepare,
+	.flr_done = hclge_flr_done,
 	.init_client_instance = hclge_init_client_instance,
 	.uninit_client_instance = hclge_uninit_client_instance,
 	.map_ring_to_vector = hclge_map_ring_to_vector,

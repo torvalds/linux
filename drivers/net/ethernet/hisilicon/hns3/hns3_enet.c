@@ -1851,9 +1851,29 @@ static pci_ers_result_t hns3_slot_reset(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_DISCONNECT;
 }
 
+static void hns3_reset_prepare(struct pci_dev *pdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+
+	dev_info(&pdev->dev, "hns3 flr prepare\n");
+	if (ae_dev && ae_dev->ops && ae_dev->ops->flr_prepare)
+		ae_dev->ops->flr_prepare(ae_dev);
+}
+
+static void hns3_reset_done(struct pci_dev *pdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+
+	dev_info(&pdev->dev, "hns3 flr done\n");
+	if (ae_dev && ae_dev->ops && ae_dev->ops->flr_done)
+		ae_dev->ops->flr_done(ae_dev);
+}
+
 static const struct pci_error_handlers hns3_err_handler = {
 	.error_detected = hns3_error_detected,
 	.slot_reset     = hns3_slot_reset,
+	.reset_prepare	= hns3_reset_prepare,
+	.reset_done	= hns3_reset_done,
 };
 
 static struct pci_driver hns3_driver = {
