@@ -10,8 +10,7 @@
 
 #define HCLGEVF_NAME	"hclgevf"
 
-static int hclgevf_init_hdev(struct hclgevf_dev *hdev);
-static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev);
+static int hclgevf_reset_hdev(struct hclgevf_dev *hdev);
 static struct hnae3_ae_algo ae_algovf;
 
 static const struct pci_device_id ae_algovf_pci_tbl[] = {
@@ -209,12 +208,6 @@ static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 	struct hclgevf_tqp *tqp;
 	int i;
 
-	/* if this is on going reset then we need to re-allocate the TPQs
-	 * since we cannot assume we would get same number of TPQs back from PF
-	 */
-	if (hclgevf_dev_ongoing_reset(hdev))
-		devm_kfree(&hdev->pdev->dev, hdev->htqp);
-
 	hdev->htqp = devm_kcalloc(&hdev->pdev->dev, hdev->num_tqps,
 				  sizeof(struct hclgevf_tqp), GFP_KERNEL);
 	if (!hdev->htqp)
@@ -257,12 +250,6 @@ static int hclgevf_knic_setup(struct hclgevf_dev *hdev)
 		= min_t(u16, hdev->rss_size_max, new_tqps / kinfo->num_tc);
 	new_tqps = kinfo->rss_size * kinfo->num_tc;
 	kinfo->num_tqps = min(new_tqps, hdev->num_tqps);
-
-	/* if this is on going reset then we need to re-allocate the hnae queues
-	 * as well since number of TPQs from PF might have changed.
-	 */
-	if (hclgevf_dev_ongoing_reset(hdev))
-		devm_kfree(&hdev->pdev->dev, kinfo->tqp);
 
 	kinfo->tqp = devm_kcalloc(&hdev->pdev->dev, kinfo->num_tqps,
 				  sizeof(struct hnae3_queue *), GFP_KERNEL);
@@ -1141,7 +1128,7 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	hclgevf_notify_client(hdev, HNAE3_UNINIT_CLIENT);
 
 	/* re-initialize the hclge device */
-	ret = hclgevf_init_hdev(hdev);
+	ret = hclgevf_reset_hdev(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"hclge device re-init failed, VF is disabled!\n");
@@ -1615,10 +1602,6 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 
 static void hclgevf_state_init(struct hclgevf_dev *hdev)
 {
-	/* if this is on going reset then skip this initialization */
-	if (hclgevf_dev_ongoing_reset(hdev))
-		return;
-
 	/* setup tasks for the MBX */
 	INIT_WORK(&hdev->mbx_service_task, hclgevf_mailbox_service_task);
 	clear_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
@@ -1659,10 +1642,6 @@ static int hclgevf_init_msi(struct hclgevf_dev *hdev)
 	struct pci_dev *pdev = hdev->pdev;
 	int vectors;
 	int i;
-
-	/* if this is on going reset then skip this initialization */
-	if (hclgevf_dev_ongoing_reset(hdev))
-		return 0;
 
 	if (hnae3_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_ROCE_B))
 		vectors = pci_alloc_irq_vectors(pdev,
@@ -1719,10 +1698,6 @@ static void hclgevf_uninit_msi(struct hclgevf_dev *hdev)
 static int hclgevf_misc_irq_init(struct hclgevf_dev *hdev)
 {
 	int ret = 0;
-
-	/* if this is on going reset then skip this initialization */
-	if (hclgevf_dev_ongoing_reset(hdev))
-		return 0;
 
 	hclgevf_get_misc_vector(hdev);
 
@@ -1853,14 +1828,6 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 	struct hclgevf_hw *hw;
 	int ret;
 
-	/* check if we need to skip initialization of pci. This will happen if
-	 * device is undergoing VF reset. Otherwise, we would need to
-	 * re-initialize pci interface again i.e. when device is not going
-	 * through *any* reset or actually undergoing full reset.
-	 */
-	if (hclgevf_dev_ongoing_reset(hdev))
-		return 0;
-
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable PCI device\n");
@@ -1949,16 +1916,40 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 	return 0;
 }
 
-static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
+static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int ret;
 
-	/* check if device is on-going full reset(i.e. pcie as well) */
-	if (hclgevf_dev_ongoing_full_reset(hdev)) {
-		dev_warn(&pdev->dev, "device is going full reset\n");
-		hclgevf_uninit_hdev(hdev);
+	ret = hclgevf_cmd_init(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "cmd failed %d\n", ret);
+		return ret;
 	}
+
+	ret = hclgevf_rss_init_hw(hdev);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed(%d) to initialize RSS\n", ret);
+		return ret;
+	}
+
+	ret = hclgevf_init_vlan_config(hdev);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed(%d) to initialize VLAN config\n", ret);
+		return ret;
+	}
+
+	dev_info(&hdev->pdev->dev, "Reset done\n");
+
+	return 0;
+}
+
+static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
+{
+	struct pci_dev *pdev = hdev->pdev;
+	int ret;
 
 	ret = hclgevf_pci_init(hdev);
 	if (ret) {
