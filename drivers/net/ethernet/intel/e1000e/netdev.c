@@ -4319,13 +4319,16 @@ void e1000e_reinit_locked(struct e1000_adapter *adapter)
 /**
  * e1000e_sanitize_systim - sanitize raw cycle counter reads
  * @hw: pointer to the HW structure
- * @systim: time value read, sanitized and returned
+ * @systim: PHC time value read, sanitized and returned
+ * @sts: structure to hold system time before and after reading SYSTIML,
+ * may be NULL
  *
  * Errata for 82574/82583 possible bad bits read from SYSTIMH/L:
  * check to see that the time is incrementing at a reasonable
  * rate and is a multiple of incvalue.
  **/
-static u64 e1000e_sanitize_systim(struct e1000_hw *hw, u64 systim)
+static u64 e1000e_sanitize_systim(struct e1000_hw *hw, u64 systim,
+				  struct ptp_system_timestamp *sts)
 {
 	u64 time_delta, rem, temp;
 	u64 systim_next;
@@ -4335,7 +4338,9 @@ static u64 e1000e_sanitize_systim(struct e1000_hw *hw, u64 systim)
 	incvalue = er32(TIMINCA) & E1000_TIMINCA_INCVALUE_MASK;
 	for (i = 0; i < E1000_MAX_82574_SYSTIM_REREADS; i++) {
 		/* latch SYSTIMH on read of SYSTIML */
+		ptp_read_system_prets(sts);
 		systim_next = (u64)er32(SYSTIML);
+		ptp_read_system_postts(sts);
 		systim_next |= (u64)er32(SYSTIMH) << 32;
 
 		time_delta = systim_next - systim;
@@ -4353,15 +4358,16 @@ static u64 e1000e_sanitize_systim(struct e1000_hw *hw, u64 systim)
 }
 
 /**
- * e1000e_cyclecounter_read - read raw cycle counter (used by time counter)
- * @cc: cyclecounter structure
+ * e1000e_read_systim - read SYSTIM register
+ * @adapter: board private structure
+ * @sts: structure which will contain system time before and after reading
+ * SYSTIML, may be NULL
  **/
-static u64 e1000e_cyclecounter_read(const struct cyclecounter *cc)
+u64 e1000e_read_systim(struct e1000_adapter *adapter,
+		       struct ptp_system_timestamp *sts)
 {
-	struct e1000_adapter *adapter = container_of(cc, struct e1000_adapter,
-						     cc);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 systimel, systimeh;
+	u32 systimel, systimel_2, systimeh;
 	u64 systim;
 	/* SYSTIMH latching upon SYSTIML read does not work well.
 	 * This means that if SYSTIML overflows after we read it but before
@@ -4369,11 +4375,15 @@ static u64 e1000e_cyclecounter_read(const struct cyclecounter *cc)
 	 * will experience a huge non linear increment in the systime value
 	 * to fix that we test for overflow and if true, we re-read systime.
 	 */
+	ptp_read_system_prets(sts);
 	systimel = er32(SYSTIML);
+	ptp_read_system_postts(sts);
 	systimeh = er32(SYSTIMH);
 	/* Is systimel is so large that overflow is possible? */
 	if (systimel >= (u32)0xffffffff - E1000_TIMINCA_INCVALUE_MASK) {
-		u32 systimel_2 = er32(SYSTIML);
+		ptp_read_system_prets(sts);
+		systimel_2 = er32(SYSTIML);
+		ptp_read_system_postts(sts);
 		if (systimel > systimel_2) {
 			/* There was an overflow, read again SYSTIMH, and use
 			 * systimel_2
@@ -4386,9 +4396,21 @@ static u64 e1000e_cyclecounter_read(const struct cyclecounter *cc)
 	systim |= (u64)systimeh << 32;
 
 	if (adapter->flags2 & FLAG2_CHECK_SYSTIM_OVERFLOW)
-		systim = e1000e_sanitize_systim(hw, systim);
+		systim = e1000e_sanitize_systim(hw, systim, sts);
 
 	return systim;
+}
+
+/**
+ * e1000e_cyclecounter_read - read raw cycle counter (used by time counter)
+ * @cc: cyclecounter structure
+ **/
+static u64 e1000e_cyclecounter_read(const struct cyclecounter *cc)
+{
+	struct e1000_adapter *adapter = container_of(cc, struct e1000_adapter,
+						     cc);
+
+	return e1000e_read_systim(adapter, NULL);
 }
 
 /**
