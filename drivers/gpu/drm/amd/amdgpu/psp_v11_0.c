@@ -90,8 +90,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		adev->psp.sos_fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
 		adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->ucode_feature_version);
 		adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos_size_bytes);
-		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->header.ucode_size_bytes) -
-				le32_to_cpu(sos_hdr->sos_size_bytes);
+		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->sos_offset_bytes);
 		adev->psp.sys_start_addr = (uint8_t *)sos_hdr +
 				le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
 		adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
