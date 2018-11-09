@@ -1766,6 +1766,7 @@ static int hclgevf_init_msi(struct hclgevf_dev *hdev)
 	hdev->vector_irq = devm_kcalloc(&pdev->dev, hdev->num_msi,
 					sizeof(int), GFP_KERNEL);
 	if (!hdev->vector_irq) {
+		devm_kfree(&pdev->dev, hdev->vector_status);
 		pci_free_irq_vectors(pdev);
 		return -ENOMEM;
 	}
@@ -1777,6 +1778,8 @@ static void hclgevf_uninit_msi(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 
+	devm_kfree(&pdev->dev, hdev->vector_status);
+	devm_kfree(&pdev->dev, hdev->vector_irq);
 	pci_free_irq_vectors(pdev);
 }
 
@@ -2001,10 +2004,51 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 	return 0;
 }
 
+static int hclgevf_pci_reset(struct hclgevf_dev *hdev)
+{
+	struct pci_dev *pdev = hdev->pdev;
+	int ret = 0;
+
+	if (hdev->reset_type == HNAE3_VF_FULL_RESET &&
+	    test_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state)) {
+		hclgevf_misc_irq_uninit(hdev);
+		hclgevf_uninit_msi(hdev);
+		clear_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state);
+	}
+
+	if (!test_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state)) {
+		pci_set_master(pdev);
+		ret = hclgevf_init_msi(hdev);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"failed(%d) to init MSI/MSI-X\n", ret);
+			return ret;
+		}
+
+		ret = hclgevf_misc_irq_init(hdev);
+		if (ret) {
+			hclgevf_uninit_msi(hdev);
+			dev_err(&pdev->dev, "failed(%d) to init Misc IRQ(vector0)\n",
+				ret);
+			return ret;
+		}
+
+		set_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state);
+	}
+
+	return ret;
+}
+
 static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int ret;
+
+	ret = hclgevf_pci_reset(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "pci reset failed %d\n", ret);
+		return ret;
+	}
 
 	ret = hclgevf_cmd_init(hdev);
 	if (ret) {
@@ -2076,6 +2120,8 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		goto err_misc_irq_init;
 	}
 
+	set_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state);
+
 	ret = hclgevf_configure(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed(%d) to fetch configuration\n", ret);
@@ -2123,16 +2169,21 @@ err_cmd_init:
 	hclgevf_cmd_uninit(hdev);
 err_cmd_queue_init:
 	hclgevf_pci_uninit(hdev);
+	clear_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state);
 	return ret;
 }
 
 static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 {
 	hclgevf_state_uninit(hdev);
-	hclgevf_misc_irq_uninit(hdev);
+
+	if (test_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state)) {
+		hclgevf_misc_irq_uninit(hdev);
+		hclgevf_uninit_msi(hdev);
+		hclgevf_pci_uninit(hdev);
+	}
+
 	hclgevf_cmd_uninit(hdev);
-	hclgevf_uninit_msi(hdev);
-	hclgevf_pci_uninit(hdev);
 }
 
 static int hclgevf_init_ae_dev(struct hnae3_ae_dev *ae_dev)
