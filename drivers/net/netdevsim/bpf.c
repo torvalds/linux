@@ -258,10 +258,9 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 	return 0;
 }
 
-static int
-nsim_bpf_verifier_prep(struct net_device *dev, struct bpf_prog *prog)
+static int nsim_bpf_verifier_prep(struct bpf_prog *prog)
 {
-	struct netdevsim *ns = netdev_priv(dev);
+	struct netdevsim *ns = netdev_priv(prog->aux->offload->netdev);
 
 	if (!ns->bpf_bind_accept)
 		return -EOPNOTSUPP;
@@ -269,7 +268,7 @@ nsim_bpf_verifier_prep(struct net_device *dev, struct bpf_prog *prog)
 	return nsim_bpf_create_prog(ns, prog);
 }
 
-static int nsim_bpf_translate(struct net_device *dev, struct bpf_prog *prog)
+static int nsim_bpf_translate(struct bpf_prog *prog)
 {
 	struct nsim_bpf_bound_prog *state = prog->aux->offload->dev_priv;
 

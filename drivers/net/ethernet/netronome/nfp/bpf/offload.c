@@ -182,10 +182,9 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 	kfree(nfp_prog);
 }
 
-static int
-nfp_bpf_verifier_prep(struct net_device *netdev, struct bpf_prog *prog)
+static int nfp_bpf_verifier_prep(struct bpf_prog *prog)
 {
-	struct nfp_net *nn = netdev_priv(netdev);
+	struct nfp_net *nn = netdev_priv(prog->aux->offload->netdev);
 	struct nfp_app *app = nn->app;
 	struct nfp_prog *nfp_prog;
 	int ret;
@@ -213,10 +212,10 @@ err_free:
 	return ret;
 }
 
-static int nfp_bpf_translate(struct net_device *netdev, struct bpf_prog *prog)
+static int nfp_bpf_translate(struct bpf_prog *prog)
 {
+	struct nfp_net *nn = netdev_priv(prog->aux->offload->netdev);
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
-	struct nfp_net *nn = netdev_priv(netdev);
 	unsigned int max_instr;
 	int err;
 

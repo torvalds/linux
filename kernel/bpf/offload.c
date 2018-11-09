@@ -131,7 +131,7 @@ int bpf_prog_offload_verifier_prep(struct bpf_prog *prog)
 	down_read(&bpf_devs_lock);
 	offload = prog->aux->offload;
 	if (offload)
-		ret = offload->offdev->ops->prepare(offload->netdev, prog);
+		ret = offload->offdev->ops->prepare(prog);
 	offload->dev_state = !ret;
 	up_read(&bpf_devs_lock);
 
@@ -203,7 +203,7 @@ static int bpf_prog_offload_translate(struct bpf_prog *prog)
 	down_read(&bpf_devs_lock);
 	offload = prog->aux->offload;
 	if (offload)
-		ret = offload->offdev->ops->translate(offload->netdev, prog);
+		ret = offload->offdev->ops->translate(prog);
 	up_read(&bpf_devs_lock);
 
 	return ret;
