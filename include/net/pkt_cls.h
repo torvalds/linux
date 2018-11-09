@@ -807,6 +807,7 @@ struct tc_red_qopt_offload_params {
 	u32 max;
 	u32 probability;
 	bool is_ecn;
+	bool is_harddrop;
 	struct gnet_stats_queue *qstats;
 };
 

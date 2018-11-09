@@ -167,6 +167,7 @@ static int red_offload(struct Qdisc *sch, bool enable)
 		opt.set.max = q->parms.qth_max >> q->parms.Wlog;
 		opt.set.probability = q->parms.max_P;
 		opt.set.is_ecn = red_use_ecn(q);
+		opt.set.is_harddrop = red_use_harddrop(q);
 		opt.set.qstats = &sch->qstats;
 	} else {
 		opt.command = TC_RED_DESTROY;
