@@ -914,8 +914,8 @@ struct gb_spi_device_config_response {
 
 /**
  * struct gb_spi_transfer - a read/write buffer pair
- * @speed_hz: Select a speed other than the device default for this transfer. If
- *	0 the default (from @spi_device) is used.
+ * @speed_hz: Select a speed other than the device default for this transfer.
+ * If 0 the default (from @spi_device) is used.
  * @len: size of rx and tx buffers (in bytes)
  * @delay_usecs: microseconds to delay after this transfer before (optionally)
  * 	changing the chipselect status, then starting the next transfer or
