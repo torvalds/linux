@@ -3114,7 +3114,7 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 	return len;
 }
 
-static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, int *len)
+static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, u32 *len)
 {
 	if (trans->num_blocks) {
 		*len += sizeof(struct iwl_fw_error_dump_data) +
