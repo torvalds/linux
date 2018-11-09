@@ -267,6 +267,8 @@ int bch2_mark_bkey_replicas(struct bch_fs *c,
 	struct bch_replicas_entry_padded search;
 	int ret;
 
+	memset(&search, 0, sizeof(search));
+
 	if (type == BKEY_TYPE_EXTENTS) {
 		struct bch_devs_list cached = bch2_bkey_cached_devs(k);
 		unsigned i;
@@ -563,6 +565,8 @@ bool bch2_bkey_replicas_marked(struct bch_fs *c,
 {
 	struct bch_replicas_entry_padded search;
 	bool ret;
+
+	memset(&search, 0, sizeof(search));
 
 	if (type == BKEY_TYPE_EXTENTS) {
 		struct bch_devs_list cached = bch2_bkey_cached_devs(k);
