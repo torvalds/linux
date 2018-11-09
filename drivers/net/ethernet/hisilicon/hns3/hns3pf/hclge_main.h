@@ -97,6 +97,7 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_NETWORK_PORT_ID_M		GENMASK(3, 0)
 
 /* Reset related Registers */
+#define HCLGE_PF_OTHER_INT_REG		0x20600
 #define HCLGE_MISC_RESET_STS_REG	0x20700
 #define HCLGE_MISC_VECTOR_INT_STS	0x20800
 #define HCLGE_GLOBAL_RESET_REG		0x20A00
@@ -115,6 +116,8 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_VECTOR0_CMDQ_SRC_REG	0x27100
 /* CMDQ register bits for RX event(=MBX event) */
 #define HCLGE_VECTOR0_RX_CMDQ_INT_B	1
+
+#define HCLGE_VECTOR0_IMP_RESET_INT_B	1
 
 #define HCLGE_MAC_DEFAULT_FRAME \
 	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN + ETH_DATA_LEN)
@@ -773,6 +776,11 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 	struct hclge_tqp *tqp = container_of(queue, struct hclge_tqp, q);
 
 	return tqp->index;
+}
+
+static inline bool hclge_is_reset_pending(struct hclge_dev *hdev)
+{
+	return !!hdev->reset_pending;
 }
 
 int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport);

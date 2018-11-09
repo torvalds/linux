@@ -2144,6 +2144,14 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 	 */
 
 	/* check for vector0 reset event sources */
+	if (BIT(HCLGE_VECTOR0_IMPRESET_INT_B) & rst_src_reg) {
+		dev_info(&hdev->pdev->dev, "IMP reset interrupt\n");
+		set_bit(HNAE3_IMP_RESET, &hdev->reset_pending);
+		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+		*clearval = BIT(HCLGE_VECTOR0_IMPRESET_INT_B);
+		return HCLGE_VECTOR0_EVENT_RST;
+	}
+
 	if (BIT(HCLGE_VECTOR0_GLOBALRESET_INT_B) & rst_src_reg) {
 		dev_info(&hdev->pdev->dev, "global reset interrupt\n");
 		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
@@ -2157,13 +2165,6 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
 		set_bit(HNAE3_CORE_RESET, &hdev->reset_pending);
 		*clearval = BIT(HCLGE_VECTOR0_CORERESET_INT_B);
-		return HCLGE_VECTOR0_EVENT_RST;
-	}
-
-	if (BIT(HCLGE_VECTOR0_IMPRESET_INT_B) & rst_src_reg) {
-		dev_info(&hdev->pdev->dev, "IMP reset interrupt\n");
-		set_bit(HNAE3_IMP_RESET, &hdev->reset_pending);
-		*clearval = BIT(HCLGE_VECTOR0_IMPRESET_INT_B);
 		return HCLGE_VECTOR0_EVENT_RST;
 	}
 
@@ -2352,11 +2353,15 @@ static int hclge_notify_roce_client(struct hclge_dev *hdev,
 static int hclge_reset_wait(struct hclge_dev *hdev)
 {
 #define HCLGE_RESET_WATI_MS	100
-#define HCLGE_RESET_WAIT_CNT	5
+#define HCLGE_RESET_WAIT_CNT	200
 	u32 val, reg, reg_bit;
 	u32 cnt = 0;
 
 	switch (hdev->reset_type) {
+	case HNAE3_IMP_RESET:
+		reg = HCLGE_GLOBAL_RESET_REG;
+		reg_bit = HCLGE_IMP_RESET_BIT;
+		break;
 	case HNAE3_GLOBAL_RESET:
 		reg = HCLGE_GLOBAL_RESET_REG;
 		reg_bit = HCLGE_GLOBAL_RESET_BIT;
@@ -2561,6 +2566,7 @@ static int hclge_reset_prepare_down(struct hclge_dev *hdev)
 
 static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 {
+	u32 reg_val;
 	int ret = 0;
 
 	switch (hdev->reset_type) {
@@ -2582,6 +2588,11 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		 * after hclge_cmd_init is called.
 		 */
 		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+		break;
+	case HNAE3_IMP_RESET:
+		reg_val = hclge_read_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG);
+		hclge_write_dev(&hdev->hw, HCLGE_PF_OTHER_INT_REG,
+				BIT(HCLGE_VECTOR0_IMP_RESET_INT_B) | reg_val);
 		break;
 	default:
 		break;
