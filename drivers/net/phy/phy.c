@@ -751,18 +751,6 @@ phy_err:
 }
 
 /**
- * phy_change_work - Scheduled by the phy_mac_interrupt to handle PHY changes
- * @work: work_struct that describes the work to be done
- */
-void phy_change_work(struct work_struct *work)
-{
-	struct phy_device *phydev =
-		container_of(work, struct phy_device, phy_queue);
-
-	phy_change(phydev);
-}
-
-/**
  * phy_interrupt - PHY interrupt handler
  * @irq: interrupt line
  * @phy_dat: phy_device pointer
@@ -1005,7 +993,7 @@ void phy_state_machine(struct work_struct *work)
 void phy_mac_interrupt(struct phy_device *phydev)
 {
 	/* Trigger a state machine change */
-	queue_work(system_power_efficient_wq, &phydev->phy_queue);
+	phy_trigger_machine(phydev);
 }
 EXPORT_SYMBOL(phy_mac_interrupt);
 

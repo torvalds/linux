@@ -369,7 +369,6 @@ struct phy_c45_device_ids {
  * giving up on the current attempt at acquiring a link
  * irq: IRQ number of the PHY's interrupt (-1 if none)
  * phy_timer: The timer for handling the state machine
- * phy_queue: A work_queue for the phy_mac_interrupt
  * attached_dev: The attached enet driver's device instance ptr
  * adjust_link: Callback for the enet controller to respond to
  * changes in the link state.
@@ -454,7 +453,6 @@ struct phy_device {
 	void *priv;
 
 	/* Interrupt and Polling infrastructure */
-	struct work_struct phy_queue;
 	struct delayed_work state_queue;
 
 	struct mutex lock;
@@ -1029,7 +1027,6 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner);
 int phy_drivers_register(struct phy_driver *new_driver, int n,
 			 struct module *owner);
 void phy_state_machine(struct work_struct *work);
-void phy_change_work(struct work_struct *work);
 void phy_mac_interrupt(struct phy_device *phydev);
 void phy_start_machine(struct phy_device *phydev);
 void phy_stop_machine(struct phy_device *phydev);
