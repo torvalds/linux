@@ -43,6 +43,7 @@
  */
 
 struct ad7816_chip_info {
+	kernel_ulong_t id;
 	struct spi_device *spi_dev;
 	struct gpio_desc *rdwr_pin;
 	struct gpio_desc *convert_pin;
@@ -50,6 +51,12 @@ struct ad7816_chip_info {
 	u8  oti_data[AD7816_CS_MAX + 1];
 	u8  channel_id;	/* 0 always be temperature */
 	u8  mode;
+};
+
+enum ad7816_type {
+	ID_AD7816,
+	ID_AD7817,
+	ID_AD7818,
 };
 
 /*
@@ -78,8 +85,10 @@ static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 		gpiod_set_value(chip->convert_pin, 1);
 	}
 
-	while (gpiod_get_value(chip->busy_pin))
-		cpu_relax();
+	if (chip->id == ID_AD7816 || chip->id == ID_AD7817) {
+		while (gpiod_get_value(chip->busy_pin))
+			cpu_relax();
+	}
 
 	gpiod_set_value(chip->rdwr_pin, 0);
 	gpiod_set_value(chip->rdwr_pin, 1);
@@ -359,6 +368,7 @@ static int ad7816_probe(struct spi_device *spi_dev)
 	for (i = 0; i <= AD7816_CS_MAX; i++)
 		chip->oti_data[i] = 203;
 
+	chip->id = spi_get_device_id(spi_dev)->driver_data;
 	chip->rdwr_pin = devm_gpiod_get(&spi_dev->dev, "rdwr", GPIOD_IN);
 	if (IS_ERR(chip->rdwr_pin)) {
 		ret = PTR_ERR(chip->rdwr_pin);
@@ -373,12 +383,15 @@ static int ad7816_probe(struct spi_device *spi_dev)
 			ret);
 		return ret;
 	}
-	chip->busy_pin = devm_gpiod_get(&spi_dev->dev, "busy", GPIOD_IN);
-	if (IS_ERR(chip->busy_pin)) {
-		ret = PTR_ERR(chip->busy_pin);
-		dev_err(&spi_dev->dev, "Failed to request busy GPIO: %d\n",
-			ret);
-		return ret;
+	if (chip->id == ID_AD7816 || chip->id == ID_AD7817) {
+		chip->busy_pin = devm_gpiod_get(&spi_dev->dev, "busy",
+						GPIOD_IN);
+		if (IS_ERR(chip->busy_pin)) {
+			ret = PTR_ERR(chip->busy_pin);
+			dev_err(&spi_dev->dev, "Failed to request busy GPIO: %d\n",
+				ret);
+			return ret;
+		}
 	}
 
 	indio_dev->name = spi_get_device_id(spi_dev)->name;
@@ -409,9 +422,9 @@ static int ad7816_probe(struct spi_device *spi_dev)
 }
 
 static const struct spi_device_id ad7816_id[] = {
-	{ "ad7816", 0 },
-	{ "ad7817", 0 },
-	{ "ad7818", 0 },
+	{ "ad7816", ID_AD7816 },
+	{ "ad7817", ID_AD7817 },
+	{ "ad7818", ID_AD7818 },
 	{}
 };
 
