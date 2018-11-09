@@ -1222,30 +1222,30 @@ static int parse_pred(const char *str, void *data,
 		 * (perf doesn't use it) and grab everything.
 		 */
 		if (strcmp(field->name, "ip") != 0) {
-			 parse_error(pe, FILT_ERR_IP_FIELD_ONLY, pos + i);
-			 goto err_free;
-		 }
-		 pred->fn = filter_pred_none;
+			parse_error(pe, FILT_ERR_IP_FIELD_ONLY, pos + i);
+			goto err_free;
+		}
+		pred->fn = filter_pred_none;
 
-		 /*
-		  * Quotes are not required, but if they exist then we need
-		  * to read them till we hit a matching one.
-		  */
-		 if (str[i] == '\'' || str[i] == '"')
-			 q = str[i];
-		 else
-			 q = 0;
+		/*
+		 * Quotes are not required, but if they exist then we need
+		 * to read them till we hit a matching one.
+		 */
+		if (str[i] == '\'' || str[i] == '"')
+			q = str[i];
+		else
+			q = 0;
 
-		 for (i++; str[i]; i++) {
-			 if (q && str[i] == q)
-				 break;
-			 if (!q && (str[i] == ')' || str[i] == '&' ||
-				    str[i] == '|'))
-				 break;
-		 }
-		 /* Skip quotes */
-		 if (q)
-			 s++;
+		for (i++; str[i]; i++) {
+			if (q && str[i] == q)
+				break;
+			if (!q && (str[i] == ')' || str[i] == '&' ||
+				   str[i] == '|'))
+				break;
+		}
+		/* Skip quotes */
+		if (q)
+			s++;
 		len = i - s;
 		if (len >= MAX_FILTER_STR_VAL) {
 			parse_error(pe, FILT_ERR_OPERAND_TOO_LONG, pos + i);
