@@ -4867,17 +4867,16 @@ static struct sock *sk_lookup(struct net *net, struct bpf_sock_tuple *tuple,
 	} else {
 		struct in6_addr *src6 = (struct in6_addr *)&tuple->ipv6.saddr;
 		struct in6_addr *dst6 = (struct in6_addr *)&tuple->ipv6.daddr;
-		u16 hnum = ntohs(tuple->ipv6.dport);
 
 		if (proto == IPPROTO_TCP)
 			sk = __inet6_lookup(net, &tcp_hashinfo, NULL, 0,
 					    src6, tuple->ipv6.sport,
-					    dst6, hnum,
+					    dst6, ntohs(tuple->ipv6.dport),
 					    dif, sdif, &refcounted);
 		else if (likely(ipv6_bpf_stub))
 			sk = ipv6_bpf_stub->udp6_lib_lookup(net,
 							    src6, tuple->ipv6.sport,
-							    dst6, hnum,
+							    dst6, tuple->ipv6.dport,
 							    dif, sdif,
 							    &udp_table, NULL);
 #endif
