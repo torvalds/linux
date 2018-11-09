@@ -369,14 +369,15 @@ static int ad7816_probe(struct spi_device *spi_dev)
 		chip->oti_data[i] = 203;
 
 	chip->id = spi_get_device_id(spi_dev)->driver_data;
-	chip->rdwr_pin = devm_gpiod_get(&spi_dev->dev, "rdwr", GPIOD_IN);
+	chip->rdwr_pin = devm_gpiod_get(&spi_dev->dev, "rdwr", GPIOD_OUT_HIGH);
 	if (IS_ERR(chip->rdwr_pin)) {
 		ret = PTR_ERR(chip->rdwr_pin);
 		dev_err(&spi_dev->dev, "Failed to request rdwr GPIO: %d\n",
 			ret);
 		return ret;
 	}
-	chip->convert_pin = devm_gpiod_get(&spi_dev->dev, "convert", GPIOD_IN);
+	chip->convert_pin = devm_gpiod_get(&spi_dev->dev, "convert",
+					   GPIOD_OUT_HIGH);
 	if (IS_ERR(chip->convert_pin)) {
 		ret = PTR_ERR(chip->convert_pin);
 		dev_err(&spi_dev->dev, "Failed to request convert GPIO: %d\n",
