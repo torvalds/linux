@@ -83,6 +83,11 @@ nfp_abm_red_check_params(struct nfp_abm_link *alink,
 			 opt->parent, opt->handle);
 		return false;
 	}
+	if (opt->set.is_harddrop) {
+		nfp_warn(cpp, "RED offload failed - harddrop is not supported (p:%08x h:%08x)\n",
+			 opt->parent, opt->handle);
+		return false;
+	}
 	if (opt->set.min != opt->set.max) {
 		nfp_warn(cpp, "RED offload failed - unsupported min/max parameters (p:%08x h:%08x)\n",
 			 opt->parent, opt->handle);
