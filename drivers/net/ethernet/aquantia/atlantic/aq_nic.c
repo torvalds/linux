@@ -118,7 +118,7 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	}
 
 	cfg->link_speed_msk &= cfg->aq_hw_caps->link_speed_msk;
-	cfg->hw_features = cfg->aq_hw_caps->hw_features;
+	cfg->features = cfg->aq_hw_caps->hw_features;
 }
 
 static int aq_nic_update_link_status(struct aq_nic_s *self)

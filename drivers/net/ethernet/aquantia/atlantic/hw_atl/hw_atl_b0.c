@@ -234,8 +234,10 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 	hw_atl_tpo_tcp_udp_crc_offload_en_set(self, 1);
 
 	/* RX checksums offloads*/
-	hw_atl_rpo_ipv4header_crc_offload_en_set(self, 1);
-	hw_atl_rpo_tcp_udp_crc_offload_en_set(self, 1);
+	hw_atl_rpo_ipv4header_crc_offload_en_set(self, !!(aq_nic_cfg->features &
+						 NETIF_F_RXCSUM));
+	hw_atl_rpo_tcp_udp_crc_offload_en_set(self, !!(aq_nic_cfg->features &
+					      NETIF_F_RXCSUM));
 
 	/* LSO offloads*/
 	hw_atl_tdm_large_send_offload_en_set(self, 0xFFFFFFFFU);
@@ -974,5 +976,6 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_get_regs                 = hw_atl_utils_hw_get_regs,
 	.hw_get_hw_stats             = hw_atl_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
+	.hw_set_offload              = hw_atl_b0_hw_offload_set,
 	.hw_set_fc                   = hw_atl_b0_set_fc,
 };
