@@ -1761,6 +1761,11 @@ int bpf_program__pin(struct bpf_program *prog, const char *path)
 		return -EINVAL;
 	}
 
+	if (prog->instances.nr == 1) {
+		/* don't create subdirs when pinning single instance */
+		return bpf_program__pin_instance(prog, path, 0);
+	}
+
 	err = make_dir(path);
 	if (err)
 		return err;
@@ -1821,6 +1826,11 @@ int bpf_program__unpin(struct bpf_program *prog, const char *path)
 		pr_warning("no instances of prog %s to pin\n",
 			   prog->section_name);
 		return -EINVAL;
+	}
+
+	if (prog->instances.nr == 1) {
+		/* don't create subdirs when pinning single instance */
+		return bpf_program__unpin_instance(prog, path, 0);
 	}
 
 	for (i = 0; i < prog->instances.nr; i++) {
