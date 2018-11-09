@@ -181,9 +181,9 @@ static void mtip_init_cmd_header(struct request *rq)
 				(sizeof(struct mtip_cmd_hdr) * rq->tag);
 
 	if (test_bit(MTIP_PF_HOST_CAP_64, &dd->port->flags))
-		cmd->command_header->ctbau = __force_bit2int cpu_to_le32((cmd->command_dma >> 16) >> 16);
+		cmd->command_header->ctbau = cpu_to_le32((cmd->command_dma >> 16) >> 16);
 
-	cmd->command_header->ctba = __force_bit2int cpu_to_le32(cmd->command_dma & 0xFFFFFFFF);
+	cmd->command_header->ctba = cpu_to_le32(cmd->command_dma & 0xFFFFFFFF);
 }
 
 static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
@@ -1459,8 +1459,8 @@ static blk_status_t mtip_send_trim(struct driver_data *dd, unsigned int lba,
 		tlen = (sect_left >= MTIP_MAX_TRIM_ENTRY_LEN ?
 					MTIP_MAX_TRIM_ENTRY_LEN :
 					sect_left);
-		buf[i].lba = __force_bit2int cpu_to_le32(tlba);
-		buf[i].range = __force_bit2int cpu_to_le16(tlen);
+		buf[i].lba = cpu_to_le32(tlba);
+		buf[i].range = cpu_to_le16(tlen);
 		tlba += tlen;
 		sect_left -= tlen;
 	}
@@ -1590,11 +1590,9 @@ static inline void fill_command_sg(struct driver_data *dd,
 		if (dma_len > 0x400000)
 			dev_err(&dd->pdev->dev,
 				"DMA segment length truncated\n");
-		command_sg->info = __force_bit2int
-			cpu_to_le32((dma_len-1) & 0x3FFFFF);
-		command_sg->dba	= __force_bit2int
-			cpu_to_le32(sg_dma_address(sg));
-		command_sg->dba_upper = __force_bit2int
+		command_sg->info = cpu_to_le32((dma_len-1) & 0x3FFFFF);
+		command_sg->dba	=  cpu_to_le32(sg_dma_address(sg));
+		command_sg->dba_upper =
 			cpu_to_le32((sg_dma_address(sg) >> 16) >> 16);
 		command_sg++;
 		sg++;
@@ -2231,8 +2229,7 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 
 	/* Populate the command header */
 	command->command_header->opts =
-			__force_bit2int cpu_to_le32(
-				(nents << 16) | 5 | AHCI_CMD_PREFETCH);
+			cpu_to_le32((nents << 16) | 5 | AHCI_CMD_PREFETCH);
 	command->command_header->byte_count = 0;
 
 	command->direction = dma_dir;
@@ -3586,20 +3583,16 @@ static blk_status_t mtip_issue_reserved_cmd(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_RESOURCE;
 
 	/* Populate the SG list */
-	cmd->command_header->opts =
-		 __force_bit2int cpu_to_le32(icmd->opts | icmd->fis_len);
+	cmd->command_header->opts = cpu_to_le32(icmd->opts | icmd->fis_len);
 	if (icmd->buf_len) {
 		command_sg = cmd->command + AHCI_CMD_TBL_HDR_SZ;
 
-		command_sg->info =
-			__force_bit2int cpu_to_le32((icmd->buf_len-1) & 0x3FFFFF);
-		command_sg->dba	=
-			__force_bit2int cpu_to_le32(icmd->buffer & 0xFFFFFFFF);
+		command_sg->info = cpu_to_le32((icmd->buf_len-1) & 0x3FFFFF);
+		command_sg->dba	= cpu_to_le32(icmd->buffer & 0xFFFFFFFF);
 		command_sg->dba_upper =
-			__force_bit2int cpu_to_le32((icmd->buffer >> 16) >> 16);
+			cpu_to_le32((icmd->buffer >> 16) >> 16);
 
-		cmd->command_header->opts |=
-			__force_bit2int cpu_to_le32((1 << 16));
+		cmd->command_header->opts |= cpu_to_le32((1 << 16));
 	}
 
 	/* Populate the command header */
