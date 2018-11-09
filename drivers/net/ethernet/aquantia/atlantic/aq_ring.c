@@ -172,6 +172,27 @@ bool aq_ring_tx_clean(struct aq_ring_s *self)
 	return !!budget;
 }
 
+static void aq_rx_checksum(struct aq_ring_s *self,
+			   struct aq_ring_buff_s *buff,
+			   struct sk_buff *skb)
+{
+	if (!(self->aq_nic->ndev->features & NETIF_F_RXCSUM))
+		return;
+
+	if (unlikely(buff->is_cso_err)) {
+		++self->stats.rx.errors;
+		skb->ip_summed = CHECKSUM_NONE;
+		return;
+	}
+	if (buff->is_ip_cso) {
+		__skb_incr_checksum_unnecessary(skb);
+		if (buff->is_udp_cso || buff->is_tcp_cso)
+			__skb_incr_checksum_unnecessary(skb);
+	} else {
+		skb->ip_summed = CHECKSUM_NONE;
+	}
+}
+
 #define AQ_SKB_ALIGN SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
 int aq_ring_rx_clean(struct aq_ring_s *self,
 		     struct napi_struct *napi,
@@ -267,18 +288,8 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		}
 
 		skb->protocol = eth_type_trans(skb, ndev);
-		if (unlikely(buff->is_cso_err)) {
-			++self->stats.rx.errors;
-			skb->ip_summed = CHECKSUM_NONE;
-		} else {
-			if (buff->is_ip_cso) {
-				__skb_incr_checksum_unnecessary(skb);
-				if (buff->is_udp_cso || buff->is_tcp_cso)
-					__skb_incr_checksum_unnecessary(skb);
-			} else {
-				skb->ip_summed = CHECKSUM_NONE;
-			}
-		}
+
+		aq_rx_checksum(self, buff, skb);
 
 		skb_set_hash(skb, buff->rss_hash,
 			     buff->is_hash_l4 ? PKT_HASH_TYPE_L4 :
