@@ -21,6 +21,18 @@
 	};
 };
 
+&remoteproc_adsp {
+	status = "ok";
+};
+
+&remoteproc_cdsp {
+	status = "ok";
+};
+
+&remoteproc_wcss {
+	status = "ok";
+};
+
 &rpm_requests {
 	pms405-regulators {
 		compatible = "qcom,rpm-pms405-regulators";
