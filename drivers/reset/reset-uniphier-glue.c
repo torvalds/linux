@@ -152,6 +152,18 @@ static const struct of_device_id uniphier_glue_reset_match[] = {
 		.compatible = "socionext,uniphier-pxs3-usb3-reset",
 		.data = &uniphier_pxs2_data,
 	},
+	{
+		.compatible = "socionext,uniphier-pro4-ahci-reset",
+		.data = &uniphier_pro4_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pxs2-ahci-reset",
+		.data = &uniphier_pxs2_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pxs3-ahci-reset",
+		.data = &uniphier_pxs2_data,
+	},
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, uniphier_glue_reset_match);
