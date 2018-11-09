@@ -65,7 +65,6 @@
 #define GB_CONTROL_BUNDLE_ID			0
 #define GB_CONTROL_CPORT_ID			0
 
-
 /*
  * All operation messages (both requests and responses) begin with
  * a header that encodes the size of the message (header included).
@@ -95,7 +94,6 @@ struct gb_operation_msg_hdr {
 	__u8	pad[2];		/* must be zero (ignore when read) */
 } __packed;
 
-
 /* Generic request types */
 #define GB_REQUEST_TYPE_CPORT_SHUTDOWN		0x00
 #define GB_REQUEST_TYPE_INVALID			0x7f
@@ -103,7 +101,6 @@ struct gb_operation_msg_hdr {
 struct gb_cport_shutdown_request {
 	__u8 phase;
 } __packed;
-
 
 /* Control Protocol */
 
@@ -249,7 +246,6 @@ struct gb_apb_request_cport_flags {
 #define GB_APB_CPORT_FLAG_HIGH_PRIO		0x02
 } __packed;
 
-
 /* Firmware Download Protocol */
 
 /* Request Types */
@@ -285,7 +281,6 @@ struct gb_fw_download_release_firmware_request {
 	__u8			firmware_id;
 } __packed;
 /* firmware download release firmware response has no payload */
-
 
 /* Firmware Management Protocol */
 
@@ -368,7 +363,6 @@ struct gb_fw_mgmt_backend_fw_updated_request {
 } __packed;
 /* firmware management backend firmware updated response has no payload */
 
-
 /* Component Authentication Protocol (CAP) */
 
 /* Request Types */
@@ -404,7 +398,6 @@ struct gb_cap_authenticate_response {
 	__u8			response[64];
 	__u8			signature[0];
 } __packed;
-
 
 /* Bootrom Protocol */
 
@@ -473,7 +466,6 @@ struct gb_bootrom_get_vid_pid_response {
 	__le32			vendor_id;
 	__le32			product_id;
 } __packed;
-
 
 /* Power Supply */
 
@@ -648,7 +640,6 @@ struct gb_power_supply_event_request {
 #define GB_POWER_SUPPLY_UPDATE		0x01
 } __packed;
 
-
 /* HID */
 
 /* Greybus HID operation types */
@@ -694,7 +685,6 @@ struct gb_hid_input_report_request {
 	__u8				report[0];
 } __packed;
 
-
 /* I2C */
 
 /* Greybus i2c request types */
@@ -729,7 +719,6 @@ struct gb_i2c_transfer_request {
 struct gb_i2c_transfer_response {
 	__u8				data[0];	/* inbound data */
 } __packed;
-
 
 /* GPIO */
 
@@ -828,7 +817,6 @@ struct gb_gpio_irq_event_request {
 	__u8	which;
 } __packed;
 /* irq event has no response */
-
 
 /* PWM */
 
@@ -1317,7 +1305,6 @@ struct gb_svc_intf_oops_request {
 } __packed;
 /* intf_oops response has no payload */
 
-
 /* RAW */
 
 /* Greybus raw request types */
@@ -1327,7 +1314,6 @@ struct gb_raw_send_request {
 	__le32	len;
 	__u8	data[0];
 } __packed;
-
 
 /* UART */
 
@@ -2203,7 +2189,6 @@ struct gb_audio_send_data_request {
 	__le64	timestamp;
 	__u8	data[0];
 } __packed;
-
 
 /* Log */
 
