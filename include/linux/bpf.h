@@ -270,6 +270,7 @@ struct bpf_prog_offload_ops {
 	int (*finalize)(struct bpf_verifier_env *env);
 	int (*prepare)(struct net_device *netdev, struct bpf_verifier_env *env);
 	int (*translate)(struct net_device *netdev, struct bpf_prog *prog);
+	void (*destroy)(struct bpf_prog *prog);
 };
 
 struct bpf_prog_offload {

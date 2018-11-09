@@ -294,6 +294,7 @@ static const struct bpf_prog_offload_ops nsim_bpf_dev_ops = {
 	.finalize	= nsim_bpf_finalize,
 	.prepare	= nsim_bpf_verifier_prep,
 	.translate	= nsim_bpf_translate,
+	.destroy	= nsim_bpf_destroy_prog,
 };
 
 static int nsim_setup_prog_checks(struct netdevsim *ns, struct netdev_bpf *bpf)
@@ -560,9 +561,6 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 	ASSERT_RTNL();
 
 	switch (bpf->command) {
-	case BPF_OFFLOAD_DESTROY:
-		nsim_bpf_destroy_prog(bpf->offload.prog);
-		return 0;
 	case XDP_QUERY_PROG:
 		return xdp_attachment_query(&ns->xdp, bpf);
 	case XDP_QUERY_PROG_HW:

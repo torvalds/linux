@@ -123,23 +123,6 @@ err_maybe_put:
 	return err;
 }
 
-static int __bpf_offload_ndo(struct bpf_prog *prog, enum bpf_netdev_command cmd,
-			     struct netdev_bpf *data)
-{
-	struct bpf_prog_offload *offload = prog->aux->offload;
-	struct net_device *netdev;
-
-	ASSERT_RTNL();
-
-	if (!offload)
-		return -ENODEV;
-	netdev = offload->netdev;
-
-	data->command = cmd;
-
-	return netdev->netdev_ops->ndo_bpf(netdev, data);
-}
-
 int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env)
 {
 	struct bpf_prog_offload *offload;
@@ -192,12 +175,9 @@ int bpf_prog_offload_finalize(struct bpf_verifier_env *env)
 static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
 {
 	struct bpf_prog_offload *offload = prog->aux->offload;
-	struct netdev_bpf data = {};
-
-	data.offload.prog = prog;
 
 	if (offload->dev_state)
-		WARN_ON(__bpf_offload_ndo(prog, BPF_OFFLOAD_DESTROY, &data));
+		offload->offdev->ops->destroy(prog);
 
 	/* Make sure BPF_PROG_GET_NEXT_ID can't find this dead program */
 	bpf_prog_free_id(prog, true);
@@ -209,12 +189,10 @@ static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
 
 void bpf_prog_offload_destroy(struct bpf_prog *prog)
 {
-	rtnl_lock();
 	down_write(&bpf_devs_lock);
 	if (prog->aux->offload)
 		__bpf_prog_offload_destroy(prog);
 	up_write(&bpf_devs_lock);
-	rtnl_unlock();
 }
 
 static int bpf_prog_offload_translate(struct bpf_prog *prog)
