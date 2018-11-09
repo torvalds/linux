@@ -168,20 +168,6 @@ static bool mtip_check_surprise_removal(struct pci_dev *pdev)
 	return false; /* device present */
 }
 
-static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
-{
-	struct request *rq;
-
-	if (mtip_check_surprise_removal(dd->pdev))
-		return NULL;
-
-	rq = blk_mq_alloc_request(dd->queue, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
-	if (IS_ERR(rq))
-		return NULL;
-
-	return blk_mq_rq_to_pdu(rq);
-}
-
 static struct mtip_cmd *mtip_cmd_from_tag(struct driver_data *dd,
 					  unsigned int tag)
 {
@@ -1002,12 +988,15 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 		return -EFAULT;
 	}
 
-	int_cmd = mtip_get_int_command(dd);
-	if (!int_cmd) {
+	if (mtip_check_surprise_removal(dd->pdev))
+		return -EFAULT;
+
+	rq = blk_mq_alloc_request(dd->queue, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
+	if (IS_ERR(rq)) {
 		dbg_printk(MTIP_DRV_NAME "Unable to allocate tag for PIO cmd\n");
 		return -EFAULT;
 	}
-	rq = blk_mq_rq_from_pdu(int_cmd);
+
 	rq->special = &icmd;
 
 	set_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
@@ -1029,6 +1018,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 	}
 
 	/* Copy the command to the command table */
+	int_cmd = blk_mq_rq_to_pdu(rq);
 	memcpy(int_cmd->command, fis, fis_len*4);
 
 	rq->timeout = timeout;
