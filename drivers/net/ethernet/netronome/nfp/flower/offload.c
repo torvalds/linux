@@ -128,6 +128,7 @@ nfp_flower_calc_opt_layer(struct flow_dissector_key_enc_opts *enc_opts,
 
 static int
 nfp_flower_calculate_key_layers(struct nfp_app *app,
+				struct net_device *netdev,
 				struct nfp_fl_key_ls *ret_key_ls,
 				struct tc_cls_flower_offload *flow,
 				bool egress,
@@ -186,8 +187,6 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			skb_flow_dissector_target(flow->dissector,
 						  FLOW_DISSECTOR_KEY_ENC_CONTROL,
 						  flow->key);
-		if (!egress)
-			return -EOPNOTSUPP;
 
 		if (mask_enc_ctl->addr_type != 0xffff ||
 		    enc_ctl->addr_type != FLOW_DISSECTOR_KEY_IPV4_ADDRS)
@@ -250,6 +249,10 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		default:
 			return -EOPNOTSUPP;
 		}
+
+		/* Ensure the ingress netdev matches the expected tun type. */
+		if (!nfp_fl_netdev_is_tunnel_type(netdev, *tun_type))
+			return -EOPNOTSUPP;
 	} else if (egress) {
 		/* Reject non tunnel matches offloaded to egress repr. */
 		return -EOPNOTSUPP;
@@ -451,8 +454,8 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (!key_layer)
 		return -ENOMEM;
 
-	err = nfp_flower_calculate_key_layers(app, key_layer, flow, egress,
-					      &tun_type);
+	err = nfp_flower_calculate_key_layers(app, netdev, key_layer, flow,
+					      egress, &tun_type);
 	if (err)
 		goto err_free_key_ls;
 
@@ -692,4 +695,130 @@ int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 	default:
 		return -EOPNOTSUPP;
 	}
+}
+
+struct nfp_flower_indr_block_cb_priv {
+	struct net_device *netdev;
+	struct nfp_app *app;
+	struct list_head list;
+};
+
+static struct nfp_flower_indr_block_cb_priv *
+nfp_flower_indr_block_cb_priv_lookup(struct nfp_app *app,
+				     struct net_device *netdev)
+{
+	struct nfp_flower_indr_block_cb_priv *cb_priv;
+	struct nfp_flower_priv *priv = app->priv;
+
+	/* All callback list access should be protected by RTNL. */
+	ASSERT_RTNL();
+
+	list_for_each_entry(cb_priv, &priv->indr_block_cb_priv, list)
+		if (cb_priv->netdev == netdev)
+			return cb_priv;
+
+	return NULL;
+}
+
+static int nfp_flower_setup_indr_block_cb(enum tc_setup_type type,
+					  void *type_data, void *cb_priv)
+{
+	struct nfp_flower_indr_block_cb_priv *priv = cb_priv;
+	struct tc_cls_flower_offload *flower = type_data;
+
+	if (flower->common.chain_index)
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return nfp_flower_repr_offload(priv->app, priv->netdev,
+					       type_data, false);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int
+nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
+			       struct tc_block_offload *f)
+{
+	struct nfp_flower_indr_block_cb_priv *cb_priv;
+	struct nfp_flower_priv *priv = app->priv;
+	int err;
+
+	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		cb_priv = kmalloc(sizeof(*cb_priv), GFP_KERNEL);
+		if (!cb_priv)
+			return -ENOMEM;
+
+		cb_priv->netdev = netdev;
+		cb_priv->app = app;
+		list_add(&cb_priv->list, &priv->indr_block_cb_priv);
+
+		err = tcf_block_cb_register(f->block,
+					    nfp_flower_setup_indr_block_cb,
+					    netdev, cb_priv, f->extack);
+		if (err) {
+			list_del(&cb_priv->list);
+			kfree(cb_priv);
+		}
+
+		return err;
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block,
+					nfp_flower_setup_indr_block_cb, netdev);
+		cb_priv = nfp_flower_indr_block_cb_priv_lookup(app, netdev);
+		if (cb_priv) {
+			list_del(&cb_priv->list);
+			kfree(cb_priv);
+		}
+
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int
+nfp_flower_indr_setup_tc_cb(struct net_device *netdev, void *cb_priv,
+			    enum tc_setup_type type, void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return nfp_flower_setup_indr_tc_block(netdev, cb_priv,
+						      type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
+				       struct net_device *netdev,
+				       unsigned long event)
+{
+	int err;
+
+	if (!nfp_fl_is_netdev_to_offload(netdev))
+		return NOTIFY_OK;
+
+	if (event == NETDEV_REGISTER) {
+		err = __tc_indr_block_cb_register(netdev, app,
+						  nfp_flower_indr_setup_tc_cb,
+						  netdev);
+		if (err)
+			nfp_flower_cmsg_warn(app,
+					     "Indirect block reg failed - %s\n",
+					     netdev->name);
+	} else if (event == NETDEV_UNREGISTER) {
+		__tc_indr_block_cb_unregister(netdev,
+					      nfp_flower_indr_setup_tc_cb,
+					      netdev);
+	}
+
+	return NOTIFY_OK;
 }

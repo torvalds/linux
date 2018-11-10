@@ -568,6 +568,8 @@ static int nfp_flower_init(struct nfp_app *app)
 		goto err_cleanup_metadata;
 	}
 
+	INIT_LIST_HEAD(&app_priv->indr_block_cb_priv);
+
 	return 0;
 
 err_cleanup_metadata:
@@ -683,6 +685,10 @@ nfp_flower_netdev_event(struct nfp_app *app, struct net_device *netdev,
 		if (ret & NOTIFY_STOP_MASK)
 			return ret;
 	}
+
+	ret = nfp_flower_reg_indir_block_handler(app, netdev, event);
+	if (ret & NOTIFY_STOP_MASK)
+		return ret;
 
 	return nfp_tunnel_mac_event_handler(app, netdev, event, ptr);
 }
