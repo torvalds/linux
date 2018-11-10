@@ -6584,7 +6584,7 @@ static int r8169_phy_connect(struct rtl8169_private *tp)
 		phy_set_max_speed(phydev, SPEED_100);
 
 	/* Ensure to advertise everything, incl. pause */
-	phydev->advertising = phydev->supported;
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	phy_attached_info(phydev);
 

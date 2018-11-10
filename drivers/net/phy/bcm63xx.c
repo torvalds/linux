@@ -43,7 +43,7 @@ static int bcm63xx_config_init(struct phy_device *phydev)
 	int reg, err;
 
 	/* ASYM_PAUSE bit is marked RO in datasheet, so don't cheat */
-	phydev->supported |= SUPPORTED_Pause;
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->supported);
 
 	reg = phy_read(phydev, MII_BCM63XX_IR);
 	if (reg < 0)

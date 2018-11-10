@@ -304,8 +304,11 @@ EXPORT_SYMBOL_GPL(gen10g_no_soft_reset);
 int gen10g_config_init(struct phy_device *phydev)
 {
 	/* Temporarily just say we support everything */
-	phydev->supported = SUPPORTED_10000baseT_Full;
-	phydev->advertising = SUPPORTED_10000baseT_Full;
+	linkmode_zero(phydev->supported);
+
+	linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 phydev->supported);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	return 0;
 }

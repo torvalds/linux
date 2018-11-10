@@ -385,19 +385,21 @@ static inline void mii_adv_to_linkmode_adv_t(unsigned long *advertising,
 }
 
 /**
- * ethtool_adv_to_lcl_adv_t
- * @advertising:pointer to ethtool advertising
+ * linkmode_adv_to_lcl_adv_t
+ * @advertising:pointer to linkmode advertising
  *
- * A small helper function that translates ethtool advertising to LVL
+ * A small helper function that translates linkmode advertising to LVL
  * pause capabilities.
  */
-static inline u32 ethtool_adv_to_lcl_adv_t(u32 advertising)
+static inline u32 linkmode_adv_to_lcl_adv_t(unsigned long *advertising)
 {
 	u32 lcl_adv = 0;
 
-	if (advertising & ADVERTISED_Pause)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+			      advertising))
 		lcl_adv |= ADVERTISE_PAUSE_CAP;
-	if (advertising & ADVERTISED_Asym_Pause)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+			      advertising))
 		lcl_adv |= ADVERTISE_PAUSE_ASYM;
 
 	return lcl_adv;

@@ -1117,7 +1117,7 @@ static void ave_phy_adjust_link(struct net_device *ndev)
 		if (phydev->asym_pause)
 			rmt_adv |= LPA_PAUSE_ASYM;
 
-		lcl_adv = ethtool_adv_to_lcl_adv_t(phydev->advertising);
+		lcl_adv = linkmode_adv_to_lcl_adv_t(phydev->advertising);
 		cap = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
 		if (cap & FLOW_CTRL_TX)
 			txcr |= AVE_TXCR_FLOCTR;

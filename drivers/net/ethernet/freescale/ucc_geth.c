@@ -1742,12 +1742,7 @@ static int init_phy(struct net_device *dev)
 	if (priv->phy_interface == PHY_INTERFACE_MODE_SGMII)
 		uec_configure_serdes(dev);
 
-	phy_set_max_speed(phydev, SPEED_100);
-
-	if (priv->max_speed == SPEED_1000)
-		phydev->supported |= ADVERTISED_1000baseT_Full;
-
-	phydev->advertising = phydev->supported;
+	phy_set_max_speed(phydev, priv->max_speed);
 
 	priv->phydev = phydev;
 

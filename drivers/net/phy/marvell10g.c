@@ -252,7 +252,6 @@ static int mv3310_resume(struct phy_device *phydev)
 static int mv3310_config_init(struct phy_device *phydev)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported) = { 0, };
-	u32 mask;
 	int val;
 
 	/* Check that the PHY interface type is compatible */
@@ -336,13 +335,9 @@ static int mv3310_config_init(struct phy_device *phydev)
 		}
 	}
 
-	if (!ethtool_convert_link_mode_to_legacy_u32(&mask, supported))
-		phydev_warn(phydev,
-			    "PHY supports (%*pb) more modes than phylib supports, some modes not supported.\n",
-			    __ETHTOOL_LINK_MODE_MASK_NBITS, supported);
-
-	phydev->supported &= mask;
-	phydev->advertising &= phydev->supported;
+	linkmode_copy(phydev->supported, supported);
+	linkmode_and(phydev->advertising, phydev->advertising,
+		     phydev->supported);
 
 	return 0;
 }
@@ -350,7 +345,7 @@ static int mv3310_config_init(struct phy_device *phydev)
 static int mv3310_config_aneg(struct phy_device *phydev)
 {
 	bool changed = false;
-	u32 advertising;
+	u16 reg;
 	int ret;
 
 	/* We don't support manual MDI control */
@@ -364,31 +359,35 @@ static int mv3310_config_aneg(struct phy_device *phydev)
 		return genphy_c45_an_disable_aneg(phydev);
 	}
 
-	phydev->advertising &= phydev->supported;
-	advertising = phydev->advertising;
+	linkmode_and(phydev->advertising, phydev->advertising,
+		     phydev->supported);
 
 	ret = mv3310_modify(phydev, MDIO_MMD_AN, MDIO_AN_ADVERTISE,
 			    ADVERTISE_ALL | ADVERTISE_100BASE4 |
 			    ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM,
-			    ethtool_adv_to_mii_adv_t(advertising));
+			    linkmode_adv_to_mii_adv_t(phydev->advertising));
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
 		changed = true;
 
+	reg = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
 	ret = mv3310_modify(phydev, MDIO_MMD_AN, MV_AN_CTRL1000,
-			    ADVERTISE_1000FULL | ADVERTISE_1000HALF,
-			    ethtool_adv_to_mii_ctrl1000_t(advertising));
+			    ADVERTISE_1000FULL | ADVERTISE_1000HALF, reg);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
 		changed = true;
 
 	/* 10G control register */
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			      phydev->advertising))
+		reg = MDIO_AN_10GBT_CTRL_ADV10G;
+	else
+		reg = 0;
+
 	ret = mv3310_modify(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
-			    MDIO_AN_10GBT_CTRL_ADV10G,
-			    advertising & ADVERTISED_10000baseT_Full ?
-				MDIO_AN_10GBT_CTRL_ADV10G : 0);
+			    MDIO_AN_10GBT_CTRL_ADV10G, reg);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
