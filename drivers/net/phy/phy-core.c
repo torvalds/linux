@@ -359,6 +359,14 @@ void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, common)) {
 		phydev->speed = SPEED_10000;
 		phydev->duplex = DUPLEX_FULL;
+	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+				     common)) {
+		phydev->speed = SPEED_5000;
+		phydev->duplex = DUPLEX_FULL;
+	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				     common)) {
+		phydev->speed = SPEED_2500;
+		phydev->duplex = DUPLEX_FULL;
 	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
 				     common)) {
 		phydev->speed = SPEED_1000;
