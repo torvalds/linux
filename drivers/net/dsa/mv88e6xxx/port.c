@@ -368,11 +368,14 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 	u16 reg;
 	int err;
 
-	if (mode == PHY_INTERFACE_MODE_NA)
-		return 0;
-
 	if (port != 9 && port != 10)
 		return -EOPNOTSUPP;
+
+	/* Default to a slow mode, so freeing up SERDES interfaces for
+	 * other ports which might use them for SFPs.
+	 */
+	if (mode == PHY_INTERFACE_MODE_NA)
+		mode = PHY_INTERFACE_MODE_1000BASEX;
 
 	switch (mode) {
 	case PHY_INTERFACE_MODE_1000BASEX:
