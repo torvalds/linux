@@ -553,10 +553,6 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				break;
 			case BPF_ANC | SKF_AD_VLAN_TAG:
 				emit_skb_load16(vlan_tci, r_A);
-#ifdef VLAN_TAG_PRESENT
-				emit_loadimm(~VLAN_TAG_PRESENT, r_TMP);
-				emit_and(r_A, r_TMP, r_A);
-#endif
 				break;
 			case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
 				__emit_skb_load8(__pkt_vlan_present_offset, r_A);

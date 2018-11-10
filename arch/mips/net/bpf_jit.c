@@ -1164,9 +1164,6 @@ jmp_cmp:
 						  vlan_tci) != 2);
 			off = offsetof(struct sk_buff, vlan_tci);
 			emit_half_load_unsigned(r_A, r_skb, off, ctx);
-#ifdef VLAN_TAG_PRESENT
-			emit_andi(r_A, r_A, (u16)~VLAN_TAG_PRESENT, ctx);
-#endif
 			break;
 		case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
 			ctx->flags |= SEEN_SKB | SEEN_A;

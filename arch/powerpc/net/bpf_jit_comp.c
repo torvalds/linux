@@ -383,9 +383,6 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 
 			PPC_LHZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  vlan_tci));
-#ifdef VLAN_TAG_PRESENT
-			PPC_ANDI(r_A, r_A, ~VLAN_TAG_PRESENT);
-#endif
 			break;
 		case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
 			PPC_LBZ_OFFS(r_A, r_skb, PKT_VLAN_PRESENT_OFFSET());

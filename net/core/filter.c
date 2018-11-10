@@ -301,9 +301,6 @@ static u32 convert_skb_access(int skb_field, int dst_reg, int src_reg,
 		/* dst_reg = *(u16 *) (src_reg + offsetof(vlan_tci)) */
 		*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg,
 				      offsetof(struct sk_buff, vlan_tci));
-#ifdef VLAN_TAG_PRESENT
-		*insn++ = BPF_ALU32_IMM(BPF_AND, dst_reg, ~VLAN_TAG_PRESENT);
-#endif
 		break;
 	case SKF_AD_VLAN_TAG_PRESENT:
 		*insn++ = BPF_LDX_MEM(BPF_B, dst_reg, src_reg, PKT_VLAN_PRESENT_OFFSET());
@@ -6152,9 +6149,6 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->src_reg,
 				      bpf_target_off(struct sk_buff, vlan_tci, 2,
 						     target_size));
-#ifdef VLAN_TAG_PRESENT
-		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, ~VLAN_TAG_PRESENT);
-#endif
 		break;
 
 	case offsetof(struct __sk_buff, cb[0]) ...
