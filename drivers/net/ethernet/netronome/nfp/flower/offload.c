@@ -56,11 +56,10 @@
 	 BIT(FLOW_DISSECTOR_KEY_ENC_PORTS))
 
 static int
-nfp_flower_xmit_flow(struct net_device *netdev,
-		     struct nfp_fl_payload *nfp_flow, u8 mtype)
+nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
+		     u8 mtype)
 {
 	u32 meta_len, key_len, mask_len, act_len, tot_len;
-	struct nfp_repr *priv = netdev_priv(netdev);
 	struct sk_buff *skb;
 	unsigned char *msg;
 
@@ -78,7 +77,7 @@ nfp_flower_xmit_flow(struct net_device *netdev,
 	nfp_flow->meta.mask_len >>= NFP_FL_LW_SIZ;
 	nfp_flow->meta.act_len >>= NFP_FL_LW_SIZ;
 
-	skb = nfp_flower_cmsg_alloc(priv->app, tot_len, mtype, GFP_KERNEL);
+	skb = nfp_flower_cmsg_alloc(app, tot_len, mtype, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -96,7 +95,7 @@ nfp_flower_xmit_flow(struct net_device *netdev,
 	nfp_flow->meta.mask_len <<= NFP_FL_LW_SIZ;
 	nfp_flow->meta.act_len <<= NFP_FL_LW_SIZ;
 
-	nfp_ctrl_tx(priv->app->ctrl, skb);
+	nfp_ctrl_tx(app->ctrl, skb);
 
 	return 0;
 }
@@ -427,12 +426,15 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		       struct tc_cls_flower_offload *flow, bool egress)
 {
 	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
-	struct nfp_port *port = nfp_port_from_netdev(netdev);
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *flow_pay;
 	struct nfp_fl_key_ls *key_layer;
+	struct nfp_port *port = NULL;
 	struct net_device *ingr_dev;
 	int err;
+
+	if (nfp_netdev_is_nfp_repr(netdev))
+		port = nfp_port_from_netdev(netdev);
 
 	ingr_dev = egress ? NULL : netdev;
 	flow_pay = nfp_flower_search_fl_table(app, flow->cookie, ingr_dev,
@@ -462,8 +464,8 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 
 	flow_pay->ingress_dev = egress ? NULL : netdev;
 
-	err = nfp_flower_compile_flow_match(flow, key_layer, netdev, flow_pay,
-					    tun_type);
+	err = nfp_flower_compile_flow_match(app, flow, key_layer, netdev,
+					    flow_pay, tun_type);
 	if (err)
 		goto err_destroy_flow;
 
@@ -476,7 +478,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_destroy_flow;
 
-	err = nfp_flower_xmit_flow(netdev, flow_pay,
+	err = nfp_flower_xmit_flow(app, flow_pay,
 				   NFP_FLOWER_CMSG_TYPE_FLOW_ADD);
 	if (err)
 		goto err_destroy_flow;
@@ -487,7 +489,8 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_destroy_flow;
 
-	port->tc_offload_cnt++;
+	if (port)
+		port->tc_offload_cnt++;
 
 	/* Deallocate flow payload when flower rule has been destroyed. */
 	kfree(key_layer);
@@ -520,11 +523,14 @@ static int
 nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 		       struct tc_cls_flower_offload *flow, bool egress)
 {
-	struct nfp_port *port = nfp_port_from_netdev(netdev);
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *nfp_flow;
+	struct nfp_port *port = NULL;
 	struct net_device *ingr_dev;
 	int err;
+
+	if (nfp_netdev_is_nfp_repr(netdev))
+		port = nfp_port_from_netdev(netdev);
 
 	ingr_dev = egress ? NULL : netdev;
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, ingr_dev,
@@ -539,13 +545,14 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 	if (nfp_flow->nfp_tun_ipv4_addr)
 		nfp_tunnel_del_ipv4_off(app, nfp_flow->nfp_tun_ipv4_addr);
 
-	err = nfp_flower_xmit_flow(netdev, nfp_flow,
+	err = nfp_flower_xmit_flow(app, nfp_flow,
 				   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);
 	if (err)
 		goto err_free_flow;
 
 err_free_flow:
-	port->tc_offload_cnt--;
+	if (port)
+		port->tc_offload_cnt--;
 	kfree(nfp_flow->action_data);
 	kfree(nfp_flow->mask_data);
 	kfree(nfp_flow->unmasked_data);

@@ -149,11 +149,12 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 		/* Set action output parameters. */
 		output->flags = cpu_to_be16(tmp_flags);
 
-		/* Only offload if egress ports are on the same device as the
-		 * ingress port.
-		 */
-		if (!switchdev_port_same_parent_id(in_dev, out_dev))
-			return -EOPNOTSUPP;
+		if (nfp_netdev_is_nfp_repr(in_dev)) {
+			/* Confirm ingress and egress are on same device. */
+			if (!switchdev_port_same_parent_id(in_dev, out_dev))
+				return -EOPNOTSUPP;
+		}
+
 		if (!nfp_netdev_is_nfp_repr(out_dev))
 			return -EOPNOTSUPP;
 
@@ -840,9 +841,8 @@ nfp_flower_loop_action(struct nfp_app *app, const struct tc_action *a,
 		*a_len += sizeof(struct nfp_fl_push_vlan);
 	} else if (is_tcf_tunnel_set(a)) {
 		struct ip_tunnel_info *ip_tun = tcf_tunnel_info(a);
-		struct nfp_repr *repr = netdev_priv(netdev);
 
-		*tun_type = nfp_fl_get_tun_from_act_l4_port(repr->app, a);
+		*tun_type = nfp_fl_get_tun_from_act_l4_port(app, a);
 		if (*tun_type == NFP_FL_TUNNEL_NONE)
 			return -EOPNOTSUPP;
 
