@@ -635,9 +635,13 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 
 	hdmi->dss = dss;
 
-	r = hdmi_pll_init(dss, hdmi->pdev, &hdmi->pll, &hdmi->wp);
+	r = hdmi_runtime_get(hdmi);
 	if (r)
 		return r;
+
+	r = hdmi_pll_init(dss, hdmi->pdev, &hdmi->pll, &hdmi->wp);
+	if (r)
+		goto err_runtime_put;
 
 	r = hdmi4_cec_init(hdmi->pdev, &hdmi->core, &hdmi->wp);
 	if (r)
@@ -652,12 +656,16 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 	hdmi->debugfs = dss_debugfs_create_file(dss, "hdmi", hdmi_dump_regs,
 					       hdmi);
 
+	hdmi_runtime_put(hdmi);
+
 	return 0;
 
 err_cec_uninit:
 	hdmi4_cec_uninit(&hdmi->core);
 err_pll_uninit:
 	hdmi_pll_uninit(&hdmi->pll);
+err_runtime_put:
+	hdmi_runtime_put(hdmi);
 	return r;
 }
 
