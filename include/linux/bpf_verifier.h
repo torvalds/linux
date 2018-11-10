@@ -245,7 +245,7 @@ static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)
 	return cur_func(env)->regs;
 }
 
-int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env);
+int bpf_prog_offload_verifier_prep(struct bpf_prog *prog);
 int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 				 int insn_idx, int prev_insn_idx);
 int bpf_prog_offload_finalize(struct bpf_verifier_env *env);

@@ -91,11 +91,6 @@ static int nsim_bpf_finalize(struct bpf_verifier_env *env)
 	return 0;
 }
 
-static const struct bpf_prog_offload_ops nsim_bpf_analyzer_ops = {
-	.insn_hook	= nsim_bpf_verify_insn,
-	.finalize	= nsim_bpf_finalize,
-};
-
 static bool nsim_xdp_offload_active(struct netdevsim *ns)
 {
 	return ns->xdp_hw.prog;
@@ -263,6 +258,24 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 	return 0;
 }
 
+static int nsim_bpf_verifier_prep(struct bpf_prog *prog)
+{
+	struct netdevsim *ns = netdev_priv(prog->aux->offload->netdev);
+
+	if (!ns->bpf_bind_accept)
+		return -EOPNOTSUPP;
+
+	return nsim_bpf_create_prog(ns, prog);
+}
+
+static int nsim_bpf_translate(struct bpf_prog *prog)
+{
+	struct nsim_bpf_bound_prog *state = prog->aux->offload->dev_priv;
+
+	state->state = "xlated";
+	return 0;
+}
+
 static void nsim_bpf_destroy_prog(struct bpf_prog *prog)
 {
 	struct nsim_bpf_bound_prog *state;
@@ -274,6 +287,14 @@ static void nsim_bpf_destroy_prog(struct bpf_prog *prog)
 	list_del(&state->l);
 	kfree(state);
 }
+
+static const struct bpf_prog_offload_ops nsim_bpf_dev_ops = {
+	.insn_hook	= nsim_bpf_verify_insn,
+	.finalize	= nsim_bpf_finalize,
+	.prepare	= nsim_bpf_verifier_prep,
+	.translate	= nsim_bpf_translate,
+	.destroy	= nsim_bpf_destroy_prog,
+};
 
 static int nsim_setup_prog_checks(struct netdevsim *ns, struct netdev_bpf *bpf)
 {
@@ -539,24 +560,6 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 	ASSERT_RTNL();
 
 	switch (bpf->command) {
-	case BPF_OFFLOAD_VERIFIER_PREP:
-		if (!ns->bpf_bind_accept)
-			return -EOPNOTSUPP;
-
-		err = nsim_bpf_create_prog(ns, bpf->verifier.prog);
-		if (err)
-			return err;
-
-		bpf->verifier.ops = &nsim_bpf_analyzer_ops;
-		return 0;
-	case BPF_OFFLOAD_TRANSLATE:
-		state = bpf->offload.prog->aux->offload->dev_priv;
-
-		state->state = "xlated";
-		return 0;
-	case BPF_OFFLOAD_DESTROY:
-		nsim_bpf_destroy_prog(bpf->offload.prog);
-		return 0;
 	case XDP_QUERY_PROG:
 		return xdp_attachment_query(&ns->xdp, bpf);
 	case XDP_QUERY_PROG_HW:
@@ -599,7 +602,7 @@ int nsim_bpf_init(struct netdevsim *ns)
 		if (IS_ERR_OR_NULL(ns->sdev->ddir_bpf_bound_progs))
 			return -ENOMEM;
 
-		ns->sdev->bpf_dev = bpf_offload_dev_create();
+		ns->sdev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops);
 		err = PTR_ERR_OR_ZERO(ns->sdev->bpf_dev);
 		if (err)
 			return err;

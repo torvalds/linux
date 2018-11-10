@@ -6368,7 +6368,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 		goto skip_full_check;
 
 	if (bpf_prog_is_dev_bound(env->prog->aux)) {
-		ret = bpf_prog_offload_verifier_prep(env);
+		ret = bpf_prog_offload_verifier_prep(env->prog);
 		if (ret)
 			goto skip_full_check;
 	}
