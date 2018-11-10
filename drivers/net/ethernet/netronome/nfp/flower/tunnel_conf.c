@@ -4,7 +4,6 @@
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
 #include <net/netevent.h>
-#include <net/vxlan.h>
 #include <linux/idr.h>
 #include <net/dst_metadata.h>
 #include <net/arp.h>
@@ -180,20 +179,6 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 		neigh_event_send(n, NULL);
 		neigh_release(n);
 	}
-}
-
-static bool nfp_tun_is_netdev_to_offload(struct net_device *netdev)
-{
-	if (!netdev->rtnl_link_ops)
-		return false;
-	if (!strcmp(netdev->rtnl_link_ops->kind, "openvswitch"))
-		return true;
-	if (netif_is_vxlan(netdev))
-		return true;
-	if (netif_is_geneve(netdev))
-		return true;
-
-	return false;
 }
 
 static int
@@ -617,7 +602,7 @@ static void nfp_tun_add_to_mac_offload_list(struct net_device *netdev,
 
 	if (nfp_netdev_is_nfp_repr(netdev))
 		port = nfp_repr_get_port_id(netdev);
-	else if (!nfp_tun_is_netdev_to_offload(netdev))
+	else if (!nfp_fl_is_netdev_to_offload(netdev))
 		return;
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -660,7 +645,7 @@ int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 {
 	if (event == NETDEV_DOWN || event == NETDEV_UNREGISTER) {
 		/* If non-nfp netdev then free its offload index. */
-		if (nfp_tun_is_netdev_to_offload(netdev))
+		if (nfp_fl_is_netdev_to_offload(netdev))
 			nfp_tun_del_mac_idx(app, netdev->ifindex);
 	} else if (event == NETDEV_UP || event == NETDEV_CHANGEADDR ||
 		   event == NETDEV_REGISTER) {
