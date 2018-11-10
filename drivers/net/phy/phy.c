@@ -46,9 +46,7 @@ static const char *phy_state_to_str(enum phy_state st)
 {
 	switch (st) {
 	PHY_STATE_STR(DOWN)
-	PHY_STATE_STR(STARTING)
 	PHY_STATE_STR(READY)
-	PHY_STATE_STR(PENDING)
 	PHY_STATE_STR(UP)
 	PHY_STATE_STR(RUNNING)
 	PHY_STATE_STR(NOLINK)
@@ -852,9 +850,6 @@ void phy_start(struct phy_device *phydev)
 	mutex_lock(&phydev->lock);
 
 	switch (phydev->state) {
-	case PHY_STARTING:
-		phydev->state = PHY_PENDING;
-		break;
 	case PHY_READY:
 		phydev->state = PHY_UP;
 		break;
@@ -902,9 +897,7 @@ void phy_state_machine(struct work_struct *work)
 
 	switch (phydev->state) {
 	case PHY_DOWN:
-	case PHY_STARTING:
 	case PHY_READY:
-	case PHY_PENDING:
 		break;
 	case PHY_UP:
 		needs_aneg = true;

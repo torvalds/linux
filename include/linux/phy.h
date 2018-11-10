@@ -270,28 +270,12 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  * DOWN: PHY device and driver are not ready for anything.  probe
  * should be called if and only if the PHY is in this state,
  * given that the PHY device exists.
- * - PHY driver probe function will, depending on the PHY, set
- * the state to STARTING or READY
- *
- * STARTING:  PHY device is coming up, and the ethernet driver is
- * not ready.  PHY drivers may set this in the probe function.
- * If they do, they are responsible for making sure the state is
- * eventually set to indicate whether the PHY is UP or READY,
- * depending on the state when the PHY is done starting up.
- * - PHY driver will set the state to READY
- * - start will set the state to PENDING
+ * - PHY driver probe function will set the state to READY
  *
  * READY: PHY is ready to send and receive packets, but the
  * controller is not.  By default, PHYs which do not implement
- * probe will be set to this state by phy_probe().  If the PHY
- * driver knows the PHY is ready, and the PHY state is STARTING,
- * then it sets this STATE.
+ * probe will be set to this state by phy_probe().
  * - start will set the state to UP
- *
- * PENDING: PHY device is coming up, but the ethernet driver is
- * ready.  phy_start will set this state if the PHY state is
- * STARTING.
- * - PHY driver will set the state to UP when the PHY is ready
  *
  * UP: The PHY and attached device are ready to do work.
  * Interrupts should be started here.
@@ -329,9 +313,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  */
 enum phy_state {
 	PHY_DOWN = 0,
-	PHY_STARTING,
 	PHY_READY,
-	PHY_PENDING,
 	PHY_UP,
 	PHY_RUNNING,
 	PHY_NOLINK,
