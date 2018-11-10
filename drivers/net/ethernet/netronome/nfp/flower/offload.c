@@ -512,8 +512,7 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 	if (nfp_netdev_is_nfp_repr(netdev))
 		port = nfp_port_from_netdev(netdev);
 
-	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, netdev,
-					      NFP_FL_STATS_CTX_DONT_CARE);
+	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, netdev);
 	if (!nfp_flow)
 		return -ENOENT;
 
@@ -561,8 +560,7 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 	struct nfp_fl_payload *nfp_flow;
 	u32 ctx_id;
 
-	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, netdev,
-					      NFP_FL_STATS_CTX_DONT_CARE);
+	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, netdev);
 	if (!nfp_flow)
 		return -EINVAL;
 

@@ -20,7 +20,6 @@ struct nfp_fl_pre_lag;
 struct net_device;
 struct nfp_app;
 
-#define NFP_FL_STATS_CTX_DONT_CARE	cpu_to_be32(0xffffffff)
 #define NFP_FL_STATS_ELEM_RS		FIELD_SIZEOF(struct nfp_fl_stats_id, \
 						     init_unalloc)
 #define NFP_FLOWER_MASK_ENTRY_RS	256
@@ -242,7 +241,7 @@ int nfp_modify_flow_metadata(struct nfp_app *app,
 
 struct nfp_fl_payload *
 nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie,
-			   struct net_device *netdev, __be32 host_ctx);
+			   struct net_device *netdev);
 struct nfp_fl_payload *
 nfp_flower_remove_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
 
