@@ -97,6 +97,7 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_NETWORK_PORT_ID_M		GENMASK(3, 0)
 
 /* Reset related Registers */
+#define HCLGE_PF_OTHER_INT_REG		0x20600
 #define HCLGE_MISC_RESET_STS_REG	0x20700
 #define HCLGE_MISC_VECTOR_INT_STS	0x20800
 #define HCLGE_GLOBAL_RESET_REG		0x20A00
@@ -115,6 +116,8 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_VECTOR0_CMDQ_SRC_REG	0x27100
 /* CMDQ register bits for RX event(=MBX event) */
 #define HCLGE_VECTOR0_RX_CMDQ_INT_B	1
+
+#define HCLGE_VECTOR0_IMP_RESET_INT_B	1
 
 #define HCLGE_MAC_DEFAULT_FRAME \
 	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN + ETH_DATA_LEN)
@@ -594,6 +597,7 @@ struct hclge_dev {
 	struct hclge_misc_vector misc_vector;
 	struct hclge_hw_stats hw_stats;
 	unsigned long state;
+	unsigned long flr_state;
 	unsigned long last_reset_time;
 
 	enum hnae3_reset_type reset_type;
@@ -775,6 +779,12 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 	return tqp->index;
 }
 
+static inline bool hclge_is_reset_pending(struct hclge_dev *hdev)
+{
+	return !!hdev->reset_pending;
+}
+
+int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport);
 int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex);
 int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 			  u16 vlan_id, bool is_kill);
@@ -784,6 +794,7 @@ int hclge_buffer_alloc(struct hclge_dev *hdev);
 int hclge_rss_init_hw(struct hclge_dev *hdev);
 void hclge_rss_indir_init_cfg(struct hclge_dev *hdev);
 
+int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport);
 void hclge_mbx_handler(struct hclge_dev *hdev);
 int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id);
 void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id);

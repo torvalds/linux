@@ -415,9 +415,6 @@ static void hns3_nic_net_down(struct net_device *netdev)
 	const struct hnae3_ae_ops *ops;
 	int i;
 
-	if (test_and_set_bit(HNS3_NIC_STATE_DOWN, &priv->state))
-		return;
-
 	/* disable vectors */
 	for (i = 0; i < priv->vector_num; i++)
 		hns3_vector_disable(&priv->tqp_vector[i]);
@@ -439,6 +436,11 @@ static void hns3_nic_net_down(struct net_device *netdev)
 
 static int hns3_nic_net_stop(struct net_device *netdev)
 {
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+
+	if (test_and_set_bit(HNS3_NIC_STATE_DOWN, &priv->state))
+		return 0;
+
 	netif_tx_stop_all_queues(netdev);
 	netif_carrier_off(netdev);
 
@@ -1849,9 +1851,29 @@ static pci_ers_result_t hns3_slot_reset(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_DISCONNECT;
 }
 
+static void hns3_reset_prepare(struct pci_dev *pdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+
+	dev_info(&pdev->dev, "hns3 flr prepare\n");
+	if (ae_dev && ae_dev->ops && ae_dev->ops->flr_prepare)
+		ae_dev->ops->flr_prepare(ae_dev);
+}
+
+static void hns3_reset_done(struct pci_dev *pdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+
+	dev_info(&pdev->dev, "hns3 flr done\n");
+	if (ae_dev && ae_dev->ops && ae_dev->ops->flr_done)
+		ae_dev->ops->flr_done(ae_dev);
+}
+
 static const struct pci_error_handlers hns3_err_handler = {
 	.error_detected = hns3_error_detected,
 	.slot_reset     = hns3_slot_reset,
+	.reset_prepare	= hns3_reset_prepare,
+	.reset_done	= hns3_reset_done,
 };
 
 static struct pci_driver hns3_driver = {
@@ -2699,6 +2721,7 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 
 static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 {
+	struct hns3_nic_priv *priv = netdev_priv(napi->dev);
 	struct hns3_enet_ring *ring;
 	int rx_pkt_total = 0;
 
@@ -2706,6 +2729,11 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 		container_of(napi, struct hns3_enet_tqp_vector, napi);
 	bool clean_complete = true;
 	int rx_budget;
+
+	if (unlikely(test_bit(HNS3_NIC_STATE_DOWN, &priv->state))) {
+		napi_complete(napi);
+		return 0;
+	}
 
 	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
@@ -2731,9 +2759,11 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 
-	napi_complete(napi);
-	hns3_update_new_int_gl(tqp_vector);
-	hns3_mask_vector_irq(tqp_vector, 1);
+	if (likely(!test_bit(HNS3_NIC_STATE_DOWN, &priv->state)) &&
+	    napi_complete(napi)) {
+		hns3_update_new_int_gl(tqp_vector);
+		hns3_mask_vector_irq(tqp_vector, 1);
+	}
 
 	return rx_pkt_total;
 }
@@ -3818,19 +3848,29 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
+	ret = hns3_nic_alloc_vector_data(priv);
+	if (ret)
+		return ret;
+
 	hns3_restore_coal(priv);
 
 	ret = hns3_nic_init_vector_data(priv);
 	if (ret)
-		return ret;
+		goto err_dealloc_vector;
 
 	ret = hns3_init_all_ring(priv);
-	if (ret) {
-		hns3_nic_uninit_vector_data(priv);
-		priv->ring_data = NULL;
-	}
+	if (ret)
+		goto err_uninit_vector;
 
 	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
+
+	return ret;
+
+err_uninit_vector:
+	hns3_nic_uninit_vector_data(priv);
+	priv->ring_data = NULL;
+err_dealloc_vector:
+	hns3_nic_dealloc_vector_data(priv);
 
 	return ret;
 }
@@ -3855,6 +3895,10 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	}
 
 	hns3_store_coal(priv);
+
+	ret = hns3_nic_dealloc_vector_data(priv);
+	if (ret)
+		netdev_err(netdev, "dealloc vector error\n");
 
 	ret = hns3_uninit_all_ring(priv);
 	if (ret)

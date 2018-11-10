@@ -124,12 +124,20 @@ enum hnae3_reset_notify_type {
 
 enum hnae3_reset_type {
 	HNAE3_VF_RESET,
+	HNAE3_VF_FUNC_RESET,
+	HNAE3_VF_PF_FUNC_RESET,
 	HNAE3_VF_FULL_RESET,
+	HNAE3_FLR_RESET,
 	HNAE3_FUNC_RESET,
 	HNAE3_CORE_RESET,
 	HNAE3_GLOBAL_RESET,
 	HNAE3_IMP_RESET,
 	HNAE3_NONE_RESET,
+};
+
+enum hnae3_flr_state {
+	HNAE3_FLR_DOWN,
+	HNAE3_FLR_DONE,
 };
 
 struct hnae3_vector_info {
@@ -297,7 +305,8 @@ struct hnae3_ae_dev {
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
 	void (*uninit_ae_dev)(struct hnae3_ae_dev *ae_dev);
-
+	void (*flr_prepare)(struct hnae3_ae_dev *ae_dev);
+	void (*flr_done)(struct hnae3_ae_dev *ae_dev);
 	int (*init_client_instance)(struct hnae3_client *client,
 				    struct hnae3_ae_dev *ae_dev);
 	void (*uninit_client_instance)(struct hnae3_client *client,

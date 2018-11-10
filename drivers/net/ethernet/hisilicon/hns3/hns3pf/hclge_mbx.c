@@ -79,15 +79,26 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 	return status;
 }
 
-static int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
+int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 {
+	struct hclge_dev *hdev = vport->back;
+	enum hnae3_reset_type reset_type;
 	u8 msg_data[2];
 	u8 dest_vfid;
 
 	dest_vfid = (u8)vport->vport_id;
 
+	if (hdev->reset_type == HNAE3_FUNC_RESET)
+		reset_type = HNAE3_VF_PF_FUNC_RESET;
+	else if (hdev->reset_type == HNAE3_FLR_RESET)
+		reset_type = HNAE3_VF_FULL_RESET;
+	else
+		return -EINVAL;
+
+	memcpy(&msg_data[0], &reset_type, sizeof(u16));
+
 	/* send this requested info to VF */
-	return hclge_send_mbx_msg(vport, msg_data, sizeof(u8),
+	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
 				  HCLGE_MBX_ASSERTING_RESET, dest_vfid);
 }
 
@@ -363,24 +374,10 @@ static void hclge_reset_vf(struct hclge_vport *vport,
 	int ret;
 
 	dev_warn(&hdev->pdev->dev, "PF received VF reset request from VF %d!",
-		 mbx_req->mbx_src_vfid);
+		 vport->vport_id);
 
-	/* Acknowledge VF that PF is now about to assert the reset for the VF.
-	 * On receiving this message VF will get into pending state and will
-	 * start polling for the hardware reset completion status.
-	 */
-	ret = hclge_inform_reset_assert_to_vf(vport);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"PF fail(%d) to inform VF(%d)of reset, reset failed!\n",
-			ret, vport->vport_id);
-		return;
-	}
-
-	dev_warn(&hdev->pdev->dev, "PF is now resetting VF %d.\n",
-		 mbx_req->mbx_src_vfid);
-	/* reset this virtual function */
-	hclge_func_reset_cmd(hdev, mbx_req->mbx_src_vfid);
+	ret = hclge_func_reset_cmd(hdev, vport->vport_id);
+	hclge_gen_resp_to_vf(vport, mbx_req, ret, NULL, 0);
 }
 
 static bool hclge_cmd_crq_empty(struct hclge_hw *hw)

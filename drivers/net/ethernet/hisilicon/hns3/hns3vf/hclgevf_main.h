@@ -31,11 +31,19 @@
 #define HCLGEVF_VECTOR0_CMDQ_SRC_REG	0x27100
 /* CMDQ register bits for RX event(=MBX event) */
 #define HCLGEVF_VECTOR0_RX_CMDQ_INT_B	1
+/* RST register bits for RESET event */
+#define HCLGEVF_VECTOR0_RST_INT_B	2
 
 #define HCLGEVF_TQP_RESET_TRY_TIMES	10
 /* Reset related Registers */
-#define HCLGEVF_FUN_RST_ING		0x20C00
-#define HCLGEVF_FUN_RST_ING_B		0
+#define HCLGEVF_RST_ING			0x20C00
+#define HCLGEVF_FUN_RST_ING_BIT		BIT(0)
+#define HCLGEVF_GLOBAL_RST_ING_BIT	BIT(5)
+#define HCLGEVF_CORE_RST_ING_BIT	BIT(6)
+#define HCLGEVF_IMP_RST_ING_BIT		BIT(7)
+#define HCLGEVF_RST_ING_BITS \
+	(HCLGEVF_FUN_RST_ING_BIT | HCLGEVF_GLOBAL_RST_ING_BIT | \
+	 HCLGEVF_CORE_RST_ING_BIT | HCLGEVF_IMP_RST_ING_BIT)
 
 #define HCLGEVF_RSS_IND_TBL_SIZE		512
 #define HCLGEVF_RSS_SET_BITMAP_MSK	0xffff
@@ -54,17 +62,25 @@
 #define HCLGEVF_S_IP_BIT		BIT(3)
 #define HCLGEVF_V_TAG_BIT		BIT(4)
 
+enum hclgevf_evt_cause {
+	HCLGEVF_VECTOR0_EVENT_RST,
+	HCLGEVF_VECTOR0_EVENT_MBX,
+	HCLGEVF_VECTOR0_EVENT_OTHER,
+};
+
 /* states of hclgevf device & tasks */
 enum hclgevf_states {
 	/* device states */
 	HCLGEVF_STATE_DOWN,
 	HCLGEVF_STATE_DISABLED,
+	HCLGEVF_STATE_IRQ_INITED,
 	/* task states */
 	HCLGEVF_STATE_SERVICE_SCHED,
 	HCLGEVF_STATE_RST_SERVICE_SCHED,
 	HCLGEVF_STATE_RST_HANDLING,
 	HCLGEVF_STATE_MBX_SERVICE_SCHED,
 	HCLGEVF_STATE_MBX_HANDLING,
+	HCLGEVF_STATE_CMD_DISABLE,
 };
 
 #define HCLGEVF_MPF_ENBALE 1
@@ -145,9 +161,12 @@ struct hclgevf_dev {
 	struct hclgevf_misc_vector misc_vector;
 	struct hclgevf_rss_cfg rss_cfg;
 	unsigned long state;
+	unsigned long flr_state;
 	unsigned long default_reset_request;
 	unsigned long last_reset_time;
 	enum hnae3_reset_type reset_level;
+	unsigned long reset_pending;
+	enum hnae3_reset_type reset_type;
 
 #define HCLGEVF_RESET_REQUESTED		0
 #define HCLGEVF_RESET_PENDING		1
@@ -196,18 +215,9 @@ struct hclgevf_dev {
 	u32 flag;
 };
 
-static inline bool hclgevf_dev_ongoing_reset(struct hclgevf_dev *hdev)
+static inline bool hclgevf_is_reset_pending(struct hclgevf_dev *hdev)
 {
-	return (hdev &&
-		(test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) &&
-		(hdev->reset_level == HNAE3_VF_RESET));
-}
-
-static inline bool hclgevf_dev_ongoing_full_reset(struct hclgevf_dev *hdev)
-{
-	return (hdev &&
-		(test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) &&
-		(hdev->reset_level == HNAE3_VF_FULL_RESET));
+	return !!hdev->reset_pending;
 }
 
 int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,

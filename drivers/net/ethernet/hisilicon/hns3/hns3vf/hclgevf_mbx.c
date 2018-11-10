@@ -40,6 +40,9 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 	}
 
 	while ((!hdev->mbx_resp.received_resp) && (i < HCLGEVF_MAX_TRY_TIMES)) {
+		if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state))
+			return -EIO;
+
 		udelay(HCLGEVF_SLEEP_USCOEND);
 		i++;
 	}
@@ -148,6 +151,11 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 	crq = &hdev->hw.cmq.crq;
 
 	while (!hclgevf_cmd_crq_empty(&hdev->hw)) {
+		if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state)) {
+			dev_info(&hdev->pdev->dev, "vf crq need init\n");
+			return;
+		}
+
 		desc = &crq->desc[crq->next_to_use];
 		req = (struct hclge_mbx_pf_to_vf_cmd *)desc->data;
 
@@ -233,6 +241,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 
 void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 {
+	enum hnae3_reset_type reset_type;
 	u16 link_status;
 	u16 *msg_q;
 	u8 duplex;
@@ -248,6 +257,12 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 
 	/* process all the async queue messages */
 	while (tail != hdev->arq.head) {
+		if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state)) {
+			dev_info(&hdev->pdev->dev,
+				 "vf crq need init in async\n");
+			return;
+		}
+
 		msg_q = hdev->arq.msg_q[hdev->arq.head];
 
 		switch (msg_q[0]) {
@@ -267,7 +282,8 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			 * has been completely reset. After this stack should
 			 * eventually be re-initialized.
 			 */
-			hdev->reset_level = HNAE3_VF_RESET;
+			reset_type = le16_to_cpu(msg_q[1]);
+			set_bit(reset_type, &hdev->reset_pending);
 			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 			hclgevf_reset_task_schedule(hdev);
 

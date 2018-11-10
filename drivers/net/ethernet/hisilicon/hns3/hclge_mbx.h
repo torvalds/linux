@@ -85,6 +85,12 @@ struct hclge_mbx_pf_to_vf_cmd {
 	u16 msg[8];
 };
 
+struct hclge_vf_rst_cmd {
+	u8 dest_vfid;
+	u8 vf_rst;
+	u8 rsv[22];
+};
+
 /* used by VF to store the received Async responses from PF */
 struct hclgevf_mbx_arq_ring {
 #define HCLGE_MBX_MAX_ARQ_MSG_SIZE	8
