@@ -642,14 +642,11 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 	hrtimer_start(&cmd->timer, kt, HRTIMER_MODE_REL);
 }
 
-static void null_softirq_done_fn(struct request *rq)
+static void null_complete_rq(struct request *rq)
 {
 	struct nullb *nullb = rq->q->queuedata;
 
-	if (nullb->dev->queue_mode == NULL_Q_MQ)
-		end_cmd(blk_mq_rq_to_pdu(rq));
-	else
-		end_cmd(rq->special);
+	end_cmd(blk_mq_rq_to_pdu(rq));
 }
 
 static struct nullb_page *null_alloc_page(gfp_t gfp_flags)
@@ -1357,7 +1354,7 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
-	.complete	= null_softirq_done_fn,
+	.complete	= null_complete_rq,
 	.timeout	= null_timeout_rq,
 };
 
