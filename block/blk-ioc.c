@@ -171,7 +171,6 @@ EXPORT_SYMBOL(put_io_context);
  */
 void put_io_context_active(struct io_context *ioc)
 {
-	struct elevator_type *et;
 	unsigned long flags;
 	struct io_cq *icq;
 
@@ -190,7 +189,6 @@ void put_io_context_active(struct io_context *ioc)
 		if (icq->flags & ICQ_EXITED)
 			continue;
 
-		et = icq->q->elevator->type;
 		ioc_exit_icq(icq);
 	}
 	spin_unlock_irqrestore(&ioc->lock, flags);
