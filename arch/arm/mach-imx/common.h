@@ -120,6 +120,7 @@ void imx6dl_pm_init(void);
 void imx6sl_pm_init(void);
 void imx6sx_pm_init(void);
 void imx6ul_pm_init(void);
+void imx7ulp_pm_init(void);
 
 #ifdef CONFIG_PM
 void imx51_pm_init(void);

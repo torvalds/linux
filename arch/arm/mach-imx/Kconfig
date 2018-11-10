@@ -558,6 +558,15 @@ config SOC_IMX7D
 	help
 		This enables support for Freescale i.MX7 Dual processor.
 
+config SOC_IMX7ULP
+	bool "i.MX7ULP support"
+	select ARM_GIC
+	select CLKSRC_IMX_TPM
+	select HAVE_ARM_ARCH_TIMER
+	select PINCTRL_IMX7ULP
+	help
+	  This enables support for Freescale i.MX7 Ultra Low Power processor.
+
 config SOC_VF610
 	bool "Vybrid Family VF610 support"
 	select ARM_GIC if ARCH_MULTI_V7
