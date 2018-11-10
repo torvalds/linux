@@ -181,7 +181,7 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	phydev->lp_advertising = mii_lpa_to_ethtool_lpa_t(val);
+	mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, val);
 	phydev->pause = val & LPA_PAUSE_CAP ? 1 : 0;
 	phydev->asym_pause = val & LPA_PAUSE_ASYM ? 1 : 0;
 
@@ -191,7 +191,8 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 		return val;
 
 	if (val & MDIO_AN_10GBT_STAT_LP10G)
-		phydev->lp_advertising |= ADVERTISED_10000baseT_Full;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+				 phydev->lp_advertising);
 
 	return 0;
 }

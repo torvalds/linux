@@ -177,7 +177,7 @@ static int lxt973a2_read_status(struct phy_device *phydev)
 			*/
 		} while (lpa == adv && retry--);
 
-		phydev->lp_advertising = mii_lpa_to_ethtool_lpa_t(lpa);
+		mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);
 
 		lpa &= adv;
 
@@ -218,7 +218,7 @@ static int lxt973a2_read_status(struct phy_device *phydev)
 			phydev->speed = SPEED_10;
 
 		phydev->pause = phydev->asym_pause = 0;
-		phydev->lp_advertising = 0;
+		linkmode_zero(phydev->lp_advertising);
 	}
 
 	return 0;

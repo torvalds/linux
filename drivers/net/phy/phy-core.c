@@ -199,11 +199,8 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
 void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp);
 
-	ethtool_convert_legacy_u32_to_link_mode(lp, phydev->lp_advertising);
-
-	linkmode_and(common, lp, phydev->advertising);
+	linkmode_and(common, phydev->lp_advertising, phydev->advertising);
 
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, common)) {
 		phydev->speed = SPEED_10000;
@@ -235,9 +232,11 @@ void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 	}
 
 	if (phydev->duplex == DUPLEX_FULL) {
-		phydev->pause = !!(phydev->lp_advertising & ADVERTISED_Pause);
-		phydev->asym_pause = !!(phydev->lp_advertising &
-					ADVERTISED_Asym_Pause);
+		phydev->pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+						  phydev->lp_advertising);
+		phydev->asym_pause = linkmode_test_bit(
+			ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			phydev->lp_advertising);
 	}
 }
 EXPORT_SYMBOL_GPL(phy_resolve_aneg_linkmode);

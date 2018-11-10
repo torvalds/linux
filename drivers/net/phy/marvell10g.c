@@ -457,7 +457,7 @@ static int mv3310_read_status(struct phy_device *phydev)
 
 	phydev->speed = SPEED_UNKNOWN;
 	phydev->duplex = DUPLEX_UNKNOWN;
-	phydev->lp_advertising = 0;
+	linkmode_zero(phydev->lp_advertising);
 	phydev->link = 0;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
@@ -490,7 +490,7 @@ static int mv3310_read_status(struct phy_device *phydev)
 		if (val < 0)
 			return val;
 
-		phydev->lp_advertising |= mii_stat1000_to_ethtool_lpa_t(val);
+		mii_stat1000_to_linkmode_lpa_t(phydev->lp_advertising, val);
 
 		if (phydev->autoneg == AUTONEG_ENABLE)
 			phy_resolve_aneg_linkmode(phydev);

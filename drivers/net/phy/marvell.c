@@ -1049,22 +1049,21 @@ static int m88e1145_config_init(struct phy_device *phydev)
 }
 
 /**
- * fiber_lpa_to_ethtool_lpa_t
+ * fiber_lpa_to_linkmode_lpa_t
+ * @advertising: the linkmode advertisement settings
  * @lpa: value of the MII_LPA register for fiber link
  *
  * A small helper function that translates MII_LPA
- * bits to ethtool LP advertisement settings.
+ * bits to linkmode LP advertisement settings.
  */
-static u32 fiber_lpa_to_ethtool_lpa_t(u32 lpa)
+static void fiber_lpa_to_linkmode_lpa_t(unsigned long *advertising, u32 lpa)
 {
-	u32 result = 0;
-
 	if (lpa & LPA_FIBER_1000HALF)
-		result |= ADVERTISED_1000baseT_Half;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+				 advertising);
 	if (lpa & LPA_FIBER_1000FULL)
-		result |= ADVERTISED_1000baseT_Full;
-
-	return result;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				 advertising);
 }
 
 /**
@@ -1140,9 +1139,8 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 	}
 
 	if (!fiber) {
-		phydev->lp_advertising =
-			mii_stat1000_to_ethtool_lpa_t(lpagb) |
-			mii_lpa_to_ethtool_lpa_t(lpa);
+		mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);
+		mii_stat1000_to_linkmode_lpa_t(phydev->lp_advertising, lpagb);
 
 		if (phydev->duplex == DUPLEX_FULL) {
 			phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
@@ -1150,7 +1148,7 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 		}
 	} else {
 		/* The fiber link is only 1000M capable */
-		phydev->lp_advertising = fiber_lpa_to_ethtool_lpa_t(lpa);
+		fiber_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);
 
 		if (phydev->duplex == DUPLEX_FULL) {
 			if (!(lpa & LPA_PAUSE_FIBER)) {
@@ -1189,7 +1187,7 @@ static int marvell_read_status_page_fixed(struct phy_device *phydev)
 
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
-	phydev->lp_advertising = 0;
+	linkmode_zero(phydev->lp_advertising);
 
 	return 0;
 }
