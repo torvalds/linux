@@ -644,8 +644,6 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 
 static void null_complete_rq(struct request *rq)
 {
-	struct nullb *nullb = rq->q->queuedata;
-
 	end_cmd(blk_mq_rq_to_pdu(rq));
 }
 
