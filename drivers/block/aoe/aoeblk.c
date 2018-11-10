@@ -387,6 +387,7 @@ aoeblk_gdalloc(void *vp)
 
 	set = &d->tag_set;
 	set->ops = &aoeblk_mq_ops;
+	set->cmd_size = sizeof(struct aoe_req);
 	set->nr_hw_queues = 1;
 	set->queue_depth = 128;
 	set->numa_node = NUMA_NO_NODE;
