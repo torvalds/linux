@@ -5409,11 +5409,14 @@ static int dsi_probe(struct platform_device *pdev)
 
 	/* DSI on OMAP3 doesn't have register DSI_GNQ, set number
 	 * of data to 3 by default */
-	if (dsi->data->quirks & DSI_QUIRK_GNQ)
+	if (dsi->data->quirks & DSI_QUIRK_GNQ) {
+		dsi_runtime_get(dsi);
 		/* NB_DATA_LANES */
 		dsi->num_lanes_supported = 1 + REG_GET(dsi, DSI_GNQ, 11, 9);
-	else
+		dsi_runtime_put(dsi);
+	} else {
 		dsi->num_lanes_supported = 3;
+	}
 
 	r = dsi_init_output(dsi);
 	if (r)
