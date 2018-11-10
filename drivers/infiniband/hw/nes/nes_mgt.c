@@ -223,11 +223,11 @@ static struct sk_buff *nes_get_next_skb(struct nes_device *nesdev, struct nes_qp
 		}
 
 		old_skb = skb;
-		skb = skb->next;
+		skb = skb_peek_next(skb, &nesqp->pau_list);
 		skb_unlink(old_skb, &nesqp->pau_list);
 		nes_mgt_free_skb(nesdev, old_skb, PCI_DMA_TODEVICE);
 		nes_rem_ref_cm_node(nesqp->cm_node);
-		if (skb == (struct sk_buff *)&nesqp->pau_list)
+		if (!skb)
 			goto out;
 	}
 	return skb;
