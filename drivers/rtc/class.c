@@ -380,13 +380,6 @@ static void devm_rtc_device_release(struct device *dev, void *res)
 	rtc_device_unregister(rtc);
 }
 
-static int devm_rtc_device_match(struct device *dev, void *res, void *data)
-{
-	struct rtc **r = res;
-
-	return *r == data;
-}
-
 /**
  * devm_rtc_device_register - resource managed rtc_device_register()
  * @dev: the device to register
@@ -423,25 +416,6 @@ struct rtc_device *devm_rtc_device_register(struct device *dev,
 	return rtc;
 }
 EXPORT_SYMBOL_GPL(devm_rtc_device_register);
-
-/**
- * devm_rtc_device_unregister - resource managed devm_rtc_device_unregister()
- * @dev: the device to unregister
- * @rtc: the RTC class device to unregister
- *
- * Deallocated a rtc allocated with devm_rtc_device_register(). Normally this
- * function will not need to be called and the resource management code will
- * ensure that the resource is freed.
- */
-void devm_rtc_device_unregister(struct device *dev, struct rtc_device *rtc)
-{
-	int rc;
-
-	rc = devres_release(dev, devm_rtc_device_release,
-				devm_rtc_device_match, rtc);
-	WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_rtc_device_unregister);
 
 static void devm_rtc_release_device(struct device *dev, void *res)
 {
