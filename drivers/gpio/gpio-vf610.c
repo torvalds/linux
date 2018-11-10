@@ -7,6 +7,7 @@
  * Author: Stefan Agner <stefan@agner.ch>.
  */
 #include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
@@ -32,6 +33,8 @@ struct vf610_gpio_port {
 	void __iomem *gpio_base;
 	const struct fsl_gpio_soc_data *sdata;
 	u8 irqc[VF610_GPIO_PER_PORT];
+	struct clk *clk_port;
+	struct clk *clk_gpio;
 	int irq;
 };
 
@@ -271,6 +274,33 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	if (port->irq < 0)
 		return port->irq;
 
+	port->clk_port = devm_clk_get(&pdev->dev, "port");
+	if (!IS_ERR(port->clk_port)) {
+		ret = clk_prepare_enable(port->clk_port);
+		if (ret)
+			return ret;
+	} else if (port->clk_port == ERR_PTR(-EPROBE_DEFER)) {
+		/*
+		 * Percolate deferrals, for anything else,
+		 * just live without the clocking.
+		 */
+		return PTR_ERR(port->clk_port);
+	}
+
+	port->clk_gpio = devm_clk_get(&pdev->dev, "gpio");
+	if (!IS_ERR(port->clk_gpio)) {
+		ret = clk_prepare_enable(port->clk_gpio);
+		if (ret) {
+			clk_disable_unprepare(port->clk_port);
+			return ret;
+		}
+	} else if (port->clk_gpio == ERR_PTR(-EPROBE_DEFER)) {
+		clk_disable_unprepare(port->clk_port);
+		return PTR_ERR(port->clk_gpio);
+	}
+
+	platform_set_drvdata(pdev, port);
+
 	gc = &port->gc;
 	gc->of_node = np;
 	gc->parent = dev;
@@ -305,12 +335,26 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int vf610_gpio_remove(struct platform_device *pdev)
+{
+	struct vf610_gpio_port *port = platform_get_drvdata(pdev);
+
+	gpiochip_remove(&port->gc);
+	if (!IS_ERR(port->clk_port))
+		clk_disable_unprepare(port->clk_port);
+	if (!IS_ERR(port->clk_gpio))
+		clk_disable_unprepare(port->clk_gpio);
+
+	return 0;
+}
+
 static struct platform_driver vf610_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-vf610",
 		.of_match_table = vf610_gpio_dt_ids,
 	},
 	.probe		= vf610_gpio_probe,
+	.remove		= vf610_gpio_remove,
 };
 
 builtin_platform_driver(vf610_gpio_driver);
