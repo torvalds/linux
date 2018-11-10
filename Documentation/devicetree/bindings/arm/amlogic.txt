@@ -91,6 +91,7 @@ Board compatible values (alphabetically, grouped by SoC):
 
   - "amlogic,p230" (Meson gxl s905d)
   - "amlogic,p231" (Meson gxl s905d)
+  - "phicomm,n1" (Meson gxl s905d)
 
   - "amlogic,p241" (Meson gxl s805x)
 
