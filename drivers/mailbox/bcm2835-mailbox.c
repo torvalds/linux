@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 2010,2015 Broadcom
  *  Copyright (C) 2013-2014 Lubomir Rintel
  *  Copyright (C) 2013 Craig McGeachie
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This device provides a mechanism for writing to the mailboxes,
- * that are shared between the ARM and the VideoCore processor
  *
  * Parts of the driver are based on:
  *  - arch/arm/mach-bcm2708/vcio.c file written by Gray Girling that was
