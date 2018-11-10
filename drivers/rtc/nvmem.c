@@ -93,7 +93,7 @@ int rtc_nvmem_register(struct rtc_device *rtc,
 
 	nvmem_config->dev = rtc->dev.parent;
 	nvmem_config->owner = rtc->owner;
-	rtc->nvmem = nvmem_register(nvmem_config);
+	rtc->nvmem = devm_nvmem_register(rtc->dev.parent, nvmem_config);
 	if (IS_ERR(rtc->nvmem))
 		return PTR_ERR(rtc->nvmem);
 
@@ -107,12 +107,7 @@ EXPORT_SYMBOL_GPL(rtc_nvmem_register);
 
 void rtc_nvmem_unregister(struct rtc_device *rtc)
 {
-	if (IS_ERR_OR_NULL(rtc->nvmem))
-		return;
-
 	/* unregister the old ABI */
 	if (rtc->nvram)
 		rtc_nvram_unregister(rtc);
-
-	nvmem_unregister(rtc->nvmem);
 }
