@@ -186,13 +186,9 @@ void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,
 			       struct qxl_bo *bo, void *pmap)
 {
 	struct ttm_mem_type_manager *man = &bo->tbo.bdev->man[bo->tbo.mem.mem_type];
-	struct io_mapping *map;
 
-	if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
-		map = qdev->vram_mapping;
-	else if (bo->tbo.mem.mem_type == TTM_PL_PRIV)
-		map = qdev->surface_mapping;
-	else
+	if ((bo->tbo.mem.mem_type != TTM_PL_VRAM) &&
+	    (bo->tbo.mem.mem_type != TTM_PL_PRIV))
 		goto fallback;
 
 	io_mapping_unmap_atomic(pmap);
@@ -200,7 +196,7 @@ void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,
 	(void) ttm_mem_io_lock(man, false);
 	ttm_mem_io_free(bo->tbo.bdev, &bo->tbo.mem);
 	ttm_mem_io_unlock(man);
-	return ;
+	return;
  fallback:
 	qxl_bo_kunmap(bo);
 }
