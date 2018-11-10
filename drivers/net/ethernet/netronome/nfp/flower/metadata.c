@@ -287,6 +287,7 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 
 	nfp_flow->meta.host_ctx_id = cpu_to_be32(stats_cxt);
 	nfp_flow->meta.host_cookie = cpu_to_be64(flow->cookie);
+	nfp_flow->ingress_dev = netdev;
 
 	new_mask_id = 0;
 	if (!nfp_check_mask_add(app, nfp_flow->mask_data,
