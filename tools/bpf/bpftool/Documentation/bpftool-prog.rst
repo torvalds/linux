@@ -15,7 +15,8 @@ SYNOPSIS
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
 
 	*COMMANDS* :=
-	{ **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load** | **help** }
+	{ **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load**
+	| **loadall** | **help** }
 
 MAP COMMANDS
 =============
@@ -24,9 +25,9 @@ MAP COMMANDS
 |	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual**}]
 |	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
-|	**bpftool** **prog load** *OBJ* *FILE* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
-|       **bpftool** **prog attach** *PROG* *ATTACH_TYPE* *MAP*
-|       **bpftool** **prog detach** *PROG* *ATTACH_TYPE* *MAP*
+|	**bpftool** **prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
+|       **bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
+|       **bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -39,7 +40,9 @@ MAP COMMANDS
 |		**cgroup/bind4** | **cgroup/bind6** | **cgroup/post_bind4** | **cgroup/post_bind6** |
 |		**cgroup/connect4** | **cgroup/connect6** | **cgroup/sendmsg4** | **cgroup/sendmsg6**
 |	}
-|       *ATTACH_TYPE* := { **msg_verdict** | **skb_verdict** | **skb_parse** }
+|       *ATTACH_TYPE* := {
+|		**msg_verdict** | **skb_verdict** | **skb_parse** | **flow_dissector**
+|	}
 
 
 DESCRIPTION
@@ -79,8 +82,11 @@ DESCRIPTION
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
-	**bpftool prog load** *OBJ* *FILE* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
-		  Load bpf program from binary *OBJ* and pin as *FILE*.
+	**bpftool prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*] [**pinmaps** *MAP_DIR*]
+		  Load bpf program(s) from binary *OBJ* and pin as *PATH*.
+		  **bpftool prog load** pins only the first program from the
+		  *OBJ* as *PATH*. **bpftool prog loadall** pins all programs
+		  from the *OBJ* under *PATH* directory.
 		  **type** is optional, if not specified program type will be
 		  inferred from section names.
 		  By default bpftool will create new maps as declared in the ELF
@@ -92,18 +98,24 @@ DESCRIPTION
 		  use, referring to it by **id** or through a **pinned** file.
 		  If **dev** *NAME* is specified program will be loaded onto
 		  given networking device (offload).
+		  Optional **pinmaps** argument can be provided to pin all
+		  maps under *MAP_DIR* directory.
 
-		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  Note: *PATH* must be located in *bpffs* mount. It must not
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
-        **bpftool prog attach** *PROG* *ATTACH_TYPE* *MAP*
-                  Attach bpf program *PROG* (with type specified by *ATTACH_TYPE*)
-                  to the map *MAP*.
+	**bpftool prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
+		  Attach bpf program *PROG* (with type specified by
+		  *ATTACH_TYPE*). Most *ATTACH_TYPEs* require a *MAP*
+		  parameter, with the exception of *flow_dissector* which is
+		  attached to current networking name space.
 
-        **bpftool prog detach** *PROG* *ATTACH_TYPE* *MAP*
-                  Detach bpf program *PROG* (with type specified by *ATTACH_TYPE*)
-                  from the map *MAP*.
+	**bpftool prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
+		  Detach bpf program *PROG* (with type specified by
+		  *ATTACH_TYPE*). Most *ATTACH_TYPEs* require a *MAP*
+		  parameter, with the exception of *flow_dissector* which is
+		  detached from the current networking name space.
 
 	**bpftool prog help**
 		  Print short help message.

@@ -81,6 +81,7 @@ static const char * const attach_type_strings[] = {
 	[BPF_SK_SKB_STREAM_PARSER] = "stream_parser",
 	[BPF_SK_SKB_STREAM_VERDICT] = "stream_verdict",
 	[BPF_SK_MSG_VERDICT] = "msg_verdict",
+	[BPF_FLOW_DISSECTOR] = "flow_dissector",
 	[__MAX_BPF_ATTACH_TYPE] = NULL,
 };
 
@@ -721,30 +722,49 @@ int map_replace_compar(const void *p1, const void *p2)
 	return a->idx - b->idx;
 }
 
+static int parse_attach_detach_args(int argc, char **argv, int *progfd,
+				    enum bpf_attach_type *attach_type,
+				    int *mapfd)
+{
+	if (!REQ_ARGS(3))
+		return -EINVAL;
+
+	*progfd = prog_parse_fd(&argc, &argv);
+	if (*progfd < 0)
+		return *progfd;
+
+	*attach_type = parse_attach_type(*argv);
+	if (*attach_type == __MAX_BPF_ATTACH_TYPE) {
+		p_err("invalid attach/detach type");
+		return -EINVAL;
+	}
+
+	if (*attach_type == BPF_FLOW_DISSECTOR) {
+		*mapfd = -1;
+		return 0;
+	}
+
+	NEXT_ARG();
+	if (!REQ_ARGS(2))
+		return -EINVAL;
+
+	*mapfd = map_parse_fd(&argc, &argv);
+	if (*mapfd < 0)
+		return *mapfd;
+
+	return 0;
+}
+
 static int do_attach(int argc, char **argv)
 {
 	enum bpf_attach_type attach_type;
-	int err, mapfd, progfd;
+	int err, progfd;
+	int mapfd;
 
-	if (!REQ_ARGS(5)) {
-		p_err("too few parameters for map attach");
-		return -EINVAL;
-	}
-
-	progfd = prog_parse_fd(&argc, &argv);
-	if (progfd < 0)
-		return progfd;
-
-	attach_type = parse_attach_type(*argv);
-	if (attach_type == __MAX_BPF_ATTACH_TYPE) {
-		p_err("invalid attach type");
-		return -EINVAL;
-	}
-	NEXT_ARG();
-
-	mapfd = map_parse_fd(&argc, &argv);
-	if (mapfd < 0)
-		return mapfd;
+	err = parse_attach_detach_args(argc, argv,
+				       &progfd, &attach_type, &mapfd);
+	if (err)
+		return err;
 
 	err = bpf_prog_attach(progfd, mapfd, attach_type, 0);
 	if (err) {
@@ -760,27 +780,13 @@ static int do_attach(int argc, char **argv)
 static int do_detach(int argc, char **argv)
 {
 	enum bpf_attach_type attach_type;
-	int err, mapfd, progfd;
+	int err, progfd;
+	int mapfd;
 
-	if (!REQ_ARGS(5)) {
-		p_err("too few parameters for map detach");
-		return -EINVAL;
-	}
-
-	progfd = prog_parse_fd(&argc, &argv);
-	if (progfd < 0)
-		return progfd;
-
-	attach_type = parse_attach_type(*argv);
-	if (attach_type == __MAX_BPF_ATTACH_TYPE) {
-		p_err("invalid attach type");
-		return -EINVAL;
-	}
-	NEXT_ARG();
-
-	mapfd = map_parse_fd(&argc, &argv);
-	if (mapfd < 0)
-		return mapfd;
+	err = parse_attach_detach_args(argc, argv,
+				       &progfd, &attach_type, &mapfd);
+	if (err)
+		return err;
 
 	err = bpf_prog_detach2(progfd, mapfd, attach_type);
 	if (err) {
@@ -792,15 +798,17 @@ static int do_detach(int argc, char **argv)
 		jsonw_null(json_wtr);
 	return 0;
 }
-static int do_load(int argc, char **argv)
+
+static int load_with_options(int argc, char **argv, bool first_prog_only)
 {
 	enum bpf_attach_type expected_attach_type;
 	struct bpf_object_open_attr attr = {
 		.prog_type	= BPF_PROG_TYPE_UNSPEC,
 	};
 	struct map_replace *map_replace = NULL;
+	struct bpf_program *prog = NULL, *pos;
 	unsigned int old_map_fds = 0;
-	struct bpf_program *prog;
+	const char *pinmaps = NULL;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	const char *pinfile;
@@ -905,6 +913,13 @@ static int do_load(int argc, char **argv)
 				goto err_free_reuse_maps;
 			}
 			NEXT_ARG();
+		} else if (is_prefix(*argv, "pinmaps")) {
+			NEXT_ARG();
+
+			if (!REQ_ARGS(1))
+				goto err_free_reuse_maps;
+
+			pinmaps = GET_ARG();
 		} else {
 			p_err("expected no more arguments, 'type', 'map' or 'dev', got: '%s'?",
 			      *argv);
@@ -918,26 +933,25 @@ static int do_load(int argc, char **argv)
 		goto err_free_reuse_maps;
 	}
 
-	prog = bpf_program__next(NULL, obj);
-	if (!prog) {
-		p_err("object file doesn't contain any bpf program");
-		goto err_close_obj;
-	}
+	bpf_object__for_each_program(pos, obj) {
+		enum bpf_prog_type prog_type = attr.prog_type;
 
-	bpf_program__set_ifindex(prog, ifindex);
-	if (attr.prog_type == BPF_PROG_TYPE_UNSPEC) {
-		const char *sec_name = bpf_program__title(prog, false);
+		if (attr.prog_type == BPF_PROG_TYPE_UNSPEC) {
+			const char *sec_name = bpf_program__title(pos, false);
 
-		err = libbpf_prog_type_by_name(sec_name, &attr.prog_type,
-					       &expected_attach_type);
-		if (err < 0) {
-			p_err("failed to guess program type based on section name %s\n",
-			      sec_name);
-			goto err_close_obj;
+			err = libbpf_prog_type_by_name(sec_name, &prog_type,
+						       &expected_attach_type);
+			if (err < 0) {
+				p_err("failed to guess program type based on section name %s\n",
+				      sec_name);
+				goto err_close_obj;
+			}
 		}
+
+		bpf_program__set_ifindex(pos, ifindex);
+		bpf_program__set_type(pos, prog_type);
+		bpf_program__set_expected_attach_type(pos, expected_attach_type);
 	}
-	bpf_program__set_type(prog, attr.prog_type);
-	bpf_program__set_expected_attach_type(prog, expected_attach_type);
 
 	qsort(map_replace, old_map_fds, sizeof(*map_replace),
 	      map_replace_compar);
@@ -1003,8 +1017,38 @@ static int do_load(int argc, char **argv)
 		goto err_close_obj;
 	}
 
-	if (do_pin_fd(bpf_program__fd(prog), pinfile))
+	err = mount_bpffs_for_pin(pinfile);
+	if (err)
 		goto err_close_obj;
+
+	if (first_prog_only) {
+		prog = bpf_program__next(NULL, obj);
+		if (!prog) {
+			p_err("object file doesn't contain any bpf program");
+			goto err_close_obj;
+		}
+
+		err = bpf_obj_pin(bpf_program__fd(prog), pinfile);
+		if (err) {
+			p_err("failed to pin program %s",
+			      bpf_program__title(prog, false));
+			goto err_close_obj;
+		}
+	} else {
+		err = bpf_object__pin_programs(obj, pinfile);
+		if (err) {
+			p_err("failed to pin all programs");
+			goto err_close_obj;
+		}
+	}
+
+	if (pinmaps) {
+		err = bpf_object__pin_maps(obj, pinmaps);
+		if (err) {
+			p_err("failed to pin all maps");
+			goto err_unpin;
+		}
+	}
 
 	if (json_output)
 		jsonw_null(json_wtr);
@@ -1016,6 +1060,11 @@ static int do_load(int argc, char **argv)
 
 	return 0;
 
+err_unpin:
+	if (first_prog_only)
+		unlink(pinfile);
+	else
+		bpf_object__unpin_programs(obj, pinfile);
 err_close_obj:
 	bpf_object__close(obj);
 err_free_reuse_maps:
@@ -1023,6 +1072,16 @@ err_free_reuse_maps:
 		close(map_replace[i].fd);
 	free(map_replace);
 	return -1;
+}
+
+static int do_load(int argc, char **argv)
+{
+	return load_with_options(argc, argv, true);
+}
+
+static int do_loadall(int argc, char **argv)
+{
+	return load_with_options(argc, argv, false);
 }
 
 static int do_help(int argc, char **argv)
@@ -1037,10 +1096,12 @@ static int do_help(int argc, char **argv)
 		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
-		"       %s %s load  OBJ  FILE [type TYPE] [dev NAME] \\\n"
-		"                         [map { idx IDX | name NAME } MAP]\n"
-		"       %s %s attach PROG ATTACH_TYPE MAP\n"
-		"       %s %s detach PROG ATTACH_TYPE MAP\n"
+		"       %s %s { load | loadall } OBJ  PATH \\\n"
+		"                         [type TYPE] [dev NAME] \\\n"
+		"                         [map { idx IDX | name NAME } MAP]\\\n"
+		"                         [pinmaps MAP_DIR]\n"
+		"       %s %s attach PROG ATTACH_TYPE [MAP]\n"
+		"       %s %s detach PROG ATTACH_TYPE [MAP]\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
@@ -1052,7 +1113,8 @@ static int do_help(int argc, char **argv)
 		"                 cgroup/bind4 | cgroup/bind6 | cgroup/post_bind4 |\n"
 		"                 cgroup/post_bind6 | cgroup/connect4 | cgroup/connect6 |\n"
 		"                 cgroup/sendmsg4 | cgroup/sendmsg6 }\n"
-		"       ATTACH_TYPE := { msg_verdict | skb_verdict | skb_parse }\n"
+		"       ATTACH_TYPE := { msg_verdict | skb_verdict | skb_parse |\n"
+		"                        flow_dissector }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
@@ -1069,6 +1131,7 @@ static const struct cmd cmds[] = {
 	{ "dump",	do_dump },
 	{ "pin",	do_pin },
 	{ "load",	do_load },
+	{ "loadall",	do_loadall },
 	{ "attach",	do_attach },
 	{ "detach",	do_detach },
 	{ 0 }
