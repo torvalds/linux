@@ -597,7 +597,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 		 * skb_vlan_pop(), which will later shift the ethertype into
 		 * skb->protocol.
 		 */
-		if (key->eth.cvlan.tci & htons(VLAN_TAG_PRESENT))
+		if (key->eth.cvlan.tci & htons(VLAN_CFI_MASK))
 			skb->protocol = key->eth.cvlan.tpid;
 		else
 			skb->protocol = key->eth.type;
