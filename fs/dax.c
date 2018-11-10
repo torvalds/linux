@@ -255,6 +255,7 @@ static void dax_unlock_entry(struct xa_state *xas, void *entry)
 {
 	void *old;
 
+	BUG_ON(dax_is_locked(entry));
 	xas_reset(xas);
 	xas_lock_irq(xas);
 	old = xas_store(xas, entry);
