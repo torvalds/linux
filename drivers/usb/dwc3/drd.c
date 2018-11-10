@@ -10,6 +10,7 @@
 #include <linux/extcon.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #include "debug.h"
 #include "core.h"
@@ -446,8 +447,8 @@ static struct extcon_dev *dwc3_get_extcon(struct dwc3 *dwc)
 	struct device_node *np_phy, *np_conn;
 	struct extcon_dev *edev;
 
-	if (of_property_read_bool(dev->of_node, "extcon"))
-		return extcon_get_edev_by_phandle(dwc->dev, 0);
+	if (device_property_read_bool(dev, "extcon"))
+		return extcon_get_edev_by_phandle(dev, 0);
 
 	np_phy = of_parse_phandle(dev->of_node, "phys", 0);
 	np_conn = of_graph_get_remote_node(np_phy, -1, -1);
