@@ -75,7 +75,7 @@ int rtw_recv_indicatepkt(struct adapter *padapter,
 	skb = precv_frame->pkt;
 	if (!skb) {
 		RT_TRACE(_module_recv_osdep_c_, _drv_err_,
-			 ("rtw_recv_indicatepkt():skb == NULL something wrong!!!!\n"));
+			 ("%s():skb == NULL something wrong!!!!\n", __func__));
 		goto _recv_indicatepkt_drop;
 	}
 
@@ -126,7 +126,7 @@ _recv_indicatepkt_end:
 	rtw_free_recvframe(precv_frame, pfree_recv_queue);
 
 	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
-		 ("\n rtw_recv_indicatepkt :after netif_rx!!!!\n"));
+		 ("\n %s :after netif_rx!!!!\n", __func__));
 
 	return _SUCCESS;
 
