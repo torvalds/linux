@@ -62,6 +62,124 @@ EXPORT_SYMBOL_GPL(phy_duplex_to_str);
  * must be grouped by speed and sorted in descending match priority
  * - iow, descending speed. */
 static const struct phy_setting settings[] = {
+	/* 100G */
+	{
+		.speed = SPEED_100000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_100000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_100000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+	},
+	{
+		.speed = SPEED_100000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+	},
+	/* 56G */
+	{
+		.speed = SPEED_56000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_56000baseCR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_56000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_56000baseKR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_56000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_56000baseLR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_56000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_56000baseSR4_Full_BIT,
+	},
+	/* 50G */
+	{
+		.speed = SPEED_50000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+	},
+	{
+		.speed = SPEED_50000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+	},
+	{
+		.speed = SPEED_50000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+	},
+	/* 40G */
+	{
+		.speed = SPEED_40000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_40000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_40000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
+	},
+	{
+		.speed = SPEED_40000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
+	},
+	/* 25G */
+	{
+		.speed = SPEED_25000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+	},
+	{
+		.speed = SPEED_25000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+	},
+	{
+		.speed = SPEED_25000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+	},
+
+	/* 20G */
+	{
+		.speed = SPEED_20000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
+	},
+	{
+		.speed = SPEED_20000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_20000baseMLD2_Full_BIT,
+	},
+	/* 10G */
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
+	},
 	{
 		.speed = SPEED_10000,
 		.duplex = DUPLEX_FULL,
@@ -75,22 +193,51 @@ static const struct phy_setting settings[] = {
 	{
 		.speed = SPEED_10000,
 		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
 		.bit = ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+	},
+	/* 5G */
+	{
+		.speed = SPEED_5000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+	},
+
+	/* 2.5G */
+	{
+		.speed = SPEED_2500,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
 	},
 	{
 		.speed = SPEED_2500,
 		.duplex = DUPLEX_FULL,
 		.bit = ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
 	},
+	/* 1G */
 	{
 		.speed = SPEED_1000,
 		.duplex = DUPLEX_FULL,
 		.bit = ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
-	},
-	{
-		.speed = SPEED_1000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
 	},
 	{
 		.speed = SPEED_1000,
@@ -103,6 +250,12 @@ static const struct phy_setting settings[] = {
 		.bit = ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 	},
 	{
+		.speed = SPEED_1000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+	},
+	/* 100M */
+	{
 		.speed = SPEED_100,
 		.duplex = DUPLEX_FULL,
 		.bit = ETHTOOL_LINK_MODE_100baseT_Full_BIT,
@@ -112,6 +265,7 @@ static const struct phy_setting settings[] = {
 		.duplex = DUPLEX_HALF,
 		.bit = ETHTOOL_LINK_MODE_100baseT_Half_BIT,
 	},
+	/* 10M */
 	{
 		.speed = SPEED_10,
 		.duplex = DUPLEX_FULL,
