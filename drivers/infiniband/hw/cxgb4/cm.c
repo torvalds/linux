@@ -2798,7 +2798,8 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 		break;
 	case MPA_REQ_SENT:
 		(void)stop_ep_timer(ep);
-		if (mpa_rev == 1 || (mpa_rev == 2 && ep->tried_with_mpa_v1))
+		if (status != CPL_ERR_CONN_RESET || mpa_rev == 1 ||
+		    (mpa_rev == 2 && ep->tried_with_mpa_v1))
 			connect_reply_upcall(ep, -ECONNRESET);
 		else {
 			/*
