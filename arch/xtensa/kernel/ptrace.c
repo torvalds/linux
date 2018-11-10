@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/perf_event.h>
 #include <linux/ptrace.h>
+#include <linux/regset.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/security.h>
@@ -32,6 +33,110 @@
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
 
+static int gpr_get(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	struct user_pt_regs newregs = {
+		.pc = regs->pc,
+		.ps = regs->ps & ~(1 << PS_EXCM_BIT),
+		.lbeg = regs->lbeg,
+		.lend = regs->lend,
+		.lcount = regs->lcount,
+		.sar = regs->sar,
+		.threadptr = regs->threadptr,
+		.windowbase = regs->windowbase,
+		.windowstart = regs->windowstart,
+	};
+
+	memcpy(newregs.a,
+	       regs->areg + XCHAL_NUM_AREGS - regs->windowbase * 4,
+	       regs->windowbase * 16);
+	memcpy(newregs.a + regs->windowbase * 4,
+	       regs->areg,
+	       (WSBITS - regs->windowbase) * 16);
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &newregs, 0, -1);
+}
+
+static int gpr_set(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+	struct user_pt_regs newregs = {0};
+	struct pt_regs *regs;
+	const u32 ps_mask = PS_CALLINC_MASK | PS_OWB_MASK;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &newregs, 0, -1);
+	if (ret)
+		return ret;
+
+	if (newregs.windowbase >= XCHAL_NUM_AREGS / 4)
+		return -EINVAL;
+
+	regs = task_pt_regs(target);
+	regs->pc = newregs.pc;
+	regs->ps = (regs->ps & ~ps_mask) | (newregs.ps & ps_mask);
+	regs->lbeg = newregs.lbeg;
+	regs->lend = newregs.lend;
+	regs->lcount = newregs.lcount;
+	regs->sar = newregs.sar;
+	regs->threadptr = newregs.threadptr;
+
+	if (newregs.windowbase != regs->windowbase ||
+	    newregs.windowstart != regs->windowstart) {
+		u32 rotws, wmask;
+
+		rotws = (((newregs.windowstart |
+			   (newregs.windowstart << WSBITS)) >>
+			  newregs.windowbase) &
+			 ((1 << WSBITS) - 1)) & ~1;
+		wmask = ((rotws ? WSBITS + 1 - ffs(rotws) : 0) << 4) |
+			(rotws & 0xF) | 1;
+		regs->windowbase = newregs.windowbase;
+		regs->windowstart = newregs.windowstart;
+		regs->wmask = wmask;
+	}
+
+	memcpy(regs->areg + XCHAL_NUM_AREGS - newregs.windowbase * 4,
+	       newregs.a, newregs.windowbase * 16);
+	memcpy(regs->areg, newregs.a + newregs.windowbase * 4,
+	       (WSBITS - newregs.windowbase) * 16);
+
+	return 0;
+}
+
+enum xtensa_regset {
+	REGSET_GPR,
+};
+
+static const struct user_regset xtensa_regsets[] = {
+	[REGSET_GPR] = {
+		.core_note_type = NT_PRSTATUS,
+		.n = sizeof(struct user_pt_regs) / sizeof(u32),
+		.size = sizeof(u32),
+		.align = sizeof(u32),
+		.get = gpr_get,
+		.set = gpr_set
+	},
+};
+
+static const struct user_regset_view user_xtensa_view = {
+	.name = "xtensa",
+	.e_machine = EM_XTENSA,
+	.regsets = xtensa_regsets,
+	.n = ARRAY_SIZE(xtensa_regsets)
+};
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+	return &user_xtensa_view;
+}
 
 void user_enable_single_step(struct task_struct *child)
 {
@@ -54,76 +159,14 @@ void ptrace_disable(struct task_struct *child)
 
 static int ptrace_getregs(struct task_struct *child, void __user *uregs)
 {
-	struct pt_regs *regs = task_pt_regs(child);
-	xtensa_gregset_t __user *gregset = uregs;
-	unsigned long wb = regs->windowbase;
-	int i;
-
-	if (!access_ok(VERIFY_WRITE, uregs, sizeof(xtensa_gregset_t)))
-		return -EIO;
-
-	__put_user(regs->pc, &gregset->pc);
-	__put_user(regs->ps & ~(1 << PS_EXCM_BIT), &gregset->ps);
-	__put_user(regs->lbeg, &gregset->lbeg);
-	__put_user(regs->lend, &gregset->lend);
-	__put_user(regs->lcount, &gregset->lcount);
-	__put_user(regs->windowstart, &gregset->windowstart);
-	__put_user(regs->windowbase, &gregset->windowbase);
-	__put_user(regs->threadptr, &gregset->threadptr);
-
-	for (i = 0; i < XCHAL_NUM_AREGS; i++)
-		__put_user(regs->areg[i],
-			   gregset->a + ((wb * 4 + i) % XCHAL_NUM_AREGS));
-
-	return 0;
+	return copy_regset_to_user(child, &user_xtensa_view, REGSET_GPR,
+				   0, sizeof(xtensa_gregset_t), uregs);
 }
 
 static int ptrace_setregs(struct task_struct *child, void __user *uregs)
 {
-	struct pt_regs *regs = task_pt_regs(child);
-	xtensa_gregset_t *gregset = uregs;
-	const unsigned long ps_mask = PS_CALLINC_MASK | PS_OWB_MASK;
-	unsigned long ps;
-	unsigned long wb, ws;
-
-	if (!access_ok(VERIFY_WRITE, uregs, sizeof(xtensa_gregset_t)))
-		return -EIO;
-
-	__get_user(regs->pc, &gregset->pc);
-	__get_user(ps, &gregset->ps);
-	__get_user(regs->lbeg, &gregset->lbeg);
-	__get_user(regs->lend, &gregset->lend);
-	__get_user(regs->lcount, &gregset->lcount);
-	__get_user(ws, &gregset->windowstart);
-	__get_user(wb, &gregset->windowbase);
-	__get_user(regs->threadptr, &gregset->threadptr);
-
-	regs->ps = (regs->ps & ~ps_mask) | (ps & ps_mask) | (1 << PS_EXCM_BIT);
-
-	if (wb >= XCHAL_NUM_AREGS / 4)
-		return -EFAULT;
-
-	if (wb != regs->windowbase || ws != regs->windowstart) {
-		unsigned long rotws, wmask;
-
-		rotws = (((ws | (ws << WSBITS)) >> wb) &
-			 ((1 << WSBITS) - 1)) & ~1;
-		wmask = ((rotws ? WSBITS + 1 - ffs(rotws) : 0) << 4) |
-			(rotws & 0xF) | 1;
-		regs->windowbase = wb;
-		regs->windowstart = ws;
-		regs->wmask = wmask;
-	}
-
-	if (wb != 0 && __copy_from_user(regs->areg + XCHAL_NUM_AREGS - wb * 4,
-					gregset->a, wb * 16))
-		return -EFAULT;
-
-	if (__copy_from_user(regs->areg, gregset->a + wb * 4,
-			     (WSBITS - wb) * 16))
-		return -EFAULT;
-
-	return 0;
+	return copy_regset_from_user(child, &user_xtensa_view, REGSET_GPR,
+				     0, sizeof(xtensa_gregset_t), uregs);
 }
 
 

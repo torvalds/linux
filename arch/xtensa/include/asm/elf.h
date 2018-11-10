@@ -75,19 +75,7 @@
 
 typedef unsigned long elf_greg_t;
 
-typedef struct {
-	elf_greg_t pc;
-	elf_greg_t ps;
-	elf_greg_t lbeg;
-	elf_greg_t lend;
-	elf_greg_t lcount;
-	elf_greg_t sar;
-	elf_greg_t windowstart;
-	elf_greg_t windowbase;
-	elf_greg_t threadptr;
-	elf_greg_t reserved[7+48];
-	elf_greg_t a[64];
-} xtensa_gregset_t;
+typedef struct user_pt_regs xtensa_gregset_t;
 
 #define ELF_NGREG	(sizeof(xtensa_gregset_t) / sizeof(elf_greg_t))
 
