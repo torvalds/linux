@@ -6135,10 +6135,16 @@ static int tg3_setup_phy(struct tg3 *tp, bool force_reset)
 }
 
 /* tp->lock must be held */
-static u64 tg3_refclk_read(struct tg3 *tp)
+static u64 tg3_refclk_read(struct tg3 *tp, struct ptp_system_timestamp *sts)
 {
-	u64 stamp = tr32(TG3_EAV_REF_CLCK_LSB);
-	return stamp | (u64)tr32(TG3_EAV_REF_CLCK_MSB) << 32;
+	u64 stamp;
+
+	ptp_read_system_prets(sts);
+	stamp = tr32(TG3_EAV_REF_CLCK_LSB);
+	ptp_read_system_postts(sts);
+	stamp |= (u64)tr32(TG3_EAV_REF_CLCK_MSB) << 32;
+
+	return stamp;
 }
 
 /* tp->lock must be held */
@@ -6229,13 +6235,14 @@ static int tg3_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int tg3_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
+static int tg3_ptp_gettimex(struct ptp_clock_info *ptp, struct timespec64 *ts,
+			    struct ptp_system_timestamp *sts)
 {
 	u64 ns;
 	struct tg3 *tp = container_of(ptp, struct tg3, ptp_info);
 
 	tg3_full_lock(tp, 0);
-	ns = tg3_refclk_read(tp);
+	ns = tg3_refclk_read(tp, sts);
 	ns += tp->ptp_adjust;
 	tg3_full_unlock(tp);
 
@@ -6330,7 +6337,7 @@ static const struct ptp_clock_info tg3_ptp_caps = {
 	.pps		= 0,
 	.adjfreq	= tg3_ptp_adjfreq,
 	.adjtime	= tg3_ptp_adjtime,
-	.gettime64	= tg3_ptp_gettime,
+	.gettimex64	= tg3_ptp_gettimex,
 	.settime64	= tg3_ptp_settime,
 	.enable		= tg3_ptp_enable,
 };
