@@ -209,7 +209,7 @@ static inline u32 ethtool_adv_to_mii_ctrl1000_t(u32 ethadv)
 
 /**
  * linkmode_adv_to_mii_ctrl1000_t
- * advertising: the linkmode advertisement settings
+ * @advertising: the linkmode advertisement settings
  *
  * A small helper function that translates linkmode advertisement
  * settings to phy autonegotiation advertisements for the
