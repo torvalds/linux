@@ -50,6 +50,7 @@ struct ide_request {
 	struct scsi_request sreq;
 	u8 sense[SCSI_SENSE_BUFFERSIZE];
 	u8 type;
+	void *special;
 };
 
 static inline struct ide_request *ide_req(struct request *rq)

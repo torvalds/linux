@@ -94,7 +94,7 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 
 	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, 0);
 	ide_req(rq)->type = ATA_PRIV_MISC;
-	rq->special = (char *)pc;
+	ide_req(rq)->special = pc;
 
 	if (buf && bufflen) {
 		error = blk_rq_map_kern(drive->queue, rq, buf, bufflen,
@@ -244,7 +244,7 @@ int ide_queue_sense_rq(ide_drive_t *drive, void *special)
 		return -ENOMEM;
 	}
 
-	sense_rq->special = special;
+	ide_req(sense_rq)->special = special;
 	drive->sense_rq_armed = false;
 
 	drive->hwif->rq = NULL;

@@ -211,12 +211,12 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 static void ide_cd_complete_failed_rq(ide_drive_t *drive, struct request *rq)
 {
 	/*
-	 * For ATA_PRIV_SENSE, "rq->special" points to the original
+	 * For ATA_PRIV_SENSE, "ide_req(rq)->special" points to the original
 	 * failed request.  Also, the sense data should be read
 	 * directly from rq which might be different from the original
 	 * sense buffer if it got copied during mapping.
 	 */
-	struct request *failed = (struct request *)rq->special;
+	struct request *failed = ide_req(rq)->special;
 	void *sense = bio_data(rq->bio);
 
 	if (failed) {

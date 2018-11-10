@@ -36,7 +36,7 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	scsi_req(rq)->cmd[0] = REQ_PARK_HEADS;
 	scsi_req(rq)->cmd_len = 1;
 	ide_req(rq)->type = ATA_PRIV_MISC;
-	rq->special = &timeout;
+	ide_req(rq)->special = &timeout;
 	blk_execute_rq(q, NULL, rq, 1);
 	rc = scsi_req(rq)->result ? -EIO : 0;
 	blk_put_request(rq);
@@ -67,7 +67,7 @@ ide_startstop_t ide_do_park_unpark(ide_drive_t *drive, struct request *rq)
 
 	memset(&cmd, 0, sizeof(cmd));
 	if (scsi_req(rq)->cmd[0] == REQ_PARK_HEADS) {
-		drive->sleep = *(unsigned long *)rq->special;
+		drive->sleep = *(unsigned long *)ide_req(rq)->special;
 		drive->dev_flags |= IDE_DFLAG_SLEEPING;
 		tf->command = ATA_CMD_IDLEIMMEDIATE;
 		tf->feature = 0x44;

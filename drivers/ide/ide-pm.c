@@ -21,7 +21,7 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	memset(&rqpm, 0, sizeof(rqpm));
 	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, 0);
 	ide_req(rq)->type = ATA_PRIV_PM_SUSPEND;
-	rq->special = &rqpm;
+	ide_req(rq)->special = &rqpm;
 	rqpm.pm_step = IDE_PM_START_SUSPEND;
 	if (mesg.event == PM_EVENT_PRETHAW)
 		mesg.event = PM_EVENT_FREEZE;
@@ -82,7 +82,7 @@ int generic_ide_resume(struct device *dev)
 	memset(&rqpm, 0, sizeof(rqpm));
 	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, BLK_MQ_REQ_PREEMPT);
 	ide_req(rq)->type = ATA_PRIV_PM_RESUME;
-	rq->special = &rqpm;
+	ide_req(rq)->special = &rqpm;
 	rqpm.pm_step = IDE_PM_START_RESUME;
 	rqpm.pm_state = PM_EVENT_ON;
 
@@ -101,7 +101,7 @@ int generic_ide_resume(struct device *dev)
 
 void ide_complete_power_step(ide_drive_t *drive, struct request *rq)
 {
-	struct ide_pm_state *pm = rq->special;
+	struct ide_pm_state *pm = ide_req(rq)->special;
 
 #ifdef DEBUG_PM
 	printk(KERN_INFO "%s: complete_power_step(step: %d)\n",
@@ -131,7 +131,7 @@ void ide_complete_power_step(ide_drive_t *drive, struct request *rq)
 
 ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *rq)
 {
-	struct ide_pm_state *pm = rq->special;
+	struct ide_pm_state *pm = ide_req(rq)->special;
 	struct ide_cmd cmd = { };
 
 	switch (pm->pm_step) {
@@ -203,7 +203,7 @@ out_do_tf:
 void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 {
 	struct request_queue *q = drive->queue;
-	struct ide_pm_state *pm = rq->special;
+	struct ide_pm_state *pm = ide_req(rq)->special;
 	unsigned long flags;
 
 	ide_complete_power_step(drive, rq);
@@ -228,7 +228,7 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 
 void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 {
-	struct ide_pm_state *pm = rq->special;
+	struct ide_pm_state *pm = ide_req(rq)->special;
 
 	if (blk_rq_is_private(rq) &&
 	    ide_req(rq)->type == ATA_PRIV_PM_SUSPEND &&

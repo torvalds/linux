@@ -111,7 +111,7 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 	}
 
 	if (rq && ata_taskfile_request(rq)) {
-		struct ide_cmd *orig_cmd = rq->special;
+		struct ide_cmd *orig_cmd = ide_req(rq)->special;
 
 		if (cmd->tf_flags & IDE_TFLAG_DYN)
 			kfree(orig_cmd);
@@ -261,7 +261,7 @@ EXPORT_SYMBOL_GPL(ide_init_sg_cmd);
 static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		struct request *rq)
 {
-	struct ide_cmd *cmd = rq->special;
+	struct ide_cmd *cmd = ide_req(rq)->special;
 
 	if (cmd) {
 		if (cmd->protocol == ATA_PROT_PIO) {
@@ -352,7 +352,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		if (ata_taskfile_request(rq))
 			return execute_drive_cmd(drive, rq);
 		else if (ata_pm_request(rq)) {
-			struct ide_pm_state *pm = rq->special;
+			struct ide_pm_state *pm = ide_req(rq)->special;
 #ifdef DEBUG_PM
 			printk("%s: start_power_step(step: %d)\n",
 				drive->name, pm->pm_step);
@@ -460,8 +460,13 @@ blk_status_t ide_queue_rq(struct blk_mq_hw_ctx *hctx,
 	ide_drive_t	*drive = hctx->queue->queuedata;
 	ide_hwif_t	*hwif = drive->hwif;
 	struct ide_host *host = hwif->host;
-	struct request	*rq = NULL;
+	struct request	*rq = bd->rq;
 	ide_startstop_t	startstop;
+
+	if (!(rq->rq_flags & RQF_DONTPREP)) {
+		rq->rq_flags |= RQF_DONTPREP;
+		ide_req(rq)->special = NULL;
+	}
 
 	/* HLD do_request() callback might sleep, make sure it's okay */
 	might_sleep();
@@ -469,7 +474,6 @@ blk_status_t ide_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ide_lock_host(host, hwif))
 		return BLK_STS_DEV_RESOURCE;
 
-	rq = bd->rq;
 	blk_mq_start_request(rq);
 
 	spin_lock_irq(&hwif->lock);

@@ -434,8 +434,8 @@ static bool idedisk_prep_rq(ide_drive_t *drive, struct request *rq)
 	if (req_op(rq) != REQ_OP_FLUSH)
 		return true;
 
-	if (rq->special) {
-		cmd = rq->special;
+	if (ide_req(rq)->special) {
+		cmd = ide_req(rq)->special;
 		memset(cmd, 0, sizeof(*cmd));
 	} else {
 		cmd = kzalloc(sizeof(*cmd), GFP_ATOMIC);
@@ -455,7 +455,7 @@ static bool idedisk_prep_rq(ide_drive_t *drive, struct request *rq)
 	rq->cmd_flags &= ~REQ_OP_MASK;
 	rq->cmd_flags |= REQ_OP_DRV_OUT;
 	ide_req(rq)->type = ATA_PRIV_TASKFILE;
-	rq->special = cmd;
+	ide_req(rq)->special = cmd;
 	cmd->rq = rq;
 
 	return true;
