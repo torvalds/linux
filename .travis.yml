@@ -12,7 +12,10 @@ jobs:
   include:
     - if: type = pull_request
       name: checkpatch
-      script: scripts/checkpatch.pl --strict --codespell -g $TRAVIS_COMMIT_RANGE
+      script:
+        - SHA_PR=`git log --oneline -1 | sed -rn "s/.*Merge (.*) into.*/\1/p"`
+        - SHA_MAIN=`git log --oneline -1 | sed -rn "s/.*Merge .* into (.*)/\1/p"`
+        - scripts/checkpatch.pl --strict --codespell -g $SHA_MAIN..$SHA_PR
     - name: "BUILD SOF Kernel x86_64"
       script:
         - export ARCH=x86_64
