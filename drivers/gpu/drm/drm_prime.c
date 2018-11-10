@@ -529,7 +529,10 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 		return dmabuf;
 	}
 
-	dmabuf = dev->driver->gem_prime_export(dev, obj, flags);
+	if (dev->driver->gem_prime_export)
+		dmabuf = dev->driver->gem_prime_export(dev, obj, flags);
+	else
+		dmabuf = drm_gem_prime_export(dev, obj, flags);
 	if (IS_ERR(dmabuf)) {
 		/* normally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
@@ -762,7 +765,10 @@ int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 
 	/* never seen this one, need to import */
 	mutex_lock(&dev->object_name_lock);
-	obj = dev->driver->gem_prime_import(dev, dma_buf);
+	if (dev->driver->gem_prime_import)
+		obj = dev->driver->gem_prime_import(dev, dma_buf);
+	else
+		obj = drm_gem_prime_import(dev, dma_buf);
 	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
 		goto out_unlock;
