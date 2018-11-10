@@ -105,7 +105,7 @@ struct tipc_stats {
  * @transmitq: queue for sent, non-acked messages
  * @backlogq: queue for messages waiting to be sent
  * @snt_nxt: next sequence number to use for outbound messages
- * @last_retransmitted: sequence number of most recently retransmitted message
+ * @prev_from: sequence number of most previous retransmission request
  * @stale_cnt: counter for number of identical retransmit attempts
  * @stale_limit: time when repeated identical retransmits must force link reset
  * @ackers: # of peers that needs to ack each packet before it can be released
@@ -163,7 +163,7 @@ struct tipc_link {
 		u16 limit;
 	} backlog[5];
 	u16 snd_nxt;
-	u16 last_retransm;
+	u16 prev_from;
 	u16 window;
 	u16 stale_cnt;
 	unsigned long stale_limit;
@@ -186,9 +186,6 @@ struct tipc_link {
 	u16 acked;
 	struct tipc_link *bc_rcvlink;
 	struct tipc_link *bc_sndlink;
-	unsigned long prev_retr;
-	u16 prev_from;
-	u16 prev_to;
 	u8 nack_state;
 	bool bc_peer_is_up;
 
@@ -210,7 +207,7 @@ enum {
 	BC_NACK_SND_SUPPRESS,
 };
 
-#define TIPC_BC_RETR_LIMIT 10   /* [ms] */
+#define TIPC_BC_RETR_LIM msecs_to_jiffies(10)   /* [ms] */
 
 /*
  * Interval between NACKs when packets arrive out of order
@@ -1036,10 +1033,12 @@ static int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
 
 	if (!skb)
 		return 0;
+	if (less(to, from))
+		return 0;
 
 	/* Detect repeated retransmit failures on same packet */
-	if (r->last_retransm != buf_seqno(skb)) {
-		r->last_retransm = buf_seqno(skb);
+	if (r->prev_from != from) {
+		r->prev_from = from;
 		r->stale_limit = jiffies + msecs_to_jiffies(r->tolerance);
 		r->stale_cnt = 0;
 	} else if (++r->stale_cnt > 99 && time_after(jiffies, r->stale_limit)) {
@@ -1055,6 +1054,11 @@ static int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
 			continue;
 		if (more(msg_seqno(hdr), to))
 			break;
+		if (link_is_bc_sndlink(l)) {
+			if (time_before(jiffies, TIPC_SKB_CB(skb)->nxt_retr))
+				continue;
+			TIPC_SKB_CB(skb)->nxt_retr = jiffies + TIPC_BC_RETR_LIM;
+		}
 		_skb = __pskb_copy(skb, MIN_H_SIZE, GFP_ATOMIC);
 		if (!_skb)
 			return 0;
@@ -1734,42 +1738,6 @@ void tipc_link_bc_init_rcv(struct tipc_link *l, struct tipc_msg *hdr)
 		l->rcv_nxt = peers_snd_nxt;
 }
 
-/* link_bc_retr eval()- check if the indicated range can be retransmitted now
- * - Adjust permitted range if there is overlap with previous retransmission
- */
-static bool link_bc_retr_eval(struct tipc_link *l, u16 *from, u16 *to)
-{
-	unsigned long elapsed = jiffies_to_msecs(jiffies - l->prev_retr);
-
-	if (less(*to, *from))
-		return false;
-
-	/* New retransmission request */
-	if ((elapsed > TIPC_BC_RETR_LIMIT) ||
-	    less(*to, l->prev_from) || more(*from, l->prev_to)) {
-		l->prev_from = *from;
-		l->prev_to = *to;
-		l->prev_retr = jiffies;
-		return true;
-	}
-
-	/* Inside range of previous retransmit */
-	if (!less(*from, l->prev_from) && !more(*to, l->prev_to))
-		return false;
-
-	/* Fully or partially outside previous range => exclude overlap */
-	if (less(*from, l->prev_from)) {
-		*to = l->prev_from - 1;
-		l->prev_from = *from;
-	}
-	if (more(*to, l->prev_to)) {
-		*from = l->prev_to + 1;
-		l->prev_to = *to;
-	}
-	l->prev_retr = jiffies;
-	return true;
-}
-
 /* tipc_link_bc_sync_rcv - update rcv link according to peer's send state
  */
 int tipc_link_bc_sync_rcv(struct tipc_link *l, struct tipc_msg *hdr,
@@ -1800,8 +1768,7 @@ int tipc_link_bc_sync_rcv(struct tipc_link *l, struct tipc_msg *hdr,
 	if (more(peers_snd_nxt, l->rcv_nxt + l->window))
 		return rc;
 
-	if (link_bc_retr_eval(snd_l, &from, &to))
-		rc = tipc_link_retrans(snd_l, l, from, to, xmitq);
+	rc = tipc_link_retrans(snd_l, l, from, to, xmitq);
 
 	l->snd_nxt = peers_snd_nxt;
 	if (link_bc_rcv_gap(l))

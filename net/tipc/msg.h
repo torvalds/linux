@@ -105,6 +105,7 @@ struct tipc_skb_cb {
 	u32 bytes_read;
 	u32 orig_member;
 	struct sk_buff *tail;
+	unsigned long nxt_retr;
 	bool validated;
 	u16 chain_imp;
 	u16 ackers;
