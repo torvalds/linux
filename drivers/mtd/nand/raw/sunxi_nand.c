@@ -1847,6 +1847,7 @@ static int sunxi_nand_attach_chip(struct nand_chip *nand)
 
 static const struct nand_controller_ops sunxi_nand_controller_ops = {
 	.attach_chip = sunxi_nand_attach_chip,
+	.setup_data_interface = sunxi_nfc_setup_data_interface,
 };
 
 static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
@@ -1927,7 +1928,6 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	nand->legacy.read_buf = sunxi_nfc_read_buf;
 	nand->legacy.write_buf = sunxi_nfc_write_buf;
 	nand->legacy.read_byte = sunxi_nfc_read_byte;
-	nand->setup_data_interface = sunxi_nfc_setup_data_interface;
 
 	mtd = nand_to_mtd(nand);
 	mtd->dev.parent = dev;

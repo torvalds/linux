@@ -1479,8 +1479,8 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 	chip->legacy.write_buf = atmel_nand_write_buf;
 	chip->legacy.select_chip = atmel_nand_select_chip;
 
-	if (nc->mck && nc->caps->ops->setup_data_interface)
-		chip->setup_data_interface = atmel_nand_setup_data_interface;
+	if (!nc->mck || !nc->caps->ops->setup_data_interface)
+		chip->options |= NAND_KEEP_TIMINGS;
 
 	/* Some NANDs require a longer delay than the default one (20us). */
 	chip->legacy.chip_delay = 40;
@@ -1908,6 +1908,7 @@ static int atmel_nand_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops atmel_nand_controller_ops = {
 	.attach_chip = atmel_nand_attach_chip,
+	.setup_data_interface = atmel_nand_setup_data_interface,
 };
 
 static int atmel_nand_controller_init(struct atmel_nand_controller *nc,

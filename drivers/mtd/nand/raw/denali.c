@@ -1316,6 +1316,7 @@ static void denali_detach_chip(struct nand_chip *chip)
 static const struct nand_controller_ops denali_controller_ops = {
 	.attach_chip = denali_attach_chip,
 	.detach_chip = denali_detach_chip,
+	.setup_data_interface = denali_setup_data_interface,
 };
 
 int denali_init(struct denali_nand_info *denali)
@@ -1372,7 +1373,7 @@ int denali_init(struct denali_nand_info *denali)
 
 	/* clk rate info is needed for setup_data_interface */
 	if (denali->clk_rate && denali->clk_x_rate)
-		chip->setup_data_interface = denali_setup_data_interface;
+		chip->options |= NAND_KEEP_TIMINGS;
 
 	chip->dummy_controller.ops = &denali_controller_ops;
 	ret = nand_scan(chip, denali->max_banks);

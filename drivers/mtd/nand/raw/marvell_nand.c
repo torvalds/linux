@@ -2506,6 +2506,7 @@ static int marvell_nand_attach_chip(struct nand_chip *chip)
 static const struct nand_controller_ops marvell_nand_controller_ops = {
 	.attach_chip = marvell_nand_attach_chip,
 	.exec_op = marvell_nfc_exec_op,
+	.setup_data_interface = marvell_nfc_setup_data_interface,
 };
 
 static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
@@ -2629,7 +2630,7 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 	nand_set_flash_node(chip, np);
 
 	if (!of_property_read_bool(np, "marvell,nand-keep-config"))
-		chip->setup_data_interface = marvell_nfc_setup_data_interface;
+		chip->options |= NAND_KEEP_TIMINGS;
 
 	mtd = nand_to_mtd(chip);
 	mtd->dev.parent = dev;

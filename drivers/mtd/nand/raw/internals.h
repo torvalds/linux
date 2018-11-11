@@ -116,6 +116,18 @@ static inline int nand_exec_op(struct nand_chip *chip,
 	return chip->controller->ops->exec_op(chip, op, false);
 }
 
+static inline bool nand_has_setup_data_iface(struct nand_chip *chip)
+{
+	if (!chip->controller || !chip->controller->ops ||
+	    !chip->controller->ops->setup_data_interface)
+		return false;
+
+	if (chip->options & NAND_KEEP_TIMINGS)
+		return false;
+
+	return true;
+}
+
 /* BBT functions */
 int nand_markbad_bbt(struct nand_chip *chip, loff_t offs);
 int nand_isreserved_bbt(struct nand_chip *chip, loff_t offs);

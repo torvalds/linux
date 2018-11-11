@@ -1051,6 +1051,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 static const struct nand_controller_ops tegra_nand_controller_ops = {
 	.attach_chip = &tegra_nand_attach_chip,
 	.exec_op = tegra_nand_exec_op,
+	.setup_data_interface = tegra_nand_setup_data_interface,
 };
 
 static int tegra_nand_chips_init(struct device *dev,
@@ -1113,7 +1114,6 @@ static int tegra_nand_chips_init(struct device *dev,
 		mtd->name = "tegra_nand";
 
 	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USE_BOUNCE_BUFFER;
-	chip->setup_data_interface = tegra_nand_setup_data_interface;
 
 	ret = nand_scan(chip, 1);
 	if (ret)

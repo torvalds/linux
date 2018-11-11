@@ -1889,6 +1889,7 @@ static int gpmi_nand_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops gpmi_nand_controller_ops = {
 	.attach_chip = gpmi_nand_attach_chip,
+	.setup_data_interface = gpmi_setup_data_interface,
 };
 
 static int gpmi_nand_init(struct gpmi_nand_data *this)
@@ -1908,7 +1909,6 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	nand_set_controller_data(chip, this);
 	nand_set_flash_node(chip, this->pdev->dev.of_node);
 	chip->legacy.select_chip	= gpmi_select_chip;
-	chip->setup_data_interface = gpmi_setup_data_interface;
 	chip->legacy.cmd_ctrl	= gpmi_cmd_ctrl;
 	chip->legacy.dev_ready	= gpmi_dev_ready;
 	chip->legacy.read_byte	= gpmi_read_byte;

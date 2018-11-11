@@ -996,6 +996,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 static const struct nand_controller_ops fsmc_nand_controller_ops = {
 	.attach_chip = fsmc_nand_attach_chip,
 	.exec_op = fsmc_exec_op,
+	.setup_data_interface = fsmc_setup_data_interface,
 };
 
 /*
@@ -1108,10 +1109,10 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (host->dev_timings)
+	if (host->dev_timings) {
 		fsmc_nand_setup(host, host->dev_timings);
-	else
-		nand->setup_data_interface = fsmc_setup_data_interface;
+		nand->options |= NAND_KEEP_TIMINGS;
+	}
 
 	if (AMBA_REV_BITS(host->pid) >= 8) {
 		nand->ecc.read_page = fsmc_read_page_hwecc;

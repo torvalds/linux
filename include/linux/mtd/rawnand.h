@@ -203,6 +203,13 @@ enum nand_ecc_algo {
  */
 #define NAND_IS_BOOT_MEDIUM	0x00400000
 
+/*
+ * Do not try to tweak the timings at runtime. This is needed when the
+ * controller initializes the timings on itself or when it relies on
+ * configuration done by the bootloader.
+ */
+#define NAND_KEEP_TIMINGS	0x00800000
+
 /* Cell info constants */
 #define NAND_CI_CHIPNR_MSK	0x03
 #define NAND_CI_CELLTYPE_MSK	0x0C
@@ -871,6 +878,11 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  *		 This method replaces chip->legacy.cmdfunc(),
  *		 chip->legacy.{read,write}_{buf,byte,word}(),
  *		 chip->legacy.dev_ready() and chip->legacy.waifunc().
+ * @setup_data_interface: setup the data interface and timing. If
+ *			  chipnr is set to %NAND_DATA_IFACE_CHECK_ONLY this
+ *			  means the configuration should not be applied but
+ *			  only checked.
+ *			  This hook is optional.
  */
 struct nand_controller_ops {
 	int (*attach_chip)(struct nand_chip *chip);
@@ -878,6 +890,8 @@ struct nand_controller_ops {
 	int (*exec_op)(struct nand_chip *chip,
 		       const struct nand_operation *op,
 		       bool check_only);
+	int (*setup_data_interface)(struct nand_chip *chip, int chipnr,
+				    const struct nand_data_interface *conf);
 };
 
 /**
@@ -1019,10 +1033,6 @@ struct nand_legacy {
  *			cur_cs < numchips. NAND Controller drivers should not
  *			modify this value, but they're allowed to read it.
  * @read_retries:	[INTERN] the number of read retry modes supported
- * @setup_data_interface: [OPTIONAL] setup the data interface and timing. If
- *			  chipnr is set to %NAND_DATA_IFACE_CHECK_ONLY this
- *			  means the configuration should not be applied but
- *			  only checked.
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash
  *			lookup.
@@ -1044,8 +1054,6 @@ struct nand_chip {
 	struct nand_legacy legacy;
 
 	int (*setup_read_retry)(struct nand_chip *chip, int retry_mode);
-	int (*setup_data_interface)(struct nand_chip *chip, int chipnr,
-				    const struct nand_data_interface *conf);
 
 	unsigned int options;
 	unsigned int bbt_options;

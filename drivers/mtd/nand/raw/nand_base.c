@@ -807,7 +807,7 @@ static int nand_reset_data_interface(struct nand_chip *chip, int chipnr)
 {
 	int ret;
 
-	if (!chip->setup_data_interface)
+	if (!nand_has_setup_data_iface(chip))
 		return 0;
 
 	/*
@@ -825,7 +825,8 @@ static int nand_reset_data_interface(struct nand_chip *chip, int chipnr)
 	 */
 
 	onfi_fill_data_interface(chip, NAND_SDR_IFACE, 0);
-	ret = chip->setup_data_interface(chip, chipnr, &chip->data_interface);
+	ret = chip->controller->ops->setup_data_interface(chip, chipnr,
+							&chip->data_interface);
 	if (ret)
 		pr_err("Failed to configure data interface to SDR timing mode 0\n");
 
@@ -852,7 +853,7 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 	};
 	int ret;
 
-	if (!chip->setup_data_interface)
+	if (!nand_has_setup_data_iface(chip))
 		return 0;
 
 	/* Change the mode on the chip side (if supported by the NAND chip) */
@@ -866,7 +867,8 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 	}
 
 	/* Change the mode on the controller side */
-	ret = chip->setup_data_interface(chip, chipnr, &chip->data_interface);
+	ret = chip->controller->ops->setup_data_interface(chip, chipnr,
+							&chip->data_interface);
 	if (ret)
 		return ret;
 
@@ -921,7 +923,7 @@ static int nand_init_data_interface(struct nand_chip *chip)
 {
 	int modes, mode, ret;
 
-	if (!chip->setup_data_interface)
+	if (!nand_has_setup_data_iface(chip))
 		return 0;
 
 	/*
@@ -947,7 +949,7 @@ static int nand_init_data_interface(struct nand_chip *chip)
 		 * Pass NAND_DATA_IFACE_CHECK_ONLY to only check if the
 		 * controller supports the requested timings.
 		 */
-		ret = chip->setup_data_interface(chip,
+		ret = chip->controller->ops->setup_data_interface(chip,
 						 NAND_DATA_IFACE_CHECK_ONLY,
 						 &chip->data_interface);
 		if (!ret) {

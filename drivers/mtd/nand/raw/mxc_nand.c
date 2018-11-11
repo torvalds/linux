@@ -1738,8 +1738,17 @@ static int mxcnd_attach_chip(struct nand_chip *chip)
 	return 0;
 }
 
+static int mxcnd_setup_data_interface(struct nand_chip *chip, int chipnr,
+				      const struct nand_data_interface *conf)
+{
+	struct mxc_nand_host *host = nand_get_controller_data(chip);
+
+	return host->devtype_data->setup_data_interface(chip, chipnr, conf);
+}
+
 static const struct nand_controller_ops mxcnd_controller_ops = {
 	.attach_chip = mxcnd_attach_chip,
+	.setup_data_interface = mxcnd_setup_data_interface,
 };
 
 static int mxcnd_probe(struct platform_device *pdev)
@@ -1800,7 +1809,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	this->setup_data_interface = host->devtype_data->setup_data_interface;
+	if (!host->devtype_data->setup_data_interface)
+		this->options |= NAND_KEEP_TIMINGS;
 
 	if (host->devtype_data->needs_ip) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
