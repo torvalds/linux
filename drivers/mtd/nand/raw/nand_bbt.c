@@ -77,8 +77,6 @@
 #define BBT_ENTRY_MASK		0x03
 #define BBT_ENTRY_SHIFT		2
 
-static int nand_update_bbt(struct nand_chip *chip, loff_t offs);
-
 static inline uint8_t bbt_get_entry(struct nand_chip *chip, int block)
 {
 	uint8_t entry = chip->bbt[block >> BBT_ENTRY_SHIFT];
@@ -1035,6 +1033,61 @@ static int check_create(struct nand_chip *this, uint8_t *buf,
 }
 
 /**
+ * nand_update_bbt - update bad block table(s)
+ * @this: the NAND device
+ * @offs: the offset of the newly marked block
+ *
+ * The function updates the bad block table(s).
+ */
+static int nand_update_bbt(struct nand_chip *this, loff_t offs)
+{
+	struct mtd_info *mtd = nand_to_mtd(this);
+	int len, res = 0;
+	int chip, chipsel;
+	uint8_t *buf;
+	struct nand_bbt_descr *td = this->bbt_td;
+	struct nand_bbt_descr *md = this->bbt_md;
+
+	if (!this->bbt || !td)
+		return -EINVAL;
+
+	/* Allocate a temporary buffer for one eraseblock incl. oob */
+	len = (1 << this->bbt_erase_shift);
+	len += (len >> this->page_shift) * mtd->oobsize;
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/* Do we have a bbt per chip? */
+	if (td->options & NAND_BBT_PERCHIP) {
+		chip = (int)(offs >> this->chip_shift);
+		chipsel = chip;
+	} else {
+		chip = 0;
+		chipsel = -1;
+	}
+
+	td->version[chip]++;
+	if (md)
+		md->version[chip]++;
+
+	/* Write the bad block table to the device? */
+	if (td->options & NAND_BBT_WRITE) {
+		res = write_bbt(this, buf, td, md, chipsel);
+		if (res < 0)
+			goto out;
+	}
+	/* Write the mirror bad block table to the device? */
+	if (md && (md->options & NAND_BBT_WRITE)) {
+		res = write_bbt(this, buf, md, td, chipsel);
+	}
+
+ out:
+	kfree(buf);
+	return res;
+}
+
+/**
  * mark_bbt_regions - [GENERIC] mark the bad block table regions
  * @this: the NAND device
  * @td: bad block table descriptor
@@ -1217,61 +1270,6 @@ static int nand_scan_bbt(struct nand_chip *this, struct nand_bbt_descr *bd)
 err:
 	kfree(this->bbt);
 	this->bbt = NULL;
-	return res;
-}
-
-/**
- * nand_update_bbt - update bad block table(s)
- * @this: the NAND device
- * @offs: the offset of the newly marked block
- *
- * The function updates the bad block table(s).
- */
-static int nand_update_bbt(struct nand_chip *this, loff_t offs)
-{
-	struct mtd_info *mtd = nand_to_mtd(this);
-	int len, res = 0;
-	int chip, chipsel;
-	uint8_t *buf;
-	struct nand_bbt_descr *td = this->bbt_td;
-	struct nand_bbt_descr *md = this->bbt_md;
-
-	if (!this->bbt || !td)
-		return -EINVAL;
-
-	/* Allocate a temporary buffer for one eraseblock incl. oob */
-	len = (1 << this->bbt_erase_shift);
-	len += (len >> this->page_shift) * mtd->oobsize;
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	/* Do we have a bbt per chip? */
-	if (td->options & NAND_BBT_PERCHIP) {
-		chip = (int)(offs >> this->chip_shift);
-		chipsel = chip;
-	} else {
-		chip = 0;
-		chipsel = -1;
-	}
-
-	td->version[chip]++;
-	if (md)
-		md->version[chip]++;
-
-	/* Write the bad block table to the device? */
-	if (td->options & NAND_BBT_WRITE) {
-		res = write_bbt(this, buf, td, md, chipsel);
-		if (res < 0)
-			goto out;
-	}
-	/* Write the mirror bad block table to the device? */
-	if (md && (md->options & NAND_BBT_WRITE)) {
-		res = write_bbt(this, buf, md, td, chipsel);
-	}
-
- out:
-	kfree(buf);
 	return res;
 }
 

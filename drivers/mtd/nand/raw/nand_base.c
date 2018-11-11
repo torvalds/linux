@@ -49,11 +49,6 @@
 
 #include "internals.h"
 
-static int nand_get_device(struct nand_chip *chip, int new_state);
-
-static int nand_do_write_oob(struct nand_chip *chip, loff_t to,
-			     struct mtd_oob_ops *ops);
-
 /* Define default oob placement schemes for large and small page devices */
 static int nand_ooblayout_ecc_sp(struct mtd_info *mtd, int section,
 				 struct mtd_oob_region *oobregion)
@@ -286,6 +281,197 @@ static int nand_block_bad(struct nand_chip *chip, loff_t ofs)
 	return 0;
 }
 
+static int nand_isbad_bbm(struct nand_chip *chip, loff_t ofs)
+{
+	if (chip->legacy.block_bad)
+		return chip->legacy.block_bad(chip, ofs);
+
+	return nand_block_bad(chip, ofs);
+}
+
+/**
+ * panic_nand_get_device - [GENERIC] Get chip for selected access
+ * @chip: the nand chip descriptor
+ * @new_state: the state which is requested
+ *
+ * Used when in panic, no locks are taken.
+ */
+static void panic_nand_get_device(struct nand_chip *chip, int new_state)
+{
+	/* Hardware controller shared among independent devices */
+	chip->controller->active = chip;
+	chip->state = new_state;
+}
+
+/**
+ * nand_get_device - [GENERIC] Get chip for selected access
+ * @chip: NAND chip structure
+ * @new_state: the state which is requested
+ *
+ * Get the device and lock it for exclusive access
+ */
+static int
+nand_get_device(struct nand_chip *chip, int new_state)
+{
+	spinlock_t *lock = &chip->controller->lock;
+	wait_queue_head_t *wq = &chip->controller->wq;
+	DECLARE_WAITQUEUE(wait, current);
+retry:
+	spin_lock(lock);
+
+	/* Hardware controller shared among independent devices */
+	if (!chip->controller->active)
+		chip->controller->active = chip;
+
+	if (chip->controller->active == chip && chip->state == FL_READY) {
+		chip->state = new_state;
+		spin_unlock(lock);
+		return 0;
+	}
+	if (new_state == FL_PM_SUSPENDED) {
+		if (chip->controller->active->state == FL_PM_SUSPENDED) {
+			chip->state = FL_PM_SUSPENDED;
+			spin_unlock(lock);
+			return 0;
+		}
+	}
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	add_wait_queue(wq, &wait);
+	spin_unlock(lock);
+	schedule();
+	remove_wait_queue(wq, &wait);
+	goto retry;
+}
+
+/**
+ * nand_check_wp - [GENERIC] check if the chip is write protected
+ * @chip: NAND chip object
+ *
+ * Check, if the device is write protected. The function expects, that the
+ * device is already selected.
+ */
+static int nand_check_wp(struct nand_chip *chip)
+{
+	u8 status;
+	int ret;
+
+	/* Broken xD cards report WP despite being writable */
+	if (chip->options & NAND_BROKEN_XD)
+		return 0;
+
+	/* Check the WP bit */
+	ret = nand_status_op(chip, &status);
+	if (ret)
+		return ret;
+
+	return status & NAND_STATUS_WP ? 0 : 1;
+}
+
+/**
+ * nand_fill_oob - [INTERN] Transfer client buffer to oob
+ * @oob: oob data buffer
+ * @len: oob data write length
+ * @ops: oob ops structure
+ */
+static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob, size_t len,
+			      struct mtd_oob_ops *ops)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	int ret;
+
+	/*
+	 * Initialise to all 0xFF, to avoid the possibility of left over OOB
+	 * data from a previous OOB read.
+	 */
+	memset(chip->oob_poi, 0xff, mtd->oobsize);
+
+	switch (ops->mode) {
+
+	case MTD_OPS_PLACE_OOB:
+	case MTD_OPS_RAW:
+		memcpy(chip->oob_poi + ops->ooboffs, oob, len);
+		return oob + len;
+
+	case MTD_OPS_AUTO_OOB:
+		ret = mtd_ooblayout_set_databytes(mtd, oob, chip->oob_poi,
+						  ops->ooboffs, len);
+		BUG_ON(ret);
+		return oob + len;
+
+	default:
+		BUG();
+	}
+	return NULL;
+}
+
+/**
+ * nand_do_write_oob - [MTD Interface] NAND write out-of-band
+ * @chip: NAND chip object
+ * @to: offset to write to
+ * @ops: oob operation description structure
+ *
+ * NAND write out-of-band.
+ */
+static int nand_do_write_oob(struct nand_chip *chip, loff_t to,
+			     struct mtd_oob_ops *ops)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	int chipnr, page, status, len;
+
+	pr_debug("%s: to = 0x%08x, len = %i\n",
+			 __func__, (unsigned int)to, (int)ops->ooblen);
+
+	len = mtd_oobavail(mtd, ops);
+
+	/* Do not allow write past end of page */
+	if ((ops->ooboffs + ops->ooblen) > len) {
+		pr_debug("%s: attempt to write past end of page\n",
+				__func__);
+		return -EINVAL;
+	}
+
+	chipnr = (int)(to >> chip->chip_shift);
+
+	/*
+	 * Reset the chip. Some chips (like the Toshiba TC5832DC found in one
+	 * of my DiskOnChip 2000 test units) will clear the whole data page too
+	 * if we don't do this. I have no clue why, but I seem to have 'fixed'
+	 * it in the doc2000 driver in August 1999.  dwmw2.
+	 */
+	nand_reset(chip, chipnr);
+
+	chip->select_chip(chip, chipnr);
+
+	/* Shift to get page */
+	page = (int)(to >> chip->page_shift);
+
+	/* Check, if it is write protected */
+	if (nand_check_wp(chip)) {
+		chip->select_chip(chip, -1);
+		return -EROFS;
+	}
+
+	/* Invalidate the page cache, if we write to the cached page */
+	if (page == chip->pagebuf)
+		chip->pagebuf = -1;
+
+	nand_fill_oob(chip, ops->oobbuf, ops->ooblen, ops);
+
+	if (ops->mode == MTD_OPS_RAW)
+		status = chip->ecc.write_oob_raw(chip, page & chip->pagemask);
+	else
+		status = chip->ecc.write_oob(chip, page & chip->pagemask);
+
+	chip->select_chip(chip, -1);
+
+	if (status)
+		return status;
+
+	ops->oobretlen = ops->ooblen;
+
+	return 0;
+}
+
 /**
  * nand_default_block_markbad - [DEFAULT] mark a block bad via bad block marker
  * @chip: NAND chip object
@@ -341,14 +527,6 @@ int nand_markbad_bbm(struct nand_chip *chip, loff_t ofs)
 	return nand_default_block_markbad(chip, ofs);
 }
 
-static int nand_isbad_bbm(struct nand_chip *chip, loff_t ofs)
-{
-	if (chip->legacy.block_bad)
-		return chip->legacy.block_bad(chip, ofs);
-
-	return nand_block_bad(chip, ofs);
-}
-
 /**
  * nand_block_markbad_lowlevel - mark a block bad
  * @chip: NAND chip object
@@ -399,30 +577,6 @@ static int nand_block_markbad_lowlevel(struct nand_chip *chip, loff_t ofs)
 		mtd->ecc_stats.badblocks++;
 
 	return ret;
-}
-
-/**
- * nand_check_wp - [GENERIC] check if the chip is write protected
- * @chip: NAND chip object
- *
- * Check, if the device is write protected. The function expects, that the
- * device is already selected.
- */
-static int nand_check_wp(struct nand_chip *chip)
-{
-	u8 status;
-	int ret;
-
-	/* Broken xD cards report WP despite being writable */
-	if (chip->options & NAND_BROKEN_XD)
-		return 0;
-
-	/* Check the WP bit */
-	ret = nand_status_op(chip, &status);
-	if (ret)
-		return ret;
-
-	return status & NAND_STATUS_WP ? 0 : 1;
 }
 
 /**
@@ -554,60 +708,6 @@ int nand_gpio_waitrdy(struct nand_chip *chip, struct gpio_desc *gpiod,
 	return gpiod_get_value_cansleep(gpiod) ? 0 : -ETIMEDOUT;
 };
 EXPORT_SYMBOL_GPL(nand_gpio_waitrdy);
-
-/**
- * panic_nand_get_device - [GENERIC] Get chip for selected access
- * @chip: the nand chip descriptor
- * @new_state: the state which is requested
- *
- * Used when in panic, no locks are taken.
- */
-static void panic_nand_get_device(struct nand_chip *chip, int new_state)
-{
-	/* Hardware controller shared among independent devices */
-	chip->controller->active = chip;
-	chip->state = new_state;
-}
-
-/**
- * nand_get_device - [GENERIC] Get chip for selected access
- * @chip: NAND chip structure
- * @new_state: the state which is requested
- *
- * Get the device and lock it for exclusive access
- */
-static int
-nand_get_device(struct nand_chip *chip, int new_state)
-{
-	spinlock_t *lock = &chip->controller->lock;
-	wait_queue_head_t *wq = &chip->controller->wq;
-	DECLARE_WAITQUEUE(wait, current);
-retry:
-	spin_lock(lock);
-
-	/* Hardware controller shared among independent devices */
-	if (!chip->controller->active)
-		chip->controller->active = chip;
-
-	if (chip->controller->active == chip && chip->state == FL_READY) {
-		chip->state = new_state;
-		spin_unlock(lock);
-		return 0;
-	}
-	if (new_state == FL_PM_SUSPENDED) {
-		if (chip->controller->active->state == FL_PM_SUSPENDED) {
-			chip->state = FL_PM_SUSPENDED;
-			spin_unlock(lock);
-			return 0;
-		}
-	}
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	add_wait_queue(wq, &wait);
-	spin_unlock(lock);
-	schedule();
-	remove_wait_queue(wq, &wait);
-	goto retry;
-}
 
 /**
  * panic_nand_wait - [GENERIC] wait until the command is done
@@ -3807,44 +3907,6 @@ static int nand_write_page(struct nand_chip *chip, uint32_t offset,
 	return 0;
 }
 
-/**
- * nand_fill_oob - [INTERN] Transfer client buffer to oob
- * @chip: NAND chip object
- * @oob: oob data buffer
- * @len: oob data write length
- * @ops: oob ops structure
- */
-static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob, size_t len,
-			      struct mtd_oob_ops *ops)
-{
-	struct mtd_info *mtd = nand_to_mtd(chip);
-	int ret;
-
-	/*
-	 * Initialise to all 0xFF, to avoid the possibility of left over OOB
-	 * data from a previous OOB read.
-	 */
-	memset(chip->oob_poi, 0xff, mtd->oobsize);
-
-	switch (ops->mode) {
-
-	case MTD_OPS_PLACE_OOB:
-	case MTD_OPS_RAW:
-		memcpy(chip->oob_poi + ops->ooboffs, oob, len);
-		return oob + len;
-
-	case MTD_OPS_AUTO_OOB:
-		ret = mtd_ooblayout_set_databytes(mtd, oob, chip->oob_poi,
-						  ops->ooboffs, len);
-		BUG_ON(ret);
-		return oob + len;
-
-	default:
-		BUG();
-	}
-	return NULL;
-}
-
 #define NOTALIGNED(x)	((x & (chip->subpagesize - 1)) != 0)
 
 /**
@@ -4010,74 +4072,6 @@ static int panic_nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	*retlen = ops.retlen;
 	return ret;
-}
-
-/**
- * nand_do_write_oob - [MTD Interface] NAND write out-of-band
- * @chip: NAND chip object
- * @to: offset to write to
- * @ops: oob operation description structure
- *
- * NAND write out-of-band.
- */
-static int nand_do_write_oob(struct nand_chip *chip, loff_t to,
-			     struct mtd_oob_ops *ops)
-{
-	struct mtd_info *mtd = nand_to_mtd(chip);
-	int chipnr, page, status, len;
-
-	pr_debug("%s: to = 0x%08x, len = %i\n",
-			 __func__, (unsigned int)to, (int)ops->ooblen);
-
-	len = mtd_oobavail(mtd, ops);
-
-	/* Do not allow write past end of page */
-	if ((ops->ooboffs + ops->ooblen) > len) {
-		pr_debug("%s: attempt to write past end of page\n",
-				__func__);
-		return -EINVAL;
-	}
-
-	chipnr = (int)(to >> chip->chip_shift);
-
-	/*
-	 * Reset the chip. Some chips (like the Toshiba TC5832DC found in one
-	 * of my DiskOnChip 2000 test units) will clear the whole data page too
-	 * if we don't do this. I have no clue why, but I seem to have 'fixed'
-	 * it in the doc2000 driver in August 1999.  dwmw2.
-	 */
-	nand_reset(chip, chipnr);
-
-	chip->select_chip(chip, chipnr);
-
-	/* Shift to get page */
-	page = (int)(to >> chip->page_shift);
-
-	/* Check, if it is write protected */
-	if (nand_check_wp(chip)) {
-		chip->select_chip(chip, -1);
-		return -EROFS;
-	}
-
-	/* Invalidate the page cache, if we write to the cached page */
-	if (page == chip->pagebuf)
-		chip->pagebuf = -1;
-
-	nand_fill_oob(chip, ops->oobbuf, ops->ooblen, ops);
-
-	if (ops->mode == MTD_OPS_RAW)
-		status = chip->ecc.write_oob_raw(chip, page & chip->pagemask);
-	else
-		status = chip->ecc.write_oob(chip, page & chip->pagemask);
-
-	chip->select_chip(chip, -1);
-
-	if (status)
-		return status;
-
-	ops->oobretlen = ops->ooblen;
-
-	return 0;
 }
 
 /**
