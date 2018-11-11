@@ -875,18 +875,21 @@ struct nand_op_parser {
 
 /**
  * struct nand_operation - NAND operation descriptor
+ * @cs: the CS line to select for this NAND operation
  * @instrs: array of instructions to execute
  * @ninstrs: length of the @instrs array
  *
  * The actual operation structure that will be passed to chip->exec_op().
  */
 struct nand_operation {
+	unsigned int cs;
 	const struct nand_op_instr *instrs;
 	unsigned int ninstrs;
 };
 
-#define NAND_OPERATION(_instrs)					\
+#define NAND_OPERATION(_cs, _instrs)				\
 	{							\
+		.cs = _cs,					\
 		.instrs = _instrs,				\
 		.ninstrs = ARRAY_SIZE(_instrs),			\
 	}
@@ -1008,6 +1011,10 @@ struct nand_legacy {
  *			this nand device will encounter their life times.
  * @blocks_per_die:	[INTERN] The number of PEBs in a die
  * @data_interface:	[INTERN] NAND interface timing information
+ * @cur_cs:		currently selected target. -1 means no target selected,
+ *			otherwise we should always have cur_cs >= 0 &&
+ *			cur_cs < numchips. NAND Controller drivers should not
+ *			modify this value, but they're allowed to read it.
  * @read_retries:	[INTERN] the number of read retry modes supported
  * @setup_data_interface: [OPTIONAL] setup the data interface and timing. If
  *			  chipnr is set to %NAND_DATA_IFACE_CHECK_ONLY this
@@ -1068,6 +1075,8 @@ struct nand_chip {
 	u32 blocks_per_die;
 
 	struct nand_data_interface data_interface;
+
+	int cur_cs;
 
 	int read_retries;
 

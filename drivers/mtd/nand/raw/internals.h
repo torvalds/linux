@@ -101,6 +101,9 @@ static inline int nand_exec_op(struct nand_chip *chip,
 	if (!chip->exec_op)
 		return -ENOTSUPP;
 
+	if (WARN_ON(op->cs >= chip->numchips))
+		return -EINVAL;
+
 	return chip->exec_op(chip, op, false);
 }
 

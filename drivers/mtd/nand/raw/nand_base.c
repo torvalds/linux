@@ -246,6 +246,7 @@ void nand_select_target(struct nand_chip *chip, unsigned int cs)
 	if (WARN_ON(cs > chip->numchips))
 		return;
 
+	chip->cur_cs = cs;
 	chip->select_chip(chip, cs);
 }
 EXPORT_SYMBOL_GPL(nand_select_target);
@@ -260,6 +261,7 @@ EXPORT_SYMBOL_GPL(nand_select_target);
 void nand_deselect_target(struct nand_chip *chip)
 {
 	chip->select_chip(chip, -1);
+	chip->cur_cs = -1;
 }
 EXPORT_SYMBOL_GPL(nand_deselect_target);
 
@@ -1022,7 +1024,7 @@ static int nand_sp_exec_read_page_op(struct nand_chip *chip, unsigned int page,
 				 PSEC_TO_NSEC(sdr->tRR_min)),
 		NAND_OP_DATA_IN(len, buf, 0),
 	};
-	struct nand_operation op = NAND_OPERATION(instrs);
+	struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 	int ret;
 
 	/* Drop the DATA_IN instruction if len is set to 0. */
@@ -1065,7 +1067,7 @@ static int nand_lp_exec_read_page_op(struct nand_chip *chip, unsigned int page,
 				 PSEC_TO_NSEC(sdr->tRR_min)),
 		NAND_OP_DATA_IN(len, buf, 0),
 	};
-	struct nand_operation op = NAND_OPERATION(instrs);
+	struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 	int ret;
 
 	/* Drop the DATA_IN instruction if len is set to 0. */
@@ -1160,7 +1162,7 @@ int nand_read_param_page_op(struct nand_chip *chip, u8 page, void *buf,
 					 PSEC_TO_NSEC(sdr->tRR_min)),
 			NAND_OP_8BIT_DATA_IN(len, buf, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		/* Drop the DATA_IN instruction if len is set to 0. */
 		if (!len)
@@ -1216,7 +1218,7 @@ int nand_change_read_column_op(struct nand_chip *chip,
 				    PSEC_TO_NSEC(sdr->tCCS_min)),
 			NAND_OP_DATA_IN(len, buf, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 		int ret;
 
 		ret = nand_fill_column_cycles(chip, addrs, offset_in_page);
@@ -1298,7 +1300,7 @@ static int nand_exec_prog_page_op(struct nand_chip *chip, unsigned int page,
 		NAND_OP_CMD(NAND_CMD_PAGEPROG, PSEC_TO_NSEC(sdr->tWB_max)),
 		NAND_OP_WAIT_RDY(PSEC_TO_MSEC(sdr->tPROG_max), 0),
 	};
-	struct nand_operation op = NAND_OPERATION(instrs);
+	struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 	int naddrs = nand_fill_column_cycles(chip, addrs, offset_in_page);
 	int ret;
 	u8 status;
@@ -1412,7 +1414,7 @@ int nand_prog_page_end_op(struct nand_chip *chip)
 				    PSEC_TO_NSEC(sdr->tWB_max)),
 			NAND_OP_WAIT_RDY(PSEC_TO_MSEC(sdr->tPROG_max), 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		ret = nand_exec_op(chip, &op);
 		if (ret)
@@ -1520,7 +1522,7 @@ int nand_change_write_column_op(struct nand_chip *chip,
 			NAND_OP_ADDR(2, addrs, PSEC_TO_NSEC(sdr->tCCS_min)),
 			NAND_OP_DATA_OUT(len, buf, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 		int ret;
 
 		ret = nand_fill_column_cycles(chip, addrs, offset_in_page);
@@ -1574,7 +1576,7 @@ int nand_readid_op(struct nand_chip *chip, u8 addr, void *buf,
 			NAND_OP_ADDR(1, &addr, PSEC_TO_NSEC(sdr->tADL_min)),
 			NAND_OP_8BIT_DATA_IN(len, buf, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		/* Drop the DATA_IN instruction if len is set to 0. */
 		if (!len)
@@ -1613,7 +1615,7 @@ int nand_status_op(struct nand_chip *chip, u8 *status)
 				    PSEC_TO_NSEC(sdr->tADL_min)),
 			NAND_OP_8BIT_DATA_IN(1, status, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		if (!status)
 			op.ninstrs--;
@@ -1646,7 +1648,7 @@ int nand_exit_status_op(struct nand_chip *chip)
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_READ0, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		return nand_exec_op(chip, &op);
 	}
@@ -1685,7 +1687,7 @@ int nand_erase_op(struct nand_chip *chip, unsigned int eraseblock)
 				    PSEC_TO_MSEC(sdr->tWB_max)),
 			NAND_OP_WAIT_RDY(PSEC_TO_MSEC(sdr->tBERS_max), 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		if (chip->options & NAND_ROW_ADDR_3)
 			instrs[1].ctx.addr.naddrs++;
@@ -1743,7 +1745,7 @@ static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 					      PSEC_TO_NSEC(sdr->tWB_max)),
 			NAND_OP_WAIT_RDY(PSEC_TO_MSEC(sdr->tFEAT_max), 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		return nand_exec_op(chip, &op);
 	}
@@ -1791,7 +1793,7 @@ static int nand_get_features_op(struct nand_chip *chip, u8 feature,
 			NAND_OP_8BIT_DATA_IN(ONFI_SUBFEATURE_PARAM_LEN,
 					     data, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		return nand_exec_op(chip, &op);
 	}
@@ -1811,7 +1813,7 @@ static int nand_wait_rdy_op(struct nand_chip *chip, unsigned int timeout_ms,
 			NAND_OP_WAIT_RDY(PSEC_TO_MSEC(timeout_ms),
 					 PSEC_TO_NSEC(delay_ns)),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		return nand_exec_op(chip, &op);
 	}
@@ -1844,7 +1846,7 @@ int nand_reset_op(struct nand_chip *chip)
 			NAND_OP_CMD(NAND_CMD_RESET, PSEC_TO_NSEC(sdr->tWB_max)),
 			NAND_OP_WAIT_RDY(PSEC_TO_MSEC(sdr->tRST_max), 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		return nand_exec_op(chip, &op);
 	}
@@ -1878,7 +1880,7 @@ int nand_read_data_op(struct nand_chip *chip, void *buf, unsigned int len,
 		struct nand_op_instr instrs[] = {
 			NAND_OP_DATA_IN(len, buf, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		instrs[0].ctx.data.force_8bit = force_8bit;
 
@@ -1922,7 +1924,7 @@ int nand_write_data_op(struct nand_chip *chip, const void *buf,
 		struct nand_op_instr instrs[] = {
 			NAND_OP_DATA_OUT(len, buf, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		instrs[0].ctx.data.force_8bit = force_8bit;
 
@@ -5005,6 +5007,9 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 	int nand_maf_id, nand_dev_id;
 	unsigned int i;
 	int ret;
+
+	/* Assume all dies are deselected when we enter nand_scan_ident(). */
+	chip->cur_cs = -1;
 
 	/* Enforce the right timings for reset/detection */
 	onfi_fill_data_interface(chip, NAND_SDR_IFACE, 0);
