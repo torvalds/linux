@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
  *
@@ -7,10 +8,6 @@
  *
  *  Converted to platform driver by Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>
  *  Partially stolen from plat_nand.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Overview:
  *   This is a device driver for the NAND flash device found on the
@@ -332,6 +329,6 @@ static struct platform_driver ams_delta_nand_driver = {
 
 module_platform_driver(ams_delta_nand_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jonathan McDowell <noodles@earth.li>");
 MODULE_DESCRIPTION("Glue layer for NAND flash on Amstrad E3 (Delta)");
