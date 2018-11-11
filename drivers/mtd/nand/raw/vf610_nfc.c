@@ -487,34 +487,33 @@ static const struct nand_op_parser vf610_nfc_op_parser = NAND_OP_PARSER(
 		NAND_OP_PARSER_PAT_DATA_IN_ELEM(true, PAGE_2K + OOB_MAX)),
 	);
 
-static int vf610_nfc_exec_op(struct nand_chip *chip,
-			     const struct nand_operation *op,
-			     bool check_only)
-{
-	return nand_op_parser_exec_op(chip, &vf610_nfc_op_parser, op,
-				      check_only);
-}
-
 /*
  * This function supports Vybrid only (MPC5125 would have full RB and four CS)
  */
-static void vf610_nfc_select_chip(struct nand_chip *chip, int cs)
+static void vf610_nfc_select_target(struct nand_chip *chip, unsigned int cs)
 {
 	struct vf610_nfc *nfc = mtd_to_nfc(nand_to_mtd(chip));
-	u32 tmp = vf610_nfc_read(nfc, NFC_ROW_ADDR);
+	u32 tmp;
 
 	/* Vybrid only (MPC5125 would have full RB and four CS) */
 	if (nfc->variant != NFC_VFC610)
 		return;
 
+	tmp = vf610_nfc_read(nfc, NFC_ROW_ADDR);
 	tmp &= ~(ROW_ADDR_CHIP_SEL_RB_MASK | ROW_ADDR_CHIP_SEL_MASK);
-
-	if (cs >= 0) {
-		tmp |= 1 << ROW_ADDR_CHIP_SEL_RB_SHIFT;
-		tmp |= BIT(cs) << ROW_ADDR_CHIP_SEL_SHIFT;
-	}
+	tmp |= 1 << ROW_ADDR_CHIP_SEL_RB_SHIFT;
+	tmp |= BIT(cs) << ROW_ADDR_CHIP_SEL_SHIFT;
 
 	vf610_nfc_write(nfc, NFC_ROW_ADDR, tmp);
+}
+
+static int vf610_nfc_exec_op(struct nand_chip *chip,
+			     const struct nand_operation *op,
+			     bool check_only)
+{
+	vf610_nfc_select_target(chip, op->cs);
+	return nand_op_parser_exec_op(chip, &vf610_nfc_op_parser, op,
+				      check_only);
 }
 
 static inline int vf610_nfc_correct_data(struct mtd_info *mtd, uint8_t *dat,
@@ -566,6 +565,8 @@ static int vf610_nfc_read_page(struct nand_chip *chip, uint8_t *buf,
 	u32 row = 0, cmd1 = 0, cmd2 = 0, code = 0;
 	int stat;
 
+	vf610_nfc_select_target(chip, chip->cur_cs);
+
 	cmd2 |= NAND_CMD_READ0 << CMD_BYTE1_SHIFT;
 	code |= COMMAND_CMD_BYTE1 | COMMAND_CAR_BYTE1 | COMMAND_CAR_BYTE2;
 
@@ -612,6 +613,8 @@ static int vf610_nfc_write_page(struct nand_chip *chip, const uint8_t *buf,
 	u32 row = 0, cmd1 = 0, cmd2 = 0, code = 0;
 	u8 status;
 	int ret;
+
+	vf610_nfc_select_target(chip, chip->cur_cs);
 
 	cmd2 |= NAND_CMD_SEQIN << CMD_BYTE1_SHIFT;
 	code |= COMMAND_CMD_BYTE1 | COMMAND_CAR_BYTE1 | COMMAND_CAR_BYTE2;
@@ -877,7 +880,6 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	}
 
 	chip->exec_op = vf610_nfc_exec_op;
-	chip->select_chip = vf610_nfc_select_chip;
 
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
 
