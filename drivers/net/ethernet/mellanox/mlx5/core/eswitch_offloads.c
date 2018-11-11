@@ -563,7 +563,7 @@ static void peer_miss_rules_setup(struct mlx5_core_dev *peer_dev,
 	dest->type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest->vport.num = 0;
 	dest->vport.vhca_id = MLX5_CAP_GEN(peer_dev, vhca_id);
-	dest->vport.vhca_id_valid = 1;
+	dest->vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
 }
 
 static int esw_add_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
@@ -1313,8 +1313,11 @@ static int mlx5_esw_offloads_pair(struct mlx5_eswitch *esw,
 	return 0;
 }
 
+void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
+
 static void mlx5_esw_offloads_unpair(struct mlx5_eswitch *esw)
 {
+	mlx5e_tc_clean_fdb_peer_flows(esw);
 	esw_del_fdb_peer_miss_rules(esw);
 }
 
@@ -1364,6 +1367,9 @@ err_out:
 static void esw_offloads_devcom_init(struct mlx5_eswitch *esw)
 {
 	struct mlx5_devcom *devcom = esw->dev->priv.devcom;
+
+	INIT_LIST_HEAD(&esw->offloads.peer_flows);
+	mutex_init(&esw->offloads.peer_mutex);
 
 	if (!MLX5_CAP_ESW(esw->dev, merged_eswitch))
 		return;
