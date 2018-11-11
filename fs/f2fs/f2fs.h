@@ -2158,7 +2158,11 @@ static inline bool is_idle(struct f2fs_sb_info *sbi, int type)
 {
 	if (get_pages(sbi, F2FS_RD_DATA) || get_pages(sbi, F2FS_RD_NODE) ||
 		get_pages(sbi, F2FS_RD_META) || get_pages(sbi, F2FS_WB_DATA) ||
-		get_pages(sbi, F2FS_WB_CP_DATA))
+		get_pages(sbi, F2FS_WB_CP_DATA) ||
+		get_pages(sbi, F2FS_DIO_READ) ||
+		get_pages(sbi, F2FS_DIO_WRITE) ||
+		atomic_read(&SM_I(sbi)->dcc_info->issing_discard) ||
+		atomic_read(&SM_I(sbi)->fcc_info->issing_flush))
 		return false;
 	return f2fs_time_over(sbi, type);
 }
