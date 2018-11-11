@@ -1,0 +1,30 @@
+Generic device tree bindings for Real Time Clock devices
+========================================================
+
+This document describes generic bindings which can be used to describe Real Time
+Clock devices in a device tree.
+
+Required properties
+-------------------
+
+- compatible : name of RTC device following generic names recommended practice.
+
+For other required properties e.g. to describe register sets,
+clocks, etc. check the binding documentation of the specific driver.
+
+Optional properties
+-------------------
+
+- start-year : if provided, the default hardware range supported by the RTC is
+               shifted so the first usable year is the specified one.
+
+The following properties may not be supported by all drivers. However, if a
+driver wants to support one of the below features, it should adapt the bindings
+below.
+- trickle-resistor-ohms : Selected resistor for trickle charger. Should be given
+                          if trickle charger should be enabled
+- trickle-diode-disable : Do not use internal trickle charger diode Should be
+                          given if internal trickle charger diode should be
+                          disabled
+- wakeup-source :         Enables wake up of host system on alarm
+
