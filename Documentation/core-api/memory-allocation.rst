@@ -1,3 +1,5 @@
+.. _memory_allocation:
+
 =======================
 Memory Allocation Guide
 =======================
