@@ -5461,15 +5461,15 @@ static void reset_freesync_config_for_crtc(
 	       sizeof(new_crtc_state->vrr_infopacket));
 }
 
-static int dm_update_crtcs_state(struct amdgpu_display_manager *dm,
-				 struct drm_atomic_state *state,
-				 bool enable,
-				 bool *lock_and_validation_needed)
+static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
+				struct drm_atomic_state *state,
+				struct drm_crtc *crtc,
+				struct drm_crtc_state *old_crtc_state,
+				struct drm_crtc_state *new_crtc_state,
+				bool enable,
+				bool *lock_and_validation_needed)
 {
 	struct dm_atomic_state *dm_state = NULL;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
-	int i;
 	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
 	struct dc_stream_state *new_stream;
 	int ret = 0;
@@ -5478,199 +5478,198 @@ static int dm_update_crtcs_state(struct amdgpu_display_manager *dm,
 	 * TODO Move this code into dm_crtc_atomic_check once we get rid of dc_validation_set
 	 * update changed items
 	 */
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		struct amdgpu_crtc *acrtc = NULL;
-		struct amdgpu_dm_connector *aconnector = NULL;
-		struct drm_connector_state *drm_new_conn_state = NULL, *drm_old_conn_state = NULL;
-		struct dm_connector_state *dm_new_conn_state = NULL, *dm_old_conn_state = NULL;
-		struct drm_plane_state *new_plane_state = NULL;
+	struct amdgpu_crtc *acrtc = NULL;
+	struct amdgpu_dm_connector *aconnector = NULL;
+	struct drm_connector_state *drm_new_conn_state = NULL, *drm_old_conn_state = NULL;
+	struct dm_connector_state *dm_new_conn_state = NULL, *dm_old_conn_state = NULL;
+	struct drm_plane_state *new_plane_state = NULL;
 
-		new_stream = NULL;
+	new_stream = NULL;
 
-		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
-		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
-		acrtc = to_amdgpu_crtc(crtc);
+	dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
+	dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+	acrtc = to_amdgpu_crtc(crtc);
 
-		new_plane_state = drm_atomic_get_new_plane_state(state, new_crtc_state->crtc->primary);
+	new_plane_state = drm_atomic_get_new_plane_state(state, new_crtc_state->crtc->primary);
 
-		if (new_crtc_state->enable && new_plane_state && !new_plane_state->fb) {
+	if (new_crtc_state->enable && new_plane_state && !new_plane_state->fb) {
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	aconnector = amdgpu_dm_find_first_crtc_matching_connector(state, crtc);
+
+	/* TODO This hack should go away */
+	if (aconnector && enable) {
+		/* Make sure fake sink is created in plug-in scenario */
+		drm_new_conn_state = drm_atomic_get_new_connector_state(state,
+							    &aconnector->base);
+		drm_old_conn_state = drm_atomic_get_old_connector_state(state,
+							    &aconnector->base);
+
+		if (IS_ERR(drm_new_conn_state)) {
+			ret = PTR_ERR_OR_ZERO(drm_new_conn_state);
+			goto fail;
+		}
+
+		dm_new_conn_state = to_dm_connector_state(drm_new_conn_state);
+		dm_old_conn_state = to_dm_connector_state(drm_old_conn_state);
+
+		new_stream = create_stream_for_sink(aconnector,
+						     &new_crtc_state->mode,
+						    dm_new_conn_state,
+						    dm_old_crtc_state->stream);
+
+		/*
+		 * we can have no stream on ACTION_SET if a display
+		 * was disconnected during S3, in this case it is not an
+		 * error, the OS will be updated after detection, and
+		 * will do the right thing on next atomic commit
+		 */
+
+		if (!new_stream) {
+			DRM_DEBUG_DRIVER("%s: Failed to create new stream for crtc %d\n",
+					__func__, acrtc->base.base.id);
+			ret = -ENOMEM;
+			goto fail;
+		}
+
+		dm_new_crtc_state->abm_level = dm_new_conn_state->abm_level;
+
+		if (dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
+		    dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream)) {
+			new_crtc_state->mode_changed = false;
+			DRM_DEBUG_DRIVER("Mode change not required, setting mode_changed to %d",
+					 new_crtc_state->mode_changed);
+		}
+	}
+
+	if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
+		goto skip_modeset;
+
+	DRM_DEBUG_DRIVER(
+		"amdgpu_crtc id:%d crtc_state_flags: enable:%d, active:%d, "
+		"planes_changed:%d, mode_changed:%d,active_changed:%d,"
+		"connectors_changed:%d\n",
+		acrtc->crtc_id,
+		new_crtc_state->enable,
+		new_crtc_state->active,
+		new_crtc_state->planes_changed,
+		new_crtc_state->mode_changed,
+		new_crtc_state->active_changed,
+		new_crtc_state->connectors_changed);
+
+	/* Remove stream for any changed/disabled CRTC */
+	if (!enable) {
+
+		if (!dm_old_crtc_state->stream)
+			goto skip_modeset;
+
+		ret = dm_atomic_get_state(state, &dm_state);
+		if (ret)
+			goto fail;
+
+		DRM_DEBUG_DRIVER("Disabling DRM crtc: %d\n",
+				crtc->base.id);
+
+		/* i.e. reset mode */
+		if (dc_remove_stream_from_ctx(
+				dm->dc,
+				dm_state->context,
+				dm_old_crtc_state->stream) != DC_OK) {
 			ret = -EINVAL;
 			goto fail;
 		}
 
-		aconnector = amdgpu_dm_find_first_crtc_matching_connector(state, crtc);
+		dc_stream_release(dm_old_crtc_state->stream);
+		dm_new_crtc_state->stream = NULL;
 
-		/* TODO This hack should go away */
-		if (aconnector && enable) {
-			/* Make sure fake sink is created in plug-in scenario */
-			drm_new_conn_state = drm_atomic_get_new_connector_state(state,
- 								    &aconnector->base);
-			drm_old_conn_state = drm_atomic_get_old_connector_state(state,
-								    &aconnector->base);
+		reset_freesync_config_for_crtc(dm_new_crtc_state);
 
-			if (IS_ERR(drm_new_conn_state)) {
-				ret = PTR_ERR_OR_ZERO(drm_new_conn_state);
-				break;
-			}
+		*lock_and_validation_needed = true;
 
-			dm_new_conn_state = to_dm_connector_state(drm_new_conn_state);
-			dm_old_conn_state = to_dm_connector_state(drm_old_conn_state);
+	} else {/* Add stream for any updated/enabled CRTC */
+		/*
+		 * Quick fix to prevent NULL pointer on new_stream when
+		 * added MST connectors not found in existing crtc_state in the chained mode
+		 * TODO: need to dig out the root cause of that
+		 */
+		if (!aconnector || (!aconnector->dc_sink && aconnector->mst_port))
+			goto skip_modeset;
 
-			new_stream = create_stream_for_sink(aconnector,
-							     &new_crtc_state->mode,
-							    dm_new_conn_state,
-							    dm_old_crtc_state->stream);
+		if (modereset_required(new_crtc_state))
+			goto skip_modeset;
 
-			/*
-			 * we can have no stream on ACTION_SET if a display
-			 * was disconnected during S3, in this case it is not an
-			 * error, the OS will be updated after detection, and
-			 * will do the right thing on next atomic commit
-			 */
+		if (modeset_required(new_crtc_state, new_stream,
+				     dm_old_crtc_state->stream)) {
 
-			if (!new_stream) {
-				DRM_DEBUG_DRIVER("%s: Failed to create new stream for crtc %d\n",
-						__func__, acrtc->base.base.id);
-				break;
-			}
-
-			dm_new_crtc_state->abm_level = dm_new_conn_state->abm_level;
-
-			if (dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
-			    dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream)) {
-				new_crtc_state->mode_changed = false;
-				DRM_DEBUG_DRIVER("Mode change not required, setting mode_changed to %d",
-						 new_crtc_state->mode_changed);
-			}
-		}
-
-		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
-			goto next_crtc;
-
-		DRM_DEBUG_DRIVER(
-			"amdgpu_crtc id:%d crtc_state_flags: enable:%d, active:%d, "
-			"planes_changed:%d, mode_changed:%d,active_changed:%d,"
-			"connectors_changed:%d\n",
-			acrtc->crtc_id,
-			new_crtc_state->enable,
-			new_crtc_state->active,
-			new_crtc_state->planes_changed,
-			new_crtc_state->mode_changed,
-			new_crtc_state->active_changed,
-			new_crtc_state->connectors_changed);
-
-		/* Remove stream for any changed/disabled CRTC */
-		if (!enable) {
-
-			if (!dm_old_crtc_state->stream)
-				goto next_crtc;
+			WARN_ON(dm_new_crtc_state->stream);
 
 			ret = dm_atomic_get_state(state, &dm_state);
 			if (ret)
 				goto fail;
 
-			DRM_DEBUG_DRIVER("Disabling DRM crtc: %d\n",
-					crtc->base.id);
+			dm_new_crtc_state->stream = new_stream;
 
-			/* i.e. reset mode */
-			if (dc_remove_stream_from_ctx(
+			dc_stream_retain(new_stream);
+
+			DRM_DEBUG_DRIVER("Enabling DRM crtc: %d\n",
+						crtc->base.id);
+
+			if (dc_add_stream_to_ctx(
 					dm->dc,
 					dm_state->context,
-					dm_old_crtc_state->stream) != DC_OK) {
+					dm_new_crtc_state->stream) != DC_OK) {
 				ret = -EINVAL;
 				goto fail;
 			}
 
-			dc_stream_release(dm_old_crtc_state->stream);
-			dm_new_crtc_state->stream = NULL;
-
-			reset_freesync_config_for_crtc(dm_new_crtc_state);
-
 			*lock_and_validation_needed = true;
-
-		} else {/* Add stream for any updated/enabled CRTC */
-			/*
-			 * Quick fix to prevent NULL pointer on new_stream when
-			 * added MST connectors not found in existing crtc_state in the chained mode
-			 * TODO: need to dig out the root cause of that
-			 */
-			if (!aconnector || (!aconnector->dc_sink && aconnector->mst_port))
-				goto next_crtc;
-
-			if (modereset_required(new_crtc_state))
-				goto next_crtc;
-
-			if (modeset_required(new_crtc_state, new_stream,
-					     dm_old_crtc_state->stream)) {
-
-				WARN_ON(dm_new_crtc_state->stream);
-
-				ret = dm_atomic_get_state(state, &dm_state);
-				if (ret)
-					goto fail;
-
-				dm_new_crtc_state->stream = new_stream;
-
-				dc_stream_retain(new_stream);
-
-				DRM_DEBUG_DRIVER("Enabling DRM crtc: %d\n",
-							crtc->base.id);
-
-				if (dc_add_stream_to_ctx(
-						dm->dc,
-						dm_state->context,
-						dm_new_crtc_state->stream) != DC_OK) {
-					ret = -EINVAL;
-					goto fail;
-				}
-
-				*lock_and_validation_needed = true;
-			}
 		}
-
-next_crtc:
-		/* Release extra reference */
-		if (new_stream)
-			 dc_stream_release(new_stream);
-
-		/*
-		 * We want to do dc stream updates that do not require a
-		 * full modeset below.
-		 */
-		if (!(enable && aconnector && new_crtc_state->enable &&
-		      new_crtc_state->active))
-			continue;
-		/*
-		 * Given above conditions, the dc state cannot be NULL because:
-		 * 1. We're in the process of enabling CRTCs (just been added
-		 *    to the dc context, or already is on the context)
-		 * 2. Has a valid connector attached, and
-		 * 3. Is currently active and enabled.
-		 * => The dc stream state currently exists.
-		 */
-		BUG_ON(dm_new_crtc_state->stream == NULL);
-
-		/* Scaling or underscan settings */
-		if (is_scaling_state_different(dm_old_conn_state, dm_new_conn_state))
-			update_stream_scaling_settings(
-				&new_crtc_state->mode, dm_new_conn_state, dm_new_crtc_state->stream);
-
-		/*
-		 * Color management settings. We also update color properties
-		 * when a modeset is needed, to ensure it gets reprogrammed.
-		 */
-		if (dm_new_crtc_state->base.color_mgmt_changed ||
-		    drm_atomic_crtc_needs_modeset(new_crtc_state)) {
-			ret = amdgpu_dm_set_regamma_lut(dm_new_crtc_state);
-			if (ret)
-				goto fail;
-			amdgpu_dm_set_ctm(dm_new_crtc_state);
-		}
-
-		/* Update Freesync settings. */
-		get_freesync_config_for_crtc(dm_new_crtc_state,
-					     dm_new_conn_state);
 	}
+
+skip_modeset:
+	/* Release extra reference */
+	if (new_stream)
+		 dc_stream_release(new_stream);
+
+	/*
+	 * We want to do dc stream updates that do not require a
+	 * full modeset below.
+	 */
+	if (!(enable && aconnector && new_crtc_state->enable &&
+	      new_crtc_state->active))
+		return 0;
+	/*
+	 * Given above conditions, the dc state cannot be NULL because:
+	 * 1. We're in the process of enabling CRTCs (just been added
+	 *    to the dc context, or already is on the context)
+	 * 2. Has a valid connector attached, and
+	 * 3. Is currently active and enabled.
+	 * => The dc stream state currently exists.
+	 */
+	BUG_ON(dm_new_crtc_state->stream == NULL);
+
+	/* Scaling or underscan settings */
+	if (is_scaling_state_different(dm_old_conn_state, dm_new_conn_state))
+		update_stream_scaling_settings(
+			&new_crtc_state->mode, dm_new_conn_state, dm_new_crtc_state->stream);
+
+	/*
+	 * Color management settings. We also update color properties
+	 * when a modeset is needed, to ensure it gets reprogrammed.
+	 */
+	if (dm_new_crtc_state->base.color_mgmt_changed ||
+	    drm_atomic_crtc_needs_modeset(new_crtc_state)) {
+		ret = amdgpu_dm_set_regamma_lut(dm_new_crtc_state);
+		if (ret)
+			goto fail;
+		amdgpu_dm_set_ctm(dm_new_crtc_state);
+	}
+
+	/* Update Freesync settings. */
+	get_freesync_config_for_crtc(dm_new_crtc_state,
+				     dm_new_conn_state);
 
 	return ret;
 
@@ -6019,15 +6018,25 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	}
 
 	/* Disable all crtcs which require disable */
-	ret = dm_update_crtcs_state(&adev->dm, state, false, &lock_and_validation_needed);
-	if (ret) {
-		goto fail;
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		ret = dm_update_crtc_state(&adev->dm, state, crtc,
+					   old_crtc_state,
+					   new_crtc_state,
+					   false,
+					   &lock_and_validation_needed);
+		if (ret)
+			goto fail;
 	}
 
 	/* Enable all crtcs which require enable */
-	ret = dm_update_crtcs_state(&adev->dm, state, true, &lock_and_validation_needed);
-	if (ret) {
-		goto fail;
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		ret = dm_update_crtc_state(&adev->dm, state, crtc,
+					   old_crtc_state,
+					   new_crtc_state,
+					   true,
+					   &lock_and_validation_needed);
+		if (ret)
+			goto fail;
 	}
 
 	/* Add new/modified planes */
