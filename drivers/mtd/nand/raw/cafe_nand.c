@@ -708,7 +708,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	cafe->nand.legacy.read_byte = cafe_read_byte;
 	cafe->nand.legacy.read_buf = cafe_read_buf;
 	cafe->nand.legacy.write_buf = cafe_write_buf;
-	cafe->nand.select_chip = cafe_select_chip;
+	cafe->nand.legacy.select_chip = cafe_select_chip;
 	cafe->nand.legacy.set_features = nand_get_set_features_notsupp;
 	cafe->nand.legacy.get_features = nand_get_set_features_notsupp;
 

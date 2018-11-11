@@ -1477,7 +1477,7 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 	chip->legacy.write_byte = atmel_nand_write_byte;
 	chip->legacy.read_buf = atmel_nand_read_buf;
 	chip->legacy.write_buf = atmel_nand_write_buf;
-	chip->select_chip = atmel_nand_select_chip;
+	chip->legacy.select_chip = atmel_nand_select_chip;
 
 	if (nc->mck && nc->caps->ops->setup_data_interface)
 		chip->setup_data_interface = atmel_nand_setup_data_interface;
@@ -1525,7 +1525,7 @@ static void atmel_hsmc_nand_init(struct atmel_nand_controller *nc,
 
 	/* Overload some methods for the HSMC controller. */
 	chip->legacy.cmd_ctrl = atmel_hsmc_nand_cmd_ctrl;
-	chip->select_chip = atmel_hsmc_nand_select_chip;
+	chip->legacy.select_chip = atmel_hsmc_nand_select_chip;
 }
 
 static int atmel_nand_controller_remove_nand(struct atmel_nand *nand)

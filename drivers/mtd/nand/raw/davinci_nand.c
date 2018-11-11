@@ -762,7 +762,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->chip.legacy.IO_ADDR_R	= vaddr;
 	info->chip.legacy.IO_ADDR_W	= vaddr;
 	info->chip.legacy.chip_delay	= 0;
-	info->chip.select_chip	= nand_davinci_select_chip;
+	info->chip.legacy.select_chip	= nand_davinci_select_chip;
 
 	/* options such as NAND_BBT_USE_FLASH */
 	info->chip.bbt_options	= pdata->bbt_options;

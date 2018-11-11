@@ -592,8 +592,8 @@ void nand_legacy_set_defaults(struct nand_chip *chip)
 	if (chip->legacy.waitfunc == NULL)
 		chip->legacy.waitfunc = nand_wait;
 
-	if (!chip->select_chip)
-		chip->select_chip = nand_select_chip;
+	if (!chip->legacy.select_chip)
+		chip->legacy.select_chip = nand_select_chip;
 
 	/* If called twice, pointers that depend on busw may need to be reset */
 	if (!chip->legacy.read_byte || chip->legacy.read_byte == nand_read_byte)
@@ -626,9 +626,10 @@ int nand_legacy_check_hooks(struct nand_chip *chip)
 
 	/*
 	 * Default functions assigned for ->legacy.cmdfunc() and
-	 * ->select_chip() both expect ->legacy.cmd_ctrl() to be populated.
+	 * ->legacy.select_chip() both expect ->legacy.cmd_ctrl() to be
+	 *  populated.
 	 */
-	if ((!chip->legacy.cmdfunc || !chip->select_chip) &&
+	if ((!chip->legacy.cmdfunc || !chip->legacy.select_chip) &&
 	    !chip->legacy.cmd_ctrl) {
 		pr_err("->legacy.cmd_ctrl() should be provided\n");
 		return -EINVAL;

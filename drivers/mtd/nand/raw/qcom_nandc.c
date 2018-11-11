@@ -2804,7 +2804,7 @@ static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 	mtd->dev.parent = dev;
 
 	chip->legacy.cmdfunc	= qcom_nandc_command;
-	chip->select_chip	= qcom_nandc_select_chip;
+	chip->legacy.select_chip	= qcom_nandc_select_chip;
 	chip->legacy.read_byte	= qcom_nandc_read_byte;
 	chip->legacy.read_buf	= qcom_nandc_read_buf;
 	chip->legacy.write_buf	= qcom_nandc_write_buf;

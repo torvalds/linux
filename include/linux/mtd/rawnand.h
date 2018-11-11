@@ -902,6 +902,7 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  * struct nand_legacy - NAND chip legacy fields/hooks
  * @IO_ADDR_R: address to read the 8 I/O lines of the flash device
  * @IO_ADDR_W: address to write the 8 I/O lines of the flash device
+ * @select_chip: select/deselect a specific target/die
  * @read_byte: read one byte from the chip
  * @write_byte: write a single byte to the chip on the low 8 I/O lines
  * @write_buf: write data from the buffer to the chip
@@ -927,6 +928,7 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
 struct nand_legacy {
 	void __iomem *IO_ADDR_R;
 	void __iomem *IO_ADDR_W;
+	void (*select_chip)(struct nand_chip *chip, int cs);
 	u8 (*read_byte)(struct nand_chip *chip);
 	void (*write_byte)(struct nand_chip *chip, u8 byte);
 	void (*write_buf)(struct nand_chip *chip, const u8 *buf, int len);
@@ -954,7 +956,6 @@ struct nand_legacy {
  *			you're modifying an existing driver that is using those
  *			fields/hooks, you should consider reworking the driver
  *			avoid using them.
- * @select_chip:	[REPLACEABLE] select chip nr
  * @exec_op:		controller specific method to execute NAND operations.
  *			This method replaces ->cmdfunc(),
  *			->legacy.{read,write}_{buf,byte,word}(),
@@ -1040,7 +1041,6 @@ struct nand_chip {
 
 	struct nand_legacy legacy;
 
-	void (*select_chip)(struct nand_chip *chip, int cs);
 	int (*exec_op)(struct nand_chip *chip,
 		       const struct nand_operation *op,
 		       bool check_only);

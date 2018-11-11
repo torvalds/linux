@@ -248,8 +248,8 @@ void nand_select_target(struct nand_chip *chip, unsigned int cs)
 
 	chip->cur_cs = cs;
 
-	if (chip->select_chip)
-		chip->select_chip(chip, cs);
+	if (chip->legacy.select_chip)
+		chip->legacy.select_chip(chip, cs);
 }
 EXPORT_SYMBOL_GPL(nand_select_target);
 
@@ -262,8 +262,8 @@ EXPORT_SYMBOL_GPL(nand_select_target);
  */
 void nand_deselect_target(struct nand_chip *chip)
 {
-	if (chip->select_chip)
-		chip->select_chip(chip, -1);
+	if (chip->legacy.select_chip)
+		chip->legacy.select_chip(chip, -1);
 
 	chip->cur_cs = -1;
 }

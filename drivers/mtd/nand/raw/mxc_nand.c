@@ -1828,7 +1828,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 	this->ecc.bytes = host->devtype_data->eccbytes;
 	host->eccsize = host->devtype_data->eccsize;
 
-	this->select_chip = host->devtype_data->select_chip;
+	this->legacy.select_chip = host->devtype_data->select_chip;
 	this->ecc.size = 512;
 	mtd_set_ooblayout(mtd, host->devtype_data->ooblayout);
 

@@ -866,7 +866,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 
 	chip->legacy.write_buf    = s3c2410_nand_write_buf;
 	chip->legacy.read_buf     = s3c2410_nand_read_buf;
-	chip->select_chip  = s3c2410_nand_select_chip;
+	chip->legacy.select_chip  = s3c2410_nand_select_chip;
 	chip->legacy.chip_delay   = 50;
 	nand_set_controller_data(chip, nmtd);
 	chip->options	   = set->options;

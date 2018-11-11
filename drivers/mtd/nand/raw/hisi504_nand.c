@@ -783,7 +783,7 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	nand_set_controller_data(chip, host);
 	nand_set_flash_node(chip, np);
 	chip->legacy.cmdfunc	= hisi_nfc_cmdfunc;
-	chip->select_chip	= hisi_nfc_select_chip;
+	chip->legacy.select_chip	= hisi_nfc_select_chip;
 	chip->legacy.read_byte	= hisi_nfc_read_byte;
 	chip->legacy.write_buf	= hisi_nfc_write_buf;
 	chip->legacy.read_buf	= hisi_nfc_read_buf;

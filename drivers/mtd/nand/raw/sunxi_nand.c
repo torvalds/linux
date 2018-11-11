@@ -1922,7 +1922,7 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	 */
 	nand->ecc.mode = NAND_ECC_HW;
 	nand_set_flash_node(nand, np);
-	nand->select_chip = sunxi_nfc_select_chip;
+	nand->legacy.select_chip = sunxi_nfc_select_chip;
 	nand->legacy.cmd_ctrl = sunxi_nfc_cmd_ctrl;
 	nand->legacy.read_buf = sunxi_nfc_read_buf;
 	nand->legacy.write_buf = sunxi_nfc_write_buf;
