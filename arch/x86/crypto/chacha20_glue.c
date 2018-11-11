@@ -21,7 +21,8 @@
 
 asmlinkage void chacha20_block_xor_ssse3(u32 *state, u8 *dst, const u8 *src,
 					 unsigned int len);
-asmlinkage void chacha20_4block_xor_ssse3(u32 *state, u8 *dst, const u8 *src);
+asmlinkage void chacha20_4block_xor_ssse3(u32 *state, u8 *dst, const u8 *src,
+					  unsigned int len);
 #ifdef CONFIG_AS_AVX2
 asmlinkage void chacha20_8block_xor_avx2(u32 *state, u8 *dst, const u8 *src);
 static bool chacha20_use_avx2;
@@ -42,7 +43,7 @@ static void chacha20_dosimd(u32 *state, u8 *dst, const u8 *src,
 	}
 #endif
 	while (bytes >= CHACHA_BLOCK_SIZE * 4) {
-		chacha20_4block_xor_ssse3(state, dst, src);
+		chacha20_4block_xor_ssse3(state, dst, src, bytes);
 		bytes -= CHACHA_BLOCK_SIZE * 4;
 		src += CHACHA_BLOCK_SIZE * 4;
 		dst += CHACHA_BLOCK_SIZE * 4;
