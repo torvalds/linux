@@ -1446,6 +1446,9 @@ static int bcm2835_remove(struct platform_device *pdev)
 	cancel_work_sync(&host->dma_work);
 	cancel_delayed_work_sync(&host->timeout_work);
 
+	if (host->dma_chan_rxtx)
+		dma_release_channel(host->dma_chan_rxtx);
+
 	mmc_free_host(host->mmc);
 	platform_set_drvdata(pdev, NULL);
 
