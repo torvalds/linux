@@ -1907,10 +1907,11 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
 				 bool *is_cwnd_limited, u32 max_segs)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	u32 age, send_win, cong_win, limit, in_flight;
+	u32 send_win, cong_win, limit, in_flight;
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *head;
 	int win_divisor;
+	s64 delta;
 
 	if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 		goto send_now;
@@ -1919,9 +1920,12 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
 		goto send_now;
 
 	/* Avoid bursty behavior by allowing defer
-	 * only if the last write was recent.
+	 * only if the last write was recent (1 ms).
+	 * Note that tp->tcp_wstamp_ns can be in the future if we have
+	 * packets waiting in a qdisc or device for EDT delivery.
 	 */
-	if ((s32)(tcp_jiffies32 - tp->lsndtime) > 0)
+	delta = tp->tcp_clock_cache - tp->tcp_wstamp_ns - NSEC_PER_MSEC;
+	if (delta > 0)
 		goto send_now;
 
 	in_flight = tcp_packets_in_flight(tp);
@@ -1942,6 +1946,10 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
 
 	/* Middle in queue won't get any more data, full sendable already? */
 	if ((skb != tcp_write_queue_tail(sk)) && (limit >= skb->len))
+		goto send_now;
+
+	/* If this packet won't get more data, do not wait. */
+	if (TCP_SKB_CB(skb)->eor)
 		goto send_now;
 
 	win_divisor = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_tso_win_divisor);
@@ -1968,9 +1976,9 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
 	head = tcp_rtx_queue_head(sk);
 	if (!head)
 		goto send_now;
-	age = tcp_stamp_us_delta(tp->tcp_mstamp, tcp_skb_timestamp_us(head));
+	delta = tp->tcp_clock_cache - head->tstamp;
 	/* If next ACK is likely to come too late (half srtt), do not defer */
-	if (age < (tp->srtt_us >> 4))
+	if ((s64)(delta - (u64)NSEC_PER_USEC * (tp->srtt_us >> 4)) < 0)
 		goto send_now;
 
 	/* Ok, it looks like it is advisable to defer. */
