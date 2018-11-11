@@ -77,6 +77,8 @@ int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6390x_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on);
 int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port);
 void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port);
+int mv88e6390x_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port);
+void mv88e6390x_serdes_irq_free(struct mv88e6xxx_chip *chip, int port);
 int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port);
 int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
 				 int port, uint8_t *data);
