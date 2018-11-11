@@ -435,6 +435,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct pci_dev *pci = sdev->pci;
 	struct hdac_ext_link *hlink = NULL;
+	struct snd_soc_acpi_mach_params *mach_params;
 	int ret = 0;
 
 	device_disable_async_suspend(bus->dev);
@@ -468,7 +469,9 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 		dev_info(bus->dev, "no hda codecs found!\n");
 
 	/* used by hda machine driver to create dai links */
-	sdev->pdata->codec_mask = bus->codec_mask;
+	mach_params = (struct snd_soc_acpi_mach_params *)
+		&sdev->pdata->machine->mach_params;
+	mach_params->codec_mask = bus->codec_mask;
 
 	/* create codec instances */
 	hda_codec_probe_bus(sdev);

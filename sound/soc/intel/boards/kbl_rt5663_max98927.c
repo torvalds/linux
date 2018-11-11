@@ -586,7 +586,7 @@ static int kabylake_refcap_startup(struct snd_pcm_substream *substream)
 				&constraints_16000);
 }
 
-static struct snd_soc_ops skylaye_refcap_ops = {
+static struct snd_soc_ops skylake_refcap_ops = {
 	.startup = kabylake_refcap_startup,
 };
 
@@ -655,7 +655,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.dpcm_capture = 1,
 		.nonatomic = 1,
 		.dynamic = 1,
-		.ops = &skylaye_refcap_ops,
+		.ops = &skylake_refcap_ops,
 	},
 	[KBL_DPCM_AUDIO_DMIC_CP] = {
 		.name = "Kbl Audio DMIC cap",

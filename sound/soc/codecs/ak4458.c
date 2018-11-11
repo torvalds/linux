@@ -456,7 +456,7 @@ static int ak4458_startup(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_dai_ops ak4458_dai_ops = {
+static const struct snd_soc_dai_ops ak4458_dai_ops = {
 	.startup        = ak4458_startup,
 	.hw_params	= ak4458_hw_params,
 	.set_fmt	= ak4458_set_dai_fmt,
