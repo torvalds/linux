@@ -260,7 +260,7 @@ static inline void
 dsthash_free(struct xt_hashlimit_htable *ht, struct dsthash_ent *ent)
 {
 	hlist_del_rcu(&ent->node);
-	call_rcu_bh(&ent->rcu, dsthash_free_rcu);
+	call_rcu(&ent->rcu, dsthash_free_rcu);
 	ht->count--;
 }
 static void htable_gc(struct work_struct *work);
@@ -1329,7 +1329,7 @@ static void __exit hashlimit_mt_exit(void)
 	xt_unregister_matches(hashlimit_mt_reg, ARRAY_SIZE(hashlimit_mt_reg));
 	unregister_pernet_subsys(&hashlimit_net_ops);
 
-	rcu_barrier_bh();
+	rcu_barrier();
 	kmem_cache_destroy(hashlimit_cachep);
 }
 
