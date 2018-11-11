@@ -530,33 +530,21 @@ static int st_lsm6dsx_set_odr(struct st_lsm6dsx_sensor *sensor, u16 req_odr)
 	return st_lsm6dsx_update_bits_locked(hw, reg->addr, reg->mask, data);
 }
 
-int st_lsm6dsx_sensor_enable(struct st_lsm6dsx_sensor *sensor)
-{
-	int err;
-
-	err = st_lsm6dsx_set_odr(sensor, sensor->odr);
-	if (err < 0)
-		return err;
-
-	sensor->hw->enable_mask |= BIT(sensor->id);
-
-	return 0;
-}
-
-int st_lsm6dsx_sensor_disable(struct st_lsm6dsx_sensor *sensor)
+int st_lsm6dsx_sensor_set_enable(struct st_lsm6dsx_sensor *sensor,
+				 bool enable)
 {
 	struct st_lsm6dsx_hw *hw = sensor->hw;
-	const struct st_lsm6dsx_reg *reg;
-	unsigned int data;
+	u16 odr = enable ? sensor->odr : 0;
 	int err;
 
-	reg = &st_lsm6dsx_odr_table[sensor->id].reg;
-	data = ST_LSM6DSX_SHIFT_VAL(0, reg->mask);
-	err = st_lsm6dsx_update_bits_locked(hw, reg->addr, reg->mask, data);
+	err = st_lsm6dsx_set_odr(sensor, odr);
 	if (err < 0)
 		return err;
 
-	sensor->hw->enable_mask &= ~BIT(sensor->id);
+	if (enable)
+		hw->enable_mask |= BIT(sensor->id);
+	else
+		hw->enable_mask &= ~BIT(sensor->id);
 
 	return 0;
 }
@@ -568,7 +556,7 @@ static int st_lsm6dsx_read_oneshot(struct st_lsm6dsx_sensor *sensor,
 	int err, delay;
 	__le16 data;
 
-	err = st_lsm6dsx_sensor_enable(sensor);
+	err = st_lsm6dsx_sensor_set_enable(sensor, true);
 	if (err < 0)
 		return err;
 
@@ -579,7 +567,7 @@ static int st_lsm6dsx_read_oneshot(struct st_lsm6dsx_sensor *sensor,
 	if (err < 0)
 		return err;
 
-	st_lsm6dsx_sensor_disable(sensor);
+	st_lsm6dsx_sensor_set_enable(sensor, false);
 
 	*val = (s16)le16_to_cpu(data);
 

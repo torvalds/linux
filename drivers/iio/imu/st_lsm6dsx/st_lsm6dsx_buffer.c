@@ -579,15 +579,9 @@ static int st_lsm6dsx_update_fifo(struct iio_dev *iio_dev, bool enable)
 			goto out;
 	}
 
-	if (enable) {
-		err = st_lsm6dsx_sensor_enable(sensor);
-		if (err < 0)
-			goto out;
-	} else {
-		err = st_lsm6dsx_sensor_disable(sensor);
-		if (err < 0)
-			goto out;
-	}
+	err = st_lsm6dsx_sensor_set_enable(sensor, enable);
+	if (err < 0)
+		goto out;
 
 	err = st_lsm6dsx_set_fifo_odr(sensor, enable);
 	if (err < 0)
