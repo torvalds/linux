@@ -1098,15 +1098,6 @@ struct nand_chip {
 	} manufacturer;
 };
 
-static inline int nand_exec_op(struct nand_chip *chip,
-			       const struct nand_operation *op)
-{
-	if (!chip->exec_op)
-		return -ENOTSUPP;
-
-	return chip->exec_op(chip, op, false);
-}
-
 extern const struct mtd_ooblayout_ops nand_ooblayout_sp_ops;
 extern const struct mtd_ooblayout_ops nand_ooblayout_lp_ops;
 
