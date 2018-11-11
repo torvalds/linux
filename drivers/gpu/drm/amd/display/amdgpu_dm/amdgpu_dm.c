@@ -5680,145 +5680,141 @@ fail:
 	return ret;
 }
 
-static int dm_update_planes_state(struct dc *dc,
-				  struct drm_atomic_state *state,
-				  bool enable,
-				  bool *lock_and_validation_needed)
+static int dm_update_plane_state(struct dc *dc,
+				 struct drm_atomic_state *state,
+				 struct drm_plane *plane,
+				 struct drm_plane_state *old_plane_state,
+				 struct drm_plane_state *new_plane_state,
+				 bool enable,
+				 bool *lock_and_validation_needed)
 {
 
 	struct dm_atomic_state *dm_state = NULL;
 	struct drm_crtc *new_plane_crtc, *old_plane_crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
-	struct drm_plane *plane;
-	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct dm_crtc_state *dm_new_crtc_state, *dm_old_crtc_state;
 	struct dm_plane_state *dm_new_plane_state, *dm_old_plane_state;
-	int i ;
 	/* TODO return page_flip_needed() function */
 	bool pflip_needed  = !state->allow_modeset;
 	int ret = 0;
 
 
-	/* Add new planes, in reverse order as DC expectation */
-	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
-		new_plane_crtc = new_plane_state->crtc;
-		old_plane_crtc = old_plane_state->crtc;
-		dm_new_plane_state = to_dm_plane_state(new_plane_state);
-		dm_old_plane_state = to_dm_plane_state(old_plane_state);
+	new_plane_crtc = new_plane_state->crtc;
+	old_plane_crtc = old_plane_state->crtc;
+	dm_new_plane_state = to_dm_plane_state(new_plane_state);
+	dm_old_plane_state = to_dm_plane_state(old_plane_state);
 
-		/*TODO Implement atomic check for cursor plane */
-		if (plane->type == DRM_PLANE_TYPE_CURSOR)
-			continue;
+	/*TODO Implement atomic check for cursor plane */
+	if (plane->type == DRM_PLANE_TYPE_CURSOR)
+		return 0;
 
-		/* Remove any changed/removed planes */
-		if (!enable) {
-			if (pflip_needed &&
-			    plane->type != DRM_PLANE_TYPE_OVERLAY)
-				continue;
+	/* Remove any changed/removed planes */
+	if (!enable) {
+		if (pflip_needed &&
+		    plane->type != DRM_PLANE_TYPE_OVERLAY)
+			return 0;
 
-			if (!old_plane_crtc)
-				continue;
+		if (!old_plane_crtc)
+			return 0;
 
-			old_crtc_state = drm_atomic_get_old_crtc_state(
-					state, old_plane_crtc);
-			dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
+		old_crtc_state = drm_atomic_get_old_crtc_state(
+				state, old_plane_crtc);
+		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 
-			if (!dm_old_crtc_state->stream)
-				continue;
+		if (!dm_old_crtc_state->stream)
+			return 0;
 
-			DRM_DEBUG_ATOMIC("Disabling DRM plane: %d on DRM crtc %d\n",
-					plane->base.id, old_plane_crtc->base.id);
+		DRM_DEBUG_ATOMIC("Disabling DRM plane: %d on DRM crtc %d\n",
+				plane->base.id, old_plane_crtc->base.id);
 
-			ret = dm_atomic_get_state(state, &dm_state);
-			if (ret)
-				return ret;
+		ret = dm_atomic_get_state(state, &dm_state);
+		if (ret)
+			return ret;
 
-			if (!dc_remove_plane_from_context(
-					dc,
-					dm_old_crtc_state->stream,
-					dm_old_plane_state->dc_state,
-					dm_state->context)) {
+		if (!dc_remove_plane_from_context(
+				dc,
+				dm_old_crtc_state->stream,
+				dm_old_plane_state->dc_state,
+				dm_state->context)) {
 
-				ret = EINVAL;
-				return ret;
-			}
-
-
-			dc_plane_state_release(dm_old_plane_state->dc_state);
-			dm_new_plane_state->dc_state = NULL;
-
-			*lock_and_validation_needed = true;
-
-		} else { /* Add new planes */
-			struct dc_plane_state *dc_new_plane_state;
-
-			if (drm_atomic_plane_disabling(plane->state, new_plane_state))
-				continue;
-
-			if (!new_plane_crtc)
-				continue;
-
-			new_crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_crtc);
-			dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
-
-			if (!dm_new_crtc_state->stream)
-				continue;
-
-			if (pflip_needed &&
-			    plane->type != DRM_PLANE_TYPE_OVERLAY)
-				continue;
-
-			WARN_ON(dm_new_plane_state->dc_state);
-
-			dc_new_plane_state = dc_create_plane_state(dc);
-			if (!dc_new_plane_state)
-				return -ENOMEM;
-
-			DRM_DEBUG_DRIVER("Enabling DRM plane: %d on DRM crtc %d\n",
-					plane->base.id, new_plane_crtc->base.id);
-
-			ret = fill_plane_attributes(
-				new_plane_crtc->dev->dev_private,
-				dc_new_plane_state,
-				new_plane_state,
-				new_crtc_state);
-			if (ret) {
-				dc_plane_state_release(dc_new_plane_state);
-				return ret;
-			}
-
-			ret = dm_atomic_get_state(state, &dm_state);
-			if (ret) {
-				dc_plane_state_release(dc_new_plane_state);
-				return ret;
-			}
-
-			/*
-			 * Any atomic check errors that occur after this will
-			 * not need a release. The plane state will be attached
-			 * to the stream, and therefore part of the atomic
-			 * state. It'll be released when the atomic state is
-			 * cleaned.
-			 */
-			if (!dc_add_plane_to_context(
-					dc,
-					dm_new_crtc_state->stream,
-					dc_new_plane_state,
-					dm_state->context)) {
-
-				dc_plane_state_release(dc_new_plane_state);
-				return -EINVAL;
-			}
-
-			dm_new_plane_state->dc_state = dc_new_plane_state;
-
-			/* Tell DC to do a full surface update every time there
-			 * is a plane change. Inefficient, but works for now.
-			 */
-			dm_new_plane_state->dc_state->update_flags.bits.full_update = 1;
-
-			*lock_and_validation_needed = true;
+			ret = EINVAL;
+			return ret;
 		}
+
+
+		dc_plane_state_release(dm_old_plane_state->dc_state);
+		dm_new_plane_state->dc_state = NULL;
+
+		*lock_and_validation_needed = true;
+
+	} else { /* Add new planes */
+		struct dc_plane_state *dc_new_plane_state;
+
+		if (drm_atomic_plane_disabling(plane->state, new_plane_state))
+			return 0;
+
+		if (!new_plane_crtc)
+			return 0;
+
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_crtc);
+		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+
+		if (!dm_new_crtc_state->stream)
+			return 0;
+
+		if (pflip_needed && plane->type != DRM_PLANE_TYPE_OVERLAY)
+			return 0;
+
+		WARN_ON(dm_new_plane_state->dc_state);
+
+		dc_new_plane_state = dc_create_plane_state(dc);
+		if (!dc_new_plane_state)
+			return -ENOMEM;
+
+		DRM_DEBUG_DRIVER("Enabling DRM plane: %d on DRM crtc %d\n",
+				plane->base.id, new_plane_crtc->base.id);
+
+		ret = fill_plane_attributes(
+			new_plane_crtc->dev->dev_private,
+			dc_new_plane_state,
+			new_plane_state,
+			new_crtc_state);
+		if (ret) {
+			dc_plane_state_release(dc_new_plane_state);
+			return ret;
+		}
+
+		ret = dm_atomic_get_state(state, &dm_state);
+		if (ret) {
+			dc_plane_state_release(dc_new_plane_state);
+			return ret;
+		}
+
+		/*
+		 * Any atomic check errors that occur after this will
+		 * not need a release. The plane state will be attached
+		 * to the stream, and therefore part of the atomic
+		 * state. It'll be released when the atomic state is
+		 * cleaned.
+		 */
+		if (!dc_add_plane_to_context(
+				dc,
+				dm_new_crtc_state->stream,
+				dc_new_plane_state,
+				dm_state->context)) {
+
+			dc_plane_state_release(dc_new_plane_state);
+			return -EINVAL;
+		}
+
+		dm_new_plane_state->dc_state = dc_new_plane_state;
+
+		/* Tell DC to do a full surface update every time there
+		 * is a plane change. Inefficient, but works for now.
+		 */
+		dm_new_plane_state->dc_state->update_flags.bits.full_update = 1;
+
+		*lock_and_validation_needed = true;
 	}
 
 
@@ -5976,6 +5972,8 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct drm_connector_state *old_con_state, *new_con_state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	enum surface_update_type update_type = UPDATE_TYPE_FAST;
 	enum surface_update_type overall_update_type = UPDATE_TYPE_FAST;
 
@@ -6010,9 +6008,14 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	}
 
 	/* Remove exiting planes if they are modified */
-	ret = dm_update_planes_state(dc, state, false, &lock_and_validation_needed);
-	if (ret) {
-		goto fail;
+	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
+		ret = dm_update_plane_state(dc, state, plane,
+					    old_plane_state,
+					    new_plane_state,
+					    false,
+					    &lock_and_validation_needed);
+		if (ret)
+			goto fail;
 	}
 
 	/* Disable all crtcs which require disable */
@@ -6028,9 +6031,14 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	}
 
 	/* Add new/modified planes */
-	ret = dm_update_planes_state(dc, state, true, &lock_and_validation_needed);
-	if (ret) {
-		goto fail;
+	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
+		ret = dm_update_plane_state(dc, state, plane,
+					    old_plane_state,
+					    new_plane_state,
+					    true,
+					    &lock_and_validation_needed);
+		if (ret)
+			goto fail;
 	}
 
 	/* Run this here since we want to validate the streams we created */
