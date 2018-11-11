@@ -21,15 +21,12 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/platform_data/gpio-omap.h>
-
-#include <asm/io.h>
-#include <asm/sizes.h>
-
-#include <mach/hardware.h>
+#include <linux/sizes.h>
 
 /*
  * MTD structure for E3 (Delta)

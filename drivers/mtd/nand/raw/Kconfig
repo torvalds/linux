@@ -70,7 +70,7 @@ config MTD_NAND_GPIO
 
 config MTD_NAND_AMS_DELTA
 	tristate "NAND Flash device on Amstrad E3"
-	depends on MACH_AMS_DELTA
+	depends on MACH_AMS_DELTA || COMPILE_TEST
 	default y
 	help
 	  Support for NAND flash on Amstrad E3 (Delta).
