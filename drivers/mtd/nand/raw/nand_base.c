@@ -247,7 +247,9 @@ void nand_select_target(struct nand_chip *chip, unsigned int cs)
 		return;
 
 	chip->cur_cs = cs;
-	chip->select_chip(chip, cs);
+
+	if (chip->select_chip)
+		chip->select_chip(chip, cs);
 }
 EXPORT_SYMBOL_GPL(nand_select_target);
 
@@ -260,7 +262,9 @@ EXPORT_SYMBOL_GPL(nand_select_target);
  */
 void nand_deselect_target(struct nand_chip *chip)
 {
-	chip->select_chip(chip, -1);
+	if (chip->select_chip)
+		chip->select_chip(chip, -1);
+
 	chip->cur_cs = -1;
 }
 EXPORT_SYMBOL_GPL(nand_deselect_target);
@@ -5020,11 +5024,6 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 
 	if (!mtd->name && mtd->dev.parent)
 		mtd->name = dev_name(mtd->dev.parent);
-
-	if (chip->exec_op && !chip->select_chip) {
-		pr_err("->select_chip() is mandatory when implementing ->exec_op()\n");
-		return -EINVAL;
-	}
 
 	ret = nand_legacy_check_hooks(chip);
 	if (ret)
