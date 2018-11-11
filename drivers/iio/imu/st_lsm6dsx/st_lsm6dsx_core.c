@@ -56,6 +56,7 @@
 #define ST_LSM6DSX_REG_WHOAMI_ADDR		0x0f
 #define ST_LSM6DSX_REG_RESET_ADDR		0x12
 #define ST_LSM6DSX_REG_RESET_MASK		BIT(0)
+#define ST_LSM6DSX_REG_BOOT_MASK		BIT(7)
 #define ST_LSM6DSX_REG_BDU_ADDR			0x12
 #define ST_LSM6DSX_REG_BDU_MASK			BIT(6)
 #define ST_LSM6DSX_REG_INT2_ON_INT1_ADDR	0x13
@@ -778,12 +779,23 @@ static int st_lsm6dsx_init_device(struct st_lsm6dsx_hw *hw)
 	u8 drdy_int_reg;
 	int err;
 
-	err = regmap_write(hw->regmap, ST_LSM6DSX_REG_RESET_ADDR,
-			   ST_LSM6DSX_REG_RESET_MASK);
+	/* device sw reset */
+	err = regmap_update_bits(hw->regmap, ST_LSM6DSX_REG_RESET_ADDR,
+				 ST_LSM6DSX_REG_RESET_MASK,
+				 FIELD_PREP(ST_LSM6DSX_REG_RESET_MASK, 1));
 	if (err < 0)
 		return err;
 
-	msleep(200);
+	msleep(50);
+
+	/* reload trimming parameter */
+	err = regmap_update_bits(hw->regmap, ST_LSM6DSX_REG_RESET_ADDR,
+				 ST_LSM6DSX_REG_BOOT_MASK,
+				 FIELD_PREP(ST_LSM6DSX_REG_BOOT_MASK, 1));
+	if (err < 0)
+		return err;
+
+	msleep(50);
 
 	/* enable Block Data Update */
 	err = regmap_update_bits(hw->regmap, ST_LSM6DSX_REG_BDU_ADDR,
