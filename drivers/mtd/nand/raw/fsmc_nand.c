@@ -995,6 +995,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 
 static const struct nand_controller_ops fsmc_nand_controller_ops = {
 	.attach_chip = fsmc_nand_attach_chip,
+	.exec_op = fsmc_exec_op,
 };
 
 /*
@@ -1082,7 +1083,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	nand_set_flash_node(nand, pdev->dev.of_node);
 
 	mtd->dev.parent = &pdev->dev;
-	nand->exec_op = fsmc_exec_op;
 
 	/*
 	 * Setup default ECC mode. nand_dt_init() called from nand_scan_ident()

@@ -812,6 +812,8 @@ static int vf610_nfc_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops vf610_nfc_controller_ops = {
 	.attach_chip = vf610_nfc_attach_chip,
+	.exec_op = vf610_nfc_exec_op,
+
 };
 
 static int vf610_nfc_probe(struct platform_device *pdev)
@@ -878,8 +880,6 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto err_disable_clk;
 	}
-
-	chip->exec_op = vf610_nfc_exec_op;
 
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
 

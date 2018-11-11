@@ -577,7 +577,7 @@ void nand_legacy_set_defaults(struct nand_chip *chip)
 {
 	unsigned int busw = chip->options & NAND_BUSWIDTH_16;
 
-	if (chip->exec_op)
+	if (nand_has_exec_op(chip))
 		return;
 
 	/* check for proper chip_delay setup, set 20us if not */
@@ -621,7 +621,7 @@ int nand_legacy_check_hooks(struct nand_chip *chip)
 	 * ->legacy.cmdfunc() is legacy and will only be used if ->exec_op() is
 	 * not populated.
 	 */
-	if (chip->exec_op)
+	if (nand_has_exec_op(chip))
 		return 0;
 
 	/*

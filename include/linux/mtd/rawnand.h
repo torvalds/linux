@@ -241,49 +241,6 @@ struct nand_id {
 };
 
 /**
- * struct nand_controller_ops - Controller operations
- *
- * @attach_chip: this method is called after the NAND detection phase after
- *		 flash ID and MTD fields such as erase size, page size and OOB
- *		 size have been set up. ECC requirements are available if
- *		 provided by the NAND chip or device tree. Typically used to
- *		 choose the appropriate ECC configuration and allocate
- *		 associated resources.
- *		 This hook is optional.
- * @detach_chip: free all resources allocated/claimed in
- *		 nand_controller_ops->attach_chip().
- *		 This hook is optional.
- */
-struct nand_controller_ops {
-	int (*attach_chip)(struct nand_chip *chip);
-	void (*detach_chip)(struct nand_chip *chip);
-};
-
-/**
- * struct nand_controller - Structure used to describe a NAND controller
- *
- * @lock:               protection lock
- * @active:		the mtd device which holds the controller currently
- * @wq:			wait queue to sleep on if a NAND operation is in
- *			progress used instead of the per chip wait queue
- *			when a hw controller is available.
- * @ops:		NAND controller operations.
- */
-struct nand_controller {
-	spinlock_t lock;
-	struct nand_chip *active;
-	wait_queue_head_t wq;
-	const struct nand_controller_ops *ops;
-};
-
-static inline void nand_controller_init(struct nand_controller *nfc)
-{
-	nfc->active = NULL;
-	spin_lock_init(&nfc->lock);
-	init_waitqueue_head(&nfc->wq);
-}
-
-/**
  * struct nand_ecc_step_info - ECC step information of ECC engine
  * @stepsize: data bytes per ECC step
  * @strengths: array of supported strengths
@@ -897,6 +854,55 @@ struct nand_operation {
 int nand_op_parser_exec_op(struct nand_chip *chip,
 			   const struct nand_op_parser *parser,
 			   const struct nand_operation *op, bool check_only);
+/**
+ * struct nand_controller_ops - Controller operations
+ *
+ * @attach_chip: this method is called after the NAND detection phase after
+ *		 flash ID and MTD fields such as erase size, page size and OOB
+ *		 size have been set up. ECC requirements are available if
+ *		 provided by the NAND chip or device tree. Typically used to
+ *		 choose the appropriate ECC configuration and allocate
+ *		 associated resources.
+ *		 This hook is optional.
+ * @detach_chip: free all resources allocated/claimed in
+ *		 nand_controller_ops->attach_chip().
+ *		 This hook is optional.
+ * @exec_op:	 controller specific method to execute NAND operations.
+ *		 This method replaces chip->legacy.cmdfunc(),
+ *		 chip->legacy.{read,write}_{buf,byte,word}(),
+ *		 chip->legacy.dev_ready() and chip->legacy.waifunc().
+ */
+struct nand_controller_ops {
+	int (*attach_chip)(struct nand_chip *chip);
+	void (*detach_chip)(struct nand_chip *chip);
+	int (*exec_op)(struct nand_chip *chip,
+		       const struct nand_operation *op,
+		       bool check_only);
+};
+
+/**
+ * struct nand_controller - Structure used to describe a NAND controller
+ *
+ * @lock:               protection lock
+ * @active:		the mtd device which holds the controller currently
+ * @wq:			wait queue to sleep on if a NAND operation is in
+ *			progress used instead of the per chip wait queue
+ *			when a hw controller is available.
+ * @ops:		NAND controller operations.
+ */
+struct nand_controller {
+	spinlock_t lock;
+	struct nand_chip *active;
+	wait_queue_head_t wq;
+	const struct nand_controller_ops *ops;
+};
+
+static inline void nand_controller_init(struct nand_controller *nfc)
+{
+	nfc->active = NULL;
+	spin_lock_init(&nfc->lock);
+	init_waitqueue_head(&nfc->wq);
+}
 
 /**
  * struct nand_legacy - NAND chip legacy fields/hooks
@@ -956,10 +962,6 @@ struct nand_legacy {
  *			you're modifying an existing driver that is using those
  *			fields/hooks, you should consider reworking the driver
  *			avoid using them.
- * @exec_op:		controller specific method to execute NAND operations.
- *			This method replaces ->cmdfunc(),
- *			->legacy.{read,write}_{buf,byte,word}(),
- *			->legacy.dev_ready() and ->waifunc().
  * @setup_read_retry:	[FLASHSPECIFIC] flash (vendor) specific function for
  *			setting the read-retry mode. Mostly needed for MLC NAND.
  * @ecc:		[BOARDSPECIFIC] ECC control structure
@@ -1041,9 +1043,6 @@ struct nand_chip {
 
 	struct nand_legacy legacy;
 
-	int (*exec_op)(struct nand_chip *chip,
-		       const struct nand_operation *op,
-		       bool check_only);
 	int (*setup_read_retry)(struct nand_chip *chip, int retry_mode);
 	int (*setup_data_interface)(struct nand_chip *chip, int chipnr,
 				    const struct nand_data_interface *conf);

@@ -176,6 +176,10 @@ static int ams_delta_exec_op(struct nand_chip *this,
 	return ret;
 }
 
+static const struct nand_controller_ops ams_delta_ops = {
+	.exec_op = ams_delta_exec_op,
+};
+
 /*
  * Main initialization routine
  */
@@ -215,8 +219,6 @@ static int ams_delta_init(struct platform_device *pdev)
 
 	priv->io_base = io_base;
 	nand_set_controller_data(this, priv);
-
-	this->exec_op = ams_delta_exec_op;
 
 	priv->gpiod_rdy = devm_gpiod_get_optional(&pdev->dev, "rdy", GPIOD_IN);
 	if (IS_ERR(priv->gpiod_rdy)) {
@@ -277,6 +279,7 @@ static int ams_delta_init(struct platform_device *pdev)
 	ams_delta_dir_input(priv, true);
 
 	/* Initialize the NAND controller object embedded in ams_delta_nand. */
+	priv->base.ops = &ams_delta_ops;
 	nand_controller_init(&priv->base);
 	this->controller = &priv->base;
 

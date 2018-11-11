@@ -95,16 +95,25 @@ void nand_decode_ext_id(struct nand_chip *chip);
 void panic_nand_wait(struct nand_chip *chip, unsigned long timeo);
 void sanitize_string(uint8_t *s, size_t len);
 
+static inline bool nand_has_exec_op(struct nand_chip *chip)
+{
+	if (!chip->controller || !chip->controller->ops ||
+	    !chip->controller->ops->exec_op)
+		return false;
+
+	return true;
+}
+
 static inline int nand_exec_op(struct nand_chip *chip,
 			       const struct nand_operation *op)
 {
-	if (!chip->exec_op)
+	if (!nand_has_exec_op(chip))
 		return -ENOTSUPP;
 
 	if (WARN_ON(op->cs >= chip->numchips))
 		return -EINVAL;
 
-	return chip->exec_op(chip, op, false);
+	return chip->controller->ops->exec_op(chip, op, false);
 }
 
 /* BBT functions */
