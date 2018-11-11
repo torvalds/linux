@@ -102,6 +102,9 @@ static void st_lsm6dsx_get_max_min_odr(struct st_lsm6dsx_hw *hw,
 
 	*max_odr = 0, *min_odr = ~0;
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		if (!hw->iio_devs[i])
+			continue;
+
 		sensor = iio_priv(hw->iio_devs[i]);
 
 		if (!(hw->enable_mask & BIT(sensor->id)))
@@ -124,6 +127,9 @@ static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
 		const struct st_lsm6dsx_reg *dec_reg;
+
+		if (!hw->iio_devs[i])
+			continue;
 
 		sensor = iio_priv(hw->iio_devs[i]);
 		/* update fifo decimators and sample in pattern */
@@ -232,6 +238,9 @@ int st_lsm6dsx_update_watermark(struct st_lsm6dsx_sensor *sensor, u16 watermark)
 		return 0;
 
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		if (!hw->iio_devs[i])
+			continue;
+
 		cur_sensor = iio_priv(hw->iio_devs[i]);
 
 		if (!(hw->enable_mask & BIT(cur_sensor->id)))
@@ -278,6 +287,9 @@ static int st_lsm6dsx_reset_hw_ts(struct st_lsm6dsx_hw *hw)
 		return err;
 
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		if (!hw->iio_devs[i])
+			continue;
+
 		sensor = iio_priv(hw->iio_devs[i]);
 		/*
 		 * store enable buffer timestamp as reference for
@@ -695,6 +707,9 @@ int st_lsm6dsx_fifo_setup(struct st_lsm6dsx_hw *hw)
 	}
 
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		if (!hw->iio_devs[i])
+			continue;
+
 		buffer = devm_iio_kfifo_allocate(hw->dev);
 		if (!buffer)
 			return -ENOMEM;

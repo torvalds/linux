@@ -105,8 +105,11 @@ struct st_lsm6dsx_settings {
 };
 
 enum st_lsm6dsx_sensor_id {
-	ST_LSM6DSX_ID_ACC,
 	ST_LSM6DSX_ID_GYRO,
+	ST_LSM6DSX_ID_ACC,
+	ST_LSM6DSX_ID_EXT0,
+	ST_LSM6DSX_ID_EXT1,
+	ST_LSM6DSX_ID_EXT2,
 	ST_LSM6DSX_ID_MAX,
 };
 
