@@ -723,57 +723,11 @@ static int phy_disable_interrupts(struct phy_device *phydev)
 }
 
 /**
- * phy_change - Called by the phy_interrupt to handle PHY changes
- * @phydev: phy_device struct that interrupted
- */
-static irqreturn_t phy_change(struct phy_device *phydev)
-{
-	if (phy_interrupt_is_valid(phydev)) {
-		if (phydev->drv->did_interrupt &&
-		    !phydev->drv->did_interrupt(phydev))
-			return IRQ_NONE;
-
-		if (phydev->state == PHY_HALTED)
-			if (phy_disable_interrupts(phydev))
-				goto phy_err;
-	}
-
-	mutex_lock(&phydev->lock);
-	if ((PHY_RUNNING == phydev->state) || (PHY_NOLINK == phydev->state))
-		phydev->state = PHY_CHANGELINK;
-	mutex_unlock(&phydev->lock);
-
-	/* reschedule state queue work to run as soon as possible */
-	phy_trigger_machine(phydev);
-
-	if (phy_interrupt_is_valid(phydev) && phy_clear_interrupt(phydev))
-		goto phy_err;
-	return IRQ_HANDLED;
-
-phy_err:
-	phy_error(phydev);
-	return IRQ_NONE;
-}
-
-/**
- * phy_change_work - Scheduled by the phy_mac_interrupt to handle PHY changes
- * @work: work_struct that describes the work to be done
- */
-void phy_change_work(struct work_struct *work)
-{
-	struct phy_device *phydev =
-		container_of(work, struct phy_device, phy_queue);
-
-	phy_change(phydev);
-}
-
-/**
  * phy_interrupt - PHY interrupt handler
  * @irq: interrupt line
  * @phy_dat: phy_device pointer
  *
- * Description: When a PHY interrupt occurs, the handler disables
- * interrupts, and uses phy_change to handle the interrupt.
+ * Description: Handle PHY interrupt
  */
 static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
@@ -782,7 +736,19 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 	if (PHY_HALTED == phydev->state)
 		return IRQ_NONE;		/* It can't be ours.  */
 
-	return phy_change(phydev);
+	if (phydev->drv->did_interrupt && !phydev->drv->did_interrupt(phydev))
+		return IRQ_NONE;
+
+	/* reschedule state queue work to run as soon as possible */
+	phy_trigger_machine(phydev);
+
+	if (phy_clear_interrupt(phydev))
+		goto phy_err;
+	return IRQ_HANDLED;
+
+phy_err:
+	phy_error(phydev);
+	return IRQ_NONE;
 }
 
 /**
@@ -863,7 +829,7 @@ out_unlock:
 	phy_state_machine(&phydev->state_queue.work);
 
 	/* Cannot call flush_scheduled_work() here as desired because
-	 * of rtnl_lock(), but PHY_HALTED shall guarantee phy_change()
+	 * of rtnl_lock(), but PHY_HALTED shall guarantee irq handler
 	 * will not reenable interrupts.
 	 */
 }
@@ -946,9 +912,6 @@ void phy_state_machine(struct work_struct *work)
 		break;
 	case PHY_NOLINK:
 	case PHY_RUNNING:
-		if (!phy_polling_mode(phydev))
-			break;
-		/* fall through */
 	case PHY_CHANGELINK:
 	case PHY_RESUMING:
 		err = phy_check_link_status(phydev);
@@ -1013,7 +976,7 @@ void phy_state_machine(struct work_struct *work)
 void phy_mac_interrupt(struct phy_device *phydev)
 {
 	/* Trigger a state machine change */
-	queue_work(system_power_efficient_wq, &phydev->phy_queue);
+	phy_trigger_machine(phydev);
 }
 EXPORT_SYMBOL(phy_mac_interrupt);
 
