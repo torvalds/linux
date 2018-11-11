@@ -116,14 +116,9 @@ static void ams_delta_read_buf(struct ams_delta_nand *priv, u8 *buf, int len)
 		buf[i] = ams_delta_io_read(priv);
 }
 
-static void ams_delta_select_chip(struct nand_chip *this, int n)
+static void ams_delta_ctrl_cs(struct ams_delta_nand *priv, bool assert)
 {
-	struct ams_delta_nand *priv = nand_get_controller_data(this);
-
-	if (n > 0)
-		return;
-
-	gpiod_set_value(priv->gpiod_nce, n < 0);
+	gpiod_set_value(priv->gpiod_nce, assert ? 0 : 1);
 }
 
 static int ams_delta_exec_op(struct nand_chip *this,
@@ -135,6 +130,8 @@ static int ams_delta_exec_op(struct nand_chip *this,
 
 	if (check_only)
 		return 0;
+
+	ams_delta_ctrl_cs(priv, 1);
 
 	for (instr = op->instrs; instr < op->instrs + op->ninstrs; instr++) {
 		switch (instr->type) {
@@ -173,6 +170,8 @@ static int ams_delta_exec_op(struct nand_chip *this,
 		if (ret)
 			break;
 	}
+
+	ams_delta_ctrl_cs(priv, 0);
 
 	return ret;
 }
@@ -217,7 +216,6 @@ static int ams_delta_init(struct platform_device *pdev)
 	priv->io_base = io_base;
 	nand_set_controller_data(this, priv);
 
-	this->select_chip = ams_delta_select_chip;
 	this->exec_op = ams_delta_exec_op;
 
 	priv->gpiod_rdy = devm_gpiod_get_optional(&pdev->dev, "rdy", GPIOD_IN);
