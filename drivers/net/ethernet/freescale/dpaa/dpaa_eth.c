@@ -2475,6 +2475,7 @@ static void dpaa_adjust_link(struct net_device *net_dev)
 
 static int dpaa_phy_init(struct net_device *net_dev)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct mac_device *mac_dev;
 	struct phy_device *phy_dev;
 	struct dpaa_priv *priv;
@@ -2491,7 +2492,9 @@ static int dpaa_phy_init(struct net_device *net_dev)
 	}
 
 	/* Remove any features not supported by the controller */
-	phy_dev->supported &= mac_dev->if_support;
+	ethtool_convert_legacy_u32_to_link_mode(mask, mac_dev->if_support);
+	linkmode_and(phy_dev->supported, phy_dev->supported, mask);
+
 	phy_support_asym_pause(phy_dev);
 
 	mac_dev->phy_dev = phy_dev;

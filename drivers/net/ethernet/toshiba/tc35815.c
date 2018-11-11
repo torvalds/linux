@@ -607,9 +607,9 @@ static void tc_handle_link_change(struct net_device *dev)
 
 static int tc_mii_probe(struct net_device *dev)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct phy_device *phydev;
-	u32 dropmask;
 
 	phydev = phy_find_first(lp->mii_bus);
 	if (!phydev) {
@@ -630,17 +630,22 @@ static int tc_mii_probe(struct net_device *dev)
 
 	/* mask with MAC supported features */
 	phy_set_max_speed(phydev, SPEED_100);
-	dropmask = 0;
-	if (options.speed == 10)
-		dropmask |= SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full;
-	else if (options.speed == 100)
-		dropmask |= SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full;
-	if (options.duplex == 1)
-		dropmask |= SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full;
-	else if (options.duplex == 2)
-		dropmask |= SUPPORTED_10baseT_Half | SUPPORTED_100baseT_Half;
-	phydev->supported &= ~dropmask;
-	phydev->advertising = phydev->supported;
+	if (options.speed == 10) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
+	} else if (options.speed == 100) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, mask);
+	}
+	if (options.duplex == 1) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
+	} else if (options.duplex == 2) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
+	}
+	linkmode_and(phydev->supported, phydev->supported, mask);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	lp->link = 0;
 	lp->speed = 0;

@@ -491,25 +491,26 @@ static int m88e1318_config_aneg(struct phy_device *phydev)
 }
 
 /**
- * ethtool_adv_to_fiber_adv_t
- * @ethadv: the ethtool advertisement settings
+ * linkmode_adv_to_fiber_adv_t
+ * @advertise: the linkmode advertisement settings
  *
- * A small helper function that translates ethtool advertisement
- * settings to phy autonegotiation advertisements for the
- * MII_ADV register for fiber link.
+ * A small helper function that translates linkmode advertisement
+ * settings to phy autonegotiation advertisements for the MII_ADV
+ * register for fiber link.
  */
-static inline u32 ethtool_adv_to_fiber_adv_t(u32 ethadv)
+static inline u32 linkmode_adv_to_fiber_adv_t(unsigned long *advertise)
 {
 	u32 result = 0;
 
-	if (ethadv & ADVERTISED_1000baseT_Half)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT, advertise))
 		result |= ADVERTISE_FIBER_1000HALF;
-	if (ethadv & ADVERTISED_1000baseT_Full)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, advertise))
 		result |= ADVERTISE_FIBER_1000FULL;
 
-	if ((ethadv & ADVERTISE_PAUSE_ASYM) && (ethadv & ADVERTISE_PAUSE_CAP))
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, advertise) &&
+	    linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT, advertise))
 		result |= LPA_PAUSE_ASYM_FIBER;
-	else if (ethadv & ADVERTISE_PAUSE_CAP)
+	else if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT, advertise))
 		result |= (ADVERTISE_PAUSE_FIBER
 			   & (~ADVERTISE_PAUSE_ASYM_FIBER));
 
@@ -530,14 +531,13 @@ static int marvell_config_aneg_fiber(struct phy_device *phydev)
 	int changed = 0;
 	int err;
 	int adv, oldadv;
-	u32 advertise;
 
 	if (phydev->autoneg != AUTONEG_ENABLE)
 		return genphy_setup_forced(phydev);
 
 	/* Only allow advertising what this PHY supports */
-	phydev->advertising &= phydev->supported;
-	advertise = phydev->advertising;
+	linkmode_and(phydev->advertising, phydev->advertising,
+		     phydev->supported);
 
 	/* Setup fiber advertisement */
 	adv = phy_read(phydev, MII_ADVERTISE);
@@ -547,7 +547,7 @@ static int marvell_config_aneg_fiber(struct phy_device *phydev)
 	oldadv = adv;
 	adv &= ~(ADVERTISE_FIBER_1000HALF | ADVERTISE_FIBER_1000FULL
 		| LPA_PAUSE_FIBER);
-	adv |= ethtool_adv_to_fiber_adv_t(advertise);
+	adv |= linkmode_adv_to_fiber_adv_t(phydev->advertising);
 
 	if (adv != oldadv) {
 		err = phy_write(phydev, MII_ADVERTISE, adv);
@@ -879,8 +879,14 @@ static int m88e1510_config_init(struct phy_device *phydev)
 		 * so disable Pause support.
 		 */
 		pause = SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-		phydev->supported &= ~pause;
-		phydev->advertising &= ~pause;
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				   phydev->supported);
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				   phydev->supported);
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				   phydev->advertising);
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				   phydev->advertising);
 	}
 
 	return m88e1318_config_init(phydev);
@@ -1043,22 +1049,21 @@ static int m88e1145_config_init(struct phy_device *phydev)
 }
 
 /**
- * fiber_lpa_to_ethtool_lpa_t
+ * fiber_lpa_to_linkmode_lpa_t
+ * @advertising: the linkmode advertisement settings
  * @lpa: value of the MII_LPA register for fiber link
  *
  * A small helper function that translates MII_LPA
- * bits to ethtool LP advertisement settings.
+ * bits to linkmode LP advertisement settings.
  */
-static u32 fiber_lpa_to_ethtool_lpa_t(u32 lpa)
+static void fiber_lpa_to_linkmode_lpa_t(unsigned long *advertising, u32 lpa)
 {
-	u32 result = 0;
-
 	if (lpa & LPA_FIBER_1000HALF)
-		result |= ADVERTISED_1000baseT_Half;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+				 advertising);
 	if (lpa & LPA_FIBER_1000FULL)
-		result |= ADVERTISED_1000baseT_Full;
-
-	return result;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				 advertising);
 }
 
 /**
@@ -1134,9 +1139,8 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 	}
 
 	if (!fiber) {
-		phydev->lp_advertising =
-			mii_stat1000_to_ethtool_lpa_t(lpagb) |
-			mii_lpa_to_ethtool_lpa_t(lpa);
+		mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);
+		mii_stat1000_to_linkmode_lpa_t(phydev->lp_advertising, lpagb);
 
 		if (phydev->duplex == DUPLEX_FULL) {
 			phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
@@ -1144,7 +1148,7 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 		}
 	} else {
 		/* The fiber link is only 1000M capable */
-		phydev->lp_advertising = fiber_lpa_to_ethtool_lpa_t(lpa);
+		fiber_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);
 
 		if (phydev->duplex == DUPLEX_FULL) {
 			if (!(lpa & LPA_PAUSE_FIBER)) {
@@ -1183,7 +1187,7 @@ static int marvell_read_status_page_fixed(struct phy_device *phydev)
 
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
-	phydev->lp_advertising = 0;
+	linkmode_zero(phydev->lp_advertising);
 
 	return 0;
 }
@@ -1235,7 +1239,8 @@ static int marvell_read_status(struct phy_device *phydev)
 	int err;
 
 	/* Check the fiber mode first */
-	if (phydev->supported & SUPPORTED_FIBRE &&
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+			      phydev->supported) &&
 	    phydev->interface != PHY_INTERFACE_MODE_SGMII) {
 		err = marvell_set_page(phydev, MII_MARVELL_FIBER_PAGE);
 		if (err < 0)
@@ -1278,7 +1283,8 @@ static int marvell_suspend(struct phy_device *phydev)
 	int err;
 
 	/* Suspend the fiber mode first */
-	if (!(phydev->supported & SUPPORTED_FIBRE)) {
+	if (!linkmode_test_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+			       phydev->supported)) {
 		err = marvell_set_page(phydev, MII_MARVELL_FIBER_PAGE);
 		if (err < 0)
 			goto error;
@@ -1312,7 +1318,8 @@ static int marvell_resume(struct phy_device *phydev)
 	int err;
 
 	/* Resume the fiber mode first */
-	if (!(phydev->supported & SUPPORTED_FIBRE)) {
+	if (!linkmode_test_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+			       phydev->supported)) {
 		err = marvell_set_page(phydev, MII_MARVELL_FIBER_PAGE);
 		if (err < 0)
 			goto error;
@@ -1463,7 +1470,8 @@ error:
 
 static int marvell_get_sset_count(struct phy_device *phydev)
 {
-	if (phydev->supported & SUPPORTED_FIBRE)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+			      phydev->supported))
 		return ARRAY_SIZE(marvell_hw_stats);
 	else
 		return ARRAY_SIZE(marvell_hw_stats) - NB_FIBER_STATS;

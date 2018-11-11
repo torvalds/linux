@@ -311,17 +311,22 @@ static int kszphy_config_init(struct phy_device *phydev)
 
 static int ksz8041_config_init(struct phy_device *phydev)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+
 	struct device_node *of_node = phydev->mdio.dev.of_node;
 
 	/* Limit supported and advertised modes in fiber mode */
 	if (of_property_read_bool(of_node, "micrel,fiber-mode")) {
 		phydev->dev_flags |= MICREL_PHY_FXEN;
-		phydev->supported &= SUPPORTED_100baseT_Full |
-				     SUPPORTED_100baseT_Half;
-		phydev->supported |= SUPPORTED_FIBRE;
-		phydev->advertising &= ADVERTISED_100baseT_Full |
-				       ADVERTISED_100baseT_Half;
-		phydev->advertising |= ADVERTISED_FIBRE;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
+
+		linkmode_and(phydev->supported, phydev->supported, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+				 phydev->supported);
+		linkmode_and(phydev->advertising, phydev->advertising, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT,
+				 phydev->advertising);
 		phydev->autoneg = AUTONEG_DISABLE;
 	}
 

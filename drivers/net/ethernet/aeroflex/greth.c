@@ -1283,7 +1283,7 @@ static int greth_mdio_probe(struct net_device *dev)
 	else
 		phy_set_max_speed(phy, SPEED_100);
 
-	phy->advertising = phy->supported;
+	linkmode_copy(phy->advertising, phy->supported);
 
 	greth->link = 0;
 	greth->speed = 0;

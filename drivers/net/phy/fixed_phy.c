@@ -223,14 +223,23 @@ struct phy_device *fixed_phy_register(unsigned int irq,
 
 	switch (status->speed) {
 	case SPEED_1000:
-		phy->supported = PHY_1000BT_FEATURES;
-		break;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+				 phy->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				 phy->supported);
+		/* fall through */
 	case SPEED_100:
-		phy->supported = PHY_100BT_FEATURES;
-		break;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+				 phy->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+				 phy->supported);
+		/* fall through */
 	case SPEED_10:
 	default:
-		phy->supported = PHY_10BT_FEATURES;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+				 phy->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+				 phy->supported);
 	}
 
 	ret = phy_device_register(phy);

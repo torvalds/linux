@@ -25,15 +25,10 @@
 #define PHY_ID_AQR107	0x03a1b4e0
 #define PHY_ID_AQR405	0x03a1b4b0
 
-#define PHY_AQUANTIA_FEATURES	(SUPPORTED_10000baseT_Full | \
-				 SUPPORTED_1000baseT_Full | \
-				 SUPPORTED_100baseT_Full | \
-				 PHY_DEFAULT_FEATURES)
-
 static int aquantia_config_aneg(struct phy_device *phydev)
 {
-	phydev->supported = PHY_AQUANTIA_FEATURES;
-	phydev->advertising = phydev->supported;
+	linkmode_copy(phydev->supported, phy_10gbit_features);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	return 0;
 }

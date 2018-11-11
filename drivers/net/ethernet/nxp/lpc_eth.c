@@ -783,8 +783,6 @@ static int lpc_mii_probe(struct net_device *ndev)
 
 	phy_set_max_speed(phydev, SPEED_100);
 
-	phydev->advertising = phydev->supported;
-
 	pldat->link = 0;
 	pldat->speed = 0;
 	pldat->duplex = -1;

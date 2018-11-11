@@ -66,10 +66,12 @@ static const int phy_basic_ports_array[] = {
 	ETHTOOL_LINK_MODE_TP_BIT,
 	ETHTOOL_LINK_MODE_MII_BIT,
 };
+EXPORT_SYMBOL_GPL(phy_basic_ports_array);
 
 static const int phy_fibre_port_array[] = {
 	ETHTOOL_LINK_MODE_FIBRE_BIT,
 };
+EXPORT_SYMBOL_GPL(phy_fibre_port_array);
 
 static const int phy_all_ports_features_array[] = {
 	ETHTOOL_LINK_MODE_Autoneg_BIT,
@@ -80,27 +82,32 @@ static const int phy_all_ports_features_array[] = {
 	ETHTOOL_LINK_MODE_BNC_BIT,
 	ETHTOOL_LINK_MODE_Backplane_BIT,
 };
+EXPORT_SYMBOL_GPL(phy_all_ports_features_array);
 
-static const int phy_10_100_features_array[] = {
+const int phy_10_100_features_array[4] = {
 	ETHTOOL_LINK_MODE_10baseT_Half_BIT,
 	ETHTOOL_LINK_MODE_10baseT_Full_BIT,
 	ETHTOOL_LINK_MODE_100baseT_Half_BIT,
 	ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 };
+EXPORT_SYMBOL_GPL(phy_10_100_features_array);
 
-static const int phy_basic_t1_features_array[] = {
+const int phy_basic_t1_features_array[2] = {
 	ETHTOOL_LINK_MODE_TP_BIT,
 	ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 };
+EXPORT_SYMBOL_GPL(phy_basic_t1_features_array);
 
-static const int phy_gbit_features_array[] = {
+const int phy_gbit_features_array[2] = {
 	ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 	ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
 };
+EXPORT_SYMBOL_GPL(phy_gbit_features_array);
 
-static const int phy_10gbit_features_array[] = {
+const int phy_10gbit_features_array[1] = {
 	ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
 };
+EXPORT_SYMBOL_GPL(phy_10gbit_features_array);
 
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_10gbit_full_features);
@@ -1441,8 +1448,13 @@ static int genphy_config_advert(struct phy_device *phydev)
 	int err, changed = 0;
 
 	/* Only allow advertising what this PHY supports */
-	phydev->advertising &= phydev->supported;
-	advertise = phydev->advertising;
+	linkmode_and(phydev->advertising, phydev->advertising,
+		     phydev->supported);
+	if (!ethtool_convert_link_mode_to_legacy_u32(&advertise,
+						     phydev->advertising))
+		phydev_warn(phydev, "PHY advertising (%*pb) more modes than genphy supports, some modes not advertised.\n",
+			    __ETHTOOL_LINK_MODE_MASK_NBITS,
+			    phydev->advertising);
 
 	/* Setup standard advertisement */
 	adv = phy_read(phydev, MII_ADVERTISE);
@@ -1481,10 +1493,11 @@ static int genphy_config_advert(struct phy_device *phydev)
 	oldadv = adv;
 	adv &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
 
-	if (phydev->supported & (SUPPORTED_1000baseT_Half |
-				 SUPPORTED_1000baseT_Full)) {
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+			      phydev->supported) ||
+	    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			      phydev->supported))
 		adv |= ethtool_adv_to_mii_ctrl1000_t(advertise);
-	}
 
 	if (adv != oldadv)
 		changed = 1;
@@ -1689,11 +1702,13 @@ int genphy_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	phydev->lp_advertising = 0;
+	linkmode_zero(phydev->lp_advertising);
 
 	if (AUTONEG_ENABLE == phydev->autoneg) {
-		if (phydev->supported & (SUPPORTED_1000baseT_Half
-					| SUPPORTED_1000baseT_Full)) {
+		if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+				      phydev->supported) ||
+		    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				      phydev->supported)) {
 			lpagb = phy_read(phydev, MII_STAT1000);
 			if (lpagb < 0)
 				return lpagb;
@@ -1710,8 +1725,8 @@ int genphy_read_status(struct phy_device *phydev)
 				return -ENOLINK;
 			}
 
-			phydev->lp_advertising =
-				mii_stat1000_to_ethtool_lpa_t(lpagb);
+			mii_stat1000_to_linkmode_lpa_t(phydev->lp_advertising,
+						       lpagb);
 			common_adv_gb = lpagb & adv << 2;
 		}
 
@@ -1719,7 +1734,7 @@ int genphy_read_status(struct phy_device *phydev)
 		if (lpa < 0)
 			return lpa;
 
-		phydev->lp_advertising |= mii_lpa_to_ethtool_lpa_t(lpa);
+		mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);
 
 		adv = phy_read(phydev, MII_ADVERTISE);
 		if (adv < 0)
@@ -1800,11 +1815,13 @@ EXPORT_SYMBOL(genphy_soft_reset);
 int genphy_config_init(struct phy_device *phydev)
 {
 	int val;
-	u32 features;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(features) = { 0, };
 
-	features = (SUPPORTED_TP | SUPPORTED_MII
-			| SUPPORTED_AUI | SUPPORTED_FIBRE |
-			SUPPORTED_BNC | SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+	linkmode_set_bit_array(phy_basic_ports_array,
+			       ARRAY_SIZE(phy_basic_ports_array),
+			       features);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, features);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, features);
 
 	/* Do we support autonegotiation? */
 	val = phy_read(phydev, MII_BMSR);
@@ -1812,16 +1829,16 @@ int genphy_config_init(struct phy_device *phydev)
 		return val;
 
 	if (val & BMSR_ANEGCAPABLE)
-		features |= SUPPORTED_Autoneg;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, features);
 
 	if (val & BMSR_100FULL)
-		features |= SUPPORTED_100baseT_Full;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, features);
 	if (val & BMSR_100HALF)
-		features |= SUPPORTED_100baseT_Half;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, features);
 	if (val & BMSR_10FULL)
-		features |= SUPPORTED_10baseT_Full;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, features);
 	if (val & BMSR_10HALF)
-		features |= SUPPORTED_10baseT_Half;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, features);
 
 	if (val & BMSR_ESTATEN) {
 		val = phy_read(phydev, MII_ESTATUS);
@@ -1829,13 +1846,15 @@ int genphy_config_init(struct phy_device *phydev)
 			return val;
 
 		if (val & ESTATUS_1000_TFULL)
-			features |= SUPPORTED_1000baseT_Full;
+			linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+					 features);
 		if (val & ESTATUS_1000_THALF)
-			features |= SUPPORTED_1000baseT_Half;
+			linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+					 features);
 	}
 
-	phydev->supported &= features;
-	phydev->advertising &= features;
+	linkmode_and(phydev->supported, phydev->supported, features);
+	linkmode_and(phydev->advertising, phydev->advertising, features);
 
 	return 0;
 }
@@ -1879,20 +1898,37 @@ EXPORT_SYMBOL(genphy_loopback);
 
 static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
 {
-	phydev->supported &= ~(PHY_1000BT_FEATURES | PHY_100BT_FEATURES |
-			       PHY_10BT_FEATURES);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(speeds) = { 0, };
+
+	linkmode_set_bit_array(phy_10_100_features_array,
+			       ARRAY_SIZE(phy_10_100_features_array),
+			       speeds);
+	linkmode_set_bit_array(phy_gbit_features_array,
+			       ARRAY_SIZE(phy_gbit_features_array),
+			       speeds);
+
+	linkmode_andnot(phydev->supported, phydev->supported, speeds);
 
 	switch (max_speed) {
 	default:
 		return -ENOTSUPP;
 	case SPEED_1000:
-		phydev->supported |= PHY_1000BT_FEATURES;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				 phydev->supported);
 		/* fall through */
 	case SPEED_100:
-		phydev->supported |= PHY_100BT_FEATURES;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+				 phydev->supported);
 		/* fall through */
 	case SPEED_10:
-		phydev->supported |= PHY_10BT_FEATURES;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+				 phydev->supported);
 	}
 
 	return 0;
@@ -1906,7 +1942,7 @@ int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
 	if (err)
 		return err;
 
-	phydev->advertising = phydev->supported;
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	return 0;
 }
@@ -1923,10 +1959,8 @@ EXPORT_SYMBOL(phy_set_max_speed);
  */
 void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode)
 {
-	WARN_ON(link_mode > 31);
-
-	phydev->supported &= ~BIT(link_mode);
-	phydev->advertising = phydev->supported;
+	linkmode_clear_bit(link_mode, phydev->supported);
+	linkmode_copy(phydev->advertising, phydev->supported);
 }
 EXPORT_SYMBOL(phy_remove_link_mode);
 
@@ -1939,9 +1973,9 @@ EXPORT_SYMBOL(phy_remove_link_mode);
  */
 void phy_support_sym_pause(struct phy_device *phydev)
 {
-	phydev->supported &= ~SUPPORTED_Asym_Pause;
-	phydev->supported |= SUPPORTED_Pause;
-	phydev->advertising = phydev->supported;
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydev->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->supported);
+	linkmode_copy(phydev->advertising, phydev->supported);
 }
 EXPORT_SYMBOL(phy_support_sym_pause);
 
@@ -1953,8 +1987,9 @@ EXPORT_SYMBOL(phy_support_sym_pause);
  */
 void phy_support_asym_pause(struct phy_device *phydev)
 {
-	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-	phydev->advertising = phydev->supported;
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydev->supported);
+	linkmode_copy(phydev->advertising, phydev->supported);
 }
 EXPORT_SYMBOL(phy_support_asym_pause);
 
@@ -1972,12 +2007,13 @@ EXPORT_SYMBOL(phy_support_asym_pause);
 void phy_set_sym_pause(struct phy_device *phydev, bool rx, bool tx,
 		       bool autoneg)
 {
-	phydev->supported &= ~SUPPORTED_Pause;
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->supported);
 
 	if (rx && tx && autoneg)
-		phydev->supported |= SUPPORTED_Pause;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				 phydev->supported);
 
-	phydev->advertising = phydev->supported;
+	linkmode_copy(phydev->advertising, phydev->supported);
 }
 EXPORT_SYMBOL(phy_set_sym_pause);
 
@@ -1994,20 +2030,29 @@ EXPORT_SYMBOL(phy_set_sym_pause);
  */
 void phy_set_asym_pause(struct phy_device *phydev, bool rx, bool tx)
 {
-	u16 oldadv = phydev->advertising;
-	u16 newadv = oldadv &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(oldadv);
 
-	if (rx)
-		newadv |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-	if (tx)
-		newadv ^= SUPPORTED_Asym_Pause;
+	linkmode_copy(oldadv, phydev->advertising);
 
-	if (oldadv != newadv) {
-		phydev->advertising = newadv;
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+			   phydev->advertising);
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			   phydev->advertising);
 
-		if (phydev->autoneg)
-			phy_start_aneg(phydev);
+	if (rx) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				 phydev->advertising);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				 phydev->advertising);
 	}
+
+	if (tx)
+		linkmode_change_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				    phydev->advertising);
+
+	if (!linkmode_equal(oldadv, phydev->advertising) &&
+	    phydev->autoneg)
+		phy_start_aneg(phydev);
 }
 EXPORT_SYMBOL(phy_set_asym_pause);
 
@@ -2023,8 +2068,10 @@ EXPORT_SYMBOL(phy_set_asym_pause);
 bool phy_validate_pause(struct phy_device *phydev,
 			struct ethtool_pauseparam *pp)
 {
-	if (!(phydev->supported & SUPPORTED_Pause) ||
-	    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
+	if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+			       phydev->supported) ||
+	    (!linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				phydev->supported) &&
 	     pp->rx_pause != pp->tx_pause))
 		return false;
 	return true;
@@ -2112,9 +2159,9 @@ static int phy_probe(struct device *dev)
 	 * or both of these values
 	 */
 	ethtool_convert_link_mode_to_legacy_u32(&features, phydrv->features);
-	phydev->supported = features;
+	linkmode_copy(phydev->supported, phydrv->features);
 	of_set_phy_supported(phydev);
-	phydev->advertising = phydev->supported;
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	/* Get the EEE modes we want to prohibit. We will ask
 	 * the PHY stop advertising these mode later on
@@ -2134,14 +2181,22 @@ static int phy_probe(struct device *dev)
 	 */
 	if (test_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydrv->features) ||
 	    test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydrv->features)) {
-		phydev->supported &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				   phydev->supported);
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				   phydev->supported);
 		if (test_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydrv->features))
-			phydev->supported |= SUPPORTED_Pause;
+			linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+					 phydev->supported);
 		if (test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
 			     phydrv->features))
-			phydev->supported |= SUPPORTED_Asym_Pause;
+			linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+					 phydev->supported);
 	} else {
-		phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+				 phydev->supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+				 phydev->supported);
 	}
 
 	/* Set the state to READY by default */
