@@ -148,6 +148,7 @@ struct st_lsm6dsx_sensor {
  * @irq: Device interrupt line (I2C or SPI).
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
  * @conf_lock: Mutex to prevent concurrent FIFO configuration update.
+ * @page_lock: Mutex to prevent concurrent memory page configuration.
  * @fifo_mode: FIFO operating mode supported by the device.
  * @enable_mask: Enabled sensor bitmask.
  * @ts_sip: Total number of timestamp samples in a given pattern.
@@ -163,6 +164,7 @@ struct st_lsm6dsx_hw {
 
 	struct mutex fifo_lock;
 	struct mutex conf_lock;
+	struct mutex page_lock;
 
 	enum st_lsm6dsx_fifo_mode fifo_mode;
 	u8 enable_mask;
@@ -191,5 +193,44 @@ int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
 int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw);
 int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw);
 int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u16 odr, u8 *val);
+
+static inline int
+st_lsm6dsx_update_bits_locked(struct st_lsm6dsx_hw *hw, unsigned int addr,
+			      unsigned int mask, unsigned int val)
+{
+	int err;
+
+	mutex_lock(&hw->page_lock);
+	err = regmap_update_bits(hw->regmap, addr, mask, val);
+	mutex_unlock(&hw->page_lock);
+
+	return err;
+}
+
+static inline int
+st_lsm6dsx_read_locked(struct st_lsm6dsx_hw *hw, unsigned int addr,
+		       void *val, unsigned int len)
+{
+	int err;
+
+	mutex_lock(&hw->page_lock);
+	err = regmap_bulk_read(hw->regmap, addr, val, len);
+	mutex_unlock(&hw->page_lock);
+
+	return err;
+}
+
+static inline int
+st_lsm6dsx_write_locked(struct st_lsm6dsx_hw *hw, unsigned int addr,
+			unsigned int val)
+{
+	int err;
+
+	mutex_lock(&hw->page_lock);
+	err = regmap_write(hw->regmap, addr, val);
+	mutex_unlock(&hw->page_lock);
+
+	return err;
+}
 
 #endif /* ST_LSM6DSX_H */

@@ -421,6 +421,7 @@ static int st_lsm6dsx_set_full_scale(struct st_lsm6dsx_sensor *sensor,
 {
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	const struct st_lsm6dsx_reg *reg;
+	unsigned int data;
 	int i, err;
 	u8 val;
 
@@ -433,8 +434,8 @@ static int st_lsm6dsx_set_full_scale(struct st_lsm6dsx_sensor *sensor,
 
 	val = st_lsm6dsx_fs_table[sensor->id].fs_avl[i].val;
 	reg = &st_lsm6dsx_fs_table[sensor->id].reg;
-	err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
-				 ST_LSM6DSX_SHIFT_VAL(val, reg->mask));
+	data = ST_LSM6DSX_SHIFT_VAL(val, reg->mask);
+	err = st_lsm6dsx_update_bits_locked(hw, reg->addr, reg->mask, data);
 	if (err < 0)
 		return err;
 
@@ -463,6 +464,7 @@ static int st_lsm6dsx_set_odr(struct st_lsm6dsx_sensor *sensor, u16 odr)
 {
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	const struct st_lsm6dsx_reg *reg;
+	unsigned int data;
 	int err;
 	u8 val;
 
@@ -471,8 +473,8 @@ static int st_lsm6dsx_set_odr(struct st_lsm6dsx_sensor *sensor, u16 odr)
 		return err;
 
 	reg = &st_lsm6dsx_odr_table[sensor->id].reg;
-	return regmap_update_bits(hw->regmap, reg->addr, reg->mask,
-				  ST_LSM6DSX_SHIFT_VAL(val, reg->mask));
+	data = ST_LSM6DSX_SHIFT_VAL(val, reg->mask);
+	return st_lsm6dsx_update_bits_locked(hw, reg->addr, reg->mask, data);
 }
 
 int st_lsm6dsx_sensor_enable(struct st_lsm6dsx_sensor *sensor)
@@ -492,11 +494,12 @@ int st_lsm6dsx_sensor_disable(struct st_lsm6dsx_sensor *sensor)
 {
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	const struct st_lsm6dsx_reg *reg;
+	unsigned int data;
 	int err;
 
 	reg = &st_lsm6dsx_odr_table[sensor->id].reg;
-	err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
-				 ST_LSM6DSX_SHIFT_VAL(0, reg->mask));
+	data = ST_LSM6DSX_SHIFT_VAL(0, reg->mask);
+	err = st_lsm6dsx_update_bits_locked(hw, reg->addr, reg->mask, data);
 	if (err < 0)
 		return err;
 
@@ -519,7 +522,7 @@ static int st_lsm6dsx_read_oneshot(struct st_lsm6dsx_sensor *sensor,
 	delay = 1000000 / sensor->odr;
 	usleep_range(delay, 2 * delay);
 
-	err = regmap_bulk_read(hw->regmap, addr, &data, sizeof(data));
+	err = st_lsm6dsx_read_locked(hw, addr, &data, sizeof(data));
 	if (err < 0)
 		return err;
 
@@ -865,6 +868,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 
 	mutex_init(&hw->fifo_lock);
 	mutex_init(&hw->conf_lock);
+	mutex_init(&hw->page_lock);
 
 	hw->buff = devm_kzalloc(dev, ST_LSM6DSX_BUFF_SIZE, GFP_KERNEL);
 	if (!hw->buff)
@@ -909,6 +913,7 @@ static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
 	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
 	struct st_lsm6dsx_sensor *sensor;
 	const struct st_lsm6dsx_reg *reg;
+	unsigned int data;
 	int i, err = 0;
 
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
@@ -917,8 +922,9 @@ static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
 			continue;
 
 		reg = &st_lsm6dsx_odr_table[sensor->id].reg;
-		err = regmap_update_bits(hw->regmap, reg->addr, reg->mask,
-					 ST_LSM6DSX_SHIFT_VAL(0, reg->mask));
+		data = ST_LSM6DSX_SHIFT_VAL(0, reg->mask);
+		err = st_lsm6dsx_update_bits_locked(hw, reg->addr, reg->mask,
+						    data);
 		if (err < 0)
 			return err;
 	}
