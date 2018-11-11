@@ -7,6 +7,8 @@
 #include <linux/mlx5/driver.h>
 
 enum mlx5_devcom_components {
+	MLX5_DEVCOM_ESW_OFFLOADS,
+
 	MLX5_DEVCOM_NUM_COMPONENTS,
 };
 
