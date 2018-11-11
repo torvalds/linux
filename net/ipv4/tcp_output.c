@@ -1920,9 +1920,12 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
 		goto send_now;
 
 	/* Avoid bursty behavior by allowing defer
-	 * only if the last write was recent.
+	 * only if the last write was recent (1 ms).
+	 * Note that tp->tcp_wstamp_ns can be in the future if we have
+	 * packets waiting in a qdisc or device for EDT delivery.
 	 */
-	if ((s32)(tcp_jiffies32 - tp->lsndtime) > 0)
+	delta = tp->tcp_clock_cache - tp->tcp_wstamp_ns - NSEC_PER_MSEC;
+	if (delta > 0)
 		goto send_now;
 
 	in_flight = tcp_packets_in_flight(tp);
