@@ -165,15 +165,14 @@ static void nand_read_buf16(struct nand_chip *chip, uint8_t *buf, int len)
 
 /**
  * panic_nand_wait_ready - [GENERIC] Wait for the ready pin after commands.
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @timeo: Timeout
  *
  * Helper function for nand_wait_ready used when needing to wait in interrupt
  * context.
  */
-static void panic_nand_wait_ready(struct mtd_info *mtd, unsigned long timeo)
+static void panic_nand_wait_ready(struct nand_chip *chip, unsigned long timeo)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	int i;
 
 	/* Wait for the device to get ready */
@@ -193,11 +192,10 @@ static void panic_nand_wait_ready(struct mtd_info *mtd, unsigned long timeo)
  */
 void nand_wait_ready(struct nand_chip *chip)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	unsigned long timeo = 400;
 
 	if (in_interrupt() || oops_in_progress)
-		return panic_nand_wait_ready(mtd, timeo);
+		return panic_nand_wait_ready(chip, timeo);
 
 	/* Wait until command is processed or timeout occurs */
 	timeo = jiffies + msecs_to_jiffies(timeo);
@@ -214,14 +212,13 @@ EXPORT_SYMBOL_GPL(nand_wait_ready);
 
 /**
  * nand_wait_status_ready - [GENERIC] Wait for the ready status after commands.
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @timeo: Timeout in ms
  *
  * Wait for status ready (i.e. command done) or timeout.
  */
-static void nand_wait_status_ready(struct mtd_info *mtd, unsigned long timeo)
+static void nand_wait_status_ready(struct nand_chip *chip, unsigned long timeo)
 {
-	register struct nand_chip *chip = mtd_to_nand(mtd);
 	int ret;
 
 	timeo = jiffies + msecs_to_jiffies(timeo);
@@ -321,7 +318,7 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
 				      NAND_NCE | NAND_CTRL_CHANGE);
 		/* EZ-NAND can take upto 250ms as per ONFi v4.0 */
-		nand_wait_status_ready(mtd, 250);
+		nand_wait_status_ready(chip, 250);
 		return;
 
 		/* This applies to read commands */
@@ -458,7 +455,7 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
 				      NAND_NCE | NAND_CTRL_CHANGE);
 		/* EZ-NAND can take upto 250ms as per ONFi v4.0 */
-		nand_wait_status_ready(mtd, 250);
+		nand_wait_status_ready(chip, 250);
 		return;
 
 	case NAND_CMD_RNDOUT:
@@ -525,7 +522,6 @@ EXPORT_SYMBOL(nand_get_set_features_notsupp);
 
 /**
  * nand_wait - [DEFAULT] wait until the command is done
- * @mtd: MTD device structure
  * @chip: NAND chip structure
  *
  * Wait for command done. This applies to erase and program only.
