@@ -390,7 +390,7 @@ static void sctp_intl_store_ordered(struct sctp_ulpq *ulpq,
 				    struct sctp_ulpevent *event)
 {
 	struct sctp_ulpevent *cevent;
-	struct sk_buff *pos;
+	struct sk_buff *pos, *loc;
 
 	pos = skb_peek_tail(&ulpq->lobby);
 	if (!pos) {
@@ -410,18 +410,25 @@ static void sctp_intl_store_ordered(struct sctp_ulpq *ulpq,
 		return;
 	}
 
+	loc = NULL;
 	skb_queue_walk(&ulpq->lobby, pos) {
 		cevent = (struct sctp_ulpevent *)pos->cb;
 
-		if (cevent->stream > event->stream)
+		if (cevent->stream > event->stream) {
+			loc = pos;
 			break;
-
+		}
 		if (cevent->stream == event->stream &&
-		    MID_lt(event->mid, cevent->mid))
+		    MID_lt(event->mid, cevent->mid)) {
+			loc = pos;
 			break;
+		}
 	}
 
-	__skb_queue_before(&ulpq->lobby, pos, sctp_event2skb(event));
+	if (!loc)
+		__skb_queue_tail(&ulpq->lobby, sctp_event2skb(event));
+	else
+		__skb_queue_before(&ulpq->lobby, loc, sctp_event2skb(event));
 }
 
 static void sctp_intl_retrieve_ordered(struct sctp_ulpq *ulpq,
