@@ -283,9 +283,15 @@ static int ams_delta_init(struct platform_device *pdev)
 		goto err_unmap;
 
 	/* Register the partitions */
-	mtd_device_register(mtd, partition_info, ARRAY_SIZE(partition_info));
+	err = mtd_device_register(mtd, partition_info,
+				  ARRAY_SIZE(partition_info));
+	if (err)
+		goto err_nand_cleanup;
 
 	return 0;
+
+err_nand_cleanup:
+	nand_cleanup(this);
 
 err_unmap:
 	iounmap(io_base);
