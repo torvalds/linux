@@ -1045,9 +1045,9 @@ static int r852_resume(struct device *device)
 	/* Otherwise, initialize the card */
 	if (dev->card_registered) {
 		r852_engine_enable(dev);
-		dev->chip->select_chip(dev->chip, 0);
+		nand_select_target(dev->chip, 0);
 		nand_reset_op(dev->chip);
-		dev->chip->select_chip(dev->chip, -1);
+		nand_deselect_target(dev->chip);
 	}
 
 	/* Program card detection IRQ */

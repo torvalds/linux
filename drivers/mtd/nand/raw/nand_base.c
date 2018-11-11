@@ -229,6 +229,41 @@ static int check_offs_len(struct nand_chip *chip, loff_t ofs, uint64_t len)
 }
 
 /**
+ * nand_select_target() - Select a NAND target (A.K.A. die)
+ * @chip: NAND chip object
+ * @cs: the CS line to select. Note that this CS id is always from the chip
+ *	PoV, not the controller one
+ *
+ * Select a NAND target so that further operations executed on @chip go to the
+ * selected NAND target.
+ */
+void nand_select_target(struct nand_chip *chip, unsigned int cs)
+{
+	/*
+	 * cs should always lie between 0 and chip->numchips, when that's not
+	 * the case it's a bug and the caller should be fixed.
+	 */
+	if (WARN_ON(cs > chip->numchips))
+		return;
+
+	chip->select_chip(chip, cs);
+}
+EXPORT_SYMBOL_GPL(nand_select_target);
+
+/**
+ * nand_deselect_target() - Deselect the currently selected target
+ * @chip: NAND chip object
+ *
+ * Deselect the currently selected NAND target. The result of operations
+ * executed on @chip after the target has been deselected is undefined.
+ */
+void nand_deselect_target(struct nand_chip *chip)
+{
+	chip->select_chip(chip, -1);
+}
+EXPORT_SYMBOL_GPL(nand_deselect_target);
+
+/**
  * nand_release_device - [GENERIC] release chip
  * @chip: NAND chip object
  *
@@ -440,14 +475,14 @@ static int nand_do_write_oob(struct nand_chip *chip, loff_t to,
 	 */
 	nand_reset(chip, chipnr);
 
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 
 	/* Shift to get page */
 	page = (int)(to >> chip->page_shift);
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(chip)) {
-		chip->select_chip(chip, -1);
+		nand_deselect_target(chip);
 		return -EROFS;
 	}
 
@@ -462,7 +497,7 @@ static int nand_do_write_oob(struct nand_chip *chip, loff_t to,
 	else
 		status = chip->ecc.write_oob(chip, page & chip->pagemask);
 
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 
 	if (status)
 		return status;
@@ -816,10 +851,10 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 
 	/* Change the mode on the chip side (if supported by the NAND chip) */
 	if (nand_supports_set_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE)) {
-		chip->select_chip(chip, chipnr);
+		nand_select_target(chip, chipnr);
 		ret = nand_set_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE,
 					tmode_param);
-		chip->select_chip(chip, -1);
+		nand_deselect_target(chip);
 		if (ret)
 			return ret;
 	}
@@ -834,10 +869,10 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 		return 0;
 
 	memset(tmode_param, 0, ONFI_SUBFEATURE_PARAM_LEN);
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 	ret = nand_get_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE,
 				tmode_param);
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 	if (ret)
 		goto err_reset_chip;
 
@@ -855,9 +890,9 @@ err_reset_chip:
 	 * timing mode.
 	 */
 	nand_reset_data_interface(chip, chipnr);
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 	nand_reset_op(chip);
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 
 	return ret;
 }
@@ -2345,11 +2380,12 @@ int nand_reset(struct nand_chip *chip, int chipnr)
 
 	/*
 	 * The CS line has to be released before we can apply the new NAND
-	 * interface settings, hence this weird ->select_chip() dance.
+	 * interface settings, hence this weird nand_select_target()
+	 * nand_deselect_target() dance.
 	 */
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 	ret = nand_reset_op(chip);
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 	if (ret)
 		return ret;
 
@@ -3133,7 +3169,7 @@ static int nand_do_read_ops(struct nand_chip *chip, loff_t from,
 	bool ecc_fail = false;
 
 	chipnr = (int)(from >> chip->chip_shift);
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 
 	realpage = (int)(from >> chip->page_shift);
 	page = realpage & chip->pagemask;
@@ -3264,11 +3300,11 @@ read_retry:
 		/* Check, if we cross a chip boundary */
 		if (!page) {
 			chipnr++;
-			chip->select_chip(chip, -1);
-			chip->select_chip(chip, chipnr);
+			nand_deselect_target(chip);
+			nand_select_target(chip, chipnr);
 		}
 	}
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 
 	ops->retlen = ops->len - (size_t) readlen;
 	if (oob)
@@ -3465,7 +3501,7 @@ static int nand_do_read_oob(struct nand_chip *chip, loff_t from,
 	len = mtd_oobavail(mtd, ops);
 
 	chipnr = (int)(from >> chip->chip_shift);
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 
 	/* Shift to get page */
 	realpage = (int)(from >> chip->page_shift);
@@ -3498,11 +3534,11 @@ static int nand_do_read_oob(struct nand_chip *chip, loff_t from,
 		/* Check, if we cross a chip boundary */
 		if (!page) {
 			chipnr++;
-			chip->select_chip(chip, -1);
-			chip->select_chip(chip, chipnr);
+			nand_deselect_target(chip);
+			nand_select_target(chip, chipnr);
 		}
 	}
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 
 	ops->oobretlen = ops->ooblen - readlen;
 
@@ -3946,7 +3982,7 @@ static int nand_do_write_ops(struct nand_chip *chip, loff_t to,
 	column = to & (mtd->writesize - 1);
 
 	chipnr = (int)(to >> chip->chip_shift);
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(chip)) {
@@ -4022,8 +4058,8 @@ static int nand_do_write_ops(struct nand_chip *chip, loff_t to,
 		/* Check, if we cross a chip boundary */
 		if (!page) {
 			chipnr++;
-			chip->select_chip(chip, -1);
-			chip->select_chip(chip, chipnr);
+			nand_deselect_target(chip);
+			nand_select_target(chip, chipnr);
 		}
 	}
 
@@ -4032,7 +4068,7 @@ static int nand_do_write_ops(struct nand_chip *chip, loff_t to,
 		ops->oobretlen = ops->ooblen;
 
 err_out:
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 	return ret;
 }
 
@@ -4058,7 +4094,7 @@ static int panic_nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Grab the device */
 	panic_nand_get_device(chip, FL_WRITING);
 
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 
 	/* Wait for the device to get ready */
 	panic_nand_wait(chip, 400);
@@ -4171,7 +4207,7 @@ int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 	pages_per_block = 1 << (chip->phys_erase_shift - chip->page_shift);
 
 	/* Select the NAND device */
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(chip)) {
@@ -4225,8 +4261,8 @@ int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 		/* Check, if we cross a chip boundary */
 		if (len && !(page & chip->pagemask)) {
 			chipnr++;
-			chip->select_chip(chip, -1);
-			chip->select_chip(chip, chipnr);
+			nand_deselect_target(chip);
+			nand_select_target(chip, chipnr);
 		}
 	}
 
@@ -4234,7 +4270,7 @@ int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 erase_exit:
 
 	/* Deselect and wake up anyone waiting on the device */
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 	nand_release_device(chip);
 
 	/* Return more or less happy */
@@ -4272,11 +4308,11 @@ static int nand_block_isbad(struct mtd_info *mtd, loff_t offs)
 
 	/* Select the NAND device */
 	nand_get_device(chip, FL_READING);
-	chip->select_chip(chip, chipnr);
+	nand_select_target(chip, chipnr);
 
 	ret = nand_block_checkbad(chip, offs, 0);
 
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 	nand_release_device(chip);
 
 	return ret;
@@ -4645,7 +4681,7 @@ static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
 		return ret;
 
 	/* Select the device */
-	chip->select_chip(chip, 0);
+	nand_select_target(chip, 0);
 
 	/* Send the command for reading device ID */
 	ret = nand_readid_op(chip, 0, id_data, 2);
@@ -4989,6 +5025,12 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 	if (ret)
 		return ret;
 
+	/*
+	 * Start with chips->numchips = maxchips to let nand_select_target() do
+	 * its job. chip->numchips will be adjusted after.
+	 */
+	chip->numchips = maxchips;
+
 	/* Set the default functions */
 	nand_set_defaults(chip);
 
@@ -4997,14 +5039,14 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 	if (ret) {
 		if (!(chip->options & NAND_SCAN_SILENT_NODEV))
 			pr_warn("No NAND device found\n");
-		chip->select_chip(chip, -1);
+		nand_deselect_target(chip);
 		return ret;
 	}
 
 	nand_maf_id = chip->id.data[0];
 	nand_dev_id = chip->id.data[1];
 
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 
 	/* Check for a chip array */
 	for (i = 1; i < maxchips; i++) {
@@ -5013,15 +5055,15 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 		/* See comment in nand_get_flash_type for reset */
 		nand_reset(chip, i);
 
-		chip->select_chip(chip, i);
+		nand_select_target(chip, i);
 		/* Send the command for reading device ID */
 		nand_readid_op(chip, 0, id, sizeof(id));
 		/* Read manufacturer and device IDs */
 		if (nand_maf_id != id[0] || nand_dev_id != id[1]) {
-			chip->select_chip(chip, -1);
+			nand_deselect_target(chip);
 			break;
 		}
-		chip->select_chip(chip, -1);
+		nand_deselect_target(chip);
 	}
 	if (i > 1)
 		pr_info("%d chips detected\n", i);
@@ -5447,9 +5489,9 @@ static int nand_scan_tail(struct nand_chip *chip)
 	 * to explictly select the relevant die when interacting with the NAND
 	 * chip.
 	 */
-	chip->select_chip(chip, 0);
+	nand_select_target(chip, 0);
 	ret = nand_manufacturer_init(chip);
-	chip->select_chip(chip, -1);
+	nand_deselect_target(chip);
 	if (ret)
 		goto err_free_buf;
 

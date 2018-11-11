@@ -335,14 +335,14 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 			goto notfound_id;
 
 		/* Retrieve the IDs from the first chip. */
-		chip->select_chip(chip, 0);
+		nand_select_target(chip, 0);
 		nand_reset_op(chip);
 		nand_readid_op(chip, 0, id, sizeof(id));
 		*nand_maf_id = id[0];
 		*nand_dev_id = id[1];
 	} else {
 		/* Detect additional chip. */
-		chip->select_chip(chip, chipnr);
+		nand_select_target(chip, chipnr);
 		nand_reset_op(chip);
 		nand_readid_op(chip, 0, id, sizeof(id));
 		if (*nand_maf_id != id[0] || *nand_dev_id != id[1]) {
