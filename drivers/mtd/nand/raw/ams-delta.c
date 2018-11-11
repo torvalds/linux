@@ -29,6 +29,7 @@
  * MTD structure for E3 (Delta)
  */
 struct ams_delta_nand {
+	struct nand_controller	base;
 	struct nand_chip	nand_chip;
 	struct gpio_desc	*gpiod_rdy;
 	struct gpio_desc	*gpiod_nce;
@@ -276,6 +277,10 @@ static int ams_delta_init(struct platform_device *pdev)
 
 	/* Initialize data port direction to a known state */
 	ams_delta_dir_input(priv, true);
+
+	/* Initialize the NAND controller object embedded in ams_delta_nand. */
+	nand_controller_init(&priv->base);
+	this->controller = &priv->base;
 
 	/* Scan to find existence of the device */
 	err = nand_scan(this, 1);
