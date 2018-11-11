@@ -822,6 +822,26 @@ static struct rockchip_mux_route_data rk3128_mux_route_data[] = {
 	},
 };
 
+static struct rockchip_mux_route_data rk3188_mux_route_data[] = {
+	{
+		/* non-iomuxed emmc/flash pins on flash-dqs */
+		.bank_num = 0,
+		.pin = 24,
+		.func = 1,
+		.route_location = ROCKCHIP_ROUTE_GRF,
+		.route_offset = 0xa0,
+		.route_val = BIT(16 + 11),
+	}, {
+		/* non-iomuxed emmc/flash pins on emmc-clk */
+		.bank_num = 0,
+		.pin = 24,
+		.func = 2,
+		.route_location = ROCKCHIP_ROUTE_GRF,
+		.route_offset = 0xa0,
+		.route_val = BIT(16 + 11) | BIT(11),
+	},
+};
+
 static struct rockchip_mux_route_data rk3228_mux_route_data[] = {
 	{
 		/* pwm0-0 */
@@ -3626,6 +3646,8 @@ static struct rockchip_pin_ctrl rk3188_pin_ctrl = {
 		.label			= "RK3188-GPIO",
 		.type			= RK3188,
 		.grf_mux_offset		= 0x60,
+		.iomux_routes		= rk3188_mux_route_data,
+		.niomux_routes		= ARRAY_SIZE(rk3188_mux_route_data),
 		.pull_calc_reg		= rk3188_calc_pull_reg_and_bit,
 };
 
