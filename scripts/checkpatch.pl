@@ -6389,6 +6389,12 @@ sub process {
 			     "please use device_initcall() or more appropriate function instead of __initcall() (see include/linux/init.h)\n" . $herecurr);
 		}
 
+# check for spin_is_locked(), suggest lockdep instead
+		if ($line =~ /\bspin_is_locked\(/) {
+			WARN("USE_LOCKDEP",
+			     "Where possible, use lockdep_assert_held instead of assertions based on spin_is_locked\n" . $herecurr);
+		}
+
 # check for deprecated apis
 		if ($line =~ /\b($deprecated_apis_search)\b\s*\(/) {
 			my $deprecated_api = $1;
