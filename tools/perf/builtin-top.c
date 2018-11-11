@@ -1112,8 +1112,11 @@ static int deliver_event(struct ordered_events *qe,
 	struct machine *machine;
 	int ret = -1;
 
-	if (should_drop(qevent, top))
+	if (should_drop(qevent, top)) {
+		top->drop++;
+		top->drop_total++;
 		return 0;
+	}
 
 	ret = perf_evlist__parse_sample(evlist, event, &sample);
 	if (ret) {
