@@ -1594,14 +1594,17 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		if (in_range(peers_prio, l->priority + 1, TIPC_MAX_LINK_PRI))
 			l->priority = peers_prio;
 
-		/* ACTIVATE_MSG serves as PEER_RESET if link is already down */
-		if (msg_peer_stopping(hdr))
+		/* If peer is going down we want full re-establish cycle */
+		if (msg_peer_stopping(hdr)) {
 			rc = tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
-		else if ((mtyp == RESET_MSG) || !link_is_up(l))
+			break;
+		}
+		/* ACTIVATE_MSG serves as PEER_RESET if link is already down */
+		if (mtyp == RESET_MSG || !link_is_up(l))
 			rc = tipc_link_fsm_evt(l, LINK_PEER_RESET_EVT);
 
 		/* ACTIVATE_MSG takes up link if it was already locally reset */
-		if ((mtyp == ACTIVATE_MSG) && (l->state == LINK_ESTABLISHING))
+		if (mtyp == ACTIVATE_MSG && l->state == LINK_ESTABLISHING)
 			rc = TIPC_LINK_UP_EVT;
 
 		l->peer_session = msg_session(hdr);
