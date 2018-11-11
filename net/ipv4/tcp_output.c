@@ -2220,8 +2220,9 @@ static bool tcp_small_queue_check(struct sock *sk, const struct sk_buff *skb,
 	limit = max_t(unsigned long,
 		      2 * skb->truesize,
 		      sk->sk_pacing_rate >> sk->sk_pacing_shift);
-	limit = min_t(unsigned long, limit,
-		      sock_net(sk)->ipv4.sysctl_tcp_limit_output_bytes);
+	if (sk->sk_pacing_status == SK_PACING_NONE)
+		limit = min_t(unsigned long, limit,
+			      sock_net(sk)->ipv4.sysctl_tcp_limit_output_bytes);
 	limit <<= factor;
 
 	if (refcount_read(&sk->sk_wmem_alloc) > limit) {
