@@ -24,6 +24,9 @@ struct bpf_flow_keys;
 typedef int tc_setup_cb_t(enum tc_setup_type type,
 			  void *type_data, void *cb_priv);
 
+typedef int tc_indr_block_bind_cb_t(struct net_device *dev, void *cb_priv,
+				    enum tc_setup_type type, void *type_data);
+
 struct qdisc_rate_table {
 	struct tc_ratespec rate;
 	u32		data[256];

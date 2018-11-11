@@ -2,7 +2,6 @@
 /* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/bitfield.h>
-#include <net/geneve.h>
 #include <net/pkt_cls.h>
 #include <net/switchdev.h>
 #include <net/tc_act/tc_csum.h>
@@ -11,7 +10,6 @@
 #include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_tunnel_key.h>
-#include <net/vxlan.h>
 
 #include "cmsg.h"
 #include "main.h"
@@ -92,18 +90,6 @@ nfp_fl_pre_lag(struct nfp_app *app, const struct tc_action *action,
 	return act_size;
 }
 
-static bool nfp_fl_netdev_is_tunnel_type(struct net_device *out_dev,
-					 enum nfp_flower_tun_type tun_type)
-{
-	if (netif_is_vxlan(out_dev))
-		return tun_type == NFP_FL_TUNNEL_VXLAN;
-
-	if (netif_is_geneve(out_dev))
-		return tun_type == NFP_FL_TUNNEL_GENEVE;
-
-	return false;
-}
-
 static int
 nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 	      const struct tc_action *action, struct nfp_fl_payload *nfp_flow,
@@ -149,11 +135,12 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 		/* Set action output parameters. */
 		output->flags = cpu_to_be16(tmp_flags);
 
-		/* Only offload if egress ports are on the same device as the
-		 * ingress port.
-		 */
-		if (!switchdev_port_same_parent_id(in_dev, out_dev))
-			return -EOPNOTSUPP;
+		if (nfp_netdev_is_nfp_repr(in_dev)) {
+			/* Confirm ingress and egress are on same device. */
+			if (!switchdev_port_same_parent_id(in_dev, out_dev))
+				return -EOPNOTSUPP;
+		}
+
 		if (!nfp_netdev_is_nfp_repr(out_dev))
 			return -EOPNOTSUPP;
 
@@ -840,9 +827,8 @@ nfp_flower_loop_action(struct nfp_app *app, const struct tc_action *a,
 		*a_len += sizeof(struct nfp_fl_push_vlan);
 	} else if (is_tcf_tunnel_set(a)) {
 		struct ip_tunnel_info *ip_tun = tcf_tunnel_info(a);
-		struct nfp_repr *repr = netdev_priv(netdev);
 
-		*tun_type = nfp_fl_get_tun_from_act_l4_port(repr->app, a);
+		*tun_type = nfp_fl_get_tun_from_act_l4_port(app, a);
 		if (*tun_type == NFP_FL_TUNNEL_NONE)
 			return -EOPNOTSUPP;
 
