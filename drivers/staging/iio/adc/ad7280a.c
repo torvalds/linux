@@ -350,29 +350,38 @@ static int ad7280_chain_setup(struct ad7280_state *st)
 			   AD7280A_CTRL_LB_MUST_SET |
 			   st->ctrl_lb);
 	if (ret)
-		return ret;
+		goto error_power_down;
 
 	ret = ad7280_write(st, AD7280A_DEVADDR_MASTER, AD7280A_READ, 1,
 			   AD7280A_CONTROL_LB << 2);
 	if (ret)
-		return ret;
+		goto error_power_down;
 
 	for (n = 0; n <= AD7280A_MAX_CHAIN; n++) {
 		ret = __ad7280_read32(st, &val);
 		if (ret)
-			return ret;
+			goto error_power_down;
 
 		if (val == 0)
 			return n - 1;
 
-		if (ad7280_check_crc(st, val))
-			return -EIO;
+		if (ad7280_check_crc(st, val)) {
+			ret = -EIO;
+			goto error_power_down;
+		}
 
-		if (n != ad7280a_devaddr(val >> 27))
-			return -EIO;
+		if (n != ad7280a_devaddr(val >> 27)) {
+			ret = -EIO;
+			goto error_power_down;
+		}
 	}
+	ret = -EFAULT;
 
-	return -EFAULT;
+error_power_down:
+	ad7280_write(st, AD7280A_DEVADDR_MASTER, AD7280A_CONTROL_HB, 1,
+		     AD7280A_CTRL_HB_PWRDN_SW | st->ctrl_hb);
+
+	return ret;
 }
 
 static ssize_t ad7280_show_balance_sw(struct device *dev,
@@ -892,7 +901,7 @@ static int ad7280_probe(struct spi_device *spi)
 
 	ret = ad7280_channel_init(st);
 	if (ret < 0)
-		return ret;
+		goto error_power_down;
 
 	indio_dev->num_channels = ret;
 	indio_dev->channels = st->channels;
@@ -941,6 +950,9 @@ error_free_attr:
 error_free_channels:
 	kfree(st->channels);
 
+error_power_down:
+	ad7280_write(st, AD7280A_DEVADDR_MASTER, AD7280A_CONTROL_HB, 1,
+		     AD7280A_CTRL_HB_PWRDN_SW | st->ctrl_hb);
 	return ret;
 }
 
