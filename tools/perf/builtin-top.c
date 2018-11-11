@@ -833,6 +833,8 @@ perf_top__process_lost_samples(struct perf_top *top,
 	hists->stats.total_lost_samples += event->lost_samples.lost;
 }
 
+static u64 last_timestamp;
+
 static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 {
 	struct record_opts *opts = &top->record_opts;
@@ -845,14 +847,13 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 		return;
 
 	while ((event = perf_mmap__read_event(md)) != NULL) {
-		u64 timestamp = -1ULL;
 		int ret;
 
-		ret = perf_evlist__parse_sample_timestamp(evlist, event, &timestamp);
+		ret = perf_evlist__parse_sample_timestamp(evlist, event, &last_timestamp);
 		if (ret && ret != -1)
 			break;
 
-		ret = ordered_events__queue(top->qe.in, event, timestamp, 0);
+		ret = ordered_events__queue(top->qe.in, event, last_timestamp, 0);
 		if (ret)
 			break;
 
@@ -1084,6 +1085,21 @@ static void *process_thread(void *arg)
 	return NULL;
 }
 
+/*
+ * Allow only 'top->delay_secs' seconds behind samples.
+ */
+static int should_drop(struct ordered_event *qevent, struct perf_top *top)
+{
+	union perf_event *event = qevent->event;
+	u64 delay_timestamp;
+
+	if (event->header.type != PERF_RECORD_SAMPLE)
+		return false;
+
+	delay_timestamp = qevent->timestamp + top->delay_secs * NSEC_PER_SEC;
+	return delay_timestamp < last_timestamp;
+}
+
 static int deliver_event(struct ordered_events *qe,
 			 struct ordered_event *qevent)
 {
@@ -1095,6 +1111,9 @@ static int deliver_event(struct ordered_events *qe,
 	struct perf_evsel *evsel;
 	struct machine *machine;
 	int ret = -1;
+
+	if (should_drop(qevent, top))
+		return 0;
 
 	ret = perf_evlist__parse_sample(evlist, event, &sample);
 	if (ret) {
