@@ -148,6 +148,26 @@ out:
 	return err;
 }
 
+static int
+st_lsm6dsx_shub_write_reg_with_mask(struct st_lsm6dsx_hw *hw, u8 addr,
+				    u8 mask, u8 val)
+{
+	int err;
+
+	mutex_lock(&hw->page_lock);
+	err = st_lsm6dsx_set_page(hw, true);
+	if (err < 0)
+		goto out;
+
+	err = regmap_update_bits(hw->regmap, addr, mask, val);
+
+	st_lsm6dsx_set_page(hw, false);
+out:
+	mutex_unlock(&hw->page_lock);
+
+	return err;
+}
+
 static int st_lsm6dsx_shub_master_enable(struct st_lsm6dsx_sensor *sensor,
 					 bool enable)
 {
@@ -238,6 +258,18 @@ st_lsm6dsx_shub_write(struct st_lsm6dsx_sensor *sensor, u8 addr,
 	int err, i;
 
 	hub_settings = &hw->settings->shub_settings;
+	if (hub_settings->wr_once.addr) {
+		unsigned int data;
+
+		data = ST_LSM6DSX_SHIFT_VAL(1, hub_settings->wr_once.mask);
+		err = st_lsm6dsx_shub_write_reg_with_mask(hw,
+			hub_settings->wr_once.addr,
+			hub_settings->wr_once.mask,
+			data);
+		if (err < 0)
+			return err;
+	}
+
 	slv_addr = ST_LSM6DSX_SLV_ADDR(0, hub_settings->slv0_addr);
 	config[0] = sensor->ext_info.addr << 1;
 	for (i = 0 ; i < len; i++) {
@@ -319,10 +351,53 @@ st_lsm6dsx_shub_set_odr(struct st_lsm6dsx_sensor *sensor, u16 odr)
 					       val);
 }
 
+/* use SLV{1,2,3} for FIFO read operations */
+static int
+st_lsm6dsx_shub_config_channels(struct st_lsm6dsx_sensor *sensor,
+				bool enable)
+{
+	const struct st_lsm6dsx_shub_settings *hub_settings;
+	const struct st_lsm6dsx_ext_dev_settings *settings;
+	u8 config[9] = {}, enable_mask, slv_addr;
+	struct st_lsm6dsx_hw *hw = sensor->hw;
+	struct st_lsm6dsx_sensor *cur_sensor;
+	int i, j = 0;
+
+	hub_settings = &hw->settings->shub_settings;
+	if (enable)
+		enable_mask = hw->enable_mask | BIT(sensor->id);
+	else
+		enable_mask = hw->enable_mask & ~BIT(sensor->id);
+
+	for (i = ST_LSM6DSX_ID_EXT0; i <= ST_LSM6DSX_ID_EXT2; i++) {
+		if (!hw->iio_devs[i])
+			continue;
+
+		cur_sensor = iio_priv(hw->iio_devs[i]);
+		if (!(enable_mask & BIT(cur_sensor->id)))
+			continue;
+
+		settings = cur_sensor->ext_info.settings;
+		config[j] = (sensor->ext_info.addr << 1) | 1;
+		config[j + 1] = settings->out.addr;
+		config[j + 2] = (settings->out.len & ST_LS6DSX_READ_OP_MASK) |
+				hub_settings->batch_en;
+		j += 3;
+	}
+
+	slv_addr = ST_LSM6DSX_SLV_ADDR(1, hub_settings->slv0_addr);
+	return st_lsm6dsx_shub_write_reg(hw, slv_addr, config,
+					 sizeof(config));
+}
+
 int st_lsm6dsx_shub_set_enable(struct st_lsm6dsx_sensor *sensor, bool enable)
 {
 	const struct st_lsm6dsx_ext_dev_settings *settings;
 	int err;
+
+	err = st_lsm6dsx_shub_config_channels(sensor, enable);
+	if (err < 0)
+		return err;
 
 	settings = sensor->ext_info.settings;
 	if (enable) {

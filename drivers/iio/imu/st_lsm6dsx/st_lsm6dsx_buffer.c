@@ -68,6 +68,9 @@ enum st_lsm6dsx_fifo_tag {
 	ST_LSM6DSX_GYRO_TAG = 0x01,
 	ST_LSM6DSX_ACC_TAG = 0x02,
 	ST_LSM6DSX_TS_TAG = 0x04,
+	ST_LSM6DSX_EXT0_TAG = 0x0f,
+	ST_LSM6DSX_EXT1_TAG = 0x10,
+	ST_LSM6DSX_EXT2_TAG = 0x11,
 };
 
 static const
@@ -460,12 +463,36 @@ st_lsm6dsx_push_tagged_data(struct st_lsm6dsx_hw *hw, u8 tag,
 	struct st_lsm6dsx_sensor *sensor;
 	struct iio_dev *iio_dev;
 
+	/*
+	 * EXT_TAG are managed in FIFO fashion so ST_LSM6DSX_EXT0_TAG
+	 * corresponds to the first enabled channel, ST_LSM6DSX_EXT1_TAG
+	 * to the second one and ST_LSM6DSX_EXT2_TAG to the last enabled
+	 * channel
+	 */
 	switch (tag) {
 	case ST_LSM6DSX_GYRO_TAG:
 		iio_dev = hw->iio_devs[ST_LSM6DSX_ID_GYRO];
 		break;
 	case ST_LSM6DSX_ACC_TAG:
 		iio_dev = hw->iio_devs[ST_LSM6DSX_ID_ACC];
+		break;
+	case ST_LSM6DSX_EXT0_TAG:
+		if (hw->enable_mask & BIT(ST_LSM6DSX_ID_EXT0))
+			iio_dev = hw->iio_devs[ST_LSM6DSX_ID_EXT0];
+		else if (hw->enable_mask & BIT(ST_LSM6DSX_ID_EXT1))
+			iio_dev = hw->iio_devs[ST_LSM6DSX_ID_EXT1];
+		else
+			iio_dev = hw->iio_devs[ST_LSM6DSX_ID_EXT2];
+		break;
+	case ST_LSM6DSX_EXT1_TAG:
+		if ((hw->enable_mask & BIT(ST_LSM6DSX_ID_EXT0)) &&
+		    (hw->enable_mask & BIT(ST_LSM6DSX_ID_EXT1)))
+			iio_dev = hw->iio_devs[ST_LSM6DSX_ID_EXT1];
+		else
+			iio_dev = hw->iio_devs[ST_LSM6DSX_ID_EXT2];
+		break;
+	case ST_LSM6DSX_EXT2_TAG:
+		iio_dev = hw->iio_devs[ST_LSM6DSX_ID_EXT2];
 		break;
 	default:
 		return -EINVAL;
@@ -593,13 +620,21 @@ static int st_lsm6dsx_update_fifo(struct iio_dev *iio_dev, bool enable)
 			goto out;
 	}
 
-	err = st_lsm6dsx_sensor_set_enable(sensor, enable);
-	if (err < 0)
-		goto out;
+	if (sensor->id == ST_LSM6DSX_ID_EXT0 ||
+	    sensor->id == ST_LSM6DSX_ID_EXT1 ||
+	    sensor->id == ST_LSM6DSX_ID_EXT2) {
+		err = st_lsm6dsx_shub_set_enable(sensor, enable);
+		if (err < 0)
+			goto out;
+	} else {
+		err = st_lsm6dsx_sensor_set_enable(sensor, enable);
+		if (err < 0)
+			goto out;
 
-	err = st_lsm6dsx_set_fifo_odr(sensor, enable);
-	if (err < 0)
-		goto out;
+		err = st_lsm6dsx_set_fifo_odr(sensor, enable);
+		if (err < 0)
+			goto out;
+	}
 
 	err = st_lsm6dsx_update_decimators(hw);
 	if (err < 0)
