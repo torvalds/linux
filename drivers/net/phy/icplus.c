@@ -42,8 +42,8 @@ MODULE_LICENSE("GPL");
 #define IP1001_APS_ON			11	/* IP1001 APS Mode  bit */
 #define IP101A_G_APS_ON			2	/* IP101A/G APS Mode bit */
 #define IP101A_G_IRQ_CONF_STATUS	0x11	/* Conf Info IRQ & Status Reg */
-#define	IP101A_G_IRQ_PIN_USED		(1<<15) /* INTR pin used */
-#define	IP101A_G_IRQ_DEFAULT		IP101A_G_IRQ_PIN_USED
+#define	IP101A_G_IRQ_PIN_USED		BIT(15) /* INTR pin used */
+#define	IP101A_G_NO_IRQ			BIT(11) /* IRQ's inactive */
 
 static int ip175c_config_init(struct phy_device *phydev)
 {
@@ -170,11 +170,6 @@ static int ip101a_g_config_init(struct phy_device *phydev)
 	if (c < 0)
 		return c;
 
-	/* INTR pin used: speed/link/duplex will cause an interrupt */
-	c = phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, IP101A_G_IRQ_DEFAULT);
-	if (c < 0)
-		return c;
-
 	/* Enable Auto Power Saving mode */
 	c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
 	c |= IP101A_G_APS_ON;
@@ -199,6 +194,19 @@ static int ip175c_config_aneg(struct phy_device *phydev)
 		genphy_config_aneg(phydev);
 
 	return 0;
+}
+
+static int ip101a_g_config_intr(struct phy_device *phydev)
+{
+	u16 val;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		/* INTR pin used: Speed/link/duplex will cause an interrupt */
+		val = IP101A_G_IRQ_PIN_USED;
+	else
+		val = IP101A_G_NO_IRQ;
+
+	return phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, val);
 }
 
 static int ip101a_g_ack_interrupt(struct phy_device *phydev)
@@ -234,6 +242,7 @@ static struct phy_driver icplus_driver[] = {
 	.name		= "ICPlus IP101A/G",
 	.phy_id_mask	= 0x0ffffff0,
 	.features	= PHY_BASIC_FEATURES,
+	.config_intr	= ip101a_g_config_intr,
 	.ack_interrupt	= ip101a_g_ack_interrupt,
 	.config_init	= &ip101a_g_config_init,
 	.suspend	= genphy_suspend,
