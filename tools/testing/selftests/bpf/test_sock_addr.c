@@ -574,24 +574,44 @@ static int bind4_prog_load(const struct sock_addr_test *test)
 		/* if (sk.family == AF_INET && */
 		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, family)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, AF_INET, 16),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, AF_INET, 24),
 
 		/*     (sk.type == SOCK_DGRAM || sk.type == SOCK_STREAM) && */
 		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, type)),
 		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, SOCK_DGRAM, 1),
 		BPF_JMP_A(1),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, SOCK_STREAM, 12),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, SOCK_STREAM, 20),
 
 		/*     1st_byte_of_user_ip4 == expected && */
 		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, user_ip4)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[0], 10),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[0], 18),
+
+		/*     2nd_byte_of_user_ip4 == expected && */
+		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
+			    offsetof(struct bpf_sock_addr, user_ip4) + 1),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[1], 16),
+
+		/*     3rd_byte_of_user_ip4 == expected && */
+		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
+			    offsetof(struct bpf_sock_addr, user_ip4) + 2),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[2], 14),
+
+		/*     4th_byte_of_user_ip4 == expected && */
+		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
+			    offsetof(struct bpf_sock_addr, user_ip4) + 3),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[3], 12),
 
 		/*     1st_half_of_user_ip4 == expected && */
 		BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_6,
 			    offsetof(struct bpf_sock_addr, user_ip4)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr16[0], 8),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr16[0], 10),
+
+		/*     2nd_half_of_user_ip4 == expected && */
+		BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_6,
+			    offsetof(struct bpf_sock_addr, user_ip4) + 2),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr16[1], 8),
 
 		/*     whole_user_ip4 == expected) { */
 		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
