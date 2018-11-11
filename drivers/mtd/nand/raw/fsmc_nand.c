@@ -609,22 +609,19 @@ static void fsmc_write_buf_dma(struct mtd_info *mtd, const uint8_t *buf,
 }
 
 /* fsmc_select_chip - assert or deassert nCE */
-static void fsmc_select_chip(struct nand_chip *chip, int chipnr)
+static void fsmc_ce_ctrl(struct fsmc_nand_data *host, bool assert)
 {
-	struct fsmc_nand_data *host = mtd_to_fsmc(nand_to_mtd(chip));
-	u32 pc;
+	u32 pc = readl(host->regs_va + FSMC_PC);
 
-	/* Support only one CS */
-	if (chipnr > 0)
-		return;
-
-	pc = readl(host->regs_va + FSMC_PC);
-	if (chipnr < 0)
+	if (!assert)
 		writel_relaxed(pc & ~FSMC_ENABLE, host->regs_va + FSMC_PC);
 	else
 		writel_relaxed(pc | FSMC_ENABLE, host->regs_va + FSMC_PC);
 
-	/* nCE line must be asserted before starting any operation */
+	/*
+	 * nCE line changes must be applied before returning from this
+	 * function.
+	 */
 	mb();
 }
 
@@ -645,6 +642,9 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 	int i;
 
 	pr_debug("Executing operation [%d instructions]:\n", op->ninstrs);
+
+	fsmc_ce_ctrl(host, true);
+
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {
 		instr = &op->instrs[op_id];
 
@@ -700,6 +700,8 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 			break;
 		}
 	}
+
+	fsmc_ce_ctrl(host, false);
 
 	return ret;
 }
@@ -1081,7 +1083,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	mtd->dev.parent = &pdev->dev;
 	nand->exec_op = fsmc_exec_op;
-	nand->select_chip = fsmc_select_chip;
 
 	/*
 	 * Setup default ECC mode. nand_dt_init() called from nand_scan_ident()
