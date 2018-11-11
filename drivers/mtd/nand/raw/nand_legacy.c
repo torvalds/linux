@@ -585,7 +585,7 @@ void nand_legacy_set_defaults(struct nand_chip *chip)
 		chip->legacy.chip_delay = 20;
 
 	/* check, if a user supplied command function given */
-	if (!chip->legacy.cmdfunc && !chip->exec_op)
+	if (!chip->legacy.cmdfunc)
 		chip->legacy.cmdfunc = nand_command;
 
 	/* check, if a user supplied wait function given */
