@@ -61,9 +61,16 @@ struct aq_nic_cfg_s {
 #define AQ_NIC_TCVEC2RING(_NIC_, _TC_, _VEC_) \
 	((_TC_) * AQ_CFG_TCS_MAX + (_VEC_))
 
+struct aq_hw_rx_fl3l4 {
+	u8   active_ipv4;
+	u8   active_ipv6:2;
+	u8 is_ipv6;
+};
+
 struct aq_hw_rx_fltrs_s {
 	struct hlist_head     filter_list;
 	u16                   active_filters;
+	struct aq_hw_rx_fl3l4 fl3l4;
 };
 
 struct aq_nic_s {

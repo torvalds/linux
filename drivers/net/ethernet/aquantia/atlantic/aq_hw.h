@@ -18,6 +18,10 @@
 #include "aq_rss.h"
 #include "hw_atl/hw_atl_utils.h"
 
+#define AQ_RX_FIRST_LOC_FL3L4	   32U
+#define AQ_RX_LAST_LOC_FL3L4	   39U
+#define AQ_RX_MAX_RXNFC_LOC	   AQ_RX_LAST_LOC_FL3L4
+
 /* NIC H/W capabilities */
 struct aq_hw_caps_s {
 	u64 hw_features;
@@ -130,6 +134,7 @@ struct aq_hw_s {
 struct aq_ring_s;
 struct aq_ring_param_s;
 struct sk_buff;
+struct aq_rx_filter_l3l4;
 
 struct aq_hw_ops {
 
@@ -182,6 +187,12 @@ struct aq_hw_ops {
 
 	int (*hw_packet_filter_set)(struct aq_hw_s *self,
 				    unsigned int packet_filter);
+
+	int (*hw_filter_l3l4_set)(struct aq_hw_s *self,
+				  struct aq_rx_filter_l3l4 *data);
+
+	int (*hw_filter_l3l4_clear)(struct aq_hw_s *self,
+				    struct aq_rx_filter_l3l4 *data);
 
 	int (*hw_multicast_list_set)(struct aq_hw_s *self,
 				     u8 ar_mac[AQ_HW_MULTICAST_ADDRESS_MAX]

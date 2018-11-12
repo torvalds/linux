@@ -85,11 +85,46 @@ aq_rule_already_exists(struct aq_nic_s *aq_nic,
 	return false;
 }
 
+static int aq_check_approve_fl3l4(struct aq_nic_s *aq_nic,
+				  struct aq_hw_rx_fltrs_s *rx_fltrs,
+				  struct ethtool_rx_flow_spec *fsp)
+{
+	if (fsp->location < AQ_RX_FIRST_LOC_FL3L4 ||
+	    fsp->location > AQ_RX_LAST_LOC_FL3L4) {
+		netdev_err(aq_nic->ndev,
+			   "ethtool: location must be in range [%d, %d]",
+			   AQ_RX_FIRST_LOC_FL3L4,
+			   AQ_RX_LAST_LOC_FL3L4);
+		return -EINVAL;
+	}
+	if (rx_fltrs->fl3l4.is_ipv6 && rx_fltrs->fl3l4.active_ipv4) {
+		rx_fltrs->fl3l4.is_ipv6 = false;
+		netdev_err(aq_nic->ndev,
+			   "ethtool: mixing ipv4 and ipv6 is not allowed");
+		return -EINVAL;
+	} else if (!rx_fltrs->fl3l4.is_ipv6 && rx_fltrs->fl3l4.active_ipv6) {
+		rx_fltrs->fl3l4.is_ipv6 = true;
+		netdev_err(aq_nic->ndev,
+			   "ethtool: mixing ipv4 and ipv6 is not allowed");
+		return -EINVAL;
+	} else if (rx_fltrs->fl3l4.is_ipv6		      &&
+		   fsp->location != AQ_RX_FIRST_LOC_FL3L4 + 4 &&
+		   fsp->location != AQ_RX_FIRST_LOC_FL3L4) {
+		netdev_err(aq_nic->ndev,
+			   "ethtool: The specified location for ipv6 must be %d or %d",
+			   AQ_RX_FIRST_LOC_FL3L4, AQ_RX_FIRST_LOC_FL3L4 + 4);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int __must_check
 aq_check_filter(struct aq_nic_s *aq_nic,
 		struct ethtool_rx_flow_spec *fsp)
 {
 	int err = 0;
+	struct aq_hw_rx_fltrs_s *rx_fltrs = aq_get_hw_rx_fltrs(aq_nic);
 
 	if (fsp->flow_type & FLOW_EXT) {
 		err = -EOPNOTSUPP;
@@ -103,14 +138,16 @@ aq_check_filter(struct aq_nic_s *aq_nic,
 		case SCTP_V4_FLOW:
 		case IPV4_FLOW:
 		case IP_USER_FLOW:
-			err = -EOPNOTSUPP;
+			rx_fltrs->fl3l4.is_ipv6 = false;
+			err = aq_check_approve_fl3l4(aq_nic, rx_fltrs, fsp);
 			break;
 		case TCP_V6_FLOW:
 		case UDP_V6_FLOW:
 		case SCTP_V6_FLOW:
 		case IPV6_FLOW:
 		case IPV6_USER_FLOW:
-			err = -EOPNOTSUPP;
+			rx_fltrs->fl3l4.is_ipv6 = true;
+			err = aq_check_approve_fl3l4(aq_nic, rx_fltrs, fsp);
 			break;
 		default:
 			netdev_err(aq_nic->ndev,
@@ -156,6 +193,11 @@ aq_rule_is_not_correct(struct aq_nic_s *aq_nic,
 
 	if (!aq_nic) {
 		rule_is_not_correct = true;
+	} else if (fsp->location > AQ_RX_MAX_RXNFC_LOC) {
+		netdev_err(aq_nic->ndev,
+			   "ethtool: The specified number %u rule is invalid\n",
+			   fsp->location);
+		rule_is_not_correct = true;
 	} else if (aq_check_filter(aq_nic, fsp)) {
 		rule_is_not_correct = true;
 	} else if (fsp->ring_cookie != RX_CLS_FLOW_DISC) {
@@ -187,6 +229,125 @@ aq_check_rule(struct aq_nic_s *aq_nic,
 	return err;
 }
 
+static int aq_set_data_fl3l4(struct aq_nic_s *aq_nic,
+			     struct aq_rx_filter *aq_rx_fltr,
+			     struct aq_rx_filter_l3l4 *data, bool add)
+{
+	struct aq_hw_rx_fltrs_s *rx_fltrs = aq_get_hw_rx_fltrs(aq_nic);
+	const struct ethtool_rx_flow_spec *fsp = &aq_rx_fltr->aq_fsp;
+
+	memset(data, 0, sizeof(*data));
+
+	data->is_ipv6 = rx_fltrs->fl3l4.is_ipv6;
+	data->location = HW_ATL_GET_REG_LOCATION_FL3L4(fsp->location);
+
+	if (!add) {
+		if (!data->is_ipv6)
+			rx_fltrs->fl3l4.active_ipv4 &= ~BIT(data->location);
+		else
+			rx_fltrs->fl3l4.active_ipv6 &=
+				~BIT((data->location) / 4);
+
+		return 0;
+	}
+
+	data->cmd |= HW_ATL_RX_ENABLE_FLTR_L3L4;
+
+	switch (fsp->flow_type) {
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		data->cmd |= HW_ATL_RX_ENABLE_CMP_PROT_L4;
+		break;
+	case UDP_V4_FLOW:
+	case UDP_V6_FLOW:
+		data->cmd |= HW_ATL_RX_UDP;
+		data->cmd |= HW_ATL_RX_ENABLE_CMP_PROT_L4;
+		break;
+	case SCTP_V4_FLOW:
+	case SCTP_V6_FLOW:
+		data->cmd |= HW_ATL_RX_SCTP;
+		data->cmd |= HW_ATL_RX_ENABLE_CMP_PROT_L4;
+		break;
+	default:
+		break;
+	}
+
+	if (!data->is_ipv6) {
+		data->ip_src[0] =
+			ntohl(fsp->h_u.tcp_ip4_spec.ip4src);
+		data->ip_dst[0] =
+			ntohl(fsp->h_u.tcp_ip4_spec.ip4dst);
+		rx_fltrs->fl3l4.active_ipv4 |= BIT(data->location);
+	} else {
+		int i;
+
+		rx_fltrs->fl3l4.active_ipv6 |= BIT((data->location) / 4);
+		for (i = 0; i < HW_ATL_RX_CNT_REG_ADDR_IPV6; ++i) {
+			data->ip_dst[i] =
+				ntohl(fsp->h_u.tcp_ip6_spec.ip6dst[i]);
+			data->ip_src[i] =
+				ntohl(fsp->h_u.tcp_ip6_spec.ip6src[i]);
+		}
+		data->cmd |= HW_ATL_RX_ENABLE_L3_IPV6;
+	}
+	if (fsp->flow_type != IP_USER_FLOW &&
+	    fsp->flow_type != IPV6_USER_FLOW) {
+		if (!data->is_ipv6) {
+			data->p_dst =
+				ntohs(fsp->h_u.tcp_ip4_spec.pdst);
+			data->p_src =
+				ntohs(fsp->h_u.tcp_ip4_spec.psrc);
+		} else {
+			data->p_dst =
+				ntohs(fsp->h_u.tcp_ip6_spec.pdst);
+			data->p_src =
+				ntohs(fsp->h_u.tcp_ip6_spec.psrc);
+		}
+	}
+	if (data->ip_src[0] && !data->is_ipv6)
+		data->cmd |= HW_ATL_RX_ENABLE_CMP_SRC_ADDR_L3;
+	if (data->ip_dst[0] && !data->is_ipv6)
+		data->cmd |= HW_ATL_RX_ENABLE_CMP_DEST_ADDR_L3;
+	if (data->p_dst)
+		data->cmd |= HW_ATL_RX_ENABLE_CMP_DEST_PORT_L4;
+	if (data->p_src)
+		data->cmd |= HW_ATL_RX_ENABLE_CMP_SRC_PORT_L4;
+	if (fsp->ring_cookie != RX_CLS_FLOW_DISC) {
+		data->cmd |= HW_ATL_RX_HOST << HW_ATL_RX_ACTION_FL3F4_SHIFT;
+		data->cmd |= fsp->ring_cookie << HW_ATL_RX_QUEUE_FL3L4_SHIFT;
+		data->cmd |= HW_ATL_RX_ENABLE_QUEUE_L3L4;
+	} else {
+		data->cmd |= HW_ATL_RX_DISCARD << HW_ATL_RX_ACTION_FL3F4_SHIFT;
+	}
+
+	return 0;
+}
+
+static int aq_set_fl3l4(struct aq_hw_s *aq_hw,
+			const struct aq_hw_ops *aq_hw_ops,
+			struct aq_rx_filter_l3l4 *data)
+{
+	if (unlikely(!aq_hw_ops->hw_filter_l3l4_set))
+		return -EOPNOTSUPP;
+
+	return aq_hw_ops->hw_filter_l3l4_set(aq_hw, data);
+}
+
+static int aq_add_del_fl3l4(struct aq_nic_s *aq_nic,
+			    struct aq_rx_filter *aq_rx_fltr, bool add)
+{
+	const struct aq_hw_ops *aq_hw_ops = aq_nic->aq_hw_ops;
+	struct aq_hw_s *aq_hw = aq_nic->aq_hw;
+	struct aq_rx_filter_l3l4 data;
+
+	if (unlikely(aq_rx_fltr->aq_fsp.location < AQ_RX_FIRST_LOC_FL3L4 ||
+		     aq_rx_fltr->aq_fsp.location > AQ_RX_LAST_LOC_FL3L4  ||
+		     aq_set_data_fl3l4(aq_nic, aq_rx_fltr, &data, add)))
+		return -EINVAL;
+
+	return aq_set_fl3l4(aq_hw, aq_hw_ops, &data);
+}
+
 static int aq_add_del_rule(struct aq_nic_s *aq_nic,
 			   struct aq_rx_filter *aq_rx_fltr, bool add)
 {
@@ -207,7 +368,8 @@ static int aq_add_del_rule(struct aq_nic_s *aq_nic,
 		case UDP_V6_FLOW:
 		case SCTP_V6_FLOW:
 		case IPV6_USER_FLOW:
-			err = -EOPNOTSUPP;
+			aq_rx_fltr->type = aq_rx_filter_l3l4;
+			err = aq_add_del_fl3l4(aq_nic, aq_rx_fltr, add);
 			break;
 		default:
 			err = -EINVAL;
