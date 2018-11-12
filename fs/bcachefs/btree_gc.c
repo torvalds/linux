@@ -122,86 +122,105 @@ static bool bkey_type_needs_gc(enum bkey_type type)
 	}
 }
 
-u8 bch2_btree_key_recalc_oldest_gen(struct bch_fs *c, struct bkey_s_c k)
+static void ptr_gen_recalc_oldest(struct bch_fs *c,
+				  const struct bch_extent_ptr *ptr,
+				  u8 *max_stale)
+{
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+	size_t b = PTR_BUCKET_NR(ca, ptr);
+
+	if (gen_after(ca->oldest_gens[b], ptr->gen))
+		ca->oldest_gens[b] = ptr->gen;
+
+	*max_stale = max(*max_stale, ptr_stale(ca, ptr));
+}
+
+static u8 ptr_gens_recalc_oldest(struct bch_fs *c,
+				 enum bkey_type type,
+				 struct bkey_s_c k)
 {
 	const struct bch_extent_ptr *ptr;
 	u8 max_stale = 0;
 
-	if (bkey_extent_is_data(k.k)) {
-		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+	switch (type) {
+	case BKEY_TYPE_BTREE:
+	case BKEY_TYPE_EXTENTS:
+		switch (k.k->type) {
+		case BCH_EXTENT:
+		case BCH_EXTENT_CACHED: {
+			struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
 
-		extent_for_each_ptr(e, ptr) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-			size_t b = PTR_BUCKET_NR(ca, ptr);
-
-			if (gen_after(ca->oldest_gens[b], ptr->gen))
-				ca->oldest_gens[b] = ptr->gen;
-
-			max_stale = max(max_stale, ptr_stale(ca, ptr));
+			extent_for_each_ptr(e, ptr)
+				ptr_gen_recalc_oldest(c, ptr, &max_stale);
+			break;
 		}
+		}
+		break;
+	default:
+		break;
 	}
 
 	return max_stale;
 }
 
-static int bch2_btree_mark_ptrs_initial(struct bch_fs *c, enum bkey_type type,
-					struct bkey_s_c k)
+static int ptr_gen_check(struct bch_fs *c,
+			 enum bkey_type type,
+			 const struct bch_extent_ptr *ptr)
 {
-	enum bch_data_type data_type = type == BKEY_TYPE_BTREE
-		? BCH_DATA_BTREE : BCH_DATA_USER;
+	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+	size_t b = PTR_BUCKET_NR(ca, ptr);
+	struct bucket *g = PTR_BUCKET(ca, ptr);
 	int ret = 0;
 
-	BUG_ON(journal_seq_verify(c) &&
-	       k.k->version.lo > journal_cur_seq(&c->journal));
-
-	if (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
-	    fsck_err_on(!bch2_bkey_replicas_marked(c, type, k, false), c,
-			"superblock not marked as containing replicas (type %u)",
-			data_type)) {
-		ret = bch2_mark_bkey_replicas(c, type, k);
-		if (ret)
-			return ret;
+	if (mustfix_fsck_err_on(!g->mark.gen_valid, c,
+				"found ptr with missing gen in alloc btree,\n"
+				"type %u gen %u",
+				type, ptr->gen)) {
+		g->_mark.gen = ptr->gen;
+		g->_mark.gen_valid = 1;
+		set_bit(b, ca->buckets_dirty);
 	}
 
-	switch (k.k->type) {
-	case BCH_EXTENT:
-	case BCH_EXTENT_CACHED: {
-		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-		const struct bch_extent_ptr *ptr;
+	if (mustfix_fsck_err_on(gen_cmp(ptr->gen, g->mark.gen) > 0, c,
+				"%u ptr gen in the future: %u > %u",
+				type, ptr->gen, g->mark.gen)) {
+		g->_mark.gen = ptr->gen;
+		g->_mark.gen_valid = 1;
+		set_bit(b, ca->buckets_dirty);
+		set_bit(BCH_FS_FIXED_GENS, &c->flags);
+	}
+fsck_err:
+	return ret;
+}
 
-		extent_for_each_ptr(e, ptr) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-			size_t b = PTR_BUCKET_NR(ca, ptr);
-			struct bucket *g = PTR_BUCKET(ca, ptr);
+static int ptr_gens_check(struct bch_fs *c, enum bkey_type type,
+			  struct bkey_s_c k)
+{
+	const struct bch_extent_ptr *ptr;
+	int ret = 0;
 
-			if (mustfix_fsck_err_on(!g->mark.gen_valid, c,
-					"found ptr with missing gen in alloc btree,\n"
-					"type %s gen %u",
-					bch2_data_types[data_type],
-					ptr->gen)) {
-				g->_mark.gen = ptr->gen;
-				g->_mark.gen_valid = 1;
-				set_bit(b, ca->buckets_dirty);
+	switch (type) {
+	case BKEY_TYPE_BTREE:
+	case BKEY_TYPE_EXTENTS:
+		switch (k.k->type) {
+		case BCH_EXTENT:
+		case BCH_EXTENT_CACHED: {
+			struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+
+			extent_for_each_ptr(e, ptr) {
+				ret = ptr_gen_check(c, type, ptr);
+				if (ret)
+					return ret;
+
 			}
-
-			if (mustfix_fsck_err_on(gen_cmp(ptr->gen, g->mark.gen) > 0, c,
-					"%s ptr gen in the future: %u > %u",
-					bch2_data_types[data_type],
-					ptr->gen, g->mark.gen)) {
-				g->_mark.gen = ptr->gen;
-				g->_mark.gen_valid = 1;
-				set_bit(b, ca->buckets_dirty);
-				set_bit(BCH_FS_FIXED_GENS, &c->flags);
-			}
-
+			break;
+		}
 		}
 		break;
-	}
+	default:
+		break;
 	}
 
-	if (k.k->version.lo > atomic64_read(&c->key_version))
-		atomic64_set(&c->key_version, k.k->version.lo);
-fsck_err:
 	return ret;
 }
 
@@ -218,31 +237,32 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum bkey_type type,
 		(initial ? BCH_BUCKET_MARK_NOATOMIC : 0);
 	int ret = 0;
 
-	switch (type) {
-	case BKEY_TYPE_BTREE:
-	case BKEY_TYPE_EXTENTS:
-		if (initial) {
-			ret = bch2_btree_mark_ptrs_initial(c, type, k);
-			if (ret < 0)
+	if (initial) {
+		BUG_ON(journal_seq_verify(c) &&
+		       k.k->version.lo > journal_cur_seq(&c->journal));
+
+		if (k.k->version.lo > atomic64_read(&c->key_version))
+			atomic64_set(&c->key_version, k.k->version.lo);
+
+		if (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
+		    fsck_err_on(!bch2_bkey_replicas_marked(c, type, k,
+							   false), c,
+				"superblock not marked as containing replicas (type %u)",
+				type)) {
+			ret = bch2_mark_bkey_replicas(c, type, k);
+			if (ret)
 				return ret;
 		}
-		break;
-	default:
-		break;
+
+		ret = ptr_gens_check(c, type, k);
+		if (ret)
+			return ret;
 	}
 
-	bch2_mark_key(c, type, k, true, k.k->size,
-		      pos, NULL, 0, flags);
+	bch2_mark_key(c, type, k, true, k.k->size, pos, NULL, 0, flags);
 
-	switch (type) {
-	case BKEY_TYPE_BTREE:
-	case BKEY_TYPE_EXTENTS:
-		ret = bch2_btree_key_recalc_oldest_gen(c, k);
-		break;
-	default:
-		break;
-	}
-
+	ret = ptr_gens_recalc_oldest(c, type, k);
+fsck_err:
 	return ret;
 }
 
