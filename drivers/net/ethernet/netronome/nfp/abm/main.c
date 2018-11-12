@@ -37,6 +37,8 @@ nfp_abm_setup_tc(struct nfp_app *app, struct net_device *netdev,
 		return -EOPNOTSUPP;
 
 	switch (type) {
+	case TC_SETUP_ROOT_QDISC:
+		return nfp_abm_setup_root(netdev, repr->app_priv, type_data);
 	case TC_SETUP_QDISC_MQ:
 		return nfp_abm_setup_tc_mq(netdev, repr->app_priv, type_data);
 	case TC_SETUP_QDISC_RED:

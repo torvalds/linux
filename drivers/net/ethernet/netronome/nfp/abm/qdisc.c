@@ -143,6 +143,9 @@ nfp_abm_qdisc_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
 		return;
 
 	nfp_abm_qdisc_free(netdev, alink, qdisc);
+
+	if (alink->root_qdisc == qdisc)
+		alink->root_qdisc = NULL;
 }
 
 static void
@@ -449,4 +452,14 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 	default:
 		return -EOPNOTSUPP;
 	}
+}
+
+int nfp_abm_setup_root(struct net_device *netdev, struct nfp_abm_link *alink,
+		       struct tc_root_qopt_offload *opt)
+{
+	if (opt->ingress)
+		return -EOPNOTSUPP;
+	alink->root_qdisc = nfp_abm_qdisc_find(alink, opt->handle);
+
+	return 0;
 }

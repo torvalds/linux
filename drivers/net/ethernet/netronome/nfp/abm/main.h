@@ -116,6 +116,7 @@ struct nfp_red_qdisc {
  * @parent:	handle of expected parent, i.e. handle of MQ, or TC_H_ROOT
  * @num_qdiscs:	number of currently used qdiscs
  * @red_qdiscs:	array of qdiscs
+ * @root_qdisc:	pointer to the current root of the Qdisc hierarchy
  * @qdiscs:	all qdiscs recorded by major part of the handle
  */
 struct nfp_abm_link {
@@ -127,9 +128,12 @@ struct nfp_abm_link {
 	u32 parent;
 	unsigned int num_qdiscs;
 	struct nfp_red_qdisc *red_qdiscs;
+	struct nfp_qdisc *root_qdisc;
 	struct radix_tree_root qdiscs;
 };
 
+int nfp_abm_setup_root(struct net_device *netdev, struct nfp_abm_link *alink,
+		       struct tc_root_qopt_offload *opt);
 int nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,
 			 struct tc_red_qopt_offload *opt);
 int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
