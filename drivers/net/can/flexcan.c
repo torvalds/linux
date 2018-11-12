@@ -551,9 +551,9 @@ static netdev_tx_t flexcan_start_xmit(struct sk_buff *skb, struct net_device *de
 	 * Write twice INACTIVE(0x8) code to first MB.
 	 */
 	priv->write(FLEXCAN_MB_CODE_TX_INACTIVE,
-		      &priv->tx_mb_reserved->can_ctrl);
+		    &priv->tx_mb_reserved->can_ctrl);
 	priv->write(FLEXCAN_MB_CODE_TX_INACTIVE,
-		      &priv->tx_mb_reserved->can_ctrl);
+		    &priv->tx_mb_reserved->can_ctrl);
 
 	return NETDEV_TX_OK;
 }
