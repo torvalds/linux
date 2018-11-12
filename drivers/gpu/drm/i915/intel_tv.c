@@ -860,6 +860,35 @@ static const struct tv_mode tv_modes[] = {
 	},
 };
 
+struct intel_tv_connector_state {
+	struct drm_connector_state base;
+
+	/*
+	 * May need to override the user margins for
+	 * gen3 >1024 wide source vertical centering.
+	 */
+	struct {
+		u16 top, bottom;
+	} margins;
+
+	bool bypass_vfilter;
+};
+
+#define to_intel_tv_connector_state(x) container_of(x, struct intel_tv_connector_state, base)
+
+static struct drm_connector_state *
+intel_tv_connector_duplicate_state(struct drm_connector *connector)
+{
+	struct intel_tv_connector_state *state;
+
+	state = kmemdup(connector->state, sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_connector_duplicate_state(connector, &state->base);
+	return &state->base;
+}
+
 static struct intel_tv *enc_to_tv(struct intel_encoder *encoder)
 {
 	return container_of(encoder, struct intel_tv, base);
@@ -1128,6 +1157,9 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
 			struct drm_connector_state *conn_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_tv_connector_state *tv_conn_state =
+		to_intel_tv_connector_state(conn_state);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(conn_state);
 	struct drm_display_mode *adjusted_mode =
 		&pipe_config->base.adjusted_mode;
@@ -1148,6 +1180,43 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	pipe_config->port_clock = tv_mode->clock;
 
 	intel_tv_mode_to_mode(adjusted_mode, tv_mode);
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
+
+	if (IS_GEN(dev_priv, 3) && hdisplay > 1024) {
+		int extra, top, bottom;
+
+		extra = adjusted_mode->crtc_vdisplay - vdisplay;
+
+		if (extra < 0) {
+			DRM_DEBUG_KMS("No vertical scaling for >1024 pixel wide modes\n");
+			return false;
+		}
+
+		/* Need to turn off the vertical filter and center the image */
+
+		/* Attempt to maintain the relative sizes of the margins */
+		top = conn_state->tv.margins.top;
+		bottom = conn_state->tv.margins.bottom;
+
+		if (top + bottom)
+			top = extra * top / (top + bottom);
+		else
+			top = extra / 2;
+		bottom = extra - top;
+
+		tv_conn_state->margins.top = top;
+		tv_conn_state->margins.bottom = bottom;
+
+		tv_conn_state->bypass_vfilter = true;
+
+		if (!tv_mode->progressive)
+			adjusted_mode->flags |= DRM_MODE_FLAG_INTERLACE;
+	} else {
+		tv_conn_state->margins.top = conn_state->tv.margins.top;
+		tv_conn_state->margins.bottom = conn_state->tv.margins.bottom;
+
+		tv_conn_state->bypass_vfilter = false;
+	}
 
 	DRM_DEBUG_KMS("TV mode:\n");
 	drm_mode_debug_printmodeline(adjusted_mode);
@@ -1221,8 +1290,8 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 				  conn_state->tv.margins.left,
 				  conn_state->tv.margins.right);
 	intel_tv_scale_mode_vert(adjusted_mode, vdisplay,
-				 conn_state->tv.margins.top,
-				 conn_state->tv.margins.bottom);
+				 tv_conn_state->margins.top,
+				 tv_conn_state->margins.bottom);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 	adjusted_mode->name[0] = '\0';
 
@@ -1315,8 +1384,10 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_tv *intel_tv = enc_to_tv(encoder);
+	const struct intel_tv_connector_state *tv_conn_state =
+		to_intel_tv_connector_state(conn_state);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(conn_state);
-	u32 tv_ctl;
+	u32 tv_ctl, tv_filter_ctl;
 	u32 scctl1, scctl2, scctl3;
 	int i, j;
 	const struct video_levels *video_levels;
@@ -1424,16 +1495,20 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 	assert_pipe_disabled(dev_priv, intel_crtc->pipe);
 
 	/* Filter ctl must be set before TV_WIN_SIZE */
-	I915_WRITE(TV_FILTER_CTL_1, TV_AUTO_SCALE);
+	tv_filter_ctl = TV_AUTO_SCALE;
+	if (tv_conn_state->bypass_vfilter)
+		tv_filter_ctl |= TV_V_FILTER_BYPASS;
+	I915_WRITE(TV_FILTER_CTL_1, tv_filter_ctl);
+
 	xsize = tv_mode->hblank_start - tv_mode->hblank_end;
 	ysize = intel_tv_mode_vdisplay(tv_mode);
 
 	xpos = conn_state->tv.margins.left;
-	ypos = conn_state->tv.margins.top;
+	ypos = tv_conn_state->margins.top;
 	xsize -= (conn_state->tv.margins.left +
 		  conn_state->tv.margins.right);
-	ysize -= (conn_state->tv.margins.top +
-		  conn_state->tv.margins.bottom);
+	ysize -= (tv_conn_state->margins.top +
+		  tv_conn_state->margins.bottom);
 	I915_WRITE(TV_WIN_POS, (xpos<<16)|ypos);
 	I915_WRITE(TV_WIN_SIZE, (xsize<<16)|ysize);
 
@@ -1700,7 +1775,7 @@ static const struct drm_connector_funcs intel_tv_connector_funcs = {
 	.destroy = intel_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_duplicate_state = intel_tv_connector_duplicate_state,
 };
 
 static int intel_tv_atomic_check(struct drm_connector *connector,
