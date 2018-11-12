@@ -328,7 +328,7 @@ int phy_ethtool_ksettings_set(struct phy_device *phydev,
 	if (autoneg != AUTONEG_ENABLE && autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
 
-	if (autoneg == AUTONEG_ENABLE && advertising == 0)
+	if (autoneg == AUTONEG_ENABLE && linkmode_empty(advertising))
 		return -EINVAL;
 
 	if (autoneg == AUTONEG_DISABLE &&
