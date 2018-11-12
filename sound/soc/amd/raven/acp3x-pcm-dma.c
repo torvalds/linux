@@ -27,6 +27,7 @@
 #define DRV_NAME "acp3x-i2s-audio"
 
 struct i2s_dev_data {
+	unsigned int i2s_irq;
 	void __iomem *acp3x_base;
 	struct snd_pcm_substream *play_stream;
 	struct snd_pcm_substream *capture_stream;
@@ -132,6 +133,38 @@ static int acp3x_deinit(void __iomem *acp3x_base)
 	return 0;
 }
 
+static irqreturn_t i2s_irq_handler(int irq, void *dev_id)
+{
+	u16 play_flag, cap_flag;
+	u32 val;
+	struct i2s_dev_data *rv_i2s_data = dev_id;
+
+	if (!rv_i2s_data)
+		return IRQ_NONE;
+
+	play_flag = 0;
+	cap_flag = 0;
+	val = rv_readl(rv_i2s_data->acp3x_base + mmACP_EXTERNAL_INTR_STAT);
+	if ((val & BIT(BT_TX_THRESHOLD)) && rv_i2s_data->play_stream) {
+		rv_writel(BIT(BT_TX_THRESHOLD), rv_i2s_data->acp3x_base +
+			  mmACP_EXTERNAL_INTR_STAT);
+		snd_pcm_period_elapsed(rv_i2s_data->play_stream);
+		play_flag = 1;
+	}
+
+	if ((val & BIT(BT_RX_THRESHOLD)) && rv_i2s_data->capture_stream) {
+		rv_writel(BIT(BT_RX_THRESHOLD), rv_i2s_data->acp3x_base +
+			  mmACP_EXTERNAL_INTR_STAT);
+		snd_pcm_period_elapsed(rv_i2s_data->capture_stream);
+		cap_flag = 1;
+	}
+
+	if (play_flag | cap_flag)
+		return IRQ_HANDLED;
+	else
+		return IRQ_NONE;
+}
+
 static struct snd_pcm_ops acp3x_dma_ops = {
 	.open = NULL,
 	.close = NULL,
@@ -205,6 +238,13 @@ static int acp3x_audio_probe(struct platform_device *pdev)
 	adata->acp3x_base = devm_ioremap(&pdev->dev, res->start,
 					 resource_size(res));
 
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
+		return -ENODEV;
+	}
+
+	adata->i2s_irq = res->start;
 	adata->play_stream = NULL;
 	adata->capture_stream = NULL;
 
@@ -218,6 +258,12 @@ static int acp3x_audio_probe(struct platform_device *pdev)
 						 &acp3x_i2s_dai_driver, 1);
 	if (status) {
 		dev_err(&pdev->dev, "Fail to register acp i2s dai\n");
+		goto dev_err;
+	}
+	status = devm_request_irq(&pdev->dev, adata->i2s_irq, i2s_irq_handler,
+				  irqflags, "ACP3x_I2S_IRQ", adata);
+	if (status) {
+		dev_err(&pdev->dev, "ACP3x I2S IRQ request failed\n");
 		goto dev_err;
 	}
 
