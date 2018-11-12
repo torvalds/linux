@@ -136,18 +136,18 @@ ssize_t part_stat_show(struct device *dev,
 		part_stat_read(p, ios[STAT_READ]),
 		part_stat_read(p, merges[STAT_READ]),
 		(unsigned long long)part_stat_read(p, sectors[STAT_READ]),
-		jiffies_to_msecs(part_stat_read(p, ticks[STAT_READ])),
+		(unsigned int)part_stat_read_msecs(p, STAT_READ),
 		part_stat_read(p, ios[STAT_WRITE]),
 		part_stat_read(p, merges[STAT_WRITE]),
 		(unsigned long long)part_stat_read(p, sectors[STAT_WRITE]),
-		jiffies_to_msecs(part_stat_read(p, ticks[STAT_WRITE])),
+		(unsigned int)part_stat_read_msecs(p, STAT_WRITE),
 		inflight[0],
 		jiffies_to_msecs(part_stat_read(p, io_ticks)),
 		jiffies_to_msecs(part_stat_read(p, time_in_queue)),
 		part_stat_read(p, ios[STAT_DISCARD]),
 		part_stat_read(p, merges[STAT_DISCARD]),
 		(unsigned long long)part_stat_read(p, sectors[STAT_DISCARD]),
-		jiffies_to_msecs(part_stat_read(p, ticks[STAT_DISCARD])));
+		(unsigned int)part_stat_read_msecs(p, STAT_DISCARD));
 }
 
 ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,

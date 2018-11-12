@@ -85,7 +85,7 @@ END(hpmc_pim_data)
 
 	.import intr_save, code
 	.align 16
-ENTRY_CFI(os_hpmc)
+ENTRY(os_hpmc)
 .os_hpmc:
 
 	/*
@@ -302,7 +302,6 @@ os_hpmc_6:
 	b .
 	nop
 	.align 16	/* make function length multiple of 16 bytes */
-ENDPROC_CFI(os_hpmc)
 .os_hpmc_end:
 
 

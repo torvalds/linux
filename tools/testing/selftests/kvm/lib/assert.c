@@ -13,7 +13,7 @@
 #include <execinfo.h>
 #include <sys/syscall.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 /* Dumps the current stack trace to stderr. */
 static void __attribute__((noinline)) test_dump_stack(void);

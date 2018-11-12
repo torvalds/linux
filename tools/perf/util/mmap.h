@@ -4,7 +4,7 @@
 #include <linux/compiler.h>
 #include <linux/refcount.h>
 #include <linux/types.h>
-#include <asm/barrier.h>
+#include <linux/ring_buffer.h>
 #include <stdbool.h>
 #include "auxtrace.h"
 #include "event.h"
@@ -71,21 +71,12 @@ void perf_mmap__consume(struct perf_mmap *map);
 
 static inline u64 perf_mmap__read_head(struct perf_mmap *mm)
 {
-	struct perf_event_mmap_page *pc = mm->base;
-	u64 head = READ_ONCE(pc->data_head);
-	rmb();
-	return head;
+	return ring_buffer_read_head(mm->base);
 }
 
 static inline void perf_mmap__write_tail(struct perf_mmap *md, u64 tail)
 {
-	struct perf_event_mmap_page *pc = md->base;
-
-	/*
-	 * ensure all reads are done before we write the tail out.
-	 */
-	mb();
-	pc->data_tail = tail;
+	ring_buffer_write_tail(md->base, tail);
 }
 
 union perf_event *perf_mmap__read_forward(struct perf_mmap *map);
@@ -93,7 +84,7 @@ union perf_event *perf_mmap__read_forward(struct perf_mmap *map);
 union perf_event *perf_mmap__read_event(struct perf_mmap *map);
 
 int perf_mmap__push(struct perf_mmap *md, void *to,
-		    int push(void *to, void *buf, size_t size));
+		    int push(struct perf_mmap *map, void *to, void *buf, size_t size));
 
 size_t perf_mmap__mmap_len(struct perf_mmap *map);
 

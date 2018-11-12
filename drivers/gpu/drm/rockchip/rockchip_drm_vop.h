@@ -162,6 +162,7 @@ struct vop_data {
 	unsigned int win_size;
 
 #define VOP_FEATURE_OUTPUT_RGB10	BIT(0)
+#define VOP_FEATURE_INTERNAL_RGB	BIT(1)
 	u64 feature;
 };
 

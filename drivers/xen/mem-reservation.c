@@ -14,6 +14,10 @@
 
 #include <xen/interface/memory.h>
 #include <xen/mem-reservation.h>
+#include <linux/moduleparam.h>
+
+bool __read_mostly xen_scrub_pages = IS_ENABLED(CONFIG_XEN_SCRUB_PAGES_DEFAULT);
+core_param(xen_scrub_pages, xen_scrub_pages, bool, 0);
 
 /*
  * Use one extent per PAGE_SIZE to avoid to break down the page into

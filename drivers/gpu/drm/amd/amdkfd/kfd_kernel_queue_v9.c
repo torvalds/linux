@@ -71,8 +71,7 @@ static int pm_map_process_v9(struct packet_manager *pm,
 		uint32_t *buffer, struct qcm_process_device *qpd)
 {
 	struct pm4_mes_map_process *packet;
-	uint64_t vm_page_table_base_addr =
-		(uint64_t)(qpd->page_table_base) << 12;
+	uint64_t vm_page_table_base_addr = qpd->page_table_base;
 
 	packet = (struct pm4_mes_map_process *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_mes_map_process));

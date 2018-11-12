@@ -1,16 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r8a7743 Clock Pulse Generator / Module Standby and Software Reset
  *
  * Copyright (C) 2016 Cogent Embedded Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation; of the License.
  */
 
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/soc/renesas/rcar-rst.h>
 
 #include <dt-bindings/clock/r8a7743-cpg-mssr.h>
@@ -37,7 +35,7 @@ enum clk_ids {
 	MOD_CLK_BASE
 };
 
-static const struct cpg_core_clk r8a7743_core_clks[] __initconst = {
+static struct cpg_core_clk r8a7743_core_clks[] __initdata = {
 	/* External Clock Inputs */
 	DEF_INPUT("extal",	CLK_EXTAL),
 	DEF_INPUT("usb_extal",	CLK_USB_EXTAL),
@@ -238,6 +236,8 @@ static const struct rcar_gen2_cpg_pll_config cpg_pll_configs[8] __initconst = {
 static int __init r8a7743_cpg_mssr_init(struct device *dev)
 {
 	const struct rcar_gen2_cpg_pll_config *cpg_pll_config;
+	struct device_node *np = dev->of_node;
+	unsigned int i;
 	u32 cpg_mode;
 	int error;
 
@@ -247,6 +247,14 @@ static int __init r8a7743_cpg_mssr_init(struct device *dev)
 
 	cpg_pll_config = &cpg_pll_configs[CPG_PLL_CONFIG_INDEX(cpg_mode)];
 
+	if (of_device_is_compatible(np, "renesas,r8a7744-cpg-mssr")) {
+		/* RZ/G1N uses a 1/5 divider for ZG */
+		for (i = 0; i < ARRAY_SIZE(r8a7743_core_clks); i++)
+			if (r8a7743_core_clks[i].id == R8A7743_CLK_ZG) {
+				r8a7743_core_clks[i].div = 5;
+				break;
+			}
+	}
 	return rcar_gen2_cpg_init(cpg_pll_config, 2, cpg_mode);
 }
 

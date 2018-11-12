@@ -87,22 +87,28 @@ struct nullb {
 #ifdef CONFIG_BLK_DEV_ZONED
 int null_zone_init(struct nullb_device *dev);
 void null_zone_exit(struct nullb_device *dev);
-blk_status_t null_zone_report(struct nullb *nullb,
-					    struct nullb_cmd *cmd);
-void null_zone_write(struct nullb_cmd *cmd);
-void null_zone_reset(struct nullb_cmd *cmd);
+int null_zone_report(struct gendisk *disk, sector_t sector,
+		     struct blk_zone *zones, unsigned int *nr_zones,
+		     gfp_t gfp_mask);
+void null_zone_write(struct nullb_cmd *cmd, sector_t sector,
+			unsigned int nr_sectors);
+void null_zone_reset(struct nullb_cmd *cmd, sector_t sector);
 #else
 static inline int null_zone_init(struct nullb_device *dev)
 {
 	return -EINVAL;
 }
 static inline void null_zone_exit(struct nullb_device *dev) {}
-static inline blk_status_t null_zone_report(struct nullb *nullb,
-					    struct nullb_cmd *cmd)
+static inline int null_zone_report(struct gendisk *disk, sector_t sector,
+				   struct blk_zone *zones,
+				   unsigned int *nr_zones, gfp_t gfp_mask)
 {
-	return BLK_STS_NOTSUPP;
+	return -EOPNOTSUPP;
 }
-static inline void null_zone_write(struct nullb_cmd *cmd) {}
-static inline void null_zone_reset(struct nullb_cmd *cmd) {}
+static inline void null_zone_write(struct nullb_cmd *cmd, sector_t sector,
+				   unsigned int nr_sectors)
+{
+}
+static inline void null_zone_reset(struct nullb_cmd *cmd, sector_t sector) {}
 #endif /* CONFIG_BLK_DEV_ZONED */
 #endif /* __NULL_BLK_H */

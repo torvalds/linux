@@ -13,6 +13,7 @@
 #include <trace/events/mmflags.h>
 #include <linux/migrate.h>
 #include <linux/page_owner.h>
+#include <linux/ctype.h>
 
 #include "internal.h"
 
@@ -114,7 +115,7 @@ EXPORT_SYMBOL(dump_vma);
 
 void dump_mm(const struct mm_struct *mm)
 {
-	pr_emerg("mm %px mmap %px seqnum %d task_size %lu\n"
+	pr_emerg("mm %px mmap %px seqnum %llu task_size %lu\n"
 #ifdef CONFIG_MMU
 		"get_unmapped_area %px\n"
 #endif
@@ -142,7 +143,7 @@ void dump_mm(const struct mm_struct *mm)
 		"tlb_flush_pending %d\n"
 		"def_flags: %#lx(%pGv)\n",
 
-		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+		mm, mm->mmap, (long long) mm->vmacache_seqnum, mm->task_size,
 #ifdef CONFIG_MMU
 		mm->get_unmapped_area,
 #endif
@@ -175,4 +176,49 @@ void dump_mm(const struct mm_struct *mm)
 	);
 }
 
+static bool page_init_poisoning __read_mostly = true;
+
+static int __init setup_vm_debug(char *str)
+{
+	bool __page_init_poisoning = true;
+
+	/*
+	 * Calling vm_debug with no arguments is equivalent to requesting
+	 * to enable all debugging options we can control.
+	 */
+	if (*str++ != '=' || !*str)
+		goto out;
+
+	__page_init_poisoning = false;
+	if (*str == '-')
+		goto out;
+
+	while (*str) {
+		switch (tolower(*str)) {
+		case'p':
+			__page_init_poisoning = true;
+			break;
+		default:
+			pr_err("vm_debug option '%c' unknown. skipped\n",
+			       *str);
+		}
+
+		str++;
+	}
+out:
+	if (page_init_poisoning && !__page_init_poisoning)
+		pr_warn("Page struct poisoning disabled by kernel command line option 'vm_debug'\n");
+
+	page_init_poisoning = __page_init_poisoning;
+
+	return 1;
+}
+__setup("vm_debug", setup_vm_debug);
+
+void page_init_poison(struct page *page, size_t size)
+{
+	if (page_init_poisoning)
+		memset(page, PAGE_POISON_PATTERN, size);
+}
+EXPORT_SYMBOL_GPL(page_init_poison);
 #endif		/* CONFIG_DEBUG_VM */

@@ -15,6 +15,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -471,6 +472,122 @@ static void test_devmap(int task, void *data)
 	close(fd);
 }
 
+static void test_queuemap(int task, void *data)
+{
+	const int MAP_SIZE = 32;
+	__u32 vals[MAP_SIZE + MAP_SIZE/2], val;
+	int fd, i;
+
+	/* Fill test values to be used */
+	for (i = 0; i < MAP_SIZE + MAP_SIZE/2; i++)
+		vals[i] = rand();
+
+	/* Invalid key size */
+	fd = bpf_create_map(BPF_MAP_TYPE_QUEUE, 4, sizeof(val), MAP_SIZE,
+			    map_flags);
+	assert(fd < 0 && errno == EINVAL);
+
+	fd = bpf_create_map(BPF_MAP_TYPE_QUEUE, 0, sizeof(val), MAP_SIZE,
+			    map_flags);
+	/* Queue map does not support BPF_F_NO_PREALLOC */
+	if (map_flags & BPF_F_NO_PREALLOC) {
+		assert(fd < 0 && errno == EINVAL);
+		return;
+	}
+	if (fd < 0) {
+		printf("Failed to create queuemap '%s'!\n", strerror(errno));
+		exit(1);
+	}
+
+	/* Push MAP_SIZE elements */
+	for (i = 0; i < MAP_SIZE; i++)
+		assert(bpf_map_update_elem(fd, NULL, &vals[i], 0) == 0);
+
+	/* Check that element cannot be pushed due to max_entries limit */
+	assert(bpf_map_update_elem(fd, NULL, &val, 0) == -1 &&
+	       errno == E2BIG);
+
+	/* Peek element */
+	assert(bpf_map_lookup_elem(fd, NULL, &val) == 0 && val == vals[0]);
+
+	/* Replace half elements */
+	for (i = MAP_SIZE; i < MAP_SIZE + MAP_SIZE/2; i++)
+		assert(bpf_map_update_elem(fd, NULL, &vals[i], BPF_EXIST) == 0);
+
+	/* Pop all elements */
+	for (i = MAP_SIZE/2; i < MAP_SIZE + MAP_SIZE/2; i++)
+		assert(bpf_map_lookup_and_delete_elem(fd, NULL, &val) == 0 &&
+		       val == vals[i]);
+
+	/* Check that there are not elements left */
+	assert(bpf_map_lookup_and_delete_elem(fd, NULL, &val) == -1 &&
+	       errno == ENOENT);
+
+	/* Check that non supported functions set errno to EINVAL */
+	assert(bpf_map_delete_elem(fd, NULL) == -1 && errno == EINVAL);
+	assert(bpf_map_get_next_key(fd, NULL, NULL) == -1 && errno == EINVAL);
+
+	close(fd);
+}
+
+static void test_stackmap(int task, void *data)
+{
+	const int MAP_SIZE = 32;
+	__u32 vals[MAP_SIZE + MAP_SIZE/2], val;
+	int fd, i;
+
+	/* Fill test values to be used */
+	for (i = 0; i < MAP_SIZE + MAP_SIZE/2; i++)
+		vals[i] = rand();
+
+	/* Invalid key size */
+	fd = bpf_create_map(BPF_MAP_TYPE_STACK, 4, sizeof(val), MAP_SIZE,
+			    map_flags);
+	assert(fd < 0 && errno == EINVAL);
+
+	fd = bpf_create_map(BPF_MAP_TYPE_STACK, 0, sizeof(val), MAP_SIZE,
+			    map_flags);
+	/* Stack map does not support BPF_F_NO_PREALLOC */
+	if (map_flags & BPF_F_NO_PREALLOC) {
+		assert(fd < 0 && errno == EINVAL);
+		return;
+	}
+	if (fd < 0) {
+		printf("Failed to create stackmap '%s'!\n", strerror(errno));
+		exit(1);
+	}
+
+	/* Push MAP_SIZE elements */
+	for (i = 0; i < MAP_SIZE; i++)
+		assert(bpf_map_update_elem(fd, NULL, &vals[i], 0) == 0);
+
+	/* Check that element cannot be pushed due to max_entries limit */
+	assert(bpf_map_update_elem(fd, NULL, &val, 0) == -1 &&
+	       errno == E2BIG);
+
+	/* Peek element */
+	assert(bpf_map_lookup_elem(fd, NULL, &val) == 0 && val == vals[i - 1]);
+
+	/* Replace half elements */
+	for (i = MAP_SIZE; i < MAP_SIZE + MAP_SIZE/2; i++)
+		assert(bpf_map_update_elem(fd, NULL, &vals[i], BPF_EXIST) == 0);
+
+	/* Pop all elements */
+	for (i = MAP_SIZE + MAP_SIZE/2 - 1; i >= MAP_SIZE/2; i--)
+		assert(bpf_map_lookup_and_delete_elem(fd, NULL, &val) == 0 &&
+		       val == vals[i]);
+
+	/* Check that there are not elements left */
+	assert(bpf_map_lookup_and_delete_elem(fd, NULL, &val) == -1 &&
+	       errno == ENOENT);
+
+	/* Check that non supported functions set errno to EINVAL */
+	assert(bpf_map_delete_elem(fd, NULL) == -1 && errno == EINVAL);
+	assert(bpf_map_get_next_key(fd, NULL, NULL) == -1 && errno == EINVAL);
+
+	close(fd);
+}
+
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
@@ -580,7 +697,11 @@ static void test_sockmap(int tasks, void *data)
 	/* Test update without programs */
 	for (i = 0; i < 6; i++) {
 		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_ANY);
-		if (err) {
+		if (i < 2 && !err) {
+			printf("Allowed update sockmap '%i:%i' not in ESTABLISHED\n",
+			       i, sfd[i]);
+			goto out_sockmap;
+		} else if (i >= 2 && err) {
 			printf("Failed noprog update sockmap '%i:%i'\n",
 			       i, sfd[i]);
 			goto out_sockmap;
@@ -741,7 +862,7 @@ static void test_sockmap(int tasks, void *data)
 	}
 
 	/* Test map update elem afterwards fd lives in fd and map_fd */
-	for (i = 0; i < 6; i++) {
+	for (i = 2; i < 6; i++) {
 		err = bpf_map_update_elem(map_fd_rx, &i, &sfd[i], BPF_ANY);
 		if (err) {
 			printf("Failed map_fd_rx update sockmap %i '%i:%i'\n",
@@ -845,7 +966,7 @@ static void test_sockmap(int tasks, void *data)
 	}
 
 	/* Delete the elems without programs */
-	for (i = 0; i < 6; i++) {
+	for (i = 2; i < 6; i++) {
 		err = bpf_map_delete_elem(fd, &i);
 		if (err) {
 			printf("Failed delete sockmap %i '%i:%i'\n",
@@ -1430,10 +1551,15 @@ static void run_all_tests(void)
 	test_map_wronly();
 
 	test_reuseport_array();
+
+	test_queuemap(0, NULL);
+	test_stackmap(0, NULL);
 }
 
 int main(void)
 {
+	srand(time(NULL));
+
 	map_flags = 0;
 	run_all_tests();
 

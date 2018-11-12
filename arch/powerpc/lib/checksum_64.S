@@ -443,6 +443,9 @@ _GLOBAL(csum_ipv6_magic)
 	addc	r0, r8, r9
 	ld	r10, 0(r4)
 	ld	r11, 8(r4)
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+	rotldi	r5, r5, 8
+#endif
 	adde	r0, r0, r10
 	add	r5, r5, r7
 	adde	r0, r0, r11

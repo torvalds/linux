@@ -878,9 +878,10 @@ static bool xgbe_phy_finisar_phy_quirks(struct xgbe_prv_data *pdata)
 	phy_write(phy_data->phydev, 0x04, 0x0d01);
 	phy_write(phy_data->phydev, 0x00, 0x9140);
 
-	phy_data->phydev->supported = PHY_GBIT_FEATURES;
-	phy_data->phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-	phy_data->phydev->advertising = phy_data->phydev->supported;
+	phy_data->phydev->supported = PHY_10BT_FEATURES |
+				      PHY_100BT_FEATURES |
+				      PHY_1000BT_FEATURES;
+	phy_support_asym_pause(phy_data->phydev);
 
 	netif_dbg(pdata, drv, pdata->netdev,
 		  "Finisar PHY quirk in place\n");
@@ -950,9 +951,10 @@ static bool xgbe_phy_belfuse_phy_quirks(struct xgbe_prv_data *pdata)
 	reg = phy_read(phy_data->phydev, 0x00);
 	phy_write(phy_data->phydev, 0x00, reg & ~0x00800);
 
-	phy_data->phydev->supported = PHY_GBIT_FEATURES;
-	phy_data->phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-	phy_data->phydev->advertising = phy_data->phydev->supported;
+	phy_data->phydev->supported = (PHY_10BT_FEATURES |
+				       PHY_100BT_FEATURES |
+				       PHY_1000BT_FEATURES);
+	phy_support_asym_pause(phy_data->phydev);
 
 	netif_dbg(pdata, drv, pdata->netdev,
 		  "BelFuse PHY quirk in place\n");
@@ -1495,10 +1497,7 @@ static void xgbe_phy_phydev_flowctrl(struct xgbe_prv_data *pdata)
 	if (!phy_data->phydev)
 		return;
 
-	if (phy_data->phydev->advertising & ADVERTISED_Pause)
-		lcl_adv |= ADVERTISE_PAUSE_CAP;
-	if (phy_data->phydev->advertising & ADVERTISED_Asym_Pause)
-		lcl_adv |= ADVERTISE_PAUSE_ASYM;
+	lcl_adv = ethtool_adv_to_lcl_adv_t(phy_data->phydev->advertising);
 
 	if (phy_data->phydev->pause) {
 		XGBE_SET_LP_ADV(lks, Pause);

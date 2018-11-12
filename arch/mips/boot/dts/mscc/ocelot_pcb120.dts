@@ -1,0 +1,107 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2017 Microsemi Corporation */
+
+/dts-v1/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/phy/phy-ocelot-serdes.h>
+#include "ocelot.dtsi"
+
+/ {
+	compatible = "mscc,ocelot-pcb120", "mscc,ocelot";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0e000000>;
+	};
+};
+
+&gpio {
+	phy_int_pins: phy_int_pins {
+		pins = "GPIO_4";
+		function = "gpio";
+	};
+};
+
+&mdio0 {
+	status = "okay";
+};
+
+&mdio1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&miim1>, <&phy_int_pins>;
+
+	phy7: ethernet-phy@0 {
+		reg = <0>;
+		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gpio>;
+	};
+	phy6: ethernet-phy@1 {
+		reg = <1>;
+		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gpio>;
+	};
+	phy5: ethernet-phy@2 {
+		reg = <2>;
+		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gpio>;
+	};
+	phy4: ethernet-phy@3 {
+		reg = <3>;
+		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gpio>;
+	};
+};
+
+&port0 {
+	phy-handle = <&phy0>;
+};
+
+&port1 {
+	phy-handle = <&phy1>;
+};
+
+&port2 {
+	phy-handle = <&phy2>;
+};
+
+&port3 {
+	phy-handle = <&phy3>;
+};
+
+&port4 {
+	phy-handle = <&phy7>;
+	phy-mode = "sgmii";
+	phys = <&serdes 4 SERDES1G(2)>;
+};
+
+&port5 {
+	phy-handle = <&phy4>;
+	phy-mode = "sgmii";
+	phys = <&serdes 5 SERDES1G(5)>;
+};
+
+&port6 {
+	phy-handle = <&phy6>;
+	phy-mode = "sgmii";
+	phys = <&serdes 6 SERDES1G(3)>;
+};
+
+&port9 {
+	phy-handle = <&phy5>;
+	phy-mode = "sgmii";
+	phys = <&serdes 9 SERDES1G(4)>;
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};

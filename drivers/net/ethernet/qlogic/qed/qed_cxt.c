@@ -40,7 +40,6 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/bitops.h>
 #include "qed.h"
 #include "qed_cxt.h"
 #include "qed_dev_api.h"

@@ -759,12 +759,18 @@ class DebugfsProvider(Provider):
             if len(vms) == 0:
                 self.do_read = False
 
-            self.paths = filter(lambda x: "{}-".format(pid) in x, vms)
+            self.paths = list(filter(lambda x: "{}-".format(pid) in x, vms))
 
         else:
             self.paths = []
             self.do_read = True
-        self.reset()
+
+    def _verify_paths(self):
+        """Remove invalid paths"""
+        for path in self.paths:
+            if not os.path.exists(os.path.join(PATH_DEBUGFS_KVM, path)):
+                self.paths.remove(path)
+                continue
 
     def read(self, reset=0, by_guest=0):
         """Returns a dict with format:'file name / field -> current value'.
@@ -780,6 +786,7 @@ class DebugfsProvider(Provider):
         # If no debugfs filtering support is available, then don't read.
         if not self.do_read:
             return results
+        self._verify_paths()
 
         paths = self.paths
         if self._pid == 0:
@@ -1096,15 +1103,16 @@ class Tui(object):
             pid = self.stats.pid_filter
         self.screen.erase()
         gname = self.get_gname_from_pid(pid)
+        self._gname = gname
         if gname:
             gname = ('({})'.format(gname[:MAX_GUEST_NAME_LEN] + '...'
                                    if len(gname) > MAX_GUEST_NAME_LEN
                                    else gname))
         if pid > 0:
-            self.screen.addstr(0, 0, 'kvm statistics - pid {0} {1}'
-                               .format(pid, gname), curses.A_BOLD)
+            self._headline = 'kvm statistics - pid {0} {1}'.format(pid, gname)
         else:
-            self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
+            self._headline = 'kvm statistics - summary'
+        self.screen.addstr(0, 0, self._headline, curses.A_BOLD)
         if self.stats.fields_filter:
             regex = self.stats.fields_filter
             if len(regex) > MAX_REGEX_LEN:
@@ -1162,6 +1170,19 @@ class Tui(object):
 
             return sorted_items
 
+        if not self._is_running_guest(self.stats.pid_filter):
+            if self._gname:
+                try: # ...to identify the guest by name in case it's back
+                    pids = self.get_pid_from_gname(self._gname)
+                    if len(pids) == 1:
+                        self._refresh_header(pids[0])
+                        self._update_pid(pids[0])
+                        return
+                except:
+                    pass
+            self._display_guest_dead()
+            # leave final data on screen
+            return
         row = 3
         self.screen.move(row, 0)
         self.screen.clrtobot()
@@ -1184,6 +1205,7 @@ class Tui(object):
         # print events
         tavg = 0
         tcur = 0
+        guest_removed = False
         for key, values in get_sorted_events(self, stats):
             if row >= self.screen.getmaxyx()[0] - 1 or values == (0, 0):
                 break
@@ -1191,7 +1213,10 @@ class Tui(object):
                 key = self.get_gname_from_pid(key)
                 if not key:
                     continue
-            cur = int(round(values.delta / sleeptime)) if values.delta else ''
+            cur = int(round(values.delta / sleeptime)) if values.delta else 0
+            if cur < 0:
+                guest_removed = True
+                continue
             if key[0] != ' ':
                 if values.delta:
                     tcur += values.delta
@@ -1204,12 +1229,20 @@ class Tui(object):
                                values.value * 100 / float(ltotal), cur))
             row += 1
         if row == 3:
-            self.screen.addstr(4, 1, 'No matching events reported yet')
+            if guest_removed:
+                self.screen.addstr(4, 1, 'Guest removed, updating...')
+            else:
+                self.screen.addstr(4, 1, 'No matching events reported yet')
         if row > 4:
             tavg = int(round(tcur / sleeptime)) if tcur > 0 else ''
             self.screen.addstr(row, 1, '%-40s %10d        %8s' %
                                ('Total', total, tavg), curses.A_BOLD)
         self.screen.refresh()
+
+    def _display_guest_dead(self):
+        marker = '   Guest is DEAD   '
+        y = min(len(self._headline), 80 - len(marker))
+        self.screen.addstr(0, y, marker, curses.A_BLINK | curses.A_STANDOUT)
 
     def _show_msg(self, text):
         """Display message centered text and exit on key press"""
@@ -1219,10 +1252,10 @@ class Tui(object):
         (x, term_width) = self.screen.getmaxyx()
         row = 2
         for line in text:
-            start = (term_width - len(line)) / 2
+            start = (term_width - len(line)) // 2
             self.screen.addstr(row, start, line)
             row += 1
-        self.screen.addstr(row + 1, (term_width - len(hint)) / 2, hint,
+        self.screen.addstr(row + 1, (term_width - len(hint)) // 2, hint,
                            curses.A_STANDOUT)
         self.screen.getkey()
 
@@ -1292,7 +1325,7 @@ class Tui(object):
         msg = ''
         while True:
             self.screen.erase()
-            self.screen.addstr(0, 0, 'Set update interval (defaults to %fs).' %
+            self.screen.addstr(0, 0, 'Set update interval (defaults to %.1fs).' %
                                DELAY_DEFAULT, curses.A_BOLD)
             self.screen.addstr(4, 0, msg)
             self.screen.addstr(2, 0, 'Change delay from %.1fs to ' %
@@ -1318,6 +1351,12 @@ class Tui(object):
             except ValueError:
                 msg = '"' + str(val) + '": Invalid value'
         self._refresh_header()
+
+    def _is_running_guest(self, pid):
+        """Check if pid is still a running process."""
+        if not pid:
+            return True
+        return os.path.isdir(os.path.join('/proc/', str(pid)))
 
     def _show_vm_selection_by_guest(self):
         """Draws guest selection mask.
@@ -1346,7 +1385,7 @@ class Tui(object):
             if not guest or guest == '0':
                 break
             if guest.isdigit():
-                if not os.path.isdir(os.path.join('/proc/', guest)):
+                if not self._is_running_guest(guest):
                     msg = '"' + guest + '": Not a running process'
                     continue
                 pid = int(guest)

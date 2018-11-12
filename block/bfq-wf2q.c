@@ -788,25 +788,23 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 		new_weight = entity->orig_weight *
 			     (bfqq ? bfqq->wr_coeff : 1);
 		/*
-		 * If the weight of the entity changes, remove the entity
-		 * from its old weight counter (if there is a counter
-		 * associated with the entity), and add it to the counter
-		 * associated with its new weight.
+		 * If the weight of the entity changes, and the entity is a
+		 * queue, remove the entity from its old weight counter (if
+		 * there is a counter associated with the entity).
 		 */
-		if (prev_weight != new_weight) {
-			root = bfqq ? &bfqd->queue_weights_tree :
-				      &bfqd->group_weights_tree;
-			__bfq_weights_tree_remove(bfqd, entity, root);
+		if (prev_weight != new_weight && bfqq) {
+			root = &bfqd->queue_weights_tree;
+			__bfq_weights_tree_remove(bfqd, bfqq, root);
 		}
 		entity->weight = new_weight;
 		/*
-		 * Add the entity to its weights tree only if it is
-		 * not associated with a weight-raised queue.
+		 * Add the entity, if it is not a weight-raised queue,
+		 * to the counter associated with its new weight.
 		 */
-		if (prev_weight != new_weight &&
-		    (bfqq ? bfqq->wr_coeff == 1 : 1))
+		if (prev_weight != new_weight && bfqq && bfqq->wr_coeff == 1) {
 			/* If we get here, root has been initialized. */
-			bfq_weights_tree_add(bfqd, entity, root);
+			bfq_weights_tree_add(bfqd, bfqq, root);
+		}
 
 		new_st->wsum += entity->weight;
 
@@ -1012,9 +1010,9 @@ static void __bfq_activate_entity(struct bfq_entity *entity,
 	if (!bfq_entity_to_bfqq(entity)) { /* bfq_group */
 		struct bfq_group *bfqg =
 			container_of(entity, struct bfq_group, entity);
+		struct bfq_data *bfqd = bfqg->bfqd;
 
-		bfq_weights_tree_add(bfqg->bfqd, entity,
-				     &bfqd->group_weights_tree);
+		bfqd->num_active_groups++;
 	}
 #endif
 
@@ -1181,10 +1179,17 @@ bool __bfq_deactivate_entity(struct bfq_entity *entity, bool ins_into_idle_tree)
 	st = bfq_entity_service_tree(entity);
 	is_in_service = entity == sd->in_service_entity;
 
-	if (is_in_service) {
-		bfq_calc_finish(entity, entity->service);
+	bfq_calc_finish(entity, entity->service);
+
+	if (is_in_service)
 		sd->in_service_entity = NULL;
-	}
+	else
+		/*
+		 * Non in-service entity: nobody will take care of
+		 * resetting its service counter on expiration. Do it
+		 * now.
+		 */
+		entity->service = 0;
 
 	if (entity->tree == &st->active)
 		bfq_active_extract(st, entity);
@@ -1685,7 +1690,7 @@ void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 
 	if (!bfqq->dispatched)
 		if (bfqq->wr_coeff == 1)
-			bfq_weights_tree_add(bfqd, &bfqq->entity,
+			bfq_weights_tree_add(bfqd, bfqq,
 					     &bfqd->queue_weights_tree);
 
 	if (bfqq->wr_coeff > 1)

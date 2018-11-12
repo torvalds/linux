@@ -15,9 +15,10 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mtd/rawnand.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
+
+#include "internals.h"
 
 #define NAND_HYNIX_CMD_SET_PARAMS	0x36
 #define NAND_HYNIX_CMD_APPLY_PARAMS	0x16
@@ -79,8 +80,6 @@ static bool hynix_nand_has_valid_jedecid(struct nand_chip *chip)
 
 static int hynix_nand_cmd_op(struct nand_chip *chip, u8 cmd)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
-
 	if (chip->exec_op) {
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(cmd, 0),
@@ -90,14 +89,13 @@ static int hynix_nand_cmd_op(struct nand_chip *chip, u8 cmd)
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, cmd, -1, -1);
+	chip->legacy.cmdfunc(chip, cmd, -1, -1);
 
 	return 0;
 }
 
 static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	u16 column = ((u16)addr << 8) | addr;
 
 	if (chip->exec_op) {
@@ -110,15 +108,14 @@ static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 		return nand_exec_op(chip, &op);
 	}
 
-	chip->cmdfunc(mtd, NAND_CMD_NONE, column, -1);
-	chip->write_byte(mtd, val);
+	chip->legacy.cmdfunc(chip, NAND_CMD_NONE, column, -1);
+	chip->legacy.write_byte(chip, val);
 
 	return 0;
 }
 
-static int hynix_nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
+static int hynix_nand_setup_read_retry(struct nand_chip *chip, int retry_mode)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct hynix_nand *hynix = nand_get_manufacturer_data(chip);
 	const u8 *values;
 	int i, ret;

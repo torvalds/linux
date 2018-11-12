@@ -1,6 +1,0 @@
-* remove unnecessary comments
-* there is a lot of unnecessary code in the driver. It was
-  originally a standalone driver. Remove unneeded code.
-
-Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
-Cc: Lidza Louina <lidza.louina@gmail.com>

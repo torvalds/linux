@@ -522,7 +522,7 @@ void put_seccomp_filter(struct task_struct *tsk)
 	__put_seccomp_filter(tsk->seccomp.filter);
 }
 
-static void seccomp_init_siginfo(siginfo_t *info, int syscall, int reason)
+static void seccomp_init_siginfo(kernel_siginfo_t *info, int syscall, int reason)
 {
 	clear_siginfo(info);
 	info->si_signo = SIGSYS;
@@ -542,7 +542,7 @@ static void seccomp_init_siginfo(siginfo_t *info, int syscall, int reason)
  */
 static void seccomp_send_sigsys(int syscall, int reason)
 {
-	struct siginfo info;
+	struct kernel_siginfo info;
 	seccomp_init_siginfo(&info, syscall, reason);
 	force_sig_info(SIGSYS, &info, current);
 }
@@ -747,7 +747,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		/* Dump core only if this is the last remaining thread. */
 		if (action == SECCOMP_RET_KILL_PROCESS ||
 		    get_nr_threads(current) == 1) {
-			siginfo_t info;
+			kernel_siginfo_t info;
 
 			/* Show the original registers in the dump. */
 			syscall_rollback(current, task_pt_regs(current));

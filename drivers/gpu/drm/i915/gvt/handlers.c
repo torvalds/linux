@@ -1287,12 +1287,26 @@ static int power_well_ctl_mmio_write(struct intel_vgpu *vgpu,
 {
 	write_vreg(vgpu, offset, p_data, bytes);
 
-	if (vgpu_vreg(vgpu, offset) & HSW_PWR_WELL_CTL_REQ(HSW_DISP_PW_GLOBAL))
+	if (vgpu_vreg(vgpu, offset) &
+	    HSW_PWR_WELL_CTL_REQ(HSW_PW_CTL_IDX_GLOBAL))
 		vgpu_vreg(vgpu, offset) |=
-			HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
+			HSW_PWR_WELL_CTL_STATE(HSW_PW_CTL_IDX_GLOBAL);
 	else
 		vgpu_vreg(vgpu, offset) &=
-			~HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
+			~HSW_PWR_WELL_CTL_STATE(HSW_PW_CTL_IDX_GLOBAL);
+	return 0;
+}
+
+static int gen9_dbuf_ctl_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (vgpu_vreg(vgpu, offset) & DBUF_POWER_REQUEST)
+		vgpu_vreg(vgpu, offset) |= DBUF_POWER_STATE;
+	else
+		vgpu_vreg(vgpu, offset) &= ~DBUF_POWER_STATE;
+
 	return 0;
 }
 
@@ -1525,9 +1539,15 @@ static int bxt_phy_ctl_family_write(struct intel_vgpu *vgpu,
 	u32 v = *(u32 *)p_data;
 	u32 data = v & COMMON_RESET_DIS ? BXT_PHY_LANE_ENABLED : 0;
 
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_A) = data;
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_B) = data;
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_C) = data;
+	switch (offset) {
+	case _PHY_CTL_FAMILY_EDP:
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_A) = data;
+		break;
+	case _PHY_CTL_FAMILY_DDI:
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_B) = data;
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_C) = data;
+		break;
+	}
 
 	vgpu_vreg(vgpu, offset) = v;
 
@@ -1589,7 +1609,7 @@ static int bxt_gt_disp_pwron_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
-static int bxt_edp_psr_imr_iir_write(struct intel_vgpu *vgpu,
+static int edp_psr_imr_iir_write(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
 	vgpu_vreg(vgpu, offset) = 0;
@@ -2118,7 +2138,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_F(PCH_GMBUS0, 4 * 4, 0, 0, 0, D_ALL, gmbus_mmio_read,
 		gmbus_mmio_write);
-	MMIO_F(PCH_GPIOA, 6 * 4, F_UNALIGN, 0, 0, D_ALL, NULL, NULL);
+	MMIO_F(PCH_GPIO_BASE, 6 * 4, F_UNALIGN, 0, 0, D_ALL, NULL, NULL);
 	MMIO_F(_MMIO(0xe4f00), 0x28, 0, 0, 0, D_ALL, NULL, NULL);
 
 	MMIO_F(_MMIO(_PCH_DPB_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
@@ -2443,17 +2463,10 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GEN6_RC6p_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_RC6pp_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_PMINTRMSK, D_ALL);
-	/*
-	 * Use an arbitrary power well controlled by the PWR_WELL_CTL
-	 * register.
-	 */
-	MMIO_DH(HSW_PWR_WELL_CTL_BIOS(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
-		power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
-		power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_CTL_KVMR, D_BDW, NULL, power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_CTL_DEBUG(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
-		power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL1, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL2, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL3, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL4, D_BDW, NULL, power_well_ctl_mmio_write);
 	MMIO_DH(HSW_PWR_WELL_CTL5, D_BDW, NULL, power_well_ctl_mmio_write);
 	MMIO_DH(HSW_PWR_WELL_CTL6, D_BDW, NULL, power_well_ctl_mmio_write);
 
@@ -2594,6 +2607,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(_MMIO(0x1a178), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0x1a17c), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0x2217c), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
+
+	MMIO_DH(EDP_PSR_IMR, D_BDW_PLUS, NULL, edp_psr_imr_iir_write);
+	MMIO_DH(EDP_PSR_IIR, D_BDW_PLUS, NULL, edp_psr_imr_iir_write);
 	return 0;
 }
 
@@ -2804,13 +2820,10 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(_MMIO(_DPD_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_SKL_PLUS, NULL,
 						dp_aux_ch_ctl_mmio_write);
 
-	/*
-	 * Use an arbitrary power well controlled by the PWR_WELL_CTL
-	 * register.
-	 */
-	MMIO_D(HSW_PWR_WELL_CTL_BIOS(SKL_DISP_PW_MISC_IO), D_SKL_PLUS);
-	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(SKL_DISP_PW_MISC_IO), D_SKL_PLUS, NULL,
-		skl_power_well_ctl_write);
+	MMIO_D(HSW_PWR_WELL_CTL1, D_SKL_PLUS);
+	MMIO_DH(HSW_PWR_WELL_CTL2, D_SKL_PLUS, NULL, skl_power_well_ctl_write);
+
+	MMIO_DH(DBUF_CTL, D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
 
 	MMIO_D(_MMIO(0xa210), D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
@@ -2987,8 +3000,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 		NULL, gen9_trtte_write);
 	MMIO_DH(_MMIO(0x4dfc), D_SKL_PLUS, NULL, gen9_trtt_chicken_write);
 
-	MMIO_D(_MMIO(0x45008), D_SKL_PLUS);
-
 	MMIO_D(_MMIO(0x46430), D_SKL_PLUS);
 
 	MMIO_D(_MMIO(0x46520), D_SKL_PLUS);
@@ -3025,7 +3036,9 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(0x44500), D_SKL_PLUS);
 	MMIO_DFH(GEN9_CSFE_CHICKEN1_RCS, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(GEN8_HDC_CHICKEN1, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
-		NULL, NULL);
+		 NULL, NULL);
+	MMIO_DFH(GEN9_WM_CHICKEN3, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
+		 NULL, NULL);
 
 	MMIO_D(_MMIO(0x4ab8), D_KBL);
 	MMIO_D(_MMIO(0x2248), D_KBL | D_SKL);
@@ -3189,13 +3202,11 @@ static int init_bxt_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(BXT_DSI_PLL_ENABLE, D_BXT);
 
 	MMIO_D(GEN9_CLKGATE_DIS_0, D_BXT);
+	MMIO_D(GEN9_CLKGATE_DIS_4, D_BXT);
 
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_A), D_BXT);
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_B), D_BXT);
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_C), D_BXT);
-
-	MMIO_DH(EDP_PSR_IMR, D_BXT, NULL, bxt_edp_psr_imr_iir_write);
-	MMIO_DH(EDP_PSR_IIR, D_BXT, NULL, bxt_edp_psr_imr_iir_write);
 
 	MMIO_D(RC6_CTX_BASE, D_BXT);
 
@@ -3434,6 +3445,7 @@ bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
  * @offset: register offset
  * @pdata: data buffer
  * @bytes: data length
+ * @is_read: read or write
  *
  * Returns:
  * Zero on success, negative error code if failed.

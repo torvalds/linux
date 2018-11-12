@@ -421,7 +421,7 @@ last_record:
 			tls_push_record_flags = flags;
 			if (more) {
 				tls_ctx->pending_open_record_frags =
-						record->num_frags;
+						!!record->num_frags;
 				break;
 			}
 
@@ -489,7 +489,7 @@ int tls_device_sendpage(struct sock *sk, struct page *page,
 
 	iov.iov_base = kaddr + offset;
 	iov.iov_len = size;
-	iov_iter_kvec(&msg_iter, WRITE | ITER_KVEC, &iov, 1, size);
+	iov_iter_kvec(&msg_iter, WRITE, &iov, 1, size);
 	rc = tls_push_data(sk, &msg_iter, size,
 			   flags, TLS_RECORD_TYPE_DATA);
 	kunmap(page);
@@ -538,7 +538,7 @@ static int tls_device_push_pending_record(struct sock *sk, int flags)
 {
 	struct iov_iter	msg_iter;
 
-	iov_iter_kvec(&msg_iter, WRITE | ITER_KVEC, NULL, 0, 0);
+	iov_iter_kvec(&msg_iter, WRITE, NULL, 0, 0);
 	return tls_push_data(sk, &msg_iter, 0, flags, TLS_RECORD_TYPE_DATA);
 }
 
@@ -686,7 +686,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		goto free_marker_record;
 	}
 
-	crypto_info = &ctx->crypto_send;
+	crypto_info = &ctx->crypto_send.info;
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
 		nonce_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
@@ -780,7 +780,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 
 	ctx->priv_ctx_tx = offload_ctx;
 	rc = netdev->tlsdev_ops->tls_dev_add(netdev, sk, TLS_OFFLOAD_CTX_DIR_TX,
-					     &ctx->crypto_send,
+					     &ctx->crypto_send.info,
 					     tcp_sk(sk)->write_seq);
 	if (rc)
 		goto release_netdev;
@@ -862,7 +862,7 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 		goto release_ctx;
 
 	rc = netdev->tlsdev_ops->tls_dev_add(netdev, sk, TLS_OFFLOAD_CTX_DIR_RX,
-					     &ctx->crypto_recv,
+					     &ctx->crypto_recv.info,
 					     tcp_sk(sk)->copied_seq);
 	if (rc) {
 		pr_err_ratelimited("%s: The netdev has refused to offload this socket\n",

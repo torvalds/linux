@@ -656,7 +656,7 @@ static int __init init_nandsim(struct mtd_info *mtd)
 	}
 
 	/* Force mtd to not do delays */
-	chip->chip_delay = 0;
+	chip->legacy.chip_delay = 0;
 
 	/* Initialize the NAND flash parameters */
 	ns->busw = chip->options & NAND_BUSWIDTH_16 ? 16 : 8;
@@ -1872,9 +1872,8 @@ static void switch_state(struct nandsim *ns)
 	}
 }
 
-static u_char ns_nand_read_byte(struct mtd_info *mtd)
+static u_char ns_nand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 	u_char outb = 0x00;
 
@@ -1934,9 +1933,8 @@ static u_char ns_nand_read_byte(struct mtd_info *mtd)
 	return outb;
 }
 
-static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
+static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Sanity and correctness checks */
@@ -2089,9 +2087,8 @@ static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 	return;
 }
 
-static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
+static void ns_hwcontrol(struct nand_chip *chip, int cmd, unsigned int bitmask)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	ns->lines.cle = bitmask & NAND_CLE ? 1 : 0;
@@ -2099,27 +2096,18 @@ static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
 	ns->lines.ce = bitmask & NAND_NCE ? 1 : 0;
 
 	if (cmd != NAND_CMD_NONE)
-		ns_nand_write_byte(mtd, cmd);
+		ns_nand_write_byte(chip, cmd);
 }
 
-static int ns_device_ready(struct mtd_info *mtd)
+static int ns_device_ready(struct nand_chip *chip)
 {
 	NS_DBG("device_ready\n");
 	return 1;
 }
 
-static uint16_t ns_nand_read_word(struct mtd_info *mtd)
+static void ns_nand_write_buf(struct nand_chip *chip, const u_char *buf,
+			      int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
-	NS_DBG("read_word\n");
-
-	return chip->read_byte(mtd) | (chip->read_byte(mtd) << 8);
-}
-
-static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Check that chip is expecting data input */
@@ -2145,9 +2133,8 @@ static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 	}
 }
 
-static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void ns_nand_read_buf(struct nand_chip *chip, u_char *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
 
 	/* Sanity and correctness checks */
@@ -2169,7 +2156,7 @@ static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 		int i;
 
 		for (i = 0; i < len; i++)
-			buf[i] = mtd_to_nand(mtd)->read_byte(mtd);
+			buf[i] = chip->legacy.read_byte(chip);
 
 		return;
 	}
@@ -2262,12 +2249,11 @@ static int __init ns_init_module(void)
 	/*
 	 * Register simulator's callbacks.
 	 */
-	chip->cmd_ctrl	 = ns_hwcontrol;
-	chip->read_byte  = ns_nand_read_byte;
-	chip->dev_ready  = ns_device_ready;
-	chip->write_buf  = ns_nand_write_buf;
-	chip->read_buf   = ns_nand_read_buf;
-	chip->read_word  = ns_nand_read_word;
+	chip->legacy.cmd_ctrl	 = ns_hwcontrol;
+	chip->legacy.read_byte  = ns_nand_read_byte;
+	chip->legacy.dev_ready  = ns_device_ready;
+	chip->legacy.write_buf  = ns_nand_write_buf;
+	chip->legacy.read_buf   = ns_nand_read_buf;
 	chip->ecc.mode   = NAND_ECC_SOFT;
 	chip->ecc.algo   = NAND_ECC_HAMMING;
 	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */
@@ -2319,7 +2305,7 @@ static int __init ns_init_module(void)
 		goto error;
 
 	chip->dummy_controller.ops = &ns_controller_ops;
-	retval = nand_scan(nsmtd, 1);
+	retval = nand_scan(chip, 1);
 	if (retval) {
 		NS_ERR("Could not scan NAND Simulator device\n");
 		goto error;
@@ -2364,7 +2350,7 @@ static int __init ns_init_module(void)
 
 err_exit:
 	free_nandsim(nand);
-	nand_release(nsmtd);
+	nand_release(chip);
 	for (i = 0;i < ARRAY_SIZE(nand->partitions); ++i)
 		kfree(nand->partitions[i].name);
 error:
@@ -2386,7 +2372,7 @@ static void __exit ns_cleanup_module(void)
 	int i;
 
 	free_nandsim(ns);    /* Free nandsim private resources */
-	nand_release(nsmtd); /* Unregister driver */
+	nand_release(chip); /* Unregister driver */
 	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
 		kfree(ns->partitions[i].name);
 	kfree(mtd_to_nand(nsmtd));        /* Free other structures */

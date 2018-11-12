@@ -30,7 +30,11 @@
 
 #define DRIVER_NAME "fsl-dspi"
 
+#ifdef CONFIG_M5441x
+#define DSPI_FIFO_SIZE			16
+#else
 #define DSPI_FIFO_SIZE			4
+#endif
 #define DSPI_DMA_BUFSIZE		(DSPI_FIFO_SIZE * 1024)
 
 #define SPI_MCR		0x00
@@ -623,9 +627,11 @@ static void dspi_tcfq_read(struct fsl_dspi *dspi)
 static void dspi_eoq_write(struct fsl_dspi *dspi)
 {
 	int fifo_size = DSPI_FIFO_SIZE;
+	u16 xfer_cmd = dspi->tx_cmd;
 
 	/* Fill TX FIFO with as many transfers as possible */
 	while (dspi->len && fifo_size--) {
+		dspi->tx_cmd = xfer_cmd;
 		/* Request EOQF for last transfer in FIFO */
 		if (dspi->len == dspi->bytes_per_word || fifo_size == 0)
 			dspi->tx_cmd |= SPI_PUSHR_CMD_EOQ;

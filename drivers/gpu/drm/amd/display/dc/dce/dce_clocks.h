@@ -78,6 +78,8 @@ struct dce_dccg {
 
 	/* Cache the status of DFS-bypass feature*/
 	bool dfs_bypass_enabled;
+	/* True if the DFS-bypass feature is enabled and active. */
+	bool dfs_bypass_active;
 	/* Cache the display clock returned by VBIOS if DFS-bypass is enabled.
 	 * This is basically "Crystal Frequency In KHz" (XTALIN) frequency */
 	int dfs_bypass_disp_clk;
@@ -88,6 +90,7 @@ struct dce_dccg {
 	int dprefclk_ss_percentage;
 	/* DPREFCLK SS percentage Divider (100 or 1000) */
 	int dprefclk_ss_divider;
+	int dprefclk_khz;
 };
 
 

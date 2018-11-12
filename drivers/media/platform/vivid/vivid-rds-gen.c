@@ -147,11 +147,11 @@ void vivid_rds_gen_fill(struct vivid_rds_gen *rds, unsigned freq,
 	snprintf(rds->psname, sizeof(rds->psname), "%6d.%1d",
 		 freq / 16, ((freq & 0xf) * 10) / 16);
 	if (alt)
-		strlcpy(rds->radiotext,
+		strscpy(rds->radiotext,
 			" The Radio Data System can switch between different Radio Texts ",
 			sizeof(rds->radiotext));
 	else
-		strlcpy(rds->radiotext,
+		strscpy(rds->radiotext,
 			"An example of Radio Text as transmitted by the Radio Data System",
 			sizeof(rds->radiotext));
 }

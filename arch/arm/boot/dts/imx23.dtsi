@@ -93,7 +93,7 @@
 				status = "disabled";
 			};
 
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				reg = <0x80010000 0x2000>;
 				interrupts = <15>;
 				clocks = <&clks 33>;
@@ -457,7 +457,7 @@
 				status = "disabled";
 			};
 
-			ssp1: ssp@80034000 {
+			ssp1: spi@80034000 {
 				reg = <0x80034000 0x2000>;
 				interrupts = <2>;
 				clocks = <&clks 33>;

@@ -98,6 +98,9 @@ config PCI_ECAM
 config PCI_LOCKLESS_CONFIG
 	bool
 
+config PCI_BRIDGE_EMUL
+	bool
+
 config PCI_IOV
 	bool "PCI IOV support"
 	depends on PCI
@@ -129,6 +132,23 @@ config PCI_PASID
 	  use of this feature an IOMMU is required which also supports PASIDs.
 	  Select this option if you have such an IOMMU and want to compile the
 	  driver for it into your kernel.
+
+	  If unsure, say N.
+
+config PCI_P2PDMA
+	bool "PCI peer-to-peer transfer support"
+	depends on PCI && ZONE_DEVICE
+	select GENERIC_ALLOCATOR
+	help
+	  Enableѕ drivers to do PCI peer-to-peer transactions to and from
+	  BARs that are exposed in other devices that are the part of
+	  the hierarchy where peer-to-peer DMA is guaranteed by the PCI
+	  specification to work (ie. anything below a single PCI bridge).
+
+	  Many PCIe root complexes do not support P2P transactions and
+	  it's hard to tell which support it at all, so at this time,
+	  P2P DMA transations must be between devices behind the same root
+	  port.
 
 	  If unsure, say N.
 

@@ -9,11 +9,11 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-TESTS="unregister down carrier nexthop ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric"
+TESTS="unregister down carrier nexthop ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics"
 VERBOSE=0
 PAUSE_ON_FAIL=no
 PAUSE=no
-IP="ip -netns testns"
+IP="ip -netns ns1"
 
 log_test()
 {
@@ -47,8 +47,10 @@ log_test()
 setup()
 {
 	set -e
-	ip netns add testns
+	ip netns add ns1
 	$IP link set dev lo up
+	ip netns exec ns1 sysctl -qw net.ipv4.ip_forward=1
+	ip netns exec ns1 sysctl -qw net.ipv6.conf.all.forwarding=1
 
 	$IP link add dummy0 type dummy
 	$IP link set dev dummy0 up
@@ -61,7 +63,8 @@ setup()
 cleanup()
 {
 	$IP link del dev dummy0 &> /dev/null
-	ip netns del testns
+	ip netns del ns1
+	ip netns del ns2 &> /dev/null
 }
 
 get_linklocal()
@@ -639,10 +642,13 @@ add_initial_route6()
 
 check_route6()
 {
-	local pfx="2001:db8:104::/64"
+	local pfx
 	local expected="$1"
 	local out
 	local rc=0
+
+	set -- $expected
+	pfx=$1
 
 	out=$($IP -6 ro ls match ${pfx} | sed -e 's/ pref medium//')
 	[ "${out}" = "${expected}" ] && return 0
@@ -690,28 +696,33 @@ route_setup()
 	[ "${VERBOSE}" = "1" ] && set -x
 	set -e
 
-	$IP li add red up type vrf table 101
+	ip netns add ns2
+	ip -netns ns2 link set dev lo up
+	ip netns exec ns2 sysctl -qw net.ipv4.ip_forward=1
+	ip netns exec ns2 sysctl -qw net.ipv6.conf.all.forwarding=1
+
 	$IP li add veth1 type veth peer name veth2
 	$IP li add veth3 type veth peer name veth4
 
 	$IP li set veth1 up
 	$IP li set veth3 up
-	$IP li set veth2 vrf red up
-	$IP li set veth4 vrf red up
-	$IP li add dummy1 type dummy
-	$IP li set dummy1 vrf red up
+	$IP li set veth2 netns ns2 up
+	$IP li set veth4 netns ns2 up
+	ip -netns ns2 li add dummy1 type dummy
+	ip -netns ns2 li set dummy1 up
 
-	$IP -6 addr add 2001:db8:101::1/64 dev veth1
-	$IP -6 addr add 2001:db8:101::2/64 dev veth2
-	$IP -6 addr add 2001:db8:103::1/64 dev veth3
-	$IP -6 addr add 2001:db8:103::2/64 dev veth4
-	$IP -6 addr add 2001:db8:104::1/64 dev dummy1
-
+	$IP -6 addr add 2001:db8:101::1/64 dev veth1 nodad
+	$IP -6 addr add 2001:db8:103::1/64 dev veth3 nodad
 	$IP addr add 172.16.101.1/24 dev veth1
-	$IP addr add 172.16.101.2/24 dev veth2
 	$IP addr add 172.16.103.1/24 dev veth3
-	$IP addr add 172.16.103.2/24 dev veth4
-	$IP addr add 172.16.104.1/24 dev dummy1
+
+	ip -netns ns2 -6 addr add 2001:db8:101::2/64 dev veth2 nodad
+	ip -netns ns2 -6 addr add 2001:db8:103::2/64 dev veth4 nodad
+	ip -netns ns2 -6 addr add 2001:db8:104::1/64 dev dummy1 nodad
+
+	ip -netns ns2 addr add 172.16.101.2/24 dev veth2
+	ip -netns ns2 addr add 172.16.103.2/24 dev veth4
+	ip -netns ns2 addr add 172.16.104.1/24 dev dummy1
 
 	set +ex
 }
@@ -944,7 +955,7 @@ ipv6_addr_metric_test()
 	log_test $rc 0 "Modify metric of address"
 
 	# verify prefix route removed on down
-	run_cmd "ip netns exec testns sysctl -qw net.ipv6.conf.all.keep_addr_on_down=1"
+	run_cmd "ip netns exec ns1 sysctl -qw net.ipv6.conf.all.keep_addr_on_down=1"
 	run_cmd "$IP li set dev dummy2 down"
 	rc=$?
 	if [ $rc -eq 0 ]; then
@@ -965,6 +976,77 @@ ipv6_addr_metric_test()
 	$IP li del dummy1
 	$IP li del dummy2
 	cleanup
+}
+
+ipv6_route_metrics_test()
+{
+	local rc
+
+	echo
+	echo "IPv6 routes with metrics"
+
+	route_setup
+
+	#
+	# single path with metrics
+	#
+	run_cmd "$IP -6 ro add 2001:db8:111::/64 via 2001:db8:101::2 mtu 1400"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6  "2001:db8:111::/64 via 2001:db8:101::2 dev veth1 metric 1024 mtu 1400"
+		rc=$?
+	fi
+	log_test $rc 0 "Single path route with mtu metric"
+
+
+	#
+	# multipath via separate routes with metrics
+	#
+	run_cmd "$IP -6 ro add 2001:db8:112::/64 via 2001:db8:101::2 mtu 1400"
+	run_cmd "$IP -6 ro append 2001:db8:112::/64 via 2001:db8:103::2"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:112::/64 metric 1024 mtu 1400 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+		rc=$?
+	fi
+	log_test $rc 0 "Multipath route via 2 single routes with mtu metric on first"
+
+	# second route is coalesced to first to make a multipath route.
+	# MTU of the second path is hidden from display!
+	run_cmd "$IP -6 ro add 2001:db8:113::/64 via 2001:db8:101::2"
+	run_cmd "$IP -6 ro append 2001:db8:113::/64 via 2001:db8:103::2 mtu 1400"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:113::/64 metric 1024 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+		rc=$?
+	fi
+	log_test $rc 0 "Multipath route via 2 single routes with mtu metric on 2nd"
+
+	run_cmd "$IP -6 ro del 2001:db8:113::/64 via 2001:db8:101::2"
+	if [ $? -eq 0 ]; then
+		check_route6 "2001:db8:113::/64 via 2001:db8:103::2 dev veth3 metric 1024 mtu 1400"
+		log_test $? 0 "    MTU of second leg"
+	fi
+
+	#
+	# multipath with metrics
+	#
+	run_cmd "$IP -6 ro add 2001:db8:115::/64 mtu 1400 nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6  "2001:db8:115::/64 metric 1024 mtu 1400 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
+		rc=$?
+	fi
+	log_test $rc 0 "Multipath route with mtu metric"
+
+	$IP -6 ro add 2001:db8:104::/64 via 2001:db8:101::2 mtu 1300
+	run_cmd "ip netns exec ns1 ping6 -w1 -c1 -s 1500 2001:db8:104::1"
+	log_test $? 0 "Using route with mtu metric"
+
+	run_cmd "$IP -6 ro add 2001:db8:114::/64 via  2001:db8:101::2  congctl lock foo"
+	log_test $? 2 "Invalid metric (fails metric_convert)"
+
+	route_cleanup
 }
 
 # add route for a prefix, flushing any existing routes first
@@ -1005,10 +1087,14 @@ add_initial_route()
 
 check_route()
 {
-	local pfx="172.16.104.0/24"
+	local pfx
 	local expected="$1"
 	local out
 	local rc=0
+
+	set -- $expected
+	pfx=$1
+	[ "${pfx}" = "unreachable" ] && pfx=$2
 
 	out=$($IP ro ls match ${pfx})
 	[ "${out}" = "${expected}" ] && return 0
@@ -1319,6 +1405,43 @@ ipv4_addr_metric_test()
 	cleanup
 }
 
+ipv4_route_metrics_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 route add / append tests"
+
+	route_setup
+
+	run_cmd "$IP ro add 172.16.111.0/24 via 172.16.101.2 mtu 1400"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.111.0/24 via 172.16.101.2 dev veth1 mtu 1400"
+		rc=$?
+	fi
+	log_test $rc 0 "Single path route with mtu metric"
+
+
+	run_cmd "$IP ro add 172.16.112.0/24 mtu 1400 nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.112.0/24 mtu 1400 nexthop via 172.16.101.2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+		rc=$?
+	fi
+	log_test $rc 0 "Multipath route with mtu metric"
+
+	$IP ro add 172.16.104.0/24 via 172.16.101.2 mtu 1300
+	run_cmd "ip netns exec ns1 ping -w1 -c1 -s 1500 172.16.104.1"
+	log_test $? 0 "Using route with mtu metric"
+
+	run_cmd "$IP ro add 172.16.111.0/24 via 172.16.101.2 congctl lock foo"
+	log_test $? 2 "Invalid metric (fails metric_convert)"
+
+	route_cleanup
+}
+
+
 ################################################################################
 # usage
 
@@ -1385,6 +1508,8 @@ do
 	ipv4_route_test|ipv4_rt)	ipv4_route_test;;
 	ipv6_addr_metric)		ipv6_addr_metric_test;;
 	ipv4_addr_metric)		ipv4_addr_metric_test;;
+	ipv6_route_metrics)		ipv6_route_metrics_test;;
+	ipv4_route_metrics)		ipv4_route_metrics_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 	esac

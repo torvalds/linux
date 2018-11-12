@@ -302,44 +302,6 @@ int smu7_write_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr, uint32_
 	return 0;
 }
 
-/* Convert the firmware type to SMU type mask. For MEC, we need to check all MEC related type */
-
-static uint32_t smu7_get_mask_for_firmware_type(uint32_t fw_type)
-{
-	uint32_t result = 0;
-
-	switch (fw_type) {
-	case UCODE_ID_SDMA0:
-		result = UCODE_ID_SDMA0_MASK;
-		break;
-	case UCODE_ID_SDMA1:
-		result = UCODE_ID_SDMA1_MASK;
-		break;
-	case UCODE_ID_CP_CE:
-		result = UCODE_ID_CP_CE_MASK;
-		break;
-	case UCODE_ID_CP_PFP:
-		result = UCODE_ID_CP_PFP_MASK;
-		break;
-	case UCODE_ID_CP_ME:
-		result = UCODE_ID_CP_ME_MASK;
-		break;
-	case UCODE_ID_CP_MEC:
-	case UCODE_ID_CP_MEC_JT1:
-	case UCODE_ID_CP_MEC_JT2:
-		result = UCODE_ID_CP_MEC_MASK;
-		break;
-	case UCODE_ID_RLC_G:
-		result = UCODE_ID_RLC_G_MASK;
-		break;
-	default:
-		pr_info("UCode type is out of range! \n");
-		result = 0;
-	}
-
-	return result;
-}
-
 static int smu7_populate_single_firmware_entry(struct pp_hwmgr *hwmgr,
 						uint32_t fw_type,
 						struct SMU_Entry *entry)
@@ -381,10 +343,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	uint32_t fw_to_load;
 	int r = 0;
 
-	if (!hwmgr->reload_fw) {
-		pr_info("skip reloading...\n");
-		return 0;
-	}
+	amdgpu_ucode_init_bo(hwmgr->adev);
 
 	if (smu_data->soft_regs_start)
 		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
@@ -467,10 +426,13 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, upper_32_bits(smu_data->header_buffer.mc_addr));
 	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, lower_32_bits(smu_data->header_buffer.mc_addr));
 
-	if (smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_LoadUcodes, fw_to_load))
-		pr_err("Fail to Request SMU Load uCode");
+	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_LoadUcodes, fw_to_load);
 
-	return r;
+	r = smu7_check_fw_load_finish(hwmgr, fw_to_load);
+	if (!r)
+		return 0;
+
+	pr_err("SMU load firmware failed\n");
 
 failed:
 	kfree(smu_data->toc);
@@ -482,13 +444,12 @@ failed:
 int smu7_check_fw_load_finish(struct pp_hwmgr *hwmgr, uint32_t fw_type)
 {
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
-	uint32_t fw_mask = smu7_get_mask_for_firmware_type(fw_type);
 	uint32_t ret;
 
 	ret = phm_wait_on_indirect_register(hwmgr, mmSMC_IND_INDEX_11,
 					smu_data->soft_regs_start + smum_get_offsetof(hwmgr,
 					SMU_SoftRegisters, UcodeLoadStatus),
-					fw_mask, fw_mask);
+					fw_type, fw_type);
 	return ret;
 }
 
@@ -620,7 +581,8 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 		return -EINVAL;
 	}
 
-	if (smum_is_hw_avfs_present(hwmgr))
+	if (smum_is_hw_avfs_present(hwmgr) &&
+	    (hwmgr->feature_mask & PP_AVFS_MASK))
 		hwmgr->avfs_supported = true;
 
 	return 0;

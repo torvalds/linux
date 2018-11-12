@@ -7,6 +7,7 @@
 
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/printk.h>
 
 #include "hid-ids.h"
 
@@ -15,11 +16,9 @@ MODULE_DESCRIPTION("Cougar 500k Gaming Keyboard");
 MODULE_LICENSE("GPL");
 MODULE_INFO(key_mappings, "G1-G6 are mapped to F13-F18");
 
-static int cougar_g6_is_space = 1;
-module_param_named(g6_is_space, cougar_g6_is_space, int, 0600);
+static bool g6_is_space = true;
 MODULE_PARM_DESC(g6_is_space,
-	"If set, G6 programmable key sends SPACE instead of F18 (0=off, 1=on) (default=1)");
-
+	"If true, G6 programmable key sends SPACE instead of F18 (default=true)");
 
 #define COUGAR_VENDOR_USAGE	0xff00ff00
 
@@ -82,20 +81,23 @@ struct cougar {
 static LIST_HEAD(cougar_udev_list);
 static DEFINE_MUTEX(cougar_udev_list_lock);
 
-static void cougar_fix_g6_mapping(struct hid_device *hdev)
+/**
+ * cougar_fix_g6_mapping - configure the mapping for key G6/Spacebar
+ */
+static void cougar_fix_g6_mapping(void)
 {
 	int i;
 
 	for (i = 0; cougar_mapping[i][0]; i++) {
 		if (cougar_mapping[i][0] == COUGAR_KEY_G6) {
 			cougar_mapping[i][1] =
-				cougar_g6_is_space ? KEY_SPACE : KEY_F18;
-			hid_info(hdev, "G6 mapped to %s\n",
-				 cougar_g6_is_space ? "space" : "F18");
+				g6_is_space ? KEY_SPACE : KEY_F18;
+			pr_info("cougar: G6 mapped to %s\n",
+				g6_is_space ? "space" : "F18");
 			return;
 		}
 	}
-	hid_warn(hdev, "no mapping defined for G6/spacebar");
+	pr_warn("cougar: no mappings defined for G6/spacebar");
 }
 
 /*
@@ -154,7 +156,8 @@ static void cougar_remove_shared_data(void *resource)
  * Bind the device group's shared data to this cougar struct.
  * If no shared data exists for this group, create and initialize it.
  */
-static int cougar_bind_shared_data(struct hid_device *hdev, struct cougar *cougar)
+static int cougar_bind_shared_data(struct hid_device *hdev,
+				   struct cougar *cougar)
 {
 	struct cougar_shared *shared;
 	int error = 0;
@@ -228,7 +231,6 @@ static int cougar_probe(struct hid_device *hdev,
 	 * to it.
 	 */
 	if (hdev->collection->usage == HID_GD_KEYBOARD) {
-		cougar_fix_g6_mapping(hdev);
 		list_for_each_entry_safe(hidinput, next, &hdev->inputs, list) {
 			if (hidinput->registered && hidinput->input != NULL) {
 				cougar->shared->input = hidinput->input;
@@ -237,6 +239,8 @@ static int cougar_probe(struct hid_device *hdev,
 			}
 		}
 	} else if (hdev->collection->usage == COUGAR_VENDOR_USAGE) {
+		/* Preinit the mapping table */
+		cougar_fix_g6_mapping();
 		error = hid_hw_open(hdev);
 		if (error)
 			goto fail_stop_and_cleanup;
@@ -257,26 +261,32 @@ static int cougar_raw_event(struct hid_device *hdev, struct hid_report *report,
 			    u8 *data, int size)
 {
 	struct cougar *cougar;
+	struct cougar_shared *shared;
 	unsigned char code, action;
 	int i;
 
 	cougar = hid_get_drvdata(hdev);
-	if (!cougar->special_intf || !cougar->shared ||
-	    !cougar->shared->input || !cougar->shared->enabled)
+	shared = cougar->shared;
+	if (!cougar->special_intf || !shared)
 		return 0;
+
+	if (!shared->enabled || !shared->input)
+		return -EPERM;
 
 	code = data[COUGAR_FIELD_CODE];
 	action = data[COUGAR_FIELD_ACTION];
 	for (i = 0; cougar_mapping[i][0]; i++) {
 		if (code == cougar_mapping[i][0]) {
-			input_event(cougar->shared->input, EV_KEY,
+			input_event(shared->input, EV_KEY,
 				    cougar_mapping[i][1], action);
-			input_sync(cougar->shared->input);
-			return 0;
+			input_sync(shared->input);
+			return -EPERM;
 		}
 	}
-	hid_warn(hdev, "unmapped special key code %x: ignoring\n", code);
-	return 0;
+	/* Avoid warnings on the same unmapped key twice */
+	if (action != 0)
+		hid_warn(hdev, "unmapped special key code %0x: ignoring\n", code);
+	return -EPERM;
 }
 
 static void cougar_remove(struct hid_device *hdev)
@@ -292,6 +302,26 @@ static void cougar_remove(struct hid_device *hdev)
 	}
 	hid_hw_stop(hdev);
 }
+
+static int cougar_param_set_g6_is_space(const char *val,
+					const struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_set_bool(val, kp);
+	if (ret)
+		return ret;
+
+	cougar_fix_g6_mapping();
+
+	return 0;
+}
+
+static const struct kernel_param_ops cougar_g6_is_space_ops = {
+	.set	= cougar_param_set_g6_is_space,
+	.get	= param_get_bool,
+};
+module_param_cb(g6_is_space, &cougar_g6_is_space_ops, &g6_is_space, 0644);
 
 static struct hid_device_id cougar_id_table[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SOLID_YEAR,

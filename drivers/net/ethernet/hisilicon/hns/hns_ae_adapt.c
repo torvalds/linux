@@ -155,6 +155,41 @@ static void hns_ae_put_handle(struct hnae_handle *handle)
 		hns_ae_get_ring_pair(handle->qs[i])->used_by_vf = 0;
 }
 
+static int hns_ae_wait_flow_down(struct hnae_handle *handle)
+{
+	struct dsaf_device *dsaf_dev;
+	struct hns_ppe_cb *ppe_cb;
+	struct hnae_vf_cb *vf_cb;
+	int ret;
+	int i;
+
+	for (i = 0; i < handle->q_num; i++) {
+		ret = hns_rcb_wait_tx_ring_clean(handle->qs[i]);
+		if (ret)
+			return ret;
+	}
+
+	ppe_cb = hns_get_ppe_cb(handle);
+	ret = hns_ppe_wait_tx_fifo_clean(ppe_cb);
+	if (ret)
+		return ret;
+
+	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
+	if (!dsaf_dev)
+		return -EINVAL;
+	ret = hns_dsaf_wait_pkt_clean(dsaf_dev, handle->dport_id);
+	if (ret)
+		return ret;
+
+	vf_cb = hns_ae_get_vf_cb(handle);
+	ret = hns_mac_wait_fifo_clean(vf_cb->mac_cb);
+	if (ret)
+		return ret;
+
+	mdelay(10);
+	return 0;
+}
+
 static void hns_ae_ring_enable_all(struct hnae_handle *handle, int val)
 {
 	int q_num = handle->q_num;
@@ -399,12 +434,41 @@ static int hns_ae_get_mac_info(struct hnae_handle *handle,
 	return hns_mac_get_port_info(mac_cb, auto_neg, speed, duplex);
 }
 
+static bool hns_ae_need_adjust_link(struct hnae_handle *handle, int speed,
+				    int duplex)
+{
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
+	return hns_mac_need_adjust_link(mac_cb, speed, duplex);
+}
+
 static void hns_ae_adjust_link(struct hnae_handle *handle, int speed,
 			       int duplex)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
-	hns_mac_adjust_link(mac_cb, speed, duplex);
+	switch (mac_cb->dsaf_dev->dsaf_ver) {
+	case AE_VERSION_1:
+		hns_mac_adjust_link(mac_cb, speed, duplex);
+		break;
+
+	case AE_VERSION_2:
+		/* chip need to clear all pkt inside */
+		hns_mac_disable(mac_cb, MAC_COMM_MODE_RX);
+		if (hns_ae_wait_flow_down(handle)) {
+			hns_mac_enable(mac_cb, MAC_COMM_MODE_RX);
+			break;
+		}
+
+		hns_mac_adjust_link(mac_cb, speed, duplex);
+		hns_mac_enable(mac_cb, MAC_COMM_MODE_RX);
+		break;
+
+	default:
+		break;
+	}
+
+	return;
 }
 
 static void hns_ae_get_ring_bdnum_limit(struct hnae_queue *queue,
@@ -902,6 +966,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_status = hns_ae_get_link_status,
 	.get_info = hns_ae_get_mac_info,
 	.adjust_link = hns_ae_adjust_link,
+	.need_adjust_link = hns_ae_need_adjust_link,
 	.set_loopback = hns_ae_config_loopback,
 	.get_ring_bdnum_limit = hns_ae_get_ring_bdnum_limit,
 	.get_pauseparam = hns_ae_get_pauseparam,

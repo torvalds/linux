@@ -28,7 +28,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/highmem.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -165,7 +165,8 @@ static pte_t *consistent_virt_to_pte(void *vaddr)
 	return pte_offset_kernel(pmd_offset(pgd_offset_k(addr), addr), addr);
 }
 
-unsigned long consistent_virt_to_pfn(void *vaddr)
+long arch_dma_coherent_to_pfn(struct device *dev, void *vaddr,
+		dma_addr_t dma_addr)
 {
 	pte_t *ptep = consistent_virt_to_pte(vaddr);
 

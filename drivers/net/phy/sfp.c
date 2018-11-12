@@ -163,8 +163,6 @@ static const enum gpiod_flags gpio_flags[] = {
 /* Give this long for the PHY to reset. */
 #define T_PHY_RESET_MS	50
 
-static DEFINE_MUTEX(sfp_mutex);
-
 struct sff_data {
 	unsigned int gpios;
 	bool (*module_supported)(const struct sfp_eeprom_id *id);
@@ -398,7 +396,6 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 	switch (type) {
 	case hwmon_temp:
 		switch (attr) {
-		case hwmon_temp_input:
 		case hwmon_temp_min_alarm:
 		case hwmon_temp_max_alarm:
 		case hwmon_temp_lcrit_alarm:
@@ -407,13 +404,16 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_temp_max:
 		case hwmon_temp_lcrit:
 		case hwmon_temp_crit:
+			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
+				return 0;
+			/* fall through */
+		case hwmon_temp_input:
 			return 0444;
 		default:
 			return 0;
 		}
 	case hwmon_in:
 		switch (attr) {
-		case hwmon_in_input:
 		case hwmon_in_min_alarm:
 		case hwmon_in_max_alarm:
 		case hwmon_in_lcrit_alarm:
@@ -422,13 +422,16 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_in_max:
 		case hwmon_in_lcrit:
 		case hwmon_in_crit:
+			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
+				return 0;
+			/* fall through */
+		case hwmon_in_input:
 			return 0444;
 		default:
 			return 0;
 		}
 	case hwmon_curr:
 		switch (attr) {
-		case hwmon_curr_input:
 		case hwmon_curr_min_alarm:
 		case hwmon_curr_max_alarm:
 		case hwmon_curr_lcrit_alarm:
@@ -437,6 +440,10 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_curr_max:
 		case hwmon_curr_lcrit:
 		case hwmon_curr_crit:
+			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
+				return 0;
+			/* fall through */
+		case hwmon_curr_input:
 			return 0444;
 		default:
 			return 0;
@@ -452,7 +459,6 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		    channel == 1)
 			return 0;
 		switch (attr) {
-		case hwmon_power_input:
 		case hwmon_power_min_alarm:
 		case hwmon_power_max_alarm:
 		case hwmon_power_lcrit_alarm:
@@ -461,6 +467,10 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_power_max:
 		case hwmon_power_lcrit:
 		case hwmon_power_crit:
+			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
+				return 0;
+			/* fall through */
+		case hwmon_power_input:
 			return 0444;
 		default:
 			return 0;
@@ -1086,8 +1096,11 @@ static int sfp_hwmon_insert(struct sfp *sfp)
 
 static void sfp_hwmon_remove(struct sfp *sfp)
 {
-	hwmon_device_unregister(sfp->hwmon_dev);
-	kfree(sfp->hwmon_name);
+	if (!IS_ERR_OR_NULL(sfp->hwmon_dev)) {
+		hwmon_device_unregister(sfp->hwmon_dev);
+		sfp->hwmon_dev = NULL;
+		kfree(sfp->hwmon_name);
+	}
 }
 #else
 static int sfp_hwmon_insert(struct sfp *sfp)

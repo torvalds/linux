@@ -34,7 +34,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/dma-fence.h>
-#include <drm/drmP.h>
+#include <linux/uaccess.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
@@ -42,6 +42,9 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_debugfs_crc.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_print.h>
+#include <drm/drm_file.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -402,7 +405,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	struct drm_plane *plane;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	crtc = drm_crtc_find(dev, file_priv, crtc_resp->crtc_id);
 	if (!crtc)
@@ -567,9 +570,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	struct drm_mode_crtc *crtc_req = data;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
-	struct drm_connector **connector_set = NULL, *connector;
-	struct drm_framebuffer *fb = NULL;
-	struct drm_display_mode *mode = NULL;
+	struct drm_connector **connector_set, *connector;
+	struct drm_framebuffer *fb;
+	struct drm_display_mode *mode;
 	struct drm_mode_set set;
 	uint32_t __user *set_connectors_ptr;
 	struct drm_modeset_acquire_ctx ctx;
@@ -577,7 +580,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	int i;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	/*
 	 * Universal plane src offsets are only 16.16, prevent havoc for
@@ -598,6 +601,10 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	mutex_lock(&crtc->dev->mode_config.mutex);
 	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 retry:
+	connector_set = NULL;
+	fb = NULL;
+	mode = NULL;
+
 	ret = drm_modeset_lock_all_ctx(crtc->dev, &ctx);
 	if (ret)
 		goto out;

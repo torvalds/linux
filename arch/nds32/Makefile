@@ -5,6 +5,10 @@ KBUILD_DEFCONFIG := defconfig
 
 comma = ,
 
+ifdef CONFIG_FUNCTION_TRACER
+arch-y += -malways-save-lp -mno-relax
+endif
+
 KBUILD_CFLAGS	+= $(call cc-option, -mno-sched-prolog-epilog)
 KBUILD_CFLAGS	+= -mcmodel=large
 
@@ -43,7 +47,7 @@ CHECKFLAGS      += -D__NDS32_EB__
 endif
 
 boot := arch/nds32/boot
-core-$(BUILTIN_DTB) += $(boot)/dts/
+core-y += $(boot)/dts/
 
 .PHONY: FORCE
 

@@ -2212,6 +2212,20 @@ static void cnl_wrpll_params_populate(struct skl_wrpll_params *params,
 	params->dco_fraction = dco & 0x7fff;
 }
 
+int cnl_hdmi_pll_ref_clock(struct drm_i915_private *dev_priv)
+{
+	int ref_clock = dev_priv->cdclk.hw.ref;
+
+	/*
+	 * For ICL+, the spec states: if reference frequency is 38.4,
+	 * use 19.2 because the DPLL automatically divides that by 2.
+	 */
+	if (INTEL_GEN(dev_priv) >= 11 && ref_clock == 38400)
+		ref_clock = 19200;
+
+	return ref_clock;
+}
+
 static bool
 cnl_ddi_calculate_wrpll(int clock,
 			struct drm_i915_private *dev_priv,
@@ -2251,14 +2265,7 @@ cnl_ddi_calculate_wrpll(int clock,
 
 	cnl_wrpll_get_multipliers(best_div, &pdiv, &qdiv, &kdiv);
 
-	ref_clock = dev_priv->cdclk.hw.ref;
-
-	/*
-	 * For ICL, the spec states: if reference frequency is 38.4, use 19.2
-	 * because the DPLL automatically divides that by 2.
-	 */
-	if (IS_ICELAKE(dev_priv) && ref_clock == 38400)
-		ref_clock = 19200;
+	ref_clock = cnl_hdmi_pll_ref_clock(dev_priv);
 
 	cnl_wrpll_params_populate(wrpll_params, best_dco, ref_clock, pdiv, qdiv,
 				  kdiv);
@@ -2452,6 +2459,16 @@ static const struct skl_wrpll_params icl_dp_combo_pll_19_2MHz_values[] = {
 	  .pdiv = 0x1 /* 2 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0},
 };
 
+static const struct skl_wrpll_params icl_tbt_pll_24MHz_values = {
+	.dco_integer = 0x151, .dco_fraction = 0x4000,
+	.pdiv = 0x4 /* 5 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0,
+};
+
+static const struct skl_wrpll_params icl_tbt_pll_19_2MHz_values = {
+	.dco_integer = 0x1A5, .dco_fraction = 0x7000,
+	.pdiv = 0x4 /* 5 */, .kdiv = 1, .qdiv_mode = 0, .qdiv_ratio = 0,
+};
+
 static bool icl_calc_dp_combo_pll(struct drm_i915_private *dev_priv, int clock,
 				  struct skl_wrpll_params *pll_params)
 {
@@ -2494,6 +2511,14 @@ static bool icl_calc_dp_combo_pll(struct drm_i915_private *dev_priv, int clock,
 	return true;
 }
 
+static bool icl_calc_tbt_pll(struct drm_i915_private *dev_priv, int clock,
+			     struct skl_wrpll_params *pll_params)
+{
+	*pll_params = dev_priv->cdclk.hw.ref == 24000 ?
+			icl_tbt_pll_24MHz_values : icl_tbt_pll_19_2MHz_values;
+	return true;
+}
+
 static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
 				struct intel_encoder *encoder, int clock,
 				struct intel_dpll_hw_state *pll_state)
@@ -2503,7 +2528,9 @@ static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
 	struct skl_wrpll_params pll_params = { 0 };
 	bool ret;
 
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+	if (intel_port_is_tc(dev_priv, encoder->port))
+		ret = icl_calc_tbt_pll(dev_priv, clock, &pll_params);
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		ret = cnl_ddi_calculate_wrpll(clock, dev_priv, &pll_params);
 	else
 		ret = icl_calc_dp_combo_pll(dev_priv, clock, &pll_params);
@@ -2623,7 +2650,8 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 
 		for (div2 = 10; div2 > 0; div2--) {
 			int dco = div1 * div2 * clock_khz * 5;
-			int a_divratio, tlinedrv, inputsel, hsdiv;
+			int a_divratio, tlinedrv, inputsel;
+			u32 hsdiv;
 
 			if (dco < dco_min_freq || dco > dco_max_freq)
 				continue;
@@ -2642,16 +2670,16 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				MISSING_CASE(div1);
 				/* fall through */
 			case 2:
-				hsdiv = 0;
+				hsdiv = MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_2;
 				break;
 			case 3:
-				hsdiv = 1;
+				hsdiv = MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_3;
 				break;
 			case 5:
-				hsdiv = 2;
+				hsdiv = MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_5;
 				break;
 			case 7:
-				hsdiv = 3;
+				hsdiv = MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_7;
 				break;
 			}
 
@@ -2665,7 +2693,7 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 			state->mg_clktop2_hsclkctl =
 				MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL(tlinedrv) |
 				MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL(inputsel) |
-				MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO(hsdiv) |
+				hsdiv |
 				MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO(div2);
 
 			return true;
@@ -2846,6 +2874,8 @@ static struct intel_shared_dpll *
 icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	     struct intel_encoder *encoder)
 {
+	struct intel_digital_port *intel_dig_port =
+			enc_to_dig_port(&encoder->base);
 	struct intel_shared_dpll *pll;
 	struct intel_dpll_hw_state pll_state = {};
 	enum port port = encoder->port;
@@ -2865,7 +2895,7 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	case PORT_D:
 	case PORT_E:
 	case PORT_F:
-		if (0 /* TODO: TBT PLLs */) {
+		if (intel_dig_port->tc_type == TC_PORT_TBT) {
 			min = DPLL_ID_ICL_TBTPLL;
 			max = min;
 			ret = icl_calc_dpll_state(crtc_state, encoder, clock,

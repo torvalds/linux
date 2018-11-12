@@ -4,6 +4,8 @@
 #include "nitrox_dev.h"
 #include "nitrox_csr.h"
 
+#define PLL_REF_CLK 50
+
 /**
  * emu_enable_cores - Enable EMU cluster cores.
  * @ndev: N5 device
@@ -117,7 +119,7 @@ void nitrox_config_pkt_input_rings(struct nitrox_device *ndev)
 	int i;
 
 	for (i = 0; i < ndev->nr_queues; i++) {
-		struct nitrox_cmdq *cmdq = &ndev->pkt_cmdqs[i];
+		struct nitrox_cmdq *cmdq = &ndev->pkt_inq[i];
 		union nps_pkt_in_instr_rsize pkt_in_rsize;
 		u64 offset;
 
@@ -256,7 +258,7 @@ void nitrox_config_nps_unit(struct nitrox_device *ndev)
 	/* disable ILK interface */
 	core_gbl_vfcfg.value = 0;
 	core_gbl_vfcfg.s.ilk_disable = 1;
-	core_gbl_vfcfg.s.cfg = PF_MODE;
+	core_gbl_vfcfg.s.cfg = __NDEV_MODE_PF;
 	nitrox_write_csr(ndev, NPS_CORE_GBL_VFCFG, core_gbl_vfcfg.value);
 	/* config input and solicit ports */
 	nitrox_config_pkt_input_rings(ndev);
@@ -399,4 +401,69 @@ void nitrox_config_lbc_unit(struct nitrox_device *ndev)
 	nitrox_write_csr(ndev, offset, (~0ULL));
 	offset = LBC_ELM_VF65_128_INT_ENA_W1S;
 	nitrox_write_csr(ndev, offset, (~0ULL));
+}
+
+void config_nps_core_vfcfg_mode(struct nitrox_device *ndev, enum vf_mode mode)
+{
+	union nps_core_gbl_vfcfg vfcfg;
+
+	vfcfg.value = nitrox_read_csr(ndev, NPS_CORE_GBL_VFCFG);
+	vfcfg.s.cfg = mode & 0x7;
+
+	nitrox_write_csr(ndev, NPS_CORE_GBL_VFCFG, vfcfg.value);
+}
+
+void nitrox_get_hwinfo(struct nitrox_device *ndev)
+{
+	union emu_fuse_map emu_fuse;
+	union rst_boot rst_boot;
+	union fus_dat1 fus_dat1;
+	unsigned char name[IFNAMSIZ * 2] = {};
+	int i, dead_cores;
+	u64 offset;
+
+	/* get core frequency */
+	offset = RST_BOOT;
+	rst_boot.value = nitrox_read_csr(ndev, offset);
+	ndev->hw.freq = (rst_boot.pnr_mul + 3) * PLL_REF_CLK;
+
+	for (i = 0; i < NR_CLUSTERS; i++) {
+		offset = EMU_FUSE_MAPX(i);
+		emu_fuse.value = nitrox_read_csr(ndev, offset);
+		if (emu_fuse.s.valid) {
+			dead_cores = hweight32(emu_fuse.s.ae_fuse);
+			ndev->hw.ae_cores += AE_CORES_PER_CLUSTER - dead_cores;
+			dead_cores = hweight16(emu_fuse.s.se_fuse);
+			ndev->hw.se_cores += SE_CORES_PER_CLUSTER - dead_cores;
+		}
+	}
+	/* find zip hardware availability */
+	offset = FUS_DAT1;
+	fus_dat1.value = nitrox_read_csr(ndev, offset);
+	if (!fus_dat1.nozip) {
+		dead_cores = hweight8(fus_dat1.zip_info);
+		ndev->hw.zip_cores = ZIP_MAX_CORES - dead_cores;
+	}
+
+	/* determine the partname CNN55<cores>-<freq><pincount>-<rev>*/
+	if (ndev->hw.ae_cores == AE_MAX_CORES) {
+		switch (ndev->hw.se_cores) {
+		case SE_MAX_CORES:
+			i = snprintf(name, sizeof(name), "CNN5560");
+			break;
+		case 40:
+			i = snprintf(name, sizeof(name), "CNN5560s");
+			break;
+		}
+	} else if (ndev->hw.ae_cores == (AE_MAX_CORES / 2)) {
+		i = snprintf(name, sizeof(name), "CNN5530");
+	} else {
+		i = snprintf(name, sizeof(name), "CNN5560i");
+	}
+
+	snprintf(name + i, sizeof(name) - i, "-%3dBG676-1.%u",
+		 ndev->hw.freq, ndev->hw.revision_id);
+
+	/* copy partname */
+	strncpy(ndev->hw.partname, name, sizeof(ndev->hw.partname));
 }

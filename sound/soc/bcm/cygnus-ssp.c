@@ -1334,7 +1334,7 @@ static int cygnus_ssp_probe(struct platform_device *pdev)
 	cygaud->active_ports = 0;
 
 	dev_dbg(dev, "Registering %d DAIs\n", active_port_count);
-	err = snd_soc_register_component(dev, &cygnus_ssp_component,
+	err = devm_snd_soc_register_component(dev, &cygnus_ssp_component,
 				cygnus_ssp_dai, active_port_count);
 	if (err) {
 		dev_err(dev, "snd_soc_register_dai failed\n");
@@ -1345,32 +1345,27 @@ static int cygnus_ssp_probe(struct platform_device *pdev)
 	if (cygaud->irq_num <= 0) {
 		dev_err(dev, "platform_get_irq failed\n");
 		err = cygaud->irq_num;
-		goto err_irq;
+		return err;
 	}
 
 	err = audio_clk_init(pdev, cygaud);
 	if (err) {
 		dev_err(dev, "audio clock initialization failed\n");
-		goto err_irq;
+		return err;
 	}
 
 	err = cygnus_soc_platform_register(dev, cygaud);
 	if (err) {
 		dev_err(dev, "platform reg error %d\n", err);
-		goto err_irq;
+		return err;
 	}
 
 	return 0;
-
-err_irq:
-	snd_soc_unregister_component(dev);
-	return err;
 }
 
 static int cygnus_ssp_remove(struct platform_device *pdev)
 {
 	cygnus_soc_platform_unregister(&pdev->dev);
-	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }

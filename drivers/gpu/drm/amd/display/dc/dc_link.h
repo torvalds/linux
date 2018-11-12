@@ -167,6 +167,7 @@ enum dc_detect_reason {
 };
 
 bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
+bool dc_link_get_hpd_state(struct dc_link *dc_link);
 
 /* Notify DC about DP RX Interrupt (aka Short Pulse Interrupt).
  * Return:
@@ -215,6 +216,7 @@ void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
 
 bool dc_link_is_dp_sink_present(struct dc_link *link);
 
+bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type);
 /*
  * DPCD access interfaces
  */

@@ -198,24 +198,19 @@ static u16 hv_get_dev_type(const struct vmbus_channel *channel)
 }
 
 /**
- * vmbus_prep_negotiate_resp() - Create default response for Hyper-V Negotiate message
+ * vmbus_prep_negotiate_resp() - Create default response for Negotiate message
  * @icmsghdrp: Pointer to msg header structure
- * @icmsg_negotiate: Pointer to negotiate message structure
  * @buf: Raw buffer channel data
+ * @fw_version: The framework versions we can support.
+ * @fw_vercnt: The size of @fw_version.
+ * @srv_version: The service versions we can support.
+ * @srv_vercnt: The size of @srv_version.
+ * @nego_fw_version: The selected framework version.
+ * @nego_srv_version: The selected service version.
  *
- * @icmsghdrp is of type &struct icmsg_hdr.
+ * Note: Versions are given in decreasing order.
+ *
  * Set up and fill in default negotiate response message.
- *
- * The fw_version and fw_vercnt specifies the framework version that
- * we can support.
- *
- * The srv_version and srv_vercnt specifies the service
- * versions we can support.
- *
- * Versions are given in decreasing order.
- *
- * nego_fw_version and nego_srv_version store the selected protocol versions.
- *
  * Mainly used by Hyper-V drivers.
  */
 bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
@@ -385,21 +380,14 @@ static void vmbus_release_relid(u32 relid)
 	trace_vmbus_release_relid(&msg, ret);
 }
 
-void hv_process_channel_removal(u32 relid)
+void hv_process_channel_removal(struct vmbus_channel *channel)
 {
+	struct vmbus_channel *primary_channel;
 	unsigned long flags;
-	struct vmbus_channel *primary_channel, *channel;
 
 	BUG_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
-
-	/*
-	 * Make sure channel is valid as we may have raced.
-	 */
-	channel = relid2channel(relid);
-	if (!channel)
-		return;
-
 	BUG_ON(!channel->rescind);
+
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(channel->target_cpu,
@@ -429,7 +417,7 @@ void hv_process_channel_removal(u32 relid)
 		cpumask_clear_cpu(channel->target_cpu,
 				  &primary_channel->alloced_cpus_in_node);
 
-	vmbus_release_relid(relid);
+	vmbus_release_relid(channel->offermsg.child_relid);
 
 	free_channel(channel);
 }
@@ -606,16 +594,18 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	bool perf_chn = vmbus_devs[dev_type].perf_device;
 	struct vmbus_channel *primary = channel->primary_channel;
 	int next_node;
-	struct cpumask available_mask;
+	cpumask_var_t available_mask;
 	struct cpumask *alloced_mask;
 
 	if ((vmbus_proto_version == VERSION_WS2008) ||
-	    (vmbus_proto_version == VERSION_WIN7) || (!perf_chn)) {
+	    (vmbus_proto_version == VERSION_WIN7) || (!perf_chn) ||
+	    !alloc_cpumask_var(&available_mask, GFP_KERNEL)) {
 		/*
 		 * Prior to win8, all channel interrupts are
 		 * delivered on cpu 0.
 		 * Also if the channel is not a performance critical
 		 * channel, bind it to cpu 0.
+		 * In case alloc_cpumask_var() fails, bind it to cpu 0.
 		 */
 		channel->numa_node = 0;
 		channel->target_cpu = 0;
@@ -653,7 +643,7 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 		cpumask_clear(alloced_mask);
 	}
 
-	cpumask_xor(&available_mask, alloced_mask,
+	cpumask_xor(available_mask, alloced_mask,
 		    cpumask_of_node(primary->numa_node));
 
 	cur_cpu = -1;
@@ -671,10 +661,10 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	}
 
 	while (true) {
-		cur_cpu = cpumask_next(cur_cpu, &available_mask);
+		cur_cpu = cpumask_next(cur_cpu, available_mask);
 		if (cur_cpu >= nr_cpu_ids) {
 			cur_cpu = -1;
-			cpumask_copy(&available_mask,
+			cpumask_copy(available_mask,
 				     cpumask_of_node(primary->numa_node));
 			continue;
 		}
@@ -704,6 +694,8 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 
 	channel->target_cpu = cur_cpu;
 	channel->target_vp = hv_cpu_number_to_vp_number(cur_cpu);
+
+	free_cpumask_var(available_mask);
 }
 
 static void vmbus_wait_for_unload(void)
@@ -943,7 +935,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 			 * The channel is currently not open;
 			 * it is safe for us to cleanup the channel.
 			 */
-			hv_process_channel_removal(rescind->child_relid);
+			hv_process_channel_removal(channel);
 		} else {
 			complete(&channel->rescind_event);
 		}

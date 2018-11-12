@@ -1004,7 +1004,7 @@ static int lme_name(struct dvb_usb_adapter *adap)
 		" SHARP:BS2F7HZ0194", " RS2000"};
 	char *name = adap->fe[0]->ops.info.name;
 
-	strlcpy(name, desc, 128);
+	strscpy(name, desc, 128);
 	strlcat(name, fe_name[st->tuner_config], 128);
 
 	return 0;
