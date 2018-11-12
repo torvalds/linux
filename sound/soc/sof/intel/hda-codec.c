@@ -112,6 +112,34 @@ int hda_codec_probe_bus(struct snd_sof_dev *sdev)
 }
 EXPORT_SYMBOL(hda_codec_probe_bus);
 
+int hda_codec_i915_get(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	int ret;
+
+	dev_dbg(bus->dev, "Turning i915 HDAC power on\n");
+	ret = snd_hdac_display_power(bus, true);
+	if (ret < 0)
+		dev_err(bus->dev, "i915 HDAC power on failed %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(hda_codec_i915_get);
+
+int hda_codec_i915_put(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	int ret;
+
+	dev_dbg(bus->dev, "Turning i915 HDAC power off\n");
+	ret = snd_hdac_display_power(bus, false);
+	if (ret < 0)
+		dev_err(bus->dev, "i915 HDAC power off failed %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(hda_codec_i915_put);
+
 int hda_codec_i915_init(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
@@ -122,12 +150,27 @@ int hda_codec_i915_init(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		return ret;
 
-	ret = snd_hdac_display_power(bus, true);
-	if (ret < 0)
-		dev_err(bus->dev, "i915 HDAC power on failed %d\n", ret);
+	ret = hda_codec_i915_get(sdev);
 
 	return ret;
 }
 EXPORT_SYMBOL(hda_codec_i915_init);
+
+int hda_codec_i915_exit(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	int ret;
+
+	/*
+	 * we don't need to decrease the refcount with
+	 * hda_codec_i915_put() on exit since the device cannot be
+	 *  active
+	 */
+
+	ret = snd_hdac_i915_exit(bus);
+
+	return ret;
+}
+EXPORT_SYMBOL(hda_codec_i915_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");

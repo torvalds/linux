@@ -512,9 +512,15 @@ void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev,
  * HDA Codec operations.
  */
 int hda_codec_probe_bus(struct snd_sof_dev *sdev);
-int hda_codec_i915_init(struct snd_sof_dev *sdev);
-#endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
+int hda_codec_i915_get(struct snd_sof_dev *sdev);
+int hda_codec_i915_put(struct snd_sof_dev *sdev);
+int hda_codec_i915_init(struct snd_sof_dev *sdev);
+int hda_codec_i915_exit(struct snd_sof_dev *sdev);
+#endif /* CONFIG_SND_SOC_HDAC_HDMI */
+
+#endif /* CONFIG_SND_SOC_SOF_HDA */
 /*
  * Trace Control.
  */
