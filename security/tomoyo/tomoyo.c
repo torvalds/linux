@@ -509,6 +509,10 @@ static int tomoyo_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 	return tomoyo_socket_sendmsg_permission(sock, msg, size);
 }
 
+struct lsm_blob_sizes tomoyo_blob_sizes __lsm_ro_after_init = {
+	.lbs_cred = sizeof(struct tomoyo_domain_info *),
+};
+
 /*
  * tomoyo_security_ops is a "struct security_operations" which is used for
  * registering TOMOYO.
@@ -562,6 +566,7 @@ static int __init tomoyo_init(void)
 	/* register ourselves with the security framework */
 	security_add_hooks(tomoyo_hooks, ARRAY_SIZE(tomoyo_hooks), "tomoyo");
 	printk(KERN_INFO "TOMOYO Linux initialized\n");
+	lsm_early_cred(cred);
 	blob = tomoyo_cred(cred);
 	*blob = &tomoyo_kernel_domain;
 	tomoyo_mm_init();
@@ -573,5 +578,6 @@ DEFINE_LSM(tomoyo) = {
 	.name = "tomoyo",
 	.enabled = &tomoyo_enabled,
 	.flags = LSM_FLAG_LEGACY_MAJOR | LSM_FLAG_EXCLUSIVE,
+	.blobs = &tomoyo_blob_sizes,
 	.init = tomoyo_init,
 };
