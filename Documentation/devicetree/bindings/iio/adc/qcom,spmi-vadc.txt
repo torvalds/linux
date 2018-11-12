@@ -140,6 +140,10 @@ VADC_GND_REF and VADC_VDD_VADC.
 
 Example:
 
+#include <dt-bindings/iio/qcom,spmi-vadc.h>
+#include <linux/irq.h>
+/* ... */
+
 	/* VADC node */
 	pmic_vadc: vadc@3100 {
 		compatible = "qcom,spmi-vadc";
@@ -151,7 +155,7 @@ Example:
 		io-channel-ranges;
 
 		/* Channel node */
-		usb_id_nopull {
+		adc-chan@VADC_LR_MUX10_USB_ID {
 			reg = <VADC_LR_MUX10_USB_ID>;
 			qcom,decimation = <512>;
 			qcom,ratiometric;
