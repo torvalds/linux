@@ -587,11 +587,34 @@ static u16 nvmet_set_feat_write_protect(struct nvmet_req *req)
 	return status;
 }
 
+u16 nvmet_set_feat_kato(struct nvmet_req *req)
+{
+	u32 val32 = le32_to_cpu(req->cmd->common.cdw10[1]);
+
+	req->sq->ctrl->kato = DIV_ROUND_UP(val32, 1000);
+
+	nvmet_set_result(req, req->sq->ctrl->kato);
+
+	return 0;
+}
+
+u16 nvmet_set_feat_async_event(struct nvmet_req *req, u32 mask)
+{
+	u32 val32 = le32_to_cpu(req->cmd->common.cdw10[1]);
+
+	if (val32 & ~mask)
+		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+
+	WRITE_ONCE(req->sq->ctrl->aen_enabled, val32);
+	nvmet_set_result(req, val32);
+
+	return 0;
+}
+
 static void nvmet_execute_set_features(struct nvmet_req *req)
 {
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
-	u32 val32;
 	u16 status = 0;
 
 	switch (cdw10 & 0xff) {
@@ -600,19 +623,10 @@ static void nvmet_execute_set_features(struct nvmet_req *req)
 			(subsys->max_qid - 1) | ((subsys->max_qid - 1) << 16));
 		break;
 	case NVME_FEAT_KATO:
-		val32 = le32_to_cpu(req->cmd->common.cdw10[1]);
-		req->sq->ctrl->kato = DIV_ROUND_UP(val32, 1000);
-		nvmet_set_result(req, req->sq->ctrl->kato);
+		status = nvmet_set_feat_kato(req);
 		break;
 	case NVME_FEAT_ASYNC_EVENT:
-		val32 = le32_to_cpu(req->cmd->common.cdw10[1]);
-		if (val32 & ~NVMET_AEN_CFG_ALL) {
-			status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
-			break;
-		}
-
-		WRITE_ONCE(req->sq->ctrl->aen_enabled, val32);
-		nvmet_set_result(req, val32);
+		status = nvmet_set_feat_async_event(req, NVMET_AEN_CFG_ALL);
 		break;
 	case NVME_FEAT_HOST_ID:
 		status = NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
@@ -648,6 +662,16 @@ static u16 nvmet_get_feat_write_protect(struct nvmet_req *req)
 	return 0;
 }
 
+void nvmet_get_feat_kato(struct nvmet_req *req)
+{
+	nvmet_set_result(req, req->sq->ctrl->kato * 1000);
+}
+
+void nvmet_get_feat_async_event(struct nvmet_req *req)
+{
+	nvmet_set_result(req, READ_ONCE(req->sq->ctrl->aen_enabled));
+}
+
 static void nvmet_execute_get_features(struct nvmet_req *req)
 {
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
@@ -677,7 +701,7 @@ static void nvmet_execute_get_features(struct nvmet_req *req)
 		break;
 #endif
 	case NVME_FEAT_ASYNC_EVENT:
-		nvmet_set_result(req, READ_ONCE(req->sq->ctrl->aen_enabled));
+		nvmet_get_feat_async_event(req);
 		break;
 	case NVME_FEAT_VOLATILE_WC:
 		nvmet_set_result(req, 1);
@@ -687,7 +711,7 @@ static void nvmet_execute_get_features(struct nvmet_req *req)
 			(subsys->max_qid-1) | ((subsys->max_qid-1) << 16));
 		break;
 	case NVME_FEAT_KATO:
-		nvmet_set_result(req, req->sq->ctrl->kato * 1000);
+		nvmet_get_feat_kato(req);
 		break;
 	case NVME_FEAT_HOST_ID:
 		/* need 128-bit host identifier flag */
@@ -710,7 +734,7 @@ static void nvmet_execute_get_features(struct nvmet_req *req)
 	nvmet_req_complete(req, status);
 }
 
-static void nvmet_execute_async_event(struct nvmet_req *req)
+void nvmet_execute_async_event(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 

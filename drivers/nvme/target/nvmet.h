@@ -357,6 +357,12 @@ static inline bool nvmet_aen_bit_disabled(struct nvmet_ctrl *ctrl, u32 bn)
 	return test_and_set_bit(bn, &ctrl->aen_masked);
 }
 
+void nvmet_get_feat_kato(struct nvmet_req *req);
+void nvmet_get_feat_async_event(struct nvmet_req *req);
+u16 nvmet_set_feat_kato(struct nvmet_req *req);
+u16 nvmet_set_feat_async_event(struct nvmet_req *req, u32 mask);
+void nvmet_execute_async_event(struct nvmet_req *req);
+
 u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
 u16 nvmet_bdev_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_file_parse_io_cmd(struct nvmet_req *req);
