@@ -1129,23 +1129,6 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 	I915_WRITE(TV_CTL, tv_ctl);
 }
 
-static const struct drm_display_mode reported_modes[] = {
-	{
-		.name = "NTSC 480i",
-		.clock = 108000,
-		.hdisplay = 1280,
-		.hsync_start = 1368,
-		.hsync_end = 1496,
-		.htotal = 1712,
-
-		.vdisplay = 1024,
-		.vsync_start = 1027,
-		.vsync_end = 1034,
-		.vtotal = 1104,
-		.type = DRM_MODE_TYPE_DRIVER,
-	},
-};
-
 static int
 intel_tv_detect_type(struct intel_tv *intel_tv,
 		      struct drm_connector *connector)
@@ -1275,7 +1258,6 @@ intel_tv_detect(struct drm_connector *connector,
 		struct drm_modeset_acquire_ctx *ctx,
 		bool force)
 {
-	struct drm_display_mode mode;
 	struct intel_tv *intel_tv = intel_attached_tv(connector);
 	enum drm_connector_status status;
 	int type;
@@ -1284,13 +1266,11 @@ intel_tv_detect(struct drm_connector *connector,
 		      connector->base.id, connector->name,
 		      force);
 
-	mode = reported_modes[0];
-
 	if (force) {
 		struct intel_load_detect_pipe tmp;
 		int ret;
 
-		ret = intel_get_load_detect_pipe(connector, &mode, &tmp, ctx);
+		ret = intel_get_load_detect_pipe(connector, NULL, &tmp, ctx);
 		if (ret < 0)
 			return ret;
 
