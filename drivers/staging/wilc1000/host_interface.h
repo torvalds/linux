@@ -127,22 +127,6 @@ struct host_if_pmkid_attr {
 	struct host_if_pmkid pmkidlist[WILC_MAX_NUM_PMKIDS];
 };
 
-enum current_tx_rate {
-	AUTORATE	= 0,
-	MBPS_1		= 1,
-	MBPS_2		= 2,
-	MBPS_5_5	= 5,
-	MBPS_11		= 11,
-	MBPS_6		= 6,
-	MBPS_9		= 9,
-	MBPS_12		= 12,
-	MBPS_18		= 18,
-	MBPS_24		= 24,
-	MBPS_36		= 36,
-	MBPS_48		= 48,
-	MBPS_54		= 54
-};
-
 struct cfg_param_attr {
 	u32 flag;
 	u16 short_retry_limit;
