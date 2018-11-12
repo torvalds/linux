@@ -179,6 +179,7 @@
 			      "ctl-core", "ctl-nsticky", "ctl-sticky",
 			      "ctl-pwr", "ctl-niu-a", "ctl-niu-p",
 			      "phy-por", "phy-p", "phy-pipe";
+		rockchip,usbpciegrf = <&usb_pcie_grf>;
 		status = "disabled";
 	};
 
