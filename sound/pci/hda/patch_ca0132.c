@@ -1081,6 +1081,18 @@ enum {
 	QUIRK_AE5,
 };
 
+#ifdef CONFIG_PCI
+#define ca0132_quirk(spec)		((spec)->quirk)
+#define ca0132_use_pci_mmio(spec)	((spec)->use_pci_mmio)
+#define ca0132_use_alt_functions(spec)	((spec)->use_alt_functions)
+#define ca0132_use_alt_controls(spec)	((spec)->use_alt_controls)
+#else
+#define ca0132_quirk(spec)		({ (void)(spec); QUIRK_NONE; })
+#define ca0132_use_alt_functions(spec)	({ (void)(spec); false; })
+#define ca0132_use_pci_mmio(spec)	({ (void)(spec); false; })
+#define ca0132_use_alt_controls(spec)	({ (void)(spec); false; })
+#endif
+
 static const struct hda_pintbl alienware_pincfgs[] = {
 	{ 0x0b, 0x90170110 }, /* Builtin Speaker */
 	{ 0x0c, 0x411111f0 }, /* N/A */
@@ -3100,7 +3112,7 @@ static void dspload_post_setup(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 	codec_dbg(codec, "---- dspload_post_setup ------\n");
-	if (!spec->use_alt_functions) {
+	if (!ca0132_use_alt_functions(spec)) {
 		/*set DSP speaker to 2.0 configuration*/
 		chipio_write(codec, XRAM_XRAM_INST_OFFSET(0x18), 0x08080080);
 		chipio_write(codec, XRAM_XRAM_INST_OFFSET(0x19), 0x3f800000);
@@ -3332,7 +3344,7 @@ static void ca0132_gpio_init(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_SBZ:
 	case QUIRK_AE5:
 		snd_hda_codec_write(codec, 0x01, 0, 0x793, 0x00);
@@ -3343,6 +3355,8 @@ static void ca0132_gpio_init(struct hda_codec *codec)
 		snd_hda_codec_write(codec, 0x01, 0, 0x793, 0x00);
 		snd_hda_codec_write(codec, 0x01, 0, 0x794, 0x5B);
 		break;
+	default:
+		break;
 	}
 
 }
@@ -3352,7 +3366,7 @@ static void ca0132_gpio_setup(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_SBZ:
 		snd_hda_codec_write(codec, 0x01, 0,
 				AC_VERB_SET_GPIO_DIRECTION, 0x07);
@@ -3370,6 +3384,8 @@ static void ca0132_gpio_setup(struct hda_codec *codec)
 				AC_VERB_SET_GPIO_MASK, 0x1F);
 		snd_hda_codec_write(codec, 0x01, 0,
 				AC_VERB_SET_GPIO_DATA, 0x0C);
+		break;
+	default:
 		break;
 	}
 }
@@ -4171,7 +4187,7 @@ static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
 
 	switch (spec->cur_out_type) {
 	case SPEAKER_OUT:
-		switch (spec->quirk) {
+		switch (ca0132_quirk(spec)) {
 		case QUIRK_SBZ:
 			ca0113_mmio_gpio_set(codec, 7, false);
 			ca0113_mmio_gpio_set(codec, 4, true);
@@ -4202,10 +4218,12 @@ static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
 			chipio_set_control_param(codec, 0x0d, 0xa4);
 			chipio_write(codec, 0x18b03c, 0x00000012);
 			break;
+		default:
+			break;
 		}
 		break;
 	case HEADPHONE_OUT:
-		switch (spec->quirk) {
+		switch (ca0132_quirk(spec)) {
 		case QUIRK_SBZ:
 			ca0113_mmio_gpio_set(codec, 7, true);
 			ca0113_mmio_gpio_set(codec, 4, true);
@@ -4237,10 +4255,12 @@ static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
 			chipio_set_control_param(codec, 0x0d, 0xa1);
 			chipio_write(codec, 0x18b03c, 0x00000012);
 			break;
+		default:
+			break;
 		}
 		break;
 	case SURROUND_OUT:
-		switch (spec->quirk) {
+		switch (ca0132_quirk(spec)) {
 		case QUIRK_SBZ:
 			ca0113_mmio_gpio_set(codec, 7, false);
 			ca0113_mmio_gpio_set(codec, 4, true);
@@ -4270,6 +4290,8 @@ static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
 			dspio_set_uint_param(codec, 0x96, 0x2a, tmp);
 			chipio_set_control_param(codec, 0x0d, 0xa4);
 			chipio_write(codec, 0x18b03c, 0x00000012);
+			break;
+		default:
 			break;
 		}
 		break;
@@ -4445,7 +4467,7 @@ static void ca0132_unsol_hp_delayed(struct work_struct *work)
 		to_delayed_work(work), struct ca0132_spec, unsol_hp_work);
 	struct hda_jack_tbl *jack;
 
-	if (spec->use_alt_functions)
+	if (ca0132_use_alt_functions(spec))
 		ca0132_alt_select_out(spec->codec);
 	else
 		ca0132_select_out(spec->codec);
@@ -4529,14 +4551,14 @@ static int ca0132_alt_set_vipsource(struct hda_codec *codec, int val)
 
 		chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_96_000);
 		chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_96_000);
-		if (spec->quirk == QUIRK_R3DI)
+		if (ca0132_quirk(spec) == QUIRK_R3DI)
 			chipio_set_conn_rate(codec, 0x0F, SR_96_000);
 
 
 		if (spec->in_enum_val == REAR_LINE_IN)
 			tmp = FLOAT_ZERO;
 		else {
-			if (spec->quirk == QUIRK_SBZ)
+			if (ca0132_quirk(spec) == QUIRK_SBZ)
 				tmp = FLOAT_THREE;
 			else
 				tmp = FLOAT_ONE;
@@ -4548,7 +4570,7 @@ static int ca0132_alt_set_vipsource(struct hda_codec *codec, int val)
 		codec_dbg(codec, "%s: on.", __func__);
 		chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_16_000);
 		chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_16_000);
-		if (spec->quirk == QUIRK_R3DI)
+		if (ca0132_quirk(spec) == QUIRK_R3DI)
 			chipio_set_conn_rate(codec, 0x0F, SR_16_000);
 
 		if (spec->effects_switch[VOICE_FOCUS - EFFECT_START_NID])
@@ -4644,7 +4666,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 
 	switch (spec->cur_mic_type) {
 	case REAR_MIC:
-		switch (spec->quirk) {
+		switch (ca0132_quirk(spec)) {
 		case QUIRK_SBZ:
 		case QUIRK_R3D:
 			ca0113_mmio_gpio_set(codec, 0, false);
@@ -4668,14 +4690,14 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 
 		chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_96_000);
 		chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_96_000);
-		if (spec->quirk == QUIRK_R3DI)
+		if (ca0132_quirk(spec) == QUIRK_R3DI)
 			chipio_set_conn_rate(codec, 0x0F, SR_96_000);
 
 		dspio_set_uint_param(codec, 0x80, 0x00, tmp);
 
 		chipio_set_stream_control(codec, 0x03, 1);
 		chipio_set_stream_control(codec, 0x04, 1);
-		switch (spec->quirk) {
+		switch (ca0132_quirk(spec)) {
 		case QUIRK_SBZ:
 			chipio_write(codec, 0x18B098, 0x0000000C);
 			chipio_write(codec, 0x18B09C, 0x0000000C);
@@ -4688,12 +4710,14 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 			chipio_write(codec, 0x18B098, 0x0000000C);
 			chipio_write(codec, 0x18B09C, 0x0000004C);
 			break;
+		default:
+			break;
 		}
 		ca0132_alt_mic_boost_set(codec, spec->mic_boost_enum_val);
 		break;
 	case REAR_LINE_IN:
 		ca0132_mic_boost_set(codec, 0);
-		switch (spec->quirk) {
+		switch (ca0132_quirk(spec)) {
 		case QUIRK_SBZ:
 		case QUIRK_R3D:
 			ca0113_mmio_gpio_set(codec, 0, false);
@@ -4704,28 +4728,32 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 		case QUIRK_AE5:
 			ca0113_mmio_command_set(codec, 0x48, 0x28, 0x00);
 			break;
+		default:
+			break;
 		}
 
 		chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_96_000);
 		chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_96_000);
-		if (spec->quirk == QUIRK_R3DI)
+		if (ca0132_quirk(spec) == QUIRK_R3DI)
 			chipio_set_conn_rate(codec, 0x0F, SR_96_000);
 
 		tmp = FLOAT_ZERO;
 		dspio_set_uint_param(codec, 0x80, 0x00, tmp);
 
-		switch (spec->quirk) {
+		switch (ca0132_quirk(spec)) {
 		case QUIRK_SBZ:
 		case QUIRK_AE5:
 			chipio_write(codec, 0x18B098, 0x00000000);
 			chipio_write(codec, 0x18B09C, 0x00000000);
+			break;
+		default:
 			break;
 		}
 		chipio_set_stream_control(codec, 0x03, 1);
 		chipio_set_stream_control(codec, 0x04, 1);
 		break;
 	case FRONT_MIC:
-		switch (spec->quirk) {
+		switch (ca0132_quirk(spec)) {
 		case QUIRK_SBZ:
 		case QUIRK_R3D:
 			ca0113_mmio_gpio_set(codec, 0, true);
@@ -4747,7 +4775,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 
 		chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_96_000);
 		chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_96_000);
-		if (spec->quirk == QUIRK_R3DI)
+		if (ca0132_quirk(spec) == QUIRK_R3DI)
 			chipio_set_conn_rate(codec, 0x0F, SR_96_000);
 
 		dspio_set_uint_param(codec, 0x80, 0x00, tmp);
@@ -4755,7 +4783,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 		chipio_set_stream_control(codec, 0x03, 1);
 		chipio_set_stream_control(codec, 0x04, 1);
 
-		switch (spec->quirk) {
+		switch (ca0132_quirk(spec)) {
 		case QUIRK_SBZ:
 			chipio_write(codec, 0x18B098, 0x0000000C);
 			chipio_write(codec, 0x18B09C, 0x000000CC);
@@ -4763,6 +4791,8 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 		case QUIRK_AE5:
 			chipio_write(codec, 0x18B098, 0x0000000C);
 			chipio_write(codec, 0x18B09C, 0x0000004C);
+			break;
+		default:
 			break;
 		}
 		ca0132_alt_mic_boost_set(codec, spec->mic_boost_enum_val);
@@ -4858,7 +4888,7 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 			val = 0;
 
 		/* If Voice Focus on SBZ, set to two channel. */
-		if ((nid == VOICE_FOCUS) && (spec->use_pci_mmio)
+		if ((nid == VOICE_FOCUS) && ca0132_use_pci_mmio(spec)
 				&& (spec->cur_mic_type != REAR_LINE_IN)) {
 			if (spec->effects_switch[CRYSTAL_VOICE -
 						 EFFECT_START_NID]) {
@@ -4877,7 +4907,7 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 		 * For SBZ noise reduction, there's an extra command
 		 * to module ID 0x47. No clue why.
 		 */
-		if ((nid == NOISE_REDUCTION) && (spec->use_pci_mmio)
+		if ((nid == NOISE_REDUCTION) && ca0132_use_pci_mmio(spec)
 				&& (spec->cur_mic_type != REAR_LINE_IN)) {
 			if (spec->effects_switch[CRYSTAL_VOICE -
 						 EFFECT_START_NID]) {
@@ -4893,7 +4923,7 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 		}
 
 		/* If rear line in disable effects. */
-		if (spec->use_alt_functions &&
+		if (ca0132_use_alt_functions(spec) &&
 				spec->in_enum_val == REAR_LINE_IN)
 			val = 0;
 	}
@@ -4923,7 +4953,7 @@ static int ca0132_pe_switch_set(struct hda_codec *codec)
 	codec_dbg(codec, "ca0132_pe_switch_set: val=%ld\n",
 		    spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID]);
 
-	if (spec->use_alt_functions)
+	if (ca0132_use_alt_functions(spec))
 		ca0132_alt_select_out(codec);
 
 	i = OUT_EFFECT_START_NID - EFFECT_START_NID;
@@ -4983,7 +5013,7 @@ static int ca0132_cvoice_switch_set(struct hda_codec *codec)
 
 	/* set correct vipsource */
 	oldval = stop_mic1(codec);
-	if (spec->use_alt_functions)
+	if (ca0132_use_alt_functions(spec))
 		ret |= ca0132_alt_set_vipsource(codec, 1);
 	else
 		ret |= ca0132_set_vipsource(codec, 1);
@@ -5052,7 +5082,7 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 		auto_jack =
 			spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
 		if (!auto_jack) {
-			if (spec->use_alt_functions)
+			if (ca0132_use_alt_functions(spec))
 				ca0132_alt_select_out(codec);
 			else
 				ca0132_select_out(codec);
@@ -5069,7 +5099,7 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 	}
 
 	if (nid == VNID_HP_ASEL) {
-		if (spec->use_alt_functions)
+		if (ca0132_use_alt_functions(spec))
 			ca0132_alt_select_out(codec);
 		else
 			ca0132_select_out(codec);
@@ -5783,7 +5813,7 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
 	/* mic boost */
 	if (nid == spec->input_pins[0]) {
 		spec->cur_mic_boost = *valp;
-		if (spec->use_alt_functions) {
+		if (ca0132_use_alt_functions(spec)) {
 			if (spec->in_enum_val != REAR_LINE_IN)
 				changed = ca0132_mic_boost_set(codec, *valp);
 		} else {
@@ -6079,7 +6109,7 @@ static int add_fx_switch(struct hda_codec *codec, hda_nid_t nid,
 	/* If using alt_controls, add FX: prefix. But, don't add FX:
 	 * prefix to OutFX or InFX enable controls.
 	 */
-	if ((spec->use_alt_controls) && (nid <= IN_EFFECT_END_NID))
+	if (ca0132_use_alt_controls(spec) && (nid <= IN_EFFECT_END_NID))
 		sprintf(namestr, "FX: %s %s Switch", pfx, dirstr[dir]);
 	else
 		sprintf(namestr, "%s %s Switch", pfx, dirstr[dir]);
@@ -6356,7 +6386,7 @@ static int ca0132_build_controls(struct hda_codec *codec)
 			return err;
 	}
 	/* Setup vmaster with surround slaves for desktop ca0132 devices */
-	if (spec->use_alt_functions) {
+	if (ca0132_use_alt_functions(spec)) {
 		snd_hda_set_vmaster_tlv(codec, spec->dacs[0], HDA_OUTPUT,
 					spec->tlv);
 		snd_hda_add_vmaster(codec, "Master Playback Volume",
@@ -6376,7 +6406,7 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	num_fx = OUT_EFFECTS_COUNT + IN_EFFECTS_COUNT;
 	for (i = 0; i < num_fx; i++) {
 		/* Desktop cards break if Echo Cancellation is used. */
-		if (spec->use_pci_mmio) {
+		if (ca0132_use_pci_mmio(spec)) {
 			if (i == (ECHO_CANCELLATION - IN_EFFECT_START_NID +
 						OUT_EFFECTS_COUNT))
 				continue;
@@ -6393,7 +6423,7 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	 * EQ presets, and Smart Volume presets. Also, change names to add FX
 	 * prefix, and change PlayEnhancement and CrystalVoice to match.
 	 */
-	if (spec->use_alt_controls) {
+	if (ca0132_use_alt_controls(spec)) {
 		err = ca0132_alt_add_svm_enum(codec);
 		if (err < 0)
 			return err;
@@ -6447,7 +6477,7 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	 * to select the new outputs and inputs, plus add the new mic boost
 	 * setting control.
 	 */
-	if (spec->use_alt_functions) {
+	if (ca0132_use_alt_functions(spec)) {
 		err = ca0132_alt_add_output_enum(codec);
 		if (err < 0)
 			return err;
@@ -6458,14 +6488,14 @@ static int ca0132_build_controls(struct hda_codec *codec)
 		 * ZxR only has microphone input, there is no front panel
 		 * header on the card, and aux-in is handled by the DBPro board.
 		 */
-		if (spec->quirk != QUIRK_ZXR) {
+		if (ca0132_quirk(spec) != QUIRK_ZXR) {
 			err = ca0132_alt_add_input_enum(codec);
 			if (err < 0)
 				return err;
 		}
 	}
 
-	if (spec->quirk == QUIRK_AE5) {
+	if (ca0132_quirk(spec) == QUIRK_AE5) {
 		err = ae5_add_headphone_gain_enum(codec);
 		if (err < 0)
 			return err;
@@ -6474,7 +6504,7 @@ static int ca0132_build_controls(struct hda_codec *codec)
 			return err;
 	}
 
-	if (spec->quirk == QUIRK_ZXR) {
+	if (ca0132_quirk(spec) == QUIRK_ZXR) {
 		err = zxr_add_headphone_gain_switch(codec);
 		if (err < 0)
 			return err;
@@ -6504,7 +6534,7 @@ static int ca0132_build_controls(struct hda_codec *codec)
 			return err;
 	}
 
-	if (spec->use_alt_functions)
+	if (ca0132_use_alt_functions(spec))
 		ca0132_alt_add_chmap_ctls(codec);
 
 	return 0;
@@ -6582,7 +6612,7 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	info = snd_hda_codec_pcm_new(codec, "CA0132 Analog");
 	if (!info)
 		return -ENOMEM;
-	if (spec->use_alt_functions) {
+	if (ca0132_use_alt_functions(spec)) {
 		info->own_chmap = true;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK].chmap
 			= ca0132_alt_chmaps;
@@ -6596,7 +6626,7 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
 
 	/* With the DSP enabled, desktops don't use this ADC. */
-	if (!spec->use_alt_functions) {
+	if (!ca0132_use_alt_functions(spec)) {
 		info = snd_hda_codec_pcm_new(codec, "CA0132 Analog Mic-In2");
 		if (!info)
 			return -ENOMEM;
@@ -6794,7 +6824,7 @@ static void ca0132_init_dmic(struct hda_codec *codec)
 	 * Bit   6: set to select Data2, clear for Data1
 	 * Bit   7: set to enable DMic, clear for AMic
 	 */
-	if (spec->quirk == QUIRK_ALIENWARE_M17XR4)
+	if (ca0132_quirk(spec) == QUIRK_ALIENWARE_M17XR4)
 		val = 0x33;
 	else
 		val = 0x23;
@@ -6876,7 +6906,7 @@ static void ca0132_alt_init_analog_mics(struct hda_codec *codec)
 	/* Mic 1 Setup */
 	chipio_set_conn_rate(codec, MEM_CONNID_MICIN1, SR_96_000);
 	chipio_set_conn_rate(codec, MEM_CONNID_MICOUT1, SR_96_000);
-	if (spec->quirk == QUIRK_R3DI) {
+	if (ca0132_quirk(spec) == QUIRK_R3DI) {
 		chipio_set_conn_rate(codec, 0x0F, SR_96_000);
 		tmp = FLOAT_ONE;
 	} else
@@ -6886,7 +6916,7 @@ static void ca0132_alt_init_analog_mics(struct hda_codec *codec)
 	/* Mic 2 setup (not present on desktop cards) */
 	chipio_set_conn_rate(codec, MEM_CONNID_MICIN2, SR_96_000);
 	chipio_set_conn_rate(codec, MEM_CONNID_MICOUT2, SR_96_000);
-	if (spec->quirk == QUIRK_R3DI)
+	if (ca0132_quirk(spec) == QUIRK_R3DI)
 		chipio_set_conn_rate(codec, 0x0F, SR_96_000);
 	tmp = FLOAT_ZERO;
 	dspio_set_uint_param(codec, 0x80, 0x01, tmp);
@@ -6948,7 +6978,7 @@ static void sbz_chipio_startup_data(struct hda_codec *codec)
 	chipio_set_stream_channels(codec, 0x0C, 6);
 	chipio_set_stream_control(codec, 0x0C, 1);
 	/* No clue what these control */
-	if (spec->quirk == QUIRK_SBZ) {
+	if (ca0132_quirk(spec) == QUIRK_SBZ) {
 		chipio_write_no_mutex(codec, 0x190030, 0x0001e0c0);
 		chipio_write_no_mutex(codec, 0x190034, 0x0001e1c1);
 		chipio_write_no_mutex(codec, 0x190038, 0x0001e4c2);
@@ -6961,7 +6991,7 @@ static void sbz_chipio_startup_data(struct hda_codec *codec)
 		chipio_write_no_mutex(codec, 0x190054, 0x0001edc9);
 		chipio_write_no_mutex(codec, 0x190058, 0x0001eaca);
 		chipio_write_no_mutex(codec, 0x19005c, 0x0001ebcb);
-	} else if (spec->quirk == QUIRK_ZXR) {
+	} else if (ca0132_quirk(spec) == QUIRK_ZXR) {
 		chipio_write_no_mutex(codec, 0x190038, 0x000140c2);
 		chipio_write_no_mutex(codec, 0x19003c, 0x000141c3);
 		chipio_write_no_mutex(codec, 0x190040, 0x000150c4);
@@ -6991,7 +7021,7 @@ static void ca0132_alt_dsp_scp_startup(struct hda_codec *codec)
 	 * why this is, but multiple tests have confirmed it.
 	 */
 	for (i = 0; i < 2; i++) {
-		switch (spec->quirk) {
+		switch (ca0132_quirk(spec)) {
 		case QUIRK_SBZ:
 		case QUIRK_AE5:
 			tmp = 0x00000003;
@@ -7020,6 +7050,8 @@ static void ca0132_alt_dsp_scp_startup(struct hda_codec *codec)
 			tmp = 0x00000000;
 			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
 			break;
+		default:
+			break;
 		}
 		msleep(100);
 	}
@@ -7042,7 +7074,7 @@ static void ca0132_alt_dsp_initial_mic_setup(struct hda_codec *codec)
 	chipio_set_stream_control(codec, 0x03, 1);
 	chipio_set_stream_control(codec, 0x04, 1);
 
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_SBZ:
 		chipio_write(codec, 0x18b098, 0x0000000c);
 		chipio_write(codec, 0x18b09C, 0x0000000c);
@@ -7050,6 +7082,8 @@ static void ca0132_alt_dsp_initial_mic_setup(struct hda_codec *codec)
 	case QUIRK_AE5:
 		chipio_write(codec, 0x18b098, 0x0000000c);
 		chipio_write(codec, 0x18b09c, 0x0000004c);
+		break;
+	default:
 		break;
 	}
 }
@@ -7272,7 +7306,7 @@ static void r3d_setup_defaults(struct hda_codec *codec)
 	/* Set speaker source? */
 	dspio_set_uint_param(codec, 0x32, 0x00, tmp);
 
-	if (spec->quirk == QUIRK_R3DI)
+	if (ca0132_quirk(spec) == QUIRK_R3DI)
 		r3di_gpio_dsp_status_set(codec, R3DI_DSP_DOWNLOADED);
 
 	/* Setup effect defaults */
@@ -7419,7 +7453,7 @@ static void ca0132_init_flags(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	if (spec->use_alt_functions) {
+	if (ca0132_use_alt_functions(spec)) {
 		chipio_set_control_flag(codec, CONTROL_FLAG_DSP_96KHZ, 1);
 		chipio_set_control_flag(codec, CONTROL_FLAG_DAC_96KHZ, 1);
 		chipio_set_control_flag(codec, CONTROL_FLAG_ADC_B_96KHZ, 1);
@@ -7452,7 +7486,7 @@ static void ca0132_init_params(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	if (spec->use_alt_functions) {
+	if (ca0132_use_alt_functions(spec)) {
 		chipio_set_conn_rate(codec, MEM_CONNID_WUH, SR_48_000);
 		chipio_set_conn_rate(codec, 0x0B, SR_48_000);
 		chipio_set_control_param(codec, CONTROL_PARAM_SPDIF1_SOURCE, 0);
@@ -7489,7 +7523,7 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 	 * can use the default firmware, but I'll leave the option in case
 	 * it needs it again.
 	 */
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_SBZ:
 	case QUIRK_R3D:
 	case QUIRK_AE5:
@@ -7563,7 +7597,7 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 	}
 
 	/* For codecs using alt functions, this is already done earlier */
-	if (spec->dsp_state == DSP_DOWNLOADED && (!spec->use_alt_functions))
+	if (spec->dsp_state == DSP_DOWNLOADED && !ca0132_use_alt_functions(spec))
 		ca0132_set_dsp_msr(codec, true);
 }
 
@@ -7600,7 +7634,7 @@ static void amic_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	if (spec->use_alt_functions)
+	if (ca0132_use_alt_functions(spec))
 		ca0132_alt_select_in(codec);
 	else
 		ca0132_select_mic(codec);
@@ -7615,7 +7649,7 @@ static void ca0132_init_unsol(struct hda_codec *codec)
 	snd_hda_jack_detect_enable_callback(codec, UNSOL_TAG_DSP,
 					    ca0132_process_dsp_response);
 	/* Front headphone jack detection */
-	if (spec->use_alt_functions)
+	if (ca0132_use_alt_functions(spec))
 		snd_hda_jack_detect_enable_callback(codec,
 			spec->unsol_tag_front_hp, hp_callback);
 }
@@ -7705,7 +7739,7 @@ static void ca0132_init_chip(struct hda_codec *codec)
 	mutex_init(&spec->chipio_mutex);
 
 	spec->cur_out_type = SPEAKER_OUT;
-	if (!spec->use_alt_functions)
+	if (!ca0132_use_alt_functions(spec))
 		spec->cur_mic_type = DIGITAL_MIC;
 	else
 		spec->cur_mic_type = REAR_MIC;
@@ -7731,7 +7765,7 @@ static void ca0132_init_chip(struct hda_codec *codec)
 	 * Sets defaults for the effect slider controls, only for alternative
 	 * ca0132 codecs. Also sets x-bass crossover frequency to 80hz.
 	 */
-	if (spec->use_alt_controls) {
+	if (ca0132_use_alt_controls(spec)) {
 		spec->xbass_xover_freq = 8;
 		for (i = 0; i < EFFECT_LEVEL_SLIDERS; i++)
 			spec->fx_ctl_val[i] = effect_slider_defaults[i];
@@ -7746,7 +7780,7 @@ static void ca0132_init_chip(struct hda_codec *codec)
 	 * the daughter board. So, there is no input enum control, and we need
 	 * to make sure that spec->in_enum_val is set properly.
 	 */
-	if (spec->quirk == QUIRK_ZXR)
+	if (ca0132_quirk(spec) == QUIRK_ZXR)
 		spec->in_enum_val = REAR_MIC;
 
 #ifdef ENABLE_TUNING_CONTROLS
@@ -8087,27 +8121,27 @@ static void ca0132_mmio_init(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	if (spec->quirk == QUIRK_AE5)
+	if (ca0132_quirk(spec) == QUIRK_AE5)
 		writel(0x00000001, spec->mem_base + 0x400);
 	else
 		writel(0x00000000, spec->mem_base + 0x400);
 
-	if (spec->quirk == QUIRK_AE5)
+	if (ca0132_quirk(spec) == QUIRK_AE5)
 		writel(0x00000001, spec->mem_base + 0x408);
 	else
 		writel(0x00000000, spec->mem_base + 0x408);
 
-	if (spec->quirk == QUIRK_AE5)
+	if (ca0132_quirk(spec) == QUIRK_AE5)
 		writel(0x00000001, spec->mem_base + 0x40c);
 	else
 		writel(0x00000000, spec->mem_base + 0x40C);
 
-	if (spec->quirk == QUIRK_ZXR)
+	if (ca0132_quirk(spec) == QUIRK_ZXR)
 		writel(0x00880640, spec->mem_base + 0x01C);
 	else
 		writel(0x00880680, spec->mem_base + 0x01C);
 
-	if (spec->quirk == QUIRK_AE5)
+	if (ca0132_quirk(spec) == QUIRK_AE5)
 		writel(0x00000080, spec->mem_base + 0xC0C);
 	else
 		writel(0x00000083, spec->mem_base + 0xC0C);
@@ -8115,7 +8149,7 @@ static void ca0132_mmio_init(struct hda_codec *codec)
 	writel(0x00000030, spec->mem_base + 0xC00);
 	writel(0x00000000, spec->mem_base + 0xC04);
 
-	if (spec->quirk == QUIRK_AE5)
+	if (ca0132_quirk(spec) == QUIRK_AE5)
 		writel(0x00000000, spec->mem_base + 0xC0C);
 	else
 		writel(0x00000003, spec->mem_base + 0xC0C);
@@ -8124,7 +8158,7 @@ static void ca0132_mmio_init(struct hda_codec *codec)
 	writel(0x00000003, spec->mem_base + 0xC0C);
 	writel(0x00000003, spec->mem_base + 0xC0C);
 
-	if (spec->quirk == QUIRK_AE5)
+	if (ca0132_quirk(spec) == QUIRK_AE5)
 		writel(0x00000001, spec->mem_base + 0xC08);
 	else
 		writel(0x000000C1, spec->mem_base + 0xC08);
@@ -8135,7 +8169,7 @@ static void ca0132_mmio_init(struct hda_codec *codec)
 	writel(0x000000C1, spec->mem_base + 0xC08);
 	writel(0x00000080, spec->mem_base + 0xC04);
 
-	if (spec->quirk == QUIRK_AE5) {
+	if (ca0132_quirk(spec) == QUIRK_AE5) {
 		writel(0x00000000, spec->mem_base + 0x42c);
 		writel(0x00000000, spec->mem_base + 0x46c);
 		writel(0x00000000, spec->mem_base + 0x4ac);
@@ -8210,7 +8244,7 @@ static void ca0132_alt_init(struct hda_codec *codec)
 
 	ca0132_alt_vol_setup(codec);
 
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_SBZ:
 		codec_dbg(codec, "SBZ alt_init");
 		ca0132_gpio_init(codec);
@@ -8247,6 +8281,8 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
 		break;
+	default:
+		break;
 	}
 }
 
@@ -8273,7 +8309,7 @@ static int ca0132_init(struct hda_codec *codec)
 			spec->dsp_reload = true;
 			spec->dsp_state = DSP_DOWNLOAD_INIT;
 		} else {
-			if (spec->quirk == QUIRK_SBZ)
+			if (ca0132_quirk(spec) == QUIRK_SBZ)
 				sbz_dsp_startup_check(codec);
 			return 0;
 		}
@@ -8283,12 +8319,12 @@ static int ca0132_init(struct hda_codec *codec)
 		spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->curr_chip_addx = INVALID_CHIP_ADDRESS;
 
-	if (spec->use_pci_mmio)
+	if (ca0132_use_pci_mmio(spec))
 		ca0132_mmio_init(codec);
 
 	snd_hda_power_up_pm(codec);
 
-	if (spec->quirk == QUIRK_AE5)
+	if (ca0132_quirk(spec) == QUIRK_AE5)
 		ae5_register_set(codec);
 
 	ca0132_init_unsol(codec);
@@ -8297,14 +8333,14 @@ static int ca0132_init(struct hda_codec *codec)
 
 	snd_hda_sequence_write(codec, spec->base_init_verbs);
 
-	if (spec->use_alt_functions)
+	if (ca0132_use_alt_functions(spec))
 		ca0132_alt_init(codec);
 
 	ca0132_download_dsp(codec);
 
 	ca0132_refresh_widget_caps(codec);
 
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_R3DI:
 	case QUIRK_R3D:
 		r3d_setup_defaults(codec);
@@ -8333,7 +8369,7 @@ static int ca0132_init(struct hda_codec *codec)
 
 	init_input(codec, cfg->dig_in_pin, spec->dig_in);
 
-	if (!spec->use_alt_functions) {
+	if (!ca0132_use_alt_functions(spec)) {
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
 			    VENDOR_CHIPIO_PARAM_EX_ID_SET, 0x0D);
@@ -8341,11 +8377,11 @@ static int ca0132_init(struct hda_codec *codec)
 			    VENDOR_CHIPIO_PARAM_EX_VALUE_SET, 0x20);
 	}
 
-	if (spec->quirk == QUIRK_SBZ)
+	if (ca0132_quirk(spec) == QUIRK_SBZ)
 		ca0132_gpio_setup(codec);
 
 	snd_hda_sequence_write(codec, spec->spec_init_verbs);
-	if (spec->use_alt_functions) {
+	if (ca0132_use_alt_functions(spec)) {
 		ca0132_alt_select_out(codec);
 		ca0132_alt_select_in(codec);
 	} else {
@@ -8390,7 +8426,7 @@ static void ca0132_free(struct hda_codec *codec)
 
 	cancel_delayed_work_sync(&spec->unsol_hp_work);
 	snd_hda_power_up(codec);
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_SBZ:
 		sbz_exit_chip(codec);
 		break;
@@ -8405,6 +8441,8 @@ static void ca0132_free(struct hda_codec *codec)
 		break;
 	case QUIRK_R3DI:
 		r3di_gpio_shutdown(codec);
+		break;
+	default:
 		break;
 	}
 
@@ -8460,12 +8498,12 @@ static void ca0132_config(struct hda_codec *codec)
 	spec->multiout.dac_nids = spec->dacs;
 	spec->multiout.num_dacs = 3;
 
-	if (!spec->use_alt_functions)
+	if (!ca0132_use_alt_functions(spec))
 		spec->multiout.max_channels = 2;
 	else
 		spec->multiout.max_channels = 6;
 
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_ALIENWARE:
 		codec_dbg(codec, "%s: QUIRK_ALIENWARE applied.\n", __func__);
 		snd_hda_apply_pincfgs(codec, alienware_pincfgs);
@@ -8490,9 +8528,11 @@ static void ca0132_config(struct hda_codec *codec)
 		codec_dbg(codec, "%s: QUIRK_AE5 applied.\n", __func__);
 		snd_hda_apply_pincfgs(codec, r3di_pincfgs);
 		break;
+	default:
+		break;
 	}
 
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_ALIENWARE:
 		spec->num_outputs = 2;
 		spec->out_pins[0] = 0x0b; /* speaker out */
@@ -8653,7 +8693,7 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	 * Since desktop cards use pci_mmio, this can be used to determine
 	 * whether or not to use these verbs instead of a separate bool.
 	 */
-	if (spec->use_pci_mmio)
+	if (ca0132_use_pci_mmio(spec))
 		spec->desktop_init_verbs = ca0132_init_verbs1;
 	spec->spec_init_verbs = kcalloc(NUM_SPEC_VERBS,
 					sizeof(struct hda_verb),
@@ -8728,11 +8768,10 @@ static int patch_ca0132(struct hda_codec *codec)
 		spec->quirk = quirk->value;
 	else
 		spec->quirk = QUIRK_NONE;
-
-	if (spec->quirk == QUIRK_SBZ)
+	if (ca0132_quirk(spec) == QUIRK_SBZ)
 		sbz_detect_quirk(codec);
 
-	if (spec->quirk == QUIRK_ZXR_DBPRO)
+	if (ca0132_quirk(spec) == QUIRK_ZXR_DBPRO)
 		codec->patch_ops = dbpro_patch_ops;
 	else
 		codec->patch_ops = ca0132_patch_ops;
@@ -8745,7 +8784,7 @@ static int patch_ca0132(struct hda_codec *codec)
 	spec->num_mixers = 1;
 
 	/* Set which mixers each quirk uses. */
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_SBZ:
 		spec->mixers[0] = desktop_mixer;
 		snd_hda_codec_set_name(codec, "Sound Blaster Z");
@@ -8774,7 +8813,7 @@ static int patch_ca0132(struct hda_codec *codec)
 	}
 
 	/* Setup whether or not to use alt functions/controls/pci_mmio */
-	switch (spec->quirk) {
+	switch (ca0132_quirk(spec)) {
 	case QUIRK_SBZ:
 	case QUIRK_R3D:
 	case QUIRK_AE5:
@@ -8795,6 +8834,7 @@ static int patch_ca0132(struct hda_codec *codec)
 		break;
 	}
 
+#ifdef CONFIG_PCI
 	if (spec->use_pci_mmio) {
 		spec->mem_base = pci_iomap(codec->bus->pci, 2, 0xC20);
 		if (spec->mem_base == NULL) {
@@ -8802,6 +8842,7 @@ static int patch_ca0132(struct hda_codec *codec)
 			spec->quirk = QUIRK_NONE;
 		}
 	}
+#endif
 
 	spec->base_init_verbs = ca0132_base_init_verbs;
 	spec->base_exit_verbs = ca0132_base_exit_verbs;
