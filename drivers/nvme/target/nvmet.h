@@ -139,6 +139,7 @@ struct nvmet_port {
 	struct list_head		subsystems;
 	struct config_group		referrals_group;
 	struct list_head		referrals;
+	struct list_head		global_entry;
 	struct config_group		ana_groups_group;
 	struct nvmet_ana_group		ana_default_group;
 	enum nvme_ana_state		*ana_state;
@@ -422,7 +423,7 @@ int nvmet_enable_port(struct nvmet_port *port);
 void nvmet_disable_port(struct nvmet_port *port);
 
 void nvmet_referral_enable(struct nvmet_port *parent, struct nvmet_port *port);
-void nvmet_referral_disable(struct nvmet_port *port);
+void nvmet_referral_disable(struct nvmet_port *parent, struct nvmet_port *port);
 
 u16 nvmet_copy_to_sgl(struct nvmet_req *req, off_t off, const void *buf,
 		size_t len);
@@ -431,6 +432,14 @@ u16 nvmet_copy_from_sgl(struct nvmet_req *req, off_t off, void *buf,
 u16 nvmet_zero_sgl(struct nvmet_req *req, off_t off, size_t len);
 
 u32 nvmet_get_log_page_len(struct nvme_command *cmd);
+
+extern struct list_head *nvmet_ports;
+void nvmet_port_disc_changed(struct nvmet_port *port,
+		struct nvmet_subsys *subsys);
+void nvmet_subsys_disc_changed(struct nvmet_subsys *subsys,
+		struct nvmet_host *host);
+void nvmet_add_async_event(struct nvmet_ctrl *ctrl, u8 event_type,
+		u8 event_info, u8 log_page);
 
 #define NVMET_QUEUE_SIZE	1024
 #define NVMET_NR_QUEUES		128

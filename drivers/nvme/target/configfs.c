@@ -25,6 +25,9 @@
 static const struct config_item_type nvmet_host_type;
 static const struct config_item_type nvmet_subsys_type;
 
+static LIST_HEAD(nvmet_ports_list);
+struct list_head *nvmet_ports = &nvmet_ports_list;
+
 static const struct nvmet_transport_name {
 	u8		type;
 	const char	*name;
@@ -646,7 +649,8 @@ static int nvmet_port_subsys_allow_link(struct config_item *parent,
 	}
 
 	list_add_tail(&link->entry, &port->subsystems);
-	nvmet_genctr++;
+	nvmet_port_disc_changed(port, subsys);
+
 	up_write(&nvmet_config_sem);
 	return 0;
 
@@ -673,7 +677,8 @@ static void nvmet_port_subsys_drop_link(struct config_item *parent,
 
 found:
 	list_del(&p->entry);
-	nvmet_genctr++;
+	nvmet_port_disc_changed(port, subsys);
+
 	if (list_empty(&port->subsystems))
 		nvmet_disable_port(port);
 	up_write(&nvmet_config_sem);
@@ -722,7 +727,8 @@ static int nvmet_allowed_hosts_allow_link(struct config_item *parent,
 			goto out_free_link;
 	}
 	list_add_tail(&link->entry, &subsys->hosts);
-	nvmet_genctr++;
+	nvmet_subsys_disc_changed(subsys, host);
+
 	up_write(&nvmet_config_sem);
 	return 0;
 out_free_link:
@@ -748,7 +754,8 @@ static void nvmet_allowed_hosts_drop_link(struct config_item *parent,
 
 found:
 	list_del(&p->entry);
-	nvmet_genctr++;
+	nvmet_subsys_disc_changed(subsys, host);
+
 	up_write(&nvmet_config_sem);
 	kfree(p);
 }
@@ -787,7 +794,11 @@ static ssize_t nvmet_subsys_attr_allow_any_host_store(struct config_item *item,
 		goto out_unlock;
 	}
 
-	subsys->allow_any_host = allow_any_host;
+	if (subsys->allow_any_host != allow_any_host) {
+		subsys->allow_any_host = allow_any_host;
+		nvmet_subsys_disc_changed(subsys, NULL);
+	}
+
 out_unlock:
 	up_write(&nvmet_config_sem);
 	return ret ? ret : count;
@@ -936,7 +947,7 @@ static ssize_t nvmet_referral_enable_store(struct config_item *item,
 	if (enable)
 		nvmet_referral_enable(parent, port);
 	else
-		nvmet_referral_disable(port);
+		nvmet_referral_disable(parent, port);
 
 	return count;
 inval:
@@ -962,9 +973,10 @@ static struct configfs_attribute *nvmet_referral_attrs[] = {
 
 static void nvmet_referral_release(struct config_item *item)
 {
+	struct nvmet_port *parent = to_nvmet_port(item->ci_parent->ci_parent);
 	struct nvmet_port *port = to_nvmet_port(item);
 
-	nvmet_referral_disable(port);
+	nvmet_referral_disable(parent, port);
 	kfree(port);
 }
 
@@ -1137,6 +1149,8 @@ static void nvmet_port_release(struct config_item *item)
 {
 	struct nvmet_port *port = to_nvmet_port(item);
 
+	list_del(&port->global_entry);
+
 	kfree(port->ana_state);
 	kfree(port);
 }
@@ -1188,6 +1202,8 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 		else
 			port->ana_state[i] = NVME_ANA_INACCESSIBLE;
 	}
+
+	list_add(&port->global_entry, &nvmet_ports_list);
 
 	INIT_LIST_HEAD(&port->entry);
 	INIT_LIST_HEAD(&port->subsystems);

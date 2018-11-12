@@ -20,24 +20,82 @@ struct nvmet_subsys *nvmet_disc_subsys;
 
 u64 nvmet_genctr;
 
+static void __nvmet_disc_changed(struct nvmet_port *port,
+				 struct nvmet_ctrl *ctrl)
+{
+	if (ctrl->port != port)
+		return;
+
+	if (nvmet_aen_bit_disabled(ctrl, NVME_AEN_BIT_DISC_CHANGE))
+		return;
+
+	nvmet_add_async_event(ctrl, NVME_AER_TYPE_NOTICE,
+			      NVME_AER_NOTICE_DISC_CHANGED, NVME_LOG_DISC);
+}
+
+void nvmet_port_disc_changed(struct nvmet_port *port,
+			     struct nvmet_subsys *subsys)
+{
+	struct nvmet_ctrl *ctrl;
+
+	nvmet_genctr++;
+
+	list_for_each_entry(ctrl, &nvmet_disc_subsys->ctrls, subsys_entry) {
+		if (subsys && !nvmet_host_allowed(subsys, ctrl->hostnqn))
+			continue;
+
+		__nvmet_disc_changed(port, ctrl);
+	}
+}
+
+static void __nvmet_subsys_disc_changed(struct nvmet_port *port,
+					struct nvmet_subsys *subsys,
+					struct nvmet_host *host)
+{
+	struct nvmet_ctrl *ctrl;
+
+	list_for_each_entry(ctrl, &nvmet_disc_subsys->ctrls, subsys_entry) {
+		if (host && strcmp(nvmet_host_name(host), ctrl->hostnqn))
+			continue;
+
+		__nvmet_disc_changed(port, ctrl);
+	}
+}
+
+void nvmet_subsys_disc_changed(struct nvmet_subsys *subsys,
+			       struct nvmet_host *host)
+{
+	struct nvmet_port *port;
+	struct nvmet_subsys_link *s;
+
+	nvmet_genctr++;
+
+	list_for_each_entry(port, nvmet_ports, global_entry)
+		list_for_each_entry(s, &port->subsystems, entry) {
+			if (s->subsys != subsys)
+				continue;
+			__nvmet_subsys_disc_changed(port, subsys, host);
+		}
+}
+
 void nvmet_referral_enable(struct nvmet_port *parent, struct nvmet_port *port)
 {
 	down_write(&nvmet_config_sem);
 	if (list_empty(&port->entry)) {
 		list_add_tail(&port->entry, &parent->referrals);
 		port->enabled = true;
-		nvmet_genctr++;
+		nvmet_port_disc_changed(parent, NULL);
 	}
 	up_write(&nvmet_config_sem);
 }
 
-void nvmet_referral_disable(struct nvmet_port *port)
+void nvmet_referral_disable(struct nvmet_port *parent, struct nvmet_port *port)
 {
 	down_write(&nvmet_config_sem);
 	if (!list_empty(&port->entry)) {
 		port->enabled = false;
 		list_del_init(&port->entry);
-		nvmet_genctr++;
+		nvmet_port_disc_changed(parent, NULL);
 	}
 	up_write(&nvmet_config_sem);
 }
@@ -136,6 +194,8 @@ static void nvmet_execute_get_disc_log_page(struct nvmet_req *req)
 	hdr->numrec = cpu_to_le64(numrec);
 	hdr->recfmt = cpu_to_le16(0);
 
+	nvmet_clear_aen_bit(req, NVME_AEN_BIT_DISC_CHANGE);
+
 	up_read(&nvmet_config_sem);
 
 	status = nvmet_copy_to_sgl(req, 0, hdr, data_len);
@@ -173,6 +233,8 @@ static void nvmet_execute_identify_disc_ctrl(struct nvmet_req *req)
 		id->sgls |= cpu_to_le32(1 << 2);
 	if (req->port->inline_data_size)
 		id->sgls |= cpu_to_le32(1 << 20);
+
+	id->oaes = cpu_to_le32(NVMET_DISC_AEN_CFG_OPTIONAL);
 
 	strlcpy(id->subnqn, ctrl->subsys->subsysnqn, sizeof(id->subnqn));
 
