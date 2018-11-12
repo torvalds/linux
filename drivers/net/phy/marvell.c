@@ -847,7 +847,6 @@ static int m88e1510_config_init(struct phy_device *phydev)
 
 	/* SGMII-to-Copper mode initialization */
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
-		u32 pause;
 
 		/* Select page 18 */
 		err = marvell_set_page(phydev, 18);
@@ -878,7 +877,6 @@ static int m88e1510_config_init(struct phy_device *phydev)
 		 * This means we can never be truely sure what was advertised,
 		 * so disable Pause support.
 		 */
-		pause = SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 		linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
 				   phydev->supported);
 		linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT,
