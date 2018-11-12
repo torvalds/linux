@@ -35,9 +35,10 @@ static inline int init_unzip_workqueue(void)
 	 * we don't need too many threads, limiting threads
 	 * could improve scheduling performance.
 	 */
-	z_erofs_workqueue = alloc_workqueue("erofs_unzipd",
-		WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE,
-		onlinecpus + onlinecpus / 4);
+	z_erofs_workqueue =
+		alloc_workqueue("erofs_unzipd",
+				WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE,
+				onlinecpus + onlinecpus / 4);
 
 	return z_erofs_workqueue ? 0 : -ENOMEM;
 }
@@ -46,8 +47,8 @@ int __init z_erofs_init_zip_subsystem(void)
 {
 	z_erofs_workgroup_cachep =
 		kmem_cache_create("erofs_compress",
-		Z_EROFS_WORKGROUP_SIZE, 0,
-		SLAB_RECLAIM_ACCOUNT, NULL);
+				  Z_EROFS_WORKGROUP_SIZE, 0,
+				  SLAB_RECLAIM_ACCOUNT, NULL);
 
 	if (z_erofs_workgroup_cachep) {
 		if (!init_unzip_workqueue())
