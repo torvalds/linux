@@ -306,7 +306,7 @@ struct tv_mode {
 
 	u32 clock;
 	u16 refresh; /* in millihertz (for precision) */
-	u32 oversample;
+	u8 oversample;
 	u8 hsync_end;
 	u16 hblank_start, hblank_end, htotal;
 	bool progressive : 1, trilevel_sync : 1, component_only : 1;
@@ -378,7 +378,7 @@ static const struct tv_mode tv_modes[] = {
 		.name		= "NTSC-M",
 		.clock		= 108000,
 		.refresh	= 59940,
-		.oversample	= TV_OVERSAMPLE_8X,
+		.oversample	= 8,
 		.component_only = 0,
 		/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.580MHz */
 
@@ -421,7 +421,7 @@ static const struct tv_mode tv_modes[] = {
 		.name		= "NTSC-443",
 		.clock		= 108000,
 		.refresh	= 59940,
-		.oversample	= TV_OVERSAMPLE_8X,
+		.oversample	= 8,
 		.component_only = 0,
 		/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 4.43MHz */
 		.hsync_end	= 64,		    .hblank_end		= 124,
@@ -463,7 +463,7 @@ static const struct tv_mode tv_modes[] = {
 		.name		= "NTSC-J",
 		.clock		= 108000,
 		.refresh	= 59940,
-		.oversample	= TV_OVERSAMPLE_8X,
+		.oversample	= 8,
 		.component_only = 0,
 
 		/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.580MHz */
@@ -506,7 +506,7 @@ static const struct tv_mode tv_modes[] = {
 		.name		= "PAL-M",
 		.clock		= 108000,
 		.refresh	= 59940,
-		.oversample	= TV_OVERSAMPLE_8X,
+		.oversample	= 8,
 		.component_only = 0,
 
 		/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.580MHz */
@@ -550,7 +550,7 @@ static const struct tv_mode tv_modes[] = {
 		.name	    = "PAL-N",
 		.clock		= 108000,
 		.refresh	= 50000,
-		.oversample	= TV_OVERSAMPLE_8X,
+		.oversample	= 8,
 		.component_only = 0,
 
 		.hsync_end	= 64,		    .hblank_end		= 128,
@@ -595,7 +595,7 @@ static const struct tv_mode tv_modes[] = {
 		.name	    = "PAL",
 		.clock		= 108000,
 		.refresh	= 50000,
-		.oversample	= TV_OVERSAMPLE_8X,
+		.oversample	= 8,
 		.component_only = 0,
 
 		.hsync_end	= 64,		    .hblank_end		= 142,
@@ -637,7 +637,7 @@ static const struct tv_mode tv_modes[] = {
 		.name       = "480p",
 		.clock		= 108000,
 		.refresh	= 59940,
-		.oversample     = TV_OVERSAMPLE_4X,
+		.oversample     = 4,
 		.component_only = 1,
 
 		.hsync_end      = 64,               .hblank_end         = 122,
@@ -661,7 +661,7 @@ static const struct tv_mode tv_modes[] = {
 		.name       = "576p",
 		.clock		= 108000,
 		.refresh	= 50000,
-		.oversample     = TV_OVERSAMPLE_4X,
+		.oversample     = 4,
 		.component_only = 1,
 
 		.hsync_end      = 64,               .hblank_end         = 139,
@@ -685,7 +685,7 @@ static const struct tv_mode tv_modes[] = {
 		.name       = "720p@60Hz",
 		.clock		= 148500,
 		.refresh	= 60000,
-		.oversample     = TV_OVERSAMPLE_2X,
+		.oversample     = 2,
 		.component_only = 1,
 
 		.hsync_end      = 80,               .hblank_end         = 300,
@@ -709,7 +709,7 @@ static const struct tv_mode tv_modes[] = {
 		.name       = "720p@50Hz",
 		.clock		= 148500,
 		.refresh	= 50000,
-		.oversample     = TV_OVERSAMPLE_2X,
+		.oversample     = 2,
 		.component_only = 1,
 
 		.hsync_end      = 80,               .hblank_end         = 300,
@@ -734,7 +734,7 @@ static const struct tv_mode tv_modes[] = {
 		.name       = "1080i@50Hz",
 		.clock		= 148500,
 		.refresh	= 50000,
-		.oversample     = TV_OVERSAMPLE_2X,
+		.oversample     = 2,
 		.component_only = 1,
 
 		.hsync_end      = 88,               .hblank_end         = 235,
@@ -760,7 +760,7 @@ static const struct tv_mode tv_modes[] = {
 		.name       = "1080i@60Hz",
 		.clock		= 148500,
 		.refresh	= 60000,
-		.oversample     = TV_OVERSAMPLE_2X,
+		.oversample     = 2,
 		.component_only = 1,
 
 		.hsync_end      = 88,               .hblank_end         = 235,
@@ -1029,7 +1029,21 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 	}
 
 	tv_ctl |= TV_ENC_PIPE_SEL(intel_crtc->pipe);
-	tv_ctl |= tv_mode->oversample;
+
+	switch (tv_mode->oversample) {
+	case 8:
+		tv_ctl |= TV_OVERSAMPLE_8X;
+		break;
+	case 4:
+		tv_ctl |= TV_OVERSAMPLE_4X;
+		break;
+	case 2:
+		tv_ctl |= TV_OVERSAMPLE_2X;
+		break;
+	default:
+		tv_ctl |= TV_OVERSAMPLE_NONE;
+		break;
+	}
 
 	if (tv_mode->progressive)
 		tv_ctl |= TV_PROGRESSIVE;
