@@ -46,7 +46,6 @@
 
 #define PMKSA_KEY_LEN				22
 #define ETH_ALEN				6
-#define PMKID_LEN				16
 #define WILC_MAX_NUM_PMKIDS			16
 #define WILC_ADD_STA_LENGTH			40
 #define NUM_CONCURRENT_IFC			2
@@ -128,7 +127,7 @@ enum host_if_state {
 
 struct host_if_pmkid {
 	u8 bssid[ETH_ALEN];
-	u8 pmkid[PMKID_LEN];
+	u8 pmkid[WLAN_PMKID_LEN];
 };
 
 struct host_if_pmkid_attr {

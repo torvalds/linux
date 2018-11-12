@@ -1217,7 +1217,7 @@ static int set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 		memcpy(priv->pmkid_list.pmkidlist[i].bssid, pmksa->bssid,
 		       ETH_ALEN);
 		memcpy(priv->pmkid_list.pmkidlist[i].pmkid, pmksa->pmkid,
-		       PMKID_LEN);
+		       WLAN_PMKID_LEN);
 		if (!(flag == PMKID_FOUND))
 			priv->pmkid_list.numpmkid++;
 	} else {
@@ -1254,7 +1254,7 @@ static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 			       ETH_ALEN);
 			memcpy(priv->pmkid_list.pmkidlist[i].pmkid,
 			       priv->pmkid_list.pmkidlist[i + 1].pmkid,
-			       PMKID_LEN);
+			       WLAN_PMKID_LEN);
 		}
 		priv->pmkid_list.numpmkid--;
 	} else {

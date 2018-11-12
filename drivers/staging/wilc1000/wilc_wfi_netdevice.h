@@ -22,7 +22,6 @@
 #define FLOW_CONTROL_UPPER_THRESHOLD		256
 
 #define WILC_MAX_NUM_PMKIDS			16
-#define PMKID_LEN				16
 #define PMKID_FOUND				1
 #define NUM_STA_ASSOCIATED			8
 

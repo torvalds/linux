@@ -1460,7 +1460,7 @@ static int wilc_pmksa_key_copy(struct wilc_vif *vif, struct key_attr *hif_key)
 		memcpy(key_buf + ((PMKSA_KEY_LEN * i) + 1),
 		       hif_key->attr.pmkid.pmkidlist[i].bssid, ETH_ALEN);
 		memcpy(key_buf + ((PMKSA_KEY_LEN * i) + ETH_ALEN + 1),
-		       hif_key->attr.pmkid.pmkidlist[i].pmkid, PMKID_LEN);
+		       hif_key->attr.pmkid.pmkidlist[i].pmkid, WLAN_PMKID_LEN);
 	}
 
 	wid.id = WID_PMKID_INFO;
@@ -2793,7 +2793,7 @@ int wilc_set_pmkid_info(struct wilc_vif *vif,
 		memcpy(msg->body.key_info.attr.pmkid.pmkidlist[i].bssid,
 		       &pmkid->pmkidlist[i].bssid, ETH_ALEN);
 		memcpy(msg->body.key_info.attr.pmkid.pmkidlist[i].pmkid,
-		       &pmkid->pmkidlist[i].pmkid, PMKID_LEN);
+		       &pmkid->pmkidlist[i].pmkid, WLAN_PMKID_LEN);
 	}
 
 	result = wilc_enqueue_work(msg);
