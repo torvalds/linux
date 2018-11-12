@@ -762,6 +762,10 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	pci_free_irq_vectors(pci);
 
 	hda_dsp_stream_free(sdev);
+
+	iounmap(sdev->bar[HDA_DSP_BAR]);
+	iounmap(bus->remap_addr);
+
 	return 0;
 }
 
