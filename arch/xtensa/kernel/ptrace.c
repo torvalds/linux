@@ -27,6 +27,9 @@
 #include <linux/tracehook.h>
 #include <linux/uaccess.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/syscalls.h>
+
 #include <asm/coprocessor.h>
 #include <asm/elf.h>
 #include <asm/page.h>
@@ -545,11 +548,16 @@ void do_syscall_trace_enter(struct pt_regs *regs)
 	    tracehook_report_syscall_entry(regs))
 		regs->syscall = NO_SYSCALL;
 
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_enter(regs, syscall_get_nr(current, regs));
 }
 
 void do_syscall_trace_leave(struct pt_regs *regs)
 {
 	int step;
+
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_exit(regs, regs_return_value(regs));
 
 	step = test_thread_flag(TIF_SINGLESTEP);
 

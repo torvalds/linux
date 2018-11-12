@@ -28,8 +28,6 @@
 #include <linux/sched/mm.h>
 #include <linux/shm.h>
 
-typedef void (*syscall_t)(void);
-
 syscall_t sys_call_table[__NR_syscalls] /* FIXME __cacheline_aligned */= {
 	[0 ... __NR_syscalls - 1] = (syscall_t)&sys_ni_syscall,
 

@@ -19,6 +19,9 @@ static inline int syscall_get_arch(void)
 	return AUDIT_ARCH_XTENSA;
 }
 
+typedef void (*syscall_t)(void);
+extern syscall_t sys_call_table[];
+
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)
 {
