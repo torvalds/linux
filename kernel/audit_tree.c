@@ -186,6 +186,12 @@ static void insert_hash(struct audit_chunk *chunk)
 
 	if (!(chunk->mark.flags & FSNOTIFY_MARK_FLAG_ATTACHED))
 		return;
+	/*
+	 * Make sure chunk is fully initialized before making it visible in the
+	 * hash. Pairs with a data dependency barrier in READ_ONCE() in
+	 * audit_tree_lookup().
+	 */
+	smp_wmb();
 	WARN_ON_ONCE(!chunk->key);
 	list = chunk_hash(chunk->key);
 	list_add_rcu(&chunk->hash, list);
@@ -199,7 +205,11 @@ struct audit_chunk *audit_tree_lookup(const struct inode *inode)
 	struct audit_chunk *p;
 
 	list_for_each_entry_rcu(p, list, hash) {
-		if (p->key == key) {
+		/*
+		 * We use a data dependency barrier in READ_ONCE() to make sure
+		 * the chunk we see is fully initialized.
+		 */
+		if (READ_ONCE(p->key) == key) {
 			atomic_long_inc(&p->refs);
 			return p;
 		}
@@ -304,9 +314,15 @@ static void untag_chunk(struct node *p)
 		list_replace_init(&chunk->owners[j].list, &new->owners[i].list);
 	}
 
-	list_replace_rcu(&chunk->hash, &new->hash);
 	list_for_each_entry(owner, &new->trees, same_root)
 		owner->root = new;
+	/*
+	 * Make sure chunk is fully initialized before making it visible in the
+	 * hash. Pairs with a data dependency barrier in READ_ONCE() in
+	 * audit_tree_lookup().
+	 */
+	smp_wmb();
+	list_replace_rcu(&chunk->hash, &new->hash);
 	spin_unlock(&hash_lock);
 	fsnotify_detach_mark(entry);
 	mutex_unlock(&entry->group->mark_mutex);
@@ -368,6 +384,10 @@ static int create_chunk(struct inode *inode, struct audit_tree *tree)
 		list_add(&tree->same_root, &chunk->trees);
 	}
 	chunk->key = inode_to_key(inode);
+	/*
+	 * Inserting into the hash table has to go last as once we do that RCU
+	 * readers can see the chunk.
+	 */
 	insert_hash(chunk);
 	spin_unlock(&hash_lock);
 	mutex_unlock(&audit_tree_group->mark_mutex);
@@ -459,7 +479,6 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	p->owner = tree;
 	get_tree(tree);
 	list_add(&p->list, &tree->chunks);
-	list_replace_rcu(&old->hash, &chunk->hash);
 	list_for_each_entry(owner, &chunk->trees, same_root)
 		owner->root = chunk;
 	old->dead = 1;
@@ -467,6 +486,13 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 		tree->root = chunk;
 		list_add(&tree->same_root, &chunk->trees);
 	}
+	/*
+	 * Make sure chunk is fully initialized before making it visible in the
+	 * hash. Pairs with a data dependency barrier in READ_ONCE() in
+	 * audit_tree_lookup().
+	 */
+	smp_wmb();
+	list_replace_rcu(&old->hash, &chunk->hash);
 	spin_unlock(&hash_lock);
 	fsnotify_detach_mark(old_entry);
 	mutex_unlock(&audit_tree_group->mark_mutex);
