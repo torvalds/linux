@@ -767,6 +767,9 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	iounmap(sdev->bar[HDA_DSP_BAR]);
 	iounmap(bus->remap_addr);
 
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+		hda_codec_i915_exit(sdev);
+
 	return 0;
 }
 
