@@ -328,7 +328,7 @@ static void sc2731_charger_work(struct work_struct *data)
 
 	mutex_lock(&info->lock);
 
-	if (info->limit > 0) {
+	if (info->limit > 0 && !info->charging) {
 		/* set current limitation and start to charge */
 		ret = sc2731_charger_set_current_limit(info, info->limit);
 		if (ret)
@@ -343,7 +343,7 @@ static void sc2731_charger_work(struct work_struct *data)
 			goto out;
 
 		info->charging = true;
-	} else {
+	} else if (!info->limit && info->charging) {
 		/* Stop charging */
 		info->charging = false;
 		sc2731_charger_stop_charge(info);
