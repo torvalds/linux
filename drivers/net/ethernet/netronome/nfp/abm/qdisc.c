@@ -196,7 +196,7 @@ nfp_abm_qdisc_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 	if (*qdisc) {
 		if (WARN_ON((*qdisc)->type != type))
 			return -EINVAL;
-		return 0;
+		return 1;
 	}
 
 	*qdisc = nfp_abm_qdisc_alloc(netdev, alink, type, parent_handle, handle,
@@ -357,9 +357,22 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 	i = nfp_abm_red_find(alink, opt);
 	existing = i >= 0;
 
-	if (ret) {
+	if (ret < 0) {
 		err = ret;
 		goto err_destroy;
+	}
+
+	/* If limit != 0 child gets reset */
+	if (opt->set.limit) {
+		if (nfp_abm_qdisc_child_valid(qdisc, 0))
+			qdisc->children[0]->use_cnt--;
+		qdisc->children[0] = NULL;
+	} else {
+		/* Qdisc was just allocated without a limit will use noop_qdisc,
+		 * i.e. a block hole.
+		 */
+		if (!ret)
+			qdisc->children[0] = NFP_QDISC_UNTRACKED;
 	}
 
 	if (!nfp_abm_red_check_params(alink, opt)) {
@@ -533,10 +546,14 @@ nfp_abm_mq_create(struct net_device *netdev, struct nfp_abm_link *alink,
 		  struct tc_mq_qopt_offload *opt)
 {
 	struct nfp_qdisc *qdisc;
+	int ret;
 
-	return nfp_abm_qdisc_replace(netdev, alink, NFP_QDISC_MQ,
-				     TC_H_ROOT, opt->handle,
-				     alink->total_queues, &qdisc);
+	ret = nfp_abm_qdisc_replace(netdev, alink, NFP_QDISC_MQ,
+				    TC_H_ROOT, opt->handle, alink->total_queues,
+				    &qdisc);
+	if (ret < 0)
+		return ret;
+	return 0;
 }
 
 int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
