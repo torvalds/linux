@@ -20,6 +20,11 @@ struct nfp_net;
  * struct nfp_abm - ABM NIC app structure
  * @app:	back pointer to nfp_app
  * @pf_id:	ID of our PF link
+ *
+ * @thresholds:		current threshold configuration
+ * @threshold_undef:	bitmap of thresholds which have not been set
+ * @num_thresholds:	number of @thresholds and bits in @threshold_undef
+ *
  * @eswitch_mode:	devlink eswitch mode, advanced functions only visible
  *			in switchdev mode
  * @q_lvls:	queue level control area
@@ -28,6 +33,11 @@ struct nfp_net;
 struct nfp_abm {
 	struct nfp_app *app;
 	unsigned int pf_id;
+
+	u32 *thresholds;
+	unsigned long *threshold_undef;
+	size_t num_thresholds;
+
 	enum devlink_eswitch_mode eswitch_mode;
 	const struct nfp_rtsym *q_lvls;
 	const struct nfp_rtsym *qm_stats;
@@ -64,11 +74,13 @@ struct nfp_alink_xstats {
 /**
  * struct nfp_red_qdisc - representation of single RED Qdisc
  * @handle:	handle of currently offloaded RED Qdisc
+ * @threshold:	marking threshold of this Qdisc
  * @stats:	statistics from last refresh
  * @xstats:	base of extended statistics
  */
 struct nfp_red_qdisc {
 	u32 handle;
+	u32 threshold;
 	struct nfp_alink_stats stats;
 	struct nfp_alink_xstats xstats;
 };
@@ -102,8 +114,8 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 
 void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
-int nfp_abm_ctrl_set_all_q_lvls(struct nfp_abm_link *alink, u32 val);
-int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int i,
+int __nfp_abm_ctrl_set_q_lvl(struct nfp_abm *abm, unsigned int id, u32 val);
+int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int queue,
 			   u32 val);
 int nfp_abm_ctrl_read_stats(struct nfp_abm_link *alink,
 			    struct nfp_alink_stats *stats);

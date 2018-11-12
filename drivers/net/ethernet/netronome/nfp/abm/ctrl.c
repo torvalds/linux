@@ -71,35 +71,37 @@ nfp_abm_ctrl_stat_all(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
 	return 0;
 }
 
-int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int i, u32 val)
+int __nfp_abm_ctrl_set_q_lvl(struct nfp_abm *abm, unsigned int id, u32 val)
 {
-	struct nfp_cpp *cpp = alink->abm->app->cpp;
+	struct nfp_cpp *cpp = abm->app->cpp;
 	u64 sym_offset;
 	int err;
 
-	sym_offset = (alink->queue_base + i) * NFP_QLVL_STRIDE + NFP_QLVL_THRS;
-	err = __nfp_rtsym_writel(cpp, alink->abm->q_lvls, 4, 0,
-				 sym_offset, val);
+	__clear_bit(id, abm->threshold_undef);
+	if (abm->thresholds[id] == val)
+		return 0;
+
+	sym_offset = id * NFP_QLVL_STRIDE + NFP_QLVL_THRS;
+	err = __nfp_rtsym_writel(cpp, abm->q_lvls, 4, 0, sym_offset, val);
 	if (err) {
-		nfp_err(cpp, "RED offload setting level failed on vNIC %d queue %d\n",
-			alink->id, i);
+		nfp_err(cpp,
+			"RED offload setting level failed on subqueue %d\n",
+			id);
 		return err;
 	}
 
+	abm->thresholds[id] = val;
 	return 0;
 }
 
-int nfp_abm_ctrl_set_all_q_lvls(struct nfp_abm_link *alink, u32 val)
+int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int queue,
+			   u32 val)
 {
-	int i, err;
+	unsigned int threshold;
 
-	for (i = 0; i < alink->vnic->max_rx_rings; i++) {
-		err = nfp_abm_ctrl_set_q_lvl(alink, i, val);
-		if (err)
-			return err;
-	}
+	threshold = alink->queue_base + queue;
 
-	return 0;
+	return __nfp_abm_ctrl_set_q_lvl(alink->abm, threshold, val);
 }
 
 u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int i)

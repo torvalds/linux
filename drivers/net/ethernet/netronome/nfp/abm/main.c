@@ -2,6 +2,7 @@
 /* Copyright (C) 2018 Netronome Systems, Inc. */
 
 #include <linux/bitfield.h>
+#include <linux/bitmap.h>
 #include <linux/etherdevice.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
@@ -399,6 +400,7 @@ static int nfp_abm_init(struct nfp_app *app)
 	struct nfp_pf *pf = app->pf;
 	struct nfp_reprs *reprs;
 	struct nfp_abm *abm;
+	unsigned int i;
 	int err;
 
 	if (!pf->eth_tbl) {
@@ -425,15 +427,28 @@ static int nfp_abm_init(struct nfp_app *app)
 	if (err)
 		goto err_free_abm;
 
+	err = -ENOMEM;
+	abm->num_thresholds = NFP_NET_MAX_RX_RINGS;
+	abm->threshold_undef = bitmap_zalloc(abm->num_thresholds, GFP_KERNEL);
+	if (!abm->threshold_undef)
+		goto err_free_abm;
+
+	abm->thresholds = kvcalloc(abm->num_thresholds,
+				   sizeof(*abm->thresholds), GFP_KERNEL);
+	if (!abm->thresholds)
+		goto err_free_thresh_umap;
+	for (i = 0; i < NFP_NET_MAX_RX_RINGS; i++)
+		__nfp_abm_ctrl_set_q_lvl(abm, i, NFP_ABM_LVL_INFINITY);
+
 	/* We start in legacy mode, make sure advanced queuing is disabled */
 	err = nfp_abm_ctrl_qm_disable(abm);
 	if (err)
-		goto err_free_abm;
+		goto err_free_thresh;
 
 	err = -ENOMEM;
 	reprs = nfp_reprs_alloc(pf->max_data_vnics);
 	if (!reprs)
-		goto err_free_abm;
+		goto err_free_thresh;
 	RCU_INIT_POINTER(app->reprs[NFP_REPR_TYPE_PHYS_PORT], reprs);
 
 	reprs = nfp_reprs_alloc(pf->max_data_vnics);
@@ -445,6 +460,10 @@ static int nfp_abm_init(struct nfp_app *app)
 
 err_free_phys:
 	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PHYS_PORT);
+err_free_thresh:
+	kvfree(abm->thresholds);
+err_free_thresh_umap:
+	bitmap_free(abm->threshold_undef);
 err_free_abm:
 	kfree(abm);
 	app->priv = NULL;
@@ -458,6 +477,8 @@ static void nfp_abm_clean(struct nfp_app *app)
 	nfp_abm_eswitch_clean_up(abm);
 	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PF);
 	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PHYS_PORT);
+	bitmap_free(abm->threshold_undef);
+	kvfree(abm->thresholds);
 	kfree(abm);
 	app->priv = NULL;
 }

@@ -7,25 +7,73 @@
 
 #include "../nfpcore/nfp_cpp.h"
 #include "../nfp_app.h"
+#include "../nfp_main.h"
+#include "../nfp_net.h"
 #include "../nfp_port.h"
 #include "main.h"
 
-static int
+static void
+nfp_abm_offload_compile_red(struct nfp_abm_link *alink,
+			    struct nfp_red_qdisc *qdisc, unsigned int queue)
+{
+	if (!qdisc->handle)
+		return;
+
+	nfp_abm_ctrl_set_q_lvl(alink, queue, qdisc->threshold);
+}
+
+static void nfp_abm_offload_compile_one(struct nfp_abm_link *alink)
+{
+	unsigned int i;
+	bool is_mq;
+
+	is_mq = alink->num_qdiscs > 1;
+
+	for (i = 0; i < alink->total_queues; i++) {
+		struct nfp_red_qdisc *next;
+
+		if (is_mq && !alink->red_qdiscs[i].handle)
+			continue;
+
+		next = is_mq ? &alink->red_qdiscs[i] : &alink->red_qdiscs[0];
+		nfp_abm_offload_compile_red(alink, next, i);
+	}
+}
+
+static void nfp_abm_offload_update(struct nfp_abm *abm)
+{
+	struct nfp_abm_link *alink = NULL;
+	struct nfp_pf *pf = abm->app->pf;
+	struct nfp_net *nn;
+	size_t i;
+
+	/* Mark all thresholds as unconfigured */
+	__bitmap_set(abm->threshold_undef, 0, abm->num_thresholds);
+
+	/* Configure all offloads */
+	list_for_each_entry(nn, &pf->vnics, vnic_list) {
+		alink = nn->app_priv;
+		nfp_abm_offload_compile_one(alink);
+	}
+
+	/* Reset the unconfigured thresholds */
+	for (i = 0; i < abm->num_thresholds; i++)
+		if (test_bit(i, abm->threshold_undef))
+			__nfp_abm_ctrl_set_q_lvl(abm, i, NFP_ABM_LVL_INFINITY);
+}
+
+static void
 __nfp_abm_reset_root(struct net_device *netdev, struct nfp_abm_link *alink,
 		     u32 handle, unsigned int qs, u32 init_val)
 {
 	struct nfp_port *port = nfp_port_from_netdev(netdev);
-	int ret;
 
-	ret = nfp_abm_ctrl_set_all_q_lvls(alink, init_val);
 	memset(alink->red_qdiscs, 0,
 	       sizeof(*alink->red_qdiscs) * alink->num_qdiscs);
 
 	alink->parent = handle;
 	alink->num_qdiscs = qs;
 	port->tc_offload_cnt = qs;
-
-	return ret;
 }
 
 static void
@@ -66,12 +114,12 @@ nfp_abm_red_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
 	if (i == alink->num_qdiscs)
 		return;
 
-	if (alink->parent == TC_H_ROOT) {
+	if (alink->parent == TC_H_ROOT)
 		nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 0);
-	} else {
-		nfp_abm_ctrl_set_q_lvl(alink, i, NFP_ABM_LVL_INFINITY);
+	else
 		memset(&alink->red_qdiscs[i], 0, sizeof(*alink->red_qdiscs));
-	}
+
+	nfp_abm_offload_update(alink->abm);
 }
 
 static bool
@@ -121,29 +169,19 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 	}
 
 	if (existing) {
-		if (alink->parent == TC_H_ROOT)
-			err = nfp_abm_ctrl_set_all_q_lvls(alink, opt->set.min);
-		else
-			err = nfp_abm_ctrl_set_q_lvl(alink, i, opt->set.min);
-		if (err)
-			goto err_destroy;
+		nfp_abm_offload_update(alink->abm);
 		return 0;
 	}
 
 	if (opt->parent == TC_H_ROOT) {
 		i = 0;
-		err = __nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 1,
-					   opt->set.min);
+		__nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 1, opt->set.min);
 	} else if (TC_H_MAJ(alink->parent) == TC_H_MAJ(opt->parent)) {
 		i = TC_H_MIN(opt->parent) - 1;
-		err = nfp_abm_ctrl_set_q_lvl(alink, i, opt->set.min);
 	} else {
 		return -EINVAL;
 	}
-	/* Set the handle to try full clean up, in case IO failed */
 	alink->red_qdiscs[i].handle = opt->handle;
-	if (err)
-		goto err_destroy;
 
 	if (opt->parent == TC_H_ROOT)
 		err = nfp_abm_ctrl_read_stats(alink,
@@ -163,8 +201,11 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 	if (err)
 		goto err_destroy;
 
+	alink->red_qdiscs[i].threshold = opt->set.min;
 	alink->red_qdiscs[i].stats.backlog_pkts = 0;
 	alink->red_qdiscs[i].stats.backlog_bytes = 0;
+
+	nfp_abm_offload_update(alink->abm);
 
 	return 0;
 err_destroy:
@@ -292,10 +333,13 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 	case TC_MQ_CREATE:
 		nfp_abm_reset_root(netdev, alink, opt->handle,
 				   alink->total_queues);
+		nfp_abm_offload_update(alink->abm);
 		return 0;
 	case TC_MQ_DESTROY:
-		if (opt->handle == alink->parent)
+		if (opt->handle == alink->parent) {
 			nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 0);
+			nfp_abm_offload_update(alink->abm);
+		}
 		return 0;
 	case TC_MQ_STATS:
 		return nfp_abm_mq_stats(alink, opt);
