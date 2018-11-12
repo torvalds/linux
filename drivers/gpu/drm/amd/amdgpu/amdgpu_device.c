@@ -59,6 +59,8 @@
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_pm.h"
 
+#include "amdgpu_xgmi.h"
+
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vega12_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
