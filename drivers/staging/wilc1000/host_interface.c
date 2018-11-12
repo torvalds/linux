@@ -3483,11 +3483,11 @@ void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 		return;
 
 	switch (frame_type) {
-	case ACTION:
+	case IEEE80211_STYPE_ACTION:
 		msg->body.reg_frame.reg_id = ACTION_FRM_IDX;
 		break;
 
-	case PROBE_REQ:
+	case IEEE80211_STYPE_PROBE_REQ:
 		msg->body.reg_frame.reg_id = PROBE_REQ_IDX;
 		break;
 
