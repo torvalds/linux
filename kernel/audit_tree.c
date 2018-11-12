@@ -332,28 +332,18 @@ static int chunk_count_trees(struct audit_chunk *chunk)
 	return ret;
 }
 
-static void untag_chunk(struct node *p)
+static void untag_chunk(struct audit_chunk *chunk, struct fsnotify_mark *entry)
 {
-	struct audit_chunk *chunk = find_chunk(p);
-	struct fsnotify_mark *entry = chunk->mark;
-	struct audit_chunk *new = NULL;
+	struct audit_chunk *new;
 	int size;
 
-	remove_chunk_node(chunk, p);
-	fsnotify_get_mark(entry);
-	spin_unlock(&hash_lock);
-
-	mutex_lock(&entry->group->mark_mutex);
+	mutex_lock(&audit_tree_group->mark_mutex);
 	/*
 	 * mark_mutex protects mark from getting detached and thus also from
 	 * mark->connector->obj getting NULL.
 	 */
-	if (chunk->dead || !(entry->flags & FSNOTIFY_MARK_FLAG_ATTACHED)) {
-		mutex_unlock(&entry->group->mark_mutex);
-		if (new)
-			fsnotify_put_mark(new->mark);
-		goto out;
-	}
+	if (chunk->dead || !(entry->flags & FSNOTIFY_MARK_FLAG_ATTACHED))
+		goto out_mutex;
 
 	size = chunk_count_trees(chunk);
 	if (!size) {
@@ -363,9 +353,9 @@ static void untag_chunk(struct node *p)
 		list_del_rcu(&chunk->hash);
 		spin_unlock(&hash_lock);
 		fsnotify_detach_mark(entry);
-		mutex_unlock(&entry->group->mark_mutex);
+		mutex_unlock(&audit_tree_group->mark_mutex);
 		fsnotify_free_mark(entry);
-		goto out;
+		return;
 	}
 
 	new = alloc_chunk(size);
@@ -387,16 +377,13 @@ static void untag_chunk(struct node *p)
 	replace_chunk(new, chunk);
 	spin_unlock(&hash_lock);
 	fsnotify_detach_mark(entry);
-	mutex_unlock(&entry->group->mark_mutex);
+	mutex_unlock(&audit_tree_group->mark_mutex);
 	fsnotify_free_mark(entry);
 	fsnotify_put_mark(new->mark);	/* drop initial reference */
-	goto out;
+	return;
 
 out_mutex:
-	mutex_unlock(&entry->group->mark_mutex);
-out:
-	fsnotify_put_mark(entry);
-	spin_lock(&hash_lock);
+	mutex_unlock(&audit_tree_group->mark_mutex);
 }
 
 /* Call with group->mark_mutex held, releases it */
@@ -579,20 +566,43 @@ static void kill_rules(struct audit_tree *tree)
 }
 
 /*
- * finish killing struct audit_tree
+ * Remove tree from chunks. If 'tagged' is set, remove tree only from tagged
+ * chunks. The function expects tagged chunks are all at the beginning of the
+ * chunks list.
  */
-static void prune_one(struct audit_tree *victim)
+static void prune_tree_chunks(struct audit_tree *victim, bool tagged)
 {
 	spin_lock(&hash_lock);
 	while (!list_empty(&victim->chunks)) {
 		struct node *p;
+		struct audit_chunk *chunk;
+		struct fsnotify_mark *mark;
 
-		p = list_entry(victim->chunks.next, struct node, list);
+		p = list_first_entry(&victim->chunks, struct node, list);
+		/* have we run out of marked? */
+		if (tagged && !(p->index & (1U<<31)))
+			break;
+		chunk = find_chunk(p);
+		mark = chunk->mark;
+		remove_chunk_node(chunk, p);
+		fsnotify_get_mark(mark);
+		spin_unlock(&hash_lock);
 
-		untag_chunk(p);
+		untag_chunk(chunk, mark);
+		fsnotify_put_mark(mark);
+
+		spin_lock(&hash_lock);
 	}
 	spin_unlock(&hash_lock);
 	put_tree(victim);
+}
+
+/*
+ * finish killing struct audit_tree
+ */
+static void prune_one(struct audit_tree *victim)
+{
+	prune_tree_chunks(victim, false);
 }
 
 /* trim the uncommitted chunks from tree */
@@ -614,18 +624,11 @@ static void trim_marked(struct audit_tree *tree)
 			list_add(p, &tree->chunks);
 		}
 	}
+	spin_unlock(&hash_lock);
 
-	while (!list_empty(&tree->chunks)) {
-		struct node *node;
+	prune_tree_chunks(tree, true);
 
-		node = list_entry(tree->chunks.next, struct node, list);
-
-		/* have we run out of marked? */
-		if (!(node->index & (1U<<31)))
-			break;
-
-		untag_chunk(node);
-	}
+	spin_lock(&hash_lock);
 	if (!tree->root && !tree->goner) {
 		tree->goner = 1;
 		spin_unlock(&hash_lock);
