@@ -10,7 +10,6 @@
 
 #include "bcachefs.h"
 #include "alloc_background.h"
-#include "compress.h"
 #include "sysfs.h"
 #include "btree_cache.h"
 #include "btree_io.h"
@@ -581,14 +580,9 @@ STORE(bch2_fs_opts_dir)
 	if (ret < 0)
 		return ret;
 
-	if (id == Opt_compression ||
-	    id == Opt_background_compression) {
-		int ret = bch2_check_set_has_compressed_data(c, v);
-		if (ret) {
-			mutex_unlock(&c->sb_lock);
-			return ret;
-		}
-	}
+	ret = bch2_opt_check_may_set(c, id, v);
+	if (ret < 0)
+		return ret;
 
 	if (opt->set_sb != SET_NO_SB_OPT) {
 		mutex_lock(&c->sb_lock);

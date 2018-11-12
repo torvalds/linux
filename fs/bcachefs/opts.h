@@ -269,6 +269,7 @@ int bch2_opt_parse(struct bch_fs *, const struct bch_option *, const char *, u64
 void bch2_opt_to_text(struct printbuf *, struct bch_fs *,
 		      const struct bch_option *, u64, unsigned);
 
+int bch2_opt_check_may_set(struct bch_fs *, int, u64);
 int bch2_parse_mount_opts(struct bch_opts *, char *);
 
 /* inode opts: */

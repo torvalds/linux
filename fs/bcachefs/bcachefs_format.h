@@ -1234,7 +1234,8 @@ enum bch_sb_features {
 	BCH_FEATURE_LZ4			= 0,
 	BCH_FEATURE_GZIP		= 1,
 	BCH_FEATURE_ZSTD		= 2,
-	BCH_FEATURE_ATOMIC_NLINK	= 3,
+	BCH_FEATURE_ATOMIC_NLINK	= 3, /* should have gone under compat */
+	BCH_FEATURE_NR,
 };
 
 /* options: */

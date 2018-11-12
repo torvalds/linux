@@ -3,7 +3,6 @@
 #include "bcachefs.h"
 #include "bkey_methods.h"
 #include "btree_update.h"
-#include "compress.h"
 #include "extents.h"
 #include "fs.h"
 #include "rebalance.h"
@@ -433,12 +432,9 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 		if (ret < 0)
 			return ret;
 
-		if (s.id == Opt_compression ||
-		    s.id == Opt_background_compression) {
-			ret = bch2_check_set_has_compressed_data(c, s.v);
-			if (ret)
-				return ret;
-		}
+		ret = bch2_opt_check_may_set(c, s.id, s.v);
+		if (ret < 0)
+			return ret;
 
 		s.defined = true;
 	} else {

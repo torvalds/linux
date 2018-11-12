@@ -230,6 +230,10 @@ const char *bch2_sb_validate(struct bch_sb_handle *disk_sb)
 	    le16_to_cpu(sb->version) > BCH_SB_VERSION_MAX)
 		return "Unsupported superblock version";
 
+	if (sb->features[1] ||
+	    (le64_to_cpu(sb->features[0]) & (~0ULL << BCH_FEATURE_NR)))
+		return "Filesystem has incompatible features";
+
 	if (le16_to_cpu(sb->version) < BCH_SB_VERSION_EXTENT_MAX) {
 		SET_BCH_SB_ENCODED_EXTENT_MAX_BITS(sb, 7);
 		SET_BCH_SB_POSIX_ACL(sb, 1);

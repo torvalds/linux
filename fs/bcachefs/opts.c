@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 
 #include "bcachefs.h"
+#include "compress.h"
 #include "disk_groups.h"
 #include "opts.h"
 #include "super-io.h"
@@ -267,6 +268,20 @@ void bch2_opt_to_text(struct printbuf *out, struct bch_fs *c,
 	default:
 		BUG();
 	}
+}
+
+int bch2_opt_check_may_set(struct bch_fs *c, int id, u64 v)
+{
+	int ret = 0;
+
+	switch (id) {
+	case Opt_compression:
+	case Opt_background_compression:
+		ret = bch2_check_set_has_compressed_data(c, v);
+		break;
+	}
+
+	return ret;
 }
 
 int bch2_parse_mount_opts(struct bch_opts *opts, char *options)
