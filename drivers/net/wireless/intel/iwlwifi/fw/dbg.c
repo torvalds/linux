@@ -1365,44 +1365,6 @@ const struct iwl_fw_dump_desc iwl_dump_desc_assert = {
 };
 IWL_EXPORT_SYMBOL(iwl_dump_desc_assert);
 
-void iwl_fw_assert_error_dump(struct iwl_fw_runtime *fwrt)
-{
-	IWL_INFO(fwrt, "error dump due to fw assert\n");
-	fwrt->dump.desc = &iwl_dump_desc_assert;
-	iwl_fw_error_dump(fwrt);
-}
-IWL_EXPORT_SYMBOL(iwl_fw_assert_error_dump);
-
-void iwl_fw_alive_timeout_dump(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_fw_dump_desc *iwl_dump_desc_alive_timeout;
-
-	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
-		return;
-
-	iwl_dump_desc_alive_timeout =
-		kmalloc(sizeof(*iwl_dump_desc_alive_timeout), GFP_KERNEL);
-	if (!iwl_dump_desc_alive_timeout)
-		return;
-
-	iwl_dump_desc_alive_timeout->trig_desc.type =
-		cpu_to_le32(FW_DBG_TRIGGER_ALIVE_TIMEOUT);
-	iwl_dump_desc_alive_timeout->len = 0;
-
-	if (WARN_ON(fwrt->dump.desc))
-		iwl_fw_free_dump_desc(fwrt);
-
-	IWL_WARN(fwrt, "Collecting data: trigger %d fired.\n",
-		 FW_DBG_TRIGGER_ALIVE_TIMEOUT);
-
-	/* set STATUS_FW_ERROR to collect all memory regions. */
-	set_bit(STATUS_FW_ERROR, &fwrt->trans->status);
-
-	fwrt->dump.desc = iwl_dump_desc_alive_timeout;
-	iwl_fw_error_dump(fwrt);
-}
-IWL_EXPORT_SYMBOL(iwl_fw_alive_timeout_dump);
-
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    const struct iwl_fw_dump_desc *desc,
 			    bool monitor_only,
@@ -1441,6 +1403,33 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_desc);
+
+int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
+			     enum iwl_fw_dbg_trigger trig_type)
+{
+	int ret;
+	struct iwl_fw_dump_desc *iwl_dump_error_desc =
+		kmalloc(sizeof(*iwl_dump_error_desc), GFP_KERNEL);
+
+	if (!iwl_dump_error_desc)
+		return -ENOMEM;
+
+	iwl_dump_error_desc->trig_desc.type = cpu_to_le32(trig_type);
+	iwl_dump_error_desc->len = 0;
+
+	ret = iwl_fw_dbg_collect_desc(fwrt, iwl_dump_error_desc, false, 0);
+	if (ret) {
+		kfree(iwl_dump_error_desc);
+	} else {
+		set_bit(STATUS_FW_WAIT_DUMP, &fwrt->trans->status);
+
+		/* trigger nmi to halt the fw */
+		iwl_force_nmi(fwrt->trans);
+	}
+
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_error_collect);
 
 int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 			enum iwl_fw_dbg_trigger trig,
@@ -1893,3 +1882,27 @@ void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, true);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_apply_point);
+
+void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt)
+{
+	/* if the wait event timeout elapses instead of wake up then
+	 * the driver did not receive NMI interrupt and can not assume the FW
+	 * is halted
+	 */
+	int ret = wait_event_timeout(fwrt->trans->fw_halt_waitq,
+				     !test_bit(STATUS_FW_WAIT_DUMP,
+					       &fwrt->trans->status),
+				     msecs_to_jiffies(2000));
+	if (!ret) {
+		/* failed to receive NMI interrupt, assuming the FW is stuck */
+		set_bit(STATUS_FW_ERROR, &fwrt->trans->status);
+
+		clear_bit(STATUS_FW_WAIT_DUMP, &fwrt->trans->status);
+	}
+
+	/* Assuming the op mode mutex is held at this point */
+	iwl_fw_dbg_collect_sync(fwrt);
+
+	iwl_trans_stop_device(fwrt->trans);
+}
+IWL_EXPORT_SYMBOL(iwl_fwrt_stop_device);
