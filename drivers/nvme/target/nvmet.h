@@ -36,6 +36,8 @@
  */
 #define NVMET_AEN_CFG_OPTIONAL \
 	(NVME_AEN_CFG_NS_ATTR | NVME_AEN_CFG_ANA_CHANGE)
+#define NVMET_DISC_AEN_CFG_OPTIONAL \
+	(NVME_AEN_CFG_DISC_CHANGE)
 
 /*
  * Plus mandatory SMART AENs (we'll never send them, but allow enabling them):
