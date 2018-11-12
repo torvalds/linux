@@ -184,8 +184,6 @@ static void insert_hash(struct audit_chunk *chunk)
 {
 	struct list_head *list;
 
-	if (!(chunk->mark.flags & FSNOTIFY_MARK_FLAG_ATTACHED))
-		return;
 	/*
 	 * Make sure chunk is fully initialized before making it visible in the
 	 * hash. Pairs with a data dependency barrier in READ_ONCE() in
