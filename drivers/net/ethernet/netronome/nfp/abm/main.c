@@ -309,9 +309,10 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 	alink->id = id;
 	alink->parent = TC_H_ROOT;
 	alink->total_queues = alink->vnic->max_rx_rings;
-	alink->qdiscs = kvcalloc(alink->total_queues, sizeof(*alink->qdiscs),
-				 GFP_KERNEL);
-	if (!alink->qdiscs) {
+	alink->red_qdiscs = kvcalloc(alink->total_queues,
+				     sizeof(*alink->red_qdiscs),
+				     GFP_KERNEL);
+	if (!alink->red_qdiscs) {
 		err = -ENOMEM;
 		goto err_free_alink;
 	}
@@ -331,7 +332,7 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 	return 0;
 
 err_free_qdiscs:
-	kvfree(alink->qdiscs);
+	kvfree(alink->red_qdiscs);
 err_free_alink:
 	kfree(alink);
 	return err;
@@ -342,7 +343,7 @@ static void nfp_abm_vnic_free(struct nfp_app *app, struct nfp_net *nn)
 	struct nfp_abm_link *alink = nn->app_priv;
 
 	nfp_abm_kill_reprs(alink->abm, alink);
-	kvfree(alink->qdiscs);
+	kvfree(alink->red_qdiscs);
 	kfree(alink);
 }
 

@@ -82,7 +82,7 @@ struct nfp_red_qdisc {
  * @total_queues:	number of PF queues
  * @parent:	handle of expected parent, i.e. handle of MQ, or TC_H_ROOT
  * @num_qdiscs:	number of currently used qdiscs
- * @qdiscs:	array of qdiscs
+ * @red_qdiscs:	array of qdiscs
  */
 struct nfp_abm_link {
 	struct nfp_abm *abm;
@@ -92,7 +92,7 @@ struct nfp_abm_link {
 	unsigned int total_queues;
 	u32 parent;
 	unsigned int num_qdiscs;
-	struct nfp_red_qdisc *qdiscs;
+	struct nfp_red_qdisc *red_qdiscs;
 };
 
 int nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,

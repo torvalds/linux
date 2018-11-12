@@ -18,7 +18,8 @@ __nfp_abm_reset_root(struct net_device *netdev, struct nfp_abm_link *alink,
 	int ret;
 
 	ret = nfp_abm_ctrl_set_all_q_lvls(alink, init_val);
-	memset(alink->qdiscs, 0, sizeof(*alink->qdiscs) * alink->num_qdiscs);
+	memset(alink->red_qdiscs, 0,
+	       sizeof(*alink->red_qdiscs) * alink->num_qdiscs);
 
 	alink->parent = handle;
 	alink->num_qdiscs = qs;
@@ -46,7 +47,8 @@ nfp_abm_red_find(struct nfp_abm_link *alink, struct tc_red_qopt_offload *opt)
 	else
 		return -EOPNOTSUPP;
 
-	if (i >= alink->num_qdiscs || opt->handle != alink->qdiscs[i].handle)
+	if (i >= alink->num_qdiscs ||
+	    opt->handle != alink->red_qdiscs[i].handle)
 		return -EOPNOTSUPP;
 
 	return i;
@@ -59,7 +61,7 @@ nfp_abm_red_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
 	unsigned int i;
 
 	for (i = 0; i < alink->num_qdiscs; i++)
-		if (handle == alink->qdiscs[i].handle)
+		if (handle == alink->red_qdiscs[i].handle)
 			break;
 	if (i == alink->num_qdiscs)
 		return;
@@ -68,7 +70,7 @@ nfp_abm_red_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
 		nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 0);
 	} else {
 		nfp_abm_ctrl_set_q_lvl(alink, i, NFP_ABM_LVL_INFINITY);
-		memset(&alink->qdiscs[i], 0, sizeof(*alink->qdiscs));
+		memset(&alink->red_qdiscs[i], 0, sizeof(*alink->red_qdiscs));
 	}
 }
 
@@ -139,37 +141,39 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 		return -EINVAL;
 	}
 	/* Set the handle to try full clean up, in case IO failed */
-	alink->qdiscs[i].handle = opt->handle;
+	alink->red_qdiscs[i].handle = opt->handle;
 	if (err)
 		goto err_destroy;
 
 	if (opt->parent == TC_H_ROOT)
-		err = nfp_abm_ctrl_read_stats(alink, &alink->qdiscs[i].stats);
+		err = nfp_abm_ctrl_read_stats(alink,
+					      &alink->red_qdiscs[i].stats);
 	else
 		err = nfp_abm_ctrl_read_q_stats(alink, i,
-						&alink->qdiscs[i].stats);
+						&alink->red_qdiscs[i].stats);
 	if (err)
 		goto err_destroy;
 
 	if (opt->parent == TC_H_ROOT)
 		err = nfp_abm_ctrl_read_xstats(alink,
-					       &alink->qdiscs[i].xstats);
+					       &alink->red_qdiscs[i].xstats);
 	else
 		err = nfp_abm_ctrl_read_q_xstats(alink, i,
-						 &alink->qdiscs[i].xstats);
+						 &alink->red_qdiscs[i].xstats);
 	if (err)
 		goto err_destroy;
 
-	alink->qdiscs[i].stats.backlog_pkts = 0;
-	alink->qdiscs[i].stats.backlog_bytes = 0;
+	alink->red_qdiscs[i].stats.backlog_pkts = 0;
+	alink->red_qdiscs[i].stats.backlog_bytes = 0;
 
 	return 0;
 err_destroy:
 	/* If the qdisc keeps on living, but we can't offload undo changes */
 	if (existing) {
-		opt->set.qstats->qlen -= alink->qdiscs[i].stats.backlog_pkts;
+		opt->set.qstats->qlen -=
+			alink->red_qdiscs[i].stats.backlog_pkts;
 		opt->set.qstats->backlog -=
-			alink->qdiscs[i].stats.backlog_bytes;
+			alink->red_qdiscs[i].stats.backlog_bytes;
 	}
 	nfp_abm_red_destroy(netdev, alink, opt->handle);
 
@@ -198,7 +202,7 @@ nfp_abm_red_stats(struct nfp_abm_link *alink, struct tc_red_qopt_offload *opt)
 	i = nfp_abm_red_find(alink, opt);
 	if (i < 0)
 		return i;
-	prev_stats = &alink->qdiscs[i].stats;
+	prev_stats = &alink->red_qdiscs[i].stats;
 
 	if (alink->parent == TC_H_ROOT)
 		err = nfp_abm_ctrl_read_stats(alink, &stats);
@@ -224,7 +228,7 @@ nfp_abm_red_xstats(struct nfp_abm_link *alink, struct tc_red_qopt_offload *opt)
 	i = nfp_abm_red_find(alink, opt);
 	if (i < 0)
 		return i;
-	prev_xstats = &alink->qdiscs[i].xstats;
+	prev_xstats = &alink->red_qdiscs[i].xstats;
 
 	if (alink->parent == TC_H_ROOT)
 		err = nfp_abm_ctrl_read_xstats(alink, &xstats);
@@ -267,14 +271,14 @@ nfp_abm_mq_stats(struct nfp_abm_link *alink, struct tc_mq_qopt_offload *opt)
 	int err;
 
 	for (i = 0; i < alink->num_qdiscs; i++) {
-		if (alink->qdiscs[i].handle == TC_H_UNSPEC)
+		if (alink->red_qdiscs[i].handle == TC_H_UNSPEC)
 			continue;
 
 		err = nfp_abm_ctrl_read_q_stats(alink, i, &stats);
 		if (err)
 			return err;
 
-		nfp_abm_update_stats(&stats, &alink->qdiscs[i].stats,
+		nfp_abm_update_stats(&stats, &alink->red_qdiscs[i].stats,
 				     &opt->stats);
 	}
 
