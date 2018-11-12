@@ -1519,8 +1519,10 @@ static void __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	if (ns->ndev)
 		nvme_nvm_update_nvm_info(ns);
 #ifdef CONFIG_NVME_MULTIPATH
-	if (ns->head->disk)
+	if (ns->head->disk) {
 		nvme_update_disk_info(ns->head->disk, ns, id);
+		blk_queue_stack_limits(ns->head->disk->queue, ns->queue);
+	}
 #endif
 }
 

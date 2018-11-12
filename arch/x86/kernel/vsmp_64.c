@@ -26,65 +26,8 @@
 
 #define TOPOLOGY_REGISTER_OFFSET 0x10
 
-#if defined CONFIG_PCI && defined CONFIG_PARAVIRT_XXL
-/*
- * Interrupt control on vSMPowered systems:
- * ~AC is a shadow of IF.  If IF is 'on' AC should be 'off'
- * and vice versa.
- */
-
-asmlinkage __visible unsigned long vsmp_save_fl(void)
-{
-	unsigned long flags = native_save_fl();
-
-	if (!(flags & X86_EFLAGS_IF) || (flags & X86_EFLAGS_AC))
-		flags &= ~X86_EFLAGS_IF;
-	return flags;
-}
-PV_CALLEE_SAVE_REGS_THUNK(vsmp_save_fl);
-
-__visible void vsmp_restore_fl(unsigned long flags)
-{
-	if (flags & X86_EFLAGS_IF)
-		flags &= ~X86_EFLAGS_AC;
-	else
-		flags |= X86_EFLAGS_AC;
-	native_restore_fl(flags);
-}
-PV_CALLEE_SAVE_REGS_THUNK(vsmp_restore_fl);
-
-asmlinkage __visible void vsmp_irq_disable(void)
-{
-	unsigned long flags = native_save_fl();
-
-	native_restore_fl((flags & ~X86_EFLAGS_IF) | X86_EFLAGS_AC);
-}
-PV_CALLEE_SAVE_REGS_THUNK(vsmp_irq_disable);
-
-asmlinkage __visible void vsmp_irq_enable(void)
-{
-	unsigned long flags = native_save_fl();
-
-	native_restore_fl((flags | X86_EFLAGS_IF) & (~X86_EFLAGS_AC));
-}
-PV_CALLEE_SAVE_REGS_THUNK(vsmp_irq_enable);
-
-static unsigned __init vsmp_patch(u8 type, void *ibuf,
-				  unsigned long addr, unsigned len)
-{
-	switch (type) {
-	case PARAVIRT_PATCH(irq.irq_enable):
-	case PARAVIRT_PATCH(irq.irq_disable):
-	case PARAVIRT_PATCH(irq.save_fl):
-	case PARAVIRT_PATCH(irq.restore_fl):
-		return paravirt_patch_default(type, ibuf, addr, len);
-	default:
-		return native_patch(type, ibuf, addr, len);
-	}
-
-}
-
-static void __init set_vsmp_pv_ops(void)
+#ifdef CONFIG_PCI
+static void __init set_vsmp_ctl(void)
 {
 	void __iomem *address;
 	unsigned int cap, ctl, cfg;
@@ -109,28 +52,12 @@ static void __init set_vsmp_pv_ops(void)
 	}
 #endif
 
-	if (cap & ctl & (1 << 4)) {
-		/* Setup irq ops and turn on vSMP  IRQ fastpath handling */
-		pv_ops.irq.irq_disable = PV_CALLEE_SAVE(vsmp_irq_disable);
-		pv_ops.irq.irq_enable = PV_CALLEE_SAVE(vsmp_irq_enable);
-		pv_ops.irq.save_fl = PV_CALLEE_SAVE(vsmp_save_fl);
-		pv_ops.irq.restore_fl = PV_CALLEE_SAVE(vsmp_restore_fl);
-		pv_ops.init.patch = vsmp_patch;
-		ctl &= ~(1 << 4);
-	}
 	writel(ctl, address + 4);
 	ctl = readl(address + 4);
 	pr_info("vSMP CTL: control set to:0x%08x\n", ctl);
 
 	early_iounmap(address, 8);
 }
-#else
-static void __init set_vsmp_pv_ops(void)
-{
-}
-#endif
-
-#ifdef CONFIG_PCI
 static int is_vsmp = -1;
 
 static void __init detect_vsmp_box(void)
@@ -164,11 +91,14 @@ static int is_vsmp_box(void)
 {
 	return 0;
 }
+static void __init set_vsmp_ctl(void)
+{
+}
 #endif
 
 static void __init vsmp_cap_cpus(void)
 {
-#if !defined(CONFIG_X86_VSMP) && defined(CONFIG_SMP)
+#if !defined(CONFIG_X86_VSMP) && defined(CONFIG_SMP) && defined(CONFIG_PCI)
 	void __iomem *address;
 	unsigned int cfg, topology, node_shift, maxcpus;
 
@@ -221,6 +151,6 @@ void __init vsmp_init(void)
 
 	vsmp_cap_cpus();
 
-	set_vsmp_pv_ops();
+	set_vsmp_ctl();
 	return;
 }
