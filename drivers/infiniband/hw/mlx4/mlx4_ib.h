@@ -519,6 +519,7 @@ struct mlx4_ib_iboe {
 	atomic64_t		mac[MLX4_MAX_PORTS];
 	struct notifier_block 	nb;
 	struct mlx4_port_gid_table gids[MLX4_MAX_PORTS];
+	enum ib_port_state	last_port_state[MLX4_MAX_PORTS];
 };
 
 struct pkey_mgt {

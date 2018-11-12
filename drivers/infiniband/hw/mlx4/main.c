@@ -2352,6 +2352,32 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
 		     event == NETDEV_UP || event == NETDEV_CHANGE))
 			update_qps_port = port;
 
+		if (dev == iboe->netdevs[port - 1] &&
+		    (event == NETDEV_UP || event == NETDEV_DOWN)) {
+			enum ib_port_state port_state;
+			struct ib_event ibev = { };
+
+			if (ib_get_cached_port_state(&ibdev->ib_dev, port,
+						     &port_state))
+				continue;
+
+			if (event == NETDEV_UP &&
+			    (port_state != IB_PORT_ACTIVE ||
+			     iboe->last_port_state[port - 1] != IB_PORT_DOWN))
+				continue;
+			if (event == NETDEV_DOWN &&
+			    (port_state != IB_PORT_DOWN ||
+			     iboe->last_port_state[port - 1] != IB_PORT_ACTIVE))
+				continue;
+			iboe->last_port_state[port - 1] = port_state;
+
+			ibev.device = &ibdev->ib_dev;
+			ibev.element.port_num = port;
+			ibev.event = event == NETDEV_UP ? IB_EVENT_PORT_ACTIVE :
+							  IB_EVENT_PORT_ERR;
+			ib_dispatch_event(&ibev);
+		}
+
 	}
 	spin_unlock_bh(&iboe->lock);
 
@@ -2710,6 +2736,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	for (i = 0; i < ibdev->num_ports; ++i) {
 		mutex_init(&ibdev->counters_table[i].mutex);
 		INIT_LIST_HEAD(&ibdev->counters_table[i].counters_list);
+		iboe->last_port_state[i] = IB_PORT_DOWN;
 	}
 
 	num_req_counters = mlx4_is_bonded(dev) ? 1 : ibdev->num_ports;
