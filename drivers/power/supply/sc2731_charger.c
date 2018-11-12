@@ -408,6 +408,8 @@ static int sc2731_charger_hw_init(struct sc2731_charger_info *info)
 			vol_val = (term_voltage - 4200) / 100;
 		else
 			vol_val = 0;
+
+		power_supply_put_battery_info(info->psy_usb, &bat_info);
 	}
 
 	/* Set charge termination current */
