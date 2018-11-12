@@ -489,9 +489,15 @@ enum {
 };
 
 enum {
-	NVME_AEN_CFG_NS_ATTR		= 1 << 8,
-	NVME_AEN_CFG_FW_ACT		= 1 << 9,
-	NVME_AEN_CFG_ANA_CHANGE		= 1 << 11,
+	NVME_AEN_BIT_NS_ATTR		= 8,
+	NVME_AEN_BIT_FW_ACT		= 9,
+	NVME_AEN_BIT_ANA_CHANGE		= 11,
+};
+
+enum {
+	NVME_AEN_CFG_NS_ATTR		= 1 << NVME_AEN_BIT_NS_ATTR,
+	NVME_AEN_CFG_FW_ACT		= 1 << NVME_AEN_BIT_FW_ACT,
+	NVME_AEN_CFG_ANA_CHANGE		= 1 << NVME_AEN_BIT_ANA_CHANGE,
 };
 
 struct nvme_lba_range_type {

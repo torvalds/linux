@@ -176,7 +176,7 @@ static void nvmet_execute_get_log_changed_ns(struct nvmet_req *req)
 	if (!status)
 		status = nvmet_zero_sgl(req, len, req->data_len - len);
 	ctrl->nr_changed_ns = 0;
-	nvmet_clear_aen(req, NVME_AEN_CFG_NS_ATTR);
+	nvmet_clear_aen_bit(req, NVME_AEN_BIT_NS_ATTR);
 	mutex_unlock(&ctrl->lock);
 out:
 	nvmet_req_complete(req, status);
@@ -239,7 +239,7 @@ static void nvmet_execute_get_log_page_ana(struct nvmet_req *req)
 
 	hdr.chgcnt = cpu_to_le64(nvmet_ana_chgcnt);
 	hdr.ngrps = cpu_to_le16(ngrps);
-	nvmet_clear_aen(req, NVME_AEN_CFG_ANA_CHANGE);
+	nvmet_clear_aen_bit(req, NVME_AEN_BIT_ANA_CHANGE);
 	up_read(&nvmet_ana_sem);
 
 	kfree(desc);

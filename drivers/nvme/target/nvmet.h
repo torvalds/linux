@@ -342,19 +342,19 @@ struct nvmet_async_event {
 	u8			log_page;
 };
 
-static inline void nvmet_clear_aen(struct nvmet_req *req, u32 aen_bit)
+static inline void nvmet_clear_aen_bit(struct nvmet_req *req, u32 bn)
 {
 	int rae = le32_to_cpu(req->cmd->common.cdw10[0]) & 1 << 15;
 
 	if (!rae)
-		clear_bit(aen_bit, &req->sq->ctrl->aen_masked);
+		clear_bit(bn, &req->sq->ctrl->aen_masked);
 }
 
-static inline bool nvmet_aen_disabled(struct nvmet_ctrl *ctrl, u32 aen)
+static inline bool nvmet_aen_bit_disabled(struct nvmet_ctrl *ctrl, u32 bn)
 {
-	if (!(READ_ONCE(ctrl->aen_enabled) & aen))
+	if (!(READ_ONCE(ctrl->aen_enabled) & (1 << bn)))
 		return true;
-	return test_and_set_bit(aen, &ctrl->aen_masked);
+	return test_and_set_bit(bn, &ctrl->aen_masked);
 }
 
 u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
