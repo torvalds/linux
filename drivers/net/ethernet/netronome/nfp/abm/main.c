@@ -7,6 +7,7 @@
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/rcupdate.h>
+#include <linux/rtnetlink.h>
 #include <linux/slab.h>
 
 #include "../nfpcore/nfp.h"
@@ -310,22 +311,14 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 	alink->abm = abm;
 	alink->vnic = nn;
 	alink->id = id;
-	alink->parent = TC_H_ROOT;
 	alink->total_queues = alink->vnic->max_rx_rings;
-	alink->red_qdiscs = kvcalloc(alink->total_queues,
-				     sizeof(*alink->red_qdiscs),
-				     GFP_KERNEL);
-	if (!alink->red_qdiscs) {
-		err = -ENOMEM;
-		goto err_free_alink;
-	}
 
 	/* This is a multi-host app, make sure MAC/PHY is up, but don't
 	 * make the MAC/PHY state follow the state of any of the ports.
 	 */
 	err = nfp_eth_set_configured(app->cpp, eth_port->index, true);
 	if (err < 0)
-		goto err_free_qdiscs;
+		goto err_free_alink;
 
 	netif_keep_dst(nn->dp.netdev);
 
@@ -335,8 +328,6 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 
 	return 0;
 
-err_free_qdiscs:
-	kvfree(alink->red_qdiscs);
 err_free_alink:
 	kfree(alink);
 	return err;
@@ -348,7 +339,6 @@ static void nfp_abm_vnic_free(struct nfp_app *app, struct nfp_net *nn)
 
 	nfp_abm_kill_reprs(alink->abm, alink);
 	WARN(!radix_tree_empty(&alink->qdiscs), "left over qdiscs\n");
-	kvfree(alink->red_qdiscs);
 	kfree(alink);
 }
 

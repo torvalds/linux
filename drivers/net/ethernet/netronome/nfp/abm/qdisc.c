@@ -13,6 +13,11 @@
 #include "../nfp_port.h"
 #include "main.h"
 
+static bool nfp_abm_qdisc_is_red(struct nfp_qdisc *qdisc)
+{
+	return qdisc->type == NFP_QDISC_RED;
+}
+
 static bool nfp_abm_qdisc_child_valid(struct nfp_qdisc *qdisc, unsigned int id)
 {
 	return qdisc->children[id] &&
@@ -22,6 +27,74 @@ static bool nfp_abm_qdisc_child_valid(struct nfp_qdisc *qdisc, unsigned int id)
 static void *nfp_abm_qdisc_tree_deref_slot(void __rcu **slot)
 {
 	return rtnl_dereference(*slot);
+}
+
+static void
+nfp_abm_stats_propagate(struct nfp_alink_stats *parent,
+			struct nfp_alink_stats *child)
+{
+	parent->tx_pkts		+= child->tx_pkts;
+	parent->tx_bytes	+= child->tx_bytes;
+	parent->backlog_pkts	+= child->backlog_pkts;
+	parent->backlog_bytes	+= child->backlog_bytes;
+	parent->overlimits	+= child->overlimits;
+	parent->drops		+= child->drops;
+}
+
+static void
+nfp_abm_stats_update_red(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
+			 unsigned int queue)
+{
+	struct nfp_cpp *cpp = alink->abm->app->cpp;
+	int err;
+
+	if (!qdisc->offloaded)
+		return;
+
+	err = nfp_abm_ctrl_read_q_stats(alink, queue, &qdisc->red.stats);
+	if (err)
+		nfp_err(cpp, "RED stats (%d) read failed with error %d\n",
+			queue, err);
+
+	err = nfp_abm_ctrl_read_q_xstats(alink, queue, &qdisc->red.xstats);
+	if (err)
+		nfp_err(cpp, "RED xstats (%d) read failed with error %d\n",
+			queue, err);
+}
+
+static void
+nfp_abm_stats_update_mq(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc)
+{
+	unsigned int i;
+
+	if (qdisc->type != NFP_QDISC_MQ)
+		return;
+
+	for (i = 0; i < alink->total_queues; i++)
+		if (nfp_abm_qdisc_child_valid(qdisc, i))
+			nfp_abm_stats_update_red(alink, qdisc->children[i], i);
+}
+
+static void __nfp_abm_stats_update(struct nfp_abm_link *alink, u64 time_now)
+{
+	alink->last_stats_update = time_now;
+	if (alink->root_qdisc)
+		nfp_abm_stats_update_mq(alink, alink->root_qdisc);
+}
+
+static void nfp_abm_stats_update(struct nfp_abm_link *alink)
+{
+	u64 now;
+
+	/* Limit the frequency of updates - stats of non-leaf qdiscs are a sum
+	 * of all their leafs, so we would read the same stat multiple times
+	 * for every dump.
+	 */
+	now = ktime_get();
+	if (now - alink->last_stats_update < NFP_ABM_STATS_REFRESH_IVAL)
+		return;
+
+	__nfp_abm_stats_update(alink, now);
 }
 
 static void
@@ -35,6 +108,141 @@ nfp_abm_qdisc_unlink_children(struct nfp_qdisc *qdisc,
 			qdisc->children[i]->use_cnt--;
 			qdisc->children[i] = NULL;
 		}
+}
+
+static void
+nfp_abm_qdisc_offload_stop(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc)
+{
+	/* Don't complain when qdisc is getting unlinked */
+	if (qdisc->use_cnt)
+		nfp_warn(alink->abm->app->cpp, "Offload of '%08x' stopped\n",
+			 qdisc->handle);
+
+	if (!nfp_abm_qdisc_is_red(qdisc))
+		return;
+
+	qdisc->red.stats.backlog_pkts = 0;
+	qdisc->red.stats.backlog_bytes = 0;
+}
+
+static int
+__nfp_abm_stats_init(struct nfp_abm_link *alink,
+		     unsigned int queue, struct nfp_alink_stats *prev_stats,
+		     struct nfp_alink_xstats *prev_xstats)
+{
+	u64 backlog_pkts, backlog_bytes;
+	int err;
+
+	/* Don't touch the backlog, backlog can only be reset after it has
+	 * been reported back to the tc qdisc stats.
+	 */
+	backlog_pkts = prev_stats->backlog_pkts;
+	backlog_bytes = prev_stats->backlog_bytes;
+
+	err = nfp_abm_ctrl_read_q_stats(alink, queue, prev_stats);
+	if (err) {
+		nfp_err(alink->abm->app->cpp,
+			"RED stats init (%d) failed with error %d\n",
+			queue, err);
+		return err;
+	}
+
+	err = nfp_abm_ctrl_read_q_xstats(alink, queue, prev_xstats);
+	if (err) {
+		nfp_err(alink->abm->app->cpp,
+			"RED xstats init (%d) failed with error %d\n",
+			queue, err);
+		return err;
+	}
+
+	prev_stats->backlog_pkts = backlog_pkts;
+	prev_stats->backlog_bytes = backlog_bytes;
+	return 0;
+}
+
+static int
+nfp_abm_stats_init(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
+		   unsigned int queue)
+{
+	return __nfp_abm_stats_init(alink, queue,
+				    &qdisc->red.prev_stats,
+				    &qdisc->red.prev_xstats);
+}
+
+static void
+nfp_abm_offload_compile_red(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
+			    unsigned int queue)
+{
+	qdisc->offload_mark = qdisc->type == NFP_QDISC_RED &&
+			      qdisc->params_ok &&
+			      qdisc->use_cnt == 1 &&
+			      !qdisc->children[0];
+
+	/* If we are starting offload init prev_stats */
+	if (qdisc->offload_mark && !qdisc->offloaded)
+		if (nfp_abm_stats_init(alink, qdisc, queue))
+			qdisc->offload_mark = false;
+
+	if (!qdisc->offload_mark)
+		return;
+
+	nfp_abm_ctrl_set_q_lvl(alink, queue, qdisc->red.threshold);
+}
+
+static void
+nfp_abm_offload_compile_mq(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc)
+{
+	unsigned int i;
+
+	qdisc->offload_mark = qdisc->type == NFP_QDISC_MQ;
+	if (!qdisc->offload_mark)
+		return;
+
+	for (i = 0; i < alink->total_queues; i++) {
+		struct nfp_qdisc *child = qdisc->children[i];
+
+		if (!nfp_abm_qdisc_child_valid(qdisc, i))
+			continue;
+
+		nfp_abm_offload_compile_red(alink, child, i);
+	}
+}
+
+void nfp_abm_qdisc_offload_update(struct nfp_abm_link *alink)
+{
+	struct nfp_abm *abm = alink->abm;
+	struct radix_tree_iter iter;
+	struct nfp_qdisc *qdisc;
+	void __rcu **slot;
+	size_t i;
+
+	/* Mark all thresholds as unconfigured */
+	__bitmap_set(abm->threshold_undef,
+		     alink->queue_base, alink->total_queues);
+
+	/* Clear offload marks */
+	radix_tree_for_each_slot(slot, &alink->qdiscs, &iter, 0) {
+		qdisc = nfp_abm_qdisc_tree_deref_slot(slot);
+		qdisc->offload_mark = false;
+	}
+
+	if (alink->root_qdisc)
+		nfp_abm_offload_compile_mq(alink, alink->root_qdisc);
+
+	/* Refresh offload status */
+	radix_tree_for_each_slot(slot, &alink->qdiscs, &iter, 0) {
+		qdisc = nfp_abm_qdisc_tree_deref_slot(slot);
+		if (!qdisc->offload_mark && qdisc->offloaded)
+			nfp_abm_qdisc_offload_stop(alink, qdisc);
+		qdisc->offloaded = qdisc->offload_mark;
+	}
+
+	/* Reset the unconfigured thresholds */
+	for (i = 0; i < abm->num_thresholds; i++)
+		if (test_bit(i, abm->threshold_undef))
+			__nfp_abm_ctrl_set_q_lvl(abm, i, NFP_ABM_LVL_INFINITY);
+
+	__nfp_abm_stats_update(alink, ktime_get());
 }
 
 static void
@@ -71,56 +279,6 @@ nfp_abm_qdisc_clear_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 
 	WARN(qdisc->use_cnt != mq_refs, "non-zero qdisc use count: %d (- %d)\n",
 	     qdisc->use_cnt, mq_refs);
-}
-
-static void
-nfp_abm_offload_compile_red(struct nfp_abm_link *alink,
-			    struct nfp_red_qdisc *qdisc, unsigned int queue)
-{
-	if (!qdisc->handle)
-		return;
-
-	nfp_abm_ctrl_set_q_lvl(alink, queue, qdisc->threshold);
-}
-
-static void nfp_abm_offload_compile_one(struct nfp_abm_link *alink)
-{
-	unsigned int i;
-	bool is_mq;
-
-	is_mq = alink->num_qdiscs > 1;
-
-	for (i = 0; i < alink->total_queues; i++) {
-		struct nfp_red_qdisc *next;
-
-		if (is_mq && !alink->red_qdiscs[i].handle)
-			continue;
-
-		next = is_mq ? &alink->red_qdiscs[i] : &alink->red_qdiscs[0];
-		nfp_abm_offload_compile_red(alink, next, i);
-	}
-}
-
-static void nfp_abm_offload_update(struct nfp_abm *abm)
-{
-	struct nfp_abm_link *alink = NULL;
-	struct nfp_pf *pf = abm->app->pf;
-	struct nfp_net *nn;
-	size_t i;
-
-	/* Mark all thresholds as unconfigured */
-	__bitmap_set(abm->threshold_undef, 0, abm->num_thresholds);
-
-	/* Configure all offloads */
-	list_for_each_entry(nn, &pf->vnics, vnic_list) {
-		alink = nn->app_priv;
-		nfp_abm_offload_compile_one(alink);
-	}
-
-	/* Reset the unconfigured thresholds */
-	for (i = 0; i < abm->num_thresholds; i++)
-		if (test_bit(i, abm->threshold_undef))
-			__nfp_abm_ctrl_set_q_lvl(abm, i, NFP_ABM_LVL_INFINITY);
 }
 
 static void
@@ -221,8 +379,13 @@ nfp_abm_qdisc_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
 	nfp_abm_qdisc_unlink_children(qdisc, 0, qdisc->num_children);
 	nfp_abm_qdisc_free(netdev, alink, qdisc);
 
-	if (alink->root_qdisc == qdisc)
+	if (alink->root_qdisc == qdisc) {
 		alink->root_qdisc = NULL;
+		/* Only root change matters, other changes are acted upon on
+		 * the graft notification.
+		 */
+		nfp_abm_qdisc_offload_update(alink);
+	}
 }
 
 static int
@@ -249,66 +412,73 @@ nfp_abm_qdisc_graft(struct nfp_abm_link *alink, u32 handle, u32 child_handle,
 		child = NFP_QDISC_UNTRACKED;
 	parent->children[id] = child;
 
+	nfp_abm_qdisc_offload_update(alink);
+
 	return 0;
 }
 
 static void
-__nfp_abm_reset_root(struct net_device *netdev, struct nfp_abm_link *alink,
-		     u32 handle, unsigned int qs, u32 init_val)
+nfp_abm_stats_calculate(struct nfp_alink_stats *new,
+			struct nfp_alink_stats *old,
+			struct gnet_stats_basic_packed *bstats,
+			struct gnet_stats_queue *qstats)
 {
-	memset(alink->red_qdiscs, 0,
-	       sizeof(*alink->red_qdiscs) * alink->num_qdiscs);
-
-	alink->parent = handle;
-	alink->num_qdiscs = qs;
+	_bstats_update(bstats, new->tx_bytes - old->tx_bytes,
+		       new->tx_pkts - old->tx_pkts);
+	qstats->qlen += new->backlog_pkts - old->backlog_pkts;
+	qstats->backlog += new->backlog_bytes - old->backlog_bytes;
+	qstats->overlimits += new->overlimits - old->overlimits;
+	qstats->drops += new->drops - old->drops;
 }
 
 static void
-nfp_abm_reset_root(struct net_device *netdev, struct nfp_abm_link *alink,
-		   u32 handle, unsigned int qs)
+nfp_abm_stats_red_calculate(struct nfp_alink_xstats *new,
+			    struct nfp_alink_xstats *old,
+			    struct red_stats *stats)
 {
-	__nfp_abm_reset_root(netdev, alink, handle, qs, NFP_ABM_LVL_INFINITY);
+	stats->forced_mark += new->ecn_marked - old->ecn_marked;
+	stats->pdrop += new->pdrop - old->pdrop;
 }
 
 static int
-nfp_abm_red_find(struct nfp_abm_link *alink, struct tc_red_qopt_offload *opt)
+nfp_abm_red_xstats(struct nfp_abm_link *alink, struct tc_red_qopt_offload *opt)
 {
-	unsigned int i = TC_H_MIN(opt->parent) - 1;
+	struct nfp_qdisc *qdisc;
 
-	if (opt->parent == TC_H_ROOT)
-		i = 0;
-	else if (TC_H_MAJ(alink->parent) == TC_H_MAJ(opt->parent))
-		i = TC_H_MIN(opt->parent) - 1;
-	else
+	nfp_abm_stats_update(alink);
+
+	qdisc = nfp_abm_qdisc_find(alink, opt->handle);
+	if (!qdisc || !qdisc->offloaded)
 		return -EOPNOTSUPP;
 
-	if (i >= alink->num_qdiscs ||
-	    opt->handle != alink->red_qdiscs[i].handle)
-		return -EOPNOTSUPP;
-
-	return i;
+	nfp_abm_stats_red_calculate(&qdisc->red.xstats,
+				    &qdisc->red.prev_xstats,
+				    opt->xstats);
+	qdisc->red.prev_xstats = qdisc->red.xstats;
+	return 0;
 }
 
-static void
-nfp_abm_red_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
-		    u32 handle)
+static int
+nfp_abm_red_stats(struct nfp_abm_link *alink, u32 handle,
+		  struct tc_qopt_offload_stats *stats)
 {
-	unsigned int i;
+	struct nfp_qdisc *qdisc;
 
-	nfp_abm_qdisc_destroy(netdev, alink, handle);
+	nfp_abm_stats_update(alink);
 
-	for (i = 0; i < alink->num_qdiscs; i++)
-		if (handle == alink->red_qdiscs[i].handle)
-			break;
-	if (i == alink->num_qdiscs)
-		return;
+	qdisc = nfp_abm_qdisc_find(alink, handle);
+	if (!qdisc)
+		return -EOPNOTSUPP;
+	/* If the qdisc offload has stopped we may need to adjust the backlog
+	 * counters back so carry on even if qdisc is not currently offloaded.
+	 */
 
-	if (alink->parent == TC_H_ROOT)
-		nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 0);
-	else
-		memset(&alink->red_qdiscs[i], 0, sizeof(*alink->red_qdiscs));
+	nfp_abm_stats_calculate(&qdisc->red.stats,
+				&qdisc->red.prev_stats,
+				stats->bstats, stats->qstats);
+	qdisc->red.prev_stats = qdisc->red.stats;
 
-	nfp_abm_offload_update(alink->abm);
+	return qdisc->offloaded ? 0 : -EOPNOTSUPP;
 }
 
 static bool
@@ -347,20 +517,12 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 		    struct tc_red_qopt_offload *opt)
 {
 	struct nfp_qdisc *qdisc;
-	bool existing;
-	int i, err;
 	int ret;
 
 	ret = nfp_abm_qdisc_replace(netdev, alink, NFP_QDISC_RED, opt->parent,
 				    opt->handle, 1, &qdisc);
-
-	i = nfp_abm_red_find(alink, opt);
-	existing = i >= 0;
-
-	if (ret < 0) {
-		err = ret;
-		goto err_destroy;
-	}
+	if (ret < 0)
+		return ret;
 
 	/* If limit != 0 child gets reset */
 	if (opt->set.limit) {
@@ -376,127 +538,11 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 	}
 
 	qdisc->params_ok = nfp_abm_red_check_params(alink, opt);
-	if (qdisc->params_ok) {
+	if (qdisc->params_ok)
 		qdisc->red.threshold = opt->set.min;
-	} else {
-		err = -EINVAL;
-		goto err_destroy;
-	}
 
-	if (existing) {
-		nfp_abm_offload_update(alink->abm);
-		return 0;
-	}
-
-	if (opt->parent == TC_H_ROOT) {
-		i = 0;
-		__nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 1, opt->set.min);
-	} else if (TC_H_MAJ(alink->parent) == TC_H_MAJ(opt->parent)) {
-		i = TC_H_MIN(opt->parent) - 1;
-	} else {
-		return -EINVAL;
-	}
-	alink->red_qdiscs[i].handle = opt->handle;
-
-	if (opt->parent == TC_H_ROOT)
-		err = nfp_abm_ctrl_read_stats(alink,
-					      &alink->red_qdiscs[i].stats);
-	else
-		err = nfp_abm_ctrl_read_q_stats(alink, i,
-						&alink->red_qdiscs[i].stats);
-	if (err)
-		goto err_destroy;
-
-	if (opt->parent == TC_H_ROOT)
-		err = nfp_abm_ctrl_read_xstats(alink,
-					       &alink->red_qdiscs[i].xstats);
-	else
-		err = nfp_abm_ctrl_read_q_xstats(alink, i,
-						 &alink->red_qdiscs[i].xstats);
-	if (err)
-		goto err_destroy;
-
-	alink->red_qdiscs[i].threshold = opt->set.min;
-	alink->red_qdiscs[i].stats.backlog_pkts = 0;
-	alink->red_qdiscs[i].stats.backlog_bytes = 0;
-
-	nfp_abm_offload_update(alink->abm);
-
-	return 0;
-err_destroy:
-	/* If the qdisc keeps on living, but we can't offload undo changes */
-	if (existing) {
-		opt->set.qstats->qlen -=
-			alink->red_qdiscs[i].stats.backlog_pkts;
-		opt->set.qstats->backlog -=
-			alink->red_qdiscs[i].stats.backlog_bytes;
-	}
-	nfp_abm_red_destroy(netdev, alink, opt->handle);
-
-	return err;
-}
-
-static void
-nfp_abm_update_stats(struct nfp_alink_stats *new, struct nfp_alink_stats *old,
-		     struct tc_qopt_offload_stats *stats)
-{
-	_bstats_update(stats->bstats, new->tx_bytes - old->tx_bytes,
-		       new->tx_pkts - old->tx_pkts);
-	stats->qstats->qlen += new->backlog_pkts - old->backlog_pkts;
-	stats->qstats->backlog += new->backlog_bytes - old->backlog_bytes;
-	stats->qstats->overlimits += new->overlimits - old->overlimits;
-	stats->qstats->drops += new->drops - old->drops;
-}
-
-static int
-nfp_abm_red_stats(struct nfp_abm_link *alink, struct tc_red_qopt_offload *opt)
-{
-	struct nfp_alink_stats *prev_stats;
-	struct nfp_alink_stats stats;
-	int i, err;
-
-	i = nfp_abm_red_find(alink, opt);
-	if (i < 0)
-		return i;
-	prev_stats = &alink->red_qdiscs[i].stats;
-
-	if (alink->parent == TC_H_ROOT)
-		err = nfp_abm_ctrl_read_stats(alink, &stats);
-	else
-		err = nfp_abm_ctrl_read_q_stats(alink, i, &stats);
-	if (err)
-		return err;
-
-	nfp_abm_update_stats(&stats, prev_stats, &opt->stats);
-
-	*prev_stats = stats;
-
-	return 0;
-}
-
-static int
-nfp_abm_red_xstats(struct nfp_abm_link *alink, struct tc_red_qopt_offload *opt)
-{
-	struct nfp_alink_xstats *prev_xstats;
-	struct nfp_alink_xstats xstats;
-	int i, err;
-
-	i = nfp_abm_red_find(alink, opt);
-	if (i < 0)
-		return i;
-	prev_xstats = &alink->red_qdiscs[i].xstats;
-
-	if (alink->parent == TC_H_ROOT)
-		err = nfp_abm_ctrl_read_xstats(alink, &xstats);
-	else
-		err = nfp_abm_ctrl_read_q_xstats(alink, i, &xstats);
-	if (err)
-		return err;
-
-	opt->xstats->forced_mark += xstats.ecn_marked - prev_xstats->ecn_marked;
-	opt->xstats->pdrop += xstats.pdrop - prev_xstats->pdrop;
-
-	*prev_xstats = xstats;
+	if (qdisc->use_cnt == 1)
+		nfp_abm_qdisc_offload_update(alink);
 
 	return 0;
 }
@@ -508,10 +554,10 @@ int nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,
 	case TC_RED_REPLACE:
 		return nfp_abm_red_replace(netdev, alink, opt);
 	case TC_RED_DESTROY:
-		nfp_abm_red_destroy(netdev, alink, opt->handle);
+		nfp_abm_qdisc_destroy(netdev, alink, opt->handle);
 		return 0;
 	case TC_RED_STATS:
-		return nfp_abm_red_stats(alink, opt);
+		return nfp_abm_red_stats(alink, opt->handle, &opt->stats);
 	case TC_RED_XSTATS:
 		return nfp_abm_red_xstats(alink, opt);
 	case TC_RED_GRAFT:
@@ -520,28 +566,6 @@ int nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,
 	default:
 		return -EOPNOTSUPP;
 	}
-}
-
-static int
-nfp_abm_mq_stats(struct nfp_abm_link *alink, struct tc_mq_qopt_offload *opt)
-{
-	struct nfp_alink_stats stats;
-	unsigned int i;
-	int err;
-
-	for (i = 0; i < alink->num_qdiscs; i++) {
-		if (alink->red_qdiscs[i].handle == TC_H_UNSPEC)
-			continue;
-
-		err = nfp_abm_ctrl_read_q_stats(alink, i, &stats);
-		if (err)
-			return err;
-
-		nfp_abm_update_stats(&stats, &alink->red_qdiscs[i].stats,
-				     &opt->stats);
-	}
-
-	return 0;
 }
 
 static int
@@ -556,7 +580,50 @@ nfp_abm_mq_create(struct net_device *netdev, struct nfp_abm_link *alink,
 				    &qdisc);
 	if (ret < 0)
 		return ret;
+
+	qdisc->params_ok = true;
+	qdisc->offloaded = true;
+	nfp_abm_qdisc_offload_update(alink);
 	return 0;
+}
+
+static int
+nfp_abm_mq_stats(struct nfp_abm_link *alink, u32 handle,
+		 struct tc_qopt_offload_stats *stats)
+{
+	struct nfp_qdisc *qdisc, *red;
+	unsigned int i;
+
+	qdisc = nfp_abm_qdisc_find(alink, handle);
+	if (!qdisc)
+		return -EOPNOTSUPP;
+
+	nfp_abm_stats_update(alink);
+
+	/* MQ stats are summed over the children in the core, so we need
+	 * to add up the unreported child values.
+	 */
+	memset(&qdisc->mq.stats, 0, sizeof(qdisc->mq.stats));
+	memset(&qdisc->mq.prev_stats, 0, sizeof(qdisc->mq.prev_stats));
+
+	for (i = 0; i < qdisc->num_children; i++) {
+		if (!nfp_abm_qdisc_child_valid(qdisc, i))
+			continue;
+
+		if (!nfp_abm_qdisc_is_red(qdisc->children[i]))
+			continue;
+		red = qdisc->children[i];
+
+		nfp_abm_stats_propagate(&qdisc->mq.stats,
+					&red->red.stats);
+		nfp_abm_stats_propagate(&qdisc->mq.prev_stats,
+					&red->red.prev_stats);
+	}
+
+	nfp_abm_stats_calculate(&qdisc->mq.stats, &qdisc->mq.prev_stats,
+				stats->bstats, stats->qstats);
+
+	return qdisc->offloaded ? 0 : -EOPNOTSUPP;
 }
 
 int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
@@ -564,19 +631,12 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 {
 	switch (opt->command) {
 	case TC_MQ_CREATE:
-		nfp_abm_reset_root(netdev, alink, opt->handle,
-				   alink->total_queues);
-		nfp_abm_offload_update(alink->abm);
 		return nfp_abm_mq_create(netdev, alink, opt);
 	case TC_MQ_DESTROY:
 		nfp_abm_qdisc_destroy(netdev, alink, opt->handle);
-		if (opt->handle == alink->parent) {
-			nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 0);
-			nfp_abm_offload_update(alink->abm);
-		}
 		return 0;
 	case TC_MQ_STATS:
-		return nfp_abm_mq_stats(alink, opt);
+		return nfp_abm_mq_stats(alink, opt->handle, &opt->stats);
 	case TC_MQ_GRAFT:
 		return nfp_abm_qdisc_graft(alink, opt->handle,
 					   opt->graft_params.child_handle,
@@ -596,6 +656,8 @@ int nfp_abm_setup_root(struct net_device *netdev, struct nfp_abm_link *alink,
 	alink->root_qdisc = nfp_abm_qdisc_find(alink, opt->handle);
 	if (alink->root_qdisc)
 		alink->root_qdisc->use_cnt++;
+
+	nfp_abm_qdisc_offload_update(alink);
 
 	return 0;
 }
