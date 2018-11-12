@@ -182,5 +182,26 @@ extern const struct uapi_definition uverbs_def_obj_dm[];
 extern const struct uapi_definition uverbs_def_obj_flow_action[];
 extern const struct uapi_definition uverbs_def_obj_intf[];
 extern const struct uapi_definition uverbs_def_obj_mr[];
+extern const struct uapi_definition uverbs_def_write_intf[];
+
+static inline const struct uverbs_api_write_method *
+uapi_get_method(const struct uverbs_api *uapi, u32 command)
+{
+	u32 cmd_idx = command & IB_USER_VERBS_CMD_COMMAND_MASK;
+
+	if (command & ~(u32)(IB_USER_VERBS_CMD_FLAG_EXTENDED |
+			     IB_USER_VERBS_CMD_COMMAND_MASK))
+		return ERR_PTR(-EINVAL);
+
+	if (command & IB_USER_VERBS_CMD_FLAG_EXTENDED) {
+		if (cmd_idx >= uapi->num_write_ex)
+			return ERR_PTR(-EOPNOTSUPP);
+		return uapi->write_ex_methods[cmd_idx];
+	}
+
+	if (cmd_idx >= uapi->num_write)
+		return ERR_PTR(-EOPNOTSUPP);
+	return uapi->write_methods[cmd_idx];
+}
 
 #endif /* RDMA_CORE_H */

@@ -4126,3 +4126,135 @@ int ib_uverbs_ex_modify_cq(struct ib_uverbs_file *file,
 
 	return ret;
 }
+
+const struct uapi_definition uverbs_def_write_intf[] = {
+	DECLARE_UVERBS_OBJECT(UVERBS_OBJECT_AH,
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_AH,
+						   ib_uverbs_create_ah),
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DESTROY_AH,
+						   ib_uverbs_destroy_ah)),
+
+	DECLARE_UVERBS_OBJECT(
+		UVERBS_OBJECT_COMP_CHANNEL,
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL,
+				     ib_uverbs_create_comp_channel)),
+
+	DECLARE_UVERBS_OBJECT(
+		UVERBS_OBJECT_CQ,
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_CQ,
+				     ib_uverbs_create_cq),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DESTROY_CQ,
+				     ib_uverbs_destroy_cq),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_POLL_CQ,
+				     ib_uverbs_poll_cq),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ,
+				     ib_uverbs_req_notify_cq),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_RESIZE_CQ,
+				     ib_uverbs_resize_cq),
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_CREATE_CQ,
+					ib_uverbs_ex_create_cq),
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_MODIFY_CQ,
+					ib_uverbs_ex_modify_cq)),
+
+	DECLARE_UVERBS_OBJECT(
+		UVERBS_OBJECT_DEVICE,
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_GET_CONTEXT,
+				     ib_uverbs_get_context),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_QUERY_DEVICE,
+				     ib_uverbs_query_device),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_QUERY_PORT,
+				     ib_uverbs_query_port),
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_QUERY_DEVICE,
+					ib_uverbs_ex_query_device)),
+
+	DECLARE_UVERBS_OBJECT(
+		UVERBS_OBJECT_FLOW,
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_CREATE_FLOW,
+					ib_uverbs_ex_create_flow),
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_DESTROY_FLOW,
+					ib_uverbs_ex_destroy_flow)),
+
+	DECLARE_UVERBS_OBJECT(UVERBS_OBJECT_MR,
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DEREG_MR,
+						   ib_uverbs_dereg_mr),
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_REG_MR,
+						   ib_uverbs_reg_mr),
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_REREG_MR,
+						   ib_uverbs_rereg_mr)),
+
+	DECLARE_UVERBS_OBJECT(UVERBS_OBJECT_MW,
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_ALLOC_MW,
+						   ib_uverbs_alloc_mw),
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DEALLOC_MW,
+						   ib_uverbs_dealloc_mw)),
+
+	DECLARE_UVERBS_OBJECT(UVERBS_OBJECT_PD,
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_ALLOC_PD,
+						   ib_uverbs_alloc_pd),
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DEALLOC_PD,
+						   ib_uverbs_dealloc_pd)),
+
+	DECLARE_UVERBS_OBJECT(
+		UVERBS_OBJECT_QP,
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_ATTACH_MCAST,
+				     ib_uverbs_attach_mcast),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_QP,
+				     ib_uverbs_create_qp),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DESTROY_QP,
+				     ib_uverbs_destroy_qp),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DETACH_MCAST,
+				     ib_uverbs_detach_mcast),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_MODIFY_QP,
+				     ib_uverbs_modify_qp),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_POST_RECV,
+				     ib_uverbs_post_recv),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_POST_SEND,
+				     ib_uverbs_post_send),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_QUERY_QP,
+				     ib_uverbs_query_qp),
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_CREATE_QP,
+					ib_uverbs_ex_create_qp),
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_MODIFY_QP,
+					ib_uverbs_ex_modify_qp)),
+
+	DECLARE_UVERBS_OBJECT(
+		UVERBS_OBJECT_RWQ_IND_TBL,
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL,
+					ib_uverbs_ex_create_rwq_ind_table),
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL,
+					ib_uverbs_ex_destroy_rwq_ind_table)),
+
+	DECLARE_UVERBS_OBJECT(
+		UVERBS_OBJECT_WQ,
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_CREATE_WQ,
+					ib_uverbs_ex_create_wq),
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_DESTROY_WQ,
+					ib_uverbs_ex_destroy_wq),
+		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_MODIFY_WQ,
+					ib_uverbs_ex_modify_wq)),
+
+	DECLARE_UVERBS_OBJECT(
+		UVERBS_OBJECT_SRQ,
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_SRQ,
+				     ib_uverbs_create_srq),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_XSRQ,
+				     ib_uverbs_create_xsrq),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DESTROY_SRQ,
+				     ib_uverbs_destroy_srq),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_MODIFY_SRQ,
+				     ib_uverbs_modify_srq),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_POST_SRQ_RECV,
+				     ib_uverbs_post_srq_recv),
+		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_QUERY_SRQ,
+				     ib_uverbs_query_srq)),
+
+	DECLARE_UVERBS_OBJECT(UVERBS_OBJECT_XRCD,
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CLOSE_XRCD,
+						   ib_uverbs_close_xrcd),
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_OPEN_QP,
+						   ib_uverbs_open_qp),
+			      DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_OPEN_XRCD,
+						   ib_uverbs_open_xrcd)),
+
+	{},
+};
