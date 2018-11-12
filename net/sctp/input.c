@@ -724,42 +724,86 @@ discard:
 }
 
 /* Insert endpoint into the hash table.  */
-static void __sctp_hash_endpoint(struct sctp_endpoint *ep)
+static int __sctp_hash_endpoint(struct sctp_endpoint *ep)
 {
-	struct net *net = sock_net(ep->base.sk);
-	struct sctp_ep_common *epb;
+	struct sock *sk = ep->base.sk;
+	struct net *net = sock_net(sk);
 	struct sctp_hashbucket *head;
+	struct sctp_ep_common *epb;
 
 	epb = &ep->base;
-
 	epb->hashent = sctp_ep_hashfn(net, epb->bind_addr.port);
 	head = &sctp_ep_hashtable[epb->hashent];
+
+	if (sk->sk_reuseport) {
+		bool any = sctp_is_ep_boundall(sk);
+		struct sctp_ep_common *epb2;
+		struct list_head *list;
+		int cnt = 0, err = 1;
+
+		list_for_each(list, &ep->base.bind_addr.address_list)
+			cnt++;
+
+		sctp_for_each_hentry(epb2, &head->chain) {
+			struct sock *sk2 = epb2->sk;
+
+			if (!net_eq(sock_net(sk2), net) || sk2 == sk ||
+			    !uid_eq(sock_i_uid(sk2), sock_i_uid(sk)) ||
+			    !sk2->sk_reuseport)
+				continue;
+
+			err = sctp_bind_addrs_check(sctp_sk(sk2),
+						    sctp_sk(sk), cnt);
+			if (!err) {
+				err = reuseport_add_sock(sk, sk2, any);
+				if (err)
+					return err;
+				break;
+			} else if (err < 0) {
+				return err;
+			}
+		}
+
+		if (err) {
+			err = reuseport_alloc(sk, any);
+			if (err)
+				return err;
+		}
+	}
 
 	write_lock(&head->lock);
 	hlist_add_head(&epb->node, &head->chain);
 	write_unlock(&head->lock);
+	return 0;
 }
 
 /* Add an endpoint to the hash. Local BH-safe. */
-void sctp_hash_endpoint(struct sctp_endpoint *ep)
+int sctp_hash_endpoint(struct sctp_endpoint *ep)
 {
+	int err;
+
 	local_bh_disable();
-	__sctp_hash_endpoint(ep);
+	err = __sctp_hash_endpoint(ep);
 	local_bh_enable();
+
+	return err;
 }
 
 /* Remove endpoint from the hash table.  */
 static void __sctp_unhash_endpoint(struct sctp_endpoint *ep)
 {
-	struct net *net = sock_net(ep->base.sk);
+	struct sock *sk = ep->base.sk;
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
 
 	epb = &ep->base;
 
-	epb->hashent = sctp_ep_hashfn(net, epb->bind_addr.port);
+	epb->hashent = sctp_ep_hashfn(sock_net(sk), epb->bind_addr.port);
 
 	head = &sctp_ep_hashtable[epb->hashent];
+
+	if (rcu_access_pointer(sk->sk_reuseport_cb))
+		reuseport_detach_sock(sk);
 
 	write_lock(&head->lock);
 	hlist_del_init(&epb->node);

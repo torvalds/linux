@@ -7852,8 +7852,7 @@ static int sctp_listen_start(struct sock *sk, int backlog)
 	}
 
 	sk->sk_max_ack_backlog = backlog;
-	sctp_hash_endpoint(ep);
-	return 0;
+	return sctp_hash_endpoint(ep);
 }
 
 /*
