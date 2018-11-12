@@ -781,7 +781,6 @@ enum mlx5_ib_stages {
 	MLX5_IB_STAGE_UAR,
 	MLX5_IB_STAGE_BFREG,
 	MLX5_IB_STAGE_PRE_IB_REG_UMR,
-	MLX5_IB_STAGE_SPECS,
 	MLX5_IB_STAGE_IB_REG,
 	MLX5_IB_STAGE_POST_IB_REG_UMR,
 	MLX5_IB_STAGE_DELAY_DROP,
@@ -891,7 +890,6 @@ struct mlx5_ib_pf_eq {
 
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
-	struct uapi_definition		driver_defs[7];
 	struct mlx5_core_dev		*mdev;
 	struct mlx5_roce		roce[MLX5_MAX_PORTS];
 	int				num_ports;
