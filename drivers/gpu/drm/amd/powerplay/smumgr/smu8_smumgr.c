@@ -734,6 +734,10 @@ static int smu8_start_smu(struct pp_hwmgr *hwmgr)
 
 	cgs_write_register(hwmgr->device, mmMP0PUB_IND_INDEX, index);
 	hwmgr->smu_version = cgs_read_register(hwmgr->device, mmMP0PUB_IND_DATA);
+	pr_info("smu version %02d.%02d.%02d\n",
+		((hwmgr->smu_version >> 16) & 0xFF),
+		((hwmgr->smu_version >> 8) & 0xFF),
+		(hwmgr->smu_version & 0xFF));
 	adev->pm.fw_version = hwmgr->smu_version >> 8;
 
 	return smu8_request_smu_load_fw(hwmgr);
