@@ -3535,7 +3535,7 @@ static int igc_probe(struct pci_dev *pdev,
 			err = dma_set_coherent_mask(&pdev->dev,
 						    DMA_BIT_MASK(32));
 			if (err) {
-				IGC_ERR("Wrong DMA configuration, aborting\n");
+				dev_err(&pdev->dev, "igc: Wrong DMA config\n");
 				goto err_dma;
 			}
 		}
