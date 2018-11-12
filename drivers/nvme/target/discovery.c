@@ -183,6 +183,47 @@ out:
 	nvmet_req_complete(req, status);
 }
 
+static void nvmet_execute_disc_set_features(struct nvmet_req *req)
+{
+	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
+	u16 stat;
+
+	switch (cdw10 & 0xff) {
+	case NVME_FEAT_KATO:
+		stat = nvmet_set_feat_kato(req);
+		break;
+	case NVME_FEAT_ASYNC_EVENT:
+		stat = nvmet_set_feat_async_event(req,
+						  NVMET_DISC_AEN_CFG_OPTIONAL);
+		break;
+	default:
+		stat = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		break;
+	}
+
+	nvmet_req_complete(req, stat);
+}
+
+static void nvmet_execute_disc_get_features(struct nvmet_req *req)
+{
+	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
+	u16 stat = 0;
+
+	switch (cdw10 & 0xff) {
+	case NVME_FEAT_KATO:
+		nvmet_get_feat_kato(req);
+		break;
+	case NVME_FEAT_ASYNC_EVENT:
+		nvmet_get_feat_async_event(req);
+		break;
+	default:
+		stat = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		break;
+	}
+
+	nvmet_req_complete(req, stat);
+}
+
 u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
@@ -194,6 +235,18 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 	}
 
 	switch (cmd->common.opcode) {
+	case nvme_admin_set_features:
+		req->execute = nvmet_execute_disc_set_features;
+		req->data_len = 0;
+		return 0;
+	case nvme_admin_get_features:
+		req->execute = nvmet_execute_disc_get_features;
+		req->data_len = 0;
+		return 0;
+	case nvme_admin_async_event:
+		req->execute = nvmet_execute_async_event;
+		req->data_len = 0;
+		return 0;
 	case nvme_admin_keep_alive:
 		req->execute = nvmet_execute_keep_alive;
 		req->data_len = 0;
