@@ -1252,16 +1252,18 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
 	const struct tv_mode *tv_mode = intel_tv_mode_find(connector->state);
 	int i;
 
-	if ((intel_tv->type == DRM_MODE_CONNECTOR_Component) ==
-		tv_mode->component_only)
+	/* Component supports everything so we can keep the current mode */
+	if (intel_tv->type == DRM_MODE_CONNECTOR_Component)
 		return;
 
+	/* If the current mode is fine don't change it */
+	if (!tv_mode->component_only)
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
-		tv_mode = tv_modes + i;
+		tv_mode = &tv_modes[i];
 
-		if ((intel_tv->type == DRM_MODE_CONNECTOR_Component) ==
-			tv_mode->component_only)
+		if (!tv_mode->component_only)
 			break;
 	}
 
