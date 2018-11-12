@@ -758,7 +758,7 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 				SOF_HDA_PPCTL_GPROCEN, 0);
 
 	free_irq(sdev->ipc_irq, sdev);
-	free_irq(sdev->pci->irq, bus);
+	free_irq(sdev->hda->irq, bus);
 	pci_free_irq_vectors(pci);
 
 	hda_dsp_stream_free(sdev);
