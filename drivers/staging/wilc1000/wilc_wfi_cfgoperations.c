@@ -465,7 +465,7 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 		    conn_info->status == WLAN_STATUS_SUCCESS) {
 			connect_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			wilc_wlan_set_bssid(priv->dev, null_bssid,
-					    STATION_MODE);
+					    WILC_STATION_MODE);
 
 			if (!wfi_drv->p2p_connect)
 				wlan_channel = INVALID_CHANNEL;
@@ -507,7 +507,7 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 		priv->p2p.recv_random = 0x00;
 		priv->p2p.is_wilc_ie = false;
 		eth_zero_addr(priv->associated_bss);
-		wilc_wlan_set_bssid(priv->dev, null_bssid, STATION_MODE);
+		wilc_wlan_set_bssid(priv->dev, null_bssid, WILC_STATION_MODE);
 
 		if (!wfi_drv->p2p_connect)
 			wlan_channel = INVALID_CHANNEL;
@@ -768,7 +768,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	if (!wfi_drv->p2p_connect)
 		wlan_channel = nw_info->ch;
 
-	wilc_wlan_set_bssid(dev, nw_info->bssid, STATION_MODE);
+	wilc_wlan_set_bssid(dev, nw_info->bssid, WILC_STATION_MODE);
 
 	ret = wilc_set_join_req(vif, nw_info->bssid, sme->ssid,
 				sme->ssid_len, sme->ie, sme->ie_len,
@@ -781,7 +781,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
 		ret = -ENOENT;
-		wilc_wlan_set_bssid(dev, null_bssid, STATION_MODE);
+		wilc_wlan_set_bssid(dev, null_bssid, WILC_STATION_MODE);
 		goto out_error;
 	}
 	return 0;
@@ -815,7 +815,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 	wfi_drv = (struct host_if_drv *)priv->hif_drv;
 	if (!wfi_drv->p2p_connect)
 		wlan_channel = INVALID_CHANNEL;
-	wilc_wlan_set_bssid(priv->dev, null_bssid, STATION_MODE);
+	wilc_wlan_set_bssid(priv->dev, null_bssid, WILC_STATION_MODE);
 
 	priv->p2p.local_random = 0x01;
 	priv->p2p.recv_random = 0x00;
@@ -961,7 +961,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 			if (ret)
 				return -ENOMEM;
 
-			op_mode = AP_MODE;
+			op_mode = WILC_AP_MODE;
 		} else {
 			if (params->key_len > 16 &&
 			    params->cipher == WLAN_CIPHER_SUITE_TKIP) {
@@ -970,7 +970,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 				keylen = params->key_len - 16;
 			}
 
-			op_mode = STATION_MODE;
+			op_mode = WILC_STATION_MODE;
 		}
 
 		if (!pairwise)
@@ -1079,7 +1079,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 	u32 associatedsta = ~0;
 	u32 inactive_time = 0;
 
-	if (vif->iftype == AP_MODE || vif->iftype == GO_MODE) {
+	if (vif->iftype == WILC_AP_MODE || vif->iftype == WILC_GO_MODE) {
 		for (i = 0; i < NUM_STA_ASSOCIATED; i++) {
 			if (!(memcmp(mac,
 				     priv->assoc_stainfo.sta_associated_bss[i],
@@ -1098,7 +1098,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 
 		wilc_get_inactive_time(vif, mac, &inactive_time);
 		sinfo->inactive_time = 1000 * inactive_time;
-	} else if (vif->iftype == STATION_MODE) {
+	} else if (vif->iftype == WILC_STATION_MODE) {
 		struct rf_info stats;
 
 		wilc_get_statistics(vif, &stats, true);
@@ -1143,14 +1143,14 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 		netdev_dbg(vif->ndev,
 			   "Setting WIPHY_PARAM_RETRY_SHORT %d\n",
 			   wiphy->retry_short);
-		cfg_param_val.flag  |= RETRY_SHORT;
+		cfg_param_val.flag  |= WILC_CFG_PARAM_RETRY_SHORT;
 		cfg_param_val.short_retry_limit = wiphy->retry_short;
 	}
 	if (changed & WIPHY_PARAM_RETRY_LONG) {
 		netdev_dbg(vif->ndev,
 			   "Setting WIPHY_PARAM_RETRY_LONG %d\n",
 			   wiphy->retry_long);
-		cfg_param_val.flag |= RETRY_LONG;
+		cfg_param_val.flag |= WILC_CFG_PARAM_RETRY_LONG;
 		cfg_param_val.long_retry_limit = wiphy->retry_long;
 	}
 	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
@@ -1159,7 +1159,7 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 			netdev_dbg(vif->ndev,
 				   "Setting WIPHY_PARAM_FRAG_THRESHOLD %d\n",
 				   wiphy->frag_threshold);
-			cfg_param_val.flag |= FRAG_THRESHOLD;
+			cfg_param_val.flag |= WILC_CFG_PARAM_FRAG_THRESHOLD;
 			cfg_param_val.frag_threshold = wiphy->frag_threshold;
 		} else {
 			netdev_err(vif->ndev,
@@ -1173,7 +1173,7 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 			netdev_dbg(vif->ndev,
 				   "Setting WIPHY_PARAM_RTS_THRESHOLD %d\n",
 				   wiphy->rts_threshold);
-			cfg_param_val.flag |= RTS_THRESHOLD;
+			cfg_param_val.flag |= WILC_CFG_PARAM_RTS_THRESHOLD;
 			cfg_param_val.rts_threshold = wiphy->rts_threshold;
 		} else {
 			netdev_err(vif->ndev, "RTS threshold out of range\n");
@@ -1768,11 +1768,11 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
 		vif->monitor_flag = 0;
-		vif->iftype = STATION_MODE;
-		wilc_set_operation_mode(vif, STATION_MODE);
+		vif->iftype = WILC_STATION_MODE;
+		wilc_set_operation_mode(vif, WILC_STATION_MODE);
 
 		memset(priv->assoc_stainfo.sta_associated_bss, 0,
-		       MAX_NUM_STA * ETH_ALEN);
+		       WILC_MAX_NUM_STA * ETH_ALEN);
 
 		wl->enable_ps = true;
 		wilc_set_power_mgmt(vif, 1, 0);
@@ -1783,8 +1783,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
 		vif->monitor_flag = 0;
-		vif->iftype = CLIENT_MODE;
-		wilc_set_operation_mode(vif, STATION_MODE);
+		vif->iftype = WILC_CLIENT_MODE;
+		wilc_set_operation_mode(vif, WILC_STATION_MODE);
 
 		wl->enable_ps = false;
 		wilc_set_power_mgmt(vif, 0, 0);
@@ -1794,12 +1794,12 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		wl->enable_ps = false;
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
-		vif->iftype = AP_MODE;
+		vif->iftype = WILC_AP_MODE;
 
 		if (wl->initialized) {
 			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
 						 0, vif->ifc_id, false);
-			wilc_set_operation_mode(vif, AP_MODE);
+			wilc_set_operation_mode(vif, WILC_AP_MODE);
 			wilc_set_power_mgmt(vif, 0, 0);
 		}
 		break;
@@ -1808,10 +1808,10 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		vif->obtaining_ip = true;
 		mod_timer(&vif->during_ip_timer,
 			  jiffies + msecs_to_jiffies(DURING_IP_TIME_OUT));
-		wilc_set_operation_mode(vif, AP_MODE);
+		wilc_set_operation_mode(vif, WILC_AP_MODE);
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev->iftype = type;
-		vif->iftype = GO_MODE;
+		vif->iftype = WILC_GO_MODE;
 
 		wl->enable_ps = false;
 		wilc_set_power_mgmt(vif, 0, 0);
@@ -1838,7 +1838,7 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (ret != 0)
 		netdev_err(dev, "Error in setting channel\n");
 
-	wilc_wlan_set_bssid(dev, wl->vif[vif->idx]->src_addr, AP_MODE);
+	wilc_wlan_set_bssid(dev, wl->vif[vif->idx]->src_addr, WILC_AP_MODE);
 	wilc_set_power_mgmt(vif, 0, 0);
 
 	return wilc_add_beacon(vif, settings->beacon_interval,
@@ -1865,7 +1865,7 @@ static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 	u8 null_bssid[ETH_ALEN] = {0};
 
-	wilc_wlan_set_bssid(dev, null_bssid, AP_MODE);
+	wilc_wlan_set_bssid(dev, null_bssid, WILC_AP_MODE);
 
 	ret = wilc_del_beacon(vif);
 
@@ -1883,7 +1883,7 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 	struct add_sta_param sta_params = { {0} };
 	struct wilc_vif *vif = netdev_priv(dev);
 
-	if (vif->iftype == AP_MODE || vif->iftype == GO_MODE) {
+	if (vif->iftype == WILC_AP_MODE || vif->iftype == WILC_GO_MODE) {
 		memcpy(sta_params.bssid, mac, ETH_ALEN);
 		memcpy(priv->assoc_stainfo.sta_associated_bss[params->aid], mac,
 		       ETH_ALEN);
@@ -1918,7 +1918,7 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct sta_info *info;
 
-	if (!(vif->iftype == AP_MODE || vif->iftype == GO_MODE))
+	if (!(vif->iftype == WILC_AP_MODE || vif->iftype == WILC_GO_MODE))
 		return ret;
 
 	info = &priv->assoc_stainfo;
@@ -1939,7 +1939,7 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 	struct add_sta_param sta_params = { {0} };
 	struct wilc_vif *vif = netdev_priv(dev);
 
-	if (vif->iftype == AP_MODE || vif->iftype == GO_MODE) {
+	if (vif->iftype == WILC_AP_MODE || vif->iftype == WILC_GO_MODE) {
 		memcpy(sta_params.bssid, mac, ETH_ALEN);
 		sta_params.aid = params->aid;
 		sta_params.rates_len = params->supported_rates_len;
@@ -2141,7 +2141,7 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net,
 
 	priv = wdev_priv(wdev);
 	priv->wdev = wdev;
-	wdev->wiphy->max_scan_ssids = MAX_NUM_PROBED_SSID;
+	wdev->wiphy->max_scan_ssids = WILC_MAX_NUM_PROBED_SSID;
 #ifdef CONFIG_PM
 	wdev->wiphy->wowlan = &wowlan_support;
 #endif

@@ -1205,7 +1205,7 @@ int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 	int i;
 	int ret = 0;
 
-	if (mode == GET_CFG) {
+	if (mode == WILC_GET_CFG) {
 		for (i = 0; i < count; i++) {
 			if (!wilc_wlan_cfg_get(vif, !i,
 					       wids[i].id,
@@ -1221,7 +1221,7 @@ int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
 							     wids[i].val,
 							     wids[i].size);
 		}
-	} else if (mode == SET_CFG) {
+	} else if (mode == WILC_SET_CFG) {
 		for (i = 0; i < count; i++) {
 			if (!wilc_wlan_cfg_set(vif, !i,
 					       wids[i].id,

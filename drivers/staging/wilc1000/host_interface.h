@@ -9,20 +9,25 @@
 #include <linux/ieee80211.h>
 #include "wilc_wlan_if.h"
 
-#define IDLE_MODE	0x00
-#define AP_MODE		0x01
-#define STATION_MODE	0x02
-#define GO_MODE		0x03
-#define CLIENT_MODE	0x04
+enum {
+	WILC_IDLE_MODE = 0x0,
+	WILC_AP_MODE = 0x1,
+	WILC_STATION_MODE = 0x2,
+	WILC_GO_MODE = 0x3,
+	WILC_CLIENT_MODE = 0x4
+};
 
-#define MAX_NUM_STA				9
-#define ADDKEY					0x1
-#define REMOVEKEY				0x2
-#define DEFAULTKEY				0x4
-#define ADDKEY_AP				0x8
+enum {
+	WILC_ADD_KEY = 0x1,
+	WILC_REMOVE_KEY = 0x2,
+	WILC_DEFAULT_KEY = 0x4,
+	WILC_ADD_KEY_AP = 0x8
+};
+
+#define WILC_MAX_NUM_STA			9
 #define MAX_NUM_SCANNED_NETWORKS		100
 #define MAX_NUM_SCANNED_NETWORKS_SHADOW		130
-#define MAX_NUM_PROBED_SSID			10
+#define WILC_MAX_NUM_PROBED_SSID		10
 
 #define TX_MIC_KEY_LEN				8
 #define RX_MIC_KEY_LEN				8
@@ -34,16 +39,18 @@
 #define PMKSA_KEY_LEN				22
 #define WILC_MAX_NUM_PMKIDS			16
 #define WILC_ADD_STA_LENGTH			40
-#define NUM_CONCURRENT_IFC			2
-#define DRV_HANDLER_SIZE			5
+#define WILC_NUM_CONCURRENT_IFC			2
+#define WILC_DRV_HANDLER_SIZE			5
 #define DRV_HANDLER_MASK			0x000000FF
 
 #define NUM_RSSI                5
 
-#define SET_CFG              0
-#define GET_CFG              1
+enum {
+	WILC_SET_CFG = 0,
+	WILC_GET_CFG
+};
 
-#define MAX_ASSOC_RESP_FRAME_SIZE   256
+#define WILC_MAX_ASSOC_RESP_FRAME_SIZE   256
 
 struct rssi_history_buffer {
 	bool full;
@@ -130,10 +137,10 @@ struct cfg_param_attr {
 };
 
 enum cfg_param {
-	RETRY_SHORT		= BIT(0),
-	RETRY_LONG		= BIT(1),
-	FRAG_THRESHOLD		= BIT(2),
-	RTS_THRESHOLD		= BIT(3),
+	WILC_CFG_PARAM_RETRY_SHORT = BIT(0),
+	WILC_CFG_PARAM_RETRY_LONG = BIT(1),
+	WILC_CFG_PARAM_FRAG_THRESHOLD = BIT(2),
+	WILC_CFG_PARAM_RTS_THRESHOLD = BIT(3)
 };
 
 struct found_net_info {
@@ -155,10 +162,10 @@ enum conn_event {
 };
 
 enum KEY_TYPE {
-	WEP,
-	WPA_RX_GTK,
-	WPA_PTK,
-	PMKSA,
+	WILC_KEY_TYPE_WEP,
+	WILC_KEY_TYPE_WPA_RX_GTK,
+	WILC_KEY_TYPE_WPA_PTK,
+	WILC_KEY_TYPE_PMKSA,
 };
 
 typedef void (*wilc_scan_result)(enum scan_event, struct network_info *,
@@ -268,7 +275,7 @@ struct host_if_drv {
 
 	bool ifc_up;
 	int driver_handler_id;
-	u8 assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
+	u8 assoc_resp[WILC_MAX_ASSOC_RESP_FRAME_SIZE];
 };
 
 struct add_sta_param {

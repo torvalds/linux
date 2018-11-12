@@ -94,7 +94,7 @@ struct set_multicast {
 };
 
 struct del_all_sta {
-	u8 del_all_sta[MAX_NUM_STA][ETH_ALEN];
+	u8 del_all_sta[WILC_MAX_NUM_STA][ETH_ALEN];
 	u8 assoc_sta;
 };
 
@@ -242,7 +242,7 @@ static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 {
 	int index = idx - 1;
 
-	if (index < 0 || index >= NUM_CONCURRENT_IFC)
+	if (index < 0 || index >= WILC_NUM_CONCURRENT_IFC)
 		return NULL;
 
 	return wilc->vif[index];
@@ -261,7 +261,7 @@ static void handle_set_channel(struct work_struct *work)
 	wid.val = (char *)&hif_set_ch->set_ch;
 	wid.size = sizeof(char);
 
-	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
 
 	if (ret)
@@ -284,7 +284,7 @@ static void handle_set_wfi_drv_handler(struct work_struct *work)
 
 	hif_drv	= vif->hif_drv;
 
-	buffer = kzalloc(DRV_HANDLER_SIZE, GFP_KERNEL);
+	buffer = kzalloc(WILC_DRV_HANDLER_SIZE, GFP_KERNEL);
 	if (!buffer)
 		goto free_msg;
 
@@ -302,9 +302,9 @@ static void handle_set_wfi_drv_handler(struct work_struct *work)
 	wid.id = WID_SET_DRV_HANDLER;
 	wid.type = WID_STR;
 	wid.val = (s8 *)buffer;
-	wid.size = DRV_HANDLER_SIZE;
+	wid.size = WILC_DRV_HANDLER_SIZE;
 
-	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				   hif_drv->driver_handler_id);
 	if (ret)
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
@@ -331,7 +331,7 @@ static void handle_set_operation_mode(struct work_struct *work)
 	wid.val = (s8 *)&hif_op_mode->mode;
 	wid.size = sizeof(u32);
 
-	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
 
 	if (ret)
@@ -353,7 +353,7 @@ static void handle_get_mac_address(struct work_struct *work)
 	wid.val = get_mac_addr->mac_addr;
 	wid.size = ETH_ALEN;
 
-	ret = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
+	ret = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
 
 	if (ret)
@@ -371,28 +371,28 @@ static void handle_cfg_param(struct work_struct *work)
 	struct wid wid_list[32];
 	int i = 0;
 
-	if (param->flag & RETRY_SHORT) {
+	if (param->flag & WILC_CFG_PARAM_RETRY_SHORT) {
 		wid_list[i].id = WID_SHORT_RETRY_LIMIT;
 		wid_list[i].val = (s8 *)&param->short_retry_limit;
 		wid_list[i].type = WID_SHORT;
 		wid_list[i].size = sizeof(u16);
 		i++;
 	}
-	if (param->flag & RETRY_LONG) {
+	if (param->flag & WILC_CFG_PARAM_RETRY_LONG) {
 		wid_list[i].id = WID_LONG_RETRY_LIMIT;
 		wid_list[i].val = (s8 *)&param->long_retry_limit;
 		wid_list[i].type = WID_SHORT;
 		wid_list[i].size = sizeof(u16);
 		i++;
 	}
-	if (param->flag & FRAG_THRESHOLD) {
+	if (param->flag & WILC_CFG_PARAM_FRAG_THRESHOLD) {
 		wid_list[i].id = WID_FRAG_THRESHOLD;
 		wid_list[i].val = (s8 *)&param->frag_threshold;
 		wid_list[i].type = WID_SHORT;
 		wid_list[i].size = sizeof(u16);
 		i++;
 	}
-	if (param->flag & RTS_THRESHOLD) {
+	if (param->flag & WILC_CFG_PARAM_RTS_THRESHOLD) {
 		wid_list[i].id = WID_RTS_THRESHOLD;
 		wid_list[i].val = (s8 *)&param->rts_threshold;
 		wid_list[i].type = WID_SHORT;
@@ -400,7 +400,7 @@ static void handle_cfg_param(struct work_struct *work)
 		i++;
 	}
 
-	ret = wilc_send_config_pkt(vif, SET_CFG, wid_list,
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
 				   i, wilc_get_vif_idx(vif));
 
 	if (ret)
@@ -424,7 +424,7 @@ static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 		wid.val = (s8 *)&abort_running_scan;
 		wid.size = sizeof(char);
 
-		result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+		result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 					      wilc_get_vif_idx(vif));
 
 		if (result) {
@@ -538,7 +538,7 @@ static void handle_scan(struct work_struct *work)
 	wid_list[index].val = (s8 *)&scan_info->src;
 	index++;
 
-	result = wilc_send_config_pkt(vif, SET_CFG, wid_list,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
 				      index,
 				      wilc_get_vif_idx(vif));
 
@@ -764,7 +764,7 @@ static void handle_connect(struct work_struct *work)
 	cur_byte = wid_list[wid_cnt].val;
 	wid_cnt++;
 
-	result = wilc_send_config_pkt(vif, SET_CFG, wid_list,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
 				      wid_cnt,
 				      wilc_get_vif_idx(vif));
 	if (result) {
@@ -873,7 +873,7 @@ static void handle_connect_timeout(struct work_struct *work)
 	wid.val = (s8 *)&dummy_reason_code;
 	wid.size = sizeof(char);
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		netdev_err(vif->ndev, "Failed to send disconnect\n");
@@ -1234,7 +1234,7 @@ static void host_int_get_assoc_res_info(struct wilc_vif *vif,
 	wid.val = assoc_resp_info;
 	wid.size = max_assoc_resp_info_len;
 
-	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result) {
 		*rcvd_assoc_resp_info_len = 0;
@@ -1290,10 +1290,10 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	if (mac_status == WILC_MAC_STATUS_CONNECTED) {
 		u32 assoc_resp_info_len;
 
-		memset(hif_drv->assoc_resp, 0, MAX_ASSOC_RESP_FRAME_SIZE);
+		memset(hif_drv->assoc_resp, 0, WILC_MAX_ASSOC_RESP_FRAME_SIZE);
 
 		host_int_get_assoc_res_info(vif, hif_drv->assoc_resp,
-					    MAX_ASSOC_RESP_FRAME_SIZE,
+					    WILC_MAX_ASSOC_RESP_FRAME_SIZE,
 					    &assoc_resp_info_len);
 
 		if (assoc_resp_info_len != 0) {
@@ -1469,7 +1469,7 @@ static int wilc_pmksa_key_copy(struct wilc_vif *vif, struct key_attr *hif_key)
 	wid.val = (s8 *)key_buf;
 	wid.size = (hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1;
 
-	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
 
 	kfree(key_buf);
@@ -1489,9 +1489,9 @@ static void handle_key(struct work_struct *work)
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	switch (hif_key->type) {
-	case WEP:
+	case WILC_KEY_TYPE_WEP:
 
-		if (hif_key->action & ADDKEY_AP) {
+		if (hif_key->action & WILC_ADD_KEY_AP) {
 			wid_list[0].id = WID_11I_MODE;
 			wid_list[0].type = WID_CHAR;
 			wid_list[0].size = sizeof(char);
@@ -1520,11 +1520,11 @@ static void handle_key(struct work_struct *work)
 			wid_list[2].size = hif_key->attr.wep.key_len + 2;
 			wid_list[2].val = (s8 *)key_buf;
 
-			result = wilc_send_config_pkt(vif, SET_CFG,
+			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
 						      wid_list, 3,
 						      wilc_get_vif_idx(vif));
 			kfree(key_buf);
-		} else if (hif_key->action & ADDKEY) {
+		} else if (hif_key->action & WILC_ADD_KEY) {
 			key_buf = kmalloc(hif_key->attr.wep.key_len + 2,
 					  GFP_KERNEL);
 			if (!key_buf) {
@@ -1541,27 +1541,27 @@ static void handle_key(struct work_struct *work)
 			wid.val = (s8 *)key_buf;
 			wid.size = hif_key->attr.wep.key_len + 2;
 
-			result = wilc_send_config_pkt(vif, SET_CFG,
+			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 			kfree(key_buf);
-		} else if (hif_key->action & REMOVEKEY) {
+		} else if (hif_key->action & WILC_REMOVE_KEY) {
 			wid.id = WID_REMOVE_WEP_KEY;
 			wid.type = WID_STR;
 
 			wid.val = (s8 *)&hif_key->attr.wep.index;
 			wid.size = 1;
 
-			result = wilc_send_config_pkt(vif, SET_CFG,
+			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
-		} else if (hif_key->action & DEFAULTKEY) {
+		} else if (hif_key->action & WILC_DEFAULT_KEY) {
 			wid.id = WID_KEY_ID;
 			wid.type = WID_CHAR;
 			wid.val = (s8 *)&hif_key->attr.wep.index;
 			wid.size = sizeof(char);
 
-			result = wilc_send_config_pkt(vif, SET_CFG,
+			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 		}
@@ -1569,8 +1569,8 @@ out_wep:
 		complete(&msg->work_comp);
 		break;
 
-	case WPA_RX_GTK:
-		if (hif_key->action & ADDKEY_AP) {
+	case WILC_KEY_TYPE_WPA_RX_GTK:
+		if (hif_key->action & WILC_ADD_KEY_AP) {
 			key_buf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
 				result = -ENOMEM;
@@ -1595,12 +1595,12 @@ out_wep:
 			wid_list[1].val = (s8 *)key_buf;
 			wid_list[1].size = RX_MIC_KEY_MSG_LEN;
 
-			result = wilc_send_config_pkt(vif, SET_CFG,
+			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
 						      wid_list, 2,
 						      wilc_get_vif_idx(vif));
 
 			kfree(key_buf);
-		} else if (hif_key->action & ADDKEY) {
+		} else if (hif_key->action & WILC_ADD_KEY) {
 			key_buf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
 				result = -ENOMEM;
@@ -1623,7 +1623,7 @@ out_wep:
 			wid.val = (s8 *)key_buf;
 			wid.size = RX_MIC_KEY_MSG_LEN;
 
-			result = wilc_send_config_pkt(vif, SET_CFG,
+			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 
@@ -1633,8 +1633,8 @@ out_wpa_rx_gtk:
 		complete(&msg->work_comp);
 		break;
 
-	case WPA_PTK:
-		if (hif_key->action & ADDKEY_AP) {
+	case WILC_KEY_TYPE_WPA_PTK:
+		if (hif_key->action & WILC_ADD_KEY_AP) {
 			key_buf = kmalloc(PTK_KEY_MSG_LEN + 1, GFP_KERNEL);
 			if (!key_buf) {
 				result = -ENOMEM;
@@ -1657,11 +1657,11 @@ out_wpa_rx_gtk:
 			wid_list[1].val = (s8 *)key_buf;
 			wid_list[1].size = PTK_KEY_MSG_LEN + 1;
 
-			result = wilc_send_config_pkt(vif, SET_CFG,
+			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
 						      wid_list, 2,
 						      wilc_get_vif_idx(vif));
 			kfree(key_buf);
-		} else if (hif_key->action & ADDKEY) {
+		} else if (hif_key->action & WILC_ADD_KEY) {
 			key_buf = kmalloc(PTK_KEY_MSG_LEN, GFP_KERNEL);
 			if (!key_buf) {
 				result = -ENOMEM;
@@ -1678,7 +1678,7 @@ out_wpa_rx_gtk:
 			wid.val = (s8 *)key_buf;
 			wid.size = PTK_KEY_MSG_LEN;
 
-			result = wilc_send_config_pkt(vif, SET_CFG,
+			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 			kfree(key_buf);
@@ -1688,7 +1688,7 @@ out_wpa_ptk:
 		complete(&msg->work_comp);
 		break;
 
-	case PMKSA:
+	case WILC_KEY_TYPE_PMKSA:
 		result = wilc_pmksa_key_copy(vif, hif_key);
 		/*free 'msg', this case it not a sync call*/
 		kfree(msg);
@@ -1721,7 +1721,7 @@ static void handle_disconnect(struct work_struct *work)
 	vif->obtaining_ip = false;
 	wilc_set_power_mgmt(vif, 0, 0);
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	if (result) {
@@ -1794,7 +1794,7 @@ static void handle_get_rssi(struct work_struct *work)
 	wid.val = msg->body.data;
 	wid.size = sizeof(char);
 
-	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		netdev_err(vif->ndev, "Failed to get RSSI value\n");
@@ -1841,7 +1841,7 @@ static void handle_get_statistics(struct work_struct *work)
 	wid_list[wid_cnt].val = (s8 *)&stats->tx_fail_cnt;
 	wid_cnt++;
 
-	result = wilc_send_config_pkt(vif, GET_CFG, wid_list,
+	result = wilc_send_config_pkt(vif, WILC_GET_CFG, wid_list,
 				      wid_cnt,
 				      wilc_get_vif_idx(vif));
 
@@ -1878,7 +1878,7 @@ static void handle_get_inactive_time(struct work_struct *work)
 
 	ether_addr_copy(wid.val, hif_sta_inactive->mac);
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	kfree(wid.val);
 
@@ -1892,7 +1892,7 @@ static void handle_get_inactive_time(struct work_struct *work)
 	wid.val = (s8 *)&hif_sta_inactive->inactive_time;
 	wid.size = sizeof(u32);
 
-	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 
 	if (result)
@@ -1947,7 +1947,7 @@ static void handle_add_beacon(struct work_struct *work)
 		memcpy(cur_byte, param->tail, param->tail_len);
 	cur_byte += param->tail_len;
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		netdev_err(vif->ndev, "Failed to send add beacon\n");
@@ -1972,7 +1972,7 @@ static void handle_del_beacon(struct work_struct *work)
 	wid.size = sizeof(char);
 	wid.val = &del_beacon;
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		netdev_err(vif->ndev, "Failed to send delete beacon\n");
@@ -2029,7 +2029,7 @@ static void handle_add_station(struct work_struct *work)
 	cur_byte = wid.val;
 	cur_byte += wilc_hif_pack_sta_param(cur_byte, param);
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result != 0)
 		netdev_err(vif->ndev, "Failed to send add station\n");
@@ -2063,7 +2063,7 @@ static void handle_del_all_sta(struct work_struct *work)
 
 	*(curr_byte++) = param->assoc_sta;
 
-	for (i = 0; i < MAX_NUM_STA; i++) {
+	for (i = 0; i < WILC_MAX_NUM_STA; i++) {
 		if (memcmp(param->del_all_sta[i], zero_buff, ETH_ALEN))
 			memcpy(curr_byte, param->del_all_sta[i], ETH_ALEN);
 		else
@@ -2072,7 +2072,7 @@ static void handle_del_all_sta(struct work_struct *work)
 		curr_byte += ETH_ALEN;
 	}
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		netdev_err(vif->ndev, "Failed to send delete all station\n");
@@ -2102,7 +2102,7 @@ static void handle_del_station(struct work_struct *work)
 
 	ether_addr_copy(wid.val, param->mac_addr);
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		netdev_err(vif->ndev, "Failed to del station\n");
@@ -2132,7 +2132,7 @@ static void handle_edit_station(struct work_struct *work)
 	cur_byte = wid.val;
 	cur_byte += wilc_hif_pack_sta_param(cur_byte, param);
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		netdev_err(vif->ndev, "Failed to send edit station\n");
@@ -2189,7 +2189,7 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 	wid.val[0] = remain_on_chan_flag;
 	wid.val[1] = (s8)hif_remain_ch->ch;
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	kfree(wid.val);
 	if (result != 0)
@@ -2232,7 +2232,7 @@ static void handle_register_frame(struct work_struct *work)
 
 	wid.size = sizeof(u16) + 2;
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	kfree(wid.val);
 	if (result)
@@ -2266,7 +2266,7 @@ static void handle_listen_state_expired(struct work_struct *work)
 		wid.val[0] = remain_on_chan_flag;
 		wid.val[1] = FALSE_FRMWR_CHANNEL;
 
-		result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+		result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 					      wilc_get_vif_idx(vif));
 		kfree(wid.val);
 		if (result != 0) {
@@ -2328,7 +2328,7 @@ static void handle_power_management(struct work_struct *work)
 	wid.val = &power_mode;
 	wid.size = sizeof(char);
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		netdev_err(vif->ndev, "Failed to send power management\n");
@@ -2366,7 +2366,7 @@ static void handle_set_mcast_filter(struct work_struct *work)
 		memcpy(cur_byte, hif_set_mc->mc_list,
 		       ((hif_set_mc->cnt) * ETH_ALEN));
 
-	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result)
 		netdev_err(vif->ndev, "Failed to send setup multicast\n");
@@ -2390,7 +2390,7 @@ static void handle_set_tx_pwr(struct work_struct *work)
 	wid.val = &tx_pwr;
 	wid.size = sizeof(char);
 
-	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
 	if (ret)
 		netdev_err(vif->ndev, "Failed to set TX PWR\n");
@@ -2411,7 +2411,7 @@ static void handle_get_tx_pwr(struct work_struct *work)
 	wid.val = (s8 *)tx_pwr;
 	wid.size = sizeof(char);
 
-	ret = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
+	ret = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
 	if (ret)
 		netdev_err(vif->ndev, "Failed to get TX PWR\n");
@@ -2501,8 +2501,8 @@ int wilc_remove_wep_key(struct wilc_vif *vif, u8 index)
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
-	msg->body.key_info.type = WEP;
-	msg->body.key_info.action = REMOVEKEY;
+	msg->body.key_info.type = WILC_KEY_TYPE_WEP;
+	msg->body.key_info.action = WILC_REMOVE_KEY;
 	msg->body.key_info.attr.wep.index = index;
 
 	result = wilc_enqueue_work(msg);
@@ -2531,8 +2531,8 @@ int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index)
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
-	msg->body.key_info.type = WEP;
-	msg->body.key_info.action = DEFAULTKEY;
+	msg->body.key_info.type = WILC_KEY_TYPE_WEP;
+	msg->body.key_info.action = WILC_DEFAULT_KEY;
 	msg->body.key_info.attr.wep.index = index;
 
 	result = wilc_enqueue_work(msg);
@@ -2561,8 +2561,8 @@ int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
-	msg->body.key_info.type = WEP;
-	msg->body.key_info.action = ADDKEY;
+	msg->body.key_info.type = WILC_KEY_TYPE_WEP;
+	msg->body.key_info.action = WILC_ADD_KEY;
 	msg->body.key_info.attr.wep.key = kmemdup(key, len, GFP_KERNEL);
 	if (!msg->body.key_info.attr.wep.key) {
 		result = -ENOMEM;
@@ -2602,8 +2602,8 @@ int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
-	msg->body.key_info.type = WEP;
-	msg->body.key_info.action = ADDKEY_AP;
+	msg->body.key_info.type = WILC_KEY_TYPE_WEP;
+	msg->body.key_info.action = WILC_ADD_KEY_AP;
 	msg->body.key_info.attr.wep.key = kmemdup(key, len, GFP_KERNEL);
 	if (!msg->body.key_info.attr.wep.key) {
 		result = -ENOMEM;
@@ -2653,13 +2653,13 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
-	msg->body.key_info.type = WPA_PTK;
-	if (mode == AP_MODE) {
-		msg->body.key_info.action = ADDKEY_AP;
+	msg->body.key_info.type = WILC_KEY_TYPE_WPA_PTK;
+	if (mode == WILC_AP_MODE) {
+		msg->body.key_info.action = WILC_ADD_KEY_AP;
 		msg->body.key_info.attr.wpa.index = index;
 	}
-	if (mode == STATION_MODE)
-		msg->body.key_info.action = ADDKEY;
+	if (mode == WILC_STATION_MODE)
+		msg->body.key_info.action = WILC_ADD_KEY;
 
 	msg->body.key_info.attr.wpa.key = kmemdup(ptk, ptk_key_len, GFP_KERNEL);
 	if (!msg->body.key_info.attr.wpa.key) {
@@ -2730,14 +2730,14 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		}
 	}
 
-	msg->body.key_info.type = WPA_RX_GTK;
+	msg->body.key_info.type = WILC_KEY_TYPE_WPA_RX_GTK;
 
-	if (mode == AP_MODE) {
-		msg->body.key_info.action = ADDKEY_AP;
+	if (mode == WILC_AP_MODE) {
+		msg->body.key_info.action = WILC_ADD_KEY_AP;
 		msg->body.key_info.attr.wpa.mode = cipher_mode;
 	}
-	if (mode == STATION_MODE)
-		msg->body.key_info.action = ADDKEY;
+	if (mode == WILC_STATION_MODE)
+		msg->body.key_info.action = WILC_ADD_KEY;
 
 	msg->body.key_info.attr.wpa.key = kmemdup(rx_gtk, key_len, GFP_KERNEL);
 	if (!msg->body.key_info.attr.wpa.key) {
@@ -2787,8 +2787,8 @@ int wilc_set_pmkid_info(struct wilc_vif *vif,
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
-	msg->body.key_info.type = PMKSA;
-	msg->body.key_info.action = ADDKEY;
+	msg->body.key_info.type = WILC_KEY_TYPE_PMKSA;
+	msg->body.key_info.action = WILC_ADD_KEY;
 
 	for (i = 0; i < pmkid->numpmkid; i++) {
 		memcpy(msg->body.key_info.attr.pmkid.pmkidlist[i].bssid,
@@ -3640,7 +3640,7 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 
 	del_all_sta_info = &msg->body.del_all_sta_info;
 
-	for (i = 0; i < MAX_NUM_STA; i++) {
+	for (i = 0; i < WILC_MAX_NUM_STA; i++) {
 		if (memcmp(mac_addr[i], zero_addr, ETH_ALEN)) {
 			memcpy(del_all_sta_info->del_all_sta[i], mac_addr[i],
 			       ETH_ALEN);

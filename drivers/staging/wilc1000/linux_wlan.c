@@ -46,7 +46,8 @@ static int dev_state_ev_handler(struct notifier_block *this,
 
 	switch (event) {
 	case NETDEV_UP:
-		if (vif->iftype == STATION_MODE || vif->iftype == CLIENT_MODE) {
+		if (vif->iftype == WILC_STATION_MODE ||
+		    vif->iftype == WILC_CLIENT_MODE) {
 			hif_drv->ifc_up = 1;
 			vif->obtaining_ip = false;
 			del_timer(&vif->during_ip_timer);
@@ -65,7 +66,8 @@ static int dev_state_ev_handler(struct notifier_block *this,
 		break;
 
 	case NETDEV_DOWN:
-		if (vif->iftype == STATION_MODE || vif->iftype == CLIENT_MODE) {
+		if (vif->iftype == WILC_STATION_MODE ||
+		    vif->iftype == WILC_CLIENT_MODE) {
 			hif_drv->ifc_up = 0;
 			vif->obtaining_ip = false;
 		}
@@ -179,11 +181,11 @@ static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 	bssid1 = mac_header + 4;
 
 	for (i = 0; i < wilc->vif_num; i++) {
-		if (wilc->vif[i]->mode == STATION_MODE)
+		if (wilc->vif[i]->mode == WILC_STATION_MODE)
 			if (ether_addr_equal_unaligned(bssid,
 						       wilc->vif[i]->bssid))
 				return wilc->vif[i]->ndev;
-		if (wilc->vif[i]->mode == AP_MODE)
+		if (wilc->vif[i]->mode == WILC_AP_MODE)
 			if (ether_addr_equal_unaligned(bssid1,
 						       wilc->vif[i]->bssid))
 				return wilc->vif[i]->ndev;
@@ -1021,12 +1023,12 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	}
 
 	if (wilc->vif[0]->ndev || wilc->vif[1]->ndev) {
-		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
+		for (i = 0; i < WILC_NUM_CONCURRENT_IFC; i++)
 			if (wilc->vif[i]->ndev)
 				if (wilc->vif[i]->mac_opened)
 					wilc_mac_close(wilc->vif[i]->ndev);
 
-		for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
+		for (i = 0; i < WILC_NUM_CONCURRENT_IFC; i++) {
 			unregister_netdev(wilc->vif[i]->ndev);
 			wilc_free_wiphy(wilc->vif[i]->ndev);
 			free_netdev(wilc->vif[i]->ndev);
@@ -1082,7 +1084,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 
 	register_inetaddr_notifier(&g_dev_notifier);
 
-	for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
+	for (i = 0; i < WILC_NUM_CONCURRENT_IFC; i++) {
 		struct wireless_dev *wdev;
 
 		ndev = alloc_etherdev(sizeof(struct wilc_vif));
@@ -1130,7 +1132,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		if (ret)
 			goto free_ndev;
 
-		vif->iftype = STATION_MODE;
+		vif->iftype = WILC_STATION_MODE;
 		vif->mac_opened = 0;
 	}
 
@@ -1139,7 +1141,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 free_ndev:
 	for (; i >= 0; i--) {
 		if (wl->vif[i]) {
-			if (wl->vif[i]->iftype == STATION_MODE)
+			if (wl->vif[i]->iftype == WILC_STATION_MODE)
 				unregister_netdev(wl->vif[i]->ndev);
 
 			if (wl->vif[i]->ndev) {

@@ -57,7 +57,7 @@ struct wilc_wfi_wep_key {
 };
 
 struct sta_info {
-	u8 sta_associated_bss[MAX_NUM_STA][ETH_ALEN];
+	u8 sta_associated_bss[WILC_MAX_NUM_STA][ETH_ALEN];
 };
 
 /*Parameters needed for host interface for  remaining on channel*/
@@ -94,8 +94,8 @@ struct wilc_priv {
 	u8 wep_key_len[4];
 	/* The real interface that the monitor is on */
 	struct net_device *real_ndev;
-	struct wilc_wfi_key *wilc_gtk[MAX_NUM_STA];
-	struct wilc_wfi_key *wilc_ptk[MAX_NUM_STA];
+	struct wilc_wfi_key *wilc_gtk[WILC_MAX_NUM_STA];
+	struct wilc_wfi_key *wilc_ptk[WILC_MAX_NUM_STA];
 	u8 wilc_groupkey;
 	/* mutexes */
 	struct mutex scan_req_lock;
@@ -168,7 +168,7 @@ struct wilc {
 	int dev_irq_num;
 	int close;
 	u8 vif_num;
-	struct wilc_vif *vif[NUM_CONCURRENT_IFC];
+	struct wilc_vif *vif[WILC_NUM_CONCURRENT_IFC];
 	u8 open_ifcs;
 	/*protect head of transmit queue*/
 	struct mutex txq_add_to_head_cs;
