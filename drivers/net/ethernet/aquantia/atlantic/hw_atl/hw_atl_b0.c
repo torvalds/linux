@@ -1003,6 +1003,42 @@ static int hw_atl_b0_hw_fl3l4_set(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
+/**
+ * @brief Set VLAN filter table
+ * @details Configure VLAN filter table to accept (and assign the queue) traffic
+ *  for the particular vlan ids.
+ * Note: use this function under vlan promisc mode not to lost the traffic
+ *
+ * @param aq_hw_s
+ * @param aq_rx_filter_vlan VLAN filter configuration
+ * @return 0 - OK, <0 - error
+ */
+static int hw_atl_b0_hw_vlan_set(struct aq_hw_s *self,
+				 struct aq_rx_filter_vlan *aq_vlans)
+{
+	int i;
+
+	for (i = 0; i < AQ_VLAN_MAX_FILTERS; i++) {
+		hw_atl_rpf_vlan_flr_en_set(self, 0U, i);
+		hw_atl_rpf_vlan_rxq_en_flr_set(self, 0U, i);
+		if (aq_vlans[i].enable) {
+			hw_atl_rpf_vlan_id_flr_set(self,
+						   aq_vlans[i].vlan_id,
+						   i);
+			hw_atl_rpf_vlan_flr_act_set(self, 1U, i);
+			hw_atl_rpf_vlan_flr_en_set(self, 1U, i);
+			if (aq_vlans[i].queue != 0xFF) {
+				hw_atl_rpf_vlan_rxq_flr_set(self,
+							    aq_vlans[i].queue,
+							    i);
+				hw_atl_rpf_vlan_rxq_en_flr_set(self, 1U, i);
+			}
+		}
+	}
+
+	return aq_hw_err_from_flags(self);
+}
+
 const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_set_mac_address   = hw_atl_b0_hw_mac_addr_set,
 	.hw_init              = hw_atl_b0_hw_init,
@@ -1028,6 +1064,7 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_ring_tx_init             = hw_atl_b0_hw_ring_tx_init,
 	.hw_packet_filter_set        = hw_atl_b0_hw_packet_filter_set,
 	.hw_filter_l3l4_set          = hw_atl_b0_hw_fl3l4_set,
+	.hw_filter_vlan_set          = hw_atl_b0_hw_vlan_set,
 	.hw_multicast_list_set       = hw_atl_b0_hw_multicast_list_set,
 	.hw_interrupt_moderation_set = hw_atl_b0_hw_interrupt_moderation_set,
 	.hw_rss_set                  = hw_atl_b0_hw_rss_set,

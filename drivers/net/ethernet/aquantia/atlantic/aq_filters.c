@@ -120,6 +120,29 @@ static int aq_check_approve_fl3l4(struct aq_nic_s *aq_nic,
 }
 
 static int __must_check
+aq_check_approve_fvlan(struct aq_nic_s *aq_nic,
+		       struct aq_hw_rx_fltrs_s *rx_fltrs,
+		       struct ethtool_rx_flow_spec *fsp)
+{
+	if (fsp->location < AQ_RX_FIRST_LOC_FVLANID ||
+	    fsp->location > AQ_RX_LAST_LOC_FVLANID) {
+		netdev_err(aq_nic->ndev,
+			   "ethtool: location must be in range [%d, %d]",
+			   AQ_RX_FIRST_LOC_FVLANID,
+			   AQ_RX_LAST_LOC_FVLANID);
+		return -EINVAL;
+	}
+
+	if (fsp->ring_cookie > aq_nic->aq_nic_cfg.num_rss_queues) {
+		netdev_err(aq_nic->ndev,
+			   "ethtool: queue number must be in range [0, %d]",
+			   aq_nic->aq_nic_cfg.num_rss_queues - 1);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int __must_check
 aq_check_filter(struct aq_nic_s *aq_nic,
 		struct ethtool_rx_flow_spec *fsp)
 {
@@ -127,7 +150,14 @@ aq_check_filter(struct aq_nic_s *aq_nic,
 	struct aq_hw_rx_fltrs_s *rx_fltrs = aq_get_hw_rx_fltrs(aq_nic);
 
 	if (fsp->flow_type & FLOW_EXT) {
-		err = -EOPNOTSUPP;
+		if (be16_to_cpu(fsp->m_ext.vlan_tci) == VLAN_VID_MASK) {
+			err = aq_check_approve_fvlan(aq_nic, rx_fltrs, fsp);
+		} else {
+			netdev_err(aq_nic->ndev,
+				   "ethtool: invalid vlan mask 0x%x specified",
+				   be16_to_cpu(fsp->m_ext.vlan_tci));
+			err = -EINVAL;
+		}
 	} else {
 		switch (fsp->flow_type & ~FLOW_EXT) {
 		case ETHER_FLOW:
@@ -227,6 +257,42 @@ aq_check_rule(struct aq_nic_s *aq_nic,
 		err = -EEXIST;
 
 	return err;
+}
+
+static int aq_set_data_fvlan(struct aq_nic_s *aq_nic,
+			     struct aq_rx_filter *aq_rx_fltr,
+			     struct aq_rx_filter_vlan *aq_vlans, bool add)
+{
+	const struct ethtool_rx_flow_spec *fsp = &aq_rx_fltr->aq_fsp;
+	int location = fsp->location - AQ_RX_FIRST_LOC_FVLANID;
+
+	memset(&aq_vlans[location], 0, sizeof(aq_vlans[location]));
+
+	if (!add)
+		return 0;
+
+	aq_vlans[location].location = location;
+	aq_vlans[location].vlan_id = be16_to_cpu(fsp->h_ext.vlan_tci)
+				     & VLAN_VID_MASK;
+	aq_vlans[location].queue = fsp->ring_cookie & 0x1FU;
+	aq_vlans[location].enable = 1U;
+	return 0;
+}
+
+static int aq_add_del_fvlan(struct aq_nic_s *aq_nic,
+			    struct aq_rx_filter *aq_rx_fltr, bool add)
+{
+	const struct aq_hw_ops *aq_hw_ops = aq_nic->aq_hw_ops;
+
+	if (unlikely(!aq_hw_ops->hw_filter_vlan_set))
+		return -EOPNOTSUPP;
+
+	aq_set_data_fvlan(aq_nic,
+			  aq_rx_fltr,
+			  aq_nic->aq_hw_rx_fltrs.fl2.aq_vlans,
+			  add);
+
+	return aq_filters_vlans_update(aq_nic);
 }
 
 static int aq_set_data_fl3l4(struct aq_nic_s *aq_nic,
@@ -354,7 +420,13 @@ static int aq_add_del_rule(struct aq_nic_s *aq_nic,
 	int err = -EINVAL;
 
 	if (aq_rx_fltr->aq_fsp.flow_type & FLOW_EXT) {
-		err = -EOPNOTSUPP;
+		if (be16_to_cpu(aq_rx_fltr->aq_fsp.m_ext.vlan_tci)
+		    == VLAN_VID_MASK) {
+			aq_rx_fltr->type = aq_rx_filter_vlan;
+			err = aq_add_del_fvlan(aq_nic, aq_rx_fltr, add);
+		} else {
+			err = -EINVAL;
+		}
 	} else {
 		switch (aq_rx_fltr->aq_fsp.flow_type & ~FLOW_EXT) {
 		case ETHER_FLOW:
@@ -571,5 +643,21 @@ int aq_reapply_rxnfc_all_rules(struct aq_nic_s *aq_nic)
 	}
 
 err_exit:
+	return err;
+}
+
+int aq_filters_vlans_update(struct aq_nic_s *aq_nic)
+{
+	const struct aq_hw_ops *aq_hw_ops = aq_nic->aq_hw_ops;
+	struct aq_hw_s *aq_hw = aq_nic->aq_hw;
+	int err = 0;
+
+	if (unlikely(!aq_hw_ops->hw_filter_vlan_set))
+		return -EOPNOTSUPP;
+
+	err = aq_hw_ops->hw_filter_vlan_set(aq_hw,
+					    aq_nic->aq_hw_rx_fltrs.fl2.aq_vlans
+					   );
+
 	return err;
 }

@@ -9,6 +9,7 @@
 #include "aq_nic.h"
 
 enum aq_rx_filter_type {
+	aq_rx_filter_vlan,
 	aq_rx_filter_l3l4
 };
 
@@ -27,5 +28,6 @@ int aq_get_rxnfc_all_rules(struct aq_nic_s *aq_nic, struct ethtool_rxnfc *cmd,
 			   u32 *rule_locs);
 int aq_clear_rxnfc_all_rules(struct aq_nic_s *aq_nic);
 int aq_reapply_rxnfc_all_rules(struct aq_nic_s *aq_nic);
+int aq_filters_vlans_update(struct aq_nic_s *aq_nic);
 
 #endif /* AQ_FILTERS_H */

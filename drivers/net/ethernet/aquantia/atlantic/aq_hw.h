@@ -18,9 +18,13 @@
 #include "aq_rss.h"
 #include "hw_atl/hw_atl_utils.h"
 
+#define AQ_RX_FIRST_LOC_FVLANID     0U
+#define AQ_RX_LAST_LOC_FVLANID	   15U
 #define AQ_RX_FIRST_LOC_FL3L4	   32U
 #define AQ_RX_LAST_LOC_FL3L4	   39U
 #define AQ_RX_MAX_RXNFC_LOC	   AQ_RX_LAST_LOC_FL3L4
+#define AQ_VLAN_MAX_FILTERS   \
+			(AQ_RX_LAST_LOC_FVLANID - AQ_RX_FIRST_LOC_FVLANID + 1U)
 
 /* NIC H/W capabilities */
 struct aq_hw_caps_s {
@@ -193,6 +197,11 @@ struct aq_hw_ops {
 
 	int (*hw_filter_l3l4_clear)(struct aq_hw_s *self,
 				    struct aq_rx_filter_l3l4 *data);
+
+	int (*hw_filter_vlan_set)(struct aq_hw_s *self,
+				  struct aq_rx_filter_vlan *aq_vlans);
+
+	int (*hw_filter_vlan_ctrl)(struct aq_hw_s *self, bool enable);
 
 	int (*hw_multicast_list_set)(struct aq_hw_s *self,
 				     u8 ar_mac[AQ_HW_MULTICAST_ADDRESS_MAX]

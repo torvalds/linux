@@ -245,6 +245,13 @@ enum hw_atl_rx_action_with_traffic {
 	HW_ATL_RX_HOST,
 };
 
+struct aq_rx_filter_vlan {
+	u8 enable;
+	u8 location;
+	u16 vlan_id;
+	u8 queue;
+};
+
 struct aq_rx_filter_l3l4 {
 	u32 cmd;
 	u8 location;
