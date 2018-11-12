@@ -317,7 +317,7 @@ struct snd_sof_dev {
 
 	/* DSP firmware boot */
 	wait_queue_head_t boot_wait;
-	bool boot_complete;
+	u32 boot_complete;
 
 	/* DSP HW differentiation */
 	struct snd_sof_pdata *pdata;
@@ -377,12 +377,12 @@ struct snd_sof_dev {
 	int dma_trace_pages;
 	wait_queue_head_t trace_sleep;
 	u32 host_offset;
-	bool dtrace_is_enabled;
-	bool dtrace_error;
+	u32 dtrace_is_enabled;
+	u32 dtrace_error;
 
 	/* PM */
-	bool restore_kcontrols; /* restore kcontrols upon resume */
-	bool first_boot;
+	u32 restore_kcontrols; /* restore kcontrols upon resume */
+	u32 first_boot;
 
 	void *private;			/* core does not touch this */
 };

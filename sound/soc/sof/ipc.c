@@ -54,7 +54,7 @@ struct snd_sof_ipc {
 	/* TX message work and status */
 	wait_queue_head_t wait_txq;
 	struct work_struct tx_kwork;
-	bool msg_pending;
+	u32 msg_pending;
 
 	/* Rx Message work and status */
 	struct work_struct rx_kwork;
