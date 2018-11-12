@@ -277,8 +277,7 @@ static struct audit_chunk *find_chunk(struct node *p)
 	return container_of(p, struct audit_chunk, owners[0]);
 }
 
-static void replace_chunk(struct audit_chunk *new, struct audit_chunk *old,
-			  struct node *skip)
+static void replace_chunk(struct audit_chunk *new, struct audit_chunk *old)
 {
 	struct audit_tree *owner;
 	int i, j;
@@ -288,7 +287,7 @@ static void replace_chunk(struct audit_chunk *new, struct audit_chunk *old,
 	list_for_each_entry(owner, &new->trees, same_root)
 		owner->root = new;
 	for (i = j = 0; j < old->count; i++, j++) {
-		if (&old->owners[j] == skip) {
+		if (!old->owners[j].owner) {
 			i--;
 			continue;
 		}
@@ -322,19 +321,27 @@ static void remove_chunk_node(struct audit_chunk *chunk, struct node *p)
 	put_tree(owner);
 }
 
+static int chunk_count_trees(struct audit_chunk *chunk)
+{
+	int i;
+	int ret = 0;
+
+	for (i = 0; i < chunk->count; i++)
+		if (chunk->owners[i].owner)
+			ret++;
+	return ret;
+}
+
 static void untag_chunk(struct node *p)
 {
 	struct audit_chunk *chunk = find_chunk(p);
 	struct fsnotify_mark *entry = chunk->mark;
 	struct audit_chunk *new = NULL;
-	int size = chunk->count - 1;
+	int size;
 
 	remove_chunk_node(chunk, p);
 	fsnotify_get_mark(entry);
 	spin_unlock(&hash_lock);
-
-	if (size)
-		new = alloc_chunk(size);
 
 	mutex_lock(&entry->group->mark_mutex);
 	/*
@@ -348,6 +355,7 @@ static void untag_chunk(struct node *p)
 		goto out;
 	}
 
+	size = chunk_count_trees(chunk);
 	if (!size) {
 		chunk->dead = 1;
 		spin_lock(&hash_lock);
@@ -360,6 +368,7 @@ static void untag_chunk(struct node *p)
 		goto out;
 	}
 
+	new = alloc_chunk(size);
 	if (!new)
 		goto out_mutex;
 
@@ -375,7 +384,7 @@ static void untag_chunk(struct node *p)
 	 * This has to go last when updating chunk as once replace_chunk() is
 	 * called, new RCU readers can see the new chunk.
 	 */
-	replace_chunk(new, chunk, p);
+	replace_chunk(new, chunk);
 	spin_unlock(&hash_lock);
 	fsnotify_detach_mark(entry);
 	mutex_unlock(&entry->group->mark_mutex);
@@ -520,7 +529,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	 * This has to go last when updating chunk as once replace_chunk() is
 	 * called, new RCU readers can see the new chunk.
 	 */
-	replace_chunk(chunk, old, NULL);
+	replace_chunk(chunk, old);
 	spin_unlock(&hash_lock);
 	fsnotify_detach_mark(old_entry);
 	mutex_unlock(&audit_tree_group->mark_mutex);
