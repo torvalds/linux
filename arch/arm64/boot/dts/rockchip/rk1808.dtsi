@@ -153,6 +153,7 @@
 		interrupt-names = "sys", "legacy", "msg", "err";
 		linux,pci-domain = <0>;
 		msi-map = <0x0 &its 0x0 0x1000>;
+		num-lanes = <2>;
 		phys = <&combphy PHY_TYPE_PCIE>;
 		phy-names = "pcie-phy";
 		pinctrl-names = "default";
