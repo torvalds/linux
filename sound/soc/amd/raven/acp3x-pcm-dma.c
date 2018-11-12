@@ -690,6 +690,51 @@ static int acp3x_audio_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int acp3x_resume(struct device *dev)
+{
+	int status;
+	u32 val;
+	struct i2s_dev_data *adata = dev_get_drvdata(dev);
+
+	status = acp3x_init(adata->acp3x_base);
+	if (status)
+		return -ENODEV;
+
+	if (adata->play_stream && adata->play_stream->runtime) {
+		struct i2s_stream_instance *rtd =
+			adata->play_stream->runtime->private_data;
+		config_acp3x_dma(rtd, SNDRV_PCM_STREAM_PLAYBACK);
+		rv_writel((rtd->xfer_resolution  << 3),
+			  rtd->acp3x_base + mmACP_BTTDM_ITER);
+		if (adata->tdm_mode == true) {
+			rv_writel(adata->tdm_fmt, adata->acp3x_base +
+				  mmACP_BTTDM_TXFRMT);
+			val = rv_readl(adata->acp3x_base + mmACP_BTTDM_ITER);
+			rv_writel((val | 0x2), adata->acp3x_base +
+				  mmACP_BTTDM_ITER);
+		}
+	}
+
+	if (adata->capture_stream && adata->capture_stream->runtime) {
+		struct i2s_stream_instance *rtd =
+			adata->capture_stream->runtime->private_data;
+		config_acp3x_dma(rtd, SNDRV_PCM_STREAM_CAPTURE);
+		rv_writel((rtd->xfer_resolution  << 3),
+			  rtd->acp3x_base + mmACP_BTTDM_IRER);
+		if (adata->tdm_mode == true) {
+			rv_writel(adata->tdm_fmt, adata->acp3x_base +
+				  mmACP_BTTDM_RXFRMT);
+			val = rv_readl(adata->acp3x_base + mmACP_BTTDM_IRER);
+			rv_writel((val | 0x2), adata->acp3x_base +
+				  mmACP_BTTDM_IRER);
+		}
+	}
+
+	rv_writel(1, adata->acp3x_base + mmACP_EXTERNAL_INTR_ENB);
+	return 0;
+}
+
+
 static int acp3x_pcm_runtime_suspend(struct device *dev)
 {
 	int status;
@@ -721,6 +766,7 @@ static int acp3x_pcm_runtime_resume(struct device *dev)
 static const struct dev_pm_ops acp3x_pm_ops = {
 	.runtime_suspend = acp3x_pcm_runtime_suspend,
 	.runtime_resume = acp3x_pcm_runtime_resume,
+	.resume = acp3x_resume,
 };
 
 static struct platform_driver acp3x_dma_driver = {
