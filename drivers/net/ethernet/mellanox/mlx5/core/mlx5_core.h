@@ -214,7 +214,7 @@ enum {
 	MLX5_NIC_IFC_FULL		= 0,
 	MLX5_NIC_IFC_DISABLED		= 1,
 	MLX5_NIC_IFC_NO_DRAM_NIC	= 2,
-	MLX5_NIC_IFC_INVALID		= 3
+	MLX5_NIC_IFC_SW_RESET		= 7
 };
 
 u8 mlx5_get_nic_state(struct mlx5_core_dev *dev);

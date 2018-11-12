@@ -1191,7 +1191,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
 	int err = 0;
 
 	if (cleanup)
-		mlx5_drain_health_recovery(dev);
+		mlx5_drain_health_wq(dev);
 
 	mutex_lock(&dev->intf_state_mutex);
 	if (!test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
