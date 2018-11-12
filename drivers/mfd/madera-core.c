@@ -15,6 +15,7 @@
 #include <linux/gpio.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
@@ -357,6 +358,8 @@ int madera_dev_init(struct madera *madera)
 
 	dev_set_drvdata(madera->dev, madera);
 	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
+	mutex_init(&madera->dapm_ptr_lock);
+
 	madera_set_micbias_info(madera);
 
 	/*
