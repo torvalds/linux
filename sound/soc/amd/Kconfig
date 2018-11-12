@@ -19,3 +19,8 @@ config SND_SOC_AMD_CZ_RT5645_MACH
 	depends on SND_SOC_AMD_ACP && I2C
 	help
 	 This option enables machine driver for rt5645.
+
+config SND_SOC_AMD_ACP3x
+	tristate "AMD Audio Coprocessor-v3.x support"
+	help
+	 This option enables ACP v3.x I2S support on AMD platform
