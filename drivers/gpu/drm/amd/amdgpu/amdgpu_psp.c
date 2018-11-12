@@ -776,9 +776,21 @@ static int psp_hw_start(struct psp_context *psp)
 		return ret;
 	}
 
+	ret = psp_tmr_init(psp);
+	if (ret) {
+		DRM_ERROR("PSP tmr init failed!\n");
+		return ret;
+	}
+
 	ret = psp_tmr_load(psp);
 	if (ret) {
 		DRM_ERROR("PSP load tmr failed!\n");
+		return ret;
+	}
+
+	ret = psp_asd_init(psp);
+	if (ret) {
+		DRM_ERROR("PSP asd init failed!\n");
 		return ret;
 	}
 
@@ -994,18 +1006,6 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	ret = psp_ring_init(psp, PSP_RING_TYPE__KM);
 	if (ret) {
 		DRM_ERROR("PSP ring init failed!\n");
-		goto failed;
-	}
-
-	ret = psp_tmr_init(psp);
-	if (ret) {
-		DRM_ERROR("PSP tmr init failed!\n");
-		goto failed;
-	}
-
-	ret = psp_asd_init(psp);
-	if (ret) {
-		DRM_ERROR("PSP asd init failed!\n");
 		goto failed;
 	}
 
