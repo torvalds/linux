@@ -26,6 +26,27 @@ static void *uapi_add_elm(struct uverbs_api *uapi, u32 key, size_t alloc_size)
 	return elm;
 }
 
+static void *uapi_add_get_elm(struct uverbs_api *uapi, u32 key,
+			      size_t alloc_size, bool *exists)
+{
+	void *elm;
+
+	elm = uapi_add_elm(uapi, key, alloc_size);
+	if (!IS_ERR(elm)) {
+		*exists = false;
+		return elm;
+	}
+
+	if (elm != ERR_PTR(-EEXIST))
+		return elm;
+
+	elm = radix_tree_lookup(&uapi->radix, key);
+	if (WARN_ON(!elm))
+		return ERR_PTR(-EINVAL);
+	*exists = true;
+	return elm;
+}
+
 static int uapi_merge_method(struct uverbs_api *uapi,
 			     struct uverbs_api_object *obj_elm, u32 obj_key,
 			     const struct uverbs_method_def *method,
@@ -34,22 +55,20 @@ static int uapi_merge_method(struct uverbs_api *uapi,
 	u32 method_key = obj_key | uapi_key_ioctl_method(method->id);
 	struct uverbs_api_ioctl_method *method_elm;
 	unsigned int i;
+	bool exists;
 
 	if (!method->attrs)
 		return 0;
 
-	method_elm = uapi_add_elm(uapi, method_key, sizeof(*method_elm));
-	if (IS_ERR(method_elm)) {
-		if (method_elm != ERR_PTR(-EEXIST))
-			return PTR_ERR(method_elm);
-
+	method_elm = uapi_add_get_elm(uapi, method_key, sizeof(*method_elm),
+				      &exists);
+	if (IS_ERR(method_elm))
+		return PTR_ERR(method_elm);
+	if (exists) {
 		/*
 		 * This occurs when a driver uses ADD_UVERBS_ATTRIBUTES_SIMPLE
 		 */
 		if (WARN_ON(method->handler))
-			return -EINVAL;
-		method_elm = radix_tree_lookup(&uapi->radix, method_key);
-		if (WARN_ON(!method_elm))
 			return -EINVAL;
 	} else {
 		WARN_ON(!method->handler);
@@ -105,34 +124,29 @@ static int uapi_merge_obj_tree(struct uverbs_api *uapi,
 	struct uverbs_api_object *obj_elm;
 	unsigned int i;
 	u32 obj_key;
+	bool exists;
 	int rc;
 
 	obj_key = uapi_key_obj(obj->id);
-	obj_elm = uapi_add_elm(uapi, obj_key, sizeof(*obj_elm));
-	if (IS_ERR(obj_elm)) {
-		if (obj_elm != ERR_PTR(-EEXIST))
-			return PTR_ERR(obj_elm);
+	obj_elm = uapi_add_get_elm(uapi, obj_key, sizeof(*obj_elm), &exists);
+	if (IS_ERR(obj_elm))
+		return PTR_ERR(obj_elm);
 
-		/* This occurs when a driver uses ADD_UVERBS_METHODS */
-		if (WARN_ON(obj->type_attrs))
+	if (obj->type_attrs) {
+		if (WARN_ON(obj_elm->type_attrs))
 			return -EINVAL;
-		obj_elm = radix_tree_lookup(&uapi->radix, obj_key);
-		if (WARN_ON(!obj_elm))
-			return -EINVAL;
-	} else {
+
 		obj_elm->type_attrs = obj->type_attrs;
-		if (obj->type_attrs) {
-			obj_elm->type_class = obj->type_attrs->type_class;
-			/*
-			 * Today drivers are only permitted to use idr_class
-			 * types. They cannot use FD types because we
-			 * currently have no way to revoke the fops pointer
-			 * after device disassociation.
-			 */
-			if (WARN_ON(is_driver && obj->type_attrs->type_class !=
-							 &uverbs_idr_class))
-				return -EINVAL;
-		}
+		obj_elm->type_class = obj->type_attrs->type_class;
+		/*
+		 * Today drivers are only permitted to use idr_class
+		 * types. They cannot use FD types because we currently have
+		 * no way to revoke the fops pointer after device
+		 * disassociation.
+		 */
+		if (WARN_ON(is_driver &&
+			    obj->type_attrs->type_class != &uverbs_idr_class))
+			return -EINVAL;
 	}
 
 	if (!obj->methods)
