@@ -467,6 +467,9 @@ static int do_dump(int argc, char **argv)
 	int fd;
 
 	if (is_prefix(*argv, "jited")) {
+		if (disasm_init())
+			return -1;
+
 		member_len = &info.jited_prog_len;
 		member_ptr = &info.jited_prog_insns;
 	} else if (is_prefix(*argv, "xlated")) {

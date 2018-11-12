@@ -147,8 +147,22 @@ int prog_parse_fd(int *argc, char ***argv);
 int map_parse_fd(int *argc, char ***argv);
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
 
+#ifdef HAVE_LIBBFD_SUPPORT
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 		       const char *arch, const char *disassembler_options);
+int disasm_init(void);
+#else
+static inline
+void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
+		       const char *arch, const char *disassembler_options)
+{
+}
+static inline int disasm_init(void)
+{
+	p_err("No libbfd support");
+	return -1;
+}
+#endif
 void print_data_json(uint8_t *data, size_t len);
 void print_hex_data_json(uint8_t *data, size_t len);
 
