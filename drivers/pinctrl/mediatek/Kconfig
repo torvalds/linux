@@ -48,6 +48,12 @@ config PINCTRL_MT7623
 	depends on PINCTRL_MTK_MOORE
 	default y
 
+config PINCTRL_MT7629
+	bool "Mediatek MT7629 pin control"
+	depends on MACH_MT7629 || COMPILE_TEST
+	depends on PINCTRL_MTK_MOORE
+	default y
+
 config PINCTRL_MT8135
 	bool "Mediatek MT8135 pin control"
 	depends on MACH_MT8135 || COMPILE_TEST
