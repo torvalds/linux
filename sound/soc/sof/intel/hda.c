@@ -721,9 +721,6 @@ free_hda_irq:
 free_streams:
 	hda_dsp_stream_free(sdev);
 err:
-	/* disable DSP */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
-				SOF_HDA_PPCTL_GPROCEN, 0);
 	return ret;
 }
 
