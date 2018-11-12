@@ -767,7 +767,7 @@ int skb_copy_and_csum_datagram_msg(struct sk_buff *skb,
 
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE) &&
 		    !skb->csum_complete_sw)
-			netdev_rx_csum_fault(NULL);
+			netdev_rx_csum_fault(NULL, skb);
 	}
 	return 0;
 fault:

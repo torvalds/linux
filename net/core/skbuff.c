@@ -2653,7 +2653,7 @@ __sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len)
 	if (likely(!sum)) {
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE) &&
 		    !skb->csum_complete_sw)
-			netdev_rx_csum_fault(skb->dev);
+			netdev_rx_csum_fault(skb->dev, skb);
 	}
 	if (!skb_shared(skb))
 		skb->csum_valid = !sum;
@@ -2673,7 +2673,7 @@ __sum16 __skb_checksum_complete(struct sk_buff *skb)
 	if (likely(!sum)) {
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE) &&
 		    !skb->csum_complete_sw)
-			netdev_rx_csum_fault(skb->dev);
+			netdev_rx_csum_fault(skb->dev, skb);
 	}
 
 	if (!skb_shared(skb)) {
