@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -61,9 +62,13 @@ static uint32_t smu8_get_argument(struct pp_hwmgr *hwmgr)
 					mmSMU_MP1_SRBM2P_ARG_0);
 }
 
-static int smu8_send_msg_to_smc_async(struct pp_hwmgr *hwmgr, uint16_t msg)
+/* Send a message to the SMC, and wait for its response.*/
+static int smu8_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
+					    uint16_t msg, uint32_t parameter)
 {
 	int result = 0;
+	ktime_t t_start;
+	s64 elapsed_us;
 
 	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
@@ -74,28 +79,31 @@ static int smu8_send_msg_to_smc_async(struct pp_hwmgr *hwmgr, uint16_t msg)
 		/* Read the last message to SMU, to report actual cause */
 		uint32_t val = cgs_read_register(hwmgr->device,
 						 mmSMU_MP1_SRBM2P_MSG_0);
-		pr_err("smu8_send_msg_to_smc_async (0x%04x) failed\n", msg);
-		pr_err("SMU still servicing msg (0x%04x)\n", val);
+		pr_err("%s(0x%04x) aborted; SMU still servicing msg (0x%04x)\n",
+			__func__, msg, val);
 		return result;
 	}
+	t_start = ktime_get();
+
+	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0, parameter);
 
 	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_RESP_0, 0);
 	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_MSG_0, msg);
 
-	return 0;
+	result = PHM_WAIT_FIELD_UNEQUAL(hwmgr,
+					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
+
+	elapsed_us = ktime_us_delta(ktime_get(), t_start);
+
+	WARN(result, "%s(0x%04x, %#x) timed out after %lld us\n",
+			__func__, msg, parameter, elapsed_us);
+
+	return result;
 }
 
-/* Send a message to the SMC, and wait for its response.*/
 static int smu8_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
-	int result = 0;
-
-	result = smu8_send_msg_to_smc_async(hwmgr, msg);
-	if (result != 0)
-		return result;
-
-	return PHM_WAIT_FIELD_UNEQUAL(hwmgr,
-					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
+	return smu8_send_msg_to_smc_with_parameter(hwmgr, msg, 0);
 }
 
 static int smu8_set_smc_sram_address(struct pp_hwmgr *hwmgr,
@@ -133,17 +141,6 @@ static int smu8_write_smc_sram_dword(struct pp_hwmgr *hwmgr,
 		cgs_write_register(hwmgr->device, mmMP0PUB_IND_DATA_0, value);
 
 	return result;
-}
-
-static int smu8_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
-					  uint16_t msg, uint32_t parameter)
-{
-	if (hwmgr == NULL || hwmgr->device == NULL)
-		return -EINVAL;
-
-	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0, parameter);
-
-	return smu8_send_msg_to_smc(hwmgr, msg);
 }
 
 static int smu8_check_fw_load_finish(struct pp_hwmgr *hwmgr,
