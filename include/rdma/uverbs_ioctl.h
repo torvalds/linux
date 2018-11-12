@@ -140,6 +140,13 @@ struct uverbs_attr_spec {
  *
  * The tree encodes multiple types, and uses a scheme where OBJ_ID,0,0 returns
  * the object slot, and OBJ_ID,METH_ID,0 and returns the method slot.
+ *
+ * This also encodes the tables for the write() and write() extended commands
+ * using the coding
+ *   OBJ_ID,UVERBS_API_METHOD_IS_WRITE,command #
+ *   OBJ_ID,UVERBS_API_METHOD_IS_WRITE_EX,command_ex #
+ * ie the WRITE path is treated as a special method type in the ioctl
+ * framework.
  */
 enum uapi_radix_data {
 	UVERBS_API_NS_FLAG = 1U << UVERBS_ID_NS_SHIFT,
@@ -147,12 +154,16 @@ enum uapi_radix_data {
 	UVERBS_API_ATTR_KEY_BITS = 6,
 	UVERBS_API_ATTR_KEY_MASK = GENMASK(UVERBS_API_ATTR_KEY_BITS - 1, 0),
 	UVERBS_API_ATTR_BKEY_LEN = (1 << UVERBS_API_ATTR_KEY_BITS) - 1,
+	UVERBS_API_WRITE_KEY_NUM = 1 << UVERBS_API_ATTR_KEY_BITS,
 
 	UVERBS_API_METHOD_KEY_BITS = 5,
 	UVERBS_API_METHOD_KEY_SHIFT = UVERBS_API_ATTR_KEY_BITS,
-	UVERBS_API_METHOD_KEY_NUM_CORE = 24,
-	UVERBS_API_METHOD_KEY_NUM_DRIVER = (1 << UVERBS_API_METHOD_KEY_BITS) -
-					   UVERBS_API_METHOD_KEY_NUM_CORE,
+	UVERBS_API_METHOD_KEY_NUM_CORE = 22,
+	UVERBS_API_METHOD_IS_WRITE = 30 << UVERBS_API_METHOD_KEY_SHIFT,
+	UVERBS_API_METHOD_IS_WRITE_EX = 31 << UVERBS_API_METHOD_KEY_SHIFT,
+	UVERBS_API_METHOD_KEY_NUM_DRIVER =
+		(UVERBS_API_METHOD_IS_WRITE >> UVERBS_API_METHOD_KEY_SHIFT) -
+		UVERBS_API_METHOD_KEY_NUM_CORE,
 	UVERBS_API_METHOD_KEY_MASK = GENMASK(
 		UVERBS_API_METHOD_KEY_BITS + UVERBS_API_METHOD_KEY_SHIFT - 1,
 		UVERBS_API_METHOD_KEY_SHIFT),
@@ -205,7 +216,22 @@ static inline __attribute_const__ u32 uapi_key_ioctl_method(u32 id)
 	return id << UVERBS_API_METHOD_KEY_SHIFT;
 }
 
-static inline __attribute_const__ u32 uapi_key_attr_to_method(u32 attr_key)
+static inline __attribute_const__ u32 uapi_key_write_method(u32 id)
+{
+	if (id >= UVERBS_API_WRITE_KEY_NUM)
+		return UVERBS_API_KEY_ERR;
+	return UVERBS_API_METHOD_IS_WRITE | id;
+}
+
+static inline __attribute_const__ u32 uapi_key_write_ex_method(u32 id)
+{
+	if (id >= UVERBS_API_WRITE_KEY_NUM)
+		return UVERBS_API_KEY_ERR;
+	return UVERBS_API_METHOD_IS_WRITE_EX | id;
+}
+
+static inline __attribute_const__ u32
+uapi_key_attr_to_ioctl_method(u32 attr_key)
 {
 	return attr_key &
 	       (UVERBS_API_OBJ_KEY_MASK | UVERBS_API_METHOD_KEY_MASK);
@@ -213,8 +239,21 @@ static inline __attribute_const__ u32 uapi_key_attr_to_method(u32 attr_key)
 
 static inline __attribute_const__ bool uapi_key_is_ioctl_method(u32 key)
 {
-	return (key & UVERBS_API_METHOD_KEY_MASK) != 0 &&
+	unsigned int method = key & UVERBS_API_METHOD_KEY_MASK;
+
+	return method != 0 && method < UVERBS_API_METHOD_IS_WRITE &&
 	       (key & UVERBS_API_ATTR_KEY_MASK) == 0;
+}
+
+static inline __attribute_const__ bool uapi_key_is_write_method(u32 key)
+{
+	return (key & UVERBS_API_METHOD_KEY_MASK) == UVERBS_API_METHOD_IS_WRITE;
+}
+
+static inline __attribute_const__ bool uapi_key_is_write_ex_method(u32 key)
+{
+	return (key & UVERBS_API_METHOD_KEY_MASK) ==
+	       UVERBS_API_METHOD_IS_WRITE_EX;
 }
 
 static inline __attribute_const__ u32 uapi_key_attrs_start(u32 ioctl_method_key)
@@ -246,9 +285,12 @@ static inline __attribute_const__ u32 uapi_key_attr(u32 id)
 	return id;
 }
 
+/* Only true for ioctl methods */
 static inline __attribute_const__ bool uapi_key_is_attr(u32 key)
 {
-	return (key & UVERBS_API_METHOD_KEY_MASK) != 0 &&
+	unsigned int method = key & UVERBS_API_METHOD_KEY_MASK;
+
+	return method != 0 && method < UVERBS_API_METHOD_IS_WRITE &&
 	       (key & UVERBS_API_ATTR_KEY_MASK) != 0;
 }
 
@@ -298,6 +340,8 @@ struct uverbs_object_def {
 
 enum uapi_definition_kind {
 	UAPI_DEF_END = 0,
+	UAPI_DEF_OBJECT_START,
+	UAPI_DEF_WRITE,
 	UAPI_DEF_CHAIN_OBJ_TREE,
 	UAPI_DEF_CHAIN,
 	UAPI_DEF_IS_SUPPORTED_FUNC,
@@ -315,15 +359,53 @@ struct uapi_definition {
 		struct {
 			u16 object_id;
 		} object_start;
+		struct {
+			u8 is_ex;
+			u16 command_num;
+		} write;
 	};
 
 	union {
 		bool (*func_is_supported)(struct ib_device *device);
+		ssize_t (*func_write)(struct ib_uverbs_file *file,
+				      const char __user *buf, int in_len,
+				      int out_len);
+		int (*func_write_ex)(struct ib_uverbs_file *file,
+				     struct ib_udata *ucore,
+				     struct ib_udata *uhw);
 		const struct uapi_definition *chain;
 		const struct uverbs_object_def *chain_obj_tree;
 		size_t needs_fn_offset;
 	};
 };
+
+/* Define things connected to object_id */
+#define DECLARE_UVERBS_OBJECT(_object_id, ...)                                 \
+	{                                                                      \
+		.kind = UAPI_DEF_OBJECT_START,                                 \
+		.object_start = { .object_id = _object_id },                   \
+	},                                                                     \
+		##__VA_ARGS__
+
+/* Use in a var_args of DECLARE_UVERBS_OBJECT */
+#define DECLARE_UVERBS_WRITE(_command_num, _func, ...)                         \
+	{                                                                      \
+		.kind = UAPI_DEF_WRITE,                                        \
+		.scope = UAPI_SCOPE_OBJECT,                                    \
+		.write = { .is_ex = 0, .command_num = _command_num },          \
+		.func_write = _func,                                           \
+	},                                                                     \
+		##__VA_ARGS__
+
+/* Use in a var_args of DECLARE_UVERBS_OBJECT */
+#define DECLARE_UVERBS_WRITE_EX(_command_num, _func, ...)                      \
+	{                                                                      \
+		.kind = UAPI_DEF_WRITE,                                        \
+		.scope = UAPI_SCOPE_OBJECT,                                    \
+		.write = { .is_ex = 1, .command_num = _command_num },          \
+		.func_write_ex = _func,                                        \
+	},                                                                     \
+		##__VA_ARGS__
 
 /*
  * Object is only supported if the function pointer named ibdev_fn in struct

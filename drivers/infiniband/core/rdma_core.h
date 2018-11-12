@@ -136,6 +136,15 @@ struct uverbs_api_ioctl_method {
 	u8 destroy_bkey;
 };
 
+struct uverbs_api_write_method {
+	ssize_t (*handler)(struct ib_uverbs_file *file, const char __user *buf,
+			   int in_len, int out_len);
+	int (*handler_ex)(struct ib_uverbs_file *file, struct ib_udata *ucore,
+			  struct ib_udata *uhw);
+	u8 disabled:1;
+	u8 is_ex:1;
+};
+
 struct uverbs_api_attr {
 	struct uverbs_attr_spec spec;
 };
@@ -144,6 +153,12 @@ struct uverbs_api {
 	/* radix tree contains struct uverbs_api_* pointers */
 	struct radix_tree_root radix;
 	enum rdma_driver_id driver_id;
+
+	unsigned int num_write;
+	unsigned int num_write_ex;
+	struct uverbs_api_write_method notsupp_method;
+	const struct uverbs_api_write_method **write_methods;
+	const struct uverbs_api_write_method **write_ex_methods;
 };
 
 static inline const struct uverbs_api_object *

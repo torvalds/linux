@@ -8,6 +8,19 @@
 #include "rdma_core.h"
 #include "uverbs.h"
 
+static ssize_t ib_uverbs_notsupp(struct ib_uverbs_file *file,
+				 const char __user *buf, int in_len,
+				 int out_len)
+{
+	return -EOPNOTSUPP;
+}
+
+static int ib_uverbs_ex_notsupp(struct ib_uverbs_file *file,
+				struct ib_udata *ucore, struct ib_udata *uhw)
+{
+	return -EOPNOTSUPP;
+}
+
 static void *uapi_add_elm(struct uverbs_api *uapi, u32 key, size_t alloc_size)
 {
 	void *elm;
@@ -45,6 +58,42 @@ static void *uapi_add_get_elm(struct uverbs_api *uapi, u32 key,
 		return ERR_PTR(-EINVAL);
 	*exists = true;
 	return elm;
+}
+
+static int uapi_create_write(struct uverbs_api *uapi, struct ib_device *ibdev,
+			     const struct uapi_definition *def, u32 obj_key)
+{
+	struct uverbs_api_write_method *method_elm;
+	u32 method_key = obj_key;
+	bool exists;
+
+	if (def->write.is_ex)
+		method_key |= uapi_key_write_ex_method(def->write.command_num);
+	else
+		method_key |= uapi_key_write_method(def->write.command_num);
+
+	method_elm = uapi_add_get_elm(uapi, method_key, sizeof(*method_elm),
+				      &exists);
+	if (IS_ERR(method_elm))
+		return PTR_ERR(method_elm);
+
+	if (WARN_ON(exists && (def->write.is_ex != method_elm->is_ex ||
+			       method_elm->handler_ex || method_elm->handler)))
+		return -EINVAL;
+
+	method_elm->is_ex = def->write.is_ex;
+	if (def->write.is_ex) {
+		method_elm->handler_ex = def->func_write_ex;
+
+		method_elm->disabled = !(ibdev->uverbs_ex_cmd_mask &
+					 BIT_ULL(def->write.command_num));
+	} else {
+		method_elm->handler = def->func_write;
+
+		method_elm->disabled = !(ibdev->uverbs_cmd_mask &
+					 BIT_ULL(def->write.command_num));
+	}
+	return 0;
 }
 
 static int uapi_merge_method(struct uverbs_api *uapi,
@@ -194,6 +243,7 @@ static int uapi_merge_def(struct uverbs_api *uapi, struct ib_device *ibdev,
 {
 	const struct uapi_definition *def = def_list;
 	u32 cur_obj_key = UVERBS_API_KEY_ERR;
+	bool exists;
 	int rc;
 
 	if (!def_list)
@@ -240,6 +290,23 @@ static int uapi_merge_def(struct uverbs_api *uapi, struct ib_device *ibdev,
 			if (rc)
 				return rc;
 			continue;
+
+		case UAPI_DEF_OBJECT_START: {
+			struct uverbs_api_object *obj_elm;
+
+			cur_obj_key = uapi_key_obj(def->object_start.object_id);
+			obj_elm = uapi_add_get_elm(uapi, cur_obj_key,
+						   sizeof(*obj_elm), &exists);
+			if (IS_ERR(obj_elm))
+				return PTR_ERR(obj_elm);
+			continue;
+		}
+
+		case UAPI_DEF_WRITE:
+			rc = uapi_create_write(uapi, ibdev, def, cur_obj_key);
+			if (rc)
+				return rc;
+			continue;
 		}
 		WARN_ON(true);
 		return -EINVAL;
@@ -266,8 +333,8 @@ uapi_finalize_ioctl_method(struct uverbs_api *uapi,
 		u32 attr_bkey = uapi_bkey_attr(attr_key);
 		u8 type = elm->spec.type;
 
-		if (uapi_key_attr_to_method(iter.index) !=
-		    uapi_key_attr_to_method(method_key))
+		if (uapi_key_attr_to_ioctl_method(iter.index) !=
+		    uapi_key_attr_to_ioctl_method(method_key))
 			break;
 
 		if (elm->spec.mandatory)
@@ -309,9 +376,13 @@ uapi_finalize_ioctl_method(struct uverbs_api *uapi,
 
 static int uapi_finalize(struct uverbs_api *uapi)
 {
+	const struct uverbs_api_write_method **data;
+	unsigned long max_write_ex = 0;
+	unsigned long max_write = 0;
 	struct radix_tree_iter iter;
 	void __rcu **slot;
 	int rc;
+	int i;
 
 	radix_tree_for_each_slot (slot, &uapi->radix, &iter, 0) {
 		struct uverbs_api_ioctl_method *method_elm =
@@ -323,6 +394,36 @@ static int uapi_finalize(struct uverbs_api *uapi)
 			if (rc)
 				return rc;
 		}
+
+		if (uapi_key_is_write_method(iter.index))
+			max_write = max(max_write,
+					iter.index & UVERBS_API_ATTR_KEY_MASK);
+		if (uapi_key_is_write_ex_method(iter.index))
+			max_write_ex =
+				max(max_write_ex,
+				    iter.index & UVERBS_API_ATTR_KEY_MASK);
+	}
+
+	uapi->notsupp_method.handler = ib_uverbs_notsupp;
+	uapi->notsupp_method.handler_ex = ib_uverbs_ex_notsupp;
+	uapi->num_write = max_write + 1;
+	uapi->num_write_ex = max_write_ex + 1;
+	data = kmalloc_array(uapi->num_write + uapi->num_write_ex,
+			     sizeof(*uapi->write_methods), GFP_KERNEL);
+	for (i = 0; i != uapi->num_write + uapi->num_write_ex; i++)
+		data[i] = &uapi->notsupp_method;
+	uapi->write_methods = data;
+	uapi->write_ex_methods = data + uapi->num_write;
+
+	radix_tree_for_each_slot (slot, &uapi->radix, &iter, 0) {
+		if (uapi_key_is_write_method(iter.index))
+			uapi->write_methods[iter.index &
+					    UVERBS_API_ATTR_KEY_MASK] =
+				rcu_dereference_protected(*slot, true);
+		if (uapi_key_is_write_ex_method(iter.index))
+			uapi->write_ex_methods[iter.index &
+					       UVERBS_API_ATTR_KEY_MASK] =
+				rcu_dereference_protected(*slot, true);
 	}
 
 	return 0;
@@ -365,6 +466,23 @@ static u32 uapi_get_obj_id(struct uverbs_attr_spec *spec)
 	return UVERBS_API_KEY_ERR;
 }
 
+static void uapi_key_okay(u32 key)
+{
+	unsigned int count = 0;
+
+	if (uapi_key_is_object(key))
+		count++;
+	if (uapi_key_is_ioctl_method(key))
+		count++;
+	if (uapi_key_is_write_method(key))
+		count++;
+	if (uapi_key_is_write_ex_method(key))
+		count++;
+	if (uapi_key_is_attr(key))
+		count++;
+	WARN(count != 1, "Bad count %d key=%x", count, key);
+}
+
 static void uapi_finalize_disable(struct uverbs_api *uapi)
 {
 	struct radix_tree_iter iter;
@@ -374,6 +492,8 @@ static void uapi_finalize_disable(struct uverbs_api *uapi)
 
 again:
 	radix_tree_for_each_slot (slot, &uapi->radix, &iter, starting_key) {
+		uapi_key_okay(iter.index);
+
 		if (uapi_key_is_object(iter.index)) {
 			struct uverbs_api_object *obj_elm =
 				rcu_dereference_protected(*slot, true);
@@ -396,6 +516,18 @@ again:
 				starting_key = iter.index;
 				uapi_remove_method(uapi, iter.index);
 				goto again;
+			}
+			continue;
+		}
+
+		if (uapi_key_is_write_method(iter.index) ||
+		    uapi_key_is_write_ex_method(iter.index)) {
+			struct uverbs_api_write_method *method_elm =
+				rcu_dereference_protected(*slot, true);
+
+			if (method_elm->disabled) {
+				kfree(method_elm);
+				radix_tree_iter_delete(&uapi->radix, &iter, slot);
 			}
 			continue;
 		}
@@ -444,6 +576,7 @@ void uverbs_destroy_api(struct uverbs_api *uapi)
 		return;
 
 	uapi_remove_range(uapi, 0, U32_MAX);
+	kfree(uapi->write_methods);
 	kfree(uapi);
 }
 
