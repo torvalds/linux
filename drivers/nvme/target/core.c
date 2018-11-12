@@ -1032,12 +1032,16 @@ u16 nvmet_check_ctrl_status(struct nvmet_req *req, struct nvme_command *cmd)
 	return 0;
 }
 
-static bool __nvmet_host_allowed(struct nvmet_subsys *subsys,
-		const char *hostnqn)
+bool nvmet_host_allowed(struct nvmet_subsys *subsys, const char *hostnqn)
 {
 	struct nvmet_host_link *p;
 
+	lockdep_assert_held(&nvmet_config_sem);
+
 	if (subsys->allow_any_host)
+		return true;
+
+	if (subsys->type == NVME_NQN_DISC) /* allow all access to disc subsys */
 		return true;
 
 	list_for_each_entry(p, &subsys->hosts, entry) {
@@ -1046,30 +1050,6 @@ static bool __nvmet_host_allowed(struct nvmet_subsys *subsys,
 	}
 
 	return false;
-}
-
-static bool nvmet_host_discovery_allowed(struct nvmet_req *req,
-		const char *hostnqn)
-{
-	struct nvmet_subsys_link *s;
-
-	list_for_each_entry(s, &req->port->subsystems, entry) {
-		if (__nvmet_host_allowed(s->subsys, hostnqn))
-			return true;
-	}
-
-	return false;
-}
-
-bool nvmet_host_allowed(struct nvmet_req *req, struct nvmet_subsys *subsys,
-		const char *hostnqn)
-{
-	lockdep_assert_held(&nvmet_config_sem);
-
-	if (subsys->type == NVME_NQN_DISC)
-		return nvmet_host_discovery_allowed(req, hostnqn);
-	else
-		return __nvmet_host_allowed(subsys, hostnqn);
 }
 
 /*
@@ -1122,7 +1102,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 
 	status = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
 	down_read(&nvmet_config_sem);
-	if (!nvmet_host_allowed(req, subsys, hostnqn)) {
+	if (!nvmet_host_allowed(subsys, hostnqn)) {
 		pr_info("connect by host %s for subsystem %s not allowed\n",
 			hostnqn, subsysnqn);
 		req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(hostnqn);

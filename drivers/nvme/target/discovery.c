@@ -107,7 +107,7 @@ static void nvmet_execute_get_disc_log_page(struct nvmet_req *req)
 
 	down_read(&nvmet_config_sem);
 	list_for_each_entry(p, &req->port->subsystems, entry) {
-		if (!nvmet_host_allowed(req, p->subsys, ctrl->hostnqn))
+		if (!nvmet_host_allowed(p->subsys, ctrl->hostnqn))
 			continue;
 		if (residual_len >= entry_size) {
 			char traddr[NVMF_TRADDR_SIZE];

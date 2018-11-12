@@ -468,8 +468,7 @@ extern u32 nvmet_ana_group_enabled[NVMET_MAX_ANAGRPS + 1];
 extern u64 nvmet_ana_chgcnt;
 extern struct rw_semaphore nvmet_ana_sem;
 
-bool nvmet_host_allowed(struct nvmet_req *req, struct nvmet_subsys *subsys,
-		const char *hostnqn);
+bool nvmet_host_allowed(struct nvmet_subsys *subsys, const char *hostnqn);
 
 int nvmet_bdev_ns_enable(struct nvmet_ns *ns);
 int nvmet_file_ns_enable(struct nvmet_ns *ns);
