@@ -119,6 +119,11 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 	if (vgdev->has_virgl_3d == false)
 		return -ENOSYS;
 
+	if ((exbuf->flags & ~VIRTGPU_EXECBUF_FLAGS))
+		return -EINVAL;
+
+	exbuf->fence_fd = -1;
+
 	INIT_LIST_HEAD(&validate_list);
 	if (exbuf->num_bo_handles) {
 
