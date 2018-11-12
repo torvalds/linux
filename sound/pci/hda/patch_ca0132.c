@@ -8413,7 +8413,7 @@ static void ca0132_free(struct hda_codec *codec)
 
 	snd_hda_power_down(codec);
 	if (spec->mem_base)
-		iounmap(spec->mem_base);
+		pci_iounmap(codec->bus->pci, spec->mem_base);
 	kfree(spec->spec_init_verbs);
 	kfree(codec->spec);
 }
