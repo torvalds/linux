@@ -72,7 +72,7 @@ void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
 		unsigned long tlbmisc;
 		unsigned long pid;
 
-		tlbmisc = pid_misc | TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
+		tlbmisc = TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
 		WRCTL(CTL_TLBMISC, tlbmisc);
 		pteaddr = RDCTL(CTL_PTEADDR);
 		tlbmisc = RDCTL(CTL_TLBMISC);
@@ -83,8 +83,7 @@ void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
 				way, (pid_misc >> TLBMISC_PID_SHIFT));
 
 			WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
-			tlbmisc = pid_misc | TLBMISC_WE |
-				(way << TLBMISC_WAY_SHIFT);
+			tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
 			WRCTL(CTL_TLBMISC, tlbmisc);
 			WRCTL(CTL_TLBACC, 0);
 		}
@@ -124,7 +123,7 @@ static void flush_tlb_one(unsigned long addr)
 		unsigned long pteaddr;
 		unsigned long tlbmisc;
 
-		tlbmisc = pid_misc | TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
+		tlbmisc = TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
 		WRCTL(CTL_TLBMISC, tlbmisc);
 		pteaddr = RDCTL(CTL_PTEADDR);
 		tlbmisc = RDCTL(CTL_TLBMISC);
@@ -134,8 +133,7 @@ static void flush_tlb_one(unsigned long addr)
 				way, (pid_misc >> TLBMISC_PID_SHIFT));
 
 			WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
-			tlbmisc = pid_misc | TLBMISC_WE |
-				(way << TLBMISC_WAY_SHIFT);
+			tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
 			WRCTL(CTL_TLBMISC, tlbmisc);
 			WRCTL(CTL_TLBACC, 0);
 		}
@@ -217,15 +215,13 @@ void flush_tlb_pid(unsigned long pid)
 		for (way = 0; way < cpuinfo.tlb_num_ways; way++) {
 			unsigned long tlbmisc;
 
-			tlbmisc = pid_misc | TLBMISC_RD |
-				(way << TLBMISC_WAY_SHIFT);
+			tlbmisc = TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
 			WRCTL(CTL_TLBMISC, tlbmisc);
 			tlbmisc = RDCTL(CTL_TLBMISC);
 
 			if (((tlbmisc>>TLBMISC_PID_SHIFT) & TLBMISC_PID_MASK)
 				== pid) {
-				tlbmisc = pid_misc | TLBMISC_WE |
-					(way << TLBMISC_WAY_SHIFT);
+				tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
 				WRCTL(CTL_TLBMISC, tlbmisc);
 				WRCTL(CTL_TLBACC, 0);
 			}
@@ -246,7 +242,6 @@ void flush_tlb_all(void)
 
 	/* remember pid/way until we return */
 	get_misc_and_pid(&org_misc, &pid_misc);
-	pid_misc |= TLBMISC_WE;
 
 	/* Map each TLB entry to physcal address 0 with no-access and a
 	   bad ptbase */
@@ -254,7 +249,7 @@ void flush_tlb_all(void)
 		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
 
 		for (way = 0; way < cpuinfo.tlb_num_ways; way++) {
-			tlbmisc = pid_misc | (way << TLBMISC_WAY_SHIFT);
+			tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
 			WRCTL(CTL_TLBMISC, tlbmisc);
 			WRCTL(CTL_TLBACC, 0);
 		}
