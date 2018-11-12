@@ -27,7 +27,6 @@ struct audit_chunk {
 	unsigned long key;
 	struct fsnotify_mark *mark;
 	struct list_head trees;		/* with root here */
-	int dead;
 	int count;
 	atomic_long_t refs;
 	struct rcu_head head;
@@ -48,8 +47,15 @@ static LIST_HEAD(prune_list);
 static struct task_struct *prune_thread;
 
 /*
- * One struct chunk is attached to each inode of interest.
- * We replace struct chunk on tagging/untagging.
+ * One struct chunk is attached to each inode of interest through
+ * audit_tree_mark (fsnotify mark). We replace struct chunk on tagging /
+ * untagging, the mark is stable as long as there is chunk attached. The
+ * association between mark and chunk is protected by hash_lock and
+ * audit_tree_group->mark_mutex. Thus as long as we hold
+ * audit_tree_group->mark_mutex and check that the mark is alive by
+ * FSNOTIFY_MARK_FLAG_ATTACHED flag check, we are sure the mark points to
+ * the current chunk.
+ *
  * Rules have pointer to struct audit_tree.
  * Rules have struct list_head rlist forming a list of rules over
  * the same tree.
@@ -68,8 +74,12 @@ static struct task_struct *prune_thread;
  * tree is refcounted; one reference for "some rules on rules_list refer to
  * it", one for each chunk with pointer to it.
  *
- * chunk is refcounted by embedded fsnotify_mark + .refs (non-zero refcount
- * of watch contributes 1 to .refs).
+ * chunk is refcounted by embedded .refs. Mark associated with the chunk holds
+ * one chunk reference. This reference is dropped either when a mark is going
+ * to be freed (corresponding inode goes away) or when chunk attached to the
+ * mark gets replaced. This reference must be dropped using
+ * audit_mark_put_chunk() to make sure the reference is dropped only after RCU
+ * grace period as it protects RCU readers of the hash table.
  *
  * node.index allows to get from node.list to containing chunk.
  * MSB of that sucker is stolen to mark taggings that we might have to
@@ -160,8 +170,6 @@ static struct audit_chunk *mark_chunk(struct fsnotify_mark *mark)
 
 static void audit_tree_destroy_watch(struct fsnotify_mark *entry)
 {
-	struct audit_chunk *chunk = mark_chunk(entry);
-	audit_mark_put_chunk(chunk);
 	kmem_cache_free(audit_tree_mark_cachep, audit_mark(entry));
 }
 
@@ -187,13 +195,6 @@ static struct audit_chunk *alloc_chunk(int count)
 	chunk = kzalloc(size, GFP_KERNEL);
 	if (!chunk)
 		return NULL;
-
-	chunk->mark = alloc_mark();
-	if (!chunk->mark) {
-		kfree(chunk);
-		return NULL;
-	}
-	audit_mark(chunk->mark)->chunk = chunk;
 
 	INIT_LIST_HEAD(&chunk->hash);
 	INIT_LIST_HEAD(&chunk->trees);
@@ -277,6 +278,20 @@ static struct audit_chunk *find_chunk(struct node *p)
 	return container_of(p, struct audit_chunk, owners[0]);
 }
 
+static void replace_mark_chunk(struct fsnotify_mark *entry,
+			       struct audit_chunk *chunk)
+{
+	struct audit_chunk *old;
+
+	assert_spin_locked(&hash_lock);
+	old = mark_chunk(entry);
+	audit_mark(entry)->chunk = chunk;
+	if (chunk)
+		chunk->mark = entry;
+	if (old)
+		old->mark = NULL;
+}
+
 static void replace_chunk(struct audit_chunk *new, struct audit_chunk *old)
 {
 	struct audit_tree *owner;
@@ -299,6 +314,7 @@ static void replace_chunk(struct audit_chunk *new, struct audit_chunk *old)
 		get_tree(owner);
 		list_replace_init(&old->owners[j].list, &new->owners[i].list);
 	}
+	replace_mark_chunk(old->mark, new);
 	/*
 	 * Make sure chunk is fully initialized before making it visible in the
 	 * hash. Pairs with a data dependency barrier in READ_ONCE() in
@@ -339,21 +355,23 @@ static void untag_chunk(struct audit_chunk *chunk, struct fsnotify_mark *entry)
 
 	mutex_lock(&audit_tree_group->mark_mutex);
 	/*
-	 * mark_mutex protects mark from getting detached and thus also from
-	 * mark->connector->obj getting NULL.
+	 * mark_mutex stabilizes chunk attached to the mark so we can check
+	 * whether it didn't change while we've dropped hash_lock.
 	 */
-	if (chunk->dead || !(entry->flags & FSNOTIFY_MARK_FLAG_ATTACHED))
+	if (!(entry->flags & FSNOTIFY_MARK_FLAG_ATTACHED) ||
+	    mark_chunk(entry) != chunk)
 		goto out_mutex;
 
 	size = chunk_count_trees(chunk);
 	if (!size) {
-		chunk->dead = 1;
 		spin_lock(&hash_lock);
 		list_del_init(&chunk->trees);
 		list_del_rcu(&chunk->hash);
+		replace_mark_chunk(entry, NULL);
 		spin_unlock(&hash_lock);
 		fsnotify_detach_mark(entry);
 		mutex_unlock(&audit_tree_group->mark_mutex);
+		audit_mark_put_chunk(chunk);
 		fsnotify_free_mark(entry);
 		return;
 	}
@@ -362,13 +380,6 @@ static void untag_chunk(struct audit_chunk *chunk, struct fsnotify_mark *entry)
 	if (!new)
 		goto out_mutex;
 
-	if (fsnotify_add_mark_locked(new->mark, entry->connector->obj,
-				     FSNOTIFY_OBJ_TYPE_INODE, 1)) {
-		fsnotify_put_mark(new->mark);
-		goto out_mutex;
-	}
-
-	chunk->dead = 1;
 	spin_lock(&hash_lock);
 	/*
 	 * This has to go last when updating chunk as once replace_chunk() is
@@ -376,10 +387,8 @@ static void untag_chunk(struct audit_chunk *chunk, struct fsnotify_mark *entry)
 	 */
 	replace_chunk(new, chunk);
 	spin_unlock(&hash_lock);
-	fsnotify_detach_mark(entry);
 	mutex_unlock(&audit_tree_group->mark_mutex);
-	fsnotify_free_mark(entry);
-	fsnotify_put_mark(new->mark);	/* drop initial reference */
+	audit_mark_put_chunk(chunk);
 	return;
 
 out_mutex:
@@ -397,23 +406,31 @@ static int create_chunk(struct inode *inode, struct audit_tree *tree)
 		return -ENOMEM;
 	}
 
-	entry = chunk->mark;
+	entry = alloc_mark();
+	if (!entry) {
+		mutex_unlock(&audit_tree_group->mark_mutex);
+		kfree(chunk);
+		return -ENOMEM;
+	}
+
 	if (fsnotify_add_inode_mark_locked(entry, inode, 0)) {
 		mutex_unlock(&audit_tree_group->mark_mutex);
 		fsnotify_put_mark(entry);
+		kfree(chunk);
 		return -ENOSPC;
 	}
 
 	spin_lock(&hash_lock);
 	if (tree->goner) {
 		spin_unlock(&hash_lock);
-		chunk->dead = 1;
 		fsnotify_detach_mark(entry);
 		mutex_unlock(&audit_tree_group->mark_mutex);
 		fsnotify_free_mark(entry);
 		fsnotify_put_mark(entry);
+		kfree(chunk);
 		return 0;
 	}
+	replace_mark_chunk(entry, chunk);
 	chunk->owners[0].index = (1U << 31);
 	chunk->owners[0].owner = tree;
 	get_tree(tree);
@@ -430,33 +447,41 @@ static int create_chunk(struct inode *inode, struct audit_tree *tree)
 	insert_hash(chunk);
 	spin_unlock(&hash_lock);
 	mutex_unlock(&audit_tree_group->mark_mutex);
-	fsnotify_put_mark(entry);	/* drop initial reference */
+	/*
+	 * Drop our initial reference. When mark we point to is getting freed,
+	 * we get notification through ->freeing_mark callback and cleanup
+	 * chunk pointing to this mark.
+	 */
+	fsnotify_put_mark(entry);
 	return 0;
 }
 
 /* the first tagged inode becomes root of tree */
 static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 {
-	struct fsnotify_mark *old_entry, *chunk_entry;
+	struct fsnotify_mark *entry;
 	struct audit_chunk *chunk, *old;
 	struct node *p;
 	int n;
 
 	mutex_lock(&audit_tree_group->mark_mutex);
-	old_entry = fsnotify_find_mark(&inode->i_fsnotify_marks,
-				       audit_tree_group);
-	if (!old_entry)
+	entry = fsnotify_find_mark(&inode->i_fsnotify_marks, audit_tree_group);
+	if (!entry)
 		return create_chunk(inode, tree);
 
-	old = mark_chunk(old_entry);
-
+	/*
+	 * Found mark is guaranteed to be attached and mark_mutex protects mark
+	 * from getting detached and thus it makes sure there is chunk attached
+	 * to the mark.
+	 */
 	/* are we already there? */
 	spin_lock(&hash_lock);
+	old = mark_chunk(entry);
 	for (n = 0; n < old->count; n++) {
 		if (old->owners[n].owner == tree) {
 			spin_unlock(&hash_lock);
 			mutex_unlock(&audit_tree_group->mark_mutex);
-			fsnotify_put_mark(old_entry);
+			fsnotify_put_mark(entry);
 			return 0;
 		}
 	}
@@ -465,41 +490,16 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	chunk = alloc_chunk(old->count + 1);
 	if (!chunk) {
 		mutex_unlock(&audit_tree_group->mark_mutex);
-		fsnotify_put_mark(old_entry);
+		fsnotify_put_mark(entry);
 		return -ENOMEM;
-	}
-
-	chunk_entry = chunk->mark;
-
-	/*
-	 * mark_mutex protects mark from getting detached and thus also from
-	 * mark->connector->obj getting NULL.
-	 */
-	if (!(old_entry->flags & FSNOTIFY_MARK_FLAG_ATTACHED)) {
-		/* old_entry is being shot, lets just lie */
-		mutex_unlock(&audit_tree_group->mark_mutex);
-		fsnotify_put_mark(old_entry);
-		fsnotify_put_mark(chunk->mark);
-		return -ENOENT;
-	}
-
-	if (fsnotify_add_mark_locked(chunk_entry, old_entry->connector->obj,
-				     FSNOTIFY_OBJ_TYPE_INODE, 1)) {
-		mutex_unlock(&audit_tree_group->mark_mutex);
-		fsnotify_put_mark(chunk_entry);
-		fsnotify_put_mark(old_entry);
-		return -ENOSPC;
 	}
 
 	spin_lock(&hash_lock);
 	if (tree->goner) {
 		spin_unlock(&hash_lock);
-		chunk->dead = 1;
-		fsnotify_detach_mark(chunk_entry);
 		mutex_unlock(&audit_tree_group->mark_mutex);
-		fsnotify_free_mark(chunk_entry);
-		fsnotify_put_mark(chunk_entry);
-		fsnotify_put_mark(old_entry);
+		fsnotify_put_mark(entry);
+		kfree(chunk);
 		return 0;
 	}
 	p = &chunk->owners[chunk->count - 1];
@@ -507,7 +507,6 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	p->owner = tree;
 	get_tree(tree);
 	list_add(&p->list, &tree->chunks);
-	old->dead = 1;
 	if (!tree->root) {
 		tree->root = chunk;
 		list_add(&tree->same_root, &chunk->trees);
@@ -518,11 +517,10 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	 */
 	replace_chunk(chunk, old);
 	spin_unlock(&hash_lock);
-	fsnotify_detach_mark(old_entry);
 	mutex_unlock(&audit_tree_group->mark_mutex);
-	fsnotify_free_mark(old_entry);
-	fsnotify_put_mark(chunk_entry);	/* drop initial reference */
-	fsnotify_put_mark(old_entry); /* pair to fsnotify_find mark_entry */
+	fsnotify_put_mark(entry); /* pair to fsnotify_find mark_entry */
+	audit_mark_put_chunk(old);
+
 	return 0;
 }
 
@@ -585,6 +583,9 @@ static void prune_tree_chunks(struct audit_tree *victim, bool tagged)
 		chunk = find_chunk(p);
 		mark = chunk->mark;
 		remove_chunk_node(chunk, p);
+		/* Racing with audit_tree_freeing_mark()? */
+		if (!mark)
+			continue;
 		fsnotify_get_mark(mark);
 		spin_unlock(&hash_lock);
 
@@ -1007,10 +1008,6 @@ static void evict_chunk(struct audit_chunk *chunk)
 	int need_prune = 0;
 	int n;
 
-	if (chunk->dead)
-		return;
-
-	chunk->dead = 1;
 	mutex_lock(&audit_filter_mutex);
 	spin_lock(&hash_lock);
 	while (!list_empty(&chunk->trees)) {
@@ -1049,9 +1046,18 @@ static int audit_tree_handle_event(struct fsnotify_group *group,
 
 static void audit_tree_freeing_mark(struct fsnotify_mark *entry, struct fsnotify_group *group)
 {
-	struct audit_chunk *chunk = mark_chunk(entry);
+	struct audit_chunk *chunk;
 
-	evict_chunk(chunk);
+	mutex_lock(&entry->group->mark_mutex);
+	spin_lock(&hash_lock);
+	chunk = mark_chunk(entry);
+	replace_mark_chunk(entry, NULL);
+	spin_unlock(&hash_lock);
+	mutex_unlock(&entry->group->mark_mutex);
+	if (chunk) {
+		evict_chunk(chunk);
+		audit_mark_put_chunk(chunk);
+	}
 
 	/*
 	 * We are guaranteed to have at least one reference to the mark from
