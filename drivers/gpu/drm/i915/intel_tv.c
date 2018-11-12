@@ -1728,6 +1728,7 @@ intel_tv_set_mode_type(struct drm_display_mode *mode,
 static int
 intel_tv_get_modes(struct drm_connector *connector)
 {
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(connector->state);
 	int i, count = 0;
 
@@ -1738,6 +1739,11 @@ intel_tv_get_modes(struct drm_connector *connector)
 		if (input->w > 1024 &&
 		    !tv_mode->progressive &&
 		    !tv_mode->component_only)
+			continue;
+
+		/* no vertical scaling with wide sources on gen3 */
+		if (IS_GEN(dev_priv, 3) && input->w > 1024 &&
+		    input->h > intel_tv_mode_vdisplay(tv_mode))
 			continue;
 
 		mode = drm_mode_create(connector->dev);
