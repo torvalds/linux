@@ -235,6 +235,38 @@ static struct audit_chunk *find_chunk(struct node *p)
 	return container_of(p, struct audit_chunk, owners[0]);
 }
 
+static void replace_chunk(struct audit_chunk *new, struct audit_chunk *old,
+			  struct node *skip)
+{
+	struct audit_tree *owner;
+	int i, j;
+
+	new->key = old->key;
+	list_splice_init(&old->trees, &new->trees);
+	list_for_each_entry(owner, &new->trees, same_root)
+		owner->root = new;
+	for (i = j = 0; j < old->count; i++, j++) {
+		if (&old->owners[j] == skip) {
+			i--;
+			continue;
+		}
+		owner = old->owners[j].owner;
+		new->owners[i].owner = owner;
+		new->owners[i].index = old->owners[j].index - j + i;
+		if (!owner) /* result of earlier fallback */
+			continue;
+		get_tree(owner);
+		list_replace_init(&old->owners[j].list, &new->owners[i].list);
+	}
+	/*
+	 * Make sure chunk is fully initialized before making it visible in the
+	 * hash. Pairs with a data dependency barrier in READ_ONCE() in
+	 * audit_tree_lookup().
+	 */
+	smp_wmb();
+	list_replace_rcu(&old->hash, &new->hash);
+}
+
 static void untag_chunk(struct node *p)
 {
 	struct audit_chunk *chunk = find_chunk(p);
@@ -242,7 +274,6 @@ static void untag_chunk(struct node *p)
 	struct audit_chunk *new = NULL;
 	struct audit_tree *owner;
 	int size = chunk->count - 1;
-	int i, j;
 
 	fsnotify_get_mark(entry);
 
@@ -291,38 +322,16 @@ static void untag_chunk(struct node *p)
 
 	chunk->dead = 1;
 	spin_lock(&hash_lock);
-	new->key = chunk->key;
-	list_replace_init(&chunk->trees, &new->trees);
 	if (owner->root == chunk) {
 		list_del_init(&owner->same_root);
 		owner->root = NULL;
 	}
-
-	for (i = j = 0; j <= size; i++, j++) {
-		struct audit_tree *s;
-		if (&chunk->owners[j] == p) {
-			list_del_init(&p->list);
-			i--;
-			continue;
-		}
-		s = chunk->owners[j].owner;
-		new->owners[i].owner = s;
-		new->owners[i].index = chunk->owners[j].index - j + i;
-		if (!s) /* result of earlier fallback */
-			continue;
-		get_tree(s);
-		list_replace_init(&chunk->owners[j].list, &new->owners[i].list);
-	}
-
-	list_for_each_entry(owner, &new->trees, same_root)
-		owner->root = new;
+	list_del_init(&p->list);
 	/*
-	 * Make sure chunk is fully initialized before making it visible in the
-	 * hash. Pairs with a data dependency barrier in READ_ONCE() in
-	 * audit_tree_lookup().
+	 * This has to go last when updating chunk as once replace_chunk() is
+	 * called, new RCU readers can see the new chunk.
 	 */
-	smp_wmb();
-	list_replace_rcu(&chunk->hash, &new->hash);
+	replace_chunk(new, chunk, p);
 	spin_unlock(&hash_lock);
 	fsnotify_detach_mark(entry);
 	mutex_unlock(&entry->group->mark_mutex);
@@ -399,7 +408,6 @@ static int create_chunk(struct inode *inode, struct audit_tree *tree)
 static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 {
 	struct fsnotify_mark *old_entry, *chunk_entry;
-	struct audit_tree *owner;
 	struct audit_chunk *chunk, *old;
 	struct node *p;
 	int n;
@@ -464,35 +472,21 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 		fsnotify_put_mark(old_entry);
 		return 0;
 	}
-	chunk->key = old->key;
-	list_replace_init(&old->trees, &chunk->trees);
-	for (n = 0, p = chunk->owners; n < old->count; n++, p++) {
-		struct audit_tree *s = old->owners[n].owner;
-		p->owner = s;
-		p->index = old->owners[n].index;
-		if (!s) /* result of fallback in untag */
-			continue;
-		get_tree(s);
-		list_replace_init(&old->owners[n].list, &p->list);
-	}
+	p = &chunk->owners[chunk->count - 1];
 	p->index = (chunk->count - 1) | (1U<<31);
 	p->owner = tree;
 	get_tree(tree);
 	list_add(&p->list, &tree->chunks);
-	list_for_each_entry(owner, &chunk->trees, same_root)
-		owner->root = chunk;
 	old->dead = 1;
 	if (!tree->root) {
 		tree->root = chunk;
 		list_add(&tree->same_root, &chunk->trees);
 	}
 	/*
-	 * Make sure chunk is fully initialized before making it visible in the
-	 * hash. Pairs with a data dependency barrier in READ_ONCE() in
-	 * audit_tree_lookup().
+	 * This has to go last when updating chunk as once replace_chunk() is
+	 * called, new RCU readers can see the new chunk.
 	 */
-	smp_wmb();
-	list_replace_rcu(&old->hash, &chunk->hash);
+	replace_chunk(chunk, old, NULL);
 	spin_unlock(&hash_lock);
 	fsnotify_detach_mark(old_entry);
 	mutex_unlock(&audit_tree_group->mark_mutex);
