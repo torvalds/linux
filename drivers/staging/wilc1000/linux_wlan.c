@@ -391,7 +391,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	if (!wilc_wlan_cfg_set(vif, 0, WID_POWER_MANAGEMENT, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = NO_SECURITY; /* NO_ENCRYPT, 0x79 */
+	c_val[0] = WILC_FW_SEC_NO;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11I_MODE, c_val, 1, 0, 0))
 		goto fail;
 

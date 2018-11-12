@@ -6,15 +6,6 @@
 
 #include "wilc_wfi_cfgoperations.h"
 
-#define NO_ENCRYPT		0
-#define ENCRYPT_ENABLED		BIT(0)
-#define WEP			BIT(1)
-#define WEP_EXTENDED		BIT(2)
-#define WPA			BIT(3)
-#define WPA2			BIT(4)
-#define AES			BIT(5)
-#define TKIP			BIT(6)
-
 #define FRAME_TYPE_ID			0
 #define ACTION_CAT_ID			24
 #define ACTION_SUBTYPE_ID		25
@@ -655,7 +646,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	int ret;
 	u32 i;
 	u32 sel_bssi_idx = UINT_MAX;
-	u8 security = NO_ENCRYPT;
+	u8 security = WILC_FW_SEC_NO;
 	enum authtype auth_type = ANY;
 	u32 cipher_group;
 
@@ -703,9 +694,9 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	memset(priv->wep_key_len, 0, sizeof(priv->wep_key_len));
 
 	cipher_group = sme->crypto.cipher_group;
-	if (cipher_group != NO_ENCRYPT) {
+	if (cipher_group != 0) {
 		if (cipher_group == WLAN_CIPHER_SUITE_WEP40) {
-			security = ENCRYPT_ENABLED | WEP;
+			security = WILC_FW_SEC_WEP;
 
 			priv->wep_key_len[sme->key_idx] = sme->key_len;
 			memcpy(priv->wep_key[sme->key_idx], sme->key,
@@ -715,7 +706,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			wilc_add_wep_key_bss_sta(vif, sme->key, sme->key_len,
 						 sme->key_idx);
 		} else if (cipher_group == WLAN_CIPHER_SUITE_WEP104) {
-			security = ENCRYPT_ENABLED | WEP | WEP_EXTENDED;
+			security = WILC_FW_SEC_WEP_EXTENDED;
 
 			priv->wep_key_len[sme->key_idx] = sme->key_len;
 			memcpy(priv->wep_key[sme->key_idx], sme->key,
@@ -726,14 +717,14 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 						 sme->key_idx);
 		} else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_2) {
 			if (cipher_group == WLAN_CIPHER_SUITE_TKIP)
-				security = ENCRYPT_ENABLED | WPA2 | TKIP;
+				security = WILC_FW_SEC_WPA2_TKIP;
 			else
-				security = ENCRYPT_ENABLED | WPA2 | AES;
+				security = WILC_FW_SEC_WPA2_AES;
 		} else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_1) {
 			if (cipher_group == WLAN_CIPHER_SUITE_TKIP)
-				security = ENCRYPT_ENABLED | WPA | TKIP;
+				security = WILC_FW_SEC_WPA_TKIP;
 			else
-				security = ENCRYPT_ENABLED | WPA | AES;
+				security = WILC_FW_SEC_WPA_AES;
 		} else {
 			ret = -ENOTSUPP;
 			netdev_err(dev, "%s: Unsupported cipher\n",
@@ -748,9 +739,9 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			u32 ciphers_pairwise = sme->crypto.ciphers_pairwise[i];
 
 			if (ciphers_pairwise == WLAN_CIPHER_SUITE_TKIP)
-				security = security | TKIP;
+				security |= WILC_FW_TKIP;
 			else
-				security = security | AES;
+				security |= WILC_FW_AES;
 		}
 	}
 
@@ -900,7 +891,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	const u8 *rx_mic = NULL;
 	const u8 *tx_mic = NULL;
-	u8 mode = NO_ENCRYPT;
+	u8 mode = WILC_FW_SEC_NO;
 	u8 op_mode;
 	struct wilc_vif *vif = netdev_priv(netdev);
 
@@ -911,9 +902,9 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 			wilc_wfi_cfg_copy_wep_info(priv, key_index, params);
 
 			if (params->cipher == WLAN_CIPHER_SUITE_WEP40)
-				mode = ENCRYPT_ENABLED | WEP;
+				mode = WILC_FW_SEC_WEP;
 			else
-				mode = ENCRYPT_ENABLED | WEP | WEP_EXTENDED;
+				mode = WILC_FW_SEC_WEP_EXTENDED;
 
 			ret = wilc_add_wep_key_bss_ap(vif, params->key,
 						      params->key_len,
@@ -951,18 +942,18 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 
 			if (!pairwise) {
 				if (params->cipher == WLAN_CIPHER_SUITE_TKIP)
-					mode = ENCRYPT_ENABLED | WPA | TKIP;
+					mode = WILC_FW_SEC_WPA_TKIP;
 				else
-					mode = ENCRYPT_ENABLED | WPA2 | AES;
+					mode = WILC_FW_SEC_WPA2_AES;
 
 				priv->wilc_groupkey = mode;
 
 				key = priv->wilc_gtk[key_index];
 			} else {
 				if (params->cipher == WLAN_CIPHER_SUITE_TKIP)
-					mode = ENCRYPT_ENABLED | WPA | TKIP;
+					mode = WILC_FW_SEC_WPA_TKIP;
 				else
-					mode = priv->wilc_groupkey | AES;
+					mode = priv->wilc_groupkey | WILC_FW_AES;
 
 				key = priv->wilc_ptk[key_index];
 			}
