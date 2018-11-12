@@ -15,8 +15,10 @@
  *
  ********************************************/
 
-#define HIF_SDIO		(0)
-#define HIF_SPI			BIT(0)
+enum {
+	WILC_HIF_SDIO = 0,
+	WILC_HIF_SPI = BIT(0)
+};
 
 /********************************************
  *
@@ -51,51 +53,51 @@ typedef void (*wilc_tx_complete_func_t)(void *, int);
 #define MAX_RATES_SUPPORTED     12
 
 enum bss_types {
-	INFRASTRUCTURE		= 0,
-	INDEPENDENT,
-	AP,
+	WILC_FW_BSS_TYPE_INFRA = 0,
+	WILC_FW_BSS_TYPE_INDEPENDENT,
+	WILC_FW_BSS_TYPE_AP,
 };
 
 enum {
-	B_ONLY_MODE		= 0,    /* 1, 2 M, otherwise 5, 11 M */
-	G_ONLY_MODE,			/* 6,12,24 otherwise 9,18,36,48,54 */
-	G_MIXED_11B_1_MODE,		/* 1,2,5.5,11 otherwise all on */
-	G_MIXED_11B_2_MODE,		/* 1,2,5,11,6,12,24 otherwise all on */
+	WILC_FW_OPER_MODE_B_ONLY = 0,	 /* 1, 2 M, otherwise 5, 11 M */
+	WILC_FW_OPER_MODE_G_ONLY,	 /* 6,12,24 otherwise 9,18,36,48,54 */
+	WILC_FW_OPER_MODE_G_MIXED_11B_1, /* 1,2,5.5,11 otherwise all on */
+	WILC_FW_OPER_MODE_G_MIXED_11B_2, /* 1,2,5,11,6,12,24 otherwise all on */
 };
 
 enum {
-	G_SHORT_PREAMBLE	= 0,	/* Short Preamble */
-	G_LONG_PREAMBLE		= 1,	/* Long Preamble */
-	G_AUTO_PREAMBLE		= 2,	/* Auto Preamble Selection */
+	WILC_FW_PREAMBLE_SHORT = 0,	/* Short Preamble */
+	WILC_FW_PREAMBLE_LONG = 1,	/* Long Preamble */
+	WILC_FW_PREAMBLE_AUTO = 2,	/* Auto Preamble Selection */
 };
 
 enum {
-	PASSIVE_SCAN		= 0,
-	ACTIVE_SCAN		= 1,
+	WILC_FW_PASSIVE_SCAN = 0,
+	WILC_FW_ACTIVE_SCAN = 1,
 };
 
 enum {
-	NO_POWERSAVE		= 0,
-	MIN_FAST_PS		= 1,
-	MAX_FAST_PS		= 2,
-	MIN_PSPOLL_PS		= 3,
-	MAX_PSPOLL_PS		= 4
+	WILC_FW_NO_POWERSAVE = 0,
+	WILC_FW_MIN_FAST_PS = 1,
+	WILC_FW_MAX_FAST_PS = 2,
+	WILC_FW_MIN_PSPOLL_PS = 3,
+	WILC_FW_MAX_PSPOLL_PS = 4
 };
 
 enum chip_ps_states {
-	CHIP_WAKEDUP		= 0,
-	CHIP_SLEEPING_AUTO      = 1,
-	CHIP_SLEEPING_MANUAL	= 2
+	WILC_CHIP_WAKEDUP = 0,
+	WILC_CHIP_SLEEPING_AUTO = 1,
+	WILC_CHIP_SLEEPING_MANUAL = 2
 };
 
 enum bus_acquire {
-	ACQUIRE_ONLY            = 0,
-	ACQUIRE_AND_WAKEUP	= 1,
+	WILC_BUS_ACQUIRE_ONLY = 0,
+	WILC_BUS_ACQUIRE_AND_WAKEUP = 1,
 };
 
 enum bus_release {
-	RELEASE_ONLY		= 0,
-	RELEASE_ALLOW_SLEEP	= 1,
+	WILC_BUS_RELEASE_ONLY = 0,
+	WILC_BUS_RELEASE_ALLOW_SLEEP = 1,
 };
 
 enum {
@@ -122,73 +124,73 @@ enum {
 };
 
 enum authtype {
-	OPEN_SYSTEM		= 1,
-	SHARED_KEY		= 2,
-	ANY			= 3,
-	IEEE8021		= 5
+	WILC_FW_AUTH_OPEN_SYSTEM = 1,
+	WILC_FW_AUTH_SHARED_KEY = 2,
+	WILC_FW_AUTH_ANY = 3,
+	WILC_FW_AUTH_IEEE8021 = 5
 };
 
 enum site_survey {
-	SITE_SURVEY_1CH		= 0,
-	SITE_SURVEY_ALL_CH	= 1,
-	SITE_SURVEY_OFF		= 2
+	WILC_FW_SITE_SURVEY_1CH = 0,
+	WILC_FW_SITE_SURVEY_ALL_CH = 1,
+	WILC_FW_SITE_SURVEY_OFF = 2
 };
 
 enum {
-	NORMAL_ACK		= 0,
-	NO_ACK,
+	WILC_FW_ACK_POLICY_NORMAL = 0,
+	WILC_FW_ACK_NO_POLICY,
 };
 
 enum {
-	REKEY_DISABLE		= 1,
-	REKEY_TIME_BASE,
-	REKEY_PKT_BASE,
-	REKEY_TIME_PKT_BASE
+	WILC_FW_REKEY_POLICY_DISABLE = 1,
+	WILC_FW_REKEY_POLICY_TIME_BASE,
+	WILC_FW_REKEY_POLICY_PKT_BASE,
+	WILC_FW_REKEY_POLICY_TIME_PKT_BASE
 };
 
 enum {
-	FILTER_NO		= 0x00,
-	FILTER_AP_ONLY		= 0x01,
-	FILTER_STA_ONLY		= 0x02
+	WILC_FW_FILTER_NO = 0x00,
+	WILC_FW_FILTER_AP_ONLY = 0x01,
+	WILC_FW_FILTER_STA_ONLY = 0x02
 };
 
 enum {
-	AUTO_PROT		= 0,	/* Auto */
-	NO_PROT,			/* Do not use any protection */
-	ERP_PROT,			/* Protect all ERP frame exchanges */
-	HT_PROT,			/* Protect all HT frame exchanges  */
-	GF_PROT,			/* Protect all GF frame exchanges  */
+	WILC_FW_11N_PROT_AUTO = 0,	/* Auto */
+	WILC_FW_11N_NO_PROT,		/* Do not use any protection */
+	WILC_FW_11N_PROT_ERP,		/* Protect all ERP frame exchanges */
+	WILC_FW_11N_PROT_HT,		/* Protect all HT frame exchanges  */
+	WILC_FW_11N_PROT_GF		/* Protect all GF frame exchanges  */
 };
 
 enum {
-	G_SELF_CTS_PROT,
-	G_RTS_CTS_PROT,
+	WILC_FW_ERP_PROT_SELF_CTS,
+	WILC_FW_ERP_PROT_RTS_CTS,
 };
 
 enum {
-	HT_MIXED_MODE		= 1,
-	HT_ONLY_20MHZ_MODE,
-	HT_ONLY_20_40MHZ_MODE,
+	WILC_FW_11N_OP_MODE_HT_MIXED = 1,
+	WILC_FW_11N_OP_MODE_HT_ONLY_20MHZ,
+	WILC_FW_11N_OP_MODE_HT_ONLY_20_40MHZ,
 };
 
 enum {
-	NO_DETECT		= 0,
-	DETECT_ONLY		= 1,
-	DETECT_PROTECT		= 2,
-	DETECT_PROTECT_REPORT	= 3,
+	WILC_FW_OBBS_NONHT_NO_DETECT = 0,
+	WILC_FW_OBBS_NONHT_DETECT_ONLY = 1,
+	WILC_FW_OBBS_NONHT_DETECT_PROTECT = 2,
+	WILC_FW_OBBS_NONHT_DETECT_PROTECT_REPORT = 3,
 };
 
 enum {
-	RTS_CTS_NONHT_PROT	= 0,	/* RTS-CTS at non-HT rate */
-	FIRST_FRAME_NONHT_PROT,		/* First frame at non-HT rate */
-	LSIG_TXOP_PROT,                 /* LSIG TXOP Protection */
-	FIRST_FRAME_MIXED_PROT,		/* First frame at Mixed format */
+	WILC_FW_HT_PROT_RTS_CTS_NONHT = 0,  /* RTS-CTS at non-HT rate */
+	WILC_FW_HT_PROT_FIRST_FRAME_NONHT,  /* First frame at non-HT rate */
+	WILC_FW_HT_PROT_LSIG_TXOP,	    /* LSIG TXOP Protection */
+	WILC_FW_HT_PROT_FIRST_FRAME_MIXED,  /* First frame at Mixed format */
 };
 
 enum {
-	STATIC_MODE		= 1,
-	DYNAMIC_MODE		= 2,
-	MIMO_MODE		= 3,	/* power save disable */
+	WILC_FW_SMPS_MODE_STATIC = 1,
+	WILC_FW_SMPS_MODE_DYNAMIC = 2,
+	WILC_FW_SMPS_MODE_MIMO = 3,	/* power save disable */
 };
 
 enum wid_type {

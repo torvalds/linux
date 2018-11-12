@@ -338,7 +338,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	if (!wilc_wlan_cfg_set(vif, 0, WID_PC_TEST_MODE, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = INFRASTRUCTURE;
+	c_val[0] = WILC_FW_BSS_TYPE_INFRA;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_BSS_TYPE, c_val, 1, 0, 0))
 		goto fail;
 
@@ -346,7 +346,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	if (!wilc_wlan_cfg_set(vif, 0, WID_CURRENT_TX_RATE, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = G_MIXED_11B_2_MODE;
+	c_val[0] = WILC_FW_OPER_MODE_G_MIXED_11B_2;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11G_OPERATING_MODE, c_val, 1, 0,
 			       0))
 		goto fail;
@@ -355,19 +355,19 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	if (!wilc_wlan_cfg_set(vif, 0, WID_CURRENT_CHANNEL, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = G_SHORT_PREAMBLE;
+	c_val[0] = WILC_FW_PREAMBLE_SHORT;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_PREAMBLE, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = AUTO_PROT;
+	c_val[0] = WILC_FW_11N_PROT_AUTO;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_PROT_MECH, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = ACTIVE_SCAN;
+	c_val[0] = WILC_FW_ACTIVE_SCAN;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_SCAN_TYPE, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = SITE_SURVEY_OFF;
+	c_val[0] = WILC_FW_SITE_SURVEY_OFF;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_SITE_SURVEY, c_val, 1, 0, 0))
 		goto fail;
 
@@ -387,7 +387,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	if (!wilc_wlan_cfg_set(vif, 0, WID_QOS_ENABLE, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = NO_POWERSAVE;
+	c_val[0] = WILC_FW_NO_POWERSAVE;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_POWER_MANAGEMENT, c_val, 1, 0, 0))
 		goto fail;
 
@@ -395,7 +395,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11I_MODE, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = OPEN_SYSTEM;
+	c_val[0] = WILC_FW_AUTH_OPEN_SYSTEM;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_AUTH_TYPE, c_val, 1, 0, 0))
 		goto fail;
 
@@ -429,7 +429,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	if (!wilc_wlan_cfg_set(vif, 0, WID_DTIM_PERIOD, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = NORMAL_ACK;
+	c_val[0] = WILC_FW_ACK_POLICY_NORMAL;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_ACK_POLICY, c_val, 1, 0, 0))
 		goto fail;
 
@@ -452,7 +452,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	if (!wilc_wlan_cfg_set(vif, 0, WID_BEACON_INTERVAL, c_val, 2, 0, 0))
 		goto fail;
 
-	c_val[0] = REKEY_DISABLE;
+	c_val[0] = WILC_FW_REKEY_POLICY_DISABLE;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_REKEY_POLICY, c_val, 1, 0, 0))
 		goto fail;
 
@@ -470,7 +470,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 			       0))
 		goto fail;
 
-	c_val[0] = G_SELF_CTS_PROT;
+	c_val[0] = WILC_FW_ERP_PROT_SELF_CTS;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_ERP_PROT_TYPE, c_val, 1, 0, 0))
 		goto fail;
 
@@ -478,7 +478,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_ENABLE, c_val, 1, 0, 0))
 		goto fail;
 
-	c_val[0] = HT_MIXED_MODE;
+	c_val[0] = WILC_FW_11N_OP_MODE_HT_MIXED;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_OPERATING_MODE, c_val, 1, 0,
 			       0))
 		goto fail;
@@ -488,12 +488,12 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 			       0))
 		goto fail;
 
-	c_val[0] = DETECT_PROTECT_REPORT;
+	c_val[0] = WILC_FW_OBBS_NONHT_DETECT_PROTECT_REPORT;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_OBSS_NONHT_DETECTION, c_val, 1,
 			       0, 0))
 		goto fail;
 
-	c_val[0] = RTS_CTS_NONHT_PROT;
+	c_val[0] = WILC_FW_HT_PROT_RTS_CTS_NONHT;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_HT_PROT_TYPE, c_val, 1, 0, 0))
 		goto fail;
 
@@ -502,7 +502,7 @@ static int linux_wlan_init_test_config(struct net_device *dev,
 			       0))
 		goto fail;
 
-	c_val[0] = MIMO_MODE;
+	c_val[0] = WILC_FW_SMPS_MODE_MIMO;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_SMPS_MODE, c_val, 1, 0, 0))
 		goto fail;
 
@@ -1070,7 +1070,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	wl->io_type = io_type;
 	wl->hif_func = ops;
 	wl->enable_ps = true;
-	wl->chip_ps_state = CHIP_WAKEDUP;
+	wl->chip_ps_state = WILC_CHIP_WAKEDUP;
 	INIT_LIST_HEAD(&wl->txq_head.list);
 	INIT_LIST_HEAD(&wl->rxq_head.list);
 

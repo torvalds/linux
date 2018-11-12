@@ -120,7 +120,7 @@ static int wilc_bus_probe(struct spi_device *spi)
 			dev_err(&spi->dev, "failed to get the irq gpio\n");
 	}
 
-	ret = wilc_netdev_init(&wilc, NULL, HIF_SPI, &wilc_hif_spi);
+	ret = wilc_netdev_init(&wilc, NULL, WILC_HIF_SPI, &wilc_hif_spi);
 	if (ret) {
 		kfree(spi_priv);
 		return ret;

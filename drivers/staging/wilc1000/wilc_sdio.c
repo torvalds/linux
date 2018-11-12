@@ -144,7 +144,8 @@ static int linux_sdio_probe(struct sdio_func *func,
 	}
 
 	dev_dbg(&func->dev, "Initializing netdev\n");
-	ret = wilc_netdev_init(&wilc, &func->dev, HIF_SDIO, &wilc_hif_sdio);
+	ret = wilc_netdev_init(&wilc, &func->dev, WILC_HIF_SDIO,
+			       &wilc_hif_sdio);
 	if (ret) {
 		dev_err(&func->dev, "Couldn't initialize netdev\n");
 		kfree(sdio_priv);

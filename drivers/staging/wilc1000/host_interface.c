@@ -684,7 +684,7 @@ static void handle_connect(struct work_struct *work)
 		cur_byte[conn_attr->ssid_len] = '\0';
 	}
 	cur_byte += MAX_SSID_LEN;
-	*(cur_byte++) = INFRASTRUCTURE;
+	*(cur_byte++) = WILC_FW_BSS_TYPE_INFRA;
 
 	if (conn_attr->ch >= 1 && conn_attr->ch <= 14) {
 		*(cur_byte++) = conn_attr->ch;
@@ -2321,9 +2321,9 @@ static void handle_power_management(struct work_struct *work)
 	wid.id = WID_POWER_MANAGEMENT;
 
 	if (pm_param->enabled)
-		power_mode = MIN_FAST_PS;
+		power_mode = WILC_FW_MIN_FAST_PS;
 	else
-		power_mode = NO_POWERSAVE;
+		power_mode = WILC_FW_NO_POWERSAVE;
 
 	wid.val = &power_mode;
 	wid.size = sizeof(char);
