@@ -2122,7 +2122,7 @@ static void of_set_phy_eee_broken(struct phy_device *phydev)
 
 static bool phy_drv_supports_irq(struct phy_driver *phydrv)
 {
-	return phydrv->config_intr || phydrv->ack_interrupt;
+	return phydrv->config_intr && phydrv->ack_interrupt;
 }
 
 /**
