@@ -495,22 +495,23 @@ config MIPS_MALTA
 	select BOOT_RAW
 	select BUILTIN_DTB
 	select CEVT_R4K
-	select CSRC_R4K
 	select CLKSRC_MIPS_GIC
 	select COMMON_CLK
+	select CSRC_R4K
 	select DMA_MAYBE_COHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
-	select IRQ_MIPS_CPU
-	select MIPS_GIC
 	select HW_HAS_PCI
 	select I8253
 	select I8259
+	select IRQ_MIPS_CPU
+	select LIBFDT
 	select MIPS_BONITO64
 	select MIPS_CPU_SCACHE
+	select MIPS_GIC
 	select MIPS_L1_CACHE_SHIFT_6
-	select PCI_GT64XXX_PCI0
 	select MIPS_MSC
+	select PCI_GT64XXX_PCI0
 	select SMP_UP if SMP
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
@@ -529,16 +530,15 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MICROMIPS
+	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_MIPS_CMP
 	select SYS_SUPPORTS_MIPS_CPS
-	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_RELOCATABLE
 	select SYS_SUPPORTS_SMARTMIPS
 	select SYS_SUPPORTS_VPE_LOADER
 	select SYS_SUPPORTS_ZBOOT
-	select SYS_SUPPORTS_RELOCATABLE
 	select USE_OF
-	select LIBFDT
 	select ZONE_DMA32 if 64BIT
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
