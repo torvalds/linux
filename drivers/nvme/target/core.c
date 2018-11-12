@@ -1180,31 +1180,17 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	ctrl->cntlid = ret;
 
 	ctrl->ops = req->ops;
-	if (ctrl->subsys->type == NVME_NQN_DISC) {
-		/* Don't accept keep-alive timeout for discovery controllers */
-		if (kato) {
-			status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
-			goto out_remove_ida;
-		}
 
-		/*
-		 * Discovery controllers use some arbitrary high value in order
-		 * to cleanup stale discovery sessions
-		 *
-		 * From the latest base diff RC:
-		 * "The Keep Alive command is not supported by
-		 * Discovery controllers. A transport may specify a
-		 * fixed Discovery controller activity timeout value
-		 * (e.g., 2 minutes).  If no commands are received
-		 * by a Discovery controller within that time
-		 * period, the controller may perform the
-		 * actions for Keep Alive Timer expiration".
-		 */
-		ctrl->kato = NVMET_DISC_KATO;
-	} else {
-		/* keep-alive timeout in seconds */
-		ctrl->kato = DIV_ROUND_UP(kato, 1000);
-	}
+	/*
+	 * Discovery controllers may use some arbitrary high value
+	 * in order to cleanup stale discovery sessions
+	 */
+	if ((ctrl->subsys->type == NVME_NQN_DISC) && !kato)
+		kato = NVMET_DISC_KATO_MS;
+
+	/* keep-alive timeout in seconds */
+	ctrl->kato = DIV_ROUND_UP(kato, 1000);
+
 	nvmet_start_keep_alive_timer(ctrl);
 
 	mutex_lock(&subsys->lock);
@@ -1215,8 +1201,6 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	*ctrlp = ctrl;
 	return 0;
 
-out_remove_ida:
-	ida_simple_remove(&cntlid_ida, ctrl->cntlid);
 out_free_sqs:
 	kfree(ctrl->sqs);
 out_free_cqs:

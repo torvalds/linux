@@ -372,6 +372,8 @@ void nvmet_req_complete(struct nvmet_req *req, u16 status);
 int nvmet_req_alloc_sgl(struct nvmet_req *req);
 void nvmet_req_free_sgl(struct nvmet_req *req);
 
+void nvmet_execute_keep_alive(struct nvmet_req *req);
+
 void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq, u16 qid,
 		u16 size);
 void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, u16 qid,
@@ -442,7 +444,7 @@ u32 nvmet_get_log_page_len(struct nvme_command *cmd);
 #define NVMET_DEFAULT_ANA_GRPID	1
 
 #define NVMET_KAS		10
-#define NVMET_DISC_KATO		120
+#define NVMET_DISC_KATO_MS		120000
 
 int __init nvmet_init_configfs(void);
 void __exit nvmet_exit_configfs(void);

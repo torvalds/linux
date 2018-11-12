@@ -726,7 +726,7 @@ static void nvmet_execute_async_event(struct nvmet_req *req)
 	schedule_work(&ctrl->async_event_work);
 }
 
-static void nvmet_execute_keep_alive(struct nvmet_req *req)
+void nvmet_execute_keep_alive(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 

@@ -194,6 +194,10 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 	}
 
 	switch (cmd->common.opcode) {
+	case nvme_admin_keep_alive:
+		req->execute = nvmet_execute_keep_alive;
+		req->data_len = 0;
+		return 0;
 	case nvme_admin_get_log_page:
 		req->data_len = nvmet_get_log_page_len(cmd);
 
