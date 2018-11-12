@@ -61,6 +61,11 @@ struct aq_nic_cfg_s {
 #define AQ_NIC_TCVEC2RING(_NIC_, _TC_, _VEC_) \
 	((_TC_) * AQ_CFG_TCS_MAX + (_VEC_))
 
+struct aq_hw_rx_fltrs_s {
+	struct hlist_head     filter_list;
+	u16                   active_filters;
+};
+
 struct aq_nic_s {
 	atomic_t flags;
 	struct aq_vec_s *aq_vec[AQ_CFG_VECS_MAX];
@@ -85,6 +90,7 @@ struct aq_nic_s {
 	struct pci_dev *pdev;
 	unsigned int msix_entry_mask;
 	u32 irqvecs;
+	struct aq_hw_rx_fltrs_s aq_hw_rx_fltrs;
 };
 
 static inline struct device *aq_nic_get_dev(struct aq_nic_s *self)

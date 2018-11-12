@@ -13,6 +13,7 @@
 #include "aq_nic.h"
 #include "aq_pci_func.h"
 #include "aq_ethtool.h"
+#include "aq_filters.h"
 
 #include <linux/netdevice.h>
 #include <linux/module.h>
@@ -49,6 +50,11 @@ static int aq_ndev_open(struct net_device *ndev)
 	err = aq_nic_init(aq_nic);
 	if (err < 0)
 		goto err_exit;
+
+	err = aq_reapply_rxnfc_all_rules(aq_nic);
+	if (err < 0)
+		goto err_exit;
+
 	err = aq_nic_start(aq_nic);
 	if (err < 0)
 		goto err_exit;
@@ -101,6 +107,14 @@ static int aq_ndev_set_features(struct net_device *ndev,
 	bool is_lro = false;
 	int err = 0;
 
+	if (!(features & NETIF_F_NTUPLE)) {
+		if (aq_nic->ndev->features & NETIF_F_NTUPLE) {
+			err = aq_clear_rxnfc_all_rules(aq_nic);
+			if (unlikely(err))
+				goto err_exit;
+		}
+	}
+
 	aq_cfg->features = features;
 
 	if (aq_cfg->aq_hw_caps->hw_features & NETIF_F_LRO) {
@@ -119,6 +133,7 @@ static int aq_ndev_set_features(struct net_device *ndev,
 		err = aq_nic->aq_hw_ops->hw_set_offload(aq_nic->aq_hw,
 							aq_cfg);
 
+err_exit:
 	return err;
 }
 

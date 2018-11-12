@@ -12,6 +12,7 @@
 #include "aq_ethtool.h"
 #include "aq_nic.h"
 #include "aq_vec.h"
+#include "aq_filters.h"
 
 static void aq_ethtool_get_regs(struct net_device *ndev,
 				struct ethtool_regs *regs, void *p)
@@ -213,7 +214,36 @@ static int aq_ethtool_get_rxnfc(struct net_device *ndev,
 	case ETHTOOL_GRXRINGS:
 		cmd->data = cfg->vecs;
 		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = aq_get_rxnfc_count_all_rules(aq_nic);
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		err = aq_get_rxnfc_rule(aq_nic, cmd);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		err = aq_get_rxnfc_all_rules(aq_nic, cmd, rule_locs);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
 
+	return err;
+}
+
+static int aq_ethtool_set_rxnfc(struct net_device *ndev,
+				struct ethtool_rxnfc *cmd)
+{
+	int err = 0;
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		err = aq_add_rxnfc_rule(aq_nic, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		err = aq_del_rxnfc_rule(aq_nic, cmd);
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
@@ -520,6 +550,7 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.get_rxfh_key_size   = aq_ethtool_get_rss_key_size,
 	.get_rxfh            = aq_ethtool_get_rss,
 	.get_rxnfc           = aq_ethtool_get_rxnfc,
+	.set_rxnfc           = aq_ethtool_set_rxnfc,
 	.get_sset_count      = aq_ethtool_get_sset_count,
 	.get_ethtool_stats   = aq_ethtool_stats,
 	.get_link_ksettings  = aq_ethtool_get_link_ksettings,

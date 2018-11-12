@@ -41,7 +41,8 @@
 			NETIF_F_RXHASH |  \
 			NETIF_F_SG |      \
 			NETIF_F_TSO |     \
-			NETIF_F_LRO,      \
+			NETIF_F_LRO |     \
+			NETIF_F_NTUPLE,   \
 	.hw_priv_flags = IFF_UNICAST_FLT, \
 	.flow_control = true,		  \
 	.mtu = HW_ATL_B0_MTU_JUMBO,	  \
