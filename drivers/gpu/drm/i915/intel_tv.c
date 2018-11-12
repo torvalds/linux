@@ -782,6 +782,84 @@ static const struct tv_mode tv_modes[] = {
 
 		.filter_table = filter_table,
 	},
+
+	{
+		.name       = "1080p@30Hz",
+		.clock		= 148500,
+		.refresh	= 30000,
+		.oversample     = 2,
+		.component_only = true,
+
+		.hsync_end      = 88,               .hblank_end         = 235,
+		.hblank_start   = 2155,             .htotal             = 2199,
+
+		.progressive	= true,		    .trilevel_sync = true,
+
+		.vsync_start_f1 = 8,               .vsync_start_f2     = 8,
+		.vsync_len      = 10,
+
+		.veq_ena	= false,	.veq_start_f1	= 0,
+		.veq_start_f2	= 0,		    .veq_len		= 0,
+
+		.vi_end_f1      = 44,               .vi_end_f2          = 44,
+		.nbr_end        = 1079,
+
+		.burst_ena      = false,
+
+		.filter_table = filter_table,
+	},
+
+	{
+		.name       = "1080p@50Hz",
+		.clock		= 148500,
+		.refresh	= 50000,
+		.oversample     = 1,
+		.component_only = true,
+
+		.hsync_end      = 88,               .hblank_end         = 235,
+		.hblank_start   = 2155,             .htotal             = 2639,
+
+		.progressive	= true,		    .trilevel_sync = true,
+
+		.vsync_start_f1 = 8,               .vsync_start_f2     = 8,
+		.vsync_len      = 10,
+
+		.veq_ena	= false,	.veq_start_f1	= 0,
+		.veq_start_f2	= 0,		    .veq_len		= 0,
+
+		.vi_end_f1      = 44,               .vi_end_f2          = 44,
+		.nbr_end        = 1079,
+
+		.burst_ena      = false,
+
+		.filter_table = filter_table,
+	},
+
+	{
+		.name       = "1080p@60Hz",
+		.clock		= 148500,
+		.refresh	= 60000,
+		.oversample     = 1,
+		.component_only = true,
+
+		.hsync_end      = 88,               .hblank_end         = 235,
+		.hblank_start   = 2155,             .htotal             = 2199,
+
+		.progressive	= true,		    .trilevel_sync = true,
+
+		.vsync_start_f1 = 8,               .vsync_start_f2     = 8,
+		.vsync_len      = 10,
+
+		.veq_ena	= false,		    .veq_start_f1	= 0,
+		.veq_start_f2	= 0,		    .veq_len		= 0,
+
+		.vi_end_f1      = 44,               .vi_end_f2          = 44,
+		.nbr_end        = 1079,
+
+		.burst_ena      = false,
+
+		.filter_table = filter_table,
+	},
 };
 
 static struct intel_tv *enc_to_tv(struct intel_encoder *encoder)
@@ -1537,11 +1615,15 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	connector->doublescan_allowed = false;
 
 	/* Create TV properties then attach current values */
-	for (i = 0; i < ARRAY_SIZE(tv_modes); i++)
+	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
+		/* 1080p50/1080p60 not supported on gen3 */
+		if (IS_GEN(dev_priv, 3) &&
+		    tv_modes[i].oversample == 1)
+			break;
+
 		tv_format_names[i] = tv_modes[i].name;
-	drm_mode_create_tv_properties(dev,
-				      ARRAY_SIZE(tv_modes),
-				      tv_format_names);
+	}
+	drm_mode_create_tv_properties(dev, i, tv_format_names);
 
 	drm_object_attach_property(&connector->base, dev->mode_config.tv_mode_property,
 				   state->tv.mode);
