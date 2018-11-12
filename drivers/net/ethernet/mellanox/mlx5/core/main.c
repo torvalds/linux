@@ -1361,6 +1361,7 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 	mlx5_core_info(dev, "%s was called\n", __func__);
 
 	mlx5_enter_error_state(dev, false);
+	mlx5_error_sw_reset(dev);
 	mlx5_unload_one(dev, false);
 	/* In case of kernel call drain the health wq */
 	if (state) {

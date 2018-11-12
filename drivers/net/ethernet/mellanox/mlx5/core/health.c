@@ -40,6 +40,7 @@
 #include "mlx5_core.h"
 #include "lib/eq.h"
 #include "lib/mlx5.h"
+#include "lib/pci_vsc.h"
 
 enum {
 	MLX5_HEALTH_POLL_INTERVAL	= 2 * HZ,
@@ -67,8 +68,10 @@ enum {
 enum  {
 	MLX5_SENSOR_NO_ERR		= 0,
 	MLX5_SENSOR_PCI_COMM_ERR	= 1,
-	MLX5_SENSOR_NIC_DISABLED	= 2,
-	MLX5_SENSOR_NIC_SW_RESET	= 3,
+	MLX5_SENSOR_PCI_ERR		= 2,
+	MLX5_SENSOR_NIC_DISABLED	= 3,
+	MLX5_SENSOR_NIC_SW_RESET	= 4,
+	MLX5_SENSOR_FW_SYND_RFR		= 5,
 };
 
 u8 mlx5_get_nic_state(struct mlx5_core_dev *dev)
@@ -95,16 +98,96 @@ static bool sensor_pci_not_working(struct mlx5_core_dev *dev)
 	return (ioread32be(&h->fw_ver) == 0xffffffff);
 }
 
+static bool sensor_fw_synd_rfr(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+	struct health_buffer __iomem *h = health->health;
+	u32 rfr = ioread32be(&h->rfr) >> MLX5_RFR_OFFSET;
+	u8 synd = ioread8(&h->synd);
+
+	if (rfr && synd)
+		mlx5_core_dbg(dev, "FW requests reset, synd: %d\n", synd);
+	return rfr && synd;
+}
+
 static u32 check_fatal_sensors(struct mlx5_core_dev *dev)
 {
 	if (sensor_pci_not_working(dev))
 		return MLX5_SENSOR_PCI_COMM_ERR;
+	if (pci_channel_offline(dev->pdev))
+		return MLX5_SENSOR_PCI_ERR;
 	if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
 		return MLX5_SENSOR_NIC_DISABLED;
 	if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_SW_RESET)
 		return MLX5_SENSOR_NIC_SW_RESET;
+	if (sensor_fw_synd_rfr(dev))
+		return MLX5_SENSOR_FW_SYND_RFR;
 
 	return MLX5_SENSOR_NO_ERR;
+}
+
+static int lock_sem_sw_reset(struct mlx5_core_dev *dev, bool lock)
+{
+	enum mlx5_vsc_state state;
+	int ret;
+
+	if (!mlx5_core_is_pf(dev))
+		return -EBUSY;
+
+	/* Try to lock GW access, this stage doesn't return
+	 * EBUSY because locked GW does not mean that other PF
+	 * already started the reset.
+	 */
+	ret = mlx5_vsc_gw_lock(dev);
+	if (ret == -EBUSY)
+		return -EINVAL;
+	if (ret)
+		return ret;
+
+	state = lock ? MLX5_VSC_LOCK : MLX5_VSC_UNLOCK;
+	/* At this stage, if the return status == EBUSY, then we know
+	 * for sure that another PF started the reset, so don't allow
+	 * another reset.
+	 */
+	ret = mlx5_vsc_sem_set_space(dev, MLX5_SEMAPHORE_SW_RESET, state);
+	if (ret)
+		mlx5_core_warn(dev, "Failed to lock SW reset semaphore\n");
+
+	/* Unlock GW access */
+	mlx5_vsc_gw_unlock(dev);
+
+	return ret;
+}
+
+static bool reset_fw_if_needed(struct mlx5_core_dev *dev)
+{
+	bool supported = (ioread32be(&dev->iseg->initializing) >>
+			  MLX5_FW_RESET_SUPPORTED_OFFSET) & 1;
+	u32 fatal_error;
+
+	if (!supported)
+		return false;
+
+	/* The reset only needs to be issued by one PF. The health buffer is
+	 * shared between all functions, and will be cleared during a reset.
+	 * Check again to avoid a redundant 2nd reset. If the fatal erros was
+	 * PCI related a reset won't help.
+	 */
+	fatal_error = check_fatal_sensors(dev);
+	if (fatal_error == MLX5_SENSOR_PCI_COMM_ERR ||
+	    fatal_error == MLX5_SENSOR_NIC_DISABLED ||
+	    fatal_error == MLX5_SENSOR_NIC_SW_RESET) {
+		mlx5_core_warn(dev, "Not issuing FW reset. Either it's already done or won't help.");
+		return false;
+	}
+
+	mlx5_core_warn(dev, "Issuing FW Reset\n");
+	/* Write the NIC interface field to initiate the reset, the command
+	 * interface address also resides here, don't overwrite it.
+	 */
+	mlx5_set_nic_state(dev, MLX5_NIC_IFC_SW_RESET);
+
+	return true;
 }
 
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
@@ -112,15 +195,65 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	mutex_lock(&dev->intf_state_mutex);
 	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
 		goto unlock;
+	if (dev->state == MLX5_DEVICE_STATE_UNINITIALIZED) {
+		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
+		goto unlock;
+	}
 
-	mlx5_core_err(dev, "start\n");
-	if (pci_channel_offline(dev->pdev) ||
-	    dev->priv.health.fatal_error != MLX5_SENSOR_NO_ERR || force) {
+	if (check_fatal_sensors(dev) || force) {
 		dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
 		mlx5_cmd_flush(dev);
 	}
 
 	mlx5_notifier_call_chain(dev->priv.events, MLX5_DEV_EVENT_SYS_ERROR, (void *)1);
+unlock:
+	mutex_unlock(&dev->intf_state_mutex);
+}
+
+#define MLX5_CRDUMP_WAIT_MS	60000
+#define MLX5_FW_RESET_WAIT_MS	1000
+void mlx5_error_sw_reset(struct mlx5_core_dev *dev)
+{
+	unsigned long end, delay_ms = MLX5_FW_RESET_WAIT_MS;
+	int lock = -EBUSY;
+
+	mutex_lock(&dev->intf_state_mutex);
+	if (dev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR)
+		goto unlock;
+
+	mlx5_core_err(dev, "start\n");
+
+	if (check_fatal_sensors(dev) == MLX5_SENSOR_FW_SYND_RFR) {
+		/* Get cr-dump and reset FW semaphore */
+		lock = lock_sem_sw_reset(dev, true);
+
+		if (lock == -EBUSY) {
+			delay_ms = MLX5_CRDUMP_WAIT_MS;
+			goto recover_from_sw_reset;
+		}
+		/* Execute SW reset */
+		reset_fw_if_needed(dev);
+	}
+
+recover_from_sw_reset:
+	/* Recover from SW reset */
+	end = jiffies + msecs_to_jiffies(delay_ms);
+	do {
+		if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
+			break;
+
+		cond_resched();
+	} while (!time_after(jiffies, end));
+
+	if (mlx5_get_nic_state(dev) != MLX5_NIC_IFC_DISABLED) {
+		dev_err(&dev->pdev->dev, "NIC IFC still %d after %lums.\n",
+			mlx5_get_nic_state(dev), delay_ms);
+	}
+
+	/* Release FW semaphore if you are the lock owner */
+	if (!lock)
+		lock_sem_sw_reset(dev, false);
+
 	mlx5_core_err(dev, "end\n");
 
 unlock:
@@ -143,6 +276,20 @@ static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 	case MLX5_NIC_IFC_NO_DRAM_NIC:
 		mlx5_core_warn(dev, "Expected to see disabled NIC but it is no dram nic\n");
 		break;
+
+	case MLX5_NIC_IFC_SW_RESET:
+		/* The IFC mode field is 3 bits, so it will read 0x7 in 2 cases:
+		 * 1. PCI has been disabled (ie. PCI-AER, PF driver unloaded
+		 *    and this is a VF), this is not recoverable by SW reset.
+		 *    Logging of this is handled elsewhere.
+		 * 2. FW reset has been issued by another function, driver can
+		 *    be reloaded to recover after the mode switches to
+		 *    MLX5_NIC_IFC_DISABLED.
+		 */
+		if (dev->priv.health.fatal_error != MLX5_SENSOR_PCI_COMM_ERR)
+			mlx5_core_warn(dev, "NIC SW reset in progress\n");
+		break;
+
 	default:
 		mlx5_core_warn(dev, "Expected to see disabled NIC but it is has invalid value %d\n",
 			       nic_interface);

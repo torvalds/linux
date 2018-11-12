@@ -51,14 +51,23 @@ int mlx5_crdump_collect(struct mlx5_core_dev *dev, u32 *cr_data)
 			       ret);
 		return ret;
 	}
+	/* Verify no other PF is running cr-dump or sw reset */
+	ret = mlx5_vsc_sem_set_space(dev, MLX5_SEMAPHORE_SW_RESET,
+				     MLX5_VSC_LOCK);
+	if (ret) {
+		mlx5_core_warn(dev, "Failed to lock SW reset semaphore\n");
+		goto unlock_gw;
+	}
 
 	ret = mlx5_vsc_gw_set_space(dev, MLX5_VSC_SPACE_SCAN_CRSPACE, NULL);
 	if (ret)
-		goto unlock;
+		goto unlock_sem;
 
 	ret = mlx5_crdump_fill(dev, cr_data);
 
-unlock:
+unlock_sem:
+	mlx5_vsc_sem_set_space(dev, MLX5_SEMAPHORE_SW_RESET, MLX5_VSC_UNLOCK);
+unlock_gw:
 	mlx5_vsc_gw_unlock(dev);
 	return ret;
 }
