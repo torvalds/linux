@@ -5550,23 +5550,34 @@ ADD_UVERBS_ATTRIBUTES_SIMPLE(
 	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_CREATE_FLOW_ACTION_FLAGS,
 			     enum mlx5_ib_uapi_flow_action_flags));
 
+static const struct uapi_definition mlx5_ib_defs[] = {
+#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
+	UAPI_DEF_CHAIN(mlx5_ib_flow_defs),
+#endif
+
+	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_FLOW_ACTION,
+				&mlx5_ib_flow_action),
+	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_DM, &mlx5_ib_dm),
+	{}
+};
+
 static int populate_specs_root(struct mlx5_ib_dev *dev)
 {
-	const struct uverbs_object_tree_def **trees = dev->driver_trees;
-	size_t num_trees = 0;
+	struct uapi_definition *defs = dev->driver_defs;
 
-	trees[num_trees++] = &mlx5_ib_flow_action;
-	trees[num_trees++] = &mlx5_ib_dm;
-
+#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 	if (MLX5_CAP_GEN_64(dev->mdev, general_obj_types) &
 	    MLX5_GENERAL_OBJ_TYPES_CAP_UCTX)
-		trees[num_trees++] = mlx5_ib_get_devx_tree();
+		*defs++ = (struct uapi_definition)UAPI_DEF_CHAIN(
+			mlx5_ib_devx_defs);
+#endif
 
-	num_trees += mlx5_ib_get_flow_trees(trees + num_trees);
+	*defs++ = (struct uapi_definition)UAPI_DEF_CHAIN(mlx5_ib_defs);
+	*defs++ = (struct uapi_definition){};
+	WARN_ON(defs - dev->driver_defs >= ARRAY_SIZE(dev->driver_defs));
 
-	WARN_ON(num_trees >= ARRAY_SIZE(dev->driver_trees));
-	trees[num_trees] = NULL;
-	dev->ib_dev.driver_specs = trees;
+	if (IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS))
+		dev->ib_dev.driver_def = dev->driver_defs;
 
 	return 0;
 }

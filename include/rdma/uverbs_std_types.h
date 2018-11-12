@@ -37,15 +37,6 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/ib_user_ioctl_verbs.h>
 
-#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
-const struct uverbs_object_tree_def *uverbs_default_get_objects(void);
-#else
-static inline const struct uverbs_object_tree_def *uverbs_default_get_objects(void)
-{
-	return NULL;
-}
-#endif
-
 /* Returns _id, or causes a compile error if _id is not a u32.
  *
  * The uobj APIs should only be used with the write based uAPI to access

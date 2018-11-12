@@ -98,72 +98,96 @@ static int uapi_merge_method(struct uverbs_api *uapi,
 	return 0;
 }
 
-static int uapi_merge_tree(struct uverbs_api *uapi,
-			   const struct uverbs_object_tree_def *tree,
-			   bool is_driver)
+static int uapi_merge_obj_tree(struct uverbs_api *uapi,
+			       const struct uverbs_object_def *obj,
+			       bool is_driver)
 {
-	unsigned int i, j;
+	struct uverbs_api_object *obj_elm;
+	unsigned int i;
+	u32 obj_key;
 	int rc;
 
-	if (!tree->objects)
-		return 0;
+	obj_key = uapi_key_obj(obj->id);
+	obj_elm = uapi_add_elm(uapi, obj_key, sizeof(*obj_elm));
+	if (IS_ERR(obj_elm)) {
+		if (obj_elm != ERR_PTR(-EEXIST))
+			return PTR_ERR(obj_elm);
 
-	for (i = 0; i != tree->num_objects; i++) {
-		const struct uverbs_object_def *obj = (*tree->objects)[i];
-		struct uverbs_api_object *obj_elm;
-		u32 obj_key;
-
-		if (!obj)
-			continue;
-
-		obj_key = uapi_key_obj(obj->id);
-		obj_elm = uapi_add_elm(uapi, obj_key, sizeof(*obj_elm));
-		if (IS_ERR(obj_elm)) {
-			if (obj_elm != ERR_PTR(-EEXIST))
-				return PTR_ERR(obj_elm);
-
-			/* This occurs when a driver uses ADD_UVERBS_METHODS */
-			if (WARN_ON(obj->type_attrs))
+		/* This occurs when a driver uses ADD_UVERBS_METHODS */
+		if (WARN_ON(obj->type_attrs))
+			return -EINVAL;
+		obj_elm = radix_tree_lookup(&uapi->radix, obj_key);
+		if (WARN_ON(!obj_elm))
+			return -EINVAL;
+	} else {
+		obj_elm->type_attrs = obj->type_attrs;
+		if (obj->type_attrs) {
+			obj_elm->type_class = obj->type_attrs->type_class;
+			/*
+			 * Today drivers are only permitted to use idr_class
+			 * types. They cannot use FD types because we
+			 * currently have no way to revoke the fops pointer
+			 * after device disassociation.
+			 */
+			if (WARN_ON(is_driver && obj->type_attrs->type_class !=
+							 &uverbs_idr_class))
 				return -EINVAL;
-			obj_elm = radix_tree_lookup(&uapi->radix, obj_key);
-			if (WARN_ON(!obj_elm))
-				return -EINVAL;
-		} else {
-			obj_elm->type_attrs = obj->type_attrs;
-			if (obj->type_attrs) {
-				obj_elm->type_class =
-					obj->type_attrs->type_class;
-				/*
-				 * Today drivers are only permitted to use
-				 * idr_class types. They cannot use FD types
-				 * because we currently have no way to revoke
-				 * the fops pointer after device
-				 * disassociation.
-				 */
-				if (WARN_ON(is_driver &&
-					    obj->type_attrs->type_class !=
-						    &uverbs_idr_class))
-					return -EINVAL;
-			}
-		}
-
-		if (!obj->methods)
-			continue;
-
-		for (j = 0; j != obj->num_methods; j++) {
-			const struct uverbs_method_def *method =
-				(*obj->methods)[j];
-			if (!method)
-				continue;
-
-			rc = uapi_merge_method(uapi, obj_elm, obj_key, method,
-					       is_driver);
-			if (rc)
-				return rc;
 		}
 	}
 
+	if (!obj->methods)
+		return 0;
+
+	for (i = 0; i != obj->num_methods; i++) {
+		const struct uverbs_method_def *method = (*obj->methods)[i];
+
+		if (!method)
+			continue;
+
+		rc = uapi_merge_method(uapi, obj_elm, obj_key, method,
+				       is_driver);
+		if (rc)
+			return rc;
+	}
+
 	return 0;
+}
+
+static int uapi_merge_def(struct uverbs_api *uapi,
+			  const struct uapi_definition *def_list,
+			  bool is_driver)
+{
+	const struct uapi_definition *def = def_list;
+	int rc;
+
+	if (!def_list)
+		return 0;
+
+	for (;; def++) {
+		switch ((enum uapi_definition_kind)def->kind) {
+		case UAPI_DEF_CHAIN:
+			rc = uapi_merge_def(uapi, def->chain, is_driver);
+			if (rc)
+				return rc;
+			continue;
+
+		case UAPI_DEF_CHAIN_OBJ_TREE:
+			if (WARN_ON(def->object_start.object_id !=
+				    def->chain_obj_tree->id))
+				return -EINVAL;
+
+			rc = uapi_merge_obj_tree(uapi, def->chain_obj_tree,
+						 is_driver);
+			if (rc)
+				return rc;
+			continue;
+
+		case UAPI_DEF_END:
+			return 0;
+		}
+		WARN_ON(true);
+		return -EINVAL;
+	}
 }
 
 static int
@@ -263,9 +287,13 @@ void uverbs_destroy_api(struct uverbs_api *uapi)
 	kfree(uapi);
 }
 
-struct uverbs_api *uverbs_alloc_api(
-	const struct uverbs_object_tree_def *const *driver_specs,
-	enum rdma_driver_id driver_id)
+static const struct uapi_definition uverbs_core_api[] = {
+	UAPI_DEF_CHAIN(uverbs_def_obj_intf),
+	{},
+};
+
+struct uverbs_api *uverbs_alloc_api(const struct uapi_definition *driver_def,
+				    enum rdma_driver_id driver_id)
 {
 	struct uverbs_api *uapi;
 	int rc;
@@ -277,15 +305,12 @@ struct uverbs_api *uverbs_alloc_api(
 	INIT_RADIX_TREE(&uapi->radix, GFP_KERNEL);
 	uapi->driver_id = driver_id;
 
-	rc = uapi_merge_tree(uapi, uverbs_default_get_objects(), false);
+	rc = uapi_merge_def(uapi, uverbs_core_api, false);
 	if (rc)
 		goto err;
-
-	for (; driver_specs && *driver_specs; driver_specs++) {
-		rc = uapi_merge_tree(uapi, *driver_specs, true);
-		if (rc)
-			goto err;
-	}
+	rc = uapi_merge_def(uapi, driver_def, true);
+	if (rc)
+		goto err;
 
 	rc = uapi_finalize(uapi);
 	if (rc)

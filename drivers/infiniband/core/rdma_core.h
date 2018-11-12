@@ -152,14 +152,15 @@ uapi_get_object(struct uverbs_api *uapi, u16 object_id)
 }
 
 char *uapi_key_format(char *S, unsigned int key);
-struct uverbs_api *uverbs_alloc_api(
-	const struct uverbs_object_tree_def *const *driver_specs,
-	enum rdma_driver_id driver_id);
+struct uverbs_api *uverbs_alloc_api(const struct uapi_definition *driver_def,
+				    enum rdma_driver_id driver_id);
 void uverbs_disassociate_api_pre(struct ib_uverbs_device *uverbs_dev);
 void uverbs_disassociate_api(struct uverbs_api *uapi);
 void uverbs_destroy_api(struct uverbs_api *uapi);
 void uapi_compute_bundle_size(struct uverbs_api_ioctl_method *method_elm,
 			      unsigned int num_attrs);
 void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile);
+
+extern const struct uapi_definition uverbs_def_obj_intf[];
 
 #endif /* RDMA_CORE_H */

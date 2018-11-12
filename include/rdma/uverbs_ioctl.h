@@ -296,10 +296,42 @@ struct uverbs_object_def {
 	const struct uverbs_method_def * const (*methods)[];
 };
 
-struct uverbs_object_tree_def {
-	size_t					 num_objects;
-	const struct uverbs_object_def * const (*objects)[];
+enum uapi_definition_kind {
+	UAPI_DEF_END = 0,
+	UAPI_DEF_CHAIN_OBJ_TREE,
+	UAPI_DEF_CHAIN,
 };
+
+struct uapi_definition {
+	u8 kind;
+	union {
+		struct {
+			u16 object_id;
+		} object_start;
+	};
+
+	union {
+		const struct uapi_definition *chain;
+		const struct uverbs_object_def *chain_obj_tree;
+	};
+};
+
+/* Include another struct uapi_definition in this one */
+#define UAPI_DEF_CHAIN(_def_var)                                               \
+	{                                                                      \
+		.kind = UAPI_DEF_CHAIN, .chain = _def_var,                     \
+	}
+
+/* Temporary until the tree base description is replaced */
+#define UAPI_DEF_CHAIN_OBJ_TREE(_object_enum, _object_ptr)                     \
+	{                                                                      \
+		.kind = UAPI_DEF_CHAIN_OBJ_TREE,                               \
+		.object_start = { .object_id = _object_enum },                 \
+		.chain_obj_tree = _object_ptr,                                 \
+	}
+#define UAPI_DEF_CHAIN_OBJ_TREE_NAMED(_object_enum, ...)                       \
+	UAPI_DEF_CHAIN_OBJ_TREE(_object_enum, &UVERBS_OBJECT(_object_enum)),   \
+		##__VA_ARGS__
 
 /*
  * =======================================
@@ -437,21 +469,6 @@ struct uverbs_object_tree_def {
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_UHW_OUT,                               \
 			    UVERBS_ATTR_MIN_SIZE(0),			       \
 			    UA_OPTIONAL)
-
-/*
- * =======================================
- *	Declaration helpers
- * =======================================
- */
-
-#define DECLARE_UVERBS_OBJECT_TREE(_name, ...)                                 \
-	static const struct uverbs_object_def *const _name##_ptr[] = {         \
-		__VA_ARGS__,                                                   \
-	};                                                                     \
-	static const struct uverbs_object_tree_def _name = {                   \
-		.num_objects = ARRAY_SIZE(_name##_ptr),                        \
-		.objects = &_name##_ptr,                                       \
-	}
 
 /* =================================================
  *              Parsing infrastructure

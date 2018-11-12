@@ -891,7 +891,7 @@ struct mlx5_ib_pf_eq {
 
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
-	const struct uverbs_object_tree_def *driver_trees[7];
+	struct uapi_definition		driver_defs[7];
 	struct mlx5_core_dev		*mdev;
 	struct mlx5_roce		roce[MLX5_MAX_PORTS];
 	int				num_ports;
@@ -1264,28 +1264,22 @@ void mlx5_ib_put_native_port_mdev(struct mlx5_ib_dev *dev,
 int mlx5_ib_devx_create(struct mlx5_ib_dev *dev);
 void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid);
 const struct uverbs_object_tree_def *mlx5_ib_get_devx_tree(void);
+extern const struct uapi_definition mlx5_ib_devx_defs[];
+extern const struct uapi_definition mlx5_ib_flow_defs[];
 struct mlx5_ib_flow_handler *mlx5_ib_raw_fs_rule_add(
 	struct mlx5_ib_dev *dev, struct mlx5_ib_flow_matcher *fs_matcher,
 	struct mlx5_flow_act *flow_act, void *cmd_in, int inlen,
 	int dest_id, int dest_type);
 bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type);
-int mlx5_ib_get_flow_trees(const struct uverbs_object_tree_def **root);
 void mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction);
 #else
 static inline int
 mlx5_ib_devx_create(struct mlx5_ib_dev *dev) { return -EOPNOTSUPP; };
 static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev, u16 uid) {}
-static inline const struct uverbs_object_tree_def *
-mlx5_ib_get_devx_tree(void) { return NULL; }
 static inline bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id,
 					     int *dest_type)
 {
 	return false;
-}
-static inline int
-mlx5_ib_get_flow_trees(const struct uverbs_object_tree_def **root)
-{
-	return 0;
 }
 static inline void
 mlx5_ib_destroy_flow_action_raw(struct mlx5_ib_flow_action *maction)
