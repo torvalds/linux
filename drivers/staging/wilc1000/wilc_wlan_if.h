@@ -41,8 +41,6 @@ struct tx_complete_data {
 
 typedef void (*wilc_tx_complete_func_t)(void *, int);
 
-#define WILC_TX_ERR_NO_BUF	(-2)
-
 /********************************************
  *
  *      Wlan Configuration ID

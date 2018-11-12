@@ -611,7 +611,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 		goto out_release_bus;
 
 	if (entries == 0) {
-		ret = WILC_TX_ERR_NO_BUF;
+		ret = -ENOBUFS;
 		goto out_release_bus;
 	}
 

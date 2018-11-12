@@ -242,7 +242,7 @@ static int linux_wlan_txq_task(void *vp)
 				if (netif_queue_stopped(wl->vif[1]->ndev))
 					netif_wake_queue(wl->vif[1]->ndev);
 			}
-		} while (ret == WILC_TX_ERR_NO_BUF && !wl->close);
+		} while (ret == -ENOBUFS && !wl->close);
 	}
 	return 0;
 }
