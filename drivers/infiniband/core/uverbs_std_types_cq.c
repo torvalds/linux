@@ -207,3 +207,9 @@ DECLARE_UVERBS_NAMED_OBJECT(
 	&UVERBS_METHOD(UVERBS_METHOD_CQ_DESTROY)
 #endif
 );
+
+const struct uapi_definition uverbs_def_obj_cq[] = {
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_CQ,
+				      UAPI_DEF_OBJ_NEEDS_FN(destroy_cq)),
+	{}
+};
