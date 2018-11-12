@@ -572,7 +572,8 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	sdev->bar[HDA_DSP_BAR] = pci_ioremap_bar(pci, HDA_DSP_BAR);
 	if (!sdev->bar[HDA_DSP_BAR]) {
 		dev_err(&pci->dev, "error: ioremap error\n");
-		return -ENXIO;
+		ret = -ENXIO;
+		goto hdac_bus_unmap;
 	}
 
 	sdev->mmio_bar = HDA_DSP_BAR;
