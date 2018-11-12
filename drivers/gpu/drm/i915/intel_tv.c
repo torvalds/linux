@@ -859,6 +859,14 @@ intel_tv_mode_valid(struct drm_connector *connector,
 	return MODE_CLOCK_RANGE;
 }
 
+static int
+intel_tv_mode_vdisplay(const struct tv_mode *tv_mode)
+{
+	if (tv_mode->progressive)
+		return tv_mode->nbr_end + 1;
+	else
+		return 2 * (tv_mode->nbr_end + 1);
+}
 
 static void
 intel_tv_get_config(struct intel_encoder *encoder,
@@ -1097,10 +1105,7 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 	/* Filter ctl must be set before TV_WIN_SIZE */
 	I915_WRITE(TV_FILTER_CTL_1, TV_AUTO_SCALE);
 	xsize = tv_mode->hblank_start - tv_mode->hblank_end;
-	if (tv_mode->progressive)
-		ysize = tv_mode->nbr_end + 1;
-	else
-		ysize = 2 * (tv_mode->nbr_end + 1);
+	ysize = intel_tv_mode_vdisplay(tv_mode);
 
 	xpos = conn_state->tv.margins.left;
 	ypos = conn_state->tv.margins.top;
@@ -1319,22 +1324,28 @@ static const struct input_res {
 	{"1920x1080", 1920, 1080},
 };
 
-/*
- * Chose preferred mode  according to line number of TV format
- */
-static void
-intel_tv_choose_preferred_modes(const struct tv_mode *tv_mode,
-			       struct drm_display_mode *mode_ptr)
+/* Choose preferred mode according to line number of TV format */
+static bool
+intel_tv_is_preferred_mode(const struct drm_display_mode *mode,
+			   const struct tv_mode *tv_mode)
 {
-	if (tv_mode->nbr_end < 480 && mode_ptr->vdisplay == 480)
-		mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
-	else if (tv_mode->nbr_end > 480) {
-		if (tv_mode->progressive == true && tv_mode->nbr_end < 720) {
-			if (mode_ptr->vdisplay == 720)
-				mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
-		} else if (mode_ptr->vdisplay == 1080)
-				mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
-	}
+	int vdisplay = intel_tv_mode_vdisplay(tv_mode);
+
+	/* prefer 480 line modes for all SD TV modes */
+	if (vdisplay <= 576)
+		vdisplay = 480;
+
+	return vdisplay == mode->vdisplay;
+}
+
+static void
+intel_tv_set_mode_type(struct drm_display_mode *mode,
+		       const struct tv_mode *tv_mode)
+{
+	mode->type = DRM_MODE_TYPE_DRIVER;
+
+	if (intel_tv_is_preferred_mode(mode, tv_mode))
+		mode->type |= DRM_MODE_TYPE_PREFERRED;
 }
 
 static int
@@ -1382,8 +1393,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 		tmp = div_u64(tmp, 1000000);
 		mode_ptr->clock = (int) tmp;
 
-		mode_ptr->type = DRM_MODE_TYPE_DRIVER;
-		intel_tv_choose_preferred_modes(tv_mode, mode_ptr);
+		intel_tv_set_mode_type(mode_ptr, tv_mode);
 		drm_mode_probed_add(connector, mode_ptr);
 		count++;
 	}
