@@ -1599,7 +1599,6 @@ static int vmw_kms_check_implicit(struct drm_device *dev,
 static int vmw_kms_check_topology(struct drm_device *dev,
 				  struct drm_atomic_state *state)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_rect *rects;
 	struct drm_crtc *crtc;
@@ -1611,19 +1610,31 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 	if (!rects)
 		return -ENOMEM;
 
-	mutex_lock(&dev_priv->requested_layout_mutex);
-
 	drm_for_each_crtc(crtc, dev) {
 		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
-		struct drm_crtc_state *crtc_state = crtc->state;
+		struct drm_crtc_state *crtc_state;
 
 		i = drm_crtc_index(crtc);
 
-		if (crtc_state && crtc_state->enable) {
+		crtc_state = vmw_crtc_state_and_lock(state, crtc);
+		if (IS_ERR(crtc_state)) {
+			ret = PTR_ERR(crtc_state);
+			goto clean;
+		}
+
+		if (!crtc_state)
+			continue;
+
+		if (crtc_state->enable) {
 			rects[i].x1 = du->gui_x;
 			rects[i].y1 = du->gui_y;
 			rects[i].x2 = du->gui_x + crtc_state->mode.hdisplay;
 			rects[i].y2 = du->gui_y + crtc_state->mode.vdisplay;
+		} else {
+			rects[i].x1 = 0;
+			rects[i].y1 = 0;
+			rects[i].x2 = 0;
+			rects[i].y2 = 0;
 		}
 	}
 
@@ -1634,14 +1645,6 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 		struct drm_connector *connector;
 		struct drm_connector_state *conn_state;
 		struct vmw_connector_state *vmw_conn_state;
-
-		if (!new_crtc_state->enable) {
-			rects[i].x1 = 0;
-			rects[i].y1 = 0;
-			rects[i].x2 = 0;
-			rects[i].y2 = 0;
-			continue;
-		}
 
 		if (!du->pref_active) {
 			ret = -EINVAL;
@@ -1663,18 +1666,12 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 		vmw_conn_state = vmw_connector_state_to_vcs(conn_state);
 		vmw_conn_state->gui_x = du->gui_x;
 		vmw_conn_state->gui_y = du->gui_y;
-
-		rects[i].x1 = du->gui_x;
-		rects[i].y1 = du->gui_y;
-		rects[i].x2 = du->gui_x + new_crtc_state->mode.hdisplay;
-		rects[i].y2 = du->gui_y + new_crtc_state->mode.vdisplay;
 	}
 
 	ret = vmw_kms_check_display_memory(dev, dev->mode_config.num_crtc,
 					   rects);
 
 clean:
-	mutex_unlock(&dev_priv->requested_layout_mutex);
 	kfree(rects);
 	return ret;
 }
@@ -2031,11 +2028,25 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv,
 	struct vmw_display_unit *du;
 	struct drm_connector *con;
 	struct drm_connector_list_iter conn_iter;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_crtc *crtc;
+	int ret;
 
-	/*
-	 * Currently only gui_x/y is protected with requested_layout_mutex.
-	 */
-	mutex_lock(&dev_priv->requested_layout_mutex);
+	/* Currently gui_x/y is protected with the crtc mutex */
+	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	drm_for_each_crtc(crtc, dev) {
+		ret = drm_modeset_lock(&crtc->mutex, &ctx);
+		if (ret < 0) {
+			if (ret == -EDEADLK) {
+				drm_modeset_backoff(&ctx);
+				goto retry;
+      		}
+			goto out_fini;
+		}
+	}
+
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(con, &conn_iter) {
 		du = vmw_connector_to_du(con);
@@ -2054,9 +2065,7 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv,
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
-	mutex_unlock(&dev_priv->requested_layout_mutex);
 
-	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(con, &dev->mode_config.connector_list, head) {
 		du = vmw_connector_to_du(con);
 		if (num_rects > du->unit) {
@@ -2076,10 +2085,13 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv,
 		}
 		con->status = vmw_du_connector_detect(con, true);
 	}
-	mutex_unlock(&dev->mode_config.mutex);
 
 	drm_sysfs_hotplug_event(dev);
-
+out_fini:
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+	mutex_unlock(&dev->mode_config.mutex);
+ 
 	return 0;
 }
 

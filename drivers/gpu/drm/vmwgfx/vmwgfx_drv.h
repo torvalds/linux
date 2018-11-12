@@ -466,15 +466,6 @@ struct vmw_private {
 	uint32_t num_displays;
 
 	/*
-	 * Currently requested_layout_mutex is used to protect the gui
-	 * positionig state in display unit. With that use case currently this
-	 * mutex is only taken during layout ioctl and atomic check_modeset.
-	 * Other display unit state can be protected with this mutex but that
-	 * needs careful consideration.
-	 */
-	struct mutex requested_layout_mutex;
-
-	/*
 	 * Framebuffer info.
 	 */
 
