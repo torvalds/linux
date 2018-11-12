@@ -66,7 +66,7 @@ struct drm_virtgpu_execbuffer {
 	__u64 command; /* void* */
 	__u64 bo_handles;
 	__u32 num_bo_handles;
-	__s32 fence_fd;
+	__s32 fence_fd; /* in/out fence fd (see VIRTGPU_EXECBUF_FENCE_FD_IN/OUT) */
 };
 
 #define VIRTGPU_PARAM_3D_FEATURES 1 /* do we have 3D features in the hw */
