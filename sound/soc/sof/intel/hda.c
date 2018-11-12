@@ -597,7 +597,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 		 * not all errors are due to memory issues, but trying
 		 * to free everything does not harm
 		 */
-		goto err;
+		goto free_streams;
 	}
 
 	/*
