@@ -554,7 +554,6 @@ static void nsim_bpf_map_free(struct bpf_offloaded_map *offmap)
 int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bpf_bound_prog *state;
 	int err;
 
 	ASSERT_RTNL();
