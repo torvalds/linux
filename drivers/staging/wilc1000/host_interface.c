@@ -797,7 +797,8 @@ error:
 			}
 
 			conn_attr->result(CONN_DISCONN_EVENT_CONN_RESP,
-					  &conn_info, MAC_STATUS_DISCONNECTED,
+					  &conn_info,
+					  WILC_MAC_STATUS_DISCONNECTED,
 					  NULL, conn_attr->arg);
 			hif_drv->hif_state = HOST_IF_IDLE;
 			kfree(conn_info.req_ies);
@@ -857,7 +858,7 @@ static void handle_connect_timeout(struct work_struct *work)
 
 		hif_drv->usr_conn_req.conn_result(CONN_DISCONN_EVENT_CONN_RESP,
 						  &info,
-						  MAC_STATUS_DISCONNECTED,
+						  WILC_MAC_STATUS_DISCONNECTED,
 						  NULL,
 						  hif_drv->usr_conn_req.arg);
 
@@ -1286,7 +1287,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 
 	memset(&conn_info, 0, sizeof(struct connect_info));
 
-	if (mac_status == MAC_STATUS_CONNECTED) {
+	if (mac_status == WILC_MAC_STATUS_CONNECTED) {
 		u32 assoc_resp_info_len;
 
 		memset(hif_drv->assoc_resp, 0, MAX_ASSOC_RESP_FRAME_SIZE);
@@ -1311,7 +1312,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	if (hif_drv->usr_conn_req.bssid) {
 		memcpy(conn_info.bssid, hif_drv->usr_conn_req.bssid, 6);
 
-		if (mac_status == MAC_STATUS_CONNECTED &&
+		if (mac_status == WILC_MAC_STATUS_CONNECTED &&
 		    conn_info.status == WLAN_STATUS_SUCCESS) {
 			memcpy(hif_drv->assoc_bssid,
 			       hif_drv->usr_conn_req.bssid, ETH_ALEN);
@@ -1331,7 +1332,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 					  &conn_info, mac_status, NULL,
 					  hif_drv->usr_conn_req.arg);
 
-	if (mac_status == MAC_STATUS_CONNECTED &&
+	if (mac_status == WILC_MAC_STATUS_CONNECTED &&
 	    conn_info.status == WLAN_STATUS_SUCCESS) {
 		wilc_set_power_mgmt(vif, 0, 0);
 
@@ -1423,10 +1424,10 @@ static void handle_rcvd_gnrl_async_info(struct work_struct *work)
 		mac_status  = rcvd_info->buffer[7];
 		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
 			host_int_parse_assoc_resp_info(vif, mac_status);
-		} else if ((mac_status == MAC_STATUS_DISCONNECTED) &&
+		} else if ((mac_status == WILC_MAC_STATUS_DISCONNECTED) &&
 			   (hif_drv->hif_state == HOST_IF_CONNECTED)) {
 			host_int_handle_disconnect(vif);
-		} else if ((mac_status == MAC_STATUS_DISCONNECTED) &&
+		} else if ((mac_status == WILC_MAC_STATUS_DISCONNECTED) &&
 			   (hif_drv->usr_scan_req.scan_result)) {
 			del_timer(&hif_drv->scan_timer);
 			if (hif_drv->usr_scan_req.scan_result)

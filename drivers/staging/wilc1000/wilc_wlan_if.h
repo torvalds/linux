@@ -24,9 +24,11 @@
  *
  ********************************************/
 
-#define MAC_STATUS_INIT			-1
-#define MAC_STATUS_CONNECTED		1
-#define MAC_STATUS_DISCONNECTED		0
+enum {
+	WILC_MAC_STATUS_INIT = -1,
+	WILC_MAC_STATUS_DISCONNECTED = 0,
+	WILC_MAC_STATUS_CONNECTED = 1
+};
 
 struct tx_complete_data {
 	int size;
