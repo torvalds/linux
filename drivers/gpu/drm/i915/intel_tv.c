@@ -1086,7 +1086,7 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 	if (tv_mode->progressive)
 		ysize = tv_mode->nbr_end + 1;
 	else
-		ysize = 2*tv_mode->nbr_end + 1;
+		ysize = 2 * (tv_mode->nbr_end + 1);
 
 	xpos += conn_state->tv.margins.left;
 	ypos += conn_state->tv.margins.top;
