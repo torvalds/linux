@@ -59,7 +59,6 @@ no_valid_dev_replace_entry_found:
 			BTRFS_DEV_REPLACE_ITEM_STATE_NEVER_STARTED;
 		dev_replace->cont_reading_from_srcdev_mode =
 		    BTRFS_DEV_REPLACE_ITEM_CONT_READING_FROM_SRCDEV_MODE_ALWAYS;
-		dev_replace->replace_state = 0;
 		dev_replace->time_started = 0;
 		dev_replace->time_stopped = 0;
 		atomic64_set(&dev_replace->num_write_errors, 0);
