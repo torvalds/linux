@@ -721,6 +721,8 @@ free_hda_irq:
 	pci_free_irq_vectors(pci);
 free_streams:
 	hda_dsp_stream_free(sdev);
+/* dsp_unmap: not currently used */
+	iounmap(sdev->bar[HDA_DSP_BAR]);
 hdac_bus_unmap:
 	iounmap(bus->remap_addr);
 err:
