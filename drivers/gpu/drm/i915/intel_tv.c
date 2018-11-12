@@ -1312,16 +1312,15 @@ intel_tv_detect(struct drm_connector *connector,
 }
 
 static const struct input_res {
-	const char *name;
-	int w, h;
+	u16 w, h;
 } input_res_table[] = {
-	{"640x480", 640, 480},
-	{"800x600", 800, 600},
-	{"1024x768", 1024, 768},
-	{"1280x1024", 1280, 1024},
-	{"848x480", 848, 480},
-	{"1280x720", 1280, 720},
-	{"1920x1080", 1920, 1080},
+	{ 640, 480 },
+	{ 800, 600 },
+	{ 1024, 768 },
+	{ 1280, 1024 },
+	{ 848, 480 },
+	{ 1280, 720 },
+	{ 1920, 1080 },
 };
 
 /* Choose preferred mode according to line number of TV format */
@@ -1372,7 +1371,6 @@ intel_tv_get_modes(struct drm_connector *connector)
 		mode_ptr = drm_mode_create(connector->dev);
 		if (!mode_ptr)
 			continue;
-		strlcpy(mode_ptr->name, input->name, DRM_DISPLAY_MODE_LEN);
 
 		mode_ptr->hdisplay = hactive_s;
 		mode_ptr->hsync_start = hactive_s + 1;
@@ -1394,6 +1392,9 @@ intel_tv_get_modes(struct drm_connector *connector)
 		mode_ptr->clock = (int) tmp;
 
 		intel_tv_set_mode_type(mode_ptr, tv_mode);
+
+		drm_mode_set_name(mode_ptr);
+
 		drm_mode_probed_add(connector, mode_ptr);
 		count++;
 	}
