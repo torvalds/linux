@@ -132,10 +132,20 @@ static void __put_chunk(struct rcu_head *rcu)
 	audit_put_chunk(chunk);
 }
 
+/*
+ * Drop reference to the chunk that was held by the mark. This is the reference
+ * that gets dropped after we've removed the chunk from the hash table and we
+ * use it to make sure chunk cannot be freed before RCU grace period expires.
+ */
+static void audit_mark_put_chunk(struct audit_chunk *chunk)
+{
+	call_rcu(&chunk->head, __put_chunk);
+}
+
 static void audit_tree_destroy_watch(struct fsnotify_mark *entry)
 {
 	struct audit_chunk *chunk = container_of(entry, struct audit_chunk, mark);
-	call_rcu(&chunk->head, __put_chunk);
+	audit_mark_put_chunk(chunk);
 }
 
 static struct audit_chunk *alloc_chunk(int count)
