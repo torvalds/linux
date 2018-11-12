@@ -5555,12 +5555,8 @@ static int populate_specs_root(struct mlx5_ib_dev *dev)
 	const struct uverbs_object_tree_def **trees = dev->driver_trees;
 	size_t num_trees = 0;
 
-	if (mlx5_accel_ipsec_device_caps(dev->mdev) &
-	    MLX5_ACCEL_IPSEC_CAP_DEVICE)
-		trees[num_trees++] = &mlx5_ib_flow_action;
-
-	if (MLX5_CAP_DEV_MEM(dev->mdev, memic))
-		trees[num_trees++] = &mlx5_ib_dm;
+	trees[num_trees++] = &mlx5_ib_flow_action;
+	trees[num_trees++] = &mlx5_ib_dm;
 
 	if (MLX5_CAP_GEN_64(dev->mdev, general_obj_types) &
 	    MLX5_GENERAL_OBJ_TYPES_CAP_UCTX)
@@ -5878,9 +5874,14 @@ int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.uverbs_ex_cmd_mask |=
 			(1ull << IB_USER_VERBS_EX_CMD_CREATE_FLOW) |
 			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_FLOW);
-	dev->ib_dev.create_flow_action_esp = mlx5_ib_create_flow_action_esp;
+	if (mlx5_accel_ipsec_device_caps(dev->mdev) &
+	    MLX5_ACCEL_IPSEC_CAP_DEVICE) {
+		dev->ib_dev.create_flow_action_esp =
+			mlx5_ib_create_flow_action_esp;
+		dev->ib_dev.modify_flow_action_esp =
+			mlx5_ib_modify_flow_action_esp;
+	}
 	dev->ib_dev.destroy_flow_action = mlx5_ib_destroy_flow_action;
-	dev->ib_dev.modify_flow_action_esp = mlx5_ib_modify_flow_action_esp;
 	dev->ib_dev.driver_id = RDMA_DRIVER_MLX5;
 	dev->ib_dev.create_counters = mlx5_ib_create_counters;
 	dev->ib_dev.destroy_counters = mlx5_ib_destroy_counters;
