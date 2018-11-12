@@ -60,8 +60,11 @@ static void *uapi_add_get_elm(struct uverbs_api *uapi, u32 key,
 	return elm;
 }
 
-static int uapi_create_write(struct uverbs_api *uapi, struct ib_device *ibdev,
-			     const struct uapi_definition *def, u32 obj_key)
+static int uapi_create_write(struct uverbs_api *uapi,
+			     struct ib_device *ibdev,
+			     const struct uapi_definition *def,
+			     u32 obj_key,
+			     u32 *cur_method_key)
 {
 	struct uverbs_api_write_method *method_elm;
 	u32 method_key = obj_key;
@@ -93,6 +96,8 @@ static int uapi_create_write(struct uverbs_api *uapi, struct ib_device *ibdev,
 		method_elm->disabled = !(ibdev->uverbs_cmd_mask &
 					 BIT_ULL(def->write.command_num));
 	}
+
+	*cur_method_key = method_key;
 	return 0;
 }
 
@@ -218,7 +223,8 @@ static int uapi_merge_obj_tree(struct uverbs_api *uapi,
 
 static int uapi_disable_elm(struct uverbs_api *uapi,
 			    const struct uapi_definition *def,
-			    u32 obj_key)
+			    u32 obj_key,
+			    u32 method_key)
 {
 	bool exists;
 
@@ -233,6 +239,31 @@ static int uapi_disable_elm(struct uverbs_api *uapi,
 		return 0;
 	}
 
+	if (def->scope == UAPI_SCOPE_METHOD &&
+	    uapi_key_is_ioctl_method(method_key)) {
+		struct uverbs_api_ioctl_method *method_elm;
+
+		method_elm = uapi_add_get_elm(uapi, method_key,
+					      sizeof(*method_elm), &exists);
+		if (IS_ERR(method_elm))
+			return PTR_ERR(method_elm);
+		method_elm->disabled = 1;
+		return 0;
+	}
+
+	if (def->scope == UAPI_SCOPE_METHOD &&
+	    (uapi_key_is_write_method(method_key) ||
+	     uapi_key_is_write_ex_method(method_key))) {
+		struct uverbs_api_write_method *write_elm;
+
+		write_elm = uapi_add_get_elm(uapi, method_key,
+					     sizeof(*write_elm), &exists);
+		if (IS_ERR(write_elm))
+			return PTR_ERR(write_elm);
+		write_elm->disabled = 1;
+		return 0;
+	}
+
 	WARN_ON(true);
 	return -EINVAL;
 }
@@ -243,6 +274,7 @@ static int uapi_merge_def(struct uverbs_api *uapi, struct ib_device *ibdev,
 {
 	const struct uapi_definition *def = def_list;
 	u32 cur_obj_key = UVERBS_API_KEY_ERR;
+	u32 cur_method_key = UVERBS_API_KEY_ERR;
 	bool exists;
 	int rc;
 
@@ -277,7 +309,8 @@ static int uapi_merge_def(struct uverbs_api *uapi, struct ib_device *ibdev,
 
 			if (*ibdev_fn)
 				continue;
-			rc = uapi_disable_elm(uapi, def, cur_obj_key);
+			rc = uapi_disable_elm(
+				uapi, def, cur_obj_key, cur_method_key);
 			if (rc)
 				return rc;
 			continue;
@@ -286,7 +319,8 @@ static int uapi_merge_def(struct uverbs_api *uapi, struct ib_device *ibdev,
 		case UAPI_DEF_IS_SUPPORTED_FUNC:
 			if (def->func_is_supported(ibdev))
 				continue;
-			rc = uapi_disable_elm(uapi, def, cur_obj_key);
+			rc = uapi_disable_elm(
+				uapi, def, cur_obj_key, cur_method_key);
 			if (rc)
 				return rc;
 			continue;
@@ -303,7 +337,8 @@ static int uapi_merge_def(struct uverbs_api *uapi, struct ib_device *ibdev,
 		}
 
 		case UAPI_DEF_WRITE:
-			rc = uapi_create_write(uapi, ibdev, def, cur_obj_key);
+			rc = uapi_create_write(
+				uapi, ibdev, def, cur_obj_key, &cur_method_key);
 			if (rc)
 				return rc;
 			continue;

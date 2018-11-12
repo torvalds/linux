@@ -350,6 +350,7 @@ enum uapi_definition_kind {
 
 enum uapi_definition_scope {
 	UAPI_SCOPE_OBJECT = 1,
+	UAPI_SCOPE_METHOD = 2,
 };
 
 struct uapi_definition {
@@ -415,6 +416,21 @@ struct uapi_definition {
 	{                                                                      \
 		.kind = UAPI_DEF_IS_SUPPORTED_DEV_FN,                          \
 		.scope = UAPI_SCOPE_OBJECT,                                    \
+		.needs_fn_offset =                                             \
+			offsetof(struct ib_device, ibdev_fn) +                 \
+			BUILD_BUG_ON_ZERO(                                     \
+				sizeof(((struct ib_device *)0)->ibdev_fn) !=   \
+				sizeof(void *)),                               \
+	}
+
+/*
+ * Method is only supported if the function pointer named ibdev_fn in struct
+ * ib_device is not NULL.
+ */
+#define UAPI_DEF_METHOD_NEEDS_FN(ibdev_fn)                                     \
+	{                                                                      \
+		.kind = UAPI_DEF_IS_SUPPORTED_DEV_FN,                          \
+		.scope = UAPI_SCOPE_METHOD,                                    \
 		.needs_fn_offset =                                             \
 			offsetof(struct ib_device, ibdev_fn) +                 \
 			BUILD_BUG_ON_ZERO(                                     \
