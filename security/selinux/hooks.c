@@ -146,7 +146,6 @@ static int __init checkreqprot_setup(char *str)
 __setup("checkreqprot=", checkreqprot_setup);
 
 static struct kmem_cache *sel_inode_cache;
-static struct kmem_cache *file_security_cache;
 
 /**
  * selinux_secmark_enabled - Check to see if SECMARK is currently enabled
@@ -378,25 +377,13 @@ static void inode_free_security(struct inode *inode)
 
 static int file_alloc_security(struct file *file)
 {
-	struct file_security_struct *fsec;
+	struct file_security_struct *fsec = selinux_file(file);
 	u32 sid = current_sid();
-
-	fsec = kmem_cache_zalloc(file_security_cache, GFP_KERNEL);
-	if (!fsec)
-		return -ENOMEM;
 
 	fsec->sid = sid;
 	fsec->fown_sid = sid;
-	file->f_security = fsec;
 
 	return 0;
-}
-
-static void file_free_security(struct file *file)
-{
-	struct file_security_struct *fsec = selinux_file(file);
-	file->f_security = NULL;
-	kmem_cache_free(file_security_cache, fsec);
 }
 
 static int superblock_alloc_security(struct super_block *sb)
@@ -3343,11 +3330,6 @@ static int selinux_file_permission(struct file *file, int mask)
 static int selinux_file_alloc_security(struct file *file)
 {
 	return file_alloc_security(file);
-}
-
-static void selinux_file_free_security(struct file *file)
-{
-	file_free_security(file);
 }
 
 /*
@@ -6646,6 +6628,7 @@ static void selinux_bpf_prog_free(struct bpf_prog_aux *aux)
 
 struct lsm_blob_sizes selinux_blob_sizes __lsm_ro_after_init = {
 	.lbs_cred = sizeof(struct task_security_struct),
+	.lbs_file = sizeof(struct file_security_struct),
 };
 
 static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
@@ -6717,7 +6700,6 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 
 	LSM_HOOK_INIT(file_permission, selinux_file_permission),
 	LSM_HOOK_INIT(file_alloc_security, selinux_file_alloc_security),
-	LSM_HOOK_INIT(file_free_security, selinux_file_free_security),
 	LSM_HOOK_INIT(file_ioctl, selinux_file_ioctl),
 	LSM_HOOK_INIT(mmap_file, selinux_mmap_file),
 	LSM_HOOK_INIT(mmap_addr, selinux_mmap_addr),
@@ -6901,9 +6883,6 @@ static __init int selinux_init(void)
 
 	sel_inode_cache = kmem_cache_create("selinux_inode_security",
 					    sizeof(struct inode_security_struct),
-					    0, SLAB_PANIC, NULL);
-	file_security_cache = kmem_cache_create("selinux_file_security",
-					    sizeof(struct file_security_struct),
 					    0, SLAB_PANIC, NULL);
 	avc_init();
 
