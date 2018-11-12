@@ -89,6 +89,11 @@ enum nfp_qdisc_type {
  * @use_cnt:		number of attachment points in the hierarchy
  * @num_children:	current size of the @children array
  * @children:		pointers to children
+ *
+ * @params_ok:		parameters of this Qdisc are OK for offload
+ *
+ * @red:		RED Qdisc specific parameters and state
+ * @red.threshold:	ECN marking threshold
  */
 struct nfp_qdisc {
 	struct net_device *netdev;
@@ -98,6 +103,15 @@ struct nfp_qdisc {
 	unsigned int use_cnt;
 	unsigned int num_children;
 	struct nfp_qdisc **children;
+
+	bool params_ok;
+
+	union {
+		/* TC_SETUP_QDISC_RED */
+		struct {
+			u32 threshold;
+		} red;
+	};
 };
 
 /**

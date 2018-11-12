@@ -375,7 +375,10 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 			qdisc->children[0] = NFP_QDISC_UNTRACKED;
 	}
 
-	if (!nfp_abm_red_check_params(alink, opt)) {
+	qdisc->params_ok = nfp_abm_red_check_params(alink, opt);
+	if (qdisc->params_ok) {
+		qdisc->red.threshold = opt->set.min;
+	} else {
 		err = -EINVAL;
 		goto err_destroy;
 	}
