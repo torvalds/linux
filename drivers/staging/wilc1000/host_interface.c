@@ -1098,14 +1098,14 @@ static s32 wilc_parse_network_info(u8 *msg_buffer,
 	if (ieee80211_is_probe_resp(mgt->frame_control)) {
 		info->cap_info = le16_to_cpu(mgt->u.probe_resp.capab_info);
 		info->beacon_period = le16_to_cpu(mgt->u.probe_resp.beacon_int);
-		info->tsf_hi = le64_to_cpu(mgt->u.probe_resp.timestamp);
-		info->tsf_lo = (u32)info->tsf_hi;
+		info->tsf = le64_to_cpu(mgt->u.probe_resp.timestamp);
+		info->tsf_lo = (u32)info->tsf;
 		offset = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
 	} else if (ieee80211_is_beacon(mgt->frame_control)) {
 		info->cap_info = le16_to_cpu(mgt->u.beacon.capab_info);
 		info->beacon_period = le16_to_cpu(mgt->u.beacon.beacon_int);
-		info->tsf_hi = le64_to_cpu(mgt->u.beacon.timestamp);
-		info->tsf_lo = (u32)info->tsf_hi;
+		info->tsf = le64_to_cpu(mgt->u.beacon.timestamp);
+		info->tsf_lo = (u32)info->tsf;
 		offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 	} else {
 		/* only process probe response and beacon frame */

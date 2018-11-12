@@ -193,7 +193,7 @@ static void refresh_scan(struct wilc_priv *priv, bool direct_scan)
 					  channel,
 					  CFG80211_BSS_FTYPE_UNKNOWN,
 					  network_info->bssid,
-					  network_info->tsf_hi,
+					  network_info->tsf,
 					  network_info->cap_info,
 					  network_info->beacon_period,
 					  (const u8 *)network_info->ies,
@@ -308,7 +308,7 @@ static void add_network_to_shadow(struct network_info *nw_info,
 	shadow_nw_info->beacon_period = nw_info->beacon_period;
 	shadow_nw_info->dtim_period = nw_info->dtim_period;
 	shadow_nw_info->ch = nw_info->ch;
-	shadow_nw_info->tsf_hi = nw_info->tsf_hi;
+	shadow_nw_info->tsf = nw_info->tsf;
 	if (ap_found != -1)
 		kfree(shadow_nw_info->ies);
 	shadow_nw_info->ies = kmemdup(nw_info->ies, nw_info->ies_len,
@@ -372,7 +372,7 @@ static void cfg_scan_result(enum scan_event scan_event,
 						  channel,
 						  CFG80211_BSS_FTYPE_UNKNOWN,
 						  network_info->bssid,
-						  network_info->tsf_hi,
+						  network_info->tsf,
 						  network_info->cap_info,
 						  network_info->beacon_period,
 						  (const u8 *)network_info->ies,

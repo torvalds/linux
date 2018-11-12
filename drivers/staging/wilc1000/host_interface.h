@@ -76,7 +76,7 @@ struct network_info {
 	u16 ies_len;
 	void *join_params;
 	struct rssi_history_buffer rssi_history;
-	u64 tsf_hi;
+	u64 tsf;
 };
 
 struct connect_info {
