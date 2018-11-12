@@ -423,10 +423,93 @@ static struct snd_pcm_ops acp3x_dma_ops = {
 	.mmap = acp3x_dma_mmap,
 };
 
+static int acp3x_dai_i2s_hwparams(struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params,
+				  struct snd_soc_dai *dai)
+{
+	u32 val = 0;
+	struct i2s_stream_instance *rtd = substream->runtime->private_data;
+
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_U8:
+	case SNDRV_PCM_FORMAT_S8:
+		rtd->xfer_resolution = 0x0;
+		break;
+	case SNDRV_PCM_FORMAT_S16_LE:
+		rtd->xfer_resolution = 0x02;
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		rtd->xfer_resolution = 0x04;
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		rtd->xfer_resolution = 0x05;
+		break;
+	default:
+		return -EINVAL;
+	}
+	val = rv_readl(rtd->acp3x_base + mmACP_BTTDM_ITER);
+	val = val | (rtd->xfer_resolution  << 3);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		rv_writel(val, rtd->acp3x_base + mmACP_BTTDM_ITER);
+	else
+		rv_writel(val, rtd->acp3x_base + mmACP_BTTDM_IRER);
+
+	return 0;
+}
+
+static int acp3x_dai_i2s_trigger(struct snd_pcm_substream *substream,
+				 int cmd, struct snd_soc_dai *dai)
+{
+	int ret = 0;
+	struct i2s_stream_instance *rtd = substream->runtime->private_data;
+	u32 val, period_bytes;
+
+	period_bytes = frames_to_bytes(substream->runtime,
+				       substream->runtime->period_size);
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			rv_writel(period_bytes, rtd->acp3x_base +
+				  mmACP_BT_TX_INTR_WATERMARK_SIZE);
+			val = rv_readl(rtd->acp3x_base + mmACP_BTTDM_ITER);
+			val = val | BIT(0);
+			rv_writel(val, rtd->acp3x_base + mmACP_BTTDM_ITER);
+		} else {
+			rv_writel(period_bytes, rtd->acp3x_base +
+				  mmACP_BT_RX_INTR_WATERMARK_SIZE);
+			val = rv_readl(rtd->acp3x_base + mmACP_BTTDM_IRER);
+			val = val | BIT(0);
+			rv_writel(val, rtd->acp3x_base + mmACP_BTTDM_IRER);
+		}
+		rv_writel(1, rtd->acp3x_base + mmACP_BTTDM_IER);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			val = rv_readl(rtd->acp3x_base + mmACP_BTTDM_ITER);
+			val = val & ~BIT(0);
+			rv_writel(val, rtd->acp3x_base + mmACP_BTTDM_ITER);
+		} else {
+			val = rv_readl(rtd->acp3x_base + mmACP_BTTDM_IRER);
+			val = val & ~BIT(0);
+			rv_writel(val, rtd->acp3x_base + mmACP_BTTDM_IRER);
+		}
+		rv_writel(0, rtd->acp3x_base + mmACP_BTTDM_IER);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 struct snd_soc_dai_ops acp3x_dai_i2s_ops = {
-	.hw_params = NULL,
-	.trigger   = NULL,
-	.set_fmt = NULL,
+	.hw_params = acp3x_dai_i2s_hwparams,
+	.trigger   = acp3x_dai_i2s_trigger,
 };
 
 static struct snd_soc_dai_driver acp3x_i2s_dai_driver = {
