@@ -367,6 +367,21 @@ static int red_dump_class(struct Qdisc *sch, unsigned long cl,
 	return 0;
 }
 
+static void red_graft_offload(struct Qdisc *sch,
+			      struct Qdisc *new, struct Qdisc *old,
+			      struct netlink_ext_ack *extack)
+{
+	struct tc_red_qopt_offload graft_offload = {
+		.handle		= sch->handle,
+		.parent		= sch->parent,
+		.child_handle	= new->handle,
+		.command	= TC_RED_GRAFT,
+	};
+
+	qdisc_offload_graft_helper(qdisc_dev(sch), sch, new, old,
+				   TC_SETUP_QDISC_RED, &graft_offload, extack);
+}
+
 static int red_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		     struct Qdisc **old, struct netlink_ext_ack *extack)
 {
@@ -376,6 +391,8 @@ static int red_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		new = &noop_qdisc;
 
 	*old = qdisc_replace(sch, new, &q->qdisc);
+
+	red_graft_offload(sch, new, *old, extack);
 	return 0;
 }
 

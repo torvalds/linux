@@ -834,6 +834,7 @@ enum tc_red_command {
 	TC_RED_DESTROY,
 	TC_RED_STATS,
 	TC_RED_XSTATS,
+	TC_RED_GRAFT,
 };
 
 struct tc_red_qopt_offload_params {
@@ -853,6 +854,7 @@ struct tc_red_qopt_offload {
 		struct tc_red_qopt_offload_params set;
 		struct tc_qopt_offload_stats stats;
 		struct red_stats *xstats;
+		u32 child_handle;
 	};
 };
 
