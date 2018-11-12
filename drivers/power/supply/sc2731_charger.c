@@ -432,6 +432,24 @@ error:
 	return ret;
 }
 
+static void sc2731_charger_detect_status(struct sc2731_charger_info *info)
+{
+	unsigned int min, max;
+
+	/*
+	 * If the USB charger status has been USB_CHARGER_PRESENT before
+	 * registering the notifier, we should start to charge with getting
+	 * the charge current.
+	 */
+	if (info->usb_phy->chg_state != USB_CHARGER_PRESENT)
+		return;
+
+	usb_phy_get_charger_current(info->usb_phy, &min, &max);
+	info->limit = min;
+
+	schedule_work(&info->work);
+}
+
 static int sc2731_charger_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -485,6 +503,8 @@ static int sc2731_charger_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register notifier: %d\n", ret);
 		return ret;
 	}
+
+	sc2731_charger_detect_status(info);
 
 	return 0;
 }
