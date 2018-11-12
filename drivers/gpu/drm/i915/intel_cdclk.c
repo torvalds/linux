@@ -2660,7 +2660,7 @@ static int cnp_rawclk(struct drm_i915_private *dev_priv)
 		fraction = 200;
 	}
 
-	rawclk = CNP_RAWCLK_DIV((divider / 1000) - 1);
+	rawclk = CNP_RAWCLK_DIV(divider / 1000);
 	if (fraction)
 		rawclk |= CNP_RAWCLK_FRAC(DIV_ROUND_CLOSEST(1000,
 							    fraction) - 1);
@@ -2676,12 +2676,12 @@ static int icp_rawclk(struct drm_i915_private *dev_priv)
 
 	if (I915_READ(SFUSE_STRAP) & SFUSE_STRAP_RAW_FREQUENCY) {
 		frequency = 24000;
-		divider = 23;
+		divider = 24;
 		numerator = 0;
 		denominator = 0;
 	} else {
 		frequency = 19200;
-		divider = 18;
+		divider = 19;
 		numerator = 1;
 		denominator = 4;
 	}
