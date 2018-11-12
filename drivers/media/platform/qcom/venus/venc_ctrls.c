@@ -295,7 +295,7 @@ int venc_ctrl_init(struct venus_inst *inst)
 		0, INTRA_REFRESH_MBS_MAX, 1, 0);
 
 	v4l2_ctrl_new_std(&inst->ctrl_handler, &venc_ctrl_ops,
-		V4L2_CID_MPEG_VIDEO_GOP_SIZE, 0, (1 << 16) - 1, 1, 12);
+		V4L2_CID_MPEG_VIDEO_GOP_SIZE, 0, (1 << 16) - 1, 1, 30);
 
 	v4l2_ctrl_new_std(&inst->ctrl_handler, &venc_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_VPX_MIN_QP, 1, 128, 1, 1);
