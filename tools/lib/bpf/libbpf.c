@@ -2193,19 +2193,25 @@ void *bpf_object__priv(struct bpf_object *obj)
 }
 
 static struct bpf_program *
-__bpf_program__iter(struct bpf_program *p, struct bpf_object *obj, int i)
+__bpf_program__iter(struct bpf_program *p, struct bpf_object *obj, bool forward)
 {
+	size_t nr_programs = obj->nr_programs;
 	ssize_t idx;
 
-	if (!obj->programs)
+	if (!nr_programs)
 		return NULL;
+
+	if (!p)
+		/* Iter from the beginning */
+		return forward ? &obj->programs[0] :
+			&obj->programs[nr_programs - 1];
 
 	if (p->obj != obj) {
 		pr_warning("error: program handler doesn't match object\n");
 		return NULL;
 	}
 
-	idx = (p - obj->programs) + i;
+	idx = (p - obj->programs) + (forward ? 1 : -1);
 	if (idx >= obj->nr_programs || idx < 0)
 		return NULL;
 	return &obj->programs[idx];
@@ -2216,11 +2222,8 @@ bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
 {
 	struct bpf_program *prog = prev;
 
-	if (prev == NULL)
-		return obj->programs;
-
 	do {
-		prog = __bpf_program__iter(prog, obj, 1);
+		prog = __bpf_program__iter(prog, obj, true);
 	} while (prog && bpf_program__is_function_storage(prog, obj));
 
 	return prog;
@@ -2231,14 +2234,8 @@ bpf_program__prev(struct bpf_program *next, struct bpf_object *obj)
 {
 	struct bpf_program *prog = next;
 
-	if (next == NULL) {
-		if (!obj->nr_programs)
-			return NULL;
-		return obj->programs + obj->nr_programs - 1;
-	}
-
 	do {
-		prog = __bpf_program__iter(prog, obj, -1);
+		prog = __bpf_program__iter(prog, obj, false);
 	} while (prog && bpf_program__is_function_storage(prog, obj));
 
 	return prog;
