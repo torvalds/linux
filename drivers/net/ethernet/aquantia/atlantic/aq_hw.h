@@ -20,6 +20,8 @@
 
 #define AQ_RX_FIRST_LOC_FVLANID     0U
 #define AQ_RX_LAST_LOC_FVLANID	   15U
+#define AQ_RX_FIRST_LOC_FETHERT    16U
+#define AQ_RX_LAST_LOC_FETHERT	   31U
 #define AQ_RX_FIRST_LOC_FL3L4	   32U
 #define AQ_RX_LAST_LOC_FL3L4	   39U
 #define AQ_RX_MAX_RXNFC_LOC	   AQ_RX_LAST_LOC_FL3L4
@@ -197,6 +199,12 @@ struct aq_hw_ops {
 
 	int (*hw_filter_l3l4_clear)(struct aq_hw_s *self,
 				    struct aq_rx_filter_l3l4 *data);
+
+	int (*hw_filter_l2_set)(struct aq_hw_s *self,
+				struct aq_rx_filter_l2 *data);
+
+	int (*hw_filter_l2_clear)(struct aq_hw_s *self,
+				  struct aq_rx_filter_l2 *data);
 
 	int (*hw_filter_vlan_set)(struct aq_hw_s *self,
 				  struct aq_rx_filter_vlan *aq_vlans);

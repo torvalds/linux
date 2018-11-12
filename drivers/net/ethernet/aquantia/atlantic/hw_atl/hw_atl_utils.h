@@ -252,6 +252,14 @@ struct aq_rx_filter_vlan {
 	u8 queue;
 };
 
+struct aq_rx_filter_l2 {
+	s8 queue;
+	u8 location;
+	u8 user_priority_en;
+	u8 user_priority;
+	u16 ethertype;
+};
+
 struct aq_rx_filter_l3l4 {
 	u32 cmd;
 	u8 location;

@@ -1003,6 +1003,41 @@ static int hw_atl_b0_hw_fl3l4_set(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
+static int hw_atl_b0_hw_fl2_set(struct aq_hw_s *self,
+				struct aq_rx_filter_l2 *data)
+{
+	hw_atl_rpf_etht_flr_en_set(self, 1U, data->location);
+	hw_atl_rpf_etht_flr_set(self, data->ethertype, data->location);
+	hw_atl_rpf_etht_user_priority_en_set(self,
+					     !!data->user_priority_en,
+					     data->location);
+	if (data->user_priority_en)
+		hw_atl_rpf_etht_user_priority_set(self,
+						  data->user_priority,
+						  data->location);
+
+	if (data->queue < 0) {
+		hw_atl_rpf_etht_flr_act_set(self, 0U, data->location);
+		hw_atl_rpf_etht_rx_queue_en_set(self, 0U, data->location);
+	} else {
+		hw_atl_rpf_etht_flr_act_set(self, 1U, data->location);
+		hw_atl_rpf_etht_rx_queue_en_set(self, 1U, data->location);
+		hw_atl_rpf_etht_rx_queue_set(self, data->queue, data->location);
+	}
+
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl_b0_hw_fl2_clear(struct aq_hw_s *self,
+				  struct aq_rx_filter_l2 *data)
+{
+	hw_atl_rpf_etht_flr_en_set(self, 0U, data->location);
+	hw_atl_rpf_etht_flr_set(self, 0U, data->location);
+	hw_atl_rpf_etht_user_priority_en_set(self, 0U, data->location);
+
+	return aq_hw_err_from_flags(self);
+}
+
 /**
  * @brief Set VLAN filter table
  * @details Configure VLAN filter table to accept (and assign the queue) traffic
@@ -1063,6 +1098,8 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_ring_rx_init             = hw_atl_b0_hw_ring_rx_init,
 	.hw_ring_tx_init             = hw_atl_b0_hw_ring_tx_init,
 	.hw_packet_filter_set        = hw_atl_b0_hw_packet_filter_set,
+	.hw_filter_l2_set            = hw_atl_b0_hw_fl2_set,
+	.hw_filter_l2_clear          = hw_atl_b0_hw_fl2_clear,
 	.hw_filter_l3l4_set          = hw_atl_b0_hw_fl3l4_set,
 	.hw_filter_vlan_set          = hw_atl_b0_hw_vlan_set,
 	.hw_multicast_list_set       = hw_atl_b0_hw_multicast_list_set,

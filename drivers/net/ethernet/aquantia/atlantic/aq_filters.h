@@ -9,6 +9,7 @@
 #include "aq_nic.h"
 
 enum aq_rx_filter_type {
+	aq_rx_filter_ethertype,
 	aq_rx_filter_vlan,
 	aq_rx_filter_l3l4
 };

@@ -120,6 +120,30 @@ static int aq_check_approve_fl3l4(struct aq_nic_s *aq_nic,
 }
 
 static int __must_check
+aq_check_approve_fl2(struct aq_nic_s *aq_nic,
+		     struct aq_hw_rx_fltrs_s *rx_fltrs,
+		     struct ethtool_rx_flow_spec *fsp)
+{
+	if (fsp->location < AQ_RX_FIRST_LOC_FETHERT ||
+	    fsp->location > AQ_RX_LAST_LOC_FETHERT) {
+		netdev_err(aq_nic->ndev,
+			   "ethtool: location must be in range [%d, %d]",
+			   AQ_RX_FIRST_LOC_FETHERT,
+			   AQ_RX_LAST_LOC_FETHERT);
+		return -EINVAL;
+	}
+
+	if (be16_to_cpu(fsp->m_ext.vlan_tci) == VLAN_PRIO_MASK &&
+	    fsp->m_u.ether_spec.h_proto == 0U) {
+		netdev_err(aq_nic->ndev,
+			   "ethtool: proto (ether_type) parameter must be specfied");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __must_check
 aq_check_approve_fvlan(struct aq_nic_s *aq_nic,
 		       struct aq_hw_rx_fltrs_s *rx_fltrs,
 		       struct ethtool_rx_flow_spec *fsp)
@@ -152,6 +176,8 @@ aq_check_filter(struct aq_nic_s *aq_nic,
 	if (fsp->flow_type & FLOW_EXT) {
 		if (be16_to_cpu(fsp->m_ext.vlan_tci) == VLAN_VID_MASK) {
 			err = aq_check_approve_fvlan(aq_nic, rx_fltrs, fsp);
+		} else if (be16_to_cpu(fsp->m_ext.vlan_tci) == VLAN_PRIO_MASK) {
+			err = aq_check_approve_fl2(aq_nic, rx_fltrs, fsp);
 		} else {
 			netdev_err(aq_nic->ndev,
 				   "ethtool: invalid vlan mask 0x%x specified",
@@ -161,7 +187,7 @@ aq_check_filter(struct aq_nic_s *aq_nic,
 	} else {
 		switch (fsp->flow_type & ~FLOW_EXT) {
 		case ETHER_FLOW:
-			err = -EOPNOTSUPP;
+			err = aq_check_approve_fl2(aq_nic, rx_fltrs, fsp);
 			break;
 		case TCP_V4_FLOW:
 		case UDP_V4_FLOW:
@@ -210,6 +236,10 @@ aq_rule_is_not_support(struct aq_nic_s *aq_nic,
 		netdev_err(aq_nic->ndev,
 			   "ethtool: The specified tos tclass are not supported\n");
 		rule_is_not_support = true;
+	} else if (fsp->flow_type & FLOW_MAC_EXT) {
+		netdev_err(aq_nic->ndev,
+			   "ethtool: MAC_EXT is not supported");
+		rule_is_not_support = true;
 	}
 
 	return rule_is_not_support;
@@ -257,6 +287,48 @@ aq_check_rule(struct aq_nic_s *aq_nic,
 		err = -EEXIST;
 
 	return err;
+}
+
+static void aq_set_data_fl2(struct aq_nic_s *aq_nic,
+			    struct aq_rx_filter *aq_rx_fltr,
+			    struct aq_rx_filter_l2 *data, bool add)
+{
+	const struct ethtool_rx_flow_spec *fsp = &aq_rx_fltr->aq_fsp;
+
+	memset(data, 0, sizeof(*data));
+
+	data->location = fsp->location - AQ_RX_FIRST_LOC_FETHERT;
+
+	if (fsp->ring_cookie != RX_CLS_FLOW_DISC)
+		data->queue = fsp->ring_cookie;
+	else
+		data->queue = -1;
+
+	data->ethertype = be16_to_cpu(fsp->h_u.ether_spec.h_proto);
+	data->user_priority_en = be16_to_cpu(fsp->m_ext.vlan_tci)
+				 == VLAN_PRIO_MASK;
+	data->user_priority = (be16_to_cpu(fsp->h_ext.vlan_tci)
+			       & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+}
+
+static int aq_add_del_fether(struct aq_nic_s *aq_nic,
+			     struct aq_rx_filter *aq_rx_fltr, bool add)
+{
+	struct aq_rx_filter_l2 data;
+	struct aq_hw_s *aq_hw = aq_nic->aq_hw;
+	const struct aq_hw_ops *aq_hw_ops = aq_nic->aq_hw_ops;
+
+	aq_set_data_fl2(aq_nic, aq_rx_fltr, &data, add);
+
+	if (unlikely(!aq_hw_ops->hw_filter_l2_set))
+		return -EOPNOTSUPP;
+	if (unlikely(!aq_hw_ops->hw_filter_l2_clear))
+		return -EOPNOTSUPP;
+
+	if (add)
+		return aq_hw_ops->hw_filter_l2_set(aq_hw, &data);
+	else
+		return aq_hw_ops->hw_filter_l2_clear(aq_hw, &data);
 }
 
 static int aq_set_data_fvlan(struct aq_nic_s *aq_nic,
@@ -424,13 +496,16 @@ static int aq_add_del_rule(struct aq_nic_s *aq_nic,
 		    == VLAN_VID_MASK) {
 			aq_rx_fltr->type = aq_rx_filter_vlan;
 			err = aq_add_del_fvlan(aq_nic, aq_rx_fltr, add);
-		} else {
-			err = -EINVAL;
+		} else if (be16_to_cpu(aq_rx_fltr->aq_fsp.m_ext.vlan_tci)
+			== VLAN_PRIO_MASK) {
+			aq_rx_fltr->type = aq_rx_filter_ethertype;
+			err = aq_add_del_fether(aq_nic, aq_rx_fltr, add);
 		}
 	} else {
 		switch (aq_rx_fltr->aq_fsp.flow_type & ~FLOW_EXT) {
 		case ETHER_FLOW:
-			err = -EOPNOTSUPP;
+			aq_rx_fltr->type = aq_rx_filter_ethertype;
+			err = aq_add_del_fether(aq_nic, aq_rx_fltr, add);
 			break;
 		case TCP_V4_FLOW:
 		case UDP_V4_FLOW:
