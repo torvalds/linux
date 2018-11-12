@@ -24,25 +24,6 @@
  *
  ********************************************/
 
-struct sdio_cmd52 {
-	u32 read_write:		1;
-	u32 function:		3;
-	u32 raw:		1;
-	u32 address:		17;
-	u32 data:		8;
-};
-
-struct sdio_cmd53 {
-	u32 read_write:		1;
-	u32 function:		3;
-	u32 block_mode:		1;
-	u32 increment:		1;
-	u32 address:		17;
-	u32 count:		9;
-	u8 *buffer;
-	u32 block_size;
-};
-
 #define MAC_STATUS_INIT			-1
 #define MAC_STATUS_CONNECTED		1
 #define MAC_STATUS_DISCONNECTED		0
