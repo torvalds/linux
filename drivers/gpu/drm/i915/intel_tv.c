@@ -993,7 +993,7 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 	const struct video_levels *video_levels;
 	const struct color_conversion *color_conversion;
 	bool burst_ena;
-	int xpos = 0x0, ypos = 0x0;
+	int xpos, ypos;
 	unsigned int xsize, ysize;
 
 	if (!tv_mode)
@@ -1102,8 +1102,8 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 	else
 		ysize = 2 * (tv_mode->nbr_end + 1);
 
-	xpos += conn_state->tv.margins.left;
-	ypos += conn_state->tv.margins.top;
+	xpos = conn_state->tv.margins.left;
+	ypos = conn_state->tv.margins.top;
 	xsize -= (conn_state->tv.margins.left +
 		  conn_state->tv.margins.right);
 	ysize -= (conn_state->tv.margins.top +
