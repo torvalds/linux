@@ -300,10 +300,17 @@ enum uapi_definition_kind {
 	UAPI_DEF_END = 0,
 	UAPI_DEF_CHAIN_OBJ_TREE,
 	UAPI_DEF_CHAIN,
+	UAPI_DEF_IS_SUPPORTED_FUNC,
+	UAPI_DEF_IS_SUPPORTED_DEV_FN,
+};
+
+enum uapi_definition_scope {
+	UAPI_SCOPE_OBJECT = 1,
 };
 
 struct uapi_definition {
 	u8 kind;
+	u8 scope;
 	union {
 		struct {
 			u16 object_id;
@@ -311,10 +318,34 @@ struct uapi_definition {
 	};
 
 	union {
+		bool (*func_is_supported)(struct ib_device *device);
 		const struct uapi_definition *chain;
 		const struct uverbs_object_def *chain_obj_tree;
+		size_t needs_fn_offset;
 	};
 };
+
+/*
+ * Object is only supported if the function pointer named ibdev_fn in struct
+ * ib_device is not NULL.
+ */
+#define UAPI_DEF_OBJ_NEEDS_FN(ibdev_fn)                                        \
+	{                                                                      \
+		.kind = UAPI_DEF_IS_SUPPORTED_DEV_FN,                          \
+		.scope = UAPI_SCOPE_OBJECT,                                    \
+		.needs_fn_offset =                                             \
+			offsetof(struct ib_device, ibdev_fn) +                 \
+			BUILD_BUG_ON_ZERO(                                     \
+				sizeof(((struct ib_device *)0)->ibdev_fn) !=   \
+				sizeof(void *)),                               \
+	}
+
+/* Call a function to determine if the entire object is supported or not */
+#define UAPI_DEF_IS_OBJ_SUPPORTED(_func)                                       \
+	{                                                                      \
+		.kind = UAPI_DEF_IS_SUPPORTED_FUNC,                            \
+		.scope = UAPI_SCOPE_OBJECT, .func_is_supported = _func,        \
+	}
 
 /* Include another struct uapi_definition in this one */
 #define UAPI_DEF_CHAIN(_def_var)                                               \

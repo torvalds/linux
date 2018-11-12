@@ -1224,7 +1224,7 @@ static int ib_uverbs_create_uapi(struct ib_device *device,
 {
 	struct uverbs_api *uapi;
 
-	uapi = uverbs_alloc_api(device->driver_def, device->driver_id);
+	uapi = uverbs_alloc_api(device);
 	if (IS_ERR(uapi))
 		return PTR_ERR(uapi);
 

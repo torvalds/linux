@@ -167,11 +167,33 @@ static int uapi_merge_obj_tree(struct uverbs_api *uapi,
 	return 0;
 }
 
-static int uapi_merge_def(struct uverbs_api *uapi,
+static int uapi_disable_elm(struct uverbs_api *uapi,
+			    const struct uapi_definition *def,
+			    u32 obj_key)
+{
+	bool exists;
+
+	if (def->scope == UAPI_SCOPE_OBJECT) {
+		struct uverbs_api_object *obj_elm;
+
+		obj_elm = uapi_add_get_elm(
+			uapi, obj_key, sizeof(*obj_elm), &exists);
+		if (IS_ERR(obj_elm))
+			return PTR_ERR(obj_elm);
+		obj_elm->disabled = 1;
+		return 0;
+	}
+
+	WARN_ON(true);
+	return -EINVAL;
+}
+
+static int uapi_merge_def(struct uverbs_api *uapi, struct ib_device *ibdev,
 			  const struct uapi_definition *def_list,
 			  bool is_driver)
 {
 	const struct uapi_definition *def = def_list;
+	u32 cur_obj_key = UVERBS_API_KEY_ERR;
 	int rc;
 
 	if (!def_list)
@@ -180,7 +202,7 @@ static int uapi_merge_def(struct uverbs_api *uapi,
 	for (;; def++) {
 		switch ((enum uapi_definition_kind)def->kind) {
 		case UAPI_DEF_CHAIN:
-			rc = uapi_merge_def(uapi, def->chain, is_driver);
+			rc = uapi_merge_def(uapi, ibdev, def->chain, is_driver);
 			if (rc)
 				return rc;
 			continue;
@@ -190,6 +212,7 @@ static int uapi_merge_def(struct uverbs_api *uapi,
 				    def->chain_obj_tree->id))
 				return -EINVAL;
 
+			cur_obj_key = uapi_key_obj(def->object_start.object_id);
 			rc = uapi_merge_obj_tree(uapi, def->chain_obj_tree,
 						 is_driver);
 			if (rc)
@@ -198,6 +221,25 @@ static int uapi_merge_def(struct uverbs_api *uapi,
 
 		case UAPI_DEF_END:
 			return 0;
+
+		case UAPI_DEF_IS_SUPPORTED_DEV_FN: {
+			void **ibdev_fn = (void *)ibdev + def->needs_fn_offset;
+
+			if (*ibdev_fn)
+				continue;
+			rc = uapi_disable_elm(uapi, def, cur_obj_key);
+			if (rc)
+				return rc;
+			continue;
+		}
+
+		case UAPI_DEF_IS_SUPPORTED_FUNC:
+			if (def->func_is_supported(ibdev))
+				continue;
+			rc = uapi_disable_elm(uapi, def, cur_obj_key);
+			if (rc)
+				return rc;
+			continue;
 		}
 		WARN_ON(true);
 		return -EINVAL;
@@ -286,18 +328,122 @@ static int uapi_finalize(struct uverbs_api *uapi)
 	return 0;
 }
 
-void uverbs_destroy_api(struct uverbs_api *uapi)
+static void uapi_remove_range(struct uverbs_api *uapi, u32 start, u32 last)
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
 
-	if (!uapi)
-		return;
-
-	radix_tree_for_each_slot (slot, &uapi->radix, &iter, 0) {
+	radix_tree_for_each_slot (slot, &uapi->radix, &iter, start) {
+		if (iter.index > last)
+			return;
 		kfree(rcu_dereference_protected(*slot, true));
 		radix_tree_iter_delete(&uapi->radix, &iter, slot);
 	}
+}
+
+static void uapi_remove_object(struct uverbs_api *uapi, u32 obj_key)
+{
+	uapi_remove_range(uapi, obj_key,
+			  obj_key | UVERBS_API_METHOD_KEY_MASK |
+				  UVERBS_API_ATTR_KEY_MASK);
+}
+
+static void uapi_remove_method(struct uverbs_api *uapi, u32 method_key)
+{
+	uapi_remove_range(uapi, method_key,
+			  method_key | UVERBS_API_ATTR_KEY_MASK);
+}
+
+
+static u32 uapi_get_obj_id(struct uverbs_attr_spec *spec)
+{
+	if (spec->type == UVERBS_ATTR_TYPE_IDR ||
+	    spec->type == UVERBS_ATTR_TYPE_FD)
+		return spec->u.obj.obj_type;
+	if (spec->type == UVERBS_ATTR_TYPE_IDRS_ARRAY)
+		return spec->u2.objs_arr.obj_type;
+	return UVERBS_API_KEY_ERR;
+}
+
+static void uapi_finalize_disable(struct uverbs_api *uapi)
+{
+	struct radix_tree_iter iter;
+	u32 starting_key = 0;
+	bool scan_again = false;
+	void __rcu **slot;
+
+again:
+	radix_tree_for_each_slot (slot, &uapi->radix, &iter, starting_key) {
+		if (uapi_key_is_object(iter.index)) {
+			struct uverbs_api_object *obj_elm =
+				rcu_dereference_protected(*slot, true);
+
+			if (obj_elm->disabled) {
+				/* Have to check all the attrs again */
+				scan_again = true;
+				starting_key = iter.index;
+				uapi_remove_object(uapi, iter.index);
+				goto again;
+			}
+			continue;
+		}
+
+		if (uapi_key_is_ioctl_method(iter.index)) {
+			struct uverbs_api_ioctl_method *method_elm =
+				rcu_dereference_protected(*slot, true);
+
+			if (method_elm->disabled) {
+				starting_key = iter.index;
+				uapi_remove_method(uapi, iter.index);
+				goto again;
+			}
+			continue;
+		}
+
+		if (uapi_key_is_attr(iter.index)) {
+			struct uverbs_api_attr *attr_elm =
+				rcu_dereference_protected(*slot, true);
+			const struct uverbs_api_object *tmp_obj;
+			u32 obj_key;
+
+			/*
+			 * If the method has a mandatory object handle
+			 * attribute which relies on an object which is not
+			 * present then the entire method is uncallable.
+			 */
+			if (!attr_elm->spec.mandatory)
+				continue;
+			obj_key = uapi_get_obj_id(&attr_elm->spec);
+			if (obj_key == UVERBS_API_KEY_ERR)
+				continue;
+			tmp_obj = uapi_get_object(uapi, obj_key);
+			if (tmp_obj && !tmp_obj->disabled)
+				continue;
+
+			starting_key = iter.index;
+			uapi_remove_method(
+				uapi,
+				iter.index & (UVERBS_API_OBJ_KEY_MASK |
+					      UVERBS_API_METHOD_KEY_MASK));
+			goto again;
+		}
+
+		WARN_ON(false);
+	}
+
+	if (!scan_again)
+		return;
+	scan_again = false;
+	starting_key = 0;
+	goto again;
+}
+
+void uverbs_destroy_api(struct uverbs_api *uapi)
+{
+	if (!uapi)
+		return;
+
+	uapi_remove_range(uapi, 0, U32_MAX);
 	kfree(uapi);
 }
 
@@ -306,8 +452,7 @@ static const struct uapi_definition uverbs_core_api[] = {
 	{},
 };
 
-struct uverbs_api *uverbs_alloc_api(const struct uapi_definition *driver_def,
-				    enum rdma_driver_id driver_id)
+struct uverbs_api *uverbs_alloc_api(struct ib_device *ibdev)
 {
 	struct uverbs_api *uapi;
 	int rc;
@@ -317,15 +462,16 @@ struct uverbs_api *uverbs_alloc_api(const struct uapi_definition *driver_def,
 		return ERR_PTR(-ENOMEM);
 
 	INIT_RADIX_TREE(&uapi->radix, GFP_KERNEL);
-	uapi->driver_id = driver_id;
+	uapi->driver_id = ibdev->driver_id;
 
-	rc = uapi_merge_def(uapi, uverbs_core_api, false);
+	rc = uapi_merge_def(uapi, ibdev, uverbs_core_api, false);
 	if (rc)
 		goto err;
-	rc = uapi_merge_def(uapi, driver_def, true);
+	rc = uapi_merge_def(uapi, ibdev, ibdev->driver_def, true);
 	if (rc)
 		goto err;
 
+	uapi_finalize_disable(uapi);
 	rc = uapi_finalize(uapi);
 	if (rc)
 		goto err;
@@ -333,8 +479,9 @@ struct uverbs_api *uverbs_alloc_api(const struct uapi_definition *driver_def,
 	return uapi;
 err:
 	if (rc != -ENOMEM)
-		pr_err("Setup of uverbs_api failed, kernel parsing tree description is not valid (%d)??\n",
-		       rc);
+		dev_err(&ibdev->dev,
+			"Setup of uverbs_api failed, kernel parsing tree description is not valid (%d)??\n",
+			rc);
 
 	uverbs_destroy_api(uapi);
 	return ERR_PTR(rc);

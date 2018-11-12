@@ -121,6 +121,7 @@ void release_ufile_idr_uobject(struct ib_uverbs_file *ufile);
 struct uverbs_api_object {
 	const struct uverbs_obj_type *type_attrs;
 	const struct uverbs_obj_type_class *type_class;
+	u8 disabled:1;
 };
 
 struct uverbs_api_ioctl_method {
@@ -130,6 +131,7 @@ struct uverbs_api_ioctl_method {
 	u16 bundle_size;
 	u8 use_stack:1;
 	u8 driver_method:1;
+	u8 disabled:1;
 	u8 key_bitmap_len;
 	u8 destroy_bkey;
 };
@@ -138,7 +140,6 @@ struct uverbs_api_attr {
 	struct uverbs_attr_spec spec;
 };
 
-struct uverbs_api_object;
 struct uverbs_api {
 	/* radix tree contains struct uverbs_api_* pointers */
 	struct radix_tree_root radix;
@@ -152,8 +153,7 @@ uapi_get_object(struct uverbs_api *uapi, u16 object_id)
 }
 
 char *uapi_key_format(char *S, unsigned int key);
-struct uverbs_api *uverbs_alloc_api(const struct uapi_definition *driver_def,
-				    enum rdma_driver_id driver_id);
+struct uverbs_api *uverbs_alloc_api(struct ib_device *ibdev);
 void uverbs_disassociate_api_pre(struct ib_uverbs_device *uverbs_dev);
 void uverbs_disassociate_api(struct uverbs_api *uapi);
 void uverbs_destroy_api(struct uverbs_api *uapi);
