@@ -27,6 +27,7 @@
 #define AQ_RX_MAX_RXNFC_LOC	   AQ_RX_LAST_LOC_FL3L4
 #define AQ_VLAN_MAX_FILTERS   \
 			(AQ_RX_LAST_LOC_FVLANID - AQ_RX_FIRST_LOC_FVLANID + 1U)
+#define AQ_RX_QUEUE_NOT_ASSIGNED   0xFFU
 
 /* NIC H/W capabilities */
 struct aq_hw_caps_s {

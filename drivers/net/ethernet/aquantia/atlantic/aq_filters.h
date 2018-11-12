@@ -27,8 +27,10 @@ int aq_del_rxnfc_rule(struct aq_nic_s *aq_nic, const struct ethtool_rxnfc *cmd);
 int aq_get_rxnfc_rule(struct aq_nic_s *aq_nic, struct ethtool_rxnfc *cmd);
 int aq_get_rxnfc_all_rules(struct aq_nic_s *aq_nic, struct ethtool_rxnfc *cmd,
 			   u32 *rule_locs);
+int aq_del_fvlan_by_vlan(struct aq_nic_s *aq_nic, u16 vlan_id);
 int aq_clear_rxnfc_all_rules(struct aq_nic_s *aq_nic);
 int aq_reapply_rxnfc_all_rules(struct aq_nic_s *aq_nic);
 int aq_filters_vlans_update(struct aq_nic_s *aq_nic);
+int aq_filters_vlan_offload_off(struct aq_nic_s *aq_nic);
 
 #endif /* AQ_FILTERS_H */

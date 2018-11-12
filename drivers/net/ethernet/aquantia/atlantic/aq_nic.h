@@ -35,7 +35,6 @@ struct aq_nic_cfg_s {
 	u32 mtu;
 	u32 flow_control;
 	u32 link_speed_msk;
-	u32 vlan_id;
 	u32 wol;
 	u16 is_mc_list_enabled;
 	u16 mc_list_count;
@@ -98,6 +97,8 @@ struct aq_nic_s {
 		u32 count;
 		u8 ar[AQ_HW_MULTICAST_ADDRESS_MAX][ETH_ALEN];
 	} mc_list;
+	/* Bitmask of currently assigned vlans from linux */
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
 	struct pci_dev *pdev;
 	unsigned int msix_entry_mask;

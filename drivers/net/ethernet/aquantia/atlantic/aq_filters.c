@@ -157,6 +157,14 @@ aq_check_approve_fvlan(struct aq_nic_s *aq_nic,
 		return -EINVAL;
 	}
 
+	if ((aq_nic->ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
+	    (!test_bit(be16_to_cpu(fsp->h_ext.vlan_tci),
+		       aq_nic->active_vlans))) {
+		netdev_err(aq_nic->ndev,
+			   "ethtool: unknown vlan-id specified");
+		return -EINVAL;
+	}
+
 	if (fsp->ring_cookie > aq_nic->aq_nic_cfg.num_rss_queues) {
 		netdev_err(aq_nic->ndev,
 			   "ethtool: queue number must be in range [0, %d]",
@@ -331,24 +339,106 @@ static int aq_add_del_fether(struct aq_nic_s *aq_nic,
 		return aq_hw_ops->hw_filter_l2_clear(aq_hw, &data);
 }
 
+static bool aq_fvlan_is_busy(struct aq_rx_filter_vlan *aq_vlans, int vlan)
+{
+	int i;
+
+	for (i = 0; i < AQ_VLAN_MAX_FILTERS; ++i) {
+		if (aq_vlans[i].enable &&
+		    aq_vlans[i].queue != AQ_RX_QUEUE_NOT_ASSIGNED &&
+		    aq_vlans[i].vlan_id == vlan) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/* Function rebuilds array of vlan filters so that filters with assigned
+ * queue have a precedence over just vlans on the interface.
+ */
+static void aq_fvlan_rebuild(struct aq_nic_s *aq_nic,
+			     unsigned long *active_vlans,
+			     struct aq_rx_filter_vlan *aq_vlans)
+{
+	bool vlan_busy = false;
+	int vlan = -1;
+	int i;
+
+	for (i = 0; i < AQ_VLAN_MAX_FILTERS; ++i) {
+		if (aq_vlans[i].enable &&
+		    aq_vlans[i].queue != AQ_RX_QUEUE_NOT_ASSIGNED)
+			continue;
+		do {
+			vlan = find_next_bit(active_vlans,
+					     VLAN_N_VID,
+					     vlan + 1);
+			if (vlan == VLAN_N_VID) {
+				aq_vlans[i].enable = 0U;
+				aq_vlans[i].queue = AQ_RX_QUEUE_NOT_ASSIGNED;
+				aq_vlans[i].vlan_id = 0;
+				continue;
+			}
+
+			vlan_busy = aq_fvlan_is_busy(aq_vlans, vlan);
+			if (!vlan_busy) {
+				aq_vlans[i].enable = 1U;
+				aq_vlans[i].queue = AQ_RX_QUEUE_NOT_ASSIGNED;
+				aq_vlans[i].vlan_id = vlan;
+			}
+		} while (vlan_busy && vlan != VLAN_N_VID);
+	}
+}
+
 static int aq_set_data_fvlan(struct aq_nic_s *aq_nic,
 			     struct aq_rx_filter *aq_rx_fltr,
 			     struct aq_rx_filter_vlan *aq_vlans, bool add)
 {
 	const struct ethtool_rx_flow_spec *fsp = &aq_rx_fltr->aq_fsp;
 	int location = fsp->location - AQ_RX_FIRST_LOC_FVLANID;
+	int i;
 
 	memset(&aq_vlans[location], 0, sizeof(aq_vlans[location]));
 
 	if (!add)
 		return 0;
 
+	/* remove vlan if it was in table without queue assignment */
+	for (i = 0; i < AQ_VLAN_MAX_FILTERS; ++i) {
+		if (aq_vlans[i].vlan_id ==
+		   (be16_to_cpu(fsp->h_ext.vlan_tci) & VLAN_VID_MASK)) {
+			aq_vlans[i].enable = false;
+		}
+	}
+
 	aq_vlans[location].location = location;
 	aq_vlans[location].vlan_id = be16_to_cpu(fsp->h_ext.vlan_tci)
 				     & VLAN_VID_MASK;
 	aq_vlans[location].queue = fsp->ring_cookie & 0x1FU;
 	aq_vlans[location].enable = 1U;
+
 	return 0;
+}
+
+int aq_del_fvlan_by_vlan(struct aq_nic_s *aq_nic, u16 vlan_id)
+{
+	struct aq_hw_rx_fltrs_s *rx_fltrs = aq_get_hw_rx_fltrs(aq_nic);
+	struct aq_rx_filter *rule = NULL;
+	struct hlist_node *aq_node2;
+
+	hlist_for_each_entry_safe(rule, aq_node2,
+				  &rx_fltrs->filter_list, aq_node) {
+		if (be16_to_cpu(rule->aq_fsp.h_ext.vlan_tci) == vlan_id)
+			break;
+	}
+	if (rule && be16_to_cpu(rule->aq_fsp.h_ext.vlan_tci) == vlan_id) {
+		struct ethtool_rxnfc cmd;
+
+		cmd.fs.location = rule->aq_fsp.location;
+		return aq_del_rxnfc_rule(aq_nic, &cmd);
+	}
+
+	return -ENOENT;
 }
 
 static int aq_add_del_fvlan(struct aq_nic_s *aq_nic,
@@ -725,14 +815,62 @@ int aq_filters_vlans_update(struct aq_nic_s *aq_nic)
 {
 	const struct aq_hw_ops *aq_hw_ops = aq_nic->aq_hw_ops;
 	struct aq_hw_s *aq_hw = aq_nic->aq_hw;
+	int hweight = 0;
 	int err = 0;
+	int i;
 
 	if (unlikely(!aq_hw_ops->hw_filter_vlan_set))
 		return -EOPNOTSUPP;
+	if (unlikely(!aq_hw_ops->hw_filter_vlan_ctrl))
+		return -EOPNOTSUPP;
+
+	aq_fvlan_rebuild(aq_nic, aq_nic->active_vlans,
+			 aq_nic->aq_hw_rx_fltrs.fl2.aq_vlans);
+
+	if (aq_nic->ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER) {
+		for (i = 0; i < BITS_TO_LONGS(VLAN_N_VID); i++)
+			hweight += hweight_long(aq_nic->active_vlans[i]);
+
+		err = aq_hw_ops->hw_filter_vlan_ctrl(aq_hw, false);
+		if (err)
+			return err;
+	}
 
 	err = aq_hw_ops->hw_filter_vlan_set(aq_hw,
 					    aq_nic->aq_hw_rx_fltrs.fl2.aq_vlans
 					   );
+	if (err)
+		return err;
 
+	if (aq_nic->ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER) {
+		if (hweight < AQ_VLAN_MAX_FILTERS)
+			err = aq_hw_ops->hw_filter_vlan_ctrl(aq_hw, true);
+		/* otherwise left in promiscue mode */
+	}
+
+	return err;
+}
+
+int aq_filters_vlan_offload_off(struct aq_nic_s *aq_nic)
+{
+	const struct aq_hw_ops *aq_hw_ops = aq_nic->aq_hw_ops;
+	struct aq_hw_s *aq_hw = aq_nic->aq_hw;
+	int err = 0;
+
+	memset(aq_nic->active_vlans, 0, sizeof(aq_nic->active_vlans));
+	aq_fvlan_rebuild(aq_nic, aq_nic->active_vlans,
+			 aq_nic->aq_hw_rx_fltrs.fl2.aq_vlans);
+
+	if (unlikely(!aq_hw_ops->hw_filter_vlan_set))
+		return -EOPNOTSUPP;
+	if (unlikely(!aq_hw_ops->hw_filter_vlan_ctrl))
+		return -EOPNOTSUPP;
+
+	err = aq_hw_ops->hw_filter_vlan_ctrl(aq_hw, false);
+	if (err)
+		return err;
+	err = aq_hw_ops->hw_filter_vlan_set(aq_hw,
+					    aq_nic->aq_hw_rx_fltrs.fl2.aq_vlans
+					   );
 	return err;
 }

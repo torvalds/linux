@@ -114,6 +114,13 @@ static int aq_ndev_set_features(struct net_device *ndev,
 				goto err_exit;
 		}
 	}
+	if (!(features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
+		if (aq_nic->ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER) {
+			err = aq_filters_vlan_offload_off(aq_nic);
+			if (unlikely(err))
+				goto err_exit;
+		}
+	}
 
 	aq_cfg->features = features;
 
@@ -162,6 +169,35 @@ static void aq_ndev_set_multicast_settings(struct net_device *ndev)
 	aq_nic_set_multicast_list(aq_nic, ndev);
 }
 
+static int aq_ndo_vlan_rx_add_vid(struct net_device *ndev, __be16 proto,
+				  u16 vid)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+
+	if (!aq_nic->aq_hw_ops->hw_filter_vlan_set)
+		return -EOPNOTSUPP;
+
+	set_bit(vid, aq_nic->active_vlans);
+
+	return aq_filters_vlans_update(aq_nic);
+}
+
+static int aq_ndo_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto,
+				   u16 vid)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+
+	if (!aq_nic->aq_hw_ops->hw_filter_vlan_set)
+		return -EOPNOTSUPP;
+
+	clear_bit(vid, aq_nic->active_vlans);
+
+	if (-ENOENT == aq_del_fvlan_by_vlan(aq_nic, vid))
+		return aq_filters_vlans_update(aq_nic);
+
+	return 0;
+}
+
 static const struct net_device_ops aq_ndev_ops = {
 	.ndo_open = aq_ndev_open,
 	.ndo_stop = aq_ndev_close,
@@ -169,5 +205,7 @@ static const struct net_device_ops aq_ndev_ops = {
 	.ndo_set_rx_mode = aq_ndev_set_multicast_settings,
 	.ndo_change_mtu = aq_ndev_change_mtu,
 	.ndo_set_mac_address = aq_ndev_set_mac_address,
-	.ndo_set_features = aq_ndev_set_features
+	.ndo_set_features = aq_ndev_set_features,
+	.ndo_vlan_rx_add_vid = aq_ndo_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = aq_ndo_vlan_rx_kill_vid,
 };

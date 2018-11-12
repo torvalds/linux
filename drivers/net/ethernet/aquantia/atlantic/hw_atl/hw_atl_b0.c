@@ -42,7 +42,8 @@
 			NETIF_F_SG |      \
 			NETIF_F_TSO |     \
 			NETIF_F_LRO |     \
-			NETIF_F_NTUPLE,   \
+			NETIF_F_NTUPLE |  \
+			NETIF_F_HW_VLAN_CTAG_FILTER, \
 	.hw_priv_flags = IFF_UNICAST_FLT, \
 	.flow_control = true,		  \
 	.mtu = HW_ATL_B0_MTU_JUMBO,	  \
@@ -320,20 +321,11 @@ static int hw_atl_b0_hw_init_rx_path(struct aq_hw_s *self)
 	hw_atl_rpf_vlan_outer_etht_set(self, 0x88A8U);
 	hw_atl_rpf_vlan_inner_etht_set(self, 0x8100U);
 
-	if (cfg->vlan_id) {
-		hw_atl_rpf_vlan_flr_act_set(self, 1U, 0U);
-		hw_atl_rpf_vlan_id_flr_set(self, 0U, 0U);
-		hw_atl_rpf_vlan_flr_en_set(self, 0U, 0U);
+	hw_atl_rpf_vlan_prom_mode_en_set(self, 1);
 
-		hw_atl_rpf_vlan_accept_untagged_packets_set(self, 1U);
-		hw_atl_rpf_vlan_untagged_act_set(self, 1U);
-
-		hw_atl_rpf_vlan_flr_act_set(self, 1U, 1U);
-		hw_atl_rpf_vlan_id_flr_set(self, cfg->vlan_id, 0U);
-		hw_atl_rpf_vlan_flr_en_set(self, 1U, 1U);
-	} else {
-		hw_atl_rpf_vlan_prom_mode_en_set(self, 1);
-	}
+	// Always accept untagged packets
+	hw_atl_rpf_vlan_accept_untagged_packets_set(self, 1U);
+	hw_atl_rpf_vlan_untagged_act_set(self, 1U);
 
 	/* Rx Interrupts */
 	hw_atl_rdm_rx_desc_wr_wb_irq_en_set(self, 1U);
@@ -1074,6 +1066,14 @@ static int hw_atl_b0_hw_vlan_set(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
+static int hw_atl_b0_hw_vlan_ctrl(struct aq_hw_s *self, bool enable)
+{
+	/* set promisc in case of disabing the vland filter */
+	hw_atl_rpf_vlan_prom_mode_en_set(self, !!!enable);
+
+	return aq_hw_err_from_flags(self);
+}
+
 const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_set_mac_address   = hw_atl_b0_hw_mac_addr_set,
 	.hw_init              = hw_atl_b0_hw_init,
@@ -1102,6 +1102,7 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_filter_l2_clear          = hw_atl_b0_hw_fl2_clear,
 	.hw_filter_l3l4_set          = hw_atl_b0_hw_fl3l4_set,
 	.hw_filter_vlan_set          = hw_atl_b0_hw_vlan_set,
+	.hw_filter_vlan_ctrl         = hw_atl_b0_hw_vlan_ctrl,
 	.hw_multicast_list_set       = hw_atl_b0_hw_multicast_list_set,
 	.hw_interrupt_moderation_set = hw_atl_b0_hw_interrupt_moderation_set,
 	.hw_rss_set                  = hw_atl_b0_hw_rss_set,
