@@ -397,6 +397,13 @@ config SPI_MT65XX
 	  say Y or M here.If you are not sure, say N.
 	  SPI drivers for Mediatek MT65XX and MT81XX series ARM SoCs.
 
+config SPI_NPCM_PSPI
+	tristate "Nuvoton NPCM PSPI Controller"
+	depends on ARCH_NPCM || COMPILE_TEST
+	help
+	  This driver provides support for Nuvoton NPCM BMC
+	  Peripheral SPI controller in master mode.
+
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"
 	depends on ARCH_W90X900
