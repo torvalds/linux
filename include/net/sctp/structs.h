@@ -96,7 +96,9 @@ struct sctp_stream;
 
 struct sctp_bind_bucket {
 	unsigned short	port;
-	unsigned short	fastreuse;
+	signed char	fastreuse;
+	signed char	fastreuseport;
+	kuid_t		fastuid;
 	struct hlist_node	node;
 	struct hlist_head	owner;
 	struct net	*net;
