@@ -612,15 +612,15 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 							 &hidden_ntwk))
 				return -ENOMEM;
 
-			ret = wilc_scan(vif, USER_SCAN, WILC_FW_ACTIVE_SCAN,
-					scan_ch_list,
+			ret = wilc_scan(vif, WILC_FW_USER_SCAN,
+					WILC_FW_ACTIVE_SCAN, scan_ch_list,
 					request->n_channels,
 					(const u8 *)request->ie,
 					request->ie_len, cfg_scan_result,
 					(void *)priv, &hidden_ntwk);
 		} else {
-			ret = wilc_scan(vif, USER_SCAN, WILC_FW_ACTIVE_SCAN,
-					scan_ch_list,
+			ret = wilc_scan(vif, WILC_FW_USER_SCAN,
+					WILC_FW_ACTIVE_SCAN, scan_ch_list,
 					request->n_channels,
 					(const u8 *)request->ie,
 					request->ie_len, cfg_scan_result,

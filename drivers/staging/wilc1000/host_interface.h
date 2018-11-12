@@ -15,13 +15,7 @@
 #define GO_MODE		0x03
 #define CLIENT_MODE	0x04
 
-#define ACTION_FRM_IDX				0
-#define PROBE_REQ_IDX				1
 #define MAX_NUM_STA				9
-#define DEFAULT_SCAN				0
-#define USER_SCAN				BIT(0)
-#define OBSS_PERIODIC_SCAN			BIT(1)
-#define OBSS_ONETIME_SCAN			BIT(2)
 #define ADDKEY					0x1
 #define REMOVEKEY				0x2
 #define DEFAULTKEY				0x4
