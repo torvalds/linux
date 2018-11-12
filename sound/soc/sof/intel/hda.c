@@ -563,9 +563,10 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 #endif
 
 	/* set up HDA base */
+	bus = sof_to_bus(sdev);
 	ret = hda_init(sdev);
 	if (ret < 0)
-		return ret;
+		goto hdac_bus_unmap;
 
 	/* DSP base */
 	sdev->bar[HDA_DSP_BAR] = pci_ioremap_bar(pci, HDA_DSP_BAR);
@@ -619,7 +620,6 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 		sdev->ipc_irq = sdev->hda->irq;
 	}
 
-	bus = sof_to_bus(sdev);
 	dev_dbg(sdev->dev, "using HDA IRQ %d\n", sdev->hda->irq);
 	ret = request_threaded_irq(sdev->hda->irq, hda_dsp_stream_interrupt,
 				   hda_dsp_stream_threaded_handler,
@@ -720,6 +720,8 @@ free_hda_irq:
 	pci_free_irq_vectors(pci);
 free_streams:
 	hda_dsp_stream_free(sdev);
+hdac_bus_unmap:
+	iounmap(bus->remap_addr);
 err:
 	return ret;
 }
