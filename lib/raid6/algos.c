@@ -163,6 +163,11 @@ static inline const struct raid6_calls *raid6_choose_gen(
 			if ((*algo)->valid && !(*algo)->valid())
 				continue;
 
+			if (!IS_ENABLED(CONFIG_RAID6_PQ_BENCHMARK)) {
+				best = *algo;
+				break;
+			}
+
 			perf = 0;
 
 			preempt_disable();

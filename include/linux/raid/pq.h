@@ -70,6 +70,9 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #define MODULE_DESCRIPTION(desc)
 #define subsys_initcall(x)
 #define module_exit(x)
+
+#define IS_ENABLED(x) (x)
+#define CONFIG_RAID6_PQ_BENCHMARK 1
 #endif /* __KERNEL__ */
 
 /* Routine choices */
