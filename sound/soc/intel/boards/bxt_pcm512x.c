@@ -32,7 +32,11 @@
 #include "../../codecs/pcm512x.h"
 #include "../atom/sst-atom-controls.h"
 
-#ifdef CONFIG_SND_SOC_HDAC_HDMI
+struct bxt_card_private {
+	struct list_head hdmi_pcm_list;
+};
+
+#if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
 static struct snd_soc_jack broxton_hdmi[3];
 
 struct bxt_hdmi_pcm {
@@ -98,10 +102,6 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 	return 0;
 }
 #endif
-
-struct bxt_card_private {
-	struct list_head hdmi_pcm_list;
-};
 
 static const struct snd_soc_dapm_widget dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
@@ -192,7 +192,7 @@ static struct snd_soc_dai_link dailink[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 	},
-#ifdef CONFIG_SND_SOC_HDAC_HDMI
+#if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
 	{
 		.name = "iDisp1",
 		.id = 1,
