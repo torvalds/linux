@@ -218,7 +218,7 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 	int ret;
 
 	/* wait for DSP IPC completion */
-	ret = wait_event_timeout(msg->waitq, msg->complete,
+	ret = wait_event_timeout(msg->waitq, msg->ipc_complete,
 				 msecs_to_jiffies(IPC_TIMEOUT_MSECS));
 
 	spin_lock_irqsave(&sdev->ipc_lock, flags);
@@ -275,7 +275,7 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 	msg->header = header;
 	msg->msg_size = msg_bytes;
 	msg->reply_size = reply_bytes;
-	msg->complete = false;
+	msg->ipc_complete = false;
 
 	/* attach any data */
 	if (msg_bytes)
@@ -347,7 +347,7 @@ err:
 static void sof_ipc_tx_msg_reply_complete(struct snd_sof_ipc *ipc,
 					  struct snd_sof_ipc_msg *msg)
 {
-	msg->complete = true;
+	msg->ipc_complete = true;
 	wake_up(&msg->waitq);
 }
 

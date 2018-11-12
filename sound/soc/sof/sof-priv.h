@@ -229,7 +229,7 @@ struct snd_sof_ipc_msg {
 	size_t reply_size;
 
 	wait_queue_head_t waitq;
-	bool complete;
+	u32 ipc_complete;
 };
 
 /* PCM stream, mapped to FW component  */
