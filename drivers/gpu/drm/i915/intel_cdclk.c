@@ -2662,8 +2662,8 @@ static int cnp_rawclk(struct drm_i915_private *dev_priv)
 
 	rawclk = CNP_RAWCLK_DIV(divider / 1000);
 	if (fraction)
-		rawclk |= CNP_RAWCLK_FRAC(DIV_ROUND_CLOSEST(1000,
-							    fraction) - 1);
+		rawclk |= CNP_RAWCLK_DEN(DIV_ROUND_CLOSEST(1000,
+							   fraction) - 1);
 
 	I915_WRITE(PCH_RAWCLK_FREQ, rawclk);
 	return divider + fraction;
@@ -2687,7 +2687,7 @@ static int icp_rawclk(struct drm_i915_private *dev_priv)
 	}
 
 	rawclk = CNP_RAWCLK_DIV(divider) | ICP_RAWCLK_NUM(numerator) |
-		 ICP_RAWCLK_DEN(denominator);
+		 CNP_RAWCLK_DEN(denominator);
 
 	I915_WRITE(PCH_RAWCLK_FREQ, rawclk);
 	return frequency;
