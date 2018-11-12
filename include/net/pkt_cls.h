@@ -821,12 +821,21 @@ enum tc_mq_command {
 	TC_MQ_CREATE,
 	TC_MQ_DESTROY,
 	TC_MQ_STATS,
+	TC_MQ_GRAFT,
+};
+
+struct tc_mq_opt_offload_graft_params {
+	unsigned long queue;
+	u32 child_handle;
 };
 
 struct tc_mq_qopt_offload {
 	enum tc_mq_command command;
 	u32 handle;
-	struct tc_qopt_offload_stats stats;
+	union {
+		struct tc_qopt_offload_stats stats;
+		struct tc_mq_opt_offload_graft_params graft_params;
+	};
 };
 
 enum tc_red_command {
