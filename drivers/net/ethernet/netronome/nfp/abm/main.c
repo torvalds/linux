@@ -329,6 +329,7 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 
 	nfp_abm_vnic_set_mac(app->pf, abm, nn, id);
 	nfp_abm_ctrl_read_params(alink);
+	INIT_RADIX_TREE(&alink->qdiscs, GFP_KERNEL);
 
 	return 0;
 
@@ -344,6 +345,7 @@ static void nfp_abm_vnic_free(struct nfp_app *app, struct nfp_net *nn)
 	struct nfp_abm_link *alink = nn->app_priv;
 
 	nfp_abm_kill_reprs(alink->abm, alink);
+	WARN(!radix_tree_empty(&alink->qdiscs), "left over qdiscs\n");
 	kvfree(alink->red_qdiscs);
 	kfree(alink);
 }

@@ -5,6 +5,7 @@
 #define __NFP_ABM_H__ 1
 
 #include <linux/bits.h>
+#include <linux/radix-tree.h>
 #include <net/devlink.h>
 #include <net/pkt_cls.h>
 
@@ -71,6 +72,26 @@ struct nfp_alink_xstats {
 	u64 pdrop;
 };
 
+enum nfp_qdisc_type {
+	NFP_QDISC_NONE = 0,
+	NFP_QDISC_MQ,
+	NFP_QDISC_RED,
+};
+
+/**
+ * struct nfp_qdisc - tracked TC Qdisc
+ * @netdev:		netdev on which Qdisc was created
+ * @type:		Qdisc type
+ * @handle:		handle of this Qdisc
+ * @parent_handle:	handle of the parent (unreliable if Qdisc was grafted)
+ */
+struct nfp_qdisc {
+	struct net_device *netdev;
+	enum nfp_qdisc_type type;
+	u32 handle;
+	u32 parent_handle;
+};
+
 /**
  * struct nfp_red_qdisc - representation of single RED Qdisc
  * @handle:	handle of currently offloaded RED Qdisc
@@ -95,6 +116,7 @@ struct nfp_red_qdisc {
  * @parent:	handle of expected parent, i.e. handle of MQ, or TC_H_ROOT
  * @num_qdiscs:	number of currently used qdiscs
  * @red_qdiscs:	array of qdiscs
+ * @qdiscs:	all qdiscs recorded by major part of the handle
  */
 struct nfp_abm_link {
 	struct nfp_abm *abm;
@@ -105,6 +127,7 @@ struct nfp_abm_link {
 	u32 parent;
 	unsigned int num_qdiscs;
 	struct nfp_red_qdisc *red_qdiscs;
+	struct radix_tree_root qdiscs;
 };
 
 int nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,

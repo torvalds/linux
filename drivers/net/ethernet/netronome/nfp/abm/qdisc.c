@@ -63,17 +63,97 @@ static void nfp_abm_offload_update(struct nfp_abm *abm)
 }
 
 static void
-__nfp_abm_reset_root(struct net_device *netdev, struct nfp_abm_link *alink,
-		     u32 handle, unsigned int qs, u32 init_val)
+nfp_abm_qdisc_free(struct net_device *netdev, struct nfp_abm_link *alink,
+		   struct nfp_qdisc *qdisc)
 {
 	struct nfp_port *port = nfp_port_from_netdev(netdev);
 
+	if (!qdisc)
+		return;
+	WARN_ON(radix_tree_delete(&alink->qdiscs,
+				  TC_H_MAJ(qdisc->handle)) != qdisc);
+	kfree(qdisc);
+
+	port->tc_offload_cnt--;
+}
+
+static struct nfp_qdisc *
+nfp_abm_qdisc_alloc(struct net_device *netdev, struct nfp_abm_link *alink,
+		    enum nfp_qdisc_type type, u32 parent_handle, u32 handle)
+{
+	struct nfp_port *port = nfp_port_from_netdev(netdev);
+	struct nfp_qdisc *qdisc;
+	int err;
+
+	qdisc = kzalloc(sizeof(*qdisc), GFP_KERNEL);
+	if (!qdisc)
+		return NULL;
+
+	qdisc->netdev = netdev;
+	qdisc->type = type;
+	qdisc->parent_handle = parent_handle;
+	qdisc->handle = handle;
+
+	err = radix_tree_insert(&alink->qdiscs, TC_H_MAJ(qdisc->handle), qdisc);
+	if (err) {
+		nfp_err(alink->abm->app->cpp,
+			"Qdisc insertion into radix tree failed: %d\n", err);
+		goto err_free_qdisc;
+	}
+
+	port->tc_offload_cnt++;
+	return qdisc;
+
+err_free_qdisc:
+	kfree(qdisc);
+	return NULL;
+}
+
+static struct nfp_qdisc *
+nfp_abm_qdisc_find(struct nfp_abm_link *alink, u32 handle)
+{
+	return radix_tree_lookup(&alink->qdiscs, TC_H_MAJ(handle));
+}
+
+static int
+nfp_abm_qdisc_replace(struct net_device *netdev, struct nfp_abm_link *alink,
+		      enum nfp_qdisc_type type, u32 parent_handle, u32 handle,
+		      struct nfp_qdisc **qdisc)
+{
+	*qdisc = nfp_abm_qdisc_find(alink, handle);
+	if (*qdisc) {
+		if (WARN_ON((*qdisc)->type != type))
+			return -EINVAL;
+		return 0;
+	}
+
+	*qdisc = nfp_abm_qdisc_alloc(netdev, alink, type, parent_handle,
+				     handle);
+	return *qdisc ? 0 : -ENOMEM;
+}
+
+static void
+nfp_abm_qdisc_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
+		      u32 handle)
+{
+	struct nfp_qdisc *qdisc;
+
+	qdisc = nfp_abm_qdisc_find(alink, handle);
+	if (!qdisc)
+		return;
+
+	nfp_abm_qdisc_free(netdev, alink, qdisc);
+}
+
+static void
+__nfp_abm_reset_root(struct net_device *netdev, struct nfp_abm_link *alink,
+		     u32 handle, unsigned int qs, u32 init_val)
+{
 	memset(alink->red_qdiscs, 0,
 	       sizeof(*alink->red_qdiscs) * alink->num_qdiscs);
 
 	alink->parent = handle;
 	alink->num_qdiscs = qs;
-	port->tc_offload_cnt = qs;
 }
 
 static void
@@ -107,6 +187,8 @@ nfp_abm_red_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
 		    u32 handle)
 {
 	unsigned int i;
+
+	nfp_abm_qdisc_destroy(netdev, alink, handle);
 
 	for (i = 0; i < alink->num_qdiscs; i++)
 		if (handle == alink->red_qdiscs[i].handle)
@@ -157,11 +239,21 @@ static int
 nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 		    struct tc_red_qopt_offload *opt)
 {
+	struct nfp_qdisc *qdisc;
 	bool existing;
 	int i, err;
+	int ret;
+
+	ret = nfp_abm_qdisc_replace(netdev, alink, NFP_QDISC_RED, opt->parent,
+				    opt->handle, &qdisc);
 
 	i = nfp_abm_red_find(alink, opt);
 	existing = i >= 0;
+
+	if (ret) {
+		err = ret;
+		goto err_destroy;
+	}
 
 	if (!nfp_abm_red_check_params(alink, opt)) {
 		err = -EINVAL;
@@ -326,6 +418,16 @@ nfp_abm_mq_stats(struct nfp_abm_link *alink, struct tc_mq_qopt_offload *opt)
 	return 0;
 }
 
+static int
+nfp_abm_mq_create(struct net_device *netdev, struct nfp_abm_link *alink,
+		  struct tc_mq_qopt_offload *opt)
+{
+	struct nfp_qdisc *qdisc;
+
+	return nfp_abm_qdisc_replace(netdev, alink, NFP_QDISC_MQ,
+				     TC_H_ROOT, opt->handle, &qdisc);
+}
+
 int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 			struct tc_mq_qopt_offload *opt)
 {
@@ -334,8 +436,9 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 		nfp_abm_reset_root(netdev, alink, opt->handle,
 				   alink->total_queues);
 		nfp_abm_offload_update(alink->abm);
-		return 0;
+		return nfp_abm_mq_create(netdev, alink, opt);
 	case TC_MQ_DESTROY:
+		nfp_abm_qdisc_destroy(netdev, alink, opt->handle);
 		if (opt->handle == alink->parent) {
 			nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 0);
 			nfp_abm_offload_update(alink->abm);
