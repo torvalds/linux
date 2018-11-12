@@ -202,8 +202,6 @@ static int phy_pcie_init(struct rockchip_combphy_priv *priv)
 	}
 
 	reset_control_deassert(priv->rsts[PHY_PIPE_RSTN]);
-	/* Release link reset grant */
-	return regmap_write(priv->usb_pcie_grf, 0x0, 0x40004);
 error:
 	return ret;
 }
