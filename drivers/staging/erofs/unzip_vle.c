@@ -250,8 +250,8 @@ static inline bool try_to_claim_workgroup(
 retry:
 	if (grp->next == Z_EROFS_VLE_WORKGRP_NIL) {
 		/* type 1, nil workgroup */
-		if (Z_EROFS_VLE_WORKGRP_NIL != cmpxchg(&grp->next,
-			Z_EROFS_VLE_WORKGRP_NIL, *owned_head))
+		if (cmpxchg(&grp->next, Z_EROFS_VLE_WORKGRP_NIL,
+			    *owned_head) != Z_EROFS_VLE_WORKGRP_NIL)
 			goto retry;
 
 		*owned_head = grp;
@@ -262,8 +262,8 @@ retry:
 		 * be careful that its submission itself is governed
 		 * by the original owned chain.
 		 */
-		if (Z_EROFS_VLE_WORKGRP_TAIL != cmpxchg(&grp->next,
-			Z_EROFS_VLE_WORKGRP_TAIL, *owned_head))
+		if (cmpxchg(&grp->next, Z_EROFS_VLE_WORKGRP_TAIL,
+			    *owned_head) != Z_EROFS_VLE_WORKGRP_TAIL)
 			goto retry;
 
 		*owned_head = Z_EROFS_VLE_WORKGRP_TAIL;
