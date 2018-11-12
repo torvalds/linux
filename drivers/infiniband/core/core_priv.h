@@ -54,35 +54,6 @@ struct pkey_index_qp_list {
 	struct list_head    qp_list;
 };
 
-#if IS_ENABLED(CONFIG_INFINIBAND_ADDR_TRANS_CONFIGFS)
-int cma_configfs_init(void);
-void cma_configfs_exit(void);
-#else
-static inline int cma_configfs_init(void)
-{
-	return 0;
-}
-
-static inline void cma_configfs_exit(void)
-{
-}
-#endif
-struct cma_device;
-void cma_ref_dev(struct cma_device *cma_dev);
-void cma_deref_dev(struct cma_device *cma_dev);
-typedef bool (*cma_device_filter)(struct ib_device *, void *);
-struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter	filter,
-					     void		*cookie);
-int cma_get_default_gid_type(struct cma_device *cma_dev,
-			     unsigned int port);
-int cma_set_default_gid_type(struct cma_device *cma_dev,
-			     unsigned int port,
-			     enum ib_gid_type default_gid_type);
-int cma_get_default_roce_tos(struct cma_device *cma_dev, unsigned int port);
-int cma_set_default_roce_tos(struct cma_device *a_dev, unsigned int port,
-			     u8 default_roce_tos);
-struct ib_device *cma_get_ib_dev(struct cma_device *cma_dev);
-
 int  ib_device_register_sysfs(struct ib_device *device,
 			      int (*port_callback)(struct ib_device *,
 						   u8, struct kobject *));
