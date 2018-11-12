@@ -860,6 +860,21 @@ void qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
 }
 EXPORT_SYMBOL(qdisc_offload_graft_helper);
 
+static void qdisc_offload_graft_root(struct net_device *dev,
+				     struct Qdisc *new, struct Qdisc *old,
+				     struct netlink_ext_ack *extack)
+{
+	struct tc_root_qopt_offload graft_offload = {
+		.command	= TC_ROOT_GRAFT,
+		.handle		= new ? new->handle : 0,
+		.ingress	= (new && new->flags & TCQ_F_INGRESS) ||
+				  (old && old->flags & TCQ_F_INGRESS),
+	};
+
+	qdisc_offload_graft_helper(dev, NULL, new, old,
+				   TC_SETUP_ROOT_QDISC, &graft_offload, extack);
+}
+
 static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 			 u32 portid, u32 seq, u16 flags, int event)
 {
@@ -1025,6 +1040,8 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 
 		if (dev->flags & IFF_UP)
 			dev_deactivate(dev);
+
+		qdisc_offload_graft_root(dev, new, old, extack);
 
 		if (new && new->ops->attach)
 			goto skip;

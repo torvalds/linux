@@ -889,4 +889,14 @@ struct tc_prio_qopt_offload {
 	};
 };
 
+enum tc_root_command {
+	TC_ROOT_GRAFT,
+};
+
+struct tc_root_qopt_offload {
+	enum tc_root_command command;
+	u32 handle;
+	bool ingress;
+};
+
 #endif
