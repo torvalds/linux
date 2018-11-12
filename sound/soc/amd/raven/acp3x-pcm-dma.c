@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/pm_runtime.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -660,6 +661,9 @@ static int acp3x_audio_probe(struct platform_device *pdev)
 		goto dev_err;
 	}
 
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 10000);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
 	return 0;
 dev_err:
 	status = acp3x_deinit(adata->acp3x_base);
@@ -682,14 +686,49 @@ static int acp3x_audio_remove(struct platform_device *pdev)
 	else
 		dev_info(&pdev->dev, "ACP de-initialized\n");
 
+	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
+
+static int acp3x_pcm_runtime_suspend(struct device *dev)
+{
+	int status;
+	struct i2s_dev_data *adata = dev_get_drvdata(dev);
+
+	status = acp3x_deinit(adata->acp3x_base);
+	if (status)
+		dev_err(dev, "ACP de-init failed\n");
+	else
+		dev_info(dev, "ACP de-initialized\n");
+
+	rv_writel(0, adata->acp3x_base + mmACP_EXTERNAL_INTR_ENB);
+
+	return 0;
+}
+
+static int acp3x_pcm_runtime_resume(struct device *dev)
+{
+	int status;
+	struct i2s_dev_data *adata = dev_get_drvdata(dev);
+
+	status = acp3x_init(adata->acp3x_base);
+	if (status)
+		return -ENODEV;
+	rv_writel(1, adata->acp3x_base + mmACP_EXTERNAL_INTR_ENB);
+	return 0;
+}
+
+static const struct dev_pm_ops acp3x_pm_ops = {
+	.runtime_suspend = acp3x_pcm_runtime_suspend,
+	.runtime_resume = acp3x_pcm_runtime_resume,
+};
 
 static struct platform_driver acp3x_dma_driver = {
 	.probe = acp3x_audio_probe,
 	.remove = acp3x_audio_remove,
 	.driver = {
 		.name = "acp3x_rv_i2s",
+		.pm = &acp3x_pm_ops,
 	},
 };
 
