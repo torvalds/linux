@@ -108,6 +108,15 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 	new_map++;
 	for (i = j = 0; i < grp->num_pins; i++) {
 		pin = &((struct imx_pin *)(grp->data))[i];
+
+		/*
+		 * We only create config maps for SCU pads or MMIO pads that
+		 * are not using the default config(a.k.a IMX_NO_PAD_CTL)
+		 */
+		if (!(info->flags & IMX_USE_SCU) &&
+		    (pin->conf.mmio.config & IMX_NO_PAD_CTL))
+			continue;
+
 		new_map[j].type = PIN_MAP_TYPE_CONFIGS_PIN;
 		new_map[j].data.configs.group_or_pin =
 					pin_get_name(pctldev, pin->pin);
@@ -120,7 +129,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 			new_map[j].data.configs.configs =
 					(unsigned long *)&pin->conf.scu;
 			new_map[j].data.configs.num_configs = 2;
-		} else if (!(pin->conf.mmio.config & IMX_NO_PAD_CTL)) {
+		} else {
 			new_map[j].data.configs.configs =
 					&pin->conf.mmio.config;
 			new_map[j].data.configs.num_configs = 1;
@@ -548,6 +557,8 @@ static void imx_pinctrl_parse_pin_mmio(struct imx_pinctrl *ipctl,
 			pin_mmio->mux_mode |= IOMUXC_CONFIG_SION;
 		pin_mmio->config = config & ~IMX_PAD_SION;
 	}
+
+	*list_p = list;
 
 	dev_dbg(ipctl->dev, "%s: 0x%x 0x%08lx", info->pins[*pin_id].name,
 			     pin_mmio->mux_mode, pin_mmio->config);
