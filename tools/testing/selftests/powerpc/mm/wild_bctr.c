@@ -105,6 +105,20 @@ static void dump_regs(void)
 	}
 }
 
+#ifdef _CALL_AIXDESC
+struct opd {
+	unsigned long ip;
+	unsigned long toc;
+	unsigned long env;
+};
+static struct opd bad_opd = {
+	.ip = BAD_NIP,
+};
+#define BAD_FUNC (&bad_opd)
+#else
+#define BAD_FUNC BAD_NIP
+#endif
+
 int test_wild_bctr(void)
 {
 	int (*func_ptr)(void);
@@ -133,7 +147,7 @@ int test_wild_bctr(void)
 
 		poison_regs();
 
-		func_ptr = (int (*)(void))BAD_NIP;
+		func_ptr = (int (*)(void))BAD_FUNC;
 		func_ptr();
 
 		FAIL_IF(1); /* we didn't segv? */
