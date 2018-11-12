@@ -27,8 +27,8 @@ struct mmc_gpio {
 	bool override_cd_active_level;
 	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
 	char *ro_label;
+	char *cd_label;
 	u32 cd_debounce_delay_ms;
-	char cd_label[];
 };
 
 static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
@@ -45,15 +45,19 @@ static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 
 int mmc_gpio_alloc(struct mmc_host *host)
 {
-	size_t len = strlen(dev_name(host->parent)) + 4;
 	struct mmc_gpio *ctx = devm_kzalloc(host->parent,
-				sizeof(*ctx) + 2 * len,	GFP_KERNEL);
+					    sizeof(*ctx), GFP_KERNEL);
 
 	if (ctx) {
-		ctx->ro_label = ctx->cd_label + len;
 		ctx->cd_debounce_delay_ms = 200;
-		snprintf(ctx->cd_label, len, "%s cd", dev_name(host->parent));
-		snprintf(ctx->ro_label, len, "%s ro", dev_name(host->parent));
+		ctx->cd_label = devm_kasprintf(host->parent, GFP_KERNEL,
+				"%s cd", dev_name(host->parent));
+		if (!ctx->cd_label)
+			return -ENOMEM;
+		ctx->ro_label = devm_kasprintf(host->parent, GFP_KERNEL,
+				"%s ro", dev_name(host->parent));
+		if (!ctx->ro_label)
+			return -ENOMEM;
 		host->slot.handler_priv = ctx;
 		host->slot.cd_irq = -EINVAL;
 	}
