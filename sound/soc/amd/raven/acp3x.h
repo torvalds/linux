@@ -32,6 +32,13 @@
 #define MIN_BUFFER MAX_BUFFER
 #define FIFO_SIZE 0x100
 #define DMA_SIZE 0x40
+#define FRM_LEN 0x100
+
+#define SLOT_WIDTH_8 0x08
+#define SLOT_WIDTH_16 0x10
+#define SLOT_WIDTH_24 0x18
+#define SLOT_WIDTH_32 0x20
+
 
 static inline u32 rv_readl(void __iomem *base_addr)
 {
