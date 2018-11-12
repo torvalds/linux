@@ -53,6 +53,7 @@ static const int hest_esrc_len_tab[ACPI_HEST_TYPE_RESERVED] = {
 	[ACPI_HEST_TYPE_AER_BRIDGE] = sizeof(struct acpi_hest_aer_bridge),
 	[ACPI_HEST_TYPE_GENERIC_ERROR] = sizeof(struct acpi_hest_generic),
 	[ACPI_HEST_TYPE_GENERIC_ERROR_V2] = sizeof(struct acpi_hest_generic_v2),
+	[ACPI_HEST_TYPE_IA32_DEFERRED_CHECK] = -1,
 };
 
 static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
@@ -73,6 +74,11 @@ static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
 	} else if (hest_type == ACPI_HEST_TYPE_IA32_CHECK) {
 		struct acpi_hest_ia_machine_check *mc;
 		mc = (struct acpi_hest_ia_machine_check *)hest_hdr;
+		len = sizeof(*mc) + mc->num_hardware_banks *
+			sizeof(struct acpi_hest_ia_error_bank);
+	} else if (hest_type == ACPI_HEST_TYPE_IA32_DEFERRED_CHECK) {
+		struct acpi_hest_ia_deferred_check *mc;
+		mc = (struct acpi_hest_ia_deferred_check *)hest_hdr;
 		len = sizeof(*mc) + mc->num_hardware_banks *
 			sizeof(struct acpi_hest_ia_error_bank);
 	}
