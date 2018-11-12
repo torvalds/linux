@@ -4895,6 +4895,7 @@ enum {
 # define TV_OVERSAMPLE_NONE		(2 << 18)
 /* Selects 8x oversampling */
 # define TV_OVERSAMPLE_8X		(3 << 18)
+# define TV_OVERSAMPLE_MASK		(3 << 18)
 /* Selects progressive mode rather than interlaced */
 # define TV_PROGRESSIVE			(1 << 17)
 /* Sets the colorburst to PAL mode.  Required for non-M PAL modes. */

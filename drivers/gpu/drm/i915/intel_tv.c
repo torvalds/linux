@@ -339,7 +339,6 @@ struct tv_mode {
 	const struct video_levels *composite_levels, *svideo_levels;
 	const struct color_conversion *composite_color, *svideo_color;
 	const u32 *filter_table;
-	u16 max_srcw;
 };
 
 
@@ -728,7 +727,6 @@ static const struct tv_mode tv_modes[] = {
 		.burst_ena      = false,
 
 		.filter_table = filter_table,
-		.max_srcw = 800
 	},
 	{
 		.name       = "1080i@50Hz",
@@ -947,12 +945,182 @@ intel_tv_mode_vdisplay(const struct tv_mode *tv_mode)
 }
 
 static void
+intel_tv_mode_to_mode(struct drm_display_mode *mode,
+		      const struct tv_mode *tv_mode)
+{
+	mode->clock = tv_mode->clock /
+		(tv_mode->oversample >> !tv_mode->progressive);
+
+	/*
+	 * tv_mode horizontal timings:
+	 *
+	 * hsync_end
+	 *    | hblank_end
+	 *    |    | hblank_start
+	 *    |    |       | htotal
+	 *    |     _______    |
+	 *     ____/       \___
+	 * \__/                \
+	 */
+	mode->hdisplay =
+		tv_mode->hblank_start - tv_mode->hblank_end;
+	mode->hsync_start = mode->hdisplay +
+		tv_mode->htotal - tv_mode->hblank_start;
+	mode->hsync_end = mode->hsync_start +
+		tv_mode->hsync_end;
+	mode->htotal = tv_mode->htotal + 1;
+
+	/*
+	 * tv_mode vertical timings:
+	 *
+	 * vsync_start
+	 *    | vsync_end
+	 *    |  | vi_end nbr_end
+	 *    |  |    |       |
+	 *    |  |     _______
+	 * \__    ____/       \
+	 *    \__/
+	 */
+	mode->vdisplay = intel_tv_mode_vdisplay(tv_mode);
+	if (tv_mode->progressive) {
+		mode->vsync_start = mode->vdisplay +
+			tv_mode->vsync_start_f1 + 1;
+		mode->vsync_end = mode->vsync_start +
+			tv_mode->vsync_len;
+		mode->vtotal = mode->vdisplay +
+			tv_mode->vi_end_f1 + 1;
+	} else {
+		mode->vsync_start = mode->vdisplay +
+			tv_mode->vsync_start_f1 + 1 +
+			tv_mode->vsync_start_f2 + 1;
+		mode->vsync_end = mode->vsync_start +
+			2 * tv_mode->vsync_len;
+		mode->vtotal = mode->vdisplay +
+			tv_mode->vi_end_f1 + 1 +
+			tv_mode->vi_end_f2 + 1;
+	}
+
+	/* TV has it's own notion of sync and other mode flags, so clear them. */
+	mode->flags = 0;
+
+	mode->vrefresh = 0;
+	mode->vrefresh = drm_mode_vrefresh(mode);
+
+	snprintf(mode->name, sizeof(mode->name),
+		 "%dx%d%c (%s)",
+		 mode->hdisplay, mode->vdisplay,
+		 tv_mode->progressive ? 'p' : 'i',
+		 tv_mode->name);
+}
+
+static void intel_tv_scale_mode_horiz(struct drm_display_mode *mode,
+				      int hdisplay, int left_margin,
+				      int right_margin)
+{
+	int hsync_start = mode->hsync_start - mode->hdisplay + right_margin;
+	int hsync_end = mode->hsync_end - mode->hdisplay + right_margin;
+	int new_htotal = mode->htotal * hdisplay /
+		(mode->hdisplay - left_margin - right_margin);
+
+	mode->clock = mode->clock * new_htotal / mode->htotal;
+
+	mode->hdisplay = hdisplay;
+	mode->hsync_start = hdisplay + hsync_start * new_htotal / mode->htotal;
+	mode->hsync_end = hdisplay + hsync_end * new_htotal / mode->htotal;
+	mode->htotal = new_htotal;
+}
+
+static void intel_tv_scale_mode_vert(struct drm_display_mode *mode,
+				     int vdisplay, int top_margin,
+				     int bottom_margin)
+{
+	int vsync_start = mode->vsync_start - mode->vdisplay + bottom_margin;
+	int vsync_end = mode->vsync_end - mode->vdisplay + bottom_margin;
+	int new_vtotal = mode->vtotal * vdisplay /
+		(mode->vdisplay - top_margin - bottom_margin);
+
+	mode->clock = mode->clock * new_vtotal / mode->vtotal;
+
+	mode->vdisplay = vdisplay;
+	mode->vsync_start = vdisplay + vsync_start * new_vtotal / mode->vtotal;
+	mode->vsync_end = vdisplay + vsync_end * new_vtotal / mode->vtotal;
+	mode->vtotal = new_vtotal;
+}
+
+static void
 intel_tv_get_config(struct intel_encoder *encoder,
 		    struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+	struct drm_display_mode mode = {};
+	u32 tv_ctl, hctl1, hctl3, vctl1, vctl2, tmp;
+	struct tv_mode tv_mode = {};
+	int hdisplay = adjusted_mode->crtc_hdisplay;
+	int vdisplay = adjusted_mode->crtc_vdisplay;
+	int xsize, ysize, xpos, ypos;
+
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_TVOUT);
 
-	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
+	tv_ctl = I915_READ(TV_CTL);
+	hctl1 = I915_READ(TV_H_CTL_1);
+	hctl3 = I915_READ(TV_H_CTL_3);
+	vctl1 = I915_READ(TV_V_CTL_1);
+	vctl2 = I915_READ(TV_V_CTL_2);
+
+	tv_mode.htotal = (hctl1 & TV_HTOTAL_MASK) >> TV_HTOTAL_SHIFT;
+	tv_mode.hsync_end = (hctl1 & TV_HSYNC_END_MASK) >> TV_HSYNC_END_SHIFT;
+
+	tv_mode.hblank_start = (hctl3 & TV_HBLANK_START_MASK) >> TV_HBLANK_START_SHIFT;
+	tv_mode.hblank_end = (hctl3 & TV_HSYNC_END_MASK) >> TV_HBLANK_END_SHIFT;
+
+	tv_mode.nbr_end = (vctl1 & TV_NBR_END_MASK) >> TV_NBR_END_SHIFT;
+	tv_mode.vi_end_f1 = (vctl1 & TV_VI_END_F1_MASK) >> TV_VI_END_F1_SHIFT;
+	tv_mode.vi_end_f2 = (vctl1 & TV_VI_END_F2_MASK) >> TV_VI_END_F2_SHIFT;
+
+	tv_mode.vsync_len = (vctl2 & TV_VSYNC_LEN_MASK) >> TV_VSYNC_LEN_SHIFT;
+	tv_mode.vsync_start_f1 = (vctl2 & TV_VSYNC_START_F1_MASK) >> TV_VSYNC_START_F1_SHIFT;
+	tv_mode.vsync_start_f2 = (vctl2 & TV_VSYNC_START_F2_MASK) >> TV_VSYNC_START_F2_SHIFT;
+
+	tv_mode.clock = pipe_config->port_clock;
+
+	tv_mode.progressive = tv_ctl & TV_PROGRESSIVE;
+
+	switch (tv_ctl & TV_OVERSAMPLE_MASK) {
+	case TV_OVERSAMPLE_8X:
+		tv_mode.oversample = 8;
+		break;
+	case TV_OVERSAMPLE_4X:
+		tv_mode.oversample = 4;
+		break;
+	case TV_OVERSAMPLE_2X:
+		tv_mode.oversample = 2;
+		break;
+	default:
+		tv_mode.oversample = 1;
+		break;
+	}
+
+	tmp = I915_READ(TV_WIN_POS);
+	xpos = tmp >> 16;
+	ypos = tmp & 0xffff;
+
+	tmp = I915_READ(TV_WIN_SIZE);
+	xsize = tmp >> 16;
+	ysize = tmp & 0xffff;
+
+	intel_tv_mode_to_mode(&mode, &tv_mode);
+
+	DRM_DEBUG_KMS("TV mode:\n");
+	drm_mode_debug_printmodeline(&mode);
+
+	intel_tv_scale_mode_horiz(&mode, hdisplay,
+				  xpos, mode.hdisplay - xsize - xpos);
+	intel_tv_scale_mode_vert(&mode, vdisplay,
+				 ypos, mode.vdisplay - ysize - ypos);
+
+	adjusted_mode->crtc_clock = mode.clock;
 }
 
 static int
@@ -963,6 +1131,8 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	const struct tv_mode *tv_mode = intel_tv_mode_find(conn_state);
 	struct drm_display_mode *adjusted_mode =
 		&pipe_config->base.adjusted_mode;
+	int hdisplay = adjusted_mode->crtc_hdisplay;
+	int vdisplay = adjusted_mode->crtc_vdisplay;
 
 	if (!tv_mode)
 		return -EINVAL;
@@ -971,17 +1141,90 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
-	adjusted_mode->crtc_clock = tv_mode->clock;
+
 	DRM_DEBUG_KMS("forcing bpc to 8 for TV\n");
 	pipe_config->pipe_bpp = 8*3;
 
-	/* TV has it's own notion of sync and other mode flags, so clear them. */
-	adjusted_mode->flags = 0;
+	pipe_config->port_clock = tv_mode->clock;
+
+	intel_tv_mode_to_mode(adjusted_mode, tv_mode);
+
+	DRM_DEBUG_KMS("TV mode:\n");
+	drm_mode_debug_printmodeline(adjusted_mode);
 
 	/*
-	 * FIXME: We don't check whether the input mode is actually what we want
-	 * or whether userspace is doing something stupid.
+	 * The pipe scanline counter behaviour looks as follows when
+	 * using the TV encoder:
+	 *
+	 * time ->
+	 *
+	 * dsl=vtotal-1       |             |
+	 *                   ||            ||
+	 *               ___| |        ___| |
+	 *              /     |       /     |
+	 *             /      |      /      |
+	 * dsl=0   ___/       |_____/       |
+	 *        | | |  |  | |
+	 *         ^ ^ ^   ^ ^
+	 *         | | |   | pipe vblank/first part of tv vblank
+	 *         | | |   bottom margin
+	 *         | | active
+	 *         | top margin
+	 *         remainder of tv vblank
+	 *
+	 * When the TV encoder is used the pipe wants to run faster
+	 * than expected rate. During the active portion the TV
+	 * encoder stalls the pipe every few lines to keep it in
+	 * check. When the TV encoder reaches the bottom margin the
+	 * pipe simply stops. Once we reach the TV vblank the pipe is
+	 * no longer stalled and it runs at the max rate (apparently
+	 * oversample clock on gen3, cdclk on gen4). Once the pipe
+	 * reaches the pipe vtotal the pipe stops for the remainder
+	 * of the TV vblank/top margin. The pipe starts up again when
+	 * the TV encoder exits the top margin.
+	 *
+	 * To avoid huge hassles for vblank timestamping we scale
+	 * the pipe timings as if the pipe always runs at the average
+	 * rate it maintains during the active period. This also
+	 * gives us a reasonable guesstimate as to the pixel rate.
+	 * Due to the variation in the actual pipe speed the scanline
+	 * counter will give us slightly erroneous results during the
+	 * TV vblank/margins. But since vtotal was selected such that
+	 * it matches the average rate of the pipe during the active
+	 * portion the error shouldn't cause any serious grief to
+	 * vblank timestamps.
+	 *
+	 * For posterity here is the empirically derived formula
+	 * that gives us the maximum length of the pipe vblank
+	 * we can use without causing display corruption. Following
+	 * this would allow us to have a ticking scanline counter
+	 * everywhere except during the bottom margin (there the
+	 * pipe always stops). Ie. this would eliminate the second
+	 * flat portion of the above graph. However this would also
+	 * complicate vblank timestamping as the pipe vtotal would
+	 * no longer match the average rate the pipe runs at during
+	 * the active portion. Hence following this formula seems
+	 * more trouble that it's worth.
+	 *
+	 * if (IS_GEN(dev_priv, 4)) {
+	 *	num = cdclk * (tv_mode->oversample >> !tv_mode->progressive);
+	 *	den = tv_mode->clock;
+	 * } else {
+	 *	num = tv_mode->oversample >> !tv_mode->progressive;
+	 *	den = 1;
+	 * }
+	 * max_pipe_vblank_len ~=
+	 *	(num * tv_htotal * (tv_vblank_len + top_margin)) /
+	 *	(den * pipe_htotal);
 	 */
+	intel_tv_scale_mode_horiz(adjusted_mode, hdisplay,
+				  conn_state->tv.margins.left,
+				  conn_state->tv.margins.right);
+	intel_tv_scale_mode_vert(adjusted_mode, vdisplay,
+				 conn_state->tv.margins.top,
+				 conn_state->tv.margins.bottom);
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
+	adjusted_mode->name[0] = '\0';
 
 	return 0;
 }
@@ -1410,52 +1653,41 @@ intel_tv_set_mode_type(struct drm_display_mode *mode,
 static int
 intel_tv_get_modes(struct drm_connector *connector)
 {
-	struct drm_display_mode *mode_ptr;
 	const struct tv_mode *tv_mode = intel_tv_mode_find(connector->state);
-	int j, count = 0;
-	u64 tmp;
+	int i, count = 0;
 
-	for (j = 0; j < ARRAY_SIZE(input_res_table);
-	     j++) {
-		const struct input_res *input = &input_res_table[j];
-		unsigned int hactive_s = input->w;
-		unsigned int vactive_s = input->h;
+	for (i = 0; i < ARRAY_SIZE(input_res_table); i++) {
+		const struct input_res *input = &input_res_table[i];
+		struct drm_display_mode *mode;
 
-		if (tv_mode->max_srcw && input->w > tv_mode->max_srcw)
+		if (input->w > 1024 &&
+		    !tv_mode->progressive &&
+		    !tv_mode->component_only)
 			continue;
 
-		if (input->w > 1024 && (!tv_mode->progressive
-					&& !tv_mode->component_only))
+		mode = drm_mode_create(connector->dev);
+		if (!mode)
 			continue;
 
-		mode_ptr = drm_mode_create(connector->dev);
-		if (!mode_ptr)
-			continue;
+		/*
+		 * We take the TV mode and scale it to look
+		 * like it had the expected h/vdisplay. This
+		 * provides the most information to userspace
+		 * about the actual timings of the mode. We
+		 * do ignore the margins though.
+		 */
+		intel_tv_mode_to_mode(mode, tv_mode);
+		if (count == 0) {
+			DRM_DEBUG_KMS("TV mode:\n");
+			drm_mode_debug_printmodeline(mode);
+		}
+		intel_tv_scale_mode_horiz(mode, input->w, 0, 0);
+		intel_tv_scale_mode_vert(mode, input->h, 0, 0);
+		intel_tv_set_mode_type(mode, tv_mode);
 
-		mode_ptr->hdisplay = hactive_s;
-		mode_ptr->hsync_start = hactive_s + 1;
-		mode_ptr->hsync_end = hactive_s + 64;
-		if (mode_ptr->hsync_end <= mode_ptr->hsync_start)
-			mode_ptr->hsync_end = mode_ptr->hsync_start + 1;
-		mode_ptr->htotal = hactive_s + 96;
+		drm_mode_set_name(mode);
 
-		mode_ptr->vdisplay = vactive_s;
-		mode_ptr->vsync_start = vactive_s + 1;
-		mode_ptr->vsync_end = vactive_s + 32;
-		if (mode_ptr->vsync_end <= mode_ptr->vsync_start)
-			mode_ptr->vsync_end = mode_ptr->vsync_start  + 1;
-		mode_ptr->vtotal = vactive_s + 33;
-
-		tmp = mul_u32_u32(tv_mode->refresh, mode_ptr->vtotal);
-		tmp *= mode_ptr->htotal;
-		tmp = div_u64(tmp, 1000000);
-		mode_ptr->clock = (int) tmp;
-
-		intel_tv_set_mode_type(mode_ptr, tv_mode);
-
-		drm_mode_set_name(mode_ptr);
-
-		drm_mode_probed_add(connector, mode_ptr);
+		drm_mode_probed_add(connector, mode);
 		count++;
 	}
 
