@@ -119,6 +119,14 @@ def dsoname(name):
 		return "[kernel]"
 	return name
 
+def findnth(s, sub, n, offs=0):
+	pos = s.find(sub)
+	if pos < 0:
+		return pos
+	if n <= 1:
+		return offs + pos
+	return findnth(s[pos + 1:], sub, n - 1, offs + pos + 1)
+
 # Percent to one decimal place
 
 def PercentToOneDP(n, d):
@@ -1464,6 +1472,317 @@ class BranchWindow(QMdiSubWindow):
 		else:
 			self.find_bar.NotFound()
 
+# Dialog data item converted and validated using a SQL table
+
+class SQLTableDialogDataItem():
+
+	def __init__(self, glb, label, placeholder_text, table_name, match_column, column_name1, column_name2, parent):
+		self.glb = glb
+		self.label = label
+		self.placeholder_text = placeholder_text
+		self.table_name = table_name
+		self.match_column = match_column
+		self.column_name1 = column_name1
+		self.column_name2 = column_name2
+		self.parent = parent
+
+		self.value = ""
+
+		self.widget = QLineEdit()
+		self.widget.editingFinished.connect(self.Validate)
+		self.widget.textChanged.connect(self.Invalidate)
+		self.red = False
+		self.error = ""
+		self.validated = True
+
+		self.last_id = 0
+		self.first_time = 0
+		self.last_time = 2 ** 64
+		if self.table_name == "<timeranges>":
+			query = QSqlQuery(self.glb.db)
+			QueryExec(query, "SELECT id, time FROM samples ORDER BY id DESC LIMIT 1")
+			if query.next():
+				self.last_id = int(query.value(0))
+				self.last_time = int(query.value(1))
+			QueryExec(query, "SELECT time FROM samples WHERE time != 0 ORDER BY id LIMIT 1")
+			if query.next():
+				self.first_time = int(query.value(0))
+			if placeholder_text:
+				placeholder_text += ", between " + str(self.first_time) + " and " + str(self.last_time)
+
+		if placeholder_text:
+			self.widget.setPlaceholderText(placeholder_text)
+
+	def ValueToIds(self, value):
+		ids = []
+		query = QSqlQuery(self.glb.db)
+		stmt = "SELECT id FROM " + self.table_name + " WHERE " + self.match_column + " = '" + value + "'"
+		ret = query.exec_(stmt)
+		if ret:
+			while query.next():
+				ids.append(str(query.value(0)))
+		return ids
+
+	def IdBetween(self, query, lower_id, higher_id, order):
+		QueryExec(query, "SELECT id FROM samples WHERE id > " + str(lower_id) + " AND id < " + str(higher_id) + " ORDER BY id " + order + " LIMIT 1")
+		if query.next():
+			return True, int(query.value(0))
+		else:
+			return False, 0
+
+	def BinarySearchTime(self, lower_id, higher_id, target_time, get_floor):
+		query = QSqlQuery(self.glb.db)
+		while True:
+			next_id = int((lower_id + higher_id) / 2)
+			QueryExec(query, "SELECT time FROM samples WHERE id = " + str(next_id))
+			if not query.next():
+				ok, dbid = self.IdBetween(query, lower_id, next_id, "DESC")
+				if not ok:
+					ok, dbid = self.IdBetween(query, next_id, higher_id, "")
+					if not ok:
+						return str(higher_id)
+				next_id = dbid
+				QueryExec(query, "SELECT time FROM samples WHERE id = " + str(next_id))
+			next_time = int(query.value(0))
+			if get_floor:
+				if target_time > next_time:
+					lower_id = next_id
+				else:
+					higher_id = next_id
+				if higher_id <= lower_id + 1:
+					return str(higher_id)
+			else:
+				if target_time >= next_time:
+					lower_id = next_id
+				else:
+					higher_id = next_id
+				if higher_id <= lower_id + 1:
+					return str(lower_id)
+
+	def ConvertRelativeTime(self, val):
+		print "val ", val
+		mult = 1
+		suffix = val[-2:]
+		if suffix == "ms":
+			mult = 1000000
+		elif suffix == "us":
+			mult = 1000
+		elif suffix == "ns":
+			mult = 1
+		else:
+			return val
+		val = val[:-2].strip()
+		if not self.IsNumber(val):
+			return val
+		val = int(val) * mult
+		if val >= 0:
+			val += self.first_time
+		else:
+			val += self.last_time
+		return str(val)
+
+	def ConvertTimeRange(self, vrange):
+		print "vrange ", vrange
+		if vrange[0] == "":
+			vrange[0] = str(self.first_time)
+		if vrange[1] == "":
+			vrange[1] = str(self.last_time)
+		vrange[0] = self.ConvertRelativeTime(vrange[0])
+		vrange[1] = self.ConvertRelativeTime(vrange[1])
+		print "vrange2 ", vrange
+		if not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
+			return False
+		print "ok1"
+		beg_range = max(int(vrange[0]), self.first_time)
+		end_range = min(int(vrange[1]), self.last_time)
+		if beg_range > self.last_time or end_range < self.first_time:
+			return False
+		print "ok2"
+		vrange[0] = self.BinarySearchTime(0, self.last_id, beg_range, True)
+		vrange[1] = self.BinarySearchTime(1, self.last_id + 1, end_range, False)
+		print "vrange3 ", vrange
+		return True
+
+	def AddTimeRange(self, value, ranges):
+		print "value ", value
+		n = value.count("-")
+		if n == 1:
+			pass
+		elif n == 2:
+			if value.split("-")[1].strip() == "":
+				n = 1
+		elif n == 3:
+			n = 2
+		else:
+			return False
+		pos = findnth(value, "-", n)
+		vrange = [value[:pos].strip() ,value[pos+1:].strip()]
+		if self.ConvertTimeRange(vrange):
+			ranges.append(vrange)
+			return True
+		return False
+
+	def InvalidValue(self, value):
+		self.value = ""
+		palette = QPalette()
+		palette.setColor(QPalette.Text,Qt.red)
+		self.widget.setPalette(palette)
+		self.red = True
+		self.error = self.label + " invalid value '" + value + "'"
+		self.parent.ShowMessage(self.error)
+
+	def IsNumber(self, value):
+		try:
+			x = int(value)
+		except:
+			x = 0
+		return str(x) == value
+
+	def Invalidate(self):
+		self.validated = False
+
+	def Validate(self):
+		input_string = self.widget.text()
+		self.validated = True
+		if self.red:
+			palette = QPalette()
+			self.widget.setPalette(palette)
+			self.red = False
+		if not len(input_string.strip()):
+			self.error = ""
+			self.value = ""
+			return
+		if self.table_name == "<timeranges>":
+			ranges = []
+			for value in [x.strip() for x in input_string.split(",")]:
+				if not self.AddTimeRange(value, ranges):
+					return self.InvalidValue(value)
+			ranges = [("(" + self.column_name1 + " >= " + r[0] + " AND " + self.column_name1 + " <= " + r[1] + ")") for r in ranges]
+			self.value = " OR ".join(ranges)
+		elif self.table_name == "<ranges>":
+			singles = []
+			ranges = []
+			for value in [x.strip() for x in input_string.split(",")]:
+				if "-" in value:
+					vrange = value.split("-")
+					if len(vrange) != 2 or not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
+						return self.InvalidValue(value)
+					ranges.append(vrange)
+				else:
+					if not self.IsNumber(value):
+						return self.InvalidValue(value)
+					singles.append(value)
+			ranges = [("(" + self.column_name1 + " >= " + r[0] + " AND " + self.column_name1 + " <= " + r[1] + ")") for r in ranges]
+			if len(singles):
+				ranges.append(self.column_name1 + " IN (" + ",".join(singles) + ")")
+			self.value = " OR ".join(ranges)
+		elif self.table_name:
+			all_ids = []
+			for value in [x.strip() for x in input_string.split(",")]:
+				ids = self.ValueToIds(value)
+				if len(ids):
+					all_ids.extend(ids)
+				else:
+					return self.InvalidValue(value)
+			self.value = self.column_name1 + " IN (" + ",".join(all_ids) + ")"
+			if self.column_name2:
+				self.value = "( " + self.value + " OR " + self.column_name2 + " IN (" + ",".join(all_ids) + ") )"
+		else:
+			self.value = input_string.strip()
+		self.error = ""
+		self.parent.ClearMessage()
+
+	def IsValid(self):
+		if not self.validated:
+			self.Validate()
+		if len(self.error):
+			self.parent.ShowMessage(self.error)
+			return False
+		return True
+
+# Selected branch report creation dialog
+
+class SelectedBranchDialog(QDialog):
+
+	def __init__(self, glb, parent=None):
+		super(SelectedBranchDialog, self).__init__(parent)
+
+		self.glb = glb
+
+		self.name = ""
+		self.where_clause = ""
+
+		self.setWindowTitle("Selected Branches")
+		self.setMinimumWidth(600)
+
+		items = (
+			("Report name:", "Enter a name to appear in the window title bar", "", "", "", ""),
+			("Time ranges:", "Enter time ranges", "<timeranges>", "", "samples.id", ""),
+			("CPUs:", "Enter CPUs or ranges e.g. 0,5-6", "<ranges>", "", "cpu", ""),
+			("Commands:", "Only branches with these commands will be included", "comms", "comm", "comm_id", ""),
+			("PIDs:", "Only branches with these process IDs will be included", "threads", "pid", "thread_id", ""),
+			("TIDs:", "Only branches with these thread IDs will be included", "threads", "tid", "thread_id", ""),
+			("DSOs:", "Only branches with these DSOs will be included", "dsos", "short_name", "samples.dso_id", "to_dso_id"),
+			("Symbols:", "Only branches with these symbols will be included", "symbols", "name", "symbol_id", "to_symbol_id"),
+			("Raw SQL clause: ", "Enter a raw SQL WHERE clause", "", "", "", ""),
+			)
+		self.data_items = [SQLTableDialogDataItem(glb, *x, parent=self) for x in items]
+
+		self.grid = QGridLayout()
+
+		for row in xrange(len(self.data_items)):
+			self.grid.addWidget(QLabel(self.data_items[row].label), row, 0)
+			self.grid.addWidget(self.data_items[row].widget, row, 1)
+
+		self.status = QLabel()
+
+		self.ok_button = QPushButton("Ok", self)
+		self.ok_button.setDefault(True)
+		self.ok_button.released.connect(self.Ok)
+		self.ok_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+		self.cancel_button = QPushButton("Cancel", self)
+		self.cancel_button.released.connect(self.reject)
+		self.cancel_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+		self.hbox = QHBoxLayout()
+		#self.hbox.addStretch()
+		self.hbox.addWidget(self.status)
+		self.hbox.addWidget(self.ok_button)
+		self.hbox.addWidget(self.cancel_button)
+
+		self.vbox = QVBoxLayout()
+		self.vbox.addLayout(self.grid)
+		self.vbox.addLayout(self.hbox)
+
+		self.setLayout(self.vbox);
+
+	def Ok(self):
+		self.name = self.data_items[0].value
+		if not self.name:
+			self.ShowMessage("Report name is required")
+			return
+		for d in self.data_items:
+			if not d.IsValid():
+				return
+		for d in self.data_items[1:]:
+			if len(d.value):
+				if len(self.where_clause):
+					self.where_clause += " AND "
+				self.where_clause += d.value
+		if len(self.where_clause):
+			self.where_clause = " AND ( " + self.where_clause + " ) "
+		else:
+			self.ShowMessage("No selection")
+			return
+		self.accept()
+
+	def ShowMessage(self, msg):
+		self.status.setText("<font color=#FF0000>" + msg)
+
+	def ClearMessage(self):
+		self.status.setText("")
+
 # Event list
 
 def GetEventList(db):
@@ -1656,7 +1975,7 @@ class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 	def FindDone(self, row):
 		self.find_bar.Idle()
 		if row >= 0:
-			self.view.setCurrentIndex(self.model.index(row, 0, QModelIndex()))
+			self.view.setCurrentIndex(self.model.mapFromSource(self.data_model.index(row, 0, QModelIndex())))
 		else:
 			self.find_bar.NotFound()
 
@@ -1765,6 +2084,149 @@ class WindowMenu():
 	def setActiveSubWindow(self, nr):
 		self.mdi_area.setActiveSubWindow(self.mdi_area.subWindowList()[nr - 1])
 
+# Help text
+
+glb_help_text = """
+<h1>Contents</h1>
+<style>
+p.c1 {
+    text-indent: 40px;
+}
+p.c2 {
+    text-indent: 80px;
+}
+}
+</style>
+<p class=c1><a href=#reports>1. Reports</a></p>
+<p class=c2><a href=#callgraph>1.1 Context-Sensitive Call Graph</a></p>
+<p class=c2><a href=#allbranches>1.2 All branches</a></p>
+<p class=c2><a href=#selectedbranches>1.3 Selected branches</a></p>
+<p class=c1><a href=#tables>2. Tables</a></p>
+<h1 id=reports>1. Reports</h1>
+<h2 id=callgraph>1.1 Context-Sensitive Call Graph</h2>
+The result is a GUI window with a tree representing a context-sensitive
+call-graph. Expanding a couple of levels of the tree and adjusting column
+widths to suit will display something like:
+<pre>
+                                         Call Graph: pt_example
+Call Path                          Object      Count   Time(ns)  Time(%)  Branch Count   Branch Count(%)
+v- ls
+    v- 2638:2638
+        v- _start                  ld-2.19.so    1     10074071   100.0         211135            100.0
+          |- unknown               unknown       1        13198     0.1              1              0.0
+          >- _dl_start             ld-2.19.so    1      1400980    13.9          19637              9.3
+          >- _d_linit_internal     ld-2.19.so    1       448152     4.4          11094              5.3
+          v-__libc_start_main@plt  ls            1      8211741    81.5         180397             85.4
+             >- _dl_fixup          ld-2.19.so    1         7607     0.1            108              0.1
+             >- __cxa_atexit       libc-2.19.so  1        11737     0.1             10              0.0
+             >- __libc_csu_init    ls            1        10354     0.1             10              0.0
+             |- _setjmp            libc-2.19.so  1            0     0.0              4              0.0
+             v- main               ls            1      8182043    99.6         180254             99.9
+</pre>
+<h3>Points to note:</h3>
+<ul>
+<li>The top level is a command name (comm)</li>
+<li>The next level is a thread (pid:tid)</li>
+<li>Subsequent levels are functions</li>
+<li>'Count' is the number of calls</li>
+<li>'Time' is the elapsed time until the function returns</li>
+<li>Percentages are relative to the level above</li>
+<li>'Branch Count' is the total number of branches for that function and all functions that it calls
+</ul>
+<h3>Find</h3>
+Ctrl-F displays a Find bar which finds function names by either an exact match or a pattern match.
+The pattern matching symbols are ? for any character and * for zero or more characters.
+<h2 id=allbranches>1.2 All branches</h2>
+The All branches report displays all branches in chronological order.
+Not all data is fetched immediately. More records can be fetched using the Fetch bar provided.
+<h3>Disassembly</h3>
+Open a branch to display disassembly. This only works if:
+<ol>
+<li>The disassembler is available. Currently, only Intel XED is supported - see <a href=#xed>Intel XED Setup</a></li>
+<li>The object code is available. Currently, only the perf build ID cache is searched for object code.
+The default directory ~/.debug can be overridden by setting environment variable PERF_BUILDID_DIR.
+One exception is kcore where the DSO long name is used (refer dsos_view on the Tables menu),
+or alternatively, set environment variable PERF_KCORE to the kcore file name.</li>
+</ol>
+<h4 id=xed>Intel XED Setup</h4>
+To use Intel XED, libxed.so must be present.  To build and install libxed.so:
+<pre>
+git clone https://github.com/intelxed/mbuild.git mbuild
+git clone https://github.com/intelxed/xed
+cd xed
+./mfile.py --share
+sudo ./mfile.py --prefix=/usr/local install
+sudo ldconfig
+</pre>
+<h3>Find</h3>
+Ctrl-F displays a Find bar which finds substrings by either an exact match or a regular expression match.
+Refer to Python documentation for the regular expression syntax.
+All columns are searched, but only currently fetched rows are searched.
+<h2 id=selectedbranches>1.3 Selected branches</h2>
+This is the same as the <a href=#allbranches>All branches</a> report but with the data reduced
+by various selection criteria. A dialog box displays available criteria which are AND'ed together.
+<h3>1.3.1 Time ranges</h3>
+The time ranges hint text shows the total time range. Relative time ranges can also be entered in
+ms, us or ns. Also, negative values are relative to the end of trace.  Examples:
+<pre>
+	81073085947329-81073085958238	From 81073085947329 to 81073085958238
+	100us-200us		From 100us to 200us
+	10ms-			From 10ms to the end
+	-100ns			The first 100ns
+	-10ms-			The last 10ms
+</pre>
+N.B. Due to the granularity of timestamps, there could be no branches in any given time range.
+<h1 id=tables>2. Tables</h1>
+The Tables menu shows all tables and views in the database. Most tables have an associated view
+which displays the information in a more friendly way. Not all data for large tables is fetched
+immediately. More records can be fetched using the Fetch bar provided. Columns can be sorted,
+but that can be slow for large tables.
+<p>There are also tables of database meta-information.
+For SQLite3 databases, the sqlite_master table is included.
+For PostgreSQL databases, information_schema.tables/views/columns are included.
+<h3>Find</h3>
+Ctrl-F displays a Find bar which finds substrings by either an exact match or a regular expression match.
+Refer to Python documentation for the regular expression syntax.
+All columns are searched, but only currently fetched rows are searched.
+<p>N.B. Results are found in id order, so if the table is re-ordered, find-next and find-previous
+will go to the next/previous result in id order, instead of display order.
+"""
+
+# Help window
+
+class HelpWindow(QMdiSubWindow):
+
+	def __init__(self, glb, parent=None):
+		super(HelpWindow, self).__init__(parent)
+
+		self.text = QTextBrowser()
+		self.text.setHtml(glb_help_text)
+		self.text.setReadOnly(True)
+		self.text.setOpenExternalLinks(True)
+
+		self.setWidget(self.text)
+
+		AddSubWindow(glb.mainwindow.mdi_area, self, "Exported SQL Viewer Help")
+
+# Main window that only displays the help text
+
+class HelpOnlyWindow(QMainWindow):
+
+	def __init__(self, parent=None):
+		super(HelpOnlyWindow, self).__init__(parent)
+
+		self.setMinimumSize(200, 100)
+		self.resize(800, 600)
+		self.setWindowTitle("Exported SQL Viewer Help")
+		self.setWindowIcon(self.style().standardIcon(QStyle.SP_MessageBoxInformation))
+
+		self.text = QTextBrowser()
+		self.text.setHtml(glb_help_text)
+		self.text.setReadOnly(True)
+		self.text.setOpenExternalLinks(True)
+
+		self.setCentralWidget(self.text)
+
 # Font resize
 
 def ResizeFont(widget, diff):
@@ -1851,6 +2313,9 @@ class MainWindow(QMainWindow):
 
 		self.window_menu = WindowMenu(self.mdi_area, menu)
 
+		help_menu = menu.addMenu("&Help")
+		help_menu.addAction(CreateAction("&Exported SQL Viewer Help", "Helpful information", self.Help, self, QKeySequence.HelpContents))
+
 	def Find(self):
 		win = self.mdi_area.activeSubWindow()
 		if win:
@@ -1888,6 +2353,8 @@ class MainWindow(QMainWindow):
 			if event == "branches":
 				label = "All branches" if branches_events == 1 else "All branches " + "(id=" + dbid + ")"
 				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda x=dbid: self.NewBranchView(x), self))
+				label = "Selected branches" if branches_events == 1 else "Selected branches " + "(id=" + dbid + ")"
+				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda x=dbid: self.NewSelectedBranchView(x), self))
 
 	def TableMenu(self, tables, menu):
 		table_menu = menu.addMenu("&Tables")
@@ -1900,8 +2367,17 @@ class MainWindow(QMainWindow):
 	def NewBranchView(self, event_id):
 		BranchWindow(self.glb, event_id, "", "", self)
 
+	def NewSelectedBranchView(self, event_id):
+		dialog = SelectedBranchDialog(self.glb, self)
+		ret = dialog.exec_()
+		if ret:
+			BranchWindow(self.glb, event_id, dialog.name, dialog.where_clause, self)
+
 	def NewTableView(self, table_name):
 		TableWindow(self.glb, table_name, self)
+
+	def Help(self):
+		HelpWindow(self.glb, self)
 
 # XED Disassembler
 
@@ -1929,7 +2405,12 @@ class XEDInstruction():
 class LibXED():
 
 	def __init__(self):
-		self.libxed = CDLL("libxed.so")
+		try:
+			self.libxed = CDLL("libxed.so")
+		except:
+			self.libxed = None
+		if not self.libxed:
+			self.libxed = CDLL("/usr/local/lib/libxed.so")
 
 		self.xed_tables_init = self.libxed.xed_tables_init
 		self.xed_tables_init.restype = None
@@ -2097,10 +2578,16 @@ class DBRef():
 
 def Main():
 	if (len(sys.argv) < 2):
-		print >> sys.stderr, "Usage is: exported-sql-viewer.py <database name>"
+		print >> sys.stderr, "Usage is: exported-sql-viewer.py {<database name> | --help-only}"
 		raise Exception("Too few arguments")
 
 	dbname = sys.argv[1]
+	if dbname == "--help-only":
+		app = QApplication(sys.argv)
+		mainwindow = HelpOnlyWindow()
+		mainwindow.show()
+		err = app.exec_()
+		sys.exit(err)
 
 	is_sqlite3 = False
 	try:

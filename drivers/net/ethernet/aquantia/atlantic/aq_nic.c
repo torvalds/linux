@@ -118,12 +118,13 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	}
 
 	cfg->link_speed_msk &= cfg->aq_hw_caps->link_speed_msk;
-	cfg->hw_features = cfg->aq_hw_caps->hw_features;
+	cfg->features = cfg->aq_hw_caps->hw_features;
 }
 
 static int aq_nic_update_link_status(struct aq_nic_s *self)
 {
 	int err = self->aq_fw_ops->update_link_status(self->aq_hw);
+	u32 fc = 0;
 
 	if (err)
 		return err;
@@ -133,6 +134,15 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 			AQ_CFG_DRV_NAME, self->link_status.mbps,
 			self->aq_hw->aq_link_status.mbps);
 		aq_nic_update_interrupt_moderation_settings(self);
+
+		/* Driver has to update flow control settings on RX block
+		 * on any link event.
+		 * We should query FW whether it negotiated FC.
+		 */
+		if (self->aq_fw_ops->get_flow_control)
+			self->aq_fw_ops->get_flow_control(self->aq_hw, &fc);
+		if (self->aq_hw_ops->hw_set_fc)
+			self->aq_hw_ops->hw_set_fc(self->aq_hw, fc, 0);
 	}
 
 	self->link_status = self->aq_hw->aq_link_status;
@@ -590,7 +600,7 @@ int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev)
 		}
 	}
 
-	if (i > 0 && i < AQ_HW_MULTICAST_ADDRESS_MAX) {
+	if (i > 0 && i <= AQ_HW_MULTICAST_ADDRESS_MAX) {
 		packet_filter |= IFF_MULTICAST;
 		self->mc_list.count = i;
 		self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
@@ -772,7 +782,9 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Pause);
 
-	if (self->aq_nic_cfg.flow_control & AQ_NIC_FC_TX)
+	/* Asym is when either RX or TX, but not both */
+	if (!!(self->aq_nic_cfg.flow_control & AQ_NIC_FC_TX) ^
+	    !!(self->aq_nic_cfg.flow_control & AQ_NIC_FC_RX))
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Asym_Pause);
 

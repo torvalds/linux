@@ -14,7 +14,7 @@
  * General size of kernel stacks
  */
 #ifdef CONFIG_KASAN
-#define THREAD_SIZE_ORDER 3
+#define THREAD_SIZE_ORDER 4
 #else
 #define THREAD_SIZE_ORDER 2
 #endif

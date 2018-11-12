@@ -1325,7 +1325,7 @@ struct atom_smu_info_v3_3 {
   struct   atom_common_table_header  table_header;
   uint8_t  smuip_min_ver;
   uint8_t  smuip_max_ver;
-  uint8_t  smu_rsd1;
+  uint8_t  waflclk_ss_mode;
   uint8_t  gpuclk_ss_mode;
   uint16_t sclk_ss_percentage;
   uint16_t sclk_ss_rate_10hz;
@@ -1355,7 +1355,10 @@ struct atom_smu_info_v3_3 {
   uint32_t syspll3_1_vco_freq_10khz;
   uint32_t bootup_fclk_10khz;
   uint32_t bootup_waflclk_10khz;
-  uint32_t reserved[3];
+  uint32_t smu_info_caps;
+  uint16_t waflclk_ss_percentage;    // in unit of 0.001%
+  uint16_t smuinitoffset;
+  uint32_t reserved;
 };
 
 /*

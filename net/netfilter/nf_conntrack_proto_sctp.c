@@ -146,11 +146,6 @@ static const u8 sctp_conntracks[2][11][SCTP_CONNTRACK_MAX] = {
 	}
 };
 
-static inline struct nf_sctp_net *sctp_pernet(struct net *net)
-{
-	return &net->ct.nf_ct_proto.sctp;
-}
-
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 /* Print out the private part of the conntrack. */
 static void sctp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
@@ -480,7 +475,7 @@ static int sctp_packet(struct nf_conn *ct,
 
 	timeouts = nf_ct_timeout_lookup(ct);
 	if (!timeouts)
-		timeouts = sctp_pernet(nf_ct_net(ct))->timeouts;
+		timeouts = nf_sctp_pernet(nf_ct_net(ct))->timeouts;
 
 	nf_ct_refresh_acct(ct, ctinfo, skb, timeouts[new_state]);
 
@@ -599,7 +594,7 @@ static int sctp_timeout_nlattr_to_obj(struct nlattr *tb[],
 				      struct net *net, void *data)
 {
 	unsigned int *timeouts = data;
-	struct nf_sctp_net *sn = sctp_pernet(net);
+	struct nf_sctp_net *sn = nf_sctp_pernet(net);
 	int i;
 
 	/* set default SCTP timeouts. */
@@ -736,7 +731,7 @@ static int sctp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 
 static int sctp_init_net(struct net *net)
 {
-	struct nf_sctp_net *sn = sctp_pernet(net);
+	struct nf_sctp_net *sn = nf_sctp_pernet(net);
 	struct nf_proto_net *pn = &sn->pn;
 
 	if (!pn->users) {
