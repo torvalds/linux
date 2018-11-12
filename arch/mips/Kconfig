@@ -540,8 +540,6 @@ config MIPS_MALTA
 	select USE_OF
 	select LIBFDT
 	select ZONE_DMA32 if 64BIT
-	select BUILTIN_DTB
-	select LIBFDT
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
 	  board.
