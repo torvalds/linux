@@ -25,6 +25,7 @@ struct pcm3060_priv_dai {
 struct pcm3060_priv {
 	struct regmap *regmap;
 	struct pcm3060_priv_dai dai[PCM3060_DAI_IDS_NUM];
+	u8 out_se: 1;
 };
 
 int pcm3060_probe(struct device *dev);
