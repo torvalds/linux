@@ -35,6 +35,7 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #include <limits.h>
 #include <stddef.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include <sys/types.h>
 
 /* Not standard, but glibc defines it */
