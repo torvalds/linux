@@ -18,15 +18,10 @@
 #define ACTION_FRM_IDX				0
 #define PROBE_REQ_IDX				1
 #define MAX_NUM_STA				9
-#define ACTIVE_SCAN_TIME			10
-#define PASSIVE_SCAN_TIME			1200
-#define MIN_SCAN_TIME				10
-#define MAX_SCAN_TIME				1200
 #define DEFAULT_SCAN				0
 #define USER_SCAN				BIT(0)
 #define OBSS_PERIODIC_SCAN			BIT(1)
 #define OBSS_ONETIME_SCAN			BIT(2)
-#define GTK_RX_KEY_BUFF_LEN			24
 #define ADDKEY					0x1
 #define REMOVEKEY				0x2
 #define DEFAULTKEY				0x4
@@ -34,18 +29,15 @@
 #define MAX_NUM_SCANNED_NETWORKS		100
 #define MAX_NUM_SCANNED_NETWORKS_SHADOW		130
 #define MAX_NUM_PROBED_SSID			10
-#define CHANNEL_SCAN_TIME			250
 
 #define TX_MIC_KEY_LEN				8
 #define RX_MIC_KEY_LEN				8
 #define PTK_KEY_LEN				16
 
-#define TX_MIC_KEY_MSG_LEN			26
 #define RX_MIC_KEY_MSG_LEN			48
 #define PTK_KEY_MSG_LEN				39
 
 #define PMKSA_KEY_LEN				22
-#define ETH_ALEN				6
 #define WILC_MAX_NUM_PMKIDS			16
 #define WILC_ADD_STA_LENGTH			40
 #define NUM_CONCURRENT_IFC			2
@@ -153,12 +145,10 @@ enum current_tx_rate {
 
 struct cfg_param_attr {
 	u32 flag;
-	u8 ht_enable;
 	u16 short_retry_limit;
 	u16 long_retry_limit;
 	u16 frag_threshold;
 	u16 rts_threshold;
-	u8 scan_source;
 };
 
 enum cfg_param {
@@ -166,7 +156,6 @@ enum cfg_param {
 	RETRY_LONG		= BIT(1),
 	FRAG_THRESHOLD		= BIT(2),
 	RTS_THRESHOLD		= BIT(3),
-	HT_ENABLE		= BIT(18),
 };
 
 struct found_net_info {
