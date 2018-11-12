@@ -53,7 +53,9 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 
 #define __init
 #define __exit
-#define __attribute_const__ __attribute__((const))
+#ifndef __attribute_const__
+# define __attribute_const__ __attribute__((const))
+#endif
 #define noinline __attribute__((noinline))
 
 #define preempt_enable()
