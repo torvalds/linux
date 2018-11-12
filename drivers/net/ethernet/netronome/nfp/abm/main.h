@@ -84,12 +84,18 @@ enum nfp_qdisc_type {
  * @type:		Qdisc type
  * @handle:		handle of this Qdisc
  * @parent_handle:	handle of the parent (unreliable if Qdisc was grafted)
+ * @use_cnt:		number of attachment points in the hierarchy
+ * @num_children:	current size of the @children array
+ * @children:		pointers to children
  */
 struct nfp_qdisc {
 	struct net_device *netdev;
 	enum nfp_qdisc_type type;
 	u32 handle;
 	u32 parent_handle;
+	unsigned int use_cnt;
+	unsigned int num_children;
+	struct nfp_qdisc **children;
 };
 
 /**

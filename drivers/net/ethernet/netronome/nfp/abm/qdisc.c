@@ -72,6 +72,8 @@ nfp_abm_qdisc_free(struct net_device *netdev, struct nfp_abm_link *alink,
 		return;
 	WARN_ON(radix_tree_delete(&alink->qdiscs,
 				  TC_H_MAJ(qdisc->handle)) != qdisc);
+
+	kfree(qdisc->children);
 	kfree(qdisc);
 
 	port->tc_offload_cnt--;
@@ -79,7 +81,8 @@ nfp_abm_qdisc_free(struct net_device *netdev, struct nfp_abm_link *alink,
 
 static struct nfp_qdisc *
 nfp_abm_qdisc_alloc(struct net_device *netdev, struct nfp_abm_link *alink,
-		    enum nfp_qdisc_type type, u32 parent_handle, u32 handle)
+		    enum nfp_qdisc_type type, u32 parent_handle, u32 handle,
+		    unsigned int children)
 {
 	struct nfp_port *port = nfp_port_from_netdev(netdev);
 	struct nfp_qdisc *qdisc;
@@ -89,21 +92,28 @@ nfp_abm_qdisc_alloc(struct net_device *netdev, struct nfp_abm_link *alink,
 	if (!qdisc)
 		return NULL;
 
+	qdisc->children = kcalloc(children, sizeof(void *), GFP_KERNEL);
+	if (!qdisc->children)
+		goto err_free_qdisc;
+
 	qdisc->netdev = netdev;
 	qdisc->type = type;
 	qdisc->parent_handle = parent_handle;
 	qdisc->handle = handle;
+	qdisc->num_children = children;
 
 	err = radix_tree_insert(&alink->qdiscs, TC_H_MAJ(qdisc->handle), qdisc);
 	if (err) {
 		nfp_err(alink->abm->app->cpp,
 			"Qdisc insertion into radix tree failed: %d\n", err);
-		goto err_free_qdisc;
+		goto err_free_child_tbl;
 	}
 
 	port->tc_offload_cnt++;
 	return qdisc;
 
+err_free_child_tbl:
+	kfree(qdisc->children);
 err_free_qdisc:
 	kfree(qdisc);
 	return NULL;
@@ -118,7 +128,7 @@ nfp_abm_qdisc_find(struct nfp_abm_link *alink, u32 handle)
 static int
 nfp_abm_qdisc_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 		      enum nfp_qdisc_type type, u32 parent_handle, u32 handle,
-		      struct nfp_qdisc **qdisc)
+		      unsigned int children, struct nfp_qdisc **qdisc)
 {
 	*qdisc = nfp_abm_qdisc_find(alink, handle);
 	if (*qdisc) {
@@ -127,8 +137,8 @@ nfp_abm_qdisc_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 		return 0;
 	}
 
-	*qdisc = nfp_abm_qdisc_alloc(netdev, alink, type, parent_handle,
-				     handle);
+	*qdisc = nfp_abm_qdisc_alloc(netdev, alink, type, parent_handle, handle,
+				     children);
 	return *qdisc ? 0 : -ENOMEM;
 }
 
@@ -248,7 +258,7 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 	int ret;
 
 	ret = nfp_abm_qdisc_replace(netdev, alink, NFP_QDISC_RED, opt->parent,
-				    opt->handle, &qdisc);
+				    opt->handle, 1, &qdisc);
 
 	i = nfp_abm_red_find(alink, opt);
 	existing = i >= 0;
@@ -428,7 +438,8 @@ nfp_abm_mq_create(struct net_device *netdev, struct nfp_abm_link *alink,
 	struct nfp_qdisc *qdisc;
 
 	return nfp_abm_qdisc_replace(netdev, alink, NFP_QDISC_MQ,
-				     TC_H_ROOT, opt->handle, &qdisc);
+				     TC_H_ROOT, opt->handle,
+				     alink->total_queues, &qdisc);
 }
 
 int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
