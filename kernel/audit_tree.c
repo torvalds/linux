@@ -309,16 +309,28 @@ static void replace_chunk(struct audit_chunk *new, struct audit_chunk *old,
 	list_replace_rcu(&old->hash, &new->hash);
 }
 
+static void remove_chunk_node(struct audit_chunk *chunk, struct node *p)
+{
+	struct audit_tree *owner = p->owner;
+
+	if (owner->root == chunk) {
+		list_del_init(&owner->same_root);
+		owner->root = NULL;
+	}
+	list_del_init(&p->list);
+	p->owner = NULL;
+	put_tree(owner);
+}
+
 static void untag_chunk(struct node *p)
 {
 	struct audit_chunk *chunk = find_chunk(p);
 	struct fsnotify_mark *entry = chunk->mark;
 	struct audit_chunk *new = NULL;
-	struct audit_tree *owner;
 	int size = chunk->count - 1;
 
+	remove_chunk_node(chunk, p);
 	fsnotify_get_mark(entry);
-
 	spin_unlock(&hash_lock);
 
 	if (size)
@@ -336,15 +348,10 @@ static void untag_chunk(struct node *p)
 		goto out;
 	}
 
-	owner = p->owner;
-
 	if (!size) {
 		chunk->dead = 1;
 		spin_lock(&hash_lock);
 		list_del_init(&chunk->trees);
-		if (owner->root == chunk)
-			owner->root = NULL;
-		list_del_init(&p->list);
 		list_del_rcu(&chunk->hash);
 		spin_unlock(&hash_lock);
 		fsnotify_detach_mark(entry);
@@ -354,21 +361,16 @@ static void untag_chunk(struct node *p)
 	}
 
 	if (!new)
-		goto Fallback;
+		goto out_mutex;
 
 	if (fsnotify_add_mark_locked(new->mark, entry->connector->obj,
 				     FSNOTIFY_OBJ_TYPE_INODE, 1)) {
 		fsnotify_put_mark(new->mark);
-		goto Fallback;
+		goto out_mutex;
 	}
 
 	chunk->dead = 1;
 	spin_lock(&hash_lock);
-	if (owner->root == chunk) {
-		list_del_init(&owner->same_root);
-		owner->root = NULL;
-	}
-	list_del_init(&p->list);
 	/*
 	 * This has to go last when updating chunk as once replace_chunk() is
 	 * called, new RCU readers can see the new chunk.
@@ -381,17 +383,7 @@ static void untag_chunk(struct node *p)
 	fsnotify_put_mark(new->mark);	/* drop initial reference */
 	goto out;
 
-Fallback:
-	// do the best we can
-	spin_lock(&hash_lock);
-	if (owner->root == chunk) {
-		list_del_init(&owner->same_root);
-		owner->root = NULL;
-	}
-	list_del_init(&p->list);
-	p->owner = NULL;
-	put_tree(owner);
-	spin_unlock(&hash_lock);
+out_mutex:
 	mutex_unlock(&entry->group->mark_mutex);
 out:
 	fsnotify_put_mark(entry);
