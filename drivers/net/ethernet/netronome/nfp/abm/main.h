@@ -78,6 +78,8 @@ enum nfp_qdisc_type {
 	NFP_QDISC_RED,
 };
 
+#define NFP_QDISC_UNTRACKED	((struct nfp_qdisc *)1UL)
+
 /**
  * struct nfp_qdisc - tracked TC Qdisc
  * @netdev:		netdev on which Qdisc was created

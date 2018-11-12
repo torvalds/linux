@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2018 Netronome Systems, Inc. */
 
+#include <linux/rtnetlink.h>
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 #include <net/red.h>
@@ -11,6 +12,66 @@
 #include "../nfp_net.h"
 #include "../nfp_port.h"
 #include "main.h"
+
+static bool nfp_abm_qdisc_child_valid(struct nfp_qdisc *qdisc, unsigned int id)
+{
+	return qdisc->children[id] &&
+	       qdisc->children[id] != NFP_QDISC_UNTRACKED;
+}
+
+static void *nfp_abm_qdisc_tree_deref_slot(void __rcu **slot)
+{
+	return rtnl_dereference(*slot);
+}
+
+static void
+nfp_abm_qdisc_unlink_children(struct nfp_qdisc *qdisc,
+			      unsigned int start, unsigned int end)
+{
+	unsigned int i;
+
+	for (i = start; i < end; i++)
+		if (nfp_abm_qdisc_child_valid(qdisc, i)) {
+			qdisc->children[i]->use_cnt--;
+			qdisc->children[i] = NULL;
+		}
+}
+
+static void
+nfp_abm_qdisc_clear_mq(struct net_device *netdev, struct nfp_abm_link *alink,
+		       struct nfp_qdisc *qdisc)
+{
+	struct radix_tree_iter iter;
+	unsigned int mq_refs = 0;
+	void __rcu **slot;
+
+	if (!qdisc->use_cnt)
+		return;
+	/* MQ doesn't notify well on destruction, we need special handling of
+	 * MQ's children.
+	 */
+	if (qdisc->type == NFP_QDISC_MQ &&
+	    qdisc == alink->root_qdisc &&
+	    netdev->reg_state == NETREG_UNREGISTERING)
+		return;
+
+	/* Count refs held by MQ instances and clear pointers */
+	radix_tree_for_each_slot(slot, &alink->qdiscs, &iter, 0) {
+		struct nfp_qdisc *mq = nfp_abm_qdisc_tree_deref_slot(slot);
+		unsigned int i;
+
+		if (mq->type != NFP_QDISC_MQ || mq->netdev != netdev)
+			continue;
+		for (i = 0; i < mq->num_children; i++)
+			if (mq->children[i] == qdisc) {
+				mq->children[i] = NULL;
+				mq_refs++;
+			}
+	}
+
+	WARN(qdisc->use_cnt != mq_refs, "non-zero qdisc use count: %d (- %d)\n",
+	     qdisc->use_cnt, mq_refs);
+}
 
 static void
 nfp_abm_offload_compile_red(struct nfp_abm_link *alink,
@@ -70,6 +131,7 @@ nfp_abm_qdisc_free(struct net_device *netdev, struct nfp_abm_link *alink,
 
 	if (!qdisc)
 		return;
+	nfp_abm_qdisc_clear_mq(netdev, alink, qdisc);
 	WARN_ON(radix_tree_delete(&alink->qdiscs,
 				  TC_H_MAJ(qdisc->handle)) != qdisc);
 
@@ -152,10 +214,42 @@ nfp_abm_qdisc_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
 	if (!qdisc)
 		return;
 
+	/* We don't get TC_SETUP_ROOT_QDISC w/ MQ when netdev is unregistered */
+	if (alink->root_qdisc == qdisc)
+		qdisc->use_cnt--;
+
+	nfp_abm_qdisc_unlink_children(qdisc, 0, qdisc->num_children);
 	nfp_abm_qdisc_free(netdev, alink, qdisc);
 
 	if (alink->root_qdisc == qdisc)
 		alink->root_qdisc = NULL;
+}
+
+static int
+nfp_abm_qdisc_graft(struct nfp_abm_link *alink, u32 handle, u32 child_handle,
+		    unsigned int id)
+{
+	struct nfp_qdisc *parent, *child;
+
+	parent = nfp_abm_qdisc_find(alink, handle);
+	if (!parent)
+		return 0;
+
+	if (WARN(id >= parent->num_children,
+		 "graft child out of bound %d >= %d\n",
+		 id, parent->num_children))
+		return -EINVAL;
+
+	nfp_abm_qdisc_unlink_children(parent, id, id + 1);
+
+	child = nfp_abm_qdisc_find(alink, child_handle);
+	if (child)
+		child->use_cnt++;
+	else
+		child = NFP_QDISC_UNTRACKED;
+	parent->children[id] = child;
+
+	return 0;
 }
 
 static void
@@ -404,6 +498,9 @@ int nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,
 		return nfp_abm_red_stats(alink, opt);
 	case TC_RED_XSTATS:
 		return nfp_abm_red_xstats(alink, opt);
+	case TC_RED_GRAFT:
+		return nfp_abm_qdisc_graft(alink, opt->handle,
+					   opt->child_handle, 0);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -460,6 +557,10 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 		return 0;
 	case TC_MQ_STATS:
 		return nfp_abm_mq_stats(alink, opt);
+	case TC_MQ_GRAFT:
+		return nfp_abm_qdisc_graft(alink, opt->handle,
+					   opt->graft_params.child_handle,
+					   opt->graft_params.queue);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -470,7 +571,11 @@ int nfp_abm_setup_root(struct net_device *netdev, struct nfp_abm_link *alink,
 {
 	if (opt->ingress)
 		return -EOPNOTSUPP;
+	if (alink->root_qdisc)
+		alink->root_qdisc->use_cnt--;
 	alink->root_qdisc = nfp_abm_qdisc_find(alink, opt->handle);
+	if (alink->root_qdisc)
+		alink->root_qdisc->use_cnt++;
 
 	return 0;
 }
