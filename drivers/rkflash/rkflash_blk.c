@@ -733,7 +733,7 @@ int rkflash_dev_init(void __iomem *reg_addr, enum flash_con_type con_type)
 		}
 		ret = g_boot_ops[tmp_id]->init(reg_addr);
 		if (ret) {
-			pr_err("rkflash[%d] init fail\n", tmp_id);
+			pr_err("rkflash[%d] init fail ret = %d\n", tmp_id, ret);
 			if (tmp_id == end_id)
 				return -1;
 			continue;
