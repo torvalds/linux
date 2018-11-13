@@ -664,6 +664,8 @@ void mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb,
 void mt76_tx_complete_skb(struct mt76_dev *dev, struct sk_buff *skb);
 void mt76_tx_status_check(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			  bool flush);
+void mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta);
 
 struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb);
 

@@ -212,19 +212,13 @@ int mt76x02_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta)
 {
 	struct mt76x02_dev *dev = hw->priv;
-	struct mt76x02_sta *msta = (struct mt76x02_sta *)sta->drv_priv;
-	int idx = msta->wcid.idx;
-	int i;
+	struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
+	int idx = wcid->idx;
 
-	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
-	synchronize_rcu();
+	mt76_sta_remove(&dev->mt76, vif, sta);
 
 	mutex_lock(&dev->mt76.mutex);
-	mt76_tx_status_check(&dev->mt76, &msta->wcid, true);
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
-		mt76_txq_remove(&dev->mt76, sta->txq[i]);
 	mt76x02_mac_wcid_set_drop(dev, idx, true);
-	mt76_wcid_free(dev->mt76.wcid_mask, idx);
 	mt76x02_mac_wcid_setup(dev, idx, 0, NULL);
 	mutex_unlock(&dev->mt76.mutex);
 
