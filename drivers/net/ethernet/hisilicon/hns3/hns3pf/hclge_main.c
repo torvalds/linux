@@ -2462,7 +2462,7 @@ int hclge_set_all_vf_rst(struct hclge_dev *hdev, bool reset)
 		ret = hclge_set_vf_rst(hdev, vport->vport_id, reset);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
-				"set vf(%d) rst failded %d!\n",
+				"set vf(%d) rst failed %d!\n",
 				vport->vport_id, ret);
 			return ret;
 		}
@@ -2477,7 +2477,7 @@ int hclge_set_all_vf_rst(struct hclge_dev *hdev, bool reset)
 		ret = hclge_inform_reset_assert_to_vf(vport);
 		if (ret)
 			dev_warn(&hdev->pdev->dev,
-				 "inform reset to vf(%d) failded %d!\n",
+				 "inform reset to vf(%d) failed %d!\n",
 				 vport->vport_id, ret);
 	}
 
