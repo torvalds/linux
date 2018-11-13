@@ -2364,19 +2364,6 @@ error:
 }
 EXPORT_SYMBOL_GPL(skb_send_sock_locked);
 
-/* Send skb data on a socket. */
-int skb_send_sock(struct sock *sk, struct sk_buff *skb, int offset, int len)
-{
-	int ret = 0;
-
-	lock_sock(sk);
-	ret = skb_send_sock_locked(sk, skb, offset, len);
-	release_sock(sk);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(skb_send_sock);
-
 /**
  *	skb_store_bits - store bits from kernel buffer to skb
  *	@skb: destination buffer
