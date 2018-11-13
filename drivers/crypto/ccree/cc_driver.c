@@ -39,27 +39,37 @@ struct cc_hw_data {
 	char *name;
 	enum cc_hw_rev rev;
 	u32 sig;
+	int std_bodies;
 };
 
 /* Hardware revisions defs. */
 
+/* The 703 is a OSCCA only variant of the 713 */
+static const struct cc_hw_data cc703_hw = {
+	.name = "703", .rev = CC_HW_REV_713, .std_bodies = CC_STD_OSCCA
+};
+
 static const struct cc_hw_data cc713_hw = {
-	.name = "713", .rev = CC_HW_REV_713
+	.name = "713", .rev = CC_HW_REV_713, .std_bodies = CC_STD_ALL
 };
 
 static const struct cc_hw_data cc712_hw = {
-	.name = "712", .rev = CC_HW_REV_712, .sig =  0xDCC71200U
+	.name = "712", .rev = CC_HW_REV_712, .sig =  0xDCC71200U,
+	.std_bodies = CC_STD_ALL
 };
 
 static const struct cc_hw_data cc710_hw = {
-	.name = "710", .rev = CC_HW_REV_710, .sig =  0xDCC63200U
+	.name = "710", .rev = CC_HW_REV_710, .sig =  0xDCC63200U,
+	.std_bodies = CC_STD_ALL
 };
 
 static const struct cc_hw_data cc630p_hw = {
-	.name = "630P", .rev = CC_HW_REV_630, .sig = 0xDCC63000U
+	.name = "630P", .rev = CC_HW_REV_630, .sig = 0xDCC63000U,
+	.std_bodies = CC_STD_ALL
 };
 
 static const struct of_device_id arm_ccree_dev_of_match[] = {
+	{ .compatible = "arm,cryptocell-703-ree", .data = &cc703_hw },
 	{ .compatible = "arm,cryptocell-713-ree", .data = &cc713_hw },
 	{ .compatible = "arm,cryptocell-712-ree", .data = &cc712_hw },
 	{ .compatible = "arm,cryptocell-710-ree", .data = &cc710_hw },
@@ -209,6 +219,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	hw_rev = (struct cc_hw_data *)dev_id->data;
 	new_drvdata->hw_rev_name = hw_rev->name;
 	new_drvdata->hw_rev = hw_rev->rev;
+	new_drvdata->std_bodies = hw_rev->std_bodies;
 
 	if (hw_rev->rev >= CC_HW_REV_712) {
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP);

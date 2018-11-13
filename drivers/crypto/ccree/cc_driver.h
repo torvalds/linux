@@ -45,6 +45,12 @@ enum cc_hw_rev {
 	CC_HW_REV_713 = 713
 };
 
+enum cc_std_body {
+	CC_STD_NIST = 0x1,
+	CC_STD_OSCCA = 0x2,
+	CC_STD_ALL = 0x3
+};
+
 #define CC_COHERENT_CACHE_PARAMS 0xEEE
 
 /* Maximum DMA mask supported by IP */
@@ -131,6 +137,7 @@ struct cc_drvdata {
 	u32 axim_mon_offset;
 	u32 sig_offset;
 	u32 ver_offset;
+	int std_bodies;
 };
 
 struct cc_crypto_alg {
@@ -156,6 +163,7 @@ struct cc_alg_template {
 	int flow_mode; /* Note: currently, refers to the cipher mode only. */
 	int auth_mode;
 	u32 min_hw_rev;
+	enum cc_std_body std_body;
 	unsigned int data_unit;
 	struct cc_drvdata *drvdata;
 };

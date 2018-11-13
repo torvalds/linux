@@ -1539,6 +1539,7 @@ struct cc_hash_template {
 	int inter_digestsize;
 	struct cc_drvdata *drvdata;
 	u32 min_hw_rev;
+	enum cc_std_body std_body;
 };
 
 #define CC_STATE_SIZE(_x) \
@@ -1573,6 +1574,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_HASH_HW_SHA1,
 		.inter_digestsize = SHA1_DIGEST_SIZE,
 		.min_hw_rev = CC_HW_REV_630,
+		.std_body = CC_STD_NIST,
 	},
 	{
 		.name = "sha256",
@@ -1599,6 +1601,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_HASH_HW_SHA256,
 		.inter_digestsize = SHA256_DIGEST_SIZE,
 		.min_hw_rev = CC_HW_REV_630,
+		.std_body = CC_STD_NIST,
 	},
 	{
 		.name = "sha224",
@@ -1625,6 +1628,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_HASH_HW_SHA256,
 		.inter_digestsize = SHA256_DIGEST_SIZE,
 		.min_hw_rev = CC_HW_REV_630,
+		.std_body = CC_STD_NIST,
 	},
 	{
 		.name = "sha384",
@@ -1651,6 +1655,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_HASH_HW_SHA512,
 		.inter_digestsize = SHA512_DIGEST_SIZE,
 		.min_hw_rev = CC_HW_REV_712,
+		.std_body = CC_STD_NIST,
 	},
 	{
 		.name = "sha512",
@@ -1677,6 +1682,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_HASH_HW_SHA512,
 		.inter_digestsize = SHA512_DIGEST_SIZE,
 		.min_hw_rev = CC_HW_REV_712,
+		.std_body = CC_STD_NIST,
 	},
 	{
 		.name = "md5",
@@ -1703,6 +1709,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_HASH_HW_MD5,
 		.inter_digestsize = MD5_DIGEST_SIZE,
 		.min_hw_rev = CC_HW_REV_630,
+		.std_body = CC_STD_NIST,
 	},
 	{
 		.name = "sm3",
@@ -1727,6 +1734,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_HASH_HW_SM3,
 		.inter_digestsize = SM3_DIGEST_SIZE,
 		.min_hw_rev = CC_HW_REV_713,
+		.std_body = CC_STD_OSCCA,
 	},
 	{
 		.mac_name = "xcbc(aes)",
@@ -1751,6 +1759,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_CIPHER_XCBC_MAC,
 		.inter_digestsize = AES_BLOCK_SIZE,
 		.min_hw_rev = CC_HW_REV_630,
+		.std_body = CC_STD_NIST,
 	},
 	{
 		.mac_name = "cmac(aes)",
@@ -1775,6 +1784,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_CIPHER_CMAC,
 		.inter_digestsize = AES_BLOCK_SIZE,
 		.min_hw_rev = CC_HW_REV_630,
+		.std_body = CC_STD_NIST,
 	},
 };
 
@@ -2001,9 +2011,11 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 		struct cc_hash_alg *t_alg;
 		int hw_mode = driver_hash[alg].hw_mode;
 
-		/* We either support both HASH and MAC or none */
-		if (driver_hash[alg].min_hw_rev > drvdata->hw_rev)
+		/* Check that the HW revision and variants are suitable */
+		if ((driver_hash[alg].min_hw_rev > drvdata->hw_rev) ||
+		    !(drvdata->std_bodies & driver_hash[alg].std_body))
 			continue;
+
 		if (driver_hash[alg].is_mac) {
 			/* register hmac version */
 			t_alg = cc_alloc_hash_alg(&driver_hash[alg], dev, true);
