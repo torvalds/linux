@@ -1608,8 +1608,8 @@ fail:
 	return ret;
 }
 
-static struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
-					       u64 root_id)
+struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
+					u64 root_id)
 {
 	struct btrfs_root *root;
 

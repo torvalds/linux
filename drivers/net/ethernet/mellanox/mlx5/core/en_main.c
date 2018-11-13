@@ -1186,7 +1186,6 @@ static void mlx5e_fill_indir_rqt_rqns(struct mlx5e_priv *priv, void *rqtc)
 			ix = mlx5e_bits_invert(i, MLX5E_LOG_INDIR_RQT_SIZE);
 
 		ix = priv->params.indirection_rqt[ix];
-		ix = ix % priv->params.num_channels;
 		MLX5_SET(rqtc, rqtc, rq_num[i],
 			 test_bit(MLX5E_STATE_OPENED, &priv->state) ?
 			 priv->channel[ix]->rq.rqn :
@@ -1304,7 +1303,7 @@ static void mlx5e_build_tir_ctx_lro(void *tirc, struct mlx5e_priv *priv)
 			      lro_timer_supported_periods[2]));
 }
 
-static int mlx5e_modify_tir_lro(struct mlx5e_priv *priv, int tt)
+static int mlx5e_modify_tirs_lro(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 
@@ -1312,6 +1311,7 @@ static int mlx5e_modify_tir_lro(struct mlx5e_priv *priv, int tt)
 	void *tirc;
 	int inlen;
 	int err;
+	int tt;
 
 	inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
 	in = mlx5_vzalloc(inlen);
@@ -1323,7 +1323,11 @@ static int mlx5e_modify_tir_lro(struct mlx5e_priv *priv, int tt)
 
 	mlx5e_build_tir_ctx_lro(tirc, priv);
 
-	err = mlx5_core_modify_tir(mdev, priv->tirn[tt], in, inlen);
+	for (tt = 0; tt < MLX5E_NUM_TT; tt++) {
+		err = mlx5_core_modify_tir(mdev, priv->tirn[tt], in, inlen);
+		if (err)
+			break;
+	}
 
 	kvfree(in);
 
@@ -1870,8 +1874,10 @@ static int mlx5e_set_features(struct net_device *netdev,
 			mlx5e_close_locked(priv->netdev);
 
 		priv->params.lro_en = !!(features & NETIF_F_LRO);
-		mlx5e_modify_tir_lro(priv, MLX5E_TT_IPV4_TCP);
-		mlx5e_modify_tir_lro(priv, MLX5E_TT_IPV6_TCP);
+		err = mlx5e_modify_tirs_lro(priv);
+		if (err)
+			mlx5_core_warn(priv->mdev, "lro modify failed, %d\n",
+				       err);
 
 		if (was_opened)
 			err = mlx5e_open_locked(priv->netdev);
@@ -1976,12 +1982,20 @@ u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev)
 	       2 /*sizeof(mlx5e_tx_wqe.inline_hdr_start)*/;
 }
 
+void mlx5e_build_default_indir_rqt(u32 *indirection_rqt, int len,
+				   int num_channels)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		indirection_rqt[i] = i % num_channels;
+}
+
 static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 				    struct net_device *netdev,
 				    int num_channels)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	int i;
 
 	priv->params.log_sq_size           =
 		MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
@@ -2005,8 +2019,8 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 	netdev_rss_key_fill(priv->params.toeplitz_hash_key,
 			    sizeof(priv->params.toeplitz_hash_key));
 
-	for (i = 0; i < MLX5E_INDIR_RQT_SIZE; i++)
-		priv->params.indirection_rqt[i] = i % num_channels;
+	mlx5e_build_default_indir_rqt(priv->params.indirection_rqt,
+				      MLX5E_INDIR_RQT_SIZE, num_channels);
 
 	priv->params.lro_wqe_sz            =
 		MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;

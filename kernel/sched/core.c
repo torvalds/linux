@@ -7817,11 +7817,9 @@ void sched_destroy_group(struct task_group *tg)
 void sched_offline_group(struct task_group *tg)
 {
 	unsigned long flags;
-	int i;
 
 	/* end participation in shares distribution */
-	for_each_possible_cpu(i)
-		unregister_fair_sched_group(tg, i);
+	unregister_fair_sched_group(tg);
 
 	spin_lock_irqsave(&task_group_lock, flags);
 	list_del_rcu(&tg->list);

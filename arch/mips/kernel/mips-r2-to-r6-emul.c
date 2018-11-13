@@ -900,7 +900,7 @@ static inline int mipsr2_find_op_func(struct pt_regs *regs, u32 inst,
  * mipsr2_decoder: Decode and emulate a MIPS R2 instruction
  * @regs: Process register set
  * @inst: Instruction to decode and emulate
- * @fcr31: Floating Point Control and Status Register returned
+ * @fcr31: Floating Point Control and Status Register Cause bits returned
  */
 int mipsr2_decoder(struct pt_regs *regs, u32 inst, unsigned long *fcr31)
 {
@@ -1183,13 +1183,13 @@ fpu_emul:
 
 		err = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 0,
 					       &fault_addr);
-		*fcr31 = current->thread.fpu.fcr31;
 
 		/*
-		 * We can't allow the emulated instruction to leave any of
-		 * the cause bits set in $fcr31.
+		 * We can't allow the emulated instruction to leave any
+		 * enabled Cause bits set in $fcr31.
 		 */
-		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+		*fcr31 = res = mask_fcr31_x(current->thread.fpu.fcr31);
+		current->thread.fpu.fcr31 &= ~res;
 
 		/*
 		 * this is a tricky issue - lose_fpu() uses LL/SC atomics
