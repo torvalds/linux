@@ -99,9 +99,6 @@ irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 					       (i * MAX_MSI_IRQS_PER_CTRL) +
 					       pos);
 			generic_handle_irq(irq);
-			dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS +
-						(i * MSI_REG_CTRL_BLOCK_SIZE),
-					    4, 1 << pos);
 			pos++;
 		}
 	}
@@ -200,13 +197,17 @@ static void dw_pci_bottom_unmask(struct irq_data *data)
 
 static void dw_pci_bottom_ack(struct irq_data *d)
 {
-	struct msi_desc *msi = irq_data_get_msi_desc(d);
-	struct pcie_port *pp;
+	struct pcie_port *pp  = irq_data_get_irq_chip_data(d);
+	unsigned int res, bit, ctrl;
 	unsigned long flags;
 
-	pp = msi_desc_to_pci_sysdata(msi);
+	ctrl = d->hwirq / MAX_MSI_IRQS_PER_CTRL;
+	res = ctrl * MSI_REG_CTRL_BLOCK_SIZE;
+	bit = d->hwirq % MAX_MSI_IRQS_PER_CTRL;
 
 	raw_spin_lock_irqsave(&pp->lock, flags);
+
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS + res, 4, 1 << bit);
 
 	if (pp->ops->msi_irq_ack)
 		pp->ops->msi_irq_ack(d->hwirq, pp);
