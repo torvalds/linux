@@ -3760,7 +3760,8 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	/* Hardware table is only clear when pf resets */
 	if (!(handle->flags & HNAE3_SUPPORT_VF)) {
 		ret = hns3_restore_vlan(netdev);
-		return ret;
+		if (ret)
+			return ret;
 	}
 
 	ret = hns3_restore_fd_rules(netdev);

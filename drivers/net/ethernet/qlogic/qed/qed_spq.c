@@ -142,6 +142,7 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 
 	DP_INFO(p_hwfn, "Ramrod is stuck, requesting MCP drain\n");
 	rc = qed_mcp_drain(p_hwfn, p_ptt);
+	qed_ptt_release(p_hwfn, p_ptt);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "MCP drain failed\n");
 		goto err;
@@ -150,18 +151,15 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 	/* Retry after drain */
 	rc = __qed_spq_block(p_hwfn, p_ent, p_fw_ret, true);
 	if (!rc)
-		goto out;
+		return 0;
 
 	comp_done = (struct qed_spq_comp_done *)p_ent->comp_cb.cookie;
-	if (comp_done->done == 1)
+	if (comp_done->done == 1) {
 		if (p_fw_ret)
 			*p_fw_ret = comp_done->fw_return_code;
-out:
-	qed_ptt_release(p_hwfn, p_ptt);
-	return 0;
-
+		return 0;
+	}
 err:
-	qed_ptt_release(p_hwfn, p_ptt);
 	DP_NOTICE(p_hwfn,
 		  "Ramrod is stuck [CID %08x cmd %02x protocol %02x echo %04x]\n",
 		  le32_to_cpu(p_ent->elem.hdr.cid),
@@ -685,6 +683,8 @@ static int qed_spq_add_entry(struct qed_hwfn *p_hwfn,
 			/* EBLOCK responsible to free the allocated p_ent */
 			if (p_ent->comp_mode != QED_SPQ_MODE_EBLOCK)
 				kfree(p_ent);
+			else
+				p_ent->post_ent = p_en2;
 
 			p_ent = p_en2;
 		}
@@ -767,6 +767,25 @@ static int qed_spq_pend_post(struct qed_hwfn *p_hwfn)
 				 SPQ_HIGH_PRI_RESERVE_DEFAULT);
 }
 
+/* Avoid overriding of SPQ entries when getting out-of-order completions, by
+ * marking the completions in a bitmap and increasing the chain consumer only
+ * for the first successive completed entries.
+ */
+static void qed_spq_comp_bmap_update(struct qed_hwfn *p_hwfn, __le16 echo)
+{
+	u16 pos = le16_to_cpu(echo) % SPQ_RING_SIZE;
+	struct qed_spq *p_spq = p_hwfn->p_spq;
+
+	__set_bit(pos, p_spq->p_comp_bitmap);
+	while (test_bit(p_spq->comp_bitmap_idx,
+			p_spq->p_comp_bitmap)) {
+		__clear_bit(p_spq->comp_bitmap_idx,
+			    p_spq->p_comp_bitmap);
+		p_spq->comp_bitmap_idx++;
+		qed_chain_return_produced(&p_spq->chain);
+	}
+}
+
 int qed_spq_post(struct qed_hwfn *p_hwfn,
 		 struct qed_spq_entry *p_ent, u8 *fw_return_code)
 {
@@ -824,11 +843,12 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 				   p_ent->queue == &p_spq->unlimited_pending);
 
 		if (p_ent->queue == &p_spq->unlimited_pending) {
-			/* This is an allocated p_ent which does not need to
-			 * return to pool.
-			 */
+			struct qed_spq_entry *p_post_ent = p_ent->post_ent;
+
 			kfree(p_ent);
-			return rc;
+
+			/* Return the entry which was actually posted */
+			p_ent = p_post_ent;
 		}
 
 		if (rc)
@@ -842,7 +862,7 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 spq_post_fail2:
 	spin_lock_bh(&p_spq->lock);
 	list_del(&p_ent->list);
-	qed_chain_return_produced(&p_spq->chain);
+	qed_spq_comp_bmap_update(p_hwfn, p_ent->elem.hdr.echo);
 
 spq_post_fail:
 	/* return to the free pool */
@@ -874,25 +894,8 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 	spin_lock_bh(&p_spq->lock);
 	list_for_each_entry_safe(p_ent, tmp, &p_spq->completion_pending, list) {
 		if (p_ent->elem.hdr.echo == echo) {
-			u16 pos = le16_to_cpu(echo) % SPQ_RING_SIZE;
-
 			list_del(&p_ent->list);
-
-			/* Avoid overriding of SPQ entries when getting
-			 * out-of-order completions, by marking the completions
-			 * in a bitmap and increasing the chain consumer only
-			 * for the first successive completed entries.
-			 */
-			__set_bit(pos, p_spq->p_comp_bitmap);
-
-			while (test_bit(p_spq->comp_bitmap_idx,
-					p_spq->p_comp_bitmap)) {
-				__clear_bit(p_spq->comp_bitmap_idx,
-					    p_spq->p_comp_bitmap);
-				p_spq->comp_bitmap_idx++;
-				qed_chain_return_produced(&p_spq->chain);
-			}
-
+			qed_spq_comp_bmap_update(p_hwfn, echo);
 			p_spq->comp_count++;
 			found = p_ent;
 			break;
@@ -931,11 +934,9 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 			   QED_MSG_SPQ,
 			   "Got a completion without a callback function\n");
 
-	if ((found->comp_mode != QED_SPQ_MODE_EBLOCK) ||
-	    (found->queue == &p_spq->unlimited_pending))
+	if (found->comp_mode != QED_SPQ_MODE_EBLOCK)
 		/* EBLOCK  is responsible for returning its own entry into the
-		 * free list, unless it originally added the entry into the
-		 * unlimited pending list.
+		 * free list.
 		 */
 		qed_spq_return_entry(p_hwfn, found);
 

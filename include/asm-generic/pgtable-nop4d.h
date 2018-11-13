@@ -4,7 +4,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define __PAGETABLE_P4D_FOLDED
+#define __PAGETABLE_P4D_FOLDED 1
 
 typedef struct { pgd_t pgd; } p4d_t;
 

@@ -49,6 +49,7 @@
 #define I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV	BIT(0)
 #define I2C_HID_QUIRK_NO_IRQ_AFTER_RESET	BIT(1)
 #define I2C_HID_QUIRK_NO_RUNTIME_PM		BIT(2)
+#define I2C_HID_QUIRK_DELAY_AFTER_SLEEP		BIT(3)
 
 /* flags */
 #define I2C_HID_STARTED		0
@@ -158,6 +159,8 @@ struct i2c_hid {
 
 	bool			irq_wake_enabled;
 	struct mutex		reset_lock;
+
+	unsigned long		sleep_delay;
 };
 
 static const struct i2c_hid_quirks {
@@ -172,6 +175,8 @@ static const struct i2c_hid_quirks {
 	{ I2C_VENDOR_ID_HANTICK, I2C_PRODUCT_ID_HANTICK_5288,
 		I2C_HID_QUIRK_NO_IRQ_AFTER_RESET |
 		I2C_HID_QUIRK_NO_RUNTIME_PM },
+	{ I2C_VENDOR_ID_RAYDIUM, I2C_PRODUCT_ID_RAYDIUM_4B33,
+		I2C_HID_QUIRK_DELAY_AFTER_SLEEP },
 	{ 0, 0 }
 };
 
@@ -387,6 +392,7 @@ static int i2c_hid_set_power(struct i2c_client *client, int power_state)
 {
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	int ret;
+	unsigned long now, delay;
 
 	i2c_hid_dbg(ihid, "%s\n", __func__);
 
@@ -404,8 +410,21 @@ static int i2c_hid_set_power(struct i2c_client *client, int power_state)
 			goto set_pwr_exit;
 	}
 
+	if (ihid->quirks & I2C_HID_QUIRK_DELAY_AFTER_SLEEP &&
+	    power_state == I2C_HID_PWR_ON) {
+		now = jiffies;
+		if (time_after(ihid->sleep_delay, now)) {
+			delay = jiffies_to_usecs(ihid->sleep_delay - now);
+			usleep_range(delay, delay + 1);
+		}
+	}
+
 	ret = __i2c_hid_command(client, &hid_set_power_cmd, power_state,
 		0, NULL, 0, NULL, 0);
+
+	if (ihid->quirks & I2C_HID_QUIRK_DELAY_AFTER_SLEEP &&
+	    power_state == I2C_HID_PWR_SLEEP)
+		ihid->sleep_delay = jiffies + msecs_to_jiffies(20);
 
 	if (ret)
 		dev_err(&client->dev, "failed to change power setting.\n");
