@@ -34,6 +34,14 @@
 		};
 	};
 
+	wkup_pmx0: pinmux@4301c000 {
+		compatible = "pinctrl-single";
+		reg = <0x4301c000 0x118>;
+		#pinctrl-cells = <1>;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0xffffffff>;
+	};
+
 	wkup_uart0: serial@42300000 {
 		compatible = "ti,am654-uart";
 		reg = <0x42300000 0x100>;
