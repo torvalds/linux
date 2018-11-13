@@ -5549,10 +5549,6 @@ skl_compute_wm(struct drm_atomic_state *state)
 	 * Note that the DDB allocation above may have added more CRTC's that
 	 * weren't otherwise being modified (and set bits in dirty_pipes) if
 	 * pipe allocations had to change.
-	 *
-	 * FIXME:  Now that we're doing this in the atomic check phase, we
-	 * should allow skl_update_pipe_wm() to return failure in cases where
-	 * no suitable watermark values can be found.
 	 */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, cstate, i) {
 		struct intel_crtc_state *intel_cstate =
