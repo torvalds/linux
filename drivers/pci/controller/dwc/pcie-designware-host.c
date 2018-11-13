@@ -202,11 +202,16 @@ static void dw_pci_bottom_ack(struct irq_data *d)
 {
 	struct msi_desc *msi = irq_data_get_msi_desc(d);
 	struct pcie_port *pp;
+	unsigned long flags;
 
 	pp = msi_desc_to_pci_sysdata(msi);
 
+	raw_spin_lock_irqsave(&pp->lock, flags);
+
 	if (pp->ops->msi_irq_ack)
 		pp->ops->msi_irq_ack(d->hwirq, pp);
+
+	raw_spin_unlock_irqrestore(&pp->lock, flags);
 }
 
 static struct irq_chip dw_pci_msi_bottom_irq_chip = {
