@@ -143,7 +143,7 @@
 #define BQ24190_REG_VPRS_PN_MASK		(BIT(5) | BIT(4) | BIT(3))
 #define BQ24190_REG_VPRS_PN_SHIFT		3
 #define BQ24190_REG_VPRS_PN_24190			0x4
-#define BQ24190_REG_VPRS_PN_24192			0x5 /* Also 24193 */
+#define BQ24190_REG_VPRS_PN_24192			0x5 /* Also 24193, 24196 */
 #define BQ24190_REG_VPRS_PN_24192I			0x3
 #define BQ24190_REG_VPRS_TS_PROFILE_MASK	BIT(2)
 #define BQ24190_REG_VPRS_TS_PROFILE_SHIFT	2
@@ -1973,6 +1973,7 @@ static const struct i2c_device_id bq24190_i2c_ids[] = {
 	{ "bq24190" },
 	{ "bq24192" },
 	{ "bq24192i" },
+	{ "bq24196" },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, bq24190_i2c_ids);
@@ -1982,6 +1983,7 @@ static const struct of_device_id bq24190_of_match[] = {
 	{ .compatible = "ti,bq24190", },
 	{ .compatible = "ti,bq24192", },
 	{ .compatible = "ti,bq24192i", },
+	{ .compatible = "ti,bq24196", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq24190_of_match);

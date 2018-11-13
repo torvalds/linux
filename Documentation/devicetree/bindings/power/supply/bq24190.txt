@@ -5,6 +5,7 @@ Required properties:
     * "ti,bq24190"
     * "ti,bq24192"
     * "ti,bq24192i"
+    * "ti,bq24196"
 - reg: integer, I2C address of the charger.
 - interrupts[-extended]: configuration for charger INT pin.
 
