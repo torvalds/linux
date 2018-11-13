@@ -545,20 +545,14 @@ static int armada_thermal_probe_legacy(struct platform_device *pdev,
 
 	priv->syscon = devm_regmap_init_mmio(&pdev->dev, base,
 					     &armada_thermal_regmap_config);
-	if (IS_ERR(priv->syscon))
-		return PTR_ERR(priv->syscon);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->syscon);
 }
 
 static int armada_thermal_probe_syscon(struct platform_device *pdev,
 				       struct armada_thermal_priv *priv)
 {
 	priv->syscon = syscon_node_to_regmap(pdev->dev.parent->of_node);
-	if (IS_ERR(priv->syscon))
-		return PTR_ERR(priv->syscon);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->syscon);
 }
 
 static void armada_set_sane_name(struct platform_device *pdev,
