@@ -1315,15 +1315,10 @@ static inline __sum16 tcp_v4_check(int len, __be32 saddr,
 	return csum_tcpudp_magic(saddr,daddr,len,IPPROTO_TCP,base);
 }
 
-static inline __sum16 __tcp_checksum_complete(struct sk_buff *skb)
-{
-	return __skb_checksum_complete(skb);
-}
-
 static inline bool tcp_checksum_complete(struct sk_buff *skb)
 {
 	return !skb_csum_unnecessary(skb) &&
-		__tcp_checksum_complete(skb);
+		__skb_checksum_complete(skb);
 }
 
 bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb);
