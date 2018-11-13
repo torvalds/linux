@@ -1,17 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ACPI helpers for GPIO API
  *
  * Copyright (C) 2012, Intel Corporation
  * Authors: Mathias Nyman <mathias.nyman@linux.intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/errno.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
@@ -1198,7 +1194,7 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 bool acpi_can_fallback_to_crs(struct acpi_device *adev, const char *con_id)
 {
 	/* Never allow fallback if the device has properties */
-	if (adev->data.properties || adev->driver_gpios)
+	if (acpi_dev_has_props(adev) || adev->driver_gpios)
 		return false;
 
 	return con_id == NULL;

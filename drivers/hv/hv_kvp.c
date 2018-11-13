@@ -353,7 +353,6 @@ static void process_ib_ipinfo(void *in_msg, void *out_msg, int op)
 
 		out->body.kvp_ip_val.dhcp_enabled = in->kvp_ip_val.dhcp_enabled;
 
-	default:
 		utf16s_to_utf8s((wchar_t *)in->kvp_ip_val.adapter_id,
 				MAX_ADAPTER_ID_SIZE,
 				UTF16_LITTLE_ENDIAN,
@@ -406,7 +405,7 @@ kvp_send_key(struct work_struct *dummy)
 		process_ib_ipinfo(in_msg, message, KVP_OP_SET_IP_INFO);
 		break;
 	case KVP_OP_GET_IP_INFO:
-		process_ib_ipinfo(in_msg, message, KVP_OP_GET_IP_INFO);
+		/* We only need to pass on message->kvp_hdr.operation.  */
 		break;
 	case KVP_OP_SET:
 		switch (in_msg->body.kvp_set.data.value_type) {
@@ -421,7 +420,7 @@ kvp_send_key(struct work_struct *dummy)
 				UTF16_LITTLE_ENDIAN,
 				message->body.kvp_set.data.value,
 				HV_KVP_EXCHANGE_MAX_VALUE_SIZE - 1) + 1;
-				break;
+			break;
 
 		case REG_U32:
 			/*
@@ -446,6 +445,9 @@ kvp_send_key(struct work_struct *dummy)
 			break;
 
 		}
+
+		break;
+
 	case KVP_OP_GET:
 		message->body.kvp_set.data.key_size =
 			utf16s_to_utf8s(
@@ -454,7 +456,7 @@ kvp_send_key(struct work_struct *dummy)
 			UTF16_LITTLE_ENDIAN,
 			message->body.kvp_set.data.key,
 			HV_KVP_EXCHANGE_MAX_KEY_SIZE - 1) + 1;
-			break;
+		break;
 
 	case KVP_OP_DELETE:
 		message->body.kvp_delete.key_size =
@@ -464,12 +466,12 @@ kvp_send_key(struct work_struct *dummy)
 			UTF16_LITTLE_ENDIAN,
 			message->body.kvp_delete.key,
 			HV_KVP_EXCHANGE_MAX_KEY_SIZE - 1) + 1;
-			break;
+		break;
 
 	case KVP_OP_ENUMERATE:
 		message->body.kvp_enum_data.index =
 			in_msg->body.kvp_enum_data.index;
-			break;
+		break;
 	}
 
 	kvp_transaction.state = HVUTIL_USERSPACE_REQ;

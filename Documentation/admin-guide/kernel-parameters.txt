@@ -856,6 +856,11 @@
 			causing system reset or hang due to sending
 			INIT from AP to BSP.
 
+	disable_counter_freezing [HW]
+			Disable Intel PMU counter freezing feature.
+			The feature only exists starting from
+			Arch Perfmon v4 (Skylake and newer).
+
 	disable_ddw	[PPC/PSERIES]
 			Disable Dynamic DMA Window support. Use this if
 			to workaround buggy firmware.
@@ -1063,7 +1068,7 @@
 			earlyprintk=serial[,0x...[,baudrate]]
 			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
-			earlyprintk=pciserial,bus:device.function[,baudrate]
+			earlyprintk=pciserial[,force],bus:device.function[,baudrate]
 			earlyprintk=xdbc[xhciController#]
 
 			earlyprintk is useful when the kernel crashes before
@@ -1094,6 +1099,10 @@
 			The xen output can only be used by Xen PV guests.
 
 			The sclp output can only be used on s390.
+
+			The optional "force" to "pciserial" enables use of a
+			PCI device even when its classcode is not of the
+			UART class.
 
 	edac_report=	[HW,EDAC] Control how to report EDAC event
 			Format: {"on" | "off" | "force"}
@@ -1385,6 +1394,11 @@
 	hvc_iucv_allow=	[S390]	Comma-separated list of z/VM user IDs.
 				If specified, z/VM IUCV HVC accepts connections
 				from listed z/VM user IDs only.
+
+	hv_nopvspin	[X86,HYPER_V] Disables the paravirt spinlock optimizations
+				      which allow the hypervisor to 'idle' the
+				      guest on lock contention.
+
 	keep_bootcon	[KNL]
 			Do not unregister boot console at start. This is only
 			useful for debugging when something happens in the window
@@ -1749,12 +1763,24 @@
 		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
 
+	iommu.strict=	[ARM64] Configure TLB invalidation behaviour
+			Format: { "0" | "1" }
+			0 - Lazy mode.
+			  Request that DMA unmap operations use deferred
+			  invalidation of hardware TLBs, for increased
+			  throughput at the cost of reduced device isolation.
+			  Will fall back to strict mode if not supported by
+			  the relevant IOMMU driver.
+			1 - Strict mode (default).
+			  DMA unmap operations invalidate IOMMU hardware TLBs
+			  synchronously.
+
 	iommu.passthrough=
 			[ARM64] Configure DMA to bypass the IOMMU by default.
 			Format: { "0" | "1" }
 			0 - Use IOMMU translation for DMA.
 			1 - Bypass the IOMMU for DMA.
-			unset - Use IOMMU translation for DMA.
+			unset - Use value of CONFIG_IOMMU_DEFAULT_PASSTHROUGH.
 
 	io7=		[HW] IO7 for Marvel based alpha systems
 			See comment before marvel_specify_io7 in
@@ -2274,6 +2300,8 @@
 	ltpc=		[NET]
 			Format: <io>,<irq>,<dma>
 
+	lsm.debug	[SECURITY] Enable LSM initialization debugging output.
+
 	machvec=	[IA-64] Force the use of a particular machine-vector
 			(machvec) in a generic kernel.
 			Example: machvec=hpzx1_swiotlb
@@ -2404,7 +2432,7 @@
 			seconds.  Use this parameter to check at some
 			other rate.  0 disables periodic checking.
 
-	memtest=	[KNL,X86,ARM] Enable memtest
+	memtest=	[KNL,X86,ARM,PPC] Enable memtest
 			Format: <integer>
 			default : 0 <disable>
 			Specifies the number of memtest passes to be
@@ -3540,14 +3568,14 @@
 
 			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
 			the specified list of CPUs to be no-callback CPUs.
-			Invocation of these CPUs' RCU callbacks will
-			be offloaded to "rcuox/N" kthreads created for
-			that purpose, where "x" is "b" for RCU-bh, "p"
-			for RCU-preempt, and "s" for RCU-sched, and "N"
-			is the CPU number.  This reduces OS jitter on the
-			offloaded CPUs, which can be useful for HPC and
-			real-time workloads.  It can also improve energy
-			efficiency for asymmetric multiprocessors.
+			Invocation of these CPUs' RCU callbacks will be
+			offloaded to "rcuox/N" kthreads created for that
+			purpose, where "x" is "p" for RCU-preempt, and
+			"s" for RCU-sched, and "N" is the CPU number.
+			This reduces OS jitter on the offloaded CPUs,
+			which can be useful for HPC and real-time
+			workloads.  It can also improve energy efficiency
+			for asymmetric multiprocessors.
 
 	rcu_nocb_poll	[KNL]
 			Rather than requiring that offloaded CPUs
@@ -3601,7 +3629,14 @@
 			Set required age in jiffies for a
 			given grace period before RCU starts
 			soliciting quiescent-state help from
-			rcu_note_context_switch().
+			rcu_note_context_switch().  If not specified, the
+			kernel will calculate a value based on the most
+			recent settings of rcutree.jiffies_till_first_fqs
+			and rcutree.jiffies_till_next_fqs.
+			This calculated value may be viewed in
+			rcutree.jiffies_to_sched_qs.  Any attempt to
+			set rcutree.jiffies_to_sched_qs will be
+			cheerfully overwritten.
 
 	rcutree.jiffies_till_first_fqs= [KNL]
 			Set delay from grace-period initialization to
@@ -3868,12 +3903,6 @@
 
 	rcupdate.rcu_self_test= [KNL]
 			Run the RCU early boot self tests
-
-	rcupdate.rcu_self_test_bh= [KNL]
-			Run the RCU bh early boot self tests
-
-	rcupdate.rcu_self_test_sched= [KNL]
-			Run the RCU sched early boot self tests
 
 	rdinit=		[KNL]
 			Format: <full_path>
@@ -4610,7 +4639,8 @@
 
 	usbcore.old_scheme_first=
 			[USB] Start with the old device initialization
-			scheme (default 0 = off).
+			scheme,  applies only to low and full-speed devices
+			 (default 0 = off).
 
 	usbcore.usbfs_memory_mb=
 			[USB] Memory limit (in MB) for buffers allocated by
@@ -4824,6 +4854,18 @@
 			Use vga=ask for menu.
 			This is actually a boot loader parameter; the value is
 			passed to the kernel using a special protocol.
+
+	vm_debug[=options]	[KNL] Available with CONFIG_DEBUG_VM=y.
+			May slow down system boot speed, especially when
+			enabled on systems with a large amount of memory.
+			All options are enabled by default, and this
+			interface is meant to allow for selectively
+			enabling or disabling specific virtual memory
+			debugging features.
+
+			Available options are:
+			  P	Enable page structure init time poisoning
+			  -	Disable all of the above options
 
 	vmalloc=nn[KMG]	[KNL,BOOT] Forces the vmalloc area to have an exact
 			size of <nn>. This can be used to increase the

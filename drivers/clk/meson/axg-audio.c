@@ -101,9 +101,15 @@ static const char * const mst_mux_parent_names[] = {
 	"axg_mst_in4", "axg_mst_in5", "axg_mst_in6", "axg_mst_in7",
 };
 
-#define AXG_MST_MCLK_MUX(_name, _reg)					\
-	AXG_AUD_MUX(_name##_sel, _reg, 0x7, 24, CLK_MUX_ROUND_CLOSEST, \
+#define AXG_MST_MUX(_name, _reg, _flag)				\
+	AXG_AUD_MUX(_name##_sel, _reg, 0x7, 24, _flag,		\
 		    mst_mux_parent_names, CLK_SET_RATE_PARENT)
+
+#define AXG_MST_MCLK_MUX(_name, _reg)				\
+	AXG_MST_MUX(_name, _reg, CLK_MUX_ROUND_CLOSEST)
+
+#define AXG_MST_SYS_MUX(_name, _reg)				\
+	AXG_MST_MUX(_name, _reg, 0)
 
 static AXG_MST_MCLK_MUX(mst_a_mclk,   AUDIO_MCLK_A_CTRL);
 static AXG_MST_MCLK_MUX(mst_b_mclk,   AUDIO_MCLK_B_CTRL);
@@ -112,13 +118,19 @@ static AXG_MST_MCLK_MUX(mst_d_mclk,   AUDIO_MCLK_D_CTRL);
 static AXG_MST_MCLK_MUX(mst_e_mclk,   AUDIO_MCLK_E_CTRL);
 static AXG_MST_MCLK_MUX(mst_f_mclk,   AUDIO_MCLK_F_CTRL);
 static AXG_MST_MCLK_MUX(spdifout_clk, AUDIO_CLK_SPDIFOUT_CTRL);
-static AXG_MST_MCLK_MUX(spdifin_clk,  AUDIO_CLK_SPDIFIN_CTRL);
 static AXG_MST_MCLK_MUX(pdm_dclk,     AUDIO_CLK_PDMIN_CTRL0);
-static AXG_MST_MCLK_MUX(pdm_sysclk,   AUDIO_CLK_PDMIN_CTRL1);
+static AXG_MST_SYS_MUX(spdifin_clk,   AUDIO_CLK_SPDIFIN_CTRL);
+static AXG_MST_SYS_MUX(pdm_sysclk,    AUDIO_CLK_PDMIN_CTRL1);
 
-#define AXG_MST_MCLK_DIV(_name, _reg)					\
-	AXG_AUD_DIV(_name##_div, _reg, 0, 16, CLK_DIVIDER_ROUND_CLOSEST, \
-		    "axg_"#_name"_sel", CLK_SET_RATE_PARENT)		\
+#define AXG_MST_DIV(_name, _reg, _flag)				\
+	AXG_AUD_DIV(_name##_div, _reg, 0, 16, _flag,		\
+		    "axg_"#_name"_sel", CLK_SET_RATE_PARENT)	\
+
+#define AXG_MST_MCLK_DIV(_name, _reg)				\
+	AXG_MST_DIV(_name, _reg, CLK_DIVIDER_ROUND_CLOSEST)
+
+#define AXG_MST_SYS_DIV(_name, _reg)				\
+	AXG_MST_DIV(_name, _reg, 0)
 
 static AXG_MST_MCLK_DIV(mst_a_mclk,   AUDIO_MCLK_A_CTRL);
 static AXG_MST_MCLK_DIV(mst_b_mclk,   AUDIO_MCLK_B_CTRL);
@@ -127,12 +139,12 @@ static AXG_MST_MCLK_DIV(mst_d_mclk,   AUDIO_MCLK_D_CTRL);
 static AXG_MST_MCLK_DIV(mst_e_mclk,   AUDIO_MCLK_E_CTRL);
 static AXG_MST_MCLK_DIV(mst_f_mclk,   AUDIO_MCLK_F_CTRL);
 static AXG_MST_MCLK_DIV(spdifout_clk, AUDIO_CLK_SPDIFOUT_CTRL);
-static AXG_MST_MCLK_DIV(spdifin_clk,  AUDIO_CLK_SPDIFIN_CTRL);
 static AXG_MST_MCLK_DIV(pdm_dclk,     AUDIO_CLK_PDMIN_CTRL0);
-static AXG_MST_MCLK_DIV(pdm_sysclk,   AUDIO_CLK_PDMIN_CTRL1);
+static AXG_MST_SYS_DIV(spdifin_clk,   AUDIO_CLK_SPDIFIN_CTRL);
+static AXG_MST_SYS_DIV(pdm_sysclk,    AUDIO_CLK_PDMIN_CTRL1);
 
-#define AXG_MST_MCLK_GATE(_name, _reg)					\
-	AXG_AUD_GATE(_name, _reg, 31,  "axg_"#_name"_div",		\
+#define AXG_MST_MCLK_GATE(_name, _reg)				\
+	AXG_AUD_GATE(_name, _reg, 31,  "axg_"#_name"_div",	\
 		     CLK_SET_RATE_PARENT)
 
 static AXG_MST_MCLK_GATE(mst_a_mclk,   AUDIO_MCLK_A_CTRL);

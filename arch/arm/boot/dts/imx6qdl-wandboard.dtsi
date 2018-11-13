@@ -8,6 +8,10 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	sound {
 		compatible = "fsl,imx6-wandboard-sgtl5000",
 			     "fsl,imx-audio-sgtl5000";

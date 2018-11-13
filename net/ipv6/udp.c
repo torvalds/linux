@@ -478,7 +478,7 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct net *net = dev_net(skb->dev);
 
 	sk = __udp6_lib_lookup(net, daddr, uh->dest, saddr, uh->source,
-			       inet6_iif(skb), 0, udptable, skb);
+			       inet6_iif(skb), inet6_sdif(skb), udptable, skb);
 	if (!sk) {
 		__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev),
 				  ICMP6_MIB_INERRORS);
@@ -548,7 +548,7 @@ static __inline__ void udpv6_err(struct sk_buff *skb,
 	__udp6_lib_err(skb, opt, type, code, offset, info, &udp_table);
 }
 
-static DEFINE_STATIC_KEY_FALSE(udpv6_encap_needed_key);
+DEFINE_STATIC_KEY_FALSE(udpv6_encap_needed_key);
 void udpv6_encap_enable(void)
 {
 	static_branch_enable(&udpv6_encap_needed_key);
@@ -766,11 +766,9 @@ static int udp6_unicast_rcv_skb(struct sock *sk, struct sk_buff *skb,
 
 	ret = udpv6_queue_rcv_skb(sk, skb);
 
-	/* a return value > 0 means to resubmit the input, but
-	 * it wants the return to be -protocol, or 0
-	 */
+	/* a return value > 0 means to resubmit the input */
 	if (ret > 0)
-		return -ret;
+		return ret;
 	return 0;
 }
 

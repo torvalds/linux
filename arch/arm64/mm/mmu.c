@@ -67,6 +67,24 @@ static pte_t bm_pte[PTRS_PER_PTE] __page_aligned_bss;
 static pmd_t bm_pmd[PTRS_PER_PMD] __page_aligned_bss __maybe_unused;
 static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss __maybe_unused;
 
+static DEFINE_SPINLOCK(swapper_pgdir_lock);
+
+void set_swapper_pgd(pgd_t *pgdp, pgd_t pgd)
+{
+	pgd_t *fixmap_pgdp;
+
+	spin_lock(&swapper_pgdir_lock);
+	fixmap_pgdp = pgd_set_fixmap(__pa_symbol(pgdp));
+	WRITE_ONCE(*fixmap_pgdp, pgd);
+	/*
+	 * We need dsb(ishst) here to ensure the page-table-walker sees
+	 * our new entry before set_p?d() returns. The fixmap's
+	 * flush_tlb_kernel_range() via clear_fixmap() does this for us.
+	 */
+	pgd_clear_fixmap();
+	spin_unlock(&swapper_pgdir_lock);
+}
+
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
@@ -83,7 +101,7 @@ static phys_addr_t __init early_pgtable_alloc(void)
 	phys_addr_t phys;
 	void *ptr;
 
-	phys = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+	phys = memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
 
 	/*
 	 * The FIX_{PGD,PUD,PMD} slots may be in active use, but the FIX_PTE
@@ -629,34 +647,18 @@ static void __init map_kernel(pgd_t *pgdp)
  */
 void __init paging_init(void)
 {
-	phys_addr_t pgd_phys = early_pgtable_alloc();
-	pgd_t *pgdp = pgd_set_fixmap(pgd_phys);
+	pgd_t *pgdp = pgd_set_fixmap(__pa_symbol(swapper_pg_dir));
 
 	map_kernel(pgdp);
 	map_mem(pgdp);
 
-	/*
-	 * We want to reuse the original swapper_pg_dir so we don't have to
-	 * communicate the new address to non-coherent secondaries in
-	 * secondary_entry, and so cpu_switch_mm can generate the address with
-	 * adrp+add rather than a load from some global variable.
-	 *
-	 * To do this we need to go via a temporary pgd.
-	 */
-	cpu_replace_ttbr1(__va(pgd_phys));
-	memcpy(swapper_pg_dir, pgdp, PGD_SIZE);
-	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
-
 	pgd_clear_fixmap();
-	memblock_free(pgd_phys, PAGE_SIZE);
 
-	/*
-	 * We only reuse the PGD from the swapper_pg_dir, not the pud + pmd
-	 * allocated with it.
-	 */
-	memblock_free(__pa_symbol(swapper_pg_dir) + PAGE_SIZE,
-		      __pa_symbol(swapper_pg_end) - __pa_symbol(swapper_pg_dir)
-		      - PAGE_SIZE);
+	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
+	init_mm.pgd = swapper_pg_dir;
+
+	memblock_free(__pa_symbol(init_pg_dir),
+		      __pa_symbol(init_pg_end) - __pa_symbol(init_pg_dir));
 }
 
 /*

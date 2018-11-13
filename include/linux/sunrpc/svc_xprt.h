@@ -84,7 +84,6 @@ struct svc_xprt {
 	struct sockaddr_storage	xpt_remote;	/* remote peer's address */
 	size_t			xpt_remotelen;	/* length of address */
 	char			xpt_remotebuf[INET6_ADDRSTRLEN + 10];
-	struct rpc_wait_queue	xpt_bc_pending;	/* backchannel wait queue */
 	struct list_head	xpt_users;	/* callbacks on free */
 
 	struct net		*xpt_net;

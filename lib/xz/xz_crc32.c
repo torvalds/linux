@@ -15,7 +15,6 @@
  * but they are bigger and use more memory for the lookup table.
  */
 
-#include <linux/crc32poly.h>
 #include "xz_private.h"
 
 /*

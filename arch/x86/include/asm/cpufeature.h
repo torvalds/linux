@@ -2,10 +2,10 @@
 #ifndef _ASM_X86_CPUFEATURE_H
 #define _ASM_X86_CPUFEATURE_H
 
+#ifdef __KERNEL__
+#ifndef __ASSEMBLY__
+
 #include <asm/processor.h>
-
-#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
-
 #include <asm/asm.h>
 #include <linux/bitops.h>
 
@@ -161,37 +161,10 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
  */
 static __always_inline __pure bool _static_cpu_has(u16 bit)
 {
-	asm_volatile_goto("1: jmp 6f\n"
-		 "2:\n"
-		 ".skip -(((5f-4f) - (2b-1b)) > 0) * "
-			 "((5f-4f) - (2b-1b)),0x90\n"
-		 "3:\n"
-		 ".section .altinstructions,\"a\"\n"
-		 " .long 1b - .\n"		/* src offset */
-		 " .long 4f - .\n"		/* repl offset */
-		 " .word %P[always]\n"		/* always replace */
-		 " .byte 3b - 1b\n"		/* src len */
-		 " .byte 5f - 4f\n"		/* repl len */
-		 " .byte 3b - 2b\n"		/* pad len */
-		 ".previous\n"
-		 ".section .altinstr_replacement,\"ax\"\n"
-		 "4: jmp %l[t_no]\n"
-		 "5:\n"
-		 ".previous\n"
-		 ".section .altinstructions,\"a\"\n"
-		 " .long 1b - .\n"		/* src offset */
-		 " .long 0\n"			/* no replacement */
-		 " .word %P[feature]\n"		/* feature bit */
-		 " .byte 3b - 1b\n"		/* src len */
-		 " .byte 0\n"			/* repl len */
-		 " .byte 0\n"			/* pad len */
-		 ".previous\n"
-		 ".section .altinstr_aux,\"ax\"\n"
-		 "6:\n"
-		 " testb %[bitnum],%[cap_byte]\n"
-		 " jnz %l[t_yes]\n"
-		 " jmp %l[t_no]\n"
-		 ".previous\n"
+	asm_volatile_goto("STATIC_CPU_HAS bitnum=%[bitnum] "
+			  "cap_byte=\"%[cap_byte]\" "
+			  "feature=%P[feature] t_yes=%l[t_yes] "
+			  "t_no=%l[t_no] always=%P[always]"
 		 : : [feature]  "i" (bit),
 		     [always]   "i" (X86_FEATURE_ALWAYS),
 		     [bitnum]   "i" (1 << (bit & 7)),
@@ -226,5 +199,44 @@ t_no:
 #define CPU_FEATURE_TYPEVAL		boot_cpu_data.x86_vendor, boot_cpu_data.x86, \
 					boot_cpu_data.x86_model
 
-#endif /* defined(__KERNEL__) && !defined(__ASSEMBLY__) */
+#else /* __ASSEMBLY__ */
+
+.macro STATIC_CPU_HAS bitnum:req cap_byte:req feature:req t_yes:req t_no:req always:req
+1:
+	jmp 6f
+2:
+	.skip -(((5f-4f) - (2b-1b)) > 0) * ((5f-4f) - (2b-1b)),0x90
+3:
+	.section .altinstructions,"a"
+	.long 1b - .		/* src offset */
+	.long 4f - .		/* repl offset */
+	.word \always		/* always replace */
+	.byte 3b - 1b		/* src len */
+	.byte 5f - 4f		/* repl len */
+	.byte 3b - 2b		/* pad len */
+	.previous
+	.section .altinstr_replacement,"ax"
+4:
+	jmp \t_no
+5:
+	.previous
+	.section .altinstructions,"a"
+	.long 1b - .		/* src offset */
+	.long 0			/* no replacement */
+	.word \feature		/* feature bit */
+	.byte 3b - 1b		/* src len */
+	.byte 0			/* repl len */
+	.byte 0			/* pad len */
+	.previous
+	.section .altinstr_aux,"ax"
+6:
+	testb \bitnum,\cap_byte
+	jnz \t_yes
+	jmp \t_no
+	.previous
+.endm
+
+#endif /* __ASSEMBLY__ */
+
+#endif /* __KERNEL__ */
 #endif /* _ASM_X86_CPUFEATURE_H */

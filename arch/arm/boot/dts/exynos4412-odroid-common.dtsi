@@ -539,8 +539,7 @@
 	pinctrl-names = "default";
 	vmmc-supply = <&ldo21_reg>;
 	vqmmc-supply = <&ldo4_reg>;
-	cd-gpios = <&gpk2 2 GPIO_ACTIVE_HIGH>;
-	cd-inverted;
+	cd-gpios = <&gpk2 2 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

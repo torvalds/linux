@@ -375,7 +375,7 @@ static u32 flexrm_estimate_header_desc_count(u32 nhcnt)
 	return hcnt;
 }
 
-static void flexrm_flip_header_toogle(void *desc_ptr)
+static void flexrm_flip_header_toggle(void *desc_ptr)
 {
 	u64 desc = flexrm_read_desc(desc_ptr);
 
@@ -709,7 +709,7 @@ static void *flexrm_spu_write_descs(struct brcm_message *msg, u32 nhcnt,
 	wmb();
 
 	/* Flip toggle bit in header */
-	flexrm_flip_header_toogle(orig_desc_ptr);
+	flexrm_flip_header_toggle(orig_desc_ptr);
 
 	return desc_ptr;
 }
@@ -838,7 +838,7 @@ static void *flexrm_sba_write_descs(struct brcm_message *msg, u32 nhcnt,
 	wmb();
 
 	/* Flip toggle bit in header */
-	flexrm_flip_header_toogle(orig_desc_ptr);
+	flexrm_flip_header_toggle(orig_desc_ptr);
 
 	return desc_ptr;
 }

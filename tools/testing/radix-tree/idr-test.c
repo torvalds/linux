@@ -19,7 +19,7 @@
 
 #include "test.h"
 
-#define DUMMY_PTR	((void *)0x12)
+#define DUMMY_PTR	((void *)0x10)
 
 int item_idr_free(int id, void *p, void *data)
 {
@@ -227,6 +227,66 @@ void idr_u32_test(int base)
 	idr_u32_test1(&idr, 0xffffffff);
 }
 
+static void idr_align_test(struct idr *idr)
+{
+	char name[] = "Motorola 68000";
+	int i, id;
+	void *entry;
+
+	for (i = 0; i < 9; i++) {
+		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i);
+		idr_for_each_entry(idr, entry, id);
+	}
+	idr_destroy(idr);
+
+	for (i = 1; i < 10; i++) {
+		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i - 1);
+		idr_for_each_entry(idr, entry, id);
+	}
+	idr_destroy(idr);
+
+	for (i = 2; i < 11; i++) {
+		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i - 2);
+		idr_for_each_entry(idr, entry, id);
+	}
+	idr_destroy(idr);
+
+	for (i = 3; i < 12; i++) {
+		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i - 3);
+		idr_for_each_entry(idr, entry, id);
+	}
+	idr_destroy(idr);
+
+	for (i = 0; i < 8; i++) {
+		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != 0);
+		BUG_ON(idr_alloc(idr, &name[i + 1], 0, 0, GFP_KERNEL) != 1);
+		idr_for_each_entry(idr, entry, id);
+		idr_remove(idr, 1);
+		idr_for_each_entry(idr, entry, id);
+		idr_remove(idr, 0);
+		BUG_ON(!idr_is_empty(idr));
+	}
+
+	for (i = 0; i < 8; i++) {
+		BUG_ON(idr_alloc(idr, NULL, 0, 0, GFP_KERNEL) != 0);
+		idr_for_each_entry(idr, entry, id);
+		idr_replace(idr, &name[i], 0);
+		idr_for_each_entry(idr, entry, id);
+		BUG_ON(idr_find(idr, 0) != &name[i]);
+		idr_remove(idr, 0);
+	}
+
+	for (i = 0; i < 8; i++) {
+		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != 0);
+		BUG_ON(idr_alloc(idr, NULL, 0, 0, GFP_KERNEL) != 1);
+		idr_remove(idr, 1);
+		idr_for_each_entry(idr, entry, id);
+		idr_replace(idr, &name[i + 1], 0);
+		idr_for_each_entry(idr, entry, id);
+		idr_remove(idr, 0);
+	}
+}
+
 void idr_checks(void)
 {
 	unsigned long i;
@@ -307,6 +367,7 @@ void idr_checks(void)
 	idr_u32_test(4);
 	idr_u32_test(1);
 	idr_u32_test(0);
+	idr_align_test(&idr);
 }
 
 #define module_init(x)
@@ -344,16 +405,16 @@ void ida_check_conv_user(void)
 	DEFINE_IDA(ida);
 	unsigned long i;
 
-	radix_tree_cpu_dead(1);
 	for (i = 0; i < 1000000; i++) {
 		int id = ida_alloc(&ida, GFP_NOWAIT);
 		if (id == -ENOMEM) {
-			IDA_BUG_ON(&ida, (i % IDA_BITMAP_BITS) !=
-					BITS_PER_LONG - 2);
+			IDA_BUG_ON(&ida, ((i % IDA_BITMAP_BITS) !=
+					  BITS_PER_XA_VALUE) &&
+					 ((i % IDA_BITMAP_BITS) != 0));
 			id = ida_alloc(&ida, GFP_KERNEL);
 		} else {
 			IDA_BUG_ON(&ida, (i % IDA_BITMAP_BITS) ==
-					BITS_PER_LONG - 2);
+					BITS_PER_XA_VALUE);
 		}
 		IDA_BUG_ON(&ida, id != i);
 	}

@@ -126,7 +126,7 @@ struct iommu_table {
 	int it_nid;
 };
 
-#define IOMMU_TABLE_USERSPACE_ENTRY_RM(tbl, entry) \
+#define IOMMU_TABLE_USERSPACE_ENTRY_RO(tbl, entry) \
 		((tbl)->it_ops->useraddrptr((tbl), (entry), false))
 #define IOMMU_TABLE_USERSPACE_ENTRY(tbl, entry) \
 		((tbl)->it_ops->useraddrptr((tbl), (entry), true))

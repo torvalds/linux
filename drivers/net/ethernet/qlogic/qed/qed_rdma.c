@@ -228,7 +228,7 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 				 num_cons, "Toggle");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
-			   "Failed to allocate toogle bits, rc = %d\n", rc);
+			   "Failed to allocate toggle bits, rc = %d\n", rc);
 		goto free_cq_map;
 	}
 

@@ -1580,7 +1580,7 @@ static void fill_auxv_note(struct memelfnote *note, struct mm_struct *mm)
 }
 
 static void fill_siginfo_note(struct memelfnote *note, user_siginfo_t *csigdata,
-		const siginfo_t *siginfo)
+		const kernel_siginfo_t *siginfo)
 {
 	mm_segment_t old_fs = get_fs();
 	set_fs(KERNEL_DS);
@@ -1782,7 +1782,7 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 
 static int fill_note_info(struct elfhdr *elf, int phdrs,
 			  struct elf_note_info *info,
-			  const siginfo_t *siginfo, struct pt_regs *regs)
+			  const kernel_siginfo_t *siginfo, struct pt_regs *regs)
 {
 	struct task_struct *dump_task = current;
 	const struct user_regset_view *view = task_user_regset_view(dump_task);
@@ -2031,7 +2031,7 @@ static int elf_note_info_init(struct elf_note_info *info)
 
 static int fill_note_info(struct elfhdr *elf, int phdrs,
 			  struct elf_note_info *info,
-			  const siginfo_t *siginfo, struct pt_regs *regs)
+			  const kernel_siginfo_t *siginfo, struct pt_regs *regs)
 {
 	struct list_head *t;
 	struct core_thread *ct;

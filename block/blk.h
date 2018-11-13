@@ -4,6 +4,7 @@
 
 #include <linux/idr.h>
 #include <linux/blk-mq.h>
+#include <xen/xen.h>
 #include "blk-mq.h"
 
 /* Amount of time in which a process may batch requests */
@@ -124,7 +125,7 @@ static inline void __blk_get_queue(struct request_queue *q)
 }
 
 struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
-		int node, int cmd_size);
+		int node, int cmd_size, gfp_t flags);
 void blk_free_flush_queue(struct blk_flush_queue *q);
 
 int blk_init_rl(struct request_list *rl, struct request_queue *q,
@@ -149,6 +150,41 @@ static inline void blk_queue_enter_live(struct request_queue *q)
 	percpu_ref_get(&q->q_usage_counter);
 }
 
+static inline bool biovec_phys_mergeable(struct request_queue *q,
+		struct bio_vec *vec1, struct bio_vec *vec2)
+{
+	unsigned long mask = queue_segment_boundary(q);
+	phys_addr_t addr1 = page_to_phys(vec1->bv_page) + vec1->bv_offset;
+	phys_addr_t addr2 = page_to_phys(vec2->bv_page) + vec2->bv_offset;
+
+	if (addr1 + vec1->bv_len != addr2)
+		return false;
+	if (xen_domain() && !xen_biovec_phys_mergeable(vec1, vec2))
+		return false;
+	if ((addr1 | mask) != ((addr2 + vec2->bv_len - 1) | mask))
+		return false;
+	return true;
+}
+
+static inline bool __bvec_gap_to_prev(struct request_queue *q,
+		struct bio_vec *bprv, unsigned int offset)
+{
+	return offset ||
+		((bprv->bv_offset + bprv->bv_len) & queue_virt_boundary(q));
+}
+
+/*
+ * Check if adding a bio_vec after bprv with offset would create a gap in
+ * the SG list. Most drivers don't care about this, but some do.
+ */
+static inline bool bvec_gap_to_prev(struct request_queue *q,
+		struct bio_vec *bprv, unsigned int offset)
+{
+	if (!queue_virt_boundary(q))
+		return false;
+	return __bvec_gap_to_prev(q, bprv, offset);
+}
+
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 void blk_flush_integrity(void);
 bool __bio_integrity_endio(struct bio *);
@@ -158,7 +194,38 @@ static inline bool bio_integrity_endio(struct bio *bio)
 		return __bio_integrity_endio(bio);
 	return true;
 }
-#else
+
+static inline bool integrity_req_gap_back_merge(struct request *req,
+		struct bio *next)
+{
+	struct bio_integrity_payload *bip = bio_integrity(req->bio);
+	struct bio_integrity_payload *bip_next = bio_integrity(next);
+
+	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
+				bip_next->bip_vec[0].bv_offset);
+}
+
+static inline bool integrity_req_gap_front_merge(struct request *req,
+		struct bio *bio)
+{
+	struct bio_integrity_payload *bip = bio_integrity(bio);
+	struct bio_integrity_payload *bip_next = bio_integrity(req->bio);
+
+	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
+				bip_next->bip_vec[0].bv_offset);
+}
+#else /* CONFIG_BLK_DEV_INTEGRITY */
+static inline bool integrity_req_gap_back_merge(struct request *req,
+		struct bio *next)
+{
+	return false;
+}
+static inline bool integrity_req_gap_front_merge(struct request *req,
+		struct bio *bio)
+{
+	return false;
+}
+
 static inline void blk_flush_integrity(void)
 {
 }
@@ -166,7 +233,7 @@ static inline bool bio_integrity_endio(struct bio *bio)
 {
 	return true;
 }
-#endif
+#endif /* CONFIG_BLK_DEV_INTEGRITY */
 
 void blk_timeout_work(struct work_struct *work);
 unsigned long blk_rq_timeout(unsigned long timeout);
@@ -419,6 +486,14 @@ extern void blk_drain_queue(struct request_queue *q);
 extern int blk_iolatency_init(struct request_queue *q);
 #else
 static inline int blk_iolatency_init(struct request_queue *q) { return 0; }
+#endif
+
+struct bio *blk_next_bio(struct bio *bio, unsigned int nr_pages, gfp_t gfp);
+
+#ifdef CONFIG_BLK_DEV_ZONED
+void blk_queue_free_zone_bitmaps(struct request_queue *q);
+#else
+static inline void blk_queue_free_zone_bitmaps(struct request_queue *q) {}
 #endif
 
 #endif /* BLK_INTERNAL_H */

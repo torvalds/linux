@@ -137,6 +137,8 @@
 			reset-names = "stmmaceth", "stmmaceth-ocp";
 			clocks = <&clkmgr STRATIX10_EMAC0_CLK>;
 			clock-names = "stmmaceth";
+			tx-fifo-depth = <16384>;
+			rx-fifo-depth = <16384>;
 			status = "disabled";
 		};
 
@@ -150,6 +152,8 @@
 			reset-names = "stmmaceth", "stmmaceth-ocp";
 			clocks = <&clkmgr STRATIX10_EMAC1_CLK>;
 			clock-names = "stmmaceth";
+			tx-fifo-depth = <16384>;
+			rx-fifo-depth = <16384>;
 			status = "disabled";
 		};
 
@@ -163,6 +167,8 @@
 			reset-names = "stmmaceth", "stmmaceth-ocp";
 			clocks = <&clkmgr STRATIX10_EMAC2_CLK>;
 			clock-names = "stmmaceth";
+			tx-fifo-depth = <16384>;
+			rx-fifo-depth = <16384>;
 			status = "disabled";
 		};
 
@@ -335,7 +341,7 @@
 
 		sysmgr: sysmgr@ffd12000 {
 			compatible = "altr,sys-mgr", "syscon";
-			reg = <0xffd12000 0x1000>;
+			reg = <0xffd12000 0x228>;
 		};
 
 		/* Local timer */
@@ -467,16 +473,51 @@
 			status = "disabled";
 		};
 
+		sdr: sdr@f8011100 {
+			compatible = "altr,sdr-ctl", "syscon";
+			reg = <0xf8011100 0xc0>;
+		};
+
 		eccmgr {
-			compatible = "altr,socfpga-s10-ecc-manager";
+			compatible = "altr,socfpga-a10-ecc-manager";
+			altr,sysmgr-syscon = <&sysmgr>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			interrupts = <0 15 4>, <0 95 4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			ranges;
 
 			sdramedac {
 				compatible = "altr,sdram-edac-s10";
+				altr,sdr-syscon = <&sdr>;
 				interrupts = <16 4>, <48 4>;
 			};
+
+			usb0-ecc@ff8c4000 {
+				compatible = "altr,socfpga-usb-ecc";
+				reg = <0xff8c4000 0x100>;
+				altr,ecc-parent = <&usb0>;
+				interrupts = <2 4>,
+					     <34 4>;
+			};
+
+			emac0-rx-ecc@ff8c0000 {
+				compatible = "altr,socfpga-eth-mac-ecc";
+				reg = <0xff8c0000 0x100>;
+				altr,ecc-parent = <&gmac0>;
+				interrupts = <4 4>,
+					     <36 4>;
+			};
+
+			emac0-tx-ecc@ff8c0400 {
+				compatible = "altr,socfpga-eth-mac-ecc";
+				reg = <0xff8c0400 0x100>;
+				altr,ecc-parent = <&gmac0>;
+				interrupts = <5 4>,
+					     <37 4>;
+			};
+
 		};
 
 		qspi: spi@ff8d2000 {

@@ -1598,8 +1598,7 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		curr_qp_state = __to_ib_qp_state(qp->qplib_qp.cur_qp_state);
 		new_qp_state = qp_attr->qp_state;
 		if (!ib_modify_qp_is_ok(curr_qp_state, new_qp_state,
-					ib_qp->qp_type, qp_attr_mask,
-					IB_LINK_LAYER_ETHERNET)) {
+					ib_qp->qp_type, qp_attr_mask)) {
 			dev_err(rdev_to_dev(rdev),
 				"Invalid attribute mask: %#x specified ",
 				qp_attr_mask);
@@ -2664,6 +2663,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	nq->budget++;
 
 	atomic_inc(&rdev->cq_count);
+	spin_lock_init(&cq->cq_lock);
 
 	if (context) {
 		struct bnxt_re_cq_resp resp;

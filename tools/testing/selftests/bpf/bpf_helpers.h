@@ -16,6 +16,13 @@ static int (*bpf_map_update_elem)(void *map, void *key, void *value,
 	(void *) BPF_FUNC_map_update_elem;
 static int (*bpf_map_delete_elem)(void *map, void *key) =
 	(void *) BPF_FUNC_map_delete_elem;
+static int (*bpf_map_push_elem)(void *map, void *value,
+				unsigned long long flags) =
+	(void *) BPF_FUNC_map_push_elem;
+static int (*bpf_map_pop_elem)(void *map, void *value) =
+	(void *) BPF_FUNC_map_pop_elem;
+static int (*bpf_map_peek_elem)(void *map, void *value) =
+	(void *) BPF_FUNC_map_peek_elem;
 static int (*bpf_probe_read)(void *dst, int size, void *unsafe_ptr) =
 	(void *) BPF_FUNC_probe_read;
 static unsigned long long (*bpf_ktime_get_ns)(void) =
@@ -104,6 +111,8 @@ static int (*bpf_msg_cork_bytes)(void *ctx, int len) =
 	(void *) BPF_FUNC_msg_cork_bytes;
 static int (*bpf_msg_pull_data)(void *ctx, int start, int end, int flags) =
 	(void *) BPF_FUNC_msg_pull_data;
+static int (*bpf_msg_push_data)(void *ctx, int start, int end, int flags) =
+	(void *) BPF_FUNC_msg_push_data;
 static int (*bpf_bind)(void *ctx, void *addr, int addr_len) =
 	(void *) BPF_FUNC_bind;
 static int (*bpf_xdp_adjust_tail)(void *ctx, int offset) =
@@ -143,6 +152,22 @@ static unsigned long long (*bpf_skb_cgroup_id)(void *ctx) =
 	(void *) BPF_FUNC_skb_cgroup_id;
 static unsigned long long (*bpf_skb_ancestor_cgroup_id)(void *ctx, int level) =
 	(void *) BPF_FUNC_skb_ancestor_cgroup_id;
+static struct bpf_sock *(*bpf_sk_lookup_tcp)(void *ctx,
+					     struct bpf_sock_tuple *tuple,
+					     int size, unsigned int netns_id,
+					     unsigned long long flags) =
+	(void *) BPF_FUNC_sk_lookup_tcp;
+static struct bpf_sock *(*bpf_sk_lookup_udp)(void *ctx,
+					     struct bpf_sock_tuple *tuple,
+					     int size, unsigned int netns_id,
+					     unsigned long long flags) =
+	(void *) BPF_FUNC_sk_lookup_udp;
+static int (*bpf_sk_release)(struct bpf_sock *sk) =
+	(void *) BPF_FUNC_sk_release;
+static int (*bpf_skb_vlan_push)(void *ctx, __be16 vlan_proto, __u16 vlan_tci) =
+	(void *) BPF_FUNC_skb_vlan_push;
+static int (*bpf_skb_vlan_pop)(void *ctx) =
+	(void *) BPF_FUNC_skb_vlan_pop;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions

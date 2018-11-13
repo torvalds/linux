@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  zcrypt 2.1.0
- *
  *  Copyright IBM Corp. 2001, 2006
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
@@ -14,7 +12,7 @@
 #define _ZCRYPT_CEX2A_H_
 
 /**
- * The type 50 message family is associated with a CEX2A card.
+ * The type 50 message family is associated with CEXxA cards.
  *
  * The four members of the family are described below.
  *
@@ -111,7 +109,7 @@ struct type50_crb3_msg {
 } __packed;
 
 /**
- * The type 80 response family is associated with a CEX2A card.
+ * The type 80 response family is associated with a CEXxA cards.
  *
  * Note that all unsigned char arrays are right-justified and left-padded
  * with zeroes.

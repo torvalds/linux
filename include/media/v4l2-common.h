@@ -155,6 +155,18 @@ struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
 		const unsigned short *probe_addrs);
 
 /**
+ * v4l2_i2c_subdev_set_name - Set name for an I²C sub-device
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ * @client: pointer to struct i2c_client
+ * @devname: the name of the device; if NULL, the I²C device's name will be used
+ * @postfix: sub-device specific string to put right after the I²C device name;
+ *	     may be NULL
+ */
+void v4l2_i2c_subdev_set_name(struct v4l2_subdev *sd, struct i2c_client *client,
+			      const char *devname, const char *postfix);
+
+/**
  * v4l2_i2c_subdev_init - Initializes a &struct v4l2_subdev with data from
  *	an i2c_client struct.
  *
@@ -283,7 +295,7 @@ struct v4l2_priv_tun_config {
  * @height:	pointer to height that will be adjusted if needed.
  * @hmin:	minimum height.
  * @hmax:	maximum height.
- * @halign:	least significant bit on width.
+ * @halign:	least significant bit on height.
  * @salign:	least significant bit for the image size (e. g.
  *		:math:`width * height`).
  *

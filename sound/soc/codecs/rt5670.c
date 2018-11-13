@@ -2814,7 +2814,8 @@ static const struct snd_soc_component_driver soc_component_dev_rt5670 = {
 static const struct regmap_config rt5670_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.max_register = RT5670_VENDOR_ID2 + 1 + (ARRAY_SIZE(rt5670_ranges) *
 					       RT5670_PR_SPACING),
 	.volatile_reg = rt5670_volatile_register,
@@ -2872,6 +2873,18 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE1),
+	},
+	{
+		.callback = rt5670_quirk_cb,
+		.ident = "Lenovo Thinkpad Tablet 8",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 8"),
+		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC2_INR |
 						 RT5670_DEV_GPIO |
 						 RT5670_JD_MODE1),
 	},

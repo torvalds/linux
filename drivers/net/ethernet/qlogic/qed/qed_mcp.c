@@ -1247,6 +1247,52 @@ static void qed_mcp_read_eee_config(struct qed_hwfn *p_hwfn,
 		p_link->eee_lp_adv_caps |= QED_EEE_10G_ADV;
 }
 
+static u32 qed_mcp_get_shmem_func(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt,
+				  struct public_func *p_data, int pfid)
+{
+	u32 addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
+					PUBLIC_FUNC);
+	u32 mfw_path_offsize = qed_rd(p_hwfn, p_ptt, addr);
+	u32 func_addr;
+	u32 i, size;
+
+	func_addr = SECTION_ADDR(mfw_path_offsize, pfid);
+	memset(p_data, 0, sizeof(*p_data));
+
+	size = min_t(u32, sizeof(*p_data), QED_SECTION_SIZE(mfw_path_offsize));
+	for (i = 0; i < size / sizeof(u32); i++)
+		((u32 *)p_data)[i] = qed_rd(p_hwfn, p_ptt,
+					    func_addr + (i << 2));
+	return size;
+}
+
+static void qed_read_pf_bandwidth(struct qed_hwfn *p_hwfn,
+				  struct public_func *p_shmem_info)
+{
+	struct qed_mcp_function_info *p_info;
+
+	p_info = &p_hwfn->mcp_info->func_info;
+
+	p_info->bandwidth_min = QED_MFW_GET_FIELD(p_shmem_info->config,
+						  FUNC_MF_CFG_MIN_BW);
+	if (p_info->bandwidth_min < 1 || p_info->bandwidth_min > 100) {
+		DP_INFO(p_hwfn,
+			"bandwidth minimum out of bounds [%02x]. Set to 1\n",
+			p_info->bandwidth_min);
+		p_info->bandwidth_min = 1;
+	}
+
+	p_info->bandwidth_max = QED_MFW_GET_FIELD(p_shmem_info->config,
+						  FUNC_MF_CFG_MAX_BW);
+	if (p_info->bandwidth_max < 1 || p_info->bandwidth_max > 100) {
+		DP_INFO(p_hwfn,
+			"bandwidth maximum out of bounds [%02x]. Set to 100\n",
+			p_info->bandwidth_max);
+		p_info->bandwidth_max = 100;
+	}
+}
+
 static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 				       struct qed_ptt *p_ptt, bool b_reset)
 {
@@ -1274,10 +1320,29 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 		goto out;
 	}
 
-	if (p_hwfn->b_drv_link_init)
-		p_link->link_up = !!(status & LINK_STATUS_LINK_UP);
-	else
+	if (p_hwfn->b_drv_link_init) {
+		/* Link indication with modern MFW arrives as per-PF
+		 * indication.
+		 */
+		if (p_hwfn->mcp_info->capabilities &
+		    FW_MB_PARAM_FEATURE_SUPPORT_VLINK) {
+			struct public_func shmem_info;
+
+			qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info,
+					       MCP_PF_ID(p_hwfn));
+			p_link->link_up = !!(shmem_info.status &
+					     FUNC_STATUS_VIRTUAL_LINK_UP);
+			qed_read_pf_bandwidth(p_hwfn, &shmem_info);
+			DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+				   "Virtual link_up = %d\n", p_link->link_up);
+		} else {
+			p_link->link_up = !!(status & LINK_STATUS_LINK_UP);
+			DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+				   "Physical link_up = %d\n", p_link->link_up);
+		}
+	} else {
 		p_link->link_up = false;
+	}
 
 	p_link->full_duplex = true;
 	switch ((status & LINK_STATUS_SPEED_AND_DUPLEX_MASK)) {
@@ -1382,7 +1447,7 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE)
 		qed_mcp_read_eee_config(p_hwfn, p_ptt, p_link);
 
-	qed_link_update(p_hwfn);
+	qed_link_update(p_hwfn, p_ptt);
 out:
 	spin_unlock_bh(&p_hwfn->mcp_info->link_lock);
 }
@@ -1502,53 +1567,6 @@ static void qed_mcp_send_protocol_stats(struct qed_hwfn *p_hwfn,
 	mb_params.p_data_src = &stats;
 	mb_params.data_src_size = sizeof(stats);
 	qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
-}
-
-static void qed_read_pf_bandwidth(struct qed_hwfn *p_hwfn,
-				  struct public_func *p_shmem_info)
-{
-	struct qed_mcp_function_info *p_info;
-
-	p_info = &p_hwfn->mcp_info->func_info;
-
-	p_info->bandwidth_min = (p_shmem_info->config &
-				 FUNC_MF_CFG_MIN_BW_MASK) >>
-					FUNC_MF_CFG_MIN_BW_SHIFT;
-	if (p_info->bandwidth_min < 1 || p_info->bandwidth_min > 100) {
-		DP_INFO(p_hwfn,
-			"bandwidth minimum out of bounds [%02x]. Set to 1\n",
-			p_info->bandwidth_min);
-		p_info->bandwidth_min = 1;
-	}
-
-	p_info->bandwidth_max = (p_shmem_info->config &
-				 FUNC_MF_CFG_MAX_BW_MASK) >>
-					FUNC_MF_CFG_MAX_BW_SHIFT;
-	if (p_info->bandwidth_max < 1 || p_info->bandwidth_max > 100) {
-		DP_INFO(p_hwfn,
-			"bandwidth maximum out of bounds [%02x]. Set to 100\n",
-			p_info->bandwidth_max);
-		p_info->bandwidth_max = 100;
-	}
-}
-
-static u32 qed_mcp_get_shmem_func(struct qed_hwfn *p_hwfn,
-				  struct qed_ptt *p_ptt,
-				  struct public_func *p_data, int pfid)
-{
-	u32 addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
-					PUBLIC_FUNC);
-	u32 mfw_path_offsize = qed_rd(p_hwfn, p_ptt, addr);
-	u32 func_addr = SECTION_ADDR(mfw_path_offsize, pfid);
-	u32 i, size;
-
-	memset(p_data, 0, sizeof(*p_data));
-
-	size = min_t(u32, sizeof(*p_data), QED_SECTION_SIZE(mfw_path_offsize));
-	for (i = 0; i < size / sizeof(u32); i++)
-		((u32 *)p_data)[i] = qed_rd(p_hwfn, p_ptt,
-					    func_addr + (i << 2));
-	return size;
 }
 
 static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -1849,12 +1867,12 @@ int qed_mcp_get_mbi_ver(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-int qed_mcp_get_media_type(struct qed_dev *cdev, u32 *p_media_type)
+int qed_mcp_get_media_type(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u32 *p_media_type)
 {
-	struct qed_hwfn *p_hwfn = &cdev->hwfns[0];
-	struct qed_ptt  *p_ptt;
+	*p_media_type = MEDIA_UNSPECIFIED;
 
-	if (IS_VF(cdev))
+	if (IS_VF(p_hwfn->cdev))
 		return -EINVAL;
 
 	if (!qed_mcp_is_init(p_hwfn)) {
@@ -1862,16 +1880,195 @@ int qed_mcp_get_media_type(struct qed_dev *cdev, u32 *p_media_type)
 		return -EBUSY;
 	}
 
-	*p_media_type = MEDIA_UNSPECIFIED;
+	if (!p_ptt) {
+		*p_media_type = MEDIA_UNSPECIFIED;
+		return -EINVAL;
+	}
 
-	p_ptt = qed_ptt_acquire(p_hwfn);
-	if (!p_ptt)
+	*p_media_type = qed_rd(p_hwfn, p_ptt,
+			       p_hwfn->mcp_info->port_addr +
+			       offsetof(struct public_port,
+					media_type));
+
+	return 0;
+}
+
+int qed_mcp_get_transceiver_data(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt,
+				 u32 *p_transceiver_state,
+				 u32 *p_transceiver_type)
+{
+	u32 transceiver_info;
+
+	*p_transceiver_type = ETH_TRANSCEIVER_TYPE_NONE;
+	*p_transceiver_state = ETH_TRANSCEIVER_STATE_UPDATING;
+
+	if (IS_VF(p_hwfn->cdev))
+		return -EINVAL;
+
+	if (!qed_mcp_is_init(p_hwfn)) {
+		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
 		return -EBUSY;
+	}
 
-	*p_media_type = qed_rd(p_hwfn, p_ptt, p_hwfn->mcp_info->port_addr +
-			       offsetof(struct public_port, media_type));
+	transceiver_info = qed_rd(p_hwfn, p_ptt,
+				  p_hwfn->mcp_info->port_addr +
+				  offsetof(struct public_port,
+					   transceiver_data));
 
-	qed_ptt_release(p_hwfn, p_ptt);
+	*p_transceiver_state = (transceiver_info &
+				ETH_TRANSCEIVER_STATE_MASK) >>
+				ETH_TRANSCEIVER_STATE_OFFSET;
+
+	if (*p_transceiver_state == ETH_TRANSCEIVER_STATE_PRESENT)
+		*p_transceiver_type = (transceiver_info &
+				       ETH_TRANSCEIVER_TYPE_MASK) >>
+				       ETH_TRANSCEIVER_TYPE_OFFSET;
+	else
+		*p_transceiver_type = ETH_TRANSCEIVER_TYPE_UNKNOWN;
+
+	return 0;
+}
+static bool qed_is_transceiver_ready(u32 transceiver_state,
+				     u32 transceiver_type)
+{
+	if ((transceiver_state & ETH_TRANSCEIVER_STATE_PRESENT) &&
+	    ((transceiver_state & ETH_TRANSCEIVER_STATE_UPDATING) == 0x0) &&
+	    (transceiver_type != ETH_TRANSCEIVER_TYPE_NONE))
+		return true;
+
+	return false;
+}
+
+int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u32 *p_speed_mask)
+{
+	u32 transceiver_type, transceiver_state;
+
+	qed_mcp_get_transceiver_data(p_hwfn, p_ptt, &transceiver_state,
+				     &transceiver_type);
+
+	if (qed_is_transceiver_ready(transceiver_state, transceiver_type) ==
+				     false)
+		return -EINVAL;
+
+	switch (transceiver_type) {
+	case ETH_TRANSCEIVER_TYPE_1G_LX:
+	case ETH_TRANSCEIVER_TYPE_1G_SX:
+	case ETH_TRANSCEIVER_TYPE_1G_PCC:
+	case ETH_TRANSCEIVER_TYPE_1G_ACC:
+	case ETH_TRANSCEIVER_TYPE_1000BASET:
+		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+		break;
+	case ETH_TRANSCEIVER_TYPE_10G_SR:
+	case ETH_TRANSCEIVER_TYPE_10G_LR:
+	case ETH_TRANSCEIVER_TYPE_10G_LRM:
+	case ETH_TRANSCEIVER_TYPE_10G_ER:
+	case ETH_TRANSCEIVER_TYPE_10G_PCC:
+	case ETH_TRANSCEIVER_TYPE_10G_ACC:
+	case ETH_TRANSCEIVER_TYPE_4x10G:
+		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
+		break;
+	case ETH_TRANSCEIVER_TYPE_40G_LR4:
+	case ETH_TRANSCEIVER_TYPE_40G_SR4:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_SR:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_LR:
+		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
+		break;
+	case ETH_TRANSCEIVER_TYPE_100G_AOC:
+	case ETH_TRANSCEIVER_TYPE_100G_SR4:
+	case ETH_TRANSCEIVER_TYPE_100G_LR4:
+	case ETH_TRANSCEIVER_TYPE_100G_ER4:
+	case ETH_TRANSCEIVER_TYPE_100G_ACC:
+		*p_speed_mask =
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G;
+		break;
+	case ETH_TRANSCEIVER_TYPE_25G_SR:
+	case ETH_TRANSCEIVER_TYPE_25G_LR:
+	case ETH_TRANSCEIVER_TYPE_25G_AOC:
+	case ETH_TRANSCEIVER_TYPE_25G_ACC_S:
+	case ETH_TRANSCEIVER_TYPE_25G_ACC_M:
+	case ETH_TRANSCEIVER_TYPE_25G_ACC_L:
+		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G;
+		break;
+	case ETH_TRANSCEIVER_TYPE_25G_CA_N:
+	case ETH_TRANSCEIVER_TYPE_25G_CA_S:
+	case ETH_TRANSCEIVER_TYPE_25G_CA_L:
+	case ETH_TRANSCEIVER_TYPE_4x25G_CR:
+		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+		break;
+	case ETH_TRANSCEIVER_TYPE_40G_CR4:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_CR:
+		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+		break;
+	case ETH_TRANSCEIVER_TYPE_100G_CR4:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_CR:
+		*p_speed_mask =
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+		break;
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_SR:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_LR:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_40G_100G_AOC:
+		*p_speed_mask =
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
+		break;
+	case ETH_TRANSCEIVER_TYPE_XLPPI:
+		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
+		break;
+	case ETH_TRANSCEIVER_TYPE_10G_BASET:
+		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G |
+		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+		break;
+	default:
+		DP_INFO(p_hwfn, "Unknown transceiver type 0x%x\n",
+			transceiver_type);
+		*p_speed_mask = 0xff;
+		break;
+	}
+
+	return 0;
+}
+
+int qed_mcp_get_board_config(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u32 *p_board_config)
+{
+	u32 nvm_cfg_addr, nvm_cfg1_offset, port_cfg_addr;
+
+	if (IS_VF(p_hwfn->cdev))
+		return -EINVAL;
+
+	if (!qed_mcp_is_init(p_hwfn)) {
+		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
+		return -EBUSY;
+	}
+	if (!p_ptt) {
+		*p_board_config = NVM_CFG1_PORT_PORT_TYPE_UNDEFINED;
+		return -EINVAL;
+	}
+
+	nvm_cfg_addr = qed_rd(p_hwfn, p_ptt, MISC_REG_GEN_PURP_CR0);
+	nvm_cfg1_offset = qed_rd(p_hwfn, p_ptt, nvm_cfg_addr + 4);
+	port_cfg_addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
+			offsetof(struct nvm_cfg1, port[MFW_PORT(p_hwfn)]);
+	*p_board_config = qed_rd(p_hwfn, p_ptt,
+				 port_cfg_addr +
+				 offsetof(struct nvm_cfg1_port,
+					  board_cfg));
 
 	return 0;
 }
@@ -3351,7 +3548,8 @@ int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 mcp_resp, mcp_param, features;
 
-	features = DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE;
+	features = DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE |
+		   DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK;
 
 	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_FEATURE_SUPPORT,
 			   features, &mcp_resp, &mcp_param);

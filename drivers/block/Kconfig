@@ -121,18 +121,6 @@ source "drivers/block/mtip32xx/Kconfig"
 
 source "drivers/block/zram/Kconfig"
 
-config BLK_DEV_DAC960
-	tristate "Mylex DAC960/DAC1100 PCI RAID Controller support"
-	depends on PCI
-	help
-	  This driver adds support for the Mylex DAC960, AcceleRAID, and
-	  eXtremeRAID PCI RAID controllers.  See the file
-	  <file:Documentation/blockdev/README.DAC960> for further information
-	  about this driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called DAC960.
-
 config BLK_DEV_UMEM
 	tristate "Micro Memory MM5415 Battery Backed RAM support"
 	depends on PCI
@@ -461,7 +449,6 @@ config BLK_DEV_RBD
 	select LIBCRC32C
 	select CRYPTO_AES
 	select CRYPTO
-	default n
 	help
 	  Say Y here if you want include the Rados block device, which stripes
 	  a block device over objects stored in the Ceph distributed object

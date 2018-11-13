@@ -2715,10 +2715,12 @@ tpacket_error:
 			}
 		}
 
-		if (po->has_vnet_hdr && virtio_net_hdr_to_skb(skb, vnet_hdr,
-							      vio_le())) {
-			tp_len = -EINVAL;
-			goto tpacket_error;
+		if (po->has_vnet_hdr) {
+			if (virtio_net_hdr_to_skb(skb, vnet_hdr, vio_le())) {
+				tp_len = -EINVAL;
+				goto tpacket_error;
+			}
+			virtio_net_hdr_set_proto(skb, vnet_hdr);
 		}
 
 		skb->destructor = tpacket_destruct_skb;
@@ -2915,6 +2917,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		if (err)
 			goto out_free;
 		len += sizeof(vnet_hdr);
+		virtio_net_hdr_set_proto(skb, &vnet_hdr);
 	}
 
 	skb_probe_transport_header(skb, reserve);
@@ -3805,6 +3808,20 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 
 		return fanout_set_data(po, optval, optlen);
 	}
+	case PACKET_IGNORE_OUTGOING:
+	{
+		int val;
+
+		if (optlen != sizeof(val))
+			return -EINVAL;
+		if (copy_from_user(&val, optval, sizeof(val)))
+			return -EFAULT;
+		if (val < 0 || val > 1)
+			return -EINVAL;
+
+		po->prot_hook.ignore_outgoing = !!val;
+		return 0;
+	}
 	case PACKET_TX_HAS_OFF:
 	{
 		unsigned int val;
@@ -3927,6 +3944,9 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 			((u32)po->fanout->type << 16) |
 			((u32)po->fanout->flags << 24)) :
 		       0);
+		break;
+	case PACKET_IGNORE_OUTGOING:
+		val = po->prot_hook.ignore_outgoing;
 		break;
 	case PACKET_ROLLOVER_STATS:
 		if (!po->rollover)

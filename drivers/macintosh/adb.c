@@ -203,15 +203,15 @@ static int adb_scan_bus(void)
 	}
 
 	/* Now fill in the handler_id field of the adb_handler entries. */
-	pr_debug("adb devices:\n");
 	for (i = 1; i < 16; i++) {
 		if (adb_handler[i].original_address == 0)
 			continue;
 		adb_request(&req, NULL, ADBREQ_SYNC | ADBREQ_REPLY, 1,
 			    (i << 4) | 0xf);
 		adb_handler[i].handler_id = req.reply[2];
-		pr_debug(" [%d]: %d %x\n", i, adb_handler[i].original_address,
-			 adb_handler[i].handler_id);
+		printk(KERN_DEBUG "adb device [%d]: %d 0x%X\n", i,
+		       adb_handler[i].original_address,
+		       adb_handler[i].handler_id);
 		devmask |= 1 << i;
 	}
 	return devmask;
@@ -579,6 +579,8 @@ adb_try_handler_change(int address, int new_id)
 	mutex_lock(&adb_handler_mutex);
 	ret = try_handler_change(address, new_id);
 	mutex_unlock(&adb_handler_mutex);
+	if (ret)
+		pr_debug("adb handler change: [%d] 0x%X\n", address, new_id);
 	return ret;
 }
 EXPORT_SYMBOL(adb_try_handler_change);

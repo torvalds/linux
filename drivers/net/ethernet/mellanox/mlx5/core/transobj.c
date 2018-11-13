@@ -475,7 +475,8 @@ static void mlx5_hairpin_destroy_queues(struct mlx5_hairpin *hp)
 
 	for (i = 0; i < hp->num_channels; i++) {
 		mlx5_core_destroy_rq(hp->func_mdev, hp->rqn[i]);
-		mlx5_core_destroy_sq(hp->peer_mdev, hp->sqn[i]);
+		if (!hp->peer_gone)
+			mlx5_core_destroy_sq(hp->peer_mdev, hp->sqn[i]);
 	}
 }
 
@@ -567,6 +568,8 @@ static void mlx5_hairpin_unpair_queues(struct mlx5_hairpin *hp)
 				       MLX5_RQC_STATE_RST, 0, 0);
 
 	/* unset peer SQs */
+	if (hp->peer_gone)
+		return;
 	for (i = 0; i < hp->num_channels; i++)
 		mlx5_hairpin_modify_sq(hp->peer_mdev, hp->sqn[i], MLX5_SQC_STATE_RDY,
 				       MLX5_SQC_STATE_RST, 0, 0);

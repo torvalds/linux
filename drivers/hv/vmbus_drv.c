@@ -498,6 +498,54 @@ static ssize_t device_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(device);
 
+static ssize_t driver_override_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	char *driver_override, *old, *cp;
+
+	/* We need to keep extra room for a newline */
+	if (count >= (PAGE_SIZE - 1))
+		return -EINVAL;
+
+	driver_override = kstrndup(buf, count, GFP_KERNEL);
+	if (!driver_override)
+		return -ENOMEM;
+
+	cp = strchr(driver_override, '\n');
+	if (cp)
+		*cp = '\0';
+
+	device_lock(dev);
+	old = hv_dev->driver_override;
+	if (strlen(driver_override)) {
+		hv_dev->driver_override = driver_override;
+	} else {
+		kfree(driver_override);
+		hv_dev->driver_override = NULL;
+	}
+	device_unlock(dev);
+
+	kfree(old);
+
+	return count;
+}
+
+static ssize_t driver_override_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	ssize_t len;
+
+	device_lock(dev);
+	len = snprintf(buf, PAGE_SIZE, "%s\n", hv_dev->driver_override);
+	device_unlock(dev);
+
+	return len;
+}
+static DEVICE_ATTR_RW(driver_override);
+
 /* Set up per device attributes in /sys/bus/vmbus/devices/<bus device> */
 static struct attribute *vmbus_dev_attrs[] = {
 	&dev_attr_id.attr,
@@ -528,6 +576,7 @@ static struct attribute *vmbus_dev_attrs[] = {
 	&dev_attr_channel_vp_mapping.attr,
 	&dev_attr_vendor.attr,
 	&dev_attr_device.attr,
+	&dev_attr_driver_override.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(vmbus_dev);
@@ -563,17 +612,26 @@ static inline bool is_null_guid(const uuid_le *guid)
 	return true;
 }
 
-/*
- * Return a matching hv_vmbus_device_id pointer.
- * If there is no match, return NULL.
- */
-static const struct hv_vmbus_device_id *hv_vmbus_get_id(struct hv_driver *drv,
-					const uuid_le *guid)
+static const struct hv_vmbus_device_id *
+hv_vmbus_dev_match(const struct hv_vmbus_device_id *id, const uuid_le *guid)
+
+{
+	if (id == NULL)
+		return NULL; /* empty device table */
+
+	for (; !is_null_guid(&id->guid); id++)
+		if (!uuid_le_cmp(id->guid, *guid))
+			return id;
+
+	return NULL;
+}
+
+static const struct hv_vmbus_device_id *
+hv_vmbus_dynid_match(struct hv_driver *drv, const uuid_le *guid)
 {
 	const struct hv_vmbus_device_id *id = NULL;
 	struct vmbus_dynid *dynid;
 
-	/* Look at the dynamic ids first, before the static ones */
 	spin_lock(&drv->dynids.lock);
 	list_for_each_entry(dynid, &drv->dynids.list, node) {
 		if (!uuid_le_cmp(dynid->id.guid, *guid)) {
@@ -583,18 +641,37 @@ static const struct hv_vmbus_device_id *hv_vmbus_get_id(struct hv_driver *drv,
 	}
 	spin_unlock(&drv->dynids.lock);
 
-	if (id)
-		return id;
+	return id;
+}
 
-	id = drv->id_table;
-	if (id == NULL)
-		return NULL; /* empty device table */
+static const struct hv_vmbus_device_id vmbus_device_null = {
+	.guid = NULL_UUID_LE,
+};
 
-	for (; !is_null_guid(&id->guid); id++)
-		if (!uuid_le_cmp(id->guid, *guid))
-			return id;
+/*
+ * Return a matching hv_vmbus_device_id pointer.
+ * If there is no match, return NULL.
+ */
+static const struct hv_vmbus_device_id *hv_vmbus_get_id(struct hv_driver *drv,
+							struct hv_device *dev)
+{
+	const uuid_le *guid = &dev->dev_type;
+	const struct hv_vmbus_device_id *id;
 
-	return NULL;
+	/* When driver_override is set, only bind to the matching driver */
+	if (dev->driver_override && strcmp(dev->driver_override, drv->name))
+		return NULL;
+
+	/* Look at the dynamic ids first, before the static ones */
+	id = hv_vmbus_dynid_match(drv, guid);
+	if (!id)
+		id = hv_vmbus_dev_match(drv->id_table, guid);
+
+	/* driver_override will always match, send a dummy id */
+	if (!id && dev->driver_override)
+		id = &vmbus_device_null;
+
+	return id;
 }
 
 /* vmbus_add_dynid - add a new device ID to this driver and re-probe devices */
@@ -643,7 +720,7 @@ static ssize_t new_id_store(struct device_driver *driver, const char *buf,
 	if (retval)
 		return retval;
 
-	if (hv_vmbus_get_id(drv, &guid))
+	if (hv_vmbus_dynid_match(drv, &guid))
 		return -EEXIST;
 
 	retval = vmbus_add_dynid(drv, &guid);
@@ -708,7 +785,7 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 	if (is_hvsock_channel(hv_dev->channel))
 		return drv->hvsock;
 
-	if (hv_vmbus_get_id(drv, &hv_dev->dev_type))
+	if (hv_vmbus_get_id(drv, hv_dev))
 		return 1;
 
 	return 0;
@@ -725,7 +802,7 @@ static int vmbus_probe(struct device *child_device)
 	struct hv_device *dev = device_to_hv_device(child_device);
 	const struct hv_vmbus_device_id *dev_id;
 
-	dev_id = hv_vmbus_get_id(drv, &dev->dev_type);
+	dev_id = hv_vmbus_get_id(drv, dev);
 	if (drv->probe) {
 		ret = drv->probe(dev, dev_id);
 		if (ret != 0)
@@ -787,10 +864,9 @@ static void vmbus_device_release(struct device *device)
 	struct vmbus_channel *channel = hv_dev->channel;
 
 	mutex_lock(&vmbus_connection.channel_mutex);
-	hv_process_channel_removal(channel->offermsg.child_relid);
+	hv_process_channel_removal(channel);
 	mutex_unlock(&vmbus_connection.channel_mutex);
 	kfree(hv_dev);
-
 }
 
 /* The one and only one */

@@ -115,7 +115,7 @@ static struct rc_map_list behold_map = {
 	.map = {
 		.scan     = behold,
 		.size     = ARRAY_SIZE(behold),
-		.rc_proto = RC_PROTO_NEC,
+		.rc_proto = RC_PROTO_NECX,
 		.name     = RC_MAP_BEHOLD,
 	}
 };

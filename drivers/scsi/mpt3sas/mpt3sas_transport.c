@@ -146,25 +146,22 @@ _transport_set_identify(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	u32 ioc_status;
 
 	if (ioc->shost_recovery || ioc->pci_error_recovery) {
-		pr_info(MPT3SAS_FMT "%s: host reset in progress!\n",
-		    __func__, ioc->name);
+		ioc_info(ioc, "%s: host reset in progress!\n", __func__);
 		return -EFAULT;
 	}
 
 	if ((mpt3sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
 	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		return -ENXIO;
 	}
 
 	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
 	    MPI2_IOCSTATUS_MASK;
 	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
-		pr_err(MPT3SAS_FMT
-			"handle(0x%04x), ioc_status(0x%04x)\nfailure at %s:%d/%s()!\n",
-			ioc->name, handle, ioc_status,
-		     __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "handle(0x%04x), ioc_status(0x%04x) failure at %s:%d/%s()!\n",
+			handle, ioc_status, __FILE__, __LINE__, __func__);
 		return -EIO;
 	}
 
@@ -310,16 +307,14 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 	u16 wait_state_count;
 
 	if (ioc->shost_recovery || ioc->pci_error_recovery) {
-		pr_info(MPT3SAS_FMT "%s: host reset in progress!\n",
-		    __func__, ioc->name);
+		ioc_info(ioc, "%s: host reset in progress!\n", __func__);
 		return -EFAULT;
 	}
 
 	mutex_lock(&ioc->transport_cmds.mutex);
 
 	if (ioc->transport_cmds.status != MPT3_CMD_NOT_USED) {
-		pr_err(MPT3SAS_FMT "%s: transport_cmds in use\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: transport_cmds in use\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
@@ -329,26 +324,22 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
 	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
 		if (wait_state_count++ == 10) {
-			pr_err(MPT3SAS_FMT
-			    "%s: failed due to ioc not operational\n",
-			    ioc->name, __func__);
+			ioc_err(ioc, "%s: failed due to ioc not operational\n",
+				__func__);
 			rc = -EFAULT;
 			goto out;
 		}
 		ssleep(1);
 		ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
-		pr_info(MPT3SAS_FMT
-			"%s: waiting for operational state(count=%d)\n",
-			ioc->name, __func__, wait_state_count);
+		ioc_info(ioc, "%s: waiting for operational state(count=%d)\n",
+			 __func__, wait_state_count);
 	}
 	if (wait_state_count)
-		pr_info(MPT3SAS_FMT "%s: ioc is operational\n",
-		    ioc->name, __func__);
+		ioc_info(ioc, "%s: ioc is operational\n", __func__);
 
 	smid = mpt3sas_base_get_smid(ioc, ioc->transport_cb_idx);
 	if (!smid) {
-		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: failed obtaining a smid\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
@@ -359,9 +350,8 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 
 	data_out_sz = sizeof(struct rep_manu_request);
 	data_in_sz = sizeof(struct rep_manu_reply);
-	data_out = pci_alloc_consistent(ioc->pdev, data_out_sz + data_in_sz,
-	    &data_out_dma);
-
+	data_out = dma_alloc_coherent(&ioc->pdev->dev, data_out_sz + data_in_sz,
+			&data_out_dma, GFP_KERNEL);
 	if (!data_out) {
 		pr_err("failure at %s:%d/%s()!\n", __FILE__,
 		    __LINE__, __func__);
@@ -388,16 +378,15 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 	ioc->build_sg(ioc, psge, data_out_dma, data_out_sz, data_in_dma,
 	    data_in_sz);
 
-	dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		"report_manufacture - send to sas_addr(0x%016llx)\n",
-		ioc->name, (unsigned long long)sas_address));
+	dtransportprintk(ioc,
+			 ioc_info(ioc, "report_manufacture - send to sas_addr(0x%016llx)\n",
+				  (u64)sas_address));
 	init_completion(&ioc->transport_cmds.done);
 	mpt3sas_base_put_smid_default(ioc, smid);
 	wait_for_completion_timeout(&ioc->transport_cmds.done, 10*HZ);
 
 	if (!(ioc->transport_cmds.status & MPT3_CMD_COMPLETE)) {
-		pr_err(MPT3SAS_FMT "%s: timeout\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: timeout\n", __func__);
 		_debug_dump_mf(mpi_request,
 		    sizeof(Mpi2SmpPassthroughRequest_t)/4);
 		if (!(ioc->transport_cmds.status & MPT3_CMD_RESET))
@@ -405,17 +394,16 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 		goto issue_host_reset;
 	}
 
-	dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		"report_manufacture - complete\n", ioc->name));
+	dtransportprintk(ioc, ioc_info(ioc, "report_manufacture - complete\n"));
 
 	if (ioc->transport_cmds.status & MPT3_CMD_REPLY_VALID) {
 		u8 *tmp;
 
 		mpi_reply = ioc->transport_cmds.reply;
 
-		dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		    "report_manufacture - reply data transfer size(%d)\n",
-		    ioc->name, le16_to_cpu(mpi_reply->ResponseDataLength)));
+		dtransportprintk(ioc,
+				 ioc_info(ioc, "report_manufacture - reply data transfer size(%d)\n",
+					  le16_to_cpu(mpi_reply->ResponseDataLength)));
 
 		if (le16_to_cpu(mpi_reply->ResponseDataLength) !=
 		    sizeof(struct rep_manu_reply))
@@ -439,8 +427,8 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 			    manufacture_reply->component_revision_id;
 		}
 	} else
-		dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		    "report_manufacture - no reply\n", ioc->name));
+		dtransportprintk(ioc,
+				 ioc_info(ioc, "report_manufacture - no reply\n"));
 
  issue_host_reset:
 	if (issue_reset)
@@ -448,7 +436,7 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
  out:
 	ioc->transport_cmds.status = MPT3_CMD_NOT_USED;
 	if (data_out)
-		pci_free_consistent(ioc->pdev, data_out_sz + data_in_sz,
+		dma_free_coherent(&ioc->pdev->dev, data_out_sz + data_in_sz,
 		    data_out, data_out_dma);
 
 	mutex_unlock(&ioc->transport_cmds.mutex);
@@ -643,8 +631,8 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	mpt3sas_port = kzalloc(sizeof(struct _sas_port),
 	    GFP_KERNEL);
 	if (!mpt3sas_port) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		return NULL;
 	}
 
@@ -655,22 +643,21 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 
 	if (!sas_node) {
-		pr_err(MPT3SAS_FMT
-			"%s: Could not find parent sas_address(0x%016llx)!\n",
-			ioc->name, __func__, (unsigned long long)sas_address);
+		ioc_err(ioc, "%s: Could not find parent sas_address(0x%016llx)!\n",
+			__func__, (u64)sas_address);
 		goto out_fail;
 	}
 
 	if ((_transport_set_identify(ioc, handle,
 	    &mpt3sas_port->remote_identify))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		goto out_fail;
 	}
 
 	if (mpt3sas_port->remote_identify.device_type == SAS_PHY_UNUSED) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		goto out_fail;
 	}
 
@@ -687,20 +674,20 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	}
 
 	if (!mpt3sas_port->num_phys) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		goto out_fail;
 	}
 
 	if (!sas_node->parent_dev) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		goto out_fail;
 	}
 	port = sas_port_alloc_num(sas_node->parent_dev);
 	if ((sas_port_add(port))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		goto out_fail;
 	}
 
@@ -729,17 +716,17 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 		sas_device = mpt3sas_get_sdev_by_addr(ioc,
 				    mpt3sas_port->remote_identify.sas_address);
 		if (!sas_device) {
-			dfailprintk(ioc, printk(MPT3SAS_FMT
-				"failure at %s:%d/%s()!\n",
-				ioc->name, __FILE__, __LINE__, __func__));
+			dfailprintk(ioc,
+				    ioc_info(ioc, "failure at %s:%d/%s()!\n",
+					     __FILE__, __LINE__, __func__));
 			goto out_fail;
 		}
 		sas_device->pend_sas_rphy_add = 1;
 	}
 
 	if ((sas_rphy_add(rphy))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 	}
 
 	if (mpt3sas_port->remote_identify.device_type == SAS_END_DEVICE) {
@@ -861,14 +848,14 @@ mpt3sas_transport_add_host_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
 	INIT_LIST_HEAD(&mpt3sas_phy->port_siblings);
 	phy = sas_phy_alloc(parent_dev, phy_index);
 	if (!phy) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		return -1;
 	}
 	if ((_transport_set_identify(ioc, mpt3sas_phy->handle,
 	    &mpt3sas_phy->identify))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		sas_phy_free(phy);
 		return -1;
 	}
@@ -890,8 +877,8 @@ mpt3sas_transport_add_host_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
 	    phy_pg0.ProgrammedLinkRate >> 4);
 
 	if ((sas_phy_add(phy))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		sas_phy_free(phy);
 		return -1;
 	}
@@ -929,14 +916,14 @@ mpt3sas_transport_add_expander_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
 	INIT_LIST_HEAD(&mpt3sas_phy->port_siblings);
 	phy = sas_phy_alloc(parent_dev, phy_index);
 	if (!phy) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		return -1;
 	}
 	if ((_transport_set_identify(ioc, mpt3sas_phy->handle,
 	    &mpt3sas_phy->identify))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		sas_phy_free(phy);
 		return -1;
 	}
@@ -960,8 +947,8 @@ mpt3sas_transport_add_expander_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
 	    expander_pg1.ProgrammedLinkRate >> 4);
 
 	if ((sas_phy_add(phy))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		sas_phy_free(phy);
 		return -1;
 	}
@@ -1098,16 +1085,14 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 	u16 wait_state_count;
 
 	if (ioc->shost_recovery || ioc->pci_error_recovery) {
-		pr_info(MPT3SAS_FMT "%s: host reset in progress!\n",
-		    __func__, ioc->name);
+		ioc_info(ioc, "%s: host reset in progress!\n", __func__);
 		return -EFAULT;
 	}
 
 	mutex_lock(&ioc->transport_cmds.mutex);
 
 	if (ioc->transport_cmds.status != MPT3_CMD_NOT_USED) {
-		pr_err(MPT3SAS_FMT "%s: transport_cmds in use\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: transport_cmds in use\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
@@ -1117,26 +1102,22 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
 	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
 		if (wait_state_count++ == 10) {
-			pr_err(MPT3SAS_FMT
-			    "%s: failed due to ioc not operational\n",
-			    ioc->name, __func__);
+			ioc_err(ioc, "%s: failed due to ioc not operational\n",
+				__func__);
 			rc = -EFAULT;
 			goto out;
 		}
 		ssleep(1);
 		ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
-		pr_info(MPT3SAS_FMT
-			"%s: waiting for operational state(count=%d)\n",
-			ioc->name, __func__, wait_state_count);
+		ioc_info(ioc, "%s: waiting for operational state(count=%d)\n",
+			 __func__, wait_state_count);
 	}
 	if (wait_state_count)
-		pr_info(MPT3SAS_FMT "%s: ioc is operational\n",
-		    ioc->name, __func__);
+		ioc_info(ioc, "%s: ioc is operational\n", __func__);
 
 	smid = mpt3sas_base_get_smid(ioc, ioc->transport_cb_idx);
 	if (!smid) {
-		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: failed obtaining a smid\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
@@ -1146,7 +1127,8 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 
 	sz = sizeof(struct phy_error_log_request) +
 	    sizeof(struct phy_error_log_reply);
-	data_out = pci_alloc_consistent(ioc->pdev, sz, &data_out_dma);
+	data_out = dma_alloc_coherent(&ioc->pdev->dev, sz, &data_out_dma,
+			GFP_KERNEL);
 	if (!data_out) {
 		pr_err("failure at %s:%d/%s()!\n", __FILE__,
 		    __LINE__, __func__);
@@ -1179,17 +1161,16 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 	    data_out_dma + sizeof(struct phy_error_log_request),
 	    sizeof(struct phy_error_log_reply));
 
-	dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		"phy_error_log - send to sas_addr(0x%016llx), phy(%d)\n",
-		ioc->name, (unsigned long long)phy->identify.sas_address,
-		phy->number));
+	dtransportprintk(ioc,
+			 ioc_info(ioc, "phy_error_log - send to sas_addr(0x%016llx), phy(%d)\n",
+				  (u64)phy->identify.sas_address,
+				  phy->number));
 	init_completion(&ioc->transport_cmds.done);
 	mpt3sas_base_put_smid_default(ioc, smid);
 	wait_for_completion_timeout(&ioc->transport_cmds.done, 10*HZ);
 
 	if (!(ioc->transport_cmds.status & MPT3_CMD_COMPLETE)) {
-		pr_err(MPT3SAS_FMT "%s: timeout\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: timeout\n", __func__);
 		_debug_dump_mf(mpi_request,
 		    sizeof(Mpi2SmpPassthroughRequest_t)/4);
 		if (!(ioc->transport_cmds.status & MPT3_CMD_RESET))
@@ -1197,16 +1178,15 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 		goto issue_host_reset;
 	}
 
-	dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		"phy_error_log - complete\n", ioc->name));
+	dtransportprintk(ioc, ioc_info(ioc, "phy_error_log - complete\n"));
 
 	if (ioc->transport_cmds.status & MPT3_CMD_REPLY_VALID) {
 
 		mpi_reply = ioc->transport_cmds.reply;
 
-		dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		    "phy_error_log - reply data transfer size(%d)\n",
-		    ioc->name, le16_to_cpu(mpi_reply->ResponseDataLength)));
+		dtransportprintk(ioc,
+				 ioc_info(ioc, "phy_error_log - reply data transfer size(%d)\n",
+					  le16_to_cpu(mpi_reply->ResponseDataLength)));
 
 		if (le16_to_cpu(mpi_reply->ResponseDataLength) !=
 		    sizeof(struct phy_error_log_reply))
@@ -1215,9 +1195,9 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 		phy_error_log_reply = data_out +
 		    sizeof(struct phy_error_log_request);
 
-		dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		    "phy_error_log - function_result(%d)\n",
-		    ioc->name, phy_error_log_reply->function_result));
+		dtransportprintk(ioc,
+				 ioc_info(ioc, "phy_error_log - function_result(%d)\n",
+					  phy_error_log_reply->function_result));
 
 		phy->invalid_dword_count =
 		    be32_to_cpu(phy_error_log_reply->invalid_dword);
@@ -1229,8 +1209,8 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 		    be32_to_cpu(phy_error_log_reply->phy_reset_problem);
 		rc = 0;
 	} else
-		dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		    "phy_error_log - no reply\n", ioc->name));
+		dtransportprintk(ioc,
+				 ioc_info(ioc, "phy_error_log - no reply\n"));
 
  issue_host_reset:
 	if (issue_reset)
@@ -1238,7 +1218,7 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
  out:
 	ioc->transport_cmds.status = MPT3_CMD_NOT_USED;
 	if (data_out)
-		pci_free_consistent(ioc->pdev, sz, data_out, data_out_dma);
+		dma_free_coherent(&ioc->pdev->dev, sz, data_out, data_out_dma);
 
 	mutex_unlock(&ioc->transport_cmds.mutex);
 	return rc;
@@ -1273,17 +1253,16 @@ _transport_get_linkerrors(struct sas_phy *phy)
 	/* get hba phy error logs */
 	if ((mpt3sas_config_get_phy_pg1(ioc, &mpi_reply, &phy_pg1,
 		    phy->number))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		return -ENXIO;
 	}
 
 	if (mpi_reply.IOCStatus || mpi_reply.IOCLogInfo)
-		pr_info(MPT3SAS_FMT
-			"phy(%d), ioc_status (0x%04x), loginfo(0x%08x)\n",
-			ioc->name, phy->number,
-			le16_to_cpu(mpi_reply.IOCStatus),
-		    le32_to_cpu(mpi_reply.IOCLogInfo));
+		ioc_info(ioc, "phy(%d), ioc_status (0x%04x), loginfo(0x%08x)\n",
+			 phy->number,
+			 le16_to_cpu(mpi_reply.IOCStatus),
+			 le32_to_cpu(mpi_reply.IOCLogInfo));
 
 	phy->invalid_dword_count = le32_to_cpu(phy_pg1.InvalidDwordCount);
 	phy->running_disparity_error_count =
@@ -1411,16 +1390,14 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 	u16 wait_state_count;
 
 	if (ioc->shost_recovery || ioc->pci_error_recovery) {
-		pr_info(MPT3SAS_FMT "%s: host reset in progress!\n",
-		    __func__, ioc->name);
+		ioc_info(ioc, "%s: host reset in progress!\n", __func__);
 		return -EFAULT;
 	}
 
 	mutex_lock(&ioc->transport_cmds.mutex);
 
 	if (ioc->transport_cmds.status != MPT3_CMD_NOT_USED) {
-		pr_err(MPT3SAS_FMT "%s: transport_cmds in use\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: transport_cmds in use\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
@@ -1430,26 +1407,22 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
 	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
 		if (wait_state_count++ == 10) {
-			pr_err(MPT3SAS_FMT
-			    "%s: failed due to ioc not operational\n",
-			    ioc->name, __func__);
+			ioc_err(ioc, "%s: failed due to ioc not operational\n",
+				__func__);
 			rc = -EFAULT;
 			goto out;
 		}
 		ssleep(1);
 		ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
-		pr_info(MPT3SAS_FMT
-			"%s: waiting for operational state(count=%d)\n",
-			ioc->name, __func__, wait_state_count);
+		ioc_info(ioc, "%s: waiting for operational state(count=%d)\n",
+			 __func__, wait_state_count);
 	}
 	if (wait_state_count)
-		pr_info(MPT3SAS_FMT "%s: ioc is operational\n",
-		    ioc->name, __func__);
+		ioc_info(ioc, "%s: ioc is operational\n", __func__);
 
 	smid = mpt3sas_base_get_smid(ioc, ioc->transport_cb_idx);
 	if (!smid) {
-		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: failed obtaining a smid\n", __func__);
 		rc = -EAGAIN;
 		goto out;
 	}
@@ -1459,7 +1432,8 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 
 	sz = sizeof(struct phy_control_request) +
 	    sizeof(struct phy_control_reply);
-	data_out = pci_alloc_consistent(ioc->pdev, sz, &data_out_dma);
+	data_out = dma_alloc_coherent(&ioc->pdev->dev, sz, &data_out_dma,
+			GFP_KERNEL);
 	if (!data_out) {
 		pr_err("failure at %s:%d/%s()!\n", __FILE__,
 		    __LINE__, __func__);
@@ -1497,17 +1471,16 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 	    data_out_dma + sizeof(struct phy_control_request),
 	    sizeof(struct phy_control_reply));
 
-	dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		"phy_control - send to sas_addr(0x%016llx), phy(%d), opcode(%d)\n",
-		ioc->name, (unsigned long long)phy->identify.sas_address,
-		phy->number, phy_operation));
+	dtransportprintk(ioc,
+			 ioc_info(ioc, "phy_control - send to sas_addr(0x%016llx), phy(%d), opcode(%d)\n",
+				  (u64)phy->identify.sas_address,
+				  phy->number, phy_operation));
 	init_completion(&ioc->transport_cmds.done);
 	mpt3sas_base_put_smid_default(ioc, smid);
 	wait_for_completion_timeout(&ioc->transport_cmds.done, 10*HZ);
 
 	if (!(ioc->transport_cmds.status & MPT3_CMD_COMPLETE)) {
-		pr_err(MPT3SAS_FMT "%s: timeout\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: timeout\n", __func__);
 		_debug_dump_mf(mpi_request,
 		    sizeof(Mpi2SmpPassthroughRequest_t)/4);
 		if (!(ioc->transport_cmds.status & MPT3_CMD_RESET))
@@ -1515,16 +1488,15 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 		goto issue_host_reset;
 	}
 
-	dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		"phy_control - complete\n", ioc->name));
+	dtransportprintk(ioc, ioc_info(ioc, "phy_control - complete\n"));
 
 	if (ioc->transport_cmds.status & MPT3_CMD_REPLY_VALID) {
 
 		mpi_reply = ioc->transport_cmds.reply;
 
-		dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		    "phy_control - reply data transfer size(%d)\n",
-		    ioc->name, le16_to_cpu(mpi_reply->ResponseDataLength)));
+		dtransportprintk(ioc,
+				 ioc_info(ioc, "phy_control - reply data transfer size(%d)\n",
+					  le16_to_cpu(mpi_reply->ResponseDataLength)));
 
 		if (le16_to_cpu(mpi_reply->ResponseDataLength) !=
 		    sizeof(struct phy_control_reply))
@@ -1533,14 +1505,14 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 		phy_control_reply = data_out +
 		    sizeof(struct phy_control_request);
 
-		dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		    "phy_control - function_result(%d)\n",
-		    ioc->name, phy_control_reply->function_result));
+		dtransportprintk(ioc,
+				 ioc_info(ioc, "phy_control - function_result(%d)\n",
+					  phy_control_reply->function_result));
 
 		rc = 0;
 	} else
-		dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		    "phy_control - no reply\n", ioc->name));
+		dtransportprintk(ioc,
+				 ioc_info(ioc, "phy_control - no reply\n"));
 
  issue_host_reset:
 	if (issue_reset)
@@ -1548,7 +1520,8 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
  out:
 	ioc->transport_cmds.status = MPT3_CMD_NOT_USED;
 	if (data_out)
-		pci_free_consistent(ioc->pdev, sz, data_out, data_out_dma);
+		dma_free_coherent(&ioc->pdev->dev, sz, data_out,
+				data_out_dma);
 
 	mutex_unlock(&ioc->transport_cmds.mutex);
 	return rc;
@@ -1591,16 +1564,15 @@ _transport_phy_reset(struct sas_phy *phy, int hard_reset)
 	mpi_request.PhyNum = phy->number;
 
 	if ((mpt3sas_base_sas_iounit_control(ioc, &mpi_reply, &mpi_request))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		return -ENXIO;
 	}
 
 	if (mpi_reply.IOCStatus || mpi_reply.IOCLogInfo)
-		pr_info(MPT3SAS_FMT
-		"phy(%d), ioc_status(0x%04x), loginfo(0x%08x)\n",
-		ioc->name, phy->number, le16_to_cpu(mpi_reply.IOCStatus),
-		    le32_to_cpu(mpi_reply.IOCLogInfo));
+		ioc_info(ioc, "phy(%d), ioc_status(0x%04x), loginfo(0x%08x)\n",
+			 phy->number, le16_to_cpu(mpi_reply.IOCStatus),
+			 le32_to_cpu(mpi_reply.IOCLogInfo));
 
 	return 0;
 }
@@ -1647,23 +1619,23 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
 	    sizeof(Mpi2SasIOUnit0PhyData_t));
 	sas_iounit_pg0 = kzalloc(sz, GFP_KERNEL);
 	if (!sas_iounit_pg0) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		rc = -ENOMEM;
 		goto out;
 	}
 	if ((mpt3sas_config_get_sas_iounit_pg0(ioc, &mpi_reply,
 	    sas_iounit_pg0, sz))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		rc = -ENXIO;
 		goto out;
 	}
 	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
 	    MPI2_IOCSTATUS_MASK;
 	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		rc = -EIO;
 		goto out;
 	}
@@ -1672,10 +1644,8 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
 	for (i = 0, discovery_active = 0; i < ioc->sas_hba.num_phys ; i++) {
 		if (sas_iounit_pg0->PhyData[i].PortFlags &
 		    MPI2_SASIOUNIT0_PORTFLAGS_DISCOVERY_IN_PROGRESS) {
-			pr_err(MPT3SAS_FMT "discovery is active on " \
-			    "port = %d, phy = %d: unable to enable/disable "
-			    "phys, try again later!\n", ioc->name,
-			    sas_iounit_pg0->PhyData[i].Port, i);
+			ioc_err(ioc, "discovery is active on port = %d, phy = %d: unable to enable/disable phys, try again later!\n",
+				sas_iounit_pg0->PhyData[i].Port, i);
 			discovery_active = 1;
 		}
 	}
@@ -1690,23 +1660,23 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
 	    sizeof(Mpi2SasIOUnit1PhyData_t));
 	sas_iounit_pg1 = kzalloc(sz, GFP_KERNEL);
 	if (!sas_iounit_pg1) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		rc = -ENOMEM;
 		goto out;
 	}
 	if ((mpt3sas_config_get_sas_iounit_pg1(ioc, &mpi_reply,
 	    sas_iounit_pg1, sz))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		rc = -ENXIO;
 		goto out;
 	}
 	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
 	    MPI2_IOCSTATUS_MASK;
 	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		rc = -EIO;
 		goto out;
 	}
@@ -1798,23 +1768,23 @@ _transport_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates)
 	    sizeof(Mpi2SasIOUnit1PhyData_t));
 	sas_iounit_pg1 = kzalloc(sz, GFP_KERNEL);
 	if (!sas_iounit_pg1) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		rc = -ENOMEM;
 		goto out;
 	}
 	if ((mpt3sas_config_get_sas_iounit_pg1(ioc, &mpi_reply,
 	    sas_iounit_pg1, sz))) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		rc = -ENXIO;
 		goto out;
 	}
 	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
 	    MPI2_IOCSTATUS_MASK;
 	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		rc = -EIO;
 		goto out;
 	}
@@ -1833,8 +1803,8 @@ _transport_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates)
 
 	if (mpt3sas_config_set_sas_iounit_pg1(ioc, &mpi_reply, sas_iounit_pg1,
 	    sz)) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			__FILE__, __LINE__, __func__);
 		rc = -ENXIO;
 		goto out;
 	}
@@ -1922,8 +1892,7 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 	unsigned int reslen = 0;
 
 	if (ioc->shost_recovery || ioc->pci_error_recovery) {
-		pr_info(MPT3SAS_FMT "%s: host reset in progress!\n",
-		    __func__, ioc->name);
+		ioc_info(ioc, "%s: host reset in progress!\n", __func__);
 		rc = -EFAULT;
 		goto job_done;
 	}
@@ -1933,8 +1902,8 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 		goto job_done;
 
 	if (ioc->transport_cmds.status != MPT3_CMD_NOT_USED) {
-		pr_err(MPT3SAS_FMT "%s: transport_cmds in use\n", ioc->name,
-		    __func__);
+		ioc_err(ioc, "%s: transport_cmds in use\n",
+			__func__);
 		rc = -EAGAIN;
 		goto out;
 	}
@@ -1959,26 +1928,22 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
 	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
 		if (wait_state_count++ == 10) {
-			pr_err(MPT3SAS_FMT
-			    "%s: failed due to ioc not operational\n",
-			    ioc->name, __func__);
+			ioc_err(ioc, "%s: failed due to ioc not operational\n",
+				__func__);
 			rc = -EFAULT;
 			goto unmap_in;
 		}
 		ssleep(1);
 		ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
-		pr_info(MPT3SAS_FMT
-			"%s: waiting for operational state(count=%d)\n",
-			ioc->name, __func__, wait_state_count);
+		ioc_info(ioc, "%s: waiting for operational state(count=%d)\n",
+			 __func__, wait_state_count);
 	}
 	if (wait_state_count)
-		pr_info(MPT3SAS_FMT "%s: ioc is operational\n",
-		    ioc->name, __func__);
+		ioc_info(ioc, "%s: ioc is operational\n", __func__);
 
 	smid = mpt3sas_base_get_smid(ioc, ioc->transport_cb_idx);
 	if (!smid) {
-		pr_err(MPT3SAS_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
+		ioc_err(ioc, "%s: failed obtaining a smid\n", __func__);
 		rc = -EAGAIN;
 		goto unmap_in;
 	}
@@ -1999,16 +1964,15 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 	ioc->build_sg(ioc, psge, dma_addr_out, dma_len_out - 4, dma_addr_in,
 			dma_len_in - 4);
 
-	dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		"%s - sending smp request\n", ioc->name, __func__));
+	dtransportprintk(ioc,
+			 ioc_info(ioc, "%s: sending smp request\n", __func__));
 
 	init_completion(&ioc->transport_cmds.done);
 	mpt3sas_base_put_smid_default(ioc, smid);
 	wait_for_completion_timeout(&ioc->transport_cmds.done, 10*HZ);
 
 	if (!(ioc->transport_cmds.status & MPT3_CMD_COMPLETE)) {
-		pr_err(MPT3SAS_FMT "%s : timeout\n",
-		    __func__, ioc->name);
+		ioc_err(ioc, "%s: timeout\n", __func__);
 		_debug_dump_mf(mpi_request,
 		    sizeof(Mpi2SmpPassthroughRequest_t)/4);
 		if (!(ioc->transport_cmds.status & MPT3_CMD_RESET)) {
@@ -2018,12 +1982,11 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 		}
 	}
 
-	dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		"%s - complete\n", ioc->name, __func__));
+	dtransportprintk(ioc, ioc_info(ioc, "%s - complete\n", __func__));
 
 	if (!(ioc->transport_cmds.status & MPT3_CMD_REPLY_VALID)) {
-		dtransportprintk(ioc, pr_info(MPT3SAS_FMT
-		    "%s - no reply\n", ioc->name, __func__));
+		dtransportprintk(ioc,
+				 ioc_info(ioc, "%s: no reply\n", __func__));
 		rc = -ENXIO;
 		goto unmap_in;
 	}
@@ -2031,9 +1994,9 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 	mpi_reply = ioc->transport_cmds.reply;
 
 	dtransportprintk(ioc,
-		pr_info(MPT3SAS_FMT "%s - reply data transfer size(%d)\n",
-			ioc->name, __func__,
-			le16_to_cpu(mpi_reply->ResponseDataLength)));
+			 ioc_info(ioc, "%s: reply data transfer size(%d)\n",
+				  __func__,
+				  le16_to_cpu(mpi_reply->ResponseDataLength)));
 
 	memcpy(job->reply, mpi_reply, sizeof(*mpi_reply));
 	job->reply_len = sizeof(*mpi_reply);

@@ -200,7 +200,7 @@ void ppc4xx_reset_system(char *cmd)
 	u32 reset_type = DBCR0_RST_SYSTEM;
 	const u32 *prop;
 
-	np = of_find_node_by_type(NULL, "cpu");
+	np = of_get_cpu_node(0, NULL);
 	if (np) {
 		prop = of_get_property(np, "reset-type", NULL);
 

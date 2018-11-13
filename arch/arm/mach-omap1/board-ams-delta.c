@@ -250,39 +250,6 @@ static struct platform_device latch2_gpio_device = {
 #define LATCH2_PIN_HOOKFLASH1		14
 #define LATCH2_PIN_HOOKFLASH2		15
 
-static const struct gpio latch_gpios[] __initconst = {
-	{
-		.gpio	= LATCH1_GPIO_BASE + 6,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "dockit1",
-	},
-	{
-		.gpio	= LATCH1_GPIO_BASE + 7,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "dockit2",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_SCARD_RSTIN,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "scard_rstin",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_SCARD_CMDVCC,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "scard_cmdvcc",
-	},
-	{
-		.gpio	= AMS_DELTA_LATCH2_GPIO_BASE + 14,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "hookflash1",
-	},
-	{
-		.gpio	= AMS_DELTA_LATCH2_GPIO_BASE + 15,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "hookflash2",
-	},
-};
-
 static struct regulator_consumer_supply modem_nreset_consumers[] = {
 	REGULATOR_SUPPLY("RESET#", "serial8250.1"),
 	REGULATOR_SUPPLY("POR", "cx20442-codec"),
@@ -300,7 +267,6 @@ static struct regulator_init_data modem_nreset_data = {
 static struct fixed_voltage_config modem_nreset_config = {
 	.supply_name		= "modem_nreset",
 	.microvolts		= 3300000,
-	.gpio			= AMS_DELTA_GPIO_PIN_MODEM_NRESET,
 	.startup_delay		= 25000,
 	.enable_high		= 1,
 	.enabled_at_boot	= 1,
@@ -315,25 +281,20 @@ static struct platform_device modem_nreset_device = {
 	},
 };
 
+static struct gpiod_lookup_table ams_delta_nreset_gpiod_table = {
+	.dev_id = "reg-fixed-voltage",
+	.table = {
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_MODEM_NRESET,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 struct modem_private_data {
 	struct regulator *regulator;
 };
 
 static struct modem_private_data modem_priv;
-
-void ams_delta_latch_write(int base, int ngpio, u16 mask, u16 value)
-{
-	int bit = 0;
-	u16 bitpos = 1 << bit;
-
-	for (; bit < ngpio; bit++, bitpos = bitpos << 1) {
-		if (!(mask & bitpos))
-			continue;
-		else
-			gpio_set_value(base + bit, (value & bitpos) != 0);
-	}
-}
-EXPORT_SYMBOL(ams_delta_latch_write);
 
 static struct resource ams_delta_nand_resources[] = {
 	[0] = {
@@ -568,7 +529,6 @@ static struct regulator_init_data keybrd_pwr_initdata = {
 static struct fixed_voltage_config keybrd_pwr_config = {
 	.supply_name		= "keybrd_pwr",
 	.microvolts		= 5000000,
-	.gpio			= AMS_DELTA_GPIO_PIN_KEYBRD_PWR,
 	.enable_high		= 1,
 	.init_data		= &keybrd_pwr_initdata,
 };
@@ -602,6 +562,7 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 };
 
 static struct gpiod_lookup_table *ams_delta_gpio_tables[] __initdata = {
+	&ams_delta_nreset_gpiod_table,
 	&ams_delta_audio_gpio_table,
 	&keybrd_pwr_gpio_table,
 	&ams_delta_lcd_gpio_table,
@@ -630,6 +591,28 @@ static struct gpiod_hog ams_delta_gpio_hogs[] = {
 	{},
 };
 
+static struct plat_serial8250_port ams_delta_modem_ports[];
+
+/*
+ * Obtain MODEM IRQ GPIO descriptor using its hardware pin
+ * number and assign related IRQ number to the MODEM port.
+ * Keep the GPIO descriptor open so nobody steps in.
+ */
+static void __init modem_assign_irq(struct gpio_chip *chip)
+{
+	struct gpio_desc *gpiod;
+
+	gpiod = gpiochip_request_own_desc(chip, AMS_DELTA_GPIO_PIN_MODEM_IRQ,
+					  "modem_irq");
+	if (IS_ERR(gpiod)) {
+		pr_err("%s: modem IRQ GPIO request failed (%ld)\n", __func__,
+		       PTR_ERR(gpiod));
+	} else {
+		gpiod_direction_input(gpiod);
+		ams_delta_modem_ports[0].irq = gpiod_to_irq(gpiod);
+	}
+}
+
 /*
  * The purpose of this function is to take care of proper initialization of
  * devices and data structures which depend on GPIO lines provided by OMAP GPIO
@@ -649,7 +632,47 @@ static void __init omap_gpio_deps_init(void)
 		return;
 	}
 
+	/*
+	 * Start with FIQ initialization as it may have to request
+	 * and release successfully each OMAP GPIO pin in turn.
+	 */
 	ams_delta_init_fiq(chip, &ams_delta_serio_device);
+
+	modem_assign_irq(chip);
+}
+
+/*
+ * Initialize latch2 pins with values which are safe for dependent on-board
+ * devices or useful for their successull initialization even before GPIO
+ * driver takes control over the latch pins:
+ * - LATCH2_PIN_LCD_VBLEN	= 0
+ * - LATCH2_PIN_LCD_NDISP	= 0	Keep LCD device powered off before its
+ *					driver takes control over it.
+ * - LATCH2_PIN_NAND_NCE	= 0
+ * - LATCH2_PIN_NAND_NWP	= 0	Keep NAND device down and write-
+ *					protected before its driver takes
+ *					control over it.
+ * - LATCH2_PIN_KEYBRD_PWR	= 0	Keep keyboard powered off before serio
+ *					driver takes control over it.
+ * - LATCH2_PIN_KEYBRD_DATAOUT	= 0	Keep low to avoid corruption of first
+ *					byte of data received from attached
+ *					keyboard when serio device is probed;
+ *					the pin is also hogged low by the latch2
+ *					GPIO driver as soon as it is ready.
+ * - LATCH2_PIN_MODEM_NRESET	= 1	Enable voice MODEM device, allowing for
+ *					its successful probe even before a
+ *					regulator it depends on, which in turn
+ *					takes control over the pin, is set up.
+ * - LATCH2_PIN_MODEM_CODEC	= 1	Attach voice MODEM CODEC data port
+ *					to the MODEM so the CODEC is under
+ *					control even if audio driver doesn't
+ *					take it over.
+ */
+static void __init ams_delta_latch2_init(void)
+{
+	u16 latch2 = 1 << LATCH2_PIN_MODEM_NRESET | 1 << LATCH2_PIN_MODEM_CODEC;
+
+	__raw_writew(latch2, LATCH2_VIRT);
 }
 
 static void __init ams_delta_init(void)
@@ -673,6 +696,7 @@ static void __init ams_delta_init(void)
 	omap_cfg_reg(J18_1610_CAM_D7);
 
 	omap_gpio_deps_init();
+	ams_delta_latch2_init();
 	gpiod_add_hogs(ams_delta_gpio_hogs);
 
 	omap_serial_init();
@@ -749,7 +773,7 @@ static struct plat_serial8250_port ams_delta_modem_ports[] = {
 	{
 		.membase	= IOMEM(MODEM_VIRT),
 		.mapbase	= MODEM_PHYS,
-		.irq		= -EINVAL, /* changed later */
+		.irq		= IRQ_NOTCONNECTED, /* changed later */
 		.flags		= UPF_BOOT_AUTOCONF,
 		.irqflags	= IRQF_TRIGGER_RISING,
 		.iotype		= UPIO_MEM,
@@ -813,7 +837,6 @@ static void __init ams_delta_led_init(struct gpio_chip *chip)
 static int __init ams_delta_gpio_init(void)
 {
 	struct gpio_chip *chip;
-	int err;
 
 	if (!machine_is_ams_delta())
 		return -ENODEV;
@@ -824,11 +847,7 @@ static int __init ams_delta_gpio_init(void)
 	else
 		ams_delta_led_init(chip);
 
-	err = gpio_request_array(latch_gpios, ARRAY_SIZE(latch_gpios));
-	if (err)
-		pr_err("Couldn't take over latch1/latch2 GPIO pins\n");
-
-	return err;
+	return 0;
 }
 device_initcall_sync(ams_delta_gpio_init);
 
@@ -844,43 +863,46 @@ static int __init modem_nreset_init(void)
 }
 
 
+/*
+ * This function expects MODEM IRQ number already assigned to the port.
+ * The MODEM device requires its RESET# pin kept high during probe.
+ * That requirement can be fulfilled in several ways:
+ * - with a descriptor of already functional modem_nreset regulator
+ *   assigned to the MODEM private data,
+ * - with the regulator not yet controlled by modem_pm function but
+ *   already enabled by default on probe,
+ * - before the modem_nreset regulator is probed, with the pin already
+ *   set high explicitly.
+ * The last one is already guaranteed by ams_delta_latch2_init() called
+ * from machine_init.
+ * In order to avoid taking over ttyS0 device slot, the MODEM device
+ * should be registered after OMAP serial ports.  Since those ports
+ * are registered at arch_initcall, this function can be called safely
+ * at arch_initcall_sync earliest.
+ */
 static int __init ams_delta_modem_init(void)
 {
 	int err;
 
-	omap_cfg_reg(M14_1510_GPIO2);
-	ams_delta_modem_ports[0].irq =
-			gpio_to_irq(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
+	if (!machine_is_ams_delta())
+		return -ENODEV;
 
-	err = gpio_request(AMS_DELTA_GPIO_PIN_MODEM_IRQ, "modem");
-	if (err) {
-		pr_err("Couldn't request gpio pin for modem\n");
-		return err;
-	}
-	gpio_direction_input(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
+	omap_cfg_reg(M14_1510_GPIO2);
 
 	/* Initialize the modem_nreset regulator consumer before use */
 	modem_priv.regulator = ERR_PTR(-ENODEV);
 
-	ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_CODEC,
-			AMS_DELTA_LATCH2_MODEM_CODEC);
-
 	err = platform_device_register(&ams_delta_modem_device);
-	if (err)
-		gpio_free(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
 
 	return err;
 }
+arch_initcall_sync(ams_delta_modem_init);
 
 static int __init late_init(void)
 {
 	int err;
 
 	err = modem_nreset_init();
-	if (err)
-		return err;
-
-	err = ams_delta_modem_init();
 	if (err)
 		return err;
 
@@ -898,7 +920,6 @@ static int __init late_init(void)
 
 unregister:
 	platform_device_unregister(&ams_delta_modem_device);
-	gpio_free(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
 	return err;
 }
 

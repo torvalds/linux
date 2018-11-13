@@ -340,7 +340,7 @@ static bool is_tracepoint(struct pyrf_event *pevent)
 }
 
 static PyObject*
-tracepoint_field(struct pyrf_event *pe, struct format_field *field)
+tracepoint_field(struct pyrf_event *pe, struct tep_format_field *field)
 {
 	struct tep_handle *pevent = field->event->pevent;
 	void *data = pe->sample.raw_data;
@@ -348,28 +348,28 @@ tracepoint_field(struct pyrf_event *pe, struct format_field *field)
 	unsigned long long val;
 	unsigned int offset, len;
 
-	if (field->flags & FIELD_IS_ARRAY) {
+	if (field->flags & TEP_FIELD_IS_ARRAY) {
 		offset = field->offset;
 		len    = field->size;
-		if (field->flags & FIELD_IS_DYNAMIC) {
+		if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 			val     = tep_read_number(pevent, data + offset, len);
 			offset  = val;
 			len     = offset >> 16;
 			offset &= 0xffff;
 		}
-		if (field->flags & FIELD_IS_STRING &&
+		if (field->flags & TEP_FIELD_IS_STRING &&
 		    is_printable_array(data + offset, len)) {
 			ret = _PyUnicode_FromString((char *)data + offset);
 		} else {
 			ret = PyByteArray_FromStringAndSize((const char *) data + offset, len);
-			field->flags &= ~FIELD_IS_STRING;
+			field->flags &= ~TEP_FIELD_IS_STRING;
 		}
 	} else {
 		val = tep_read_number(pevent, data + field->offset,
 				      field->size);
-		if (field->flags & FIELD_IS_POINTER)
+		if (field->flags & TEP_FIELD_IS_POINTER)
 			ret = PyLong_FromUnsignedLong((unsigned long) val);
-		else if (field->flags & FIELD_IS_SIGNED)
+		else if (field->flags & TEP_FIELD_IS_SIGNED)
 			ret = PyLong_FromLong((long) val);
 		else
 			ret = PyLong_FromUnsignedLong((unsigned long) val);
@@ -383,10 +383,10 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 {
 	const char *str = _PyUnicode_AsString(PyObject_Str(attr_name));
 	struct perf_evsel *evsel = pevent->evsel;
-	struct format_field *field;
+	struct tep_format_field *field;
 
 	if (!evsel->tp_format) {
-		struct event_format *tp_format;
+		struct tep_event_format *tp_format;
 
 		tp_format = trace_event__tp_format_id(evsel->attr.config);
 		if (!tp_format)
@@ -1240,7 +1240,7 @@ static struct {
 static PyObject *pyrf__tracepoint(struct pyrf_evsel *pevsel,
 				  PyObject *args, PyObject *kwargs)
 {
-	struct event_format *tp_format;
+	struct tep_event_format *tp_format;
 	static char *kwlist[] = { "sys", "name", NULL };
 	char *sys  = NULL;
 	char *name = NULL;

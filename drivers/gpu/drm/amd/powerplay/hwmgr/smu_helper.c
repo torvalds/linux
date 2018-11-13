@@ -718,7 +718,7 @@ int smu_set_watermarks_for_clocks_ranges(void *wt_table,
 		table->WatermarkRow[1][i].MaxClock =
 			cpu_to_le16((uint16_t)
 			(wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_max_dcfclk_clk_in_khz) /
-			100);
+			1000);
 		table->WatermarkRow[1][i].MinUclk =
 			cpu_to_le16((uint16_t)
 			(wm_with_clock_ranges->wm_dmif_clocks_ranges[i].wm_min_mem_clk_in_khz) /

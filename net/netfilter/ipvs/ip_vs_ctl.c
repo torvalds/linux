@@ -3234,7 +3234,7 @@ static int ip_vs_genl_dump_dests(struct sk_buff *skb,
 
 	/* Try to find the service for which to dump destinations */
 	if (nlmsg_parse(cb->nlh, GENL_HDRLEN, attrs, IPVS_CMD_ATTR_MAX,
-			ip_vs_cmd_policy, NULL))
+			ip_vs_cmd_policy, cb->extack))
 		goto out_err;
 
 

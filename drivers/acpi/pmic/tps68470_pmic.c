@@ -10,8 +10,8 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/mfd/tps68470.h>
 #include <linux/init.h>
+#include <linux/mfd/tps68470.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 

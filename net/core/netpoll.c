@@ -57,7 +57,6 @@ DEFINE_STATIC_SRCU(netpoll_srcu);
 	 MAX_UDP_CHUNK)
 
 static void zap_completion_queue(void);
-static void netpoll_async_cleanup(struct work_struct *work);
 
 static unsigned int carrier_timeout = 4;
 module_param(carrier_timeout, uint, 0644);
@@ -135,27 +134,9 @@ static void queue_process(struct work_struct *work)
 	}
 }
 
-/*
- * Check whether delayed processing was scheduled for our NIC. If so,
- * we attempt to grab the poll lock and use ->poll() to pump the card.
- * If this fails, either we've recursed in ->poll() or it's already
- * running on another CPU.
- *
- * Note: we don't mask interrupts with this lock because we're using
- * trylock here and interrupts are already disabled in the softirq
- * case. Further, we test the poll_owner to avoid recursion on UP
- * systems where the lock doesn't exist.
- */
 static void poll_one_napi(struct napi_struct *napi)
 {
-	int work = 0;
-
-	/* net_rx_action's ->poll() invocations and our's are
-	 * synchronized by this test which is only made while
-	 * holding the napi->poll_lock.
-	 */
-	if (!test_bit(NAPI_STATE_SCHED, &napi->state))
-		return;
+	int work;
 
 	/* If we set this bit but see that it has already been set,
 	 * that indicates that napi has been disabled and we need
@@ -607,7 +588,6 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev)
 
 	np->dev = ndev;
 	strlcpy(np->dev_name, ndev->name, IFNAMSIZ);
-	INIT_WORK(&np->cleanup_work, netpoll_async_cleanup);
 
 	if (ndev->priv_flags & IFF_DISABLE_NETPOLL) {
 		np_err(np, "%s doesn't support polling, aborting\n",
@@ -806,10 +786,6 @@ void __netpoll_cleanup(struct netpoll *np)
 {
 	struct netpoll_info *npinfo;
 
-	/* rtnl_dereference would be preferable here but
-	 * rcu_cleanup_netpoll path can put us in here safely without
-	 * holding the rtnl, so plain rcu_dereference it is
-	 */
 	npinfo = rtnl_dereference(np->dev->npinfo);
 	if (!npinfo)
 		return;
@@ -830,21 +806,16 @@ void __netpoll_cleanup(struct netpoll *np)
 }
 EXPORT_SYMBOL_GPL(__netpoll_cleanup);
 
-static void netpoll_async_cleanup(struct work_struct *work)
+void __netpoll_free(struct netpoll *np)
 {
-	struct netpoll *np = container_of(work, struct netpoll, cleanup_work);
+	ASSERT_RTNL();
 
-	rtnl_lock();
+	/* Wait for transmitting packets to finish before freeing. */
+	synchronize_rcu_bh();
 	__netpoll_cleanup(np);
-	rtnl_unlock();
 	kfree(np);
 }
-
-void __netpoll_free_async(struct netpoll *np)
-{
-	schedule_work(&np->cleanup_work);
-}
-EXPORT_SYMBOL_GPL(__netpoll_free_async);
+EXPORT_SYMBOL_GPL(__netpoll_free);
 
 void netpoll_cleanup(struct netpoll *np)
 {

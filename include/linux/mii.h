@@ -10,6 +10,7 @@
 
 
 #include <linux/if.h>
+#include <linux/linkmode.h>
 #include <uapi/linux/mii.h>
 
 struct ethtool_cmd;
@@ -132,6 +133,34 @@ static inline u32 ethtool_adv_to_mii_adv_t(u32 ethadv)
 }
 
 /**
+ * linkmode_adv_to_mii_adv_t
+ * @advertising: the linkmode advertisement settings
+ *
+ * A small helper function that translates linkmode advertisement
+ * settings to phy autonegotiation advertisements for the
+ * MII_ADVERTISE register.
+ */
+static inline u32 linkmode_adv_to_mii_adv_t(unsigned long *advertising)
+{
+	u32 result = 0;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, advertising))
+		result |= ADVERTISE_10HALF;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, advertising))
+		result |= ADVERTISE_10FULL;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, advertising))
+		result |= ADVERTISE_100HALF;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, advertising))
+		result |= ADVERTISE_100FULL;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT, advertising))
+		result |= ADVERTISE_PAUSE_CAP;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, advertising))
+		result |= ADVERTISE_PAUSE_ASYM;
+
+	return result;
+}
+
+/**
  * mii_adv_to_ethtool_adv_t
  * @adv: value of the MII_ADVERTISE register
  *
@@ -173,6 +202,28 @@ static inline u32 ethtool_adv_to_mii_ctrl1000_t(u32 ethadv)
 	if (ethadv & ADVERTISED_1000baseT_Half)
 		result |= ADVERTISE_1000HALF;
 	if (ethadv & ADVERTISED_1000baseT_Full)
+		result |= ADVERTISE_1000FULL;
+
+	return result;
+}
+
+/**
+ * linkmode_adv_to_mii_ctrl1000_t
+ * advertising: the linkmode advertisement settings
+ *
+ * A small helper function that translates linkmode advertisement
+ * settings to phy autonegotiation advertisements for the
+ * MII_CTRL1000 register when in 1000T mode.
+ */
+static inline u32 linkmode_adv_to_mii_ctrl1000_t(unsigned long *advertising)
+{
+	u32 result = 0;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+			      advertising))
+		result |= ADVERTISE_1000HALF;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			      advertising))
 		result |= ADVERTISE_1000FULL;
 
 	return result;
@@ -300,6 +351,56 @@ static inline u32 mii_lpa_to_ethtool_lpa_x(u32 lpa)
 		result |= ADVERTISED_Autoneg;
 
 	return result | mii_adv_to_ethtool_adv_x(lpa);
+}
+
+/**
+ * mii_adv_to_linkmode_adv_t
+ * @advertising:pointer to destination link mode.
+ * @adv: value of the MII_ADVERTISE register
+ *
+ * A small helper function that translates MII_ADVERTISE bits
+ * to linkmode advertisement settings.
+ */
+static inline void mii_adv_to_linkmode_adv_t(unsigned long *advertising,
+					     u32 adv)
+{
+	linkmode_zero(advertising);
+
+	if (adv & ADVERTISE_10HALF)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+				 advertising);
+	if (adv & ADVERTISE_10FULL)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+				 advertising);
+	if (adv & ADVERTISE_100HALF)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+				 advertising);
+	if (adv & ADVERTISE_100FULL)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+				 advertising);
+	if (adv & ADVERTISE_PAUSE_CAP)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, advertising);
+	if (adv & ADVERTISE_PAUSE_ASYM)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, advertising);
+}
+
+/**
+ * ethtool_adv_to_lcl_adv_t
+ * @advertising:pointer to ethtool advertising
+ *
+ * A small helper function that translates ethtool advertising to LVL
+ * pause capabilities.
+ */
+static inline u32 ethtool_adv_to_lcl_adv_t(u32 advertising)
+{
+	u32 lcl_adv = 0;
+
+	if (advertising & ADVERTISED_Pause)
+		lcl_adv |= ADVERTISE_PAUSE_CAP;
+	if (advertising & ADVERTISED_Asym_Pause)
+		lcl_adv |= ADVERTISE_PAUSE_ASYM;
+
+	return lcl_adv;
 }
 
 /**

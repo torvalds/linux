@@ -29,6 +29,7 @@
 #include <linux/dmi.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/platform_data/x86/asus-wmi.h>
 #include <linux/input/mt.h>
 #include <linux/usb.h> /* For to_usb_interface for T100 touchpad intf check */
 
@@ -349,6 +350,24 @@ static void asus_kbd_backlight_work(struct work_struct *work)
 		hid_err(led->hdev, "Asus failed to set keyboard backlight: %d\n", ret);
 }
 
+/* WMI-based keyboard backlight LED control (via asus-wmi driver) takes
+ * precedence. We only activate HID-based backlight control when the
+ * WMI control is not available.
+ */
+static bool asus_kbd_wmi_led_control_present(struct hid_device *hdev)
+{
+	u32 value;
+	int ret;
+
+	ret = asus_wmi_evaluate_method(ASUS_WMI_METHODID_DSTS2,
+				       ASUS_WMI_DEVID_KBD_BACKLIGHT, 0, &value);
+	hid_dbg(hdev, "WMI backlight check: rc %d value %x", ret, value);
+	if (ret)
+		return false;
+
+	return !!(value & ASUS_WMI_DSTS_PRESENCE_BIT);
+}
+
 static int asus_kbd_register_leds(struct hid_device *hdev)
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
@@ -436,7 +455,9 @@ static int asus_input_configured(struct hid_device *hdev, struct hid_input *hi)
 
 	drvdata->input = input;
 
-	if (drvdata->enable_backlight && asus_kbd_register_leds(hdev))
+	if (drvdata->enable_backlight &&
+	    !asus_kbd_wmi_led_control_present(hdev) &&
+	    asus_kbd_register_leds(hdev))
 		hid_warn(hdev, "Failed to initialize backlight.\n");
 
 	return 0;

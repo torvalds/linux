@@ -36,6 +36,7 @@ struct aq_nic_cfg_s {
 	u32 flow_control;
 	u32 link_speed_msk;
 	u32 vlan_id;
+	u32 wol;
 	u16 is_mc_list_enabled;
 	u16 mc_list_count;
 	bool is_autoneg;
@@ -44,6 +45,7 @@ struct aq_nic_cfg_s {
 	bool is_lro;
 	u8  tcs;
 	struct aq_rss_parameters aq_rss;
+	u32 eee_speeds;
 };
 
 #define AQ_NIC_FLAG_STARTED     0x00000004U
@@ -53,6 +55,8 @@ struct aq_nic_cfg_s {
 #define AQ_NIC_LINK_DOWN        0x04000000U
 #define AQ_NIC_FLAG_ERR_UNPLUG  0x40000000U
 #define AQ_NIC_FLAG_ERR_HW      0x80000000U
+
+#define AQ_NIC_WOL_ENABLED	BIT(0)
 
 #define AQ_NIC_TCVEC2RING(_NIC_, _TC_, _VEC_) \
 	((_TC_) * AQ_CFG_TCS_MAX + (_VEC_))

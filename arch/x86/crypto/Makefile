@@ -60,9 +60,6 @@ endif
 ifeq ($(avx2_supported),yes)
 	obj-$(CONFIG_CRYPTO_CAMELLIA_AESNI_AVX2_X86_64) += camellia-aesni-avx2.o
 	obj-$(CONFIG_CRYPTO_SERPENT_AVX2_X86_64) += serpent-avx2.o
-	obj-$(CONFIG_CRYPTO_SHA1_MB) += sha1-mb/
-	obj-$(CONFIG_CRYPTO_SHA256_MB) += sha256-mb/
-	obj-$(CONFIG_CRYPTO_SHA512_MB) += sha512-mb/
 
 	obj-$(CONFIG_CRYPTO_MORUS1280_AVX2) += morus1280-avx2.o
 endif
@@ -106,7 +103,7 @@ ifeq ($(avx2_supported),yes)
 	morus1280-avx2-y := morus1280-avx2-asm.o morus1280-avx2-glue.o
 endif
 
-aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o fpu.o
+aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o
 aesni-intel-$(CONFIG_64BIT) += aesni-intel_avx-x86_64.o aes_ctrby8_avx-x86_64.o
 ghash-clmulni-intel-y := ghash-clmulni-intel_asm.o ghash-clmulni-intel_glue.o
 sha1-ssse3-y := sha1_ssse3_asm.o sha1_ssse3_glue.o

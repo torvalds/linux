@@ -22,7 +22,6 @@
 #include <linux/errno.h>
 #include <linux/swap.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/cache.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
@@ -284,7 +283,6 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 
 #endif /* CONFIG_NUMA */
 
-#ifdef CONFIG_HAVE_ARCH_PFN_VALID
 int pfn_valid(unsigned long pfn)
 {
 	phys_addr_t addr = pfn << PAGE_SHIFT;
@@ -294,7 +292,6 @@ int pfn_valid(unsigned long pfn)
 	return memblock_is_map_memory(addr);
 }
 EXPORT_SYMBOL(pfn_valid);
-#endif
 
 #ifndef CONFIG_SPARSEMEM
 static void __init arm64_memory_present(void)
@@ -538,7 +535,7 @@ static inline void free_memmap(unsigned long start_pfn, unsigned long end_pfn)
 	 * memmap array.
 	 */
 	if (pg < pgend)
-		free_bootmem(pg, pgend - pg);
+		memblock_free(pg, pgend - pg);
 }
 
 /*
@@ -601,7 +598,7 @@ void __init mem_init(void)
 	free_unused_memmap();
 #endif
 	/* this will put all unused low memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 
 	kexec_reserve_crashkres_pages();
 

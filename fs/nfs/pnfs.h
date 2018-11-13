@@ -125,6 +125,7 @@ struct pnfs_layoutdriver_type {
 	struct module *owner;
 	unsigned flags;
 	unsigned max_deviceinfo_size;
+	unsigned max_layoutget_response;
 
 	int (*set_layoutdriver) (struct nfs_server *, const struct nfs_fh *);
 	int (*clear_layoutdriver) (struct nfs_server *);

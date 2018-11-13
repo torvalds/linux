@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2016-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
 
 #ifndef __NFP_ASM_H__
 #define __NFP_ASM_H__ 1
@@ -81,6 +51,15 @@
 #define OP_BR_BIT_DEFBR		OP_BR_DEFBR
 #define OP_BR_BIT_ADDR_LO	OP_BR_ADDR_LO
 #define OP_BR_BIT_ADDR_HI	OP_BR_ADDR_HI
+
+#define OP_BR_ALU_BASE		0x0e800000000ULL
+#define OP_BR_ALU_BASE_MASK	0x0ff80000000ULL
+#define OP_BR_ALU_A_SRC		0x000000003ffULL
+#define OP_BR_ALU_B_SRC		0x000000ffc00ULL
+#define OP_BR_ALU_DEFBR		0x00000300000ULL
+#define OP_BR_ALU_IMM_HI	0x0007fc00000ULL
+#define OP_BR_ALU_SRC_LMEXTN	0x40000000000ULL
+#define OP_BR_ALU_DST_LMEXTN	0x80000000000ULL
 
 static inline bool nfp_is_br(u64 insn)
 {

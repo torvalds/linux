@@ -6,6 +6,7 @@ Required properties:
 - compatible : must be one of :
 		"mediatek,mt2701-smi-larb"
 		"mediatek,mt2712-smi-larb"
+		"mediatek,mt7623-smi-larb", "mediatek,mt2701-smi-larb"
 		"mediatek,mt8173-smi-larb"
 - reg : the register and size of this local arbiter.
 - mediatek,smi : a phandle to the smi_common node.
@@ -16,7 +17,7 @@ Required properties:
 	    the register.
   - "smi" : It's the clock for transfer data and command.
 
-Required property for mt2701 and mt2712:
+Required property for mt2701, mt2712 and mt7623:
 - mediatek,larb-id :the hardware id of this larb.
 
 Example:

@@ -491,7 +491,6 @@ static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 	struct fstrim_range range;
 	u64 minlen = ULLONG_MAX;
 	u64 num_devices = 0;
-	u64 total_bytes = btrfs_super_total_bytes(fs_info->super_copy);
 	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -515,11 +514,15 @@ static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 		return -EOPNOTSUPP;
 	if (copy_from_user(&range, arg, sizeof(range)))
 		return -EFAULT;
-	if (range.start > total_bytes ||
-	    range.len < fs_info->sb->s_blocksize)
+
+	/*
+	 * NOTE: Don't truncate the range using super->total_bytes.  Bytenr of
+	 * block group is in the logical address space, which can be any
+	 * sectorsize aligned bytenr in  the range [0, U64_MAX].
+	 */
+	if (range.len < fs_info->sb->s_blocksize)
 		return -EINVAL;
 
-	range.len = min(range.len, total_bytes - range.start);
 	range.minlen = max(range.minlen, minlen);
 	ret = btrfs_trim_fs(fs_info, &range);
 	if (ret < 0)
@@ -686,8 +689,7 @@ static noinline int create_subvol(struct inode *dir,
 		goto fail;
 	}
 
-	ret = btrfs_insert_dir_item(trans, root,
-				    name, namelen, BTRFS_I(dir), &key,
+	ret = btrfs_insert_dir_item(trans, name, namelen, BTRFS_I(dir), &key,
 				    BTRFS_FT_DIR, index);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
@@ -1324,7 +1326,7 @@ again:
 
 	if (i_done != page_cnt) {
 		spin_lock(&BTRFS_I(inode)->lock);
-		BTRFS_I(inode)->outstanding_extents++;
+		btrfs_mod_outstanding_extents(BTRFS_I(inode), 1);
 		spin_unlock(&BTRFS_I(inode)->lock);
 		btrfs_delalloc_release_space(inode, data_reserved,
 				start_index << PAGE_SHIFT,
@@ -3627,26 +3629,6 @@ out_unlock:
 	return ret;
 }
 
-int btrfs_dedupe_file_range(struct file *src_file, loff_t src_loff,
-			    struct file *dst_file, loff_t dst_loff,
-			    u64 olen)
-{
-	struct inode *src = file_inode(src_file);
-	struct inode *dst = file_inode(dst_file);
-	u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
-
-	if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
-		/*
-		 * Btrfs does not support blocksize < page_size. As a
-		 * result, btrfs_cmp_data() won't correctly handle
-		 * this situation without an update.
-		 */
-		return -EINVAL;
-	}
-
-	return btrfs_extent_same(src, src_loff, olen, dst, dst_loff);
-}
-
 static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 				     struct inode *inode,
 				     u64 endoff,
@@ -4348,10 +4330,34 @@ out_unlock:
 	return ret;
 }
 
-int btrfs_clone_file_range(struct file *src_file, loff_t off,
-		struct file *dst_file, loff_t destoff, u64 len)
+loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
+		struct file *dst_file, loff_t destoff, loff_t len,
+		unsigned int remap_flags)
 {
-	return btrfs_clone_files(dst_file, src_file, off, len, destoff);
+	int ret;
+
+	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
+		return -EINVAL;
+
+	if (remap_flags & REMAP_FILE_DEDUP) {
+		struct inode *src = file_inode(src_file);
+		struct inode *dst = file_inode(dst_file);
+		u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
+
+		if (WARN_ON_ONCE(bs < PAGE_SIZE)) {
+			/*
+			 * Btrfs does not support blocksize < page_size. As a
+			 * result, btrfs_cmp_data() won't correctly handle
+			 * this situation without an update.
+			 */
+			return -EINVAL;
+		}
+
+		ret = btrfs_extent_same(src, off, len, dst, destoff);
+	} else {
+		ret = btrfs_clone_files(dst_file, src_file, off, len, destoff);
+	}
+	return ret < 0 ? ret : len;
 }
 
 static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
@@ -4393,7 +4399,7 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 		ret = PTR_ERR(new_root);
 		goto out;
 	}
-	if (!is_fstree(new_root->objectid)) {
+	if (!is_fstree(new_root->root_key.objectid)) {
 		ret = -ENOENT;
 		goto out;
 	}

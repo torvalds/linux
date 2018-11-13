@@ -758,6 +758,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		break;
 
 	case HID_UP_DIGITIZER:
+		if ((field->application & 0xff) == 0x01) /* Digitizer */
+			__set_bit(INPUT_PROP_POINTER, input->propbit);
+		else if ((field->application & 0xff) == 0x02) /* Pen */
+			__set_bit(INPUT_PROP_DIRECT, input->propbit);
+
 		switch (usage->hid & 0xff) {
 		case 0x00: /* Undefined */
 			goto ignore;
@@ -1516,6 +1521,7 @@ static struct hid_input *hidinput_allocate(struct hid_device *hid,
 	struct hid_input *hidinput = kzalloc(sizeof(*hidinput), GFP_KERNEL);
 	struct input_dev *input_dev = input_allocate_device();
 	const char *suffix = NULL;
+	size_t suffix_len, name_len;
 
 	if (!hidinput || !input_dev)
 		goto fail;
@@ -1559,10 +1565,15 @@ static struct hid_input *hidinput_allocate(struct hid_device *hid,
 	}
 
 	if (suffix) {
-		hidinput->name = kasprintf(GFP_KERNEL, "%s %s",
-					   hid->name, suffix);
-		if (!hidinput->name)
-			goto fail;
+		name_len = strlen(hid->name);
+		suffix_len = strlen(suffix);
+		if ((name_len < suffix_len) ||
+		    strcmp(hid->name + name_len - suffix_len, suffix)) {
+			hidinput->name = kasprintf(GFP_KERNEL, "%s %s",
+						   hid->name, suffix);
+			if (!hidinput->name)
+				goto fail;
+		}
 	}
 
 	input_set_drvdata(input_dev, hid);
@@ -1827,3 +1838,47 @@ void hidinput_disconnect(struct hid_device *hid)
 }
 EXPORT_SYMBOL_GPL(hidinput_disconnect);
 
+/**
+ * hid_scroll_counter_handle_scroll() - Send high- and low-resolution scroll
+ *                                      events given a high-resolution wheel
+ *                                      movement.
+ * @counter: a hid_scroll_counter struct describing the wheel.
+ * @hi_res_value: the movement of the wheel, in the mouse's high-resolution
+ *                units.
+ *
+ * Given a high-resolution movement, this function converts the movement into
+ * microns and emits high-resolution scroll events for the input device. It also
+ * uses the multiplier from &struct hid_scroll_counter to emit low-resolution
+ * scroll events when appropriate for backwards-compatibility with userspace
+ * input libraries.
+ */
+void hid_scroll_counter_handle_scroll(struct hid_scroll_counter *counter,
+				      int hi_res_value)
+{
+	int low_res_value, remainder, multiplier;
+
+	input_report_rel(counter->dev, REL_WHEEL_HI_RES,
+			 hi_res_value * counter->microns_per_hi_res_unit);
+
+	/*
+	 * Update the low-res remainder with the high-res value,
+	 * but reset if the direction has changed.
+	 */
+	remainder = counter->remainder;
+	if ((remainder ^ hi_res_value) < 0)
+		remainder = 0;
+	remainder += hi_res_value;
+
+	/*
+	 * Then just use the resolution multiplier to see if
+	 * we should send a low-res (aka regular wheel) event.
+	 */
+	multiplier = counter->resolution_multiplier;
+	low_res_value = remainder / multiplier;
+	remainder -= low_res_value * multiplier;
+	counter->remainder = remainder;
+
+	if (low_res_value)
+		input_report_rel(counter->dev, REL_WHEEL, low_res_value);
+}
+EXPORT_SYMBOL_GPL(hid_scroll_counter_handle_scroll);

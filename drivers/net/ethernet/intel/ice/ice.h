@@ -28,6 +28,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/if_bridge.h>
+#include <linux/avf/virtchnl.h>
 #include <net/ipv6.h>
 #include "ice_devids.h"
 #include "ice_type.h"
@@ -35,17 +36,20 @@
 #include "ice_switch.h"
 #include "ice_common.h"
 #include "ice_sched.h"
+#include "ice_virtchnl_pf.h"
+#include "ice_sriov.h"
 
 extern const char ice_drv_ver[];
 #define ICE_BAR0		0
 #define ICE_DFLT_NUM_DESC	128
-#define ICE_MIN_NUM_DESC	8
-#define ICE_MAX_NUM_DESC	8160
 #define ICE_REQ_DESC_MULTIPLE	32
+#define ICE_MIN_NUM_DESC	ICE_REQ_DESC_MULTIPLE
+#define ICE_MAX_NUM_DESC	8160
 #define ICE_DFLT_TRAFFIC_CLASS	BIT(0)
 #define ICE_INT_NAME_STR_LEN	(IFNAMSIZ + 16)
 #define ICE_ETHTOOL_FWVER_LEN	32
 #define ICE_AQ_LEN		64
+#define ICE_MBXQ_LEN		64
 #define ICE_MIN_MSIX		2
 #define ICE_NO_VSI		0xffff
 #define ICE_MAX_VSI_ALLOC	130
@@ -62,6 +66,15 @@ extern const char ice_drv_ver[];
 #define ICE_RES_VALID_BIT	0x8000
 #define ICE_RES_MISC_VEC_ID	(ICE_RES_VALID_BIT - 1)
 #define ICE_INVAL_Q_INDEX	0xffff
+#define ICE_INVAL_VFID		256
+#define ICE_MAX_VF_COUNT	256
+#define ICE_MAX_QS_PER_VF		256
+#define ICE_MIN_QS_PER_VF		1
+#define ICE_DFLT_QS_PER_VF		4
+#define ICE_MAX_BASE_QS_PER_VF		16
+#define ICE_MAX_INTR_PER_VF		65
+#define ICE_MIN_INTR_PER_VF		(ICE_MIN_QS_PER_VF + 1)
+#define ICE_DFLT_INTR_PER_VF		(ICE_DFLT_QS_PER_VF + 1)
 
 #define ICE_VSIQF_HKEY_ARRAY_SIZE	((VSIQF_HKEY_MAX_INDEX + 1) *	4)
 
@@ -122,7 +135,8 @@ struct ice_sw {
 enum ice_state {
 	__ICE_DOWN,
 	__ICE_NEEDS_RESTART,
-	__ICE_RESET_RECOVERY_PENDING,	/* set by driver when reset starts */
+	__ICE_PREPARED_FOR_RESET,	/* set by driver when prepared */
+	__ICE_RESET_OICR_RECV,		/* set by driver after rcv reset OICR */
 	__ICE_PFR_REQ,			/* set by driver and peers */
 	__ICE_CORER_REQ,		/* set by driver and peers */
 	__ICE_GLOBR_REQ,		/* set by driver and peers */
@@ -131,10 +145,24 @@ enum ice_state {
 	__ICE_EMPR_RECV,		/* set by OICR handler */
 	__ICE_SUSPENDED,		/* set on module remove path */
 	__ICE_RESET_FAILED,		/* set by reset/rebuild */
+	/* When checking for the PF to be in a nominal operating state, the
+	 * bits that are grouped at the beginning of the list need to be
+	 * checked.  Bits occurring before __ICE_STATE_NOMINAL_CHECK_BITS will
+	 * be checked.  If you need to add a bit into consideration for nominal
+	 * operating state, it must be added before
+	 * __ICE_STATE_NOMINAL_CHECK_BITS.  Do not move this entry's position
+	 * without appropriate consideration.
+	 */
+	__ICE_STATE_NOMINAL_CHECK_BITS,
 	__ICE_ADMINQ_EVENT_PENDING,
+	__ICE_MAILBOXQ_EVENT_PENDING,
+	__ICE_MDD_EVENT_PENDING,
+	__ICE_VFLR_EVENT_PENDING,
 	__ICE_FLTR_OVERFLOW_PROMISC,
+	__ICE_VF_DIS,
 	__ICE_CFG_BUSY,
 	__ICE_SERVICE_SCHED,
+	__ICE_SERVICE_DIS,
 	__ICE_STATE_NBITS		/* must be last */
 };
 
@@ -168,13 +196,16 @@ struct ice_vsi {
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
 	int num_q_vectors;
-	int base_vector;
+	int sw_base_vector;		/* Irq base for OS reserved vectors */
+	int hw_base_vector;		/* HW (absolute) index of a vector */
 	enum ice_vsi_type type;
 	u16 vsi_num;			 /* HW (absolute) index of this VSI */
 	u16 idx;			 /* software index in pf->vsi[] */
 
 	/* Interrupt thresholds */
 	u16 work_lmt;
+
+	s16 vf_id;			/* VF ID for SR-IOV VSIs */
 
 	/* RSS config */
 	u16 rss_table_size;	/* HW RSS table size */
@@ -225,21 +256,39 @@ struct ice_q_vector {
 	u8 num_ring_tx;			/* total number of tx rings in vector */
 	u8 num_ring_rx;			/* total number of rx rings in vector */
 	char name[ICE_INT_NAME_STR_LEN];
+	/* in usecs, need to use ice_intrl_to_usecs_reg() before writing this
+	 * value to the device
+	 */
+	u8 intrl;
 } ____cacheline_internodealigned_in_smp;
 
 enum ice_pf_flags {
 	ICE_FLAG_MSIX_ENA,
 	ICE_FLAG_FLTR_SYNC,
 	ICE_FLAG_RSS_ENA,
+	ICE_FLAG_SRIOV_ENA,
+	ICE_FLAG_SRIOV_CAPABLE,
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 
 struct ice_pf {
 	struct pci_dev *pdev;
+
+	/* OS reserved IRQ details */
 	struct msix_entry *msix_entries;
-	struct ice_res_tracker *irq_tracker;
+	struct ice_res_tracker *sw_irq_tracker;
+
+	/* HW reserved Interrupts for this PF */
+	struct ice_res_tracker *hw_irq_tracker;
+
 	struct ice_vsi **vsi;		/* VSIs created by the driver */
 	struct ice_sw *first_sw;	/* first switch created by firmware */
+	/* Virtchnl/SR-IOV config info */
+	struct ice_vf *vf;
+	int num_alloc_vfs;		/* actual number of VFs allocated */
+	u16 num_vfs_supported;		/* num VFs supported for this PF */
+	u16 num_vf_qps;			/* num queue pairs per VF */
+	u16 num_vf_msix;		/* num vectors per VF */
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
 	DECLARE_BITMAP(avail_txqs, ICE_MAX_TXQS);
 	DECLARE_BITMAP(avail_rxqs, ICE_MAX_RXQS);
@@ -252,9 +301,11 @@ struct ice_pf {
 	struct mutex sw_mutex;		/* lock for protecting VSI alloc flow */
 	u32 msg_enable;
 	u32 hw_csum_rx_error;
-	u32 oicr_idx;		/* Other interrupt cause vector index */
+	u32 sw_oicr_idx;	/* Other interrupt cause SW vector index */
+	u32 num_avail_sw_msix;	/* remaining MSIX SW vectors left unclaimed */
+	u32 hw_oicr_idx;	/* Other interrupt cause vector HW index */
+	u32 num_avail_hw_msix;	/* remaining HW MSIX vectors left unclaimed */
 	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
-	u32 num_avail_msix;	/* remaining MSIX vectors left unclaimed */
 	u16 num_lan_tx;		/* num lan tx queues setup */
 	u16 num_lan_rx;		/* num lan rx queues setup */
 	u16 q_left_tx;		/* remaining num tx queues left unclaimed */
@@ -270,6 +321,9 @@ struct ice_pf {
 	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
 	u8 stat_prev_loaded;	/* has previous stats been loaded */
+	u32 tx_timeout_count;
+	unsigned long tx_timeout_last_recovery;
+	u32 tx_timeout_recovery_level;
 	char int_name[ICE_INT_NAME_STR_LEN];
 };
 
@@ -286,8 +340,8 @@ struct ice_netdev_priv {
 static inline void ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 				       struct ice_q_vector *q_vector)
 {
-	u32 vector = (vsi && q_vector) ? vsi->base_vector + q_vector->v_idx :
-					((struct ice_pf *)hw->back)->oicr_idx;
+	u32 vector = (vsi && q_vector) ? vsi->hw_base_vector + q_vector->v_idx :
+				((struct ice_pf *)hw->back)->hw_oicr_idx;
 	int itr = ICE_ITR_NONE;
 	u32 val;
 

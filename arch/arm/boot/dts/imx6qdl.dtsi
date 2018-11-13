@@ -317,7 +317,7 @@
 					status = "disabled";
 				};
 
-				ecspi1: ecspi@2008000 {
+				ecspi1: spi@2008000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
@@ -331,7 +331,7 @@
 					status = "disabled";
 				};
 
-				ecspi2: ecspi@200c000 {
+				ecspi2: spi@200c000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
@@ -345,7 +345,7 @@
 					status = "disabled";
 				};
 
-				ecspi3: ecspi@2010000 {
+				ecspi3: spi@2010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
@@ -359,7 +359,7 @@
 					status = "disabled";
 				};
 
-				ecspi4: ecspi@2014000 {
+				ecspi4: spi@2014000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";

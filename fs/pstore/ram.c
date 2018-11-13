@@ -587,9 +587,16 @@ static int ramoops_init_przs(const char *name,
 		goto fail;
 
 	for (i = 0; i < *cnt; i++) {
+		char *label;
+
+		if (*cnt == 1)
+			label = kasprintf(GFP_KERNEL, "ramoops:%s", name);
+		else
+			label = kasprintf(GFP_KERNEL, "ramoops:%s(%d/%d)",
+					  name, i, *cnt - 1);
 		prz_ar[i] = persistent_ram_new(*paddr, zone_sz, sig,
-						  &cxt->ecc_info,
-						  cxt->memtype, flags);
+					       &cxt->ecc_info,
+					       cxt->memtype, flags, label);
 		if (IS_ERR(prz_ar[i])) {
 			err = PTR_ERR(prz_ar[i]);
 			dev_err(dev, "failed to request %s mem region (0x%zx@0x%llx): %d\n",
@@ -619,6 +626,8 @@ static int ramoops_init_prz(const char *name,
 			    struct persistent_ram_zone **prz,
 			    phys_addr_t *paddr, size_t sz, u32 sig)
 {
+	char *label;
+
 	if (!sz)
 		return 0;
 
@@ -629,8 +638,9 @@ static int ramoops_init_prz(const char *name,
 		return -ENOMEM;
 	}
 
+	label = kasprintf(GFP_KERNEL, "ramoops:%s", name);
 	*prz = persistent_ram_new(*paddr, sz, sig, &cxt->ecc_info,
-				  cxt->memtype, 0);
+				  cxt->memtype, 0, label);
 	if (IS_ERR(*prz)) {
 		int err = PTR_ERR(*prz);
 
@@ -898,8 +908,22 @@ static struct platform_driver ramoops_driver = {
 	},
 };
 
-static void ramoops_register_dummy(void)
+static inline void ramoops_unregister_dummy(void)
 {
+	platform_device_unregister(dummy);
+	dummy = NULL;
+
+	kfree(dummy_data);
+	dummy_data = NULL;
+}
+
+static void __init ramoops_register_dummy(void)
+{
+	/*
+	 * Prepare a dummy platform data structure to carry the module
+	 * parameters. If mem_size isn't set, then there are no module
+	 * parameters, and we can skip this.
+	 */
 	if (!mem_size)
 		return;
 
@@ -932,21 +956,28 @@ static void ramoops_register_dummy(void)
 	if (IS_ERR(dummy)) {
 		pr_info("could not create platform device: %ld\n",
 			PTR_ERR(dummy));
+		dummy = NULL;
+		ramoops_unregister_dummy();
 	}
 }
 
 static int __init ramoops_init(void)
 {
+	int ret;
+
 	ramoops_register_dummy();
-	return platform_driver_register(&ramoops_driver);
+	ret = platform_driver_register(&ramoops_driver);
+	if (ret != 0)
+		ramoops_unregister_dummy();
+
+	return ret;
 }
-late_initcall(ramoops_init);
+postcore_initcall(ramoops_init);
 
 static void __exit ramoops_exit(void)
 {
 	platform_driver_unregister(&ramoops_driver);
-	platform_device_unregister(dummy);
-	kfree(dummy_data);
+	ramoops_unregister_dummy();
 }
 module_exit(ramoops_exit);
 

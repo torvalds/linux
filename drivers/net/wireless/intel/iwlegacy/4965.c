@@ -1297,6 +1297,8 @@ il4965_send_rxon_assoc(struct il_priv *il)
 	const struct il_rxon_cmd *rxon1 = &il->staging;
 	const struct il_rxon_cmd *rxon2 = &il->active;
 
+	lockdep_assert_held(&il->mutex);
+
 	if (rxon1->flags == rxon2->flags &&
 	    rxon1->filter_flags == rxon2->filter_flags &&
 	    rxon1->cck_basic_rates == rxon2->cck_basic_rates &&

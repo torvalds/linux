@@ -18,6 +18,9 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 	return test_bit(tc, (unsigned long *)&bitmap);
 }
 
+/* Driver always calls main vsi_handle first */
+#define ICE_MAIN_VSI_HANDLE		0
+
 /* debug masks - set these bits in hw->debug_mask to control output */
 #define ICE_DBG_INIT		BIT_ULL(1)
 #define ICE_DBG_LINK		BIT_ULL(4)
@@ -34,9 +37,14 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 enum ice_aq_res_ids {
 	ICE_NVM_RES_ID = 1,
 	ICE_SPD_RES_ID,
-	ICE_GLOBAL_CFG_LOCK_RES_ID,
-	ICE_CHANGE_LOCK_RES_ID
+	ICE_CHANGE_LOCK_RES_ID,
+	ICE_GLOBAL_CFG_LOCK_RES_ID
 };
+
+/* FW update timeout definitions are in milliseconds */
+#define ICE_NVM_TIMEOUT			180000
+#define ICE_CHANGE_LOCK_TIMEOUT		1000
+#define ICE_GLOBAL_CFG_LOCK_TIMEOUT	3000
 
 enum ice_aq_res_access_type {
 	ICE_RES_READ = 1,
@@ -76,6 +84,7 @@ enum ice_media_type {
 
 enum ice_vsi_type {
 	ICE_VSI_PF = 0,
+	ICE_VSI_VF,
 };
 
 struct ice_link_status {
@@ -93,6 +102,15 @@ struct ice_link_status {
 	 * ice_aqc_get_phy_caps structure
 	 */
 	u8 module_type[ICE_MODULE_TYPE_TOTAL_BYTE];
+};
+
+/* Different reset sources for which a disable queue AQ call has to be made in
+ * order to clean the TX scheduler as a part of the reset
+ */
+enum ice_disq_rst_src {
+	ICE_NO_RESET = 0,
+	ICE_VM_RESET,
+	ICE_VF_RESET,
 };
 
 /* PHY info such as phy_type, etc... */
@@ -119,6 +137,9 @@ struct ice_hw_common_caps {
 	/* Max MTU for function or device */
 	u16 max_mtu;
 
+	/* Virtualization support */
+	u8 sr_iov_1_1;			/* SR-IOV enabled */
+
 	/* RSS related capabilities */
 	u16 rss_table_size;		/* 512 for PFs and 64 for VFs */
 	u8 rss_table_entry_width;	/* RSS Entry width in bits */
@@ -127,12 +148,15 @@ struct ice_hw_common_caps {
 /* Function specific capabilities */
 struct ice_hw_func_caps {
 	struct ice_hw_common_caps common_cap;
+	u32 num_allocd_vfs;		/* Number of allocated VFs */
+	u32 vf_base_id;			/* Logical ID of the first VF */
 	u32 guaranteed_num_vsi;
 };
 
 /* Device wide capabilities */
 struct ice_hw_dev_caps {
 	struct ice_hw_common_caps common_cap;
+	u32 num_vfs_exposed;		/* Total number of VFs exposed */
 	u32 num_vsi_allocd_to_host;	/* Excluding EMP VSI */
 };
 
@@ -142,11 +166,18 @@ struct ice_mac_info {
 	u8 perm_addr[ETH_ALEN];
 };
 
-/* Various RESET request, These are not tied with HW reset types */
+/* Reset types used to determine which kind of reset was requested. These
+ * defines match what the RESET_TYPE field of the GLGEN_RSTAT register.
+ * ICE_RESET_PFR does not match any RESET_TYPE field in the GLGEN_RSTAT register
+ * because its reset source is different than the other types listed.
+ */
 enum ice_reset_req {
-	ICE_RESET_PFR	= 0,
+	ICE_RESET_POR	= 0,
+	ICE_RESET_INVAL	= 0,
 	ICE_RESET_CORER	= 1,
 	ICE_RESET_GLOBR	= 2,
+	ICE_RESET_EMPR	= 3,
+	ICE_RESET_PFR	= 4,
 };
 
 /* Bus parameters */
@@ -180,7 +211,7 @@ struct ice_sched_node {
 	struct ice_sched_node **children;
 	struct ice_aqc_txsched_elem_data info;
 	u32 agg_id;			/* aggregator group id */
-	u16 vsi_id;
+	u16 vsi_handle;
 	u8 in_use;			/* suspended or in use */
 	u8 tx_sched_layer;		/* Logical Layer (1-9) */
 	u8 num_children;
@@ -204,6 +235,7 @@ enum ice_agg_type {
 };
 
 #define ICE_SCHED_DFLT_RL_PROF_ID	0
+#define ICE_SCHED_DFLT_BW_WT		1
 
 /* vsi type list entry to locate corresponding vsi/ag nodes */
 struct ice_sched_vsi_info {
@@ -238,8 +270,6 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
-	struct ice_sched_tx_policy sched_policy;
-	struct list_head vsi_info_list;
 	struct list_head agg_list;	/* lists all aggregator */
 	u8 lport;
 #define ICE_LPORT_MASK		0xff
@@ -247,19 +277,26 @@ struct ice_port_info {
 };
 
 struct ice_switch_info {
-	/* Switch VSI lists to MAC/VLAN translation */
-	struct mutex mac_list_lock;		/* protect MAC list */
-	struct list_head mac_list_head;
-	struct mutex vlan_list_lock;		/* protect VLAN list */
-	struct list_head vlan_list_head;
-	struct mutex eth_m_list_lock;	/* protect ethtype list */
-	struct list_head eth_m_list_head;
-	struct mutex promisc_list_lock;	/* protect promisc mode list */
-	struct list_head promisc_list_head;
-	struct mutex mac_vlan_list_lock;	/* protect MAC-VLAN list */
-	struct list_head mac_vlan_list_head;
-
 	struct list_head vsi_list_map_head;
+	struct ice_sw_recipe *recp_list;
+};
+
+/* FW logging configuration */
+struct ice_fw_log_evnt {
+	u8 cfg : 4;	/* New event enables to configure */
+	u8 cur : 4;	/* Current/active event enables */
+};
+
+struct ice_fw_log_cfg {
+	u8 cq_en : 1;    /* FW logging is enabled via the control queue */
+	u8 uart_en : 1;  /* FW logging is enabled via UART for all PFs */
+	u8 actv_evnts;   /* Cumulation of currently enabled log events */
+
+#define ICE_FW_LOG_EVNT_INFO	(ICE_AQC_FW_LOG_INFO_EN >> ICE_AQC_FW_LOG_EN_S)
+#define ICE_FW_LOG_EVNT_INIT	(ICE_AQC_FW_LOG_INIT_EN >> ICE_AQC_FW_LOG_EN_S)
+#define ICE_FW_LOG_EVNT_FLOW	(ICE_AQC_FW_LOG_FLOW_EN >> ICE_AQC_FW_LOG_EN_S)
+#define ICE_FW_LOG_EVNT_ERR	(ICE_AQC_FW_LOG_ERR_EN >> ICE_AQC_FW_LOG_EN_S)
+	struct ice_fw_log_evnt evnts[ICE_AQC_FW_LOG_ID_MAX];
 };
 
 /* Port hardware description */
@@ -286,8 +323,11 @@ struct ice_hw {
 	u8 flattened_layers;
 	u8 max_cgds;
 	u8 sw_entry_point_layer;
+	u16 max_children[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 
+	struct ice_vsi_ctx *vsi_ctx[ICE_MAX_VSI];
 	u8 evb_veb;		/* true for VEB, false for VEPA */
+	u8 reset_ongoing;	/* true if hw is in reset, false otherwise */
 	struct ice_bus_info bus;
 	struct ice_nvm_info nvm;
 	struct ice_hw_dev_caps dev_caps;	/* device capabilities */
@@ -297,6 +337,7 @@ struct ice_hw {
 
 	/* Control Queue info */
 	struct ice_ctl_q_info adminq;
+	struct ice_ctl_q_info mailboxq;
 
 	u8 api_branch;		/* API branch version */
 	u8 api_maj_ver;		/* API major version */
@@ -308,16 +349,27 @@ struct ice_hw {
 	u8 fw_patch;		/* firmware patch version */
 	u32 fw_build;		/* firmware build number */
 
-	/* minimum allowed value for different speeds */
-#define ICE_ITR_GRAN_MIN_200	1
-#define ICE_ITR_GRAN_MIN_100	1
-#define ICE_ITR_GRAN_MIN_50	2
-#define ICE_ITR_GRAN_MIN_25	4
+	struct ice_fw_log_cfg fw_log;
+
+/* Device max aggregate bandwidths corresponding to the GL_PWR_MODE_CTL
+ * register. Used for determining the itr/intrl granularity during
+ * initialization.
+ */
+#define ICE_MAX_AGG_BW_200G	0x0
+#define ICE_MAX_AGG_BW_100G	0X1
+#define ICE_MAX_AGG_BW_50G	0x2
+#define ICE_MAX_AGG_BW_25G	0x3
+	/* ITR granularity for different speeds */
+#define ICE_ITR_GRAN_ABOVE_25	2
+#define ICE_ITR_GRAN_MAX_25	4
 	/* ITR granularity in 1 us */
-	u8 itr_gran_200;
-	u8 itr_gran_100;
-	u8 itr_gran_50;
-	u8 itr_gran_25;
+	u8 itr_gran;
+	/* INTRL granularity for different speeds */
+#define ICE_INTRL_GRAN_ABOVE_25	4
+#define ICE_INTRL_GRAN_MAX_25	8
+	/* INTRL granularity in 1 us */
+	u8 intrl_gran;
+
 	u8 ucast_shared;	/* true if VSIs can share unicast addr */
 
 };
@@ -390,5 +442,8 @@ struct ice_hw_port_stats {
 #define ICE_OEM_VER_MASK		(0xff << ICE_OEM_VER_SHIFT)
 #define ICE_SR_SECTOR_SIZE_IN_WORDS	0x800
 #define ICE_SR_WORDS_IN_1KB		512
+
+/* Hash redirection LUT for VSI - maximum array size */
+#define ICE_VSIQF_HLUT_ARRAY_SIZE	((VSIQF_HLUT_MAX_INDEX + 1) * 4)
 
 #endif /* _ICE_TYPE_H_ */

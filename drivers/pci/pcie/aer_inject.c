@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -175,14 +176,48 @@ static u32 *find_pci_config_dword(struct aer_error *err, int where,
 	return target;
 }
 
+static int aer_inj_read(struct pci_bus *bus, unsigned int devfn, int where,
+			int size, u32 *val)
+{
+	struct pci_ops *ops, *my_ops;
+	int rv;
+
+	ops = __find_pci_bus_ops(bus);
+	if (!ops)
+		return -1;
+
+	my_ops = bus->ops;
+	bus->ops = ops;
+	rv = ops->read(bus, devfn, where, size, val);
+	bus->ops = my_ops;
+
+	return rv;
+}
+
+static int aer_inj_write(struct pci_bus *bus, unsigned int devfn, int where,
+			 int size, u32 val)
+{
+	struct pci_ops *ops, *my_ops;
+	int rv;
+
+	ops = __find_pci_bus_ops(bus);
+	if (!ops)
+		return -1;
+
+	my_ops = bus->ops;
+	bus->ops = ops;
+	rv = ops->write(bus, devfn, where, size, val);
+	bus->ops = my_ops;
+
+	return rv;
+}
+
 static int aer_inj_read_config(struct pci_bus *bus, unsigned int devfn,
 			       int where, int size, u32 *val)
 {
 	u32 *sim;
 	struct aer_error *err;
 	unsigned long flags;
-	struct pci_ops *ops;
-	struct pci_ops *my_ops;
 	int domain;
 	int rv;
 
@@ -203,18 +238,7 @@ static int aer_inj_read_config(struct pci_bus *bus, unsigned int devfn,
 		return 0;
 	}
 out:
-	ops = __find_pci_bus_ops(bus);
-	/*
-	 * pci_lock must already be held, so we can directly
-	 * manipulate bus->ops.  Many config access functions,
-	 * including pci_generic_config_read() require the original
-	 * bus->ops be installed to function, so temporarily put them
-	 * back.
-	 */
-	my_ops = bus->ops;
-	bus->ops = ops;
-	rv = ops->read(bus, devfn, where, size, val);
-	bus->ops = my_ops;
+	rv = aer_inj_read(bus, devfn, where, size, val);
 	spin_unlock_irqrestore(&inject_lock, flags);
 	return rv;
 }
@@ -226,8 +250,6 @@ static int aer_inj_write_config(struct pci_bus *bus, unsigned int devfn,
 	struct aer_error *err;
 	unsigned long flags;
 	int rw1cs;
-	struct pci_ops *ops;
-	struct pci_ops *my_ops;
 	int domain;
 	int rv;
 
@@ -251,18 +273,7 @@ static int aer_inj_write_config(struct pci_bus *bus, unsigned int devfn,
 		return 0;
 	}
 out:
-	ops = __find_pci_bus_ops(bus);
-	/*
-	 * pci_lock must already be held, so we can directly
-	 * manipulate bus->ops.  Many config access functions,
-	 * including pci_generic_config_write() require the original
-	 * bus->ops be installed to function, so temporarily put them
-	 * back.
-	 */
-	my_ops = bus->ops;
-	bus->ops = ops;
-	rv = ops->write(bus, devfn, where, size, val);
-	bus->ops = my_ops;
+	rv = aer_inj_write(bus, devfn, where, size, val);
 	spin_unlock_irqrestore(&inject_lock, flags);
 	return rv;
 }
@@ -303,32 +314,13 @@ out:
 	return 0;
 }
 
-static int find_aer_device_iter(struct device *device, void *data)
-{
-	struct pcie_device **result = data;
-	struct pcie_device *pcie_dev;
-
-	if (device->bus == &pcie_port_bus_type) {
-		pcie_dev = to_pcie_device(device);
-		if (pcie_dev->service & PCIE_PORT_SERVICE_AER) {
-			*result = pcie_dev;
-			return 1;
-		}
-	}
-	return 0;
-}
-
-static int find_aer_device(struct pci_dev *dev, struct pcie_device **result)
-{
-	return device_for_each_child(&dev->dev, result, find_aer_device_iter);
-}
-
 static int aer_inject(struct aer_error_inj *einj)
 {
 	struct aer_error *err, *rperr;
 	struct aer_error *err_alloc = NULL, *rperr_alloc = NULL;
 	struct pci_dev *dev, *rpdev;
 	struct pcie_device *edev;
+	struct device *device;
 	unsigned long flags;
 	unsigned int devfn = PCI_DEVFN(einj->dev, einj->fn);
 	int pos_cap_err, rp_pos_cap_err;
@@ -464,7 +456,9 @@ static int aer_inject(struct aer_error_inj *einj)
 	if (ret)
 		goto out_put;
 
-	if (find_aer_device(rpdev, &edev)) {
+	device = pcie_port_find_device(rpdev, PCIE_PORT_SERVICE_AER);
+	if (device) {
+		edev = to_pcie_device(device);
 		if (!get_service_data(edev)) {
 			dev_warn(&edev->device,
 				 "aer_inject: AER service is not initialized\n");
@@ -474,7 +468,9 @@ static int aer_inject(struct aer_error_inj *einj)
 		dev_info(&edev->device,
 			 "aer_inject: Injecting errors %08x/%08x into device %s\n",
 			 einj->cor_status, einj->uncor_status, pci_name(dev));
-		aer_irq(-1, edev);
+		local_irq_disable();
+		generic_handle_irq(edev->irq);
+		local_irq_enable();
 	} else {
 		pci_err(rpdev, "aer_inject: AER device not found\n");
 		ret = -ENODEV;

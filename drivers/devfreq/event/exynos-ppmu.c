@@ -535,8 +535,8 @@ static int of_get_devfreq_events(struct device_node *np,
 
 		if (i == ARRAY_SIZE(ppmu_events)) {
 			dev_warn(dev,
-				"don't know how to configure events : %s\n",
-				node->name);
+				"don't know how to configure events : %pOFn\n",
+				node);
 			continue;
 		}
 

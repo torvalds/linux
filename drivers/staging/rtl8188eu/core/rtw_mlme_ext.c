@@ -39,7 +39,10 @@ extern unsigned char REALTEK_96B_IE[];
 /********************************************************
 MCS rate definitions
 *********************************************************/
-unsigned char	MCS_rate_1R[16] = {0xff, 0x00, 0x0, 0x0, 0x01, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+const u8 MCS_rate_1R[16] = {
+	0xff, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
 
 /********************************************************
 ChannelPlan definitions
@@ -1513,7 +1516,7 @@ static int issue_deauth_ex(struct adapter *padapter, u8 *da,
 			break;
 
 		if (i < try_cnt && wait_ms > 0 && ret == _FAIL)
-			msleep(wait_ms);
+			mdelay(wait_ms);
 	} while ((i < try_cnt) && ((ret == _FAIL) || (wait_ms == 0)));
 
 	if (ret != _FAIL) {
@@ -2401,10 +2404,7 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 			p++;
 
 			for (j = 0; j < noc; j++) {
-				if (fcn <= 14)
-					channel = fcn + j; /*  2.4 GHz */
-				else
-					channel = fcn + j*4; /*  5 GHz */
+				channel = fcn + j;
 
 				chplan_ap.Channel[i++] = channel;
 			}
@@ -2479,14 +2479,6 @@ static void process_80211d(struct adapter *padapter, struct wlan_bssid_ex *bssid
 			/*  skip AP 2.4G channel plan */
 			while ((j < chplan_ap.Len) && (chplan_ap.Channel[j] <= 14))
 				j++;
-		}
-
-		/*  keep original STA 5G channel plan */
-		while ((i < MAX_CHANNEL_NUM) && (chplan_sta[i].ChannelNum != 0)) {
-			chplan_new[k].ChannelNum = chplan_sta[i].ChannelNum;
-			chplan_new[k].ScanType = chplan_sta[i].ScanType;
-			i++;
-			k++;
 		}
 
 		pmlmeext->update_channel_plan_by_ap_done = 1;
@@ -2982,11 +2974,11 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 	/*  checking SSID */
 	p = rtw_get_ie(pframe + WLAN_HDR_A3_LEN + ie_offset, _SSID_IE_, &ie_len,
 		pkt_len - WLAN_HDR_A3_LEN - ie_offset);
-	if (!p)
-		status = _STATS_FAILURE_;
 
-	if (ie_len == 0) { /*  broadcast ssid, however it is not allowed in assocreq */
+	if (!p || ie_len == 0) {
+		/*  broadcast ssid, however it is not allowed in assocreq */
 		status = _STATS_FAILURE_;
+		goto OnAssocReqFail;
 	} else {
 		/*  check if ssid match */
 		if (memcmp((void *)(p+2), cur->Ssid.Ssid, cur->Ssid.SsidLength))
@@ -3844,24 +3836,20 @@ Following are the initialization functions for WiFi MLME
 *****************************************************************************/
 
 static struct mlme_handler mlme_sta_tbl[] = {
-	{WIFI_ASSOCREQ,		"OnAssocReq",	&OnAssocReq},
-	{WIFI_ASSOCRSP,		"OnAssocRsp",	&OnAssocRsp},
-	{WIFI_REASSOCREQ,	"OnReAssocReq",	&OnAssocReq},
-	{WIFI_REASSOCRSP,	"OnReAssocRsp",	&OnAssocRsp},
-	{WIFI_PROBEREQ,		"OnProbeReq",	&OnProbeReq},
-	{WIFI_PROBERSP,		"OnProbeRsp",		&OnProbeRsp},
-
-	/*----------------------------------------------------------
-					below 2 are reserved
-	-----------------------------------------------------------*/
-	{0,					"DoReserved",		&DoReserved},
-	{0,					"DoReserved",		&DoReserved},
-	{WIFI_BEACON,		"OnBeacon",		&OnBeacon},
-	{WIFI_ATIM,			"OnATIM",		&OnAtim},
-	{WIFI_DISASSOC,		"OnDisassoc",		&OnDisassoc},
-	{WIFI_AUTH,			"OnAuth",		&OnAuthClient},
-	{WIFI_DEAUTH,		"OnDeAuth",		&OnDeAuth},
-	{WIFI_ACTION,		"OnAction",		&OnAction},
+	{WIFI_ASSOCREQ,	  "OnAssocReq",	  &OnAssocReq},
+	{WIFI_ASSOCRSP,	  "OnAssocRsp",	  &OnAssocRsp},
+	{WIFI_REASSOCREQ, "OnReAssocReq", &OnAssocReq},
+	{WIFI_REASSOCRSP, "OnReAssocRsp", &OnAssocRsp},
+	{WIFI_PROBEREQ,	  "OnProbeReq",	  &OnProbeReq},
+	{WIFI_PROBERSP,	  "OnProbeRsp",	  &OnProbeRsp},
+	{0,		  "DoReserved",	  &DoReserved},
+	{0,		  "DoReserved",	  &DoReserved},
+	{WIFI_BEACON,	  "OnBeacon",	  &OnBeacon},
+	{WIFI_ATIM,	  "OnATIM",	  &OnAtim},
+	{WIFI_DISASSOC,	  "OnDisassoc",	  &OnDisassoc},
+	{WIFI_AUTH,	  "OnAuth",	  &OnAuthClient},
+	{WIFI_DEAUTH,	  "OnDeAuth",	  &OnDeAuth},
+	{WIFI_ACTION,	  "OnAction",	  &OnAction},
 };
 
 int init_hw_mlme_ext(struct adapter *padapter)
@@ -3969,7 +3957,7 @@ static void init_channel_list(struct adapter *padapter,
 			if (!has_channel(channel_set, chanset_size, ch))
 				continue;
 
-			if ((0 == padapter->registrypriv.ht_enable) && (8 == o->inc))
+			if (!padapter->registrypriv.ht_enable && o->inc == 8)
 				continue;
 
 			if ((0 == (padapter->registrypriv.cbw40_enable & BIT(1))) &&

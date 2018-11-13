@@ -268,6 +268,13 @@ typedef void (*regmap_unlock)(void *);
  *                field is NULL but precious_table (see below) is not, the
  *                check is performed on such table (a register is precious if
  *                it belongs to one of the ranges specified by precious_table).
+ * @writeable_noinc_reg: Optional callback returning true if the register
+ *			supports multiple write operations without incrementing
+ *			the register number. If this field is NULL but
+ *			wr_noinc_table (see below) is not, the check is
+ *			performed on such table (a register is no increment
+ *			writeable if it belongs to one of the ranges specified
+ *			by wr_noinc_table).
  * @readable_noinc_reg: Optional callback returning true if the register
  *			supports multiple read operations without incrementing
  *			the register number. If this field is NULL but
@@ -302,6 +309,7 @@ typedef void (*regmap_unlock)(void *);
  * @rd_table:     As above, for read access.
  * @volatile_table: As above, for volatile registers.
  * @precious_table: As above, for precious registers.
+ * @wr_noinc_table: As above, for no increment writeable registers.
  * @rd_noinc_table: As above, for no increment readable registers.
  * @reg_defaults: Power on reset values for registers (for use with
  *                register cache support).
@@ -315,9 +323,12 @@ typedef void (*regmap_unlock)(void *);
  *                   masks are used.
  * @zero_flag_mask: If set, read_flag_mask and write_flag_mask are used even
  *                   if they are both empty.
- * @use_single_rw: If set, converts the bulk read and write operations into
- *		    a series of single read and write operations. This is useful
- *		    for device that does not support bulk read and write.
+ * @use_single_read: If set, converts the bulk read operation into a series of
+ *                   single read operations. This is useful for a device that
+ *                   does not support  bulk read.
+ * @use_single_write: If set, converts the bulk write operation into a series of
+ *                    single write operations. This is useful for a device that
+ *                    does not support bulk write.
  * @can_multi_write: If set, the device supports the multi write mode of bulk
  *                   write operations, if clear multi write requests will be
  *                   split into individual write operations
@@ -352,6 +363,7 @@ struct regmap_config {
 	bool (*readable_reg)(struct device *dev, unsigned int reg);
 	bool (*volatile_reg)(struct device *dev, unsigned int reg);
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
+	bool (*writeable_noinc_reg)(struct device *dev, unsigned int reg);
 	bool (*readable_noinc_reg)(struct device *dev, unsigned int reg);
 
 	bool disable_locking;
@@ -369,6 +381,7 @@ struct regmap_config {
 	const struct regmap_access_table *rd_table;
 	const struct regmap_access_table *volatile_table;
 	const struct regmap_access_table *precious_table;
+	const struct regmap_access_table *wr_noinc_table;
 	const struct regmap_access_table *rd_noinc_table;
 	const struct reg_default *reg_defaults;
 	unsigned int num_reg_defaults;
@@ -380,7 +393,8 @@ struct regmap_config {
 	unsigned long write_flag_mask;
 	bool zero_flag_mask;
 
-	bool use_single_rw;
+	bool use_single_read;
+	bool use_single_write;
 	bool can_multi_write;
 
 	enum regmap_endian reg_format_endian;
@@ -979,6 +993,8 @@ int regmap_write(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_write_async(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
+int regmap_noinc_write(struct regmap *map, unsigned int reg,
+		     const void *val, size_t val_len);
 int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 			size_t val_count);
 int regmap_multi_reg_write(struct regmap *map, const struct reg_sequence *regs,
@@ -1217,6 +1233,13 @@ static inline int regmap_raw_write(struct regmap *map, unsigned int reg,
 
 static inline int regmap_raw_write_async(struct regmap *map, unsigned int reg,
 					 const void *val, size_t val_len)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_noinc_write(struct regmap *map, unsigned int reg,
+				    const void *val, size_t val_len)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;

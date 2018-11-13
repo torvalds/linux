@@ -112,7 +112,7 @@ static void __iomem *wii_ioremap_hw_regs(char *name, char *compatible)
 	}
 	error = of_address_to_resource(np, 0, &res);
 	if (error) {
-		pr_err("no valid reg found for %s\n", np->name);
+		pr_err("no valid reg found for %pOFn\n", np);
 		goto out_put;
 	}
 

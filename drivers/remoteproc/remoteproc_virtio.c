@@ -76,7 +76,9 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
 	struct device *dev = &rproc->dev;
+	struct rproc_mem_entry *mem;
 	struct rproc_vring *rvring;
+	struct fw_rsc_vdev *rsc;
 	struct virtqueue *vq;
 	void *addr;
 	int len, size;
@@ -88,8 +90,14 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	if (!name)
 		return NULL;
 
+	/* Search allocated memory region by name */
+	mem = rproc_find_carveout_by_name(rproc, "vdev%dvring%d", rvdev->index,
+					  id);
+	if (!mem || !mem->va)
+		return ERR_PTR(-ENOMEM);
+
 	rvring = &rvdev->vring[id];
-	addr = rvring->va;
+	addr = mem->va;
 	len = rvring->len;
 
 	/* zero vring */
@@ -113,6 +121,10 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 
 	rvring->vq = vq;
 	vq->priv = rvring;
+
+	/* Update vring in resource table */
+	rsc = (void *)rproc->table_ptr + rvdev->rsc_offset;
+	rsc->vring[id].da = mem->da;
 
 	return vq;
 }

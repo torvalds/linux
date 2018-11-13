@@ -172,8 +172,7 @@ static int emac_mdio_probe(struct net_device *dev)
 	}
 
 	/* mask with MAC supported features */
-	phydev->supported &= PHY_BASIC_FEATURES;
-	phydev->advertising = phydev->supported;
+	phy_set_max_speed(phydev, SPEED_100);
 
 	db->link = 0;
 	db->speed = 0;

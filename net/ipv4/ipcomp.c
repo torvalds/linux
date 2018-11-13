@@ -48,9 +48,9 @@ static int ipcomp4_err(struct sk_buff *skb, u32 info)
 		return 0;
 
 	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
-		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_COMP, 0);
+		ipv4_update_pmtu(skb, net, info, 0, IPPROTO_COMP);
 	else
-		ipv4_redirect(skb, net, 0, 0, IPPROTO_COMP, 0);
+		ipv4_redirect(skb, net, 0, IPPROTO_COMP);
 	xfrm_state_put(x);
 
 	return 0;

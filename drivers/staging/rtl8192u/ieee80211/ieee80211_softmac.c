@@ -464,7 +464,7 @@ out:
 	} else {
 		ieee->sync_scan_hurryup = 0;
 		if (IS_DOT11D_ENABLE(ieee))
-			DOT11D_ScanComplete(ieee);
+			dot11d_scan_complete(ieee);
 		mutex_unlock(&ieee->scan_mutex);
 	}
 }
@@ -504,7 +504,7 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 	return;
 out:
 	if (IS_DOT11D_ENABLE(ieee))
-		DOT11D_ScanComplete(ieee);
+		dot11d_scan_complete(ieee);
 	ieee->actscanning = false;
 	watchdog = 0;
 	ieee->scanning = 0;
@@ -2357,7 +2357,7 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 	if (ieee->data_hard_stop)
 		ieee->data_hard_stop(ieee->dev);
 	if (IS_DOT11D_ENABLE(ieee))
-		Dot11d_Reset(ieee);
+		dot11d_reset(ieee);
 	ieee->state = IEEE80211_NOLINK;
 	ieee->is_set_key = false;
 	ieee->link_change(ieee->dev);
@@ -2542,8 +2542,8 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	for (i = 0; i < 5; i++)
 		ieee->seq_ctrl[i] = 0;
 
-	ieee->pDot11dInfo = kzalloc(sizeof(struct rt_dot11d_info), GFP_KERNEL);
-	if (!ieee->pDot11dInfo)
+	ieee->dot11d_info = kzalloc(sizeof(struct rt_dot11d_info), GFP_KERNEL);
+	if (!ieee->dot11d_info)
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for DOT11D\n");
 	//added for  AP roaming
 	ieee->LinkDetectInfo.SlotNum = 2;
@@ -2603,8 +2603,8 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 void ieee80211_softmac_free(struct ieee80211_device *ieee)
 {
 	mutex_lock(&ieee->wx_mutex);
-	kfree(ieee->pDot11dInfo);
-	ieee->pDot11dInfo = NULL;
+	kfree(ieee->dot11d_info);
+	ieee->dot11d_info = NULL;
 	del_timer_sync(&ieee->associate_timer);
 
 	cancel_delayed_work(&ieee->associate_retry_wq);

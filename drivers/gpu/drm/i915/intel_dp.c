@@ -5102,19 +5102,13 @@ intel_dp_long_pulse(struct intel_connector *connector,
 		 */
 		status = connector_status_disconnected;
 		goto out;
-	} else {
-		/*
-		 * If display is now connected check links status,
-		 * there has been known issues of link loss triggering
-		 * long pulse.
-		 *
-		 * Some sinks (eg. ASUS PB287Q) seem to perform some
-		 * weird HPD ping pong during modesets. So we can apparently
-		 * end up with HPD going low during a modeset, and then
-		 * going back up soon after. And once that happens we must
-		 * retrain the link to get a picture. That's in case no
-		 * userspace component reacted to intermittent HPD dip.
-		 */
+	}
+
+	/*
+	 * Some external monitors do not signal loss of link synchronization
+	 * with an IRQ_HPD, so force a link status check.
+	 */
+	if (!intel_dp_is_edp(intel_dp)) {
 		struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
 		intel_dp_retrain_link(encoder, ctx);

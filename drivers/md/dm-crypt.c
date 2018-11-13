@@ -2661,6 +2661,7 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct crypt_config *cc;
+	const char *devname = dm_table_device_name(ti->table);
 	int key_size;
 	unsigned int align_mask;
 	unsigned long long tmpll;
@@ -2806,18 +2807,22 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ret = -ENOMEM;
-	cc->io_queue = alloc_workqueue("kcryptd_io", WQ_HIGHPRI | WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1);
+	cc->io_queue = alloc_workqueue("kcryptd_io/%s",
+				       WQ_HIGHPRI | WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM,
+				       1, devname);
 	if (!cc->io_queue) {
 		ti->error = "Couldn't create kcryptd io queue";
 		goto bad;
 	}
 
 	if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags))
-		cc->crypt_queue = alloc_workqueue("kcryptd", WQ_HIGHPRI | WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1);
+		cc->crypt_queue = alloc_workqueue("kcryptd/%s",
+						  WQ_HIGHPRI | WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM,
+						  1, devname);
 	else
-		cc->crypt_queue = alloc_workqueue("kcryptd",
+		cc->crypt_queue = alloc_workqueue("kcryptd/%s",
 						  WQ_HIGHPRI | WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM | WQ_UNBOUND,
-						  num_online_cpus());
+						  num_online_cpus(), devname);
 	if (!cc->crypt_queue) {
 		ti->error = "Couldn't create kcryptd queue";
 		goto bad;
@@ -2826,7 +2831,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	spin_lock_init(&cc->write_thread_lock);
 	cc->write_tree = RB_ROOT;
 
-	cc->write_thread = kthread_create(dmcrypt_write, cc, "dmcrypt_write");
+	cc->write_thread = kthread_create(dmcrypt_write, cc, "dmcrypt_write/%s", devname);
 	if (IS_ERR(cc->write_thread)) {
 		ret = PTR_ERR(cc->write_thread);
 		cc->write_thread = NULL;

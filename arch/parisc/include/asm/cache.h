@@ -6,6 +6,7 @@
 #ifndef __ARCH_PARISC_CACHE_H
 #define __ARCH_PARISC_CACHE_H
 
+#include <asm/alternative.h>
 
 /*
  * PA 2.0 processors have 64 and 128-byte L2 cachelines; PA 1.1 processors
@@ -41,9 +42,24 @@ extern int icache_stride;
 extern struct pdc_cache_info cache_info;
 void parisc_setup_cache_timing(void);
 
-#define pdtlb(addr)         asm volatile("pdtlb 0(%%sr1,%0)" : : "r" (addr));
-#define pitlb(addr)         asm volatile("pitlb 0(%%sr1,%0)" : : "r" (addr));
-#define pdtlb_kernel(addr)  asm volatile("pdtlb 0(%0)" : : "r" (addr));
+#define pdtlb(addr)	asm volatile("pdtlb 0(%%sr1,%0)" \
+			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
+			: : "r" (addr))
+#define pitlb(addr)	asm volatile("pitlb 0(%%sr1,%0)" \
+			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
+			ALTERNATIVE(ALT_COND_NO_SPLIT_TLB, INSN_NOP) \
+			: : "r" (addr))
+#define pdtlb_kernel(addr)  asm volatile("pdtlb 0(%0)"   \
+			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
+			: : "r" (addr))
+
+#define asm_io_fdc(addr) asm volatile("fdc %%r0(%0)" \
+			ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
+			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) \
+			: : "r" (addr))
+#define asm_io_sync()	asm volatile("sync" \
+			ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
+			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) :: )
 
 #endif /* ! __ASSEMBLY__ */
 

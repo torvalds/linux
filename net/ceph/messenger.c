@@ -156,7 +156,6 @@ static bool con_flag_test_and_set(struct ceph_connection *con,
 /* Slab caches for frequently-allocated structures */
 
 static struct kmem_cache	*ceph_msg_cache;
-static struct kmem_cache	*ceph_msg_data_cache;
 
 /* static tag bytes (protocol control messages) */
 static char tag_msg = CEPH_MSGR_TAG_MSG;
@@ -235,23 +234,11 @@ static int ceph_msgr_slab_init(void)
 	if (!ceph_msg_cache)
 		return -ENOMEM;
 
-	BUG_ON(ceph_msg_data_cache);
-	ceph_msg_data_cache = KMEM_CACHE(ceph_msg_data, 0);
-	if (ceph_msg_data_cache)
-		return 0;
-
-	kmem_cache_destroy(ceph_msg_cache);
-	ceph_msg_cache = NULL;
-
-	return -ENOMEM;
+	return 0;
 }
 
 static void ceph_msgr_slab_exit(void)
 {
-	BUG_ON(!ceph_msg_data_cache);
-	kmem_cache_destroy(ceph_msg_data_cache);
-	ceph_msg_data_cache = NULL;
-
 	BUG_ON(!ceph_msg_cache);
 	kmem_cache_destroy(ceph_msg_cache);
 	ceph_msg_cache = NULL;
@@ -526,7 +513,7 @@ static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 	if (!buf)
 		msg.msg_flags |= MSG_TRUNC;
 
-	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, len);
+	iov_iter_kvec(&msg.msg_iter, READ, &iov, 1, len);
 	r = sock_recvmsg(sock, &msg, msg.msg_flags);
 	if (r == -EAGAIN)
 		r = 0;
@@ -545,7 +532,7 @@ static int ceph_tcp_recvpage(struct socket *sock, struct page *page,
 	int r;
 
 	BUG_ON(page_offset + length > PAGE_SIZE);
-	iov_iter_bvec(&msg.msg_iter, READ | ITER_BVEC, &bvec, 1, length);
+	iov_iter_bvec(&msg.msg_iter, READ, &bvec, 1, length);
 	r = sock_recvmsg(sock, &msg, msg.msg_flags);
 	if (r == -EAGAIN)
 		r = 0;
@@ -607,7 +594,7 @@ static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
 	else
 		msg.msg_flags |= MSG_EOR;  /* superfluous, but what the hell */
 
-	iov_iter_bvec(&msg.msg_iter, WRITE | ITER_BVEC, &bvec, 1, size);
+	iov_iter_bvec(&msg.msg_iter, WRITE, &bvec, 1, size);
 	ret = sock_sendmsg(sock, &msg);
 	if (ret == -EAGAIN)
 		ret = 0;
@@ -1141,16 +1128,13 @@ static void __ceph_msg_data_cursor_init(struct ceph_msg_data_cursor *cursor)
 static void ceph_msg_data_cursor_init(struct ceph_msg *msg, size_t length)
 {
 	struct ceph_msg_data_cursor *cursor = &msg->cursor;
-	struct ceph_msg_data *data;
 
 	BUG_ON(!length);
 	BUG_ON(length > msg->data_length);
-	BUG_ON(list_empty(&msg->data));
+	BUG_ON(!msg->num_data_items);
 
-	cursor->data_head = &msg->data;
 	cursor->total_resid = length;
-	data = list_first_entry(&msg->data, struct ceph_msg_data, links);
-	cursor->data = data;
+	cursor->data = msg->data;
 
 	__ceph_msg_data_cursor_init(cursor);
 }
@@ -1231,8 +1215,7 @@ static void ceph_msg_data_advance(struct ceph_msg_data_cursor *cursor,
 
 	if (!cursor->resid && cursor->total_resid) {
 		WARN_ON(!cursor->last_piece);
-		BUG_ON(list_is_last(&cursor->data->links, cursor->data_head));
-		cursor->data = list_next_entry(cursor->data, links);
+		cursor->data++;
 		__ceph_msg_data_cursor_init(cursor);
 		new_piece = true;
 	}
@@ -1248,9 +1231,6 @@ static size_t sizeof_footer(struct ceph_connection *con)
 
 static void prepare_message_data(struct ceph_msg *msg, u32 data_len)
 {
-	BUG_ON(!msg);
-	BUG_ON(!data_len);
-
 	/* Initialize data cursor */
 
 	ceph_msg_data_cursor_init(msg, (size_t)data_len);
@@ -1590,7 +1570,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 
 	dout("%s %p msg %p\n", __func__, con, msg);
 
-	if (list_empty(&msg->data))
+	if (!msg->num_data_items)
 		return -EINVAL;
 
 	/*
@@ -2347,8 +2327,7 @@ static int read_partial_msg_data(struct ceph_connection *con)
 	u32 crc = 0;
 	int ret;
 
-	BUG_ON(!msg);
-	if (list_empty(&msg->data))
+	if (!msg->num_data_items)
 		return -EIO;
 
 	if (do_datacrc)
@@ -3256,32 +3235,16 @@ bool ceph_con_keepalive_expired(struct ceph_connection *con,
 	return false;
 }
 
-static struct ceph_msg_data *ceph_msg_data_create(enum ceph_msg_data_type type)
+static struct ceph_msg_data *ceph_msg_data_add(struct ceph_msg *msg)
 {
-	struct ceph_msg_data *data;
-
-	if (WARN_ON(!ceph_msg_data_type_valid(type)))
-		return NULL;
-
-	data = kmem_cache_zalloc(ceph_msg_data_cache, GFP_NOFS);
-	if (!data)
-		return NULL;
-
-	data->type = type;
-	INIT_LIST_HEAD(&data->links);
-
-	return data;
+	BUG_ON(msg->num_data_items >= msg->max_data_items);
+	return &msg->data[msg->num_data_items++];
 }
 
 static void ceph_msg_data_destroy(struct ceph_msg_data *data)
 {
-	if (!data)
-		return;
-
-	WARN_ON(!list_empty(&data->links));
 	if (data->type == CEPH_MSG_DATA_PAGELIST)
 		ceph_pagelist_release(data->pagelist);
-	kmem_cache_free(ceph_msg_data_cache, data);
 }
 
 void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
@@ -3292,13 +3255,12 @@ void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
 	BUG_ON(!pages);
 	BUG_ON(!length);
 
-	data = ceph_msg_data_create(CEPH_MSG_DATA_PAGES);
-	BUG_ON(!data);
+	data = ceph_msg_data_add(msg);
+	data->type = CEPH_MSG_DATA_PAGES;
 	data->pages = pages;
 	data->length = length;
 	data->alignment = alignment & ~PAGE_MASK;
 
-	list_add_tail(&data->links, &msg->data);
 	msg->data_length += length;
 }
 EXPORT_SYMBOL(ceph_msg_data_add_pages);
@@ -3311,11 +3273,11 @@ void ceph_msg_data_add_pagelist(struct ceph_msg *msg,
 	BUG_ON(!pagelist);
 	BUG_ON(!pagelist->length);
 
-	data = ceph_msg_data_create(CEPH_MSG_DATA_PAGELIST);
-	BUG_ON(!data);
+	data = ceph_msg_data_add(msg);
+	data->type = CEPH_MSG_DATA_PAGELIST;
+	refcount_inc(&pagelist->refcnt);
 	data->pagelist = pagelist;
 
-	list_add_tail(&data->links, &msg->data);
 	msg->data_length += pagelist->length;
 }
 EXPORT_SYMBOL(ceph_msg_data_add_pagelist);
@@ -3326,12 +3288,11 @@ void ceph_msg_data_add_bio(struct ceph_msg *msg, struct ceph_bio_iter *bio_pos,
 {
 	struct ceph_msg_data *data;
 
-	data = ceph_msg_data_create(CEPH_MSG_DATA_BIO);
-	BUG_ON(!data);
+	data = ceph_msg_data_add(msg);
+	data->type = CEPH_MSG_DATA_BIO;
 	data->bio_pos = *bio_pos;
 	data->bio_length = length;
 
-	list_add_tail(&data->links, &msg->data);
 	msg->data_length += length;
 }
 EXPORT_SYMBOL(ceph_msg_data_add_bio);
@@ -3342,11 +3303,10 @@ void ceph_msg_data_add_bvecs(struct ceph_msg *msg,
 {
 	struct ceph_msg_data *data;
 
-	data = ceph_msg_data_create(CEPH_MSG_DATA_BVECS);
-	BUG_ON(!data);
+	data = ceph_msg_data_add(msg);
+	data->type = CEPH_MSG_DATA_BVECS;
 	data->bvec_pos = *bvec_pos;
 
-	list_add_tail(&data->links, &msg->data);
 	msg->data_length += bvec_pos->iter.bi_size;
 }
 EXPORT_SYMBOL(ceph_msg_data_add_bvecs);
@@ -3355,8 +3315,8 @@ EXPORT_SYMBOL(ceph_msg_data_add_bvecs);
  * construct a new message with given type, size
  * the new msg has a ref count of 1.
  */
-struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
-			      bool can_fail)
+struct ceph_msg *ceph_msg_new2(int type, int front_len, int max_data_items,
+			       gfp_t flags, bool can_fail)
 {
 	struct ceph_msg *m;
 
@@ -3370,7 +3330,6 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 
 	INIT_LIST_HEAD(&m->list_head);
 	kref_init(&m->kref);
-	INIT_LIST_HEAD(&m->data);
 
 	/* front */
 	if (front_len) {
@@ -3384,6 +3343,15 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 		m->front.iov_base = NULL;
 	}
 	m->front_alloc_len = m->front.iov_len = front_len;
+
+	if (max_data_items) {
+		m->data = kmalloc_array(max_data_items, sizeof(*m->data),
+					flags);
+		if (!m->data)
+			goto out2;
+
+		m->max_data_items = max_data_items;
+	}
 
 	dout("ceph_msg_new %p front %d\n", m, front_len);
 	return m;
@@ -3400,6 +3368,13 @@ out:
 		     front_len);
 	}
 	return NULL;
+}
+EXPORT_SYMBOL(ceph_msg_new2);
+
+struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
+			      bool can_fail)
+{
+	return ceph_msg_new2(type, front_len, 0, flags, can_fail);
 }
 EXPORT_SYMBOL(ceph_msg_new);
 
@@ -3496,13 +3471,14 @@ static void ceph_msg_free(struct ceph_msg *m)
 {
 	dout("%s %p\n", __func__, m);
 	kvfree(m->front.iov_base);
+	kfree(m->data);
 	kmem_cache_free(ceph_msg_cache, m);
 }
 
 static void ceph_msg_release(struct kref *kref)
 {
 	struct ceph_msg *m = container_of(kref, struct ceph_msg, kref);
-	struct ceph_msg_data *data, *next;
+	int i;
 
 	dout("%s %p\n", __func__, m);
 	WARN_ON(!list_empty(&m->list_head));
@@ -3515,11 +3491,8 @@ static void ceph_msg_release(struct kref *kref)
 		m->middle = NULL;
 	}
 
-	list_for_each_entry_safe(data, next, &m->data, links) {
-		list_del_init(&data->links);
-		ceph_msg_data_destroy(data);
-	}
-	m->data_length = 0;
+	for (i = 0; i < m->num_data_items; i++)
+		ceph_msg_data_destroy(&m->data[i]);
 
 	if (m->pool)
 		ceph_msgpool_put(m->pool, m);

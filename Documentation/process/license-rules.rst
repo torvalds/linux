@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. _kernel_licensing:
+
 Linux kernel licensing rules
 ============================
 

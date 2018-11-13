@@ -226,8 +226,11 @@ static int alloc_lookup_fw_priv(const char *fw_name,
 	}
 
 	tmp = __allocate_fw_priv(fw_name, fwc, dbuf, size);
-	if (tmp && !(opt_flags & FW_OPT_NOCACHE))
-		list_add(&tmp->list, &fwc->head);
+	if (tmp) {
+		INIT_LIST_HEAD(&tmp->list);
+		if (!(opt_flags & FW_OPT_NOCACHE))
+			list_add(&tmp->list, &fwc->head);
+	}
 	spin_unlock(&fwc->lock);
 
 	*fw_priv = tmp;

@@ -88,6 +88,8 @@ bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer,
 			 struct tipc_link **link);
 void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 			   int mtyp, struct sk_buff_head *xmitq);
+void tipc_link_create_dummy_tnl_msg(struct tipc_link *tnl,
+				    struct sk_buff_head *xmitq);
 void tipc_link_build_reset_msg(struct tipc_link *l, struct sk_buff_head *xmitq);
 int tipc_link_fsm_evt(struct tipc_link *l, int evt);
 bool tipc_link_is_up(struct tipc_link *l);
@@ -107,6 +109,7 @@ u16 tipc_link_rcv_nxt(struct tipc_link *l);
 u16 tipc_link_acked(struct tipc_link *l);
 u32 tipc_link_id(struct tipc_link *l);
 char *tipc_link_name(struct tipc_link *l);
+u32 tipc_link_state(struct tipc_link *l);
 char tipc_link_plane(struct tipc_link *l);
 int tipc_link_prio(struct tipc_link *l);
 int tipc_link_window(struct tipc_link *l);

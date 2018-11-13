@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MS5611 pressure and temperature sensor driver (I2C bus)
  *
  * Copyright (c) Tomasz Duszynski <tduszyns@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * 7-bit I2C slave addresses:
  *
@@ -117,9 +114,7 @@ static int ms5611_i2c_remove(struct i2c_client *client)
 #if defined(CONFIG_OF)
 static const struct of_device_id ms5611_i2c_matches[] = {
 	{ .compatible = "meas,ms5611" },
-	{ .compatible = "ms5611" },
 	{ .compatible = "meas,ms5607" },
-	{ .compatible = "ms5607" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ms5611_i2c_matches);
