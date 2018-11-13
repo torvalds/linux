@@ -470,6 +470,8 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	/* codec detection */
 	if (!bus->codec_mask)
 		dev_info(bus->dev, "no hda codecs found!\n");
+	else
+		dev_info(bus->dev, "hda codecs found, mask %lx!\n", bus->codec_mask);
 
 	/* used by hda machine driver to create dai links */
 	mach_params = (struct snd_soc_acpi_mach_params *)
