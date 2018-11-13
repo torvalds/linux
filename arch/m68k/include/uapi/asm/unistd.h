@@ -387,4 +387,8 @@
 #define __NR_pwritev2		378
 #define __NR_statx		379
 
+#ifdef __KERNEL__
+#define __NR_syscalls		380
+#endif
+
 #endif /* _UAPI_ASM_M68K_UNISTD_H_ */
