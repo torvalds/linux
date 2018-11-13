@@ -5568,12 +5568,6 @@ skl_compute_wm(struct drm_atomic_state *state)
 
 		if (changed)
 			results->dirty_pipes |= drm_crtc_mask(crtc);
-
-		if ((results->dirty_pipes & drm_crtc_mask(crtc)) == 0)
-			/* This pipe's WM's did not change */
-			continue;
-
-		intel_cstate->update_wm_pre = true;
 	}
 
 	skl_print_wm_changes(intel_state);
