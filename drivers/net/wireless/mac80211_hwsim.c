@@ -3884,6 +3884,7 @@ static int __init init_mac80211_hwsim(void)
 
 		param.p2p_device = support_p2p_device;
 		param.use_chanctx = channels > 1;
+		param.iftypes = HWSIM_IFTYPE_SUPPORT_MASK;
 
 		err = mac80211_hwsim_new_radio(NULL, &param);
 		if (err < 0)
