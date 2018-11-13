@@ -10,8 +10,10 @@
  * Service layer driver supports client names
  *
  * fpga: for FPGA configuration
+ * rsu: for remote status update
  */
 #define SVC_CLIENT_FPGA			"fpga"
+#define SVC_CLIENT_RSU			"rsu"
 
 /**
  * Status of the sent command, in bit number
@@ -36,6 +38,9 @@
  *
  * SVC_COMMAND_STATUS_RECONFIG_ERROR:
  * Error encountered during FPGA configuration.
+ *
+ * SVC_STATUS_RSU_OK:
+ * Secure firmware accepts the request of remote status update (RSU).
  */
 #define SVC_STATUS_RECONFIG_REQUEST_OK		0
 #define SVC_STATUS_RECONFIG_BUFFER_SUBMITTED	1
@@ -43,7 +48,8 @@
 #define SVC_STATUS_RECONFIG_COMPLETED		3
 #define SVC_STATUS_RECONFIG_BUSY		4
 #define SVC_STATUS_RECONFIG_ERROR		5
-
+#define SVC_STATUS_RSU_OK			6
+#define SVC_STATUS_RSU_ERROR			7
 /**
  * Flag bit for COMMAND_RECONFIG
  *
@@ -56,9 +62,11 @@
 /**
  * Timeout settings for service clients:
  * timeout value used in Stratix10 FPGA manager driver.
+ * timeout value used in RSU driver
  */
 #define SVC_RECONFIG_REQUEST_TIMEOUT_MS         100
 #define SVC_RECONFIG_BUFFER_TIMEOUT_MS          240
+#define SVC_RSU_REQUEST_TIMEOUT_MS              300
 
 struct stratix10_svc_chan;
 
@@ -81,13 +89,21 @@ struct stratix10_svc_chan;
  * @COMMAND_RECONFIG_STATUS: check the status of the configuration, return
  * status is SVC_STATUS_RECONFIG_COMPLETED, or  SVC_STATUS_RECONFIG_BUSY, or
  * SVC_STATUS_RECONFIG_ERROR
+ *
+ * @COMMAND_RSU_STATUS: request remote system update boot log, return status
+ * is log data or SVC_STATUS_RSU_ERROR
+ *
+ * @COMMAND_RSU_UPDATE: set the offset of the bitstream to boot after reboot,
+ * return status is SVC_STATUS_RSU_OK or SVC_STATUS_RSU_ERROR
  */
 enum stratix10_svc_command_code {
 	COMMAND_NOOP = 0,
 	COMMAND_RECONFIG,
 	COMMAND_RECONFIG_DATA_SUBMIT,
 	COMMAND_RECONFIG_DATA_CLAIM,
-	COMMAND_RECONFIG_STATUS
+	COMMAND_RECONFIG_STATUS,
+	COMMAND_RSU_STATUS,
+	COMMAND_RSU_UPDATE
 };
 
 /**

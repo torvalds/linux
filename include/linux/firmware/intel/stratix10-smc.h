@@ -67,6 +67,12 @@
  *
  * INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR:
  * There is error during the FPGA configuration process.
+ *
+ * INTEL_SIP_SMC_REG_ERROR:
+ * There is error during a read or write operation of the protected registers.
+ *
+ * INTEL_SIP_SMC_RSU_ERROR:
+ * There is error during a remote status update.
  */
 #define INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION		0xFFFFFFFF
 #define INTEL_SIP_SMC_STATUS_OK				0x0
@@ -74,6 +80,7 @@
 #define INTEL_SIP_SMC_FPGA_CONFIG_STATUS_REJECTED       0x2
 #define INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR		0x4
 #define INTEL_SIP_SMC_REG_ERROR				0x5
+#define INTEL_SIP_SMC_RSU_ERROR				0x7
 
 /**
  * Request INTEL_SIP_SMC_FPGA_CONFIG_START
@@ -262,4 +269,44 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 #define INTEL_SIP_SMC_REG_UPDATE \
 	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_REG_UPDATE)
 
+/*
+ * Request INTEL_SIP_SMC_RSU_STATUS
+ *
+ * Request remote status update boot log, call is synchronous.
+ *
+ * Call register usage:
+ * a0 INTEL_SIP_SMC_RSU_STATUS
+ * a1-7 not used
+ *
+ * Return status
+ * a0: Current Image
+ * a1: Last Failing Image
+ * a2: Version | State
+ * a3: Error details | Error location
+ *
+ * Or
+ *
+ * a0: INTEL_SIP_SMC_RSU_ERROR
+ */
+#define INTEL_SIP_SMC_FUNCID_RSU_STATUS 11
+#define INTEL_SIP_SMC_RSU_STATUS \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_STATUS)
+
+/*
+ * Request INTEL_SIP_SMC_RSU_UPDATE
+ *
+ * Request to set the offset of the bitstream to boot after reboot, call
+ * is synchronous.
+ *
+ * Call register usage:
+ * a0 INTEL_SIP_SMC_RSU_UPDATE
+ * a1 64bit physical address of the configuration data memory in flash
+ * a2-7 not used
+ *
+ * Return status
+ * a0 INTEL_SIP_SMC_STATUS_OK
+ */
+#define INTEL_SIP_SMC_FUNCID_RSU_UPDATE 12
+#define INTEL_SIP_SMC_RSU_UPDATE \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_UPDATE)
 #endif

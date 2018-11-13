@@ -34,7 +34,7 @@
  * timeout is set to 30 seconds (30 * 1000) at Intel Stratix10 SoC.
  */
 #define SVC_NUM_DATA_IN_FIFO			32
-#define SVC_NUM_CHANNEL				1
+#define SVC_NUM_CHANNEL				2
 #define FPGA_CONFIG_DATA_CLAIM_TIMEOUT_MS	200
 #define FPGA_CONFIG_STATUS_TIMEOUT_SEC		30
 
@@ -271,7 +271,7 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
  * @cb_data: pointer to callback data structure to service client
  * @res: result from SMC or HVC call
  *
- * Send back the correspond status to the service client (FPGA manager etc).
+ * Send back the correspond status to the service clients.
  */
 static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 				      struct stratix10_svc_cb_data *cb_data,
@@ -294,6 +294,9 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 		break;
 	case COMMAND_RECONFIG_STATUS:
 		cb_data->status = BIT(SVC_STATUS_RECONFIG_COMPLETED);
+		break;
+	case COMMAND_RSU_UPDATE:
+		cb_data->status = BIT(SVC_STATUS_RSU_OK);
 		break;
 	default:
 		pr_warn("it shouldn't happen\n");
@@ -373,6 +376,16 @@ static int svc_normal_to_secure_thread(void *data)
 			a1 = 0;
 			a2 = 0;
 			break;
+		case COMMAND_RSU_STATUS:
+			a0 = INTEL_SIP_SMC_RSU_STATUS;
+			a1 = 0;
+			a2 = 0;
+			break;
+		case COMMAND_RSU_UPDATE:
+			a0 = INTEL_SIP_SMC_RSU_UPDATE;
+			a1 = pdata->arg[0];
+			a2 = 0;
+			break;
 		default:
 			pr_warn("it shouldn't happen\n");
 			break;
@@ -388,6 +401,19 @@ static int svc_normal_to_secure_thread(void *data)
 		pr_debug(" res.a1=0x%016x, res.a2=0x%016x",
 			 (unsigned int)res.a1, (unsigned int)res.a2);
 		pr_debug(" res.a3=0x%016x\n", (unsigned int)res.a3);
+
+		if (pdata->command == COMMAND_RSU_STATUS) {
+			if (res.a0 == INTEL_SIP_SMC_RSU_ERROR)
+				cbdata->status = BIT(SVC_STATUS_RSU_ERROR);
+			else
+				cbdata->status = BIT(SVC_STATUS_RSU_OK);
+
+			cbdata->kaddr1 = &res;
+			cbdata->kaddr2 = NULL;
+			cbdata->kaddr3 = NULL;
+			pdata->chan->scl->receive_cb(pdata->chan->scl, cbdata);
+			continue;
+		}
 
 		switch (res.a0) {
 		case INTEL_SIP_SMC_STATUS_OK:
@@ -940,6 +966,11 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	chans[0].ctrl = controller;
 	chans[0].name = SVC_CLIENT_FPGA;
 	spin_lock_init(&chans[0].lock);
+
+	chans[1].scl = NULL;
+	chans[1].ctrl = controller;
+	chans[1].name = SVC_CLIENT_RSU;
+	spin_lock_init(&chans[1].lock);
 
 	list_add_tail(&controller->node, &svc_ctrl);
 	platform_set_drvdata(pdev, controller);
