@@ -2782,7 +2782,7 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 		pq->timeout = pq->timeout << 1;
 		if (!mod_timer(&pq->hold_timer, jiffies + pq->timeout))
 			xfrm_pol_hold(pol);
-	goto out;
+		goto out;
 	}
 
 	dst_release(dst);
