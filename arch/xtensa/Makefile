@@ -90,6 +90,9 @@ boot		:= arch/xtensa/boot
 all Image zImage uImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
+archheaders:
+	$(Q)$(MAKE) $(build)=arch/xtensa/kernel/syscalls all
+
 define archhelp
   @echo '* Image       - Kernel ELF image with reset vector'
   @echo '* zImage      - Compressed kernel image (arch/xtensa/boot/images/zImage.*)'
