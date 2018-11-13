@@ -80,6 +80,9 @@ unwcheck: vmlinux
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
+archheaders:
+	$(Q)$(MAKE) $(build)=arch/ia64/kernel/syscalls all
+
 CLEAN_FILES += vmlinux.gz bootloader
 
 boot:	lib/lib.a vmlinux

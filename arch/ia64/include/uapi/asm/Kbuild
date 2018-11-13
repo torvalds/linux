@@ -1,6 +1,7 @@
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
 
+generated-y += unistd_64.h
 generic-y += bpf_perf_event.h
 generic-y += ipcbuf.h
 generic-y += kvm_para.h
