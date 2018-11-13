@@ -216,6 +216,18 @@ config FW_CFG_SYSFS_CMDLINE
 	  WARNING: Using incorrect parameters (base address in particular)
 	  may crash your system.
 
+config INTEL_STRATIX10_SERVICE
+	tristate "Intel Stratix10 Service Layer"
+	depends on HAVE_ARM_SMCCC
+	default n
+	help
+	  Intel Stratix10 service layer runs at privileged exception level,
+	  interfaces with the service providers (FPGA manager is one of them)
+	  and manages secure monitor call to communicate with secure monitor
+	  software at secure monitor exception level.
+
+	  Say Y here if you want Stratix10 service layer support.
+
 config QCOM_SCM
 	bool
 	depends on ARM || ARM64
