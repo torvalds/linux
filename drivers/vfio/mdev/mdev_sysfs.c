@@ -92,8 +92,8 @@ static struct kobj_type mdev_type_ktype = {
 	.release = mdev_type_release,
 };
 
-struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
-					  struct attribute_group *group)
+static struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
+						 struct attribute_group *group)
 {
 	struct mdev_type *type;
 	int ret;
