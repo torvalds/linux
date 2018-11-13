@@ -778,7 +778,9 @@ __SYSCALL(350, sys_pkey_free, 1)
 #define __NR_statx				351
 __SYSCALL(351, sys_statx, 5)
 
-#define __NR_syscall_count			352
+#ifdef __KERNEL__
+#define __NR_syscalls				352
+#endif
 
 /*
  * sysxtensa syscall handler

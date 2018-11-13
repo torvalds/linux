@@ -30,8 +30,8 @@
 
 typedef void (*syscall_t)(void);
 
-syscall_t sys_call_table[__NR_syscall_count] /* FIXME __cacheline_aligned */= {
-	[0 ... __NR_syscall_count - 1] = (syscall_t)&sys_ni_syscall,
+syscall_t sys_call_table[__NR_syscalls] /* FIXME __cacheline_aligned */= {
+	[0 ... __NR_syscalls - 1] = (syscall_t)&sys_ni_syscall,
 
 #define __SYSCALL(nr,symbol,nargs) [ nr ] = (syscall_t)symbol,
 #include <uapi/asm/unistd.h>
