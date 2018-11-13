@@ -349,10 +349,9 @@ void amvdec_dst_buf_done(struct amvdec_session *sess,
 }
 EXPORT_SYMBOL_GPL(amvdec_dst_buf_done);
 
-static void amvdec_dst_buf_done_offset(struct amvdec_session *sess,
-				       struct vb2_v4l2_buffer *vbuf,
-				       u32 offset,
-				       u32 field)
+void amvdec_dst_buf_done_offset(struct amvdec_session *sess,
+				struct vb2_v4l2_buffer *vbuf,
+				u32 offset, u32 field, bool allow_drop)
 {
 	struct device *dev = sess->core->dev_dec;
 	struct amvdec_timestamp *match = NULL;
@@ -374,6 +373,9 @@ static void amvdec_dst_buf_done_offset(struct amvdec_session *sess,
 			match = tmp;
 			break;
 		}
+
+		if (!allow_drop)
+			continue;
 
 		/* Delete any timestamp entry that appears before our target
 		 * (not all src packets/timestamps lead to a frame)
@@ -399,6 +401,7 @@ static void amvdec_dst_buf_done_offset(struct amvdec_session *sess,
 	if (match)
 		atomic_dec(&sess->esparser_queued_bufs);
 }
+EXPORT_SYMBOL_GPL(amvdec_dst_buf_done_offset);
 
 void amvdec_dst_buf_done_idx(struct amvdec_session *sess,
 			     u32 buf_idx, u32 offset, u32 field)
@@ -415,7 +418,7 @@ void amvdec_dst_buf_done_idx(struct amvdec_session *sess,
 	}
 
 	if (offset != -1)
-		amvdec_dst_buf_done_offset(sess, vbuf, offset, field);
+		amvdec_dst_buf_done_offset(sess, vbuf, offset, field, true);
 	else
 		amvdec_dst_buf_done(sess, vbuf, field);
 }
