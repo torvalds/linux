@@ -141,11 +141,11 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 	/* restore dai links */
 	list_for_each_entry_reverse(dai, &sdev->dai_list, list) {
 		struct sof_ipc_reply reply;
-		struct sof_ipc_dai_config *config = &dai->dai_config;
+		struct sof_ipc_dai_config *config = dai->dai_config;
 
 		ret = sof_ipc_tx_message(sdev->ipc,
 					 config->hdr.cmd, config,
-					 sizeof(*config),
+					 config->hdr.size,
 					 &reply, sizeof(reply));
 
 		if (ret < 0) {
