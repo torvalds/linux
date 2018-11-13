@@ -116,11 +116,11 @@ struct context *sidtab_search_force(struct sidtab *s, u32 sid)
 	return sidtab_search_core(s, sid, 1);
 }
 
-int sidtab_map(struct sidtab *s,
-	       int (*apply) (u32 sid,
-			     struct context *context,
-			     void *args),
-	       void *args)
+static int sidtab_map(struct sidtab *s,
+		      int (*apply)(u32 sid,
+				   struct context *context,
+				   void *args),
+		      void *args)
 {
 	int i, rc = 0;
 	struct sidtab_node *cur;
@@ -139,6 +139,37 @@ int sidtab_map(struct sidtab *s,
 	}
 out:
 	return rc;
+}
+
+/* Clone the SID into the new SID table. */
+static int clone_sid(u32 sid, struct context *context, void *arg)
+{
+	struct sidtab *s = arg;
+
+	if (sid > SECINITSID_NUM)
+		return sidtab_insert(s, sid, context);
+	else
+		return 0;
+}
+
+int sidtab_convert(struct sidtab *s, struct sidtab *news,
+		   int (*convert)(u32 sid,
+				  struct context *context,
+				  void *args),
+		   void *args)
+{
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(&s->lock, flags);
+	s->shutdown = 1;
+	spin_unlock_irqrestore(&s->lock, flags);
+
+	rc = sidtab_map(s, clone_sid, news);
+	if (rc)
+		return rc;
+
+	return sidtab_map(news, convert, args);
 }
 
 static void sidtab_update_cache(struct sidtab *s, struct sidtab_node *n, int loc)
@@ -294,13 +325,4 @@ void sidtab_set(struct sidtab *dst, struct sidtab *src)
 	for (i = 0; i < SIDTAB_CACHE_LEN; i++)
 		dst->cache[i] = NULL;
 	spin_unlock_irqrestore(&src->lock, flags);
-}
-
-void sidtab_shutdown(struct sidtab *s)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&s->lock, flags);
-	s->shutdown = 1;
-	spin_unlock_irqrestore(&s->lock, flags);
 }
