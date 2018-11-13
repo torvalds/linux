@@ -1925,8 +1925,6 @@ void *__pskb_pull_tail(struct sk_buff *skb, int delta)
 		struct sk_buff *insp = NULL;
 
 		do {
-			BUG_ON(!list);
-
 			if (list->len <= eat) {
 				/* Eaten as whole. */
 				eat -= list->len;
