@@ -36,7 +36,7 @@
 
 #include <linux/types.h>
 
-typedef int32_t VCHI_MEM_HANDLE_T;
+typedef s32 VCHI_MEM_HANDLE_T;
 #define VCHI_MEM_HANDLE_INVALID 0
 
 #endif
