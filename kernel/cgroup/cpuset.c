@@ -2468,11 +2468,11 @@ static ssize_t sched_partition_write(struct kernfs_open_file *of, char *buf,
 	buf = strstrip(buf);
 
 	/*
-	 * Convert "root"/"1" to 1, and convert "member"/"0" to 0.
+	 * Convert "root" to ENABLED, and convert "member" to DISABLED.
 	 */
-	if (!strcmp(buf, "root") || !strcmp(buf, "1"))
+	if (!strcmp(buf, "root"))
 		val = PRS_ENABLED;
-	else if (!strcmp(buf, "member") || !strcmp(buf, "0"))
+	else if (!strcmp(buf, "member"))
 		val = PRS_DISABLED;
 	else
 		return -EINVAL;
@@ -2631,7 +2631,7 @@ static struct cftype dfl_files[] = {
 	},
 
 	{
-		.name = "sched.partition",
+		.name = "cpus.partition",
 		.seq_show = sched_partition_show,
 		.write = sched_partition_write,
 		.private = FILE_PARTITION_ROOT,

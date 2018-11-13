@@ -1708,15 +1708,15 @@ Cpuset Interface Files
 
 	Its value will be affected by memory nodes hotplug events.
 
-  cpuset.sched.partition
+  cpuset.cpus.partition
 	A read-write single value file which exists on non-root
 	cpuset-enabled cgroups.  This flag is owned by the parent cgroup
 	and is not delegatable.
 
         It accepts only the following input values when written to.
 
-        "root" or "1"   - a paritition root
-        "member" or "0" - a non-root member of a partition
+        "root"   - a paritition root
+        "member" - a non-root member of a partition
 
 	When set to be a partition root, the current cgroup is the
 	root of a new partition or scheduling domain that comprises
