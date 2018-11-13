@@ -453,3 +453,102 @@ bool vlan_uses_dev(const struct net_device *dev)
 	return vlan_info->grp.nr_vlan_devs ? true : false;
 }
 EXPORT_SYMBOL(vlan_uses_dev);
+
+static struct sk_buff *vlan_gro_receive(struct list_head *head,
+					struct sk_buff *skb)
+{
+	const struct packet_offload *ptype;
+	unsigned int hlen, off_vlan;
+	struct sk_buff *pp = NULL;
+	struct vlan_hdr *vhdr;
+	struct sk_buff *p;
+	__be16 type;
+	int flush = 1;
+
+	off_vlan = skb_gro_offset(skb);
+	hlen = off_vlan + sizeof(*vhdr);
+	vhdr = skb_gro_header_fast(skb, off_vlan);
+	if (skb_gro_header_hard(skb, hlen)) {
+		vhdr = skb_gro_header_slow(skb, hlen, off_vlan);
+		if (unlikely(!vhdr))
+			goto out;
+	}
+
+	type = vhdr->h_vlan_encapsulated_proto;
+
+	rcu_read_lock();
+	ptype = gro_find_receive_by_type(type);
+	if (!ptype)
+		goto out_unlock;
+
+	flush = 0;
+
+	list_for_each_entry(p, head, list) {
+		struct vlan_hdr *vhdr2;
+
+		if (!NAPI_GRO_CB(p)->same_flow)
+			continue;
+
+		vhdr2 = (struct vlan_hdr *)(p->data + off_vlan);
+		if (compare_vlan_header(vhdr, vhdr2))
+			NAPI_GRO_CB(p)->same_flow = 0;
+	}
+
+	skb_gro_pull(skb, sizeof(*vhdr));
+	skb_gro_postpull_rcsum(skb, vhdr, sizeof(*vhdr));
+	pp = call_gro_receive(ptype->callbacks.gro_receive, head, skb);
+
+out_unlock:
+	rcu_read_unlock();
+out:
+	skb_gro_flush_final(skb, pp, flush);
+
+	return pp;
+}
+
+static int vlan_gro_complete(struct sk_buff *skb, int nhoff)
+{
+	struct vlan_hdr *vhdr = (struct vlan_hdr *)(skb->data + nhoff);
+	__be16 type = vhdr->h_vlan_encapsulated_proto;
+	struct packet_offload *ptype;
+	int err = -ENOENT;
+
+	rcu_read_lock();
+	ptype = gro_find_complete_by_type(type);
+	if (ptype)
+		err = ptype->callbacks.gro_complete(skb, nhoff + sizeof(*vhdr));
+
+	rcu_read_unlock();
+	return err;
+}
+
+static struct packet_offload vlan_packet_offloads[] __read_mostly = {
+	{
+		.type = cpu_to_be16(ETH_P_8021Q),
+		.priority = 10,
+		.callbacks = {
+			.gro_receive = vlan_gro_receive,
+			.gro_complete = vlan_gro_complete,
+		},
+	},
+	{
+		.type = cpu_to_be16(ETH_P_8021AD),
+		.priority = 10,
+		.callbacks = {
+			.gro_receive = vlan_gro_receive,
+			.gro_complete = vlan_gro_complete,
+		},
+	},
+};
+
+static int __init vlan_offload_init(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(vlan_packet_offloads); i++)
+		dev_add_offload(&vlan_packet_offloads[i]);
+
+	return 0;
+}
+
+fs_initcall(vlan_offload_init);
