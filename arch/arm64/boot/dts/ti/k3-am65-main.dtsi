@@ -85,4 +85,48 @@
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0xffffffff>;
 	};
+
+	main_i2c0: i2c@2000000 {
+		compatible = "ti,am654-i2c", "ti,omap4-i2c";
+		reg = <0x0 0x2000000 0x0 0x100>;
+		interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "fck";
+		clocks = <&k3_clks 110 1>;
+		power-domains = <&k3_pds 110>;
+	};
+
+	main_i2c1: i2c@2010000 {
+		compatible = "ti,am654-i2c", "ti,omap4-i2c";
+		reg = <0x0 0x2010000 0x0 0x100>;
+		interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "fck";
+		clocks = <&k3_clks 111 1>;
+		power-domains = <&k3_pds 111>;
+	};
+
+	main_i2c2: i2c@2020000 {
+		compatible = "ti,am654-i2c", "ti,omap4-i2c";
+		reg = <0x0 0x2020000 0x0 0x100>;
+		interrupts = <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "fck";
+		clocks = <&k3_clks 112 1>;
+		power-domains = <&k3_pds 112>;
+	};
+
+	main_i2c3: i2c@2030000 {
+		compatible = "ti,am654-i2c", "ti,omap4-i2c";
+		reg = <0x0 0x2030000 0x0 0x100>;
+		interrupts = <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "fck";
+		clocks = <&k3_clks 113 1>;
+		power-domains = <&k3_pds 113>;
+	};
 };

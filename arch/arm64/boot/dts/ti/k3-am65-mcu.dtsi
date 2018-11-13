@@ -15,4 +15,15 @@
 			clock-frequency = <96000000>;
 			current-speed = <115200>;
 	};
+
+	mcu_i2c0: i2c@40b00000 {
+		compatible = "ti,am654-i2c", "ti,omap4-i2c";
+		reg = <0x0 0x40b00000 0x0 0x100>;
+		interrupts = <GIC_SPI 564 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "fck";
+		clocks = <&k3_clks 114 1>;
+		power-domains = <&k3_pds 114>;
+	};
 };
