@@ -241,22 +241,6 @@
 #define __NR_osf_fdatasync	261	/* not implemented */
 
 /*
- * Ignore legacy syscalls that we don't use.
- */
-#define __IGNORE_alarm
-#define __IGNORE_creat
-#define __IGNORE_getegid
-#define __IGNORE_geteuid
-#define __IGNORE_getgid
-#define __IGNORE_getpid
-#define __IGNORE_getppid
-#define __IGNORE_getuid
-#define __IGNORE_pause
-#define __IGNORE_time
-#define __IGNORE_utime
-#define __IGNORE_umount2
-
-/*
  * Linux-specific system calls begin at 300
  */
 #define __NR_bdflush		300
@@ -480,10 +464,5 @@
 #define __NR_preadv2			520
 #define __NR_pwritev2			521
 #define __NR_statx			522
-
-/* Alpha doesn't have protection keys. */
-#define __IGNORE_pkey_mprotect
-#define __IGNORE_pkey_alloc
-#define __IGNORE_pkey_free
 
 #endif /* _UAPI_ALPHA_UNISTD_H */
