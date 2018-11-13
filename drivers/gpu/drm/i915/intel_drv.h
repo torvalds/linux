@@ -2219,8 +2219,6 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state);
 int intel_plane_check_stride(const struct intel_plane_state *plane_state);
 int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state);
 int chv_plane_check_rotation(const struct intel_plane_state *plane_state);
-struct intel_plane *intel_plane_alloc(void);
-void intel_plane_free(struct intel_plane *plane);
 struct intel_plane *
 skl_universal_plane_create(struct drm_i915_private *dev_priv,
 			   enum pipe pipe, enum plane_id plane_id);
@@ -2282,7 +2280,8 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 			       struct intel_crtc_state *crtc_state);
 
 /* intel_atomic_plane.c */
-struct intel_plane_state *intel_create_plane_state(struct drm_plane *plane);
+struct intel_plane *intel_plane_alloc(void);
+void intel_plane_free(struct intel_plane *plane);
 struct drm_plane_state *intel_plane_duplicate_state(struct drm_plane *plane);
 void intel_plane_destroy_state(struct drm_plane *plane,
 			       struct drm_plane_state *state);

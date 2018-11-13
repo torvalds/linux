@@ -1983,35 +1983,6 @@ static bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
 		 plane_id == PLANE_SPRITE0);
 }
 
-struct intel_plane *intel_plane_alloc(void)
-{
-	struct intel_plane_state *plane_state;
-	struct intel_plane *plane;
-
-	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
-	if (!plane)
-		return ERR_PTR(-ENOMEM);
-
-	plane_state = intel_create_plane_state(&plane->base);
-	if (!plane_state) {
-		kfree(plane);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	plane->base.state = &plane_state->base;
-
-	return plane;
-}
-
-void intel_plane_free(struct intel_plane *plane)
-{
-	struct intel_plane_state *plane_state =
-		to_intel_plane_state(plane->base.state);
-
-	kfree(plane_state);
-	kfree(plane);
-}
-
 struct intel_plane *
 skl_universal_plane_create(struct drm_i915_private *dev_priv,
 			   enum pipe pipe, enum plane_id plane_id)

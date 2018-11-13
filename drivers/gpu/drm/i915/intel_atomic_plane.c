@@ -36,29 +36,31 @@
 #include <drm/drm_plane_helper.h>
 #include "intel_drv.h"
 
-/**
- * intel_create_plane_state - create plane state object
- * @plane: drm plane
- *
- * Allocates a fresh plane state for the given plane and sets some of
- * the state values to sensible initial values.
- *
- * Returns: A newly allocated plane state, or NULL on failure
- */
-struct intel_plane_state *
-intel_create_plane_state(struct drm_plane *plane)
+struct intel_plane *intel_plane_alloc(void)
 {
-	struct intel_plane_state *state;
+	struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (!state)
-		return NULL;
+	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
+	if (!plane)
+		return ERR_PTR(-ENOMEM);
 
-	state->base.plane = plane;
-	state->base.rotation = DRM_MODE_ROTATE_0;
-	state->scaler_id = -1;
+	plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
+	if (!plane_state) {
+		kfree(plane);
+		return ERR_PTR(-ENOMEM);
+	}
 
-	return state;
+	__drm_atomic_helper_plane_reset(&plane->base, &plane_state->base);
+	plane_state->scaler_id = -1;
+
+	return plane;
+}
+
+void intel_plane_free(struct intel_plane *plane)
+{
+	intel_plane_destroy_state(&plane->base, plane->base.state);
+	kfree(plane);
 }
 
 /**
