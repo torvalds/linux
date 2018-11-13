@@ -625,11 +625,11 @@ static void dce_update_clocks(struct clk_mgr *clk_mgr,
 {
 	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
 	struct dm_pp_power_level_change_request level_change_req;
-	int unpatched_disp_clk = context->bw.dce.dispclk_khz;
+	int patched_disp_clk = context->bw.dce.dispclk_khz;
 
 	/*TODO: W/A for dal3 linux, investigate why this works */
 	if (!clk_mgr_dce->dfs_bypass_active)
-		context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
+		patched_disp_clk = patched_disp_clk * 115 / 100;
 
 	level_change_req.power_level = dce_get_required_clocks_state(clk_mgr, context);
 	/* get max clock state from PPLIB */
@@ -639,13 +639,11 @@ static void dce_update_clocks(struct clk_mgr *clk_mgr,
 			clk_mgr_dce->cur_min_clks_state = level_change_req.power_level;
 	}
 
-	if (should_set_clock(safe_to_lower, context->bw.dce.dispclk_khz, clk_mgr->clks.dispclk_khz)) {
-		context->bw.dce.dispclk_khz = dce_set_clock(clk_mgr, context->bw.dce.dispclk_khz);
-		clk_mgr->clks.dispclk_khz = context->bw.dce.dispclk_khz; 
+	if (should_set_clock(safe_to_lower, patched_disp_clk, clk_mgr->clks.dispclk_khz)) {
+		patched_disp_clk = dce_set_clock(clk_mgr, patched_disp_clk);
+		clk_mgr->clks.dispclk_khz = patched_disp_clk;
 	}
 	dce_pplib_apply_display_requirements(clk_mgr->ctx->dc, context);
-
-	context->bw.dce.dispclk_khz = unpatched_disp_clk;
 }
 
 static void dce11_update_clocks(struct clk_mgr *clk_mgr,
@@ -676,11 +674,11 @@ static void dce112_update_clocks(struct clk_mgr *clk_mgr,
 {
 	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
 	struct dm_pp_power_level_change_request level_change_req;
-	int unpatched_disp_clk = context->bw.dce.dispclk_khz;
+	int patched_disp_clk = context->bw.dce.dispclk_khz;
 
 	/*TODO: W/A for dal3 linux, investigate why this works */
 	if (!clk_mgr_dce->dfs_bypass_active)
-		context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
+		patched_disp_clk = patched_disp_clk * 115 / 100;
 
 	level_change_req.power_level = dce_get_required_clocks_state(clk_mgr, context);
 	/* get max clock state from PPLIB */
@@ -690,13 +688,11 @@ static void dce112_update_clocks(struct clk_mgr *clk_mgr,
 			clk_mgr_dce->cur_min_clks_state = level_change_req.power_level;
 	}
 
-	if (should_set_clock(safe_to_lower, context->bw.dce.dispclk_khz, clk_mgr->clks.dispclk_khz)) {
-		context->bw.dce.dispclk_khz = dce112_set_clock(clk_mgr, context->bw.dce.dispclk_khz);
-		clk_mgr->clks.dispclk_khz = context->bw.dce.dispclk_khz;
+	if (should_set_clock(safe_to_lower, patched_disp_clk, clk_mgr->clks.dispclk_khz)) {
+		patched_disp_clk = dce112_set_clock(clk_mgr, patched_disp_clk);
+		clk_mgr->clks.dispclk_khz = patched_disp_clk;
 	}
 	dce11_pplib_apply_display_requirements(clk_mgr->ctx->dc, context);
-
-	context->bw.dce.dispclk_khz = unpatched_disp_clk;
 }
 
 static void dce12_update_clocks(struct clk_mgr *clk_mgr,
@@ -706,17 +702,16 @@ static void dce12_update_clocks(struct clk_mgr *clk_mgr,
 	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
 	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
 	int max_pix_clk = get_max_pixel_clock_for_all_paths(context);
-	int unpatched_disp_clk = context->bw.dce.dispclk_khz;
+	int patched_disp_clk = context->bw.dce.dispclk_khz;
 
 	/*TODO: W/A for dal3 linux, investigate why this works */
 	if (!clk_mgr_dce->dfs_bypass_active)
-		context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
+		patched_disp_clk = patched_disp_clk * 115 / 100;
 
-	if (should_set_clock(safe_to_lower, context->bw.dce.dispclk_khz, clk_mgr->clks.dispclk_khz)) {
+	if (should_set_clock(safe_to_lower, patched_disp_clk, clk_mgr->clks.dispclk_khz)) {
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAY_CLK;
-		clock_voltage_req.clocks_in_khz = context->bw.dce.dispclk_khz;
-		context->bw.dce.dispclk_khz = dce112_set_clock(clk_mgr, context->bw.dce.dispclk_khz);
-		clk_mgr->clks.dispclk_khz = context->bw.dce.dispclk_khz;
+		clock_voltage_req.clocks_in_khz = patched_disp_clk;
+		clk_mgr->clks.dispclk_khz = dce112_set_clock(clk_mgr, patched_disp_clk);
 
 		dm_pp_apply_clock_for_voltage_request(clk_mgr->ctx, &clock_voltage_req);
 	}
@@ -729,8 +724,6 @@ static void dce12_update_clocks(struct clk_mgr *clk_mgr,
 		dm_pp_apply_clock_for_voltage_request(clk_mgr->ctx, &clock_voltage_req);
 	}
 	dce11_pplib_apply_display_requirements(clk_mgr->ctx->dc, context);
-
-	context->bw.dce.dispclk_khz = unpatched_disp_clk;
 }
 
 static const struct clk_mgr_funcs dce120_funcs = {
