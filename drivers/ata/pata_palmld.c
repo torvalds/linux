@@ -26,17 +26,14 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <scsi/scsi_host.h>
 #include <mach/palmld.h>
 
 #define DRV_NAME "pata_palmld"
 
-static struct gpio palmld_hdd_gpios[] = {
-	{ GPIO_NR_PALMLD_IDE_PWEN,	GPIOF_INIT_HIGH,	"HDD Power" },
-	{ GPIO_NR_PALMLD_IDE_RESET,	GPIOF_INIT_LOW,		"HDD Reset" },
-};
+static struct gpio_desc *palmld_pata_power;
 
 static struct scsi_host_template palmld_sht = {
 	ATA_PIO_SHT(DRV_NAME),
@@ -53,32 +50,34 @@ static int palmld_pata_probe(struct platform_device *pdev)
 	struct ata_host *host;
 	struct ata_port *ap;
 	void __iomem *mem;
+	struct device *dev = &pdev->dev;
+	struct gpio_desc *reset;
 	int ret;
 
 	/* allocate host */
-	host = ata_host_alloc(&pdev->dev, 1);
-	if (!host) {
-		ret = -ENOMEM;
-		goto err1;
-	}
+	host = ata_host_alloc(dev, 1);
+	if (!host)
+		return -ENOMEM;
 
 	/* remap drive's physical memory address */
-	mem = devm_ioremap(&pdev->dev, PALMLD_IDE_PHYS, 0x1000);
-	if (!mem) {
-		ret = -ENOMEM;
-		goto err1;
+	mem = devm_ioremap(dev, PALMLD_IDE_PHYS, 0x1000);
+	if (!mem)
+		return -ENOMEM;
+
+	/* request and activate power and reset GPIOs */
+	palmld_pata_power = devm_gpiod_get(dev, "power", GPIOD_OUT_HIGH);
+	if (IS_ERR(palmld_pata_power))
+		return PTR_ERR(palmld_pata_power);
+	reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(reset)) {
+		gpiod_set_value(palmld_pata_power, 0);
+		return PTR_ERR(reset);
 	}
 
-	/* request and activate power GPIO, IRQ GPIO */
-	ret = gpio_request_array(palmld_hdd_gpios,
-				ARRAY_SIZE(palmld_hdd_gpios));
-	if (ret)
-		goto err1;
-
-	/* reset the drive */
-	gpio_set_value(GPIO_NR_PALMLD_IDE_RESET, 0);
+	/* Assert reset to reset the drive */
+	gpiod_set_value(reset, 1);
 	msleep(30);
-	gpio_set_value(GPIO_NR_PALMLD_IDE_RESET, 1);
+	gpiod_set_value(reset, 0);
 	msleep(30);
 
 	/* setup the ata port */
@@ -98,14 +97,9 @@ static int palmld_pata_probe(struct platform_device *pdev)
 	/* activate host */
 	ret = ata_host_activate(host, 0, NULL, IRQF_TRIGGER_RISING,
 					&palmld_sht);
+	/* power down on failure */
 	if (ret)
-		goto err2;
-
-	return ret;
-
-err2:
-	gpio_free_array(palmld_hdd_gpios, ARRAY_SIZE(palmld_hdd_gpios));
-err1:
+		gpiod_set_value(palmld_pata_power, 0);
 	return ret;
 }
 
@@ -114,9 +108,7 @@ static int palmld_pata_remove(struct platform_device *dev)
 	ata_platform_remove_one(dev);
 
 	/* power down the HDD */
-	gpio_set_value(GPIO_NR_PALMLD_IDE_PWEN, 0);
-
-	gpio_free_array(palmld_hdd_gpios, ARRAY_SIZE(palmld_hdd_gpios));
+	gpiod_set_value(palmld_pata_power, 0);
 
 	return 0;
 }
