@@ -622,6 +622,26 @@ v4l2_m2m_dst_buf_remove_by_idx(struct v4l2_m2m_ctx *m2m_ctx, unsigned int idx)
 	return v4l2_m2m_buf_remove_by_idx(&m2m_ctx->cap_q_ctx, idx);
 }
 
+/**
+ * v4l2_m2m_buf_copy_data() - copy buffer data from the output buffer to the
+ * capture buffer
+ *
+ * @out_vb: the output buffer that is the source of the data.
+ * @cap_vb: the capture buffer that will receive the data.
+ * @copy_frame_flags: copy the KEY/B/PFRAME flags as well.
+ *
+ * This helper function copies the timestamp, timecode (if the TIMECODE
+ * buffer flag was set), field and the TIMECODE, KEYFRAME, BFRAME, PFRAME
+ * and TSTAMP_SRC_MASK flags from @out_vb to @cap_vb.
+ *
+ * If @copy_frame_flags is false, then the KEYFRAME, BFRAME and PFRAME
+ * flags are not copied. This is typically needed for encoders that
+ * set this bits explicitly.
+ */
+void v4l2_m2m_buf_copy_data(const struct vb2_v4l2_buffer *out_vb,
+			    struct vb2_v4l2_buffer *cap_vb,
+			    bool copy_frame_flags);
+
 /* v4l2 request helper */
 
 void v4l2_m2m_request_queue(struct media_request *req);
