@@ -130,9 +130,10 @@ int bpf_prog_offload_verifier_prep(struct bpf_prog *prog)
 
 	down_read(&bpf_devs_lock);
 	offload = prog->aux->offload;
-	if (offload)
+	if (offload) {
 		ret = offload->offdev->ops->prepare(prog);
-	offload->dev_state = !ret;
+		offload->dev_state = !ret;
+	}
 	up_read(&bpf_devs_lock);
 
 	return ret;
