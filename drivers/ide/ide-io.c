@@ -463,11 +463,6 @@ blk_status_t ide_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request	*rq = bd->rq;
 	ide_startstop_t	startstop;
 
-	if (!(rq->rq_flags & RQF_DONTPREP)) {
-		rq->rq_flags |= RQF_DONTPREP;
-		ide_req(rq)->special = NULL;
-	}
-
 	/* HLD do_request() callback might sleep, make sure it's okay */
 	might_sleep();
 
