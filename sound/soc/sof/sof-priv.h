@@ -297,7 +297,7 @@ struct snd_sof_dai {
 	const char *name;
 
 	struct sof_ipc_comp_dai comp_dai;
-	struct sof_ipc_dai_config dai_config;
+	struct sof_ipc_dai_config *dai_config;
 	struct list_head list;	/* list in sdev dai list */
 };
 

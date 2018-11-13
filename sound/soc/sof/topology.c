@@ -1760,6 +1760,9 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 	case snd_soc_dapm_dai_out:
 		dai = swidget->private;
 
+		/* free dai config */
+		kfree(dai->dai_config);
+
 		/* remove and free dai object */
 		if (dai) {
 			list_del(&dai->list);
@@ -1867,6 +1870,27 @@ static void sof_dai_set_format(struct snd_soc_tplg_hw_config *hw_config,
 	}
 }
 
+/* set config for all DAI's with name matching the link name */
+static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
+			      struct snd_soc_dai_link *link,
+			      struct sof_ipc_dai_config *config)
+{
+	struct snd_sof_dai *dai;
+
+	list_for_each_entry(dai, &sdev->dai_list, list) {
+		if (!dai->name)
+			continue;
+
+		if (strcmp(link->name, dai->name) == 0) {
+			dai->dai_config = kmemdup(config, size, GFP_KERNEL);
+			if (!dai->dai_config)
+				return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
 static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 			     struct snd_soc_dai_link *link,
 			     struct snd_soc_tplg_link_config *cfg,
@@ -1916,8 +1940,16 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 				 config->hdr.cmd, config, size, &reply,
 				 sizeof(reply));
 
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to set DAI config for SSP%d\n",
+			config->dai_index);
+		return ret;
+	}
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed to save DAI config for SSP%d\n",
 			config->dai_index);
 
 	return ret;
@@ -1936,6 +1968,11 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	u32 size;
 	int ret, j;
 
+	/*
+	 * config is only used for the common params in dmic_params structure
+	 * that does not include the PDM controller config array
+	 * Set the common params to 0.
+	 */
 	memset(&config->dmic, 0, sizeof(struct sof_ipc_dai_dmic_params));
 
 	/* get DMIC tokens */
@@ -1949,13 +1986,14 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	}
 
 	/*
-	 * allocate memory for common dai params, dmic params
-	 * and dmic pdm controller params
+	 * allocate memory for dmic dai config accounting for the
+	 * variable number of active pdm controllers
+	 * This will be the ipc payload for setting dai config
 	 */
-	ipc_config = kzalloc(sizeof(*config) +
-				sizeof(struct sof_ipc_dai_dmic_pdm_ctrl) *
-				config->dmic.num_pdm_active,
-			     GFP_KERNEL);
+	size = sizeof(*config) + sizeof(struct sof_ipc_dai_dmic_pdm_ctrl) *
+					config->dmic.num_pdm_active;
+
+	ipc_config = kzalloc(size, GFP_KERNEL);
 	if (!ipc_config) {
 		dev_err(sdev->dev, "error: allocating memory for config\n");
 		return -ENOMEM;
@@ -1969,6 +2007,10 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	 * Used to track the pdm config array index currently being parsed
 	 */
 	sdev->private = kzalloc(sizeof(u32), GFP_KERNEL);
+	if (!sdev->private) {
+		kfree(ipc_config);
+		return -ENOMEM;
+	}
 
 	/* get DMIC PDM tokens */
 	ret = sof_parse_tokens(scomp, &ipc_config->dmic.pdm[0], dmic_pdm_tokens,
@@ -1977,12 +2019,10 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	if (ret != 0) {
 		dev_err(sdev->dev, "error: parse dmic pdm tokens failed %d\n",
 			le32_to_cpu(private->size));
-		kfree(ipc_config);
-		return ret;
+		goto err;
 	}
 
 	/* set IPC header size */
-	size = sizeof(*ipc_config);
 	ipc_config->hdr.size = size;
 
 	/* debug messages */
@@ -2020,13 +2060,19 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 				 ipc_config->hdr.cmd, ipc_config, size, &reply,
 				 sizeof(reply));
 
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to set DAI config for DMIC%d\n",
 			config->dai_index);
+		goto err;
+	}
 
-	/* update config with pdm config */
-	memcpy(config, ipc_config, sizeof(*ipc_config));
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, ipc_config);
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed to save DAI config for DMIC%d\n",
+			config->dai_index);
 
+err:
 	kfree(sdev->private);
 	kfree(ipc_config);
 
@@ -2148,8 +2194,23 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 	if (link->dpcm_capture) {
 		ret = sof_link_hda_process(sdev, link, config, rx_slot,
 					   SNDRV_PCM_STREAM_CAPTURE);
-		if (ret < 0)
+		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to set DAI config for capture dai HDA%d\n",
+				config->dai_index);
+
+			return ret;
+		}
+	}
+
+	/* set config for all DAI's with name matching the link name */
+	ret = sof_set_dai_config(sdev, size, link, config);
+	if (ret < 0) {
+		if (link->dpcm_playback)
+			dev_err(sdev->dev, "error: failed to save DAI config for playback HDA%d\n",
+				config->dai_index);
+
+		if (link->dpcm_capture)
+			dev_err(sdev->dev, "error: failed to save DAI config for capture HDA%d\n",
 				config->dai_index);
 	}
 
@@ -2165,7 +2226,6 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	struct snd_soc_tplg_private *private = &cfg->priv;
 	struct sof_ipc_dai_config config;
 	struct snd_soc_tplg_hw_config *hw_config;
-	struct snd_sof_dai *dai;
 	int ret = 0;
 
 	link->platform_name = "sof-audio";
@@ -2226,16 +2286,6 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	if (ret < 0)
 		return ret;
 
-	/* set config for all DAI's with name matching the link name */
-	list_for_each_entry(dai, &sdev->dai_list, list) {
-		if (!dai->name)
-			continue;
-
-		if (strcmp(link->name, dai->name) == 0)
-			memcpy(&dai->dai_config, &config,
-			       sizeof(struct sof_ipc_dai_config));
-	}
-
 	return 0;
 }
 
@@ -2291,7 +2341,7 @@ static int sof_link_unload(struct snd_soc_component *scomp,
 		return -EINVAL;
 	}
 
-	switch (sof_dai->dai_config.type) {
+	switch (sof_dai->dai_config->type) {
 	case SOF_DAI_INTEL_SSP:
 	case SOF_DAI_INTEL_DMIC:
 		/* no resource needs to be released for SSP and DMIC */
@@ -2301,7 +2351,7 @@ static int sof_link_unload(struct snd_soc_component *scomp,
 		break;
 	default:
 		dev_err(sdev->dev, "error: invalid DAI type %d\n",
-			sof_dai->dai_config.type);
+			sof_dai->dai_config->type);
 		ret = -EINVAL;
 		break;
 	}
