@@ -107,7 +107,7 @@ static int is_b_op(unsigned int op)
 
 static unsigned long find_bl_target(unsigned long ip, unsigned int op)
 {
-	static int offset;
+	int offset;
 
 	offset = (op & 0x03fffffc);
 	/* make it signed */
