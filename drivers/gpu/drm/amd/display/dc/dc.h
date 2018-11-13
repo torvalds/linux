@@ -749,6 +749,9 @@ void dc_set_power_state(
 		struct dc *dc,
 		enum dc_acpi_cm_power_state power_state);
 void dc_resume(struct dc *dc);
+unsigned int dc_get_current_backlight_pwm(struct dc *dc);
+unsigned int dc_get_target_backlight_pwm(struct dc *dc);
+
 bool dc_is_dmcu_initialized(struct dc *dc);
 
 #endif /* DC_INTERFACE_H_ */
