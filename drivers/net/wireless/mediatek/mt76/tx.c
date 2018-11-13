@@ -330,7 +330,8 @@ mt76_queue_ps_skb(struct mt76_dev *dev, struct ieee80211_sta *sta,
 
 	info->control.flags |= IEEE80211_TX_CTRL_PS_RESPONSE;
 	if (last)
-		info->flags |= IEEE80211_TX_STATUS_EOSP;
+		info->flags |= IEEE80211_TX_STATUS_EOSP |
+			       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
 	mt76_skb_set_moredata(skb, !last);
 	dev->queue_ops->tx_queue_skb(dev, hwq, skb, wcid, sta);
