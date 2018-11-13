@@ -335,8 +335,8 @@ static int sof_probe(struct platform_device *pdev)
 			plat_data->machine->new_mach_data(plat_data);
 	} else {
 		drv_name = plat_data->machine->drv_name;
-		mach = (const void *)plat_data;
-		size = sizeof(*plat_data);
+		mach = (const void *)plat_data->machine;
+		size = sizeof(*plat_data->machine);
 
 		/* register machine driver, pass machine info as pdata */
 		plat_data->pdev_mach =
