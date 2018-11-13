@@ -8673,8 +8673,6 @@ static int copy_enlightened_to_vmcs12(struct vcpu_vmx *vmx)
 	struct vmcs12 *vmcs12 = vmx->nested.cached_vmcs12;
 	struct hv_enlightened_vmcs *evmcs = vmx->nested.hv_evmcs;
 
-	vmcs12->hdr.revision_id = evmcs->revision_id;
-
 	/* HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE */
 	vmcs12->tpr_threshold = evmcs->tpr_threshold;
 	vmcs12->guest_rip = evmcs->guest_rip;
@@ -9422,9 +9420,11 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 		 * present in struct hv_enlightened_vmcs, ...). Make sure there
 		 * are no leftovers.
 		 */
-		if (from_launch)
-			memset(vmx->nested.cached_vmcs12, 0,
-			       sizeof(*vmx->nested.cached_vmcs12));
+		if (from_launch) {
+			struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+			memset(vmcs12, 0, sizeof(*vmcs12));
+			vmcs12->hdr.revision_id = VMCS12_REVISION;
+		}
 
 	}
 	return 1;
