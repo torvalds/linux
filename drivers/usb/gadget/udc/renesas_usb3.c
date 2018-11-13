@@ -2374,6 +2374,9 @@ static ssize_t renesas_usb3_b_device_write(struct file *file,
 	else
 		usb3->forced_b_device = false;
 
+	if (usb3->workaround_for_vbus)
+		usb3_disconnect(usb3);
+
 	/* Let this driver call usb3_connect() anyway */
 	usb3_check_id(usb3);
 

@@ -178,7 +178,7 @@ canary:
 	.fill 48, 1, 0
 
 early_stack:
-	.fill 256, 1, 0
+	.fill BOOT_STACK_SIZE, 1, 0
 early_stack_end:
 
 	ELFNOTE(Xen, XEN_ELFNOTE_PHYS32_ENTRY,

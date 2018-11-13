@@ -34,7 +34,7 @@ enum siginfo_layout {
 #endif
 };
 
-enum siginfo_layout siginfo_layout(int sig, int si_code);
+enum siginfo_layout siginfo_layout(unsigned sig, int si_code);
 
 /*
  * Define some primitives to manipulate sigset_t.

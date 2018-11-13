@@ -232,6 +232,8 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 static inline void btrfs_qgroup_free_delayed_ref(struct btrfs_fs_info *fs_info,
 						 u64 ref_root, u64 num_bytes)
 {
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
+		return;
 	trace_btrfs_qgroup_free_delayed_ref(fs_info, ref_root, num_bytes);
 	btrfs_qgroup_free_refroot(fs_info, ref_root, num_bytes);
 }

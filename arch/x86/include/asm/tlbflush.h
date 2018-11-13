@@ -466,6 +466,12 @@ static inline void __native_flush_tlb_one_user(unsigned long addr)
  */
 static inline void __flush_tlb_all(void)
 {
+	/*
+	 * This is to catch users with enabled preemption and the PGE feature
+	 * and don't trigger the warning in __native_flush_tlb().
+	 */
+	VM_WARN_ON_ONCE(preemptible());
+
 	if (boot_cpu_has(X86_FEATURE_PGE)) {
 		__flush_tlb_global();
 	} else {

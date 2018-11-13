@@ -747,6 +747,9 @@ void phylink_start(struct phylink *pl)
 		    phylink_an_mode_str(pl->link_an_mode),
 		    phy_modes(pl->link_config.interface));
 
+	/* Always set the carrier off */
+	netif_carrier_off(pl->netdev);
+
 	/* Apply the link configuration to the MAC when starting. This allows
 	 * a fixed-link to start with the correct parameters, and also
 	 * ensures that we set the appropriate advertisment for Serdes links.
