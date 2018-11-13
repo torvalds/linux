@@ -543,21 +543,64 @@ static ssize_t iwl_dbgfs_low_latency_write(struct ieee80211_vif *vif, char *buf,
 	return count;
 }
 
+static ssize_t
+iwl_dbgfs_low_latency_force_write(struct ieee80211_vif *vif, char *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	u8 value;
+	int ret;
+
+	ret = kstrtou8(buf, 0, &value);
+	if (ret)
+		return ret;
+
+	if (value > NUM_LOW_LATENCY_FORCE)
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	if (value == LOW_LATENCY_FORCE_UNSET) {
+		iwl_mvm_update_low_latency(mvm, vif, false,
+					   LOW_LATENCY_DEBUGFS_FORCE);
+		iwl_mvm_update_low_latency(mvm, vif, false,
+					   LOW_LATENCY_DEBUGFS_FORCE_ENABLE);
+	} else {
+		iwl_mvm_update_low_latency(mvm, vif,
+					   value == LOW_LATENCY_FORCE_ON,
+					   LOW_LATENCY_DEBUGFS_FORCE);
+		iwl_mvm_update_low_latency(mvm, vif, true,
+					   LOW_LATENCY_DEBUGFS_FORCE_ENABLE);
+	}
+	mutex_unlock(&mvm->mutex);
+	return count;
+}
+
 static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
 					  char __user *user_buf,
 					  size_t count, loff_t *ppos)
 {
 	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	char buf[30] = {};
+	char format[] = "traffic=%d\ndbgfs=%d\nvcmd=%d\nvif_type=%d\n"
+			"dbgfs_force_enable=%d\ndbgfs_force=%d\nactual=%d\n";
+
+	/*
+	 * all values in format are boolean so the size of format is enough
+	 * for holding the result string
+	 */
+	char buf[sizeof(format) + 1] = {};
 	int len;
 
-	len = scnprintf(buf, sizeof(buf) - 1,
-			"traffic=%d\ndbgfs=%d\nvcmd=%d\nvif_type=%d\n",
+	len = scnprintf(buf, sizeof(buf) - 1, format,
 			!!(mvmvif->low_latency & LOW_LATENCY_TRAFFIC),
 			!!(mvmvif->low_latency & LOW_LATENCY_DEBUGFS),
 			!!(mvmvif->low_latency & LOW_LATENCY_VCMD),
-			!!(mvmvif->low_latency & LOW_LATENCY_VIF_TYPE));
+			!!(mvmvif->low_latency & LOW_LATENCY_VIF_TYPE),
+			!!(mvmvif->low_latency &
+			   LOW_LATENCY_DEBUGFS_FORCE_ENABLE),
+			!!(mvmvif->low_latency & LOW_LATENCY_DEBUGFS_FORCE),
+			!!(mvmvif->low_latency_actual));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -710,6 +753,7 @@ MVM_DEBUGFS_READ_FILE_OPS(tx_pwr_lmt);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(pm_params, 32);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bf_params, 256);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(low_latency, 10);
+MVM_DEBUGFS_WRITE_FILE_OPS(low_latency_force, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(uapsd_misbehaving, 20);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(rx_phyinfo, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(quota_min, 32);
@@ -745,6 +789,7 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	MVM_DEBUGFS_ADD_FILE_VIF(tx_pwr_lmt, mvmvif->dbgfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE_VIF(mac_params, mvmvif->dbgfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE_VIF(low_latency, mvmvif->dbgfs_dir, 0600);
+	MVM_DEBUGFS_ADD_FILE_VIF(low_latency_force, mvmvif->dbgfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE_VIF(uapsd_misbehaving, mvmvif->dbgfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE_VIF(rx_phyinfo, mvmvif->dbgfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE_VIF(quota_min, mvmvif->dbgfs_dir, 0600);

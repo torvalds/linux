@@ -300,17 +300,38 @@ enum iwl_bt_force_ant_mode {
 };
 
 /**
+ * struct iwl_mvm_low_latency_force - low latency force mode set by debugfs
+ * @LOW_LATENCY_FORCE_UNSET: unset force mode
+ * @LOW_LATENCY_FORCE_ON: for low latency on
+ * @LOW_LATENCY_FORCE_OFF: for low latency off
+ * @NUM_LOW_LATENCY_FORCE: max num of modes
+ */
+enum iwl_mvm_low_latency_force {
+	LOW_LATENCY_FORCE_UNSET,
+	LOW_LATENCY_FORCE_ON,
+	LOW_LATENCY_FORCE_OFF,
+	NUM_LOW_LATENCY_FORCE
+};
+
+/**
 * struct iwl_mvm_low_latency_cause - low latency set causes
 * @LOW_LATENCY_TRAFFIC: indicates low latency traffic was detected
 * @LOW_LATENCY_DEBUGFS: low latency mode set from debugfs
 * @LOW_LATENCY_VCMD: low latency mode set from vendor command
 * @LOW_LATENCY_VIF_TYPE: low latency mode set because of vif type (ap)
+* @LOW_LATENCY_DEBUGFS_FORCE_ENABLE: indicate that force mode is enabled
+*	the actual set/unset is done with LOW_LATENCY_DEBUGFS_FORCE
+* @LOW_LATENCY_DEBUGFS_FORCE: low latency force mode from debugfs
+*	set this with LOW_LATENCY_DEBUGFS_FORCE_ENABLE flag
+*	in low_latency.
 */
 enum iwl_mvm_low_latency_cause {
 	LOW_LATENCY_TRAFFIC = BIT(0),
 	LOW_LATENCY_DEBUGFS = BIT(1),
 	LOW_LATENCY_VCMD = BIT(2),
 	LOW_LATENCY_VIF_TYPE = BIT(3),
+	LOW_LATENCY_DEBUGFS_FORCE_ENABLE = BIT(4),
+	LOW_LATENCY_DEBUGFS_FORCE = BIT(5),
 };
 
 /**
@@ -361,8 +382,10 @@ struct iwl_probe_resp_data {
  * @pm_enabled - Indicate if MAC power management is allowed
  * @monitor_active: indicates that monitor context is configured, and that the
  *	interface should get quota etc.
- * @low_latency: indicates low latency is set, see
- *	enum &iwl_mvm_low_latency_cause for causes.
+ * @low_latency: bit flags for low latency
+ *	see enum &iwl_mvm_low_latency_cause for causes.
+ * @low_latency_actual: boolean, indicates low latency is set,
+ *	as a result from low_latency bit flags and takes force into account.
  * @ps_disabled: indicates that this interface requires PS to be disabled
  * @queue_params: QoS params for this MAC
  * @bcast_sta: station used for broadcast packets. Used by the following
@@ -394,7 +417,8 @@ struct iwl_mvm_vif {
 	bool ap_ibss_active;
 	bool pm_enabled;
 	bool monitor_active;
-	u8 low_latency;
+	u8 low_latency: 6;
+	u8 low_latency_actual: 1;
 	bool ps_disabled;
 	struct iwl_mvm_vif_bf_data bf_data;
 
@@ -1918,17 +1942,43 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 	 * binding, so this has no real impact. For now, just return
 	 * the current desired low-latency state.
 	 */
-	return mvmvif->low_latency;
+	return mvmvif->low_latency_actual;
 }
 
 static inline
 void iwl_mvm_vif_set_low_latency(struct iwl_mvm_vif *mvmvif, bool set,
 				 enum iwl_mvm_low_latency_cause cause)
 {
+	u8 new_state;
+
 	if (set)
 		mvmvif->low_latency |= cause;
 	else
 		mvmvif->low_latency &= ~cause;
+
+	/*
+	 * if LOW_LATENCY_DEBUGFS_FORCE_ENABLE is enabled no changes are
+	 * allowed to actual mode.
+	 */
+	if (mvmvif->low_latency & LOW_LATENCY_DEBUGFS_FORCE_ENABLE &&
+	    cause != LOW_LATENCY_DEBUGFS_FORCE_ENABLE)
+		return;
+
+	if (cause == LOW_LATENCY_DEBUGFS_FORCE_ENABLE && set)
+		/*
+		 * We enter force state
+		 */
+		new_state = !!(mvmvif->low_latency &
+			       LOW_LATENCY_DEBUGFS_FORCE);
+	else
+		/*
+		 * Check if any other one set low latency
+		 */
+		new_state = !!(mvmvif->low_latency &
+				  ~(LOW_LATENCY_DEBUGFS_FORCE_ENABLE |
+				    LOW_LATENCY_DEBUGFS_FORCE));
+
+	mvmvif->low_latency_actual = new_state;
 }
 
 /* Return a bitmask with all the hw supported queues, except for the
