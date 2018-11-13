@@ -102,14 +102,6 @@ static uint32_t get_start_vline(struct timing_generator *optc, const struct dc_c
 	patched_crtc_timing = *dc_crtc_timing;
 	optc1_apply_front_porch_workaround(optc, &patched_crtc_timing);
 
-	vesa_sync_start = patched_crtc_timing.h_addressable +
-			patched_crtc_timing.h_border_right +
-			patched_crtc_timing.h_front_porch;
-
-	asic_blank_end = patched_crtc_timing.h_total -
-			vesa_sync_start -
-			patched_crtc_timing.h_border_left;
-
 	vesa_sync_start = patched_crtc_timing.v_addressable +
 			patched_crtc_timing.v_border_bottom +
 			patched_crtc_timing.v_front_porch;
@@ -119,10 +111,8 @@ static uint32_t get_start_vline(struct timing_generator *optc, const struct dc_c
 			patched_crtc_timing.v_border_top);
 
 	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
-	if (vertical_line_start < 0) {
-		ASSERT(0);
+	if (vertical_line_start < 0)
 		vertical_line_start = 0;
-	}
 
 	return vertical_line_start;
 }
@@ -143,7 +133,7 @@ void optc1_program_vline_interrupt(
 
 	uint32_t vsync_line = get_start_vline(optc, dc_crtc_timing);
 	uint32_t start_line = 0;
-	uint32_t endLine = 0;
+	uint32_t end_line = 0;
 
 	if (req_delta_lines != 0)
 		req_delta_lines--;
@@ -153,14 +143,17 @@ void optc1_program_vline_interrupt(
 	else
 		start_line = vsync_line - req_delta_lines;
 
-	endLine = start_line + 2;
+	end_line = start_line + 2;
 
-	if (endLine >= dc_crtc_timing->v_total)
-		endLine = 2;
+	if (start_line >= dc_crtc_timing->v_total)
+		start_line = start_line % dc_crtc_timing->v_total;
+
+	if (end_line >= dc_crtc_timing->v_total)
+		end_line = end_line % dc_crtc_timing->v_total;
 
 	REG_SET_2(OTG_VERTICAL_INTERRUPT0_POSITION, 0,
 			OTG_VERTICAL_INTERRUPT0_LINE_START, start_line,
-			OTG_VERTICAL_INTERRUPT0_LINE_END, endLine);
+			OTG_VERTICAL_INTERRUPT0_LINE_END, end_line);
 }
 
 /**
