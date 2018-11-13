@@ -840,6 +840,11 @@ alloc_fail:
 	return NULL;
 }
 
+void dc_init_callbacks(struct dc *dc,
+		const struct dc_callback_init *init_params)
+{
+}
+
 void dc_destroy(struct dc **dc)
 {
 	destruct(*dc);
