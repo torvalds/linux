@@ -3,6 +3,7 @@ Arm TrustZone CryptoCell cryptographic engine
 Required properties:
 - compatible: Should be one of -
    "arm,cryptocell-713-ree"
+   "arm,cryptocell-703-ree"
    "arm,cryptocell-712-ree"
    "arm,cryptocell-710-ree"
    "arm,cryptocell-630p-ree"
