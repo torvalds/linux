@@ -50,10 +50,11 @@
 		reg = <0 0x10003000 0 0x1000>;
 		clocks = <&clk26mhz>;
 		clock-names = "apb_pclk";
-		port {
-			etf_in: endpoint {
-				slave-mode;
-				remote-endpoint = <&funnel_out_port0>;
+		in-ports {
+			port {
+				etf_in: endpoint {
+					remote-endpoint = <&funnel_out_port0>;
+				};
 			};
 		};
 	};
@@ -63,55 +64,50 @@
 		reg = <0 0x10001000 0 0x1000>;
 		clocks = <&clk26mhz>;
 		clock-names = "apb_pclk";
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			/* funnel output port */
-			port@0 {
-				reg = <0>;
+		out-ports {
+			port {
 				funnel_out_port0: endpoint {
 					remote-endpoint = <&etf_in>;
 				};
 			};
+		};
 
-			/* funnel input port 0-4 */
-			port@1 {
+		in-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
 				reg = <0>;
 				funnel_in_port0: endpoint {
-					slave-mode;
 					remote-endpoint = <&etm0_out>;
 				};
 			};
 
-			port@2 {
+			port@1 {
 				reg = <1>;
 				funnel_in_port1: endpoint {
-					slave-mode;
 					remote-endpoint = <&etm1_out>;
 				};
 			};
 
-			port@3 {
+			port@2 {
 				reg = <2>;
 				funnel_in_port2: endpoint {
-					slave-mode;
 					remote-endpoint = <&etm2_out>;
 				};
 			};
 
-			port@4 {
+			port@3 {
 				reg = <3>;
 				funnel_in_port3: endpoint {
-					slave-mode;
 					remote-endpoint = <&etm3_out>;
 				};
 			};
 
-			port@5 {
+			port@4 {
 				reg = <4>;
 				funnel_in_port4: endpoint {
-					slave-mode;
 					remote-endpoint = <&stm_out>;
 				};
 			};
@@ -126,9 +122,11 @@
 		cpu = <&cpu0>;
 		clocks = <&clk26mhz>;
 		clock-names = "apb_pclk";
-		port {
-			etm0_out: endpoint {
-				remote-endpoint = <&funnel_in_port0>;
+		out-ports {
+			port {
+				etm0_out: endpoint {
+					remote-endpoint = <&funnel_in_port0>;
+				};
 			};
 		};
 	};
@@ -140,9 +138,11 @@
 		cpu = <&cpu1>;
 		clocks = <&clk26mhz>;
 		clock-names = "apb_pclk";
-		port {
-			etm1_out: endpoint {
-				remote-endpoint = <&funnel_in_port1>;
+		out-ports {
+			port {
+				etm1_out: endpoint {
+					remote-endpoint = <&funnel_in_port1>;
+				};
 			};
 		};
 	};
@@ -154,9 +154,11 @@
 		cpu = <&cpu2>;
 		clocks = <&clk26mhz>;
 		clock-names = "apb_pclk";
-		port {
-			etm2_out: endpoint {
-				remote-endpoint = <&funnel_in_port2>;
+		out-ports {
+			port {
+				etm2_out: endpoint {
+					remote-endpoint = <&funnel_in_port2>;
+				};
 			};
 		};
 	};
@@ -168,9 +170,11 @@
 		cpu = <&cpu3>;
 		clocks = <&clk26mhz>;
 		clock-names = "apb_pclk";
-		port {
-			etm3_out: endpoint {
-				remote-endpoint = <&funnel_in_port3>;
+		out-ports {
+			port {
+				etm3_out: endpoint {
+					remote-endpoint = <&funnel_in_port3>;
+				};
 			};
 		};
 	};
@@ -182,9 +186,11 @@
 		reg-names = "stm-base", "stm-stimulus-base";
 		clocks = <&clk26mhz>;
 		clock-names = "apb_pclk";
-		port {
-			stm_out: endpoint {
-				remote-endpoint = <&funnel_in_port4>;
+		out-ports {
+			port {
+				stm_out: endpoint {
+					remote-endpoint = <&funnel_in_port4>;
+				};
 			};
 		};
 	};

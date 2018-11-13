@@ -304,30 +304,29 @@
 			reg = <0 0x10001000 0 0x1000>;
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
-			ports {
+			out-ports {
+				port {
+					soc_funnel_out_port: endpoint {
+						remote-endpoint = <&etb_in>;
+					};
+				};
+			};
+
+			in-ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				port@0 {
 					reg = <0>;
-					soc_funnel_out_port: endpoint {
-						remote-endpoint = <&etb_in>;
-					};
-				};
-
-				port@1 {
-					reg = <0>;
 					soc_funnel_in_port0: endpoint {
-						slave-mode;
 						remote-endpoint =
 						<&main_funnel_out_port>;
 					};
 				};
 
-				port@2 {
+				port@4 {
 					reg = <4>;
 					soc_funnel_in_port1: endpoint {
-						slave-mode;
 						remote-endpoint =
 							<&stm_out_port>;
 					};
@@ -340,11 +339,12 @@
 			reg = <0 0x10003000 0 0x1000>;
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
-			port {
-				etb_in: endpoint {
-					slave-mode;
-					remote-endpoint =
-						<&soc_funnel_out_port>;
+			out-ports {
+				port {
+					etb_in: endpoint {
+						remote-endpoint =
+							<&soc_funnel_out_port>;
+					};
 				};
 			};
 		};
@@ -356,10 +356,12 @@
 			reg-names = "stm-base", "stm-stimulus-base";
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
-			port {
-				stm_out_port: endpoint {
-					remote-endpoint =
-						<&soc_funnel_in_port1>;
+			out-ports {
+				port {
+					stm_out_port: endpoint {
+						remote-endpoint =
+							<&soc_funnel_in_port1>;
+					};
 				};
 			};
 		};
@@ -369,38 +371,36 @@
 			reg = <0 0x11001000 0 0x1000>;
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
+			out-ports {
+				port {
 					cluster0_funnel_out_port: endpoint {
 						remote-endpoint =
 							<&cluster0_etf_in>;
 					};
 				};
+			};
 
-				port@1 {
+			in-ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
 					reg = <0>;
 					cluster0_funnel_in_port0: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm0_out>;
 					};
 				};
 
-				port@2 {
+				port@1 {
 					reg = <1>;
 					cluster0_funnel_in_port1: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm1_out>;
 					};
 				};
 
-				port@3 {
+				port@2 {
 					reg = <2>;
 					cluster0_funnel_in_port2: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm2_out>;
 					};
 				};
@@ -408,7 +408,6 @@
 				port@4 {
 					reg = <4>;
 					cluster0_funnel_in_port3: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm3_out>;
 					};
 				};
@@ -420,46 +419,43 @@
 			reg = <0 0x11002000 0 0x1000>;
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
+			out-ports {
+				port {
 					cluster1_funnel_out_port: endpoint {
 						remote-endpoint =
 							<&cluster1_etf_in>;
 					};
 				};
+			};
 
-				port@1 {
+			in-ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
 					reg = <0>;
 					cluster1_funnel_in_port0: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm4_out>;
 					};
 				};
 
-				port@2 {
+				port@1 {
 					reg = <1>;
 					cluster1_funnel_in_port1: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm5_out>;
 					};
 				};
 
-				port@3 {
+				port@2 {
 					reg = <2>;
 					cluster1_funnel_in_port2: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm6_out>;
 					};
 				};
 
-				port@4 {
+				port@3 {
 					reg = <3>;
 					cluster1_funnel_in_port3: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm7_out>;
 					};
 				};
@@ -472,22 +468,18 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
+			out-ports {
+				port {
 					cluster0_etf_out: endpoint {
 						remote-endpoint =
 						<&main_funnel_in_port0>;
 					};
 				};
+			};
 
-				port@1 {
-					reg = <0>;
+			in-ports {
+				port {
 					cluster0_etf_in: endpoint {
-						slave-mode;
 						remote-endpoint =
 						<&cluster0_funnel_out_port>;
 					};
@@ -501,22 +493,18 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
+			out-ports {
+				port {
 					cluster1_etf_out: endpoint {
 						remote-endpoint =
 						<&main_funnel_in_port1>;
 					};
 				};
+			};
 
-				port@1 {
-					reg = <0>;
+			in-ports {
+				port {
 					cluster1_etf_in: endpoint {
-						slave-mode;
 						remote-endpoint =
 						<&cluster1_funnel_out_port>;
 					};
@@ -530,31 +518,30 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
+			out-ports {
+				port {
 					main_funnel_out_port: endpoint {
 						remote-endpoint =
 							<&soc_funnel_in_port0>;
 					};
 				};
+			};
 
-				port@1 {
+			in-ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
 					reg = <0>;
 					main_funnel_in_port0: endpoint {
-						slave-mode;
 						remote-endpoint =
 							<&cluster0_etf_out>;
 					};
 				};
 
-				port@2 {
+				port@1 {
 					reg = <1>;
 					main_funnel_in_port1: endpoint {
-						slave-mode;
 						remote-endpoint =
 							<&cluster1_etf_out>;
 					};
@@ -569,10 +556,12 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			port {
-				etm0_out: endpoint {
-					remote-endpoint =
-						<&cluster0_funnel_in_port0>;
+			out-ports {
+				port {
+					etm0_out: endpoint {
+						remote-endpoint =
+							<&cluster0_funnel_in_port0>;
+					};
 				};
 			};
 		};
@@ -584,10 +573,12 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			port {
-				etm1_out: endpoint {
-					remote-endpoint =
-						<&cluster0_funnel_in_port1>;
+			out-ports {
+				port {
+					etm1_out: endpoint {
+						remote-endpoint =
+							<&cluster0_funnel_in_port1>;
+					};
 				};
 			};
 		};
@@ -599,10 +590,12 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			port {
-				etm2_out: endpoint {
-					remote-endpoint =
-						<&cluster0_funnel_in_port2>;
+			out-ports {
+				port {
+					etm2_out: endpoint {
+						remote-endpoint =
+							<&cluster0_funnel_in_port2>;
+					};
 				};
 			};
 		};
@@ -614,10 +607,12 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			port {
-				etm3_out: endpoint {
-					remote-endpoint =
-						<&cluster0_funnel_in_port3>;
+			out-ports {
+				port {
+					etm3_out: endpoint {
+						remote-endpoint =
+							<&cluster0_funnel_in_port3>;
+					};
 				};
 			};
 		};
@@ -629,10 +624,12 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			port {
-				etm4_out: endpoint {
-					remote-endpoint =
-						<&cluster1_funnel_in_port0>;
+			out-ports {
+				port {
+					etm4_out: endpoint {
+						remote-endpoint =
+							<&cluster1_funnel_in_port0>;
+					};
 				};
 			};
 		};
@@ -644,10 +641,12 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			port {
-				etm5_out: endpoint {
-					remote-endpoint =
-						<&cluster1_funnel_in_port1>;
+			out-ports {
+				port {
+					etm5_out: endpoint {
+						remote-endpoint =
+							<&cluster1_funnel_in_port1>;
+					};
 				};
 			};
 		};
@@ -659,10 +658,12 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			port {
-				etm6_out: endpoint {
-					remote-endpoint =
-						<&cluster1_funnel_in_port2>;
+			out-ports {
+				port {
+					etm6_out: endpoint {
+						remote-endpoint =
+							<&cluster1_funnel_in_port2>;
+					};
 				};
 			};
 		};
@@ -674,10 +675,12 @@
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
 
-			port {
-				etm7_out: endpoint {
-					remote-endpoint =
-						<&cluster1_funnel_in_port3>;
+			out-ports {
+				port {
+					etm7_out: endpoint {
+						remote-endpoint =
+							<&cluster1_funnel_in_port3>;
+					};
 				};
 			};
 		};
