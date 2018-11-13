@@ -46,6 +46,12 @@
 /* bclk idle */
 #define SOF_DAI_INTEL_SSP_CLKCTRL_BCLK_IDLE_HIGH	BIT(5)
 
+/*
+ * Max number of DMIC PDM controllers supported
+ * Needs to be re-visited for platforms with > 2 controllers.
+ */
+#define SOF_DAI_INTEL_DMIC_MAX_PDM	2
+
 /* SSP Configuration Request - SOF_IPC_DAI_SSP_CONFIG */
 struct sof_ipc_dai_ssp_params {
 	uint16_t reserved1;
@@ -154,8 +160,8 @@ struct sof_ipc_dai_dmic_params {
 	/* reserved for future use */
 	uint32_t reserved[8];
 
-	/**< variable number of pdm controller config */
-	struct sof_ipc_dai_dmic_pdm_ctrl pdm[0];
+	/**< pdm controller config */
+	struct sof_ipc_dai_dmic_pdm_ctrl pdm[SOF_DAI_INTEL_DMIC_MAX_PDM];
 } __packed;
 
 #endif
