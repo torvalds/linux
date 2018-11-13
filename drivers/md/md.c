@@ -5692,14 +5692,10 @@ int md_run(struct mddev *mddev)
 	return 0;
 
 abort:
-	if (mddev->flush_bio_pool) {
-		mempool_destroy(mddev->flush_bio_pool);
-		mddev->flush_bio_pool = NULL;
-	}
-	if (mddev->flush_pool){
-		mempool_destroy(mddev->flush_pool);
-		mddev->flush_pool = NULL;
-	}
+	mempool_destroy(mddev->flush_bio_pool);
+	mddev->flush_bio_pool = NULL;
+	mempool_destroy(mddev->flush_pool);
+	mddev->flush_pool = NULL;
 
 	return err;
 }
