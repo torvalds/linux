@@ -602,6 +602,7 @@ struct f2fs_map_blocks {
 	pgoff_t *m_next_pgofs;		/* point next possible non-hole pgofs */
 	pgoff_t *m_next_extent;		/* point to next possible extent */
 	int m_seg_type;
+	bool m_may_create;		/* indicate it is from write path */
 };
 
 /* for flag in get_data_block */
