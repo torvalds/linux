@@ -1499,7 +1499,8 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_map_blocks map = { .m_next_pgofs = NULL,
-			.m_next_extent = NULL, .m_seg_type = NO_CHECK_TYPE };
+			.m_next_extent = NULL, .m_seg_type = NO_CHECK_TYPE,
+			.m_may_create = true };
 	pgoff_t pg_end;
 	loff_t new_size = i_size_read(inode);
 	loff_t off_end;
