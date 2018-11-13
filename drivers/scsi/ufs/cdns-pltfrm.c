@@ -135,7 +135,6 @@ static struct platform_driver cdns_ufs_pltfrm_driver = {
 	.remove	= cdns_ufs_pltfrm_remove,
 	.driver	= {
 		.name   = "cdns-ufshcd",
-		.owner  = THIS_MODULE,
 		.pm     = &cdns_ufs_dev_pm_ops,
 		.of_match_table = cdns_ufs_of_match,
 	},
