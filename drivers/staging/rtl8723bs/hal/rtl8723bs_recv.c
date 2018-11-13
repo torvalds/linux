@@ -262,7 +262,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 
 		while (ptr < precvbuf->ptail) {
 			precvframe = try_alloc_recvframe(precvpriv, precvbuf);
-			if(!precvframe)
+			if (!precvframe)
 				return;
 
 			/* rx desc parsing */
@@ -271,8 +271,8 @@ static void rtl8723bs_recv_tasklet(void *priv)
 
 			pattrib = &precvframe->u.hdr.attrib;
 
-			if(rx_crc_err(precvpriv, p_hal_data,
-				      pattrib, precvframe))
+			if (rx_crc_err(precvpriv, p_hal_data,
+				       pattrib, precvframe))
 				break;
 
 			rx_report_sz = RXDESC_SIZE + pattrib->drvinfo_sz;
@@ -280,8 +280,8 @@ static void rtl8723bs_recv_tasklet(void *priv)
 				pattrib->shift_sz +
 				pattrib->pkt_len;
 
-			if(pkt_exceeds_tail(precvpriv, ptr + pkt_offset,
-					    precvbuf->ptail, precvframe))
+			if (pkt_exceeds_tail(precvpriv, ptr + pkt_offset,
+					     precvbuf->ptail, precvframe))
 				break;
 
 			if ((pattrib->crc_err) || (pattrib->icv_err)) {
