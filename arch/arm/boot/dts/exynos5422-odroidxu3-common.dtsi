@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Hardkernel Odroid XU3 board device tree source
+ * Hardkernel Odroid XU3/XU3-Lite/XU4 boards common device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
