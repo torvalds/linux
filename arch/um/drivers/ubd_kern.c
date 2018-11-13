@@ -533,7 +533,6 @@ static void ubd_handler(void)
 			kfree(io_req);
 		}
 	}
-	reactivate_fd(thread_fd, UBD_IRQ);
 }
 
 static irqreturn_t ubd_intr(int irq, void *dev)
