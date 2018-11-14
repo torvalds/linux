@@ -147,6 +147,46 @@
 		clock-output-names = "xin32k";
 		#clock-cells = <0>;
 	};
+
+	vga_bridge: vga-bridge {
+		compatible = "adi,adv7125";
+		psave-gpios = <&gpio7 21 GPIO_ACTIVE_HIGH>;
+		vdd-supply = <&vcc_lcd>;
+		rockchip,output = "rgb";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				adv7125_in: endpoint {
+					remote-endpoint = <&rgb_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				adv7125_out: endpoint {
+					remote-endpoint = <&vga_in>;
+				};
+			};
+		};
+	};
+
+	vga {
+		compatible = "vga-connector";
+		ddc-i2c-bus = <&i2c2>;
+
+		 port {
+			vga_in: endpoint {
+				remote-endpoint = <&adv7125_out>;
+			};
+		};
+	};
+
 };
 
 &cpu0 {
@@ -204,6 +244,29 @@
 
 &hdmi {
 	status = "okay";
+};
+
+&route_lvds {
+	status = "disabled";
+};
+
+&lvds {
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcdc_ctl>;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&adv7125_in>;
+			};
+		};
+	};
 };
 
 &hevc_service {
