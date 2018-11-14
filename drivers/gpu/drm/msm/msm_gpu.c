@@ -20,6 +20,7 @@
 #include "msm_mmu.h"
 #include "msm_fence.h"
 #include "msm_gpu_trace.h"
+#include "adreno/adreno_gpu.h"
 
 #include <generated/utsrelease.h>
 #include <linux/string_helpers.h>
@@ -822,7 +823,6 @@ static struct msm_gem_address_space *
 msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
 		uint64_t va_start, uint64_t va_end)
 {
-	struct iommu_domain *iommu;
 	struct msm_gem_address_space *aspace;
 	int ret;
 
@@ -831,20 +831,27 @@ msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
 	 * and have separate page tables per context.  For now, to keep things
 	 * simple and to get something working, just use a single address space:
 	 */
-	iommu = iommu_domain_alloc(&platform_bus_type);
-	if (!iommu)
-		return NULL;
+	if (!adreno_is_a2xx(to_adreno_gpu(gpu))) {
+		struct iommu_domain *iommu = iommu_domain_alloc(&platform_bus_type);
+		if (!iommu)
+			return NULL;
 
-	iommu->geometry.aperture_start = va_start;
-	iommu->geometry.aperture_end = va_end;
+		iommu->geometry.aperture_start = va_start;
+		iommu->geometry.aperture_end = va_end;
 
-	DRM_DEV_INFO(gpu->dev->dev, "%s: using IOMMU\n", gpu->name);
+		DRM_DEV_INFO(gpu->dev->dev, "%s: using IOMMU\n", gpu->name);
 
-	aspace = msm_gem_address_space_create(&pdev->dev, iommu, "gpu");
+		aspace = msm_gem_address_space_create(&pdev->dev, iommu, "gpu");
+		if (IS_ERR(aspace))
+			iommu_domain_free(iommu);
+	} else {
+		aspace = msm_gem_address_space_create_a2xx(&pdev->dev, gpu, "gpu",
+			va_start, va_end);
+	}
+
 	if (IS_ERR(aspace)) {
-		DRM_DEV_ERROR(gpu->dev->dev, "failed to init iommu: %ld\n",
+		DRM_DEV_ERROR(gpu->dev->dev, "failed to init mmu: %ld\n",
 			PTR_ERR(aspace));
-		iommu_domain_free(iommu);
 		return ERR_CAST(aspace);
 	}
 

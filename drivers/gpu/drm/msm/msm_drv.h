@@ -179,6 +179,8 @@ struct msm_drm_private {
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
 	struct msm_file_private *lastctx;
+	/* gpu is only set on open(), but we need this info earlier */
+	bool is_a2xx;
 
 	struct drm_fb_helper *fbdev;
 
@@ -258,8 +260,14 @@ struct msm_gem_address_space *
 msm_gem_address_space_create(struct device *dev, struct iommu_domain *domain,
 		const char *name);
 
+struct msm_gem_address_space *
+msm_gem_address_space_create_a2xx(struct device *dev, struct msm_gpu *gpu,
+		const char *name, uint64_t va_start, uint64_t va_end);
+
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 void msm_unregister_mmu(struct drm_device *dev, struct msm_mmu *mmu);
+
+bool msm_use_mmu(struct drm_device *dev);
 
 void msm_gem_submit_free(struct msm_gem_submit *submit);
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,

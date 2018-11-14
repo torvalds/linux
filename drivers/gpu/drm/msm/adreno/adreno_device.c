@@ -307,6 +307,7 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	static struct adreno_platform_config config = {};
 	const struct adreno_info *info;
 	struct drm_device *drm = dev_get_drvdata(master);
+	struct msm_drm_private *priv = drm->dev_private;
 	struct msm_gpu *gpu;
 	int ret;
 
@@ -328,6 +329,8 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 
 	DBG("Found GPU: %u.%u.%u.%u", config.rev.core, config.rev.major,
 		config.rev.minor, config.rev.patchid);
+
+	priv->is_a2xx = config.rev.core == 2;
 
 	gpu = info->init(drm);
 	if (IS_ERR(gpu)) {
