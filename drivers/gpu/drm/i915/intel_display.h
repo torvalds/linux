@@ -368,7 +368,7 @@ struct intel_link_m_n {
 		(__dev_priv)->power_domains.power_well_count;		\
 	     (__power_well)++)
 
-#define for_each_power_well_rev(__dev_priv, __power_well)			\
+#define for_each_power_well_reverse(__dev_priv, __power_well)			\
 	for ((__power_well) = (__dev_priv)->power_domains.power_wells +		\
 			      (__dev_priv)->power_domains.power_well_count - 1;	\
 	     (__power_well) - (__dev_priv)->power_domains.power_wells >= 0;	\
@@ -378,8 +378,8 @@ struct intel_link_m_n {
 	for_each_power_well(__dev_priv, __power_well)				\
 		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
-#define for_each_power_domain_well_rev(__dev_priv, __power_well, __domain_mask) \
-	for_each_power_well_rev(__dev_priv, __power_well)		        \
+#define for_each_power_domain_well_reverse(__dev_priv, __power_well, __domain_mask) \
+	for_each_power_well_reverse(__dev_priv, __power_well)		        \
 		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
 #define for_each_new_intel_plane_in_state(__state, plane, new_plane_state, __i) \

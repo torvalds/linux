@@ -208,7 +208,7 @@ bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 
 	is_enabled = true;
 
-	for_each_power_domain_well_rev(dev_priv, power_well, BIT_ULL(domain)) {
+	for_each_power_domain_well_reverse(dev_priv, power_well, BIT_ULL(domain)) {
 		if (power_well->desc->always_on)
 			continue;
 
@@ -1665,7 +1665,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	     intel_display_power_domain_str(domain));
 	power_domains->domain_use_count[domain]--;
 
-	for_each_power_domain_well_rev(dev_priv, power_well, BIT_ULL(domain))
+	for_each_power_domain_well_reverse(dev_priv, power_well, BIT_ULL(domain))
 		intel_power_well_put(dev_priv, power_well);
 
 	mutex_unlock(&power_domains->lock);
