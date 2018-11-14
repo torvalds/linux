@@ -370,18 +370,6 @@ void blk_cleanup_queue(struct request_queue *q)
 	blk_set_queue_dying(q);
 	spin_lock_irq(lock);
 
-	/*
-	 * A dying queue is permanently in bypass mode till released.  Note
-	 * that, unlike blk_queue_bypass_start(), we aren't performing
-	 * synchronize_rcu() after entering bypass mode to avoid the delay
-	 * as some drivers create and destroy a lot of queues while
-	 * probing.  This is still safe because blk_release_queue() will be
-	 * called only after the queue refcnt drops to zero and nothing,
-	 * RCU or not, would be traversing the queue by then.
-	 */
-	q->bypass_depth++;
-	queue_flag_set(QUEUE_FLAG_BYPASS, q);
-
 	queue_flag_set(QUEUE_FLAG_NOMERGES, q);
 	queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
 	queue_flag_set(QUEUE_FLAG_DYING, q);
@@ -588,15 +576,6 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
 	spin_lock_init(&q->__queue_lock);
 
 	q->queue_lock = lock ? : &q->__queue_lock;
-
-	/*
-	 * A queue starts its life with bypass turned on to avoid
-	 * unnecessary bypass on/off overhead and nasty surprises during
-	 * init.  The initial bypass will be finished when the queue is
-	 * registered by blk_register_queue().
-	 */
-	q->bypass_depth = 1;
-	queue_flag_set_unlocked(QUEUE_FLAG_BYPASS, q);
 
 	init_waitqueue_head(&q->mq_freeze_wq);
 
