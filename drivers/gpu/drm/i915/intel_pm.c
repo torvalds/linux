@@ -4618,7 +4618,7 @@ skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cstate,
 static int
 skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 			    const struct intel_plane_state *intel_pstate,
-			    struct skl_wm_params *wp, int plane_id)
+			    struct skl_wm_params *wp, int color_plane)
 {
 	struct intel_plane *plane = to_intel_plane(intel_pstate->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
@@ -4630,7 +4630,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
 
 	/* only NV12 format has two planes */
-	if (plane_id == 1 && fb->format->format != DRM_FORMAT_NV12) {
+	if (color_plane == 1 && fb->format->format != DRM_FORMAT_NV12) {
 		DRM_DEBUG_KMS("Non NV12 format have single plane\n");
 		return -EINVAL;
 	}
@@ -4655,10 +4655,10 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 		wp->width = drm_rect_width(&intel_pstate->base.src) >> 16;
 	}
 
-	if (plane_id == 1 && wp->is_planar)
+	if (color_plane == 1 && wp->is_planar)
 		wp->width /= 2;
 
-	wp->cpp = fb->format->cpp[plane_id];
+	wp->cpp = fb->format->cpp[color_plane];
 	wp->plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate,
 							     intel_pstate);
 
