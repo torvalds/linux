@@ -4743,8 +4743,10 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
 	uint32_t min_disp_buf_needed;
 
-	if (latency == 0 ||
-	    !intel_wm_plane_visible(cstate, intel_pstate)) {
+	if (latency == 0)
+		return level == 0 ? -EINVAL : 0;
+
+	if (!intel_wm_plane_visible(cstate, intel_pstate)) {
 		result->plane_en = false;
 		return 0;
 	}
