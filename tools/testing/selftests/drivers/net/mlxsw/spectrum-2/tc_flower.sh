@@ -235,7 +235,7 @@ ctcam_two_atcam_masks_test()
 		$tcflags dst_ip 192.0.2.2 action drop
 	# Filter goes into A-TCAM
 	tc filter add dev $h2 ingress protocol ip pref 3 handle 103 flower \
-		$tcflags dst_ip 192.0.2.0/24 action drop
+		$tcflags dst_ip 192.0.0.0/16 action drop
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip -q
