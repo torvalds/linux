@@ -148,7 +148,7 @@ static void blk_flush_queue_rq(struct request *rq, bool add_front)
  * completion and trigger the next step.
  *
  * CONTEXT:
- * spin_lock_irq(q->queue_lock or fq->mq_flush_lock)
+ * spin_lock_irq(fq->mq_flush_lock)
  *
  * RETURNS:
  * %true if requests were added to the dispatch queue, %false otherwise.
@@ -252,7 +252,7 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
  * Please read the comment at the top of this file for more info.
  *
  * CONTEXT:
- * spin_lock_irq(q->queue_lock or fq->mq_flush_lock)
+ * spin_lock_irq(fq->mq_flush_lock)
  *
  */
 static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
