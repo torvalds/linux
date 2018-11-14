@@ -754,8 +754,6 @@ void wbt_disable_default(struct request_queue *q)
 	if (rwb->enable_state == WBT_STATE_ON_DEFAULT)
 		rwb->wb_normal = 0;
 }
-EXPORT_SYMBOL_GPL(wbt_disable_default);
-
 
 static struct rq_qos_ops wbt_rqos_ops = {
 	.throttle = wbt_wait,

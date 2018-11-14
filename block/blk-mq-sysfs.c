@@ -350,7 +350,6 @@ int blk_mq_register_dev(struct device *dev, struct request_queue *q)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(blk_mq_register_dev);
 
 void blk_mq_sysfs_unregister(struct request_queue *q)
 {

@@ -424,7 +424,6 @@ const char *blkg_dev_name(struct blkcg_gq *blkg)
 		return dev_name(blkg->q->backing_dev_info->dev);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(blkg_dev_name);
 
 /**
  * blkcg_print_blkgs - helper for printing per-blkg data
@@ -860,7 +859,6 @@ fail:
 	}
 	return ret;
 }
-EXPORT_SYMBOL_GPL(blkg_conf_prep);
 
 /**
  * blkg_conf_finish - finish up per-blkg config update
@@ -876,7 +874,6 @@ void blkg_conf_finish(struct blkg_conf_ctx *ctx)
 	rcu_read_unlock();
 	put_disk_and_module(ctx->disk);
 }
-EXPORT_SYMBOL_GPL(blkg_conf_finish);
 
 static int blkcg_print_stat(struct seq_file *sf, void *v)
 {
@@ -1691,7 +1688,6 @@ out:
 	rcu_read_unlock();
 	blk_put_queue(q);
 }
-EXPORT_SYMBOL_GPL(blkcg_maybe_throttle_current);
 
 /**
  * blkcg_schedule_throttle - this task needs to check for throttling
@@ -1725,7 +1721,6 @@ void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay)
 		current->use_memdelay = use_memdelay;
 	set_notify_resume(current);
 }
-EXPORT_SYMBOL_GPL(blkcg_schedule_throttle);
 
 /**
  * blkcg_add_delay - add delay to this blkg
@@ -1740,7 +1735,6 @@ void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta)
 	blkcg_scale_delay(blkg, now);
 	atomic64_add(delta, &blkg->delay_nsec);
 }
-EXPORT_SYMBOL_GPL(blkcg_add_delay);
 
 module_param(blkcg_debug_stats, bool, 0644);
 MODULE_PARM_DESC(blkcg_debug_stats, "True if you want debug stats, false if not");
