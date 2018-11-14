@@ -4746,10 +4746,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	if (latency == 0)
 		return level == 0 ? -EINVAL : 0;
 
-	if (!intel_wm_plane_visible(cstate, intel_pstate)) {
-		result->plane_en = false;
+	if (!intel_wm_plane_visible(cstate, intel_pstate))
 		return 0;
-	}
 
 	/* Display WA #1141: kbl,cfl */
 	if ((IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv) ||
@@ -4846,8 +4844,6 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	if ((level > 0 && res_lines > 31) ||
 	    res_blocks >= ddb_allocation ||
 	    min_disp_buf_needed >= ddb_allocation) {
-		result->plane_en = false;
-
 		/*
 		 * If there are no valid level 0 watermarks, then we can't
 		 * support this display configuration.
@@ -4949,15 +4945,15 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *cstate,
 	uint16_t wm0_sel_res_b, trans_offset_b, res_blocks;
 
 	if (!cstate->base.active)
-		goto exit;
+		return;
 
 	/* Transition WM are not recommended by HW team for GEN9 */
 	if (INTEL_GEN(dev_priv) <= 9)
-		goto exit;
+		return;
 
 	/* Transition WM don't make any sense if ipc is disabled */
 	if (!dev_priv->ipc_enabled)
-		goto exit;
+		return;
 
 	trans_min = 14;
 	if (INTEL_GEN(dev_priv) >= 11)
@@ -4996,11 +4992,7 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *cstate,
 	if (res_blocks < ddb_allocation) {
 		trans_wm->plane_res_b = res_blocks;
 		trans_wm->plane_en = true;
-		return;
 	}
-
-exit:
-	trans_wm->plane_en = false;
 }
 
 static int __skl_build_plane_wm_single(struct skl_ddb_allocation *ddb,
