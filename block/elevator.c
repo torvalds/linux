@@ -394,18 +394,11 @@ void elv_merge_requests(struct request_queue *q, struct request *rq,
 			     struct request *next)
 {
 	struct elevator_queue *e = q->elevator;
-	bool next_sorted = false;
 
 	if (e->type->ops.requests_merged)
 		e->type->ops.requests_merged(q, rq, next);
 
 	elv_rqhash_reposition(q, rq);
-
-	if (next_sorted) {
-		elv_rqhash_del(q, next);
-		q->nr_sorted--;
-	}
-
 	q->last_merge = rq;
 }
 
