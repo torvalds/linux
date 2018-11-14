@@ -3912,7 +3912,7 @@ int __init bt_selftest_smp(void)
 		return PTR_ERR(tfm_aes);
 	}
 
-	tfm_cmac = crypto_alloc_shash("cmac(aes)", 0, CRYPTO_ALG_ASYNC);
+	tfm_cmac = crypto_alloc_shash("cmac(aes)", 0, 0);
 	if (IS_ERR(tfm_cmac)) {
 		BT_ERR("Unable to create CMAC crypto context");
 		crypto_free_cipher(tfm_aes);

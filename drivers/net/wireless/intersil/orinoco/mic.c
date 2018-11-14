@@ -16,8 +16,7 @@
 /********************************************************************/
 int orinoco_mic_init(struct orinoco_private *priv)
 {
-	priv->tx_tfm_mic = crypto_alloc_shash("michael_mic", 0,
-					      CRYPTO_ALG_ASYNC);
+	priv->tx_tfm_mic = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->tx_tfm_mic)) {
 		printk(KERN_DEBUG "orinoco_mic_init: could not allocate "
 		       "crypto API michael_mic\n");
@@ -25,8 +24,7 @@ int orinoco_mic_init(struct orinoco_private *priv)
 		return -ENOMEM;
 	}
 
-	priv->rx_tfm_mic = crypto_alloc_shash("michael_mic", 0,
-					      CRYPTO_ALG_ASYNC);
+	priv->rx_tfm_mic = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->rx_tfm_mic)) {
 		printk(KERN_DEBUG "orinoco_mic_init: could not allocate "
 		       "crypto API michael_mic\n");
