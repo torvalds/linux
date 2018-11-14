@@ -73,6 +73,7 @@ struct mmc_queue_req {
 
 struct mmc_queue {
 	struct mmc_card		*card;
+	spinlock_t		*lock;
 	struct mmc_ctx		ctx;
 	struct blk_mq_tag_set	tag_set;
 	struct mmc_blk_data	*blkdata;

@@ -89,9 +89,9 @@ void mmc_cqe_recovery_notifier(struct mmc_request *mrq)
 	struct mmc_queue *mq = q->queuedata;
 	unsigned long flags;
 
-	spin_lock_irqsave(q->queue_lock, flags);
+	spin_lock_irqsave(mq->lock, flags);
 	__mmc_cqe_recovery_notifier(mq);
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	spin_unlock_irqrestore(mq->lock, flags);
 }
 
 static enum blk_eh_timer_return mmc_cqe_timed_out(struct request *req)
@@ -128,14 +128,14 @@ static enum blk_eh_timer_return mmc_mq_timed_out(struct request *req,
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(q->queue_lock, flags);
+	spin_lock_irqsave(mq->lock, flags);
 
 	if (mq->recovery_needed || !mq->use_cqe)
 		ret = BLK_EH_RESET_TIMER;
 	else
 		ret = mmc_cqe_timed_out(req);
 
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	spin_unlock_irqrestore(mq->lock, flags);
 
 	return ret;
 }
@@ -157,9 +157,9 @@ static void mmc_mq_recovery_handler(struct work_struct *work)
 
 	mq->in_recovery = false;
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(mq->lock);
 	mq->recovery_needed = false;
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(mq->lock);
 
 	mmc_put_card(mq->card, &mq->ctx);
 
@@ -258,10 +258,10 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	issue_type = mmc_issue_type(mq, req);
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(mq->lock);
 
 	if (mq->recovery_needed || mq->busy) {
-		spin_unlock_irq(q->queue_lock);
+		spin_unlock_irq(mq->lock);
 		return BLK_STS_RESOURCE;
 	}
 
@@ -269,7 +269,7 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	case MMC_ISSUE_DCMD:
 		if (mmc_cqe_dcmd_busy(mq)) {
 			mq->cqe_busy |= MMC_CQE_DCMD_BUSY;
-			spin_unlock_irq(q->queue_lock);
+			spin_unlock_irq(mq->lock);
 			return BLK_STS_RESOURCE;
 		}
 		break;
@@ -294,7 +294,7 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	get_card = (mmc_tot_in_flight(mq) == 1);
 	cqe_retune_ok = (mmc_cqe_qcnt(mq) == 1);
 
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(mq->lock);
 
 	if (!(req->rq_flags & RQF_DONTPREP)) {
 		req_to_mmc_queue_req(req)->retries = 0;
@@ -328,12 +328,12 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (issued != MMC_REQ_STARTED) {
 		bool put_card = false;
 
-		spin_lock_irq(q->queue_lock);
+		spin_lock_irq(mq->lock);
 		mq->in_flight[issue_type] -= 1;
 		if (mmc_tot_in_flight(mq) == 0)
 			put_card = true;
 		mq->busy = false;
-		spin_unlock_irq(q->queue_lock);
+		spin_unlock_irq(mq->lock);
 		if (put_card)
 			mmc_put_card(card, &mq->ctx);
 	} else {
@@ -396,6 +396,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 	int ret;
 
 	mq->card = card;
+	mq->lock = lock;
 	mq->use_cqe = host->cqe_enabled;
 
 	memset(&mq->tag_set, 0, sizeof(mq->tag_set));
@@ -426,7 +427,6 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 		goto free_tag_set;
 	}
 
-	mq->queue->queue_lock = lock;
 	mq->queue->queuedata = mq;
 	blk_queue_rq_timeout(mq->queue, 60 * HZ);
 
