@@ -22,6 +22,9 @@
 #define _CIFSPROTO_H
 #include <linux/nls.h>
 #include "trace.h"
+#ifdef CONFIG_CIFS_DFS_UPCALL
+#include "dfs_cache.h"
+#endif
 
 struct statfs;
 struct smb_vol;
@@ -294,11 +297,6 @@ extern int CIFSGetDFSRefer(const unsigned int xid, struct cifs_ses *ses,
 			   unsigned int *num_of_nodes,
 			   const struct nls_table *nls_codepage, int remap);
 
-extern int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
-			const char *old_path,
-			const struct nls_table *nls_codepage,
-			unsigned int *num_referrals,
-			struct dfs_info3_param **referrals, int remap);
 extern int parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 			       unsigned int *num_of_nodes,
 			       struct dfs_info3_param **target_nodes,
@@ -566,5 +564,16 @@ void cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc);
 
 extern void rqst_page_get_length(struct smb_rqst *rqst, unsigned int page,
 				unsigned int *len, unsigned int *offset);
+
+#ifdef CONFIG_CIFS_DFS_UPCALL
+static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
+			       const char *old_path,
+			       const struct nls_table *nls_codepage,
+			       struct dfs_info3_param *referral, int remap)
+{
+	return dfs_cache_find(xid, ses, nls_codepage, remap, old_path,
+			      referral, NULL);
+}
+#endif
 
 #endif			/* _CIFSPROTO_H */

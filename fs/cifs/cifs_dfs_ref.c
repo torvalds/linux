@@ -25,6 +25,7 @@
 #include "dns_resolve.h"
 #include "cifs_debug.h"
 #include "cifs_unicode.h"
+#include "dfs_cache.h"
 
 static LIST_HEAD(cifs_dfs_automount_list);
 
@@ -285,16 +286,16 @@ static void dump_referral(const struct dfs_info3_param *ref)
  */
 static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 {
-	struct dfs_info3_param *referrals = NULL;
-	unsigned int num_referrals = 0;
+	struct dfs_info3_param referral = {0};
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_ses *ses;
-	char *full_path;
+	struct cifs_tcon *tcon;
+	char *full_path, *root_path;
 	unsigned int xid;
-	int i;
+	int len;
 	int rc;
 	struct vfsmount *mnt;
-	struct tcon_link *tlink;
+	char sep;
 
 	cifs_dbg(FYI, "in %s\n", __func__);
 	BUG_ON(IS_ROOT(mntpt));
@@ -313,53 +314,76 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 		goto cdda_exit;
 	}
 
+	sep = CIFS_DIR_SEP(cifs_sb);
+
 	/* always use tree name prefix */
 	full_path = build_path_from_dentry_optional_prefix(mntpt, true);
 	if (full_path == NULL)
 		goto cdda_exit;
 
-	tlink = cifs_sb_tlink(cifs_sb);
-	if (IS_ERR(tlink)) {
-		mnt = ERR_CAST(tlink);
+	cifs_dbg(FYI, "%s: full_path: %s\n", __func__, full_path);
+
+	if (!cifs_sb_master_tlink(cifs_sb)) {
+		cifs_dbg(FYI, "%s: master tlink is NULL\n", __func__);
 		goto free_full_path;
 	}
-	ses = tlink_tcon(tlink)->ses;
 
-	xid = get_xid();
-	rc = get_dfs_path(xid, ses, full_path + 1, cifs_sb->local_nls,
-		&num_referrals, &referrals,
-		cifs_remap(cifs_sb));
-	free_xid(xid);
-
-	cifs_put_tlink(tlink);
-
-	mnt = ERR_PTR(-ENOENT);
-	for (i = 0; i < num_referrals; i++) {
-		int len;
-		dump_referral(referrals + i);
-		/* connect to a node */
-		len = strlen(referrals[i].node_name);
-		if (len < 2) {
-			cifs_dbg(VFS, "%s: Net Address path too short: %s\n",
-				 __func__, referrals[i].node_name);
-			mnt = ERR_PTR(-EINVAL);
-			break;
-		}
-		mnt = cifs_dfs_do_refmount(mntpt, cifs_sb,
-				full_path, referrals + i);
-		cifs_dbg(FYI, "%s: cifs_dfs_do_refmount:%s , mnt:%p\n",
-			 __func__, referrals[i].node_name, mnt);
-		if (!IS_ERR(mnt))
-			goto success;
+	tcon = cifs_sb_master_tcon(cifs_sb);
+	if (!tcon) {
+		cifs_dbg(FYI, "%s: master tcon is NULL\n", __func__);
+		goto free_full_path;
 	}
 
-	/* no valid submounts were found; return error from get_dfs_path() by
-	 * preference */
-	if (rc != 0)
-		mnt = ERR_PTR(rc);
+	root_path = kstrdup(tcon->treeName, GFP_KERNEL);
+	if (!root_path) {
+		mnt = ERR_PTR(-ENOMEM);
+		goto free_full_path;
+	}
+	cifs_dbg(FYI, "%s: root path: %s\n", __func__, root_path);
 
-success:
-	free_dfs_info_array(referrals, num_referrals);
+	ses = tcon->ses;
+	xid = get_xid();
+
+	/*
+	 * If DFS root has been expired, then unconditionally fetch it again to
+	 * refresh DFS referral cache.
+	 */
+	rc = dfs_cache_find(xid, ses, cifs_sb->local_nls, cifs_remap(cifs_sb),
+			    root_path + 1, NULL, NULL);
+	if (!rc) {
+		rc = dfs_cache_find(xid, ses, cifs_sb->local_nls,
+				    cifs_remap(cifs_sb), full_path + 1,
+				    &referral, NULL);
+	}
+
+	free_xid(xid);
+
+	if (rc) {
+		mnt = ERR_PTR(rc);
+		goto free_root_path;
+	}
+
+	dump_referral(&referral);
+
+	len = strlen(referral.node_name);
+	if (len < 2) {
+		cifs_dbg(VFS, "%s: Net Address path too short: %s\n",
+			 __func__, referral.node_name);
+		mnt = ERR_PTR(-EINVAL);
+		goto free_dfs_ref;
+	}
+	/*
+	 * cifs_mount() will retry every available node server in case
+	 * of failures.
+	 */
+	mnt = cifs_dfs_do_refmount(mntpt, cifs_sb, full_path, &referral);
+	cifs_dbg(FYI, "%s: cifs_dfs_do_refmount:%s , mnt:%p\n", __func__,
+		 referral.node_name, mnt);
+
+free_dfs_ref:
+	free_dfs_info_param(&referral);
+free_root_path:
+	kfree(root_path);
 free_full_path:
 	kfree(full_path);
 cdda_exit:

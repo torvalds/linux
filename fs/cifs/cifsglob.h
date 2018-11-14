@@ -1551,7 +1551,6 @@ static inline void free_dfs_info_param(struct dfs_info3_param *param)
 	if (param) {
 		kfree(param->path_name);
 		kfree(param->node_name);
-		kfree(param);
 	}
 }
 
