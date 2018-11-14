@@ -2600,7 +2600,7 @@ DEFINE_V4L_STUB_FUNC(enum_dv_timings)
 DEFINE_V4L_STUB_FUNC(query_dv_timings)
 DEFINE_V4L_STUB_FUNC(dv_timings_cap)
 
-static struct v4l2_ioctl_info v4l2_ioctls[] = {
+static const struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO(VIDIOC_QUERYCAP, v4l_querycap, v4l_print_querycap, 0),
 	IOCTL_INFO(VIDIOC_ENUM_FMT, v4l_enum_fmt, v4l_print_fmtdesc, INFO_FL_CLEAR(v4l2_fmtdesc, type)),
 	IOCTL_INFO(VIDIOC_G_FMT, v4l_g_fmt, v4l_print_format, 0),
