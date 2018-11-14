@@ -283,7 +283,7 @@ struct cpsw_ss_regs {
 
 #define CTRL_V2_TS_BITS \
 	(TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
-	 TS_TTL_NONZERO  | TS_ANNEX_D_EN | TS_LTYPE1_EN)
+	 TS_TTL_NONZERO  | TS_ANNEX_D_EN | TS_LTYPE1_EN | VLAN_LTYPE1_EN)
 
 #define CTRL_V2_ALL_TS_MASK (CTRL_V2_TS_BITS | TS_TX_EN | TS_RX_EN)
 #define CTRL_V2_TX_TS_BITS  (CTRL_V2_TS_BITS | TS_TX_EN)
@@ -293,7 +293,7 @@ struct cpsw_ss_regs {
 #define CTRL_V3_TS_BITS \
 	(TS_107 | TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
 	 TS_TTL_NONZERO | TS_ANNEX_F_EN | TS_ANNEX_D_EN |\
-	 TS_LTYPE1_EN)
+	 TS_LTYPE1_EN | VLAN_LTYPE1_EN)
 
 #define CTRL_V3_ALL_TS_MASK (CTRL_V3_TS_BITS | TS_TX_EN | TS_RX_EN)
 #define CTRL_V3_TX_TS_BITS  (CTRL_V3_TS_BITS | TS_TX_EN)
@@ -466,6 +466,8 @@ struct cpsw_priv {
 	bool				mqprio_hw;
 	int				fifo_bw[CPSW_TC_NUM];
 	int				shp_cfg_speed;
+	int				tx_ts_enabled;
+	int				rx_ts_enabled;
 	u32 emac_port;
 	struct cpsw_common *cpsw;
 };
@@ -905,6 +907,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	struct net_device	*ndev = skb->dev;
 	int			ret = 0, port;
 	struct cpsw_common	*cpsw = ndev_to_cpsw(ndev);
+	struct cpsw_priv	*priv;
 
 	if (cpsw->data.dual_emac) {
 		port = CPDMA_RX_SOURCE_PORT(status);
@@ -939,7 +942,9 @@ static void cpsw_rx_handler(void *token, int len, int status)
 		skb_put(skb, len);
 		if (status & CPDMA_RX_VLAN_ENCAP)
 			cpsw_rx_vlan_encap(skb);
-		cpts_rx_timestamp(cpsw->cpts, skb);
+		priv = netdev_priv(ndev);
+		if (priv->rx_ts_enabled)
+			cpts_rx_timestamp(cpsw->cpts, skb);
 		skb->protocol = eth_type_trans(skb, ndev);
 		netif_receive_skb(skb);
 		ndev->stats.rx_bytes += len;
@@ -2126,7 +2131,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	}
 
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
-	    cpts_is_tx_enabled(cpts) && cpts_can_timestamp(cpts, skb))
+	    priv->tx_ts_enabled && cpts_can_timestamp(cpts, skb))
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
 	q_idx = skb_get_queue_mapping(skb);
@@ -2170,13 +2175,13 @@ fail:
 
 #if IS_ENABLED(CONFIG_TI_CPTS)
 
-static void cpsw_hwtstamp_v1(struct cpsw_common *cpsw)
+static void cpsw_hwtstamp_v1(struct cpsw_priv *priv)
 {
+	struct cpsw_common *cpsw = priv->cpsw;
 	struct cpsw_slave *slave = &cpsw->slaves[cpsw->data.active_slave];
 	u32 ts_en, seq_id;
 
-	if (!cpts_is_tx_enabled(cpsw->cpts) &&
-	    !cpts_is_rx_enabled(cpsw->cpts)) {
+	if (!priv->tx_ts_enabled && !priv->rx_ts_enabled) {
 		slave_write(slave, 0, CPSW1_TS_CTL);
 		return;
 	}
@@ -2184,10 +2189,10 @@ static void cpsw_hwtstamp_v1(struct cpsw_common *cpsw)
 	seq_id = (30 << CPSW_V1_SEQ_ID_OFS_SHIFT) | ETH_P_1588;
 	ts_en = EVENT_MSG_BITS << CPSW_V1_MSG_TYPE_OFS;
 
-	if (cpts_is_tx_enabled(cpsw->cpts))
+	if (priv->tx_ts_enabled)
 		ts_en |= CPSW_V1_TS_TX_EN;
 
-	if (cpts_is_rx_enabled(cpsw->cpts))
+	if (priv->rx_ts_enabled)
 		ts_en |= CPSW_V1_TS_RX_EN;
 
 	slave_write(slave, ts_en, CPSW1_TS_CTL);
@@ -2207,20 +2212,20 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 	case CPSW_VERSION_2:
 		ctrl &= ~CTRL_V2_ALL_TS_MASK;
 
-		if (cpts_is_tx_enabled(cpsw->cpts))
+		if (priv->tx_ts_enabled)
 			ctrl |= CTRL_V2_TX_TS_BITS;
 
-		if (cpts_is_rx_enabled(cpsw->cpts))
+		if (priv->rx_ts_enabled)
 			ctrl |= CTRL_V2_RX_TS_BITS;
 		break;
 	case CPSW_VERSION_3:
 	default:
 		ctrl &= ~CTRL_V3_ALL_TS_MASK;
 
-		if (cpts_is_tx_enabled(cpsw->cpts))
+		if (priv->tx_ts_enabled)
 			ctrl |= CTRL_V3_TX_TS_BITS;
 
-		if (cpts_is_rx_enabled(cpsw->cpts))
+		if (priv->rx_ts_enabled)
 			ctrl |= CTRL_V3_RX_TS_BITS;
 		break;
 	}
@@ -2230,6 +2235,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 	slave_write(slave, mtype, CPSW2_TS_SEQ_MTYPE);
 	slave_write(slave, ctrl, CPSW2_CONTROL);
 	writel_relaxed(ETH_P_1588, &cpsw->regs->ts_ltype);
+	writel_relaxed(ETH_P_8021Q, &cpsw->regs->vlan_ltype);
 }
 
 static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
@@ -2237,7 +2243,6 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	struct cpsw_priv *priv = netdev_priv(dev);
 	struct hwtstamp_config cfg;
 	struct cpsw_common *cpsw = priv->cpsw;
-	struct cpts *cpts = cpsw->cpts;
 
 	if (cpsw->version != CPSW_VERSION_1 &&
 	    cpsw->version != CPSW_VERSION_2 &&
@@ -2256,7 +2261,7 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		cpts_rx_enable(cpts, 0);
+		priv->rx_ts_enabled = 0;
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_NTP_ALL:
@@ -2264,7 +2269,7 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
-		cpts_rx_enable(cpts, HWTSTAMP_FILTER_PTP_V1_L4_EVENT);
+		priv->rx_ts_enabled = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
@@ -2276,18 +2281,18 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		cpts_rx_enable(cpts, HWTSTAMP_FILTER_PTP_V2_EVENT);
+		priv->rx_ts_enabled = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		break;
 	default:
 		return -ERANGE;
 	}
 
-	cpts_tx_enable(cpts, cfg.tx_type == HWTSTAMP_TX_ON);
+	priv->tx_ts_enabled = cfg.tx_type == HWTSTAMP_TX_ON;
 
 	switch (cpsw->version) {
 	case CPSW_VERSION_1:
-		cpsw_hwtstamp_v1(cpsw);
+		cpsw_hwtstamp_v1(priv);
 		break;
 	case CPSW_VERSION_2:
 	case CPSW_VERSION_3:
@@ -2303,7 +2308,7 @@ static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 {
 	struct cpsw_common *cpsw = ndev_to_cpsw(dev);
-	struct cpts *cpts = cpsw->cpts;
+	struct cpsw_priv *priv = netdev_priv(dev);
 	struct hwtstamp_config cfg;
 
 	if (cpsw->version != CPSW_VERSION_1 &&
@@ -2312,10 +2317,8 @@ static int cpsw_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 		return -EOPNOTSUPP;
 
 	cfg.flags = 0;
-	cfg.tx_type = cpts_is_tx_enabled(cpts) ?
-		      HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
-	cfg.rx_filter = (cpts_is_rx_enabled(cpts) ?
-			 cpts->rx_enable : HWTSTAMP_FILTER_NONE);
+	cfg.tx_type = priv->tx_ts_enabled ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	cfg.rx_filter = priv->rx_ts_enabled;
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
