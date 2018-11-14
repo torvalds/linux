@@ -2416,70 +2416,25 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static void gen_vxlan_header_ipv4(struct net_device *out_dev,
-				  char buf[], int encap_size,
-				  unsigned char h_dest[ETH_ALEN],
-				  u8 tos, u8 ttl,
-				  __be32 daddr,
-				  __be32 saddr,
-				  __be16 udp_dst_port,
-				  __be32 vx_vni)
+static int mlx5e_gen_vxlan_header(char buf[], struct ip_tunnel_key *tun_key)
 {
-	struct ethhdr *eth = (struct ethhdr *)buf;
-	struct iphdr  *ip = (struct iphdr *)((char *)eth + sizeof(struct ethhdr));
-	struct udphdr *udp = (struct udphdr *)((char *)ip + sizeof(struct iphdr));
-	struct vxlanhdr *vxh = (struct vxlanhdr *)((char *)udp + sizeof(struct udphdr));
+	__be32 tun_id = tunnel_id_to_key32(tun_key->tun_id);
+	struct udphdr *udp = (struct udphdr *)(buf);
+	struct vxlanhdr *vxh = (struct vxlanhdr *)
+			       ((char *)udp + sizeof(struct udphdr));
 
-	memset(buf, 0, encap_size);
-
-	ether_addr_copy(eth->h_dest, h_dest);
-	ether_addr_copy(eth->h_source, out_dev->dev_addr);
-	eth->h_proto = htons(ETH_P_IP);
-
-	ip->daddr = daddr;
-	ip->saddr = saddr;
-
-	ip->tos = tos;
-	ip->ttl = ttl;
-	ip->protocol = IPPROTO_UDP;
-	ip->version = 0x4;
-	ip->ihl = 0x5;
-
-	udp->dest = udp_dst_port;
+	udp->dest = tun_key->tp_dst;
 	vxh->vx_flags = VXLAN_HF_VNI;
-	vxh->vx_vni = vxlan_vni_field(vx_vni);
+	vxh->vx_vni = vxlan_vni_field(tun_id);
+
+	return 0;
 }
 
-static void gen_vxlan_header_ipv6(struct net_device *out_dev,
-				  char buf[], int encap_size,
-				  unsigned char h_dest[ETH_ALEN],
-				  u8 tos, u8 ttl,
-				  struct in6_addr *daddr,
-				  struct in6_addr *saddr,
-				  __be16 udp_dst_port,
-				  __be32 vx_vni)
+static int mlx5e_gen_ip_tunnel_header(char buf[], __u8 *ip_proto,
+				      struct ip_tunnel_key *tun_key)
 {
-	struct ethhdr *eth = (struct ethhdr *)buf;
-	struct ipv6hdr *ip6h = (struct ipv6hdr *)((char *)eth + sizeof(struct ethhdr));
-	struct udphdr *udp = (struct udphdr *)((char *)ip6h + sizeof(struct ipv6hdr));
-	struct vxlanhdr *vxh = (struct vxlanhdr *)((char *)udp + sizeof(struct udphdr));
-
-	memset(buf, 0, encap_size);
-
-	ether_addr_copy(eth->h_dest, h_dest);
-	ether_addr_copy(eth->h_source, out_dev->dev_addr);
-	eth->h_proto = htons(ETH_P_IPV6);
-
-	ip6_flow_hdr(ip6h, tos, 0);
-	/* the HW fills up ipv6 payload len */
-	ip6h->nexthdr     = IPPROTO_UDP;
-	ip6h->hop_limit   = ttl;
-	ip6h->daddr	  = *daddr;
-	ip6h->saddr	  = *saddr;
-
-	udp->dest = udp_dst_port;
-	vxh->vx_flags = VXLAN_HF_VNI;
-	vxh->vx_vni = vxlan_vni_field(vx_vni);
+	*ip_proto = IPPROTO_UDP;
+	return mlx5e_gen_vxlan_header(buf, tun_key);
 }
 
 static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
@@ -2487,13 +2442,17 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 					  struct mlx5e_encap_entry *e)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
-	int ipv4_encap_size = ETH_HLEN + sizeof(struct iphdr) + VXLAN_HLEN;
+	int ipv4_encap_size = ETH_HLEN +
+			      sizeof(struct iphdr) +
+			      VXLAN_HLEN;
 	struct ip_tunnel_key *tun_key = &e->tun_info.key;
 	struct net_device *out_dev;
 	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
-	u8 nud_state, tos, ttl;
 	char *encap_header;
+	struct ethhdr *eth;
+	u8 nud_state, ttl;
+	struct iphdr *ip;
 	int err;
 
 	if (max_encap_size < ipv4_encap_size) {
@@ -2506,22 +2465,11 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	if (!encap_header)
 		return -ENOMEM;
 
-	switch (e->tunnel_type) {
-	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
-		fl4.flowi4_proto = IPPROTO_UDP;
-		fl4.fl4_dport = tun_key->tp_dst;
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		goto free_encap;
-	}
-
-	tos = tun_key->tos;
-	ttl = tun_key->ttl;
-
+	/* add the IP fields */
 	fl4.flowi4_tos = tun_key->tos;
 	fl4.daddr = tun_key->u.ipv4.dst;
 	fl4.saddr = tun_key->u.ipv4.src;
+	ttl = tun_key->ttl;
 
 	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, &out_dev,
 				      &fl4, &n, &ttl);
@@ -2536,7 +2484,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	memcpy(&e->m_neigh.dst_ip, n->primary_key, n->tbl->key_len);
 	e->out_dev = out_dev;
 
-	/* It's importent to add the neigh to the hash table before checking
+	/* It's important to add the neigh to the hash table before checking
 	 * the neigh validity state. So if we'll get a notification, in case the
 	 * neigh changes it's validity state, we would find the relevant neigh
 	 * in the hash.
@@ -2550,18 +2498,27 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	ether_addr_copy(e->h_dest, n->ha);
 	read_unlock_bh(&n->lock);
 
-	switch (e->tunnel_type) {
-	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
-		gen_vxlan_header_ipv4(out_dev, encap_header,
-				      ipv4_encap_size, e->h_dest, tos, ttl,
-				      fl4.daddr,
-				      fl4.saddr, tun_key->tp_dst,
-				      tunnel_id_to_key32(tun_key->tun_id));
-		break;
-	default:
-		err = -EOPNOTSUPP;
+	/* add ethernet header */
+	eth = (struct ethhdr *)encap_header;
+	ether_addr_copy(eth->h_dest, e->h_dest);
+	ether_addr_copy(eth->h_source, out_dev->dev_addr);
+	eth->h_proto = htons(ETH_P_IP);
+
+	/* add ip header */
+	ip = (struct iphdr *)((char *)eth + sizeof(struct ethhdr));
+	ip->tos = tun_key->tos;
+	ip->version = 0x4;
+	ip->ihl = 0x5;
+	ip->ttl = ttl;
+	ip->daddr = fl4.daddr;
+	ip->saddr = fl4.saddr;
+
+	/* add tunneling protocol header */
+	err = mlx5e_gen_ip_tunnel_header((char *)ip + sizeof(struct iphdr),
+					 &ip->protocol, tun_key);
+	if (err)
 		goto destroy_neigh_entry;
-	}
+
 	e->encap_size = ipv4_encap_size;
 	e->encap_header = encap_header;
 
@@ -2598,13 +2555,17 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 					  struct mlx5e_encap_entry *e)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
-	int ipv6_encap_size = ETH_HLEN + sizeof(struct ipv6hdr) + VXLAN_HLEN;
+	int ipv6_encap_size = ETH_HLEN +
+			      sizeof(struct ipv6hdr) +
+			      VXLAN_HLEN;
 	struct ip_tunnel_key *tun_key = &e->tun_info.key;
 	struct net_device *out_dev;
 	struct neighbour *n = NULL;
 	struct flowi6 fl6 = {};
-	u8 nud_state, tos, ttl;
+	struct ipv6hdr *ip6h;
 	char *encap_header;
+	struct ethhdr *eth;
+	u8 nud_state, ttl;
 	int err;
 
 	if (max_encap_size < ipv6_encap_size) {
@@ -2617,17 +2578,6 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	if (!encap_header)
 		return -ENOMEM;
 
-	switch (e->tunnel_type) {
-	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
-		fl6.flowi6_proto = IPPROTO_UDP;
-		fl6.fl6_dport = tun_key->tp_dst;
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		goto free_encap;
-	}
-
-	tos = tun_key->tos;
 	ttl = tun_key->ttl;
 
 	fl6.flowlabel = ip6_make_flowinfo(RT_TOS(tun_key->tos), tun_key->label);
@@ -2661,18 +2611,25 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	ether_addr_copy(e->h_dest, n->ha);
 	read_unlock_bh(&n->lock);
 
-	switch (e->tunnel_type) {
-	case MLX5_REFORMAT_TYPE_L2_TO_VXLAN:
-		gen_vxlan_header_ipv6(out_dev, encap_header,
-				      ipv6_encap_size, e->h_dest, tos, ttl,
-				      &fl6.daddr,
-				      &fl6.saddr, tun_key->tp_dst,
-				      tunnel_id_to_key32(tun_key->tun_id));
-		break;
-	default:
-		err = -EOPNOTSUPP;
+	/* add ethernet header */
+	eth = (struct ethhdr *)encap_header;
+	ether_addr_copy(eth->h_dest, e->h_dest);
+	ether_addr_copy(eth->h_source, out_dev->dev_addr);
+	eth->h_proto = htons(ETH_P_IPV6);
+
+	/* add ip header */
+	ip6h = (struct ipv6hdr *)((char *)eth + sizeof(struct ethhdr));
+	ip6_flow_hdr(ip6h, tun_key->tos, 0);
+	/* the HW fills up ipv6 payload len */
+	ip6h->hop_limit   = ttl;
+	ip6h->daddr	  = fl6.daddr;
+	ip6h->saddr	  = fl6.saddr;
+
+	/* add tunneling protocol header */
+	err = mlx5e_gen_ip_tunnel_header((char *)ip6h + sizeof(struct ipv6hdr),
+					 &ip6h->nexthdr, tun_key);
+	if (err)
 		goto destroy_neigh_entry;
-	}
 
 	e->encap_size = ipv6_encap_size;
 	e->encap_header = encap_header;
@@ -2731,17 +2688,11 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	uintptr_t hash_key;
 	bool found = false;
 
-	/* udp dst port must be set */
-	if (!memchr_inv(&key->tp_dst, 0, sizeof(key->tp_dst)))
-		goto vxlan_encap_offload_err;
-
-	/* setting udp src port isn't supported */
-	if (memchr_inv(&key->tp_src, 0, sizeof(key->tp_src))) {
-vxlan_encap_offload_err:
+	if (!MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "must set udp dst port and not set udp src port");
+				   "vxlan HW offloading is not supported");
 		netdev_warn(priv->netdev,
-			    "must set udp dst port and not set udp src port\n");
+			    "vxlan HW offloading is not supported\n");
 		return -EOPNOTSUPP;
 	}
 
