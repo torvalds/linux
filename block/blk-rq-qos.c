@@ -67,14 +67,13 @@ void rq_qos_requeue(struct request_queue *q, struct request *rq)
 	}
 }
 
-void rq_qos_throttle(struct request_queue *q, struct bio *bio,
-		     spinlock_t *lock)
+void rq_qos_throttle(struct request_queue *q, struct bio *bio)
 {
 	struct rq_qos *rqos;
 
 	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
 		if (rqos->ops->throttle)
-			rqos->ops->throttle(rqos, bio, lock);
+			rqos->ops->throttle(rqos, bio);
 	}
 }
 

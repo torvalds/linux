@@ -1886,7 +1886,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	if (blk_mq_sched_bio_merge(q, bio))
 		return BLK_QC_T_NONE;
 
-	rq_qos_throttle(q, bio, NULL);
+	rq_qos_throttle(q, bio);
 
 	rq = blk_mq_get_request(q, bio, &data);
 	if (unlikely(!rq)) {
