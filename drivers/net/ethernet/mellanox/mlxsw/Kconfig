@@ -80,6 +80,7 @@ config MLXSW_SPECTRUM
 	depends on IPV6_GRE || IPV6_GRE=n
 	select GENERIC_ALLOCATOR
 	select PARMAN
+	select OBJAGG
 	select MLXFW
 	default m
 	---help---

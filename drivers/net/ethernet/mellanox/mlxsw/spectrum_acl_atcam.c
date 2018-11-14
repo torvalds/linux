@@ -64,7 +64,7 @@ static const struct rhashtable_params mlxsw_sp_acl_atcam_entries_ht_params = {
 static bool
 mlxsw_sp_acl_atcam_is_centry(const struct mlxsw_sp_acl_atcam_entry *aentry)
 {
-	return mlxsw_sp_acl_erp_is_ctcam_erp(aentry->erp);
+	return mlxsw_sp_acl_erp_mask_is_ctcam(aentry->erp_mask);
 }
 
 static int
@@ -379,7 +379,7 @@ mlxsw_sp_acl_atcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_acl_rule_info *rulei)
 {
 	struct mlxsw_sp_acl_tcam_region *region = aregion->region;
-	u8 erp_id = mlxsw_sp_acl_erp_id(aentry->erp);
+	u8 erp_id = mlxsw_sp_acl_erp_mask_erp_id(aentry->erp_mask);
 	struct mlxsw_sp_acl_atcam_lkey_id *lkey_id;
 	char ptce3_pl[MLXSW_REG_PTCE3_LEN];
 	u32 kvdl_index, priority;
@@ -418,7 +418,7 @@ mlxsw_sp_acl_atcam_region_entry_remove(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_atcam_lkey_id *lkey_id = aentry->lkey_id;
 	struct mlxsw_sp_acl_tcam_region *region = aregion->region;
-	u8 erp_id = mlxsw_sp_acl_erp_id(aentry->erp);
+	u8 erp_id = mlxsw_sp_acl_erp_mask_erp_id(aentry->erp_mask);
 	char ptce3_pl[MLXSW_REG_PTCE3_LEN];
 
 	mlxsw_reg_ptce3_pack(ptce3_pl, false, MLXSW_REG_PTCE3_OP_WRITE_WRITE, 0,
@@ -438,7 +438,7 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_region *region = aregion->region;
 	char mask[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN] = { 0 };
 	struct mlxsw_afk *afk = mlxsw_sp_acl_afk(mlxsw_sp->acl);
-	struct mlxsw_sp_acl_erp *erp;
+	struct mlxsw_sp_acl_erp_mask *erp_mask;
 	unsigned int blocks_count;
 	int err;
 
@@ -446,11 +446,11 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_afk_encode(afk, region->key_info, &rulei->values,
 			 aentry->ht_key.enc_key, mask, 0, blocks_count - 1);
 
-	erp = mlxsw_sp_acl_erp_get(aregion, mask, false);
-	if (IS_ERR(erp))
-		return PTR_ERR(erp);
-	aentry->erp = erp;
-	aentry->ht_key.erp_id = mlxsw_sp_acl_erp_id(erp);
+	erp_mask = mlxsw_sp_acl_erp_mask_get(aregion, mask, false);
+	if (IS_ERR(erp_mask))
+		return PTR_ERR(erp_mask);
+	aentry->erp_mask = erp_mask;
+	aentry->ht_key.erp_id = mlxsw_sp_acl_erp_mask_erp_id(erp_mask);
 
 	/* We can't insert identical rules into the A-TCAM, so fail and
 	 * let the rule spill into C-TCAM
@@ -472,7 +472,7 @@ err_rule_insert:
 	rhashtable_remove_fast(&aregion->entries_ht, &aentry->ht_node,
 			       mlxsw_sp_acl_atcam_entries_ht_params);
 err_rhashtable_insert:
-	mlxsw_sp_acl_erp_put(aregion, erp);
+	mlxsw_sp_acl_erp_mask_put(aregion, erp_mask);
 	return err;
 }
 
@@ -484,7 +484,7 @@ __mlxsw_sp_acl_atcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_atcam_region_entry_remove(mlxsw_sp, aregion, aentry);
 	rhashtable_remove_fast(&aregion->entries_ht, &aentry->ht_node,
 			       mlxsw_sp_acl_atcam_entries_ht_params);
-	mlxsw_sp_acl_erp_put(aregion, aentry->erp);
+	mlxsw_sp_acl_erp_mask_put(aregion, aentry->erp_mask);
 }
 
 int mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,

@@ -7,7 +7,7 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/rhashtable.h>
+#include <linux/objagg.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 
@@ -36,10 +36,8 @@ struct mlxsw_sp_acl_erp {
 	struct mlxsw_sp_acl_erp_key key;
 	u8 id;
 	u8 index;
-	refcount_t refcnt;
 	DECLARE_BITMAP(mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN);
 	struct list_head list;
-	struct rhash_head ht_node;
 	struct mlxsw_sp_acl_erp_table *erp_table;
 };
 
@@ -53,7 +51,6 @@ struct mlxsw_sp_acl_erp_table {
 	DECLARE_BITMAP(erp_id_bitmap, MLXSW_SP_ACL_ERP_MAX_PER_REGION);
 	DECLARE_BITMAP(erp_index_bitmap, MLXSW_SP_ACL_ERP_MAX_PER_REGION);
 	struct list_head atcam_erps_list;
-	struct rhashtable erp_ht;
 	struct mlxsw_sp_acl_erp_core *erp_core;
 	struct mlxsw_sp_acl_atcam_region *aregion;
 	const struct mlxsw_sp_acl_erp_table_ops *ops;
@@ -61,12 +58,7 @@ struct mlxsw_sp_acl_erp_table {
 	unsigned int num_atcam_erps;
 	unsigned int num_max_atcam_erps;
 	unsigned int num_ctcam_erps;
-};
-
-static const struct rhashtable_params mlxsw_sp_acl_erp_ht_params = {
-	.key_len = sizeof(struct mlxsw_sp_acl_erp_key),
-	.key_offset = offsetof(struct mlxsw_sp_acl_erp, key),
-	.head_offset = offsetof(struct mlxsw_sp_acl_erp, ht_node),
+	struct objagg *objagg;
 };
 
 struct mlxsw_sp_acl_erp_table_ops {
@@ -118,16 +110,6 @@ static const struct mlxsw_sp_acl_erp_table_ops erp_no_mask_ops = {
 	.erp_create = mlxsw_sp_acl_erp_first_mask_create,
 	.erp_destroy = mlxsw_sp_acl_erp_no_mask_destroy,
 };
-
-bool mlxsw_sp_acl_erp_is_ctcam_erp(const struct mlxsw_sp_acl_erp *erp)
-{
-	return erp->key.ctcam;
-}
-
-u8 mlxsw_sp_acl_erp_id(const struct mlxsw_sp_acl_erp *erp)
-{
-	return erp->id;
-}
 
 static unsigned int
 mlxsw_sp_acl_erp_table_entry_size(const struct mlxsw_sp_acl_erp_table *erp_table)
@@ -259,7 +241,6 @@ mlxsw_sp_acl_erp_generic_create(struct mlxsw_sp_acl_erp_table *erp_table,
 	bitmap_from_arr32(erp->mask_bitmap, (u32 *) key->mask,
 			  MLXSW_SP_ACL_TCAM_MASK_LEN);
 	list_add(&erp->list, &erp_table->atcam_erps_list);
-	refcount_set(&erp->refcnt, 1);
 	erp_table->num_atcam_erps++;
 	erp->erp_table = erp_table;
 
@@ -267,15 +248,8 @@ mlxsw_sp_acl_erp_generic_create(struct mlxsw_sp_acl_erp_table *erp_table,
 	if (err)
 		goto err_master_mask_set;
 
-	err = rhashtable_insert_fast(&erp_table->erp_ht, &erp->ht_node,
-				     mlxsw_sp_acl_erp_ht_params);
-	if (err)
-		goto err_rhashtable_insert;
-
 	return erp;
 
-err_rhashtable_insert:
-	mlxsw_sp_acl_erp_master_mask_clear(erp_table, erp);
 err_master_mask_set:
 	erp_table->num_atcam_erps--;
 	list_del(&erp->list);
@@ -290,8 +264,6 @@ mlxsw_sp_acl_erp_generic_destroy(struct mlxsw_sp_acl_erp *erp)
 {
 	struct mlxsw_sp_acl_erp_table *erp_table = erp->erp_table;
 
-	rhashtable_remove_fast(&erp_table->erp_ht, &erp->ht_node,
-			       mlxsw_sp_acl_erp_ht_params);
 	mlxsw_sp_acl_erp_master_mask_clear(erp_table, erp);
 	erp_table->num_atcam_erps--;
 	list_del(&erp->list);
@@ -697,18 +669,12 @@ __mlxsw_sp_acl_erp_ctcam_mask_create(struct mlxsw_sp_acl_erp_table *erp_table,
 	memcpy(&erp->key, key, sizeof(*key));
 	bitmap_from_arr32(erp->mask_bitmap, (u32 *) key->mask,
 			  MLXSW_SP_ACL_TCAM_MASK_LEN);
-	refcount_set(&erp->refcnt, 1);
 	erp_table->num_ctcam_erps++;
 	erp->erp_table = erp_table;
 
 	err = mlxsw_sp_acl_erp_master_mask_set(erp_table, erp);
 	if (err)
 		goto err_master_mask_set;
-
-	err = rhashtable_insert_fast(&erp_table->erp_ht, &erp->ht_node,
-				     mlxsw_sp_acl_erp_ht_params);
-	if (err)
-		goto err_rhashtable_insert;
 
 	err = mlxsw_sp_acl_erp_region_ctcam_enable(erp_table);
 	if (err)
@@ -720,9 +686,6 @@ __mlxsw_sp_acl_erp_ctcam_mask_create(struct mlxsw_sp_acl_erp_table *erp_table,
 	return erp;
 
 err_erp_region_ctcam_enable:
-	rhashtable_remove_fast(&erp_table->erp_ht, &erp->ht_node,
-			       mlxsw_sp_acl_erp_ht_params);
-err_rhashtable_insert:
 	mlxsw_sp_acl_erp_master_mask_clear(erp_table, erp);
 err_master_mask_set:
 	erp_table->num_ctcam_erps--;
@@ -767,8 +730,6 @@ mlxsw_sp_acl_erp_ctcam_mask_destroy(struct mlxsw_sp_acl_erp *erp)
 	struct mlxsw_sp_acl_erp_table *erp_table = erp->erp_table;
 
 	mlxsw_sp_acl_erp_region_ctcam_disable(erp_table);
-	rhashtable_remove_fast(&erp_table->erp_ht, &erp->ht_node,
-			       mlxsw_sp_acl_erp_ht_params);
 	mlxsw_sp_acl_erp_master_mask_clear(erp_table, erp);
 	erp_table->num_ctcam_erps--;
 	kfree(erp);
@@ -940,13 +901,12 @@ mlxsw_sp_acl_erp_no_mask_destroy(struct mlxsw_sp_acl_erp_table *erp_table,
 	WARN_ON(1);
 }
 
-struct mlxsw_sp_acl_erp *
-mlxsw_sp_acl_erp_get(struct mlxsw_sp_acl_atcam_region *aregion,
-		     const char *mask, bool ctcam)
+struct mlxsw_sp_acl_erp_mask *
+mlxsw_sp_acl_erp_mask_get(struct mlxsw_sp_acl_atcam_region *aregion,
+			  const char *mask, bool ctcam)
 {
-	struct mlxsw_sp_acl_erp_table *erp_table = aregion->erp_table;
 	struct mlxsw_sp_acl_erp_key key;
-	struct mlxsw_sp_acl_erp *erp;
+	struct objagg_obj *objagg_obj;
 
 	/* eRPs are allocated from a shared resource, but currently all
 	 * allocations are done under RTNL.
@@ -955,28 +915,72 @@ mlxsw_sp_acl_erp_get(struct mlxsw_sp_acl_atcam_region *aregion,
 
 	memcpy(key.mask, mask, MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN);
 	key.ctcam = ctcam;
-	erp = rhashtable_lookup_fast(&erp_table->erp_ht, &key,
-				     mlxsw_sp_acl_erp_ht_params);
-	if (erp) {
-		refcount_inc(&erp->refcnt);
-		return erp;
-	}
-
-	return erp_table->ops->erp_create(erp_table, &key);
+	objagg_obj = objagg_obj_get(aregion->erp_table->objagg, &key);
+	if (IS_ERR(objagg_obj))
+		return ERR_CAST(objagg_obj);
+	return (struct mlxsw_sp_acl_erp_mask *) objagg_obj;
 }
 
-void mlxsw_sp_acl_erp_put(struct mlxsw_sp_acl_atcam_region *aregion,
-			  struct mlxsw_sp_acl_erp *erp)
+void mlxsw_sp_acl_erp_mask_put(struct mlxsw_sp_acl_atcam_region *aregion,
+			       struct mlxsw_sp_acl_erp_mask *erp_mask)
 {
-	struct mlxsw_sp_acl_erp_table *erp_table = aregion->erp_table;
+	struct objagg_obj *objagg_obj = (struct objagg_obj *) erp_mask;
 
 	ASSERT_RTNL();
-
-	if (!refcount_dec_and_test(&erp->refcnt))
-		return;
-
-	erp_table->ops->erp_destroy(erp_table, erp);
+	objagg_obj_put(aregion->erp_table->objagg, objagg_obj);
 }
+
+bool
+mlxsw_sp_acl_erp_mask_is_ctcam(const struct mlxsw_sp_acl_erp_mask *erp_mask)
+{
+	struct objagg_obj *objagg_obj = (struct objagg_obj *) erp_mask;
+	const struct mlxsw_sp_acl_erp_key *key = objagg_obj_raw(objagg_obj);
+
+	return key->ctcam;
+}
+
+u8 mlxsw_sp_acl_erp_mask_erp_id(const struct mlxsw_sp_acl_erp_mask *erp_mask)
+{
+	struct objagg_obj *objagg_obj = (struct objagg_obj *) erp_mask;
+	const struct mlxsw_sp_acl_erp *erp = objagg_obj_root_priv(objagg_obj);
+
+	return erp->id;
+}
+
+static void *mlxsw_sp_acl_erp_delta_create(void *priv, void *parent_obj,
+					   void *obj)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static void mlxsw_sp_acl_erp_delta_destroy(void *priv, void *delta_priv)
+{
+}
+
+static void *mlxsw_sp_acl_erp_root_create(void *priv, void *obj)
+{
+	struct mlxsw_sp_acl_atcam_region *aregion = priv;
+	struct mlxsw_sp_acl_erp_table *erp_table = aregion->erp_table;
+	struct mlxsw_sp_acl_erp_key *key = obj;
+
+	return erp_table->ops->erp_create(erp_table, key);
+}
+
+static void mlxsw_sp_acl_erp_root_destroy(void *priv, void *root_priv)
+{
+	struct mlxsw_sp_acl_atcam_region *aregion = priv;
+	struct mlxsw_sp_acl_erp_table *erp_table = aregion->erp_table;
+
+	erp_table->ops->erp_destroy(erp_table, root_priv);
+}
+
+static const struct objagg_ops mlxsw_sp_acl_erp_objagg_ops = {
+	.obj_size = sizeof(struct mlxsw_sp_acl_erp_key),
+	.delta_create = mlxsw_sp_acl_erp_delta_create,
+	.delta_destroy = mlxsw_sp_acl_erp_delta_destroy,
+	.root_create = mlxsw_sp_acl_erp_root_create,
+	.root_destroy = mlxsw_sp_acl_erp_root_destroy,
+};
 
 static struct mlxsw_sp_acl_erp_table *
 mlxsw_sp_acl_erp_table_create(struct mlxsw_sp_acl_atcam_region *aregion)
@@ -988,9 +992,12 @@ mlxsw_sp_acl_erp_table_create(struct mlxsw_sp_acl_atcam_region *aregion)
 	if (!erp_table)
 		return ERR_PTR(-ENOMEM);
 
-	err = rhashtable_init(&erp_table->erp_ht, &mlxsw_sp_acl_erp_ht_params);
-	if (err)
-		goto err_rhashtable_init;
+	erp_table->objagg = objagg_create(&mlxsw_sp_acl_erp_objagg_ops,
+					  aregion);
+	if (IS_ERR(erp_table->objagg)) {
+		err = PTR_ERR(erp_table->objagg);
+		goto err_objagg_create;
+	}
 
 	erp_table->erp_core = aregion->atcam->erp_core;
 	erp_table->ops = &erp_no_mask_ops;
@@ -999,7 +1006,7 @@ mlxsw_sp_acl_erp_table_create(struct mlxsw_sp_acl_atcam_region *aregion)
 
 	return erp_table;
 
-err_rhashtable_init:
+err_objagg_create:
 	kfree(erp_table);
 	return ERR_PTR(err);
 }
@@ -1008,7 +1015,7 @@ static void
 mlxsw_sp_acl_erp_table_destroy(struct mlxsw_sp_acl_erp_table *erp_table)
 {
 	WARN_ON(!list_empty(&erp_table->atcam_erps_list));
-	rhashtable_destroy(&erp_table->erp_ht);
+	objagg_destroy(erp_table->objagg);
 	kfree(erp_table);
 }
 
