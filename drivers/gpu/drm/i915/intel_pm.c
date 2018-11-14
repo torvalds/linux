@@ -4933,10 +4933,9 @@ skl_compute_linetime_wm(const struct intel_crtc_state *cstate)
 }
 
 static void skl_compute_transition_wm(const struct intel_crtc_state *cstate,
-				      struct skl_wm_params *wp,
-				      struct skl_wm_level *wm_l0,
-				      uint16_t ddb_allocation,
-				      struct skl_wm_level *trans_wm /* out */)
+				      const struct skl_wm_params *wp,
+				      struct skl_plane_wm *wm,
+				      uint16_t ddb_allocation)
 {
 	struct drm_device *dev = cstate->base.crtc->dev;
 	const struct drm_i915_private *dev_priv = to_i915(dev);
@@ -4971,7 +4970,7 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *cstate,
 	 * Result Blocks is Result Blocks minus 1 and it should work for the
 	 * current platforms.
 	 */
-	wm0_sel_res_b = wm_l0->plane_res_b - 1;
+	wm0_sel_res_b = wm->wm[0].plane_res_b - 1;
 
 	if (wp->y_tiled) {
 		trans_y_tile_min = (uint16_t) mul_round_up_u32_fixed16(2,
@@ -4990,8 +4989,8 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *cstate,
 	res_blocks += 1;
 
 	if (res_blocks < ddb_allocation) {
-		trans_wm->plane_res_b = res_blocks;
-		trans_wm->plane_en = true;
+		wm->trans_wm.plane_res_b = res_blocks;
+		wm->trans_wm.plane_en = true;
 	}
 }
 
@@ -5020,8 +5019,7 @@ static int __skl_build_plane_wm_single(struct skl_ddb_allocation *ddb,
 	if (ret)
 		return ret;
 
-	skl_compute_transition_wm(cstate, &wm_params, &wm->wm[0],
-				  ddb_blocks, &wm->trans_wm);
+	skl_compute_transition_wm(cstate, &wm_params, wm, ddb_blocks);
 
 	return 0;
 }
