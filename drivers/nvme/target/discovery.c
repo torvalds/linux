@@ -18,7 +18,7 @@
 
 struct nvmet_subsys *nvmet_disc_subsys;
 
-u64 nvmet_genctr;
+static u64 nvmet_genctr;
 
 static void __nvmet_disc_changed(struct nvmet_port *port,
 				 struct nvmet_ctrl *ctrl)
