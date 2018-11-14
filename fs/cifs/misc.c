@@ -740,6 +740,8 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 			goto parse_DFS_referrals_exit;
 		}
 
+		node->ttl = le32_to_cpu(ref->TimeToLive);
+
 		ref++;
 	}
 
