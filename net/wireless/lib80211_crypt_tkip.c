@@ -99,7 +99,7 @@ static void *lib80211_tkip_init(int key_idx)
 
 	priv->key_idx = key_idx;
 
-	priv->tx_tfm_arc4 = crypto_alloc_cipher("arc4", 0, CRYPTO_ALG_ASYNC);
+	priv->tx_tfm_arc4 = crypto_alloc_cipher("arc4", 0, 0);
 	if (IS_ERR(priv->tx_tfm_arc4)) {
 		priv->tx_tfm_arc4 = NULL;
 		goto fail;
@@ -111,7 +111,7 @@ static void *lib80211_tkip_init(int key_idx)
 		goto fail;
 	}
 
-	priv->rx_tfm_arc4 = crypto_alloc_cipher("arc4", 0, CRYPTO_ALG_ASYNC);
+	priv->rx_tfm_arc4 = crypto_alloc_cipher("arc4", 0, 0);
 	if (IS_ERR(priv->rx_tfm_arc4)) {
 		priv->rx_tfm_arc4 = NULL;
 		goto fail;
