@@ -586,7 +586,7 @@ unlock:
 	else
 		pulse8->config_pending = true;
 	mutex_unlock(&pulse8->config_lock);
-	return err;
+	return log_addr == CEC_LOG_ADDR_INVALID ? 0 : err;
 }
 
 static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
