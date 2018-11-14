@@ -4,6 +4,7 @@ obj-y += \
 	clk.o \
 	clk-busy.o \
 	clk-cpu.o \
+	clk-composite-7ulp.o \
 	clk-divider-gate.o \
 	clk-fixup-div.o \
 	clk-fixup-mux.o \
