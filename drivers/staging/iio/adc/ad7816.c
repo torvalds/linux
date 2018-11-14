@@ -422,6 +422,14 @@ static int ad7816_probe(struct spi_device *spi_dev)
 	return 0;
 }
 
+static const struct of_device_id ad7816_of_match[] = {
+	{ .compatible = "adi,ad7816", },
+	{ .compatible = "adi,ad7817", },
+	{ .compatible = "adi,ad7818", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ad7816_of_match);
+
 static const struct spi_device_id ad7816_id[] = {
 	{ "ad7816", ID_AD7816 },
 	{ "ad7817", ID_AD7817 },
@@ -434,6 +442,7 @@ MODULE_DEVICE_TABLE(spi, ad7816_id);
 static struct spi_driver ad7816_driver = {
 	.driver = {
 		.name = "ad7816",
+		.of_match_table = ad7816_of_match,
 	},
 	.probe = ad7816_probe,
 	.id_table = ad7816_id,
