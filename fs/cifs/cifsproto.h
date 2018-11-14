@@ -565,6 +565,8 @@ void cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc);
 extern void rqst_page_get_length(struct smb_rqst *rqst, unsigned int page,
 				unsigned int *len, unsigned int *offset);
 
+void extract_unc_hostname(const char *unc, const char **h, size_t *len);
+
 #ifdef CONFIG_CIFS_DFS_UPCALL
 static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 			       const char *old_path,

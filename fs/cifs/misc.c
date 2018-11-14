@@ -952,3 +952,20 @@ void rqst_page_get_length(struct smb_rqst *rqst, unsigned int page,
 	else if (page == 0)
 		*len = rqst->rq_pagesz - rqst->rq_offset;
 }
+
+void extract_unc_hostname(const char *unc, const char **h, size_t *len)
+{
+	const char *end;
+
+	/* skip initial slashes */
+	while (*unc && (*unc == '\\' || *unc == '/'))
+		unc++;
+
+	end = unc;
+
+	while (*end && !(*end == '\\' || *end == '/'))
+		end++;
+
+	*h = unc;
+	*len = end - unc;
+}
