@@ -1856,8 +1856,6 @@ static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
 		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
 				      hpp->latency_timer);
 		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
-		if (hpp->enable_serr)
-			pci_bctl |= PCI_BRIDGE_CTL_SERR;
 		if (hpp->enable_perr)
 			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
 		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
@@ -2129,6 +2127,24 @@ static void pci_configure_eetlp_prefix(struct pci_dev *dev)
 #endif
 }
 
+static void pci_configure_serr(struct pci_dev *dev)
+{
+	u16 control;
+
+	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
+
+		/*
+		 * A bridge will not forward ERR_ messages coming from an
+		 * endpoint unless SERR# forwarding is enabled.
+		 */
+		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &control);
+		if (!(control & PCI_BRIDGE_CTL_SERR)) {
+			control |= PCI_BRIDGE_CTL_SERR;
+			pci_write_config_word(dev, PCI_BRIDGE_CONTROL, control);
+		}
+	}
+}
+
 static void pci_configure_device(struct pci_dev *dev)
 {
 	struct hotplug_params hpp;
@@ -2139,6 +2155,7 @@ static void pci_configure_device(struct pci_dev *dev)
 	pci_configure_relaxed_ordering(dev);
 	pci_configure_ltr(dev);
 	pci_configure_eetlp_prefix(dev);
+	pci_configure_serr(dev);
 
 	memset(&hpp, 0, sizeof(hpp));
 	ret = pci_get_hp_params(dev, &hpp);
