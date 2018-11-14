@@ -722,6 +722,54 @@ static int psp_v11_0_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id
 	return 0;
 }
 
+static int psp_v11_0_ras_trigger_error(struct psp_context *psp,
+		struct ta_ras_trigger_error_input *info)
+{
+	struct ta_ras_shared_memory *ras_cmd;
+	int ret;
+
+	if (!psp->ras.ras_initialized)
+		return -EINVAL;
+
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
+	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));
+
+	ras_cmd->cmd_id = TA_RAS_COMMAND__TRIGGER_ERROR;
+	ras_cmd->ras_in_message.trigger_error = *info;
+
+	ret = psp_ras_invoke(psp, ras_cmd->cmd_id);
+	if (ret)
+		return -EINVAL;
+
+	return ras_cmd->ras_status;
+}
+
+static int psp_v11_0_ras_cure_posion(struct psp_context *psp, uint64_t *mode_ptr)
+{
+#if 0
+	// not support yet.
+	struct ta_ras_shared_memory *ras_cmd;
+	int ret;
+
+	if (!psp->ras.ras_initialized)
+		return -EINVAL;
+
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
+	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));
+
+	ras_cmd->cmd_id = TA_RAS_COMMAND__CURE_POISON;
+	ras_cmd->ras_in_message.cure_poison.mode_ptr = mode_ptr;
+
+	ret = psp_ras_invoke(psp, ras_cmd->cmd_id);
+	if (ret)
+		return -EINVAL;
+
+	return ras_cmd->ras_status;
+#else
+	return -EINVAL;
+#endif
+}
+
 static const struct psp_funcs psp_v11_0_funcs = {
 	.init_microcode = psp_v11_0_init_microcode,
 	.bootloader_load_sysdrv = psp_v11_0_bootloader_load_sysdrv,
@@ -738,6 +786,8 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.xgmi_get_hive_id = psp_v11_0_xgmi_get_hive_id,
 	.xgmi_get_node_id = psp_v11_0_xgmi_get_node_id,
 	.support_vmr_ring = psp_v11_0_support_vmr_ring,
+	.ras_trigger_error = psp_v11_0_ras_trigger_error,
+	.ras_cure_posion = psp_v11_0_ras_cure_posion,
 };
 
 void psp_v11_0_set_psp_funcs(struct psp_context *psp)
