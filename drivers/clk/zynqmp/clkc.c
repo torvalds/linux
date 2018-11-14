@@ -279,6 +279,9 @@ struct clk_hw *zynqmp_clk_register_fixed_factor(const char *name, u32 clk_id,
 	qdata.arg1 = clk_id;
 
 	ret = eemi_ops->query_data(qdata, ret_payload);
+	if (ret)
+		return ERR_PTR(ret);
+
 	mult = ret_payload[1];
 	div = ret_payload[2];
 
