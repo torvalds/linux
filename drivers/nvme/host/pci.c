@@ -2073,7 +2073,7 @@ static int nvme_setup_irqs(struct nvme_dev *dev, int nr_io_queues)
 		.nr_sets = ARRAY_SIZE(irq_sets),
 		.sets = irq_sets,
 	};
-	int result;
+	int result = 0;
 
 	/*
 	 * For irq sets, we have to ask for minvec == maxvec. This passes
@@ -2088,9 +2088,16 @@ static int nvme_setup_irqs(struct nvme_dev *dev, int nr_io_queues)
 			affd.nr_sets = 1;
 
 		/*
-		 * Need IRQs for read+write queues, and one for the admin queue
+		 * Need IRQs for read+write queues, and one for the admin queue.
+		 * If we can't get more than one vector, we have to share the
+		 * admin queue and IO queue vector. For that case, don't add
+		 * an extra vector for the admin queue, or we'll continue
+		 * asking for 2 and get -ENOSPC in return.
 		 */
-		nr_io_queues = irq_sets[0] + irq_sets[1] + 1;
+		if (result == -ENOSPC && nr_io_queues == 1)
+			nr_io_queues = 1;
+		else
+			nr_io_queues = irq_sets[0] + irq_sets[1] + 1;
 
 		result = pci_alloc_irq_vectors_affinity(pdev, nr_io_queues,
 				nr_io_queues,
