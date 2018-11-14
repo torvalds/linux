@@ -5,6 +5,10 @@
 
 #include "intel_drv.h"
 
+#define for_each_combo_port(__dev_priv, __port) \
+	for ((__port) = PORT_A; (__port) < I915_MAX_PORTS; (__port)++)	\
+		for_each_if(intel_port_is_combophy(__dev_priv, __port))
+
 enum {
 	PROCMON_0_85V_DOT_0,
 	PROCMON_0_95V_DOT_0,
@@ -199,7 +203,7 @@ void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 {
 	enum port port;
 
-	for (port = PORT_A; port <= PORT_B; port++) {
+	for_each_combo_port(dev_priv, port) {
 		u32 val;
 
 		if (icl_combo_phy_verify_state(dev_priv, port)) {
@@ -228,7 +232,7 @@ void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 {
 	enum port port;
 
-	for (port = PORT_A; port <= PORT_B; port++) {
+	for_each_combo_port(dev_priv, port) {
 		u32 val;
 
 		if (!icl_combo_phy_verify_state(dev_priv, port))
