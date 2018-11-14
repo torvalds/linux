@@ -126,9 +126,11 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 	if ((slow_rsp_threshold != 0) &&
 	    time_after(now, midEntry->when_alloc + (slow_rsp_threshold * HZ)) &&
 	    (midEntry->command != command)) {
-		/* smb2slowcmd[NUMBER_OF_SMB2_COMMANDS] counts by command */
-		if ((le16_to_cpu(midEntry->command) < NUMBER_OF_SMB2_COMMANDS) &&
-		    (le16_to_cpu(midEntry->command) >= 0))
+		/*
+		 * smb2slowcmd[NUMBER_OF_SMB2_COMMANDS] counts by command
+		 * NB: le16_to_cpu returns unsigned so can not be negative below
+		 */
+		if (le16_to_cpu(midEntry->command) < NUMBER_OF_SMB2_COMMANDS)
 			cifs_stats_inc(&midEntry->server->smb2slowcmd[le16_to_cpu(midEntry->command)]);
 
 		trace_smb3_slow_rsp(le16_to_cpu(midEntry->command),
