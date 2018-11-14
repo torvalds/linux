@@ -378,14 +378,37 @@ static void mmc_setup_queue(struct mmc_queue *mq, struct mmc_card *card)
 	init_waitqueue_head(&mq->wait);
 }
 
-static int mmc_mq_init_queue(struct mmc_queue *mq, int q_depth,
-			     const struct blk_mq_ops *mq_ops, spinlock_t *lock)
+/* Set queue depth to get a reasonable value for q->nr_requests */
+#define MMC_QUEUE_DEPTH 64
+
+/**
+ * mmc_init_queue - initialise a queue structure.
+ * @mq: mmc queue
+ * @card: mmc card to attach this queue
+ * @lock: queue lock
+ *
+ * Initialise a MMC card request queue.
+ */
+int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
+		   spinlock_t *lock)
 {
+	struct mmc_host *host = card->host;
 	int ret;
 
+	mq->card = card;
+	mq->use_cqe = host->cqe_enabled;
+
 	memset(&mq->tag_set, 0, sizeof(mq->tag_set));
-	mq->tag_set.ops = mq_ops;
-	mq->tag_set.queue_depth = q_depth;
+	mq->tag_set.ops = &mmc_mq_ops;
+	/*
+	 * The queue depth for CQE must match the hardware because the request
+	 * tag is used to index the hardware queue.
+	 */
+	if (mq->use_cqe)
+		mq->tag_set.queue_depth =
+			min_t(int, card->ext_csd.cmdq_depth, host->cqe_qdepth);
+	else
+		mq->tag_set.queue_depth = MMC_QUEUE_DEPTH;
 	mq->tag_set.numa_node = NUMA_NO_NODE;
 	mq->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE |
 			    BLK_MQ_F_BLOCKING;
@@ -405,64 +428,14 @@ static int mmc_mq_init_queue(struct mmc_queue *mq, int q_depth,
 
 	mq->queue->queue_lock = lock;
 	mq->queue->queuedata = mq;
+	blk_queue_rq_timeout(mq->queue, 60 * HZ);
 
+	mmc_setup_queue(mq, card);
 	return 0;
 
 free_tag_set:
 	blk_mq_free_tag_set(&mq->tag_set);
-
 	return ret;
-}
-
-/* Set queue depth to get a reasonable value for q->nr_requests */
-#define MMC_QUEUE_DEPTH 64
-
-static int mmc_mq_init(struct mmc_queue *mq, struct mmc_card *card,
-			 spinlock_t *lock)
-{
-	struct mmc_host *host = card->host;
-	int q_depth;
-	int ret;
-
-	/*
-	 * The queue depth for CQE must match the hardware because the request
-	 * tag is used to index the hardware queue.
-	 */
-	if (mq->use_cqe)
-		q_depth = min_t(int, card->ext_csd.cmdq_depth, host->cqe_qdepth);
-	else
-		q_depth = MMC_QUEUE_DEPTH;
-
-	ret = mmc_mq_init_queue(mq, q_depth, &mmc_mq_ops, lock);
-	if (ret)
-		return ret;
-
-	blk_queue_rq_timeout(mq->queue, 60 * HZ);
-
-	mmc_setup_queue(mq, card);
-
-	return 0;
-}
-
-/**
- * mmc_init_queue - initialise a queue structure.
- * @mq: mmc queue
- * @card: mmc card to attach this queue
- * @lock: queue lock
- * @subname: partition subname
- *
- * Initialise a MMC card request queue.
- */
-int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
-		   spinlock_t *lock, const char *subname)
-{
-	struct mmc_host *host = card->host;
-
-	mq->card = card;
-
-	mq->use_cqe = host->cqe_enabled;
-
-	return mmc_mq_init(mq, card, lock);
 }
 
 void mmc_queue_suspend(struct mmc_queue *mq)
