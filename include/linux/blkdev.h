@@ -486,9 +486,6 @@ struct request_queue {
 	unsigned int		dma_pad_mask;
 	unsigned int		dma_alignment;
 
-	unsigned int		nr_sorted;
-	unsigned int		in_flight[2];
-
 	unsigned int		rq_timeout;
 	int			poll_nsec;
 
