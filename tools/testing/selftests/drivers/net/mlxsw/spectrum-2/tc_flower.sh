@@ -142,7 +142,7 @@ two_masks_test()
 	tc filter add dev $h2 ingress protocol ip pref 1 handle 101 flower \
 		$tcflags dst_ip 192.0.2.2 action drop
 	tc filter add dev $h2 ingress protocol ip pref 3 handle 103 flower \
-		$tcflags dst_ip 192.0.0.0/16 action drop
+		$tcflags dst_ip 192.0.0.0/8 action drop
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip -q
