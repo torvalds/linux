@@ -373,14 +373,12 @@ skl_program_scaler(struct intel_plane *plane,
 #define  BOFF(x)          (((x) & 0xffff) << 16)
 
 static void
-icl_program_input_csc_coeff(const struct intel_crtc_state *crtc_state,
-			    const struct intel_plane_state *plane_state)
+icl_program_input_csc(struct intel_plane *plane,
+		      const struct intel_crtc_state *crtc_state,
+		      const struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(plane_state->base.plane->dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	enum pipe pipe = crtc->pipe;
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
 	enum plane_id plane_id = plane->id;
 
 	static const u16 input_csc_matrix[][9] = {
@@ -540,7 +538,7 @@ skl_program_plane(struct intel_plane *plane,
 			      plane_state->color_ctl);
 
 	if (fb->format->is_yuv && icl_is_hdr_plane(plane))
-		icl_program_input_csc_coeff(crtc_state, plane_state);
+		icl_program_input_csc(plane, crtc_state, plane_state);
 
 	skl_write_plane_wm(plane, crtc_state);
 
