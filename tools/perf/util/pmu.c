@@ -670,7 +670,7 @@ char * __weak get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
  * cpuid string generated on this platform.
  * Otherwise return non-zero.
  */
-int strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
+int __weak strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
 {
 	regex_t re;
 	regmatch_t pmatch[1];
