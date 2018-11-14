@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2018 Cambridge Greys Ltd
  * Copyright (C) 2015-2016 Anton Ivanov (aivanov@brocade.com)
  * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
@@ -1440,6 +1441,19 @@ static int map_error(int error_code)
 	return BLK_STS_IOERR;
 }
 
+/*
+ * Everything from here onwards *IS NOT PART OF THE KERNEL*
+ *
+ * The following functions are part of UML hypervisor code.
+ * All functions from here onwards are executed as a helper
+ * thread and are not allowed to execute any kernel functions.
+ *
+ * Any communication must occur strictly via shared memory and IPC.
+ *
+ * Do not add printks, locks, kernel memory operations, etc - it
+ * will result in unpredictable behaviour and/or crashes.
+ */
+
 static int update_bitmap(struct io_thread_req *req)
 {
 	int n;
@@ -1449,11 +1463,8 @@ static int update_bitmap(struct io_thread_req *req)
 
 	n = os_pwrite_file(req->fds[1], &req->bitmap_words,
 			  sizeof(req->bitmap_words), req->cow_offset);
-	if(n != sizeof(req->bitmap_words)){
-		printk("do_io - bitmap update failed, err = %d fd = %d\n", -n,
-		       req->fds[1]);
+	if(n != sizeof(req->bitmap_words))
 		return map_error(-n);
-	}
 
 	return map_error(0);
 }
@@ -1467,12 +1478,7 @@ static void do_io(struct io_thread_req *req)
 
 	if (req_op(req->req) == REQ_OP_FLUSH) {
 		/* fds[0] is always either the rw image or our cow file */
-		n = os_sync_file(req->fds[0]);
-		if (n != 0) {
-			printk("do_io - sync failed err = %d "
-			       "fd = %d\n", -n, req->fds[0]);
-			req->error = map_error(-n);
-		}
+		req->error = map_error(-os_sync_file(req->fds[0]));
 		return;
 	}
 
@@ -1497,9 +1503,7 @@ static void do_io(struct io_thread_req *req)
 				buf = &buf[n];
 				len -= n;
 				n = os_pread_file(req->fds[bit], buf, len, off);
-				if (n < 0) {
-					printk("do_io - read failed, err = %d "
-					       "fd = %d\n", -n, req->fds[bit]);
+				if(n < 0){
 					req->error = map_error(-n);
 					return;
 				}
@@ -1508,8 +1512,6 @@ static void do_io(struct io_thread_req *req)
 		} else {
 			n = os_pwrite_file(req->fds[bit], buf, len, off);
 			if(n != len){
-				printk("do_io - write failed err = %d "
-				       "fd = %d\n", -n, req->fds[bit]);
 				req->error = map_error(-n);
 				return;
 			}
@@ -1547,11 +1549,6 @@ int io_thread(void *arg)
 			if (n == -EAGAIN) {
 				ubd_read_poll(-1);
 				continue;
-			} else {
-				printk("io_thread - read failed, fd = %d, "
-				       "err = %d,"
-				       "reminder = %d\n",
-				       kernel_fd, -n, io_remainder_size);
 			}
 		}
 
@@ -1566,11 +1563,6 @@ int io_thread(void *arg)
 			res = os_write_file(kernel_fd, ((char *) io_req_buffer) + written, n);
 			if (res >= 0) {
 				written += res;
-			} else {
-				if (res != -EAGAIN) {
-					printk("io_thread - write failed, fd = %d, "
-					       "err = %d\n", kernel_fd, -n);
-				}
 			}
 			if (written < n) {
 				ubd_write_poll(-1);
