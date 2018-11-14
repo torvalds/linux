@@ -637,11 +637,11 @@ static int extent_pick_read_device(struct bch_fs *c,
 		    !bch2_dev_is_readable(ca))
 			p.idx++;
 
-		if (!p.idx && p.ec_nr)
+		if (force_reconstruct_read(c) &&
+		    !p.idx && p.ec_nr)
 			p.idx++;
 
-		if (force_reconstruct_read(c) &&
-		    p.idx >= p.ec_nr + 1)
+		if (p.idx >= p.ec_nr + 1)
 			continue;
 
 		if (ret && !ptr_better(c, p, *pick))
