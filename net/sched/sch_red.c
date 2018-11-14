@@ -166,6 +166,7 @@ static int red_offload(struct Qdisc *sch, bool enable)
 		opt.set.min = q->parms.qth_min >> q->parms.Wlog;
 		opt.set.max = q->parms.qth_max >> q->parms.Wlog;
 		opt.set.probability = q->parms.max_P;
+		opt.set.limit = q->limit;
 		opt.set.is_ecn = red_use_ecn(q);
 		opt.set.is_harddrop = red_use_harddrop(q);
 		opt.set.qstats = &sch->qstats;
@@ -367,6 +368,21 @@ static int red_dump_class(struct Qdisc *sch, unsigned long cl,
 	return 0;
 }
 
+static void red_graft_offload(struct Qdisc *sch,
+			      struct Qdisc *new, struct Qdisc *old,
+			      struct netlink_ext_ack *extack)
+{
+	struct tc_red_qopt_offload graft_offload = {
+		.handle		= sch->handle,
+		.parent		= sch->parent,
+		.child_handle	= new->handle,
+		.command	= TC_RED_GRAFT,
+	};
+
+	qdisc_offload_graft_helper(qdisc_dev(sch), sch, new, old,
+				   TC_SETUP_QDISC_RED, &graft_offload, extack);
+}
+
 static int red_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		     struct Qdisc **old, struct netlink_ext_ack *extack)
 {
@@ -376,6 +392,8 @@ static int red_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		new = &noop_qdisc;
 
 	*old = qdisc_replace(sch, new, &q->qdisc);
+
+	red_graft_offload(sch, new, *old, extack);
 	return 0;
 }
 

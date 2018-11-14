@@ -821,12 +821,21 @@ enum tc_mq_command {
 	TC_MQ_CREATE,
 	TC_MQ_DESTROY,
 	TC_MQ_STATS,
+	TC_MQ_GRAFT,
+};
+
+struct tc_mq_opt_offload_graft_params {
+	unsigned long queue;
+	u32 child_handle;
 };
 
 struct tc_mq_qopt_offload {
 	enum tc_mq_command command;
 	u32 handle;
-	struct tc_qopt_offload_stats stats;
+	union {
+		struct tc_qopt_offload_stats stats;
+		struct tc_mq_opt_offload_graft_params graft_params;
+	};
 };
 
 enum tc_red_command {
@@ -834,12 +843,14 @@ enum tc_red_command {
 	TC_RED_DESTROY,
 	TC_RED_STATS,
 	TC_RED_XSTATS,
+	TC_RED_GRAFT,
 };
 
 struct tc_red_qopt_offload_params {
 	u32 min;
 	u32 max;
 	u32 probability;
+	u32 limit;
 	bool is_ecn;
 	bool is_harddrop;
 	struct gnet_stats_queue *qstats;
@@ -853,6 +864,7 @@ struct tc_red_qopt_offload {
 		struct tc_red_qopt_offload_params set;
 		struct tc_qopt_offload_stats stats;
 		struct red_stats *xstats;
+		u32 child_handle;
 	};
 };
 
@@ -887,6 +899,16 @@ struct tc_prio_qopt_offload {
 		struct tc_qopt_offload_stats stats;
 		struct tc_prio_qopt_offload_graft_params graft_params;
 	};
+};
+
+enum tc_root_command {
+	TC_ROOT_GRAFT,
+};
+
+struct tc_root_qopt_offload {
+	enum tc_root_command command;
+	u32 handle;
+	bool ingress;
 };
 
 #endif

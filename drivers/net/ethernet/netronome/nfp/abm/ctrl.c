@@ -50,56 +50,37 @@ nfp_abm_ctrl_stat(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
 	return 0;
 }
 
-static int
-nfp_abm_ctrl_stat_all(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
-		      unsigned int stride, unsigned int offset, bool is_u64,
-		      u64 *res)
+int __nfp_abm_ctrl_set_q_lvl(struct nfp_abm *abm, unsigned int id, u32 val)
 {
-	u64 val, sum = 0;
-	unsigned int i;
-	int err;
-
-	for (i = 0; i < alink->vnic->max_rx_rings; i++) {
-		err = nfp_abm_ctrl_stat(alink, sym, stride, offset, i,
-					is_u64, &val);
-		if (err)
-			return err;
-		sum += val;
-	}
-
-	*res = sum;
-	return 0;
-}
-
-int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int i, u32 val)
-{
-	struct nfp_cpp *cpp = alink->abm->app->cpp;
+	struct nfp_cpp *cpp = abm->app->cpp;
 	u64 sym_offset;
 	int err;
 
-	sym_offset = (alink->queue_base + i) * NFP_QLVL_STRIDE + NFP_QLVL_THRS;
-	err = __nfp_rtsym_writel(cpp, alink->abm->q_lvls, 4, 0,
-				 sym_offset, val);
+	__clear_bit(id, abm->threshold_undef);
+	if (abm->thresholds[id] == val)
+		return 0;
+
+	sym_offset = id * NFP_QLVL_STRIDE + NFP_QLVL_THRS;
+	err = __nfp_rtsym_writel(cpp, abm->q_lvls, 4, 0, sym_offset, val);
 	if (err) {
-		nfp_err(cpp, "RED offload setting level failed on vNIC %d queue %d\n",
-			alink->id, i);
+		nfp_err(cpp,
+			"RED offload setting level failed on subqueue %d\n",
+			id);
 		return err;
 	}
 
+	abm->thresholds[id] = val;
 	return 0;
 }
 
-int nfp_abm_ctrl_set_all_q_lvls(struct nfp_abm_link *alink, u32 val)
+int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int queue,
+			   u32 val)
 {
-	int i, err;
+	unsigned int threshold;
 
-	for (i = 0; i < alink->vnic->max_rx_rings; i++) {
-		err = nfp_abm_ctrl_set_q_lvl(alink, i, val);
-		if (err)
-			return err;
-	}
+	threshold = alink->queue_base + queue;
 
-	return 0;
+	return __nfp_abm_ctrl_set_q_lvl(alink->abm, threshold, val);
 }
 
 u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int i)
@@ -153,42 +134,6 @@ int nfp_abm_ctrl_read_q_stats(struct nfp_abm_link *alink, unsigned int i,
 				 i, true, &stats->overlimits);
 }
 
-int nfp_abm_ctrl_read_stats(struct nfp_abm_link *alink,
-			    struct nfp_alink_stats *stats)
-{
-	u64 pkts = 0, bytes = 0;
-	int i, err;
-
-	for (i = 0; i < alink->vnic->max_rx_rings; i++) {
-		pkts += nn_readq(alink->vnic, NFP_NET_CFG_RXR_STATS(i));
-		bytes += nn_readq(alink->vnic, NFP_NET_CFG_RXR_STATS(i) + 8);
-	}
-	stats->tx_pkts = pkts;
-	stats->tx_bytes = bytes;
-
-	err = nfp_abm_ctrl_stat_all(alink, alink->abm->q_lvls,
-				    NFP_QLVL_STRIDE, NFP_QLVL_BLOG_BYTES,
-				    false, &stats->backlog_bytes);
-	if (err)
-		return err;
-
-	err = nfp_abm_ctrl_stat_all(alink, alink->abm->q_lvls,
-				    NFP_QLVL_STRIDE, NFP_QLVL_BLOG_PKTS,
-				    false, &stats->backlog_pkts);
-	if (err)
-		return err;
-
-	err = nfp_abm_ctrl_stat_all(alink, alink->abm->qm_stats,
-				    NFP_QMSTAT_STRIDE, NFP_QMSTAT_DROP,
-				    true, &stats->drops);
-	if (err)
-		return err;
-
-	return nfp_abm_ctrl_stat_all(alink, alink->abm->qm_stats,
-				     NFP_QMSTAT_STRIDE, NFP_QMSTAT_ECN,
-				     true, &stats->overlimits);
-}
-
 int nfp_abm_ctrl_read_q_xstats(struct nfp_abm_link *alink, unsigned int i,
 			       struct nfp_alink_xstats *xstats)
 {
@@ -203,22 +148,6 @@ int nfp_abm_ctrl_read_q_xstats(struct nfp_abm_link *alink, unsigned int i,
 	return nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
 				 NFP_QMSTAT_STRIDE, NFP_QMSTAT_ECN,
 				 i, true, &xstats->ecn_marked);
-}
-
-int nfp_abm_ctrl_read_xstats(struct nfp_abm_link *alink,
-			     struct nfp_alink_xstats *xstats)
-{
-	int err;
-
-	err = nfp_abm_ctrl_stat_all(alink, alink->abm->qm_stats,
-				    NFP_QMSTAT_STRIDE, NFP_QMSTAT_DROP,
-				    true, &xstats->pdrop);
-	if (err)
-		return err;
-
-	return nfp_abm_ctrl_stat_all(alink, alink->abm->qm_stats,
-				     NFP_QMSTAT_STRIDE, NFP_QMSTAT_ECN,
-				     true, &xstats->ecn_marked);
 }
 
 int nfp_abm_ctrl_qm_enable(struct nfp_abm *abm)
