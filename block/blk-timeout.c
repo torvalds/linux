@@ -84,7 +84,7 @@ void blk_abort_request(struct request *req)
 	 * immediately and that scan sees the new timeout value.
 	 * No need for fancy synchronizations.
 	 */
-	blk_rq_set_deadline(req, jiffies);
+	WRITE_ONCE(req->deadline, jiffies);
 	kblockd_schedule_work(&req->q->timeout_work);
 }
 EXPORT_SYMBOL_GPL(blk_abort_request);
@@ -121,14 +121,16 @@ void blk_add_timer(struct request *req)
 		req->timeout = q->rq_timeout;
 
 	req->rq_flags &= ~RQF_TIMED_OUT;
-	blk_rq_set_deadline(req, jiffies + req->timeout);
+
+	expiry = jiffies + req->timeout;
+	WRITE_ONCE(req->deadline, expiry);
 
 	/*
 	 * If the timer isn't already pending or this timeout is earlier
 	 * than an existing one, modify the timer. Round up to next nearest
 	 * second.
 	 */
-	expiry = blk_rq_timeout(round_jiffies_up(blk_rq_deadline(req)));
+	expiry = blk_rq_timeout(round_jiffies_up(expiry));
 
 	if (!timer_pending(&q->timeout) ||
 	    time_before(expiry, q->timeout.expires)) {

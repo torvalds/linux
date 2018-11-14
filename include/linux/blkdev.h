@@ -224,9 +224,7 @@ struct request {
 	refcount_t ref;
 
 	unsigned int timeout;
-
-	/* access through blk_rq_set_deadline, blk_rq_deadline */
-	unsigned long __deadline;
+	unsigned long deadline;
 
 	union {
 		struct __call_single_data csd;
