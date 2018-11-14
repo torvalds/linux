@@ -22,12 +22,15 @@
 #ifndef __AMDGPU_XGMI_H__
 #define __AMDGPU_XGMI_H__
 
-/*
- * functions used by amdgpu_xgmi.c
- */
+#include "amdgpu_psp.h"
 
-struct amdgpu_device;
-struct amdgpu_hive_info;
+struct amdgpu_hive_info {
+	uint64_t		hive_id;
+	struct list_head	device_list;
+	struct psp_xgmi_topology_info	topology_info;
+	int number_devices;
+	struct mutex hive_lock;
+};
 
 struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev);
 int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_device *adev);

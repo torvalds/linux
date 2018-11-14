@@ -23,7 +23,6 @@
  */
 #include <linux/list.h>
 #include "amdgpu.h"
-#include "amdgpu_psp.h"
 #include "amdgpu_xgmi.h"
 
 
@@ -32,15 +31,14 @@ static DEFINE_MUTEX(xgmi_mutex);
 #define AMDGPU_MAX_XGMI_HIVE			8
 #define AMDGPU_MAX_XGMI_DEVICE_PER_HIVE		4
 
-struct amdgpu_hive_info {
-	uint64_t		hive_id;
-	struct list_head	device_list;
-	struct psp_xgmi_topology_info	topology_info;
-	int number_devices;
-};
-
 static struct amdgpu_hive_info xgmi_hives[AMDGPU_MAX_XGMI_HIVE];
 static unsigned hive_count = 0;
+
+
+void *amdgpu_xgmi_hive_try_lock(struct amdgpu_hive_info *hive)
+{
+	return &hive->device_list;
+}
 
 struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 {
@@ -61,6 +59,8 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 	tmp = &xgmi_hives[hive_count++];
 	tmp->hive_id = adev->gmc.xgmi.hive_id;
 	INIT_LIST_HEAD(&tmp->device_list);
+	mutex_init(&tmp->hive_lock);
+
 	return tmp;
 }
 
