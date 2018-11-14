@@ -84,8 +84,6 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 
 	cfg->is_lro = AQ_CFG_IS_LRO_DEF;
 
-	cfg->vlan_id = 0U;
-
 	aq_nic_rss_init(self, cfg->num_rss_queues);
 
 	/*descriptors */
