@@ -149,6 +149,8 @@ struct mlx5e_encap_entry {
 
 	struct net_device *out_dev;
 	int tunnel_type;
+	int tunnel_hlen;
+	int reformat_type;
 	u8 flags;
 	char *encap_header;
 	int encap_size;
