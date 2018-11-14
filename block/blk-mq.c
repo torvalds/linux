@@ -3375,7 +3375,7 @@ static int blk_mq_poll(struct request_queue *q, blk_qc_t cookie, bool spin)
 	hctx->poll_considered++;
 
 	state = current->state;
-	while (!need_resched()) {
+	do {
 		int ret;
 
 		hctx->poll_invoked++;
@@ -3395,7 +3395,7 @@ static int blk_mq_poll(struct request_queue *q, blk_qc_t cookie, bool spin)
 		if (ret < 0 || !spin)
 			break;
 		cpu_relax();
-	}
+	} while (!need_resched());
 
 	__set_current_state(TASK_RUNNING);
 	return 0;
