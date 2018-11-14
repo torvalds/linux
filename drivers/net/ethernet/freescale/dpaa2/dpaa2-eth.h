@@ -277,8 +277,7 @@ struct dpaa2_eth_fq {
 	void (*consume)(struct dpaa2_eth_priv *priv,
 			struct dpaa2_eth_channel *ch,
 			const struct dpaa2_fd *fd,
-			struct napi_struct *napi,
-			u16 queue_id);
+			struct dpaa2_eth_fq *fq);
 	struct dpaa2_eth_fq_stats stats;
 };
 
