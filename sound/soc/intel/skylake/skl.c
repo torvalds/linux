@@ -534,6 +534,16 @@ static int skl_machine_device_register(struct skl *skl)
 		return -EIO;
 	}
 
+	mach->mach_params.platform = dev_name(bus->dev);
+	mach->mach_params.codec_mask = bus->codec_mask;
+
+	ret = platform_device_add_data(pdev, (const void *)mach, sizeof(*mach));
+	if (ret) {
+		dev_err(bus->dev, "failed to add machine device platform data\n");
+		platform_device_put(pdev);
+		return ret;
+	}
+
 	ret = platform_device_add(pdev);
 	if (ret) {
 		dev_err(bus->dev, "failed to add machine device\n");
@@ -541,9 +551,6 @@ static int skl_machine_device_register(struct skl *skl)
 		return -EIO;
 	}
 
-	mach->mach_params.platform = dev_name(bus->dev);
-	mach->mach_params.codec_mask = bus->codec_mask;
-	dev_set_drvdata(&pdev->dev, mach);
 
 	skl->i2s_dev = pdev;
 
