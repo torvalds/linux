@@ -15,6 +15,7 @@
 #include <linux/of_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
+#include <linux/sched.h>
 #include <linux/serdev.h>
 #include <linux/slab.h>
 
@@ -235,9 +236,11 @@ int serdev_device_write(struct serdev_device *serdev,
 	struct serdev_controller *ctrl = serdev->ctrl;
 	int ret;
 
-	if (!ctrl || !ctrl->ops->write_buf ||
-	    (timeout && !serdev->ops->write_wakeup))
+	if (!ctrl || !ctrl->ops->write_buf || !serdev->ops->write_wakeup)
 		return -EINVAL;
+
+	if (timeout == 0)
+		timeout = MAX_SCHEDULE_TIMEOUT;
 
 	mutex_lock(&serdev->write_lock);
 	do {
