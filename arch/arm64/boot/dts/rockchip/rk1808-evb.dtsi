@@ -671,6 +671,7 @@
 
 &usbdrd3 {
 	status = "okay";
+	extcon = <&u2phy>;
 };
 
 &usbdrd_dwc3 {
