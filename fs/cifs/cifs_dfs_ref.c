@@ -126,7 +126,7 @@ cifs_build_devname(char *nodename, const char *prepath)
  * @sb_mountdata:	parent/root DFS mount options (template)
  * @fullpath:		full path in UNC format
  * @ref:		server's referral
- * @devname:		pointer for saving device name
+ * @devname:		optional pointer for saving device name
  *
  * creates mount options for submount based on template options sb_mountdata
  * and replacing unc,ip,prefixpath options with ones we've got form ref_unc.
@@ -140,6 +140,7 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 				   char **devname)
 {
 	int rc;
+	char *name;
 	char *mountdata = NULL;
 	const char *prepath = NULL;
 	int md_len;
@@ -158,17 +159,17 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 			prepath++;
 	}
 
-	*devname = cifs_build_devname(ref->node_name, prepath);
-	if (IS_ERR(*devname)) {
-		rc = PTR_ERR(*devname);
-		*devname = NULL;
+	name = cifs_build_devname(ref->node_name, prepath);
+	if (IS_ERR(name)) {
+		rc = PTR_ERR(name);
+		name = NULL;
 		goto compose_mount_options_err;
 	}
 
-	rc = dns_resolve_server_name_to_ip(*devname, &srvIP);
+	rc = dns_resolve_server_name_to_ip(name, &srvIP);
 	if (rc < 0) {
 		cifs_dbg(FYI, "%s: Failed to resolve server part of %s to IP: %d\n",
-			 __func__, *devname, rc);
+			 __func__, name, rc);
 		goto compose_mount_options_err;
 	}
 
@@ -224,6 +225,9 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 	strcat(mountdata, "ip=");
 	strcat(mountdata, srvIP);
 
+	if (devname)
+		*devname = name;
+
 	/*cifs_dbg(FYI, "%s: parent mountdata: %s\n", __func__, sb_mountdata);*/
 	/*cifs_dbg(FYI, "%s: submount mountdata: %s\n", __func__, mountdata );*/
 
@@ -234,8 +238,7 @@ compose_mount_options_out:
 compose_mount_options_err:
 	kfree(mountdata);
 	mountdata = ERR_PTR(rc);
-	kfree(*devname);
-	*devname = NULL;
+	kfree(name);
 	goto compose_mount_options_out;
 }
 
