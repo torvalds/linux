@@ -154,7 +154,9 @@ struct mlxsw_sp_acl_atcam_region {
 };
 
 struct mlxsw_sp_acl_atcam_entry_ht_key {
-	char enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded key */
+	char enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded key,
+							    * minus delta bits.
+							    */
 	u8 erp_id;
 };
 
@@ -165,6 +167,12 @@ struct mlxsw_sp_acl_atcam_chunk {
 struct mlxsw_sp_acl_atcam_entry {
 	struct rhash_head ht_node;
 	struct mlxsw_sp_acl_atcam_entry_ht_key ht_key;
+	char full_enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded key */
+	struct {
+		u16 start;
+		u8 mask;
+		u8 value;
+	} delta_info;
 	struct mlxsw_sp_acl_ctcam_entry centry;
 	struct mlxsw_sp_acl_atcam_lkey_id *lkey_id;
 	struct mlxsw_sp_acl_erp_mask *erp_mask;
@@ -209,11 +217,22 @@ int mlxsw_sp_acl_atcam_init(struct mlxsw_sp *mlxsw_sp,
 void mlxsw_sp_acl_atcam_fini(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_acl_atcam *atcam);
 
+struct mlxsw_sp_acl_erp_delta;
+
+u16 mlxsw_sp_acl_erp_delta_start(const struct mlxsw_sp_acl_erp_delta *delta);
+u8 mlxsw_sp_acl_erp_delta_mask(const struct mlxsw_sp_acl_erp_delta *delta);
+u8 mlxsw_sp_acl_erp_delta_value(const struct mlxsw_sp_acl_erp_delta *delta,
+				const char *enc_key);
+void mlxsw_sp_acl_erp_delta_clear(const struct mlxsw_sp_acl_erp_delta *delta,
+				  const char *enc_key);
+
 struct mlxsw_sp_acl_erp_mask;
 
 bool
 mlxsw_sp_acl_erp_mask_is_ctcam(const struct mlxsw_sp_acl_erp_mask *erp_mask);
 u8 mlxsw_sp_acl_erp_mask_erp_id(const struct mlxsw_sp_acl_erp_mask *erp_mask);
+const struct mlxsw_sp_acl_erp_delta *
+mlxsw_sp_acl_erp_delta(const struct mlxsw_sp_acl_erp_mask *erp_mask);
 struct mlxsw_sp_acl_erp_mask *
 mlxsw_sp_acl_erp_mask_get(struct mlxsw_sp_acl_atcam_region *aregion,
 			  const char *mask, bool ctcam);
