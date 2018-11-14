@@ -1193,21 +1193,59 @@ static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 		mlx5e_tc_del_nic_flow(priv, flow);
 }
 
-static void parse_vxlan_attr(struct mlx5_flow_spec *spec,
-			     struct tc_cls_flower_offload *f)
+static int parse_tunnel_vxlan_attr(struct mlx5e_priv *priv,
+				   struct mlx5_flow_spec *spec,
+				   struct tc_cls_flower_offload *f,
+				   void *headers_c,
+				   void *headers_v)
 {
-	void *headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
-				       outer_headers);
-	void *headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
-				       outer_headers);
-	void *misc_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+	struct netlink_ext_ack *extack = f->common.extack;
+	struct flow_dissector_key_ports *key =
+		skb_flow_dissector_target(f->dissector,
+					  FLOW_DISSECTOR_KEY_ENC_PORTS,
+					  f->key);
+	struct flow_dissector_key_ports *mask =
+		skb_flow_dissector_target(f->dissector,
+					  FLOW_DISSECTOR_KEY_ENC_PORTS,
+					  f->mask);
+	void *misc_c = MLX5_ADDR_OF(fte_match_param,
+				    spec->match_criteria,
 				    misc_parameters);
-	void *misc_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+	void *misc_v = MLX5_ADDR_OF(fte_match_param,
+				    spec->match_value,
 				    misc_parameters);
 
+	/* Full udp dst port must be given */
+	if (!dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_PORTS) ||
+	    memchr_inv(&mask->dst, 0xff, sizeof(mask->dst))) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "VXLAN decap filter must include enc_dst_port condition");
+		netdev_warn(priv->netdev,
+			    "VXLAN decap filter must include enc_dst_port condition\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* udp dst port must be knonwn as a VXLAN port */
+	if (!mlx5_vxlan_lookup_port(priv->mdev->vxlan, be16_to_cpu(key->dst))) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Matched UDP port is not registered as a VXLAN port");
+		netdev_warn(priv->netdev,
+			    "UDP port %d is not registered as a VXLAN port\n",
+			    be16_to_cpu(key->dst));
+		return -EOPNOTSUPP;
+	}
+
+	/* dst UDP port is valid here */
 	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ip_protocol);
 	MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_protocol, IPPROTO_UDP);
 
+	MLX5_SET(fte_match_set_lyr_2_4, headers_c, udp_dport, ntohs(mask->dst));
+	MLX5_SET(fte_match_set_lyr_2_4, headers_v, udp_dport, ntohs(key->dst));
+
+	MLX5_SET(fte_match_set_lyr_2_4, headers_c, udp_sport, ntohs(mask->src));
+	MLX5_SET(fte_match_set_lyr_2_4, headers_v, udp_sport, ntohs(key->src));
+
+	/* match on VNI */
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
 		struct flow_dissector_key_keyid *key =
 			skb_flow_dissector_target(f->dissector,
@@ -1222,6 +1260,7 @@ static void parse_vxlan_attr(struct mlx5_flow_spec *spec,
 		MLX5_SET(fte_match_set_misc, misc_v, vxlan_vni,
 			 be32_to_cpu(key->keyid));
 	}
+	return 0;
 }
 
 static int parse_tunnel_attr(struct mlx5e_priv *priv,
@@ -1240,39 +1279,12 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 					  f->key);
 
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
-		struct flow_dissector_key_ports *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_PORTS,
-						  f->key);
-		struct flow_dissector_key_ports *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_PORTS,
-						  f->mask);
+		int err = 0;
 
-		/* Full udp dst port must be given */
-		if (memchr_inv(&mask->dst, 0xff, sizeof(mask->dst)))
+		err = parse_tunnel_vxlan_attr(priv, spec, f,
+					      headers_c, headers_v);
+		if (err)
 			goto vxlan_match_offload_err;
-
-		if (mlx5_vxlan_lookup_port(priv->mdev->vxlan, be16_to_cpu(key->dst)) &&
-		    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap))
-			parse_vxlan_attr(spec, f);
-		else {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "port isn't an offloaded vxlan udp dport");
-			netdev_warn(priv->netdev,
-				    "%d isn't an offloaded vxlan udp dport\n", be16_to_cpu(key->dst));
-			return -EOPNOTSUPP;
-		}
-
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-			 udp_dport, ntohs(mask->dst));
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-			 udp_dport, ntohs(key->dst));
-
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-			 udp_sport, ntohs(mask->src));
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-			 udp_sport, ntohs(key->src));
 	} else { /* udp dst port must be given */
 vxlan_match_offload_err:
 		NL_SET_ERR_MSG_MOD(extack,
