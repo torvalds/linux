@@ -14,8 +14,8 @@
 #include "spectrum_acl_tcam.h"
 #include "core_acl_flex_keys.h"
 
-#define MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_START	6
-#define MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_END	11
+#define MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_CLEAR_START	0
+#define MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_CLEAR_END	5
 
 struct mlxsw_sp_acl_atcam_lkey_id_ht_key {
 	char enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* MSB blocks */
@@ -34,7 +34,7 @@ struct mlxsw_sp_acl_atcam_region_ops {
 	void (*fini)(struct mlxsw_sp_acl_atcam_region *aregion);
 	struct mlxsw_sp_acl_atcam_lkey_id *
 		(*lkey_id_get)(struct mlxsw_sp_acl_atcam_region *aregion,
-			       struct mlxsw_sp_acl_rule_info *rulei, u8 erp_id);
+			       char *enc_key, u8 erp_id);
 	void (*lkey_id_put)(struct mlxsw_sp_acl_atcam_region *aregion,
 			    struct mlxsw_sp_acl_atcam_lkey_id *lkey_id);
 };
@@ -90,8 +90,7 @@ mlxsw_sp_acl_atcam_region_generic_fini(struct mlxsw_sp_acl_atcam_region *aregion
 
 static struct mlxsw_sp_acl_atcam_lkey_id *
 mlxsw_sp_acl_atcam_generic_lkey_id_get(struct mlxsw_sp_acl_atcam_region *aregion,
-				       struct mlxsw_sp_acl_rule_info *rulei,
-				       u8 erp_id)
+				       char *enc_key, u8 erp_id)
 {
 	struct mlxsw_sp_acl_atcam_region_generic *region_generic;
 
@@ -220,8 +219,7 @@ mlxsw_sp_acl_atcam_lkey_id_destroy(struct mlxsw_sp_acl_atcam_region *aregion,
 
 static struct mlxsw_sp_acl_atcam_lkey_id *
 mlxsw_sp_acl_atcam_12kb_lkey_id_get(struct mlxsw_sp_acl_atcam_region *aregion,
-				    struct mlxsw_sp_acl_rule_info *rulei,
-				    u8 erp_id)
+				    char *enc_key, u8 erp_id)
 {
 	struct mlxsw_sp_acl_atcam_region_12kb *region_12kb = aregion->priv;
 	struct mlxsw_sp_acl_tcam_region *region = aregion->region;
@@ -230,9 +228,10 @@ mlxsw_sp_acl_atcam_12kb_lkey_id_get(struct mlxsw_sp_acl_atcam_region *aregion,
 	struct mlxsw_afk *afk = mlxsw_sp_acl_afk(mlxsw_sp->acl);
 	struct mlxsw_sp_acl_atcam_lkey_id *lkey_id;
 
-	mlxsw_afk_encode(afk, region->key_info, &rulei->values, ht_key.enc_key,
-			 NULL, MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_START,
-			 MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_END);
+	memcpy(ht_key.enc_key, enc_key, sizeof(ht_key.enc_key));
+	mlxsw_afk_clear(afk, ht_key.enc_key,
+			MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_CLEAR_START,
+			MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_CLEAR_END);
 	ht_key.erp_id = erp_id;
 	lkey_id = rhashtable_lookup_fast(&region_12kb->lkey_ht, &ht_key,
 					 mlxsw_sp_acl_atcam_lkey_id_ht_params);
@@ -389,7 +388,8 @@ mlxsw_sp_acl_atcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	lkey_id = aregion->ops->lkey_id_get(aregion, rulei, erp_id);
+	lkey_id = aregion->ops->lkey_id_get(aregion, aentry->ht_key.enc_key,
+					    erp_id);
 	if (IS_ERR(lkey_id))
 		return PTR_ERR(lkey_id);
 	aentry->lkey_id = lkey_id;

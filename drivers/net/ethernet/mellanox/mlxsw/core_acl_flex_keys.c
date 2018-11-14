@@ -458,3 +458,13 @@ void mlxsw_afk_encode(struct mlxsw_afk *mlxsw_afk,
 	}
 }
 EXPORT_SYMBOL(mlxsw_afk_encode);
+
+void mlxsw_afk_clear(struct mlxsw_afk *mlxsw_afk, char *key,
+		     int block_start, int block_end)
+{
+	int i;
+
+	for (i = block_start; i <= block_end; i++)
+		mlxsw_afk->ops->clear_block(key, i);
+}
+EXPORT_SYMBOL(mlxsw_afk_clear);
