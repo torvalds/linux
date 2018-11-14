@@ -1133,7 +1133,6 @@ static void cdns_i3c_master_upd_i3c_scl_lim(struct cdns_i3c_master *master)
 static int cdns_i3c_master_do_daa(struct i3c_master_controller *m)
 {
 	struct cdns_i3c_master *master = to_cdns_i3c_master(m);
-	unsigned long old_i3c_scl_lim;
 	u32 olddevs, newdevs;
 	int ret, slot;
 	u8 addrs[MAX_DEVS] = { };
@@ -1164,9 +1163,6 @@ static int cdns_i3c_master_do_daa(struct i3c_master_controller *m)
 
 	newdevs = readl(master->regs + DEVS_CTRL) & DEVS_CTRL_DEVS_ACTIVE_MASK;
 	newdevs &= ~olddevs;
-
-	/* Save the old limitation before add devices. */
-	old_i3c_scl_lim = master->i3c_scl_lim;
 
 	/*
 	 * Clear all retaining registers filled during DAA. We already
