@@ -2009,6 +2009,23 @@ static u32 smsc95xx_calc_csum_preamble(struct sk_buff *skb)
 	return (high_16 << 16) | low_16;
 }
 
+/* The TX CSUM won't work if the checksum lies in the last 4 bytes of the
+ * transmission. This is fairly unlikely, only seems to trigger with some
+ * short TCP ACK packets sent.
+ *
+ * Note, this calculation should probably check for the alignment of the
+ * data as well, but a straight check for csum being in the last four bytes
+ * of the packet should be ok for now.
+ */
+static bool smsc95xx_can_tx_checksum(struct sk_buff *skb)
+{
+       unsigned int len = skb->len - skb_checksum_start_offset(skb);
+
+       if (skb->len <= 45)
+	       return false;
+       return skb->csum_offset < (len - (4 + 1));
+}
+
 static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 					 struct sk_buff *skb, gfp_t flags)
 {
@@ -2033,7 +2050,7 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 	tx_cmd_a = tx_cmd_b | TX_CMD_A_FIRST_SEG_ | TX_CMD_A_LAST_SEG_;
 
 	if (csum) {
-		if (skb->len <= 45) {
+		if (!smsc95xx_can_tx_checksum(skb)) {
 			/* workaround - hardware tx checksum does not work
 			 * properly with extremely small packets */
 			long csstart = skb_checksum_start_offset(skb);
