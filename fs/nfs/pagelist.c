@@ -461,7 +461,7 @@ EXPORT_SYMBOL_GPL(nfs_wait_on_request);
  * @prev: previous request in desc, or NULL
  * @req: this request
  *
- * Returns zero if @req can be coalesced into @desc, otherwise it returns
+ * Returns zero if @req cannot be coalesced into @desc, otherwise it returns
  * the size of the request.
  */
 size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
