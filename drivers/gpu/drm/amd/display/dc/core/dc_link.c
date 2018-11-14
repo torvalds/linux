@@ -1722,7 +1722,7 @@ static void write_i2c_retimer_setting(
 		i2c_success = i2c_write(pipe_ctx, slave_address,
 				buffer, sizeof(buffer));
 		RETIMER_REDRIVER_INFO("retimer write to slave_address = 0x%x,\
-			offset = 0x%d, reg_val = 0x%d, i2c_success = %d\n",
+			offset = 0x%x, reg_val = 0x%x, i2c_success = %d\n",
 			slave_address, buffer[0], buffer[1], i2c_success?1:0);
 		if (!i2c_success)
 			/* Write failure */
@@ -1734,7 +1734,7 @@ static void write_i2c_retimer_setting(
 		i2c_success = i2c_write(pipe_ctx, slave_address,
 				buffer, sizeof(buffer));
 		RETIMER_REDRIVER_INFO("retimer write to slave_address = 0x%x,\
-			offset = 0x%d, reg_val = 0x%d, i2c_success = %d\n",
+			offset = 0x%x, reg_val = 0x%x, i2c_success = %d\n",
 			slave_address, buffer[0], buffer[1], i2c_success?1:0);
 		if (!i2c_success)
 			/* Write failure */

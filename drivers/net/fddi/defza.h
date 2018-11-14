@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*	FDDI network adapter driver for DEC FDDIcontroller 700/700-C devices.
  *
  *	Copyright (c) 2018  Maciej W. Rozycki
@@ -235,6 +235,7 @@ struct fza_ring_cmd {
 #define FZA_RING_CMD		0x200400	/* command ring address */
 #define FZA_RING_CMD_SIZE	0x40		/* command descriptor ring
 						 * size
+						 */
 /* Command constants. */
 #define FZA_RING_CMD_MASK	0x7fffffff
 #define FZA_RING_CMD_NOP	0x00000000	/* nop */

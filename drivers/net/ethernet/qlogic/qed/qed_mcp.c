@@ -1944,9 +1944,12 @@ int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
 			     struct qed_ptt *p_ptt, u32 *p_speed_mask)
 {
 	u32 transceiver_type, transceiver_state;
+	int ret;
 
-	qed_mcp_get_transceiver_data(p_hwfn, p_ptt, &transceiver_state,
-				     &transceiver_type);
+	ret = qed_mcp_get_transceiver_data(p_hwfn, p_ptt, &transceiver_state,
+					   &transceiver_type);
+	if (ret)
+		return ret;
 
 	if (qed_is_transceiver_ready(transceiver_state, transceiver_type) ==
 				     false)

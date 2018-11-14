@@ -143,18 +143,6 @@
 #define KASAN_ABI_VERSION 3
 #endif
 
-/*
- * Because __no_sanitize_address conflicts with inlining:
- *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67368
- * we do one or the other. 
- */
-#ifdef CONFIG_KASAN
-#define __no_sanitize_address_or_inline					\
-	__no_sanitize_address __maybe_unused notrace
-#else
-#define __no_sanitize_address_or_inline inline
-#endif
-
 #if GCC_VERSION >= 50100
 #define COMPILER_HAS_GENERIC_BUILTIN_OVERFLOW 1
 #endif
