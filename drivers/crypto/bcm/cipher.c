@@ -4605,7 +4605,6 @@ static int spu_register_ablkcipher(struct iproc_alg_s *driver_alg)
 	crypto->cra_priority = cipher_pri;
 	crypto->cra_alignmask = 0;
 	crypto->cra_ctxsize = sizeof(struct iproc_ctx_s);
-	INIT_LIST_HEAD(&crypto->cra_list);
 
 	crypto->cra_init = ablkcipher_cra_init;
 	crypto->cra_exit = generic_cra_exit;
@@ -4691,7 +4690,6 @@ static int spu_register_aead(struct iproc_alg_s *driver_alg)
 	aead->base.cra_priority = aead_pri;
 	aead->base.cra_alignmask = 0;
 	aead->base.cra_ctxsize = sizeof(struct iproc_ctx_s);
-	INIT_LIST_HEAD(&aead->base.cra_list);
 
 	aead->base.cra_flags |= CRYPTO_ALG_ASYNC;
 	/* setkey set in alg initialization */
