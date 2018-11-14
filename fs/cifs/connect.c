@@ -4594,6 +4594,11 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 
+	rc = dfs_cache_add_vol(vol, cifs_sb->origin_fullpath);
+	if (rc) {
+		kfree(cifs_sb->origin_fullpath);
+		goto error;
+	}
 	/*
 	 * After reconnecting to a different server, unique ids won't
 	 * match anymore, so we disable serverino. This prevents
@@ -4836,6 +4841,7 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 	kfree(cifs_sb->mountdata);
 	kfree(cifs_sb->prepath);
 #ifdef CONFIG_CIFS_DFS_UPCALL
+	dfs_cache_del_vol(cifs_sb->origin_fullpath);
 	kfree(cifs_sb->origin_fullpath);
 #endif
 	call_rcu(&cifs_sb->rcu, delayed_free);
