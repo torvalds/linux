@@ -1173,21 +1173,19 @@ int blkcg_init_queue(struct request_queue *q)
 		radix_tree_preload_end();
 
 	ret = blk_iolatency_init(q);
-	if (ret) {
-		spin_lock_irq(q->queue_lock);
-		blkg_destroy_all(q);
-		spin_unlock_irq(q->queue_lock);
-		return ret;
-	}
+	if (ret)
+		goto err_destroy_all;
 
 	ret = blk_throtl_init(q);
-	if (ret) {
-		spin_lock_irq(q->queue_lock);
-		blkg_destroy_all(q);
-		spin_unlock_irq(q->queue_lock);
-	}
-	return ret;
+	if (ret)
+		goto err_destroy_all;
+	return 0;
 
+err_destroy_all:
+	spin_lock_irq(q->queue_lock);
+	blkg_destroy_all(q);
+	spin_unlock_irq(q->queue_lock);
+	return ret;
 err_unlock:
 	spin_unlock_irq(q->queue_lock);
 	rcu_read_unlock();
