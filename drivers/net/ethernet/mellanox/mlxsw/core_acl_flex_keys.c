@@ -452,9 +452,9 @@ void mlxsw_afk_encode(struct mlxsw_afk *mlxsw_afk,
 		}
 
 		if (key)
-			mlxsw_afk->ops->encode_block(block_key, i, key);
+			mlxsw_afk->ops->encode_block(key, i, block_key);
 		if (mask)
-			mlxsw_afk->ops->encode_block(block_mask, i, mask);
+			mlxsw_afk->ops->encode_block(mask, i, block_mask);
 	}
 }
 EXPORT_SYMBOL(mlxsw_afk_encode);

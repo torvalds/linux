@@ -98,8 +98,8 @@ static const struct mlxsw_afk_block mlxsw_sp1_afk_blocks[] = {
 
 #define MLXSW_SP1_AFK_KEY_BLOCK_SIZE 16
 
-static void mlxsw_sp1_afk_encode_block(char *block, int block_index,
-				       char *output)
+static void mlxsw_sp1_afk_encode_block(char *output, int block_index,
+				       char *block)
 {
 	unsigned int offset = block_index * MLXSW_SP1_AFK_KEY_BLOCK_SIZE;
 	char *output_indexed = output + offset;
@@ -263,8 +263,8 @@ static const struct mlxsw_sp2_afk_block_layout mlxsw_sp2_afk_blocks_layout[] = {
 	MLXSW_SP2_AFK_BLOCK_LAYOUT(block11, 0x00, 12),
 };
 
-static void mlxsw_sp2_afk_encode_block(char *block, int block_index,
-				       char *output)
+static void mlxsw_sp2_afk_encode_block(char *output, int block_index,
+				       char *block)
 {
 	u64 block_value = mlxsw_sp2_afk_block_value_get(block);
 	const struct mlxsw_sp2_afk_block_layout *block_layout;

@@ -188,7 +188,7 @@ struct mlxsw_afk;
 struct mlxsw_afk_ops {
 	const struct mlxsw_afk_block *blocks;
 	unsigned int blocks_count;
-	void (*encode_block)(char *block, int block_index, char *output);
+	void (*encode_block)(char *output, int block_index, char *block);
 };
 
 struct mlxsw_afk *mlxsw_afk_create(unsigned int max_blocks,
