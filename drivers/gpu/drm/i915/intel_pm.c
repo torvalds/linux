@@ -4617,12 +4617,12 @@ skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cstate,
 }
 
 static int
-skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
-			    const struct intel_crtc_state *cstate,
+skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 			    const struct intel_plane_state *intel_pstate,
 			    struct skl_wm_params *wp, int plane_id)
 {
 	struct intel_plane *plane = to_intel_plane(intel_pstate->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_plane_state *pstate = &intel_pstate->base;
 	const struct drm_framebuffer *fb = pstate->fb;
 	uint32_t interm_pbpl;
@@ -4721,8 +4721,7 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
-				const struct intel_crtc_state *cstate,
+static int skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 				const struct intel_plane_state *intel_pstate,
 				uint16_t ddb_allocation,
 				int level,
@@ -4730,6 +4729,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				const struct skl_wm_level *result_prev,
 				struct skl_wm_level *result /* out */)
 {
+	struct drm_i915_private *dev_priv =
+		to_i915(intel_pstate->base.plane->dev);
 	const struct drm_plane_state *pstate = &intel_pstate->base;
 	uint32_t latency = dev_priv->wm.skl_latency[level];
 	uint_fixed_16_16_t method1, method2;
@@ -4864,13 +4865,14 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 }
 
 static int
-skl_compute_wm_levels(const struct drm_i915_private *dev_priv,
-		      const struct intel_crtc_state *cstate,
+skl_compute_wm_levels(const struct intel_crtc_state *cstate,
 		      const struct intel_plane_state *intel_pstate,
 		      uint16_t ddb_blocks,
 		      const struct skl_wm_params *wm_params,
 		      struct skl_wm_level *levels)
 {
+	struct drm_i915_private *dev_priv =
+		to_i915(intel_pstate->base.plane->dev);
 	int level, max_level = ilk_wm_max_level(dev_priv);
 	struct skl_wm_level *result_prev = &levels[0];
 	int ret;
@@ -4878,8 +4880,7 @@ skl_compute_wm_levels(const struct drm_i915_private *dev_priv,
 	for (level = 0; level <= max_level; level++) {
 		struct skl_wm_level *result = &levels[level];
 
-		ret = skl_compute_plane_wm(dev_priv,
-					   cstate,
+		ret = skl_compute_plane_wm(cstate,
 					   intel_pstate,
 					   ddb_blocks,
 					   level,
@@ -4983,19 +4984,18 @@ static int skl_build_plane_wm_single(struct skl_ddb_allocation *ddb,
 				     enum plane_id plane_id, int color_plane)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct skl_plane_wm *wm = &crtc_state->wm.skl.optimal.planes[plane_id];
 	struct skl_wm_params wm_params;
 	enum pipe pipe = plane->pipe;
 	uint16_t ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][plane_id]);
 	int ret;
 
-	ret = skl_compute_plane_wm_params(dev_priv, crtc_state, plane_state,
+	ret = skl_compute_plane_wm_params(crtc_state, plane_state,
 					  &wm_params, color_plane);
 	if (ret)
 		return ret;
 
-	ret = skl_compute_wm_levels(dev_priv, crtc_state, plane_state,
+	ret = skl_compute_wm_levels(crtc_state, plane_state,
 				    ddb_blocks, &wm_params, wm->wm);
 	if (ret)
 		return ret;
@@ -5011,7 +5011,6 @@ static int skl_build_plane_wm_uv(struct skl_ddb_allocation *ddb,
 				 enum plane_id plane_id)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct skl_plane_wm *wm = &crtc_state->wm.skl.optimal.planes[plane_id];
 	struct skl_wm_params wm_params;
 	enum pipe pipe = plane->pipe;
@@ -5021,12 +5020,12 @@ static int skl_build_plane_wm_uv(struct skl_ddb_allocation *ddb,
 	wm->is_planar = true;
 
 	/* uv plane watermarks must also be validated for NV12/Planar */
-	ret = skl_compute_plane_wm_params(dev_priv, crtc_state, plane_state,
+	ret = skl_compute_plane_wm_params(crtc_state, plane_state,
 					  &wm_params, 1);
 	if (ret)
 		return ret;
 
-	ret = skl_compute_wm_levels(dev_priv, crtc_state, plane_state,
+	ret = skl_compute_wm_levels(crtc_state, plane_state,
 				    ddb_blocks, &wm_params, wm->uv_wm);
 	if (ret)
 		return ret;
