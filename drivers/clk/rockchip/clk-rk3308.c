@@ -16,12 +16,14 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/rockchip/cpu.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rk3308-cru.h>
 #include "clk.h"
 
 #define RK3308_GRF_SOC_STATUS0		0x380
 #define RK3308_VOP_FRAC_MAX_PRATE	270000000
+#define RK3308B_VOP_FRAC_MAX_PRATE	800000000
 #define RK3308_UART_FRAC_MAX_PRATE	800000000
 #define RK3308_PDM_FRAC_MAX_PRATE	800000000
 #define RK3308_SPDIF_FRAC_MAX_PRATE	800000000
@@ -464,10 +466,6 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	COMPOSITE(0, "dclk_vop_src", mux_dpll_vpll0_vpll1_p, 0,
 			RK3308_CLKSEL_CON(8), 10, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3308_CLKGATE_CON(1), 6, GFLAGS),
-	COMPOSITE_FRACMUX(0, "dclk_vop_frac", "dclk_vop_src", CLK_SET_RATE_PARENT,
-			RK3308_CLKSEL_CON(9), 0,
-			RK3308_CLKGATE_CON(1), 7, GFLAGS,
-			&rk3308_dclk_vop_fracmux, RK3308_VOP_FRAC_MAX_PRATE),
 	GATE(DCLK_VOP, "dclk_vop", "dclk_vop_mux", 0,
 			RK3308_CLKGATE_CON(1), 8, GFLAGS),
 
@@ -911,6 +909,20 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	GATE(PCLK_OWIRE, "pclk_owire", "pclk_bus", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(7), 15, GFLAGS),
 };
 
+static struct rockchip_clk_branch rk3308_dclk_vop_frac[] __initdata = {
+	COMPOSITE_FRACMUX(0, "dclk_vop_frac", "dclk_vop_src", CLK_SET_RATE_PARENT,
+			RK3308_CLKSEL_CON(9), 0,
+			RK3308_CLKGATE_CON(1), 7, GFLAGS,
+			&rk3308_dclk_vop_fracmux, RK3308_VOP_FRAC_MAX_PRATE),
+};
+
+static struct rockchip_clk_branch rk3308b_dclk_vop_frac[] __initdata = {
+	COMPOSITE_FRACMUX(0, "dclk_vop_frac", "dclk_vop_src", CLK_SET_RATE_PARENT,
+			RK3308_CLKSEL_CON(9), 0,
+			RK3308_CLKGATE_CON(1), 7, GFLAGS,
+			&rk3308_dclk_vop_fracmux, RK3308B_VOP_FRAC_MAX_PRATE),
+};
+
 static const char *const rk3308_critical_clocks[] __initconst = {
 	"aclk_bus",
 	"hclk_bus",
@@ -997,6 +1009,12 @@ static void __init rk3308_clk_init(struct device_node *np)
 				   RK3308_GRF_SOC_STATUS0);
 	rockchip_clk_register_branches(ctx, rk3308_clk_branches,
 				       ARRAY_SIZE(rk3308_clk_branches));
+	if (soc_is_rk3308b())
+		rockchip_clk_register_branches(ctx, rk3308_dclk_vop_frac,
+					       ARRAY_SIZE(rk3308_dclk_vop_frac));
+	else
+		rockchip_clk_register_branches(ctx, rk3308b_dclk_vop_frac,
+					       ARRAY_SIZE(rk3308b_dclk_vop_frac));
 	rockchip_clk_protect_critical(rk3308_critical_clocks,
 				      ARRAY_SIZE(rk3308_critical_clocks));
 
