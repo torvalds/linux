@@ -13,6 +13,7 @@ TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex
 TARGETS += gpio
+TARGETS += ima
 TARGETS += intel_pstate
 TARGETS += ipc
 TARGETS += kcmp
