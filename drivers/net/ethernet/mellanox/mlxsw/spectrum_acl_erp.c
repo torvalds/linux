@@ -176,12 +176,15 @@ mlxsw_sp_acl_erp_master_mask_update(struct mlxsw_sp_acl_erp_table *erp_table)
 
 static int
 mlxsw_sp_acl_erp_master_mask_set(struct mlxsw_sp_acl_erp_table *erp_table,
-				 const struct mlxsw_sp_acl_erp *erp)
+				 struct mlxsw_sp_acl_erp_key *key)
 {
+	DECLARE_BITMAP(mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN);
 	unsigned long bit;
 	int err;
 
-	for_each_set_bit(bit, erp->mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN)
+	bitmap_from_arr32(mask_bitmap, (u32 *) key->mask,
+			  MLXSW_SP_ACL_TCAM_MASK_LEN);
+	for_each_set_bit(bit, mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN)
 		mlxsw_sp_acl_erp_master_mask_bit_set(bit,
 						     &erp_table->master_mask);
 
@@ -192,7 +195,7 @@ mlxsw_sp_acl_erp_master_mask_set(struct mlxsw_sp_acl_erp_table *erp_table,
 	return 0;
 
 err_master_mask_update:
-	for_each_set_bit(bit, erp->mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN)
+	for_each_set_bit(bit, mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN)
 		mlxsw_sp_acl_erp_master_mask_bit_clear(bit,
 						       &erp_table->master_mask);
 	return err;
@@ -200,12 +203,15 @@ err_master_mask_update:
 
 static int
 mlxsw_sp_acl_erp_master_mask_clear(struct mlxsw_sp_acl_erp_table *erp_table,
-				   const struct mlxsw_sp_acl_erp *erp)
+				   struct mlxsw_sp_acl_erp_key *key)
 {
+	DECLARE_BITMAP(mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN);
 	unsigned long bit;
 	int err;
 
-	for_each_set_bit(bit, erp->mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN)
+	bitmap_from_arr32(mask_bitmap, (u32 *) key->mask,
+			  MLXSW_SP_ACL_TCAM_MASK_LEN);
+	for_each_set_bit(bit, mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN)
 		mlxsw_sp_acl_erp_master_mask_bit_clear(bit,
 						       &erp_table->master_mask);
 
@@ -216,7 +222,7 @@ mlxsw_sp_acl_erp_master_mask_clear(struct mlxsw_sp_acl_erp_table *erp_table,
 	return 0;
 
 err_master_mask_update:
-	for_each_set_bit(bit, erp->mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN)
+	for_each_set_bit(bit, mask_bitmap, MLXSW_SP_ACL_TCAM_MASK_LEN)
 		mlxsw_sp_acl_erp_master_mask_bit_set(bit,
 						     &erp_table->master_mask);
 	return err;
@@ -238,13 +244,11 @@ mlxsw_sp_acl_erp_generic_create(struct mlxsw_sp_acl_erp_table *erp_table,
 		goto err_erp_id_get;
 
 	memcpy(&erp->key, key, sizeof(*key));
-	bitmap_from_arr32(erp->mask_bitmap, (u32 *) key->mask,
-			  MLXSW_SP_ACL_TCAM_MASK_LEN);
 	list_add(&erp->list, &erp_table->atcam_erps_list);
 	erp_table->num_atcam_erps++;
 	erp->erp_table = erp_table;
 
-	err = mlxsw_sp_acl_erp_master_mask_set(erp_table, erp);
+	err = mlxsw_sp_acl_erp_master_mask_set(erp_table, &erp->key);
 	if (err)
 		goto err_master_mask_set;
 
@@ -264,7 +268,7 @@ mlxsw_sp_acl_erp_generic_destroy(struct mlxsw_sp_acl_erp *erp)
 {
 	struct mlxsw_sp_acl_erp_table *erp_table = erp->erp_table;
 
-	mlxsw_sp_acl_erp_master_mask_clear(erp_table, erp);
+	mlxsw_sp_acl_erp_master_mask_clear(erp_table, &erp->key);
 	erp_table->num_atcam_erps--;
 	list_del(&erp->list);
 	mlxsw_sp_acl_erp_id_put(erp_table, erp->id);
@@ -672,7 +676,7 @@ __mlxsw_sp_acl_erp_ctcam_mask_create(struct mlxsw_sp_acl_erp_table *erp_table,
 	erp_table->num_ctcam_erps++;
 	erp->erp_table = erp_table;
 
-	err = mlxsw_sp_acl_erp_master_mask_set(erp_table, erp);
+	err = mlxsw_sp_acl_erp_master_mask_set(erp_table, &erp->key);
 	if (err)
 		goto err_master_mask_set;
 
@@ -686,7 +690,7 @@ __mlxsw_sp_acl_erp_ctcam_mask_create(struct mlxsw_sp_acl_erp_table *erp_table,
 	return erp;
 
 err_erp_region_ctcam_enable:
-	mlxsw_sp_acl_erp_master_mask_clear(erp_table, erp);
+	mlxsw_sp_acl_erp_master_mask_clear(erp_table, &erp->key);
 err_master_mask_set:
 	erp_table->num_ctcam_erps--;
 	kfree(erp);
@@ -730,7 +734,7 @@ mlxsw_sp_acl_erp_ctcam_mask_destroy(struct mlxsw_sp_acl_erp *erp)
 	struct mlxsw_sp_acl_erp_table *erp_table = erp->erp_table;
 
 	mlxsw_sp_acl_erp_region_ctcam_disable(erp_table);
-	mlxsw_sp_acl_erp_master_mask_clear(erp_table, erp);
+	mlxsw_sp_acl_erp_master_mask_clear(erp_table, &erp->key);
 	erp_table->num_ctcam_erps--;
 	kfree(erp);
 
