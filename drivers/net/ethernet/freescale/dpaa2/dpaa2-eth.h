@@ -434,9 +434,10 @@ static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 	       DPAA2_ETH_RX_HWA_SIZE;
 }
 
+/* We have exactly one {Rx, Tx conf} queue per channel */
 static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
 {
-	return priv->dpni_attrs.num_queues;
+	return priv->num_channels;
 }
 
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);

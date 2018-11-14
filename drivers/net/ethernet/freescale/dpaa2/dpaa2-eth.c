@@ -1603,7 +1603,7 @@ static int setup_dpio(struct dpaa2_eth_priv *priv)
 		/* Stop if we already have enough channels to accommodate all
 		 * RX and TX conf queues
 		 */
-		if (priv->num_channels == dpaa2_eth_queue_count(priv))
+		if (priv->num_channels == priv->dpni_attrs.num_queues)
 			break;
 	}
 
