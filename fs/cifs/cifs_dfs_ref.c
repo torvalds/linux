@@ -255,20 +255,30 @@ static struct vfsmount *cifs_dfs_do_refmount(struct dentry *mntpt,
 {
 	struct vfsmount *mnt;
 	char *mountdata;
-	char *devname = NULL;
+	char *devname;
+
+	/*
+	 * Always pass down the DFS full path to smb3_do_mount() so we
+	 * can use it later for failover.
+	 */
+	devname = kstrndup(fullpath, strlen(fullpath), GFP_KERNEL);
+	if (!devname)
+		return ERR_PTR(-ENOMEM);
+
+	convert_delimiter(devname, '/');
 
 	/* strip first '\' from fullpath */
 	mountdata = cifs_compose_mount_options(cifs_sb->mountdata,
-			fullpath + 1, ref, &devname);
-
-	if (IS_ERR(mountdata))
+					       fullpath + 1, ref, NULL);
+	if (IS_ERR(mountdata)) {
+		kfree(devname);
 		return (struct vfsmount *)mountdata;
+	}
 
 	mnt = vfs_submount(mntpt, &cifs_fs_type, devname, mountdata);
 	kfree(mountdata);
 	kfree(devname);
 	return mnt;
-
 }
 
 static void dump_referral(const struct dfs_info3_param *ref)

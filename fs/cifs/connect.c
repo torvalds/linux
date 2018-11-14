@@ -3891,10 +3891,11 @@ static int mount_setup_tlink(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
  */
 static char *
 build_unc_path_to_root(const struct smb_vol *vol,
-		const struct cifs_sb_info *cifs_sb)
+		       const struct cifs_sb_info *cifs_sb, bool useppath)
 {
 	char *full_path, *pos;
-	unsigned int pplen = vol->prepath ? strlen(vol->prepath) + 1 : 0;
+	unsigned int pplen = useppath && vol->prepath ?
+		strlen(vol->prepath) + 1 : 0;
 	unsigned int unc_len = strnlen(vol->UNC, MAX_TREE_SIZE + 1);
 
 	full_path = kmalloc(unc_len + pplen + 1, GFP_KERNEL);
@@ -3939,7 +3940,7 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS)
 		return -EREMOTE;
 
-	full_path = build_unc_path_to_root(volume_info, cifs_sb);
+	full_path = build_unc_path_to_root(volume_info, cifs_sb, true);
 	if (IS_ERR(full_path))
 		return PTR_ERR(full_path);
 
@@ -3969,6 +3970,143 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 		cifs_sb->mountdata = mdata;
 	}
 	kfree(full_path);
+	return rc;
+}
+
+static inline int get_next_dfs_tgt(const char *path,
+				   struct dfs_cache_tgt_list *tgt_list,
+				   struct dfs_cache_tgt_iterator **tgt_it)
+{
+	if (!*tgt_it)
+		*tgt_it = dfs_cache_get_tgt_iterator(tgt_list);
+	else
+		*tgt_it = dfs_cache_get_next_tgt(tgt_list, *tgt_it);
+	return !*tgt_it ? -EHOSTDOWN : 0;
+}
+
+static int update_vol_info(const struct dfs_cache_tgt_iterator *tgt_it,
+			   struct smb_vol *fake_vol, struct smb_vol *vol)
+{
+	const char *tgt = dfs_cache_get_tgt_name(tgt_it);
+	int len = strlen(tgt) + 2;
+	char *new_unc;
+
+	new_unc = kmalloc(len, GFP_KERNEL);
+	if (!new_unc)
+		return -ENOMEM;
+	snprintf(new_unc, len, "\\%s", tgt);
+
+	kfree(vol->UNC);
+	vol->UNC = new_unc;
+
+	if (fake_vol->prepath) {
+		kfree(vol->prepath);
+		vol->prepath = fake_vol->prepath;
+		fake_vol->prepath = NULL;
+	}
+	memcpy(&vol->dstaddr, &fake_vol->dstaddr, sizeof(vol->dstaddr));
+
+	return 0;
+}
+
+static int setup_dfs_tgt_conn(const char *path,
+			      const struct dfs_cache_tgt_iterator *tgt_it,
+			      struct cifs_sb_info *cifs_sb,
+			      struct smb_vol *vol,
+			      unsigned int *xid,
+			      struct TCP_Server_Info **server,
+			      struct cifs_ses **ses,
+			      struct cifs_tcon **tcon)
+{
+	int rc;
+	struct dfs_info3_param ref = {0};
+	char *mdata = NULL, *fake_devname = NULL;
+	struct smb_vol fake_vol = {0};
+
+	cifs_dbg(FYI, "%s: dfs path: %s\n", __func__, path);
+
+	rc = dfs_cache_get_tgt_referral(path, tgt_it, &ref);
+	if (rc)
+		return rc;
+
+	mdata = cifs_compose_mount_options(cifs_sb->mountdata, path, &ref,
+					   &fake_devname);
+	free_dfs_info_param(&ref);
+
+	if (IS_ERR(mdata)) {
+		rc = PTR_ERR(mdata);
+		mdata = NULL;
+	} else {
+		cifs_dbg(FYI, "%s: fake_devname: %s\n", __func__, fake_devname);
+		rc = cifs_setup_volume_info(&fake_vol, mdata, fake_devname,
+					    false);
+	}
+	kfree(mdata);
+	kfree(fake_devname);
+
+	if (!rc) {
+		/*
+		 * We use a 'fake_vol' here because we need pass it down to the
+		 * mount_{get,put} functions to test connection against new DFS
+		 * targets.
+		 */
+		mount_put_conns(cifs_sb, *xid, *server, *ses, *tcon);
+		rc = mount_get_conns(&fake_vol, cifs_sb, xid, server, ses,
+				     tcon);
+		if (!rc) {
+			/*
+			 * We were able to connect to new target server.
+			 * Update current volume info with new target server.
+			 */
+			rc = update_vol_info(tgt_it, &fake_vol, vol);
+		}
+	}
+	cifs_cleanup_volume_info_contents(&fake_vol);
+	return rc;
+}
+
+static int mount_do_dfs_failover(const char *path,
+				 struct cifs_sb_info *cifs_sb,
+				 struct smb_vol *vol,
+				 struct cifs_ses *root_ses,
+				 unsigned int *xid,
+				 struct TCP_Server_Info **server,
+				 struct cifs_ses **ses,
+				 struct cifs_tcon **tcon)
+{
+	int rc;
+	struct dfs_cache_tgt_list tgt_list;
+	struct dfs_cache_tgt_iterator *tgt_it = NULL;
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS)
+		return -EOPNOTSUPP;
+
+	rc = dfs_cache_noreq_find(path, NULL, &tgt_list);
+	if (rc)
+		return rc;
+
+	for (;;) {
+		/* Get next DFS target server - if any */
+		rc = get_next_dfs_tgt(path, &tgt_list, &tgt_it);
+		if (rc)
+			break;
+		/* Connect to next DFS target */
+		rc = setup_dfs_tgt_conn(path, tgt_it, cifs_sb, vol, xid, server,
+					ses, tcon);
+		if (!rc || rc == -EACCES || rc == -EOPNOTSUPP)
+			break;
+	}
+	if (!rc) {
+		/*
+		 * Update DFS target hint in DFS referral cache with the target
+		 * server we successfully reconnected to.
+		 */
+		rc = dfs_cache_update_tgthint(*xid, root_ses ? root_ses : *ses,
+					      cifs_sb->local_nls,
+					      cifs_remap(cifs_sb), path,
+					      tgt_it);
+	}
+	dfs_cache_free_tgts(&tgt_list);
 	return rc;
 }
 #endif
@@ -4123,22 +4261,47 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 	int rc = 0;
 	unsigned int xid;
 	struct cifs_ses *ses;
+	struct cifs_tcon *root_tcon = NULL;
 	struct cifs_tcon *tcon = NULL;
 	struct TCP_Server_Info *server;
+	char *root_path = NULL, *full_path = NULL;
 	char *old_mountdata;
 	int count;
 
 	rc = mount_get_conns(vol, cifs_sb, &xid, &server, &ses, &tcon);
 	if (!rc && tcon) {
-		rc = is_path_remote(cifs_sb, vol, xid, server, tcon);
-		if (!rc)
-			goto out;
-		if (rc != -EREMOTE)
-			goto error;
+		/* If not a standalone DFS root, then check if path is remote */
+		rc = dfs_cache_find(xid, ses, cifs_sb->local_nls,
+				    cifs_remap(cifs_sb), vol->UNC + 1, NULL,
+				    NULL);
+		if (rc) {
+			rc = is_path_remote(cifs_sb, vol, xid, server, tcon);
+			if (!rc)
+				goto out;
+			if (rc != -EREMOTE)
+				goto error;
+		}
 	}
-	if ((rc == -EACCES) || (rc == -EOPNOTSUPP) || (ses == NULL) || (server == NULL))
+	/*
+	 * If first DFS target server went offline and we failed to connect it,
+	 * server and ses pointers are NULL at this point, though we still have
+	 * chance to get a cached DFS referral in expand_dfs_referral() and
+	 * retry next target available in it.
+	 *
+	 * If a NULL ses ptr is passed to dfs_cache_find(), a lookup will be
+	 * performed against DFS path and *no* requests will be sent to server
+	 * for any new DFS referrals. Hence it's safe to skip checking whether
+	 * server or ses ptr is NULL.
+	 */
+	if (rc == -EACCES || rc == -EOPNOTSUPP)
 		goto error;
 
+	root_path = build_unc_path_to_root(vol, cifs_sb, false);
+	if (IS_ERR(root_path)) {
+		rc = PTR_ERR(root_path);
+		root_path = NULL;
+		goto error;
+	}
 
 	/*
 	 * Perform an unconditional check for whether there are DFS
@@ -4163,7 +4326,35 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 	if (rc) {
 		if (rc == -EACCES || rc == -EOPNOTSUPP)
 			goto error;
+		/* Perform DFS failover to any other DFS targets */
+		rc = mount_do_dfs_failover(root_path + 1, cifs_sb, vol, NULL,
+					   &xid, &server, &ses, &tcon);
+		if (rc)
+			goto error;
 	}
+
+	kfree(root_path);
+	root_path = build_unc_path_to_root(vol, cifs_sb, false);
+	if (IS_ERR(root_path)) {
+		rc = PTR_ERR(root_path);
+		root_path = NULL;
+		goto error;
+	}
+	/* Cache out resolved root server */
+	(void)dfs_cache_find(xid, ses, cifs_sb->local_nls, cifs_remap(cifs_sb),
+			     root_path + 1, NULL, NULL);
+	/*
+	 * Save root tcon for additional DFS requests to update or create a new
+	 * DFS cache entry, or even perform DFS failover.
+	 */
+	spin_lock(&cifs_tcp_ses_lock);
+	tcon->tc_count++;
+	tcon->dfs_path = root_path;
+	root_path = NULL;
+	tcon->remap = cifs_remap(cifs_sb);
+	spin_unlock(&cifs_tcp_ses_lock);
+
+	root_tcon = tcon;
 
 	for (count = 1; ;) {
 		if (!rc && tcon) {
@@ -4182,8 +4373,16 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 			break;
 		}
 
+		kfree(full_path);
+		full_path = build_unc_path_to_root(vol, cifs_sb, true);
+		if (IS_ERR(full_path)) {
+			rc = PTR_ERR(full_path);
+			full_path = NULL;
+			break;
+		}
+
 		old_mountdata = cifs_sb->mountdata;
-		rc = expand_dfs_referral(xid, tcon->ses, vol, cifs_sb,
+		rc = expand_dfs_referral(xid, root_tcon->ses, vol, cifs_sb,
 					 true);
 		if (rc)
 			break;
@@ -4194,11 +4393,18 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 					     &tcon);
 		}
 		if (rc) {
+			if (rc == -EACCES || rc == -EOPNOTSUPP)
+				break;
+			/* Perform DFS failover to any other DFS targets */
+			rc = mount_do_dfs_failover(full_path + 1, cifs_sb, vol,
+						   root_tcon->ses, &xid,
+						   &server, &ses, &tcon);
 			if (rc == -EACCES || rc == -EOPNOTSUPP || !server ||
 			    !ses)
 				goto error;
 		}
 	}
+	cifs_put_tcon(root_tcon);
 
 	if (rc)
 		goto error;
@@ -4214,6 +4420,8 @@ out:
 	return mount_setup_tlink(cifs_sb, ses, tcon);
 
 error:
+	kfree(full_path);
+	kfree(root_path);
 	mount_put_conns(cifs_sb, xid, server, ses, tcon);
 	return rc;
 }
