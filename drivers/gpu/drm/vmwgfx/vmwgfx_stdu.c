@@ -453,48 +453,6 @@ static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 /**
- * vmw_stdu_crtc_page_flip - Binds a buffer to a screen target
- *
- * @crtc: CRTC to attach FB to
- * @fb: FB to attach
- * @event: Event to be posted. This event should've been alloced
- *         using k[mz]alloc, and should've been completely initialized.
- * @page_flip_flags: Input flags.
- *
- * If the STDU uses the same display and content buffers, i.e. a true flip,
- * this function will replace the existing display buffer with the new content
- * buffer.
- *
- * If the STDU uses different display and content buffers, i.e. a blit, then
- * only the content buffer will be updated.
- *
- * RETURNS:
- * 0 on success, error code on failure
- */
-static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
-				   struct drm_framebuffer *new_fb,
-				   struct drm_pending_vblank_event *event,
-				   uint32_t flags,
-				   struct drm_modeset_acquire_ctx *ctx)
-
-{
-	struct vmw_screen_target_display_unit *stdu = vmw_crtc_to_stdu(crtc);
-	int ret;
-
-	if (!stdu->defined)
-		return -EINVAL;
-
-	ret = drm_atomic_helper_page_flip(crtc, new_fb, event, flags, ctx);
-	if (ret) {
-		DRM_ERROR("Page flip error %d.\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-
-/**
  * vmw_stdu_bo_clip - Callback to encode a suface DMA command cliprect
  *
  * @dirty: The closure structure.
@@ -967,7 +925,7 @@ static const struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
 	.atomic_duplicate_state = vmw_du_crtc_duplicate_state,
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
 	.set_config = drm_atomic_helper_set_config,
-	.page_flip = vmw_stdu_crtc_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 };
 
 

@@ -315,23 +315,6 @@ static void vmw_sou_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 }
 
-static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
-				  struct drm_framebuffer *new_fb,
-				  struct drm_pending_vblank_event *event,
-				  uint32_t flags,
-				  struct drm_modeset_acquire_ctx *ctx)
-{
-	int ret;
-
-	ret = drm_atomic_helper_page_flip(crtc, new_fb, event, flags, ctx);
-	if (ret) {
-		DRM_ERROR("Page flip error %d.\n", ret);
-		return ret;
-	}
-
-	return ret;
-}
-
 static const struct drm_crtc_funcs vmw_screen_object_crtc_funcs = {
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_sou_crtc_destroy,
@@ -339,7 +322,7 @@ static const struct drm_crtc_funcs vmw_screen_object_crtc_funcs = {
 	.atomic_duplicate_state = vmw_du_crtc_duplicate_state,
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
 	.set_config = drm_atomic_helper_set_config,
-	.page_flip = vmw_sou_crtc_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 };
 
 /*
