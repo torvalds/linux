@@ -799,12 +799,13 @@ EXPORT_SYMBOL_GPL(devm_reset_control_array_get);
 static int reset_control_get_count_from_lookup(struct device *dev)
 {
 	const struct reset_control_lookup *lookup;
-	const char *dev_id = dev_name(dev);
+	const char *dev_id;
 	int count = 0;
 
 	if (!dev)
 		return -EINVAL;
 
+	dev_id = dev_name(dev);
 	mutex_lock(&reset_lookup_mutex);
 
 	list_for_each_entry(lookup, &reset_lookup_list, list) {
