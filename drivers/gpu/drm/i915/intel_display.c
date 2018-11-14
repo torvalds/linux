@@ -3315,7 +3315,6 @@ static void i9xx_update_plane(struct intel_plane *plane,
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	u32 linear_offset;
 	u32 dspcntr = plane_state->ctl;
-	i915_reg_t reg = DSPCNTR(i9xx_plane);
 	int x = plane_state->color_plane[0].x;
 	int y = plane_state->color_plane[0].y;
 	unsigned long irqflags;
@@ -3330,41 +3329,45 @@ static void i9xx_update_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
+	I915_WRITE_FW(DSPSTRIDE(i9xx_plane), plane_state->color_plane[0].stride);
+
 	if (INTEL_GEN(dev_priv) < 4) {
 		/* pipesrc and dspsize control the size that is scaled from,
 		 * which should always be the user's requested size.
 		 */
+		I915_WRITE_FW(DSPPOS(i9xx_plane), 0);
 		I915_WRITE_FW(DSPSIZE(i9xx_plane),
 			      ((crtc_state->pipe_src_h - 1) << 16) |
 			      (crtc_state->pipe_src_w - 1));
-		I915_WRITE_FW(DSPPOS(i9xx_plane), 0);
 	} else if (IS_CHERRYVIEW(dev_priv) && i9xx_plane == PLANE_B) {
+		I915_WRITE_FW(PRIMPOS(i9xx_plane), 0);
 		I915_WRITE_FW(PRIMSIZE(i9xx_plane),
 			      ((crtc_state->pipe_src_h - 1) << 16) |
 			      (crtc_state->pipe_src_w - 1));
-		I915_WRITE_FW(PRIMPOS(i9xx_plane), 0);
 		I915_WRITE_FW(PRIMCNSTALPHA(i9xx_plane), 0);
 	}
 
-	I915_WRITE_FW(reg, dspcntr);
-
-	I915_WRITE_FW(DSPSTRIDE(i9xx_plane), plane_state->color_plane[0].stride);
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		I915_WRITE_FW(DSPSURF(i9xx_plane),
-			      intel_plane_ggtt_offset(plane_state) +
-			      dspaddr_offset);
 		I915_WRITE_FW(DSPOFFSET(i9xx_plane), (y << 16) | x);
 	} else if (INTEL_GEN(dev_priv) >= 4) {
+		I915_WRITE_FW(DSPLINOFF(i9xx_plane), linear_offset);
+		I915_WRITE_FW(DSPTILEOFF(i9xx_plane), (y << 16) | x);
+	}
+
+	/*
+	 * The control register self-arms if the plane was previously
+	 * disabled. Try to make the plane enable atomic by writing
+	 * the control register just before the surface register.
+	 */
+	I915_WRITE_FW(DSPCNTR(i9xx_plane), dspcntr);
+	if (INTEL_GEN(dev_priv) >= 4)
 		I915_WRITE_FW(DSPSURF(i9xx_plane),
 			      intel_plane_ggtt_offset(plane_state) +
 			      dspaddr_offset);
-		I915_WRITE_FW(DSPTILEOFF(i9xx_plane), (y << 16) | x);
-		I915_WRITE_FW(DSPLINOFF(i9xx_plane), linear_offset);
-	} else {
+	else
 		I915_WRITE_FW(DSPADDR(i9xx_plane),
 			      intel_plane_ggtt_offset(plane_state) +
 			      dspaddr_offset);
-	}
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -10087,8 +10090,8 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	 * On some platforms writing CURCNTR first will also
 	 * cause CURPOS to be armed by the CURBASE write.
 	 * Without the CURCNTR write the CURPOS write would
-	 * arm itself. Thus we always start the full update
-	 * with a CURCNTR write.
+	 * arm itself. Thus we always update CURCNTR before
+	 * CURPOS.
 	 *
 	 * On other platforms CURPOS always requires the
 	 * CURBASE write to arm the update. Additonally
@@ -10098,15 +10101,16 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	 * cursor that doesn't appear to move, or even change
 	 * shape. Thus we always write CURBASE.
 	 *
-	 * CURCNTR and CUR_FBC_CTL are always
-	 * armed by the CURBASE write only.
+	 * The other registers are armed by by the CURBASE write
+	 * except when the plane is getting enabled at which time
+	 * the CURCNTR write arms the update.
 	 */
 	if (plane->cursor.base != base ||
 	    plane->cursor.size != fbc_ctl ||
 	    plane->cursor.cntl != cntl) {
-		I915_WRITE_FW(CURCNTR(pipe), cntl);
 		if (HAS_CUR_FBC(dev_priv))
 			I915_WRITE_FW(CUR_FBC_CTL(pipe), fbc_ctl);
+		I915_WRITE_FW(CURCNTR(pipe), cntl);
 		I915_WRITE_FW(CURPOS(pipe), pos);
 		I915_WRITE_FW(CURBASE(pipe), base);
 
