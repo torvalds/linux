@@ -212,7 +212,7 @@ void intel_update_planes_on_crtc(struct intel_atomic_state *old_state,
 		} else {
 			trace_intel_disable_plane(&plane->base, crtc);
 
-			plane->disable_plane(plane, crtc);
+			plane->disable_plane(plane, new_crtc_state);
 		}
 	}
 }
