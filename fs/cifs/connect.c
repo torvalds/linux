@@ -1044,7 +1044,12 @@ extract_hostname(const char *unc)
 
 	/* skip double chars at beginning of string */
 	/* BB: check validity of these bytes? */
-	src = unc + 2;
+	if (strlen(unc) < 3)
+		return ERR_PTR(-EINVAL);
+	for (src = unc; *src && *src == '\\'; src++)
+		;
+	if (!*src)
+		return ERR_PTR(-EINVAL);
 
 	/* delimiter between hostname and sharename is always '\\' now */
 	delim = strchr(src, '\\');
