@@ -1306,22 +1306,25 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 		io_req->fds[0] = dev->fd;
 	io_req->error = 0;
 
-	if (req_op(req) != REQ_OP_FLUSH) {
-		io_req->fds[1] = dev->fd;
-		io_req->cow_offset = -1;
-		io_req->offset = off;
-		io_req->length = bvec->bv_len;
-		io_req->sector_mask = 0;
-		io_req->offsets[0] = 0;
-		io_req->offsets[1] = dev->cow.data_offset;
+	if (bvec != NULL) {
 		io_req->buffer = page_address(bvec->bv_page) + bvec->bv_offset;
-		io_req->sectorsize = SECTOR_SIZE;
-
-		if (dev->cow.file) {
-			cowify_req(io_req, dev->cow.bitmap,
-				   dev->cow.bitmap_offset, dev->cow.bitmap_len);
-		}
+		io_req->length = bvec->bv_len;
+	} else {
+		io_req->buffer = NULL;
+		io_req->length = blk_rq_bytes(req);
 	}
+
+	io_req->sectorsize = SECTOR_SIZE;
+	io_req->fds[1] = dev->fd;
+	io_req->cow_offset = -1;
+	io_req->offset = off;
+	io_req->sector_mask = 0;
+	io_req->offsets[0] = 0;
+	io_req->offsets[1] = dev->cow.data_offset;
+
+	if (dev->cow.file)
+		cowify_req(io_req, dev->cow.bitmap,
+			   dev->cow.bitmap_offset, dev->cow.bitmap_len);
 
 	ret = os_write_file(thread_fd, &io_req, sizeof(io_req));
 	if (ret != sizeof(io_req)) {
@@ -1329,8 +1332,23 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 			pr_err("write to io thread failed: %d\n", -ret);
 		kfree(io_req);
 	}
-
 	return ret;
+}
+
+static int queue_rw_req(struct blk_mq_hw_ctx *hctx, struct request *req)
+{
+	struct req_iterator iter;
+	struct bio_vec bvec;
+	int ret;
+	u64 off = (u64)blk_rq_pos(req) << SECTOR_SHIFT;
+
+	rq_for_each_segment(bvec, req, iter) {
+		ret = ubd_queue_one_vec(hctx, req, off, &bvec);
+		if (ret < 0)
+			return ret;
+		off += bvec.bv_len;
+	}
+	return 0;
 }
 
 static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -1338,33 +1356,32 @@ static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct ubd *ubd_dev = hctx->queue->queuedata;
 	struct request *req = bd->rq;
-	int ret = 0;
+	int ret = 0, res = BLK_STS_OK;
 
 	blk_mq_start_request(req);
 
 	spin_lock_irq(&ubd_dev->lock);
 
-	if (req_op(req) == REQ_OP_FLUSH) {
+	switch (req_op(req)) {
+	/* operations with no lentgth/offset arguments */
+	case REQ_OP_FLUSH:
 		ret = ubd_queue_one_vec(hctx, req, 0, NULL);
-	} else {
-		struct req_iterator iter;
-		struct bio_vec bvec;
-		u64 off = (u64)blk_rq_pos(req) << SECTOR_SHIFT;
-
-		rq_for_each_segment(bvec, req, iter) {
-			ret = ubd_queue_one_vec(hctx, req, off, &bvec);
-			if (ret < 0)
-				goto out;
-			off += bvec.bv_len;
-		}
+		break;
+	case REQ_OP_READ:
+	case REQ_OP_WRITE:
+		ret = queue_rw_req(hctx, req);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		res = BLK_STS_NOTSUPP;
 	}
-out:
+
 	spin_unlock_irq(&ubd_dev->lock);
 
 	if (ret < 0)
 		blk_mq_requeue_request(req, true);
 
-	return BLK_STS_OK;
+	return res;
 }
 
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
