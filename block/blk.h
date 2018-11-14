@@ -48,62 +48,6 @@ static inline void queue_lockdep_assert_held(struct request_queue *q)
 		lockdep_assert_held(q->queue_lock);
 }
 
-static inline void queue_flag_set_unlocked(unsigned int flag,
-					   struct request_queue *q)
-{
-	if (test_bit(QUEUE_FLAG_INIT_DONE, &q->queue_flags) &&
-	    kref_read(&q->kobj.kref))
-		lockdep_assert_held(q->queue_lock);
-	__set_bit(flag, &q->queue_flags);
-}
-
-static inline void queue_flag_clear_unlocked(unsigned int flag,
-					     struct request_queue *q)
-{
-	if (test_bit(QUEUE_FLAG_INIT_DONE, &q->queue_flags) &&
-	    kref_read(&q->kobj.kref))
-		lockdep_assert_held(q->queue_lock);
-	__clear_bit(flag, &q->queue_flags);
-}
-
-static inline int queue_flag_test_and_clear(unsigned int flag,
-					    struct request_queue *q)
-{
-	queue_lockdep_assert_held(q);
-
-	if (test_bit(flag, &q->queue_flags)) {
-		__clear_bit(flag, &q->queue_flags);
-		return 1;
-	}
-
-	return 0;
-}
-
-static inline int queue_flag_test_and_set(unsigned int flag,
-					  struct request_queue *q)
-{
-	queue_lockdep_assert_held(q);
-
-	if (!test_bit(flag, &q->queue_flags)) {
-		__set_bit(flag, &q->queue_flags);
-		return 0;
-	}
-
-	return 1;
-}
-
-static inline void queue_flag_set(unsigned int flag, struct request_queue *q)
-{
-	queue_lockdep_assert_held(q);
-	__set_bit(flag, &q->queue_flags);
-}
-
-static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
-{
-	queue_lockdep_assert_held(q);
-	__clear_bit(flag, &q->queue_flags);
-}
-
 static inline struct blk_flush_queue *
 blk_get_flush_queue(struct request_queue *q, struct blk_mq_ctx *ctx)
 {

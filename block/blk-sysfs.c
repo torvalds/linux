@@ -316,14 +316,12 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
 	if (ret < 0)
 		return ret;
 
-	spin_lock_irq(q->queue_lock);
-	queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
-	queue_flag_clear(QUEUE_FLAG_NOXMERGES, q);
+	blk_queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
+	blk_queue_flag_clear(QUEUE_FLAG_NOXMERGES, q);
 	if (nm == 2)
-		queue_flag_set(QUEUE_FLAG_NOMERGES, q);
+		blk_queue_flag_set(QUEUE_FLAG_NOMERGES, q);
 	else if (nm)
-		queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
-	spin_unlock_irq(q->queue_lock);
+		blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
 
 	return ret;
 }
@@ -347,18 +345,16 @@ queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 	if (ret < 0)
 		return ret;
 
-	spin_lock_irq(q->queue_lock);
 	if (val == 2) {
-		queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
-		queue_flag_set(QUEUE_FLAG_SAME_FORCE, q);
+		blk_queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
+		blk_queue_flag_set(QUEUE_FLAG_SAME_FORCE, q);
 	} else if (val == 1) {
-		queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
-		queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
+		blk_queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
+		blk_queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
 	} else if (val == 0) {
-		queue_flag_clear(QUEUE_FLAG_SAME_COMP, q);
-		queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
+		blk_queue_flag_clear(QUEUE_FLAG_SAME_COMP, q);
+		blk_queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
 	}
-	spin_unlock_irq(q->queue_lock);
 #endif
 	return ret;
 }
@@ -889,7 +885,7 @@ int blk_register_queue(struct gendisk *disk)
 	WARN_ONCE(test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags),
 		  "%s is registering an already registered queue\n",
 		  kobject_name(&dev->kobj));
-	queue_flag_set_unlocked(QUEUE_FLAG_REGISTERED, q);
+	blk_queue_flag_set(QUEUE_FLAG_REGISTERED, q);
 
 	/*
 	 * SCSI probing may synchronously create and destroy a lot of
@@ -901,7 +897,7 @@ int blk_register_queue(struct gendisk *disk)
 	 * request_queues for non-existent devices never get registered.
 	 */
 	if (!blk_queue_init_done(q)) {
-		queue_flag_set_unlocked(QUEUE_FLAG_INIT_DONE, q);
+		blk_queue_flag_set(QUEUE_FLAG_INIT_DONE, q);
 		percpu_ref_switch_to_percpu(&q->q_usage_counter);
 	}
 

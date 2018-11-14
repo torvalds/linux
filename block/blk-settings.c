@@ -834,16 +834,14 @@ EXPORT_SYMBOL(blk_set_queue_depth);
  */
 void blk_queue_write_cache(struct request_queue *q, bool wc, bool fua)
 {
-	spin_lock_irq(q->queue_lock);
 	if (wc)
-		queue_flag_set(QUEUE_FLAG_WC, q);
+		blk_queue_flag_set(QUEUE_FLAG_WC, q);
 	else
-		queue_flag_clear(QUEUE_FLAG_WC, q);
+		blk_queue_flag_clear(QUEUE_FLAG_WC, q);
 	if (fua)
-		queue_flag_set(QUEUE_FLAG_FUA, q);
+		blk_queue_flag_set(QUEUE_FLAG_FUA, q);
 	else
-		queue_flag_clear(QUEUE_FLAG_FUA, q);
-	spin_unlock_irq(q->queue_lock);
+		blk_queue_flag_clear(QUEUE_FLAG_FUA, q);
 
 	wbt_set_write_cache(q, test_bit(QUEUE_FLAG_WC, &q->queue_flags));
 }

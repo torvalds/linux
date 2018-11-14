@@ -74,11 +74,7 @@ static struct workqueue_struct *kblockd_workqueue;
  */
 void blk_queue_flag_set(unsigned int flag, struct request_queue *q)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	queue_flag_set(flag, q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	set_bit(flag, &q->queue_flags);
 }
 EXPORT_SYMBOL(blk_queue_flag_set);
 
@@ -89,11 +85,7 @@ EXPORT_SYMBOL(blk_queue_flag_set);
  */
 void blk_queue_flag_clear(unsigned int flag, struct request_queue *q)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	queue_flag_clear(flag, q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	clear_bit(flag, &q->queue_flags);
 }
 EXPORT_SYMBOL(blk_queue_flag_clear);
 
@@ -107,37 +99,9 @@ EXPORT_SYMBOL(blk_queue_flag_clear);
  */
 bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q)
 {
-	unsigned long flags;
-	bool res;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	res = queue_flag_test_and_set(flag, q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
-	return res;
+	return test_and_set_bit(flag, &q->queue_flags);
 }
 EXPORT_SYMBOL_GPL(blk_queue_flag_test_and_set);
-
-/**
- * blk_queue_flag_test_and_clear - atomically test and clear a queue flag
- * @flag: flag to be cleared
- * @q: request queue
- *
- * Returns the previous value of @flag - 0 if the flag was not set and 1 if
- * the flag was set.
- */
-bool blk_queue_flag_test_and_clear(unsigned int flag, struct request_queue *q)
-{
-	unsigned long flags;
-	bool res;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	res = queue_flag_test_and_clear(flag, q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
-	return res;
-}
-EXPORT_SYMBOL_GPL(blk_queue_flag_test_and_clear);
 
 void blk_rq_init(struct request_queue *q, struct request *rq)
 {
@@ -368,12 +332,10 @@ void blk_cleanup_queue(struct request_queue *q)
 	/* mark @q DYING, no new request or merges will be allowed afterwards */
 	mutex_lock(&q->sysfs_lock);
 	blk_set_queue_dying(q);
-	spin_lock_irq(lock);
 
-	queue_flag_set(QUEUE_FLAG_NOMERGES, q);
-	queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
-	queue_flag_set(QUEUE_FLAG_DYING, q);
-	spin_unlock_irq(lock);
+	blk_queue_flag_set(QUEUE_FLAG_NOMERGES, q);
+	blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
+	blk_queue_flag_set(QUEUE_FLAG_DYING, q);
 	mutex_unlock(&q->sysfs_lock);
 
 	/*
@@ -384,9 +346,7 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	rq_qos_exit(q);
 
-	spin_lock_irq(lock);
-	queue_flag_set(QUEUE_FLAG_DEAD, q);
-	spin_unlock_irq(lock);
+	blk_queue_flag_set(QUEUE_FLAG_DEAD, q);
 
 	/*
 	 * make sure all in-progress dispatch are completed because
