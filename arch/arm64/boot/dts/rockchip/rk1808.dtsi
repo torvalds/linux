@@ -212,7 +212,7 @@
 	};
 
 	usbdrd3: usb {
-		compatible = "rockchip,rk1808-dwc3";
+		compatible = "rockchip,rk1808-dwc3", "rockchip,rk3399-dwc3";
 		clocks = <&cru SCLK_USB3_OTG0_REF>, <&cru ACLK_USB3OTG>,
 			 <&cru SCLK_USB3_OTG0_SUSPEND>;
 		clock-names = "ref_clk", "bus_clk",
@@ -220,6 +220,8 @@
 		assigned-clocks = <&cru SCLK_USB3_OTG0_SUSPEND>;
 		assigned-clock-rates = <24000000>;
 		power-domains = <&power RK1808_PD_PCIE>;
+		resets = <&cru SRST_USB3_OTG_A>;
+		reset-names = "usb3-otg";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
