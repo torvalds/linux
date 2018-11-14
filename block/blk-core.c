@@ -393,7 +393,7 @@ EXPORT_SYMBOL(blk_cleanup_queue);
 
 struct request_queue *blk_alloc_queue(gfp_t gfp_mask)
 {
-	return blk_alloc_queue_node(gfp_mask, NUMA_NO_NODE, NULL);
+	return blk_alloc_queue_node(gfp_mask, NUMA_NO_NODE);
 }
 EXPORT_SYMBOL(blk_alloc_queue);
 
@@ -473,17 +473,8 @@ static void blk_rq_timed_out_timer(struct timer_list *t)
  * blk_alloc_queue_node - allocate a request queue
  * @gfp_mask: memory allocation flags
  * @node_id: NUMA node to allocate memory from
- * @lock: For legacy queues, pointer to a spinlock that will be used to e.g.
- *        serialize calls to the legacy .request_fn() callback. Ignored for
- *	  blk-mq request queues.
- *
- * Note: pass the queue lock as the third argument to this function instead of
- * setting the queue lock pointer explicitly to avoid triggering a sporadic
- * crash in the blkcg code. This function namely calls blkcg_init_queue() and
- * the queue lock pointer must be set before blkcg_init_queue() is called.
  */
-struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
-					   spinlock_t *lock)
+struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 {
 	struct request_queue *q;
 	int ret;
@@ -534,8 +525,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
 #endif
 	mutex_init(&q->sysfs_lock);
 	spin_lock_init(&q->__queue_lock);
-
-	q->queue_lock = lock ? : &q->__queue_lock;
+	q->queue_lock = &q->__queue_lock;
 
 	init_waitqueue_head(&q->mq_freeze_wq);
 
