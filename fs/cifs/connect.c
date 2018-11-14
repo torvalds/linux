@@ -57,6 +57,7 @@
 #include "smb2proto.h"
 #include "smbdirect.h"
 #include "dns_resolve.h"
+#include "cifsfs.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dfs_cache.h"
 #endif
@@ -322,6 +323,116 @@ static void tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink);
 static void cifs_prune_tlinks(struct work_struct *work);
 static int cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
 					const char *devname, bool is_smb3);
+static char *extract_hostname(const char *unc);
+
+#ifdef CONFIG_CIFS_DFS_UPCALL
+struct super_cb_data {
+	struct TCP_Server_Info *server;
+	struct cifs_sb_info *cifs_sb;
+};
+
+/* These functions must be called with server->srv_mutex held */
+
+static void super_cb(struct super_block *sb, void *arg)
+{
+	struct super_cb_data *d = arg;
+	struct cifs_sb_info *cifs_sb;
+	struct cifs_tcon *tcon;
+
+	if (d->cifs_sb)
+		return;
+
+	cifs_sb = CIFS_SB(sb);
+	tcon = cifs_sb_master_tcon(cifs_sb);
+	if (tcon->ses->server == d->server)
+		d->cifs_sb = cifs_sb;
+}
+
+static inline struct cifs_sb_info *
+find_super_by_tcp(struct TCP_Server_Info *server)
+{
+	struct super_cb_data d = {
+		.server = server,
+		.cifs_sb = NULL,
+	};
+
+	iterate_supers_type(&cifs_fs_type, super_cb, &d);
+	return d.cifs_sb ? d.cifs_sb : ERR_PTR(-ENOENT);
+}
+
+static void reconn_inval_dfs_target(struct TCP_Server_Info *server,
+				    struct cifs_sb_info *cifs_sb,
+				    struct dfs_cache_tgt_list *tgt_list,
+				    struct dfs_cache_tgt_iterator **tgt_it)
+{
+	const char *name;
+	int rc;
+	char *ipaddr = NULL;
+	char *unc;
+	int len;
+
+	if (!cifs_sb || !cifs_sb->origin_fullpath || !tgt_list ||
+	    !server->nr_targets)
+		return;
+
+	if (!*tgt_it) {
+		*tgt_it = dfs_cache_get_tgt_iterator(tgt_list);
+	} else {
+		*tgt_it = dfs_cache_get_next_tgt(tgt_list, *tgt_it);
+		if (!*tgt_it)
+			*tgt_it = dfs_cache_get_tgt_iterator(tgt_list);
+	}
+
+	cifs_dbg(FYI, "%s: UNC: %s\n", __func__, cifs_sb->origin_fullpath);
+
+	name = dfs_cache_get_tgt_name(*tgt_it);
+
+	kfree(server->hostname);
+
+	server->hostname = extract_hostname(name);
+	if (!server->hostname) {
+		cifs_dbg(FYI, "%s: failed to extract hostname from target: %d\n",
+			 __func__, -ENOMEM);
+		return;
+	}
+
+	len = strlen(server->hostname) + 3;
+
+	unc = kmalloc(len, GFP_KERNEL);
+	if (!unc) {
+		cifs_dbg(FYI, "%s: failed to create UNC path\n", __func__);
+		return;
+	}
+	snprintf(unc, len, "\\\\%s", server->hostname);
+
+	rc = dns_resolve_server_name_to_ip(unc, &ipaddr);
+	kfree(unc);
+
+	if (rc < 0) {
+		cifs_dbg(FYI, "%s: Failed to resolve server part of %s to IP: %d\n",
+			 __func__, server->hostname, rc);
+		return;
+	}
+
+	rc = cifs_convert_address((struct sockaddr *)&server->dstaddr, ipaddr,
+				  strlen(ipaddr));
+	kfree(ipaddr);
+
+	if (!rc) {
+		cifs_dbg(FYI, "%s: failed to get ipaddr out of hostname\n",
+			 __func__);
+	}
+}
+
+static inline int reconn_setup_dfs_targets(struct cifs_sb_info *cifs_sb,
+					   struct dfs_cache_tgt_list *tl,
+					   struct dfs_cache_tgt_iterator **it)
+{
+	if (!cifs_sb->origin_fullpath)
+		return -EOPNOTSUPP;
+	return dfs_cache_noreq_find(cifs_sb->origin_fullpath + 1, NULL, tl);
+}
+#endif
 
 /*
  * cifs tcp session reconnection
@@ -340,8 +451,33 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	struct cifs_tcon *tcon;
 	struct mid_q_entry *mid_entry;
 	struct list_head retry_list;
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	struct cifs_sb_info *cifs_sb;
+	struct dfs_cache_tgt_list tgt_list;
+	struct dfs_cache_tgt_iterator *tgt_it = NULL;
+#endif
 
 	spin_lock(&GlobalMid_Lock);
+	server->nr_targets = 1;
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	cifs_sb = find_super_by_tcp(server);
+	if (IS_ERR(cifs_sb)) {
+		rc = PTR_ERR(cifs_sb);
+		cifs_dbg(FYI, "%s: will not do DFS failover: rc = %d\n",
+			 __func__, rc);
+		cifs_sb = NULL;
+	} else {
+		rc = reconn_setup_dfs_targets(cifs_sb, &tgt_list, &tgt_it);
+		if (rc) {
+			cifs_dbg(VFS, "%s: no target servers for DFS failover\n",
+				 __func__);
+		} else {
+			server->nr_targets = dfs_cache_get_nr_tgts(&tgt_list);
+		}
+	}
+	cifs_dbg(FYI, "%s: will retry %d target(s)\n", __func__,
+		 server->nr_targets);
+#endif
 	if (server->tcpStatus == CifsExiting) {
 		/* the demux thread will exit normally
 		next time through the loop */
@@ -415,14 +551,22 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	do {
 		try_to_freeze();
 
-		/* we should try only the port we connected to before */
 		mutex_lock(&server->srv_mutex);
+		/*
+		 * Set up next DFS target server (if any) for reconnect. If DFS
+		 * feature is disabled, then we will retry last server we
+		 * connected to before.
+		 */
 		if (cifs_rdma_enabled(server))
 			rc = smbd_reconnect(server);
 		else
 			rc = generic_ip_connect(server);
 		if (rc) {
 			cifs_dbg(FYI, "reconnect error %d\n", rc);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+			reconn_inval_dfs_target(server, cifs_sb, &tgt_list,
+						&tgt_it);
+#endif
 			mutex_unlock(&server->srv_mutex);
 			msleep(3000);
 		} else {
@@ -435,6 +579,22 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		}
 	} while (server->tcpStatus == CifsNeedReconnect);
 
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	if (tgt_it) {
+		rc = dfs_cache_noreq_update_tgthint(cifs_sb->origin_fullpath + 1,
+						    tgt_it);
+		if (rc) {
+			cifs_dbg(VFS, "%s: failed to update DFS target hint: rc = %d\n",
+				 __func__, rc);
+		}
+		rc = dfs_cache_update_vol(cifs_sb->origin_fullpath, server);
+		if (rc) {
+			cifs_dbg(VFS, "%s: failed to update vol info in DFS cache: rc = %d\n",
+				 __func__, rc);
+		}
+	}
+	dfs_cache_free_tgts(&tgt_list);
+#endif
 	if (server->tcpStatus == CifsNeedNegotiate)
 		mod_delayed_work(cifsiod_wq, &server->echo, 0);
 
@@ -2471,6 +2631,8 @@ smbd_connected:
 	}
 	tcp_ses->tcpStatus = CifsNeedNegotiate;
 
+	tcp_ses->nr_targets = 1;
+
 	/* thread spawned, put it on the list */
 	spin_lock(&cifs_tcp_ses_lock);
 	list_add(&tcp_ses->tcp_ses_list, &cifs_tcp_ses_list);
@@ -4303,6 +4465,12 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 		goto error;
 	}
 
+	full_path = build_unc_path_to_root(vol, cifs_sb, true);
+	if (IS_ERR(full_path)) {
+		rc = PTR_ERR(full_path);
+		full_path = NULL;
+		goto error;
+	}
 	/*
 	 * Perform an unconditional check for whether there are DFS
 	 * referrals for this path without prefix, to provide support
@@ -4408,6 +4576,22 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 
 	if (rc)
 		goto error;
+
+	spin_lock(&cifs_tcp_ses_lock);
+	if (!tcon->dfs_path) {
+		/* Save full path in new tcon to do failover when reconnecting tcons */
+		tcon->dfs_path = full_path;
+		full_path = NULL;
+		tcon->remap = cifs_remap(cifs_sb);
+	}
+	cifs_sb->origin_fullpath = kstrndup(tcon->dfs_path,
+					    strlen(tcon->dfs_path), GFP_KERNEL);
+	if (!cifs_sb->origin_fullpath) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		rc = -ENOMEM;
+		goto error;
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*
 	 * After reconnecting to a different server, unique ids won't
@@ -4650,6 +4834,9 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 
 	kfree(cifs_sb->mountdata);
 	kfree(cifs_sb->prepath);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	kfree(cifs_sb->origin_fullpath);
+#endif
 	call_rcu(&cifs_sb->rcu, delayed_free);
 }
 
