@@ -106,11 +106,9 @@ struct pnv_phb {
 	struct dentry		*dbgfs;
 #endif
 
-#ifdef CONFIG_PCI_MSI
 	unsigned int		msi_base;
 	unsigned int		msi32_support;
 	struct msi_bitmap	msi_bmp;
-#endif
 	int (*msi_setup)(struct pnv_phb *phb, struct pci_dev *dev,
 			 unsigned int hwirq, unsigned int virq,
 			 unsigned int is_64, struct msi_msg *msg);

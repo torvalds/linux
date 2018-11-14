@@ -160,7 +160,6 @@ exit:
 }
 EXPORT_SYMBOL_GPL(pnv_pci_set_power_state);
 
-#ifdef CONFIG_PCI_MSI
 int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
@@ -229,7 +228,6 @@ void pnv_teardown_msi_irqs(struct pci_dev *pdev)
 		msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq - phb->msi_base, 1);
 	}
 }
-#endif /* CONFIG_PCI_MSI */
 
 /* Nicely print the contents of the PE State Tables (PEST). */
 static void pnv_pci_dump_pest(__be64 pestA[], __be64 pestB[], int pest_size)
