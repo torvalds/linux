@@ -2018,6 +2018,7 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 	bool csum = skb->ip_summed == CHECKSUM_PARTIAL;
 	int overhead = csum ? SMSC95XX_TX_OVERHEAD_CSUM : SMSC95XX_TX_OVERHEAD;
 	u32 tx_cmd_a, tx_cmd_b;
+	void *ptr;
 
 	/* We do not advertise SG, so skbs should be already linearized */
 	BUG_ON(skb_shinfo(skb)->nr_frags);
@@ -2030,6 +2031,9 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 		dev_kfree_skb_any(skb);
 		return NULL;
 	}
+
+	tx_cmd_b = (u32)skb->len;
+	tx_cmd_a = tx_cmd_b | TX_CMD_A_FIRST_SEG_ | TX_CMD_A_LAST_SEG_;
 
 	if (csum) {
 		if (skb->len <= 45) {
@@ -2044,24 +2048,18 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 			csum = false;
 		} else {
 			u32 csum_preamble = smsc95xx_calc_csum_preamble(skb);
-			skb_push(skb, 4);
-			cpu_to_le32s(&csum_preamble);
-			memcpy(skb->data, &csum_preamble, 4);
+			ptr = skb_push(skb, 4);
+			put_unaligned_le32(csum_preamble, ptr);
+
+			tx_cmd_a += 4;
+			tx_cmd_b += 4;
+			tx_cmd_b |= TX_CMD_B_CSUM_ENABLE;
 		}
 	}
 
-	skb_push(skb, 4);
-	tx_cmd_b = (u32)(skb->len - 4);
-	if (csum)
-		tx_cmd_b |= TX_CMD_B_CSUM_ENABLE;
-	cpu_to_le32s(&tx_cmd_b);
-	memcpy(skb->data, &tx_cmd_b, 4);
-
-	skb_push(skb, 4);
-	tx_cmd_a = (u32)(skb->len - 8) | TX_CMD_A_FIRST_SEG_ |
-		TX_CMD_A_LAST_SEG_;
-	cpu_to_le32s(&tx_cmd_a);
-	memcpy(skb->data, &tx_cmd_a, 4);
+	ptr = skb_push(skb, 8);
+	put_unaligned_le32(tx_cmd_a, ptr);
+	put_unaligned_le32(tx_cmd_b, ptr+4);
 
 	return skb;
 }
