@@ -11,6 +11,8 @@ Required properties:
 - battery-detect-gpios: GPIO for battery detection.
 - io-channels: Specify the IIO ADC channel to get temperature.
 - io-channel-names: Should be "bat-temp".
+- nvmem-cells: A phandle to the calibration cells provided by eFuse device.
+- nvmem-cell-names: Should be "fgu_calib".
 - monitored-battery: Phandle of battery characteristics devicetree node.
   See Documentation/devicetree/bindings/power/supply/battery.txt
 
@@ -47,6 +49,8 @@ Example:
 			battery-detect-gpios = <&pmic_eic 9 GPIO_ACTIVE_HIGH>;
 			io-channels = <&pmic_adc 5>;
 			io-channel-names = "bat-temp";
+			nvmem-cells = <&fgu_calib>;
+			nvmem-cell-names = "fgu_calib";
 			monitored-battery = <&bat>;
 		};
 	};
