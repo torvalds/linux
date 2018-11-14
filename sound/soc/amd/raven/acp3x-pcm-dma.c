@@ -309,6 +309,7 @@ static int acp3x_dma_open(struct snd_pcm_substream *substream)
 					    SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0) {
 		dev_err(component->dev, "set integer constraint failed\n");
+		kfree(i2s_data);
 		return ret;
 	}
 
