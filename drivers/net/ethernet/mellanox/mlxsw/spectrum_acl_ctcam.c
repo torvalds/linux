@@ -46,7 +46,6 @@ mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_region *region = cregion->region;
 	struct mlxsw_afk *afk = mlxsw_sp_acl_afk(mlxsw_sp->acl);
 	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
-	unsigned int blocks_count;
 	char *act_set;
 	u32 priority;
 	char *mask;
@@ -63,9 +62,7 @@ mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 			     centry->parman_item.index, priority);
 	key = mlxsw_reg_ptce2_flex_key_blocks_data(ptce2_pl);
 	mask = mlxsw_reg_ptce2_mask_data(ptce2_pl);
-	blocks_count = mlxsw_afk_key_info_blocks_count_get(region->key_info);
-	mlxsw_afk_encode(afk, region->key_info, &rulei->values, key, mask, 0,
-			 blocks_count - 1);
+	mlxsw_afk_encode(afk, region->key_info, &rulei->values, key, mask);
 
 	err = cregion->ops->entry_insert(cregion, centry, mask);
 	if (err)

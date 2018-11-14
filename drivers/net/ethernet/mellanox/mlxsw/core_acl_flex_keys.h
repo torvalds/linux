@@ -229,7 +229,7 @@ void mlxsw_afk_values_add_buf(struct mlxsw_afk_element_values *values,
 void mlxsw_afk_encode(struct mlxsw_afk *mlxsw_afk,
 		      struct mlxsw_afk_key_info *key_info,
 		      struct mlxsw_afk_element_values *values,
-		      char *key, char *mask, int block_start, int block_end);
+		      char *key, char *mask);
 void mlxsw_afk_clear(struct mlxsw_afk *mlxsw_afk, char *key,
 		     int block_start, int block_end);
 

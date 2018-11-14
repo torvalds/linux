@@ -439,12 +439,10 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	char mask[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN] = { 0 };
 	struct mlxsw_afk *afk = mlxsw_sp_acl_afk(mlxsw_sp->acl);
 	struct mlxsw_sp_acl_erp_mask *erp_mask;
-	unsigned int blocks_count;
 	int err;
 
-	blocks_count = mlxsw_afk_key_info_blocks_count_get(region->key_info);
 	mlxsw_afk_encode(afk, region->key_info, &rulei->values,
-			 aentry->ht_key.enc_key, mask, 0, blocks_count - 1);
+			 aentry->ht_key.enc_key, mask);
 
 	erp_mask = mlxsw_sp_acl_erp_mask_get(aregion, mask, false);
 	if (IS_ERR(erp_mask))
