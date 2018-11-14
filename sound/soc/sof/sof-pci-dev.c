@@ -222,21 +222,31 @@ static int sof_pci_probe(struct pci_dev *pci,
 #else
 	/* find machine */
 	mach = snd_soc_acpi_find_machine(desc->machines);
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	if (!mach) {
+		dev_warn(dev, "No matching ASoC machine driver found - falling back to HDA codec\n");
+		mach = snd_soc_acpi_intel_hda_machines;
+		mach->sof_fw_filename = desc->nocodec_fw_filename;
+
+		/*
+		 * TODO: we need to find a way to check if codecs are actually
+		 * present
+		 */
+	}
+#endif /* CONFIG_SND_SOC_SOF_HDA */
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
+	if (!mach) {
 		/* fallback to nocodec mode */
 		dev_warn(dev, "No matching ASoC machine driver found - using nocodec\n");
 		mach = devm_kzalloc(dev, sizeof(*mach), GFP_KERNEL);
 		ret = sof_nocodec_setup(dev, sof_pdata, mach, desc, ops);
 		if (ret < 0)
 			goto release_regions;
-#else
-		dev_warn(dev, "No matching ASoC machine driver found - falling back to HDA codec\n");
-		mach = snd_soc_acpi_intel_hda_machines;
-		mach->sof_fw_filename = desc->nocodec_fw_filename;
-#endif
 	}
-#endif
+#endif /* CONFIG_SND_SOC_SOF_NOCODEC */
+
+#endif /* CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE */
 
 	mach->pdata = ops;
 
