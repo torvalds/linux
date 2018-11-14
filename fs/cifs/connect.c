@@ -2295,7 +2295,7 @@ static int match_server(struct TCP_Server_Info *server, struct smb_vol *vol)
 	return 1;
 }
 
-static struct TCP_Server_Info *
+struct TCP_Server_Info *
 cifs_find_tcp_session(struct smb_vol *vol)
 {
 	struct TCP_Server_Info *server;

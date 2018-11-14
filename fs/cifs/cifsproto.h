@@ -527,6 +527,9 @@ extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 extern void
 cifs_cleanup_volume_info_contents(struct smb_vol *volume_info);
 
+extern struct TCP_Server_Info *
+cifs_find_tcp_session(struct smb_vol *vol);
+
 void cifs_readdata_release(struct kref *refcount);
 int cifs_async_readv(struct cifs_readdata *rdata);
 int cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid);
