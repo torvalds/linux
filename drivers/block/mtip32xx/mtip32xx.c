@@ -2770,10 +2770,7 @@ restart_eh:
 
 			blk_mq_quiesce_queue(dd->queue);
 
-			spin_lock(dd->queue->queue_lock);
-			blk_mq_tagset_busy_iter(&dd->tags,
-							mtip_queue_cmd, dd);
-			spin_unlock(dd->queue->queue_lock);
+			blk_mq_tagset_busy_iter(&dd->tags, mtip_queue_cmd, dd);
 
 			set_bit(MTIP_PF_ISSUE_CMDS_BIT, &dd->port->flags);
 
