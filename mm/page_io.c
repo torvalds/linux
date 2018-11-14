@@ -140,7 +140,7 @@ out:
 	unlock_page(page);
 	WRITE_ONCE(bio->bi_private, NULL);
 	bio_put(bio);
-	wake_up_process(waiter);
+	blk_wake_io_task(waiter);
 	put_task_struct(waiter);
 }
 
