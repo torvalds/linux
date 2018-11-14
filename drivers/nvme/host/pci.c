@@ -1082,6 +1082,23 @@ static int nvme_poll(struct blk_mq_hw_ctx *hctx, unsigned int tag)
 	return __nvme_poll(nvmeq, tag);
 }
 
+static int nvme_poll_noirq(struct blk_mq_hw_ctx *hctx, unsigned int tag)
+{
+	struct nvme_queue *nvmeq = hctx->driver_data;
+	u16 start, end;
+	bool found;
+
+	if (!nvme_cqe_pending(nvmeq))
+		return 0;
+
+	spin_lock(&nvmeq->cq_lock);
+	found = nvme_process_cq(nvmeq, &start, &end, tag);
+	spin_unlock(&nvmeq->cq_lock);
+
+	nvme_complete_cqes(nvmeq, start, end);
+	return found;
+}
+
 static void nvme_pci_submit_async_event(struct nvme_ctrl *ctrl)
 {
 	struct nvme_dev *dev = to_nvme_dev(ctrl);
@@ -1584,15 +1601,23 @@ static const struct blk_mq_ops nvme_mq_admin_ops = {
 	.timeout	= nvme_timeout,
 };
 
+#define NVME_SHARED_MQ_OPS					\
+	.queue_rq		= nvme_queue_rq,		\
+	.rq_flags_to_type	= nvme_rq_flags_to_type,	\
+	.complete		= nvme_pci_complete_rq,		\
+	.init_hctx		= nvme_init_hctx,		\
+	.init_request		= nvme_init_request,		\
+	.map_queues		= nvme_pci_map_queues,		\
+	.timeout		= nvme_timeout			\
+
 static const struct blk_mq_ops nvme_mq_ops = {
-	.queue_rq		= nvme_queue_rq,
-	.rq_flags_to_type	= nvme_rq_flags_to_type,
-	.complete		= nvme_pci_complete_rq,
-	.init_hctx		= nvme_init_hctx,
-	.init_request		= nvme_init_request,
-	.map_queues		= nvme_pci_map_queues,
-	.timeout		= nvme_timeout,
+	NVME_SHARED_MQ_OPS,
 	.poll			= nvme_poll,
+};
+
+static const struct blk_mq_ops nvme_mq_poll_noirq_ops = {
+	NVME_SHARED_MQ_OPS,
+	.poll			= nvme_poll_noirq,
 };
 
 static void nvme_dev_remove_admin(struct nvme_dev *dev)
@@ -2276,7 +2301,11 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	int ret;
 
 	if (!dev->ctrl.tagset) {
-		dev->tagset.ops = &nvme_mq_ops;
+		if (!dev->io_queues[NVMEQ_TYPE_POLL])
+			dev->tagset.ops = &nvme_mq_ops;
+		else
+			dev->tagset.ops = &nvme_mq_poll_noirq_ops;
+
 		dev->tagset.nr_hw_queues = dev->online_queues - 1;
 		dev->tagset.nr_maps = NVMEQ_TYPE_NR;
 		dev->tagset.timeout = NVME_IO_TIMEOUT;
