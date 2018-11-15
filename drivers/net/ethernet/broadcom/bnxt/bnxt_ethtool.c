@@ -137,7 +137,7 @@ reset_coalesce:
 	return rc;
 }
 
-#define BNXT_NUM_STATS	21
+#define BNXT_NUM_STATS	22
 
 #define BNXT_RX_STATS_ENTRY(counter)	\
 	{ BNXT_RX_STATS_OFFSET(counter), __stringify(counter) }
@@ -384,6 +384,7 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		for (k = 0; k < stat_fields; j++, k++)
 			buf[j] = le64_to_cpu(hw_stats[k]);
 		buf[j++] = cpr->rx_l4_csum_errors;
+		buf[j++] = cpr->missed_irqs;
 
 		bnxt_sw_func_stats[RX_TOTAL_DISCARDS].counter +=
 			le64_to_cpu(cpr->hw_stats->rx_discard_pkts);
@@ -467,6 +468,8 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			sprintf(buf, "[%d]: tpa_aborts", i);
 			buf += ETH_GSTRING_LEN;
 			sprintf(buf, "[%d]: rx_l4_csum_errors", i);
+			buf += ETH_GSTRING_LEN;
+			sprintf(buf, "[%d]: missed_irqs", i);
 			buf += ETH_GSTRING_LEN;
 		}
 		for (i = 0; i < BNXT_NUM_SW_FUNC_STATS; i++) {

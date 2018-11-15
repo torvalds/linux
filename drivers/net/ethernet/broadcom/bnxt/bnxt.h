@@ -818,6 +818,7 @@ struct bnxt_cp_ring_info {
 	dma_addr_t		hw_stats_map;
 	u32			hw_stats_ctx_id;
 	u64			rx_l4_csum_errors;
+	u64			missed_irqs;
 
 	struct bnxt_ring_struct	cp_ring_struct;
 
