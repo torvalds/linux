@@ -152,6 +152,7 @@ enum hclge_opcode_type {
 
 	/* TSO command */
 	HCLGE_OPC_TSO_GENERIC_CONFIG	= 0x0C01,
+	HCLGE_OPC_GRO_GENERIC_CONFIG    = 0x0C10,
 
 	/* RSS commands */
 	HCLGE_OPC_RSS_GENERIC_CONFIG	= 0x0D01,
@@ -756,6 +757,12 @@ struct hclge_cfg_tso_status_cmd {
 	__le16 tso_mss_min;
 	__le16 tso_mss_max;
 	u8 rsv[20];
+};
+
+#define HCLGE_GRO_EN_B		0
+struct hclge_cfg_gro_status_cmd {
+	__le16 gro_en;
+	u8 rsv[22];
 };
 
 #define HCLGE_TSO_MSS_MIN	256

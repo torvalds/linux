@@ -52,6 +52,7 @@
 #define HNAE3_UNIC_CLIENT_INITED_B		0x4
 #define HNAE3_ROCE_CLIENT_INITED_B		0x5
 #define HNAE3_DEV_SUPPORT_FD_B			0x6
+#define HNAE3_DEV_SUPPORT_GRO_B			0x7
 
 #define HNAE3_DEV_SUPPORT_ROCE_DCB_BITS (BIT(HNAE3_DEV_SUPPORT_DCB_B) |\
 		BIT(HNAE3_DEV_SUPPORT_ROCE_B))
@@ -64,6 +65,9 @@
 
 #define hnae3_dev_fd_supported(hdev) \
 	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B)
+
+#define hnae3_dev_gro_supported(hdev) \
+	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_GRO_B)
 
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
@@ -301,6 +305,8 @@ struct hnae3_ae_dev {
  *   Set vlan filter config of vf
  * enable_hw_strip_rxvtag()
  *   Enable/disable hardware strip vlan tag of packets received
+ * set_gro_en
+ *   Enable/disable HW GRO
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -445,6 +451,7 @@ struct hnae3_ae_ops {
 	bool (*get_hw_reset_stat)(struct hnae3_handle *handle);
 	bool (*ae_dev_resetting)(struct hnae3_handle *handle);
 	unsigned long (*ae_dev_reset_cnt)(struct hnae3_handle *handle);
+	int (*set_gro_en)(struct hnae3_handle *handle, int enable);
 };
 
 struct hnae3_dcb_ops {

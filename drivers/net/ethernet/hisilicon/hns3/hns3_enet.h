@@ -109,6 +109,10 @@ enum hns3_nic_state {
 #define HNS3_RXD_DOI_B				21
 #define HNS3_RXD_OL3E_B				22
 #define HNS3_RXD_OL4E_B				23
+#define HNS3_RXD_GRO_COUNT_S			24
+#define HNS3_RXD_GRO_COUNT_M			(0x3f << HNS3_RXD_GRO_COUNT_S)
+#define HNS3_RXD_GRO_FIXID_B			30
+#define HNS3_RXD_GRO_ECN_B			31
 
 #define HNS3_RXD_ODMAC_S			0
 #define HNS3_RXD_ODMAC_M			(0x3 << HNS3_RXD_ODMAC_S)
@@ -135,9 +139,8 @@ enum hns3_nic_state {
 #define HNS3_RXD_TSIND_S			12
 #define HNS3_RXD_TSIND_M			(0x7 << HNS3_RXD_TSIND_S)
 #define HNS3_RXD_LKBK_B				15
-#define HNS3_RXD_HDL_S				16
-#define HNS3_RXD_HDL_M				(0x7ff << HNS3_RXD_HDL_S)
-#define HNS3_RXD_HSIND_B			31
+#define HNS3_RXD_GRO_SIZE_S			16
+#define HNS3_RXD_GRO_SIZE_M			(0x3ff << HNS3_RXD_GRO_SIZE_S)
 
 #define HNS3_TXD_L3T_S				0
 #define HNS3_TXD_L3T_M				(0x3 << HNS3_TXD_L3T_S)
@@ -401,11 +404,19 @@ struct hns3_enet_ring {
 	 */
 	int next_to_clean;
 
+	int pull_len; /* head length for current packet */
+	u32 frag_num;
+	unsigned char *va; /* first buffer address for current packet */
+
 	u32 flag;          /* ring attribute */
 	int irq_init_flag;
 
 	int numa_node;
 	cpumask_t affinity_mask;
+
+	int pending_buf;
+	struct sk_buff *skb;
+	struct sk_buff *tail_skb;
 };
 
 struct hns_queue;
