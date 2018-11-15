@@ -849,15 +849,19 @@ static void profile_graph_return(struct ftrace_graph_ret *trace)
 	local_irq_restore(flags);
 }
 
+static struct fgraph_ops fprofiler_ops = {
+	.entryfunc = &profile_graph_entry,
+	.retfunc = &profile_graph_return,
+};
+
 static int register_ftrace_profiler(void)
 {
-	return register_ftrace_graph(&profile_graph_return,
-				     &profile_graph_entry);
+	return register_ftrace_graph(&fprofiler_ops);
 }
 
 static void unregister_ftrace_profiler(void)
 {
-	unregister_ftrace_graph();
+	unregister_ftrace_graph(&fprofiler_ops);
 }
 #else
 static struct ftrace_ops ftrace_profile_ops __read_mostly = {

@@ -741,6 +741,11 @@ static int trace_graph_entry_watchdog(struct ftrace_graph_ent *trace)
 	return trace_graph_entry(trace);
 }
 
+static struct fgraph_ops fgraph_ops __initdata  = {
+	.entryfunc		= &trace_graph_entry_watchdog,
+	.retfunc		= &trace_graph_return,
+};
+
 /*
  * Pretty much the same than for the function tracer from which the selftest
  * has been borrowed.
@@ -765,8 +770,7 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 	 */
 	tracing_reset_online_cpus(&tr->trace_buffer);
 	set_graph_array(tr);
-	ret = register_ftrace_graph(&trace_graph_return,
-				    &trace_graph_entry_watchdog);
+	ret = register_ftrace_graph(&fgraph_ops);
 	if (ret) {
 		warn_failed_init_tracer(trace, ret);
 		goto out;

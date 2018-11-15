@@ -162,6 +162,11 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace)
 	return;
 }
 
+static struct fgraph_ops fgraph_wakeup_ops = {
+	.entryfunc = &wakeup_graph_entry,
+	.retfunc = &wakeup_graph_return,
+};
+
 static void wakeup_trace_open(struct trace_iterator *iter)
 {
 	if (is_graph(iter->tr))
@@ -197,12 +202,6 @@ static void wakeup_print_header(struct seq_file *s)
 	else
 		trace_default_header(s);
 }
-#else /* CONFIG_FUNCTION_GRAPH_TRACER */
-static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
-{
-	return -1;
-}
-static void wakeup_graph_return(struct ftrace_graph_ret *trace) { }
 #endif /* else CONFIG_FUNCTION_GRAPH_TRACER */
 
 /*
@@ -237,8 +236,7 @@ static int register_wakeup_function(struct trace_array *tr, int graph, int set)
 		return 0;
 
 	if (graph)
-		ret = register_ftrace_graph(&wakeup_graph_return,
-					    &wakeup_graph_entry);
+		ret = register_ftrace_graph(&fgraph_wakeup_ops);
 	else
 		ret = register_ftrace_function(tr->ops);
 
@@ -254,7 +252,7 @@ static void unregister_wakeup_function(struct trace_array *tr, int graph)
 		return;
 
 	if (graph)
-		unregister_ftrace_graph();
+		unregister_ftrace_graph(&fgraph_wakeup_ops);
 	else
 		unregister_ftrace_function(tr->ops);
 

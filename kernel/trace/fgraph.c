@@ -490,8 +490,7 @@ static int start_graph_tracing(void)
 	return ret;
 }
 
-int register_ftrace_graph(trace_func_graph_ret_t retfunc,
-			trace_func_graph_ent_t entryfunc)
+int register_ftrace_graph(struct fgraph_ops *gops)
 {
 	int ret = 0;
 
@@ -512,7 +511,7 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 		goto out;
 	}
 
-	ftrace_graph_return = retfunc;
+	ftrace_graph_return = gops->retfunc;
 
 	/*
 	 * Update the indirect function to the entryfunc, and the
@@ -520,7 +519,7 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	 * call the update fgraph entry function to determine if
 	 * the entryfunc should be called directly or not.
 	 */
-	__ftrace_graph_entry = entryfunc;
+	__ftrace_graph_entry = gops->entryfunc;
 	ftrace_graph_entry = ftrace_graph_entry_test;
 	update_function_graph_func();
 
@@ -530,7 +529,7 @@ out:
 	return ret;
 }
 
-void unregister_ftrace_graph(void)
+void unregister_ftrace_graph(struct fgraph_ops *gops)
 {
 	mutex_lock(&ftrace_lock);
 

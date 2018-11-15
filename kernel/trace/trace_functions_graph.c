@@ -345,17 +345,25 @@ static void trace_graph_thresh_return(struct ftrace_graph_ret *trace)
 		trace_graph_return(trace);
 }
 
+static struct fgraph_ops funcgraph_thresh_ops = {
+	.entryfunc = &trace_graph_entry,
+	.retfunc = &trace_graph_thresh_return,
+};
+
+static struct fgraph_ops funcgraph_ops = {
+	.entryfunc = &trace_graph_entry,
+	.retfunc = &trace_graph_return,
+};
+
 static int graph_trace_init(struct trace_array *tr)
 {
 	int ret;
 
 	set_graph_array(tr);
 	if (tracing_thresh)
-		ret = register_ftrace_graph(&trace_graph_thresh_return,
-					    &trace_graph_entry);
+		ret = register_ftrace_graph(&funcgraph_thresh_ops);
 	else
-		ret = register_ftrace_graph(&trace_graph_return,
-					    &trace_graph_entry);
+		ret = register_ftrace_graph(&funcgraph_ops);
 	if (ret)
 		return ret;
 	tracing_start_cmdline_record();
@@ -366,7 +374,10 @@ static int graph_trace_init(struct trace_array *tr)
 static void graph_trace_reset(struct trace_array *tr)
 {
 	tracing_stop_cmdline_record();
-	unregister_ftrace_graph();
+	if (tracing_thresh)
+		unregister_ftrace_graph(&funcgraph_thresh_ops);
+	else
+		unregister_ftrace_graph(&funcgraph_ops);
 }
 
 static int graph_trace_update_thresh(struct trace_array *tr)
