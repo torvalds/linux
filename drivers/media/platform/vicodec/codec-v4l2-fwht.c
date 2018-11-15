@@ -11,6 +11,7 @@
 #include "codec-v4l2-fwht.h"
 
 static const struct v4l2_fwht_pixfmt_info v4l2_fwht_pixfmts[] = {
+	{ V4L2_PIX_FMT_GREY,    1, 1, 1, 1, 0, 1, 1, 1},
 	{ V4L2_PIX_FMT_YUV420,  1, 3, 2, 1, 1, 2, 2, 3},
 	{ V4L2_PIX_FMT_YVU420,  1, 3, 2, 1, 1, 2, 2, 3},
 	{ V4L2_PIX_FMT_YUV422P, 1, 2, 1, 1, 1, 2, 1, 3},
@@ -75,6 +76,10 @@ int v4l2_fwht_encode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 	rf.components_num = info->components_num;
 
 	switch (info->id) {
+	case V4L2_PIX_FMT_GREY:
+		rf.cb = NULL;
+		rf.cr = NULL;
+		break;
 	case V4L2_PIX_FMT_YUV420:
 		rf.cb = rf.luma + size;
 		rf.cr = rf.cb + size / 4;
@@ -165,6 +170,7 @@ int v4l2_fwht_encode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 	p_hdr->version = htonl(FWHT_VERSION);
 	p_hdr->width = htonl(cf.width);
 	p_hdr->height = htonl(cf.height);
+	flags |= (info->components_num - 1) << FWHT_FL_COMPONENTS_NUM_OFFSET;
 	if (encoding & FWHT_LUMA_UNENCODED)
 		flags |= FWHT_FL_LUMA_IS_UNCOMPRESSED;
 	if (encoding & FWHT_CB_UNENCODED)
@@ -195,6 +201,8 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 	struct fwht_cframe_hdr *p_hdr;
 	struct fwht_cframe cf;
 	u8 *p;
+	unsigned int components_num = 3;
+	unsigned int version;
 
 	if (!state->info)
 		return -EINVAL;
@@ -202,16 +210,16 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 	p_hdr = (struct fwht_cframe_hdr *)p_in;
 	cf.width = ntohl(p_hdr->width);
 	cf.height = ntohl(p_hdr->height);
-	flags = ntohl(p_hdr->flags);
-	state->colorspace = ntohl(p_hdr->colorspace);
-	state->xfer_func = ntohl(p_hdr->xfer_func);
-	state->ycbcr_enc = ntohl(p_hdr->ycbcr_enc);
-	state->quantization = ntohl(p_hdr->quantization);
-	cf.rlc_data = (__be16 *)(p_in + sizeof(*p_hdr));
+
+	version = ntohl(p_hdr->version);
+	if (!version || version > FWHT_VERSION) {
+		pr_err("version %d is not supported, current version is %d\n",
+		       version, FWHT_VERSION);
+		return -EINVAL;
+	}
 
 	if (p_hdr->magic1 != FWHT_MAGIC1 ||
 	    p_hdr->magic2 != FWHT_MAGIC2 ||
-	    ntohl(p_hdr->version) != FWHT_VERSION ||
 	    (cf.width & 7) || (cf.height & 7))
 		return -EINVAL;
 
@@ -219,14 +227,34 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 	if (cf.width != state->width || cf.height != state->height)
 		return -EINVAL;
 
+	flags = ntohl(p_hdr->flags);
+
+	if (version == FWHT_VERSION) {
+		components_num = 1 + ((flags & FWHT_FL_COMPONENTS_NUM_MSK) >>
+			FWHT_FL_COMPONENTS_NUM_OFFSET);
+	}
+
+	state->colorspace = ntohl(p_hdr->colorspace);
+	state->xfer_func = ntohl(p_hdr->xfer_func);
+	state->ycbcr_enc = ntohl(p_hdr->ycbcr_enc);
+	state->quantization = ntohl(p_hdr->quantization);
+	cf.rlc_data = (__be16 *)(p_in + sizeof(*p_hdr));
+
 	if (!(flags & FWHT_FL_CHROMA_FULL_WIDTH))
 		chroma_size /= 2;
 	if (!(flags & FWHT_FL_CHROMA_FULL_HEIGHT))
 		chroma_size /= 2;
 
-	fwht_decode_frame(&cf, &state->ref_frame, flags);
+	fwht_decode_frame(&cf, &state->ref_frame, flags, components_num);
 
+	/*
+	 * TODO - handle the case where the compressed stream encodes a
+	 * different format than the requested decoded format.
+	 */
 	switch (state->info->id) {
+	case V4L2_PIX_FMT_GREY:
+		memcpy(p_out, state->ref_frame.luma, size);
+		break;
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YUV422P:
 		memcpy(p_out, state->ref_frame.luma, size);
