@@ -1060,10 +1060,6 @@ struct i915_gem_mm {
 #define DP_AUX_E 0x50
 #define DP_AUX_F 0x60
 
-#define DDC_PIN_B  0x05
-#define DDC_PIN_C  0x04
-#define DDC_PIN_D  0x06
-
 struct ddi_vbt_port_info {
 	int max_tmds_clock;
 
