@@ -1655,6 +1655,29 @@ static int hclgevf_init_roce_base_info(struct hclgevf_dev *hdev)
 	return 0;
 }
 
+static int hclgevf_config_gro(struct hclgevf_dev *hdev, bool en)
+{
+	struct hclgevf_cfg_gro_status_cmd *req;
+	struct hclgevf_desc desc;
+	int ret;
+
+	if (!hnae3_dev_gro_supported(hdev))
+		return 0;
+
+	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_GRO_GENERIC_CONFIG,
+				     false);
+	req = (struct hclgevf_cfg_gro_status_cmd *)desc.data;
+
+	req->gro_en = cpu_to_le16(en ? 1 : 0);
+
+	ret = hclgevf_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"VF GRO hardware config cmd failed, ret = %d.\n", ret);
+
+	return ret;
+}
+
 static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 {
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
@@ -2122,6 +2145,10 @@ static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 		return ret;
 	}
 
+	ret = hclgevf_config_gro(hdev, true);
+	if (ret)
+		return ret;
+
 	ret = hclgevf_init_vlan_config(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
@@ -2198,6 +2225,10 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		dev_err(&pdev->dev, "failed(%d) to set handle info\n", ret);
 		goto err_config;
 	}
+
+	ret = hclgevf_config_gro(hdev, true);
+	if (ret)
+		goto err_config;
 
 	/* Initialize RSS for this VF */
 	ret = hclgevf_rss_init_hw(hdev);

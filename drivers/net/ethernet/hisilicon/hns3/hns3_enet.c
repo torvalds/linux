@@ -1714,8 +1714,10 @@ static void hns3_disable_sriov(struct pci_dev *pdev)
 static void hns3_get_dev_capability(struct pci_dev *pdev,
 				    struct hnae3_ae_dev *ae_dev)
 {
-	if (pdev->revision >= 0x21)
+	if (pdev->revision >= 0x21) {
 		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B, 1);
+		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_GRO_B, 1);
+	}
 }
 
 /* hns3_probe - Device initialization routine

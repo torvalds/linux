@@ -921,6 +921,28 @@ static int hclge_config_tso(struct hclge_dev *hdev, int tso_mss_min,
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
+static int hclge_config_gro(struct hclge_dev *hdev, bool en)
+{
+	struct hclge_cfg_gro_status_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	if (!hnae3_dev_gro_supported(hdev))
+		return 0;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_GRO_GENERIC_CONFIG, false);
+	req = (struct hclge_cfg_gro_status_cmd *)desc.data;
+
+	req->gro_en = cpu_to_le16(en ? 1 : 0);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"GRO hardware config cmd failed, ret = %d\n", ret);
+
+	return ret;
+}
+
 static int hclge_alloc_tqps(struct hclge_dev *hdev)
 {
 	struct hclge_tqp *tqp;
@@ -7090,6 +7112,10 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		goto err_mdiobus_unreg;
 	}
 
+	ret = hclge_config_gro(hdev, true);
+	if (ret)
+		goto err_mdiobus_unreg;
+
 	ret = hclge_init_vlan_config(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "VLAN init fail, ret =%d\n", ret);
@@ -7220,6 +7246,10 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		dev_err(&pdev->dev, "Enable tso fail, ret =%d\n", ret);
 		return ret;
 	}
+
+	ret = hclge_config_gro(hdev, true);
+	if (ret)
+		return ret;
 
 	ret = hclge_init_vlan_config(hdev);
 	if (ret) {
