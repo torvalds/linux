@@ -1116,6 +1116,53 @@ static const struct reset_control_ops meson8b_clk_reset_ops = {
 	.deassert = meson8b_clk_reset_deassert,
 };
 
+struct meson8b_nb_data {
+	struct notifier_block nb;
+	struct clk_hw_onecell_data *onecell_data;
+};
+
+static int meson8b_cpu_clk_notifier_cb(struct notifier_block *nb,
+				       unsigned long event, void *data)
+{
+	struct meson8b_nb_data *nb_data =
+		container_of(nb, struct meson8b_nb_data, nb);
+	struct clk_hw **hws = nb_data->onecell_data->hws;
+	struct clk_hw *cpu_clk_hw, *parent_clk_hw;
+	struct clk *cpu_clk, *parent_clk;
+	int ret;
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		parent_clk_hw = hws[CLKID_XTAL];
+		break;
+
+	case POST_RATE_CHANGE:
+		parent_clk_hw = hws[CLKID_CPU_SCALE_OUT_SEL];
+		break;
+
+	default:
+		return NOTIFY_DONE;
+	}
+
+	cpu_clk_hw = hws[CLKID_CPUCLK];
+	cpu_clk = __clk_lookup(clk_hw_get_name(cpu_clk_hw));
+
+	parent_clk = __clk_lookup(clk_hw_get_name(parent_clk_hw));
+
+	ret = clk_set_parent(cpu_clk, parent_clk);
+	if (ret)
+		return notifier_from_errno(ret);
+
+	udelay(100);
+
+	return NOTIFY_OK;
+}
+
+static struct meson8b_nb_data meson8b_cpu_nb_data = {
+	.nb.notifier_call = meson8b_cpu_clk_notifier_cb,
+	.onecell_data = &meson8b_hw_onecell_data,
+};
+
 static const struct regmap_config clkc_regmap_config = {
 	.reg_bits       = 32,
 	.val_bits       = 32,
@@ -1125,6 +1172,8 @@ static const struct regmap_config clkc_regmap_config = {
 static void __init meson8b_clkc_init(struct device_node *np)
 {
 	struct meson8b_clk_reset *rstc;
+	const char *notifier_clk_name;
+	struct clk *notifier_clk;
 	void __iomem *clk_base;
 	struct regmap *map;
 	int i, ret;
@@ -1177,6 +1226,20 @@ static void __init meson8b_clkc_init(struct device_node *np)
 		ret = clk_hw_register(NULL, meson8b_hw_onecell_data.hws[i]);
 		if (ret)
 			return;
+	}
+
+	/*
+	 * FIXME we shouldn't program the muxes in notifier handlers. The
+	 * tricky programming sequence will be handled by the forthcoming
+	 * coordinated clock rates mechanism once that feature is released.
+	 */
+	notifier_clk_name = clk_hw_get_name(&meson8b_cpu_scale_out_sel.hw);
+	notifier_clk = __clk_lookup(notifier_clk_name);
+	ret = clk_notifier_register(notifier_clk, &meson8b_cpu_nb_data.nb);
+	if (ret) {
+		pr_err("%s: failed to register the CPU clock notifier\n",
+		       __func__);
+		return;
 	}
 
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
