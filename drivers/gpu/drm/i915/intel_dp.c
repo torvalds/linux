@@ -6745,7 +6745,7 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 	if (port != PORT_A)
 		intel_infoframe_init(intel_dig_port);
 
-	intel_dig_port->aux_ch = intel_aux_ch(dev_priv, port);
+	intel_dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, port);
 	if (!intel_dp_init_connector(intel_dig_port, intel_connector))
 		goto err_init_connector;
 

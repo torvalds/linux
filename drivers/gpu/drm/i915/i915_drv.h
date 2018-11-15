@@ -3455,7 +3455,7 @@ bool intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
 				     enum port port);
 bool intel_bios_is_lspcon_present(struct drm_i915_private *dev_priv,
 				enum port port);
-enum aux_ch intel_aux_ch(struct drm_i915_private *dev_priv, enum port port);
+enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv, enum port port);
 
 /* intel_acpi.c */
 #ifdef CONFIG_ACPI

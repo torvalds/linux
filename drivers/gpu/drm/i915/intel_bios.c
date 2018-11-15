@@ -2191,7 +2191,8 @@ intel_bios_is_lspcon_present(struct drm_i915_private *dev_priv,
 	return false;
 }
 
-enum aux_ch intel_aux_ch(struct drm_i915_private *dev_priv, enum port port)
+enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
+				   enum port port)
 {
 	const struct ddi_vbt_port_info *info =
 		&dev_priv->vbt.ddi_port_info[port];

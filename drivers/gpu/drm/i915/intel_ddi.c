@@ -4119,7 +4119,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 			(DDI_BUF_PORT_REVERSAL | DDI_A_4_LANES);
 	intel_dig_port->dp.output_reg = INVALID_MMIO_REG;
 	intel_dig_port->max_lanes = intel_ddi_max_lanes(intel_dig_port);
-	intel_dig_port->aux_ch = intel_aux_ch(dev_priv, port);
+	intel_dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, port);
 
 	switch (port) {
 	case PORT_A:
