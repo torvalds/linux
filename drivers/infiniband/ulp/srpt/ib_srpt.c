@@ -3617,7 +3617,7 @@ static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
 					     const char *name)
 {
 	struct srpt_port *sport = wwn->priv;
-	static struct se_portal_group *tpg;
+	struct se_portal_group *tpg;
 	int res;
 
 	WARN_ON_ONCE(wwn != &sport->port_guid_wwn &&
