@@ -349,6 +349,9 @@ ice_prepare_for_reset(struct ice_pf *pf)
 	/* disable the VSIs and their queues that are not already DOWN */
 	ice_pf_dis_all_vsi(pf);
 
+	if (hw->port_info)
+		ice_sched_clear_port(hw->port_info);
+
 	ice_shutdown_all_ctrlq(hw);
 
 	set_bit(__ICE_PREPARED_FOR_RESET, pf->state);
@@ -2091,8 +2094,7 @@ static int ice_probe(struct pci_dev *pdev,
 
 	ice_determine_q_usage(pf);
 
-	pf->num_alloc_vsi = min_t(u16, ICE_MAX_VSI_ALLOC,
-				  hw->func_caps.guaranteed_num_vsi);
+	pf->num_alloc_vsi = hw->func_caps.guar_num_vsi;
 	if (!pf->num_alloc_vsi) {
 		err = -EIO;
 		goto err_init_pf_unroll;
@@ -2544,7 +2546,6 @@ static int ice_vsi_cfg(struct ice_vsi *vsi)
 		if (err)
 			return err;
 	}
-
 	err = ice_vsi_cfg_txqs(vsi);
 	if (!err)
 		err = ice_vsi_cfg_rxqs(vsi);
@@ -3138,8 +3139,9 @@ static void ice_vsi_release_all(struct ice_pf *pf)
 /**
  * ice_dis_vsi - pause a VSI
  * @vsi: the VSI being paused
+ * @locked: is the rtnl_lock already held
  */
-static void ice_dis_vsi(struct ice_vsi *vsi)
+static void ice_dis_vsi(struct ice_vsi *vsi, bool locked)
 {
 	if (test_bit(__ICE_DOWN, vsi->state))
 		return;
@@ -3148,9 +3150,13 @@ static void ice_dis_vsi(struct ice_vsi *vsi)
 
 	if (vsi->type == ICE_VSI_PF && vsi->netdev) {
 		if (netif_running(vsi->netdev)) {
-			rtnl_lock();
-			vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
-			rtnl_unlock();
+			if (!locked) {
+				rtnl_lock();
+				vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
+				rtnl_unlock();
+			} else {
+				vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
+			}
 		} else {
 			ice_vsi_close(vsi);
 		}
@@ -3189,7 +3195,7 @@ static void ice_pf_dis_all_vsi(struct ice_pf *pf)
 
 	ice_for_each_vsi(pf, v)
 		if (pf->vsi[v])
-			ice_dis_vsi(pf->vsi[v]);
+			ice_dis_vsi(pf->vsi[v], false);
 }
 
 /**
@@ -3691,8 +3697,8 @@ static void ice_tx_timeout(struct net_device *netdev)
 	struct ice_ring *tx_ring = NULL;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
-	u32 head, val = 0, i;
 	int hung_queue = -1;
+	u32 i;
 
 	pf->tx_timeout_count++;
 
@@ -3736,17 +3742,20 @@ static void ice_tx_timeout(struct net_device *netdev)
 		return;
 
 	if (tx_ring) {
-		head = tx_ring->next_to_clean;
+		struct ice_hw *hw = &pf->hw;
+		u32 head, val = 0;
+
+		head = (rd32(hw, QTX_COMM_HEAD(vsi->txq_map[hung_queue])) &
+			QTX_COMM_HEAD_HEAD_M) >> QTX_COMM_HEAD_HEAD_S;
 		/* Read interrupt register */
 		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-			val = rd32(&pf->hw,
+			val = rd32(hw,
 				   GLINT_DYN_CTL(tx_ring->q_vector->v_idx +
 					tx_ring->vsi->hw_base_vector));
 
-		netdev_info(netdev, "tx_timeout: VSI_num: %d, Q %d, NTC: 0x%x, HWB: 0x%x, NTU: 0x%x, TAIL: 0x%x, INT: 0x%x\n",
+		netdev_info(netdev, "tx_timeout: VSI_num: %d, Q %d, NTC: 0x%x, HW_HEAD: 0x%x, NTU: 0x%x, INT: 0x%x\n",
 			    vsi->vsi_num, hung_queue, tx_ring->next_to_clean,
-			    head, tx_ring->next_to_use,
-			    readl(tx_ring->tail), val);
+			    head, tx_ring->next_to_use, val);
 	}
 
 	pf->tx_timeout_last_recovery = jiffies;

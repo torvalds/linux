@@ -87,6 +87,7 @@ struct ice_aqc_list_caps {
 /* Device/Function buffer entry, repeated per reported capability */
 struct ice_aqc_list_caps_elem {
 	__le16 cap;
+#define ICE_AQC_CAPS_VALID_FUNCTIONS			0x0005
 #define ICE_AQC_CAPS_SRIOV				0x0012
 #define ICE_AQC_CAPS_VF					0x0013
 #define ICE_AQC_CAPS_VSI				0x0017
@@ -1065,10 +1066,10 @@ struct ice_aqc_nvm {
 #define ICE_AQC_NVM_LAST_CMD		BIT(0)
 #define ICE_AQC_NVM_PCIR_REQ		BIT(0)	/* Used by NVM Update reply */
 #define ICE_AQC_NVM_PRESERVATION_S	1
-#define ICE_AQC_NVM_PRESERVATION_M	(3 << CSR_AQ_NVM_PRESERVATION_S)
-#define ICE_AQC_NVM_NO_PRESERVATION	(0 << CSR_AQ_NVM_PRESERVATION_S)
+#define ICE_AQC_NVM_PRESERVATION_M	(3 << ICE_AQC_NVM_PRESERVATION_S)
+#define ICE_AQC_NVM_NO_PRESERVATION	(0 << ICE_AQC_NVM_PRESERVATION_S)
 #define ICE_AQC_NVM_PRESERVE_ALL	BIT(1)
-#define ICE_AQC_NVM_PRESERVE_SELECTED	(3 << CSR_AQ_NVM_PRESERVATION_S)
+#define ICE_AQC_NVM_PRESERVE_SELECTED	(3 << ICE_AQC_NVM_PRESERVATION_S)
 #define ICE_AQC_NVM_FLASH_ONLY		BIT(7)
 	__le16 module_typeid;
 	__le16 length;

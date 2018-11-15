@@ -52,7 +52,6 @@ extern const char ice_drv_ver[];
 #define ICE_MBXQ_LEN		64
 #define ICE_MIN_MSIX		2
 #define ICE_NO_VSI		0xffff
-#define ICE_MAX_VSI_ALLOC	130
 #define ICE_MAX_TXQS		2048
 #define ICE_MAX_RXQS		2048
 #define ICE_VSI_MAP_CONTIG	0
@@ -113,7 +112,9 @@ extern const char ice_drv_ver[];
 
 struct ice_tc_info {
 	u16 qoffset;
-	u16 qcount;
+	u16 qcount_tx;
+	u16 qcount_rx;
+	u8 netdev_tc;
 };
 
 struct ice_tc_cfg {
