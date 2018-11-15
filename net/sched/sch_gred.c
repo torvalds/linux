@@ -152,6 +152,19 @@ static int gred_use_harddrop(struct gred_sched_data *q)
 	return q->red_flags & TC_RED_HARDDROP;
 }
 
+static bool gred_per_vq_red_flags_used(struct gred_sched *table)
+{
+	unsigned int i;
+
+	/* Local per-vq flags couldn't have been set unless global are 0 */
+	if (table->red_flags)
+		return false;
+	for (i = 0; i < MAX_DPs; i++)
+		if (table->tab[i] && table->tab[i]->red_flags)
+			return true;
+	return false;
+}
+
 static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			struct sk_buff **to_free)
 {
@@ -329,6 +342,10 @@ static int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps,
 		NL_SET_ERR_MSG_MOD(extack, "default virtual queue above virtual queue count");
 		return -EINVAL;
 	}
+	if (sopt->flags && gred_per_vq_red_flags_used(table)) {
+		NL_SET_ERR_MSG_MOD(extack, "can't set per-Qdisc RED flags when per-virtual queue flags are used");
+		return -EINVAL;
+	}
 
 	sch_tree_lock(sch);
 	table->DPs = sopt->DPs;
@@ -410,14 +427,126 @@ static inline int gred_change_vq(struct Qdisc *sch, int dp,
 	return 0;
 }
 
+static const struct nla_policy gred_vq_policy[TCA_GRED_VQ_MAX + 1] = {
+	[TCA_GRED_VQ_DP]	= { .type = NLA_U32 },
+	[TCA_GRED_VQ_FLAGS]	= { .type = NLA_U32 },
+};
+
+static const struct nla_policy gred_vqe_policy[TCA_GRED_VQ_ENTRY_MAX + 1] = {
+	[TCA_GRED_VQ_ENTRY]	= { .type = NLA_NESTED },
+};
+
 static const struct nla_policy gred_policy[TCA_GRED_MAX + 1] = {
 	[TCA_GRED_PARMS]	= { .len = sizeof(struct tc_gred_qopt) },
 	[TCA_GRED_STAB]		= { .len = 256 },
 	[TCA_GRED_DPS]		= { .len = sizeof(struct tc_gred_sopt) },
 	[TCA_GRED_MAX_P]	= { .type = NLA_U32 },
 	[TCA_GRED_LIMIT]	= { .type = NLA_U32 },
-	[TCA_GRED_VQ_LIST]	= { .type = NLA_REJECT },
+	[TCA_GRED_VQ_LIST]	= { .type = NLA_NESTED },
 };
+
+static void gred_vq_apply(struct gred_sched *table, const struct nlattr *entry)
+{
+	struct nlattr *tb[TCA_GRED_VQ_MAX + 1];
+	u32 dp;
+
+	nla_parse_nested(tb, TCA_GRED_VQ_MAX, entry, gred_vq_policy, NULL);
+
+	dp = nla_get_u32(tb[TCA_GRED_VQ_DP]);
+
+	if (tb[TCA_GRED_VQ_FLAGS])
+		table->tab[dp]->red_flags = nla_get_u32(tb[TCA_GRED_VQ_FLAGS]);
+}
+
+static void gred_vqs_apply(struct gred_sched *table, struct nlattr *vqs)
+{
+	const struct nlattr *attr;
+	int rem;
+
+	nla_for_each_nested(attr, vqs, rem) {
+		switch (nla_type(attr)) {
+		case TCA_GRED_VQ_ENTRY:
+			gred_vq_apply(table, attr);
+			break;
+		}
+	}
+}
+
+static int gred_vq_validate(struct gred_sched *table, u32 cdp,
+			    const struct nlattr *entry,
+			    struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[TCA_GRED_VQ_MAX + 1];
+	int err;
+	u32 dp;
+
+	err = nla_parse_nested(tb, TCA_GRED_VQ_MAX, entry, gred_vq_policy,
+			       extack);
+	if (err < 0)
+		return err;
+
+	if (!tb[TCA_GRED_VQ_DP]) {
+		NL_SET_ERR_MSG_MOD(extack, "Virtual queue with no index specified");
+		return -EINVAL;
+	}
+	dp = nla_get_u32(tb[TCA_GRED_VQ_DP]);
+	if (dp >= table->DPs) {
+		NL_SET_ERR_MSG_MOD(extack, "Virtual queue with index out of bounds");
+		return -EINVAL;
+	}
+	if (dp != cdp && !table->tab[dp]) {
+		NL_SET_ERR_MSG_MOD(extack, "Virtual queue not yet instantiated");
+		return -EINVAL;
+	}
+
+	if (tb[TCA_GRED_VQ_FLAGS]) {
+		u32 red_flags = nla_get_u32(tb[TCA_GRED_VQ_FLAGS]);
+
+		if (table->red_flags && table->red_flags != red_flags) {
+			NL_SET_ERR_MSG_MOD(extack, "can't change per-virtual queue RED flags when per-Qdisc flags are used");
+			return -EINVAL;
+		}
+		if (red_flags & ~GRED_VQ_RED_FLAGS) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "invalid RED flags specified");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int gred_vqs_validate(struct gred_sched *table, u32 cdp,
+			     struct nlattr *vqs, struct netlink_ext_ack *extack)
+{
+	const struct nlattr *attr;
+	int rem, err;
+
+	err = nla_validate_nested(vqs, TCA_GRED_VQ_ENTRY_MAX,
+				  gred_vqe_policy, extack);
+	if (err < 0)
+		return err;
+
+	nla_for_each_nested(attr, vqs, rem) {
+		switch (nla_type(attr)) {
+		case TCA_GRED_VQ_ENTRY:
+			err = gred_vq_validate(table, cdp, attr, extack);
+			if (err)
+				return err;
+			break;
+		default:
+			NL_SET_ERR_MSG_MOD(extack, "GRED_VQ_LIST can contain only entry attributes");
+			return -EINVAL;
+		}
+	}
+
+	if (rem > 0) {
+		NL_SET_ERR_MSG_MOD(extack, "Trailing data after parsing virtual queue list");
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 		       struct netlink_ext_ack *extack)
@@ -460,6 +589,13 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 	}
 
+	if (tb[TCA_GRED_VQ_LIST]) {
+		err = gred_vqs_validate(table, ctl->DP, tb[TCA_GRED_VQ_LIST],
+					extack);
+		if (err)
+			return err;
+	}
+
 	if (gred_rio_mode(table)) {
 		if (ctl->prio == 0) {
 			int def_prio = GRED_DEF_PRIO;
@@ -482,6 +618,9 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 			     extack);
 	if (err < 0)
 		goto err_unlock_free;
+
+	if (tb[TCA_GRED_VQ_LIST])
+		gred_vqs_apply(table, tb[TCA_GRED_VQ_LIST]);
 
 	if (gred_rio_mode(table)) {
 		gred_disable_wred_mode(table);
@@ -625,6 +764,9 @@ append_opt:
 			goto nla_put_failure;
 
 		if (nla_put_u32(skb, TCA_GRED_VQ_DP, q->DP))
+			goto nla_put_failure;
+
+		if (nla_put_u32(skb, TCA_GRED_VQ_FLAGS, q->red_flags))
 			goto nla_put_failure;
 
 		/* Stats */
