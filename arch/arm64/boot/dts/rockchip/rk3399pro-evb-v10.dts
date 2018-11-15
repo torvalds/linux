@@ -348,8 +348,12 @@
 		reg = <0x20>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <RK_PC2 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "pmic-sleep",
+				"pmic-power-off", "pmic-reset";
 		pinctrl-0 = <&pmic_int_l>;
+		pinctrl-1 = <&soc_slppin_slp>, <&rk809_slppin_slp>;
+		pinctrl-2 = <&soc_slppin_gpio>, <&rk809_slppin_pwrdn>;
+		pinctrl-3 = <&soc_slppin_rst>, <&rk809_slppin_rst>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
@@ -365,6 +369,39 @@
 		vcc8-supply = <&vcc3v3_sys>;
 		vcc9-supply = <&vcc5v0_sys>;
 
+		pwrkey {
+			status = "okay";
+		};
+
+		rtc {
+			status = "okay";
+		};
+
+		pinctrl_rk8xx: pinctrl_rk8xx {
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			rk809_slppin_null: rk809_slppin_null {
+				pins = "gpio_slp";
+				function = "pin_fun0";
+			};
+
+			rk809_slppin_slp: rk809_slppin_slp {
+				pins = "gpio_slp";
+				function = "pin_fun1";
+			};
+
+			rk809_slppin_pwrdn: rk809_slppin_pwrdn {
+				pins = "gpio_slp";
+				function = "pin_fun2";
+			};
+
+			rk809_slppin_rst: rk809_slppin_rst {
+				pins = "gpio_slp";
+				function = "pin_fun3";
+			};
+		};
+
 		regulators {
 			vdd_log: DCDC_REG1 {
 				regulator-always-on;
@@ -375,6 +412,7 @@
 				regulator-name = "vdd_log";
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <900000>;
 				};
 			};
 
@@ -410,17 +448,19 @@
 				regulator-name = "vcc3v3_sys";
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
 				};
 			};
 
 			vcc_buck5: DCDC_REG5 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <2200000>;
+				regulator-max-microvolt = <2200000>;
 				regulator-name = "vcc_buck5";
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <2200000>;
 				};
 			};
 
@@ -431,8 +471,7 @@
 				regulator-max-microvolt = <900000>;
 				regulator-name = "vcca_0v9";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <900000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -470,9 +509,7 @@
 
 				regulator-name = "vcca_1v8";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1800000>;
-
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -485,7 +522,6 @@
 				regulator-name = "vdd1v5_dvp";
 				regulator-state-mem {
 					regulator-off-in-suspend;
-					regulator-suspend-microvolt = <1500000>;
 				};
 			};
 
@@ -497,9 +533,7 @@
 
 				regulator-name = "vcc_1v5";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1500000>;
-
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -511,8 +545,7 @@
 
 				regulator-name = "vcc_3v0";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3000000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -548,8 +581,7 @@
 
 				regulator-name = "vcc5v0_usb";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <5000000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -561,8 +593,7 @@
 
 				regulator-name = "vccio_3v3";
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-off-in-suspend;
 				};
 			};
 		};
@@ -669,7 +700,7 @@
 		compatible = "ak8963";
 		reg = <0x0d>;
 		type = <SENSOR_TYPE_COMPASS>;
-		irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_EDGE_RISING>;
+		irq-gpio = <&gpio3 RK_PD7 IRQ_TYPE_EDGE_RISING>;
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		layout = <3>;
@@ -943,6 +974,21 @@
 		vsel2_gpio: vsel2-gpio {
 			rockchip,pins =
 				<1 RK_PB6 0 &pcfg_pull_down>;
+		};
+
+		soc_slppin_gpio: soc-slppin-gpio {
+			rockchip,pins =
+				<1 RK_PA5 0 &pcfg_output_low>;
+		};
+
+		soc_slppin_slp: soc-slppin-slp {
+			rockchip,pins =
+				<1 RK_PA5 1 &pcfg_pull_none>;
+		};
+
+		soc_slppin_rst: soc-slppin-rst {
+			rockchip,pins =
+				<1 RK_PA5 2 &pcfg_pull_none>;
 		};
 	};
 
