@@ -5,7 +5,7 @@
  * Copyright 2017 Nuvoton Technology Crop.
  *
  * Author: David Lin <ctlin0@nuvoton.com>
- * Co-author: John Hsu <kchsu@nuvoton.com>
+ * Co-author: John Hsu <kchsu0@nuvoton.com>
  * Co-author: Seven Li <wtli@nuvoton.com>
  */
 
