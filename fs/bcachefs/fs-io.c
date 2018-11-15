@@ -454,12 +454,12 @@ struct bch_page_state {
 union { struct {
 	/* existing data: */
 	unsigned		sectors:PAGE_SECTOR_SHIFT + 1;
-	unsigned		nr_replicas:4;
-	unsigned		compressed:1;
 
-	/* Owns PAGE_SECTORS sized reservation: */
-	unsigned		reserved:1;
-	unsigned		reservation_replicas:4;
+	/* Uncompressed, fully allocated replicas: */
+	unsigned		nr_replicas:4;
+
+	/* Owns PAGE_SECTORS * replicas_reserved sized reservation: */
+	unsigned		replicas_reserved:4;
 
 	/* Owns PAGE_SECTORS sized quota reservation: */
 	unsigned		quota_reserved:1;
@@ -506,7 +506,7 @@ static inline struct bch_page_state *page_state(struct page *page)
 static inline unsigned page_res_sectors(struct bch_page_state s)
 {
 
-	return s.reserved ? s.reservation_replicas * PAGE_SECTORS : 0;
+	return s.replicas_reserved * PAGE_SECTORS;
 }
 
 static void __bch2_put_page_reservation(struct bch_fs *c, struct bch_inode_info *inode,
@@ -524,8 +524,10 @@ static void bch2_put_page_reservation(struct bch_fs *c, struct bch_inode_info *i
 {
 	struct bch_page_state s;
 
+	EBUG_ON(!PageLocked(page));
+
 	s = page_state_cmpxchg(page_state(page), s, {
-		s.reserved		= 0;
+		s.replicas_reserved	= 0;
 		s.quota_reserved	= 0;
 	});
 
@@ -535,62 +537,46 @@ static void bch2_put_page_reservation(struct bch_fs *c, struct bch_inode_info *i
 static int bch2_get_page_reservation(struct bch_fs *c, struct bch_inode_info *inode,
 				     struct page *page, bool check_enospc)
 {
-	struct bch_page_state *s = page_state(page), new, old;
+	struct bch_page_state *s = page_state(page), new;
 
 	/* XXX: this should not be open coded */
 	unsigned nr_replicas = inode->ei_inode.bi_data_replicas
 		? inode->ei_inode.bi_data_replicas - 1
 		: c->opts.data_replicas;
-
-	struct disk_reservation disk_res = bch2_disk_reservation_init(c,
-						nr_replicas);
+	struct disk_reservation disk_res;
 	struct quota_res quota_res = { 0 };
-	int ret = 0;
+	int ret;
 
-	/*
-	 * XXX: this could likely be quite a bit simpler, page reservations
-	 * _should_ only be manipulated with page locked:
-	 */
+	EBUG_ON(!PageLocked(page));
 
-	old = page_state_cmpxchg(s, new, {
-		if (new.reserved
-		    ? (new.reservation_replicas < disk_res.nr_replicas)
-		    : (new.sectors < PAGE_SECTORS ||
-		       new.nr_replicas < disk_res.nr_replicas ||
-		       new.compressed)) {
-			int sectors = (disk_res.nr_replicas * PAGE_SECTORS -
-				       page_res_sectors(new) -
-				       disk_res.sectors);
+	if (s->replicas_reserved < nr_replicas) {
+		ret = bch2_disk_reservation_get(c, &disk_res, PAGE_SECTORS,
+				nr_replicas - s->replicas_reserved,
+				!check_enospc ? BCH_DISK_RESERVATION_NOFAIL : 0);
+		if (unlikely(ret))
+			return ret;
 
-			if (sectors > 0) {
-				ret = bch2_disk_reservation_add(c, &disk_res, sectors,
-						!check_enospc
-						? BCH_DISK_RESERVATION_NOFAIL : 0);
-				if (unlikely(ret))
-					goto err;
-			}
+		page_state_cmpxchg(s, new, ({
+			BUG_ON(new.replicas_reserved +
+			       disk_res.nr_replicas != nr_replicas);
+			new.replicas_reserved += disk_res.nr_replicas;
+		}));
+	}
 
-			new.reserved = 1;
-			new.reservation_replicas = disk_res.nr_replicas;
-		}
+	if (!s->quota_reserved &&
+	    s->sectors + s->dirty_sectors < PAGE_SECTORS) {
+		ret = bch2_quota_reservation_add(c, inode, &quota_res,
+						 PAGE_SECTORS,
+						 check_enospc);
+		if (unlikely(ret))
+			return ret;
 
-		if (!new.quota_reserved &&
-		    new.sectors + new.dirty_sectors < PAGE_SECTORS) {
-			ret = bch2_quota_reservation_add(c, inode, &quota_res,
-						PAGE_SECTORS - quota_res.sectors,
-						check_enospc);
-			if (unlikely(ret))
-				goto err;
-
+		page_state_cmpxchg(s, new, ({
+			BUG_ON(new.quota_reserved);
 			new.quota_reserved = 1;
-		}
-	});
+		}));
+	}
 
-	quota_res.sectors -= (new.quota_reserved - old.quota_reserved) * PAGE_SECTORS;
-	disk_res.sectors -= page_res_sectors(new) - page_res_sectors(old);
-err:
-	bch2_quota_reservation_put(c, inode, &quota_res);
-	bch2_disk_reservation_put(c, &disk_res);
 	return ret;
 }
 
@@ -599,6 +585,8 @@ static void bch2_clear_page_bits(struct page *page)
 	struct bch_inode_info *inode = to_bch_ei(page->mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_page_state s;
+
+	EBUG_ON(!PageLocked(page));
 
 	if (!PagePrivate(page))
 		return;
@@ -763,11 +751,8 @@ static void bch2_readpages_end_io(struct bio *bio)
 
 static inline void page_state_init_for_read(struct page *page)
 {
-	struct bch_page_state *s = page_state(page);
-
-	BUG_ON(s->reserved);
-	s->sectors	= 0;
-	s->compressed	= 0;
+	SetPagePrivate(page);
+	page->private = 0;
 }
 
 struct readpages_iter {
@@ -816,10 +801,13 @@ static void bch2_add_page_sectors(struct bio *bio, struct bkey_s_c k)
 {
 	struct bvec_iter iter;
 	struct bio_vec bv;
-	bool compressed = bch2_extent_is_compressed(k);
-	unsigned nr_ptrs = bch2_extent_nr_dirty_ptrs(k);
+	unsigned nr_ptrs = !bch2_extent_is_compressed(k)
+		? bch2_extent_nr_dirty_ptrs(k)
+		: 0;
 
 	bio_for_each_segment(bv, bio, iter) {
+		/* brand new pages, don't need to be locked: */
+
 		struct bch_page_state *s = page_state(bv.bv_page);
 
 		/* sectors in @k from the start of this page: */
@@ -827,14 +815,11 @@ static void bch2_add_page_sectors(struct bio *bio, struct bkey_s_c k)
 
 		unsigned page_sectors = min(bv.bv_len >> 9, k_sectors);
 
-		s->nr_replicas = !s->sectors
-			? nr_ptrs
-			: min_t(unsigned, s->nr_replicas, nr_ptrs);
+		s->nr_replicas = page_sectors == PAGE_SECTORS
+			? nr_ptrs : 0;
 
 		BUG_ON(s->sectors + page_sectors > PAGE_SECTORS);
 		s->sectors += page_sectors;
-
-		s->compressed |= compressed;
 	}
 }
 
@@ -1163,7 +1148,7 @@ static int __bch2_writepage(struct folio *folio,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_writepage_state *w = data;
 	struct bch_page_state new, old;
-	unsigned offset;
+	unsigned offset, nr_replicas_this_write;
 	loff_t i_size = i_size_read(&inode->v);
 	pgoff_t end_index = i_size >> PAGE_SHIFT;
 
@@ -1189,19 +1174,31 @@ static int __bch2_writepage(struct folio *folio,
 	 */
 	zero_user_segment(page, offset, PAGE_SIZE);
 do_io:
+	EBUG_ON(!PageLocked(page));
+
 	/* Before unlocking the page, transfer reservation to w->io: */
 	old = page_state_cmpxchg(page_state(page), new, {
-		EBUG_ON(!new.reserved &&
-			(new.sectors != PAGE_SECTORS ||
-			new.compressed));
+		/*
+		 * If we didn't get a reservation, we can only write out the
+		 * number of (fully allocated) replicas that currently exist,
+		 * and only if the entire page has been written:
+		 */
+		nr_replicas_this_write =
+			max_t(unsigned,
+			      new.replicas_reserved,
+			      (new.sectors == PAGE_SECTORS
+			       ? new.nr_replicas : 0));
 
-		if (new.reserved)
-			new.nr_replicas = new.reservation_replicas;
-		new.reserved = 0;
+		BUG_ON(!nr_replicas_this_write);
 
-		new.compressed |= w->opts.compression != 0;
+		new.nr_replicas = w->opts.compression
+			? 0
+			: nr_replicas_this_write;
+
+		new.replicas_reserved = 0;
 
 		new.sectors += new.dirty_sectors;
+		BUG_ON(new.sectors != PAGE_SECTORS);
 		new.dirty_sectors = 0;
 	});
 
@@ -1210,21 +1207,20 @@ do_io:
 	unlock_page(page);
 
 	if (w->io &&
-	    (w->io->op.op.res.nr_replicas != new.nr_replicas ||
+	    (w->io->op.op.res.nr_replicas != nr_replicas_this_write ||
 	     !bio_can_add_page_contig(&w->io->op.op.wbio.bio, page)))
 		bch2_writepage_do_io(w);
 
 	if (!w->io)
-		bch2_writepage_io_alloc(c, w, inode, page, new.nr_replicas);
+		bch2_writepage_io_alloc(c, w, inode, page,
+					nr_replicas_this_write);
 
 	w->io->new_sectors += new.sectors - old.sectors;
 
 	BUG_ON(inode != w->io->op.inode);
 	BUG_ON(bio_add_page_contig(&w->io->op.op.wbio.bio, page));
 
-	if (old.reserved)
-		w->io->op.op.res.sectors += old.reservation_replicas * PAGE_SECTORS;
-
+	w->io->op.op.res.sectors += old.replicas_reserved * PAGE_SECTORS;
 	w->io->op.new_i_size = i_size;
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
@@ -2606,6 +2602,8 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 
 static bool folio_is_data(struct folio *folio)
 {
+	EBUG_ON(!PageLocked(&folio->page));
+
 	/* XXX: should only have to check PageDirty */
 	return folio_test_private(folio) &&
 		(page_state(&folio->page)->sectors ||
