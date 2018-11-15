@@ -784,6 +784,18 @@ u32 fwht_encode_frame(struct fwht_raw_frame *frm,
 			encoding |= FWHT_CR_UNENCODED;
 		encoding &= ~FWHT_FRAME_UNENCODED;
 	}
+
+	if (frm->components_num == 4) {
+		rlco_max = rlco + size / 2 - 256;
+		encoding = encode_plane(frm->alpha, ref_frm->alpha, &rlco,
+					rlco_max, cf, frm->height, frm->width,
+					frm->luma_alpha_step,
+					is_intra, next_is_intra);
+		if (encoding & FWHT_FRAME_UNENCODED)
+			encoding |= FWHT_ALPHA_UNENCODED;
+		encoding &= ~FWHT_FRAME_UNENCODED;
+	}
+
 	cf->size = (rlco - cf->rlc_data) * sizeof(*rlco);
 	return encoding;
 }
@@ -862,4 +874,8 @@ void fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
 		decode_plane(cf, &rlco, ref->cr, h, w,
 			     hdr_flags & FWHT_FL_CR_IS_UNCOMPRESSED);
 	}
+
+	if (components_num == 4)
+		decode_plane(cf, &rlco, ref->alpha, cf->height, cf->width,
+			     hdr_flags & FWHT_FL_ALPHA_IS_UNCOMPRESSED);
 }
