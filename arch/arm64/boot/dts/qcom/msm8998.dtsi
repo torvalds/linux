@@ -53,7 +53,7 @@
 	};
 
 	clocks {
-		xo_board {
+		xo {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <19200000>;
