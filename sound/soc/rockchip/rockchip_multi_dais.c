@@ -135,6 +135,25 @@ static int rockchip_mdais_set_fmt(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
+static int rockchip_mdais_tdm_slot(struct snd_soc_dai *dai,
+				   unsigned int tx_mask, unsigned int rx_mask,
+				   int slots, int slot_width)
+{
+	struct rk_mdais_dev *mdais = to_info(dai);
+	struct snd_soc_dai *child;
+	int ret, i = 0;
+
+	for (i = 0; i < mdais->num_dais; i++) {
+		child = mdais->dais[i].dai;
+		ret = snd_soc_dai_set_tdm_slot(child, tx_mask, rx_mask,
+					       slots, slot_width);
+		if (ret && ret != -ENOTSUPP)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_mdais_dev *mdais = to_info(dai);
@@ -162,6 +181,7 @@ static const struct snd_soc_dai_ops rockchip_mdais_dai_ops = {
 	.hw_params = rockchip_mdais_hw_params,
 	.set_sysclk = rockchip_mdais_set_sysclk,
 	.set_fmt = rockchip_mdais_set_fmt,
+	.set_tdm_slot = rockchip_mdais_tdm_slot,
 	.trigger = rockchip_mdais_trigger,
 };
 
