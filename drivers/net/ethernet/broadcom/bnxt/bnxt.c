@@ -1675,7 +1675,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	} else {
 		if (rxcmp1->rx_cmp_cfa_code_errors_v2 & RX_CMP_L4_CS_ERR_BITS) {
 			if (dev->features & NETIF_F_RXCSUM)
-				cpr->rx_l4_csum_errors++;
+				bnapi->cp_ring.rx_l4_csum_errors++;
 		}
 	}
 
