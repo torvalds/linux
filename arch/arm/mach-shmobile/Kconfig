@@ -30,7 +30,6 @@ menuconfig ARCH_RENESAS
 	depends on ARCH_MULTI_V7 && MMU
 	select ARM_GIC
 	select GPIOLIB
-	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select NO_IOPORT_MAP
 	select PINCTRL
@@ -43,6 +42,7 @@ if ARCH_RENESAS
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
+	select HAVE_ARM_SCU if SMP
 	select SYS_SUPPORTS_EM_STI
 
 config ARCH_R7S72100
@@ -94,6 +94,7 @@ config ARCH_R8A7778
 
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
+	select HAVE_ARM_SCU if SMP
 	select ARCH_RCAR_GEN1
 
 config ARCH_R8A7790
@@ -135,5 +136,6 @@ config ARCH_RZN1
 config ARCH_SH73A0
 	bool "SH-Mobile AG5 (R8A73A00)"
 	select ARCH_RMOBILE
+	select HAVE_ARM_SCU if SMP
 	select RENESAS_INTC_IRQPIN
 endif
