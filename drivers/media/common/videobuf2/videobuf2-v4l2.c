@@ -624,7 +624,7 @@ EXPORT_SYMBOL(vb2_querybuf);
 
 static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
 {
-	*caps = 0;
+	*caps = V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS;
 	if (q->io_modes & VB2_MMAP)
 		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP;
 	if (q->io_modes & VB2_USERPTR)
