@@ -117,8 +117,10 @@ static void reset_watchdog(struct Qdisc *sch)
 	struct sk_buff *skb = etf_peek_timesortedlist(sch);
 	ktime_t next;
 
-	if (!skb)
+	if (!skb) {
+		qdisc_watchdog_cancel(&q->watchdog);
 		return;
+	}
 
 	next = ktime_sub_ns(skb->tstamp, q->delta);
 	qdisc_watchdog_schedule_ns(&q->watchdog, ktime_to_ns(next));
