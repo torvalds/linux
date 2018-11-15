@@ -886,9 +886,6 @@ config PPC_INDIRECT_PCI
 	depends on PCI
 	default y if 40x || 44x
 
-config EISA
-	bool
-
 config SBUS
 	bool
 

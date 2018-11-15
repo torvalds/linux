@@ -4,6 +4,7 @@ menu "Device Drivers"
 # Keep I/O buses first
 
 source "drivers/amba/Kconfig"
+source "drivers/eisa/Kconfig"
 source "drivers/pci/Kconfig"
 source "drivers/pcmcia/Kconfig"
 source "drivers/rapidio/Kconfig"
