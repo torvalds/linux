@@ -1324,7 +1324,7 @@ int blkcg_activate_policy(struct request_queue *q,
 	if (blkcg_policy_enabled(q, pol))
 		return 0;
 
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_freeze_queue(q);
 pd_prealloc:
 	if (!pd_prealloc) {
@@ -1363,7 +1363,7 @@ pd_prealloc:
 
 	spin_unlock_irq(&q->queue_lock);
 out_bypass_end:
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_unfreeze_queue(q);
 	if (pd_prealloc)
 		pol->pd_free_fn(pd_prealloc);
@@ -1387,7 +1387,7 @@ void blkcg_deactivate_policy(struct request_queue *q,
 	if (!blkcg_policy_enabled(q, pol))
 		return;
 
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_freeze_queue(q);
 
 	spin_lock_irq(&q->queue_lock);
@@ -1405,7 +1405,7 @@ void blkcg_deactivate_policy(struct request_queue *q,
 
 	spin_unlock_irq(&q->queue_lock);
 
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_unfreeze_queue(q);
 }
 EXPORT_SYMBOL_GPL(blkcg_deactivate_policy);

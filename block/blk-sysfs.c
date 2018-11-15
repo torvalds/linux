@@ -68,7 +68,7 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 	unsigned long nr;
 	int ret, err;
 
-	if (!q->mq_ops)
+	if (!queue_is_mq(q))
 		return -EINVAL;
 
 	ret = queue_var_store(&nr, page, count);
@@ -835,12 +835,12 @@ static void __blk_release_queue(struct work_struct *work)
 
 	blk_queue_free_zone_bitmaps(q);
 
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_release(q);
 
 	blk_trace_shutdown(q);
 
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_debugfs_unregister(q);
 
 	bioset_exit(&q->bio_split);
@@ -914,7 +914,7 @@ int blk_register_queue(struct gendisk *disk)
 		goto unlock;
 	}
 
-	if (q->mq_ops) {
+	if (queue_is_mq(q)) {
 		__blk_mq_register_dev(dev, q);
 		blk_mq_debugfs_register(q);
 	}
@@ -925,7 +925,7 @@ int blk_register_queue(struct gendisk *disk)
 
 	blk_throtl_register_queue(q);
 
-	if ((q->mq_ops && q->elevator)) {
+	if (q->elevator) {
 		ret = elv_register_queue(q);
 		if (ret) {
 			mutex_unlock(&q->sysfs_lock);
@@ -974,7 +974,7 @@ void blk_unregister_queue(struct gendisk *disk)
 	 * Remove the sysfs attributes before unregistering the queue data
 	 * structures that can be modified through sysfs.
 	 */
-	if (q->mq_ops)
+	if (queue_is_mq(q))
 		blk_mq_unregister_dev(disk_to_dev(disk), q);
 	mutex_unlock(&q->sysfs_lock);
 
@@ -983,7 +983,7 @@ void blk_unregister_queue(struct gendisk *disk)
 	blk_trace_remove_sysfs(disk_to_dev(disk));
 
 	mutex_lock(&q->sysfs_lock);
-	if (q->mq_ops && q->elevator)
+	if (q->elevator)
 		elv_unregister_queue(q);
 	mutex_unlock(&q->sysfs_lock);
 

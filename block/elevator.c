@@ -667,7 +667,7 @@ static int __elevator_change(struct request_queue *q, const char *name)
 	/*
 	 * Special case for mq, turn off scheduling
 	 */
-	if (q->mq_ops && !strncmp(name, "none", 4))
+	if (!strncmp(name, "none", 4))
 		return elevator_switch(q, NULL);
 
 	strlcpy(elevator_name, name, sizeof(elevator_name));
@@ -685,8 +685,7 @@ static int __elevator_change(struct request_queue *q, const char *name)
 
 static inline bool elv_support_iosched(struct request_queue *q)
 {
-	if (q->mq_ops && q->tag_set && (q->tag_set->flags &
-				BLK_MQ_F_NO_SCHED))
+	if (q->tag_set && (q->tag_set->flags & BLK_MQ_F_NO_SCHED))
 		return false;
 	return true;
 }
@@ -696,7 +695,7 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 {
 	int ret;
 
-	if (!q->mq_ops || !elv_support_iosched(q))
+	if (!queue_is_mq(q) || !elv_support_iosched(q))
 		return count;
 
 	ret = __elevator_change(q, name);
@@ -713,7 +712,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 	struct elevator_type *__e;
 	int len = 0;
 
-	if (!queue_is_rq_based(q))
+	if (!queue_is_mq(q))
 		return sprintf(name, "none\n");
 
 	if (!q->elevator)
@@ -732,7 +731,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 	}
 	spin_unlock(&elv_list_lock);
 
-	if (q->mq_ops && q->elevator)
+	if (q->elevator)
 		len += sprintf(name+len, "none");
 
 	len += sprintf(len+name, "\n");

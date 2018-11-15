@@ -656,11 +656,7 @@ static inline bool blk_account_rq(struct request *rq)
 
 #define rq_data_dir(rq)		(op_is_write(req_op(rq)) ? WRITE : READ)
 
-/*
- * Driver can handle struct request, if it either has an old style
- * request_fn defined, or is blk-mq based.
- */
-static inline bool queue_is_rq_based(struct request_queue *q)
+static inline bool queue_is_mq(struct request_queue *q)
 {
 	return q->mq_ops;
 }

@@ -273,8 +273,7 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	 * assigned to empty flushes, and we deadlock if we are expecting
 	 * other requests to make progress. Don't defer for that case.
 	 */
-	if (!list_empty(&fq->flush_data_in_flight) &&
-	    !(q->mq_ops && q->elevator) &&
+	if (!list_empty(&fq->flush_data_in_flight) && q->elevator &&
 	    time_before(jiffies,
 			fq->flush_pending_since + FLUSH_PENDING_TIMEOUT))
 		return;
