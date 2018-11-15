@@ -15,6 +15,7 @@
 #include <linux/vermagic.h>
 #include <net/gre.h>
 #include <net/pkt_cls.h>
+#include <net/tcp.h>
 #include <net/vxlan.h>
 
 #include "hnae3.h"
@@ -2318,6 +2319,12 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 	if (!(netdev->features & NETIF_F_RXCSUM))
 		return;
 
+	/* We MUST enable hardware checksum before enabling hardware GRO */
+	if (skb_shinfo(skb)->gso_size) {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		return;
+	}
+
 	/* check if hardware has done checksum */
 	if (!hnae3_get_bit(bd_base_info, HNS3_RXD_L3L4P_B))
 		return;
@@ -2511,6 +2518,39 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 	return 0;
 }
 
+static void hns3_set_gro_param(struct sk_buff *skb, u32 l234info,
+			       u32 bd_base_info)
+{
+	u16 gro_count;
+	u32 l3_type;
+
+	gro_count = hnae3_get_field(l234info, HNS3_RXD_GRO_COUNT_M,
+				    HNS3_RXD_GRO_COUNT_S);
+	/* if there is no HW GRO, do not set gro params */
+	if (!gro_count)
+		return;
+
+	/* tcp_gro_complete() will copy NAPI_GRO_CB(skb)->count
+	 * to skb_shinfo(skb)->gso_segs
+	 */
+	NAPI_GRO_CB(skb)->count = gro_count;
+
+	l3_type = hnae3_get_field(l234info, HNS3_RXD_L3ID_M,
+				  HNS3_RXD_L3ID_S);
+	if (l3_type == HNS3_L3_TYPE_IPV4)
+		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
+	else if (l3_type == HNS3_L3_TYPE_IPV6)
+		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
+	else
+		return;
+
+	skb_shinfo(skb)->gso_size = hnae3_get_field(bd_base_info,
+						    HNS3_RXD_GRO_SIZE_M,
+						    HNS3_RXD_GRO_SIZE_S);
+	if (skb_shinfo(skb)->gso_size)
+		tcp_gro_complete(skb);
+}
+
 static void hns3_set_rx_skb_rss_type(struct hns3_enet_ring *ring,
 				     struct sk_buff *skb)
 {
@@ -2644,6 +2684,9 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	u64_stats_update_end(&ring->syncp);
 
 	ring->tqp_vector->rx_group.total_bytes += skb->len;
+
+	/* This is needed in order to enable forwarding support */
+	hns3_set_gro_param(skb, l234info, bd_base_info);
 
 	hns3_rx_checksum(ring, skb, desc);
 	*out_skb = skb;
