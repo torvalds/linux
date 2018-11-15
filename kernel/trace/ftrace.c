@@ -40,6 +40,7 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 
+#include "ftrace_internal.h"
 #include "trace_output.h"
 #include "trace_stat.h"
 
@@ -77,7 +78,7 @@
 #define ASSIGN_OPS_HASH(opsname, val)
 #endif
 
-static struct ftrace_ops ftrace_list_end __read_mostly = {
+struct ftrace_ops ftrace_list_end __read_mostly = {
 	.func		= ftrace_stub,
 	.flags		= FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_STUB,
 	INIT_OPS_HASH(ftrace_list_end)
@@ -112,11 +113,11 @@ static void ftrace_update_trampoline(struct ftrace_ops *ops);
  */
 static int ftrace_disabled __read_mostly;
 
-static DEFINE_MUTEX(ftrace_lock);
+DEFINE_MUTEX(ftrace_lock);
 
-static struct ftrace_ops __rcu *ftrace_ops_list __read_mostly = &ftrace_list_end;
+struct ftrace_ops __rcu *ftrace_ops_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
-static struct ftrace_ops global_ops;
+struct ftrace_ops global_ops;
 
 #if ARCH_SUPPORTS_FTRACE_OPS
 static void ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
@@ -126,26 +127,6 @@ static void ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 static void ftrace_ops_no_ops(unsigned long ip, unsigned long parent_ip);
 #define ftrace_ops_list_func ((ftrace_func_t)ftrace_ops_no_ops)
 #endif
-
-/*
- * Traverse the ftrace_global_list, invoking all entries.  The reason that we
- * can use rcu_dereference_raw_notrace() is that elements removed from this list
- * are simply leaked, so there is no need to interact with a grace-period
- * mechanism.  The rcu_dereference_raw_notrace() calls are needed to handle
- * concurrent insertions into the ftrace_global_list.
- *
- * Silly Alpha and silly pointer-speculation compiler optimizations!
- */
-#define do_for_each_ftrace_op(op, list)			\
-	op = rcu_dereference_raw_notrace(list);			\
-	do
-
-/*
- * Optimized for just a single item in the list (as that is the normal case).
- */
-#define while_for_each_ftrace_op(op)				\
-	while (likely(op = rcu_dereference_raw_notrace((op)->next)) &&	\
-	       unlikely((op) != &ftrace_list_end))
 
 static inline void ftrace_ops_init(struct ftrace_ops *ops)
 {
@@ -187,16 +168,10 @@ static void ftrace_sync_ipi(void *data)
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static void update_function_graph_func(void);
-
 /* Both enabled by default (can be cleared by function_graph tracer flags */
 static bool fgraph_sleep_time = true;
 static bool fgraph_graph_time = true;
-
-#else
-static inline void update_function_graph_func(void) { }
 #endif
-
 
 static ftrace_func_t ftrace_ops_get_list_func(struct ftrace_ops *ops)
 {
@@ -334,7 +309,7 @@ static int remove_ftrace_ops(struct ftrace_ops __rcu **list,
 
 static void ftrace_update_trampoline(struct ftrace_ops *ops);
 
-static int __register_ftrace_function(struct ftrace_ops *ops)
+int __register_ftrace_function(struct ftrace_ops *ops)
 {
 	if (ops->flags & FTRACE_OPS_FL_DELETED)
 		return -EINVAL;
@@ -375,7 +350,7 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 	return 0;
 }
 
-static int __unregister_ftrace_function(struct ftrace_ops *ops)
+int __unregister_ftrace_function(struct ftrace_ops *ops)
 {
 	int ret;
 
@@ -1022,9 +997,7 @@ static __init void ftrace_profile_tracefs(struct dentry *d_tracer)
 #endif /* CONFIG_FUNCTION_PROFILER */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static int ftrace_graph_active;
-#else
-# define ftrace_graph_active 0
+int ftrace_graph_active;
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -1067,7 +1040,7 @@ static const struct ftrace_hash empty_hash = {
 };
 #define EMPTY_HASH	((struct ftrace_hash *)&empty_hash)
 
-static struct ftrace_ops global_ops = {
+struct ftrace_ops global_ops = {
 	.func				= ftrace_stub,
 	.local_hash.notrace_hash	= EMPTY_HASH,
 	.local_hash.filter_hash		= EMPTY_HASH,
@@ -1503,7 +1476,7 @@ static bool hash_contains_ip(unsigned long ip,
  * This needs to be called with preemption disabled as
  * the hashes are freed with call_rcu_sched().
  */
-static int
+int
 ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip, void *regs)
 {
 	struct ftrace_ops_hash hash;
@@ -2682,7 +2655,7 @@ static void ftrace_startup_all(int command)
 	update_all_ops = false;
 }
 
-static int ftrace_startup(struct ftrace_ops *ops, int command)
+int ftrace_startup(struct ftrace_ops *ops, int command)
 {
 	int ret;
 
@@ -2724,7 +2697,7 @@ static int ftrace_startup(struct ftrace_ops *ops, int command)
 	return 0;
 }
 
-static int ftrace_shutdown(struct ftrace_ops *ops, int command)
+int ftrace_shutdown(struct ftrace_ops *ops, int command)
 {
 	int ret;
 
@@ -6177,7 +6150,7 @@ void ftrace_init_trace_array(struct trace_array *tr)
 }
 #else
 
-static struct ftrace_ops global_ops = {
+struct ftrace_ops global_ops = {
 	.func			= ftrace_stub,
 	.flags			= FTRACE_OPS_FL_RECURSION_SAFE |
 				  FTRACE_OPS_FL_INITIALIZED |
@@ -6194,30 +6167,9 @@ core_initcall(ftrace_nodyn_init);
 static inline int ftrace_init_dyn_tracefs(struct dentry *d_tracer) { return 0; }
 static inline void ftrace_startup_enable(int command) { }
 static inline void ftrace_startup_all(int command) { }
-/* Keep as macros so we do not need to define the commands */
-# define ftrace_startup(ops, command)					\
-	({								\
-		int ___ret = __register_ftrace_function(ops);		\
-		if (!___ret)						\
-			(ops)->flags |= FTRACE_OPS_FL_ENABLED;		\
-		___ret;							\
-	})
-# define ftrace_shutdown(ops, command)					\
-	({								\
-		int ___ret = __unregister_ftrace_function(ops);		\
-		if (!___ret)						\
-			(ops)->flags &= ~FTRACE_OPS_FL_ENABLED;		\
-		___ret;							\
-	})
 
 # define ftrace_startup_sysctl()	do { } while (0)
 # define ftrace_shutdown_sysctl()	do { } while (0)
-
-static inline int
-ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip, void *regs)
-{
-	return 1;
-}
 
 static void ftrace_update_trampoline(struct ftrace_ops *ops)
 {
@@ -6930,7 +6882,7 @@ static int ftrace_graph_entry_test(struct ftrace_graph_ent *trace)
  * function against the global ops, and not just trace any function
  * that any ftrace_ops registered.
  */
-static void update_function_graph_func(void)
+void update_function_graph_func(void)
 {
 	struct ftrace_ops *op;
 	bool do_test = false;
