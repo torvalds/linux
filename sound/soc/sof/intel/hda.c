@@ -731,7 +731,10 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct pci_dev *pci = sdev->pci;
-	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
+	const struct sof_intel_dsp_desc *chip = NULL;
+
+	if (sdev->hda)
+		chip = sdev->hda->desc;
 
 	if (sdev->hda && (!IS_ERR(sdev->hda->dmic_dev)))
 		platform_device_unregister(sdev->hda->dmic_dev);
