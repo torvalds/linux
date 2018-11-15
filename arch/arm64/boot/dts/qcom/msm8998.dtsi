@@ -706,3 +706,5 @@
 		};
 	};
 };
+
+#include "msm8998-pins.dtsi"
