@@ -9,6 +9,14 @@
 #include <asm/page.h>
 #include <mmzone.h>
 
+#ifndef pa_to_nid
+#define pa_to_nid(addr) 0
+#endif
+
+#ifndef nid_to_addrbase
+#define nid_to_addrbase(nid) 0
+#endif
+
 #ifdef CONFIG_DISCONTIGMEM
 
 #define pfn_to_nid(pfn)		pa_to_nid((pfn) << PAGE_SHIFT)
