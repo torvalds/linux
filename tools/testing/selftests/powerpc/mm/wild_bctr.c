@@ -47,8 +47,9 @@ static int ok(void)
 	return 0;
 }
 
-#define REG_POISON	0x5a5aUL
-#define POISONED_REG(n)	((REG_POISON << 48) | ((n) << 32) | (REG_POISON << 16) | (n))
+#define REG_POISON	0x5a5a
+#define POISONED_REG(n)	((((unsigned long)REG_POISON) << 48) | ((n) << 32) | \
+			 (((unsigned long)REG_POISON) << 16) | (n))
 
 static inline void poison_regs(void)
 {
