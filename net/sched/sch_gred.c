@@ -35,7 +35,7 @@ struct gred_sched;
 struct gred_sched_data {
 	u32		limit;		/* HARD maximal queue length	*/
 	u32		DP;		/* the drop parameters */
-	u32		bytesin;	/* bytes seen on virtualQ so far*/
+	u64		bytesin;	/* bytes seen on virtualQ so far*/
 	u32		packetsin;	/* packets seen on virtualQ so far*/
 	u32		backlog;	/* bytes on the virtualQ */
 	u8		prio;		/* the prio of this vq */
