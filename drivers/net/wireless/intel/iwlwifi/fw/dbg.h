@@ -101,13 +101,12 @@ static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
 	if (fwrt->dump.desc != &iwl_dump_desc_assert)
 		kfree(fwrt->dump.desc);
 	fwrt->dump.desc = NULL;
-	fwrt->dump.trig = NULL;
 }
 
 void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt);
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    const struct iwl_fw_dump_desc *desc,
-			    void *trigger, unsigned int delay);
+			    bool monitor_only, unsigned int delay);
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		       enum iwl_fw_dbg_trigger trig,
 		       const char *str, size_t len,
@@ -310,12 +309,25 @@ static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
 
 void iwl_fw_error_dump_wk(struct work_struct *work);
 
+static inline bool iwl_fw_dbg_type_on(struct iwl_fw_runtime *fwrt, u32 type)
+{
+	return (fwrt->fw->dbg.dump_mask & BIT(type));
+}
+
 static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)
 {
 	return fw_has_capa(&fwrt->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_D3_DEBUG) &&
 		fwrt->trans->cfg->d3_debug_data_length &&
-		fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+		iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+}
+
+static inline bool iwl_fw_dbg_is_paging_enabled(struct iwl_fw_runtime *fwrt)
+{
+	return iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_PAGING) &&
+		!fwrt->trans->cfg->gen2 &&
+		fwrt->fw->img[fwrt->cur_fw_img].paging_mem_size &&
+		fwrt->fw_paging_db[0].fw_paging_block;
 }
 
 void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt);

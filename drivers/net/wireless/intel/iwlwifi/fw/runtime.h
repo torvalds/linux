@@ -131,7 +131,7 @@ struct iwl_fw_runtime {
 	/* debug */
 	struct {
 		const struct iwl_fw_dump_desc *desc;
-		const struct iwl_fw_dbg_trigger_tlv *trig;
+		bool monitor_only;
 		struct delayed_work wk;
 
 		u8 conf;

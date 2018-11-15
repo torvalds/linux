@@ -285,6 +285,7 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx)
 	return last_idx;
 }
 
+#define FW_SYSASSERT_CPU_MASK 0xf0000000
 static const struct {
 	const char *name;
 	u8 num;
@@ -301,6 +302,9 @@ static const struct {
 	{ "NMI_INTERRUPT_WDG_RXF_FULL", 0x5C },
 	{ "NMI_INTERRUPT_WDG_NO_RBD_RXF_FULL", 0x64 },
 	{ "NMI_INTERRUPT_HOST", 0x66 },
+	{ "NMI_INTERRUPT_LMAC_FATAL", 0x70 },
+	{ "NMI_INTERRUPT_UMAC_FATAL", 0x71 },
+	{ "NMI_INTERRUPT_OTHER_LMAC_FATAL", 0x73 },
 	{ "NMI_INTERRUPT_ACTION_PT", 0x7C },
 	{ "NMI_INTERRUPT_UNKNOWN", 0x84 },
 	{ "NMI_INTERRUPT_INST_ACTION_PT", 0x86 },
@@ -312,7 +316,7 @@ static const char *desc_lookup(u32 num)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(advanced_lookup) - 1; i++)
-		if (advanced_lookup[i].num == num)
+		if (advanced_lookup[i].num == (num & ~FW_SYSASSERT_CPU_MASK))
 			return advanced_lookup[i].name;
 
 	/* No entry matches 'num', so it is the last: ADVANCED_SYSASSERT */
@@ -618,13 +622,9 @@ int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
 	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
 		return -EINVAL;
 
-	spin_lock_bh(&mvm->queue_info_lock);
 	if (WARN(mvm->queue_info[queue].tid_bitmap == 0,
-		 "Trying to reconfig unallocated queue %d\n", queue)) {
-		spin_unlock_bh(&mvm->queue_info_lock);
+		 "Trying to reconfig unallocated queue %d\n", queue))
 		return -ENXIO;
-	}
-	spin_unlock_bh(&mvm->queue_info_lock);
 
 	IWL_DEBUG_TX_QUEUES(mvm, "Reconfig SCD for TXQ #%d\n", queue);
 
@@ -768,6 +768,29 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm)
 	return result;
 }
 
+void iwl_mvm_send_low_latency_cmd(struct iwl_mvm *mvm,
+				  bool low_latency, u16 mac_id)
+{
+	struct iwl_mac_low_latency_cmd cmd = {
+		.mac_id = cpu_to_le32(mac_id)
+	};
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA))
+		return;
+
+	if (low_latency) {
+		/* currently we don't care about the direction */
+		cmd.low_latency_rx = 1;
+		cmd.low_latency_tx = 1;
+	}
+
+	if (iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(LOW_LATENCY_CMD,
+						 MAC_CONF_GROUP, 0),
+				 0, sizeof(cmd), &cmd))
+		IWL_ERR(mvm, "Failed to send low latency command\n");
+}
+
 int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			       bool low_latency,
 			       enum iwl_mvm_low_latency_cause cause)
@@ -786,24 +809,7 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (low_latency == prev)
 		return 0;
 
-	if (fw_has_capa(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA)) {
-		struct iwl_mac_low_latency_cmd cmd = {
-			.mac_id = cpu_to_le32(mvmvif->id)
-		};
-
-		if (low_latency) {
-			/* currently we don't care about the direction */
-			cmd.low_latency_rx = 1;
-			cmd.low_latency_tx = 1;
-		}
-		res = iwl_mvm_send_cmd_pdu(mvm,
-					   iwl_cmd_id(LOW_LATENCY_CMD,
-						      MAC_CONF_GROUP, 0),
-					   0, sizeof(cmd), &cmd);
-		if (res)
-			IWL_ERR(mvm, "Failed to send low latency command\n");
-	}
+	iwl_mvm_send_low_latency_cmd(mvm, low_latency, mvmvif->id);
 
 	res = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (res)

@@ -240,7 +240,7 @@ static void iwl_fw_dump_fifos(struct iwl_fw_runtime *fwrt,
 	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
 		return;
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_RXF)) {
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_RXF)) {
 		/* Pull RXF1 */
 		iwl_fwrt_dump_rxf(fwrt, dump_data,
 				  cfg->lmac[0].rxfifo1_size, 0, 0);
@@ -254,7 +254,7 @@ static void iwl_fw_dump_fifos(struct iwl_fw_runtime *fwrt,
 					  LMAC2_PRPH_OFFSET, 2);
 	}
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_TXF)) {
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_TXF)) {
 		/* Pull TXF data from LMAC1 */
 		for (i = 0; i < fwrt->smem_cfg.num_txfifo_entries; i++) {
 			/* Mark the number of TXF we're pulling now */
@@ -279,7 +279,7 @@ static void iwl_fw_dump_fifos(struct iwl_fw_runtime *fwrt,
 		}
 	}
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_INTERNAL_TXF) &&
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_INTERNAL_TXF) &&
 	    fw_has_capa(&fwrt->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
 		/* Pull UMAC internal TXF data from all TXFs */
@@ -603,7 +603,7 @@ static int iwl_fw_fifo_len(struct iwl_fw_runtime *fwrt,
 	u32 fifo_len = 0;
 	int i;
 
-	if (!(fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_RXF)))
+	if (!iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_RXF))
 		goto dump_txf;
 
 	/* Count RXF2 size */
@@ -614,7 +614,7 @@ static int iwl_fw_fifo_len(struct iwl_fw_runtime *fwrt,
 		ADD_LEN(fifo_len, mem_cfg->lmac[i].rxfifo1_size, hdr_len);
 
 dump_txf:
-	if (!(fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_TXF)))
+	if (!iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_TXF))
 		goto dump_internal_txf;
 
 	/* Count TXF sizes */
@@ -627,7 +627,7 @@ dump_txf:
 	}
 
 dump_internal_txf:
-	if (!((fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_INTERNAL_TXF)) &&
+	if (!(iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_INTERNAL_TXF) &&
 	      fw_has_capa(&fwrt->fw->ucode_capa,
 			  IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)))
 		goto out;
@@ -637,6 +637,32 @@ dump_internal_txf:
 
 out:
 	return fifo_len;
+}
+
+static void iwl_dump_paging(struct iwl_fw_runtime *fwrt,
+			    struct iwl_fw_error_dump_data **data)
+{
+	int i;
+
+	IWL_DEBUG_INFO(fwrt, "WRT paging dump\n");
+	for (i = 1; i < fwrt->num_of_paging_blk + 1; i++) {
+		struct iwl_fw_error_dump_paging *paging;
+		struct page *pages =
+			fwrt->fw_paging_db[i].fw_paging_block;
+		dma_addr_t addr = fwrt->fw_paging_db[i].fw_paging_phys;
+
+		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PAGING);
+		(*data)->len = cpu_to_le32(sizeof(*paging) +
+					     PAGING_BLOCK_SIZE);
+		paging =  (void *)(*data)->data;
+		paging->index = cpu_to_le32(i);
+		dma_sync_single_for_cpu(fwrt->trans->dev, addr,
+					PAGING_BLOCK_SIZE,
+					DMA_BIDIRECTIONAL);
+		memcpy(paging->data, page_address(pages),
+		       PAGING_BLOCK_SIZE);
+		(*data) = iwl_fw_error_next_data(*data);
+	}
 }
 
 static struct iwl_fw_error_dump_file *
@@ -655,12 +681,7 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	u32 smem_len = fwrt->fw->dbg.n_mem_tlv ? 0 : fwrt->trans->cfg->smem_len;
 	u32 sram2_len = fwrt->fw->dbg.n_mem_tlv ?
 				0 : fwrt->trans->cfg->dccm2_len;
-	bool monitor_dump_only = false;
 	int i;
-
-	if (fwrt->dump.trig &&
-	    fwrt->dump.trig->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY)
-		monitor_dump_only = true;
 
 	/* SRAM - include stack CCM if driver knows the values for it */
 	if (!fwrt->trans->cfg->dccm_offset || !fwrt->trans->cfg->dccm_len) {
@@ -680,22 +701,22 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 
 		/* Make room for PRPH registers */
 		if (!fwrt->trans->cfg->gen2 &&
-		    fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_PRPH))
+		   iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_PRPH))
 			prph_len += iwl_fw_get_prph_len(fwrt);
 
 		if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000 &&
-		    fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_RADIO_REG))
+		    iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_RADIO_REG))
 			radio_len = sizeof(*dump_data) + RADIO_REG_MAX_READ;
 	}
 
 	file_len = sizeof(*dump_file) + fifo_len + prph_len + radio_len;
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_DEV_FW_INFO))
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_DEV_FW_INFO))
 		file_len += sizeof(*dump_data) + sizeof(*dump_info);
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM_CFG))
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_MEM_CFG))
 		file_len += sizeof(*dump_data) + sizeof(*dump_smem_cfg);
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)) {
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_MEM)) {
 		size_t hdr_len = sizeof(*dump_data) +
 				 sizeof(struct iwl_fw_error_dump_mem);
 
@@ -712,10 +733,7 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* Make room for fw's virtual image pages, if it exists */
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_PAGING) &&
-	    !fwrt->trans->cfg->gen2 &&
-	    fwrt->fw->img[fwrt->cur_fw_img].paging_mem_size &&
-	    fwrt->fw_paging_db[0].fw_paging_block)
+	if (iwl_fw_dbg_is_paging_enabled(fwrt))
 		file_len += fwrt->num_of_paging_blk *
 			(sizeof(*dump_data) +
 			 sizeof(struct iwl_fw_error_dump_paging) +
@@ -727,12 +745,12 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* If we only want a monitor dump, reset the file length */
-	if (monitor_dump_only) {
+	if (fwrt->dump.monitor_only) {
 		file_len = sizeof(*dump_file) + sizeof(*dump_data) * 2 +
 			   sizeof(*dump_info) + sizeof(*dump_smem_cfg);
 	}
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_ERROR_INFO) &&
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_ERROR_INFO) &&
 	    fwrt->dump.desc)
 		file_len += sizeof(*dump_data) + sizeof(*dump_trig) +
 			    fwrt->dump.desc->len;
@@ -746,7 +764,7 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
 	dump_data = (void *)dump_file->data;
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_DEV_FW_INFO)) {
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_DEV_FW_INFO)) {
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_DEV_FW_INFO);
 		dump_data->len = cpu_to_le32(sizeof(*dump_info));
 		dump_info = (void *)dump_data->data;
@@ -767,7 +785,7 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM_CFG)) {
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_MEM_CFG)) {
 		/* Dump shared memory configuration */
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_CFG);
 		dump_data->len = cpu_to_le32(sizeof(*dump_smem_cfg));
@@ -804,7 +822,7 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 			iwl_read_radio_regs(fwrt, &dump_data);
 	}
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_ERROR_INFO) &&
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_ERROR_INFO) &&
 	    fwrt->dump.desc) {
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_ERROR_INFO);
 		dump_data->len = cpu_to_le32(sizeof(*dump_trig) +
@@ -817,10 +835,10 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* In case we only want monitor dump, skip to dump trasport data */
-	if (monitor_dump_only)
+	if (fwrt->dump.monitor_only)
 		goto out;
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)) {
+	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_MEM)) {
 		const struct iwl_fw_dbg_mem_seg_tlv *fw_dbg_mem =
 			fwrt->fw->dbg.mem_tlv;
 
@@ -865,30 +883,8 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* Dump fw's virtual image */
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_PAGING) &&
-	    !fwrt->trans->cfg->gen2 &&
-	    fwrt->fw->img[fwrt->cur_fw_img].paging_mem_size &&
-	    fwrt->fw_paging_db[0].fw_paging_block) {
-		IWL_DEBUG_INFO(fwrt, "WRT paging dump\n");
-		for (i = 1; i < fwrt->num_of_paging_blk + 1; i++) {
-			struct iwl_fw_error_dump_paging *paging;
-			struct page *pages =
-				fwrt->fw_paging_db[i].fw_paging_block;
-			dma_addr_t addr = fwrt->fw_paging_db[i].fw_paging_phys;
-
-			dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PAGING);
-			dump_data->len = cpu_to_le32(sizeof(*paging) +
-						     PAGING_BLOCK_SIZE);
-			paging = (void *)dump_data->data;
-			paging->index = cpu_to_le32(i);
-			dma_sync_single_for_cpu(fwrt->trans->dev, addr,
-						PAGING_BLOCK_SIZE,
-						DMA_BIDIRECTIONAL);
-			memcpy(paging->data, page_address(pages),
-			       PAGING_BLOCK_SIZE);
-			dump_data = iwl_fw_error_next_data(dump_data);
-		}
-	}
+	if (iwl_fw_dbg_is_paging_enabled(fwrt))
+		iwl_dump_paging(fwrt, &dump_data);
 
 	if (prph_len) {
 		iwl_dump_prph(fwrt->trans, &dump_data,
@@ -932,7 +928,7 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	}
 
 	fw_error_dump->trans_ptr = iwl_trans_dump_data(fwrt->trans,
-						       fwrt->dump.trig);
+						       fwrt->dump.monitor_only);
 	file_len = le32_to_cpu(dump_file->file_len);
 	fw_error_dump->fwrt_len = file_len;
 	if (fw_error_dump->trans_ptr) {
@@ -998,7 +994,8 @@ void iwl_fw_alive_error_dump(struct iwl_fw_runtime *fwrt)
 IWL_EXPORT_SYMBOL(iwl_fw_alive_error_dump);
 
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
-			    const struct iwl_fw_dump_desc *desc, void *trigger,
+			    const struct iwl_fw_dump_desc *desc,
+			    bool monitor_only,
 			    unsigned int delay)
 {
 	/*
@@ -1028,7 +1025,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 		 le32_to_cpu(desc->trig_desc.type));
 
 	fwrt->dump.desc = desc;
-	fwrt->dump.trig = trigger;
+	fwrt->dump.monitor_only = monitor_only;
 
 	schedule_delayed_work(&fwrt->dump.wk, delay);
 
@@ -1043,6 +1040,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_dump_desc *desc;
 	unsigned int delay = 0;
+	bool monitor_only = false;
 
 	if (trigger) {
 		u16 occurrences = le16_to_cpu(trigger->occurrences) - 1;
@@ -1059,6 +1057,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 
 		trigger->occurrences = cpu_to_le16(occurrences);
 		delay = le16_to_cpu(trigger->trig_dis_ms);
+		monitor_only = trigger->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY;
 	}
 
 	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
@@ -1070,7 +1069,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	desc->trig_desc.type = cpu_to_le32(trig);
 	memcpy(desc->trig_desc.data, str, len);
 
-	return iwl_fw_dbg_collect_desc(fwrt, desc, trigger, delay);
+	return iwl_fw_dbg_collect_desc(fwrt, desc, monitor_only, delay);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect);
 

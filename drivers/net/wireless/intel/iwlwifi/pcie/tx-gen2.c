@@ -1228,8 +1228,7 @@ int iwl_trans_pcie_txq_alloc_response(struct iwl_trans *trans,
 	/* Place first TFD at index corresponding to start sequence number */
 	txq->read_ptr = wr_ptr;
 	txq->write_ptr = wr_ptr;
-	iwl_write_direct32(trans, HBUS_TARG_WRPTR,
-			   (txq->write_ptr) | (qid << 16));
+
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d\n", qid);
 
 	iwl_free_resp(hcmd);
