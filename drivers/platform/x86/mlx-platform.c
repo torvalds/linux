@@ -1508,21 +1508,21 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "QMB7"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MQM87"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "SN37"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MSN37"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "SN34"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MSN34"),
 		},
 	},
 	{
