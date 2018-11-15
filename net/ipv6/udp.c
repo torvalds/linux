@@ -448,7 +448,7 @@ csum_copy_err:
 DEFINE_STATIC_KEY_FALSE(udpv6_encap_needed_key);
 void udpv6_encap_enable(void)
 {
-	static_branch_enable(&udpv6_encap_needed_key);
+	static_branch_inc(&udpv6_encap_needed_key);
 }
 EXPORT_SYMBOL(udpv6_encap_enable);
 
@@ -1579,7 +1579,7 @@ void udpv6_destroy_sock(struct sock *sk)
 				encap_destroy(sk);
 		}
 		if (up->encap_enabled)
-			static_branch_disable(&udpv6_encap_needed_key);
+			static_branch_dec(&udpv6_encap_needed_key);
 	}
 
 	inet6_destroy_sock(sk);
