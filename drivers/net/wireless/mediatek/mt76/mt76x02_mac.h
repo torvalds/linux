@@ -37,9 +37,8 @@ struct mt76x02_tx_status {
 #define MT_MAX_VIFS		8
 
 struct mt76x02_vif {
+	struct mt76_wcid group_wcid; /* must be first */
 	u8 idx;
-
-	struct mt76_wcid group_wcid;
 };
 
 DECLARE_EWMA(signal, 10, 8);
