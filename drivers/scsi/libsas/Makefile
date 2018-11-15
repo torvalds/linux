@@ -26,7 +26,6 @@ libsas-y +=  sas_init.o     \
 		sas_phy.o      \
 		sas_port.o     \
 		sas_event.o    \
-		sas_dump.o     \
 		sas_discover.o \
 		sas_expander.o \
 		sas_scsi_host.o \
