@@ -401,11 +401,17 @@ struct hns3_enet_ring {
 	 */
 	int next_to_clean;
 
+	int pull_len; /* head length for current packet */
+	unsigned char *va; /* first buffer address for current packet */
+
 	u32 flag;          /* ring attribute */
 	int irq_init_flag;
 
 	int numa_node;
 	cpumask_t affinity_mask;
+
+	int pending_buf;
+	struct sk_buff *skb;
 };
 
 struct hns_queue;

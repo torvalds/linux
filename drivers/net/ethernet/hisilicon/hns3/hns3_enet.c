@@ -2383,6 +2383,90 @@ static bool hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
 	}
 }
 
+static int hns3_alloc_skb(struct hns3_enet_ring *ring, int length,
+			  unsigned char *va)
+{
+#define HNS3_NEED_ADD_FRAG	1
+	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_clean];
+	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct sk_buff *skb;
+
+	ring->skb = napi_alloc_skb(&ring->tqp_vector->napi, HNS3_RX_HEAD_SIZE);
+	skb = ring->skb;
+	if (unlikely(!skb)) {
+		netdev_err(netdev, "alloc rx skb fail\n");
+
+		u64_stats_update_begin(&ring->syncp);
+		ring->stats.sw_err_cnt++;
+		u64_stats_update_end(&ring->syncp);
+
+		return -ENOMEM;
+	}
+
+	prefetchw(skb->data);
+
+	ring->pending_buf = 1;
+	if (length <= HNS3_RX_HEAD_SIZE) {
+		memcpy(__skb_put(skb, length), va, ALIGN(length, sizeof(long)));
+
+		/* We can reuse buffer as-is, just make sure it is local */
+		if (likely(page_to_nid(desc_cb->priv) == numa_node_id()))
+			desc_cb->reuse_flag = 1;
+		else /* This page cannot be reused so discard it */
+			put_page(desc_cb->priv);
+
+		ring_ptr_move_fw(ring, next_to_clean);
+		return 0;
+	}
+	u64_stats_update_begin(&ring->syncp);
+	ring->stats.seg_pkt_cnt++;
+	u64_stats_update_end(&ring->syncp);
+
+	ring->pull_len = eth_get_headlen(va, HNS3_RX_HEAD_SIZE);
+	__skb_put(skb, ring->pull_len);
+	hns3_nic_reuse_page(skb, 0, ring, ring->pull_len,
+			    desc_cb);
+	ring_ptr_move_fw(ring, next_to_clean);
+
+	return HNS3_NEED_ADD_FRAG;
+}
+
+static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
+			 struct sk_buff **out_skb, bool pending)
+{
+	struct sk_buff *skb = *out_skb;
+	struct hns3_desc_cb *desc_cb;
+	struct hns3_desc *pre_desc;
+	u32 bd_base_info;
+	int pre_bd;
+
+	/* if there is pending bd, the SW param next_to_clean has moved
+	 * to next and the next is NULL
+	 */
+	if (pending) {
+		pre_bd = (ring->next_to_clean - 1 + ring->desc_num) %
+			ring->desc_num;
+		pre_desc = &ring->desc[pre_bd];
+		bd_base_info = le32_to_cpu(pre_desc->rx.bd_base_info);
+	} else {
+		bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
+	}
+
+	while (!hnae3_get_bit(bd_base_info, HNS3_RXD_FE_B)) {
+		desc = &ring->desc[ring->next_to_clean];
+		desc_cb = &ring->desc_cb[ring->next_to_clean];
+		bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
+		if (!hnae3_get_bit(bd_base_info, HNS3_RXD_VLD_B))
+			return -ENXIO;
+
+		hns3_nic_reuse_page(skb, ring->pending_buf, ring, 0, desc_cb);
+		ring_ptr_move_fw(ring, next_to_clean);
+		ring->pending_buf++;
+	}
+
+	return 0;
+}
+
 static void hns3_set_rx_skb_rss_type(struct hns3_enet_ring *ring,
 				     struct sk_buff *skb)
 {
@@ -2399,18 +2483,16 @@ static void hns3_set_rx_skb_rss_type(struct hns3_enet_ring *ring,
 }
 
 static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
-			     struct sk_buff **out_skb, int *out_bnum)
+			     struct sk_buff **out_skb)
 {
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct sk_buff *skb = ring->skb;
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_desc *desc;
-	struct sk_buff *skb;
-	unsigned char *va;
 	u32 bd_base_info;
-	int pull_len;
 	u32 l234info;
 	int length;
-	int bnum;
+	int ret;
 
 	desc = &ring->desc[ring->next_to_clean];
 	desc_cb = &ring->desc_cb[ring->next_to_clean];
@@ -2422,9 +2504,10 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 
 	/* Check valid BD */
 	if (unlikely(!hnae3_get_bit(bd_base_info, HNS3_RXD_VLD_B)))
-		return -EFAULT;
+		return -ENXIO;
 
-	va = (unsigned char *)desc_cb->buf + desc_cb->page_offset;
+	if (!skb)
+		ring->va = (unsigned char *)desc_cb->buf + desc_cb->page_offset;
 
 	/* Prefetch first cache line of first page
 	 * Idea is to cache few bytes of the header of the packet. Our L1 Cache
@@ -2433,62 +2516,42 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	 * lines. In such a case, single fetch would suffice to cache in the
 	 * relevant part of the header.
 	 */
-	prefetch(va);
+	prefetch(ring->va);
 #if L1_CACHE_BYTES < 128
-	prefetch(va + L1_CACHE_BYTES);
+	prefetch(ring->va + L1_CACHE_BYTES);
 #endif
 
-	skb = *out_skb = napi_alloc_skb(&ring->tqp_vector->napi,
-					HNS3_RX_HEAD_SIZE);
-	if (unlikely(!skb)) {
-		netdev_err(netdev, "alloc rx skb fail\n");
+	if (!skb) {
+		ret = hns3_alloc_skb(ring, length, ring->va);
+		*out_skb = skb = ring->skb;
 
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.sw_err_cnt++;
-		u64_stats_update_end(&ring->syncp);
+		if (ret < 0) /* alloc buffer fail */
+			return ret;
+		if (ret > 0) { /* need add frag */
+			ret = hns3_add_frag(ring, desc, &skb, false);
+			if (ret)
+				return ret;
 
-		return -ENOMEM;
-	}
-
-	prefetchw(skb->data);
-
-	bnum = 1;
-	if (length <= HNS3_RX_HEAD_SIZE) {
-		memcpy(__skb_put(skb, length), va, ALIGN(length, sizeof(long)));
-
-		/* We can reuse buffer as-is, just make sure it is local */
-		if (likely(page_to_nid(desc_cb->priv) == numa_node_id()))
-			desc_cb->reuse_flag = 1;
-		else /* This page cannot be reused so discard it */
-			put_page(desc_cb->priv);
-
-		ring_ptr_move_fw(ring, next_to_clean);
-	} else {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.seg_pkt_cnt++;
-		u64_stats_update_end(&ring->syncp);
-
-		pull_len = eth_get_headlen(va, HNS3_RX_HEAD_SIZE);
-
-		memcpy(__skb_put(skb, pull_len), va,
-		       ALIGN(pull_len, sizeof(long)));
-
-		hns3_nic_reuse_page(skb, 0, ring, pull_len, desc_cb);
-		ring_ptr_move_fw(ring, next_to_clean);
-
-		while (!hnae3_get_bit(bd_base_info, HNS3_RXD_FE_B)) {
-			desc = &ring->desc[ring->next_to_clean];
-			desc_cb = &ring->desc_cb[ring->next_to_clean];
-			bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
-			hns3_nic_reuse_page(skb, bnum, ring, 0, desc_cb);
-			ring_ptr_move_fw(ring, next_to_clean);
-			bnum++;
+			/* As the head data may be changed when GRO enable, copy
+			 * the head data in after other data rx completed
+			 */
+			memcpy(skb->data, ring->va,
+			       ALIGN(ring->pull_len, sizeof(long)));
 		}
-	}
+	} else {
+		ret = hns3_add_frag(ring, desc, &skb, true);
+		if (ret)
+			return ret;
 
-	*out_bnum = bnum;
+		/* As the head data may be changed when GRO enable, copy
+		 * the head data in after other data rx completed
+		 */
+		memcpy(skb->data, ring->va,
+		       ALIGN(ring->pull_len, sizeof(long)));
+	}
 
 	l234info = le32_to_cpu(desc->rx.l234_info);
+	bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
 
 	/* Based on hw strategy, the tag offloaded will be stored at
 	 * ot_vlan_tag in two layer tag case, and stored at vlan_tag
@@ -2539,6 +2602,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	ring->tqp_vector->rx_group.total_bytes += skb->len;
 
 	hns3_rx_checksum(ring, skb, desc);
+	*out_skb = skb;
 	hns3_set_rx_skb_rss_type(ring, skb);
 
 	return 0;
@@ -2551,9 +2615,9 @@ int hns3_clean_rx_ring(
 #define RCB_NOF_ALLOC_RX_BUFF_ONCE 16
 	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
 	int recv_pkts, recv_bds, clean_count, err;
-	int unused_count = hns3_desc_unused(ring);
-	struct sk_buff *skb = NULL;
-	int num, bnum = 0;
+	int unused_count = hns3_desc_unused(ring) - ring->pending_buf;
+	struct sk_buff *skb = ring->skb;
+	int num;
 
 	num = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_FBDNUM_REG);
 	rmb(); /* Make sure num taken effect before the other data is touched */
@@ -2567,24 +2631,32 @@ int hns3_clean_rx_ring(
 			hns3_nic_alloc_rx_buffers(ring,
 						  clean_count + unused_count);
 			clean_count = 0;
-			unused_count = hns3_desc_unused(ring);
+			unused_count = hns3_desc_unused(ring) -
+					ring->pending_buf;
 		}
 
 		/* Poll one pkt */
-		err = hns3_handle_rx_bd(ring, &skb, &bnum);
+		err = hns3_handle_rx_bd(ring, &skb);
 		if (unlikely(!skb)) /* This fault cannot be repaired */
 			goto out;
 
-		recv_bds += bnum;
-		clean_count += bnum;
-		if (unlikely(err)) {  /* Do jump the err */
-			recv_pkts++;
+		if (err == -ENXIO) { /* Do not get FE for the packet */
+			goto out;
+		} else if (unlikely(err)) {  /* Do jump the err */
+			recv_bds += ring->pending_buf;
+			clean_count += ring->pending_buf;
+			ring->skb = NULL;
+			ring->pending_buf = 0;
 			continue;
 		}
 
 		/* Do update ip stack process */
 		skb->protocol = eth_type_trans(skb, netdev);
 		rx_fn(ring, skb);
+		recv_bds += ring->pending_buf;
+		clean_count += ring->pending_buf;
+		ring->skb = NULL;
+		ring->pending_buf = 0;
 
 		recv_pkts++;
 	}
