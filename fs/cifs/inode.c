@@ -333,7 +333,7 @@ cifs_create_dfs_fattr(struct cifs_fattr *fattr, struct super_block *sb)
 	fattr->cf_mtime = timespec64_trunc(fattr->cf_mtime, sb->s_time_gran);
 	fattr->cf_atime = fattr->cf_ctime = fattr->cf_mtime;
 	fattr->cf_nlink = 2;
-	fattr->cf_flags |= CIFS_FATTR_DFS_REFERRAL;
+	fattr->cf_flags = CIFS_FATTR_DFS_REFERRAL;
 }
 
 static int
