@@ -115,7 +115,6 @@ static struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.nocodec_fw_filename = "intel/sof-cht.ri",
 	.nocodec_tplg_filename = "intel/sof-cht-nocodec.tplg"
 };
-#endif
 
 static struct platform_device *
 	mfld_new_mach_data(struct snd_sof_pdata *sof_pdata)
@@ -133,6 +132,7 @@ static struct platform_device *
 					     &pmach, sizeof(pmach));
 	return pdev;
 }
+#endif
 
 static const struct dev_pm_ops sof_acpi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
