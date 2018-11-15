@@ -188,6 +188,11 @@ struct tun_file {
 	struct xdp_rxq_info xdp_rxq;
 };
 
+struct tun_page {
+	struct page *page;
+	int count;
+};
+
 struct tun_flow_entry {
 	struct hlist_node hash_link;
 	struct rcu_head rcu;
@@ -2377,9 +2382,16 @@ static void tun_sock_write_space(struct sock *sk)
 	kill_fasync(&tfile->fasync, SIGIO, POLL_OUT);
 }
 
+static void tun_put_page(struct tun_page *tpage)
+{
+	if (tpage->page)
+		__page_frag_cache_drain(tpage->page, tpage->count);
+}
+
 static int tun_xdp_one(struct tun_struct *tun,
 		       struct tun_file *tfile,
-		       struct xdp_buff *xdp, int *flush)
+		       struct xdp_buff *xdp, int *flush,
+		       struct tun_page *tpage)
 {
 	struct tun_xdp_hdr *hdr = xdp->data_hard_start;
 	struct virtio_net_hdr *gso = &hdr->gso;
@@ -2390,6 +2402,7 @@ static int tun_xdp_one(struct tun_struct *tun,
 	int buflen = hdr->buflen;
 	int err = 0;
 	bool skb_xdp = false;
+	struct page *page;
 
 	xdp_prog = rcu_dereference(tun->xdp_prog);
 	if (xdp_prog) {
@@ -2416,7 +2429,14 @@ static int tun_xdp_one(struct tun_struct *tun,
 		case XDP_PASS:
 			break;
 		default:
-			put_page(virt_to_head_page(xdp->data));
+			page = virt_to_head_page(xdp->data);
+			if (tpage->page == page) {
+				++tpage->count;
+			} else {
+				tun_put_page(tpage);
+				tpage->page = page;
+				tpage->count = 1;
+			}
 			return 0;
 		}
 	}
@@ -2480,6 +2500,7 @@ static int tun_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 		return -EBADFD;
 
 	if (ctl && (ctl->type == TUN_MSG_PTR)) {
+		struct tun_page tpage = {0};
 		int n = ctl->num;
 		int flush = 0;
 
@@ -2488,7 +2509,7 @@ static int tun_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 
 		for (i = 0; i < n; i++) {
 			xdp = &((struct xdp_buff *)ctl->ptr)[i];
-			tun_xdp_one(tun, tfile, xdp, &flush);
+			tun_xdp_one(tun, tfile, xdp, &flush, &tpage);
 		}
 
 		if (flush)
@@ -2496,6 +2517,8 @@ static int tun_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 
 		rcu_read_unlock();
 		local_bh_enable();
+
+		tun_put_page(&tpage);
 
 		ret = total_len;
 		goto out;
