@@ -29,12 +29,15 @@
 #define GRED_DEF_PRIO (MAX_DPs / 2)
 #define GRED_VQ_MASK (MAX_DPs - 1)
 
+#define GRED_VQ_RED_FLAGS	(TC_RED_ECN | TC_RED_HARDDROP)
+
 struct gred_sched_data;
 struct gred_sched;
 
 struct gred_sched_data {
 	u32		limit;		/* HARD maximal queue length	*/
 	u32		DP;		/* the drop parameters */
+	u32		red_flags;	/* virtualQ version of red_flags */
 	u64		bytesin;	/* bytes seen on virtualQ so far*/
 	u32		packetsin;	/* packets seen on virtualQ so far*/
 	u32		backlog;	/* bytes on the virtualQ */
@@ -139,14 +142,14 @@ static inline void gred_store_wred_set(struct gred_sched *table,
 	table->wred_set.qidlestart = q->vars.qidlestart;
 }
 
-static inline int gred_use_ecn(struct gred_sched *t)
+static int gred_use_ecn(struct gred_sched_data *q)
 {
-	return t->red_flags & TC_RED_ECN;
+	return q->red_flags & TC_RED_ECN;
 }
 
-static inline int gred_use_harddrop(struct gred_sched *t)
+static int gred_use_harddrop(struct gred_sched_data *q)
 {
-	return t->red_flags & TC_RED_HARDDROP;
+	return q->red_flags & TC_RED_HARDDROP;
 }
 
 static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch,
@@ -212,7 +215,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 	case RED_PROB_MARK:
 		qdisc_qstats_overlimit(sch);
-		if (!gred_use_ecn(t) || !INET_ECN_set_ce(skb)) {
+		if (!gred_use_ecn(q) || !INET_ECN_set_ce(skb)) {
 			q->stats.prob_drop++;
 			goto congestion_drop;
 		}
@@ -222,7 +225,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 	case RED_HARD_MARK:
 		qdisc_qstats_overlimit(sch);
-		if (gred_use_harddrop(t) || !gred_use_ecn(t) ||
+		if (gred_use_harddrop(q) || !gred_use_ecn(q) ||
 		    !INET_ECN_set_ce(skb)) {
 			q->stats.forced_drop++;
 			goto congestion_drop;
@@ -305,6 +308,7 @@ static int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps,
 {
 	struct gred_sched *table = qdisc_priv(sch);
 	struct tc_gred_sopt *sopt;
+	bool red_flags_changed;
 	int i;
 
 	if (!dps)
@@ -329,6 +333,7 @@ static int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps,
 	sch_tree_lock(sch);
 	table->DPs = sopt->DPs;
 	table->def = sopt->def_DP;
+	red_flags_changed = table->red_flags != sopt->flags;
 	table->red_flags = sopt->flags;
 
 	/*
@@ -347,6 +352,12 @@ static int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps,
 		gred_disable_rio_mode(table);
 		gred_disable_wred_mode(table);
 	}
+
+	if (red_flags_changed)
+		for (i = 0; i < table->DPs; i++)
+			if (table->tab[i])
+				table->tab[i]->red_flags =
+					table->red_flags & GRED_VQ_RED_FLAGS;
 
 	for (i = table->DPs; i < MAX_DPs; i++) {
 		if (table->tab[i]) {
@@ -379,6 +390,7 @@ static inline int gred_change_vq(struct Qdisc *sch, int dp,
 		*prealloc = NULL;
 		if (!q)
 			return -ENOMEM;
+		q->red_flags = table->red_flags & GRED_VQ_RED_FLAGS;
 	}
 
 	q->DP = dp;
