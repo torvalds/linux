@@ -542,16 +542,6 @@ endif
 
 endmenu
 
-if !IA64_HP_SIM
-
-menu "Bus options (PCI, PCMCIA)"
-
-source "drivers/pcmcia/Kconfig"
-
-endmenu
-
-endif
-
 source "arch/ia64/hp/sim/Kconfig"
 
 config MSPEC
