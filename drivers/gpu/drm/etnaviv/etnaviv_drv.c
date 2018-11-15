@@ -550,7 +550,7 @@ out_register:
 out_bind:
 	kfree(priv);
 out_unref:
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	return ret;
 }
@@ -567,7 +567,7 @@ static void etnaviv_unbind(struct device *dev)
 	drm->dev_private = NULL;
 	kfree(priv);
 
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops etnaviv_master_ops = {
