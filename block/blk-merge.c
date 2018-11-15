@@ -712,7 +712,8 @@ static inline bool blk_discard_mergable(struct request *req)
 	return false;
 }
 
-enum elv_merge blk_try_req_merge(struct request *req, struct request *next)
+static enum elv_merge blk_try_req_merge(struct request *req,
+					struct request *next)
 {
 	if (blk_discard_mergable(req))
 		return ELEVATOR_DISCARD_MERGE;
