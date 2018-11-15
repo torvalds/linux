@@ -148,14 +148,12 @@ ENTRY(ftrace_caller)
 	mcount_get_pc0	x0		//     function's pc
 	mcount_get_lr	x1		//     function's lr
 
-	.global ftrace_call
-ftrace_call:				// tracer(pc, lr);
+GLOBAL(ftrace_call)			// tracer(pc, lr);
 	nop				// This will be replaced with "bl xxx"
 					// where xxx can be any kind of tracer.
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	.global ftrace_graph_call
-ftrace_graph_call:			// ftrace_graph_caller();
+GLOBAL(ftrace_graph_call)		// ftrace_graph_caller();
 	nop				// If enabled, this will be replaced
 					// "b ftrace_graph_caller"
 #endif
