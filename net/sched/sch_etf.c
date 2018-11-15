@@ -190,29 +190,35 @@ static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
 	return NET_XMIT_SUCCESS;
 }
 
-static void timesortedlist_drop(struct Qdisc *sch, struct sk_buff *skb)
+static void timesortedlist_drop(struct Qdisc *sch, struct sk_buff *skb,
+				ktime_t now)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *to_free = NULL;
+	struct sk_buff *tmp = NULL;
 
-	rb_erase_cached(&skb->rbnode, &q->head);
+	skb_rbtree_walk_from_safe(skb, tmp) {
+		if (ktime_after(skb->tstamp, now))
+			break;
 
-	/* The rbnode field in the skb re-uses these fields, now that
-	 * we are done with the rbnode, reset them.
-	 */
-	skb->next = NULL;
-	skb->prev = NULL;
-	skb->dev = qdisc_dev(sch);
+		rb_erase_cached(&skb->rbnode, &q->head);
 
-	qdisc_qstats_backlog_dec(sch, skb);
+		/* The rbnode field in the skb re-uses these fields, now that
+		 * we are done with the rbnode, reset them.
+		 */
+		skb->next = NULL;
+		skb->prev = NULL;
+		skb->dev = qdisc_dev(sch);
 
-	report_sock_error(skb, ECANCELED, SO_EE_CODE_TXTIME_MISSED);
+		report_sock_error(skb, ECANCELED, SO_EE_CODE_TXTIME_MISSED);
 
-	qdisc_drop(skb, sch, &to_free);
+		qdisc_qstats_backlog_dec(sch, skb);
+		qdisc_drop(skb, sch, &to_free);
+		qdisc_qstats_overlimit(sch);
+		sch->q.qlen--;
+	}
+
 	kfree_skb_list(to_free);
-	qdisc_qstats_overlimit(sch);
-
-	sch->q.qlen--;
 }
 
 static void timesortedlist_remove(struct Qdisc *sch, struct sk_buff *skb)
@@ -251,7 +257,7 @@ static struct sk_buff *etf_dequeue_timesortedlist(struct Qdisc *sch)
 
 	/* Drop if packet has expired while in queue. */
 	if (ktime_before(skb->tstamp, now)) {
-		timesortedlist_drop(sch, skb);
+		timesortedlist_drop(sch, skb, now);
 		skb = NULL;
 		goto out;
 	}
