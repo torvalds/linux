@@ -369,6 +369,9 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		else
 			chip_name = "raven";
 		break;
+	case CHIP_ARCTURUS:
+		chip_name = "arcturus";
+		break;
 	default:
 		BUG();
 	}
