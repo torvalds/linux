@@ -1555,19 +1555,13 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	}
 #endif
 
-#if CONFIG_OF
-	if (of_id) {
-		pdata->is_slave = of_property_read_bool(pdev->dev.of_node,
-								"spi-slave");
-	}
-#endif
-
 	ssp->clk = devm_clk_get(&pdev->dev, NULL);
 	ssp->irq = platform_get_irq(pdev, 0);
 	ssp->type = type;
 	ssp->pdev = pdev;
 	ssp->port_id = pxa2xx_spi_get_port_id(adev);
 
+	pdata->is_slave = of_property_read_bool(pdev->dev.of_node, "spi-slave");
 	pdata->num_chipselect = 1;
 	pdata->enable_dma = true;
 
