@@ -181,6 +181,7 @@ config S390
 	select NEED_SG_DMA_LENGTH	if PCI
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
+	select PCI_DOMAINS		if PCI
 	select PCI_MSI			if PCI
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
@@ -723,9 +724,6 @@ config PCI_NR_FUNCTIONS
 	  this kernel will support.
 
 endif	# PCI
-
-config PCI_DOMAINS
-	def_bool PCI
 
 config HAS_IOMEM
 	def_bool PCI

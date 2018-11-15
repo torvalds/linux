@@ -90,6 +90,7 @@ config SPARC64
 	select GENERIC_TIME_VSYSCALL
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_HAS_PTE_SPECIAL
+	select PCI_DOMAINS if PCI
 
 config ARCH_DEFCONFIG
 	string
@@ -472,9 +473,6 @@ config SUN_LDOMS
 	help
 	  Say Y here is you want to support virtual devices via
 	  Logical Domains.
-
-config PCI_DOMAINS
-	def_bool PCI if SPARC64
 
 config PCI_SYSCALL
 	def_bool PCI

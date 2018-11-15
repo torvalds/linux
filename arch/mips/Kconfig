@@ -73,7 +73,6 @@ config MIPS
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select MODULES_USE_ELF_REL if MODULES
-	select PCI_DOMAINS if PCI
 	select PERF_USE_VMALLOC
 	select RTC_LIB
 	select SYSCTL_EXCEPTION_TRACE
@@ -3028,19 +3027,14 @@ menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
 config HW_HAS_EISA
 	bool
 
-config PCI_DOMAINS
-	bool
-
-config PCI_DOMAINS_GENERIC
-	bool
-
 config PCI_DRIVERS_GENERIC
-	select PCI_DOMAINS_GENERIC if PCI_DOMAINS
+	select PCI_DOMAINS_GENERIC if PCI
 	bool
 
 config PCI_DRIVERS_LEGACY
 	def_bool !PCI_DRIVERS_GENERIC
 	select NO_GENERIC_PCI_IOPORT_MAP
+	select PCI_DOMAINS if PCI
 
 #
 # ISA support is now enabled via select.  Too many systems still have the one

@@ -236,6 +236,7 @@ config PPC
 	select OF_RESERVED_MEM
 	select OLD_SIGACTION			if PPC32
 	select OLD_SIGSUSPEND
+	select PCI_DOMAINS			if PCI
 	select RTC_LIB
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
@@ -930,9 +931,6 @@ config FSL_GTM
 	depends on PPC_83xx || QUICC_ENGINE || CPM2
 	help
 	  Freescale General-purpose Timers support
-
-config PCI_DOMAINS
-	def_bool PCI
 
 config PCI_SYSCALL
 	def_bool PCI

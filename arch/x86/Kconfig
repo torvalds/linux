@@ -197,6 +197,7 @@ config X86
 	select HOTPLUG_SMT			if SMP
 	select IRQ_FORCED_THREADING
 	select NEED_SG_DMA_LENGTH
+	select PCI_DOMAINS			if PCI
 	select PCI_LOCKLESS_CONFIG
 	select PERF_EVENTS
 	select RTC_LIB
@@ -2633,10 +2634,6 @@ config PCI_XEN
 	def_bool y
 	depends on PCI && XEN
 	select SWIOTLB_XEN
-
-config PCI_DOMAINS
-	def_bool y
-	depends on PCI
 
 config MMCONF_FAM10H
 	def_bool y

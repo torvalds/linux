@@ -855,9 +855,6 @@ config MAPLE
 	 Dreamcast with a serial line terminal or a remote network
 	 connection.
 
-config PCI_DOMAINS
-	bool
-
 source "drivers/pcmcia/Kconfig"
 
 endmenu

@@ -21,6 +21,15 @@ menuconfig PCI
 	  support for PCI-X and the foundations for PCI Express support.
 	  Say 'Y' here unless you know what you are doing.
 
+config PCI_DOMAINS
+	bool
+	depends on PCI
+
+config PCI_DOMAINS_GENERIC
+	bool
+	depends on PCI
+	select PCI_DOMAINS
+
 source "drivers/pci/pcie/Kconfig"
 
 config PCI_MSI

@@ -36,6 +36,7 @@ config MICROBLAZE
 	select MODULES_USE_ELF_RELA
 	select OF
 	select OF_EARLY_FLATTREE
+	select PCI_DOMAINS_GENERIC if PCI
 	select TRACING_SUPPORT
 	select VIRT_TO_BUS
 	select CPU_NO_EFFICIENT_FFS
@@ -266,12 +267,6 @@ endchoice
 endmenu
 
 menu "Bus Options"
-
-config PCI_DOMAINS
-	def_bool PCI
-
-config PCI_DOMAINS_GENERIC
-	def_bool PCI_DOMAINS
 
 config PCI_SYSCALL
 	def_bool PCI

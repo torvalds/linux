@@ -164,6 +164,7 @@ config ARM64
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_RESERVED_MEM
+	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_ECAM if ACPI
 	select POWER_RESET
 	select POWER_SUPPLY
@@ -287,12 +288,6 @@ config ARCH_PROC_KCORE_TEXT
 	def_bool y
 
 source "arch/arm64/Kconfig.platforms"
-
-config PCI_DOMAINS
-	def_bool PCI
-
-config PCI_DOMAINS_GENERIC
-	def_bool PCI
 
 config PCI_SYSCALL
 	def_bool PCI

@@ -15,6 +15,7 @@ config IA64
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT if ACPI
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
 	select FORCE_PCI if (!IA64_HP_SIM)
+	select PCI_DOMAINS if PCI
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_EXIT_THREAD
 	select HAVE_IDE
@@ -543,9 +544,6 @@ endmenu
 if !IA64_HP_SIM
 
 menu "Bus options (PCI, PCMCIA)"
-
-config PCI_DOMAINS
-	def_bool PCI
 
 config PCI_SYSCALL
 	def_bool PCI

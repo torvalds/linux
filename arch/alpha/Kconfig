@@ -7,6 +7,7 @@ config ALPHA
 	select ARCH_NO_PREEMPT
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select FORCE_PCI if !ALPHA_JENSEN
+	select PCI_DOMAINS if PCI
 	select HAVE_AOUT
 	select HAVE_IDE
 	select HAVE_OPROFILE
@@ -318,10 +319,6 @@ config ISA
 	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
 
 config ISA_DMA_API
-	bool
-	default y
-
-config PCI_DOMAINS
 	bool
 	default y
 

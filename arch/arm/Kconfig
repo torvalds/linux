@@ -331,7 +331,7 @@ config ARCH_MULTIPLATFORM
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_MULTI_HANDLER
 	select HAVE_PCI
-	select PCI_DOMAINS if PCI
+	select PCI_DOMAINS_GENERIC if PCI
 	select SPARSE_IRQ
 	select USE_OF
 
@@ -1226,19 +1226,6 @@ config ISA_DMA
 # Select ISA DMA interface
 config ISA_DMA_API
 	bool
-
-config PCI_DOMAINS
-	bool "Support for multiple PCI domains"
-	depends on PCI
-	help
-	  Enable PCI domains kernel management. Say Y if your machine
-	  has a PCI bus hierarchy that requires more than one PCI
-	  domain (aka segment) to be correctly managed. Say N otherwise.
-
-	  If you don't know what to do here, say N.
-
-config PCI_DOMAINS_GENERIC
-	def_bool PCI_DOMAINS
 
 config PCI_NANOENGINE
 	bool "BSE nanoEngine PCI support"
