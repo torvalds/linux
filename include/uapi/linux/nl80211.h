@@ -1734,7 +1734,7 @@ enum nl80211_commands {
  *	the values passed in @NL80211_ATTR_SCAN_SSIDS (eg. if an SSID
  *	is included in the probe request, but the match attributes
  *	will never let it go through), -EINVAL may be returned.
- *	If ommited, no filtering is done.
+ *	If omitted, no filtering is done.
  *
  * @NL80211_ATTR_INTERFACE_COMBINATIONS: Nested attribute listing the supported
  *	interface combinations. In each nested item, it contains attributes
@@ -1839,7 +1839,7 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_INACTIVITY_TIMEOUT: timeout value in seconds, this can be
  *	used by the drivers which has MLME in firmware and does not have support
- *	to report per station tx/rx activity to free up the staion entry from
+ *	to report per station tx/rx activity to free up the station entry from
  *	the list. This needs to be used when the driver advertises the
  *	capability to timeout the stations.
  *
@@ -2200,7 +2200,7 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST: When present the RSSI level for BSSs in
  *	the specified band is to be adjusted before doing
- *	%NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI based comparision to figure out
+ *	%NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI based comparison to figure out
  *	better BSSs. The attribute value is a packed structure
  *	value as specified by &struct nl80211_bss_select_rssi_adjust.
  *
@@ -4910,7 +4910,7 @@ enum nl80211_iface_limit_attrs {
  *	numbers = [ #{STA} <= 1, #{P2P-client,P2P-GO} <= 3 ], max = 4
  *	=> allows a STA plus three P2P interfaces
  *
- * The list of these four possiblities could completely be contained
+ * The list of these four possibilities could completely be contained
  * within the %NL80211_ATTR_INTERFACE_COMBINATIONS attribute to indicate
  * that any of these groups must match.
  *
@@ -4940,7 +4940,7 @@ enum nl80211_if_combination_attrs {
  * enum nl80211_plink_state - state of a mesh peer link finite state machine
  *
  * @NL80211_PLINK_LISTEN: initial state, considered the implicit
- *	state of non existant mesh peer links
+ *	state of non existent mesh peer links
  * @NL80211_PLINK_OPN_SNT: mesh plink open frame has been sent to
  *	this mesh peer
  * @NL80211_PLINK_OPN_RCVD: mesh plink open frame has been received
@@ -5432,7 +5432,7 @@ enum nl80211_timeout_reason {
  *	request parameters IE in the probe request
  * @NL80211_SCAN_FLAG_ACCEPT_BCAST_PROBE_RESP: accept broadcast probe responses
  * @NL80211_SCAN_FLAG_OCE_PROBE_REQ_HIGH_TX_RATE: send probe request frames at
- *	rate of at least 5.5M. In case non OCE AP is dicovered in the channel,
+ *	rate of at least 5.5M. In case non OCE AP is discovered in the channel,
  *	only the first probe req in the channel will be sent in high rate.
  * @NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION: allow probe request
  *	tx deferral (dot11FILSProbeDelay shall be set to 15ms)
