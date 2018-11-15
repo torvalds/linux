@@ -44,15 +44,15 @@ static int ide_pm_execute_rq(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 	if (unlikely(blk_queue_dying(q))) {
 		rq->rq_flags |= RQF_QUIET;
 		scsi_req(rq)->result = -ENXIO;
-		spin_unlock_irq(q->queue_lock);
+		spin_unlock_irq(&q->queue_lock);
 		blk_mq_end_request(rq, BLK_STS_OK);
 		return -ENXIO;
 	}
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 	blk_execute_rq(q, NULL, rq, true);
 
 	return scsi_req(rq)->result ? -EIO : 0;
@@ -214,12 +214,12 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 	printk("%s: completing PM request, %s\n", drive->name,
 	       (ide_req(rq)->type == ATA_PRIV_PM_SUSPEND) ? "suspend" : "resume");
 #endif
-	spin_lock_irqsave(q->queue_lock, flags);
+	spin_lock_irqsave(&q->queue_lock, flags);
 	if (ide_req(rq)->type == ATA_PRIV_PM_SUSPEND)
 		blk_mq_stop_hw_queues(q);
 	else
 		drive->dev_flags &= ~IDE_DFLAG_BLOCKED;
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	spin_unlock_irqrestore(&q->queue_lock, flags);
 
 	drive->hwif->rq = NULL;
 

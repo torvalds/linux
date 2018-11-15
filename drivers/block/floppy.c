@@ -2255,9 +2255,9 @@ static void request_done(int uptodate)
 			DRS->maxtrack = 1;
 
 		/* unlock chained buffers */
-		spin_lock_irqsave(q->queue_lock, flags);
+		spin_lock_irqsave(&q->queue_lock, flags);
 		floppy_end_request(req, 0);
-		spin_unlock_irqrestore(q->queue_lock, flags);
+		spin_unlock_irqrestore(&q->queue_lock, flags);
 	} else {
 		if (rq_data_dir(req) == WRITE) {
 			/* record write error information */
@@ -2269,9 +2269,9 @@ static void request_done(int uptodate)
 			DRWE->last_error_sector = blk_rq_pos(req);
 			DRWE->last_error_generation = DRS->generation;
 		}
-		spin_lock_irqsave(q->queue_lock, flags);
+		spin_lock_irqsave(&q->queue_lock, flags);
 		floppy_end_request(req, BLK_STS_IOERR);
-		spin_unlock_irqrestore(q->queue_lock, flags);
+		spin_unlock_irqrestore(&q->queue_lock, flags);
 	}
 }
 

@@ -37,9 +37,9 @@ void blk_mq_sched_assign_ioc(struct request *rq, struct bio *bio)
 	struct io_context *ioc = rq_ioc(bio);
 	struct io_cq *icq;
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 	icq = ioc_lookup_icq(ioc, q);
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 
 	if (!icq) {
 		icq = ioc_create_icq(ioc, q, GFP_ATOMIC);

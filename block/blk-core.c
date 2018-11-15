@@ -327,8 +327,6 @@ void blk_exit_queue(struct request_queue *q)
  */
 void blk_cleanup_queue(struct request_queue *q)
 {
-	spinlock_t *lock = q->queue_lock;
-
 	/* mark @q DYING, no new request or merges will be allowed afterwards */
 	mutex_lock(&q->sysfs_lock);
 	blk_set_queue_dying(q);
@@ -380,11 +378,6 @@ void blk_cleanup_queue(struct request_queue *q)
 		blk_mq_free_queue(q);
 
 	percpu_ref_exit(&q->q_usage_counter);
-
-	spin_lock_irq(lock);
-	if (q->queue_lock != &q->__queue_lock)
-		q->queue_lock = &q->__queue_lock;
-	spin_unlock_irq(lock);
 
 	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
@@ -524,8 +517,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	mutex_init(&q->blk_trace_mutex);
 #endif
 	mutex_init(&q->sysfs_lock);
-	spin_lock_init(&q->__queue_lock);
-	q->queue_lock = &q->__queue_lock;
+	spin_lock_init(&q->queue_lock);
 
 	init_waitqueue_head(&q->mq_freeze_wq);
 

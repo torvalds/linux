@@ -446,13 +446,7 @@ struct request_queue {
 	 */
 	gfp_t			bounce_gfp;
 
-	/*
-	 * protects queue structures from reentrancy. ->__queue_lock should
-	 * _never_ be used directly, it is queue private. always use
-	 * ->queue_lock.
-	 */
-	spinlock_t		__queue_lock;
-	spinlock_t		*queue_lock;
+	spinlock_t		queue_lock;
 
 	/*
 	 * queue kobject
