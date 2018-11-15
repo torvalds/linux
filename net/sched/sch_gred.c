@@ -300,7 +300,8 @@ static inline void gred_destroy_vq(struct gred_sched_data *q)
 	kfree(q);
 }
 
-static inline int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps)
+static int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps,
+				 struct netlink_ext_ack *extack)
 {
 	struct gred_sched *table = qdisc_priv(sch);
 	struct tc_gred_sopt *sopt;
@@ -311,9 +312,19 @@ static inline int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps)
 
 	sopt = nla_data(dps);
 
-	if (sopt->DPs > MAX_DPs || sopt->DPs == 0 ||
-	    sopt->def_DP >= sopt->DPs)
+	if (sopt->DPs > MAX_DPs) {
+		NL_SET_ERR_MSG_MOD(extack, "number of virtual queues too high");
 		return -EINVAL;
+	}
+	if (sopt->DPs == 0) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "number of virtual queues can't be 0");
+		return -EINVAL;
+	}
+	if (sopt->def_DP >= sopt->DPs) {
+		NL_SET_ERR_MSG_MOD(extack, "default virtual queue above virtual queue count");
+		return -EINVAL;
+	}
 
 	sch_tree_lock(sch);
 	table->DPs = sopt->DPs;
@@ -352,13 +363,16 @@ static inline int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps)
 static inline int gred_change_vq(struct Qdisc *sch, int dp,
 				 struct tc_gred_qopt *ctl, int prio,
 				 u8 *stab, u32 max_P,
-				 struct gred_sched_data **prealloc)
+				 struct gred_sched_data **prealloc,
+				 struct netlink_ext_ack *extack)
 {
 	struct gred_sched *table = qdisc_priv(sch);
 	struct gred_sched_data *q = table->tab[dp];
 
-	if (!red_check_params(ctl->qth_min, ctl->qth_max, ctl->Wlog))
+	if (!red_check_params(ctl->qth_min, ctl->qth_max, ctl->Wlog)) {
+		NL_SET_ERR_MSG_MOD(extack, "invalid RED parameters");
 		return -EINVAL;
+	}
 
 	if (!q) {
 		table->tab[dp] = q = *prealloc;
@@ -413,21 +427,25 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 	if (tb[TCA_GRED_PARMS] == NULL && tb[TCA_GRED_STAB] == NULL) {
 		if (tb[TCA_GRED_LIMIT] != NULL)
 			sch->limit = nla_get_u32(tb[TCA_GRED_LIMIT]);
-		return gred_change_table_def(sch, tb[TCA_GRED_DPS]);
+		return gred_change_table_def(sch, tb[TCA_GRED_DPS], extack);
 	}
 
 	if (tb[TCA_GRED_PARMS] == NULL ||
 	    tb[TCA_GRED_STAB] == NULL ||
-	    tb[TCA_GRED_LIMIT] != NULL)
+	    tb[TCA_GRED_LIMIT] != NULL) {
+		NL_SET_ERR_MSG_MOD(extack, "can't configure Qdisc and virtual queue at the same time");
 		return -EINVAL;
+	}
 
 	max_P = tb[TCA_GRED_MAX_P] ? nla_get_u32(tb[TCA_GRED_MAX_P]) : 0;
 
 	ctl = nla_data(tb[TCA_GRED_PARMS]);
 	stab = nla_data(tb[TCA_GRED_STAB]);
 
-	if (ctl->DP >= table->DPs)
+	if (ctl->DP >= table->DPs) {
+		NL_SET_ERR_MSG_MOD(extack, "virtual queue index above virtual queue count");
 		return -EINVAL;
+	}
 
 	if (gred_rio_mode(table)) {
 		if (ctl->prio == 0) {
@@ -447,7 +465,8 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 	prealloc = kzalloc(sizeof(*prealloc), GFP_KERNEL);
 	sch_tree_lock(sch);
 
-	err = gred_change_vq(sch, ctl->DP, ctl, prio, stab, max_P, &prealloc);
+	err = gred_change_vq(sch, ctl->DP, ctl, prio, stab, max_P, &prealloc,
+			     extack);
 	if (err < 0)
 		goto err_unlock_free;
 
@@ -480,8 +499,11 @@ static int gred_init(struct Qdisc *sch, struct nlattr *opt,
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_GRED_PARMS] || tb[TCA_GRED_STAB])
+	if (tb[TCA_GRED_PARMS] || tb[TCA_GRED_STAB]) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "virtual queue configuration can't be specified at initialization time");
 		return -EINVAL;
+	}
 
 	if (tb[TCA_GRED_LIMIT])
 		sch->limit = nla_get_u32(tb[TCA_GRED_LIMIT]);
@@ -489,7 +511,7 @@ static int gred_init(struct Qdisc *sch, struct nlattr *opt,
 		sch->limit = qdisc_dev(sch)->tx_queue_len
 		             * psched_mtu(qdisc_dev(sch));
 
-	return gred_change_table_def(sch, tb[TCA_GRED_DPS]);
+	return gred_change_table_def(sch, tb[TCA_GRED_DPS], extack);
 }
 
 static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
