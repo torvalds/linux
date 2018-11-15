@@ -1,3 +1,6 @@
+
+#include "sas_internal.h"
+
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <scsi/sas.h>

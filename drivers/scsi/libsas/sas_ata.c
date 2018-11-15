@@ -375,7 +375,7 @@ static int sas_ata_printk(const char *level, const struct domain_device *ddev,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	r = printk("%ssas: ata%u: %s: %pV",
+	r = printk("%s" SAS_FMT "ata%u: %s: %pV",
 		   level, ap->print_id, dev_name(dev), &vaf);
 
 	va_end(args);
