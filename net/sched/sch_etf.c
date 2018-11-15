@@ -30,7 +30,7 @@ struct etf_sched_data {
 	int queue;
 	s32 delta; /* in ns */
 	ktime_t last; /* The txtime of the last skb sent to the netdevice. */
-	struct rb_root head;
+	struct rb_root_cached head;
 	struct qdisc_watchdog watchdog;
 	ktime_t (*get_time)(void);
 };
@@ -104,7 +104,7 @@ static struct sk_buff *etf_peek_timesortedlist(struct Qdisc *sch)
 	struct etf_sched_data *q = qdisc_priv(sch);
 	struct rb_node *p;
 
-	p = rb_first(&q->head);
+	p = rb_first_cached(&q->head);
 	if (!p)
 		return NULL;
 
@@ -156,8 +156,9 @@ static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
 				      struct sk_buff **to_free)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
-	struct rb_node **p = &q->head.rb_node, *parent = NULL;
+	struct rb_node **p = &q->head.rb_root.rb_node, *parent = NULL;
 	ktime_t txtime = nskb->tstamp;
+	bool leftmost = true;
 
 	if (!is_packet_valid(sch, nskb)) {
 		report_sock_error(nskb, EINVAL,
@@ -170,13 +171,15 @@ static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
 
 		parent = *p;
 		skb = rb_to_skb(parent);
-		if (ktime_after(txtime, skb->tstamp))
+		if (ktime_after(txtime, skb->tstamp)) {
 			p = &parent->rb_right;
-		else
+			leftmost = false;
+		} else {
 			p = &parent->rb_left;
+		}
 	}
 	rb_link_node(&nskb->rbnode, parent, p);
-	rb_insert_color(&nskb->rbnode, &q->head);
+	rb_insert_color_cached(&nskb->rbnode, &q->head, leftmost);
 
 	qdisc_qstats_backlog_inc(sch, nskb);
 	sch->q.qlen++;
@@ -192,7 +195,7 @@ static void timesortedlist_erase(struct Qdisc *sch, struct sk_buff *skb,
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
 
-	rb_erase(&skb->rbnode, &q->head);
+	rb_erase_cached(&skb->rbnode, &q->head);
 
 	/* The rbnode field in the skb re-uses these fields, now that
 	 * we are done with the rbnode, reset them.
@@ -388,14 +391,14 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 static void timesortedlist_clear(struct Qdisc *sch)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
-	struct rb_node *p = rb_first(&q->head);
+	struct rb_node *p = rb_first_cached(&q->head);
 
 	while (p) {
 		struct sk_buff *skb = rb_to_skb(p);
 
 		p = rb_next(p);
 
-		rb_erase(&skb->rbnode, &q->head);
+		rb_erase_cached(&skb->rbnode, &q->head);
 		rtnl_kfree_skbs(skb, skb);
 		sch->q.qlen--;
 	}
