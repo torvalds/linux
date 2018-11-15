@@ -16,6 +16,7 @@
 #include <linux/libfdt.h>
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
+#include <linux/random.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>
@@ -24,6 +25,7 @@
 #define FDT_PSTR_INITRD_STA	"linux,initrd-start"
 #define FDT_PSTR_INITRD_END	"linux,initrd-end"
 #define FDT_PSTR_BOOTARGS	"bootargs"
+#define FDT_PSTR_KASLR_SEED	"kaslr-seed"
 
 const struct kexec_file_ops * const kexec_file_loaders[] = {
 	&kexec_image_ops,
@@ -82,11 +84,26 @@ static int setup_dtb(struct kimage *image,
 			return -EINVAL;
 	}
 
+	/* add kaslr-seed */
+	ret = fdt_delprop(dtb, nodeoffset, FDT_PSTR_KASLR_SEED);
+	if (ret && (ret != -FDT_ERR_NOTFOUND))
+		return -EINVAL;
+
+	if (rng_is_initialized()) {
+		u64 r = get_random_u64();
+		ret = fdt_setprop_u64(dtb, nodeoffset, FDT_PSTR_KASLR_SEED, r);
+		if (ret)
+			return (ret == -FDT_ERR_NOSPACE ? -ENOMEM : -EINVAL);
+	} else {
+		pr_notice("RNG is not initialised: omitting \"%s\" property\n",
+				FDT_PSTR_KASLR_SEED);
+	}
+
 	return 0;
 }
 
 /*
- * More space needed so that we can add initrd and bootargs.
+ * More space needed so that we can add initrd, bootargs and kaslr-seed.
  */
 #define DTB_EXTRA_SPACE 0x1000
 
