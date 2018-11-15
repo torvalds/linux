@@ -40,8 +40,6 @@
 
 #define pr_fmt(fmt) SAS_FMT fmt
 
-#define sas_printk(fmt, ...) printk(KERN_NOTICE fmt, ## __VA_ARGS__)
-
 #define SAS_DPRINTK(fmt, ...) printk(KERN_DEBUG fmt, ## __VA_ARGS__)
 
 
