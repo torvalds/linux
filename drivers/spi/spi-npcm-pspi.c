@@ -467,7 +467,6 @@ static struct platform_driver npcm_pspi_driver = {
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.of_match_table	= npcm_pspi_match,
-		.owner		= THIS_MODULE,
 	},
 	.probe		= npcm_pspi_probe,
 	.remove		= npcm_pspi_remove,
