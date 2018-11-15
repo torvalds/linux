@@ -84,6 +84,7 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	pcm.hdr.size = sizeof(pcm);
 	pcm.hdr.cmd = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_PCM_PARAMS;
 	pcm.comp_id = spcm->stream[substream->stream].comp_id;
+	pcm.params.hdr.size = sizeof(pcm.params);
 	pcm.params.buffer.phy_addr =
 		spcm->stream[substream->stream].page_table.addr;
 	pcm.params.buffer.size = runtime->dma_bytes;

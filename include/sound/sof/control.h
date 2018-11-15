@@ -106,7 +106,7 @@ struct sof_ipc_ctrl_data {
 
 	/* control data - can either be appended or DMAed from host */
 	struct sof_ipc_host_buffer buffer;
-	uint32_t num_elems;	/**< in array elems or bytes */
+	uint32_t num_elems;	/**< in array elems or bytes for data type */
 
 	/* reserved for future use */
 	uint32_t reserved[8];

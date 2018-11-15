@@ -152,8 +152,7 @@ struct snd_sof_dsp_ops {
 					 struct snd_pcm_substream *substream);
 
 	/* FW loading */
-	int (*load_firmware)(struct snd_sof_dev *sof_dev,
-			     bool first_boot);
+	int (*load_firmware)(struct snd_sof_dev *sof_dev);
 	int (*load_module)(struct snd_sof_dev *sof_dev,
 			   struct snd_sof_mod_hdr *hdr);
 	int (*fw_ready)(struct snd_sof_dev *sdev, u32 msg_id);
@@ -311,6 +310,7 @@ struct snd_sof_dev {
 	/* DSP firmware boot */
 	wait_queue_head_t boot_wait;
 	u32 boot_complete;
+	u32 first_boot;
 
 	/* DSP HW differentiation */
 	struct snd_sof_pdata *pdata;
@@ -377,7 +377,6 @@ struct snd_sof_dev {
 
 	/* PM */
 	u32 restore_kcontrols; /* restore kcontrols upon resume */
-	u32 first_boot;
 
 	void *private;			/* core does not touch this */
 };
@@ -414,10 +413,8 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 /*
  * Firmware loading.
  */
-int snd_sof_load_firmware(struct snd_sof_dev *sdev,
-			  bool first_boot);
-int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev,
-				 bool first_boot);
+int snd_sof_load_firmware(struct snd_sof_dev *sdev);
+int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev);
 int snd_sof_run_firmware(struct snd_sof_dev *sdev);
 int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 				struct snd_sof_mod_hdr *module);
@@ -437,6 +434,7 @@ int snd_sof_ipc_stream_pcm_params(struct snd_sof_dev *sdev,
 int snd_sof_dsp_mailbox_init(struct snd_sof_dev *sdev, u32 dspbox,
 			     size_t dspbox_size, u32 hostbox,
 			     size_t hostbox_size);
+int snd_sof_ipc_valid(struct snd_sof_dev *sdev);
 int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header, void *tx_data,
 		       size_t tx_bytes, void *rx_data, size_t rx_bytes);
 struct snd_sof_widget *snd_sof_find_swidget(struct snd_sof_dev *sdev,

@@ -71,12 +71,10 @@ struct sof_eq_fir_coef_data {
 	int16_t coef[]; /* FIR coefficients */
 } __packed;
 
-/* In the struct above there's two 16 bit words (length, shift) and four
- * reserved 32 bit words before the actual FIR coefficients. This information
- * is used in parsing of the configuration blob.
+/* In the struct above there's two words (length, shift) before the actual
+ * FIR coefficients. This information is used in parsing of the config blob.
  */
-#define SOF_EQ_FIR_COEF_NHEADER \
-	(sizeof(const struct sof_eq_fir_coef_data) / sizeof(int16_t))
+#define SOF_EQ_FIR_COEF_NHEADER 2
 
 /* IIR EQ type */
 
@@ -157,16 +155,10 @@ struct sof_eq_iir_biquad_df2t {
  */
 #define SOF_EQ_IIR_DF2T_BIQUADS_MAX 11
 
-/* The number of int32_t words in sof_eq_iir_header_df2t:
- *	num_sections, num_sections_in_series, reserved[4]
- */
-#define SOF_EQ_IIR_NHEADER_DF2T \
-	(sizeof(const struct sof_eq_iir_header_df2t) / sizeof(int32_t))
+/* The number of int32_t words in sof_eq_iir_header_df2t */
+#define SOF_EQ_IIR_NHEADER_DF2T 2
 
-/* The number of int32_t words in sof_eq_iir_biquad_df2t:
- *	a2, a1, b2, b1, b0, output_shift, output_gain
- */
-#define SOF_EQ_IIR_NBIQUAD_DF2T \
-	(sizeof(const struct sof_eq_iir_biquad_df2t) / sizeof(int32_t))
+/* The number of int32_t words in sof_eq_iir_biquad_df2t */
+#define SOF_EQ_IIR_NBIQUAD_DF2T 7
 
 #endif

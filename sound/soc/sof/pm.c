@@ -63,7 +63,7 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 	struct sof_ipc_pipe_new *pipeline;
 	struct snd_sof_dai *dai;
 	struct sof_ipc_comp_dai *comp_dai;
-	struct sof_ipc_hdr *hdr;
+	struct sof_ipc_cmd_hdr *hdr;
 	int ret = 0;
 
 	/* restore pipeline components */
@@ -97,7 +97,7 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 			ret = sof_load_pipeline_ipc(sdev, pipeline, &r);
 			break;
 		default:
-			hdr = (struct sof_ipc_hdr *)swidget->private;
+			hdr = (struct sof_ipc_cmd_hdr *)swidget->private;
 			ret = sof_ipc_tx_message(sdev->ipc, hdr->cmd,
 						 swidget->private, hdr->size,
 						 &r, sizeof(r));
@@ -264,7 +264,7 @@ static int sof_resume(struct device *dev, int runtime_resume)
 	}
 
 	/* load the firmware */
-	ret = snd_sof_load_firmware(sdev, false);
+	ret = snd_sof_load_firmware(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to load DSP firmware after resume %d\n",

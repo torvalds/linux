@@ -53,7 +53,7 @@ enum sof_ipc_dai_type {
 
 /* general purpose DAI configuration */
 struct sof_ipc_dai_config {
-	struct sof_ipc_hdr hdr;
+	struct sof_ipc_cmd_hdr hdr;
 	uint32_t type;		/**< DAI type - enum sof_ipc_dai_type */
 	uint32_t dai_index;	/**< index of this type dai */
 

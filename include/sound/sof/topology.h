@@ -43,7 +43,7 @@ enum sof_comp_type {
 
 /* create new generic component - SOF_IPC_TPLG_COMP_NEW */
 struct sof_ipc_comp {
-	struct sof_ipc_hdr hdr;
+	struct sof_ipc_cmd_hdr hdr;
 	uint32_t id;
 	enum sof_comp_type type;
 	uint32_t pipeline_id;
@@ -56,6 +56,18 @@ struct sof_ipc_comp {
  * Component Buffers
  */
 
+/*
+ * SOF memory capabilities, add new ones at the end
+ */
+#define SOF_MEM_CAPS_RAM			(1 << 0)
+#define SOF_MEM_CAPS_ROM			(1 << 1)
+#define SOF_MEM_CAPS_EXT			(1 << 2) /**< external */
+#define SOF_MEM_CAPS_LP			(1 << 3) /**< low power */
+#define SOF_MEM_CAPS_HP			(1 << 4) /**< high performance */
+#define SOF_MEM_CAPS_DMA			(1 << 5) /**< DMA'able */
+#define SOF_MEM_CAPS_CACHE			(1 << 6) /**< cacheable */
+#define SOF_MEM_CAPS_EXEC			(1 << 7) /**< executable */
+
 /* create new component buffer - SOF_IPC_TPLG_BUFFER_NEW */
 struct sof_ipc_buffer {
 	struct sof_ipc_comp comp;
@@ -65,6 +77,7 @@ struct sof_ipc_buffer {
 
 /* generic component config data - must always be after struct sof_ipc_comp */
 struct sof_ipc_comp_config {
+	struct sof_ipc_cmd_hdr hdr;
 	uint32_t periods_sink;	/**< 0 means variable */
 	uint32_t periods_source;	/**< 0 means variable */
 	uint32_t preload_count;	/**< how many periods to preload */
@@ -159,6 +172,7 @@ enum sof_ipc_effect_type {
 
 /* general purpose EFFECT configuration */
 struct sof_ipc_comp_effect {
+	struct sof_ipc_hdr hdr;
 	uint32_t type;			/** sof_ipc_effect_type */
 } __packed;
 
@@ -190,7 +204,7 @@ struct sof_ipc_comp_eq_iir {
  * SOF_IPC_TPLG_COMP_FREE, SOF_IPC_TPLG_PIPE_FREE, SOF_IPC_TPLG_BUFFER_FREE
  */
 struct sof_ipc_free {
-	struct sof_ipc_hdr hdr;
+	struct sof_ipc_cmd_hdr hdr;
 	uint32_t id;
 } __packed;
 
@@ -206,10 +220,10 @@ struct sof_ipc_comp_reply {
 
 /* new pipeline - SOF_IPC_TPLG_PIPE_NEW */
 struct sof_ipc_pipe_new {
-	struct sof_ipc_hdr hdr;
+	struct sof_ipc_cmd_hdr hdr;
 	uint32_t comp_id;	/**< component id for pipeline */
 	uint32_t pipeline_id;	/**< pipeline id */
-	uint32_t sched_id;	/**< sheduling component id */
+	uint32_t sched_id;	/**< Scheduling component id */
 	uint32_t core;		/**< core we run on */
 	uint32_t deadline;	/**< execution completion deadline in us*/
 	uint32_t priority;	/**< priority level 0 (low) to 10 (max) */
@@ -223,18 +237,18 @@ struct sof_ipc_pipe_new {
 
 /* pipeline construction complete - SOF_IPC_TPLG_PIPE_COMPLETE */
 struct sof_ipc_pipe_ready {
-	struct sof_ipc_hdr hdr;
+	struct sof_ipc_cmd_hdr hdr;
 	uint32_t comp_id;
 }  __packed;
 
 struct sof_ipc_pipe_free {
-	struct sof_ipc_hdr hdr;
+	struct sof_ipc_cmd_hdr hdr;
 	uint32_t comp_id;
 }  __packed;
 
 /* connect two components in pipeline - SOF_IPC_TPLG_COMP_CONNECT */
 struct sof_ipc_pipe_comp_connect {
-	struct sof_ipc_hdr hdr;
+	struct sof_ipc_cmd_hdr hdr;
 	uint32_t source_id;
 	uint32_t sink_id;
 }  __packed;

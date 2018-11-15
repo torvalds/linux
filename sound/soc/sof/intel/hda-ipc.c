@@ -356,8 +356,8 @@ static void ipc_get_windows(struct snd_sof_dev *sdev)
 int hda_dsp_ipc_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 {
 	struct sof_ipc_fw_ready *fw_ready = &sdev->fw_ready;
-	struct sof_ipc_fw_version *v = &fw_ready->version;
 	u32 offset;
+	int ret;
 
 	/* mailbox must be on 4k boundary */
 	offset = HDA_DSP_MBOX_UPLINK_OFFSET;
@@ -365,22 +365,23 @@ int hda_dsp_ipc_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 	dev_dbg(sdev->dev, "ipc: DSP is ready 0x%8.8x offset 0x%x\n",
 		msg_id, offset);
 
+	/* no need to re-check version/ABI for subsequent boots */
+	if (!sdev->first_boot)
+		return 0;
+
 	/* copy data from the DSP FW ready offset */
 	sof_block_read(sdev, offset, fw_ready,	sizeof(*fw_ready));
-	dev_info(sdev->dev,
-		 " Firmware info: version %d.%d-%s build %d on %s:%s\n",
-		 v->major, v->minor, v->tag, v->build, v->date, v->time);
 
-	/* only copy the fw_version into debugfs at first boot */
-	if (sdev->first_boot)
-		memcpy(&sdev->fw_version, v, sizeof(*v));
+	/* make sure ABI version is compatible */
+	ret = snd_sof_ipc_valid(sdev);
+	if (ret < 0)
+		return ret;
 
 	/* now check for extended data */
 	snd_sof_fw_parse_ext_data(sdev, HDA_DSP_MBOX_UPLINK_OFFSET +
 				  sizeof(struct sof_ipc_fw_ready));
 
-	if (sdev->first_boot)
-		ipc_get_windows(sdev);
+	ipc_get_windows(sdev);
 
 	return 0;
 }

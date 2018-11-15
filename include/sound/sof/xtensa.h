@@ -9,12 +9,15 @@
 #ifndef __INCLUDE_SOUND_SOF_XTENSA_H__
 #define __INCLUDE_SOUND_SOF_XTENSA_H__
 
+#include <sound/sof/header.h>
+
 /*
  * Architecture specific debug
  */
 
 /* Xtensa Firmware Oops data */
 struct sof_ipc_dsp_oops_xtensa {
+	struct sof_ipc_hdr hdr;
 	uint32_t exccause;
 	uint32_t excvaddr;
 	uint32_t ps;

@@ -108,53 +108,34 @@
 #define SOF_IPC_MSG_MAX_SIZE			384
 
 /*
- * SOF panic codes
- */
-#define SOF_IPC_PANIC_MAGIC			0x0dead000
-#define SOF_IPC_PANIC_MAGIC_MASK		0x0ffff000
-#define SOF_IPC_PANIC_CODE_MASK			0x00000fff
-#define SOF_IPC_PANIC_MEM			(SOF_IPC_PANIC_MAGIC | 0x0)
-#define SOF_IPC_PANIC_WORK			(SOF_IPC_PANIC_MAGIC | 0x1)
-#define SOF_IPC_PANIC_IPC			(SOF_IPC_PANIC_MAGIC | 0x2)
-#define SOF_IPC_PANIC_ARCH			(SOF_IPC_PANIC_MAGIC | 0x3)
-#define SOF_IPC_PANIC_PLATFORM			(SOF_IPC_PANIC_MAGIC | 0x4)
-#define SOF_IPC_PANIC_TASK			(SOF_IPC_PANIC_MAGIC | 0x5)
-#define SOF_IPC_PANIC_EXCEPTION			(SOF_IPC_PANIC_MAGIC | 0x6)
-#define SOF_IPC_PANIC_DEADLOCK			(SOF_IPC_PANIC_MAGIC | 0x7)
-#define SOF_IPC_PANIC_STACK			(SOF_IPC_PANIC_MAGIC | 0x8)
-#define SOF_IPC_PANIC_IDLE			(SOF_IPC_PANIC_MAGIC | 0x9)
-#define SOF_IPC_PANIC_WFI			(SOF_IPC_PANIC_MAGIC | 0xa)
-
-/*
- * SOF memory capabilities, add new ones at the end
- */
-#define SOF_MEM_CAPS_RAM			(1 << 0)
-#define SOF_MEM_CAPS_ROM			(1 << 1)
-#define SOF_MEM_CAPS_EXT			(1 << 2) /**< external */
-#define SOF_MEM_CAPS_LP			(1 << 3) /**< low power */
-#define SOF_MEM_CAPS_HP			(1 << 4) /**< high performance */
-#define SOF_MEM_CAPS_DMA			(1 << 5) /**< DMA'able */
-#define SOF_MEM_CAPS_CACHE			(1 << 6) /**< cacheable */
-#define SOF_MEM_CAPS_EXEC			(1 << 7) /**< executable */
-
-/*
- * Command Header - Header for all IPC. Identifies IPC message.
+ * Structure Header - Header for all IPC structures except command structs.
  * The size can be greater than the structure size and that means there is
  * extended bespoke data beyond the end of the structure including variable
  * arrays.
  */
 
 struct sof_ipc_hdr {
-	uint32_t cmd;			/**< SOF_IPC_GLB_ + cmd */
 	uint32_t size;			/**< size of structure */
-}  __packed;
+} __packed;
+
+/*
+ * Command Header - Header for all IPC commands. Identifies IPC message.
+ * The size can be greater than the structure size and that means there is
+ * extended bespoke data beyond the end of the structure including variable
+ * arrays.
+ */
+
+struct sof_ipc_cmd_hdr {
+	uint32_t size;			/**< size of structure */
+	uint32_t cmd;			/**< SOF_IPC_GLB_ + cmd */
+} __packed;
 
 /*
  * Generic reply message. Some commands override this with their own reply
  * types that must include this at start.
  */
 struct sof_ipc_reply {
-	struct sof_ipc_hdr hdr;
+	struct sof_ipc_cmd_hdr hdr;
 	int32_t error;			/**< negative error numbers */
 }  __packed;
 
@@ -168,7 +149,7 @@ struct sof_ipc_reply {
  */
 
 struct sof_ipc_compound_hdr {
-	struct sof_ipc_hdr hdr;
+	struct sof_ipc_cmd_hdr hdr;
 	uint32_t count;		/**< count of 0 means end of compound sequence */
 }  __packed;
 
