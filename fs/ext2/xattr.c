@@ -835,7 +835,8 @@ ext2_xattr_cache_insert(struct mb_cache *cache, struct buffer_head *bh)
 	__u32 hash = le32_to_cpu(HDR(bh)->h_hash);
 	int error;
 
-	error = mb_cache_entry_create(cache, GFP_NOFS, hash, bh->b_blocknr, 1);
+	error = mb_cache_entry_create(cache, GFP_NOFS, hash, bh->b_blocknr,
+				      true);
 	if (error) {
 		if (error == -EBUSY) {
 			ea_bdebug(bh, "already in cache (%d cache entries)",
