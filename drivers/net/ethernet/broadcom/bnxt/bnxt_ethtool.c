@@ -2862,8 +2862,8 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 	record->asic_state = 0;
 	strlcpy(record->system_name, utsname()->nodename,
 		sizeof(record->system_name));
-	record->year = cpu_to_le16(tm.tm_year);
-	record->month = cpu_to_le16(tm.tm_mon);
+	record->year = cpu_to_le16(tm.tm_year + 1900);
+	record->month = cpu_to_le16(tm.tm_mon + 1);
 	record->day = cpu_to_le16(tm.tm_mday);
 	record->hour = cpu_to_le16(tm.tm_hour);
 	record->minute = cpu_to_le16(tm.tm_min);
