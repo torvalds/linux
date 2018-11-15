@@ -406,7 +406,7 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_GRED_MAX, opt, gred_policy, NULL);
+	err = nla_parse_nested(tb, TCA_GRED_MAX, opt, gred_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -476,7 +476,7 @@ static int gred_init(struct Qdisc *sch, struct nlattr *opt,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_GRED_MAX, opt, gred_policy, NULL);
+	err = nla_parse_nested(tb, TCA_GRED_MAX, opt, gred_policy, extack);
 	if (err < 0)
 		return err;
 
