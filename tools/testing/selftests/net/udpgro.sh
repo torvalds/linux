@@ -91,11 +91,40 @@ run_one_nat() {
 	wait $(jobs -p)
 }
 
+run_one_2sock() {
+	# use 'rx' as separator between sender args and receiver args
+	local -r all="$@"
+	local -r tx_args=${all%rx*}
+	local -r rx_args=${all#*rx}
+
+	cfg_veth
+
+	ip netns exec "${PEER_NS}" ./udpgso_bench_rx ${rx_args} -p 12345 &
+	ip netns exec "${PEER_NS}" ./udpgso_bench_rx ${rx_args} && \
+		echo "ok" || \
+		echo "failed" &
+
+	# Hack: let bg programs complete the startup
+	sleep 0.1
+	./udpgso_bench_tx ${tx_args} -p 12345
+	sleep 0.1
+	# first UDP GSO socket should be closed at this point
+	./udpgso_bench_tx ${tx_args}
+	wait $(jobs -p)
+}
+
 run_nat_test() {
 	local -r args=$@
 
 	printf " %-40s" "$1"
 	./in_netns.sh $0 __subprocess_nat $2 rx -r $3
+}
+
+run_2sock_test() {
+	local -r args=$@
+
+	printf " %-40s" "$1"
+	./in_netns.sh $0 __subprocess_2sock $2 rx -G -r $3
 }
 
 run_all() {
@@ -120,6 +149,7 @@ run_all() {
 	run_test "GRO with custom segment size cmsg" "${ipv4_args} -M 1 -s 14720 -S 500 " "-4 -n 1 -l 14720 -S 500"
 
 	run_nat_test "bad GRO lookup" "${ipv4_args} -M 1 -s 14720 -S 0" "-n 10 -l 1472"
+	run_2sock_test "multiple GRO socks" "${ipv4_args} -M 1 -s 14720 -S 0 " "-4 -n 1 -l 14720 -S 1472"
 
 	echo "ipv6"
 	run_test "no GRO" "${ipv6_args} -M 10 -s 1400" "-n 10 -l 1400"
@@ -130,6 +160,7 @@ run_all() {
 	run_test "GRO with custom segment size cmsg" "${ipv6_args} -M 1 -s 14520 -S 500" "-n 1 -l 14520 -S 500"
 
 	run_nat_test "bad GRO lookup" "${ipv6_args} -M 1 -s 14520 -S 0" "-n 10 -l 1452"
+	run_2sock_test "multiple GRO socks" "${ipv6_args} -M 1 -s 14520 -S 0 " "-n 1 -l 14520 -S 1452"
 }
 
 if [ ! -f ../bpf/xdp_dummy.o ]; then
@@ -145,4 +176,7 @@ elif [[ $1 == "__subprocess" ]]; then
 elif [[ $1 == "__subprocess_nat" ]]; then
 	shift
 	run_one_nat $@
+elif [[ $1 == "__subprocess_2sock" ]]; then
+	shift
+	run_one_2sock $@
 fi
