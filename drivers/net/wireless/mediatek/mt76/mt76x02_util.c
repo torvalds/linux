@@ -191,8 +191,16 @@ int mt76x02_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	msta->wcid.hw_key_idx = -1;
 	mt76x02_mac_wcid_setup(dev, idx, mvif->idx, sta->addr);
 	mt76x02_mac_wcid_set_drop(dev, idx, false);
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
-		mt76x02_txq_init(dev, sta->txq[i]);
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++) {
+		struct mt76_txq *mtxq;
+
+		if (!sta->txq[i])
+			continue;
+
+		mtxq = (struct mt76_txq *) sta->txq[i]->drv_priv;
+		mtxq->wcid = &msta->wcid;
+		mt76_txq_init(&dev->mt76, sta->txq[i]);
+	}
 
 	if (vif->type == NL80211_IFTYPE_AP)
 		set_bit(MT_WCID_FLAG_CHECK_PS, &msta->wcid.flags);
@@ -230,11 +238,15 @@ void mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
 		      unsigned int idx)
 {
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
+	struct mt76_txq *mtxq;
 
 	mvif->idx = idx;
 	mvif->group_wcid.idx = MT_VIF_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
-	mt76x02_txq_init(dev, vif->txq);
+	mtxq = (struct mt76_txq *) vif->txq->drv_priv;
+	mtxq->wcid = &mvif->group_wcid;
+
+	mt76_txq_init(&dev->mt76, vif->txq);
 }
 EXPORT_SYMBOL_GPL(mt76x02_vif_init);
 
