@@ -190,8 +190,32 @@ static int etf_enqueue_timesortedlist(struct sk_buff *nskb, struct Qdisc *sch,
 	return NET_XMIT_SUCCESS;
 }
 
-static void timesortedlist_erase(struct Qdisc *sch, struct sk_buff *skb,
-				 bool drop)
+static void timesortedlist_drop(struct Qdisc *sch, struct sk_buff *skb)
+{
+	struct etf_sched_data *q = qdisc_priv(sch);
+	struct sk_buff *to_free = NULL;
+
+	rb_erase_cached(&skb->rbnode, &q->head);
+
+	/* The rbnode field in the skb re-uses these fields, now that
+	 * we are done with the rbnode, reset them.
+	 */
+	skb->next = NULL;
+	skb->prev = NULL;
+	skb->dev = qdisc_dev(sch);
+
+	qdisc_qstats_backlog_dec(sch, skb);
+
+	report_sock_error(skb, ECANCELED, SO_EE_CODE_TXTIME_MISSED);
+
+	qdisc_drop(skb, sch, &to_free);
+	kfree_skb_list(to_free);
+	qdisc_qstats_overlimit(sch);
+
+	sch->q.qlen--;
+}
+
+static void timesortedlist_remove(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
 
@@ -206,19 +230,9 @@ static void timesortedlist_erase(struct Qdisc *sch, struct sk_buff *skb,
 
 	qdisc_qstats_backlog_dec(sch, skb);
 
-	if (drop) {
-		struct sk_buff *to_free = NULL;
+	qdisc_bstats_update(sch, skb);
 
-		report_sock_error(skb, ECANCELED, SO_EE_CODE_TXTIME_MISSED);
-
-		qdisc_drop(skb, sch, &to_free);
-		kfree_skb_list(to_free);
-		qdisc_qstats_overlimit(sch);
-	} else {
-		qdisc_bstats_update(sch, skb);
-
-		q->last = skb->tstamp;
-	}
+	q->last = skb->tstamp;
 
 	sch->q.qlen--;
 }
@@ -237,7 +251,7 @@ static struct sk_buff *etf_dequeue_timesortedlist(struct Qdisc *sch)
 
 	/* Drop if packet has expired while in queue. */
 	if (ktime_before(skb->tstamp, now)) {
-		timesortedlist_erase(sch, skb, true);
+		timesortedlist_drop(sch, skb);
 		skb = NULL;
 		goto out;
 	}
@@ -246,7 +260,7 @@ static struct sk_buff *etf_dequeue_timesortedlist(struct Qdisc *sch)
 	 * txtime from deadline to (now + delta).
 	 */
 	if (q->deadline_mode) {
-		timesortedlist_erase(sch, skb, false);
+		timesortedlist_remove(sch, skb);
 		skb->tstamp = now;
 		goto out;
 	}
@@ -255,7 +269,7 @@ static struct sk_buff *etf_dequeue_timesortedlist(struct Qdisc *sch)
 
 	/* Dequeue only if now is within the [txtime - delta, txtime] range. */
 	if (ktime_after(now, next))
-		timesortedlist_erase(sch, skb, false);
+		timesortedlist_remove(sch, skb);
 	else
 		skb = NULL;
 
