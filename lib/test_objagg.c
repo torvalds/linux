@@ -769,6 +769,7 @@ static int test_delta_action_item(struct world *world,
 	if (err)
 		goto errout;
 
+	errmsg = NULL;
 	err = check_expect_stats(objagg, &action_item->expect_stats, &errmsg);
 	if (err) {
 		pr_err("Key %u: Stats: %s\n", action_item->key_id, errmsg);
