@@ -43,6 +43,11 @@ static const struct pll_params_table sys_pll_params_table[] = {
 	PLL_PARAMS(62, 1),
 	PLL_PARAMS(63, 1),
 	PLL_PARAMS(64, 1),
+	PLL_PARAMS(65, 1),
+	PLL_PARAMS(66, 1),
+	PLL_PARAMS(67, 1),
+	PLL_PARAMS(68, 1),
+	PLL_PARAMS(84, 1),
 	{ /* sentinel */ },
 };
 
