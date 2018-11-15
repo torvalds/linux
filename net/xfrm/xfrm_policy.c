@@ -1663,7 +1663,10 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u32 mark, u32 if_id,
 			tmp = __xfrm_policy_bysel_ctx(cand.res[i], mark,
 						      if_id, type, dir,
 						      sel, ctx);
-			if (tmp && pol && tmp->pos < pol->pos)
+			if (!tmp)
+				continue;
+
+			if (!pol || tmp->pos < pol->pos)
 				pol = tmp;
 		}
 	} else {

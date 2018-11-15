@@ -21,6 +21,7 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 ret=0
+policy_checks_ok=1
 
 KEY_SHA=0xdeadbeef1234567890abcdefabcdefabcdefabcd
 KEY_AES=0x0123456789abcdef0123456789012345
@@ -43,6 +44,26 @@ do_esp() {
     ip -net $ns xfrm policy add src $lnet dst $rnet dir out tmpl src $me dst $remote proto esp mode tunnel priority 100 action allow
     # to fwd decrypted packets after esp processing:
     ip -net $ns xfrm policy add src $rnet dst $lnet dir fwd tmpl src $remote dst $me proto esp mode tunnel priority 100 action allow
+}
+
+do_esp_policy_get_check() {
+    local ns=$1
+    local lnet=$2
+    local rnet=$3
+
+    ip -net $ns xfrm policy get src $lnet dst $rnet dir out > /dev/null
+    if [ $? -ne 0 ] && [ $policy_checks_ok -eq 1 ] ;then
+        policy_checks_ok=0
+        echo "FAIL: ip -net $ns xfrm policy get src $lnet dst $rnet dir out"
+        ret=1
+    fi
+
+    ip -net $ns xfrm policy get src $rnet dst $lnet dir fwd > /dev/null
+    if [ $? -ne 0 ] && [ $policy_checks_ok -eq 1 ] ;then
+        policy_checks_ok=0
+        echo "FAIL: ip -net $ns xfrm policy get src $rnet dst $lnet dir fwd"
+        ret=1
+    fi
 }
 
 do_exception() {
@@ -112,31 +133,31 @@ check_xfrm() {
 	# 1: iptables -m policy rule count != 0
 	rval=$1
 	ip=$2
-	ret=0
+	lret=0
 
 	ip netns exec ns1 ping -q -c 1 10.0.2.$ip > /dev/null
 
 	check_ipt_policy_count ns3
 	if [ $? -ne $rval ] ; then
-		ret=1
+		lret=1
 	fi
 	check_ipt_policy_count ns4
 	if [ $? -ne $rval ] ; then
-		ret=1
+		lret=1
 	fi
 
 	ip netns exec ns2 ping -q -c 1 10.0.1.$ip > /dev/null
 
 	check_ipt_policy_count ns3
 	if [ $? -ne $rval ] ; then
-		ret=1
+		lret=1
 	fi
 	check_ipt_policy_count ns4
 	if [ $? -ne $rval ] ; then
-		ret=1
+		lret=1
 	fi
 
-	return $ret
+	return $lret
 }
 
 #check for needed privileges
@@ -226,6 +247,11 @@ do_esp ns4 dead:3::10 dead:3::1 dead:2::/64 dead:1::/64 $SPI2 $SPI1
 
 do_dummies4 ns3
 do_dummies6 ns4
+
+do_esp_policy_get_check ns3 10.0.1.0/24 10.0.2.0/24
+do_esp_policy_get_check ns4 10.0.2.0/24 10.0.1.0/24
+do_esp_policy_get_check ns3 dead:1::/64 dead:2::/64
+do_esp_policy_get_check ns4 dead:2::/64 dead:1::/64
 
 # ping to .254 should use ipsec, exception is not installed.
 check_xfrm 1 254
