@@ -739,7 +739,7 @@ static void owl_gpio_irq_mask(struct irq_data *data)
 	val = readl_relaxed(gpio_base + port->intc_msk);
 	if (val == 0)
 		owl_gpio_update_reg(gpio_base + port->intc_ctl,
-					OWL_GPIO_CTLR_ENABLE, false);
+					OWL_GPIO_CTLR_ENABLE + port->shared_ctl_offset * 5, false);
 
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 }
@@ -763,7 +763,8 @@ static void owl_gpio_irq_unmask(struct irq_data *data)
 
 	/* enable port interrupt */
 	value = readl_relaxed(gpio_base + port->intc_ctl);
-	value |= BIT(OWL_GPIO_CTLR_ENABLE) | BIT(OWL_GPIO_CTLR_SAMPLE_CLK_24M);
+	value |= ((BIT(OWL_GPIO_CTLR_ENABLE) | BIT(OWL_GPIO_CTLR_SAMPLE_CLK_24M))
+			<< port->shared_ctl_offset * 5);
 	writel_relaxed(value, gpio_base + port->intc_ctl);
 
 	/* enable GPIO interrupt */
@@ -801,7 +802,7 @@ static void owl_gpio_irq_ack(struct irq_data *data)
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	owl_gpio_update_reg(gpio_base + port->intc_ctl,
-				OWL_GPIO_CTLR_PENDING, true);
+				OWL_GPIO_CTLR_PENDING + port->shared_ctl_offset * 5, true);
 
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 }
