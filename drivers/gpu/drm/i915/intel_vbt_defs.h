@@ -326,6 +326,13 @@ enum vbt_gmbus_ddi {
 	ICL_DDC_BUS_PORT_4,
 };
 
+#define DP_AUX_A 0x40
+#define DP_AUX_B 0x10
+#define DP_AUX_C 0x20
+#define DP_AUX_D 0x30
+#define DP_AUX_E 0x50
+#define DP_AUX_F 0x60
+
 #define VBT_DP_MAX_LINK_RATE_HBR3	0
 #define VBT_DP_MAX_LINK_RATE_HBR2	1
 #define VBT_DP_MAX_LINK_RATE_HBR	2

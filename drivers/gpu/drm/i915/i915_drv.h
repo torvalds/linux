@@ -1053,13 +1053,6 @@ struct i915_gem_mm {
 
 #define I915_ENGINE_WEDGED_TIMEOUT  (60 * HZ)  /* Reset but no recovery? */
 
-#define DP_AUX_A 0x40
-#define DP_AUX_B 0x10
-#define DP_AUX_C 0x20
-#define DP_AUX_D 0x30
-#define DP_AUX_E 0x50
-#define DP_AUX_F 0x60
-
 struct ddi_vbt_port_info {
 	int max_tmds_clock;
 
