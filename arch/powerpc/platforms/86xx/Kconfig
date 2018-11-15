@@ -70,7 +70,7 @@ endif
 
 config MPC8641
 	bool
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
@@ -79,7 +79,7 @@ config MPC8641
 
 config MPC8610
 	bool
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC

@@ -63,17 +63,6 @@ config ISA
 	  If you want to plug an ISA card into your EISA bus, say Y here.
 	  Most people should say N.
 
-config PCI
-	bool "PCI support"
-	help
-	  All recent HP machines have PCI slots, and you should say Y here
-	  if you have a recent machine.  If you are convinced you do not have
-	  PCI slots in your machine (eg a 712), then you may say "N" here.
-	  Beware that some GSC cards have a Dino onboard and PCI inside them,
-	  so it may be safest to say "Y" anyway.
-
-source "drivers/pci/Kconfig"
-
 config GSC_DINO
 	bool "GSCtoPCI/Dino PCI support"
 	depends on PCI && GSC

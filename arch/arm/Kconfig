@@ -147,9 +147,6 @@ config ARM_DMA_IOMMU_ALIGNMENT
 
 endif
 
-config MIGHT_HAVE_PCI
-	bool
-
 config SYS_SUPPORTS_APM_EMULATION
 	bool
 
@@ -333,7 +330,7 @@ config ARCH_MULTIPLATFORM
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_MULTI_HANDLER
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI
 	select PCI_DOMAINS if PCI
 	select SPARSE_IRQ
 	select USE_OF
@@ -407,7 +404,7 @@ config ARCH_IOP13XX
 	select CPU_XSC3
 	select NEED_MACH_MEMORY_H
 	select NEED_RET_TO_USER
-	select PCI
+	select FORCE_PCI
 	select PLAT_IOP
 	select VMSPLIT_1G
 	select SPARSE_IRQ
@@ -421,7 +418,7 @@ config ARCH_IOP32X
 	select GPIO_IOP
 	select GPIOLIB
 	select NEED_RET_TO_USER
-	select PCI
+	select FORCE_PCI
 	select PLAT_IOP
 	help
 	  Support for Intel's 80219 and IOP32X (XScale) family of
@@ -434,7 +431,7 @@ config ARCH_IOP33X
 	select GPIO_IOP
 	select GPIOLIB
 	select NEED_RET_TO_USER
-	select PCI
+	select FORCE_PCI
 	select PLAT_IOP
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
@@ -449,7 +446,7 @@ config ARCH_IXP4XX
 	select DMABOUNCE if PCI
 	select GENERIC_CLOCKEVENTS
 	select GPIOLIB
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI
 	select NEED_MACH_IO_H
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
@@ -462,7 +459,7 @@ config ARCH_DOVE
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI
 	select MVEBU_MBUS
 	select PINCTRL
 	select PINCTRL_DOVE
@@ -1230,14 +1227,6 @@ config ISA_DMA
 config ISA_DMA_API
 	bool
 
-config PCI
-	bool "PCI support" if MIGHT_HAVE_PCI
-	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
 config PCI_DOMAINS
 	bool "Support for multiple PCI domains"
 	depends on PCI
@@ -1265,8 +1254,6 @@ config PCI_HOST_ITE8152
 	depends on PCI && MACH_ARMCORE
 	default y
 	select DMABOUNCE
-
-source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
 

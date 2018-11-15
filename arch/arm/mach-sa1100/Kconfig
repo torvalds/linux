@@ -120,7 +120,7 @@ config SA1100_LART
 config SA1100_NANOENGINE
 	bool "nanoEngine"
 	select ARM_SA1110_CPUFREQ
-	select PCI
+	select FORCE_PCI
 	select PCI_NANOENGINE
 	help
 	  Say Y here if you are using the Bright Star Engineering nanoEngine.
