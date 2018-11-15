@@ -16,6 +16,7 @@ config IA64
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
 	select FORCE_PCI if (!IA64_HP_SIM)
 	select PCI_DOMAINS if PCI
+	select PCI_SYSCALL if PCI
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_EXIT_THREAD
 	select HAVE_IDE
@@ -544,9 +545,6 @@ endmenu
 if !IA64_HP_SIM
 
 menu "Bus options (PCI, PCMCIA)"
-
-config PCI_SYSCALL
-	def_bool PCI
 
 source "drivers/pcmcia/Kconfig"
 

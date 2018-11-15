@@ -30,6 +30,9 @@ config PCI_DOMAINS_GENERIC
 	depends on PCI
 	select PCI_DOMAINS
 
+config PCI_SYSCALL
+	bool
+
 source "drivers/pci/pcie/Kconfig"
 
 config PCI_MSI

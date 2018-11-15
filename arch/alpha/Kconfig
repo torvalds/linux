@@ -8,6 +8,7 @@ config ALPHA
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select FORCE_PCI if !ALPHA_JENSEN
 	select PCI_DOMAINS if PCI
+	select PCI_SYSCALL if PCI
 	select HAVE_AOUT
 	select HAVE_IDE
 	select HAVE_OPROFILE
@@ -321,9 +322,6 @@ config ISA
 config ISA_DMA_API
 	bool
 	default y
-
-config PCI_SYSCALL
-	def_bool PCI
 
 config ALPHA_NONAME
 	bool

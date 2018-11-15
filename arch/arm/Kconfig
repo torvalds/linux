@@ -103,6 +103,7 @@ config ARM
 	select OF_RESERVED_MEM if OF
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
+	select PCI_SYSCALL if PCI
 	select PERF_USE_VMALLOC
 	select REFCOUNT_FULL
 	select RTC_LIB
@@ -1232,9 +1233,6 @@ config PCI_NANOENGINE
 	depends on SA1100_NANOENGINE
 	help
 	  Enable PCI on the BSE nanoEngine board.
-
-config PCI_SYSCALL
-	def_bool PCI
 
 config PCI_HOST_ITE8152
 	bool

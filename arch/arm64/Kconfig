@@ -166,6 +166,7 @@ config ARM64
 	select OF_RESERVED_MEM
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_ECAM if ACPI
+	select PCI_SYSCALL if PCI
 	select POWER_RESET
 	select POWER_SUPPLY
 	select REFCOUNT_FULL
@@ -288,9 +289,6 @@ config ARCH_PROC_KCORE_TEXT
 	def_bool y
 
 source "arch/arm64/Kconfig.platforms"
-
-config PCI_SYSCALL
-	def_bool PCI
 
 menu "Kernel Features"
 
