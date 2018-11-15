@@ -214,6 +214,12 @@ static int vc4_atomic_commit(struct drm_device *dev,
 		return 0;
 	}
 
+	/* We know for sure we don't want an async update here. Set
+	 * state->legacy_cursor_update to false to prevent
+	 * drm_atomic_helper_setup_commit() from auto-completing
+	 * commit->flip_done.
+	 */
+	state->legacy_cursor_update = false;
 	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
 		return ret;
