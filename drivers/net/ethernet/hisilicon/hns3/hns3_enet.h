@@ -402,6 +402,7 @@ struct hns3_enet_ring {
 	int next_to_clean;
 
 	int pull_len; /* head length for current packet */
+	u32 frag_num;
 	unsigned char *va; /* first buffer address for current packet */
 
 	u32 flag;          /* ring attribute */
@@ -412,6 +413,7 @@ struct hns3_enet_ring {
 
 	int pending_buf;
 	struct sk_buff *skb;
+	struct sk_buff *tail_skb;
 };
 
 struct hns_queue;

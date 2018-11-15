@@ -2361,6 +2361,9 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 
 static void hns3_rx_skb(struct hns3_enet_ring *ring, struct sk_buff *skb)
 {
+	if (skb_has_frag_list(skb))
+		napi_gro_flush(&ring->tqp_vector->napi, false);
+
 	napi_gro_receive(&ring->tqp_vector->napi, skb);
 }
 
@@ -2417,6 +2420,8 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, int length,
 	prefetchw(skb->data);
 
 	ring->pending_buf = 1;
+	ring->frag_num = 0;
+	ring->tail_skb = NULL;
 	if (length <= HNS3_RX_HEAD_SIZE) {
 		memcpy(__skb_put(skb, length), va, ALIGN(length, sizeof(long)));
 
@@ -2435,7 +2440,7 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, int length,
 
 	ring->pull_len = eth_get_headlen(va, HNS3_RX_HEAD_SIZE);
 	__skb_put(skb, ring->pull_len);
-	hns3_nic_reuse_page(skb, 0, ring, ring->pull_len,
+	hns3_nic_reuse_page(skb, ring->frag_num++, ring, ring->pull_len,
 			    desc_cb);
 	ring_ptr_move_fw(ring, next_to_clean);
 
@@ -2446,6 +2451,8 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 			 struct sk_buff **out_skb, bool pending)
 {
 	struct sk_buff *skb = *out_skb;
+	struct sk_buff *head_skb = *out_skb;
+	struct sk_buff *new_skb;
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_desc *pre_desc;
 	u32 bd_base_info;
@@ -2470,7 +2477,33 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 		if (!hnae3_get_bit(bd_base_info, HNS3_RXD_VLD_B))
 			return -ENXIO;
 
-		hns3_nic_reuse_page(skb, ring->pending_buf, ring, 0, desc_cb);
+		if (unlikely(ring->frag_num >= MAX_SKB_FRAGS)) {
+			new_skb = napi_alloc_skb(&ring->tqp_vector->napi,
+						 HNS3_RX_HEAD_SIZE);
+			if (unlikely(!new_skb)) {
+				netdev_err(ring->tqp->handle->kinfo.netdev,
+					   "alloc rx skb frag fail\n");
+				return -ENXIO;
+			}
+			ring->frag_num = 0;
+
+			if (ring->tail_skb) {
+				ring->tail_skb->next = new_skb;
+				ring->tail_skb = new_skb;
+			} else {
+				skb_shinfo(skb)->frag_list = new_skb;
+				ring->tail_skb = new_skb;
+			}
+		}
+
+		if (ring->tail_skb) {
+			head_skb->truesize += hnae3_buf_size(ring);
+			head_skb->data_len += le16_to_cpu(desc->rx.size);
+			head_skb->len += le16_to_cpu(desc->rx.size);
+			skb = ring->tail_skb;
+		}
+
+		hns3_nic_reuse_page(skb, ring->frag_num++, ring, 0, desc_cb);
 		ring_ptr_move_fw(ring, next_to_clean);
 		ring->pending_buf++;
 	}
