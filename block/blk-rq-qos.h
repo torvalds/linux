@@ -98,12 +98,57 @@ void rq_depth_scale_up(struct rq_depth *rqd);
 void rq_depth_scale_down(struct rq_depth *rqd, bool hard_throttle);
 bool rq_depth_calc_max_depth(struct rq_depth *rqd);
 
-void rq_qos_cleanup(struct request_queue *, struct bio *);
-void rq_qos_done(struct request_queue *, struct request *);
-void rq_qos_issue(struct request_queue *, struct request *);
-void rq_qos_requeue(struct request_queue *, struct request *);
-void rq_qos_done_bio(struct request_queue *q, struct bio *bio);
-void rq_qos_throttle(struct request_queue *, struct bio *);
-void rq_qos_track(struct request_queue *q, struct request *, struct bio *);
+void __rq_qos_cleanup(struct rq_qos *rqos, struct bio *bio);
+void __rq_qos_done(struct rq_qos *rqos, struct request *rq);
+void __rq_qos_issue(struct rq_qos *rqos, struct request *rq);
+void __rq_qos_requeue(struct rq_qos *rqos, struct request *rq);
+void __rq_qos_throttle(struct rq_qos *rqos, struct bio *bio);
+void __rq_qos_track(struct rq_qos *rqos, struct request *rq, struct bio *bio);
+void __rq_qos_done_bio(struct rq_qos *rqos, struct bio *bio);
+
+static inline void rq_qos_cleanup(struct request_queue *q, struct bio *bio)
+{
+	if (q->rq_qos)
+		__rq_qos_cleanup(q->rq_qos, bio);
+}
+
+static inline void rq_qos_done(struct request_queue *q, struct request *rq)
+{
+	if (q->rq_qos)
+		__rq_qos_done(q->rq_qos, rq);
+}
+
+static inline void rq_qos_issue(struct request_queue *q, struct request *rq)
+{
+	if (q->rq_qos)
+		__rq_qos_issue(q->rq_qos, rq);
+}
+
+static inline void rq_qos_requeue(struct request_queue *q, struct request *rq)
+{
+	if (q->rq_qos)
+		__rq_qos_requeue(q->rq_qos, rq);
+}
+
+static inline void rq_qos_done_bio(struct request_queue *q, struct bio *bio)
+{
+	if (q->rq_qos)
+		__rq_qos_done_bio(q->rq_qos, bio);
+}
+
+static inline void rq_qos_throttle(struct request_queue *q, struct bio *bio)
+{
+	if (q->rq_qos)
+		__rq_qos_throttle(q->rq_qos, bio);
+}
+
+static inline void rq_qos_track(struct request_queue *q, struct request *rq,
+				struct bio *bio)
+{
+	if (q->rq_qos)
+		__rq_qos_track(q->rq_qos, rq, bio);
+}
+
 void rq_qos_exit(struct request_queue *);
+
 #endif

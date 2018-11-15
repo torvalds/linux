@@ -27,74 +27,67 @@ bool rq_wait_inc_below(struct rq_wait *rq_wait, unsigned int limit)
 	return atomic_inc_below(&rq_wait->inflight, limit);
 }
 
-void rq_qos_cleanup(struct request_queue *q, struct bio *bio)
+void __rq_qos_cleanup(struct rq_qos *rqos, struct bio *bio)
 {
-	struct rq_qos *rqos;
-
-	for (rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->cleanup)
 			rqos->ops->cleanup(rqos, bio);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_done(struct request_queue *q, struct request *rq)
+void __rq_qos_done(struct rq_qos *rqos, struct request *rq)
 {
-	struct rq_qos *rqos;
-
-	for (rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->done)
 			rqos->ops->done(rqos, rq);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_issue(struct request_queue *q, struct request *rq)
+void __rq_qos_issue(struct rq_qos *rqos, struct request *rq)
 {
-	struct rq_qos *rqos;
-
-	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->issue)
 			rqos->ops->issue(rqos, rq);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_requeue(struct request_queue *q, struct request *rq)
+void __rq_qos_requeue(struct rq_qos *rqos, struct request *rq)
 {
-	struct rq_qos *rqos;
-
-	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->requeue)
 			rqos->ops->requeue(rqos, rq);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_throttle(struct request_queue *q, struct bio *bio)
+void __rq_qos_throttle(struct rq_qos *rqos, struct bio *bio)
 {
-	struct rq_qos *rqos;
-
-	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->throttle)
 			rqos->ops->throttle(rqos, bio);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_track(struct request_queue *q, struct request *rq, struct bio *bio)
+void __rq_qos_track(struct rq_qos *rqos, struct request *rq, struct bio *bio)
 {
-	struct rq_qos *rqos;
-
-	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->track)
 			rqos->ops->track(rqos, rq, bio);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_done_bio(struct request_queue *q, struct bio *bio)
+void __rq_qos_done_bio(struct rq_qos *rqos, struct bio *bio)
 {
-	struct rq_qos *rqos;
-
-	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->done_bio)
 			rqos->ops->done_bio(rqos, bio);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
 /*
