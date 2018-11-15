@@ -33,7 +33,59 @@ struct hda_pipe_params {
 	unsigned int link_bps;
 };
 
-/* TODO: add hda dai params in tplg, and configure this in topology parsing */
+/* Unlike GP dma, there is a set of stream registers in hda controller to
+ * control the link dma channels. Each register controls one link dma
+ * channel and the relation is fixed. To make sure FW uses the correct
+ * link dma channel, host allocates stream register and sends the
+ * corresponding link dma channel to FW to allocate link dma channel
+ */
+static int hda_link_dma_get_channels(struct snd_soc_dai *dai,
+				     unsigned int *tx_num,
+				     unsigned int *tx_slot,
+				     unsigned int *rx_num,
+				     unsigned int *rx_slot)
+{
+	struct hdac_bus *bus;
+	struct hdac_ext_stream *stream;
+	struct snd_pcm_substream substream = {0};
+	struct snd_sof_dev *sdev =
+		snd_soc_component_get_drvdata(dai->component);
+
+	bus = sof_to_bus(sdev);
+
+	if (*tx_num == 1) {
+		substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
+		stream = snd_hdac_ext_stream_assign(bus, &substream,
+						    HDAC_EXT_STREAM_TYPE_LINK);
+		if (!stream) {
+			dev_err(bus->dev, "failed to find a free hda ext stream for playback");
+			return -EBUSY;
+		}
+
+		snd_soc_dai_set_dma_data(dai, &substream, (void *)stream);
+		*tx_slot = hdac_stream(stream)->stream_tag - 1;
+
+		dev_dbg(bus->dev, "link dma channel %d for playback", *tx_slot);
+	}
+
+	if (*rx_num == 1) {
+		substream.stream = SNDRV_PCM_STREAM_CAPTURE;
+		stream = snd_hdac_ext_stream_assign(bus, &substream,
+						    HDAC_EXT_STREAM_TYPE_LINK);
+		if (!stream) {
+			dev_err(bus->dev, "failed to find a free hda ext stream for capture");
+			return -EBUSY;
+		}
+
+		snd_soc_dai_set_dma_data(dai, &substream, (void *)stream);
+		*rx_slot = hdac_stream(stream)->stream_tag - 1;
+
+		dev_dbg(bus->dev, "link dma channel %d for capture", *rx_slot);
+	}
+
+	return 0;
+}
+
 static int hda_link_dma_params(struct hdac_ext_stream *stream,
 			       struct hda_pipe_params *params)
 {
@@ -78,12 +130,7 @@ static int hda_link_hw_params(struct snd_pcm_substream *substream,
 	struct hdac_ext_link *link;
 	int stream_tag;
 
-	link_dev = snd_hdac_ext_stream_assign(bus, substream,
-					      HDAC_EXT_STREAM_TYPE_LINK);
-	if (!link_dev)
-		return -EBUSY;
-
-	snd_soc_dai_set_dma_data(dai, substream, (void *)link_dev);
+	link_dev = snd_soc_dai_get_dma_data(dai, substream);
 
 	link = snd_hdac_ext_bus_get_link(bus, codec_dai->component->name);
 	if (!link)
@@ -147,22 +194,50 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 static int hda_link_hw_free(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
-	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct hdac_bus *bus = hstream->bus;
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct hdac_ext_stream *link_dev =
-				snd_soc_dai_get_dma_data(dai, substream);
+	const char *name;
+	unsigned int stream_tag;
+	struct hdac_bus *bus;
 	struct hdac_ext_link *link;
+	struct snd_sof_dev *sdev;
+	struct hdac_stream *hstream;
+	struct hdac_ext_stream *stream;
+	struct snd_soc_pcm_runtime *rtd;
+	struct hdac_ext_stream *link_dev;
+	struct snd_pcm_substream pcm_substream = {0};
 
-	link = snd_hdac_ext_bus_get_link(bus, rtd->codec_dai->component->name);
-	if (!link)
-		return -EINVAL;
+	if (substream) {
+		hstream = substream->runtime->private_data;
+		bus = hstream->bus;
+		rtd = snd_pcm_substream_chip(substream);
+		link_dev = snd_soc_dai_get_dma_data(dai, substream);
+		name = rtd->codec_dai->component->name;
+		link = snd_hdac_ext_bus_get_link(bus, name);
+		if (!link)
+			return -EINVAL;
 
-	snd_hdac_ext_link_clear_stream_id(link,
-					  hdac_stream(link_dev)->stream_tag);
-	snd_hdac_ext_stream_release(link_dev, HDAC_EXT_STREAM_TYPE_LINK);
+		stream_tag = hdac_stream(link_dev)->stream_tag;
+		snd_hdac_ext_link_clear_stream_id(link, stream_tag);
 
-	link_dev->link_prepared = 0;
+		link_dev->link_prepared = 0;
+	} else {
+		/* release all hda streams when dai link is unloaded */
+		sdev = snd_soc_component_get_drvdata(dai->component);
+		pcm_substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
+		stream = snd_soc_dai_get_dma_data(dai, &pcm_substream);
+		if (stream) {
+			snd_soc_dai_set_dma_data(dai, &pcm_substream, NULL);
+			snd_hdac_ext_stream_release(stream,
+						    HDAC_EXT_STREAM_TYPE_LINK);
+		}
+
+		pcm_substream.stream = SNDRV_PCM_STREAM_CAPTURE;
+		stream = snd_soc_dai_get_dma_data(dai, &pcm_substream);
+		if (stream) {
+			snd_soc_dai_set_dma_data(dai, &pcm_substream, NULL);
+			snd_hdac_ext_stream_release(stream,
+						    HDAC_EXT_STREAM_TYPE_LINK);
+		}
+	}
 
 	return 0;
 }
@@ -171,6 +246,7 @@ static const struct snd_soc_dai_ops hda_link_dai_ops = {
 	.hw_params = hda_link_hw_params,
 	.hw_free = hda_link_hw_free,
 	.trigger = hda_link_pcm_trigger,
+	.get_channel_map = hda_link_dma_get_channels,
 };
 #endif
 

@@ -2028,6 +2028,49 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 	return ret;
 }
 
+static int sof_link_hda_process(struct snd_sof_dev *sdev,
+				struct snd_soc_dai_link *link,
+				struct sof_ipc_dai_config *config,
+				int slot,
+				int direction)
+{
+	struct sof_ipc_reply reply;
+	u32 size = sizeof(*config);
+	struct snd_sof_dai *dai;
+	int found = 0;
+	int ret;
+
+	/* for hda link, playback and capture are supported by different
+	 * dai in FW. Here get the dai_index of each dai and send config
+	 * to FW. In FW, each dai sets config by dai_index
+	 */
+	list_for_each_entry(dai, &sdev->dai_list, list) {
+		if (!dai->name)
+			continue;
+
+		if (strcmp(link->name, dai->name) == 0 &&
+		    dai->comp_dai.direction == direction) {
+			config->dai_index = dai->comp_dai.dai_index;
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		dev_err(sdev->dev, "failed to find dai %s", link->name);
+		return -EINVAL;
+	}
+
+	config->hda.link_dma_ch = slot;
+
+	/* send message to DSP */
+	ret = sof_ipc_tx_message(sdev->ipc,
+				 config->hdr.cmd, config, size, &reply,
+				 sizeof(reply));
+
+	return ret;
+}
+
 static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 			     struct snd_soc_dai_link *link,
 			     struct snd_soc_tplg_link_config *cfg,
@@ -2035,9 +2078,15 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 			     struct sof_ipc_dai_config *config)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_dai_link_component dai_component = {0};
 	struct snd_soc_tplg_private *private = &cfg->priv;
-	struct sof_ipc_reply reply;
+	struct snd_soc_dai *dai;
+
 	u32 size = sizeof(*config);
+	u32 tx_num = 0;
+	u32 tx_slot = 0;
+	u32 rx_num = 0;
+	u32 rx_slot = 0;
 	int ret;
 
 	/* init IPC */
@@ -2054,17 +2103,49 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 		return ret;
 	}
 
-	dev_dbg(sdev->dev, "tplg: config HDA%d fmt 0x%x\n",
-		config->dai_index, config->format);
+	dai_component.dai_name = link->cpu_dai_name;
+	dai = snd_soc_find_dai(&dai_component);
+	if (!dai) {
+		dev_err(sdev->dev, "failed to find dai %s", dai->name);
+		return -EINVAL;
+	}
 
-	/* send message to DSP */
-	ret = sof_ipc_tx_message(sdev->ipc,
-				 config->hdr.cmd, config, size, &reply,
-				 sizeof(reply));
+	if (link->dpcm_playback)
+		tx_num = 1;
 
-	if (ret < 0)
-		dev_err(sdev->dev, "error: failed to set DAI config for HDA%d\n",
+	if (link->dpcm_capture)
+		rx_num = 1;
+
+	ret = snd_soc_dai_get_channel_map(dai, &tx_num, &tx_slot,
+					  &rx_num, &rx_slot);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed to get dma channel for HDA%d\n",
 			config->dai_index);
+
+		return ret;
+	}
+
+	/* for hda link, playback and capture are supported by different
+	 * dai in FW. Here send dai config according to capability of dai.
+	 */
+	if (link->dpcm_playback) {
+		ret = sof_link_hda_process(sdev, link, config, tx_slot,
+					   SNDRV_PCM_STREAM_PLAYBACK);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: failed to set DAI config for playback dai HDA%d\n",
+				config->dai_index);
+
+			return ret;
+		}
+	}
+
+	if (link->dpcm_capture) {
+		ret = sof_link_hda_process(sdev, link, config, rx_slot,
+					   SNDRV_PCM_STREAM_CAPTURE);
+		if (ret < 0)
+			dev_err(sdev->dev, "error: failed to set DAI config for capture dai HDA%d\n",
+				config->dai_index);
+	}
 
 	return ret;
 }
@@ -2152,10 +2233,68 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	return 0;
 }
 
+static int sof_link_hda_unload(struct snd_sof_dev *sdev,
+			       struct snd_soc_dai_link *link)
+{
+	struct snd_soc_dai_link_component dai_component = {0};
+	struct snd_soc_dai *dai;
+	int ret = 0;
+
+	dai_component.dai_name = link->cpu_dai_name;
+	dai = snd_soc_find_dai(&dai_component);
+	if (!dai) {
+		dev_err(sdev->dev, "failed to find dai %s", dai->name);
+		return -EINVAL;
+	}
+
+	if (dai->driver->ops->hw_free)
+		ret = dai->driver->ops->hw_free(NULL, dai);
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed to free hda resource for %s\n",
+			link->name);
+
+	return ret;
+}
+
 static int sof_link_unload(struct snd_soc_component *scomp,
 			   struct snd_soc_dobj *dobj)
 {
-	return 0;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_dai_link *link =
+		container_of(dobj, struct snd_soc_dai_link, dobj);
+
+	struct snd_sof_dai *sof_dai = NULL;
+	int ret = 0;
+
+	list_for_each_entry(sof_dai, &sdev->dai_list, list) {
+		if (!sof_dai->name)
+			continue;
+
+		if (strcmp(link->name, sof_dai->name) == 0)
+			break;
+	}
+
+	if (!sof_dai) {
+		dev_err(sdev->dev, "failed to find dai %s", link->name);
+		return -EINVAL;
+	}
+
+	switch (sof_dai->dai_config.type) {
+	case SOF_DAI_INTEL_SSP:
+	case SOF_DAI_INTEL_DMIC:
+		/* no resource needs to be released for SSP and DMIC */
+		break;
+	case SOF_DAI_INTEL_HDA:
+		ret = sof_link_hda_unload(sdev, link);
+		break;
+	default:
+		dev_err(sdev->dev, "error: invalid DAI type %d\n",
+			sof_dai->dai_config.type);
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
 }
 
 /* bind PCM ID to host component ID */
