@@ -2088,15 +2088,11 @@ static int nvme_setup_irqs(struct nvme_dev *dev, int nr_io_queues)
 			affd.nr_sets = 1;
 
 		/*
-		 * Need IRQs for read+write queues, and one for the admin queue.
-		 * If we can't get more than one vector, we have to share the
-		 * admin queue and IO queue vector. For that case, don't add
-		 * an extra vector for the admin queue, or we'll continue
-		 * asking for 2 and get -ENOSPC in return.
+		 * If we got a failure and we're down to asking for just
+		 * 1 + 1 queues, just ask for a single vector. We'll share
+		 * that between the single IO queue and the admin queue.
 		 */
-		if (result == -ENOSPC && nr_io_queues == 1)
-			nr_io_queues = 1;
-		else
+		if (!(result < 0 && nr_io_queues == 1))
 			nr_io_queues = irq_sets[0] + irq_sets[1] + 1;
 
 		result = pci_alloc_irq_vectors_affinity(pdev, nr_io_queues,
@@ -2104,12 +2100,18 @@ static int nvme_setup_irqs(struct nvme_dev *dev, int nr_io_queues)
 				PCI_IRQ_ALL_TYPES | PCI_IRQ_AFFINITY, &affd);
 
 		/*
-		 * Need to reduce our vec counts
+		 * Need to reduce our vec counts. If we get ENOSPC, the
+		 * platform should support mulitple vecs, we just need
+		 * to decrease our ask. If we get EINVAL, the platform
+		 * likely does not. Back down to ask for just one vector.
 		 */
 		if (result == -ENOSPC) {
 			nr_io_queues--;
 			if (!nr_io_queues)
 				return result;
+			continue;
+		} else if (result == -EINVAL) {
+			nr_io_queues = 1;
 			continue;
 		} else if (result <= 0)
 			return -EIO;
