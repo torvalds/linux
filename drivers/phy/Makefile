@@ -16,6 +16,7 @@ obj-$(CONFIG_ARCH_ROCKCHIP)		+= rockchip/
 obj-$(CONFIG_ARCH_TEGRA)		+= tegra/
 obj-y					+= broadcom/	\
 					   cadence/	\
+					   freescale/	\
 					   hisilicon/	\
 					   marvell/	\
 					   motorola/	\
