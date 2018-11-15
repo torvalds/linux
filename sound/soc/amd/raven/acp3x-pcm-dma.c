@@ -322,7 +322,6 @@ static int acp3x_dma_hw_params(struct snd_pcm_substream *substream,
 {
 	int status;
 	u64 size;
-	struct snd_dma_buffer *dma_buffer;
 	struct page *pg;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct i2s_stream_instance *rtd = runtime->private_data;
@@ -330,7 +329,6 @@ static int acp3x_dma_hw_params(struct snd_pcm_substream *substream,
 	if (!rtd)
 		return -EINVAL;
 
-	dma_buffer = &substream->dma_buffer;
 	size = params_buffer_bytes(params);
 	status = snd_pcm_lib_malloc_pages(substream, size);
 	if (status < 0)
