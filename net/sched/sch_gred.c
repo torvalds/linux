@@ -404,6 +404,7 @@ static const struct nla_policy gred_policy[TCA_GRED_MAX + 1] = {
 	[TCA_GRED_DPS]		= { .len = sizeof(struct tc_gred_sopt) },
 	[TCA_GRED_MAX_P]	= { .type = NLA_U32 },
 	[TCA_GRED_LIMIT]	= { .type = NLA_U32 },
+	[TCA_GRED_VQ_LIST]	= { .type = NLA_REJECT },
 };
 
 static int gred_change(struct Qdisc *sch, struct nlattr *opt,
@@ -517,7 +518,7 @@ static int gred_init(struct Qdisc *sch, struct nlattr *opt,
 static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct gred_sched *table = qdisc_priv(sch);
-	struct nlattr *parms, *opts = NULL;
+	struct nlattr *parms, *vqs, *opts = NULL;
 	int i;
 	u32 max_p[MAX_DPs];
 	struct tc_gred_sopt sopt = {
@@ -544,6 +545,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (nla_put_u32(skb, TCA_GRED_LIMIT, sch->limit))
 		goto nla_put_failure;
 
+	/* Old style all-in-one dump of VQs */
 	parms = nla_nest_start(skb, TCA_GRED_PARMS);
 	if (parms == NULL)
 		goto nla_put_failure;
@@ -593,6 +595,55 @@ append_opt:
 	}
 
 	nla_nest_end(skb, parms);
+
+	/* Dump the VQs again, in more structured way */
+	vqs = nla_nest_start(skb, TCA_GRED_VQ_LIST);
+	if (!vqs)
+		goto nla_put_failure;
+
+	for (i = 0; i < MAX_DPs; i++) {
+		struct gred_sched_data *q = table->tab[i];
+		struct nlattr *vq;
+
+		if (!q)
+			continue;
+
+		vq = nla_nest_start(skb, TCA_GRED_VQ_ENTRY);
+		if (!vq)
+			goto nla_put_failure;
+
+		if (nla_put_u32(skb, TCA_GRED_VQ_DP, q->DP))
+			goto nla_put_failure;
+
+		/* Stats */
+		if (nla_put_u64_64bit(skb, TCA_GRED_VQ_STAT_BYTES, q->bytesin,
+				      TCA_GRED_VQ_PAD))
+			goto nla_put_failure;
+		if (nla_put_u32(skb, TCA_GRED_VQ_STAT_PACKETS, q->packetsin))
+			goto nla_put_failure;
+		if (nla_put_u32(skb, TCA_GRED_VQ_STAT_BACKLOG,
+				gred_backlog(table, q, sch)))
+			goto nla_put_failure;
+		if (nla_put_u32(skb, TCA_GRED_VQ_STAT_PROB_DROP,
+				q->stats.prob_drop))
+			goto nla_put_failure;
+		if (nla_put_u32(skb, TCA_GRED_VQ_STAT_PROB_MARK,
+				q->stats.prob_mark))
+			goto nla_put_failure;
+		if (nla_put_u32(skb, TCA_GRED_VQ_STAT_FORCED_DROP,
+				q->stats.forced_drop))
+			goto nla_put_failure;
+		if (nla_put_u32(skb, TCA_GRED_VQ_STAT_FORCED_MARK,
+				q->stats.forced_mark))
+			goto nla_put_failure;
+		if (nla_put_u32(skb, TCA_GRED_VQ_STAT_PDROP, q->stats.pdrop))
+			goto nla_put_failure;
+		if (nla_put_u32(skb, TCA_GRED_VQ_STAT_OTHER, q->stats.other))
+			goto nla_put_failure;
+
+		nla_nest_end(skb, vq);
+	}
+	nla_nest_end(skb, vqs);
 
 	return nla_nest_end(skb, opts);
 
