@@ -163,12 +163,6 @@ config CLKSRC_NOMADIK_MTU
 	  to multiple interrupt generating programmable
 	  32-bit free running decrementing counters.
 
-config CLKSRC_NOMADIK_MTU_SCHED_CLOCK
-	bool
-	depends on CLKSRC_NOMADIK_MTU
-	help
-	  Use the Multi Timer Unit as the sched_clock.
-
 config CLKSRC_DBX500_PRCMU
 	bool "Clocksource PRCMU Timer" if COMPILE_TEST
 	depends on HAS_IOMEM
@@ -225,13 +219,6 @@ config INTEGRATOR_AP_TIMER
 	select CLKSRC_MMIO
 	help
 	  Enables support for the Integrator-ap timer.
-
-config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
-	bool "Clocksource PRCMU Timer sched_clock"
-	depends on (CLKSRC_DBX500_PRCMU && !CLKSRC_NOMADIK_MTU_SCHED_CLOCK)
-	default y
-	help
-	  Use the always on PRCMU Timer as sched_clock
 
 config CLKSRC_EFM32
 	bool "Clocksource for Energy Micro's EFM32 SoCs" if !ARCH_EFM32
