@@ -26,11 +26,8 @@ void sas_ssp_task_response(struct device *dev, struct sas_task *task,
 		memcpy(tstat->buf, iu->sense_data, tstat->buf_valid_size);
 
 		if (iu->status != SAM_STAT_CHECK_CONDITION)
-			dev_printk(KERN_WARNING, dev,
-				   "dev %llx sent sense data, but "
-				   "stat(%x) is not CHECK CONDITION\n",
-				   SAS_ADDR(task->dev->sas_addr),
-				   iu->status);
+			dev_warn(dev, "dev %llx sent sense data, but stat(%x) is not CHECK CONDITION\n",
+				 SAS_ADDR(task->dev->sas_addr), iu->status);
 	}
 	else
 		/* when datapres contains corrupt/unknown value... */
