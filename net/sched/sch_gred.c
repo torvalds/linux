@@ -423,12 +423,11 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 
 	max_P = tb[TCA_GRED_MAX_P] ? nla_get_u32(tb[TCA_GRED_MAX_P]) : 0;
 
-	err = -EINVAL;
 	ctl = nla_data(tb[TCA_GRED_PARMS]);
 	stab = nla_data(tb[TCA_GRED_STAB]);
 
 	if (ctl->DP >= table->DPs)
-		goto errout;
+		return -EINVAL;
 
 	if (gred_rio_mode(table)) {
 		if (ctl->prio == 0) {
@@ -450,7 +449,7 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 
 	err = gred_change_vq(sch, ctl->DP, ctl, prio, stab, max_P, &prealloc);
 	if (err < 0)
-		goto errout_locked;
+		goto err_unlock_free;
 
 	if (gred_rio_mode(table)) {
 		gred_disable_wred_mode(table);
@@ -458,12 +457,13 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 			gred_enable_wred_mode(table);
 	}
 
-	err = 0;
-
-errout_locked:
 	sch_tree_unlock(sch);
 	kfree(prealloc);
-errout:
+	return 0;
+
+err_unlock_free:
+	sch_tree_unlock(sch);
+	kfree(prealloc);
 	return err;
 }
 
