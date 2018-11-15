@@ -62,19 +62,20 @@ void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
 
 		tlbmisc = TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
 		WRCTL(CTL_TLBMISC, tlbmisc);
+
 		pteaddr = RDCTL(CTL_PTEADDR);
+		if (((pteaddr >> 2) & 0xfffff) != (addr >> PAGE_SHIFT))
+			continue;
+
 		tlbmisc = RDCTL(CTL_TLBMISC);
 		pid = (tlbmisc >> TLBMISC_PID_SHIFT) & TLBMISC_PID_MASK;
-		if (((((pteaddr >> 2) & 0xfffff)) == (addr >> PAGE_SHIFT)) &&
-				pid == mmu_pid) {
-			pr_debug("Flush entry by writing way=%dl pid=%ld\n",
-				way, (pid_misc >> TLBMISC_PID_SHIFT));
+		if (pid != mmu_pid)
+			continue;
 
-			WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
-			tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
-			WRCTL(CTL_TLBMISC, tlbmisc);
-			WRCTL(CTL_TLBACC, 0);
-		}
+		tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
+		WRCTL(CTL_TLBMISC, tlbmisc);
+		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
+		WRCTL(CTL_TLBACC, 0);
 	}
 
 	WRCTL(CTL_TLBMISC, org_misc);
@@ -113,18 +114,18 @@ static void flush_tlb_one(unsigned long addr)
 
 		tlbmisc = TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
 		WRCTL(CTL_TLBMISC, tlbmisc);
+
 		pteaddr = RDCTL(CTL_PTEADDR);
-		tlbmisc = RDCTL(CTL_TLBMISC);
+		if (((pteaddr >> 2) & 0xfffff) != (addr >> PAGE_SHIFT))
+			continue;
 
-		if ((((pteaddr >> 2) & 0xfffff)) == (addr >> PAGE_SHIFT)) {
-			pr_debug("Flush entry by writing way=%dl pid=%ld\n",
-				way, (pid_misc >> TLBMISC_PID_SHIFT));
+		pr_debug("Flush entry by writing way=%dl pid=%ld\n",
+			 way, (pid_misc >> TLBMISC_PID_SHIFT));
 
-			WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
-			tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
-			WRCTL(CTL_TLBMISC, tlbmisc);
-			WRCTL(CTL_TLBACC, 0);
-		}
+		tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
+		WRCTL(CTL_TLBMISC, tlbmisc);
+		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
+		WRCTL(CTL_TLBACC, 0);
 	}
 
 	WRCTL(CTL_TLBMISC, org_misc);
@@ -187,7 +188,7 @@ void dump_tlb(void)
 		dump_tlb_line(i);
 }
 
-void flush_tlb_pid(unsigned long pid)
+void flush_tlb_pid(unsigned long mmu_pid)
 {
 	unsigned long addr = 0;
 	unsigned int line;
@@ -202,17 +203,18 @@ void flush_tlb_pid(unsigned long pid)
 
 		for (way = 0; way < cpuinfo.tlb_num_ways; way++) {
 			unsigned long tlbmisc;
+			unsigned long pid;
 
 			tlbmisc = TLBMISC_RD | (way << TLBMISC_WAY_SHIFT);
 			WRCTL(CTL_TLBMISC, tlbmisc);
 			tlbmisc = RDCTL(CTL_TLBMISC);
+			pid = (tlbmisc >> TLBMISC_PID_SHIFT) & TLBMISC_PID_MASK;
+			if (pid != mmu_pid)
+				continue;
 
-			if (((tlbmisc>>TLBMISC_PID_SHIFT) & TLBMISC_PID_MASK)
-				== pid) {
-				tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
-				WRCTL(CTL_TLBMISC, tlbmisc);
-				WRCTL(CTL_TLBACC, 0);
-			}
+			tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
+			WRCTL(CTL_TLBMISC, tlbmisc);
+			WRCTL(CTL_TLBACC, 0);
 		}
 
 		addr += PAGE_SIZE;
@@ -265,6 +267,10 @@ void flush_tlb_all(void)
 
 void set_mmu_pid(unsigned long pid)
 {
-	WRCTL(CTL_TLBMISC, (RDCTL(CTL_TLBMISC) & TLBMISC_WAY) |
-		((pid & TLBMISC_PID_MASK) << TLBMISC_PID_SHIFT));
+	unsigned long tlbmisc;
+
+	tlbmisc = RDCTL(CTL_TLBMISC);
+	tlbmisc = (tlbmisc & TLBMISC_WAY);
+	tlbmisc |= (pid & TLBMISC_PID_MASK) << TLBMISC_PID_SHIFT;
+	WRCTL(CTL_TLBMISC, tlbmisc);
 }
