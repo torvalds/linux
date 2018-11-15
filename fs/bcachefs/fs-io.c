@@ -2542,10 +2542,9 @@ static long bch2_fallocate(struct bch_inode_info *inode, int mode,
 				&disk_res, &quota_res,
 				iter, &reservation.k_i,
 				0, true, true, NULL);
-
+btree_iter_err:
 		bch2_quota_reservation_put(c, inode, &quota_res);
 		bch2_disk_reservation_put(c, &disk_res);
-btree_iter_err:
 		if (ret == -EINTR)
 			ret = 0;
 		if (ret)
