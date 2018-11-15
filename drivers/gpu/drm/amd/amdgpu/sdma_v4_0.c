@@ -211,17 +211,17 @@ static u32 sdma_v4_0_get_reg_offset(struct amdgpu_device *adev,
 	case 1:
 		return (adev->reg_offset[SDMA1_HWIP][0][0] + offset);
 	case 2:
-		return (adev->reg_offset[SDMA2_HWIP][0][0] + offset);
+		return (adev->reg_offset[SDMA2_HWIP][0][1] + offset);
 	case 3:
-		return (adev->reg_offset[SDMA3_HWIP][0][0] + offset);
+		return (adev->reg_offset[SDMA3_HWIP][0][1] + offset);
 	case 4:
-		return (adev->reg_offset[SDMA4_HWIP][0][0] + offset);
+		return (adev->reg_offset[SDMA4_HWIP][0][1] + offset);
 	case 5:
-		return (adev->reg_offset[SDMA5_HWIP][0][0] + offset);
+		return (adev->reg_offset[SDMA5_HWIP][0][1] + offset);
 	case 6:
-		return (adev->reg_offset[SDMA6_HWIP][0][0] + offset);
+		return (adev->reg_offset[SDMA6_HWIP][0][1] + offset);
 	case 7:
-		return (adev->reg_offset[SDMA7_HWIP][0][0] + offset);
+		return (adev->reg_offset[SDMA7_HWIP][0][1] + offset);
 	default:
 		break;
 	}
