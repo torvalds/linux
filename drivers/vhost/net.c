@@ -141,6 +141,10 @@ struct vhost_net {
 	unsigned tx_zcopy_err;
 	/* Flush in progress. Protected by tx vq lock. */
 	bool tx_flush;
+	/* Private page frag */
+	struct page_frag page_frag;
+	/* Refcount bias of page frag */
+	int refcnt_bias;
 };
 
 static unsigned vhost_net_zcopy_mask __read_mostly;
@@ -637,14 +641,53 @@ static bool tx_can_batch(struct vhost_virtqueue *vq, size_t total_len)
 	       !vhost_vq_avail_empty(vq->dev, vq);
 }
 
+#define SKB_FRAG_PAGE_ORDER     get_order(32768)
+
+static bool vhost_net_page_frag_refill(struct vhost_net *net, unsigned int sz,
+				       struct page_frag *pfrag, gfp_t gfp)
+{
+	if (pfrag->page) {
+		if (pfrag->offset + sz <= pfrag->size)
+			return true;
+		__page_frag_cache_drain(pfrag->page, net->refcnt_bias);
+	}
+
+	pfrag->offset = 0;
+	net->refcnt_bias = 0;
+	if (SKB_FRAG_PAGE_ORDER) {
+		/* Avoid direct reclaim but allow kswapd to wake */
+		pfrag->page = alloc_pages((gfp & ~__GFP_DIRECT_RECLAIM) |
+					  __GFP_COMP | __GFP_NOWARN |
+					  __GFP_NORETRY,
+					  SKB_FRAG_PAGE_ORDER);
+		if (likely(pfrag->page)) {
+			pfrag->size = PAGE_SIZE << SKB_FRAG_PAGE_ORDER;
+			goto done;
+		}
+	}
+	pfrag->page = alloc_page(gfp);
+	if (likely(pfrag->page)) {
+		pfrag->size = PAGE_SIZE;
+		goto done;
+	}
+	return false;
+
+done:
+	net->refcnt_bias = USHRT_MAX;
+	page_ref_add(pfrag->page, USHRT_MAX - 1);
+	return true;
+}
+
 #define VHOST_NET_RX_PAD (NET_IP_ALIGN + NET_SKB_PAD)
 
 static int vhost_net_build_xdp(struct vhost_net_virtqueue *nvq,
 			       struct iov_iter *from)
 {
 	struct vhost_virtqueue *vq = &nvq->vq;
+	struct vhost_net *net = container_of(vq->dev, struct vhost_net,
+					     dev);
 	struct socket *sock = vq->private_data;
-	struct page_frag *alloc_frag = &current->task_frag;
+	struct page_frag *alloc_frag = &net->page_frag;
 	struct virtio_net_hdr *gso;
 	struct xdp_buff *xdp = &nvq->xdp[nvq->batched_xdp];
 	struct tun_xdp_hdr *hdr;
@@ -665,7 +708,8 @@ static int vhost_net_build_xdp(struct vhost_net_virtqueue *nvq,
 
 	buflen += SKB_DATA_ALIGN(len + pad);
 	alloc_frag->offset = ALIGN((u64)alloc_frag->offset, SMP_CACHE_BYTES);
-	if (unlikely(!skb_page_frag_refill(buflen, alloc_frag, GFP_KERNEL)))
+	if (unlikely(!vhost_net_page_frag_refill(net, buflen,
+						 alloc_frag, GFP_KERNEL)))
 		return -ENOMEM;
 
 	buf = (char *)page_address(alloc_frag->page) + alloc_frag->offset;
@@ -703,7 +747,7 @@ static int vhost_net_build_xdp(struct vhost_net_virtqueue *nvq,
 	xdp->data_end = xdp->data + len;
 	hdr->buflen = buflen;
 
-	get_page(alloc_frag->page);
+	--net->refcnt_bias;
 	alloc_frag->offset += buflen;
 
 	++nvq->batched_xdp;
@@ -1292,6 +1336,8 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	vhost_poll_init(n->poll + VHOST_NET_VQ_RX, handle_rx_net, EPOLLIN, dev);
 
 	f->private_data = n;
+	n->page_frag.page = NULL;
+	n->refcnt_bias = 0;
 
 	return 0;
 }
@@ -1366,6 +1412,8 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 	kfree(n->vqs[VHOST_NET_VQ_RX].rxq.queue);
 	kfree(n->vqs[VHOST_NET_VQ_TX].xdp);
 	kfree(n->dev.vqs);
+	if (n->page_frag.page)
+		__page_frag_cache_drain(n->page_frag.page, n->refcnt_bias);
 	kvfree(n);
 	return 0;
 }
