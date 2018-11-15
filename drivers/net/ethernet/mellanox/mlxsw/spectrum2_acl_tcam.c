@@ -34,15 +34,15 @@ mlxsw_sp2_acl_ctcam_region_entry_insert(struct mlxsw_sp_acl_ctcam_region *cregio
 {
 	struct mlxsw_sp_acl_atcam_region *aregion;
 	struct mlxsw_sp_acl_atcam_entry *aentry;
-	struct mlxsw_sp_acl_erp *erp;
+	struct mlxsw_sp_acl_erp_mask *erp_mask;
 
 	aregion = mlxsw_sp_acl_tcam_cregion_aregion(cregion);
 	aentry = mlxsw_sp_acl_tcam_centry_aentry(centry);
 
-	erp = mlxsw_sp_acl_erp_get(aregion, mask, true);
-	if (IS_ERR(erp))
-		return PTR_ERR(erp);
-	aentry->erp = erp;
+	erp_mask = mlxsw_sp_acl_erp_mask_get(aregion, mask, true);
+	if (IS_ERR(erp_mask))
+		return PTR_ERR(erp_mask);
+	aentry->erp_mask = erp_mask;
 
 	return 0;
 }
@@ -57,7 +57,7 @@ mlxsw_sp2_acl_ctcam_region_entry_remove(struct mlxsw_sp_acl_ctcam_region *cregio
 	aregion = mlxsw_sp_acl_tcam_cregion_aregion(cregion);
 	aentry = mlxsw_sp_acl_tcam_centry_aentry(centry);
 
-	mlxsw_sp_acl_erp_put(aregion, aentry->erp);
+	mlxsw_sp_acl_erp_mask_put(aregion, aentry->erp_mask);
 }
 
 static const struct mlxsw_sp_acl_ctcam_region_ops

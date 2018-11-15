@@ -1976,6 +1976,16 @@ config TEST_MEMCAT_P
 
 	  If unsure, say N.
 
+config TEST_OBJAGG
+	tristate "Perform selftest on object aggreration manager"
+	default n
+	depends on OBJAGG
+	help
+	  Enable this option to test object aggregation manager on boot
+	  (or module load).
+
+	  If unsure, say N.
+
 endif # RUNTIME_TESTING_MENU
 
 config MEMTEST

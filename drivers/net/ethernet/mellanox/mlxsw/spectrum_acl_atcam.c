@@ -14,8 +14,8 @@
 #include "spectrum_acl_tcam.h"
 #include "core_acl_flex_keys.h"
 
-#define MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_START	6
-#define MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_END	11
+#define MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_CLEAR_START	0
+#define MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_CLEAR_END	5
 
 struct mlxsw_sp_acl_atcam_lkey_id_ht_key {
 	char enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* MSB blocks */
@@ -34,7 +34,7 @@ struct mlxsw_sp_acl_atcam_region_ops {
 	void (*fini)(struct mlxsw_sp_acl_atcam_region *aregion);
 	struct mlxsw_sp_acl_atcam_lkey_id *
 		(*lkey_id_get)(struct mlxsw_sp_acl_atcam_region *aregion,
-			       struct mlxsw_sp_acl_rule_info *rulei, u8 erp_id);
+			       char *enc_key, u8 erp_id);
 	void (*lkey_id_put)(struct mlxsw_sp_acl_atcam_region *aregion,
 			    struct mlxsw_sp_acl_atcam_lkey_id *lkey_id);
 };
@@ -64,7 +64,7 @@ static const struct rhashtable_params mlxsw_sp_acl_atcam_entries_ht_params = {
 static bool
 mlxsw_sp_acl_atcam_is_centry(const struct mlxsw_sp_acl_atcam_entry *aentry)
 {
-	return mlxsw_sp_acl_erp_is_ctcam_erp(aentry->erp);
+	return mlxsw_sp_acl_erp_mask_is_ctcam(aentry->erp_mask);
 }
 
 static int
@@ -90,8 +90,7 @@ mlxsw_sp_acl_atcam_region_generic_fini(struct mlxsw_sp_acl_atcam_region *aregion
 
 static struct mlxsw_sp_acl_atcam_lkey_id *
 mlxsw_sp_acl_atcam_generic_lkey_id_get(struct mlxsw_sp_acl_atcam_region *aregion,
-				       struct mlxsw_sp_acl_rule_info *rulei,
-				       u8 erp_id)
+				       char *enc_key, u8 erp_id)
 {
 	struct mlxsw_sp_acl_atcam_region_generic *region_generic;
 
@@ -220,8 +219,7 @@ mlxsw_sp_acl_atcam_lkey_id_destroy(struct mlxsw_sp_acl_atcam_region *aregion,
 
 static struct mlxsw_sp_acl_atcam_lkey_id *
 mlxsw_sp_acl_atcam_12kb_lkey_id_get(struct mlxsw_sp_acl_atcam_region *aregion,
-				    struct mlxsw_sp_acl_rule_info *rulei,
-				    u8 erp_id)
+				    char *enc_key, u8 erp_id)
 {
 	struct mlxsw_sp_acl_atcam_region_12kb *region_12kb = aregion->priv;
 	struct mlxsw_sp_acl_tcam_region *region = aregion->region;
@@ -230,9 +228,10 @@ mlxsw_sp_acl_atcam_12kb_lkey_id_get(struct mlxsw_sp_acl_atcam_region *aregion,
 	struct mlxsw_afk *afk = mlxsw_sp_acl_afk(mlxsw_sp->acl);
 	struct mlxsw_sp_acl_atcam_lkey_id *lkey_id;
 
-	mlxsw_afk_encode(afk, region->key_info, &rulei->values, ht_key.enc_key,
-			 NULL, MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_START,
-			 MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_END);
+	memcpy(ht_key.enc_key, enc_key, sizeof(ht_key.enc_key));
+	mlxsw_afk_clear(afk, ht_key.enc_key,
+			MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_CLEAR_START,
+			MLXSW_SP_ACL_ATCAM_LKEY_ID_BLOCK_CLEAR_END);
 	ht_key.erp_id = erp_id;
 	lkey_id = rhashtable_lookup_fast(&region_12kb->lkey_ht, &ht_key,
 					 mlxsw_sp_acl_atcam_lkey_id_ht_params);
@@ -379,7 +378,7 @@ mlxsw_sp_acl_atcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_acl_rule_info *rulei)
 {
 	struct mlxsw_sp_acl_tcam_region *region = aregion->region;
-	u8 erp_id = mlxsw_sp_acl_erp_id(aentry->erp);
+	u8 erp_id = mlxsw_sp_acl_erp_mask_erp_id(aentry->erp_mask);
 	struct mlxsw_sp_acl_atcam_lkey_id *lkey_id;
 	char ptce3_pl[MLXSW_REG_PTCE3_LEN];
 	u32 kvdl_index, priority;
@@ -389,7 +388,8 @@ mlxsw_sp_acl_atcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	lkey_id = aregion->ops->lkey_id_get(aregion, rulei, erp_id);
+	lkey_id = aregion->ops->lkey_id_get(aregion, aentry->ht_key.enc_key,
+					    erp_id);
 	if (IS_ERR(lkey_id))
 		return PTR_ERR(lkey_id);
 	aentry->lkey_id = lkey_id;
@@ -398,6 +398,9 @@ mlxsw_sp_acl_atcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_ptce3_pack(ptce3_pl, true, MLXSW_REG_PTCE3_OP_WRITE_WRITE,
 			     priority, region->tcam_region_info,
 			     aentry->ht_key.enc_key, erp_id,
+			     aentry->delta_info.start,
+			     aentry->delta_info.mask,
+			     aentry->delta_info.value,
 			     refcount_read(&lkey_id->refcnt) != 1, lkey_id->id,
 			     kvdl_index);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce3), ptce3_pl);
@@ -418,12 +421,17 @@ mlxsw_sp_acl_atcam_region_entry_remove(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_atcam_lkey_id *lkey_id = aentry->lkey_id;
 	struct mlxsw_sp_acl_tcam_region *region = aregion->region;
-	u8 erp_id = mlxsw_sp_acl_erp_id(aentry->erp);
+	u8 erp_id = mlxsw_sp_acl_erp_mask_erp_id(aentry->erp_mask);
+	char *enc_key = aentry->ht_key.enc_key;
 	char ptce3_pl[MLXSW_REG_PTCE3_LEN];
 
 	mlxsw_reg_ptce3_pack(ptce3_pl, false, MLXSW_REG_PTCE3_OP_WRITE_WRITE, 0,
-			     region->tcam_region_info, aentry->ht_key.enc_key,
-			     erp_id, refcount_read(&lkey_id->refcnt) != 1,
+			     region->tcam_region_info,
+			     enc_key, erp_id,
+			     aentry->delta_info.start,
+			     aentry->delta_info.mask,
+			     aentry->delta_info.value,
+			     refcount_read(&lkey_id->refcnt) != 1,
 			     lkey_id->id, 0);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce3), ptce3_pl);
 	aregion->ops->lkey_id_put(aregion, lkey_id);
@@ -438,19 +446,30 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_region *region = aregion->region;
 	char mask[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN] = { 0 };
 	struct mlxsw_afk *afk = mlxsw_sp_acl_afk(mlxsw_sp->acl);
-	struct mlxsw_sp_acl_erp *erp;
-	unsigned int blocks_count;
+	const struct mlxsw_sp_acl_erp_delta *delta;
+	struct mlxsw_sp_acl_erp_mask *erp_mask;
 	int err;
 
-	blocks_count = mlxsw_afk_key_info_blocks_count_get(region->key_info);
 	mlxsw_afk_encode(afk, region->key_info, &rulei->values,
-			 aentry->ht_key.enc_key, mask, 0, blocks_count - 1);
+			 aentry->full_enc_key, mask);
 
-	erp = mlxsw_sp_acl_erp_get(aregion, mask, false);
-	if (IS_ERR(erp))
-		return PTR_ERR(erp);
-	aentry->erp = erp;
-	aentry->ht_key.erp_id = mlxsw_sp_acl_erp_id(erp);
+	erp_mask = mlxsw_sp_acl_erp_mask_get(aregion, mask, false);
+	if (IS_ERR(erp_mask))
+		return PTR_ERR(erp_mask);
+	aentry->erp_mask = erp_mask;
+	aentry->ht_key.erp_id = mlxsw_sp_acl_erp_mask_erp_id(erp_mask);
+	memcpy(aentry->ht_key.enc_key, aentry->full_enc_key,
+	       sizeof(aentry->ht_key.enc_key));
+
+	/* Compute all needed delta information and clear the delta bits
+	 * from the encrypted key.
+	 */
+	delta = mlxsw_sp_acl_erp_delta(aentry->erp_mask);
+	aentry->delta_info.start = mlxsw_sp_acl_erp_delta_start(delta);
+	aentry->delta_info.mask = mlxsw_sp_acl_erp_delta_mask(delta);
+	aentry->delta_info.value =
+		mlxsw_sp_acl_erp_delta_value(delta, aentry->full_enc_key);
+	mlxsw_sp_acl_erp_delta_clear(delta, aentry->ht_key.enc_key);
 
 	/* We can't insert identical rules into the A-TCAM, so fail and
 	 * let the rule spill into C-TCAM
@@ -472,7 +491,7 @@ err_rule_insert:
 	rhashtable_remove_fast(&aregion->entries_ht, &aentry->ht_node,
 			       mlxsw_sp_acl_atcam_entries_ht_params);
 err_rhashtable_insert:
-	mlxsw_sp_acl_erp_put(aregion, erp);
+	mlxsw_sp_acl_erp_mask_put(aregion, erp_mask);
 	return err;
 }
 
@@ -484,7 +503,7 @@ __mlxsw_sp_acl_atcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_atcam_region_entry_remove(mlxsw_sp, aregion, aentry);
 	rhashtable_remove_fast(&aregion->entries_ht, &aentry->ht_node,
 			       mlxsw_sp_acl_atcam_entries_ht_params);
-	mlxsw_sp_acl_erp_put(aregion, aentry->erp);
+	mlxsw_sp_acl_erp_mask_put(aregion, aentry->erp_mask);
 }
 
 int mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,

@@ -98,8 +98,8 @@ static const struct mlxsw_afk_block mlxsw_sp1_afk_blocks[] = {
 
 #define MLXSW_SP1_AFK_KEY_BLOCK_SIZE 16
 
-static void mlxsw_sp1_afk_encode_block(char *block, int block_index,
-				       char *output)
+static void mlxsw_sp1_afk_encode_block(char *output, int block_index,
+				       char *block)
 {
 	unsigned int offset = block_index * MLXSW_SP1_AFK_KEY_BLOCK_SIZE;
 	char *output_indexed = output + offset;
@@ -107,10 +107,19 @@ static void mlxsw_sp1_afk_encode_block(char *block, int block_index,
 	memcpy(output_indexed, block, MLXSW_SP1_AFK_KEY_BLOCK_SIZE);
 }
 
+static void mlxsw_sp1_afk_clear_block(char *output, int block_index)
+{
+	unsigned int offset = block_index * MLXSW_SP1_AFK_KEY_BLOCK_SIZE;
+	char *output_indexed = output + offset;
+
+	memset(output_indexed, 0, MLXSW_SP1_AFK_KEY_BLOCK_SIZE);
+}
+
 const struct mlxsw_afk_ops mlxsw_sp1_afk_ops = {
 	.blocks		= mlxsw_sp1_afk_blocks,
 	.blocks_count	= ARRAY_SIZE(mlxsw_sp1_afk_blocks),
 	.encode_block	= mlxsw_sp1_afk_encode_block,
+	.clear_block	= mlxsw_sp1_afk_clear_block,
 };
 
 static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_0[] = {
@@ -263,10 +272,9 @@ static const struct mlxsw_sp2_afk_block_layout mlxsw_sp2_afk_blocks_layout[] = {
 	MLXSW_SP2_AFK_BLOCK_LAYOUT(block11, 0x00, 12),
 };
 
-static void mlxsw_sp2_afk_encode_block(char *block, int block_index,
-				       char *output)
+static void __mlxsw_sp2_afk_block_value_set(char *output, int block_index,
+					    u64 block_value)
 {
-	u64 block_value = mlxsw_sp2_afk_block_value_get(block);
 	const struct mlxsw_sp2_afk_block_layout *block_layout;
 
 	if (WARN_ON(block_index < 0 ||
@@ -278,8 +286,22 @@ static void mlxsw_sp2_afk_encode_block(char *block, int block_index,
 			   &block_layout->item, 0, block_value);
 }
 
+static void mlxsw_sp2_afk_encode_block(char *output, int block_index,
+				       char *block)
+{
+	u64 block_value = mlxsw_sp2_afk_block_value_get(block);
+
+	__mlxsw_sp2_afk_block_value_set(output, block_index, block_value);
+}
+
+static void mlxsw_sp2_afk_clear_block(char *output, int block_index)
+{
+	__mlxsw_sp2_afk_block_value_set(output, block_index, 0);
+}
+
 const struct mlxsw_afk_ops mlxsw_sp2_afk_ops = {
 	.blocks		= mlxsw_sp2_afk_blocks,
 	.blocks_count	= ARRAY_SIZE(mlxsw_sp2_afk_blocks),
 	.encode_block	= mlxsw_sp2_afk_encode_block,
+	.clear_block	= mlxsw_sp2_afk_clear_block,
 };
