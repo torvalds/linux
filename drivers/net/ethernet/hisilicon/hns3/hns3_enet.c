@@ -1345,6 +1345,15 @@ static int hns3_nic_set_features(struct net_device *netdev,
 			priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tx;
 	}
 
+	if (changed & (NETIF_F_GRO_HW) && h->ae_algo->ops->set_gro_en) {
+		if (features & NETIF_F_GRO_HW)
+			ret = h->ae_algo->ops->set_gro_en(h, true);
+		else
+			ret = h->ae_algo->ops->set_gro_en(h, false);
+		if (ret)
+			return ret;
+	}
+
 	if ((changed & NETIF_F_HW_VLAN_CTAG_FILTER) &&
 	    h->ae_algo->ops->enable_vlan_filter) {
 		if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
@@ -1929,7 +1938,9 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_SCTP_CRC;
 
 	if (pdev->revision >= 0x21) {
-		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER |
+			NETIF_F_GRO_HW;
+		netdev->features |= NETIF_F_GRO_HW;
 
 		if (!(h->flags & HNAE3_SUPPORT_VF)) {
 			netdev->hw_features |= NETIF_F_NTUPLE;

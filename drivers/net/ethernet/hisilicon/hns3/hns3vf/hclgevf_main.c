@@ -2368,6 +2368,13 @@ void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
 	hdev->hw.mac.duplex = duplex;
 }
 
+static int hclgevf_gro_en(struct hnae3_handle *handle, int enable)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return hclgevf_config_gro(hdev, enable);
+}
+
 static void hclgevf_get_media_type(struct hnae3_handle *handle,
 				  u8 *media_type)
 {
@@ -2442,6 +2449,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_hw_reset_stat = hclgevf_get_hw_reset_stat,
 	.ae_dev_resetting = hclgevf_ae_dev_resetting,
 	.ae_dev_reset_cnt = hclgevf_ae_dev_reset_cnt,
+	.set_gro_en = hclgevf_gro_en,
 };
 
 static struct hnae3_ae_algo ae_algovf = {

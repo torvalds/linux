@@ -305,6 +305,8 @@ struct hnae3_ae_dev {
  *   Set vlan filter config of vf
  * enable_hw_strip_rxvtag()
  *   Enable/disable hardware strip vlan tag of packets received
+ * set_gro_en
+ *   Enable/disable HW GRO
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -449,6 +451,7 @@ struct hnae3_ae_ops {
 	bool (*get_hw_reset_stat)(struct hnae3_handle *handle);
 	bool (*ae_dev_resetting)(struct hnae3_handle *handle);
 	unsigned long (*ae_dev_reset_cnt)(struct hnae3_handle *handle);
+	int (*set_gro_en)(struct hnae3_handle *handle, int enable);
 };
 
 struct hnae3_dcb_ops {
