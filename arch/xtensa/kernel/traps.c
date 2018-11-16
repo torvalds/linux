@@ -51,7 +51,6 @@
 extern void kernel_exception(void);
 extern void user_exception(void);
 
-extern void fast_syscall_kernel(void);
 extern void fast_syscall_user(void);
 extern void fast_alloca(void);
 extern void fast_unaligned(void);
@@ -89,7 +88,6 @@ typedef struct {
 static dispatch_init_table_t __initdata dispatch_init_table[] = {
 
 { EXCCAUSE_ILLEGAL_INSTRUCTION,	0,	   do_illegal_instruction},
-{ EXCCAUSE_SYSTEM_CALL,		KRNL,	   fast_syscall_kernel },
 { EXCCAUSE_SYSTEM_CALL,		USER,	   fast_syscall_user },
 { EXCCAUSE_SYSTEM_CALL,		0,	   system_call },
 /* EXCCAUSE_INSTRUCTION_FETCH unhandled */
