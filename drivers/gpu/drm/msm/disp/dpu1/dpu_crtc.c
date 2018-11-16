@@ -781,10 +781,7 @@ static void _dpu_crtc_vblank_enable_no_lock(
 	struct drm_encoder *enc;
 
 	if (enable) {
-		/* drop lock since power crtc cb may try to re-acquire lock */
-		mutex_unlock(&dpu_crtc->crtc_lock);
 		pm_runtime_get_sync(dev->dev);
-		mutex_lock(&dpu_crtc->crtc_lock);
 
 		list_for_each_entry(enc, &dev->mode_config.encoder_list, head) {
 			if (enc->crtc != crtc)
@@ -809,10 +806,7 @@ static void _dpu_crtc_vblank_enable_no_lock(
 			dpu_encoder_register_vblank_callback(enc, NULL, NULL);
 		}
 
-		/* drop lock since power crtc cb may try to re-acquire lock */
-		mutex_unlock(&dpu_crtc->crtc_lock);
 		pm_runtime_put_sync(dev->dev);
-		mutex_lock(&dpu_crtc->crtc_lock);
 	}
 }
 
