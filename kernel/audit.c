@@ -400,7 +400,7 @@ static int audit_log_config_change(char *function_name, u32 new, u32 old,
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
 	if (unlikely(!ab))
 		return rc;
-	audit_log_format(ab, "%s=%u old=%u", function_name, new, old);
+	audit_log_format(ab, "%s=%u old=%u ", function_name, new, old);
 	audit_log_session_info(ab);
 	rc = audit_log_task_context(ab);
 	if (rc)
@@ -1067,7 +1067,7 @@ static void audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
 	*ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
 	if (unlikely(!*ab))
 		return;
-	audit_log_format(*ab, "pid=%d uid=%u", pid, uid);
+	audit_log_format(*ab, "pid=%d uid=%u ", pid, uid);
 	audit_log_session_info(*ab);
 	audit_log_task_context(*ab);
 }
@@ -2042,7 +2042,7 @@ void audit_log_session_info(struct audit_buffer *ab)
 	unsigned int sessionid = audit_get_sessionid(current);
 	uid_t auid = from_kuid(&init_user_ns, audit_get_loginuid(current));
 
-	audit_log_format(ab, " auid=%u ses=%u", auid, sessionid);
+	audit_log_format(ab, "auid=%u ses=%u", auid, sessionid);
 }
 
 void audit_log_key(struct audit_buffer *ab, char *key)
