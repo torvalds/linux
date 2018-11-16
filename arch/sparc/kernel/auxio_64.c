@@ -123,8 +123,7 @@ static int auxio_probe(struct platform_device *dev)
 	if (!auxio_register)
 		return -ENODEV;
 
-	printk(KERN_INFO "AUXIO: Found device at %s\n",
-	       dp->full_name);
+	printk(KERN_INFO "AUXIO: Found device at %pOF\n", dp);
 
 	if (auxio_devtype == AUXIO_TYPE_EBUS)
 		auxio_set_led(AUXIO_LED_ON);

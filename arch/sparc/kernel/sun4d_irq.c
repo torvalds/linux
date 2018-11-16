@@ -361,15 +361,15 @@ static unsigned int sun4d_build_device_irq(struct platform_device *op,
 	 * lacks a "board#" property, something is very wrong.
 	 */
 	if (!bus->parent || strcmp(bus->parent->name, bus_connection)) {
-		printk(KERN_ERR "%s: Error, parent is not %s.\n",
-			bus->full_name, bus_connection);
+		printk(KERN_ERR "%pOF: Error, parent is not %s.\n",
+			bus, bus_connection);
 		goto err_out;
 	}
 	board_parent = bus->parent;
 	board = of_getintprop_default(board_parent, "board#", -1);
 	if (board == -1) {
-		printk(KERN_ERR "%s: Error, lacks board# property.\n",
-			board_parent->full_name);
+		printk(KERN_ERR "%pOF: Error, lacks board# property.\n",
+			board_parent);
 		goto err_out;
 	}
 

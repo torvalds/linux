@@ -431,13 +431,13 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 	u64 size;
 
 	if (ofpci_verbose)
-		pci_info(dev, "of_scan_pci_bridge(%s)\n", node->full_name);
+		pci_info(dev, "of_scan_pci_bridge(%pOF)\n", node);
 
 	/* parse bus-range property */
 	busrange = of_get_property(node, "bus-range", &len);
 	if (busrange == NULL || len != 8) {
-		pci_info(dev, "Can't get bus-range for PCI-PCI bridge %s\n",
-		       node->full_name);
+		pci_info(dev, "Can't get bus-range for PCI-PCI bridge %pOF\n",
+		       node);
 		return;
 	}
 
@@ -455,8 +455,8 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 
 	bus = pci_add_new_bus(dev->bus, dev, busrange[0]);
 	if (!bus) {
-		pci_err(dev, "Failed to create pci bus for %s\n",
-			node->full_name);
+		pci_err(dev, "Failed to create pci bus for %pOF\n",
+			node);
 		return;
 	}
 
@@ -512,13 +512,13 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 			res = bus->resource[0];
 			if (res->flags) {
 				pci_err(dev, "ignoring extra I/O range"
-					" for bridge %s\n", node->full_name);
+					" for bridge %pOF\n", node);
 				continue;
 			}
 		} else {
 			if (i >= PCI_NUM_RESOURCES - PCI_BRIDGE_RESOURCES) {
 				pci_err(dev, "too many memory ranges"
-					" for bridge %s\n", node->full_name);
+					" for bridge %pOF\n", node);
 				continue;
 			}
 			res = bus->resource[i];
@@ -554,14 +554,14 @@ static void pci_of_scan_bus(struct pci_pbm_info *pbm,
 	struct pci_dev *dev;
 
 	if (ofpci_verbose)
-		pci_info(bus, "scan_bus[%s] bus no %d\n",
-			 node->full_name, bus->number);
+		pci_info(bus, "scan_bus[%pOF] bus no %d\n",
+			 node, bus->number);
 
 	child = NULL;
 	prev_devfn = -1;
 	while ((child = of_get_next_child(node, child)) != NULL) {
 		if (ofpci_verbose)
-			pci_info(bus, "  * %s\n", child->full_name);
+			pci_info(bus, "  * %pOF\n", child);
 		reg = of_get_property(child, "reg", &reglen);
 		if (reg == NULL || reglen < 20)
 			continue;
@@ -598,7 +598,7 @@ show_pciobppath_attr(struct device * dev, struct device_attribute * attr, char *
 	pdev = to_pci_dev(dev);
 	dp = pdev->dev.of_node;
 
-	return snprintf (buf, PAGE_SIZE, "%s\n", dp->full_name);
+	return snprintf (buf, PAGE_SIZE, "%pOF\n", dp);
 }
 
 static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH, show_pciobppath_attr, NULL);
@@ -698,7 +698,7 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	struct device_node *node = pbm->op->dev.of_node;
 	struct pci_bus *bus;
 
-	printk("PCI: Scanning PBM %s\n", node->full_name);
+	printk("PCI: Scanning PBM %pOF\n", node);
 
 	pci_add_resource_offset(&resources, &pbm->io_space,
 				pbm->io_offset);
@@ -714,8 +714,7 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	bus = pci_create_root_bus(parent, pbm->pci_first_busno, pbm->pci_ops,
 				  pbm, &resources);
 	if (!bus) {
-		printk(KERN_ERR "Failed to create bus for %s\n",
-		       node->full_name);
+		printk(KERN_ERR "Failed to create bus for %pOF\n", node);
 		pci_free_resource_list(&resources);
 		return NULL;
 	}
@@ -1111,8 +1110,8 @@ static void pci_bus_slot_names(struct device_node *node, struct pci_bus *bus)
 	sp = prop->names;
 
 	if (ofpci_verbose)
-		pci_info(bus, "Making slots for [%s] mask[0x%02x]\n",
-			 node->full_name, mask);
+		pci_info(bus, "Making slots for [%pOF] mask[0x%02x]\n",
+			 node, mask);
 
 	i = 0;
 	while (mask) {

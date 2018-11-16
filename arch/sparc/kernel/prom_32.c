@@ -255,7 +255,7 @@ void __init of_console_init(void)
 		}
 		of_console_device = dp;
 
-		strcpy(of_console_path, dp->full_name);
+		sprintf(of_console_path, "%pOF", dp);
 		if (!strcmp(type, "serial")) {
 			strcat(of_console_path,
 			       (skip ? ":b" : ":a"));
@@ -295,7 +295,7 @@ void __init of_console_init(void)
 		of_console_device = dp;
 
 		if (prom_vers == PROM_V2) {
-			strcpy(of_console_path, dp->full_name);
+			sprintf(of_console_path, "%pOF", dp);
 			switch (*romvec->pv_stdout) {
 			case PROMDEV_TTYA:
 				strcat(of_console_path, ":a");

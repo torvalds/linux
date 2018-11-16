@@ -341,9 +341,9 @@ static void __init build_device_resources(struct platform_device *op,
 
 	/* Prevent overrunning the op->resources[] array.  */
 	if (num_reg > PROMREG_MAX) {
-		printk(KERN_WARNING "%s: Too many regs (%d), "
+		printk(KERN_WARNING "%pOF: Too many regs (%d), "
 		       "limiting to %d.\n",
-		       op->dev.of_node->full_name, num_reg, PROMREG_MAX);
+		       op->dev.of_node, num_reg, PROMREG_MAX);
 		num_reg = PROMREG_MAX;
 	}
 
@@ -401,8 +401,8 @@ static void __init build_device_resources(struct platform_device *op,
 		memset(r, 0, sizeof(*r));
 
 		if (of_resource_verbose)
-			printk("%s reg[%d] -> %llx\n",
-			       op->dev.of_node->full_name, index,
+			printk("%pOF reg[%d] -> %llx\n",
+			       op->dev.of_node, index,
 			       result);
 
 		if (result != OF_BAD_ADDR) {
@@ -548,8 +548,8 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 					       dp->irq_trans->data);
 
 		if (of_irq_verbose)
-			printk("%s: direct translate %x --> %x\n",
-			       dp->full_name, orig_irq, irq);
+			printk("%pOF: direct translate %x --> %x\n",
+			       dp, orig_irq, irq);
 
 		goto out;
 	}
@@ -579,10 +579,9 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 						   &irq);
 
 			if (of_irq_verbose)
-				printk("%s: Apply [%s:%x] imap --> [%s:%x]\n",
-				       op->dev.of_node->full_name,
-				       pp->full_name, this_orig_irq,
-				       of_node_full_name(iret), irq);
+				printk("%pOF: Apply [%pOF:%x] imap --> [%pOF:%x]\n",
+				       op->dev.of_node,
+				       pp, this_orig_irq, iret, irq);
 
 			if (!iret)
 				break;
@@ -597,10 +596,10 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 
 				irq = pci_irq_swizzle(dp, pp, irq);
 				if (of_irq_verbose)
-					printk("%s: PCI swizzle [%s] "
+					printk("%pOF: PCI swizzle [%pOF] "
 					       "%x --> %x\n",
-					       op->dev.of_node->full_name,
-					       pp->full_name, this_orig_irq,
+					       op->dev.of_node,
+					       pp, this_orig_irq,
 					       irq);
 
 			}
@@ -619,8 +618,8 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 	irq = ip->irq_trans->irq_build(op->dev.of_node, irq,
 				       ip->irq_trans->data);
 	if (of_irq_verbose)
-		printk("%s: Apply IRQ trans [%s] %x --> %x\n",
-		      op->dev.of_node->full_name, ip->full_name, orig_irq, irq);
+		printk("%pOF: Apply IRQ trans [%pOF] %x --> %x\n",
+		      op->dev.of_node, ip, orig_irq, irq);
 
 out:
 	nid = of_node_to_nid(dp);
@@ -656,9 +655,9 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 
 		/* Prevent overrunning the op->irqs[] array.  */
 		if (op->archdata.num_irqs > PROMINTR_MAX) {
-			printk(KERN_WARNING "%s: Too many irqs (%d), "
+			printk(KERN_WARNING "%pOF: Too many irqs (%d), "
 			       "limiting to %d.\n",
-			       dp->full_name, op->archdata.num_irqs, PROMINTR_MAX);
+			       dp, op->archdata.num_irqs, PROMINTR_MAX);
 			op->archdata.num_irqs = PROMINTR_MAX;
 		}
 		memcpy(op->archdata.irqs, irq, op->archdata.num_irqs * 4);
@@ -680,8 +679,7 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 	op->dev.dma_mask = &op->dev.coherent_dma_mask;
 
 	if (of_device_register(op)) {
-		printk("%s: Could not register of device.\n",
-		       dp->full_name);
+		printk("%pOF: Could not register of device.\n", dp);
 		kfree(op);
 		op = NULL;
 	}

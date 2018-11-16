@@ -324,8 +324,8 @@ static void __init build_device_resources(struct platform_device *op,
 		memset(r, 0, sizeof(*r));
 
 		if (of_resource_verbose)
-			printk("%s reg[%d] -> %llx\n",
-			       op->dev.of_node->full_name, index,
+			printk("%pOF reg[%d] -> %llx\n",
+			       op->dev.of_node, index,
 			       result);
 
 		if (result != OF_BAD_ADDR) {
@@ -386,8 +386,7 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 	op->dev.dma_mask = &op->dev.coherent_dma_mask;
 
 	if (of_device_register(op)) {
-		printk("%s: Could not register of device.\n",
-		       dp->full_name);
+		printk("%pOF: Could not register of device.\n", dp);
 		kfree(op);
 		op = NULL;
 	}
