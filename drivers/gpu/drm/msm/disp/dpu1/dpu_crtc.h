@@ -140,7 +140,6 @@ struct dpu_crtc_frame_event {
  * @dirty_list    : list of color processing features are dirty
  * @ad_dirty: list containing ad properties that are dirty
  * @ad_active: list containing ad properties that are active
- * @crtc_lock     : crtc lock around create, destroy and access.
  * @frame_pending : Whether or not an update is pending
  * @frame_events  : static allocation of in-flight frame events
  * @frame_event_list : available frame event list
@@ -172,8 +171,6 @@ struct dpu_crtc {
 	struct list_head dirty_list;
 	struct list_head ad_dirty;
 	struct list_head ad_active;
-
-	struct mutex crtc_lock;
 
 	atomic_t frame_pending;
 	struct dpu_crtc_frame_event frame_events[DPU_CRTC_FRAME_EVENT_SIZE];

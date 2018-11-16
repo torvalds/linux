@@ -69,7 +69,6 @@ static void dpu_crtc_destroy(struct drm_crtc *crtc)
 		return;
 
 	drm_crtc_cleanup(crtc);
-	mutex_destroy(&dpu_crtc->crtc_lock);
 	kfree(dpu_crtc);
 }
 
@@ -833,8 +832,6 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 				  old_crtc_state->encoder_mask)
 		dpu_encoder_assign_crtc(encoder, NULL);
 
-	mutex_lock(&dpu_crtc->crtc_lock);
-
 	/* wait for frame_event_done completion */
 	if (_dpu_crtc_wait_for_frame_done(crtc))
 		DPU_ERROR("crtc%d wait for frame done failed;frame_pending%d\n",
@@ -862,8 +859,6 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	/* disable clk & bw control until clk & bw properties are set */
 	cstate->bw_control = false;
 	cstate->bw_split_vote = false;
-
-	mutex_unlock(&dpu_crtc->crtc_lock);
 
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irqsave(&crtc->dev->event_lock, flags);
@@ -897,11 +892,8 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 		dpu_encoder_register_frame_event_callback(encoder,
 				dpu_crtc_frame_event_cb, (void *)crtc);
 
-	mutex_lock(&dpu_crtc->crtc_lock);
 	trace_dpu_crtc_enable(DRMID(crtc), true, dpu_crtc);
 	dpu_crtc->enabled = true;
-
-	mutex_unlock(&dpu_crtc->crtc_lock);
 
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
 		dpu_encoder_assign_crtc(encoder, crtc);
@@ -1204,7 +1196,6 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 	drm_modeset_lock_all(crtc->dev);
 	cstate = to_dpu_crtc_state(crtc->state);
 
-	mutex_lock(&dpu_crtc->crtc_lock);
 	mode = &crtc->state->adjusted_mode;
 	out_width = _dpu_crtc_get_mixer_width(cstate, mode);
 
@@ -1291,7 +1282,6 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 		dpu_crtc->vblank_cb_time = ktime_set(0, 0);
 	}
 
-	mutex_unlock(&dpu_crtc->crtc_lock);
 	drm_modeset_unlock_all(crtc->dev);
 
 	return 0;
@@ -1441,7 +1431,6 @@ struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
 	crtc = &dpu_crtc->base;
 	crtc->dev = dev;
 
-	mutex_init(&dpu_crtc->crtc_lock);
 	spin_lock_init(&dpu_crtc->spin_lock);
 	atomic_set(&dpu_crtc->frame_pending, 0);
 
