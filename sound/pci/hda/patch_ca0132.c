@@ -8489,7 +8489,7 @@ static void ca0132_config(struct hda_codec *codec)
 		break;
 	case QUIRK_AE5:
 		codec_dbg(codec, "%s: QUIRK_AE5 applied.\n", __func__);
-		snd_hda_apply_pincfgs(codec, r3di_pincfgs);
+		snd_hda_apply_pincfgs(codec, ae5_pincfgs);
 		break;
 	}
 
