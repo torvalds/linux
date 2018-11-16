@@ -209,6 +209,7 @@
 #define DISMOD_3STATE	(0x0)
 #define DISMOD_LOW	(0x2 << 2)
 #define DISMOD_HIGH	(0x3 << 2)
+#define DISMOD_VAL(x)	((x) << 2)
 #define DISMOD_MASK	DISMOD_HIGH
 #define TXSTATE		BIT(4)
 #define RXSTATE		BIT(5)

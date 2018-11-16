@@ -85,6 +85,7 @@ struct davinci_mcasp {
 	u32	tdm_mask[2];
 	int	slot_width;
 	u8	op_mode;
+	u8	dismod;
 	u8	num_serializer;
 	u8	*serial_dir;
 	u8	version;
@@ -834,7 +835,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 		if (mcasp->serial_dir[i] == TX_MODE &&
 					tx_ser < max_active_serializers) {
 			mcasp_mod_bits(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
-				       DISMOD_LOW, DISMOD_MASK);
+				       mcasp->dismod, DISMOD_MASK);
 			set_bit(PIN_BIT_AXR(i), &mcasp->pdir);
 			tx_ser++;
 		} else if (mcasp->serial_dir[i] == RX_MODE &&
@@ -847,6 +848,8 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 			clear_bit(PIN_BIT_AXR(i), &mcasp->pdir);
 		} else if (mcasp->serial_dir[i] == TX_MODE) {
 			/* Unused TX pins, clear PDIR  */
+			mcasp_mod_bits(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
+				       mcasp->dismod, DISMOD_MASK);
 			clear_bit(PIN_BIT_AXR(i), &mcasp->pdir);
 		}
 	}
@@ -1709,6 +1712,7 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 
 	if (pdev->dev.platform_data) {
 		pdata = pdev->dev.platform_data;
+		pdata->dismod = DISMOD_LOW;
 		return pdata;
 	} else if (match) {
 		pdata = devm_kmemdup(&pdev->dev, match->data, sizeof(*pdata),
@@ -1797,6 +1801,18 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 	ret = of_property_read_u32(np, "sram-size-capture", &val);
 	if (ret >= 0)
 		pdata->sram_size_capture = val;
+
+	ret = of_property_read_u32(np, "dismod", &val);
+	if (ret >= 0) {
+		if (val == 0 || val == 2 || val == 3) {
+			pdata->dismod = DISMOD_VAL(val);
+		} else {
+			dev_warn(&pdev->dev, "Invalid dismod value: %u\n", val);
+			pdata->dismod = DISMOD_LOW;
+		}
+	} else {
+		pdata->dismod = DISMOD_LOW;
+	}
 
 	return  pdata;
 
@@ -1973,6 +1989,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	mcasp->version = pdata->version;
 	mcasp->txnumevt = pdata->txnumevt;
 	mcasp->rxnumevt = pdata->rxnumevt;
+	mcasp->dismod = pdata->dismod;
 
 	mcasp->dev = &pdev->dev;
 
