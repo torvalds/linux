@@ -2389,13 +2389,13 @@ struct pcpu_sw_netstats {
 	u64     tx_packets;
 	u64     tx_bytes;
 	struct u64_stats_sync   syncp;
-};
+} __aligned(4 * sizeof(u64));
 
 struct pcpu_lstats {
 	u64 packets;
 	u64 bytes;
 	struct u64_stats_sync syncp;
-};
+} __aligned(2 * sizeof(u64));
 
 #define __netdev_alloc_pcpu_stats(type, gfp)				\
 ({									\
