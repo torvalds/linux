@@ -1267,21 +1267,28 @@ void dpu_encoder_assign_crtc(struct drm_encoder *drm_enc, struct drm_crtc *crtc)
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
 	unsigned long lock_flags;
-	bool enable;
-	int i;
-
-	enable = crtc ? true : false;
-
-	if (!drm_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return;
-	}
-	trace_dpu_enc_vblank_cb(DRMID(drm_enc), enable);
 
 	spin_lock_irqsave(&dpu_enc->enc_spinlock, lock_flags);
 	/* crtc should always be cleared before re-assigning */
 	WARN_ON(crtc && dpu_enc->crtc);
 	dpu_enc->crtc = crtc;
+	spin_unlock_irqrestore(&dpu_enc->enc_spinlock, lock_flags);
+}
+
+void dpu_encoder_toggle_vblank_for_crtc(struct drm_encoder *drm_enc,
+					struct drm_crtc *crtc, bool enable)
+{
+	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
+	unsigned long lock_flags;
+	int i;
+
+	trace_dpu_enc_vblank_cb(DRMID(drm_enc), enable);
+
+	spin_lock_irqsave(&dpu_enc->enc_spinlock, lock_flags);
+	if (dpu_enc->crtc != crtc) {
+		spin_unlock_irqrestore(&dpu_enc->enc_spinlock, lock_flags);
+		return;
+	}
 	spin_unlock_irqrestore(&dpu_enc->enc_spinlock, lock_flags);
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {

@@ -764,43 +764,6 @@ end:
 	DPU_ATRACE_END("crtc_commit");
 }
 
-/**
- * _dpu_crtc_vblank_enable_no_lock - update power resource and vblank request
- * @dpu_crtc: Pointer to dpu crtc structure
- * @enable: Whether to enable/disable vblanks
- */
-static void _dpu_crtc_vblank_enable_no_lock(
-		struct dpu_crtc *dpu_crtc, bool enable)
-{
-	struct drm_crtc *crtc = &dpu_crtc->base;
-	struct drm_device *dev = crtc->dev;
-	struct drm_encoder *enc;
-
-	if (enable) {
-		list_for_each_entry(enc, &dev->mode_config.encoder_list, head) {
-			if (enc->crtc != crtc)
-				continue;
-
-			trace_dpu_crtc_vblank_enable(DRMID(&dpu_crtc->base),
-						     DRMID(enc), enable,
-						     dpu_crtc);
-
-			dpu_encoder_assign_crtc(enc, crtc);
-		}
-	} else {
-		list_for_each_entry(enc, &dev->mode_config.encoder_list, head) {
-			if (enc->crtc != crtc)
-				continue;
-
-			trace_dpu_crtc_vblank_enable(DRMID(&dpu_crtc->base),
-						     DRMID(enc), enable,
-						     dpu_crtc);
-
-			dpu_encoder_assign_crtc(enc, NULL);
-		}
-	}
-}
-
 static void dpu_crtc_reset(struct drm_crtc *crtc)
 {
 	struct dpu_crtc_state *cstate;
@@ -866,6 +829,10 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	/* Disable/save vblank irq handling */
 	drm_crtc_vblank_off(crtc);
 
+	drm_for_each_encoder_mask(encoder, crtc->dev,
+				  old_crtc_state->encoder_mask)
+		dpu_encoder_assign_crtc(encoder, NULL);
+
 	mutex_lock(&dpu_crtc->crtc_lock);
 
 	/* wait for frame_event_done completion */
@@ -875,9 +842,6 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 				atomic_read(&dpu_crtc->frame_pending));
 
 	trace_dpu_crtc_disable(DRMID(crtc), false, dpu_crtc);
-	if (dpu_crtc->enabled && dpu_crtc->vblank_requested) {
-		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, false);
-	}
 	dpu_crtc->enabled = false;
 
 	if (atomic_read(&dpu_crtc->frame_pending)) {
@@ -935,12 +899,12 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 
 	mutex_lock(&dpu_crtc->crtc_lock);
 	trace_dpu_crtc_enable(DRMID(crtc), true, dpu_crtc);
-	if (!dpu_crtc->enabled && dpu_crtc->vblank_requested) {
-		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, true);
-	}
 	dpu_crtc->enabled = true;
 
 	mutex_unlock(&dpu_crtc->crtc_lock);
+
+	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
+		dpu_encoder_assign_crtc(encoder, crtc);
 
 	/* Enable/restore vblank irq handling */
 	drm_crtc_vblank_on(crtc);
@@ -1186,10 +1150,33 @@ end:
 int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 {
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
+	struct drm_encoder *enc;
+
+	trace_dpu_crtc_vblank(DRMID(&dpu_crtc->base), en, dpu_crtc);
+
+	/*
+	 * Normally we would iterate through encoder_mask in crtc state to find
+	 * attached encoders. In this case, we might be disabling vblank _after_
+	 * encoder_mask has been cleared.
+	 *
+	 * Instead, we "assign" a crtc to the encoder in enable and clear it in
+	 * disable (which is also after encoder_mask is cleared). So instead of
+	 * using encoder mask, we'll ask the encoder to toggle itself iff it's
+	 * currently assigned to our crtc.
+	 *
+	 * Note also that this function cannot be called while crtc is disabled
+	 * since we use drm_crtc_vblank_on/off. So we don't need to worry
+	 * about the assigned crtcs being inconsistent with the current state
+	 * (which means no need to worry about modeset locks).
+	 */
+	list_for_each_entry(enc, &crtc->dev->mode_config.encoder_list, head) {
+		trace_dpu_crtc_vblank_enable(DRMID(crtc), DRMID(enc), en,
+					     dpu_crtc);
+
+		dpu_encoder_toggle_vblank_for_crtc(enc, crtc, en);
+	}
 
 	mutex_lock(&dpu_crtc->crtc_lock);
-	trace_dpu_crtc_vblank(DRMID(&dpu_crtc->base), en, dpu_crtc);
-	_dpu_crtc_vblank_enable_no_lock(dpu_crtc, en);
 	dpu_crtc->vblank_requested = en;
 	mutex_unlock(&dpu_crtc->crtc_lock);
 

@@ -63,6 +63,16 @@ void dpu_encoder_assign_crtc(struct drm_encoder *encoder,
 			     struct drm_crtc *crtc);
 
 /**
+ * dpu_encoder_toggle_vblank_for_crtc - Toggles vblank interrupts on or off if
+ *	the encoder is assigned to the given crtc
+ * @encoder:	encoder pointer
+ * @crtc:	crtc pointer
+ * @enable:	true if vblank should be enabled
+ */
+void dpu_encoder_toggle_vblank_for_crtc(struct drm_encoder *encoder,
+					struct drm_crtc *crtc, bool enable);
+
+/**
  * dpu_encoder_register_frame_event_callback - provide callback to encoder that
  *	will be called after the request is complete, or other events.
  * @encoder:	encoder pointer
