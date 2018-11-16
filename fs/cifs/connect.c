@@ -4220,6 +4220,12 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 	if (rc)
 		goto error;
 
+	/*
+	 * After reconnecting to a different server, unique ids won't
+	 * match anymore, so we disable serverino. This prevents
+	 * dentry revalidation to think the dentry are stale (ESTALE).
+	 */
+	cifs_autodisable_serverino(cifs_sb);
 out:
 	free_xid(xid);
 	return mount_setup_tlink(cifs_sb, ses, tcon);
