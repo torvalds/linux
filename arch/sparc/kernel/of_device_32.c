@@ -232,10 +232,10 @@ static int __init use_1to1_mapping(struct device_node *pp)
 	 * But, we should still pass the translation work up
 	 * to the SBUS itself.
 	 */
-	if (!strcmp(pp->name, "dma") ||
-	    !strcmp(pp->name, "espdma") ||
-	    !strcmp(pp->name, "ledma") ||
-	    !strcmp(pp->name, "lebuffer"))
+	if (of_node_name_eq(pp, "dma") ||
+	    of_node_name_eq(pp, "espdma") ||
+	    of_node_name_eq(pp, "ledma") ||
+	    of_node_name_eq(pp, "lebuffer"))
 		return 0;
 
 	return 1;

@@ -335,12 +335,12 @@ static unsigned int sun4d_build_device_irq(struct platform_device *op,
 
 	irq = real_irq;
 	while (bus) {
-		if (!strcmp(bus->name, "sbi")) {
+		if (of_node_name_eq(bus, "sbi")) {
 			bus_connection = "io-unit";
 			break;
 		}
 
-		if (!strcmp(bus->name, "bootbus")) {
+		if (of_node_name_eq(bus, "bootbus")) {
 			bus_connection = "cpu-unit";
 			break;
 		}
@@ -360,7 +360,7 @@ static unsigned int sun4d_build_device_irq(struct platform_device *op,
 	 * If Bus nodes parent is not io-unit/cpu-unit or the io-unit/cpu-unit
 	 * lacks a "board#" property, something is very wrong.
 	 */
-	if (!bus->parent || strcmp(bus->parent->name, bus_connection)) {
+	if (!of_node_name_eq(bus->parent, bus_connection)) {
 		printk(KERN_ERR "%pOF: Error, parent is not %s.\n",
 			bus, bus_connection);
 		goto err_out;

@@ -108,10 +108,10 @@ static int auxio_probe(struct platform_device *dev)
 	struct device_node *dp = dev->dev.of_node;
 	unsigned long size;
 
-	if (!strcmp(dp->parent->name, "ebus")) {
+	if (of_node_name_eq(dp->parent, "ebus")) {
 		auxio_devtype = AUXIO_TYPE_EBUS;
 		size = sizeof(u32);
-	} else if (!strcmp(dp->parent->name, "sbus")) {
+	} else if (of_node_name_eq(dp->parent, "sbus")) {
 		auxio_devtype = AUXIO_TYPE_SBUS;
 		size = 1;
 	} else {

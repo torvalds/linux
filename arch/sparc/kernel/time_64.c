@@ -561,8 +561,8 @@ static int mostek_probe(struct platform_device *op)
 	/* On an Enterprise system there can be multiple mostek clocks.
 	 * We should only match the one that is on the central FHC bus.
 	 */
-	if (!strcmp(dp->parent->name, "fhc") &&
-	    strcmp(dp->parent->parent->name, "central") != 0)
+	if (of_node_name_eq(dp->parent, "fhc") &&
+	    !of_node_name_eq(dp->parent->parent, "central"))
 		return -ENODEV;
 
 	printk(KERN_INFO "%pOF: Mostek regs at 0x%llx\n",

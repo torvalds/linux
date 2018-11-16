@@ -335,8 +335,8 @@ static void __init __build_path_component(struct device_node *dp, char *tmp_buf)
 			ebus_path_component(dp, tmp_buf);
 			return;
 		}
-		if (!strcmp(parent->name, "usb") ||
-		    !strcmp(parent->name, "hub")) {
+		if (of_node_name_eq(parent, "usb") ||
+		    of_node_name_eq(parent, "hub")) {
 			usb_path_component(dp, tmp_buf);
 			return;
 		}

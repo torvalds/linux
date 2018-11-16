@@ -283,7 +283,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	sd->stc = &pbm->stc;
 	sd->numa_node = pbm->numa_node;
 
-	if (!strcmp(node->name, "ebus"))
+	if (of_node_name_eq(node, "ebus"))
 		of_propagate_archdata(op);
 
 	type = of_get_property(node, "device_type", NULL);
@@ -336,7 +336,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->error_state = pci_channel_io_normal;
 	dev->dma_mask = 0xffffffff;
 
-	if (!strcmp(node->name, "pci")) {
+	if (of_node_name_eq(node, "pci")) {
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;

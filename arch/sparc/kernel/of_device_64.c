@@ -46,7 +46,7 @@ EXPORT_SYMBOL(of_iounmap);
 
 static int of_bus_pci_match(struct device_node *np)
 {
-	if (!strcmp(np->name, "pci")) {
+	if (of_node_name_eq(np, "pci")) {
 		const char *model = of_get_property(np, "model", NULL);
 
 		if (model && !strcmp(model, "SUNW,simba"))
@@ -77,7 +77,7 @@ static int of_bus_simba_match(struct device_node *np)
 	/* Treat PCI busses lacking ranges property just like
 	 * simba.
 	 */
-	if (!strcmp(np->name, "pci")) {
+	if (of_node_name_eq(np, "pci")) {
 		if (!of_find_property(np, "ranges", NULL))
 			return 1;
 	}
@@ -170,8 +170,8 @@ static unsigned long of_bus_pci_get_flags(const u32 *addr, unsigned long flags)
  */
 static int of_bus_fhc_match(struct device_node *np)
 {
-	return !strcmp(np->name, "fhc") ||
-		!strcmp(np->name, "central");
+	return of_node_name_eq(np, "fhc") ||
+		of_node_name_eq(np, "central");
 }
 
 #define of_bus_fhc_count_cells of_bus_sbus_count_cells
@@ -295,17 +295,17 @@ static int __init use_1to1_mapping(struct device_node *pp)
 	 * But, we should still pass the translation work up
 	 * to the SBUS itself.
 	 */
-	if (!strcmp(pp->name, "dma") ||
-	    !strcmp(pp->name, "espdma") ||
-	    !strcmp(pp->name, "ledma") ||
-	    !strcmp(pp->name, "lebuffer"))
+	if (of_node_name_eq(pp, "dma") ||
+	    of_node_name_eq(pp, "espdma") ||
+	    of_node_name_eq(pp, "ledma") ||
+	    of_node_name_eq(pp, "lebuffer"))
 		return 0;
 
 	/* Similarly for all PCI bridges, if we get this far
 	 * it lacks a ranges property, and this will include
 	 * cases like Simba.
 	 */
-	if (!strcmp(pp->name, "pci"))
+	if (of_node_name_eq(pp, "pci"))
 		return 0;
 
 	return 1;
@@ -591,7 +591,7 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 				break;
 			}
 		} else {
-			if (!strcmp(pp->name, "pci")) {
+			if (of_node_name_eq(pp, "pci")) {
 				unsigned int this_orig_irq = irq;
 
 				irq = pci_irq_swizzle(dp, pp, irq);
