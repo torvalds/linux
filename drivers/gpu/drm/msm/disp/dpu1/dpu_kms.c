@@ -652,10 +652,6 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 		dpu_hw_intr_destroy(dpu_kms->hw_intr);
 	dpu_kms->hw_intr = NULL;
 
-	if (dpu_kms->power_event)
-		dpu_power_handle_unregister_event(
-				&dpu_kms->phandle, dpu_kms->power_event);
-
 	/* safe to call these more than once during shutdown */
 	_dpu_debugfs_destroy(dpu_kms);
 	_dpu_kms_mmu_destroy(dpu_kms);
@@ -836,16 +832,6 @@ u64 dpu_kms_get_clk_rate(struct dpu_kms *dpu_kms, char *clock_name)
 	return clk_get_rate(clk->clk);
 }
 
-static void dpu_kms_handle_power_event(u32 event_type, void *usr)
-{
-	struct dpu_kms *dpu_kms = usr;
-
-	if (!dpu_kms)
-		return;
-
-	dpu_vbif_init_memtypes(dpu_kms);
-}
-
 static int dpu_kms_hw_init(struct msm_kms *kms)
 {
 	struct dpu_kms *dpu_kms;
@@ -1016,13 +1002,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	 */
 	dev->mode_config.allow_fb_modifiers = true;
 
-	/*
-	 * Handle (re)initializations during power enable
-	 */
-	dpu_kms_handle_power_event(DPU_POWER_EVENT_ENABLE, dpu_kms);
-	dpu_kms->power_event = dpu_power_handle_register_event(
-			&dpu_kms->phandle, DPU_POWER_EVENT_ENABLE,
-			dpu_kms_handle_power_event, dpu_kms, "kms");
+	dpu_vbif_init_memtypes(dpu_kms);
 
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 
@@ -1175,6 +1155,8 @@ static int __maybe_unused dpu_runtime_resume(struct device *dev)
 		DPU_ERROR("clock enable failed rc:%d\n", rc);
 		return rc;
 	}
+
+	dpu_vbif_init_memtypes(dpu_kms);
 
 	rc = dpu_power_resource_enable(&dpu_kms->phandle, true);
 	if (rc)

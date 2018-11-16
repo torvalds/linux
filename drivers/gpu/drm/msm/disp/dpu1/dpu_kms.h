@@ -114,7 +114,6 @@ struct dpu_kms {
 	struct dpu_mdss_cfg *catalog;
 
 	struct dpu_power_handle phandle;
-	struct dpu_power_event *power_event;
 
 	/* directory entry for debugfs */
 	struct dentry *debugfs_root;
