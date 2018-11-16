@@ -50,7 +50,7 @@ ifdef CONFIG_PPC_PTDUMP
 obj-$(CONFIG_4xx)		+= dump_linuxpagetables-generic.o
 obj-$(CONFIG_PPC_8xx)		+= dump_linuxpagetables-8xx.o
 obj-$(CONFIG_PPC_BOOK3E_MMU)	+= dump_linuxpagetables-generic.o
-obj-$(CONFIG_PPC_BOOK3S_32)	+= dump_linuxpagetables-generic.o
+obj-$(CONFIG_PPC_BOOK3S_32)	+= dump_linuxpagetables-generic.o dump_sr.o
 obj-$(CONFIG_PPC_BOOK3S_64)	+= dump_linuxpagetables-book3s64.o
 endif
 obj-$(CONFIG_PPC_HTDUMP)	+= dump_hashpagetable.o
