@@ -1687,10 +1687,6 @@ static int charger_manager_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* Counting index only */
-	while (desc->psy_charger_stat[i])
-		i++;
-
 	/* Check if charger's supplies are present at probe */
 	for (i = 0; desc->psy_charger_stat[i]; i++) {
 		struct power_supply *psy;
