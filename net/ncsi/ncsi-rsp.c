@@ -256,7 +256,7 @@ static int ncsi_rsp_handler_dcnt(struct ncsi_request *nr)
 	if (!ncm->enable)
 		return 0;
 
-	ncm->enable = 1;
+	ncm->enable = 0;
 	return 0;
 }
 
