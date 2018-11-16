@@ -454,8 +454,6 @@ int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
 			       (fw.val =
 				aq_hw_read_reg(self, HW_ATL_RPC_STATE_ADR),
 				fw.tid), 1000U, 100U);
-		if (err < 0)
-			goto err_exit;
 
 		if (fw.len == 0xFFFFU) {
 			err = hw_atl_utils_fw_rpc_call(self, sw.len);
@@ -463,8 +461,6 @@ int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
 				goto err_exit;
 		}
 	} while (sw.tid != fw.tid || 0xFFFFU == fw.len);
-	if (err < 0)
-		goto err_exit;
 
 	if (rpc) {
 		if (fw.len) {
