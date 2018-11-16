@@ -51,7 +51,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 		};
 
-		cpu@901 {
+		cpu1: cpu@901 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0x901>;
