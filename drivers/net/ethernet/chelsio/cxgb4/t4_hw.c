@@ -7141,20 +7141,9 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 			 unsigned int cache_line_size)
 {
 	unsigned int page_shift = fls(page_size) - 1;
-	unsigned int sge_hps = page_shift - 10;
 	unsigned int stat_len = cache_line_size > 64 ? 128 : 64;
 	unsigned int fl_align = cache_line_size < 32 ? 32 : cache_line_size;
 	unsigned int fl_align_log = fls(fl_align) - 1;
-
-	t4_write_reg(adap, SGE_HOST_PAGE_SIZE_A,
-		     HOSTPAGESIZEPF0_V(sge_hps) |
-		     HOSTPAGESIZEPF1_V(sge_hps) |
-		     HOSTPAGESIZEPF2_V(sge_hps) |
-		     HOSTPAGESIZEPF3_V(sge_hps) |
-		     HOSTPAGESIZEPF4_V(sge_hps) |
-		     HOSTPAGESIZEPF5_V(sge_hps) |
-		     HOSTPAGESIZEPF6_V(sge_hps) |
-		     HOSTPAGESIZEPF7_V(sge_hps));
 
 	if (is_t4(adap->params.chip)) {
 		t4_set_reg_field(adap, SGE_CONTROL_A,
