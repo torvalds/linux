@@ -167,8 +167,10 @@ i915_param_named_unsafe(inject_load_failure, uint, 0400,
 i915_param_named(enable_dpcd_backlight, bool, 0600,
 	"Enable support for DPCD backlight control (default:false)");
 
+#if IS_ENABLED(CONFIG_DRM_I915_GVT)
 i915_param_named(enable_gvt, bool, 0400,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");
+#endif
 
 static __always_inline void _print_param(struct drm_printer *p,
 					 const char *name,
