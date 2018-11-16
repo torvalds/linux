@@ -1189,9 +1189,7 @@ int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 
 	mutex_lock(&dpu_crtc->crtc_lock);
 	trace_dpu_crtc_vblank(DRMID(&dpu_crtc->base), en, dpu_crtc);
-	if (dpu_crtc->enabled) {
-		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, en);
-	}
+	_dpu_crtc_vblank_enable_no_lock(dpu_crtc, en);
 	dpu_crtc->vblank_requested = en;
 	mutex_unlock(&dpu_crtc->crtc_lock);
 
