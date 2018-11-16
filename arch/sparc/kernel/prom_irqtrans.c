@@ -193,7 +193,7 @@ static int sabre_device_needs_wsync(struct device_node *dp)
 	 *    the DMA synchronization handling
 	 */
 	while (parent) {
-		if (!strcmp(parent->type, "pci"))
+		if (of_node_is_type(parent, "pci"))
 			break;
 		parent = parent->parent;
 	}

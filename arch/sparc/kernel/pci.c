@@ -267,7 +267,6 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	struct dev_archdata *sd;
 	struct platform_device *op;
 	struct pci_dev *dev;
-	const char *type;
 	u32 class;
 
 	dev = pci_alloc_dev(bus);
@@ -286,13 +285,9 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	if (of_node_name_eq(node, "ebus"))
 		of_propagate_archdata(op);
 
-	type = of_get_property(node, "device_type", NULL);
-	if (type == NULL)
-		type = "";
-
 	if (ofpci_verbose)
 		pci_info(bus,"    create device, devfn: %x, type: %s\n",
-			 devfn, type);
+			 devfn, of_node_get_device_type(node));
 
 	dev->sysdata = node;
 	dev->dev.parent = bus->bridge;
@@ -340,7 +335,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;
-	} else if (!strcmp(type, "cardbus")) {
+	} else if (of_node_is_type(node, "cardbus")) {
 		dev->hdr_type = PCI_HEADER_TYPE_CARDBUS;
 	} else {
 		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;

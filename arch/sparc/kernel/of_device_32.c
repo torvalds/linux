@@ -22,7 +22,7 @@
 
 static int of_bus_pci_match(struct device_node *np)
 {
-	if (!strcmp(np->type, "pci") || !strcmp(np->type, "pciex")) {
+	if (of_node_is_type(np, "pci") || of_node_is_type(np, "pciex")) {
 		/* Do not do PCI specific frobbing if the
 		 * PCI bridge lacks a ranges property.  We
 		 * want to pass it through up to the next
@@ -107,7 +107,7 @@ static unsigned long of_bus_sbus_get_flags(const u32 *addr, unsigned long flags)
 
 static int of_bus_ambapp_match(struct device_node *np)
 {
-	return !strcmp(np->type, "ambapp");
+	return of_node_is_type(np, "ambapp");
 }
 
 static void of_bus_ambapp_count_cells(struct device_node *child,

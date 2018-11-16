@@ -318,20 +318,20 @@ static void __init __build_path_component(struct device_node *dp, char *tmp_buf)
 	struct device_node *parent = dp->parent;
 
 	if (parent != NULL) {
-		if (!strcmp(parent->type, "pci") ||
-		    !strcmp(parent->type, "pciex")) {
+		if (of_node_is_type(parent, "pci") ||
+		    of_node_is_type(parent, "pciex")) {
 			pci_path_component(dp, tmp_buf);
 			return;
 		}
-		if (!strcmp(parent->type, "sbus")) {
+		if (of_node_is_type(parent, "sbus")) {
 			sbus_path_component(dp, tmp_buf);
 			return;
 		}
-		if (!strcmp(parent->type, "upa")) {
+		if (of_node_is_type(parent, "upa")) {
 			upa_path_component(dp, tmp_buf);
 			return;
 		}
-		if (!strcmp(parent->type, "ebus")) {
+		if (of_node_is_type(parent, "ebus")) {
 			ebus_path_component(dp, tmp_buf);
 			return;
 		}
@@ -340,15 +340,15 @@ static void __init __build_path_component(struct device_node *dp, char *tmp_buf)
 			usb_path_component(dp, tmp_buf);
 			return;
 		}
-		if (!strcmp(parent->type, "i2c")) {
+		if (of_node_is_type(parent, "i2c")) {
 			i2c_path_component(dp, tmp_buf);
 			return;
 		}
-		if (!strcmp(parent->type, "firewire")) {
+		if (of_node_is_type(parent, "firewire")) {
 			ieee1394_path_component(dp, tmp_buf);
 			return;
 		}
-		if (!strcmp(parent->type, "virtual-devices")) {
+		if (of_node_is_type(parent, "virtual-devices")) {
 			vdev_path_component(dp, tmp_buf);
 			return;
 		}
@@ -605,7 +605,6 @@ void __init of_console_init(void)
 {
 	char *msg = "OF stdout device is: %s\n";
 	struct device_node *dp;
-	const char *type;
 	phandle node;
 
 	of_console_path = prom_early_alloc(256);
@@ -628,13 +627,8 @@ void __init of_console_init(void)
 	}
 
 	dp = of_find_node_by_phandle(node);
-	type = of_get_property(dp, "device_type", NULL);
-	if (!type) {
-		prom_printf("Console stdout lacks device_type property.\n");
-		prom_halt();
-	}
 
-	if (strcmp(type, "display") && strcmp(type, "serial")) {
+	if (!of_node_is_type(dp, "display") && !of_node_is_type(dp, "serial")) {
 		prom_printf("Console device_type is neither display "
 			    "nor serial.\n");
 		prom_halt();
