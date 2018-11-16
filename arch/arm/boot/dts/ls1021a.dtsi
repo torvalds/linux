@@ -324,6 +324,8 @@
 						trip = <&cpu_alert>;
 						cooling-device =
 							<&cpu0 THERMAL_NO_LIMIT
+							THERMAL_NO_LIMIT>,
+							<&cpu1 THERMAL_NO_LIMIT
 							THERMAL_NO_LIMIT>;
 					};
 				};
