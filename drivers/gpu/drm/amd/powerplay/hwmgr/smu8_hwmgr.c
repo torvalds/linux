@@ -1228,17 +1228,14 @@ static int smu8_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 static int smu8_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
-	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating)) {
-		smu8_nbdpm_pstate_enable_disable(hwmgr, true, true);
+	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating))
 		return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UVDPowerOFF);
-	}
 	return 0;
 }
 
 static int smu8_dpm_powerup_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating)) {
-		smu8_nbdpm_pstate_enable_disable(hwmgr, false, true);
 		return smum_send_msg_to_smc_with_parameter(
 			hwmgr,
 			PPSMC_MSG_UVDPowerON,
