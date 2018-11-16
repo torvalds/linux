@@ -44,15 +44,12 @@ static int ide_pm_execute_rq(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
-	spin_lock_irq(&q->queue_lock);
 	if (unlikely(blk_queue_dying(q))) {
 		rq->rq_flags |= RQF_QUIET;
 		scsi_req(rq)->result = -ENXIO;
-		spin_unlock_irq(&q->queue_lock);
 		blk_mq_end_request(rq, BLK_STS_OK);
 		return -ENXIO;
 	}
-	spin_unlock_irq(&q->queue_lock);
 	blk_execute_rq(q, NULL, rq, true);
 
 	return scsi_req(rq)->result ? -EIO : 0;
