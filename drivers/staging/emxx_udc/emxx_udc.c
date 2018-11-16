@@ -163,11 +163,8 @@ static void _nbu2ss_ep0_complete(struct usb_ep *_ep, struct usb_request *_req)
 
 /*-------------------------------------------------------------------------*/
 /* Initialization usb_request */
-static void _nbu2ss_create_ep0_packet(
-	struct nbu2ss_udc *udc,
-	void *p_buf,
-	unsigned length
-)
+static void _nbu2ss_create_ep0_packet(struct nbu2ss_udc *udc,
+				      void *p_buf, unsigned int length)
 {
 	udc->ep0_req.req.buf		= p_buf;
 	udc->ep0_req.req.length		= length;
@@ -419,12 +416,8 @@ static void _nbu2ss_ep_dma_abort(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 
 /*-------------------------------------------------------------------------*/
 /* Start IN Transfer */
-static void _nbu2ss_ep_in_end(
-	struct nbu2ss_udc *udc,
-	u32 epnum,
-	u32 data32,
-	u32 length
-)
+static void _nbu2ss_ep_in_end(struct nbu2ss_udc *udc,
+			      u32 epnum, u32 data32, u32 length)
 {
 	u32		data;
 	u32		num;
@@ -462,12 +455,9 @@ static void _nbu2ss_ep_in_end(
 
 #ifdef USE_DMA
 /*-------------------------------------------------------------------------*/
-static void _nbu2ss_dma_map_single(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req,
-	u8		direct
-)
+static void _nbu2ss_dma_map_single(struct nbu2ss_udc *udc,
+				   struct nbu2ss_ep *ep,
+				   struct nbu2ss_req *req, u8 direct)
 {
 	if (req->req.dma == DMA_ADDR_INVALID) {
 		if (req->unaligned) {
@@ -495,12 +485,9 @@ static void _nbu2ss_dma_map_single(
 }
 
 /*-------------------------------------------------------------------------*/
-static void _nbu2ss_dma_unmap_single(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req,
-	u8		direct
-)
+static void _nbu2ss_dma_unmap_single(struct nbu2ss_udc *udc,
+				     struct nbu2ss_ep *ep,
+				     struct nbu2ss_req *req, u8 direct)
 {
 	u8		data[4];
 	u8		*p;
@@ -671,10 +658,8 @@ static int EP0_receive_NULL(struct nbu2ss_udc *udc, bool pid_flag)
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_ep0_in_transfer(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_req *req
-)
+static int _nbu2ss_ep0_in_transfer(struct nbu2ss_udc *udc,
+				   struct nbu2ss_req *req)
 {
 	u8		*p_buffer;			/* IN Data Buffer */
 	u32		data;
@@ -728,10 +713,8 @@ static int _nbu2ss_ep0_in_transfer(
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_ep0_out_transfer(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_req *req
-)
+static int _nbu2ss_ep0_out_transfer(struct nbu2ss_udc *udc,
+				    struct nbu2ss_req *req)
 {
 	u8		*p_buffer;
 	u32		i_remain_size;
@@ -805,12 +788,8 @@ static int _nbu2ss_ep0_out_transfer(
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_out_dma(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_req *req,
-	u32		num,
-	u32		length
-)
+static int _nbu2ss_out_dma(struct nbu2ss_udc *udc, struct nbu2ss_req *req,
+			   u32 num, u32 length)
 {
 	dma_addr_t	p_buffer;
 	u32		mpkt;
@@ -868,12 +847,8 @@ static int _nbu2ss_out_dma(
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_epn_out_pio(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req,
-	u32		length
-)
+static int _nbu2ss_epn_out_pio(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep,
+			       struct nbu2ss_req *req, u32 length)
 {
 	u8		*p_buffer;
 	u32		i;
@@ -927,12 +902,8 @@ static int _nbu2ss_epn_out_pio(
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_epn_out_data(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req,
-	u32		data_size
-)
+static int _nbu2ss_epn_out_data(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep,
+				struct nbu2ss_req *req, u32 data_size)
 {
 	u32		num;
 	u32		i_buf_size;
@@ -957,11 +928,9 @@ static int _nbu2ss_epn_out_data(
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_epn_out_transfer(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req
-)
+static int _nbu2ss_epn_out_transfer(struct nbu2ss_udc *udc,
+				    struct nbu2ss_ep *ep,
+				    struct nbu2ss_req *req)
 {
 	u32		num;
 	u32		i_recv_length;
@@ -1013,13 +982,8 @@ static int _nbu2ss_epn_out_transfer(
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_in_dma(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req,
-	u32		num,
-	u32		length
-)
+static int _nbu2ss_in_dma(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep,
+			  struct nbu2ss_req *req, u32 num, u32 length)
 {
 	dma_addr_t	p_buffer;
 	u32		mpkt;		/* MaxPacketSize */
@@ -1089,12 +1053,8 @@ static int _nbu2ss_in_dma(
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_epn_in_pio(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req,
-	u32		length
-)
+static int _nbu2ss_epn_in_pio(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep,
+			      struct nbu2ss_req *req, u32 length)
 {
 	u8		*p_buffer;
 	u32		i;
@@ -1142,12 +1102,8 @@ static int _nbu2ss_epn_in_pio(
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_epn_in_data(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req,
-	u32		data_size
-)
+static int _nbu2ss_epn_in_data(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep,
+			       struct nbu2ss_req *req, u32 data_size)
 {
 	u32		num;
 	int		nret = 1;
@@ -1169,11 +1125,8 @@ static int _nbu2ss_epn_in_data(
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_epn_in_transfer(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req
-)
+static int _nbu2ss_epn_in_transfer(struct nbu2ss_udc *udc,
+				   struct nbu2ss_ep *ep, struct nbu2ss_req *req)
 {
 	u32		num;
 	u32		i_buf_size;
@@ -1210,11 +1163,10 @@ static int _nbu2ss_epn_in_transfer(
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_start_transfer(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req,
-	bool	bflag)
+static int _nbu2ss_start_transfer(struct nbu2ss_udc *udc,
+				  struct nbu2ss_ep *ep,
+				  struct nbu2ss_req *req,
+				  bool	bflag)
 {
 	int		nret = -EINVAL;
 
@@ -1289,9 +1241,7 @@ static void _nbu2ss_restert_transfer(struct nbu2ss_ep *ep)
 
 /*-------------------------------------------------------------------------*/
 /*	Endpoint Toggle Reset */
-static void _nbu2ss_endpoint_toggle_reset(
-	struct nbu2ss_udc *udc,
-	u8 ep_adrs)
+static void _nbu2ss_endpoint_toggle_reset(struct nbu2ss_udc *udc, u8 ep_adrs)
 {
 	u8		num;
 	u32		data;
@@ -1311,10 +1261,8 @@ static void _nbu2ss_endpoint_toggle_reset(
 
 /*-------------------------------------------------------------------------*/
 /*	Endpoint STALL set */
-static void _nbu2ss_set_endpoint_stall(
-	struct nbu2ss_udc *udc,
-	u8 ep_adrs,
-	bool bstall)
+static void _nbu2ss_set_endpoint_stall(struct nbu2ss_udc *udc,
+				       u8 ep_adrs, bool bstall)
 {
 	u8		num, epnum;
 	u32		data;
@@ -1389,11 +1337,8 @@ static void _nbu2ss_set_test_mode(struct nbu2ss_udc *udc, u32 mode)
 }
 
 /*-------------------------------------------------------------------------*/
-static int _nbu2ss_set_feature_device(
-	struct nbu2ss_udc *udc,
-	u16 selector,
-	u16 wIndex
-)
+static int _nbu2ss_set_feature_device(struct nbu2ss_udc *udc,
+				      u16 selector, u16 wIndex)
 {
 	int	result = -EOPNOTSUPP;
 
@@ -1509,10 +1454,8 @@ static inline enum usb_device_speed _nbu2ss_get_speed(struct nbu2ss_udc *udc)
 }
 
 /*-------------------------------------------------------------------------*/
-static void _nbu2ss_epn_set_stall(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep
-)
+static void _nbu2ss_epn_set_stall(struct nbu2ss_udc *udc,
+				  struct nbu2ss_ep *ep)
 {
 	u8	ep_adrs;
 	u32	regdata;
@@ -1884,10 +1827,9 @@ static inline void _nbu2ss_ep0_int(struct nbu2ss_udc *udc)
 }
 
 /*-------------------------------------------------------------------------*/
-static void _nbu2ss_ep_done(
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req,
-	int status)
+static void _nbu2ss_ep_done(struct nbu2ss_ep *ep,
+			    struct nbu2ss_req *req,
+			    int status)
 {
 	struct nbu2ss_udc *udc = ep->udc;
 
@@ -1918,10 +1860,9 @@ static void _nbu2ss_ep_done(
 }
 
 /*-------------------------------------------------------------------------*/
-static inline void _nbu2ss_epn_in_int(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req)
+static inline void _nbu2ss_epn_in_int(struct nbu2ss_udc *udc,
+				      struct nbu2ss_ep *ep,
+				      struct nbu2ss_req *req)
 {
 	int	result = 0;
 	u32	status;
@@ -1962,10 +1903,9 @@ static inline void _nbu2ss_epn_in_int(
 }
 
 /*-------------------------------------------------------------------------*/
-static inline void _nbu2ss_epn_out_int(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req)
+static inline void _nbu2ss_epn_out_int(struct nbu2ss_udc *udc,
+				       struct nbu2ss_ep *ep,
+				       struct nbu2ss_req *req)
 {
 	int	result;
 
@@ -1975,10 +1915,9 @@ static inline void _nbu2ss_epn_out_int(
 }
 
 /*-------------------------------------------------------------------------*/
-static inline void _nbu2ss_epn_in_dma_int(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req)
+static inline void _nbu2ss_epn_in_dma_int(struct nbu2ss_udc *udc,
+					  struct nbu2ss_ep *ep,
+					  struct nbu2ss_req *req)
 {
 	u32		mpkt;
 	u32		size;
@@ -2012,10 +1951,9 @@ static inline void _nbu2ss_epn_in_dma_int(
 }
 
 /*-------------------------------------------------------------------------*/
-static inline void _nbu2ss_epn_out_dma_int(
-	struct nbu2ss_udc *udc,
-	struct nbu2ss_ep *ep,
-	struct nbu2ss_req *req)
+static inline void _nbu2ss_epn_out_dma_int(struct nbu2ss_udc *udc,
+					   struct nbu2ss_ep *ep,
+					   struct nbu2ss_req *req)
 {
 	int		i;
 	u32		num;
@@ -2480,9 +2418,8 @@ static irqreturn_t _nbu2ss_udc_irq(int irq, void *_udc)
 
 /*-------------------------------------------------------------------------*/
 /* usb_ep_ops */
-static int nbu2ss_ep_enable(
-	struct usb_ep *_ep,
-	const struct usb_endpoint_descriptor *desc)
+static int nbu2ss_ep_enable(struct usb_ep *_ep,
+			    const struct usb_endpoint_descriptor *desc)
 {
 	u8		ep_type;
 	unsigned long	flags;
@@ -2570,9 +2507,8 @@ static int nbu2ss_ep_disable(struct usb_ep *_ep)
 }
 
 /*-------------------------------------------------------------------------*/
-static struct usb_request *nbu2ss_ep_alloc_request(
-	struct usb_ep *ep,
-	gfp_t gfp_flags)
+static struct usb_request *nbu2ss_ep_alloc_request(struct usb_ep *ep,
+						   gfp_t gfp_flags)
 {
 	struct nbu2ss_req *req;
 
@@ -2589,9 +2525,8 @@ static struct usb_request *nbu2ss_ep_alloc_request(
 }
 
 /*-------------------------------------------------------------------------*/
-static void nbu2ss_ep_free_request(
-	struct usb_ep *_ep,
-	struct usb_request *_req)
+static void nbu2ss_ep_free_request(struct usb_ep *_ep,
+				   struct usb_request *_req)
 {
 	struct nbu2ss_req *req;
 
@@ -2603,10 +2538,8 @@ static void nbu2ss_ep_free_request(
 }
 
 /*-------------------------------------------------------------------------*/
-static int nbu2ss_ep_queue(
-	struct usb_ep *_ep,
-	struct usb_request *_req,
-	gfp_t gfp_flags)
+static int nbu2ss_ep_queue(struct usb_ep *_ep,
+			   struct usb_request *_req, gfp_t gfp_flags)
 {
 	struct nbu2ss_req	*req;
 	struct nbu2ss_ep	*ep;
@@ -2710,9 +2643,7 @@ static int nbu2ss_ep_queue(
 }
 
 /*-------------------------------------------------------------------------*/
-static int nbu2ss_ep_dequeue(
-	struct usb_ep *_ep,
-	struct usb_request *_req)
+static int nbu2ss_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct nbu2ss_req	*req;
 	struct nbu2ss_ep	*ep;
@@ -3023,10 +2954,8 @@ static int nbu2ss_gad_pullup(struct usb_gadget *pgadget, int is_on)
 }
 
 /*-------------------------------------------------------------------------*/
-static int nbu2ss_gad_ioctl(
-	struct usb_gadget *pgadget,
-	unsigned int code,
-	unsigned long param)
+static int nbu2ss_gad_ioctl(struct usb_gadget *pgadget,
+			    unsigned int code, unsigned long param)
 {
 	return 0;
 }
@@ -3115,9 +3044,8 @@ static void nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
 
 /*-------------------------------------------------------------------------*/
 /* platform_driver */
-static int nbu2ss_drv_contest_init(
-	struct platform_device *pdev,
-	struct nbu2ss_udc *udc)
+static int nbu2ss_drv_contest_init(struct platform_device *pdev,
+				   struct nbu2ss_udc *udc)
 {
 	spin_lock_init(&udc->lock);
 	udc->dev = &pdev->dev;
