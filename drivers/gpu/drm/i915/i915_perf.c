@@ -345,7 +345,6 @@ static const struct i915_oa_format gen8_plus_oa_formats[I915_OA_FORMAT_MAX] = {
  * @oa_format: An OA unit HW report format
  * @oa_periodic: Whether to enable periodic OA unit sampling
  * @oa_period_exponent: The OA unit sampling period is derived from this
- * @oa_buffer_size_exponent: The OA buffer size is derived from this
  *
  * As read_properties_unlocked() enumerates and validates the properties given
  * to open a stream of metrics the configuration is built up in the structure
