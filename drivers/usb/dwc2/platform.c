@@ -662,7 +662,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
 		dwc2_lowlevel_hw_disable(hsotg);
 
-	if (hsotg->dr_mode == USB_DR_MODE_OTG) {
+	if (hsotg->dr_mode == USB_DR_MODE_OTG && dwc2_is_device_mode(hsotg)) {
 		struct platform_device *pdev = to_platform_device(hsotg->dev);
 
 		if (hsotg->uphy) {
