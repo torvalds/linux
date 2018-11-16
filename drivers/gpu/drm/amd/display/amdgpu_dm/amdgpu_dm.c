@@ -2549,7 +2549,8 @@ static void adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_
 static void
 fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 					     const struct drm_display_mode *mode_in,
-					     const struct drm_connector *connector)
+					     const struct drm_connector *connector,
+					     const struct dc_stream_state *old_stream)
 {
 	struct dc_crtc_timing *timing_out = &stream->timing;
 	const struct drm_display_info *info = &connector->display_info;
@@ -2575,7 +2576,18 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 			connector);
 	timing_out->scan_type = SCANNING_TYPE_NODATA;
 	timing_out->hdmi_vic = 0;
-	timing_out->vic = drm_match_cea_mode(mode_in);
+
+	if(old_stream) {
+		timing_out->vic = old_stream->timing.vic;
+		timing_out->flags.HSYNC_POSITIVE_POLARITY = old_stream->timing.flags.HSYNC_POSITIVE_POLARITY;
+		timing_out->flags.VSYNC_POSITIVE_POLARITY = old_stream->timing.flags.VSYNC_POSITIVE_POLARITY;
+	} else {
+		timing_out->vic = drm_match_cea_mode(mode_in);
+		if (mode_in->flags & DRM_MODE_FLAG_PHSYNC)
+			timing_out->flags.HSYNC_POSITIVE_POLARITY = 1;
+		if (mode_in->flags & DRM_MODE_FLAG_PVSYNC)
+			timing_out->flags.VSYNC_POSITIVE_POLARITY = 1;
+	}
 
 	timing_out->h_addressable = mode_in->crtc_hdisplay;
 	timing_out->h_total = mode_in->crtc_htotal;
@@ -2591,10 +2603,6 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 		mode_in->crtc_vsync_end - mode_in->crtc_vsync_start;
 	timing_out->pix_clk_khz = mode_in->crtc_clock;
 	timing_out->aspect_ratio = get_aspect_ratio(mode_in);
-	if (mode_in->flags & DRM_MODE_FLAG_PHSYNC)
-		timing_out->flags.HSYNC_POSITIVE_POLARITY = 1;
-	if (mode_in->flags & DRM_MODE_FLAG_PVSYNC)
-		timing_out->flags.VSYNC_POSITIVE_POLARITY = 1;
 
 	stream->output_color_space = get_output_color_space(timing_out);
 
@@ -2757,13 +2765,18 @@ static void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
 static struct dc_stream_state *
 create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		       const struct drm_display_mode *drm_mode,
-		       const struct dm_connector_state *dm_state)
+		       const struct dm_connector_state *dm_state,
+		       const struct dc_stream_state *old_stream)
 {
 	struct drm_display_mode *preferred_mode = NULL;
 	struct drm_connector *drm_connector;
 	struct dc_stream_state *stream = NULL;
 	struct drm_display_mode mode = *drm_mode;
 	bool native_mode_found = false;
+	bool scale = dm_state ? (dm_state->scaling != RMX_OFF) : false;
+	int mode_refresh;
+	int preferred_refresh;
+
 	struct dc_sink *sink = NULL;
 	if (aconnector == NULL) {
 		DRM_ERROR("aconnector is NULL!\n");
@@ -2802,6 +2815,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 				struct drm_display_mode,
 				head);
 
+	mode_refresh = drm_mode_vrefresh(&mode);
+
 	if (preferred_mode == NULL) {
 		/*
 		 * This may not be an error, the use case is when we have no
@@ -2819,8 +2834,19 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	if (!dm_state)
 		drm_mode_set_crtcinfo(&mode, 0);
 
-	fill_stream_properties_from_drm_display_mode(stream,
-			&mode, &aconnector->base);
+	preferred_refresh = drm_mode_vrefresh(preferred_mode);
+
+	/*
+	* If scaling is enabled and refresh rate didn't change
+	* we copy the vic and polarities of the old timings
+	*/
+	if (!scale || mode_refresh != preferred_refresh)
+		fill_stream_properties_from_drm_display_mode(stream,
+			&mode, &aconnector->base, NULL);
+	else
+		fill_stream_properties_from_drm_display_mode(stream,
+			&mode, &aconnector->base, old_stream);
+
 	update_stream_scaling_settings(&mode, dm_state, stream);
 
 	fill_audio_info(
@@ -3229,7 +3255,7 @@ enum drm_mode_status amdgpu_dm_connector_mode_valid(struct drm_connector *connec
 		goto fail;
 	}
 
-	stream = create_stream_for_sink(aconnector, mode, NULL);
+	stream = create_stream_for_sink(aconnector, mode, NULL, NULL);
 	if (stream == NULL) {
 		DRM_ERROR("Failed to create stream for sink!\n");
 		goto fail;
@@ -5085,7 +5111,8 @@ static int dm_update_crtcs_state(struct amdgpu_display_manager *dm,
 
 			new_stream = create_stream_for_sink(aconnector,
 							     &new_crtc_state->mode,
-							    dm_new_conn_state);
+							    dm_new_conn_state,
+							    dm_old_crtc_state->stream);
 
 			/*
 			 * we can have no stream on ACTION_SET if a display
