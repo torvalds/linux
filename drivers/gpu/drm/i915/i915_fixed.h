@@ -10,11 +10,7 @@ typedef struct {
 	u32 val;
 } uint_fixed_16_16_t;
 
-#define FP_16_16_MAX ({ \
-	uint_fixed_16_16_t fp; \
-	fp.val = UINT_MAX; \
-	fp; \
-})
+#define FP_16_16_MAX ((uint_fixed_16_16_t){ .val = UINT_MAX })
 
 static inline bool is_fixed16_zero(uint_fixed_16_16_t val)
 {
