@@ -3,29 +3,93 @@ config SOC_RENESAS
 	bool "Renesas SoC driver support" if COMPILE_TEST && !ARCH_RENESAS
 	default y if ARCH_RENESAS
 	select SOC_BUS
-	select RST_RCAR if ARCH_RCAR_GEN1 || ARCH_RCAR_GEN2 || \
-			   ARCH_R8A774A1 || ARCH_R8A774C0 || ARCH_R8A7795 || \
-			   ARCH_R8A7796 || ARCH_R8A77965 || ARCH_R8A77970 || \
-			   ARCH_R8A77980 || ARCH_R8A77990 || ARCH_R8A77995
+	select RST_RCAR if ARCH_RCAR_GEN1 || ARCH_RCAR_GEN2
 	select SYSC_R8A7743 if ARCH_R8A7743 || ARCH_R8A7744
 	select SYSC_R8A7745 if ARCH_R8A7745
 	select SYSC_R8A77470 if ARCH_R8A77470
-	select SYSC_R8A774A1 if ARCH_R8A774A1
-	select SYSC_R8A774C0 if ARCH_R8A774C0
 	select SYSC_R8A7779 if ARCH_R8A7779
 	select SYSC_R8A7790 if ARCH_R8A7790
 	select SYSC_R8A7791 if ARCH_R8A7791 || ARCH_R8A7793
 	select SYSC_R8A7792 if ARCH_R8A7792
 	select SYSC_R8A7794 if ARCH_R8A7794
-	select SYSC_R8A7795 if ARCH_R8A7795
-	select SYSC_R8A7796 if ARCH_R8A7796
-	select SYSC_R8A77965 if ARCH_R8A77965
-	select SYSC_R8A77970 if ARCH_R8A77970
-	select SYSC_R8A77980 if ARCH_R8A77980
-	select SYSC_R8A77990 if ARCH_R8A77990
-	select SYSC_R8A77995 if ARCH_R8A77995
 
 if SOC_RENESAS
+
+config ARCH_RCAR_GEN3
+	bool
+	select PM
+	select PM_GENERIC_DOMAINS
+	select RENESAS_IRQC
+	select RST_RCAR
+	select SYS_SUPPORTS_SH_CMT
+	select SYS_SUPPORTS_SH_TMU
+
+if ARM64
+
+config ARCH_R8A774A1
+	bool "Renesas RZ/G2M SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A774A1
+	help
+	  This enables support for the Renesas RZ/G2M SoC.
+
+config ARCH_R8A774C0
+	bool "Renesas RZ/G2E SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A774C0
+	help
+	  This enables support for the Renesas RZ/G2E SoC.
+
+config ARCH_R8A7795
+	bool "Renesas R-Car H3 SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A7795
+	help
+	  This enables support for the Renesas R-Car H3 SoC.
+
+config ARCH_R8A7796
+	bool "Renesas R-Car M3-W SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A7796
+	help
+	  This enables support for the Renesas R-Car M3-W SoC.
+
+config ARCH_R8A77965
+	bool "Renesas R-Car M3-N SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A77965
+	help
+	  This enables support for the Renesas R-Car M3-N SoC.
+
+config ARCH_R8A77970
+	bool "Renesas R-Car V3M SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A77970
+	help
+	  This enables support for the Renesas R-Car V3M SoC.
+
+config ARCH_R8A77980
+	bool "Renesas R-Car V3H SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A77980
+	help
+	  This enables support for the Renesas R-Car V3H SoC.
+
+config ARCH_R8A77990
+	bool "Renesas R-Car E3 SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A77990
+	help
+	  This enables support for the Renesas R-Car E3 SoC.
+
+config ARCH_R8A77995
+	bool "Renesas R-Car D3 SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A77995
+	help
+	  This enables support for the Renesas R-Car D3 SoC.
+
+endif # ARM64
 
 # SoC
 config SYSC_R8A7743
