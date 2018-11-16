@@ -330,10 +330,4 @@ static inline bool dpu_crtc_is_enabled(struct drm_crtc *crtc)
 	return crtc ? crtc->enabled : false;
 }
 
-/**
- * dpu_crtc_runtime_resume - called by the top-level on pm_runtime_resume
- * @crtc: CRTC to resume
- */
-void dpu_crtc_runtime_resume(struct drm_crtc *crtc);
-
 #endif /* _DPU_CRTC_H_ */

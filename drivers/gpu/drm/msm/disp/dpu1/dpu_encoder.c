@@ -1089,28 +1089,24 @@ static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
 	_dpu_encoder_update_vsync_source(dpu_enc, &dpu_enc->disp_info);
 }
 
-void dpu_encoder_virt_restore(struct drm_encoder *drm_enc)
+void dpu_encoder_virt_runtime_resume(struct drm_encoder *drm_enc)
 {
-	struct dpu_encoder_virt *dpu_enc = NULL;
-	int i;
+	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
 
-	if (!drm_enc) {
-		DPU_ERROR("invalid encoder\n");
-		return;
-	}
-	dpu_enc = to_dpu_encoder_virt(drm_enc);
+	mutex_lock(&dpu_enc->enc_lock);
 
-	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
-		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
+	if (!dpu_enc->enabled)
+		goto out;
 
-		if (phys && (phys != dpu_enc->cur_master) && phys->ops.restore)
-			phys->ops.restore(phys);
-	}
-
+	if (dpu_enc->cur_slave && dpu_enc->cur_slave->ops.restore)
+		dpu_enc->cur_slave->ops.restore(dpu_enc->cur_slave);
 	if (dpu_enc->cur_master && dpu_enc->cur_master->ops.restore)
 		dpu_enc->cur_master->ops.restore(dpu_enc->cur_master);
 
 	_dpu_encoder_virt_enable_helper(drm_enc);
+
+out:
+	mutex_unlock(&dpu_enc->enc_lock);
 }
 
 static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)

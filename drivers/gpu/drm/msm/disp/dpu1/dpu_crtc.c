@@ -857,30 +857,6 @@ static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 	return &cstate->base;
 }
 
-void dpu_crtc_runtime_resume(struct drm_crtc *crtc)
-{
-	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
-	struct drm_encoder *encoder;
-
-	mutex_lock(&dpu_crtc->crtc_lock);
-
-	if (!dpu_crtc->enabled)
-		goto end;
-
-	trace_dpu_crtc_runtime_resume(DRMID(crtc));
-
-	/* restore encoder; crtc will be programmed during commit */
-	drm_for_each_encoder(encoder, crtc->dev) {
-		if (encoder->crtc != crtc)
-			continue;
-
-		dpu_encoder_virt_restore(encoder);
-	}
-
-end:
-	mutex_unlock(&dpu_crtc->crtc_lock);
-}
-
 static void dpu_crtc_disable(struct drm_crtc *crtc)
 {
 	struct dpu_crtc *dpu_crtc;
