@@ -220,8 +220,8 @@ static int macio_resource_quirks(struct device_node *np, struct resource *res,
 		return 1;
 
 	/* Some older IDE resources have bogus sizes */
-	if (!(strcmp(np->name, "IDE") && strcmp(np->name, "ATA") &&
-	      strcmp(np->type, "ide") && strcmp(np->type, "ata"))) {
+	if (!strcmp(np->name, "IDE") || !strcmp(np->name, "ATA") ||
+	    of_node_is_type(np, "ide") || of_node_is_type(np, "ata")) {
 		if (index == 0 && (res->end - res->start) > 0xfff)
 			res->end = res->start + 0xfff;
 		if (index == 1 && (res->end - res->start) > 0xff)
