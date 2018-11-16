@@ -196,6 +196,7 @@
 #define MIPIPHY_REGE8		0x03a0
 
 #define MIPIPHY_REGEB		0x03ac
+#define v_LVDS_BGPD(x)		BITS_MASK(x, 1, 0)
 #define v_PLL_PWR_OFF(x)	BITS_MASK(x, 1, 2)
 #define v_LANECLK_EN(x)		BITS_MASK(x, 1, 3)
 #define v_LANE3_EN(x)		BITS_MASK(x, 1, 4)

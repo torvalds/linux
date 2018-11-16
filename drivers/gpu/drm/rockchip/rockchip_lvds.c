@@ -245,9 +245,10 @@ static int innov1_lvds_power_on(struct rockchip_lvds *lvds)
 
 	if (lvds->output == DISPLAY_OUTPUT_RGB) {
 		/* enable lane */
-		lvds_writel(lvds, MIPIPHY_REG0, 0x7f);
+		lvds_msk_reg(lvds, MIPIPHY_REG0, 0x7c, 0x7c);
 		val = v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) |
-			v_LANE3_EN(1) | v_LANECLK_EN(1) | v_PLL_PWR_OFF(1);
+		      v_LANE3_EN(1) | v_LANECLK_EN(1) | v_PLL_PWR_OFF(1) |
+		      v_LVDS_BGPD(0);
 		lvds_writel(lvds, MIPIPHY_REGEB, val);
 
 		/* set ttl mode and reset phy config */
@@ -288,7 +289,8 @@ static int innov1_lvds_power_on(struct rockchip_lvds *lvds)
 		/* enable lvds lane and power on pll */
 		lvds_writel(lvds, MIPIPHY_REGEB,
 			    v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) |
-			    v_LANE3_EN(1) | v_LANECLK_EN(1) | v_PLL_PWR_OFF(0));
+			    v_LANE3_EN(1) | v_LANECLK_EN(1) | v_PLL_PWR_OFF(0) |
+			    v_LVDS_BGPD(0));
 
 		/* enable lvds */
 		lvds_msk_reg(lvds, MIPIPHY_REGE3,
@@ -318,7 +320,8 @@ static void innov1_lvds_power_off(struct rockchip_lvds *lvds)
 	/* disable lvds lane and power off pll */
 	lvds_writel(lvds, MIPIPHY_REGEB,
 		    v_LANE0_EN(0) | v_LANE1_EN(0) | v_LANE2_EN(0) |
-		    v_LANE3_EN(0) | v_LANECLK_EN(0) | v_PLL_PWR_OFF(1));
+		    v_LANE3_EN(0) | v_LANECLK_EN(0) | v_PLL_PWR_OFF(1) |
+		    v_LVDS_BGPD(1));
 
 	/* power down lvds pll and bandgap */
 	lvds_msk_reg(lvds, MIPIPHY_REG1,
