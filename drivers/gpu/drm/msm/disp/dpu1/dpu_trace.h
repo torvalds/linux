@@ -728,20 +728,17 @@ TRACE_EVENT(dpu_crtc_vblank_enable,
 		__field(	uint32_t,		enc_id	)
 		__field(	bool,			enable	)
 		__field(	bool,			enabled )
-		__field(	bool,			vblank_requested )
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->enc_id = enc_id;
 		__entry->enable = enable;
 		__entry->enabled = crtc->enabled;
-		__entry->vblank_requested = crtc->vblank_requested;
 	),
-	TP_printk("id:%u encoder:%u enable:%s state{enabled:%s vblank_req:%s}",
+	TP_printk("id:%u encoder:%u enable:%s state{enabled:%s}",
 		  __entry->drm_id, __entry->enc_id,
 		  __entry->enable ? "true" : "false",
-		  __entry->enabled ? "true" : "false",
-		  __entry->vblank_requested ? "true" : "false")
+		  __entry->enabled ? "true" : "false")
 );
 
 DECLARE_EVENT_CLASS(dpu_crtc_enable_template,
@@ -751,18 +748,15 @@ DECLARE_EVENT_CLASS(dpu_crtc_enable_template,
 		__field(	uint32_t,		drm_id	)
 		__field(	bool,			enable	)
 		__field(	bool,			enabled )
-		__field(	bool,			vblank_requested )
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->enable = enable;
 		__entry->enabled = crtc->enabled;
-		__entry->vblank_requested = crtc->vblank_requested;
 	),
-	TP_printk("id:%u enable:%s state{enabled:%s vblank_req:%s}",
+	TP_printk("id:%u enable:%s state{enabled:%s}",
 		  __entry->drm_id, __entry->enable ? "true" : "false",
-		  __entry->enabled ? "true" : "false",
-		  __entry->vblank_requested ? "true" : "false")
+		  __entry->enabled ? "true" : "false")
 );
 DEFINE_EVENT(dpu_crtc_enable_template, dpu_crtc_enable,
 	TP_PROTO(uint32_t drm_id, bool enable, struct dpu_crtc *crtc),

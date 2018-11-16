@@ -1176,10 +1176,6 @@ int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 		dpu_encoder_toggle_vblank_for_crtc(enc, crtc, en);
 	}
 
-	mutex_lock(&dpu_crtc->crtc_lock);
-	dpu_crtc->vblank_requested = en;
-	mutex_unlock(&dpu_crtc->crtc_lock);
-
 	return 0;
 }
 
@@ -1294,8 +1290,6 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 		dpu_crtc->vblank_cb_count = 0;
 		dpu_crtc->vblank_cb_time = ktime_set(0, 0);
 	}
-
-	seq_printf(s, "vblank_enable:%d\n", dpu_crtc->vblank_requested);
 
 	mutex_unlock(&dpu_crtc->crtc_lock);
 	drm_modeset_unlock_all(crtc->dev);

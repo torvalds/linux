@@ -132,7 +132,6 @@ struct dpu_crtc_frame_event {
  * @vblank_cb_count : count of vblank callback since last reset
  * @play_count    : frame count between crtc enable and disable
  * @vblank_cb_time  : ktime at vblank count reset
- * @vblank_requested : whether the user has requested vblank events
  * @enabled       : whether the DPU CRTC is currently enabled. updated in the
  *                  commit-thread, not state-swap time which is earlier, so
  *                  safe to make decisions on during VBLANK on/off work
@@ -166,7 +165,6 @@ struct dpu_crtc {
 	u32 vblank_cb_count;
 	u64 play_count;
 	ktime_t vblank_cb_time;
-	bool vblank_requested;
 	bool enabled;
 
 	struct list_head feature_list;
