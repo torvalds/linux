@@ -370,6 +370,11 @@
 	clock-names = "core", "clkin";
 };
 
+&timer_abcde {
+	clocks = <&clkc CLKID_XTAL>, <&clkc CLKID_CLK81>;
+	clock-names = "xtal", "pclk";
+};
+
 &uart_AO {
 	compatible = "amlogic,meson8b-uart", "amlogic,meson-uart";
 	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_CLK81>;
