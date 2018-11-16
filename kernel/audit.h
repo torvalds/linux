@@ -268,7 +268,7 @@ extern struct tty_struct *audit_get_tty(struct task_struct *tsk);
 extern void audit_put_tty(struct tty_struct *tty);
 
 /* audit watch functions */
-#ifdef CONFIG_AUDIT_WATCH
+#ifdef CONFIG_AUDITSYSCALL
 extern void audit_put_watch(struct audit_watch *watch);
 extern void audit_get_watch(struct audit_watch *watch);
 extern int audit_to_watch(struct audit_krule *krule, char *path, int len, u32 op);
@@ -301,9 +301,9 @@ extern int audit_exe_compare(struct task_struct *tsk, struct audit_fsnotify_mark
 #define audit_mark_compare(m, i, d) 0
 #define audit_exe_compare(t, m) (-EINVAL)
 #define audit_dupe_exe(n, o) (-EINVAL)
-#endif /* CONFIG_AUDIT_WATCH */
+#endif /* CONFIG_AUDITSYSCALL */
 
-#ifdef CONFIG_AUDIT_TREE
+#ifdef CONFIG_AUDITSYSCALL
 extern struct audit_chunk *audit_tree_lookup(const struct inode *inode);
 extern void audit_put_chunk(struct audit_chunk *chunk);
 extern bool audit_tree_match(struct audit_chunk *chunk, struct audit_tree *tree);

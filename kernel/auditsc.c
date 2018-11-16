@@ -200,7 +200,6 @@ static int audit_match_filetype(struct audit_context *ctx, int val)
  * References in it _are_ dropped - at the same time we free/drop aux stuff.
  */
 
-#ifdef CONFIG_AUDIT_TREE
 static void audit_set_auditable(struct audit_context *ctx)
 {
 	if (!ctx->prio) {
@@ -245,12 +244,10 @@ static int grow_tree_refs(struct audit_context *ctx)
 	ctx->tree_count = 31;
 	return 1;
 }
-#endif
 
 static void unroll_tree_refs(struct audit_context *ctx,
 		      struct audit_tree_refs *p, int count)
 {
-#ifdef CONFIG_AUDIT_TREE
 	struct audit_tree_refs *q;
 	int n;
 	if (!p) {
@@ -274,7 +271,6 @@ static void unroll_tree_refs(struct audit_context *ctx,
 	}
 	ctx->trees = p;
 	ctx->tree_count = count;
-#endif
 }
 
 static void free_tree_refs(struct audit_context *ctx)
@@ -288,7 +284,6 @@ static void free_tree_refs(struct audit_context *ctx)
 
 static int match_tree_refs(struct audit_context *ctx, struct audit_tree *tree)
 {
-#ifdef CONFIG_AUDIT_TREE
 	struct audit_tree_refs *p;
 	int n;
 	if (!tree)
@@ -305,7 +300,6 @@ static int match_tree_refs(struct audit_context *ctx, struct audit_tree *tree)
 			if (audit_tree_match(p->c[n], tree))
 				return 1;
 	}
-#endif
 	return 0;
 }
 
@@ -1602,7 +1596,6 @@ void __audit_syscall_exit(int success, long return_code)
 
 static inline void handle_one(const struct inode *inode)
 {
-#ifdef CONFIG_AUDIT_TREE
 	struct audit_context *context;
 	struct audit_tree_refs *p;
 	struct audit_chunk *chunk;
@@ -1627,12 +1620,10 @@ static inline void handle_one(const struct inode *inode)
 		return;
 	}
 	put_tree_ref(context, chunk);
-#endif
 }
 
 static void handle_path(const struct dentry *dentry)
 {
-#ifdef CONFIG_AUDIT_TREE
 	struct audit_context *context;
 	struct audit_tree_refs *p;
 	const struct dentry *d, *parent;
@@ -1685,7 +1676,6 @@ retry:
 		return;
 	}
 	rcu_read_unlock();
-#endif
 }
 
 static struct audit_names *audit_alloc_name(struct audit_context *context,
