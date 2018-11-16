@@ -266,6 +266,7 @@ enum {
 	TCP_NLA_BYTES_RETRANS,	/* Data bytes retransmitted */
 	TCP_NLA_DSACK_DUPS,	/* DSACK blocks received */
 	TCP_NLA_REORD_SEEN,	/* reordering events seen */
+	TCP_NLA_SRTT,		/* smoothed RTT in usecs */
 };
 
 /* for TCP_MD5SIG socket option */
