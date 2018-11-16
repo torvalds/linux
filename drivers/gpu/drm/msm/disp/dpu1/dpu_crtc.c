@@ -485,19 +485,13 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 
 static void _dpu_crtc_setup_mixers(struct drm_crtc *crtc)
 {
-	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct drm_encoder *enc;
 
-	mutex_lock(&dpu_crtc->crtc_lock);
+	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
+
 	/* Check for mixers on all encoders attached to this crtc */
-	list_for_each_entry(enc, &crtc->dev->mode_config.encoder_list, head) {
-		if (enc->crtc != crtc)
-			continue;
-
+	drm_for_each_encoder_mask(enc, crtc->dev, crtc->state->encoder_mask)
 		_dpu_crtc_setup_mixer_for_encoder(crtc, enc);
-	}
-
-	mutex_unlock(&dpu_crtc->crtc_lock);
 }
 
 static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
