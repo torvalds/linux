@@ -2766,6 +2766,7 @@ static ssize_t  field##_show(struct device *dev,				\
 static DEVICE_ATTR(field, S_IRUGO, field##_show, NULL);
 
 nvme_show_int_function(cntlid);
+nvme_show_int_function(numa_node);
 
 static ssize_t nvme_sysfs_delete(struct device *dev,
 				struct device_attribute *attr, const char *buf,
@@ -2845,6 +2846,7 @@ static struct attribute *nvme_dev_attrs[] = {
 	&dev_attr_subsysnqn.attr,
 	&dev_attr_address.attr,
 	&dev_attr_state.attr,
+	&dev_attr_numa_node.attr,
 	NULL
 };
 
@@ -3055,7 +3057,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	struct gendisk *disk;
 	struct nvme_id_ns *id;
 	char disk_name[DISK_NAME_LEN];
-	int node = dev_to_node(ctrl->dev), flags = GENHD_FL_EXT_DEVT;
+	int node = ctrl->numa_node, flags = GENHD_FL_EXT_DEVT;
 
 	ns = kzalloc_node(sizeof(*ns), GFP_KERNEL, node);
 	if (!ns)

@@ -153,6 +153,7 @@ struct nvme_ctrl {
 	struct request_queue *connect_q;
 	struct device *dev;
 	int instance;
+	int numa_node;
 	struct blk_mq_tag_set *tagset;
 	struct blk_mq_tag_set *admin_tagset;
 	struct list_head namespaces;
