@@ -73,11 +73,11 @@ struct mmc_queue_req {
 
 struct mmc_queue {
 	struct mmc_card		*card;
-	spinlock_t		*lock;
 	struct mmc_ctx		ctx;
 	struct blk_mq_tag_set	tag_set;
 	struct mmc_blk_data	*blkdata;
 	struct request_queue	*queue;
+	spinlock_t		lock;
 	int			in_flight[MMC_ISSUE_MAX];
 	unsigned int		cqe_busy;
 #define MMC_CQE_DCMD_BUSY	BIT(0)
@@ -96,7 +96,7 @@ struct mmc_queue {
 	struct work_struct	complete_work;
 };
 
-extern int mmc_init_queue(struct mmc_queue *, struct mmc_card *, spinlock_t *);
+extern int mmc_init_queue(struct mmc_queue *, struct mmc_card *);
 extern void mmc_cleanup_queue(struct mmc_queue *);
 extern void mmc_queue_suspend(struct mmc_queue *);
 extern void mmc_queue_resume(struct mmc_queue *);
