@@ -14,9 +14,7 @@ typedef struct {
 
 static inline bool is_fixed16_zero(uint_fixed_16_16_t val)
 {
-	if (val.val == 0)
-		return true;
-	return false;
+	return val.val == 0;
 }
 
 static inline uint_fixed_16_16_t u32_to_fixed16(u32 val)
