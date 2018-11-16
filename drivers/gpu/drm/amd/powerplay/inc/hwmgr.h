@@ -317,6 +317,9 @@ struct pp_hwmgr_func {
 					uint32_t mc_addr_low,
 					uint32_t mc_addr_hi,
 					uint32_t size);
+	int (*update_nbdpm_pstate)(struct pp_hwmgr *hwmgr,
+					bool enable,
+					bool lock);
 	int (*get_thermal_temperature_range)(struct pp_hwmgr *hwmgr,
 					struct PP_TemperatureRange *range);
 	int (*get_power_profile_mode)(struct pp_hwmgr *hwmgr, char *buf);
