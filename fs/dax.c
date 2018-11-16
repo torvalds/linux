@@ -98,12 +98,6 @@ static void *dax_make_entry(pfn_t pfn, unsigned long flags)
 	return xa_mk_value(flags | (pfn_t_to_pfn(pfn) << DAX_SHIFT));
 }
 
-static void *dax_make_page_entry(struct page *page)
-{
-	pfn_t pfn = page_to_pfn_t(page);
-	return dax_make_entry(pfn, PageHead(page) ? DAX_PMD : 0);
-}
-
 static bool dax_is_locked(void *entry)
 {
 	return xa_to_value(entry) & DAX_LOCKED;
@@ -116,12 +110,12 @@ static unsigned int dax_entry_order(void *entry)
 	return 0;
 }
 
-static int dax_is_pmd_entry(void *entry)
+static unsigned long dax_is_pmd_entry(void *entry)
 {
 	return xa_to_value(entry) & DAX_PMD;
 }
 
-static int dax_is_pte_entry(void *entry)
+static bool dax_is_pte_entry(void *entry)
 {
 	return !(xa_to_value(entry) & DAX_PMD);
 }
@@ -413,11 +407,16 @@ void dax_unlock_mapping_entry(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
 	XA_STATE(xas, &mapping->i_pages, page->index);
+	void *entry;
 
 	if (S_ISCHR(mapping->host->i_mode))
 		return;
 
-	dax_unlock_entry(&xas, dax_make_page_entry(page));
+	rcu_read_lock();
+	entry = xas_load(&xas);
+	rcu_read_unlock();
+	entry = dax_make_entry(page_to_pfn_t(page), dax_is_pmd_entry(entry));
+	dax_unlock_entry(&xas, entry);
 }
 
 /*
