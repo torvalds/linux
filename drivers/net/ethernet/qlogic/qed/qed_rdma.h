@@ -183,7 +183,7 @@ void qed_rdma_info_free(struct qed_hwfn *p_hwfn);
 static inline void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt) {}
 static inline void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt) {}
-static inline int qed_rdma_info_alloc(struct qed_hwfn *p_hwfn) {return -EINVAL}
+static inline int qed_rdma_info_alloc(struct qed_hwfn *p_hwfn) {return -EINVAL;}
 static inline void qed_rdma_info_free(struct qed_hwfn *p_hwfn) {}
 #endif
 
