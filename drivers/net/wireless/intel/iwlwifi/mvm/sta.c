@@ -314,7 +314,6 @@ static int iwl_mvm_invalidate_sta_queue(struct iwl_mvm *mvm, int queue,
 	struct iwl_mvm_sta *mvmsta;
 	u32 status;
 	u8 sta_id;
-	int ret;
 
 	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
 		return -EINVAL;
@@ -349,11 +348,9 @@ static int iwl_mvm_invalidate_sta_queue(struct iwl_mvm *mvm, int queue,
 
 	/* Notify FW of queue removal from the STA queues */
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
-					  iwl_mvm_add_sta_cmd_size(mvm),
-					  &cmd, &status);
-
-	return ret;
+	return iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA,
+					   iwl_mvm_add_sta_cmd_size(mvm),
+					   &cmd, &status);
 }
 
 static int iwl_mvm_disable_txq(struct iwl_mvm *mvm, struct ieee80211_sta *sta,

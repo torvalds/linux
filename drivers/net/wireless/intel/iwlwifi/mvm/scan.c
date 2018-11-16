@@ -1976,9 +1976,8 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 		return ret;
 	}
 
-	ret = iwl_wait_notification(&mvm->notif_wait, &wait_scan_done, 1 * HZ);
-
-	return ret;
+	return iwl_wait_notification(&mvm->notif_wait, &wait_scan_done,
+				     1 * HZ);
 }
 
 int iwl_mvm_scan_size(struct iwl_mvm *mvm)
