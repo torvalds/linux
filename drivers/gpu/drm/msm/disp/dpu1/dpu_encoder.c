@@ -132,6 +132,7 @@ enum dpu_enc_rc_states {
  * @base:		drm_encoder base class for registration with DRM
  * @enc_spinlock:	Virtual-Encoder-Wide Spin Lock for IRQ purposes
  * @bus_scaling_client:	Client handle to the bus scaling interface
+ * @enabled:		True if the encoder is active, protected by enc_lock
  * @num_phys_encs:	Actual number of physical encoders contained.
  * @phys_encs:		Container of physical encoders managed.
  * @cur_master:		Pointer to the current master in this mode. Optimization
@@ -148,8 +149,8 @@ enum dpu_enc_rc_states {
  *				all CTL paths
  * @crtc_kickoff_cb_data:	Opaque user data given to crtc_kickoff_cb
  * @debugfs_root:		Debug file system root file node
- * @enc_lock:			Lock around physical encoder create/destroy and
-				access.
+ * @enc_lock:			Lock around physical encoder
+ *				create/destroy/enable/disable
  * @frame_busy_mask:		Bitmask tracking which phys_enc we are still
  *				busy processing current command.
  *				Bit0 = phys_encs[0] etc.
@@ -174,6 +175,8 @@ struct dpu_encoder_virt {
 	struct drm_encoder base;
 	spinlock_t enc_spinlock;
 	uint32_t bus_scaling_client;
+
+	bool enabled;
 
 	unsigned int num_phys_encs;
 	struct dpu_encoder_phys *phys_encs[MAX_PHYS_ENCODERS_PER_VIRTUAL];
@@ -1121,6 +1124,8 @@ static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)
 		return;
 	}
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
+
+	mutex_lock(&dpu_enc->enc_lock);
 	cur_mode = &dpu_enc->base.crtc->state->adjusted_mode;
 
 	trace_dpu_enc_enable(DRMID(drm_enc), cur_mode->hdisplay,
@@ -1137,10 +1142,15 @@ static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)
 	if (ret) {
 		DPU_ERROR_ENC(dpu_enc, "dpu resource control failed: %d\n",
 				ret);
-		return;
+		goto out;
 	}
 
 	_dpu_encoder_virt_enable_helper(drm_enc);
+
+	dpu_enc->enabled = true;
+
+out:
+	mutex_unlock(&dpu_enc->enc_lock);
 }
 
 static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
@@ -1162,10 +1172,13 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 		return;
 	}
 
-	mode = &drm_enc->crtc->state->adjusted_mode;
-
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 	DPU_DEBUG_ENC(dpu_enc, "\n");
+
+	mutex_lock(&dpu_enc->enc_lock);
+	dpu_enc->enabled = false;
+
+	mode = &drm_enc->crtc->state->adjusted_mode;
 
 	priv = drm_enc->dev->dev_private;
 	dpu_kms = to_dpu_kms(priv->kms);
@@ -1200,6 +1213,8 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	DPU_DEBUG_ENC(dpu_enc, "encoder disabled\n");
 
 	dpu_rm_release(&dpu_kms->rm, drm_enc);
+
+	mutex_unlock(&dpu_enc->enc_lock);
 }
 
 static enum dpu_intf dpu_encoder_get_intf(struct dpu_mdss_cfg *catalog,
@@ -2238,6 +2253,8 @@ struct drm_encoder *dpu_encoder_init(struct drm_device *dev,
 	}
 
 	drm_encoder_helper_add(&dpu_enc->base, &dpu_encoder_helper_funcs);
+
+	dpu_enc->enabled = false;
 
 	return &dpu_enc->base;
 }
