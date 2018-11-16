@@ -298,6 +298,10 @@ DEFINE_EVENT(dpu_drm_obj_template, dpu_kms_wait_for_commit_done,
 	TP_PROTO(uint32_t drm_id),
 	TP_ARGS(drm_id)
 );
+DEFINE_EVENT(dpu_drm_obj_template, dpu_crtc_runtime_resume,
+	TP_PROTO(uint32_t drm_id),
+	TP_ARGS(drm_id)
+);
 
 TRACE_EVENT(dpu_enc_enable,
 	TP_PROTO(uint32_t drm_id, int hdisplay, int vdisplay),
@@ -515,10 +519,6 @@ DEFINE_EVENT(dpu_id_event_template, dpu_enc_frame_done_timeout,
 	TP_ARGS(drm_id, event)
 );
 DEFINE_EVENT(dpu_id_event_template, dpu_crtc_frame_event_cb,
-	TP_PROTO(uint32_t drm_id, u32 event),
-	TP_ARGS(drm_id, event)
-);
-DEFINE_EVENT(dpu_id_event_template, dpu_crtc_handle_power_event,
 	TP_PROTO(uint32_t drm_id, u32 event),
 	TP_ARGS(drm_id, event)
 );

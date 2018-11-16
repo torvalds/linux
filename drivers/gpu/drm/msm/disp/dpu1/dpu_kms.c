@@ -1141,6 +1141,7 @@ static int __maybe_unused dpu_runtime_resume(struct device *dev)
 	int rc = -1;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dpu_kms *dpu_kms = platform_get_drvdata(pdev);
+	struct drm_crtc *crtc;
 	struct drm_device *ddev;
 	struct dss_module_power *mp = &dpu_kms->mp;
 
@@ -1157,6 +1158,9 @@ static int __maybe_unused dpu_runtime_resume(struct device *dev)
 	}
 
 	dpu_vbif_init_memtypes(dpu_kms);
+
+	drm_for_each_crtc(crtc, ddev)
+		dpu_crtc_runtime_resume(crtc);
 
 	rc = dpu_power_resource_enable(&dpu_kms->phandle, true);
 	if (rc)

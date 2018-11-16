@@ -151,7 +151,6 @@ struct dpu_crtc_frame_event {
  * @event_worker  : Event worker queue
  * @event_lock    : Spinlock around event handling code
  * @phandle: Pointer to power handler
- * @power_event   : registered power event handle
  * @cur_perf      : current performance committed to clock/bandwidth driver
  */
 struct dpu_crtc {
@@ -186,9 +185,6 @@ struct dpu_crtc {
 
 	/* for handling internal event thread */
 	spinlock_t event_lock;
-
-	struct dpu_power_handle *phandle;
-	struct dpu_power_event *power_event;
 
 	struct dpu_core_perf_params cur_perf;
 
@@ -333,5 +329,11 @@ static inline bool dpu_crtc_is_enabled(struct drm_crtc *crtc)
 {
 	return crtc ? crtc->enabled : false;
 }
+
+/**
+ * dpu_crtc_runtime_resume - called by the top-level on pm_runtime_resume
+ * @crtc: CRTC to resume
+ */
+void dpu_crtc_runtime_resume(struct drm_crtc *crtc);
 
 #endif /* _DPU_CRTC_H_ */
