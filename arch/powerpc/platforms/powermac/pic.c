@@ -417,7 +417,7 @@ int of_irq_parse_oldworld(struct device_node *device, int index,
 		if (ints != NULL)
 			break;
 		device = device->parent;
-		if (device && strcmp(device->type, "pci") != 0)
+		if (!of_node_is_type(device, "pci"))
 			break;
 	}
 	if (ints == NULL)

@@ -1356,9 +1356,9 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	 */
 	parent_node = of_get_parent(of_node);
 	if (parent_node) {
-		if (!strcmp(parent_node->type, "ibm,platform-facilities"))
+		if (of_node_is_type(parent_node, "ibm,platform-facilities"))
 			family = PFO;
-		else if (!strcmp(parent_node->type, "vdevice"))
+		else if (of_node_is_type(parent_node, "vdevice"))
 			family = VDEVICE;
 		else {
 			pr_warn("%s: parent(%pOF) of %pOFn not recognized.\n",
@@ -1395,9 +1395,8 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	if (viodev->family == VDEVICE) {
 		unsigned int unit_address;
 
-		if (of_node->type != NULL)
-			viodev->type = of_node->type;
-		else {
+		viodev->type = of_node_get_device_type(of_node);
+		if (!viodev->type) {
 			pr_warn("%s: node %pOFn is missing the 'device_type' "
 					"property.\n", __func__, of_node);
 			goto out;
@@ -1672,32 +1671,30 @@ struct vio_dev *vio_find_node(struct device_node *vnode)
 {
 	char kobj_name[20];
 	struct device_node *vnode_parent;
-	const char *dev_type;
 
 	vnode_parent = of_get_parent(vnode);
 	if (!vnode_parent)
 		return NULL;
 
-	dev_type = of_get_property(vnode_parent, "device_type", NULL);
-	of_node_put(vnode_parent);
-	if (!dev_type)
-		return NULL;
-
 	/* construct the kobject name from the device node */
-	if (!strcmp(dev_type, "vdevice")) {
+	if (of_node_is_type(vnode_parent, "vdevice")) {
 		const __be32 *prop;
 		
 		prop = of_get_property(vnode, "reg", NULL);
 		if (!prop)
-			return NULL;
+			goto out;
 		snprintf(kobj_name, sizeof(kobj_name), "%x",
 			 (uint32_t)of_read_number(prop, 1));
-	} else if (!strcmp(dev_type, "ibm,platform-facilities"))
+	} else if (of_node_is_type(vnode_parent, "ibm,platform-facilities"))
 		snprintf(kobj_name, sizeof(kobj_name), "%pOFn", vnode);
 	else
-		return NULL;
+		goto out;
 
+	of_node_put(vnode_parent);
 	return vio_find_name(kobj_name);
+out:
+	of_node_put(vnode_parent);
+	return NULL;
 }
 EXPORT_SYMBOL(vio_find_node);
 

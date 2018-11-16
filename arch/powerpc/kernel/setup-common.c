@@ -687,7 +687,7 @@ int check_legacy_ioport(unsigned long base_port)
 		return ret;
 	parent = of_get_parent(np);
 	if (parent) {
-		if (strcmp(parent->type, "isa") == 0)
+		if (of_node_is_type(parent, "isa"))
 			ret = 0;
 		of_node_put(parent);
 	}

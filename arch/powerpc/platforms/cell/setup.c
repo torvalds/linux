@@ -168,8 +168,7 @@ static int __init cell_publish_devices(void)
 	 * platform devices for the PCI host bridges
 	 */
 	for_each_child_of_node(root, np) {
-		if (np->type == NULL || (strcmp(np->type, "pci") != 0 &&
-					 strcmp(np->type, "pciex") != 0))
+		if (!of_node_is_type(np, "pci") && !of_node_is_type(np, "pciex"))
 			continue;
 		of_platform_device_create(np, NULL, NULL);
 	}

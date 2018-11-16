@@ -280,10 +280,7 @@ static __init void chrp_init(void)
 	node = of_find_node_by_path(property);
 	if (!node)
 		return;
-	property = of_get_property(node, "device_type", NULL);
-	if (!property)
-		goto out_put;
-	if (strcmp(property, "serial"))
+	if (!of_node_is_type(node, "serial"))
 		goto out_put;
 	/*
 	 * The 9pin connector is either /failsafe
