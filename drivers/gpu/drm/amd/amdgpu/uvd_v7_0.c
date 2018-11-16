@@ -444,10 +444,6 @@ static int uvd_v7_0_sw_init(void *handle)
 		DRM_INFO("PSP loading UVD firmware\n");
 	}
 
-	r = amdgpu_uvd_resume(adev);
-	if (r)
-		return r;
-
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
 		if (adev->uvd.harvest_config & (1 << j))
 			continue;
@@ -478,6 +474,10 @@ static int uvd_v7_0_sw_init(void *handle)
 				return r;
 		}
 	}
+
+	r = amdgpu_uvd_resume(adev);
+	if (r)
+		return r;
 
 	r = amdgpu_uvd_entity_init(adev);
 	if (r)
