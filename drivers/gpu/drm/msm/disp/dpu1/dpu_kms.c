@@ -358,6 +358,7 @@ void dpu_kms_encoder_enable(struct drm_encoder *encoder)
 	if (funcs && funcs->commit)
 		funcs->commit(encoder);
 
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 	drm_for_each_crtc(crtc, dev) {
 		if (!(crtc->state->encoder_mask & drm_encoder_mask(encoder)))
 			continue;

@@ -284,6 +284,8 @@ enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc)
 		return INTF_MODE_NONE;
 	}
 
+	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
+
 	/* TODO: Returns the first INTF_MODE, could there be multiple values? */
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
 		return dpu_encoder_get_intf_mode(encoder);
