@@ -29,6 +29,7 @@
 #include "dpu_hw_lm.h"
 #include "dpu_hw_interrupts.h"
 #include "dpu_hw_top.h"
+#include "dpu_io_util.h"
 #include "dpu_rm.h"
 #include "dpu_power_handle.h"
 #include "dpu_irq.h"
