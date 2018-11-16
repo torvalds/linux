@@ -24,20 +24,6 @@
 #include "dpu_power_handle.h"
 #include "dpu_trace.h"
 
-static const char *data_bus_name[DPU_POWER_HANDLE_DBUS_ID_MAX] = {
-	[DPU_POWER_HANDLE_DBUS_ID_MNOC] = "qcom,dpu-data-bus",
-	[DPU_POWER_HANDLE_DBUS_ID_LLCC] = "qcom,dpu-llcc-bus",
-	[DPU_POWER_HANDLE_DBUS_ID_EBI] = "qcom,dpu-ebi-bus",
-};
-
-const char *dpu_power_handle_get_dbus_name(u32 bus_id)
-{
-	if (bus_id < DPU_POWER_HANDLE_DBUS_ID_MAX)
-		return data_bus_name[bus_id];
-
-	return NULL;
-}
-
 static void dpu_power_event_trigger_locked(struct dpu_power_handle *phandle,
 		u32 event_type)
 {

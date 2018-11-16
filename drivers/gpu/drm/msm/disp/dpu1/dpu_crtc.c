@@ -1397,11 +1397,9 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 			dpu_crtc->cur_perf.core_clk_rate);
 	for (i = DPU_POWER_HANDLE_DBUS_ID_MNOC;
 			i < DPU_POWER_HANDLE_DBUS_ID_MAX; i++) {
-		seq_printf(s, "bw_ctl[%s]: %llu\n",
-				dpu_power_handle_get_dbus_name(i),
+		seq_printf(s, "bw_ctl[%d]: %llu\n", i,
 				dpu_crtc->cur_perf.bw_ctl[i]);
-		seq_printf(s, "max_per_pipe_ib[%s]: %llu\n",
-				dpu_power_handle_get_dbus_name(i),
+		seq_printf(s, "max_per_pipe_ib[%d]: %llu\n", i,
 				dpu_crtc->cur_perf.max_per_pipe_ib[i]);
 	}
 

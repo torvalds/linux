@@ -207,11 +207,4 @@ struct dpu_power_event *dpu_power_handle_register_event(
 void dpu_power_handle_unregister_event(struct dpu_power_handle *phandle,
 		struct dpu_power_event *event);
 
-/**
- * dpu_power_handle_get_dbus_name - get name of given data bus identifier
- * @bus_id:	data bus identifier
- * Return:	Pointer to name string if success; NULL otherwise
- */
-const char *dpu_power_handle_get_dbus_name(u32 bus_id);
-
 #endif /* _DPU_POWER_HANDLE_H_ */
