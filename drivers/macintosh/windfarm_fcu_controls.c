@@ -425,18 +425,18 @@ static void wf_fcu_lookup_fans(struct wf_fcu_priv *pv)
 		{ "CPU B 2",		"cpu-fan-b-1",		},
 		{ "CPU B 3",		"cpu-fan-c-1",		},
 	};
-	struct device_node *np = NULL, *fcu = pv->i2c->dev.of_node;
+	struct device_node *np, *fcu = pv->i2c->dev.of_node;
 	int i;
 
 	DBG("Looking up FCU controls in device-tree...\n");
 
-	while ((np = of_get_next_child(fcu, np)) != NULL) {
+	for_each_child_of_node(fcu, np) {
 		int id, type = -1;
 		const char *loc;
 		const char *name;
 		const u32 *reg;
 
-		DBG(" control: %s, type: %s\n", np->name, np->type);
+		DBG(" control: %pOFn, type: %s\n", np, of_node_get_device_type(np));
 
 		/* Detect control type */
 		if (!strcmp(np->type, "fan-rpm-control") ||
