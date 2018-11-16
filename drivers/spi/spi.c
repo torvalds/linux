@@ -1114,9 +1114,11 @@ static int spi_transfer_one_message(struct spi_controller *ctlr,
 				goto out;
 			}
 
-			ret = spi_transfer_wait(ctlr, msg, xfer);
-			if (ret < 0)
-				msg->status = ret;
+			if (ret > 0) {
+				ret = spi_transfer_wait(ctlr, msg, xfer);
+				if (ret < 0)
+					msg->status = ret;
+			}
 		} else {
 			if (xfer->len)
 				dev_err(&msg->spi->dev,
