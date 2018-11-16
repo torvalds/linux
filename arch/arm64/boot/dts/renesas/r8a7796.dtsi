@@ -2839,7 +2839,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&sensor1_passive>;
-					cooling-device = <&a57_0 5 5>;
+					cooling-device = <&a57_0 5 5>, <&a57_1 5 5>;
 				};
 			};
 		};
@@ -2865,7 +2865,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&sensor2_passive>;
-					cooling-device = <&a57_0 5 5>;
+					cooling-device = <&a57_0 5 5>, <&a57_1 5 5>;
 				};
 			};
 		};
@@ -2891,7 +2891,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&sensor3_passive>;
-					cooling-device = <&a57_0 5 5>;
+					cooling-device = <&a57_0 5 5>, <&a57_1 5 5>;
 				};
 			};
 		};
