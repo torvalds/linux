@@ -1300,6 +1300,7 @@ static const struct of_device_id sdm845_pinctrl_of_match[] = {
 static struct platform_driver sdm845_pinctrl_driver = {
 	.driver = {
 		.name = "sdm845-pinctrl",
+		.pm = &msm_pinctrl_dev_pm_ops,
 		.of_match_table = sdm845_pinctrl_of_match,
 	},
 	.probe = sdm845_pinctrl_probe,

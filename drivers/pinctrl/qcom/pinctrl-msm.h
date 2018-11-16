@@ -123,6 +123,8 @@ struct msm_pinctrl_soc_data {
 	unsigned int ntiles;
 };
 
+extern const struct dev_pm_ops msm_pinctrl_dev_pm_ops;
+
 int msm_pinctrl_probe(struct platform_device *pdev,
 		      const struct msm_pinctrl_soc_data *soc_data);
 int msm_pinctrl_remove(struct platform_device *pdev);
