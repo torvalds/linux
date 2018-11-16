@@ -27,19 +27,6 @@
 #define DPU_POWER_EVENT_DISABLE	BIT(0)
 #define DPU_POWER_EVENT_ENABLE	BIT(1)
 
-/**
- * enum DPU_POWER_HANDLE_DBUS_ID - data bus identifier
- * @DPU_POWER_HANDLE_DBUS_ID_MNOC: DPU/MNOC data bus
- * @DPU_POWER_HANDLE_DBUS_ID_LLCC: MNOC/LLCC data bus
- * @DPU_POWER_HANDLE_DBUS_ID_EBI: LLCC/EBI data bus
- */
-enum DPU_POWER_HANDLE_DBUS_ID {
-	DPU_POWER_HANDLE_DBUS_ID_MNOC,
-	DPU_POWER_HANDLE_DBUS_ID_LLCC,
-	DPU_POWER_HANDLE_DBUS_ID_EBI,
-	DPU_POWER_HANDLE_DBUS_ID_MAX,
-};
-
 /*
  * struct dpu_power_event - local event registration structure
  * @client_name: name of the client registering
