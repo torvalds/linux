@@ -923,12 +923,11 @@ static bool skx_decode(struct decoded_addr *res)
 
 #ifdef CONFIG_EDAC_DEBUG
 /*
- * Debug feature. Make /sys/kernel/debug/skx_edac_test/addr.
- * Write an address to this file to exercise the address decode
- * logic in this driver.
+ * Debug feature.
+ * Exercise the address decode logic by writing an address to
+ * /sys/kernel/debug/edac/skx_test/addr.
  */
 static struct dentry *skx_test;
-static u64 skx_fake_addr;
 
 static int debugfs_u64_set(void *data, u64 val)
 {
@@ -939,19 +938,19 @@ static int debugfs_u64_set(void *data, u64 val)
 
 	return 0;
 }
-
 DEFINE_SIMPLE_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
-
-static struct dentry *mydebugfs_create(const char *name, umode_t mode,
-				       struct dentry *parent, u64 *value)
-{
-	return debugfs_create_file(name, mode, parent, value, &fops_u64_wo);
-}
 
 static void setup_skx_debug(void)
 {
-	skx_test = debugfs_create_dir("skx_edac_test", NULL);
-	mydebugfs_create("addr", S_IWUSR, skx_test, &skx_fake_addr);
+	skx_test = edac_debugfs_create_dir("skx_test");
+	if (!skx_test)
+		return;
+
+	if (!edac_debugfs_create_file("addr", 0200, skx_test,
+				      NULL, &fops_u64_wo)) {
+		debugfs_remove(skx_test);
+		skx_test = NULL;
+	}
 }
 
 static void teardown_skx_debug(void)
