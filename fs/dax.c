@@ -216,9 +216,8 @@ static void *get_unlocked_entry(struct xa_state *xas)
 	ewait.wait.func = wake_exceptional_entry_func;
 
 	for (;;) {
-		entry = xas_load(xas);
-		if (!entry || xa_is_internal(entry) ||
-				WARN_ON_ONCE(!xa_is_value(entry)) ||
+		entry = xas_find_conflict(xas);
+		if (!entry || WARN_ON_ONCE(!xa_is_value(entry)) ||
 				!dax_is_locked(entry))
 			return entry;
 
@@ -458,11 +457,9 @@ static void *grab_mapping_entry(struct xa_state *xas,
 retry:
 	xas_lock_irq(xas);
 	entry = get_unlocked_entry(xas);
-	if (xa_is_internal(entry))
-		goto fallback;
 
 	if (entry) {
-		if (WARN_ON_ONCE(!xa_is_value(entry))) {
+		if (!xa_is_value(entry)) {
 			xas_set_err(xas, EIO);
 			goto out_unlock;
 		}
@@ -1641,8 +1638,7 @@ dax_insert_pfn_mkwrite(struct vm_fault *vmf, pfn_t pfn, unsigned int order)
 	/* Did we race with someone splitting entry or so? */
 	if (!entry ||
 	    (order == 0 && !dax_is_pte_entry(entry)) ||
-	    (order == PMD_ORDER && (xa_is_internal(entry) ||
-				    !dax_is_pmd_entry(entry)))) {
+	    (order == PMD_ORDER && !dax_is_pmd_entry(entry))) {
 		put_unlocked_entry(&xas, entry);
 		xas_unlock_irq(&xas);
 		trace_dax_insert_pfn_mkwrite_no_entry(mapping->host, vmf,
