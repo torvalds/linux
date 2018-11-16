@@ -167,23 +167,17 @@ void mt76x02_configure_filter(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(mt76x02_configure_filter);
 
-int mt76x02_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+int mt76x02_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		    struct ieee80211_sta *sta)
 {
-	struct mt76x02_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct mt76x02_sta *msta = (struct mt76x02_sta *)sta->drv_priv;
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
-	int ret = 0;
 	int idx = 0;
-	int i;
-
-	mutex_lock(&dev->mt76.mutex);
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, ARRAY_SIZE(dev->mt76.wcid));
-	if (idx < 0) {
-		ret = -ENOSPC;
-		goto out;
-	}
+	if (idx < 0)
+		return -ENOSPC;
 
 	msta->vif = mvif;
 	msta->wcid.sta = 1;
@@ -191,46 +185,25 @@ int mt76x02_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	msta->wcid.hw_key_idx = -1;
 	mt76x02_mac_wcid_setup(dev, idx, mvif->idx, sta->addr);
 	mt76x02_mac_wcid_set_drop(dev, idx, false);
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++) {
-		struct mt76_txq *mtxq;
-
-		if (!sta->txq[i])
-			continue;
-
-		mtxq = (struct mt76_txq *) sta->txq[i]->drv_priv;
-		mtxq->wcid = &msta->wcid;
-		mt76_txq_init(&dev->mt76, sta->txq[i]);
-	}
 
 	if (vif->type == NL80211_IFTYPE_AP)
 		set_bit(MT_WCID_FLAG_CHECK_PS, &msta->wcid.flags);
 
 	ewma_signal_init(&msta->rssi);
 
-	rcu_assign_pointer(dev->mt76.wcid[idx], &msta->wcid);
-
-out:
-	mutex_unlock(&dev->mt76.mutex);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_sta_add);
 
-int mt76x02_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta)
+void mt76x02_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta)
 {
-	struct mt76x02_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
 	int idx = wcid->idx;
 
-	mt76_sta_remove(&dev->mt76, vif, sta);
-
-	mutex_lock(&dev->mt76.mutex);
 	mt76x02_mac_wcid_set_drop(dev, idx, true);
 	mt76x02_mac_wcid_setup(dev, idx, 0, NULL);
-	mutex_unlock(&dev->mt76.mutex);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_sta_remove);
 

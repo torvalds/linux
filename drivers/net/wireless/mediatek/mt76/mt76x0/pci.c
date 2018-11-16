@@ -90,8 +90,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.config = mt76x0_config,
 	.configure_filter = mt76x02_configure_filter,
 	.bss_info_changed = mt76x02_bss_info_changed,
-	.sta_add = mt76x02_sta_add,
-	.sta_remove = mt76x02_sta_remove,
+	.sta_state = mt76_sta_state,
 	.set_key = mt76x02_set_key,
 	.conf_tx = mt76x02_conf_tx,
 	.sw_scan_start = mt76x02_sw_scan,
@@ -162,6 +161,8 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		.rx_skb = mt76x02_queue_rx_skb,
 		.rx_poll_complete = mt76x02_rx_poll_complete,
 		.sta_ps = mt76x02_sta_ps,
+		.sta_add = mt76x02_sta_add,
+		.sta_remove = mt76x02_sta_remove,
 	};
 	struct mt76x02_dev *dev;
 	int ret;

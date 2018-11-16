@@ -323,6 +323,8 @@ struct mt76x02_dev *mt76x2_alloc_device(struct device *pdev)
 		.rx_skb = mt76x02_queue_rx_skb,
 		.rx_poll_complete = mt76x02_rx_poll_complete,
 		.sta_ps = mt76x02_sta_ps,
+		.sta_add = mt76x02_sta_add,
+		.sta_remove = mt76x02_sta_remove,
 	};
 	struct mt76x02_dev *dev;
 	struct mt76_dev *mdev;
