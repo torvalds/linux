@@ -2522,6 +2522,34 @@ static int spi_nor_map_cmp_erase_type(const void *l, const void *r)
 }
 
 /**
+ * spi_nor_sort_erase_mask() - sort erase mask
+ * @map:	the erase map of the SPI NOR
+ * @erase_mask:	the erase type mask to be sorted
+ *
+ * Replicate the sort done for the map's erase types in BFPT: sort the erase
+ * mask in ascending order with the smallest erase type size starting from
+ * BIT(0) in the sorted erase mask.
+ *
+ * Return: sorted erase mask.
+ */
+static u8 spi_nor_sort_erase_mask(struct spi_nor_erase_map *map, u8 erase_mask)
+{
+	struct spi_nor_erase_type *erase_type = map->erase_type;
+	int i;
+	u8 sorted_erase_mask = 0;
+
+	if (!erase_mask)
+		return 0;
+
+	/* Replicate the sort done for the map's erase types. */
+	for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++)
+		if (erase_type[i].size && erase_mask & BIT(erase_type[i].idx))
+			sorted_erase_mask |= BIT(i);
+
+	return sorted_erase_mask;
+}
+
+/**
  * spi_nor_regions_sort_erase_types() - sort erase types in each region
  * @map:	the erase map of the SPI NOR
  *
@@ -2536,19 +2564,13 @@ static int spi_nor_map_cmp_erase_type(const void *l, const void *r)
 static void spi_nor_regions_sort_erase_types(struct spi_nor_erase_map *map)
 {
 	struct spi_nor_erase_region *region = map->regions;
-	struct spi_nor_erase_type *erase_type = map->erase_type;
-	int i;
 	u8 region_erase_mask, sorted_erase_mask;
 
 	while (region) {
 		region_erase_mask = region->offset & SNOR_ERASE_TYPE_MASK;
 
-		/* Replicate the sort done for the map's erase types. */
-		sorted_erase_mask = 0;
-		for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++)
-			if (erase_type[i].size &&
-			    region_erase_mask & BIT(erase_type[i].idx))
-				sorted_erase_mask |= BIT(i);
+		sorted_erase_mask = spi_nor_sort_erase_mask(map,
+							    region_erase_mask);
 
 		/* Overwrite erase mask. */
 		region->offset = (region->offset & ~SNOR_ERASE_TYPE_MASK) |
@@ -2978,7 +3000,7 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 	u64 offset;
 	u32 region_count;
 	int i, j;
-	u8 erase_type;
+	u8 erase_type, uniform_erase_type;
 
 	region_count = SMPT_MAP_REGION_COUNT(*smpt);
 	/*
@@ -2991,7 +3013,7 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 		return -ENOMEM;
 	map->regions = region;
 
-	map->uniform_erase_type = 0xff;
+	uniform_erase_type = 0xff;
 	offset = 0;
 	/* Populate regions. */
 	for (i = 0; i < region_count; i++) {
@@ -3006,11 +3028,14 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 		 * Save the erase types that are supported in all regions and
 		 * can erase the entire flash memory.
 		 */
-		map->uniform_erase_type &= erase_type;
+		uniform_erase_type &= erase_type;
 
 		offset = (region[i].offset & ~SNOR_ERASE_FLAGS_MASK) +
 			 region[i].size;
 	}
+
+	map->uniform_erase_type = spi_nor_sort_erase_mask(map,
+							  uniform_erase_type);
 
 	spi_nor_region_mark_end(&region[i - 1]);
 
