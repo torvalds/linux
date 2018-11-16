@@ -74,7 +74,6 @@ msm-y := \
 	disp/dpu1/dpu_kms.o \
 	disp/dpu1/dpu_mdss.o \
 	disp/dpu1/dpu_plane.o \
-	disp/dpu1/dpu_power_handle.o \
 	disp/dpu1/dpu_rm.o \
 	disp/dpu1/dpu_vbif.o \
 	msm_atomic.o \
