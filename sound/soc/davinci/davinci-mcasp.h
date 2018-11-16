@@ -108,27 +108,18 @@
 
 /*
  * DAVINCI_MCASP_PFUNC_REG - Pin Function / GPIO Enable Register Bits
- */
-#define AXR(n)		(1<<n)
-#define PFUNC_AMUTE	BIT(25)
-#define ACLKX		BIT(26)
-#define AHCLKX		BIT(27)
-#define AFSX		BIT(28)
-#define ACLKR		BIT(29)
-#define AHCLKR		BIT(30)
-#define AFSR		BIT(31)
-
-/*
  * DAVINCI_MCASP_PDIR_REG - Pin Direction Register Bits
+ * DAVINCI_MCASP_PDOUT_REG - Pin output in GPIO mode
+ * DAVINCI_MCASP_PDSET_REG - Pin input in GPIO mode
  */
-#define AXR(n)		(1<<n)
-#define PDIR_AMUTE	BIT(25)
-#define ACLKX		BIT(26)
-#define AHCLKX		BIT(27)
-#define AFSX		BIT(28)
-#define ACLKR		BIT(29)
-#define AHCLKR		BIT(30)
-#define AFSR		BIT(31)
+#define PIN_BIT_AXR(n)	(n)
+#define PIN_BIT_AMUTE	25
+#define PIN_BIT_ACLKX	26
+#define PIN_BIT_AHCLKX	27
+#define PIN_BIT_AFSX	28
+#define PIN_BIT_ACLKR	29
+#define PIN_BIT_AHCLKR	30
+#define PIN_BIT_AFSR	31
 
 /*
  * DAVINCI_MCASP_TXDITCTL_REG - Transmit DIT Control Register Bits
