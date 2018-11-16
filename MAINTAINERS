@@ -3276,6 +3276,12 @@ F:	include/uapi/linux/caif/
 F:	include/net/caif/
 F:	net/caif/
 
+CAKE QDISC
+M:	Toke Høiland-Jørgensen <toke@toke.dk>
+L:	cake@lists.bufferbloat.net (moderated for non-subscribers)
+S:	Maintained
+F:	net/sched/sch_cake.c
+
 CALGARY x86-64 IOMMU
 M:	Muli Ben-Yehuda <mulix@mulix.org>
 M:	Jon Mason <jdmason@kudzu.us>
