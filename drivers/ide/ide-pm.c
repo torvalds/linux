@@ -201,7 +201,6 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 {
 	struct request_queue *q = drive->queue;
 	struct ide_pm_state *pm = ide_req(rq)->special;
-	unsigned long flags;
 
 	ide_complete_power_step(drive, rq);
 	if (pm->pm_step != IDE_PM_COMPLETED)
@@ -211,12 +210,10 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 	printk("%s: completing PM request, %s\n", drive->name,
 	       (ide_req(rq)->type == ATA_PRIV_PM_SUSPEND) ? "suspend" : "resume");
 #endif
-	spin_lock_irqsave(&q->queue_lock, flags);
 	if (ide_req(rq)->type == ATA_PRIV_PM_SUSPEND)
 		blk_mq_stop_hw_queues(q);
 	else
 		drive->dev_flags &= ~IDE_DFLAG_BLOCKED;
-	spin_unlock_irqrestore(&q->queue_lock, flags);
 
 	drive->hwif->rq = NULL;
 
