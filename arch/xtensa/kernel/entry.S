@@ -1846,20 +1846,28 @@ ENTRY(system_call)
 
 	/* regs->syscall = regs->areg[2] */
 
-	l32i	a3, a2, PT_AREG2
-	mov	a6, a2
-	s32i	a3, a2, PT_SYSCALL
-	call4	do_syscall_trace_enter
-	mov	a3, a6
+	l32i	a7, a2, PT_AREG2
+	s32i	a7, a2, PT_SYSCALL
 
+	GET_THREAD_INFO(a4, a1)
+	l32i	a3, a4, TI_FLAGS
+	movi	a4, _TIF_WORK_MASK
+	and	a3, a3, a4
+	beqz	a3, 1f
+
+	mov	a6, a2
+	call4	do_syscall_trace_enter
+	l32i	a7, a2, PT_SYSCALL
+
+1:
 	/* syscall = sys_call_table[syscall_nr] */
 
 	movi	a4, sys_call_table
 	movi	a5, __NR_syscalls
 	movi	a6, -ENOSYS
-	bgeu	a3, a5, 1f
+	bgeu	a7, a5, 1f
 
-	addx4	a4, a3, a4
+	addx4	a4, a7, a4
 	l32i	a4, a4, 0
 	movi	a5, sys_ni_syscall;
 	beq	a4, a5, 1f
@@ -1881,6 +1889,10 @@ ENTRY(system_call)
 1:	/* regs->areg[2] = return_value */
 
 	s32i	a6, a2, PT_AREG2
+	bnez	a3, 1f
+	retw
+
+1:
 	mov	a6, a2
 	call4	do_syscall_trace_leave
 	retw

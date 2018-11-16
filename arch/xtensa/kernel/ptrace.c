@@ -487,13 +487,12 @@ long arch_ptrace(struct task_struct *child, long request,
 	return ret;
 }
 
-unsigned long do_syscall_trace_enter(struct pt_regs *regs)
+void do_syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
-		return NO_SYSCALL;
+		regs->syscall = NO_SYSCALL;
 
-	return regs->areg[2];
 }
 
 void do_syscall_trace_leave(struct pt_regs *regs)
