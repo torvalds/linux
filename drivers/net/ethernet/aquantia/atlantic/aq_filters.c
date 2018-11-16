@@ -136,7 +136,7 @@ aq_check_approve_fl2(struct aq_nic_s *aq_nic,
 	if (be16_to_cpu(fsp->m_ext.vlan_tci) == VLAN_PRIO_MASK &&
 	    fsp->m_u.ether_spec.h_proto == 0U) {
 		netdev_err(aq_nic->ndev,
-			   "ethtool: proto (ether_type) parameter must be specfied");
+			   "ethtool: proto (ether_type) parameter must be specified");
 		return -EINVAL;
 	}
 
