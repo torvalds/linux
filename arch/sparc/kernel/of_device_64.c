@@ -413,7 +413,7 @@ static void __init build_device_resources(struct platform_device *op,
 			r->end = result + size - 1;
 			r->flags = flags;
 		}
-		r->name = op->dev.of_node->name;
+		r->name = op->dev.of_node->full_name;
 	}
 }
 
