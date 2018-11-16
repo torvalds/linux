@@ -22,7 +22,6 @@
 config BATMAN_ADV
 	tristate "B.A.T.M.A.N. Advanced Meshing Protocol"
 	depends on NET
-	select CRC16
 	select LIBCRC32C
 	help
           B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
@@ -48,6 +47,7 @@ config BATMAN_ADV_BATMAN_V
 config BATMAN_ADV_BLA
 	bool "Bridge Loop Avoidance"
 	depends on BATMAN_ADV && INET
+	select CRC16
 	default y
 	help
 	  This option enables BLA (Bridge Loop Avoidance), a mechanism
@@ -82,6 +82,7 @@ config BATMAN_ADV_NC
 config BATMAN_ADV_MCAST
 	bool "Multicast optimisation"
 	depends on BATMAN_ADV && INET && !(BRIDGE=m && BATMAN_ADV=y)
+	default y
 	help
 	  This option enables the multicast optimisation which aims to
 	  reduce the air overhead while improving the reliability of
@@ -100,12 +101,13 @@ config BATMAN_ADV_DEBUGFS
 
 config BATMAN_ADV_DEBUG
 	bool "B.A.T.M.A.N. debugging"
-	depends on BATMAN_ADV_DEBUGFS
+	depends on BATMAN_ADV
 	help
 	  This is an option for use by developers; most people should
 	  say N here. This enables compilation of support for
-	  outputting debugging information to the kernel log. The
-	  output is controlled via the module parameter debug.
+	  outputting debugging information to the debugfs log or tracing
+	  buffer. The output is controlled via the batadv netdev specific
+	  log_level setting.
 
 config BATMAN_ADV_TRACING
 	bool "B.A.T.M.A.N. tracing support"
