@@ -2994,8 +2994,10 @@ int amdgpu_dm_connector_atomic_set_property(struct drm_connector *connector,
 			rmx_type = RMX_FULL;
 			break;
 		case DRM_MODE_SCALE_NONE:
-		default:
 			rmx_type = RMX_OFF;
+			break;
+		default:
+			rmx_type = RMX_ASPECT;
 			break;
 		}
 
@@ -3101,7 +3103,7 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 
 	if (state) {
-		state->scaling = RMX_OFF;
+		state->scaling = RMX_ASPECT;
 		state->underscan_enable = false;
 		state->underscan_hborder = 0;
 		state->underscan_vborder = 0;
