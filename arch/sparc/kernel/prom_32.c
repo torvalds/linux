@@ -60,6 +60,7 @@ void * __init prom_early_alloc(unsigned long size)
  */
 static void __init sparc32_path_component(struct device_node *dp, char *tmp_buf)
 {
+	const char *name = of_get_property(dp, "name", NULL);
 	struct linux_prom_registers *regs;
 	struct property *rprop;
 
@@ -69,13 +70,14 @@ static void __init sparc32_path_component(struct device_node *dp, char *tmp_buf)
 
 	regs = rprop->value;
 	sprintf(tmp_buf, "%s@%x,%x",
-		dp->name,
+		name,
 		regs->which_io, regs->phys_addr);
 }
 
 /* "name@slot,offset"  */
 static void __init sbus_path_component(struct device_node *dp, char *tmp_buf)
 {
+	const char *name = of_get_property(dp, "name", NULL);
 	struct linux_prom_registers *regs;
 	struct property *prop;
 
@@ -85,7 +87,7 @@ static void __init sbus_path_component(struct device_node *dp, char *tmp_buf)
 
 	regs = prop->value;
 	sprintf(tmp_buf, "%s@%x,%x",
-		dp->name,
+		name,
 		regs->which_io,
 		regs->phys_addr);
 }
@@ -93,6 +95,7 @@ static void __init sbus_path_component(struct device_node *dp, char *tmp_buf)
 /* "name@devnum[,func]" */
 static void __init pci_path_component(struct device_node *dp, char *tmp_buf)
 {
+	const char *name = of_get_property(dp, "name", NULL);
 	struct linux_prom_pci_registers *regs;
 	struct property *prop;
 	unsigned int devfn;
@@ -105,12 +108,12 @@ static void __init pci_path_component(struct device_node *dp, char *tmp_buf)
 	devfn = (regs->phys_hi >> 8) & 0xff;
 	if (devfn & 0x07) {
 		sprintf(tmp_buf, "%s@%x,%x",
-			dp->name,
+			name,
 			devfn >> 3,
 			devfn & 0x07);
 	} else {
 		sprintf(tmp_buf, "%s@%x",
-			dp->name,
+			name,
 			devfn >> 3);
 	}
 }
@@ -118,6 +121,7 @@ static void __init pci_path_component(struct device_node *dp, char *tmp_buf)
 /* "name@addrhi,addrlo" */
 static void __init ebus_path_component(struct device_node *dp, char *tmp_buf)
 {
+	const char *name = of_get_property(dp, "name", NULL);
 	struct linux_prom_registers *regs;
 	struct property *prop;
 
@@ -128,13 +132,14 @@ static void __init ebus_path_component(struct device_node *dp, char *tmp_buf)
 	regs = prop->value;
 
 	sprintf(tmp_buf, "%s@%x,%x",
-		dp->name,
+		name,
 		regs->which_io, regs->phys_addr);
 }
 
 /* "name:vendor:device@irq,addrlo" */
 static void __init ambapp_path_component(struct device_node *dp, char *tmp_buf)
 {
+	const char *name = of_get_property(dp, "name", NULL);
 	struct amba_prom_registers *regs;
 	unsigned int *intr, *device, *vendor, reg0;
 	struct property *prop;
@@ -168,7 +173,7 @@ static void __init ambapp_path_component(struct device_node *dp, char *tmp_buf)
 	device = prop->value;
 
 	sprintf(tmp_buf, "%s:%d:%d@%x,%x",
-		dp->name, *vendor, *device,
+		name, *vendor, *device,
 		*intr, reg0);
 }
 
@@ -196,12 +201,13 @@ static void __init __build_path_component(struct device_node *dp, char *tmp_buf)
 
 char * __init build_path_component(struct device_node *dp)
 {
+	const char *name = of_get_property(dp, "name", NULL);
 	char tmp_buf[64], *n;
 
 	tmp_buf[0] = '\0';
 	__build_path_component(dp, tmp_buf);
 	if (tmp_buf[0] == '\0')
-		strcpy(tmp_buf, dp->name);
+		strcpy(tmp_buf, name);
 
 	n = prom_early_alloc(strlen(tmp_buf) + 1);
 	strcpy(n, tmp_buf);
