@@ -232,20 +232,12 @@ static int btext_initialize(struct device_node *np)
 
 int __init btext_find_display(int allow_nonstdout)
 {
-	const char *name;
-	struct device_node *np = NULL; 
+	struct device_node *np = of_stdout;
 	int rc = -ENODEV;
 
-	name = of_get_property(of_chosen, "linux,stdout-path", NULL);
-	if (name != NULL) {
-		np = of_find_node_by_path(name);
-		if (np != NULL) {
-			if (strcmp(np->type, "display") != 0) {
-				printk("boot stdout isn't a display !\n");
-				of_node_put(np);
-				np = NULL;
-			}
-		}
+	if (!of_node_is_type(np, "display")) {
+		printk("boot stdout isn't a display !\n");
+		np = NULL;
 	}
 	if (np)
 		rc = btext_initialize(np);
