@@ -842,7 +842,8 @@ static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 	return &cstate->base;
 }
 
-static void dpu_crtc_disable(struct drm_crtc *crtc)
+static void dpu_crtc_disable(struct drm_crtc *crtc,
+			     struct drm_crtc_state *old_crtc_state)
 {
 	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *cstate;
@@ -1434,7 +1435,7 @@ static const struct drm_crtc_funcs dpu_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs dpu_crtc_helper_funcs = {
-	.disable = dpu_crtc_disable,
+	.atomic_disable = dpu_crtc_disable,
 	.atomic_enable = dpu_crtc_enable,
 	.atomic_check = dpu_crtc_atomic_check,
 	.atomic_begin = dpu_crtc_atomic_begin,
