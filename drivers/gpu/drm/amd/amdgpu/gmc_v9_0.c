@@ -338,9 +338,12 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
 		struct amdgpu_vmhub *hub = &adev->vmhub[i];
 		u32 tmp = gmc_v9_0_get_invalidate_req(vmid, flush_type);
 
-		if (i == AMDGPU_GFXHUB && !adev->in_gpu_reset &&
-		    adev->gfx.kiq.ring.sched.ready &&
-		    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev))) {
+		/* This is necessary for a HW workaround under SRIOV as well
+		 * as GFXOFF under bare metal
+		 */
+		if (adev->gfx.kiq.ring.sched.ready &&
+		    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
+		    !adev->in_gpu_reset) {
 			uint32_t req = hub->vm_inv_eng0_req + eng;
 			uint32_t ack = hub->vm_inv_eng0_ack + eng;
 
