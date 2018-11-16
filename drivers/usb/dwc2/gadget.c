@@ -4291,7 +4291,7 @@ static int dwc2_hsotg_udc_start(struct usb_gadget *gadget,
 			goto err;
 	}
 
-	if (hsotg->dr_mode == USB_DR_MODE_OTG) {
+	if (hsotg->dr_mode == USB_DR_MODE_OTG && dwc2_is_device_mode(hsotg)) {
 		struct platform_device *pdev = to_platform_device(hsotg->dev);
 
 		if (hsotg->uphy) {
@@ -4367,7 +4367,7 @@ static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
 		dwc2_lowlevel_hw_disable(hsotg);
 
-	if (hsotg->dr_mode == USB_DR_MODE_OTG) {
+	if (hsotg->dr_mode == USB_DR_MODE_OTG && dwc2_is_device_mode(hsotg)) {
 		struct platform_device *pdev = to_platform_device(hsotg->dev);
 
 		if (hsotg->uphy) {
