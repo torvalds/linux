@@ -550,8 +550,10 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 		spin_lock_irqsave(&nc->lock, flags);
 		nc->state = NCSI_CHANNEL_INACTIVE;
 		spin_unlock_irqrestore(&nc->lock, flags);
-		ncsi_process_next_channel(ndp);
-
+		if (ndp->flags & NCSI_DEV_RESET)
+			ncsi_reset_dev(nd);
+		else
+			ncsi_process_next_channel(ndp);
 		break;
 	default:
 		netdev_warn(nd->dev, "Wrong NCSI state 0x%x in suspend\n",
@@ -898,6 +900,16 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		netdev_dbg(ndp->ndev.dev, "NCSI: channel %u config done\n",
 			   nc->id);
 		spin_lock_irqsave(&nc->lock, flags);
+		nc->state = NCSI_CHANNEL_ACTIVE;
+
+		if (ndp->flags & NCSI_DEV_RESET) {
+			/* A reset event happened during config, start it now */
+			nc->reconfigure_needed = false;
+			spin_unlock_irqrestore(&nc->lock, flags);
+			ncsi_reset_dev(nd);
+			break;
+		}
+
 		if (nc->reconfigure_needed) {
 			/* This channel's configuration has been updated
 			 * part-way during the config state - start the
@@ -916,7 +928,6 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 			break;
 		}
 
-		nc->state = NCSI_CHANNEL_ACTIVE;
 		if (nc->modes[NCSI_MODE_LINK].data[2] & 0x1) {
 			hot_nc = nc;
 		} else {
@@ -1554,7 +1565,7 @@ int ncsi_start_dev(struct ncsi_dev *nd)
 		return 0;
 	}
 
-	return ncsi_choose_active_channel(ndp);
+	return ncsi_reset_dev(nd);
 }
 EXPORT_SYMBOL_GPL(ncsi_start_dev);
 
@@ -1567,7 +1578,10 @@ void ncsi_stop_dev(struct ncsi_dev *nd)
 	int old_state;
 	unsigned long flags;
 
-	/* Stop the channel monitor and reset channel's state */
+	/* Stop the channel monitor on any active channels. Don't reset the
+	 * channel state so we know which were active when ncsi_start_dev()
+	 * is next called.
+	 */
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
 		NCSI_FOR_EACH_CHANNEL(np, nc) {
 			ncsi_stop_channel_monitor(nc);
@@ -1575,7 +1589,6 @@ void ncsi_stop_dev(struct ncsi_dev *nd)
 			spin_lock_irqsave(&nc->lock, flags);
 			chained = !list_empty(&nc->link);
 			old_state = nc->state;
-			nc->state = NCSI_CHANNEL_INACTIVE;
 			spin_unlock_irqrestore(&nc->lock, flags);
 
 			WARN_ON_ONCE(chained ||
@@ -1587,6 +1600,92 @@ void ncsi_stop_dev(struct ncsi_dev *nd)
 	ncsi_report_link(ndp, true);
 }
 EXPORT_SYMBOL_GPL(ncsi_stop_dev);
+
+int ncsi_reset_dev(struct ncsi_dev *nd)
+{
+	struct ncsi_dev_priv *ndp = TO_NCSI_DEV_PRIV(nd);
+	struct ncsi_channel *nc, *active, *tmp;
+	struct ncsi_package *np;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ndp->lock, flags);
+
+	if (!(ndp->flags & NCSI_DEV_RESET)) {
+		/* Haven't been called yet, check states */
+		switch (nd->state & ncsi_dev_state_major) {
+		case ncsi_dev_state_registered:
+		case ncsi_dev_state_probe:
+			/* Not even probed yet - do nothing */
+			spin_unlock_irqrestore(&ndp->lock, flags);
+			return 0;
+		case ncsi_dev_state_suspend:
+		case ncsi_dev_state_config:
+			/* Wait for the channel to finish its suspend/config
+			 * operation; once it finishes it will check for
+			 * NCSI_DEV_RESET and reset the state.
+			 */
+			ndp->flags |= NCSI_DEV_RESET;
+			spin_unlock_irqrestore(&ndp->lock, flags);
+			return 0;
+		}
+	} else {
+		switch (nd->state) {
+		case ncsi_dev_state_suspend_done:
+		case ncsi_dev_state_config_done:
+		case ncsi_dev_state_functional:
+			/* Ok */
+			break;
+		default:
+			/* Current reset operation happening */
+			spin_unlock_irqrestore(&ndp->lock, flags);
+			return 0;
+		}
+	}
+
+	if (!list_empty(&ndp->channel_queue)) {
+		/* Clear any channel queue we may have interrupted */
+		list_for_each_entry_safe(nc, tmp, &ndp->channel_queue, link)
+			list_del_init(&nc->link);
+	}
+	spin_unlock_irqrestore(&ndp->lock, flags);
+
+	active = NULL;
+	NCSI_FOR_EACH_PACKAGE(ndp, np) {
+		NCSI_FOR_EACH_CHANNEL(np, nc) {
+			spin_lock_irqsave(&nc->lock, flags);
+
+			if (nc->state == NCSI_CHANNEL_ACTIVE) {
+				active = nc;
+				nc->state = NCSI_CHANNEL_INVISIBLE;
+				spin_unlock_irqrestore(&nc->lock, flags);
+				ncsi_stop_channel_monitor(nc);
+				break;
+			}
+
+			spin_unlock_irqrestore(&nc->lock, flags);
+		}
+		if (active)
+			break;
+	}
+
+	if (!active) {
+		/* Done */
+		spin_lock_irqsave(&ndp->lock, flags);
+		ndp->flags &= ~NCSI_DEV_RESET;
+		spin_unlock_irqrestore(&ndp->lock, flags);
+		return ncsi_choose_active_channel(ndp);
+	}
+
+	spin_lock_irqsave(&ndp->lock, flags);
+	ndp->flags |= NCSI_DEV_RESET;
+	ndp->active_channel = active;
+	ndp->active_package = active->package;
+	spin_unlock_irqrestore(&ndp->lock, flags);
+
+	nd->state = ncsi_dev_state_suspend;
+	schedule_work(&ndp->work);
+	return 0;
+}
 
 void ncsi_unregister_dev(struct ncsi_dev *nd)
 {

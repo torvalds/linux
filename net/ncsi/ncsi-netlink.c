@@ -330,9 +330,9 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
 		    package_id, channel_id,
 		    channel_id == NCSI_RESERVED_CHANNEL ? " (any)" : "");
 
-	/* Bounce the NCSI channel to set changes */
-	ncsi_stop_dev(&ndp->ndev);
-	ncsi_start_dev(&ndp->ndev);
+	/* Update channel configuration */
+	if (!(ndp->flags & NCSI_DEV_RESET))
+		ncsi_reset_dev(&ndp->ndev);
 
 	return 0;
 }
@@ -360,9 +360,9 @@ static int ncsi_clear_interface_nl(struct sk_buff *msg, struct genl_info *info)
 	spin_unlock_irqrestore(&ndp->lock, flags);
 	netdev_info(ndp->ndev.dev, "NCSI: Cleared preferred package/channel\n");
 
-	/* Bounce the NCSI channel to set changes */
-	ncsi_stop_dev(&ndp->ndev);
-	ncsi_start_dev(&ndp->ndev);
+	/* Update channel configuration */
+	if (!(ndp->flags & NCSI_DEV_RESET))
+		ncsi_reset_dev(&ndp->ndev);
 
 	return 0;
 }
