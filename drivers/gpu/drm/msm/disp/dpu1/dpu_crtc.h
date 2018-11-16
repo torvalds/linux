@@ -271,6 +271,12 @@ static inline int dpu_crtc_frame_pending(struct drm_crtc *crtc)
 int dpu_crtc_vblank(struct drm_crtc *crtc, bool en);
 
 /**
+ * dpu_crtc_vblank_callback - called on vblank irq, issues completion events
+ * @crtc: Pointer to drm crtc object
+ */
+void dpu_crtc_vblank_callback(struct drm_crtc *crtc);
+
+/**
  * dpu_crtc_commit_kickoff - trigger kickoff of the commit for this crtc
  * @crtc: Pointer to drm crtc object
  * @async: true if the commit is asynchronous, false otherwise

@@ -142,9 +142,11 @@ enum dpu_enc_rc_states {
  * @intfs_swapped	Whether or not the phys_enc interfaces have been swapped
  *			for partial update right-only cases, such as pingpong
  *			split where virtual pingpong does not generate IRQs
- * @crtc_vblank_cb:	Callback into the upper layer / CRTC for
- *			notification of the VBLANK
- * @crtc_vblank_cb_data:	Data from upper layer for VBLANK notification
+ * @crtc:		Pointer to the currently assigned crtc. Normally you
+ *			would use crtc->state->encoder_mask to determine the
+ *			link between encoder/crtc. However in this case we need
+ *			to track crtc in the disable() hook which is called
+ *			_after_ encoder_mask is cleared.
  * @crtc_kickoff_cb:		Callback into CRTC that will flush & start
  *				all CTL paths
  * @crtc_kickoff_cb_data:	Opaque user data given to crtc_kickoff_cb
@@ -186,8 +188,7 @@ struct dpu_encoder_virt {
 
 	bool intfs_swapped;
 
-	void (*crtc_vblank_cb)(void *);
-	void *crtc_vblank_cb_data;
+	struct drm_crtc *crtc;
 
 	struct dentry *debugfs_root;
 	struct mutex enc_lock;
@@ -1241,8 +1242,8 @@ static void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 
 	spin_lock_irqsave(&dpu_enc->enc_spinlock, lock_flags);
-	if (dpu_enc->crtc_vblank_cb)
-		dpu_enc->crtc_vblank_cb(dpu_enc->crtc_vblank_cb_data);
+	if (dpu_enc->crtc)
+		dpu_crtc_vblank_callback(dpu_enc->crtc);
 	spin_unlock_irqrestore(&dpu_enc->enc_spinlock, lock_flags);
 
 	atomic_inc(&phy_enc->vsync_cnt);
@@ -1262,15 +1263,14 @@ static void dpu_encoder_underrun_callback(struct drm_encoder *drm_enc,
 	DPU_ATRACE_END("encoder_underrun_callback");
 }
 
-void dpu_encoder_register_vblank_callback(struct drm_encoder *drm_enc,
-		void (*vbl_cb)(void *), void *vbl_data)
+void dpu_encoder_assign_crtc(struct drm_encoder *drm_enc, struct drm_crtc *crtc)
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
 	unsigned long lock_flags;
 	bool enable;
 	int i;
 
-	enable = vbl_cb ? true : false;
+	enable = crtc ? true : false;
 
 	if (!drm_enc) {
 		DPU_ERROR("invalid encoder\n");
@@ -1279,8 +1279,9 @@ void dpu_encoder_register_vblank_callback(struct drm_encoder *drm_enc,
 	trace_dpu_enc_vblank_cb(DRMID(drm_enc), enable);
 
 	spin_lock_irqsave(&dpu_enc->enc_spinlock, lock_flags);
-	dpu_enc->crtc_vblank_cb = vbl_cb;
-	dpu_enc->crtc_vblank_cb_data = vbl_data;
+	/* crtc should always be cleared before re-assigning */
+	WARN_ON(crtc && dpu_enc->crtc);
+	dpu_enc->crtc = crtc;
 	spin_unlock_irqrestore(&dpu_enc->enc_spinlock, lock_flags);
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {

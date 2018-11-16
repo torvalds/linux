@@ -293,9 +293,8 @@ enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc)
 	return INTF_MODE_NONE;
 }
 
-static void dpu_crtc_vblank_cb(void *data)
+void dpu_crtc_vblank_callback(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = (struct drm_crtc *)data;
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 
 	/* keep statistics on vblank callback - with auto reset via debugfs */
@@ -786,8 +785,7 @@ static void _dpu_crtc_vblank_enable_no_lock(
 						     DRMID(enc), enable,
 						     dpu_crtc);
 
-			dpu_encoder_register_vblank_callback(enc,
-					dpu_crtc_vblank_cb, (void *)crtc);
+			dpu_encoder_assign_crtc(enc, crtc);
 		}
 	} else {
 		list_for_each_entry(enc, &dev->mode_config.encoder_list, head) {
@@ -798,7 +796,7 @@ static void _dpu_crtc_vblank_enable_no_lock(
 						     DRMID(enc), enable,
 						     dpu_crtc);
 
-			dpu_encoder_register_vblank_callback(enc, NULL, NULL);
+			dpu_encoder_assign_crtc(enc, NULL);
 		}
 	}
 }

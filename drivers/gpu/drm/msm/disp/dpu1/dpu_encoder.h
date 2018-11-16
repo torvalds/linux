@@ -55,14 +55,12 @@ void dpu_encoder_get_hw_resources(struct drm_encoder *encoder,
 				  struct dpu_encoder_hw_resources *hw_res);
 
 /**
- * dpu_encoder_register_vblank_callback - provide callback to encoder that
- *	will be called on the next vblank.
+ * dpu_encoder_assign_crtc - Link the encoder to the crtc it's assigned to
  * @encoder:	encoder pointer
- * @cb:		callback pointer, provide NULL to deregister and disable IRQs
- * @data:	user data provided to callback
+ * @crtc:	crtc pointer
  */
-void dpu_encoder_register_vblank_callback(struct drm_encoder *encoder,
-		void (*cb)(void *), void *data);
+void dpu_encoder_assign_crtc(struct drm_encoder *encoder,
+			     struct drm_crtc *crtc);
 
 /**
  * dpu_encoder_register_frame_event_callback - provide callback to encoder that
