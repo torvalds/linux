@@ -35,59 +35,11 @@ static void dpu_power_event_trigger_locked(struct dpu_power_handle *phandle,
 	}
 }
 
-struct dpu_power_client *dpu_power_client_create(
-	struct dpu_power_handle *phandle, char *client_name)
-{
-	struct dpu_power_client *client;
-	static u32 id;
-
-	if (!client_name || !phandle) {
-		pr_err("client name is null or invalid power data\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	client = kzalloc(sizeof(struct dpu_power_client), GFP_KERNEL);
-	if (!client)
-		return ERR_PTR(-ENOMEM);
-
-	mutex_lock(&phandle->phandle_lock);
-	strlcpy(client->name, client_name, MAX_CLIENT_NAME_LEN);
-	client->usecase_ndx = VOTE_INDEX_DISABLE;
-	client->id = id;
-	client->active = true;
-	pr_debug("client %s created:%pK id :%d\n", client_name,
-		client, id);
-	id++;
-	list_add(&client->list, &phandle->power_client_clist);
-	mutex_unlock(&phandle->phandle_lock);
-
-	return client;
-}
-
-void dpu_power_client_destroy(struct dpu_power_handle *phandle,
-	struct dpu_power_client *client)
-{
-	if (!client  || !phandle) {
-		pr_err("reg bus vote: invalid client handle\n");
-	} else if (!client->active) {
-		pr_err("dpu power deinit already done\n");
-		kfree(client);
-	} else {
-		pr_debug("bus vote client %s destroyed:%pK id:%u\n",
-			client->name, client, client->id);
-		mutex_lock(&phandle->phandle_lock);
-		list_del_init(&client->list);
-		mutex_unlock(&phandle->phandle_lock);
-		kfree(client);
-	}
-}
-
 void dpu_power_resource_init(struct platform_device *pdev,
 	struct dpu_power_handle *phandle)
 {
 	phandle->dev = &pdev->dev;
 
-	INIT_LIST_HEAD(&phandle->power_client_clist);
 	INIT_LIST_HEAD(&phandle->event_list);
 
 	mutex_init(&phandle->phandle_lock);
@@ -96,7 +48,6 @@ void dpu_power_resource_init(struct platform_device *pdev,
 void dpu_power_resource_deinit(struct platform_device *pdev,
 	struct dpu_power_handle *phandle)
 {
-	struct dpu_power_client *curr_client, *next_client;
 	struct dpu_power_event *curr_event, *next_event;
 
 	if (!phandle || !pdev) {
@@ -105,15 +56,6 @@ void dpu_power_resource_deinit(struct platform_device *pdev,
 	}
 
 	mutex_lock(&phandle->phandle_lock);
-	list_for_each_entry_safe(curr_client, next_client,
-			&phandle->power_client_clist, list) {
-		pr_err("client:%s-%d still registered with refcount:%d\n",
-				curr_client->name, curr_client->id,
-				curr_client->refcount);
-		curr_client->active = false;
-		list_del(&curr_client->list);
-	}
-
 	list_for_each_entry_safe(curr_event, next_event,
 			&phandle->event_list, list) {
 		pr_err("event:%d, client:%s still registered\n",
@@ -125,53 +67,21 @@ void dpu_power_resource_deinit(struct platform_device *pdev,
 	mutex_unlock(&phandle->phandle_lock);
 }
 
-int dpu_power_resource_enable(struct dpu_power_handle *phandle,
-	struct dpu_power_client *pclient, bool enable)
+int dpu_power_resource_enable(struct dpu_power_handle *phandle, bool enable)
 {
-	bool changed = false;
-	u32 max_usecase_ndx = VOTE_INDEX_DISABLE, prev_usecase_ndx;
-	struct dpu_power_client *client;
 	u32 event_type;
 
-	if (!phandle || !pclient) {
+	if (!phandle) {
 		pr_err("invalid input argument\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&phandle->phandle_lock);
-	if (enable)
-		pclient->refcount++;
-	else if (pclient->refcount)
-		pclient->refcount--;
-
-	if (pclient->refcount)
-		pclient->usecase_ndx = VOTE_INDEX_LOW;
-	else
-		pclient->usecase_ndx = VOTE_INDEX_DISABLE;
-
-	list_for_each_entry(client, &phandle->power_client_clist, list) {
-		if (client->usecase_ndx < VOTE_INDEX_MAX &&
-		    client->usecase_ndx > max_usecase_ndx)
-			max_usecase_ndx = client->usecase_ndx;
-	}
-
-	if (phandle->current_usecase_ndx != max_usecase_ndx) {
-		changed = true;
-		prev_usecase_ndx = phandle->current_usecase_ndx;
-		phandle->current_usecase_ndx = max_usecase_ndx;
-	}
-
-	pr_debug("%pS: changed=%d current idx=%d request client %s id:%u enable:%d refcount:%d\n",
-		__builtin_return_address(0), changed, max_usecase_ndx,
-		pclient->name, pclient->id, enable, pclient->refcount);
-
-	if (!changed)
-		goto end;
 
 	event_type = enable ? DPU_POWER_EVENT_ENABLE : DPU_POWER_EVENT_DISABLE;
 
 	dpu_power_event_trigger_locked(phandle,	event_type);
-end:
+
 	mutex_unlock(&phandle->phandle_lock);
 	return 0;
 }

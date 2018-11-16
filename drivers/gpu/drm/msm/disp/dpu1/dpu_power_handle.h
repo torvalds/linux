@@ -28,30 +28,6 @@
 #define DPU_POWER_EVENT_ENABLE	BIT(1)
 
 /**
- * mdss_bus_vote_type: register bus vote type
- * VOTE_INDEX_DISABLE: removes the client vote
- * VOTE_INDEX_LOW: keeps the lowest vote for register bus
- * VOTE_INDEX_MAX: invalid
- */
-enum mdss_bus_vote_type {
-	VOTE_INDEX_DISABLE,
-	VOTE_INDEX_LOW,
-	VOTE_INDEX_MAX,
-};
-
-/**
- * enum dpu_power_handle_data_bus_client - type of axi bus clients
- * @DPU_POWER_HANDLE_DATA_BUS_CLIENT_RT: core real-time bus client
- * @DPU_POWER_HANDLE_DATA_BUS_CLIENT_NRT: core non-real-time bus client
- * @DPU_POWER_HANDLE_DATA_BUS_CLIENT_MAX: maximum number of bus client type
- */
-enum dpu_power_handle_data_bus_client {
-	DPU_POWER_HANDLE_DATA_BUS_CLIENT_RT,
-	DPU_POWER_HANDLE_DATA_BUS_CLIENT_NRT,
-	DPU_POWER_HANDLE_DATA_BUS_CLIENT_MAX
-};
-
-/**
  * enum DPU_POWER_HANDLE_DBUS_ID - data bus identifier
  * @DPU_POWER_HANDLE_DBUS_ID_MNOC: DPU/MNOC data bus
  * @DPU_POWER_HANDLE_DBUS_ID_LLCC: MNOC/LLCC data bus
@@ -62,31 +38,6 @@ enum DPU_POWER_HANDLE_DBUS_ID {
 	DPU_POWER_HANDLE_DBUS_ID_LLCC,
 	DPU_POWER_HANDLE_DBUS_ID_EBI,
 	DPU_POWER_HANDLE_DBUS_ID_MAX,
-};
-
-/**
- * struct dpu_power_client: stores the power client for dpu driver
- * @name:	name of the client
- * @usecase_ndx: current regs bus vote type
- * @refcount:	current refcount if multiple modules are using same
- *              same client for enable/disable. Power module will
- *              aggregate the refcount and vote accordingly for this
- *              client.
- * @id:		assigned during create. helps for debugging.
- * @list:	list to attach power handle master list
- * @ab:         arbitrated bandwidth for each bus client
- * @ib:         instantaneous bandwidth for each bus client
- * @active:	inidcates the state of dpu power handle
- */
-struct dpu_power_client {
-	char name[MAX_CLIENT_NAME_LEN];
-	short usecase_ndx;
-	short refcount;
-	u32 id;
-	struct list_head list;
-	u64 ab[DPU_POWER_HANDLE_DATA_BUS_CLIENT_MAX];
-	u64 ib[DPU_POWER_HANDLE_DATA_BUS_CLIENT_MAX];
-	bool active;
 };
 
 /*
@@ -109,14 +60,12 @@ struct dpu_power_event {
 
 /**
  * struct dpu_power_handle: power handle main struct
- * @client_clist: master list to store all clients
  * @phandle_lock: lock to synchronize the enable/disable
  * @dev: pointer to device structure
  * @usecase_ndx: current usecase index
  * @event_list: current power handle event list
  */
 struct dpu_power_handle {
-	struct list_head power_client_clist;
 	struct mutex phandle_lock;
 	struct device *dev;
 	u32 current_usecase_ndx;
@@ -142,46 +91,13 @@ void dpu_power_resource_deinit(struct platform_device *pdev,
 	struct dpu_power_handle *pdata);
 
 /**
- * dpu_power_client_create() - create the client on power handle
- * @pdata:  power handle containing the resources
- * @client_name: new client name for registration
- *
- * Return: error code.
- */
-struct dpu_power_client *dpu_power_client_create(struct dpu_power_handle *pdata,
-	char *client_name);
-
-/**
- * dpu_power_client_destroy() - destroy the client on power handle
- * @pdata:  power handle containing the resources
- * @client_name: new client name for registration
- *
- * Return: none
- */
-void dpu_power_client_destroy(struct dpu_power_handle *phandle,
-	struct dpu_power_client *client);
-
-/**
  * dpu_power_resource_enable() - enable/disable the power resources
  * @pdata:  power handle containing the resources
- * @client: client information to enable/disable its vote
  * @enable: boolean request for enable/disable
  *
  * Return: error code.
  */
-int dpu_power_resource_enable(struct dpu_power_handle *pdata,
-	struct dpu_power_client *pclient, bool enable);
-
-/**
- * dpu_power_data_bus_bandwidth_ctrl() - control data bus bandwidth enable
- * @phandle:  power handle containing the resources
- * @client: client information to bandwidth control
- * @enable: true to enable bandwidth for data base
- *
- * Return: none
- */
-void dpu_power_data_bus_bandwidth_ctrl(struct dpu_power_handle *phandle,
-		struct dpu_power_client *pclient, int enable);
+int dpu_power_resource_enable(struct dpu_power_handle *pdata, bool enable);
 
 /**
  * dpu_power_handle_register_event - register a callback function for an event.

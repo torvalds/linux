@@ -677,11 +677,6 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 		dpu_hw_catalog_deinit(dpu_kms->catalog);
 	dpu_kms->catalog = NULL;
 
-	if (dpu_kms->core_client)
-		dpu_power_client_destroy(&dpu_kms->phandle,
-			dpu_kms->core_client);
-	dpu_kms->core_client = NULL;
-
 	if (dpu_kms->vbif[VBIF_NRT])
 		devm_iounmap(&dpu_kms->pdev->dev, dpu_kms->vbif[VBIF_NRT]);
 	dpu_kms->vbif[VBIF_NRT] = NULL;
@@ -917,17 +912,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		dpu_kms->reg_dma_len = dpu_iomap_size(dpu_kms->pdev, "regdma");
 	}
 
-	dpu_kms->core_client = dpu_power_client_create(&dpu_kms->phandle,
-					"core");
-	if (IS_ERR_OR_NULL(dpu_kms->core_client)) {
-		rc = PTR_ERR(dpu_kms->core_client);
-		if (!dpu_kms->core_client)
-			rc = -EINVAL;
-		DPU_ERROR("dpu power client create failed: %d\n", rc);
-		dpu_kms->core_client = NULL;
-		goto error;
-	}
-
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 
 	_dpu_kms_core_hw_rev_init(dpu_kms);
@@ -1161,8 +1145,7 @@ static int __maybe_unused dpu_runtime_suspend(struct device *dev)
 		return rc;
 	}
 
-	rc = dpu_power_resource_enable(&dpu_kms->phandle,
-			dpu_kms->core_client, false);
+	rc = dpu_power_resource_enable(&dpu_kms->phandle, false);
 	if (rc)
 		DPU_ERROR("resource disable failed: %d\n", rc);
 
@@ -1193,8 +1176,7 @@ static int __maybe_unused dpu_runtime_resume(struct device *dev)
 		return rc;
 	}
 
-	rc = dpu_power_resource_enable(&dpu_kms->phandle,
-			dpu_kms->core_client, true);
+	rc = dpu_power_resource_enable(&dpu_kms->phandle, true);
 	if (rc)
 		DPU_ERROR("resource enable failed: %d\n", rc);
 
