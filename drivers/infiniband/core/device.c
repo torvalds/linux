@@ -145,7 +145,8 @@ static struct ib_device *__ib_device_get_by_index(u32 index)
 }
 
 /*
- * Caller is responsible to return refrerence count by calling put_device()
+ * Caller must perform ib_device_put() to return the device reference count
+ * when ib_device_get_by_index() returns valid device pointer.
  */
 struct ib_device *ib_device_get_by_index(u32 index)
 {
@@ -153,11 +154,19 @@ struct ib_device *ib_device_get_by_index(u32 index)
 
 	down_read(&lists_rwsem);
 	device = __ib_device_get_by_index(index);
-	if (device)
-		get_device(&device->dev);
-
+	if (device) {
+		/* Do not return a device if unregistration has started. */
+		if (!refcount_inc_not_zero(&device->refcount))
+			device = NULL;
+	}
 	up_read(&lists_rwsem);
 	return device;
+}
+
+void ib_device_put(struct ib_device *device)
+{
+	if (refcount_dec_and_test(&device->refcount))
+		complete(&device->unreg_completion);
 }
 
 static struct ib_device *__ib_device_get_by_name(const char *name)
@@ -293,6 +302,8 @@ struct ib_device *ib_alloc_device(size_t size)
 	rwlock_init(&device->client_data_lock);
 	INIT_LIST_HEAD(&device->client_data_list);
 	INIT_LIST_HEAD(&device->port_list);
+	refcount_set(&device->refcount, 1);
+	init_completion(&device->unreg_completion);
 
 	return device;
 }
@@ -640,6 +651,13 @@ void ib_unregister_device(struct ib_device *device)
 {
 	struct ib_client_data *context, *tmp;
 	unsigned long flags;
+
+	/*
+	 * Wait for all netlink command callers to finish working on the
+	 * device.
+	 */
+	ib_device_put(device);
+	wait_for_completion(&device->unreg_completion);
 
 	mutex_lock(&device_mutex);
 
