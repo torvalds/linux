@@ -961,7 +961,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	}
 
 	rc = dpu_core_perf_init(&dpu_kms->perf, dev, dpu_kms->catalog,
-			&dpu_kms->phandle,
 			_dpu_kms_get_clk(dpu_kms, "core"));
 	if (rc) {
 		DPU_ERROR("failed to init perf %d\n", rc);

@@ -605,7 +605,6 @@ void dpu_core_perf_destroy(struct dpu_core_perf *perf)
 	dpu_core_perf_debugfs_destroy(perf);
 	perf->max_core_clk_rate = 0;
 	perf->core_clk = NULL;
-	perf->phandle = NULL;
 	perf->catalog = NULL;
 	perf->dev = NULL;
 }
@@ -613,12 +612,10 @@ void dpu_core_perf_destroy(struct dpu_core_perf *perf)
 int dpu_core_perf_init(struct dpu_core_perf *perf,
 		struct drm_device *dev,
 		struct dpu_mdss_cfg *catalog,
-		struct dpu_power_handle *phandle,
 		struct dss_clk *core_clk)
 {
 	perf->dev = dev;
 	perf->catalog = catalog;
-	perf->phandle = phandle;
 	perf->core_clk = core_clk;
 
 	perf->max_core_clk_rate = core_clk->max_rate;
