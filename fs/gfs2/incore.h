@@ -165,7 +165,6 @@ struct gfs2_bufdata {
 	u64 bd_blkno;
 
 	struct list_head bd_list;
-	const struct gfs2_log_operations *bd_ops;
 
 	struct gfs2_trans *bd_tr;
 	struct list_head bd_ail_st_list;
