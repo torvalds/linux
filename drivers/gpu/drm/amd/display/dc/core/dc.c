@@ -1220,6 +1220,12 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 		 */
 		update_flags->bits.bpp_change = 1;
 
+	if (u->plane_info->plane_size.grph.surface_pitch != u->surface->plane_size.grph.surface_pitch
+			|| u->plane_info->plane_size.video.luma_pitch != u->surface->plane_size.video.luma_pitch
+			|| u->plane_info->plane_size.video.chroma_pitch != u->surface->plane_size.video.chroma_pitch)
+		update_flags->bits.plane_size_change = 1;
+
+
 	if (memcmp(&u->plane_info->tiling_info, &u->surface->tiling_info,
 			sizeof(union dc_tiling_info)) != 0) {
 		update_flags->bits.swizzle_change = 1;

@@ -445,6 +445,7 @@ union surface_update_flags {
 		uint32_t coeff_reduction_change:1;
 		uint32_t output_tf_change:1;
 		uint32_t pixel_format_change:1;
+		uint32_t plane_size_change:1;
 
 		/* Full updates */
 		uint32_t new_plane:1;
