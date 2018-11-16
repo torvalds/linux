@@ -130,7 +130,7 @@ enum dpu_enc_rc_states {
  *	Virtual encoder defers as much as possible to the physical encoders.
  *	Virtual encoder registers itself with the DRM Framework as the encoder.
  * @base:		drm_encoder base class for registration with DRM
- * @enc_spin_lock:	Virtual-Encoder-Wide Spin Lock for IRQ purposes
+ * @enc_spinlock:	Virtual-Encoder-Wide Spin Lock for IRQ purposes
  * @bus_scaling_client:	Client handle to the bus scaling interface
  * @num_phys_encs:	Actual number of physical encoders contained.
  * @phys_encs:		Container of physical encoders managed.
