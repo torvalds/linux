@@ -1085,7 +1085,7 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 
 	spin_lock(&master->xferqueue.lock);
 	dw_i3c_master_end_xfer_locked(master, status);
-	if (status | INTR_TRANSFER_ERR_STAT)
+	if (status & INTR_TRANSFER_ERR_STAT)
 		writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
 	spin_unlock(&master->xferqueue.lock);
 
