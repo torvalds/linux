@@ -3380,7 +3380,7 @@ static int blk_mq_poll(struct request_queue *q, blk_qc_t cookie)
 
 		hctx->poll_invoked++;
 
-		ret = q->mq_ops->poll(hctx, -1U);
+		ret = q->mq_ops->poll(hctx);
 		if (ret > 0) {
 			hctx->poll_success++;
 			__set_current_state(TASK_RUNNING);
