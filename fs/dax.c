@@ -353,16 +353,27 @@ static struct page *dax_busy_page(void *entry)
 	return NULL;
 }
 
+/*
+ * dax_lock_mapping_entry - Lock the DAX entry corresponding to a page
+ * @page: The page whose entry we want to lock
+ *
+ * Context: Process context.
+ * Return: %true if the entry was locked or does not need to be locked.
+ */
 bool dax_lock_mapping_entry(struct page *page)
 {
 	XA_STATE(xas, NULL, 0);
 	void *entry;
+	bool locked;
 
+	/* Ensure page->mapping isn't freed while we look at it */
+	rcu_read_lock();
 	for (;;) {
 		struct address_space *mapping = READ_ONCE(page->mapping);
 
+		locked = false;
 		if (!dax_mapping(mapping))
-			return false;
+			break;
 
 		/*
 		 * In the device-dax case there's no need to lock, a
@@ -371,8 +382,9 @@ bool dax_lock_mapping_entry(struct page *page)
 		 * otherwise we would not have a valid pfn_to_page()
 		 * translation.
 		 */
+		locked = true;
 		if (S_ISCHR(mapping->host->i_mode))
-			return true;
+			break;
 
 		xas.xa = &mapping->i_pages;
 		xas_lock_irq(&xas);
@@ -383,14 +395,18 @@ bool dax_lock_mapping_entry(struct page *page)
 		xas_set(&xas, page->index);
 		entry = xas_load(&xas);
 		if (dax_is_locked(entry)) {
+			rcu_read_unlock();
 			entry = get_unlocked_entry(&xas);
 			xas_unlock_irq(&xas);
+			rcu_read_lock();
 			continue;
 		}
 		dax_lock_entry(&xas, entry);
 		xas_unlock_irq(&xas);
-		return true;
+		break;
 	}
+	rcu_read_unlock();
+	return locked;
 }
 
 void dax_unlock_mapping_entry(struct page *page)
