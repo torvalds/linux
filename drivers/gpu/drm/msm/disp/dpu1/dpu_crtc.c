@@ -284,9 +284,9 @@ enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc)
 		return INTF_MODE_NONE;
 	}
 
-	drm_for_each_encoder(encoder, crtc->dev)
-		if (encoder->crtc == crtc)
-			return dpu_encoder_get_intf_mode(encoder);
+	/* TODO: Returns the first INTF_MODE, could there be multiple values? */
+	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
+		return dpu_encoder_get_intf_mode(encoder);
 
 	return INTF_MODE_NONE;
 }
@@ -562,13 +562,9 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		if (encoder->crtc != crtc)
-			continue;
-
-		/* encoder will trigger pending mask now */
+	/* encoder will trigger pending mask now */
+	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
 		dpu_encoder_trigger_kickoff_pending(encoder);
-	}
 
 	/*
 	 * If no mixers have been allocated in dpu_crtc_atomic_check(),
@@ -715,7 +711,6 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
 {
 	struct drm_encoder *encoder;
-	struct drm_device *dev = crtc->dev;
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct dpu_kms *dpu_kms = _dpu_crtc_get_kms(crtc);
 	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
@@ -731,16 +726,13 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
 
 	DPU_ATRACE_BEGIN("crtc_commit");
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+	/*
+	 * Encoder will flush/start now, unless it has a tx pending. If so, it
+	 * may delay and flush at an irq event (e.g. ppdone)
+	 */
+	drm_for_each_encoder_mask(encoder, crtc->dev,
+				  crtc->state->encoder_mask) {
 		struct dpu_encoder_kickoff_params params = { 0 };
-
-		if (encoder->crtc != crtc)
-			continue;
-
-		/*
-		 * Encoder will flush/start now, unless it has a tx pending.
-		 * If so, it may delay and flush at an irq event (e.g. ppdone)
-		 */
 		dpu_encoder_prepare_for_kickoff(encoder, &params, async);
 	}
 
@@ -768,12 +760,8 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
 
 	dpu_vbif_clear_errors(dpu_kms);
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		if (encoder->crtc != crtc)
-			continue;
-
+	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
 		dpu_encoder_kickoff(encoder, async);
-	}
 
 end:
 	if (!async)
@@ -910,11 +898,8 @@ static void dpu_crtc_disable(struct drm_crtc *crtc)
 
 	dpu_core_perf_crtc_update(crtc, 0, true);
 
-	drm_for_each_encoder(encoder, crtc->dev) {
-		if (encoder->crtc != crtc)
-			continue;
+	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
 		dpu_encoder_register_frame_event_callback(encoder, NULL, NULL);
-	}
 
 	memset(cstate->mixers, 0, sizeof(cstate->mixers));
 	cstate->num_mixers = 0;
@@ -949,12 +934,9 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("crtc%d\n", crtc->base.id);
 	dpu_crtc = to_dpu_crtc(crtc);
 
-	drm_for_each_encoder(encoder, crtc->dev) {
-		if (encoder->crtc != crtc)
-			continue;
+	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
 		dpu_encoder_register_frame_event_callback(encoder,
 				dpu_crtc_frame_event_cb, (void *)crtc);
-	}
 
 	mutex_lock(&dpu_crtc->crtc_lock);
 	trace_dpu_crtc_enable(DRMID(crtc), true, dpu_crtc);

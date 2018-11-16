@@ -320,7 +320,10 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 	struct dpu_kms *dpu_kms;
 	struct msm_drm_private *priv;
 	struct drm_device *dev;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 	struct drm_encoder *encoder;
+	int i;
 
 	if (!kms)
 		return;
@@ -332,9 +335,13 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 	priv = dev->dev_private;
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
-		if (encoder->crtc != NULL)
+	/* Call prepare_commit for all affected encoders */
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		drm_for_each_encoder_mask(encoder, crtc->dev,
+					  crtc_state->encoder_mask) {
 			dpu_encoder_prepare_commit(encoder);
+		}
+	}
 }
 
 /*
@@ -344,13 +351,17 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 void dpu_kms_encoder_enable(struct drm_encoder *encoder)
 {
 	const struct drm_encoder_helper_funcs *funcs = encoder->helper_private;
-	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_device *dev = encoder->dev;
+	struct drm_crtc *crtc;
 
 	/* Forward this enable call to the commit hook */
 	if (funcs && funcs->commit)
 		funcs->commit(encoder);
 
-	if (crtc && crtc->state->active) {
+	drm_for_each_crtc(crtc, dev) {
+		if (!(crtc->state->encoder_mask & drm_encoder_mask(encoder)))
+			continue;
+
 		trace_dpu_kms_enc_enable(DRMID(crtc));
 		dpu_crtc_commit_kickoff(crtc, false);
 	}
