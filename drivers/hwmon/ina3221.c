@@ -576,10 +576,10 @@ static int ina3221_probe_child_from_dt(struct device *dev,
 
 	ret = of_property_read_u32(child, "reg", &val);
 	if (ret) {
-		dev_err(dev, "missing reg property of %s\n", child->name);
+		dev_err(dev, "missing reg property of %pOFn\n", child);
 		return ret;
 	} else if (val > INA3221_CHANNEL3) {
-		dev_err(dev, "invalid reg %d of %s\n", val, child->name);
+		dev_err(dev, "invalid reg %d of %pOFn\n", val, child);
 		return ret;
 	}
 
@@ -597,8 +597,8 @@ static int ina3221_probe_child_from_dt(struct device *dev,
 	/* Overwrite default shunt resistor value optionally */
 	if (!of_property_read_u32(child, "shunt-resistor-micro-ohms", &val)) {
 		if (val < 1 || val > INT_MAX) {
-			dev_err(dev, "invalid shunt resistor value %u of %s\n",
-				val, child->name);
+			dev_err(dev, "invalid shunt resistor value %u of %pOFn\n",
+				val, child);
 			return -EINVAL;
 		}
 		input->shunt_resistor = val;
