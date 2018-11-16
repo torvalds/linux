@@ -3331,12 +3331,12 @@ static bool __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
 		ret = q->mq_ops->poll(hctx, rq->tag);
 		if (ret > 0) {
 			hctx->poll_success++;
-			set_current_state(TASK_RUNNING);
+			__set_current_state(TASK_RUNNING);
 			return true;
 		}
 
 		if (signal_pending_state(state, current))
-			set_current_state(TASK_RUNNING);
+			__set_current_state(TASK_RUNNING);
 
 		if (current->state == TASK_RUNNING)
 			return true;
