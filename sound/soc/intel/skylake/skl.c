@@ -507,7 +507,7 @@ static int skl_find_machine(struct skl *skl, void *driver_data)
 
 	if (pdata) {
 		skl->use_tplg_pcm = pdata->use_tplg_pcm;
-		pdata->dmic_num = skl_get_dmic_geo(skl);
+		mach->mach_params.dmic_num = skl_get_dmic_geo(skl);
 	}
 
 	return 0;

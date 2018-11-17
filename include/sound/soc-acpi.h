@@ -48,6 +48,7 @@ struct snd_soc_acpi_mach_params {
 	u32 acpi_ipc_irq_index;
 	const char *platform;
 	u32 codec_mask;
+	u32 dmic_num;
 };
 
 /**

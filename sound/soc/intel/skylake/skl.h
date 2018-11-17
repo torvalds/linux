@@ -119,10 +119,7 @@ struct skl_dma_params {
 };
 
 struct skl_machine_pdata {
-	u32 dmic_num;
 	bool use_tplg_pcm; /* use dais and dai links from topology */
-	const char *platform;
-	u32 codec_mask;
 };
 
 struct skl_dsp_ops {
