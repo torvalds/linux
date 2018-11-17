@@ -425,7 +425,9 @@ static int geneve_udp_encap_err_lookup(struct sock *sk, struct sk_buff *skb)
 #if IS_ENABLED(CONFIG_IPV6)
 	if (geneve_get_sk_family(gs) == AF_INET6) {
 		struct ipv6hdr *ip6h = ipv6_hdr(skb);
-		struct in6_addr addr6 = { 0 };
+		struct in6_addr addr6;
+
+		memset(&addr6, 0, sizeof(struct in6_addr));
 
 		if (!gs->collect_md) {
 			vni = geneve_hdr(skb)->vni;
