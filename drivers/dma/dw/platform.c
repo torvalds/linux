@@ -162,6 +162,12 @@ dw_dma_parse_dt(struct platform_device *pdev)
 			pdata->multi_block[tmp] = 1;
 	}
 
+	if (!of_property_read_u32(np, "snps,dma-protection-control", &tmp)) {
+		if (tmp > CHAN_PROTCTL_MASK)
+			return NULL;
+		pdata->protctl = tmp;
+	}
+
 	return pdata;
 }
 #else

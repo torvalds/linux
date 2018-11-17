@@ -49,6 +49,7 @@ struct dw_dma_slave {
  * @data_width: Maximum data width supported by hardware per AHB master
  *		(in bytes, power of 2)
  * @multi_block: Multi block transfers supported by hardware per channel.
+ * @protctl: Protection control signals setting per channel.
  */
 struct dw_dma_platform_data {
 	unsigned int	nr_channels;
@@ -65,6 +66,11 @@ struct dw_dma_platform_data {
 	unsigned char	nr_masters;
 	unsigned char	data_width[DW_DMA_MAX_NR_MASTERS];
 	unsigned char	multi_block[DW_DMA_MAX_NR_CHANNELS];
+#define CHAN_PROTCTL_PRIVILEGED		BIT(0)
+#define CHAN_PROTCTL_BUFFERABLE		BIT(1)
+#define CHAN_PROTCTL_CACHEABLE		BIT(2)
+#define CHAN_PROTCTL_MASK		GENMASK(2, 0)
+	unsigned char	protctl;
 };
 
 #endif /* _PLATFORM_DATA_DMA_DW_H */
