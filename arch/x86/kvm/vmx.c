@@ -1611,12 +1611,6 @@ static int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	/* We don't support disabling the feature for simplicity. */
-	if (vmx->nested.enlightened_vmcs_enabled)
-		return 0;
-
-	vmx->nested.enlightened_vmcs_enabled = true;
-
 	/*
 	 * vmcs_version represents the range of supported Enlightened VMCS
 	 * versions: lower 8 bits is the minimal version, higher 8 bits is the
@@ -1625,6 +1619,12 @@ static int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 	 */
 	if (vmcs_version)
 		*vmcs_version = (KVM_EVMCS_VERSION << 8) | 1;
+
+	/* We don't support disabling the feature for simplicity. */
+	if (vmx->nested.enlightened_vmcs_enabled)
+		return 0;
+
+	vmx->nested.enlightened_vmcs_enabled = true;
 
 	vmx->nested.msrs.pinbased_ctls_high &= ~EVMCS1_UNSUPPORTED_PINCTRL;
 	vmx->nested.msrs.entry_ctls_high &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
