@@ -559,7 +559,7 @@ static int chachapoly_setkey(struct crypto_aead *aead, const u8 *key,
 	unsigned int ivsize = crypto_aead_ivsize(aead);
 	unsigned int saltlen = CHACHAPOLY_IV_SIZE - ivsize;
 
-	if (keylen != CHACHA20_KEY_SIZE + saltlen) {
+	if (keylen != CHACHA_KEY_SIZE + saltlen) {
 		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}

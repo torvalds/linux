@@ -1,5 +1,5 @@
 /*
- * The "hash function" used as the core of the ChaCha20 stream cipher (RFC7539)
+ * The "hash function" used as the core of the ChaCha stream cipher (RFC7539)
  *
  * Copyright (C) 2015 Martin Willi
  *
@@ -14,13 +14,16 @@
 #include <linux/bitops.h>
 #include <linux/cryptohash.h>
 #include <asm/unaligned.h>
-#include <crypto/chacha20.h>
+#include <crypto/chacha.h>
 
-static void chacha20_permute(u32 *x)
+static void chacha_permute(u32 *x, int nrounds)
 {
 	int i;
 
-	for (i = 0; i < 20; i += 2) {
+	/* whitelist the allowed round counts */
+	WARN_ON_ONCE(nrounds != 20);
+
+	for (i = 0; i < nrounds; i += 2) {
 		x[0]  += x[4];    x[12] = rol32(x[12] ^ x[0],  16);
 		x[1]  += x[5];    x[13] = rol32(x[13] ^ x[1],  16);
 		x[2]  += x[6];    x[14] = rol32(x[14] ^ x[2],  16);
@@ -64,49 +67,51 @@ static void chacha20_permute(u32 *x)
 }
 
 /**
- * chacha20_block - generate one keystream block and increment block counter
+ * chacha_block - generate one keystream block and increment block counter
  * @state: input state matrix (16 32-bit words)
  * @stream: output keystream block (64 bytes)
+ * @nrounds: number of rounds (currently must be 20)
  *
- * This is the ChaCha20 core, a function from 64-byte strings to 64-byte
- * strings.  The caller has already converted the endianness of the input.  This
- * function also handles incrementing the block counter in the input matrix.
+ * This is the ChaCha core, a function from 64-byte strings to 64-byte strings.
+ * The caller has already converted the endianness of the input.  This function
+ * also handles incrementing the block counter in the input matrix.
  */
-void chacha20_block(u32 *state, u8 *stream)
+void chacha_block(u32 *state, u8 *stream, int nrounds)
 {
 	u32 x[16];
 	int i;
 
 	memcpy(x, state, 64);
 
-	chacha20_permute(x);
+	chacha_permute(x, nrounds);
 
 	for (i = 0; i < ARRAY_SIZE(x); i++)
 		put_unaligned_le32(x[i] + state[i], &stream[i * sizeof(u32)]);
 
 	state[12]++;
 }
-EXPORT_SYMBOL(chacha20_block);
+EXPORT_SYMBOL(chacha_block);
 
 /**
- * hchacha20_block - abbreviated ChaCha20 core, for XChaCha20
+ * hchacha_block - abbreviated ChaCha core, for XChaCha
  * @in: input state matrix (16 32-bit words)
  * @out: output (8 32-bit words)
+ * @nrounds: number of rounds (currently must be 20)
  *
- * HChaCha20 is the ChaCha equivalent of HSalsa20 and is an intermediate step
- * towards XChaCha20 (see https://cr.yp.to/snuffle/xsalsa-20081128.pdf).
- * HChaCha20 skips the final addition of the initial state, and outputs only
- * certain words of the state.  It should not be used for streaming directly.
+ * HChaCha is the ChaCha equivalent of HSalsa and is an intermediate step
+ * towards XChaCha (see https://cr.yp.to/snuffle/xsalsa-20081128.pdf).  HChaCha
+ * skips the final addition of the initial state, and outputs only certain words
+ * of the state.  It should not be used for streaming directly.
  */
-void hchacha20_block(const u32 *in, u32 *out)
+void hchacha_block(const u32 *in, u32 *out, int nrounds)
 {
 	u32 x[16];
 
 	memcpy(x, in, 64);
 
-	chacha20_permute(x);
+	chacha_permute(x, nrounds);
 
 	memcpy(&out[0], &x[0], 16);
 	memcpy(&out[4], &x[12], 16);
 }
-EXPORT_SYMBOL(hchacha20_block);
+EXPORT_SYMBOL(hchacha_block);

@@ -591,7 +591,7 @@ static int chachapoly_setkey(struct crypto_aead *aead, const u8 *key,
 	unsigned int ivsize = crypto_aead_ivsize(aead);
 	unsigned int saltlen = CHACHAPOLY_IV_SIZE - ivsize;
 
-	if (keylen != CHACHA20_KEY_SIZE + saltlen) {
+	if (keylen != CHACHA_KEY_SIZE + saltlen) {
 		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
@@ -1577,9 +1577,9 @@ static struct caam_skcipher_alg driver_algs[] = {
 			.setkey = skcipher_setkey,
 			.encrypt = skcipher_encrypt,
 			.decrypt = skcipher_decrypt,
-			.min_keysize = CHACHA20_KEY_SIZE,
-			.max_keysize = CHACHA20_KEY_SIZE,
-			.ivsize = CHACHA20_IV_SIZE,
+			.min_keysize = CHACHA_KEY_SIZE,
+			.max_keysize = CHACHA_KEY_SIZE,
+			.ivsize = CHACHA_IV_SIZE,
 		},
 		.caam.class1_alg_type = OP_ALG_ALGSEL_CHACHA20,
 	},
