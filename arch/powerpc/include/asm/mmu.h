@@ -48,7 +48,7 @@
 #define MMU_FTR_USE_HIGH_BATS		ASM_CONST(0x00010000)
 
 /* Enable >32-bit physical addresses on 32-bit processor, only used
- * by CONFIG_6xx currently as BookE supports that from day 1
+ * by CONFIG_PPC_BOOK3S_32 currently as BookE supports that from day 1
  */
 #define MMU_FTR_BIG_PHYS		ASM_CONST(0x00020000)
 

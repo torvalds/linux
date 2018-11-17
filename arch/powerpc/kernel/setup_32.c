@@ -240,7 +240,7 @@ void __init exc_lvl_early_init(void)
 
 void __init setup_power_save(void)
 {
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
 	    cpu_has_feature(CPU_FTR_CAN_NAP))
 		ppc_md.power_save = ppc6xx_idle;

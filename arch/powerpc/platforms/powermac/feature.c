@@ -51,7 +51,7 @@
 #define DBG(fmt...)
 #endif
 
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 extern int powersave_lowspeed;
 #endif
 

@@ -176,10 +176,10 @@ __after_mmu_off:
 	bl	reloc_offset
 	li	r24,0			/* cpu# */
 	bl	call_setup_cpu		/* Call setup_cpu for this CPU */
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	bl	reloc_offset
 	bl	init_idle_6xx
-#endif /* CONFIG_6xx */
+#endif /* CONFIG_PPC_BOOK3S_32 */
 
 
 /*
@@ -836,10 +836,10 @@ __secondary_start:
 	lis	r3,-KERNELBASE@h
 	mr	r4,r24
 	bl	call_setup_cpu		/* Call setup_cpu for this CPU */
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	lis	r3,-KERNELBASE@h
 	bl	init_idle_6xx
-#endif /* CONFIG_6xx */
+#endif /* CONFIG_PPC_BOOK3S_32 */
 
 	/* get current_thread_info and current */
 	lis	r1,secondary_ti@ha
@@ -880,14 +880,14 @@ __secondary_start:
 
 /*
  * Those generic dummy functions are kept for CPUs not
- * included in CONFIG_6xx
+ * included in CONFIG_PPC_BOOK3S_32
  */
-#if !defined(CONFIG_6xx)
+#if !defined(CONFIG_PPC_BOOK3S_32)
 _ENTRY(__save_cpu_setup)
 	blr
 _ENTRY(__restore_cpu_setup)
 	blr
-#endif /* !defined(CONFIG_6xx) */
+#endif /* !defined(CONFIG_PPC_BOOK3S_32) */
 
 
 /*
