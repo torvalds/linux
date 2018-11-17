@@ -500,6 +500,29 @@ config CRYPTO_NHPOLY1305
 	select CRYPTO_HASH
 	select CRYPTO_POLY1305
 
+config CRYPTO_ADIANTUM
+	tristate "Adiantum support"
+	select CRYPTO_CHACHA20
+	select CRYPTO_POLY1305
+	select CRYPTO_NHPOLY1305
+	help
+	  Adiantum is a tweakable, length-preserving encryption mode
+	  designed for fast and secure disk encryption, especially on
+	  CPUs without dedicated crypto instructions.  It encrypts
+	  each sector using the XChaCha12 stream cipher, two passes of
+	  an ε-almost-∆-universal hash function, and an invocation of
+	  the AES-256 block cipher on a single 16-byte block.  On CPUs
+	  without AES instructions, Adiantum is much faster than
+	  AES-XTS.
+
+	  Adiantum's security is provably reducible to that of its
+	  underlying stream and block ciphers, subject to a security
+	  bound.  Unlike XTS, Adiantum is a true wide-block encryption
+	  mode, so it actually provides an even stronger notion of
+	  security than XTS, subject to the security bound.
+
+	  If unsure, say N.
+
 comment "Hash modes"
 
 config CRYPTO_CMAC

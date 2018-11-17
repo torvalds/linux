@@ -2404,6 +2404,18 @@ static int alg_test_null(const struct alg_test_desc *desc,
 /* Please keep this list sorted by algorithm name. */
 static const struct alg_test_desc alg_test_descs[] = {
 	{
+		.alg = "adiantum(xchacha12,aes)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(adiantum_xchacha12_aes_tv_template)
+		},
+	}, {
+		.alg = "adiantum(xchacha20,aes)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(adiantum_xchacha20_aes_tv_template)
+		},
+	}, {
 		.alg = "aegis128",
 		.test = alg_test_aead,
 		.suite = {
