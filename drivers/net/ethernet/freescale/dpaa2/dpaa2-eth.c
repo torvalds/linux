@@ -203,8 +203,7 @@ static struct sk_buff *build_frag_skb(struct dpaa2_eth_priv *priv,
 static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 			 struct dpaa2_eth_channel *ch,
 			 const struct dpaa2_fd *fd,
-			 struct napi_struct *napi,
-			 u16 queue_id)
+			 struct dpaa2_eth_fq *fq)
 {
 	dma_addr_t addr = dpaa2_fd_get_addr(fd);
 	u8 fd_format = dpaa2_fd_get_format(fd);
@@ -267,12 +266,12 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	}
 
 	skb->protocol = eth_type_trans(skb, priv->net_dev);
-	skb_record_rx_queue(skb, queue_id);
+	skb_record_rx_queue(skb, fq->flowid);
 
 	percpu_stats->rx_packets++;
 	percpu_stats->rx_bytes += dpaa2_fd_get_len(fd);
 
-	napi_gro_receive(napi, skb);
+	napi_gro_receive(&ch->napi, skb);
 
 	return;
 
@@ -289,7 +288,7 @@ err_frame_format:
  * Observance of NAPI budget is not our concern, leaving that to the caller.
  */
 static int consume_frames(struct dpaa2_eth_channel *ch,
-			  enum dpaa2_eth_fq_type *type)
+			  struct dpaa2_eth_fq **src)
 {
 	struct dpaa2_eth_priv *priv = ch->priv;
 	struct dpaa2_eth_fq *fq = NULL;
@@ -312,7 +311,7 @@ static int consume_frames(struct dpaa2_eth_channel *ch,
 		fd = dpaa2_dq_fd(dq);
 		fq = (struct dpaa2_eth_fq *)(uintptr_t)dpaa2_dq_fqd_ctx(dq);
 
-		fq->consume(priv, ch, fd, &ch->napi, fq->flowid);
+		fq->consume(priv, ch, fd, fq);
 		cleaned++;
 	} while (!is_last);
 
@@ -323,10 +322,10 @@ static int consume_frames(struct dpaa2_eth_channel *ch,
 	ch->stats.frames += cleaned;
 
 	/* A dequeue operation only pulls frames from a single queue
-	 * into the store. Return the frame queue type as an out param.
+	 * into the store. Return the frame queue as an out param.
 	 */
-	if (type)
-		*type = fq->type;
+	if (src)
+		*src = fq;
 
 	return cleaned;
 }
@@ -571,8 +570,10 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 	struct rtnl_link_stats64 *percpu_stats;
 	struct dpaa2_eth_drv_stats *percpu_extras;
 	struct dpaa2_eth_fq *fq;
+	struct netdev_queue *nq;
 	u16 queue_mapping;
 	unsigned int needed_headroom;
+	u32 fd_len;
 	int err, i;
 
 	percpu_stats = this_cpu_ptr(priv->percpu_stats);
@@ -644,8 +645,12 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 		/* Clean up everything, including freeing the skb */
 		free_tx_fd(priv, &fd);
 	} else {
+		fd_len = dpaa2_fd_get_len(&fd);
 		percpu_stats->tx_packets++;
-		percpu_stats->tx_bytes += dpaa2_fd_get_len(&fd);
+		percpu_stats->tx_bytes += fd_len;
+
+		nq = netdev_get_tx_queue(net_dev, queue_mapping);
+		netdev_tx_sent_queue(nq, fd_len);
 	}
 
 	return NETDEV_TX_OK;
@@ -661,11 +666,11 @@ err_alloc_headroom:
 static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
 			      struct dpaa2_eth_channel *ch __always_unused,
 			      const struct dpaa2_fd *fd,
-			      struct napi_struct *napi __always_unused,
-			      u16 queue_id __always_unused)
+			      struct dpaa2_eth_fq *fq)
 {
 	struct rtnl_link_stats64 *percpu_stats;
 	struct dpaa2_eth_drv_stats *percpu_extras;
+	u32 fd_len = dpaa2_fd_get_len(fd);
 	u32 fd_errors;
 
 	/* Tracing point */
@@ -673,7 +678,10 @@ static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
 
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
 	percpu_extras->tx_conf_frames++;
-	percpu_extras->tx_conf_bytes += dpaa2_fd_get_len(fd);
+	percpu_extras->tx_conf_bytes += fd_len;
+
+	fq->dq_frames++;
+	fq->dq_bytes += fd_len;
 
 	/* Check frame errors in the FD field */
 	fd_errors = dpaa2_fd_get_ctrl(fd) & DPAA2_FD_TX_ERR_MASK;
@@ -934,8 +942,9 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 	struct dpaa2_eth_channel *ch;
 	struct dpaa2_eth_priv *priv;
 	int rx_cleaned = 0, txconf_cleaned = 0;
-	enum dpaa2_eth_fq_type type = 0;
-	int store_cleaned;
+	struct dpaa2_eth_fq *fq, *txc_fq = NULL;
+	struct netdev_queue *nq;
+	int store_cleaned, work_done;
 	int err;
 
 	ch = container_of(napi, struct dpaa2_eth_channel, napi);
@@ -949,18 +958,25 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 		/* Refill pool if appropriate */
 		refill_pool(priv, ch, priv->bpid);
 
-		store_cleaned = consume_frames(ch, &type);
-		if (type == DPAA2_RX_FQ)
+		store_cleaned = consume_frames(ch, &fq);
+		if (!store_cleaned)
+			break;
+		if (fq->type == DPAA2_RX_FQ) {
 			rx_cleaned += store_cleaned;
-		else
+		} else {
 			txconf_cleaned += store_cleaned;
+			/* We have a single Tx conf FQ on this channel */
+			txc_fq = fq;
+		}
 
 		/* If we either consumed the whole NAPI budget with Rx frames
 		 * or we reached the Tx confirmations threshold, we're done.
 		 */
 		if (rx_cleaned >= budget ||
-		    txconf_cleaned >= DPAA2_ETH_TXCONF_PER_NAPI)
-			return budget;
+		    txconf_cleaned >= DPAA2_ETH_TXCONF_PER_NAPI) {
+			work_done = budget;
+			goto out;
+		}
 	} while (store_cleaned);
 
 	/* We didn't consume the entire budget, so finish napi and
@@ -974,7 +990,18 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 	WARN_ONCE(err, "CDAN notifications rearm failed on core %d",
 		  ch->nctx.desired_cpu);
 
-	return max(rx_cleaned, 1);
+	work_done = max(rx_cleaned, 1);
+
+out:
+	if (txc_fq) {
+		nq = netdev_get_tx_queue(priv->net_dev, txc_fq->flowid);
+		netdev_tx_completed_queue(nq, txc_fq->dq_frames,
+					  txc_fq->dq_bytes);
+		txc_fq->dq_frames = 0;
+		txc_fq->dq_bytes = 0;
+	}
+
+	return work_done;
 }
 
 static void enable_ch_napi(struct dpaa2_eth_priv *priv)
@@ -1603,7 +1630,7 @@ static int setup_dpio(struct dpaa2_eth_priv *priv)
 		/* Stop if we already have enough channels to accommodate all
 		 * RX and TX conf queues
 		 */
-		if (priv->num_channels == dpaa2_eth_queue_count(priv))
+		if (priv->num_channels == priv->dpni_attrs.num_queues)
 			break;
 	}
 

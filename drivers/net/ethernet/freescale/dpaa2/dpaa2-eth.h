@@ -271,14 +271,15 @@ struct dpaa2_eth_fq {
 	u32 tx_qdbin;
 	u16 flowid;
 	int target_cpu;
+	u32 dq_frames;
+	u32 dq_bytes;
 	struct dpaa2_eth_channel *channel;
 	enum dpaa2_eth_fq_type type;
 
 	void (*consume)(struct dpaa2_eth_priv *priv,
 			struct dpaa2_eth_channel *ch,
 			const struct dpaa2_fd *fd,
-			struct napi_struct *napi,
-			u16 queue_id);
+			struct dpaa2_eth_fq *fq);
 	struct dpaa2_eth_fq_stats stats;
 };
 
@@ -434,9 +435,10 @@ static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 	       DPAA2_ETH_RX_HWA_SIZE;
 }
 
+/* We have exactly one {Rx, Tx conf} queue per channel */
 static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
 {
-	return priv->dpni_attrs.num_queues;
+	return priv->num_channels;
 }
 
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
