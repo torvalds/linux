@@ -1,5 +1,5 @@
 /*
- * ChaCha20 256-bit cipher algorithm, RFC7539, ARM NEON functions
+ * ChaCha/XChaCha NEON helper functions
  *
  * Copyright (C) 2016 Linaro, Ltd. <ard.biesheuvel@linaro.org>
  *
@@ -27,9 +27,9 @@
   * (d)  vtbl.8 + vtbl.8		(multiple of 8 bits rotations only,
   *					 needs index vector)
   *
-  * ChaCha20 has 16, 12, 8, and 7-bit rotations.  For the 12 and 7-bit
-  * rotations, the only choices are (a) and (b).  We use (a) since it takes
-  * two-thirds the cycles of (b) on both Cortex-A7 and Cortex-A53.
+  * ChaCha has 16, 12, 8, and 7-bit rotations.  For the 12 and 7-bit rotations,
+  * the only choices are (a) and (b).  We use (a) since it takes two-thirds the
+  * cycles of (b) on both Cortex-A7 and Cortex-A53.
   *
   * For the 16-bit rotation, we use vrev32.16 since it's consistently fastest
   * and doesn't need a temporary register.
@@ -53,18 +53,19 @@
 	.align		5
 
 /*
- * chacha20_permute - permute one block
+ * chacha_permute - permute one block
  *
  * Permute one 64-byte block where the state matrix is stored in the four NEON
  * registers q0-q3.  It performs matrix operations on four words in parallel,
  * but requires shuffling to rearrange the words after each round.
  *
+ * The round count is given in r3.
+ *
  * Clobbers: r3, ip, q4-q5
  */
-chacha20_permute:
+chacha_permute:
 
 	adr		ip, .Lrol8_table
-	mov		r3, #10
 	vld1.8		{d10}, [ip, :64]
 
 .Ldoubleround:
@@ -128,16 +129,17 @@ chacha20_permute:
 	// x3 = shuffle32(x3, MASK(0, 3, 2, 1))
 	vext.8		q3, q3, q3, #4
 
-	subs		r3, r3, #1
+	subs		r3, r3, #2
 	bne		.Ldoubleround
 
 	bx		lr
-ENDPROC(chacha20_permute)
+ENDPROC(chacha_permute)
 
-ENTRY(chacha20_block_xor_neon)
+ENTRY(chacha_block_xor_neon)
 	// r0: Input state matrix, s
 	// r1: 1 data block output, o
 	// r2: 1 data block input, i
+	// r3: nrounds
 	push		{lr}
 
 	// x0..3 = s0..3
@@ -150,7 +152,7 @@ ENTRY(chacha20_block_xor_neon)
 	vmov		q10, q2
 	vmov		q11, q3
 
-	bl		chacha20_permute
+	bl		chacha_permute
 
 	add		ip, r2, #0x20
 	vld1.8		{q4-q5}, [r2]
@@ -177,30 +179,32 @@ ENTRY(chacha20_block_xor_neon)
 	vst1.8		{q2-q3}, [ip]
 
 	pop		{pc}
-ENDPROC(chacha20_block_xor_neon)
+ENDPROC(chacha_block_xor_neon)
 
-ENTRY(hchacha20_block_neon)
+ENTRY(hchacha_block_neon)
 	// r0: Input state matrix, s
 	// r1: output (8 32-bit words)
+	// r2: nrounds
 	push		{lr}
 
 	vld1.32		{q0-q1}, [r0]!
 	vld1.32		{q2-q3}, [r0]
 
-	bl		chacha20_permute
+	mov		r3, r2
+	bl		chacha_permute
 
 	vst1.32		{q0}, [r1]!
 	vst1.32		{q3}, [r1]
 
 	pop		{pc}
-ENDPROC(hchacha20_block_neon)
+ENDPROC(hchacha_block_neon)
 
 	.align		4
 .Lctrinc:	.word	0, 1, 2, 3
 .Lrol8_table:	.byte	3, 0, 1, 2, 7, 4, 5, 6
 
 	.align		5
-ENTRY(chacha20_4block_xor_neon)
+ENTRY(chacha_4block_xor_neon)
 	push		{r4-r5}
 	mov		r4, sp			// preserve the stack pointer
 	sub		ip, sp, #0x20		// allocate a 32 byte buffer
@@ -210,9 +214,10 @@ ENTRY(chacha20_4block_xor_neon)
 	// r0: Input state matrix, s
 	// r1: 4 data blocks output, o
 	// r2: 4 data blocks input, i
+	// r3: nrounds
 
 	//
-	// This function encrypts four consecutive ChaCha20 blocks by loading
+	// This function encrypts four consecutive ChaCha blocks by loading
 	// the state matrix in NEON registers four times. The algorithm performs
 	// each operation on the corresponding word of each state matrix, hence
 	// requires no word shuffling. The words are re-interleaved before the
@@ -245,7 +250,6 @@ ENTRY(chacha20_4block_xor_neon)
 	vdup.32		q0, d0[0]
 
 	adr		ip, .Lrol8_table
-	mov		r3, #10
 	b		1f
 
 .Ldoubleround4:
@@ -443,7 +447,7 @@ ENTRY(chacha20_4block_xor_neon)
 	vsri.u32	q5, q8, #25
 	vsri.u32	q6, q9, #25
 
-	subs		r3, r3, #1
+	subs		r3, r3, #2
 	bne		.Ldoubleround4
 
 	// x0..7[0-3] are in q0-q7, x10..15[0-3] are in q10-q15.
@@ -553,4 +557,4 @@ ENTRY(chacha20_4block_xor_neon)
 
 	pop		{r4-r5}
 	bx		lr
-ENDPROC(chacha20_4block_xor_neon)
+ENDPROC(chacha_4block_xor_neon)
