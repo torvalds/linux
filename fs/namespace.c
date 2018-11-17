@@ -2312,16 +2312,7 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 
 	security_init_mnt_opts(&opts);
 	if (data && !(sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)) {
-		char *secdata = alloc_secdata();
-		if (!secdata)
-			return -ENOMEM;
-		err = security_sb_copy_data(data, secdata);
-		if (err) {
-			free_secdata(secdata);
-			return err;
-		}
-		err = security_sb_parse_opts_str(secdata, &opts);
-		free_secdata(secdata);
+		err = security_sb_eat_lsm_opts(data, &opts);
 		if (err)
 			return err;
 	}

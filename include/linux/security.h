@@ -248,7 +248,7 @@ void security_bprm_committing_creds(struct linux_binprm *bprm);
 void security_bprm_committed_creds(struct linux_binprm *bprm);
 int security_sb_alloc(struct super_block *sb);
 void security_sb_free(struct super_block *sb);
-int security_sb_copy_data(char *orig, char *copy);
+int security_sb_eat_lsm_opts(char *options, struct security_mnt_opts *opts);
 int security_sb_remount(struct super_block *sb, struct security_mnt_opts *opts);
 int security_sb_kern_mount(struct super_block *sb, int flags,
 			   struct security_mnt_opts *opts);
@@ -556,7 +556,8 @@ static inline int security_sb_alloc(struct super_block *sb)
 static inline void security_sb_free(struct super_block *sb)
 { }
 
-static inline int security_sb_copy_data(char *orig, char *copy)
+static inline int security_sb_eat_lsm_opts(char *options,
+					   struct security_mnt_opts *opts)
 {
 	return 0;
 }
@@ -1822,29 +1823,6 @@ static inline void security_bpf_prog_free(struct bpf_prog_aux *aux)
 { }
 #endif /* CONFIG_SECURITY */
 #endif /* CONFIG_BPF_SYSCALL */
-
-#ifdef CONFIG_SECURITY
-
-static inline char *alloc_secdata(void)
-{
-	return (char *)get_zeroed_page(GFP_KERNEL);
-}
-
-static inline void free_secdata(void *secdata)
-{
-	free_page((unsigned long)secdata);
-}
-
-#else
-
-static inline char *alloc_secdata(void)
-{
-        return (char *)1;
-}
-
-static inline void free_secdata(void *secdata)
-{ }
-#endif /* CONFIG_SECURITY */
 
 #endif /* ! __LINUX_SECURITY_H */
 

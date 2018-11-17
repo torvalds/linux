@@ -1461,20 +1461,7 @@ out:
 static int parse_security_options(char *orig_opts,
 				  struct security_mnt_opts *sec_opts)
 {
-	char *secdata = NULL;
-	int ret = 0;
-
-	secdata = alloc_secdata();
-	if (!secdata)
-		return -ENOMEM;
-	ret = security_sb_copy_data(orig_opts, secdata);
-	if (ret) {
-		free_secdata(secdata);
-		return ret;
-	}
-	ret = security_sb_parse_opts_str(secdata, sec_opts);
-	free_secdata(secdata);
-	return ret;
+	return security_sb_eat_lsm_opts(orig_opts, sec_opts);
 }
 
 static int setup_security_options(struct btrfs_fs_info *fs_info,
