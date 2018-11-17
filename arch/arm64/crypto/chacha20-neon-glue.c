@@ -19,7 +19,7 @@
  */
 
 #include <crypto/algapi.h>
-#include <crypto/chacha20.h>
+#include <crypto/chacha.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -34,15 +34,15 @@ asmlinkage void chacha20_4block_xor_neon(u32 *state, u8 *dst, const u8 *src);
 static void chacha20_doneon(u32 *state, u8 *dst, const u8 *src,
 			    unsigned int bytes)
 {
-	u8 buf[CHACHA20_BLOCK_SIZE];
+	u8 buf[CHACHA_BLOCK_SIZE];
 
-	while (bytes >= CHACHA20_BLOCK_SIZE * 4) {
+	while (bytes >= CHACHA_BLOCK_SIZE * 4) {
 		kernel_neon_begin();
 		chacha20_4block_xor_neon(state, dst, src);
 		kernel_neon_end();
-		bytes -= CHACHA20_BLOCK_SIZE * 4;
-		src += CHACHA20_BLOCK_SIZE * 4;
-		dst += CHACHA20_BLOCK_SIZE * 4;
+		bytes -= CHACHA_BLOCK_SIZE * 4;
+		src += CHACHA_BLOCK_SIZE * 4;
+		dst += CHACHA_BLOCK_SIZE * 4;
 		state[12] += 4;
 	}
 
@@ -50,11 +50,11 @@ static void chacha20_doneon(u32 *state, u8 *dst, const u8 *src,
 		return;
 
 	kernel_neon_begin();
-	while (bytes >= CHACHA20_BLOCK_SIZE) {
+	while (bytes >= CHACHA_BLOCK_SIZE) {
 		chacha20_block_xor_neon(state, dst, src);
-		bytes -= CHACHA20_BLOCK_SIZE;
-		src += CHACHA20_BLOCK_SIZE;
-		dst += CHACHA20_BLOCK_SIZE;
+		bytes -= CHACHA_BLOCK_SIZE;
+		src += CHACHA_BLOCK_SIZE;
+		dst += CHACHA_BLOCK_SIZE;
 		state[12]++;
 	}
 	if (bytes) {
@@ -68,17 +68,17 @@ static void chacha20_doneon(u32 *state, u8 *dst, const u8 *src,
 static int chacha20_neon(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct chacha20_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct chacha_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct skcipher_walk walk;
 	u32 state[16];
 	int err;
 
-	if (!may_use_simd() || req->cryptlen <= CHACHA20_BLOCK_SIZE)
-		return crypto_chacha20_crypt(req);
+	if (!may_use_simd() || req->cryptlen <= CHACHA_BLOCK_SIZE)
+		return crypto_chacha_crypt(req);
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	crypto_chacha20_init(state, ctx, walk.iv);
+	crypto_chacha_init(state, ctx, walk.iv);
 
 	while (walk.nbytes > 0) {
 		unsigned int nbytes = walk.nbytes;
@@ -99,14 +99,14 @@ static struct skcipher_alg alg = {
 	.base.cra_driver_name	= "chacha20-neon",
 	.base.cra_priority	= 300,
 	.base.cra_blocksize	= 1,
-	.base.cra_ctxsize	= sizeof(struct chacha20_ctx),
+	.base.cra_ctxsize	= sizeof(struct chacha_ctx),
 	.base.cra_module	= THIS_MODULE,
 
-	.min_keysize		= CHACHA20_KEY_SIZE,
-	.max_keysize		= CHACHA20_KEY_SIZE,
-	.ivsize			= CHACHA20_IV_SIZE,
-	.chunksize		= CHACHA20_BLOCK_SIZE,
-	.walksize		= 4 * CHACHA20_BLOCK_SIZE,
+	.min_keysize		= CHACHA_KEY_SIZE,
+	.max_keysize		= CHACHA_KEY_SIZE,
+	.ivsize			= CHACHA_IV_SIZE,
+	.chunksize		= CHACHA_BLOCK_SIZE,
+	.walksize		= 4 * CHACHA_BLOCK_SIZE,
 	.setkey			= crypto_chacha20_setkey,
 	.encrypt		= chacha20_neon,
 	.decrypt		= chacha20_neon,
