@@ -810,6 +810,55 @@ struct amd_powerplay {
 	uint32_t pp_feature;
 };
 
+/* Reserved doorbells for amdgpu (including multimedia).
+ * KFD can use all the rest in the 2M doorbell bar.
+ * For asic before vega10, doorbell is 32-bit, so the
+ * index/offset is in dword. For vega10 and after, doorbell
+ * can be 64-bit, so the index defined is in qword.
+ */
+struct amdgpu_doorbell_index {
+	uint32_t kiq;
+	uint32_t mec_ring0;
+	uint32_t mec_ring1;
+	uint32_t mec_ring2;
+	uint32_t mec_ring3;
+	uint32_t mec_ring4;
+	uint32_t mec_ring5;
+	uint32_t mec_ring6;
+	uint32_t mec_ring7;
+	uint32_t userqueue_start;
+	uint32_t userqueue_end;
+	uint32_t gfx_ring0;
+	uint32_t sdma_engine0;
+	uint32_t sdma_engine1;
+	uint32_t sdma_engine2;
+	uint32_t sdma_engine3;
+	uint32_t sdma_engine4;
+	uint32_t sdma_engine5;
+	uint32_t sdma_engine6;
+	uint32_t sdma_engine7;
+	uint32_t ih;
+	union {
+		struct {
+			uint32_t vcn_ring0_1;
+			uint32_t vcn_ring2_3;
+			uint32_t vcn_ring4_5;
+			uint32_t vcn_ring6_7;
+		} vcn;
+		struct {
+			uint32_t uvd_ring0_1;
+			uint32_t uvd_ring2_3;
+			uint32_t uvd_ring4_5;
+			uint32_t uvd_ring6_7;
+			uint32_t vce_ring0_1;
+			uint32_t vce_ring2_3;
+			uint32_t vce_ring4_5;
+			uint32_t vce_ring6_7;
+		} uvd_vce;
+	};
+	uint32_t max_assignment;
+};
+
 #define AMDGPU_RESET_MAGIC_NUM 64
 struct amdgpu_device {
 	struct device			*dev;
@@ -1023,6 +1072,7 @@ struct amdgpu_device {
 	unsigned long last_mm_index;
 	bool                            in_gpu_reset;
 	struct mutex  lock_reset;
+	struct amdgpu_doorbell_index doorbell_index;
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)
