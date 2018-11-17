@@ -1,7 +1,8 @@
 /*
- * ChaCha20 256-bit cipher algorithm, RFC7539
+ * ChaCha20 (RFC7539) and XChaCha20 stream cipher algorithms
  *
  * Copyright (C) 2015 Martin Willi
+ * Copyright (C) 2018 Google LLC
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,6 +35,31 @@ static void chacha20_docrypt(u32 *state, u8 *dst, const u8 *src,
 		chacha20_block(state, stream);
 		crypto_xor(dst, stream, bytes);
 	}
+}
+
+static int chacha20_stream_xor(struct skcipher_request *req,
+			       struct chacha20_ctx *ctx, u8 *iv)
+{
+	struct skcipher_walk walk;
+	u32 state[16];
+	int err;
+
+	err = skcipher_walk_virt(&walk, req, false);
+
+	crypto_chacha20_init(state, ctx, iv);
+
+	while (walk.nbytes > 0) {
+		unsigned int nbytes = walk.nbytes;
+
+		if (nbytes < walk.total)
+			nbytes = round_down(nbytes, walk.stride);
+
+		chacha20_docrypt(state, walk.dst.virt.addr, walk.src.virt.addr,
+				 nbytes);
+		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+	}
+
+	return err;
 }
 
 void crypto_chacha20_init(u32 *state, struct chacha20_ctx *ctx, u8 *iv)
@@ -77,54 +103,74 @@ int crypto_chacha20_crypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct chacha20_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct skcipher_walk walk;
-	u32 state[16];
-	int err;
 
-	err = skcipher_walk_virt(&walk, req, false);
-
-	crypto_chacha20_init(state, ctx, walk.iv);
-
-	while (walk.nbytes > 0) {
-		unsigned int nbytes = walk.nbytes;
-
-		if (nbytes < walk.total)
-			nbytes = round_down(nbytes, walk.stride);
-
-		chacha20_docrypt(state, walk.dst.virt.addr, walk.src.virt.addr,
-				 nbytes);
-		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
-	}
-
-	return err;
+	return chacha20_stream_xor(req, ctx, req->iv);
 }
 EXPORT_SYMBOL_GPL(crypto_chacha20_crypt);
 
-static struct skcipher_alg alg = {
-	.base.cra_name		= "chacha20",
-	.base.cra_driver_name	= "chacha20-generic",
-	.base.cra_priority	= 100,
-	.base.cra_blocksize	= 1,
-	.base.cra_ctxsize	= sizeof(struct chacha20_ctx),
-	.base.cra_module	= THIS_MODULE,
+int crypto_xchacha20_crypt(struct skcipher_request *req)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct chacha20_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct chacha20_ctx subctx;
+	u32 state[16];
+	u8 real_iv[16];
 
-	.min_keysize		= CHACHA20_KEY_SIZE,
-	.max_keysize		= CHACHA20_KEY_SIZE,
-	.ivsize			= CHACHA20_IV_SIZE,
-	.chunksize		= CHACHA20_BLOCK_SIZE,
-	.setkey			= crypto_chacha20_setkey,
-	.encrypt		= crypto_chacha20_crypt,
-	.decrypt		= crypto_chacha20_crypt,
+	/* Compute the subkey given the original key and first 128 nonce bits */
+	crypto_chacha20_init(state, ctx, req->iv);
+	hchacha20_block(state, subctx.key);
+
+	/* Build the real IV */
+	memcpy(&real_iv[0], req->iv + 24, 8); /* stream position */
+	memcpy(&real_iv[8], req->iv + 16, 8); /* remaining 64 nonce bits */
+
+	/* Generate the stream and XOR it with the data */
+	return chacha20_stream_xor(req, &subctx, real_iv);
+}
+EXPORT_SYMBOL_GPL(crypto_xchacha20_crypt);
+
+static struct skcipher_alg algs[] = {
+	{
+		.base.cra_name		= "chacha20",
+		.base.cra_driver_name	= "chacha20-generic",
+		.base.cra_priority	= 100,
+		.base.cra_blocksize	= 1,
+		.base.cra_ctxsize	= sizeof(struct chacha20_ctx),
+		.base.cra_module	= THIS_MODULE,
+
+		.min_keysize		= CHACHA20_KEY_SIZE,
+		.max_keysize		= CHACHA20_KEY_SIZE,
+		.ivsize			= CHACHA20_IV_SIZE,
+		.chunksize		= CHACHA20_BLOCK_SIZE,
+		.setkey			= crypto_chacha20_setkey,
+		.encrypt		= crypto_chacha20_crypt,
+		.decrypt		= crypto_chacha20_crypt,
+	}, {
+		.base.cra_name		= "xchacha20",
+		.base.cra_driver_name	= "xchacha20-generic",
+		.base.cra_priority	= 100,
+		.base.cra_blocksize	= 1,
+		.base.cra_ctxsize	= sizeof(struct chacha20_ctx),
+		.base.cra_module	= THIS_MODULE,
+
+		.min_keysize		= CHACHA20_KEY_SIZE,
+		.max_keysize		= CHACHA20_KEY_SIZE,
+		.ivsize			= XCHACHA20_IV_SIZE,
+		.chunksize		= CHACHA20_BLOCK_SIZE,
+		.setkey			= crypto_chacha20_setkey,
+		.encrypt		= crypto_xchacha20_crypt,
+		.decrypt		= crypto_xchacha20_crypt,
+	}
 };
 
 static int __init chacha20_generic_mod_init(void)
 {
-	return crypto_register_skcipher(&alg);
+	return crypto_register_skciphers(algs, ARRAY_SIZE(algs));
 }
 
 static void __exit chacha20_generic_mod_fini(void)
 {
-	crypto_unregister_skcipher(&alg);
+	crypto_unregister_skciphers(algs, ARRAY_SIZE(algs));
 }
 
 module_init(chacha20_generic_mod_init);
@@ -132,6 +178,8 @@ module_exit(chacha20_generic_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Willi <martin@strongswan.org>");
-MODULE_DESCRIPTION("chacha20 cipher algorithm");
+MODULE_DESCRIPTION("ChaCha20 and XChaCha20 stream ciphers (generic)");
 MODULE_ALIAS_CRYPTO("chacha20");
 MODULE_ALIAS_CRYPTO("chacha20-generic");
+MODULE_ALIAS_CRYPTO("xchacha20");
+MODULE_ALIAS_CRYPTO("xchacha20-generic");
