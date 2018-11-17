@@ -273,7 +273,7 @@ Commands:\n\
   X	exit monitor and don't recover\n"
 #if defined(CONFIG_PPC64) && !defined(CONFIG_PPC_BOOK3E)
 "  u	dump segment table or SLB\n"
-#elif defined(CONFIG_PPC_STD_MMU_32)
+#elif defined(CONFIG_PPC_BOOK3S_32)
 "  u	dump segment registers\n"
 #elif defined(CONFIG_44x) || defined(CONFIG_PPC_BOOK3E)
 "  u	dump TLB\n"
@@ -3495,7 +3495,7 @@ void dump_segments(void)
 }
 #endif
 
-#ifdef CONFIG_PPC_STD_MMU_32
+#ifdef CONFIG_PPC_BOOK3S_32
 void dump_segments(void)
 {
 	int i;

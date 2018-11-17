@@ -800,7 +800,7 @@ static __init void print_system_info(void)
 #ifdef CONFIG_PPC_BOOK3S_64
 	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
 #endif
-#ifdef CONFIG_PPC_STD_MMU_32
+#ifdef CONFIG_PPC_BOOK3S_32
 	pr_info("Hash_size         = 0x%lx\n", Hash_size);
 #endif
 	pr_info("phys_mem_size     = 0x%llx\n",
@@ -830,7 +830,7 @@ static __init void print_system_info(void)
 	if (htab_hash_mask)
 		pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
 #endif
-#ifdef CONFIG_PPC_STD_MMU_32
+#ifdef CONFIG_PPC_BOOK3S_32
 	if (Hash)
 		pr_info("Hash              = 0x%p\n", Hash);
 	if (Hash_mask)
