@@ -555,14 +555,6 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 				SOF_HDA_SPIB_MAXFIFO;
 		}
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_DRSM)
-		/* FIXME: Remove? HDAC doesn't use DRSM so has no drsm_addr */
-		/* do we support DRSM */
-		if (sdev->bar[HDA_DSP_DRSM_BAR])
-			stream->drsm_addr = sdev->bar[HDA_DSP_DRSM_BAR] +
-				SOF_HDA_DRSM_BASE + SOF_HDA_DRSM_INTERVAL * i;
-#endif
-
 		hstream = &stream->hstream;
 		hstream->bus = bus;
 		hstream->sd_int_sta_mask = 1 << i;
@@ -612,14 +604,6 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 				SOF_HDA_SPIB_BASE + SOF_HDA_SPIB_INTERVAL * i +
 				SOF_HDA_SPIB_MAXFIFO;
 		}
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_DRSM)
-		/* FIXME: Remove? HDAC doesn't use DRSM so has no drsm_addr */
-		/* do we support DRSM */
-		if (sdev->bar[HDA_DSP_DRSM_BAR])
-			stream->drsm_addr = sdev->bar[HDA_DSP_DRSM_BAR] +
-				SOF_HDA_DRSM_BASE + SOF_HDA_DRSM_INTERVAL * i;
-#endif
 
 		hstream = &stream->hstream;
 		hstream->bus = bus;
