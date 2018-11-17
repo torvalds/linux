@@ -146,7 +146,7 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
-	mach = dev_get_drvdata(&pdev->dev);
+	mach = (&pdev->dev)->platform_data;
 	if (!mach)
 		return -EINVAL;
 
