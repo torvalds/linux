@@ -24,6 +24,7 @@ choice
 config PPC_BOOK3S_32
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
 	select PPC_FPU
+	select PPC_HAVE_PMU_SUPPORT
 
 config PPC_85xx
 	bool "Freescale 85xx"
@@ -179,11 +180,6 @@ config PPC_BOOK3E
 	def_bool y
 	depends on PPC_BOOK3E_64
 
-config 6xx
-	def_bool y
-	depends on PPC32 && PPC_BOOK3S
-	select PPC_HAVE_PMU_SUPPORT
-
 config E500
 	select FSL_EMB_PERFMON
 	select PPC_FSL_BOOK3E
@@ -266,7 +262,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on 6xx || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
+	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring

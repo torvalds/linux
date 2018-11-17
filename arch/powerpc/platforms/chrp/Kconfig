@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config PPC_CHRP
 	bool "Common Hardware Reference Platform (CHRP) based machines"
-	depends on 6xx
+	depends on PPC_BOOK3S_32
 	select HAVE_PCSPKR_PLATFORM
 	select MPIC
 	select PPC_I8259

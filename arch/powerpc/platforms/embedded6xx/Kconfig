@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based boards"
-	depends on 6xx && BROKEN_ON_SMP
+	depends on PPC_BOOK3S_32 && BROKEN_ON_SMP
 
 config LINKSTATION
 	bool "Linkstation / Kurobox(HG) from Buffalo"
