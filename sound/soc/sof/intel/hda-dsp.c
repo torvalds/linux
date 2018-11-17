@@ -259,7 +259,9 @@ int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 static int hda_suspend(struct snd_sof_dev *sdev, int state)
 {
 	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	struct hdac_bus *bus = sof_to_bus(sdev);
+#endif
 	int ret = 0;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
@@ -302,8 +304,10 @@ static int hda_suspend(struct snd_sof_dev *sdev, int state)
 static int hda_resume(struct snd_sof_dev *sdev)
 {
 	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_ext_link *hlink = NULL;
+#endif
 	int ret;
 
 	/*
