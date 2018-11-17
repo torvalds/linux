@@ -524,7 +524,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 				pte_t *ptep, pte_t pte, int percpu)
 {
-#if defined(CONFIG_PPC_STD_MMU_32) && defined(CONFIG_SMP) && !defined(CONFIG_PTE_64BIT)
+#if defined(CONFIG_SMP) && !defined(CONFIG_PTE_64BIT)
 	/* First case is 32-bit Hash MMU in SMP mode with 32-bit PTEs. We use the
 	 * helper pte_update() which does an atomic update. We need to do that
 	 * because a concurrent invalidation can clear _PAGE_HASHPTE. If it's a
@@ -537,7 +537,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	else
 		pte_update(ptep, ~_PAGE_HASHPTE, pte_val(pte));
 
-#elif defined(CONFIG_PPC32) && defined(CONFIG_PTE_64BIT)
+#elif defined(CONFIG_PTE_64BIT)
 	/* Second case is 32-bit with 64-bit PTE.  In this case, we
 	 * can just store as long as we do the two halves in the right order
 	 * with a barrier in between. This is possible because we take care,
@@ -560,7 +560,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	: "=m" (*ptep), "=m" (*((unsigned char *)ptep+4))
 	: "r" (pte) : "memory");
 
-#elif defined(CONFIG_PPC_STD_MMU_32)
+#else
 	/* Third case is 32-bit hash table in UP mode, we need to preserve
 	 * the _PAGE_HASHPTE bit since we may not have invalidated the previous
 	 * translation in the hash yet (done in a subsequent flush_tlb_xxx())
@@ -568,9 +568,6 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 */
 	*ptep = __pte((pte_val(*ptep) & _PAGE_HASHPTE)
 		      | (pte_val(pte) & ~_PAGE_HASHPTE));
-
-#else
-#error "Not supported "
 #endif
 }
 
