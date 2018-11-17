@@ -291,10 +291,37 @@ enum {
        TCA_GRED_DPS,
        TCA_GRED_MAX_P,
        TCA_GRED_LIMIT,
+       TCA_GRED_VQ_LIST,	/* nested TCA_GRED_VQ_ENTRY */
        __TCA_GRED_MAX,
 };
 
 #define TCA_GRED_MAX (__TCA_GRED_MAX - 1)
+
+enum {
+	TCA_GRED_VQ_ENTRY_UNSPEC,
+	TCA_GRED_VQ_ENTRY,	/* nested TCA_GRED_VQ_* */
+	__TCA_GRED_VQ_ENTRY_MAX,
+};
+#define TCA_GRED_VQ_ENTRY_MAX (__TCA_GRED_VQ_ENTRY_MAX - 1)
+
+enum {
+	TCA_GRED_VQ_UNSPEC,
+	TCA_GRED_VQ_PAD,
+	TCA_GRED_VQ_DP,			/* u32 */
+	TCA_GRED_VQ_STAT_BYTES,		/* u64 */
+	TCA_GRED_VQ_STAT_PACKETS,	/* u32 */
+	TCA_GRED_VQ_STAT_BACKLOG,	/* u32 */
+	TCA_GRED_VQ_STAT_PROB_DROP,	/* u32 */
+	TCA_GRED_VQ_STAT_PROB_MARK,	/* u32 */
+	TCA_GRED_VQ_STAT_FORCED_DROP,	/* u32 */
+	TCA_GRED_VQ_STAT_FORCED_MARK,	/* u32 */
+	TCA_GRED_VQ_STAT_PDROP,		/* u32 */
+	TCA_GRED_VQ_STAT_OTHER,		/* u32 */
+	TCA_GRED_VQ_FLAGS,		/* u32 */
+	__TCA_GRED_VQ_MAX
+};
+
+#define TCA_GRED_VQ_MAX (__TCA_GRED_VQ_MAX - 1)
 
 struct tc_gred_qopt {
 	__u32		limit;        /* HARD maximal queue length (bytes)    */
