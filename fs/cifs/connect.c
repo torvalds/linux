@@ -304,6 +304,7 @@ static const match_table_t cifs_smb_version_tokens = {
 	{ Smb_21, SMB21_VERSION_STRING },
 	{ Smb_30, SMB30_VERSION_STRING },
 	{ Smb_302, SMB302_VERSION_STRING },
+	{ Smb_302, ALT_SMB302_VERSION_STRING },
 	{ Smb_311, SMB311_VERSION_STRING },
 	{ Smb_311, ALT_SMB311_VERSION_STRING },
 	{ Smb_3any, SMB3ANY_VERSION_STRING },
