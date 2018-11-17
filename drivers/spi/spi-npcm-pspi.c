@@ -217,15 +217,23 @@ static void npcm_pspi_recv(struct npcm_pspi *priv)
 	rsize = min(bytes_per_word(priv->bits_per_word), priv->rx_bytes);
 	priv->rx_bytes -= rsize;
 
-	if (priv->rx_buf) {
-		if (rsize == 1)
-			val = ioread8(priv->base + NPCM_PSPI_DATA);
-		if (rsize == 2)
-			val = ioread16(priv->base + NPCM_PSPI_DATA);
+	if (!priv->rx_buf)
+		return;
 
-		*priv->rx_buf = val;
-		priv->rx_buf += rsize;
+	switch (rsize) {
+	case 1:
+		val = ioread8(priv->base + NPCM_PSPI_DATA);
+		break;
+	case 2:
+		val = ioread16(priv->base + NPCM_PSPI_DATA);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return;
 	}
+
+	*priv->rx_buf = val;
+	priv->rx_buf += rsize;
 }
 
 static int npcm_pspi_transfer_one(struct spi_master *master,
