@@ -3577,6 +3577,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(aes_xcbc128_tv_template)
 		}
 	}, {
+		.alg = "xchacha20",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(xchacha20_tv_template)
+		},
+	}, {
 		.alg = "xts(aes)",
 		.test = alg_test_skcipher,
 		.fips_allowed = 1,
