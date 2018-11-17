@@ -38,7 +38,7 @@ int crypto_poly1305_init(struct shash_desc *desc)
 {
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 
-	memset(dctx->h, 0, sizeof(dctx->h));
+	memset(dctx->h.h, 0, sizeof(dctx->h.h));
 	dctx->buflen = 0;
 	dctx->rset = false;
 	dctx->sset = false;
@@ -50,11 +50,11 @@ EXPORT_SYMBOL_GPL(crypto_poly1305_init);
 static void poly1305_setrkey(struct poly1305_desc_ctx *dctx, const u8 *key)
 {
 	/* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
-	dctx->r[0] = (get_unaligned_le32(key +  0) >> 0) & 0x3ffffff;
-	dctx->r[1] = (get_unaligned_le32(key +  3) >> 2) & 0x3ffff03;
-	dctx->r[2] = (get_unaligned_le32(key +  6) >> 4) & 0x3ffc0ff;
-	dctx->r[3] = (get_unaligned_le32(key +  9) >> 6) & 0x3f03fff;
-	dctx->r[4] = (get_unaligned_le32(key + 12) >> 8) & 0x00fffff;
+	dctx->r.r[0] = (get_unaligned_le32(key +  0) >> 0) & 0x3ffffff;
+	dctx->r.r[1] = (get_unaligned_le32(key +  3) >> 2) & 0x3ffff03;
+	dctx->r.r[2] = (get_unaligned_le32(key +  6) >> 4) & 0x3ffc0ff;
+	dctx->r.r[3] = (get_unaligned_le32(key +  9) >> 6) & 0x3f03fff;
+	dctx->r.r[4] = (get_unaligned_le32(key + 12) >> 8) & 0x00fffff;
 }
 
 static void poly1305_setskey(struct poly1305_desc_ctx *dctx, const u8 *key)
@@ -107,22 +107,22 @@ static unsigned int poly1305_blocks(struct poly1305_desc_ctx *dctx,
 		srclen = datalen;
 	}
 
-	r0 = dctx->r[0];
-	r1 = dctx->r[1];
-	r2 = dctx->r[2];
-	r3 = dctx->r[3];
-	r4 = dctx->r[4];
+	r0 = dctx->r.r[0];
+	r1 = dctx->r.r[1];
+	r2 = dctx->r.r[2];
+	r3 = dctx->r.r[3];
+	r4 = dctx->r.r[4];
 
 	s1 = r1 * 5;
 	s2 = r2 * 5;
 	s3 = r3 * 5;
 	s4 = r4 * 5;
 
-	h0 = dctx->h[0];
-	h1 = dctx->h[1];
-	h2 = dctx->h[2];
-	h3 = dctx->h[3];
-	h4 = dctx->h[4];
+	h0 = dctx->h.h[0];
+	h1 = dctx->h.h[1];
+	h2 = dctx->h.h[2];
+	h3 = dctx->h.h[3];
+	h4 = dctx->h.h[4];
 
 	while (likely(srclen >= POLY1305_BLOCK_SIZE)) {
 
@@ -157,11 +157,11 @@ static unsigned int poly1305_blocks(struct poly1305_desc_ctx *dctx,
 		srclen -= POLY1305_BLOCK_SIZE;
 	}
 
-	dctx->h[0] = h0;
-	dctx->h[1] = h1;
-	dctx->h[2] = h2;
-	dctx->h[3] = h3;
-	dctx->h[4] = h4;
+	dctx->h.h[0] = h0;
+	dctx->h.h[1] = h1;
+	dctx->h.h[2] = h2;
+	dctx->h.h[3] = h3;
+	dctx->h.h[4] = h4;
 
 	return srclen;
 }
@@ -220,11 +220,11 @@ int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
 	}
 
 	/* fully carry h */
-	h0 = dctx->h[0];
-	h1 = dctx->h[1];
-	h2 = dctx->h[2];
-	h3 = dctx->h[3];
-	h4 = dctx->h[4];
+	h0 = dctx->h.h[0];
+	h1 = dctx->h.h[1];
+	h2 = dctx->h.h[2];
+	h3 = dctx->h.h[3];
+	h4 = dctx->h.h[4];
 
 	h2 += (h1 >> 26);     h1 = h1 & 0x3ffffff;
 	h3 += (h2 >> 26);     h2 = h2 & 0x3ffffff;
