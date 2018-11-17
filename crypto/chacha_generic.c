@@ -1,5 +1,5 @@
 /*
- * ChaCha20 (RFC7539) and XChaCha20 stream cipher algorithms
+ * ChaCha and XChaCha stream ciphers, including ChaCha20 (RFC7539)
  *
  * Copyright (C) 2015 Martin Willi
  * Copyright (C) 2018 Google LLC
@@ -106,6 +106,13 @@ int crypto_chacha20_setkey(struct crypto_skcipher *tfm, const u8 *key,
 }
 EXPORT_SYMBOL_GPL(crypto_chacha20_setkey);
 
+int crypto_chacha12_setkey(struct crypto_skcipher *tfm, const u8 *key,
+			   unsigned int keysize)
+{
+	return chacha_setkey(tfm, key, keysize, 12);
+}
+EXPORT_SYMBOL_GPL(crypto_chacha12_setkey);
+
 int crypto_chacha_crypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -168,6 +175,21 @@ static struct skcipher_alg algs[] = {
 		.setkey			= crypto_chacha20_setkey,
 		.encrypt		= crypto_xchacha_crypt,
 		.decrypt		= crypto_xchacha_crypt,
+	}, {
+		.base.cra_name		= "xchacha12",
+		.base.cra_driver_name	= "xchacha12-generic",
+		.base.cra_priority	= 100,
+		.base.cra_blocksize	= 1,
+		.base.cra_ctxsize	= sizeof(struct chacha_ctx),
+		.base.cra_module	= THIS_MODULE,
+
+		.min_keysize		= CHACHA_KEY_SIZE,
+		.max_keysize		= CHACHA_KEY_SIZE,
+		.ivsize			= XCHACHA_IV_SIZE,
+		.chunksize		= CHACHA_BLOCK_SIZE,
+		.setkey			= crypto_chacha12_setkey,
+		.encrypt		= crypto_xchacha_crypt,
+		.decrypt		= crypto_xchacha_crypt,
 	}
 };
 
@@ -191,3 +213,5 @@ MODULE_ALIAS_CRYPTO("chacha20");
 MODULE_ALIAS_CRYPTO("chacha20-generic");
 MODULE_ALIAS_CRYPTO("xchacha20");
 MODULE_ALIAS_CRYPTO("xchacha20-generic");
+MODULE_ALIAS_CRYPTO("xchacha12");
+MODULE_ALIAS_CRYPTO("xchacha12-generic");

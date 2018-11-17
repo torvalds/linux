@@ -21,7 +21,7 @@ static void chacha_permute(u32 *x, int nrounds)
 	int i;
 
 	/* whitelist the allowed round counts */
-	WARN_ON_ONCE(nrounds != 20);
+	WARN_ON_ONCE(nrounds != 20 && nrounds != 12);
 
 	for (i = 0; i < nrounds; i += 2) {
 		x[0]  += x[4];    x[12] = rol32(x[12] ^ x[0],  16);
@@ -70,7 +70,7 @@ static void chacha_permute(u32 *x, int nrounds)
  * chacha_block - generate one keystream block and increment block counter
  * @state: input state matrix (16 32-bit words)
  * @stream: output keystream block (64 bytes)
- * @nrounds: number of rounds (currently must be 20)
+ * @nrounds: number of rounds (20 or 12; 20 is recommended)
  *
  * This is the ChaCha core, a function from 64-byte strings to 64-byte strings.
  * The caller has already converted the endianness of the input.  This function
@@ -96,7 +96,7 @@ EXPORT_SYMBOL(chacha_block);
  * hchacha_block - abbreviated ChaCha core, for XChaCha
  * @in: input state matrix (16 32-bit words)
  * @out: output (8 32-bit words)
- * @nrounds: number of rounds (currently must be 20)
+ * @nrounds: number of rounds (20 or 12; 20 is recommended)
  *
  * HChaCha is the ChaCha equivalent of HSalsa and is an intermediate step
  * towards XChaCha (see https://cr.yp.to/snuffle/xsalsa-20081128.pdf).  HChaCha

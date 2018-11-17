@@ -1403,10 +1403,10 @@ config CRYPTO_SALSA20
 	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
 config CRYPTO_CHACHA20
-	tristate "ChaCha20 stream cipher algorithms"
+	tristate "ChaCha stream cipher algorithms"
 	select CRYPTO_BLKCIPHER
 	help
-	  The ChaCha20 and XChaCha20 stream cipher algorithms.
+	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms.
 
 	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
 	  Bernstein and further specified in RFC7539 for use in IETF protocols.
@@ -1418,6 +1418,10 @@ config CRYPTO_CHACHA20
 	  from 64 bits (or 96 bits using the RFC7539 convention) to 192 bits,
 	  while provably retaining ChaCha20's security.  See also:
 	  <https://cr.yp.to/snuffle/xsalsa-20081128.pdf>
+
+	  XChaCha12 is XChaCha20 reduced to 12 rounds, with correspondingly
+	  reduced security margin but increased performance.  It can be needed
+	  in some performance-sensitive scenarios.
 
 config CRYPTO_CHACHA20_X86_64
 	tristate "ChaCha20 cipher algorithm (x86_64/SSSE3/AVX2)"
