@@ -5,6 +5,11 @@
  * XChaCha extends ChaCha's nonce to 192 bits, while provably retaining ChaCha's
  * security.  Here they share the same key size, tfm context, and setkey
  * function; only their IV size and encrypt/decrypt function differ.
+ *
+ * The ChaCha paper specifies 20, 12, and 8-round variants.  In general, it is
+ * recommended to use the 20-round variant ChaCha20.  However, the other
+ * variants can be needed in some performance-sensitive scenarios.  The generic
+ * ChaCha code currently allows only the 20 and 12-round variants.
  */
 
 #ifndef _CRYPTO_CHACHA_H
@@ -38,6 +43,8 @@ void hchacha_block(const u32 *in, u32 *out, int nrounds);
 void crypto_chacha_init(u32 *state, struct chacha_ctx *ctx, u8 *iv);
 
 int crypto_chacha20_setkey(struct crypto_skcipher *tfm, const u8 *key,
+			   unsigned int keysize);
+int crypto_chacha12_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			   unsigned int keysize);
 
 int crypto_chacha_crypt(struct skcipher_request *req);
