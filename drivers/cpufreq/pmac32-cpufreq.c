@@ -128,7 +128,7 @@ static int cpu_750fx_cpu_speed(int low_speed)
 			mtspr(SPRN_HID2, hid2);
 		}
 	}
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	low_choose_750fx_pll(low_speed);
 #endif
 	if (low_speed == 1) {
@@ -166,7 +166,7 @@ static int dfs_set_cpu_speed(int low_speed)
 	}
 
 	/* set frequency */
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	low_choose_7447a_dfs(low_speed);
 #endif
 	udelay(100);
