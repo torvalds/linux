@@ -496,9 +496,6 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 		csr->fw_path = BXT_CSR_PATH;
 		csr->required_version = BXT_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = BXT_CSR_MAX_FW_SIZE;
-	} else {
-		MISSING_CASE(INTEL_REVID(dev_priv));
-		return;
 	}
 
 	if (i915_modparams.dmc_firmware_path) {
