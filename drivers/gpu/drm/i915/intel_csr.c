@@ -34,6 +34,8 @@
  * low-power state and comes back to normal.
  */
 
+#define GEN12_CSR_MAX_FW_SIZE		ICL_CSR_MAX_FW_SIZE
+
 #define ICL_CSR_PATH			"i915/icl_dmc_ver1_07.bin"
 #define ICL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
 #define ICL_CSR_MAX_FW_SIZE		0x6000
@@ -467,7 +469,10 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
-	if (IS_ICELAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 12) {
+		/* Allow to load fw via parameter using the last known size */
+		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+	} else if (IS_ICELAKE(dev_priv)) {
 		csr->fw_path = ICL_CSR_PATH;
 		csr->required_version = ICL_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = ICL_CSR_MAX_FW_SIZE;
