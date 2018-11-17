@@ -3722,6 +3722,9 @@ static int bcmgenet_suspend(struct device *d)
 	/* Turn off the clocks */
 	clk_disable_unprepare(priv->clk);
 
+	if (ret)
+		bcmgenet_resume(d);
+
 	return ret;
 }
 #endif /* CONFIG_PM_SLEEP */
