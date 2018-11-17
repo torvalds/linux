@@ -503,7 +503,7 @@ EXPORT_SYMBOL(flush_icache_user_range);
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t *ptep)
 {
-#ifdef CONFIG_PPC_STD_MMU
+#ifdef CONFIG_PPC_BOOK3S
 	/*
 	 * We don't need to worry about _PAGE_PRESENT here because we are
 	 * called with either mm->page_table_lock held or ptl lock held
@@ -541,7 +541,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	}
 
 	hash_preload(vma->vm_mm, address, is_exec, trap);
-#endif /* CONFIG_PPC_STD_MMU */
+#endif /* CONFIG_PPC_BOOK3S */
 #if (defined(CONFIG_PPC_BOOK3E_64) || defined(CONFIG_PPC_FSL_BOOK3E)) \
 	&& defined(CONFIG_HUGETLB_PAGE)
 	if (is_vm_hugetlb_page(vma))

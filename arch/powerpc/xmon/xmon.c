@@ -1058,7 +1058,7 @@ cmds(struct pt_regs *excp)
 		case 'P':
 			show_tasks();
 			break;
-#ifdef CONFIG_PPC_STD_MMU
+#ifdef CONFIG_PPC_BOOK3S
 		case 'u':
 			dump_segments();
 			break;
