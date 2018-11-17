@@ -383,12 +383,10 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 	int ret;
 
 	/* turn display power on */
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
-		ret = hda_codec_i915_get(sdev);
-		if (ret < 0) {
-			dev_err(bus->dev, "Cannot turn on display power on i915 after resume\n");
-			return ret;
-		}
+	ret = hda_codec_i915_get(sdev);
+	if (ret < 0) {
+		dev_err(bus->dev, "Cannot turn on display power on i915 after resume\n");
+		return ret;
 	}
 
 	/* init hda controller and power dsp up */
@@ -420,12 +418,10 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, int state)
 	}
 
 	/* turn display power off */
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
-		ret = hda_codec_i915_put(sdev);
-		if (ret < 0) {
-			dev_err(bus->dev, "Cannot turn OFF display power on i915 during suspend\n");
-			return ret;
-		}
+	ret = hda_codec_i915_put(sdev);
+	if (ret < 0) {
+		dev_err(bus->dev, "Cannot turn OFF display power on i915 during suspend\n");
+		return ret;
 	}
 
 	return 0;

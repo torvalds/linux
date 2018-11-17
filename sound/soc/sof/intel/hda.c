@@ -437,6 +437,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	struct hdac_ext_link *hlink = NULL;
 	struct snd_soc_acpi_mach_params *mach_params;
 	int ret = 0;
+	int err;
 
 	device_disable_async_suspend(bus->dev);
 
@@ -448,22 +449,18 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 		snd_hdac_ext_bus_get_ml_capabilities(bus);
 
 	/* init i915 and HDMI codecs */
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
-		ret = hda_codec_i915_init(sdev);
-		if (ret < 0) {
-			dev_err(&pci->dev, "no HDMI audio devices found\n");
-			return ret;
-		}
+	ret = hda_codec_i915_init(sdev);
+	if (ret < 0) {
+		dev_err(&pci->dev, "no HDMI audio devices found\n");
+		return ret;
 	}
 
 	ret = hda_dsp_ctrl_init_chip(sdev, true);
 	if (ret < 0) {
 		dev_err(bus->dev, "Init chip failed with ret: %d\n", ret);
-		if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
-			ret = hda_codec_i915_put(sdev);
-			if (ret < 0)
-				return ret;
-		}
+		err = hda_codec_i915_put(sdev);
+		if (err < 0)
+			return err;
 		return ret;
 	}
 
@@ -481,11 +478,9 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	/* create codec instances */
 	hda_codec_probe_bus(sdev);
 
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
-		ret = hda_codec_i915_put(sdev);
-		if (ret < 0)
-			return ret;
-	}
+	ret = hda_codec_i915_put(sdev);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * we are done probing so decrement link counts
@@ -769,8 +764,7 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	iounmap(sdev->bar[HDA_DSP_BAR]);
 	iounmap(bus->remap_addr);
 
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
-		hda_codec_i915_exit(sdev);
+	hda_codec_i915_exit(sdev);
 
 	return 0;
 }
