@@ -36,11 +36,11 @@ MODULE_LICENSE("GPL");
 
 /* IP101A/G - IP1001 */
 #define IP10XX_SPEC_CTRL_STATUS		16	/* Spec. Control Register */
-#define IP1001_RXPHASE_SEL		(1<<0)	/* Add delay on RX_CLK */
-#define IP1001_TXPHASE_SEL		(1<<1)	/* Add delay on TX_CLK */
+#define IP1001_RXPHASE_SEL		BIT(0)	/* Add delay on RX_CLK */
+#define IP1001_TXPHASE_SEL		BIT(1)	/* Add delay on TX_CLK */
 #define IP1001_SPEC_CTRL_STATUS_2	20	/* IP1001 Spec. Control Reg 2 */
 #define IP1001_APS_ON			11	/* IP1001 APS Mode  bit */
-#define IP101A_G_APS_ON			2	/* IP101A/G APS Mode bit */
+#define IP101A_G_APS_ON			BIT(1)	/* IP101A/G APS Mode bit */
 #define IP101A_G_IRQ_CONF_STATUS	0x11	/* Conf Info IRQ & Status Reg */
 #define	IP101A_G_IRQ_PIN_USED		BIT(15) /* INTR pin used */
 #define	IP101A_G_NO_IRQ			BIT(11) /* IRQ's inactive */
