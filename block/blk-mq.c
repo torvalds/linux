@@ -585,7 +585,12 @@ static void __blk_mq_complete_request(struct request *rq)
 		return;
 	}
 
-	if (!test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags)) {
+	/*
+	 * For a polled request, always complete locallly, it's pointless
+	 * to redirect the completion.
+	 */
+	if ((rq->cmd_flags & REQ_HIPRI) ||
+	    !test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags)) {
 		q->mq_ops->complete(rq);
 		return;
 	}
