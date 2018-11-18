@@ -94,12 +94,12 @@ struct mlx5e_tc_flow {
 };
 
 struct mlx5e_tc_flow_parse_attr {
-	struct ip_tunnel_info tun_info;
+	struct ip_tunnel_info tun_info[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct net_device *filter_dev;
 	struct mlx5_flow_spec spec;
 	int num_mod_hdr_actions;
 	void *mod_hdr_actions;
-	int mirred_ifindex;
+	int mirred_ifindex[MLX5_MAX_FLOW_FWD_VPORTS];
 };
 
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
@@ -571,7 +571,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 				  struct mlx5e_tc_flow_parse_attr *parse_attr,
 				  struct netlink_ext_ack *extack)
 {
-	int peer_ifindex = parse_attr->mirred_ifindex;
+	int peer_ifindex = parse_attr->mirred_ifindex[0];
 	struct mlx5_hairpin_params params;
 	struct mlx5_core_dev *peer_mdev;
 	struct mlx5e_hairpin_entry *hpe;
@@ -933,8 +933,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 			continue;
 
 		out_dev = __dev_get_by_index(dev_net(priv->netdev),
-					     attr->parse_attr->mirred_ifindex);
-		encap_err = mlx5e_attach_encap(priv, &parse_attr->tun_info,
+					     attr->parse_attr->mirred_ifindex[0]);
+		encap_err = mlx5e_attach_encap(priv, &parse_attr->tun_info[0],
 					       out_dev, &encap_dev, flow,
 					       extack);
 		if (encap_err && encap_err != -EAGAIN) {
@@ -2220,7 +2220,7 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 			if (priv->netdev->netdev_ops == peer_dev->netdev_ops &&
 			    same_hw_devs(priv, netdev_priv(peer_dev))) {
-				parse_attr->mirred_ifindex = peer_dev->ifindex;
+				parse_attr->mirred_ifindex[0] = peer_dev->ifindex;
 				flow->flags |= MLX5E_TC_FLOW_HAIRPIN;
 				action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
@@ -2482,8 +2482,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				attr->dests[attr->out_count].mdev = out_priv->mdev;
 				attr->out_count++;
 			} else if (encap) {
-				parse_attr->mirred_ifindex = out_dev->ifindex;
-				parse_attr->tun_info = *info;
+				parse_attr->mirred_ifindex[0] = out_dev->ifindex;
+				parse_attr->tun_info[0] = *info;
 				attr->parse_attr = parse_attr;
 				attr->dests[attr->out_count].flags |=
 					MLX5_ESW_DEST_ENCAP;
