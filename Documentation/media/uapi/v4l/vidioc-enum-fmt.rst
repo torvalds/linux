@@ -64,8 +64,12 @@ one until ``EINVAL`` is returned.
 	are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``,
 	``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``,
 	``V4L2_BUF_TYPE_VIDEO_OUTPUT``,
-	``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE`` and
-	``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type`.
+	``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``,
+	``V4L2_BUF_TYPE_VIDEO_OVERLAY``,
+	``V4L2_BUF_TYPE_SDR_CAPTURE``,
+	``V4L2_BUF_TYPE_SDR_OUTPUT`` and
+	``V4L2_BUF_TYPE_META_CAPTURE``.
+	See :c:type:`v4l2_buf_type`.
     * - __u32
       - ``flags``
       - See :ref:`fmtdesc-flags`
