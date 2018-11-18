@@ -129,6 +129,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_STREAM_SCHEDULER_VALUE	124
 #define SCTP_INTERLEAVING_SUPPORTED	125
 #define SCTP_SENDMSG_CONNECT	126
+#define SCTP_EVENT	127
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000
@@ -1152,6 +1153,12 @@ struct sctp_add_streams {
 	sctp_assoc_t sas_assoc_id;
 	uint16_t sas_instrms;
 	uint16_t sas_outstrms;
+};
+
+struct sctp_event {
+	sctp_assoc_t se_assoc_id;
+	uint16_t se_type;
+	uint8_t se_on;
 };
 
 /* SCTP Stream schedulers */
