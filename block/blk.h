@@ -85,7 +85,7 @@ static inline bool biovec_phys_mergeable(struct request_queue *q,
 static inline bool __bvec_gap_to_prev(struct request_queue *q,
 		struct bio_vec *bprv, unsigned int offset)
 {
-	return offset ||
+	return (offset & queue_virt_boundary(q)) ||
 		((bprv->bv_offset + bprv->bv_len) & queue_virt_boundary(q));
 }
 
@@ -231,6 +231,16 @@ static inline void req_set_nomerge(struct request_queue *q, struct request *req)
 	req->cmd_flags |= REQ_NOMERGE;
 	if (req == q->last_merge)
 		q->last_merge = NULL;
+}
+
+/*
+ * The max size one bio can handle is UINT_MAX becasue bvec_iter.bi_size
+ * is defined as 'unsigned int', meantime it has to aligned to with logical
+ * block size which is the minimum accepted unit by hardware.
+ */
+static inline unsigned int bio_allowed_max_sectors(struct request_queue *q)
+{
+	return round_down(UINT_MAX, queue_logical_block_size(q)) >> 9;
 }
 
 /*

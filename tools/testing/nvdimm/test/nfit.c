@@ -140,8 +140,8 @@ static u32 handle[] = {
 	[6] = NFIT_DIMM_HANDLE(1, 0, 0, 0, 1),
 };
 
-static unsigned long dimm_fail_cmd_flags[NUM_DCR];
-static int dimm_fail_cmd_code[NUM_DCR];
+static unsigned long dimm_fail_cmd_flags[ARRAY_SIZE(handle)];
+static int dimm_fail_cmd_code[ARRAY_SIZE(handle)];
 
 static const struct nd_intel_smart smart_def = {
 	.flags = ND_INTEL_SMART_HEALTH_VALID
@@ -205,7 +205,7 @@ struct nfit_test {
 		unsigned long deadline;
 		spinlock_t lock;
 	} ars_state;
-	struct device *dimm_dev[NUM_DCR];
+	struct device *dimm_dev[ARRAY_SIZE(handle)];
 	struct nd_intel_smart *smart;
 	struct nd_intel_smart_threshold *smart_threshold;
 	struct badrange badrange;
@@ -2680,7 +2680,7 @@ static int nfit_test_probe(struct platform_device *pdev)
 		u32 nfit_handle = __to_nfit_memdev(nfit_mem)->device_handle;
 		int i;
 
-		for (i = 0; i < NUM_DCR; i++)
+		for (i = 0; i < ARRAY_SIZE(handle); i++)
 			if (nfit_handle == handle[i])
 				dev_set_drvdata(nfit_test->dimm_dev[i],
 						nfit_mem);

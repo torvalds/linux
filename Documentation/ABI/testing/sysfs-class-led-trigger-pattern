@@ -37,8 +37,8 @@ Description:
 		  0-|   /             \/             \/
 		    +---0----1----2----3----4----5----6------------> time (s)
 
-		2. To make the LED go instantly from one brigntess value to another,
-		we should use use zero-time lengths (the brightness must be same as
+		2. To make the LED go instantly from one brightness value to another,
+		we should use zero-time lengths (the brightness must be same as
 		the previous tuple's). So the format should be:
 		"brightness_1 duration_1 brightness_1 0 brightness_2 duration_2
 		brightness_2 0 ...". For example:

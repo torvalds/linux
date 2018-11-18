@@ -793,14 +793,9 @@ static void pci_acpi_setup(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct acpi_device *adev = ACPI_COMPANION(dev);
-	int node;
 
 	if (!adev)
 		return;
-
-	node = acpi_get_node(adev->handle);
-	if (node != NUMA_NO_NODE)
-		set_dev_node(dev, node);
 
 	pci_acpi_optimize_delay(pci_dev, adev->handle);
 

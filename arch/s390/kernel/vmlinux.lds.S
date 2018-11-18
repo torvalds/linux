@@ -154,14 +154,14 @@ SECTIONS
 	 * uncompressed image info used by the decompressor
 	 * it should match struct vmlinux_info
 	 */
-	.vmlinux.info 0 : {
+	.vmlinux.info 0 (INFO) : {
 		QUAD(_stext)					/* default_lma */
 		QUAD(startup_continue)				/* entry */
 		QUAD(__bss_start - _stext)			/* image_size */
 		QUAD(__bss_stop - __bss_start)			/* bss_size */
 		QUAD(__boot_data_start)				/* bootdata_off */
 		QUAD(__boot_data_end - __boot_data_start)	/* bootdata_size */
-	}
+	} :NONE
 
 	/* Debugging sections.	*/
 	STABS_DEBUG
