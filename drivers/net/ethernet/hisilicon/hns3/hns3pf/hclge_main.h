@@ -728,6 +728,11 @@ struct hclge_rss_tuple_cfg {
 	u8 ipv6_fragment_en;
 };
 
+enum HCLGE_VPORT_STATE {
+	HCLGE_VPORT_STATE_ALIVE,
+	HCLGE_VPORT_STATE_MAX
+};
+
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
 
@@ -753,6 +758,9 @@ struct hclge_vport {
 	struct hclge_dev *back;  /* Back reference to associated dev */
 	struct hnae3_handle nic;
 	struct hnae3_handle roce;
+
+	unsigned long state;
+	unsigned long last_active_jiffies;
 };
 
 void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
@@ -800,4 +808,6 @@ int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id);
 void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id);
 int hclge_cfg_flowctrl(struct hclge_dev *hdev);
 int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id);
+int hclge_vport_start(struct hclge_vport *vport);
+void hclge_vport_stop(struct hclge_vport *vport);
 #endif

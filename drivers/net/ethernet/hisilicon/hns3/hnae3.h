@@ -210,6 +210,10 @@ struct hnae3_ae_dev {
  *   Enable the hardware
  * stop()
  *   Disable the hardware
+ * start_client()
+ *   Inform the hclge that client has been started
+ * stop_client()
+ *   Inform the hclge that client has been stopped
  * get_status()
  *   Get the carrier state of the back channel of the handle, 1 for ok, 0 for
  *   non-ok
@@ -319,6 +323,8 @@ struct hnae3_ae_ops {
 				       struct hnae3_ae_dev *ae_dev);
 	int (*start)(struct hnae3_handle *handle);
 	void (*stop)(struct hnae3_handle *handle);
+	int (*client_start)(struct hnae3_handle *handle);
+	void (*client_stop)(struct hnae3_handle *handle);
 	int (*get_status)(struct hnae3_handle *handle);
 	void (*get_ksettings_an_result)(struct hnae3_handle *handle,
 					u8 *auto_neg, u32 *speed, u8 *duplex);

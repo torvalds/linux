@@ -3540,6 +3540,22 @@ static void hns3_nic_set_priv_ops(struct net_device *netdev)
 		priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tx;
 }
 
+static int hns3_client_start(struct hnae3_handle *handle)
+{
+	if (!handle->ae_algo->ops->client_start)
+		return 0;
+
+	return handle->ae_algo->ops->client_start(handle);
+}
+
+static void hns3_client_stop(struct hnae3_handle *handle)
+{
+	if (!handle->ae_algo->ops->client_stop)
+		return;
+
+	handle->ae_algo->ops->client_stop(handle);
+}
+
 static int hns3_client_init(struct hnae3_handle *handle)
 {
 	struct pci_dev *pdev = handle->pdev;
@@ -3607,6 +3623,12 @@ static int hns3_client_init(struct hnae3_handle *handle)
 		goto out_reg_netdev_fail;
 	}
 
+	ret = hns3_client_start(handle);
+	if (ret) {
+		dev_err(priv->dev, "hns3_client_start fail! ret=%d\n", ret);
+			goto out_reg_netdev_fail;
+	}
+
 	hns3_dcbnl_setup(handle);
 
 	/* MTU range: (ETH_MIN_MTU(kernel default) - 9702) */
@@ -3634,6 +3656,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
+
+	hns3_client_stop(handle);
 
 	hns3_remove_hw_addr(netdev);
 

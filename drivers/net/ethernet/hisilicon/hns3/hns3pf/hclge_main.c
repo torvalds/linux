@@ -2911,6 +2911,19 @@ static void hclge_mailbox_service_task(struct work_struct *work)
 	clear_bit(HCLGE_STATE_MBX_HANDLING, &hdev->state);
 }
 
+static void hclge_update_vport_alive(struct hclge_dev *hdev)
+{
+	int i;
+
+	/* start from vport 1 for PF is always alive */
+	for (i = 1; i < hdev->num_alloc_vport; i++) {
+		struct hclge_vport *vport = &hdev->vport[i];
+
+		if (time_after(jiffies, vport->last_active_jiffies + 8 * HZ))
+			clear_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
+	}
+}
+
 static void hclge_service_task(struct work_struct *work)
 {
 	struct hclge_dev *hdev =
@@ -2923,6 +2936,7 @@ static void hclge_service_task(struct work_struct *work)
 
 	hclge_update_speed_duplex(hdev);
 	hclge_update_link_status(hdev);
+	hclge_update_vport_alive(hdev);
 	hclge_service_complete(hdev);
 }
 
@@ -5208,6 +5222,32 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 	hclge_update_link_status(hdev);
 }
 
+int hclge_vport_start(struct hclge_vport *vport)
+{
+	set_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
+	vport->last_active_jiffies = jiffies;
+	return 0;
+}
+
+void hclge_vport_stop(struct hclge_vport *vport)
+{
+	clear_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
+}
+
+static int hclge_client_start(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+
+	return hclge_vport_start(vport);
+}
+
+static void hclge_client_stop(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+
+	hclge_vport_stop(vport);
+}
+
 static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 					 u16 cmdq_resp, u8  resp_code,
 					 enum hclge_mac_vlan_tbl_opcode op)
@@ -7189,6 +7229,17 @@ static void hclge_stats_clear(struct hclge_dev *hdev)
 	memset(&hdev->hw_stats, 0, sizeof(hdev->hw_stats));
 }
 
+static void hclge_reset_vport_state(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	int i;
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		hclge_vport_start(vport);
+		vport++;
+	}
+}
+
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	struct hclge_dev *hdev = ae_dev->priv;
@@ -7273,6 +7324,8 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	 */
 	if (hclge_enable_tm_hw_error(hdev, true))
 		dev_err(&pdev->dev, "failed to enable TM hw error interrupts\n");
+
+	hclge_reset_vport_state(hdev);
 
 	dev_info(&pdev->dev, "Reset done, %s driver initialization finished.\n",
 		 HCLGE_DRIVER_NAME);
@@ -7682,6 +7735,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_loopback = hclge_set_loopback,
 	.start = hclge_ae_start,
 	.stop = hclge_ae_stop,
+	.client_start = hclge_client_start,
+	.client_stop = hclge_client_stop,
 	.get_status = hclge_get_status,
 	.get_ksettings_an_result = hclge_get_ksettings_an_result,
 	.update_speed_duplex_h = hclge_update_speed_duplex_h,

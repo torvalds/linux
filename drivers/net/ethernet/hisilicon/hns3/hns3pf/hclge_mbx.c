@@ -301,6 +301,21 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 	return status;
 }
 
+static int hclge_set_vf_alive(struct hclge_vport *vport,
+			      struct hclge_mbx_vf_to_pf_cmd *mbx_req,
+			      bool gen_resp)
+{
+	bool alive = !!mbx_req->msg[2];
+	int ret = 0;
+
+	if (alive)
+		ret = hclge_vport_start(vport);
+	else
+		hclge_vport_stop(vport);
+
+	return ret;
+}
+
 static int hclge_get_vf_tcinfo(struct hclge_vport *vport,
 			       struct hclge_mbx_vf_to_pf_cmd *mbx_req,
 			       bool gen_resp)
@@ -380,6 +395,12 @@ static void hclge_reset_vf(struct hclge_vport *vport,
 	hclge_gen_resp_to_vf(vport, mbx_req, ret, NULL, 0);
 }
 
+static void hclge_vf_keep_alive(struct hclge_vport *vport,
+				struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	vport->last_active_jiffies = jiffies;
+}
+
 static bool hclge_cmd_crq_empty(struct hclge_hw *hw)
 {
 	u32 tail = hclge_read_dev(hw, HCLGE_NIC_CRQ_TAIL_REG);
@@ -457,6 +478,13 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 					"PF failed(%d) to config VF's VLAN\n",
 					ret);
 			break;
+		case HCLGE_MBX_SET_ALIVE:
+			ret = hclge_set_vf_alive(vport, req, false);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"PF failed(%d) to set VF's ALIVE\n",
+					ret);
+			break;
 		case HCLGE_MBX_GET_QINFO:
 			ret = hclge_get_vf_queue_info(vport, req, true);
 			if (ret)
@@ -483,6 +511,9 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			break;
 		case HCLGE_MBX_RESET:
 			hclge_reset_vf(vport, req);
+			break;
+		case HCLGE_MBX_KEEP_ALIVE:
+			hclge_vf_keep_alive(vport, req);
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,

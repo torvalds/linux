@@ -201,7 +201,9 @@ struct hclgevf_dev {
 	struct hclgevf_mbx_arq_ring arq; /* mailbox async rx queue */
 
 	struct timer_list service_timer;
+	struct timer_list keep_alive_timer;
 	struct work_struct service_task;
+	struct work_struct keep_alive_task;
 	struct work_struct rst_service_task;
 	struct work_struct mbx_service_task;
 

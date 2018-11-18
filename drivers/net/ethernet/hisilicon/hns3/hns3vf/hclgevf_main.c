@@ -1515,6 +1515,28 @@ static void hclgevf_mailbox_service_task(struct work_struct *work)
 	clear_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state);
 }
 
+static void hclgevf_keep_alive_timer(struct timer_list *t)
+{
+	struct hclgevf_dev *hdev = from_timer(hdev, t, keep_alive_timer);
+
+	schedule_work(&hdev->keep_alive_task);
+	mod_timer(&hdev->keep_alive_timer, jiffies + 2 * HZ);
+}
+
+static void hclgevf_keep_alive_task(struct work_struct *work)
+{
+	struct hclgevf_dev *hdev;
+	u8 respmsg;
+	int ret;
+
+	hdev = container_of(work, struct hclgevf_dev, keep_alive_task);
+	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_KEEP_ALIVE, 0, NULL,
+				   0, false, &respmsg, sizeof(u8));
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"VF sends keep alive cmd failed(=%d)\n", ret);
+}
+
 static void hclgevf_service_task(struct work_struct *work)
 {
 	struct hclgevf_dev *hdev;
@@ -1765,6 +1787,38 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 	cancel_work_sync(&hdev->service_task);
 	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
 	hclgevf_update_link_status(hdev, 0);
+}
+
+static int hclgevf_set_alive(struct hnae3_handle *handle, bool alive)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	u8 msg_data;
+
+	msg_data = alive ? 1 : 0;
+	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_ALIVE,
+				    0, &msg_data, 1, false, NULL, 0);
+}
+
+static int hclgevf_client_start(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	mod_timer(&hdev->keep_alive_timer, jiffies + 2 * HZ);
+	return hclgevf_set_alive(handle, true);
+}
+
+static void hclgevf_client_stop(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	int ret;
+
+	ret = hclgevf_set_alive(handle, false);
+	if (ret)
+		dev_warn(&hdev->pdev->dev,
+			 "%s failed %d\n", __func__, ret);
+
+	del_timer_sync(&hdev->keep_alive_timer);
+	cancel_work_sync(&hdev->keep_alive_task);
 }
 
 static void hclgevf_state_init(struct hclgevf_dev *hdev)
@@ -2279,6 +2333,7 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 static int hclgevf_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	struct pci_dev *pdev = ae_dev->pdev;
+	struct hclgevf_dev *hdev;
 	int ret;
 
 	ret = hclgevf_alloc_hdev(ae_dev);
@@ -2288,10 +2343,16 @@ static int hclgevf_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	}
 
 	ret = hclgevf_init_hdev(ae_dev->priv);
-	if (ret)
+	if (ret) {
 		dev_err(&pdev->dev, "hclge device initialization failed\n");
+		return ret;
+	}
 
-	return ret;
+	hdev = ae_dev->priv;
+	timer_setup(&hdev->keep_alive_timer, hclgevf_keep_alive_timer, 0);
+	INIT_WORK(&hdev->keep_alive_task, hclgevf_keep_alive_task);
+
+	return 0;
 }
 
 static void hclgevf_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
@@ -2413,6 +2474,8 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.uninit_client_instance = hclgevf_uninit_client_instance,
 	.start = hclgevf_ae_start,
 	.stop = hclgevf_ae_stop,
+	.client_start = hclgevf_client_start,
+	.client_stop = hclgevf_client_stop,
 	.map_ring_to_vector = hclgevf_map_ring_to_vector,
 	.unmap_ring_from_vector = hclgevf_unmap_ring_from_vector,
 	.get_vector = hclgevf_get_vector,
