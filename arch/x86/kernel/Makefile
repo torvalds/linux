@@ -151,4 +151,6 @@ ifeq ($(CONFIG_X86_64),y)
 	obj-y				+= vsmp_64.o
 endif
 
+ifdef CONFIG_EFI
 obj-$(CONFIG_IMA)			+= ima_arch.o
+endif
