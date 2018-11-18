@@ -182,6 +182,22 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
 	return 0;
 }
 
+int function_graph_enter(unsigned long ret, unsigned long func,
+			 unsigned long frame_pointer, unsigned long *retp)
+{
+	struct ftrace_graph_ent trace;
+
+	trace.func = func;
+	trace.depth = current->curr_ret_stack + 1;
+
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace))
+		return -EBUSY;
+
+	return ftrace_push_return_trace(ret, func, &trace.depth,
+					frame_pointer, retp);
+}
+
 /* Retrieve a function return address to the trace stack on thread info.*/
 static void
 ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
