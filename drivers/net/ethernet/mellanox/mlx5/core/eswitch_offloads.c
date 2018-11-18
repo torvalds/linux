@@ -233,7 +233,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (IS_ERR(rule))
 		goto err_add_rule;
 	else
-		esw->offloads.num_flows++;
+		atomic64_inc(&esw->offloads.num_flows);
 
 	return rule;
 
@@ -298,7 +298,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	if (IS_ERR(rule))
 		goto add_err;
 
-	esw->offloads.num_flows++;
+	atomic64_inc(&esw->offloads.num_flows);
 
 	return rule;
 add_err:
@@ -326,7 +326,7 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 			mlx5_eswitch_termtbl_put(esw, attr->dests[i].termtbl);
 	}
 
-	esw->offloads.num_flows--;
+	atomic64_dec(&esw->offloads.num_flows);
 
 	if (fwd_rule)  {
 		esw_put_prio_table(esw, attr->chain, attr->prio, 1);
@@ -2349,7 +2349,7 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode,
 		break;
 	}
 
-	if (esw->offloads.num_flows > 0) {
+	if (atomic64_read(&esw->offloads.num_flows) > 0) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can't set inline mode when flows are configured");
 		return -EOPNOTSUPP;
@@ -2459,7 +2459,7 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink,
 	if (esw->offloads.encap == encap)
 		return 0;
 
-	if (esw->offloads.num_flows > 0) {
+	if (atomic64_read(&esw->offloads.num_flows) > 0) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can't set encapsulation when flows are configured");
 		return -EOPNOTSUPP;
