@@ -10,7 +10,7 @@
 #include <linux/mm.h>
 #include <linux/genalloc.h>
 #include <linux/llist.h>
-#include "mce-internal.h"
+#include "internal.h"
 
 /*
  * printk() is not safe in MCE context. This is a lock-less memory allocator

@@ -36,7 +36,7 @@
 #include <acpi/ghes.h>
 #include <asm/mce.h>
 
-#include "mce-internal.h"
+#include "internal.h"
 
 void apei_mce_report_mem_error(int severity, struct cper_sec_mem_err *mem_err)
 {

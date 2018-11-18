@@ -52,7 +52,7 @@
 #include <asm/msr.h>
 #include <asm/reboot.h>
 
-#include "mce-internal.h"
+#include "internal.h"
 
 static DEFINE_MUTEX(mce_log_mutex);
 
