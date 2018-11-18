@@ -112,16 +112,6 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
 
 	index = current->curr_ret_stack;
 
-	/*
-	 * A negative index here means that it's just returned from a
-	 * notrace'd function.  Recover index to get an original
-	 * return address.  See ftrace_push_return_trace().
-	 *
-	 * TODO: Need to check whether the stack gets corrupted.
-	 */
-	if (index < 0)
-		index += FTRACE_NOTRACE_DEPTH;
-
 	if (unlikely(index < 0 || index >= FTRACE_RETFUNC_DEPTH)) {
 		ftrace_graph_stop();
 		WARN_ON(1);
@@ -190,15 +180,6 @@ unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
 	 */
 	barrier();
 	current->curr_ret_stack--;
-	/*
-	 * The curr_ret_stack can be less than -1 only if it was
-	 * filtered out and it's about to return from the function.
-	 * Recover the index and continue to trace normal functions.
-	 */
-	if (current->curr_ret_stack < -1) {
-		current->curr_ret_stack += FTRACE_NOTRACE_DEPTH;
-		return ret;
-	}
 
 	if (unlikely(!ret)) {
 		ftrace_graph_stop();

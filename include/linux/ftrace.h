@@ -790,7 +790,6 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
  */
 #define __notrace_funcgraph		notrace
 
-#define FTRACE_NOTRACE_DEPTH 65536
 #define FTRACE_RETFUNC_DEPTH 50
 #define FTRACE_RETSTACK_ALLOC_SIZE 32
 extern int register_ftrace_graph(trace_func_graph_ret_t retfunc,
