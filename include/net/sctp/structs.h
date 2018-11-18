@@ -2077,6 +2077,8 @@ struct sctp_association {
 
 	int sent_cnt_removable;
 
+	__u16 subscribe;
+
 	__u64 abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
 	__u64 abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
 };

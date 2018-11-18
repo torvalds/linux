@@ -503,7 +503,7 @@ static int sctp_enqueue_event(struct sctp_ulpq *ulpq,
 		sk_incoming_cpu_update(sk);
 	}
 
-	if (!sctp_ulpevent_is_enabled(event, sp->subscribe))
+	if (!sctp_ulpevent_is_enabled(event, ulpq->asoc->subscribe))
 		goto out_free;
 
 	if (skb_list)
@@ -992,16 +992,17 @@ static void sctp_intl_stream_abort_pd(struct sctp_ulpq *ulpq, __u16 sid,
 				      __u32 mid, __u16 flags, gfp_t gfp)
 {
 	struct sock *sk = ulpq->asoc->base.sk;
-	struct sctp_sock *sp = sctp_sk(sk);
 	struct sctp_ulpevent *ev = NULL;
 
-	if (!sctp_ulpevent_type_enabled(sp->subscribe,
+	if (!sctp_ulpevent_type_enabled(ulpq->asoc->subscribe,
 					SCTP_PARTIAL_DELIVERY_EVENT))
 		return;
 
 	ev = sctp_ulpevent_make_pdapi(ulpq->asoc, SCTP_PARTIAL_DELIVERY_ABORTED,
 				      sid, mid, flags, gfp);
 	if (ev) {
+		struct sctp_sock *sp = sctp_sk(sk);
+
 		__skb_queue_tail(&sk->sk_receive_queue, sctp_event2skb(ev));
 
 		if (!sp->data_ready_signalled) {
