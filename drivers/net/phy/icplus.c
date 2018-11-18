@@ -162,21 +162,6 @@ static int ip1001_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static int ip101a_g_config_init(struct phy_device *phydev)
-{
-	int c;
-
-	c = ip1xx_reset(phydev);
-	if (c < 0)
-		return c;
-
-	/* Enable Auto Power Saving mode */
-	c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
-	c |= IP101A_G_APS_ON;
-
-	return phy_write(phydev, IP10XX_SPEC_CTRL_STATUS, c);
-}
-
 static int ip175c_read_status(struct phy_device *phydev)
 {
 	if (phydev->mdio.addr == 4) /* WAN port */
@@ -194,6 +179,21 @@ static int ip175c_config_aneg(struct phy_device *phydev)
 		genphy_config_aneg(phydev);
 
 	return 0;
+}
+
+static int ip101a_g_config_init(struct phy_device *phydev)
+{
+	int c;
+
+	c = ip1xx_reset(phydev);
+	if (c < 0)
+		return c;
+
+	/* Enable Auto Power Saving mode */
+	c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
+	c |= IP101A_G_APS_ON;
+
+	return phy_write(phydev, IP10XX_SPEC_CTRL_STATUS, c);
 }
 
 static int ip101a_g_config_intr(struct phy_device *phydev)
