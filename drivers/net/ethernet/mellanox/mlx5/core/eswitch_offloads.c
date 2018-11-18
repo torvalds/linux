@@ -130,9 +130,10 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 						MLX5_FLOW_DEST_VPORT_VHCA_ID;
 				if (attr->dests[j].flags & MLX5_ESW_DEST_ENCAP) {
 					flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
-					flow_act.reformat_id = attr->encap_id;
+					flow_act.reformat_id = attr->dests[j].encap_id;
 					dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
-					dest[i].vport.reformat_id = attr->encap_id;
+					dest[i].vport.reformat_id =
+						attr->dests[j].encap_id;
 				}
 				i++;
 			}
@@ -228,7 +229,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 			dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
 		if (attr->dests[i].flags & MLX5_ESW_DEST_ENCAP) {
 			dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
-			dest[i].vport.reformat_id = attr->encap_id;
+			dest[i].vport.reformat_id = attr->dests[i].encap_id;
 		}
 	}
 	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;

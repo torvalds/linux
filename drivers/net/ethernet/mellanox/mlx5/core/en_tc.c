@@ -843,14 +843,15 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 }
 
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
-			       struct mlx5e_tc_flow *flow);
+			       struct mlx5e_tc_flow *flow, int out_index);
 
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct ip_tunnel_info *tun_info,
 			      struct net_device *mirred_dev,
 			      struct net_device **encap_dev,
 			      struct mlx5e_tc_flow *flow,
-			      struct netlink_ext_ack *extack);
+			      struct netlink_ext_ack *extack,
+			      int out_index);
 
 static struct mlx5_flow_handle *
 mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
@@ -955,18 +956,22 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	}
 
 	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		int mirred_ifindex;
+
 		if (!(attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
 			continue;
 
+		mirred_ifindex = attr->parse_attr->mirred_ifindex[out_index];
 		out_dev = __dev_get_by_index(dev_net(priv->netdev),
-					     attr->parse_attr->mirred_ifindex[0]);
-		encap_err = mlx5e_attach_encap(priv, &parse_attr->tun_info[0],
-					       out_dev, &encap_dev, flow,
-					       extack);
-		if (encap_err && encap_err != -EAGAIN) {
-			err = encap_err;
+					     mirred_ifindex);
+		err = mlx5e_attach_encap(priv,
+					 &parse_attr->tun_info[out_index],
+					 out_dev, &encap_dev, flow,
+					 extack, out_index);
+		if (err && err != -EAGAIN)
 			goto err_attach_encap;
-		}
+		if (err == -EAGAIN)
+			encap_err = err;
 		out_priv = netdev_priv(encap_dev);
 		rpriv = out_priv->ppriv;
 		attr->dests[out_index].rep = rpriv->rep;
@@ -1022,10 +1027,8 @@ err_mod_hdr:
 	mlx5_eswitch_del_vlan_action(esw, attr);
 err_add_vlan:
 	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++)
-		if (attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP) {
-			mlx5e_detach_encap(priv, flow);
-			break;
-		}
+		if (attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP)
+			mlx5e_detach_encap(priv, flow, out_index);
 err_attach_encap:
 err_max_prio_chain:
 	return err;
@@ -1049,10 +1052,8 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	mlx5_eswitch_del_vlan_action(esw, attr);
 
 	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++)
-		if (attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP) {
-			mlx5e_detach_encap(priv, flow);
-			break;
-		}
+		if (attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP)
+			mlx5e_detach_encap(priv, flow, out_index);
 	kvfree(attr->parse_attr);
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
@@ -1087,11 +1088,30 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 	mlx5e_rep_queue_neigh_stats_work(priv);
 
 	list_for_each_entry(efi, &e->flows, list) {
+		bool all_flow_encaps_valid = true;
+		int i;
+
 		flow = container_of(efi, struct mlx5e_tc_flow, encaps[efi->index]);
 		esw_attr = flow->esw_attr;
-		esw_attr->encap_id = e->encap_id;
 		spec = &esw_attr->parse_attr->spec;
 
+		esw_attr->dests[efi->index].encap_id = e->encap_id;
+		esw_attr->dests[efi->index].flags |= MLX5_ESW_DEST_ENCAP_VALID;
+		/* Flow can be associated with multiple encap entries.
+		 * Before offloading the flow verify that all of them have
+		 * a valid neighbour.
+		 */
+		for (i = 0; i < MLX5_MAX_FLOW_FWD_VPORTS; i++) {
+			if (!(esw_attr->dests[i].flags & MLX5_ESW_DEST_ENCAP))
+				continue;
+			if (!(esw_attr->dests[i].flags & MLX5_ESW_DEST_ENCAP_VALID)) {
+				all_flow_encaps_valid = false;
+				break;
+			}
+		}
+		/* Do not offload flows with unresolved neighbors */
+		if (!all_flow_encaps_valid)
+			continue;
 		/* update from slow path rule to encap rule */
 		rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, esw_attr);
 		if (IS_ERR(rule)) {
@@ -1124,6 +1144,8 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 
 		/* update from encap rule to slow path rule */
 		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec, &slow_attr);
+		/* mark the flow's encap dest as non-valid */
+		flow->esw_attr->dests[efi->index].flags &= ~MLX5_ESW_DEST_ENCAP_VALID;
 
 		if (IS_ERR(rule)) {
 			err = PTR_ERR(rule);
@@ -1207,11 +1229,11 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 }
 
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
-			       struct mlx5e_tc_flow *flow)
+			       struct mlx5e_tc_flow *flow, int out_index)
 {
-	struct list_head *next = flow->encaps[0].list.next;
+	struct list_head *next = flow->encaps[out_index].list.next;
 
-	list_del(&flow->encaps[0].list);
+	list_del(&flow->encaps[out_index].list);
 	if (list_empty(next)) {
 		struct mlx5e_encap_entry *e;
 
@@ -2324,7 +2346,8 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct net_device *mirred_dev,
 			      struct net_device **encap_dev,
 			      struct mlx5e_tc_flow *flow,
-			      struct netlink_ext_ack *extack)
+			      struct netlink_ext_ack *extack,
+			      int out_index)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	unsigned short family = ip_tunnel_info_af(tun_info);
@@ -2371,13 +2394,15 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
 
 attach_flow:
-	list_add(&flow->encaps[0].list, &e->flows);
-	flow->encaps[0].index = 0;
+	list_add(&flow->encaps[out_index].list, &e->flows);
+	flow->encaps[out_index].index = out_index;
 	*encap_dev = e->out_dev;
-	if (e->flags & MLX5_ENCAP_ENTRY_VALID)
-		attr->encap_id = e->encap_id;
-	else
+	if (e->flags & MLX5_ENCAP_ENTRY_VALID) {
+		attr->dests[out_index].encap_id = e->encap_id;
+		attr->dests[out_index].flags |= MLX5_ESW_DEST_ENCAP_VALID;
+	} else {
 		err = -EAGAIN;
+	}
 
 	return err;
 
@@ -2516,8 +2541,10 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				attr->dests[attr->out_count].mdev = out_priv->mdev;
 				attr->out_count++;
 			} else if (encap) {
-				parse_attr->mirred_ifindex[0] = out_dev->ifindex;
-				parse_attr->tun_info[0] = *info;
+				parse_attr->mirred_ifindex[attr->out_count] =
+					out_dev->ifindex;
+				parse_attr->tun_info[attr->out_count] = *info;
+				encap = false;
 				attr->parse_attr = parse_attr;
 				attr->dests[attr->out_count].flags |=
 					MLX5_ESW_DEST_ENCAP;

@@ -283,6 +283,7 @@ enum mlx5_flow_match_level {
 
 enum {
 	MLX5_ESW_DEST_ENCAP         = BIT(0),
+	MLX5_ESW_DEST_ENCAP_VALID   = BIT(1),
 };
 
 struct mlx5_esw_flow_attr {
@@ -298,11 +299,11 @@ struct mlx5_esw_flow_attr {
 	u8	vlan_prio[MLX5_FS_VLAN_DEPTH];
 	u8	total_vlan;
 	bool	vlan_handled;
-	u32	encap_id;
 	struct {
 		u32 flags;
 		struct mlx5_eswitch_rep *rep;
 		struct mlx5_core_dev *mdev;
+		u32 encap_id;
 	} dests[MLX5_MAX_FLOW_FWD_VPORTS];
 	u32	mod_hdr_id;
 	u8	match_level;
