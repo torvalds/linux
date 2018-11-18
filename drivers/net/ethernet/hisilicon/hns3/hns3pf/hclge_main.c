@@ -26,7 +26,7 @@
 #define HCLGE_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 #define HCLGE_MAC_STATS_FIELD_OFF(f) (offsetof(struct hclge_mac_stats, f))
 
-static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu);
+static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
 static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
@@ -1969,10 +1969,7 @@ static int hclge_get_autoneg(struct hnae3_handle *handle)
 
 static int hclge_mac_init(struct hclge_dev *hdev)
 {
-	struct hnae3_handle *handle = &hdev->vport[0].nic;
-	struct net_device *netdev = handle->kinfo.netdev;
 	struct hclge_mac *mac = &hdev->hw.mac;
-	int mtu;
 	int ret;
 
 	hdev->hw.mac.duplex = HCLGE_MAC_FULL;
@@ -1986,15 +1983,16 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 
 	mac->link = 0;
 
-	if (netdev)
-		mtu = netdev->mtu;
-	else
-		mtu = ETH_DATA_LEN;
+	ret = hclge_set_mac_mtu(hdev, hdev->mps);
+	if (ret) {
+		dev_err(&hdev->pdev->dev, "set mtu failed ret=%d\n", ret);
+		return ret;
+	}
 
-	ret = hclge_set_mtu(handle, mtu);
+	ret = hclge_buffer_alloc(hdev);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
-			"set mtu failed ret=%d\n", ret);
+			"allocate buffer fail, ret=%d\n", ret);
 
 	return ret;
 }
@@ -6357,48 +6355,41 @@ int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 	return hclge_set_vlan_rx_offload_cfg(vport);
 }
 
-static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mtu)
+static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps)
 {
 	struct hclge_config_max_frm_size_cmd *req;
 	struct hclge_desc desc;
-	int max_frm_size;
-	int ret;
 
-	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
-
-	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
-	    max_frm_size > HCLGE_MAC_MAX_FRAME)
-		return -EINVAL;
-
-	max_frm_size = max(max_frm_size, HCLGE_MAC_DEFAULT_FRAME);
+	new_mps = max(new_mps, HCLGE_MAC_DEFAULT_FRAME);
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAX_FRM_SIZE, false);
 
 	req = (struct hclge_config_max_frm_size_cmd *)desc.data;
-	req->max_frm_size = cpu_to_le16(max_frm_size);
+	req->max_frm_size = cpu_to_le16(new_mps);
 	req->min_frm_size = HCLGE_MAC_MIN_FRAME;
 
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		dev_err(&hdev->pdev->dev, "set mtu fail, ret =%d.\n", ret);
-	else
-		hdev->mps = max_frm_size;
-
-	return ret;
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	int ret;
+	int max_frm_size, ret;
 
-	ret = hclge_set_mac_mtu(hdev, new_mtu);
+	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
+	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
+	    max_frm_size > HCLGE_MAC_MAX_FRAME)
+		return -EINVAL;
+
+	ret = hclge_set_mac_mtu(hdev, max_frm_size);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Change mtu fail, ret =%d\n", ret);
 		return ret;
 	}
+
+	hdev->mps = max_frm_size;
 
 	ret = hclge_buffer_alloc(hdev);
 	if (ret)
@@ -7021,6 +7012,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hdev->reset_type = HNAE3_NONE_RESET;
 	hdev->reset_level = HNAE3_FUNC_RESET;
 	ae_dev->priv = hdev;
+	hdev->mps = ETH_FRAME_LEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
 
 	ret = hclge_pci_init(hdev);
 	if (ret) {

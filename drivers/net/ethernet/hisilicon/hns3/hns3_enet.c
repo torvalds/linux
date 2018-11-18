@@ -3610,8 +3610,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	hns3_dcbnl_setup(handle);
 
 	/* MTU range: (ETH_MIN_MTU(kernel default) - 9702) */
-	netdev->max_mtu =
-		HNS3_MAX_MTU - (ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN);
+	netdev->max_mtu = HNS3_MAX_MTU;
 
 	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
 
