@@ -134,6 +134,8 @@ static enum {
 		c->opts.block_size;
 	BUG_ON(j->prev_buf_sectors > j->cur_buf_sectors);
 
+	bkey_extent_init(&buf->key);
+
 	/*
 	 * We have to set last_seq here, _before_ opening a new journal entry:
 	 *
@@ -890,10 +892,6 @@ static bool bch2_journal_writing_to_device(struct journal *j, unsigned dev_idx)
 
 void bch2_dev_journal_stop(struct journal *j, struct bch_dev *ca)
 {
-	spin_lock(&j->lock);
-	bch2_extent_drop_device(bkey_i_to_s_extent(&j->key), ca->dev_idx);
-	spin_unlock(&j->lock);
-
 	wait_event(j->wait, !bch2_journal_writing_to_device(j, ca->dev_idx));
 }
 
@@ -1031,8 +1029,6 @@ int bch2_fs_journal_init(struct journal *j)
 	j->buf[1].size		= JOURNAL_ENTRY_SIZE_MIN;
 	j->write_delay_ms	= 1000;
 	j->reclaim_delay_ms	= 100;
-
-	bkey_extent_init(&j->key);
 
 	atomic64_set(&j->reservations.counter,
 		((union journal_res_state)

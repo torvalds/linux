@@ -185,7 +185,6 @@ struct journal {
 	struct list_head	seq_blacklist;
 	struct journal_seq_blacklist *new_blacklist;
 
-	BKEY_PADDED(key);
 	struct write_point	wp;
 	spinlock_t		err_lock;
 

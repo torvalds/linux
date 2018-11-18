@@ -426,7 +426,7 @@ static int journal_read_buf_realloc(struct journal_read_buf *b,
 static int journal_read_bucket(struct bch_dev *ca,
 			       struct journal_read_buf *buf,
 			       struct journal_list *jlist,
-			       unsigned bucket, u64 *seq, bool *entries_found)
+			       unsigned bucket)
 {
 	struct bch_fs *c = ca->fs;
 	struct journal_device *ja = &ca->journal;
@@ -511,16 +511,12 @@ reread:
 
 		switch (ret) {
 		case JOURNAL_ENTRY_ADD_OK:
-			*entries_found = true;
 			break;
 		case JOURNAL_ENTRY_ADD_OUT_OF_RANGE:
 			break;
 		default:
 			return ret;
 		}
-
-		if (le64_to_cpu(j->seq) > *seq)
-			*seq = le64_to_cpu(j->seq);
 
 		sectors = vstruct_sectors(j, c->block_bits);
 next_block:
@@ -535,37 +531,18 @@ next_block:
 
 static void bch2_journal_read_device(struct closure *cl)
 {
-#define read_bucket(b)							\
-	({								\
-		bool entries_found = false;				\
-		ret = journal_read_bucket(ca, &buf, jlist, b, &seq,	\
-					  &entries_found);		\
-		if (ret)						\
-			goto err;					\
-		__set_bit(b, bitmap);					\
-		entries_found;						\
-	 })
-
 	struct journal_device *ja =
 		container_of(cl, struct journal_device, read);
 	struct bch_dev *ca = container_of(ja, struct bch_dev, journal);
 	struct journal_list *jlist =
 		container_of(cl->parent, struct journal_list, cl);
-	struct request_queue *q = bdev_get_queue(ca->disk_sb.bdev);
 	struct journal_read_buf buf = { NULL, 0 };
-	unsigned long *bitmap;
-	unsigned i, l, r;
-	u64 seq = 0;
+	u64 min_seq = U64_MAX;
+	unsigned i;
 	int ret;
 
 	if (!ja->nr)
 		goto out;
-
-	bitmap = kcalloc(BITS_TO_LONGS(ja->nr), ja->nr, GFP_KERNEL);
-	if (!bitmap) {
-		ret = -ENOMEM;
-		goto err;
-	}
 
 	ret = journal_read_buf_realloc(&buf, PAGE_SIZE);
 	if (ret)
@@ -573,86 +550,32 @@ static void bch2_journal_read_device(struct closure *cl)
 
 	pr_debug("%u journal buckets", ja->nr);
 
-	/*
-	 * If the device supports discard but not secure discard, we can't do
-	 * the fancy fibonacci hash/binary search because the live journal
-	 * entries might not form a contiguous range:
-	 */
-	for (i = 0; i < ja->nr; i++)
-		read_bucket(i);
-	goto search_done;
-
-	if (!blk_queue_nonrot(q))
-		goto linear_scan;
-
-	/*
-	 * Read journal buckets ordered by golden ratio hash to quickly
-	 * find a sequence of buckets with valid journal entries
-	 */
 	for (i = 0; i < ja->nr; i++) {
-		l = (i * 2654435769U) % ja->nr;
+		ret = journal_read_bucket(ca, &buf, jlist, i);
+		if (ret)
+			goto err;
+	}
 
-		if (test_bit(l, bitmap))
-			break;
+	/* Find the journal bucket with the highest sequence number: */
+	for (i = 0; i < ja->nr; i++) {
+		if (ja->bucket_seq[i] > ja->bucket_seq[ja->cur_idx])
+			ja->cur_idx = i;
 
-		if (read_bucket(l))
-			goto bsearch;
+		min_seq = min(ja->bucket_seq[i], min_seq);
 	}
 
 	/*
-	 * If that fails, check all the buckets we haven't checked
-	 * already
-	 */
-	pr_debug("falling back to linear search");
-linear_scan:
-	for (l = find_first_zero_bit(bitmap, ja->nr);
-	     l < ja->nr;
-	     l = find_next_zero_bit(bitmap, ja->nr, l + 1))
-		if (read_bucket(l))
-			goto bsearch;
-
-	/* no journal entries on this device? */
-	if (l == ja->nr)
-		goto out;
-bsearch:
-	/* Binary search */
-	r = find_next_bit(bitmap, ja->nr, l + 1);
-	pr_debug("starting binary search, l %u r %u", l, r);
-
-	while (l + 1 < r) {
-		unsigned m = (l + r) >> 1;
-		u64 cur_seq = seq;
-
-		read_bucket(m);
-
-		if (cur_seq != seq)
-			l = m;
-		else
-			r = m;
-	}
-
-search_done:
-	/*
-	 * Find the journal bucket with the highest sequence number:
-	 *
 	 * If there's duplicate journal entries in multiple buckets (which
 	 * definitely isn't supposed to happen, but...) - make sure to start
 	 * cur_idx at the last of those buckets, so we don't deadlock trying to
 	 * allocate
 	 */
-	seq = 0;
+	while (ja->bucket_seq[ja->cur_idx] > min_seq &&
+	       ja->bucket_seq[ja->cur_idx] >
+	       ja->bucket_seq[(ja->cur_idx + 1) % ja->nr])
+		ja->cur_idx++;
 
-	for (i = 0; i < ja->nr; i++)
-		if (ja->bucket_seq[i] >= seq &&
-		    ja->bucket_seq[i] != ja->bucket_seq[(i + 1) % ja->nr]) {
-			/*
-			 * When journal_next_bucket() goes to allocate for
-			 * the first time, it'll use the bucket after
-			 * ja->cur_idx
-			 */
-			ja->cur_idx = i;
-			seq = ja->bucket_seq[i];
-		}
+	ja->sectors_free = 0;
 
 	/*
 	 * Set last_idx to indicate the entire journal is full and needs to be
@@ -660,20 +583,8 @@ search_done:
 	 * pinned when it first runs:
 	 */
 	ja->last_idx = (ja->cur_idx + 1) % ja->nr;
-
-	/*
-	 * Read buckets in reverse order until we stop finding more journal
-	 * entries:
-	 */
-	for (i = (ja->cur_idx + ja->nr - 1) % ja->nr;
-	     i != ja->cur_idx;
-	     i = (i + ja->nr - 1) % ja->nr)
-		if (!test_bit(i, bitmap) &&
-		    !read_bucket(i))
-			break;
 out:
 	kvpfree(buf.data, buf.size);
-	kfree(bitmap);
 	percpu_ref_put(&ca->io_ref);
 	closure_return(cl);
 	return;
@@ -682,7 +593,6 @@ err:
 	jlist->ret = ret;
 	mutex_unlock(&jlist->lock);
 	goto out;
-#undef read_bucket
 }
 
 void bch2_journal_entries_free(struct list_head *list)
@@ -937,32 +847,18 @@ static void bch2_journal_add_btree_root(struct journal_buf *buf,
 }
 
 static unsigned journal_dev_buckets_available(struct journal *j,
-					      struct bch_dev *ca)
+					      struct journal_device *ja)
 {
-	struct journal_device *ja = &ca->journal;
 	unsigned next = (ja->cur_idx + 1) % ja->nr;
 	unsigned available = (ja->last_idx + ja->nr - next) % ja->nr;
-
-	/*
-	 * Hack to avoid a deadlock during journal replay:
-	 * journal replay might require setting a new btree
-	 * root, which requires writing another journal entry -
-	 * thus, if the journal is full (and this happens when
-	 * replaying the first journal bucket's entries) we're
-	 * screwed.
-	 *
-	 * So don't let the journal fill up unless we're in
-	 * replay:
-	 */
-	if (test_bit(JOURNAL_REPLAY_DONE, &j->flags))
-		available = max((int) available - 2, 0);
 
 	/*
 	 * Don't use the last bucket unless writing the new last_seq
 	 * will make another bucket available:
 	 */
-	if (ja->bucket_seq[ja->last_idx] >= journal_last_seq(j))
-		available = max((int) available - 1, 0);
+	if (available &&
+	    journal_last_seq(j) <= ja->bucket_seq[ja->last_idx])
+		--available;
 
 	return available;
 }
@@ -972,7 +868,6 @@ int bch2_journal_entry_sectors(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
-	struct bkey_s_extent e = bkey_i_to_s_extent(&j->key);
 	unsigned sectors_available = UINT_MAX;
 	unsigned i, nr_online = 0, nr_devs = 0;
 
@@ -982,38 +877,39 @@ int bch2_journal_entry_sectors(struct journal *j)
 	for_each_member_device_rcu(ca, c, i,
 				   &c->rw_devs[BCH_DATA_JOURNAL]) {
 		struct journal_device *ja = &ca->journal;
-		unsigned buckets_required = 0;
+		unsigned buckets_this_device, sectors_this_device;
 
 		if (!ja->nr)
 			continue;
 
-		sectors_available = min_t(unsigned, sectors_available,
-					  ca->mi.bucket_size);
+		buckets_this_device = journal_dev_buckets_available(j, ja);
+		sectors_this_device = ja->sectors_free;
+
+		nr_online++;
 
 		/*
-		 * Note that we don't allocate the space for a journal entry
-		 * until we write it out - thus, if we haven't started the write
-		 * for the previous entry we have to make sure we have space for
-		 * it too:
+		 * We that we don't allocate the space for a journal entry
+		 * until we write it out - thus, account for it here:
 		 */
-		if (bch2_extent_has_device(e.c, ca->dev_idx)) {
-			if (j->prev_buf_sectors > ja->sectors_free)
-				buckets_required++;
+		if (j->prev_buf_sectors >= sectors_this_device) {
+			if (!buckets_this_device)
+				continue;
 
-			if (j->prev_buf_sectors + sectors_available >
-			    ja->sectors_free)
-				buckets_required++;
-		} else {
-			if (j->prev_buf_sectors + sectors_available >
-			    ca->mi.bucket_size)
-				buckets_required++;
-
-			buckets_required++;
+			buckets_this_device--;
+			sectors_this_device = ca->mi.bucket_size;
 		}
 
-		if (journal_dev_buckets_available(j, ca) >= buckets_required)
-			nr_devs++;
-		nr_online++;
+		sectors_this_device -= j->prev_buf_sectors;
+
+		if (buckets_this_device)
+			sectors_this_device = ca->mi.bucket_size;
+
+		if (!sectors_this_device)
+			continue;
+
+		sectors_available = min(sectors_available,
+					sectors_this_device);
+		nr_devs++;
 	}
 	rcu_read_unlock();
 
@@ -1026,6 +922,61 @@ int bch2_journal_entry_sectors(struct journal *j)
 	return sectors_available;
 }
 
+static void __journal_write_alloc(struct journal *j,
+				  struct journal_buf *w,
+				  struct dev_alloc_list *devs_sorted,
+				  unsigned sectors,
+				  unsigned *replicas,
+				  unsigned replicas_want)
+{
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	struct bkey_i_extent *e = bkey_i_to_extent(&w->key);
+	struct journal_device *ja;
+	struct bch_dev *ca;
+	unsigned i;
+
+	if (*replicas >= replicas_want)
+		return;
+
+	for (i = 0; i < devs_sorted->nr; i++) {
+		ca = rcu_dereference(c->devs[devs_sorted->devs[i]]);
+		if (!ca)
+			continue;
+
+		ja = &ca->journal;
+
+		/*
+		 * Check that we can use this device, and aren't already using
+		 * it:
+		 */
+		if (!ca->mi.durability ||
+		    ca->mi.state != BCH_MEMBER_STATE_RW ||
+		    !ja->nr ||
+		    bch2_extent_has_device(extent_i_to_s_c(e), ca->dev_idx) ||
+		    sectors > ja->sectors_free)
+			continue;
+
+		bch2_dev_stripe_increment(c, ca, &j->wp.stripe);
+
+		extent_ptr_append(e,
+			(struct bch_extent_ptr) {
+				  .offset = bucket_to_sector(ca,
+					ja->buckets[ja->cur_idx]) +
+					ca->mi.bucket_size -
+					ja->sectors_free,
+				  .dev = ca->dev_idx,
+		});
+
+		ja->sectors_free -= sectors;
+		ja->bucket_seq[ja->cur_idx] = le64_to_cpu(w->data->seq);
+
+		*replicas += ca->mi.durability;
+
+		if (*replicas >= replicas_want)
+			break;
+	}
+}
+
 /**
  * journal_next_bucket - move on to the next journal bucket if possible
  */
@@ -1033,99 +984,49 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 			       unsigned sectors)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct bkey_s_extent e;
-	struct bch_extent_ptr *ptr;
 	struct journal_device *ja;
 	struct bch_dev *ca;
 	struct dev_alloc_list devs_sorted;
-	unsigned i, replicas, replicas_want =
+	unsigned i, replicas = 0, replicas_want =
 		READ_ONCE(c->opts.metadata_replicas);
 
-	spin_lock(&j->lock);
-	e = bkey_i_to_s_extent(&j->key);
-
-	/*
-	 * Drop any pointers to devices that have been removed, are no longer
-	 * empty, or filled up their current journal bucket:
-	 *
-	 * Note that a device may have had a small amount of free space (perhaps
-	 * one sector) that wasn't enough for the smallest possible journal
-	 * entry - that's why we drop pointers to devices <= current free space,
-	 * i.e. whichever device was limiting the current journal entry size.
-	 */
-	bch2_extent_drop_ptrs(e, ptr, ({
-		ca = bch_dev_bkey_exists(c, ptr->dev);
-
-		ca->mi.state != BCH_MEMBER_STATE_RW ||
-		ca->journal.sectors_free <= sectors;
-	}));
-
-	extent_for_each_ptr(e, ptr) {
-		ca = bch_dev_bkey_exists(c, ptr->dev);
-
-		BUG_ON(ca->mi.state != BCH_MEMBER_STATE_RW ||
-		       ca->journal.sectors_free <= sectors);
-		ca->journal.sectors_free -= sectors;
-	}
-
-	replicas = bch2_extent_nr_ptrs(e.c);
-
 	rcu_read_lock();
+
 	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe,
-					 &c->rw_devs[BCH_DATA_JOURNAL]);
+					  &c->rw_devs[BCH_DATA_JOURNAL]);
+
+	spin_lock(&j->lock);
+	__journal_write_alloc(j, w, &devs_sorted,
+			      sectors, &replicas, replicas_want);
+
+	if (replicas >= replicas_want)
+		goto done;
 
 	for (i = 0; i < devs_sorted.nr; i++) {
 		ca = rcu_dereference(c->devs[devs_sorted.devs[i]]);
 		if (!ca)
 			continue;
 
-		if (!ca->mi.durability)
-			continue;
-
 		ja = &ca->journal;
-		if (!ja->nr)
-			continue;
 
-		if (replicas >= replicas_want)
-			break;
-
-		/*
-		 * Check that we can use this device, and aren't already using
-		 * it:
-		 */
-		if (bch2_extent_has_device(e.c, ca->dev_idx) ||
-		    !journal_dev_buckets_available(j, ca) ||
-		    sectors > ca->mi.bucket_size)
-			continue;
-
-		bch2_dev_stripe_increment(c, ca, &j->wp.stripe);
-
-		ja->sectors_free = ca->mi.bucket_size - sectors;
-		ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
-		ja->bucket_seq[ja->cur_idx] = le64_to_cpu(w->data->seq);
-
-		extent_ptr_append(bkey_i_to_extent(&j->key),
-			(struct bch_extent_ptr) {
-				  .offset = bucket_to_sector(ca,
-					ja->buckets[ja->cur_idx]),
-				  .dev = ca->dev_idx,
-		});
-
-		replicas += ca->mi.durability;
+		if (sectors > ja->sectors_free &&
+		    sectors <= ca->mi.bucket_size &&
+		    journal_dev_buckets_available(j, ja)) {
+			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
+			ja->sectors_free = ca->mi.bucket_size;
+		}
 	}
+
+	__journal_write_alloc(j, w, &devs_sorted,
+			      sectors, &replicas, replicas_want);
+done:
+	if (replicas >= replicas_want)
+		j->prev_buf_sectors = 0;
+
+	spin_unlock(&j->lock);
 	rcu_read_unlock();
 
-	j->prev_buf_sectors = 0;
-
-	bkey_copy(&w->key, &j->key);
-	spin_unlock(&j->lock);
-
-	if (replicas < c->opts.metadata_replicas_required)
-		return -EROFS;
-
-	BUG_ON(!replicas);
-
-	return 0;
+	return replicas >= replicas_want ? 0 : -EROFS;
 }
 
 static void journal_write_compact(struct jset *jset)
@@ -1376,9 +1277,6 @@ void bch2_journal_write(struct closure *cl)
 		}
 
 no_io:
-	extent_for_each_ptr(bkey_i_to_s_extent(&j->key), ptr)
-		ptr->offset += sectors;
-
 	bch2_bucket_seq_cleanup(c);
 
 	continue_at(cl, journal_write_done, system_highpri_wq);
