@@ -2231,7 +2231,6 @@ static void request_done(int uptodate)
 {
 	struct request *req = current_req;
 	struct request_queue *q;
-	unsigned long flags;
 	int block;
 	char msg[sizeof("request done ") + sizeof(int) * 3];
 
