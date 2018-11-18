@@ -6229,7 +6229,7 @@ lpfc_sli4_ras_dma_alloc(struct lpfc_hba *phba,
 			goto free_mem;
 		}
 
-		dmabuf->virt = dma_alloc_coherent(&phba->pcidev->dev,
+		dmabuf->virt = dma_zalloc_coherent(&phba->pcidev->dev,
 						  LPFC_RAS_MAX_ENTRY_SIZE,
 						  &dmabuf->phys,
 						  GFP_KERNEL);
@@ -6240,7 +6240,6 @@ lpfc_sli4_ras_dma_alloc(struct lpfc_hba *phba,
 					"6187 DMA Alloc Failed FW logging");
 			goto free_mem;
 		}
-		memset(dmabuf->virt, 0, LPFC_RAS_MAX_ENTRY_SIZE);
 		dmabuf->buffer_tag = i;
 		list_add_tail(&dmabuf->list, &ras_fwlog->fwlog_buff_list);
 	}
