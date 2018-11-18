@@ -6364,7 +6364,7 @@ static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mtu)
 	int max_frm_size;
 	int ret;
 
-	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
 
 	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
 	    max_frm_size > HCLGE_MAC_MAX_FRAME)
