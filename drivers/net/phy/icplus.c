@@ -44,6 +44,9 @@ MODULE_LICENSE("GPL");
 #define IP101A_G_IRQ_CONF_STATUS	0x11	/* Conf Info IRQ & Status Reg */
 #define	IP101A_G_IRQ_PIN_USED		BIT(15) /* INTR pin used */
 #define IP101A_G_IRQ_ALL_MASK		BIT(11) /* IRQ's inactive */
+#define IP101A_G_IRQ_SPEED_CHANGE	BIT(2)
+#define IP101A_G_IRQ_DUPLEX_CHANGE	BIT(1)
+#define IP101A_G_IRQ_LINK_CHANGE	BIT(0)
 
 static int ip175c_config_init(struct phy_device *phydev)
 {
@@ -209,6 +212,18 @@ static int ip101a_g_config_intr(struct phy_device *phydev)
 	return phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, val);
 }
 
+static int ip101a_g_did_interrupt(struct phy_device *phydev)
+{
+	int val = phy_read(phydev, IP101A_G_IRQ_CONF_STATUS);
+
+	if (val < 0)
+		return 0;
+
+	return val & (IP101A_G_IRQ_SPEED_CHANGE |
+		      IP101A_G_IRQ_DUPLEX_CHANGE |
+		      IP101A_G_IRQ_LINK_CHANGE);
+}
+
 static int ip101a_g_ack_interrupt(struct phy_device *phydev)
 {
 	int err = phy_read(phydev, IP101A_G_IRQ_CONF_STATUS);
@@ -243,6 +258,7 @@ static struct phy_driver icplus_driver[] = {
 	.phy_id_mask	= 0x0ffffff0,
 	.features	= PHY_BASIC_FEATURES,
 	.config_intr	= ip101a_g_config_intr,
+	.did_interrupt	= ip101a_g_did_interrupt,
 	.ack_interrupt	= ip101a_g_ack_interrupt,
 	.config_init	= &ip101a_g_config_init,
 	.suspend	= genphy_suspend,
