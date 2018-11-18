@@ -260,6 +260,16 @@
 	};
 };
 
+&canfd {
+	pinctrl-0 = <&canfd0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel0 {
+		status = "okay";
+	};
+};
+
 &csi40 {
 	status = "okay";
 
@@ -458,6 +468,11 @@
 			groups = "avb_link", "avb_mii";
 			function = "avb";
 		};
+	};
+
+	canfd0_pins: canfd0 {
+		groups = "canfd0_data";
+		function = "canfd0";
 	};
 
 	du_pins: du {
