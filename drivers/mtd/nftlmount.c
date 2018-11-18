@@ -346,25 +346,26 @@ int NFTL_formatblock(struct NFTLrecord *nftl, int block)
 		goto fail;
 	}
 
-		/* increase and write Wear-Leveling info */
-		nb_erases = le32_to_cpu(uci.WearInfo);
-		nb_erases++;
+	/* increase and write Wear-Leveling info */
+	nb_erases = le32_to_cpu(uci.WearInfo);
+	nb_erases++;
 
-		/* wrap (almost impossible with current flash) or free block */
-		if (nb_erases == 0)
-			nb_erases = 1;
+	/* wrap (almost impossible with current flash) or free block */
+	if (nb_erases == 0)
+		nb_erases = 1;
 
-		/* check the "freeness" of Erase Unit before updating metadata
-		 * FixMe:  is this check really necessary ? since we have check the
-		 *         return code after the erase operation. */
-		if (check_free_sectors(nftl, instr->addr, nftl->EraseSize, 1) != 0)
-			goto fail;
+	/* check the "freeness" of Erase Unit before updating metadata
+	 * FixMe:  is this check really necessary ? since we have check the
+	 *         return code after the erase operation.
+	 */
+	if (check_free_sectors(nftl, instr->addr, nftl->EraseSize, 1) != 0)
+		goto fail;
 
-		uci.WearInfo = le32_to_cpu(nb_erases);
-		if (nftl_write_oob(mtd, block * nftl->EraseSize + SECTORSIZE +
-				   8, 8, &retlen, (char *)&uci) < 0)
-			goto fail;
-		return 0;
+	uci.WearInfo = le32_to_cpu(nb_erases);
+	if (nftl_write_oob(mtd, block * nftl->EraseSize + SECTORSIZE +
+			   8, 8, &retlen, (char *)&uci) < 0)
+		goto fail;
+	return 0;
 fail:
 	/* could not format, update the bad block table (caller is responsible
 	   for setting the ReplUnitTable to BLOCK_RESERVED on failure) */
