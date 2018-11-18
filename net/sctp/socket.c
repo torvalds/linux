@@ -2230,7 +2230,7 @@ static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	if (sp->recvrcvinfo)
 		sctp_ulpevent_read_rcvinfo(event, msg);
 	/* Check if we allow SCTP_SNDRCVINFO. */
-	if (sp->subscribe.sctp_data_io_event)
+	if (sctp_ulpevent_type_enabled(sp->subscribe, SCTP_DATA_IO_EVENT))
 		sctp_ulpevent_read_sndrcvinfo(event, msg);
 
 	err = copied;
@@ -2304,21 +2304,28 @@ static int sctp_setsockopt_disable_fragments(struct sock *sk,
 static int sctp_setsockopt_events(struct sock *sk, char __user *optval,
 				  unsigned int optlen)
 {
-	struct sctp_association *asoc;
-	struct sctp_ulpevent *event;
+	struct sctp_event_subscribe subscribe;
+	__u8 *sn_type = (__u8 *)&subscribe;
+	struct sctp_sock *sp = sctp_sk(sk);
+	int i;
 
 	if (optlen > sizeof(struct sctp_event_subscribe))
 		return -EINVAL;
-	if (copy_from_user(&sctp_sk(sk)->subscribe, optval, optlen))
+
+	if (copy_from_user(&subscribe, optval, optlen))
 		return -EFAULT;
+
+	for (i = 0; i < optlen; i++)
+		sctp_ulpevent_type_set(&sp->subscribe, SCTP_SN_TYPE_BASE + i,
+				       sn_type[i]);
 
 	/* At the time when a user app subscribes to SCTP_SENDER_DRY_EVENT,
 	 * if there is no data to be sent or retransmit, the stack will
 	 * immediately send up this notification.
 	 */
-	if (sctp_ulpevent_type_enabled(SCTP_SENDER_DRY_EVENT,
-				       &sctp_sk(sk)->subscribe)) {
-		asoc = sctp_id2assoc(sk, 0);
+	if (sctp_ulpevent_type_enabled(sp->subscribe, SCTP_SENDER_DRY_EVENT)) {
+		struct sctp_association *asoc = sctp_id2assoc(sk, 0);
+		struct sctp_ulpevent *event;
 
 		if (asoc && sctp_outq_is_empty(&asoc->outqueue)) {
 			event = sctp_ulpevent_make_sender_dry_event(asoc,
@@ -4722,7 +4729,7 @@ static int sctp_init_sock(struct sock *sk)
 	/* Initialize default event subscriptions. By default, all the
 	 * options are off.
 	 */
-	memset(&sp->subscribe, 0, sizeof(struct sctp_event_subscribe));
+	sp->subscribe = 0;
 
 	/* Default Peer Address Parameters.  These defaults can
 	 * be modified via SCTP_PEER_ADDR_PARAMS
@@ -5267,14 +5274,24 @@ static int sctp_getsockopt_disable_fragments(struct sock *sk, int len,
 static int sctp_getsockopt_events(struct sock *sk, int len, char __user *optval,
 				  int __user *optlen)
 {
+	struct sctp_event_subscribe subscribe;
+	__u8 *sn_type = (__u8 *)&subscribe;
+	int i;
+
 	if (len == 0)
 		return -EINVAL;
 	if (len > sizeof(struct sctp_event_subscribe))
 		len = sizeof(struct sctp_event_subscribe);
 	if (put_user(len, optlen))
 		return -EFAULT;
-	if (copy_to_user(optval, &sctp_sk(sk)->subscribe, len))
+
+	for (i = 0; i < len; i++)
+		sn_type[i] = sctp_ulpevent_type_enabled(sctp_sk(sk)->subscribe,
+							SCTP_SN_TYPE_BASE + i);
+
+	if (copy_to_user(optval, &subscribe, len))
 		return -EFAULT;
+
 	return 0;
 }
 

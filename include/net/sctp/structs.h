@@ -217,7 +217,7 @@ struct sctp_sock {
 	 * These two structures must be grouped together for the usercopy
 	 * whitelist region.
 	 */
-	struct sctp_event_subscribe subscribe;
+	__u16 subscribe;
 	struct sctp_initmsg initmsg;
 
 	int user_frag;

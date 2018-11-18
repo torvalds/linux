@@ -109,8 +109,8 @@ static void sctp_datamsg_destroy(struct sctp_datamsg *msg)
 				error = asoc->outqueue.error;
 
 			sp = sctp_sk(asoc->base.sk);
-			notify = sctp_ulpevent_type_enabled(SCTP_SEND_FAILED,
-							    &sp->subscribe);
+			notify = sctp_ulpevent_type_enabled(sp->subscribe,
+							    SCTP_SEND_FAILED);
 		}
 
 		/* Generate a SEND FAILED event only if enabled. */

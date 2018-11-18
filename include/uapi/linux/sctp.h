@@ -632,7 +632,9 @@ union sctp_notification {
  */
 
 enum sctp_sn_type {
-	SCTP_SN_TYPE_BASE     = (1<<15),
+	SCTP_SN_TYPE_BASE	= (1<<15),
+	SCTP_DATA_IO_EVENT	= SCTP_SN_TYPE_BASE,
+#define SCTP_DATA_IO_EVENT		SCTP_DATA_IO_EVENT
 	SCTP_ASSOC_CHANGE,
 #define SCTP_ASSOC_CHANGE		SCTP_ASSOC_CHANGE
 	SCTP_PEER_ADDR_CHANGE,
@@ -657,6 +659,8 @@ enum sctp_sn_type {
 #define SCTP_ASSOC_RESET_EVENT		SCTP_ASSOC_RESET_EVENT
 	SCTP_STREAM_CHANGE_EVENT,
 #define SCTP_STREAM_CHANGE_EVENT	SCTP_STREAM_CHANGE_EVENT
+	SCTP_SN_TYPE_MAX	= SCTP_STREAM_CHANGE_EVENT,
+#define SCTP_SN_TYPE_MAX		SCTP_SN_TYPE_MAX
 };
 
 /* Notification error codes used to fill up the error fields in some
