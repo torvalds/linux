@@ -1,14 +1,3 @@
-config SND_SOC_SOF_INTEL
-	tristate "SOF support for Intel audio DSPs"
-	depends on SND_SOC_SOF
-	depends on SND_DMA_SGBUF
-	select SND_SOC_INTEL_MACH
-	select SND_SOC_SOF_XTENSA
-	help
-          This adds support for Sound Open Firmware for Intel(R) platforms.
-          Say Y if you have such a device.
-          If unsure select "N".
-
 config SND_SOC_SOF_SPIDSP
 	tristate "SOF support over the SPI bus"
 	depends on SND_SOC_SOF
@@ -19,6 +8,17 @@ config SND_SOC_SOF_SPIDSP
 	  Tree based systems.
 	  Say Y if you have such a device.
 	  If unsure select "N".
+
+config SND_SOC_SOF_INTEL
+	tristate "SOF support for Intel audio DSPs"
+	depends on SND_SOC_SOF
+	depends on SND_DMA_SGBUF
+	select SND_SOC_INTEL_MACH
+	select SND_SOC_SOF_XTENSA
+	help
+          This adds support for Sound Open Firmware for Intel(R) platforms.
+          Say Y if you have such a device.
+          If unsure select "N".
 
 if SND_SOC_SOF_INTEL
 
