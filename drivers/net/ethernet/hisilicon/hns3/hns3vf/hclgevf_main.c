@@ -1081,6 +1081,14 @@ static int hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 				    2, true, NULL, 0);
 }
 
+static int hclgevf_set_mtu(struct hnae3_handle *handle, int new_mtu)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_MTU, 0, (u8 *)&new_mtu,
+				    sizeof(new_mtu), true, NULL, 0);
+}
+
 static int hclgevf_notify_client(struct hclgevf_dev *hdev,
 				 enum hnae3_reset_notify_type type)
 {
@@ -2513,6 +2521,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.ae_dev_resetting = hclgevf_ae_dev_resetting,
 	.ae_dev_reset_cnt = hclgevf_ae_dev_reset_cnt,
 	.set_gro_en = hclgevf_gro_en,
+	.set_mtu = hclgevf_set_mtu,
 };
 
 static struct hnae3_ae_algo ae_algovf = {

@@ -1166,6 +1166,7 @@ static int hclge_alloc_vport(struct hclge_dev *hdev)
 	for (i = 0; i < num_vport; i++) {
 		vport->back = hdev;
 		vport->vport_id = i;
+		vport->mps = HCLGE_MAC_DEFAULT_FRAME;
 
 		if (i == 0)
 			ret = hclge_vport_setup(vport, tqp_main_vport);
@@ -2921,6 +2922,10 @@ static void hclge_update_vport_alive(struct hclge_dev *hdev)
 
 		if (time_after(jiffies, vport->last_active_jiffies + 8 * HZ))
 			clear_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
+
+		/* If vf is not alive, set to default value */
+		if (!test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state))
+			vport->mps = HCLGE_MAC_DEFAULT_FRAME;
 	}
 }
 
@@ -6400,8 +6405,6 @@ static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps)
 	struct hclge_config_max_frm_size_cmd *req;
 	struct hclge_desc desc;
 
-	new_mps = max(new_mps, HCLGE_MAC_DEFAULT_FRAME);
-
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAX_FRM_SIZE, false);
 
 	req = (struct hclge_config_max_frm_size_cmd *)desc.data;
@@ -6414,28 +6417,56 @@ static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps)
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
+
+	return hclge_set_vport_mtu(vport, new_mtu);
+}
+
+int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu)
+{
 	struct hclge_dev *hdev = vport->back;
-	int max_frm_size, ret;
+	int i, max_frm_size, ret = 0;
 
 	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
 	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
 	    max_frm_size > HCLGE_MAC_MAX_FRAME)
 		return -EINVAL;
 
+	max_frm_size = max(max_frm_size, HCLGE_MAC_DEFAULT_FRAME);
+	mutex_lock(&hdev->vport_lock);
+	/* VF's mps must fit within hdev->mps */
+	if (vport->vport_id && max_frm_size > hdev->mps) {
+		mutex_unlock(&hdev->vport_lock);
+		return -EINVAL;
+	} else if (vport->vport_id) {
+		vport->mps = max_frm_size;
+		mutex_unlock(&hdev->vport_lock);
+		return 0;
+	}
+
+	/* PF's mps must be greater then VF's mps */
+	for (i = 1; i < hdev->num_alloc_vport; i++)
+		if (max_frm_size < hdev->vport[i].mps) {
+			mutex_unlock(&hdev->vport_lock);
+			return -EINVAL;
+		}
+
 	ret = hclge_set_mac_mtu(hdev, max_frm_size);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Change mtu fail, ret =%d\n", ret);
-		return ret;
+		goto out;
 	}
 
 	hdev->mps = max_frm_size;
+	vport->mps = max_frm_size;
 
 	ret = hclge_buffer_alloc(hdev);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
 			"Allocate buffer fail, ret =%d\n", ret);
 
+out:
+	mutex_unlock(&hdev->vport_lock);
 	return ret;
 }
 
@@ -7054,6 +7085,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ae_dev->priv = hdev;
 	hdev->mps = ETH_FRAME_LEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
 
+	mutex_init(&hdev->vport_lock);
+
 	ret = hclge_pci_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "PCI init failed\n");
@@ -7353,6 +7386,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_destroy_cmd_queue(&hdev->hw);
 	hclge_misc_irq_uninit(hdev);
 	hclge_pci_uninit(hdev);
+	mutex_destroy(&hdev->vport_lock);
 	ae_dev->priv = NULL;
 }
 

@@ -401,6 +401,18 @@ static void hclge_vf_keep_alive(struct hclge_vport *vport,
 	vport->last_active_jiffies = jiffies;
 }
 
+static int hclge_set_vf_mtu(struct hclge_vport *vport,
+			    struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	int ret;
+	u32 mtu;
+
+	memcpy(&mtu, &mbx_req->msg[2], sizeof(mtu));
+	ret = hclge_set_vport_mtu(vport, mtu);
+
+	return hclge_gen_resp_to_vf(vport, mbx_req, ret, NULL, 0);
+}
+
 static bool hclge_cmd_crq_empty(struct hclge_hw *hw)
 {
 	u32 tail = hclge_read_dev(hw, HCLGE_NIC_CRQ_TAIL_REG);
@@ -514,6 +526,12 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			break;
 		case HCLGE_MBX_KEEP_ALIVE:
 			hclge_vf_keep_alive(vport, req);
+			break;
+		case HCLGE_MBX_SET_MTU:
+			ret = hclge_set_vf_mtu(vport, req);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"VF fail(%d) to set mtu\n", ret);
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,

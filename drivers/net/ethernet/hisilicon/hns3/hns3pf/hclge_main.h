@@ -678,6 +678,8 @@ struct hclge_dev {
 
 	u32 pkt_buf_size; /* Total pf buf size for tx/rx */
 	u32 mps; /* Max packet size */
+	/* vport_lock protect resource shared by vports */
+	struct mutex vport_lock;
 
 	struct hclge_vlan_type_cfg vlan_type_cfg;
 
@@ -761,6 +763,7 @@ struct hclge_vport {
 
 	unsigned long state;
 	unsigned long last_active_jiffies;
+	u32 mps; /* Max packet size */
 };
 
 void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
@@ -810,4 +813,5 @@ int hclge_cfg_flowctrl(struct hclge_dev *hdev);
 int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id);
 int hclge_vport_start(struct hclge_vport *vport);
 void hclge_vport_stop(struct hclge_vport *vport);
+int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu);
 #endif
