@@ -2500,9 +2500,11 @@ static int tun_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 		return -EBADFD;
 
 	if (ctl && (ctl->type == TUN_MSG_PTR)) {
-		struct tun_page tpage = {0};
+		struct tun_page tpage;
 		int n = ctl->num;
 		int flush = 0;
+
+		memset(&tpage, 0, sizeof(tpage));
 
 		local_bh_disable();
 		rcu_read_lock();
