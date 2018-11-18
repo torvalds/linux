@@ -67,8 +67,8 @@ void sbus_set_sbus64(struct device *dev, int bursts)
 
 	regs = of_get_property(op->dev.of_node, "reg", NULL);
 	if (!regs) {
-		printk(KERN_ERR "sbus_set_sbus64: Cannot find regs for %s\n",
-		       op->dev.of_node->full_name);
+		printk(KERN_ERR "sbus_set_sbus64: Cannot find regs for %pOF\n",
+		       op->dev.of_node);
 		return;
 	}
 	slot = regs->which_io;
