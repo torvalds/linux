@@ -2059,4 +2059,59 @@ void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 			     struct dentry *dir);
 #endif
 
+/* Channel info utils */
+static inline bool iwl_mvm_has_ultra_hb_channel(struct iwl_mvm *mvm)
+{
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_ULTRA_HB_CHANNELS);
+}
+
+static inline void *iwl_mvm_chan_info_cmd_tail(struct iwl_mvm *mvm,
+					       struct iwl_fw_channel_info *ci)
+{
+	return (u8 *)ci + (iwl_mvm_has_ultra_hb_channel(mvm) ?
+			   sizeof(struct iwl_fw_channel_info) :
+			   sizeof(struct iwl_fw_channel_info_v1));
+}
+
+static inline size_t iwl_mvm_chan_info_padding(struct iwl_mvm *mvm)
+{
+	return iwl_mvm_has_ultra_hb_channel(mvm) ? 0 :
+		sizeof(struct iwl_fw_channel_info) -
+		sizeof(struct iwl_fw_channel_info_v1);
+}
+
+static inline void iwl_mvm_set_chan_info(struct iwl_mvm *mvm,
+					 struct iwl_fw_channel_info *ci,
+					 u32 chan, u8 band, u8 width,
+					 u8 ctrl_pos)
+{
+	if (iwl_mvm_has_ultra_hb_channel(mvm)) {
+		ci->channel = cpu_to_le32(chan);
+		ci->band = band;
+		ci->width = width;
+		ci->ctrl_pos = ctrl_pos;
+	} else {
+		struct iwl_fw_channel_info_v1 *ci_v1 =
+					(struct iwl_fw_channel_info_v1 *)ci;
+
+		ci_v1->channel = chan;
+		ci_v1->band = band;
+		ci_v1->width = width;
+		ci_v1->ctrl_pos = ctrl_pos;
+	}
+}
+
+static inline void
+iwl_mvm_set_chan_info_chandef(struct iwl_mvm *mvm,
+			      struct iwl_fw_channel_info *ci,
+			      struct cfg80211_chan_def *chandef)
+{
+	iwl_mvm_set_chan_info(mvm, ci, chandef->chan->hw_value,
+			      (chandef->chan->band == NL80211_BAND_2GHZ ?
+			       PHY_BAND_24 : PHY_BAND_5),
+			       iwl_mvm_get_channel_width(chandef),
+			       iwl_mvm_get_ctrl_pos(chandef));
+}
+
 #endif /* __IWL_MVM_H__ */

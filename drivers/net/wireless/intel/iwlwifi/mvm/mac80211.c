@@ -3520,14 +3520,20 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 		.id_and_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(MAC_INDEX_AUX, 0)),
 		.sta_id_and_color = cpu_to_le32(mvm->aux_sta.sta_id),
-		/* Set the channel info data */
-		.channel_info.band = (channel->band == NL80211_BAND_2GHZ) ?
-			PHY_BAND_24 : PHY_BAND_5,
-		.channel_info.channel = channel->hw_value,
-		.channel_info.width = PHY_VHT_CHANNEL_MODE20,
-		/* Set the time and duration */
-		.apply_time = cpu_to_le32(iwl_read_prph(mvm->trans, time_reg)),
-	 };
+	};
+	struct iwl_hs20_roc_req_tail *tail = iwl_mvm_chan_info_cmd_tail(mvm,
+		&aux_roc_req.channel_info);
+	u16 len = sizeof(aux_roc_req) - iwl_mvm_chan_info_padding(mvm);
+
+	/* Set the channel info data */
+	iwl_mvm_set_chan_info(mvm, &aux_roc_req.channel_info, channel->hw_value,
+			      (channel->band == NL80211_BAND_2GHZ) ?
+			       PHY_BAND_24 : PHY_BAND_5,
+			      PHY_VHT_CHANNEL_MODE20,
+			      0);
+
+	/* Set the time and duration */
+	tail->apply_time = cpu_to_le32(iwl_read_prph(mvm->trans, time_reg));
 
 	delay = AUX_ROC_MIN_DELAY;
 	req_dur = MSEC_TO_TU(duration);
@@ -3552,15 +3558,15 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 		}
 	}
 
-	aux_roc_req.duration = cpu_to_le32(req_dur);
-	aux_roc_req.apply_time_max_delay = cpu_to_le32(delay);
+	tail->duration = cpu_to_le32(req_dur);
+	tail->apply_time_max_delay = cpu_to_le32(delay);
 
 	IWL_DEBUG_TE(mvm,
 		     "ROC: Requesting to remain on channel %u for %ums (requested = %ums, max_delay = %ums, dtim_interval = %ums)\n",
 		     channel->hw_value, req_dur, duration, delay,
 		     dtim_interval);
 	/* Set the node address */
-	memcpy(aux_roc_req.node_addr, vif->addr, ETH_ALEN);
+	memcpy(tail->node_addr, vif->addr, ETH_ALEN);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -3591,7 +3597,7 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 				   ARRAY_SIZE(time_event_response),
 				   iwl_mvm_rx_aux_roc, te_data);
 
-	res = iwl_mvm_send_cmd_pdu(mvm, HOT_SPOT_CMD, 0, sizeof(aux_roc_req),
+	res = iwl_mvm_send_cmd_pdu(mvm, HOT_SPOT_CMD, 0, len,
 				   &aux_roc_req);
 
 	if (res) {
