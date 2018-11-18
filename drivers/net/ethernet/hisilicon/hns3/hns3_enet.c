@@ -1573,17 +1573,10 @@ static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	bool if_running = netif_running(netdev);
 	int ret;
 
 	if (!h->ae_algo->ops->set_mtu)
 		return -EOPNOTSUPP;
-
-	/* if this was called with netdev up then bring netdevice down */
-	if (if_running) {
-		(void)hns3_nic_net_stop(netdev);
-		msleep(100);
-	}
 
 	ret = h->ae_algo->ops->set_mtu(h, new_mtu);
 	if (ret)
@@ -1591,10 +1584,6 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 			   ret);
 	else
 		netdev->mtu = new_mtu;
-
-	/* if the netdev was running earlier, bring it up again */
-	if (if_running && hns3_nic_net_open(netdev))
-		ret = -EINVAL;
 
 	return ret;
 }
@@ -3540,6 +3529,22 @@ static void hns3_nic_set_priv_ops(struct net_device *netdev)
 		priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tx;
 }
 
+static int hns3_client_start(struct hnae3_handle *handle)
+{
+	if (!handle->ae_algo->ops->client_start)
+		return 0;
+
+	return handle->ae_algo->ops->client_start(handle);
+}
+
+static void hns3_client_stop(struct hnae3_handle *handle)
+{
+	if (!handle->ae_algo->ops->client_stop)
+		return;
+
+	handle->ae_algo->ops->client_stop(handle);
+}
+
 static int hns3_client_init(struct hnae3_handle *handle)
 {
 	struct pci_dev *pdev = handle->pdev;
@@ -3607,10 +3612,16 @@ static int hns3_client_init(struct hnae3_handle *handle)
 		goto out_reg_netdev_fail;
 	}
 
+	ret = hns3_client_start(handle);
+	if (ret) {
+		dev_err(priv->dev, "hns3_client_start fail! ret=%d\n", ret);
+			goto out_reg_netdev_fail;
+	}
+
 	hns3_dcbnl_setup(handle);
 
-	/* MTU range: (ETH_MIN_MTU(kernel default) - 9706) */
-	netdev->max_mtu = HNS3_MAX_MTU - (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
+	/* MTU range: (ETH_MIN_MTU(kernel default) - 9702) */
+	netdev->max_mtu = HNS3_MAX_MTU;
 
 	set_bit(HNS3_NIC_STATE_INITED, &priv->state);
 
@@ -3634,6 +3645,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
+
+	hns3_client_stop(handle);
 
 	hns3_remove_hw_addr(netdev);
 

@@ -76,7 +76,10 @@ enum hns3_nic_state {
 #define HNS3_RING_MAX_PENDING			32768
 #define HNS3_RING_MIN_PENDING			8
 #define HNS3_RING_BD_MULTIPLE			8
-#define HNS3_MAX_MTU				9728
+/* max frame size of mac */
+#define HNS3_MAC_MAX_FRAME			9728
+#define HNS3_MAX_MTU \
+	(HNS3_MAC_MAX_FRAME - (ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN))
 
 #define HNS3_BD_SIZE_512_TYPE			0
 #define HNS3_BD_SIZE_1024_TYPE			1

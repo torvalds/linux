@@ -26,7 +26,7 @@
 #define HCLGE_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 #define HCLGE_MAC_STATS_FIELD_OFF(f) (offsetof(struct hclge_mac_stats, f))
 
-static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu);
+static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
 static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
@@ -1166,6 +1166,7 @@ static int hclge_alloc_vport(struct hclge_dev *hdev)
 	for (i = 0; i < num_vport; i++) {
 		vport->back = hdev;
 		vport->vport_id = i;
+		vport->mps = HCLGE_MAC_DEFAULT_FRAME;
 
 		if (i == 0)
 			ret = hclge_vport_setup(vport, tqp_main_vport);
@@ -1969,10 +1970,7 @@ static int hclge_get_autoneg(struct hnae3_handle *handle)
 
 static int hclge_mac_init(struct hclge_dev *hdev)
 {
-	struct hnae3_handle *handle = &hdev->vport[0].nic;
-	struct net_device *netdev = handle->kinfo.netdev;
 	struct hclge_mac *mac = &hdev->hw.mac;
-	int mtu;
 	int ret;
 
 	hdev->hw.mac.duplex = HCLGE_MAC_FULL;
@@ -1986,15 +1984,16 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 
 	mac->link = 0;
 
-	if (netdev)
-		mtu = netdev->mtu;
-	else
-		mtu = ETH_DATA_LEN;
+	ret = hclge_set_mac_mtu(hdev, hdev->mps);
+	if (ret) {
+		dev_err(&hdev->pdev->dev, "set mtu failed ret=%d\n", ret);
+		return ret;
+	}
 
-	ret = hclge_set_mtu(handle, mtu);
+	ret = hclge_buffer_alloc(hdev);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
-			"set mtu failed ret=%d\n", ret);
+			"allocate buffer fail, ret=%d\n", ret);
 
 	return ret;
 }
@@ -2913,6 +2912,23 @@ static void hclge_mailbox_service_task(struct work_struct *work)
 	clear_bit(HCLGE_STATE_MBX_HANDLING, &hdev->state);
 }
 
+static void hclge_update_vport_alive(struct hclge_dev *hdev)
+{
+	int i;
+
+	/* start from vport 1 for PF is always alive */
+	for (i = 1; i < hdev->num_alloc_vport; i++) {
+		struct hclge_vport *vport = &hdev->vport[i];
+
+		if (time_after(jiffies, vport->last_active_jiffies + 8 * HZ))
+			clear_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
+
+		/* If vf is not alive, set to default value */
+		if (!test_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state))
+			vport->mps = HCLGE_MAC_DEFAULT_FRAME;
+	}
+}
+
 static void hclge_service_task(struct work_struct *work)
 {
 	struct hclge_dev *hdev =
@@ -2925,6 +2941,7 @@ static void hclge_service_task(struct work_struct *work)
 
 	hclge_update_speed_duplex(hdev);
 	hclge_update_link_status(hdev);
+	hclge_update_vport_alive(hdev);
 	hclge_service_complete(hdev);
 }
 
@@ -5210,6 +5227,32 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 	hclge_update_link_status(hdev);
 }
 
+int hclge_vport_start(struct hclge_vport *vport)
+{
+	set_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
+	vport->last_active_jiffies = jiffies;
+	return 0;
+}
+
+void hclge_vport_stop(struct hclge_vport *vport)
+{
+	clear_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
+}
+
+static int hclge_client_start(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+
+	return hclge_vport_start(vport);
+}
+
+static void hclge_client_stop(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+
+	hclge_vport_stop(vport);
+}
+
 static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 					 u16 cmdq_resp, u8  resp_code,
 					 enum hclge_mac_vlan_tbl_opcode op)
@@ -6357,54 +6400,76 @@ int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 	return hclge_set_vlan_rx_offload_cfg(vport);
 }
 
-static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mtu)
+static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps)
 {
 	struct hclge_config_max_frm_size_cmd *req;
 	struct hclge_desc desc;
-	int max_frm_size;
-	int ret;
-
-	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
-
-	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
-	    max_frm_size > HCLGE_MAC_MAX_FRAME)
-		return -EINVAL;
-
-	max_frm_size = max(max_frm_size, HCLGE_MAC_DEFAULT_FRAME);
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAX_FRM_SIZE, false);
 
 	req = (struct hclge_config_max_frm_size_cmd *)desc.data;
-	req->max_frm_size = cpu_to_le16(max_frm_size);
+	req->max_frm_size = cpu_to_le16(new_mps);
 	req->min_frm_size = HCLGE_MAC_MIN_FRAME;
 
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		dev_err(&hdev->pdev->dev, "set mtu fail, ret =%d.\n", ret);
-	else
-		hdev->mps = max_frm_size;
-
-	return ret;
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
-	int ret;
 
-	ret = hclge_set_mac_mtu(hdev, new_mtu);
+	return hclge_set_vport_mtu(vport, new_mtu);
+}
+
+int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu)
+{
+	struct hclge_dev *hdev = vport->back;
+	int i, max_frm_size, ret = 0;
+
+	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
+	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
+	    max_frm_size > HCLGE_MAC_MAX_FRAME)
+		return -EINVAL;
+
+	max_frm_size = max(max_frm_size, HCLGE_MAC_DEFAULT_FRAME);
+	mutex_lock(&hdev->vport_lock);
+	/* VF's mps must fit within hdev->mps */
+	if (vport->vport_id && max_frm_size > hdev->mps) {
+		mutex_unlock(&hdev->vport_lock);
+		return -EINVAL;
+	} else if (vport->vport_id) {
+		vport->mps = max_frm_size;
+		mutex_unlock(&hdev->vport_lock);
+		return 0;
+	}
+
+	/* PF's mps must be greater then VF's mps */
+	for (i = 1; i < hdev->num_alloc_vport; i++)
+		if (max_frm_size < hdev->vport[i].mps) {
+			mutex_unlock(&hdev->vport_lock);
+			return -EINVAL;
+		}
+
+	hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+
+	ret = hclge_set_mac_mtu(hdev, max_frm_size);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Change mtu fail, ret =%d\n", ret);
-		return ret;
+		goto out;
 	}
+
+	hdev->mps = max_frm_size;
+	vport->mps = max_frm_size;
 
 	ret = hclge_buffer_alloc(hdev);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
 			"Allocate buffer fail, ret =%d\n", ret);
 
+out:
+	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	mutex_unlock(&hdev->vport_lock);
 	return ret;
 }
 
@@ -7021,6 +7086,9 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hdev->reset_type = HNAE3_NONE_RESET;
 	hdev->reset_level = HNAE3_FUNC_RESET;
 	ae_dev->priv = hdev;
+	hdev->mps = ETH_FRAME_LEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
+
+	mutex_init(&hdev->vport_lock);
 
 	ret = hclge_pci_init(hdev);
 	if (ret) {
@@ -7197,6 +7265,17 @@ static void hclge_stats_clear(struct hclge_dev *hdev)
 	memset(&hdev->hw_stats, 0, sizeof(hdev->hw_stats));
 }
 
+static void hclge_reset_vport_state(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	int i;
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		hclge_vport_start(vport);
+		vport++;
+	}
+}
+
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	struct hclge_dev *hdev = ae_dev->priv;
@@ -7282,6 +7361,8 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	if (hclge_enable_tm_hw_error(hdev, true))
 		dev_err(&pdev->dev, "failed to enable TM hw error interrupts\n");
 
+	hclge_reset_vport_state(hdev);
+
 	dev_info(&pdev->dev, "Reset done, %s driver initialization finished.\n",
 		 HCLGE_DRIVER_NAME);
 
@@ -7308,6 +7389,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_destroy_cmd_queue(&hdev->hw);
 	hclge_misc_irq_uninit(hdev);
 	hclge_pci_uninit(hdev);
+	mutex_destroy(&hdev->vport_lock);
 	ae_dev->priv = NULL;
 }
 
@@ -7690,6 +7772,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_loopback = hclge_set_loopback,
 	.start = hclge_ae_start,
 	.stop = hclge_ae_stop,
+	.client_start = hclge_client_start,
+	.client_stop = hclge_client_stop,
 	.get_status = hclge_get_status,
 	.get_ksettings_an_result = hclge_get_ksettings_an_result,
 	.update_speed_duplex_h = hclge_update_speed_duplex_h,

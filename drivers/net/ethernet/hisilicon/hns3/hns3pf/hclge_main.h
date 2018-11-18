@@ -120,7 +120,7 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_VECTOR0_IMP_RESET_INT_B	1
 
 #define HCLGE_MAC_DEFAULT_FRAME \
-	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN + ETH_DATA_LEN)
+	(ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN + ETH_DATA_LEN)
 #define HCLGE_MAC_MIN_FRAME		64
 #define HCLGE_MAC_MAX_FRAME		9728
 
@@ -678,6 +678,8 @@ struct hclge_dev {
 
 	u32 pkt_buf_size; /* Total pf buf size for tx/rx */
 	u32 mps; /* Max packet size */
+	/* vport_lock protect resource shared by vports */
+	struct mutex vport_lock;
 
 	struct hclge_vlan_type_cfg vlan_type_cfg;
 
@@ -728,6 +730,11 @@ struct hclge_rss_tuple_cfg {
 	u8 ipv6_fragment_en;
 };
 
+enum HCLGE_VPORT_STATE {
+	HCLGE_VPORT_STATE_ALIVE,
+	HCLGE_VPORT_STATE_MAX
+};
+
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
 
@@ -753,6 +760,10 @@ struct hclge_vport {
 	struct hclge_dev *back;  /* Back reference to associated dev */
 	struct hnae3_handle nic;
 	struct hnae3_handle roce;
+
+	unsigned long state;
+	unsigned long last_active_jiffies;
+	u32 mps; /* Max packet size */
 };
 
 void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
@@ -800,4 +811,7 @@ int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id);
 void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id);
 int hclge_cfg_flowctrl(struct hclge_dev *hdev);
 int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id);
+int hclge_vport_start(struct hclge_vport *vport);
+void hclge_vport_stop(struct hclge_vport *vport);
+int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu);
 #endif
