@@ -4936,7 +4936,9 @@ void regulator_unregister(struct regulator_dev *rdev)
 			regulator_disable(rdev->supply);
 		regulator_put(rdev->supply);
 	}
+
 	mutex_lock(&regulator_list_mutex);
+
 	debugfs_remove_recursive(rdev->debugfs);
 	flush_work(&rdev->disable_work.work);
 	WARN_ON(rdev->open_count);
@@ -4944,8 +4946,9 @@ void regulator_unregister(struct regulator_dev *rdev)
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
 	regulator_ena_gpio_free(rdev);
-	mutex_unlock(&regulator_list_mutex);
 	device_unregister(&rdev->dev);
+
+	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
 
@@ -5278,6 +5281,8 @@ static void regulator_summary_lock(struct ww_acquire_ctx *ww_ctx)
 	struct regulator_dev *old_contended_rdev = NULL;
 	int err;
 
+	mutex_lock(&regulator_list_mutex);
+
 	ww_acquire_init(ww_ctx, &regulator_ww_class);
 
 	do {
@@ -5304,6 +5309,8 @@ static void regulator_summary_unlock(struct ww_acquire_ctx *ww_ctx)
 	class_for_each_device(&regulator_class, NULL, NULL,
 			      regulator_summary_unlock_one);
 	ww_acquire_fini(ww_ctx);
+
+	mutex_unlock(&regulator_list_mutex);
 }
 
 static int regulator_summary_show_roots(struct device *dev, void *data)
