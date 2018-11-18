@@ -25,6 +25,7 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
+#include <linux/property.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -47,6 +48,23 @@ MODULE_LICENSE("GPL");
 #define IP101A_G_IRQ_SPEED_CHANGE	BIT(2)
 #define IP101A_G_IRQ_DUPLEX_CHANGE	BIT(1)
 #define IP101A_G_IRQ_LINK_CHANGE	BIT(0)
+
+#define IP101G_DIGITAL_IO_SPEC_CTRL			0x1d
+#define IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32		BIT(2)
+
+/* The 32-pin IP101GR package can re-configure the mode of the RXER/INTR_32 pin
+ * (pin number 21). The hardware default is RXER (receive error) mode. But it
+ * can be configured to interrupt mode manually.
+ */
+enum ip101gr_sel_intr32 {
+	IP101GR_SEL_INTR32_KEEP,
+	IP101GR_SEL_INTR32_INTR,
+	IP101GR_SEL_INTR32_RXER,
+};
+
+struct ip101a_g_phy_priv {
+	enum ip101gr_sel_intr32 sel_intr32;
+};
 
 static int ip175c_config_init(struct phy_device *phydev)
 {
@@ -184,13 +202,73 @@ static int ip175c_config_aneg(struct phy_device *phydev)
 	return 0;
 }
 
+static int ip101a_g_probe(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct ip101a_g_phy_priv *priv;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	/* Both functions (RX error and interrupt status) are sharing the same
+	 * pin on the 32-pin IP101GR, so this is an exclusive choice.
+	 */
+	if (device_property_read_bool(dev, "icplus,select-rx-error") &&
+	    device_property_read_bool(dev, "icplus,select-interrupt")) {
+		dev_err(dev,
+			"RXER and INTR mode cannot be selected together\n");
+		return -EINVAL;
+	}
+
+	if (device_property_read_bool(dev, "icplus,select-rx-error"))
+		priv->sel_intr32 = IP101GR_SEL_INTR32_RXER;
+	else if (device_property_read_bool(dev, "icplus,select-interrupt"))
+		priv->sel_intr32 = IP101GR_SEL_INTR32_INTR;
+	else
+		priv->sel_intr32 = IP101GR_SEL_INTR32_KEEP;
+
+	phydev->priv = priv;
+
+	return 0;
+}
+
 static int ip101a_g_config_init(struct phy_device *phydev)
 {
-	int c;
+	struct ip101a_g_phy_priv *priv = phydev->priv;
+	int err, c;
 
 	c = ip1xx_reset(phydev);
 	if (c < 0)
 		return c;
+
+	/* configure the RXER/INTR_32 pin of the 32-pin IP101GR if needed: */
+	switch (priv->sel_intr32) {
+	case IP101GR_SEL_INTR32_RXER:
+		err = phy_modify(phydev, IP101G_DIGITAL_IO_SPEC_CTRL,
+				 IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32, 0);
+		if (err < 0)
+			return err;
+		break;
+
+	case IP101GR_SEL_INTR32_INTR:
+		err = phy_modify(phydev, IP101G_DIGITAL_IO_SPEC_CTRL,
+				 IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32,
+				 IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32);
+		if (err < 0)
+			return err;
+		break;
+
+	default:
+		/* Don't touch IP101G_DIGITAL_IO_SPEC_CTRL because it's not
+		 * documented on IP101A and it's not clear whether this would
+		 * cause problems.
+		 * For the 32-pin IP101GR we simply keep the SEL_INTR32
+		 * configuration as set by the bootloader when not configured
+		 * to one of the special functions.
+		 */
+		break;
+	}
 
 	/* Enable Auto Power Saving mode */
 	c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
@@ -257,6 +335,7 @@ static struct phy_driver icplus_driver[] = {
 	.name		= "ICPlus IP101A/G",
 	.phy_id_mask	= 0x0ffffff0,
 	.features	= PHY_BASIC_FEATURES,
+	.probe		= ip101a_g_probe,
 	.config_intr	= ip101a_g_config_intr,
 	.did_interrupt	= ip101a_g_did_interrupt,
 	.ack_interrupt	= ip101a_g_ack_interrupt,
