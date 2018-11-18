@@ -1573,17 +1573,10 @@ static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	bool if_running = netif_running(netdev);
 	int ret;
 
 	if (!h->ae_algo->ops->set_mtu)
 		return -EOPNOTSUPP;
-
-	/* if this was called with netdev up then bring netdevice down */
-	if (if_running) {
-		(void)hns3_nic_net_stop(netdev);
-		msleep(100);
-	}
 
 	ret = h->ae_algo->ops->set_mtu(h, new_mtu);
 	if (ret)
@@ -1591,10 +1584,6 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 			   ret);
 	else
 		netdev->mtu = new_mtu;
-
-	/* if the netdev was running earlier, bring it up again */
-	if (if_running && hns3_nic_net_open(netdev))
-		ret = -EINVAL;
 
 	return ret;
 }

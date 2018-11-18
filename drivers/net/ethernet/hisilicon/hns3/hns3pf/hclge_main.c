@@ -6450,6 +6450,8 @@ int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu)
 			return -EINVAL;
 		}
 
+	hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+
 	ret = hclge_set_mac_mtu(hdev, max_frm_size);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
@@ -6466,6 +6468,7 @@ int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu)
 			"Allocate buffer fail, ret =%d\n", ret);
 
 out:
+	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 	mutex_unlock(&hdev->vport_lock);
 	return ret;
 }
