@@ -53,8 +53,8 @@
 #endif
 #include <net/devlink.h>
 #include "mlx5_core.h"
-#include "fs_core.h"
 #include "lib/eq.h"
+#include "fs_core.h"
 #include "lib/mpfs.h"
 #include "eswitch.h"
 #include "lib/mlx5.h"

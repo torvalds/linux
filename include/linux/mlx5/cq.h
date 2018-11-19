@@ -60,7 +60,7 @@ struct mlx5_core_cq {
 	} tasklet_ctx;
 	int			reset_notify_added;
 	struct list_head	reset_notify;
-	struct mlx5_eq		*eq;
+	struct mlx5_eq_comp	*eq;
 	u16 uid;
 };
 
