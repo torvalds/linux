@@ -135,13 +135,14 @@ void mlx5e_build_ptys2ethtool_map(void)
 				       ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT);
 }
 
-static const char mlx5e_priv_flags[][ETH_GSTRING_LEN] = {
-	"rx_cqe_moder",
-	"tx_cqe_moder",
-	"rx_cqe_compress",
-	"rx_striding_rq",
-	"rx_no_csum_complete",
+typedef int (*mlx5e_pflag_handler)(struct net_device *netdev, bool enable);
+
+struct pflag_desc {
+	char name[ETH_GSTRING_LEN];
+	mlx5e_pflag_handler handler;
 };
+
+static const struct pflag_desc mlx5e_priv_flags[MLX5E_NUM_PFLAGS];
 
 int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 {
@@ -153,7 +154,7 @@ int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 			num_stats += mlx5e_stats_grps[i].get_num_stats(priv);
 		return num_stats;
 	case ETH_SS_PRIV_FLAGS:
-		return ARRAY_SIZE(mlx5e_priv_flags);
+		return MLX5E_NUM_PFLAGS;
 	case ETH_SS_TEST:
 		return mlx5e_self_test_num(priv);
 	/* fallthrough */
@@ -183,8 +184,9 @@ void mlx5e_ethtool_get_strings(struct mlx5e_priv *priv, u32 stringset, u8 *data)
 
 	switch (stringset) {
 	case ETH_SS_PRIV_FLAGS:
-		for (i = 0; i < ARRAY_SIZE(mlx5e_priv_flags); i++)
-			strcpy(data + i * ETH_GSTRING_LEN, mlx5e_priv_flags[i]);
+		for (i = 0; i < MLX5E_NUM_PFLAGS; i++)
+			strcpy(data + i * ETH_GSTRING_LEN,
+			       mlx5e_priv_flags[i].name);
 		break;
 
 	case ETH_SS_TEST:
@@ -1485,8 +1487,6 @@ static int mlx5e_get_module_eeprom(struct net_device *netdev,
 	return 0;
 }
 
-typedef int (*mlx5e_pflag_handler)(struct net_device *netdev, bool enable);
-
 static int set_pflag_cqe_based_moder(struct net_device *netdev, bool enable,
 				     bool is_rx_cq)
 {
@@ -1649,23 +1649,30 @@ static int set_pflag_rx_no_csum_complete(struct net_device *netdev, bool enable)
 	return 0;
 }
 
+static const struct pflag_desc mlx5e_priv_flags[MLX5E_NUM_PFLAGS] = {
+	{ "rx_cqe_moder",        set_pflag_rx_cqe_based_moder },
+	{ "tx_cqe_moder",        set_pflag_tx_cqe_based_moder },
+	{ "rx_cqe_compress",     set_pflag_rx_cqe_compress },
+	{ "rx_striding_rq",      set_pflag_rx_striding_rq },
+	{ "rx_no_csum_complete", set_pflag_rx_no_csum_complete },
+};
+
 static int mlx5e_handle_pflag(struct net_device *netdev,
 			      u32 wanted_flags,
-			      enum mlx5e_priv_flag flag,
-			      mlx5e_pflag_handler pflag_handler)
+			      enum mlx5e_priv_flag flag)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	bool enable = !!(wanted_flags & flag);
+	bool enable = !!(wanted_flags & BIT(flag));
 	u32 changes = wanted_flags ^ priv->channels.params.pflags;
 	int err;
 
-	if (!(changes & flag))
+	if (!(changes & BIT(flag)))
 		return 0;
 
-	err = pflag_handler(netdev, enable);
+	err = mlx5e_priv_flags[flag].handler(netdev, enable);
 	if (err) {
-		netdev_err(netdev, "%s private flag 0x%x failed err %d\n",
-			   enable ? "Enable" : "Disable", flag, err);
+		netdev_err(netdev, "%s private flag '%s' failed err %d\n",
+			   enable ? "Enable" : "Disable", mlx5e_priv_flags[flag].name, err);
 		return err;
 	}
 
@@ -1676,38 +1683,17 @@ static int mlx5e_handle_pflag(struct net_device *netdev,
 static int mlx5e_set_priv_flags(struct net_device *netdev, u32 pflags)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	enum mlx5e_priv_flag pflag;
 	int err;
 
 	mutex_lock(&priv->state_lock);
-	err = mlx5e_handle_pflag(netdev, pflags,
-				 MLX5E_PFLAG_RX_CQE_BASED_MODER,
-				 set_pflag_rx_cqe_based_moder);
-	if (err)
-		goto out;
 
-	err = mlx5e_handle_pflag(netdev, pflags,
-				 MLX5E_PFLAG_TX_CQE_BASED_MODER,
-				 set_pflag_tx_cqe_based_moder);
-	if (err)
-		goto out;
+	for (pflag = 0; pflag < MLX5E_NUM_PFLAGS; pflag++) {
+		err = mlx5e_handle_pflag(netdev, pflags, pflag);
+		if (err)
+			break;
+	}
 
-	err = mlx5e_handle_pflag(netdev, pflags,
-				 MLX5E_PFLAG_RX_CQE_COMPRESS,
-				 set_pflag_rx_cqe_compress);
-	if (err)
-		goto out;
-
-	err = mlx5e_handle_pflag(netdev, pflags,
-				 MLX5E_PFLAG_RX_STRIDING_RQ,
-				 set_pflag_rx_striding_rq);
-	if (err)
-		goto out;
-
-	err = mlx5e_handle_pflag(netdev, pflags,
-				 MLX5E_PFLAG_RX_NO_CSUM_COMPLETE,
-				 set_pflag_rx_no_csum_complete);
-
-out:
 	mutex_unlock(&priv->state_lock);
 
 	/* Need to fix some features.. */

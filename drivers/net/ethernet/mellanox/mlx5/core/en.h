@@ -49,6 +49,7 @@
 #include <net/switchdev.h>
 #include <net/xdp.h>
 #include <linux/net_dim.h>
+#include <linux/bits.h>
 #include "wq.h"
 #include "mlx5_core.h"
 #include "en_stats.h"
@@ -211,22 +212,23 @@ struct mlx5e_umr_wqe {
 extern const char mlx5e_self_tests[][ETH_GSTRING_LEN];
 
 enum mlx5e_priv_flag {
-	MLX5E_PFLAG_RX_CQE_BASED_MODER = (1 << 0),
-	MLX5E_PFLAG_TX_CQE_BASED_MODER = (1 << 1),
-	MLX5E_PFLAG_RX_CQE_COMPRESS = (1 << 2),
-	MLX5E_PFLAG_RX_STRIDING_RQ = (1 << 3),
-	MLX5E_PFLAG_RX_NO_CSUM_COMPLETE = (1 << 4),
+	MLX5E_PFLAG_RX_CQE_BASED_MODER,
+	MLX5E_PFLAG_TX_CQE_BASED_MODER,
+	MLX5E_PFLAG_RX_CQE_COMPRESS,
+	MLX5E_PFLAG_RX_STRIDING_RQ,
+	MLX5E_PFLAG_RX_NO_CSUM_COMPLETE,
+	MLX5E_NUM_PFLAGS, /* Keep last */
 };
 
 #define MLX5E_SET_PFLAG(params, pflag, enable)			\
 	do {							\
 		if (enable)					\
-			(params)->pflags |= (pflag);		\
+			(params)->pflags |= BIT(pflag);		\
 		else						\
-			(params)->pflags &= ~(pflag);		\
+			(params)->pflags &= ~(BIT(pflag));	\
 	} while (0)
 
-#define MLX5E_GET_PFLAG(params, pflag) (!!((params)->pflags & (pflag)))
+#define MLX5E_GET_PFLAG(params, pflag) (!!((params)->pflags & (BIT(pflag))))
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 #define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
