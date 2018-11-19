@@ -174,7 +174,9 @@ struct bch_fs *bch2_uuid_to_fs(__uuid_t uuid)
 static void __bch2_fs_read_only(struct bch_fs *c)
 {
 	struct bch_dev *ca;
+	bool wrote;
 	unsigned i;
+	int ret;
 
 	bch2_rebalance_stop(c);
 
@@ -189,22 +191,35 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	 */
 	bch2_journal_flush_all_pins(&c->journal);
 
+	do {
+		ret = bch2_alloc_write(c, false, &wrote);
+		if (ret) {
+			bch2_fs_inconsistent(c, "error writing out alloc info %i", ret);
+			break;
+		}
+
+		for_each_member_device(ca, c, i)
+			bch2_dev_allocator_quiesce(c, ca);
+
+		bch2_journal_flush_all_pins(&c->journal);
+
+		/*
+		 * We need to explicitly wait on btree interior updates to complete
+		 * before stopping the journal, flushing all journal pins isn't
+		 * sufficient, because in the BTREE_INTERIOR_UPDATING_ROOT case btree
+		 * interior updates have to drop their journal pin before they're
+		 * fully complete:
+		 */
+		closure_wait_event(&c->btree_interior_update_wait,
+				   !bch2_btree_interior_updates_nr_pending(c));
+	} while (wrote);
+
 	for_each_member_device(ca, c, i)
 		bch2_dev_allocator_stop(ca);
 
-	bch2_journal_flush_all_pins(&c->journal);
-
-	/*
-	 * We need to explicitly wait on btree interior updates to complete
-	 * before stopping the journal, flushing all journal pins isn't
-	 * sufficient, because in the BTREE_INTERIOR_UPDATING_ROOT case btree
-	 * interior updates have to drop their journal pin before they're
-	 * fully complete:
-	 */
-	closure_wait_event(&c->btree_interior_update_wait,
-			   !bch2_btree_interior_updates_nr_pending(c));
-
 	bch2_fs_journal_stop(&c->journal);
+
+	/* XXX: mark super that alloc info is persistent */
 
 	/*
 	 * the journal kicks off btree writes via reclaim - wait for in flight

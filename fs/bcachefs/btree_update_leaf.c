@@ -629,7 +629,8 @@ int __bch2_btree_insert_at(struct btree_insert *trans)
 	trans_for_each_entry(trans, i)
 		btree_insert_entry_checks(c, i);
 
-	if (unlikely(!percpu_ref_tryget(&c->writes)))
+	if (unlikely(!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&
+		     !percpu_ref_tryget(&c->writes)))
 		return -EROFS;
 retry:
 	trans_for_each_iter(trans, i) {
@@ -659,7 +660,8 @@ retry:
 	trans_for_each_iter(trans, i)
 		bch2_btree_iter_downgrade(i->iter);
 out:
-	percpu_ref_put(&c->writes);
+	if (unlikely(!(trans->flags & BTREE_INSERT_NOCHECK_RW)))
+		percpu_ref_put(&c->writes);
 
 	/* make sure we didn't drop or screw up locks: */
 	trans_for_each_iter(trans, i) {

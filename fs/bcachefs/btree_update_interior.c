@@ -1172,6 +1172,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 
 	mutex_lock(&c->btree_interior_update_lock);
 	percpu_down_read(&c->mark_lock);
+	preempt_disable();
 	fs_usage = bch2_fs_usage_get_scratch(c);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
@@ -1194,6 +1195,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 	bch2_fs_usage_apply(c, fs_usage, &as->reserve->disk_res,
 			    gc_pos_btree_node(b));
 
+	preempt_enable();
 	percpu_up_read(&c->mark_lock);
 	mutex_unlock(&c->btree_interior_update_lock);
 

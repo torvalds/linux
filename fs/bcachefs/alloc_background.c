@@ -250,6 +250,9 @@ int bch2_alloc_read(struct bch_fs *c, struct list_head *journal_replay_list)
 				bch2_alloc_read_key(c, bkey_i_to_s_c(k));
 	}
 
+	for_each_member_device(ca, c, i)
+		bch2_dev_usage_from_buckets(c, ca);
+
 	mutex_lock(&c->bucket_clock[READ].lock);
 	for_each_member_device(ca, c, i) {
 		down_read(&ca->bucket_lock);
@@ -281,35 +284,51 @@ static int __bch2_alloc_write_key(struct bch_fs *c, struct bch_dev *ca,
 #endif
 	struct bkey_i_alloc *a = bkey_alloc_init(&alloc_key.k);
 	struct bucket *g;
-	struct bucket_mark m;
+	struct bucket_mark m, new;
 	int ret;
 
 	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
 
 	a->k.p = POS(ca->dev_idx, b);
 
+	bch2_btree_iter_set_pos(iter, a->k.p);
+
+	ret = bch2_btree_iter_traverse(iter);
+	if (ret)
+		return ret;
+
 	percpu_down_read(&c->mark_lock);
 	g = bucket(ca, b);
-	m = bucket_cmpxchg(g, m, m.dirty = false);
+	m = READ_ONCE(g->mark);
+
+	if (!m.dirty) {
+		percpu_up_read(&c->mark_lock);
+		return 0;
+	}
 
 	__alloc_write_key(a, g, m);
 	percpu_up_read(&c->mark_lock);
 
 	bch2_btree_iter_cond_resched(iter);
 
-	bch2_btree_iter_set_pos(iter, a->k.p);
-
 	ret = bch2_btree_insert_at(c, NULL, journal_seq,
+				   BTREE_INSERT_NOCHECK_RW|
 				   BTREE_INSERT_NOFAIL|
 				   BTREE_INSERT_USE_RESERVE|
 				   BTREE_INSERT_USE_ALLOC_RESERVE|
 				   flags,
 				   BTREE_INSERT_ENTRY(iter, &a->k_i));
+	if (ret)
+		return ret;
 
-	if (!ret && ca->buckets_written)
+	new = m;
+	new.dirty = false;
+	atomic64_cmpxchg(&g->_mark.v, m.v.counter, new.v.counter);
+
+	if (ca->buckets_written)
 		set_bit(b, ca->buckets_written);
 
-	return ret;
+	return 0;
 }
 
 int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
@@ -899,10 +918,19 @@ static int push_invalidated_bucket(struct bch_fs *c, struct bch_dev *ca, size_t 
 		for (i = 0; i < RESERVE_NR; i++)
 			if (fifo_push(&ca->free[i], bucket)) {
 				fifo_pop(&ca->free_inc, bucket);
+
 				closure_wake_up(&c->freelist_wait);
+				ca->allocator_blocked_full = false;
+
 				spin_unlock(&c->freelist_lock);
 				goto out;
 			}
+
+		if (!ca->allocator_blocked_full) {
+			ca->allocator_blocked_full = true;
+			closure_wake_up(&c->freelist_wait);
+		}
+
 		spin_unlock(&c->freelist_lock);
 
 		if ((current->flags & PF_KTHREAD) &&
@@ -1225,6 +1253,11 @@ void bch2_dev_allocator_add(struct bch_fs *c, struct bch_dev *ca)
 	for (i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
 		if (ca->mi.data_allowed & (1 << i))
 			set_bit(ca->dev_idx, c->rw_devs[i].d);
+}
+
+void bch2_dev_allocator_quiesce(struct bch_fs *c, struct bch_dev *ca)
+{
+	closure_wait_event(&c->freelist_wait, ca->allocator_blocked_full);
 }
 
 /* stop allocator thread: */

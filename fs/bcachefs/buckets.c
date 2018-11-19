@@ -387,7 +387,8 @@ static void __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 	*old = bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
 		BUG_ON(!is_available_bucket(new));
 
-		new.owned_by_allocator	= 1;
+		new.owned_by_allocator	= true;
+		new.dirty		= true;
 		new.data_type		= 0;
 		new.cached_sectors	= 0;
 		new.dirty_sectors	= 0;
@@ -460,6 +461,7 @@ static void __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 	       type != BCH_DATA_JOURNAL);
 
 	bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
+		new.dirty	= true;
 		new.data_type	= type;
 		checked_add(new.dirty_sectors, sectors);
 	}));
@@ -487,13 +489,14 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 						    true);
 	} else {
 		struct bucket *g;
-		struct bucket_mark old, new;
+		struct bucket_mark new;
 
 		rcu_read_lock();
 
 		g = bucket(ca, b);
-		old = bucket_cmpxchg(g, new, ({
-			new.data_type = type;
+		bucket_cmpxchg(g, new, ({
+			new.dirty	= true;
+			new.data_type	= type;
 			checked_add(new.dirty_sectors, sectors);
 		}));
 
@@ -545,6 +548,8 @@ static void bch2_mark_pointer(struct bch_fs *c,
 	v = atomic64_read(&g->_mark.v);
 	do {
 		new.v.counter = old.v.counter = v;
+
+		new.dirty = true;
 
 		/*
 		 * Check this after reading bucket mark to guard against
@@ -709,6 +714,7 @@ static void bucket_set_stripe(struct bch_fs *c,
 		BUG_ON(ptr_stale(ca, ptr));
 
 		old = bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
+			new.dirty			= true;
 			new.stripe			= enabled;
 			if (journal_seq) {
 				new.journal_seq_valid	= 1;

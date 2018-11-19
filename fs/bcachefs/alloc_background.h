@@ -52,6 +52,7 @@ void bch2_recalc_capacity(struct bch_fs *);
 void bch2_dev_allocator_remove(struct bch_fs *, struct bch_dev *);
 void bch2_dev_allocator_add(struct bch_fs *, struct bch_dev *);
 
+void bch2_dev_allocator_quiesce(struct bch_fs *, struct bch_dev *);
 void bch2_dev_allocator_stop(struct bch_dev *);
 int bch2_dev_allocator_start(struct bch_dev *);
 
