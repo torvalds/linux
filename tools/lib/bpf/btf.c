@@ -49,6 +49,11 @@ struct bpf_func_info_min {
 	__u32   type_id;
 };
 
+static inline __u64 ptr_to_u64(const void *ptr)
+{
+	return (__u64) (unsigned long) ptr;
+}
+
 static int btf_add_type(struct btf *btf, struct btf_type *t)
 {
 	if (btf->types_size - btf->nr_types < 2) {
@@ -408,6 +413,70 @@ const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
 		return &btf->strings[offset];
 	else
 		return NULL;
+}
+
+int btf_get_from_id(__u32 id, struct btf **btf)
+{
+	struct bpf_btf_info btf_info = { 0 };
+	__u32 len = sizeof(btf_info);
+	__u32 last_size;
+	int btf_fd;
+	void *ptr;
+	int err;
+
+	err = 0;
+	*btf = NULL;
+	btf_fd = bpf_btf_get_fd_by_id(id);
+	if (btf_fd < 0)
+		return 0;
+
+	/* we won't know btf_size until we call bpf_obj_get_info_by_fd(). so
+	 * let's start with a sane default - 4KiB here - and resize it only if
+	 * bpf_obj_get_info_by_fd() needs a bigger buffer.
+	 */
+	btf_info.btf_size = 4096;
+	last_size = btf_info.btf_size;
+	ptr = malloc(last_size);
+	if (!ptr) {
+		err = -ENOMEM;
+		goto exit_free;
+	}
+
+	bzero(ptr, last_size);
+	btf_info.btf = ptr_to_u64(ptr);
+	err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
+
+	if (!err && btf_info.btf_size > last_size) {
+		void *temp_ptr;
+
+		last_size = btf_info.btf_size;
+		temp_ptr = realloc(ptr, last_size);
+		if (!temp_ptr) {
+			err = -ENOMEM;
+			goto exit_free;
+		}
+		ptr = temp_ptr;
+		bzero(ptr, last_size);
+		btf_info.btf = ptr_to_u64(ptr);
+		err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
+	}
+
+	if (err || btf_info.btf_size > last_size) {
+		err = errno;
+		goto exit_free;
+	}
+
+	*btf = btf__new((__u8 *)btf_info.btf, btf_info.btf_size, NULL);
+	if (IS_ERR(*btf)) {
+		err = PTR_ERR(*btf);
+		*btf = NULL;
+	}
+
+exit_free:
+	close(btf_fd);
+	free(ptr);
+
+	return err;
 }
 
 static int btf_ext_validate_func_info(const void *finfo, __u32 size,

@@ -215,70 +215,6 @@ err_end_obj:
 	return ret;
 }
 
-static int get_btf(struct bpf_map_info *map_info, struct btf **btf)
-{
-	struct bpf_btf_info btf_info = { 0 };
-	__u32 len = sizeof(btf_info);
-	__u32 last_size;
-	int btf_fd;
-	void *ptr;
-	int err;
-
-	err = 0;
-	*btf = NULL;
-	btf_fd = bpf_btf_get_fd_by_id(map_info->btf_id);
-	if (btf_fd < 0)
-		return 0;
-
-	/* we won't know btf_size until we call bpf_obj_get_info_by_fd(). so
-	 * let's start with a sane default - 4KiB here - and resize it only if
-	 * bpf_obj_get_info_by_fd() needs a bigger buffer.
-	 */
-	btf_info.btf_size = 4096;
-	last_size = btf_info.btf_size;
-	ptr = malloc(last_size);
-	if (!ptr) {
-		err = -ENOMEM;
-		goto exit_free;
-	}
-
-	bzero(ptr, last_size);
-	btf_info.btf = ptr_to_u64(ptr);
-	err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
-
-	if (!err && btf_info.btf_size > last_size) {
-		void *temp_ptr;
-
-		last_size = btf_info.btf_size;
-		temp_ptr = realloc(ptr, last_size);
-		if (!temp_ptr) {
-			err = -ENOMEM;
-			goto exit_free;
-		}
-		ptr = temp_ptr;
-		bzero(ptr, last_size);
-		btf_info.btf = ptr_to_u64(ptr);
-		err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
-	}
-
-	if (err || btf_info.btf_size > last_size) {
-		err = errno;
-		goto exit_free;
-	}
-
-	*btf = btf__new((__u8 *)btf_info.btf, btf_info.btf_size, NULL);
-	if (IS_ERR(*btf)) {
-		err = PTR_ERR(*btf);
-		*btf = NULL;
-	}
-
-exit_free:
-	close(btf_fd);
-	free(ptr);
-
-	return err;
-}
-
 static json_writer_t *get_btf_writer(void)
 {
 	json_writer_t *jw = jsonw_new(stdout);
@@ -775,7 +711,7 @@ static int do_dump(int argc, char **argv)
 
 	prev_key = NULL;
 
-	err = get_btf(&info, &btf);
+	err = btf_get_from_id(info.btf_id, &btf);
 	if (err) {
 		p_err("failed to get btf");
 		goto exit_free;
@@ -919,7 +855,7 @@ static int do_lookup(int argc, char **argv)
 	}
 
 	/* here means bpf_map_lookup_elem() succeeded */
-	err = get_btf(&info, &btf);
+	err = btf_get_from_id(info.btf_id, &btf);
 	if (err) {
 		p_err("failed to get btf");
 		goto exit_free;
