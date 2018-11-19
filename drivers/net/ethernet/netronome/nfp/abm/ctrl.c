@@ -94,24 +94,36 @@ int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int band,
 	return __nfp_abm_ctrl_set_q_lvl(alink->abm, threshold, val);
 }
 
-u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int i)
+u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int queue)
 {
-	u64 val;
+	unsigned int band;
+	u64 val, sum = 0;
 
-	if (nfp_abm_ctrl_stat(alink, alink->abm->qm_stats, NFP_QMSTAT_STRIDE,
-			      NFP_QMSTAT_NON_STO, 0, i, true, &val))
-		return 0;
-	return val;
+	for (band = 0; band < alink->abm->num_bands; band++) {
+		if (nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
+				      NFP_QMSTAT_STRIDE, NFP_QMSTAT_NON_STO,
+				      band, queue, true, &val))
+			return 0;
+		sum += val;
+	}
+
+	return sum;
 }
 
-u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int i)
+u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int queue)
 {
-	u64 val;
+	unsigned int band;
+	u64 val, sum = 0;
 
-	if (nfp_abm_ctrl_stat(alink, alink->abm->qm_stats, NFP_QMSTAT_STRIDE,
-			      NFP_QMSTAT_STO, 0, i, true, &val))
-		return 0;
-	return val;
+	for (band = 0; band < alink->abm->num_bands; band++) {
+		if (nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
+				      NFP_QMSTAT_STRIDE, NFP_QMSTAT_STO,
+				      band, queue, true, &val))
+			return 0;
+		sum += val;
+	}
+
+	return sum;
 }
 
 static int
