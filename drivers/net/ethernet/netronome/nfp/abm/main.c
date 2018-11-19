@@ -422,7 +422,7 @@ static int nfp_abm_init(struct nfp_app *app)
 		goto err_free_abm;
 
 	err = -ENOMEM;
-	abm->num_thresholds = NFP_NET_MAX_RX_RINGS;
+	abm->num_thresholds = array_size(abm->num_bands, NFP_NET_MAX_RX_RINGS);
 	abm->threshold_undef = bitmap_zalloc(abm->num_thresholds, GFP_KERNEL);
 	if (!abm->threshold_undef)
 		goto err_free_abm;
@@ -431,7 +431,7 @@ static int nfp_abm_init(struct nfp_app *app)
 				   sizeof(*abm->thresholds), GFP_KERNEL);
 	if (!abm->thresholds)
 		goto err_free_thresh_umap;
-	for (i = 0; i < NFP_NET_MAX_RX_RINGS; i++)
+	for (i = 0; i < abm->num_bands * NFP_NET_MAX_RX_RINGS; i++)
 		__nfp_abm_ctrl_set_q_lvl(abm, i, NFP_ABM_LVL_INFINITY);
 
 	/* We start in legacy mode, make sure advanced queuing is disabled */
