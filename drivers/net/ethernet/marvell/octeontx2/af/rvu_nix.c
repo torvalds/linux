@@ -109,12 +109,12 @@ static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
 	if (schq >= txsch->schq.max)
 		return false;
 
-	spin_lock(&rvu->rsrc_lock);
+	mutex_lock(&rvu->rsrc_lock);
 	if (txsch->pfvf_map[schq] != pcifunc) {
-		spin_unlock(&rvu->rsrc_lock);
+		mutex_unlock(&rvu->rsrc_lock);
 		return false;
 	}
-	spin_unlock(&rvu->rsrc_lock);
+	mutex_unlock(&rvu->rsrc_lock);
 	return true;
 }
 
@@ -953,7 +953,7 @@ int rvu_mbox_handler_nix_txsch_alloc(struct rvu *rvu,
 	if (!nix_hw)
 		return -EINVAL;
 
-	spin_lock(&rvu->rsrc_lock);
+	mutex_lock(&rvu->rsrc_lock);
 	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
 		txsch = &nix_hw->txsch[lvl];
 		req_schq = req->schq_contig[lvl] + req->schq[lvl];
@@ -1009,7 +1009,7 @@ int rvu_mbox_handler_nix_txsch_alloc(struct rvu *rvu,
 err:
 	rc = NIX_AF_ERR_TLX_ALLOC_FAIL;
 exit:
-	spin_unlock(&rvu->rsrc_lock);
+	mutex_unlock(&rvu->rsrc_lock);
 	return rc;
 }
 
@@ -1034,7 +1034,7 @@ static int nix_txschq_free(struct rvu *rvu, u16 pcifunc)
 		return NIX_AF_ERR_AF_LF_INVALID;
 
 	/* Disable TL2/3 queue links before SMQ flush*/
-	spin_lock(&rvu->rsrc_lock);
+	mutex_lock(&rvu->rsrc_lock);
 	for (lvl = NIX_TXSCH_LVL_TL4; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
 		if (lvl != NIX_TXSCH_LVL_TL2 && lvl != NIX_TXSCH_LVL_TL4)
 			continue;
@@ -1076,7 +1076,7 @@ static int nix_txschq_free(struct rvu *rvu, u16 pcifunc)
 			txsch->pfvf_map[schq] = 0;
 		}
 	}
-	spin_unlock(&rvu->rsrc_lock);
+	mutex_unlock(&rvu->rsrc_lock);
 
 	/* Sync cached info for this LF in NDC-TX to LLC/DRAM */
 	rvu_write64(rvu, blkaddr, NIX_AF_NDC_TX_SYNC, BIT_ULL(12) | nixlf);
@@ -1308,7 +1308,7 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 		return 0;
 
 	/* Add a new one to the list, at the tail */
-	mce = kzalloc(sizeof(*mce), GFP_ATOMIC);
+	mce = kzalloc(sizeof(*mce), GFP_KERNEL);
 	if (!mce)
 		return -ENOMEM;
 	mce->idx = idx;
@@ -1354,7 +1354,7 @@ static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
 		return -EINVAL;
 	}
 
-	spin_lock(&mcast->mce_lock);
+	mutex_lock(&mcast->mce_lock);
 
 	err = nix_update_mce_list(mce_list, pcifunc, idx, add);
 	if (err)
@@ -1384,7 +1384,7 @@ static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
 	}
 
 end:
-	spin_unlock(&mcast->mce_lock);
+	mutex_unlock(&mcast->mce_lock);
 	return err;
 }
 
@@ -1469,7 +1469,7 @@ static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 		    BIT_ULL(63) | (mcast->replay_pkind << 24) |
 		    BIT_ULL(20) | MC_BUF_CNT);
 
-	spin_lock_init(&mcast->mce_lock);
+	mutex_init(&mcast->mce_lock);
 
 	return nix_setup_bcast_tables(rvu, nix_hw);
 }
@@ -1869,7 +1869,7 @@ int rvu_mbox_handler_nix_set_hw_frs(struct rvu *rvu, struct nix_frs_cfg *req,
 
 	/* Update min/maxlen in each of the SMQ attached to this PF/VF */
 	txsch = &nix_hw->txsch[NIX_TXSCH_LVL_SMQ];
-	spin_lock(&rvu->rsrc_lock);
+	mutex_lock(&rvu->rsrc_lock);
 	for (schq = 0; schq < txsch->schq.max; schq++) {
 		if (txsch->pfvf_map[schq] != pcifunc)
 			continue;
@@ -1879,7 +1879,7 @@ int rvu_mbox_handler_nix_set_hw_frs(struct rvu *rvu, struct nix_frs_cfg *req,
 			cfg = (cfg & ~0x7FULL) | ((u64)req->minlen & 0x7F);
 		rvu_write64(rvu, blkaddr, NIX_AF_SMQX_CFG(schq), cfg);
 	}
-	spin_unlock(&rvu->rsrc_lock);
+	mutex_unlock(&rvu->rsrc_lock);
 
 rx_frscfg:
 	/* Check if config is for SDP link */
@@ -2162,5 +2162,6 @@ void rvu_nix_freemem(struct rvu *rvu)
 		mcast = &nix_hw->mcast;
 		qmem_free(rvu->dev, mcast->mce_ctx);
 		qmem_free(rvu->dev, mcast->mcast_buf);
+		mutex_destroy(&mcast->mce_lock);
 	}
 }

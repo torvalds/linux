@@ -153,17 +153,17 @@ int rvu_get_lf(struct rvu *rvu, struct rvu_block *block, u16 pcifunc, u16 slot)
 	u16 match = 0;
 	int lf;
 
-	spin_lock(&rvu->rsrc_lock);
+	mutex_lock(&rvu->rsrc_lock);
 	for (lf = 0; lf < block->lf.max; lf++) {
 		if (block->fn_map[lf] == pcifunc) {
 			if (slot == match) {
-				spin_unlock(&rvu->rsrc_lock);
+				mutex_unlock(&rvu->rsrc_lock);
 				return lf;
 			}
 			match++;
 		}
 	}
-	spin_unlock(&rvu->rsrc_lock);
+	mutex_unlock(&rvu->rsrc_lock);
 	return -ENODEV;
 }
 
@@ -597,6 +597,8 @@ static void rvu_free_hw_resources(struct rvu *rvu)
 	dma_unmap_resource(rvu->dev, rvu->msix_base_iova,
 			   max_msix * PCI_MSIX_ENTRY_SIZE,
 			   DMA_BIDIRECTIONAL, 0);
+
+	mutex_destroy(&rvu->rsrc_lock);
 }
 
 static int rvu_setup_hw_resources(struct rvu *rvu)
@@ -752,7 +754,7 @@ init:
 	if (!rvu->hwvf)
 		return -ENOMEM;
 
-	spin_lock_init(&rvu->rsrc_lock);
+	mutex_init(&rvu->rsrc_lock);
 
 	err = rvu_setup_msix_resources(rvu);
 	if (err)
@@ -926,7 +928,7 @@ static int rvu_detach_rsrcs(struct rvu *rvu, struct rsrc_detach *detach,
 	struct rvu_block *block;
 	int blkid;
 
-	spin_lock(&rvu->rsrc_lock);
+	mutex_lock(&rvu->rsrc_lock);
 
 	/* Check for partial resource detach */
 	if (detach && detach->partial)
@@ -956,7 +958,7 @@ static int rvu_detach_rsrcs(struct rvu *rvu, struct rsrc_detach *detach,
 		rvu_detach_block(rvu, pcifunc, block->type);
 	}
 
-	spin_unlock(&rvu->rsrc_lock);
+	mutex_unlock(&rvu->rsrc_lock);
 	return 0;
 }
 
@@ -1119,7 +1121,7 @@ static int rvu_mbox_handler_attach_resources(struct rvu *rvu,
 	if (!attach->modify)
 		rvu_detach_rsrcs(rvu, NULL, pcifunc);
 
-	spin_lock(&rvu->rsrc_lock);
+	mutex_lock(&rvu->rsrc_lock);
 
 	/* Check if the request can be accommodated */
 	err = rvu_check_rsrc_availability(rvu, attach, pcifunc);
@@ -1163,7 +1165,7 @@ static int rvu_mbox_handler_attach_resources(struct rvu *rvu,
 	}
 
 exit:
-	spin_unlock(&rvu->rsrc_lock);
+	mutex_unlock(&rvu->rsrc_lock);
 	return err;
 }
 

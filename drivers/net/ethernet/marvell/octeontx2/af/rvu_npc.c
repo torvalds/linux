@@ -732,7 +732,7 @@ static int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	mcam->nixlf_offset = mcam->entries;
 	mcam->pf_offset = mcam->nixlf_offset + nixlf_count;
 
-	spin_lock_init(&mcam->lock);
+	mutex_init(&mcam->lock);
 
 	return 0;
 }
@@ -811,6 +811,8 @@ int rvu_npc_init(struct rvu *rvu)
 void rvu_npc_freemem(struct rvu *rvu)
 {
 	struct npc_pkind *pkind = &rvu->hw->pkind;
+	struct npc_mcam *mcam = &rvu->hw->mcam;
 
 	kfree(pkind->rsrc.bmap);
+	mutex_destroy(&mcam->lock);
 }

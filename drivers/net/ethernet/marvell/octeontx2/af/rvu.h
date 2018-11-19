@@ -64,7 +64,7 @@ struct nix_mcast {
 	struct qmem	*mcast_buf;
 	int		replay_pkind;
 	int		next_free_mce;
-	spinlock_t	mce_lock; /* Serialize MCE updates */
+	struct mutex	mce_lock; /* Serialize MCE updates */
 };
 
 struct nix_mce_list {
@@ -74,7 +74,7 @@ struct nix_mce_list {
 };
 
 struct npc_mcam {
-	spinlock_t	lock;	/* MCAM entries and counters update lock */
+	struct mutex	lock;	/* MCAM entries and counters update lock */
 	u8	keysize;	/* MCAM keysize 112/224/448 bits */
 	u8	banks;		/* Number of MCAM banks */
 	u8	banks_per_entry;/* Number of keywords in key */
@@ -174,7 +174,7 @@ struct rvu {
 	struct rvu_hwinfo       *hw;
 	struct rvu_pfvf		*pf;
 	struct rvu_pfvf		*hwvf;
-	spinlock_t		rsrc_lock; /* Serialize resource alloc/free */
+	struct mutex            rsrc_lock; /* Serialize resource alloc/free */
 
 	/* Mbox */
 	struct otx2_mbox	mbox;
