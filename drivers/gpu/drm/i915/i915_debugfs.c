@@ -1788,6 +1788,8 @@ static int i915_emon_status(struct seq_file *m, void *unused)
 	if (!IS_GEN5(dev_priv))
 		return -ENODEV;
 
+	intel_runtime_pm_get(dev_priv);
+
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
@@ -1801,6 +1803,8 @@ static int i915_emon_status(struct seq_file *m, void *unused)
 	seq_printf(m, "Chipset power: %ld\n", chipset);
 	seq_printf(m, "GFX power: %ld\n", gfx);
 	seq_printf(m, "Total power: %ld\n", chipset + gfx);
+
+	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
