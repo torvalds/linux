@@ -1848,6 +1848,8 @@ static void ena_down(struct ena_adapter *adapter)
 		rc = ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
 		if (rc)
 			dev_err(&adapter->pdev->dev, "Device reset failed\n");
+		/* stop submitting admin commands on a device that was reset */
+		ena_com_set_admin_running_state(adapter->ena_dev, false);
 	}
 
 	ena_destroy_all_io_queues(adapter);
@@ -1913,6 +1915,9 @@ static int ena_close(struct net_device *netdev)
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
 	netif_dbg(adapter, ifdown, netdev, "%s\n", __func__);
+
+	if (!test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags))
+		return 0;
 
 	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		ena_down(adapter);
@@ -2613,9 +2618,7 @@ static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 		ena_down(adapter);
 
 	/* Stop the device from sending AENQ events (in case reset flag is set
-	 *  and device is up, ena_close already reset the device
-	 * In case the reset flag is set and the device is up, ena_down()
-	 * already perform the reset, so it can be skipped.
+	 *  and device is up, ena_down() already reset the device.
 	 */
 	if (!(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags) && dev_up))
 		ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
@@ -2694,8 +2697,8 @@ err_device_destroy:
 	ena_com_abort_admin_commands(ena_dev);
 	ena_com_wait_for_abort_completion(ena_dev);
 	ena_com_admin_destroy(ena_dev);
-	ena_com_mmio_reg_read_request_destroy(ena_dev);
 	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_DRIVER_INVALID_STATE);
+	ena_com_mmio_reg_read_request_destroy(ena_dev);
 err:
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
 	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
@@ -3452,6 +3455,8 @@ err_rss:
 	ena_com_rss_destroy(ena_dev);
 err_free_msix:
 	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_INIT_ERR);
+	/* stop submitting admin commands on a device that was reset */
+	ena_com_set_admin_running_state(ena_dev, false);
 	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
 err_worker_destroy:
@@ -3498,17 +3503,11 @@ static void ena_remove(struct pci_dev *pdev)
 
 	cancel_work_sync(&adapter->reset_task);
 
-	unregister_netdev(netdev);
-
-	/* If the device is running then we want to make sure the device will be
-	 * reset to make sure no more events will be issued by the device.
-	 */
-	if (test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags))
-		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
-
 	rtnl_lock();
 	ena_destroy_device(adapter, true);
 	rtnl_unlock();
+
+	unregister_netdev(netdev);
 
 	free_netdev(netdev);
 
