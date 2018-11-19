@@ -484,9 +484,6 @@ struct mlx5_eq_table {
 	struct mlx5_eq		pfault_eq;
 #endif
 	int			num_comp_vectors;
-	/* protect EQs list
-	 */
-	spinlock_t		lock;
 };
 
 struct mlx5_uars_page {

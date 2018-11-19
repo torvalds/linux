@@ -810,8 +810,6 @@ int mlx5_eq_init(struct mlx5_core_dev *dev)
 {
 	int err;
 
-	spin_lock_init(&dev->priv.eq_table.lock);
-
 	err = mlx5_eq_debugfs_init(dev);
 
 	return err;
