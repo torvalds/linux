@@ -214,11 +214,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 
-	err = "cannot allocate memory";
-	ret = bch2_fs_ec_start(c);
-	if (ret)
-		goto err;
-
 	bch_verbose(c, "starting mark and sweep:");
 	err = "error in recovery";
 	ret = bch2_initial_gc(c, &journal);
@@ -278,6 +273,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 			goto err;
 		bch_verbose(c, "quotas done");
 	}
+
+	err = "cannot allocate memory";
+	ret = bch2_fs_ec_start(c);
+	if (ret)
+		goto err;
 
 out:
 	bch2_journal_entries_free(&journal);
