@@ -2776,7 +2776,7 @@ static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 		return;
 
 	spin_lock_bh(&mvmsta->lock);
-	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+	for (tid = 0; tid < ARRAY_SIZE(mvmsta->tid_data); tid++) {
 		struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 
 		if (tid_data->txq_id == IWL_MVM_INVALID_QUEUE)
