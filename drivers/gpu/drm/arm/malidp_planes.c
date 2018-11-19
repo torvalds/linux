@@ -531,8 +531,8 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	for (i = 0; i < ms->n_planes; i++) {
 		u8 alignment = malidp_hw_get_pitch_align(mp->hwdev, rotated);
 
-		if ((fb->pitches[i] * drm_format_info_block_height(fb->format, i))
-				& (alignment - 1)) {
+		if (((fb->pitches[i] * drm_format_info_block_height(fb->format, i))
+				& (alignment - 1)) && !(fb->modifier)) {
 			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
 				      fb->pitches[i], i);
 			return -EINVAL;
