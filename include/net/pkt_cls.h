@@ -871,6 +871,7 @@ struct tc_red_qopt_offload {
 enum tc_gred_command {
 	TC_GRED_REPLACE,
 	TC_GRED_DESTROY,
+	TC_GRED_STATS,
 };
 
 struct tc_gred_vq_qopt_offload_params {
@@ -895,12 +896,19 @@ struct tc_gred_qopt_offload_params {
 	struct tc_gred_vq_qopt_offload_params tab[MAX_DPs];
 };
 
+struct tc_gred_qopt_offload_stats {
+	struct gnet_stats_basic_packed bstats[MAX_DPs];
+	struct gnet_stats_queue qstats[MAX_DPs];
+	struct red_stats *xstats[MAX_DPs];
+};
+
 struct tc_gred_qopt_offload {
 	enum tc_gred_command command;
 	u32 handle;
 	u32 parent;
 	union {
 		struct tc_gred_qopt_offload_params set;
+		struct tc_gred_qopt_offload_stats stats;
 	};
 };
 

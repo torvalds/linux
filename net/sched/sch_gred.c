@@ -354,6 +354,50 @@ static void gred_offload(struct Qdisc *sch, enum tc_gred_command command)
 	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_GRED, &opt);
 }
 
+static int gred_offload_dump_stats(struct Qdisc *sch)
+{
+	struct gred_sched *table = qdisc_priv(sch);
+	struct tc_gred_qopt_offload *hw_stats;
+	unsigned int i;
+	int ret;
+
+	hw_stats = kzalloc(sizeof(*hw_stats), GFP_KERNEL);
+	if (!hw_stats)
+		return -ENOMEM;
+
+	hw_stats->command = TC_GRED_STATS;
+	hw_stats->handle = sch->handle;
+	hw_stats->parent = sch->parent;
+
+	for (i = 0; i < MAX_DPs; i++)
+		if (table->tab[i])
+			hw_stats->stats.xstats[i] = &table->tab[i]->stats;
+
+	ret = qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_GRED, hw_stats);
+	/* Even if driver returns failure adjust the stats - in case offload
+	 * ended but driver still wants to adjust the values.
+	 */
+	for (i = 0; i < MAX_DPs; i++) {
+		if (!table->tab[i])
+			continue;
+		table->tab[i]->packetsin += hw_stats->stats.bstats[i].packets;
+		table->tab[i]->bytesin += hw_stats->stats.bstats[i].bytes;
+		table->tab[i]->backlog += hw_stats->stats.qstats[i].backlog;
+
+		_bstats_update(&sch->bstats,
+			       hw_stats->stats.bstats[i].bytes,
+			       hw_stats->stats.bstats[i].packets);
+		sch->qstats.qlen += hw_stats->stats.qstats[i].qlen;
+		sch->qstats.backlog += hw_stats->stats.qstats[i].backlog;
+		sch->qstats.drops += hw_stats->stats.qstats[i].drops;
+		sch->qstats.requeues += hw_stats->stats.qstats[i].requeues;
+		sch->qstats.overlimits += hw_stats->stats.qstats[i].overlimits;
+	}
+
+	kfree(hw_stats);
+	return ret;
+}
+
 static inline void gred_destroy_vq(struct gred_sched_data *q)
 {
 	kfree(q);
@@ -724,6 +768,9 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		.grio	= gred_rio_mode(table),
 		.flags	= table->red_flags,
 	};
+
+	if (gred_offload_dump_stats(sch))
+		goto nla_put_failure;
 
 	opts = nla_nest_start(skb, TCA_OPTIONS);
 	if (opts == NULL)
