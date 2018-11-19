@@ -28,6 +28,37 @@ Required properties:
   the property should be present. Please refer to rockchip,multidais.txt about
   multi-dais usage.
 
+Optional properties:
+- rockchip,i2s-rx-route: This is a variable length array, that shows the mapping
+  route of i2s rx sdis to I2S data bus. By default, they are one-to-one mapping:
+  * sdi_0 <-- data_0
+  * sdi_1 <-- data_1
+  * sdi_2 <-- data_2
+  * sdi_3 <-- data_3
+  If you would like to change the order of I2S RX data, the route mapping may
+  like this:
+  * sdi_3 <-- data_0
+  * sdi_1 <-- data_1
+  * sdi_2 <-- data_2
+  * sdi_0 <-- data_3
+  You need to add the property for i2s node on dts:
+  - rockchip,i2s-rx-route = <3 1 2 0>;
+
+- rockchip,i2s-tx-route: This is a variable length array, that shows the mapping
+  route of i2s tx sdos to I2S data bus. By default, they are one-to-one mapping:
+  * sdo_0 --> data_0
+  * sdo_1 --> data_1
+  * sdo_2 --> data_2
+  * sdo_3 --> data_3
+  If you would like to change the order of I2S TX data, the route mapping may
+  like this:
+  * sdo_2 --> data_0
+  * sdo_1 --> data_1
+  * sdo_0 --> data_2
+  * sdo_3 --> data_3
+  You need to add the property for i2s node on dts:
+  - rockchip,i2s-tx-route = <2 1 0 3>;
+
 Example for rk3308 I2S/TDM controller:
 
 i2s_8ch_0: i2s@ff300000 {
