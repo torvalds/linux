@@ -1132,7 +1132,7 @@ static void buckets_free_rcu(struct rcu_head *rcu)
 int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 {
 	struct bucket_array *buckets = NULL, *old_buckets = NULL;
-	unsigned long *buckets_dirty = NULL;
+	unsigned long *buckets_nouse = NULL;
 	unsigned long *buckets_written = NULL;
 	u8 *oldest_gens = NULL;
 	alloc_fifo	free[RESERVE_NR];
@@ -1162,7 +1162,7 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 					    GFP_KERNEL|__GFP_ZERO)) ||
 	    !(oldest_gens	= kvpmalloc(nbuckets * sizeof(u8),
 					    GFP_KERNEL|__GFP_ZERO)) ||
-	    !(buckets_dirty	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
+	    !(buckets_nouse	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
 					    sizeof(unsigned long),
 					    GFP_KERNEL|__GFP_ZERO)) ||
 	    !(buckets_written	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
@@ -1199,8 +1199,8 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		memcpy(oldest_gens,
 		       ca->oldest_gens,
 		       n * sizeof(u8));
-		memcpy(buckets_dirty,
-		       ca->buckets_dirty,
+		memcpy(buckets_nouse,
+		       ca->buckets_nouse,
 		       BITS_TO_LONGS(n) * sizeof(unsigned long));
 		memcpy(buckets_written,
 		       ca->buckets_written,
@@ -1211,7 +1211,7 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	buckets = old_buckets;
 
 	swap(ca->oldest_gens, oldest_gens);
-	swap(ca->buckets_dirty, buckets_dirty);
+	swap(ca->buckets_nouse, buckets_nouse);
 	swap(ca->buckets_written, buckets_written);
 
 	if (resize)
@@ -1250,7 +1250,7 @@ err:
 	free_fifo(&free_inc);
 	for (i = 0; i < RESERVE_NR; i++)
 		free_fifo(&free[i]);
-	kvpfree(buckets_dirty,
+	kvpfree(buckets_nouse,
 		BITS_TO_LONGS(nbuckets) * sizeof(unsigned long));
 	kvpfree(buckets_written,
 		BITS_TO_LONGS(nbuckets) * sizeof(unsigned long));
@@ -1273,7 +1273,7 @@ void bch2_dev_buckets_free(struct bch_dev *ca)
 		free_fifo(&ca->free[i]);
 	kvpfree(ca->buckets_written,
 		BITS_TO_LONGS(ca->mi.nbuckets) * sizeof(unsigned long));
-	kvpfree(ca->buckets_dirty,
+	kvpfree(ca->buckets_nouse,
 		BITS_TO_LONGS(ca->mi.nbuckets) * sizeof(unsigned long));
 	kvpfree(ca->oldest_gens, ca->mi.nbuckets * sizeof(u8));
 	kvpfree(rcu_dereference_protected(ca->buckets[0], 1),

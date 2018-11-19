@@ -395,7 +395,7 @@ struct bch_dev {
 	 * Or rcu_read_lock(), but only for ptr_stale():
 	 */
 	struct bucket_array __rcu *buckets[2];
-	unsigned long		*buckets_dirty;
+	unsigned long		*buckets_nouse;
 	unsigned long		*buckets_written;
 	/* most out of date gen in the btree */
 	u8			*oldest_gens;

@@ -57,6 +57,18 @@ static inline struct bucket *bucket(struct bch_dev *ca, size_t b)
 	return __bucket(ca, b, false);
 }
 
+static inline void bucket_set_dirty(struct bch_dev *ca, size_t b)
+{
+	struct bucket *g;
+	struct bucket_mark m;
+
+	rcu_read_lock();
+	g = bucket(ca, b);
+	bucket_cmpxchg(g, m, m.dirty = true);
+	rcu_read_unlock();
+
+}
+
 static inline void bucket_io_clock_reset(struct bch_fs *c, struct bch_dev *ca,
 					 size_t b, int rw)
 {
@@ -196,8 +208,7 @@ static inline bool is_available_bucket(struct bucket_mark mark)
 {
 	return (!mark.owned_by_allocator &&
 		!mark.dirty_sectors &&
-		!mark.stripe &&
-		!mark.nouse);
+		!mark.stripe);
 }
 
 static inline bool bucket_needs_journal_commit(struct bucket_mark m,
