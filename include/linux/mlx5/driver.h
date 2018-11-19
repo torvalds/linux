@@ -484,6 +484,10 @@ struct mlx5_eq_table {
 	struct mlx5_eq		pfault_eq;
 #endif
 	int			num_comp_vectors;
+	struct mlx5_irq_info	*irq_info;
+#ifdef CONFIG_RFS_ACCEL
+	struct cpu_rmap         *rmap;
+#endif
 };
 
 struct mlx5_uars_page {
@@ -640,7 +644,6 @@ struct mlx5_port_module_event_stats {
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
-	struct mlx5_irq_info	*irq_info;
 
 	/* pages stuff */
 	struct workqueue_struct *pg_wq;
@@ -851,9 +854,6 @@ struct mlx5_core_dev {
 	} roce;
 #ifdef CONFIG_MLX5_FPGA
 	struct mlx5_fpga_device *fpga;
-#endif
-#ifdef CONFIG_RFS_ACCEL
-	struct cpu_rmap         *rmap;
 #endif
 	struct mlx5_clock        clock;
 	struct mlx5_ib_clock_info  *clock_info;
@@ -1302,7 +1302,7 @@ enum {
 static inline const struct cpumask *
 mlx5_get_vector_affinity_hint(struct mlx5_core_dev *dev, int vector)
 {
-	return dev->priv.irq_info[vector + MLX5_EQ_VEC_COMP_BASE].mask;
+	return dev->priv.eq_table.irq_info[vector + MLX5_EQ_VEC_COMP_BASE].mask;
 }
 
 #endif /* MLX5_DRIVER_H */

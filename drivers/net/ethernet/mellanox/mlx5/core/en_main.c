@@ -1760,7 +1760,7 @@ static void mlx5e_close_cq(struct mlx5e_cq *cq)
 
 static int mlx5e_get_cpu(struct mlx5e_priv *priv, int ix)
 {
-	return cpumask_first(priv->mdev->priv.irq_info[ix + MLX5_EQ_VEC_COMP_BASE].mask);
+	return cpumask_first(priv->mdev->priv.eq_table.irq_info[ix + MLX5_EQ_VEC_COMP_BASE].mask);
 }
 
 static int mlx5e_open_tx_cqs(struct mlx5e_channel *c,
@@ -4960,7 +4960,7 @@ int mlx5e_netdev_init(struct net_device *netdev,
 	netif_carrier_off(netdev);
 
 #ifdef CONFIG_MLX5_EN_ARFS
-	netdev->rx_cpu_rmap = mdev->rmap;
+	netdev->rx_cpu_rmap = mdev->priv.eq_table.rmap;
 #endif
 
 	return 0;
