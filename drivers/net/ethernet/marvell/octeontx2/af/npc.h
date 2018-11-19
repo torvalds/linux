@@ -259,4 +259,10 @@ struct nix_rx_action {
 #endif
 };
 
+/* NIX Receive Vtag Action Structure */
+#define VTAG0_VALID_BIT		BIT_ULL(15)
+#define VTAG0_TYPE_MASK		GENMASK_ULL(14, 12)
+#define VTAG0_LID_MASK		GENMASK_ULL(10, 8)
+#define VTAG0_RELPTR_MASK	GENMASK_ULL(7, 0)
+
 #endif /* NPC_H */

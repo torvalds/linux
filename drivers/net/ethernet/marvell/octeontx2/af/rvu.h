@@ -142,6 +142,11 @@ struct rvu_pfvf {
 	/* Broadcast pkt replication info */
 	u16			bcast_mce_idx;
 	struct nix_mce_list	bcast_mce_list;
+
+	/* VLAN offload */
+	struct mcam_entry entry;
+	int rxvlan_index;
+	bool rxvlan;
 };
 
 struct nix_txsch {
@@ -356,6 +361,8 @@ int rvu_mbox_handler_nix_stats_rst(struct rvu *rvu, struct msg_req *req,
 int rvu_mbox_handler_nix_vtag_cfg(struct rvu *rvu,
 				  struct nix_vtag_config *req,
 				  struct msg_rsp *rsp);
+int rvu_mbox_handler_nix_rxvlan_alloc(struct rvu *rvu, struct msg_req *req,
+				      struct msg_rsp *rsp);
 int rvu_mbox_handler_nix_rss_flowkey_cfg(struct rvu *rvu,
 					 struct nix_rss_flowkey_cfg *req,
 					 struct msg_rsp *rsp);
@@ -384,6 +391,7 @@ void rvu_npc_disable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_enable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 				       int nixlf, u64 chan);
+int rvu_npc_update_rxvlan(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_disable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_enable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
