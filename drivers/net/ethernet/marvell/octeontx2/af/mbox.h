@@ -153,6 +153,14 @@ M(NPC_MCAM_ALLOC_ENTRY,	0x6000, npc_mcam_alloc_entry, npc_mcam_alloc_entry_req,\
 				npc_mcam_alloc_entry_rsp)		\
 M(NPC_MCAM_FREE_ENTRY,	0x6001, npc_mcam_free_entry,			\
 				 npc_mcam_free_entry_req, msg_rsp)	\
+M(NPC_MCAM_WRITE_ENTRY,	0x6002, npc_mcam_write_entry,			\
+				 npc_mcam_write_entry_req, msg_rsp)	\
+M(NPC_MCAM_ENA_ENTRY,   0x6003, npc_mcam_ena_entry,			\
+				 npc_mcam_ena_dis_entry_req, msg_rsp)	\
+M(NPC_MCAM_DIS_ENTRY,   0x6004, npc_mcam_dis_entry,			\
+				 npc_mcam_ena_dis_entry_req, msg_rsp)	\
+M(NPC_MCAM_SHIFT_ENTRY, 0x6005, npc_mcam_shift_entry, npc_mcam_shift_entry_req,\
+				npc_mcam_shift_entry_rsp)		\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc,				\
 				 nix_lf_alloc_req, nix_lf_alloc_rsp)	\
@@ -588,6 +596,43 @@ struct npc_mcam_free_entry_req {
 	struct mbox_msghdr hdr;
 	u16 entry; /* Entry index to be freed */
 	u8  all;   /* If all entries allocated to this PFVF to be freed */
+};
+
+struct mcam_entry {
+#define NPC_MAX_KWS_IN_KEY	7 /* Number of keywords in max keywidth */
+	u64	kw[NPC_MAX_KWS_IN_KEY];
+	u64	kw_mask[NPC_MAX_KWS_IN_KEY];
+	u64	action;
+	u64	vtag_action;
+};
+
+struct npc_mcam_write_entry_req {
+	struct mbox_msghdr hdr;
+	struct mcam_entry entry_data;
+	u16 entry;	 /* MCAM entry to write this match key */
+	u16 cntr;	 /* Counter for this MCAM entry */
+	u8  intf;	 /* Rx or Tx interface */
+	u8  enable_entry;/* Enable this MCAM entry ? */
+	u8  set_cntr;    /* Set counter for this entry ? */
+};
+
+/* Enable/Disable a given entry */
+struct npc_mcam_ena_dis_entry_req {
+	struct mbox_msghdr hdr;
+	u16 entry;
+};
+
+struct npc_mcam_shift_entry_req {
+	struct mbox_msghdr hdr;
+#define NPC_MCAM_MAX_SHIFTS	64
+	u16 curr_entry[NPC_MCAM_MAX_SHIFTS];
+	u16 new_entry[NPC_MCAM_MAX_SHIFTS];
+	u16 shift_count; /* Number of entries to shift */
+};
+
+struct npc_mcam_shift_entry_rsp {
+	struct mbox_msghdr hdr;
+	u16 failed_entry_idx; /* Index in 'curr_entry', not entry itself */
 };
 
 #endif /* MBOX_H */

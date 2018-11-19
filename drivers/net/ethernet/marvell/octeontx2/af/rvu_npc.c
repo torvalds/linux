@@ -29,14 +29,6 @@
 static void npc_mcam_free_all_entries(struct rvu *rvu, struct npc_mcam *mcam,
 				      int blkaddr, u16 pcifunc);
 
-struct mcam_entry {
-#define NPC_MAX_KWS_IN_KEY	7 /* Number of keywords in max keywidth */
-	u64	kw[NPC_MAX_KWS_IN_KEY];
-	u64	kw_mask[NPC_MAX_KWS_IN_KEY];
-	u64	action;
-	u64	vtag_action;
-};
-
 void rvu_npc_set_pkind(struct rvu *rvu, int pkind, struct rvu_pfvf *pfvf)
 {
 	int blkaddr;
@@ -257,6 +249,46 @@ static void npc_config_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
 		npc_enable_mcam_entry(rvu, mcam, blkaddr, actindex, true);
 	else
 		npc_enable_mcam_entry(rvu, mcam, blkaddr, actindex, false);
+}
+
+static void npc_copy_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
+				int blkaddr, u16 src, u16 dest)
+{
+	int dbank = npc_get_bank(mcam, dest);
+	int sbank = npc_get_bank(mcam, src);
+	u64 cfg, sreg, dreg;
+	int bank, i;
+
+	src &= (mcam->banksize - 1);
+	dest &= (mcam->banksize - 1);
+
+	/* Copy INTF's, W0's, W1's CAM0 and CAM1 configuration */
+	for (bank = 0; bank < mcam->banks_per_entry; bank++) {
+		sreg = NPC_AF_MCAMEX_BANKX_CAMX_INTF(src, sbank + bank, 0);
+		dreg = NPC_AF_MCAMEX_BANKX_CAMX_INTF(dest, dbank + bank, 0);
+		for (i = 0; i < 6; i++) {
+			cfg = rvu_read64(rvu, blkaddr, sreg + (i * 8));
+			rvu_write64(rvu, blkaddr, dreg + (i * 8), cfg);
+		}
+	}
+
+	/* Copy action */
+	cfg = rvu_read64(rvu, blkaddr,
+			 NPC_AF_MCAMEX_BANKX_ACTION(src, sbank));
+	rvu_write64(rvu, blkaddr,
+		    NPC_AF_MCAMEX_BANKX_ACTION(dest, dbank), cfg);
+
+	/* Copy TAG action */
+	cfg = rvu_read64(rvu, blkaddr,
+			 NPC_AF_MCAMEX_BANKX_TAG_ACT(src, sbank));
+	rvu_write64(rvu, blkaddr,
+		    NPC_AF_MCAMEX_BANKX_TAG_ACT(dest, dbank), cfg);
+
+	/* Enable or disable */
+	cfg = rvu_read64(rvu, blkaddr,
+			 NPC_AF_MCAMEX_BANKX_CFG(src, sbank));
+	rvu_write64(rvu, blkaddr,
+		    NPC_AF_MCAMEX_BANKX_CFG(dest, dbank), cfg);
 }
 
 static u64 npc_get_mcam_action(struct rvu *rvu, struct npc_mcam *mcam,
@@ -1319,6 +1351,137 @@ free_all:
 	/* Free up all entries allocated to requesting PFFUNC */
 	npc_mcam_free_all_entries(rvu, mcam, blkaddr, pcifunc);
 exit:
+	mutex_unlock(&mcam->lock);
+	return rc;
+}
+
+int rvu_mbox_handler_npc_mcam_write_entry(struct rvu *rvu,
+					  struct npc_mcam_write_entry_req *req,
+					  struct msg_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u16 pcifunc = req->hdr.pcifunc;
+	int blkaddr, rc;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+	rc = npc_mcam_verify_entry(mcam, pcifunc, req->entry);
+	if (rc)
+		goto exit;
+
+	if (req->intf != NIX_INTF_RX && req->intf != NIX_INTF_TX) {
+		rc = NPC_MCAM_INVALID_REQ;
+		goto exit;
+	}
+
+	npc_config_mcam_entry(rvu, mcam, blkaddr, req->entry, req->intf,
+			      &req->entry_data, req->enable_entry);
+
+	rc = 0;
+exit:
+	mutex_unlock(&mcam->lock);
+	return rc;
+}
+
+int rvu_mbox_handler_npc_mcam_ena_entry(struct rvu *rvu,
+					struct npc_mcam_ena_dis_entry_req *req,
+					struct msg_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u16 pcifunc = req->hdr.pcifunc;
+	int blkaddr, rc;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+	rc = npc_mcam_verify_entry(mcam, pcifunc, req->entry);
+	mutex_unlock(&mcam->lock);
+	if (rc)
+		return rc;
+
+	npc_enable_mcam_entry(rvu, mcam, blkaddr, req->entry, true);
+
+	return 0;
+}
+
+int rvu_mbox_handler_npc_mcam_dis_entry(struct rvu *rvu,
+					struct npc_mcam_ena_dis_entry_req *req,
+					struct msg_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u16 pcifunc = req->hdr.pcifunc;
+	int blkaddr, rc;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+	rc = npc_mcam_verify_entry(mcam, pcifunc, req->entry);
+	mutex_unlock(&mcam->lock);
+	if (rc)
+		return rc;
+
+	npc_enable_mcam_entry(rvu, mcam, blkaddr, req->entry, false);
+
+	return 0;
+}
+
+int rvu_mbox_handler_npc_mcam_shift_entry(struct rvu *rvu,
+					  struct npc_mcam_shift_entry_req *req,
+					  struct npc_mcam_shift_entry_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u16 pcifunc = req->hdr.pcifunc;
+	u16 old_entry, new_entry;
+	int blkaddr, rc;
+	u16 index;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	if (req->shift_count > NPC_MCAM_MAX_SHIFTS)
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+	for (index = 0; index < req->shift_count; index++) {
+		old_entry = req->curr_entry[index];
+		new_entry = req->new_entry[index];
+
+		/* Check if both old and new entries are valid and
+		 * does belong to this PFFUNC or not.
+		 */
+		rc = npc_mcam_verify_entry(mcam, pcifunc, old_entry);
+		if (rc)
+			break;
+
+		rc = npc_mcam_verify_entry(mcam, pcifunc, new_entry);
+		if (rc)
+			break;
+
+		/* Disable the new_entry */
+		npc_enable_mcam_entry(rvu, mcam, blkaddr, new_entry, false);
+
+		/* Copy rule from old entry to new entry */
+		npc_copy_mcam_entry(rvu, mcam, blkaddr, old_entry, new_entry);
+
+		/* Enable new_entry and disable old_entry */
+		npc_enable_mcam_entry(rvu, mcam, blkaddr, new_entry, true);
+		npc_enable_mcam_entry(rvu, mcam, blkaddr, old_entry, false);
+	}
+
+	/* If shift has failed then report the failed index */
+	if (index != req->shift_count) {
+		rc = NPC_MCAM_PERM_DENIED;
+		rsp->failed_entry_idx = index;
+	}
+
 	mutex_unlock(&mcam->lock);
 	return rc;
 }
