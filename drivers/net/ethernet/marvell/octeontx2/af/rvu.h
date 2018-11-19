@@ -200,6 +200,11 @@ struct rvu {
 	struct rvu_work		*mbox_wrk_up;
 	struct workqueue_struct *mbox_wq;
 
+	/* PF FLR */
+	struct rvu_work		*flr_wrk;
+	struct workqueue_struct *flr_wq;
+	struct mutex		flr_lock; /* Serialize FLRs */
+
 	/* MSI-X */
 	u16			num_vec;
 	char			*irq_name;

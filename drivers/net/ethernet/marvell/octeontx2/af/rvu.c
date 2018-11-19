@@ -1601,12 +1601,54 @@ static void rvu_enable_mbox_intr(struct rvu *rvu)
 		    INTR_MASK(hw->total_pfs) & ~1ULL);
 }
 
+static void rvu_flr_handler(struct work_struct *work)
+{
+	struct rvu_work *flrwork = container_of(work, struct rvu_work, work);
+	struct rvu *rvu = flrwork->rvu;
+	u16 pf;
+
+	pf = flrwork - rvu->flr_wrk;
+
+	/* Signal FLR finish */
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFTRPEND, BIT_ULL(pf));
+
+	/* Enable interrupt */
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT_ENA_W1S,  BIT_ULL(pf));
+}
+
+static irqreturn_t rvu_flr_intr_handler(int irq, void *rvu_irq)
+{
+	struct rvu *rvu = (struct rvu *)rvu_irq;
+	u64 intr;
+	u8  pf;
+
+	intr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT);
+
+	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
+		if (intr & (1ULL << pf)) {
+			/* PF is already dead do only AF related operations */
+			queue_work(rvu->flr_wq, &rvu->flr_wrk[pf].work);
+			/* clear interrupt */
+			rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT,
+				    BIT_ULL(pf));
+			/* Disable the interrupt */
+			rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT_ENA_W1C,
+				    BIT_ULL(pf));
+		}
+	}
+	return IRQ_HANDLED;
+}
+
 static void rvu_unregister_interrupts(struct rvu *rvu)
 {
 	int irq;
 
 	/* Disable the Mbox interrupt */
 	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFAF_MBOX_INT_ENA_W1C,
+		    INTR_MASK(rvu->hw->total_pfs) & ~1ULL);
+
+	/* Disable the PF FLR interrupt */
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT_ENA_W1C,
 		    INTR_MASK(rvu->hw->total_pfs) & ~1ULL);
 
 	for (irq = 0; irq < rvu->num_vec; irq++) {
@@ -1660,11 +1702,77 @@ static int rvu_register_interrupts(struct rvu *rvu)
 	/* Enable mailbox interrupts from all PFs */
 	rvu_enable_mbox_intr(rvu);
 
+	/* Register FLR interrupt handler */
+	sprintf(&rvu->irq_name[RVU_AF_INT_VEC_PFFLR * NAME_SIZE],
+		"RVUAF FLR");
+	ret = request_irq(pci_irq_vector(rvu->pdev, RVU_AF_INT_VEC_PFFLR),
+			  rvu_flr_intr_handler, 0,
+			  &rvu->irq_name[RVU_AF_INT_VEC_PFFLR * NAME_SIZE],
+			  rvu);
+	if (ret) {
+		dev_err(rvu->dev,
+			"RVUAF: IRQ registration failed for FLR\n");
+		goto fail;
+	}
+	rvu->irq_allocated[RVU_AF_INT_VEC_PFFLR] = true;
+
+	/* Enable FLR interrupt for all PFs*/
+	rvu_write64(rvu, BLKADDR_RVUM,
+		    RVU_AF_PFFLR_INT, INTR_MASK(rvu->hw->total_pfs));
+
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT_ENA_W1S,
+		    INTR_MASK(rvu->hw->total_pfs) & ~1ULL);
+
 	return 0;
 
 fail:
 	pci_free_irq_vectors(rvu->pdev);
 	return ret;
+}
+
+static void rvu_flr_wq_destroy(struct rvu *rvu)
+{
+	if (rvu->flr_wq) {
+		flush_workqueue(rvu->flr_wq);
+		destroy_workqueue(rvu->flr_wq);
+		rvu->flr_wq = NULL;
+	}
+	kfree(rvu->flr_wrk);
+}
+
+static int rvu_flr_init(struct rvu *rvu)
+{
+	u64 cfg;
+	int pf;
+
+	/* Enable FLR for all PFs*/
+	for (pf = 1; pf < rvu->hw->total_pfs; pf++) {
+		cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
+		rvu_write64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf),
+			    cfg | BIT_ULL(22));
+	}
+
+	rvu->flr_wq = alloc_workqueue("rvu_afpf_flr",
+				      WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM,
+				       1);
+	if (!rvu->flr_wq)
+		return -ENOMEM;
+
+	rvu->flr_wrk = devm_kcalloc(rvu->dev, rvu->hw->total_pfs,
+				    sizeof(struct rvu_work), GFP_KERNEL);
+	if (!rvu->flr_wrk) {
+		destroy_workqueue(rvu->flr_wq);
+		return -ENOMEM;
+	}
+
+	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
+		rvu->flr_wrk[pf].rvu = rvu;
+		INIT_WORK(&rvu->flr_wrk[pf].work, rvu_flr_handler);
+	}
+
+	mutex_init(&rvu->flr_lock);
+
+	return 0;
 }
 
 static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -1737,11 +1845,17 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_mbox;
 
-	err = rvu_register_interrupts(rvu);
+	err = rvu_flr_init(rvu);
 	if (err)
 		goto err_cgx;
 
+	err = rvu_register_interrupts(rvu);
+	if (err)
+		goto err_flr;
+
 	return 0;
+err_flr:
+	rvu_flr_wq_destroy(rvu);
 err_cgx:
 	rvu_cgx_wq_destroy(rvu);
 err_mbox:
@@ -1765,6 +1879,7 @@ static void rvu_remove(struct pci_dev *pdev)
 	struct rvu *rvu = pci_get_drvdata(pdev);
 
 	rvu_unregister_interrupts(rvu);
+	rvu_flr_wq_destroy(rvu);
 	rvu_cgx_wq_destroy(rvu);
 	rvu_mbox_destroy(rvu);
 	rvu_reset_all_blocks(rvu);
