@@ -398,6 +398,10 @@ struct nix_lf_alloc_rsp {
 	u8	lso_tsov4_idx;
 	u8	lso_tsov6_idx;
 	u8      mac_addr[ETH_ALEN];
+	u8	lf_rx_stats; /* NIX_AF_CONST1::LF_RX_STATS */
+	u8	lf_tx_stats; /* NIX_AF_CONST1::LF_TX_STATS */
+	u16	cints; /* NIX_AF_CONST2::CINTS */
+	u16	qints; /* NIX_AF_CONST2::QINTS */
 };
 
 /* NIX AQ enqueue msg */

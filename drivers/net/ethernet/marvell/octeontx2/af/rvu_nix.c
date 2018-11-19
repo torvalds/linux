@@ -829,6 +829,14 @@ exit:
 	rsp->tx_chan_cnt = pfvf->tx_chan_cnt;
 	rsp->lso_tsov4_idx = NIX_LSO_FORMAT_IDX_TSOV4;
 	rsp->lso_tsov6_idx = NIX_LSO_FORMAT_IDX_TSOV6;
+	/* Get HW supported stat count */
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST1);
+	rsp->lf_rx_stats = ((cfg >> 32) & 0xFF);
+	rsp->lf_tx_stats = ((cfg >> 24) & 0xFF);
+	/* Get count of CQ IRQs and error IRQs supported per LF */
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST2);
+	rsp->qints = ((cfg >> 12) & 0xFFF);
+	rsp->cints = ((cfg >> 24) & 0xFFF);
 	return rc;
 }
 
