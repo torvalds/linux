@@ -68,6 +68,10 @@ export VXPORT
 	ping_ipv4
 	test_flood
 	test_unicast
+	reapply_config
+	ping_ipv4
+	test_flood
+	test_unicast
     "}
 
 NUM_NETIFS=6
@@ -286,6 +290,28 @@ cleanup()
 
 	forwarding_restore
 	vrf_cleanup
+}
+
+# For the first round of tests, vx1 is the first device to get attached to the
+# bridge, and that at the point that the local IP is already configured. Try the
+# other scenario of attaching the device to an already-offloaded bridge, and
+# only then attach the local IP.
+reapply_config()
+{
+	echo "Reapplying configuration"
+
+	bridge fdb del dev vx1 00:00:00:00:00:00 dst 192.0.2.50 self
+	bridge fdb del dev vx1 00:00:00:00:00:00 dst 192.0.2.34 self
+	rp1_unset_addr
+	ip link set dev vx1 nomaster
+	sleep 5
+
+	ip link set dev vx1 master br1
+	bridge fdb append dev vx1 00:00:00:00:00:00 dst 192.0.2.34 self
+	bridge fdb append dev vx1 00:00:00:00:00:00 dst 192.0.2.50 self
+	sleep 1
+	rp1_set_addr
+	sleep 5
 }
 
 ping_ipv4()
