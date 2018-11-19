@@ -643,6 +643,7 @@ struct tc_cls_common_offload {
 
 struct tc_cls_u32_knode {
 	struct tcf_exts *exts;
+	struct tcf_result *res;
 	struct tc_u32_sel *sel;
 	u32 handle;
 	u32 val;
