@@ -67,6 +67,7 @@ export VXPORT
 : ${ALL_TESTS:="
 	ping_ipv4
 	test_flood
+	test_unicast
     "}
 
 NUM_NETIFS=6
@@ -263,6 +264,10 @@ setup_prepare()
 	vrp2_create
 	ns1_create
 	ns2_create
+
+	r1_mac=$(in_ns ns1 mac_get w2)
+	r2_mac=$(in_ns ns2 mac_get w2)
+	h2_mac=$(mac_get $h2)
 }
 
 cleanup()
@@ -392,6 +397,55 @@ __test_flood()
 test_flood()
 {
 	__test_flood de:ad:be:ef:13:37 192.0.2.100 "flood"
+}
+
+vxlan_fdb_add_del()
+{
+	local add_del=$1; shift
+	local mac=$1; shift
+	local dev=$1; shift
+	local dst=$1; shift
+
+	bridge fdb $add_del dev $dev $mac self static permanent \
+		${dst:+dst} $dst 2>/dev/null
+	bridge fdb $add_del dev $dev $mac master static 2>/dev/null
+}
+
+__test_unicast()
+{
+	local mac=$1; shift
+	local dst=$1; shift
+	local hit_idx=$1; shift
+	local what=$1; shift
+
+	RET=0
+
+	local -a expects=(0 0 0)
+	expects[$hit_idx]=10
+
+	vxlan_flood_test $mac $dst "${expects[@]}"
+
+	log_test "VXLAN: $what"
+}
+
+test_unicast()
+{
+	local -a targets=("$h2_mac $h2"
+			  "$r1_mac vx1 192.0.2.34"
+			  "$r2_mac vx1 192.0.2.50")
+	local target
+
+	for target in "${targets[@]}"; do
+		vxlan_fdb_add_del add $target
+	done
+
+	__test_unicast $h2_mac 192.0.2.2 0 "local MAC unicast"
+	__test_unicast $r1_mac 192.0.2.3 1 "remote MAC 1 unicast"
+	__test_unicast $r2_mac 192.0.2.4 2 "remote MAC 2 unicast"
+
+	for target in "${targets[@]}"; do
+		vxlan_fdb_add_del del $target
+	done
 }
 
 test_all()
