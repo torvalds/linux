@@ -385,7 +385,7 @@ static int vega10_ih_sw_init(void *handle)
 		return r;
 
 	adev->irq.ih.use_doorbell = true;
-	adev->irq.ih.doorbell_index = AMDGPU_DOORBELL64_IH << 1;
+	adev->irq.ih.doorbell_index = adev->doorbell_index.ih << 1;
 
 	r = amdgpu_irq_init(adev);
 

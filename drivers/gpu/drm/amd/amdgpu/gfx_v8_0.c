@@ -1890,7 +1890,7 @@ static int gfx_v8_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 
 	ring->ring_obj = NULL;
 	ring->use_doorbell = true;
-	ring->doorbell_index = AMDGPU_DOORBELL_MEC_RING0 + ring_id;
+	ring->doorbell_index = adev->doorbell_index.mec_ring0 + ring_id;
 	ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr
 				+ (ring_id * GFX8_MEC_HPD_SIZE);
 	sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
@@ -2001,7 +2001,7 @@ static int gfx_v8_0_sw_init(void *handle)
 		/* no gfx doorbells on iceland */
 		if (adev->asic_type != CHIP_TOPAZ) {
 			ring->use_doorbell = true;
-			ring->doorbell_index = AMDGPU_DOORBELL_GFX_RING0;
+			ring->doorbell_index = adev->doorbell_index.gfx_ring0;
 		}
 
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
@@ -4215,7 +4215,7 @@ static void gfx_v8_0_set_cpg_door_bell(struct amdgpu_device *adev, struct amdgpu
 
 	tmp = REG_SET_FIELD(0, CP_RB_DOORBELL_RANGE_LOWER,
 					DOORBELL_RANGE_LOWER,
-					AMDGPU_DOORBELL_GFX_RING0);
+					adev->doorbell_index.gfx_ring0);
 	WREG32(mmCP_RB_DOORBELL_RANGE_LOWER, tmp);
 
 	WREG32(mmCP_RB_DOORBELL_RANGE_UPPER,
@@ -4644,8 +4644,8 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 static void gfx_v8_0_set_mec_doorbell_range(struct amdgpu_device *adev)
 {
 	if (adev->asic_type > CHIP_TONGA) {
-		WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER, AMDGPU_DOORBELL_KIQ << 2);
-		WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER, AMDGPU_DOORBELL_MEC_RING7 << 2);
+		WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER, adev->doorbell_index.kiq << 2);
+		WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER, adev->doorbell_index.mec_ring7 << 2);
 	}
 	/* enable doorbells */
 	WREG32_FIELD(CP_PQ_STATUS, DOORBELL_ENABLE, 1);
