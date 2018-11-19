@@ -143,6 +143,11 @@ enum nix_scheduler {
 	NIX_TXSCH_LVL_CNT = 0x5,
 };
 
+/* Min/Max packet sizes, excluding FCS */
+#define	NIC_HW_MIN_FRS			40
+#define	NIC_HW_MAX_FRS			9212
+#define	SDP_HW_MAX_FRS			65535
+
 /* NIX RX action operation*/
 #define NIX_RX_ACTIONOP_DROP		(0x0ull)
 #define NIX_RX_ACTIONOP_UCAST		(0x1ull)

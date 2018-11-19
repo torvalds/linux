@@ -122,6 +122,8 @@ struct rvu_pfvf {
 	u16		tx_chan_base;
 	u8              rx_chan_cnt; /* total number of RX channels */
 	u8              tx_chan_cnt; /* total number of TX channels */
+	u16		maxlen;
+	u16		minlen;
 
 	u8		mac_addr[ETH_ALEN]; /* MAC address of this PF/VF */
 
@@ -349,6 +351,8 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 				      struct msg_rsp *rsp);
 int rvu_mbox_handler_nix_set_rx_mode(struct rvu *rvu, struct nix_rx_mode *req,
 				     struct msg_rsp *rsp);
+int rvu_mbox_handler_nix_set_hw_frs(struct rvu *rvu, struct nix_frs_cfg *req,
+				    struct msg_rsp *rsp);
 
 /* NPC APIs */
 int rvu_npc_init(struct rvu *rvu);

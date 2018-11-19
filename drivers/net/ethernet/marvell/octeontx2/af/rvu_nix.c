@@ -168,13 +168,19 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 
 	rvu_npc_install_bcast_match_entry(rvu, pcifunc,
 					  nixlf, pfvf->rx_chan_base);
+	pfvf->maxlen = NIC_HW_MIN_FRS;
+	pfvf->minlen = NIC_HW_MIN_FRS;
 
 	return 0;
 }
 
 static void nix_interface_deinit(struct rvu *rvu, u16 pcifunc, u8 nixlf)
 {
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	int err;
+
+	pfvf->maxlen = 0;
+	pfvf->minlen = 0;
 
 	/* Remove this PF_FUNC from bcast pkt replication list */
 	err = nix_update_bcast_mce_list(rvu, pcifunc, false);
@@ -1778,6 +1784,196 @@ int rvu_mbox_handler_nix_set_rx_mode(struct rvu *rvu, struct nix_rx_mode *req,
 	return 0;
 }
 
+static void nix_find_link_frs(struct rvu *rvu,
+			      struct nix_frs_cfg *req, u16 pcifunc)
+{
+	int pf = rvu_get_pf(pcifunc);
+	struct rvu_pfvf *pfvf;
+	int maxlen, minlen;
+	int numvfs, hwvf;
+	int vf;
+
+	/* Update with requester's min/max lengths */
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	pfvf->maxlen = req->maxlen;
+	if (req->update_minlen)
+		pfvf->minlen = req->minlen;
+
+	maxlen = req->maxlen;
+	minlen = req->update_minlen ? req->minlen : 0;
+
+	/* Get this PF's numVFs and starting hwvf */
+	rvu_get_pf_numvfs(rvu, pf, &numvfs, &hwvf);
+
+	/* For each VF, compare requested max/minlen */
+	for (vf = 0; vf < numvfs; vf++) {
+		pfvf =  &rvu->hwvf[hwvf + vf];
+		if (pfvf->maxlen > maxlen)
+			maxlen = pfvf->maxlen;
+		if (req->update_minlen &&
+		    pfvf->minlen && pfvf->minlen < minlen)
+			minlen = pfvf->minlen;
+	}
+
+	/* Compare requested max/minlen with PF's max/minlen */
+	pfvf = &rvu->pf[pf];
+	if (pfvf->maxlen > maxlen)
+		maxlen = pfvf->maxlen;
+	if (req->update_minlen &&
+	    pfvf->minlen && pfvf->minlen < minlen)
+		minlen = pfvf->minlen;
+
+	/* Update the request with max/min PF's and it's VF's max/min */
+	req->maxlen = maxlen;
+	if (req->update_minlen)
+		req->minlen = minlen;
+}
+
+int rvu_mbox_handler_nix_set_hw_frs(struct rvu *rvu, struct nix_frs_cfg *req,
+				    struct msg_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 pcifunc = req->hdr.pcifunc;
+	int pf = rvu_get_pf(pcifunc);
+	int blkaddr, schq, link = -1;
+	struct nix_txsch *txsch;
+	u64 cfg, lmac_fifo_len;
+	struct nix_hw *nix_hw;
+	u8 cgx = 0, lmac = 0;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return -EINVAL;
+
+	if (!req->sdp_link && req->maxlen > NIC_HW_MAX_FRS)
+		return NIX_AF_ERR_FRS_INVALID;
+
+	if (req->update_minlen && req->minlen < NIC_HW_MIN_FRS)
+		return NIX_AF_ERR_FRS_INVALID;
+
+	/* Check if requester wants to update SMQ's */
+	if (!req->update_smq)
+		goto rx_frscfg;
+
+	/* Update min/maxlen in each of the SMQ attached to this PF/VF */
+	txsch = &nix_hw->txsch[NIX_TXSCH_LVL_SMQ];
+	spin_lock(&rvu->rsrc_lock);
+	for (schq = 0; schq < txsch->schq.max; schq++) {
+		if (txsch->pfvf_map[schq] != pcifunc)
+			continue;
+		cfg = rvu_read64(rvu, blkaddr, NIX_AF_SMQX_CFG(schq));
+		cfg = (cfg & ~(0xFFFFULL << 8)) | ((u64)req->maxlen << 8);
+		if (req->update_minlen)
+			cfg = (cfg & ~0x7FULL) | ((u64)req->minlen & 0x7F);
+		rvu_write64(rvu, blkaddr, NIX_AF_SMQX_CFG(schq), cfg);
+	}
+	spin_unlock(&rvu->rsrc_lock);
+
+rx_frscfg:
+	/* Check if config is for SDP link */
+	if (req->sdp_link) {
+		if (!hw->sdp_links)
+			return NIX_AF_ERR_RX_LINK_INVALID;
+		link = hw->cgx_links + hw->lbk_links;
+		goto linkcfg;
+	}
+
+	/* Check if the request is from CGX mapped RVU PF */
+	if (is_pf_cgxmapped(rvu, pf)) {
+		/* Get CGX and LMAC to which this PF is mapped and find link */
+		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx, &lmac);
+		link = (cgx * hw->lmac_per_cgx) + lmac;
+	} else if (pf == 0) {
+		/* For VFs of PF0 ingress is LBK port, so config LBK link */
+		link = hw->cgx_links;
+	}
+
+	if (link < 0)
+		return NIX_AF_ERR_RX_LINK_INVALID;
+
+	nix_find_link_frs(rvu, req, pcifunc);
+
+linkcfg:
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_RX_LINKX_CFG(link));
+	cfg = (cfg & ~(0xFFFFULL << 16)) | ((u64)req->maxlen << 16);
+	if (req->update_minlen)
+		cfg = (cfg & ~0xFFFFULL) | req->minlen;
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_LINKX_CFG(link), cfg);
+
+	if (req->sdp_link || pf == 0)
+		return 0;
+
+	/* Update transmit credits for CGX links */
+	lmac_fifo_len =
+		CGX_FIFO_LEN / cgx_get_lmac_cnt(rvu_cgx_pdata(cgx, rvu));
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_TX_LINKX_NORM_CREDIT(link));
+	cfg &= ~(0xFFFFFULL << 12);
+	cfg |=  ((lmac_fifo_len - req->maxlen) / 16) << 12;
+	rvu_write64(rvu, blkaddr, NIX_AF_TX_LINKX_NORM_CREDIT(link), cfg);
+	rvu_write64(rvu, blkaddr, NIX_AF_TX_LINKX_EXPR_CREDIT(link), cfg);
+
+	return 0;
+}
+
+static void nix_link_config(struct rvu *rvu, int blkaddr)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	int cgx, lmac_cnt, slink, link;
+	u64 tx_credits;
+
+	/* Set default min/max packet lengths allowed on NIX Rx links.
+	 *
+	 * With HW reset minlen value of 60byte, HW will treat ARP pkts
+	 * as undersize and report them to SW as error pkts, hence
+	 * setting it to 40 bytes.
+	 */
+	for (link = 0; link < (hw->cgx_links + hw->lbk_links); link++) {
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_LINKX_CFG(link),
+			    NIC_HW_MAX_FRS << 16 | NIC_HW_MIN_FRS);
+	}
+
+	if (hw->sdp_links) {
+		link = hw->cgx_links + hw->lbk_links;
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_LINKX_CFG(link),
+			    SDP_HW_MAX_FRS << 16 | NIC_HW_MIN_FRS);
+	}
+
+	/* Set credits for Tx links assuming max packet length allowed.
+	 * This will be reconfigured based on MTU set for PF/VF.
+	 */
+	for (cgx = 0; cgx < hw->cgx; cgx++) {
+		lmac_cnt = cgx_get_lmac_cnt(rvu_cgx_pdata(cgx, rvu));
+		tx_credits = ((CGX_FIFO_LEN / lmac_cnt) - NIC_HW_MAX_FRS) / 16;
+		/* Enable credits and set credit pkt count to max allowed */
+		tx_credits =  (tx_credits << 12) | (0x1FF << 2) | BIT_ULL(1);
+		slink = cgx * hw->lmac_per_cgx;
+		for (link = slink; link < (slink + lmac_cnt); link++) {
+			rvu_write64(rvu, blkaddr,
+				    NIX_AF_TX_LINKX_NORM_CREDIT(link),
+				    tx_credits);
+			rvu_write64(rvu, blkaddr,
+				    NIX_AF_TX_LINKX_EXPR_CREDIT(link),
+				    tx_credits);
+		}
+	}
+
+	/* Set Tx credits for LBK link */
+	slink = hw->cgx_links;
+	for (link = slink; link < (slink + hw->lbk_links); link++) {
+		tx_credits = 1000; /* 10 * max LBK datarate = 10 * 100Gbps */
+		/* Enable credits and set credit pkt count to max allowed */
+		tx_credits =  (tx_credits << 12) | (0x1FF << 2) | BIT_ULL(1);
+		rvu_write64(rvu, blkaddr,
+			    NIX_AF_TX_LINKX_NORM_CREDIT(link), tx_credits);
+		rvu_write64(rvu, blkaddr,
+			    NIX_AF_TX_LINKX_EXPR_CREDIT(link), tx_credits);
+	}
+}
+
 static int nix_calibrate_x2p(struct rvu *rvu, int blkaddr)
 {
 	int idx, err;
@@ -1922,6 +2118,9 @@ int rvu_nix_init(struct rvu *rvu)
 			    (NPC_LID_LC << 8) | (NPC_LT_LC_IP << 4) | 0x0F);
 
 		nix_rx_flowkey_alg_cfg(rvu, blkaddr);
+
+		/* Initialize CGX/LBK/SDP link credits, min/max pkt lengths */
+		nix_link_config(rvu, blkaddr);
 	}
 	return 0;
 }
