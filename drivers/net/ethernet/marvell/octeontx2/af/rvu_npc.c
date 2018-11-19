@@ -970,7 +970,7 @@ int rvu_npc_init(struct rvu *rvu)
 	struct npc_pkind *pkind = &rvu->hw->pkind;
 	u64 keyz = NPC_MCAM_KEY_X2;
 	int blkaddr, entry, bank, err;
-	u64 cfg;
+	u64 cfg, nibble_ena;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0) {
@@ -1019,10 +1019,16 @@ int rvu_npc_init(struct rvu *rvu)
 	/* Set RX and TX side MCAM search key size.
 	 * LA..LD (ltype only) + Channel
 	 */
+	nibble_ena = 0x49247;
 	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(NIX_INTF_RX),
-			((keyz & 0x3) << 32) | 0x49247);
+			((keyz & 0x3) << 32) | nibble_ena);
+	/* Due to an errata (35786) in A0 pass silicon, parse nibble enable
+	 * configuration has to be identical for both Rx and Tx interfaces.
+	 */
+	if (!is_rvu_9xxx_A0(rvu))
+		nibble_ena = (1ULL << 19) - 1;
 	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(NIX_INTF_TX),
-			((keyz & 0x3) << 32) | ((1ULL << 19) - 1));
+			((keyz & 0x3) << 32) | nibble_ena);
 
 	err = npc_mcam_rsrcs_init(rvu, blkaddr);
 	if (err)

@@ -11,12 +11,16 @@
 #ifndef RVU_H
 #define RVU_H
 
+#include <linux/pci.h>
 #include "rvu_struct.h"
 #include "common.h"
 #include "mbox.h"
 
 /* PCI device IDs */
 #define	PCI_DEVID_OCTEONTX2_RVU_AF		0xA065
+
+/* Subsystem Device ID */
+#define PCI_SUBSYS_DEVID_96XX                  0xB200
 
 /* PCI BAR nos */
 #define	PCI_AF_REG_BAR_NUM			0
@@ -253,6 +257,14 @@ static inline void rvupf_write64(struct rvu *rvu, u64 offset, u64 val)
 static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
 {
 	return readq(rvu->pfreg_base + offset);
+}
+
+static inline bool is_rvu_9xxx_A0(struct rvu *rvu)
+{
+	struct pci_dev *pdev = rvu->pdev;
+
+	return (pdev->revision == 0x00) &&
+		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX);
 }
 
 /* Function Prototypes
