@@ -261,7 +261,13 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
 	trace->func = current->ret_stack[index].func;
 	trace->calltime = current->ret_stack[index].calltime;
 	trace->overrun = atomic_read(&current->trace_overrun);
-	trace->depth = current->curr_ret_depth;
+	trace->depth = current->curr_ret_depth--;
+	/*
+	 * We still want to trace interrupts coming in if
+	 * max_depth is set to 1. Make sure the decrement is
+	 * seen before ftrace_graph_return.
+	 */
+	barrier();
 }
 
 /*
@@ -275,9 +281,14 @@ unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
 
 	ftrace_pop_return_trace(&trace, &ret, frame_pointer);
 	trace.rettime = trace_clock_local();
+	ftrace_graph_return(&trace);
+	/*
+	 * The ftrace_graph_return() may still access the current
+	 * ret_stack structure, we need to make sure the update of
+	 * curr_ret_stack is after that.
+	 */
 	barrier();
 	current->curr_ret_stack--;
-	current->curr_ret_depth--;
 	/*
 	 * The curr_ret_stack can be less than -1 only if it was
 	 * filtered out and it's about to return from the function.
@@ -287,13 +298,6 @@ unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
 		current->curr_ret_stack += FTRACE_NOTRACE_DEPTH;
 		return ret;
 	}
-
-	/*
-	 * The trace should run after decrementing the ret counter
-	 * in case an interrupt were to come in. We don't want to
-	 * lose the interrupt if max_depth is set.
-	 */
-	ftrace_graph_return(&trace);
 
 	if (unlikely(!ret)) {
 		ftrace_graph_stop();
