@@ -70,6 +70,7 @@ export VXPORT
 	test_unicast
 	test_ttl
 	test_tos
+	test_ecn_encap
 	reapply_config
 	ping_ipv4
 	test_flood
@@ -519,6 +520,31 @@ test_tos()
 	tc filter del dev v1 egress pref 77 prot ip
 
 	log_test "VXLAN: envelope TOS inheritance"
+}
+
+__test_ecn_encap()
+{
+	local q=$1; shift
+	local tos=$1; shift
+
+	RET=0
+
+	tc filter add dev v1 egress pref 77 prot ip \
+		flower ip_tos $tos action pass
+	sleep 1
+	vxlan_ping_test $h1 192.0.2.3 "-Q $q" v1 egress 77 10
+	tc filter del dev v1 egress pref 77 prot ip
+
+	log_test "VXLAN: ECN encap: $q->$tos"
+}
+
+test_ecn_encap()
+{
+	# In accordance with INET_ECN_encapsulate()
+	__test_ecn_encap 0x00 0x00
+	__test_ecn_encap 0x01 0x01
+	__test_ecn_encap 0x02 0x02
+	__test_ecn_encap 0x03 0x02
 }
 
 test_all()
