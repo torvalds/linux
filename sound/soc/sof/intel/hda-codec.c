@@ -23,13 +23,15 @@
 #include <sound/hda_i915.h>
 #include <sound/hda_register.h>
 #include <sound/hda_codec.h>
-
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 #include "../../codecs/hdac_hda.h"
+#endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
 
 #include "../sof-priv.h"
 #include "../ops.h"
 #include "hda.h"
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 #define IDISP_VID_INTEL	0x80860000
 
 /* load the legacy HDA codec driver */
@@ -47,12 +49,16 @@ static void hda_codec_load_module(struct hda_codec *codec)
 static void hda_codec_load_module(struct hda_codec *codec) {}
 #endif
 
+#endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
+
 /* probe individual codec */
 static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 {
 	struct hda_bus *hbus = sof_to_hbus(sdev);
 	struct hdac_device *hdev;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 	struct hdac_hda_priv *hda_priv;
+#endif
 	u32 hda_cmd = (address << 28) | (AC_NODE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	u32 resp = -1;
@@ -67,6 +73,7 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 	dev_dbg(sdev->dev, "HDA codec #%d probed OK: response: %x\n",
 		address, resp);
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 	hda_priv = devm_kzalloc(&hbus->pci->dev, sizeof(*hda_priv),
 				GFP_KERNEL);
 	if (!hda_priv)
@@ -86,6 +93,16 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 	}
 
 	return 0;
+#else
+	hdev = devm_kzalloc(&hbus->pci->dev, sizeof(*hdev),
+			    GFP_KERNEL);
+	if (!hdev)
+		return -ENOMEM;
+
+	ret = snd_hdac_ext_bus_device_init(&hbus->core, address, hdev);
+
+	return ret;
+#endif
 }
 
 /* Codec initialization */

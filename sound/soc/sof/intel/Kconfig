@@ -111,17 +111,37 @@ config SND_SOC_SOF_HDA_COMMON
 	tristate
 	select SND_SOC_SOF_PCI
 	select SND_SOC_ACPI_INTEL_MATCH
+	select SND_SOC_SOF_HDA_LINK_BASELINE
 
-config SND_SOC_SOF_HDA
-	tristate "SOF support for HDA Links(HDA/HDMI)"
-	depends on SND_SOC_SOF_HDA_COMMON
-	select SND_HDA_EXT_CORE
-	select SND_SOC_HDAC_HDA
-	select SND_SOC_HDAC_HDMI
+if SND_SOC_SOF_HDA_COMMON
+
+config SND_SOC_SOF_HDA_LINK
+	bool "SOF support for HDA Links(HDA/HDMI)"
 	help
           This adds support for HDA links(HDA/HDMI) with Sound Open Firmware
 		  for Intel(R) platforms.
           Say Y if you want to enble HDA links with SOF.
           If unsure select "N".
+
+if SND_SOC_SOF_HDA_LINK
+config SND_SOC_SOF_HDA_AUDIO_CODEC
+	bool "SOF support for HDAudio codecs"
+	help
+          This adds support for HDAudio codecs with Sound Open Firmware
+		  for Intel(R) platforms.
+          Say Y if you want to enble HDAudio codecs with SOF.
+          If unsure select "N".
+endif ## SND_SOC_SOF_HDA_LINK
+
+endif ## SND_SOC_SOF_HDA_COMMON
+
+config SND_SOC_SOF_HDA_LINK_BASELINE
+	tristate
+	select SND_SOC_SOF_HDA if SND_SOC_SOF_HDA_LINK
+
+config SND_SOC_SOF_HDA
+	tristate
+	select SND_HDA_EXT_CORE if SND_SOC_SOF_HDA_LINK
+	select SND_SOC_HDAC_HDA if SND_SOC_SOF_HDA_AUDIO_CODEC
 
 endif ## SND_SOC_SOF_INTEL
