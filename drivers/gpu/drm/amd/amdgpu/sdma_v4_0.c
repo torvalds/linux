@@ -1502,18 +1502,15 @@ static int sdma_v4_0_sw_init(void *handle)
 		ring->ring_obj = NULL;
 		ring->use_doorbell = true;
 
-		DRM_INFO("use_doorbell being set to: [%s]\n",
-				ring->use_doorbell?"true":"false");
-
+		/* doorbell size is 2 dwords, get DWORD offset */
 		if (adev->asic_type == CHIP_VEGA10)
 			ring->doorbell_index = (i == 0) ?
-				(AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0 << 1) //get DWORD offset
-				: (AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1 << 1); // get DWORD offset
+				(AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0 << 1)
+				: (AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1 << 1);
 		else
 			ring->doorbell_index = (i == 0) ?
-				(AMDGPU_DOORBELL64_sDMA_ENGINE0 << 1) //get DWORD offset
-				: (AMDGPU_DOORBELL64_sDMA_ENGINE1 << 1); // get DWORD offset
-
+				(AMDGPU_DOORBELL64_sDMA_ENGINE0 << 1)
+				: (AMDGPU_DOORBELL64_sDMA_ENGINE1 << 1);
 
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
@@ -1527,7 +1524,20 @@ static int sdma_v4_0_sw_init(void *handle)
 		if (adev->sdma.has_page_queue) {
 			ring = &adev->sdma.instance[i].page;
 			ring->ring_obj = NULL;
-			ring->use_doorbell = false;
+			ring->use_doorbell = true;
+
+			/* paging queue use same doorbell index/routing as gfx queue
+			 * with 0x400 (4096 dwords) offset on second doorbell page
+			 */
+			if (adev->asic_type == CHIP_VEGA10)
+				ring->doorbell_index = (i == 0) ?
+					(AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0 << 1)
+					: (AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1 << 1);
+			else
+				ring->doorbell_index = (i == 0) ?
+					(AMDGPU_DOORBELL64_sDMA_ENGINE0 << 1)
+					: (AMDGPU_DOORBELL64_sDMA_ENGINE1 << 1);
+			ring->doorbell_index += 0x400;
 
 			sprintf(ring->name, "page%d", i);
 			r = amdgpu_ring_init(adev, ring, 1024,
