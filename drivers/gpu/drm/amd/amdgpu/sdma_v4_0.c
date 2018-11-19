@@ -1447,22 +1447,45 @@ static void sdma_v4_0_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 	sdma_v4_0_wait_reg_mem(ring, 0, 0, reg, 0, val, mask, 10);
 }
 
+static bool sdma_v4_0_fw_support_paging_queue(struct amdgpu_device *adev)
+{
+	uint fw_version = adev->sdma.instance[0].fw_version;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		return fw_version >= 430;
+	case CHIP_VEGA12:
+		/*return fw_version >= 31;*/
+		return false;
+	case CHIP_VEGA20:
+		/*return fw_version >= 115;*/
+		return false;
+	default:
+		return false;
+	}
+}
+
 static int sdma_v4_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
 
-	if (adev->asic_type == CHIP_RAVEN) {
+	if (adev->asic_type == CHIP_RAVEN)
 		adev->sdma.num_instances = 1;
-		adev->sdma.has_page_queue = false;
-	} else {
+	else
 		adev->sdma.num_instances = 2;
-		/* TODO: Page queue breaks driver reload under SRIOV */
-		if ((adev->asic_type == CHIP_VEGA10) && amdgpu_sriov_vf((adev)))
-			adev->sdma.has_page_queue = false;
-		else if (adev->asic_type != CHIP_VEGA20 &&
-				adev->asic_type != CHIP_VEGA12)
-			adev->sdma.has_page_queue = true;
+
+	r = sdma_v4_0_init_microcode(adev);
+	if (r) {
+		DRM_ERROR("Failed to load sdma firmware!\n");
+		return r;
 	}
+
+	/* TODO: Page queue breaks driver reload under SRIOV */
+	if ((adev->asic_type == CHIP_VEGA10) && amdgpu_sriov_vf((adev)))
+		adev->sdma.has_page_queue = false;
+	else if (sdma_v4_0_fw_support_paging_queue(adev))
+		adev->sdma.has_page_queue = true;
 
 	sdma_v4_0_set_ring_funcs(adev);
 	sdma_v4_0_set_buffer_funcs(adev);
@@ -1471,7 +1494,6 @@ static int sdma_v4_0_early_init(void *handle)
 
 	return 0;
 }
-
 
 static int sdma_v4_0_sw_init(void *handle)
 {
@@ -1490,12 +1512,6 @@ static int sdma_v4_0_sw_init(void *handle)
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;
-
-	r = sdma_v4_0_init_microcode(adev);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
-		return r;
-	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
