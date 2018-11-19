@@ -132,12 +132,8 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 int mlx5_eq_add_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
 int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
-int mlx5_core_eq_query(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
-		       u32 *out, int outlen);
-int mlx5_start_eqs(struct mlx5_core_dev *dev);
-void mlx5_stop_eqs(struct mlx5_core_dev *dev);
-int mlx5_alloc_comp_eqs(struct mlx5_core_dev *dev);
-void mlx5_free_comp_eqs(struct mlx5_core_dev *dev);
+int mlx5_eq_table_create(struct mlx5_core_dev *dev);
+void mlx5_eq_table_destroy(struct mlx5_core_dev *dev);
 /* This function should only be called after mlx5_cmd_force_teardown_hca */
 void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev);
 struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn);

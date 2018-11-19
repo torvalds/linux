@@ -349,6 +349,16 @@ out:
 	return param;
 }
 
+static int mlx5_core_eq_query(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
+			      u32 *out, int outlen)
+{
+	u32 in[MLX5_ST_SZ_DW(query_eq_in)] = {};
+
+	MLX5_SET(query_eq_in, in, opcode, MLX5_CMD_OP_QUERY_EQ);
+	MLX5_SET(query_eq_in, in, eq_number, eq->eqn);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
+}
+
 static u64 eq_read_field(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 			 int index)
 {

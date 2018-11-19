@@ -319,51 +319,6 @@ static void release_bar(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 }
 
-static int mlx5_alloc_irq_vectors(struct mlx5_core_dev *dev)
-{
-	struct mlx5_priv *priv = &dev->priv;
-	struct mlx5_eq_table *table = &priv->eq_table;
-	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
-		      MLX5_CAP_GEN(dev, max_num_eqs) :
-		      1 << MLX5_CAP_GEN(dev, log_max_eq);
-	int nvec;
-	int err;
-
-	nvec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() +
-	       MLX5_EQ_VEC_COMP_BASE;
-	nvec = min_t(int, nvec, num_eqs);
-	if (nvec <= MLX5_EQ_VEC_COMP_BASE)
-		return -ENOMEM;
-
-	priv->irq_info = kcalloc(nvec, sizeof(*priv->irq_info), GFP_KERNEL);
-	if (!priv->irq_info)
-		return -ENOMEM;
-
-	nvec = pci_alloc_irq_vectors(dev->pdev,
-			MLX5_EQ_VEC_COMP_BASE + 1, nvec,
-			PCI_IRQ_MSIX);
-	if (nvec < 0) {
-		err = nvec;
-		goto err_free_irq_info;
-	}
-
-	table->num_comp_vectors = nvec - MLX5_EQ_VEC_COMP_BASE;
-
-	return 0;
-
-err_free_irq_info:
-	kfree(priv->irq_info);
-	return err;
-}
-
-static void mlx5_free_irq_vectors(struct mlx5_core_dev *dev)
-{
-	struct mlx5_priv *priv = &dev->priv;
-
-	pci_free_irq_vectors(dev->pdev);
-	kfree(priv->irq_info);
-}
-
 struct mlx5_reg_host_endianness {
 	u8	he;
 	u8      rsvd[15];
@@ -990,35 +945,23 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		}
 	}
 
-	err = mlx5_alloc_irq_vectors(dev);
-	if (err) {
-		dev_err(&pdev->dev, "alloc irq vectors failed\n");
-		goto err_cleanup_once;
-	}
-
 	dev->priv.uar = mlx5_get_uars_page(dev);
 	if (IS_ERR(dev->priv.uar)) {
 		dev_err(&pdev->dev, "Failed allocating uar, aborting\n");
 		err = PTR_ERR(dev->priv.uar);
-		goto err_disable_msix;
+		goto err_get_uars;
 	}
 
-	err = mlx5_start_eqs(dev);
+	err = mlx5_eq_table_create(dev);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to start pages and async EQs\n");
-		goto err_put_uars;
+		dev_err(&pdev->dev, "Failed to create EQs\n");
+		goto err_eq_table;
 	}
 
 	err = mlx5_fw_tracer_init(dev->tracer);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init FW tracer\n");
 		goto err_fw_tracer;
-	}
-
-	err = mlx5_alloc_comp_eqs(dev);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to alloc completion EQs\n");
-		goto err_comp_eqs;
 	}
 
 	err = mlx5_fpga_device_start(dev);
@@ -1089,21 +1032,15 @@ err_ipsec_start:
 	mlx5_fpga_device_stop(dev);
 
 err_fpga_start:
-	mlx5_free_comp_eqs(dev);
-
-err_comp_eqs:
 	mlx5_fw_tracer_cleanup(dev->tracer);
 
 err_fw_tracer:
-	mlx5_stop_eqs(dev);
+	mlx5_eq_table_destroy(dev);
 
-err_put_uars:
+err_eq_table:
 	mlx5_put_uars_page(dev, priv->uar);
 
-err_disable_msix:
-	mlx5_free_irq_vectors(dev);
-
-err_cleanup_once:
+err_get_uars:
 	if (boot)
 		mlx5_cleanup_once(dev);
 
@@ -1160,11 +1097,9 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_accel_ipsec_cleanup(dev);
 	mlx5_accel_tls_cleanup(dev);
 	mlx5_fpga_device_stop(dev);
-	mlx5_free_comp_eqs(dev);
 	mlx5_fw_tracer_cleanup(dev->tracer);
-	mlx5_stop_eqs(dev);
+	mlx5_eq_table_destroy(dev);
 	mlx5_put_uars_page(dev, priv->uar);
-	mlx5_free_irq_vectors(dev);
 	if (cleanup)
 		mlx5_cleanup_once(dev);
 	mlx5_stop_health_poll(dev, cleanup);
