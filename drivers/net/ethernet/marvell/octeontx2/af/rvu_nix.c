@@ -694,6 +694,24 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	if (nixlf < 0)
 		return NIX_AF_ERR_AF_LF_INVALID;
 
+	/* Check if requested 'NIXLF <=> NPALF' mapping is valid */
+	if (req->npa_func) {
+		/* If default, use 'this' NIXLF's PFFUNC */
+		if (req->npa_func == RVU_DEFAULT_PF_FUNC)
+			req->npa_func = pcifunc;
+		if (!is_pffunc_map_valid(rvu, req->npa_func, BLKTYPE_NPA))
+			return NIX_AF_INVAL_NPA_PF_FUNC;
+	}
+
+	/* Check if requested 'NIXLF <=> SSOLF' mapping is valid */
+	if (req->sso_func) {
+		/* If default, use 'this' NIXLF's PFFUNC */
+		if (req->sso_func == RVU_DEFAULT_PF_FUNC)
+			req->sso_func = pcifunc;
+		if (!is_pffunc_map_valid(rvu, req->sso_func, BLKTYPE_SSO))
+			return NIX_AF_INVAL_SSO_PF_FUNC;
+	}
+
 	/* If RSS is being enabled, check if requested config is valid.
 	 * RSS table size should be power of two, otherwise
 	 * RSS_GRP::OFFSET + adder might go beyond that group or
@@ -798,18 +816,10 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	/* Enable LMTST for this NIX LF */
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_TX_CFG2(nixlf), BIT_ULL(0));
 
-	/* Set CQE/WQE size, NPA_PF_FUNC for SQBs and also SSO_PF_FUNC
-	 * If requester has sent a 'RVU_DEFAULT_PF_FUNC' use this NIX LF's
-	 * PCIFUNC itself.
-	 */
-	if (req->npa_func == RVU_DEFAULT_PF_FUNC)
-		cfg = pcifunc;
-	else
+	/* Set CQE/WQE size, NPA_PF_FUNC for SQBs and also SSO_PF_FUNC */
+	if (req->npa_func)
 		cfg = req->npa_func;
-
-	if (req->sso_func == RVU_DEFAULT_PF_FUNC)
-		cfg |= (u64)pcifunc << 16;
-	else
+	if (req->sso_func)
 		cfg |= (u64)req->sso_func << 16;
 
 	cfg |= (u64)req->xqe_sz << 33;

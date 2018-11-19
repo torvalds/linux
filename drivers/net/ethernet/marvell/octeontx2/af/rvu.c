@@ -337,6 +337,28 @@ struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc)
 		return &rvu->pf[rvu_get_pf(pcifunc)];
 }
 
+static bool is_pf_func_valid(struct rvu *rvu, u16 pcifunc)
+{
+	int pf, vf, nvfs;
+	u64 cfg;
+
+	pf = rvu_get_pf(pcifunc);
+	if (pf >= rvu->hw->total_pfs)
+		return false;
+
+	if (!(pcifunc & RVU_PFVF_FUNC_MASK))
+		return true;
+
+	/* Check if VF is within number of VFs attached to this PF */
+	vf = (pcifunc & RVU_PFVF_FUNC_MASK) - 1;
+	cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
+	nvfs = (cfg >> 12) & 0xFF;
+	if (vf >= nvfs)
+		return false;
+
+	return true;
+}
+
 bool is_block_implemented(struct rvu_hwinfo *hw, int blkaddr)
 {
 	struct rvu_block *block;
@@ -858,6 +880,22 @@ static u16 rvu_get_rsrc_mapcount(struct rvu_pfvf *pfvf, int blktype)
 		return pfvf->cptlfs;
 	}
 	return 0;
+}
+
+bool is_pffunc_map_valid(struct rvu *rvu, u16 pcifunc, int blktype)
+{
+	struct rvu_pfvf *pfvf;
+
+	if (!is_pf_func_valid(rvu, pcifunc))
+		return false;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+
+	/* Check if this PFFUNC has a LF of type blktype attached */
+	if (!rvu_get_rsrc_mapcount(pfvf, blktype))
+		return false;
+
+	return true;
 }
 
 static int rvu_lookup_rsrc(struct rvu *rvu, struct rvu_block *block,
