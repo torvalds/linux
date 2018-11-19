@@ -2170,11 +2170,6 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 	}
 }
 
-static void rtl8169_print_mac_version(struct rtl8169_private *tp)
-{
-	netif_dbg(tp, drv, tp->dev, "mac_version = 0x%02x\n", tp->mac_version);
-}
-
 struct phy_reg {
 	u16 reg;
 	u16 val;
@@ -3896,8 +3891,6 @@ static void rtl8106e_hw_phy_config(struct rtl8169_private *tp)
 static void rtl_hw_phy_config(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-
-	rtl8169_print_mac_version(tp);
 
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_01:
@@ -7339,8 +7332,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rtl_init_mdio_ops(tp);
 	rtl_init_jumbo_ops(tp);
-
-	rtl8169_print_mac_version(tp);
 
 	chipset = tp->mac_version;
 
