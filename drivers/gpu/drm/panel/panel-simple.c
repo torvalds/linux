@@ -982,13 +982,15 @@ static void panel_simple_shutdown(struct device *dev)
 
 	panel_simple_disable(&panel->base);
 
-	if (panel->reset_gpio)
-		gpiod_direction_output(panel->reset_gpio, 1);
+	if (panel->prepared) {
+		if (panel->reset_gpio)
+			gpiod_direction_output(panel->reset_gpio, 1);
 
-	if (panel->enable_gpio)
-		gpiod_direction_output(panel->enable_gpio, 0);
+		if (panel->enable_gpio)
+			gpiod_direction_output(panel->enable_gpio, 0);
 
-	panel_simple_regulator_disable(&panel->base);
+		panel_simple_regulator_disable(&panel->base);
+	}
 }
 
 static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
