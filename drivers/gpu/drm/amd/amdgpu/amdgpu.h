@@ -392,6 +392,56 @@ struct amdgpu_doorbell {
 	u32			num_doorbells;	/* Number of doorbells actually reserved for amdgpu. */
 };
 
+typedef enum _AMDGPU_VEGA20_DOORBELL_ASSIGNMENT
+{
+	/* Compute + GFX: 0~255 */
+	AMDGPU_VEGA20_DOORBELL_KIQ                     = 0x000,
+	AMDGPU_VEGA20_DOORBELL_HIQ                     = 0x001,
+	AMDGPU_VEGA20_DOORBELL_DIQ                     = 0x002,
+	AMDGPU_VEGA20_DOORBELL_MEC_RING0               = 0x003,
+	AMDGPU_VEGA20_DOORBELL_MEC_RING1               = 0x004,
+	AMDGPU_VEGA20_DOORBELL_MEC_RING2               = 0x005,
+	AMDGPU_VEGA20_DOORBELL_MEC_RING3               = 0x006,
+	AMDGPU_VEGA20_DOORBELL_MEC_RING4               = 0x007,
+	AMDGPU_VEGA20_DOORBELL_MEC_RING5               = 0x008,
+	AMDGPU_VEGA20_DOORBELL_MEC_RING6               = 0x009,
+	AMDGPU_VEGA20_DOORBELL_MEC_RING7               = 0x00A,
+	AMDGPU_VEGA20_DOORBELL_USERQUEUE_START	       = 0x00B,
+	AMDGPU_VEGA20_DOORBELL_USERQUEUE_END	       = 0x08A,
+	AMDGPU_VEGA20_DOORBELL_GFX_RING0               = 0x08B,
+	/* SDMA:256~335*/
+	AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE0            = 0x100,
+	AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE1            = 0x10A,
+	AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE2            = 0x114,
+	AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE3            = 0x11E,
+	AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE4            = 0x128,
+	AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE5            = 0x132,
+	AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE6            = 0x13C,
+	AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE7            = 0x146,
+	/* IH: 376~391 */
+	AMDGPU_VEGA20_DOORBELL_IH                      = 0x178,
+	/* MMSCH: 392~407
+	 * overlap the doorbell assignment with VCN as they are  mutually exclusive
+	 * VCE engine's doorbell is 32 bit and two VCE ring share one QWORD
+	 */
+	AMDGPU_VEGA20_DOORBELL64_VCN0_1                  = 0x188, /* lower 32 bits for VNC0 and upper 32 bits for VNC1 */
+	AMDGPU_VEGA20_DOORBELL64_VCN2_3                  = 0x189,
+	AMDGPU_VEGA20_DOORBELL64_VCN4_5                  = 0x18A,
+	AMDGPU_VEGA20_DOORBELL64_VCN6_7                  = 0x18B,
+
+	AMDGPU_VEGA20_DOORBELL64_UVD_RING0_1             = 0x188,
+	AMDGPU_VEGA20_DOORBELL64_UVD_RING2_3             = 0x189,
+	AMDGPU_VEGA20_DOORBELL64_UVD_RING4_5             = 0x18A,
+	AMDGPU_VEGA20_DOORBELL64_UVD_RING6_7             = 0x18B,
+
+	AMDGPU_VEGA20_DOORBELL64_VCE_RING0_1             = 0x18C,
+	AMDGPU_VEGA20_DOORBELL64_VCE_RING2_3             = 0x18D,
+	AMDGPU_VEGA20_DOORBELL64_VCE_RING4_5             = 0x18E,
+	AMDGPU_VEGA20_DOORBELL64_VCE_RING6_7             = 0x18F,
+	AMDGPU_VEGA20_DOORBELL_MAX_ASSIGNMENT            = 0x18F,
+	AMDGPU_VEGA20_DOORBELL_INVALID                   = 0xFFFF
+} AMDGPU_VEGA20_DOORBELL_ASSIGNMENT;
+
 /*
  * 64bit doorbell, offset are in QWORD, occupy 2KB doorbell space
  */
