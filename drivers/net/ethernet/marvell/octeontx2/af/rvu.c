@@ -29,6 +29,7 @@ static void rvu_set_msix_offset(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct rvu_block *block, int lf);
 static void rvu_clear_msix_offset(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				  struct rvu_block *block, int lf);
+static void __rvu_flr_handler(struct rvu *rvu, u16 pcifunc);
 
 /* Supported devices */
 static const struct pci_device_id rvu_id_table[] = {
@@ -1320,6 +1321,26 @@ static int rvu_mbox_handler_msix_offset(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
+static int rvu_mbox_handler_vf_flr(struct rvu *rvu, struct msg_req *req,
+				   struct msg_rsp *rsp)
+{
+	u16 pcifunc = req->hdr.pcifunc;
+	u16 vf, numvfs;
+	u64 cfg;
+
+	vf = pcifunc & RVU_PFVF_FUNC_MASK;
+	cfg = rvu_read64(rvu, BLKADDR_RVUM,
+			 RVU_PRIV_PFX_CFG(rvu_get_pf(pcifunc)));
+	numvfs = (cfg >> 12) & 0xFF;
+
+	if (vf && vf <= numvfs)
+		__rvu_flr_handler(rvu, pcifunc);
+	else
+		return RVU_INVALID_VF_ID;
+
+	return 0;
+}
+
 static int rvu_process_mbox_msg(struct rvu *rvu, int devid,
 				struct mbox_msghdr *req)
 {
@@ -1601,13 +1622,72 @@ static void rvu_enable_mbox_intr(struct rvu *rvu)
 		    INTR_MASK(hw->total_pfs) & ~1ULL);
 }
 
+static void rvu_blklf_teardown(struct rvu *rvu, u16 pcifunc, u8 blkaddr)
+{
+	struct rvu_block *block;
+	int slot, lf, num_lfs;
+	int err;
+
+	block = &rvu->hw->block[blkaddr];
+	num_lfs = rvu_get_rsrc_mapcount(rvu_get_pfvf(rvu, pcifunc),
+					block->type);
+	if (!num_lfs)
+		return;
+	for (slot = 0; slot < num_lfs; slot++) {
+		lf = rvu_get_lf(rvu, block, pcifunc, slot);
+		if (lf < 0)
+			continue;
+
+		/* Cleanup LF and reset it */
+		if (block->addr == BLKADDR_NIX0)
+			rvu_nix_lf_teardown(rvu, pcifunc, block->addr, lf);
+		else if (block->addr == BLKADDR_NPA)
+			rvu_npa_lf_teardown(rvu, pcifunc, lf);
+
+		err = rvu_lf_reset(rvu, block, lf);
+		if (err) {
+			dev_err(rvu->dev, "Failed to reset blkaddr %d LF%d\n",
+				block->addr, lf);
+		}
+	}
+}
+
+static void __rvu_flr_handler(struct rvu *rvu, u16 pcifunc)
+{
+	mutex_lock(&rvu->flr_lock);
+	/* Reset order should reflect inter-block dependencies:
+	 * 1. Reset any packet/work sources (NIX, CPT, TIM)
+	 * 2. Flush and reset SSO/SSOW
+	 * 3. Cleanup pools (NPA)
+	 */
+	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_NIX0);
+	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_CPT0);
+	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_TIM);
+	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_SSOW);
+	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_SSO);
+	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_NPA);
+	rvu_detach_rsrcs(rvu, NULL, pcifunc);
+	mutex_unlock(&rvu->flr_lock);
+}
+
 static void rvu_flr_handler(struct work_struct *work)
 {
 	struct rvu_work *flrwork = container_of(work, struct rvu_work, work);
 	struct rvu *rvu = flrwork->rvu;
-	u16 pf;
+	u16 pcifunc, numvfs, vf;
+	u64 cfg;
+	int pf;
 
 	pf = flrwork - rvu->flr_wrk;
+
+	cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
+	numvfs = (cfg >> 12) & 0xFF;
+	pcifunc  = pf << RVU_PFVF_PF_SHIFT;
+
+	for (vf = 0; vf < numvfs; vf++)
+		__rvu_flr_handler(rvu, (pcifunc | (vf + 1)));
+
+	__rvu_flr_handler(rvu, pcifunc);
 
 	/* Signal FLR finish */
 	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFTRPEND, BIT_ULL(pf));

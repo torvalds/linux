@@ -325,6 +325,7 @@ int rvu_mbox_handler_cgx_intlbk_disable(struct rvu *rvu, struct msg_req *req,
 /* NPA APIs */
 int rvu_npa_init(struct rvu *rvu);
 void rvu_npa_freemem(struct rvu *rvu);
+void rvu_npa_lf_teardown(struct rvu *rvu, u16 pcifunc, int npalf);
 int rvu_mbox_handler_npa_aq_enq(struct rvu *rvu,
 				struct npa_aq_enq_req *req,
 				struct npa_aq_enq_rsp *rsp);
@@ -342,6 +343,7 @@ bool is_nixlf_attached(struct rvu *rvu, u16 pcifunc);
 int rvu_nix_init(struct rvu *rvu);
 void rvu_nix_freemem(struct rvu *rvu);
 int rvu_get_nixlf_count(struct rvu *rvu);
+void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int npalf);
 int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 				  struct nix_lf_alloc_req *req,
 				  struct nix_lf_alloc_rsp *rsp);
