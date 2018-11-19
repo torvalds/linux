@@ -661,7 +661,7 @@ struct rtl8169_private {
 	struct ring_info tx_skb[NUM_TX_DESC];	/* Tx data buffers */
 	u16 cp_cmd;
 
-	u16 event_slow;
+	u16 irq_mask;
 	const struct rtl_coalesce_info *coalesce_info;
 	struct clk *clk;
 
@@ -1340,7 +1340,7 @@ static void rtl_irq_disable(struct rtl8169_private *tp)
 
 static void rtl_irq_enable(struct rtl8169_private *tp)
 {
-	RTL_W16(tp, IntrMask, RTL_EVENT_NAPI | tp->event_slow);
+	RTL_W16(tp, IntrMask, tp->irq_mask);
 }
 
 static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
@@ -5389,8 +5389,8 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 
 	/* Work around for RxFIFO overflow. */
 	if (tp->mac_version == RTL_GIGA_MAC_VER_11) {
-		tp->event_slow |= RxFIFOOver;
-		tp->event_slow &= ~RxOverflow;
+		tp->irq_mask |= RxFIFOOver;
+		tp->irq_mask &= ~RxOverflow;
 	}
 
 	switch (tp->mac_version) {
@@ -5627,7 +5627,7 @@ static void rtl_hw_start_8106(struct rtl8169_private *tp)
 static void rtl_hw_start_8101(struct rtl8169_private *tp)
 {
 	if (tp->mac_version >= RTL_GIGA_MAC_VER_30)
-		tp->event_slow &= ~RxFIFOOver;
+		tp->irq_mask &= ~RxFIFOOver;
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_13 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_16)
@@ -6456,7 +6456,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 	struct rtl8169_private *tp = dev_instance;
 	u16 status = rtl_get_events(tp);
 
-	if (status == 0xffff || !(status & (RTL_EVENT_NAPI | tp->event_slow)))
+	if (status == 0xffff || !(status & tp->irq_mask))
 		return IRQ_NONE;
 
 	if (unlikely(status & SYSErr)) {
@@ -7013,28 +7013,28 @@ static const struct net_device_ops rtl_netdev_ops = {
 
 static const struct rtl_cfg_info {
 	void (*hw_start)(struct rtl8169_private *tp);
-	u16 event_slow;
+	u16 irq_mask;
 	unsigned int has_gmii:1;
 	const struct rtl_coalesce_info *coalesce_info;
 	u8 default_ver;
 } rtl_cfg_infos [] = {
 	[RTL_CFG_0] = {
 		.hw_start	= rtl_hw_start_8169,
-		.event_slow	= SYSErr | LinkChg | RxOverflow | RxFIFOOver,
+		.irq_mask	= SYSErr | LinkChg | RxOverflow | RxFIFOOver,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8169,
 		.default_ver	= RTL_GIGA_MAC_VER_01,
 	},
 	[RTL_CFG_1] = {
 		.hw_start	= rtl_hw_start_8168,
-		.event_slow	= LinkChg | RxOverflow,
+		.irq_mask	= LinkChg | RxOverflow,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
 		.default_ver	= RTL_GIGA_MAC_VER_11,
 	},
 	[RTL_CFG_2] = {
 		.hw_start	= rtl_hw_start_8101,
-		.event_slow	= LinkChg | RxOverflow | RxFIFOOver,
+		.irq_mask	= LinkChg | RxOverflow | RxFIFOOver,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
 		.default_ver	= RTL_GIGA_MAC_VER_13,
 	}
@@ -7415,7 +7415,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->max_mtu = jumbo_max;
 
 	tp->hw_start = cfg->hw_start;
-	tp->event_slow = cfg->event_slow;
+	tp->irq_mask = RTL_EVENT_NAPI | cfg->irq_mask;
 	tp->coalesce_info = cfg->coalesce_info;
 
 	tp->rtl_fw = RTL_FIRMWARE_UNKNOWN;
