@@ -81,6 +81,9 @@ install:
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
+archheaders:
+	$(Q)$(MAKE) $(build)=arch/sparc/kernel/syscalls all
+
 PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/sparc/vdso $@
