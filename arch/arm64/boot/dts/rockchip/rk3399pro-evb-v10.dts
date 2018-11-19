@@ -334,7 +334,7 @@
 };
 
 &hdmi_in_vopb {
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c0 {
@@ -722,13 +722,6 @@
 	};
 };
 
-&i2c5 {
-	status = "okay";
-	i2c-scl-rising-time-ns = <150>;
-	i2c-scl-falling-time-ns = <30>;
-	clock-frequency = <100000>;
-};
-
 &i2c8 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <345>;
@@ -773,6 +766,14 @@
 
 &isp1_mmu {
 	status = "okay";
+};
+
+&pcie_phy {
+	status = "disabled";
+};
+
+&pcie0 {
+	status = "disabled";
 };
 
 &pmu_io_domains {
