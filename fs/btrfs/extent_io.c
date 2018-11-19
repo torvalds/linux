@@ -1556,7 +1556,8 @@ static noinline int lock_delalloc_pages(struct inode *inode,
  *
  * 1 is returned if we find something, 0 if nothing was in the tree
  */
-static noinline_for_stack u64 find_lock_delalloc_range(struct inode *inode,
+EXPORT_FOR_TESTS
+noinline_for_stack u64 find_lock_delalloc_range(struct inode *inode,
 				    struct extent_io_tree *tree,
 				    struct page *locked_page, u64 *start,
 				    u64 *end)
@@ -1636,16 +1637,6 @@ again:
 out_failed:
 	return found;
 }
-
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-u64 btrfs_find_lock_delalloc_range(struct inode *inode,
-				    struct extent_io_tree *tree,
-				    struct page *locked_page, u64 *start,
-				    u64 *end)
-{
-	return find_lock_delalloc_range(inode, tree, locked_page, start, end);
-}
-#endif
 
 static int __process_pages_contig(struct address_space *mapping,
 				  struct page *locked_page,

@@ -107,7 +107,7 @@ static int test_find_delalloc(u32 sectorsize)
 	set_extent_delalloc(&tmp, 0, sectorsize - 1, 0, NULL);
 	start = 0;
 	end = 0;
-	found = btrfs_find_lock_delalloc_range(inode, &tmp, locked_page, &start,
+	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("should have found at least one delalloc");
@@ -138,7 +138,7 @@ static int test_find_delalloc(u32 sectorsize)
 	set_extent_delalloc(&tmp, sectorsize, max_bytes - 1, 0, NULL);
 	start = test_start;
 	end = 0;
-	found = btrfs_find_lock_delalloc_range(inode, &tmp, locked_page, &start,
+	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("couldn't find delalloc in our range");
@@ -172,7 +172,7 @@ static int test_find_delalloc(u32 sectorsize)
 	}
 	start = test_start;
 	end = 0;
-	found = btrfs_find_lock_delalloc_range(inode, &tmp, locked_page, &start,
+	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
 					 &end);
 	if (found) {
 		test_err("found range when we shouldn't have");
@@ -193,7 +193,7 @@ static int test_find_delalloc(u32 sectorsize)
 	set_extent_delalloc(&tmp, max_bytes, total_dirty - 1, 0, NULL);
 	start = test_start;
 	end = 0;
-	found = btrfs_find_lock_delalloc_range(inode, &tmp, locked_page, &start,
+	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("didn't find our range");
@@ -234,7 +234,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 * this changes at any point in the future we will need to fix this
 	 * tests expected behavior.
 	 */
-	found = btrfs_find_lock_delalloc_range(inode, &tmp, locked_page, &start,
+	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("didn't find our range");

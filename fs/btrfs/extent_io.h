@@ -522,10 +522,9 @@ int free_io_failure(struct extent_io_tree *failure_tree,
 		    struct extent_io_tree *io_tree,
 		    struct io_failure_record *rec);
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-u64 btrfs_find_lock_delalloc_range(struct inode *inode,
-				      struct extent_io_tree *tree,
-				      struct page *locked_page, u64 *start,
-				      u64 *end);
+u64 find_lock_delalloc_range(struct inode *inode, struct extent_io_tree *tree,
+			     struct page *locked_page, u64 *start,
+			     u64 *end);
 #endif
 struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 					       u64 start);
