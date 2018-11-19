@@ -597,26 +597,28 @@ struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid)
 	return ns;
 }
 
-static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
+static void nvmet_update_sq_head(struct nvmet_req *req)
 {
-	u32 old_sqhd, new_sqhd;
-	u16 sqhd;
-
-	if (status)
-		nvmet_set_status(req, status);
-
 	if (req->sq->size) {
+		u32 old_sqhd, new_sqhd;
+
 		do {
 			old_sqhd = req->sq->sqhd;
 			new_sqhd = (old_sqhd + 1) % req->sq->size;
 		} while (cmpxchg(&req->sq->sqhd, old_sqhd, new_sqhd) !=
 					old_sqhd);
 	}
-	sqhd = req->sq->sqhd & 0x0000FFFF;
-	req->rsp->sq_head = cpu_to_le16(sqhd);
+	req->rsp->sq_head = cpu_to_le16(req->sq->sqhd & 0x0000FFFF);
+}
+
+static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
+{
+	if (!req->sq->sqhd_disabled)
+		nvmet_update_sq_head(req);
 	req->rsp->sq_id = cpu_to_le16(req->sq->qid);
 	req->rsp->command_id = req->cmd->common.command_id;
-
+	if (status)
+		nvmet_set_status(req, status);
 	if (req->ns)
 		nvmet_put_namespace(req->ns);
 	req->ops->queue_response(req);
@@ -765,6 +767,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	req->sg_cnt = 0;
 	req->transfer_len = 0;
 	req->rsp->status = 0;
+	req->rsp->sq_head = 0;
 	req->ns = NULL;
 
 	/* no support for fused commands yet */

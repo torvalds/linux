@@ -106,6 +106,7 @@ struct nvmet_sq {
 	u16			qid;
 	u16			size;
 	u32			sqhd;
+	bool			sqhd_disabled;
 	struct completion	free_done;
 	struct completion	confirm_done;
 };
