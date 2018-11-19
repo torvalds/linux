@@ -1150,10 +1150,7 @@ static int fault_in_kernel_space(unsigned long address)
 
 static inline bool smap_violation(int error_code, struct pt_regs *regs)
 {
-	if (!IS_ENABLED(CONFIG_X86_SMAP))
-		return false;
-
-	if (!static_cpu_has(X86_FEATURE_SMAP))
+	if (!cpu_feature_enabled(X86_FEATURE_SMAP))
 		return false;
 
 	if (error_code & X86_PF_USER)
