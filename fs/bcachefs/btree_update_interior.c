@@ -638,12 +638,12 @@ static void btree_update_wait_on_journal(struct closure *cl)
 	int ret;
 
 	ret = bch2_journal_open_seq_async(&c->journal, as->journal_seq, cl);
-	if (ret < 0)
-		goto err;
-	if (!ret) {
+	if (ret == -EAGAIN) {
 		continue_at(cl, btree_update_wait_on_journal, system_wq);
 		return;
 	}
+	if (ret < 0)
+		goto err;
 
 	bch2_journal_flush_seq_async(&c->journal, as->journal_seq, cl);
 err:

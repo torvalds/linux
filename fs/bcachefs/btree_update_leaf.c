@@ -344,19 +344,35 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 	trans_for_each_entry(trans, i)
 		BUG_ON(i->iter->uptodate >= BTREE_ITER_NEED_RELOCK);
 
-	u64s = 0;
-	trans_for_each_entry(trans, i)
-		u64s += jset_u64s(i->k->k.u64s);
-
 	memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 
-	ret = !(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)
-		? bch2_journal_res_get(&c->journal,
-				      &trans->journal_res,
-				      u64s, u64s)
-		: 0;
-	if (ret)
-		return ret;
+	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
+		u64s = 0;
+		trans_for_each_entry(trans, i)
+			u64s += jset_u64s(i->k->k.u64s);
+
+		while ((ret = bch2_journal_res_get(&c->journal,
+					&trans->journal_res, u64s,
+					JOURNAL_RES_GET_NONBLOCK)) == -EAGAIN) {
+			struct btree_iter *iter = trans->entries[0].iter;
+
+			bch2_btree_iter_unlock(iter);
+
+			ret = bch2_journal_res_get(&c->journal,
+					&trans->journal_res, u64s,
+					JOURNAL_RES_GET_CHECK);
+			if (ret)
+				return ret;
+
+			if (!bch2_btree_iter_relock(iter)) {
+				trans_restart(" (iter relock after journal res get blocked)");
+				return -EINTR;
+			}
+		}
+
+		if (ret)
+			return ret;
+	}
 
 	multi_lock_write(c, trans);
 

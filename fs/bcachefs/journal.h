@@ -272,12 +272,14 @@ static inline void bch2_journal_res_put(struct journal *j,
 }
 
 int bch2_journal_res_get_slowpath(struct journal *, struct journal_res *,
-				 unsigned, unsigned);
+				  unsigned);
+
+#define JOURNAL_RES_GET_NONBLOCK	(1 << 0)
+#define JOURNAL_RES_GET_CHECK		(1 << 1)
 
 static inline int journal_res_get_fast(struct journal *j,
 				       struct journal_res *res,
-				       unsigned u64s_min,
-				       unsigned u64s_max)
+				       unsigned flags)
 {
 	union journal_res_state old, new;
 	u64 v = atomic64_read(&j->reservations.counter);
@@ -289,42 +291,45 @@ static inline int journal_res_get_fast(struct journal *j,
 		 * Check if there is still room in the current journal
 		 * entry:
 		 */
-		if (old.cur_entry_offset + u64s_min > j->cur_entry_u64s)
+		if (new.cur_entry_offset + res->u64s > j->cur_entry_u64s)
 			return 0;
 
-		res->offset	= old.cur_entry_offset;
-		res->u64s	= min(u64s_max, j->cur_entry_u64s -
-				      old.cur_entry_offset);
+		if (flags & JOURNAL_RES_GET_CHECK)
+			return 1;
 
-		journal_state_inc(&new);
 		new.cur_entry_offset += res->u64s;
+		journal_state_inc(&new);
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 
-	res->ref = true;
-	res->idx = new.idx;
-	res->seq = le64_to_cpu(j->buf[res->idx].data->seq);
+	res->ref	= true;
+	res->idx	= old.idx;
+	res->offset	= old.cur_entry_offset;
+	res->seq	= le64_to_cpu(j->buf[old.idx].data->seq);
 	return 1;
 }
 
 static inline int bch2_journal_res_get(struct journal *j, struct journal_res *res,
-				      unsigned u64s_min, unsigned u64s_max)
+				       unsigned u64s, unsigned flags)
 {
 	int ret;
 
 	EBUG_ON(res->ref);
-	EBUG_ON(u64s_max < u64s_min);
 	EBUG_ON(!test_bit(JOURNAL_STARTED, &j->flags));
 
-	if (journal_res_get_fast(j, res, u64s_min, u64s_max))
+	res->u64s = u64s;
+
+	if (journal_res_get_fast(j, res, flags))
 		goto out;
 
-	ret = bch2_journal_res_get_slowpath(j, res, u64s_min, u64s_max);
+	ret = bch2_journal_res_get_slowpath(j, res, flags);
 	if (ret)
 		return ret;
 out:
-	lock_acquire_shared(&j->res_map, 0, 0, NULL, _THIS_IP_);
-	EBUG_ON(!res->ref);
+	if (!(flags & JOURNAL_RES_GET_CHECK)) {
+		lock_acquire_shared(&j->res_map, 0, 0, NULL, _THIS_IP_);
+		EBUG_ON(!res->ref);
+	}
 	return 0;
 }
 
