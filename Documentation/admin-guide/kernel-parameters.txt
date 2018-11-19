@@ -2619,6 +2619,14 @@
 			log everything. Information is printed at KERN_DEBUG
 			so loglevel=8 may also need to be specified.
 
+	mmc_cmdqueue= [MMC]
+			Enable or disable MMC command queue (CMDQ) support. When
+			enabled MMC driver will try to enable CMDQ for cards that
+			support it. When disabled CMDQ will not be enabled for any
+			card.
+			Format: <bool>  (1/y/on=enable, 0/n/off=disable)
+			default: enabled
+
 	module.sig_enforce
 			[KNL] When CONFIG_MODULE_SIG is set, this means that
 			modules without (valid) signatures will fail to load.
