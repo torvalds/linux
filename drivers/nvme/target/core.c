@@ -617,7 +617,7 @@ static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
 		nvmet_update_sq_head(req);
 	req->rsp->sq_id = cpu_to_le16(req->sq->qid);
 	req->rsp->command_id = req->cmd->common.command_id;
-	if (status)
+	if (unlikely(status))
 		nvmet_set_status(req, status);
 	if (req->ns)
 		nvmet_put_namespace(req->ns);
