@@ -46,7 +46,6 @@
 #include "diag/fw_tracer.h"
 
 enum {
-	MLX5_EQE_SIZE		= sizeof(struct mlx5_eqe),
 	MLX5_EQE_OWNER_INIT_VAL	= 0x1,
 };
 
@@ -101,18 +100,6 @@ static int mlx5_cmd_destroy_eq(struct mlx5_core_dev *dev, u8 eqn)
 	MLX5_SET(destroy_eq_in, in, opcode, MLX5_CMD_OP_DESTROY_EQ);
 	MLX5_SET(destroy_eq_in, in, eq_number, eqn);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-}
-
-static struct mlx5_eqe *get_eqe(struct mlx5_eq *eq, u32 entry)
-{
-	return mlx5_buf_offset(&eq->buf, entry * MLX5_EQE_SIZE);
-}
-
-static struct mlx5_eqe *next_eqe_sw(struct mlx5_eq *eq)
-{
-	struct mlx5_eqe *eqe = get_eqe(eq, eq->cons_index & (eq->nent - 1));
-
-	return ((eqe->owner & 1) ^ !!(eq->cons_index & eq->nent)) ? NULL : eqe;
 }
 
 static const char *eqe_type_str(u8 type)
@@ -200,16 +187,6 @@ static enum mlx5_dev_event port_subtype_event(u8 subtype)
 		return MLX5_DEV_EVENT_CLIENT_REREG;
 	}
 	return -1;
-}
-
-static void eq_update_ci(struct mlx5_eq *eq, int arm)
-{
-	__be32 __iomem *addr = eq->doorbell + (arm ? 0 : 2);
-	u32 val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
-
-	__raw_writel((__force u32)cpu_to_be32(val), addr);
-	/* We still want ordering, just not swabbing, so add a barrier */
-	mb();
 }
 
 static void general_event_handler(struct mlx5_core_dev *dev,

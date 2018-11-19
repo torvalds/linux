@@ -5,7 +5,8 @@
 #define __LIB_MLX5_EQ_H__
 #include <linux/mlx5/driver.h>
 
-#define MLX5_MAX_IRQ_NAME       (32)
+#define MLX5_MAX_IRQ_NAME   (32)
+#define MLX5_EQE_SIZE       (sizeof(struct mlx5_eqe))
 
 struct mlx5_eq_tasklet {
 	struct list_head      list;
@@ -38,6 +39,28 @@ struct mlx5_eq_comp {
 	struct mlx5_eq_tasklet  tasklet_ctx;
 	struct list_head        list;
 };
+
+static inline struct mlx5_eqe *get_eqe(struct mlx5_eq *eq, u32 entry)
+{
+	return mlx5_buf_offset(&eq->buf, entry * MLX5_EQE_SIZE);
+}
+
+static inline struct mlx5_eqe *next_eqe_sw(struct mlx5_eq *eq)
+{
+	struct mlx5_eqe *eqe = get_eqe(eq, eq->cons_index & (eq->nent - 1));
+
+	return ((eqe->owner & 1) ^ !!(eq->cons_index & eq->nent)) ? NULL : eqe;
+}
+
+static inline void eq_update_ci(struct mlx5_eq *eq, int arm)
+{
+	__be32 __iomem *addr = eq->doorbell + (arm ? 0 : 2);
+	u32 val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
+
+	__raw_writel((__force u32)cpu_to_be32(val), addr);
+	/* We still want ordering, just not swabbing, so add a barrier */
+	mb();
+}
 
 int mlx5_eq_table_init(struct mlx5_core_dev *dev);
 void mlx5_eq_table_cleanup(struct mlx5_core_dev *dev);
