@@ -403,7 +403,6 @@ struct nvme_fc_port_template {
 				void **handle);
 	void	(*delete_queue)(struct nvme_fc_local_port *,
 				unsigned int qidx, void *handle);
-	void	(*poll_queue)(struct nvme_fc_local_port *, void *handle);
 	int	(*ls_req)(struct nvme_fc_local_port *,
 				struct nvme_fc_remote_port *,
 				struct nvmefc_ls_req *);
