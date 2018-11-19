@@ -51,6 +51,7 @@
 			dynamic-power-coefficient = <90>;
 			operating-points-v2 = <&cpu0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			next-level-cache = <&l2>;
 		};
 
 		cpu1: cpu@1 {
@@ -60,6 +61,7 @@
 			enable-method = "psci";
 			operating-points-v2 = <&cpu0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			next-level-cache = <&l2>;
 		};
 
 		cpu2: cpu@2 {
@@ -69,6 +71,7 @@
 			enable-method = "psci";
 			operating-points-v2 = <&cpu0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			next-level-cache = <&l2>;
 		};
 
 		cpu3: cpu@3 {
@@ -78,6 +81,7 @@
 			enable-method = "psci";
 			operating-points-v2 = <&cpu0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			next-level-cache = <&l2>;
 		};
 
 		idle-states {
@@ -91,6 +95,10 @@
 				exit-latency-us = <250>;
 				min-residency-us = <900>;
 			};
+		};
+
+		l2: l2-cache {
+			compatible = "cache";
 		};
 	};
 
