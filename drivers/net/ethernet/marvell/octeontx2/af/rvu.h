@@ -412,4 +412,7 @@ int rvu_mbox_handler_npc_mcam_unmap_counter(struct rvu *rvu,
 int rvu_mbox_handler_npc_mcam_counter_stats(struct rvu *rvu,
 			struct npc_mcam_oper_counter_req *req,
 			struct npc_mcam_oper_counter_rsp *rsp);
+int rvu_mbox_handler_npc_mcam_alloc_and_write_entry(struct rvu *rvu,
+			  struct npc_mcam_alloc_and_write_entry_req *req,
+			  struct npc_mcam_alloc_and_write_entry_rsp *rsp);
 #endif /* RVU_H */

@@ -173,6 +173,9 @@ M(NPC_MCAM_CLEAR_COUNTER, 0x6009, npc_mcam_clear_counter,		\
 M(NPC_MCAM_COUNTER_STATS, 0x600a, npc_mcam_counter_stats,		\
 				   npc_mcam_oper_counter_req,		\
 				   npc_mcam_oper_counter_rsp)		\
+M(NPC_MCAM_ALLOC_AND_WRITE_ENTRY, 0x600b, npc_mcam_alloc_and_write_entry,      \
+					  npc_mcam_alloc_and_write_entry_req,  \
+					  npc_mcam_alloc_and_write_entry_rsp)  \
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc,				\
 				 nix_lf_alloc_req, nix_lf_alloc_rsp)	\
@@ -678,6 +681,22 @@ struct npc_mcam_unmap_counter_req {
 	u16 cntr;
 	u16 entry; /* Entry and counter to be unmapped */
 	u8  all;   /* Unmap all entries using this counter ? */
+};
+
+struct npc_mcam_alloc_and_write_entry_req {
+	struct mbox_msghdr hdr;
+	struct mcam_entry entry_data;
+	u16 ref_entry;
+	u8  priority;    /* Lower or higher w.r.t ref_entry */
+	u8  intf;	 /* Rx or Tx interface */
+	u8  enable_entry;/* Enable this MCAM entry ? */
+	u8  alloc_cntr;  /* Allocate counter and map ? */
+};
+
+struct npc_mcam_alloc_and_write_entry_rsp {
+	struct mbox_msghdr hdr;
+	u16 entry;
+	u16 cntr;
 };
 
 #endif /* MBOX_H */
