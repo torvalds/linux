@@ -637,21 +637,21 @@ static int nix_lf_hwctx_disable(struct rvu *rvu, struct hwctx_disable_req *req)
 	return err;
 }
 
-int rvu_mbox_handler_NIX_AQ_ENQ(struct rvu *rvu,
+int rvu_mbox_handler_nix_aq_enq(struct rvu *rvu,
 				struct nix_aq_enq_req *req,
 				struct nix_aq_enq_rsp *rsp)
 {
 	return rvu_nix_aq_enq_inst(rvu, req, rsp);
 }
 
-int rvu_mbox_handler_NIX_HWCTX_DISABLE(struct rvu *rvu,
+int rvu_mbox_handler_nix_hwctx_disable(struct rvu *rvu,
 				       struct hwctx_disable_req *req,
 				       struct msg_rsp *rsp)
 {
 	return nix_lf_hwctx_disable(rvu, req);
 }
 
-int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
+int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 				  struct nix_lf_alloc_req *req,
 				  struct nix_lf_alloc_rsp *rsp)
 {
@@ -826,7 +826,7 @@ exit:
 	return rc;
 }
 
-int rvu_mbox_handler_NIX_LF_FREE(struct rvu *rvu, struct msg_req *req,
+int rvu_mbox_handler_nix_lf_free(struct rvu *rvu, struct msg_req *req,
 				 struct msg_rsp *rsp)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -918,7 +918,7 @@ static void nix_reset_tx_linkcfg(struct rvu *rvu, int blkaddr,
 			    NIX_AF_TL3_TL2X_LINKX_CFG(schq, link), 0x00);
 }
 
-int rvu_mbox_handler_NIX_TXSCH_ALLOC(struct rvu *rvu,
+int rvu_mbox_handler_nix_txsch_alloc(struct rvu *rvu,
 				     struct nix_txsch_alloc_req *req,
 				     struct nix_txsch_alloc_rsp *rsp)
 {
@@ -1073,7 +1073,7 @@ static int nix_txschq_free(struct rvu *rvu, u16 pcifunc)
 	return 0;
 }
 
-int rvu_mbox_handler_NIX_TXSCH_FREE(struct rvu *rvu,
+int rvu_mbox_handler_nix_txsch_free(struct rvu *rvu,
 				    struct nix_txsch_free_req *req,
 				    struct msg_rsp *rsp)
 {
@@ -1118,7 +1118,7 @@ static bool is_txschq_config_valid(struct rvu *rvu, u16 pcifunc, int blkaddr,
 	return true;
 }
 
-int rvu_mbox_handler_NIX_TXSCHQ_CFG(struct rvu *rvu,
+int rvu_mbox_handler_nix_txschq_cfg(struct rvu *rvu,
 				    struct nix_txschq_config *req,
 				    struct msg_rsp *rsp)
 {
@@ -1209,7 +1209,7 @@ static int nix_rx_vtag_cfg(struct rvu *rvu, int nixlf, int blkaddr,
 	return 0;
 }
 
-int rvu_mbox_handler_NIX_VTAG_CFG(struct rvu *rvu,
+int rvu_mbox_handler_nix_vtag_cfg(struct rvu *rvu,
 				  struct nix_vtag_config *req,
 				  struct msg_rsp *rsp)
 {
@@ -1506,7 +1506,7 @@ static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	return 0;
 }
 
-int rvu_mbox_handler_NIX_STATS_RST(struct rvu *rvu, struct msg_req *req,
+int rvu_mbox_handler_nix_stats_rst(struct rvu *rvu, struct msg_req *req,
 				   struct msg_rsp *rsp)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -1564,7 +1564,7 @@ static int get_flowkey_alg_idx(u32 flow_cfg)
 	return FLOW_KEY_ALG_PORT;
 }
 
-int rvu_mbox_handler_NIX_RSS_FLOWKEY_CFG(struct rvu *rvu,
+int rvu_mbox_handler_nix_rss_flowkey_cfg(struct rvu *rvu,
 					 struct nix_rss_flowkey_cfg *req,
 					 struct msg_rsp *rsp)
 {
@@ -1720,7 +1720,7 @@ static void nix_rx_flowkey_alg_cfg(struct rvu *rvu, int blkaddr)
 	}
 }
 
-int rvu_mbox_handler_NIX_SET_MAC_ADDR(struct rvu *rvu,
+int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 				      struct nix_set_mac_addr *req,
 				      struct msg_rsp *rsp)
 {
@@ -1745,7 +1745,7 @@ int rvu_mbox_handler_NIX_SET_MAC_ADDR(struct rvu *rvu,
 	return 0;
 }
 
-int rvu_mbox_handler_NIX_SET_RX_MODE(struct rvu *rvu, struct nix_rx_mode *req,
+int rvu_mbox_handler_nix_set_rx_mode(struct rvu *rvu, struct nix_rx_mode *req,
 				     struct msg_rsp *rsp)
 {
 	bool allmulti = false, disable_promisc = false;

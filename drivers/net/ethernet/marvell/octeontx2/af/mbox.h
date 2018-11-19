@@ -120,54 +120,59 @@ static inline struct mbox_msghdr *otx2_mbox_alloc_msg(struct otx2_mbox *mbox,
 
 #define MBOX_MESSAGES							\
 /* Generic mbox IDs (range 0x000 - 0x1FF) */				\
-M(READY,		0x001, msg_req, ready_msg_rsp)			\
-M(ATTACH_RESOURCES,	0x002, rsrc_attach, msg_rsp)			\
-M(DETACH_RESOURCES,	0x003, rsrc_detach, msg_rsp)			\
-M(MSIX_OFFSET,		0x004, msg_req, msix_offset_rsp)		\
+M(READY,		0x001, ready, msg_req, ready_msg_rsp)		\
+M(ATTACH_RESOURCES,	0x002, attach_resources, rsrc_attach, msg_rsp)	\
+M(DETACH_RESOURCES,	0x003, detach_resources, rsrc_detach, msg_rsp)	\
+M(MSIX_OFFSET,		0x004, msix_offset, msg_req, msix_offset_rsp)	\
 /* CGX mbox IDs (range 0x200 - 0x3FF) */				\
-M(CGX_START_RXTX,	0x200, msg_req, msg_rsp)			\
-M(CGX_STOP_RXTX,	0x201, msg_req, msg_rsp)			\
-M(CGX_STATS,		0x202, msg_req, cgx_stats_rsp)			\
-M(CGX_MAC_ADDR_SET,	0x203, cgx_mac_addr_set_or_get,			\
+M(CGX_START_RXTX,	0x200, cgx_start_rxtx, msg_req, msg_rsp)	\
+M(CGX_STOP_RXTX,	0x201, cgx_stop_rxtx, msg_req, msg_rsp)		\
+M(CGX_STATS,		0x202, cgx_stats, msg_req, cgx_stats_rsp)	\
+M(CGX_MAC_ADDR_SET,	0x203, cgx_mac_addr_set, cgx_mac_addr_set_or_get,    \
 				cgx_mac_addr_set_or_get)		\
-M(CGX_MAC_ADDR_GET,	0x204, cgx_mac_addr_set_or_get,			\
+M(CGX_MAC_ADDR_GET,	0x204, cgx_mac_addr_get, cgx_mac_addr_set_or_get,    \
 				cgx_mac_addr_set_or_get)		\
-M(CGX_PROMISC_ENABLE,	0x205, msg_req, msg_rsp)			\
-M(CGX_PROMISC_DISABLE,	0x206, msg_req, msg_rsp)			\
-M(CGX_START_LINKEVENTS, 0x207, msg_req, msg_rsp)			\
-M(CGX_STOP_LINKEVENTS,	0x208, msg_req, msg_rsp)			\
-M(CGX_GET_LINKINFO,	0x209, msg_req, cgx_link_info_msg)		\
-M(CGX_INTLBK_ENABLE,	0x20A, msg_req, msg_rsp)			\
-M(CGX_INTLBK_DISABLE,	0x20B, msg_req, msg_rsp)			\
+M(CGX_PROMISC_ENABLE,	0x205, cgx_promisc_enable, msg_req, msg_rsp)	\
+M(CGX_PROMISC_DISABLE,	0x206, cgx_promisc_disable, msg_req, msg_rsp)	\
+M(CGX_START_LINKEVENTS, 0x207, cgx_start_linkevents, msg_req, msg_rsp)	\
+M(CGX_STOP_LINKEVENTS,	0x208, cgx_stop_linkevents, msg_req, msg_rsp)	\
+M(CGX_GET_LINKINFO,	0x209, cgx_get_linkinfo, msg_req, cgx_link_info_msg) \
+M(CGX_INTLBK_ENABLE,	0x20A, cgx_intlbk_enable, msg_req, msg_rsp)	\
+M(CGX_INTLBK_DISABLE,	0x20B, cgx_intlbk_disable, msg_req, msg_rsp)	\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
-M(NPA_LF_ALLOC,		0x400, npa_lf_alloc_req, npa_lf_alloc_rsp)	\
-M(NPA_LF_FREE,		0x401, msg_req, msg_rsp)			\
-M(NPA_AQ_ENQ,		0x402, npa_aq_enq_req, npa_aq_enq_rsp)		\
-M(NPA_HWCTX_DISABLE,	0x403, hwctx_disable_req, msg_rsp)		\
+M(NPA_LF_ALLOC,		0x400, npa_lf_alloc,				\
+				npa_lf_alloc_req, npa_lf_alloc_rsp)	\
+M(NPA_LF_FREE,		0x401, npa_lf_free, msg_req, msg_rsp)		\
+M(NPA_AQ_ENQ,		0x402, npa_aq_enq, npa_aq_enq_req, npa_aq_enq_rsp)   \
+M(NPA_HWCTX_DISABLE,	0x403, npa_hwctx_disable, hwctx_disable_req, msg_rsp)\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\
 /* CPT mbox IDs (range 0xA00 - 0xBFF) */				\
 /* NPC mbox IDs (range 0x6000 - 0x7FFF) */				\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
-M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc_req, nix_lf_alloc_rsp)	\
-M(NIX_LF_FREE,		0x8001, msg_req, msg_rsp)			\
-M(NIX_AQ_ENQ,		0x8002, nix_aq_enq_req, nix_aq_enq_rsp)		\
-M(NIX_HWCTX_DISABLE,	0x8003, hwctx_disable_req, msg_rsp)		\
-M(NIX_TXSCH_ALLOC,	0x8004, nix_txsch_alloc_req, nix_txsch_alloc_rsp) \
-M(NIX_TXSCH_FREE,	0x8005, nix_txsch_free_req, msg_rsp)		\
-M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_config, msg_rsp)		\
-M(NIX_STATS_RST,	0x8007, msg_req, msg_rsp)			\
-M(NIX_VTAG_CFG,	0x8008, nix_vtag_config, msg_rsp)		\
-M(NIX_RSS_FLOWKEY_CFG,  0x8009, nix_rss_flowkey_cfg, msg_rsp)		\
-M(NIX_SET_MAC_ADDR,	0x800a, nix_set_mac_addr, msg_rsp)		\
-M(NIX_SET_RX_MODE,	0x800b, nix_rx_mode, msg_rsp)
+M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc,				\
+				 nix_lf_alloc_req, nix_lf_alloc_rsp)	\
+M(NIX_LF_FREE,		0x8001, nix_lf_free, msg_req, msg_rsp)		\
+M(NIX_AQ_ENQ,		0x8002, nix_aq_enq, nix_aq_enq_req, nix_aq_enq_rsp)  \
+M(NIX_HWCTX_DISABLE,	0x8003, nix_hwctx_disable,			\
+				 hwctx_disable_req, msg_rsp)		\
+M(NIX_TXSCH_ALLOC,	0x8004, nix_txsch_alloc,			\
+				 nix_txsch_alloc_req, nix_txsch_alloc_rsp)   \
+M(NIX_TXSCH_FREE,	0x8005, nix_txsch_free, nix_txsch_free_req, msg_rsp) \
+M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_cfg, nix_txschq_config, msg_rsp)  \
+M(NIX_STATS_RST,	0x8007, nix_stats_rst, msg_req, msg_rsp)	\
+M(NIX_VTAG_CFG,		0x8008, nix_vtag_cfg, nix_vtag_config, msg_rsp)	\
+M(NIX_RSS_FLOWKEY_CFG,  0x8009, nix_rss_flowkey_cfg,			\
+				 nix_rss_flowkey_cfg, msg_rsp)		\
+M(NIX_SET_MAC_ADDR,	0x800a, nix_set_mac_addr, nix_set_mac_addr, msg_rsp) \
+M(NIX_SET_RX_MODE,	0x800b, nix_set_rx_mode, nix_rx_mode, msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
-M(CGX_LINK_EVENT,		0xC00, cgx_link_info_msg, msg_rsp)
+M(CGX_LINK_EVENT,	0xC00, cgx_link_event, cgx_link_info_msg, msg_rsp)
 
 enum {
-#define M(_name, _id, _1, _2) MBOX_MSG_ ## _name = _id,
+#define M(_name, _id, _1, _2, _3) MBOX_MSG_ ## _name = _id,
 MBOX_MESSAGES
 MBOX_UP_CGX_MESSAGES
 #undef M
