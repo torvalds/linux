@@ -28,6 +28,11 @@
 #define NFP_QMSTAT_DROP		16
 #define NFP_QMSTAT_ECN		24
 
+#define NFP_Q_STAT_SYM_NAME	"_abi_nfd_rxq_stats%u%s"
+#define NFP_Q_STAT_STRIDE	16
+#define NFP_Q_STAT_PKTS		0
+#define NFP_Q_STAT_BYTES	8
+
 static int
 nfp_abm_ctrl_stat(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
 		  unsigned int stride, unsigned int offset, unsigned int band,
@@ -109,14 +114,42 @@ u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int i)
 	return val;
 }
 
+static int
+nfp_abm_ctrl_stat_basic(struct nfp_abm_link *alink, unsigned int band,
+			unsigned int queue, unsigned int off, u64 *val)
+{
+	if (!nfp_abm_has_prio(alink->abm)) {
+		if (!band) {
+			unsigned int id = alink->queue_base + queue;
+
+			*val = nn_readq(alink->vnic,
+					NFP_NET_CFG_RXR_STATS(id) + off);
+		} else {
+			*val = 0;
+		}
+
+		return 0;
+	} else {
+		return nfp_abm_ctrl_stat(alink, alink->abm->q_stats,
+					 NFP_Q_STAT_STRIDE, off, band, queue,
+					 true, val);
+	}
+}
+
 int nfp_abm_ctrl_read_q_stats(struct nfp_abm_link *alink, unsigned int band,
 			      unsigned int queue, struct nfp_alink_stats *stats)
 {
 	int err;
 
-	stats->tx_pkts += nn_readq(alink->vnic, NFP_NET_CFG_RXR_STATS(queue));
-	stats->tx_bytes += nn_readq(alink->vnic,
-				    NFP_NET_CFG_RXR_STATS(queue) + 8);
+	err = nfp_abm_ctrl_stat_basic(alink, band, queue, NFP_Q_STAT_PKTS,
+				      &stats->tx_pkts);
+	if (err)
+		return err;
+
+	err = nfp_abm_ctrl_stat_basic(alink, band, queue, NFP_Q_STAT_BYTES,
+				      &stats->tx_bytes);
+	if (err)
+		return err;
 
 	err = nfp_abm_ctrl_stat(alink, alink->abm->q_lvls, NFP_QLVL_STRIDE,
 				NFP_QLVL_BLOG_BYTES, band, queue, false,
@@ -250,6 +283,14 @@ int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm)
 	if (IS_ERR(sym))
 		return PTR_ERR(sym);
 	abm->qm_stats = sym;
+
+	if (nfp_abm_has_prio(abm)) {
+		sym = nfp_abm_ctrl_find_q_rtsym(abm, NFP_Q_STAT_SYM_NAME,
+						NFP_Q_STAT_STRIDE);
+		if (IS_ERR(sym))
+			return PTR_ERR(sym);
+		abm->q_stats = sym;
+	}
 
 	return 0;
 }

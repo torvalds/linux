@@ -38,6 +38,7 @@ struct nfp_net;
  *			in switchdev mode
  * @q_lvls:	queue level control area
  * @qm_stats:	queue statistics symbol
+ * @q_stats:	basic queue statistics (only in per-band case)
  */
 struct nfp_abm {
 	struct nfp_app *app;
@@ -53,6 +54,7 @@ struct nfp_abm {
 	enum devlink_eswitch_mode eswitch_mode;
 	const struct nfp_rtsym *q_lvls;
 	const struct nfp_rtsym *qm_stats;
+	const struct nfp_rtsym *q_stats;
 };
 
 /**
