@@ -27,7 +27,7 @@ static struct _req_type __maybe_unused					\
 	struct _req_type *req;						\
 									\
 	req = (struct _req_type *)otx2_mbox_alloc_msg_rsp(		\
-		&rvu->mbox_up, devid, sizeof(struct _req_type),		\
+		&rvu->afpf_wq_info.mbox_up, devid, sizeof(struct _req_type), \
 		sizeof(struct _rsp_type));				\
 	if (!req)							\
 		return NULL;						\
@@ -181,8 +181,8 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 		if (!msg)
 			continue;
 		msg->link_info = *linfo;
-		otx2_mbox_msg_send(&rvu->mbox_up, pfid);
-		err = otx2_mbox_wait_for_rsp(&rvu->mbox_up, pfid);
+		otx2_mbox_msg_send(&rvu->afpf_wq_info.mbox_up, pfid);
+		err = otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, pfid);
 		if (err)
 			dev_warn(rvu->dev, "notification to pf %d failed\n",
 				 pfid);

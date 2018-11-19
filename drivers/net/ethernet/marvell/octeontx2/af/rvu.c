@@ -31,6 +31,15 @@ static void rvu_clear_msix_offset(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				  struct rvu_block *block, int lf);
 static void __rvu_flr_handler(struct rvu *rvu, u16 pcifunc);
 
+static int rvu_mbox_init(struct rvu *rvu, struct mbox_wq_info *mw,
+			 int type, int num,
+			 void (mbox_handler)(struct work_struct *),
+			 void (mbox_up_handler)(struct work_struct *));
+enum {
+	TYPE_AFVF,
+	TYPE_AFPF,
+};
+
 /* Supported devices */
 static const struct pci_device_id rvu_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CAVIUM, PCI_DEVID_OCTEONTX2_RVU_AF) },
@@ -1341,9 +1350,11 @@ static int rvu_mbox_handler_vf_flr(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
-static int rvu_process_mbox_msg(struct rvu *rvu, int devid,
+static int rvu_process_mbox_msg(struct otx2_mbox *mbox, int devid,
 				struct mbox_msghdr *req)
 {
+	struct rvu *rvu = pci_get_drvdata(mbox->pdev);
+
 	/* Check if valid, if not reply with a invalid msg */
 	if (req->sig != OTX2_MBOX_REQ_SIG)
 		goto bad_message;
@@ -1355,8 +1366,15 @@ static int rvu_process_mbox_msg(struct rvu *rvu, int devid,
 		int err;						\
 									\
 		rsp = (struct _rsp_type *)otx2_mbox_alloc_msg(		\
-			&rvu->mbox, devid,				\
+			mbox, devid,					\
 			sizeof(struct _rsp_type));			\
+		/* some handlers should complete even if reply */	\
+		/* could not be allocated */				\
+		if (!rsp &&						\
+		    _id != MBOX_MSG_DETACH_RESOURCES &&			\
+		    _id != MBOX_MSG_NIX_TXSCH_FREE &&			\
+		    _id != MBOX_MSG_VF_FLR)				\
+			return -ENOMEM;					\
 		if (rsp) {						\
 			rsp->hdr.id = _id;				\
 			rsp->hdr.sig = OTX2_MBOX_RSP_SIG;		\
@@ -1374,29 +1392,38 @@ static int rvu_process_mbox_msg(struct rvu *rvu, int devid,
 	}
 MBOX_MESSAGES
 #undef M
-		break;
+
 bad_message:
 	default:
-		otx2_reply_invalid_msg(&rvu->mbox, devid, req->pcifunc,
-				       req->id);
+		otx2_reply_invalid_msg(mbox, devid, req->pcifunc, req->id);
 		return -ENODEV;
 	}
 }
 
-static void rvu_mbox_handler(struct work_struct *work)
+static void __rvu_mbox_handler(struct rvu_work *mwork, int type)
 {
-	struct rvu_work *mwork = container_of(work, struct rvu_work, work);
 	struct rvu *rvu = mwork->rvu;
+	int offset, err, id, devid;
 	struct otx2_mbox_dev *mdev;
 	struct mbox_hdr *req_hdr;
 	struct mbox_msghdr *msg;
+	struct mbox_wq_info *mw;
 	struct otx2_mbox *mbox;
-	int offset, id, err;
-	u16 pf;
 
-	mbox = &rvu->mbox;
-	pf = mwork - rvu->mbox_wrk;
-	mdev = &mbox->dev[pf];
+	switch (type) {
+	case TYPE_AFPF:
+		mw = &rvu->afpf_wq_info;
+		break;
+	case TYPE_AFVF:
+		mw = &rvu->afvf_wq_info;
+		break;
+	default:
+		return;
+	}
+
+	devid = mwork - mw->mbox_wrk;
+	mbox = &mw->mbox;
+	mdev = &mbox->dev[devid];
 
 	/* Process received mbox messages */
 	req_hdr = mdev->mbase + mbox->rx_start;
@@ -1408,10 +1435,21 @@ static void rvu_mbox_handler(struct work_struct *work)
 	for (id = 0; id < req_hdr->num_msgs; id++) {
 		msg = mdev->mbase + offset;
 
-		/* Set which PF sent this message based on mbox IRQ */
-		msg->pcifunc &= ~(RVU_PFVF_PF_MASK << RVU_PFVF_PF_SHIFT);
-		msg->pcifunc |= (pf << RVU_PFVF_PF_SHIFT);
-		err = rvu_process_mbox_msg(rvu, pf, msg);
+		/* Set which PF/VF sent this message based on mbox IRQ */
+		switch (type) {
+		case TYPE_AFPF:
+			msg->pcifunc &=
+				~(RVU_PFVF_PF_MASK << RVU_PFVF_PF_SHIFT);
+			msg->pcifunc |= (devid << RVU_PFVF_PF_SHIFT);
+			break;
+		case TYPE_AFVF:
+			msg->pcifunc &=
+				~(RVU_PFVF_FUNC_MASK << RVU_PFVF_FUNC_SHIFT);
+			msg->pcifunc |= (devid << RVU_PFVF_FUNC_SHIFT) + 1;
+			break;
+		}
+
+		err = rvu_process_mbox_msg(mbox, devid, msg);
 		if (!err) {
 			offset = mbox->rx_start + msg->next_msgoff;
 			continue;
@@ -1419,31 +1457,57 @@ static void rvu_mbox_handler(struct work_struct *work)
 
 		if (msg->pcifunc & RVU_PFVF_FUNC_MASK)
 			dev_warn(rvu->dev, "Error %d when processing message %s (0x%x) from PF%d:VF%d\n",
-				 err, otx2_mbox_id2name(msg->id), msg->id, pf,
+				 err, otx2_mbox_id2name(msg->id),
+				 msg->id, devid,
 				 (msg->pcifunc & RVU_PFVF_FUNC_MASK) - 1);
 		else
 			dev_warn(rvu->dev, "Error %d when processing message %s (0x%x) from PF%d\n",
-				 err, otx2_mbox_id2name(msg->id), msg->id, pf);
+				 err, otx2_mbox_id2name(msg->id),
+				 msg->id, devid);
 	}
 
-	/* Send mbox responses to PF */
-	otx2_mbox_msg_send(mbox, pf);
+	/* Send mbox responses to VF/PF */
+	otx2_mbox_msg_send(mbox, devid);
 }
 
-static void rvu_mbox_up_handler(struct work_struct *work)
+static inline void rvu_afpf_mbox_handler(struct work_struct *work)
 {
 	struct rvu_work *mwork = container_of(work, struct rvu_work, work);
+
+	__rvu_mbox_handler(mwork, TYPE_AFPF);
+}
+
+static inline void rvu_afvf_mbox_handler(struct work_struct *work)
+{
+	struct rvu_work *mwork = container_of(work, struct rvu_work, work);
+
+	__rvu_mbox_handler(mwork, TYPE_AFVF);
+}
+
+static void __rvu_mbox_up_handler(struct rvu_work *mwork, int type)
+{
 	struct rvu *rvu = mwork->rvu;
 	struct otx2_mbox_dev *mdev;
 	struct mbox_hdr *rsp_hdr;
 	struct mbox_msghdr *msg;
+	struct mbox_wq_info *mw;
 	struct otx2_mbox *mbox;
-	int offset, id;
-	u16 pf;
+	int offset, id, devid;
 
-	mbox = &rvu->mbox_up;
-	pf = mwork - rvu->mbox_wrk_up;
-	mdev = &mbox->dev[pf];
+	switch (type) {
+	case TYPE_AFPF:
+		mw = &rvu->afpf_wq_info;
+		break;
+	case TYPE_AFVF:
+		mw = &rvu->afvf_wq_info;
+		break;
+	default:
+		return;
+	}
+
+	devid = mwork - mw->mbox_wrk_up;
+	mbox = &mw->mbox_up;
+	mdev = &mbox->dev[devid];
 
 	rsp_hdr = mdev->mbase + mbox->rx_start;
 	if (rsp_hdr->num_msgs == 0) {
@@ -1484,127 +1548,181 @@ end:
 		mdev->msgs_acked++;
 	}
 
-	otx2_mbox_reset(mbox, 0);
+	otx2_mbox_reset(mbox, devid);
 }
 
-static int rvu_mbox_init(struct rvu *rvu)
+static inline void rvu_afpf_mbox_up_handler(struct work_struct *work)
 {
-	struct rvu_hwinfo *hw = rvu->hw;
-	void __iomem *hwbase = NULL;
-	struct rvu_work *mwork;
-	u64 bar4_addr;
-	int err, pf;
+	struct rvu_work *mwork = container_of(work, struct rvu_work, work);
 
-	rvu->mbox_wq = alloc_workqueue("rvu_afpf_mailbox",
-				       WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM,
-				       hw->total_pfs);
-	if (!rvu->mbox_wq)
+	__rvu_mbox_up_handler(mwork, TYPE_AFPF);
+}
+
+static inline void rvu_afvf_mbox_up_handler(struct work_struct *work)
+{
+	struct rvu_work *mwork = container_of(work, struct rvu_work, work);
+
+	__rvu_mbox_up_handler(mwork, TYPE_AFVF);
+}
+
+static int rvu_mbox_init(struct rvu *rvu, struct mbox_wq_info *mw,
+			 int type, int num,
+			 void (mbox_handler)(struct work_struct *),
+			 void (mbox_up_handler)(struct work_struct *))
+{
+	void __iomem *hwbase = NULL, *reg_base;
+	int err, i, dir, dir_up;
+	struct rvu_work *mwork;
+	const char *name;
+	u64 bar4_addr;
+
+	switch (type) {
+	case TYPE_AFPF:
+		name = "rvu_afpf_mailbox";
+		bar4_addr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_PF_BAR4_ADDR);
+		dir = MBOX_DIR_AFPF;
+		dir_up = MBOX_DIR_AFPF_UP;
+		reg_base = rvu->afreg_base;
+		break;
+	case TYPE_AFVF:
+		name = "rvu_afvf_mailbox";
+		bar4_addr = rvupf_read64(rvu, RVU_PF_VF_BAR4_ADDR);
+		dir = MBOX_DIR_PFVF;
+		dir_up = MBOX_DIR_PFVF_UP;
+		reg_base = rvu->pfreg_base;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	mw->mbox_wq = alloc_workqueue(name,
+				      WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM,
+				      num);
+	if (!mw->mbox_wq)
 		return -ENOMEM;
 
-	rvu->mbox_wrk = devm_kcalloc(rvu->dev, hw->total_pfs,
-				     sizeof(struct rvu_work), GFP_KERNEL);
-	if (!rvu->mbox_wrk) {
+	mw->mbox_wrk = devm_kcalloc(rvu->dev, num,
+				    sizeof(struct rvu_work), GFP_KERNEL);
+	if (!mw->mbox_wrk) {
 		err = -ENOMEM;
 		goto exit;
 	}
 
-	rvu->mbox_wrk_up = devm_kcalloc(rvu->dev, hw->total_pfs,
-					sizeof(struct rvu_work), GFP_KERNEL);
-	if (!rvu->mbox_wrk_up) {
+	mw->mbox_wrk_up = devm_kcalloc(rvu->dev, num,
+				       sizeof(struct rvu_work), GFP_KERNEL);
+	if (!mw->mbox_wrk_up) {
 		err = -ENOMEM;
 		goto exit;
 	}
 
-	/* Map mbox region shared with PFs */
-	bar4_addr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_PF_BAR4_ADDR);
 	/* Mailbox is a reserved memory (in RAM) region shared between
 	 * RVU devices, shouldn't be mapped as device memory to allow
 	 * unaligned accesses.
 	 */
-	hwbase = ioremap_wc(bar4_addr, MBOX_SIZE * hw->total_pfs);
+	hwbase = ioremap_wc(bar4_addr, MBOX_SIZE * num);
 	if (!hwbase) {
 		dev_err(rvu->dev, "Unable to map mailbox region\n");
 		err = -ENOMEM;
 		goto exit;
 	}
 
-	err = otx2_mbox_init(&rvu->mbox, hwbase, rvu->pdev, rvu->afreg_base,
-			     MBOX_DIR_AFPF, hw->total_pfs);
+	err = otx2_mbox_init(&mw->mbox, hwbase, rvu->pdev, reg_base, dir, num);
 	if (err)
 		goto exit;
 
-	err = otx2_mbox_init(&rvu->mbox_up, hwbase, rvu->pdev, rvu->afreg_base,
-			     MBOX_DIR_AFPF_UP, hw->total_pfs);
+	err = otx2_mbox_init(&mw->mbox_up, hwbase, rvu->pdev,
+			     reg_base, dir_up, num);
 	if (err)
 		goto exit;
 
-	for (pf = 0; pf < hw->total_pfs; pf++) {
-		mwork = &rvu->mbox_wrk[pf];
+	for (i = 0; i < num; i++) {
+		mwork = &mw->mbox_wrk[i];
 		mwork->rvu = rvu;
-		INIT_WORK(&mwork->work, rvu_mbox_handler);
-	}
+		INIT_WORK(&mwork->work, mbox_handler);
 
-	for (pf = 0; pf < hw->total_pfs; pf++) {
-		mwork = &rvu->mbox_wrk_up[pf];
+		mwork = &mw->mbox_wrk_up[i];
 		mwork->rvu = rvu;
-		INIT_WORK(&mwork->work, rvu_mbox_up_handler);
+		INIT_WORK(&mwork->work, mbox_up_handler);
 	}
 
 	return 0;
 exit:
 	if (hwbase)
 		iounmap((void __iomem *)hwbase);
-	destroy_workqueue(rvu->mbox_wq);
+	destroy_workqueue(mw->mbox_wq);
 	return err;
 }
 
-static void rvu_mbox_destroy(struct rvu *rvu)
+static void rvu_mbox_destroy(struct mbox_wq_info *mw)
 {
-	if (rvu->mbox_wq) {
-		flush_workqueue(rvu->mbox_wq);
-		destroy_workqueue(rvu->mbox_wq);
-		rvu->mbox_wq = NULL;
+	if (mw->mbox_wq) {
+		flush_workqueue(mw->mbox_wq);
+		destroy_workqueue(mw->mbox_wq);
+		mw->mbox_wq = NULL;
 	}
 
-	if (rvu->mbox.hwbase)
-		iounmap((void __iomem *)rvu->mbox.hwbase);
+	if (mw->mbox.hwbase)
+		iounmap((void __iomem *)mw->mbox.hwbase);
 
-	otx2_mbox_destroy(&rvu->mbox);
-	otx2_mbox_destroy(&rvu->mbox_up);
+	otx2_mbox_destroy(&mw->mbox);
+	otx2_mbox_destroy(&mw->mbox_up);
+}
+
+static void rvu_queue_work(struct mbox_wq_info *mw, int first,
+			   int mdevs, u64 intr)
+{
+	struct otx2_mbox_dev *mdev;
+	struct otx2_mbox *mbox;
+	struct mbox_hdr *hdr;
+	int i;
+
+	for (i = first; i < mdevs; i++) {
+		/* start from 0 */
+		if (!(intr & BIT_ULL(i - first)))
+			continue;
+
+		mbox = &mw->mbox;
+		mdev = &mbox->dev[i];
+		hdr = mdev->mbase + mbox->rx_start;
+		if (hdr->num_msgs)
+			queue_work(mw->mbox_wq, &mw->mbox_wrk[i].work);
+
+		mbox = &mw->mbox_up;
+		mdev = &mbox->dev[i];
+		hdr = mdev->mbase + mbox->rx_start;
+		if (hdr->num_msgs)
+			queue_work(mw->mbox_wq, &mw->mbox_wrk_up[i].work);
+	}
 }
 
 static irqreturn_t rvu_mbox_intr_handler(int irq, void *rvu_irq)
 {
 	struct rvu *rvu = (struct rvu *)rvu_irq;
-	struct otx2_mbox_dev *mdev;
-	struct otx2_mbox *mbox;
-	struct mbox_hdr *hdr;
+	int vfs = pci_num_vf(rvu->pdev);
 	u64 intr;
-	u8  pf;
 
 	intr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_PFAF_MBOX_INT);
 	/* Clear interrupts */
 	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFAF_MBOX_INT, intr);
 
 	/* Sync with mbox memory region */
-	smp_wmb();
+	rmb();
 
-	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
-		if (intr & (1ULL << pf)) {
-			mbox = &rvu->mbox;
-			mdev = &mbox->dev[pf];
-			hdr = mdev->mbase + mbox->rx_start;
-			if (hdr->num_msgs)
-				queue_work(rvu->mbox_wq,
-					   &rvu->mbox_wrk[pf].work);
-			mbox = &rvu->mbox_up;
-			mdev = &mbox->dev[pf];
-			hdr = mdev->mbase + mbox->rx_start;
-			if (hdr->num_msgs)
-				queue_work(rvu->mbox_wq,
-					   &rvu->mbox_wrk_up[pf].work);
-		}
+	rvu_queue_work(&rvu->afpf_wq_info, 0, rvu->hw->total_pfs, intr);
+
+	/* Handle VF interrupts */
+	if (vfs > 64) {
+		intr = rvupf_read64(rvu, RVU_PF_VFPF_MBOX_INTX(1));
+		rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INTX(1), intr);
+
+		rvu_queue_work(&rvu->afvf_wq_info, 64, vfs, intr);
+		vfs -= 64;
 	}
+
+	intr = rvupf_read64(rvu, RVU_PF_VFPF_MBOX_INTX(0));
+	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INTX(0), intr);
+
+	rvu_queue_work(&rvu->afvf_wq_info, 0, vfs, intr);
 
 	return IRQ_HANDLED;
 }
@@ -1917,7 +2035,10 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_release_regions;
 
-	err = rvu_mbox_init(rvu);
+	/* Init mailbox btw AF and PFs */
+	err = rvu_mbox_init(rvu, &rvu->afpf_wq_info, TYPE_AFPF,
+			    rvu->hw->total_pfs, rvu_afpf_mbox_handler,
+			    rvu_afpf_mbox_up_handler);
 	if (err)
 		goto err_hwsetup;
 
@@ -1939,7 +2060,7 @@ err_flr:
 err_cgx:
 	rvu_cgx_wq_destroy(rvu);
 err_mbox:
-	rvu_mbox_destroy(rvu);
+	rvu_mbox_destroy(&rvu->afpf_wq_info);
 err_hwsetup:
 	rvu_reset_all_blocks(rvu);
 	rvu_free_hw_resources(rvu);
@@ -1961,7 +2082,7 @@ static void rvu_remove(struct pci_dev *pdev)
 	rvu_unregister_interrupts(rvu);
 	rvu_flr_wq_destroy(rvu);
 	rvu_cgx_wq_destroy(rvu);
-	rvu_mbox_destroy(rvu);
+	rvu_mbox_destroy(&rvu->afpf_wq_info);
 	rvu_reset_all_blocks(rvu);
 	rvu_free_hw_resources(rvu);
 

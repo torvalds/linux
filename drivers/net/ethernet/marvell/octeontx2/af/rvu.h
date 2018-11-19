@@ -183,6 +183,16 @@ struct rvu_hwinfo {
 	struct npc_mcam  mcam;
 };
 
+struct mbox_wq_info {
+	struct otx2_mbox mbox;
+	struct rvu_work *mbox_wrk;
+
+	struct otx2_mbox mbox_up;
+	struct rvu_work *mbox_wrk_up;
+
+	struct workqueue_struct *mbox_wq;
+};
+
 struct rvu {
 	void __iomem		*afreg_base;
 	void __iomem		*pfreg_base;
@@ -194,11 +204,8 @@ struct rvu {
 	struct mutex            rsrc_lock; /* Serialize resource alloc/free */
 
 	/* Mbox */
-	struct otx2_mbox	mbox;
-	struct rvu_work		*mbox_wrk;
-	struct otx2_mbox        mbox_up;
-	struct rvu_work		*mbox_wrk_up;
-	struct workqueue_struct *mbox_wq;
+	struct mbox_wq_info	afpf_wq_info;
+	struct mbox_wq_info	afvf_wq_info;
 
 	/* PF FLR */
 	struct rvu_work		*flr_wrk;
