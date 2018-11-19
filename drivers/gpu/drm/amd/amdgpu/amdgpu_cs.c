@@ -1260,8 +1260,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	return 0;
 
 error_abort:
-	dma_fence_put(&job->base.s_fence->finished);
-	job->base.s_fence = NULL;
+	drm_sched_job_cleanup(&job->base);
 	amdgpu_mn_unlock(p->mn);
 
 error_unlock:
@@ -1285,7 +1284,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	r = amdgpu_cs_parser_init(&parser, data);
 	if (r) {
-		DRM_ERROR("Failed to initialize parser !\n");
+		DRM_ERROR("Failed to initialize parser %d!\n", r);
 		goto out;
 	}
 

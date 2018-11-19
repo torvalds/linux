@@ -126,9 +126,6 @@ struct qxl_output {
 #define drm_encoder_to_qxl_output(x) container_of(x, struct qxl_output, enc)
 
 struct qxl_mman {
-	struct ttm_bo_global_ref        bo_global_ref;
-	struct drm_global_reference	mem_global_ref;
-	unsigned int mem_global_referenced:1;
 	struct ttm_bo_device		bdev;
 };
 

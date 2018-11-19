@@ -485,11 +485,11 @@ void pp_rv_set_display_requirement(struct pp_smu *pp,
 		return;
 
 	clock.clock_type = amd_pp_dcf_clock;
-	clock.clock_freq_in_khz = req->hard_min_dcefclk_khz;
+	clock.clock_freq_in_khz = req->hard_min_dcefclk_mhz * 1000;
 	pp_funcs->display_clock_voltage_request(pp_handle, &clock);
 
 	clock.clock_type = amd_pp_f_clock;
-	clock.clock_freq_in_khz = req->hard_min_fclk_khz;
+	clock.clock_freq_in_khz = req->hard_min_fclk_mhz * 1000;
 	pp_funcs->display_clock_voltage_request(pp_handle, &clock);
 }
 
@@ -518,13 +518,13 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 			wm_dce_clocks[i].wm_set_id =
 					ranges->reader_wm_sets[i].wm_inst;
 		wm_dce_clocks[i].wm_max_dcfclk_clk_in_khz =
-				ranges->reader_wm_sets[i].max_drain_clk_khz;
+				ranges->reader_wm_sets[i].max_drain_clk_mhz * 1000;
 		wm_dce_clocks[i].wm_min_dcfclk_clk_in_khz =
-				ranges->reader_wm_sets[i].min_drain_clk_khz;
+				ranges->reader_wm_sets[i].min_drain_clk_mhz * 1000;
 		wm_dce_clocks[i].wm_max_mem_clk_in_khz =
-				ranges->reader_wm_sets[i].max_fill_clk_khz;
+				ranges->reader_wm_sets[i].max_fill_clk_mhz * 1000;
 		wm_dce_clocks[i].wm_min_mem_clk_in_khz =
-				ranges->reader_wm_sets[i].min_fill_clk_khz;
+				ranges->reader_wm_sets[i].min_fill_clk_mhz * 1000;
 	}
 
 	for (i = 0; i < wm_with_clock_ranges.num_wm_mcif_sets; i++) {
@@ -534,13 +534,13 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 			wm_soc_clocks[i].wm_set_id =
 					ranges->writer_wm_sets[i].wm_inst;
 		wm_soc_clocks[i].wm_max_socclk_clk_in_khz =
-				ranges->writer_wm_sets[i].max_fill_clk_khz;
+				ranges->writer_wm_sets[i].max_fill_clk_mhz * 1000;
 		wm_soc_clocks[i].wm_min_socclk_clk_in_khz =
-				ranges->writer_wm_sets[i].min_fill_clk_khz;
+				ranges->writer_wm_sets[i].min_fill_clk_mhz * 1000;
 		wm_soc_clocks[i].wm_max_mem_clk_in_khz =
-				ranges->writer_wm_sets[i].max_drain_clk_khz;
+				ranges->writer_wm_sets[i].max_drain_clk_mhz * 1000;
 		wm_soc_clocks[i].wm_min_mem_clk_in_khz =
-				ranges->writer_wm_sets[i].min_drain_clk_khz;
+				ranges->writer_wm_sets[i].min_drain_clk_mhz * 1000;
 	}
 
 	pp_funcs->set_watermarks_for_clocks_ranges(pp_handle, &wm_with_clock_ranges);

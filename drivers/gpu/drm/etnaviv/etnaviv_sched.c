@@ -105,8 +105,6 @@ static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 	change = dma_addr - gpu->hangcheck_dma_addr;
 	if (change < 0 || change > 16) {
 		gpu->hangcheck_dma_addr = dma_addr;
-		schedule_delayed_work(&sched_job->sched->work_tdr,
-				      sched_job->sched->timeout);
 		return;
 	}
 
@@ -126,6 +124,8 @@ static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 static void etnaviv_sched_free_job(struct drm_sched_job *sched_job)
 {
 	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
+
+	drm_sched_job_cleanup(sched_job);
 
 	etnaviv_submit_put(submit);
 }
@@ -159,6 +159,7 @@ int etnaviv_sched_push_job(struct drm_sched_entity *sched_entity,
 						submit->out_fence, 0,
 						INT_MAX, GFP_KERNEL);
 	if (submit->out_fence_id < 0) {
+		drm_sched_job_cleanup(&submit->sched_job);
 		ret = -ENOMEM;
 		goto out_unlock;
 	}

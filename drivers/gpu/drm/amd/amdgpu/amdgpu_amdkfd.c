@@ -144,7 +144,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 				  KGD_MAX_QUEUES);
 
 		/* remove the KIQ bit as well */
-		if (adev->gfx.kiq.ring.ready)
+		if (adev->gfx.kiq.ring.sched.ready)
 			clear_bit(amdgpu_gfx_queue_to_bit(adev,
 							  adev->gfx.kiq.ring.me - 1,
 							  adev->gfx.kiq.ring.pipe,
@@ -268,9 +268,9 @@ void amdgpu_amdkfd_gpu_reset(struct kgd_dev *kgd)
 		amdgpu_device_gpu_recover(adev, NULL);
 }
 
-int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
-			void **mem_obj, uint64_t *gpu_addr,
-			void **cpu_ptr, bool mqd_gfx9)
+int amdgpu_amdkfd_alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
+				void **mem_obj, uint64_t *gpu_addr,
+				void **cpu_ptr, bool mqd_gfx9)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	struct amdgpu_bo *bo = NULL;
@@ -340,7 +340,7 @@ allocate_mem_reserve_bo_failed:
 	return r;
 }
 
-void free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
+void amdgpu_amdkfd_free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
 {
 	struct amdgpu_bo *bo = (struct amdgpu_bo *) mem_obj;
 
@@ -351,8 +351,8 @@ void free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
 	amdgpu_bo_unref(&(bo));
 }
 
-void get_local_mem_info(struct kgd_dev *kgd,
-			struct kfd_local_mem_info *mem_info)
+void amdgpu_amdkfd_get_local_mem_info(struct kgd_dev *kgd,
+				      struct kfd_local_mem_info *mem_info)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	uint64_t address_mask = adev->dev->dma_mask ? ~*adev->dev->dma_mask :
@@ -383,7 +383,7 @@ void get_local_mem_info(struct kgd_dev *kgd,
 		mem_info->mem_clk_max = 100;
 }
 
-uint64_t get_gpu_clock_counter(struct kgd_dev *kgd)
+uint64_t amdgpu_amdkfd_get_gpu_clock_counter(struct kgd_dev *kgd)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
@@ -392,7 +392,7 @@ uint64_t get_gpu_clock_counter(struct kgd_dev *kgd)
 	return 0;
 }
 
-uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd)
+uint32_t amdgpu_amdkfd_get_max_engine_clock_in_mhz(struct kgd_dev *kgd)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
@@ -405,7 +405,7 @@ uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd)
 		return 100;
 }
 
-void get_cu_info(struct kgd_dev *kgd, struct kfd_cu_info *cu_info)
+void amdgpu_amdkfd_get_cu_info(struct kgd_dev *kgd, struct kfd_cu_info *cu_info)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	struct amdgpu_cu_info acu_info = adev->gfx.cu_info;

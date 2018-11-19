@@ -87,9 +87,8 @@ static void optc1_disable_stereo(struct timing_generator *optc)
 	REG_SET(OTG_STEREO_CONTROL, 0,
 		OTG_STEREO_EN, 0);
 
-	REG_SET_3(OTG_3D_STRUCTURE_CONTROL, 0,
+	REG_SET_2(OTG_3D_STRUCTURE_CONTROL, 0,
 		OTG_3D_STRUCTURE_EN, 0,
-		OTG_3D_STRUCTURE_V_UPDATE_MODE, 0,
 		OTG_3D_STRUCTURE_STEREO_SEL_OVR, 0);
 }
 
@@ -274,10 +273,12 @@ void optc1_program_timing(
 	 * program the reg for interrupt postition.
 	 */
 	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
-	if (vertical_line_start < 0) {
-		ASSERT(0);
+	v_fp2 = 0;
+	if (vertical_line_start < 0)
+		v_fp2 = -vertical_line_start;
+	if (vertical_line_start < 0)
 		vertical_line_start = 0;
-	}
+
 	REG_SET(OTG_VERTICAL_INTERRUPT2_POSITION, 0,
 			OTG_VERTICAL_INTERRUPT2_LINE_START, vertical_line_start);
 
@@ -296,9 +297,6 @@ void optc1_program_timing(
 		if (patched_crtc_timing.flags.INTERLACE == 1)
 			field_num = 1;
 	}
-	v_fp2 = 0;
-	if (optc->dlg_otg_param.vstartup_start > asic_blank_end)
-		v_fp2 = optc->dlg_otg_param.vstartup_start > asic_blank_end;
 
 	/* Interlace */
 	if (patched_crtc_timing.flags.INTERLACE == 1) {
@@ -1155,9 +1153,8 @@ static void optc1_enable_stereo(struct timing_generator *optc,
 				OTG_DISABLE_STEREOSYNC_OUTPUT_FOR_DP, 1);
 
 		if (flags->PROGRAM_STEREO)
-			REG_UPDATE_3(OTG_3D_STRUCTURE_CONTROL,
+			REG_UPDATE_2(OTG_3D_STRUCTURE_CONTROL,
 				OTG_3D_STRUCTURE_EN, flags->FRAME_PACKED,
-				OTG_3D_STRUCTURE_V_UPDATE_MODE, flags->FRAME_PACKED,
 				OTG_3D_STRUCTURE_STEREO_SEL_OVR, flags->FRAME_PACKED);
 
 	}

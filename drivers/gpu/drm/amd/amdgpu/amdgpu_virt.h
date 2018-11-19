@@ -238,7 +238,6 @@ typedef struct amdgim_vf2pf_info_v2 amdgim_vf2pf_info ;
 struct amdgpu_virt {
 	uint32_t			caps;
 	struct amdgpu_bo		*csa_obj;
-	uint64_t			csa_vmid0_addr;
 	bool chained_ib_support;
 	uint32_t			reg_val_offs;
 	struct amdgpu_irq_src		ack_irq;
@@ -250,8 +249,6 @@ struct amdgpu_virt {
 	struct amdgpu_virt_fw_reserve	fw_reserve;
 	uint32_t gim_feature;
 };
-
-#define AMDGPU_CSA_SIZE		(8 * 1024)
 
 #define amdgpu_sriov_enabled(adev) \
 ((adev)->virt.caps & AMDGPU_SRIOV_CAPS_ENABLE_IOV)
@@ -277,17 +274,13 @@ static inline bool is_virtual_machine(void)
 #endif
 }
 
-struct amdgpu_vm;
-
-uint64_t amdgpu_csa_vaddr(struct amdgpu_device *adev);
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
-int amdgpu_allocate_static_csa(struct amdgpu_device *adev);
-int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			  struct amdgpu_bo_va **bo_va);
-void amdgpu_free_static_csa(struct amdgpu_device *adev);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
 uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
+void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
+					uint32_t reg0, uint32_t rreg1,
+					uint32_t ref, uint32_t mask);
 int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init);
 int amdgpu_virt_release_full_gpu(struct amdgpu_device *adev, bool init);
 int amdgpu_virt_reset_gpu(struct amdgpu_device *adev);

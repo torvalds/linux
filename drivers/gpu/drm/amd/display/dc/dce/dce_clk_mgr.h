@@ -24,10 +24,13 @@
  */
 
 
-#ifndef _DCE_CLOCKS_H_
-#define _DCE_CLOCKS_H_
+#ifndef _DCE_CLK_MGR_H_
+#define _DCE_CLK_MGR_H_
 
-#include "display_clock.h"
+#include "clk_mgr.h"
+#include "dccg.h"
+
+#define MEMORY_TYPE_MULTIPLIER_CZ 4
 
 #define CLK_COMMON_REG_LIST_DCE_BASE() \
 	.DPREFCLK_CNTL = mmDPREFCLK_CNTL, \
@@ -53,24 +56,31 @@
 	type DENTIST_DISPCLK_WDIVIDER; \
 	type DENTIST_DISPCLK_CHG_DONE;
 
-struct dccg_shift {
+struct clk_mgr_shift {
 	CLK_REG_FIELD_LIST(uint8_t)
 };
 
-struct dccg_mask {
+struct clk_mgr_mask {
 	CLK_REG_FIELD_LIST(uint32_t)
 };
 
-struct dccg_registers {
+struct clk_mgr_registers {
 	uint32_t DPREFCLK_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
 };
 
-struct dce_dccg {
-	struct dccg base;
-	const struct dccg_registers *regs;
-	const struct dccg_shift *clk_shift;
-	const struct dccg_mask *clk_mask;
+struct state_dependent_clocks {
+	int display_clk_khz;
+	int pixel_clk_khz;
+};
+
+struct dce_clk_mgr {
+	struct clk_mgr base;
+	const struct clk_mgr_registers *regs;
+	const struct clk_mgr_shift *clk_mgr_shift;
+	const struct clk_mgr_mask *clk_mgr_mask;
+
+	struct dccg *dccg;
 
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
 
@@ -91,33 +101,68 @@ struct dce_dccg {
 	/* DPREFCLK SS percentage Divider (100 or 1000) */
 	int dprefclk_ss_divider;
 	int dprefclk_khz;
+
+	enum dm_pp_clocks_state max_clks_state;
+	enum dm_pp_clocks_state cur_min_clks_state;
 };
 
+/* Starting DID for each range */
+enum dentist_base_divider_id {
+	DENTIST_BASE_DID_1 = 0x08,
+	DENTIST_BASE_DID_2 = 0x40,
+	DENTIST_BASE_DID_3 = 0x60,
+	DENTIST_BASE_DID_4 = 0x7e,
+	DENTIST_MAX_DID = 0x7f
+};
 
-struct dccg *dce_dccg_create(
+/* Starting point and step size for each divider range.*/
+enum dentist_divider_range {
+	DENTIST_DIVIDER_RANGE_1_START = 8,   /* 2.00  */
+	DENTIST_DIVIDER_RANGE_1_STEP  = 1,   /* 0.25  */
+	DENTIST_DIVIDER_RANGE_2_START = 64,  /* 16.00 */
+	DENTIST_DIVIDER_RANGE_2_STEP  = 2,   /* 0.50  */
+	DENTIST_DIVIDER_RANGE_3_START = 128, /* 32.00 */
+	DENTIST_DIVIDER_RANGE_3_STEP  = 4,   /* 1.00  */
+	DENTIST_DIVIDER_RANGE_4_START = 248, /* 62.00 */
+	DENTIST_DIVIDER_RANGE_4_STEP  = 264, /* 66.00 */
+	DENTIST_DIVIDER_RANGE_SCALE_FACTOR = 4
+};
+
+static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_clk)
+{
+	return ((safe_to_lower && calc_clk < cur_clk) || calc_clk > cur_clk);
+}
+
+void dce_clock_read_ss_info(struct dce_clk_mgr *dccg_dce);
+
+int dce12_get_dp_ref_freq_khz(struct clk_mgr *dccg);
+
+void dce110_fill_display_configs(
+	const struct dc_state *context,
+	struct dm_pp_display_configuration *pp_display_cfg);
+
+int dce112_set_clock(struct clk_mgr *dccg, int requested_clk_khz);
+
+struct clk_mgr *dce_clk_mgr_create(
 	struct dc_context *ctx,
-	const struct dccg_registers *regs,
-	const struct dccg_shift *clk_shift,
-	const struct dccg_mask *clk_mask);
+	const struct clk_mgr_registers *regs,
+	const struct clk_mgr_shift *clk_shift,
+	const struct clk_mgr_mask *clk_mask);
 
-struct dccg *dce110_dccg_create(
+struct clk_mgr *dce110_clk_mgr_create(
 	struct dc_context *ctx,
-	const struct dccg_registers *regs,
-	const struct dccg_shift *clk_shift,
-	const struct dccg_mask *clk_mask);
+	const struct clk_mgr_registers *regs,
+	const struct clk_mgr_shift *clk_shift,
+	const struct clk_mgr_mask *clk_mask);
 
-struct dccg *dce112_dccg_create(
+struct clk_mgr *dce112_clk_mgr_create(
 	struct dc_context *ctx,
-	const struct dccg_registers *regs,
-	const struct dccg_shift *clk_shift,
-	const struct dccg_mask *clk_mask);
+	const struct clk_mgr_registers *regs,
+	const struct clk_mgr_shift *clk_shift,
+	const struct clk_mgr_mask *clk_mask);
 
-struct dccg *dce120_dccg_create(struct dc_context *ctx);
+struct clk_mgr *dce120_clk_mgr_create(struct dc_context *ctx);
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
-struct dccg *dcn1_dccg_create(struct dc_context *ctx);
-#endif
+void dce_clk_mgr_destroy(struct clk_mgr **clk_mgr);
 
-void dce_dccg_destroy(struct dccg **dccg);
-
-#endif /* _DCE_CLOCKS_H_ */
+#endif /* _DCE_CLK_MGR_H_ */

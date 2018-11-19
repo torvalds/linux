@@ -293,14 +293,14 @@ static void gmc_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->gmc.vm_fault.funcs = &gmc_v9_0_irq_funcs;
 }
 
-static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid)
+static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid,
+					uint32_t flush_type)
 {
 	u32 req = 0;
 
-	/* invalidate using legacy mode on vmid*/
 	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ,
 			    PER_VMID_INVALIDATE_REQ, 1 << vmid);
-	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, 0);
+	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, flush_type);
 	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PTES, 1);
 	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE0, 1);
 	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE1, 1);
@@ -312,48 +312,6 @@ static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid)
 	return req;
 }
 
-static signed long  amdgpu_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
-						  uint32_t reg0, uint32_t reg1,
-						  uint32_t ref, uint32_t mask)
-{
-	signed long r, cnt = 0;
-	unsigned long flags;
-	uint32_t seq;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
-	struct amdgpu_ring *ring = &kiq->ring;
-
-	spin_lock_irqsave(&kiq->ring_lock, flags);
-
-	amdgpu_ring_alloc(ring, 32);
-	amdgpu_ring_emit_reg_write_reg_wait(ring, reg0, reg1,
-					    ref, mask);
-	amdgpu_fence_emit_polling(ring, &seq);
-	amdgpu_ring_commit(ring);
-	spin_unlock_irqrestore(&kiq->ring_lock, flags);
-
-	r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
-
-	/* don't wait anymore for IRQ context */
-	if (r < 1 && in_interrupt())
-		goto failed_kiq;
-
-	might_sleep();
-
-	while (r < 1 && cnt++ < MAX_KIQ_REG_TRY) {
-		msleep(MAX_KIQ_REG_BAILOUT_INTERVAL);
-		r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
-	}
-
-	if (cnt > MAX_KIQ_REG_TRY)
-		goto failed_kiq;
-
-	return 0;
-
-failed_kiq:
-	pr_err("failed to invalidate tlb with kiq\n");
-	return r;
-}
-
 /*
  * GART
  * VMID 0 is the physical GPU addresses as used by the kernel.
@@ -362,64 +320,47 @@ failed_kiq:
  */
 
 /**
- * gmc_v9_0_flush_gpu_tlb - gart tlb flush callback
+ * gmc_v9_0_flush_gpu_tlb - tlb flush with certain type
  *
  * @adev: amdgpu_device pointer
  * @vmid: vm instance to flush
+ * @flush_type: the flush type
  *
- * Flush the TLB for the requested page table.
+ * Flush the TLB for the requested page table using certain type.
  */
 static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
-					uint32_t vmid)
+				uint32_t vmid, uint32_t flush_type)
 {
-	/* Use register 17 for GART */
 	const unsigned eng = 17;
 	unsigned i, j;
-	int r;
 
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
 		struct amdgpu_vmhub *hub = &adev->vmhub[i];
-		u32 tmp = gmc_v9_0_get_invalidate_req(vmid);
+		u32 tmp = gmc_v9_0_get_invalidate_req(vmid, flush_type);
 
-		if (adev->gfx.kiq.ring.ready &&
-		    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
-		    !adev->in_gpu_reset) {
-			r = amdgpu_kiq_reg_write_reg_wait(adev, hub->vm_inv_eng0_req + eng,
-				hub->vm_inv_eng0_ack + eng, tmp, 1 << vmid);
-			if (!r)
-				continue;
+		if (i == AMDGPU_GFXHUB && !adev->in_gpu_reset &&
+		    adev->gfx.kiq.ring.sched.ready &&
+		    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev))) {
+			uint32_t req = hub->vm_inv_eng0_req + eng;
+			uint32_t ack = hub->vm_inv_eng0_ack + eng;
+
+			amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, tmp,
+							   1 << vmid);
+			continue;
 		}
 
 		spin_lock(&adev->gmc.invalidate_lock);
-
 		WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
-
-		/* Busy wait for ACK.*/
-		for (j = 0; j < 100; j++) {
-			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
-			tmp &= 1 << vmid;
-			if (tmp)
-				break;
-			cpu_relax();
-		}
-		if (j < 100) {
-			spin_unlock(&adev->gmc.invalidate_lock);
-			continue;
-		}
-
-		/* Wait for ACK with a delay.*/
 		for (j = 0; j < adev->usec_timeout; j++) {
 			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
-			tmp &= 1 << vmid;
-			if (tmp)
+			if (tmp & (1 << vmid))
 				break;
 			udelay(1);
 		}
-		if (j < adev->usec_timeout) {
-			spin_unlock(&adev->gmc.invalidate_lock);
-			continue;
-		}
 		spin_unlock(&adev->gmc.invalidate_lock);
+		if (j < adev->usec_timeout)
+			continue;
+
 		DRM_ERROR("Timeout waiting for VM flush ACK!\n");
 	}
 }
@@ -429,7 +370,7 @@ static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_vmhub *hub = &adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = gmc_v9_0_get_invalidate_req(vmid);
+	uint32_t req = gmc_v9_0_get_invalidate_req(vmid, 0);
 	unsigned eng = ring->vm_inv_eng;
 
 	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_lo32 + (2 * vmid),
@@ -739,9 +680,8 @@ static int gmc_v9_0_late_init(void *handle)
 		unsigned vmhub = ring->funcs->vmhub;
 
 		ring->vm_inv_eng = vm_inv_eng[vmhub]++;
-		dev_info(adev->dev, "ring %u(%s) uses VM inv eng %u on hub %u\n",
-			 ring->idx, ring->name, ring->vm_inv_eng,
-			 ring->funcs->vmhub);
+		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
+			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
 	}
 
 	/* Engine 16 is used for KFD and 17 for GART flushes */
@@ -1122,7 +1062,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	gfxhub_v1_0_set_fault_enable_default(adev, value);
 	mmhub_v1_0_set_fault_enable_default(adev, value);
-	gmc_v9_0_flush_gpu_tlb(adev, 0);
+	gmc_v9_0_flush_gpu_tlb(adev, 0, 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),

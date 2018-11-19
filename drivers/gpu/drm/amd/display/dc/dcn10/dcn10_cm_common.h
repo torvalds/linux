@@ -98,7 +98,7 @@ void cm_helper_program_xfer_func(
 
 bool cm_helper_convert_to_custom_float(
 		struct pwl_result_data *rgb_resulted,
-		struct curve_points *arr_points,
+		struct curve_points3 *corner_points,
 		uint32_t hw_points_num,
 		bool fixpoint);
 

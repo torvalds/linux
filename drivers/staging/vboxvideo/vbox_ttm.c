@@ -35,61 +35,6 @@ static inline struct vbox_private *vbox_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct vbox_private, ttm.bdev);
 }
 
-static int vbox_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void vbox_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
-/**
- * Adds the vbox memory manager object/structures to the global memory manager.
- */
-static int vbox_ttm_global_init(struct vbox_private *vbox)
-{
-	struct drm_global_reference *global_ref;
-	int ret;
-
-	global_ref = &vbox->ttm.mem_global_ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
-	global_ref->size = sizeof(struct ttm_mem_global);
-	global_ref->init = &vbox_ttm_mem_global_init;
-	global_ref->release = &vbox_ttm_mem_global_release;
-	ret = drm_global_item_ref(global_ref);
-	if (ret) {
-		DRM_ERROR("Failed setting up TTM memory subsystem.\n");
-		return ret;
-	}
-
-	vbox->ttm.bo_global_ref.mem_glob = vbox->ttm.mem_global_ref.object;
-	global_ref = &vbox->ttm.bo_global_ref.ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_init;
-	global_ref->release = &ttm_bo_global_release;
-
-	ret = drm_global_item_ref(global_ref);
-	if (ret) {
-		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		drm_global_item_unref(&vbox->ttm.mem_global_ref);
-		return ret;
-	}
-
-	return 0;
-}
-
-/**
- * Removes the vbox memory manager object from the global memory manager.
- */
-static void vbox_ttm_global_release(struct vbox_private *vbox)
-{
-	drm_global_item_unref(&vbox->ttm.bo_global_ref.ref);
-	drm_global_item_unref(&vbox->ttm.mem_global_ref);
-}
-
 static void vbox_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 {
 	struct vbox_bo *bo;
@@ -227,18 +172,13 @@ int vbox_mm_init(struct vbox_private *vbox)
 	struct drm_device *dev = &vbox->ddev;
 	struct ttm_bo_device *bdev = &vbox->ttm.bdev;
 
-	ret = vbox_ttm_global_init(vbox);
-	if (ret)
-		return ret;
-
 	ret = ttm_bo_device_init(&vbox->ttm.bdev,
-				 vbox->ttm.bo_global_ref.ref.object,
 				 &vbox_bo_driver,
 				 dev->anon_inode->i_mapping,
 				 DRM_FILE_PAGE_OFFSET, true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
-		goto err_ttm_global_release;
+		return ret;
 	}
 
 	ret = ttm_bo_init_mm(bdev, TTM_PL_VRAM,
@@ -260,8 +200,6 @@ int vbox_mm_init(struct vbox_private *vbox)
 
 err_device_release:
 	ttm_bo_device_release(&vbox->ttm.bdev);
-err_ttm_global_release:
-	vbox_ttm_global_release(vbox);
 	return ret;
 }
 
@@ -275,7 +213,6 @@ void vbox_mm_fini(struct vbox_private *vbox)
 	arch_phys_wc_del(vbox->fb_mtrr);
 #endif
 	ttm_bo_device_release(&vbox->ttm.bdev);
-	vbox_ttm_global_release(vbox);
 }
 
 void vbox_ttm_placement(struct vbox_bo *bo, int domain)

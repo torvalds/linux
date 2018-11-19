@@ -196,6 +196,19 @@ static void drm_sched_start_timeout(struct drm_gpu_scheduler *sched)
 		schedule_delayed_work(&sched->work_tdr, sched->timeout);
 }
 
+/**
+ * drm_sched_fault - immediately start timeout handler
+ *
+ * @sched: scheduler where the timeout handling should be started.
+ *
+ * Start timeout handling immediately when the driver detects a hardware fault.
+ */
+void drm_sched_fault(struct drm_gpu_scheduler *sched)
+{
+	mod_delayed_work(system_wq, &sched->work_tdr, 0);
+}
+EXPORT_SYMBOL(drm_sched_fault);
+
 /* job_finish is called after hw fence signaled
  */
 static void drm_sched_job_finish(struct work_struct *work)
@@ -220,7 +233,6 @@ static void drm_sched_job_finish(struct work_struct *work)
 	drm_sched_start_timeout(sched);
 	spin_unlock(&sched->job_list_lock);
 
-	dma_fence_put(&s_job->s_fence->finished);
 	sched->ops->free_job(s_job);
 }
 
@@ -283,6 +295,7 @@ static void drm_sched_job_timedout(struct work_struct *work)
 already_signaled:
 		;
 	}
+	drm_sched_start_timeout(sched);
 	spin_unlock(&sched->job_list_lock);
 }
 
@@ -406,6 +419,9 @@ int drm_sched_job_init(struct drm_sched_job *job,
 	struct drm_gpu_scheduler *sched;
 
 	drm_sched_entity_select_rq(entity);
+	if (!entity->rq)
+		return -ENOENT;
+
 	sched = entity->rq->sched;
 
 	job->sched = sched;
@@ -422,6 +438,18 @@ int drm_sched_job_init(struct drm_sched_job *job,
 	return 0;
 }
 EXPORT_SYMBOL(drm_sched_job_init);
+
+/**
+ * drm_sched_job_cleanup - clean up scheduler job resources
+ *
+ * @job: scheduler job to clean up
+ */
+void drm_sched_job_cleanup(struct drm_sched_job *job)
+{
+	dma_fence_put(&job->s_fence->finished);
+	job->s_fence = NULL;
+}
+EXPORT_SYMBOL(drm_sched_job_cleanup);
 
 /**
  * drm_sched_ready - is the scheduler ready
@@ -619,6 +647,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 		return PTR_ERR(sched->thread);
 	}
 
+	sched->ready = true;
 	return 0;
 }
 EXPORT_SYMBOL(drm_sched_init);
@@ -634,5 +663,7 @@ void drm_sched_fini(struct drm_gpu_scheduler *sched)
 {
 	if (sched->thread)
 		kthread_stop(sched->thread);
+
+	sched->ready = false;
 }
 EXPORT_SYMBOL(drm_sched_fini);
