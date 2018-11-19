@@ -5903,9 +5903,9 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 			goto err_out;
 		}
 
-		/* Anti gcc 2.95.3 bugware (sic) */
-		status = opts[0] | len |
-			(RingEnd * !((entry + 1) % NUM_TX_DESC));
+		status = opts[0] | len;
+		if (entry == NUM_TX_DESC - 1)
+			status |= RingEnd;
 
 		txd->opts1 = cpu_to_le32(status);
 		txd->opts2 = cpu_to_le32(opts[1]);
