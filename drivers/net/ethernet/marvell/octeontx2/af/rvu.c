@@ -1889,6 +1889,67 @@ afvf_flr:
 	return IRQ_HANDLED;
 }
 
+static void rvu_me_handle_vfset(struct rvu *rvu, int idx, u64 intr)
+{
+	int vf;
+
+	/* Nothing to be done here other than clearing the
+	 * TRPEND bit.
+	 */
+	for (vf = 0; vf < 64; vf++) {
+		if (intr & (1ULL << vf)) {
+			/* clear the trpend due to ME(master enable) */
+			rvupf_write64(rvu, RVU_PF_VFTRPENDX(idx), BIT_ULL(vf));
+			/* clear interrupt */
+			rvupf_write64(rvu, RVU_PF_VFME_INTX(idx), BIT_ULL(vf));
+		}
+	}
+}
+
+/* Handles ME interrupts from VFs of AF */
+static irqreturn_t rvu_me_vf_intr_handler(int irq, void *rvu_irq)
+{
+	struct rvu *rvu = (struct rvu *)rvu_irq;
+	int vfset;
+	u64 intr;
+
+	intr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_PFME_INT);
+
+	for (vfset = 0; vfset <= 1; vfset++) {
+		intr = rvupf_read64(rvu, RVU_PF_VFME_INTX(vfset));
+		if (intr)
+			rvu_me_handle_vfset(rvu, vfset, intr);
+	}
+
+	return IRQ_HANDLED;
+}
+
+/* Handles ME interrupts from PFs */
+static irqreturn_t rvu_me_pf_intr_handler(int irq, void *rvu_irq)
+{
+	struct rvu *rvu = (struct rvu *)rvu_irq;
+	u64 intr;
+	u8  pf;
+
+	intr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_PFME_INT);
+
+	/* Nothing to be done here other than clearing the
+	 * TRPEND bit.
+	 */
+	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
+		if (intr & (1ULL << pf)) {
+			/* clear the trpend due to ME(master enable) */
+			rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFTRPEND,
+				    BIT_ULL(pf));
+			/* clear interrupt */
+			rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFME_INT,
+				    BIT_ULL(pf));
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
 static void rvu_unregister_interrupts(struct rvu *rvu)
 {
 	int irq;
@@ -1899,6 +1960,10 @@ static void rvu_unregister_interrupts(struct rvu *rvu)
 
 	/* Disable the PF FLR interrupt */
 	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT_ENA_W1C,
+		    INTR_MASK(rvu->hw->total_pfs) & ~1ULL);
+
+	/* Disable the PF ME interrupt */
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFME_INT_ENA_W1C,
 		    INTR_MASK(rvu->hw->total_pfs) & ~1ULL);
 
 	for (irq = 0; irq < rvu->num_vec; irq++) {
@@ -1989,6 +2054,26 @@ static int rvu_register_interrupts(struct rvu *rvu)
 	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT_ENA_W1S,
 		    INTR_MASK(rvu->hw->total_pfs) & ~1ULL);
 
+	/* Register ME interrupt handler */
+	sprintf(&rvu->irq_name[RVU_AF_INT_VEC_PFME * NAME_SIZE],
+		"RVUAF ME");
+	ret = request_irq(pci_irq_vector(rvu->pdev, RVU_AF_INT_VEC_PFME),
+			  rvu_me_pf_intr_handler, 0,
+			  &rvu->irq_name[RVU_AF_INT_VEC_PFME * NAME_SIZE],
+			  rvu);
+	if (ret) {
+		dev_err(rvu->dev,
+			"RVUAF: IRQ registration failed for ME\n");
+	}
+	rvu->irq_allocated[RVU_AF_INT_VEC_PFME] = true;
+
+	/* Enable ME interrupt for all PFs*/
+	rvu_write64(rvu, BLKADDR_RVUM,
+		    RVU_AF_PFME_INT, INTR_MASK(rvu->hw->total_pfs));
+
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFME_INT_ENA_W1S,
+		    INTR_MASK(rvu->hw->total_pfs) & ~1ULL);
+
 	if (!rvu_afvf_msix_vectors_num_ok(rvu))
 		return 0;
 
@@ -2049,6 +2134,30 @@ static int rvu_register_interrupts(struct rvu *rvu)
 	}
 	rvu->irq_allocated[offset] = true;
 
+	/* Register ME interrupt handler for AF's VFs */
+	offset = pf_vec_start + RVU_PF_INT_VEC_VFME0;
+	sprintf(&rvu->irq_name[offset * NAME_SIZE], "RVUAFVF ME0");
+	ret = request_irq(pci_irq_vector(rvu->pdev, offset),
+			  rvu_me_vf_intr_handler, 0,
+			  &rvu->irq_name[offset * NAME_SIZE], rvu);
+	if (ret) {
+		dev_err(rvu->dev,
+			"RVUAF: IRQ registration failed for RVUAFVF ME0\n");
+		goto fail;
+	}
+	rvu->irq_allocated[offset] = true;
+
+	offset = pf_vec_start + RVU_PF_INT_VEC_VFME1;
+	sprintf(&rvu->irq_name[offset * NAME_SIZE], "RVUAFVF ME1");
+	ret = request_irq(pci_irq_vector(rvu->pdev, offset),
+			  rvu_me_vf_intr_handler, 0,
+			  &rvu->irq_name[offset * NAME_SIZE], rvu);
+	if (ret) {
+		dev_err(rvu->dev,
+			"RVUAF: IRQ registration failed for RVUAFVF ME1\n");
+		goto fail;
+	}
+	rvu->irq_allocated[offset] = true;
 	return 0;
 
 fail:
@@ -2108,12 +2217,14 @@ static void rvu_disable_afvf_intr(struct rvu *rvu)
 
 	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1CX(0), INTR_MASK(vfs));
 	rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1CX(0), INTR_MASK(vfs));
+	rvupf_write64(rvu, RVU_PF_VFME_INT_ENA_W1CX(0), INTR_MASK(vfs));
 	if (vfs <= 64)
 		return;
 
 	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1CX(1),
 		      INTR_MASK(vfs - 64));
 	rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1CX(1), INTR_MASK(vfs - 64));
+	rvupf_write64(rvu, RVU_PF_VFME_INT_ENA_W1CX(1), INTR_MASK(vfs - 64));
 }
 
 static void rvu_enable_afvf_intr(struct rvu *rvu)
@@ -2130,6 +2241,7 @@ static void rvu_enable_afvf_intr(struct rvu *rvu)
 	/* FLR */
 	rvupf_write64(rvu, RVU_PF_VFFLR_INTX(0), INTR_MASK(vfs));
 	rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1SX(0), INTR_MASK(vfs));
+	rvupf_write64(rvu, RVU_PF_VFME_INT_ENA_W1SX(0), INTR_MASK(vfs));
 
 	/* Same for remaining VFs, if any. */
 	if (vfs <= 64)
@@ -2141,6 +2253,7 @@ static void rvu_enable_afvf_intr(struct rvu *rvu)
 
 	rvupf_write64(rvu, RVU_PF_VFFLR_INTX(1), INTR_MASK(vfs - 64));
 	rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1SX(1), INTR_MASK(vfs - 64));
+	rvupf_write64(rvu, RVU_PF_VFME_INT_ENA_W1SX(1), INTR_MASK(vfs - 64));
 }
 
 #define PCI_DEVID_OCTEONTX2_LBK 0xA061
