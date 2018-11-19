@@ -188,11 +188,13 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
 int __nfp_abm_ctrl_set_q_lvl(struct nfp_abm *abm, unsigned int id, u32 val);
-int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int queue,
-			   u32 val);
-int nfp_abm_ctrl_read_q_stats(struct nfp_abm_link *alink, unsigned int i,
+int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int band,
+			   unsigned int queue, u32 val);
+int nfp_abm_ctrl_read_q_stats(struct nfp_abm_link *alink,
+			      unsigned int band, unsigned int queue,
 			      struct nfp_alink_stats *stats);
-int nfp_abm_ctrl_read_q_xstats(struct nfp_abm_link *alink, unsigned int i,
+int nfp_abm_ctrl_read_q_xstats(struct nfp_abm_link *alink,
+			       unsigned int band, unsigned int queue,
 			       struct nfp_alink_xstats *xstats);
 u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int i);
 u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int i);

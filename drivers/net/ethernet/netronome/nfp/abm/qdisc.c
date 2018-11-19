@@ -51,15 +51,15 @@ nfp_abm_stats_update_red(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
 	if (!qdisc->offloaded)
 		return;
 
-	err = nfp_abm_ctrl_read_q_stats(alink, queue, &qdisc->red.stats);
+	err = nfp_abm_ctrl_read_q_stats(alink, 0, queue, &qdisc->red.stats);
 	if (err)
-		nfp_err(cpp, "RED stats (%d) read failed with error %d\n",
-			queue, err);
+		nfp_err(cpp, "RED stats (%d, %d) read failed with error %d\n",
+			0, queue, err);
 
-	err = nfp_abm_ctrl_read_q_xstats(alink, queue, &qdisc->red.xstats);
+	err = nfp_abm_ctrl_read_q_xstats(alink, 0, queue, &qdisc->red.xstats);
 	if (err)
-		nfp_err(cpp, "RED xstats (%d) read failed with error %d\n",
-			queue, err);
+		nfp_err(cpp, "RED xstats (%d, %d) read failed with error %d\n",
+			0, queue, err);
 }
 
 static void
@@ -126,7 +126,7 @@ nfp_abm_qdisc_offload_stop(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc)
 }
 
 static int
-__nfp_abm_stats_init(struct nfp_abm_link *alink,
+__nfp_abm_stats_init(struct nfp_abm_link *alink, unsigned int band,
 		     unsigned int queue, struct nfp_alink_stats *prev_stats,
 		     struct nfp_alink_xstats *prev_xstats)
 {
@@ -139,19 +139,19 @@ __nfp_abm_stats_init(struct nfp_abm_link *alink,
 	backlog_pkts = prev_stats->backlog_pkts;
 	backlog_bytes = prev_stats->backlog_bytes;
 
-	err = nfp_abm_ctrl_read_q_stats(alink, queue, prev_stats);
+	err = nfp_abm_ctrl_read_q_stats(alink, band, queue, prev_stats);
 	if (err) {
 		nfp_err(alink->abm->app->cpp,
-			"RED stats init (%d) failed with error %d\n",
-			queue, err);
+			"RED stats init (%d, %d) failed with error %d\n",
+			band, queue, err);
 		return err;
 	}
 
-	err = nfp_abm_ctrl_read_q_xstats(alink, queue, prev_xstats);
+	err = nfp_abm_ctrl_read_q_xstats(alink, band, queue, prev_xstats);
 	if (err) {
 		nfp_err(alink->abm->app->cpp,
-			"RED xstats init (%d) failed with error %d\n",
-			queue, err);
+			"RED xstats init (%d, %d) failed with error %d\n",
+			band, queue, err);
 		return err;
 	}
 
@@ -164,7 +164,7 @@ static int
 nfp_abm_stats_init(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
 		   unsigned int queue)
 {
-	return __nfp_abm_stats_init(alink, queue,
+	return __nfp_abm_stats_init(alink, 0, queue,
 				    &qdisc->red.prev_stats,
 				    &qdisc->red.prev_xstats);
 }
@@ -186,7 +186,7 @@ nfp_abm_offload_compile_red(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
 	if (!qdisc->offload_mark)
 		return;
 
-	nfp_abm_ctrl_set_q_lvl(alink, queue, qdisc->red.threshold);
+	nfp_abm_ctrl_set_q_lvl(alink, 0, queue, qdisc->red.threshold);
 }
 
 static void

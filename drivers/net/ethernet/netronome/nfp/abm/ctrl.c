@@ -30,23 +30,25 @@
 
 static int
 nfp_abm_ctrl_stat(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
-		  unsigned int stride, unsigned int offset, unsigned int i,
-		  bool is_u64, u64 *res)
+		  unsigned int stride, unsigned int offset, unsigned int band,
+		  unsigned int queue, bool is_u64, u64 *res)
 {
 	struct nfp_cpp *cpp = alink->abm->app->cpp;
 	u64 val, sym_offset;
+	unsigned int qid;
 	u32 val32;
 	int err;
 
-	sym_offset = (alink->queue_base + i) * stride + offset;
+	qid = band * NFP_NET_MAX_RX_RINGS + alink->queue_base + queue;
+
+	sym_offset = qid * stride + offset;
 	if (is_u64)
 		err = __nfp_rtsym_readq(cpp, sym, 3, 0, sym_offset, &val);
 	else
 		err = __nfp_rtsym_readl(cpp, sym, 3, 0, sym_offset, &val32);
 	if (err) {
-		nfp_err(cpp,
-			"RED offload reading stat failed on vNIC %d queue %d\n",
-			alink->id, i);
+		nfp_err(cpp, "RED offload reading stat failed on vNIC %d band %d queue %d (+ %d)\n",
+			alink->id, band, queue, alink->queue_base);
 		return err;
 	}
 
@@ -77,12 +79,12 @@ int __nfp_abm_ctrl_set_q_lvl(struct nfp_abm *abm, unsigned int id, u32 val)
 	return 0;
 }
 
-int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int queue,
-			   u32 val)
+int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int band,
+			   unsigned int queue, u32 val)
 {
 	unsigned int threshold;
 
-	threshold = alink->queue_base + queue;
+	threshold = band * NFP_NET_MAX_RX_RINGS + alink->queue_base + queue;
 
 	return __nfp_abm_ctrl_set_q_lvl(alink->abm, threshold, val);
 }
@@ -92,7 +94,7 @@ u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int i)
 	u64 val;
 
 	if (nfp_abm_ctrl_stat(alink, alink->abm->qm_stats, NFP_QMSTAT_STRIDE,
-			      NFP_QMSTAT_NON_STO, i, true, &val))
+			      NFP_QMSTAT_NON_STO, 0, i, true, &val))
 		return 0;
 	return val;
 }
@@ -102,56 +104,58 @@ u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int i)
 	u64 val;
 
 	if (nfp_abm_ctrl_stat(alink, alink->abm->qm_stats, NFP_QMSTAT_STRIDE,
-			      NFP_QMSTAT_STO, i, true, &val))
+			      NFP_QMSTAT_STO, 0, i, true, &val))
 		return 0;
 	return val;
 }
 
-int nfp_abm_ctrl_read_q_stats(struct nfp_abm_link *alink, unsigned int i,
-			      struct nfp_alink_stats *stats)
+int nfp_abm_ctrl_read_q_stats(struct nfp_abm_link *alink, unsigned int band,
+			      unsigned int queue, struct nfp_alink_stats *stats)
 {
 	int err;
 
-	stats->tx_pkts = nn_readq(alink->vnic, NFP_NET_CFG_RXR_STATS(i));
-	stats->tx_bytes = nn_readq(alink->vnic, NFP_NET_CFG_RXR_STATS(i) + 8);
+	stats->tx_pkts += nn_readq(alink->vnic, NFP_NET_CFG_RXR_STATS(queue));
+	stats->tx_bytes += nn_readq(alink->vnic,
+				    NFP_NET_CFG_RXR_STATS(queue) + 8);
 
-	err = nfp_abm_ctrl_stat(alink, alink->abm->q_lvls,
-				NFP_QLVL_STRIDE, NFP_QLVL_BLOG_BYTES,
-				i, false, &stats->backlog_bytes);
+	err = nfp_abm_ctrl_stat(alink, alink->abm->q_lvls, NFP_QLVL_STRIDE,
+				NFP_QLVL_BLOG_BYTES, band, queue, false,
+				&stats->backlog_bytes);
 	if (err)
 		return err;
 
 	err = nfp_abm_ctrl_stat(alink, alink->abm->q_lvls,
 				NFP_QLVL_STRIDE, NFP_QLVL_BLOG_PKTS,
-				i, false, &stats->backlog_pkts);
+				band, queue, false, &stats->backlog_pkts);
 	if (err)
 		return err;
 
 	err = nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
 				NFP_QMSTAT_STRIDE, NFP_QMSTAT_DROP,
-				i, true, &stats->drops);
+				band, queue, true, &stats->drops);
 	if (err)
 		return err;
 
 	return nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
 				 NFP_QMSTAT_STRIDE, NFP_QMSTAT_ECN,
-				 i, true, &stats->overlimits);
+				 band, queue, true, &stats->overlimits);
 }
 
-int nfp_abm_ctrl_read_q_xstats(struct nfp_abm_link *alink, unsigned int i,
+int nfp_abm_ctrl_read_q_xstats(struct nfp_abm_link *alink,
+			       unsigned int band, unsigned int queue,
 			       struct nfp_alink_xstats *xstats)
 {
 	int err;
 
 	err = nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
 				NFP_QMSTAT_STRIDE, NFP_QMSTAT_DROP,
-				i, true, &xstats->pdrop);
+				band, queue, true, &xstats->pdrop);
 	if (err)
 		return err;
 
 	return nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
 				 NFP_QMSTAT_STRIDE, NFP_QMSTAT_ECN,
-				 i, true, &xstats->ecn_marked);
+				 band, queue, true, &xstats->ecn_marked);
 }
 
 int nfp_abm_ctrl_qm_enable(struct nfp_abm *abm)
