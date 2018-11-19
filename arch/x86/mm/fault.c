@@ -1148,20 +1148,6 @@ static int fault_in_kernel_space(unsigned long address)
 	return address >= TASK_SIZE_MAX;
 }
 
-static inline bool smap_violation(int error_code, struct pt_regs *regs)
-{
-	if (!cpu_feature_enabled(X86_FEATURE_SMAP))
-		return false;
-
-	if (error_code & X86_PF_USER)
-		return false;
-
-	if (!user_mode(regs) && (regs->flags & X86_EFLAGS_AC))
-		return false;
-
-	return true;
-}
-
 /*
  * Called for all faults where 'address' is part of the kernel address
  * space.  Might get called for faults that originate from *code* that
@@ -1249,10 +1235,13 @@ void do_user_addr_fault(struct pt_regs *regs,
 		pgtable_bad(regs, hw_error_code, address);
 
 	/*
-	 * Check for invalid kernel (supervisor) access to user
-	 * pages in the user address space.
+	 * If SMAP is on, check for invalid kernel (supervisor)
+	 * access to user pages in the user address space.
 	 */
-	if (unlikely(smap_violation(hw_error_code, regs))) {
+	if (unlikely(cpu_feature_enabled(X86_FEATURE_SMAP) &&
+		     !(hw_error_code & X86_PF_USER) &&
+		     (user_mode(regs) || !(regs->flags & X86_EFLAGS_AC))))
+	{
 		bad_area_nosemaphore(regs, hw_error_code, address);
 		return;
 	}
