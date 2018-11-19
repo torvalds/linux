@@ -459,15 +459,22 @@ static int nfp_abm_init(struct nfp_app *app)
 	for (i = 0; i < abm->num_bands * NFP_NET_MAX_RX_RINGS; i++)
 		__nfp_abm_ctrl_set_q_lvl(abm, i, NFP_ABM_LVL_INFINITY);
 
+	abm->actions = kvcalloc(abm->num_thresholds, sizeof(*abm->actions),
+				GFP_KERNEL);
+	if (!abm->actions)
+		goto err_free_thresh;
+	for (i = 0; i < abm->num_bands * NFP_NET_MAX_RX_RINGS; i++)
+		__nfp_abm_ctrl_set_q_act(abm, i, NFP_ABM_ACT_DROP);
+
 	/* We start in legacy mode, make sure advanced queuing is disabled */
 	err = nfp_abm_ctrl_qm_disable(abm);
 	if (err)
-		goto err_free_thresh;
+		goto err_free_act;
 
 	err = -ENOMEM;
 	reprs = nfp_reprs_alloc(pf->max_data_vnics);
 	if (!reprs)
-		goto err_free_thresh;
+		goto err_free_act;
 	RCU_INIT_POINTER(app->reprs[NFP_REPR_TYPE_PHYS_PORT], reprs);
 
 	reprs = nfp_reprs_alloc(pf->max_data_vnics);
@@ -479,6 +486,8 @@ static int nfp_abm_init(struct nfp_app *app)
 
 err_free_phys:
 	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PHYS_PORT);
+err_free_act:
+	kvfree(abm->actions);
 err_free_thresh:
 	kvfree(abm->thresholds);
 err_free_thresh_umap:
@@ -497,6 +506,7 @@ static void nfp_abm_clean(struct nfp_app *app)
 	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PF);
 	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PHYS_PORT);
 	bitmap_free(abm->threshold_undef);
+	kvfree(abm->actions);
 	kvfree(abm->thresholds);
 	kfree(abm);
 	app->priv = NULL;

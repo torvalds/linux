@@ -212,9 +212,15 @@ nfp_abm_offload_compile_red(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
 	if (!qdisc->offload_mark)
 		return;
 
-	for (i = 0; i < alink->abm->num_bands; i++)
+	for (i = 0; i < alink->abm->num_bands; i++) {
+		enum nfp_abm_q_action act;
+
 		nfp_abm_ctrl_set_q_lvl(alink, i, queue,
 				       qdisc->red.band[i].threshold);
+		act = qdisc->red.band[i].ecn ?
+			NFP_ABM_ACT_MARK_DROP : NFP_ABM_ACT_DROP;
+		nfp_abm_ctrl_set_q_act(alink, i, queue, act);
+	}
 }
 
 static void
@@ -535,8 +541,13 @@ nfp_abm_gred_check_params(struct nfp_abm_link *alink,
 
 		if (!band->present)
 			return false;
-		if (!band->is_ecn) {
+		if (!band->is_ecn && !nfp_abm_has_drop(abm)) {
 			nfp_warn(cpp, "GRED offload failed - drop is not supported (ECN option required) (p:%08x h:%08x vq:%d)\n",
+				 opt->parent, opt->handle, i);
+			return false;
+		}
+		if (band->is_ecn && !nfp_abm_has_mark(abm)) {
+			nfp_warn(cpp, "GRED offload failed - ECN marking not supported (p:%08x h:%08x vq:%d)\n",
 				 opt->parent, opt->handle, i);
 			return false;
 		}
@@ -577,8 +588,10 @@ nfp_abm_gred_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 	qdisc->params_ok = nfp_abm_gred_check_params(alink, opt);
 	if (qdisc->params_ok) {
 		qdisc->red.num_bands = opt->set.dp_cnt;
-		for (i = 0; i < qdisc->red.num_bands; i++)
+		for (i = 0; i < qdisc->red.num_bands; i++) {
+			qdisc->red.band[i].ecn = opt->set.tab[i].is_ecn;
 			qdisc->red.band[i].threshold = opt->set.tab[i].min;
+		}
 	}
 
 	if (qdisc->use_cnt)
@@ -649,9 +662,15 @@ nfp_abm_red_check_params(struct nfp_abm_link *alink,
 			 struct tc_red_qopt_offload *opt)
 {
 	struct nfp_cpp *cpp = alink->abm->app->cpp;
+	struct nfp_abm *abm = alink->abm;
 
-	if (!opt->set.is_ecn) {
+	if (!opt->set.is_ecn && !nfp_abm_has_drop(abm)) {
 		nfp_warn(cpp, "RED offload failed - drop is not supported (ECN option required) (p:%08x h:%08x)\n",
+			 opt->parent, opt->handle);
+		return false;
+	}
+	if (opt->set.is_ecn && !nfp_abm_has_mark(abm)) {
+		nfp_warn(cpp, "RED offload failed - ECN marking not supported (p:%08x h:%08x)\n",
 			 opt->parent, opt->handle);
 		return false;
 	}
@@ -703,6 +722,7 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 	qdisc->params_ok = nfp_abm_red_check_params(alink, opt);
 	if (qdisc->params_ok) {
 		qdisc->red.num_bands = 1;
+		qdisc->red.band[0].ecn = opt->set.is_ecn;
 		qdisc->red.band[0].threshold = opt->set.min;
 	}
 

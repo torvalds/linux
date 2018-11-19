@@ -15,12 +15,14 @@
 
 #define NFP_NUM_PRIOS_SYM_NAME	"_abi_pci_dscp_num_prio_%u"
 #define NFP_NUM_BANDS_SYM_NAME	"_abi_pci_dscp_num_band_%u"
+#define NFP_ACT_MASK_SYM_NAME	"_abi_nfd_out_q_actions_%u"
 
 #define NFP_QLVL_SYM_NAME	"_abi_nfd_out_q_lvls_%u%s"
 #define NFP_QLVL_STRIDE		16
 #define NFP_QLVL_BLOG_BYTES	0
 #define NFP_QLVL_BLOG_PKTS	4
 #define NFP_QLVL_THRS		8
+#define NFP_QLVL_ACT		12
 
 #define NFP_QMSTAT_SYM_NAME	"_abi_nfdqm%u_stats%s"
 #define NFP_QMSTAT_STRIDE	32
@@ -99,6 +101,39 @@ int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int band,
 	threshold = band * NFP_NET_MAX_RX_RINGS + alink->queue_base + queue;
 
 	return __nfp_abm_ctrl_set_q_lvl(alink->abm, threshold, val);
+}
+
+int __nfp_abm_ctrl_set_q_act(struct nfp_abm *abm, unsigned int id,
+			     enum nfp_abm_q_action act)
+{
+	struct nfp_cpp *cpp = abm->app->cpp;
+	u64 sym_offset;
+	int err;
+
+	if (abm->actions[id] == act)
+		return 0;
+
+	sym_offset = id * NFP_QLVL_STRIDE + NFP_QLVL_ACT;
+	err = __nfp_rtsym_writel(cpp, abm->q_lvls, 4, 0, sym_offset, act);
+	if (err) {
+		nfp_err(cpp,
+			"RED offload setting action failed on subqueue %d\n",
+			id);
+		return err;
+	}
+
+	abm->actions[id] = act;
+	return 0;
+}
+
+int nfp_abm_ctrl_set_q_act(struct nfp_abm_link *alink, unsigned int band,
+			   unsigned int queue, enum nfp_abm_q_action act)
+{
+	unsigned int qid;
+
+	qid = band * NFP_NET_MAX_RX_RINGS + alink->queue_base + queue;
+
+	return __nfp_abm_ctrl_set_q_act(alink->abm, qid, act);
 }
 
 u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int queue)
@@ -333,6 +368,13 @@ int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm)
 	if (res < 0)
 		return res;
 	abm->num_prios = res;
+
+	/* Read available actions */
+	res = nfp_pf_rtsym_read_optional(pf, NFP_ACT_MASK_SYM_NAME,
+					 BIT(NFP_ABM_ACT_MARK_DROP));
+	if (res < 0)
+		return res;
+	abm->action_mask = res;
 
 	abm->prio_map_len = nfp_abm_ctrl_prio_map_size(abm);
 	abm->dscp_mask = GENMASK(7, 8 - order_base_2(abm->num_prios));

@@ -24,6 +24,17 @@ struct nfp_net;
 #define NFP_ABM_PORTID_TYPE	GENMASK(23, 16)
 #define NFP_ABM_PORTID_ID	GENMASK(7, 0)
 
+/* The possible actions if thresholds are exceeded */
+enum nfp_abm_q_action {
+	/* mark if ECN capable, otherwise drop */
+	NFP_ABM_ACT_MARK_DROP		= 0,
+	/* mark if ECN capable, otherwise goto QM */
+	NFP_ABM_ACT_MARK_QUEUE		= 1,
+	NFP_ABM_ACT_DROP		= 2,
+	NFP_ABM_ACT_QUEUE		= 3,
+	NFP_ABM_ACT_NOQUEUE		= 4,
+};
+
 /**
  * struct nfp_abm - ABM NIC app structure
  * @app:	back pointer to nfp_app
@@ -31,9 +42,11 @@ struct nfp_net;
  *
  * @num_prios:	number of supported DSCP priorities
  * @num_bands:	number of supported DSCP priority bands
+ * @action_mask:	bitmask of supported actions
  *
  * @thresholds:		current threshold configuration
  * @threshold_undef:	bitmap of thresholds which have not been set
+ * @actions:		current FW action configuration
  * @num_thresholds:	number of @thresholds and bits in @threshold_undef
  *
  * @prio_map_len:	computed length of FW priority map (in bytes)
@@ -52,9 +65,11 @@ struct nfp_abm {
 
 	unsigned int num_prios;
 	unsigned int num_bands;
+	unsigned int action_mask;
 
 	u32 *thresholds;
 	unsigned long *threshold_undef;
+	u8 *actions;
 	size_t num_thresholds;
 
 	unsigned int prio_map_len;
@@ -125,6 +140,7 @@ enum nfp_qdisc_type {
  * @red:		RED Qdisc specific parameters and state
  * @red.num_bands:	Number of valid entries in the @red.band table
  * @red.band:		Per-band array of RED instances
+ * @red.band.ecn:		ECN marking is enabled (rather than drop)
  * @red.band.threshold:		ECN marking threshold
  * @red.band.stats:		current stats of the RED Qdisc
  * @red.band.prev_stats:	previously reported @red.stats
@@ -155,6 +171,7 @@ struct nfp_qdisc {
 			unsigned int num_bands;
 
 			struct {
+				bool ecn;
 				u32 threshold;
 				struct nfp_alink_stats stats;
 				struct nfp_alink_stats prev_stats;
@@ -208,6 +225,16 @@ static inline bool nfp_abm_has_prio(struct nfp_abm *abm)
 	return abm->num_bands > 1;
 }
 
+static inline bool nfp_abm_has_drop(struct nfp_abm *abm)
+{
+	return abm->action_mask & BIT(NFP_ABM_ACT_DROP);
+}
+
+static inline bool nfp_abm_has_mark(struct nfp_abm *abm)
+{
+	return abm->action_mask & BIT(NFP_ABM_ACT_MARK_DROP);
+}
+
 void nfp_abm_qdisc_offload_update(struct nfp_abm_link *alink);
 int nfp_abm_setup_root(struct net_device *netdev, struct nfp_abm_link *alink,
 		       struct tc_root_qopt_offload *opt);
@@ -225,6 +252,10 @@ int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
 int __nfp_abm_ctrl_set_q_lvl(struct nfp_abm *abm, unsigned int id, u32 val);
 int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int band,
 			   unsigned int queue, u32 val);
+int __nfp_abm_ctrl_set_q_act(struct nfp_abm *abm, unsigned int id,
+			     enum nfp_abm_q_action act);
+int nfp_abm_ctrl_set_q_act(struct nfp_abm_link *alink, unsigned int band,
+			   unsigned int queue, enum nfp_abm_q_action act);
 int nfp_abm_ctrl_read_q_stats(struct nfp_abm_link *alink,
 			      unsigned int band, unsigned int queue,
 			      struct nfp_alink_stats *stats);
