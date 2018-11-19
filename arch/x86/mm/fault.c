@@ -794,7 +794,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 	struct task_struct *tsk = current;
 
 	/* User mode accesses just cause a SIGSEGV */
-	if (error_code & X86_PF_USER) {
+	if (user_mode(regs) && (error_code & X86_PF_USER)) {
 		/*
 		 * It's possible to have interrupts off here:
 		 */
