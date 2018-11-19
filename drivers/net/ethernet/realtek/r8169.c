@@ -5389,7 +5389,7 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 
 	/* Work around for RxFIFO overflow. */
 	if (tp->mac_version == RTL_GIGA_MAC_VER_11) {
-		tp->event_slow |= RxFIFOOver | PCSTimeout;
+		tp->event_slow |= RxFIFOOver;
 		tp->event_slow &= ~RxOverflow;
 	}
 
@@ -7027,15 +7027,14 @@ static const struct rtl_cfg_info {
 	},
 	[RTL_CFG_1] = {
 		.hw_start	= rtl_hw_start_8168,
-		.event_slow	= SYSErr | LinkChg | RxOverflow,
+		.event_slow	= LinkChg | RxOverflow,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
 		.default_ver	= RTL_GIGA_MAC_VER_11,
 	},
 	[RTL_CFG_2] = {
 		.hw_start	= rtl_hw_start_8101,
-		.event_slow	= SYSErr | LinkChg | RxOverflow | RxFIFOOver |
-				  PCSTimeout,
+		.event_slow	= LinkChg | RxOverflow | RxFIFOOver,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
 		.default_ver	= RTL_GIGA_MAC_VER_13,
 	}
