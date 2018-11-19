@@ -33,6 +33,12 @@
 #define NFP_Q_STAT_PKTS		0
 #define NFP_Q_STAT_BYTES	8
 
+#define NFP_NET_ABM_MBOX_CMD		NFP_NET_CFG_MBOX_SIMPLE_CMD
+#define NFP_NET_ABM_MBOX_RET		NFP_NET_CFG_MBOX_SIMPLE_RET
+#define NFP_NET_ABM_MBOX_DATALEN	NFP_NET_CFG_MBOX_SIMPLE_VAL
+#define NFP_NET_ABM_MBOX_RESERVED	(NFP_NET_CFG_MBOX_SIMPLE_VAL + 4)
+#define NFP_NET_ABM_MBOX_DATA		(NFP_NET_CFG_MBOX_SIMPLE_VAL + 8)
+
 static int
 nfp_abm_ctrl_stat(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
 		  unsigned int stride, unsigned int offset, unsigned int band,
@@ -215,10 +221,42 @@ int nfp_abm_ctrl_qm_disable(struct nfp_abm *abm)
 			    NULL, 0, NULL, 0);
 }
 
-void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink)
+static int nfp_abm_ctrl_prio_check_params(struct nfp_abm_link *alink)
+{
+	struct nfp_abm *abm = alink->abm;
+	struct nfp_net *nn = alink->vnic;
+	unsigned int min_mbox_sz;
+
+	if (!nfp_abm_has_prio(alink->abm))
+		return 0;
+
+	min_mbox_sz = NFP_NET_ABM_MBOX_DATA + alink->abm->prio_map_len;
+	if (nn->tlv_caps.mbox_len < min_mbox_sz) {
+		nfp_err(abm->app->pf->cpp, "vNIC mailbox too small for prio offload: %u, need: %u\n",
+			nn->tlv_caps.mbox_len,  min_mbox_sz);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int nfp_abm_ctrl_read_params(struct nfp_abm_link *alink)
 {
 	alink->queue_base = nn_readl(alink->vnic, NFP_NET_CFG_START_RXQ);
 	alink->queue_base /= alink->vnic->stride_rx;
+
+	return nfp_abm_ctrl_prio_check_params(alink);
+}
+
+static unsigned int nfp_abm_ctrl_prio_map_size(struct nfp_abm *abm)
+{
+	unsigned int size;
+
+	size = roundup_pow_of_two(order_base_2(abm->num_bands));
+	size = DIV_ROUND_UP(size * abm->num_prios, BITS_PER_BYTE);
+	size = round_up(size, sizeof(u32));
+
+	return size;
 }
 
 static const struct nfp_rtsym *
@@ -272,6 +310,8 @@ int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm)
 	if (res < 0)
 		return res;
 	abm->num_prios = res;
+
+	abm->prio_map_len = nfp_abm_ctrl_prio_map_size(abm);
 
 	/* Check values are sane, U16_MAX is arbitrarily chosen as max */
 	if (!is_power_of_2(abm->num_bands) || !is_power_of_2(abm->num_prios) ||

@@ -34,9 +34,11 @@ struct nfp_net;
  * @thresholds:		current threshold configuration
  * @threshold_undef:	bitmap of thresholds which have not been set
  * @num_thresholds:	number of @thresholds and bits in @threshold_undef
+ * @prio_map_len:	computed length of FW priority map (in bytes)
  *
  * @eswitch_mode:	devlink eswitch mode, advanced functions only visible
  *			in switchdev mode
+ *
  * @q_lvls:	queue level control area
  * @qm_stats:	queue statistics symbol
  * @q_stats:	basic queue statistics (only in per-band case)
@@ -51,8 +53,10 @@ struct nfp_abm {
 	u32 *thresholds;
 	unsigned long *threshold_undef;
 	size_t num_thresholds;
+	unsigned int prio_map_len;
 
 	enum devlink_eswitch_mode eswitch_mode;
+
 	const struct nfp_rtsym *q_lvls;
 	const struct nfp_rtsym *qm_stats;
 	const struct nfp_rtsym *q_stats;
@@ -201,7 +205,7 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 int nfp_abm_setup_tc_gred(struct net_device *netdev, struct nfp_abm_link *alink,
 			  struct tc_gred_qopt_offload *opt);
 
-void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
+int nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
 int __nfp_abm_ctrl_set_q_lvl(struct nfp_abm *abm, unsigned int id, u32 val);
 int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int band,

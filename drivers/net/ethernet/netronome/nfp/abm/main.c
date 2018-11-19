@@ -315,6 +315,10 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 	alink->id = id;
 	alink->total_queues = alink->vnic->max_rx_rings;
 
+	err = nfp_abm_ctrl_read_params(alink);
+	if (err)
+		goto err_free_alink;
+
 	/* This is a multi-host app, make sure MAC/PHY is up, but don't
 	 * make the MAC/PHY state follow the state of any of the ports.
 	 */
@@ -325,7 +329,6 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 	netif_keep_dst(nn->dp.netdev);
 
 	nfp_abm_vnic_set_mac(app->pf, abm, nn, id);
-	nfp_abm_ctrl_read_params(alink);
 	INIT_RADIX_TREE(&alink->qdiscs, GFP_KERNEL);
 
 	return 0;
