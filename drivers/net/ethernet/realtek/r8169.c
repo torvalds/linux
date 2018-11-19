@@ -7291,9 +7291,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	tp->mmio_addr = pcim_iomap_table(pdev)[region];
 
-	if (!pci_is_pcie(pdev))
-		dev_info(&pdev->dev, "not PCI Express\n");
-
 	/* Identify chip attached to board */
 	rtl8169_get_mac_version(tp, cfg->default_ver);
 
