@@ -1220,9 +1220,6 @@ static struct drm_driver kms_driver = {
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,
 };
 
-static struct drm_driver *driver;
-static struct pci_driver *pdriver;
-
 static struct pci_driver amdgpu_kms_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
@@ -1252,16 +1249,14 @@ static int __init amdgpu_init(void)
 		goto error_fence;
 
 	DRM_INFO("amdgpu kernel modesetting enabled.\n");
-	driver = &kms_driver;
-	pdriver = &amdgpu_kms_pci_driver;
-	driver->num_ioctls = amdgpu_max_kms_ioctl;
+	kms_driver.num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
 
 	/* Ignore KFD init failures. Normal when CONFIG_HSA_AMD is not set. */
 	amdgpu_amdkfd_init();
 
 	/* let modprobe override vga console setting */
-	return pci_register_driver(pdriver);
+	return pci_register_driver(&amdgpu_kms_pci_driver);
 
 error_fence:
 	amdgpu_sync_fini();
@@ -1273,7 +1268,7 @@ error_sync:
 static void __exit amdgpu_exit(void)
 {
 	amdgpu_amdkfd_fini();
-	pci_unregister_driver(pdriver);
+	pci_unregister_driver(&amdgpu_kms_pci_driver);
 	amdgpu_unregister_atpx_handler();
 	amdgpu_sync_fini();
 	amdgpu_fence_slab_fini();
