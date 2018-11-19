@@ -68,6 +68,7 @@ export VXPORT
 	ping_ipv4
 	test_flood
 	test_unicast
+	test_ttl
 	reapply_config
 	ping_ipv4
 	test_flood
@@ -472,6 +473,38 @@ test_unicast()
 	for target in "${targets[@]}"; do
 		vxlan_fdb_add_del del $target
 	done
+}
+
+vxlan_ping_test()
+{
+	local ping_dev=$1; shift
+	local ping_dip=$1; shift
+	local ping_args=$1; shift
+	local capture_dev=$1; shift
+	local capture_dir=$1; shift
+	local capture_pref=$1; shift
+	local expect=$1; shift
+
+	local t0=$(tc_rule_stats_get $capture_dev $capture_pref $capture_dir)
+	ping_do $ping_dev $ping_dip "$ping_args"
+	local t1=$(tc_rule_stats_get $capture_dev $capture_pref $capture_dir)
+	local delta=$((t1 - t0))
+
+	# Tolerate a couple stray extra packets.
+	((expect <= delta && delta <= expect + 2))
+	check_err $? "$capture_dev: Expected to capture $expect packets, got $delta."
+}
+
+test_ttl()
+{
+	RET=0
+
+	tc filter add dev v1 egress pref 77 prot ip \
+		flower ip_ttl 99 action pass
+	vxlan_ping_test $h1 192.0.2.3 "" v1 egress 77 10
+	tc filter del dev v1 egress pref 77 prot ip
+
+	log_test "VXLAN: envelope TTL"
 }
 
 test_all()
