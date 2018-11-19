@@ -2299,7 +2299,7 @@
 
 			sdmmc0_clk: sdmmc0-clk {
 				rockchip,pins =
-					<4 RK_PA1 1 &pcfg_pull_none>;
+					<4 RK_PA1 1 &pcfg_pull_none_4ma>;
 			};
 
 			sdmmc0_detn: sdmmc0-detn {
@@ -2328,7 +2328,7 @@
 
 			sdmmc1_clk: sdmmc1-clk {
 				rockchip,pins =
-					<4 RK_PA7 1 &pcfg_pull_none>;
+					<4 RK_PA7 1 &pcfg_pull_none_4ma>;
 			};
 		};
 
