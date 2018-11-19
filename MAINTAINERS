@@ -717,7 +717,7 @@ F:	include/linux/mfd/altera-a10sr.h
 F:	include/dt-bindings/reset/altr,rst-mgr-a10sr.h
 
 ALTERA TRIPLE SPEED ETHERNET DRIVER
-M:	Vince Bridgers <vbridger@opensource.altera.com>
+M:	Thor Thayer <thor.thayer@linux.intel.com>
 L:	netdev@vger.kernel.org
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained
@@ -3275,6 +3275,12 @@ F:	drivers/net/caif/
 F:	include/uapi/linux/caif/
 F:	include/net/caif/
 F:	net/caif/
+
+CAKE QDISC
+M:	Toke Høiland-Jørgensen <toke@toke.dk>
+L:	cake@lists.bufferbloat.net (moderated for non-subscribers)
+S:	Maintained
+F:	net/sched/sch_cake.c
 
 CALGARY x86-64 IOMMU
 M:	Muli Ben-Yehuda <mulix@mulix.org>

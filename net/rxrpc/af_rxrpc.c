@@ -375,15 +375,34 @@ EXPORT_SYMBOL(rxrpc_kernel_end_call);
  * getting ACKs from the server.  Returns a number representing the life state
  * which can be compared to that returned by a previous call.
  *
- * If this is a client call, ping ACKs will be sent to the server to find out
- * whether it's still responsive and whether the call is still alive on the
- * server.
+ * If the life state stalls, rxrpc_kernel_probe_life() should be called and
+ * then 2RTT waited.
  */
-u32 rxrpc_kernel_check_life(struct socket *sock, struct rxrpc_call *call)
+u32 rxrpc_kernel_check_life(const struct socket *sock,
+			    const struct rxrpc_call *call)
 {
 	return call->acks_latest;
 }
 EXPORT_SYMBOL(rxrpc_kernel_check_life);
+
+/**
+ * rxrpc_kernel_probe_life - Poke the peer to see if it's still alive
+ * @sock: The socket the call is on
+ * @call: The call to check
+ *
+ * In conjunction with rxrpc_kernel_check_life(), allow a kernel service to
+ * find out whether a call is still alive by pinging it.  This should cause the
+ * life state to be bumped in about 2*RTT.
+ *
+ * The must be called in TASK_RUNNING state on pain of might_sleep() objecting.
+ */
+void rxrpc_kernel_probe_life(struct socket *sock, struct rxrpc_call *call)
+{
+	rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+			  rxrpc_propose_ack_ping_for_check_life);
+	rxrpc_send_ack_packet(call, true, NULL);
+}
+EXPORT_SYMBOL(rxrpc_kernel_probe_life);
 
 /**
  * rxrpc_kernel_get_epoch - Retrieve the epoch value from a call.

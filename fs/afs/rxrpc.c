@@ -576,6 +576,7 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 {
 	signed long rtt2, timeout;
 	long ret;
+	bool stalled = false;
 	u64 rtt;
 	u32 life, last_life;
 
@@ -609,12 +610,20 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 
 		life = rxrpc_kernel_check_life(call->net->socket, call->rxcall);
 		if (timeout == 0 &&
-		    life == last_life && signal_pending(current))
+		    life == last_life && signal_pending(current)) {
+			if (stalled)
 				break;
+			__set_current_state(TASK_RUNNING);
+			rxrpc_kernel_probe_life(call->net->socket, call->rxcall);
+			timeout = rtt2;
+			stalled = true;
+			continue;
+		}
 
 		if (life != last_life) {
 			timeout = rtt2;
 			last_life = life;
+			stalled = false;
 		}
 
 		timeout = schedule_timeout(timeout);
