@@ -27,6 +27,9 @@ struct nfp_net;
  * @app:	back pointer to nfp_app
  * @pf_id:	ID of our PF link
  *
+ * @num_prios:	number of supported DSCP priorities
+ * @num_bands:	number of supported DSCP priority bands
+ *
  * @thresholds:		current threshold configuration
  * @threshold_undef:	bitmap of thresholds which have not been set
  * @num_thresholds:	number of @thresholds and bits in @threshold_undef
@@ -39,6 +42,9 @@ struct nfp_net;
 struct nfp_abm {
 	struct nfp_app *app;
 	unsigned int pf_id;
+
+	unsigned int num_prios;
+	unsigned int num_bands;
 
 	u32 *thresholds;
 	unsigned long *threshold_undef;
@@ -165,6 +171,11 @@ struct nfp_abm_link {
 	struct nfp_qdisc *root_qdisc;
 	struct radix_tree_root qdiscs;
 };
+
+static inline bool nfp_abm_has_prio(struct nfp_abm *abm)
+{
+	return abm->num_bands > 1;
+}
 
 void nfp_abm_qdisc_offload_update(struct nfp_abm_link *alink);
 int nfp_abm_setup_root(struct net_device *netdev, struct nfp_abm_link *alink,

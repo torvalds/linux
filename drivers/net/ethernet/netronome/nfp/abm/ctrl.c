@@ -2,6 +2,7 @@
 /* Copyright (C) 2018 Netronome Systems, Inc. */
 
 #include <linux/kernel.h>
+#include <linux/log2.h>
 
 #include "../nfpcore/nfp_cpp.h"
 #include "../nfpcore/nfp_nffw.h"
@@ -11,13 +12,16 @@
 #include "../nfp_net.h"
 #include "main.h"
 
-#define NFP_QLVL_SYM_NAME	"_abi_nfd_out_q_lvls_%u"
+#define NFP_NUM_PRIOS_SYM_NAME	"_abi_pci_dscp_num_prio_%u"
+#define NFP_NUM_BANDS_SYM_NAME	"_abi_pci_dscp_num_band_%u"
+
+#define NFP_QLVL_SYM_NAME	"_abi_nfd_out_q_lvls_%u%s"
 #define NFP_QLVL_STRIDE		16
 #define NFP_QLVL_BLOG_BYTES	0
 #define NFP_QLVL_BLOG_PKTS	4
 #define NFP_QLVL_THRS		8
 
-#define NFP_QMSTAT_SYM_NAME	"_abi_nfdqm%u_stats"
+#define NFP_QMSTAT_SYM_NAME	"_abi_nfdqm%u_stats%s"
 #define NFP_QMSTAT_STRIDE	32
 #define NFP_QMSTAT_NON_STO	0
 #define NFP_QMSTAT_STO		8
@@ -189,30 +193,56 @@ nfp_abm_ctrl_find_rtsym(struct nfp_pf *pf, const char *name, unsigned int size)
 }
 
 static const struct nfp_rtsym *
-nfp_abm_ctrl_find_q_rtsym(struct nfp_pf *pf, const char *name,
-			  unsigned int size)
+nfp_abm_ctrl_find_q_rtsym(struct nfp_abm *abm, const char *name_fmt,
+			  size_t size)
 {
-	return nfp_abm_ctrl_find_rtsym(pf, name, size * NFP_NET_MAX_RX_RINGS);
+	char pf_symbol[64];
+
+	size = array3_size(size, abm->num_bands, NFP_NET_MAX_RX_RINGS);
+	snprintf(pf_symbol, sizeof(pf_symbol), name_fmt,
+		 abm->pf_id, nfp_abm_has_prio(abm) ? "_per_band" : "");
+
+	return nfp_abm_ctrl_find_rtsym(abm->app->pf, pf_symbol, size);
 }
 
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm)
 {
 	struct nfp_pf *pf = abm->app->pf;
 	const struct nfp_rtsym *sym;
-	unsigned int pf_id;
-	char pf_symbol[64];
+	int res;
 
-	pf_id =	nfp_cppcore_pcie_unit(pf->cpp);
-	abm->pf_id = pf_id;
+	abm->pf_id = nfp_cppcore_pcie_unit(pf->cpp);
 
-	snprintf(pf_symbol, sizeof(pf_symbol), NFP_QLVL_SYM_NAME, pf_id);
-	sym = nfp_abm_ctrl_find_q_rtsym(pf, pf_symbol, NFP_QLVL_STRIDE);
+	/* Read count of prios and prio bands */
+	res = nfp_pf_rtsym_read_optional(pf, NFP_NUM_BANDS_SYM_NAME, 1);
+	if (res < 0)
+		return res;
+	abm->num_bands = res;
+
+	res = nfp_pf_rtsym_read_optional(pf, NFP_NUM_PRIOS_SYM_NAME, 1);
+	if (res < 0)
+		return res;
+	abm->num_prios = res;
+
+	/* Check values are sane, U16_MAX is arbitrarily chosen as max */
+	if (!is_power_of_2(abm->num_bands) || !is_power_of_2(abm->num_prios) ||
+	    abm->num_bands > U16_MAX || abm->num_prios > U16_MAX ||
+	    (abm->num_bands == 1) != (abm->num_prios == 1)) {
+		nfp_err(pf->cpp,
+			"invalid priomap description num bands: %u and num prios: %u\n",
+			abm->num_bands, abm->num_prios);
+		return -EINVAL;
+	}
+
+	/* Find level and stat symbols */
+	sym = nfp_abm_ctrl_find_q_rtsym(abm, NFP_QLVL_SYM_NAME,
+					NFP_QLVL_STRIDE);
 	if (IS_ERR(sym))
 		return PTR_ERR(sym);
 	abm->q_lvls = sym;
 
-	snprintf(pf_symbol, sizeof(pf_symbol), NFP_QMSTAT_SYM_NAME, pf_id);
-	sym = nfp_abm_ctrl_find_q_rtsym(pf, pf_symbol, NFP_QMSTAT_STRIDE);
+	sym = nfp_abm_ctrl_find_q_rtsym(abm, NFP_QMSTAT_SYM_NAME,
+					NFP_QMSTAT_STRIDE);
 	if (IS_ERR(sym))
 		return PTR_ERR(sym);
 	abm->qm_stats = sym;
