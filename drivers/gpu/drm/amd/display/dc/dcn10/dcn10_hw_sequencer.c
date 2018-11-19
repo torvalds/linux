@@ -2252,13 +2252,11 @@ static void program_all_pipe_in_tree(
 
 	}
 
-	if (pipe_ctx->plane_state != NULL) {
+	if (pipe_ctx->plane_state != NULL)
 		dcn10_program_pipe(dc, pipe_ctx, context);
-	}
 
-	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx) {
+	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx)
 		program_all_pipe_in_tree(dc, pipe_ctx->bottom_pipe, context);
-	}
 }
 
 struct pipe_ctx *find_top_pipe_for_stream(
