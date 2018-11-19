@@ -1344,13 +1344,10 @@ void do_user_addr_fault(struct pt_regs *regs,
 	 * Only do the expensive exception table search when we might be at
 	 * risk of a deadlock.  This happens if we
 	 * 1. Failed to acquire mmap_sem, and
-	 * 2. The access did not originate in userspace.  Note: either the
-	 *    hardware or earlier page fault code may set X86_PF_USER
-	 *    in sw_error_code.
+	 * 2. The access did not originate in userspace.
 	 */
 	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
-		if (!(sw_error_code & X86_PF_USER) &&
-		    !search_exception_tables(regs->ip)) {
+		if (!user_mode(regs) && !search_exception_tables(regs->ip)) {
 			/*
 			 * Fault from code in kernel from
 			 * which we do not expect faults.
