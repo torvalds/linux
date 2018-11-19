@@ -165,6 +165,10 @@ static int btf_parse_type_sec(struct btf *btf, btf_print_fn_t err_log)
 		case BTF_KIND_ENUM:
 			next_type += vlen * sizeof(struct btf_enum);
 			break;
+		case BTF_KIND_FUNC_PROTO:
+			next_type += vlen * sizeof(struct btf_param);
+			break;
+		case BTF_KIND_FUNC:
 		case BTF_KIND_TYPEDEF:
 		case BTF_KIND_PTR:
 		case BTF_KIND_FWD:
