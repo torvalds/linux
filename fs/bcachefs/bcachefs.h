@@ -394,6 +394,7 @@ struct bch_dev {
 	 */
 	struct bucket_array __rcu *buckets;
 	unsigned long		*buckets_dirty;
+	unsigned long		*buckets_written;
 	/* most out of date gen in the btree */
 	u8			*oldest_gens;
 	struct rw_semaphore	bucket_lock;

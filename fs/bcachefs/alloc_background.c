@@ -237,6 +237,7 @@ static int __bch2_alloc_write_key(struct bch_fs *c, struct bch_dev *ca,
 	__BKEY_PADDED(k, DIV_ROUND_UP(sizeof(struct bch_alloc), 8)) alloc_key;
 	struct bucket *g;
 	struct bkey_i_alloc *a;
+	int ret;
 	u8 *d;
 
 	percpu_down_read(&c->usage_lock);
@@ -260,32 +261,50 @@ static int __bch2_alloc_write_key(struct bch_fs *c, struct bch_dev *ca,
 
 	bch2_btree_iter_set_pos(iter, a->k.p);
 
-	return bch2_btree_insert_at(c, NULL, journal_seq,
-				    BTREE_INSERT_NOFAIL|
-				    BTREE_INSERT_USE_RESERVE|
-				    BTREE_INSERT_USE_ALLOC_RESERVE|
-				    flags,
-				    BTREE_INSERT_ENTRY(iter, &a->k_i));
+	ret = bch2_btree_insert_at(c, NULL, journal_seq,
+				   BTREE_INSERT_NOFAIL|
+				   BTREE_INSERT_USE_RESERVE|
+				   BTREE_INSERT_USE_ALLOC_RESERVE|
+				   flags,
+				   BTREE_INSERT_ENTRY(iter, &a->k_i));
+
+	if (!ret && ca->buckets_written)
+		set_bit(b, ca->buckets_written);
+
+	return ret;
 }
 
-int bch2_alloc_replay_key(struct bch_fs *c, struct bpos pos)
+int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
 {
 	struct bch_dev *ca;
 	struct btree_iter iter;
 	int ret;
 
-	if (pos.inode >= c->sb.nr_devices || !c->devs[pos.inode])
+	if (k->k.p.inode >= c->sb.nr_devices ||
+	    !c->devs[k->k.p.inode])
 		return 0;
 
-	ca = bch_dev_bkey_exists(c, pos.inode);
+	ca = bch_dev_bkey_exists(c, k->k.p.inode);
 
-	if (pos.offset >= ca->mi.nbuckets)
+	if (k->k.p.offset >= ca->mi.nbuckets)
 		return 0;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_ALLOC, POS_MIN,
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	bch2_btree_iter_init(&iter, c, BTREE_ID_ALLOC, k->k.p,
+			     BTREE_ITER_INTENT);
 
-	ret = __bch2_alloc_write_key(c, ca, pos.offset, &iter, NULL, 0);
+	ret = bch2_btree_iter_traverse(&iter);
+	if (ret)
+		goto err;
+
+	/* check buckets_written with btree node locked: */
+
+	ret = test_bit(k->k.p.offset, ca->buckets_written)
+		? 0
+		: bch2_btree_insert_at(c, NULL, NULL,
+				       BTREE_INSERT_NOFAIL|
+				       BTREE_INSERT_JOURNAL_REPLAY,
+				       BTREE_INSERT_ENTRY(&iter, k));
+err:
 	bch2_btree_iter_unlock(&iter);
 	return ret;
 }
@@ -1284,51 +1303,49 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 
 	/* Scan for buckets that are already invalidated: */
 	for_each_rw_member(ca, c, dev_iter) {
-		struct btree_iter iter;
+		struct bucket_array *buckets;
 		struct bucket_mark m;
-		struct bkey_s_c k;
 
-		for_each_btree_key(&iter, c, BTREE_ID_ALLOC, POS(ca->dev_idx, 0), 0, k) {
-			if (k.k->type != BCH_ALLOC)
+		down_read(&ca->bucket_lock);
+		percpu_down_read(&c->usage_lock);
+
+		buckets = bucket_array(ca);
+
+		for (bu = buckets->first_bucket;
+		     bu < buckets->nbuckets; bu++) {
+			m = READ_ONCE(buckets->b[bu].mark);
+
+			if (!m.gen_valid ||
+			    !is_available_bucket(m) ||
+			    m.cached_sectors)
 				continue;
 
-			bu = k.k->p.offset;
-			m = READ_ONCE(bucket(ca, bu)->mark);
-
-			if (!is_available_bucket(m) || m.cached_sectors)
-				continue;
-
-			percpu_down_read(&c->usage_lock);
 			bch2_mark_alloc_bucket(c, ca, bu, true,
 					gc_pos_alloc(c, NULL),
 					BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
 					BCH_BUCKET_MARK_GC_LOCK_HELD);
-			percpu_up_read(&c->usage_lock);
 
 			fifo_push(&ca->free_inc, bu);
 
-			if (fifo_full(&ca->free_inc))
+			discard_invalidated_buckets(c, ca);
+
+			if (fifo_full(&ca->free[RESERVE_BTREE]))
 				break;
 		}
-		bch2_btree_iter_unlock(&iter);
+		percpu_up_read(&c->usage_lock);
+		up_read(&ca->bucket_lock);
 	}
 
 	/* did we find enough buckets? */
 	for_each_rw_member(ca, c, dev_iter)
-		if (fifo_used(&ca->free_inc) < ca->free[RESERVE_BTREE].size) {
+		if (!fifo_full(&ca->free[RESERVE_BTREE])) {
 			percpu_ref_put(&ca->io_ref);
 			goto not_enough;
 		}
 
 	return 0;
 not_enough:
-	pr_debug("did not find enough empty buckets; issuing discards");
-
-	/* clear out free_inc, we'll be using it again below: */
-	for_each_rw_member(ca, c, dev_iter)
-		discard_invalidated_buckets(c, ca);
-
-	pr_debug("scanning for reclaimable buckets");
+	pr_debug("not enough empty buckets; scanning for reclaimable buckets");
 
 	for_each_rw_member(ca, c, dev_iter) {
 		find_reclaimable_buckets(c, ca);

@@ -780,7 +780,6 @@ int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
 	int ret = 0;
 
 	list_for_each_entry_safe(i, n, list, list) {
-
 		j->replay_journal_seq = le64_to_cpu(i->j.seq);
 
 		for_each_jset_key(k, _n, entry, &i->j) {
@@ -790,7 +789,7 @@ int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
 				 * allocation code handles replay for
 				 * BTREE_ID_ALLOC keys:
 				 */
-				ret = bch2_alloc_replay_key(c, k->k.p);
+				ret = bch2_alloc_replay_key(c, k);
 			} else {
 				/*
 				 * We might cause compressed extents to be
@@ -801,9 +800,9 @@ int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
 					bch2_disk_reservation_init(c, 0);
 
 				ret = bch2_btree_insert(c, entry->btree_id, k,
-							&disk_res, NULL,
-							BTREE_INSERT_NOFAIL|
-							BTREE_INSERT_JOURNAL_REPLAY);
+						&disk_res, NULL,
+						BTREE_INSERT_NOFAIL|
+						BTREE_INSERT_JOURNAL_REPLAY);
 			}
 
 			if (ret) {
