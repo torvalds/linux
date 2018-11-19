@@ -783,6 +783,17 @@ multipath_eval()
 	log_info "Expected ratio $weights_ratio Measured ratio $packets_ratio"
 }
 
+in_ns()
+{
+	local name=$1; shift
+
+	ip netns exec $name bash <<-EOF
+		NUM_NETIFS=0
+		source lib.sh
+		$(for a in "$@"; do printf "%q${IFS:0:1}" "$a"; done)
+	EOF
+}
+
 ##############################################################################
 # Tests
 
