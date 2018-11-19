@@ -414,7 +414,7 @@ static int ov7251_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ov7251->mutex);
 
 	mode = ov7251_find_best_fit(fmt);
-	fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	fmt->format.code = MEDIA_BUS_FMT_Y10_1X10;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -459,7 +459,7 @@ static int ov7251_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+		fmt->format.code = MEDIA_BUS_FMT_Y10_1X10;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&ov7251->mutex);
@@ -473,7 +473,7 @@ static int ov7251_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	if (code->index != 0)
 		return -EINVAL;
-	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	code->code = MEDIA_BUS_FMT_Y10_1X10;
 
 	return 0;
 }
@@ -485,7 +485,7 @@ static int ov7251_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+	if (fse->code != MEDIA_BUS_FMT_Y10_1X10)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -660,7 +660,7 @@ static int ov7251_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	try_fmt->code = MEDIA_BUS_FMT_Y10_1X10;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&ov7251->mutex);
