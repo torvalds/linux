@@ -30,6 +30,7 @@
 #define DRV_NAME "rockchip-i2s-tdm"
 
 #define DEFAULT_MCLK_FS				256
+#define CH_GRP_MAX				4  /* The max channel 8 / 2 */
 
 struct rk_i2s_soc_data {
 	u32 softrst_offset;
@@ -70,6 +71,8 @@ struct rk_i2s_tdm_dev {
 	unsigned int mclk_tx_freq;
 	unsigned int bclk_fs;
 	unsigned int clk_trcm;
+	unsigned int i2s_sdis[CH_GRP_MAX];
+	unsigned int i2s_sdos[CH_GRP_MAX];
 	atomic_t refcount;
 	spinlock_t lock; /* xfer lock */
 };
@@ -1105,6 +1108,149 @@ static int rockchip_i2s_tdm_dai_prepare(struct platform_device *pdev,
 	return 0;
 }
 
+static int rockchip_i2s_tdm_path_check(struct rk_i2s_tdm_dev *i2s_tdm,
+				       int num,
+				       bool is_rx_path)
+{
+	unsigned int *i2s_data;
+	int i, j, ret = 0;
+
+	if (is_rx_path)
+		i2s_data = i2s_tdm->i2s_sdis;
+	else
+		i2s_data = i2s_tdm->i2s_sdos;
+
+	for (i = 0; i < num; i++) {
+		if (i2s_data[i] > CH_GRP_MAX - 1) {
+			dev_err(i2s_tdm->dev,
+				"%s path i2s_data[%d]: %d is overflow, max is: %d\n",
+				is_rx_path ? "RX" : "TX",
+				i, i2s_data[i], CH_GRP_MAX);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		for (j = 0; j < num; j++) {
+			if (i == j)
+				continue;
+
+			if (i2s_data[i] == i2s_data[j]) {
+				dev_err(i2s_tdm->dev,
+					"%s path invalid routed i2s_data: [%d]%d == [%d]%d\n",
+					is_rx_path ? "RX" : "TX",
+					i, i2s_data[i],
+					j, i2s_data[j]);
+				ret = -EINVAL;
+				goto err;
+			}
+		}
+	}
+
+err:
+	return ret;
+}
+
+static void rockchip_i2s_tdm_tx_path_config(struct rk_i2s_tdm_dev *i2s_tdm,
+					    int num)
+{
+	int idx;
+
+	for (idx = 0; idx < num; idx++) {
+		regmap_update_bits(i2s_tdm->regmap, I2S_TXCR,
+				   I2S_TXCR_PATH_MASK(idx),
+				   I2S_TXCR_PATH(idx, i2s_tdm->i2s_sdos[idx]));
+	}
+}
+
+static void rockchip_i2s_tdm_rx_path_config(struct rk_i2s_tdm_dev *i2s_tdm,
+					    int num)
+{
+	int idx;
+
+	for (idx = 0; idx < num; idx++) {
+		regmap_update_bits(i2s_tdm->regmap, I2S_RXCR,
+				   I2S_RXCR_PATH_MASK(idx),
+				   I2S_RXCR_PATH(idx, i2s_tdm->i2s_sdis[idx]));
+	}
+}
+
+static void rockchip_i2s_tdm_path_config(struct rk_i2s_tdm_dev *i2s_tdm,
+					 int num, bool is_rx_path)
+{
+	if (is_rx_path)
+		rockchip_i2s_tdm_rx_path_config(i2s_tdm, num);
+	else
+		rockchip_i2s_tdm_tx_path_config(i2s_tdm, num);
+}
+
+static int rockchip_i2s_tdm_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
+					 struct device_node *np,
+					 bool is_rx_path)
+{
+	char *i2s_tx_path_prop = "rockchip,i2s-tx-route";
+	char *i2s_rx_path_prop = "rockchip,i2s-rx-route";
+	char *i2s_path_prop;
+	unsigned int *i2s_data;
+	int num, ret = 0;
+
+	if (is_rx_path) {
+		i2s_path_prop = i2s_rx_path_prop;
+		i2s_data = i2s_tdm->i2s_sdis;
+	} else {
+		i2s_path_prop = i2s_tx_path_prop;
+		i2s_data = i2s_tdm->i2s_sdos;
+	}
+
+	num = of_count_phandle_with_args(np, i2s_path_prop, NULL);
+	if (num < 0) {
+		if (num != -ENOENT) {
+			dev_err(i2s_tdm->dev,
+				"Failed to read '%s' num: %d\n",
+				i2s_path_prop, num);
+			ret = num;
+		}
+		goto out;
+	} else if (num != CH_GRP_MAX) {
+		dev_err(i2s_tdm->dev,
+			"The num: %d should be: %d\n", num, CH_GRP_MAX);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = of_property_read_u32_array(np, i2s_path_prop,
+					 i2s_data, num);
+	if (ret < 0) {
+		dev_err(i2s_tdm->dev,
+			"Failed to read '%s': %d\n",
+			i2s_path_prop, ret);
+		goto out;
+	}
+
+	ret = rockchip_i2s_tdm_path_check(i2s_tdm, num, is_rx_path);
+	if (ret < 0) {
+		dev_err(i2s_tdm->dev,
+			"Failed to check i2s data bus: %d\n", ret);
+		goto out;
+	}
+
+	rockchip_i2s_tdm_path_config(i2s_tdm, num, is_rx_path);
+
+out:
+	return ret;
+}
+
+static int rockchip_i2s_tdm_tx_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
+					    struct device_node *np)
+{
+	return rockchip_i2s_tdm_path_prepare(i2s_tdm, np, 0);
+}
+
+static int rockchip_i2s_tdm_rx_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
+					    struct device_node *np)
+{
+	return rockchip_i2s_tdm_path_prepare(i2s_tdm, np, 1);
+}
+
 static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -1228,6 +1374,18 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	i2s_tdm->capture_dma_data.addr = res->start + I2S_RXDR;
 	i2s_tdm->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	i2s_tdm->capture_dma_data.maxburst = 8;
+
+	ret = rockchip_i2s_tdm_tx_path_prepare(i2s_tdm, node);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "I2S TX path prepare failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = rockchip_i2s_tdm_rx_path_prepare(i2s_tdm, node);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "I2S RX path prepare failed: %d\n", ret);
+		return ret;
+	}
 
 	atomic_set(&i2s_tdm->refcount, 0);
 	dev_set_drvdata(&pdev->dev, i2s_tdm);

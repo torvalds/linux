@@ -18,6 +18,9 @@
  * TXCR
  * transmit operation control register
  */
+#define I2S_TXCR_PATH_SHIFT(x)	(23 + (x) * 2)
+#define I2S_TXCR_PATH_MASK(x)	(0x3 << I2S_TXCR_PATH_SHIFT(x))
+#define I2S_TXCR_PATH(x, v)	((v) << I2S_TXCR_PATH_SHIFT(x))
 #define I2S_TXCR_RCNT_SHIFT	17
 #define I2S_TXCR_RCNT_MASK	(0x3f << I2S_TXCR_RCNT_SHIFT)
 #define I2S_TXCR_CSR_SHIFT	15
@@ -52,6 +55,9 @@
  * RXCR
  * receive operation control register
  */
+#define I2S_RXCR_PATH_SHIFT(x)	(17 + (x) * 2)
+#define I2S_RXCR_PATH_MASK(x)	(0x3 << I2S_RXCR_PATH_SHIFT(x))
+#define I2S_RXCR_PATH(x, v)	((v) << I2S_RXCR_PATH_SHIFT(x))
 #define I2S_RXCR_CSR_SHIFT	15
 #define I2S_RXCR_CSR(x)		(x << I2S_RXCR_CSR_SHIFT)
 #define I2S_RXCR_CSR_MASK	(3 << I2S_RXCR_CSR_SHIFT)
