@@ -44,6 +44,8 @@ nfp_abm_setup_tc(struct nfp_app *app, struct net_device *netdev,
 		return nfp_abm_setup_tc_mq(netdev, repr->app_priv, type_data);
 	case TC_SETUP_QDISC_RED:
 		return nfp_abm_setup_tc_red(netdev, repr->app_priv, type_data);
+	case TC_SETUP_QDISC_GRED:
+		return nfp_abm_setup_tc_gred(netdev, repr->app_priv, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

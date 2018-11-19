@@ -15,7 +15,7 @@
 
 static bool nfp_abm_qdisc_is_red(struct nfp_qdisc *qdisc)
 {
-	return qdisc->type == NFP_QDISC_RED;
+	return qdisc->type == NFP_QDISC_RED || qdisc->type == NFP_QDISC_GRED;
 }
 
 static bool nfp_abm_qdisc_child_valid(struct nfp_qdisc *qdisc, unsigned int id)
@@ -191,12 +191,17 @@ static void
 nfp_abm_offload_compile_red(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
 			    unsigned int queue)
 {
+	bool good_red, good_gred;
 	unsigned int i;
 
-	qdisc->offload_mark = qdisc->type == NFP_QDISC_RED &&
-			      qdisc->params_ok &&
-			      qdisc->use_cnt == 1 &&
-			      !qdisc->children[0];
+	good_red = qdisc->type == NFP_QDISC_RED &&
+		   qdisc->params_ok &&
+		   qdisc->use_cnt == 1 &&
+		   !qdisc->children[0];
+	good_gred = qdisc->type == NFP_QDISC_GRED &&
+		    qdisc->params_ok &&
+		    qdisc->use_cnt == 1;
+	qdisc->offload_mark = good_red || good_gred;
 
 	/* If we are starting offload init prev_stats */
 	if (qdisc->offload_mark && !qdisc->offloaded)
@@ -336,9 +341,11 @@ nfp_abm_qdisc_alloc(struct net_device *netdev, struct nfp_abm_link *alink,
 	if (!qdisc)
 		return NULL;
 
-	qdisc->children = kcalloc(children, sizeof(void *), GFP_KERNEL);
-	if (!qdisc->children)
-		goto err_free_qdisc;
+	if (children) {
+		qdisc->children = kcalloc(children, sizeof(void *), GFP_KERNEL);
+		if (!qdisc->children)
+			goto err_free_qdisc;
+	}
 
 	qdisc->netdev = netdev;
 	qdisc->type = type;
@@ -462,6 +469,137 @@ nfp_abm_stats_red_calculate(struct nfp_alink_xstats *new,
 {
 	stats->forced_mark += new->ecn_marked - old->ecn_marked;
 	stats->pdrop += new->pdrop - old->pdrop;
+}
+
+static int
+nfp_abm_gred_stats(struct nfp_abm_link *alink, u32 handle,
+		   struct tc_gred_qopt_offload_stats *stats)
+{
+	struct nfp_qdisc *qdisc;
+	unsigned int i;
+
+	nfp_abm_stats_update(alink);
+
+	qdisc = nfp_abm_qdisc_find(alink, handle);
+	if (!qdisc)
+		return -EOPNOTSUPP;
+	/* If the qdisc offload has stopped we may need to adjust the backlog
+	 * counters back so carry on even if qdisc is not currently offloaded.
+	 */
+
+	for (i = 0; i < qdisc->red.num_bands; i++) {
+		if (!stats->xstats[i])
+			continue;
+
+		nfp_abm_stats_calculate(&qdisc->red.band[i].stats,
+					&qdisc->red.band[i].prev_stats,
+					&stats->bstats[i], &stats->qstats[i]);
+		qdisc->red.band[i].prev_stats = qdisc->red.band[i].stats;
+
+		nfp_abm_stats_red_calculate(&qdisc->red.band[i].xstats,
+					    &qdisc->red.band[i].prev_xstats,
+					    stats->xstats[i]);
+		qdisc->red.band[i].prev_xstats = qdisc->red.band[i].xstats;
+	}
+
+	return qdisc->offloaded ? 0 : -EOPNOTSUPP;
+}
+
+static bool
+nfp_abm_gred_check_params(struct nfp_abm_link *alink,
+			  struct tc_gred_qopt_offload *opt)
+{
+	struct nfp_cpp *cpp = alink->abm->app->cpp;
+	struct nfp_abm *abm = alink->abm;
+	unsigned int i;
+
+	if (opt->set.grio_on || opt->set.wred_on) {
+		nfp_warn(cpp, "GRED offload failed - GRIO and WRED not supported (p:%08x h:%08x)\n",
+			 opt->parent, opt->handle);
+		return false;
+	}
+	if (opt->set.dp_def != alink->def_band) {
+		nfp_warn(cpp, "GRED offload failed - default band must be %d (p:%08x h:%08x)\n",
+			 alink->def_band, opt->parent, opt->handle);
+		return false;
+	}
+	if (opt->set.dp_cnt != abm->num_bands) {
+		nfp_warn(cpp, "GRED offload failed - band count must be %d (p:%08x h:%08x)\n",
+			 abm->num_bands, opt->parent, opt->handle);
+		return false;
+	}
+
+	for (i = 0; i < abm->num_bands; i++) {
+		struct tc_gred_vq_qopt_offload_params *band = &opt->set.tab[i];
+
+		if (!band->present)
+			return false;
+		if (!band->is_ecn) {
+			nfp_warn(cpp, "GRED offload failed - drop is not supported (ECN option required) (p:%08x h:%08x vq:%d)\n",
+				 opt->parent, opt->handle, i);
+			return false;
+		}
+		if (band->is_harddrop) {
+			nfp_warn(cpp, "GRED offload failed - harddrop is not supported (p:%08x h:%08x vq:%d)\n",
+				 opt->parent, opt->handle, i);
+			return false;
+		}
+		if (band->min != band->max) {
+			nfp_warn(cpp, "GRED offload failed - threshold mismatch (p:%08x h:%08x vq:%d)\n",
+				 opt->parent, opt->handle, i);
+			return false;
+		}
+		if (band->min > S32_MAX) {
+			nfp_warn(cpp, "GRED offload failed - threshold too large %d > %d (p:%08x h:%08x vq:%d)\n",
+				 band->min, S32_MAX, opt->parent, opt->handle,
+				 i);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static int
+nfp_abm_gred_replace(struct net_device *netdev, struct nfp_abm_link *alink,
+		     struct tc_gred_qopt_offload *opt)
+{
+	struct nfp_qdisc *qdisc;
+	unsigned int i;
+	int ret;
+
+	ret = nfp_abm_qdisc_replace(netdev, alink, NFP_QDISC_GRED, opt->parent,
+				    opt->handle, 0, &qdisc);
+	if (ret < 0)
+		return ret;
+
+	qdisc->params_ok = nfp_abm_gred_check_params(alink, opt);
+	if (qdisc->params_ok) {
+		qdisc->red.num_bands = opt->set.dp_cnt;
+		for (i = 0; i < qdisc->red.num_bands; i++)
+			qdisc->red.band[i].threshold = opt->set.tab[i].min;
+	}
+
+	if (qdisc->use_cnt)
+		nfp_abm_qdisc_offload_update(alink);
+
+	return 0;
+}
+
+int nfp_abm_setup_tc_gred(struct net_device *netdev, struct nfp_abm_link *alink,
+			  struct tc_gred_qopt_offload *opt)
+{
+	switch (opt->command) {
+	case TC_GRED_REPLACE:
+		return nfp_abm_gred_replace(netdev, alink, opt);
+	case TC_GRED_DESTROY:
+		nfp_abm_qdisc_destroy(netdev, alink, opt->handle);
+		return 0;
+	case TC_GRED_STATS:
+		return nfp_abm_gred_stats(alink, opt->handle, &opt->stats);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int

@@ -8,6 +8,7 @@
 #include <linux/radix-tree.h>
 #include <net/devlink.h>
 #include <net/pkt_cls.h>
+#include <net/pkt_sched.h>
 
 /* Dump of 64 PRIOs and 256 REDs seems to take 850us on Xeon v4 @ 2.20GHz;
  * 2.5ms / 400Hz seems more than sufficient for stats resolution.
@@ -89,6 +90,7 @@ enum nfp_qdisc_type {
 	NFP_QDISC_NONE = 0,
 	NFP_QDISC_MQ,
 	NFP_QDISC_RED,
+	NFP_QDISC_GRED,
 };
 
 #define NFP_QDISC_UNTRACKED	((struct nfp_qdisc *)1UL)
@@ -139,7 +141,7 @@ struct nfp_qdisc {
 			struct nfp_alink_stats stats;
 			struct nfp_alink_stats prev_stats;
 		} mq;
-		/* TC_SETUP_QDISC_RED */
+		/* TC_SETUP_QDISC_RED, TC_SETUP_QDISC_GRED */
 		struct {
 			unsigned int num_bands;
 
@@ -149,7 +151,7 @@ struct nfp_qdisc {
 				struct nfp_alink_stats prev_stats;
 				struct nfp_alink_xstats xstats;
 				struct nfp_alink_xstats prev_xstats;
-			} band[1];
+			} band[MAX_DPs];
 		} red;
 	};
 };
@@ -164,6 +166,8 @@ struct nfp_qdisc {
  *
  * @last_stats_update:	ktime of last stats update
  *
+ * @def_band:		default band to use
+ *
  * @root_qdisc:	pointer to the current root of the Qdisc hierarchy
  * @qdiscs:	all qdiscs recorded by major part of the handle
  */
@@ -175,6 +179,8 @@ struct nfp_abm_link {
 	unsigned int total_queues;
 
 	u64 last_stats_update;
+
+	u8 def_band;
 
 	struct nfp_qdisc *root_qdisc;
 	struct radix_tree_root qdiscs;
@@ -192,6 +198,8 @@ int nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,
 			 struct tc_red_qopt_offload *opt);
 int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 			struct tc_mq_qopt_offload *opt);
+int nfp_abm_setup_tc_gred(struct net_device *netdev, struct nfp_abm_link *alink,
+			  struct tc_gred_qopt_offload *opt);
 
 void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
