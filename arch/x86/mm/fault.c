@@ -1235,12 +1235,15 @@ void do_user_addr_fault(struct pt_regs *regs,
 		pgtable_bad(regs, hw_error_code, address);
 
 	/*
-	 * If SMAP is on, check for invalid kernel (supervisor)
-	 * access to user pages in the user address space.
+	 * If SMAP is on, check for invalid kernel (supervisor) access to user
+	 * pages in the user address space.  The odd case here is WRUSS,
+	 * which, according to the preliminary documentation, does not respect
+	 * SMAP and will have the USER bit set so, in all cases, SMAP
+	 * enforcement appears to be consistent with the USER bit.
 	 */
 	if (unlikely(cpu_feature_enabled(X86_FEATURE_SMAP) &&
 		     !(hw_error_code & X86_PF_USER) &&
-		     (user_mode(regs) || !(regs->flags & X86_EFLAGS_AC))))
+		     !(regs->flags & X86_EFLAGS_AC)))
 	{
 		bad_area_nosemaphore(regs, hw_error_code, address);
 		return;
