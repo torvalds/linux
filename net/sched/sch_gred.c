@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 #include <net/red.h>
 
@@ -311,6 +312,48 @@ static void gred_reset(struct Qdisc *sch)
 	}
 }
 
+static void gred_offload(struct Qdisc *sch, enum tc_gred_command command)
+{
+	struct gred_sched *table = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
+	struct tc_gred_qopt_offload opt = {
+		.command	= command,
+		.handle		= sch->handle,
+		.parent		= sch->parent,
+	};
+
+	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		return;
+
+	if (command == TC_GRED_REPLACE) {
+		unsigned int i;
+
+		opt.set.grio_on = gred_rio_mode(table);
+		opt.set.wred_on = gred_wred_mode(table);
+		opt.set.dp_cnt = table->DPs;
+		opt.set.dp_def = table->def;
+
+		for (i = 0; i < table->DPs; i++) {
+			struct gred_sched_data *q = table->tab[i];
+
+			if (!q)
+				continue;
+			opt.set.tab[i].present = true;
+			opt.set.tab[i].limit = q->limit;
+			opt.set.tab[i].prio = q->prio;
+			opt.set.tab[i].min = q->parms.qth_min >> q->parms.Wlog;
+			opt.set.tab[i].max = q->parms.qth_max >> q->parms.Wlog;
+			opt.set.tab[i].is_ecn = gred_use_ecn(q);
+			opt.set.tab[i].is_harddrop = gred_use_harddrop(q);
+			opt.set.tab[i].probability = q->parms.max_P;
+			opt.set.tab[i].backlog = &q->backlog;
+		}
+		opt.set.qstats = &sch->qstats;
+	}
+
+	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_GRED, &opt);
+}
+
 static inline void gred_destroy_vq(struct gred_sched_data *q)
 {
 	kfree(q);
@@ -385,6 +428,7 @@ static int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps,
 		}
 	}
 
+	gred_offload(sch, TC_GRED_REPLACE);
 	return 0;
 }
 
@@ -630,6 +674,8 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 
 	sch_tree_unlock(sch);
 	kfree(prealloc);
+
+	gred_offload(sch, TC_GRED_REPLACE);
 	return 0;
 
 err_unlock_free:
@@ -815,6 +861,7 @@ static void gred_destroy(struct Qdisc *sch)
 		if (table->tab[i])
 			gred_destroy_vq(table->tab[i]);
 	}
+	gred_offload(sch, TC_GRED_DESTROY);
 }
 
 static struct Qdisc_ops gred_qdisc_ops __read_mostly = {

@@ -868,6 +868,42 @@ struct tc_red_qopt_offload {
 	};
 };
 
+enum tc_gred_command {
+	TC_GRED_REPLACE,
+	TC_GRED_DESTROY,
+};
+
+struct tc_gred_vq_qopt_offload_params {
+	bool present;
+	u32 limit;
+	u32 prio;
+	u32 min;
+	u32 max;
+	bool is_ecn;
+	bool is_harddrop;
+	u32 probability;
+	/* Only need backlog, see struct tc_prio_qopt_offload_params */
+	u32 *backlog;
+};
+
+struct tc_gred_qopt_offload_params {
+	bool grio_on;
+	bool wred_on;
+	unsigned int dp_cnt;
+	unsigned int dp_def;
+	struct gnet_stats_queue *qstats;
+	struct tc_gred_vq_qopt_offload_params tab[MAX_DPs];
+};
+
+struct tc_gred_qopt_offload {
+	enum tc_gred_command command;
+	u32 handle;
+	u32 parent;
+	union {
+		struct tc_gred_qopt_offload_params set;
+	};
+};
+
 enum tc_prio_command {
 	TC_PRIO_REPLACE,
 	TC_PRIO_DESTROY,
