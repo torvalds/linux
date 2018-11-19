@@ -722,6 +722,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		host->ops.card_busy = renesas_sdhi_card_busy;
 		host->ops.start_signal_voltage_switch =
 			renesas_sdhi_start_signal_voltage_switch;
+		host->sdcard_irq_setbit_mask = TMIO_STAT_ALWAYS_SET_27;
 	}
 
 	/* Orginally registers were 16 bit apart, could be 32 or 64 nowadays */

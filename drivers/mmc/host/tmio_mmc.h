@@ -70,6 +70,7 @@
 #define TMIO_STAT_DAT0		BIT(23)	/* only known on R-Car so far */
 #define TMIO_STAT_RXRDY         BIT(24)
 #define TMIO_STAT_TXRQ          BIT(25)
+#define TMIO_STAT_ALWAYS_SET_27	BIT(27) /* only known on R-Car 2+ so far */
 #define TMIO_STAT_ILL_FUNC      BIT(29) /* only when !TMIO_MMC_HAS_IDLE_WAIT */
 #define TMIO_STAT_SCLKDIVEN     BIT(29) /* only when TMIO_MMC_HAS_IDLE_WAIT */
 #define TMIO_STAT_CMD_BUSY      BIT(30)
@@ -154,6 +155,7 @@ struct tmio_mmc_host {
 	u32			sdcard_irq_mask;
 	u32			sdio_irq_mask;
 	unsigned int		clk_cache;
+	u32			sdcard_irq_setbit_mask;
 
 	spinlock_t		lock;		/* protect host private data */
 	unsigned long		last_req_ts;
@@ -268,6 +270,9 @@ static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
 static inline void sd_ctrl_write32_as_16_and_16(struct tmio_mmc_host *host,
 						int addr, u32 val)
 {
+	if (addr == CTL_IRQ_MASK || addr == CTL_STATUS)
+		val |= host->sdcard_irq_setbit_mask;
+
 	iowrite16(val & 0xffff, host->ctl + (addr << host->bus_shift));
 	iowrite16(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
 }
