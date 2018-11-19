@@ -103,8 +103,8 @@ EXPORT_SYMBOL(drm_mode_legacy_fb_format);
  *
  * Computes a drm fourcc pixel format code for the given @bpp/@depth values.
  * Unlike drm_mode_legacy_fb_format() this looks at the drivers mode_config,
- * and depending on the quirk_addfb_prefer_host_byte_order flag it returns
- * little endian byte order or host byte order framebuffer formats.
+ * and depending on the &drm_mode_config.quirk_addfb_prefer_host_byte_order flag
+ * it returns little endian byte order or host byte order framebuffer formats.
  */
 uint32_t drm_driver_legacy_fb_format(struct drm_device *dev,
 				     uint32_t bpp, uint32_t depth)
@@ -225,6 +225,18 @@ const struct drm_format_info *__drm_format_info(u32 format)
 		{ .format = DRM_FORMAT_UYVY,		.depth = 0,  .num_planes = 1, .cpp = { 2, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
 		{ .format = DRM_FORMAT_VYUY,		.depth = 0,  .num_planes = 1, .cpp = { 2, 0, 0 }, .hsub = 2, .vsub = 1, .is_yuv = true },
 		{ .format = DRM_FORMAT_AYUV,		.depth = 0,  .num_planes = 1, .cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y0L0,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_X0L0,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .is_yuv = true },
+		{ .format = DRM_FORMAT_Y0L2,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .has_alpha = true, .is_yuv = true },
+		{ .format = DRM_FORMAT_X0L2,		.depth = 0,  .num_planes = 1,
+		  .char_per_block = { 8, 0, 0 }, .block_w = { 2, 0, 0 }, .block_h = { 2, 0, 0 },
+		  .hsub = 2, .vsub = 2, .is_yuv = true },
 	};
 
 	unsigned int i;
@@ -400,3 +412,65 @@ int drm_format_plane_height(int height, uint32_t format, int plane)
 	return height / info->vsub;
 }
 EXPORT_SYMBOL(drm_format_plane_height);
+
+/**
+ * drm_format_info_block_width - width in pixels of block.
+ * @info: pixel format info
+ * @plane: plane index
+ *
+ * Returns:
+ * The width in pixels of a block, depending on the plane index.
+ */
+unsigned int drm_format_info_block_width(const struct drm_format_info *info,
+					 int plane)
+{
+	if (!info || plane < 0 || plane >= info->num_planes)
+		return 0;
+
+	if (!info->block_w[plane])
+		return 1;
+	return info->block_w[plane];
+}
+EXPORT_SYMBOL(drm_format_info_block_width);
+
+/**
+ * drm_format_info_block_height - height in pixels of a block
+ * @info: pixel format info
+ * @plane: plane index
+ *
+ * Returns:
+ * The height in pixels of a block, depending on the plane index.
+ */
+unsigned int drm_format_info_block_height(const struct drm_format_info *info,
+					  int plane)
+{
+	if (!info || plane < 0 || plane >= info->num_planes)
+		return 0;
+
+	if (!info->block_h[plane])
+		return 1;
+	return info->block_h[plane];
+}
+EXPORT_SYMBOL(drm_format_info_block_height);
+
+/**
+ * drm_format_info_min_pitch - computes the minimum required pitch in bytes
+ * @info: pixel format info
+ * @plane: plane index
+ * @buffer_width: buffer width in pixels
+ *
+ * Returns:
+ * The minimum required pitch in bytes for a buffer by taking into consideration
+ * the pixel format information and the buffer width.
+ */
+uint64_t drm_format_info_min_pitch(const struct drm_format_info *info,
+				   int plane, unsigned int buffer_width)
+{
+	if (!info || plane < 0 || plane >= info->num_planes)
+		return 0;
+
+	return DIV_ROUND_UP_ULL((u64)buffer_width * info->char_per_block[plane],
+			    drm_format_info_block_width(info, plane) *
+			    drm_format_info_block_height(info, plane));
+}
+EXPORT_SYMBOL(drm_format_info_min_pitch);

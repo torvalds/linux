@@ -265,7 +265,6 @@ struct __drm_private_objs_state {
  * struct drm_atomic_state - the global state object for atomic updates
  * @ref: count of all references to this state (will not be freed until zero)
  * @dev: parent DRM device
- * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
  * @async_update: hint for asynchronous plane update
  * @planes: pointer to array of structures with per-plane data
@@ -284,6 +283,15 @@ struct drm_atomic_state {
 	struct kref ref;
 
 	struct drm_device *dev;
+
+	/**
+	 * @allow_modeset:
+	 *
+	 * Allow full modeset. This is used by the ATOMIC IOCTL handler to
+	 * implement the DRM_MODE_ATOMIC_ALLOW_MODESET flag. Drivers should
+	 * never consult this flag, instead looking at the output of
+	 * drm_atomic_crtc_needs_modeset().
+	 */
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
 	bool async_update : 1;

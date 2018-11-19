@@ -174,7 +174,7 @@ static int qxl_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	default:
-		DRM_ERROR("Unsupported memory type %u\n", (unsigned)type);
+		DRM_ERROR("Unsupported memory type %u\n", (unsigned int)type);
 		return -EINVAL;
 	}
 	return 0;
@@ -331,7 +331,6 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 	if (ret)
 		return ret;
 
-
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		qxl_move_null(bo, new_mem);
 		return 0;
@@ -401,11 +400,11 @@ int qxl_ttm_init(struct qxl_device *qdev)
 		return r;
 	}
 	DRM_INFO("qxl: %uM of VRAM memory size\n",
-		 (unsigned)qdev->vram_size / (1024 * 1024));
+		 (unsigned int)qdev->vram_size / (1024 * 1024));
 	DRM_INFO("qxl: %luM of IO pages memory ready (VRAM domain)\n",
-		 ((unsigned)num_io_pages * PAGE_SIZE) / (1024 * 1024));
+		 ((unsigned int)num_io_pages * PAGE_SIZE) / (1024 * 1024));
 	DRM_INFO("qxl: %uM of Surface memory size\n",
-		 (unsigned)qdev->surfaceram_size / (1024 * 1024));
+		 (unsigned int)qdev->surfaceram_size / (1024 * 1024));
 	return 0;
 }
 
@@ -417,7 +416,6 @@ void qxl_ttm_fini(struct qxl_device *qdev)
 	qxl_ttm_global_fini(qdev);
 	DRM_INFO("qxl: ttm finalized\n");
 }
-
 
 #define QXL_DEBUGFS_MEM_TYPES 2
 
@@ -443,7 +441,7 @@ int qxl_ttm_debugfs_init(struct qxl_device *qdev)
 #if defined(CONFIG_DEBUG_FS)
 	static struct drm_info_list qxl_mem_types_list[QXL_DEBUGFS_MEM_TYPES];
 	static char qxl_mem_types_names[QXL_DEBUGFS_MEM_TYPES][32];
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < QXL_DEBUGFS_MEM_TYPES; i++) {
 		if (i == 0)

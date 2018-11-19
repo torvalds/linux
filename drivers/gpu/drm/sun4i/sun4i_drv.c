@@ -34,7 +34,6 @@ static struct drm_driver sun4i_drv_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_ATOMIC,
 
 	/* Generic Operations */
-	.lastclose		= drm_fb_helper_lastclose,
 	.fops			= &sun4i_drv_fops,
 	.name			= "sun4i-drm",
 	.desc			= "Allwinner sun4i Display Engine",
@@ -105,12 +104,7 @@ static int sun4i_drv_bind(struct device *dev)
 	/* Remove early framebuffers (ie. simplefb) */
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "sun4i-drm-fb", false);
 
-	/* Create our framebuffer */
-	ret = sun4i_framebuffer_init(drm);
-	if (ret) {
-		dev_err(drm->dev, "Couldn't create our framebuffer\n");
-		goto cleanup_mode_config;
-	}
+	sun4i_framebuffer_init(drm);
 
 	/* Enable connectors polling */
 	drm_kms_helper_poll_init(drm);
@@ -119,11 +113,12 @@ static int sun4i_drv_bind(struct device *dev)
 	if (ret)
 		goto finish_poll;
 
+	drm_fbdev_generic_setup(drm, 32);
+
 	return 0;
 
 finish_poll:
 	drm_kms_helper_poll_fini(drm);
-	sun4i_framebuffer_free(drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
 	of_reserved_mem_device_release(dev);
@@ -138,7 +133,6 @@ static void sun4i_drv_unbind(struct device *dev)
 
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);
-	sun4i_framebuffer_free(drm);
 	drm_mode_config_cleanup(drm);
 	of_reserved_mem_device_release(dev);
 	drm_dev_put(drm);

@@ -773,7 +773,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 
 	ring = container_of(vm->entity.rq->sched, struct amdgpu_ring, sched);
 
-	r = reservation_object_reserve_shared(bo->tbo.resv);
+	r = reservation_object_reserve_shared(bo->tbo.resv, 1);
 	if (r)
 		return r;
 
@@ -1842,7 +1842,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv);
+	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv, 1);
 	if (r)
 		goto error_free;
 

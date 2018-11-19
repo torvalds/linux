@@ -7,3 +7,7 @@
  * Tests are executed in order by igt/drm_selftests_helper
  */
 selftest(check_plane_state, igt_check_plane_state)
+selftest(check_drm_format_block_width, igt_check_drm_format_block_width)
+selftest(check_drm_format_block_height, igt_check_drm_format_block_height)
+selftest(check_drm_format_min_pitch, igt_check_drm_format_min_pitch)
+selftest(check_drm_framebuffer_create, igt_check_drm_framebuffer_create)

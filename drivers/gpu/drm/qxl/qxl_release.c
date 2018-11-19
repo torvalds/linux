@@ -234,7 +234,7 @@ static int qxl_release_validate_bo(struct qxl_bo *bo)
 			return ret;
 	}
 
-	ret = reservation_object_reserve_shared(bo->tbo.resv);
+	ret = reservation_object_reserve_shared(bo->tbo.resv, 1);
 	if (ret)
 		return ret;
 
@@ -281,7 +281,6 @@ void qxl_release_backoff_reserve_list(struct qxl_release *release)
 
 	ttm_eu_backoff_reservation(&release->ticket, &release->bos);
 }
-
 
 int qxl_alloc_surface_release_reserved(struct qxl_device *qdev,
 				       enum qxl_surface_cmd_type surface_cmd_type,

@@ -35,6 +35,7 @@ static inline int qxl_bo_reserve(struct qxl_bo *bo, bool no_wait)
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
 			struct drm_device *ddev = bo->gem_base.dev;
+
 			dev_err(ddev->dev, "%p reserve failed\n", bo);
 		}
 		return r;
@@ -71,6 +72,7 @@ static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
 			struct drm_device *ddev = bo->gem_base.dev;
+
 			dev_err(ddev->dev, "%p reserve failed for wait\n",
 				bo);
 		}

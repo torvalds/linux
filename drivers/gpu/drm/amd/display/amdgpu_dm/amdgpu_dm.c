@@ -3185,7 +3185,6 @@ amdgpu_dm_connector_helper_funcs = {
 	 */
 	.get_modes = get_modes,
 	.mode_valid = amdgpu_dm_connector_mode_valid,
-	.best_encoder = drm_atomic_helper_best_encoder
 };
 
 static void dm_crtc_helper_disable(struct drm_crtc *crtc)
@@ -3588,14 +3587,17 @@ static int to_drm_connector_type(enum signal_type st)
 	}
 }
 
+static struct drm_encoder *amdgpu_dm_connector_to_encoder(struct drm_connector *connector)
+{
+	return drm_encoder_find(connector->dev, NULL, connector->encoder_ids[0]);
+}
+
 static void amdgpu_dm_get_native_mode(struct drm_connector *connector)
 {
-	const struct drm_connector_helper_funcs *helper =
-		connector->helper_private;
 	struct drm_encoder *encoder;
 	struct amdgpu_encoder *amdgpu_encoder;
 
-	encoder = helper->best_encoder(connector);
+	encoder = amdgpu_dm_connector_to_encoder(connector);
 
 	if (encoder == NULL)
 		return;
@@ -3722,14 +3724,12 @@ static void amdgpu_dm_connector_ddc_get_modes(struct drm_connector *connector,
 
 static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 {
-	const struct drm_connector_helper_funcs *helper =
-			connector->helper_private;
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 			to_amdgpu_dm_connector(connector);
 	struct drm_encoder *encoder;
 	struct edid *edid = amdgpu_dm_connector->edid;
 
-	encoder = helper->best_encoder(connector);
+	encoder = amdgpu_dm_connector_to_encoder(connector);
 
 	if (!edid || !drm_edid_is_valid(edid)) {
 		amdgpu_dm_connector->num_modes =

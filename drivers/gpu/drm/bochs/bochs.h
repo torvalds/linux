@@ -66,6 +66,7 @@ struct bochs_device {
 	u16 yres_virtual;
 	u32 stride;
 	u32 bpp;
+	struct edid *edid;
 
 	/* drm */
 	struct drm_device  *dev;
@@ -126,6 +127,7 @@ void bochs_hw_setmode(struct bochs_device *bochs,
 		      const struct drm_format_info *format);
 void bochs_hw_setbase(struct bochs_device *bochs,
 		      int x, int y, u64 addr);
+int bochs_hw_load_edid(struct bochs_device *bochs);
 
 /* bochs_mm.c */
 int bochs_mm_init(struct bochs_device *bochs);

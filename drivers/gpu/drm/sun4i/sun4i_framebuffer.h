@@ -13,7 +13,6 @@
 #ifndef _SUN4I_FRAMEBUFFER_H_
 #define _SUN4I_FRAMEBUFFER_H_
 
-int sun4i_framebuffer_init(struct drm_device *drm);
-void sun4i_framebuffer_free(struct drm_device *drm);
+void sun4i_framebuffer_init(struct drm_device *drm);
 
 #endif /* _SUN4I_FRAMEBUFFER_H_ */

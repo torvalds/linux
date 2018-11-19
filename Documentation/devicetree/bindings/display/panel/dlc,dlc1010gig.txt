@@ -1,0 +1,12 @@
+DLC Display Co. DLC1010GIG 10.1" WXGA TFT LCD Panel
+
+Required properties:
+- compatible: should be "dlc,dlc1010gig"
+- power-supply: See simple-panel.txt
+
+Optional properties:
+- enable-gpios: See simple-panel.txt
+- backlight: See simple-panel.txt
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

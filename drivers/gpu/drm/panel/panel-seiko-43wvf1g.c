@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 NXP Semiconductors.
  * Author: Marco Franchi <marco.franchi@nxp.com>
  *
  * Based on Panel Simple driver by Thierry Reding <treding@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
  */
 
 #include <linux/backlight.h>
@@ -366,6 +363,6 @@ static struct platform_driver seiko_panel_platform_driver = {
 };
 module_platform_driver(seiko_panel_platform_driver);
 
-MODULE_AUTHOR("Marco Franchi <marco.franchi@nxp.com");
+MODULE_AUTHOR("Marco Franchi <marco.franchi@nxp.com>");
 MODULE_DESCRIPTION("Seiko 43WVF1G panel driver");
 MODULE_LICENSE("GPL v2");

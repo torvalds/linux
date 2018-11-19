@@ -25,7 +25,7 @@
 
 static int alloc_clips(struct qxl_device *qdev,
 		       struct qxl_release *release,
-		       unsigned num_clips,
+		       unsigned int num_clips,
 		       struct qxl_bo **clips_bo)
 {
 	int size = sizeof(struct qxl_clip_rects) + sizeof(struct qxl_rect) * num_clips;
@@ -37,7 +37,7 @@ static int alloc_clips(struct qxl_device *qdev,
  * the qxl_clip_rects. This is *not* the same as the memory allocated
  * on the device, it is offset to qxl_clip_rects.chunk.data */
 static struct qxl_rect *drawable_set_clipping(struct qxl_device *qdev,
-					      unsigned num_clips,
+					      unsigned int num_clips,
 					      struct qxl_bo *clips_bo)
 {
 	struct qxl_clip_rects *dev_clips;
@@ -168,6 +168,7 @@ void qxl_draw_opaque_fb(const struct qxl_fb_image *qxl_fb_image,
 	int ret;
 	struct qxl_drm_image *dimage;
 	struct qxl_bo *palette_bo = NULL;
+
 	if (stride == 0)
 		stride = depth * width / 8;
 
@@ -214,6 +215,7 @@ void qxl_draw_opaque_fb(const struct qxl_fb_image *qxl_fb_image,
 
 	if (depth == 1) {
 		void *ptr;
+
 		ret = qxl_palette_create_1bit(palette_bo, release, qxl_fb_image);
 
 		ptr = qxl_bo_kmap_atomic_page(qdev, dimage->bo, 0);
@@ -264,9 +266,9 @@ out_free_drawable:
 void qxl_draw_dirty_fb(struct qxl_device *qdev,
 		       struct drm_framebuffer *fb,
 		       struct qxl_bo *bo,
-		       unsigned flags, unsigned color,
+		       unsigned int flags, unsigned int color,
 		       struct drm_clip_rect *clips,
-		       unsigned num_clips, int inc)
+		       unsigned int num_clips, int inc)
 {
 	/*
 	 * TODO: if flags & DRM_MODE_FB_DIRTY_ANNOTATE_FILL then we should
@@ -339,7 +341,6 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	ret = qxl_bo_kmap(bo, (void **)&surface_base);
 	if (ret)
 		goto out_release_backoff;
-
 
 	ret = qxl_image_init(qdev, release, dimage, surface_base,
 			     left, top, width, height, depth, stride);

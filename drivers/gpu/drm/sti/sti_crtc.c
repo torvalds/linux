@@ -40,6 +40,8 @@ static void sti_crtc_atomic_disable(struct drm_crtc *crtc,
 	DRM_DEBUG_DRIVER("\n");
 
 	mixer->status = STI_MIXER_DISABLING;
+
+	drm_crtc_wait_one_vblank(crtc);
 }
 
 static int

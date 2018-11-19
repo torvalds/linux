@@ -955,7 +955,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv);
+	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv, 1);
 	if (r)
 		return r;
 
@@ -1104,7 +1104,7 @@ static int amdgpu_syncobj_lookup_and_add_to_sync(struct amdgpu_cs_parser *p,
 {
 	int r;
 	struct dma_fence *fence;
-	r = drm_syncobj_find_fence(p->filp, handle, 0, &fence);
+	r = drm_syncobj_find_fence(p->filp, handle, 0, 0, &fence);
 	if (r)
 		return r;
 

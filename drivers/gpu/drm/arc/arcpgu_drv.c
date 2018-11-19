@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_atomic_helper.h>
@@ -25,16 +26,8 @@
 #include "arcpgu.h"
 #include "arcpgu_regs.h"
 
-static void arcpgu_fb_output_poll_changed(struct drm_device *dev)
-{
-	struct arcpgu_drm_private *arcpgu = dev->dev_private;
-
-	drm_fbdev_cma_hotplug_event(arcpgu->fbdev);
-}
-
 static const struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
 	.fb_create  = drm_gem_fb_create,
-	.output_poll_changed = arcpgu_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -50,13 +43,6 @@ static void arcpgu_setup_mode_config(struct drm_device *drm)
 }
 
 DEFINE_DRM_GEM_CMA_FOPS(arcpgu_drm_ops);
-
-static void arcpgu_lastclose(struct drm_device *drm)
-{
-	struct arcpgu_drm_private *arcpgu = drm->dev_private;
-
-	drm_fbdev_cma_restore_mode(arcpgu->fbdev);
-}
 
 static int arcpgu_load(struct drm_device *drm)
 {
@@ -113,27 +99,14 @@ static int arcpgu_load(struct drm_device *drm)
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
 
-	arcpgu->fbdev = drm_fbdev_cma_init(drm, 16,
-					   drm->mode_config.num_connector);
-	if (IS_ERR(arcpgu->fbdev)) {
-		ret = PTR_ERR(arcpgu->fbdev);
-		arcpgu->fbdev = NULL;
-		return -ENODEV;
-	}
-
 	platform_set_drvdata(pdev, drm);
 	return 0;
 }
 
 static int arcpgu_unload(struct drm_device *drm)
 {
-	struct arcpgu_drm_private *arcpgu = drm->dev_private;
-
-	if (arcpgu->fbdev) {
-		drm_fbdev_cma_fini(arcpgu->fbdev);
-		arcpgu->fbdev = NULL;
-	}
 	drm_kms_helper_poll_fini(drm);
+	drm_atomic_helper_shutdown(drm);
 	drm_mode_config_cleanup(drm);
 
 	return 0;
@@ -167,7 +140,6 @@ static int arcpgu_debugfs_init(struct drm_minor *minor)
 static struct drm_driver arcpgu_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.lastclose = arcpgu_lastclose,
 	.name = "arcpgu",
 	.desc = "ARC PGU Controller",
 	.date = "20160219",
@@ -209,6 +181,8 @@ static int arcpgu_probe(struct platform_device *pdev)
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		goto err_unload;
+
+	drm_fbdev_generic_setup(drm, 16);
 
 	return 0;
 

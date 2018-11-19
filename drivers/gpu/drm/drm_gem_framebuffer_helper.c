@@ -171,7 +171,7 @@ drm_gem_fb_create_with_funcs(struct drm_device *dev, struct drm_file *file,
 		}
 
 		min_size = (height - 1) * mode_cmd->pitches[i]
-			 + width * info->cpp[i]
+			 + drm_format_info_min_pitch(info, i, width)
 			 + mode_cmd->offsets[i];
 
 		if (objs[i]->size < min_size) {

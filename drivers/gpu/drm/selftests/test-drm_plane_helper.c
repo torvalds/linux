@@ -1,27 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Test cases for the drm_kms_helper functions
+ * Test cases for the drm_plane_helper functions
  */
 
-#define pr_fmt(fmt) "drm_kms_helper: " fmt
-
-#include <linux/module.h>
+#define pr_fmt(fmt) "drm_plane_helper: " fmt
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_modes.h>
 
-#define TESTS "drm_helper_selftests.h"
-#include "drm_selftest.h"
-
-#define FAIL(test, msg, ...) \
-	do { \
-		if (test) { \
-			pr_err("%s/%u: " msg, __FUNCTION__, __LINE__, ##__VA_ARGS__); \
-			return -EINVAL; \
-		} \
-	} while (0)
-
-#define FAIL_ON(x) FAIL((x), "%s", "FAIL_ON(" __stringify(x) ")\n")
+#include "test-drm_modeset_common.h"
 
 static void set_src(struct drm_plane_state *plane_state,
 		    unsigned src_x, unsigned src_y,
@@ -85,7 +73,7 @@ static bool check_crtc_eq(struct drm_plane_state *plane_state,
 	return true;
 }
 
-static int igt_check_plane_state(void *ignored)
+int igt_check_plane_state(void *ignored)
 {
 	int ret;
 
@@ -229,19 +217,3 @@ static int igt_check_plane_state(void *ignored)
 
 	return 0;
 }
-
-#include "drm_selftest.c"
-
-static int __init test_drm_helper_init(void)
-{
-	int err;
-
-	err = run_selftests(selftests, ARRAY_SIZE(selftests), NULL);
-
-	return err > 0 ? 0 : err;
-}
-
-module_init(test_drm_helper_init);
-
-MODULE_AUTHOR("Intel Corporation");
-MODULE_LICENSE("GPL");
