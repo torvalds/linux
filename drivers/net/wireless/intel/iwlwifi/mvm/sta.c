@@ -750,7 +750,8 @@ static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 
 	if (tid == IWL_MAX_TID_COUNT) {
 		tid = IWL_MGMT_TID;
-		size = IWL_MGMT_QUEUE_SIZE;
+		size = max_t(u32, IWL_MGMT_QUEUE_SIZE,
+			     mvm->trans->cfg->min_txq_size);
 	}
 	queue = iwl_trans_txq_alloc(mvm->trans,
 				    cpu_to_le16(TX_QUEUE_CFG_ENABLE_QUEUE),

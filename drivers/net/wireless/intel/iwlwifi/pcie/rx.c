@@ -247,7 +247,7 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 	}
 
 	rxq->write_actual = round_down(rxq->write, 8);
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_22560)
 		iwl_write32(trans, HBUS_TARG_WRPTR,
 			    (rxq->write_actual |
 			     ((FIRST_RX_QUEUE + rxq->id) << 16)));
@@ -2133,7 +2133,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		}
 	}
 
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560 &&
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_22560 &&
 	    inta_hw & MSIX_HW_INT_CAUSES_REG_IPC) {
 		/* Reflect IML transfer status */
 		int res = iwl_read32(trans, CSR_IML_RESP_ADDR);
@@ -2150,6 +2150,17 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		iwl_pcie_txq_check_wrptrs(trans);
 
 		isr_stats->wakeup++;
+	}
+
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_IML) {
+		/* Reflect IML transfer status */
+		int res = iwl_read32(trans, CSR_IML_RESP_ADDR);
+
+		IWL_DEBUG_ISR(trans, "IML transfer status: %d\n", res);
+		if (res == IWL_IMAGE_RESP_FAIL) {
+			isr_stats->sw++;
+			iwl_pcie_irq_handle_error(trans);
+		}
 	}
 
 	/* Chip got too hot and stopped itself */
