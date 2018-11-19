@@ -702,10 +702,11 @@ int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
 	struct mlx5_eq *eq, *n;
 	int err = -ENOENT;
+	int i = 0;
 
 	spin_lock(&table->lock);
 	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
-		if (eq->index == vector) {
+		if (i++ == vector) {
 			*eqn = eq->eqn;
 			*irqn = eq->irqn;
 			err = 0;
@@ -797,7 +798,6 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 			goto clean;
 		}
 		mlx5_core_dbg(dev, "allocated completion EQN %d\n", eq->eqn);
-		eq->index = i;
 		spin_lock(&table->lock);
 		list_add_tail(&eq->list, &table->comp_eqs_list);
 		spin_unlock(&table->lock);

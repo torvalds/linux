@@ -399,7 +399,6 @@ struct mlx5_eq {
 	u8			eqn;
 	int			nent;
 	struct list_head	list;
-	int			index;
 	struct mlx5_rsc_debug	*dbg;
 	enum mlx5_eq_type	type;
 	union {
