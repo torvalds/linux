@@ -717,7 +717,7 @@ F:	include/linux/mfd/altera-a10sr.h
 F:	include/dt-bindings/reset/altr,rst-mgr-a10sr.h
 
 ALTERA TRIPLE SPEED ETHERNET DRIVER
-M:	Vince Bridgers <vbridger@opensource.altera.com>
+M:	Thor Thayer <thor.thayer@linux.intel.com>
 L:	netdev@vger.kernel.org
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained
@@ -3275,6 +3275,12 @@ F:	drivers/net/caif/
 F:	include/uapi/linux/caif/
 F:	include/net/caif/
 F:	net/caif/
+
+CAKE QDISC
+M:	Toke Høiland-Jørgensen <toke@toke.dk>
+L:	cake@lists.bufferbloat.net (moderated for non-subscribers)
+S:	Maintained
+F:	net/sched/sch_cake.c
 
 CALGARY x86-64 IOMMU
 M:	Muli Ben-Yehuda <mulix@mulix.org>
@@ -10809,9 +10815,9 @@ F:	drivers/media/platform/omap3isp/
 F:	drivers/staging/media/omap4iss/
 
 OMAP MMC SUPPORT
-M:	Jarkko Lavinen <jarkko.lavinen@nokia.com>
+M:	Aaro Koskinen <aaro.koskinen@iki.fi>
 L:	linux-omap@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/mmc/host/omap.c
 
 OMAP POWER MANAGEMENT SUPPORT
@@ -11746,6 +11752,7 @@ F:	Documentation/devicetree/bindings/pinctrl/fsl,*
 PIN CONTROLLER - INTEL
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pinctrl/intel.git
 S:	Maintained
 F:	drivers/pinctrl/intel/
 

@@ -185,6 +185,10 @@ void qed_resc_free(struct qed_dev *cdev)
 			qed_iscsi_free(p_hwfn);
 			qed_ooo_free(p_hwfn);
 		}
+
+		if (QED_IS_RDMA_PERSONALITY(p_hwfn))
+			qed_rdma_info_free(p_hwfn);
+
 		qed_iov_free(p_hwfn);
 		qed_l2_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
@@ -1077,6 +1081,12 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			if (rc)
 				goto alloc_err;
 			rc = qed_ooo_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
+		}
+
+		if (QED_IS_RDMA_PERSONALITY(p_hwfn)) {
+			rc = qed_rdma_info_alloc(p_hwfn);
 			if (rc)
 				goto alloc_err;
 		}
@@ -2102,11 +2112,8 @@ int qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
 	if (!p_ptt)
 		return -EAGAIN;
 
-	/* If roce info is allocated it means roce is initialized and should
-	 * be enabled in searcher.
-	 */
 	if (p_hwfn->p_rdma_info &&
-	    p_hwfn->b_rdma_enabled_in_prs)
+	    p_hwfn->p_rdma_info->active && p_hwfn->b_rdma_enabled_in_prs)
 		qed_wr(p_hwfn, p_ptt, p_hwfn->rdma_prs_search_reg, 0x1);
 
 	/* Re-open incoming traffic */

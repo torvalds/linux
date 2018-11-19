@@ -163,9 +163,12 @@ static unsigned char myrs_get_ctlr_info(struct myrs_hba *cs)
 	dma_addr_t ctlr_info_addr;
 	union myrs_sgl *sgl;
 	unsigned char status;
-	struct myrs_ctlr_info old;
+	unsigned short ldev_present, ldev_critical, ldev_offline;
 
-	memcpy(&old, cs->ctlr_info, sizeof(struct myrs_ctlr_info));
+	ldev_present = cs->ctlr_info->ldev_present;
+	ldev_critical = cs->ctlr_info->ldev_critical;
+	ldev_offline = cs->ctlr_info->ldev_offline;
+
 	ctlr_info_addr = dma_map_single(&cs->pdev->dev, cs->ctlr_info,
 					sizeof(struct myrs_ctlr_info),
 					DMA_FROM_DEVICE);
@@ -198,9 +201,9 @@ static unsigned char myrs_get_ctlr_info(struct myrs_hba *cs)
 		    cs->ctlr_info->rbld_active +
 		    cs->ctlr_info->exp_active != 0)
 			cs->needs_update = true;
-		if (cs->ctlr_info->ldev_present != old.ldev_present ||
-		    cs->ctlr_info->ldev_critical != old.ldev_critical ||
-		    cs->ctlr_info->ldev_offline != old.ldev_offline)
+		if (cs->ctlr_info->ldev_present != ldev_present ||
+		    cs->ctlr_info->ldev_critical != ldev_critical ||
+		    cs->ctlr_info->ldev_offline != ldev_offline)
 			shost_printk(KERN_INFO, cs->host,
 				     "Logical drive count changes (%d/%d/%d)\n",
 				     cs->ctlr_info->ldev_critical,
