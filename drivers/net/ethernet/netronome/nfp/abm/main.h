@@ -220,4 +220,5 @@ u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int i);
 u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int i);
 int nfp_abm_ctrl_qm_enable(struct nfp_abm *abm);
 int nfp_abm_ctrl_qm_disable(struct nfp_abm *abm);
+int nfp_abm_ctrl_prio_map_update(struct nfp_abm_link *alink, u32 *packed);
 #endif

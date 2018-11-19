@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2018 Netronome Systems, Inc. */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
 
@@ -219,6 +220,28 @@ int nfp_abm_ctrl_qm_disable(struct nfp_abm *abm)
 {
 	return nfp_mbox_cmd(abm->app->pf, NFP_MBOX_PCIE_ABM_DISABLE,
 			    NULL, 0, NULL, 0);
+}
+
+int nfp_abm_ctrl_prio_map_update(struct nfp_abm_link *alink, u32 *packed)
+{
+	struct nfp_net *nn = alink->vnic;
+	unsigned int i;
+	int err;
+
+	/* Write data_len and wipe reserved */
+	nn_writeq(nn, nn->tlv_caps.mbox_off + NFP_NET_ABM_MBOX_DATALEN,
+		  alink->abm->prio_map_len);
+
+	for (i = 0; i < alink->abm->prio_map_len; i += sizeof(u32))
+		nn_writel(nn, nn->tlv_caps.mbox_off + NFP_NET_ABM_MBOX_DATA + i,
+			  packed[i / sizeof(u32)]);
+
+	err = nfp_net_reconfig_mbox(nn,
+				    NFP_NET_CFG_MBOX_CMD_PCI_DSCP_PRIOMAP_SET);
+	if (err)
+		nfp_err(alink->abm->app->cpp,
+			"setting DSCP -> VQ map failed with error %d\n", err);
+	return err;
 }
 
 static int nfp_abm_ctrl_prio_check_params(struct nfp_abm_link *alink)
