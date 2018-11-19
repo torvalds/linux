@@ -205,6 +205,10 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	attr.log_level = 0;
 	attr.kern_version = load_attr->kern_version;
 	attr.prog_ifindex = load_attr->prog_ifindex;
+	attr.prog_btf_fd = load_attr->prog_btf_fd;
+	attr.func_info_rec_size = load_attr->func_info_rec_size;
+	attr.func_info_cnt = load_attr->func_info_cnt;
+	attr.func_info = ptr_to_u64(load_attr->func_info);
 	memcpy(attr.prog_name, load_attr->name,
 	       min(name_len, BPF_OBJ_NAME_LEN - 1));
 
