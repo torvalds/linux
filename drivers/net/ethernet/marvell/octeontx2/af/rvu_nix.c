@@ -821,6 +821,9 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	if (err)
 		goto free_mem;
 
+	/* Disable NPC entries as NIXLF's contexts are not initialized yet */
+	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
+
 	goto exit;
 
 free_mem:
@@ -2175,4 +2178,49 @@ void rvu_nix_freemem(struct rvu *rvu)
 		qmem_free(rvu->dev, mcast->mcast_buf);
 		mutex_destroy(&mcast->mce_lock);
 	}
+}
+
+static int nix_get_nixlf(struct rvu *rvu, u16 pcifunc, int *nixlf)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	struct rvu_hwinfo *hw = rvu->hw;
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (!pfvf->nixlf || blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	*nixlf = rvu_get_lf(rvu, &hw->block[blkaddr], pcifunc, 0);
+	if (*nixlf < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	return 0;
+}
+
+int rvu_mbox_handler_nix_lf_start_rx(struct rvu *rvu, struct msg_req *req,
+				     struct msg_rsp *rsp)
+{
+	u16 pcifunc = req->hdr.pcifunc;
+	int nixlf, err;
+
+	err = nix_get_nixlf(rvu, pcifunc, &nixlf);
+	if (err)
+		return err;
+
+	rvu_npc_enable_default_entries(rvu, pcifunc, nixlf);
+	return 0;
+}
+
+int rvu_mbox_handler_nix_lf_stop_rx(struct rvu *rvu, struct msg_req *req,
+				    struct msg_rsp *rsp)
+{
+	u16 pcifunc = req->hdr.pcifunc;
+	int nixlf, err;
+
+	err = nix_get_nixlf(rvu, pcifunc, &nixlf);
+	if (err)
+		return err;
+
+	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
+	return 0;
 }

@@ -384,7 +384,8 @@ void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
 			      NIX_INTF_RX, &entry, true);
 }
 
-void rvu_npc_disable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf)
+static void npc_enadis_promisc_entry(struct rvu *rvu, u16 pcifunc,
+				     int nixlf, bool enable)
 {
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 	int blkaddr, index;
@@ -399,7 +400,17 @@ void rvu_npc_disable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf)
 
 	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
 					 nixlf, NIXLF_PROMISC_ENTRY);
-	npc_enable_mcam_entry(rvu, mcam, blkaddr, index, false);
+	npc_enable_mcam_entry(rvu, mcam, blkaddr, index, enable);
+}
+
+void rvu_npc_disable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf)
+{
+	npc_enadis_promisc_entry(rvu, pcifunc, nixlf, false);
+}
+
+void rvu_npc_enable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf)
+{
+	npc_enadis_promisc_entry(rvu, pcifunc, nixlf, true);
 }
 
 void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
@@ -512,11 +523,59 @@ void rvu_npc_update_flowkey_alg_idx(struct rvu *rvu, u16 pcifunc, int nixlf,
 		    NPC_AF_MCAMEX_BANKX_ACTION(index, bank), *(u64 *)&action);
 }
 
-void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
+static void npc_enadis_default_entries(struct rvu *rvu, u16 pcifunc,
+				       int nixlf, bool enable)
 {
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 	struct nix_rx_action action;
-	int blkaddr, index, bank;
+	int index, bank, blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return;
+
+	/* Ucast MCAM match entry of this PF/VF */
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
+					 nixlf, NIXLF_UCAST_ENTRY);
+	npc_enable_mcam_entry(rvu, mcam, blkaddr, index, enable);
+
+	/* For PF, ena/dis promisc and bcast MCAM match entries */
+	if (pcifunc & RVU_PFVF_FUNC_MASK)
+		return;
+
+	/* For bcast, enable/disable only if it's action is not
+	 * packet replication, incase if action is replication
+	 * then this PF's nixlf is removed from bcast replication
+	 * list.
+	 */
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
+					 nixlf, NIXLF_BCAST_ENTRY);
+	bank = npc_get_bank(mcam, index);
+	*(u64 *)&action = rvu_read64(rvu, blkaddr,
+	     NPC_AF_MCAMEX_BANKX_ACTION(index & (mcam->banksize - 1), bank));
+	if (action.op != NIX_RX_ACTIONOP_MCAST)
+		npc_enable_mcam_entry(rvu, mcam,
+				      blkaddr, index, enable);
+	if (enable)
+		rvu_npc_enable_promisc_entry(rvu, pcifunc, nixlf);
+	else
+		rvu_npc_disable_promisc_entry(rvu, pcifunc, nixlf);
+}
+
+void rvu_npc_disable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
+{
+	npc_enadis_default_entries(rvu, pcifunc, nixlf, false);
+}
+
+void rvu_npc_enable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
+{
+	npc_enadis_default_entries(rvu, pcifunc, nixlf, true);
+}
+
+void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int blkaddr;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0)
@@ -532,29 +591,7 @@ void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
 
 	mutex_unlock(&mcam->lock);
 
-	/* Disable ucast MCAM match entry of this PF/VF */
-	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
-					 nixlf, NIXLF_UCAST_ENTRY);
-	npc_enable_mcam_entry(rvu, mcam, blkaddr, index, false);
-
-	/* For PF, disable promisc and bcast MCAM match entries */
-	if (!(pcifunc & RVU_PFVF_FUNC_MASK)) {
-		index = npc_get_nixlf_mcam_index(mcam, pcifunc,
-						 nixlf, NIXLF_BCAST_ENTRY);
-		/* For bcast, disable only if it's action is not
-		 * packet replication, incase if action is replication
-		 * then this PF's nixlf is removed from bcast replication
-		 * list.
-		 */
-		bank = npc_get_bank(mcam, index);
-		index &= (mcam->banksize - 1);
-		*(u64 *)&action = rvu_read64(rvu, blkaddr,
-				     NPC_AF_MCAMEX_BANKX_ACTION(index, bank));
-		if (action.op != NIX_RX_ACTIONOP_MCAST)
-			npc_enable_mcam_entry(rvu, mcam, blkaddr, index, false);
-
-		rvu_npc_disable_promisc_entry(rvu, pcifunc, nixlf);
-	}
+	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
 }
 
 #define SET_KEX_LD(intf, lid, ltype, ld, cfg)	\
