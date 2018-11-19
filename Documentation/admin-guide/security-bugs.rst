@@ -32,16 +32,17 @@ Disclosure and embargoed information
 The security list is not a disclosure channel.  For that, see Coordination
 below.
 
-Once a robust fix has been developed, our preference is to release the
-fix in a timely fashion, treating it no differently than any of the other
-thousands of changes and fixes the Linux kernel project releases every
-month.
+Once a robust fix has been developed, the release process starts.  Fixes
+for publicly known bugs are released immediately.
 
-However, at the request of the reporter, we will postpone releasing the
-fix for up to 5 business days after the date of the report or after the
-embargo has lifted; whichever comes first.  The only exception to that
-rule is if the bug is publicly known, in which case the preference is to
-release the fix as soon as it's available.
+Although our preference is to release fixes for publicly undisclosed bugs
+as soon as they become available, this may be postponed at the request of
+the reporter or an affected party for up to 7 calendar days from the start
+of the release process, with an exceptional extension to 14 calendar days
+if it is agreed that the criticality of the bug requires more time.  The
+only valid reason for deferring the publication of a fix is to accommodate
+the logistics of QA and large scale rollouts which require release
+coordination.
 
 Whilst embargoed information may be shared with trusted individuals in
 order to develop a fix, such information will not be published alongside
