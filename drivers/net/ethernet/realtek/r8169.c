@@ -1101,23 +1101,6 @@ static u32 r8168ep_ocp_read(struct rtl8169_private *tp, u8 mask, u16 reg)
 	return rtl_eri_read(tp, reg, ERIAR_OOB);
 }
 
-static u32 ocp_read(struct rtl8169_private *tp, u8 mask, u16 reg)
-{
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_27:
-	case RTL_GIGA_MAC_VER_28:
-	case RTL_GIGA_MAC_VER_31:
-		return r8168dp_ocp_read(tp, mask, reg);
-	case RTL_GIGA_MAC_VER_49:
-	case RTL_GIGA_MAC_VER_50:
-	case RTL_GIGA_MAC_VER_51:
-		return r8168ep_ocp_read(tp, mask, reg);
-	default:
-		BUG();
-		return ~0;
-	}
-}
-
 static void r8168dp_ocp_write(struct rtl8169_private *tp, u8 mask, u16 reg,
 			      u32 data)
 {
@@ -1133,30 +1116,11 @@ static void r8168ep_ocp_write(struct rtl8169_private *tp, u8 mask, u16 reg,
 		      data, ERIAR_OOB);
 }
 
-static void ocp_write(struct rtl8169_private *tp, u8 mask, u16 reg, u32 data)
-{
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_27:
-	case RTL_GIGA_MAC_VER_28:
-	case RTL_GIGA_MAC_VER_31:
-		r8168dp_ocp_write(tp, mask, reg, data);
-		break;
-	case RTL_GIGA_MAC_VER_49:
-	case RTL_GIGA_MAC_VER_50:
-	case RTL_GIGA_MAC_VER_51:
-		r8168ep_ocp_write(tp, mask, reg, data);
-		break;
-	default:
-		BUG();
-		break;
-	}
-}
-
-static void rtl8168_oob_notify(struct rtl8169_private *tp, u8 cmd)
+static void r8168dp_oob_notify(struct rtl8169_private *tp, u8 cmd)
 {
 	rtl_eri_write(tp, 0xe8, ERIAR_MASK_0001, cmd, ERIAR_EXGMAC);
 
-	ocp_write(tp, 0x1, 0x30, 0x00000001);
+	r8168dp_ocp_write(tp, 0x1, 0x30, 0x00000001);
 }
 
 #define OOB_CMD_RESET		0x00
@@ -1168,18 +1132,18 @@ static u16 rtl8168_get_ocp_reg(struct rtl8169_private *tp)
 	return (tp->mac_version == RTL_GIGA_MAC_VER_31) ? 0xb8 : 0x10;
 }
 
-DECLARE_RTL_COND(rtl_ocp_read_cond)
+DECLARE_RTL_COND(rtl_dp_ocp_read_cond)
 {
 	u16 reg;
 
 	reg = rtl8168_get_ocp_reg(tp);
 
-	return ocp_read(tp, 0x0f, reg) & 0x00000800;
+	return r8168dp_ocp_read(tp, 0x0f, reg) & 0x00000800;
 }
 
 DECLARE_RTL_COND(rtl_ep_ocp_read_cond)
 {
-	return ocp_read(tp, 0x0f, 0x124) & 0x00000001;
+	return r8168ep_ocp_read(tp, 0x0f, 0x124) & 0x00000001;
 }
 
 DECLARE_RTL_COND(rtl_ocp_tx_cond)
@@ -1197,14 +1161,15 @@ static void rtl8168ep_stop_cmac(struct rtl8169_private *tp)
 
 static void rtl8168dp_driver_start(struct rtl8169_private *tp)
 {
-	rtl8168_oob_notify(tp, OOB_CMD_DRIVER_START);
-	rtl_msleep_loop_wait_high(tp, &rtl_ocp_read_cond, 10, 10);
+	r8168dp_oob_notify(tp, OOB_CMD_DRIVER_START);
+	rtl_msleep_loop_wait_high(tp, &rtl_dp_ocp_read_cond, 10, 10);
 }
 
 static void rtl8168ep_driver_start(struct rtl8169_private *tp)
 {
-	ocp_write(tp, 0x01, 0x180, OOB_CMD_DRIVER_START);
-	ocp_write(tp, 0x01, 0x30, ocp_read(tp, 0x01, 0x30) | 0x01);
+	r8168ep_ocp_write(tp, 0x01, 0x180, OOB_CMD_DRIVER_START);
+	r8168ep_ocp_write(tp, 0x01, 0x30,
+			  r8168ep_ocp_read(tp, 0x01, 0x30) | 0x01);
 	rtl_msleep_loop_wait_high(tp, &rtl_ep_ocp_read_cond, 10, 10);
 }
 
@@ -1229,15 +1194,16 @@ static void rtl8168_driver_start(struct rtl8169_private *tp)
 
 static void rtl8168dp_driver_stop(struct rtl8169_private *tp)
 {
-	rtl8168_oob_notify(tp, OOB_CMD_DRIVER_STOP);
-	rtl_msleep_loop_wait_low(tp, &rtl_ocp_read_cond, 10, 10);
+	r8168dp_oob_notify(tp, OOB_CMD_DRIVER_STOP);
+	rtl_msleep_loop_wait_low(tp, &rtl_dp_ocp_read_cond, 10, 10);
 }
 
 static void rtl8168ep_driver_stop(struct rtl8169_private *tp)
 {
 	rtl8168ep_stop_cmac(tp);
-	ocp_write(tp, 0x01, 0x180, OOB_CMD_DRIVER_STOP);
-	ocp_write(tp, 0x01, 0x30, ocp_read(tp, 0x01, 0x30) | 0x01);
+	r8168ep_ocp_write(tp, 0x01, 0x180, OOB_CMD_DRIVER_STOP);
+	r8168ep_ocp_write(tp, 0x01, 0x30,
+			  r8168ep_ocp_read(tp, 0x01, 0x30) | 0x01);
 	rtl_msleep_loop_wait_low(tp, &rtl_ep_ocp_read_cond, 10, 10);
 }
 
@@ -1264,12 +1230,12 @@ static bool r8168dp_check_dash(struct rtl8169_private *tp)
 {
 	u16 reg = rtl8168_get_ocp_reg(tp);
 
-	return !!(ocp_read(tp, 0x0f, reg) & 0x00008000);
+	return !!(r8168dp_ocp_read(tp, 0x0f, reg) & 0x00008000);
 }
 
 static bool r8168ep_check_dash(struct rtl8169_private *tp)
 {
-	return !!(ocp_read(tp, 0x0f, 0x128) & 0x00000001);
+	return !!(r8168ep_ocp_read(tp, 0x0f, 0x128) & 0x00000001);
 }
 
 static bool r8168_check_dash(struct rtl8169_private *tp)
