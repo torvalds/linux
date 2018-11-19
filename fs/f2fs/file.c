@@ -2201,7 +2201,8 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 {
 	struct inode *inode = file_inode(filp);
 	struct f2fs_map_blocks map = { .m_next_extent = NULL,
-					.m_seg_type = NO_CHECK_TYPE };
+					.m_seg_type = NO_CHECK_TYPE ,
+					.m_may_create = false };
 	struct extent_info ei = {0, 0, 0};
 	pgoff_t pg_start, pg_end, next_pgofs;
 	unsigned int blk_per_seg = sbi->blocks_per_seg;
@@ -2935,6 +2936,7 @@ int f2fs_precache_extents(struct inode *inode)
 	map.m_next_pgofs = NULL;
 	map.m_next_extent = &m_next_extent;
 	map.m_seg_type = NO_CHECK_TYPE;
+	map.m_may_create = false;
 	end = F2FS_I_SB(inode)->max_file_blocks;
 
 	while (map.m_lblk < end) {
