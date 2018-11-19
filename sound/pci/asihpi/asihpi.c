@@ -1183,7 +1183,7 @@ static int snd_card_asihpi_capture_prepare(struct snd_pcm_substream *substream)
 static u64 snd_card_asihpi_capture_formats(struct snd_card_asihpi *asihpi,
 					u32 h_stream)
 {
-  struct hpi_format hpi_format;
+	struct hpi_format hpi_format;
 	u16 format;
 	u16 err;
 	u32 h_control;
