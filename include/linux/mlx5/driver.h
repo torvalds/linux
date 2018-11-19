@@ -398,7 +398,6 @@ struct mlx5_eq {
 	unsigned int		irqn;
 	u8			eqn;
 	int			nent;
-	u64			mask;
 	struct list_head	list;
 	int			index;
 	struct mlx5_rsc_debug	*dbg;
@@ -478,8 +477,6 @@ struct mlx5_core_srq {
 };
 
 struct mlx5_eq_table {
-	void __iomem	       *update_ci;
-	void __iomem	       *update_arm_ci;
 	struct list_head	comp_eqs_list;
 	struct mlx5_eq		pages_eq;
 	struct mlx5_eq		async_eq;

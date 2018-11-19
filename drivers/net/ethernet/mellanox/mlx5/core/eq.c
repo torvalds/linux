@@ -78,17 +78,6 @@ enum {
 			       (1ull << MLX5_EVENT_TYPE_SRQ_LAST_WQE)	    | \
 			       (1ull << MLX5_EVENT_TYPE_SRQ_RQ_LIMIT))
 
-struct map_eq_in {
-	u64	mask;
-	u32	reserved;
-	u32	unmap_eqn;
-};
-
-struct cre_des_eq {
-	u8	reserved[15];
-	u8	eqn;
-};
-
 static int mlx5_cmd_destroy_eq(struct mlx5_core_dev *dev, u8 eqn)
 {
 	u32 out[MLX5_ST_SZ_DW(destroy_eq_out)] = {0};
