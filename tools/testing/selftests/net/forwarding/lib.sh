@@ -801,10 +801,11 @@ ping_do()
 {
 	local if_name=$1
 	local dip=$2
+	local args=$3
 	local vrf_name
 
 	vrf_name=$(master_name_get $if_name)
-	ip vrf exec $vrf_name $PING $dip -c 10 -i 0.1 -w 2 &> /dev/null
+	ip vrf exec $vrf_name $PING $args $dip -c 10 -i 0.1 -w 2 &> /dev/null
 }
 
 ping_test()
@@ -820,10 +821,11 @@ ping6_do()
 {
 	local if_name=$1
 	local dip=$2
+	local args=$3
 	local vrf_name
 
 	vrf_name=$(master_name_get $if_name)
-	ip vrf exec $vrf_name $PING6 $dip -c 10 -i 0.1 -w 2 &> /dev/null
+	ip vrf exec $vrf_name $PING6 $args $dip -c 10 -i 0.1 -w 2 &> /dev/null
 }
 
 ping6_test()
