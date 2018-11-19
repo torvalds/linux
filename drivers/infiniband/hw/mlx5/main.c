@@ -5337,7 +5337,7 @@ mlx5_ib_get_vector_affinity(struct ib_device *ibdev, int comp_vector)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 
-	return mlx5_get_vector_affinity_hint(dev->mdev, comp_vector);
+	return mlx5_comp_irq_get_affinity_mask(dev->mdev, comp_vector);
 }
 
 /* The mlx5_ib_multiport_mutex should be held when calling this function */
@@ -5701,8 +5701,7 @@ int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
 	dev->ib_dev.phys_port_cnt	= dev->num_ports;
-	dev->ib_dev.num_comp_vectors    =
-		dev->mdev->priv.eq_table.num_comp_vectors;
+	dev->ib_dev.num_comp_vectors    = mlx5_comp_vectors_count(mdev);
 	dev->ib_dev.dev.parent		= &mdev->pdev->dev;
 
 	mutex_init(&dev->cap_mask_mutex);

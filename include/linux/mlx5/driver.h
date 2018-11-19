@@ -85,18 +85,6 @@ enum {
 };
 
 enum {
-	MLX5_EQ_VEC_PAGES	 = 0,
-	MLX5_EQ_VEC_CMD		 = 1,
-	MLX5_EQ_VEC_ASYNC	 = 2,
-	MLX5_EQ_VEC_PFAULT	 = 3,
-	MLX5_EQ_VEC_COMP_BASE,
-};
-
-enum {
-	MLX5_MAX_IRQ_NAME	= 32
-};
-
-enum {
 	MLX5_ATOMIC_MODE_OFFSET = 16,
 	MLX5_ATOMIC_MODE_IB_COMP = 1,
 	MLX5_ATOMIC_MODE_CX = 2,
@@ -366,49 +354,6 @@ struct mlx5_frag_buf_ctrl {
 	u8			log_frag_strides;
 };
 
-struct mlx5_eq_tasklet {
-	struct list_head list;
-	struct list_head process_list;
-	struct tasklet_struct task;
-	/* lock on completion tasklet list */
-	spinlock_t lock;
-};
-
-struct mlx5_eq_pagefault {
-	struct work_struct       work;
-	/* Pagefaults lock */
-	spinlock_t		 lock;
-	struct workqueue_struct *wq;
-	mempool_t		*pool;
-};
-
-struct mlx5_cq_table {
-	/* protect radix tree */
-	spinlock_t		lock;
-	struct radix_tree_root	tree;
-};
-
-struct mlx5_eq {
-	struct mlx5_core_dev   *dev;
-	struct mlx5_cq_table	cq_table;
-	__be32 __iomem	       *doorbell;
-	u32			cons_index;
-	struct mlx5_frag_buf	buf;
-	int			size;
-	unsigned int		irqn;
-	u8			eqn;
-	int			nent;
-	struct list_head	list;
-	struct mlx5_rsc_debug	*dbg;
-	enum mlx5_eq_type	type;
-	union {
-		struct mlx5_eq_tasklet   tasklet_ctx;
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-		struct mlx5_eq_pagefault pf_ctx;
-#endif
-	};
-};
-
 struct mlx5_core_psv {
 	u32	psv_idx;
 	struct psv_layout {
@@ -473,21 +418,6 @@ struct mlx5_core_srq {
 	atomic_t		refcount;
 	struct completion	free;
 	u16		uid;
-};
-
-struct mlx5_eq_table {
-	struct list_head	comp_eqs_list;
-	struct mlx5_eq		pages_eq;
-	struct mlx5_eq		async_eq;
-	struct mlx5_eq		cmd_eq;
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	struct mlx5_eq		pfault_eq;
-#endif
-	int			num_comp_vectors;
-	struct mlx5_irq_info	*irq_info;
-#ifdef CONFIG_RFS_ACCEL
-	struct cpu_rmap         *rmap;
-#endif
 };
 
 struct mlx5_uars_page {
@@ -572,11 +502,6 @@ struct mlx5_core_sriov {
 	int			enabled_vfs;
 };
 
-struct mlx5_irq_info {
-	cpumask_var_t mask;
-	char name[MLX5_MAX_IRQ_NAME];
-};
-
 struct mlx5_fc_stats {
 	spinlock_t counters_idr_lock; /* protects counters_idr */
 	struct idr counters_idr;
@@ -594,6 +519,7 @@ struct mlx5_mpfs;
 struct mlx5_eswitch;
 struct mlx5_lag;
 struct mlx5_pagefault;
+struct mlx5_eq_table;
 
 struct mlx5_rate_limit {
 	u32			rate;
@@ -643,7 +569,7 @@ struct mlx5_port_module_event_stats {
 
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
-	struct mlx5_eq_table	eq_table;
+	struct mlx5_eq_table	*eq_table;
 
 	/* pages stuff */
 	struct workqueue_struct *pg_wq;
@@ -1148,6 +1074,9 @@ int mlx5_alloc_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg,
 		     bool map_wc, bool fast_path);
 void mlx5_free_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg);
 
+unsigned int mlx5_comp_vectors_count(struct mlx5_core_dev *dev);
+struct cpumask *
+mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector);
 unsigned int mlx5_core_reserved_gids_count(struct mlx5_core_dev *dev);
 int mlx5_core_roce_gid_set(struct mlx5_core_dev *dev, unsigned int index,
 			   u8 roce_version, u8 roce_l3_type, const u8 *gid,
@@ -1298,11 +1227,5 @@ static inline int mlx5_core_native_port_num(struct mlx5_core_dev *dev)
 enum {
 	MLX5_TRIGGERED_CMD_COMP = (u64)1 << 32,
 };
-
-static inline const struct cpumask *
-mlx5_get_vector_affinity_hint(struct mlx5_core_dev *dev, int vector)
-{
-	return dev->priv.eq_table.irq_info[vector + MLX5_EQ_VEC_COMP_BASE].mask;
-}
 
 #endif /* MLX5_DRIVER_H */

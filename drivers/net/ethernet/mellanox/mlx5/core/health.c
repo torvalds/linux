@@ -38,6 +38,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
+#include "lib/eq.h"
 
 enum {
 	MLX5_HEALTH_POLL_INTERVAL	= 2 * HZ,

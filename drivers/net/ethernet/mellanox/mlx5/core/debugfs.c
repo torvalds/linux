@@ -36,6 +36,7 @@
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
+#include "lib/eq.h"
 
 enum {
 	QP_PID,

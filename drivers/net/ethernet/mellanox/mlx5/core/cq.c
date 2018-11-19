@@ -38,6 +38,7 @@
 #include <rdma/ib_verbs.h>
 #include <linux/mlx5/cq.h>
 #include "mlx5_core.h"
+#include "lib/eq.h"
 
 #define TASKLET_MAX_TIME 2
 #define TASKLET_MAX_TIME_JIFFIES msecs_to_jiffies(TASKLET_MAX_TIME)
@@ -124,7 +125,7 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		goto err_cmd;
 
 	/* Add to async EQ CQ tree to recv async events */
-	err = mlx5_eq_add_cq(&dev->priv.eq_table.async_eq, cq);
+	err = mlx5_eq_add_cq(mlx5_get_async_eq(dev), cq);
 	if (err)
 		goto err_cq_add;
 
@@ -157,7 +158,7 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 	u32 in[MLX5_ST_SZ_DW(destroy_cq_in)] = {0};
 	int err;
 
-	err = mlx5_eq_del_cq(&dev->priv.eq_table.async_eq, cq);
+	err = mlx5_eq_del_cq(mlx5_get_async_eq(dev), cq);
 	if (err)
 		return err;
 
