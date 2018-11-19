@@ -28,6 +28,8 @@
 
 static void npc_mcam_free_all_entries(struct rvu *rvu, struct npc_mcam *mcam,
 				      int blkaddr, u16 pcifunc);
+static void npc_mcam_free_all_counters(struct rvu *rvu, struct npc_mcam *mcam,
+				       u16 pcifunc);
 
 void rvu_npc_set_pkind(struct rvu *rvu, int pkind, struct rvu_pfvf *pfvf)
 {
@@ -506,6 +508,9 @@ void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
 	/* Disable and free all MCAM entries mapped to this 'pcifunc' */
 	npc_mcam_free_all_entries(rvu, mcam, blkaddr, pcifunc);
 
+	/* Free all MCAM counters mapped to this 'pcifunc' */
+	npc_mcam_free_all_counters(rvu, mcam, pcifunc);
+
 	mutex_unlock(&mcam->lock);
 
 	/* Disable ucast MCAM match entry of this PF/VF */
@@ -819,6 +824,19 @@ static int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	if (!mcam->cntr2pfvf_map)
 		goto free_mem;
 
+	/* Alloc memory for MCAM entry to counter mapping and for tracking
+	 * counter's reference count.
+	 */
+	mcam->entry2cntr_map = devm_kcalloc(rvu->dev, mcam->bmap_entries,
+					    sizeof(u16), GFP_KERNEL);
+	if (!mcam->entry2cntr_map)
+		goto free_mem;
+
+	mcam->cntr_refcnt = devm_kcalloc(rvu->dev, mcam->counters.max,
+					 sizeof(u16), GFP_KERNEL);
+	if (!mcam->cntr_refcnt)
+		goto free_mem;
+
 	mutex_init(&mcam->lock);
 
 	return 0;
@@ -948,6 +966,36 @@ static int npc_mcam_verify_counter(struct npc_mcam *mcam,
 	return 0;
 }
 
+static void npc_map_mcam_entry_and_cntr(struct rvu *rvu, struct npc_mcam *mcam,
+					int blkaddr, u16 entry, u16 cntr)
+{
+	u16 index = entry & (mcam->banksize - 1);
+	u16 bank = npc_get_bank(mcam, entry);
+
+	/* Set mapping and increment counter's refcnt */
+	mcam->entry2cntr_map[entry] = cntr;
+	mcam->cntr_refcnt[cntr]++;
+	/* Enable stats */
+	rvu_write64(rvu, blkaddr,
+		    NPC_AF_MCAMEX_BANKX_STAT_ACT(index, bank),
+		    BIT_ULL(9) | cntr);
+}
+
+static void npc_unmap_mcam_entry_and_cntr(struct rvu *rvu,
+					  struct npc_mcam *mcam,
+					  int blkaddr, u16 entry, u16 cntr)
+{
+	u16 index = entry & (mcam->banksize - 1);
+	u16 bank = npc_get_bank(mcam, entry);
+
+	/* Remove mapping and reduce counter's refcnt */
+	mcam->entry2cntr_map[entry] = NPC_MCAM_INVALID_MAP;
+	mcam->cntr_refcnt[cntr]--;
+	/* Disable stats */
+	rvu_write64(rvu, blkaddr,
+		    NPC_AF_MCAMEX_BANKX_STAT_ACT(index, bank), 0x00);
+}
+
 /* Sets MCAM entry in bitmap as used. Update
  * reverse bitmap too. Should be called with
  * 'mcam->lock' held.
@@ -983,7 +1031,7 @@ static void npc_mcam_clear_bit(struct npc_mcam *mcam, u16 index)
 static void npc_mcam_free_all_entries(struct rvu *rvu, struct npc_mcam *mcam,
 				      int blkaddr, u16 pcifunc)
 {
-	u16 index;
+	u16 index, cntr;
 
 	/* Scan all MCAM entries and free the ones mapped to 'pcifunc' */
 	for (index = 0; index < mcam->bmap_entries; index++) {
@@ -993,6 +1041,33 @@ static void npc_mcam_free_all_entries(struct rvu *rvu, struct npc_mcam *mcam,
 			npc_mcam_clear_bit(mcam, index);
 			/* Disable the entry */
 			npc_enable_mcam_entry(rvu, mcam, blkaddr, index, false);
+
+			/* Update entry2counter mapping */
+			cntr = mcam->entry2cntr_map[index];
+			if (cntr != NPC_MCAM_INVALID_MAP)
+				npc_unmap_mcam_entry_and_cntr(rvu, mcam,
+							      blkaddr, index,
+							      cntr);
+		}
+	}
+}
+
+static void npc_mcam_free_all_counters(struct rvu *rvu, struct npc_mcam *mcam,
+				       u16 pcifunc)
+{
+	u16 cntr;
+
+	/* Scan all MCAM counters and free the ones mapped to 'pcifunc' */
+	for (cntr = 0; cntr < mcam->counters.max; cntr++) {
+		if (mcam->cntr2pfvf_map[cntr] == pcifunc) {
+			mcam->cntr2pfvf_map[cntr] = NPC_MCAM_INVALID_MAP;
+			mcam->cntr_refcnt[cntr] = 0;
+			rvu_free_rsrc(&mcam->counters, cntr);
+			/* This API is expected to be called after freeing
+			 * MCAM entries, which inturn will remove
+			 * 'entry to counter' mapping.
+			 * No need to do it again.
+			 */
 		}
 	}
 }
@@ -1282,6 +1357,7 @@ alloc:
 			(rsp->entry + entry) : rsp->entry_list[entry];
 		npc_mcam_set_bit(mcam, index);
 		mcam->entry2pfvf_map[index] = pcifunc;
+		mcam->entry2cntr_map[index] = NPC_MCAM_INVALID_MAP;
 	}
 
 	/* Update available free count in mbox response */
@@ -1338,6 +1414,7 @@ int rvu_mbox_handler_npc_mcam_free_entry(struct rvu *rvu,
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 	u16 pcifunc = req->hdr.pcifunc;
 	int blkaddr, rc = 0;
+	u16 cntr;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0)
@@ -1359,6 +1436,12 @@ int rvu_mbox_handler_npc_mcam_free_entry(struct rvu *rvu,
 	mcam->entry2pfvf_map[req->entry] = 0;
 	npc_mcam_clear_bit(mcam, req->entry);
 	npc_enable_mcam_entry(rvu, mcam, blkaddr, req->entry, false);
+
+	/* Update entry2counter mapping */
+	cntr = mcam->entry2cntr_map[req->entry];
+	if (cntr != NPC_MCAM_INVALID_MAP)
+		npc_unmap_mcam_entry_and_cntr(rvu, mcam, blkaddr,
+					      req->entry, cntr);
 
 	goto exit;
 
@@ -1387,6 +1470,12 @@ int rvu_mbox_handler_npc_mcam_write_entry(struct rvu *rvu,
 	if (rc)
 		goto exit;
 
+	if (req->set_cntr &&
+	    npc_mcam_verify_counter(mcam, pcifunc, req->cntr)) {
+		rc = NPC_MCAM_INVALID_REQ;
+		goto exit;
+	}
+
 	if (req->intf != NIX_INTF_RX && req->intf != NIX_INTF_TX) {
 		rc = NPC_MCAM_INVALID_REQ;
 		goto exit;
@@ -1394,6 +1483,10 @@ int rvu_mbox_handler_npc_mcam_write_entry(struct rvu *rvu,
 
 	npc_config_mcam_entry(rvu, mcam, blkaddr, req->entry, req->intf,
 			      &req->entry_data, req->enable_entry);
+
+	if (req->set_cntr)
+		npc_map_mcam_entry_and_cntr(rvu, mcam, blkaddr,
+					    req->entry, req->cntr);
 
 	rc = 0;
 exit:
@@ -1454,8 +1547,8 @@ int rvu_mbox_handler_npc_mcam_shift_entry(struct rvu *rvu,
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 	u16 pcifunc = req->hdr.pcifunc;
 	u16 old_entry, new_entry;
+	u16 index, cntr;
 	int blkaddr, rc;
-	u16 index;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0)
@@ -1480,11 +1573,26 @@ int rvu_mbox_handler_npc_mcam_shift_entry(struct rvu *rvu,
 		if (rc)
 			break;
 
+		/* new_entry should not have a counter mapped */
+		if (mcam->entry2cntr_map[new_entry] != NPC_MCAM_INVALID_MAP) {
+			rc = NPC_MCAM_PERM_DENIED;
+			break;
+		}
+
 		/* Disable the new_entry */
 		npc_enable_mcam_entry(rvu, mcam, blkaddr, new_entry, false);
 
 		/* Copy rule from old entry to new entry */
 		npc_copy_mcam_entry(rvu, mcam, blkaddr, old_entry, new_entry);
+
+		/* Copy counter mapping, if any */
+		cntr = mcam->entry2cntr_map[old_entry];
+		if (cntr != NPC_MCAM_INVALID_MAP) {
+			npc_unmap_mcam_entry_and_cntr(rvu, mcam, blkaddr,
+						      old_entry, cntr);
+			npc_map_mcam_entry_and_cntr(rvu, mcam, blkaddr,
+						    new_entry, cntr);
+		}
 
 		/* Enable new_entry and disable old_entry */
 		npc_enable_mcam_entry(rvu, mcam, blkaddr, new_entry, true);
@@ -1569,7 +1677,12 @@ int rvu_mbox_handler_npc_mcam_free_counter(struct rvu *rvu,
 		struct npc_mcam_oper_counter_req *req, struct msg_rsp *rsp)
 {
 	struct npc_mcam *mcam = &rvu->hw->mcam;
-	int err;
+	u16 index, entry = 0;
+	int blkaddr, err;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
 
 	mutex_lock(&mcam->lock);
 	err = npc_mcam_verify_counter(mcam, req->hdr.pcifunc, req->cntr);
@@ -1581,9 +1694,71 @@ int rvu_mbox_handler_npc_mcam_free_counter(struct rvu *rvu,
 	/* Mark counter as free/unused */
 	mcam->cntr2pfvf_map[req->cntr] = NPC_MCAM_INVALID_MAP;
 	rvu_free_rsrc(&mcam->counters, req->cntr);
-	mutex_unlock(&mcam->lock);
 
+	/* Disable all MCAM entry's stats which are using this counter */
+	while (entry < mcam->bmap_entries) {
+		if (!mcam->cntr_refcnt[req->cntr])
+			break;
+
+		index = find_next_bit(mcam->bmap, mcam->bmap_entries, entry);
+		if (index >= mcam->bmap_entries)
+			break;
+		if (mcam->entry2cntr_map[index] != req->cntr)
+			continue;
+
+		entry = index + 1;
+		npc_unmap_mcam_entry_and_cntr(rvu, mcam, blkaddr,
+					      index, req->cntr);
+	}
+
+	mutex_unlock(&mcam->lock);
 	return 0;
+}
+
+int rvu_mbox_handler_npc_mcam_unmap_counter(struct rvu *rvu,
+		struct npc_mcam_unmap_counter_req *req, struct msg_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u16 index, entry = 0;
+	int blkaddr, rc;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+	rc = npc_mcam_verify_counter(mcam, req->hdr.pcifunc, req->cntr);
+	if (rc)
+		goto exit;
+
+	/* Unmap the MCAM entry and counter */
+	if (!req->all) {
+		rc = npc_mcam_verify_entry(mcam, req->hdr.pcifunc, req->entry);
+		if (rc)
+			goto exit;
+		npc_unmap_mcam_entry_and_cntr(rvu, mcam, blkaddr,
+					      req->entry, req->cntr);
+		goto exit;
+	}
+
+	/* Disable all MCAM entry's stats which are using this counter */
+	while (entry < mcam->bmap_entries) {
+		if (!mcam->cntr_refcnt[req->cntr])
+			break;
+
+		index = find_next_bit(mcam->bmap, mcam->bmap_entries, entry);
+		if (index >= mcam->bmap_entries)
+			break;
+		if (mcam->entry2cntr_map[index] != req->cntr)
+			continue;
+
+		entry = index + 1;
+		npc_unmap_mcam_entry_and_cntr(rvu, mcam, blkaddr,
+					      index, req->cntr);
+	}
+exit:
+	mutex_unlock(&mcam->lock);
+	return rc;
 }
 
 int rvu_mbox_handler_npc_mcam_clear_counter(struct rvu *rvu,

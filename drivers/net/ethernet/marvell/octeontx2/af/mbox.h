@@ -166,6 +166,8 @@ M(NPC_MCAM_ALLOC_COUNTER, 0x6006, npc_mcam_alloc_counter,		\
 					npc_mcam_alloc_counter_rsp)	\
 M(NPC_MCAM_FREE_COUNTER,  0x6007, npc_mcam_free_counter,		\
 				    npc_mcam_oper_counter_req, msg_rsp)	\
+M(NPC_MCAM_UNMAP_COUNTER, 0x6008, npc_mcam_unmap_counter,		\
+				   npc_mcam_unmap_counter_req, msg_rsp)	\
 M(NPC_MCAM_CLEAR_COUNTER, 0x6009, npc_mcam_clear_counter,		\
 				   npc_mcam_oper_counter_req, msg_rsp)	\
 M(NPC_MCAM_COUNTER_STATS, 0x600a, npc_mcam_counter_stats,		\
@@ -669,6 +671,13 @@ struct npc_mcam_oper_counter_req {
 struct npc_mcam_oper_counter_rsp {
 	struct mbox_msghdr hdr;
 	u64 stat;  /* valid only while fetching counter's stats */
+};
+
+struct npc_mcam_unmap_counter_req {
+	struct mbox_msghdr hdr;
+	u16 cntr;
+	u16 entry; /* Entry and counter to be unmapped */
+	u8  all;   /* Unmap all entries using this counter ? */
 };
 
 #endif /* MBOX_H */

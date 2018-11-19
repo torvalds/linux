@@ -81,7 +81,9 @@ struct npc_mcam {
 	u16	bmap_entries;	/* Number of unreserved MCAM entries */
 	u16	bmap_fcnt;	/* MCAM entries free count */
 	u16	*entry2pfvf_map;
+	u16	*entry2cntr_map;
 	u16	*cntr2pfvf_map;
+	u16	*cntr_refcnt;
 	u8	keysize;	/* MCAM keysize 112/224/448 bits */
 	u8	banks;		/* Number of MCAM banks */
 	u8	banks_per_entry;/* Number of keywords in key */
@@ -405,6 +407,8 @@ int rvu_mbox_handler_npc_mcam_free_counter(struct rvu *rvu,
 		   struct npc_mcam_oper_counter_req *req, struct msg_rsp *rsp);
 int rvu_mbox_handler_npc_mcam_clear_counter(struct rvu *rvu,
 		struct npc_mcam_oper_counter_req *req, struct msg_rsp *rsp);
+int rvu_mbox_handler_npc_mcam_unmap_counter(struct rvu *rvu,
+		struct npc_mcam_unmap_counter_req *req, struct msg_rsp *rsp);
 int rvu_mbox_handler_npc_mcam_counter_stats(struct rvu *rvu,
 			struct npc_mcam_oper_counter_req *req,
 			struct npc_mcam_oper_counter_rsp *rsp);
