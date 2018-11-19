@@ -925,11 +925,9 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 					OFFSET, ring->doorbell_index);
 	WREG32_SDMA(i, mmSDMA0_PAGE_DOORBELL, doorbell);
 	WREG32_SDMA(i, mmSDMA0_PAGE_DOORBELL_OFFSET, doorbell_offset);
-	/* TODO: enable doorbell support */
-	/*adev->nbio_funcs->sdma_doorbell_range(adev, i, ring->use_doorbell,
-					      ring->doorbell_index);*/
 
-	sdma_v4_0_ring_set_wptr(ring);
+	/* paging queue doorbell range is setup at sdma_v4_0_gfx_resume */
+	sdma_v4_0_page_ring_set_wptr(ring);
 
 	/* set minor_ptr_update to 0 after wptr programed */
 	WREG32_SDMA(i, mmSDMA0_PAGE_MINOR_PTR_UPDATE, 0);
