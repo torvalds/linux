@@ -61,6 +61,8 @@ enum {
 	NVMF_TREQ_NOT_SPECIFIED	= 0,	/* Not specified */
 	NVMF_TREQ_REQUIRED	= 1,	/* Required */
 	NVMF_TREQ_NOT_REQUIRED	= 2,	/* Not Required */
+#define NVME_TREQ_SECURE_CHANNEL_MASK \
+	(NVMF_TREQ_REQUIRED | NVMF_TREQ_NOT_REQUIRED)
 };
 
 /* RDMA QP Service Type codes for Discovery Log Page entry TSAS

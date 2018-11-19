@@ -153,7 +153,8 @@ CONFIGFS_ATTR(nvmet_, addr_traddr);
 static ssize_t nvmet_addr_treq_show(struct config_item *item,
 		char *page)
 {
-	switch (to_nvmet_port(item)->disc_addr.treq) {
+	switch (to_nvmet_port(item)->disc_addr.treq &
+		NVME_TREQ_SECURE_CHANNEL_MASK) {
 	case NVMF_TREQ_NOT_SPECIFIED:
 		return sprintf(page, "not specified\n");
 	case NVMF_TREQ_REQUIRED:
@@ -169,6 +170,7 @@ static ssize_t nvmet_addr_treq_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct nvmet_port *port = to_nvmet_port(item);
+	u8 treq = port->disc_addr.treq & ~NVME_TREQ_SECURE_CHANNEL_MASK;
 
 	if (port->enabled) {
 		pr_err("Cannot modify address while enabled\n");
@@ -177,15 +179,16 @@ static ssize_t nvmet_addr_treq_store(struct config_item *item,
 	}
 
 	if (sysfs_streq(page, "not specified")) {
-		port->disc_addr.treq = NVMF_TREQ_NOT_SPECIFIED;
+		treq |= NVMF_TREQ_NOT_SPECIFIED;
 	} else if (sysfs_streq(page, "required")) {
-		port->disc_addr.treq = NVMF_TREQ_REQUIRED;
+		treq |= NVMF_TREQ_REQUIRED;
 	} else if (sysfs_streq(page, "not required")) {
-		port->disc_addr.treq = NVMF_TREQ_NOT_REQUIRED;
+		treq |= NVMF_TREQ_NOT_REQUIRED;
 	} else {
 		pr_err("Invalid value '%s' for treq\n", page);
 		return -EINVAL;
 	}
+	port->disc_addr.treq = treq;
 
 	return count;
 }
