@@ -7,11 +7,6 @@
 
 #define MLX5_MAX_IRQ_NAME       (32)
 
-enum {
-	MLX5_EQ_MAX_ASYNC_EQS = 4, /* mlx5_core needs at least 3 */
-	MLX5_EQ_VEC_COMP_BASE = MLX5_EQ_MAX_ASYNC_EQS,
-};
-
 struct mlx5_eq_tasklet {
 	struct list_head      list;
 	struct list_head      process_list;
@@ -31,6 +26,7 @@ struct mlx5_eq {
 	u32                     cons_index;
 	struct mlx5_frag_buf    buf;
 	int                     size;
+	unsigned int            vecidx;
 	unsigned int            irqn;
 	u8                      eqn;
 	int                     nent;
@@ -44,7 +40,7 @@ struct mlx5_eq_comp {
 };
 
 struct mlx5_eq_pagefault {
-	struct mlx5_eq           core; /* Must be first */
+	struct mlx5_eq          *core;
 	struct work_struct       work;
 	spinlock_t               lock; /* Pagefaults spinlock */
 	struct workqueue_struct  *wq;
@@ -55,10 +51,6 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev);
 void mlx5_eq_table_cleanup(struct mlx5_core_dev *dev);
 int mlx5_eq_table_create(struct mlx5_core_dev *dev);
 void mlx5_eq_table_destroy(struct mlx5_core_dev *dev);
-int mlx5_create_async_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
-			 int nent, u64 mask, const char *name,
-			 irq_handler_t handler);
-int mlx5_destroy_async_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 
 int mlx5_eq_add_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
 int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
