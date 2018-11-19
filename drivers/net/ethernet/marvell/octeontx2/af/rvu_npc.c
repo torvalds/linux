@@ -26,6 +26,9 @@
 
 #define NPC_PARSE_RESULT_DMAC_OFFSET	8
 
+static void npc_mcam_free_all_entries(struct rvu *rvu, struct npc_mcam *mcam,
+				      int blkaddr, u16 pcifunc);
+
 struct mcam_entry {
 #define NPC_MAX_KWS_IN_KEY	7 /* Number of keywords in max keywidth */
 	u64	kw[NPC_MAX_KWS_IN_KEY];
@@ -466,6 +469,13 @@ void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
 	if (blkaddr < 0)
 		return;
 
+	mutex_lock(&mcam->lock);
+
+	/* Disable and free all MCAM entries mapped to this 'pcifunc' */
+	npc_mcam_free_all_entries(rvu, mcam, blkaddr, pcifunc);
+
+	mutex_unlock(&mcam->lock);
+
 	/* Disable ucast MCAM match entry of this PF/VF */
 	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
 					 nixlf, NIXLF_UCAST_ENTRY);
@@ -690,13 +700,14 @@ static int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 {
 	int nixlf_count = rvu_get_nixlf_count(rvu);
 	struct npc_mcam *mcam = &rvu->hw->mcam;
-	int rsvd;
+	int rsvd, err;
 	u64 cfg;
 
 	/* Get HW limits */
 	cfg = rvu_read64(rvu, blkaddr, NPC_AF_CONST);
 	mcam->banks = (cfg >> 44) & 0xF;
 	mcam->banksize = (cfg >> 28) & 0xFFFF;
+	mcam->counters.max = (cfg >> 48) & 0xFFFF;
 
 	/* Actual number of MCAM entries vary by entry size */
 	cfg = (rvu_read64(rvu, blkaddr,
@@ -728,25 +739,82 @@ static int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 		return -ENOMEM;
 	}
 
-	mcam->entries = mcam->total_entries - rsvd;
-	mcam->nixlf_offset = mcam->entries;
+	mcam->bmap_entries = mcam->total_entries - rsvd;
+	mcam->nixlf_offset = mcam->bmap_entries;
 	mcam->pf_offset = mcam->nixlf_offset + nixlf_count;
+
+	/* Allocate bitmaps for managing MCAM entries */
+	mcam->bmap = devm_kcalloc(rvu->dev, BITS_TO_LONGS(mcam->bmap_entries),
+				  sizeof(long), GFP_KERNEL);
+	if (!mcam->bmap)
+		return -ENOMEM;
+
+	mcam->bmap_reverse = devm_kcalloc(rvu->dev,
+					  BITS_TO_LONGS(mcam->bmap_entries),
+					  sizeof(long), GFP_KERNEL);
+	if (!mcam->bmap_reverse)
+		return -ENOMEM;
+
+	mcam->bmap_fcnt = mcam->bmap_entries;
+
+	/* Alloc memory for saving entry to RVU PFFUNC allocation mapping */
+	mcam->entry2pfvf_map = devm_kcalloc(rvu->dev, mcam->bmap_entries,
+					    sizeof(u16), GFP_KERNEL);
+	if (!mcam->entry2pfvf_map)
+		return -ENOMEM;
+
+	/* Reserve 1/8th of MCAM entries at the bottom for low priority
+	 * allocations and another 1/8th at the top for high priority
+	 * allocations.
+	 */
+	mcam->lprio_count = mcam->bmap_entries / 8;
+	if (mcam->lprio_count > BITS_PER_LONG)
+		mcam->lprio_count = round_down(mcam->lprio_count,
+					       BITS_PER_LONG);
+	mcam->lprio_start = mcam->bmap_entries - mcam->lprio_count;
+	mcam->hprio_count = mcam->lprio_count;
+	mcam->hprio_end = mcam->hprio_count;
+
+	/* Allocate bitmap for managing MCAM counters and memory
+	 * for saving counter to RVU PFFUNC allocation mapping.
+	 */
+	err = rvu_alloc_bitmap(&mcam->counters);
+	if (err)
+		return err;
+
+	mcam->cntr2pfvf_map = devm_kcalloc(rvu->dev, mcam->counters.max,
+					   sizeof(u16), GFP_KERNEL);
+	if (!mcam->cntr2pfvf_map)
+		goto free_mem;
 
 	mutex_init(&mcam->lock);
 
 	return 0;
+
+free_mem:
+	kfree(mcam->counters.bmap);
+	return -ENOMEM;
 }
 
 int rvu_npc_init(struct rvu *rvu)
 {
 	struct npc_pkind *pkind = &rvu->hw->pkind;
 	u64 keyz = NPC_MCAM_KEY_X2;
-	int blkaddr, err;
+	int blkaddr, entry, bank, err;
+	u64 cfg;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0) {
 		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
 		return -ENODEV;
+	}
+
+	/* First disable all MCAM entries, to stop traffic towards NIXLFs */
+	cfg = rvu_read64(rvu, blkaddr, NPC_AF_CONST);
+	for (bank = 0; bank < ((cfg >> 44) & 0xF); bank++) {
+		for (entry = 0; entry < ((cfg >> 28) & 0xFFFF); entry++)
+			rvu_write64(rvu, blkaddr,
+				    NPC_AF_MCAMEX_BANKX_CFG(entry, bank), 0);
 	}
 
 	/* Allocate resource bimap for pkind*/
@@ -814,5 +882,443 @@ void rvu_npc_freemem(struct rvu *rvu)
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 
 	kfree(pkind->rsrc.bmap);
+	kfree(mcam->counters.bmap);
 	mutex_destroy(&mcam->lock);
+}
+
+static int npc_mcam_verify_entry(struct npc_mcam *mcam,
+				 u16 pcifunc, int entry)
+{
+	/* Verify if entry is valid and if it is indeed
+	 * allocated to the requesting PFFUNC.
+	 */
+	if (entry >= mcam->bmap_entries)
+		return NPC_MCAM_INVALID_REQ;
+
+	if (pcifunc != mcam->entry2pfvf_map[entry])
+		return NPC_MCAM_PERM_DENIED;
+
+	return 0;
+}
+
+/* Sets MCAM entry in bitmap as used. Update
+ * reverse bitmap too. Should be called with
+ * 'mcam->lock' held.
+ */
+static void npc_mcam_set_bit(struct npc_mcam *mcam, u16 index)
+{
+	u16 entry, rentry;
+
+	entry = index;
+	rentry = mcam->bmap_entries - index - 1;
+
+	__set_bit(entry, mcam->bmap);
+	__set_bit(rentry, mcam->bmap_reverse);
+	mcam->bmap_fcnt--;
+}
+
+/* Sets MCAM entry in bitmap as free. Update
+ * reverse bitmap too. Should be called with
+ * 'mcam->lock' held.
+ */
+static void npc_mcam_clear_bit(struct npc_mcam *mcam, u16 index)
+{
+	u16 entry, rentry;
+
+	entry = index;
+	rentry = mcam->bmap_entries - index - 1;
+
+	__clear_bit(entry, mcam->bmap);
+	__clear_bit(rentry, mcam->bmap_reverse);
+	mcam->bmap_fcnt++;
+}
+
+static void npc_mcam_free_all_entries(struct rvu *rvu, struct npc_mcam *mcam,
+				      int blkaddr, u16 pcifunc)
+{
+	u16 index;
+
+	/* Scan all MCAM entries and free the ones mapped to 'pcifunc' */
+	for (index = 0; index < mcam->bmap_entries; index++) {
+		if (mcam->entry2pfvf_map[index] == pcifunc) {
+			mcam->entry2pfvf_map[index] = NPC_MCAM_INVALID_MAP;
+			/* Free the entry in bitmap */
+			npc_mcam_clear_bit(mcam, index);
+			/* Disable the entry */
+			npc_enable_mcam_entry(rvu, mcam, blkaddr, index, false);
+		}
+	}
+}
+
+/* Find area of contiguous free entries of size 'nr'.
+ * If not found return max contiguous free entries available.
+ */
+static u16 npc_mcam_find_zero_area(unsigned long *map, u16 size, u16 start,
+				   u16 nr, u16 *max_area)
+{
+	u16 max_area_start = 0;
+	u16 index, next, end;
+
+	*max_area = 0;
+
+again:
+	index = find_next_zero_bit(map, size, start);
+	if (index >= size)
+		return max_area_start;
+
+	end = ((index + nr) >= size) ? size : index + nr;
+	next = find_next_bit(map, end, index);
+	if (*max_area < (next - index)) {
+		*max_area = next - index;
+		max_area_start = index;
+	}
+
+	if (next < end) {
+		start = next + 1;
+		goto again;
+	}
+
+	return max_area_start;
+}
+
+/* Find number of free MCAM entries available
+ * within range i.e in between 'start' and 'end'.
+ */
+static u16 npc_mcam_get_free_count(unsigned long *map, u16 start, u16 end)
+{
+	u16 index, next;
+	u16 fcnt = 0;
+
+again:
+	if (start >= end)
+		return fcnt;
+
+	index = find_next_zero_bit(map, end, start);
+	if (index >= end)
+		return fcnt;
+
+	next = find_next_bit(map, end, index);
+	if (next <= end) {
+		fcnt += next - index;
+		start = next + 1;
+		goto again;
+	}
+
+	fcnt += end - index;
+	return fcnt;
+}
+
+static void
+npc_get_mcam_search_range_priority(struct npc_mcam *mcam,
+				   struct npc_mcam_alloc_entry_req *req,
+				   u16 *start, u16 *end, bool *reverse)
+{
+	u16 fcnt;
+
+	if (req->priority == NPC_MCAM_HIGHER_PRIO)
+		goto hprio;
+
+	/* For a low priority entry allocation
+	 * - If reference entry is not in hprio zone then
+	 *      search range: ref_entry to end.
+	 * - If reference entry is in hprio zone and if
+	 *   request can be accomodated in non-hprio zone then
+	 *      search range: 'start of middle zone' to 'end'
+	 * - else search in reverse, so that less number of hprio
+	 *   zone entries are allocated.
+	 */
+
+	*reverse = false;
+	*start = req->ref_entry + 1;
+	*end = mcam->bmap_entries;
+
+	if (req->ref_entry >= mcam->hprio_end)
+		return;
+
+	fcnt = npc_mcam_get_free_count(mcam->bmap,
+				       mcam->hprio_end, mcam->bmap_entries);
+	if (fcnt > req->count)
+		*start = mcam->hprio_end;
+	else
+		*reverse = true;
+	return;
+
+hprio:
+	/* For a high priority entry allocation, search is always
+	 * in reverse to preserve hprio zone entries.
+	 * - If reference entry is not in lprio zone then
+	 *      search range: 0 to ref_entry.
+	 * - If reference entry is in lprio zone and if
+	 *   request can be accomodated in middle zone then
+	 *      search range: 'hprio_end' to 'lprio_start'
+	 */
+
+	*reverse = true;
+	*start = 0;
+	*end = req->ref_entry;
+
+	if (req->ref_entry <= mcam->lprio_start)
+		return;
+
+	fcnt = npc_mcam_get_free_count(mcam->bmap,
+				       mcam->hprio_end, mcam->lprio_start);
+	if (fcnt < req->count)
+		return;
+	*start = mcam->hprio_end;
+	*end = mcam->lprio_start;
+}
+
+static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
+				  struct npc_mcam_alloc_entry_req *req,
+				  struct npc_mcam_alloc_entry_rsp *rsp)
+{
+	u16 entry_list[NPC_MAX_NONCONTIG_ENTRIES];
+	u16 fcnt, hp_fcnt, lp_fcnt;
+	u16 start, end, index;
+	int entry, next_start;
+	bool reverse = false;
+	unsigned long *bmap;
+	u16 max_contig;
+
+	mutex_lock(&mcam->lock);
+
+	/* Check if there are any free entries */
+	if (!mcam->bmap_fcnt) {
+		mutex_unlock(&mcam->lock);
+		return NPC_MCAM_ALLOC_FAILED;
+	}
+
+	/* MCAM entries are divided into high priority, middle and
+	 * low priority zones. Idea is to not allocate top and lower
+	 * most entries as much as possible, this is to increase
+	 * probability of honouring priority allocation requests.
+	 *
+	 * Two bitmaps are used for mcam entry management,
+	 * mcam->bmap for forward search i.e '0 to mcam->bmap_entries'.
+	 * mcam->bmap_reverse for reverse search i.e 'mcam->bmap_entries to 0'.
+	 *
+	 * Reverse bitmap is used to allocate entries
+	 * - when a higher priority entry is requested
+	 * - when available free entries are less.
+	 * Lower priority ones out of avaialble free entries are always
+	 * chosen when 'high vs low' question arises.
+	 */
+
+	/* Get the search range for priority allocation request */
+	if (req->priority) {
+		npc_get_mcam_search_range_priority(mcam, req,
+						   &start, &end, &reverse);
+		goto alloc;
+	}
+
+	/* Find out the search range for non-priority allocation request
+	 *
+	 * Get MCAM free entry count in middle zone.
+	 */
+	lp_fcnt = npc_mcam_get_free_count(mcam->bmap,
+					  mcam->lprio_start,
+					  mcam->bmap_entries);
+	hp_fcnt = npc_mcam_get_free_count(mcam->bmap, 0, mcam->hprio_end);
+	fcnt = mcam->bmap_fcnt - lp_fcnt - hp_fcnt;
+
+	/* Check if request can be accomodated in the middle zone */
+	if (fcnt > req->count) {
+		start = mcam->hprio_end;
+		end = mcam->lprio_start;
+	} else if ((fcnt + (hp_fcnt / 2) + (lp_fcnt / 2)) > req->count) {
+		/* Expand search zone from half of hprio zone to
+		 * half of lprio zone.
+		 */
+		start = mcam->hprio_end / 2;
+		end = mcam->bmap_entries - (mcam->lprio_count / 2);
+		reverse = true;
+	} else {
+		/* Not enough free entries, search all entries in reverse,
+		 * so that low priority ones will get used up.
+		 */
+		reverse = true;
+		start = 0;
+		end = mcam->bmap_entries;
+	}
+
+alloc:
+	if (reverse) {
+		bmap = mcam->bmap_reverse;
+		start = mcam->bmap_entries - start;
+		end = mcam->bmap_entries - end;
+		index = start;
+		start = end;
+		end = index;
+	} else {
+		bmap = mcam->bmap;
+	}
+
+	if (req->contig) {
+		/* Allocate requested number of contiguous entries, if
+		 * unsuccessful find max contiguous entries available.
+		 */
+		index = npc_mcam_find_zero_area(bmap, end, start,
+						req->count, &max_contig);
+		rsp->count = max_contig;
+		if (reverse)
+			rsp->entry = mcam->bmap_entries - index - max_contig;
+		else
+			rsp->entry = index;
+	} else {
+		/* Allocate requested number of non-contiguous entries,
+		 * if unsuccessful allocate as many as possible.
+		 */
+		rsp->count = 0;
+		next_start = start;
+		for (entry = 0; entry < req->count; entry++) {
+			index = find_next_zero_bit(bmap, end, next_start);
+			if (index >= end)
+				break;
+
+			next_start = start + (index - start) + 1;
+
+			/* Save the entry's index */
+			if (reverse)
+				index = mcam->bmap_entries - index - 1;
+			entry_list[entry] = index;
+			rsp->count++;
+		}
+	}
+
+	/* If allocating requested no of entries is unsucessful,
+	 * expand the search range to full bitmap length and retry.
+	 */
+	if (!req->priority && (rsp->count < req->count) &&
+	    ((end - start) != mcam->bmap_entries)) {
+		reverse = true;
+		start = 0;
+		end = mcam->bmap_entries;
+		goto alloc;
+	}
+
+	/* For priority entry allocation requests, if allocation is
+	 * failed then expand search to max possible range and retry.
+	 */
+	if (req->priority && rsp->count < req->count) {
+		if (req->priority == NPC_MCAM_LOWER_PRIO &&
+		    (start != (req->ref_entry + 1))) {
+			start = req->ref_entry + 1;
+			end = mcam->bmap_entries;
+			reverse = false;
+			goto alloc;
+		} else if ((req->priority == NPC_MCAM_HIGHER_PRIO) &&
+			   ((end - start) != req->ref_entry)) {
+			start = 0;
+			end = req->ref_entry;
+			reverse = true;
+			goto alloc;
+		}
+	}
+
+	/* Copy MCAM entry indices into mbox response entry_list.
+	 * Requester always expects indices in ascending order, so
+	 * so reverse the list if reverse bitmap is used for allocation.
+	 */
+	if (!req->contig && rsp->count) {
+		index = 0;
+		for (entry = rsp->count - 1; entry >= 0; entry--) {
+			if (reverse)
+				rsp->entry_list[index++] = entry_list[entry];
+			else
+				rsp->entry_list[entry] = entry_list[entry];
+		}
+	}
+
+	/* Mark the allocated entries as used and set nixlf mapping */
+	for (entry = 0; entry < rsp->count; entry++) {
+		index = req->contig ?
+			(rsp->entry + entry) : rsp->entry_list[entry];
+		npc_mcam_set_bit(mcam, index);
+		mcam->entry2pfvf_map[index] = pcifunc;
+	}
+
+	/* Update available free count in mbox response */
+	rsp->free_count = mcam->bmap_fcnt;
+
+	mutex_unlock(&mcam->lock);
+	return 0;
+}
+
+int rvu_mbox_handler_npc_mcam_alloc_entry(struct rvu *rvu,
+					  struct npc_mcam_alloc_entry_req *req,
+					  struct npc_mcam_alloc_entry_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u16 pcifunc = req->hdr.pcifunc;
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	rsp->entry = NPC_MCAM_ENTRY_INVALID;
+	rsp->free_count = 0;
+
+	/* Check if ref_entry is within range */
+	if (req->priority && req->ref_entry >= mcam->bmap_entries)
+		return NPC_MCAM_INVALID_REQ;
+
+	/* ref_entry can't be '0' if requested priority is high.
+	 * Can't be last entry if requested priority is low.
+	 */
+	if ((!req->ref_entry && req->priority == NPC_MCAM_HIGHER_PRIO) ||
+	    ((req->ref_entry == (mcam->bmap_entries - 1)) &&
+	     req->priority == NPC_MCAM_LOWER_PRIO))
+		return NPC_MCAM_INVALID_REQ;
+
+	/* Since list of allocated indices needs to be sent to requester,
+	 * max number of non-contiguous entries per mbox msg is limited.
+	 */
+	if (!req->contig && req->count > NPC_MAX_NONCONTIG_ENTRIES)
+		return NPC_MCAM_INVALID_REQ;
+
+	/* Alloc request from PFFUNC with no NIXLF attached should be denied */
+	if (!is_nixlf_attached(rvu, pcifunc))
+		return NPC_MCAM_ALLOC_DENIED;
+
+	return npc_mcam_alloc_entries(mcam, pcifunc, req, rsp);
+}
+
+int rvu_mbox_handler_npc_mcam_free_entry(struct rvu *rvu,
+					 struct npc_mcam_free_entry_req *req,
+					 struct msg_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u16 pcifunc = req->hdr.pcifunc;
+	int blkaddr, rc = 0;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	/* Free request from PFFUNC with no NIXLF attached, ignore */
+	if (!is_nixlf_attached(rvu, pcifunc))
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+
+	if (req->all)
+		goto free_all;
+
+	rc = npc_mcam_verify_entry(mcam, pcifunc, req->entry);
+	if (rc)
+		goto exit;
+
+	mcam->entry2pfvf_map[req->entry] = 0;
+	npc_mcam_clear_bit(mcam, req->entry);
+	npc_enable_mcam_entry(rvu, mcam, blkaddr, req->entry, false);
+
+	goto exit;
+
+free_all:
+	/* Free up all entries allocated to requesting PFFUNC */
+	npc_mcam_free_all_entries(rvu, mcam, blkaddr, pcifunc);
+exit:
+	mutex_unlock(&mcam->lock);
+	return rc;
 }

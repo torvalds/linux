@@ -149,6 +149,10 @@ M(NPA_HWCTX_DISABLE,	0x403, npa_hwctx_disable, hwctx_disable_req, msg_rsp)\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\
 /* CPT mbox IDs (range 0xA00 - 0xBFF) */				\
 /* NPC mbox IDs (range 0x6000 - 0x7FFF) */				\
+M(NPC_MCAM_ALLOC_ENTRY,	0x6000, npc_mcam_alloc_entry, npc_mcam_alloc_entry_req,\
+				npc_mcam_alloc_entry_rsp)		\
+M(NPC_MCAM_FREE_ENTRY,	0x6001, npc_mcam_free_entry,			\
+				 npc_mcam_free_entry_req, msg_rsp)	\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc,				\
 				 nix_lf_alloc_req, nix_lf_alloc_rsp)	\
@@ -353,6 +357,8 @@ struct hwctx_disable_req {
 	u8 ctype;
 };
 
+/* NIX mbox message formats */
+
 /* NIX mailbox error codes
  * Range 401 - 500.
  */
@@ -539,6 +545,49 @@ struct nix_frs_cfg {
 	u8	sdp_link;      /* Set SDP RX link */
 	u16	maxlen;
 	u16	minlen;
+};
+
+/* NPC mbox message structs */
+
+#define NPC_MCAM_ENTRY_INVALID	0xFFFF
+#define NPC_MCAM_INVALID_MAP	0xFFFF
+
+/* NPC mailbox error codes
+ * Range 701 - 800.
+ */
+enum npc_af_status {
+	NPC_MCAM_INVALID_REQ	= -701,
+	NPC_MCAM_ALLOC_DENIED	= -702,
+	NPC_MCAM_ALLOC_FAILED	= -703,
+	NPC_MCAM_PERM_DENIED	= -704,
+};
+
+struct npc_mcam_alloc_entry_req {
+	struct mbox_msghdr hdr;
+#define NPC_MAX_NONCONTIG_ENTRIES	256
+	u8  contig;   /* Contiguous entries ? */
+#define NPC_MCAM_ANY_PRIO		0
+#define NPC_MCAM_LOWER_PRIO		1
+#define NPC_MCAM_HIGHER_PRIO		2
+	u8  priority; /* Lower or higher w.r.t ref_entry */
+	u16 ref_entry;
+	u16 count;    /* Number of entries requested */
+};
+
+struct npc_mcam_alloc_entry_rsp {
+	struct mbox_msghdr hdr;
+	u16 entry; /* Entry allocated or start index if contiguous.
+		    * Invalid incase of non-contiguous.
+		    */
+	u16 count; /* Number of entries allocated */
+	u16 free_count; /* Number of entries available */
+	u16 entry_list[NPC_MAX_NONCONTIG_ENTRIES];
+};
+
+struct npc_mcam_free_entry_req {
+	struct mbox_msghdr hdr;
+	u16 entry; /* Entry index to be freed */
+	u8  all;   /* If all entries allocated to this PFVF to be freed */
 };
 
 #endif /* MBOX_H */

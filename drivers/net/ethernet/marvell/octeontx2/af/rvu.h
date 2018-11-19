@@ -74,15 +74,25 @@ struct nix_mce_list {
 };
 
 struct npc_mcam {
+	struct rsrc_bmap counters;
 	struct mutex	lock;	/* MCAM entries and counters update lock */
+	unsigned long	*bmap;		/* bitmap, 0 => bmap_entries */
+	unsigned long	*bmap_reverse;	/* Reverse bitmap, bmap_entries => 0 */
+	u16	bmap_entries;	/* Number of unreserved MCAM entries */
+	u16	bmap_fcnt;	/* MCAM entries free count */
+	u16	*entry2pfvf_map;
+	u16	*cntr2pfvf_map;
 	u8	keysize;	/* MCAM keysize 112/224/448 bits */
 	u8	banks;		/* Number of MCAM banks */
 	u8	banks_per_entry;/* Number of keywords in key */
 	u16	banksize;	/* Number of MCAM entries in each bank */
 	u16	total_entries;	/* Total number of MCAM entries */
-	u16     entries;	/* Total minus reserved for NIX LFs */
 	u16	nixlf_offset;	/* Offset of nixlf rsvd uncast entries */
 	u16	pf_offset;	/* Offset of PF's rsvd bcast, promisc entries */
+	u16	lprio_count;
+	u16	lprio_start;
+	u16	hprio_count;
+	u16	hprio_end;
 };
 
 /* Structure for per RVU func info ie PF/VF */
@@ -315,6 +325,7 @@ int rvu_mbox_handler_npa_lf_free(struct rvu *rvu, struct msg_req *req,
 				 struct msg_rsp *rsp);
 
 /* NIX APIs */
+bool is_nixlf_attached(struct rvu *rvu, u16 pcifunc);
 int rvu_nix_init(struct rvu *rvu);
 void rvu_nix_freemem(struct rvu *rvu);
 int rvu_get_nixlf_count(struct rvu *rvu);
@@ -369,4 +380,10 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_update_flowkey_alg_idx(struct rvu *rvu, u16 pcifunc, int nixlf,
 				    int group, int alg_idx, int mcam_index);
+int rvu_mbox_handler_npc_mcam_alloc_entry(struct rvu *rvu,
+					  struct npc_mcam_alloc_entry_req *req,
+					  struct npc_mcam_alloc_entry_rsp *rsp);
+int rvu_mbox_handler_npc_mcam_free_entry(struct rvu *rvu,
+					 struct npc_mcam_free_entry_req *req,
+					 struct msg_rsp *rsp);
 #endif /* RVU_H */

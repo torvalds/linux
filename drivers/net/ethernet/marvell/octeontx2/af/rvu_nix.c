@@ -55,6 +55,17 @@ struct mce {
 	u16			pcifunc;
 };
 
+bool is_nixlf_attached(struct rvu *rvu, u16 pcifunc)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (!pfvf->nixlf || blkaddr < 0)
+		return false;
+	return true;
+}
+
 int rvu_get_nixlf_count(struct rvu *rvu)
 {
 	struct rvu_block *block;
