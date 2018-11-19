@@ -767,8 +767,10 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 
 	case NETDEV_CHANGEADDR:
 		cmds[0] = netdev_del_cmd;
-		cmds[1] = add_default_gid_cmd;
-		cmds[2] = add_cmd;
+		if (ndev->reg_state == NETREG_REGISTERED) {
+			cmds[1] = add_default_gid_cmd;
+			cmds[2] = add_cmd;
+		}
 		break;
 
 	case NETDEV_CHANGEUPPER:
