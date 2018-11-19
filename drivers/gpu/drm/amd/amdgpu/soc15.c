@@ -606,6 +606,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.flush_hdp = &soc15_flush_hdp,
 	.invalidate_hdp = &soc15_invalidate_hdp,
 	.need_full_reset = &soc15_need_full_reset,
+	.init_doorbell_index = &vega10_doorbell_index_init,
 };
 
 static int soc15_common_early_init(void *handle)
