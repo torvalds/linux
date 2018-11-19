@@ -2434,13 +2434,13 @@ static struct btf_file_test file_tests[] = {
 },
 };
 
-static int file_has_btf_elf(const char *fn)
+static int file_has_btf_elf(const char *fn, bool *has_btf_ext)
 {
 	Elf_Scn *scn = NULL;
 	GElf_Ehdr ehdr;
+	int ret = 0;
 	int elf_fd;
 	Elf *elf;
-	int ret;
 
 	if (CHECK(elf_version(EV_CURRENT) == EV_NONE,
 		  "elf_version(EV_CURRENT) == EV_NONE"))
@@ -2472,13 +2472,11 @@ static int file_has_btf_elf(const char *fn)
 		}
 
 		sh_name = elf_strptr(elf, ehdr.e_shstrndx, sh.sh_name);
-		if (!strcmp(sh_name, BTF_ELF_SEC)) {
+		if (!strcmp(sh_name, BTF_ELF_SEC))
 			ret = 1;
-			goto done;
-		}
+		if (!strcmp(sh_name, BTF_EXT_ELF_SEC))
+			*has_btf_ext = true;
 	}
-
-	ret = 0;
 
 done:
 	close(elf_fd);
@@ -2489,15 +2487,24 @@ done:
 static int do_test_file(unsigned int test_num)
 {
 	const struct btf_file_test *test = &file_tests[test_num - 1];
+	const char *expected_fnames[] = {"_dummy_tracepoint",
+					 "test_long_fname_1",
+					 "test_long_fname_2"};
+	struct bpf_prog_info info = {};
 	struct bpf_object *obj = NULL;
+	struct bpf_func_info *finfo;
 	struct bpf_program *prog;
+	__u32 info_len, rec_size;
+	bool has_btf_ext = false;
+	struct btf *btf = NULL;
+	void *func_info = NULL;
 	struct bpf_map *map;
-	int err;
+	int i, err, prog_fd;
 
 	fprintf(stderr, "BTF libbpf test[%u] (%s): ", test_num,
 		test->file);
 
-	err = file_has_btf_elf(test->file);
+	err = file_has_btf_elf(test->file, &has_btf_ext);
 	if (err == -1)
 		return err;
 
@@ -2525,6 +2532,7 @@ static int do_test_file(unsigned int test_num)
 	err = bpf_object__load(obj);
 	if (CHECK(err < 0, "bpf_object__load: %d", err))
 		goto done;
+	prog_fd = bpf_program__fd(prog);
 
 	map = bpf_object__find_map_by_name(obj, "btf_map");
 	if (CHECK(!map, "btf_map not found")) {
@@ -2539,9 +2547,100 @@ static int do_test_file(unsigned int test_num)
 		  test->btf_kv_notfound))
 		goto done;
 
+	if (!jit_enabled || !has_btf_ext)
+		goto skip_jit;
+
+	/* get necessary program info */
+	info_len = sizeof(struct bpf_prog_info);
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+
+	if (CHECK(err == -1, "invalid get info (1st) errno:%d", errno)) {
+		fprintf(stderr, "%s\n", btf_log_buf);
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_cnt != 3,
+		  "incorrect info.func_info_cnt (1st) %d",
+		  info.func_info_cnt)) {
+		err = -1;
+		goto done;
+	}
+	rec_size = info.func_info_rec_size;
+	if (CHECK(rec_size < 4,
+		  "incorrect info.func_info_rec_size (1st) %d\n", rec_size)) {
+		err = -1;
+		goto done;
+	}
+
+	func_info = malloc(info.func_info_cnt * rec_size);
+	if (CHECK(!func_info, "out of memeory")) {
+		err = -1;
+		goto done;
+	}
+
+	/* reset info to only retrieve func_info related data */
+	memset(&info, 0, sizeof(info));
+	info.func_info_cnt = 3;
+	info.func_info_rec_size = rec_size;
+	info.func_info = ptr_to_u64(func_info);
+
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+
+	if (CHECK(err == -1, "invalid get info (2nd) errno:%d", errno)) {
+		fprintf(stderr, "%s\n", btf_log_buf);
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_cnt != 3,
+		  "incorrect info.func_info_cnt (2nd) %d",
+		  info.func_info_cnt)) {
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_rec_size != rec_size,
+		  "incorrect info.func_info_rec_size (2nd) %d",
+		  info.func_info_rec_size)) {
+		err = -1;
+		goto done;
+	}
+
+	err = btf_get_from_id(info.btf_id, &btf);
+	if (CHECK(err, "cannot get btf from kernel, err: %d", err))
+		goto done;
+
+	/* check three functions */
+	finfo = func_info;
+	for (i = 0; i < 3; i++) {
+		const struct btf_type *t;
+		const char *fname;
+
+		t = btf__type_by_id(btf, finfo->type_id);
+		if (CHECK(!t, "btf__type_by_id failure: id %u",
+			  finfo->type_id)) {
+			err = -1;
+			goto done;
+		}
+
+		fname = btf__name_by_offset(btf, t->name_off);
+		err = strcmp(fname, expected_fnames[i]);
+		/* for the second and third functions in .text section,
+		 * the compiler may order them either way.
+		 */
+		if (i && err)
+			err = strcmp(fname, expected_fnames[3 - i]);
+		if (CHECK(err, "incorrect fname %s", fname ? : "")) {
+			err = -1;
+			goto done;
+		}
+
+		finfo = (void *)finfo + rec_size;
+	}
+
+skip_jit:
 	fprintf(stderr, "OK");
 
 done:
+	free(func_info);
 	bpf_object__close(obj);
 	return err;
 }
