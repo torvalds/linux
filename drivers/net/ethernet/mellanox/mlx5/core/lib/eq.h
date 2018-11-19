@@ -39,14 +39,6 @@ struct mlx5_eq_comp {
 	struct list_head        list;
 };
 
-struct mlx5_eq_pagefault {
-	struct mlx5_eq          *core;
-	struct work_struct       work;
-	spinlock_t               lock; /* Pagefaults spinlock */
-	struct workqueue_struct  *wq;
-	mempool_t                *pool;
-};
-
 int mlx5_eq_table_init(struct mlx5_core_dev *dev);
 void mlx5_eq_table_cleanup(struct mlx5_core_dev *dev);
 int mlx5_eq_table_create(struct mlx5_core_dev *dev);

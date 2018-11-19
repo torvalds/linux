@@ -6040,6 +6040,11 @@ static int mlx5_ib_stage_odp_init(struct mlx5_ib_dev *dev)
 	return mlx5_ib_odp_init_one(dev);
 }
 
+void mlx5_ib_stage_odp_cleanup(struct mlx5_ib_dev *dev)
+{
+	mlx5_ib_odp_cleanup_one(dev);
+}
+
 int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev)
 {
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt)) {
@@ -6225,7 +6230,7 @@ static const struct mlx5_ib_profile pf_profile = {
 		     mlx5_ib_stage_dev_res_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_ODP,
 		     mlx5_ib_stage_odp_init,
-		     NULL),
+		     mlx5_ib_stage_odp_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_COUNTERS,
 		     mlx5_ib_stage_counters_init,
 		     mlx5_ib_stage_counters_cleanup),
@@ -6395,9 +6400,6 @@ static struct mlx5_interface mlx5_ib_interface = {
 	.add            = mlx5_ib_add,
 	.remove         = mlx5_ib_remove,
 	.event          = mlx5_ib_event,
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	.pfault		= mlx5_ib_pfault,
-#endif
 	.protocol	= MLX5_INTERFACE_PROTOCOL_IB,
 };
 

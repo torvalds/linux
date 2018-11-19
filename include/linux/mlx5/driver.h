@@ -510,7 +510,6 @@ struct mlx5_fc_stats {
 struct mlx5_mpfs;
 struct mlx5_eswitch;
 struct mlx5_lag;
-struct mlx5_pagefault;
 struct mlx5_eq_table;
 
 struct mlx5_rate_limit {
@@ -619,13 +618,6 @@ struct mlx5_priv {
 
 	struct mlx5_port_module_event_stats  pme_stats;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	void		      (*pfault)(struct mlx5_core_dev *dev,
-					void *context,
-					struct mlx5_pagefault *pfault);
-	void		       *pfault_ctx;
-	struct srcu_struct      pfault_srcu;
-#endif
 	struct mlx5_bfreg_data		bfregs;
 	struct mlx5_uars_page	       *uar;
 };
@@ -648,44 +640,6 @@ enum mlx5_pagefault_type_flags {
 	MLX5_PFAULT_REQUESTOR = 1 << 0,
 	MLX5_PFAULT_WRITE     = 1 << 1,
 	MLX5_PFAULT_RDMA      = 1 << 2,
-};
-
-/* Contains the details of a pagefault. */
-struct mlx5_pagefault {
-	u32			bytes_committed;
-	u32			token;
-	u8			event_subtype;
-	u8			type;
-	union {
-		/* Initiator or send message responder pagefault details. */
-		struct {
-			/* Received packet size, only valid for responders. */
-			u32	packet_size;
-			/*
-			 * Number of resource holding WQE, depends on type.
-			 */
-			u32	wq_num;
-			/*
-			 * WQE index. Refers to either the send queue or
-			 * receive queue, according to event_subtype.
-			 */
-			u16	wqe_index;
-		} wqe;
-		/* RDMA responder pagefault details */
-		struct {
-			u32	r_key;
-			/*
-			 * Received packet size, minimal size page fault
-			 * resolution required for forward progress.
-			 */
-			u32	packet_size;
-			u32	rdma_op_len;
-			u64	rdma_va;
-		} rdma;
-	};
-
-	struct mlx5_eq_pagefault *eq;
-	struct work_struct	work;
 };
 
 struct mlx5_td {
@@ -1118,9 +1072,6 @@ struct mlx5_interface {
 	void			(*detach)(struct mlx5_core_dev *dev, void *context);
 	void			(*event)(struct mlx5_core_dev *dev, void *context,
 					 enum mlx5_dev_event event, unsigned long param);
-	void			(*pfault)(struct mlx5_core_dev *dev,
-					  void *context,
-					  struct mlx5_pagefault *pfault);
 	void *                  (*get_dev)(void *context);
 	int			protocol;
 	struct list_head	list;

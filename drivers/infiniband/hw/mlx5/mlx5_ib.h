@@ -880,6 +880,15 @@ struct mlx5_ib_lb_state {
 	bool			enabled;
 };
 
+struct mlx5_ib_pf_eq {
+	struct mlx5_ib_dev *dev;
+	struct mlx5_eq *core;
+	struct work_struct work;
+	spinlock_t lock; /* Pagefaults spinlock */
+	struct workqueue_struct *wq;
+	mempool_t *pool;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	const struct uverbs_object_tree_def *driver_trees[7];
@@ -902,6 +911,8 @@ struct mlx5_ib_dev {
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	struct ib_odp_caps	odp_caps;
 	u64			odp_max_size;
+	struct mlx5_ib_pf_eq	odp_pf_eq;
+
 	/*
 	 * Sleepable RCU that prevents destruction of MRs while they are still
 	 * being used by a page fault handler.
@@ -1158,9 +1169,8 @@ struct ib_mr *mlx5_ib_reg_dm_mr(struct ib_pd *pd, struct ib_dm *dm,
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev);
-void mlx5_ib_pfault(struct mlx5_core_dev *mdev, void *context,
-		    struct mlx5_pagefault *pfault);
 int mlx5_ib_odp_init_one(struct mlx5_ib_dev *ibdev);
+void mlx5_ib_odp_cleanup_one(struct mlx5_ib_dev *ibdev);
 int __init mlx5_ib_odp_init(void);
 void mlx5_ib_odp_cleanup(void);
 void mlx5_ib_invalidate_range(struct ib_umem_odp *umem_odp, unsigned long start,
@@ -1175,6 +1185,7 @@ static inline void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 }
 
 static inline int mlx5_ib_odp_init_one(struct mlx5_ib_dev *ibdev) { return 0; }
+static inline void mlx5_ib_odp_cleanup_one(struct mlx5_ib_dev *ibdev) {}
 static inline int mlx5_ib_odp_init(void) { return 0; }
 static inline void mlx5_ib_odp_cleanup(void)				    {}
 static inline void mlx5_odp_init_mr_cache_entry(struct mlx5_cache_ent *ent) {}
