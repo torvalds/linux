@@ -5,6 +5,7 @@
 #define __NFP_ABM_H__ 1
 
 #include <linux/bits.h>
+#include <linux/list.h>
 #include <linux/radix-tree.h>
 #include <net/devlink.h>
 #include <net/pkt_cls.h>
@@ -34,7 +35,9 @@ struct nfp_net;
  * @thresholds:		current threshold configuration
  * @threshold_undef:	bitmap of thresholds which have not been set
  * @num_thresholds:	number of @thresholds and bits in @threshold_undef
+ *
  * @prio_map_len:	computed length of FW priority map (in bytes)
+ * @dscp_mask:		mask FW will apply on DSCP field
  *
  * @eswitch_mode:	devlink eswitch mode, advanced functions only visible
  *			in switchdev mode
@@ -53,7 +56,9 @@ struct nfp_abm {
 	u32 *thresholds;
 	unsigned long *threshold_undef;
 	size_t num_thresholds;
+
 	unsigned int prio_map_len;
+	u8 dscp_mask;
 
 	enum devlink_eswitch_mode eswitch_mode;
 
@@ -170,7 +175,11 @@ struct nfp_qdisc {
  *
  * @last_stats_update:	ktime of last stats update
  *
+ * @prio_map:		current map of priorities
+ * @has_prio:		@prio_map is valid
+ *
  * @def_band:		default band to use
+ * @dscp_map:		list of DSCP to band mappings
  *
  * @root_qdisc:	pointer to the current root of the Qdisc hierarchy
  * @qdiscs:	all qdiscs recorded by major part of the handle
@@ -184,7 +193,11 @@ struct nfp_abm_link {
 
 	u64 last_stats_update;
 
+	u32 *prio_map;
+	bool has_prio;
+
 	u8 def_band;
+	struct list_head dscp_map;
 
 	struct nfp_qdisc *root_qdisc;
 	struct radix_tree_root qdiscs;
@@ -204,6 +217,8 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 			struct tc_mq_qopt_offload *opt);
 int nfp_abm_setup_tc_gred(struct net_device *netdev, struct nfp_abm_link *alink,
 			  struct tc_gred_qopt_offload *opt);
+int nfp_abm_setup_cls_block(struct net_device *netdev, struct nfp_repr *repr,
+			    struct tc_block_offload *opt);
 
 int nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
@@ -220,5 +235,6 @@ u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int i);
 u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int i);
 int nfp_abm_ctrl_qm_enable(struct nfp_abm *abm);
 int nfp_abm_ctrl_qm_disable(struct nfp_abm *abm);
+void nfp_abm_prio_map_update(struct nfp_abm *abm);
 int nfp_abm_ctrl_prio_map_update(struct nfp_abm_link *alink, u32 *packed);
 #endif

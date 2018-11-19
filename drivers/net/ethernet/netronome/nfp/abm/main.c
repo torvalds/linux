@@ -46,6 +46,8 @@ nfp_abm_setup_tc(struct nfp_app *app, struct net_device *netdev,
 		return nfp_abm_setup_tc_red(netdev, repr->app_priv, type_data);
 	case TC_SETUP_QDISC_GRED:
 		return nfp_abm_setup_tc_gred(netdev, repr->app_priv, type_data);
+	case TC_SETUP_BLOCK:
+		return nfp_abm_setup_cls_block(netdev, repr, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -315,8 +317,14 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 	alink->id = id;
 	alink->total_queues = alink->vnic->max_rx_rings;
 
+	INIT_LIST_HEAD(&alink->dscp_map);
+
 	err = nfp_abm_ctrl_read_params(alink);
 	if (err)
+		goto err_free_alink;
+
+	alink->prio_map = kzalloc(abm->prio_map_len, GFP_KERNEL);
+	if (!alink->prio_map)
 		goto err_free_alink;
 
 	/* This is a multi-host app, make sure MAC/PHY is up, but don't
@@ -324,7 +332,7 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 	 */
 	err = nfp_eth_set_configured(app->cpp, eth_port->index, true);
 	if (err < 0)
-		goto err_free_alink;
+		goto err_free_priomap;
 
 	netif_keep_dst(nn->dp.netdev);
 
@@ -333,6 +341,8 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 
 	return 0;
 
+err_free_priomap:
+	kfree(alink->prio_map);
 err_free_alink:
 	kfree(alink);
 	return err;
@@ -344,7 +354,17 @@ static void nfp_abm_vnic_free(struct nfp_app *app, struct nfp_net *nn)
 
 	nfp_abm_kill_reprs(alink->abm, alink);
 	WARN(!radix_tree_empty(&alink->qdiscs), "left over qdiscs\n");
+	kfree(alink->prio_map);
 	kfree(alink);
+}
+
+static int nfp_abm_vnic_init(struct nfp_app *app, struct nfp_net *nn)
+{
+	struct nfp_abm_link *alink = nn->app_priv;
+
+	if (nfp_abm_has_prio(alink->abm))
+		return nfp_abm_ctrl_prio_map_update(alink, alink->prio_map);
+	return 0;
 }
 
 static u64 *
@@ -491,6 +511,7 @@ const struct nfp_app_type app_abm = {
 
 	.vnic_alloc	= nfp_abm_vnic_alloc,
 	.vnic_free	= nfp_abm_vnic_free,
+	.vnic_init	= nfp_abm_vnic_init,
 
 	.port_get_stats		= nfp_abm_port_get_stats,
 	.port_get_stats_count	= nfp_abm_port_get_stats_count,

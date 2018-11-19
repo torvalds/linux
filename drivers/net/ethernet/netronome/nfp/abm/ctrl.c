@@ -335,6 +335,7 @@ int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm)
 	abm->num_prios = res;
 
 	abm->prio_map_len = nfp_abm_ctrl_prio_map_size(abm);
+	abm->dscp_mask = GENMASK(7, 8 - order_base_2(abm->num_prios));
 
 	/* Check values are sane, U16_MAX is arbitrarily chosen as max */
 	if (!is_power_of_2(abm->num_bands) || !is_power_of_2(abm->num_prios) ||

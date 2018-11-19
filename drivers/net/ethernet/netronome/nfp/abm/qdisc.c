@@ -197,6 +197,7 @@ nfp_abm_offload_compile_red(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
 	good_red = qdisc->type == NFP_QDISC_RED &&
 		   qdisc->params_ok &&
 		   qdisc->use_cnt == 1 &&
+		   !alink->has_prio &&
 		   !qdisc->children[0];
 	good_gred = qdisc->type == NFP_QDISC_GRED &&
 		    qdisc->params_ok &&
