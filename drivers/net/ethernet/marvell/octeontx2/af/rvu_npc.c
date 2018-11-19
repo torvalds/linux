@@ -933,6 +933,21 @@ static int npc_mcam_verify_entry(struct npc_mcam *mcam,
 	return 0;
 }
 
+static int npc_mcam_verify_counter(struct npc_mcam *mcam,
+				   u16 pcifunc, int cntr)
+{
+	/* Verify if counter is valid and if it is indeed
+	 * allocated to the requesting PFFUNC.
+	 */
+	if (cntr >= mcam->counters.max)
+		return NPC_MCAM_INVALID_REQ;
+
+	if (pcifunc != mcam->cntr2pfvf_map[cntr])
+		return NPC_MCAM_PERM_DENIED;
+
+	return 0;
+}
+
 /* Sets MCAM entry in bitmap as used. Update
  * reverse bitmap too. Should be called with
  * 'mcam->lock' held.
@@ -1484,4 +1499,133 @@ int rvu_mbox_handler_npc_mcam_shift_entry(struct rvu *rvu,
 
 	mutex_unlock(&mcam->lock);
 	return rc;
+}
+
+int rvu_mbox_handler_npc_mcam_alloc_counter(struct rvu *rvu,
+			struct npc_mcam_alloc_counter_req *req,
+			struct npc_mcam_alloc_counter_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u16 pcifunc = req->hdr.pcifunc;
+	u16 max_contig, cntr;
+	int blkaddr, index;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	/* If the request is from a PFFUNC with no NIXLF attached, ignore */
+	if (!is_nixlf_attached(rvu, pcifunc))
+		return NPC_MCAM_INVALID_REQ;
+
+	/* Since list of allocated counter IDs needs to be sent to requester,
+	 * max number of non-contiguous counters per mbox msg is limited.
+	 */
+	if (!req->contig && req->count > NPC_MAX_NONCONTIG_COUNTERS)
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+
+	/* Check if unused counters are available or not */
+	if (!rvu_rsrc_free_count(&mcam->counters)) {
+		mutex_unlock(&mcam->lock);
+		return NPC_MCAM_ALLOC_FAILED;
+	}
+
+	rsp->count = 0;
+
+	if (req->contig) {
+		/* Allocate requested number of contiguous counters, if
+		 * unsuccessful find max contiguous entries available.
+		 */
+		index = npc_mcam_find_zero_area(mcam->counters.bmap,
+						mcam->counters.max, 0,
+						req->count, &max_contig);
+		rsp->count = max_contig;
+		rsp->cntr = index;
+		for (cntr = index; cntr < (index + max_contig); cntr++) {
+			__set_bit(cntr, mcam->counters.bmap);
+			mcam->cntr2pfvf_map[cntr] = pcifunc;
+		}
+	} else {
+		/* Allocate requested number of non-contiguous counters,
+		 * if unsuccessful allocate as many as possible.
+		 */
+		for (cntr = 0; cntr < req->count; cntr++) {
+			index = rvu_alloc_rsrc(&mcam->counters);
+			if (index < 0)
+				break;
+			rsp->cntr_list[cntr] = index;
+			rsp->count++;
+			mcam->cntr2pfvf_map[index] = pcifunc;
+		}
+	}
+
+	mutex_unlock(&mcam->lock);
+	return 0;
+}
+
+int rvu_mbox_handler_npc_mcam_free_counter(struct rvu *rvu,
+		struct npc_mcam_oper_counter_req *req, struct msg_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int err;
+
+	mutex_lock(&mcam->lock);
+	err = npc_mcam_verify_counter(mcam, req->hdr.pcifunc, req->cntr);
+	if (err) {
+		mutex_unlock(&mcam->lock);
+		return err;
+	}
+
+	/* Mark counter as free/unused */
+	mcam->cntr2pfvf_map[req->cntr] = NPC_MCAM_INVALID_MAP;
+	rvu_free_rsrc(&mcam->counters, req->cntr);
+	mutex_unlock(&mcam->lock);
+
+	return 0;
+}
+
+int rvu_mbox_handler_npc_mcam_clear_counter(struct rvu *rvu,
+		struct npc_mcam_oper_counter_req *req, struct msg_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int blkaddr, err;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+	err = npc_mcam_verify_counter(mcam, req->hdr.pcifunc, req->cntr);
+	mutex_unlock(&mcam->lock);
+	if (err)
+		return err;
+
+	rvu_write64(rvu, blkaddr, NPC_AF_MATCH_STATX(req->cntr), 0x00);
+
+	return 0;
+}
+
+int rvu_mbox_handler_npc_mcam_counter_stats(struct rvu *rvu,
+			struct npc_mcam_oper_counter_req *req,
+			struct npc_mcam_oper_counter_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int blkaddr, err;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+	err = npc_mcam_verify_counter(mcam, req->hdr.pcifunc, req->cntr);
+	mutex_unlock(&mcam->lock);
+	if (err)
+		return err;
+
+	rsp->stat = rvu_read64(rvu, blkaddr, NPC_AF_MATCH_STATX(req->cntr));
+	rsp->stat &= BIT_ULL(48) - 1;
+
+	return 0;
 }
