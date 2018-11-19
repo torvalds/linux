@@ -43,7 +43,7 @@ embargo has lifted; whichever comes first.  The only exception to that
 rule is if the bug is publicly known, in which case the preference is to
 release the fix as soon as it's available.
 
-Whilst embargoed information may be shared with trusted individuals in
+While embargoed information may be shared with trusted individuals in
 order to develop a fix, such information will not be published alongside
 the fix or on any other disclosure channel without the permission of the
 reporter.  This includes but is not limited to the original bug report

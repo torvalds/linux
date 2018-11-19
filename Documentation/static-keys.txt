@@ -156,7 +156,7 @@ or increment/decrement function.
 
 Note that switching branches results in some locks being taken,
 particularly the CPU hotplug lock (in order to avoid races against
-CPUs being brought in the kernel whilst the kernel is getting
+CPUs being brought in the kernel while the kernel is getting
 patched). Calling the static key API from within a hotplug notifier is
 thus a sure deadlock recipe. In order to still allow use of the
 functionnality, the following functions are provided:

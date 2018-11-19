@@ -1131,7 +1131,7 @@ struct dentry_operations {
 
   d_manage: called to allow the filesystem to manage the transition from a
 	dentry (optional).  This allows autofs, for example, to hold up clients
-	waiting to explore behind a 'mountpoint' whilst letting the daemon go
+	waiting to explore behind a 'mountpoint' while letting the daemon go
 	past and construct the subtree there.  0 should be returned to let the
 	calling process continue.  -EISDIR can be returned to tell pathwalk to
 	use this directory as an ordinary directory and to ignore anything
