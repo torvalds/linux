@@ -1042,7 +1042,7 @@ out_trans_cancel:
 	goto out_unlock;
 }
 
-static int
+int
 xfs_flush_unmap_range(
 	struct xfs_inode	*ip,
 	xfs_off_t		offset,
