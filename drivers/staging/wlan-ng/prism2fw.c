@@ -406,7 +406,6 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	int i;
 	int c;
 	u32 crcstart;
-	u32 crcend;
 	u32 cstart = 0;
 	u32 cend;
 	u8 *dest;
@@ -416,7 +415,6 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 		if (!s3crc[i].dowrite)
 			continue;
 		crcstart = s3crc[i].addr;
-		crcend = s3crc[i].addr + s3crc[i].len;
 		/* Find chunk */
 		for (c = 0; c < nfchunks; c++) {
 			cstart = fchunk[c].addr;
