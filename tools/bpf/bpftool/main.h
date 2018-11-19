@@ -187,6 +187,8 @@ struct btf_dumper {
  */
 int btf_dumper_type(const struct btf_dumper *d, __u32 type_id,
 		    const void *data);
+void btf_dumper_type_only(const struct btf *btf, __u32 func_type_id,
+			  char *func_only, int size);
 
 struct nlattr;
 struct ifinfomsg;
