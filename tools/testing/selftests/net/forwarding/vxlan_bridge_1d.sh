@@ -1,0 +1,296 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+
+# +--------------------+                               +----------------------+
+# | H1 (vrf)           |                               |             H2 (vrf) |
+# |    + $h1           |                               |  + $h2               |
+# |    | 192.0.2.1/28  |                               |  | 192.0.2.2/28      |
+# +----|---------------+                               +--|-------------------+
+#      |                                                  |
+# +----|--------------------------------------------------|-------------------+
+# | SW |                                                  |                   |
+# | +--|--------------------------------------------------|-----------------+ |
+# | |  + $swp1                   BR1 (802.1d)             + $swp2           | |
+# | |                                                                       | |
+# | |  + vx1 (vxlan)                                                        | |
+# | |    local 192.0.2.17                                                   | |
+# | |    remote 192.0.2.34 192.0.2.50                                       | |
+# | |    id 1000 dstport $VXPORT                                            | |
+# | +-----------------------------------------------------------------------+ |
+# |                                                                           |
+# |  192.0.2.32/28 via 192.0.2.18                                             |
+# |  192.0.2.48/28 via 192.0.2.18                                             |
+# |                                                                           |
+# |    + $rp1                                                                 |
+# |    | 192.0.2.17/28                                                        |
+# +----|----------------------------------------------------------------------+
+#      |
+# +----|--------------------------------------------------------+
+# |    |                                             VRP2 (vrf) |
+# |    + $rp2                                                   |
+# |      192.0.2.18/28                                          |
+# |                                                             |   (maybe) HW
+# =============================================================================
+# |                                                             |  (likely) SW
+# |    + v1 (veth)                             + v3 (veth)      |
+# |    | 192.0.2.33/28                         | 192.0.2.49/28  |
+# +----|---------------------------------------|----------------+
+#      |                                       |
+# +----|------------------------------+   +----|------------------------------+
+# |    + v2 (veth)        NS1 (netns) |   |    + v4 (veth)        NS2 (netns) |
+# |      192.0.2.34/28                |   |      192.0.2.50/28                |
+# |                                   |   |                                   |
+# |   192.0.2.16/28 via 192.0.2.33    |   |   192.0.2.16/28 via 192.0.2.49    |
+# |   192.0.2.50/32 via 192.0.2.33    |   |   192.0.2.34/32 via 192.0.2.49    |
+# |                                   |   |                                   |
+# | +-------------------------------+ |   | +-------------------------------+ |
+# | |                  BR2 (802.1d) | |   | |                  BR2 (802.1d) | |
+# | |  + vx2 (vxlan)                | |   | |  + vx2 (vxlan)                | |
+# | |    local 192.0.2.34           | |   | |    local 192.0.2.50           | |
+# | |    remote 192.0.2.17          | |   | |    remote 192.0.2.17          | |
+# | |    remote 192.0.2.50          | |   | |    remote 192.0.2.34          | |
+# | |    id 1000 dstport $VXPORT    | |   | |    id 1000 dstport $VXPORT    | |
+# | |                               | |   | |                               | |
+# | |  + w1 (veth)                  | |   | |  + w1 (veth)                  | |
+# | +--|----------------------------+ |   | +--|----------------------------+ |
+# |    |                              |   |    |                              |
+# | +--|----------------------------+ |   | +--|----------------------------+ |
+# | |  |                  VW2 (vrf) | |   | |  |                  VW2 (vrf) | |
+# | |  + w2 (veth)                  | |   | |  + w2 (veth)                  | |
+# | |    192.0.2.3/28               | |   | |    192.0.2.4/28               | |
+# | +-------------------------------+ |   | +-------------------------------+ |
+# +-----------------------------------+   +-----------------------------------+
+
+: ${VXPORT:=4789}
+export VXPORT
+
+: ${ALL_TESTS:="
+    "}
+
+NUM_NETIFS=6
+source lib.sh
+
+h1_create()
+{
+	simple_if_init $h1 192.0.2.1/28
+	tc qdisc add dev $h1 clsact
+}
+
+h1_destroy()
+{
+	tc qdisc del dev $h1 clsact
+	simple_if_fini $h1 192.0.2.1/28
+}
+
+h2_create()
+{
+	simple_if_init $h2 192.0.2.2/28
+	tc qdisc add dev $h2 clsact
+}
+
+h2_destroy()
+{
+	tc qdisc del dev $h2 clsact
+	simple_if_fini $h2 192.0.2.2/28
+}
+
+rp1_set_addr()
+{
+	ip address add dev $rp1 192.0.2.17/28
+
+	ip route add 192.0.2.32/28 nexthop via 192.0.2.18
+	ip route add 192.0.2.48/28 nexthop via 192.0.2.18
+}
+
+rp1_unset_addr()
+{
+	ip route del 192.0.2.48/28 nexthop via 192.0.2.18
+	ip route del 192.0.2.32/28 nexthop via 192.0.2.18
+
+	ip address del dev $rp1 192.0.2.17/28
+}
+
+switch_create()
+{
+	ip link add name br1 type bridge vlan_filtering 0 mcast_snooping 0
+	# Make sure the bridge uses the MAC address of the local port and not
+	# that of the VxLAN's device.
+	ip link set dev br1 address $(mac_get $swp1)
+	ip link set dev br1 up
+
+	ip link set dev $rp1 up
+	rp1_set_addr
+
+	ip link add name vx1 type vxlan id 1000		\
+		local 192.0.2.17 dstport "$VXPORT"	\
+		nolearning noudpcsum tos inherit ttl 100
+	ip link set dev vx1 up
+
+	ip link set dev vx1 master br1
+	ip link set dev $swp1 master br1
+	ip link set dev $swp1 up
+
+	ip link set dev $swp2 master br1
+	ip link set dev $swp2 up
+
+	bridge fdb append dev vx1 00:00:00:00:00:00 dst 192.0.2.34 self
+	bridge fdb append dev vx1 00:00:00:00:00:00 dst 192.0.2.50 self
+}
+
+switch_destroy()
+{
+	rp1_unset_addr
+	ip link set dev $rp1 down
+
+	bridge fdb del dev vx1 00:00:00:00:00:00 dst 192.0.2.50 self
+	bridge fdb del dev vx1 00:00:00:00:00:00 dst 192.0.2.34 self
+
+	ip link set dev vx1 nomaster
+	ip link set dev vx1 down
+	ip link del dev vx1
+
+	ip link set dev $swp2 down
+	ip link set dev $swp2 nomaster
+
+	ip link set dev $swp1 down
+	ip link set dev $swp1 nomaster
+
+	ip link set dev br1 down
+	ip link del dev br1
+}
+
+vrp2_create()
+{
+	simple_if_init $rp2 192.0.2.18/28
+	__simple_if_init v1 v$rp2 192.0.2.33/28
+	__simple_if_init v3 v$rp2 192.0.2.49/28
+	tc qdisc add dev v1 clsact
+}
+
+vrp2_destroy()
+{
+	tc qdisc del dev v1 clsact
+	__simple_if_fini v3 192.0.2.49/28
+	__simple_if_fini v1 192.0.2.33/28
+	simple_if_fini $rp2 192.0.2.18/28
+}
+
+ns_init_common()
+{
+	local in_if=$1; shift
+	local in_addr=$1; shift
+	local other_in_addr=$1; shift
+	local nh_addr=$1; shift
+	local host_addr=$1; shift
+
+	ip link set dev $in_if up
+	ip address add dev $in_if $in_addr/28
+	tc qdisc add dev $in_if clsact
+
+	ip link add name br2 type bridge vlan_filtering 0
+	ip link set dev br2 up
+
+	ip link add name w1 type veth peer name w2
+
+	ip link set dev w1 master br2
+	ip link set dev w1 up
+
+	ip link add name vx2 type vxlan id 1000 local $in_addr dstport "$VXPORT"
+	ip link set dev vx2 up
+	bridge fdb append dev vx2 00:00:00:00:00:00 dst 192.0.2.17 self
+	bridge fdb append dev vx2 00:00:00:00:00:00 dst $other_in_addr self
+
+	ip link set dev vx2 master br2
+	tc qdisc add dev vx2 clsact
+
+	simple_if_init w2 $host_addr/28
+
+	ip route add 192.0.2.16/28 nexthop via $nh_addr
+	ip route add $other_in_addr/32 nexthop via $nh_addr
+}
+export -f ns_init_common
+
+ns1_create()
+{
+	ip netns add ns1
+	ip link set dev v2 netns ns1
+	in_ns ns1 \
+	      ns_init_common v2 192.0.2.34 192.0.2.50 192.0.2.33 192.0.2.3
+}
+
+ns1_destroy()
+{
+	ip netns exec ns1 ip link set dev v2 netns 1
+	ip netns del ns1
+}
+
+ns2_create()
+{
+	ip netns add ns2
+	ip link set dev v4 netns ns2
+	in_ns ns2 \
+	      ns_init_common v4 192.0.2.50 192.0.2.34 192.0.2.49 192.0.2.4
+}
+
+ns2_destroy()
+{
+	ip netns exec ns2 ip link set dev v4 netns 1
+	ip netns del ns2
+}
+
+setup_prepare()
+{
+	h1=${NETIFS[p1]}
+	swp1=${NETIFS[p2]}
+
+	swp2=${NETIFS[p3]}
+	h2=${NETIFS[p4]}
+
+	rp1=${NETIFS[p5]}
+	rp2=${NETIFS[p6]}
+
+	vrf_prepare
+	forwarding_enable
+
+	h1_create
+	h2_create
+	switch_create
+
+	ip link add name v1 type veth peer name v2
+	ip link add name v3 type veth peer name v4
+	vrp2_create
+	ns1_create
+	ns2_create
+}
+
+cleanup()
+{
+	pre_cleanup
+
+	ns2_destroy
+	ns1_destroy
+	vrp2_destroy
+	ip link del dev v3
+	ip link del dev v1
+
+	switch_destroy
+	h2_destroy
+	h1_destroy
+
+	forwarding_restore
+	vrf_cleanup
+}
+
+test_all()
+{
+	echo "Running tests with UDP port $VXPORT"
+	tests_run
+}
+
+trap cleanup EXIT
+
+setup_prepare
+setup_wait
+test_all
+
+exit $EXIT_STATUS
