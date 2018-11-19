@@ -6645,7 +6645,6 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	int err = 0;
-	int drop_on_err = 0;
 	u64 objectid = 0;
 	u64 index = 0;
 
@@ -6671,7 +6670,6 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out_fail;
 	}
 
-	drop_on_err = 1;
 	/* these must be set before we unlock the inode */
 	inode->i_op = &btrfs_dir_inode_operations;
 	inode->i_fop = &btrfs_dir_file_operations;
@@ -6692,7 +6690,6 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out_fail;
 
 	d_instantiate_new(dentry, inode);
-	drop_on_err = 0;
 
 out_fail:
 	btrfs_end_transaction(trans);
