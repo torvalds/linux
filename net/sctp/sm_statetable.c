@@ -79,7 +79,7 @@ static const struct sctp_sm_table_entry bug = {
 
 const struct sctp_sm_table_entry *sctp_sm_lookup_event(
 					struct net *net,
-					enum sctp_event event_type,
+					enum sctp_event_type event_type,
 					enum sctp_state state,
 					union sctp_subtype event_subtype)
 {

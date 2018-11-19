@@ -219,7 +219,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 		sk_incoming_cpu_update(sk);
 	}
 	/* Check if the user wishes to receive this event.  */
-	if (!sctp_ulpevent_is_enabled(event, &sp->subscribe))
+	if (!sctp_ulpevent_is_enabled(event, ulpq->asoc->subscribe))
 		goto out_free;
 
 	/* If we are in partial delivery mode, post to the lobby until
@@ -1129,16 +1129,16 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 void sctp_ulpq_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 {
 	struct sctp_ulpevent *ev = NULL;
-	struct sock *sk;
 	struct sctp_sock *sp;
+	struct sock *sk;
 
 	if (!ulpq->pd_mode)
 		return;
 
 	sk = ulpq->asoc->base.sk;
 	sp = sctp_sk(sk);
-	if (sctp_ulpevent_type_enabled(SCTP_PARTIAL_DELIVERY_EVENT,
-				       &sctp_sk(sk)->subscribe))
+	if (sctp_ulpevent_type_enabled(ulpq->asoc->subscribe,
+				       SCTP_PARTIAL_DELIVERY_EVENT))
 		ev = sctp_ulpevent_make_pdapi(ulpq->asoc,
 					      SCTP_PARTIAL_DELIVERY_ABORTED,
 					      0, 0, 0, gfp);
