@@ -46,20 +46,25 @@ nfp_abm_stats_update_red(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
 			 unsigned int queue)
 {
 	struct nfp_cpp *cpp = alink->abm->app->cpp;
+	unsigned int i;
 	int err;
 
 	if (!qdisc->offloaded)
 		return;
 
-	err = nfp_abm_ctrl_read_q_stats(alink, 0, queue, &qdisc->red.stats);
-	if (err)
-		nfp_err(cpp, "RED stats (%d, %d) read failed with error %d\n",
-			0, queue, err);
+	for (i = 0; i < qdisc->red.num_bands; i++) {
+		err = nfp_abm_ctrl_read_q_stats(alink, i, queue,
+						&qdisc->red.band[i].stats);
+		if (err)
+			nfp_err(cpp, "RED stats (%d, %d) read failed with error %d\n",
+				i, queue, err);
 
-	err = nfp_abm_ctrl_read_q_xstats(alink, 0, queue, &qdisc->red.xstats);
-	if (err)
-		nfp_err(cpp, "RED xstats (%d, %d) read failed with error %d\n",
-			0, queue, err);
+		err = nfp_abm_ctrl_read_q_xstats(alink, i, queue,
+						 &qdisc->red.band[i].xstats);
+		if (err)
+			nfp_err(cpp, "RED xstats (%d, %d) read failed with error %d\n",
+				i, queue, err);
+	}
 }
 
 static void
@@ -113,6 +118,8 @@ nfp_abm_qdisc_unlink_children(struct nfp_qdisc *qdisc,
 static void
 nfp_abm_qdisc_offload_stop(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc)
 {
+	unsigned int i;
+
 	/* Don't complain when qdisc is getting unlinked */
 	if (qdisc->use_cnt)
 		nfp_warn(alink->abm->app->cpp, "Offload of '%08x' stopped\n",
@@ -121,8 +128,10 @@ nfp_abm_qdisc_offload_stop(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc)
 	if (!nfp_abm_qdisc_is_red(qdisc))
 		return;
 
-	qdisc->red.stats.backlog_pkts = 0;
-	qdisc->red.stats.backlog_bytes = 0;
+	for (i = 0; i < qdisc->red.num_bands; i++) {
+		qdisc->red.band[i].stats.backlog_pkts = 0;
+		qdisc->red.band[i].stats.backlog_bytes = 0;
+	}
 }
 
 static int
@@ -164,15 +173,26 @@ static int
 nfp_abm_stats_init(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
 		   unsigned int queue)
 {
-	return __nfp_abm_stats_init(alink, 0, queue,
-				    &qdisc->red.prev_stats,
-				    &qdisc->red.prev_xstats);
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < qdisc->red.num_bands; i++) {
+		err = __nfp_abm_stats_init(alink, i, queue,
+					   &qdisc->red.band[i].prev_stats,
+					   &qdisc->red.band[i].prev_xstats);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static void
 nfp_abm_offload_compile_red(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
 			    unsigned int queue)
 {
+	unsigned int i;
+
 	qdisc->offload_mark = qdisc->type == NFP_QDISC_RED &&
 			      qdisc->params_ok &&
 			      qdisc->use_cnt == 1 &&
@@ -186,7 +206,9 @@ nfp_abm_offload_compile_red(struct nfp_abm_link *alink, struct nfp_qdisc *qdisc,
 	if (!qdisc->offload_mark)
 		return;
 
-	nfp_abm_ctrl_set_q_lvl(alink, 0, queue, qdisc->red.threshold);
+	for (i = 0; i < alink->abm->num_bands; i++)
+		nfp_abm_ctrl_set_q_lvl(alink, i, queue,
+				       qdisc->red.band[i].threshold);
 }
 
 static void
@@ -217,8 +239,10 @@ void nfp_abm_qdisc_offload_update(struct nfp_abm_link *alink)
 	size_t i;
 
 	/* Mark all thresholds as unconfigured */
-	__bitmap_set(abm->threshold_undef,
-		     alink->queue_base, alink->total_queues);
+	for (i = 0; i < abm->num_bands; i++)
+		__bitmap_set(abm->threshold_undef,
+			     i * NFP_NET_MAX_RX_RINGS + alink->queue_base,
+			     alink->total_queues);
 
 	/* Clear offload marks */
 	radix_tree_for_each_slot(slot, &alink->qdiscs, &iter, 0) {
@@ -451,10 +475,10 @@ nfp_abm_red_xstats(struct nfp_abm_link *alink, struct tc_red_qopt_offload *opt)
 	if (!qdisc || !qdisc->offloaded)
 		return -EOPNOTSUPP;
 
-	nfp_abm_stats_red_calculate(&qdisc->red.xstats,
-				    &qdisc->red.prev_xstats,
+	nfp_abm_stats_red_calculate(&qdisc->red.band[0].xstats,
+				    &qdisc->red.band[0].prev_xstats,
 				    opt->xstats);
-	qdisc->red.prev_xstats = qdisc->red.xstats;
+	qdisc->red.band[0].prev_xstats = qdisc->red.band[0].xstats;
 	return 0;
 }
 
@@ -473,10 +497,10 @@ nfp_abm_red_stats(struct nfp_abm_link *alink, u32 handle,
 	 * counters back so carry on even if qdisc is not currently offloaded.
 	 */
 
-	nfp_abm_stats_calculate(&qdisc->red.stats,
-				&qdisc->red.prev_stats,
+	nfp_abm_stats_calculate(&qdisc->red.band[0].stats,
+				&qdisc->red.band[0].prev_stats,
 				stats->bstats, stats->qstats);
-	qdisc->red.prev_stats = qdisc->red.stats;
+	qdisc->red.band[0].prev_stats = qdisc->red.band[0].stats;
 
 	return qdisc->offloaded ? 0 : -EOPNOTSUPP;
 }
@@ -538,8 +562,10 @@ nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
 	}
 
 	qdisc->params_ok = nfp_abm_red_check_params(alink, opt);
-	if (qdisc->params_ok)
-		qdisc->red.threshold = opt->set.min;
+	if (qdisc->params_ok) {
+		qdisc->red.num_bands = 1;
+		qdisc->red.band[0].threshold = opt->set.min;
+	}
 
 	if (qdisc->use_cnt == 1)
 		nfp_abm_qdisc_offload_update(alink);
@@ -592,7 +618,7 @@ nfp_abm_mq_stats(struct nfp_abm_link *alink, u32 handle,
 		 struct tc_qopt_offload_stats *stats)
 {
 	struct nfp_qdisc *qdisc, *red;
-	unsigned int i;
+	unsigned int i, j;
 
 	qdisc = nfp_abm_qdisc_find(alink, handle);
 	if (!qdisc)
@@ -614,10 +640,12 @@ nfp_abm_mq_stats(struct nfp_abm_link *alink, u32 handle,
 			continue;
 		red = qdisc->children[i];
 
-		nfp_abm_stats_propagate(&qdisc->mq.stats,
-					&red->red.stats);
-		nfp_abm_stats_propagate(&qdisc->mq.prev_stats,
-					&red->red.prev_stats);
+		for (j = 0; j < red->red.num_bands; j++) {
+			nfp_abm_stats_propagate(&qdisc->mq.stats,
+						&red->red.band[j].stats);
+			nfp_abm_stats_propagate(&qdisc->mq.prev_stats,
+						&red->red.band[j].prev_stats);
+		}
 	}
 
 	nfp_abm_stats_calculate(&qdisc->mq.stats, &qdisc->mq.prev_stats,

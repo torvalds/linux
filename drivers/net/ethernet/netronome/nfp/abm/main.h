@@ -112,11 +112,13 @@ enum nfp_qdisc_type {
  * @mq.prev_stats:	previously reported @mq.stats
  *
  * @red:		RED Qdisc specific parameters and state
- * @red.threshold:	ECN marking threshold
- * @red.stats:		current stats of the RED Qdisc
- * @red.prev_stats:	previously reported @red.stats
- * @red.xstats:		extended stats for RED - current
- * @red.prev_xstats:	extended stats for RED - previously reported
+ * @red.num_bands:	Number of valid entries in the @red.band table
+ * @red.band:		Per-band array of RED instances
+ * @red.band.threshold:		ECN marking threshold
+ * @red.band.stats:		current stats of the RED Qdisc
+ * @red.band.prev_stats:	previously reported @red.stats
+ * @red.band.xstats:		extended stats for RED - current
+ * @red.band.prev_xstats:	extended stats for RED - previously reported
  */
 struct nfp_qdisc {
 	struct net_device *netdev;
@@ -139,11 +141,15 @@ struct nfp_qdisc {
 		} mq;
 		/* TC_SETUP_QDISC_RED */
 		struct {
-			u32 threshold;
-			struct nfp_alink_stats stats;
-			struct nfp_alink_stats prev_stats;
-			struct nfp_alink_xstats xstats;
-			struct nfp_alink_xstats prev_xstats;
+			unsigned int num_bands;
+
+			struct {
+				u32 threshold;
+				struct nfp_alink_stats stats;
+				struct nfp_alink_stats prev_stats;
+				struct nfp_alink_xstats xstats;
+				struct nfp_alink_xstats prev_xstats;
+			} band[1];
 		} red;
 	};
 };
