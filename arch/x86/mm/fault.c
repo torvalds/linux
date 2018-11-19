@@ -621,10 +621,6 @@ pgtable_bad(struct pt_regs *regs, unsigned long error_code,
 	       tsk->comm, address);
 	dump_pagetable(address);
 
-	tsk->thread.cr2		= address;
-	tsk->thread.trap_nr	= X86_TRAP_PF;
-	tsk->thread.error_code	= error_code;
-
 	if (__die("Bad pagetable", regs, error_code))
 		sig = 0;
 
@@ -752,10 +748,6 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 
 	if (task_stack_end_corrupted(tsk))
 		printk(KERN_EMERG "Thread overran stack, or stack corrupted\n");
-
-	tsk->thread.cr2		= address;
-	tsk->thread.trap_nr	= X86_TRAP_PF;
-	tsk->thread.error_code	= error_code;
 
 	sig = SIGKILL;
 	if (__die("Oops", regs, error_code))
