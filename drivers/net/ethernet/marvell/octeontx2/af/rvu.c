@@ -1788,6 +1788,23 @@ static void __rvu_flr_handler(struct rvu *rvu, u16 pcifunc)
 	mutex_unlock(&rvu->flr_lock);
 }
 
+static void rvu_afvf_flr_handler(struct rvu *rvu, int vf)
+{
+	int reg = 0;
+
+	/* pcifunc = 0(PF0) | (vf + 1) */
+	__rvu_flr_handler(rvu, vf + 1);
+
+	if (vf >= 64) {
+		reg = 1;
+		vf = vf - 64;
+	}
+
+	/* Signal FLR finish and enable IRQ */
+	rvupf_write64(rvu, RVU_PF_VFTRPENDX(reg), BIT_ULL(vf));
+	rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1SX(reg), BIT_ULL(vf));
+}
+
 static void rvu_flr_handler(struct work_struct *work)
 {
 	struct rvu_work *flrwork = container_of(work, struct rvu_work, work);
@@ -1797,6 +1814,10 @@ static void rvu_flr_handler(struct work_struct *work)
 	int pf;
 
 	pf = flrwork - rvu->flr_wrk;
+	if (pf >= rvu->hw->total_pfs) {
+		rvu_afvf_flr_handler(rvu, pf - rvu->hw->total_pfs);
+		return;
+	}
 
 	cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
 	numvfs = (cfg >> 12) & 0xFF;
@@ -1814,6 +1835,29 @@ static void rvu_flr_handler(struct work_struct *work)
 	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT_ENA_W1S,  BIT_ULL(pf));
 }
 
+static void rvu_afvf_queue_flr_work(struct rvu *rvu, int start_vf, int numvfs)
+{
+	int dev, vf, reg = 0;
+	u64 intr;
+
+	if (start_vf >= 64)
+		reg = 1;
+
+	intr = rvupf_read64(rvu, RVU_PF_VFFLR_INTX(reg));
+	if (!intr)
+		return;
+
+	for (vf = 0; vf < numvfs; vf++) {
+		if (!(intr & BIT_ULL(vf)))
+			continue;
+		dev = vf + start_vf + rvu->hw->total_pfs;
+		queue_work(rvu->flr_wq, &rvu->flr_wrk[dev].work);
+		/* Clear and disable the interrupt */
+		rvupf_write64(rvu, RVU_PF_VFFLR_INTX(reg), BIT_ULL(vf));
+		rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1CX(reg), BIT_ULL(vf));
+	}
+}
+
 static irqreturn_t rvu_flr_intr_handler(int irq, void *rvu_irq)
 {
 	struct rvu *rvu = (struct rvu *)rvu_irq;
@@ -1821,6 +1865,8 @@ static irqreturn_t rvu_flr_intr_handler(int irq, void *rvu_irq)
 	u8  pf;
 
 	intr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT);
+	if (!intr)
+		goto afvf_flr;
 
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		if (intr & (1ULL << pf)) {
@@ -1834,6 +1880,12 @@ static irqreturn_t rvu_flr_intr_handler(int irq, void *rvu_irq)
 				    BIT_ULL(pf));
 		}
 	}
+
+afvf_flr:
+	rvu_afvf_queue_flr_work(rvu, 0, 64);
+	if (rvu->vfs > 64)
+		rvu_afvf_queue_flr_work(rvu, 64, rvu->vfs - 64);
+
 	return IRQ_HANDLED;
 }
 
@@ -1876,7 +1928,7 @@ static int rvu_afvf_msix_vectors_num_ok(struct rvu *rvu)
 
 static int rvu_register_interrupts(struct rvu *rvu)
 {
-	int ret, offset;
+	int ret, offset, pf_vec_start;
 
 	rvu->num_vec = pci_msix_vec_count(rvu->pdev);
 
@@ -1941,10 +1993,11 @@ static int rvu_register_interrupts(struct rvu *rvu)
 		return 0;
 
 	/* Get PF MSIX vectors offset. */
-	offset = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_INT_CFG(0)) & 0x3ff;
+	pf_vec_start = rvu_read64(rvu, BLKADDR_RVUM,
+				  RVU_PRIV_PFX_INT_CFG(0)) & 0x3ff;
 
 	/* Register MBOX0 interrupt. */
-	offset += RVU_PF_INT_VEC_VFPF_MBOX0;
+	offset = pf_vec_start + RVU_PF_INT_VEC_VFPF_MBOX0;
 	sprintf(&rvu->irq_name[offset * NAME_SIZE], "RVUAFVF Mbox0");
 	ret = request_irq(pci_irq_vector(rvu->pdev, offset),
 			  rvu_mbox_intr_handler, 0,
@@ -1959,7 +2012,7 @@ static int rvu_register_interrupts(struct rvu *rvu)
 	/* Register MBOX1 interrupt. MBOX1 IRQ number follows MBOX0 so
 	 * simply increment current offset by 1.
 	 */
-	offset += 1;
+	offset = pf_vec_start + RVU_PF_INT_VEC_VFPF_MBOX1;
 	sprintf(&rvu->irq_name[offset * NAME_SIZE], "RVUAFVF Mbox1");
 	ret = request_irq(pci_irq_vector(rvu->pdev, offset),
 			  rvu_mbox_intr_handler, 0,
@@ -1971,10 +2024,35 @@ static int rvu_register_interrupts(struct rvu *rvu)
 
 	rvu->irq_allocated[offset] = true;
 
+	/* Register FLR interrupt handler for AF's VFs */
+	offset = pf_vec_start + RVU_PF_INT_VEC_VFFLR0;
+	sprintf(&rvu->irq_name[offset * NAME_SIZE], "RVUAFVF FLR0");
+	ret = request_irq(pci_irq_vector(rvu->pdev, offset),
+			  rvu_flr_intr_handler, 0,
+			  &rvu->irq_name[offset * NAME_SIZE], rvu);
+	if (ret) {
+		dev_err(rvu->dev,
+			"RVUAF: IRQ registration failed for RVUAFVF FLR0\n");
+		goto fail;
+	}
+	rvu->irq_allocated[offset] = true;
+
+	offset = pf_vec_start + RVU_PF_INT_VEC_VFFLR1;
+	sprintf(&rvu->irq_name[offset * NAME_SIZE], "RVUAFVF FLR1");
+	ret = request_irq(pci_irq_vector(rvu->pdev, offset),
+			  rvu_flr_intr_handler, 0,
+			  &rvu->irq_name[offset * NAME_SIZE], rvu);
+	if (ret) {
+		dev_err(rvu->dev,
+			"RVUAF: IRQ registration failed for RVUAFVF FLR1\n");
+		goto fail;
+	}
+	rvu->irq_allocated[offset] = true;
+
 	return 0;
 
 fail:
-	pci_free_irq_vectors(rvu->pdev);
+	rvu_unregister_interrupts(rvu);
 	return ret;
 }
 
@@ -1985,16 +2063,16 @@ static void rvu_flr_wq_destroy(struct rvu *rvu)
 		destroy_workqueue(rvu->flr_wq);
 		rvu->flr_wq = NULL;
 	}
-	kfree(rvu->flr_wrk);
 }
 
 static int rvu_flr_init(struct rvu *rvu)
 {
+	int dev, num_devs;
 	u64 cfg;
 	int pf;
 
 	/* Enable FLR for all PFs*/
-	for (pf = 1; pf < rvu->hw->total_pfs; pf++) {
+	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
 		rvu_write64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf),
 			    cfg | BIT_ULL(22));
@@ -2006,16 +2084,17 @@ static int rvu_flr_init(struct rvu *rvu)
 	if (!rvu->flr_wq)
 		return -ENOMEM;
 
-	rvu->flr_wrk = devm_kcalloc(rvu->dev, rvu->hw->total_pfs,
+	num_devs = rvu->hw->total_pfs + pci_sriov_get_totalvfs(rvu->pdev);
+	rvu->flr_wrk = devm_kcalloc(rvu->dev, num_devs,
 				    sizeof(struct rvu_work), GFP_KERNEL);
 	if (!rvu->flr_wrk) {
 		destroy_workqueue(rvu->flr_wq);
 		return -ENOMEM;
 	}
 
-	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
-		rvu->flr_wrk[pf].rvu = rvu;
-		INIT_WORK(&rvu->flr_wrk[pf].work, rvu_flr_handler);
+	for (dev = 0; dev < num_devs; dev++) {
+		rvu->flr_wrk[dev].rvu = rvu;
+		INIT_WORK(&rvu->flr_wrk[dev].work, rvu_flr_handler);
 	}
 
 	mutex_init(&rvu->flr_lock);
@@ -2023,25 +2102,34 @@ static int rvu_flr_init(struct rvu *rvu)
 	return 0;
 }
 
-static void rvu_disable_afvf_mbox_intr(struct rvu *rvu)
+static void rvu_disable_afvf_intr(struct rvu *rvu)
 {
 	int vfs = rvu->vfs;
 
 	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1CX(0), INTR_MASK(vfs));
-	if (vfs > 64)
-		rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1CX(1),
-			      INTR_MASK(vfs - 64));
+	rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1CX(0), INTR_MASK(vfs));
+	if (vfs <= 64)
+		return;
+
+	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1CX(1),
+		      INTR_MASK(vfs - 64));
+	rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1CX(1), INTR_MASK(vfs - 64));
 }
 
-static void rvu_enable_afvf_mbox_intr(struct rvu *rvu)
+static void rvu_enable_afvf_intr(struct rvu *rvu)
 {
 	int vfs = rvu->vfs;
 
 	/* Clear any pending interrupts and enable AF VF interrupts for
 	 * the first 64 VFs.
 	 */
+	/* Mbox */
 	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INTX(0), INTR_MASK(vfs));
 	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1SX(0), INTR_MASK(vfs));
+
+	/* FLR */
+	rvupf_write64(rvu, RVU_PF_VFFLR_INTX(0), INTR_MASK(vfs));
+	rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1SX(0), INTR_MASK(vfs));
 
 	/* Same for remaining VFs, if any. */
 	if (vfs <= 64)
@@ -2050,6 +2138,9 @@ static void rvu_enable_afvf_mbox_intr(struct rvu *rvu)
 	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INTX(1), INTR_MASK(vfs - 64));
 	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1SX(1),
 		      INTR_MASK(vfs - 64));
+
+	rvupf_write64(rvu, RVU_PF_VFFLR_INTX(1), INTR_MASK(vfs - 64));
+	rvupf_write64(rvu, RVU_PF_VFFLR_INT_ENA_W1SX(1), INTR_MASK(vfs - 64));
 }
 
 #define PCI_DEVID_OCTEONTX2_LBK 0xA061
@@ -2125,13 +2216,13 @@ static int rvu_enable_sriov(struct rvu *rvu)
 	if (err)
 		return err;
 
-	rvu_enable_afvf_mbox_intr(rvu);
+	rvu_enable_afvf_intr(rvu);
 	/* Make sure IRQs are enabled before SRIOV. */
 	mb();
 
 	err = pci_enable_sriov(pdev, vfs);
 	if (err) {
-		rvu_disable_afvf_mbox_intr(rvu);
+		rvu_disable_afvf_intr(rvu);
 		rvu_mbox_destroy(&rvu->afvf_wq_info);
 		return err;
 	}
@@ -2141,7 +2232,7 @@ static int rvu_enable_sriov(struct rvu *rvu)
 
 static void rvu_disable_sriov(struct rvu *rvu)
 {
-	rvu_disable_afvf_mbox_intr(rvu);
+	rvu_disable_afvf_intr(rvu);
 	rvu_mbox_destroy(&rvu->afvf_wq_info);
 	pci_disable_sriov(rvu->pdev);
 }
