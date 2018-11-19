@@ -104,7 +104,7 @@ create_netif_veth()
 {
 	local i
 
-	for i in $(eval echo {1..$NUM_NETIFS}); do
+	for ((i = 1; i <= NUM_NETIFS; ++i)); do
 		local j=$((i+1))
 
 		ip link show dev ${NETIFS[p$i]} &> /dev/null
@@ -135,7 +135,7 @@ if [[ "$NETIF_CREATE" = "yes" ]]; then
 	create_netif
 fi
 
-for i in $(eval echo {1..$NUM_NETIFS}); do
+for ((i = 1; i <= NUM_NETIFS; ++i)); do
 	ip link show dev ${NETIFS[p$i]} &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: could not find all required interfaces"
