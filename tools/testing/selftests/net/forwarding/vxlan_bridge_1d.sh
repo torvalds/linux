@@ -69,6 +69,7 @@ export VXPORT
 	test_flood
 	test_unicast
 	test_ttl
+	test_tos
 	reapply_config
 	ping_ipv4
 	test_flood
@@ -505,6 +506,19 @@ test_ttl()
 	tc filter del dev v1 egress pref 77 prot ip
 
 	log_test "VXLAN: envelope TTL"
+}
+
+test_tos()
+{
+	RET=0
+
+	tc filter add dev v1 egress pref 77 prot ip \
+		flower ip_tos 0x40 action pass
+	vxlan_ping_test $h1 192.0.2.3 "-Q 0x40" v1 egress 77 10
+	vxlan_ping_test $h1 192.0.2.3 "-Q 0x30" v1 egress 77 0
+	tc filter del dev v1 egress pref 77 prot ip
+
+	log_test "VXLAN: envelope TOS inheritance"
 }
 
 test_all()
