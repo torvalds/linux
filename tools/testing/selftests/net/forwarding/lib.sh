@@ -477,11 +477,24 @@ master_name_get()
 	ip -j link show dev $if_name | jq -r '.[]["master"]'
 }
 
+link_stats_get()
+{
+	local if_name=$1; shift
+	local dir=$1; shift
+	local stat=$1; shift
+
+	ip -j -s link show dev $if_name \
+		| jq '.[]["stats64"]["'$dir'"]["'$stat'"]'
+}
+
 link_stats_tx_packets_get()
 {
-       local if_name=$1
+	link_stats_get $1 tx packets
+}
 
-       ip -j -s link show dev $if_name | jq '.[]["stats64"]["tx"]["packets"]'
+link_stats_rx_errors_get()
+{
+	link_stats_get $1 rx errors
 }
 
 tc_rule_stats_get()
