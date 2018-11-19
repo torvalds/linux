@@ -3471,6 +3471,16 @@ static inline void assfail(const char *expr, const char *file, int line)
 #define ASSERT(expr)	((void)0)
 #endif
 
+/*
+ * Use that for functions that are conditionally exported for sanity tests but
+ * otherwise static
+ */
+#ifndef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+#define EXPORT_FOR_TESTS static
+#else
+#define EXPORT_FOR_TESTS
+#endif
+
 __cold
 static inline void btrfs_print_v0_err(struct btrfs_fs_info *fs_info)
 {
