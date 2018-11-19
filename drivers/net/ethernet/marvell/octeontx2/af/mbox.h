@@ -176,6 +176,8 @@ M(NPC_MCAM_COUNTER_STATS, 0x600a, npc_mcam_counter_stats,		\
 M(NPC_MCAM_ALLOC_AND_WRITE_ENTRY, 0x600b, npc_mcam_alloc_and_write_entry,      \
 					  npc_mcam_alloc_and_write_entry_req,  \
 					  npc_mcam_alloc_and_write_entry_rsp)  \
+M(NPC_GET_KEX_CFG,	  0x600c, npc_get_kex_cfg,			\
+				   msg_req, npc_get_kex_cfg_rsp)	\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc,				\
 				 nix_lf_alloc_req, nix_lf_alloc_rsp)	\
@@ -697,6 +699,23 @@ struct npc_mcam_alloc_and_write_entry_rsp {
 	struct mbox_msghdr hdr;
 	u16 entry;
 	u16 cntr;
+};
+
+struct npc_get_kex_cfg_rsp {
+	struct mbox_msghdr hdr;
+	u64 rx_keyx_cfg;   /* NPC_AF_INTF(0)_KEX_CFG */
+	u64 tx_keyx_cfg;   /* NPC_AF_INTF(1)_KEX_CFG */
+#define NPC_MAX_INTF	2
+#define NPC_MAX_LID	8
+#define NPC_MAX_LT	16
+#define NPC_MAX_LD	2
+#define NPC_MAX_LFL	16
+	/* NPC_AF_KEX_LDATA(0..1)_FLAGS_CFG */
+	u64 kex_ld_flags[NPC_MAX_LD];
+	/* NPC_AF_INTF(0..1)_LID(0..7)_LT(0..15)_LD(0..1)_CFG */
+	u64 intf_lid_lt_ld[NPC_MAX_INTF][NPC_MAX_LID][NPC_MAX_LT][NPC_MAX_LD];
+	/* NPC_AF_INTF(0..1)_LDATA(0..1)_FLAGS(0..15)_CFG */
+	u64 intf_ld_flags[NPC_MAX_INTF][NPC_MAX_LD][NPC_MAX_LFL];
 };
 
 #endif /* MBOX_H */

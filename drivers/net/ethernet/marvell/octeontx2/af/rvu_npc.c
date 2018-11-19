@@ -427,9 +427,28 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
 					 nixlf, NIXLF_BCAST_ENTRY);
 
-	/* Check for L2B bit and LMAC channel */
-	entry.kw[0] = BIT_ULL(25) | chan;
-	entry.kw_mask[0] = BIT_ULL(25) | 0xFFFULL;
+	/* Check for L2B bit and LMAC channel
+	 * NOTE: Since MKEX default profile(a reduced version intended to
+	 * accommodate more capability but igoring few bits) a stap-gap
+	 * approach.
+	 * Since we care for L2B which by HRM NPC_PARSE_KEX_S at BIT_POS[25], So
+	 * moved to BIT_POS[13], ignoring ERRCODE, ERRLEV as we'll loose out
+	 * on capability features needed for CoS (/from ODP PoV) e.g: VLAN,
+	 * DSCP.
+	 *
+	 * Reduced layout of MKEX default profile -
+	 * Includes following are (i.e.CHAN, L2/3{B/M}, LA, LB, LC, LD):
+	 *
+	 * BIT_POS[31:28] : LD
+	 * BIT_POS[27:24] : LC
+	 * BIT_POS[23:20] : LB
+	 * BIT_POS[19:16] : LA
+	 * BIT_POS[15:12] : L3B, L3M, L2B, L2M
+	 * BIT_POS[11:00] : CHAN
+	 *
+	 */
+	entry.kw[0] = BIT_ULL(13) | chan;
+	entry.kw_mask[0] = ~entry.kw[0] & (BIT_ULL(13) | 0xFFFULL);
 
 	*(u64 *)&action = 0x00;
 #ifdef MCAST_MCE
@@ -538,13 +557,17 @@ void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
 	}
 }
 
-#define LDATA_EXTRACT_CONFIG(intf, lid, ltype, ld, cfg) \
+#define SET_KEX_LD(intf, lid, ltype, ld, cfg)	\
 	rvu_write64(rvu, blkaddr,			\
 		NPC_AF_INTFX_LIDX_LTX_LDX_CFG(intf, lid, ltype, ld), cfg)
 
-#define LDATA_FLAGS_CONFIG(intf, ld, flags, cfg)	\
+#define SET_KEX_LDFLAGS(intf, ld, flags, cfg)	\
 	rvu_write64(rvu, blkaddr,			\
 		NPC_AF_INTFX_LDATAX_FLAGSX_CFG(intf, ld, flags), cfg)
+
+#define KEX_LD_CFG(bytesm1, hdr_ofs, ena, flags_ena, key_ofs)		\
+			(((bytesm1) << 16) | ((hdr_ofs) << 8) | ((ena) << 7) | \
+			 ((flags_ena) << 6) | ((key_ofs) & 0x3F))
 
 static void npc_config_ldata_extract(struct rvu *rvu, int blkaddr)
 {
@@ -561,28 +584,66 @@ static void npc_config_ldata_extract(struct rvu *rvu, int blkaddr)
 	 */
 	for (lid = 0; lid < lid_count; lid++) {
 		for (ltype = 0; ltype < 16; ltype++) {
-			LDATA_EXTRACT_CONFIG(NIX_INTF_RX, lid, ltype, 0, 0ULL);
-			LDATA_EXTRACT_CONFIG(NIX_INTF_RX, lid, ltype, 1, 0ULL);
-			LDATA_EXTRACT_CONFIG(NIX_INTF_TX, lid, ltype, 0, 0ULL);
-			LDATA_EXTRACT_CONFIG(NIX_INTF_TX, lid, ltype, 1, 0ULL);
+			SET_KEX_LD(NIX_INTF_RX, lid, ltype, 0, 0ULL);
+			SET_KEX_LD(NIX_INTF_RX, lid, ltype, 1, 0ULL);
+			SET_KEX_LD(NIX_INTF_TX, lid, ltype, 0, 0ULL);
+			SET_KEX_LD(NIX_INTF_TX, lid, ltype, 1, 0ULL);
 
-			LDATA_FLAGS_CONFIG(NIX_INTF_RX, 0, ltype, 0ULL);
-			LDATA_FLAGS_CONFIG(NIX_INTF_RX, 1, ltype, 0ULL);
-			LDATA_FLAGS_CONFIG(NIX_INTF_TX, 0, ltype, 0ULL);
-			LDATA_FLAGS_CONFIG(NIX_INTF_TX, 1, ltype, 0ULL);
+			SET_KEX_LDFLAGS(NIX_INTF_RX, 0, ltype, 0ULL);
+			SET_KEX_LDFLAGS(NIX_INTF_RX, 1, ltype, 0ULL);
+			SET_KEX_LDFLAGS(NIX_INTF_TX, 0, ltype, 0ULL);
+			SET_KEX_LDFLAGS(NIX_INTF_TX, 1, ltype, 0ULL);
 		}
 	}
 
-	/* If we plan to extract Outer IPv4 tuple for TCP/UDP pkts
-	 * then 112bit key is not sufficient
-	 */
 	if (mcam->keysize != NPC_MCAM_KEY_X2)
 		return;
 
-	/* Start placing extracted data/flags from 64bit onwards, for now */
-	/* Extract DMAC from the packet */
-	cfg = (0x05 << 16) | BIT_ULL(7) | NPC_PARSE_RESULT_DMAC_OFFSET;
-	LDATA_EXTRACT_CONFIG(NIX_INTF_RX, NPC_LID_LA, NPC_LT_LA_ETHER, 0, cfg);
+	/* Default MCAM KEX profile */
+	/* Layer A: Ethernet: */
+
+	/* DMAC: 6 bytes, KW1[47:0] */
+	cfg = KEX_LD_CFG(0x05, 0x0, 0x1, 0x0, NPC_PARSE_RESULT_DMAC_OFFSET);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LA, NPC_LT_LA_ETHER, 0, cfg);
+
+	/* Ethertype: 2 bytes, KW0[47:32] */
+	cfg = KEX_LD_CFG(0x01, 0xc, 0x1, 0x0, 0x4);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LA, NPC_LT_LA_ETHER, 1, cfg);
+
+	/* Layer B: Single VLAN (CTAG) */
+	/* CTAG VLAN[2..3] + Ethertype, 4 bytes, KW0[63:32] */
+	cfg = KEX_LD_CFG(0x03, 0x0, 0x1, 0x0, 0x4);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LB, NPC_LT_LB_CTAG, 0, cfg);
+
+	/* Layer B: Stacked VLAN (STAG|QinQ) */
+	/* CTAG VLAN[2..3] + Ethertype, 4 bytes, KW0[63:32] */
+	cfg = KEX_LD_CFG(0x03, 0x4, 0x1, 0x0, 0x4);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LB, NPC_LT_LB_STAG, 0, cfg);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LB, NPC_LT_LB_QINQ, 0, cfg);
+
+	/* Layer C: IPv4 */
+	/* SIP+DIP: 8 bytes, KW2[63:0] */
+	cfg = KEX_LD_CFG(0x07, 0xc, 0x1, 0x0, 0x10);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LC, NPC_LT_LC_IP, 0, cfg);
+	/* TOS: 1 byte, KW1[63:56] */
+	cfg = KEX_LD_CFG(0x0, 0x1, 0x1, 0x0, 0xf);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LC, NPC_LT_LC_IP, 1, cfg);
+
+	/* Layer D:UDP */
+	/* SPORT: 2 bytes, KW3[15:0] */
+	cfg = KEX_LD_CFG(0x1, 0x0, 0x1, 0x0, 0x18);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LD, NPC_LT_LD_UDP, 0, cfg);
+	/* DPORT: 2 bytes, KW3[31:16] */
+	cfg = KEX_LD_CFG(0x1, 0x2, 0x1, 0x0, 0x1a);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LD, NPC_LT_LD_UDP, 1, cfg);
+
+	/* Layer D:TCP */
+	/* SPORT: 2 bytes, KW3[15:0] */
+	cfg = KEX_LD_CFG(0x1, 0x0, 0x1, 0x0, 0x18);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LD, NPC_LT_LD_TCP, 0, cfg);
+	/* DPORT: 2 bytes, KW3[31:16] */
+	cfg = KEX_LD_CFG(0x1, 0x2, 0x1, 0x0, 0x1a);
+	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LD, NPC_LT_LD_TCP, 1, cfg);
 }
 
 static void npc_config_kpuaction(struct rvu *rvu, int blkaddr,
@@ -898,13 +959,12 @@ int rvu_npc_init(struct rvu *rvu)
 		    BIT_ULL(6) | BIT_ULL(2));
 
 	/* Set RX and TX side MCAM search key size.
-	 * Also enable parse key extract nibbles suchthat except
-	 * layer E to H, rest of the key is included for MCAM search.
+	 * LA..LD (ltype only) + Channel
 	 */
 	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(NIX_INTF_RX),
-		    ((keyz & 0x3) << 32) | ((1ULL << 20) - 1));
+			((keyz & 0x3) << 32) | 0x49247);
 	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(NIX_INTF_TX),
-		    ((keyz & 0x3) << 32) | ((1ULL << 20) - 1));
+			((keyz & 0x3) << 32) | ((1ULL << 19) - 1));
 
 	err = npc_mcam_rsrcs_init(rvu, blkaddr);
 	if (err)
@@ -1874,5 +1934,50 @@ write_entry:
 	rsp->entry = entry;
 	rsp->cntr = cntr;
 
+	return 0;
+}
+
+#define GET_KEX_CFG(intf) \
+	rvu_read64(rvu, BLKADDR_NPC, NPC_AF_INTFX_KEX_CFG(intf))
+
+#define GET_KEX_FLAGS(ld) \
+	rvu_read64(rvu, BLKADDR_NPC, NPC_AF_KEX_LDATAX_FLAGS_CFG(ld))
+
+#define GET_KEX_LD(intf, lid, lt, ld)	\
+	rvu_read64(rvu, BLKADDR_NPC,	\
+		NPC_AF_INTFX_LIDX_LTX_LDX_CFG(intf, lid, lt, ld))
+
+#define GET_KEX_LDFLAGS(intf, ld, fl)	\
+	rvu_read64(rvu, BLKADDR_NPC,	\
+		NPC_AF_INTFX_LDATAX_FLAGSX_CFG(intf, ld, fl))
+
+int rvu_mbox_handler_npc_get_kex_cfg(struct rvu *rvu, struct msg_req *req,
+				     struct npc_get_kex_cfg_rsp *rsp)
+{
+	int lid, lt, ld, fl;
+
+	rsp->rx_keyx_cfg = GET_KEX_CFG(NIX_INTF_RX);
+	rsp->tx_keyx_cfg = GET_KEX_CFG(NIX_INTF_TX);
+	for (lid = 0; lid < NPC_MAX_LID; lid++) {
+		for (lt = 0; lt < NPC_MAX_LT; lt++) {
+			for (ld = 0; ld < NPC_MAX_LD; ld++) {
+				rsp->intf_lid_lt_ld[NIX_INTF_RX][lid][lt][ld] =
+					GET_KEX_LD(NIX_INTF_RX, lid, lt, ld);
+				rsp->intf_lid_lt_ld[NIX_INTF_TX][lid][lt][ld] =
+					GET_KEX_LD(NIX_INTF_TX, lid, lt, ld);
+			}
+		}
+	}
+	for (ld = 0; ld < NPC_MAX_LD; ld++)
+		rsp->kex_ld_flags[ld] = GET_KEX_FLAGS(ld);
+
+	for (ld = 0; ld < NPC_MAX_LD; ld++) {
+		for (fl = 0; fl < NPC_MAX_LFL; fl++) {
+			rsp->intf_ld_flags[NIX_INTF_RX][ld][fl] =
+					GET_KEX_LDFLAGS(NIX_INTF_RX, ld, fl);
+			rsp->intf_ld_flags[NIX_INTF_TX][ld][fl] =
+					GET_KEX_LDFLAGS(NIX_INTF_TX, ld, fl);
+		}
+	}
 	return 0;
 }

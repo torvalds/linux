@@ -415,4 +415,6 @@ int rvu_mbox_handler_npc_mcam_counter_stats(struct rvu *rvu,
 int rvu_mbox_handler_npc_mcam_alloc_and_write_entry(struct rvu *rvu,
 			  struct npc_mcam_alloc_and_write_entry_req *req,
 			  struct npc_mcam_alloc_and_write_entry_rsp *rsp);
+int rvu_mbox_handler_npc_get_kex_cfg(struct rvu *rvu, struct msg_req *req,
+				     struct npc_get_kex_cfg_rsp *rsp);
 #endif /* RVU_H */
