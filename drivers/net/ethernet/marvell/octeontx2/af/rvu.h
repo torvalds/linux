@@ -201,7 +201,8 @@ struct rvu {
 	struct rvu_hwinfo       *hw;
 	struct rvu_pfvf		*pf;
 	struct rvu_pfvf		*hwvf;
-	struct mutex            rsrc_lock; /* Serialize resource alloc/free */
+	struct mutex		rsrc_lock; /* Serialize resource alloc/free */
+	int			vfs; /* Number of VFs attached to RVU */
 
 	/* Mbox */
 	struct mbox_wq_info	afpf_wq_info;

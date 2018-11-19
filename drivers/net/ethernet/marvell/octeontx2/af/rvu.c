@@ -1698,7 +1698,7 @@ static void rvu_queue_work(struct mbox_wq_info *mw, int first,
 static irqreturn_t rvu_mbox_intr_handler(int irq, void *rvu_irq)
 {
 	struct rvu *rvu = (struct rvu *)rvu_irq;
-	int vfs = pci_num_vf(rvu->pdev);
+	int vfs = rvu->vfs;
 	u64 intr;
 
 	intr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_PFAF_MBOX_INT);
@@ -1858,9 +1858,25 @@ static void rvu_unregister_interrupts(struct rvu *rvu)
 	rvu->num_vec = 0;
 }
 
+static int rvu_afvf_msix_vectors_num_ok(struct rvu *rvu)
+{
+	struct rvu_pfvf *pfvf = &rvu->pf[0];
+	int offset;
+
+	pfvf = &rvu->pf[0];
+	offset = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_INT_CFG(0)) & 0x3ff;
+
+	/* Make sure there are enough MSIX vectors configured so that
+	 * VF interrupts can be handled. Offset equal to zero means
+	 * that PF vectors are not configured and overlapping AF vectors.
+	 */
+	return (pfvf->msix.max >= RVU_AF_INT_VEC_CNT + RVU_PF_INT_VEC_CNT) &&
+	       offset;
+}
+
 static int rvu_register_interrupts(struct rvu *rvu)
 {
-	int ret;
+	int ret, offset;
 
 	rvu->num_vec = pci_msix_vec_count(rvu->pdev);
 
@@ -1921,6 +1937,40 @@ static int rvu_register_interrupts(struct rvu *rvu)
 	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFFLR_INT_ENA_W1S,
 		    INTR_MASK(rvu->hw->total_pfs) & ~1ULL);
 
+	if (!rvu_afvf_msix_vectors_num_ok(rvu))
+		return 0;
+
+	/* Get PF MSIX vectors offset. */
+	offset = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_INT_CFG(0)) & 0x3ff;
+
+	/* Register MBOX0 interrupt. */
+	offset += RVU_PF_INT_VEC_VFPF_MBOX0;
+	sprintf(&rvu->irq_name[offset * NAME_SIZE], "RVUAFVF Mbox0");
+	ret = request_irq(pci_irq_vector(rvu->pdev, offset),
+			  rvu_mbox_intr_handler, 0,
+			  &rvu->irq_name[offset * NAME_SIZE],
+			  rvu);
+	if (ret)
+		dev_err(rvu->dev,
+			"RVUAF: IRQ registration failed for Mbox0\n");
+
+	rvu->irq_allocated[offset] = true;
+
+	/* Register MBOX1 interrupt. MBOX1 IRQ number follows MBOX0 so
+	 * simply increment current offset by 1.
+	 */
+	offset += 1;
+	sprintf(&rvu->irq_name[offset * NAME_SIZE], "RVUAFVF Mbox1");
+	ret = request_irq(pci_irq_vector(rvu->pdev, offset),
+			  rvu_mbox_intr_handler, 0,
+			  &rvu->irq_name[offset * NAME_SIZE],
+			  rvu);
+	if (ret)
+		dev_err(rvu->dev,
+			"RVUAF: IRQ registration failed for Mbox1\n");
+
+	rvu->irq_allocated[offset] = true;
+
 	return 0;
 
 fail:
@@ -1971,6 +2021,129 @@ static int rvu_flr_init(struct rvu *rvu)
 	mutex_init(&rvu->flr_lock);
 
 	return 0;
+}
+
+static void rvu_disable_afvf_mbox_intr(struct rvu *rvu)
+{
+	int vfs = rvu->vfs;
+
+	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1CX(0), INTR_MASK(vfs));
+	if (vfs > 64)
+		rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1CX(1),
+			      INTR_MASK(vfs - 64));
+}
+
+static void rvu_enable_afvf_mbox_intr(struct rvu *rvu)
+{
+	int vfs = rvu->vfs;
+
+	/* Clear any pending interrupts and enable AF VF interrupts for
+	 * the first 64 VFs.
+	 */
+	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INTX(0), INTR_MASK(vfs));
+	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1SX(0), INTR_MASK(vfs));
+
+	/* Same for remaining VFs, if any. */
+	if (vfs <= 64)
+		return;
+
+	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INTX(1), INTR_MASK(vfs - 64));
+	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INT_ENA_W1SX(1),
+		      INTR_MASK(vfs - 64));
+}
+
+#define PCI_DEVID_OCTEONTX2_LBK 0xA061
+
+static int lbk_get_num_chans(void)
+{
+	struct pci_dev *pdev;
+	void __iomem *base;
+	int ret = -EIO;
+
+	pdev = pci_get_device(PCI_VENDOR_ID_CAVIUM, PCI_DEVID_OCTEONTX2_LBK,
+			      NULL);
+	if (!pdev)
+		goto err;
+
+	base = pci_ioremap_bar(pdev, 0);
+	if (!base)
+		goto err_put;
+
+	/* Read number of available LBK channels from LBK(0)_CONST register. */
+	ret = (readq(base + 0x10) >> 32) & 0xffff;
+	iounmap(base);
+err_put:
+	pci_dev_put(pdev);
+err:
+	return ret;
+}
+
+static int rvu_enable_sriov(struct rvu *rvu)
+{
+	struct pci_dev *pdev = rvu->pdev;
+	int err, chans, vfs;
+
+	if (!rvu_afvf_msix_vectors_num_ok(rvu)) {
+		dev_warn(&pdev->dev,
+			 "Skipping SRIOV enablement since not enough IRQs are available\n");
+		return 0;
+	}
+
+	chans = lbk_get_num_chans();
+	if (chans < 0)
+		return chans;
+
+	vfs = pci_sriov_get_totalvfs(pdev);
+
+	/* Limit VFs in case we have more VFs than LBK channels available. */
+	if (vfs > chans)
+		vfs = chans;
+
+	/* AF's VFs work in pairs and talk over consecutive loopback channels.
+	 * Thus we want to enable maximum even number of VFs. In case
+	 * odd number of VFs are available then the last VF on the list
+	 * remains disabled.
+	 */
+	if (vfs & 0x1) {
+		dev_warn(&pdev->dev,
+			 "Number of VFs should be even. Enabling %d out of %d.\n",
+			 vfs - 1, vfs);
+		vfs--;
+	}
+
+	if (!vfs)
+		return 0;
+
+	/* Save VFs number for reference in VF interrupts handlers.
+	 * Since interrupts might start arriving during SRIOV enablement
+	 * ordinary API cannot be used to get number of enabled VFs.
+	 */
+	rvu->vfs = vfs;
+
+	err = rvu_mbox_init(rvu, &rvu->afvf_wq_info, TYPE_AFVF, vfs,
+			    rvu_afvf_mbox_handler, rvu_afvf_mbox_up_handler);
+	if (err)
+		return err;
+
+	rvu_enable_afvf_mbox_intr(rvu);
+	/* Make sure IRQs are enabled before SRIOV. */
+	mb();
+
+	err = pci_enable_sriov(pdev, vfs);
+	if (err) {
+		rvu_disable_afvf_mbox_intr(rvu);
+		rvu_mbox_destroy(&rvu->afvf_wq_info);
+		return err;
+	}
+
+	return 0;
+}
+
+static void rvu_disable_sriov(struct rvu *rvu)
+{
+	rvu_disable_afvf_mbox_intr(rvu);
+	rvu_mbox_destroy(&rvu->afvf_wq_info);
+	pci_disable_sriov(rvu->pdev);
 }
 
 static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -2054,7 +2227,14 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_flr;
 
+	/* Enable AF's VFs (if any) */
+	err = rvu_enable_sriov(rvu);
+	if (err)
+		goto err_irq;
+
 	return 0;
+err_irq:
+	rvu_unregister_interrupts(rvu);
 err_flr:
 	rvu_flr_wq_destroy(rvu);
 err_cgx:
@@ -2083,6 +2263,7 @@ static void rvu_remove(struct pci_dev *pdev)
 	rvu_flr_wq_destroy(rvu);
 	rvu_cgx_wq_destroy(rvu);
 	rvu_mbox_destroy(&rvu->afpf_wq_info);
+	rvu_disable_sriov(rvu);
 	rvu_reset_all_blocks(rvu);
 	rvu_free_hw_resources(rvu);
 
