@@ -65,6 +65,7 @@
 export VXPORT
 
 : ${ALL_TESTS:="
+	ping_ipv4
     "}
 
 NUM_NETIFS=6
@@ -279,6 +280,13 @@ cleanup()
 
 	forwarding_restore
 	vrf_cleanup
+}
+
+ping_ipv4()
+{
+	ping_test $h1 192.0.2.2 ": local->local"
+	ping_test $h1 192.0.2.3 ": local->remote 1"
+	ping_test $h1 192.0.2.4 ": local->remote 2"
 }
 
 test_all()
