@@ -314,6 +314,10 @@ void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
 	int blkaddr, index, kwi;
 	u64 mac = 0;
 
+	/* AF's VFs work in promiscuous mode */
+	if (is_afvf(pcifunc))
+		return;
+
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0)
 		return;
@@ -368,12 +372,12 @@ void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
 	struct nix_rx_action action = { };
 	int blkaddr, index, kwi;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
-	if (blkaddr < 0)
+	/* Only PF or AF VF can add a promiscuous entry */
+	if ((pcifunc & RVU_PFVF_FUNC_MASK) && !is_afvf(pcifunc))
 		return;
 
-	/* Only PF or AF VF can add a promiscuous entry */
-	if (pcifunc & RVU_PFVF_FUNC_MASK)
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
 		return;
 
 	index = npc_get_nixlf_mcam_index(mcam, pcifunc,

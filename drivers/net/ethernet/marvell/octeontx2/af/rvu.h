@@ -258,6 +258,11 @@ static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
 /* Function Prototypes
  * RVU
  */
+static inline int is_afvf(u16 pcifunc)
+{
+	return !(pcifunc & ~RVU_PFVF_FUNC_MASK);
+}
+
 int rvu_alloc_bitmap(struct rsrc_bmap *rsrc);
 int rvu_alloc_rsrc(struct rsrc_bmap *rsrc);
 void rvu_free_rsrc(struct rsrc_bmap *rsrc, int id);

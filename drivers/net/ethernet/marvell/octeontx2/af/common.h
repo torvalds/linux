@@ -174,7 +174,9 @@ enum nix_scheduler {
 
 #define MAX_LMAC_PKIND			12
 #define NIX_LINK_CGX_LMAC(a, b)		(0 + 4 * (a) + (b))
+#define NIX_LINK_LBK(a)			(12 + (a))
 #define NIX_CHAN_CGX_LMAC_CHX(a, b, c)	(0x800 + 0x100 * (a) + 0x10 * (b) + (c))
+#define NIX_CHAN_LBK_CHX(a, b)		(0 + 0x100 * (a) + (b))
 
 /* NIX LSO format indices.
  * As of now TSO is the only one using, so statically assigning indices.
