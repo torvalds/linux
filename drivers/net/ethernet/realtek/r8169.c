@@ -2026,92 +2026,91 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 	 * (RTL_R32(tp, TxConfig) & 0x700000) == 0x200000 ? 8101Eb : 8101Ec
 	 */
 	static const struct rtl_mac_info {
-		u32 mask;
-		u32 val;
-		int mac_version;
+		u16 mask;
+		u16 val;
+		u16 mac_version;
 	} mac_info[] = {
 		/* 8168EP family. */
-		{ 0x7cf00000, 0x50200000,	RTL_GIGA_MAC_VER_51 },
-		{ 0x7cf00000, 0x50100000,	RTL_GIGA_MAC_VER_50 },
-		{ 0x7cf00000, 0x50000000,	RTL_GIGA_MAC_VER_49 },
+		{ 0x7cf, 0x502,	RTL_GIGA_MAC_VER_51 },
+		{ 0x7cf, 0x501,	RTL_GIGA_MAC_VER_50 },
+		{ 0x7cf, 0x500,	RTL_GIGA_MAC_VER_49 },
 
 		/* 8168H family. */
-		{ 0x7cf00000, 0x54100000,	RTL_GIGA_MAC_VER_46 },
-		{ 0x7cf00000, 0x54000000,	RTL_GIGA_MAC_VER_45 },
+		{ 0x7cf, 0x541,	RTL_GIGA_MAC_VER_46 },
+		{ 0x7cf, 0x540,	RTL_GIGA_MAC_VER_45 },
 
 		/* 8168G family. */
-		{ 0x7cf00000, 0x5c800000,	RTL_GIGA_MAC_VER_44 },
-		{ 0x7cf00000, 0x50900000,	RTL_GIGA_MAC_VER_42 },
-		{ 0x7cf00000, 0x4c100000,	RTL_GIGA_MAC_VER_41 },
-		{ 0x7cf00000, 0x4c000000,	RTL_GIGA_MAC_VER_40 },
+		{ 0x7cf, 0x5c8,	RTL_GIGA_MAC_VER_44 },
+		{ 0x7cf, 0x509,	RTL_GIGA_MAC_VER_42 },
+		{ 0x7cf, 0x4c1,	RTL_GIGA_MAC_VER_41 },
+		{ 0x7cf, 0x4c0,	RTL_GIGA_MAC_VER_40 },
 
 		/* 8168F family. */
-		{ 0x7c800000, 0x48800000,	RTL_GIGA_MAC_VER_38 },
-		{ 0x7cf00000, 0x48100000,	RTL_GIGA_MAC_VER_36 },
-		{ 0x7cf00000, 0x48000000,	RTL_GIGA_MAC_VER_35 },
+		{ 0x7c8, 0x488,	RTL_GIGA_MAC_VER_38 },
+		{ 0x7cf, 0x481,	RTL_GIGA_MAC_VER_36 },
+		{ 0x7cf, 0x480,	RTL_GIGA_MAC_VER_35 },
 
 		/* 8168E family. */
-		{ 0x7c800000, 0x2c800000,	RTL_GIGA_MAC_VER_34 },
-		{ 0x7cf00000, 0x2c100000,	RTL_GIGA_MAC_VER_32 },
-		{ 0x7c800000, 0x2c000000,	RTL_GIGA_MAC_VER_33 },
+		{ 0x7c8, 0x2c8,	RTL_GIGA_MAC_VER_34 },
+		{ 0x7cf, 0x2c1,	RTL_GIGA_MAC_VER_32 },
+		{ 0x7c8, 0x2c0,	RTL_GIGA_MAC_VER_33 },
 
 		/* 8168D family. */
-		{ 0x7cf00000, 0x28100000,	RTL_GIGA_MAC_VER_25 },
-		{ 0x7c800000, 0x28000000,	RTL_GIGA_MAC_VER_26 },
+		{ 0x7cf, 0x281,	RTL_GIGA_MAC_VER_25 },
+		{ 0x7c8, 0x280,	RTL_GIGA_MAC_VER_26 },
 
 		/* 8168DP family. */
-		{ 0x7cf00000, 0x28800000,	RTL_GIGA_MAC_VER_27 },
-		{ 0x7cf00000, 0x28a00000,	RTL_GIGA_MAC_VER_28 },
-		{ 0x7cf00000, 0x28b00000,	RTL_GIGA_MAC_VER_31 },
+		{ 0x7cf, 0x288,	RTL_GIGA_MAC_VER_27 },
+		{ 0x7cf, 0x28a,	RTL_GIGA_MAC_VER_28 },
+		{ 0x7cf, 0x28b,	RTL_GIGA_MAC_VER_31 },
 
 		/* 8168C family. */
-		{ 0x7cf00000, 0x3c900000,	RTL_GIGA_MAC_VER_23 },
-		{ 0x7cf00000, 0x3c800000,	RTL_GIGA_MAC_VER_18 },
-		{ 0x7c800000, 0x3c800000,	RTL_GIGA_MAC_VER_24 },
-		{ 0x7cf00000, 0x3c000000,	RTL_GIGA_MAC_VER_19 },
-		{ 0x7cf00000, 0x3c200000,	RTL_GIGA_MAC_VER_20 },
-		{ 0x7cf00000, 0x3c300000,	RTL_GIGA_MAC_VER_21 },
-		{ 0x7c800000, 0x3c000000,	RTL_GIGA_MAC_VER_22 },
+		{ 0x7cf, 0x3c9,	RTL_GIGA_MAC_VER_23 },
+		{ 0x7cf, 0x3c8,	RTL_GIGA_MAC_VER_18 },
+		{ 0x7c8, 0x3c8,	RTL_GIGA_MAC_VER_24 },
+		{ 0x7cf, 0x3c0,	RTL_GIGA_MAC_VER_19 },
+		{ 0x7cf, 0x3c2,	RTL_GIGA_MAC_VER_20 },
+		{ 0x7cf, 0x3c3,	RTL_GIGA_MAC_VER_21 },
+		{ 0x7c8, 0x3c0,	RTL_GIGA_MAC_VER_22 },
 
 		/* 8168B family. */
-		{ 0x7cf00000, 0x38000000,	RTL_GIGA_MAC_VER_12 },
-		{ 0x7c800000, 0x38000000,	RTL_GIGA_MAC_VER_17 },
-		{ 0x7c800000, 0x30000000,	RTL_GIGA_MAC_VER_11 },
+		{ 0x7cf, 0x380,	RTL_GIGA_MAC_VER_12 },
+		{ 0x7c8, 0x380,	RTL_GIGA_MAC_VER_17 },
+		{ 0x7c8, 0x300,	RTL_GIGA_MAC_VER_11 },
 
 		/* 8101 family. */
-		{ 0x7c800000, 0x44800000,	RTL_GIGA_MAC_VER_39 },
-		{ 0x7c800000, 0x44000000,	RTL_GIGA_MAC_VER_37 },
-		{ 0x7cf00000, 0x40900000,	RTL_GIGA_MAC_VER_29 },
-		{ 0x7c800000, 0x40800000,	RTL_GIGA_MAC_VER_30 },
-		{ 0x7cf00000, 0x34900000,	RTL_GIGA_MAC_VER_08 },
-		{ 0x7cf00000, 0x24900000,	RTL_GIGA_MAC_VER_08 },
-		{ 0x7cf00000, 0x34800000,	RTL_GIGA_MAC_VER_07 },
-		{ 0x7cf00000, 0x24800000,	RTL_GIGA_MAC_VER_07 },
-		{ 0x7cf00000, 0x34000000,	RTL_GIGA_MAC_VER_13 },
-		{ 0x7cf00000, 0x34300000,	RTL_GIGA_MAC_VER_10 },
-		{ 0x7cf00000, 0x34200000,	RTL_GIGA_MAC_VER_16 },
-		{ 0x7c800000, 0x34800000,	RTL_GIGA_MAC_VER_09 },
-		{ 0x7c800000, 0x24800000,	RTL_GIGA_MAC_VER_09 },
-		{ 0x7c800000, 0x34000000,	RTL_GIGA_MAC_VER_16 },
+		{ 0x7c8, 0x448,	RTL_GIGA_MAC_VER_39 },
+		{ 0x7c8, 0x440,	RTL_GIGA_MAC_VER_37 },
+		{ 0x7cf, 0x409,	RTL_GIGA_MAC_VER_29 },
+		{ 0x7c8, 0x408,	RTL_GIGA_MAC_VER_30 },
+		{ 0x7cf, 0x349,	RTL_GIGA_MAC_VER_08 },
+		{ 0x7cf, 0x249,	RTL_GIGA_MAC_VER_08 },
+		{ 0x7cf, 0x348,	RTL_GIGA_MAC_VER_07 },
+		{ 0x7cf, 0x248,	RTL_GIGA_MAC_VER_07 },
+		{ 0x7cf, 0x340,	RTL_GIGA_MAC_VER_13 },
+		{ 0x7cf, 0x343,	RTL_GIGA_MAC_VER_10 },
+		{ 0x7cf, 0x342,	RTL_GIGA_MAC_VER_16 },
+		{ 0x7c8, 0x348,	RTL_GIGA_MAC_VER_09 },
+		{ 0x7c8, 0x248,	RTL_GIGA_MAC_VER_09 },
+		{ 0x7c8, 0x340,	RTL_GIGA_MAC_VER_16 },
 		/* FIXME: where did these entries come from ? -- FR */
-		{ 0xfc800000, 0x38800000,	RTL_GIGA_MAC_VER_15 },
-		{ 0xfc800000, 0x30800000,	RTL_GIGA_MAC_VER_14 },
+		{ 0xfc8, 0x388,	RTL_GIGA_MAC_VER_15 },
+		{ 0xfc8, 0x308,	RTL_GIGA_MAC_VER_14 },
 
 		/* 8110 family. */
-		{ 0xfc800000, 0x98000000,	RTL_GIGA_MAC_VER_06 },
-		{ 0xfc800000, 0x18000000,	RTL_GIGA_MAC_VER_05 },
-		{ 0xfc800000, 0x10000000,	RTL_GIGA_MAC_VER_04 },
-		{ 0xfc800000, 0x04000000,	RTL_GIGA_MAC_VER_03 },
-		{ 0xfc800000, 0x00800000,	RTL_GIGA_MAC_VER_02 },
-		{ 0xfc800000, 0x00000000,	RTL_GIGA_MAC_VER_01 },
+		{ 0xfc8, 0x980,	RTL_GIGA_MAC_VER_06 },
+		{ 0xfc8, 0x180,	RTL_GIGA_MAC_VER_05 },
+		{ 0xfc8, 0x100,	RTL_GIGA_MAC_VER_04 },
+		{ 0xfc8, 0x040,	RTL_GIGA_MAC_VER_03 },
+		{ 0xfc8, 0x008,	RTL_GIGA_MAC_VER_02 },
+		{ 0xfc8, 0x000,	RTL_GIGA_MAC_VER_01 },
 
 		/* Catch-all */
-		{ 0x00000000, 0x00000000,	RTL_GIGA_MAC_NONE   }
+		{ 0x000, 0x000,	RTL_GIGA_MAC_NONE   }
 	};
 	const struct rtl_mac_info *p = mac_info;
-	u32 reg;
+	u16 reg = RTL_R32(tp, TxConfig) >> 20;
 
-	reg = RTL_R32(tp, TxConfig);
 	while ((reg & p->mask) != p->val)
 		p++;
 	tp->mac_version = p->mac_version;
@@ -7392,9 +7391,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto err_mdio_unregister;
 
-	netif_info(tp, probe, dev, "%s, %pM, XID %08x, IRQ %d\n",
+	netif_info(tp, probe, dev, "%s, %pM, XID %03x, IRQ %d\n",
 		   rtl_chip_infos[chipset].name, dev->dev_addr,
-		   (u32)(RTL_R32(tp, TxConfig) & 0xfcf0f8ff),
+		   (RTL_R32(tp, TxConfig) >> 20) & 0xfcf,
 		   pci_irq_vector(pdev, 0));
 
 	if (jumbo_max > JUMBO_1K)
