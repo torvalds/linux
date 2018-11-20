@@ -198,7 +198,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxino_micro>;
+	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 6 1 GPIO_ACTIVE_LOW>; /* PG1 */
@@ -207,7 +207,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>, <&mmc1_cd_pin_olinuxino_micro>;
+	pinctrl-0 = <&mmc1_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 6 13 GPIO_ACTIVE_LOW>; /* PG13 */
@@ -223,18 +223,6 @@
 };
 
 &pio {
-	mmc0_cd_pin_olinuxino_micro: mmc0_cd_pin@0 {
-		pins = "PG1";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	mmc1_cd_pin_olinuxino_micro: mmc1_cd_pin@0 {
-		pins = "PG13";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
 	led_pins_olinuxino: led_pins@0 {
 		pins = "PE3";
 		function = "gpio_out";

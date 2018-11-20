@@ -191,7 +191,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxino>;
+	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 6 0 GPIO_ACTIVE_LOW>; /* PG0 */
@@ -207,12 +207,6 @@
 };
 
 &pio {
-	mmc0_cd_pin_olinuxino: mmc0_cd_pin@0 {
-		pins = "PG0";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
 	led_pins_olinuxino: led_pins@0 {
 		pins = "PG9";
 		function = "gpio_out";
