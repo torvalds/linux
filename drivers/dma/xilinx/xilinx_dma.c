@@ -977,6 +977,15 @@ static int xilinx_dma_calc_copysize(struct xilinx_dma_chan *chan,
 	copy = min_t(size_t, size - done,
 		     chan->xdev->max_buffer_len);
 
+	if ((copy + done < size) &&
+	    chan->xdev->common.copy_align) {
+		/*
+		 * If this is not the last descriptor, make sure
+		 * the next one will be properly aligned
+		 */
+		copy = rounddown(copy,
+				 (1 << chan->xdev->common.copy_align));
+	}
 	return copy;
 }
 
