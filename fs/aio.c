@@ -1441,7 +1441,7 @@ static int aio_prep_rw(struct kiocb *req, struct iocb *iocb)
 
 		req->ki_ioprio = iocb->aio_reqprio;
 	} else
-		req->ki_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0);
+		req->ki_ioprio = get_current_ioprio();
 
 	ret = kiocb_set_rw_flags(req, iocb->aio_rw_flags);
 	if (unlikely(ret))
