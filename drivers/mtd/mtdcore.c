@@ -665,6 +665,8 @@ static void mtd_set_dev_defaults(struct mtd_info *mtd)
 	} else {
 		pr_debug("mtd device won't show a device symlink in sysfs\n");
 	}
+
+	mtd->orig_flags = mtd->flags;
 }
 
 /**
