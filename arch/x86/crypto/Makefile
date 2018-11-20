@@ -8,6 +8,7 @@ OBJECT_FILES_NON_STANDARD := y
 avx_supported := $(call as-instr,vpxor %xmm0$(comma)%xmm0$(comma)%xmm0,yes,no)
 avx2_supported := $(call as-instr,vpgatherdd %ymm0$(comma)(%eax$(comma)%ymm1\
 				$(comma)4)$(comma)%ymm2,yes,no)
+avx512_supported :=$(call as-instr,vpmovm2b %k1$(comma)%zmm5,yes,no)
 sha1_ni_supported :=$(call as-instr,sha1msg1 %xmm0$(comma)%xmm1,yes,no)
 sha256_ni_supported :=$(call as-instr,sha256msg1 %xmm0$(comma)%xmm1,yes,no)
 
@@ -104,6 +105,10 @@ ifeq ($(avx2_supported),yes)
 	serpent-avx2-y := serpent-avx2-asm_64.o serpent_avx2_glue.o
 
 	morus1280-avx2-y := morus1280-avx2-asm.o morus1280-avx2-glue.o
+endif
+
+ifeq ($(avx512_supported),yes)
+	chacha20-x86_64-y += chacha20-avx512vl-x86_64.o
 endif
 
 aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o fpu.o

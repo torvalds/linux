@@ -31,6 +31,11 @@ asmlinkage void chacha20_4block_xor_avx2(u32 *state, u8 *dst, const u8 *src,
 asmlinkage void chacha20_8block_xor_avx2(u32 *state, u8 *dst, const u8 *src,
 					 unsigned int len);
 static bool chacha20_use_avx2;
+#ifdef CONFIG_AS_AVX512
+asmlinkage void chacha20_8block_xor_avx512vl(u32 *state, u8 *dst, const u8 *src,
+					     unsigned int len);
+static bool chacha20_use_avx512vl;
+#endif
 #endif
 
 static unsigned int chacha20_advance(unsigned int len, unsigned int maxblocks)
@@ -43,6 +48,22 @@ static void chacha20_dosimd(u32 *state, u8 *dst, const u8 *src,
 			    unsigned int bytes)
 {
 #ifdef CONFIG_AS_AVX2
+#ifdef CONFIG_AS_AVX512
+	if (chacha20_use_avx512vl) {
+		while (bytes >= CHACHA_BLOCK_SIZE * 8) {
+			chacha20_8block_xor_avx512vl(state, dst, src, bytes);
+			bytes -= CHACHA_BLOCK_SIZE * 8;
+			src += CHACHA_BLOCK_SIZE * 8;
+			dst += CHACHA_BLOCK_SIZE * 8;
+			state[12] += 8;
+		}
+		if (bytes > CHACHA_BLOCK_SIZE * 4) {
+			chacha20_8block_xor_avx512vl(state, dst, src, bytes);
+			state[12] += chacha20_advance(bytes, 8);
+			return;
+		}
+	}
+#endif
 	if (chacha20_use_avx2) {
 		while (bytes >= CHACHA_BLOCK_SIZE * 8) {
 			chacha20_8block_xor_avx2(state, dst, src, bytes);
@@ -149,6 +170,11 @@ static int __init chacha20_simd_mod_init(void)
 	chacha20_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) &&
 			    boot_cpu_has(X86_FEATURE_AVX2) &&
 			    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
+#ifdef CONFIG_AS_AVX512
+	chacha20_use_avx512vl = chacha20_use_avx2 &&
+				boot_cpu_has(X86_FEATURE_AVX512VL) &&
+				boot_cpu_has(X86_FEATURE_AVX512BW); /* kmovq */
+#endif
 #endif
 	return crypto_register_skcipher(&alg);
 }
