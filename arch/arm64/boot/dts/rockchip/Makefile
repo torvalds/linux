@@ -1,3 +1,7 @@
+dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-ad-r35-mb-rk618-dual-lvds.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-ad-r35-mb-rk618-hdmi.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-ad-r35-mb-rk618-hdmi-lvds.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-ad-r35-mb-rk618-lvds.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-evb-ddr3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-evb-ddr3-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-evb-ddr3-lvds-v10.dtb
