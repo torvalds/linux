@@ -35,8 +35,8 @@
 #define R8A77995_CLK_CRD2		24
 #define R8A77995_CLK_SD0H		25
 #define R8A77995_CLK_SD0		26
-#define R8A77995_CLK_SSP2		27
-#define R8A77995_CLK_SSP1		28
+/* CLK_SSP2 was removed */
+/* CLK_SSP1 was removed */
 #define R8A77995_CLK_RPC		29
 #define R8A77995_CLK_RPCD2		30
 #define R8A77995_CLK_ZA2		31

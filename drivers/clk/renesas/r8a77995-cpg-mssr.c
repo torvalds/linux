@@ -42,7 +42,6 @@ enum clk_ids {
 	CLK_S2,
 	CLK_S3,
 	CLK_SDSRC,
-	CLK_SSPSRC,
 	CLK_RINT,
 	CLK_OCO,
 
