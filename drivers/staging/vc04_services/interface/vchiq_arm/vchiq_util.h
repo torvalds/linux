@@ -35,7 +35,7 @@
 #define VCHIQ_UTIL_H
 
 #include <linux/types.h>
-#include <linux/semaphore.h>
+#include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
 #include <linux/kthread.h>
@@ -60,8 +60,8 @@ typedef struct {
 	int write;
 	int initialized;
 
-	struct semaphore pop;
-	struct semaphore push;
+	struct completion pop;
+	struct completion push;
 
 	VCHIQ_HEADER_T **storage;
 } VCHIU_QUEUE_T;

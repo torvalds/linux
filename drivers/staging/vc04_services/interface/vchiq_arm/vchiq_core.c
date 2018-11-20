@@ -376,7 +376,7 @@ mark_service_closing_internal(VCHIQ_SERVICE_T *service, int sh_thread)
 
 	/* Unblock any sending thread. */
 	service_quota = &state->service_quotas[service->localport];
-	up(&service_quota->quota_event);
+	complete(&service_quota->quota_event);
 }
 
 static void
@@ -432,9 +432,9 @@ remote_event_wait(VCHIQ_STATE_T *state, REMOTE_EVENT_T *event)
 		event->armed = 1;
 		dsb(sy);
 		if (!event->fired) {
-			if (down_interruptible(
-					(struct semaphore *)
-					((char *)state + event->event)) != 0) {
+			if (wait_for_completion_interruptible(
+					(struct completion *)
+					((char *)state + event->event))) {
 				event->armed = 0;
 				return 0;
 			}
@@ -451,7 +451,7 @@ static inline void
 remote_event_signal_local(VCHIQ_STATE_T *state, REMOTE_EVENT_T *event)
 {
 	event->armed = 0;
-	up((struct semaphore *)((char *)state + event->event));
+	complete((struct completion *)((char *)state + event->event));
 }
 
 static inline void
@@ -581,7 +581,7 @@ reserve_space(VCHIQ_STATE_T *state, size_t space, int is_blocking)
 
 		/* If there is no free slot... */
 
-		if (down_trylock(&state->slot_available_event) != 0) {
+		if (!try_wait_for_completion(&state->slot_available_event)) {
 			/* ...wait for one. */
 
 			VCHIQ_STATS_INC(state, slot_stalls);
@@ -592,13 +592,13 @@ reserve_space(VCHIQ_STATE_T *state, size_t space, int is_blocking)
 			remote_event_signal(&state->remote->trigger);
 
 			if (!is_blocking ||
-				(down_interruptible(
-				&state->slot_available_event) != 0))
+				(wait_for_completion_interruptible(
+				&state->slot_available_event)))
 				return NULL; /* No space available */
 		}
 
 		if (tx_pos == (state->slot_queue_available * VCHIQ_SLOT_SIZE)) {
-			up(&state->slot_available_event);
+			complete(&state->slot_available_event);
 			pr_warn("%s: invalid tx_pos: %d\n", __func__, tx_pos);
 			return NULL;
 		}
@@ -678,7 +678,7 @@ process_free_queue(VCHIQ_STATE_T *state, BITSET_T *service_found, size_t length)
 					/* Signal the service that it
 					** has dropped below its quota
 					*/
-					up(&service_quota->quota_event);
+					complete(&service_quota->quota_event);
 				else if (count == 0) {
 					vchiq_log_error(vchiq_core_log_level,
 						"service %d message_use_count=%d (header %pK, msgid %x, header->msgid %x, header->size %x)",
@@ -703,7 +703,7 @@ process_free_queue(VCHIQ_STATE_T *state, BITSET_T *service_found, size_t length)
 						/* Signal the service in case
 						** it has dropped below its
 						** quota */
-						up(&service_quota->quota_event);
+						complete(&service_quota->quota_event);
 						vchiq_log_trace(
 							vchiq_core_log_level,
 							"%d: pfq:%d %x@%pK - slot_use->%d",
@@ -744,7 +744,7 @@ process_free_queue(VCHIQ_STATE_T *state, BITSET_T *service_found, size_t length)
 					count - 1;
 			spin_unlock(&quota_spinlock);
 			if (count == state->data_quota)
-				up(&state->data_quota_event);
+				complete(&state->data_quota_event);
 		}
 
 		/*
@@ -754,7 +754,7 @@ process_free_queue(VCHIQ_STATE_T *state, BITSET_T *service_found, size_t length)
 		mb();
 
 		state->slot_queue_available = slot_queue_available;
-		up(&state->slot_available_event);
+		complete(&state->slot_available_event);
 	}
 }
 
@@ -862,8 +862,8 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 			spin_unlock(&quota_spinlock);
 			mutex_unlock(&state->slot_mutex);
 
-			if (down_interruptible(&state->data_quota_event)
-				!= 0)
+			if (wait_for_completion_interruptible(
+						&state->data_quota_event))
 				return VCHIQ_RETRY;
 
 			mutex_lock(&state->slot_mutex);
@@ -873,7 +873,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 			if ((tx_end_index == state->previous_data_index) ||
 				(state->data_use_count < state->data_quota)) {
 				/* Pass the signal on to other waiters */
-				up(&state->data_quota_event);
+				complete(&state->data_quota_event);
 				break;
 			}
 		}
@@ -893,8 +893,8 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 				service_quota->slot_use_count);
 			VCHIQ_SERVICE_STATS_INC(service, quota_stalls);
 			mutex_unlock(&state->slot_mutex);
-			if (down_interruptible(&service_quota->quota_event)
-				!= 0)
+			if (wait_for_completion_interruptible(
+						&service_quota->quota_event))
 				return VCHIQ_RETRY;
 			if (service->closing)
 				return VCHIQ_ERROR;
@@ -1251,7 +1251,7 @@ notify_bulks(VCHIQ_SERVICE_T *service, VCHIQ_BULK_QUEUE_T *queue,
 					waiter = bulk->userdata;
 					if (waiter) {
 						waiter->actual = bulk->actual;
-						up(&waiter->event);
+						complete(&waiter->event);
 					}
 					spin_unlock(&bulk_waiter_spinlock);
 				} else if (bulk->mode ==
@@ -1274,7 +1274,7 @@ notify_bulks(VCHIQ_SERVICE_T *service, VCHIQ_BULK_QUEUE_T *queue,
 			}
 
 			queue->remove++;
-			up(&service->bulk_remove_event);
+			complete(&service->bulk_remove_event);
 		}
 		if (!retry_poll)
 			status = VCHIQ_SUCCESS;
@@ -1667,7 +1667,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 				service->remoteport = remoteport;
 				vchiq_set_service_state(service,
 					VCHIQ_SRVSTATE_OPEN);
-				up(&service->remove_event);
+				complete(&service->remove_event);
 			} else
 				vchiq_log_error(vchiq_core_log_level,
 					"OPENACK received in state %s",
@@ -1721,7 +1721,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 				"%d: prs CONNECT@%pK", state->id, header);
 			state->version_common = ((VCHIQ_SLOT_ZERO_T *)
 						 state->slot_data)->version;
-			up(&state->connect);
+			complete(&state->connect);
 			break;
 		case VCHIQ_MSG_BULK_RX:
 		case VCHIQ_MSG_BULK_TX:
@@ -2055,7 +2055,7 @@ sync_func(void *v)
 				vchiq_set_service_state(service,
 					VCHIQ_SRVSTATE_OPENSYNC);
 				service->sync = 1;
-				up(&service->remove_event);
+				complete(&service->remove_event);
 			}
 			release_message_sync(state, header);
 			break;
@@ -2194,33 +2194,33 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero)
 		initialize events and mutexes
 	 */
 
-	sema_init(&state->connect, 0);
+	init_completion(&state->connect);
 	mutex_init(&state->mutex);
-	sema_init(&state->trigger_event, 0);
-	sema_init(&state->recycle_event, 0);
-	sema_init(&state->sync_trigger_event, 0);
-	sema_init(&state->sync_release_event, 0);
+	init_completion(&state->trigger_event);
+	init_completion(&state->recycle_event);
+	init_completion(&state->sync_trigger_event);
+	init_completion(&state->sync_release_event);
 
 	mutex_init(&state->slot_mutex);
 	mutex_init(&state->recycle_mutex);
 	mutex_init(&state->sync_mutex);
 	mutex_init(&state->bulk_transfer_mutex);
 
-	sema_init(&state->slot_available_event, 0);
-	sema_init(&state->slot_remove_event, 0);
-	sema_init(&state->data_quota_event, 0);
+	init_completion(&state->slot_available_event);
+	init_completion(&state->slot_remove_event);
+	init_completion(&state->data_quota_event);
 
 	state->slot_queue_available = 0;
 
 	for (i = 0; i < VCHIQ_MAX_SERVICES; i++) {
 		VCHIQ_SERVICE_QUOTA_T *service_quota =
 			&state->service_quotas[i];
-		sema_init(&service_quota->quota_event, 0);
+		init_completion(&service_quota->quota_event);
 	}
 
 	for (i = local->slot_first; i <= local->slot_last; i++) {
 		local->slot_queue[state->slot_queue_available++] = i;
-		up(&state->slot_available_event);
+		complete(&state->slot_available_event);
 	}
 
 	state->default_slot_quota = state->slot_queue_available/2;
@@ -2354,8 +2354,8 @@ vchiq_add_service_internal(VCHIQ_STATE_T *state,
 	service->service_use_count = 0;
 	init_bulk_queue(&service->bulk_tx);
 	init_bulk_queue(&service->bulk_rx);
-	sema_init(&service->remove_event, 0);
-	sema_init(&service->bulk_remove_event, 0);
+	init_completion(&service->remove_event);
+	init_completion(&service->bulk_remove_event);
 	mutex_init(&service->bulk_mutex);
 	memset(&service->stats, 0, sizeof(service->stats));
 
@@ -2470,7 +2470,7 @@ vchiq_open_service_internal(VCHIQ_SERVICE_T *service, int client_id)
 			       QMFLAGS_IS_BLOCKING);
 	if (status == VCHIQ_SUCCESS) {
 		/* Wait for the ACK/NAK */
-		if (down_interruptible(&service->remove_event) != 0) {
+		if (wait_for_completion_interruptible(&service->remove_event)) {
 			status = VCHIQ_RETRY;
 			vchiq_release_service_internal(service);
 		} else if ((service->srvstate != VCHIQ_SRVSTATE_OPEN) &&
@@ -2622,7 +2622,7 @@ close_service_complete(VCHIQ_SERVICE_T *service, int failstate)
 			if (is_server)
 				service->closing = 0;
 
-			up(&service->remove_event);
+			complete(&service->remove_event);
 		}
 	} else
 		vchiq_set_service_state(service, failstate);
@@ -2663,7 +2663,7 @@ vchiq_close_service_internal(VCHIQ_SERVICE_T *service, int close_recvd)
 					vchiq_set_service_state(service,
 						VCHIQ_SRVSTATE_LISTENING);
 			}
-			up(&service->remove_event);
+			complete(&service->remove_event);
 		} else
 			vchiq_free_service_internal(service);
 		break;
@@ -2672,7 +2672,7 @@ vchiq_close_service_internal(VCHIQ_SERVICE_T *service, int close_recvd)
 			/* The open was rejected - tell the user */
 			vchiq_set_service_state(service,
 				VCHIQ_SRVSTATE_CLOSEWAIT);
-			up(&service->remove_event);
+			complete(&service->remove_event);
 		} else {
 			/* Shutdown mid-open - let the other side know */
 			status = queue_message(state, service,
@@ -2805,7 +2805,7 @@ vchiq_free_service_internal(VCHIQ_SERVICE_T *service)
 
 	vchiq_set_service_state(service, VCHIQ_SRVSTATE_FREE);
 
-	up(&service->remove_event);
+	complete(&service->remove_event);
 
 	/* Release the initial lock */
 	unlock_service(service);
@@ -2837,11 +2837,11 @@ vchiq_connect_internal(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance)
 	}
 
 	if (state->conn_state == VCHIQ_CONNSTATE_CONNECTING) {
-		if (down_interruptible(&state->connect) != 0)
+		if (wait_for_completion_interruptible(&state->connect))
 			return VCHIQ_RETRY;
 
 		vchiq_set_conn_state(state, VCHIQ_CONNSTATE_CONNECTED);
-		up(&state->connect);
+		complete(&state->connect);
 	}
 
 	return VCHIQ_SUCCESS;
@@ -2936,7 +2936,7 @@ vchiq_close_service(VCHIQ_SERVICE_HANDLE_T handle)
 	}
 
 	while (1) {
-		if (down_interruptible(&service->remove_event) != 0) {
+		if (wait_for_completion_interruptible(&service->remove_event)) {
 			status = VCHIQ_RETRY;
 			break;
 		}
@@ -2997,7 +2997,7 @@ vchiq_remove_service(VCHIQ_SERVICE_HANDLE_T handle)
 		request_poll(service->state, service, VCHIQ_POLL_REMOVE);
 	}
 	while (1) {
-		if (down_interruptible(&service->remove_event) != 0) {
+		if (wait_for_completion_interruptible(&service->remove_event)) {
 			status = VCHIQ_RETRY;
 			break;
 		}
@@ -3054,7 +3054,7 @@ VCHIQ_STATUS_T vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 		break;
 	case VCHIQ_BULK_MODE_BLOCKING:
 		bulk_waiter = (struct bulk_waiter *)userdata;
-		sema_init(&bulk_waiter->event, 0);
+		init_completion(&bulk_waiter->event);
 		bulk_waiter->actual = 0;
 		bulk_waiter->bulk = NULL;
 		break;
@@ -3080,8 +3080,8 @@ VCHIQ_STATUS_T vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 		VCHIQ_SERVICE_STATS_INC(service, bulk_stalls);
 		do {
 			mutex_unlock(&service->bulk_mutex);
-			if (down_interruptible(&service->bulk_remove_event)
-				!= 0) {
+			if (wait_for_completion_interruptible(
+						&service->bulk_remove_event)) {
 				status = VCHIQ_RETRY;
 				goto error_exit;
 			}
@@ -3157,7 +3157,7 @@ waiting:
 
 	if (bulk_waiter) {
 		bulk_waiter->bulk = bulk;
-		if (down_interruptible(&bulk_waiter->event) != 0)
+		if (wait_for_completion_interruptible(&bulk_waiter->event))
 			status = VCHIQ_RETRY;
 		else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
 			status = VCHIQ_ERROR;
@@ -3326,7 +3326,7 @@ vchiq_set_service_option(VCHIQ_SERVICE_HANDLE_T handle,
 					 service_quota->message_use_count)) {
 					/* Signal the service that it may have
 					** dropped below its quota */
-					up(&service_quota->quota_event);
+					complete(&service_quota->quota_event);
 				}
 				status = VCHIQ_SUCCESS;
 			}
@@ -3347,7 +3347,7 @@ vchiq_set_service_option(VCHIQ_SERVICE_HANDLE_T handle,
 					service_quota->slot_use_count))
 					/* Signal the service that it may have
 					** dropped below its quota */
-					up(&service_quota->quota_event);
+					complete(&service_quota->quota_event);
 				status = VCHIQ_SUCCESS;
 			}
 		} break;

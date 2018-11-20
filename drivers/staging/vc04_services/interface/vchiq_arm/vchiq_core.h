@@ -35,7 +35,7 @@
 #define VCHIQ_CORE_H
 
 #include <linux/mutex.h>
-#include <linux/semaphore.h>
+#include <linux/completion.h>
 #include <linux/kthread.h>
 
 #include "vchiq_cfg.h"
@@ -307,8 +307,8 @@ typedef struct vchiq_service_struct {
 	VCHIQ_BULK_QUEUE_T bulk_tx;
 	VCHIQ_BULK_QUEUE_T bulk_rx;
 
-	struct semaphore remove_event;
-	struct semaphore bulk_remove_event;
+	struct completion remove_event;
+	struct completion bulk_remove_event;
 	struct mutex bulk_mutex;
 
 	struct service_stats_struct {
@@ -337,7 +337,7 @@ typedef struct vchiq_service_quota_struct {
 	unsigned short slot_use_count;
 	unsigned short message_quota;
 	unsigned short message_use_count;
-	struct semaphore quota_event;
+	struct completion quota_event;
 	int previous_tx_index;
 } VCHIQ_SERVICE_QUOTA_T;
 
@@ -410,7 +410,7 @@ struct vchiq_state_struct {
 	unsigned short default_message_quota;
 
 	/* Event indicating connect message received */
-	struct semaphore connect;
+	struct completion connect;
 
 	/* Mutex protecting services */
 	struct mutex mutex;
@@ -426,16 +426,16 @@ struct vchiq_state_struct {
 	struct task_struct *sync_thread;
 
 	/* Local implementation of the trigger remote event */
-	struct semaphore trigger_event;
+	struct completion trigger_event;
 
 	/* Local implementation of the recycle remote event */
-	struct semaphore recycle_event;
+	struct completion recycle_event;
 
 	/* Local implementation of the sync trigger remote event */
-	struct semaphore sync_trigger_event;
+	struct completion sync_trigger_event;
 
 	/* Local implementation of the sync release remote event */
-	struct semaphore sync_release_event;
+	struct completion sync_release_event;
 
 	char *tx_data;
 	char *rx_data;
@@ -481,12 +481,12 @@ struct vchiq_state_struct {
 	int unused_service;
 
 	/* Signalled when a free slot becomes available. */
-	struct semaphore slot_available_event;
+	struct completion slot_available_event;
 
-	struct semaphore slot_remove_event;
+	struct completion slot_remove_event;
 
 	/* Signalled when a free data slot becomes available. */
-	struct semaphore data_quota_event;
+	struct completion data_quota_event;
 
 	struct state_stats_struct {
 		int slot_stalls;
@@ -505,7 +505,7 @@ struct vchiq_state_struct {
 
 struct bulk_waiter {
 	VCHIQ_BULK_T *bulk;
-	struct semaphore event;
+	struct completion event;
 	int actual;
 };
 
