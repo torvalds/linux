@@ -65,12 +65,8 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	int in_i = 1, temp_i = 1, curr_i = 1, humidity_i = 1;
 	enum iio_chan_type type;
 	struct iio_channel *channels;
-	const char *name = "iio_hwmon";
 	struct device *hwmon_dev;
 	char *sname;
-
-	if (dev->of_node && dev->of_node->name)
-		name = dev->of_node->name;
 
 	channels = devm_iio_channel_get_all(dev);
 	if (IS_ERR(channels)) {
@@ -141,11 +137,15 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	st->attr_group.attrs = st->attrs;
 	st->groups[0] = &st->attr_group;
 
-	sname = devm_kstrdup(dev, name, GFP_KERNEL);
-	if (!sname)
-		return -ENOMEM;
+	if (dev->of_node) {
+		sname = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_node);
+		if (!sname)
+			return -ENOMEM;
+		strreplace(sname, '-', '_');
+	} else {
+		sname = "iio_hwmon";
+	}
 
-	strreplace(sname, '-', '_');
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, sname, st,
 							   st->groups);
 	return PTR_ERR_OR_ZERO(hwmon_dev);

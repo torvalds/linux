@@ -3,14 +3,7 @@
 # description: trace_marker trigger - test histogram trigger
 # flags: instance
 
-do_reset() {
-    reset_trigger
-    echo > set_event
-    clear_trace
-}
-
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -35,15 +28,11 @@ if [ ! -f events/ftrace/print/hist ]; then
     exit_unsupported
 fi
 
-do_reset
-
 echo "Test histogram trace_marker tigger"
 
 echo 'hist:keys=common_pid' > events/ftrace/print/trigger
 for i in `seq 1 10` ; do echo "hello" > trace_marker; done
 grep 'hitcount: *10$' events/ftrace/print/hist > /dev/null || \
     fail "hist trigger did not trigger correct times on trace_marker"
-
-do_reset
 
 exit 0

@@ -54,7 +54,7 @@ void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
 {
 	u32 c = 0;
 	u32 pflag = pinned ? TTM_PL_FLAG_NO_EVICT : 0;
-	unsigned i;
+	unsigned int i;
 
 	qbo->placement.placement = qbo->placements;
 	qbo->placement.busy_placement = qbo->placements;
@@ -73,7 +73,6 @@ void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
 		qbo->placements[i].lpfn = 0;
 	}
 }
-
 
 int qxl_bo_create(struct qxl_device *qdev,
 		  unsigned long size, bool kernel, bool pinned, u32 domain,
@@ -266,7 +265,6 @@ static int __qxl_bo_unpin(struct qxl_bo *bo)
 	return r;
 }
 
-
 /*
  * Reserve the BO before pinning the object.  If the BO was reserved
  * beforehand, use the internal version directly __qxl_bo_pin.
@@ -335,6 +333,7 @@ void qxl_bo_fini(struct qxl_device *qdev)
 int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo)
 {
 	int ret;
+
 	if (bo->type == QXL_GEM_DOMAIN_SURFACE && bo->surface_id == 0) {
 		/* allocate a surface id for this surface now */
 		ret = qxl_surface_id_alloc(qdev, bo);

@@ -886,12 +886,7 @@ static int dwc_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 	 */
 	u32 s = dw->pdata->is_idma32 ? 1 : 2;
 
-	/* Check if chan will be configured for slave transfers */
-	if (!is_slave_direction(sconfig->direction))
-		return -EINVAL;
-
 	memcpy(&dwc->dma_sconfig, sconfig, sizeof(*sconfig));
-	dwc->direction = sconfig->direction;
 
 	sc->src_maxburst = sc->src_maxburst > 1 ? fls(sc->src_maxburst) - s : 0;
 	sc->dst_maxburst = sc->dst_maxburst > 1 ? fls(sc->dst_maxburst) - s : 0;

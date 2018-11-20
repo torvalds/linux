@@ -426,6 +426,20 @@ config CPU_SUP_AMD
 
 	  If unsure, say N.
 
+config CPU_SUP_HYGON
+	default y
+	bool "Support Hygon processors" if PROCESSOR_SELECT
+	select CPU_SUP_AMD
+	help
+	  This enables detection, tunings and quirks for Hygon processors
+
+	  You need this enabled if you want your kernel to run on an
+	  Hygon CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller. Disabling it on an Hygon
+	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.
+
 config CPU_SUP_CENTAUR
 	default y
 	bool "Support Centaur processors" if PROCESSOR_SELECT

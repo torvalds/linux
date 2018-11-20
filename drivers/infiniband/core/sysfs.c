@@ -512,7 +512,7 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 	ret = get_perf_mad(p->ibdev, p->port_num, tab_attr->attr_id, &data,
 			40 + offset / 8, sizeof(data));
 	if (ret < 0)
-		return sprintf(buf, "N/A (no PMA)\n");
+		return ret;
 
 	switch (width) {
 	case 4:
@@ -1036,7 +1036,7 @@ static int add_port(struct ib_device *device, int port_num,
 	p->port_num   = port_num;
 
 	ret = kobject_init_and_add(&p->kobj, &port_type,
-				   device->ports_parent,
+				   device->ports_kobj,
 				   "%d", port_num);
 	if (ret) {
 		kfree(p);
@@ -1057,10 +1057,12 @@ static int add_port(struct ib_device *device, int port_num,
 		goto err_put;
 	}
 
-	p->pma_table = get_counter_table(device, port_num);
-	ret = sysfs_create_group(&p->kobj, p->pma_table);
-	if (ret)
-		goto err_put_gid_attrs;
+	if (device->process_mad) {
+		p->pma_table = get_counter_table(device, port_num);
+		ret = sysfs_create_group(&p->kobj, p->pma_table);
+		if (ret)
+			goto err_put_gid_attrs;
+	}
 
 	p->gid_group.name  = "gids";
 	p->gid_group.attrs = alloc_group_attrs(show_port_gid, attr.gid_tbl_len);
@@ -1118,9 +1120,9 @@ static int add_port(struct ib_device *device, int port_num,
 	}
 
 	/*
-	 * If port == 0, it means we have only one port and the parent
-	 * device, not this port device, should be the holder of the
-	 * hw_counters
+	 * If port == 0, it means hw_counters are per device and not per
+	 * port, so holder should be device. Therefore skip per port conunter
+	 * initialization.
 	 */
 	if (device->alloc_hw_stats && port_num)
 		setup_hw_stats(device, p, port_num);
@@ -1173,7 +1175,8 @@ err_free_gid:
 	p->gid_group.attrs = NULL;
 
 err_remove_pma:
-	sysfs_remove_group(&p->kobj, p->pma_table);
+	if (p->pma_table)
+		sysfs_remove_group(&p->kobj, p->pma_table);
 
 err_put_gid_attrs:
 	kobject_put(&p->gid_attr_group->kobj);
@@ -1183,7 +1186,7 @@ err_put:
 	return ret;
 }
 
-static ssize_t show_node_type(struct device *device,
+static ssize_t node_type_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
@@ -1198,8 +1201,9 @@ static ssize_t show_node_type(struct device *device,
 	default:		  return sprintf(buf, "%d: <unknown>\n", dev->node_type);
 	}
 }
+static DEVICE_ATTR_RO(node_type);
 
-static ssize_t show_sys_image_guid(struct device *device,
+static ssize_t sys_image_guid_show(struct device *device,
 				   struct device_attribute *dev_attr, char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
@@ -1210,8 +1214,9 @@ static ssize_t show_sys_image_guid(struct device *device,
 		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[2]),
 		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[3]));
 }
+static DEVICE_ATTR_RO(sys_image_guid);
 
-static ssize_t show_node_guid(struct device *device,
+static ssize_t node_guid_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
@@ -1222,8 +1227,9 @@ static ssize_t show_node_guid(struct device *device,
 		       be16_to_cpu(((__be16 *) &dev->node_guid)[2]),
 		       be16_to_cpu(((__be16 *) &dev->node_guid)[3]));
 }
+static DEVICE_ATTR_RO(node_guid);
 
-static ssize_t show_node_desc(struct device *device,
+static ssize_t node_desc_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
@@ -1231,9 +1237,9 @@ static ssize_t show_node_desc(struct device *device,
 	return sprintf(buf, "%.64s\n", dev->node_desc);
 }
 
-static ssize_t set_node_desc(struct device *device,
-			     struct device_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t node_desc_store(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
 	struct ib_device_modify desc = {};
@@ -1249,8 +1255,9 @@ static ssize_t set_node_desc(struct device *device,
 
 	return count;
 }
+static DEVICE_ATTR_RW(node_desc);
 
-static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
+static ssize_t fw_ver_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
@@ -1259,19 +1266,19 @@ static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
 	strlcat(buf, "\n", IB_FW_VERSION_NAME_MAX);
 	return strlen(buf);
 }
+static DEVICE_ATTR_RO(fw_ver);
 
-static DEVICE_ATTR(node_type, S_IRUGO, show_node_type, NULL);
-static DEVICE_ATTR(sys_image_guid, S_IRUGO, show_sys_image_guid, NULL);
-static DEVICE_ATTR(node_guid, S_IRUGO, show_node_guid, NULL);
-static DEVICE_ATTR(node_desc, S_IRUGO | S_IWUSR, show_node_desc, set_node_desc);
-static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
+static struct attribute *ib_dev_attrs[] = {
+	&dev_attr_node_type.attr,
+	&dev_attr_node_guid.attr,
+	&dev_attr_sys_image_guid.attr,
+	&dev_attr_fw_ver.attr,
+	&dev_attr_node_desc.attr,
+	NULL,
+};
 
-static struct device_attribute *ib_class_attributes[] = {
-	&dev_attr_node_type,
-	&dev_attr_sys_image_guid,
-	&dev_attr_node_guid,
-	&dev_attr_node_desc,
-	&dev_attr_fw_ver,
+static const struct attribute_group dev_attr_group = {
+	.attrs = ib_dev_attrs,
 };
 
 static void free_port_list_attributes(struct ib_device *device)
@@ -1285,7 +1292,9 @@ static void free_port_list_attributes(struct ib_device *device)
 			kfree(port->hw_stats);
 			free_hsag(&port->kobj, port->hw_stats_ag);
 		}
-		sysfs_remove_group(p, port->pma_table);
+
+		if (port->pma_table)
+			sysfs_remove_group(p, port->pma_table);
 		sysfs_remove_group(p, &port->pkey_group);
 		sysfs_remove_group(p, &port->gid_group);
 		sysfs_remove_group(&port->gid_attr_group->kobj,
@@ -1296,7 +1305,7 @@ static void free_port_list_attributes(struct ib_device *device)
 		kobject_put(p);
 	}
 
-	kobject_put(device->ports_parent);
+	kobject_put(device->ports_kobj);
 }
 
 int ib_device_register_sysfs(struct ib_device *device,
@@ -1307,23 +1316,15 @@ int ib_device_register_sysfs(struct ib_device *device,
 	int ret;
 	int i;
 
-	ret = dev_set_name(class_dev, "%s", device->name);
-	if (ret)
-		return ret;
+	device->groups[0] = &dev_attr_group;
+	class_dev->groups = device->groups;
 
 	ret = device_add(class_dev);
 	if (ret)
 		goto err;
 
-	for (i = 0; i < ARRAY_SIZE(ib_class_attributes); ++i) {
-		ret = device_create_file(class_dev, ib_class_attributes[i]);
-		if (ret)
-			goto err_unregister;
-	}
-
-	device->ports_parent = kobject_create_and_add("ports",
-						      &class_dev->kobj);
-	if (!device->ports_parent) {
+	device->ports_kobj = kobject_create_and_add("ports", &class_dev->kobj);
+	if (!device->ports_kobj) {
 		ret = -ENOMEM;
 		goto err_put;
 	}
@@ -1347,20 +1348,15 @@ int ib_device_register_sysfs(struct ib_device *device,
 
 err_put:
 	free_port_list_attributes(device);
-
-err_unregister:
 	device_del(class_dev);
-
 err:
 	return ret;
 }
 
 void ib_device_unregister_sysfs(struct ib_device *device)
 {
-	int i;
-
-	/* Hold kobject until ib_dealloc_device() */
-	kobject_get(&device->dev.kobj);
+	/* Hold device until ib_dealloc_device() */
+	get_device(&device->dev);
 
 	free_port_list_attributes(device);
 
@@ -1368,9 +1364,6 @@ void ib_device_unregister_sysfs(struct ib_device *device)
 		kfree(device->hw_stats);
 		free_hsag(&device->dev.kobj, device->hw_stats_ag);
 	}
-
-	for (i = 0; i < ARRAY_SIZE(ib_class_attributes); ++i)
-		device_remove_file(&device->dev, ib_class_attributes[i]);
 
 	device_unregister(&device->dev);
 }

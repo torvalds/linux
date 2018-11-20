@@ -433,22 +433,25 @@ struct utp_transfer_req_desc {
 	__le16  prd_table_offset;
 };
 
-/**
- * struct utp_task_req_desc - UTMRD structure
- * @header: UTMRD header DW-0 to DW-3
- * @task_req_upiu: Pointer to task request UPIU DW-4 to DW-11
- * @task_rsp_upiu: Pointer to task response UPIU DW12 to DW-19
+/*
+ * UTMRD structure.
  */
 struct utp_task_req_desc {
-
 	/* DW 0-3 */
 	struct request_desc_header header;
 
-	/* DW 4-11 */
-	__le32 task_req_upiu[TASK_REQ_UPIU_SIZE_DWORDS];
+	/* DW 4-11 - Task request UPIU structure */
+	struct utp_upiu_header	req_header;
+	__be32			input_param1;
+	__be32			input_param2;
+	__be32			input_param3;
+	__be32			__reserved1[2];
 
-	/* DW 12-19 */
-	__le32 task_rsp_upiu[TASK_RSP_UPIU_SIZE_DWORDS];
+	/* DW 12-19 - Task Management Response UPIU structure */
+	struct utp_upiu_header	rsp_header;
+	__be32			output_param1;
+	__be32			output_param2;
+	__be32			__reserved2[3];
 };
 
 #endif /* End of Header */

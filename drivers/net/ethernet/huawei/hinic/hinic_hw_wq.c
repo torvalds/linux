@@ -775,6 +775,20 @@ struct hinic_hw_wqe *hinic_get_wqe(struct hinic_wq *wq, unsigned int wqe_size,
 }
 
 /**
+ * hinic_return_wqe - return the wqe when transmit failed
+ * @wq: wq to return wqe
+ * @wqe_size: wqe size
+ **/
+void hinic_return_wqe(struct hinic_wq *wq, unsigned int wqe_size)
+{
+	int num_wqebbs = ALIGN(wqe_size, wq->wqebb_size) / wq->wqebb_size;
+
+	atomic_sub(num_wqebbs, &wq->prod_idx);
+
+	atomic_add(num_wqebbs, &wq->delta);
+}
+
+/**
  * hinic_put_wqe - return the wqe place to use for a new wqe
  * @wq: wq to return wqe
  * @wqe_size: wqe size

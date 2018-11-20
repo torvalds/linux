@@ -52,6 +52,12 @@ struct drm_mode_config_funcs {
 	 * requested metadata, but most of that is left to the driver. See
 	 * &struct drm_mode_fb_cmd2 for details.
 	 *
+	 * To validate the pixel format and modifier drivers can use
+	 * drm_any_plane_has_format() to make sure at least one plane supports
+	 * the requested values. Note that the driver must first determine the
+	 * actual modifier used if the request doesn't have it specified,
+	 * ie. when (@mode_cmd->flags & DRM_MODE_FB_MODIFIERS) == 0.
+	 *
 	 * If the parameters are deemed valid and the backing storage objects in
 	 * the underlying memory manager all exist, then the driver allocates
 	 * a new &drm_framebuffer structure, subclassed to contain
@@ -809,6 +815,13 @@ struct drm_mode_config {
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
+
+	/**
+	 * @quirk_addfb_prefer_xbgr_30bpp:
+	 *
+	 * Special hack for legacy ADDFB to keep nouveau userspace happy. Should
+	 * only ever be set by the nouveau kernel driver.
+	 */
 	bool quirk_addfb_prefer_xbgr_30bpp;
 
 	/**

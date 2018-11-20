@@ -1020,7 +1020,7 @@ int vpfe_ipipeif_init(struct vpfe_ipipeif_device *ipipeif,
 	v4l2_subdev_init(sd, &ipipeif_v4l2_ops);
 
 	sd->internal_ops = &ipipeif_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI IPIPEIF", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI IPIPEIF", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 
 	v4l2_set_subdevdata(sd, ipipeif);

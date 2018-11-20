@@ -16,9 +16,6 @@
 #include <asm/auxvec.h>
 #include <asm/byteorder.h>
 
-/* TODO: Move definition into include/uapi/linux/elf-em.h */
-#define EM_RISCV	0xF3
-
 /*
  * These are used to set parameters in the core dumps.
  */

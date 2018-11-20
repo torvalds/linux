@@ -1884,6 +1884,8 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 	.is_accelerated_mode = bios_parser_is_accelerated_mode,
 
+	.is_active_display = bios_is_active_display,
+
 	.set_scratch_critical_state = bios_parser_set_scratch_critical_state,
 
 

@@ -67,7 +67,7 @@
 #include "hw_counters.h"
 
 static char version[] =
-		BNXT_RE_DESC " v" ROCE_DRV_MODULE_VERSION "\n";
+		BNXT_RE_DESC "\n";
 
 MODULE_AUTHOR("Eddie Wai <eddie.wai@broadcom.com>");
 MODULE_DESCRIPTION(BNXT_RE_DESC " Driver");
@@ -535,6 +535,34 @@ static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 	return en_dev;
 }
 
+static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
+			   char *buf)
+{
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", rdev->en_dev->pdev->vendor);
+}
+static DEVICE_ATTR_RO(hw_rev);
+
+static ssize_t hca_type_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.node_desc);
+}
+static DEVICE_ATTR_RO(hca_type);
+
+static struct attribute *bnxt_re_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	NULL
+};
+
+static const struct attribute_group bnxt_re_dev_attr_group = {
+	.attrs = bnxt_re_attributes,
+};
+
 static void bnxt_re_unregister_ib(struct bnxt_re_dev *rdev)
 {
 	ib_unregister_device(&rdev->ibdev);
@@ -547,7 +575,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	/* ib device init */
 	ibdev->owner = THIS_MODULE;
 	ibdev->node_type = RDMA_NODE_IB_CA;
-	strlcpy(ibdev->name, "bnxt_re%d", IB_DEVICE_NAME_MAX);
 	strlcpy(ibdev->node_desc, BNXT_RE_DESC " HCA",
 		strlen(BNXT_RE_DESC) + 5);
 	ibdev->phys_port_cnt = 1;
@@ -639,33 +666,10 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->get_hw_stats             = bnxt_re_ib_get_hw_stats;
 	ibdev->alloc_hw_stats           = bnxt_re_ib_alloc_hw_stats;
 
+	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
 	ibdev->driver_id = RDMA_DRIVER_BNXT_RE;
-	return ib_register_device(ibdev, NULL);
+	return ib_register_device(ibdev, "bnxt_re%d", NULL);
 }
-
-static ssize_t show_rev(struct device *device, struct device_attribute *attr,
-			char *buf)
-{
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
-
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", rdev->en_dev->pdev->vendor);
-}
-
-static ssize_t show_hca(struct device *device, struct device_attribute *attr,
-			char *buf)
-{
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
-
-	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.node_desc);
-}
-
-static DEVICE_ATTR(hw_rev, 0444, show_rev, NULL);
-static DEVICE_ATTR(hca_type, 0444, show_hca, NULL);
-
-static struct device_attribute *bnxt_re_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type
-};
 
 static void bnxt_re_dev_remove(struct bnxt_re_dev *rdev)
 {
@@ -864,10 +868,8 @@ static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
 {
 	int i;
 
-	if (rdev->nq[0].hwq.max_elements) {
-		for (i = 1; i < rdev->num_msix; i++)
-			bnxt_qplib_disable_nq(&rdev->nq[i - 1]);
-	}
+	for (i = 1; i < rdev->num_msix; i++)
+		bnxt_qplib_disable_nq(&rdev->nq[i - 1]);
 
 	if (rdev->qplib_res.rcfw)
 		bnxt_qplib_cleanup_res(&rdev->qplib_res);
@@ -876,6 +878,7 @@ static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
 static int bnxt_re_init_res(struct bnxt_re_dev *rdev)
 {
 	int rc = 0, i;
+	int num_vec_enabled = 0;
 
 	bnxt_qplib_init_res(&rdev->qplib_res);
 
@@ -891,9 +894,13 @@ static int bnxt_re_init_res(struct bnxt_re_dev *rdev)
 				"Failed to enable NQ with rc = 0x%x", rc);
 			goto fail;
 		}
+		num_vec_enabled++;
 	}
 	return 0;
 fail:
+	for (i = num_vec_enabled; i >= 0; i--)
+		bnxt_qplib_disable_nq(&rdev->nq[i]);
+
 	return rc;
 }
 
@@ -925,6 +932,7 @@ static void bnxt_re_free_res(struct bnxt_re_dev *rdev)
 static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 {
 	int rc = 0, i;
+	int num_vec_created = 0;
 
 	/* Configure and allocate resources for qplib */
 	rdev->qplib_res.rcfw = &rdev->rcfw;
@@ -951,7 +959,7 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 		if (rc) {
 			dev_err(rdev_to_dev(rdev), "Alloc Failed NQ%d rc:%#x",
 				i, rc);
-			goto dealloc_dpi;
+			goto free_nq;
 		}
 		rc = bnxt_re_net_ring_alloc
 			(rdev, rdev->nq[i].hwq.pbl[PBL_LVL_0].pg_map_arr,
@@ -964,14 +972,17 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 			dev_err(rdev_to_dev(rdev),
 				"Failed to allocate NQ fw id with rc = 0x%x",
 				rc);
+			bnxt_qplib_free_nq(&rdev->nq[i]);
 			goto free_nq;
 		}
+		num_vec_created++;
 	}
 	return 0;
 free_nq:
-	for (i = 0; i < rdev->num_msix - 1; i++)
+	for (i = num_vec_created; i >= 0; i--) {
+		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id);
 		bnxt_qplib_free_nq(&rdev->nq[i]);
-dealloc_dpi:
+	}
 	bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
 			       &rdev->qplib_res.dpi_tbl,
 			       &rdev->dpi_privileged);
@@ -989,12 +1000,17 @@ static void bnxt_re_dispatch_event(struct ib_device *ibdev, struct ib_qp *qp,
 	struct ib_event ib_event;
 
 	ib_event.device = ibdev;
-	if (qp)
+	if (qp) {
 		ib_event.element.qp = qp;
-	else
+		ib_event.event = event;
+		if (qp->event_handler)
+			qp->event_handler(&ib_event, qp->qp_context);
+
+	} else {
 		ib_event.element.port_num = port_num;
-	ib_event.event = event;
-	ib_dispatch_event(&ib_event);
+		ib_event.event = event;
+		ib_dispatch_event(&ib_event);
+	}
 }
 
 #define HWRM_QUEUE_PRI2COS_QCFG_INPUT_FLAGS_IVLAN      0x02
@@ -1189,20 +1205,20 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 
 static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
 {
-	int i, rc;
+	int rc;
 
 	if (test_and_clear_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags)) {
-		for (i = 0; i < ARRAY_SIZE(bnxt_re_attributes); i++)
-			device_remove_file(&rdev->ibdev.dev,
-					   bnxt_re_attributes[i]);
 		/* Cleanup ib dev */
 		bnxt_re_unregister_ib(rdev);
 	}
 	if (test_and_clear_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags))
-		cancel_delayed_work(&rdev->worker);
+		cancel_delayed_work_sync(&rdev->worker);
 
-	bnxt_re_cleanup_res(rdev);
-	bnxt_re_free_res(rdev);
+	if (test_and_clear_bit(BNXT_RE_FLAG_RESOURCES_INITIALIZED,
+			       &rdev->flags))
+		bnxt_re_cleanup_res(rdev);
+	if (test_and_clear_bit(BNXT_RE_FLAG_RESOURCES_ALLOCATED, &rdev->flags))
+		bnxt_re_free_res(rdev);
 
 	if (test_and_clear_bit(BNXT_RE_FLAG_RCFW_CHANNEL_EN, &rdev->flags)) {
 		rc = bnxt_qplib_deinit_rcfw(&rdev->rcfw);
@@ -1241,7 +1257,7 @@ static void bnxt_re_worker(struct work_struct *work)
 
 static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 {
-	int i, j, rc;
+	int rc;
 
 	bool locked;
 
@@ -1331,11 +1347,14 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		pr_err("Failed to allocate resources: %#x\n", rc);
 		goto fail;
 	}
+	set_bit(BNXT_RE_FLAG_RESOURCES_ALLOCATED, &rdev->flags);
 	rc = bnxt_re_init_res(rdev);
 	if (rc) {
 		pr_err("Failed to initialize resources: %#x\n", rc);
 		goto fail;
 	}
+
+	set_bit(BNXT_RE_FLAG_RESOURCES_INITIALIZED, &rdev->flags);
 
 	if (!rdev->is_virtfn) {
 		rc = bnxt_re_setup_qos(rdev);
@@ -1358,20 +1377,6 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	}
 	set_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags);
 	dev_info(rdev_to_dev(rdev), "Device registered successfully");
-	for (i = 0; i < ARRAY_SIZE(bnxt_re_attributes); i++) {
-		rc = device_create_file(&rdev->ibdev.dev,
-					bnxt_re_attributes[i]);
-		if (rc) {
-			dev_err(rdev_to_dev(rdev),
-				"Failed to create IB sysfs: %#x", rc);
-			/* Must clean up all created device files */
-			for (j = 0; j < i; j++)
-				device_remove_file(&rdev->ibdev.dev,
-						   bnxt_re_attributes[j]);
-			bnxt_re_unregister_ib(rdev);
-			goto fail;
-		}
-	}
 	ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
 			 &rdev->active_width);
 	set_bit(BNXT_RE_FLAG_ISSUE_ROCE_STATS, &rdev->flags);

@@ -65,6 +65,7 @@ struct ent {
 	u32               id;
 	char              name[IDMAP_NAMESZ];
 	char              authname[IDMAP_NAMESZ];
+	struct rcu_head	  rcu_head;
 };
 
 /* Common entry handling */
@@ -89,7 +90,7 @@ static void
 ent_put(struct kref *ref)
 {
 	struct ent *map = container_of(ref, struct ent, h.ref);
-	kfree(map);
+	kfree_rcu(map, rcu_head);
 }
 
 static struct cache_head *
@@ -264,8 +265,8 @@ out:
 static struct ent *
 idtoname_lookup(struct cache_detail *cd, struct ent *item)
 {
-	struct cache_head *ch = sunrpc_cache_lookup(cd, &item->h,
-						    idtoname_hash(item));
+	struct cache_head *ch = sunrpc_cache_lookup_rcu(cd, &item->h,
+							idtoname_hash(item));
 	if (ch)
 		return container_of(ch, struct ent, h);
 	else
@@ -422,8 +423,8 @@ out:
 static struct ent *
 nametoid_lookup(struct cache_detail *cd, struct ent *item)
 {
-	struct cache_head *ch = sunrpc_cache_lookup(cd, &item->h,
-						    nametoid_hash(item));
+	struct cache_head *ch = sunrpc_cache_lookup_rcu(cd, &item->h,
+							nametoid_hash(item));
 	if (ch)
 		return container_of(ch, struct ent, h);
 	else

@@ -63,20 +63,21 @@ static void drm_client_close(struct drm_client_dev *client)
 EXPORT_SYMBOL(drm_client_close);
 
 /**
- * drm_client_new - Create a DRM client
+ * drm_client_init - Initialise a DRM client
  * @dev: DRM device
  * @client: DRM client
  * @name: Client name
  * @funcs: DRM client functions (optional)
  *
+ * This initialises the client and opens a &drm_file. Use drm_client_add() to complete the process.
  * The caller needs to hold a reference on @dev before calling this function.
  * The client is freed when the &drm_device is unregistered. See drm_client_release().
  *
  * Returns:
  * Zero on success or negative error code on failure.
  */
-int drm_client_new(struct drm_device *dev, struct drm_client_dev *client,
-		   const char *name, const struct drm_client_funcs *funcs)
+int drm_client_init(struct drm_device *dev, struct drm_client_dev *client,
+		    const char *name, const struct drm_client_funcs *funcs)
 {
 	int ret;
 
@@ -95,10 +96,6 @@ int drm_client_new(struct drm_device *dev, struct drm_client_dev *client,
 	if (ret)
 		goto err_put_module;
 
-	mutex_lock(&dev->clientlist_mutex);
-	list_add(&client->list, &dev->clientlist);
-	mutex_unlock(&dev->clientlist_mutex);
-
 	drm_dev_get(dev);
 
 	return 0;
@@ -109,13 +106,33 @@ err_put_module:
 
 	return ret;
 }
-EXPORT_SYMBOL(drm_client_new);
+EXPORT_SYMBOL(drm_client_init);
+
+/**
+ * drm_client_add - Add client to the device list
+ * @client: DRM client
+ *
+ * Add the client to the &drm_device client list to activate its callbacks.
+ * @client must be initialized by a call to drm_client_init(). After
+ * drm_client_add() it is no longer permissible to call drm_client_release()
+ * directly (outside the unregister callback), instead cleanup will happen
+ * automatically on driver unload.
+ */
+void drm_client_add(struct drm_client_dev *client)
+{
+	struct drm_device *dev = client->dev;
+
+	mutex_lock(&dev->clientlist_mutex);
+	list_add(&client->list, &dev->clientlist);
+	mutex_unlock(&dev->clientlist_mutex);
+}
+EXPORT_SYMBOL(drm_client_add);
 
 /**
  * drm_client_release - Release DRM client resources
  * @client: DRM client
  *
- * Releases resources by closing the &drm_file that was opened by drm_client_new().
+ * Releases resources by closing the &drm_file that was opened by drm_client_init().
  * It is called automatically if the &drm_client_funcs.unregister callback is _not_ set.
  *
  * This function should only be called from the unregister callback. An exception

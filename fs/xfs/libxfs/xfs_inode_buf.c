@@ -415,6 +415,31 @@ xfs_dinode_verify_fork(
 	return NULL;
 }
 
+static xfs_failaddr_t
+xfs_dinode_verify_forkoff(
+	struct xfs_dinode	*dip,
+	struct xfs_mount	*mp)
+{
+	if (!XFS_DFORK_Q(dip))
+		return NULL;
+
+	switch (dip->di_format)  {
+	case XFS_DINODE_FMT_DEV:
+		if (dip->di_forkoff != (roundup(sizeof(xfs_dev_t), 8) >> 3))
+			return __this_address;
+		break;
+	case XFS_DINODE_FMT_LOCAL:	/* fall through ... */
+	case XFS_DINODE_FMT_EXTENTS:    /* fall through ... */
+	case XFS_DINODE_FMT_BTREE:
+		if (dip->di_forkoff >= (XFS_LITINO(mp, dip->di_version) >> 3))
+			return __this_address;
+		break;
+	default:
+		return __this_address;
+	}
+	return NULL;
+}
+
 xfs_failaddr_t
 xfs_dinode_verify(
 	struct xfs_mount	*mp,
@@ -469,6 +494,11 @@ xfs_dinode_verify(
 
 	if (mode && (flags & XFS_DIFLAG_REALTIME) && !mp->m_rtdev_targp)
 		return __this_address;
+
+	/* check for illegal values of forkoff */
+	fa = xfs_dinode_verify_forkoff(dip, mp);
+	if (fa)
+		return fa;
 
 	/* Do we have appropriate data fork formats for the mode? */
 	switch (mode & S_IFMT) {

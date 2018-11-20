@@ -209,7 +209,7 @@ v3d_flush_caches(struct v3d_dev *v3d)
 static void
 v3d_attach_object_fences(struct v3d_exec_info *exec)
 {
-	struct dma_fence *out_fence = &exec->render.base.s_fence->finished;
+	struct dma_fence *out_fence = exec->render_done_fence;
 	struct v3d_bo *bo;
 	int i;
 
@@ -305,7 +305,7 @@ retry:
 	for (i = 0; i < exec->bo_count; i++) {
 		bo = to_v3d_bo(&exec->bo[i]->base);
 
-		ret = reservation_object_reserve_shared(bo->resv);
+		ret = reservation_object_reserve_shared(bo->resv, 1);
 		if (ret) {
 			v3d_unlock_bo_reservations(dev, exec, acquire_ctx);
 			return ret;
@@ -409,6 +409,7 @@ v3d_exec_cleanup(struct kref *ref)
 	dma_fence_put(exec->render.done_fence);
 
 	dma_fence_put(exec->bin_done_fence);
+	dma_fence_put(exec->render_done_fence);
 
 	for (i = 0; i < exec->bo_count; i++)
 		drm_gem_object_put_unlocked(&exec->bo[i]->base);
@@ -521,12 +522,12 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	kref_init(&exec->refcount);
 
 	ret = drm_syncobj_find_fence(file_priv, args->in_sync_bcl,
-				     0, &exec->bin.in_fence);
+				     0, 0, &exec->bin.in_fence);
 	if (ret == -EINVAL)
 		goto fail;
 
 	ret = drm_syncobj_find_fence(file_priv, args->in_sync_rcl,
-				     0, &exec->render.in_fence);
+				     0, 0, &exec->render.in_fence);
 	if (ret == -EINVAL)
 		goto fail;
 
@@ -572,6 +573,9 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail_unreserve;
 
+	exec->render_done_fence =
+		dma_fence_get(&exec->render.base.s_fence->finished);
+
 	kref_get(&exec->refcount); /* put by scheduler job completion */
 	drm_sched_entity_push_job(&exec->render.base,
 				  &v3d_priv->sched_entity[V3D_RENDER]);
@@ -585,7 +589,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	sync_out = drm_syncobj_find(file_priv, args->out_sync);
 	if (sync_out) {
 		drm_syncobj_replace_fence(sync_out, 0,
-					  &exec->render.base.s_fence->finished);
+					  exec->render_done_fence);
 		drm_syncobj_put(sync_out);
 	}
 

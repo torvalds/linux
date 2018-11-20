@@ -367,7 +367,8 @@ static inline void dsgl_walk_init(struct dsgl_walk *walk,
 	walk->to = (struct phys_sge_pairs *)(dsgl + 1);
 }
 
-static inline void dsgl_walk_end(struct dsgl_walk *walk, unsigned short qid)
+static inline void dsgl_walk_end(struct dsgl_walk *walk, unsigned short qid,
+				 int pci_chan_id)
 {
 	struct cpl_rx_phys_dsgl *phys_cpl;
 
@@ -385,6 +386,7 @@ static inline void dsgl_walk_end(struct dsgl_walk *walk, unsigned short qid)
 	phys_cpl->rss_hdr_int.opcode = CPL_RX_PHYS_ADDR;
 	phys_cpl->rss_hdr_int.qid = htons(qid);
 	phys_cpl->rss_hdr_int.hash_val = 0;
+	phys_cpl->rss_hdr_int.channel = pci_chan_id;
 }
 
 static inline void dsgl_walk_add_page(struct dsgl_walk *walk,
@@ -671,7 +673,7 @@ static int chcr_sg_ent_in_wr(struct scatterlist *src,
 	return min(srclen, dstlen);
 }
 
-static int chcr_cipher_fallback(struct crypto_skcipher *cipher,
+static int chcr_cipher_fallback(struct crypto_sync_skcipher *cipher,
 				u32 flags,
 				struct scatterlist *src,
 				struct scatterlist *dst,
@@ -681,9 +683,9 @@ static int chcr_cipher_fallback(struct crypto_skcipher *cipher,
 {
 	int err;
 
-	SKCIPHER_REQUEST_ON_STACK(subreq, cipher);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, cipher);
 
-	skcipher_request_set_tfm(subreq, cipher);
+	skcipher_request_set_sync_tfm(subreq, cipher);
 	skcipher_request_set_callback(subreq, flags, NULL, NULL);
 	skcipher_request_set_crypt(subreq, src, dst,
 				   nbytes, iv);
@@ -718,7 +720,7 @@ static inline void create_wreq(struct chcr_context *ctx,
 		FILL_WR_RX_Q_ID(ctx->dev->rx_channel_id, qid,
 				!!lcb, ctx->tx_qidx);
 
-	chcr_req->ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(ctx->dev->tx_channel_id,
+	chcr_req->ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(ctx->tx_chan_id,
 						       qid);
 	chcr_req->ulptx.len = htonl((DIV_ROUND_UP(len16, 16) -
 				     ((sizeof(chcr_req->wreq)) >> 4)));
@@ -854,13 +856,14 @@ static int chcr_cipher_fallback_setkey(struct crypto_ablkcipher *cipher,
 	struct ablk_ctx *ablkctx = ABLK_CTX(c_ctx(cipher));
 	int err = 0;
 
-	crypto_skcipher_clear_flags(ablkctx->sw_cipher, CRYPTO_TFM_REQ_MASK);
-	crypto_skcipher_set_flags(ablkctx->sw_cipher, cipher->base.crt_flags &
-				  CRYPTO_TFM_REQ_MASK);
-	err = crypto_skcipher_setkey(ablkctx->sw_cipher, key, keylen);
+	crypto_sync_skcipher_clear_flags(ablkctx->sw_cipher,
+				CRYPTO_TFM_REQ_MASK);
+	crypto_sync_skcipher_set_flags(ablkctx->sw_cipher,
+				cipher->base.crt_flags & CRYPTO_TFM_REQ_MASK);
+	err = crypto_sync_skcipher_setkey(ablkctx->sw_cipher, key, keylen);
 	tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
 	tfm->crt_flags |=
-		crypto_skcipher_get_flags(ablkctx->sw_cipher) &
+		crypto_sync_skcipher_get_flags(ablkctx->sw_cipher) &
 		CRYPTO_TFM_RES_MASK;
 	return err;
 }
@@ -1335,20 +1338,26 @@ static int chcr_device_init(struct chcr_context *ctx)
 		}
 		ctx->dev = u_ctx->dev;
 		adap = padap(ctx->dev);
-		ntxq = min_not_zero((unsigned int)u_ctx->lldi.nrxq,
-				    adap->vres.ncrypto_fc);
+		ntxq = u_ctx->lldi.ntxq;
 		rxq_perchan = u_ctx->lldi.nrxq / u_ctx->lldi.nchan;
 		txq_perchan = ntxq / u_ctx->lldi.nchan;
-		rxq_idx = ctx->dev->tx_channel_id * rxq_perchan;
-		rxq_idx += id % rxq_perchan;
-		txq_idx = ctx->dev->tx_channel_id * txq_perchan;
-		txq_idx += id % txq_perchan;
 		spin_lock(&ctx->dev->lock_chcr_dev);
-		ctx->rx_qidx = rxq_idx;
-		ctx->tx_qidx = txq_idx;
+		ctx->tx_chan_id = ctx->dev->tx_channel_id;
 		ctx->dev->tx_channel_id = !ctx->dev->tx_channel_id;
 		ctx->dev->rx_channel_id = 0;
 		spin_unlock(&ctx->dev->lock_chcr_dev);
+		rxq_idx = ctx->tx_chan_id * rxq_perchan;
+		rxq_idx += id % rxq_perchan;
+		txq_idx = ctx->tx_chan_id * txq_perchan;
+		txq_idx += id % txq_perchan;
+		ctx->rx_qidx = rxq_idx;
+		ctx->tx_qidx = txq_idx;
+		/* Channel Id used by SGE to forward packet to Host.
+		 * Same value should be used in cpl_fw6_pld RSS_CH field
+		 * by FW. Driver programs PCI channel ID to be used in fw
+		 * at the time of queue allocation with value "pi->tx_chan"
+		 */
+		ctx->pci_chan_id = txq_idx / txq_perchan;
 	}
 out:
 	return err;
@@ -1360,8 +1369,8 @@ static int chcr_cra_init(struct crypto_tfm *tfm)
 	struct chcr_context *ctx = crypto_tfm_ctx(tfm);
 	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
 
-	ablkctx->sw_cipher = crypto_alloc_skcipher(alg->cra_name, 0,
-				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+	ablkctx->sw_cipher = crypto_alloc_sync_skcipher(alg->cra_name, 0,
+				CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ablkctx->sw_cipher)) {
 		pr_err("failed to allocate fallback for %s\n", alg->cra_name);
 		return PTR_ERR(ablkctx->sw_cipher);
@@ -1390,8 +1399,8 @@ static int chcr_rfc3686_init(struct crypto_tfm *tfm)
 	/*RFC3686 initialises IV counter value to 1, rfc3686(ctr(aes))
 	 * cannot be used as fallback in chcr_handle_cipher_response
 	 */
-	ablkctx->sw_cipher = crypto_alloc_skcipher("ctr(aes)", 0,
-				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+	ablkctx->sw_cipher = crypto_alloc_sync_skcipher("ctr(aes)", 0,
+				CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ablkctx->sw_cipher)) {
 		pr_err("failed to allocate fallback for %s\n", alg->cra_name);
 		return PTR_ERR(ablkctx->sw_cipher);
@@ -1406,7 +1415,7 @@ static void chcr_cra_exit(struct crypto_tfm *tfm)
 	struct chcr_context *ctx = crypto_tfm_ctx(tfm);
 	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
 
-	crypto_free_skcipher(ablkctx->sw_cipher);
+	crypto_free_sync_skcipher(ablkctx->sw_cipher);
 	if (ablkctx->aes_generic)
 		crypto_free_cipher(ablkctx->aes_generic);
 }
@@ -2503,6 +2512,7 @@ void chcr_add_aead_dst_ent(struct aead_request *req,
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct dsgl_walk dsgl_walk;
 	unsigned int authsize = crypto_aead_authsize(tfm);
+	struct chcr_context *ctx = a_ctx(tfm);
 	u32 temp;
 
 	dsgl_walk_init(&dsgl_walk, phys_cpl);
@@ -2512,7 +2522,7 @@ void chcr_add_aead_dst_ent(struct aead_request *req,
 	dsgl_walk_add_page(&dsgl_walk, IV, &reqctx->iv_dma);
 	temp = req->cryptlen + (reqctx->op ? -authsize : authsize);
 	dsgl_walk_add_sg(&dsgl_walk, req->dst, temp, req->assoclen);
-	dsgl_walk_end(&dsgl_walk, qid);
+	dsgl_walk_end(&dsgl_walk, qid, ctx->pci_chan_id);
 }
 
 void chcr_add_cipher_src_ent(struct ablkcipher_request *req,
@@ -2544,6 +2554,8 @@ void chcr_add_cipher_dst_ent(struct ablkcipher_request *req,
 			     unsigned short qid)
 {
 	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
+	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(wrparam->req);
+	struct chcr_context *ctx = c_ctx(tfm);
 	struct dsgl_walk dsgl_walk;
 
 	dsgl_walk_init(&dsgl_walk, phys_cpl);
@@ -2552,7 +2564,7 @@ void chcr_add_cipher_dst_ent(struct ablkcipher_request *req,
 	reqctx->dstsg = dsgl_walk.last_sg;
 	reqctx->dst_ofst = dsgl_walk.last_sg_len;
 
-	dsgl_walk_end(&dsgl_walk, qid);
+	dsgl_walk_end(&dsgl_walk, qid, ctx->pci_chan_id);
 }
 
 void chcr_add_hash_src_ent(struct ahash_request *req,

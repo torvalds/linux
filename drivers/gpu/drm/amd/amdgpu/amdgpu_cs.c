@@ -955,7 +955,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv);
+	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv, 1);
 	if (r)
 		return r;
 
@@ -1104,7 +1104,7 @@ static int amdgpu_syncobj_lookup_and_add_to_sync(struct amdgpu_cs_parser *p,
 {
 	int r;
 	struct dma_fence *fence;
-	r = drm_syncobj_find_fence(p->filp, handle, 0, &fence);
+	r = drm_syncobj_find_fence(p->filp, handle, 0, 0, &fence);
 	if (r)
 		return r;
 
@@ -1260,8 +1260,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	return 0;
 
 error_abort:
-	dma_fence_put(&job->base.s_fence->finished);
-	job->base.s_fence = NULL;
+	drm_sched_job_cleanup(&job->base);
 	amdgpu_mn_unlock(p->mn);
 
 error_unlock:
@@ -1285,7 +1284,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	r = amdgpu_cs_parser_init(&parser, data);
 	if (r) {
-		DRM_ERROR("Failed to initialize parser !\n");
+		DRM_ERROR("Failed to initialize parser %d!\n", r);
 		goto out;
 	}
 

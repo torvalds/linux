@@ -262,6 +262,7 @@ enum iwl_scan_channel_flags {
 	IWL_SCAN_CHANNEL_FLAG_EBS		= BIT(0),
 	IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE	= BIT(1),
 	IWL_SCAN_CHANNEL_FLAG_CACHE_ADD		= BIT(2),
+	IWL_SCAN_CHANNEL_FLAG_EBS_FRAG		= BIT(3),
 };
 
 /* struct iwl_scan_channel_opt - CHANNEL_OPTIMIZATION_API_S
@@ -595,9 +596,12 @@ enum iwl_umac_scan_general_flags {
  * enum iwl_umac_scan_general_flags2 - UMAC scan general flags #2
  * @IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL: Whether to send a complete
  *	notification per channel or not.
+ * @IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER: Whether to allow channel
+ *	reorder optimization or not.
  */
 enum iwl_umac_scan_general_flags2 {
-	IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL	= BIT(0),
+	IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL		= BIT(0),
+	IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER	= BIT(1),
 };
 
 /**

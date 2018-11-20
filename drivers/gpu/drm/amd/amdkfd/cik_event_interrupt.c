@@ -23,6 +23,7 @@
 #include "kfd_priv.h"
 #include "kfd_events.h"
 #include "cik_int.h"
+#include "amdgpu_amdkfd.h"
 
 static bool cik_event_interrupt_isr(struct kfd_dev *dev,
 					const uint32_t *ih_ring_entry,
@@ -107,7 +108,7 @@ static void cik_event_interrupt_wq(struct kfd_dev *dev,
 		kfd_process_vm_fault(dev->dqm, pasid);
 
 		memset(&info, 0, sizeof(info));
-		dev->kfd2kgd->get_vm_fault_info(dev->kgd, &info);
+		amdgpu_amdkfd_gpuvm_get_vm_fault_info(dev->kgd, &info);
 		if (!info.page_addr && !info.status)
 			return;
 

@@ -391,7 +391,7 @@ static void ath_tx_set_retry(struct ath_softc *sc, struct ath_txq *txq,
 	struct ieee80211_hdr *hdr;
 	int prev = fi->retries;
 
-	TX_STAT_INC(txq->axq_qnum, a_retries);
+	TX_STAT_INC(sc, txq->axq_qnum, a_retries);
 	fi->retries += count;
 
 	if (prev > 0)
@@ -1105,7 +1105,7 @@ finish:
 		al = get_frame_info(bf->bf_mpdu)->framelen;
 		bf->bf_state.bf_type = BUF_AMPDU;
 	} else {
-		TX_STAT_INC(txq->axq_qnum, a_aggr);
+		TX_STAT_INC(sc, txq->axq_qnum, a_aggr);
 	}
 
 	return al;
@@ -1727,7 +1727,7 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 			bf_tail = bf;
 			nframes--;
 			sent++;
-			TX_STAT_INC(txq->axq_qnum, a_queued_hw);
+			TX_STAT_INC(sc, txq->axq_qnum, a_queued_hw);
 
 			if (an->sta && skb_queue_empty(&tid->retry_q))
 				ieee80211_sta_set_buffered(an->sta, i, false);
@@ -2110,14 +2110,14 @@ static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 	}
 
 	if (puttxbuf) {
-		TX_STAT_INC(txq->axq_qnum, puttxbuf);
+		TX_STAT_INC(sc, txq->axq_qnum, puttxbuf);
 		ath9k_hw_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
 		ath_dbg(common, XMIT, "TXDP[%u] = %llx (%p)\n",
 			txq->axq_qnum, ito64(bf->bf_daddr), bf->bf_desc);
 	}
 
 	if (!edma || sc->tx99_state) {
-		TX_STAT_INC(txq->axq_qnum, txstart);
+		TX_STAT_INC(sc, txq->axq_qnum, txstart);
 		ath9k_hw_txstart(ah, txq->axq_qnum);
 	}
 
@@ -2154,7 +2154,7 @@ static void ath_tx_send_normal(struct ath_softc *sc, struct ath_txq *txq,
 	bf->bf_lastbf = bf;
 	ath_tx_fill_desc(sc, bf, txq, fi->framelen);
 	ath_tx_txqaddbuf(sc, txq, &bf_head, false);
-	TX_STAT_INC(txq->axq_qnum, queued);
+	TX_STAT_INC(sc, txq->axq_qnum, queued);
 }
 
 static void setup_frame_info(struct ieee80211_hw *hw,
@@ -2486,7 +2486,7 @@ void ath_tx_cabq(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	ath_txq_lock(sc, txctl.txq);
 	ath_tx_fill_desc(sc, bf, txctl.txq, 0);
 	ath_tx_txqaddbuf(sc, txctl.txq, &bf_q, false);
-	TX_STAT_INC(txctl.txq->axq_qnum, queued);
+	TX_STAT_INC(sc, txctl.txq->axq_qnum, queued);
 	ath_txq_unlock(sc, txctl.txq);
 }
 
@@ -2699,7 +2699,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		if (status == -EINPROGRESS)
 			break;
 
-		TX_STAT_INC(txq->axq_qnum, txprocdesc);
+		TX_STAT_INC(sc, txq->axq_qnum, txprocdesc);
 
 		/*
 		 * Remove ath_buf's of the same transmit unit from txq,
@@ -2778,7 +2778,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 
 		ath_txq_lock(sc, txq);
 
-		TX_STAT_INC(txq->axq_qnum, txprocdesc);
+		TX_STAT_INC(sc, txq->axq_qnum, txprocdesc);
 
 		fifo_list = &txq->txq_fifo[txq->txq_tailidx];
 		if (list_empty(fifo_list)) {

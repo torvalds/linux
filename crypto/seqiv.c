@@ -73,9 +73,9 @@ static int seqiv_aead_encrypt(struct aead_request *req)
 	info = req->iv;
 
 	if (req->src != req->dst) {
-		SKCIPHER_REQUEST_ON_STACK(nreq, ctx->sknull);
+		SYNC_SKCIPHER_REQUEST_ON_STACK(nreq, ctx->sknull);
 
-		skcipher_request_set_tfm(nreq, ctx->sknull);
+		skcipher_request_set_sync_tfm(nreq, ctx->sknull);
 		skcipher_request_set_callback(nreq, req->base.flags,
 					      NULL, NULL);
 		skcipher_request_set_crypt(nreq, req->src, req->dst,

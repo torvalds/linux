@@ -2208,29 +2208,6 @@ static void efx_fini_napi(struct efx_nic *efx)
 
 /**************************************************************************
  *
- * Kernel netpoll interface
- *
- *************************************************************************/
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-
-/* Although in the common case interrupts will be disabled, this is not
- * guaranteed. However, all our work happens inside the NAPI callback,
- * so no locking is required.
- */
-static void efx_netpoll(struct net_device *net_dev)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_channel *channel;
-
-	efx_for_each_channel(channel, efx)
-		efx_schedule_channel(channel);
-}
-
-#endif
-
-/**************************************************************************
- *
  * Kernel net device interface
  *
  *************************************************************************/
@@ -2509,9 +2486,6 @@ static const struct net_device_ops efx_netdev_ops = {
 #endif
 	.ndo_get_phys_port_id   = efx_get_phys_port_id,
 	.ndo_get_phys_port_name	= efx_get_phys_port_name,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = efx_netpoll,
-#endif
 	.ndo_setup_tc		= efx_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= efx_filter_rfs,
@@ -3847,19 +3821,11 @@ static pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
 {
 	struct efx_nic *efx = pci_get_drvdata(pdev);
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-	int rc;
 
 	if (pci_enable_device(pdev)) {
 		netif_err(efx, hw, efx->net_dev,
 			  "Cannot re-enable PCI device after reset.\n");
 		status =  PCI_ERS_RESULT_DISCONNECT;
-	}
-
-	rc = pci_cleanup_aer_uncorrect_error_status(pdev);
-	if (rc) {
-		netif_err(efx, hw, efx->net_dev,
-		"pci_cleanup_aer_uncorrect_error_status failed (%d)\n", rc);
-		/* Non-fatal error. Continue. */
 	}
 
 	return status;

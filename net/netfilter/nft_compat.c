@@ -54,9 +54,11 @@ static bool nft_xt_put(struct nft_xt *xt)
 	return false;
 }
 
-static int nft_compat_chain_validate_dependency(const char *tablename,
-						const struct nft_chain *chain)
+static int nft_compat_chain_validate_dependency(const struct nft_ctx *ctx,
+						const char *tablename)
 {
+	enum nft_chain_types type = NFT_CHAIN_T_DEFAULT;
+	const struct nft_chain *chain = ctx->chain;
 	const struct nft_base_chain *basechain;
 
 	if (!tablename ||
@@ -64,9 +66,12 @@ static int nft_compat_chain_validate_dependency(const char *tablename,
 		return 0;
 
 	basechain = nft_base_chain(chain);
-	if (strcmp(tablename, "nat") == 0 &&
-	    basechain->type->type != NFT_CHAIN_T_NAT)
-		return -EINVAL;
+	if (strcmp(tablename, "nat") == 0) {
+		if (ctx->family != NFPROTO_BRIDGE)
+			type = NFT_CHAIN_T_NAT;
+		if (basechain->type->type != type)
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -290,6 +295,24 @@ nft_target_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
 		module_put(target->me);
 }
 
+static int nft_extension_dump_info(struct sk_buff *skb, int attr,
+				   const void *info,
+				   unsigned int size, unsigned int user_size)
+{
+	unsigned int info_size, aligned_size = XT_ALIGN(size);
+	struct nlattr *nla;
+
+	nla = nla_reserve(skb, attr, aligned_size);
+	if (!nla)
+		return -1;
+
+	info_size = user_size ? : size;
+	memcpy(nla_data(nla), info, info_size);
+	memset(nla_data(nla) + info_size, 0, aligned_size - info_size);
+
+	return 0;
+}
+
 static int nft_target_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct xt_target *target = expr->ops->data;
@@ -297,7 +320,8 @@ static int nft_target_dump(struct sk_buff *skb, const struct nft_expr *expr)
 
 	if (nla_put_string(skb, NFTA_TARGET_NAME, target->name) ||
 	    nla_put_be32(skb, NFTA_TARGET_REV, htonl(target->revision)) ||
-	    nla_put(skb, NFTA_TARGET_INFO, XT_ALIGN(target->targetsize), info))
+	    nft_extension_dump_info(skb, NFTA_TARGET_INFO, info,
+				    target->targetsize, target->usersize))
 		goto nla_put_failure;
 
 	return 0;
@@ -323,8 +347,7 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 		if (target->hooks && !(hook_mask & target->hooks))
 			return -EINVAL;
 
-		ret = nft_compat_chain_validate_dependency(target->table,
-							   ctx->chain);
+		ret = nft_compat_chain_validate_dependency(ctx, target->table);
 		if (ret < 0)
 			return ret;
 	}
@@ -532,7 +555,8 @@ static int __nft_match_dump(struct sk_buff *skb, const struct nft_expr *expr,
 
 	if (nla_put_string(skb, NFTA_MATCH_NAME, match->name) ||
 	    nla_put_be32(skb, NFTA_MATCH_REV, htonl(match->revision)) ||
-	    nla_put(skb, NFTA_MATCH_INFO, XT_ALIGN(match->matchsize), info))
+	    nft_extension_dump_info(skb, NFTA_MATCH_INFO, info,
+				    match->matchsize, match->usersize))
 		goto nla_put_failure;
 
 	return 0;
@@ -570,8 +594,7 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 		if (match->hooks && !(hook_mask & match->hooks))
 			return -EINVAL;
 
-		ret = nft_compat_chain_validate_dependency(match->table,
-							   ctx->chain);
+		ret = nft_compat_chain_validate_dependency(ctx, match->table);
 		if (ret < 0)
 			return ret;
 	}

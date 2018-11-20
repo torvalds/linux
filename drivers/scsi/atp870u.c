@@ -1193,7 +1193,7 @@ static void atp870u_free_tables(struct Scsi_Host *host)
 		for (k = 0; k < 16; k++) {
 			if (!atp_dev->id[j][k].prd_table)
 				continue;
-			pci_free_consistent(atp_dev->pdev, 1024, atp_dev->id[j][k].prd_table, atp_dev->id[j][k].prd_bus);
+			dma_free_coherent(&atp_dev->pdev->dev, 1024, atp_dev->id[j][k].prd_table, atp_dev->id[j][k].prd_bus);
 			atp_dev->id[j][k].prd_table = NULL;
 		}
 	}
@@ -1205,7 +1205,7 @@ static int atp870u_init_tables(struct Scsi_Host *host)
 	int c,k;
 	for(c=0;c < 2;c++) {
 	   	for(k=0;k<16;k++) {
-	   			atp_dev->id[c][k].prd_table = pci_alloc_consistent(atp_dev->pdev, 1024, &(atp_dev->id[c][k].prd_bus));
+				atp_dev->id[c][k].prd_table = dma_alloc_coherent(&atp_dev->pdev->dev, 1024, &(atp_dev->id[c][k].prd_bus), GFP_KERNEL);
 	   			if (!atp_dev->id[c][k].prd_table) {
 	   				printk("atp870u_init_tables fail\n");
 				atp870u_free_tables(host);
@@ -1509,7 +1509,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto fail;
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
                 printk(KERN_ERR "atp870u: DMA mask required but not available.\n");
                 err = -EIO;
                 goto disable_device;

@@ -376,15 +376,15 @@ correctness of the format string and va_list arguments.
 
 Passed by reference.
 
-kobjects
---------
+Device tree nodes
+-----------------
 
 ::
 
 	%pOF[fnpPcCF]
 
 
-For printing kobject based structs (device nodes). Default behaviour is
+For printing device tree node structures. Default behaviour is
 equivalent to %pOFf.
 
 	- f - device node full_name
@@ -420,9 +420,8 @@ struct clk
 	%pC	pll1
 	%pCn	pll1
 
-For printing struct clk structures. %pC and %pCn print the name
-(Common Clock Framework) or address (legacy clock framework) of the
-structure.
+For printing struct clk structures. %pC and %pCn print the name of the clock
+(Common Clock Framework) or a unique 32-bit ID (legacy clock framework).
 
 Passed by reference.
 

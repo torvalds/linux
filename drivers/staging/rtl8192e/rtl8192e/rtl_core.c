@@ -1149,7 +1149,7 @@ static enum reset_type _rtl92e_tx_check_stuck(struct net_device *dev)
 		if (skb_queue_len(&ring->queue) == 0) {
 			continue;
 		} else {
-			skb = (&ring->queue)->next;
+			skb = __skb_peek(&ring->queue);
 			tcb_desc = (struct cb_desc *)(skb->cb +
 				    MAX_DEV_ADDR_SIZE);
 			tcb_desc->nStuckCount++;

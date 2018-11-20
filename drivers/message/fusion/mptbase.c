@@ -335,11 +335,11 @@ static int mpt_remove_dead_ioc_func(void *arg)
 	MPT_ADAPTER *ioc = (MPT_ADAPTER *)arg;
 	struct pci_dev *pdev;
 
-	if ((ioc == NULL))
+	if (!ioc)
 		return -1;
 
 	pdev = ioc->pcidev;
-	if ((pdev == NULL))
+	if (!pdev)
 		return -1;
 
 	pci_stop_and_remove_bus_device_locked(pdev);
@@ -7570,11 +7570,11 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 		u8 phy_num = (u8)(evData0);
 		u8 port_num = (u8)(evData0 >> 8);
 		u8 port_width = (u8)(evData0 >> 16);
-		u8 primative = (u8)(evData0 >> 24);
+		u8 primitive = (u8)(evData0 >> 24);
 		snprintf(evStr, EVENT_DESCR_STR_SZ,
-		    "SAS Broadcase Primative: phy=%d port=%d "
-		    "width=%d primative=0x%02x",
-		    phy_num, port_num, port_width, primative);
+		    "SAS Broadcast Primitive: phy=%d port=%d "
+		    "width=%d primitive=0x%02x",
+		    phy_num, port_num, port_width, primitive);
 		break;
 	}
 

@@ -1275,6 +1275,9 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 	mutex_lock(&mgr->lock);
 	mstb = mgr->mst_primary;
 
+	if (!mstb)
+		goto out;
+
 	for (i = 0; i < lct - 1; i++) {
 		int shift = (i % 2) ? 0 : 4;
 		int port_num = (rad[i / 2] >> shift) & 0xf;
@@ -2569,9 +2572,16 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_
 EXPORT_SYMBOL(drm_dp_mst_get_edid);
 
 /**
- * drm_dp_find_vcpi_slots() - find slots for this PBN value
+ * drm_dp_find_vcpi_slots() - Find VCPI slots for this PBN value
  * @mgr: manager to use
  * @pbn: payload bandwidth to convert into slots.
+ *
+ * Calculate the number of VCPI slots that will be required for the given PBN
+ * value. This function is deprecated, and should not be used in atomic
+ * drivers.
+ *
+ * RETURNS:
+ * The total slots required for this port, or error.
  */
 int drm_dp_find_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr,
 			   int pbn)

@@ -1222,10 +1222,7 @@ static int a5xx_crashdumper_init(struct msm_gpu *gpu,
 		SZ_1M, MSM_BO_UNCACHED, gpu->aspace,
 		&dumper->bo, &dumper->iova);
 
-	if (IS_ERR(dumper->ptr))
-		return PTR_ERR(dumper->ptr);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(dumper->ptr);
 }
 
 static void a5xx_crashdumper_free(struct msm_gpu *gpu,

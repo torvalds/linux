@@ -1410,6 +1410,12 @@ static int hdac_hdmi_create_dais(struct hdac_device *hdev,
 		if (ret)
 			return ret;
 
+		/* Filter out 44.1, 88.2 and 176.4Khz */
+		rates &= ~(SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_88200 |
+			   SNDRV_PCM_RATE_176400);
+		if (!rates)
+			return -EINVAL;
+
 		sprintf(dai_name, "intel-hdmi-hifi%d", i+1);
 		hdmi_dais[i].name = devm_kstrdup(&hdev->dev,
 					dai_name, GFP_KERNEL);
@@ -1598,7 +1604,7 @@ static struct snd_pcm *hdac_hdmi_get_pcm_from_id(struct snd_soc_card *card,
 {
 	struct snd_soc_pcm_runtime *rtd;
 
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		if (rtd->pcm && (rtd->pcm->device == device))
 			return rtd->pcm;
 	}
@@ -1960,9 +1966,6 @@ static int hdac_hdmi_get_spk_alloc(struct hdac_device *hdev, int pcm_idx)
 		return 0;
 
 	port = list_first_entry(&pcm->port_list, struct hdac_hdmi_port, head);
-
-	if (!port)
-		return 0;
 
 	if (!port || !port->eld.eld_valid)
 		return 0;

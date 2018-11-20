@@ -261,6 +261,9 @@ static int ptrace_check_attach(struct task_struct *child, bool ignore_state)
 
 static int ptrace_has_cap(struct user_namespace *ns, unsigned int mode)
 {
+	if (mode & PTRACE_MODE_SCHED)
+		return false;
+
 	if (mode & PTRACE_MODE_NOAUDIT)
 		return has_ns_capability_noaudit(current, ns, CAP_SYS_PTRACE);
 	else
@@ -328,7 +331,14 @@ ok:
 	     !ptrace_has_cap(mm->user_ns, mode)))
 	    return -EPERM;
 
+	if (mode & PTRACE_MODE_SCHED)
+		return 0;
 	return security_ptrace_access_check(task, mode);
+}
+
+bool ptrace_may_access_sched(struct task_struct *task, unsigned int mode)
+{
+	return __ptrace_may_access(task, mode | PTRACE_MODE_SCHED);
 }
 
 bool ptrace_may_access(struct task_struct *task, unsigned int mode)
@@ -396,7 +406,7 @@ static int ptrace_attach(struct task_struct *task, long request,
 
 	/* SEIZE doesn't trap tracee on attach */
 	if (!seize)
-		send_sig_info(SIGSTOP, SEND_SIG_FORCED, task);
+		send_sig_info(SIGSTOP, SEND_SIG_PRIV, task);
 
 	spin_lock(&task->sighand->siglock);
 
@@ -563,7 +573,7 @@ void exit_ptrace(struct task_struct *tracer, struct list_head *dead)
 
 	list_for_each_entry_safe(p, n, &tracer->ptraced, ptrace_entry) {
 		if (unlikely(p->ptrace & PT_EXITKILL))
-			send_sig_info(SIGKILL, SEND_SIG_FORCED, p);
+			send_sig_info(SIGKILL, SEND_SIG_PRIV, p);
 
 		if (__ptrace_detach(tracer, p))
 			list_add(&p->ptrace_entry, dead);
@@ -651,7 +661,7 @@ static int ptrace_setoptions(struct task_struct *child, unsigned long data)
 	return 0;
 }
 
-static int ptrace_getsiginfo(struct task_struct *child, siginfo_t *info)
+static int ptrace_getsiginfo(struct task_struct *child, kernel_siginfo_t *info)
 {
 	unsigned long flags;
 	int error = -ESRCH;
@@ -667,7 +677,7 @@ static int ptrace_getsiginfo(struct task_struct *child, siginfo_t *info)
 	return error;
 }
 
-static int ptrace_setsiginfo(struct task_struct *child, const siginfo_t *info)
+static int ptrace_setsiginfo(struct task_struct *child, const kernel_siginfo_t *info)
 {
 	unsigned long flags;
 	int error = -ESRCH;
@@ -709,7 +719,7 @@ static int ptrace_peek_siginfo(struct task_struct *child,
 		pending = &child->pending;
 
 	for (i = 0; i < arg.nr; ) {
-		siginfo_t info;
+		kernel_siginfo_t info;
 		s32 off = arg.off + i;
 
 		spin_lock_irq(&child->sighand->siglock);
@@ -885,7 +895,7 @@ int ptrace_request(struct task_struct *child, long request,
 {
 	bool seized = child->ptrace & PT_SEIZED;
 	int ret = -EIO;
-	siginfo_t siginfo, *si;
+	kernel_siginfo_t siginfo, *si;
 	void __user *datavp = (void __user *) data;
 	unsigned long __user *datalp = datavp;
 	unsigned long flags;
@@ -919,9 +929,8 @@ int ptrace_request(struct task_struct *child, long request,
 		break;
 
 	case PTRACE_SETSIGINFO:
-		if (copy_from_user(&siginfo, datavp, sizeof siginfo))
-			ret = -EFAULT;
-		else
+		ret = copy_siginfo_from_user(&siginfo, datavp);
+		if (!ret)
 			ret = ptrace_setsiginfo(child, &siginfo);
 		break;
 
@@ -1181,7 +1190,7 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 {
 	compat_ulong_t __user *datap = compat_ptr(data);
 	compat_ulong_t word;
-	siginfo_t siginfo;
+	kernel_siginfo_t siginfo;
 	int ret;
 
 	switch (request) {
@@ -1215,10 +1224,9 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 		break;
 
 	case PTRACE_SETSIGINFO:
-		if (copy_siginfo_from_user32(
-			    &siginfo, (struct compat_siginfo __user *) datap))
-			ret = -EFAULT;
-		else
+		ret = copy_siginfo_from_user32(
+			&siginfo, (struct compat_siginfo __user *) datap);
+		if (!ret)
 			ret = ptrace_setsiginfo(child, &siginfo);
 		break;
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK

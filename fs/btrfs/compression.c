@@ -437,10 +437,8 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		if (pg_index > end_index)
 			break;
 
-		rcu_read_lock();
-		page = radix_tree_lookup(&mapping->i_pages, pg_index);
-		rcu_read_unlock();
-		if (page && !radix_tree_exceptional_entry(page)) {
+		page = xa_load(&mapping->i_pages, pg_index);
+		if (page && !xa_is_value(page)) {
 			misses++;
 			if (misses > 4)
 				break;
@@ -528,7 +526,6 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct extent_io_tree *tree;
 	struct extent_map_tree *em_tree;
 	struct compressed_bio *cb;
 	unsigned long compressed_len;
@@ -545,7 +542,6 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	int faili = 0;
 	u32 *sums;
 
-	tree = &BTRFS_I(inode)->io_tree;
 	em_tree = &BTRFS_I(inode)->extent_tree;
 
 	/* we need the actual starting offset of this extent in the file */

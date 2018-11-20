@@ -286,7 +286,6 @@ static struct platform_driver gsw_driver = {
 	.remove = mt7621_gsw_remove,
 	.driver = {
 		.name = "mt7621-gsw",
-		.owner = THIS_MODULE,
 		.of_match_table = mediatek_gsw_match,
 	},
 };

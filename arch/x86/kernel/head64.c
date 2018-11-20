@@ -385,7 +385,7 @@ static void __init copy_bootdata(char *real_mode_data)
 	 */
 	sme_map_bootdata(real_mode_data);
 
-	memcpy(&boot_params, real_mode_data, sizeof boot_params);
+	memcpy(&boot_params, real_mode_data, sizeof(boot_params));
 	sanitize_boot_params(&boot_params);
 	cmd_line_ptr = get_cmd_line_ptr();
 	if (cmd_line_ptr) {
@@ -456,6 +456,8 @@ void __init x86_64_start_reservations(char *real_mode_data)
 	/* version is always not zero if it is copied */
 	if (!boot_params.hdr.version)
 		copy_bootdata(__va(real_mode_data));
+
+	x86_verify_bootdata_version();
 
 	x86_early_init_platform_quirks();
 

@@ -163,7 +163,7 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
  * Preload a translation in the hash table
  */
 void hash_preload(struct mm_struct *mm, unsigned long ea,
-		  unsigned long access, unsigned long trap)
+		  bool is_exec, unsigned long trap)
 {
 	pmd_t *pmd;
 
@@ -224,7 +224,7 @@ void __init MMU_init_hw(void)
 	 * Find some memory for the hash table.
 	 */
 	if ( ppc_md.progress ) ppc_md.progress("hash:find piece", 0x322);
-	Hash = __va(memblock_alloc(Hash_size, Hash_size));
+	Hash = __va(memblock_phys_alloc(Hash_size, Hash_size));
 	memset(Hash, 0, Hash_size);
 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
 

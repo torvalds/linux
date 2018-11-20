@@ -162,7 +162,7 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch,
 	nb = 0;
 	while (segs) {
 		nskb = segs->next;
-		segs->next = NULL;
+		skb_mark_not_on_list(segs);
 		qdisc_skb_cb(segs)->pkt_len = segs->len;
 		len += segs->len;
 		ret = qdisc_enqueue(segs, q->qdisc, to_free);
@@ -392,7 +392,7 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt,
 	if (child) {
 		qdisc_tree_reduce_backlog(q->qdisc, q->qdisc->q.qlen,
 					  q->qdisc->qstats.backlog);
-		qdisc_destroy(q->qdisc);
+		qdisc_put(q->qdisc);
 		q->qdisc = child;
 	}
 	q->limit = qopt->limit;
@@ -438,7 +438,7 @@ static void tbf_destroy(struct Qdisc *sch)
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
 	qdisc_watchdog_cancel(&q->watchdog);
-	qdisc_destroy(q->qdisc);
+	qdisc_put(q->qdisc);
 }
 
 static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)

@@ -147,7 +147,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		 * future. Use of this option can cause problems with AML code that
 		 * depends upon in-order immediate execution of module-level code.
 		 */
-		if (acpi_gbl_group_module_level_code &&
+		if (!acpi_gbl_execute_tables_as_methods &&
 		    (walk_state->pass_number <= ACPI_IMODE_LOAD_PASS2) &&
 		    ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE) == 0)) {
 			/*
@@ -417,6 +417,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	union acpi_parse_object *op = NULL;	/* current op */
 	struct acpi_parse_state *parser_state;
 	u8 *aml_op_start = NULL;
+	u8 opcode_length;
 
 	ACPI_FUNCTION_TRACE_PTR(ps_parse_loop, walk_state);
 
@@ -540,8 +541,19 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 						    "Skip parsing opcode %s",
 						    acpi_ps_get_opcode_name
 						    (walk_state->opcode)));
+
+					/*
+					 * Determine the opcode length before skipping the opcode.
+					 * An opcode can be 1 byte or 2 bytes in length.
+					 */
+					opcode_length = 1;
+					if ((walk_state->opcode & 0xFF00) ==
+					    AML_EXTENDED_OPCODE) {
+						opcode_length = 2;
+					}
 					walk_state->parser_state.aml =
-					    walk_state->aml + 1;
+					    walk_state->aml + opcode_length;
+
 					walk_state->parser_state.aml =
 					    acpi_ps_get_next_package_end
 					    (&walk_state->parser_state);

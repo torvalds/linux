@@ -179,7 +179,7 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 		opt_pre_handler(&op->kp, regs);
 		__this_cpu_write(current_kprobe, NULL);
 	}
-	preempt_enable_no_resched();
+	preempt_enable();
 }
 NOKPROBE_SYMBOL(optimized_callback);
 

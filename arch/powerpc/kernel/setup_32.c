@@ -206,9 +206,9 @@ void __init irqstack_early_init(void)
 	 * as the memblock is limited to lowmem by default */
 	for_each_possible_cpu(i) {
 		softirq_ctx[i] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
 		hardirq_ctx[i] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
 	}
 }
 
@@ -227,12 +227,12 @@ void __init exc_lvl_early_init(void)
 #endif
 
 		critirq_ctx[hw_cpu] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
 #ifdef CONFIG_BOOKE
 		dbgirq_ctx[hw_cpu] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
 		mcheckirq_ctx[hw_cpu] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+			__va(memblock_phys_alloc(THREAD_SIZE, THREAD_SIZE));
 #endif
 	}
 }

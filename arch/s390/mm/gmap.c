@@ -907,10 +907,16 @@ static inline pmd_t *gmap_pmd_op_walk(struct gmap *gmap, unsigned long gaddr)
 	pmd_t *pmdp;
 
 	BUG_ON(gmap_is_shadow(gmap));
-	spin_lock(&gmap->guest_table_lock);
 	pmdp = (pmd_t *) gmap_table_walk(gmap, gaddr, 1);
+	if (!pmdp)
+		return NULL;
 
-	if (!pmdp || pmd_none(*pmdp)) {
+	/* without huge pages, there is no need to take the table lock */
+	if (!gmap->mm->context.allow_gmap_hpage_1m)
+		return pmd_none(*pmdp) ? NULL : pmdp;
+
+	spin_lock(&gmap->guest_table_lock);
+	if (pmd_none(*pmdp)) {
 		spin_unlock(&gmap->guest_table_lock);
 		return NULL;
 	}

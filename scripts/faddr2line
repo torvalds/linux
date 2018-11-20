@@ -71,7 +71,7 @@ die() {
 
 # Try to figure out the source directory prefix so we can remove it from the
 # addr2line output.  HACK ALERT: This assumes that start_kernel() is in
-# kernel/init.c!  This only works for vmlinux.  Otherwise it falls back to
+# init/main.c!  This only works for vmlinux.  Otherwise it falls back to
 # printing the absolute path.
 find_dir_prefix() {
 	local objfile=$1

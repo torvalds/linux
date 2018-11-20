@@ -126,6 +126,7 @@ xchk_inode_flags(
 {
 	struct xfs_mount	*mp = sc->mp;
 
+	/* di_flags are all taken, last bit cannot be used */
 	if (flags & ~XFS_DIFLAG_ANY)
 		goto bad;
 
@@ -172,8 +173,9 @@ xchk_inode_flags2(
 {
 	struct xfs_mount	*mp = sc->mp;
 
+	/* Unknown di_flags2 could be from a future kernel */
 	if (flags2 & ~XFS_DIFLAG2_ANY)
-		goto bad;
+		xchk_ino_set_warning(sc, ino);
 
 	/* reflink flag requires reflink feature */
 	if ((flags2 & XFS_DIFLAG2_REFLINK) &&

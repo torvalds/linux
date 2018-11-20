@@ -17,9 +17,9 @@
 
 /* based on the value of qn->len is accurate */
 static inline int dirnamecmp(struct qstr *qn,
-	struct qstr *qd, unsigned *matched)
+	struct qstr *qd, unsigned int *matched)
 {
-	unsigned i = *matched, len = min(qn->len, qd->len);
+	unsigned int i = *matched, len = min(qn->len, qd->len);
 loop:
 	if (unlikely(i >= len)) {
 		*matched = i;
@@ -46,8 +46,8 @@ static struct erofs_dirent *find_target_dirent(
 	struct qstr *name,
 	u8 *data, int maxsize)
 {
-	unsigned ndirents, head, back;
-	unsigned startprfx, endprfx;
+	unsigned int ndirents, head, back;
+	unsigned int startprfx, endprfx;
 	struct erofs_dirent *const de = (struct erofs_dirent *)data;
 
 	/* make sure that maxsize is valid */
@@ -63,9 +63,9 @@ static struct erofs_dirent *find_target_dirent(
 	startprfx = endprfx = 0;
 
 	while (head <= back) {
-		unsigned mid = head + (back - head) / 2;
-		unsigned nameoff = le16_to_cpu(de[mid].nameoff);
-		unsigned matched = min(startprfx, endprfx);
+		unsigned int mid = head + (back - head) / 2;
+		unsigned int nameoff = le16_to_cpu(de[mid].nameoff);
+		unsigned int matched = min(startprfx, endprfx);
 
 		struct qstr dname = QSTR_INIT(data + nameoff,
 			unlikely(mid >= ndirents - 1) ?
@@ -95,8 +95,8 @@ static struct page *find_target_block_classic(
 	struct inode *dir,
 	struct qstr *name, int *_diff)
 {
-	unsigned startprfx, endprfx;
-	unsigned head, back;
+	unsigned int startprfx, endprfx;
+	unsigned int head, back;
 	struct address_space *const mapping = dir->i_mapping;
 	struct page *candidate = ERR_PTR(-ENOENT);
 
@@ -105,7 +105,7 @@ static struct page *find_target_block_classic(
 	back = inode_datablocks(dir) - 1;
 
 	while (head <= back) {
-		unsigned mid = head + (back - head) / 2;
+		unsigned int mid = head + (back - head) / 2;
 		struct page *page = read_mapping_page(mapping, mid, NULL);
 
 		if (IS_ERR(page)) {
@@ -115,10 +115,10 @@ exact_out:
 			return page;
 		} else {
 			int diff;
-			unsigned ndirents, matched;
+			unsigned int ndirents, matched;
 			struct qstr dname;
 			struct erofs_dirent *de = kmap_atomic(page);
-			unsigned nameoff = le16_to_cpu(de->nameoff);
+			unsigned int nameoff = le16_to_cpu(de->nameoff);
 
 			ndirents = nameoff / sizeof(*de);
 
@@ -164,7 +164,7 @@ exact_out:
 
 int erofs_namei(struct inode *dir,
 	struct qstr *name,
-	erofs_nid_t *nid, unsigned *d_type)
+	erofs_nid_t *nid, unsigned int *d_type)
 {
 	int diff;
 	struct page *page;
@@ -204,7 +204,7 @@ static struct dentry *erofs_lookup(struct inode *dir,
 {
 	int err;
 	erofs_nid_t nid;
-	unsigned d_type;
+	unsigned int d_type;
 	struct inode *inode;
 
 	DBG_BUGON(!d_really_is_negative(dentry));
@@ -223,18 +223,13 @@ static struct dentry *erofs_lookup(struct inode *dir,
 	if (err == -ENOENT) {
 		/* negative dentry */
 		inode = NULL;
-		goto negative_out;
-	} else if (unlikely(err))
-		return ERR_PTR(err);
-
-	debugln("%s, %s (nid %llu) found, d_type %u", __func__,
-		dentry->d_name.name, nid, d_type);
-
-	inode = erofs_iget(dir->i_sb, nid, d_type == EROFS_FT_DIR);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-
-negative_out:
+	} else if (unlikely(err)) {
+		inode = ERR_PTR(err);
+	} else {
+		debugln("%s, %s (nid %llu) found, d_type %u", __func__,
+			dentry->d_name.name, nid, d_type);
+		inode = erofs_iget(dir->i_sb, nid, d_type == EROFS_FT_DIR);
+	}
 	return d_splice_alias(inode, dentry);
 }
 

@@ -260,9 +260,7 @@ int drm_connector_init(struct drm_device *dev,
 
 	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL &&
 	    connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
-		drm_object_attach_property(&connector->base,
-					      config->edid_property,
-					      0);
+		drm_connector_attach_edid_property(connector);
 
 	drm_object_attach_property(&connector->base,
 				      config->dpms_property, 0);
@@ -293,6 +291,24 @@ out_put:
 	return ret;
 }
 EXPORT_SYMBOL(drm_connector_init);
+
+/**
+ * drm_connector_attach_edid_property - attach edid property.
+ * @connector: the connector
+ *
+ * Some connector types like DRM_MODE_CONNECTOR_VIRTUAL do not get a
+ * edid property attached by default.  This function can be used to
+ * explicitly enable the edid property in these cases.
+ */
+void drm_connector_attach_edid_property(struct drm_connector *connector)
+{
+	struct drm_mode_config *config = &connector->dev->mode_config;
+
+	drm_object_attach_property(&connector->base,
+				   config->edid_property,
+				   0);
+}
+EXPORT_SYMBOL(drm_connector_attach_edid_property);
 
 /**
  * drm_connector_attach_encoder - attach a connector to an encoder

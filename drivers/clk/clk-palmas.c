@@ -195,8 +195,8 @@ static void palmas_clks_get_clk_data(struct platform_device *pdev,
 		prop = PALMAS_EXT_CONTROL_NSLEEP;
 		break;
 	default:
-		dev_warn(&pdev->dev, "%s: Invalid ext control option: %u\n",
-			 node->name, prop);
+		dev_warn(&pdev->dev, "%pOFn: Invalid ext control option: %u\n",
+			 node, prop);
 		prop = 0;
 		break;
 	}

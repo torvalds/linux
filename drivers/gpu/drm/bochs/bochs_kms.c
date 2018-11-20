@@ -213,10 +213,17 @@ static void bochs_encoder_init(struct drm_device *dev)
 
 static int bochs_connector_get_modes(struct drm_connector *connector)
 {
-	int count;
+	struct bochs_device *bochs =
+		container_of(connector, struct bochs_device, connector);
+	int count = 0;
 
-	count = drm_add_modes_noedid(connector, 8192, 8192);
-	drm_set_preferred_mode(connector, defx, defy);
+	if (bochs->edid)
+		count = drm_add_edid_modes(connector, bochs->edid);
+
+	if (!count) {
+		count = drm_add_modes_noedid(connector, 8192, 8192);
+		drm_set_preferred_mode(connector, defx, defy);
+	}
 	return count;
 }
 
@@ -271,6 +278,13 @@ static void bochs_connector_init(struct drm_device *dev)
 	drm_connector_helper_add(connector,
 				 &bochs_connector_connector_helper_funcs);
 	drm_connector_register(connector);
+
+	bochs_hw_load_edid(bochs);
+	if (bochs->edid) {
+		DRM_INFO("Found EDID data blob.\n");
+		drm_connector_attach_edid_property(connector);
+		drm_connector_update_edid_property(connector, bochs->edid);
+	}
 }
 
 

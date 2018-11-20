@@ -96,7 +96,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
 		new_flags |= VM_DONTDUMP;
 		break;
 	case MADV_DODUMP:
-		if (new_flags & VM_SPECIAL) {
+		if (!is_vm_hugetlb_page(vma) && new_flags & VM_SPECIAL) {
 			error = -EINVAL;
 			goto out;
 		}
@@ -251,7 +251,7 @@ static void force_shm_swapin_readahead(struct vm_area_struct *vma,
 		index = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
 
 		page = find_get_entry(mapping, index);
-		if (!radix_tree_exceptional_entry(page)) {
+		if (!xa_is_value(page)) {
 			if (page)
 				put_page(page);
 			continue;

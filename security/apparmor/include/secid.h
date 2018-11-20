@@ -22,6 +22,9 @@ struct aa_label;
 /* secid value that will not be allocated */
 #define AA_SECID_INVALID 0
 
+/* secid value that matches any other secid */
+#define AA_SECID_WILDCARD 1
+
 struct aa_label *aa_secid_to_label(u32 secid);
 int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen);
 int apparmor_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid);

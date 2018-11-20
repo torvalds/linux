@@ -84,7 +84,7 @@ When cropping is not supported then no parameters are changed and
       - Type of the data stream, set by the application. Only these types
 	are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``, ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``,
 	``V4L2_BUF_TYPE_VIDEO_OUTPUT``, ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE`` and
-	``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type` and the note above.
+	``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type` and the note below.
     * - struct :c:type:`v4l2_rect`
       - ``c``
       - Cropping rectangle. The same co-ordinate system as for struct

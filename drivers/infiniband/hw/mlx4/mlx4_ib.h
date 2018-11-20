@@ -80,16 +80,11 @@ enum hw_bar_type {
 	HW_BAR_COUNT
 };
 
-struct mlx4_ib_vma_private_data {
-	struct vm_area_struct *vma;
-};
-
 struct mlx4_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct mlx4_uar		uar;
 	struct list_head	db_page_list;
 	struct mutex		db_page_mutex;
-	struct mlx4_ib_vma_private_data hw_bar_info[HW_BAR_COUNT];
 	struct list_head	wqn_ranges_list;
 	struct mutex		wqn_ranges_mutex; /* protect wqn_ranges_list */
 };

@@ -92,6 +92,7 @@ void qxl_reinit_memslots(struct qxl_device *qdev)
 static void qxl_gc_work(struct work_struct *work)
 {
 	struct qxl_device *qdev = container_of(work, struct qxl_device, gc_work);
+
 	qxl_garbage_collect(qdev);
 }
 
@@ -283,7 +284,6 @@ int qxl_device_init(struct qxl_device *qdev,
 		 qdev->surfaces_mem_slot,
 		 (unsigned long)qdev->surfaceram_base,
 		 (unsigned long)qdev->surfaceram_size);
-
 
 	INIT_WORK(&qdev->gc_work, qxl_gc_work);
 

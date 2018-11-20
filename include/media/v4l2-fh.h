@@ -38,10 +38,13 @@ struct v4l2_ctrl_handler;
  * @prio: priority of the file handler, as defined by &enum v4l2_priority
  *
  * @wait: event' s wait queue
+ * @subscribe_lock: serialise changes to the subscribed list; guarantee that
+ *		    the add and del event callbacks are orderly called
  * @subscribed: list of subscribed events
  * @available: list of events waiting to be dequeued
  * @navailable: number of available events at @available list
  * @sequence: event sequence number
+ *
  * @m2m_ctx: pointer to &struct v4l2_m2m_ctx
  */
 struct v4l2_fh {
@@ -52,6 +55,7 @@ struct v4l2_fh {
 
 	/* Events */
 	wait_queue_head_t	wait;
+	struct mutex		subscribe_lock;
 	struct list_head	subscribed;
 	struct list_head	available;
 	unsigned int		navailable;

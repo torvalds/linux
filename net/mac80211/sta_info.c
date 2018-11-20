@@ -113,7 +113,12 @@ static void __cleanup_single_sta(struct sta_info *sta)
 
 	if (sta->sta.txq[0]) {
 		for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
-			struct txq_info *txqi = to_txq_info(sta->sta.txq[i]);
+			struct txq_info *txqi;
+
+			if (!sta->sta.txq[i])
+				continue;
+
+			txqi = to_txq_info(sta->sta.txq[i]);
 
 			spin_lock_bh(&fq->lock);
 			ieee80211_txq_purge(local, txqi);
@@ -374,6 +379,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
 			struct txq_info *txq = txq_data + i * size;
 
+			/* might not do anything for the bufferable MMPDU TXQ */
 			ieee80211_txq_init(sdata, sta, txq, i);
 		}
 	}
@@ -1239,13 +1245,11 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	if (!ieee80211_hw_check(&local->hw, AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
 
-	if (sta->sta.txq[0]) {
-		for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
-			if (!txq_has_queue(sta->sta.txq[i]))
-				continue;
+	for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
+		if (!sta->sta.txq[i] || !txq_has_queue(sta->sta.txq[i]))
+			continue;
 
-			drv_wake_tx_queue(local, to_txq_info(sta->sta.txq[i]));
-		}
+		drv_wake_tx_queue(local, to_txq_info(sta->sta.txq[i]));
 	}
 
 	skb_queue_head_init(&pending);
@@ -1683,7 +1687,8 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			return;
 
 		for (tid = 0; tid < ARRAY_SIZE(sta->sta.txq); tid++) {
-			if (!(driver_release_tids & BIT(tid)) ||
+			if (!sta->sta.txq[tid] ||
+			    !(driver_release_tids & BIT(tid)) ||
 			    txq_has_queue(sta->sta.txq[tid]))
 				continue;
 
@@ -2323,13 +2328,13 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL);
 	}
 
-	if (ieee80211_hw_check(&sta->local->hw, REPORTS_TX_ACK_STATUS) &&
-	    !(sinfo->filled & BIT_ULL(NL80211_STA_INFO_DATA_ACK_SIGNAL_AVG))) {
+	if (!(sinfo->filled & BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL_AVG)) &&
+	    sta->status_stats.ack_signal_filled) {
 		sinfo->avg_ack_signal =
 			-(s8)ewma_avg_signal_read(
 				&sta->status_stats.avg_ack_signal);
 		sinfo->filled |=
-			BIT_ULL(NL80211_STA_INFO_DATA_ACK_SIGNAL_AVG);
+			BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL_AVG);
 	}
 }
 

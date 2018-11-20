@@ -360,11 +360,6 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 		else if (strcmp(secstrings+sechdrs[i].sh_name,"__versions")==0)
 			dedotify_versions((void *)hdr + sechdrs[i].sh_offset,
 					  sechdrs[i].sh_size);
-		else if (!strcmp(secstrings + sechdrs[i].sh_name, ".opd")) {
-			me->arch.start_opd = sechdrs[i].sh_addr;
-			me->arch.end_opd = sechdrs[i].sh_addr +
-					   sechdrs[i].sh_size;
-		}
 
 		/* We don't handle .init for the moment: rename to _init */
 		while ((p = strstr(secstrings + sechdrs[i].sh_name, ".init")))
@@ -685,7 +680,14 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 
 		case R_PPC64_REL32:
 			/* 32 bits relative (used by relative exception tables) */
-			*(u32 *)location = value - (unsigned long)location;
+			/* Convert value to relative */
+			value -= (unsigned long)location;
+			if (value + 0x80000000 > 0xffffffff) {
+				pr_err("%s: REL32 %li out of range!\n",
+				       me->name, (long int)value);
+				return -ENOEXEC;
+			}
+			*(u32 *)location = value;
 			break;
 
 		case R_PPC64_TOCSAVE:

@@ -553,7 +553,7 @@ static bool bch_extent_bad(struct btree_keys *bk, const struct bkey *k)
 	for (i = 0; i < KEY_PTRS(k); i++) {
 		stale = ptr_stale(b->c, k, i);
 
-		btree_bug_on(stale > 96, b,
+		btree_bug_on(stale > BUCKET_GC_GEN_MAX, b,
 			     "key too stale: %i, need_gc %u",
 			     stale, b->c->need_gc);
 

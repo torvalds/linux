@@ -22,10 +22,7 @@ The following describes the license of the Linux kernel source code
 (GPLv2), how to properly mark the license of individual files in the source
 tree, as well as links to the full license text.
 
-.. toctree::
-   :maxdepth: 2
-
-   process/license-rules.rst
+* :ref:`kernel_licensing`
 
 User-oriented documentation
 ---------------------------

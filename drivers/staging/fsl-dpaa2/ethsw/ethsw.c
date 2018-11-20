@@ -717,7 +717,7 @@ static int port_vlans_add(struct net_device *netdev,
 			  struct switchdev_trans *trans)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int vid, err;
+	int vid, err = 0;
 
 	if (netif_is_bridge_master(vlan->obj.orig_dev))
 		return -EOPNOTSUPP;
@@ -872,7 +872,7 @@ static int port_vlans_del(struct net_device *netdev,
 			  const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int vid, err;
+	int vid, err = 0;
 
 	if (netif_is_bridge_master(vlan->obj.orig_dev))
 		return -EOPNOTSUPP;
@@ -1014,10 +1014,8 @@ static void ethsw_switchdev_event_work(struct work_struct *work)
 		container_of(work, struct ethsw_switchdev_event_work, work);
 	struct net_device *dev = switchdev_work->dev;
 	struct switchdev_notifier_fdb_info *fdb_info;
-	struct ethsw_port_priv *port_priv;
 
 	rtnl_lock();
-	port_priv = netdev_priv(dev);
 	fdb_info = &switchdev_work->fdb_info;
 
 	switch (switchdev_work->event) {

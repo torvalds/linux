@@ -1267,13 +1267,12 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	/*  checking SSID */
 	p = rtw_get_ie(pframe + WLAN_HDR_A3_LEN + ie_offset, _SSID_IE_, &ie_len,
 		pkt_len - WLAN_HDR_A3_LEN - ie_offset);
-	if (p == NULL) {
-		status = _STATS_FAILURE_;
-	}
 
-	if (ie_len == 0) /*  broadcast ssid, however it is not allowed in assocreq */
+	if (!p || ie_len == 0) {
+		/*  broadcast ssid, however it is not allowed in assocreq */
 		status = _STATS_FAILURE_;
-	else {
+		goto OnAssocReqFail;
+	} else {
 		/*  check if ssid match */
 		if (memcmp((void *)(p+2), cur->Ssid.Ssid, cur->Ssid.SsidLength))
 			status = _STATS_FAILURE_;
@@ -3796,7 +3795,7 @@ int issue_deauth_ex(struct adapter *padapter, u8 *da, unsigned short reason, int
 			break;
 
 		if (i < try_cnt && wait_ms > 0 && ret == _FAIL)
-			msleep(wait_ms);
+			mdelay(wait_ms);
 
 	} while ((i < try_cnt) && ((ret == _FAIL) || (wait_ms == 0)));
 

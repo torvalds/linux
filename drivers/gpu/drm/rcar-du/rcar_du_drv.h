@@ -79,7 +79,6 @@ struct rcar_du_device {
 
 	struct drm_device *ddev;
 	struct drm_fbdev_cma *fbdev;
-	struct drm_atomic_state *suspend_state;
 
 	struct rcar_du_crtc crtcs[RCAR_DU_MAX_CRTCS];
 	unsigned int num_crtcs;

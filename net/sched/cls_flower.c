@@ -98,7 +98,7 @@ struct cls_fl_filter {
 	struct list_head list;
 	u32 handle;
 	u32 flags;
-	unsigned int in_hw_count;
+	u32 in_hw_count;
 	struct rcu_work rwork;
 	struct net_device *hw_dev;
 };
@@ -709,11 +709,23 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			  struct netlink_ext_ack *extack)
 {
 	const struct nlattr *nla_enc_key, *nla_opt_key, *nla_opt_msk = NULL;
-	int option_len, key_depth, msk_depth = 0;
+	int err, option_len, key_depth, msk_depth = 0;
+
+	err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS],
+				  TCA_FLOWER_KEY_ENC_OPTS_MAX,
+				  enc_opts_policy, extack);
+	if (err)
+		return err;
 
 	nla_enc_key = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS]);
 
 	if (tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]) {
+		err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK],
+					  TCA_FLOWER_KEY_ENC_OPTS_MAX,
+					  enc_opts_policy, extack);
+		if (err)
+			return err;
+
 		nla_opt_msk = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]);
 		msk_depth = nla_len(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]);
 	}
@@ -993,7 +1005,7 @@ static int fl_init_mask_hashtable(struct fl_flow_mask *mask)
 }
 
 #define FL_KEY_MEMBER_OFFSET(member) offsetof(struct fl_flow_key, member)
-#define FL_KEY_MEMBER_SIZE(member) (sizeof(((struct fl_flow_key *) 0)->member))
+#define FL_KEY_MEMBER_SIZE(member) FIELD_SIZEOF(struct fl_flow_key, member)
 
 #define FL_KEY_IS_MASKED(mask, member)						\
 	memchr_inv(((char *)mask) + FL_KEY_MEMBER_OFFSET(member),		\
@@ -1878,6 +1890,9 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		fl_hw_update_stats(tp, f);
 
 	if (f->flags && nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, TCA_FLOWER_IN_HW_COUNT, f->in_hw_count))
 		goto nla_put_failure;
 
 	if (tcf_exts_dump(skb, &f->exts))

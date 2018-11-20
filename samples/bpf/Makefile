@@ -153,6 +153,7 @@ always += tcp_cong_kern.o
 always += tcp_iw_kern.o
 always += tcp_clamp_kern.o
 always += tcp_basertt_kern.o
+always += tcp_tos_reflect_kern.o
 always += xdp_redirect_kern.o
 always += xdp_redirect_map_kern.o
 always += xdp_redirect_cpu_kern.o

@@ -217,7 +217,6 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct drm_virtgpu_resource_create *rc = data;
 	int ret;
-	uint32_t res_id;
 	struct virtio_gpu_object *qobj;
 	struct drm_gem_object *obj;
 	uint32_t handle = 0;
@@ -244,8 +243,6 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 	INIT_LIST_HEAD(&validate_list);
 	memset(&mainbuf, 0, sizeof(struct ttm_validate_buffer));
 
-	virtio_gpu_resource_id_get(vgdev, &res_id);
-
 	size = rc->size;
 
 	/* allocate a single page size object */
@@ -253,17 +250,15 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 		size = PAGE_SIZE;
 
 	qobj = virtio_gpu_alloc_object(dev, size, false, false);
-	if (IS_ERR(qobj)) {
-		ret = PTR_ERR(qobj);
-		goto fail_id;
-	}
+	if (IS_ERR(qobj))
+		return PTR_ERR(qobj);
 	obj = &qobj->gem_base;
 
 	if (!vgdev->has_virgl_3d) {
-		virtio_gpu_cmd_create_resource(vgdev, res_id, rc->format,
+		virtio_gpu_cmd_create_resource(vgdev, qobj, rc->format,
 					       rc->width, rc->height);
 
-		ret = virtio_gpu_object_attach(vgdev, qobj, res_id, NULL);
+		ret = virtio_gpu_object_attach(vgdev, qobj, NULL);
 	} else {
 		/* use a gem reference since unref list undoes them */
 		drm_gem_object_get(&qobj->gem_base);
@@ -276,7 +271,7 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 			goto fail_unref;
 		}
 
-		rc_3d.resource_id = cpu_to_le32(res_id);
+		rc_3d.resource_id = cpu_to_le32(qobj->hw_res_handle);
 		rc_3d.target = cpu_to_le32(rc->target);
 		rc_3d.format = cpu_to_le32(rc->format);
 		rc_3d.bind = cpu_to_le32(rc->bind);
@@ -288,16 +283,14 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 		rc_3d.nr_samples = cpu_to_le32(rc->nr_samples);
 		rc_3d.flags = cpu_to_le32(rc->flags);
 
-		virtio_gpu_cmd_resource_create_3d(vgdev, &rc_3d, NULL);
-		ret = virtio_gpu_object_attach(vgdev, qobj, res_id, &fence);
+		virtio_gpu_cmd_resource_create_3d(vgdev, qobj, &rc_3d, NULL);
+		ret = virtio_gpu_object_attach(vgdev, qobj, &fence);
 		if (ret) {
 			ttm_eu_backoff_reservation(&ticket, &validate_list);
 			goto fail_unref;
 		}
 		ttm_eu_fence_buffer_objects(&ticket, &validate_list, &fence->f);
 	}
-
-	qobj->hw_res_handle = res_id;
 
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
 	if (ret) {
@@ -311,7 +304,7 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 	}
 	drm_gem_object_put_unlocked(obj);
 
-	rc->res_handle = res_id; /* similiar to a VM address */
+	rc->res_handle = qobj->hw_res_handle; /* similiar to a VM address */
 	rc->bo_handle = handle;
 
 	if (vgdev->has_virgl_3d) {
@@ -326,8 +319,6 @@ fail_unref:
 	}
 //fail_obj:
 //	drm_gem_object_handle_unreference_unlocked(obj);
-fail_id:
-	virtio_gpu_resource_id_put(vgdev, res_id);
 	return ret;
 }
 

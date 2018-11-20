@@ -338,7 +338,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
  */
 void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
-	ring->ready = false;
+	ring->sched.ready = false;
 
 	/* Not to finish a ring which is not initialized */
 	if (!(ring->adev) || !(ring->adev->rings[ring->idx]))
@@ -499,4 +499,30 @@ static void amdgpu_debugfs_ring_fini(struct amdgpu_ring *ring)
 #if defined(CONFIG_DEBUG_FS)
 	debugfs_remove(ring->ent);
 #endif
+}
+
+/**
+ * amdgpu_ring_test_helper - tests ring and set sched readiness status
+ *
+ * @ring: ring to try the recovery on
+ *
+ * Tests ring and set sched readiness status
+ *
+ * Returns 0 on success, error on failure.
+ */
+int amdgpu_ring_test_helper(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	int r;
+
+	r = amdgpu_ring_test_ring(ring);
+	if (r)
+		DRM_DEV_ERROR(adev->dev, "ring %s test failed (%d)\n",
+			      ring->name, r);
+	else
+		DRM_DEV_DEBUG(adev->dev, "ring test on %s succeeded\n",
+			      ring->name);
+
+	ring->sched.ready = !r;
+	return r;
 }

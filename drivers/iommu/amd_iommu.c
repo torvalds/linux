@@ -3069,7 +3069,7 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 		return 0;
 
 	offset_mask = pte_pgsize - 1;
-	__pte	    = *pte & PM_ADDR_MASK;
+	__pte	    = __sme_clr(*pte & PM_ADDR_MASK);
 
 	return (__pte & ~offset_mask) | (iova & offset_mask);
 }
@@ -3083,6 +3083,8 @@ static bool amd_iommu_capable(enum iommu_cap cap)
 		return (irq_remapping_enabled == 1);
 	case IOMMU_CAP_NOEXEC:
 		return false;
+	default:
+		break;
 	}
 
 	return false;

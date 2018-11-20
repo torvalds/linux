@@ -189,7 +189,7 @@ config REGULATOR_BD718XX
 	  and LDO regulators.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called bd71837-regulator.
+	  will be called bd718x7-regulator.
 
 config REGULATOR_BD9571MWV
 	tristate "ROHM BD9571MWV Regulators"
@@ -355,6 +355,13 @@ config REGULATOR_LM363X
 	  the LCD bias.
 	  One boost output voltage is configurable and always on.
 	  Other LDOs are used for the display module.
+
+config REGULATOR_LOCHNAGAR
+	tristate "Cirrus Logic Lochnagar regulator driver"
+	depends on MFD_LOCHNAGAR
+	help
+	  This enables regulator support on the Cirrus Logic Lochnagar audio
+	  development board.
 
 config REGULATOR_LP3971
 	tristate "National Semiconductors LP3971 PMIC regulator driver"
@@ -802,6 +809,18 @@ config REGULATOR_STM32_VREFBUF
 
 	  This driver can also be built as a module. If so, the module
 	  will be called stm32-vrefbuf.
+
+config REGULATOR_STPMIC1
+	tristate "STMicroelectronics STPMIC1 PMIC Regulators"
+	depends on MFD_STPMIC1
+	help
+	  This driver supports STMicroelectronics STPMIC1 PMIC voltage
+	  regulators and switches. The STPMIC1 regulators supply power to
+	  an application processor as well as to external system
+	  peripherals such as DDR, Flash memories and system devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stpmic1_regulator.
 
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"

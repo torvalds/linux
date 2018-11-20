@@ -15,21 +15,10 @@ if [ ! -f set_ftrace_filter ]; then
     exit_unsupported
 fi
 
-do_reset() {
-    reset_tracer
-    reset_ftrace_filter
-    disable_events
-    clear_trace
-    enable_tracing
-}
-
 fail() { # mesg
-    do_reset
     echo $1
     exit_fail
 }
-
-do_reset
 
 FILTER=set_ftrace_filter
 FUNC1="schedule"
@@ -164,7 +153,5 @@ test_actual
 
 rm $TMPDIR/expected
 rm $TMPDIR/actual
-
-do_reset
 
 exit 0

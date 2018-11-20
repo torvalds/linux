@@ -3488,11 +3488,9 @@ static int be_msix_register(struct be_adapter *adapter)
 	int status, i, vec;
 
 	for_all_evt_queues(adapter, eqo, i) {
-		char irq_name[IFNAMSIZ+4];
-
-		snprintf(irq_name, sizeof(irq_name), "%s-q%d", netdev->name, i);
+		sprintf(eqo->desc, "%s-q%d", netdev->name, i);
 		vec = be_msix_vec_get(adapter, eqo);
-		status = request_irq(vec, be_msix, 0, irq_name, eqo);
+		status = request_irq(vec, be_msix, 0, eqo->desc, eqo);
 		if (status)
 			goto err_msix;
 
@@ -4002,8 +4000,6 @@ static int be_enable_vxlan_offloads(struct be_adapter *adapter)
 	netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 				   NETIF_F_TSO | NETIF_F_TSO6 |
 				   NETIF_F_GSO_UDP_TUNNEL;
-	netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
-	netdev->features |= NETIF_F_GSO_UDP_TUNNEL;
 
 	dev_info(dev, "Enabled VxLAN offloads for UDP port %d\n",
 		 be16_to_cpu(port));
@@ -4025,8 +4021,6 @@ static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 	adapter->vxlan_port = 0;
 
 	netdev->hw_enc_features = 0;
-	netdev->hw_features &= ~(NETIF_F_GSO_UDP_TUNNEL);
-	netdev->features &= ~(NETIF_F_GSO_UDP_TUNNEL);
 }
 
 static void be_calculate_vf_res(struct be_adapter *adapter, u16 num_vfs,
@@ -5320,6 +5314,7 @@ static void be_netdev_init(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	netdev->hw_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_GSO_UDP_TUNNEL |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |
 		NETIF_F_HW_VLAN_CTAG_TX;
 	if ((be_if_cap_flags(adapter) & BE_IF_FLAGS_RSS))
@@ -6151,7 +6146,6 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 	if (status)
 		return PCI_ERS_RESULT_DISCONNECT;
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	be_clear_error(adapter, BE_CLEAR_ALL);
 	return PCI_ERS_RESULT_RECOVERED;
 }

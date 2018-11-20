@@ -1469,16 +1469,6 @@ int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr)
 }
 EXPORT_SYMBOL_GPL(acpi_dma_configure);
 
-/**
- * acpi_dma_deconfigure - Tear-down DMA configuration for the device.
- * @dev: The pointer to the device
- */
-void acpi_dma_deconfigure(struct device *dev)
-{
-	arch_teardown_dma_ops(dev);
-}
-EXPORT_SYMBOL_GPL(acpi_dma_deconfigure);
-
 static void acpi_init_coherency(struct acpi_device *adev)
 {
 	unsigned long long cca = 0;
@@ -1550,6 +1540,7 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	 */
 	static const struct acpi_device_id i2c_multi_instantiate_ids[] = {
 		{"BSG1160", },
+		{"INT33FE", },
 		{}
 	};
 

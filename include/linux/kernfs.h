@@ -477,10 +477,11 @@ static inline void kernfs_init(void) { }
  * @buf: buffer to copy @kn's name into
  * @buflen: size of @buf
  *
- * Builds and returns the full path of @kn in @buf of @buflen bytes.  The
- * path is built from the end of @buf so the returned pointer usually
- * doesn't match @buf.  If @buf isn't long enough, @buf is nul terminated
- * and %NULL is returned.
+ * If @kn is NULL result will be "(null)".
+ *
+ * Returns the length of the full path.  If the full length is equal to or
+ * greater than @buflen, @buf contains the truncated path with the trailing
+ * '\0'.  On error, -errno is returned.
  */
 static inline int kernfs_path(struct kernfs_node *kn, char *buf, size_t buflen)
 {

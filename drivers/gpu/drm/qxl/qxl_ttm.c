@@ -46,62 +46,6 @@ static struct qxl_device *qxl_get_qdev(struct ttm_bo_device *bdev)
 	return qdev;
 }
 
-static int qxl_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void qxl_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
-static int qxl_ttm_global_init(struct qxl_device *qdev)
-{
-	struct drm_global_reference *global_ref;
-	int r;
-
-	qdev->mman.mem_global_referenced = false;
-	global_ref = &qdev->mman.mem_global_ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
-	global_ref->size = sizeof(struct ttm_mem_global);
-	global_ref->init = &qxl_ttm_mem_global_init;
-	global_ref->release = &qxl_ttm_mem_global_release;
-
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM memory accounting "
-			  "subsystem.\n");
-		return r;
-	}
-
-	qdev->mman.bo_global_ref.mem_glob =
-		qdev->mman.mem_global_ref.object;
-	global_ref = &qdev->mman.bo_global_ref.ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_init;
-	global_ref->release = &ttm_bo_global_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		drm_global_item_unref(&qdev->mman.mem_global_ref);
-		return r;
-	}
-
-	qdev->mman.mem_global_referenced = true;
-	return 0;
-}
-
-static void qxl_ttm_global_fini(struct qxl_device *qdev)
-{
-	if (qdev->mman.mem_global_referenced) {
-		drm_global_item_unref(&qdev->mman.bo_global_ref.ref);
-		drm_global_item_unref(&qdev->mman.mem_global_ref);
-		qdev->mman.mem_global_referenced = false;
-	}
-}
-
 static struct vm_operations_struct qxl_ttm_vm_ops;
 static const struct vm_operations_struct *ttm_vm_ops;
 
@@ -174,7 +118,7 @@ static int qxl_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	default:
-		DRM_ERROR("Unsupported memory type %u\n", (unsigned)type);
+		DRM_ERROR("Unsupported memory type %u\n", (unsigned int)type);
 		return -EINVAL;
 	}
 	return 0;
@@ -331,7 +275,6 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 	if (ret)
 		return ret;
 
-
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		qxl_move_null(bo, new_mem);
 		return 0;
@@ -373,12 +316,8 @@ int qxl_ttm_init(struct qxl_device *qdev)
 	int r;
 	int num_io_pages; /* != rom->num_io_pages, we include surface0 */
 
-	r = qxl_ttm_global_init(qdev);
-	if (r)
-		return r;
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&qdev->mman.bdev,
-			       qdev->mman.bo_global_ref.ref.object,
 			       &qxl_bo_driver,
 			       qdev->ddev.anon_inode->i_mapping,
 			       DRM_FILE_PAGE_OFFSET, 0);
@@ -401,11 +340,11 @@ int qxl_ttm_init(struct qxl_device *qdev)
 		return r;
 	}
 	DRM_INFO("qxl: %uM of VRAM memory size\n",
-		 (unsigned)qdev->vram_size / (1024 * 1024));
+		 (unsigned int)qdev->vram_size / (1024 * 1024));
 	DRM_INFO("qxl: %luM of IO pages memory ready (VRAM domain)\n",
-		 ((unsigned)num_io_pages * PAGE_SIZE) / (1024 * 1024));
+		 ((unsigned int)num_io_pages * PAGE_SIZE) / (1024 * 1024));
 	DRM_INFO("qxl: %uM of Surface memory size\n",
-		 (unsigned)qdev->surfaceram_size / (1024 * 1024));
+		 (unsigned int)qdev->surfaceram_size / (1024 * 1024));
 	return 0;
 }
 
@@ -414,10 +353,8 @@ void qxl_ttm_fini(struct qxl_device *qdev)
 	ttm_bo_clean_mm(&qdev->mman.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&qdev->mman.bdev, TTM_PL_PRIV);
 	ttm_bo_device_release(&qdev->mman.bdev);
-	qxl_ttm_global_fini(qdev);
 	DRM_INFO("qxl: ttm finalized\n");
 }
-
 
 #define QXL_DEBUGFS_MEM_TYPES 2
 
@@ -443,7 +380,7 @@ int qxl_ttm_debugfs_init(struct qxl_device *qdev)
 #if defined(CONFIG_DEBUG_FS)
 	static struct drm_info_list qxl_mem_types_list[QXL_DEBUGFS_MEM_TYPES];
 	static char qxl_mem_types_names[QXL_DEBUGFS_MEM_TYPES][32];
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < QXL_DEBUGFS_MEM_TYPES; i++) {
 		if (i == 0)

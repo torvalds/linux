@@ -146,6 +146,7 @@ static int tinydrm_init(struct device *parent, struct tinydrm_device *tdev,
 	drm->dev_private = tdev;
 	drm_mode_config_init(drm);
 	drm->mode_config.funcs = &tinydrm_mode_config_funcs;
+	drm->mode_config.allow_fb_modifiers = true;
 
 	return 0;
 }

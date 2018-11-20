@@ -453,7 +453,7 @@ ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg, u32 ds_idx,
 	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, ds_idx);
 	struct rpc_cred *cred;
 
-	if (mirror) {
+	if (mirror && !mirror->mirror_ds->ds_versions[0].tightly_coupled) {
 		cred = ff_layout_get_mirror_cred(mirror, lseg->pls_range.iomode);
 		if (!cred)
 			cred = get_rpccred(mdscred);

@@ -55,7 +55,7 @@
 	};
 
 	chosen {
-		stdout-path = "&uart1:115200n8";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory@70000000 {
@@ -319,7 +319,6 @@
 &ecspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
-	num-chipselects = <1>;
 	cs-gpios = <&gpio2 26 GPIO_ACTIVE_LOW>;
 	status = "okay";
 

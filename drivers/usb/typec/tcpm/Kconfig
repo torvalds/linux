@@ -1,0 +1,52 @@
+config TYPEC_TCPM
+	tristate "USB Type-C Port Controller Manager"
+	depends on USB
+	select USB_ROLE_SWITCH
+	select POWER_SUPPLY
+	help
+	  The Type-C Port Controller Manager provides a USB PD and USB Type-C
+	  state machine for use with Type-C Port Controllers.
+
+if TYPEC_TCPM
+
+config TYPEC_TCPCI
+	tristate "Type-C Port Controller Interface driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Type-C Port Controller driver for TCPCI-compliant controller.
+
+if TYPEC_TCPCI
+
+config TYPEC_RT1711H
+	tristate "Richtek RT1711H Type-C chip driver"
+	help
+	  Richtek RT1711H Type-C chip driver that works with
+	  Type-C Port Controller Manager to provide USB PD and USB
+	  Type-C functionalities.
+
+endif # TYPEC_TCPCI
+
+config TYPEC_FUSB302
+	tristate "Fairchild FUSB302 Type-C chip driver"
+	depends on I2C
+	help
+	  The Fairchild FUSB302 Type-C chip driver that works with
+	  Type-C Port Controller Manager to provide USB PD and USB
+	  Type-C functionalities.
+
+config TYPEC_WCOVE
+	tristate "Intel WhiskeyCove PMIC USB Type-C PHY driver"
+	depends on ACPI
+	depends on INTEL_SOC_PMIC
+	depends on INTEL_PMC_IPC
+	depends on BXT_WC_PMIC_OPREGION
+	help
+	  This driver adds support for USB Type-C on Intel Broxton platforms
+	  that have Intel Whiskey Cove PMIC. The driver works with USB Type-C
+	  Port Controller Manager to provide USB PD and Type-C functionalities.
+
+	  To compile this driver as module, choose M here: the module will be
+	  called typec_wcove.ko
+
+endif # TYPEC_TCPM

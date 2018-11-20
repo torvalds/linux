@@ -1006,7 +1006,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		ring->packets++;
 	}
 	ring->bytes += tx_info->nr_bytes;
-	netdev_tx_sent_queue(ring->tx_queue, tx_info->nr_bytes);
 	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, skb->len);
 
 	if (tx_info->inl)
@@ -1044,7 +1043,10 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_tx_stop_queue(ring->tx_queue);
 		ring->queue_stopped++;
 	}
-	send_doorbell = !skb->xmit_more || netif_xmit_stopped(ring->tx_queue);
+
+	send_doorbell = __netdev_tx_sent_queue(ring->tx_queue,
+					       tx_info->nr_bytes,
+					       skb->xmit_more);
 
 	real_size = (real_size / 16) & 0x3f;
 

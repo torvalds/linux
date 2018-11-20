@@ -133,7 +133,7 @@ static const struct stmmac_hwif_entry {
 		.mac = &dwmac4_ops,
 		.hwtimestamp = &stmmac_ptp,
 		.mode = NULL,
-		.tc = NULL,
+		.tc = &dwmac510_tc_ops,
 		.setup = dwmac4_setup,
 		.quirks = stmmac_dwmac4_quirks,
 	}, {
@@ -150,7 +150,7 @@ static const struct stmmac_hwif_entry {
 		.mac = &dwmac410_ops,
 		.hwtimestamp = &stmmac_ptp,
 		.mode = &dwmac4_ring_mode_ops,
-		.tc = NULL,
+		.tc = &dwmac510_tc_ops,
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	}, {
@@ -167,7 +167,7 @@ static const struct stmmac_hwif_entry {
 		.mac = &dwmac410_ops,
 		.hwtimestamp = &stmmac_ptp,
 		.mode = &dwmac4_ring_mode_ops,
-		.tc = NULL,
+		.tc = &dwmac510_tc_ops,
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	}, {
@@ -201,7 +201,7 @@ static const struct stmmac_hwif_entry {
 		.mac = &dwxgmac210_ops,
 		.hwtimestamp = &stmmac_ptp,
 		.mode = NULL,
-		.tc = NULL,
+		.tc = &dwmac510_tc_ops,
 		.setup = dwxgmac2_setup,
 		.quirks = NULL,
 	},

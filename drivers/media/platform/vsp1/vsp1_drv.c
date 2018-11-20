@@ -242,7 +242,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 	mdev->dev = vsp1->dev;
 	mdev->hw_revision = vsp1->version;
-	strlcpy(mdev->model, vsp1->info->model, sizeof(mdev->model));
+	strscpy(mdev->model, vsp1->info->model, sizeof(mdev->model));
 	snprintf(mdev->bus_info, sizeof(mdev->bus_info), "platform:%s",
 		 dev_name(mdev->dev));
 	media_device_init(mdev);
@@ -802,7 +802,7 @@ static int vsp1_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, vsp1);
 
-	/* I/O and IRQ resources (clock managed by the clock PM domain) */
+	/* I/O and IRQ resources (clock managed by the clock PM domain). */
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	vsp1->mmio = devm_ioremap_resource(&pdev->dev, io);
 	if (IS_ERR(vsp1->mmio))
@@ -821,7 +821,7 @@ static int vsp1_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* FCP (optional) */
+	/* FCP (optional). */
 	fcp_node = of_parse_phandle(pdev->dev.of_node, "renesas,fcp", 0);
 	if (fcp_node) {
 		vsp1->fcp = rcar_fcp_get(fcp_node);
@@ -869,7 +869,7 @@ static int vsp1_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "IP version 0x%08x\n", vsp1->version);
 
-	/* Instanciate entities */
+	/* Instantiate entities. */
 	ret = vsp1_create_entities(vsp1);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to create entities\n");

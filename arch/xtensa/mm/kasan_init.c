@@ -8,11 +8,10 @@
  * Copyright (C) 2017 Cadence Design Systems Inc.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init_task.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
-#include <linux/memblock.h>
 #include <asm/initialize_mmu.h>
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
@@ -43,7 +42,7 @@ static void __init populate(void *start, void *end)
 	unsigned long vaddr = (unsigned long)start;
 	pgd_t *pgd = pgd_offset_k(vaddr);
 	pmd_t *pmd = pmd_offset(pgd, vaddr);
-	pte_t *pte = memblock_virt_alloc(n_pages * sizeof(pte_t), PAGE_SIZE);
+	pte_t *pte = memblock_alloc(n_pages * sizeof(pte_t), PAGE_SIZE);
 
 	pr_debug("%s: %p - %p\n", __func__, start, end);
 

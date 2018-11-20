@@ -90,6 +90,7 @@ struct beacon_attr {
 struct set_multicast {
 	bool enabled;
 	u32 cnt;
+	u8 *mc_list;
 };
 
 struct del_all_sta {
@@ -186,23 +187,7 @@ struct join_bss_param {
 };
 
 static struct host_if_drv *terminated_handle;
-bool wilc_optaining_ip;
-static u8 p2p_listen_state;
-static struct workqueue_struct *hif_workqueue;
-static struct completion hif_driver_comp;
 static struct mutex hif_deinit_lock;
-static struct timer_list periodic_rssi;
-static struct wilc_vif *periodic_rssi_vif;
-
-u8 wilc_multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
-
-static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
-
-static u8 set_ip[2][4];
-static u8 get_ip[2][4];
-static u32 clients_count;
-
-static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
 
 /* 'msg' should be free by the caller for syc */
 static struct host_if_msg*
@@ -229,7 +214,11 @@ wilc_alloc_work(struct wilc_vif *vif, void (*work_fun)(struct work_struct *),
 static int wilc_enqueue_work(struct host_if_msg *msg)
 {
 	INIT_WORK(&msg->work, msg->fn);
-	if (!hif_workqueue || !queue_work(hif_workqueue, &msg->work))
+
+	if (!msg->vif || !msg->vif->wilc || !msg->vif->wilc->hif_workqueue)
+		return -EINVAL;
+
+	if (!queue_work(msg->vif->wilc->hif_workqueue, &msg->work))
 		return -EINVAL;
 
 	return 0;
@@ -320,10 +309,12 @@ static void handle_set_wfi_drv_handler(struct work_struct *work)
 	if (ret)
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
 
-	complete(&hif_driver_comp);
 	kfree(buffer);
 
 free_msg:
+	if (msg->is_sync)
+		complete(&msg->work_comp);
+
 	kfree(msg);
 }
 
@@ -343,70 +334,9 @@ static void handle_set_operation_mode(struct work_struct *work)
 	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
 
-	if (hif_op_mode->mode == IDLE_MODE)
-		complete(&hif_driver_comp);
-
 	if (ret)
 		netdev_err(vif->ndev, "Failed to set operation mode\n");
 
-	kfree(msg);
-}
-
-static void handle_set_ip_address(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	u8 *ip_addr = msg->body.ip_info.ip_addr;
-	u8 idx = msg->body.ip_info.idx;
-	int ret;
-	struct wid wid;
-	char firmware_ip_addr[4] = {0};
-
-	if (ip_addr[0] < 192)
-		ip_addr[0] = 0;
-
-	memcpy(set_ip[idx], ip_addr, IP_ALEN);
-
-	wid.id = WID_IP_ADDRESS;
-	wid.type = WID_STR;
-	wid.val = ip_addr;
-	wid.size = IP_ALEN;
-
-	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-
-	host_int_get_ipaddress(vif, firmware_ip_addr, idx);
-
-	if (ret)
-		netdev_err(vif->ndev, "Failed to set IP address\n");
-	kfree(msg);
-}
-
-static void handle_get_ip_address(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	u8 idx = msg->body.ip_info.idx;
-	int ret;
-	struct wid wid;
-
-	wid.id = WID_IP_ADDRESS;
-	wid.type = WID_STR;
-	wid.val = kmalloc(IP_ALEN, GFP_KERNEL);
-	wid.size = IP_ALEN;
-
-	ret = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-
-	memcpy(get_ip[idx], wid.val, IP_ALEN);
-
-	kfree(wid.val);
-
-	if (memcmp(get_ip[idx], set_ip[idx], IP_ALEN) != 0)
-		wilc_setup_ipaddress(vif, set_ip[idx], idx);
-
-	if (ret)
-		netdev_err(vif->ndev, "Failed to get IP address\n");
 	kfree(msg);
 }
 
@@ -791,7 +721,7 @@ static void handle_scan(struct work_struct *work)
 		goto error;
 	}
 
-	if (wilc_optaining_ip || wilc_connecting) {
+	if (vif->obtaining_ip || vif->connecting) {
 		netdev_err(vif->ndev, "Don't do obss scan\n");
 		result = -EBUSY;
 		goto error;
@@ -883,7 +813,6 @@ error:
 	kfree(msg);
 }
 
-u8 wilc_connected_ssid[6] = {0};
 static void handle_connect(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -903,11 +832,6 @@ static void handle_connect(struct work_struct *work)
 
 		usleep_range(2 * 1000, 2 * 1000);
 		return;
-	}
-
-	if (memcmp(conn_attr->bssid, wilc_connected_ssid, ETH_ALEN) == 0) {
-		netdev_err(vif->ndev, "Discard connect request\n");
-		goto error;
 	}
 
 	bss_param = conn_attr->params;
@@ -1089,10 +1013,6 @@ static void handle_connect(struct work_struct *work)
 	cur_byte = wid_list[wid_cnt].val;
 	wid_cnt++;
 
-	if (conn_attr->bssid)
-		memcpy(wilc_connected_ssid,
-		       conn_attr->bssid, ETH_ALEN);
-
 	result = wilc_send_config_pkt(vif, SET_CFG, wid_list,
 				      wid_cnt,
 				      wilc_get_vif_idx(vif));
@@ -1214,8 +1134,6 @@ static void handle_connect_timeout(struct work_struct *work)
 	hif_drv->usr_conn_req.ies_len = 0;
 	kfree(hif_drv->usr_conn_req.ies);
 	hif_drv->usr_conn_req.ies = NULL;
-
-	eth_zero_addr(wilc_connected_ssid);
 
 out:
 	kfree(msg);
@@ -1456,10 +1374,10 @@ done:
 	kfree(msg);
 }
 
-static s32 host_int_get_assoc_res_info(struct wilc_vif *vif,
-				       u8 *assoc_resp_info,
-				       u32 max_assoc_resp_info_len,
-				       u32 *rcvd_assoc_resp_info_len)
+static void host_int_get_assoc_res_info(struct wilc_vif *vif,
+					u8 *assoc_resp_info,
+					u32 max_assoc_resp_info_len,
+					u32 *rcvd_assoc_resp_info_len)
 {
 	int result;
 	struct wid wid;
@@ -1474,11 +1392,10 @@ static s32 host_int_get_assoc_res_info(struct wilc_vif *vif,
 	if (result) {
 		*rcvd_assoc_resp_info_len = 0;
 		netdev_err(vif->ndev, "Failed to send association response\n");
-		return -EINVAL;
+		return;
 	}
 
 	*rcvd_assoc_resp_info_len = wid.size;
-	return result;
 }
 
 static inline void host_int_free_user_conn_req(struct host_if_drv *hif_drv)
@@ -1504,16 +1421,16 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	if (mac_status == MAC_STATUS_CONNECTED) {
 		u32 assoc_resp_info_len;
 
-		memset(rcv_assoc_resp, 0, MAX_ASSOC_RESP_FRAME_SIZE);
+		memset(hif_drv->assoc_resp, 0, MAX_ASSOC_RESP_FRAME_SIZE);
 
-		host_int_get_assoc_res_info(vif, rcv_assoc_resp,
+		host_int_get_assoc_res_info(vif, hif_drv->assoc_resp,
 					    MAX_ASSOC_RESP_FRAME_SIZE,
 					    &assoc_resp_info_len);
 
 		if (assoc_resp_info_len != 0) {
 			s32 err = 0;
 
-			err = wilc_parse_assoc_resp_info(rcv_assoc_resp,
+			err = wilc_parse_assoc_resp_info(hif_drv->assoc_resp,
 							 assoc_resp_info_len,
 							 &conn_info);
 			if (err)
@@ -1521,16 +1438,6 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 					   "wilc_parse_assoc_resp_info() returned error %d\n",
 					   err);
 		}
-	}
-
-	if (mac_status == MAC_STATUS_CONNECTED &&
-	    conn_info.status != WLAN_STATUS_SUCCESS) {
-		netdev_err(vif->ndev,
-			   "Received MAC status is MAC_STATUS_CONNECTED, Assoc Resp is not SUCCESS\n");
-		eth_zero_addr(wilc_connected_ssid);
-	} else if (mac_status == MAC_STATUS_DISCONNECTED)    {
-		netdev_err(vif->ndev, "Received MAC status is MAC_STATUS_DISCONNECTED\n");
-		eth_zero_addr(wilc_connected_ssid);
 	}
 
 	if (hif_drv->usr_conn_req.bssid) {
@@ -1562,8 +1469,8 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 
 		hif_drv->hif_state = HOST_IF_CONNECTED;
 
-		wilc_optaining_ip = true;
-		mod_timer(&wilc_during_ip_timer,
+		vif->obtaining_ip = true;
+		mod_timer(&vif->during_ip_timer,
 			  jiffies + msecs_to_jiffies(10000));
 	} else {
 		hif_drv->hif_state = HOST_IF_IDLE;
@@ -1595,7 +1502,7 @@ static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 	disconn_info.ie_len = 0;
 
 	if (conn_result) {
-		wilc_optaining_ip = false;
+		vif->obtaining_ip = false;
 		wilc_set_power_mgmt(vif, 0, 0);
 
 		conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF, NULL, 0,
@@ -1942,10 +1849,8 @@ static void handle_disconnect(struct work_struct *work)
 	wid.val = (s8 *)&dummy_reason_code;
 	wid.size = sizeof(char);
 
-	wilc_optaining_ip = false;
+	vif->obtaining_ip = false;
 	wilc_set_power_mgmt(vif, 0, 0);
-
-	eth_zero_addr(wilc_connected_ssid);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2076,9 +1981,9 @@ static void handle_get_statistics(struct work_struct *work)
 
 	if (stats->link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH &&
 	    stats->link_speed != DEFAULT_LINK_SPEED)
-		wilc_enable_tcp_ack_filter(true);
+		wilc_enable_tcp_ack_filter(vif, true);
 	else if (stats->link_speed != DEFAULT_LINK_SPEED)
-		wilc_enable_tcp_ack_filter(false);
+		wilc_enable_tcp_ack_filter(vif, false);
 
 	/* free 'msg' for async command, for sync caller will free it */
 	if (msg->is_sync)
@@ -2397,7 +2302,7 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 		goto error;
 	}
 
-	if (wilc_optaining_ip || wilc_connecting) {
+	if (vif->obtaining_ip || vif->connecting) {
 		result = -EBUSY;
 		goto error;
 	}
@@ -2422,7 +2327,6 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Failed to set remain on channel\n");
 
 error:
-	p2p_listen_state = 1;
 	hif_drv->remain_on_ch_timer_vif = vif;
 	mod_timer(&hif_drv->remain_on_ch_timer,
 		  jiffies + msecs_to_jiffies(hif_remain_ch->duration));
@@ -2478,8 +2382,9 @@ static void handle_listen_state_expired(struct work_struct *work)
 	struct wid wid;
 	int result;
 	struct host_if_drv *hif_drv = vif->hif_drv;
+	struct wilc_priv *priv = wdev_priv(vif->ndev->ieee80211_ptr);
 
-	if (p2p_listen_state) {
+	if (priv->p2p_listen_state) {
 		remain_on_chan_flag = false;
 		wid.id = WID_REMAIN_ON_CHAN;
 		wid.type = WID_STR;
@@ -2504,7 +2409,6 @@ static void handle_listen_state_expired(struct work_struct *work)
 			hif_drv->remain_on_ch.expired(hif_drv->remain_on_ch.arg,
 						      hif_remain_ch->id);
 		}
-		p2p_listen_state = 0;
 	} else {
 		netdev_dbg(vif->ndev, "Not in listen state\n");
 	}
@@ -2589,8 +2493,8 @@ static void handle_set_mcast_filter(struct work_struct *work)
 	*cur_byte++ = ((hif_set_mc->cnt >> 16) & 0xFF);
 	*cur_byte++ = ((hif_set_mc->cnt >> 24) & 0xFF);
 
-	if (hif_set_mc->cnt > 0)
-		memcpy(cur_byte, wilc_multicast_mac_addr_list,
+	if (hif_set_mc->cnt > 0 && hif_set_mc->mc_list)
+		memcpy(cur_byte, hif_set_mc->mc_list,
 		       ((hif_set_mc->cnt) * ETH_ALEN));
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
@@ -2599,6 +2503,7 @@ static void handle_set_mcast_filter(struct work_struct *work)
 		netdev_err(vif->ndev, "Failed to send setup multicast\n");
 
 error:
+	kfree(hif_set_mc->mc_list);
 	kfree(wid.val);
 	kfree(msg);
 }
@@ -2659,14 +2564,6 @@ static void handle_remain_on_chan_work(struct work_struct *work)
 
 	handle_remain_on_chan(msg->vif, &msg->body.remain_on_ch);
 	kfree(msg);
-}
-
-static void handle_hif_exit_work(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-
-	/* free 'msg' data in caller */
-	complete(&msg->work_comp);
 }
 
 static void handle_scan_complete(struct work_struct *work)
@@ -3195,12 +3092,12 @@ int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel)
 }
 
 int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
-			     u8 ifc_id)
+			     u8 ifc_id, bool is_sync)
 {
 	int result;
 	struct host_if_msg *msg;
 
-	msg = wilc_alloc_work(vif, handle_set_wfi_drv_handler, false);
+	msg = wilc_alloc_work(vif, handle_set_wfi_drv_handler, is_sync);
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
@@ -3212,7 +3109,11 @@ int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
 	if (result) {
 		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
 		kfree(msg);
+		return result;
 	}
+
+	if (is_sync)
+		wait_for_completion(&msg->work_comp);
 
 	return result;
 }
@@ -3421,9 +3322,9 @@ int wilc_hif_set_cfg(struct wilc_vif *vif,
 	return result;
 }
 
-static void get_periodic_rssi(struct timer_list *unused)
+static void get_periodic_rssi(struct timer_list *t)
 {
-	struct wilc_vif *vif = periodic_rssi_vif;
+	struct wilc_vif *vif = from_timer(vif, t, periodic_rssi);
 
 	if (!vif->hif_drv) {
 		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);
@@ -3431,9 +3332,9 @@ static void get_periodic_rssi(struct timer_list *unused)
 	}
 
 	if (vif->hif_drv->hif_state == HOST_IF_CONNECTED)
-		wilc_get_statistics(vif, &vif->wilc->dummy_statistics, false);
+		wilc_get_statistics(vif, &vif->periodic_stat, false);
 
-	mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
+	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
 }
 
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
@@ -3455,25 +3356,13 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 			break;
 		}
 
-	wilc_optaining_ip = false;
+	vif->obtaining_ip = false;
 
-	if (clients_count == 0) {
-		init_completion(&hif_driver_comp);
+	if (wilc->clients_count == 0)
 		mutex_init(&hif_deinit_lock);
-	}
 
-	if (clients_count == 0) {
-		hif_workqueue = create_singlethread_workqueue("WILC_wq");
-		if (!hif_workqueue) {
-			netdev_err(vif->ndev, "Failed to create workqueue\n");
-			kfree(hif_drv);
-			return -ENOMEM;
-		}
-
-		periodic_rssi_vif = vif;
-		timer_setup(&periodic_rssi, get_periodic_rssi, 0);
-		mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
-	}
+	timer_setup(&vif->periodic_rssi, get_periodic_rssi, 0);
+	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
 
 	timer_setup(&hif_drv->scan_timer, timer_scan_cb, 0);
 	timer_setup(&hif_drv->connect_timer, timer_connect_cb, 0);
@@ -3493,7 +3382,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	mutex_unlock(&hif_drv->cfg_values_lock);
 
-	clients_count++;
+	wilc->clients_count++;
 
 	return 0;
 }
@@ -3514,11 +3403,10 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	del_timer_sync(&hif_drv->scan_timer);
 	del_timer_sync(&hif_drv->connect_timer);
-	del_timer_sync(&periodic_rssi);
+	del_timer_sync(&vif->periodic_rssi);
 	del_timer_sync(&hif_drv->remain_on_ch_timer);
 
-	wilc_set_wfi_drv_handler(vif, 0, 0, 0);
-	wait_for_completion(&hif_driver_comp);
+	wilc_set_wfi_drv_handler(vif, 0, 0, 0, true);
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,
@@ -3529,25 +3417,9 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	hif_drv->hif_state = HOST_IF_IDLE;
 
-	if (clients_count == 1)	{
-		struct host_if_msg *msg;
-
-		msg = wilc_alloc_work(vif, handle_hif_exit_work, true);
-		if (!IS_ERR(msg)) {
-			result = wilc_enqueue_work(msg);
-			if (result)
-				netdev_err(vif->ndev, "deinit : Error(%d)\n",
-					   result);
-			else
-				wait_for_completion(&msg->work_comp);
-			kfree(msg);
-		}
-		destroy_workqueue(hif_workqueue);
-	}
-
 	kfree(hif_drv);
 
-	clients_count--;
+	vif->wilc->clients_count--;
 	terminated_handle = NULL;
 	mutex_unlock(&hif_deinit_lock);
 	return result;
@@ -3743,14 +3615,14 @@ int wilc_listen_state_expired(struct wilc_vif *vif, u32 session_id)
 	return result;
 }
 
-int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
+void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 {
 	int result;
 	struct host_if_msg *msg;
 
 	msg = wilc_alloc_work(vif, handle_register_frame, false);
 	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+		return;
 
 	switch (frame_type) {
 	case ACTION:
@@ -3772,8 +3644,6 @@ int wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
 		kfree(msg);
 	}
-
-	return result;
 }
 
 int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 dtim_period,
@@ -3992,8 +3862,8 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 	return result;
 }
 
-int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
-				u32 count)
+int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled, u32 count,
+				u8 *mc_list)
 {
 	int result;
 	struct host_if_msg *msg;
@@ -4004,54 +3874,13 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
 
 	msg->body.multicast_info.enabled = enabled;
 	msg->body.multicast_info.cnt = count;
+	msg->body.multicast_info.mc_list = mc_list;
 
 	result = wilc_enqueue_work(msg);
 	if (result) {
 		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
 		kfree(msg);
 	}
-	return result;
-}
-
-int wilc_setup_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
-{
-	int result;
-	struct host_if_msg *msg;
-
-	msg = wilc_alloc_work(vif, handle_set_ip_address, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.ip_info.ip_addr = ip_addr;
-	msg->body.ip_info.idx = idx;
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
-
-	return result;
-}
-
-static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
-{
-	int result;
-	struct host_if_msg *msg;
-
-	msg = wilc_alloc_work(vif, handle_get_ip_address, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.ip_info.ip_addr = ip_addr;
-	msg->body.ip_info.idx = idx;
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
-
 	return result;
 }
 

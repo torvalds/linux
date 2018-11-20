@@ -3536,6 +3536,16 @@ static void bnx2x_drv_info_iscsi_stat(struct bnx2x *bp)
  */
 static void bnx2x_config_mf_bw(struct bnx2x *bp)
 {
+	/* Workaround for MFW bug.
+	 * MFW is not supposed to generate BW attention in
+	 * single function mode.
+	 */
+	if (!IS_MF(bp)) {
+		DP(BNX2X_MSG_MCP,
+		   "Ignoring MF BW config in single function mode\n");
+		return;
+	}
+
 	if (bp->link_vars.link_up) {
 		bnx2x_cmng_fns_init(bp, true, CMNG_FNS_MINMAX);
 		bnx2x_link_sync_notify(bp);
@@ -13105,6 +13115,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_set_vf_mac		= bnx2x_set_vf_mac,
 	.ndo_set_vf_vlan	= bnx2x_set_vf_vlan,
 	.ndo_get_vf_config	= bnx2x_get_vf_config,
+	.ndo_set_vf_spoofchk	= bnx2x_set_vf_spoofchk,
 #endif
 #ifdef NETDEV_FCOE_WWNN
 	.ndo_fcoe_get_wwn	= bnx2x_fcoe_get_wwn,
@@ -14368,14 +14379,6 @@ static pci_ers_result_t bnx2x_io_slot_reset(struct pci_dev *pdev)
 	}
 
 	rtnl_unlock();
-
-	/* If AER, perform cleanup of the PCIe registers */
-	if (bp->flags & AER_ENABLED) {
-		if (pci_cleanup_aer_uncorrect_error_status(pdev))
-			BNX2X_ERR("pci_cleanup_aer_uncorrect_error_status failed\n");
-		else
-			DP(NETIF_MSG_HW, "pci_cleanup_aer_uncorrect_error_status succeeded\n");
-	}
 
 	return PCI_ERS_RESULT_RECOVERED;
 }

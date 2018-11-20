@@ -121,8 +121,8 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 
 	clk_disable(priv->clk);
 
-	br = fpga_bridge_create(&pdev->dev, "Xilinx PR Decoupler",
-				&xlnx_pr_decoupler_br_ops, priv);
+	br = devm_fpga_bridge_create(&pdev->dev, "Xilinx PR Decoupler",
+				     &xlnx_pr_decoupler_br_ops, priv);
 	if (!br) {
 		err = -ENOMEM;
 		goto err_clk;

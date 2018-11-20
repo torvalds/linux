@@ -154,6 +154,17 @@ struct __drm_planes_state {
 struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
 	struct drm_crtc_state *state, *old_state, *new_state;
+
+	/**
+	 * @commit:
+	 *
+	 * A reference to the CRTC commit object that is kept for use by
+	 * drm_atomic_helper_wait_for_flip_done() after
+	 * drm_atomic_helper_commit_hw_done() is called. This ensures that a
+	 * concurrent commit won't free a commit object that is still in use.
+	 */
+	struct drm_crtc_commit *commit;
+
 	s32 __user *out_fence_ptr;
 	u64 last_vblank_count;
 };
@@ -254,7 +265,6 @@ struct __drm_private_objs_state {
  * struct drm_atomic_state - the global state object for atomic updates
  * @ref: count of all references to this state (will not be freed until zero)
  * @dev: parent DRM device
- * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
  * @async_update: hint for asynchronous plane update
  * @planes: pointer to array of structures with per-plane data
@@ -273,6 +283,15 @@ struct drm_atomic_state {
 	struct kref ref;
 
 	struct drm_device *dev;
+
+	/**
+	 * @allow_modeset:
+	 *
+	 * Allow full modeset. This is used by the ATOMIC IOCTL handler to
+	 * implement the DRM_MODE_ATOMIC_ALLOW_MODESET flag. Drivers should
+	 * never consult this flag, instead looking at the output of
+	 * drm_atomic_crtc_needs_modeset().
+	 */
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
 	bool async_update : 1;

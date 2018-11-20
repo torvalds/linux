@@ -1115,7 +1115,8 @@ xfs_fs_geometry(
 
 	geo->version = XFS_FSOP_GEOM_VERSION;
 	geo->flags = XFS_FSOP_GEOM_FLAGS_NLINK |
-		     XFS_FSOP_GEOM_FLAGS_DIRV2;
+		     XFS_FSOP_GEOM_FLAGS_DIRV2 |
+		     XFS_FSOP_GEOM_FLAGS_EXTFLG;
 	if (xfs_sb_version_hasattr(sbp))
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_ATTR;
 	if (xfs_sb_version_hasquota(sbp))
@@ -1124,8 +1125,6 @@ xfs_fs_geometry(
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_IALIGN;
 	if (xfs_sb_version_hasdalign(sbp))
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_DALIGN;
-	if (xfs_sb_version_hasextflgbit(sbp))
-		geo->flags |= XFS_FSOP_GEOM_FLAGS_EXTFLG;
 	if (xfs_sb_version_hassector(sbp))
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_SECTOR;
 	if (xfs_sb_version_hasasciici(sbp))
