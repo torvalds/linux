@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ST Microelectronics
  * Flexible Static Memory Controller (FSMC)
@@ -10,10 +11,6 @@
  * Based on drivers/mtd/nand/nomadik_nand.c (removed in v3.8)
  *  Copyright © 2007 STMicroelectronics Pvt. Ltd.
  *  Copyright © 2009 Alessandro Rubini
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/clk.h>
@@ -1215,6 +1212,6 @@ static struct platform_driver fsmc_nand_driver = {
 
 module_platform_driver_probe(fsmc_nand_driver, fsmc_nand_probe);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Vipin Kumar <vipin.kumar@st.com>, Ashish Priyadarshi");
 MODULE_DESCRIPTION("NAND driver for SPEAr Platforms");
