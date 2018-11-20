@@ -670,9 +670,7 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
 	qxl_release_fence_buffer_objects(release);
 
-	if (old_cursor_bo)
-		qxl_bo_unref(&old_cursor_bo);
-
+	qxl_bo_unref(&old_cursor_bo);
 	qxl_bo_unref(&cursor_bo);
 
 	return;
