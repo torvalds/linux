@@ -735,10 +735,16 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto out;
 	}
 
+	err = mlx5_events_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "failed to initialize events\n");
+		goto err_eq_cleanup;
+	}
+
 	err = mlx5_cq_debugfs_init(dev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize cq debugfs\n");
-		goto err_eq_cleanup;
+		goto err_events_cleanup;
 	}
 
 	mlx5_init_qp_table(dev);
@@ -801,7 +807,8 @@ err_tables_cleanup:
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);
 	mlx5_cq_debugfs_cleanup(dev);
-
+err_events_cleanup:
+	mlx5_events_cleanup(dev);
 err_eq_cleanup:
 	mlx5_eq_table_cleanup(dev);
 
@@ -824,6 +831,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);
 	mlx5_cq_debugfs_cleanup(dev);
+	mlx5_events_cleanup(dev);
 	mlx5_eq_table_cleanup(dev);
 }
 
@@ -947,6 +955,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_get_uars;
 	}
 
+	mlx5_events_start(dev);
 	mlx5_pagealloc_start(dev);
 
 	err = mlx5_eq_table_create(dev);
@@ -1036,6 +1045,7 @@ err_fw_tracer:
 
 err_eq_table:
 	mlx5_pagealloc_stop(dev);
+	mlx5_events_stop(dev);
 	mlx5_put_uars_page(dev, priv->uar);
 
 err_get_uars:
@@ -1095,8 +1105,8 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_fw_tracer_cleanup(dev->tracer);
 	mlx5_eq_table_destroy(dev);
 	mlx5_pagealloc_stop(dev);
+	mlx5_events_stop(dev);
 	mlx5_put_uars_page(dev, priv->uar);
-
 	if (cleanup)
 		mlx5_cleanup_once(dev);
 	mlx5_stop_health_poll(dev, cleanup);
