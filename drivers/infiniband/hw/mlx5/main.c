@@ -3713,7 +3713,8 @@ _create_raw_flow_rule(struct mlx5_ib_dev *dev,
 		      struct mlx5_flow_destination *dst,
 		      struct mlx5_ib_flow_matcher  *fs_matcher,
 		      struct mlx5_flow_act *flow_act,
-		      void *cmd_in, int inlen)
+		      void *cmd_in, int inlen,
+		      int dst_num)
 {
 	struct mlx5_ib_flow_handler *handler;
 	struct mlx5_flow_spec *spec;
@@ -3735,7 +3736,7 @@ _create_raw_flow_rule(struct mlx5_ib_dev *dev,
 	spec->match_criteria_enable = fs_matcher->match_criteria_enable;
 
 	handler->rule = mlx5_add_flow_rules(ft, spec,
-					    flow_act, dst, 1);
+					    flow_act, dst, dst_num);
 
 	if (IS_ERR(handler->rule)) {
 		err = PTR_ERR(handler->rule);
@@ -3798,12 +3799,14 @@ struct mlx5_ib_flow_handler *
 mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 			struct mlx5_ib_flow_matcher *fs_matcher,
 			struct mlx5_flow_act *flow_act,
+			u32 counter_id,
 			void *cmd_in, int inlen, int dest_id,
 			int dest_type)
 {
 	struct mlx5_flow_destination *dst;
 	struct mlx5_ib_flow_prio *ft_prio;
 	struct mlx5_ib_flow_handler *handler;
+	int dst_num = 0;
 	bool mcast;
 	int err;
 
@@ -3813,7 +3816,7 @@ mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 	if (fs_matcher->priority > MLX5_IB_FLOW_LAST_PRIO)
 		return ERR_PTR(-ENOMEM);
 
-	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
+	dst = kzalloc(sizeof(*dst) * 2, GFP_KERNEL);
 	if (!dst)
 		return ERR_PTR(-ENOMEM);
 
@@ -3827,20 +3830,28 @@ mlx5_ib_raw_fs_rule_add(struct mlx5_ib_dev *dev,
 	}
 
 	if (dest_type == MLX5_FLOW_DESTINATION_TYPE_TIR) {
-		dst->type = dest_type;
-		dst->tir_num = dest_id;
+		dst[dst_num].type = dest_type;
+		dst[dst_num].tir_num = dest_id;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	} else if (dest_type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE) {
-		dst->type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM;
-		dst->ft_num = dest_id;
+		dst[dst_num].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM;
+		dst[dst_num].ft_num = dest_id;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	} else {
-		dst->type = MLX5_FLOW_DESTINATION_TYPE_PORT;
+		dst[dst_num].type = MLX5_FLOW_DESTINATION_TYPE_PORT;
 		flow_act->action |= MLX5_FLOW_CONTEXT_ACTION_ALLOW;
 	}
 
+	dst_num++;
+
+	if (flow_act->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		dst[dst_num].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+		dst[dst_num].counter_id = counter_id;
+		dst_num++;
+	}
+
 	handler = _create_raw_flow_rule(dev, ft_prio, dst, fs_matcher, flow_act,
-					cmd_in, inlen);
+					cmd_in, inlen, dst_num);
 
 	if (IS_ERR(handler)) {
 		err = PTR_ERR(handler);

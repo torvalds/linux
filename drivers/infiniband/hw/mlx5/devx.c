@@ -107,6 +107,21 @@ bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type)
 	}
 }
 
+bool mlx5_ib_devx_is_flow_counter(void *obj, u32 *counter_id)
+{
+	struct devx_obj *devx_obj = obj;
+	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, devx_obj->dinbox, opcode);
+
+	if (opcode == MLX5_CMD_OP_DEALLOC_FLOW_COUNTER) {
+		*counter_id = MLX5_GET(dealloc_flow_counter_in,
+				       devx_obj->dinbox,
+				       flow_counter_id);
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * As the obj_id in the firmware is not globally unique the object type
  * must be considered upon checking for a valid object id.

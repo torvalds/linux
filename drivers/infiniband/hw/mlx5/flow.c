@@ -77,6 +77,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 		uverbs_attr_get_uobject(attrs, MLX5_IB_ATTR_CREATE_FLOW_HANDLE);
 	struct mlx5_ib_dev *dev = to_mdev(uobj->context->device);
 	int len, ret, i;
+	u32 counter_id = 0;
 
 	if (!capable(CAP_NET_RAW))
 		return -EPERM;
@@ -128,6 +129,15 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 		dest_type = MLX5_FLOW_DESTINATION_TYPE_PORT;
 	}
 
+	len = uverbs_attr_get_uobjs_arr(attrs,
+		MLX5_IB_ATTR_CREATE_FLOW_ARR_COUNTERS_DEVX, &arr_flow_actions);
+	if (len) {
+		devx_obj = arr_flow_actions[0]->object;
+
+		if (!mlx5_ib_devx_is_flow_counter(devx_obj, &counter_id))
+			return -EINVAL;
+		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
+	}
 	if (dev->rep)
 		return -ENOTSUPP;
 
@@ -164,6 +174,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	}
 
 	flow_handler = mlx5_ib_raw_fs_rule_add(dev, fs_matcher, &flow_act,
+					       counter_id,
 					       cmd_in, inlen,
 					       dest_id, dest_type);
 	if (IS_ERR(flow_handler)) {
@@ -524,7 +535,11 @@ DECLARE_UVERBS_NAMED_METHOD(
 			     UA_OPTIONAL),
 	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_CREATE_FLOW_TAG,
 			   UVERBS_ATTR_TYPE(u32),
-			   UA_OPTIONAL));
+			   UA_OPTIONAL),
+	UVERBS_ATTR_IDRS_ARR(MLX5_IB_ATTR_CREATE_FLOW_ARR_COUNTERS_DEVX,
+			     MLX5_IB_OBJECT_DEVX_OBJ,
+			     UVERBS_ACCESS_READ, 1, 1,
+			     UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	MLX5_IB_METHOD_DESTROY_FLOW,
