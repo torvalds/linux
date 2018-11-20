@@ -141,7 +141,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_sina33>;
+	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 1 4 GPIO_ACTIVE_LOW>; /* PB4 */
@@ -165,14 +165,6 @@
 
 &ohci0 {
 	status = "okay";
-};
-
-&pio {
-	mmc0_cd_pin_sina33: mmc0_cd_pin@0 {
-		pins = "PB4";
-		function = "gpio_in";
-		bias-pull-up;
-	};
 };
 
 &r_rsb {
