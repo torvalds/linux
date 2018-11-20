@@ -38,11 +38,6 @@ struct dc_stream_status {
 	int stream_enc_inst;
 	int plane_count;
 	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
-
-	/*
-	 * link this stream passes through
-	 */
-	struct dc_link *link;
 };
 
 // TODO: References to this needs to be removed..
