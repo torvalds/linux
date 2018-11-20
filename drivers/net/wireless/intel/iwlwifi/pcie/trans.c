@@ -3277,16 +3277,12 @@ static struct iwl_trans_dump_data
 	if (trans->cfg->gen2 && dump_mask & BIT(IWL_FW_ERROR_DUMP_PAGING)) {
 		for (i = 0; i < trans_pcie->init_dram.paging_cnt; i++) {
 			struct iwl_fw_error_dump_paging *paging;
-			dma_addr_t addr =
-				trans_pcie->init_dram.paging[i].physical;
 			u32 page_len = trans_pcie->init_dram.paging[i].size;
 
 			data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PAGING);
 			data->len = cpu_to_le32(sizeof(*paging) + page_len);
 			paging = (void *)data->data;
 			paging->index = cpu_to_le32(i);
-			dma_sync_single_for_cpu(trans->dev, addr, page_len,
-						DMA_BIDIRECTIONAL);
 			memcpy(paging->data,
 			       trans_pcie->init_dram.paging[i].block, page_len);
 			data = iwl_fw_error_next_data(data);

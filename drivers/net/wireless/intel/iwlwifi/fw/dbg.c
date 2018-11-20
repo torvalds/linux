@@ -815,6 +815,9 @@ static void iwl_dump_paging(struct iwl_fw_runtime *fwrt,
 					DMA_BIDIRECTIONAL);
 		memcpy(paging->data, page_address(pages),
 		       PAGING_BLOCK_SIZE);
+		dma_sync_single_for_device(fwrt->trans->dev, addr,
+					   PAGING_BLOCK_SIZE,
+					   DMA_BIDIRECTIONAL);
 		(*data) = iwl_fw_error_next_data(*data);
 	}
 }
