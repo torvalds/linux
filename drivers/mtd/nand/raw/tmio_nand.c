@@ -195,15 +195,13 @@ static int tmio_nand_wait(struct nand_chip *nand_chip)
 	reinit_completion(&tmio->comp);
 	tmio_iowrite8(0x81, tmio->fcr + FCR_IMR);
 
-	timeout = nand_chip->state == FL_ERASING ? 400 : 20;
+	timeout = 400;
 	timeout = wait_for_completion_timeout(&tmio->comp,
 					      msecs_to_jiffies(timeout));
 
 	if (unlikely(!tmio_nand_dev_ready(nand_chip))) {
 		tmio_iowrite8(0x00, tmio->fcr + FCR_IMR);
-		dev_warn(&tmio->dev->dev, "still busy with %s after %d ms\n",
-			nand_chip->state == FL_ERASING ? "erase" : "program",
-			nand_chip->state == FL_ERASING ? 400 : 20);
+		dev_warn(&tmio->dev->dev, "still busy after 400 ms\n");
 
 	} else if (unlikely(!timeout)) {
 		tmio_iowrite8(0x00, tmio->fcr + FCR_IMR);
