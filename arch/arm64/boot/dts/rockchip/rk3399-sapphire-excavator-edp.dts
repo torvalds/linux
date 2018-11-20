@@ -68,3 +68,11 @@
 		};
 	};
 };
+
+&isp0 {
+	status = "okay";
+};
+
+&isp1 {
+	status = "okay";
+};

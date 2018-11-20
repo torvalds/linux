@@ -32,3 +32,20 @@
 		};
 	};
 };
+
+&mipi_dphy_rx0 {
+	status = "okay";
+};
+
+&mipi_dphy_tx1rx1 {
+	status = "okay";
+};
+
+&rkisp1_0 {
+	status = "okay";
+};
+
+&rkisp1_1 {
+	status = "okay";
+};
+

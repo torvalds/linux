@@ -255,14 +255,6 @@
 	};
 };
 
-&isp0 {
-	status = "okay";
-};
-
-&isp1 {
-	status = "okay";
-};
-
 &isp0_mmu {
 	status = "okay";
 };
