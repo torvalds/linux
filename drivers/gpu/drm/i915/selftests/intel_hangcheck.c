@@ -1150,6 +1150,7 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 		tsk = NULL;
 		goto out_reset;
 	}
+	get_task_struct(tsk);
 
 	wait_for_completion(&arg.completion);
 
@@ -1172,6 +1173,8 @@ out_reset:
 		/* The reset, even indirectly, should take less than 10ms. */
 		igt_wedge_on_timeout(&w, i915, HZ / 10 /* 100ms timeout*/)
 			err = kthread_stop(tsk);
+
+		put_task_struct(tsk);
 	}
 
 	mutex_lock(&i915->drm.struct_mutex);
