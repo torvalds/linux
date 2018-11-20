@@ -1542,6 +1542,8 @@ static int sdma_v4_0_early_init(void *handle)
 
 	if (adev->asic_type == CHIP_RAVEN)
 		adev->sdma.num_instances = 1;
+	else if (adev->asic_type == CHIP_ARCTURUS)
+		adev->sdma.num_instances = 8;
 	else
 		adev->sdma.num_instances = 2;
 
