@@ -123,17 +123,18 @@ enum access_mode {
  * struct fsmc_nand_data - structure for FSMC NAND device state
  *
  * @pid:		Part ID on the AMBA PrimeCell format
- * @mtd:		MTD info for a NAND flash.
  * @nand:		Chip related info for a NAND flash.
- * @partitions:		Partition info for a NAND Flash.
- * @nr_partitions:	Total number of partition of a NAND flash.
  *
  * @bank:		Bank number for probed device.
+ * @dev:		Parent device
+ * @mode:		Access mode
  * @clk:		Clock structure for FSMC.
  *
  * @read_dma_chan:	DMA channel for read access
  * @write_dma_chan:	DMA channel for write access to NAND
  * @dma_access_complete: Completion structure
+ *
+ * @dev_timings:	NAND timings
  *
  * @data_pa:		NAND Physical port for Data.
  * @data_va:		NAND port for Data.
