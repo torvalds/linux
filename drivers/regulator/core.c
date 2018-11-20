@@ -1822,6 +1822,7 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 			rdev->supply = NULL;
 			return ret;
 		}
+		rdev->use_count = 1;
 	}
 
 	return 0;
@@ -2491,7 +2492,7 @@ static int _regulator_enable(struct regulator *regulator)
 
 	lockdep_assert_held_once(&rdev->mutex.base);
 
-	if (rdev->supply) {
+	if (rdev->use_count == 0 && rdev->supply) {
 		ret = _regulator_enable(rdev->supply);
 		if (ret < 0)
 			return ret;
@@ -2539,7 +2540,7 @@ err_consumer_disable:
 	_regulator_handle_consumer_disable(regulator);
 
 err_disable_supply:
-	if (rdev->supply)
+	if (rdev->use_count == 0 && rdev->supply)
 		_regulator_disable(rdev->supply);
 
 	return ret;
@@ -2648,7 +2649,7 @@ static int _regulator_disable(struct regulator *regulator)
 	if (ret == 0 && rdev->coupling_desc.n_coupled > 1)
 		ret = regulator_balance_voltage(rdev, PM_SUSPEND_ON);
 
-	if (ret == 0 && rdev->supply)
+	if (ret == 0 && rdev->use_count == 0 && rdev->supply)
 		ret = _regulator_disable(rdev->supply);
 
 	return ret;
@@ -2733,11 +2734,10 @@ int regulator_force_disable(struct regulator *regulator)
 		ret = drms_uA_update(rdev);
 	}
 
-	regulator_unlock_dependent(rdev, &ww_ctx);
+	if (rdev->use_count != 0 && rdev->supply)
+		_regulator_disable(rdev->supply);
 
-	if (rdev->supply)
-		while (rdev->open_count--)
-			regulator_disable(rdev->supply);
+	regulator_unlock_dependent(rdev, &ww_ctx);
 
 	return ret;
 }
