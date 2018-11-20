@@ -1134,9 +1134,8 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	s2mps11->ext_control_gpiod = devm_kmalloc_array(&pdev->dev,
-			rdev_num, sizeof(*s2mps11->ext_control_gpiod),
-			GFP_KERNEL);
+	s2mps11->ext_control_gpiod = devm_kcalloc(&pdev->dev, rdev_num,
+			       sizeof(*s2mps11->ext_control_gpiod), GFP_KERNEL);
 	if (!s2mps11->ext_control_gpiod)
 		return -ENOMEM;
 
