@@ -127,6 +127,8 @@ static int smc_release(struct socket *sock)
 	smc = smc_sk(sk);
 
 	/* cleanup for a dangling non-blocking connect */
+	if (smc->connect_info && sk->sk_state == SMC_INIT)
+		tcp_abort(smc->clcsock->sk, ECONNABORTED);
 	flush_work(&smc->connect_work);
 	kfree(smc->connect_info);
 	smc->connect_info = NULL;
