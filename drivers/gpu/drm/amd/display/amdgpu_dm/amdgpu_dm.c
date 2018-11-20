@@ -1772,7 +1772,7 @@ static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 		+ caps.min_input_signal * 0x101;
 
 	if (dc_link_set_backlight_level(dm->backlight_link,
-			brightness, 0, 0))
+			brightness, 0))
 		return 0;
 	else
 		return 1;
