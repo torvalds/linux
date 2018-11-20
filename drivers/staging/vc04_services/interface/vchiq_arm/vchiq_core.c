@@ -418,12 +418,11 @@ vchiq_set_conn_state(VCHIQ_STATE_T *state, VCHIQ_CONNSTATE_T newstate)
 }
 
 static inline void
-remote_event_create(VCHIQ_STATE_T *state, REMOTE_EVENT_T *event)
+remote_event_create(REMOTE_EVENT_T *event)
 {
 	event->armed = 0;
 	/* Don't clear the 'fired' flag because it may already have been set
 	** by the other side. */
-	sema_init((struct semaphore *)((char *)state + event->event), 0);
 }
 
 static inline int
@@ -2237,18 +2236,18 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero)
 	state->data_quota = state->slot_queue_available - 1;
 
 	local->trigger.event = offsetof(VCHIQ_STATE_T, trigger_event);
-	remote_event_create(state, &local->trigger);
+	remote_event_create(&local->trigger);
 	local->tx_pos = 0;
 
 	local->recycle.event = offsetof(VCHIQ_STATE_T, recycle_event);
-	remote_event_create(state, &local->recycle);
+	remote_event_create(&local->recycle);
 	local->slot_queue_recycle = state->slot_queue_available;
 
 	local->sync_trigger.event = offsetof(VCHIQ_STATE_T, sync_trigger_event);
-	remote_event_create(state, &local->sync_trigger);
+	remote_event_create(&local->sync_trigger);
 
 	local->sync_release.event = offsetof(VCHIQ_STATE_T, sync_release_event);
-	remote_event_create(state, &local->sync_release);
+	remote_event_create(&local->sync_release);
 
 	/* At start-of-day, the slot is empty and available */
 	((VCHIQ_HEADER_T *)SLOT_DATA_FROM_INDEX(state, local->slot_sync))->msgid
