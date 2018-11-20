@@ -51,6 +51,9 @@ struct dump_data {
 	__u32 sym_count;
 	__u64 *jited_ksyms;
 	__u32 nr_jited_ksyms;
+	struct btf *btf;
+	void *func_info;
+	__u32 finfo_rec_size;
 	char scratch_buff[SYM_MAX_NAME + 8];
 };
 

@@ -74,6 +74,10 @@ struct bpf_load_program_attr {
 	const char *license;
 	__u32 kern_version;
 	__u32 prog_ifindex;
+	__u32 prog_btf_fd;
+	__u32 func_info_rec_size;
+	const void *func_info;
+	__u32 func_info_cnt;
 };
 
 /* Flags to direct loading requirements */

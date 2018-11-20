@@ -5,6 +5,7 @@
 #include <linux/btf.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/filter.h>
 #include <bpf/bpf.h>
 #include <sys/resource.h>
 #include <libelf.h>
@@ -22,9 +23,13 @@
 #include "bpf_rlimit.h"
 #include "bpf_util.h"
 
+#define MAX_INSNS	512
+#define MAX_SUBPROGS	16
+
 static uint32_t pass_cnt;
 static uint32_t error_cnt;
 static uint32_t skip_cnt;
+static bool jit_enabled;
 
 #define CHECK(condition, format...) ({					\
 	int __ret = !!(condition);					\
@@ -60,6 +65,24 @@ static int __base_pr(const char *format, ...)
 	return err;
 }
 
+static bool is_jit_enabled(void)
+{
+	const char *jit_sysctl = "/proc/sys/net/core/bpf_jit_enable";
+	bool enabled = false;
+	int sysctl_fd;
+
+	sysctl_fd = open(jit_sysctl, 0, O_RDONLY);
+	if (sysctl_fd != -1) {
+		char tmpc;
+
+		if (read(sysctl_fd, &tmpc, sizeof(tmpc)) == 1)
+			enabled = (tmpc != '0');
+		close(sysctl_fd);
+	}
+
+	return enabled;
+}
+
 #define BTF_INFO_ENC(kind, root, vlen)			\
 	((!!(root) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
 
@@ -85,8 +108,20 @@ static int __base_pr(const char *format, ...)
 #define BTF_TYPEDEF_ENC(name, type) \
 	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_TYPEDEF, 0, 0), type)
 
-#define BTF_PTR_ENC(name, type) \
-	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), type)
+#define BTF_PTR_ENC(type) \
+	BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), type)
+
+#define BTF_CONST_ENC(type) \
+	BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), type)
+
+#define BTF_FUNC_PROTO_ENC(ret_type, nargs) \
+	BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_FUNC_PROTO, 0, nargs), ret_type)
+
+#define BTF_FUNC_PROTO_ARG_ENC(name, type) \
+	(name), (type)
+
+#define BTF_FUNC_ENC(name, func_proto) \
+	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_FUNC, 0, 0), func_proto)
 
 #define BTF_END_RAW 0xdeadbeef
 #define NAME_TBD 0xdeadb33f
@@ -103,6 +138,7 @@ static struct args {
 	bool get_info_test;
 	bool pprint_test;
 	bool always_log;
+	bool func_type_test;
 } args;
 
 static char btf_log_buf[BTF_LOG_BUF_SIZE];
@@ -1374,6 +1410,464 @@ static struct btf_raw_test raw_tests[] = {
 	.map_create_err = true,
 },
 
+{
+	.descr = "func proto (int (*)(int, unsigned int))",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4), /* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* int (*)(int, unsigned int) */
+		BTF_FUNC_PROTO_ENC(1, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(0, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "func proto (vararg)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int, unsigned int, ...) */
+		BTF_FUNC_PROTO_ENC(0, 3),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(0, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0, 2),
+			BTF_FUNC_PROTO_ARG_ENC(0, 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "func proto (vararg with name)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int a, unsigned int b, ... c) */
+		BTF_FUNC_PROTO_ENC(0, 3),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a\0b\0c",
+	.str_sec_size = sizeof("\0a\0b\0c"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid arg#3",
+},
+
+{
+	.descr = "func proto (arg after vararg)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int a, ..., unsigned int b) */
+		BTF_FUNC_PROTO_ENC(0, 3),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0, 0),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a\0b",
+	.str_sec_size = sizeof("\0a\0b"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid arg#2",
+},
+
+{
+	.descr = "func proto (CONST=>TYPEDEF=>PTR=>FUNC_PROTO)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* typedef void (*func_ptr)(int, unsigned int) */
+		BTF_TYPEDEF_ENC(NAME_TBD, 5),			/* [3] */
+		/* const func_ptr */
+		BTF_CONST_ENC(3),				/* [4] */
+		BTF_PTR_ENC(6),					/* [5] */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [6] */
+			BTF_FUNC_PROTO_ARG_ENC(0, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0func_ptr",
+	.str_sec_size = sizeof("\0func_ptr"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "func proto (CONST=>TYPEDEF=>FUNC_PROTO)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		BTF_CONST_ENC(4),				/* [3] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 5),			/* [4] */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [5] */
+			BTF_FUNC_PROTO_ARG_ENC(0, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0func_typedef",
+	.str_sec_size = sizeof("\0func_typedef"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid type_id",
+},
+
+{
+	.descr = "func proto (btf_resolve(arg))",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		/* void (*)(const void *) */
+		BTF_FUNC_PROTO_ENC(0, 1),			/* [2] */
+			BTF_FUNC_PROTO_ARG_ENC(0, 3),
+		BTF_CONST_ENC(4),				/* [3] */
+		BTF_PTR_ENC(0),					/* [4] */
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "func proto (Not all arg has name)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int, unsigned int b) */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(0, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0b",
+	.str_sec_size = sizeof("\0b"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "func proto (Bad arg name_off)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int a, unsigned int <bad_name_off>) */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0xffffffff, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a",
+	.str_sec_size = sizeof("\0a"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid arg#2",
+},
+
+{
+	.descr = "func proto (Bad arg name)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int a, unsigned int !!!) */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a\0!!!",
+	.str_sec_size = sizeof("\0a\0!!!"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid arg#2",
+},
+
+{
+	.descr = "func proto (Invalid return type)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* <bad_ret_type> (*)(int, unsigned int) */
+		BTF_FUNC_PROTO_ENC(100, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(0, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid return type",
+},
+
+{
+	.descr = "func proto (with func name)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void func_proto(int, unsigned int) */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_FUNC_PROTO, 0, 2), 0),	/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(0, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0, 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0func_proto",
+	.str_sec_size = sizeof("\0func_proto"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "func proto (const void arg)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(const void) */
+		BTF_FUNC_PROTO_ENC(0, 1),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(0, 4),
+		BTF_CONST_ENC(0),				/* [4] */
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid arg#1",
+},
+
+{
+	.descr = "func (void func(int a, unsigned int b))",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int a, unsigned int b) */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		/* void func(int a, unsigned int b) */
+		BTF_FUNC_ENC(NAME_TBD, 3),			/* [4] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a\0b\0func",
+	.str_sec_size = sizeof("\0a\0b\0func"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "func (No func name)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int a, unsigned int b) */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		/* void <no_name>(int a, unsigned int b) */
+		BTF_FUNC_ENC(0, 3),				/* [4] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a\0b",
+	.str_sec_size = sizeof("\0a\0b"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "func (Invalid func name)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int a, unsigned int b) */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		/* void !!!(int a, unsigned int b) */
+		BTF_FUNC_ENC(NAME_TBD, 3),			/* [4] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a\0b\0!!!",
+	.str_sec_size = sizeof("\0a\0b\0!!!"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "func (Some arg has no name)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int a, unsigned int) */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(0, 2),
+		/* void func(int a, unsigned int) */
+		BTF_FUNC_ENC(NAME_TBD, 3),			/* [4] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a\0func",
+	.str_sec_size = sizeof("\0a\0func"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid arg#2",
+},
+
+{
+	.descr = "func (Non zero vlen)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
+		/* void (*)(int a, unsigned int b) */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		/* void func(int a, unsigned int b) */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_FUNC, 0, 2), 3), 	/* [4] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0a\0b\0func",
+	.str_sec_size = sizeof("\0a\0b\0func"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "vlen != 0",
+},
+
+{
+	.descr = "func (Not referring to FUNC_PROTO)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_FUNC_ENC(NAME_TBD, 1),			/* [2] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0func",
+	.str_sec_size = sizeof("\0func"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid type_id",
+},
+
 }; /* struct btf_raw_test raw_tests[] */
 
 static const char *get_next_str(const char *start, const char *end)
@@ -1940,13 +2434,13 @@ static struct btf_file_test file_tests[] = {
 },
 };
 
-static int file_has_btf_elf(const char *fn)
+static int file_has_btf_elf(const char *fn, bool *has_btf_ext)
 {
 	Elf_Scn *scn = NULL;
 	GElf_Ehdr ehdr;
+	int ret = 0;
 	int elf_fd;
 	Elf *elf;
-	int ret;
 
 	if (CHECK(elf_version(EV_CURRENT) == EV_NONE,
 		  "elf_version(EV_CURRENT) == EV_NONE"))
@@ -1978,13 +2472,11 @@ static int file_has_btf_elf(const char *fn)
 		}
 
 		sh_name = elf_strptr(elf, ehdr.e_shstrndx, sh.sh_name);
-		if (!strcmp(sh_name, BTF_ELF_SEC)) {
+		if (!strcmp(sh_name, BTF_ELF_SEC))
 			ret = 1;
-			goto done;
-		}
+		if (!strcmp(sh_name, BTF_EXT_ELF_SEC))
+			*has_btf_ext = true;
 	}
-
-	ret = 0;
 
 done:
 	close(elf_fd);
@@ -1995,15 +2487,24 @@ done:
 static int do_test_file(unsigned int test_num)
 {
 	const struct btf_file_test *test = &file_tests[test_num - 1];
+	const char *expected_fnames[] = {"_dummy_tracepoint",
+					 "test_long_fname_1",
+					 "test_long_fname_2"};
+	struct bpf_prog_info info = {};
 	struct bpf_object *obj = NULL;
+	struct bpf_func_info *finfo;
 	struct bpf_program *prog;
+	__u32 info_len, rec_size;
+	bool has_btf_ext = false;
+	struct btf *btf = NULL;
+	void *func_info = NULL;
 	struct bpf_map *map;
-	int err;
+	int i, err, prog_fd;
 
 	fprintf(stderr, "BTF libbpf test[%u] (%s): ", test_num,
 		test->file);
 
-	err = file_has_btf_elf(test->file);
+	err = file_has_btf_elf(test->file, &has_btf_ext);
 	if (err == -1)
 		return err;
 
@@ -2031,6 +2532,7 @@ static int do_test_file(unsigned int test_num)
 	err = bpf_object__load(obj);
 	if (CHECK(err < 0, "bpf_object__load: %d", err))
 		goto done;
+	prog_fd = bpf_program__fd(prog);
 
 	map = bpf_object__find_map_by_name(obj, "btf_map");
 	if (CHECK(!map, "btf_map not found")) {
@@ -2045,9 +2547,100 @@ static int do_test_file(unsigned int test_num)
 		  test->btf_kv_notfound))
 		goto done;
 
+	if (!jit_enabled || !has_btf_ext)
+		goto skip_jit;
+
+	/* get necessary program info */
+	info_len = sizeof(struct bpf_prog_info);
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+
+	if (CHECK(err == -1, "invalid get info (1st) errno:%d", errno)) {
+		fprintf(stderr, "%s\n", btf_log_buf);
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_cnt != 3,
+		  "incorrect info.func_info_cnt (1st) %d",
+		  info.func_info_cnt)) {
+		err = -1;
+		goto done;
+	}
+	rec_size = info.func_info_rec_size;
+	if (CHECK(rec_size < 4,
+		  "incorrect info.func_info_rec_size (1st) %d\n", rec_size)) {
+		err = -1;
+		goto done;
+	}
+
+	func_info = malloc(info.func_info_cnt * rec_size);
+	if (CHECK(!func_info, "out of memeory")) {
+		err = -1;
+		goto done;
+	}
+
+	/* reset info to only retrieve func_info related data */
+	memset(&info, 0, sizeof(info));
+	info.func_info_cnt = 3;
+	info.func_info_rec_size = rec_size;
+	info.func_info = ptr_to_u64(func_info);
+
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+
+	if (CHECK(err == -1, "invalid get info (2nd) errno:%d", errno)) {
+		fprintf(stderr, "%s\n", btf_log_buf);
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_cnt != 3,
+		  "incorrect info.func_info_cnt (2nd) %d",
+		  info.func_info_cnt)) {
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_rec_size != rec_size,
+		  "incorrect info.func_info_rec_size (2nd) %d",
+		  info.func_info_rec_size)) {
+		err = -1;
+		goto done;
+	}
+
+	err = btf_get_from_id(info.btf_id, &btf);
+	if (CHECK(err, "cannot get btf from kernel, err: %d", err))
+		goto done;
+
+	/* check three functions */
+	finfo = func_info;
+	for (i = 0; i < 3; i++) {
+		const struct btf_type *t;
+		const char *fname;
+
+		t = btf__type_by_id(btf, finfo->type_id);
+		if (CHECK(!t, "btf__type_by_id failure: id %u",
+			  finfo->type_id)) {
+			err = -1;
+			goto done;
+		}
+
+		fname = btf__name_by_offset(btf, t->name_off);
+		err = strcmp(fname, expected_fnames[i]);
+		/* for the second and third functions in .text section,
+		 * the compiler may order them either way.
+		 */
+		if (i && err)
+			err = strcmp(fname, expected_fnames[3 - i]);
+		if (CHECK(err, "incorrect fname %s", fname ? : "")) {
+			err = -1;
+			goto done;
+		}
+
+		finfo = (void *)finfo + rec_size;
+	}
+
+skip_jit:
 	fprintf(stderr, "OK");
 
 done:
+	free(func_info);
 	bpf_object__close(obj);
 	return err;
 }
@@ -2477,16 +3070,310 @@ static int test_pprint(void)
 	return err;
 }
 
+static struct btf_func_type_test {
+	const char *descr;
+	const char *str_sec;
+	__u32 raw_types[MAX_NR_RAW_TYPES];
+	__u32 str_sec_size;
+	struct bpf_insn insns[MAX_INSNS];
+	__u32 prog_type;
+	__u32 func_info[MAX_SUBPROGS][2];
+	__u32 func_info_rec_size;
+	__u32 func_info_cnt;
+	bool expected_prog_load_failure;
+} func_type_test[] = {
+{
+	.descr = "func_type (main func + one sub)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 32, 4),	/* [2] */
+		BTF_FUNC_PROTO_ENC(1, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		BTF_FUNC_PROTO_ENC(1, 2),			/* [4] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 3),			/* [5] */
+		BTF_FUNC_ENC(NAME_TBD, 4),			/* [6] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0int\0unsigned int\0a\0b\0c\0d\0funcA\0funcB",
+	.str_sec_size = sizeof("\0int\0unsigned int\0a\0b\0c\0d\0funcA\0funcB"),
+	.insns = {
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 2),
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_IMM(BPF_REG_0, 2),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info = { {0, 5}, {3, 6} },
+	.func_info_rec_size = 8,
+	.func_info_cnt = 2,
+},
+
+{
+	.descr = "func_type (Incorrect func_info_rec_size)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 32, 4),	/* [2] */
+		BTF_FUNC_PROTO_ENC(1, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		BTF_FUNC_PROTO_ENC(1, 2),			/* [4] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 3),			/* [5] */
+		BTF_FUNC_ENC(NAME_TBD, 4),			/* [6] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0int\0unsigned int\0a\0b\0c\0d\0funcA\0funcB",
+	.str_sec_size = sizeof("\0int\0unsigned int\0a\0b\0c\0d\0funcA\0funcB"),
+	.insns = {
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 2),
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_IMM(BPF_REG_0, 2),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info = { {0, 5}, {3, 6} },
+	.func_info_rec_size = 4,
+	.func_info_cnt = 2,
+	.expected_prog_load_failure = true,
+},
+
+{
+	.descr = "func_type (Incorrect func_info_cnt)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 32, 4),	/* [2] */
+		BTF_FUNC_PROTO_ENC(1, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		BTF_FUNC_PROTO_ENC(1, 2),			/* [4] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 3),			/* [5] */
+		BTF_FUNC_ENC(NAME_TBD, 4),			/* [6] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0int\0unsigned int\0a\0b\0c\0d\0funcA\0funcB",
+	.str_sec_size = sizeof("\0int\0unsigned int\0a\0b\0c\0d\0funcA\0funcB"),
+	.insns = {
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 2),
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_IMM(BPF_REG_0, 2),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info = { {0, 5}, {3, 6} },
+	.func_info_rec_size = 8,
+	.func_info_cnt = 1,
+	.expected_prog_load_failure = true,
+},
+
+{
+	.descr = "func_type (Incorrect bpf_func_info.insn_offset)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 32, 4),	/* [2] */
+		BTF_FUNC_PROTO_ENC(1, 2),			/* [3] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+		BTF_FUNC_PROTO_ENC(1, 2),			/* [4] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 2),
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 3),			/* [5] */
+		BTF_FUNC_ENC(NAME_TBD, 4),			/* [6] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0int\0unsigned int\0a\0b\0c\0d\0funcA\0funcB",
+	.str_sec_size = sizeof("\0int\0unsigned int\0a\0b\0c\0d\0funcA\0funcB"),
+	.insns = {
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 2),
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_IMM(BPF_REG_0, 2),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info = { {0, 5}, {2, 6} },
+	.func_info_rec_size = 8,
+	.func_info_cnt = 2,
+	.expected_prog_load_failure = true,
+},
+
+};
+
+static size_t probe_prog_length(const struct bpf_insn *fp)
+{
+	size_t len;
+
+	for (len = MAX_INSNS - 1; len > 0; --len)
+		if (fp[len].code != 0 || fp[len].imm != 0)
+			break;
+	return len + 1;
+}
+
+static int do_test_func_type(int test_num)
+{
+	const struct btf_func_type_test *test = &func_type_test[test_num];
+	unsigned int raw_btf_size, info_len, rec_size;
+	int i, btf_fd = -1, prog_fd = -1, err = 0;
+	struct bpf_load_program_attr attr = {};
+	void *raw_btf, *func_info = NULL;
+	struct bpf_prog_info info = {};
+	struct bpf_func_info *finfo;
+
+	fprintf(stderr, "%s......", test->descr);
+	raw_btf = btf_raw_create(&hdr_tmpl, test->raw_types,
+				 test->str_sec, test->str_sec_size,
+				 &raw_btf_size);
+
+	if (!raw_btf)
+		return -1;
+
+	*btf_log_buf = '\0';
+	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
+			      btf_log_buf, BTF_LOG_BUF_SIZE,
+			      args.always_log);
+	free(raw_btf);
+
+	if (CHECK(btf_fd == -1, "invalid btf_fd errno:%d", errno)) {
+		err = -1;
+		goto done;
+	}
+
+	if (*btf_log_buf && args.always_log)
+		fprintf(stderr, "\n%s", btf_log_buf);
+
+	attr.prog_type = test->prog_type;
+	attr.insns = test->insns;
+	attr.insns_cnt = probe_prog_length(attr.insns);
+	attr.license = "GPL";
+	attr.prog_btf_fd = btf_fd;
+	attr.func_info_rec_size = test->func_info_rec_size;
+	attr.func_info_cnt = test->func_info_cnt;
+	attr.func_info = test->func_info;
+
+	*btf_log_buf = '\0';
+	prog_fd = bpf_load_program_xattr(&attr, btf_log_buf,
+					 BTF_LOG_BUF_SIZE);
+	if (test->expected_prog_load_failure && prog_fd == -1) {
+		err = 0;
+		goto done;
+	}
+	if (CHECK(prog_fd == -1, "invalid prog_id errno:%d", errno)) {
+		fprintf(stderr, "%s\n", btf_log_buf);
+		err = -1;
+		goto done;
+	}
+	if (!jit_enabled) {
+		skip_cnt++;
+		fprintf(stderr, "SKIPPED, please enable sysctl bpf_jit_enable\n");
+		err = 0;
+		goto done;
+	}
+
+	/* get necessary lens */
+	info_len = sizeof(struct bpf_prog_info);
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (CHECK(err == -1, "invalid get info (1st) errno:%d", errno)) {
+		fprintf(stderr, "%s\n", btf_log_buf);
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_cnt != 2,
+		  "incorrect info.func_info_cnt (1st) %d\n",
+		  info.func_info_cnt)) {
+		err = -1;
+		goto done;
+	}
+	rec_size = info.func_info_rec_size;
+	if (CHECK(rec_size < 4,
+		  "incorrect info.func_info_rec_size (1st) %d\n", rec_size)) {
+		err = -1;
+		goto done;
+	}
+
+	func_info = malloc(info.func_info_cnt * rec_size);
+	if (CHECK(!func_info, "out of memeory")) {
+		err = -1;
+		goto done;
+	}
+
+	/* reset info to only retrieve func_info related data */
+	memset(&info, 0, sizeof(info));
+	info.func_info_cnt = 2;
+	info.func_info_rec_size = rec_size;
+	info.func_info = ptr_to_u64(func_info);
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (CHECK(err == -1, "invalid get info (2nd) errno:%d", errno)) {
+		fprintf(stderr, "%s\n", btf_log_buf);
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_cnt != 2,
+		  "incorrect info.func_info_cnt (2nd) %d\n",
+		  info.func_info_cnt)) {
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_rec_size != rec_size,
+		  "incorrect info.func_info_rec_size (2nd) %d\n",
+		  info.func_info_rec_size)) {
+		err = -1;
+		goto done;
+	}
+
+	finfo = func_info;
+	for (i = 0; i < 2; i++) {
+		if (CHECK(finfo->type_id != test->func_info[i][1],
+			  "incorrect func_type %u expected %u",
+			  finfo->type_id, test->func_info[i][1])) {
+			err = -1;
+			goto done;
+		}
+		finfo = (void *)finfo + rec_size;
+	}
+
+done:
+	if (*btf_log_buf && (err || args.always_log))
+		fprintf(stderr, "\n%s", btf_log_buf);
+
+	if (btf_fd != -1)
+		close(btf_fd);
+	if (prog_fd != -1)
+		close(prog_fd);
+	free(func_info);
+	return err;
+}
+
+static int test_func_type(void)
+{
+	unsigned int i;
+	int err = 0;
+
+	for (i = 0; i < ARRAY_SIZE(func_type_test); i++)
+		err |= count_result(do_test_func_type(i));
+
+	return err;
+}
+
 static void usage(const char *cmd)
 {
-	fprintf(stderr, "Usage: %s [-l] [[-r test_num (1 - %zu)] | [-g test_num (1 - %zu)] | [-f test_num (1 - %zu)] | [-p]]\n",
+	fprintf(stderr, "Usage: %s [-l] [[-r test_num (1 - %zu)] |"
+			" [-g test_num (1 - %zu)] |"
+			" [-f test_num (1 - %zu)] | [-p] | [-k] ]\n",
 		cmd, ARRAY_SIZE(raw_tests), ARRAY_SIZE(get_info_tests),
 		ARRAY_SIZE(file_tests));
 }
 
 static int parse_args(int argc, char **argv)
 {
-	const char *optstr = "lpf:r:g:";
+	const char *optstr = "lpkf:r:g:";
 	int opt;
 
 	while ((opt = getopt(argc, argv, optstr)) != -1) {
@@ -2508,6 +3395,9 @@ static int parse_args(int argc, char **argv)
 			break;
 		case 'p':
 			args.pprint_test = true;
+			break;
+		case 'k':
+			args.func_type_test = true;
 			break;
 		case 'h':
 			usage(argv[0]);
@@ -2562,6 +3452,8 @@ int main(int argc, char **argv)
 	if (args.always_log)
 		libbpf_set_print(__base_pr, __base_pr, __base_pr);
 
+	jit_enabled = is_jit_enabled();
+
 	if (args.raw_test)
 		err |= test_raw();
 
@@ -2574,8 +3466,11 @@ int main(int argc, char **argv)
 	if (args.pprint_test)
 		err |= test_pprint();
 
+	if (args.func_type_test)
+		err |= test_func_type();
+
 	if (args.raw_test || args.get_info_test || args.file_test ||
-	    args.pprint_test)
+	    args.pprint_test || args.func_type_test)
 		goto done;
 
 	err |= test_raw();

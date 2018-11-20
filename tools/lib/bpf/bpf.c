@@ -186,6 +186,7 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 			   char *log_buf, size_t log_buf_sz)
 {
 	union bpf_attr attr;
+	void *finfo = NULL;
 	__u32 name_len;
 	int fd;
 
@@ -205,6 +206,10 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	attr.log_level = 0;
 	attr.kern_version = load_attr->kern_version;
 	attr.prog_ifindex = load_attr->prog_ifindex;
+	attr.prog_btf_fd = load_attr->prog_btf_fd;
+	attr.func_info_rec_size = load_attr->func_info_rec_size;
+	attr.func_info_cnt = load_attr->func_info_cnt;
+	attr.func_info = ptr_to_u64(load_attr->func_info);
 	memcpy(attr.prog_name, load_attr->name,
 	       min(name_len, BPF_OBJ_NAME_LEN - 1));
 
@@ -212,12 +217,55 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	if (fd >= 0 || !log_buf || !log_buf_sz)
 		return fd;
 
+	/* After bpf_prog_load, the kernel may modify certain attributes
+	 * to give user space a hint how to deal with loading failure.
+	 * Check to see whether we can make some changes and load again.
+	 */
+	if (errno == E2BIG && attr.func_info_cnt &&
+	    attr.func_info_rec_size < load_attr->func_info_rec_size) {
+		__u32 actual_rec_size = load_attr->func_info_rec_size;
+		__u32 expected_rec_size = attr.func_info_rec_size;
+		__u32 finfo_cnt = load_attr->func_info_cnt;
+		__u64 finfo_len = actual_rec_size * finfo_cnt;
+		const void *orecord;
+		void *nrecord;
+		int i;
+
+		finfo = malloc(finfo_len);
+		if (!finfo)
+			/* further try with log buffer won't help */
+			return fd;
+
+		/* zero out bytes kernel does not understand */
+		orecord = load_attr->func_info;
+		nrecord = finfo;
+		for (i = 0; i < load_attr->func_info_cnt; i++) {
+			memcpy(nrecord, orecord, expected_rec_size);
+			memset(nrecord + expected_rec_size, 0,
+			       actual_rec_size - expected_rec_size);
+			orecord += actual_rec_size;
+			nrecord += actual_rec_size;
+		}
+
+		/* try with corrected func info records */
+		attr.func_info = ptr_to_u64(finfo);
+		attr.func_info_rec_size = load_attr->func_info_rec_size;
+
+		fd = sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
+
+		if (fd >= 0 || !log_buf || !log_buf_sz)
+			goto done;
+	}
+
 	/* Try again with log */
 	attr.log_buf = ptr_to_u64(log_buf);
 	attr.log_size = log_buf_sz;
 	attr.log_level = 1;
 	log_buf[0] = 0;
-	return sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
+	fd = sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
+done:
+	free(finfo);
+	return fd;
 }
 
 int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,

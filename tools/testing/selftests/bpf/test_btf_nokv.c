@@ -22,8 +22,8 @@ struct dummy_tracepoint_args {
 	struct sock *sock;
 };
 
-SEC("dummy_tracepoint")
-int _dummy_tracepoint(struct dummy_tracepoint_args *arg)
+__attribute__((noinline))
+static int test_long_fname_2(struct dummy_tracepoint_args *arg)
 {
 	struct ipv_counts *counts;
 	int key = 0;
@@ -38,6 +38,18 @@ int _dummy_tracepoint(struct dummy_tracepoint_args *arg)
 	counts->v6++;
 
 	return 0;
+}
+
+__attribute__((noinline))
+static int test_long_fname_1(struct dummy_tracepoint_args *arg)
+{
+	return test_long_fname_2(arg);
+}
+
+SEC("dummy_tracepoint")
+int _dummy_tracepoint(struct dummy_tracepoint_args *arg)
+{
+	return test_long_fname_1(arg);
 }
 
 char _license[] SEC("license") = "GPL";
