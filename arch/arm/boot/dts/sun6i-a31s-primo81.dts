@@ -90,14 +90,10 @@
 
 &i2c0 {
 	/* pull-ups and device VDDIO use AXP221 DLDO3 */
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins>;
 	status = "failed";
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins>;
 	status = "okay";
 
 	ctp@5d {
@@ -110,8 +106,6 @@
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins>;
 	status = "okay";
 
 	accelerometer@1c {
@@ -145,8 +139,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
