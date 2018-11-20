@@ -10,6 +10,13 @@
 #ifndef _ASM_SYSCALL_H
 #define _ASM_SYSCALL_H
 
+#include <uapi/linux/audit.h>
+
+static inline int syscall_get_arch(void)
+{
+	return AUDIT_ARCH_XTENSA;
+}
+
 struct pt_regs;
 
 asmlinkage long xtensa_rt_sigreturn(struct pt_regs*);
