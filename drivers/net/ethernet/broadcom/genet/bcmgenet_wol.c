@@ -191,10 +191,6 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 	reg &= ~MPD_EN;
 	bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
 
-	reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
-	reg &= ~(RBUF_HFB_EN | RBUF_ACPI_EN);
-	bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
-
 	/* Disable CRC Forward */
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 	reg &= ~CMD_CRC_FWD;
