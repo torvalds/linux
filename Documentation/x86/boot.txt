@@ -61,18 +61,6 @@ Protocol 2.12:	(Kernel 3.8) Added the xloadflags field and extension fields
 	 	to struct boot_params for loading bzImage and ramdisk
 		above 4G in 64bit.
 
-Protocol 2.13:	(Kernel 3.14) Support 32- and 64-bit flags being set in
-		xloadflags to support booting a 64-bit kernel from 32-bit
-		EFI
-
-Protocol 2.14:	(Kernel 4.20) Added acpi_rsdp_addr holding the physical
-		address of the ACPI RSDP table.
-		The bootloader updates version with:
-		0x8000 | min(kernel-version, bootloader-version)
-		kernel-version being the protocol version supported by
-		the kernel and bootloader-version the protocol version
-		supported by the bootloader.
-
 **** MEMORY LAYOUT
 
 The traditional memory map for the kernel loader, used for Image or
@@ -209,7 +197,6 @@ Offset	Proto	Name		Meaning
 0258/8	2.10+	pref_address	Preferred loading address
 0260/4	2.10+	init_size	Linear memory required during initialization
 0264/4	2.11+	handover_offset	Offset of handover entry point
-0268/8	2.14+	acpi_rsdp_addr	Physical address of RSDP table
 
 (1) For backwards compatibility, if the setup_sects field contains 0, the
     real value is 4.
@@ -322,19 +309,13 @@ Protocol:	2.00+
   Contains the magic number "HdrS" (0x53726448).
 
 Field name:	version
-Type:		modify
+Type:		read
 Offset/size:	0x206/2
 Protocol:	2.00+
 
   Contains the boot protocol version, in (major << 8)+minor format,
   e.g. 0x0204 for version 2.04, and 0x0a11 for a hypothetical version
   10.17.
-
-  Up to protocol version 2.13 this information is only read by the
-  bootloader. From protocol version 2.14 onwards the bootloader will
-  write the used protocol version or-ed with 0x8000 to the field. The
-  used protocol version will be the minimum of the supported protocol
-  versions of the bootloader and the kernel.
 
 Field name:	realmode_swtch
 Type:		modify (optional)
@@ -762,17 +743,6 @@ Offset/size:	0x264/4
   handover protocol to boot the kernel should jump to this offset.
 
   See EFI HANDOVER PROTOCOL below for more details.
-
-Field name:	acpi_rsdp_addr
-Type:		write
-Offset/size:	0x268/8
-Protocol:	2.14+
-
-  This field can be set by the boot loader to tell the kernel the
-  physical address of the ACPI RSDP table.
-
-  A value of 0 indicates the kernel should fall back to the standard
-  methods to locate the RSDP.
 
 
 **** THE IMAGE CHECKSUM
