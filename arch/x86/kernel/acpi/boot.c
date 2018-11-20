@@ -1776,5 +1776,5 @@ void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)
 
 u64 x86_default_get_root_pointer(void)
 {
-	return 0;
+	return boot_params.acpi_rsdp_addr;
 }
