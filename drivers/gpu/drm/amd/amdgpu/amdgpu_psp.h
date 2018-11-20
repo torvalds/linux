@@ -150,9 +150,13 @@ struct psp_context
 
 	/* xgmi ta firmware and buffer */
 	const struct firmware		*ta_fw;
+	uint32_t			ta_fw_version;
 	uint32_t			ta_xgmi_ucode_version;
 	uint32_t			ta_xgmi_ucode_size;
 	uint8_t				*ta_xgmi_start_addr;
+	uint32_t			ta_ras_ucode_version;
+	uint32_t			ta_ras_ucode_size;
+	uint8_t				*ta_ras_start_addr;
 	struct psp_xgmi_context		xgmi_context;
 };
 
