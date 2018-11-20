@@ -110,17 +110,17 @@ void amdgpu_amdkfd_gpuvm_init_mem_limits(void)
 		(kfd_mem_limit.max_ttm_mem_limit >> 20));
 }
 
-static int amdgpu_amdkfd_reserve_system_mem_limit(struct amdgpu_device *adev,
+static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 		uint64_t size, u32 domain, bool sg)
 {
-	size_t acc_size, system_mem_needed, ttm_mem_needed;
+	size_t acc_size, system_mem_needed, ttm_mem_needed, vram_needed;
+	uint64_t reserved_for_pt = amdgpu_amdkfd_total_mem_size >> 9;
 	int ret = 0;
 
 	acc_size = ttm_bo_dma_acc_size(&adev->mman.bdev, size,
 				       sizeof(struct amdgpu_bo));
 
-	spin_lock(&kfd_mem_limit.mem_limit_lock);
-
+	vram_needed = 0;
 	if (domain == AMDGPU_GEM_DOMAIN_GTT) {
 		/* TTM GTT memory */
 		system_mem_needed = acc_size + size;
@@ -133,23 +133,30 @@ static int amdgpu_amdkfd_reserve_system_mem_limit(struct amdgpu_device *adev,
 		/* VRAM and SG */
 		system_mem_needed = acc_size;
 		ttm_mem_needed = acc_size;
+		if (domain == AMDGPU_GEM_DOMAIN_VRAM)
+			vram_needed = size;
 	}
 
+	spin_lock(&kfd_mem_limit.mem_limit_lock);
+
 	if ((kfd_mem_limit.system_mem_used + system_mem_needed >
-		kfd_mem_limit.max_system_mem_limit) ||
-		(kfd_mem_limit.ttm_mem_used + ttm_mem_needed >
-		kfd_mem_limit.max_ttm_mem_limit))
+	     kfd_mem_limit.max_system_mem_limit) ||
+	    (kfd_mem_limit.ttm_mem_used + ttm_mem_needed >
+	     kfd_mem_limit.max_ttm_mem_limit) ||
+	    (adev->kfd.vram_used + vram_needed >
+	     adev->gmc.real_vram_size - reserved_for_pt)) {
 		ret = -ENOMEM;
-	else {
+	} else {
 		kfd_mem_limit.system_mem_used += system_mem_needed;
 		kfd_mem_limit.ttm_mem_used += ttm_mem_needed;
+		adev->kfd.vram_used += vram_needed;
 	}
 
 	spin_unlock(&kfd_mem_limit.mem_limit_lock);
 	return ret;
 }
 
-static void unreserve_system_mem_limit(struct amdgpu_device *adev,
+static void unreserve_mem_limit(struct amdgpu_device *adev,
 		uint64_t size, u32 domain, bool sg)
 {
 	size_t acc_size;
@@ -167,6 +174,11 @@ static void unreserve_system_mem_limit(struct amdgpu_device *adev,
 	} else {
 		kfd_mem_limit.system_mem_used -= acc_size;
 		kfd_mem_limit.ttm_mem_used -= acc_size;
+		if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
+			adev->kfd.vram_used -= size;
+			WARN_ONCE(adev->kfd.vram_used < 0,
+				  "kfd VRAM memory accounting unbalanced");
+		}
 	}
 	WARN_ONCE(kfd_mem_limit.system_mem_used < 0,
 		  "kfd system memory accounting unbalanced");
@@ -176,29 +188,18 @@ static void unreserve_system_mem_limit(struct amdgpu_device *adev,
 	spin_unlock(&kfd_mem_limit.mem_limit_lock);
 }
 
-void amdgpu_amdkfd_unreserve_system_memory_limit(struct amdgpu_bo *bo)
+void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo)
 {
-	spin_lock(&kfd_mem_limit.mem_limit_lock);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	u32 domain = bo->preferred_domains;
+	bool sg = (bo->preferred_domains == AMDGPU_GEM_DOMAIN_CPU);
 
 	if (bo->flags & AMDGPU_AMDKFD_USERPTR_BO) {
-		kfd_mem_limit.system_mem_used -=
-			(bo->tbo.acc_size + amdgpu_bo_size(bo));
-		kfd_mem_limit.ttm_mem_used -= bo->tbo.acc_size;
-	} else if (bo->preferred_domains == AMDGPU_GEM_DOMAIN_GTT) {
-		kfd_mem_limit.system_mem_used -=
-			(bo->tbo.acc_size + amdgpu_bo_size(bo));
-		kfd_mem_limit.ttm_mem_used -=
-			(bo->tbo.acc_size + amdgpu_bo_size(bo));
-	} else {
-		kfd_mem_limit.system_mem_used -= bo->tbo.acc_size;
-		kfd_mem_limit.ttm_mem_used -= bo->tbo.acc_size;
+		domain = AMDGPU_GEM_DOMAIN_CPU;
+		sg = false;
 	}
-	WARN_ONCE(kfd_mem_limit.system_mem_used < 0,
-		  "kfd system memory accounting unbalanced");
-	WARN_ONCE(kfd_mem_limit.ttm_mem_used < 0,
-		  "kfd TTM memory accounting unbalanced");
 
-	spin_unlock(&kfd_mem_limit.mem_limit_lock);
+	unreserve_mem_limit(adev, amdgpu_bo_size(bo), domain, sg);
 }
 
 
@@ -1235,8 +1236,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 
 	amdgpu_sync_create(&(*mem)->sync);
 
-	ret = amdgpu_amdkfd_reserve_system_mem_limit(adev, size,
-						     alloc_domain, false);
+	ret = amdgpu_amdkfd_reserve_mem_limit(adev, size, alloc_domain, false);
 	if (ret) {
 		pr_debug("Insufficient system memory\n");
 		goto err_reserve_limit;
@@ -1289,7 +1289,7 @@ allocate_init_user_pages_failed:
 	/* Don't unreserve system mem limit twice */
 	goto err_reserve_limit;
 err_bo_create:
-	unreserve_system_mem_limit(adev, size, alloc_domain, false);
+	unreserve_mem_limit(adev, size, alloc_domain, false);
 err_reserve_limit:
 	mutex_destroy(&(*mem)->lock);
 	kfree(*mem);

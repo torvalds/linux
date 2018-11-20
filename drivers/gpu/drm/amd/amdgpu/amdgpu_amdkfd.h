@@ -34,6 +34,7 @@
 #include "amdgpu_vm.h"
 
 extern const struct kgd2kfd_calls *kgd2kfd;
+extern uint64_t amdgpu_amdkfd_total_mem_size;
 
 struct amdgpu_device;
 
@@ -74,6 +75,11 @@ struct amdgpu_amdkfd_fence {
 	struct mm_struct *mm;
 	spinlock_t lock;
 	char timeline_name[TASK_COMM_LEN];
+};
+
+struct amdgpu_kfd_dev {
+	struct kfd_dev *dev;
+	uint64_t vram_used;
 };
 
 struct amdgpu_amdkfd_fence *amdgpu_amdkfd_fence_create(u64 context,
@@ -195,6 +201,6 @@ int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct kgd_dev *kgd,
 					      struct kfd_vm_fault_info *info);
 
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);
-void amdgpu_amdkfd_unreserve_system_memory_limit(struct amdgpu_bo *bo);
+void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo);
 
 #endif /* AMDGPU_AMDKFD_H_INCLUDED */

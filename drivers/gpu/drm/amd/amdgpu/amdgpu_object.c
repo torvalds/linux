@@ -81,7 +81,7 @@ static void amdgpu_bo_destroy(struct ttm_buffer_object *tbo)
 		amdgpu_bo_subtract_pin_size(bo);
 
 	if (bo->kfd_bo)
-		amdgpu_amdkfd_unreserve_system_memory_limit(bo);
+		amdgpu_amdkfd_unreserve_memory_limit(bo);
 
 	amdgpu_bo_kunmap(bo);
 

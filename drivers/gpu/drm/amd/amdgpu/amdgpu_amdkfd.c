@@ -31,9 +31,19 @@ const struct kgd2kfd_calls *kgd2kfd;
 
 static const unsigned int compute_vmid_bitmap = 0xFF00;
 
+/* Total memory size in system memory and all GPU VRAM. Used to
+ * estimate worst case amount of memory to reserve for page tables
+ */
+uint64_t amdgpu_amdkfd_total_mem_size;
+
 int amdgpu_amdkfd_init(void)
 {
+	struct sysinfo si;
 	int ret;
+
+	si_meminfo(&si);
+	amdgpu_amdkfd_total_mem_size = si.totalram - si.totalhigh;
+	amdgpu_amdkfd_total_mem_size *= si.mem_unit;
 
 #ifdef CONFIG_HSA_AMD
 	ret = kgd2kfd_init(KFD_INTERFACE_VERSION, &kgd2kfd);
@@ -87,8 +97,11 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 		return;
 	}
 
-	adev->kfd = kgd2kfd->probe((struct kgd_dev *)adev,
-				   adev->pdev, kfd2kgd);
+	adev->kfd.dev = kgd2kfd->probe((struct kgd_dev *)adev,
+				       adev->pdev, kfd2kgd);
+
+	if (adev->kfd.dev)
+		amdgpu_amdkfd_total_mem_size += adev->gmc.real_vram_size;
 }
 
 /**
@@ -128,7 +141,8 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 {
 	int i, n;
 	int last_valid_bit;
-	if (adev->kfd) {
+
+	if (adev->kfd.dev) {
 		struct kgd2kfd_shared_resources gpu_resources = {
 			.compute_vmid_bitmap = compute_vmid_bitmap,
 			.num_pipe_per_mec = adev->gfx.mec.num_pipe_per_mec,
@@ -167,7 +181,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 				&gpu_resources.doorbell_start_offset);
 
 		if (adev->asic_type < CHIP_VEGA10) {
-			kgd2kfd->device_init(adev->kfd, &gpu_resources);
+			kgd2kfd->device_init(adev->kfd.dev, &gpu_resources);
 			return;
 		}
 
@@ -196,37 +210,37 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		gpu_resources.reserved_doorbell_mask = 0x1e0;
 		gpu_resources.reserved_doorbell_val  = 0x0e0;
 
-		kgd2kfd->device_init(adev->kfd, &gpu_resources);
+		kgd2kfd->device_init(adev->kfd.dev, &gpu_resources);
 	}
 }
 
 void amdgpu_amdkfd_device_fini(struct amdgpu_device *adev)
 {
-	if (adev->kfd) {
-		kgd2kfd->device_exit(adev->kfd);
-		adev->kfd = NULL;
+	if (adev->kfd.dev) {
+		kgd2kfd->device_exit(adev->kfd.dev);
+		adev->kfd.dev = NULL;
 	}
 }
 
 void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
 		const void *ih_ring_entry)
 {
-	if (adev->kfd)
-		kgd2kfd->interrupt(adev->kfd, ih_ring_entry);
+	if (adev->kfd.dev)
+		kgd2kfd->interrupt(adev->kfd.dev, ih_ring_entry);
 }
 
 void amdgpu_amdkfd_suspend(struct amdgpu_device *adev)
 {
-	if (adev->kfd)
-		kgd2kfd->suspend(adev->kfd);
+	if (adev->kfd.dev)
+		kgd2kfd->suspend(adev->kfd.dev);
 }
 
 int amdgpu_amdkfd_resume(struct amdgpu_device *adev)
 {
 	int r = 0;
 
-	if (adev->kfd)
-		r = kgd2kfd->resume(adev->kfd);
+	if (adev->kfd.dev)
+		r = kgd2kfd->resume(adev->kfd.dev);
 
 	return r;
 }
@@ -235,8 +249,8 @@ int amdgpu_amdkfd_pre_reset(struct amdgpu_device *adev)
 {
 	int r = 0;
 
-	if (adev->kfd)
-		r = kgd2kfd->pre_reset(adev->kfd);
+	if (adev->kfd.dev)
+		r = kgd2kfd->pre_reset(adev->kfd.dev);
 
 	return r;
 }
@@ -245,8 +259,8 @@ int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev)
 {
 	int r = 0;
 
-	if (adev->kfd)
-		r = kgd2kfd->post_reset(adev->kfd);
+	if (adev->kfd.dev)
+		r = kgd2kfd->post_reset(adev->kfd.dev);
 
 	return r;
 }
@@ -498,7 +512,7 @@ void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)
 {
-	if (adev->kfd) {
+	if (adev->kfd.dev) {
 		if ((1 << vmid) & compute_vmid_bitmap)
 			return true;
 	}
