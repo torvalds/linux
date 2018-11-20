@@ -43,6 +43,11 @@ enum i915_gpio {
 	GPIOM,
 };
 
+/*
+ * Keep the pipe enum values fixed: the code assumes that PIPE_A=0, the
+ * rest have consecutive values and match the enum values of transcoders
+ * with a 1:1 transcoder -> pipe mapping.
+ */
 enum pipe {
 	INVALID_PIPE = -1,
 
@@ -57,9 +62,20 @@ enum pipe {
 #define pipe_name(p) ((p) + 'A')
 
 enum transcoder {
-	TRANSCODER_A = 0,
-	TRANSCODER_B,
-	TRANSCODER_C,
+	/*
+	 * The following transcoders have a 1:1 transcoder -> pipe mapping,
+	 * keep their values fixed: the code assumes that TRANSCODER_A=0, the
+	 * rest have consecutive values and match the enum values of the pipes
+	 * they map to.
+	 */
+	TRANSCODER_A = PIPE_A,
+	TRANSCODER_B = PIPE_B,
+	TRANSCODER_C = PIPE_C,
+
+	/*
+	 * The following transcoders can map to any pipe, their enum value
+	 * doesn't need to stay fixed.
+	 */
 	TRANSCODER_EDP,
 	TRANSCODER_DSI_0,
 	TRANSCODER_DSI_1,
