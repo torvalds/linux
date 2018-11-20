@@ -2670,16 +2670,6 @@ static void regulator_disable_work(struct work_struct *work)
 		regulator_balance_voltage(rdev, PM_SUSPEND_ON);
 
 	regulator_unlock_dependent(rdev, &ww_ctx);
-
-	if (rdev->supply) {
-		for (i = 0; i < count; i++) {
-			ret = regulator_disable(rdev->supply);
-			if (ret != 0) {
-				rdev_err(rdev,
-					 "Supply disable failed: %d\n", ret);
-			}
-		}
-	}
 }
 
 /**
