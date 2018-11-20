@@ -50,6 +50,7 @@
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
 #include <linux/mlx5/srq.h>
+#include <linux/mlx5/eq.h>
 #include <linux/timecounter.h>
 #include <linux/ptp_clock_kernel.h>
 
@@ -671,6 +672,8 @@ struct mlx5_pps {
 };
 
 struct mlx5_clock {
+	struct mlx5_core_dev      *mdev;
+	struct mlx5_nb             pps_nb;
 	seqlock_t                  lock;
 	struct cyclecounter        cycles;
 	struct timecounter         tc;
@@ -678,7 +681,6 @@ struct mlx5_clock {
 	u32                        nominal_c_mult;
 	unsigned long              overflow_period;
 	struct delayed_work        overflow_work;
-	struct mlx5_core_dev      *mdev;
 	struct ptp_clock          *ptp;
 	struct ptp_clock_info      ptp_info;
 	struct mlx5_pps            pps_info;
