@@ -752,74 +752,48 @@ static void close_delivered(USER_SERVICE_T *user_service)
 }
 
 struct vchiq_io_copy_callback_context {
-	struct vchiq_element *current_element;
-	size_t current_element_offset;
+	struct vchiq_element *element;
+	size_t element_offset;
 	unsigned long elements_to_go;
-	size_t current_offset;
 };
 
-static ssize_t
-vchiq_ioc_copy_element_data(
-	void *context,
-	void *dest,
-	size_t offset,
-	size_t maxsize)
+static ssize_t vchiq_ioc_copy_element_data(void *context, void *dest,
+					   size_t offset, size_t maxsize)
 {
-	long res;
+	struct vchiq_io_copy_callback_context *cc = context;
+	size_t total_bytes_copied = 0;
 	size_t bytes_this_round;
-	struct vchiq_io_copy_callback_context *copy_context =
-		(struct vchiq_io_copy_callback_context *)context;
 
-	if (offset != copy_context->current_offset)
-		return 0;
+	while (total_bytes_copied < maxsize) {
+		if (!cc->elements_to_go)
+			return total_bytes_copied;
 
-	if (!copy_context->elements_to_go)
-		return 0;
+		if (!cc->element->size) {
+			cc->elements_to_go--;
+			cc->element++;
+			cc->element_offset = 0;
+			continue;
+		}
 
-	/*
-	 * Complex logic here to handle the case of 0 size elements
-	 * in the middle of the array of elements.
-	 *
-	 * Need to skip over these 0 size elements.
-	 */
-	while (1) {
-		bytes_this_round = min(copy_context->current_element->size -
-				       copy_context->current_element_offset,
-				       maxsize);
+		bytes_this_round = min(cc->element->size - cc->element_offset,
+				       maxsize - total_bytes_copied);
 
-		if (bytes_this_round)
-			break;
+		if (copy_from_user(dest + total_bytes_copied,
+				  cc->element->data + cc->element_offset,
+				  bytes_this_round))
+			return -EFAULT;
 
-		copy_context->elements_to_go--;
-		copy_context->current_element++;
-		copy_context->current_element_offset = 0;
+		cc->element_offset += bytes_this_round;
+		total_bytes_copied += bytes_this_round;
 
-		if (!copy_context->elements_to_go)
-			return 0;
+		if (cc->element_offset == cc->element->size) {
+			cc->elements_to_go--;
+			cc->element++;
+			cc->element_offset = 0;
+		}
 	}
 
-	res = copy_from_user(dest,
-			     copy_context->current_element->data +
-			     copy_context->current_element_offset,
-			     bytes_this_round);
-
-	if (res != 0)
-		return -EFAULT;
-
-	copy_context->current_element_offset += bytes_this_round;
-	copy_context->current_offset += bytes_this_round;
-
-	/*
-	 * Check if done with current element, and if so advance to the next.
-	 */
-	if (copy_context->current_element_offset ==
-	    copy_context->current_element->size) {
-		copy_context->elements_to_go--;
-		copy_context->current_element++;
-		copy_context->current_element_offset = 0;
-	}
-
-	return bytes_this_round;
+	return maxsize;
 }
 
 /**************************************************************************
@@ -836,10 +810,9 @@ vchiq_ioc_queue_message(VCHIQ_SERVICE_HANDLE_T handle,
 	unsigned long i;
 	size_t total_size = 0;
 
-	context.current_element = elements;
-	context.current_element_offset = 0;
+	context.element = elements;
+	context.element_offset = 0;
 	context.elements_to_go = count;
-	context.current_offset = 0;
 
 	for (i = 0; i < count; i++) {
 		if (!elements[i].data && elements[i].size != 0)
