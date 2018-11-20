@@ -643,6 +643,7 @@ struct tc_cls_common_offload {
 
 struct tc_cls_u32_knode {
 	struct tcf_exts *exts;
+	struct tcf_result *res;
 	struct tc_u32_sel *sel;
 	u32 handle;
 	u32 val;
@@ -865,6 +866,50 @@ struct tc_red_qopt_offload {
 		struct tc_qopt_offload_stats stats;
 		struct red_stats *xstats;
 		u32 child_handle;
+	};
+};
+
+enum tc_gred_command {
+	TC_GRED_REPLACE,
+	TC_GRED_DESTROY,
+	TC_GRED_STATS,
+};
+
+struct tc_gred_vq_qopt_offload_params {
+	bool present;
+	u32 limit;
+	u32 prio;
+	u32 min;
+	u32 max;
+	bool is_ecn;
+	bool is_harddrop;
+	u32 probability;
+	/* Only need backlog, see struct tc_prio_qopt_offload_params */
+	u32 *backlog;
+};
+
+struct tc_gred_qopt_offload_params {
+	bool grio_on;
+	bool wred_on;
+	unsigned int dp_cnt;
+	unsigned int dp_def;
+	struct gnet_stats_queue *qstats;
+	struct tc_gred_vq_qopt_offload_params tab[MAX_DPs];
+};
+
+struct tc_gred_qopt_offload_stats {
+	struct gnet_stats_basic_packed bstats[MAX_DPs];
+	struct gnet_stats_queue qstats[MAX_DPs];
+	struct red_stats *xstats[MAX_DPs];
+};
+
+struct tc_gred_qopt_offload {
+	enum tc_gred_command command;
+	u32 handle;
+	u32 parent;
+	union {
+		struct tc_gred_qopt_offload_params set;
+		struct tc_gred_qopt_offload_stats stats;
 	};
 };
 
