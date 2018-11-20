@@ -169,8 +169,6 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 	char *sep, *name, *next;
 
 	/* Process "security=", if given. */
-	if (!chosen_major_lsm)
-		chosen_major_lsm = CONFIG_DEFAULT_SECURITY;
 	if (chosen_major_lsm) {
 		struct lsm_info *major;
 
@@ -198,8 +196,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		bool found = false;
 
 		for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
-			if ((lsm->flags & LSM_FLAG_LEGACY_MAJOR) == 0 &&
-			    strcmp(lsm->name, name) == 0) {
+			if (strcmp(lsm->name, name) == 0) {
 				append_ordered_lsm(lsm, origin);
 				found = true;
 			}
@@ -208,6 +205,25 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		if (!found)
 			init_debug("%s ignored: %s\n", origin, name);
 	}
+
+	/* Process "security=", if given. */
+	if (chosen_major_lsm) {
+		for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
+			if (exists_ordered_lsm(lsm))
+				continue;
+			if (strcmp(lsm->name, chosen_major_lsm) == 0)
+				append_ordered_lsm(lsm, "security=");
+		}
+	}
+
+	/* Disable all LSMs not in the ordered list. */
+	for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
+		if (exists_ordered_lsm(lsm))
+			continue;
+		set_enabled(lsm, false);
+		init_debug("%s disabled: %s\n", origin, lsm->name);
+	}
+
 	kfree(sep);
 }
 
@@ -227,22 +243,6 @@ static void __init ordered_lsm_init(void)
 		maybe_initialize_lsm(*lsm);
 
 	kfree(ordered_lsms);
-}
-
-static void __init major_lsm_init(void)
-{
-	struct lsm_info *lsm;
-
-	for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
-		if ((lsm->flags & LSM_FLAG_LEGACY_MAJOR) == 0)
-			continue;
-
-		/* Enable this LSM, if it is not already set. */
-		if (!lsm->enabled)
-			lsm->enabled = &lsm_enabled_true;
-
-		maybe_initialize_lsm(lsm);
-	}
 }
 
 /**
@@ -270,11 +270,6 @@ int __init security_init(void)
 
 	/* Load LSMs in specified order. */
 	ordered_lsm_init();
-
-	/*
-	 * Load all the remaining security modules.
-	 */
-	major_lsm_init();
 
 	return 0;
 }
