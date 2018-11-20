@@ -129,7 +129,7 @@
 };
 
 &pio {
-	led_pins_itead_core: led_pins@0 {
+	led_pins_itead_core: led-pins {
 		pins = "PH20","PH21";
 		function = "gpio_out";
 		drive-strength = <20>;

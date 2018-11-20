@@ -239,7 +239,7 @@
 };
 
 &pio {
-	led_pins_olimex_som_evb: led_pins@0 {
+	led_pins_olimex_som_evb: led-pins {
 		pins = "PH2";
 		function = "gpio_out";
 		drive-strength = <20>;
