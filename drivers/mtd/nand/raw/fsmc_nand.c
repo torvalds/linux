@@ -344,7 +344,7 @@ static int fsmc_calc_timings(struct fsmc_nand_data *host,
 static int fsmc_setup_data_interface(struct nand_chip *nand, int csline,
 				     const struct nand_data_interface *conf)
 {
-	struct fsmc_nand_data *host = nand_get_controller_data(nand);
+	struct fsmc_nand_data *host = nand_to_fsmc(nand);
 	struct fsmc_nand_timings tims;
 	const struct nand_sdr_timings *sdrt;
 	int ret;
@@ -1076,7 +1076,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	/* Link all private pointers */
 	mtd = nand_to_mtd(&host->nand);
-	nand_set_controller_data(nand, host);
 	nand_set_flash_node(nand, pdev->dev.of_node);
 
 	mtd->dev.parent = &pdev->dev;
