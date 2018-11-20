@@ -104,7 +104,7 @@ NOTE: Only ONE of the three must be enabled
 					 *
 					 * 31:14 Base Addr of 16K memory-mapped
 					 *	configuration space
-					 * 13:1  reserverd
+					 * 13:1  reserved
 					 *  0    mem-mapped config space enable
 					 */
 
