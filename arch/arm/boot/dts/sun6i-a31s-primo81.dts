@@ -154,7 +154,7 @@
 };
 
 &pio {
-	mma8452_int_primo81: mma8452_int_pin@0 {
+	mma8452_int_primo81: mma8452-int-pin {
 		pins = "PA9";
 		function = "gpio_in";
 		bias-pull-up;

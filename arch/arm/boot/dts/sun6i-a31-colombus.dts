@@ -122,7 +122,7 @@
 };
 
 &pio {
-	i2c_lcd_pins: i2c_lcd_pin@0 {
+	i2c_lcd_pins: i2c-lcd-pins {
 		pins = "PA23", "PA24";
 		function = "gpio_out";
 		bias-pull-up;
