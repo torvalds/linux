@@ -2170,65 +2170,6 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero)
 		return VCHIQ_ERROR;
 	}
 
-	/* Check the input configuration */
-
-	if (slot_zero->magic != VCHIQ_MAGIC) {
-		vchiq_loud_error_header();
-		vchiq_loud_error("Invalid VCHIQ magic value found.");
-		vchiq_loud_error("slot_zero=%pK: magic=%x (expected %x)",
-			slot_zero, slot_zero->magic, VCHIQ_MAGIC);
-		vchiq_loud_error_footer();
-		return VCHIQ_ERROR;
-	}
-
-	if (slot_zero->version < VCHIQ_VERSION_MIN) {
-		vchiq_loud_error_header();
-		vchiq_loud_error("Incompatible VCHIQ versions found.");
-		vchiq_loud_error("slot_zero=%pK: VideoCore version=%d (minimum %d)",
-			slot_zero, slot_zero->version, VCHIQ_VERSION_MIN);
-		vchiq_loud_error("Restart with a newer VideoCore image.");
-		vchiq_loud_error_footer();
-		return VCHIQ_ERROR;
-	}
-
-	if (VCHIQ_VERSION < slot_zero->version_min) {
-		vchiq_loud_error_header();
-		vchiq_loud_error("Incompatible VCHIQ versions found.");
-		vchiq_loud_error("slot_zero=%pK: version=%d (VideoCore minimum %d)",
-			slot_zero, VCHIQ_VERSION, slot_zero->version_min);
-		vchiq_loud_error("Restart with a newer kernel.");
-		vchiq_loud_error_footer();
-		return VCHIQ_ERROR;
-	}
-
-	if ((slot_zero->slot_zero_size != sizeof(VCHIQ_SLOT_ZERO_T)) ||
-		 (slot_zero->slot_size != VCHIQ_SLOT_SIZE) ||
-		 (slot_zero->max_slots != VCHIQ_MAX_SLOTS) ||
-		 (slot_zero->max_slots_per_side != VCHIQ_MAX_SLOTS_PER_SIDE)) {
-		vchiq_loud_error_header();
-		if (slot_zero->slot_zero_size != sizeof(VCHIQ_SLOT_ZERO_T))
-			vchiq_loud_error("slot_zero=%pK: slot_zero_size=%d (expected %d)",
-				slot_zero, slot_zero->slot_zero_size,
-				(int)sizeof(VCHIQ_SLOT_ZERO_T));
-		if (slot_zero->slot_size != VCHIQ_SLOT_SIZE)
-			vchiq_loud_error("slot_zero=%pK: slot_size=%d (expected %d)",
-				slot_zero, slot_zero->slot_size,
-				VCHIQ_SLOT_SIZE);
-		if (slot_zero->max_slots != VCHIQ_MAX_SLOTS)
-			vchiq_loud_error("slot_zero=%pK: max_slots=%d (expected %d)",
-				slot_zero, slot_zero->max_slots,
-				VCHIQ_MAX_SLOTS);
-		if (slot_zero->max_slots_per_side != VCHIQ_MAX_SLOTS_PER_SIDE)
-			vchiq_loud_error("slot_zero=%pK: max_slots_per_side=%d (expected %d)",
-				slot_zero, slot_zero->max_slots_per_side,
-				VCHIQ_MAX_SLOTS_PER_SIDE);
-		vchiq_loud_error_footer();
-		return VCHIQ_ERROR;
-	}
-
-	if (VCHIQ_VERSION < slot_zero->version)
-		slot_zero->version = VCHIQ_VERSION;
-
 	local = &slot_zero->slave;
 	remote = &slot_zero->master;
 
