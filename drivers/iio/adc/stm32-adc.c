@@ -1518,7 +1518,7 @@ static int stm32_adc_dma_start(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
+static int __stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
@@ -1542,10 +1542,6 @@ static int stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
 		goto err_clr_trig;
 	}
 
-	ret = iio_triggered_buffer_postenable(indio_dev);
-	if (ret < 0)
-		goto err_stop_dma;
-
 	/* Reset adc buffer index */
 	adc->bufi = 0;
 
@@ -1556,9 +1552,6 @@ static int stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
 
 	return 0;
 
-err_stop_dma:
-	if (adc->dma_chan)
-		dmaengine_terminate_all(adc->dma_chan);
 err_clr_trig:
 	stm32_adc_set_trig(indio_dev, NULL);
 err_pm_put:
@@ -1568,19 +1561,29 @@ err_pm_put:
 	return ret;
 }
 
-static int stm32_adc_buffer_predisable(struct iio_dev *indio_dev)
+static int stm32_adc_buffer_postenable(struct iio_dev *indio_dev)
+{
+	int ret;
+
+	ret = iio_triggered_buffer_postenable(indio_dev);
+	if (ret < 0)
+		return ret;
+
+	ret = __stm32_adc_buffer_postenable(indio_dev);
+	if (ret < 0)
+		iio_triggered_buffer_predisable(indio_dev);
+
+	return ret;
+}
+
+static void __stm32_adc_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
-	int ret;
 
 	adc->cfg->stop_conv(adc);
 	if (!adc->dma_chan)
 		stm32_adc_conv_irq_disable(adc);
-
-	ret = iio_triggered_buffer_predisable(indio_dev);
-	if (ret < 0)
-		dev_err(&indio_dev->dev, "predisable failed\n");
 
 	if (adc->dma_chan)
 		dmaengine_terminate_all(adc->dma_chan);
@@ -1590,6 +1593,17 @@ static int stm32_adc_buffer_predisable(struct iio_dev *indio_dev)
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
+}
+
+static int stm32_adc_buffer_predisable(struct iio_dev *indio_dev)
+{
+	int ret;
+
+	__stm32_adc_buffer_predisable(indio_dev);
+
+	ret = iio_triggered_buffer_predisable(indio_dev);
+	if (ret < 0)
+		dev_err(&indio_dev->dev, "predisable failed\n");
 
 	return ret;
 }
@@ -2013,6 +2027,40 @@ static int stm32_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined(CONFIG_PM_SLEEP)
+static int stm32_adc_suspend(struct device *dev)
+{
+	struct stm32_adc *adc = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+
+	if (iio_buffer_enabled(indio_dev))
+		__stm32_adc_buffer_predisable(indio_dev);
+
+	return pm_runtime_force_suspend(dev);
+}
+
+static int stm32_adc_resume(struct device *dev)
+{
+	struct stm32_adc *adc = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = iio_priv_to_dev(adc);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret < 0)
+		return ret;
+
+	if (!iio_buffer_enabled(indio_dev))
+		return 0;
+
+	ret = stm32_adc_update_scan_mode(indio_dev,
+					 indio_dev->active_scan_mask);
+	if (ret < 0)
+		return ret;
+
+	return __stm32_adc_buffer_postenable(indio_dev);
+}
+#endif
+
 #if defined(CONFIG_PM)
 static int stm32_adc_runtime_suspend(struct device *dev)
 {
@@ -2026,8 +2074,7 @@ static int stm32_adc_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops stm32_adc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(stm32_adc_suspend, stm32_adc_resume)
 	SET_RUNTIME_PM_OPS(stm32_adc_runtime_suspend, stm32_adc_runtime_resume,
 			   NULL)
 };
