@@ -622,9 +622,13 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 		if (ret)
 			goto out_kunmap;
 
-		ret = qxl_release_reserve_list(release, true);
+		ret = qxl_bo_pin(cursor_bo);
 		if (ret)
 			goto out_free_bo;
+
+		ret = qxl_release_reserve_list(release, true);
+		if (ret)
+			goto out_unpin;
 
 		ret = qxl_bo_kmap(cursor_bo, (void **)&cursor);
 		if (ret)
@@ -670,6 +674,8 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
 	qxl_release_fence_buffer_objects(release);
 
+	if (old_cursor_bo != NULL)
+		qxl_bo_unpin(old_cursor_bo);
 	qxl_bo_unref(&old_cursor_bo);
 	qxl_bo_unref(&cursor_bo);
 
@@ -677,6 +683,8 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 
 out_backoff:
 	qxl_release_backoff_reserve_list(release);
+out_unpin:
+	qxl_bo_unpin(cursor_bo);
 out_free_bo:
 	qxl_bo_unref(&cursor_bo);
 out_kunmap:
