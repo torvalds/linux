@@ -806,7 +806,8 @@ static const struct net_device_ops hinic_netdev_ops = {
 static void netdev_features_init(struct net_device *netdev)
 {
 	netdev->hw_features = NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM |
-			      NETIF_F_IPV6_CSUM | NETIF_F_TSO | NETIF_F_TSO6;
+			      NETIF_F_IPV6_CSUM | NETIF_F_TSO | NETIF_F_TSO6 |
+			      NETIF_F_RXCSUM;
 
 	netdev->vlan_features = netdev->hw_features;
 
@@ -869,11 +870,15 @@ static int set_features(struct hinic_dev *nic_dev,
 			netdev_features_t features, bool force_change)
 {
 	netdev_features_t changed = force_change ? ~0 : pre_features ^ features;
+	u32 csum_en = HINIC_RX_CSUM_OFFLOAD_EN;
 	int err = 0;
 
 	if (changed & NETIF_F_TSO)
 		err = hinic_port_set_tso(nic_dev, (features & NETIF_F_TSO) ?
 					 HINIC_TSO_ENABLE : HINIC_TSO_DISABLE);
+
+	if (changed & NETIF_F_RXCSUM)
+		err = hinic_set_rx_csum_offload(nic_dev, csum_en);
 
 	return err;
 }

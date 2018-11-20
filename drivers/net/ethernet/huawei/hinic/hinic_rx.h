@@ -23,6 +23,10 @@
 
 #include "hinic_hw_qp.h"
 
+#define HINIC_RX_CSUM_OFFLOAD_EN	0xFFF
+#define HINIC_RX_CSUM_HW_CHECK_NONE	BIT(7)
+#define HINIC_RX_CSUM_IPSU_OTHER_ERR	BIT(8)
+
 struct hinic_rxq_stats {
 	u64                     pkts;
 	u64                     bytes;

@@ -89,6 +89,28 @@ static void rxq_stats_init(struct hinic_rxq *rxq)
 	hinic_rxq_clean_stats(rxq);
 }
 
+static void rx_csum(struct hinic_rxq *rxq, u16 cons_idx,
+		    struct sk_buff *skb)
+{
+	struct net_device *netdev = rxq->netdev;
+	struct hinic_rq_cqe *cqe;
+	struct hinic_rq *rq;
+	u32 csum_err;
+	u32 status;
+
+	rq = rxq->rq;
+	cqe = rq->cqe[cons_idx];
+	status = be32_to_cpu(cqe->status);
+	csum_err = HINIC_RQ_CQE_STATUS_GET(status, CSUM_ERR);
+
+	if (!(netdev->features & NETIF_F_RXCSUM))
+		return;
+
+	if (!csum_err)
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	else
+		skb->ip_summed = CHECKSUM_NONE;
+}
 /**
  * rx_alloc_skb - allocate skb and map it to dma address
  * @rxq: rx queue
@@ -327,6 +349,8 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 		hinic_rq_get_sge(rxq->rq, rq_wqe, ci, &sge);
 
 		rx_unmap_skb(rxq, hinic_sge_to_dma(&sge));
+
+		rx_csum(rxq, ci, skb);
 
 		prefetch(skb->data);
 
