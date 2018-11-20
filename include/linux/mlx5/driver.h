@@ -278,6 +278,8 @@ struct mlx5_cmd_stats {
 };
 
 struct mlx5_cmd {
+	struct mlx5_nb    nb;
+
 	void	       *cmd_alloc_buf;
 	dma_addr_t	alloc_dma;
 	int		alloc_size;

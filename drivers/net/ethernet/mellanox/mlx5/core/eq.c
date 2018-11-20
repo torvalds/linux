@@ -368,10 +368,6 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 			mlx5_srq_event(dev, rsn, eqe->type);
 			break;
 
-		case MLX5_EVENT_TYPE_CMD:
-			mlx5_cmd_comp_handler(dev, be32_to_cpu(eqe->data.cmd.vector), false);
-			break;
-
 		case MLX5_EVENT_TYPE_PORT_CHANGE:
 			port = (eqe->data.port.port >> 4) & 0xf;
 			switch (eqe->sub_type) {
