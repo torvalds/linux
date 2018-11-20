@@ -1672,12 +1672,40 @@ static int set_pflag_rx_no_csum_complete(struct net_device *netdev, bool enable)
 	return 0;
 }
 
+static int set_pflag_xdp_tx_mpwqe(struct net_device *netdev, bool enable)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_channels new_channels = {};
+	int err;
+
+	if (enable && !MLX5_CAP_ETH(mdev, enhanced_multi_pkt_send_wqe))
+		return -EOPNOTSUPP;
+
+	new_channels.params = priv->channels.params;
+
+	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_XDP_TX_MPWQE, enable);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		priv->channels.params = new_channels.params;
+		return 0;
+	}
+
+	err = mlx5e_open_channels(priv, &new_channels);
+	if (err)
+		return err;
+
+	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
+	return 0;
+}
+
 static const struct pflag_desc mlx5e_priv_flags[MLX5E_NUM_PFLAGS] = {
 	{ "rx_cqe_moder",        set_pflag_rx_cqe_based_moder },
 	{ "tx_cqe_moder",        set_pflag_tx_cqe_based_moder },
 	{ "rx_cqe_compress",     set_pflag_rx_cqe_compress },
 	{ "rx_striding_rq",      set_pflag_rx_striding_rq },
 	{ "rx_no_csum_complete", set_pflag_rx_no_csum_complete },
+	{ "xdp_tx_mpwqe",        set_pflag_xdp_tx_mpwqe },
 };
 
 static int mlx5e_handle_pflag(struct net_device *netdev,

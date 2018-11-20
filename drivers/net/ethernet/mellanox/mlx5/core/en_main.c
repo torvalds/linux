@@ -2341,7 +2341,7 @@ static void mlx5e_build_xdpsq_param(struct mlx5e_priv *priv,
 
 	mlx5e_build_sq_param_common(priv, param);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
-	param->is_mpw = MLX5_CAP_ETH(priv->mdev, enhanced_multi_pkt_send_wqe);
+	param->is_mpw = MLX5E_GET_PFLAG(params, MLX5E_PFLAG_XDP_TX_MPWQE);
 }
 
 static void mlx5e_build_channel_param(struct mlx5e_priv *priv,
@@ -4594,6 +4594,10 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	params->log_sq_size = is_kdump_kernel() ?
 		MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE :
 		MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
+
+	/* XDP SQ */
+	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_XDP_TX_MPWQE,
+			MLX5_CAP_ETH(mdev, enhanced_multi_pkt_send_wqe));
 
 	/* set CQE compression */
 	params->rx_cqe_compress_def = false;
