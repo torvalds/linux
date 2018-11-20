@@ -409,10 +409,6 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 			}
 			break;
 
-		case MLX5_EVENT_TYPE_NIC_VPORT_CHANGE:
-			mlx5_eswitch_vport_event(dev->priv.eswitch, eqe);
-			break;
-
 		case MLX5_EVENT_TYPE_PORT_MODULE_EVENT:
 			mlx5_port_module_event(dev, eqe);
 			break;
