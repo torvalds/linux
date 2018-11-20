@@ -159,9 +159,6 @@
 	};
 };
 
-&sram_a {
-};
-
 &tcon0_out {
 	tcon0_out_hdmi: endpoint@2 {
 		reg = <2>;
