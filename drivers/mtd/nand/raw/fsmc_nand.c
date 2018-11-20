@@ -122,6 +122,7 @@ enum access_mode {
 /**
  * struct fsmc_nand_data - structure for FSMC NAND device state
  *
+ * @base:		Inherit from the nand_controller struct
  * @pid:		Part ID on the AMBA PrimeCell format
  * @nand:		Chip related info for a NAND flash.
  *
@@ -143,6 +144,7 @@ enum access_mode {
  * @regs_va:		Registers base address for a given bank.
  */
 struct fsmc_nand_data {
+	struct nand_controller	base;
 	u32			pid;
 	struct nand_chip	nand;
 
@@ -1117,10 +1119,13 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		nand->ecc.strength = 8;
 	}
 
+	nand_controller_init(&host->base);
+	host->base.ops = &fsmc_nand_controller_ops;
+	nand->controller = &host->base;
+
 	/*
 	 * Scan to find existence of the device
 	 */
-	nand->dummy_controller.ops = &fsmc_nand_controller_ops;
 	ret = nand_scan(nand, 1);
 	if (ret)
 		goto release_dma_write_chan;
