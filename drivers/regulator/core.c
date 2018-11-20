@@ -211,6 +211,7 @@ void regulator_lock(struct regulator_dev *rdev)
 {
 	regulator_lock_nested(rdev, NULL);
 }
+EXPORT_SYMBOL_GPL(regulator_lock);
 
 /**
  * regulator_unlock - unlock a single regulator
@@ -232,6 +233,7 @@ void regulator_unlock(struct regulator_dev *rdev)
 
 	mutex_unlock(&regulator_nesting_mutex);
 }
+EXPORT_SYMBOL_GPL(regulator_unlock);
 
 static bool regulator_supply_is_couple(struct regulator_dev *rdev)
 {
