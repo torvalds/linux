@@ -119,6 +119,11 @@
 	compatible = "allwinner,sun5i-a10s-ccu";
 };
 
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+};
+
 &pio {
 	compatible = "allwinner,sun5i-a10s-pinctrl";
 
