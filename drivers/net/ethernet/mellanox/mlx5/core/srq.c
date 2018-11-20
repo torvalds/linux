@@ -36,13 +36,25 @@
 #include <linux/mlx5/cmd.h>
 #include <linux/mlx5/srq.h>
 #include <rdma/ib_verbs.h>
-#include "mlx5_core.h"
 #include <linux/mlx5/transobj.h>
+#include "mlx5_core.h"
+#include "lib/eq.h"
 
-void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type)
+static int srq_event_notifier(struct mlx5_srq_table *table,
+			      unsigned long type, void *data)
 {
-	struct mlx5_srq_table *table = &dev->priv.srq_table;
+	struct mlx5_core_dev *dev;
 	struct mlx5_core_srq *srq;
+	struct mlx5_priv *priv;
+	struct mlx5_eqe *eqe;
+	u32 srqn;
+
+	priv  = container_of(table, struct mlx5_priv, srq_table);
+	dev   = container_of(priv, struct mlx5_core_dev, priv);
+
+	eqe = data;
+	srqn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
+	mlx5_core_dbg(dev, "SRQ event (%d): srqn 0x%x\n", eqe->type, srqn);
 
 	spin_lock(&table->lock);
 
@@ -54,13 +66,35 @@ void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type)
 
 	if (!srq) {
 		mlx5_core_warn(dev, "Async event for bogus SRQ 0x%08x\n", srqn);
-		return;
+		return NOTIFY_OK;
 	}
 
-	srq->event(srq, event_type);
+	srq->event(srq, eqe->type);
 
 	if (atomic_dec_and_test(&srq->refcount))
 		complete(&srq->free);
+
+	return NOTIFY_OK;
+}
+
+static int catas_err_notifier(struct notifier_block *nb,
+			      unsigned long type, void *data)
+{
+	struct mlx5_srq_table *table;
+
+	table = mlx5_nb_cof(nb, struct mlx5_srq_table, catas_err_nb);
+	/* type == MLX5_EVENT_TYPE_SRQ_CATAS_ERROR */
+	return srq_event_notifier(table, type, data);
+}
+
+static int rq_limit_notifier(struct notifier_block *nb,
+			     unsigned long type, void *data)
+{
+	struct mlx5_srq_table *table;
+
+	table = mlx5_nb_cof(nb, struct mlx5_srq_table, rq_limit_nb);
+	/* type == MLX5_EVENT_TYPE_SRQ_RQ_LIMIT */
+	return srq_event_notifier(table, type, data);
 }
 
 static int get_pas_size(struct mlx5_srq_attr *in)
@@ -708,9 +742,18 @@ void mlx5_init_srq_table(struct mlx5_core_dev *dev)
 	memset(table, 0, sizeof(*table));
 	spin_lock_init(&table->lock);
 	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
+
+	MLX5_NB_INIT(&table->catas_err_nb, catas_err_notifier, SRQ_CATAS_ERROR);
+	mlx5_eq_notifier_register(dev, &table->catas_err_nb);
+
+	MLX5_NB_INIT(&table->rq_limit_nb, rq_limit_notifier, SRQ_RQ_LIMIT);
+	mlx5_eq_notifier_register(dev, &table->rq_limit_nb);
 }
 
 void mlx5_cleanup_srq_table(struct mlx5_core_dev *dev)
 {
-	/* nothing */
+	struct mlx5_srq_table *table = &dev->priv.srq_table;
+
+	mlx5_eq_notifier_unregister(dev, &table->rq_limit_nb);
+	mlx5_eq_notifier_unregister(dev, &table->catas_err_nb);
 }

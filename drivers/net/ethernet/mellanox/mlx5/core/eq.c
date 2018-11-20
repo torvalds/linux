@@ -324,7 +324,6 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 	struct mlx5_eqe *eqe;
 	int set_ci = 0;
 	u32 cqn = -1;
-	u32 rsn;
 	u8 port;
 
 	dev = eq->dev;
@@ -340,34 +339,6 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 		mlx5_core_dbg(eq->dev, "eqn %d, eqe type %s\n",
 			      eq->eqn, eqe_type_str(eqe->type));
 		switch (eqe->type) {
-		case MLX5_EVENT_TYPE_DCT_DRAINED:
-			rsn = be32_to_cpu(eqe->data.dct.dctn) & 0xffffff;
-			rsn |= (MLX5_RES_DCT << MLX5_USER_INDEX_LEN);
-			mlx5_rsc_event(dev, rsn, eqe->type);
-			break;
-		case MLX5_EVENT_TYPE_PATH_MIG:
-		case MLX5_EVENT_TYPE_COMM_EST:
-		case MLX5_EVENT_TYPE_SQ_DRAINED:
-		case MLX5_EVENT_TYPE_SRQ_LAST_WQE:
-		case MLX5_EVENT_TYPE_WQ_CATAS_ERROR:
-		case MLX5_EVENT_TYPE_PATH_MIG_FAILED:
-		case MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR:
-		case MLX5_EVENT_TYPE_WQ_ACCESS_ERROR:
-			rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
-			rsn |= (eqe->data.qp_srq.type << MLX5_USER_INDEX_LEN);
-			mlx5_core_dbg(dev, "event %s(%d) arrived on resource 0x%x\n",
-				      eqe_type_str(eqe->type), eqe->type, rsn);
-			mlx5_rsc_event(dev, rsn, eqe->type);
-			break;
-
-		case MLX5_EVENT_TYPE_SRQ_RQ_LIMIT:
-		case MLX5_EVENT_TYPE_SRQ_CATAS_ERROR:
-			rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
-			mlx5_core_dbg(dev, "SRQ event %s(%d): srqn 0x%x\n",
-				      eqe_type_str(eqe->type), eqe->type, rsn);
-			mlx5_srq_event(dev, rsn, eqe->type);
-			break;
-
 		case MLX5_EVENT_TYPE_PORT_CHANGE:
 			port = (eqe->data.port.port >> 4) & 0xf;
 			switch (eqe->sub_type) {

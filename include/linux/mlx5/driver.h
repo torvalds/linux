@@ -464,6 +464,8 @@ struct mlx5_core_health {
 };
 
 struct mlx5_qp_table {
+	struct mlx5_nb          nb;
+
 	/* protect radix tree
 	 */
 	spinlock_t		lock;
@@ -471,6 +473,8 @@ struct mlx5_qp_table {
 };
 
 struct mlx5_srq_table {
+	struct mlx5_nb          catas_err_nb;
+	struct mlx5_nb          rq_limit_nb;
 	/* protect radix tree
 	 */
 	spinlock_t		lock;
@@ -978,8 +982,6 @@ void mlx5_unregister_debugfs(void);
 
 void mlx5_fill_page_array(struct mlx5_frag_buf *buf, __be64 *pas);
 void mlx5_fill_page_frag_array(struct mlx5_frag_buf *frag_buf, __be64 *pas);
-void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
-void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
 int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 		    unsigned int *irqn);
