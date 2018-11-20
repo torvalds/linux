@@ -4026,15 +4026,14 @@ static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
 		DRM_DEBUG_KMS("DSC DPCD: %*ph\n",
 			      (int)sizeof(intel_dp->dsc_dpcd),
 			      intel_dp->dsc_dpcd);
-		/* FEC is supported only on DP 1.4 */
-		if (!intel_dp_is_edp(intel_dp)) {
-			if (drm_dp_dpcd_readb(&intel_dp->aux, DP_FEC_CAPABILITY,
-					      &intel_dp->fec_capable) < 0)
-				DRM_ERROR("Failed to read FEC DPCD register\n");
 
-		DRM_DEBUG_KMS("FEC CAPABILITY: %x\n",
-			      intel_dp->fec_capable);
-		}
+		/* FEC is supported only on DP 1.4 */
+		if (!intel_dp_is_edp(intel_dp) &&
+		    drm_dp_dpcd_readb(&intel_dp->aux, DP_FEC_CAPABILITY,
+				      &intel_dp->fec_capable) < 0)
+			DRM_ERROR("Failed to read FEC DPCD register\n");
+
+		DRM_DEBUG_KMS("FEC CAPABILITY: %x\n", intel_dp->fec_capable);
 	}
 }
 
