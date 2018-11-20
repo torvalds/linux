@@ -174,10 +174,9 @@ struct bio {
 	void			*bi_private;
 #ifdef CONFIG_BLK_CGROUP
 	/*
-	 * Optional ioc and css associated with this bio.  Put on bio
+	 * Optional css associated with this bio.  Put on bio
 	 * release.  Read comment on top of bio_associate_current().
 	 */
-	struct io_context	*bi_ioc;
 	struct cgroup_subsys_state *bi_css;
 	struct blkcg_gq		*bi_blkg;
 	struct bio_issue	bi_issue;

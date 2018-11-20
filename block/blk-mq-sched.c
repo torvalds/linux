@@ -31,10 +31,10 @@ void blk_mq_sched_free_hctx_data(struct request_queue *q,
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_free_hctx_data);
 
-void blk_mq_sched_assign_ioc(struct request *rq, struct bio *bio)
+void blk_mq_sched_assign_ioc(struct request *rq)
 {
 	struct request_queue *q = rq->q;
-	struct io_context *ioc = rq_ioc(bio);
+	struct io_context *ioc = current->io_context;
 	struct io_cq *icq;
 
 	spin_lock_irq(&q->queue_lock);

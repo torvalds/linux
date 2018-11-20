@@ -255,22 +255,6 @@ void ioc_clear_queue(struct request_queue *q);
 int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int node);
 
 /**
- * rq_ioc - determine io_context for request allocation
- * @bio: request being allocated is for this bio (can be %NULL)
- *
- * Determine io_context to use for request allocation for @bio.  May return
- * %NULL if %current->io_context doesn't exist.
- */
-static inline struct io_context *rq_ioc(struct bio *bio)
-{
-#ifdef CONFIG_BLK_CGROUP
-	if (bio && bio->bi_ioc)
-		return bio->bi_ioc;
-#endif
-	return current->io_context;
-}
-
-/**
  * create_io_context - try to create task->io_context
  * @gfp_mask: allocation mask
  * @node: allocation node

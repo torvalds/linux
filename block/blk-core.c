@@ -813,7 +813,7 @@ out:
 
 void blk_init_request_from_bio(struct request *req, struct bio *bio)
 {
-	struct io_context *ioc = rq_ioc(bio);
+	struct io_context *ioc = current->io_context;
 
 	if (bio->bi_opf & REQ_RAHEAD)
 		req->cmd_flags |= REQ_FAILFAST_MASK;
