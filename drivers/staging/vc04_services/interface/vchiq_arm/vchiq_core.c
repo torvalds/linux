@@ -1137,9 +1137,6 @@ queue_message_sync(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 			size);
 	}
 
-	/* Make sure the new header is visible to the peer. */
-	wmb();
-
 	remote_event_signal(&state->remote->sync_trigger);
 
 	if (VCHIQ_MSG_TYPE(msgid) != VCHIQ_MSG_PAUSE)
@@ -3269,7 +3266,6 @@ static void
 release_message_sync(VCHIQ_STATE_T *state, VCHIQ_HEADER_T *header)
 {
 	header->msgid = VCHIQ_MSGID_PADDING;
-	wmb();
 	remote_event_signal(&state->remote->sync_release);
 }
 
