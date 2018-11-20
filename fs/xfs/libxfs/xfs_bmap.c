@@ -1694,10 +1694,13 @@ xfs_bmap_add_extent_delay_real(
 	case BMAP_LEFT_FILLING | BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG:
 		/*
 		 * Filling in all of a previously delayed allocation extent.
-		 * The right neighbor is contiguous, the left is not.
+		 * The right neighbor is contiguous, the left is not. Take care
+		 * with delay -> unwritten extent allocation here because the
+		 * delalloc record we are overwriting is always written.
 		 */
 		PREV.br_startblock = new->br_startblock;
 		PREV.br_blockcount += RIGHT.br_blockcount;
+		PREV.br_state = new->br_state;
 
 		xfs_iext_next(ifp, &bma->icur);
 		xfs_iext_remove(bma->ip, &bma->icur, state);
