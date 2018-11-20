@@ -163,6 +163,12 @@ const struct iwl_cfg iwl9260_2ac_cfg = {
 	IWL_DEVICE_9000,
 };
 
+const struct iwl_cfg iwl9260_2ac_160_cfg = {
+	.name = "Intel(R) Wireless-AC 9260 160MHz",
+	.fw_name_pre = IWL9260_FW_PRE,
+	IWL_DEVICE_9000,
+};
+
 const struct iwl_cfg iwl9260_killer_2ac_cfg = {
 	.name = "Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW)",
 	.fw_name_pre = IWL9260_FW_PRE,
@@ -211,8 +217,22 @@ const struct iwl_cfg iwl9560_2ac_cfg = {
 	IWL_DEVICE_9000,
 };
 
+const struct iwl_cfg iwl9560_2ac_160_cfg = {
+	.name = "Intel(R) Wireless-AC 9560 160MHz",
+	.fw_name_pre = IWL9260_FW_PRE,
+	IWL_DEVICE_9000,
+};
+
 const struct iwl_cfg iwl9560_2ac_cfg_soc = {
 	.name = "Intel(R) Dual Band Wireless AC 9560",
+	.fw_name_pre = IWL9000_FW_PRE,
+	IWL_DEVICE_9000,
+	.integrated = true,
+	.soc_latency = 5000,
+};
+
+const struct iwl_cfg iwl9560_2ac_160_cfg_soc = {
+	.name = "Intel(R) Wireless-AC 9560 160MHz",
 	.fw_name_pre = IWL9000_FW_PRE,
 	IWL_DEVICE_9000,
 	.integrated = true,
@@ -264,6 +284,15 @@ const struct iwl_cfg iwl9462_2ac_cfg_shared_clk = {
 
 const struct iwl_cfg iwl9560_2ac_cfg_shared_clk = {
 	.name = "Intel(R) Dual Band Wireless AC 9560",
+	.fw_name_pre = IWL9000_FW_PRE,
+	IWL_DEVICE_9000,
+	.integrated = true,
+	.soc_latency = 5000,
+	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
+};
+
+const struct iwl_cfg iwl9560_2ac_160_cfg_shared_clk = {
+	.name = "Intel(R) Wireless-AC 9560 160MHz",
 	.fw_name_pre = IWL9000_FW_PRE,
 	IWL_DEVICE_9000,
 	.integrated = true,
