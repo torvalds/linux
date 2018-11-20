@@ -179,13 +179,13 @@ static inline struct inode_security_struct *selinux_inode(
 static inline struct msg_security_struct *selinux_msg_msg(
 						const struct msg_msg *msg_msg)
 {
-	return msg_msg->security;
+	return msg_msg->security + selinux_blob_sizes.lbs_msg_msg;
 }
 
 static inline struct ipc_security_struct *selinux_ipc(
 						const struct kern_ipc_perm *ipc)
 {
-	return ipc->security;
+	return ipc->security + selinux_blob_sizes.lbs_ipc;
 }
 
 #endif /* _SELINUX_OBJSEC_H_ */
