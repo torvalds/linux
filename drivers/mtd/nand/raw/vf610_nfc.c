@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2009-2015 Freescale Semiconductor, Inc. and others
  *
@@ -9,11 +10,6 @@
  *          Jason Jin <Jason.jin@freescale.com>
  *
  * Based on original driver mpc5121_nfc.c.
- *
- * This is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Limitations:
  * - Untested on MPC5125 and M54418.
