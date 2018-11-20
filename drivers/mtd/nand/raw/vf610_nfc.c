@@ -152,6 +152,7 @@ enum vf610_nfc_variant {
 };
 
 struct vf610_nfc {
+	struct nand_controller base;
 	struct nand_chip chip;
 	struct device *dev;
 	void __iomem *regs;
@@ -887,8 +888,11 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 
 	vf610_nfc_preinit_controller(nfc);
 
+	nand_controller_init(&nfc->base);
+	nfc->base.ops = &vf610_nfc_controller_ops;
+	chip->controller = &nfc->base;
+
 	/* Scan the NAND chip */
-	chip->dummy_controller.ops = &vf610_nfc_controller_ops;
 	err = nand_scan(chip, 1);
 	if (err)
 		goto err_disable_clk;
