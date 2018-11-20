@@ -452,8 +452,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	struct mid_q_entry *mid_entry;
 	struct list_head retry_list;
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	struct cifs_sb_info *cifs_sb;
-	struct dfs_cache_tgt_list tgt_list;
+	struct cifs_sb_info *cifs_sb = NULL;
+	struct dfs_cache_tgt_list tgt_list = {0};
 	struct dfs_cache_tgt_iterator *tgt_it = NULL;
 #endif
 
@@ -592,8 +592,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			cifs_dbg(VFS, "%s: failed to update vol info in DFS cache: rc = %d\n",
 				 __func__, rc);
 		}
+		dfs_cache_free_tgts(&tgt_list);
 	}
-	dfs_cache_free_tgts(&tgt_list);
 #endif
 	if (server->tcpStatus == CifsNeedNegotiate)
 		mod_delayed_work(cifsiod_wq, &server->echo, 0);
