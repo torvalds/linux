@@ -807,7 +807,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	}
 
 	if (adap->transmit_queue_sz >= CEC_MAX_MSG_TX_QUEUE_SZ) {
-		dprintk(1, "%s: transmit queue full\n", __func__);
+		dprintk(2, "%s: transmit queue full\n", __func__);
 		return -EBUSY;
 	}
 
@@ -1180,6 +1180,8 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 {
 	struct cec_log_addrs *las = &adap->log_addrs;
 	struct cec_msg msg = { };
+	const unsigned int max_retries = 2;
+	unsigned int i;
 	int err;
 
 	if (cec_has_log_addr(adap, log_addr))
@@ -1188,19 +1190,44 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 	/* Send poll message */
 	msg.len = 1;
 	msg.msg[0] = (log_addr << 4) | log_addr;
-	err = cec_transmit_msg_fh(adap, &msg, NULL, true);
+
+	for (i = 0; i < max_retries; i++) {
+		err = cec_transmit_msg_fh(adap, &msg, NULL, true);
+
+		/*
+		 * While trying to poll the physical address was reset
+		 * and the adapter was unconfigured, so bail out.
+		 */
+		if (!adap->is_configuring)
+			return -EINTR;
+
+		if (err)
+			return err;
+
+		/*
+		 * The message was aborted due to a disconnect or
+		 * unconfigure, just bail out.
+		 */
+		if (msg.tx_status & CEC_TX_STATUS_ABORTED)
+			return -EINTR;
+		if (msg.tx_status & CEC_TX_STATUS_OK)
+			return 0;
+		if (msg.tx_status & CEC_TX_STATUS_NACK)
+			break;
+		/*
+		 * Retry up to max_retries times if the message was neither
+		 * OKed or NACKed. This can happen due to e.g. a Lost
+		 * Arbitration condition.
+		 */
+	}
 
 	/*
-	 * While trying to poll the physical address was reset
-	 * and the adapter was unconfigured, so bail out.
+	 * If we are unable to get an OK or a NACK after max_retries attempts
+	 * (and note that each attempt already consists of four polls), then
+	 * then we assume that something is really weird and that it is not a
+	 * good idea to try and claim this logical address.
 	 */
-	if (!adap->is_configuring)
-		return -EINTR;
-
-	if (err)
-		return err;
-
-	if (msg.tx_status & CEC_TX_STATUS_OK)
+	if (i == max_retries)
 		return 0;
 
 	/*
