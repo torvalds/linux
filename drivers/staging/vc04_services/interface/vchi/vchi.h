@@ -113,11 +113,6 @@ extern uint32_t vchi_current_time(VCHI_INSTANCE_T instance_handle);
 /******************************************************************************
  Global service API
  *****************************************************************************/
-// Routine to create a named service
-extern int32_t vchi_service_create(VCHI_INSTANCE_T instance_handle,
-				   SERVICE_CREATION_T *setup,
-				   VCHI_SERVICE_HANDLE_T *handle);
-
 // Routine to destroy a service
 extern int32_t vchi_service_destroy(const VCHI_SERVICE_HANDLE_T handle);
 
