@@ -232,7 +232,7 @@
 
 &mmc3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins_a>, <&mmc3_cd_pin_olinuxinom>;
+	pinctrl-0 = <&mmc3_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 11 GPIO_ACTIVE_LOW>; /* PH11 */
@@ -255,12 +255,6 @@
 	gmac_txerr: gmac_txerr@0 {
 		pins = "PA17";
 		function = "gmac";
-	};
-
-	mmc3_cd_pin_olinuxinom: mmc3_cd_pin@0 {
-		pins = "PH11";
-		function = "gpio_in";
-		bias-pull-up;
 	};
 
 	led_pins_olinuxino: led_pins@0 {

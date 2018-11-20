@@ -219,7 +219,7 @@
 
 &mmc3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins_a>, <&mmc3_cd_pin_olimex_som_evb>;
+	pinctrl-0 = <&mmc3_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 0 GPIO_ACTIVE_LOW>; /* PH0 */
@@ -243,12 +243,6 @@
 		pins = "PH2";
 		function = "gpio_out";
 		drive-strength = <20>;
-	};
-
-	mmc3_cd_pin_olimex_som_evb: mmc3_cd_pin@0 {
-		pins = "PH0";
-		function = "gpio_in";
-		bias-pull-up;
 	};
 };
 
