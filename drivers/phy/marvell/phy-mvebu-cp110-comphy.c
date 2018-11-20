@@ -512,7 +512,8 @@ static int mvebu_comphy_power_on(struct phy *phy)
 	return ret;
 }
 
-static int mvebu_comphy_set_mode(struct phy *phy, enum phy_mode mode)
+static int mvebu_comphy_set_mode(struct phy *phy,
+				 enum phy_mode mode, int submode)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 

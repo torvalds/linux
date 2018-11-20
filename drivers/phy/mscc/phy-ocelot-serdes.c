@@ -158,7 +158,7 @@ static const struct serdes_mux ocelot_serdes_muxes[] = {
 		   HSIO_HW_CFG_PCIE_ENA),
 };
 
-static int serdes_set_mode(struct phy *phy, enum phy_mode mode)
+static int serdes_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct serdes_macro *macro = phy_get_drvdata(phy);
 	unsigned int i;
