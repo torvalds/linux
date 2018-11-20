@@ -232,6 +232,17 @@ unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
 	return ret;
 }
 
+struct ftrace_ret_stack *
+ftrace_graph_get_ret_stack(struct task_struct *task, int idx)
+{
+	idx = current->curr_ret_stack - idx;
+
+	if (idx >= 0 && idx <= task->curr_ret_stack)
+		return &current->ret_stack[idx];
+
+	return NULL;
+}
+
 /**
  * ftrace_graph_ret_addr - convert a potentially modified stack return address
  *			   to its original value

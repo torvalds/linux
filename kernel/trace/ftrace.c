@@ -792,7 +792,7 @@ void ftrace_graph_graph_time_control(bool enable)
 
 static int profile_graph_entry(struct ftrace_graph_ent *trace)
 {
-	int index = current->curr_ret_stack;
+	struct ftrace_ret_stack *ret_stack;
 
 	function_profile_call(trace->func, 0, NULL, NULL);
 
@@ -800,14 +800,16 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace)
 	if (!current->ret_stack)
 		return 0;
 
-	if (index >= 0 && index < FTRACE_RETFUNC_DEPTH)
-		current->ret_stack[index].subtime = 0;
+	ret_stack = ftrace_graph_get_ret_stack(current, 0);
+	if (ret_stack)
+		ret_stack->subtime = 0;
 
 	return 1;
 }
 
 static void profile_graph_return(struct ftrace_graph_ret *trace)
 {
+	struct ftrace_ret_stack *ret_stack;
 	struct ftrace_profile_stat *stat;
 	unsigned long long calltime;
 	struct ftrace_profile *rec;
@@ -825,16 +827,15 @@ static void profile_graph_return(struct ftrace_graph_ret *trace)
 	calltime = trace->rettime - trace->calltime;
 
 	if (!fgraph_graph_time) {
-		int index;
-
-		index = current->curr_ret_stack;
 
 		/* Append this call time to the parent time to subtract */
-		if (index)
-			current->ret_stack[index - 1].subtime += calltime;
+		ret_stack = ftrace_graph_get_ret_stack(current, 1);
+		if (ret_stack)
+			ret_stack->subtime += calltime;
 
-		if (current->ret_stack[index].subtime < calltime)
-			calltime -= current->ret_stack[index].subtime;
+		ret_stack = ftrace_graph_get_ret_stack(current, 0);
+		if (ret_stack && ret_stack->subtime < calltime)
+			calltime -= ret_stack->subtime;
 		else
 			calltime = 0;
 	}
