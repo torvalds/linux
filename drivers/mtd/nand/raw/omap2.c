@@ -2173,11 +2173,8 @@ static const struct nand_controller_ops omap_nand_controller_ops = {
 };
 
 /* Shared among all NAND instances to synchronize access to the ECC Engine */
-static struct nand_controller omap_gpmc_controller = {
-	.lock = __SPIN_LOCK_UNLOCKED(omap_gpmc_controller.lock),
-	.wq = __WAIT_QUEUE_HEAD_INITIALIZER(omap_gpmc_controller.wq),
-	.ops = &omap_nand_controller_ops,
-};
+static struct nand_controller omap_gpmc_controller;
+static bool omap_gpmc_controller_initialized;
 
 static int omap_nand_probe(struct platform_device *pdev)
 {
@@ -2226,6 +2223,12 @@ static int omap_nand_probe(struct platform_device *pdev)
 		return PTR_ERR(nand_chip->legacy.IO_ADDR_R);
 
 	info->phys_base = res->start;
+
+	if (!omap_gpmc_controller_initialized) {
+		omap_gpmc_controller.ops = &omap_nand_controller_ops;
+		nand_controller_init(&omap_gpmc_controller);
+		omap_gpmc_controller_initialized = true;
+	}
 
 	nand_chip->controller = &omap_gpmc_controller;
 
