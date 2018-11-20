@@ -414,16 +414,21 @@ static void fq_check_throttled(struct fq_sched_data *q, u64 now)
 static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
-	u64 now = ktime_get_ns();
 	struct fq_flow_head *head;
 	struct sk_buff *skb;
 	struct fq_flow *f;
 	unsigned long rate;
 	u32 plen;
+	u64 now;
+
+	if (!sch->q.qlen)
+		return NULL;
 
 	skb = fq_dequeue_head(sch, &q->internal);
 	if (skb)
 		goto out;
+
+	now = ktime_get_ns();
 	fq_check_throttled(q, now);
 begin:
 	head = &q->new_flows;
