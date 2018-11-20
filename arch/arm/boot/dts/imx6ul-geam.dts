@@ -51,6 +51,7 @@
 	compatible = "engicam,imx6ul-geam", "fsl,imx6ul";
 
 	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x08000000>;
 	};
 
