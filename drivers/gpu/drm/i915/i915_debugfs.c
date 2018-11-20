@@ -4352,7 +4352,7 @@ static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 	for (s = 0; s < info->sseu.max_slices; s++) {
 		/*
 		 * FIXME: Valid SS Mask respects the spec and read
-		 * only valid bits for those registers, excluding reserverd
+		 * only valid bits for those registers, excluding reserved
 		 * although this seems wrong because it would leave many
 		 * subslices without ACK.
 		 */
