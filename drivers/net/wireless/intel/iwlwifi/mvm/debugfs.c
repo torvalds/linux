@@ -1682,11 +1682,33 @@ iwl_dbgfs_send_echo_cmd_write(struct iwl_mvm *mvm, char *buf,
 	return ret ?: count;
 }
 
+struct iwl_mvm_sniffer_apply {
+	struct iwl_mvm *mvm;
+	u16 aid;
+};
+
+static bool iwl_mvm_sniffer_apply(struct iwl_notif_wait_data *notif_data,
+				  struct iwl_rx_packet *pkt, void *data)
+{
+	struct iwl_mvm_sniffer_apply *apply = data;
+
+	apply->mvm->cur_aid = cpu_to_le16(apply->aid);
+
+	return true;
+}
+
 static ssize_t
 iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
-			size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
+	struct iwl_notification_wait wait;
 	struct iwl_he_monitor_cmd he_mon_cmd = {};
+	struct iwl_mvm_sniffer_apply apply = {
+		.mvm = mvm,
+	};
+	u16 wait_cmds[] = {
+		iwl_cmd_id(HE_AIR_SNIFFER_CONFIG_CMD, DATA_PATH_GROUP, 0),
+	};
 	u32 aid;
 	int ret;
 
@@ -1702,10 +1724,30 @@ iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
 
 	he_mon_cmd.aid = cpu_to_le16(aid);
 
+	apply.aid = aid;
+
 	mutex_lock(&mvm->mutex);
+
+	/*
+	 * Use the notification waiter to get our function triggered
+	 * in sequence with other RX. This ensures that frames we get
+	 * on the RX queue _before_ the new configuration is applied
+	 * still have mvm->cur_aid pointing to the old AID, and that
+	 * frames on the RX queue _after_ the firmware processed the
+	 * new configuration (and sent the response, synchronously)
+	 * get mvm->cur_aid correctly set to the new AID.
+	 */
+	iwl_init_notification_wait(&mvm->notif_wait, &wait,
+				   wait_cmds, ARRAY_SIZE(wait_cmds),
+				   iwl_mvm_sniffer_apply, &apply);
+
 	ret = iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(HE_AIR_SNIFFER_CONFIG_CMD,
 						   DATA_PATH_GROUP, 0), 0,
 				   sizeof(he_mon_cmd), &he_mon_cmd);
+
+	/* no need to really wait, we already did anyway */
+	iwl_remove_notification(&mvm->notif_wait, &wait);
+
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;

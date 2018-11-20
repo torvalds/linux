@@ -192,11 +192,40 @@ static void iwl_mvm_create_skb(struct sk_buff *skb, struct ieee80211_hdr *hdr,
 	}
 }
 
+static void iwl_mvm_add_rtap_sniffer_config(struct iwl_mvm *mvm,
+					    struct sk_buff *skb)
+{
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
+	struct ieee80211_vendor_radiotap *radiotap;
+	int size = sizeof(*radiotap) + sizeof(__le16);
+
+	if (!mvm->cur_aid)
+		return;
+
+	radiotap = skb_put(skb, size);
+	radiotap->align = 1;
+	/* Intel OUI */
+	radiotap->oui[0] = 0xf6;
+	radiotap->oui[1] = 0x54;
+	radiotap->oui[2] = 0x25;
+	/* radiotap sniffer config sub-namespace */
+	radiotap->subns = 1;
+	radiotap->present = 0x1;
+	radiotap->len = size - sizeof(*radiotap);
+	radiotap->pad = 0;
+
+	/* fill the data now */
+	memcpy(radiotap->data, &mvm->cur_aid, sizeof(mvm->cur_aid));
+
+	rx_status->flag |= RX_FLAG_RADIOTAP_VENDOR_DATA;
+}
+
 /* iwl_mvm_pass_packet_to_mac80211 - passes the packet for mac80211 */
 static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 					    struct napi_struct *napi,
 					    struct sk_buff *skb, int queue,
-					    struct ieee80211_sta *sta)
+					    struct ieee80211_sta *sta,
+					    bool csi)
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 
@@ -465,7 +494,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 		while ((skb = __skb_dequeue(skb_list))) {
 			iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb,
 							reorder_buf->queue,
-							sta);
+							sta, false);
 			reorder_buf->num_stored--;
 		}
 	}
@@ -1304,6 +1333,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		.d4 = desc->phy_data4,
 		.info_type = IWL_RX_PHY_INFO_TYPE_NONE,
 	};
+	bool csi = false;
 
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
 		return;
@@ -1599,7 +1629,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	iwl_mvm_create_skb(skb, hdr, len, crypt_len, rxb);
 	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc))
-		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta);
+		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue,
+						sta, csi);
 out:
 	rcu_read_unlock();
 }
@@ -1732,7 +1763,7 @@ void iwl_mvm_rx_monitor_ndp(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->rate_idx = rate;
 	}
 
-	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta);
+	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta, false);
 out:
 	rcu_read_unlock();
 }

@@ -1164,6 +1164,10 @@ struct iwl_mvm {
 
 	/* does a monitor vif exist (only one can exist hence bool) */
 	bool monitor_on;
+
+	/* sniffer data to include in radiotap */
+	__le16 cur_aid;
+
 #ifdef CONFIG_ACPI
 	struct iwl_mvm_sar_profile sar_profiles[ACPI_SAR_PROFILE_NUM];
 	struct iwl_mvm_geo_profile geo_profiles[ACPI_NUM_GEO_PROFILES];
