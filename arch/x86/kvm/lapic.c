@@ -571,6 +571,11 @@ int kvm_pv_send_ipi(struct kvm *kvm, unsigned long ipi_bitmap_low,
 	rcu_read_lock();
 	map = rcu_dereference(kvm->arch.apic_map);
 
+	if (unlikely(!map)) {
+		count = -EOPNOTSUPP;
+		goto out;
+	}
+
 	if (min > map->max_apic_id)
 		goto out;
 	/* Bits above cluster_size are masked in the caller.  */
