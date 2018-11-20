@@ -188,15 +188,17 @@ int function_graph_enter(unsigned long ret, unsigned long func,
 	trace.func = func;
 	trace.depth = ++current->curr_ret_depth;
 
-	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace))
-		goto out;
-
 	if (ftrace_push_return_trace(ret, func,
 				     frame_pointer, retp))
 		goto out;
 
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace))
+		goto out_ret;
+
 	return 0;
+ out_ret:
+	current->curr_ret_stack--;
  out:
 	current->curr_ret_depth--;
 	return -EBUSY;
