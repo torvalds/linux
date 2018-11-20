@@ -1131,7 +1131,7 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 		if (WARN_ON(reg_id >= ARRAY_SIZE(fwrt->dump.active_regs)))
 			continue;
 
-		reg = fwrt->dump.active_regs[reg_id].reg;
+		reg = fwrt->dump.active_regs[reg_id];
 		if (WARN(!reg, "Unassigned region %d\n", reg_id))
 			continue;
 
@@ -1197,7 +1197,7 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 		if (reg_id >= ARRAY_SIZE(fwrt->dump.active_regs))
 			continue;
 
-		reg = fwrt->dump.active_regs[reg_id].reg;
+		reg = fwrt->dump.active_regs[reg_id];
 		/* Don't warn, get_trigger_len already warned */
 		if (!reg)
 			continue;
@@ -1667,8 +1667,34 @@ void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_read_d3_debug_data);
 
 static void
-iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt,
-			     struct iwl_fw_ini_allocation_tlv *alloc)
+iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt, u32 size)
+{
+	struct iwl_trans *trans = fwrt->trans;
+	void *virtual_addr = NULL;
+	dma_addr_t phys_addr;
+
+	if (WARN_ON_ONCE(trans->num_blocks == ARRAY_SIZE(trans->fw_mon)))
+		return;
+
+	virtual_addr =
+		dma_alloc_coherent(fwrt->trans->dev, size, &phys_addr,
+				   GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO |
+				   __GFP_COMP);
+
+	/* TODO: alloc fragments if needed */
+	if (!virtual_addr)
+		IWL_ERR(fwrt, "Failed to allocate debug memory\n");
+
+	trans->fw_mon[trans->num_blocks].block = virtual_addr;
+	trans->fw_mon[trans->num_blocks].physical = phys_addr;
+	trans->fw_mon[trans->num_blocks].size = size;
+	trans->num_blocks++;
+
+	IWL_DEBUG_FW(trans, "Allocated debug block of size %d\n", size);
+}
+
+static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
+				    struct iwl_fw_ini_allocation_data *alloc)
 {
 	struct iwl_trans *trans = fwrt->trans;
 	struct iwl_ldbg_config_cmd ldbg_cmd = {
@@ -1681,43 +1707,30 @@ iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt,
 		.data[0] = &ldbg_cmd,
 		.len[0] = sizeof(ldbg_cmd),
 	};
-	void *virtual_addr = NULL;
-	u32 size = le32_to_cpu(alloc->size);
-	dma_addr_t phys_addr;
+	int block_idx = trans->num_blocks;
 
-	if (!trans->num_blocks &&
-	    le32_to_cpu(alloc->buffer_location) !=
+	if (le32_to_cpu(alloc->tlv.buffer_location) !=
 	    IWL_FW_INI_LOCATION_DRAM_PATH)
 		return;
 
-	virtual_addr =
-		dma_alloc_coherent(fwrt->trans->dev, size, &phys_addr,
-				   GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO |
-				   __GFP_COMP);
-
-	/* TODO: alloc fragments if needed */
-	if (!virtual_addr)
-		IWL_ERR(fwrt, "Failed to allocate debug memory\n");
-
-	if (WARN_ON_ONCE(trans->num_blocks == ARRAY_SIZE(trans->fw_mon)))
-		return;
-
-	trans->fw_mon[trans->num_blocks].block = virtual_addr;
-	trans->fw_mon[trans->num_blocks].physical = phys_addr;
-	trans->fw_mon[trans->num_blocks].size = size;
-	trans->num_blocks++;
-
-	IWL_DEBUG_FW(trans, "Allocated debug block of size %d\n", size);
+	if (!alloc->is_alloc) {
+		iwl_fw_dbg_buffer_allocation(fwrt,
+					     le32_to_cpu(alloc->tlv.size));
+		if (block_idx == trans->num_blocks)
+			return;
+		alloc->is_alloc = 1;
+	}
 
 	/* First block is assigned via registers / context info */
 	if (trans->num_blocks == 1)
 		return;
 
 	cmd->num_frags = cpu_to_le32(1);
-	cmd->fragments[0].address = cpu_to_le64(phys_addr);
-	cmd->fragments[0].size = alloc->size;
-	cmd->allocation_id = alloc->allocation_id;
-	cmd->buffer_location = alloc->buffer_location;
+	cmd->fragments[0].address =
+		cpu_to_le64(trans->fw_mon[block_idx].physical);
+	cmd->fragments[0].size = alloc->tlv.size;
+	cmd->allocation_id = alloc->tlv.allocation_id;
+	cmd->buffer_location = alloc->tlv.buffer_location;
 
 	iwl_trans_send_cmd(trans, &hcmd);
 }
@@ -1746,9 +1759,8 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 	int i, size = le32_to_cpu(tlv->num_regions);
 
 	for (i = 0; i < size; i++) {
-		struct iwl_fw_ini_region_cfg *reg = iter;
+		struct iwl_fw_ini_region_cfg *reg = iter, **active;
 		int id = le32_to_cpu(reg->region_id);
-		struct iwl_fw_ini_active_regs *active;
 
 		if (WARN(id >= ARRAY_SIZE(fwrt->dump.active_regs),
 			 "Invalid region id %d for apply point %d\n", id, pnt))
@@ -1756,17 +1768,14 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 
 		active = &fwrt->dump.active_regs[id];
 
-		if (ext && active->apply_point == pnt)
-			IWL_WARN(fwrt->trans,
-				 "External region TLV overrides FW default %x\n",
-				 id);
+		if (*active)
+			IWL_WARN(fwrt->trans, "region TLV %d override\n", id);
 
 		IWL_DEBUG_FW(fwrt,
 			     "%s: apply point %d, activating region ID %d\n",
 			     __func__, pnt, id);
 
-		active->reg = reg;
-		active->apply_point = pnt;
+		*active = reg;
 
 		if (le32_to_cpu(reg->region_type) !=
 		    IWL_FW_INI_REGION_DRAM_BUFFER)
@@ -1842,9 +1851,13 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		u32 type = le32_to_cpu(tlv->type);
 
 		switch (type) {
-		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION:
-			iwl_fw_dbg_buffer_allocation(fwrt, ini_tlv);
+		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION: {
+			struct iwl_fw_ini_allocation_data *buf_alloc = ini_tlv;
+
+			iwl_fw_dbg_buffer_apply(fwrt, ini_tlv);
+			iter += sizeof(buf_alloc->is_alloc);
 			break;
+		}
 		case IWL_UCODE_TLV_TYPE_HCMD:
 			if (pnt < IWL_FW_INI_APPLY_AFTER_ALIVE) {
 				IWL_ERR(fwrt,
@@ -1875,6 +1888,12 @@ void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 			    enum iwl_fw_ini_apply_point apply_point)
 {
 	void *data = &fwrt->trans->apply_points[apply_point];
+	int i;
+
+	if (apply_point == IWL_FW_INI_APPLY_EARLY) {
+		for (i = 0; i < IWL_FW_INI_MAX_REGION_ID; i++)
+			fwrt->dump.active_regs[i] = NULL;
+	}
 
 	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, false);
 

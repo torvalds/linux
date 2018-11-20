@@ -139,7 +139,7 @@ struct iwl_fw_runtime {
 		/* ts of the beginning of a non-collect fw dbg data period */
 		unsigned long non_collect_ts_start[IWL_FW_TRIGGER_ID_NUM - 1];
 		u32 *d3_debug_data;
-		struct iwl_fw_ini_active_regs active_regs[IWL_FW_INI_MAX_REGION_ID];
+		struct iwl_fw_ini_region_cfg *active_regs[IWL_FW_INI_MAX_REGION_ID];
 		struct iwl_fw_ini_active_triggers active_trigs[IWL_FW_TRIGGER_ID_NUM];
 		u32 lmac_err_id[MAX_NUM_LMAC];
 		u32 umac_err_id;

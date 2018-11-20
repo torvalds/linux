@@ -223,6 +223,15 @@ struct iwl_fw_dbg {
 };
 
 /**
+ * @tlv: the buffer allocation tlv
+ * @is_alloc: indicates if the buffer was already allocated
+ */
+struct iwl_fw_ini_allocation_data {
+	struct iwl_fw_ini_allocation_tlv tlv;
+	u32 is_alloc;
+} __packed;
+
+/**
  * struct iwl_fw_ini_active_triggers
  * @active: is this trigger active
  * @apply_point: last apply point that updated this trigger
@@ -234,16 +243,6 @@ struct iwl_fw_ini_active_triggers {
 	enum iwl_fw_ini_apply_point apply_point;
 	struct iwl_fw_ini_trigger *conf;
 	struct iwl_fw_ini_trigger *conf_ext;
-};
-
-/**
- * struct iwl_fw_ini_active_regs
- * @reg: active region from TLV
- * @apply_point: apply point where it became active
- */
-struct iwl_fw_ini_active_regs {
-	struct iwl_fw_ini_region_cfg *reg;
-	enum iwl_fw_ini_apply_point apply_point;
 };
 
 /**
