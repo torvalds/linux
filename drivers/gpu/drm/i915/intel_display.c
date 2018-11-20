@@ -15011,6 +15011,14 @@ retry:
 			ret = drm_atomic_add_affected_planes(state, crtc);
 			if (ret)
 				goto out;
+
+			/*
+			 * FIXME hack to force a LUT update to avoid the
+			 * plane update forcing the pipe gamma on without
+			 * having a proper LUT loaded. Remove once we
+			 * have readout for pipe gamma enable.
+			 */
+			crtc_state->color_mgmt_changed = true;
 		}
 	}
 
