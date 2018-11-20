@@ -813,19 +813,25 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	const struct hw_x_point *coord_x = coordinate_x;
 	struct fixed31_32 scaledX = dc_fixpt_zero;
 	struct fixed31_32 scaledX1 = dc_fixpt_zero;
-	struct fixed31_32 max_display = dc_fixpt_from_int(fs_params->max_display);
-	struct fixed31_32 min_display = dc_fixpt_from_fraction(fs_params->min_display, 10000);
-	struct fixed31_32 max_content = dc_fixpt_from_int(fs_params->max_content);
-	struct fixed31_32 min_content = dc_fixpt_from_fraction(fs_params->min_content, 10000);
+	struct fixed31_32 max_display;
+	struct fixed31_32 min_display;
+	struct fixed31_32 max_content;
+	struct fixed31_32 min_content;
 	struct fixed31_32 clip = dc_fixpt_one;
 	struct fixed31_32 output;
 	bool use_eetf = false;
 	bool is_clipped = false;
-	struct fixed31_32 sdr_white_level = dc_fixpt_from_int(fs_params->sdr_white_level);
+	struct fixed31_32 sdr_white_level;
 
 	if (fs_params == NULL || fs_params->max_content == 0 ||
 			fs_params->max_display == 0)
 		return false;
+
+	max_display = dc_fixpt_from_int(fs_params->max_display);
+	min_display = dc_fixpt_from_fraction(fs_params->min_display, 10000);
+	max_content = dc_fixpt_from_int(fs_params->max_content);
+	min_content = dc_fixpt_from_fraction(fs_params->min_content, 10000);
+	sdr_white_level = dc_fixpt_from_int(fs_params->sdr_white_level);
 
 	if (fs_params->min_display > 1000) // cap at 0.1 at the bottom
 		min_display = dc_fixpt_from_fraction(1, 10);
