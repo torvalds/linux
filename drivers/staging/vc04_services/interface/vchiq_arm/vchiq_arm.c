@@ -280,16 +280,11 @@ VCHIQ_STATUS_T vchiq_shutdown(VCHIQ_INSTANCE_T instance)
 		"%s(%p): returning %d", __func__, instance, status);
 
 	if (status == VCHIQ_SUCCESS) {
-		struct list_head *pos, *next;
+		struct bulk_waiter_node *waiter, *next;
 
-		list_for_each_safe(pos, next,
-				&instance->bulk_waiter_list) {
-			struct bulk_waiter_node *waiter;
-
-			waiter = list_entry(pos,
-					struct bulk_waiter_node,
-					list);
-			list_del(pos);
+		list_for_each_entry_safe(waiter, next,
+					 &instance->bulk_waiter_list, list) {
+			list_del(&waiter->list);
 			vchiq_log_info(vchiq_arm_log_level,
 					"bulk_waiter - cleaned up %pK for pid %d",
 					waiter, waiter->pid);
@@ -473,7 +468,6 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 	VCHIQ_SERVICE_T *service;
 	VCHIQ_STATUS_T status;
 	struct bulk_waiter_node *waiter = NULL;
-	struct list_head *pos;
 
 	service = find_service_by_handle(handle);
 	if (!service)
@@ -484,13 +478,9 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 	unlock_service(service);
 
 	mutex_lock(&instance->bulk_waiter_list_mutex);
-	list_for_each(pos, &instance->bulk_waiter_list) {
-		if (list_entry(pos, struct bulk_waiter_node,
-				list)->pid == current->pid) {
-			waiter = list_entry(pos,
-				struct bulk_waiter_node,
-				list);
-			list_del(pos);
+	list_for_each_entry(waiter, &instance->bulk_waiter_list, list) {
+		if (waiter->pid == current->pid) {
+			list_del(&waiter->list);
 			break;
 		}
 	}
@@ -1135,21 +1125,16 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				ret = -ENOMEM;
 				break;
 			}
+
 			args.userdata = &waiter->bulk_waiter;
 		} else if (args.mode == VCHIQ_BULK_MODE_WAITING) {
-			struct list_head *pos;
-
 			mutex_lock(&instance->bulk_waiter_list_mutex);
-			list_for_each(pos, &instance->bulk_waiter_list) {
-				if (list_entry(pos, struct bulk_waiter_node,
-					list)->pid == current->pid) {
-					waiter = list_entry(pos,
-						struct bulk_waiter_node,
-						list);
-					list_del(pos);
+			list_for_each_entry(waiter, &instance->bulk_waiter_list,
+					    list) {
+				if (waiter->pid == current->pid) {
+					list_del(&waiter->list);
 					break;
 				}
-
 			}
 			mutex_unlock(&instance->bulk_waiter_list_mutex);
 			if (!waiter) {
@@ -2158,16 +2143,11 @@ vchiq_release(struct inode *inode, struct file *file)
 		vchiq_release_internal(instance->state, NULL);
 
 		{
-			struct list_head *pos, *next;
+			struct bulk_waiter_node *waiter, *next;
 
-			list_for_each_safe(pos, next,
-				&instance->bulk_waiter_list) {
-				struct bulk_waiter_node *waiter;
-
-				waiter = list_entry(pos,
-					struct bulk_waiter_node,
-					list);
-				list_del(pos);
+			list_for_each_entry_safe(waiter, next,
+					&instance->bulk_waiter_list, list) {
+				list_del(&waiter->list);
 				vchiq_log_info(vchiq_arm_log_level,
 					"bulk_waiter - cleaned up %pK for pid %d",
 					waiter, waiter->pid);
