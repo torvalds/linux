@@ -31,6 +31,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/notifier.h>
 #include <linux/module.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/eq.h>
@@ -68,8 +69,10 @@ struct mlx5_irq_info {
 struct mlx5_eq_table {
 	struct list_head        comp_eqs_list;
 	struct mlx5_eq          pages_eq;
-	struct mlx5_eq          async_eq;
 	struct mlx5_eq	        cmd_eq;
+	struct mlx5_eq          async_eq;
+
+	struct atomic_notifier_head nh[MLX5_EVENT_TYPE_MAX];
 
 	struct mutex            lock; /* sync async eqs creations */
 	int			num_comp_vectors;
@@ -316,12 +319,16 @@ u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq_comp *eq)
 static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 {
 	struct mlx5_eq *eq = eq_ptr;
-	struct mlx5_core_dev *dev = eq->dev;
+	struct mlx5_eq_table *eqt;
+	struct mlx5_core_dev *dev;
 	struct mlx5_eqe *eqe;
 	int set_ci = 0;
 	u32 cqn = -1;
 	u32 rsn;
 	u8 port;
+
+	dev = eq->dev;
+	eqt = dev->priv.eq_table;
 
 	while ((eqe = next_eqe_sw(eq))) {
 		/*
@@ -436,6 +443,13 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 				       eqe->type, eq->eqn);
 			break;
 		}
+
+		if (likely(eqe->type < MLX5_EVENT_TYPE_MAX))
+			atomic_notifier_call_chain(&eqt->nh[eqe->type], eqe->type, eqe);
+		else
+			mlx5_core_warn_once(dev, "notifier_call_chain is not setup for eqe: %d\n", eqe->type);
+
+		atomic_notifier_call_chain(&eqt->nh[MLX5_EVENT_TYPE_NOTIFY_ANY], eqe->type, eqe);
 
 		++eq->cons_index;
 		++set_ci;
@@ -625,7 +639,7 @@ int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
 int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *eq_table;
-	int err;
+	int i, err;
 
 	eq_table = kvzalloc(sizeof(*eq_table), GFP_KERNEL);
 	if (!eq_table)
@@ -638,6 +652,8 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 		goto kvfree_eq_table;
 
 	mutex_init(&eq_table->lock);
+	for (i = 0; i < MLX5_EVENT_TYPE_MAX; i++)
+		ATOMIC_INIT_NOTIFIER_HEAD(&eq_table->nh[i]);
 
 	return 0;
 
@@ -1201,4 +1217,24 @@ void mlx5_eq_table_destroy(struct mlx5_core_dev *dev)
 	destroy_comp_eqs(dev);
 	destroy_async_eqs(dev);
 	free_irq_vectors(dev);
+}
+
+int mlx5_eq_notifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb)
+{
+	struct mlx5_eq_table *eqt = dev->priv.eq_table;
+
+	if (nb->event_type >= MLX5_EVENT_TYPE_MAX)
+		return -EINVAL;
+
+	return atomic_notifier_chain_register(&eqt->nh[nb->event_type], &nb->nb);
+}
+
+int mlx5_eq_notifier_unregister(struct mlx5_core_dev *dev, struct mlx5_nb *nb)
+{
+	struct mlx5_eq_table *eqt = dev->priv.eq_table;
+
+	if (nb->event_type >= MLX5_EVENT_TYPE_MAX)
+		return -EINVAL;
+
+	return atomic_notifier_chain_unregister(&eqt->nh[nb->event_type], &nb->nb);
 }

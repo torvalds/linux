@@ -78,6 +78,11 @@ do {									\
 		 __func__, __LINE__, current->pid,			\
 		##__VA_ARGS__)
 
+#define mlx5_core_warn_once(__dev, format, ...)				\
+	dev_warn_once(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
+		      __func__, __LINE__, current->pid,			\
+		      ##__VA_ARGS__)
+
 #define mlx5_core_info(__dev, format, ...)				\
 	dev_info(&(__dev)->pdev->dev, format, ##__VA_ARGS__)
 
