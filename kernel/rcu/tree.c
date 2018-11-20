@@ -1939,7 +1939,7 @@ static void rcu_gp_fqs_loop(void)
 		if (!ret) {
 			rcu_state.jiffies_force_qs = jiffies + j;
 			WRITE_ONCE(rcu_state.jiffies_kick_kthreads,
-				   jiffies + 3 * j);
+				   jiffies + (j ? 3 * j : 2));
 		}
 		trace_rcu_grace_period(rcu_state.name,
 				       READ_ONCE(rcu_state.gp_seq),
