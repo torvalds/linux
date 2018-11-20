@@ -434,10 +434,6 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 			general_event_handler(dev, eqe);
 			break;
 
-		case MLX5_EVENT_TYPE_DEVICE_TRACER:
-			mlx5_fw_tracer_event(dev, eqe);
-			break;
-
 		default:
 			mlx5_core_warn(dev, "Unhandled event 0x%x on EQ 0x%x\n",
 				       eqe->type, eq->eqn);
