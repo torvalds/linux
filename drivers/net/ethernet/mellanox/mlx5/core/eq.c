@@ -421,11 +421,6 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 			mlx5_pps_event(dev, eqe);
 			break;
 
-		case MLX5_EVENT_TYPE_FPGA_ERROR:
-		case MLX5_EVENT_TYPE_FPGA_QP_ERROR:
-			mlx5_fpga_event(dev, eqe->type, &eqe->data.raw);
-			break;
-
 		case MLX5_EVENT_TYPE_TEMP_WARN_EVENT:
 			mlx5_temp_warning_event(dev, eqe);
 			break;
