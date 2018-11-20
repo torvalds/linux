@@ -215,7 +215,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_hummingbird>;
+	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
@@ -239,15 +239,6 @@
 
 &ohci0 {
 	status = "okay";
-};
-
-&pio {
-	mmc0_cd_pin_hummingbird: mmc0_cd_pin@0 {
-		pins = "PA8";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
 };
 
 &p2wi {

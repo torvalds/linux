@@ -89,17 +89,9 @@
 	status = "okay";
 };
 
-&pio {
-	mmc0_cd_pin_bs1078v2: mmc0_cd_pin@0 {
-		pins = "PA8";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-};
-
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_bs1078v2>;
+	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v0>;
 	bus-width = <4>;
 	cd-gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
