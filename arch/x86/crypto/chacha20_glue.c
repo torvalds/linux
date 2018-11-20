@@ -34,6 +34,8 @@ static bool chacha20_use_avx2;
 #ifdef CONFIG_AS_AVX512
 asmlinkage void chacha20_2block_xor_avx512vl(u32 *state, u8 *dst, const u8 *src,
 					     unsigned int len);
+asmlinkage void chacha20_4block_xor_avx512vl(u32 *state, u8 *dst, const u8 *src,
+					     unsigned int len);
 asmlinkage void chacha20_8block_xor_avx512vl(u32 *state, u8 *dst, const u8 *src,
 					     unsigned int len);
 static bool chacha20_use_avx512vl;
@@ -62,6 +64,11 @@ static void chacha20_dosimd(u32 *state, u8 *dst, const u8 *src,
 		if (bytes > CHACHA_BLOCK_SIZE * 4) {
 			chacha20_8block_xor_avx512vl(state, dst, src, bytes);
 			state[12] += chacha20_advance(bytes, 8);
+			return;
+		}
+		if (bytes > CHACHA_BLOCK_SIZE * 2) {
+			chacha20_4block_xor_avx512vl(state, dst, src, bytes);
+			state[12] += chacha20_advance(bytes, 4);
 			return;
 		}
 		if (bytes) {
