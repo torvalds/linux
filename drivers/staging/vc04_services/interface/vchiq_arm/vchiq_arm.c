@@ -63,8 +63,6 @@
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX DEVICE_NAME "."
 
-#define VCHIQ_MINOR 0
-
 /* Some per-instance constants */
 #define MAX_COMPLETIONS 128
 #define MAX_SERVICES 64
@@ -1950,195 +1948,150 @@ vchiq_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 #endif
 
-/****************************************************************************
-*
-*   vchiq_open
-*
-***************************************************************************/
-
-static int
-vchiq_open(struct inode *inode, struct file *file)
+static int vchiq_open(struct inode *inode, struct file *file)
 {
-	int dev = iminor(inode) & 0x0f;
+	VCHIQ_STATE_T *state = vchiq_get_state();
+	VCHIQ_INSTANCE_T instance;
 
 	vchiq_log_info(vchiq_arm_log_level, "vchiq_open");
-	switch (dev) {
-	case VCHIQ_MINOR: {
-		VCHIQ_STATE_T *state = vchiq_get_state();
-		VCHIQ_INSTANCE_T instance;
 
-		if (!state) {
-			vchiq_log_error(vchiq_arm_log_level,
-				"vchiq has no connection to VideoCore");
-			return -ENOTCONN;
-		}
-
-		instance = kzalloc(sizeof(*instance), GFP_KERNEL);
-		if (!instance)
-			return -ENOMEM;
-
-		instance->state = state;
-		instance->pid = current->tgid;
-
-		vchiq_debugfs_add_instance(instance);
-
-		init_completion(&instance->insert_event);
-		init_completion(&instance->remove_event);
-		mutex_init(&instance->completion_mutex);
-		mutex_init(&instance->bulk_waiter_list_mutex);
-		INIT_LIST_HEAD(&instance->bulk_waiter_list);
-
-		file->private_data = instance;
-	} break;
-
-	default:
+	if (!state) {
 		vchiq_log_error(vchiq_arm_log_level,
-			"Unknown minor device: %d", dev);
-		return -ENXIO;
+				"vchiq has no connection to VideoCore");
+		return -ENOTCONN;
 	}
+
+	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
+	if (!instance)
+		return -ENOMEM;
+
+	instance->state = state;
+	instance->pid = current->tgid;
+
+	vchiq_debugfs_add_instance(instance);
+
+	init_completion(&instance->insert_event);
+	init_completion(&instance->remove_event);
+	mutex_init(&instance->completion_mutex);
+	mutex_init(&instance->bulk_waiter_list_mutex);
+	INIT_LIST_HEAD(&instance->bulk_waiter_list);
+
+	file->private_data = instance;
 
 	return 0;
 }
 
-/****************************************************************************
-*
-*   vchiq_release
-*
-***************************************************************************/
-
-static int
-vchiq_release(struct inode *inode, struct file *file)
+static int vchiq_release(struct inode *inode, struct file *file)
 {
-	int dev = iminor(inode) & 0x0f;
+	VCHIQ_INSTANCE_T instance = file->private_data;
+	VCHIQ_STATE_T *state = vchiq_get_state();
+	VCHIQ_SERVICE_T *service;
 	int ret = 0;
+	int i;
 
-	switch (dev) {
-	case VCHIQ_MINOR: {
-		VCHIQ_INSTANCE_T instance = file->private_data;
-		VCHIQ_STATE_T *state = vchiq_get_state();
-		VCHIQ_SERVICE_T *service;
-		int i;
+	vchiq_log_info(vchiq_arm_log_level, "%s: instance=%lx", __func__,
+		       (unsigned long)instance);
 
-		vchiq_log_info(vchiq_arm_log_level,
-			"%s: instance=%lx",
-			__func__, (unsigned long)instance);
+	if (!state) {
+		ret = -EPERM;
+		goto out;
+	}
 
-		if (!state) {
-			ret = -EPERM;
-			goto out;
-		}
+	/* Ensure videocore is awake to allow termination. */
+	vchiq_use_internal(instance->state, NULL, USE_TYPE_VCHIQ);
 
-		/* Ensure videocore is awake to allow termination. */
-		vchiq_use_internal(instance->state, NULL,
-				USE_TYPE_VCHIQ);
+	mutex_lock(&instance->completion_mutex);
 
-		mutex_lock(&instance->completion_mutex);
+	/* Wake the completion thread and ask it to exit */
+	instance->closing = 1;
+	complete(&instance->insert_event);
 
-		/* Wake the completion thread and ask it to exit */
-		instance->closing = 1;
-		complete(&instance->insert_event);
+	mutex_unlock(&instance->completion_mutex);
 
-		mutex_unlock(&instance->completion_mutex);
+	/* Wake the slot handler if the completion queue is full. */
+	complete(&instance->remove_event);
 
-		/* Wake the slot handler if the completion queue is full. */
-		complete(&instance->remove_event);
+	/* Mark all services for termination... */
+	i = 0;
+	while ((service = next_service_by_instance(state, instance, &i))) {
+		USER_SERVICE_T *user_service = service->base.userdata;
 
-		/* Mark all services for termination... */
-		i = 0;
-		while ((service = next_service_by_instance(state, instance,
-			&i)) !=	NULL) {
-			USER_SERVICE_T *user_service = service->base.userdata;
+		/* Wake the slot handler if the msg queue is full. */
+		complete(&user_service->remove_event);
 
-			/* Wake the slot handler if the msg queue is full. */
-			complete(&user_service->remove_event);
+		vchiq_terminate_service_internal(service);
+		unlock_service(service);
+	}
 
-			vchiq_terminate_service_internal(service);
-			unlock_service(service);
-		}
+	/* ...and wait for them to die */
+	i = 0;
+	while ((service = next_service_by_instance(state, instance, &i))) {
+		USER_SERVICE_T *user_service = service->base.userdata;
 
-		/* ...and wait for them to die */
-		i = 0;
-		while ((service = next_service_by_instance(state, instance, &i))
-			!= NULL) {
-			USER_SERVICE_T *user_service = service->base.userdata;
+		wait_for_completion(&service->remove_event);
 
-			wait_for_completion(&service->remove_event);
+		BUG_ON(service->srvstate != VCHIQ_SRVSTATE_FREE);
 
-			BUG_ON(service->srvstate != VCHIQ_SRVSTATE_FREE);
+		spin_lock(&msg_queue_spinlock);
 
-			spin_lock(&msg_queue_spinlock);
+		while (user_service->msg_remove != user_service->msg_insert) {
+			VCHIQ_HEADER_T *header;
+			int m = user_service->msg_remove & (MSG_QUEUE_SIZE - 1);
 
-			while (user_service->msg_remove !=
-				user_service->msg_insert) {
-				VCHIQ_HEADER_T *header;
-				int m = user_service->msg_remove &
-					(MSG_QUEUE_SIZE - 1);
-
-				header = user_service->msg_queue[m];
-				user_service->msg_remove++;
-				spin_unlock(&msg_queue_spinlock);
-
-				if (header)
-					vchiq_release_message(
-						service->handle,
-						header);
-				spin_lock(&msg_queue_spinlock);
-			}
-
+			header = user_service->msg_queue[m];
+			user_service->msg_remove++;
 			spin_unlock(&msg_queue_spinlock);
 
+			if (header)
+				vchiq_release_message(service->handle, header);
+			spin_lock(&msg_queue_spinlock);
+		}
+
+		spin_unlock(&msg_queue_spinlock);
+
+		unlock_service(service);
+	}
+
+	/* Release any closed services */
+	while (instance->completion_remove !=
+		instance->completion_insert) {
+		VCHIQ_COMPLETION_DATA_T *completion;
+		VCHIQ_SERVICE_T *service;
+
+		completion = &instance->completions[
+			instance->completion_remove & (MAX_COMPLETIONS - 1)];
+		service = completion->service_userdata;
+		if (completion->reason == VCHIQ_SERVICE_CLOSED) {
+			USER_SERVICE_T *user_service = service->base.userdata;
+
+			/* Wake any blocked user-thread */
+			if (instance->use_close_delivered)
+				complete(&user_service->close_event);
 			unlock_service(service);
 		}
-
-		/* Release any closed services */
-		while (instance->completion_remove !=
-			instance->completion_insert) {
-			VCHIQ_COMPLETION_DATA_T *completion;
-			VCHIQ_SERVICE_T *service;
-
-			completion = &instance->completions[
-				instance->completion_remove &
-				(MAX_COMPLETIONS - 1)];
-			service = completion->service_userdata;
-			if (completion->reason == VCHIQ_SERVICE_CLOSED) {
-				USER_SERVICE_T *user_service =
-					service->base.userdata;
-
-				/* Wake any blocked user-thread */
-				if (instance->use_close_delivered)
-					complete(&user_service->close_event);
-				unlock_service(service);
-			}
-			instance->completion_remove++;
-		}
-
-		/* Release the PEER service count. */
-		vchiq_release_internal(instance->state, NULL);
-
-		{
-			struct bulk_waiter_node *waiter, *next;
-
-			list_for_each_entry_safe(waiter, next,
-					&instance->bulk_waiter_list, list) {
-				list_del(&waiter->list);
-				vchiq_log_info(vchiq_arm_log_level,
-					"bulk_waiter - cleaned up %pK for pid %d",
-					waiter, waiter->pid);
-				kfree(waiter);
-			}
-		}
-
-		vchiq_debugfs_remove_instance(instance);
-
-		kfree(instance);
-		file->private_data = NULL;
-	} break;
-
-	default:
-		vchiq_log_error(vchiq_arm_log_level,
-			"Unknown minor device: %d", dev);
-		ret = -ENXIO;
+		instance->completion_remove++;
 	}
+
+	/* Release the PEER service count. */
+	vchiq_release_internal(instance->state, NULL);
+
+	{
+		struct bulk_waiter_node *waiter, *next;
+
+		list_for_each_entry_safe(waiter, next,
+					 &instance->bulk_waiter_list, list) {
+			list_del(&waiter->list);
+			vchiq_log_info(vchiq_arm_log_level,
+				"bulk_waiter - cleaned up %pK for pid %d",
+				waiter, waiter->pid);
+			kfree(waiter);
+		}
+	}
+
+	vchiq_debugfs_remove_instance(instance);
+
+	kfree(instance);
+	file->private_data = NULL;
 
 out:
 	return ret;
@@ -3613,7 +3566,7 @@ static int __init vchiq_driver_init(void)
 		return PTR_ERR(vchiq_class);
 	}
 
-	ret = alloc_chrdev_region(&vchiq_devid, VCHIQ_MINOR, 1, DEVICE_NAME);
+	ret = alloc_chrdev_region(&vchiq_devid, 0, 1, DEVICE_NAME);
 	if (ret) {
 		pr_err("Failed to allocate vchiq's chrdev region\n");
 		goto class_destroy;
