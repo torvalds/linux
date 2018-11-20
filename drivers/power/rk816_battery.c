@@ -1057,6 +1057,7 @@ static enum power_supply_property rk816_bat_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
 };
 
 static int rk816_battery_get_property(struct power_supply *psy,
@@ -1102,6 +1103,9 @@ static int rk816_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
 		val->intval = di->charge_count;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		val->intval = di->pdata->design_capacity * 1000;/* uAh */
 		break;
 	default:
 		return -EINVAL;
