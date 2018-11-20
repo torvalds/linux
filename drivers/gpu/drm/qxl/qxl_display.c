@@ -755,7 +755,7 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 		}
 	}
 
-	ret = qxl_bo_pin(user_bo, QXL_GEM_DOMAIN_CPU, NULL);
+	ret = qxl_bo_pin(user_bo);
 	if (ret)
 		return ret;
 
@@ -1102,7 +1102,7 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 	}
 	qdev->monitors_config_bo = gem_to_qxl_bo(gobj);
 
-	ret = qxl_bo_pin(qdev->monitors_config_bo, QXL_GEM_DOMAIN_VRAM, NULL);
+	ret = qxl_bo_pin(qdev->monitors_config_bo);
 	if (ret)
 		return ret;
 

@@ -216,7 +216,7 @@ struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo)
 	return bo;
 }
 
-static int __qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
+static int __qxl_bo_pin(struct qxl_bo *bo)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	struct drm_device *ddev = bo->gem_base.dev;
@@ -224,16 +224,12 @@ static int __qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
 
 	if (bo->pin_count) {
 		bo->pin_count++;
-		if (gpu_addr)
-			*gpu_addr = qxl_bo_gpu_offset(bo);
 		return 0;
 	}
-	qxl_ttm_placement_from_domain(bo, domain, true);
+	qxl_ttm_placement_from_domain(bo, bo->type, true);
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (likely(r == 0)) {
 		bo->pin_count = 1;
-		if (gpu_addr != NULL)
-			*gpu_addr = qxl_bo_gpu_offset(bo);
 	}
 	if (unlikely(r != 0))
 		dev_err(ddev->dev, "%p pin failed\n", bo);
@@ -266,7 +262,7 @@ static int __qxl_bo_unpin(struct qxl_bo *bo)
  * beforehand, use the internal version directly __qxl_bo_pin.
  *
  */
-int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
+int qxl_bo_pin(struct qxl_bo *bo)
 {
 	int r;
 
@@ -274,7 +270,7 @@ int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
 	if (r)
 		return r;
 
-	r = __qxl_bo_pin(bo, bo->type, NULL);
+	r = __qxl_bo_pin(bo);
 	qxl_bo_unreserve(bo);
 	return r;
 }
