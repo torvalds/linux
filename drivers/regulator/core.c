@@ -4565,10 +4565,6 @@ static umode_t regulator_attr_is_visible(struct kobject *kobj,
 	if (attr == &dev_attr_bypass.attr)
 		return ops->get_bypass ? mode : 0;
 
-	/* some attributes are type-specific */
-	if (attr == &dev_attr_requested_microamps.attr)
-		return rdev->desc->type == REGULATOR_CURRENT ? mode : 0;
-
 	/* constraints need specific supporting methods */
 	if (attr == &dev_attr_min_microvolts.attr ||
 	    attr == &dev_attr_max_microvolts.attr)
