@@ -81,12 +81,7 @@ KBUILD_EXTMOD
 --------------------------------------------------
 Set the directory to look for the kernel source when building external
 modules.
-The directory can be specified in several ways:
-1) Use "M=..." on the command line
-2) Environment variable KBUILD_EXTMOD
-3) Environment variable SUBDIRS
-The possibilities are listed in the order they take precedence.
-Using "M=..." will always override the others.
+Setting "M=..." takes precedence over KBUILD_EXTMOD.
 
 KBUILD_OUTPUT
 --------------------------------------------------

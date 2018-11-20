@@ -186,6 +186,10 @@ endif
 # Old syntax make ... SUBDIRS=$PWD is still supported
 # Setting the environment variable KBUILD_EXTMOD take precedence
 ifdef SUBDIRS
+  $(warning ================= WARNING ================)
+  $(warning 'SUBDIRS' will be removed after Linux 5.3)
+  $(warning Please use 'M=' or 'KBUILD_EXTMOD' instead)
+  $(warning ==========================================)
   KBUILD_EXTMOD ?= $(SUBDIRS)
 endif
 
