@@ -83,25 +83,42 @@ static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 	}
 }
 
+static int edp_psr_shift(enum transcoder cpu_transcoder)
+{
+	switch (cpu_transcoder) {
+	case TRANSCODER_A:
+		return EDP_PSR_TRANSCODER_A_SHIFT;
+	case TRANSCODER_B:
+		return EDP_PSR_TRANSCODER_B_SHIFT;
+	case TRANSCODER_C:
+		return EDP_PSR_TRANSCODER_C_SHIFT;
+	default:
+		MISSING_CASE(cpu_transcoder);
+		/* fallthrough */
+	case TRANSCODER_EDP:
+		return EDP_PSR_TRANSCODER_EDP_SHIFT;
+	}
+}
+
 void intel_psr_irq_control(struct drm_i915_private *dev_priv, u32 debug)
 {
 	u32 debug_mask, mask;
+	enum transcoder cpu_transcoder;
+	u32 transcoders = BIT(TRANSCODER_EDP);
 
-	mask = EDP_PSR_ERROR(TRANSCODER_EDP);
-	debug_mask = EDP_PSR_POST_EXIT(TRANSCODER_EDP) |
-		     EDP_PSR_PRE_ENTRY(TRANSCODER_EDP);
+	if (INTEL_GEN(dev_priv) >= 8)
+		transcoders |= BIT(TRANSCODER_A) |
+			       BIT(TRANSCODER_B) |
+			       BIT(TRANSCODER_C);
 
-	if (INTEL_GEN(dev_priv) >= 8) {
-		mask |= EDP_PSR_ERROR(TRANSCODER_A) |
-			EDP_PSR_ERROR(TRANSCODER_B) |
-			EDP_PSR_ERROR(TRANSCODER_C);
+	debug_mask = 0;
+	mask = 0;
+	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
+		int shift = edp_psr_shift(cpu_transcoder);
 
-		debug_mask |= EDP_PSR_POST_EXIT(TRANSCODER_A) |
-			      EDP_PSR_PRE_ENTRY(TRANSCODER_A) |
-			      EDP_PSR_POST_EXIT(TRANSCODER_B) |
-			      EDP_PSR_PRE_ENTRY(TRANSCODER_B) |
-			      EDP_PSR_POST_EXIT(TRANSCODER_C) |
-			      EDP_PSR_PRE_ENTRY(TRANSCODER_C);
+		mask |= EDP_PSR_ERROR(shift);
+		debug_mask |= EDP_PSR_POST_EXIT(shift) |
+			      EDP_PSR_PRE_ENTRY(shift);
 	}
 
 	if (debug & I915_PSR_DEBUG_IRQ)
@@ -159,18 +176,20 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 			       BIT(TRANSCODER_C);
 
 	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
+		int shift = edp_psr_shift(cpu_transcoder);
+
 		/* FIXME: Exit PSR and link train manually when this happens. */
-		if (psr_iir & EDP_PSR_ERROR(cpu_transcoder))
+		if (psr_iir & EDP_PSR_ERROR(shift))
 			DRM_DEBUG_KMS("[transcoder %s] PSR aux error\n",
 				      transcoder_name(cpu_transcoder));
 
-		if (psr_iir & EDP_PSR_PRE_ENTRY(cpu_transcoder)) {
+		if (psr_iir & EDP_PSR_PRE_ENTRY(shift)) {
 			dev_priv->psr.last_entry_attempt = time_ns;
 			DRM_DEBUG_KMS("[transcoder %s] PSR entry attempt in 2 vblanks\n",
 				      transcoder_name(cpu_transcoder));
 		}
 
-		if (psr_iir & EDP_PSR_POST_EXIT(cpu_transcoder)) {
+		if (psr_iir & EDP_PSR_POST_EXIT(shift)) {
 			dev_priv->psr.last_exit = time_ns;
 			DRM_DEBUG_KMS("[transcoder %s] PSR exit completed\n",
 				      transcoder_name(cpu_transcoder));
