@@ -126,9 +126,23 @@ enum jz4740_mmc_state {
 	JZ4740_MMC_STATE_DONE,
 };
 
-struct jz4740_mmc_host_next {
-	int sg_len;
-	s32 cookie;
+/*
+ * The MMC core allows to prepare a mmc_request while another mmc_request
+ * is in-flight. This is used via the pre_req/post_req hooks.
+ * This driver uses the pre_req/post_req hooks to map/unmap the mmc_request.
+ * Following what other drivers do (sdhci, dw_mmc) we use the following cookie
+ * flags to keep track of the mmc_request mapping state.
+ *
+ * COOKIE_UNMAPPED: the request is not mapped.
+ * COOKIE_PREMAPPED: the request was mapped in pre_req,
+ * and should be unmapped in post_req.
+ * COOKIE_MAPPED: the request was mapped in the irq handler,
+ * and should be unmapped before mmc_request_done is called..
+ */
+enum jz4780_cookie {
+	COOKIE_UNMAPPED = 0,
+	COOKIE_PREMAPPED,
+	COOKIE_MAPPED,
 };
 
 struct jz4740_mmc_host {
@@ -163,9 +177,7 @@ struct jz4740_mmc_host {
 	/* DMA support */
 	struct dma_chan *dma_rx;
 	struct dma_chan *dma_tx;
-	struct jz4740_mmc_host_next next_data;
 	bool use_dma;
-	int sg_len;
 
 /* The DMA trigger level is 8 words, that is to say, the DMA read
  * trigger is when data words in MSC_RXFIFO is >= 8 and the DMA write
@@ -227,9 +239,6 @@ static int jz4740_mmc_acquire_dma_channels(struct jz4740_mmc_host *host)
 		return PTR_ERR(host->dma_rx);
 	}
 
-	/* Initialize DMA pre request cookie */
-	host->next_data.cookie = 1;
-
 	return 0;
 }
 
@@ -246,60 +255,44 @@ static void jz4740_mmc_dma_unmap(struct jz4740_mmc_host *host,
 	enum dma_data_direction dir = mmc_get_dma_dir(data);
 
 	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len, dir);
+	data->host_cookie = COOKIE_UNMAPPED;
 }
 
-/* Prepares DMA data for current/next transfer, returns non-zero on failure */
+/* Prepares DMA data for current or next transfer.
+ * A request can be in-flight when this is called.
+ */
 static int jz4740_mmc_prepare_dma_data(struct jz4740_mmc_host *host,
 				       struct mmc_data *data,
-				       struct jz4740_mmc_host_next *next,
-				       struct dma_chan *chan)
+				       int cookie)
 {
-	struct jz4740_mmc_host_next *next_data = &host->next_data;
+	struct dma_chan *chan = jz4740_mmc_get_dma_chan(host, data);
 	enum dma_data_direction dir = mmc_get_dma_dir(data);
-	int sg_len;
+	int sg_count;
 
-	if (!next && data->host_cookie &&
-	    data->host_cookie != host->next_data.cookie) {
-		dev_warn(mmc_dev(host->mmc),
-			 "[%s] invalid cookie: data->host_cookie %d host->next_data.cookie %d\n",
-			 __func__,
-			 data->host_cookie,
-			 host->next_data.cookie);
-		data->host_cookie = 0;
-	}
+	if (data->host_cookie == COOKIE_PREMAPPED)
+		return data->sg_count;
 
-	/* Check if next job is already prepared */
-	if (next || data->host_cookie != host->next_data.cookie) {
-		sg_len = dma_map_sg(chan->device->dev,
-				    data->sg,
-				    data->sg_len,
-				    dir);
+	sg_count = dma_map_sg(chan->device->dev,
+			data->sg,
+			data->sg_len,
+			dir);
 
-	} else {
-		sg_len = next_data->sg_len;
-		next_data->sg_len = 0;
-	}
-
-	if (sg_len <= 0) {
+	if (sg_count <= 0) {
 		dev_err(mmc_dev(host->mmc),
 			"Failed to map scatterlist for DMA operation\n");
 		return -EINVAL;
 	}
 
-	if (next) {
-		next->sg_len = sg_len;
-		data->host_cookie = ++next->cookie < 0 ? 1 : next->cookie;
-	} else
-		host->sg_len = sg_len;
+	data->sg_count = sg_count;
+	data->host_cookie = cookie;
 
-	return 0;
+	return data->sg_count;
 }
 
 static int jz4740_mmc_start_dma_transfer(struct jz4740_mmc_host *host,
 					 struct mmc_data *data)
 {
-	int ret;
-	struct dma_chan *chan;
+	struct dma_chan *chan = jz4740_mmc_get_dma_chan(host, data);
 	struct dma_async_tx_descriptor *desc;
 	struct dma_slave_config conf = {
 		.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
@@ -307,29 +300,26 @@ static int jz4740_mmc_start_dma_transfer(struct jz4740_mmc_host *host,
 		.src_maxburst = JZ4740_MMC_FIFO_HALF_SIZE,
 		.dst_maxburst = JZ4740_MMC_FIFO_HALF_SIZE,
 	};
+	int sg_count;
 
 	if (data->flags & MMC_DATA_WRITE) {
 		conf.direction = DMA_MEM_TO_DEV;
 		conf.dst_addr = host->mem_res->start + JZ_REG_MMC_TXFIFO;
 		conf.slave_id = JZ4740_DMA_TYPE_MMC_TRANSMIT;
-		chan = host->dma_tx;
 	} else {
 		conf.direction = DMA_DEV_TO_MEM;
 		conf.src_addr = host->mem_res->start + JZ_REG_MMC_RXFIFO;
 		conf.slave_id = JZ4740_DMA_TYPE_MMC_RECEIVE;
-		chan = host->dma_rx;
 	}
 
-	ret = jz4740_mmc_prepare_dma_data(host, data, NULL, chan);
-	if (ret)
-		return ret;
+	sg_count = jz4740_mmc_prepare_dma_data(host, data, COOKIE_MAPPED);
+	if (sg_count < 0)
+		return sg_count;
 
 	dmaengine_slave_config(chan, &conf);
-	desc = dmaengine_prep_slave_sg(chan,
-				       data->sg,
-				       host->sg_len,
-				       conf.direction,
-				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	desc = dmaengine_prep_slave_sg(chan, data->sg, sg_count,
+			conf.direction,
+			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dev_err(mmc_dev(host->mmc),
 			"Failed to allocate DMA %s descriptor",
@@ -343,7 +333,8 @@ static int jz4740_mmc_start_dma_transfer(struct jz4740_mmc_host *host,
 	return 0;
 
 dma_unmap:
-	jz4740_mmc_dma_unmap(host, data);
+	if (data->host_cookie == COOKIE_MAPPED)
+		jz4740_mmc_dma_unmap(host, data);
 	return -ENOMEM;
 }
 
@@ -352,16 +343,13 @@ static void jz4740_mmc_pre_request(struct mmc_host *mmc,
 {
 	struct jz4740_mmc_host *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;
-	struct jz4740_mmc_host_next *next_data = &host->next_data;
 
-	BUG_ON(data->host_cookie);
+	if (!host->use_dma)
+		return;
 
-	if (host->use_dma) {
-		struct dma_chan *chan = jz4740_mmc_get_dma_chan(host, data);
-
-		if (jz4740_mmc_prepare_dma_data(host, data, next_data, chan))
-			data->host_cookie = 0;
-	}
+	data->host_cookie = COOKIE_UNMAPPED;
+	if (jz4740_mmc_prepare_dma_data(host, data, COOKIE_PREMAPPED) < 0)
+		data->host_cookie = COOKIE_UNMAPPED;
 }
 
 static void jz4740_mmc_post_request(struct mmc_host *mmc,
@@ -371,10 +359,8 @@ static void jz4740_mmc_post_request(struct mmc_host *mmc,
 	struct jz4740_mmc_host *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;
 
-	if (host->use_dma && data->host_cookie) {
+	if (data && data->host_cookie != COOKIE_UNMAPPED)
 		jz4740_mmc_dma_unmap(host, data);
-		data->host_cookie = 0;
-	}
 
 	if (err) {
 		struct dma_chan *chan = jz4740_mmc_get_dma_chan(host, data);
@@ -437,10 +423,14 @@ static void jz4740_mmc_reset(struct jz4740_mmc_host *host)
 static void jz4740_mmc_request_done(struct jz4740_mmc_host *host)
 {
 	struct mmc_request *req;
+	struct mmc_data *data;
 
 	req = host->req;
+	data = req->data;
 	host->req = NULL;
 
+	if (data && data->host_cookie == COOKIE_MAPPED)
+		jz4740_mmc_dma_unmap(host, data);
 	mmc_request_done(host->mmc, req);
 }
 
