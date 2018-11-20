@@ -917,6 +917,9 @@ static void dvb_frontend_get_frequency_limits(struct dvb_frontend *fe,
 			 "DVB: adapter %i frontend %u frequency limits undefined - fix the driver\n",
 			 fe->dvb->num, fe->id);
 
+	dprintk("frequency interval: tuner: %u...%u, frontend: %u...%u",
+		tuner_min, tuner_max, frontend_min, frontend_max);
+
 	/* If the standard is for satellite, convert frequencies to kHz */
 	switch (c->delivery_system) {
 	case SYS_DVBS:
