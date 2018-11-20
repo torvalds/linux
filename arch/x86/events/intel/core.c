@@ -2306,14 +2306,18 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 	return handled;
 }
 
-static bool disable_counter_freezing;
+static bool disable_counter_freezing = true;
 static int __init intel_perf_counter_freezing_setup(char *s)
 {
-	disable_counter_freezing = true;
-	pr_info("Intel PMU Counter freezing feature disabled\n");
+	bool res;
+
+	if (kstrtobool(s, &res))
+		return -EINVAL;
+
+	disable_counter_freezing = !res;
 	return 1;
 }
-__setup("disable_counter_freezing", intel_perf_counter_freezing_setup);
+__setup("perf_v4_pmi=", intel_perf_counter_freezing_setup);
 
 /*
  * Simplified handler for Arch Perfmon v4:
