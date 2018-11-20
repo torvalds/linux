@@ -3583,28 +3583,14 @@ exit:
 	return status;
 }
 
-VCHIQ_STATUS_T
-vchiq_get_config(VCHIQ_INSTANCE_T instance,
-	int config_size, VCHIQ_CONFIG_T *pconfig)
+void vchiq_get_config(VCHIQ_CONFIG_T *config)
 {
-	VCHIQ_CONFIG_T config;
-
-	(void)instance;
-
-	config.max_msg_size           = VCHIQ_MAX_MSG_SIZE;
-	config.bulk_threshold         = VCHIQ_MAX_MSG_SIZE;
-	config.max_outstanding_bulks  = VCHIQ_NUM_SERVICE_BULKS;
-	config.max_services           = VCHIQ_MAX_SERVICES;
-	config.version                = VCHIQ_VERSION;
-	config.version_min            = VCHIQ_VERSION_MIN;
-
-	if (config_size > sizeof(VCHIQ_CONFIG_T))
-		return VCHIQ_ERROR;
-
-	memcpy(pconfig, &config,
-		min(config_size, (int)(sizeof(VCHIQ_CONFIG_T))));
-
-	return VCHIQ_SUCCESS;
+	config->max_msg_size           = VCHIQ_MAX_MSG_SIZE;
+	config->bulk_threshold         = VCHIQ_MAX_MSG_SIZE;
+	config->max_outstanding_bulks  = VCHIQ_NUM_SERVICE_BULKS;
+	config->max_services           = VCHIQ_MAX_SERVICES;
+	config->version                = VCHIQ_VERSION;
+	config->version_min            = VCHIQ_VERSION_MIN;
 }
 
 VCHIQ_STATUS_T

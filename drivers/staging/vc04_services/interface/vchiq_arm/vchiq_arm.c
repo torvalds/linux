@@ -1480,13 +1480,11 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EINVAL;
 			break;
 		}
-		status = vchiq_get_config(instance, args.config_size, &config);
-		if (status == VCHIQ_SUCCESS) {
-			if (copy_to_user((void __user *)args.pconfig,
-				    &config, args.config_size) != 0) {
-				ret = -EFAULT;
-				break;
-			}
+
+		vchiq_get_config(&config);
+		if (copy_to_user(args.pconfig, &config, args.config_size)) {
+			ret = -EFAULT;
+			break;
 		}
 	} break;
 
