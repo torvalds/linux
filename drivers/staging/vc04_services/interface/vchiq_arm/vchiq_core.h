@@ -242,7 +242,6 @@ typedef struct vchiq_bulk_struct {
 	short mode;
 	short dir;
 	void *userdata;
-	VCHI_MEM_HANDLE_T handle;
 	void *data;
 	int size;
 	void *remote_data;
@@ -566,9 +565,9 @@ extern void
 remote_event_pollall(VCHIQ_STATE_T *state);
 
 extern VCHIQ_STATUS_T
-vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
-	VCHI_MEM_HANDLE_T memhandle, void *offset, int size, void *userdata,
-	VCHIQ_BULK_MODE_T mode, VCHIQ_BULK_DIR_T dir);
+vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *offset, int size,
+		    void *userdata, VCHIQ_BULK_MODE_T mode,
+		    VCHIQ_BULK_DIR_T dir);
 
 extern void
 vchiq_dump_state(void *dump_context, VCHIQ_STATE_T *state);
@@ -624,8 +623,7 @@ unlock_service(VCHIQ_SERVICE_T *service);
 ** implementations must be provided. */
 
 extern VCHIQ_STATUS_T
-vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk,
-	VCHI_MEM_HANDLE_T memhandle, void *offset, int size, int dir);
+vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, void *offset, int size, int dir);
 
 extern void
 vchiq_transfer_bulk(VCHIQ_BULK_T *bulk);

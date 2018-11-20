@@ -36,7 +36,6 @@
 
 #include "interface/vchi/vchi_cfg.h"
 #include "interface/vchi/vchi_common.h"
-#include "vchi_mh.h"
 
 /******************************************************************************
  Global defs
@@ -239,7 +238,6 @@ extern int32_t vchi_bulk_queue_receive(VCHI_SERVICE_HANDLE_T handle,
 
 // Prepare interface for a transfer from the other side into relocatable memory.
 int32_t vchi_bulk_queue_receive_reloc(const VCHI_SERVICE_HANDLE_T handle,
-				      VCHI_MEM_HANDLE_T h_dst,
 				      uint32_t offset,
 				      uint32_t data_size,
 				      const VCHI_FLAGS_T flags,
@@ -261,7 +259,6 @@ extern int32_t vchi_bulk_queue_transmit(VCHI_SERVICE_HANDLE_T handle,
 #endif
 
 extern int32_t vchi_bulk_queue_transmit_reloc(VCHI_SERVICE_HANDLE_T handle,
-					      VCHI_MEM_HANDLE_T h_src,
 					      uint32_t offset,
 					      uint32_t data_size,
 					      VCHI_FLAGS_T flags,

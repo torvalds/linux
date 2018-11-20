@@ -419,9 +419,9 @@ vchiq_bulk_transmit(VCHIQ_SERVICE_HANDLE_T handle, const void *data,
 	switch (mode) {
 	case VCHIQ_BULK_MODE_NOCALLBACK:
 	case VCHIQ_BULK_MODE_CALLBACK:
-		status = vchiq_bulk_transfer(handle,
-			VCHI_MEM_HANDLE_INVALID, (void *)data, size, userdata,
-			mode, VCHIQ_BULK_TRANSMIT);
+		status = vchiq_bulk_transfer(handle, (void *)data, size,
+					     userdata, mode,
+					     VCHIQ_BULK_TRANSMIT);
 		break;
 	case VCHIQ_BULK_MODE_BLOCKING:
 		status = vchiq_blocking_bulk_transfer(handle,
@@ -444,9 +444,8 @@ vchiq_bulk_receive(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 	switch (mode) {
 	case VCHIQ_BULK_MODE_NOCALLBACK:
 	case VCHIQ_BULK_MODE_CALLBACK:
-		status = vchiq_bulk_transfer(handle,
-			VCHI_MEM_HANDLE_INVALID, data, size, userdata,
-			mode, VCHIQ_BULK_RECEIVE);
+		status = vchiq_bulk_transfer(handle, data, size, userdata,
+					     mode, VCHIQ_BULK_RECEIVE);
 		break;
 	case VCHIQ_BULK_MODE_BLOCKING:
 		status = vchiq_blocking_bulk_transfer(handle,
@@ -513,9 +512,8 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 		}
 	}
 
-	status = vchiq_bulk_transfer(handle, VCHI_MEM_HANDLE_INVALID,
-		data, size, &waiter->bulk_waiter, VCHIQ_BULK_MODE_BLOCKING,
-		dir);
+	status = vchiq_bulk_transfer(handle, data, size, &waiter->bulk_waiter,
+				     VCHIQ_BULK_MODE_BLOCKING, dir);
 	if ((status != VCHIQ_RETRY) || fatal_signal_pending(current) ||
 		!waiter->bulk_waiter.bulk) {
 		VCHIQ_BULK_T *bulk = waiter->bulk_waiter.bulk;
@@ -1149,14 +1147,13 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				current->pid);
 			args.userdata = &waiter->bulk_waiter;
 		}
-		status = vchiq_bulk_transfer
-			(args.handle,
-			 VCHI_MEM_HANDLE_INVALID,
-			 args.data, args.size,
-			 args.userdata, args.mode,
-			 dir);
+
+		status = vchiq_bulk_transfer(args.handle, args.data, args.size,
+					     args.userdata, args.mode, dir);
+
 		if (!waiter)
 			break;
+
 		if ((status != VCHIQ_RETRY) || fatal_signal_pending(current) ||
 			!waiter->bulk_waiter.bulk) {
 			if (waiter->bulk_waiter.bulk) {

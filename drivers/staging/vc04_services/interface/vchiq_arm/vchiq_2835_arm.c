@@ -247,12 +247,9 @@ remote_event_signal(REMOTE_EVENT_T *event)
 }
 
 VCHIQ_STATUS_T
-vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
-	void *offset, int size, int dir)
+vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, void *offset, int size, int dir)
 {
 	struct vchiq_pagelist_info *pagelistinfo;
-
-	WARN_ON(memhandle != VCHI_MEM_HANDLE_INVALID);
 
 	pagelistinfo = create_pagelist((char __user *)offset, size,
 				       (dir == VCHIQ_BULK_RECEIVE)
@@ -262,7 +259,6 @@ vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
 	if (!pagelistinfo)
 		return VCHIQ_ERROR;
 
-	bulk->handle = memhandle;
 	bulk->data = (void *)(unsigned long)pagelistinfo->dma_addr;
 
 	/*

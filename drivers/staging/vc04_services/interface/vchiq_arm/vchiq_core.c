@@ -3313,10 +3313,10 @@ vchiq_remove_service(VCHIQ_SERVICE_HANDLE_T handle)
  * When called in blocking mode, the userdata field points to a bulk_waiter
  * structure.
  */
-VCHIQ_STATUS_T
-vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
-	VCHI_MEM_HANDLE_T memhandle, void *offset, int size, void *userdata,
-	VCHIQ_BULK_MODE_T mode, VCHIQ_BULK_DIR_T dir)
+VCHIQ_STATUS_T vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
+				   void *offset, int size, void *userdata,
+				   VCHIQ_BULK_MODE_T mode,
+				   VCHIQ_BULK_DIR_T dir)
 {
 	VCHIQ_SERVICE_T *service = find_service_by_handle(handle);
 	VCHIQ_BULK_QUEUE_T *queue;
@@ -3328,10 +3328,8 @@ vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 		VCHIQ_MSG_BULK_TX : VCHIQ_MSG_BULK_RX;
 	VCHIQ_STATUS_T status = VCHIQ_ERROR;
 
-	if (!service ||
-		 (service->srvstate != VCHIQ_SRVSTATE_OPEN) ||
-		 ((memhandle == VCHI_MEM_HANDLE_INVALID) && (offset == NULL)) ||
-		 (vchiq_check_service(service) != VCHIQ_SUCCESS))
+	if (!service || service->srvstate != VCHIQ_SRVSTATE_OPEN ||
+	    !offset || vchiq_check_service(service) != VCHIQ_SUCCESS)
 		goto error_exit;
 
 	switch (mode) {
@@ -3388,8 +3386,7 @@ vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 	bulk->size = size;
 	bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
 
-	if (vchiq_prepare_bulk_data(bulk, memhandle, offset, size, dir) !=
-		VCHIQ_SUCCESS)
+	if (vchiq_prepare_bulk_data(bulk, offset, size, dir) != VCHIQ_SUCCESS)
 		goto unlock_error_exit;
 
 	wmb();
