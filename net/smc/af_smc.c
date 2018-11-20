@@ -549,7 +549,8 @@ static int smc_connect_rdma(struct smc_sock *smc,
 
 	mutex_lock(&smc_create_lgr_pending);
 	local_contact = smc_conn_create(smc, false, aclc->hdr.flag, ibdev,
-					ibport, &aclc->lcl, NULL, 0);
+					ibport, ntoh24(aclc->qpn), &aclc->lcl,
+					NULL, 0);
 	if (local_contact < 0) {
 		if (local_contact == -ENOMEM)
 			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
@@ -620,7 +621,7 @@ static int smc_connect_ism(struct smc_sock *smc,
 	int rc = 0;
 
 	mutex_lock(&smc_create_lgr_pending);
-	local_contact = smc_conn_create(smc, true, aclc->hdr.flag, NULL, 0,
+	local_contact = smc_conn_create(smc, true, aclc->hdr.flag, NULL, 0, 0,
 					NULL, ismdev, aclc->gid);
 	if (local_contact < 0)
 		return smc_connect_abort(smc, SMC_CLC_DECL_MEM, 0);
@@ -1085,7 +1086,7 @@ static int smc_listen_rdma_init(struct smc_sock *new_smc,
 				int *local_contact)
 {
 	/* allocate connection / link group */
-	*local_contact = smc_conn_create(new_smc, false, 0, ibdev, ibport,
+	*local_contact = smc_conn_create(new_smc, false, 0, ibdev, ibport, 0,
 					 &pclc->lcl, NULL, 0);
 	if (*local_contact < 0) {
 		if (*local_contact == -ENOMEM)
@@ -1109,7 +1110,7 @@ static int smc_listen_ism_init(struct smc_sock *new_smc,
 	struct smc_clc_msg_smcd *pclc_smcd;
 
 	pclc_smcd = smc_get_clc_msg_smcd(pclc);
-	*local_contact = smc_conn_create(new_smc, true, 0, NULL, 0, NULL,
+	*local_contact = smc_conn_create(new_smc, true, 0, NULL, 0, 0, NULL,
 					 ismdev, pclc_smcd->gid);
 	if (*local_contact < 0) {
 		if (*local_contact == -ENOMEM)

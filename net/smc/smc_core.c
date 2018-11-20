@@ -559,7 +559,7 @@ out:
 
 static bool smcr_lgr_match(struct smc_link_group *lgr,
 			   struct smc_clc_msg_local *lcl,
-			   enum smc_lgr_role role)
+			   enum smc_lgr_role role, u32 clcqpn)
 {
 	return !memcmp(lgr->peer_systemid, lcl->id_for_peer,
 		       SMC_SYSTEMID_LEN) &&
@@ -567,7 +567,9 @@ static bool smcr_lgr_match(struct smc_link_group *lgr,
 			SMC_GID_SIZE) &&
 		!memcmp(lgr->lnk[SMC_SINGLE_LINK].peer_mac, lcl->mac,
 			sizeof(lcl->mac)) &&
-		lgr->role == role;
+		lgr->role == role &&
+		(lgr->role == SMC_SERV ||
+		 lgr->lnk[SMC_SINGLE_LINK].peer_qpn == clcqpn);
 }
 
 static bool smcd_lgr_match(struct smc_link_group *lgr,
@@ -578,7 +580,7 @@ static bool smcd_lgr_match(struct smc_link_group *lgr,
 
 /* create a new SMC connection (and a new link group if necessary) */
 int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
-		    struct smc_ib_device *smcibdev, u8 ibport,
+		    struct smc_ib_device *smcibdev, u8 ibport, u32 clcqpn,
 		    struct smc_clc_msg_local *lcl, struct smcd_dev *smcd,
 		    u64 peer_gid)
 {
@@ -603,7 +605,7 @@ int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
 	list_for_each_entry(lgr, &smc_lgr_list.list, list) {
 		write_lock_bh(&lgr->conns_lock);
 		if ((is_smcd ? smcd_lgr_match(lgr, smcd, peer_gid) :
-		     smcr_lgr_match(lgr, lcl, role)) &&
+		     smcr_lgr_match(lgr, lcl, role, clcqpn)) &&
 		    !lgr->sync_err &&
 		    lgr->vlan_id == vlan_id &&
 		    (role == SMC_CLNT ||

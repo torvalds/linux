@@ -262,7 +262,7 @@ int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id);
 
 void smc_conn_free(struct smc_connection *conn);
 int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
-		    struct smc_ib_device *smcibdev, u8 ibport,
+		    struct smc_ib_device *smcibdev, u8 ibport, u32 clcqpn,
 		    struct smc_clc_msg_local *lcl, struct smcd_dev *smcd,
 		    u64 peer_gid);
 void smcd_conn_free(struct smc_connection *conn);
