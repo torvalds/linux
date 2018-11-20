@@ -184,6 +184,8 @@ free:
 
 		if (!lgr->is_smcd && lnk->state != SMC_LNK_INACTIVE)
 			smc_llc_link_inactive(lnk);
+		if (lgr->is_smcd)
+			smc_ism_signal_shutdown(lgr);
 		smc_lgr_free(lgr);
 	}
 }
@@ -485,7 +487,7 @@ void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
 }
 
 /* Called when SMC-D device is terminated or peer is lost */
-void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid)
+void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
 {
 	struct smc_link_group *lgr, *l;
 	LIST_HEAD(lgr_free_list);
@@ -495,7 +497,7 @@ void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid)
 	list_for_each_entry_safe(lgr, l, &smc_lgr_list.list, list) {
 		if (lgr->is_smcd && lgr->smcd == dev &&
 		    (!peer_gid || lgr->peer_gid == peer_gid) &&
-		    !list_empty(&lgr->list)) {
+		    (vlan == VLAN_VID_MASK || lgr->vlan_id == vlan)) {
 			__smc_lgr_terminate(lgr);
 			list_move(&lgr->list, &lgr_free_list);
 		}
@@ -506,6 +508,8 @@ void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid)
 	list_for_each_entry_safe(lgr, l, &lgr_free_list, list) {
 		list_del_init(&lgr->list);
 		cancel_delayed_work_sync(&lgr->free_work);
+		if (!peer_gid && vlan == VLAN_VID_MASK) /* dev terminated? */
+			smc_ism_signal_shutdown(lgr);
 		smc_lgr_free(lgr);
 	}
 }
@@ -1026,6 +1030,8 @@ void smc_core_exit(void)
 			smc_llc_link_inactive(lnk);
 		}
 		cancel_delayed_work_sync(&lgr->free_work);
+		if (lgr->is_smcd)
+			smc_ism_signal_shutdown(lgr);
 		smc_lgr_free(lgr); /* free link group */
 	}
 }

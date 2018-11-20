@@ -187,22 +187,28 @@ struct smc_ism_event_work {
 #define ISM_EVENT_REQUEST		0x0001
 #define ISM_EVENT_RESPONSE		0x0002
 #define ISM_EVENT_REQUEST_IR		0x00000001
+#define ISM_EVENT_CODE_SHUTDOWN		0x80
 #define ISM_EVENT_CODE_TESTLINK		0x83
+
+union smcd_sw_event_info {
+	u64	info;
+	struct {
+		u8		uid[SMC_LGR_ID_SIZE];
+		unsigned short	vlan_id;
+		u16		code;
+	};
+};
 
 static void smcd_handle_sw_event(struct smc_ism_event_work *wrk)
 {
-	union {
-		u64	info;
-		struct {
-			u32		uid;
-			unsigned short	vlanid;
-			u16		code;
-		};
-	} ev_info;
+	union smcd_sw_event_info ev_info;
 
+	ev_info.info = wrk->event.info;
 	switch (wrk->event.code) {
+	case ISM_EVENT_CODE_SHUTDOWN:	/* Peer shut down DMBs */
+		smc_smcd_terminate(wrk->smcd, wrk->event.tok, ev_info.vlan_id);
+		break;
 	case ISM_EVENT_CODE_TESTLINK:	/* Activity timer */
-		ev_info.info = wrk->event.info;
 		if (ev_info.code == ISM_EVENT_REQUEST) {
 			ev_info.code = ISM_EVENT_RESPONSE;
 			wrk->smcd->ops->signal_event(wrk->smcd,
@@ -215,6 +221,21 @@ static void smcd_handle_sw_event(struct smc_ism_event_work *wrk)
 	}
 }
 
+int smc_ism_signal_shutdown(struct smc_link_group *lgr)
+{
+	int rc;
+	union smcd_sw_event_info ev_info;
+
+	memcpy(ev_info.uid, lgr->id, SMC_LGR_ID_SIZE);
+	ev_info.vlan_id = lgr->vlan_id;
+	ev_info.code = ISM_EVENT_REQUEST;
+	rc = lgr->smcd->ops->signal_event(lgr->smcd, lgr->peer_gid,
+					  ISM_EVENT_REQUEST_IR,
+					  ISM_EVENT_CODE_SHUTDOWN,
+					  ev_info.info);
+	return rc;
+}
+
 /* worker for SMC-D events */
 static void smc_ism_event_work(struct work_struct *work)
 {
@@ -223,7 +244,7 @@ static void smc_ism_event_work(struct work_struct *work)
 
 	switch (wrk->event.type) {
 	case ISM_EVENT_GID:	/* GID event, token is peer GID */
-		smc_smcd_terminate(wrk->smcd, wrk->event.tok);
+		smc_smcd_terminate(wrk->smcd, wrk->event.tok, VLAN_VID_MASK);
 		break;
 	case ISM_EVENT_DMB:
 		break;
@@ -289,7 +310,7 @@ void smcd_unregister_dev(struct smcd_dev *smcd)
 	spin_unlock(&smcd_dev_list.lock);
 	flush_workqueue(smcd->event_wq);
 	destroy_workqueue(smcd->event_wq);
-	smc_smcd_terminate(smcd, 0);
+	smc_smcd_terminate(smcd, 0, VLAN_VID_MASK);
 
 	device_del(&smcd->dev);
 }
