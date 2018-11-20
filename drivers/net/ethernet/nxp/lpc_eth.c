@@ -280,7 +280,7 @@
 #define LPC_FCCR_MIRRORCOUNTERCURRENT(n)	((n) & 0xFFFF)
 
 /*
- * rxfliterctrl, rxfilterwolstatus, and rxfilterwolclear shared
+ * rxfilterctrl, rxfilterwolstatus, and rxfilterwolclear shared
  * register definitions
  */
 #define LPC_RXFLTRW_ACCEPTUNICAST		(1 << 0)
@@ -291,7 +291,7 @@
 #define LPC_RXFLTRW_ACCEPTPERFECT		(1 << 5)
 
 /*
- * rxfliterctrl register definitions
+ * rxfilterctrl register definitions
  */
 #define LPC_RXFLTRWSTS_MAGICPACKETENWOL		(1 << 12)
 #define LPC_RXFLTRWSTS_RXFILTERENWOL		(1 << 13)
