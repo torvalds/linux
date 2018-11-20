@@ -17,7 +17,6 @@
 struct adt7316_bus {
 	void *client;
 	int irq;
-	int irq_flags;
 	int (*read)(void *client, u8 reg, u8 *data);
 	int (*write)(void *client, u8 reg, u8 val);
 	int (*multi_read)(void *client, u8 first_reg, u8 count, u8 *data);
