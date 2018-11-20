@@ -890,9 +890,9 @@ static void ksz_port_mdb_add(struct dsa_switch *ds, int port,
 
 		if (static_table[0] & ALU_V_STATIC_VALID) {
 			/* check this has same vid & mac address */
-			if (((static_table[2] >> ALU_V_FID_S) == (mdb->vid)) &&
+			if (((static_table[2] >> ALU_V_FID_S) == mdb->vid) &&
 			    ((static_table[2] & ALU_V_MAC_ADDR_HI) == mac_hi) &&
-			    (static_table[3] == mac_lo)) {
+			    static_table[3] == mac_lo) {
 				/* found matching one */
 				break;
 			}
@@ -963,9 +963,9 @@ static int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 		if (static_table[0] & ALU_V_STATIC_VALID) {
 			/* check this has same vid & mac address */
 
-			if (((static_table[2] >> ALU_V_FID_S) == (mdb->vid)) &&
+			if (((static_table[2] >> ALU_V_FID_S) == mdb->vid) &&
 			    ((static_table[2] & ALU_V_MAC_ADDR_HI) == mac_hi) &&
-			    (static_table[3] == mac_lo)) {
+			    static_table[3] == mac_lo) {
 				/* found matching one */
 				break;
 			}
