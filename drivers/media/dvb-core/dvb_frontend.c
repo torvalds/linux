@@ -2587,8 +2587,8 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 			u8 last = 1;
 
 			if (dvb_frontend_debug)
-				dprintk("%s switch command: 0x%04lx\n",
-					__func__, swcmd);
+				dprintk("switch command: 0x%04lx\n",
+					swcmd);
 			nexttime = ktime_get_boottime();
 			if (dvb_frontend_debug)
 				tv[0] = nexttime;
@@ -2611,8 +2611,8 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 					dvb_frontend_sleep_until(&nexttime, 8000);
 			}
 			if (dvb_frontend_debug) {
-				dprintk("%s(%d): switch delay (should be 32k followed by all 8k)\n",
-					__func__, fe->dvb->num);
+				dprintk("(adapter %d): switch delay (should be 32k followed by all 8k)\n",
+					fe->dvb->num);
 				for (i = 1; i < 10; i++)
 					pr_info("%d: %d\n", i,
 						(int)ktime_us_delta(tv[i], tv[i - 1]));
