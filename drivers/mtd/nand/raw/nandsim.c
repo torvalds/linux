@@ -2304,7 +2304,7 @@ static int __init ns_init_module(void)
 	if ((retval = parse_gravepages()) != 0)
 		goto error;
 
-	chip->dummy_controller.ops = &ns_controller_ops;
+	chip->legacy.dummy_controller.ops = &ns_controller_ops;
 	retval = nand_scan(chip, 1);
 	if (retval) {
 		NS_ERR("Could not scan NAND Simulator device\n");

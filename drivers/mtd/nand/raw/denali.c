@@ -1325,7 +1325,7 @@ int denali_init(struct denali_nand_info *denali)
 	if (denali->clk_rate && denali->clk_x_rate)
 		chip->options |= NAND_KEEP_TIMINGS;
 
-	chip->dummy_controller.ops = &denali_controller_ops;
+	chip->legacy.dummy_controller.ops = &denali_controller_ops;
 	ret = nand_scan(chip, denali->max_banks);
 	if (ret)
 		goto disable_irq;

@@ -428,7 +428,7 @@ static int jz_nand_probe(struct platform_device *pdev)
 	chip->legacy.chip_delay = 50;
 	chip->legacy.cmd_ctrl = jz_nand_cmd_ctrl;
 	chip->legacy.select_chip = jz_nand_select_chip;
-	chip->dummy_controller.ops = &jz_nand_controller_ops;
+	chip->legacy.dummy_controller.ops = &jz_nand_controller_ops;
 
 	if (nand->busy_gpio)
 		chip->legacy.dev_ready = jz_nand_dev_ready;

@@ -4419,9 +4419,9 @@ static void nand_shutdown(struct mtd_info *mtd)
 /* Set default functions */
 static void nand_set_defaults(struct nand_chip *chip)
 {
-	/* If no controller is provided, use the dummy one. */
+	/* If no controller is provided, use the dummy, legacy one. */
 	if (!chip->controller) {
-		chip->controller = &chip->dummy_controller;
+		chip->controller = &chip->legacy.dummy_controller;
 		nand_controller_init(chip->controller);
 	}
 

@@ -941,6 +941,8 @@ static inline void nand_controller_init(struct nand_controller *nfc)
  * @get_features: get the NAND chip features
  * @chip_delay: chip dependent delay for transferring data from array to read
  *		regs (tR).
+ * @dummy_controller: dummy controller implementation for drivers that can
+ *		      only control a single chip
  *
  * If you look at this structure you're already wrong. These fields/hooks are
  * all deprecated.
@@ -966,6 +968,7 @@ struct nand_legacy {
 	int (*get_features)(struct nand_chip *chip, int feature_addr,
 			    u8 *subfeature_para);
 	int chip_delay;
+	struct nand_controller dummy_controller;
 };
 
 /**
@@ -980,8 +983,6 @@ struct nand_legacy {
  *			setting the read-retry mode. Mostly needed for MLC NAND.
  * @ecc:		[BOARDSPECIFIC] ECC control structure
  * @buf_align:		minimum buffer alignment required by a platform
- * @dummy_controller:	dummy controller implementation for drivers that can
- *			only control a single chip
  * @state:		[INTERN] the current state of the NAND device
  * @oob_poi:		"poison value buffer," used for laying out OOB data
  *			before writing
@@ -1094,7 +1095,6 @@ struct nand_chip {
 
 	struct nand_ecc_ctrl ecc;
 	unsigned long buf_align;
-	struct nand_controller dummy_controller;
 
 	uint8_t *bbt;
 	struct nand_bbt_descr *bbt_td;
