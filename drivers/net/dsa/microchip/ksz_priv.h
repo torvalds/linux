@@ -14,7 +14,7 @@
 #include <linux/etherdevice.h>
 #include <net/dsa.h>
 
-#include "ksz_9477_reg.h"
+#include "ksz9477_reg.h"
 
 struct ksz_io_ops;
 

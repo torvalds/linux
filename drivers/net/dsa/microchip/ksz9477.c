@@ -19,7 +19,7 @@
 
 #include "ksz_priv.h"
 #include "ksz_common.h"
-#include "ksz_9477_reg.h"
+#include "ksz9477_reg.h"
 
 static const struct {
 	int index;
