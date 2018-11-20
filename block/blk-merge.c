@@ -752,6 +752,9 @@ static struct request *attempt_merge(struct request_queue *q,
 	if (req->write_hint != next->write_hint)
 		return NULL;
 
+	if (req->ioprio != next->ioprio)
+		return NULL;
+
 	/*
 	 * If we are allowed to merge, then append bio list
 	 * from next to rq and release next. merge_requests_fn
@@ -806,8 +809,6 @@ static struct request *attempt_merge(struct request_queue *q,
 	 * 'next' is going away, so update stats accordingly
 	 */
 	blk_account_io_merge(next);
-
-	req->ioprio = ioprio_best(req->ioprio, next->ioprio);
 
 	/*
 	 * ownership of bio passed from next to req, return 'next' for
@@ -881,6 +882,9 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	 * non-hint IO.
 	 */
 	if (rq->write_hint != bio->bi_write_hint)
+		return false;
+
+	if (rq->ioprio != bio_prio(bio))
 		return false;
 
 	return true;
