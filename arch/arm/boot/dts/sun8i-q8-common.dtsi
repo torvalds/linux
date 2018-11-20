@@ -83,7 +83,7 @@
 };
 
 &r_pio {
-	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
+	wifi_pwrseq_pin_q8: wifi-pwrseq-pins {
 		pins = "PL6", "PL7", "PL11";
 		function = "gpio_in";
 		bias-pull-up;
