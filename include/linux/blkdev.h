@@ -456,7 +456,7 @@ struct request_queue {
 	/*
 	 * mq queue kobject
 	 */
-	struct kobject mq_kobj;
+	struct kobject *mq_kobj;
 
 #ifdef  CONFIG_BLK_DEV_INTEGRITY
 	struct blk_integrity integrity;

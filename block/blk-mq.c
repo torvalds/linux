@@ -2515,6 +2515,34 @@ static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
 	mutex_unlock(&set->tag_list_lock);
 }
 
+/* All allocations will be freed in release handler of q->mq_kobj */
+static int blk_mq_alloc_ctxs(struct request_queue *q)
+{
+	struct blk_mq_ctxs *ctxs;
+	int cpu;
+
+	ctxs = kzalloc(sizeof(*ctxs), GFP_KERNEL);
+	if (!ctxs)
+		return -ENOMEM;
+
+	ctxs->queue_ctx = alloc_percpu(struct blk_mq_ctx);
+	if (!ctxs->queue_ctx)
+		goto fail;
+
+	for_each_possible_cpu(cpu) {
+		struct blk_mq_ctx *ctx = per_cpu_ptr(ctxs->queue_ctx, cpu);
+		ctx->ctxs = ctxs;
+	}
+
+	q->mq_kobj = &ctxs->kobj;
+	q->queue_ctx = ctxs->queue_ctx;
+
+	return 0;
+ fail:
+	kfree(ctxs);
+	return -ENOMEM;
+}
+
 /*
  * It is the actual release handler for mq, but we do it from
  * request queue's release handler for avoiding use-after-free
@@ -2540,8 +2568,6 @@ void blk_mq_release(struct request_queue *q)
 	 * both share lifetime with request queue.
 	 */
 	blk_mq_sysfs_deinit(q);
-
-	free_percpu(q->queue_ctx);
 }
 
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
@@ -2731,8 +2757,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	if (!q->poll_cb)
 		goto err_exit;
 
-	q->queue_ctx = alloc_percpu(struct blk_mq_ctx);
-	if (!q->queue_ctx)
+	if (blk_mq_alloc_ctxs(q))
 		goto err_exit;
 
 	/* init q->mq_kobj and sw queues' kobjects */
@@ -2742,7 +2767,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	q->queue_hw_ctx = kcalloc_node(q->nr_queues, sizeof(*(q->queue_hw_ctx)),
 						GFP_KERNEL, set->numa_node);
 	if (!q->queue_hw_ctx)
-		goto err_percpu;
+		goto err_sys_init;
 
 	blk_mq_realloc_hw_ctxs(set, q);
 	if (!q->nr_hw_queues)
@@ -2794,8 +2819,8 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 
 err_hctxs:
 	kfree(q->queue_hw_ctx);
-err_percpu:
-	free_percpu(q->queue_ctx);
+err_sys_init:
+	blk_mq_sysfs_deinit(q);
 err_exit:
 	q->mq_ops = NULL;
 	return ERR_PTR(-ENOMEM);
