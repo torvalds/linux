@@ -400,7 +400,6 @@ struct vchiq_state_struct {
 	int id;
 	int initialised;
 	VCHIQ_CONNSTATE_T conn_state;
-	int is_master;
 	short version_common;
 
 	VCHIQ_SHARED_STATE_T *local;
@@ -489,10 +488,6 @@ struct vchiq_state_struct {
 	/* Signalled when a free data slot becomes available. */
 	struct semaphore data_quota_event;
 
-	/* Incremented when there are bulk transfers which cannot be processed
-	 * whilst paused and must be processed on resume */
-	int deferred_bulks;
-
 	struct state_stats_struct {
 		int slot_stalls;
 		int data_stalls;
@@ -529,8 +524,7 @@ extern VCHIQ_SLOT_ZERO_T *
 vchiq_init_slots(void *mem_base, int mem_size);
 
 extern VCHIQ_STATUS_T
-vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
-	int is_master);
+vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero);
 
 extern VCHIQ_STATUS_T
 vchiq_connect_internal(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance);
@@ -624,9 +618,6 @@ unlock_service(VCHIQ_SERVICE_T *service);
 
 extern VCHIQ_STATUS_T
 vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, void *offset, int size, int dir);
-
-extern void
-vchiq_transfer_bulk(VCHIQ_BULK_T *bulk);
 
 extern void
 vchiq_complete_bulk(VCHIQ_BULK_T *bulk);

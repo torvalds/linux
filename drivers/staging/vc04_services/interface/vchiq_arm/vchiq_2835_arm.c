@@ -163,7 +163,7 @@ int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
 	*(char **)&g_fragments_base[i * g_fragments_size] = NULL;
 	sema_init(&g_free_fragments_sema, MAX_FRAGMENTS);
 
-	if (vchiq_init_state(state, vchiq_slot_zero, 0) != VCHIQ_SUCCESS)
+	if (vchiq_init_state(state, vchiq_slot_zero) != VCHIQ_SUCCESS)
 		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -276,16 +276,6 @@ vchiq_complete_bulk(VCHIQ_BULK_T *bulk)
 	if (bulk && bulk->remote_data && bulk->actual)
 		free_pagelist((struct vchiq_pagelist_info *)bulk->remote_data,
 			      bulk->actual);
-}
-
-void
-vchiq_transfer_bulk(VCHIQ_BULK_T *bulk)
-{
-	/*
-	 * This should only be called on the master (VideoCore) side, but
-	 * provide an implementation to avoid the need for ifdefery.
-	 */
-	BUG();
 }
 
 void
