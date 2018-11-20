@@ -916,16 +916,10 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto reclaim_boot_pages;
 	}
 
-	err = mlx5_pagealloc_start(dev);
-	if (err) {
-		dev_err(&pdev->dev, "mlx5_pagealloc_start failed\n");
-		goto reclaim_boot_pages;
-	}
-
 	err = mlx5_cmd_init_hca(dev, sw_owner_id);
 	if (err) {
 		dev_err(&pdev->dev, "init hca failed\n");
-		goto err_pagealloc_stop;
+		goto reclaim_boot_pages;
 	}
 
 	mlx5_set_driver_version(dev);
@@ -952,6 +946,8 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		err = PTR_ERR(dev->priv.uar);
 		goto err_get_uars;
 	}
+
+	mlx5_pagealloc_start(dev);
 
 	err = mlx5_eq_table_create(dev);
 	if (err) {
@@ -1039,6 +1035,7 @@ err_fw_tracer:
 	mlx5_eq_table_destroy(dev);
 
 err_eq_table:
+	mlx5_pagealloc_stop(dev);
 	mlx5_put_uars_page(dev, priv->uar);
 
 err_get_uars:
@@ -1051,9 +1048,6 @@ err_stop_poll:
 		dev_err(&dev->pdev->dev, "tear_down_hca failed, skip cleanup\n");
 		goto out_err;
 	}
-
-err_pagealloc_stop:
-	mlx5_pagealloc_stop(dev);
 
 reclaim_boot_pages:
 	mlx5_reclaim_startup_pages(dev);
@@ -1100,16 +1094,18 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_fpga_device_stop(dev);
 	mlx5_fw_tracer_cleanup(dev->tracer);
 	mlx5_eq_table_destroy(dev);
+	mlx5_pagealloc_stop(dev);
 	mlx5_put_uars_page(dev, priv->uar);
+
 	if (cleanup)
 		mlx5_cleanup_once(dev);
 	mlx5_stop_health_poll(dev, cleanup);
+
 	err = mlx5_cmd_teardown_hca(dev);
 	if (err) {
 		dev_err(&dev->pdev->dev, "tear_down_hca failed, skip cleanup\n");
 		goto out;
 	}
-	mlx5_pagealloc_stop(dev);
 	mlx5_reclaim_startup_pages(dev);
 	mlx5_core_disable_hca(dev, 0);
 	mlx5_cmd_cleanup(dev);
@@ -1186,12 +1182,14 @@ static int init_one(struct pci_dev *pdev,
 		goto close_pci;
 	}
 
-	mlx5_pagealloc_init(dev);
+	err = mlx5_pagealloc_init(dev);
+	if (err)
+		goto err_pagealloc_init;
 
 	err = mlx5_load_one(dev, priv, true);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_load_one failed with error code %d\n", err);
-		goto clean_health;
+		goto err_load_one;
 	}
 
 	request_module_nowait(MLX5_IB_MOD);
@@ -1205,8 +1203,9 @@ static int init_one(struct pci_dev *pdev,
 
 clean_load:
 	mlx5_unload_one(dev, priv, true);
-clean_health:
+err_load_one:
 	mlx5_pagealloc_cleanup(dev);
+err_pagealloc_init:
 	mlx5_health_cleanup(dev);
 close_pci:
 	mlx5_pci_close(dev, priv);

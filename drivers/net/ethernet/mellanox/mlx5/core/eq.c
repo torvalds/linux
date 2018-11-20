@@ -398,17 +398,6 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 			mlx5_eq_cq_event(eq, cqn, eqe->type);
 			break;
 
-		case MLX5_EVENT_TYPE_PAGE_REQUEST:
-			{
-				u16 func_id = be16_to_cpu(eqe->data.req_pages.func_id);
-				s32 npages = be32_to_cpu(eqe->data.req_pages.num_pages);
-
-				mlx5_core_dbg(dev, "page request for func 0x%x, npages %d\n",
-					      func_id, npages);
-				mlx5_core_req_pages_handler(dev, func_id, npages);
-			}
-			break;
-
 		case MLX5_EVENT_TYPE_PORT_MODULE_EVENT:
 			mlx5_port_module_event(dev, eqe);
 			break;

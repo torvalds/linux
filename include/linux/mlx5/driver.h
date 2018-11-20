@@ -564,6 +564,7 @@ struct mlx5_priv {
 	struct mlx5_eq_table	*eq_table;
 
 	/* pages stuff */
+	struct mlx5_nb          pg_nb;
 	struct workqueue_struct *pg_wq;
 	struct rb_root		page_root;
 	int			fw_pages;
@@ -962,9 +963,9 @@ int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn);
 int mlx5_core_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn);
 int mlx5_core_mad_ifc(struct mlx5_core_dev *dev, const void *inb, void *outb,
 		      u16 opmod, u8 port);
-void mlx5_pagealloc_init(struct mlx5_core_dev *dev);
+int mlx5_pagealloc_init(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev);
-int mlx5_pagealloc_start(struct mlx5_core_dev *dev);
+void mlx5_pagealloc_start(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_stop(struct mlx5_core_dev *dev);
 void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
 				 s32 npages);
