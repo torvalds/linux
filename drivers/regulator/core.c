@@ -99,7 +99,7 @@ struct regulator_supply_alias {
 };
 
 static int _regulator_is_enabled(struct regulator_dev *rdev);
-static int _regulator_disable(struct regulator_dev *rdev);
+static int _regulator_disable(struct regulator *regulator);
 static int _regulator_get_voltage(struct regulator_dev *rdev);
 static int _regulator_get_current_limit(struct regulator_dev *rdev);
 static unsigned int _regulator_get_mode(struct regulator_dev *rdev);
@@ -764,8 +764,10 @@ static ssize_t regulator_total_uA_show(struct device *dev,
 	int uA = 0;
 
 	regulator_lock(rdev);
-	list_for_each_entry(regulator, &rdev->consumer_list, list)
-		uA += regulator->uA_load;
+	list_for_each_entry(regulator, &rdev->consumer_list, list) {
+		if (regulator->enable_count)
+			uA += regulator->uA_load;
+	}
 	regulator_unlock(rdev);
 	return sprintf(buf, "%d\n", uA);
 }
@@ -938,8 +940,10 @@ static int drms_uA_update(struct regulator_dev *rdev)
 		return -EINVAL;
 
 	/* calc total requested load */
-	list_for_each_entry(sibling, &rdev->consumer_list, list)
-		current_uA += sibling->uA_load;
+	list_for_each_entry(sibling, &rdev->consumer_list, list) {
+		if (sibling->enable_count)
+			current_uA += sibling->uA_load;
+	}
 
 	current_uA += rdev->constraints->system_load;
 
@@ -2024,6 +2028,9 @@ static void _regulator_put(struct regulator *regulator)
 
 	lockdep_assert_held_once(&regulator_list_mutex);
 
+	/* Docs say you must disable before calling regulator_put() */
+	WARN_ON(regulator->enable_count);
+
 	rdev = regulator->rdev;
 
 	debugfs_remove_recursive(regulator->debugfs);
@@ -2417,15 +2424,75 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 	return 0;
 }
 
-/* locks held by regulator_enable() */
-static int _regulator_enable(struct regulator_dev *rdev)
+/**
+ * _regulator_handle_consumer_enable - handle that a consumer enabled
+ * @regulator: regulator source
+ *
+ * Some things on a regulator consumer (like the contribution towards total
+ * load on the regulator) only have an effect when the consumer wants the
+ * regulator enabled.  Explained in example with two consumers of the same
+ * regulator:
+ *   consumer A: set_load(100);       => total load = 0
+ *   consumer A: regulator_enable();  => total load = 100
+ *   consumer B: set_load(1000);      => total load = 100
+ *   consumer B: regulator_enable();  => total load = 1100
+ *   consumer A: regulator_disable(); => total_load = 1000
+ *
+ * This function (together with _regulator_handle_consumer_disable) is
+ * responsible for keeping track of the refcount for a given regulator consumer
+ * and applying / unapplying these things.
+ *
+ * Returns 0 upon no error; -error upon error.
+ */
+static int _regulator_handle_consumer_enable(struct regulator *regulator)
 {
+	struct regulator_dev *rdev = regulator->rdev;
+
+	lockdep_assert_held_once(&rdev->mutex.base);
+
+	regulator->enable_count++;
+	if (regulator->uA_load && regulator->enable_count == 1)
+		return drms_uA_update(rdev);
+
+	return 0;
+}
+
+/**
+ * _regulator_handle_consumer_disable - handle that a consumer disabled
+ * @regulator: regulator source
+ *
+ * The opposite of _regulator_handle_consumer_enable().
+ *
+ * Returns 0 upon no error; -error upon error.
+ */
+static int _regulator_handle_consumer_disable(struct regulator *regulator)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+
+	lockdep_assert_held_once(&rdev->mutex.base);
+
+	if (!regulator->enable_count) {
+		rdev_err(rdev, "Underflow of regulator enable count\n");
+		return -EINVAL;
+	}
+
+	regulator->enable_count--;
+	if (regulator->uA_load && regulator->enable_count == 0)
+		return drms_uA_update(rdev);
+
+	return 0;
+}
+
+/* locks held by regulator_enable() */
+static int _regulator_enable(struct regulator *regulator)
+{
+	struct regulator_dev *rdev = regulator->rdev;
 	int ret;
 
 	lockdep_assert_held_once(&rdev->mutex.base);
 
 	if (rdev->supply) {
-		ret = _regulator_enable(rdev->supply->rdev);
+		ret = _regulator_enable(rdev->supply);
 		if (ret < 0)
 			return ret;
 	}
@@ -2437,9 +2504,9 @@ static int _regulator_enable(struct regulator_dev *rdev)
 			goto err_disable_supply;
 	}
 
-	/* check voltage and requested load before enabling */
-	if (regulator_ops_is_valid(rdev, REGULATOR_CHANGE_DRMS))
-		drms_uA_update(rdev);
+	ret = _regulator_handle_consumer_enable(regulator);
+	if (ret < 0)
+		goto err_disable_supply;
 
 	if (rdev->use_count == 0) {
 		/* The regulator may on if it's not switchable or left on */
@@ -2448,18 +2515,18 @@ static int _regulator_enable(struct regulator_dev *rdev)
 			if (!regulator_ops_is_valid(rdev,
 					REGULATOR_CHANGE_STATUS)) {
 				ret = -EPERM;
-				goto err_disable_supply;
+				goto err_consumer_disable;
 			}
 
 			ret = _regulator_do_enable(rdev);
 			if (ret < 0)
-				goto err_disable_supply;
+				goto err_consumer_disable;
 
 			_notifier_call_chain(rdev, REGULATOR_EVENT_ENABLE,
 					     NULL);
 		} else if (ret < 0) {
 			rdev_err(rdev, "is_enabled() failed: %d\n", ret);
-			goto err_disable_supply;
+			goto err_consumer_disable;
 		}
 		/* Fallthrough on positive return values - already enabled */
 	}
@@ -2468,9 +2535,12 @@ static int _regulator_enable(struct regulator_dev *rdev)
 
 	return 0;
 
+err_consumer_disable:
+	_regulator_handle_consumer_disable(regulator);
+
 err_disable_supply:
 	if (rdev->supply)
-		_regulator_disable(rdev->supply->rdev);
+		_regulator_disable(rdev->supply);
 
 	return ret;
 }
@@ -2490,13 +2560,10 @@ int regulator_enable(struct regulator *regulator)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	struct ww_acquire_ctx ww_ctx;
-	int ret = 0;
-
-	if (regulator->always_on)
-		return 0;
+	int ret;
 
 	regulator_lock_dependent(rdev, &ww_ctx);
-	ret = _regulator_enable(rdev);
+	ret = _regulator_enable(regulator);
 	regulator_unlock_dependent(rdev, &ww_ctx);
 
 	return ret;
@@ -2535,8 +2602,9 @@ static int _regulator_do_disable(struct regulator_dev *rdev)
 }
 
 /* locks held by regulator_disable() */
-static int _regulator_disable(struct regulator_dev *rdev)
+static int _regulator_disable(struct regulator *regulator)
 {
+	struct regulator_dev *rdev = regulator->rdev;
 	int ret = 0;
 
 	lockdep_assert_held_once(&rdev->mutex.base);
@@ -2571,17 +2639,17 @@ static int _regulator_disable(struct regulator_dev *rdev)
 
 		rdev->use_count = 0;
 	} else if (rdev->use_count > 1) {
-		if (regulator_ops_is_valid(rdev, REGULATOR_CHANGE_DRMS))
-			drms_uA_update(rdev);
-
 		rdev->use_count--;
 	}
+
+	if (ret == 0)
+		ret = _regulator_handle_consumer_disable(regulator);
 
 	if (ret == 0 && rdev->coupling_desc.n_coupled > 1)
 		ret = regulator_balance_voltage(rdev, PM_SUSPEND_ON);
 
 	if (ret == 0 && rdev->supply)
-		ret = _regulator_disable(rdev->supply->rdev);
+		ret = _regulator_disable(rdev->supply);
 
 	return ret;
 }
@@ -2602,13 +2670,10 @@ int regulator_disable(struct regulator *regulator)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	struct ww_acquire_ctx ww_ctx;
-	int ret = 0;
-
-	if (regulator->always_on)
-		return 0;
+	int ret;
 
 	regulator_lock_dependent(rdev, &ww_ctx);
-	ret = _regulator_disable(rdev);
+	ret = _regulator_disable(regulator);
 	regulator_unlock_dependent(rdev, &ww_ctx);
 
 	return ret;
@@ -2657,10 +2722,17 @@ int regulator_force_disable(struct regulator *regulator)
 	int ret;
 
 	regulator_lock_dependent(rdev, &ww_ctx);
-	regulator->uA_load = 0;
+
 	ret = _regulator_force_disable(regulator->rdev);
+
 	if (rdev->coupling_desc.n_coupled > 1)
 		regulator_balance_voltage(rdev, PM_SUSPEND_ON);
+
+	if (regulator->uA_load) {
+		regulator->uA_load = 0;
+		ret = drms_uA_update(rdev);
+	}
+
 	regulator_unlock_dependent(rdev, &ww_ctx);
 
 	if (rdev->supply)
@@ -2677,13 +2749,10 @@ static void regulator_disable_work(struct work_struct *work)
 						  disable_work.work);
 	struct ww_acquire_ctx ww_ctx;
 	int count, i, ret;
+	struct regulator *regulator;
+	int total_count = 0;
 
 	regulator_lock_dependent(rdev, &ww_ctx);
-
-	BUG_ON(!rdev->deferred_disables);
-
-	count = rdev->deferred_disables;
-	rdev->deferred_disables = 0;
 
 	/*
 	 * Workqueue functions queue the new work instance while the previous
@@ -2693,11 +2762,22 @@ static void regulator_disable_work(struct work_struct *work)
 	 */
 	cancel_delayed_work(&rdev->disable_work);
 
-	for (i = 0; i < count; i++) {
-		ret = _regulator_disable(rdev);
-		if (ret != 0)
-			rdev_err(rdev, "Deferred disable failed: %d\n", ret);
+	list_for_each_entry(regulator, &rdev->consumer_list, list) {
+		count = regulator->deferred_disables;
+
+		if (!count)
+			continue;
+
+		total_count += count;
+		regulator->deferred_disables = 0;
+
+		for (i = 0; i < count; i++) {
+			ret = _regulator_disable(regulator);
+			if (ret != 0)
+				rdev_err(rdev, "Deferred disable failed: %d\n", ret);
+		}
 	}
+	WARN_ON(!total_count);
 
 	if (rdev->coupling_desc.n_coupled > 1)
 		regulator_balance_voltage(rdev, PM_SUSPEND_ON);
@@ -2731,14 +2811,11 @@ int regulator_disable_deferred(struct regulator *regulator, int ms)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 
-	if (regulator->always_on)
-		return 0;
-
 	if (!ms)
 		return regulator_disable(regulator);
 
 	regulator_lock(rdev);
-	rdev->deferred_disables++;
+	regulator->deferred_disables++;
 	mod_delayed_work(system_power_efficient_wq, &rdev->disable_work,
 			 msecs_to_jiffies(ms));
 	regulator_unlock(rdev);
@@ -4145,16 +4222,30 @@ EXPORT_SYMBOL_GPL(regulator_get_error_flags);
  * DRMS will sum the total requested load on the regulator and change
  * to the most efficient operating mode if platform constraints allow.
  *
+ * NOTE: when a regulator consumer requests to have a regulator
+ * disabled then any load that consumer requested no longer counts
+ * toward the total requested load.  If the regulator is re-enabled
+ * then the previously requested load will start counting again.
+ *
+ * If a regulator is an always-on regulator then an individual consumer's
+ * load will still be removed if that consumer is fully disabled.
+ *
  * On error a negative errno is returned.
  */
 int regulator_set_load(struct regulator *regulator, int uA_load)
 {
 	struct regulator_dev *rdev = regulator->rdev;
-	int ret;
+	int old_uA_load;
+	int ret = 0;
 
 	regulator_lock(rdev);
+	old_uA_load = regulator->uA_load;
 	regulator->uA_load = uA_load;
-	ret = drms_uA_update(rdev);
+	if (regulator->enable_count && old_uA_load != uA_load) {
+		ret = drms_uA_update(rdev);
+		if (ret < 0)
+			regulator->uA_load = old_uA_load;
+	}
 	regulator_unlock(rdev);
 
 	return ret;
@@ -4325,11 +4416,8 @@ int regulator_bulk_enable(int num_consumers,
 	int ret = 0;
 
 	for (i = 0; i < num_consumers; i++) {
-		if (consumers[i].consumer->always_on)
-			consumers[i].ret = 0;
-		else
-			async_schedule_domain(regulator_bulk_enable_async,
-					      &consumers[i], &async_domain);
+		async_schedule_domain(regulator_bulk_enable_async,
+				      &consumers[i], &async_domain);
 	}
 
 	async_synchronize_full_domain(&async_domain);
@@ -5225,8 +5313,11 @@ static void regulator_summary_show_subtree(struct seq_file *s,
 
 		switch (rdev->desc->type) {
 		case REGULATOR_VOLTAGE:
-			seq_printf(s, "%37dmA %5dmV %5dmV",
+			seq_printf(s, "%3d %33dmA%c%5dmV %5dmV",
+				   consumer->enable_count,
 				   consumer->uA_load / 1000,
+				   consumer->uA_load && !consumer->enable_count ?
+				   '*' : ' ',
 				   consumer->voltage[PM_SUSPEND_ON].min_uV / 1000,
 				   consumer->voltage[PM_SUSPEND_ON].max_uV / 1000);
 			break;

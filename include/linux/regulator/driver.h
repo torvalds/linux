@@ -474,7 +474,6 @@ struct regulator_dev {
 	struct regmap *regmap;
 
 	struct delayed_work disable_work;
-	int deferred_disables;
 
 	void *reg_data;		/* regulator_dev data */
 
