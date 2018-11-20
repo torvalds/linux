@@ -56,7 +56,7 @@
 #define R8A7796_CLK_CANFD		45
 #define R8A7796_CLK_HDMI		46
 #define R8A7796_CLK_CSI0		47
-#define R8A7796_CLK_CSIREF		48
+/* CLK_CSIREF was removed */
 #define R8A7796_CLK_CP			49
 #define R8A7796_CLK_CPEX		50
 #define R8A7796_CLK_R			51
