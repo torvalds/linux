@@ -57,7 +57,8 @@ int max_name_width, max_data_width;
 bool rdt_alloc_capable;
 
 static void
-mba_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
+mba_wrmsr_intel(struct rdt_domain *d, struct msr_param *m,
+		struct rdt_resource *r);
 static void
 cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
 
@@ -171,10 +172,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_MBA,
 		.name			= "MB",
 		.domains		= domain_init(RDT_RESOURCE_MBA),
-		.msr_base		= MSR_IA32_MBA_THRTL_BASE,
-		.msr_update		= mba_wrmsr,
 		.cache_level		= 3,
-		.parse_ctrlval		= parse_bw,
 		.format_str		= "%d=%*u",
 		.fflags			= RFTYPE_RES_MB,
 	},
@@ -357,7 +355,8 @@ u32 delay_bw_map(unsigned long bw, struct rdt_resource *r)
 }
 
 static void
-mba_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
+mba_wrmsr_intel(struct rdt_domain *d, struct msr_param *m,
+		struct rdt_resource *r)
 {
 	unsigned int i;
 
@@ -874,12 +873,37 @@ static __init bool get_rdt_resources(void)
 	return (rdt_mon_capable || rdt_alloc_capable);
 }
 
+static __init void rdt_init_res_defs_intel(void)
+{
+	struct rdt_resource *r;
+
+	for_each_rdt_resource(r) {
+		if (r->rid == RDT_RESOURCE_MBA) {
+			r->msr_base = MSR_IA32_MBA_THRTL_BASE;
+			r->msr_update = mba_wrmsr_intel;
+			r->parse_ctrlval = parse_bw_intel;
+		}
+	}
+}
+
+static __init void rdt_init_res_defs(void)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		rdt_init_res_defs_intel();
+}
+
 static enum cpuhp_state rdt_online;
 
 static int __init resctrl_late_init(void)
 {
 	struct rdt_resource *r;
 	int state, ret;
+
+	/*
+	 * Initialize functions(or definitions) that are different
+	 * between vendors here.
+	 */
+	rdt_init_res_defs();
 
 	check_quirks();
 

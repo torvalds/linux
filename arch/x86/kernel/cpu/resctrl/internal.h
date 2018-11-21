@@ -444,8 +444,8 @@ struct rdt_resource {
 
 int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	      struct rdt_domain *d);
-int parse_bw(struct rdt_parse_data *data, struct rdt_resource *r,
-	     struct rdt_domain *d);
+int parse_bw_intel(struct rdt_parse_data *data, struct rdt_resource *r,
+		   struct rdt_domain *d);
 
 extern struct mutex rdtgroup_mutex;
 
@@ -467,6 +467,10 @@ enum {
 	/* Must be the last */
 	RDT_NUM_RESOURCES,
 };
+
+#define for_each_rdt_resource(r)					      \
+	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
+	     r++)
 
 #define for_each_capable_rdt_resource(r)				      \
 	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
