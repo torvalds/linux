@@ -10,6 +10,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/perf_event.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
@@ -2166,7 +2167,7 @@ static bool pmc_overflow(unsigned long val)
 /*
  * Performance monitor interrupt stuff
  */
-static void perf_event_interrupt(struct pt_regs *regs)
+static void __perf_event_interrupt(struct pt_regs *regs)
 {
 	int i, j;
 	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
@@ -2248,6 +2249,14 @@ static void perf_event_interrupt(struct pt_regs *regs)
 		nmi_exit();
 	else
 		irq_exit();
+}
+
+static void perf_event_interrupt(struct pt_regs *regs)
+{
+	u64 start_clock = sched_clock();
+
+	__perf_event_interrupt(regs);
+	perf_sample_event_took(sched_clock() - start_clock);
 }
 
 static int power_pmu_prepare_cpu(unsigned int cpu)
