@@ -34,8 +34,15 @@ EXPORT_SYMBOL_GPL(blk_mq_sched_free_hctx_data);
 void blk_mq_sched_assign_ioc(struct request *rq)
 {
 	struct request_queue *q = rq->q;
-	struct io_context *ioc = current->io_context;
+	struct io_context *ioc;
 	struct io_cq *icq;
+
+	/*
+	 * May not have an IO context if it's a passthrough request
+	 */
+	ioc = current->io_context;
+	if (!ioc)
+		return;
 
 	spin_lock_irq(&q->queue_lock);
 	icq = ioc_lookup_icq(ioc, q);
