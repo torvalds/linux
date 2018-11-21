@@ -45,7 +45,7 @@
 #include "sun8i-a23-a33.dtsi"
 
 / {
-	soc@1c00000 {
+	soc {
 		codec: codec@1c22c00 {
 			#sound-dai-cells = <0>;
 			compatible = "allwinner,sun8i-a23-codec";

@@ -223,7 +223,7 @@
 		};
 	};
 
-	soc@1c00000 {
+	soc {
 		tcon0: lcd-controller@1c0c000 {
 			compatible = "allwinner,sun8i-a33-tcon";
 			reg = <0x01c0c000 0x1000>;
