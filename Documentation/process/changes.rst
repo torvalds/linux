@@ -326,7 +326,7 @@ Kernel documentation
 Sphinx
 ------
 
-Please see :ref:`sphinx_install` in ``Documentation/doc-guide/sphinx.rst``
+Please see :ref:`sphinx_install` in :ref:`Documentation/doc-guide/sphinx.rst <sphinxdoc>`
 for details about Sphinx requirements.
 
 Getting updated software
