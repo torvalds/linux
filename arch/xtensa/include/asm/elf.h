@@ -193,15 +193,4 @@ typedef struct {
 #define SET_PERSONALITY(ex) \
 	set_personality(PER_LINUX_32BIT | (current->personality & (~PER_MASK)))
 
-struct task_struct;
-
-extern void do_copy_regs (xtensa_gregset_t*, struct pt_regs*,
-			  struct task_struct*);
-extern void do_restore_regs (xtensa_gregset_t*, struct pt_regs*,
-			     struct task_struct*);
-extern void do_save_fpregs (elf_fpregset_t*, struct pt_regs*,
-			    struct task_struct*);
-extern int do_restore_fpregs (elf_fpregset_t*, struct pt_regs*,
-			      struct task_struct*);
-
 #endif	/* _XTENSA_ELF_H */
