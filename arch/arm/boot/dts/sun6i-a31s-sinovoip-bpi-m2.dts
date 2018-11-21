@@ -120,10 +120,6 @@
 	status = "okay";
 };
 
-&mmc0_pins_a {
-	bias-pull-up;
-};
-
 &mmc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins_a>;
@@ -140,10 +136,6 @@
 		interrupts = <0 5 IRQ_TYPE_LEVEL_LOW>; /* PL5 */
 		interrupt-names = "host-wake";
 	};
-};
-
-&mmc2_pins_a {
-	bias-pull-up;
 };
 
 &ohci0 {

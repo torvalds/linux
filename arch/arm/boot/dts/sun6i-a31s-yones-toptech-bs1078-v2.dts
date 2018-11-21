@@ -98,10 +98,6 @@
 	status = "okay";
 };
 
-&mmc0_pins_a {
-	bias-pull-up;
-};
-
 &p2wi {
 	status = "okay";
 

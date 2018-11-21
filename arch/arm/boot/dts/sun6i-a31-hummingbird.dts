@@ -222,11 +222,6 @@
 	status = "okay";
 };
 
-&mmc0_pins_a {
-	/* external pull-ups missing for some pins */
-	bias-pull-up;
-};
-
 &mmc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_a>;

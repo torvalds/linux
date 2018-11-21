@@ -121,10 +121,6 @@
 	status = "okay";
 };
 
-&mmc0_pins_a {
-	bias-pull-up;
-};
-
 &pio {
 	i2c_lcd_pins: i2c_lcd_pin@0 {
 		pins = "PA23", "PA24";
