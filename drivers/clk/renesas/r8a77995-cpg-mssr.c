@@ -22,7 +22,7 @@
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R8A77995_CLK_CP,
+	LAST_DT_CORE_CLK = R8A77995_CLK_CPEX,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
@@ -92,6 +92,7 @@ static const struct cpg_core_clk r8a77995_core_clks[] __initconst = {
 
 	DEF_FIXED("cl",        R8A77995_CLK_CL,    CLK_PLL1,      48, 1),
 	DEF_FIXED("cp",        R8A77995_CLK_CP,    CLK_EXTAL,      2, 1),
+	DEF_FIXED("cpex",      R8A77995_CLK_CPEX,  CLK_EXTAL,      4, 1),
 
 	DEF_DIV6_RO("osc",     R8A77995_CLK_OSC,   CLK_EXTAL, CPG_RCKCR,  8),
 
