@@ -63,6 +63,7 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 		goto error;
 	}
 
+	hstream->period_bytes = 0;/* initialize period_bytes */
 	hstream->format_val = format;
 	hstream->bufsize = size;
 

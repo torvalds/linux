@@ -41,6 +41,7 @@ static int hda_dsp_trace_prepare(struct snd_sof_dev *sdev)
 	struct snd_dma_buffer *dmab = &sdev->dmatb;
 	int ret;
 
+	hstream->period_bytes = 0;/* initialize period_bytes */
 	hstream->bufsize = sdev->dmatb.bytes;
 
 	ret = hda_dsp_stream_hw_params(sdev, stream, dmab, NULL);
