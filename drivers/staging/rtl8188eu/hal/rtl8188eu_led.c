@@ -54,16 +54,16 @@ exit:
 /*		Initialize all LED_871x objects. */
 void rtw_hal_sw_led_init(struct adapter *padapter)
 {
-	struct led_priv *pledpriv = &(padapter->ledpriv);
+	struct led_priv *pledpriv = &padapter->ledpriv;
 
-	InitLed871x(padapter, &(pledpriv->SwLed0));
+	InitLed871x(padapter, &pledpriv->SwLed0);
 }
 
 /*	Description: */
 /*		DeInitialize all LED_819xUsb objects. */
 void rtw_hal_sw_led_deinit(struct adapter *padapter)
 {
-	struct led_priv	*ledpriv = &(padapter->ledpriv);
+	struct led_priv *ledpriv = &padapter->ledpriv;
 
-	DeInitLed871x(&(ledpriv->SwLed0));
+	DeInitLed871x(&ledpriv->SwLed0);
 }
