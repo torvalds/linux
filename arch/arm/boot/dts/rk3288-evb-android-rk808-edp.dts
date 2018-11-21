@@ -110,7 +110,7 @@
 };
 
 &edp_panel {
-	compatible ="lg,lp079qx1-sp0v", "simple-panel";
+	compatible = "simple-panel";
 	backlight = <&backlight>;
 	enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
 	enable-delay-ms = <120>;
