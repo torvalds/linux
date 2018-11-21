@@ -1622,6 +1622,7 @@
 		devfreq = <&dmc>;
 		power-domains = <&power PX30_PD_VI>;
 		iommus = <&isp_mmu>;
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
