@@ -736,6 +736,8 @@ static void sysrq_of_get_keyreset_config(void)
 
 	/* Get reset timeout if any. */
 	of_property_read_u32(np, "timeout-ms", &sysrq_reset_downtime_ms);
+
+	of_node_put(np);
 }
 #else
 static void sysrq_of_get_keyreset_config(void)
