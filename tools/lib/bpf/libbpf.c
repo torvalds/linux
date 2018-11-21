@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
+#include <linux/filter.h>
 #include <linux/list.h>
 #include <linux/limits.h>
 #include <linux/perf_event.h>
@@ -114,6 +115,11 @@ void libbpf_set_print(libbpf_print_fn_t warn,
 # define LIBBPF_ELF_C_READ_MMAP ELF_C_READ
 #endif
 
+struct bpf_capabilities {
+	/* v4.14: kernel support for program & map names. */
+	__u32 name:1;
+};
+
 /*
  * bpf_prog should be a better name but it has been used in
  * linux/filter.h.
@@ -160,6 +166,8 @@ struct bpf_program {
 	void *func_info;
 	__u32 func_info_rec_size;
 	__u32 func_info_len;
+
+	struct bpf_capabilities *caps;
 };
 
 struct bpf_map {
@@ -220,6 +228,8 @@ struct bpf_object {
 
 	void *priv;
 	bpf_object_clear_priv_t clear_priv;
+
+	struct bpf_capabilities caps;
 
 	char path[];
 };
@@ -342,6 +352,7 @@ bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
 	if (err)
 		return err;
 
+	prog.caps = &obj->caps;
 	progs = obj->programs;
 	nr_progs = obj->nr_programs;
 
@@ -1136,6 +1147,52 @@ err_free_new_name:
 }
 
 static int
+bpf_object__probe_name(struct bpf_object *obj)
+{
+	struct bpf_load_program_attr attr;
+	char *cp, errmsg[STRERR_BUFSIZE];
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	int ret;
+
+	/* make sure basic loading works */
+
+	memset(&attr, 0, sizeof(attr));
+	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	attr.insns = insns;
+	attr.insns_cnt = ARRAY_SIZE(insns);
+	attr.license = "GPL";
+
+	ret = bpf_load_program_xattr(&attr, NULL, 0);
+	if (ret < 0) {
+		cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
+		pr_warning("Error in %s():%s(%d). Couldn't load basic 'r0 = 0' BPF program.\n",
+			   __func__, cp, errno);
+		return -errno;
+	}
+	close(ret);
+
+	/* now try the same program, but with the name */
+
+	attr.name = "test";
+	ret = bpf_load_program_xattr(&attr, NULL, 0);
+	if (ret >= 0) {
+		obj->caps.name = 1;
+		close(ret);
+	}
+
+	return 0;
+}
+
+static int
+bpf_object__probe_caps(struct bpf_object *obj)
+{
+	return bpf_object__probe_name(obj);
+}
+
+static int
 bpf_object__create_maps(struct bpf_object *obj)
 {
 	struct bpf_create_map_attr create_attr = {};
@@ -1708,6 +1765,7 @@ int bpf_object__load(struct bpf_object *obj)
 
 	obj->loaded = true;
 
+	CHECK_ERR(bpf_object__probe_caps(obj), err, out);
 	CHECK_ERR(bpf_object__create_maps(obj), err, out);
 	CHECK_ERR(bpf_object__relocate(obj), err, out);
 	CHECK_ERR(bpf_object__load_progs(obj), err, out);
