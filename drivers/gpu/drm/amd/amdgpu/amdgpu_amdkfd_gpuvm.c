@@ -25,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/pagemap.h>
 #include <linux/sched/mm.h>
+#include <linux/dma-buf.h>
 #include <drm/drmP.h>
 #include "amdgpu_object.h"
 #include "amdgpu_vm.h"
@@ -1661,6 +1662,60 @@ int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct kgd_dev *kgd,
 		mb();
 		atomic_set(&adev->gmc.vm_fault_info_updated, 0);
 	}
+	return 0;
+}
+
+int amdgpu_amdkfd_gpuvm_import_dmabuf(struct kgd_dev *kgd,
+				      struct dma_buf *dma_buf,
+				      uint64_t va, void *vm,
+				      struct kgd_mem **mem, uint64_t *size,
+				      uint64_t *mmap_offset)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	struct drm_gem_object *obj;
+	struct amdgpu_bo *bo;
+	struct amdgpu_vm *avm = (struct amdgpu_vm *)vm;
+
+	if (dma_buf->ops != &amdgpu_dmabuf_ops)
+		/* Can't handle non-graphics buffers */
+		return -EINVAL;
+
+	obj = dma_buf->priv;
+	if (obj->dev->dev_private != adev)
+		/* Can't handle buffers from other devices */
+		return -EINVAL;
+
+	bo = gem_to_amdgpu_bo(obj);
+	if (!(bo->preferred_domains & (AMDGPU_GEM_DOMAIN_VRAM |
+				    AMDGPU_GEM_DOMAIN_GTT)))
+		/* Only VRAM and GTT BOs are supported */
+		return -EINVAL;
+
+	*mem = kzalloc(sizeof(struct kgd_mem), GFP_KERNEL);
+	if (!*mem)
+		return -ENOMEM;
+
+	if (size)
+		*size = amdgpu_bo_size(bo);
+
+	if (mmap_offset)
+		*mmap_offset = amdgpu_bo_mmap_offset(bo);
+
+	INIT_LIST_HEAD(&(*mem)->bo_va_list);
+	mutex_init(&(*mem)->lock);
+	(*mem)->mapping_flags =
+		AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE |
+		AMDGPU_VM_PAGE_EXECUTABLE | AMDGPU_VM_MTYPE_NC;
+
+	(*mem)->bo = amdgpu_bo_ref(bo);
+	(*mem)->va = va;
+	(*mem)->domain = (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) ?
+		AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT;
+	(*mem)->mapped_to_gpu_memory = 0;
+	(*mem)->process_info = avm->process_info;
+	add_kgd_mem_to_kfd_bo_list(*mem, avm->process_info, false);
+	amdgpu_sync_create(&(*mem)->sync);
+
 	return 0;
 }
 

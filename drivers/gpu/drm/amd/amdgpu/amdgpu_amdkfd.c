@@ -26,6 +26,7 @@
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include <linux/module.h>
+#include <linux/dma-buf.h>
 
 const struct kgd2kfd_calls *kgd2kfd;
 
@@ -431,6 +432,62 @@ void amdgpu_amdkfd_get_cu_info(struct kgd_dev *kgd, struct kfd_cu_info *cu_info)
 	cu_info->wave_front_size = acu_info.wave_front_size;
 	cu_info->max_scratch_slots_per_cu = acu_info.max_scratch_slots_per_cu;
 	cu_info->lds_size = acu_info.lds_size;
+}
+
+int amdgpu_amdkfd_get_dmabuf_info(struct kgd_dev *kgd, int dma_buf_fd,
+				  struct kgd_dev **dma_buf_kgd,
+				  uint64_t *bo_size, void *metadata_buffer,
+				  size_t buffer_size, uint32_t *metadata_size,
+				  uint32_t *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	struct dma_buf *dma_buf;
+	struct drm_gem_object *obj;
+	struct amdgpu_bo *bo;
+	uint64_t metadata_flags;
+	int r = -EINVAL;
+
+	dma_buf = dma_buf_get(dma_buf_fd);
+	if (IS_ERR(dma_buf))
+		return PTR_ERR(dma_buf);
+
+	if (dma_buf->ops != &amdgpu_dmabuf_ops)
+		/* Can't handle non-graphics buffers */
+		goto out_put;
+
+	obj = dma_buf->priv;
+	if (obj->dev->driver != adev->ddev->driver)
+		/* Can't handle buffers from different drivers */
+		goto out_put;
+
+	adev = obj->dev->dev_private;
+	bo = gem_to_amdgpu_bo(obj);
+	if (!(bo->preferred_domains & (AMDGPU_GEM_DOMAIN_VRAM |
+				    AMDGPU_GEM_DOMAIN_GTT)))
+		/* Only VRAM and GTT BOs are supported */
+		goto out_put;
+
+	r = 0;
+	if (dma_buf_kgd)
+		*dma_buf_kgd = (struct kgd_dev *)adev;
+	if (bo_size)
+		*bo_size = amdgpu_bo_size(bo);
+	if (metadata_size)
+		*metadata_size = bo->metadata_size;
+	if (metadata_buffer)
+		r = amdgpu_bo_get_metadata(bo, metadata_buffer, buffer_size,
+					   metadata_size, &metadata_flags);
+	if (flags) {
+		*flags = (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) ?
+			ALLOC_MEM_FLAGS_VRAM : ALLOC_MEM_FLAGS_GTT;
+
+		if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
+			*flags |= ALLOC_MEM_FLAGS_PUBLIC;
+	}
+
+out_put:
+	dma_buf_put(dma_buf);
+	return r;
 }
 
 uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd)
