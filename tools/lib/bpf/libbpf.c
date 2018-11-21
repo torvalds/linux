@@ -175,6 +175,7 @@ struct bpf_map {
 	char *name;
 	size_t offset;
 	int map_ifindex;
+	int inner_map_fd;
 	struct bpf_map_def def;
 	__u32 btf_key_type_id;
 	__u32 btf_value_type_id;
@@ -605,6 +606,14 @@ static int compare_bpf_map(const void *_a, const void *_b)
 	return a->offset - b->offset;
 }
 
+static bool bpf_map_type__is_map_in_map(enum bpf_map_type type)
+{
+	if (type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
+	    type == BPF_MAP_TYPE_HASH_OF_MAPS)
+		return true;
+	return false;
+}
+
 static int
 bpf_object__init_maps(struct bpf_object *obj, int flags)
 {
@@ -668,13 +677,15 @@ bpf_object__init_maps(struct bpf_object *obj, int flags)
 	}
 	obj->nr_maps = nr_maps;
 
-	/*
-	 * fill all fd with -1 so won't close incorrect
-	 * fd (fd=0 is stdin) when failure (zclose won't close
-	 * negative fd)).
-	 */
-	for (i = 0; i < nr_maps; i++)
+	for (i = 0; i < nr_maps; i++) {
+		/*
+		 * fill all fd with -1 so won't close incorrect
+		 * fd (fd=0 is stdin) when failure (zclose won't close
+		 * negative fd)).
+		 */
 		obj->maps[i].fd = -1;
+		obj->maps[i].inner_map_fd = -1;
+	}
 
 	/*
 	 * Fill obj->maps using data in "maps" section.
@@ -1222,6 +1233,9 @@ bpf_object__create_maps(struct bpf_object *obj)
 		create_attr.btf_fd = 0;
 		create_attr.btf_key_type_id = 0;
 		create_attr.btf_value_type_id = 0;
+		if (bpf_map_type__is_map_in_map(def->type) &&
+		    map->inner_map_fd >= 0)
+			create_attr.inner_map_fd = map->inner_map_fd;
 
 		if (obj->btf && !bpf_map_find_btf_info(map, obj->btf)) {
 			create_attr.btf_fd = btf__fd(obj->btf);
@@ -2679,6 +2693,20 @@ bool bpf_map__is_offload_neutral(struct bpf_map *map)
 void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex)
 {
 	map->map_ifindex = ifindex;
+}
+
+int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd)
+{
+	if (!bpf_map_type__is_map_in_map(map->def.type)) {
+		pr_warning("error: unsupported map type\n");
+		return -EINVAL;
+	}
+	if (map->inner_map_fd != -1) {
+		pr_warning("error: inner_map_fd already specified\n");
+		return -EINVAL;
+	}
+	map->inner_map_fd = fd;
+	return 0;
 }
 
 static struct bpf_map *
