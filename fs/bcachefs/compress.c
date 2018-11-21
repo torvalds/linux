@@ -596,11 +596,13 @@ have_compressed:
 			goto out;
 	}
 
-	ret = mempool_init_kmalloc_pool(
-			&c->decompress_workspace,
-			1, decompress_workspace_size);
-	if (ret)
-		goto out;
+	if (!mempool_initialized(&c->decompress_workspace)) {
+		ret = mempool_init_kmalloc_pool(
+				&c->decompress_workspace,
+				1, decompress_workspace_size);
+		if (ret)
+			goto out;
+	}
 out:
 	pr_verbose_init(c->opts, "ret %i", ret);
 	return ret;
