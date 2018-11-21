@@ -641,6 +641,10 @@ enum mlxsw_reg_sfn_rec_type {
 	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC = 0x7,
 	/* Aged-out MAC address on a LAG port. */
 	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC_LAG = 0x8,
+	/* Learned unicast tunnel record. */
+	MLXSW_REG_SFN_REC_TYPE_LEARNED_UNICAST_TUNNEL = 0xD,
+	/* Aged-out unicast tunnel record. */
+	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_UNICAST_TUNNEL = 0xE,
 };
 
 /* reg_sfn_rec_type
@@ -702,6 +706,66 @@ static inline void mlxsw_reg_sfn_mac_lag_unpack(char *payload, int rec_index,
 	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
 	*p_vid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
 	*p_lag_id = mlxsw_reg_sfn_mac_lag_lag_id_get(payload, rec_index);
+}
+
+/* reg_sfn_uc_tunnel_uip_msb
+ * When protocol is IPv4, the most significant byte of the underlay IPv4
+ * address of the remote VTEP.
+ * When protocol is IPv6, reserved.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_uip_msb, MLXSW_REG_SFN_BASE_LEN, 24,
+		     8, MLXSW_REG_SFN_REC_LEN, 0x08, false);
+
+enum mlxsw_reg_sfn_uc_tunnel_protocol {
+	MLXSW_REG_SFN_UC_TUNNEL_PROTOCOL_IPV4,
+	MLXSW_REG_SFN_UC_TUNNEL_PROTOCOL_IPV6,
+};
+
+/* reg_sfn_uc_tunnel_protocol
+ * IP protocol.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_protocol, MLXSW_REG_SFN_BASE_LEN, 27,
+		     1, MLXSW_REG_SFN_REC_LEN, 0x0C, false);
+
+/* reg_sfn_uc_tunnel_uip_lsb
+ * When protocol is IPv4, the least significant bytes of the underlay
+ * IPv4 address of the remote VTEP.
+ * When protocol is IPv6, ipv6_id to be queried from TNIPSD.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_uip_lsb, MLXSW_REG_SFN_BASE_LEN, 0,
+		     24, MLXSW_REG_SFN_REC_LEN, 0x0C, false);
+
+enum mlxsw_reg_sfn_tunnel_port {
+	MLXSW_REG_SFN_TUNNEL_PORT_NVE,
+	MLXSW_REG_SFN_TUNNEL_PORT_VPLS,
+	MLXSW_REG_SFN_TUNNEL_FLEX_TUNNEL0,
+	MLXSW_REG_SFN_TUNNEL_FLEX_TUNNEL1,
+};
+
+/* reg_sfn_uc_tunnel_port
+ * Tunnel port.
+ * Reserved on Spectrum.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, tunnel_port, MLXSW_REG_SFN_BASE_LEN, 0, 4,
+		     MLXSW_REG_SFN_REC_LEN, 0x10, false);
+
+static inline void
+mlxsw_reg_sfn_uc_tunnel_unpack(char *payload, int rec_index, char *mac,
+			       u16 *p_fid, u32 *p_uip,
+			       enum mlxsw_reg_sfn_uc_tunnel_protocol *p_proto)
+{
+	u32 uip_msb, uip_lsb;
+
+	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
+	*p_fid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
+	uip_msb = mlxsw_reg_sfn_uc_tunnel_uip_msb_get(payload, rec_index);
+	uip_lsb = mlxsw_reg_sfn_uc_tunnel_uip_lsb_get(payload, rec_index);
+	*p_uip = uip_msb << 24 | uip_lsb;
+	*p_proto = mlxsw_reg_sfn_uc_tunnel_protocol_get(payload, rec_index);
 }
 
 /* SPMS - Switch Port MSTP/RSTP State Register
