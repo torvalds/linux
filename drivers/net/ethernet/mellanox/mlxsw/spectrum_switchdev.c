@@ -2770,7 +2770,8 @@ mlxsw_sp_switchdev_bridge_nve_fdb_event(struct mlxsw_sp_switchdev_event_work *
 	    switchdev_work->event != SWITCHDEV_FDB_DEL_TO_DEVICE)
 		return;
 
-	if (!switchdev_work->fdb_info.added_by_user)
+	if (switchdev_work->event == SWITCHDEV_FDB_ADD_TO_DEVICE &&
+	    !switchdev_work->fdb_info.added_by_user)
 		return;
 
 	if (!netif_running(dev))
