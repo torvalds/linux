@@ -631,21 +631,21 @@ static dma_addr_t swiotlb_bounce_page(struct device *dev, phys_addr_t *phys,
 	if (unlikely(swiotlb_force == SWIOTLB_NO_FORCE)) {
 		dev_warn_ratelimited(dev,
 			"Cannot do DMA to address %pa\n", phys);
-		return DIRECT_MAPPING_ERROR;
+		return DMA_MAPPING_ERROR;
 	}
 
 	/* Oh well, have to allocate and map a bounce buffer. */
 	*phys = swiotlb_tbl_map_single(dev, __phys_to_dma(dev, io_tlb_start),
 			*phys, size, dir, attrs);
 	if (*phys == SWIOTLB_MAP_ERROR)
-		return DIRECT_MAPPING_ERROR;
+		return DMA_MAPPING_ERROR;
 
 	/* Ensure that the address returned is DMA'ble */
 	dma_addr = __phys_to_dma(dev, *phys);
 	if (unlikely(!dma_capable(dev, dma_addr, size))) {
 		swiotlb_tbl_unmap_single(dev, *phys, size, dir,
 			attrs | DMA_ATTR_SKIP_CPU_SYNC);
-		return DIRECT_MAPPING_ERROR;
+		return DMA_MAPPING_ERROR;
 	}
 
 	return dma_addr;
@@ -680,7 +680,7 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 
 	if (!dev_is_dma_coherent(dev) &&
 	    (attrs & DMA_ATTR_SKIP_CPU_SYNC) == 0 &&
-	    dev_addr != DIRECT_MAPPING_ERROR)
+	    dev_addr != DMA_MAPPING_ERROR)
 		arch_sync_dma_for_device(dev, phys, size, dir);
 
 	return dev_addr;
@@ -789,7 +789,7 @@ swiotlb_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nelems,
 	for_each_sg(sgl, sg, nelems, i) {
 		sg->dma_address = swiotlb_map_page(dev, sg_page(sg), sg->offset,
 				sg->length, dir, attrs);
-		if (sg->dma_address == DIRECT_MAPPING_ERROR)
+		if (sg->dma_address == DMA_MAPPING_ERROR)
 			goto out_error;
 		sg_dma_len(sg) = sg->length;
 	}
@@ -869,7 +869,6 @@ swiotlb_dma_supported(struct device *hwdev, u64 mask)
 }
 
 const struct dma_map_ops swiotlb_dma_ops = {
-	.mapping_error		= dma_direct_mapping_error,
 	.alloc			= dma_direct_alloc,
 	.free			= dma_direct_free,
 	.sync_single_for_cpu	= swiotlb_sync_single_for_cpu,
