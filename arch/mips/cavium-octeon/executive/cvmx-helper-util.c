@@ -92,7 +92,8 @@ const char *cvmx_helper_interface_mode_to_string(cvmx_helper_interface_mode_t
  *		 than this many free packet buffers in FPA 0.
  * Returns Zero on success. Negative on failure
  */
-int cvmx_helper_setup_red_queue(int queue, int pass_thresh, int drop_thresh)
+static int cvmx_helper_setup_red_queue(int queue, int pass_thresh,
+				       int drop_thresh)
 {
 	union cvmx_ipd_qosx_red_marks red_marks;
 	union cvmx_ipd_red_quex_param red_param;
