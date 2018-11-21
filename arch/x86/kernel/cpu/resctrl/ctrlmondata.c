@@ -26,7 +26,7 @@
 #include <linux/kernfs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include "intel_rdt.h"
+#include "internal.h"
 
 /*
  * Check whether MBA bandwidth percentage value is correct. The value is

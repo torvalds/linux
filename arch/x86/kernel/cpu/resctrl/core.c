@@ -30,8 +30,8 @@
 #include <linux/cpuhotplug.h>
 
 #include <asm/intel-family.h>
-#include <asm/intel_rdt_sched.h>
-#include "intel_rdt.h"
+#include <asm/resctrl_sched.h>
+#include "internal.h"
 
 #define MBA_IS_LINEAR	0x4
 #define MBA_MAX_MBPS	U32_MAX

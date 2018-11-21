@@ -39,5 +39,5 @@ TRACE_EVENT(pseudo_lock_l3,
 
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
-#define TRACE_INCLUDE_FILE intel_rdt_pseudo_lock_event
+#define TRACE_INCLUDE_FILE pseudo_lock_event
 #include <trace/define_trace.h>
