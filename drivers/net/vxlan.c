@@ -3458,11 +3458,8 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 		conf->flags |= VXLAN_F_LEARN;
 	}
 
-	if (data[IFLA_VXLAN_AGEING]) {
-		if (changelink)
-			return -EOPNOTSUPP;
+	if (data[IFLA_VXLAN_AGEING])
 		conf->age_interval = nla_get_u32(data[IFLA_VXLAN_AGEING]);
-	}
 
 	if (data[IFLA_VXLAN_PROXY]) {
 		if (changelink)
@@ -3607,6 +3604,7 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_rdst *dst = &vxlan->default_dst;
+	unsigned long old_age_interval;
 	struct vxlan_rdst old_dst;
 	struct vxlan_config conf;
 	struct vxlan_fdb *f = NULL;
@@ -3617,11 +3615,15 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 	if (err)
 		return err;
 
+	old_age_interval = vxlan->cfg.age_interval;
 	memcpy(&old_dst, dst, sizeof(struct vxlan_rdst));
 
 	err = vxlan_dev_configure(vxlan->net, dev, &conf, true, extack);
 	if (err)
 		return err;
+
+	if (old_age_interval != vxlan->cfg.age_interval)
+		mod_timer(&vxlan->age_timer, jiffies);
 
 	/* handle default dst entry */
 	if (!vxlan_addr_equal(&dst->remote_ip, &old_dst.remote_ip)) {
