@@ -103,6 +103,16 @@ struct nitrox_q_vector {
 	};
 };
 
+/**
+ * struct nitrox_iov - SR-IOV information
+ * @num_vfs: number of VF(s) enabled
+ * @msix: MSI-X for PF in SR-IOV case
+ */
+struct nitrox_iov {
+	int num_vfs;
+	struct msix_entry msix;
+};
+
 /*
  * NITROX Device states
  */
@@ -150,6 +160,9 @@ enum vf_mode {
  * @ctx_pool: DMA pool for crypto context
  * @pkt_inq: Packet input rings
  * @qvec: MSI-X queue vectors information
+ * @iov: SR-IOV informatin
+ * @num_vecs: number of MSI-X vectors
+ * @stats: request statistics
  * @hw: hardware information
  * @debugfs_dir: debugfs directory
  */
@@ -168,13 +181,13 @@ struct nitrox_device {
 	int node;
 	u16 qlen;
 	u16 nr_queues;
-	int num_vfs;
 	enum vf_mode mode;
 
 	struct dma_pool *ctx_pool;
 	struct nitrox_cmdq *pkt_inq;
 
 	struct nitrox_q_vector *qvec;
+	struct nitrox_iov iov;
 	int num_vecs;
 
 	struct nitrox_stats stats;
