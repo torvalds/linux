@@ -796,7 +796,7 @@ static int qedi_set_iscsi_pf_param(struct qedi_ctx *qedi)
 	int rval = 0;
 
 
-	num_sq_pages = (MAX_OUSTANDING_TASKS_PER_CON * 8) / PAGE_SIZE;
+	num_sq_pages = (MAX_OUTSTANDING_TASKS_PER_CON * 8) / PAGE_SIZE;
 
 	qedi->num_queues = MIN_NUM_CPUS_MSIX(qedi);
 
