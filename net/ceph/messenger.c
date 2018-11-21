@@ -544,7 +544,7 @@ static int ceph_tcp_recvpage(struct socket *sock, struct page *page,
  * shortly.
  */
 static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
-		     size_t kvlen, size_t len, int more)
+			    size_t kvlen, size_t len, bool more)
 {
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
 	int r;
