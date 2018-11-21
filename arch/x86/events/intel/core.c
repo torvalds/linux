@@ -3106,6 +3106,10 @@ static int intel_pmu_bts_config(struct perf_event *event)
 		if (!attr->exclude_kernel)
 			return -EOPNOTSUPP;
 
+		/* BTS is not allowed for precise events. */
+		if (attr->precise_ip)
+			return -EOPNOTSUPP;
+
 		/* disallow bts if conflicting events are present */
 		if (x86_add_exclusive(x86_lbr_exclusive_lbr))
 			return -EBUSY;
