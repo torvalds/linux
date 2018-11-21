@@ -79,8 +79,10 @@ struct vxlan_fdb {
 	u8		  eth_addr[ETH_ALEN];
 	u16		  state;	/* see ndm_state */
 	__be32		  vni;
-	u8		  flags;	/* see ndm_flags */
+	u16		  flags;	/* see ndm_flags and below */
 };
+
+#define NTF_VXLAN_ADDED_BY_USER 0x100
 
 /* salt for hash table */
 static u32 vxlan_salt __read_mostly;
@@ -376,6 +378,7 @@ static void vxlan_fdb_switchdev_call_notifiers(struct vxlan_dev *vxlan,
 		.remote_ifindex = rd->remote_ifindex,
 		.vni = fdb->vni,
 		.offloaded = rd->offloaded,
+		.added_by_user = fdb->flags & NTF_VXLAN_ADDED_BY_USER,
 	};
 	memcpy(info.eth_addr, fdb->eth_addr, ETH_ALEN);
 
@@ -544,6 +547,7 @@ int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
 	fdb_info->remote_ifindex = rdst->remote_ifindex;
 	fdb_info->vni = vni;
 	fdb_info->offloaded = rdst->offloaded;
+	fdb_info->added_by_user = f->flags & NTF_VXLAN_ADDED_BY_USER;
 	ether_addr_copy(fdb_info->eth_addr, mac);
 
 out:
@@ -704,7 +708,7 @@ static int vxlan_gro_complete(struct sock *sk, struct sk_buff *skb, int nhoff)
 
 static struct vxlan_fdb *vxlan_fdb_alloc(struct vxlan_dev *vxlan,
 					 const u8 *mac, __u16 state,
-					 __be32 src_vni, __u8 ndm_flags)
+					 __be32 src_vni, __u16 ndm_flags)
 {
 	struct vxlan_fdb *f;
 
@@ -724,7 +728,7 @@ static struct vxlan_fdb *vxlan_fdb_alloc(struct vxlan_dev *vxlan,
 static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 			    const u8 *mac, union vxlan_addr *ip,
 			    __u16 state, __be16 port, __be32 src_vni,
-			    __be32 vni, __u32 ifindex, __u8 ndm_flags,
+			    __be32 vni, __u32 ifindex, __u16 ndm_flags,
 			    struct vxlan_fdb **fdb)
 {
 	struct vxlan_rdst *rd = NULL;
@@ -760,10 +764,10 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 			    const u8 *mac, union vxlan_addr *ip,
 			    __u16 state, __u16 flags,
 			    __be16 port, __be32 src_vni, __be32 vni,
-			    __u32 ifindex, __u8 ndm_flags,
+			    __u32 ifindex, __u16 ndm_flags,
 			    bool swdev_notify)
 {
-	__u8 fdb_flags = (ndm_flags & ~NTF_USE);
+	__u16 fdb_flags = (ndm_flags & ~NTF_USE);
 	struct vxlan_rdst *rd = NULL;
 	struct vxlan_fdb *f;
 	int notify = 0;
@@ -974,7 +978,8 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 
 	spin_lock_bh(&vxlan->hash_lock);
 	err = vxlan_fdb_update(vxlan, addr, &ip, ndm->ndm_state, flags,
-			       port, src_vni, vni, ifindex, ndm->ndm_flags,
+			       port, src_vni, vni, ifindex,
+			       ndm->ndm_flags | NTF_VXLAN_ADDED_BY_USER,
 			       true);
 	spin_unlock_bh(&vxlan->hash_lock);
 

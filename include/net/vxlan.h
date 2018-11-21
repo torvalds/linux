@@ -421,6 +421,7 @@ struct switchdev_notifier_vxlan_fdb_info {
 	u8 eth_addr[ETH_ALEN];
 	__be32 vni;
 	bool offloaded;
+	bool added_by_user;
 };
 
 #if IS_ENABLED(CONFIG_VXLAN)
