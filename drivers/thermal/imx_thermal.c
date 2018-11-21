@@ -742,9 +742,10 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	if (of_find_property(pdev->dev.of_node, "nvmem-cells", NULL)) {
 		ret = imx_init_from_nvmem_cells(pdev);
-		if (ret == -EPROBE_DEFER)
-			return ret;
 		if (ret) {
+			if (ret == -EPROBE_DEFER)
+				return ret;
+
 			dev_err(&pdev->dev, "failed to init from nvmem: %d\n",
 				ret);
 			return ret;
