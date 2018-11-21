@@ -759,7 +759,9 @@ static struct davinci_id da830_ids[] = {
 };
 
 static struct davinci_gpio_platform_data da830_gpio_platform_data = {
-	.ngpio = 128,
+	.no_auto_base	= true,
+	.base		= 0,
+	.ngpio		= 128,
 };
 
 int __init da830_register_gpio(void)
