@@ -124,6 +124,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 			return ret;
 		}
 		ret = ACT_P_CREATED;
+		spin_lock_init(&(to_police(*a)->tcfp_lock));
 	} else if (!ovr) {
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
