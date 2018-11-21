@@ -44,6 +44,26 @@
 	} while (0)
 #define END_USE(_vq) \
 	do { BUG_ON(!(_vq)->in_use); (_vq)->in_use = 0; } while(0)
+#define LAST_ADD_TIME_UPDATE(_vq)				\
+	do {							\
+		ktime_t now = ktime_get();			\
+								\
+		/* No kick or get, with .1 second between?  Warn. */ \
+		if ((_vq)->last_add_time_valid)			\
+			WARN_ON(ktime_to_ms(ktime_sub(now,	\
+				(_vq)->last_add_time)) > 100);	\
+		(_vq)->last_add_time = now;			\
+		(_vq)->last_add_time_valid = true;		\
+	} while (0)
+#define LAST_ADD_TIME_CHECK(_vq)				\
+	do {							\
+		if ((_vq)->last_add_time_valid) {		\
+			WARN_ON(ktime_to_ms(ktime_sub(ktime_get(), \
+				      (_vq)->last_add_time)) > 100); \
+		}						\
+	} while (0)
+#define LAST_ADD_TIME_INVALID(_vq)				\
+	((_vq)->last_add_time_valid = false)
 #else
 #define BAD_RING(_vq, fmt, args...)				\
 	do {							\
@@ -53,6 +73,9 @@
 	} while (0)
 #define START_USE(vq)
 #define END_USE(vq)
+#define LAST_ADD_TIME_UPDATE(vq)
+#define LAST_ADD_TIME_CHECK(vq)
+#define LAST_ADD_TIME_INVALID(vq)
 #endif
 
 struct vring_desc_state {
@@ -295,18 +318,7 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 		return -EIO;
 	}
 
-#ifdef DEBUG
-	{
-		ktime_t now = ktime_get();
-
-		/* No kick or get, with .1 second between?  Warn. */
-		if (vq->last_add_time_valid)
-			WARN_ON(ktime_to_ms(ktime_sub(now, vq->last_add_time))
-					    > 100);
-		vq->last_add_time = now;
-		vq->last_add_time_valid = true;
-	}
-#endif
+	LAST_ADD_TIME_UPDATE(vq);
 
 	BUG_ON(total_sg == 0);
 
@@ -467,13 +479,8 @@ static bool virtqueue_kick_prepare_split(struct virtqueue *_vq)
 	new = vq->split.avail_idx_shadow;
 	vq->num_added = 0;
 
-#ifdef DEBUG
-	if (vq->last_add_time_valid) {
-		WARN_ON(ktime_to_ms(ktime_sub(ktime_get(),
-					      vq->last_add_time)) > 100);
-	}
-	vq->last_add_time_valid = false;
-#endif
+	LAST_ADD_TIME_CHECK(vq);
+	LAST_ADD_TIME_INVALID(vq);
 
 	if (vq->event) {
 		needs_kick = vring_need_event(virtio16_to_cpu(_vq->vdev,
@@ -597,9 +604,7 @@ static void *virtqueue_get_buf_ctx_split(struct virtqueue *_vq,
 				&vring_used_event(&vq->split.vring),
 				cpu_to_virtio16(_vq->vdev, vq->last_used_idx));
 
-#ifdef DEBUG
-	vq->last_add_time_valid = false;
-#endif
+	LAST_ADD_TIME_INVALID(vq);
 
 	END_USE(vq);
 	return ret;
