@@ -400,53 +400,32 @@ static void hidpp_prefix_name(char **name, int name_length)
 #define HIDPP_SET_LONG_REGISTER				0x82
 #define HIDPP_GET_LONG_REGISTER				0x83
 
-/**
- * hidpp10_set_register_bit() - Sets a single bit in a HID++ 1.0 register.
- * @hidpp_dev: the device to set the register on.
- * @register_address: the address of the register to modify.
- * @byte: the byte of the register to modify. Should be less than 3.
- * Return: 0 if successful, otherwise a negative error code.
- */
-static int hidpp10_set_register_bit(struct hidpp_device *hidpp_dev,
-	u8 register_address, u8 byte, u8 bit)
+#define HIDPP_REG_GENERAL				0x00
+
+static int hidpp10_enable_battery_reporting(struct hidpp_device *hidpp_dev)
 {
 	struct hidpp_report response;
 	int ret;
 	u8 params[3] = { 0 };
 
 	ret = hidpp_send_rap_command_sync(hidpp_dev,
-					  REPORT_ID_HIDPP_SHORT,
-					  HIDPP_GET_REGISTER,
-					  register_address,
-					  NULL, 0, &response);
+					REPORT_ID_HIDPP_SHORT,
+					HIDPP_GET_REGISTER,
+					HIDPP_REG_GENERAL,
+					NULL, 0, &response);
 	if (ret)
 		return ret;
 
 	memcpy(params, response.rap.params, 3);
 
-	params[byte] |= BIT(bit);
+	/* Set the battery bit */
+	params[0] |= BIT(4);
 
 	return hidpp_send_rap_command_sync(hidpp_dev,
-					   REPORT_ID_HIDPP_SHORT,
-					   HIDPP_SET_REGISTER,
-					   register_address,
-					   params, 3, &response);
-}
-
-
-#define HIDPP_REG_GENERAL				0x00
-
-static int hidpp10_enable_battery_reporting(struct hidpp_device *hidpp_dev)
-{
-	return hidpp10_set_register_bit(hidpp_dev, HIDPP_REG_GENERAL, 0, 4);
-}
-
-#define HIDPP_REG_FEATURES				0x01
-
-/* On HID++ 1.0 devices, high-res scroll was called "scrolling acceleration". */
-static int hidpp10_enable_scrolling_acceleration(struct hidpp_device *hidpp_dev)
-{
-	return hidpp10_set_register_bit(hidpp_dev, HIDPP_REG_FEATURES, 0, 6);
+					REPORT_ID_HIDPP_SHORT,
+					HIDPP_SET_REGISTER,
+					HIDPP_REG_GENERAL,
+					params, 3, &response);
 }
 
 #define HIDPP_REG_BATTERY_STATUS			0x07
