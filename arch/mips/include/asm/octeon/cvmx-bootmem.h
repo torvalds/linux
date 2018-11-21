@@ -174,22 +174,6 @@ extern void *cvmx_bootmem_alloc_address(uint64_t size, uint64_t address,
 					uint64_t alignment);
 
 /**
- * Allocate a block of memory from the free list that was
- * passed to the application by the bootloader within a specified
- * address range. This is an allocate-only algorithm, so
- * freeing memory is not possible. Allocation will fail if
- * memory cannot be allocated in the requested range.
- *
- * @size:      Size in bytes of block to allocate
- * @min_addr:  defines the minimum address of the range
- * @max_addr:  defines the maximum address of the range
- * @alignment: Alignment required - must be power of 2
- * Returns pointer to block of memory, NULL on error
- */
-extern void *cvmx_bootmem_alloc_range(uint64_t size, uint64_t alignment,
-				      uint64_t min_addr, uint64_t max_addr);
-
-/**
  * Frees a previously allocated named bootmem block.
  *
  * @name:   name of block to free
