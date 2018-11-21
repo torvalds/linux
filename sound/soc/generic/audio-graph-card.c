@@ -238,7 +238,7 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_of_parse_routing(card, NULL, 1);
+	ret = asoc_simple_card_of_parse_routing(card, NULL);
 	if (ret < 0)
 		return ret;
 

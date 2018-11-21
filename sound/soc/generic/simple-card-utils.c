@@ -417,8 +417,7 @@ int asoc_simple_card_clean_reference(struct snd_soc_card *card)
 EXPORT_SYMBOL_GPL(asoc_simple_card_clean_reference);
 
 int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
-				      char *prefix,
-				      int optional)
+				      char *prefix)
 {
 	struct device_node *node = card->dev->of_node;
 	char prop[128];
@@ -428,11 +427,8 @@ int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "routing");
 
-	if (!of_property_read_bool(node, prop)) {
-		if (optional)
-			return 0;
-		return -EINVAL;
-	}
+	if (!of_property_read_bool(node, prop))
+		return 0;
 
 	return snd_soc_of_parse_audio_routing(card, prop);
 }

@@ -198,7 +198,7 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_of_parse_routing(card, PREFIX, 0);
+	ret = asoc_simple_card_of_parse_routing(card, PREFIX);
 	if (ret < 0)
 		return ret;
 
