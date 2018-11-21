@@ -155,13 +155,109 @@ static int nitrox_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	return nitrox_skcipher_setkey(cipher, aes_keylen, key, keylen);
 }
 
+static int alloc_src_sglist(struct skcipher_request *skreq, int ivsize)
+{
+	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
+	int nents = sg_nents(skreq->src) + 1;
+	struct se_crypto_request *creq = &nkreq->creq;
+	char *iv;
+	struct scatterlist *sg;
+
+	/* Allocate buffer to hold IV and input scatterlist array */
+	nkreq->src = alloc_req_buf(nents, ivsize, creq->gfp);
+	if (!nkreq->src)
+		return -ENOMEM;
+
+	/* copy iv */
+	iv = nkreq->src;
+	memcpy(iv, skreq->iv, ivsize);
+
+	sg = (struct scatterlist *)(iv + ivsize);
+	creq->src = sg;
+	sg_init_table(sg, nents);
+
+	/* Input format:
+	 * +----+----------------+
+	 * | IV | SRC sg entries |
+	 * +----+----------------+
+	 */
+
+	/* IV */
+	sg = create_single_sg(sg, iv, ivsize);
+	/* SRC entries */
+	create_multi_sg(sg, skreq->src);
+
+	return 0;
+}
+
+static int alloc_dst_sglist(struct skcipher_request *skreq, int ivsize)
+{
+	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
+	int nents = sg_nents(skreq->dst) + 3;
+	int extralen = ORH_HLEN + COMP_HLEN;
+	struct se_crypto_request *creq = &nkreq->creq;
+	struct scatterlist *sg;
+	char *iv = nkreq->src;
+
+	/* Allocate buffer to hold ORH, COMPLETION and output scatterlist
+	 * array
+	 */
+	nkreq->dst = alloc_req_buf(nents, extralen, creq->gfp);
+	if (!nkreq->dst)
+		return -ENOMEM;
+
+	creq->orh = (u64 *)(nkreq->dst);
+	set_orh_value(creq->orh);
+
+	creq->comp = (u64 *)(nkreq->dst + ORH_HLEN);
+	set_comp_value(creq->comp);
+
+	sg = (struct scatterlist *)(nkreq->dst + ORH_HLEN + COMP_HLEN);
+	creq->dst = sg;
+	sg_init_table(sg, nents);
+
+	/* Output format:
+	 * +-----+----+----------------+-----------------+
+	 * | ORH | IV | DST sg entries | COMPLETION Bytes|
+	 * +-----+----+----------------+-----------------+
+	 */
+
+	/* ORH */
+	sg = create_single_sg(sg, creq->orh, ORH_HLEN);
+	/* IV */
+	sg = create_single_sg(sg, iv, ivsize);
+	/* DST entries */
+	sg = create_multi_sg(sg, skreq->dst);
+	/* COMPLETION Bytes */
+	create_single_sg(sg, creq->comp, COMP_HLEN);
+
+	return 0;
+}
+
+static void free_src_sglist(struct skcipher_request *skreq)
+{
+	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
+
+	kfree(nkreq->src);
+}
+
+static void free_dst_sglist(struct skcipher_request *skreq)
+{
+	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
+
+	kfree(nkreq->dst);
+}
+
 static void nitrox_skcipher_callback(struct skcipher_request *skreq,
 				     int err)
 {
+	free_src_sglist(skreq);
+	free_dst_sglist(skreq);
 	if (err) {
 		pr_err_ratelimited("request failed status 0x%0x\n", err);
 		err = -EINVAL;
 	}
+
 	skcipher_request_complete(skreq, err);
 }
 
@@ -172,6 +268,7 @@ static int nitrox_skcipher_crypt(struct skcipher_request *skreq, bool enc)
 	struct nitrox_kcrypt_request *nkreq = skcipher_request_ctx(skreq);
 	int ivsize = crypto_skcipher_ivsize(cipher);
 	struct se_crypto_request *creq;
+	int ret;
 
 	creq = &nkreq->creq;
 	creq->flags = skreq->base.flags;
@@ -192,11 +289,15 @@ static int nitrox_skcipher_crypt(struct skcipher_request *skreq, bool enc)
 	creq->ctx_handle = nctx->u.ctx_handle;
 	creq->ctrl.s.ctxl = sizeof(struct flexi_crypto_context);
 
-	/* copy the iv */
-	memcpy(creq->iv, skreq->iv, ivsize);
-	creq->ivsize = ivsize;
-	creq->src = skreq->src;
-	creq->dst = skreq->dst;
+	ret = alloc_src_sglist(skreq, ivsize);
+	if (ret)
+		return ret;
+
+	ret = alloc_dst_sglist(skreq, ivsize);
+	if (ret) {
+		free_src_sglist(skreq);
+		return ret;
+	}
 
 	nkreq->nctx = nctx;
 	nkreq->skreq = skreq;

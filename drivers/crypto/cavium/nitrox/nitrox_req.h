@@ -7,6 +7,8 @@
 
 #include "nitrox_dev.h"
 
+#define PENDING_SIG	0xFFFFFFFFFFFFFFFFUL
+
 /**
  * struct gphdr - General purpose Header
  * @param0: first parameter.
@@ -46,13 +48,6 @@ union se_req_ctrl {
 	} s;
 };
 
-struct nitrox_sglist {
-	u16 len;
-	u16 raz0;
-	u32 raz1;
-	dma_addr_t dma;
-};
-
 #define MAX_IV_LEN 16
 
 /**
@@ -62,8 +57,10 @@ struct nitrox_sglist {
  * @ctx_handle: Crypto context handle.
  * @gph: GP Header
  * @ctrl: Request Information.
- * @in: Input sglist
- * @out: Output sglist
+ * @orh: ORH address
+ * @comp: completion address
+ * @src: Input sglist
+ * @dst: Output sglist
  */
 struct se_crypto_request {
 	u8 opcode;
@@ -73,9 +70,8 @@ struct se_crypto_request {
 
 	struct gphdr gph;
 	union se_req_ctrl ctrl;
-
-	u8 iv[MAX_IV_LEN];
-	u16 ivsize;
+	u64 *orh;
+	u64 *comp;
 
 	struct scatterlist *src;
 	struct scatterlist *dst;
@@ -200,6 +196,8 @@ struct nitrox_kcrypt_request {
 	struct se_crypto_request creq;
 	struct nitrox_crypto_ctx *nctx;
 	struct skcipher_request *skreq;
+	u8 *src;
+	u8 *dst;
 };
 
 /**
@@ -376,26 +374,19 @@ struct nitrox_sgcomp {
 
 /*
  * strutct nitrox_sgtable - SG list information
- * @map_cnt: Number of buffers mapped
- * @nr_comp: Number of sglist components
+ * @sgmap_cnt: Number of buffers mapped
  * @total_bytes: Total bytes in sglist.
- * @len: Total sglist components length.
- * @dma: DMA address of sglist component.
- * @dir: DMA direction.
- * @buf: crypto request buffer.
- * @sglist: SG list of input/output buffers.
+ * @sgcomp_len: Total sglist components length.
+ * @sgcomp_dma: DMA address of sglist component.
+ * @sg: crypto request buffer.
  * @sgcomp: sglist component for NITROX.
  */
 struct nitrox_sgtable {
-	u8 map_bufs_cnt;
-	u8 nr_sgcomp;
+	u8 sgmap_cnt;
 	u16 total_bytes;
-	u32 len;
-	dma_addr_t dma;
-	enum dma_data_direction dir;
-
-	struct scatterlist *buf;
-	struct nitrox_sglist *sglist;
+	u32 sgcomp_len;
+	dma_addr_t sgcomp_dma;
+	struct scatterlist *sg;
 	struct nitrox_sgcomp *sgcomp;
 };
 
@@ -405,10 +396,8 @@ struct nitrox_sgtable {
 #define COMP_HLEN	8
 
 struct resp_hdr {
-	u64 orh;
-	dma_addr_t orh_dma;
-	u64 completion;
-	dma_addr_t completion_dma;
+	u64 *orh;
+	u64 *completion;
 };
 
 typedef void (*completion_t)(struct skcipher_request *skreq, int err);
@@ -434,7 +423,6 @@ struct nitrox_softreq {
 	u32 flags;
 	gfp_t gfp;
 	atomic_t status;
-	bool inplace;
 
 	struct nitrox_device *ndev;
 	struct nitrox_cmdq *cmdq;
@@ -449,5 +437,47 @@ struct nitrox_softreq {
 	completion_t callback;
 	struct skcipher_request *skreq;
 };
+
+static inline void *alloc_req_buf(int nents, int extralen, gfp_t gfp)
+{
+	size_t size;
+
+	size = sizeof(struct scatterlist) * nents;
+	size += extralen;
+
+	return kzalloc(size, gfp);
+}
+
+static inline struct scatterlist *create_single_sg(struct scatterlist *sg,
+						   void *buf, int buflen)
+{
+	sg_set_buf(sg, buf, buflen);
+	sg++;
+	return sg;
+}
+
+static inline struct scatterlist *create_multi_sg(struct scatterlist *to_sg,
+						  struct scatterlist *from_sg)
+{
+	struct scatterlist *sg;
+	int i;
+
+	for_each_sg(from_sg, sg, sg_nents(from_sg), i) {
+		sg_set_buf(to_sg, sg_virt(sg), sg->length);
+		to_sg++;
+	}
+
+	return to_sg;
+}
+
+static inline void set_orh_value(u64 *orh)
+{
+	WRITE_ONCE(*orh, PENDING_SIG);
+}
+
+static inline void set_comp_value(u64 *comp)
+{
+	WRITE_ONCE(*comp, PENDING_SIG);
+}
 
 #endif /* __NITROX_REQ_H */
