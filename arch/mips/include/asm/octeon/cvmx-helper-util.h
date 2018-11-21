@@ -45,14 +45,6 @@ extern const char
     *cvmx_helper_interface_mode_to_string(cvmx_helper_interface_mode_t mode);
 
 /**
- * Debug routine to dump the packet structure to the console
- *
- * @work:   Work queue entry containing the packet to dump
- * Returns
- */
-extern int cvmx_helper_dump_packet(cvmx_wqe_t *work);
-
-/**
  * Setup Random Early Drop on a specific input queue
  *
  * @queue:  Input queue to setup RED on (0-7)
