@@ -1577,8 +1577,6 @@ static int mlx5e_open_xdpsq(struct mlx5e_channel *c,
 	csp.cqn             = sq->cq.mcq.cqn;
 	csp.wq_ctrl         = &sq->wq_ctrl;
 	csp.min_inline_mode = sq->min_inline_mode;
-	if (is_redirect)
-		set_bit(MLX5E_SQ_STATE_REDIRECT, &sq->state);
 	set_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 	err = mlx5e_create_sq_rdy(c->mdev, param, &csp, &sq->sqn);
 	if (err)
@@ -1612,7 +1610,7 @@ err_free_xdpsq:
 	return err;
 }
 
-static void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq)
+static void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
 {
 	struct mlx5e_channel *c = sq->channel;
 
@@ -1620,7 +1618,7 @@ static void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq)
 	napi_synchronize(&c->napi);
 
 	mlx5e_destroy_sq(c->mdev, sq->sqn);
-	mlx5e_free_xdpsq_descs(sq);
+	mlx5e_free_xdpsq_descs(sq, rq);
 	mlx5e_free_xdpsq(sq);
 }
 
@@ -2008,7 +2006,7 @@ err_close_rq:
 
 err_close_xdp_sq:
 	if (c->xdp)
-		mlx5e_close_xdpsq(&c->rq.xdpsq);
+		mlx5e_close_xdpsq(&c->rq.xdpsq, &c->rq);
 
 err_close_sqs:
 	mlx5e_close_sqs(c);
@@ -2061,10 +2059,10 @@ static void mlx5e_deactivate_channel(struct mlx5e_channel *c)
 
 static void mlx5e_close_channel(struct mlx5e_channel *c)
 {
-	mlx5e_close_xdpsq(&c->xdpsq);
+	mlx5e_close_xdpsq(&c->xdpsq, NULL);
 	mlx5e_close_rq(&c->rq);
 	if (c->xdp)
-		mlx5e_close_xdpsq(&c->rq.xdpsq);
+		mlx5e_close_xdpsq(&c->rq.xdpsq, &c->rq);
 	mlx5e_close_sqs(c);
 	mlx5e_close_icosq(&c->icosq);
 	napi_disable(&c->napi);

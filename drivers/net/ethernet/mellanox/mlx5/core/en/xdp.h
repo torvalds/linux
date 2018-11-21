@@ -42,8 +42,8 @@
 
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
 		      void *va, u16 *rx_headroom, u32 *len);
-bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq);
-void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq);
+bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq);
+void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq);
 void mlx5e_xdp_rx_poll_complete(struct mlx5e_rq *rq);
 bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi);
 int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,

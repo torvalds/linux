@@ -164,11 +164,10 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi)
 	return true;
 }
 
-bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
+bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 {
 	struct mlx5e_xdpsq *sq;
 	struct mlx5_cqe64 *cqe;
-	struct mlx5e_rq *rq;
 	bool is_redirect;
 	u16 sqcc;
 	int i;
@@ -182,8 +181,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 	if (!cqe)
 		return false;
 
-	is_redirect = test_bit(MLX5E_SQ_STATE_REDIRECT, &sq->state);
-	rq = container_of(sq, struct mlx5e_rq, xdpsq);
+	is_redirect = !rq;
 
 	/* sq->cc must be updated only after mlx5_cqwq_update_db_record(),
 	 * otherwise a cq overrun may occur
@@ -228,13 +226,9 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 	return (i == MLX5E_TX_CQ_POLL_BUDGET);
 }
 
-void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq)
+void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
 {
-	struct mlx5e_rq *rq;
-	bool is_redirect;
-
-	is_redirect = test_bit(MLX5E_SQ_STATE_REDIRECT, &sq->state);
-	rq = is_redirect ? NULL : container_of(sq, struct mlx5e_rq, xdpsq);
+	bool is_redirect = !rq;
 
 	while (sq->cc != sq->pc) {
 		u16 ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->cc);

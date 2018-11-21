@@ -344,7 +344,6 @@ enum {
 	MLX5E_SQ_STATE_IPSEC,
 	MLX5E_SQ_STATE_AM,
 	MLX5E_SQ_STATE_TLS,
-	MLX5E_SQ_STATE_REDIRECT,
 };
 
 struct mlx5e_sq_wqe_info {
