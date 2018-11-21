@@ -43,10 +43,6 @@
 #include "dpcd_defs.h"
 #include "dmcu.h"
 
-#include "dce/dce_11_0_d.h"
-#include "dce/dce_11_0_enum.h"
-#include "dce/dce_11_0_sh_mask.h"
-
 #define DC_LOGGER_INIT(logger)
 
 
