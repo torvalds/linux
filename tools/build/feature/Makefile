@@ -5,6 +5,7 @@ FILES=                                          \
          test-bionic.bin                        \
          test-dwarf.bin                         \
          test-dwarf_getlocations.bin            \
+         test-eventfd.bin                       \
          test-fortify-source.bin                \
          test-sync-compare-and-swap.bin         \
          test-get_current_dir_name.bin          \
@@ -101,6 +102,9 @@ $(OUTPUT)test-bionic.bin:
 
 $(OUTPUT)test-libelf.bin:
 	$(BUILD) -lelf
+
+$(OUTPUT)test-eventfd.bin:
+	$(BUILD)
 
 $(OUTPUT)test-get_current_dir_name.bin:
 	$(BUILD)
