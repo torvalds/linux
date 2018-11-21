@@ -126,11 +126,8 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi)
 	}
 
 	if (unlikely(!mlx5e_wqc_has_room_for(wq, sq->cc, sq->pc, 1))) {
-		if (sq->doorbell) {
-			/* SQ is full, ring doorbell */
-			mlx5e_xmit_xdp_doorbell(sq);
-			sq->doorbell = false;
-		}
+		/* SQ is full, ring doorbell */
+		mlx5e_xmit_xdp_doorbell(sq);
 		stats->full++;
 		return false;
 	}
@@ -158,7 +155,7 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi)
 	sq->db.xdpi[pi] = *xdpi;
 	sq->pc++;
 
-	sq->doorbell = true;
+	sq->doorbell_cseg = cseg;
 
 	stats->xmit++;
 	return true;
@@ -309,10 +306,7 @@ void mlx5e_xdp_rx_poll_complete(struct mlx5e_rq *rq)
 {
 	struct mlx5e_xdpsq *xdpsq = &rq->xdpsq;
 
-	if (xdpsq->doorbell) {
-		mlx5e_xmit_xdp_doorbell(xdpsq);
-		xdpsq->doorbell = false;
-	}
+	mlx5e_xmit_xdp_doorbell(xdpsq);
 
 	if (xdpsq->redirect_flush) {
 		xdp_do_flush_map();

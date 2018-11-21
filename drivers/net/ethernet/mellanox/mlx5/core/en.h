@@ -413,7 +413,7 @@ struct mlx5e_xdpsq {
 
 	/* dirtied @xmit */
 	u16                        pc ____cacheline_aligned_in_smp;
-	bool                       doorbell;
+	struct mlx5_wqe_ctrl_seg   *doorbell_cseg;
 
 	struct mlx5e_cq            cq;
 

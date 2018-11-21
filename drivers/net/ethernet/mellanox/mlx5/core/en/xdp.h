@@ -51,13 +51,10 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 
 static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_xdpsq *sq)
 {
-	struct mlx5_wq_cyc *wq = &sq->wq;
-	struct mlx5e_tx_wqe *wqe;
-	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc - 1); /* last pi */
-
-	wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
-
-	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &wqe->ctrl);
+	if (sq->doorbell_cseg) {
+		mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, sq->doorbell_cseg);
+		sq->doorbell_cseg = NULL;
+	}
 }
 
 #endif
