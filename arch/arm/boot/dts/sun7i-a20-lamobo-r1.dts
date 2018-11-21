@@ -123,6 +123,8 @@
 	phy-mode = "rgmii";
 	phy-supply = <&reg_gmac_3v3>;
 	status = "okay";
+	/delete-property/#address-cells;
+	/delete-property/#size-cells;
 
 	fixed-link {
 		speed = <1000>;
@@ -137,8 +139,6 @@
 		switch: ethernet-switch@1e {
 			compatible = "brcm,bcm53125";
 			reg = <30>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 
 			ports {
 				#address-cells = <1>;
