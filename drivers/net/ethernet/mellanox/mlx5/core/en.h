@@ -416,6 +416,16 @@ struct mlx5e_xdp_wqe_info {
 	u8 num_ds;
 };
 
+struct mlx5e_xdp_mpwqe {
+	/* Current MPWQE session */
+	struct mlx5e_tx_wqe *wqe;
+	u8                   ds_count;
+	u8                   max_ds_count;
+};
+
+struct mlx5e_xdpsq;
+typedef bool (*mlx5e_fp_xmit_xdp_frame)(struct mlx5e_xdpsq*,
+					struct mlx5e_xdp_info*);
 struct mlx5e_xdpsq {
 	/* data path */
 
@@ -428,12 +438,14 @@ struct mlx5e_xdpsq {
 	u32                        xdpi_fifo_pc ____cacheline_aligned_in_smp;
 	u16                        pc;
 	struct mlx5_wqe_ctrl_seg   *doorbell_cseg;
+	struct mlx5e_xdp_mpwqe     mpwqe;
 
 	struct mlx5e_cq            cq;
 
 	/* read only */
 	struct mlx5_wq_cyc         wq;
 	struct mlx5e_xdpsq_stats  *stats;
+	mlx5e_fp_xmit_xdp_frame    xmit_xdp_frame;
 	struct {
 		struct mlx5e_xdp_wqe_info *wqe_info;
 		struct mlx5e_xdp_info_fifo xdpi_fifo;
