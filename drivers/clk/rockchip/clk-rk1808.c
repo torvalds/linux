@@ -146,7 +146,7 @@ PNAME(mux_emmc_p)		= { "clk_emmc_div", "clk_emmc_div50" };
 PNAME(mux_cpll_npll_ppll_p)	= { "cpll", "npll", "ppll" };
 PNAME(mux_gmac_p)	= { "clk_gmac_src", "gmac_clkin" };
 PNAME(mux_gmac_rgmii_speed_p)	= { "clk_gmac_tx_src", "clk_gmac_tx_src", "clk_gmac_tx_div50", "clk_gmac_tx_div5" };
-PNAME(mux_gmac_rmii_speed_p)	= { "clk_gmac_rx_div2", "clk_gmac_rx_div20" };
+PNAME(mux_gmac_rmii_speed_p)	= { "clk_gmac_rx_div20", "clk_gmac_rx_div2" };
 PNAME(mux_gmac_rx_tx_p)	= { "clk_gmac_rgmii_speed", "clk_gmac_rmii_speed" };
 PNAME(mux_gpll_usb480m_cpll_npll_p)	= { "gpll", "usb480m", "cpll", "npll" };
 PNAME(mux_uart1_p)		= { "clk_uart1_src", "clk_uart1_np5", "clk_uart1_frac", "xin24m" };
@@ -682,7 +682,7 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 	COMPOSITE(SCLK_GMAC_SRC, "clk_gmac_src", mux_cpll_npll_ppll_p, 0,
 			RK1808_CLKSEL_CON(26), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK1808_CLKGATE_CON(10), 3, GFLAGS),
-	MUX(SCLK_GMAC, "clk_gmac", mux_gmac_p, 0,
+	MUX(SCLK_GMAC, "clk_gmac", mux_gmac_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			RK1808_CLKSEL_CON(27), 0, 1, MFLAGS),
 	GATE(SCLK_GMAC_REF, "clk_gmac_ref", "clk_gmac", 0,
 			RK1808_CLKGATE_CON(10), 4, GFLAGS),
