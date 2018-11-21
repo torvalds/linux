@@ -147,11 +147,14 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 	config.regmap = wm8994->regmap;
 	config.init_data = &ldo->init_data;
 
-	/* Look up LDO enable GPIO from the parent device node */
-	gpiod = devm_gpiod_get_optional(pdev->dev.parent,
-					id ? "wlf,ldo2ena" : "wlf,ldo1ena",
-					GPIOD_OUT_LOW |
-					GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+	/*
+	 * Look up LDO enable GPIO from the parent device node, we don't
+	 * use devm because the regulator core will free the GPIO
+	 */
+	gpiod = gpiod_get_optional(pdev->dev.parent,
+				   id ? "wlf,ldo2ena" : "wlf,ldo1ena",
+				   GPIOD_OUT_LOW |
+				   GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 	if (IS_ERR(gpiod))
 		return PTR_ERR(gpiod);
 	config.ena_gpiod = gpiod;
@@ -184,6 +187,7 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 	return 0;
 
 err:
+	gpiod_put(gpiod);
 	return ret;
 }
 
