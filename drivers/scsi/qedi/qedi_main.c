@@ -1298,7 +1298,7 @@ static int qedi_request_msix_irq(struct qedi_ctx *qedi)
 	int i, rc, cpu;
 
 	cpu = cpumask_first(cpu_online_mask);
-	for (i = 0; i < MIN_NUM_CPUS_MSIX(qedi); i++) {
+	for (i = 0; i < qedi->int_info.msix_cnt; i++) {
 		rc = request_irq(qedi->int_info.msix[i].vector,
 				 qedi_msix_handler, 0, "qedi",
 				 &qedi->fp_array[i]);
