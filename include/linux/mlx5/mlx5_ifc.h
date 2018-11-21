@@ -349,7 +349,7 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8	   reformat_l3_tunnel_to_l2[0x1];
 	u8	   reformat_l2_to_l3_tunnel[0x1];
 	u8	   reformat_and_modify_action[0x1];
-	u8         reserved_at_14[0xb];
+	u8         reserved_at_15[0xb];
 	u8         reserved_at_20[0x2];
 	u8         log_max_ft_size[0x6];
 	u8         log_max_modify_header_context[0x8];
@@ -586,7 +586,7 @@ struct mlx5_ifc_flow_table_eswitch_cap_bits {
 	u8      fdb_multi_path_to_table[0x1];
 	u8      reserved_at_1d[0x1];
 	u8      multi_fdb_encap[0x1];
-	u8      reserved_at_1e[0x1e1];
+	u8      reserved_at_1f[0x1e1];
 
 	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_esw_fdb;
 
@@ -829,7 +829,7 @@ struct mlx5_ifc_vector_calc_cap_bits {
 	struct mlx5_ifc_calc_op calc2;
 	struct mlx5_ifc_calc_op calc3;
 
-	u8         reserved_at_e0[0x720];
+	u8         reserved_at_c0[0x720];
 };
 
 enum {
@@ -2473,14 +2473,15 @@ struct mlx5_ifc_xrc_srqc_bits {
 
 	u8         wq_signature[0x1];
 	u8         cont_srq[0x1];
-	u8         dbr_umem_valid[0x1];
+	u8         reserved_at_22[0x1];
 	u8         rlky[0x1];
 	u8         basic_cyclic_rcv_wqe[0x1];
 	u8         log_rq_stride[0x3];
 	u8         xrcd[0x18];
 
 	u8         page_offset[0x6];
-	u8         reserved_at_46[0x2];
+	u8         reserved_at_46[0x1];
+	u8         dbr_umem_valid[0x1];
 	u8         cqn[0x18];
 
 	u8         reserved_at_60[0x20];
@@ -5566,7 +5567,7 @@ struct mlx5_ifc_modify_nic_vport_context_out_bits {
 struct mlx5_ifc_modify_nic_vport_field_select_bits {
 	u8         reserved_at_0[0x12];
 	u8	   affiliation[0x1];
-	u8	   reserved_at_e[0x1];
+	u8	   reserved_at_13[0x1];
 	u8         disable_uc_local_lb[0x1];
 	u8         disable_mc_local_lb[0x1];
 	u8         node_guid[0x1];
@@ -6689,9 +6690,12 @@ struct mlx5_ifc_create_xrc_srq_in_bits {
 
 	struct mlx5_ifc_xrc_srqc_bits xrc_srq_context_entry;
 
-	u8         reserved_at_280[0x40];
+	u8         reserved_at_280[0x60];
+
 	u8         xrc_srq_umem_valid[0x1];
-	u8         reserved_at_2c1[0x5bf];
+	u8         reserved_at_2e1[0x1f];
+
+	u8         reserved_at_300[0x580];
 
 	u8         pas[0][0x40];
 };
@@ -9024,7 +9028,7 @@ struct mlx5_ifc_dcbx_param_bits {
 	u8         dcbx_cee_cap[0x1];
 	u8         dcbx_ieee_cap[0x1];
 	u8         dcbx_standby_cap[0x1];
-	u8         reserved_at_0[0x5];
+	u8         reserved_at_3[0x5];
 	u8         port_number[0x8];
 	u8         reserved_at_10[0xa];
 	u8         max_application_table_size[6];
