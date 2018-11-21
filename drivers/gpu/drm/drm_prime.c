@@ -715,24 +715,33 @@ EXPORT_SYMBOL(drm_gem_prime_handle_to_fd);
  */
 int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
-	/* Used by drm_gem_mmap() to lookup the GEM object */
-	struct drm_file priv = {
-		.minor = obj->dev->primary,
-	};
-	struct file fil = {
-		.private_data = &priv,
-	};
+	struct drm_file *priv;
+	struct file *fil;
 	int ret;
 
-	ret = drm_vma_node_allow(&obj->vma_node, &priv);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	fil = kzalloc(sizeof(*fil), GFP_KERNEL);
+	if (!priv || !fil) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Used by drm_gem_mmap() to lookup the GEM object */
+	priv->minor = obj->dev->primary;
+	fil->private_data = priv;
+
+	ret = drm_vma_node_allow(&obj->vma_node, priv);
 	if (ret)
-		return ret;
+		goto out;
 
 	vma->vm_pgoff += drm_vma_node_start(&obj->vma_node);
 
-	ret = obj->dev->driver->fops->mmap(&fil, vma);
+	ret = obj->dev->driver->fops->mmap(fil, vma);
 
-	drm_vma_node_revoke(&obj->vma_node, &priv);
+	drm_vma_node_revoke(&obj->vma_node, priv);
+out:
+	kfree(priv);
+	kfree(fil);
 
 	return ret;
 }
