@@ -382,9 +382,11 @@ static void rsnd_parse_connect_ssiu_compatible(struct rsnd_priv *priv,
 	for_each_rsnd_ssiu(ssiu, priv, i) {
 		mod = rsnd_mod_get(ssiu);
 
-		if ((rsnd_mod_id(ssi_mod) == rsnd_ssiu_id(mod)) &&
-		    (rsnd_mod_id_sub(mod) == 0))
+		if ((rsnd_mod_id(ssi_mod) == rsnd_mod_id(mod)) &&
+		    (rsnd_mod_id_sub(mod) == 0)) {
 			rsnd_dai_connect(mod, io, mod->type);
+			return;
+		}
 	}
 }
 
