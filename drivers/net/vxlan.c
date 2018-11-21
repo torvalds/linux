@@ -977,7 +977,7 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 static int __vxlan_fdb_delete(struct vxlan_dev *vxlan,
 			      const unsigned char *addr, union vxlan_addr ip,
 			      __be16 port, __be32 src_vni, __be32 vni,
-			      u32 ifindex, u16 vid)
+			      u32 ifindex)
 {
 	struct vxlan_fdb *f;
 	struct vxlan_rdst *rd = NULL;
@@ -1024,8 +1024,7 @@ static int vxlan_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 		return err;
 
 	spin_lock_bh(&vxlan->hash_lock);
-	err = __vxlan_fdb_delete(vxlan, addr, ip, port, src_vni, vni, ifindex,
-				 vid);
+	err = __vxlan_fdb_delete(vxlan, addr, ip, port, src_vni, vni, ifindex);
 	spin_unlock_bh(&vxlan->hash_lock);
 
 	return err;
@@ -3611,7 +3610,7 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 					   vxlan->cfg.dst_port,
 					   old_dst.remote_vni,
 					   old_dst.remote_vni,
-					   old_dst.remote_ifindex, 0);
+					   old_dst.remote_ifindex);
 
 		if (!vxlan_addr_any(&dst->remote_ip)) {
 			err = vxlan_fdb_create(vxlan, all_zeros_mac,
