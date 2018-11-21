@@ -1,4 +1,7 @@
-User Interface for Resource Allocation in Intel Resource Director Technology
+User Interface for Resource Control feature
+
+Intel refers to this feature as Intel Resource Director Technology(Intel(R) RDT).
+AMD refers to this feature as AMD Platform Quality of Service(AMD QoS).
 
 Copyright (C) 2016 Intel Corporation
 
@@ -6,8 +9,8 @@ Fenghua Yu <fenghua.yu@intel.com>
 Tony Luck <tony.luck@intel.com>
 Vikas Shivappa <vikas.shivappa@intel.com>
 
-This feature is enabled by the CONFIG_INTEL_RDT Kconfig and the
-X86 /proc/cpuinfo flag bits:
+This feature is enabled by the CONFIG_RESCTRL and the X86 /proc/cpuinfo
+flag bits:
 RDT (Resource Director Technology) Allocation - "rdt_a"
 CAT (Cache Allocation Technology) - "cat_l3", "cat_l2"
 CDP (Code and Data Prioritization ) - "cdp_l3", "cdp_l2"
