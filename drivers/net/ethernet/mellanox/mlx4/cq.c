@@ -144,9 +144,9 @@ void mlx4_cq_event(struct mlx4_dev *dev, u32 cqn, int event_type)
 }
 
 static int mlx4_SW2HW_CQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
-			 int cq_num)
+			 int cq_num, u8 opmod)
 {
-	return mlx4_cmd(dev, mailbox->dma, cq_num, 0,
+	return mlx4_cmd(dev, mailbox->dma, cq_num, opmod,
 			MLX4_CMD_SW2HW_CQ, MLX4_CMD_TIME_CLASS_A,
 			MLX4_CMD_WRAPPED);
 }
@@ -287,11 +287,61 @@ static void mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
 		__mlx4_cq_free_icm(dev, cqn);
 }
 
+static int mlx4_init_user_cqes(void *buf, int entries, int cqe_size)
+{
+	int entries_per_copy = PAGE_SIZE / cqe_size;
+	void *init_ents;
+	int err = 0;
+	int i;
+
+	init_ents = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!init_ents)
+		return -ENOMEM;
+
+	/* Populate a list of CQ entries to reduce the number of
+	 * copy_to_user calls. 0xcc is the initialization value
+	 * required by the FW.
+	 */
+	memset(init_ents, 0xcc, PAGE_SIZE);
+
+	if (entries_per_copy < entries) {
+		for (i = 0; i < entries / entries_per_copy; i++) {
+			err = copy_to_user(buf, init_ents, PAGE_SIZE);
+			if (err)
+				goto out;
+
+			buf += PAGE_SIZE;
+		}
+	} else {
+		err = copy_to_user(buf, init_ents, entries * cqe_size);
+	}
+
+out:
+	kfree(init_ents);
+
+	return err;
+}
+
+static void mlx4_init_kernel_cqes(struct mlx4_buf *buf,
+				  int entries,
+				  int cqe_size)
+{
+	int i;
+
+	if (buf->nbufs == 1)
+		memset(buf->direct.buf, 0xcc, entries * cqe_size);
+	else
+		for (i = 0; i < buf->npages; i++)
+			memset(buf->page_list[i].buf, 0xcc,
+			       1UL << buf->page_shift);
+}
+
 int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 		  struct mlx4_mtt *mtt, struct mlx4_uar *uar, u64 db_rec,
 		  struct mlx4_cq *cq, unsigned vector, int collapsed,
-		  int timestamp_en)
+		  int timestamp_en, void *buf_addr, bool user_cq)
 {
+	bool sw_cq_init = dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_SW_CQ_INIT;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_cq_table *cq_table = &priv->cq_table;
 	struct mlx4_cmd_mailbox *mailbox;
@@ -336,7 +386,20 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 	cq_context->mtt_base_addr_l = cpu_to_be32(mtt_addr & 0xffffffff);
 	cq_context->db_rec_addr     = cpu_to_be64(db_rec);
 
-	err = mlx4_SW2HW_CQ(dev, mailbox, cq->cqn);
+	if (sw_cq_init) {
+		if (user_cq) {
+			err = mlx4_init_user_cqes(buf_addr, nent,
+						  dev->caps.cqe_size);
+			if (err)
+				sw_cq_init = false;
+		} else {
+			mlx4_init_kernel_cqes(buf_addr, nent,
+					      dev->caps.cqe_size);
+		}
+	}
+
+	err = mlx4_SW2HW_CQ(dev, mailbox, cq->cqn, sw_cq_init);
+
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	if (err)
 		goto err_radix;
