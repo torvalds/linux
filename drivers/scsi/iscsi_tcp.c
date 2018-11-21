@@ -44,6 +44,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_transport_iscsi.h>
+#include <trace/events/iscsi.h>
 
 #include "iscsi_tcp.h"
 
@@ -72,6 +73,9 @@ MODULE_PARM_DESC(debug_iscsi_tcp, "Turn on debugging for iscsi_tcp module "
 			iscsi_conn_printk(KERN_INFO, _conn,	\
 					     "%s " dbg_fmt,	\
 					     __func__, ##arg);	\
+		iscsi_dbg_trace(trace_iscsi_dbg_sw_tcp,		\
+				&(_conn)->cls_conn->dev,	\
+				"%s " dbg_fmt, __func__, ##arg);\
 	} while (0);
 
 
