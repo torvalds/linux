@@ -79,9 +79,7 @@ struct LED_871x {
 void led_control_8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction);
 
 struct led_priv {
-	/* add for led control */
-	struct LED_871x			SwLed0;
-	/* add for led control */
+	struct LED_871x sw_led;
 };
 
 void BlinkWorkItemCallback(struct work_struct *work);

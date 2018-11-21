@@ -240,7 +240,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 {
 	struct led_priv *ledpriv = &padapter->ledpriv;
-	struct LED_871x *pLed = &ledpriv->SwLed0;
+	struct LED_871x *pLed = &ledpriv->sw_led;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	switch (LedAction) {
