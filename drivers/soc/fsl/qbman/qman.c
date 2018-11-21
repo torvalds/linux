@@ -1025,7 +1025,7 @@ EXPORT_SYMBOL(qman_dqrr_set_ithresh);
 void qman_dqrr_get_ithresh(struct qman_portal *portal, u8 *ithresh)
 {
 	if (portal && ithresh)
-		*ithresh = portal->p.dqrr.ithresh;
+		*ithresh = qm_in(&portal->p, QM_REG_DQRR_ITR);
 }
 EXPORT_SYMBOL(qman_dqrr_get_ithresh);
 
