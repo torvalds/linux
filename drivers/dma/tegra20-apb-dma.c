@@ -155,7 +155,7 @@ struct tegra_dma_channel_regs {
  */
 struct tegra_dma_sg_req {
 	struct tegra_dma_channel_regs	ch_regs;
-	int				req_len;
+	unsigned int			req_len;
 	bool				configured;
 	bool				last_sg;
 	struct list_head		node;
@@ -169,8 +169,8 @@ struct tegra_dma_sg_req {
  */
 struct tegra_dma_desc {
 	struct dma_async_tx_descriptor	txd;
-	int				bytes_requested;
-	int				bytes_transferred;
+	unsigned int			bytes_requested;
+	unsigned int			bytes_transferred;
 	enum dma_status			dma_status;
 	struct list_head		node;
 	struct list_head		tx_list;
