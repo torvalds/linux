@@ -155,11 +155,6 @@ void *cvmx_bootmem_alloc_address(uint64_t size, uint64_t address,
 					address + size);
 }
 
-void *cvmx_bootmem_alloc(uint64_t size, uint64_t alignment)
-{
-	return cvmx_bootmem_alloc_range(size, alignment, 0, 0);
-}
-
 void *cvmx_bootmem_alloc_named_range_once(uint64_t size, uint64_t min_addr,
 					  uint64_t max_addr, uint64_t align,
 					  char *name,
@@ -208,13 +203,6 @@ void *cvmx_bootmem_alloc_named_range(uint64_t size, uint64_t min_addr,
 		return cvmx_phys_to_ptr(addr);
 	else
 		return NULL;
-}
-
-void *cvmx_bootmem_alloc_named_address(uint64_t size, uint64_t address,
-				       char *name)
-{
-    return cvmx_bootmem_alloc_named_range(size, address, address + size,
-					  0, name);
 }
 
 void *cvmx_bootmem_alloc_named(uint64_t size, uint64_t alignment, char *name)

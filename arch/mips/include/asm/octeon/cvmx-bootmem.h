@@ -146,18 +146,6 @@ struct cvmx_bootmem_desc {
 extern int cvmx_bootmem_init(void *mem_desc_ptr);
 
 /**
- * Allocate a block of memory from the free list that was passed
- * to the application by the bootloader.
- * This is an allocate-only algorithm, so freeing memory is not possible.
- *
- * @size:      Size in bytes of block to allocate
- * @alignment: Alignment required - must be power of 2
- *
- * Returns pointer to block of memory, NULL on error
- */
-extern void *cvmx_bootmem_alloc(uint64_t size, uint64_t alignment);
-
-/**
  * Allocate a block of memory from the free list that was
  * passed to the application by the bootloader at a specific
  * address. This is an allocate-only algorithm, so
@@ -197,27 +185,6 @@ extern void *cvmx_bootmem_alloc_address(uint64_t size, uint64_t address,
  */
 extern void *cvmx_bootmem_alloc_named(uint64_t size, uint64_t alignment,
 				      char *name);
-
-
-
-/**
- * Allocate a block of memory from the free list that was passed
- * to the application by the bootloader, and assign it a name in the
- * global named block table.  (part of the cvmx_bootmem_descriptor_t structure)
- * Named blocks can later be freed.
- *
- * @size:     Size in bytes of block to allocate
- * @address:  Physical address to allocate memory at.  If this
- *	      memory is not available, the allocation fails.
- * @name:     name of block - must be less than CVMX_BOOTMEM_NAME_LEN
- *	      bytes
- *
- * Returns a pointer to block of memory, NULL on error
- */
-extern void *cvmx_bootmem_alloc_named_address(uint64_t size, uint64_t address,
-					      char *name);
-
-
 
 /**
  * Allocate a block of memory from a specific range of the free list
