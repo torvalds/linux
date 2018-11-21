@@ -780,16 +780,24 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 				   "lost race to create %pM\n", mac);
 			return -EEXIST;
 		}
-		if (f->state != state) {
-			f->state = state;
-			f->updated = jiffies;
-			notify = 1;
+
+		/* Do not allow an externally learned entry to take over an
+		 * entry added by the user.
+		 */
+		if (!(fdb_flags & NTF_EXT_LEARNED) ||
+		    !(f->flags & NTF_VXLAN_ADDED_BY_USER)) {
+			if (f->state != state) {
+				f->state = state;
+				f->updated = jiffies;
+				notify = 1;
+			}
+			if (f->flags != fdb_flags) {
+				f->flags = fdb_flags;
+				f->updated = jiffies;
+				notify = 1;
+			}
 		}
-		if (f->flags != fdb_flags) {
-			f->flags = fdb_flags;
-			f->updated = jiffies;
-			notify = 1;
-		}
+
 		if ((flags & NLM_F_REPLACE)) {
 			/* Only change unicasts */
 			if (!(is_multicast_ether_addr(f->eth_addr) ||
