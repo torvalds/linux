@@ -813,6 +813,9 @@ struct mlxsw_sp_nve_params {
 extern const struct mlxsw_sp_nve_ops *mlxsw_sp1_nve_ops_arr[];
 extern const struct mlxsw_sp_nve_ops *mlxsw_sp2_nve_ops_arr[];
 
+int mlxsw_sp_nve_learned_ip_resolve(struct mlxsw_sp *mlxsw_sp, u32 uip,
+				    enum mlxsw_sp_l3proto proto,
+				    union mlxsw_sp_l3addr *addr);
 int mlxsw_sp_nve_flood_ip_add(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_fid *fid,
 			      enum mlxsw_sp_l3proto proto,
