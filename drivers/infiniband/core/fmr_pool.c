@@ -474,7 +474,7 @@ EXPORT_SYMBOL(ib_fmr_pool_map_phys);
  * Unmap an FMR.  The FMR mapping may remain valid until the FMR is
  * reused (or until ib_flush_fmr_pool() is called).
  */
-int ib_fmr_pool_unmap(struct ib_pool_fmr *fmr)
+void ib_fmr_pool_unmap(struct ib_pool_fmr *fmr)
 {
 	struct ib_fmr_pool *pool;
 	unsigned long flags;
@@ -503,7 +503,5 @@ int ib_fmr_pool_unmap(struct ib_pool_fmr *fmr)
 #endif
 
 	spin_unlock_irqrestore(&pool->pool_lock, flags);
-
-	return 0;
 }
 EXPORT_SYMBOL(ib_fmr_pool_unmap);
