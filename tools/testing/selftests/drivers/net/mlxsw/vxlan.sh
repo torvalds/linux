@@ -167,7 +167,7 @@ sanitization_single_dev_learning_enabled_test()
 	ip link add name vxlan0 up type vxlan id 10 learning noudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
-	sanitization_single_dev_test_fail
+	sanitization_single_dev_test_pass
 
 	ip link del dev vxlan0
 	ip link del dev br0
