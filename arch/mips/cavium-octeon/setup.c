@@ -38,6 +38,7 @@
 #include <asm/sections.h>
 #include <asm/fw/fw.h>
 #include <asm/setup.h>
+#include <asm/prom.h>
 #include <asm/time.h>
 
 #include <asm/octeon/octeon.h>
