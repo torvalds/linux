@@ -505,6 +505,7 @@ struct i915_psr {
 	ktime_t last_entry_attempt;
 	ktime_t last_exit;
 	bool sink_not_reliable;
+	bool irq_aux_error;
 };
 
 enum intel_pch {

@@ -169,6 +169,7 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 	u32 transcoders = BIT(TRANSCODER_EDP);
 	enum transcoder cpu_transcoder;
 	ktime_t time_ns =  ktime_get();
+	u32 mask = 0;
 
 	if (INTEL_GEN(dev_priv) >= 8)
 		transcoders |= BIT(TRANSCODER_A) |
@@ -178,10 +179,22 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
 		int shift = edp_psr_shift(cpu_transcoder);
 
-		/* FIXME: Exit PSR and link train manually when this happens. */
-		if (psr_iir & EDP_PSR_ERROR(shift))
-			DRM_DEBUG_KMS("[transcoder %s] PSR aux error\n",
-				      transcoder_name(cpu_transcoder));
+		if (psr_iir & EDP_PSR_ERROR(shift)) {
+			DRM_WARN("[transcoder %s] PSR aux error\n",
+				 transcoder_name(cpu_transcoder));
+
+			dev_priv->psr.irq_aux_error = true;
+
+			/*
+			 * If this interruption is not masked it will keep
+			 * interrupting so fast that it prevents the scheduled
+			 * work to run.
+			 * Also after a PSR error, we don't want to arm PSR
+			 * again so we don't care about unmask the interruption
+			 * or unset irq_aux_error.
+			 */
+			mask |= EDP_PSR_ERROR(shift);
+		}
 
 		if (psr_iir & EDP_PSR_PRE_ENTRY(shift)) {
 			dev_priv->psr.last_entry_attempt = time_ns;
@@ -202,6 +215,13 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 				psr_event_print(val, psr2_enabled);
 			}
 		}
+	}
+
+	if (mask) {
+		mask |= I915_READ(EDP_PSR_IMR);
+		I915_WRITE(EDP_PSR_IMR, mask);
+
+		schedule_work(&dev_priv->psr.work);
 	}
 }
 
@@ -938,6 +958,16 @@ int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
+static void intel_psr_handle_irq(struct drm_i915_private *dev_priv)
+{
+	struct i915_psr *psr = &dev_priv->psr;
+
+	intel_psr_disable_locked(psr->dp);
+	psr->sink_not_reliable = true;
+	/* let's make sure that sink is awaken */
+	drm_dp_dpcd_writeb(&psr->dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
+}
+
 static void intel_psr_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
@@ -947,6 +977,9 @@ static void intel_psr_work(struct work_struct *work)
 
 	if (!dev_priv->psr.enabled)
 		goto unlock;
+
+	if (READ_ONCE(dev_priv->psr.irq_aux_error))
+		intel_psr_handle_irq(dev_priv);
 
 	/*
 	 * We have to make sure PSR is ready for re-enable
