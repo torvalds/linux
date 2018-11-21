@@ -1562,8 +1562,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
 		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
 
-		drm_printf(m, "\t%s [%d] waiting for %x\n",
-			   w->tsk->comm, w->tsk->pid, w->seqno);
+		drm_printf(m, "\t%s [%d:%c] waiting for %x\n",
+			   w->tsk->comm, w->tsk->pid,
+			   task_state_to_char(w->tsk),
+			   w->seqno);
 	}
 	spin_unlock(&b->rb_lock);
 	local_irq_restore(flags);
