@@ -167,9 +167,10 @@ static int open_proxy_open(struct inode *inode, struct file *filp)
 
 	real_fops = debugfs_real_fops(filp);
 
-	r = -EPERM;
-	if (debugfs_is_locked_down(inode, filp, real_fops))
+	if (debugfs_is_locked_down(inode, filp, real_fops)) {
+		r = -EPERM;
 		goto out;
+	}
 
 	real_fops = fops_get(real_fops);
 	if (!real_fops) {
@@ -296,9 +297,10 @@ static int full_proxy_open(struct inode *inode, struct file *filp)
 		return r == -EIO ? -ENOENT : r;
 
 	real_fops = debugfs_real_fops(filp);
-	r = -EPERM;
-	if (debugfs_is_locked_down(inode, filp, real_fops))
+	if (debugfs_is_locked_down(inode, filp, real_fops)) {
+		r = -EPERM;
 		goto out;
+	}
 
 	real_fops = fops_get(real_fops);
 	if (!real_fops) {
