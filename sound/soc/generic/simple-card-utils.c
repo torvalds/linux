@@ -153,13 +153,17 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);
 
 int asoc_simple_card_clk_enable(struct asoc_simple_dai *dai)
 {
-	return clk_prepare_enable(dai->clk);
+	if (dai)
+		return clk_prepare_enable(dai->clk);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_clk_enable);
 
 void asoc_simple_card_clk_disable(struct asoc_simple_dai *dai)
 {
-	clk_disable_unprepare(dai->clk);
+	if (dai)
+		clk_disable_unprepare(dai->clk);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_clk_disable);
 
@@ -341,6 +345,9 @@ int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 			      struct asoc_simple_dai *simple_dai)
 {
 	int ret;
+
+	if (!simple_dai)
+		return 0;
 
 	if (simple_dai->sysclk) {
 		ret = snd_soc_dai_set_sysclk(dai, 0, simple_dai->sysclk,
