@@ -101,7 +101,7 @@ struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev)
 	down_read(&topology_lock);
 
 	list_for_each_entry(top_dev, &topology_device_list, list)
-		if (top_dev->gpu->pdev == pdev) {
+		if (top_dev->gpu && top_dev->gpu->pdev == pdev) {
 			device = top_dev->gpu;
 			break;
 		}
