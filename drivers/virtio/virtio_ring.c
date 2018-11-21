@@ -86,6 +86,9 @@ struct vring_desc_state_split {
 struct vring_virtqueue {
 	struct virtqueue vq;
 
+	/* Is DMA API used? */
+	bool use_dma_api;
+
 	/* Can we use weak barriers? */
 	bool weak_barriers;
 
@@ -262,7 +265,7 @@ static dma_addr_t vring_map_one_sg(const struct vring_virtqueue *vq,
 				   struct scatterlist *sg,
 				   enum dma_data_direction direction)
 {
-	if (!vring_use_dma_api(vq->vq.vdev))
+	if (!vq->use_dma_api)
 		return (dma_addr_t)sg_phys(sg);
 
 	/*
@@ -279,7 +282,7 @@ static dma_addr_t vring_map_single(const struct vring_virtqueue *vq,
 				   void *cpu_addr, size_t size,
 				   enum dma_data_direction direction)
 {
-	if (!vring_use_dma_api(vq->vq.vdev))
+	if (!vq->use_dma_api)
 		return (dma_addr_t)virt_to_phys(cpu_addr);
 
 	return dma_map_single(vring_dma_dev(vq),
@@ -289,7 +292,7 @@ static dma_addr_t vring_map_single(const struct vring_virtqueue *vq,
 static int vring_mapping_error(const struct vring_virtqueue *vq,
 			       dma_addr_t addr)
 {
-	if (!vring_use_dma_api(vq->vq.vdev))
+	if (!vq->use_dma_api)
 		return 0;
 
 	return dma_mapping_error(vring_dma_dev(vq), addr);
@@ -305,7 +308,7 @@ static void vring_unmap_one_split(const struct vring_virtqueue *vq,
 {
 	u16 flags;
 
-	if (!vring_use_dma_api(vq->vq.vdev))
+	if (!vq->use_dma_api)
 		return;
 
 	flags = virtio16_to_cpu(vq->vq.vdev, desc->flags);
@@ -1202,6 +1205,7 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 	vq->broken = false;
 	vq->last_used_idx = 0;
 	vq->num_added = 0;
+	vq->use_dma_api = vring_use_dma_api(vdev);
 	list_add_tail(&vq->vq.list, &vdev->vqs);
 #ifdef DEBUG
 	vq->in_use = false;
