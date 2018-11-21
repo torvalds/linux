@@ -272,9 +272,9 @@ mt76x2_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 	if (val != ~0 && val > 0xffff)
 		return -EINVAL;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 	mt76x2_mac_set_tx_protection(dev, val);
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
 }
