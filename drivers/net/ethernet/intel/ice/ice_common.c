@@ -405,9 +405,7 @@ static enum ice_status ice_init_fltr_mgmt_struct(struct ice_hw *hw)
 
 	INIT_LIST_HEAD(&sw->vsi_list_map_head);
 
-	ice_init_def_sw_recp(hw);
-
-	return 0;
+	return ice_init_def_sw_recp(hw);
 }
 
 /**
@@ -715,7 +713,7 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 
 	hw->evb_veb = true;
 
-	/* Query the allocated resources for tx scheduler */
+	/* Query the allocated resources for Tx scheduler */
 	status = ice_sched_query_res_alloc(hw);
 	if (status) {
 		ice_debug(hw, ICE_DBG_SCHED,
@@ -958,7 +956,7 @@ enum ice_status ice_reset(struct ice_hw *hw, enum ice_reset_req req)
  * ice_copy_rxq_ctx_to_hw
  * @hw: pointer to the hardware structure
  * @ice_rxq_ctx: pointer to the rxq context
- * @rxq_index: the index of the rx queue
+ * @rxq_index: the index of the Rx queue
  *
  * Copies rxq context from dense structure to hw register space
  */
@@ -1014,7 +1012,7 @@ static const struct ice_ctx_ele ice_rlan_ctx_info[] = {
  * ice_write_rxq_ctx
  * @hw: pointer to the hardware structure
  * @rlan_ctx: pointer to the rxq context
- * @rxq_index: the index of the rx queue
+ * @rxq_index: the index of the Rx queue
  *
  * Converts rxq context from sparse to dense structure and then writes
  * it to hw register space
@@ -1715,8 +1713,7 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
  * If no bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
  * If more than one bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
  */
-static u16
-ice_get_link_speed_based_on_phy_type(u64 phy_type_low)
+static u16 ice_get_link_speed_based_on_phy_type(u64 phy_type_low)
 {
 	u16 speed_phy_type_low = ICE_AQ_LINK_SPEED_UNKNOWN;
 

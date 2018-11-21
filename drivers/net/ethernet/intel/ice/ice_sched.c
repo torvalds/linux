@@ -894,8 +894,7 @@ static u8 ice_sched_get_vsi_layer(struct ice_hw *hw)
  * This function removes the leaf node that was created by the FW
  * during initialization
  */
-static void
-ice_rm_dflt_leaf_node(struct ice_port_info *pi)
+static void ice_rm_dflt_leaf_node(struct ice_port_info *pi)
 {
 	struct ice_sched_node *node;
 
@@ -923,8 +922,7 @@ ice_rm_dflt_leaf_node(struct ice_port_info *pi)
  * This function frees all the nodes except root and TC that were created by
  * the FW during initialization
  */
-static void
-ice_sched_rm_dflt_nodes(struct ice_port_info *pi)
+static void ice_sched_rm_dflt_nodes(struct ice_port_info *pi)
 {
 	struct ice_sched_node *node;
 
@@ -1339,7 +1337,7 @@ ice_sched_rm_vsi_child_nodes(struct ice_port_info *pi,
  * @num_nodes: pointer to num nodes array
  *
  * This function calculates the number of supported nodes needed to add this
- * VSI into tx tree including the VSI, parent and intermediate nodes in below
+ * VSI into Tx tree including the VSI, parent and intermediate nodes in below
  * layers
  */
 static void
@@ -1376,13 +1374,13 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
 }
 
 /**
- * ice_sched_add_vsi_support_nodes - add VSI supported nodes into tx tree
+ * ice_sched_add_vsi_support_nodes - add VSI supported nodes into Tx tree
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @tc_node: pointer to TC node
  * @num_nodes: pointer to num nodes array
  *
- * This function adds the VSI supported nodes into tx tree including the
+ * This function adds the VSI supported nodes into Tx tree including the
  * VSI, its parent and intermediate nodes in below layers
  */
 static enum ice_status

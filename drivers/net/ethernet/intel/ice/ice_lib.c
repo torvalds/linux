@@ -20,7 +20,7 @@ static int ice_setup_rx_ctx(struct ice_ring *ring)
 	u16 pf_q;
 	int err;
 
-	/* what is RX queue number in global space of 2K Rx queues */
+	/* what is Rx queue number in global space of 2K Rx queues */
 	pf_q = vsi->rxq_map[ring->q_index];
 
 	/* clear the context structure first */
@@ -1012,7 +1012,7 @@ void ice_vsi_free_q_vectors(struct ice_vsi *vsi)
  * @vsi: the VSI being configured
  * @v_idx: index of the vector in the VSI struct
  *
- * We allocate one q_vector.  If allocation fails we return -ENOMEM.
+ * We allocate one q_vector. If allocation fails we return -ENOMEM.
  */
 static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, int v_idx)
 {
@@ -1051,7 +1051,7 @@ out:
  * ice_vsi_alloc_q_vectors - Allocate memory for interrupt vectors
  * @vsi: the VSI being configured
  *
- * We allocate one q_vector per queue interrupt.  If allocation fails we
+ * We allocate one q_vector per queue interrupt. If allocation fails we
  * return -ENOMEM.
  */
 static int ice_vsi_alloc_q_vectors(struct ice_vsi *vsi)
@@ -1200,7 +1200,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 	struct ice_pf *pf = vsi->back;
 	int i;
 
-	/* Allocate tx_rings */
+	/* Allocate Tx rings */
 	for (i = 0; i < vsi->alloc_txq; i++) {
 		struct ice_ring *ring;
 
@@ -1219,7 +1219,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		vsi->tx_rings[i] = ring;
 	}
 
-	/* Allocate rx_rings */
+	/* Allocate Rx rings */
 	for (i = 0; i < vsi->alloc_rxq; i++) {
 		struct ice_ring *ring;
 
@@ -2136,9 +2136,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		pf->q_left_rx -= vsi->alloc_rxq;
 		break;
 	default:
-		/* if VSI type is not recognized, clean up the resources and
-		 * exit
-		 */
+		/* clean up the resources and exit */
 		goto unroll_vsi_init;
 	}
 
@@ -2335,7 +2333,7 @@ static int ice_search_res(struct ice_res_tracker *res, u16 needed, u16 id)
 	int start = res->search_hint;
 	int end = start;
 
-	if ((start + needed) >  res->num_entries)
+	if ((start + needed) > res->num_entries)
 		return -ENOMEM;
 
 	id |= ICE_RES_VALID_BIT;

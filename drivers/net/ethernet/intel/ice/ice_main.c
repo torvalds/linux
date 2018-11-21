@@ -408,7 +408,7 @@ static void ice_reset_subtask(struct ice_pf *pf)
 	/* When a CORER/GLOBR/EMPR is about to happen, the hardware triggers an
 	 * OICR interrupt. The OICR handler (ice_misc_intr) determines what type
 	 * of reset is pending and sets bits in pf->state indicating the reset
-	 * type and __ICE_RESET_OICR_RECV.  So, if the latter bit is set
+	 * type and __ICE_RESET_OICR_RECV. So, if the latter bit is set
 	 * prepare for pending reset if not already (for PF software-initiated
 	 * global resets the software should already be prepared for it as
 	 * indicated by __ICE_PREPARED_FOR_RESET; for global resets initiated
@@ -1382,7 +1382,7 @@ static void ice_free_irq_msix_misc(struct ice_pf *pf)
  * @pf: board private structure
  *
  * This sets up the handler for MSIX 0, which is used to manage the
- * non-queue interrupts, e.g. AdminQ and errors.  This is not used
+ * non-queue interrupts, e.g. AdminQ and errors. This is not used
  * when in MSI or Legacy interrupt mode.
  */
 static int ice_req_irq_msix_misc(struct ice_pf *pf)
@@ -1786,7 +1786,7 @@ static void ice_determine_q_usage(struct ice_pf *pf)
 
 	pf->num_lan_tx = min_t(int, q_left_tx, num_online_cpus());
 
-	/* only 1 rx queue unless RSS is enabled */
+	/* only 1 Rx queue unless RSS is enabled */
 	if (!test_bit(ICE_FLAG_RSS_ENA, pf->flags))
 		pf->num_lan_rx = 1;
 	else
@@ -3674,7 +3674,7 @@ ice_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 		 */
 		status = ice_update_sw_rule_bridge_mode(hw);
 		if (status) {
-			netdev_err(dev, "update SW_RULE for bridge mode failed,  = %d err %d aq_err %d\n",
+			netdev_err(dev, "switch rule update failed, mode = %d err %d aq_err %d\n",
 				   mode, status, hw->adminq.sq_last_status);
 			/* revert hw->evb_veb */
 			hw->evb_veb = (pf_sw->bridge_mode == BRIDGE_MODE_VEB);
@@ -3702,35 +3702,31 @@ static void ice_tx_timeout(struct net_device *netdev)
 
 	pf->tx_timeout_count++;
 
-	/* find the stopped queue the same way the stack does */
+	/* find the stopped queue the same way dev_watchdog() does */
 	for (i = 0; i < netdev->num_tx_queues; i++) {
-		struct netdev_queue *q;
 		unsigned long trans_start;
+		struct netdev_queue *q;
 
 		q = netdev_get_tx_queue(netdev, i);
 		trans_start = q->trans_start;
 		if (netif_xmit_stopped(q) &&
 		    time_after(jiffies,
-			       (trans_start + netdev->watchdog_timeo))) {
+			       trans_start + netdev->watchdog_timeo)) {
 			hung_queue = i;
 			break;
 		}
 	}
 
-	if (i == netdev->num_tx_queues) {
+	if (i == netdev->num_tx_queues)
 		netdev_info(netdev, "tx_timeout: no netdev hung queue found\n");
-	} else {
+	else
 		/* now that we have an index, find the tx_ring struct */
-		for (i = 0; i < vsi->num_txq; i++) {
-			if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc) {
-				if (hung_queue ==
-				    vsi->tx_rings[i]->q_index) {
+		for (i = 0; i < vsi->num_txq; i++)
+			if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc)
+				if (hung_queue == vsi->tx_rings[i]->q_index) {
 					tx_ring = vsi->tx_rings[i];
 					break;
 				}
-			}
-		}
-	}
 
 	/* Reset recovery level if enough time has elapsed after last timeout.
 	 * Also ensure no new reset action happens before next timeout period.
@@ -3751,7 +3747,7 @@ static void ice_tx_timeout(struct net_device *netdev)
 		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
 			val = rd32(hw,
 				   GLINT_DYN_CTL(tx_ring->q_vector->v_idx +
-					tx_ring->vsi->hw_base_vector));
+						 tx_ring->vsi->hw_base_vector));
 
 		netdev_info(netdev, "tx_timeout: VSI_num: %d, Q %d, NTC: 0x%x, HW_HEAD: 0x%x, NTU: 0x%x, INT: 0x%x\n",
 			    vsi->vsi_num, hung_queue, tx_ring->next_to_clean,
@@ -3789,7 +3785,7 @@ static void ice_tx_timeout(struct net_device *netdev)
  * @netdev: network interface device structure
  *
  * The open entry point is called when a network interface is made
- * active by the system (IFF_UP).  At this point all resources needed
+ * active by the system (IFF_UP). At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the netdev watchdog is enabled,
  * and the stack is notified that the interface is ready.
@@ -3822,7 +3818,7 @@ static int ice_open(struct net_device *netdev)
  * @netdev: network interface device structure
  *
  * The stop entry point is called when an interface is de-activated by the OS,
- * and the netdevice enters the DOWN state.  The hardware is still under the
+ * and the netdevice enters the DOWN state. The hardware is still under the
  * driver's control, but the netdev interface is disabled.
  *
  * Returns success only - not allowed to fail
@@ -3851,14 +3847,14 @@ ice_features_check(struct sk_buff *skb,
 	size_t len;
 
 	/* No point in doing any of this if neither checksum nor GSO are
-	 * being requested for this frame.  We can rule out both by just
+	 * being requested for this frame. We can rule out both by just
 	 * checking for CHECKSUM_PARTIAL
 	 */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return features;
 
 	/* We cannot support GSO if the MSS is going to be less than
-	 * 64 bytes.  If it is then we need to drop support for GSO.
+	 * 64 bytes. If it is then we need to drop support for GSO.
 	 */
 	if (skb_is_gso(skb) && (skb_shinfo(skb)->gso_size < 64))
 		features &= ~NETIF_F_GSO_MASK;
