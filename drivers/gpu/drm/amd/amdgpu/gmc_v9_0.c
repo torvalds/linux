@@ -718,37 +718,46 @@ static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 	}
 }
 
+static int gmc_v9_0_allocate_vm_inv_eng(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	unsigned vm_inv_engs[AMDGPU_MAX_VMHUBS] =
+		{GFXHUB_FREE_VM_INV_ENGS_BITMAP, MMHUB_FREE_VM_INV_ENGS_BITMAP};
+	unsigned i;
+	unsigned vmhub, inv_eng;
+
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+		vmhub = ring->funcs->vmhub;
+
+		inv_eng = ffs(vm_inv_engs[vmhub]);
+		if (!inv_eng) {
+			dev_err(adev->dev, "no VM inv eng for ring %s\n",
+				ring->name);
+			return -EINVAL;
+		}
+
+		ring->vm_inv_eng = inv_eng - 1;
+		change_bit(inv_eng - 1, (unsigned long *)(&vm_inv_engs[vmhub]));
+
+		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
+			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
+	}
+
+	return 0;
+}
+
 static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	/*
-	 * The latest engine allocation on gfx9 is:
-	 * Engine 0, 1: idle
-	 * Engine 2, 3: firmware
-	 * Engine 4~13: amdgpu ring, subject to change when ring number changes
-	 * Engine 14~15: idle
-	 * Engine 16: kfd tlb invalidation
-	 * Engine 17: Gart flushes
-	 */
-	unsigned vm_inv_eng[AMDGPU_MAX_VMHUBS] = { 4, 4 };
-	unsigned i;
 	int r;
 
 	if (!gmc_v9_0_keep_stolen_memory(adev))
 		amdgpu_bo_late_init(adev);
 
-	for(i = 0; i < adev->num_rings; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		unsigned vmhub = ring->funcs->vmhub;
-
-		ring->vm_inv_eng = vm_inv_eng[vmhub]++;
-		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
-			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
-	}
-
-	/* Engine 16 is used for KFD and 17 for GART flushes */
-	for(i = 0; i < AMDGPU_MAX_VMHUBS; ++i)
-		BUG_ON(vm_inv_eng[i] > 16);
+	r = gmc_v9_0_allocate_vm_inv_eng(adev);
+	if (r)
+		return r;
 
 	if (adev->asic_type == CHIP_VEGA10 && !amdgpu_sriov_vf(adev)) {
 		r = gmc_v9_0_ecc_available(adev);
