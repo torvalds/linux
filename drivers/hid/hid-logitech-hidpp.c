@@ -1231,6 +1231,7 @@ static int hidpp_hrw_get_wheel_capability(struct hidpp_device *hidpp,
 	*multiplier = response.fap.params[0];
 	return 0;
 return_default:
+	*multiplier = 8;
 	hid_warn(hidpp->hid_dev,
 		 "Couldn't get wheel multiplier (error %d), assuming %d.\n",
 		 ret, *multiplier);
@@ -2695,7 +2696,7 @@ static int hi_res_scroll_look_up_microns(__u32 product_id)
 static int hi_res_scroll_enable(struct hidpp_device *hidpp)
 {
 	int ret;
-	u8 multiplier = 8;
+	u8 multiplier;
 
 	if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL_X2121) {
 		ret = hidpp_hrw_set_wheel_mode(hidpp, false, true, false);
@@ -2703,9 +2704,10 @@ static int hi_res_scroll_enable(struct hidpp_device *hidpp)
 	} else if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL_X2120) {
 		ret = hidpp_hrs_set_highres_scrolling_mode(hidpp, true,
 							   &multiplier);
-	} else /* if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL_1P0) */
+	} else /* if (hidpp->quirks & HIDPP_QUIRK_HI_RES_SCROLL_1P0) */ {
 		ret = hidpp10_enable_scrolling_acceleration(hidpp);
-
+		multiplier = 8;
+	}
 	if (ret)
 		return ret;
 
