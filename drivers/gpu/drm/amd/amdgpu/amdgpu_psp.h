@@ -34,6 +34,7 @@
 #define PSP_CMD_BUFFER_SIZE	0x1000
 #define PSP_ASD_SHARED_MEM_SIZE 0x4000
 #define PSP_XGMI_SHARED_MEM_SIZE 0x4000
+#define PSP_RAS_SHARED_MEM_SIZE 0x4000
 #define PSP_1_MEG		0x100000
 #define PSP_TMR_SIZE	0x400000
 
@@ -102,6 +103,15 @@ struct psp_xgmi_context {
 	void                            *xgmi_shared_buf;
 };
 
+struct psp_ras_context {
+	/*ras fw*/
+	bool			ras_initialized;
+	uint32_t		session_id;
+	struct amdgpu_bo	*ras_shared_bo;
+	uint64_t		ras_shared_mc_addr;
+	void			*ras_shared_buf;
+};
+
 struct psp_context
 {
 	struct amdgpu_device            *adev;
@@ -162,6 +172,7 @@ struct psp_context
 	uint32_t			ta_ras_ucode_size;
 	uint8_t				*ta_ras_start_addr;
 	struct psp_xgmi_context		xgmi_context;
+	struct psp_ras_context		ras;
 };
 
 struct amdgpu_psp_funcs {
@@ -232,6 +243,11 @@ extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
 
 int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
+
+int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
+int psp_ras_enable_features(struct psp_context *psp,
+		union ta_ras_cmd_input *info, bool enable);
+
 extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
 
 #endif

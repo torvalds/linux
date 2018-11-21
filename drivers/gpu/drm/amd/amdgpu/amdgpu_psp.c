@@ -466,6 +466,206 @@ static int psp_xgmi_initialize(struct psp_context *psp)
 	return ret;
 }
 
+// ras begin
+static void psp_prep_ras_ta_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+		uint64_t ras_ta_mc, uint64_t ras_mc_shared,
+		uint32_t ras_ta_size, uint32_t shared_size)
+{
+	cmd->cmd_id = GFX_CMD_ID_LOAD_TA;
+	cmd->cmd.cmd_load_ta.app_phy_addr_lo = lower_32_bits(ras_ta_mc);
+	cmd->cmd.cmd_load_ta.app_phy_addr_hi = upper_32_bits(ras_ta_mc);
+	cmd->cmd.cmd_load_ta.app_len = ras_ta_size;
+
+	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_lo = lower_32_bits(ras_mc_shared);
+	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_hi = upper_32_bits(ras_mc_shared);
+	cmd->cmd.cmd_load_ta.cmd_buf_len = shared_size;
+}
+
+static int psp_ras_init_shared_buf(struct psp_context *psp)
+{
+	int ret;
+
+	/*
+	 * Allocate 16k memory aligned to 4k from Frame Buffer (local
+	 * physical) for ras ta <-> Driver
+	 */
+	ret = amdgpu_bo_create_kernel(psp->adev, PSP_RAS_SHARED_MEM_SIZE,
+			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+			&psp->ras.ras_shared_bo,
+			&psp->ras.ras_shared_mc_addr,
+			&psp->ras.ras_shared_buf);
+
+	return ret;
+}
+
+static int psp_ras_load(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the loading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+	memcpy(psp->fw_pri_buf, psp->ta_ras_start_addr, psp->ta_ras_ucode_size);
+
+	psp_prep_ras_ta_load_cmd_buf(cmd, psp->fw_pri_mc_addr,
+			psp->ras.ras_shared_mc_addr,
+			psp->ta_ras_ucode_size, PSP_RAS_SHARED_MEM_SIZE);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+			psp->fence_buf_mc_addr);
+
+	if (!ret) {
+		psp->ras.ras_initialized = 1;
+		psp->ras.session_id = cmd->resp.session_id;
+	}
+
+	kfree(cmd);
+
+	return ret;
+}
+
+static void psp_prep_ras_ta_unload_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+						uint32_t ras_session_id)
+{
+	cmd->cmd_id = GFX_CMD_ID_UNLOAD_TA;
+	cmd->cmd.cmd_unload_ta.session_id = ras_session_id;
+}
+
+static int psp_ras_unload(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the unloading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	psp_prep_ras_ta_unload_cmd_buf(cmd, psp->ras.session_id);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+			psp->fence_buf_mc_addr);
+
+	kfree(cmd);
+
+	return ret;
+}
+
+static void psp_prep_ras_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+		uint32_t ta_cmd_id,
+		uint32_t ras_session_id)
+{
+	cmd->cmd_id = GFX_CMD_ID_INVOKE_CMD;
+	cmd->cmd.cmd_invoke_cmd.session_id = ras_session_id;
+	cmd->cmd.cmd_invoke_cmd.ta_cmd_id = ta_cmd_id;
+	/* Note: cmd_invoke_cmd.buf is not used for now */
+}
+
+int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the loading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	psp_prep_ras_ta_invoke_cmd_buf(cmd, ta_cmd_id,
+			psp->ras.session_id);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+			psp->fence_buf_mc_addr);
+
+	kfree(cmd);
+
+	return ret;
+}
+
+int psp_ras_enable_features(struct psp_context *psp,
+		union ta_ras_cmd_input *info, bool enable)
+{
+	struct ta_ras_shared_memory *ras_cmd;
+	int ret;
+
+	if (!psp->ras.ras_initialized)
+		return -EINVAL;
+
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
+	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));
+
+	if (enable)
+		ras_cmd->cmd_id = TA_RAS_COMMAND__ENABLE_FEATURES;
+	else
+		ras_cmd->cmd_id = TA_RAS_COMMAND__DISABLE_FEATURES;
+
+	ras_cmd->ras_in_message = *info;
+
+	ret = psp_ras_invoke(psp, ras_cmd->cmd_id);
+	if (ret)
+		return -EINVAL;
+
+	return ras_cmd->ras_status;
+}
+
+static int psp_ras_terminate(struct psp_context *psp)
+{
+	int ret;
+
+	if (!psp->ras.ras_initialized)
+		return 0;
+
+	ret = psp_ras_unload(psp);
+	if (ret)
+		return ret;
+
+	psp->ras.ras_initialized = 0;
+
+	/* free ras shared memory */
+	amdgpu_bo_free_kernel(&psp->ras.ras_shared_bo,
+			&psp->ras.ras_shared_mc_addr,
+			&psp->ras.ras_shared_buf);
+
+	return 0;
+}
+
+static int psp_ras_initialize(struct psp_context *psp)
+{
+	int ret;
+
+	if (!psp->ras.ras_initialized) {
+		ret = psp_ras_init_shared_buf(psp);
+		if (ret)
+			return ret;
+	}
+
+	ret = psp_ras_load(psp);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+// ras end
+
 static int psp_hw_start(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -502,6 +702,12 @@ static int psp_hw_start(struct psp_context *psp)
 			dev_err(psp->adev->dev,
 				"XGMI: Failed to initialize XGMI session\n");
 	}
+
+	ret = psp_ras_initialize(psp);
+	if (ret)
+		dev_err(psp->adev->dev,
+				"RAS: Failed to initialize RAS\n");
+
 	return 0;
 }
 
@@ -753,6 +959,8 @@ static int psp_hw_fini(void *handle)
 	    psp->xgmi_context.initialized == 1)
                 psp_xgmi_terminate(psp);
 
+	psp_ras_terminate(psp);
+
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 
 	amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
@@ -784,6 +992,12 @@ static int psp_suspend(void *handle)
 			DRM_ERROR("Failed to terminate xgmi ta\n");
 			return ret;
 		}
+	}
+
+	ret = psp_ras_terminate(psp);
+	if (ret) {
+		DRM_ERROR("Failed to terminate ras ta\n");
+		return ret;
 	}
 
 	ret = psp_ring_stop(psp, PSP_RING_TYPE__KM);
