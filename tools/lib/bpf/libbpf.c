@@ -1211,7 +1211,8 @@ bpf_object__create_maps(struct bpf_object *obj)
 			continue;
 		}
 
-		create_attr.name = map->name;
+		if (obj->caps.name)
+			create_attr.name = map->name;
 		create_attr.map_ifindex = map->map_ifindex;
 		create_attr.map_type = def->type;
 		create_attr.map_flags = def->map_flags;
