@@ -93,7 +93,7 @@ void InitLed871x(struct adapter *padapter, struct LED_871x *pLed);
 void DeInitLed871x(struct LED_871x *pLed);
 
 /* hal... */
-void BlinkHandler(struct LED_871x *pLed);
+void blink_handler(struct LED_871x *pLed);
 void sw_led_on(struct adapter *padapter, struct LED_871x *pLed);
 void sw_led_off(struct adapter *padapter, struct LED_871x *pLed);
 

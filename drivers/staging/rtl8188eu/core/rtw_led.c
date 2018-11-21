@@ -33,7 +33,7 @@ void BlinkWorkItemCallback(struct work_struct *work)
 	struct LED_871x *pLed = container_of(work, struct LED_871x,
 						BlinkWorkItem);
 
-	BlinkHandler(pLed);
+	blink_handler(pLed);
 }
 
 /*  */
@@ -459,7 +459,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 /*	Description: */
 /*		Handler function of LED Blinking. */
 /*  */
-void BlinkHandler(struct LED_871x *pLed)
+void blink_handler(struct LED_871x *pLed)
 {
 	struct adapter *padapter = pLed->padapter;
 
