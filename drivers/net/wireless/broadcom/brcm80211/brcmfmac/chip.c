@@ -786,7 +786,7 @@ static int brcmf_chip_dmp_get_regaddr(struct brcmf_chip_priv *ci, u32 *eromaddr,
 				      u32 *regbase, u32 *wrapbase)
 {
 	u8 desc;
-	u32 val;
+	u32 val, szdesc;
 	u8 mpnum = 0;
 	u8 stype, sztype, wraptype;
 
@@ -832,14 +832,15 @@ static int brcmf_chip_dmp_get_regaddr(struct brcmf_chip_priv *ci, u32 *eromaddr,
 
 		/* next size descriptor can be skipped */
 		if (sztype == DMP_SLAVE_SIZE_DESC) {
-			val = brcmf_chip_dmp_get_desc(ci, eromaddr, NULL);
+			szdesc = brcmf_chip_dmp_get_desc(ci, eromaddr, NULL);
 			/* skip upper size descriptor if present */
-			if (val & DMP_DESC_ADDRSIZE_GT32)
+			if (szdesc & DMP_DESC_ADDRSIZE_GT32)
 				brcmf_chip_dmp_get_desc(ci, eromaddr, NULL);
 		}
 
-		/* only look for 4K register regions */
-		if (sztype != DMP_SLAVE_SIZE_4K)
+		/* look for 4K or 8K register regions */
+		if (sztype != DMP_SLAVE_SIZE_4K &&
+		    sztype != DMP_SLAVE_SIZE_8K)
 			continue;
 
 		stype = (val & DMP_SLAVE_TYPE) >> DMP_SLAVE_TYPE_S;
@@ -896,7 +897,8 @@ int brcmf_chip_dmp_erom_scan(struct brcmf_chip_priv *ci)
 
 		/* need core with ports */
 		if (nmw + nsw == 0 &&
-		    id != BCMA_CORE_PMU)
+		    id != BCMA_CORE_PMU &&
+		    id != BCMA_CORE_GCI)
 			continue;
 
 		/* try to obtain register address info */
