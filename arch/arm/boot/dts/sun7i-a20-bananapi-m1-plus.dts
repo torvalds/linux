@@ -197,11 +197,6 @@
 	};
 };
 
-&mmc3_pins {
-	/* AP6210 requires pull-up */
-	bias-pull-up;
-};
-
 &ohci0 {
 	status = "okay";
 };
