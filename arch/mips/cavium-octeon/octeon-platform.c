@@ -440,7 +440,7 @@ out:
 }
 device_initcall(octeon_rng_device_init);
 
-const struct of_device_id octeon_ids[] __initconst = {
+static const struct of_device_id octeon_ids[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "cavium,octeon-6335-uctl", },
 	{ .compatible = "cavium,octeon-5750-usbn", },
