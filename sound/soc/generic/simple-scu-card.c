@@ -202,7 +202,7 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 	if (ret < 0)
 		return ret;
 
-	asoc_simple_card_parse_convert(dev, PREFIX, &priv->adata);
+	asoc_simple_card_parse_convert(dev, node, PREFIX, &priv->adata);
 
 	/* find 1st codec */
 	np = of_get_child_by_name(node, PREFIX "codec");

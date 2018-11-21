@@ -32,10 +32,11 @@ void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_convert_fixup);
 
-void asoc_simple_card_parse_convert(struct device *dev, char *prefix,
+void asoc_simple_card_parse_convert(struct device *dev,
+				    struct device_node *np,
+				    char *prefix,
 				    struct asoc_simple_card_data *data)
 {
-	struct device_node *np = dev->of_node;
 	char prop[128];
 
 	if (!prefix)

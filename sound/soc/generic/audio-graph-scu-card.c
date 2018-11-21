@@ -204,7 +204,7 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	if (ret < 0)
 		return ret;
 
-	asoc_simple_card_parse_convert(dev, NULL, &priv->adata);
+	asoc_simple_card_parse_convert(dev, node, NULL, &priv->adata);
 
 	/*
 	 * it supports multi CPU, single CODEC only here
