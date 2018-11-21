@@ -117,21 +117,21 @@
 	vref-supply = <&reg_dcdc1>;
 	status = "okay";
 
-	button@200 {
+	button-200 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <191011>;
 	};
 
-	button@400 {
+	button-400 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <391304>;
 	};
 
-	button@600 {
+	button-600 {
 		label = "Home";
 		linux,code = <KEY_HOME>;
 		channel = <0>;
