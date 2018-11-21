@@ -553,13 +553,6 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	}
 
 	if (IS_HASWELL(dev_priv) &&
-	    I915_READ(HSW_STEREO_3D_CTL(crtc_state->cpu_transcoder)) &
-		      S3D_ENABLE) {
-		DRM_DEBUG_KMS("PSR condition failed: Stereo 3D is Enabled\n");
-		return;
-	}
-
-	if (IS_HASWELL(dev_priv) &&
 	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
 		return;
