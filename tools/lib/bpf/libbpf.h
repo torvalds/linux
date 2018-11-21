@@ -297,6 +297,8 @@ LIBBPF_API void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 LIBBPF_API int bpf_map__pin(struct bpf_map *map, const char *path);
 LIBBPF_API int bpf_map__unpin(struct bpf_map *map, const char *path);
 
+LIBBPF_API int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd);
+
 LIBBPF_API long libbpf_get_error(const void *ptr);
 
 struct bpf_prog_load_attr {
