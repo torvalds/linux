@@ -225,16 +225,17 @@ static inline bool
 _iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
 		       const enum iwl_fw_dbg_trigger id)
 {
-	struct iwl_fw_ini_active_triggers *trig = &fwrt->dump.active_trigs[id];
+	struct iwl_fw_ini_active_triggers *active =
+		&fwrt->dump.active_trigs[id];
 	u32 ms;
 
 	if (!fwrt->trans->ini_valid)
 		return false;
 
-	if (!trig || !trig->active)
+	if (!active->active)
 		return false;
 
-	ms = le32_to_cpu(trig->conf->ignore_consec);
+	ms = le32_to_cpu(active->trig->ignore_consec);
 	if (ms)
 		ms /= USEC_PER_MSEC;
 

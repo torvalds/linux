@@ -204,8 +204,13 @@ struct iwl_fw_ini_region_tlv {
  * struct iwl_fw_ini_trigger - (IWL_FW_INI_TLV_TYPE_DUMP_CFG)
  * Region sections define IDs and triggers that use those IDs TLV
  *
- * @trigger_id: enum &iwl_fw_ini_trigger_id
- * @ignore_default: override FW TLV with binary TLV
+ * @trigger_id: enum &iwl_fw_ini_tigger_id
+ * @override_trig: determines how apply trigger in case a trigger with the
+ *	same id is already in use. Using the first 2 bytes:
+ *	Byte 0: if 0, override trigger configuration, otherwise use the
+ *	existing configuration.
+ *	Byte 1: if 0, override trigger regions, otherwise append regions to
+ *	existing trigger.
  * @dump_delay: delay from trigger fire to dump, in usec
  * @occurrences: max amount of times to be fired
  * @ignore_consec: ignore consecutive triggers, in usec
@@ -217,7 +222,7 @@ struct iwl_fw_ini_region_tlv {
  */
 struct iwl_fw_ini_trigger {
 	__le32 trigger_id;
-	__le32 ignore_default;
+	__le32 override_trig;
 	__le32 dump_delay;
 	__le32 occurrences;
 	__le32 ignore_consec;

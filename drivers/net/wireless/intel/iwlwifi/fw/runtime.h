@@ -160,8 +160,20 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 
 static inline void iwl_fw_runtime_free(struct iwl_fw_runtime *fwrt)
 {
+	int i;
+
 	kfree(fwrt->dump.d3_debug_data);
 	fwrt->dump.d3_debug_data = NULL;
+
+	for (i = 0; i < IWL_FW_TRIGGER_ID_NUM; i++) {
+		struct iwl_fw_ini_active_triggers *active =
+			&fwrt->dump.active_trigs[i];
+
+		active->active = false;
+		active->size = 0;
+		kfree(active->trig);
+		active->trig = NULL;
+	}
 }
 
 void iwl_fw_runtime_suspend(struct iwl_fw_runtime *fwrt);

@@ -234,15 +234,13 @@ struct iwl_fw_ini_allocation_data {
 /**
  * struct iwl_fw_ini_active_triggers
  * @active: is this trigger active
- * @apply_point: last apply point that updated this trigger
- * @conf: active trigger
- * @conf_ext: second trigger, contains extra regions to dump
+ * @size: allocated memory size of the trigger
+ * @trig: trigger
  */
 struct iwl_fw_ini_active_triggers {
 	bool active;
-	enum iwl_fw_ini_apply_point apply_point;
-	struct iwl_fw_ini_trigger *conf;
-	struct iwl_fw_ini_trigger *conf_ext;
+	size_t size;
+	struct iwl_fw_ini_trigger *trig;
 };
 
 /**

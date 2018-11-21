@@ -1473,20 +1473,19 @@ _iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
 	int size, id = le32_to_cpu(fwrt->dump.desc->trig_desc.type);
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_file *dump_file;
-	struct iwl_fw_ini_trigger *trigger, *ext;
+	struct iwl_fw_ini_trigger *trigger;
 
 	if (id == FW_DBG_TRIGGER_FW_ASSERT)
 		id = IWL_FW_TRIGGER_ID_FW_ASSERT;
 
-	if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_trigs)))
+	if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_trigs)) ||
+	    !fwrt->dump.active_trigs[id].active)
 		return NULL;
 
-	trigger = fwrt->dump.active_trigs[id].conf;
-	ext = fwrt->dump.active_trigs[id].conf_ext;
+	trigger = fwrt->dump.active_trigs[id].trig;
 
 	size = sizeof(*dump_file);
 	size += iwl_fw_ini_get_trigger_len(fwrt, trigger);
-	size += iwl_fw_ini_get_trigger_len(fwrt, ext);
 
 	if (!size)
 		return NULL;
@@ -1501,10 +1500,7 @@ _iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
 	dump_data = (void *)dump_file->data;
 	dump_file->file_len = cpu_to_le32(size);
 
-	if (trigger)
-		iwl_fw_ini_dump_trigger(fwrt, trigger, &dump_data);
-	if (ext)
-		iwl_fw_ini_dump_trigger(fwrt, ext, &dump_data);
+	iwl_fw_ini_dump_trigger(fwrt, trigger, &dump_data);
 
 	return dump_file;
 }
@@ -1696,6 +1692,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		       u32 id, const char *str, size_t len)
 {
 	struct iwl_fw_dump_desc *desc;
+	struct iwl_fw_ini_active_triggers *active;
 	u32 occur, delay;
 
 	if (!fwrt->trans->ini_valid)
@@ -1704,15 +1701,17 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	if (id == FW_DBG_TRIGGER_USER)
 		id = IWL_FW_TRIGGER_ID_USER_TRIGGER;
 
-	if (WARN_ON(!fwrt->dump.active_trigs[id].active))
+	active = &fwrt->dump.active_trigs[id];
+
+	if (WARN_ON(!active->active))
 		return -EINVAL;
 
-	delay = le32_to_cpu(fwrt->dump.active_trigs[id].conf->dump_delay);
-	occur = le32_to_cpu(fwrt->dump.active_trigs[id].conf->occurrences);
+	delay = le32_to_cpu(active->trig->dump_delay);
+	occur = le32_to_cpu(active->trig->occurrences);
 	if (!occur)
 		return 0;
 
-	if (le32_to_cpu(fwrt->dump.active_trigs[id].conf->force_restart)) {
+	if (le32_to_cpu(active->trig->force_restart)) {
 		IWL_WARN(fwrt, "Force restart: trigger %d fired.\n", id);
 		iwl_force_nmi(fwrt->trans);
 		return 0;
@@ -1722,8 +1721,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	if (!desc)
 		return -ENOMEM;
 
-	occur--;
-	fwrt->dump.active_trigs[id].conf->occurrences = cpu_to_le32(occur);
+	active->trig->occurrences = cpu_to_le32(--occur);
 
 	desc->len = len;
 	desc->trig_desc.type = cpu_to_le32(id);
@@ -2022,6 +2020,26 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 	}
 }
 
+static int iwl_fw_dbg_trig_realloc(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_active_triggers *active,
+				   u32 id, int size)
+{
+	void *ptr;
+
+	if (size <= active->size)
+		return 0;
+
+	ptr = krealloc(active->trig, size, GFP_KERNEL);
+	if (!ptr) {
+		IWL_ERR(fwrt, "Failed to allocate memory for trigger %d\n", id);
+		return -ENOMEM;
+	}
+	active->trig = ptr;
+	active->size = size;
+
+	return 0;
+}
+
 static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
 				       struct iwl_fw_ini_trigger_tlv *tlv,
 				       bool ext,
@@ -2034,43 +2052,63 @@ static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
 		struct iwl_fw_ini_trigger *trig = iter;
 		struct iwl_fw_ini_active_triggers *active;
 		int id = le32_to_cpu(trig->trigger_id);
-		u32 num;
+		u32 trig_regs_size = le32_to_cpu(trig->num_regions) *
+			sizeof(__le32);
 
 		if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_trigs)))
 			break;
 
 		active = &fwrt->dump.active_trigs[id];
 
-		if (active->apply_point != apply_point) {
-			active->conf = NULL;
-			active->conf_ext = NULL;
-		}
+		if (!active->active) {
+			size_t trig_size = sizeof(*trig) + trig_regs_size;
 
-		num = le32_to_cpu(trig->num_regions);
+			if (iwl_fw_dbg_trig_realloc(fwrt, active, id,
+						    trig_size))
+				goto next;
 
-		if (ext && active->apply_point == apply_point) {
-			num += le32_to_cpu(active->conf->num_regions);
-			if (trig->ignore_default) {
-				active->conf_ext = active->conf;
-				active->conf = trig;
-			} else {
-				active->conf_ext = trig;
-			}
+			memcpy(active->trig, trig, trig_size);
+
 		} else {
-			active->conf = trig;
+			u32 conf_override =
+				!(le32_to_cpu(trig->override_trig) & 0xff);
+			u32 region_override =
+				!(le32_to_cpu(trig->override_trig) & 0xff00);
+			u32 offset = 0;
+			u32 active_regs =
+				le32_to_cpu(active->trig->num_regions);
+			u32 new_regs = le32_to_cpu(trig->num_regions);
+			int mem_to_add = trig_regs_size;
+
+			if (region_override) {
+				mem_to_add -= active_regs * sizeof(__le32);
+			} else {
+				offset += active_regs;
+				new_regs += active_regs;
+			}
+
+			if (iwl_fw_dbg_trig_realloc(fwrt, active, id,
+						    active->size + mem_to_add))
+				goto next;
+
+			if (conf_override)
+				memcpy(active->trig, trig, sizeof(*trig));
+
+			memcpy(active->trig->data + offset, trig->data,
+			       trig_regs_size);
+			active->trig->num_regions = cpu_to_le32(new_regs);
 		}
 
 		/* Since zero means infinity - just set to -1 */
-		if (!le32_to_cpu(trig->occurrences))
-			trig->occurrences = cpu_to_le32(-1);
-		if (!le32_to_cpu(trig->ignore_consec))
-			trig->ignore_consec = cpu_to_le32(-1);
+		if (!le32_to_cpu(active->trig->occurrences))
+			active->trig->occurrences = cpu_to_le32(-1);
+		if (!le32_to_cpu(active->trig->ignore_consec))
+			active->trig->ignore_consec = cpu_to_le32(-1);
 
-		iter += sizeof(*trig) +
-			le32_to_cpu(trig->num_regions) * sizeof(__le32);
+		active->active = true;
+next:
+		iter += sizeof(*trig) + trig_regs_size;
 
-		active->active = num;
-		active->apply_point = apply_point;
 	}
 }
 
@@ -2129,6 +2167,10 @@ void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 	if (apply_point == IWL_FW_INI_APPLY_EARLY) {
 		for (i = 0; i < IWL_FW_INI_MAX_REGION_ID; i++)
 			fwrt->dump.active_regs[i] = NULL;
+
+		/* disable the triggers, used in recovery flow */
+		for (i = 0; i < IWL_FW_TRIGGER_ID_NUM; i++)
+			fwrt->dump.active_trigs[i].active = false;
 	}
 
 	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, false);
