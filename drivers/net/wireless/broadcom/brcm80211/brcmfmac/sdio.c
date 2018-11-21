@@ -3354,7 +3354,11 @@ err:
 
 static bool brcmf_sdio_aos_no_decode(struct brcmf_sdio *bus)
 {
-	if (bus->ci->chip == CY_CC_43012_CHIP_ID)
+	if (bus->ci->chip == CY_CC_43012_CHIP_ID ||
+	    bus->ci->chip == CY_CC_4373_CHIP_ID ||
+	    bus->ci->chip == BRCM_CC_4339_CHIP_ID ||
+	    bus->ci->chip == BRCM_CC_4345_CHIP_ID ||
+	    bus->ci->chip == BRCM_CC_4354_CHIP_ID)
 		return true;
 	else
 		return false;
