@@ -527,6 +527,11 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 		return;
 	}
 
+	if (dev_priv->psr.sink_not_reliable) {
+		DRM_DEBUG_KMS("PSR sink implementation is not reliable\n");
+		return;
+	}
+
 	if (IS_HASWELL(dev_priv) &&
 	    I915_READ(HSW_STEREO_3D_CTL(crtc_state->cpu_transcoder)) &
 		      S3D_ENABLE) {
@@ -1123,6 +1128,7 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	if ((val & DP_PSR_SINK_STATE_MASK) == DP_PSR_SINK_INTERNAL_ERROR) {
 		DRM_DEBUG_KMS("PSR sink internal error, disabling PSR\n");
 		intel_psr_disable_locked(intel_dp);
+		psr->sink_not_reliable = true;
 	}
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_ERROR_STATUS, &val) != 1) {
@@ -1140,8 +1146,10 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	if (val & ~errors)
 		DRM_ERROR("PSR_ERROR_STATUS unhandled errors %x\n",
 			  val & ~errors);
-	if (val & errors)
+	if (val & errors) {
 		intel_psr_disable_locked(intel_dp);
+		psr->sink_not_reliable = true;
+	}
 	/* clear status register */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, val);
 exit:
