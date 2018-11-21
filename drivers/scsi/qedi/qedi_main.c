@@ -659,6 +659,7 @@ static int qedi_ll2_rx(void *cookie, struct sk_buff *skb, u32 arg1, u32 arg2)
 	struct qedi_uio_dev *udev;
 	struct qedi_uio_ctrl *uctrl;
 	struct skb_work_list *work;
+	struct ethhdr *eh;
 	u32 prod;
 
 	if (!qedi) {
@@ -672,6 +673,29 @@ static int qedi_ll2_rx(void *cookie, struct sk_buff *skb, u32 arg1, u32 arg2)
 		kfree_skb(skb);
 		return 0;
 	}
+
+	eh = (struct ethhdr *)skb->data;
+	/* Undo VLAN encapsulation */
+	if (eh->h_proto == htons(ETH_P_8021Q)) {
+		memmove((u8 *)eh + VLAN_HLEN, eh, ETH_ALEN * 2);
+		eh = (struct ethhdr *)skb_pull(skb, VLAN_HLEN);
+		skb_reset_mac_header(skb);
+	}
+
+	/* Filter out non FIP/FCoE frames here to free them faster */
+	if (eh->h_proto != htons(ETH_P_ARP) &&
+	    eh->h_proto != htons(ETH_P_IP) &&
+	    eh->h_proto != htons(ETH_P_IPV6)) {
+		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_LL2,
+			  "Dropping frame ethertype [0x%x] len [0x%x].\n",
+			  eh->h_proto, skb->len);
+		kfree_skb(skb);
+		return 0;
+	}
+
+	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_LL2,
+		  "Allowed frame ethertype [0x%x] len [0x%x].\n",
+		  eh->h_proto, skb->len);
 
 	udev = qedi->udev;
 	uctrl = udev->uctrl;
