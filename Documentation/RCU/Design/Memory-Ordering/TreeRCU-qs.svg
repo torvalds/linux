@@ -775,7 +775,7 @@
          font-style="normal"
          y="-4418.6582"
          x="3745.7725"
-         xml:space="preserve">rcu_check_callbacks()</text>
+         xml:space="preserve">rcu_sched_clock_irq()</text>
     </g>
     <g
        transform="translate(399.7744,828.86448)"

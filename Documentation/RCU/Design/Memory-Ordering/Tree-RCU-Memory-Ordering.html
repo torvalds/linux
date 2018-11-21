@@ -485,7 +485,7 @@ section that the grace period must wait on.
 noted by <tt>rcu_node_context_switch()</tt> on the left.
 On the other hand, if the CPU takes a scheduler-clock interrupt
 while executing in usermode, a quiescent state will be noted by
-<tt>rcu_check_callbacks()</tt> on the right.
+<tt>rcu_sched_clock_irq()</tt> on the right.
 Either way, the passage through a quiescent state will be noted
 in a per-CPU variable.
 
@@ -651,7 +651,7 @@ to end.
 These callbacks are identified by <tt>rcu_advance_cbs()</tt>,
 which is usually invoked by <tt>__note_gp_changes()</tt>.
 As shown in the diagram below, this invocation can be triggered by
-the scheduling-clock interrupt (<tt>rcu_check_callbacks()</tt> on
+the scheduling-clock interrupt (<tt>rcu_sched_clock_irq()</tt> on
 the left) or by idle entry (<tt>rcu_cleanup_after_idle()</tt> on
 the right, but only for kernels build with
 <tt>CONFIG_RCU_FAST_NO_HZ=y</tt>).

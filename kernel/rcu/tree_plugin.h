@@ -297,7 +297,7 @@ static void rcu_qs(void)
 				       __this_cpu_read(rcu_data.gp_seq),
 				       TPS("cpuqs"));
 		__this_cpu_write(rcu_data.cpu_no_qs.b.norm, false);
-		barrier(); /* Coordinate with rcu_flavor_check_callbacks(). */
+		barrier(); /* Coordinate with rcu_flavor_sched_clock_irq(). */
 		current->rcu_read_unlock_special.b.need_qs = false;
 	}
 }
@@ -778,13 +778,13 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 }
 
 /*
- * Check for a quiescent state from the current CPU.  When a task blocks,
- * the task is recorded in the corresponding CPU's rcu_node structure,
- * which is checked elsewhere.
- *
- * Caller must disable hard irqs.
+ * Check for a quiescent state from the current CPU, including voluntary
+ * context switches for Tasks RCU.  When a task blocks, the task is
+ * recorded in the corresponding CPU's rcu_node structure, which is checked
+ * elsewhere, hence this function need only check for quiescent states
+ * related to the current CPU, not to those related to tasks.
  */
-static void rcu_flavor_check_callbacks(int user)
+static void rcu_flavor_sched_clock_irq(int user)
 {
 	struct task_struct *t = current;
 
@@ -1030,14 +1030,10 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 }
 
 /*
- * Check to see if this CPU is in a non-context-switch quiescent state
- * (user mode or idle loop for rcu, non-softirq execution for rcu_bh).
- * Also schedule RCU core processing.
- *
- * This function must be called from hardirq context.  It is normally
- * invoked from the scheduling-clock interrupt.
+ * Check to see if this CPU is in a non-context-switch quiescent state,
+ * namely user mode and idle loop.
  */
-static void rcu_flavor_check_callbacks(int user)
+static void rcu_flavor_sched_clock_irq(int user)
 {
 	if (user || rcu_is_cpu_rrupt_from_idle()) {
 

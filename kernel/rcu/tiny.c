@@ -76,7 +76,7 @@ void rcu_qs(void)
  * be called from hardirq context.  It is normally called from the
  * scheduling-clock interrupt.
  */
-void rcu_check_callbacks(int user)
+void rcu_sched_clock_irq(int user)
 {
 	if (user) {
 		rcu_qs();
