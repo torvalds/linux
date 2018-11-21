@@ -887,6 +887,24 @@ update_gpuvm_pte_failed:
 	return ret;
 }
 
+static struct sg_table *create_doorbell_sg(uint64_t addr, uint32_t size)
+{
+	struct sg_table *sg = kmalloc(sizeof(*sg), GFP_KERNEL);
+
+	if (!sg)
+		return NULL;
+	if (sg_alloc_table(sg, 1, GFP_KERNEL)) {
+		kfree(sg);
+		return NULL;
+	}
+	sg->sgl->dma_address = addr;
+	sg->sgl->length = size;
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+	sg->sgl->dma_length = size;
+#endif
+	return sg;
+}
+
 static int process_validate_vms(struct amdkfd_process_info *process_info)
 {
 	struct amdgpu_vm *peer_vm;
@@ -1170,6 +1188,8 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct amdgpu_vm *avm = (struct amdgpu_vm *)vm;
+	enum ttm_bo_type bo_type = ttm_bo_type_device;
+	struct sg_table *sg = NULL;
 	uint64_t user_addr = 0;
 	struct amdgpu_bo *bo;
 	struct amdgpu_bo_param bp;
@@ -1198,13 +1218,25 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 		if (!offset || !*offset)
 			return -EINVAL;
 		user_addr = *offset;
+	} else if (flags & ALLOC_MEM_FLAGS_DOORBELL) {
+		domain = AMDGPU_GEM_DOMAIN_GTT;
+		alloc_domain = AMDGPU_GEM_DOMAIN_CPU;
+		bo_type = ttm_bo_type_sg;
+		alloc_flags = 0;
+		if (size > UINT_MAX)
+			return -EINVAL;
+		sg = create_doorbell_sg(*offset, size);
+		if (!sg)
+			return -ENOMEM;
 	} else {
 		return -EINVAL;
 	}
 
 	*mem = kzalloc(sizeof(struct kgd_mem), GFP_KERNEL);
-	if (!*mem)
-		return -ENOMEM;
+	if (!*mem) {
+		ret = -ENOMEM;
+		goto err;
+	}
 	INIT_LIST_HEAD(&(*mem)->bo_va_list);
 	mutex_init(&(*mem)->lock);
 	(*mem)->aql_queue = !!(flags & ALLOC_MEM_FLAGS_AQL_QUEUE_MEM);
@@ -1237,7 +1269,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 
 	amdgpu_sync_create(&(*mem)->sync);
 
-	ret = amdgpu_amdkfd_reserve_mem_limit(adev, size, alloc_domain, false);
+	ret = amdgpu_amdkfd_reserve_mem_limit(adev, size, alloc_domain, !!sg);
 	if (ret) {
 		pr_debug("Insufficient system memory\n");
 		goto err_reserve_limit;
@@ -1251,13 +1283,17 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	bp.byte_align = byte_align;
 	bp.domain = alloc_domain;
 	bp.flags = alloc_flags;
-	bp.type = ttm_bo_type_device;
+	bp.type = bo_type;
 	bp.resv = NULL;
 	ret = amdgpu_bo_create(adev, &bp, &bo);
 	if (ret) {
 		pr_debug("Failed to create BO on domain %s. ret %d\n",
 				domain_string(alloc_domain), ret);
 		goto err_bo_create;
+	}
+	if (bo_type == ttm_bo_type_sg) {
+		bo->tbo.sg = sg;
+		bo->tbo.ttm->sg = sg;
 	}
 	bo->kfd_bo = *mem;
 	(*mem)->bo = bo;
@@ -1290,10 +1326,15 @@ allocate_init_user_pages_failed:
 	/* Don't unreserve system mem limit twice */
 	goto err_reserve_limit;
 err_bo_create:
-	unreserve_mem_limit(adev, size, alloc_domain, false);
+	unreserve_mem_limit(adev, size, alloc_domain, !!sg);
 err_reserve_limit:
 	mutex_destroy(&(*mem)->lock);
 	kfree(*mem);
+err:
+	if (sg) {
+		sg_free_table(sg);
+		kfree(sg);
+	}
 	return ret;
 }
 
@@ -1362,6 +1403,14 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 
 	/* Free the sync object */
 	amdgpu_sync_free(&mem->sync);
+
+	/* If the SG is not NULL, it's one we created for a doorbell
+	 * BO. We need to free it.
+	 */
+	if (mem->bo->tbo.sg) {
+		sg_free_table(mem->bo->tbo.sg);
+		kfree(mem->bo->tbo.sg);
+	}
 
 	/* Free the BO*/
 	amdgpu_bo_unref(&mem->bo);
