@@ -95,6 +95,6 @@ void DeInitLed871x(struct LED_871x *pLed);
 /* hal... */
 void BlinkHandler(struct LED_871x *pLed);
 void sw_led_on(struct adapter *padapter, struct LED_871x *pLed);
-void SwLedOff(struct adapter *padapter, struct LED_871x *pLed);
+void sw_led_off(struct adapter *padapter, struct LED_871x *pLed);
 
 #endif /* __RTW_LED_H_ */

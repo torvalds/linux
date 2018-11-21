@@ -21,7 +21,7 @@ void sw_led_on(struct adapter *padapter, struct LED_871x *pLed)
 	pLed->bLedOn = true;
 }
 
-void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
+void sw_led_off(struct adapter *padapter, struct LED_871x *pLed)
 {
 	u8 led_cfg;
 

@@ -98,13 +98,13 @@ static void SwLedBlink1(struct LED_871x *pLed)
 		RT_TRACE(_module_rtl8712_led_c_, _drv_info_,
 			 ("Blinktimes (%d): turn on\n", pLed->BlinkTimes));
 	} else {
-		SwLedOff(padapter, pLed);
+		sw_led_off(padapter, pLed);
 		RT_TRACE(_module_rtl8712_led_c_, _drv_info_,
 			 ("Blinktimes (%d): turn off\n", pLed->BlinkTimes));
 	}
 
 	if (padapter->pwrctrlpriv.rf_pwrstate != rf_on) {
-		SwLedOff(padapter, pLed);
+		sw_led_off(padapter, pLed);
 		ResetLedStatus(pLed);
 		return;
 	}
@@ -445,7 +445,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 			del_timer_sync(&pLed->BlinkTimer);
 			pLed->bLedScanBlinkInProgress = false;
 		}
-		SwLedOff(padapter, pLed);
+		sw_led_off(padapter, pLed);
 		break;
 	default:
 		break;
