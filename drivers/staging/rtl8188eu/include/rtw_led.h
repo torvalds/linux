@@ -76,7 +76,7 @@ struct LED_871x {
 	((struct LED_871x *)_LED_871x)->CurrLedState == LED_BLINK_WPS_STOP || \
 	((struct LED_871x *)_LED_871x)->bLedWPSBlinkInProgress)
 
-void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE	LedAction);
+void led_control_8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction);
 
 struct led_priv {
 	/* add for led control */

@@ -465,7 +465,7 @@ void blink_handler(struct LED_871x *pLed)
 	SwLedBlink1(pLed);
 }
 
-void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction)
+void led_control_8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 {
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped ||
 	    !padapter->hw_init_completed)

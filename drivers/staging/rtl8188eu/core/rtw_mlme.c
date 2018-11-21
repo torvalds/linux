@@ -785,7 +785,7 @@ void rtw_indicate_connect(struct adapter *padapter)
 	if (!check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 		set_fwstate(pmlmepriv, _FW_LINKED);
 
-		LedControl8188eu(padapter, LED_CTL_LINK);
+		led_control_8188eu(padapter, LED_CTL_LINK);
 
 		rtw_os_indicate_connect(padapter);
 	}
@@ -816,7 +816,7 @@ void rtw_indicate_disconnect(struct adapter *padapter)
 		rtw_os_indicate_disconnect(padapter);
 
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
-		LedControl8188eu(padapter, LED_CTL_NO_LINK);
+		led_control_8188eu(padapter, LED_CTL_NO_LINK);
 		rtw_clear_scan_deny(padapter);
 	}
 
