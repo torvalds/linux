@@ -1268,6 +1268,7 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	/* Registered a new RoCE device instance to netdev */
 	rc = bnxt_re_register_netdev(rdev);
 	if (rc) {
+		rtnl_unlock();
 		pr_err("Failed to register with netedev: %#x\n", rc);
 		return -EINVAL;
 	}
