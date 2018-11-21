@@ -10,11 +10,6 @@
 #include <rtl8188e_hal.h>
 #include <usb_ops_linux.h>
 
-/*  LED object. */
-
-/*  LED_819xUsb routines. */
-/*	Description: */
-/*		Turn on LED according to LedPin specified. */
 void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
 {
 	u8	LedCfg;
@@ -22,12 +17,10 @@ void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return;
 	LedCfg = usb_read8(padapter, REG_LEDCFG2);
-	usb_write8(padapter, REG_LEDCFG2, (LedCfg&0xf0) | BIT(5) | BIT(6)); /*  SW control led0 on. */
+	usb_write8(padapter, REG_LEDCFG2, (LedCfg&0xf0) | BIT(5) | BIT(6));
 	pLed->bLedOn = true;
 }
 
-/*	Description: */
-/*		Turn off LED according to LedPin specified. */
 void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
 {
 	u8	LedCfg;
@@ -47,11 +40,6 @@ exit:
 	pLed->bLedOn = false;
 }
 
-/*  Interface to manipulate LED objects. */
-/*  Default LED behavior. */
-
-/*	Description: */
-/*		Initialize all LED_871x objects. */
 void rtw_hal_sw_led_init(struct adapter *padapter)
 {
 	struct led_priv *pledpriv = &padapter->ledpriv;
@@ -59,8 +47,6 @@ void rtw_hal_sw_led_init(struct adapter *padapter)
 	InitLed871x(padapter, &pledpriv->SwLed0);
 }
 
-/*	Description: */
-/*		DeInitialize all LED_819xUsb objects. */
 void rtw_hal_sw_led_deinit(struct adapter *padapter)
 {
 	struct led_priv *ledpriv = &padapter->ledpriv;
