@@ -46,26 +46,6 @@
 #include <asm/octeon/cvmx-smix-defs.h>
 #include <asm/octeon/cvmx-asxx-defs.h>
 
-/**
- * cvmx_override_pko_queue_priority(int ipd_port, uint64_t
- * priorities[16]) is a function pointer. It is meant to allow
- * customization of the PKO queue priorities based on the port
- * number. Users should set this pointer to a function before
- * calling any cvmx-helper operations.
- */
-void (*cvmx_override_pko_queue_priority) (int pko_port,
-					  uint64_t priorities[16]);
-
-/**
- * cvmx_override_ipd_port_setup(int ipd_port) is a function
- * pointer. It is meant to allow customization of the IPD port
- * setup before packet input/output comes online. It is called
- * after cvmx-helper does the default IPD configuration, but
- * before IPD is enabled. Users should set this pointer to a
- * function before calling any cvmx-helper operations.
- */
-void (*cvmx_override_ipd_port_setup) (int ipd_port);
-
 /* Port count per interface */
 static int interface_port_count[5];
 
@@ -436,10 +416,6 @@ static int __cvmx_helper_port_setup_ipd(int ipd_port)
 
 	cvmx_pip_config_port(ipd_port, port_config, tag_config);
 
-	/* Give the user a chance to override our setting for each port */
-	if (cvmx_override_ipd_port_setup)
-		cvmx_override_ipd_port_setup(ipd_port);
-
 	return 0;
 }
 
@@ -663,13 +639,6 @@ static int __cvmx_helper_interface_setup_pko(int interface)
 	int ipd_port = cvmx_helper_get_ipd_port(interface, 0);
 	int num_ports = interface_port_count[interface];
 	while (num_ports--) {
-		/*
-		 * Give the user a chance to override the per queue
-		 * priorities.
-		 */
-		if (cvmx_override_pko_queue_priority)
-			cvmx_override_pko_queue_priority(ipd_port, priorities);
-
 		cvmx_pko_config_port(ipd_port,
 				     cvmx_pko_get_base_queue_per_core(ipd_port,
 								      0),
