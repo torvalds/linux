@@ -15,6 +15,7 @@
 struct mlxsw_sp_fid_family;
 
 struct mlxsw_sp_fid_core {
+	struct rhashtable fid_ht;
 	struct rhashtable vni_ht;
 	struct mlxsw_sp_fid_family *fid_family_arr[MLXSW_SP_FID_TYPE_MAX];
 	unsigned int *port_fid_mappings;
@@ -26,6 +27,7 @@ struct mlxsw_sp_fid {
 	unsigned int ref_count;
 	u16 fid_index;
 	struct mlxsw_sp_fid_family *fid_family;
+	struct rhash_head ht_node;
 
 	struct rhash_head vni_ht_node;
 	__be32 vni;
@@ -43,6 +45,12 @@ struct mlxsw_sp_fid_8021q {
 struct mlxsw_sp_fid_8021d {
 	struct mlxsw_sp_fid common;
 	int br_ifindex;
+};
+
+static const struct rhashtable_params mlxsw_sp_fid_ht_params = {
+	.key_len = sizeof_field(struct mlxsw_sp_fid, fid_index),
+	.key_offset = offsetof(struct mlxsw_sp_fid, fid_index),
+	.head_offset = offsetof(struct mlxsw_sp_fid, ht_node),
 };
 
 static const struct rhashtable_params mlxsw_sp_fid_vni_ht_params = {
@@ -113,6 +121,19 @@ static const int *mlxsw_sp_packet_type_sfgc_types[] = {
 	[MLXSW_SP_FLOOD_TYPE_BC]	= mlxsw_sp_sfgc_bc_packet_types,
 	[MLXSW_SP_FLOOD_TYPE_MC]	= mlxsw_sp_sfgc_mc_packet_types,
 };
+
+struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_index(struct mlxsw_sp *mlxsw_sp,
+						  u16 fid_index)
+{
+	struct mlxsw_sp_fid *fid;
+
+	fid = rhashtable_lookup_fast(&mlxsw_sp->fid_core->fid_ht, &fid_index,
+				     mlxsw_sp_fid_ht_params);
+	if (fid)
+		fid->ref_count++;
+
+	return fid;
+}
 
 int mlxsw_sp_fid_nve_ifindex(const struct mlxsw_sp_fid *fid, int *nve_ifindex)
 {
@@ -956,10 +977,17 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_configure;
 
+	err = rhashtable_insert_fast(&mlxsw_sp->fid_core->fid_ht, &fid->ht_node,
+				     mlxsw_sp_fid_ht_params);
+	if (err)
+		goto err_rhashtable_insert;
+
 	list_add(&fid->list, &fid_family->fids_list);
 	fid->ref_count++;
 	return fid;
 
+err_rhashtable_insert:
+	fid->fid_family->ops->deconfigure(fid);
 err_configure:
 	__clear_bit(fid_index - fid_family->start_index,
 		    fid_family->fids_bitmap);
@@ -971,6 +999,7 @@ err_index_alloc:
 void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid)
 {
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
+	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
 
 	if (--fid->ref_count == 1 && fid->rif) {
 		/* Destroy the associated RIF and let it drop the last
@@ -979,6 +1008,8 @@ void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid)
 		return mlxsw_sp_rif_destroy(fid->rif);
 	} else if (fid->ref_count == 0) {
 		list_del(&fid->list);
+		rhashtable_remove_fast(&mlxsw_sp->fid_core->fid_ht,
+				       &fid->ht_node, mlxsw_sp_fid_ht_params);
 		fid->fid_family->ops->deconfigure(fid);
 		__clear_bit(fid->fid_index - fid_family->start_index,
 			    fid_family->fids_bitmap);
@@ -1138,9 +1169,13 @@ int mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp)
 		return -ENOMEM;
 	mlxsw_sp->fid_core = fid_core;
 
+	err = rhashtable_init(&fid_core->fid_ht, &mlxsw_sp_fid_ht_params);
+	if (err)
+		goto err_rhashtable_fid_init;
+
 	err = rhashtable_init(&fid_core->vni_ht, &mlxsw_sp_fid_vni_ht_params);
 	if (err)
-		goto err_rhashtable_init;
+		goto err_rhashtable_vni_init;
 
 	fid_core->port_fid_mappings = kcalloc(max_ports, sizeof(unsigned int),
 					      GFP_KERNEL);
@@ -1169,7 +1204,9 @@ err_fid_ops_register:
 	kfree(fid_core->port_fid_mappings);
 err_alloc_port_fid_mappings:
 	rhashtable_destroy(&fid_core->vni_ht);
-err_rhashtable_init:
+err_rhashtable_vni_init:
+	rhashtable_destroy(&fid_core->fid_ht);
+err_rhashtable_fid_init:
 	kfree(fid_core);
 	return err;
 }
@@ -1184,5 +1221,6 @@ void mlxsw_sp_fids_fini(struct mlxsw_sp *mlxsw_sp)
 					       fid_core->fid_family_arr[i]);
 	kfree(fid_core->port_fid_mappings);
 	rhashtable_destroy(&fid_core->vni_ht);
+	rhashtable_destroy(&fid_core->fid_ht);
 	kfree(fid_core);
 }
