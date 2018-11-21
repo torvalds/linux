@@ -3936,8 +3936,6 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 static bool
 intel_dp_get_dpcd(struct intel_dp *intel_dp)
 {
-	u8 sink_count;
-
 	if (!intel_dp_read_dpcd(intel_dp))
 		return false;
 
@@ -3947,25 +3945,35 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		intel_dp_set_common_rates(intel_dp);
 	}
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_SINK_COUNT, &sink_count) <= 0)
-		return false;
-
 	/*
-	 * Sink count can change between short pulse hpd hence
-	 * a member variable in intel_dp will track any changes
-	 * between short pulse interrupts.
+	 * Some eDP panels do not set a valid value for sink count, that is why
+	 * it don't care about read it here and in intel_edp_init_dpcd().
 	 */
-	intel_dp->sink_count = DP_GET_SINK_COUNT(sink_count);
+	if (!intel_dp_is_edp(intel_dp)) {
+		u8 count;
+		ssize_t r;
 
-	/*
-	 * SINK_COUNT == 0 and DOWNSTREAM_PORT_PRESENT == 1 implies that
-	 * a dongle is present but no display. Unless we require to know
-	 * if a dongle is present or not, we don't need to update
-	 * downstream port information. So, an early return here saves
-	 * time from performing other operations which are not required.
-	 */
-	if (!intel_dp_is_edp(intel_dp) && !intel_dp->sink_count)
-		return false;
+		r = drm_dp_dpcd_readb(&intel_dp->aux, DP_SINK_COUNT, &count);
+		if (r < 1)
+			return false;
+
+		/*
+		 * Sink count can change between short pulse hpd hence
+		 * a member variable in intel_dp will track any changes
+		 * between short pulse interrupts.
+		 */
+		intel_dp->sink_count = DP_GET_SINK_COUNT(count);
+
+		/*
+		 * SINK_COUNT == 0 and DOWNSTREAM_PORT_PRESENT == 1 implies that
+		 * a dongle is present but no display. Unless we require to know
+		 * if a dongle is present or not, we don't need to update
+		 * downstream port information. So, an early return here saves
+		 * time from performing other operations which are not required.
+		 */
+		if (!intel_dp->sink_count)
+			return false;
+	}
 
 	if (!drm_dp_is_branch(intel_dp->dpcd))
 		return true; /* native DP sink */
