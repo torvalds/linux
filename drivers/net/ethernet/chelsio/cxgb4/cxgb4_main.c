@@ -453,7 +453,7 @@ static int link_start(struct net_device *dev)
 	if (ret == 0) {
 		ret = t4_change_mac(pi->adapter, mb, pi->viid,
 				    pi->xact_addr_filt, dev->dev_addr, true,
-				    true);
+				    &pi->smt_idx);
 		if (ret >= 0) {
 			pi->xact_addr_filt = ret;
 			ret = 0;
@@ -1583,28 +1583,6 @@ unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
 	return mtus[mtu_idx];
 }
 EXPORT_SYMBOL(cxgb4_best_aligned_mtu);
-
-/**
- *	cxgb4_tp_smt_idx - Get the Source Mac Table index for this VI
- *	@chip: chip type
- *	@viid: VI id of the given port
- *
- *	Return the SMT index for this VI.
- */
-unsigned int cxgb4_tp_smt_idx(enum chip_type chip, unsigned int viid)
-{
-	/* In T4/T5, SMT contains 256 SMAC entries organized in
-	 * 128 rows of 2 entries each.
-	 * In T6, SMT contains 256 SMAC entries in 256 rows.
-	 * TODO: The below code needs to be updated when we add support
-	 * for 256 VFs.
-	 */
-	if (CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5)
-		return ((viid & 0x7f) << 1);
-	else
-		return (viid & 0x7f);
-}
-EXPORT_SYMBOL(cxgb4_tp_smt_idx);
 
 /**
  *	cxgb4_port_chan - get the HW channel of a port
@@ -2862,7 +2840,8 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 		return -EADDRNOTAVAIL;
 
 	ret = t4_change_mac(pi->adapter, pi->adapter->pf, pi->viid,
-			    pi->xact_addr_filt, addr->sa_data, true, true);
+			    pi->xact_addr_filt, addr->sa_data, true,
+			    &pi->smt_idx);
 	if (ret < 0)
 		return ret;
 
@@ -4466,6 +4445,15 @@ static int adap_init0(struct adapter *adap)
 		adap->params.filter2_wr_support = (ret == 0 && val[0] != 0);
 	}
 
+	/* Check if FW supports returning vin and smt index.
+	 * If this is not supported, driver will interpret
+	 * these values from viid.
+	 */
+	params[0] = FW_PARAM_DEV(OPAQUE_VIID_SMT_EXTN);
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+			      1, params, val);
+	adap->params.viid_smt_extn_support = (ret == 0 && val[0] != 0);
+
 	/*
 	 * Get device capabilities so we can determine what resources we need
 	 * to manage.
@@ -4776,14 +4764,26 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 
 	for_each_port(adap, i) {
-		struct port_info *p = adap2pinfo(adap, i);
+		struct port_info *pi = adap2pinfo(adap, i);
+		u8 vivld = 0, vin = 0;
 
-		ret = t4_alloc_vi(adap, adap->mbox, p->tx_chan, adap->pf, 0, 1,
-				  NULL, NULL);
+		ret = t4_alloc_vi(adap, adap->mbox, pi->tx_chan, adap->pf, 0, 1,
+				  NULL, NULL, &vivld, &vin);
 		if (ret < 0)
 			return PCI_ERS_RESULT_DISCONNECT;
-		p->viid = ret;
-		p->xact_addr_filt = -1;
+		pi->viid = ret;
+		pi->xact_addr_filt = -1;
+		/* If fw supports returning the VIN as part of FW_VI_CMD,
+		 * save the returned values.
+		 */
+		if (adap->params.viid_smt_extn_support) {
+			pi->vivld = vivld;
+			pi->vin = vin;
+		} else {
+			/* Retrieve the values from VIID */
+			pi->vivld = FW_VIID_VIVLD_G(pi->viid);
+			pi->vin = FW_VIID_VIN_G(pi->viid);
+		}
 	}
 
 	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
