@@ -557,7 +557,20 @@ bootmem_free_done:
 
 }
 
-struct cvmx_bootmem_named_block_desc *
+/**
+ * Finds a named memory block by name.
+ * Also used for finding an unused entry in the named block table.
+ *
+ * @name: Name of memory block to find.	 If NULL pointer given, then
+ *	  finds unused descriptor, if available.
+ *
+ * @flags: Flags to control options for the allocation.
+ *
+ * Returns Pointer to memory block descriptor, NULL if not found.
+ *	   If NULL returned when name parameter is NULL, then no memory
+ *	   block descriptors are available.
+ */
+static struct cvmx_bootmem_named_block_desc *
 	cvmx_bootmem_phy_named_block_find(char *name, uint32_t flags)
 {
 	unsigned int i;
@@ -651,7 +664,16 @@ struct cvmx_bootmem_named_block_desc *cvmx_bootmem_find_named_block(char *name)
 }
 EXPORT_SYMBOL(cvmx_bootmem_find_named_block);
 
-int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
+/**
+ * Frees a named block.
+ *
+ * @name:   name of block to free
+ * @flags:  flags for passing options
+ *
+ * Returns 0 on failure
+ *	   1 on success
+ */
+static int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
 {
 	struct cvmx_bootmem_named_block_desc *named_block_ptr;
 

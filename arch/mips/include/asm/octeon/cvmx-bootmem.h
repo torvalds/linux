@@ -302,33 +302,6 @@ int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr,
 					   char *name, uint32_t flags);
 
 /**
- * Finds a named memory block by name.
- * Also used for finding an unused entry in the named block table.
- *
- * @name: Name of memory block to find.	 If NULL pointer given, then
- *	  finds unused descriptor, if available.
- *
- * @flags: Flags to control options for the allocation.
- *
- * Returns Pointer to memory block descriptor, NULL if not found.
- *	   If NULL returned when name parameter is NULL, then no memory
- *	   block descriptors are available.
- */
-struct cvmx_bootmem_named_block_desc *
-cvmx_bootmem_phy_named_block_find(char *name, uint32_t flags);
-
-/**
- * Frees a named block.
- *
- * @name:   name of block to free
- * @flags:  flags for passing options
- *
- * Returns 0 on failure
- *	   1 on success
- */
-int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags);
-
-/**
  * Frees a block to the bootmem allocator list.	 This must
  * be used with care, as the size provided must match the size
  * of the block that was allocated, or the list will become
