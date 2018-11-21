@@ -1190,7 +1190,6 @@ mpwrq_cqe_out:
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 {
 	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
-	struct mlx5e_xdpsq *xdpsq = &rq->xdpsq;
 	struct mlx5_cqe64 *cqe;
 	int work_done = 0;
 
@@ -1221,15 +1220,8 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 	} while ((++work_done < budget) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
 out:
-	if (xdpsq->doorbell) {
-		mlx5e_xmit_xdp_doorbell(xdpsq);
-		xdpsq->doorbell = false;
-	}
-
-	if (xdpsq->redirect_flush) {
-		xdp_do_flush_map();
-		xdpsq->redirect_flush = false;
-	}
+	if (rq->xdp_prog)
+		mlx5e_xdp_rx_poll_complete(rq);
 
 	mlx5_cqwq_update_db_record(&cq->wq);
 

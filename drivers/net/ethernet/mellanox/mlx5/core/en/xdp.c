@@ -305,3 +305,18 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 
 	return n - drops;
 }
+
+void mlx5e_xdp_rx_poll_complete(struct mlx5e_rq *rq)
+{
+	struct mlx5e_xdpsq *xdpsq = &rq->xdpsq;
+
+	if (xdpsq->doorbell) {
+		mlx5e_xmit_xdp_doorbell(xdpsq);
+		xdpsq->doorbell = false;
+	}
+
+	if (xdpsq->redirect_flush) {
+		xdp_do_flush_map();
+		xdpsq->redirect_flush = false;
+	}
+}
