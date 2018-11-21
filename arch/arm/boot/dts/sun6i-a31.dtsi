@@ -62,7 +62,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		simplefb_hdmi: framebuffer@0 {
+		simplefb_hdmi: framebuffer-lcd0-hdmi {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
@@ -73,7 +73,7 @@
 			status = "disabled";
 		};
 
-		simplefb_lcd: framebuffer@1 {
+		simplefb_lcd: framebuffer-lcd0 {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0";
