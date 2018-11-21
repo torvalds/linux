@@ -665,7 +665,6 @@ static int qedi_ll2_rx(void *cookie, struct sk_buff *skb, u32 arg1, u32 arg2)
 	struct qedi_uio_ctrl *uctrl;
 	struct skb_work_list *work;
 	struct ethhdr *eh;
-	u32 prod;
 
 	if (!qedi) {
 		QEDI_ERR(NULL, "qedi is NULL\n");
@@ -724,17 +723,10 @@ static int qedi_ll2_rx(void *cookie, struct sk_buff *skb, u32 arg1, u32 arg2)
 
 	spin_lock_bh(&qedi->ll2_lock);
 	list_add_tail(&work->list, &qedi->ll2_skb_list);
-
-	++uctrl->hw_rx_prod_cnt;
-	prod = (uctrl->hw_rx_prod + 1) % RX_RING;
-	if (prod != uctrl->host_rx_cons) {
-		uctrl->hw_rx_prod = prod;
-		spin_unlock_bh(&qedi->ll2_lock);
-		wake_up_process(qedi->ll2_recv_thread);
-		return 0;
-	}
-
 	spin_unlock_bh(&qedi->ll2_lock);
+
+	wake_up_process(qedi->ll2_recv_thread);
+
 	return 0;
 }
 
@@ -749,6 +741,7 @@ static int qedi_ll2_process_skb(struct qedi_ctx *qedi, struct sk_buff *skb,
 	u32 rx_bd_prod;
 	void *pkt;
 	int len = 0;
+	u32 prod;
 
 	if (!qedi) {
 		QEDI_ERR(NULL, "qedi is NULL\n");
@@ -757,12 +750,16 @@ static int qedi_ll2_process_skb(struct qedi_ctx *qedi, struct sk_buff *skb,
 
 	udev = qedi->udev;
 	uctrl = udev->uctrl;
-	pkt = udev->rx_pkt + (uctrl->hw_rx_prod * qedi_ll2_buf_size);
+
+	++uctrl->hw_rx_prod_cnt;
+	prod = (uctrl->hw_rx_prod + 1) % RX_RING;
+
+	pkt = udev->rx_pkt + (prod * qedi_ll2_buf_size);
 	len = min_t(u32, skb->len, (u32)qedi_ll2_buf_size);
 	memcpy(pkt, skb->data, len);
 
 	memset(&rxbd, 0, sizeof(rxbd));
-	rxbd.rx_pkt_index = uctrl->hw_rx_prod;
+	rxbd.rx_pkt_index = prod;
 	rxbd.rx_pkt_len = len;
 	rxbd.vlan_id = vlan_id;
 
@@ -772,6 +769,16 @@ static int qedi_ll2_process_skb(struct qedi_ctx *qedi, struct sk_buff *skb,
 	p_rxbd += rx_bd_prod;
 
 	memcpy(p_rxbd, &rxbd, sizeof(rxbd));
+
+	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_LL2,
+		  "hw_rx_prod [%d] prod [%d] hw_rx_bd_prod [%d] rx_pkt_idx [%d] rx_len [%d].\n",
+		  uctrl->hw_rx_prod, prod, uctrl->hw_rx_bd_prod,
+		  rxbd.rx_pkt_index, rxbd.rx_pkt_len);
+	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_LL2,
+		  "host_rx_cons [%d] hw_rx_bd_cons [%d].\n",
+		  uctrl->host_rx_cons, uctrl->host_rx_bd_cons);
+
+	uctrl->hw_rx_prod = prod;
 
 	/* notify the iscsiuio about new packet */
 	uio_event_notify(&udev->qedi_uinfo);
