@@ -874,10 +874,7 @@ static int usbhsc_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops usbhsc_pm_ops = {
-	.suspend		= usbhsc_suspend,
-	.resume			= usbhsc_resume,
-};
+static SIMPLE_DEV_PM_OPS(usbhsc_pm_ops, usbhsc_suspend, usbhsc_resume);
 
 static struct platform_driver renesas_usbhs_driver = {
 	.driver		= {
