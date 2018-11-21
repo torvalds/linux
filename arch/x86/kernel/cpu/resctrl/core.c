@@ -22,7 +22,7 @@
  * Software Developer Manual June 2016, volume 3, section 17.17.
  */
 
-#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt)	"resctrl: " fmt
 
 #include <linux/slab.h>
 #include <linux/err.h>
@@ -40,12 +40,12 @@
 DEFINE_MUTEX(rdtgroup_mutex);
 
 /*
- * The cached intel_pqr_state is strictly per CPU and can never be
+ * The cached resctrl_pqr_state is strictly per CPU and can never be
  * updated from a remote CPU. Functions which modify the state
  * are called with interrupts disabled and no preemption, which
  * is sufficient for the protection.
  */
-DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
+DEFINE_PER_CPU(struct resctrl_pqr_state, pqr_state);
 
 /*
  * Used to store the max resource name width and max resource data width
@@ -639,7 +639,7 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 
 static void clear_closid_rmid(int cpu)
 {
-	struct intel_pqr_state *state = this_cpu_ptr(&pqr_state);
+	struct resctrl_pqr_state *state = this_cpu_ptr(&pqr_state);
 
 	state->default_closid = 0;
 	state->default_rmid = 0;
@@ -648,7 +648,7 @@ static void clear_closid_rmid(int cpu)
 	wrmsr(IA32_PQR_ASSOC, 0, 0);
 }
 
-static int intel_rdt_online_cpu(unsigned int cpu)
+static int resctrl_online_cpu(unsigned int cpu)
 {
 	struct rdt_resource *r;
 
@@ -674,7 +674,7 @@ static void clear_childcpus(struct rdtgroup *r, unsigned int cpu)
 	}
 }
 
-static int intel_rdt_offline_cpu(unsigned int cpu)
+static int resctrl_offline_cpu(unsigned int cpu)
 {
 	struct rdtgroup *rdtgrp;
 	struct rdt_resource *r;
@@ -866,7 +866,7 @@ static __init bool get_rdt_resources(void)
 
 static enum cpuhp_state rdt_online;
 
-static int __init intel_rdt_late_init(void)
+static int __init resctrl_late_init(void)
 {
 	struct rdt_resource *r;
 	int state, ret;
@@ -877,8 +877,8 @@ static int __init intel_rdt_late_init(void)
 	rdt_init_padding();
 
 	state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
-				  "x86/rdt/cat:online:",
-				  intel_rdt_online_cpu, intel_rdt_offline_cpu);
+				  "x86/resctrl/cat:online:",
+				  resctrl_online_cpu, resctrl_offline_cpu);
 	if (state < 0)
 		return state;
 
@@ -890,20 +890,20 @@ static int __init intel_rdt_late_init(void)
 	rdt_online = state;
 
 	for_each_alloc_capable_rdt_resource(r)
-		pr_info("Intel RDT %s allocation detected\n", r->name);
+		pr_info("%s allocation detected\n", r->name);
 
 	for_each_mon_capable_rdt_resource(r)
-		pr_info("Intel RDT %s monitoring detected\n", r->name);
+		pr_info("%s monitoring detected\n", r->name);
 
 	return 0;
 }
 
-late_initcall(intel_rdt_late_init);
+late_initcall(resctrl_late_init);
 
-static void __exit intel_rdt_exit(void)
+static void __exit resctrl_exit(void)
 {
 	cpuhp_remove_state(rdt_online);
 	rdtgroup_exit();
 }
 
-__exitcall(intel_rdt_exit);
+__exitcall(resctrl_exit);
