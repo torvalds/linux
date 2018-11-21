@@ -32,6 +32,18 @@
 		status = "okay";
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_led>;
+
+		user {
+			label = "debug";
+			gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
 	reg_usb_otg1_vbus: regulator-otg1-vbus {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
@@ -453,6 +465,12 @@
 			MX6SLL_PAD_LCD_HSYNC__LCD_HSYNC		0x79
 			MX6SLL_PAD_LCD_VSYNC__LCD_VSYNC		0x79
 			MX6SLL_PAD_LCD_RESET__LCD_RESET		0x79
+		>;
+	};
+
+	pinctrl_led: ledgrp {
+		fsl,pins = <
+			MX6SLL_PAD_EPDC_VCOM1__GPIO2_IO04	0x17059
 		>;
 	};
 
