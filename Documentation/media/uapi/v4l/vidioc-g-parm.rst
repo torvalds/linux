@@ -42,6 +42,9 @@ side. This is especially useful when using the :ref:`read() <func-read>` or
 :ref:`write() <func-write>`, which are not augmented by timestamps or sequence
 counters, and to avoid unnecessary data copying.
 
+Changing the frame interval shall never change the format. Changing the
+format, on the other hand, may change the frame interval.
+
 Further these ioctls can be used to determine the number of buffers used
 internally by a driver in read/write mode. For implications see the
 section discussing the :ref:`read() <func-read>` function.

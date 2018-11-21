@@ -63,6 +63,9 @@ doesn't match the device capabilities. They must instead modify the
 interval to match what the hardware can provide. The modified interval
 should be as close as possible to the original request.
 
+Changing the frame interval shall never change the format. Changing the
+format, on the other hand, may change the frame interval.
+
 Sub-devices that support the frame interval ioctls should implement them
 on a single pad only. Their behaviour when supported on multiple pads of
 the same sub-device is not defined.
