@@ -156,7 +156,7 @@
 			};
 		};
 
-		video-codec@01c0e000 {
+		video-codec@1c0e000 {
 			compatible = "allwinner,sun8i-h3-video-engine";
 			reg = <0x01c0e000 0x1000>;
 			clocks = <&ccu CLK_BUS_VE>, <&ccu CLK_VE>,
