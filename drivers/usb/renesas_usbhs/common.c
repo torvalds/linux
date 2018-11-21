@@ -874,23 +874,9 @@ static int usbhsc_resume(struct device *dev)
 	return 0;
 }
 
-static int usbhsc_runtime_nop(struct device *dev)
-{
-	/* Runtime PM callback shared between ->runtime_suspend()
-	 * and ->runtime_resume(). Simply returns success.
-	 *
-	 * This driver re-initializes all registers after
-	 * pm_runtime_get_sync() anyway so there is no need
-	 * to save and restore registers here.
-	 */
-	return 0;
-}
-
 static const struct dev_pm_ops usbhsc_pm_ops = {
 	.suspend		= usbhsc_suspend,
 	.resume			= usbhsc_resume,
-	.runtime_suspend	= usbhsc_runtime_nop,
-	.runtime_resume		= usbhsc_runtime_nop,
 };
 
 static struct platform_driver renesas_usbhs_driver = {
