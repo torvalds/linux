@@ -1217,7 +1217,6 @@ void do_user_addr_fault(struct pt_regs *regs,
 			unsigned long hw_error_code,
 			unsigned long address)
 {
-	unsigned long sw_error_code;
 	struct vm_area_struct *vma;
 	struct task_struct *tsk;
 	struct mm_struct *mm;
@@ -1263,13 +1262,6 @@ void do_user_addr_fault(struct pt_regs *regs,
 	}
 
 	/*
-	 * hw_error_code is literally the "page fault error code" passed to
-	 * the kernel directly from the hardware.  But, we will shortly be
-	 * modifying it in software, so give it a new name.
-	 */
-	sw_error_code = hw_error_code;
-
-	/*
 	 * It's safe to allow irq's after cr2 has been saved and the
 	 * vmalloc fault has been handled.
 	 *
@@ -1278,26 +1270,6 @@ void do_user_addr_fault(struct pt_regs *regs,
 	 */
 	if (user_mode(regs)) {
 		local_irq_enable();
-		/*
-		 * Up to this point, X86_PF_USER set in hw_error_code
-		 * indicated a user-mode access.  But, after this,
-		 * X86_PF_USER in sw_error_code will indicate either
-		 * that, *or* an implicit kernel(supervisor)-mode access
-		 * which originated from user mode.
-		 */
-		if (!(hw_error_code & X86_PF_USER)) {
-			/*
-			 * The CPU was in user mode, but the CPU says
-			 * the fault was not a user-mode access.
-			 * Must be an implicit kernel-mode access,
-			 * which we do not expect to happen in the
-			 * user address space.
-			 */
-			pr_warn_once("kernel-mode error from user-mode: %lx\n",
-					hw_error_code);
-
-			sw_error_code |= X86_PF_USER;
-		}
 		flags |= FAULT_FLAG_USER;
 	} else {
 		if (regs->flags & X86_EFLAGS_IF)
@@ -1306,9 +1278,9 @@ void do_user_addr_fault(struct pt_regs *regs,
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
-	if (sw_error_code & X86_PF_WRITE)
+	if (hw_error_code & X86_PF_WRITE)
 		flags |= FAULT_FLAG_WRITE;
-	if (sw_error_code & X86_PF_INSTR)
+	if (hw_error_code & X86_PF_INSTR)
 		flags |= FAULT_FLAG_INSTRUCTION;
 
 #ifdef CONFIG_X86_64
@@ -1321,7 +1293,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 	 * The vsyscall page does not have a "real" VMA, so do this
 	 * emulation before we go searching for VMAs.
 	 */
-	if ((sw_error_code & X86_PF_INSTR) && is_vsyscall_vaddr(address)) {
+	if ((hw_error_code & X86_PF_INSTR) && is_vsyscall_vaddr(address)) {
 		if (emulate_vsyscall(regs, address))
 			return;
 	}
@@ -1345,7 +1317,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 			 * Fault from code in kernel from
 			 * which we do not expect faults.
 			 */
-			bad_area_nosemaphore(regs, sw_error_code, address);
+			bad_area_nosemaphore(regs, hw_error_code, address);
 			return;
 		}
 retry:
@@ -1361,17 +1333,17 @@ retry:
 
 	vma = find_vma(mm, address);
 	if (unlikely(!vma)) {
-		bad_area(regs, sw_error_code, address);
+		bad_area(regs, hw_error_code, address);
 		return;
 	}
 	if (likely(vma->vm_start <= address))
 		goto good_area;
 	if (unlikely(!(vma->vm_flags & VM_GROWSDOWN))) {
-		bad_area(regs, sw_error_code, address);
+		bad_area(regs, hw_error_code, address);
 		return;
 	}
 	if (unlikely(expand_stack(vma, address))) {
-		bad_area(regs, sw_error_code, address);
+		bad_area(regs, hw_error_code, address);
 		return;
 	}
 
@@ -1380,8 +1352,8 @@ retry:
 	 * we can handle it..
 	 */
 good_area:
-	if (unlikely(access_error(sw_error_code, vma))) {
-		bad_area_access_error(regs, sw_error_code, address, vma);
+	if (unlikely(access_error(hw_error_code, vma))) {
+		bad_area_access_error(regs, hw_error_code, address, vma);
 		return;
 	}
 
@@ -1420,13 +1392,13 @@ good_area:
 			return;
 
 		/* Not returning to user mode? Handle exceptions or die: */
-		no_context(regs, sw_error_code, address, SIGBUS, BUS_ADRERR);
+		no_context(regs, hw_error_code, address, SIGBUS, BUS_ADRERR);
 		return;
 	}
 
 	up_read(&mm->mmap_sem);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
-		mm_fault_error(regs, sw_error_code, address, fault);
+		mm_fault_error(regs, hw_error_code, address, fault);
 		return;
 	}
 
